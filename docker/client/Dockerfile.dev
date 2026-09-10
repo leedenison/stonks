@@ -1,7 +1,7 @@
 # The node image, run over a bind mount of the repository. Every tool the client
 # needs, buf and protoc-gen-es included, comes from its lockfile, which the
 # container entrypoint installs into client/node_modules on first start.
-FROM node:26.8.1-alpine3.24
+FROM node:26.8.2-alpine3.24
 ENV NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0
 # The npm cache is a named volume mounted here; see docker/server/Dockerfile.dev.
 RUN mkdir -p /npm-cache && chmod 777 /npm-cache
