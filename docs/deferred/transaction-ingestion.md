@@ -7,9 +7,9 @@ recorded: 2026-09-05
 
 Takes a batch of transactions as some source states them (eg. a broker statement, a trade
 confirmation email, a user exported archive, etc) and records them as that user's
-transaction log.  Invokes fetches of corporate events, resolves instruments and fetches
-prices to maintain the relevant invariants w.r.t. to the period that instruments are
-held.
+transaction log.  Invokes fetches of identifier events, resolves instruments, and fetches
+corporate events and prices to maintain the relevant invariants w.r.t. to the period that
+instruments are held.
 
 ## Why
 
@@ -39,6 +39,16 @@ uploads.
 
 Grouping transactions into events is outside the scope of transaction ingestion but
 providing mechanisms to supply correlating evidence is in scope.
+
+### Stated Key
+
+The identifiers, asset class, currency, venue and description a source states about an
+instrument form the stated key.  It is stored with the transaction as metadata, one row
+per distinct key per upload that its transactions reference, and is the input the
+resolution run answers.  The stated identifiers are held here and only become identifier
+rows when resolution admits them.  Resolution is replayed from the stated key when a
+limit to the validity of an identifier used to associate the transaction is later
+discovered, or when coverage arrives that makes a stated identifier usable.
 
 ### Sources, Channels and Uploads
 
@@ -130,15 +140,22 @@ Database transactions should use dbTx to distinguish from financial transactions
 
 ### Resolution Attempted for All Transactions
 
-Instrument resolution, corporate event fetching and price fetching are attempted at
-ingestion time for any new instruments or time periods covered.    
+Identifier event fetching, instrument resolution, corporate event fetching and price
+fetching are attempted at ingestion time for any new instruments or time periods covered.
+
+### Re-Resolution Moves Transactions
+
+A replayed resolution may answer differently, moving the transaction to another
+instrument.  Holdings, event grouping and cached adjusted values derived from the
+transaction are recomputed.
 
 ## Sketch
 
 Ingestion runs in stages.  The client marshals its source into the neutral format and
-uploads it; the service validates what arrived, resolves the instruments, fetches
-relevant corporate events, fetches relevant prices, fetches relevant FX rates,
-writes the transactions, and partitions them into events.
+uploads it; the service validates what arrived, fetches identifier events for the
+routine identifiers stated, resolves the instruments, fetches relevant corporate events,
+fetches relevant prices, fetches relevant FX rates, writes the transactions, and
+partitions them into events.
 
 Resolution is keyed on what the source stated, so one description is resolved once for the
 whole upload however many transactions carry it.

@@ -36,49 +36,10 @@ know its conventions.  So the client must interpret the conventions and provide 
 
 An FX rate is not restated by corporate events, so it is stated as at its own date.
 
-## Shared Datasource Constraints
+### Datasources
 
-### On-Demand Fetch
-
-We generally have no datasource that offers bulk fetching of price data.  We
-therefore need to fetch prices for the instruments held by users on demand
-covering the period the instrument was held.  The datamodel must be able to express which
-instruments we have successfully fetched prices for, what time periods they cover and
-whether retrieval of a particular instrument from a particular datasource failed
-temporarily or permanently.
-
-### Fetching from Multiple Sources
-
-We generally have no datasource that offers price data for the complete range of
-instruments we want to price (due to coverage limits on geography, asset class, historic
-period, etc per datasource).  The system must fetch prices from an ensemble of
-datasources.
-
-### Minimizing Fetch Cost
-
-Fetching data from a datasource is generally expensive due to API quota limits, rate
-limits, etc.  The system should avoid fetching duplicate data when more than one
-source covers prices for the same instrument.  The system should also avoid making API
-calls which are guaranteed to fail because the datasource is known not to provide the
-prices requested.
-
-### Pluggable Datasources
-
-The system architecture should assume that more datasources may be added as the system
-evolves.  So the code which integrates to any given datasource should conform to a well
-defined interface with the option to extract a given integration into a separately
-maintained library.
-
-Any particular running instance of the system may have access to a different
-combination of datasources, so it must be possible to enable or disable datasource
-integrations. 
-
-### Partial or Incomplete Data
-
-The datasources available may not have complete coverage of data for all instruments in
-users' portfolios.  Or likewise a given datasource may be temporarily unavailable.  The
-system must tolerate a temporary or permanent absence of price data for any given
-instrument by:
+The datasource framework constraints apply, keyed on the instrument primary key.  An
+absence of price data for an instrument is tolerated by:
 
 - Accommodating periods of unknown price data in the user interface by expressing the
   limits of our knowledge.

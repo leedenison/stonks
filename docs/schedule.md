@@ -32,6 +32,8 @@ Each has a note in `docs/deferred` outlining how it might work.
 - **D-INSTR** - [Instrument resolution](deferred/instrument-resolution.md); collapsing the names sources use onto one instrument.
 - **D-PRICES** - [Price ingestion](deferred/price-ingestion.md) from external providers.
 - **D-CORP** - [Corporate events](deferred/corporate-events.md); splits and the restatement of recorded quantities.
+- **D-IDENT** - [Identifier events](deferred/identifier-events.md); ticker changes and the intervals over which an identifier names one instrument.
+- **D-DATASRC** - [Datasources](deferred/datasources.md); the framework every fetch from an external provider goes through.
 - **D-DEPLOY** - [Production deployment](deferred/production-deployment.md); TLS, cross-origin access and what each container publishes.
 
 ## Spike
