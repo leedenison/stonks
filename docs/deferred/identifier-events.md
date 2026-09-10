@@ -26,6 +26,9 @@ It carries the date it took effect and what it did: retired the value, assigned 
 renamed it to another value.  An event names no instrument primary key, since it is
 fetched before the instrument is resolved.
 
+Events are stated against MIC_TICKER, the type brokers state, with the operating MIC as
+domain.
+
 ### Coverage
 
 Coverage follows the datasource framework, keyed on the identifier natural key.  Coverage
@@ -36,6 +39,10 @@ entity's chain.  A prior holder's retirement of the value is invisible until tha
 is asked about, so such an answer covers the value only from the date the current holder
 acquired it.  A provider that serves changes by date range covers every value over the
 range.
+
+A provider that names a US ticker at composite level, where one symbol is unique across
+the consolidated tape, witnesses no event when a listing moves between venues and keeps
+its symbol.  Its answer covers the value on every operating MIC in the composite.
 
 ### Validity
 
@@ -68,6 +75,10 @@ tolerated by:
 - Retaining the stated key with the transaction, so resolution is replayed when coverage
   arrives.
 
+A ticker stated without its venue has no natural key, so it is never fetched for and no
+coverage arrives for it.  A transaction stating nothing else stays on its broker
+description instrument until a user or administrator supplies the venue.
+
 ## Invariants
 
 ### Identifier Validities are Current
@@ -77,7 +88,9 @@ cached validity interval affected by an event is invalidated and recomputed.
 
 ## Sketch
 
-Nothing settled beyond the model.
+Two integrations of opposite shape prove the framework interface: Massive, which answers
+for the entity currently holding a symbol, and EODHD, which serves symbol changes by date
+range.
 
 ## Undecided
 
@@ -94,3 +107,7 @@ Nothing settled beyond the model.
 
 - Whether a fetch is per value or per batch of values, given providers that serve changes
   by date range.
+
+- Whether the domain of a US ticker is the operating MIC, with a composite answer fanned
+  out to each, or a market code wherever a consolidated tape makes the symbol unique
+  across venues.

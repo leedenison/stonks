@@ -44,6 +44,15 @@ class, currency, venue and description.
 
 **Coverage** -- the periods over which one datasource has answered for one key.
 
+**Integration** -- the code adapting one datasource to the fetch framework: its request
+shapes, parsing, venue map and the declaration of what it serves.
+
+**Run** -- one fetch: a datasource, a kind of data, a set of keys and a period, recorded
+as a row.
+
+**Block** -- a record that a datasource failed permanently for a key, suppressing further
+calls until an administrator clears it.
+
 **Portfolio** -- a defined subset of the holdings of a user including the degenerate
 'all holdings' portfolio.
 

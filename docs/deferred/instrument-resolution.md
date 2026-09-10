@@ -1,6 +1,6 @@
 ---
 title: Instrument resolution
-recorded: 2026-09-04
+recorded: 2026-09-10
 ---
 
 # Instrument resolution
@@ -52,6 +52,16 @@ constructs a domain unique to the broker and the channel.  Broker description id
 ensure uploads of the same broker description are matched in the database without expensive
 calls to external services.  Within one domain and for one owner a description names one
 instrument at a time.
+
+A venue is named by its ISO 10383 MIC, normalised to the operating MIC through a
+reference MIC table seeded from the published list by a checked in generator.  The domain
+of a MIC_TICKER is the operating MIC.
+
+An identifier of a venue-scoped type stated without its venue has no natural key and is
+not an identifier.  The marshaller states it in the stated key as a search hint, which
+resolution may use to query datasources but never to associate.  The weakest link rule
+then leaves a transaction stating nothing else on a broker description instrument, and
+nothing replays it, since no coverage can arrive for a key without a domain.
 
 ### Asset Class
 
