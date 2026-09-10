@@ -16,7 +16,7 @@
     "@types/node": "26.5.0",
     "@types/pg": "8.23.1",
     "eslint": "9.39.5",
-    "ioredis": "5.11.1",
+    "ioredis": "6.0.0",
     "pg": "8.23.0",
     "prettier": "3.9.6",
     "typescript": "6.0.3",
