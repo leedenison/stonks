@@ -34,7 +34,7 @@ jobs:
     steps:
       # The merge base is what makes the comparison exact, and the full history
       # is what makes the merge base available.
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - id: paths
@@ -76,7 +76,7 @@ jobs:
           - db-test
           - e2e-test
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         if: needs.filter.outputs.gates == 'true'
       - run: make ${{ matrix.target }}
         if: needs.filter.outputs.gates == 'true'
