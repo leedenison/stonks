@@ -1,0 +1,116 @@
+/*
+  The design system: the colour tokens, the faces, the motion and the two
+  switches that stop it.
+
+  Colours are declared in two layers. The --palette-* variables in the base
+  layer hold the values, light in :root and dark under prefers-color-scheme,
+  because a theme key cannot be redeclared inside a media query. The --color-*
+  theme keys point at them, and inline substitutes the reference into each
+  utility so that text-text-muted resolves where it is used, in whichever
+  scheme applies. The palette names differ from the theme keys because a key
+  that referred to a variable of its own name would resolve to nothing. Every
+  value is a complete colour rather than a bare triple, so an opacity modifier
+  can wrap it in color-mix(). The default palette is cleared, so the only
+  colour utilities are the ones declared here.
+
+  Colour carries meaning and nothing else: positive and negative for gains and
+  losses, primary for the single primary action in a view. Numbers are set in
+  the mono face with tabular figures.
+
+  The faces are the variables next/font sets on <html>, named --face-* because
+  Tailwind's own font keys are --font-*.
+*/
+@import "tailwindcss";
+@custom-variant dark (@media (prefers-color-scheme: dark));
+
+@theme inline {
+  --color-*: initial;
+  --color-background: var(--palette-background);
+  --color-surface: var(--palette-surface);
+  --color-border: var(--palette-border);
+  --color-text-primary: var(--palette-text);
+  --color-text-muted: var(--palette-text-muted);
+  --color-primary: var(--palette-primary);
+  --color-on-primary: var(--palette-on-primary);
+  --color-positive: var(--palette-positive);
+  --color-negative: var(--palette-negative);
+
+  --font-sans: var(--face-body), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--face-display), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--face-mono), ui-monospace, monospace;
+
+  --animate-fade-in: fade-in 360ms ease-out both;
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}
+
+@layer base {
+  :root {
+    --palette-background: rgb(247 248 250);
+    --palette-surface: rgb(255 255 255);
+    --palette-border: rgb(226 229 234);
+    --palette-text: rgb(24 27 33);
+    --palette-text-muted: rgb(92 99 110);
+    --palette-primary: rgb(29 78 216);
+    --palette-on-primary: rgb(255 255 255);
+    --palette-positive: rgb(21 128 61);
+    --palette-negative: rgb(185 28 28);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --palette-background: rgb(16 18 22);
+      --palette-surface: rgb(24 27 33);
+      --palette-border: rgb(44 48 56);
+      --palette-text: rgb(232 234 238);
+      --palette-text-muted: rgb(154 160 172);
+      --palette-primary: rgb(125 175 255);
+      --palette-on-primary: rgb(16 18 22);
+      --palette-positive: rgb(74 222 128);
+      --palette-negative: rgb(248 113 113);
+    }
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+/* Delays an animation by 60ms per step, for a staggered first render. */
+@utility stagger-* {
+  animation-delay: calc(--value(integer) * 60ms);
+}
+
+/* The e2e suite sets data-testmode on <html>, so no assertion races an animation. */
+[data-testmode] *,
+[data-testmode] *::before,
+[data-testmode] *::after {
+  animation-duration: 0s !important;
+  transition-duration: 0s !important;
+}

@@ -1,0 +1,72 @@
+# The standard set plus the rules that carry the conventions a linter can
+# check: configuration is read only in server/internal/config, connect is
+# imported only at the service boundary, logging is log/slog, and context.TODO
+# is confined to tests. govet is make vet.
+version: "2"
+
+# A test that needs the test stack carries the dbtest build tag. Nothing is
+# built only when the tag is absent, so linting the tagged configuration covers
+# every file in one pass.
+run:
+  build-tags:
+    - dbtest
+
+linters:
+  default: standard
+  disable:
+    - govet
+  enable:
+    - depguard
+    - forbidigo
+  settings:
+    forbidigo:
+      analyze-types: true
+      forbid:
+        - pattern: ^os\.(Getenv|LookupEnv|Environ|ExpandEnv)$
+          msg: configuration is read only in server/internal/config
+        - pattern: ^context\.TODO$
+          msg: take a context.Context from the caller, or context.Background at the root
+    depguard:
+      rules:
+        service-boundary:
+          files:
+            - "!**/server/cmd/**"
+            - "!**/server/internal/service/**"
+          deny:
+            - pkg: connectrpc.com/connect
+              desc: connect is imported only at the service boundary
+        logging:
+          list-mode: lax
+          files:
+            - "!$test"
+          allow:
+            - log/slog
+          deny:
+            - pkg: log
+              desc: logging is log/slog through server/internal/logger
+            - pkg: github.com/sirupsen/logrus
+              desc: logging is log/slog through server/internal/logger
+            - pkg: go.uber.org/zap
+              desc: logging is log/slog through server/internal/logger
+            - pkg: github.com/rs/zerolog
+              desc: logging is log/slog through server/internal/logger
+  exclusions:
+    rules:
+      - path: server/internal/config/
+        linters:
+          - forbidigo
+      # Tests read the STONKS_TEST_* variables that configure the test stack.
+      - path: _test\.go
+        linters:
+          - forbidigo
+      # The recorder is provisioned by STONKS_RECORD and by whatever variable
+      # holds the provider credential it is recording against.
+      - path: server/internal/testutil/
+        linters:
+          - forbidigo
+
+# The defaults cap output per linter and per repeated issue, which makes a
+# truncated run read as a nearly clean one.
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0

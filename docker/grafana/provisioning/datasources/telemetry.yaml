@@ -1,0 +1,16 @@
+# The uid is fixed because the dashboards reference it by uid: a generated one
+# changes every time the stack is rebuilt from empty volumes and orphans every
+# panel.
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    uid: stonks-prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+    jsonData:
+      httpMethod: POST
+      timeInterval: 15s

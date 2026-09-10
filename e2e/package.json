@@ -1,0 +1,25 @@
+{
+  "name": "stonks-e2e",
+  "private": true,
+  "scripts": {
+    "test": "playwright test",
+    "lint": "eslint --max-warnings 0 .",
+    "lint:fix": "eslint --max-warnings 0 --fix .",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@bufbuild/protobuf": "2.14.1",
+    "@connectrpc/connect": "2.2.0",
+    "@connectrpc/connect-web": "2.2.0",
+    "@eslint/js": "9.39.5",
+    "@playwright/test": "1.63.0",
+    "@types/node": "26.5.0",
+    "@types/pg": "8.23.1",
+    "eslint": "9.39.5",
+    "ioredis": "5.11.1",
+    "pg": "8.23.0",
+    "prettier": "3.9.6",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.70.0"
+  }
+}

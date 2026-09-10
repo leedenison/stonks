@@ -1,0 +1,10 @@
+# Go messages and Connect handlers and clients, written beside the .proto files.
+# Each plugin runs through go tool, so go.mod is its version pin.
+version: v2
+plugins:
+  - local: ["go", "tool", "protoc-gen-go"]
+    out: proto
+    opt: paths=source_relative
+  - local: ["go", "tool", "protoc-gen-connect-go"]
+    out: proto
+    opt: paths=source_relative

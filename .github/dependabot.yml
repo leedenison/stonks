@@ -1,0 +1,61 @@
+# Every version is pinned exactly -- in go.mod, in the npm manifests, in image tags
+# and in action refs -- so a bump is a reviewed diff that CI runs. Minor and patch
+# updates are grouped into one pull request per ecosystem; a major arrives alone.
+#
+# The npm updater covers client/ and e2e/ together, so the versions those two share
+# move in one commit rather than skewing across two pull requests.
+#
+# Two pairs of pins are coupled across ecosystems, which no group spans, so each
+# pair moves in one commit assembled by hand: the Playwright image tag in
+# docker/docker-compose.e2e.yml equals @playwright/test in e2e/package.json, and buf
+# is pinned in go.mod for Go generation and in client/package.json for TypeScript
+# generation.
+version: 2
+updates:
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      gomod:
+        patterns: ["*"]
+        update-types: [minor, patch]
+
+  - package-ecosystem: npm
+    directories: [/client, /e2e]
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      npm:
+        patterns: ["*"]
+        update-types: [minor, patch]
+
+  # The FROM tags of the service and front end images.
+  - package-ecosystem: docker
+    directories: [/docker/server, /docker/client]
+    schedule:
+      interval: weekly
+    groups:
+      images:
+        patterns: ["*"]
+        update-types: [minor, patch]
+
+  # The image tags of every supporting service in the compose stacks.
+  - package-ecosystem: docker-compose
+    directory: /docker
+    schedule:
+      interval: weekly
+    groups:
+      images:
+        patterns: ["*"]
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]

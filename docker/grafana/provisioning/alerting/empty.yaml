@@ -1,0 +1,4 @@
+# Nothing is provisioned here. The directory has to exist because mounting the
+# provisioning tree shadows the image's own, and the file has to be .yaml
+# because the alerting provisioner reads only that suffix.
+apiVersion: 1

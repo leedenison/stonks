@@ -1,0 +1,93 @@
+# Every gate is a make target, and every target runs in a container, so a job is
+# `make <target>` with no toolchain setup, and the check name is the target name.
+#
+# A pull request that changes only docs/ or .claude/ runs no gate. The gate jobs
+# still start and still report success under their own names, because a required
+# check that never reports leaves a pull request blocked rather than mergeable.
+#
+# gates is the only required check. It reads the aggregated result of the matrix,
+# so a target added to the matrix needs no change to branch protection.
+name: CI
+
+on:
+  # The default pull_request activity types exclude the edit a retarget produces,
+  # so a pull request whose base moved under a stack merge starts its checks from
+  # a dispatch.
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  filter:
+    name: filter
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      gates: ${{ steps.paths.outputs.gates }}
+    steps:
+      # The merge base is what makes the comparison exact, and the full history
+      # is what makes the merge base available.
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - id: paths
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          # A dispatch carries no pull request, and so runs every gate.
+          if [ -z "$BASE" ]; then
+            echo "gates=true" >>"$GITHUB_OUTPUT"
+            exit 0
+          fi
+          base=$(git merge-base "$BASE" "$HEAD")
+          if git diff --name-only "$base" "$HEAD" | grep -qvE '^(docs/|\.claude/)'; then
+            echo "gates=true" >>"$GITHUB_OUTPUT"
+          else
+            echo "gates=false" >>"$GITHUB_OUTPUT"
+          fi
+
+  check:
+    name: ${{ matrix.target }}
+    needs: filter
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - fmt-check
+          - vet
+          - lint-go
+          - lint-proto
+          - lint-ts
+          - client-typecheck
+          - e2e-typecheck
+          - server-test
+          - client-test
+          - db-test
+          - e2e-test
+    steps:
+      - uses: actions/checkout@v5
+        if: needs.filter.outputs.gates == 'true'
+      - run: make ${{ matrix.target }}
+        if: needs.filter.outputs.gates == 'true'
+
+  gates:
+    name: gates
+    needs: [filter, check]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - run: |
+          [ "${{ needs.filter.result }}" = success ] || exit 1
+          [ "${{ needs.check.result }}" = success ] || exit 1

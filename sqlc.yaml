@@ -1,0 +1,25 @@
+# Queries are grouped one directory per area under server/internal/db/queries,
+# and every area generates into the one gen package, so query names are unique
+# across areas. sqlc reads a directory one level deep, so the areas are listed
+# by glob. The schema is the goose migrations; sqlc drops each Down section and
+# ignores CREATE EXTENSION and CREATE INDEX. The overrides keep pgtype out of
+# the signatures consumers see and mock.
+version: "2"
+sql:
+  - engine: postgresql
+    schema: server/internal/migrations
+    queries:
+      - server/internal/db/queries/*
+    gen:
+      go:
+        package: gen
+        out: server/internal/db/gen
+        sql_package: pgx/v5
+        emit_interface: true
+        emit_pointers_for_null_types: true
+        emit_enum_valid_method: true
+        overrides:
+          - db_type: uuid
+            go_type: github.com/google/uuid.UUID
+          - db_type: timestamptz
+            go_type: time.Time

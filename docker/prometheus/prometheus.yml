@@ -1,0 +1,25 @@
+# The scrape interval matches the service's metric export interval, so a point
+# is scraped about once.
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # What the service pushed to the collector over OTLP. The collector is
+  # passing these on rather than originating them, so honor_labels keeps the
+  # job and instance the service was given; without it both are overwritten
+  # with the collector's own and the originals are renamed exported_*.
+  - job_name: otel-collector
+    honor_labels: true
+    static_configs:
+      - targets: ["otel-collector:8889"]
+
+  # The collector's own account of what it received, refused and failed to send.
+  - job_name: otel-collector-internal
+    static_configs:
+      - targets: ["otel-collector:8888"]
+
+  - job_name: envoy
+    metrics_path: /stats/prometheus
+    static_configs:
+      - targets: ["envoy:9901"]

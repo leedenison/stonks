@@ -1,0 +1,549 @@
+{
+  "uid": "stonks-service",
+  "title": "Stonks service",
+  "description": "The service: what it serves, what it calls out to, and what it decides about sessions.",
+  "tags": [
+    "stonks",
+    "telemetry"
+  ],
+  "editable": false,
+  "graphTooltip": 1,
+  "schemaVersion": 41,
+  "version": 1,
+  "refresh": "30s",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "timezone": "browser",
+  "panels": [
+    {
+      "id": 1,
+      "type": "text",
+      "title": "How to read this dashboard",
+      "description": "The two behaviours that make a panel here misleading if it is read as a continuous view.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "stonks-prometheus"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "The collector drops a series it has not seen for five minutes, so **a counter that stops incrementing disappears** rather than flattening at its last value. `rate()` over a quiet period returns no data, not zero, which reads like broken instrumentation.\n\nThe development service rebuilds and restarts on every save, so **counters reset**. `rate()` handles a reset; `increase()` over a long window does not."
+      }
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "RPC rate by method",
+      "description": "Every RPC that reached a Connect handler, successful or not. gRPC reflection is filtered out at the interceptor and /healthz never enters the chain, so neither appears here.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "stonks-prometheus"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 0,
+        "y": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "stonks-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (rpc_method) (rate(rpc_server_duration_milliseconds_count{job=\"stonks\"}[$__rate_interval]))",
+          "range": true,
+          "instant": false,
+          "format": "time_series",
+          "refId": "A",
+          "legendFormat": "{{rpc_method}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false
+          },
+          "min": 0,
+          "unit": "reqps",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "RPC failures by code",
+      "description": "A successful RPC carries no error-code label, so this counts only failures. unauthenticated is a normal part of loading the page without a session and invalid_argument is a client sending something the message rules refuse; internal and unknown are the service's own fault. Tracing is the outermost interceptor, which is what makes a refusal decided by the chain itself visible here at all.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "stonks-prometheus"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 8,
+        "y": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "stonks-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (rpc_connect_rpc_error_code) (rate(rpc_server_duration_milliseconds_count{job=\"stonks\", rpc_connect_rpc_error_code!=\"\"}[$__rate_interval]))",
+          "range": true,
+          "instant": false,
+          "format": "time_series",
+          "refId": "A",
+          "legendFormat": "{{rpc_connect_rpc_error_code}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false
+          },
+          "min": 0,
+          "unit": "reqps",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "RPC latency by method",
+      "description": "Interpolated from the histogram's bucket boundaries, so a quantile is an estimate to the nearest bucket edge rather than a request that actually took that long. This is the time the caller waited, including authentication and validation.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "stonks-prometheus"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 16,
+        "y": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "stonks-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.50, sum by (le, rpc_method) (rate(rpc_server_duration_milliseconds_bucket{job=\"stonks\"}[$__rate_interval])))",
+          "range": true,
+          "instant": false,
+          "format": "time_series",
+          "refId": "A",
+          "legendFormat": "{{rpc_method}} p50"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "stonks-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.95, sum by (le, rpc_method) (rate(rpc_server_duration_milliseconds_bucket{job=\"stonks\"}[$__rate_interval])))",
+          "range": true,
+          "instant": false,
+          "format": "time_series",
+          "refId": "B",
+          "legendFormat": "{{rpc_method}} p95"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "stonks-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.99, sum by (le, rpc_method) (rate(rpc_server_duration_milliseconds_bucket{job=\"stonks\"}[$__rate_interval])))",
+          "range": true,
+          "instant": false,
+          "format": "time_series",
+          "refId": "C",
+          "legendFormat": "{{rpc_method}} p99"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false
+          },
+          "min": 0,
+          "unit": "ms",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Outbound call latency by operation",
+      "description": "One series per SQL statement, one per Redis command and one for the JWKS fetch, derived in the collector from the spans each instrumentation emits. A statement is named for its sqlc query, so the set of series is bounded by the queries that exist rather than by traffic. Time in pool.acquire is the pool making a caller wait rather than the database being slow.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "stonks-prometheus"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 11
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "stonks-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.95, sum by (le, span_name) (rate(spanmetrics_duration_milliseconds_bucket{job=\"stonks\", span_kind=\"SPAN_KIND_CLIENT\"}[$__rate_interval])))",
+          "range": true,
+          "instant": false,
+          "format": "time_series",
+          "refId": "A",
+          "legendFormat": "{{span_name}} p95"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false
+          },
+          "min": 0,
+          "unit": "ms",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Session lookups by result",
+      "description": "One lookup per authenticated RPC. not_found covers both an unknown identifier and one whose record expired, because the store deletes an expired record and reports it as absent. user_gone is a live session whose user row no longer exists, and the session is deleted as it is seen. error is Redis or Postgres being unreachable, which signs everyone out.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "stonks-prometheus"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 11
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "stonks-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (result) (rate(stonks_session_lookups_total{job=\"stonks\"}[$__rate_interval]))",
+          "range": true,
+          "instant": false,
+          "format": "time_series",
+          "refId": "A",
+          "legendFormat": "{{result}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            }
+          },
+          "min": 0,
+          "unit": "reqps",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Sign-ins by outcome",
+      "description": "invalid_token is a token Google's keys do not verify, an expired one, or one whose email Google does not report as verified. not_allowed is an unknown email matching no allowlist pattern, which is a configuration answer rather than a failure. error is everything else and is the only one worth acting on.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "stonks-prometheus"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 0,
+        "y": 18
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "stonks-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (outcome) (rate(stonks_auth_sign_ins_total{job=\"stonks\"}[$__rate_interval]))",
+          "range": true,
+          "instant": false,
+          "format": "time_series",
+          "refId": "A",
+          "legendFormat": "{{outcome}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            }
+          },
+          "min": 0,
+          "unit": "reqps",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Goroutines",
+      "description": "Goroutines alive in the service. A line that climbs and does not come back down under a steady workload is the shape a leak makes.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "stonks-prometheus"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 8,
+        "y": 18
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "stonks-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "go_goroutine_count{job=\"stonks\"}",
+          "range": true,
+          "instant": false,
+          "format": "time_series",
+          "refId": "A",
+          "legendFormat": "{{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false
+          },
+          "min": 0,
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 9,
+      "type": "table",
+      "title": "Build and instance",
+      "description": "The revision each running process was built from and the host it runs on. The development service rebuilds on every save, so this is how to tell which change is actually serving. Two rows mean two processes are reporting under one service name.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "stonks-prometheus"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 16,
+        "y": 18
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "stonks-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "target_info{job=\"stonks\"}",
+          "range": false,
+          "instant": true,
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "Value": true,
+              "__name__": true
+            },
+            "renameByName": {
+              "service_version": "revision",
+              "deployment_environment_name": "environment",
+              "instance": "instance",
+              "job": "service"
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true
+      }
+    }
+  ],
+  "templating": {
+    "list": []
+  },
+  "annotations": {
+    "list": []
+  }
+}

@@ -1,0 +1,61 @@
+# The end-to-end overlay: the base stack on shifted ports, the service built
+# from its production Dockerfile with only its configuration changed, and
+# Playwright as a service behind the test profile. The database lives on tmpfs,
+# so every run starts empty.
+services:
+  postgres:
+    tmpfs:
+      - /var/lib/postgresql/data
+    ports: !override
+      - "5434:5432"
+
+  redis:
+    ports: !override
+      - "6381:6379"
+
+  stonks:
+    environment:
+      STONKS_GOOGLE_OAUTH_CLIENT_ID: e2e-test-client-id
+      # The stack is reached over plain HTTP which cannot transport
+      # a Secure cookie.
+      STONKS_COOKIE_SECURE: "false"
+    ports: !override
+      - "8091:8090"
+
+  client:
+    build:
+      args:
+        GOOGLE_OAUTH_CLIENT_ID: e2e-test-client-id
+
+  envoy:
+    ports: !override
+      - "8081:8080"
+      - "9902:9901"
+
+  playwright:
+    # The tag must equal the @playwright/test version in e2e/package.json, and
+    # its npm must share a major with the client image's: both install
+    # e2e/node_modules from the same lockfile.
+    image: mcr.microsoft.com/playwright:v1.63.0-noble
+    profiles:
+      - test
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    working_dir: /e2e
+    depends_on:
+      - envoy
+    environment:
+      HOME: /tmp
+      npm_config_cache: /npm-cache
+      E2E_BASE_URL: http://envoy:8080
+      E2E_DATABASE_URL: postgres://stonks:stonks@postgres:5432/stonks?sslmode=disable
+      E2E_REDIS_URL: redis://redis:6379/0
+    volumes:
+      - ../e2e:/e2e
+      - ./client/entrypoint.sh:/entrypoint.sh:ro
+      - npm-cache:/npm-cache
+    entrypoint: ["sh", "/entrypoint.sh", "/e2e", "--"]
+    command: ["npx", "playwright", "test"]
+
+volumes:
+  npm-cache:
+    name: stonks-npm-cache

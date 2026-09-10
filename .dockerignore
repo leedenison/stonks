@@ -1,0 +1,25 @@
+# Build contexts never need these, and excluding them keeps the context small
+# enough that a rebuild is not dominated by the upload.
+.git
+node_modules
+client/node_modules
+client/.next
+e2e/node_modules
+.stamps
+tmp
+local
+test-results
+playwright-report
+*.md
+docs
+docker
+.github
+
+# Generated on the host; the image generates its own.
+proto/**/*.pb.go
+proto/**/*connect/
+server/internal/db/gen
+client/gen
+e2e/gen
+**/*_mock.go
+/stonks

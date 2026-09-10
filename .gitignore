@@ -1,0 +1,50 @@
+# Generated code
+proto/**/*.pb.go
+proto/**/*connect/
+server/internal/db/gen/
+client/gen/
+e2e/gen/
+**/*_mock.go
+
+# Make stamps
+.stamps/
+
+# Binaries
+/stonks
+bin/
+*.exe
+
+# Go
+*.test
+*.out
+vendor/
+tmp/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Claude Code
+.claude/worktrees/
+.claude/settings.local.json
+
+# Env
+.env
+.env.local
+
+# Developer-local files. Anything that must not be committed lives here.
+local/
+
+# Node
+node_modules/
+client/node_modules/
+e2e/node_modules/
+client/.next/
+*.tsbuildinfo
+test-results/
+playwright-report/
+
+# Rewritten by Next on every run
+client/next-env.d.ts

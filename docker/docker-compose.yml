@@ -1,0 +1,92 @@
+# The base stack: Postgres with TimescaleDB, Redis, the service, the front end
+# and Envoy in front of both. Envoy is the only published way in; the front end
+# is reachable only through it.
+#
+# Each service's environment is listed here in full. Nothing reads .env directly,
+# so this file is the whole environment surface of the stack.
+services:
+  postgres:
+    image: timescale/timescaledb:2.29.2-pg17
+    command: ["postgres", "-c", "shared_preload_libraries=timescaledb"]
+    environment:
+      POSTGRES_USER: stonks
+      POSTGRES_PASSWORD: stonks
+      POSTGRES_DB: stonks
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U stonks"]
+      interval: 2s
+      timeout: 2s
+      retries: 15
+
+  redis:
+    image: redis:8.8.2-alpine3.23
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 2s
+      retries: 15
+
+  stonks:
+    build:
+      context: ..
+      dockerfile: docker/server/Dockerfile
+      args:
+        BUILD_REV: ${BUILD_REV:-unknown}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      STONKS_LISTEN_ADDR: ":8090"
+      STONKS_DB_URL: postgres://stonks:stonks@postgres:5432/stonks?sslmode=disable
+      STONKS_REDIS_URL: redis://redis:6379/0
+      STONKS_GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID:-}
+      STONKS_ALLOWED_EMAILS: ${STONKS_ALLOWED_EMAILS:-}
+      # The overlays that are reached over plain HTTP, which cannot transport a
+      # Secure cookie, set this false.
+      STONKS_COOKIE_SECURE: "true"
+      STONKS_LOG_LEVEL: ${STONKS_LOG_LEVEL:-info}
+      # No collector, so the exporter is a no-op. The dev overlay sets it.
+      STONKS_OTLP_ENDPOINT: ""
+      STONKS_ENVIRONMENT: ${STONKS_ENVIRONMENT:-development}
+    ports:
+      - "8090:8090"
+    # Migrations run before the service listens, so the start period covers them.
+    healthcheck:
+      test: ["CMD", "/healthcheck", "http://127.0.0.1:8090/healthz"]
+      interval: 2s
+      timeout: 2s
+      retries: 15
+      start_period: 30s
+
+  client:
+    build:
+      context: ..
+      dockerfile: docker/client/Dockerfile
+      args:
+        GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID:-}
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then(r => process.exit(r.status < 500 ? 0 : 1), () => process.exit(1))"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+      start_period: 30s
+
+  envoy:
+    image: envoyproxy/envoy:v1.39.1
+    command: ["-c", "/etc/envoy/envoy.yaml", "-l", "info"]
+    volumes:
+      - ./envoy/envoy.yaml:/etc/envoy/envoy.yaml:ro
+    ports:
+      - "8080:8080"
+      - "9901:9901"
+    depends_on:
+      stonks:
+        condition: service_healthy
+      client:
+        condition: service_healthy

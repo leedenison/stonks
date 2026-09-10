@@ -1,0 +1,12 @@
+# The proto module, its dependencies and the lint profile. Packages carry the
+# stonks prefix the directory tree does not, so the directory-match rule is off.
+version: v2
+modules:
+  - path: proto
+deps:
+  - buf.build/bufbuild/protovalidate
+lint:
+  use:
+    - STANDARD
+  except:
+    - PACKAGE_DIRECTORY_MATCH

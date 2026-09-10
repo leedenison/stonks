@@ -1,0 +1,14 @@
+# The Go toolchain image, run over a bind mount of the repository. No tool is
+# installed here: go.mod pins every one as a tool directive, and `go tool <name>`
+# builds it from the module cache on first use.
+FROM golang:1.27.1-alpine3.24
+ENV GOTOOLCHAIN=local GOFLAGS=-modcacherw
+# sqlc's Postgres parser is cgo.
+RUN apk add --no-cache build-base
+WORKDIR /app
+COPY go.mod go.sum ./
+# The module and build caches are named volumes mounted over /go/pkg/mod and
+# /go/.cache. Docker seeds an empty volume from the image content at its mount
+# path, so the download here becomes the initial module cache, and the chmod is
+# what lets a container running as the host user write to it.
+RUN go mod download && mkdir -p /go/.cache /npm-cache && chmod -R a+rwX /go /npm-cache

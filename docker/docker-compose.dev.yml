@@ -1,0 +1,178 @@
+# The development overlay: the repository bind-mounted into toolchain images
+# running as the host user, with live reload for the service and the front end.
+#
+# Every service is capped on CPU, memory and PIDs. Under WSL2 a runaway
+# container takes the host down with it, so the caps total well under the
+# machine, and memswap_limit equals mem_limit so a leaking container is
+# OOM-killed rather than dragging everything into swap.
+#
+# The Go module, Go build and npm caches are named volumes shared by every
+# stack and every worktree, so a tool is compiled once and a module downloaded
+# once per machine. `make clean-docker` removes them.
+#
+# The observability services are here and not in the base stack, so the base,
+# test and end-to-end stacks configure no collector endpoint and export
+# nothing. Grafana and Prometheus publish on loopback only, unlike the rest of
+# the stack, because they read all the telemetry.
+services:
+  postgres:
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    cpus: 2
+    mem_limit: 2g
+    memswap_limit: 2g
+    pids_limit: 256
+
+  redis:
+    cpus: 1
+    mem_limit: 512m
+    memswap_limit: 512m
+    pids_limit: 256
+
+  stonks:
+    build: !override
+      context: ..
+      dockerfile: docker/server/Dockerfile.dev
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    working_dir: /app
+    environment:
+      HOME: /tmp
+      GOFLAGS: -modcacherw
+      GOCACHE: /go/.cache/go-build
+      BUF_CACHE_DIR: /go/.cache/buf
+      GOLANGCI_LINT_CACHE: /go/.cache/golangci-lint
+      STONKS_LOG_LEVEL: ${STONKS_LOG_LEVEL:-debug}
+      STONKS_OTLP_ENDPOINT: http://otel-collector:4318
+      # The stack is reached over plain HTTP which cannot transport
+      # a Secure cookie.
+      STONKS_COOKIE_SECURE: "false"
+    volumes:
+      - ..:/app
+      - go-mod:/go/pkg/mod
+      - go-cache:/go/.cache
+    command: ["go", "tool", "air", "-c", "docker/server/air.toml"]
+    # The toolchain image has no healthcheck binary, so busybox wget stands in.
+    # The first build compiles the tools as well as the service.
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8090/healthz"]
+      start_period: 300s
+    cpus: 4
+    mem_limit: 4g
+    memswap_limit: 4g
+    pids_limit: 512
+
+  client:
+    build: !override
+      context: ..
+      dockerfile: docker/client/Dockerfile.dev
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    working_dir: /app/client
+    environment:
+      HOME: /tmp
+      npm_config_cache: /npm-cache
+      BUF_CACHE_DIR: /npm-cache/buf
+      NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID:-}
+      # inotify events do not reliably cross the bind mount under WSL2.
+      CHOKIDAR_USEPOLLING: "true"
+    volumes:
+      - ..:/app
+      - npm-cache:/npm-cache
+    entrypoint: ["sh", "/app/docker/client/entrypoint.sh", "/app/client", "/app/e2e", "--"]
+    command: ["sh", "/app/docker/client/dev.sh"]
+    healthcheck:
+      start_period: 300s
+    cpus: 4
+    mem_limit: 4g
+    memswap_limit: 4g
+    pids_limit: 512
+
+  envoy:
+    volumes:
+      - ./envoy/envoy.dev.yaml:/etc/envoy/envoy.yaml:ro
+    cpus: 1
+    mem_limit: 512m
+    memswap_limit: 512m
+    pids_limit: 256
+
+  # No depends_on the collector: the exporter retries, the service is useful
+  # without telemetry, and a collector that fails to start must not fail
+  # `make run`.
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.160.0
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./otel-collector/config.yaml:/etc/otelcol/config.yaml:ro
+    # The image is distroless and carries no shell or HTTP client, so its
+    # health is read from the health_check extension by whatever asks.
+    cpus: 1
+    mem_limit: 512m
+    memswap_limit: 512m
+    pids_limit: 256
+
+  prometheus:
+    image: prom/prometheus:v3.14.0
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=7d
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "127.0.0.1:9090:9090"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:9090/-/healthy"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 30s
+    cpus: 1
+    mem_limit: 1g
+    memswap_limit: 1g
+    pids_limit: 256
+
+  # Datasources and dashboards are provisioned from docker/grafana. Nothing is
+  # configured in the browser: a dashboard edited there cannot be saved.
+  grafana:
+    image: grafana/grafana:13.2.1
+    depends_on:
+      # Provisioning against a datasource that is up but not answering
+      # succeeds, and the first dashboard view is then empty for reasons
+      # indistinguishable from missing instrumentation.
+      prometheus:
+        condition: service_healthy
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      # Not "admin", which Grafana treats as unset and prompts to change at
+      # first login.
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-stonks}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/etc/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "127.0.0.1:3000:3000"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:3000/api/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 30s
+    cpus: 1
+    mem_limit: 512m
+    memswap_limit: 512m
+    pids_limit: 256
+
+volumes:
+  postgres_data:
+  prometheus_data:
+  grafana_data:
+  go-mod:
+    name: stonks-go-mod
+  go-cache:
+    name: stonks-go-cache
+  npm-cache:
+    name: stonks-npm-cache

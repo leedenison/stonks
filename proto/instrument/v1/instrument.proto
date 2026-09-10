@@ -1,0 +1,17 @@
+// Instruments: the things that can be held and priced. Every RPC requires a
+// session.
+
+syntax = "proto3";
+
+package stonks.instrument.v1;
+
+option go_package = "github.com/leedenison/stonks/proto/instrument/v1;instrumentv1";
+
+message ListInstrumentsRequest {}
+
+message ListInstrumentsResponse {}
+
+service InstrumentService {
+  // Returns no instruments.
+  rpc ListInstruments(ListInstrumentsRequest) returns (ListInstrumentsResponse);
+}

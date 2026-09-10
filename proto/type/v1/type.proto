@@ -1,0 +1,16 @@
+// The types more than one area shares, and the conventions every API in
+// stonks follows.
+//
+// Money and quantities cross the wire as a string holding an exact decimal,
+// such as "1234.56" or "-0.0001", never a floating-point field.
+//
+// A timestamp is a google.protobuf.Timestamp, in UTC.
+//
+// An interval is half open. A message bounding one carries valid_from and
+// valid_before, and an instant equal to valid_before falls outside it.
+
+syntax = "proto3";
+
+package stonks.type.v1;
+
+option go_package = "github.com/leedenison/stonks/proto/type/v1;typev1";

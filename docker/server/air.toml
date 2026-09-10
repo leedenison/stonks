@@ -1,0 +1,15 @@
+# Live reload for the dev stack. Each change regenerates protobuf, sqlc and mock
+# output and then rebuilds the binary; the exclusions stop that output from
+# triggering a second build. Configuration reaches the binary from the
+# environment, so no arguments are passed.
+root = "."
+tmp_dir = "tmp"
+
+[build]
+  cmd = "go tool buf generate --template buf.gen.go.yaml && go tool sqlc generate && go generate ./server/... && go build -o tmp/stonks ./server/cmd/stonks"
+  bin = "tmp/stonks"
+  include_ext = ["go", "proto", "sql", "mod", "sum", "yaml"]
+  include_dir = ["server", "proto"]
+  exclude_dir = ["tmp", "client", "e2e", "docker", "docs", "local", ".git", "server/internal/db/gen"]
+  exclude_regex = ["_test\\.go$", "\\.pb\\.go$", "\\.connect\\.go$", "_mock\\.go$"]
+  delay = 1000

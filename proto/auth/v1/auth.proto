@@ -1,0 +1,78 @@
+// Sign in with Google, read the current session and sign out.
+//
+// A session is identified only by the HttpOnly cookie the service sets on sign
+// in and clears on sign out. No message carries the identifier.
+
+syntax = "proto3";
+
+package stonks.auth.v1;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/leedenison/stonks/proto/auth/v1;authv1";
+
+// What a user may act on: every user their own data, an admin also the data
+// shared by all users.
+enum Role {
+  ROLE_UNSPECIFIED = 0;
+  ROLE_USER = 1;
+  ROLE_ADMIN = 2;
+}
+
+// An account.
+message User {
+  // Identifies the user in every API; a UUID.
+  string id = 1;
+  // The Google-verified email the account was created from.
+  string email = 2;
+  // The display name Google reported at sign-in; empty when it reported none.
+  string name = 3;
+  // The user's role.
+  Role role = 4;
+}
+
+// The session a request carries. Its identifier is the cookie and is not
+// repeated here.
+message Session {
+  // The instant the session lapses unless a later authenticated request
+  // extends it.
+  google.protobuf.Timestamp expires_at = 1;
+}
+
+message SignInRequest {
+  // The ID token Google Sign-In issued for the configured OAuth client.
+  string google_id_token = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message SignInResponse {
+  // The account the token was exchanged for.
+  User user = 1;
+  // The session started for it.
+  Session session = 2;
+}
+
+message GetSessionRequest {}
+
+message GetSessionResponse {
+  // The signed-in user; unset when the request carries no valid session.
+  User user = 1;
+  // The current session; unset when the request carries no valid session.
+  Session session = 2;
+}
+
+message SignOutRequest {}
+
+message SignOutResponse {}
+
+service AuthService {
+  // Verifies a Google ID token, provisions the account on first sight and
+  // starts a session, returned in a cookie.
+  rpc SignIn(SignInRequest) returns (SignInResponse);
+  // Reports the session the request carries; succeeds with both fields unset
+  // when it carries none.
+  rpc GetSession(GetSessionRequest) returns (GetSessionResponse);
+  // Ends the session the request carries and clears its cookie; succeeds when
+  // it carries none.
+  rpc SignOut(SignOutRequest) returns (SignOutResponse);
+}
