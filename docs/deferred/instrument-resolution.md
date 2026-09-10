@@ -51,7 +51,7 @@ A broker's own description of an instrument is an identifier type, and the marsh
 constructs a domain unique to the broker and the channel.  Broker description identifiers
 ensure uploads of the same broker description are matched in the database without expensive
 calls to external services.  Within one domain and for one owner a description names one
-instrument.
+instrument at a time.
 
 ### Asset Class
 
@@ -69,9 +69,28 @@ authoritative datasources.
 Scope says whether a value can be recognised outside the channel that supplied it, and
 whether a domain is needed to qualify it.
 
-Reassignment decides whether an identifier can be trusted without corporate event coverage
-for the period it is used in.  Some types are retired on use and never reassigned; some are
-reassigned only by documented exception.
+Reassignment decides whether an identifier can be trusted without identifier event
+coverage for the interval it is used in.
+
+- **Rare**: retired on use and never reassigned, or reassigned only by documented
+  exception.  Trusted without coverage.
+- **Routine**: reassigned in the ordinary course.  Trusted only inside a validity
+  interval, which identifier event coverage bounds.  A routine identifier associates a
+  transaction with an instrument only when the transaction date lies inside its validity,
+  and links two instruments for a merge only when the moments both claims were asserted
+  do.  Inside its validity it is as trustworthy as a rare identifier.
+- **Unverifiable**: no datasource can witness a reassignment.  Assumed never reassigned
+  within its domain.  Associates a transaction with an instrument, and absorbs an
+  instrument that holds no other identifier, but never decides between two instruments
+  that verifiable identifiers can decide between.
+
+The weakest link governs.  A transaction stating only a ticker is associated via that
+ticker however many rare identifiers a datasource answers with, so the ticker needs
+coverage.
+
+An identifier row exists only when the identifier is usable.  A routine identifier stated
+without coverage is held only in the stated key stored with the transaction, from which
+resolution is replayed when coverage arrives.
 
 ### Ownership
 
@@ -157,47 +176,13 @@ resolution run that met them, and reported to admin users from those rows.
 Datasources gain coverage, integrations are enabled and quota tiers change, so an
 unresolved instrument is re-attempted periodically and on administrator demand.
 
-## Shared Datasource Constraints
+A transaction is re-resolved from the stated key stored with it, so a later answer moves
+the transaction to the instrument the answer names.
 
-### On-Demand Fetch
+### Datasources
 
-We generally have no datasource that offers bulk fetching of instrument data.  We
-therefore need to fetch instruments held by users on demand covering the period the
-instrument was held.  The datamodel must be able to express which instruments we have
-successfully fetched, what time periods they cover and whether retrieval of a
-particular instrument from a particular datasource failed temporarily or permanently.
-
-### Fetching from Multiple Sources
-
-We generally have no datasource that offers instrument data for the complete range
-of instruments we want to accommodate (due to coverage limits on geography, asset class,
-historic period, etc per datasource).  The system must fetch instruments from an
-ensemble of datasources.
-
-### Minimizing Fetch Cost
-
-Fetching data from a datasource is generally expensive due to API quota limits, rate
-limits, etc.  The system should avoid fetching duplicate data when more than one
-source covers the same instrument.  The system should also avoid making API calls which
-are guaranteed to fail because the datasource is known not to provide the instruments
-requested.
-
-### Pluggable Datasources
-
-The system architecture should assume that more datasources may be added as the system
-evolves.  So the code which integrates to any given datasource should conform to a well
-defined interface with the option to extract a given integration into a separately
-maintained library.
-
-Any particular running instance of the system may have access to a different
-combination of datasources, so it must be possible to enable or disable datasource
-integrations.
-
-### Partial or Incomplete Data
-
-The datasources available may not have complete coverage of data for all instruments in
-users' portfolios.  Or likewise a given datasource may be temporarily unavailable.  The
-system must tolerate a temporary or permanent absence of instrument data by:
+The datasource framework constraints apply, keyed on the stated key.  An absence of
+instrument data is tolerated by:
 
 - Storing user owned instruments under what the source did state.
 - Distinguishing an instrument nothing recognised from one whose identification was
@@ -234,13 +219,78 @@ owner.
 Resolution is keyed on what the source stated rather than on the transaction, so one key
 is resolved once per batch and every transaction carrying it receives the same answer.
 
-The order is the database first, then the batch cache, then datasources. A guess is
-produced only where what the source stated leaves the instrument or its listing open, and
-only after both lookups have missed.
+Identifier events for the routine identifiers the batch states are fetched first, so
+each identifier's validity is known before any lookup.  The order is then the database,
+the batch cache, and datasources. A guess is produced only where what the source stated
+leaves the instrument or its listing open, and only after both lookups have missed.
+Corporate events are fetched for the instruments the batch resolved to once resolution
+completes.
 
 Datasource answers are held apart rather than flattened into one set, since what makes an
 association a claim is that one source stated both halves of it. One answer supplies the
 instrument's metadata, and the others contribute what they are admitted to contribute.
+
+### Choosing Among Datasource Answers
+
+Every enabled datasource is asked concurrently.  Once all have returned:
+
+1. Each datasource returns its candidates.  A datasource asked about one identifier may
+   find several listings, since a bare ticker names a listing at every venue that quotes
+   the symbol.  The integration converts each to the canonical shape, since only it knows
+   which provider field carries the asset class or that a market-wide listing names a
+   market rather than a venue, and declares what the call strictly filtered on.  It does
+   not rank them.
+2. Candidates are dropped that do not name the queried identifier, that contradict
+   stated data, or that are inconsistent with the answer chosen for a higher precedence
+   datasource.
+3. Each datasource's remaining candidates are ranked: confirms stated data, then
+   corroborates a higher precedence answer, then agrees with a guess, then the
+   datasource's own order with a market-wide listing preferred over an arbitrary venue.
+4. The winner is the top candidate of the highest precedence datasource with any
+   candidate left.  It supplies the instrument's metadata.
+5. Each losing datasource contributes its top candidate where it corroborates the
+   winner: its identifiers, and the fields the winner left blank.
+
+Datasources are taken in precedence order through steps 2 and 3, so each is ranked
+against answers already chosen above it.
+
+The winner is decided by precedence alone.  A lower precedence datasource that confirmed
+more of the stated data does not displace it, since its answer enriches the winner's
+where it corroborates.
+
+A guess ranks and never filters.
+
+The run records how many candidates each datasource offered, which step dropped each
+one and on what grounds, and which tier chose the survivor.  A candidate dropped as
+inconsistent and one dropped as uncorroborated are different findings.
+
+### Agreement
+
+Naming: a candidate names an identifier by returning it or by strictly filtering on it.
+Answering a strictly filtered call at all asserts the value names the instrument
+described, whether or not the datasource echoes it back.  A fuzzy search that answers a
+query for one symbol with another instrument's listing has neither returned nor
+filtered on the symbol.
+
+Confirming stated data: contradicting no stated field and confirming at least one, being
+a currency, an asset class the candidate corroborates, or an identifier of the same type
+and domain.  A candidate naming a venue no stated identifier names has answered about a
+different listing and confirms nothing.  A candidate too sparse to be checked against
+anything neither contradicts nor confirms.
+
+Consistency: two answers describe one listing and do not contradict each other.  The
+currency decides whether they describe one listing, and the venue decides only where a
+currency is absent.  Identifiers contradict when both name one subject, the same type
+and domain, with different values.  An identifier the other answer also named is
+agreement, and agreement anywhere in that answer settles it.
+
+Corroboration: at least one instrument-grain identifier is named by both.  Agreeing on
+the listing is the query restated rather than evidence about the instrument, because
+the identity a resolution starts from is routinely ambiguous and each datasource may
+have found several instruments the query admits.
+
+Filling: a value the winner holds is never replaced.  The asset class is never filled
+from another answer, since it decides which invariants the instrument must satisfy.
 
 A resolution run records the outcome of each key it resolved as its own rows. The mix of
 outcomes for one run is then a query, which is what makes two runs over the same input
@@ -285,15 +335,12 @@ UNKNOWN
 | FX_PAIR              | registry   | none                 | instrument | rare         |
 | DATASOURCE_TICKER    | datasource | datasource           | listing    | routine      |
 | BROKER_ID            | broker     | broker               | instrument | rare         |
-| BROKER_DESCRIPTION   | source     | broker + upload type | instrument | routine      |
+| BROKER_DESCRIPTION   | source     | broker + upload type | instrument | unverifiable |
 
 ## Undecided
 
-- Instrument resolution and corporate event fetching each need the other. Resolution has
-  to know a reassignable identifier's corporate events to tell which instrument holds it
-  over which interval; corporate event fetching has to name a resolved instrument to
-  record events against. Which side gives, and what the first pass over a new instrument
-  is allowed to assume, is open.
+- What happens to a user owned instrument left holding no transactions when
+  re-resolution moves them to another instrument.
 
 - Whether resolution answers "which instrument holds this identifier now" or "which
   instrument held it on the transaction's date". The second is what the validity interval
@@ -305,3 +352,13 @@ UNKNOWN
 
 - What a user does when they believe the system has identified an instrument wrongly, and
   what an administrator can correct that a user cannot.
+
+- Whether a candidate ranked up because it corroborates a higher precedence answer is
+  independent corroboration of that answer.  A broad search may contain a candidate
+  matching almost anything, and the naming and contradiction checks a candidate must
+  pass on its own are what limit that.  Whether they limit it enough is open.
+
+- What happens when every candidate from every datasource contradicts the stated data.
+  Dropping them leaves the instrument unresolved, where a broker that mis-states a
+  currency would otherwise resolve with the contradiction recorded.  Whether a wrong
+  statement should block resolution or only be recorded is open.

@@ -36,7 +36,13 @@ the leaves below it.
 consisting of a type, an optional domain and a value, valid over an interval.
 
 **Identifier Type** -- the controlled vocabulary that says how an identifier's domain and
-value are interpreted. Each type declares a scope, a grain and a reassignment likelihood.
+value are interpreted. Each type declares a scope, a grain and a reassignment: rare,
+routine or unverifiable.
+
+**Stated Key** -- what one source states about an instrument: its identifiers, asset
+class, currency, venue and description.
+
+**Coverage** -- the periods over which one datasource has answered for one key.
 
 **Portfolio** -- a defined subset of the holdings of a user including the degenerate
 'all holdings' portfolio.
@@ -44,8 +50,11 @@ value are interpreted. Each type declares a scope, a grain and a reassignment li
 **End of Day Price** -- the closing price of an instrument on a date.
 
 **Corporate Event** -- a change to the terms of an instrument that restates the quantity
-held (eg. a split, a reverse split, a stock dividend), or a change in the identity of an
-instrument (eg. a merger, a delisting, a reassignment).
+held (eg. a split, a reverse split, a stock dividend), or exchanges it for another (eg. a
+merger, a spinoff).
+
+**Identifier Event** -- a change to which instrument an identifier names (eg. a ticker
+change, a retirement, a reassignment).
 
 **As At** -- the date on which the values of a record were true.  In code: **as_at**.
 
