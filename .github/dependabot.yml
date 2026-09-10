@@ -22,6 +22,10 @@ updates:
         patterns: ["*"]
         update-types: [minor, patch]
 
+  # eslint-config-next resolves typescript-eslint and eslint-plugin-react, which
+  # reject TypeScript 7 and the ESLint 10 rule API. client/ and e2e/ hold matching
+  # versions, so both trees stay on ESLint 9 and TypeScript 6 until that resolution
+  # admits the majors.
   - package-ecosystem: npm
     directories: [/client, /e2e]
     schedule:
@@ -31,6 +35,13 @@ updates:
       npm:
         patterns: ["*"]
         update-types: [minor, patch]
+    ignore:
+      - dependency-name: eslint
+        update-types: [version-update:semver-major]
+      - dependency-name: "@eslint/js"
+        update-types: [version-update:semver-major]
+      - dependency-name: typescript
+        update-types: [version-update:semver-major]
 
   # The FROM tags of the service and front end images.
   - package-ecosystem: docker
