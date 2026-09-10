@@ -122,6 +122,9 @@ Do not refer to project tasks or milestones in comments.
 
 Comments should only explain what is not already obvious from the code. 
 
+- Comments must focus on the most important elements of code being described.  Do **NOT** add
+  comments to code describing the change you just made simply because you made the change.
+  Always evaluate whether the comment meets the important threshold.
 - Comments on packages explain the large scale design choices captured in the package in
   terms of invariants maintained, constraints adhered to and conventions followed.
 - Comments on type definitions should explain what real world concepts are being modelled
