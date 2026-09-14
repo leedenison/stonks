@@ -93,7 +93,9 @@ func TestSignIn(t *testing.T) {
 			expect: func(m mocks) {
 				m.users.EXPECT().GetUserByGoogleSubject(any, subject).Return(gen.User{}, db.ErrNotFound)
 				m.users.EXPECT().GetUserByEmail(any, "One@example.com").Return(gen.User{}, db.ErrNotFound)
-				m.users.EXPECT().CreateUser(any, gen.CreateUserParams{Email: "One@example.com", Name: "One", GoogleSubject: &subject, Role: gen.UserRoleUser}).Return(bound, nil)
+				m.users.EXPECT().CreateUser(any, gomock.Cond(func(p gen.CreateUserParams) bool {
+					return p.ID.Version() == 7 && cmp.Equal(p, gen.CreateUserParams{ID: p.ID, Email: "One@example.com", Name: "One", GoogleSubject: &subject, Role: gen.UserRoleUser})
+				})).Return(bound, nil)
 				m.sessions.EXPECT().Create(any, userID).Return(sess, nil)
 			},
 			want: Principal{User: bound, SessionID: "session-1", ExpiresAt: expires},

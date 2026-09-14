@@ -104,7 +104,7 @@ func (a *Authenticator) provision(ctx context.Context, c google.Claims) (gen.Use
 		return gen.User{}, ErrNotAllowed
 	}
 	subject := c.Subject
-	u, err = a.o.Users.CreateUser(ctx, gen.CreateUserParams{Email: c.Email, Name: c.Name, GoogleSubject: &subject, Role: gen.UserRoleUser})
+	u, err = a.o.Users.CreateUser(ctx, gen.CreateUserParams{ID: db.NewID(), Email: c.Email, Name: c.Name, GoogleSubject: &subject, Role: gen.UserRoleUser})
 	switch {
 	case db.IsConflict(err):
 		// A concurrent sign-in for the same identity created the account

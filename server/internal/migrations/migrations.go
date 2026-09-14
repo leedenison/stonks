@@ -10,6 +10,15 @@
 // the dev volume through make clean-docker, while the test and e2e databases
 // are tmpfs and start empty on every run.
 //
+// A row with no natural key has a surrogate key: a version 7 UUID, which the
+// server mints before the insert (see [db.go](../db/db.go)) and uuid_v7()
+// supplies for SQL written by hand. The key is the row's public identifier
+// too, so it reveals no row count and cannot be enumerated. A version 7 UUID
+// is ordered by its creation time, so inserts append to the index rather
+// than scatter across it, and a key states when its row was made. A row with
+// a natural key, such as a link table or a time series keyed by a parent and
+// a time, uses it and carries no surrogate.
+//
 // Money and quantities are NUMERIC, never a float type. Every time is
 // timestamptz, stored and read as UTC. A validity interval is half open: a row
 // covers an instant at its valid_from and not one at its valid_before.

@@ -57,8 +57,12 @@ func TestUsers(t *testing.T) {
 	q := newTx(t)
 	ctx := context.Background()
 
-	created, err := q.CreateUser(ctx, gen.CreateUserParams{Email: "One@example.com", Name: "One", Role: gen.UserRoleUser})
+	id := db.NewID()
+	created, err := q.CreateUser(ctx, gen.CreateUserParams{ID: id, Email: "One@example.com", Name: "One", Role: gen.UserRoleUser})
 	require.NoError(t, err)
+	if created.ID != id {
+		t.Errorf("CreateUser id = %s, want %s", created.ID, id)
+	}
 	if created.GoogleSubject != nil {
 		t.Errorf("CreateUser google subject = %q, want nil", *created.GoogleSubject)
 	}
@@ -78,10 +82,27 @@ func TestUsers(t *testing.T) {
 	}
 
 	// The unique violation aborts the transaction, so it is the last statement.
-	_, err = q.CreateUser(ctx, gen.CreateUserParams{Email: "ONE@example.com", Role: gen.UserRoleUser})
+	_, err = q.CreateUser(ctx, gen.CreateUserParams{ID: db.NewID(), Email: "ONE@example.com", Role: gen.UserRoleUser})
 	var pgErr *pgconn.PgError
 	// 23505 is unique_violation.
 	if !errors.As(err, &pgErr) || pgErr.Code != "23505" {
 		t.Errorf("CreateUser with a case variant of an existing email: err = %v, want unique_violation", err)
+	}
+}
+
+// TestUUIDv7 checks the key the schema mints for SQL that supplies none.
+func TestUUIDv7(t *testing.T) {
+	ctx := context.Background()
+	var a, b uuid.UUID
+	require.NoError(t, pool.QueryRow(ctx, "SELECT uuid_v7()").Scan(&a))
+	require.NoError(t, pool.QueryRow(ctx, "SELECT uuid_v7()").Scan(&b))
+	if a.Version() != 7 {
+		t.Errorf("uuid_v7() version = %d, want 7", a.Version())
+	}
+	if a.Variant() != uuid.RFC4122 {
+		t.Errorf("uuid_v7() variant = %s, want RFC4122", a.Variant())
+	}
+	if a.Time() > b.Time() {
+		t.Errorf("uuid_v7() minted %s then %s, want the first no later", a, b)
 	}
 }
