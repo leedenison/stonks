@@ -1,6 +1,6 @@
 ---
 title: Corporate events
-recorded: 2026-08-30
+recorded: 2026-09-14
 ---
 
 # Corporate events
@@ -25,7 +25,26 @@ events calendar to be able to identify OCC identified options.
 An event names the instrument it applies to by primary key, so events are fetched only
 once the instrument is resolved, covering the period it was held.
 
+An event references the run key that fetched it.  Where the fetch was sent under a
+MIC-derived identifier, an identifier event on that identifier invalidates every event
+whose ex-date lies on the far side of it from the fetch, and those events are refetched.
+See [datasources.md](datasources.md).
+
+An event that retires a listing writes an identifier event closing the validity of the
+listing's MIC_TICKER on the ex-date.  It counts as no identifier event coverage.
+
+Events on an underlying decide how an OCC symbol is normalised, so invalidating a
+corporate event run replays every OCC stated key normalised through it.  See
+[instrument-resolution.md](instrument-resolution.md).
+
 ## Constraints
+
+### Uploads Are Not a Source
+
+A split stated in an uploaded transaction history is neither stored as an event nor
+applied as an adjustment.  It is compared with the calendar, and flagged for the
+administrator when the calendar lacks it.  See
+[transaction-ingestion.md](transaction-ingestion.md).
 
 ### Unhandled Events
 
@@ -73,6 +92,10 @@ of derivatives.  This is straightforwardly true of any adjusted values computed 
 but the system also ensures that any cached, adjusted values affected by a corporate event
 are invalidated and recomputed.
 
+Where coverage does not span the period an instrument was held, the raw quantity is shown
+in place of an adjusted one.  Holdings read a per instrument summary of coverage
+maintained at ingest.
+
 ## Sketch
 
 Corporate events are system owned data and can only be modified by an admin.
@@ -88,8 +111,6 @@ at and the target date, computed exactly and rounded once for display.
 - Events that change which instrument is held (eg. mergers and spinoffs). How do we
   represent these?  What information is needed to allow these to be applied
   retroactively?
-- Whether an event that retires an identifier, such as a merger, closes that identifier's
-  validity interval.  It never counts as identifier event coverage.
 - How do we get a (mostly) complete list of event types?  Even for unhandled events we
   would like to store the information we _would_ need to handle the event correctly in
   future.
