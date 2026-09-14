@@ -34,6 +34,7 @@ Each has a note in `docs/deferred` outlining how it might work.
 - **D-CORP** - [Corporate events](deferred/corporate-events.md); splits and the restatement of recorded quantities.
 - **D-IDENT** - [Identifier events](deferred/identifier-events.md); ticker changes and the intervals over which an identifier names one instrument.
 - **D-DATASRC** - [Datasources](deferred/datasources.md); the framework every fetch from an external provider goes through.
+- **D-RUNS** - [Runs](deferred/runs.md); the unit of work uploads, resolutions, fetches and replays share, and the findings they record.
 - **D-DEPLOY** - [Production deployment](deferred/production-deployment.md); TLS, cross-origin access and what each container publishes.
 
 ## Spike

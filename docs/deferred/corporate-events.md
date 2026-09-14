@@ -25,7 +25,7 @@ events calendar to be able to identify OCC identified options.
 An event names the instrument it applies to by primary key, so events are fetched only
 once the instrument is resolved, covering the period it was held.
 
-An event references the run key that fetched it.  Where the fetch was sent under a
+An event references the fetch key that fetched it.  Where the fetch was sent under a
 MIC-derived identifier, an identifier event on that identifier invalidates every event
 whose ex-date lies on the far side of it from the fetch, and those events are refetched.
 See [datasources.md](datasources.md).
@@ -34,7 +34,7 @@ An event that retires a listing writes an identifier event closing the validity 
 listing's MIC_TICKER on the ex-date.  It counts as no identifier event coverage.
 
 Events on an underlying decide how an OCC symbol is normalised, so invalidating a
-corporate event run replays every OCC stated key normalised through it.  See
+corporate event fetch replays every OCC stated key normalised through it.  See
 [instrument-resolution.md](instrument-resolution.md).
 
 ## Constraints
@@ -57,12 +57,8 @@ will implement the option to simply store an event as unhandled so that the admi
 is informed and can decide what to do about it, without the need to implement the most
 complex handling up front.
 
-An unhandled event is a row. The admin interface queries those rows for the current backlog
-and drives its alert from them, and the row's own timestamps carry the trend, so nothing is
-copied elsewhere to report on it. Telemetry carries at most a bounded mirror for the
-operational dashboard: events met by kind per run, and a sampled count of the backlog. The
-alert is not driven from that mirror, which is batched, expired and absent whenever no
-collector is configured.
+An unhandled event is a row, reported by a blocking finding of the fetch that met it.  The
+admin interface reads the backlog from those findings.  See [runs.md](runs.md).
 
 ### Datasources
 
