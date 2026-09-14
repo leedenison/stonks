@@ -1,0 +1,74 @@
+// Read a run: one unit of background work, started by a user or by another
+// run, whose progress and outcome are read against it.
+
+syntax = "proto3";
+
+package stonks.run.v1;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/leedenison/stonks/proto/run/v1;runv1";
+
+// The work a run does.
+enum RunKind {
+  RUN_KIND_UNSPECIFIED = 0;
+  // Ingests one batch of transactions.
+  RUN_KIND_UPLOAD = 1;
+  // Answers the stated keys of an upload.
+  RUN_KIND_RESOLUTION = 2;
+}
+
+// What started a run.
+enum RunTrigger {
+  RUN_TRIGGER_UNSPECIFIED = 0;
+  RUN_TRIGGER_USER = 1;
+  // Another run, named as the parent.
+  RUN_TRIGGER_RUN = 2;
+}
+
+// Where a run is in its life. The last three are terminal.
+enum RunState {
+  RUN_STATE_UNSPECIFIED = 0;
+  // Waiting for every earlier run of the same user and lane to finish.
+  RUN_STATE_PENDING = 1;
+  RUN_STATE_RUNNING = 2;
+  // The work reached its end. Rejected items do not make a run failed.
+  RUN_STATE_COMPLETED = 3;
+  // The work stopped on an error before its end.
+  RUN_STATE_FAILED = 4;
+  // The service stopped before the work ended. Nothing recorded why, and the
+  // run is neither resumed nor restarted.
+  RUN_STATE_INTERRUPTED = 5;
+}
+
+message Run {
+  // Identifies the run in every API; a UUID.
+  string id = 1;
+  RunKind kind = 2;
+  RunTrigger trigger = 3;
+  // The run that started this one; set only when the trigger is RUN.
+  optional string parent_id = 4;
+  RunState state = 5;
+  // Why the work stopped; set only when the state is FAILED.
+  optional string error = 6;
+  google.protobuf.Timestamp created_at = 7;
+  // When the work started; unset while the run is PENDING.
+  google.protobuf.Timestamp started_at = 8;
+  // When the run reached a terminal state; unset until it does.
+  google.protobuf.Timestamp finished_at = 9;
+}
+
+message GetRunRequest {
+  string run_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message GetRunResponse {
+  Run run = 1;
+}
+
+service RunService {
+  // Reads a run the caller started. A run started by another user is not
+  // found.
+  rpc GetRun(GetRunRequest) returns (GetRunResponse);
+}

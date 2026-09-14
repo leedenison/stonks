@@ -20,8 +20,6 @@ of open issues and ADRs at `docs/tasks/<label>/`.
 ```
 001 open
  |
-004 runs
- |
 003 datamodel
  |
 005 neutral format
