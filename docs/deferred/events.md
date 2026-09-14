@@ -52,6 +52,9 @@ window of dates: a correlation a user asserted can link two transactions years a
 
 Grouping is a run.  See [runs.md](runs.md).
 
+The neutral format gains correlations when grouping is built.  Uploads made before then
+carry none and are re-uploaded to gain them.
+
 ## Undecided
 
 - The general rules that group legs carrying no correlation: whether date, instrument and
