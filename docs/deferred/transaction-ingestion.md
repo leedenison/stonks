@@ -1,6 +1,6 @@
 ---
 title: Transaction ingestion
-recorded: 2026-09-05
+recorded: 2026-09-14
 ---
 
 # Transaction ingestion
@@ -46,9 +46,9 @@ The identifiers, asset class, currency, venue and description a source states ab
 instrument form the stated key.  It is stored with the transaction as metadata, one row
 per distinct key per upload that its transactions reference, and is the input the
 resolution run answers.  The stated identifiers are held here and only become identifier
-rows when resolution admits them.  Resolution is replayed from the stated key when a
-limit to the validity of an identifier used to associate the transaction is later
-discovered, or when coverage arrives that makes a stated identifier usable.
+rows when resolution admits them.  Resolution is replayed from the stated key when an
+identifier event leaves the transaction's date outside the validity it was associated
+under, or when coverage arrives that admits a stated identifier.
 
 ### Sources, Channels and Uploads
 
@@ -104,6 +104,15 @@ date of the transaction.  However, only broker specific marshallers can know the
 conventions of a particular broker. So the marshaller must interpret the conventions
 and provide an explicit "as at" date to the server.
 
+### Split Adjustments
+
+A source may state a split as a line of its own, or restate quantities around one.
+Quantities are adjusted from the corporate event calendar alone, so a stated adjustment
+is never applied.  The marshaller carries a stated split in the neutral format, and
+ingestion compares it with the calendar.  A stated split the calendar lacks is flagged
+for the administrator, since it marks a gap in corporate event coverage or an event the
+calendar does not hold.  See [corporate-events.md](corporate-events.md).
+
 ### The Source Boundary is a Neutral Format
 
 Marshallers translate from broker specific formats to the neutral format of the system.
@@ -153,9 +162,9 @@ transaction are recomputed.
 
 Ingestion runs in stages.  The client marshals its source into the neutral format and
 uploads it; the service validates what arrived, fetches identifier events for the
-routine identifiers stated, resolves the instruments, fetches relevant corporate events,
-fetches relevant prices, fetches relevant FX rates, writes the transactions, and
-partitions them into events.
+MIC-derived identifiers stated where a source serves them, resolves the instruments,
+fetches relevant corporate events, fetches relevant prices, fetches relevant FX rates,
+writes the transactions, and partitions them into events.
 
 Resolution is keyed on what the source stated, so one description is resolved once for the
 whole upload however many transactions carry it.

@@ -1,6 +1,6 @@
 ---
 title: Instrument resolution
-recorded: 2026-09-10
+recorded: 2026-09-14
 ---
 
 # Instrument resolution
@@ -79,28 +79,48 @@ authoritative datasources.
 Scope says whether a value can be recognised outside the channel that supplied it, and
 whether a domain is needed to qualify it.
 
-Reassignment decides whether an identifier can be trusted without identifier event
-coverage for the interval it is used in.
+Reassignment says whether a value moves between instruments, and what the system relies
+on to know when it has.
 
-- **Rare**: retired on use and never reassigned, or reassigned only by documented
-  exception.  Trusted without coverage.
-- **Routine**: reassigned in the ordinary course.  Trusted only inside a validity
-  interval, which identifier event coverage bounds.  A routine identifier associates a
-  transaction with an instrument only when the transaction date lies inside its validity,
-  and links two instruments for a merge only when the moments both claims were asserted
-  do.  Inside its validity it is as trustworthy as a rare identifier.
+- **Stable**: assumed never reassigned.  Trusted without coverage.
+- **MIC-derived**: reassigned exactly when the MIC_TICKER it derives from is, so
+  identifier event coverage of the MIC_TICKER is coverage of it.  Trusted inside its
+  validity interval, which is confirmed inside coverage and provisional outside it.  See
+  [identifier-events.md](identifier-events.md).  Associates a transaction with an
+  instrument when the transaction date lies inside its validity, and absorbs an
+  instrument holding no stable identifier, but never decides between two instruments and
+  never merges them.
 - **Unverifiable**: no datasource can witness a reassignment.  Assumed never reassigned
   within its domain.  Associates a transaction with an instrument, and absorbs an
   instrument that holds no other identifier, but never decides between two instruments
   that verifiable identifiers can decide between.
 
 The weakest link governs.  A transaction stating only a ticker is associated via that
-ticker however many rare identifiers a datasource answers with, so the ticker needs
-coverage.
+ticker however many stable identifiers a datasource answers with, so the association is
+provisional until the ticker is covered.
 
-An identifier row exists only when the identifier is usable.  A routine identifier stated
-without coverage is held only in the stated key stored with the transaction, from which
-resolution is replayed when coverage arrives.
+An identifier row exists only when the identifier is usable, provisionally or confirmed.
+A ticker stated without its venue is never usable and is held only in the stated key
+stored with the transaction.
+
+No identifier type is admitted whose reassignment depends on anything other than
+MIC_TICKER reassignment.
+
+### Options
+
+An OCC symbol embeds the underlying's ticker as its root and the strike in current terms.
+It is renamed when the underlying's ticker is, which is the MIC-derived path, and
+rewritten by corporate events on the underlying, which is separate.  A rewrite reassigns
+a symbol between contracts: after a split the contract that held a strike moves to
+another symbol, and the symbol it left names a different contract.
+
+Resolution of an OCC symbol is two stages.  The root resolves the underlying as a
+MIC_TICKER.  The contract is then normalised through the underlying's corporate events
+between the transaction date and the present to a canonical contract: underlying, expiry,
+right, and strike and deliverable stated in current terms.  The symbol is admitted only
+when corporate event coverage of the underlying spans that interval.  Otherwise it stays
+in the stated key and is replayed when coverage arrives.  Corporate events on the
+underlying therefore create no assumption and nothing to unwind.
 
 ### Ownership
 
@@ -156,6 +176,11 @@ Data with candidate authority is not stored.  Data with user authority is stored
 owned data.  Data with system authority is stored as system owned data.  The shape of the
 resulting data must conform with the rules laid out in the `Ownership` section.
 
+Two sets merge only when they share a stable identifier.  Sets that overlap only on a
+MIC-derived identifier are not merged: precedence picks the set the instrument keeps, the
+identifiers of the other are dropped, and the outcome is recorded as a finding of the
+run.
+
 ### Unresolved is a First Class State
 
 An instrument which was not identified by any source beyond a broker description is still
@@ -187,7 +212,8 @@ Datasources gain coverage, integrations are enabled and quota tiers change, so a
 unresolved instrument is re-attempted periodically and on administrator demand.
 
 A transaction is re-resolved from the stated key stored with it, so a later answer moves
-the transaction to the instrument the answer names.
+the transaction to the instrument the answer names.  An identifier event that leaves the
+transaction's date outside the validity it was associated under replays it.
 
 ### Datasources
 
@@ -224,13 +250,19 @@ is needed to upgrade the association between the CUSIP and the broker descriptio
 No two instruments hold one identifier triple over overlapping validity intervals for one
 owner.
 
+### No Merge Through a MIC-derived Identifier
+
+Instruments merge only through a stable identifier, so no identifier event unwinds a
+merge.
+
 ## Sketch
 
 Resolution is keyed on what the source stated rather than on the transaction, so one key
 is resolved once per batch and every transaction carrying it receives the same answer.
 
-Identifier events for the routine identifiers the batch states are fetched first, so
-each identifier's validity is known before any lookup.  The order is then the database,
+Identifier events for the MIC-derived identifiers the batch states are fetched first,
+where a source serves their domain or a stable identifier already held.  Their absence
+blocks nothing; resolution proceeds on provisional validity.  The order is then the database,
 the batch cache, and datasources. A guess is produced only where what the source stated
 leaves the instrument or its listing open, and only after both lookups have missed.
 Corporate events are fetched for the instruments the batch resolved to once resolution
@@ -294,10 +326,10 @@ currency is absent.  Identifiers contradict when both name one subject, the same
 and domain, with different values.  An identifier the other answer also named is
 agreement, and agreement anywhere in that answer settles it.
 
-Corroboration: at least one instrument-grain identifier is named by both.  Agreeing on
-the listing is the query restated rather than evidence about the instrument, because
-the identity a resolution starts from is routinely ambiguous and each datasource may
-have found several instruments the query admits.
+Corroboration: at least one stable identifier is named by both.  Agreeing on a
+MIC-derived identifier is the query restated rather than evidence about the instrument,
+because the identity a resolution starts from is routinely reassigned and each datasource
+may have found several instruments the query admits.
 
 Filling: a value the winner holds is never replaced.  The asset class is never filled
 from another answer, since it decides which invariants the instrument must satisfy.
@@ -329,22 +361,20 @@ UNKNOWN
 
 | Type                 | Scope      | Domain               | Grain      | Reassignment |
 | -------------------- | ---------- | -------------------- | ---------- | ------------ |
-| ISIN                 | registry   | none                 | instrument | rare         |
-| CUSIP                | registry   | none                 | instrument | rare         |
-| CINS                 | registry   | none                 | instrument | rare         |
-| WERTPAPIER           | registry   | none                 | instrument | rare         |
-| OPENFIGI_SHARE_CLASS | registry   | none                 | instrument | rare         |
-| SEDOL                | registry   | none                 | listing    | rare         |
-| OPENFIGI_COMPOSITE   | registry   | none                 | listing    | rare         |
-| MIC_TICKER           | registry   | venue                | listing    | routine      |
-| OPENFIGI_TICKER      | registry   | venue                | listing    | routine      |
-| OCC                  | registry   | none                 | instrument | routine      |
-| OPRA                 | registry   | none                 | instrument | routine      |
-| FUT_OPT              | registry   | none                 | instrument | routine      |
-| CURRENCY             | registry   | none                 | instrument | rare         |
-| FX_PAIR              | registry   | none                 | instrument | rare         |
-| DATASOURCE_TICKER    | datasource | datasource           | listing    | routine      |
-| BROKER_ID            | broker     | broker               | instrument | rare         |
+| ISIN                 | registry   | none                 | instrument | stable       |
+| CUSIP                | registry   | none                 | instrument | stable       |
+| CINS                 | registry   | none                 | instrument | stable       |
+| WERTPAPIER           | registry   | none                 | instrument | stable       |
+| OPENFIGI_SHARE_CLASS | registry   | none                 | instrument | stable       |
+| SEDOL                | registry   | none                 | listing    | stable       |
+| OPENFIGI_COMPOSITE   | registry   | none                 | listing    | stable       |
+| MIC_TICKER           | registry   | venue                | listing    | MIC-derived  |
+| OPENFIGI_TICKER      | registry   | venue                | listing    | MIC-derived  |
+| OCC                  | registry   | none                 | instrument | MIC-derived  |
+| CURRENCY             | registry   | none                 | instrument | stable       |
+| FX_PAIR              | registry   | none                 | instrument | stable       |
+| DATASOURCE_TICKER    | datasource | datasource           | listing    | MIC-derived  |
+| BROKER_ID            | broker     | broker               | instrument | stable       |
 | BROKER_DESCRIPTION   | source     | broker + upload type | instrument | unverifiable |
 
 ## Undecided
@@ -352,10 +382,8 @@ UNKNOWN
 - What happens to a user owned instrument left holding no transactions when
   re-resolution moves them to another instrument.
 
-- Whether resolution answers "which instrument holds this identifier now" or "which
-  instrument held it on the transaction's date". The second is what the validity interval
-  exists for, and the first is what a lookup by value naturally does.  We need to
-  determine whether there are use cases for the second.
+- Whether a datasource whose answer overlapped an existing instrument only on a
+  MIC-derived identifier is barred from contributing to that instrument in later runs.
 
 - Which currencies form one family, and whether a family is anything more than a unit
   prefix.

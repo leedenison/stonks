@@ -36,19 +36,33 @@ the leaves below it.
 consisting of a type, an optional domain and a value, valid over an interval.
 
 **Identifier Type** -- the controlled vocabulary that says how an identifier's domain and
-value are interpreted. Each type declares a scope, a grain and a reassignment: rare,
-routine or unverifiable.
+value are interpreted. Each type declares a scope, a grain and a reassignment: stable,
+MIC-derived or unverifiable. In code: **stable**, **mic_derived**, **unverifiable**.
+
+**Validity** -- the interval over which an identifier names one instrument.
+**Confirmed** where coverage or assertions establish it, **provisional** where it rests
+on the assumption that the identifier has not moved.
+
+**Assertion** -- a datasource's claim, made by a run, that an identifier names the
+instrument its answer describes, holding at the run's fetch time or over the interval
+the answer states.
 
 **Stated Key** -- what one source states about an instrument: its identifiers, asset
 class, currency, venue and description.
 
-**Coverage** -- the periods over which one datasource has answered for one key.
+**Coverage** -- the periods over which one datasource has answered for one key, or for
+every key in one domain.
 
 **Integration** -- the code adapting one datasource to the fetch framework: its request
 shapes, parsing, venue map and the declaration of what it serves.
 
 **Run** -- one fetch: a datasource, a kind of data, a set of keys and a period, recorded
 as a row.
+
+**Run Key** -- one key inside a run, recorded as a row: the identifier sent for it, the
+outcome, and the identifiers the answer named.
+
+**Provenance** -- the run key that produced a stored row.
 
 **Block** -- a record that a datasource failed permanently for a key, suppressing further
 calls until an administrator clears it.
@@ -63,9 +77,11 @@ held (eg. a split, a reverse split, a stock dividend), or exchanges it for anoth
 merger, a spinoff).
 
 **Identifier Event** -- a change to which instrument an identifier names (eg. a ticker
-change, a retirement, a reassignment).
+change, a retirement, a reassignment), witnessed by a source, implied by a corporate
+event, or inferred from two assertions.
 
-**As At** -- the date on which the values of a record were true.  In code: **as_at**.
+**As At** -- the date on which the values of a record were true, and so which corporate
+events they reflect.  Says nothing about identifiers.  In code: **as_at**.
 
 **Transaction** -- a record of a change in the quantity of one instrument held by a user,
 at a point in time, stated "as at" a date. In code: **tx**.
