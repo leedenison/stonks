@@ -76,9 +76,16 @@ from it.
 
 ### Interruption
 
-A run whose process dies is left in its last state with the items it had written.  Each
-kind states what a partial run means: a truncated fetch covers nothing.  See
-[datasources.md](datasources.md).
+A run whose process dies is marked interrupted with the items it had written.  Each kind
+states what a partial run means: an upload writes its transactions and items in one
+database transaction, so an interrupted upload has written none; a truncated fetch covers
+nothing.  See [datasources.md](datasources.md).
+
+### Ordering
+
+Runs of one user and broker proceed in creation order, since an upload replaces a period
+and the later upload is the one to keep.  Runs of different users or brokers proceed in
+parallel.  Receipt is the RPC and never waits.
 
 ## Invariants
 
@@ -91,7 +98,7 @@ it.
 ## Sketch
 
 ```sql
-run(id, kind, trigger, parent_id, state, started_at, finished_at)
+run(id, kind, trigger, parent_id, state, error, created_at, started_at, finished_at)
 fetch(run_id, datasource, kind, period, fetched_at)
 fetch_key(id, run_id, key, outcome, instrument_id, sent_type, sent_domain, sent_value)
 fetch_identifier(fetch_key_id, type, domain, value)
@@ -105,6 +112,17 @@ mirror.  Each kind owns its item rows and the rows it stores.
 The admin surface lists runs by kind, trigger and state, starts a run, and lists and
 clears findings.
 
+### Resolution Against Datasources
+
+A key resolved against a datasource takes seconds, and the system owned instruments it
+creates are shared across users, so ordering per user and broker no longer covers it.
+Read-only resolution proceeds in parallel; creation is serialised per stated key, with an
+advisory lock keyed on it, so two runs stating one key produce one instrument.  The write
+of transactions stays ordered per user and broker.
+
+With more than one process, pending runs are claimed from the database with
+`SKIP LOCKED` where no earlier non-terminal run shares the user and broker.
+
 ## Undecided
 
 - Whether clearing the finding on a block or an unhandled event is what clears the block,
@@ -112,8 +130,8 @@ clears findings.
 
 - Whether a finding on one subject met by two runs is one finding or two.
 
-- Whether a run can be cancelled, and whether an interrupted run is resumed, restarted or
-  left for an administrator.
+- Whether a run can be cancelled, and whether an interrupted run is resumed or restarted
+  once its payload is persisted.
 
 - How overlapping runs that touch one instrument are ordered, such as a scheduled replay
   starting during a user's upload.
