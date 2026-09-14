@@ -1,0 +1,75 @@
+// The broker neutral format an upload is expressed in. A marshaller in front
+// of the API translates one broker's export into it, so the service reads one
+// format and interprets nothing broker specific.
+//
+// An upload claims every account the user holds at its broker over its
+// period, a half-open range of order dates. Ingestion replaces every
+// transaction of that user and broker whose order date lies in the range, so
+// a re-upload is idempotent and an empty range at a boundary is a deletion.
+//
+// A row is one leg: one stated key and one quantity. An export line carrying
+// a trade's security, cash, commission and tax becomes one row per leg, and
+// nothing links the rows of one line. A cash leg states a CURRENCY identifier
+// in its key, asset class CASH and the currency. A symbol the export states
+// without a venue is carried as a MIC_TICKER identifier with no domain, which
+// names nothing and is held as a hint.
+//
+// Only the marshaller knows the broker's conventions, so it states every
+// date: the order date, the settlement date, and the date the row is stated
+// as at. Where the export gives one date, order and settlement are that date.
+// A broker that restates every quantity to the units held at export states
+// its rows as at the export date; one that states each row as traded states
+// it as at the order date.
+
+syntax = "proto3";
+
+package stonks.upload.v1;
+
+import "buf/validate/validate.proto";
+import "type/v1/type.proto";
+
+option go_package = "github.com/leedenison/stonks/proto/upload/v1;uploadv1";
+
+// One leg: a change in the quantity of one instrument, stated as at a date.
+// Each field means what the field of the same name on Transaction in
+// type/v1/type.proto means. None carries a constraint, so that an invalid row
+// is rejected on its own rather than failing the upload.
+message Row {
+  stonks.type.v1.StatedKey key = 1;
+  string order_date = 2;
+  string settlement_date = 3;
+  string as_at = 4;
+  string quantity = 5;
+  optional string currency = 6;
+}
+
+// The change in units between old and new as the export states it: 1 old to
+// 10 new for a ten-for-one split.
+message SplitRatio {
+  string from = 1;
+  string to = 2;
+}
+
+// A split as the export states it. Ingestion compares it with the corporate
+// event calendar and never applies it.
+message StatedSplit {
+  stonks.type.v1.StatedKey key = 1;
+  string effective_date = 2;
+  // The change in units the export states; negative for a short position.
+  string quantity = 3;
+  // Unset when the export states no ratio.
+  SplitRatio ratio = 4;
+}
+
+message Upload {
+  stonks.type.v1.Broker broker = 1 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
+  // The first order date claimed.
+  string order_from = 2 [(buf.validate.field).string.pattern = "^\\d{4}-\\d{2}-\\d{2}$"];
+  // The day after the last order date claimed.
+  string order_before = 3 [(buf.validate.field).string.pattern = "^\\d{4}-\\d{2}-\\d{2}$"];
+  repeated Row rows = 4;
+  repeated StatedSplit splits = 5;
+}

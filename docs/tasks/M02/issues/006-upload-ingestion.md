@@ -1,7 +1,6 @@
 ---
 title: Upload ingestion
 type: task
-dependencies: [005]
 ---
 
 ## Scope

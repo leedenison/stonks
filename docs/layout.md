@@ -19,6 +19,7 @@ proto/
   instrument/v1/instrument.proto  stonks.instrument.v1  -- instruments
   run/v1/run.proto                stonks.run.v1         -- runs
   type/v1/type.proto              stonks.type.v1        -- shared types
+  upload/v1/upload.proto          stonks.upload.v1      -- the neutral format of an upload
 ```
 
 Generated Go lands beside the `.proto` files (`paths=source_relative`) and is gitignored:
@@ -46,6 +47,7 @@ client/
   contexts/             React context providers, one file per concern
   hooks/                shared hooks
   lib/                  the transport, the typed clients, and pure utilities
+    marshal/            the marshallers translating broker exports into the neutral format
   public/               static files served at /
   gen/                  protobuf-es output (generated, gitignored)
 ```

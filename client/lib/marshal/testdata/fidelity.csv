@@ -1,0 +1,22 @@
+﻿Account ,All Accounts
+Timeframe,01/01/2025-31/03/2025
+Transaction type,All Transactions
+Investment name,All Investments
+Valuations,"£100,000.00"
+
+Order date,Completion date,Transaction type,Investments,Product Wrapper,Account Number,Source investment,Amount,Quantity,Price per unit,Reference Number,Status,
+17 Mar 2025,21 Mar 2025,Cash Interest,"Cash",Investment ISA,AS10000001,"Cash",21.81,21.81,1,1000000001,Completed,
+17 Mar 2025,21 Mar 2025,Tax On Interest,"Cash",Investment Account,AG10000002,,-1.71,0,0,2000000001,Completed,
+17 Mar 2025,Pending,Tax On Interest,"Cash",Cash Management Account,AW10000003,,-0.03,0,0,2000000002,Completed,
+06 Mar 2025,09 Mar 2025,Service Fee,"Cash",Cash Management Account,AW10000003,,-5.40,5.4,1,1000000002,Completed,
+24 Feb 2025,26 Feb 2025,Sell,"VANGUARD FUNDS PLC, S&P 500 UCITS ETF USD DIS (VUSA)",Investment ISA,AS10000001,,-13587.84,141,96.37,1000000003,Completed,
+24 Feb 2025,26 Feb 2025,Cash In From Sell,"Cash",Investment ISA,AS10000001,,13587.84,13587.84,1,1000000004,Completed,
+24 Feb 2025,24 Feb 2025,Dealing Fee,"Cash",Investment ISA,AS10000001,,-7.50,0,0,2000000003,Completed,
+10 Feb 2025,10 Feb 2025,Buy,"VANGUARD FUNDS PLC, S&P 500 UCITS ETF USD DIS (VUSA)",Investment ISA,AS10000001,,0.00,0,79.86,1000000005,Cancelled,
+10 Feb 2025,12 Feb 2025,Buy,"BAE SYSTEMS, ORD GBP0.025 (BA.)",Investment Account,AG10000002,,1500.00,120,12.50,1000000006,Completed,
+10 Feb 2025,12 Feb 2025,Cash Out For Buy,"Cash",Investment Account,AG10000002,,-1500.00,1500,1,1000000007,Completed,
+10 Feb 2025,10 Feb 2025,Stamp Duty Or Financial Transaction Tax,"Cash",Investment Account,AG10000002,,-7.50,0,0,2000000004,Completed,
+22 Jan 2025,06 Feb 2025,Reinvestment From Income,"Baillie Gifford Responsible Global Equity Income B Inc",Investment ISA,AS10000001,"Baillie Gifford Responsible Global Equity Income B Inc",30.33,19.26,1.58,1000000008,Completed,
+15 Jan 2025,15 Jan 2025,Transfer To Cash Management Account,"Cash",Investment Account,AG10000002,,-20000.00,20000,1,1000000009,Completed,
+15 Jan 2025,15 Jan 2025,Transfer Into Account,"Cash",Cash Management Account,AW10000003,,20000.00,20000,1,1000000010,Completed,
+02 Jan 2025,01 Jan 2025,Cash Dividend,"Cash",Investment ISA,AS10000001,"VANGUARD FUNDS PLC, S&P 500 UCITS ETF USD DIS (VUSA)",25.35,25.35,1,1000000011,Completed,
