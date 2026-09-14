@@ -18,26 +18,10 @@ the system accepts.
 is assumed truthful, reliable and correct, **user authority** is not trusted for any of
 those properties, and **candidate authority** is a guess.
 
-**Instrument** -- a thing that can be held and priced: eg. securities, options, futures,
-cash, real estate, etc.
-
-**Listing** -- one currency family an instrument trades in.
-
 **Currency Family** -- the currency codes that denote one currency at different unit
 scales. GBP and GBp/GBX are one family.
 
 **Venue** -- the market a listing trades on.
-
-**Asset Class** -- a controlled vocabulary for what kind of thing an instrument is, whose
-values form a tree: a leaf is a concrete class, and a parent is a set containing any of
-the leaves below it.
-
-**Instrument Identifier** -- a name for an instrument or for one of its listings,
-consisting of a type, an optional domain and a value, valid over an interval.
-
-**Identifier Type** -- the controlled vocabulary that says how an identifier's domain and
-value are interpreted. Each type declares a scope, a grain and a reassignment: stable,
-MIC-derived or unverifiable. In code: **stable**, **mic_derived**, **unverifiable**.
 
 **Validity** -- the interval over which an identifier names one instrument.
 **Confirmed** where coverage or assertions establish it, **provisional** where it rests
@@ -46,9 +30,6 @@ on the assumption that the identifier has not moved.
 **Assertion** -- a datasource's claim, made by a fetch, that an identifier names the
 instrument its answer describes, holding at the moment of the fetch or over the interval
 the answer states.
-
-**Stated Key** -- what one source states about an instrument: its identifiers, asset
-class, currency, venue and description.
 
 **Coverage** -- the periods over which one datasource has answered for one key, or for
 every key in one domain.
@@ -81,12 +62,6 @@ merger, a spinoff).
 **Identifier Event** -- a change to which instrument an identifier names (eg. a ticker
 change, a retirement, a reassignment), witnessed by a source, implied by a corporate
 event, or inferred from two assertions.
-
-**As At** -- the date on which the values of a record were true, and so which corporate
-events they reflect.  Says nothing about identifiers.  In code: **as_at**.
-
-**Transaction** -- a record of a change in the quantity of one instrument held by a user,
-at a point in time, stated "as at" a date. In code: **tx**.
 
 **Event** -- a group of transactions that together form the components of a single
 economic event (eg. a stock purchase is an event with component transactions covering

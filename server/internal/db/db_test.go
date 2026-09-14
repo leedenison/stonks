@@ -38,9 +38,8 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-// newTx returns queries over a transaction that is rolled back when the test
-// ends.
-func newTx(t *testing.T) *gen.Queries {
+// begin returns a transaction that is rolled back when the test ends.
+func begin(t *testing.T) pgx.Tx {
 	t.Helper()
 	ctx := context.Background()
 	tx, err := pool.Begin(ctx)
@@ -50,7 +49,14 @@ func newTx(t *testing.T) *gen.Queries {
 			t.Errorf("rollback: %v", err)
 		}
 	})
-	return gen.New(tx)
+	return tx
+}
+
+// newTx returns queries over a transaction that is rolled back when the test
+// ends.
+func newTx(t *testing.T) *gen.Queries {
+	t.Helper()
+	return gen.New(begin(t))
 }
 
 func TestUsers(t *testing.T) {

@@ -2,8 +2,10 @@
 # and every area generates into the one gen package, so query names are unique
 # across areas. sqlc reads a directory one level deep, so the areas are listed
 # by glob. The schema is the goose migrations; sqlc drops each Down section and
-# ignores CREATE EXTENSION and CREATE INDEX. The overrides keep pgtype out of
-# the signatures consumers see and mock.
+# ignores CREATE EXTENSION, CREATE INDEX, triggers, DML and every constraint but
+# a primary key. The overrides keep pgtype out of the signatures consumers see
+# and mock; numeric is named pg_catalog.numeric because the parser qualifies
+# it, and an override naming a type the parser does not is silently unmatched.
 version: "2"
 sql:
   - engine: postgresql
@@ -35,3 +37,24 @@ sql:
               import: time
               type: Time
               pointer: true
+          - db_type: pg_catalog.numeric
+            go_type: github.com/shopspring/decimal.Decimal
+          - db_type: pg_catalog.numeric
+            nullable: true
+            go_type:
+              import: github.com/shopspring/decimal
+              type: Decimal
+              pointer: true
+          - db_type: date
+            go_type: time.Time
+          - db_type: date
+            nullable: true
+            go_type:
+              import: time
+              type: Time
+              pointer: true
+          - column: stated_keys.identifiers
+            go_type:
+              import: github.com/leedenison/stonks/server/internal/db
+              type: StatedIdentifier
+              slice: true

@@ -27,5 +27,6 @@ CREATE TABLE runs (
     created_at  timestamptz NOT NULL DEFAULT now(),
     started_at  timestamptz,
     finished_at timestamptz,
-    CHECK ((trigger = 'run') = (parent_id IS NOT NULL))
+    CHECK ((trigger = 'run') = (parent_id IS NOT NULL)),
+    UNIQUE (id, user_id)
 );

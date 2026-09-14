@@ -4,7 +4,8 @@
 // Money and quantities cross the wire as a string holding an exact decimal,
 // such as "1234.56" or "-0.0001", never a floating-point field.
 //
-// A timestamp is a google.protobuf.Timestamp, in UTC.
+// A timestamp is a google.protobuf.Timestamp, in UTC. A date with no time
+// crosses as a string in ISO 8601 form, such as "2026-09-14".
 //
 // An interval is half open. A message bounding one carries valid_from and
 // valid_before, and an instant equal to valid_before falls outside it.
@@ -14,3 +15,135 @@ syntax = "proto3";
 package stonks.type.v1;
 
 option go_package = "github.com/leedenison/stonks/proto/type/v1;typev1";
+
+// A broker whose exports the system accepts.
+enum Broker {
+  BROKER_UNSPECIFIED = 0;
+  BROKER_IBKR = 1;
+  BROKER_SCHWAB = 2;
+  BROKER_FIDELITY = 3;
+}
+
+// What kind of thing an instrument is. The values form a tree: a leaf is a
+// concrete class and a parent is the set of the leaves below it. A source
+// states the narrowest class it can defend, so an internal node is a legal
+// stored value. ASSET_CLASS_UNSPECIFIED is a field nobody set and is not a
+// node of the tree.
+enum AssetClass {
+  ASSET_CLASS_UNSPECIFIED = 0;
+  // The root: money or a security, and a claim that rules nothing out.
+  ASSET_CLASS_UNKNOWN = 1;
+  // Money in one currency. Under UNKNOWN.
+  ASSET_CLASS_CASH = 2;
+  // A security of unstated class. Under UNKNOWN.
+  ASSET_CLASS_SECURITY = 3;
+  // A shareholding, direct or pooled. Under SECURITY.
+  ASSET_CLASS_EQUITY = 4;
+  // Under EQUITY.
+  ASSET_CLASS_STOCK = 5;
+  // Under EQUITY.
+  ASSET_CLASS_ETF = 6;
+  // Under EQUITY.
+  ASSET_CLASS_MUTUAL_FUND = 7;
+  // Under SECURITY.
+  ASSET_CLASS_FIXED_INCOME = 8;
+  // A contract whose strike is quoted in a listing of something else. Under
+  // SECURITY.
+  ASSET_CLASS_DERIVATIVE = 9;
+  // Under DERIVATIVE.
+  ASSET_CLASS_OPTION = 10;
+  // Under DERIVATIVE.
+  ASSET_CLASS_FUTURE = 11;
+  // A currency pair. Under SECURITY rather than CASH: a pair is an instrument
+  // that holds a price, where cash is the money itself.
+  ASSET_CLASS_FX = 12;
+}
+
+// How an identifier's domain and value are read. A type names an instrument
+// or one listing of it; the comment on each says which and what its domain
+// is.
+enum IdentifierType {
+  IDENTIFIER_TYPE_UNSPECIFIED = 0;
+  // An instrument; no domain.
+  IDENTIFIER_TYPE_ISIN = 1;
+  // An instrument; no domain.
+  IDENTIFIER_TYPE_CUSIP = 2;
+  // An instrument; no domain.
+  IDENTIFIER_TYPE_CINS = 3;
+  // An instrument; no domain.
+  IDENTIFIER_TYPE_WERTPAPIER = 4;
+  // An instrument; no domain.
+  IDENTIFIER_TYPE_OPENFIGI_SHARE_CLASS = 5;
+  // A listing; no domain.
+  IDENTIFIER_TYPE_SEDOL = 6;
+  // A listing; no domain.
+  IDENTIFIER_TYPE_OPENFIGI_COMPOSITE = 7;
+  // A listing; the domain is the ISO 10383 operating MIC of the venue.
+  IDENTIFIER_TYPE_MIC_TICKER = 8;
+  // A listing; the domain is the OpenFIGI exchange code.
+  IDENTIFIER_TYPE_OPENFIGI_TICKER = 9;
+  // An option contract, an instrument; no domain.
+  IDENTIFIER_TYPE_OCC = 10;
+  // A listing of the cash instrument; no domain, the value an ISO 4217 code.
+  IDENTIFIER_TYPE_CURRENCY = 11;
+  // An instrument; no domain.
+  IDENTIFIER_TYPE_FX_PAIR = 12;
+  // A listing; the domain is the datasource that issued the value.
+  IDENTIFIER_TYPE_DATASOURCE_TICKER = 13;
+  // An instrument; the domain is the broker that issued the value.
+  IDENTIFIER_TYPE_BROKER_ID = 14;
+  // A listing; the domain is the broker and the channel the description came
+  // through, and the value is the description text as the export states it.
+  IDENTIFIER_TYPE_BROKER_DESCRIPTION = 15;
+}
+
+// A name for an instrument or for one of its listings.
+message Identifier {
+  IdentifierType type = 1;
+  // Qualifies the value for a type that has a domain; unset otherwise. A
+  // value of a venue-scoped type stated without its domain is a search hint
+  // and names nothing.
+  optional string domain = 2;
+  string value = 3;
+}
+
+// What one source states about an instrument. The identifiers it states are
+// admitted or held as hints by resolution; none is taken as a name on its
+// own.
+message StatedKey {
+  repeated Identifier identifiers = 1;
+  // The narrowest class the source can defend; UNSPECIFIED when it stated
+  // none.
+  AssetClass asset_class = 2;
+  // The currency code as the source stated it; unset when it stated none.
+  optional string currency = 3;
+  // The source's description of the instrument; unset when it gave none.
+  optional string description = 4;
+}
+
+// A change in the quantity of one instrument held by a user.
+message Transaction {
+  // Identifies the transaction in every API; a UUID.
+  string id = 1;
+  // The instrument the transaction resolved to; a UUID.
+  string instrument_id = 2;
+  // The listing, set when the currency is known; a UUID.
+  optional string listing_id = 3;
+  // The upload that wrote the transaction; the id of its run.
+  string upload_id = 4;
+  // The stated key the transaction was resolved from; a UUID.
+  string stated_key_id = 5;
+  Broker broker = 6;
+  // The date the order was placed.
+  string order_date = 7;
+  // The date the order settled, which may precede order_date.
+  string settlement_date = 8;
+  // The date the values were true, and so which corporate events they
+  // reflect.
+  string as_at = 9;
+  // The change in units of the instrument: shares, contracts, or money for
+  // cash. Negative for a disposal or an outflow.
+  string quantity = 10;
+  // The precise currency code the source stated; unset when it stated none.
+  optional string currency = 11;
+}
