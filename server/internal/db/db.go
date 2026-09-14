@@ -8,6 +8,10 @@
 //
 // The driver is pgx v5, which sqlc targets natively.
 //
+// An insert takes its surrogate key from the caller, minted with NewID, so a
+// set of related rows is written in one batch without reading keys back. The
+// convention for keys is in [migrations.go](../migrations/migrations.go).
+//
 // A condition a caller acts on crosses the package boundary as a sentinel
 // error, such as ErrNotFound, checked with errors.Is. A condition the driver
 // states as a SQLSTATE rather than an error value crosses as a predicate
@@ -23,6 +27,7 @@ import (
 	"strings"
 
 	"github.com/exaring/otelpgx"
+	"github.com/google/uuid"
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -39,6 +44,10 @@ const sqlcNamePrefix = "-- name: "
 
 // ErrNotFound is what a generated single-row query returns when no row matches.
 var ErrNotFound = pgx.ErrNoRows
+
+// NewID mints a surrogate key. It panics only if the random source fails,
+// which crypto/rand treats as unrecoverable itself.
+func NewID() uuid.UUID { return uuid.Must(uuid.NewV7()) }
 
 // IsConflict reports whether err is a write a unique constraint refused, which
 // is how a caller learns that the row it meant to insert already exists.
