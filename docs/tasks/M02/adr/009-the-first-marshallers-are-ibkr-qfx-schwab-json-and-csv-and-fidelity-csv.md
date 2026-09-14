@@ -19,9 +19,12 @@ What the three state, and what the format expresses as a result:
   timestamp with its zone and no settlement. Schwab states one date, and on some rows a
   posted date "as of" an effective date, which is the order date with the posted date as
   settlement. Settlement before order is stated by real exports and is not an error.
-- **As at.** Each states a split as a line of its own and leaves earlier quantities as
-  they were, so every row is stated as at its order date. The row carries the date all
-  the same, since only the marshaller knows this.
+- **As at.** IBKR states each row as traded and a split as a transfer of the units it
+  added, so a row is as at its order date. Schwab restates a row's quantity to the units
+  held after every split up to the export while leaving its price as traded, and still
+  states the split as a line of its own, so a row is as at the date the export was
+  taken; neither Schwab format states that date and the upload page supplies it.
+  Fidelity states no split in any export seen and is taken as at the order date.
 - **Legs.** Schwab and IBKR carry a trade's security, cash, commission and tax on one
   line. Fidelity states each on its own line. See
   [010](010-a-row-is-one-leg-and-carries-no-correlation.md).
@@ -35,12 +38,20 @@ What the three state, and what the format expresses as a result:
   to name one instrument, each a listing grain identifier in the domain of its broker and
   channel. Until a datasource answers for the identifiers in their stated keys, each
   resolves to an instrument of its own.
-- **Other identifiers.** IBKR states a CUSIP or ISIN for a stock and a contract id for an
-  option. Schwab and Fidelity state a symbol without a venue, which is a search hint and
-  not an identifier. All are carried in the stated key; only the broker description is
-  admitted in this milestone.
+- **Other identifiers.** IBKR states a CUSIP, ISIN or SEDOL for a stock and a contract
+  id for an option, and prints an option's ticker in OCC form for a contract OCC lists;
+  the ticker is carried as an OCC identifier when the terms the same record states name
+  that symbol, and a record whose ticker and terms disagree fails the file. Schwab and
+  Fidelity state a symbol without a venue, which is a search hint and not an identifier.
+  All are carried in the stated key; only the broker description is admitted in this
+  milestone.
 - **Asset class.** IBKR distinguishes stock trades from option trades. Schwab and
   Fidelity distinguish nothing beyond cash. Each marshaller states the narrowest class it
   can defend: equity or option for IBKR, security for the others, cash for a cash leg.
 - **Rows not emitted.** Fidelity marks cancelled rows and rows awaiting completion.
-  Neither is emitted; replacement means a later export supplies the completed row.
+  Neither is emitted. A row awaiting completion sits at the recent end of the export, so
+  no row ordered on or after the earliest one is emitted and the claimed period ends
+  there; replacement means a later export supplies them all, where a period claiming
+  those days would have deleted them for good. A zero charge awaiting completion does
+  not count: real exports carry zero dealing fees and levies that stay pending for
+  months, and a row that moves nothing has nothing to supply later.

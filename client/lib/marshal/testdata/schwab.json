@@ -1,0 +1,162 @@
+{
+  "FromDate": "01/01/2024",
+  "ToDate": "12/31/2024",
+  "TotalTransactionsAmount": "$48,741.10",
+  "TotalFeesAndCommAmount": "$0.03",
+  "BrokerageTransactions": [
+    {
+      "Date": "12/16/2024",
+      "Action": "Qualified Dividend",
+      "Symbol": "GOOG",
+      "Description": "ALPHABET INC CLASS CLASS C",
+      "Quantity": "",
+      "Price": "",
+      "Fees & Comm": "",
+      "Amount": "$41.86",
+      "AcctgRuleCd": "2"
+    },
+    {
+      "Date": "11/26/2024",
+      "Action": "Credit Interest",
+      "Symbol": "",
+      "Description": "SCHWAB1 INT 10/30-11/25",
+      "Quantity": "",
+      "Price": "",
+      "Fees & Comm": "",
+      "Amount": "$0.42",
+      "AcctgRuleCd": "2"
+    },
+    {
+      "Date": "11/12/2024",
+      "Action": "Wire Sent",
+      "Symbol": "",
+      "Description": "WIRED FUNDS DISBURSED",
+      "Quantity": "",
+      "Price": "",
+      "Fees & Comm": "",
+      "Amount": "-$20,000.00",
+      "AcctgRuleCd": "1"
+    },
+    {
+      "Date": "11/05/2024",
+      "Action": "Sell",
+      "Symbol": "GOOGL",
+      "Description": "ALPHABET INC CLASS A",
+      "Quantity": "181",
+      "Price": "$278.80",
+      "Fees & Comm": "$0.03",
+      "Amount": "$50,462.77",
+      "AcctgRuleCd": "2"
+    },
+    {
+      "Date": "10/04/2024 as of 10/03/2024",
+      "Action": "Cash Dividend",
+      "Symbol": "VOO",
+      "Description": "VANGUARD S&P ...500 ETF",
+      "Quantity": "",
+      "Price": "",
+      "Fees & Comm": "",
+      "Amount": "$191.71",
+      "AcctgRuleCd": "2"
+    },
+    {
+      "Date": "08/25/2024 as of 08/24/2024",
+      "Action": "Stock Split",
+      "Symbol": "TSLA",
+      "Description": "TESLA INC",
+      "Quantity": "84",
+      "Price": "$297.0967",
+      "Fees & Comm": "",
+      "Amount": "",
+      "AcctgRuleCd": "2"
+    },
+    {
+      "Date": "08/19/2024",
+      "Action": "Misc Cash Entry",
+      "Symbol": "",
+      "Description": "WAIVE WIRE FEE",
+      "Quantity": "",
+      "Price": "",
+      "Fees & Comm": "",
+      "Amount": "$15.00",
+      "AcctgRuleCd": "1"
+    },
+    {
+      "Date": "08/19/2024",
+      "Action": "Service Fee",
+      "Symbol": "",
+      "Description": "WIRED FUNDS FEE",
+      "Quantity": "",
+      "Price": "",
+      "Fees & Comm": "",
+      "Amount": "-$15.00",
+      "AcctgRuleCd": "1"
+    },
+    {
+      "Date": "07/08/2024",
+      "Action": "Journal",
+      "Symbol": "",
+      "Description": "JOURNAL FRM ...999",
+      "Quantity": "",
+      "Price": "",
+      "Fees & Comm": "",
+      "Amount": "$1,522.61",
+      "AcctgRuleCd": "1"
+    },
+    {
+      "Date": "06/14/2024",
+      "Action": "Buy",
+      "Symbol": "GOOGL",
+      "Description": "ALPHABET INC CLASS A",
+      "Quantity": "22",
+      "Price": "$178.35",
+      "Fees & Comm": "",
+      "Amount": "-$3,923.70",
+      "AcctgRuleCd": "2"
+    },
+    {
+      "Date": "05/13/2024",
+      "Action": "Cash Merger",
+      "Symbol": "ATVI",
+      "Description": "ACTIVISION BLIZZARD MANDATORY MERGER EFF: 05/13/24",
+      "Quantity": "",
+      "Price": "",
+      "Fees & Comm": "",
+      "Amount": "$4,445.21",
+      "AcctgRuleCd": "2"
+    },
+    {
+      "Date": "05/13/2024",
+      "Action": "Cash Merger Adj",
+      "Symbol": "ATVI",
+      "Description": "ACTIVISION BLIZZARD MANDATORY MERGER EFF: 05/13/24",
+      "Quantity": "-46.7917",
+      "Price": "",
+      "Fees & Comm": "",
+      "Amount": "",
+      "AcctgRuleCd": "2"
+    },
+    {
+      "Date": "04/18/2024",
+      "Action": "Reinvest Shares",
+      "Symbol": "ATVI",
+      "Description": "ACTIVISION BLIZZARD",
+      "Quantity": "0.5071",
+      "Price": "$90.3603",
+      "Fees & Comm": "",
+      "Amount": "-$45.82",
+      "AcctgRuleCd": "2"
+    },
+    {
+      "Date": "04/17/2024",
+      "Action": "Qual Div Reinvest",
+      "Symbol": "ATVI",
+      "Description": "ACTIVISION BLIZZARD",
+      "Quantity": "",
+      "Price": "",
+      "Fees & Comm": "",
+      "Amount": "$45.82",
+      "AcctgRuleCd": "2"
+    }
+  ]
+}
