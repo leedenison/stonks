@@ -37,7 +37,7 @@ know its conventions.  So the client must interpret the conventions and provide 
 An FX rate is not restated by corporate events, so it is stated as at its own date.
 
 The "as at" date says nothing about the identifier a price was fetched under.  That
-identifier and the moment it was asserted are carried by the run key the price
+identifier and the moment it was asserted are carried by the fetch key the price
 references.  See [datasources.md](datasources.md).  The two dates coincide for an
 adjusted series and differ for an as-traded one, and neither convention is refused.
 
@@ -47,7 +47,7 @@ A price dated d fetched at t under a MIC-derived identifier rests on the assumpt
 the identifier named the same instrument on d as at t.  An identifier event between d and
 t invalidates the price, whatever its "as at" date, and the price is refetched.  A fetch
 is keyed on a stable identifier where the provider accepts one, which yields a fresh
-assertion of the ticker the provider maps it to, and the run key records that ticker as
+assertion of the ticker the provider maps it to, and the fetch key records that ticker as
 the identifier sent.
 
 ### Datasources

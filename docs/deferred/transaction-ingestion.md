@@ -45,7 +45,7 @@ providing mechanisms to supply correlating evidence is in scope.
 The identifiers, asset class, currency, venue and description a source states about an
 instrument form the stated key.  It is stored with the transaction as metadata, one row
 per distinct key per upload that its transactions reference, and is the input the
-resolution run answers.  The stated identifiers are held here and only become identifier
+resolution answers.  The stated identifiers are held here and only become identifier
 rows when resolution admits them.  Resolution is replayed from the stated key when an
 identifier event leaves the transaction's date outside the validity it was associated
 under, or when coverage arrives that admits a stated identifier.
@@ -109,9 +109,9 @@ and provide an explicit "as at" date to the server.
 A source may state a split as a line of its own, or restate quantities around one.
 Quantities are adjusted from the corporate event calendar alone, so a stated adjustment
 is never applied.  The marshaller carries a stated split in the neutral format, and
-ingestion compares it with the calendar.  A stated split the calendar lacks is flagged
-for the administrator, since it marks a gap in corporate event coverage or an event the
-calendar does not hold.  See [corporate-events.md](corporate-events.md).
+ingestion compares it with the calendar.  A stated split the calendar lacks is recorded
+as a finding for the administrator, since it marks a gap in corporate event coverage or
+an event the calendar does not hold.  See [corporate-events.md](corporate-events.md).
 
 ### The Source Boundary is a Neutral Format
 
@@ -132,11 +132,10 @@ tolerate the discrepancy without losing the remaining transactions in the file.
 The UI must be very clear when transactions have been rejected during ingestion both at
 the time of the upload and when a user browses previous uploads.
 
-### Ingestion is Background Work
+### An Upload is a Run
 
-An upload takes long enough that the request starting it cannot wait for it.  The call
-starting an upload answers with the identity of the work rather than with its result.
-Progress, the outcome and the rows that failed are read back against that identity.
+The call starting an upload answers with the run rather than with its result.  Progress,
+the outcome and the rows that failed are read back against it.  See [runs.md](runs.md).
 
 # Established Stonks Datamodel Conventions
 
@@ -164,7 +163,8 @@ Ingestion runs in stages.  The client marshals its source into the neutral forma
 uploads it; the service validates what arrived, fetches identifier events for the
 MIC-derived identifiers stated where a source serves them, resolves the instruments,
 fetches relevant corporate events, fetches relevant prices, fetches relevant FX rates,
-writes the transactions, and partitions them into events.
+writes the transactions, and partitions them into events.  The resolution and each fetch
+are runs with the upload as parent.
 
 Resolution is keyed on what the source stated, so one description is resolved once for the
 whole upload however many transactions carry it.

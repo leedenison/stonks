@@ -46,15 +46,15 @@ MIC_TICKER serve them all.
 
 ### Assertions
 
-A run whose answer names an identifier asserts that the identifier names the instrument
+A fetch whose answer names an identifier asserts that the identifier names the instrument
 the answer described.  An identity lookup asserts, and so does a price or corporate event
-fetch whose answer echoes the identifier it served.  An assertion holds at the run's
-fetch time unless the answer states an interval: a point in time lookup asserts on the
+fetch whose answer echoes the identifier it served.  An assertion holds at the moment of
+the fetch unless the answer states an interval: a point in time lookup asserts on the
 date asked about, and an entity's ticker history asserts each ticker over the interval
 the entity held it.
 
-Assertions are rows of the run that made them, never fields on the identifier.  A user
-statement is not an assertion.
+Assertions are rows of the fetch key that made them, never fields on the identifier.  A
+user statement is not an assertion.
 
 ### Coverage
 
@@ -76,8 +76,8 @@ one symbol is unique across the consolidated tape, witnesses no event when a lis
 moves between venues and keeps its symbol.  Its answer covers every operating MIC in the
 composite, one row per MIC.
 
-Coverage is written only from a run key with a served outcome.  A failed or truncated
-run covers nothing, since a domain row from a partial answer would assert no event for
+Coverage is written only from a fetch key with a served outcome.  A failed or truncated
+fetch covers nothing, since a domain row from a partial answer would assert no event for
 every value the missing part touched.
 
 ### Validity
@@ -107,8 +107,8 @@ description.
   assertions.  Should that happen unwitnessed, the system records incorrect information
   and accepts it.
 - A witnessed event inside a bracket of same-holder assertions is a contradiction.  The
-  event wins, and the contradiction is recorded for the admin surface alongside
-  resolution findings.
+  event wins, and the contradiction is recorded as a finding of the run that met it.  See
+  [runs.md](runs.md).
 
 ## Constraints
 
@@ -125,11 +125,11 @@ once per stable identifier.
 
 ### Unwinding
 
-An event on a value finds every run key that sent the value to a provider.  A data row
-produced by such a run key is invalidated when the event lies between the row's date and
-the run's assertion moment.  Invalidated rows and the coverage written from their run
-keys are dropped and refetched.  A transaction whose date falls outside the validity it
-was associated under is replayed from its stated key.
+An event on a value finds every fetch key that sent the value to a provider.  A data row
+produced by such a fetch key is invalidated when the event lies between the row's date
+and the fetch's assertion moment.  Invalidated rows and the coverage written from their
+fetch keys are dropped and refetched.  A transaction whose date falls outside the
+validity it was associated under is replayed from its stated key.
 
 No instrument is merged through a MIC-derived identifier, so no event unwinds a merge.
 See [instrument-resolution.md](instrument-resolution.md).
@@ -165,7 +165,7 @@ for the entity holding a symbol and accepts a date to answer as at, and EODHD, w
 serves symbol changes by date range for the US composite.
 
 Holdings and valuation read a per instrument summary of validity and coverage maintained
-at ingest rather than the run tables.  See [datasources.md](datasources.md).
+at ingest rather than the fetch tables.  See [datasources.md](datasources.md).
 
 ## Undecided
 

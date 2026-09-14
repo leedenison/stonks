@@ -203,13 +203,13 @@ provided:
 - No datum in the sets provided by the sources is contradictory.
 - At least one valid identifier authoritatively links the two instruments.
 
-Despite the automatic resolution the contradictions themselves are recorded as rows of the
-resolution run that met them, and reported to admin users from those rows.
+Despite the automatic resolution each contradiction is recorded as a finding of the
+resolution that met it.  See [runs.md](runs.md).
 
 ### Re-Resolution
 
 Datasources gain coverage, integrations are enabled and quota tiers change, so an
-unresolved instrument is re-attempted periodically and on administrator demand.
+unresolved instrument is re-attempted by a scheduled replay and on administrator demand.
 
 A transaction is re-resolved from the stated key stored with it, so a later answer moves
 the transaction to the instrument the answer names.  An identifier event that leaves the
@@ -274,7 +274,8 @@ instrument's metadata, and the others contribute what they are admitted to contr
 
 ### Choosing Among Datasource Answers
 
-Every enabled datasource is asked concurrently.  Once all have returned:
+Every enabled datasource is asked concurrently, each as a fetch with the resolution as
+parent.  Once all have returned:
 
 1. Each datasource returns its candidates.  A datasource asked about one identifier may
    find several listings, since a bare ticker names a listing at every venue that quotes
@@ -302,8 +303,8 @@ where it corroborates.
 
 A guess ranks and never filters.
 
-The run records how many candidates each datasource offered, which step dropped each
-one and on what grounds, and which tier chose the survivor.  A candidate dropped as
+The resolution records how many candidates each datasource offered, which step dropped
+each one and on what grounds, and which tier chose the survivor.  A candidate dropped as
 inconsistent and one dropped as uncorroborated are different findings.
 
 ### Agreement
@@ -334,11 +335,8 @@ may have found several instruments the query admits.
 Filling: a value the winner holds is never replaced.  The asset class is never filled
 from another answer, since it decides which invariants the instrument must satisfy.
 
-A resolution run records the outcome of each key it resolved as its own rows. The mix of
-outcomes for one run is then a query, which is what makes two runs over the same input
-comparable and lets a test assert that a change has not disturbed the flow. Scoping a count
-to one run means an unbounded metric attribute, and a test asserts on rows it can read
-rather than on telemetry that is absent whenever no collector is configured.
+A resolution records the outcome of each key it resolved as its own item rows.  See
+[runs.md](runs.md).
 
 ### Proposed Asset Classes
 

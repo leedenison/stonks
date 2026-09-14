@@ -43,8 +43,8 @@ MIC-derived or unverifiable. In code: **stable**, **mic_derived**, **unverifiabl
 **Confirmed** where coverage or assertions establish it, **provisional** where it rests
 on the assumption that the identifier has not moved.
 
-**Assertion** -- a datasource's claim, made by a run, that an identifier names the
-instrument its answer describes, holding at the run's fetch time or over the interval
+**Assertion** -- a datasource's claim, made by a fetch, that an identifier names the
+instrument its answer describes, holding at the moment of the fetch or over the interval
 the answer states.
 
 **Stated Key** -- what one source states about an instrument: its identifiers, asset
@@ -56,13 +56,20 @@ every key in one domain.
 **Integration** -- the code adapting one datasource to the fetch framework: its request
 shapes, parsing, venue map and the declaration of what it serves.
 
-**Run** -- one fetch: a datasource, a kind of data, a set of keys and a period, recorded
-as a row.
+**Run** -- one unit of work: an upload, a resolution, a fetch or a replay, recorded as a
+row with its kind, trigger, parent and state.
 
-**Run Key** -- one key inside a run, recorded as a row: the identifier sent for it, the
-outcome, and the identifiers the answer named.
+**Trigger** -- what started a run: a user, an administrator, a schedule or another run.
 
-**Provenance** -- the run key that produced a stored row.
+**Fetch** -- a run asking one datasource for one kind of data over one period.
+
+**Fetch Key** -- one key inside a fetch, recorded as a row: the identifier sent for it,
+the outcome, and the identifiers the answer named.
+
+**Provenance** -- the fetch key that produced a stored row.
+
+**Finding** -- a row recording something a run met that an administrator may need to see,
+referencing the run and the rows it is about.
 
 **Block** -- a record that a datasource failed permanently for a key, suppressing further
 calls until an administrator clears it.
