@@ -1,7 +1,6 @@
 ---
 title: Neutral format and the first marshallers
 type: task
-dependencies: [003]
 ---
 
 ## Scope

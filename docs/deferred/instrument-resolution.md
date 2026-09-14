@@ -56,7 +56,8 @@ different currency or asset class contradicts that listing.
 
 A venue is named by its ISO 10383 MIC, normalised to the operating MIC through a
 reference MIC table seeded from the published list by a checked in generator.  The domain
-of a MIC_TICKER is the operating MIC.
+of a MIC_TICKER is the operating MIC, and that domain is the only way a source states a
+venue.
 
 An identifier of a venue-scoped type stated without its venue has no natural key and is
 not an identifier.  The marshaller states it in the stated key as a search hint, which
