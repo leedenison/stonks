@@ -9,7 +9,8 @@ Takes a batch of transactions as some source states them (eg. a broker statement
 confirmation email, a user exported archive, etc) and records them as that user's
 transaction log.  Invokes fetches of identifier events, resolves instruments, and fetches
 corporate events and prices to maintain the relevant invariants w.r.t. to the period that
-instruments are held.
+instruments are held.  Grouping the transactions into events is a separate step; see
+[events.md](events.md).
 
 ## Why
 
@@ -18,7 +19,7 @@ friction path for the user.
 
 ## Model
 
-### Transactions and Events
+### Transactions
 
 Transactions have no natural key and are created with an internally scoped primary key.
 It is possible to have two transactions with identical settlement date, user, broker,
@@ -31,14 +32,9 @@ Transactions carry both order date and settlement date.  These are usually suppl
 brokers but where only one date is provided the marshaller should populate both from the
 same date.
 
-An event is derived from its legs as a separate step after ingestion. Legs are grouped by
-the server according to general rules that apply identically to all sources.  Transactions
-must therefore carry a general form of evidence correlating the legs of an event derived
-from the broker specific conventions by the client.  This allows events to split across
-uploads.
-
-Grouping transactions into events is outside the scope of transaction ingestion but
-providing mechanisms to supply correlating evidence is in scope.
+Transactions carry correlations, the evidence the marshaller derives from the broker's
+conventions that the server later groups legs by.  Supplying that evidence is part of
+ingestion; grouping is not.  See [events.md](events.md).
 
 ### Stated Key
 
@@ -63,29 +59,6 @@ boundaries act as deletions.
 
 An upload is user authenticated, so the data it carries is limited to user authority
 unless corroborated and upgraded by a system authoritative source.
-
-### Correlations
-
-Correlations allow the broker specific marshaller to provide additional evidence to aid
-grouping of transactions into economic events.  For example, broker statements will
-commonly include an acquisition of stock, the cash debit, fees and commission on a
-single line item.  The system expects these to be broken into distinct line items but
-we want to preserve the fact that they belong to a single economic event.  Correlations
-allow the broker specific marshaller to annotate each leg with an equality reference
-that the server can use to group them.
-
-The proposed correlation types are:
-
-| Type     | Compares                                       | Direction | Concludes                                          |
-| -------- | ---------------------------------------------- | --------- | -------------------------------------------------- |
-| EXACT    | equality of the reference                      | symmetric | the transactions are legs of one event             |
-| ORDINAL  | distance between two ordinals, within the span | symmetric | the transactions are candidates for one event      |
-| ACCOUNT  | the reference against another account          | directed  | the two are candidates for the sides of a transfer |
-| ATTACHES | the reference against another transaction      | directed  | the bearer joins the event that transaction is in  |
-
-One reference can carry as many of these as are true of it; ie. a refernce that numbers
-sequentially supplies both equality and proximity.  A directed correlation is carried by
-one side only, and the transaction it names says nothing in return.
 
 ## Constraints
 
@@ -162,15 +135,11 @@ transaction are recomputed.
 Ingestion runs in stages.  The client marshals its source into the neutral format and
 uploads it; the service validates what arrived, fetches identifier events for the
 MIC-derived identifiers stated where a source serves them, resolves the instruments,
-fetches relevant corporate events, fetches relevant prices, fetches relevant FX rates,
-writes the transactions, and partitions them into events.  The resolution and each fetch
-are runs with the upload as parent.
+fetches relevant corporate events, fetches relevant prices, fetches relevant FX rates
+and writes the transactions.  The resolution and each fetch are runs with the upload as
+parent.
 
 Resolution is keyed on what the source stated, so one description is resolved once for the
 whole upload however many transactions carry it.
-
-Grouping runs over a neighbourhood of what was uploaded rather than over one upload or over
-everything.  The neighbourhood reaches as far as the evidence does, which is not a window
-of dates: a correlation a user asserted can link two transactions years apart.
 
 ## Undecided

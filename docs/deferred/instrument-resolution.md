@@ -38,20 +38,21 @@ attached data.
 A listing carries the interval it was tradeable in. A delisting closes one. A
 redenomination closes one and merges what it holds into the listing taking over.
 
-Cash is modelled as an instrument where the balance is held in the currency listing of
-the instrument.  An FX pair is the instrument a rate is a price of. Each has one
-degenerate listing.
+Cash is one system owned instrument with a listing per supported currency, each listing
+carrying a CURRENCY identifier whose value is the ISO 4217 code.  An FX pair is the
+instrument a rate is a price of, and has one degenerate listing.
 
 An option or a future references the listing of its underlying, a strike being quoted
 in the listing's currency.
 
 ### Identifiers
 
-A broker's own description of an instrument is an identifier type, and the marshaller
-constructs a domain unique to the broker and the channel.  Broker description identifiers
-ensure uploads of the same broker description are matched in the database without expensive
-calls to external services.  Within one domain and for one owner a description names one
-instrument at a time.
+A broker's own description of an instrument is a listing grain identifier type, and the
+marshaller constructs a domain unique to the broker and the channel.  Broker description
+identifiers ensure uploads of the same broker description are matched in the database
+without expensive calls to external services.  Within one domain and for one owner a
+description names one listing at a time, and a key stating the same description with a
+different currency or asset class contradicts that listing.
 
 A venue is named by its ISO 10383 MIC, normalised to the operating MIC through a
 reference MIC table seeded from the published list by a checked in generator.  The domain
@@ -369,11 +370,11 @@ UNKNOWN
 | MIC_TICKER           | registry   | venue                | listing    | MIC-derived  |
 | OPENFIGI_TICKER      | registry   | venue                | listing    | MIC-derived  |
 | OCC                  | registry   | none                 | instrument | MIC-derived  |
-| CURRENCY             | registry   | none                 | instrument | stable       |
+| CURRENCY             | registry   | none                 | listing    | stable       |
 | FX_PAIR              | registry   | none                 | instrument | stable       |
 | DATASOURCE_TICKER    | datasource | datasource           | listing    | MIC-derived  |
 | BROKER_ID            | broker     | broker               | instrument | stable       |
-| BROKER_DESCRIPTION   | source     | broker + upload type | instrument | unverifiable |
+| BROKER_DESCRIPTION   | source     | broker + upload type | listing    | unverifiable |
 
 ## Undecided
 

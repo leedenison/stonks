@@ -14,21 +14,39 @@ M, P and S numbers are append-only.
 The milestones that are scheduled, in the order they are implemented. Each has a directory
 of open issues and ADRs at `docs/tasks/<label>/`.
 
-- **M01** - Project scaffolding.
+- **M02** - Transaction ingestion from one broker's upload, and the holdings derived
+  from it.
 
 ```
-012 close
+001 open
+ |
+004 runs
+ |
+003 datamodel
+ |
+005 neutral format
+ |
+006 upload ingestion   009 look and feel
+ |                      |
+ +----------+-----------+
+ |          |
+007 uploads 008 holdings
+ |          |
+002 close --+
 ```
 
 ## Completed
 
 The record of what has been built. A milestone lands here when its issue directory empties.
 
+- **M01** - Project scaffolding.
+
 ## Deferred
 
 Each has a note in `docs/deferred` outlining how it might work.
 
 - **D-TXING** - [Transaction ingestion](deferred/transaction-ingestion.md).
+- **D-EVENTS** - [Events](deferred/events.md); grouping transactions into the economic events they are legs of.
 - **D-INSTR** - [Instrument resolution](deferred/instrument-resolution.md); collapsing the names sources use onto one instrument.
 - **D-PRICES** - [Price ingestion](deferred/price-ingestion.md) from external providers.
 - **D-CORP** - [Corporate events](deferred/corporate-events.md); splits and the restatement of recorded quantities.
