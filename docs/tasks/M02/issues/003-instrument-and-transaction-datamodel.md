@@ -1,7 +1,6 @@
 ---
 title: Instrument and transaction datamodel
 type: task
-dependencies: [004]
 ---
 
 ## Scope

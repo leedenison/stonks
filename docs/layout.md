@@ -17,6 +17,7 @@
 proto/
   auth/v1/auth.proto              stonks.auth.v1        -- sign in, session, sign out
   instrument/v1/instrument.proto  stonks.instrument.v1  -- instruments
+  run/v1/run.proto                stonks.run.v1         -- runs
   type/v1/type.proto              stonks.type.v1        -- shared types
 ```
 

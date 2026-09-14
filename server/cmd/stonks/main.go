@@ -1,8 +1,9 @@
 // The service binary. All wiring happens here: configuration is read from the
 // environment, telemetry is set up before anything instrumented connects,
-// migrations are applied, Postgres and Redis are connected, and every handler
-// is mounted on one mux served with unencrypted HTTP/2 enabled, so a gRPC
-// client reaches it without TLS.
+// migrations are applied, Postgres and Redis are connected, runs the previous
+// process left unfinished are swept, and every handler is mounted on one mux
+// served with unencrypted HTTP/2 enabled, so a gRPC client reaches it without
+// TLS.
 package main
 
 import (
@@ -20,6 +21,7 @@ import (
 
 	"github.com/leedenison/stonks/proto/auth/v1/authv1connect"
 	"github.com/leedenison/stonks/proto/instrument/v1/instrumentv1connect"
+	"github.com/leedenison/stonks/proto/run/v1/runv1connect"
 	"github.com/leedenison/stonks/server/internal/auth"
 	"github.com/leedenison/stonks/server/internal/auth/google"
 	"github.com/leedenison/stonks/server/internal/auth/session"
@@ -27,9 +29,11 @@ import (
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/logger"
+	runner "github.com/leedenison/stonks/server/internal/run"
 	"github.com/leedenison/stonks/server/internal/service"
 	authsvc "github.com/leedenison/stonks/server/internal/service/auth"
 	"github.com/leedenison/stonks/server/internal/service/instrument"
+	runsvc "github.com/leedenison/stonks/server/internal/service/run"
 	"github.com/leedenison/stonks/server/internal/telemetry"
 )
 
@@ -95,6 +99,13 @@ func run() (err error) {
 	if err := db.Migrate(ctx, pool); err != nil {
 		return err
 	}
+	queries := gen.New(pool)
+	runLog := logger.WithCategory(log, "internal/run")
+	if err := runner.Sweep(ctx, queries, runLog); err != nil {
+		return err
+	}
+	runs := runner.New(queries, runLog)
+	defer runs.Close()
 	rdb, err := session.Open(ctx, cfg.RedisURL, session.WithTracing())
 	if err != nil {
 		return err
@@ -107,11 +118,11 @@ func run() (err error) {
 
 	authn := auth.New(auth.Options{
 		Verifier: google.New(cfg.GoogleClientID, google.WithHTTPClient(tracedClient())),
-		Users:    gen.New(pool),
+		Users:    queries,
 		Sessions: session.New(rdb, time.Now),
 		Allowed:  cfg.AllowedEmails,
 	})
-	srv, err := newServer(cfg.ListenAddr, log, authn, cfg.CookieSecure)
+	srv, err := newServer(cfg.ListenAddr, log, authn, queries, cfg.CookieSecure)
 	if err != nil {
 		return err
 	}
@@ -141,7 +152,7 @@ func tracedClient() *http.Client {
 // once the server listens, which is after the migrations have applied. It is
 // outside the Connect chain and the mux carries no HTTP instrumentation, so
 // the container probing it every two seconds produces no telemetry.
-func newServer(addr string, log *slog.Logger, authn *auth.Authenticator, secure bool) (*http.Server, error) {
+func newServer(addr string, log *slog.Logger, authn *auth.Authenticator, queries *gen.Queries, secure bool) (*http.Server, error) {
 	opts, err := service.HandlerOptions(logger.WithCategory(log, "internal/service"), authn)
 	if err != nil {
 		return nil, err
@@ -152,7 +163,8 @@ func newServer(addr string, log *slog.Logger, authn *auth.Authenticator, secure 
 	})
 	mux.Handle(authv1connect.NewAuthServiceHandler(authsvc.New(authn, secure), opts...))
 	mux.Handle(instrumentv1connect.NewInstrumentServiceHandler(instrument.New(), opts...))
-	reflector := grpcreflect.NewStaticReflector(authv1connect.AuthServiceName, instrumentv1connect.InstrumentServiceName)
+	mux.Handle(runv1connect.NewRunServiceHandler(runsvc.New(queries), opts...))
+	reflector := grpcreflect.NewStaticReflector(authv1connect.AuthServiceName, instrumentv1connect.InstrumentServiceName, runv1connect.RunServiceName)
 	mux.Handle(grpcreflect.NewHandlerV1(reflector, opts...))
 	mux.Handle(grpcreflect.NewHandlerV1Alpha(reflector, opts...))
 

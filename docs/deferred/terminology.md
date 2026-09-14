@@ -56,11 +56,6 @@ every key in one domain.
 **Integration** -- the code adapting one datasource to the fetch framework: its request
 shapes, parsing, venue map and the declaration of what it serves.
 
-**Run** -- one unit of work: an upload, a resolution, a fetch or a replay, recorded as a
-row with its kind, trigger, parent and state.
-
-**Trigger** -- what started a run: a user, an administrator, a schedule or another run.
-
 **Fetch** -- a run asking one datasource for one kind of data over one period.
 
 **Fetch Key** -- one key inside a fetch, recorded as a row: the identifier sent for it,
