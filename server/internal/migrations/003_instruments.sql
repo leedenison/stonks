@@ -254,9 +254,9 @@ CREATE TABLE stated_keys (
     UNIQUE NULLS NOT DISTINCT (statement_id, asset_class, currency, description, identifiers)
 );
 
--- listing_id and currency are set when the source stated the currency, and
--- currency is the precise code stated. quantity is in units of the instrument:
--- shares, contracts, or money for cash.
+-- listing_id is set when resolution named a listing, and currency when the
+-- source stated one, as the precise code stated. quantity is in units of the
+-- instrument: shares, contracts, or money for cash.
 CREATE TABLE transactions (
     id              uuid        PRIMARY KEY,
     user_id         uuid        NOT NULL REFERENCES users (id),
