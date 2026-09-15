@@ -129,8 +129,8 @@ message Transaction {
   string instrument_id = 2;
   // The listing, set when the currency is known; a UUID.
   optional string listing_id = 3;
-  // The upload that wrote the transaction; the id of its run.
-  string upload_id = 4;
+  // The statement that wrote the transaction; the id of its run.
+  string statement_id = 4;
   // The stated key the transaction was resolved from; a UUID.
   string stated_key_id = 5;
   Broker broker = 6;

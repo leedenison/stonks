@@ -39,7 +39,7 @@ corporate event fetch replays every OCC stated key normalised through it.  See
 
 ## Constraints
 
-### Uploads Are Not a Source
+### Statements Are Not a Source
 
 A split stated in an uploaded transaction history is neither stored as an event nor
 applied as an adjustment.  It is compared with the calendar, and flagged for the

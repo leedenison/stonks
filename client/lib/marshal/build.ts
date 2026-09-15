@@ -1,5 +1,5 @@
 // Builders for the messages of the neutral format, shared by every
-// marshaller. See proto/upload/v1/upload.proto for the format.
+// marshaller. See proto/statement/v1/statement.proto for the format.
 
 import { create } from "@bufbuild/protobuf";
 import {
@@ -17,9 +17,9 @@ import {
   SplitRatioSchema,
   type StatedSplit,
   StatedSplitSchema,
-  type Upload,
-  UploadSchema,
-} from "@/gen/upload/v1/upload_pb";
+  type Statement,
+  StatementSchema,
+} from "@/gen/statement/v1/statement_pb";
 import { add, isZero, negate, normalise } from "./decimal";
 import { maxDate, minDate, nextDay } from "./date";
 
@@ -107,15 +107,15 @@ export function split(
   });
 }
 
-// upload assembles the message. The period is the one the export states,
+// statement assembles the message. The period is the one the export states,
 // given as its first and last order dates inclusive, and is otherwise derived
 // from the rows. A row outside a stated period is kept as stated.
-export function upload(
+export function statement(
   broker: Broker,
   rows: Row[],
   splits: StatedSplit[],
   period?: { from: string; to: string },
-): Upload {
+): Statement {
   let span = period;
   if (!span) {
     for (const row of rows) {
@@ -127,7 +127,7 @@ export function upload(
         : { from: row.orderDate, to: row.orderDate };
     }
   }
-  return create(UploadSchema, {
+  return create(StatementSchema, {
     broker,
     orderFrom: span?.from ?? "",
     orderBefore: span ? nextDay(span.to) : "",

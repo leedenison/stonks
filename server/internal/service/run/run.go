@@ -84,8 +84,8 @@ func toProto(r gen.Run) *runv1.Run {
 
 func kindToProto(k gen.RunKind) runv1.RunKind {
 	switch k {
-	case gen.RunKindUpload:
-		return runv1.RunKind_RUN_KIND_UPLOAD
+	case gen.RunKindStatement:
+		return runv1.RunKind_RUN_KIND_STATEMENT
 	case gen.RunKindResolution:
 		return runv1.RunKind_RUN_KIND_RESOLUTION
 	}

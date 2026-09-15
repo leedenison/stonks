@@ -1,7 +1,7 @@
 # Runs of one user and broker proceed in creation order
 
-An upload replaces every transaction of its user and broker in the claimed period, which
-assumes uploads apply in the order they were made. Two runs of the same user and broker
+A statement replaces every transaction of its user and broker in the claimed period, which
+assumes statements apply in the order they were made. Two runs of the same user and broker
 therefore never overlap: a run stays `pending` until every earlier run of the same user
 and broker is terminal. Runs of different users, or of different brokers of one user,
 proceed in parallel.
@@ -16,7 +16,7 @@ re-read.
 
 ## Considered options
 
-Serialising only the write, with a lock per user and broker, lets a slower earlier upload
+Serialising only the write, with a lock per user and broker, lets a slower earlier statement
 write after a faster later one and overwrite it with older data.
 
 Attempting read-only resolution in parallel and serialising only creation gains nothing

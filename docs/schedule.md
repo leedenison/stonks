@@ -14,19 +14,19 @@ M, P and S numbers are append-only.
 The milestones that are scheduled, in the order they are implemented. Each has a directory
 of open issues and ADRs at `docs/tasks/<label>/`.
 
-- **M02** - Transaction ingestion from one broker's upload, and the holdings derived
+- **M02** - Transaction ingestion from one broker's statement, and the holdings derived
   from it.
 
 ```
 001 open
  |
-006 upload ingestion   009 look and feel
- |                      |
- +----------+-----------+
- |          |
-007 uploads 008 holdings
- |          |
-002 close --+
+006 statement ingestion   009 look and feel
+ |                         |
+ +-------------+-----------+
+ |             |
+007 statements 008 holdings
+ |             |
+002 close -----+
 ```
 
 ## Completed
@@ -46,7 +46,7 @@ Each has a note in `docs/deferred` outlining how it might work.
 - **D-CORP** - [Corporate events](deferred/corporate-events.md); splits and the restatement of recorded quantities.
 - **D-IDENT** - [Identifier events](deferred/identifier-events.md); ticker changes and the intervals over which an identifier names one instrument.
 - **D-DATASRC** - [Datasources](deferred/datasources.md); the framework every fetch from an external provider goes through.
-- **D-RUNS** - [Runs](deferred/runs.md); the unit of work uploads, resolutions, fetches and replays share, and the findings they record.
+- **D-RUNS** - [Runs](deferred/runs.md); the unit of work statements, resolutions, fetches and replays share, and the findings they record.
 - **D-DEPLOY** - [Production deployment](deferred/production-deployment.md); TLS, cross-origin access and what each container publishes.
 
 ## Spike

@@ -1,8 +1,8 @@
-// The broker neutral format an upload is expressed in. A marshaller in front
-// of the API translates one broker's export into it, so the service reads one
-// format and interprets nothing broker specific.
+// The broker neutral format a statement of transactions is expressed in. A
+// marshaller in front of the API translates one broker's export into it, so
+// the service reads one format and interprets nothing broker specific.
 //
-// An upload claims every account the user holds at its broker over its
+// A statement claims every account the user holds at its broker over its
 // period, a half-open range of order dates. Ingestion replaces every
 // transaction of that user and broker whose order date lies in the range, so
 // a re-upload is idempotent and an empty range at a boundary is a deletion.
@@ -23,17 +23,17 @@
 
 syntax = "proto3";
 
-package stonks.upload.v1;
+package stonks.statement.v1;
 
 import "buf/validate/validate.proto";
 import "type/v1/type.proto";
 
-option go_package = "github.com/leedenison/stonks/proto/upload/v1;uploadv1";
+option go_package = "github.com/leedenison/stonks/proto/statement/v1;statementv1";
 
 // One leg: a change in the quantity of one instrument, stated as at a date.
 // Each field means what the field of the same name on Transaction in
 // type/v1/type.proto means. None carries a constraint, so that an invalid row
-// is rejected on its own rather than failing the upload.
+// is rejected on its own rather than failing the statement.
 message Row {
   stonks.type.v1.StatedKey key = 1;
   string order_date = 2;
@@ -61,7 +61,7 @@ message StatedSplit {
   SplitRatio ratio = 4;
 }
 
-message Upload {
+message Statement {
   stonks.type.v1.Broker broker = 1 [(buf.validate.field).enum = {
     defined_only: true
     not_in: [0]

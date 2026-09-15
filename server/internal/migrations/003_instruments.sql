@@ -21,7 +21,7 @@
 -- arrived through.
 --
 -- Ownership. An instrument, listing or identifier is owned by the user whose
--- uploads alone support it, or by the system when owner_id is NULL. A system
+-- statements alone support it, or by the system when owner_id is NULL. A system
 -- owned parent may hold children of any owner; a user owned parent holds
 -- children of that user only. owner_id is set at insert and never changes.
 -- Both rules are enforced by triggers below.
@@ -34,7 +34,7 @@
 --
 -- A stated key is what one source states about an instrument: its
 -- identifiers, asset class, currency and description. It is stored with the
--- upload that carried it, one row per distinct key, and is what resolution
+-- statement that carried it, one row per distinct key, and is what resolution
 -- answers. The identifiers it states become identifier rows only when
 -- resolution admits them.
 --
@@ -42,7 +42,7 @@
 -- with an order date and a settlement date, stated as at a date: the date on
 -- which its values were true, and so which corporate events they reflect.
 -- Replacement is keyed on user, broker and order date, so those are columns of
--- the row rather than reached through the upload.
+-- the row rather than reached through the statement.
 
 CREATE TYPE broker AS ENUM ('ibkr', 'schwab', 'fidelity');
 
@@ -242,7 +242,7 @@ SELECT uuid_v7(), instrument_id, id, 'currency', currency FROM cash_listings;
 -- currency is the code as the source stated it, checked against nothing.
 CREATE TABLE stated_keys (
     id          uuid        PRIMARY KEY,
-    upload_id   uuid        NOT NULL,
+    statement_id   uuid        NOT NULL,
     user_id     uuid        NOT NULL,
     asset_class asset_class REFERENCES asset_class_tree (class),
     currency    text,
@@ -250,8 +250,8 @@ CREATE TABLE stated_keys (
     identifiers jsonb       NOT NULL DEFAULT '[]',
     created_at  timestamptz NOT NULL DEFAULT now(),
     CHECK (jsonb_typeof(identifiers) = 'array'),
-    FOREIGN KEY (upload_id, user_id) REFERENCES runs (id, user_id),
-    UNIQUE NULLS NOT DISTINCT (upload_id, asset_class, currency, description, identifiers)
+    FOREIGN KEY (statement_id, user_id) REFERENCES runs (id, user_id),
+    UNIQUE NULLS NOT DISTINCT (statement_id, asset_class, currency, description, identifiers)
 );
 
 -- listing_id and currency are set when the source stated the currency, and
@@ -261,7 +261,7 @@ CREATE TABLE transactions (
     id              uuid        PRIMARY KEY,
     user_id         uuid        NOT NULL REFERENCES users (id),
     broker          broker      NOT NULL,
-    upload_id       uuid        NOT NULL,
+    statement_id       uuid        NOT NULL,
     stated_key_id   uuid        NOT NULL REFERENCES stated_keys (id),
     instrument_id   uuid        NOT NULL REFERENCES instruments (id),
     listing_id      uuid        REFERENCES listings (id),
@@ -271,7 +271,7 @@ CREATE TABLE transactions (
     quantity        numeric     NOT NULL,
     currency        text        REFERENCES currencies (code),
     created_at      timestamptz NOT NULL DEFAULT now(),
-    FOREIGN KEY (upload_id, user_id) REFERENCES runs (id, user_id),
+    FOREIGN KEY (statement_id, user_id) REFERENCES runs (id, user_id),
     FOREIGN KEY (listing_id, instrument_id) REFERENCES listings (id, instrument_id)
 );
 

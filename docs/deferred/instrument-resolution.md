@@ -49,7 +49,7 @@ in the listing's currency.
 
 A broker's own description of an instrument is a listing grain identifier type, and the
 marshaller constructs a domain unique to the broker and the channel.  Broker description
-identifiers ensure uploads of the same broker description are matched in the database
+identifiers ensure statements carrying the same broker description are matched in the database
 without expensive calls to external services.  Within one domain and for one owner a
 description names one listing at a time, and a key stating the same description with a
 different currency or asset class contradicts that listing.
@@ -159,7 +159,7 @@ authority source.  Any LLM driven source of data is limited to candidate authori
 
 The ability of the system to resolve instrument data will vary depending on what
 datasources are configured and enabled as well as what the user provides with their
-uploads.  Some instruments might be available and complete, others might only be
+statements.  Some instruments might be available and complete, others might only be
 partially available and others still might be completely unavailable.
 
 The system must therefore accommodate instrument data which is some part system owned,
@@ -375,7 +375,7 @@ UNKNOWN
 | FX_PAIR              | registry   | none                 | instrument | stable       |
 | DATASOURCE_TICKER    | datasource | datasource           | listing    | MIC-derived  |
 | BROKER_ID            | broker     | broker               | instrument | stable       |
-| BROKER_DESCRIPTION   | source     | broker + upload type | listing    | unverifiable |
+| BROKER_DESCRIPTION   | source     | broker + channel     | listing    | unverifiable |
 
 ## Undecided
 

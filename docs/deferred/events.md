@@ -22,7 +22,7 @@ own conventions would tie the server to each source.
 
 An event is derived from its legs as a separate step after ingestion.  Legs are grouped
 by the server according to general rules that apply identically to all sources, so an
-event can split across uploads.
+event can split across statements.
 
 The remainder of an event whose legs do not balance is its residual.
 
@@ -46,14 +46,14 @@ one side only, and the transaction it names says nothing in return.
 
 ## Sketch
 
-Grouping runs over a neighbourhood of what was uploaded rather than over one upload or
+Grouping runs over a neighbourhood of what was uploaded rather than over one statement or
 over everything.  The neighbourhood reaches as far as the evidence does, which is not a
 window of dates: a correlation a user asserted can link two transactions years apart.
 
 Grouping is a run.  See [runs.md](runs.md).
 
-The neutral format gains correlations when grouping is built.  Uploads made before then
-carry none and are re-uploaded to gain them.
+The neutral format gains correlations when grouping is built.  Statements made before then
+carry none and are uploaded again to gain them.
 
 ## Undecided
 
@@ -65,5 +65,5 @@ carry none and are re-uploaded to gain them.
 - Whether a user can assert or break a grouping, and whether such an assertion is a
   correlation of its own.
 
-- When grouping reruns: on every upload touching the neighbourhood, on a replay that moves
+- When grouping reruns: on every statement touching the neighbourhood, on a replay that moves
   a transaction, or on demand.

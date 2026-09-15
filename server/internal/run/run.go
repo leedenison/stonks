@@ -15,9 +15,9 @@
 //
 // Runs of one user and lane execute in the order they were started: a run
 // stays pending until every earlier run of the same user and lane has
-// stopped. The caller names the lane. An upload's lane is its broker, because
-// an upload replaces every transaction of its broker in a period and the
-// later upload is the one to keep. Runs of different users or lanes proceed
+// stopped. The caller names the lane. A statement's lane is its broker,
+// because a statement replaces every transaction of its broker in a period
+// and the later statement is the one to keep. Runs of different users or lanes proceed
 // in parallel. The order is held in memory, which assumes one process.
 //
 // The work is a function held in memory, so nothing of it survives the

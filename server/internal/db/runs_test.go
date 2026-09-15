@@ -42,7 +42,7 @@ func TestRuns(t *testing.T) {
 		return row
 	}
 
-	pending := create(gen.RunKindUpload, nil)
+	pending := create(gen.RunKindStatement, nil)
 	if pending.State != gen.RunStatePending || pending.StartedAt != nil || pending.FinishedAt != nil {
 		t.Errorf("CreateRun = %+v, want pending with no started_at or finished_at", pending)
 	}
@@ -57,7 +57,7 @@ func TestRuns(t *testing.T) {
 		t.Errorf("CompleteRun and FailRun on a pending run left %+v, want it pending", got)
 	}
 
-	running := create(gen.RunKindUpload, nil)
+	running := create(gen.RunKindStatement, nil)
 	started, err := q.StartRun(ctx, running.ID)
 	require.NoError(t, err)
 	if started.State != gen.RunStateRunning || started.StartedAt == nil {
@@ -67,7 +67,7 @@ func TestRuns(t *testing.T) {
 		t.Errorf("StartRun on a running run: err = %v, want ErrNotFound", err)
 	}
 
-	completed := create(gen.RunKindUpload, nil)
+	completed := create(gen.RunKindStatement, nil)
 	_, err = q.StartRun(ctx, completed.ID)
 	require.NoError(t, err)
 	require.NoError(t, q.CompleteRun(ctx, completed.ID))
@@ -101,7 +101,7 @@ func TestRuns(t *testing.T) {
 
 	// The check constraint refuses a parent on a user's run, and aborts the
 	// transaction, so it is the last statement.
-	_, err = q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: owner.ID, Kind: gen.RunKindUpload, Trigger: gen.RunTriggerUser, ParentID: &completed.ID})
+	_, err = q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: owner.ID, Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser, ParentID: &completed.ID})
 	if err == nil {
 		t.Error("CreateRun with trigger user and a parent succeeded, want a check violation")
 	}

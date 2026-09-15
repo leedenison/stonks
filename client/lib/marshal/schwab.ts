@@ -11,7 +11,11 @@
 
 import { parse } from "csv-parse/sync";
 import { AssetClass, Broker, IdentifierType } from "@/gen/type/v1/type_pb";
-import type { Row, StatedSplit, Upload } from "@/gen/upload/v1/upload_pb";
+import type {
+  Row,
+  StatedSplit,
+  Statement,
+} from "@/gen/statement/v1/statement_pb";
 import {
   cashKey,
   ident,
@@ -19,7 +23,7 @@ import {
   securityKey,
   split,
   trade,
-  upload,
+  statement,
 } from "./build";
 import { negate } from "./decimal";
 import { iso } from "./date";
@@ -122,7 +126,7 @@ const CASH_ACTIONS = new Set([
   "Service Fee",
 ]);
 
-function marshal(text: string, exportedOn: string): Upload {
+function marshal(text: string, exportedOn: string): Statement {
   const { period, lines } = text.trimStart().startsWith("{")
     ? readJson(text)
     : readCsv(text);
@@ -184,7 +188,7 @@ function marshal(text: string, exportedOn: string): Upload {
     }
   }
 
-  return upload(Broker.SCHWAB, rows, splits, period);
+  return statement(Broker.SCHWAB, rows, splits, period);
 }
 
 export const schwab: Marshaller = { marshal };

@@ -15,8 +15,8 @@
 
 import { parse } from "csv-parse/sync";
 import { AssetClass, Broker, IdentifierType } from "@/gen/type/v1/type_pb";
-import type { Row, Upload } from "@/gen/upload/v1/upload_pb";
-import { cashKey, ident, leg, securityKey, upload } from "./build";
+import type { Row, Statement } from "@/gen/statement/v1/statement_pb";
+import { cashKey, ident, leg, securityKey, statement } from "./build";
 import { isZero, negate } from "./decimal";
 import { iso, minDate, monthNumber, prevDay } from "./date";
 import { MarshalError } from "./error";
@@ -66,7 +66,7 @@ interface Line {
   quantity: string;
 }
 
-function marshal(text: string): Upload {
+function marshal(text: string): Statement {
   const parsed: unknown = parse(text, {
     bom: true,
     relax_column_count: true,
@@ -163,7 +163,7 @@ function marshal(text: string): Upload {
     );
   }
 
-  return upload(Broker.FIDELITY, rows, [], period);
+  return statement(Broker.FIDELITY, rows, [], period);
 }
 
 // The export date is not needed: every row is as at its order date.

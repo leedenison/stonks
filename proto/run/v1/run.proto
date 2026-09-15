@@ -14,8 +14,8 @@ option go_package = "github.com/leedenison/stonks/proto/run/v1;runv1";
 enum RunKind {
   RUN_KIND_UNSPECIFIED = 0;
   // Ingests one batch of transactions.
-  RUN_KIND_UPLOAD = 1;
-  // Answers the stated keys of an upload.
+  RUN_KIND_STATEMENT = 1;
+  // Answers the stated keys of a statement.
   RUN_KIND_RESOLUTION = 2;
 }
 
