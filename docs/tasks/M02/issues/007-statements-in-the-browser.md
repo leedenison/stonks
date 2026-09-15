@@ -1,5 +1,5 @@
 ---
-title: Uploads in the browser
+title: Statements in the browser
 type: task
 dependencies: [006, 009]
 ---
@@ -10,7 +10,7 @@ dependencies: [006, 009]
   claimed period the marshaller derived and lets the user change it, and starts the
   upload.
 - The run's progress and outcome on that page, with every rejected row and why.
-- An upload history page listing the user's uploads, each with its rejections.
-- An e2e spec covering an upload with rejected rows and its appearance in the history.
+- A history page listing the user's statements, each with its rejections.
+- An e2e spec covering a statement with rejected rows and its appearance in the history.
 
 The UI is clear that rows were rejected, both at upload time and when browsing history.

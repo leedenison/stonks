@@ -1,12 +1,13 @@
 -- +goose Up
 
-CREATE TYPE run_kind AS ENUM ('upload', 'resolution');
+CREATE TYPE run_kind AS ENUM ('statement', 'resolution');
 CREATE TYPE run_trigger AS ENUM ('user', 'run');
 CREATE TYPE run_state AS ENUM ('pending', 'running', 'completed', 'failed', 'interrupted');
 
--- A run is one unit of background work: an upload ingesting one batch of
--- transactions, or a resolution answering the stated keys of an upload. The
--- row exists before the work starts and is what its outcome is read against.
+-- A run is one unit of background work: a statement, ingesting one batch of
+-- transactions a user submitted, or a resolution answering the stated keys
+-- of a statement. The row exists before the work starts and is what its
+-- outcome is read against.
 --
 -- The trigger is what started the run. A run of trigger 'run' was started by
 -- another run and names it as parent; a run of trigger 'user' has none.

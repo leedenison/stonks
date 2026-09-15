@@ -5,7 +5,7 @@ recorded: 2026-09-14
 
 # Transaction ingestion
 
-Takes a batch of transactions as some source states them (eg. a broker statement, a trade
+Takes a batch of transactions as some source states them (eg. a broker export, a trade
 confirmation email, a user exported archive, etc) and records them as that user's
 transaction log.  Invokes fetches of identifier events, resolves instruments, and fetches
 corporate events and prices to maintain the relevant invariants w.r.t. to the period that
@@ -14,7 +14,7 @@ instruments are held.  Grouping the transactions into events is a separate step;
 
 ## Why
 
-Importing unmodified broker statements or trade confirmation emails is the minimal
+Importing unmodified broker exports or trade confirmation emails is the minimal
 friction path for the user.
 
 ## Model
@@ -24,8 +24,8 @@ friction path for the user.
 Transactions have no natural key and are created with an internally scoped primary key.
 It is possible to have two transactions with identical settlement date, user, broker,
 description, instrument and listing.  Brokers do not reliably include any reference that
-they mint for a transaction in their statements. Many brokers also include several legs
-of an event in a single line in their statements. So legs cannot be distinguished by a
+they mint for a transaction in their exports. Many brokers also include several legs
+of an event in a single line in their exports. So legs cannot be distinguished by a
 broker reference.  
 
 Transactions carry both order date and settlement date.  These are usually supplied by
@@ -40,24 +40,24 @@ ingestion; grouping is not.  See [events.md](events.md).
 
 The identifiers, asset class, currency, venue and description a source states about an
 instrument form the stated key.  It is stored with the transaction as metadata, one row
-per distinct key per upload that its transactions reference, and is the input the
+per distinct key per statement that its transactions reference, and is the input the
 resolution answers.  The stated identifiers are held here and only become identifier
 rows when resolution admits them.  Resolution is replayed from the stated key when an
 identifier event leaves the transaction's date outside the validity it was associated
 under, or when coverage arrives that admits a stated identifier.
 
-### Sources, Channels and Uploads
+### Sources, Channels and Statements
 
 The source and channel combination determines the format, which information is available,
 and the authority the data carries.
 
-Since transactions have no natural key a user's upload and its claimed broker and coverage
-period are the unit of idempotency.  An upload replaces all transactions within the
+Since transactions have no natural key a user's statement and its claimed broker and coverage
+period are the unit of idempotency.  A statement replaces all transactions within the
 claimed period for the claimed broker.  It states the period it covers rather than leaving
 that to be inferred from the transactions inside it, so that empty ranges at the
 boundaries act as deletions.
 
-An upload is user authenticated, so the data it carries is limited to user authority
+A statement is user authenticated, so the data it carries is limited to user authority
 unless corroborated and upgraded by a system authoritative source.
 
 ## Constraints
@@ -68,8 +68,8 @@ User uploaded transactions must initialise the "as at" date for each transaction
 declares the date at which the values were true.  This allows the server to know which
 corporate events a transactions price and quantity are adjusted for.  For example, a
 broker that conventionally restates transactions as corporate events arise might
-export a transaction statement before a particular corporate event is known.  If that
-statement is subsequently uploaded after the corporate event ex. date the server
+export a transaction history before a particular corporate event is known.  If that
+export is subsequently uploaded after the corporate event ex. date the server
 cannot know if it has been restated without the "as at" date.
 
 A typical convention for most brokers is that a transaction is stated as at the order
@@ -103,11 +103,11 @@ the error if, for example, they believe the error is uncorrectable and they want
 tolerate the discrepancy without losing the remaining transactions in the file.
 
 The UI must be very clear when transactions have been rejected during ingestion both at
-the time of the upload and when a user browses previous uploads.
+the time of the upload and when a user browses previous statements.
 
-### An Upload is a Run
+### A Statement is a Run
 
-The call starting an upload answers with the run rather than with its result.  Progress,
+The call starting a statement answers with the run rather than with its result.  Progress,
 the outcome and the rows that failed are read back against it.  See [runs.md](runs.md).
 
 # Established Stonks Datamodel Conventions
@@ -136,10 +136,10 @@ Ingestion runs in stages.  The client marshals its source into the neutral forma
 uploads it; the service validates what arrived, fetches identifier events for the
 MIC-derived identifiers stated where a source serves them, resolves the instruments,
 fetches relevant corporate events, fetches relevant prices, fetches relevant FX rates
-and writes the transactions.  The resolution and each fetch are runs with the upload as
+and writes the transactions.  The resolution and each fetch are runs with the statement as
 parent.
 
 Resolution is keyed on what the source stated, so one description is resolved once for the
-whole upload however many transactions carry it.
+whole statement however many transactions carry it.
 
 ## Undecided

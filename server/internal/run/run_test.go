@@ -74,14 +74,14 @@ func TestStart(t *testing.T) {
 	f.store.EXPECT().CompleteRun(gomock.Any(), gomock.Any()).DoAndReturn(func(context.Context, uuid.UUID) error { done(); return nil })
 
 	ran := make(chan struct{})
-	row, err := f.runner.Start(context.Background(), Spec{Kind: gen.RunKindUpload, UserID: userA, Lane: "ibkr"}, func(context.Context) error {
+	row, err := f.runner.Start(context.Background(), Spec{Kind: gen.RunKindStatement, UserID: userA, Lane: "ibkr"}, func(context.Context) error {
 		close(ran)
 		return nil
 	})
 	if err != nil {
 		t.Fatalf("Start() error = %v", err)
 	}
-	want := gen.Run{ID: row.ID, UserID: userA, Kind: gen.RunKindUpload, Trigger: gen.RunTriggerUser, State: gen.RunStatePending}
+	want := gen.Run{ID: row.ID, UserID: userA, Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser, State: gen.RunStatePending}
 	if diff := cmp.Diff(want, row); diff != "" {
 		t.Errorf("Start() row mismatch (-want +got):\n%s", diff)
 	}
@@ -108,7 +108,7 @@ func TestStartRecordsFailure(t *testing.T) {
 				done()
 				return nil
 			})
-			row, err := f.runner.Start(context.Background(), Spec{Kind: gen.RunKindUpload, UserID: userA}, tc.work)
+			row, err := f.runner.Start(context.Background(), Spec{Kind: gen.RunKindStatement, UserID: userA}, tc.work)
 			if err != nil {
 				t.Fatalf("Start() error = %v", err)
 			}
@@ -158,9 +158,9 @@ func TestStartOrdersLane(t *testing.T) {
 		spec Spec
 		work Work
 	}{
-		{Spec{Kind: gen.RunKindUpload, UserID: userA, Lane: "ibkr"}, first},
-		{Spec{Kind: gen.RunKindUpload, UserID: userA, Lane: "ibkr"}, second},
-		{Spec{Kind: gen.RunKindUpload, UserID: userA, Lane: "schwab"}, other},
+		{Spec{Kind: gen.RunKindStatement, UserID: userA, Lane: "ibkr"}, first},
+		{Spec{Kind: gen.RunKindStatement, UserID: userA, Lane: "ibkr"}, second},
+		{Spec{Kind: gen.RunKindStatement, UserID: userA, Lane: "schwab"}, other},
 	} {
 		if _, err := f.runner.Start(ctx, s.spec, s.work); err != nil {
 			t.Fatalf("Start(%+v) error = %v", s.spec, err)
@@ -196,7 +196,7 @@ func TestParallelUsers(t *testing.T) {
 		}
 	}
 	for _, u := range []uuid.UUID{userA, userB} {
-		if _, err := f.runner.Start(context.Background(), Spec{Kind: gen.RunKindUpload, UserID: u, Lane: "ibkr"}, work); err != nil {
+		if _, err := f.runner.Start(context.Background(), Spec{Kind: gen.RunKindStatement, UserID: u, Lane: "ibkr"}, work); err != nil {
 			t.Fatalf("Start() error = %v", err)
 		}
 	}
@@ -219,7 +219,7 @@ func TestClose(t *testing.T) {
 		return nil
 	}
 	ctx := context.Background()
-	spec := Spec{Kind: gen.RunKindUpload, UserID: userA, Lane: "ibkr"}
+	spec := Spec{Kind: gen.RunKindStatement, UserID: userA, Lane: "ibkr"}
 	if _, err := f.runner.Start(ctx, spec, blocking); err != nil {
 		t.Fatalf("Start() error = %v", err)
 	}
@@ -237,7 +237,7 @@ func TestClose(t *testing.T) {
 }
 
 func TestChild(t *testing.T) {
-	parent := gen.Run{ID: uuid.MustParse("00000000-0000-0000-0000-000000000010"), UserID: userA, Kind: gen.RunKindUpload}
+	parent := gen.Run{ID: uuid.MustParse("00000000-0000-0000-0000-000000000010"), UserID: userA, Kind: gen.RunKindStatement}
 	tests := []struct {
 		name    string
 		work    Work

@@ -5,12 +5,12 @@ recorded: 2026-09-14
 
 # Runs
 
-The unit of work through which uploads are ingested, instruments are resolved, data is
+The unit of work through which statements are ingested, instruments are resolved, data is
 fetched and earlier answers are replayed, and the findings each piece of work records.
 
 ## Why
 
-An upload, a resolution and a fetch each take longer than the request starting them can
+A statement, a resolution and a fetch each take longer than the request starting them can
 wait, each answers per item rather than as a whole, and each meets contradictions it must
 record.  The container is the same for every kind of work, so it is recorded once here and
 each kind records only what fills it.
@@ -23,7 +23,7 @@ A run is a row created before its work starts.  It is the identity a caller hold
 the work proceeds and reads progress and the outcome back against.  It carries its kind,
 its trigger, the run that started it, its state, and when it started and finished.
 
-- An upload ingests one batch of transactions.
+- A statement ingests one batch of transactions.
 - A resolution answers a set of stated keys.
 - A fetch asks one datasource for one kind of data over one period.
 - A replay re-resolves the transactions an event or new coverage has affected.
@@ -31,20 +31,20 @@ its trigger, the run that started it, its state, and when it started and finishe
 ### Triggers
 
 A run is started by a user, by an administrator, by a schedule or by another run.  A run
-started by another run names it as parent: an upload contains the resolution it started,
+started by another run names it as parent: a statement contains the resolution it started,
 the resolution contains the fetches it sent, and a replay caused by an event names the
 fetch that recorded the event.  Provenance says what produced a row.  Lineage says why the
 work happened.
 
 ### Items
 
-Each kind owns the shape of its per-item row: a transaction accepted or rejected for an
-upload, a stated key and the answer chosen for a resolution, a key and whether the
+Each kind owns the shape of its per-item row: a transaction accepted or rejected for a
+statement, a stated key and the answer chosen for a resolution, a key and whether the
 datasource served it for a fetch.  The mix of outcomes for one run is a query, which makes
 two runs over the same input comparable and lets a test assert that a change has not
 disturbed the flow.
 
-The items of an upload are addressed to the user who made it.  Findings are addressed to
+The items of a statement are addressed to the user who made it.  Findings are addressed to
 the administrator.
 
 ### Findings
@@ -77,14 +77,14 @@ from it.
 ### Interruption
 
 A run whose process dies is marked interrupted with the items it had written.  Each kind
-states what a partial run means: an upload writes its transactions and items in one
-database transaction, so an interrupted upload has written none; a truncated fetch covers
+states what a partial run means: a statement writes its transactions and items in one
+database transaction, so an interrupted statement has written none; a truncated fetch covers
 nothing.  See [datasources.md](datasources.md).
 
 ### Ordering
 
-Runs of one user and broker proceed in creation order, since an upload replaces a period
-and the later upload is the one to keep.  Runs of different users or brokers proceed in
+Runs of one user and broker proceed in creation order, since a statement replaces a period
+and the later statement is the one to keep.  Runs of different users or brokers proceed in
 parallel.  Receipt is the RPC and never waits.
 
 ## Invariants
@@ -136,5 +136,5 @@ With more than one process, pending runs are claimed from the database with
 - How overlapping runs that touch one instrument are ordered, such as a scheduled replay
   starting during a user's upload.
 
-- Which findings are shown to the user whose upload met them, such as a broker statement
-  contradicted by a datasource.
+- Which findings are shown to the user whose statement met them, such as one contradicted
+  by a datasource.

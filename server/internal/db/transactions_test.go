@@ -15,47 +15,47 @@ import (
 	"github.com/leedenison/stonks/server/internal/db/gen"
 )
 
-func newUpload(t *testing.T, q *gen.Queries, user gen.User) gen.Run {
+func newStatement(t *testing.T, q *gen.Queries, user gen.User) gen.Run {
 	t.Helper()
-	row, err := q.CreateRun(context.Background(), gen.CreateRunParams{ID: db.NewID(), UserID: user.ID, Kind: gen.RunKindUpload, Trigger: gen.RunTriggerUser})
+	row, err := q.CreateRun(context.Background(), gen.CreateRunParams{ID: db.NewID(), UserID: user.ID, Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser})
 	require.NoError(t, err)
 	return row
 }
 
 func date(y int, m time.Month, d int) time.Time { return time.Date(y, m, d, 0, 0, 0, 0, time.UTC) }
 
-// TestStatedKeys checks that one upload holds one row per distinct key, and
+// TestStatedKeys checks that one statement holds one row per distinct key, and
 // that the identifiers column round-trips through its Go type.
 func TestStatedKeys(t *testing.T) {
 	q := newTx(t)
 	ctx := context.Background()
 	user := newUser(t, q, "keys@example.com")
-	upload, other := newUpload(t, q, user), newUpload(t, q, user)
+	statement, other := newStatement(t, q, user), newStatement(t, q, user)
 	cash := gen.AssetClassCash
-	key := func(upload gen.Run) gen.CreateStatedKeyParams {
+	key := func(statement gen.Run) gen.CreateStatedKeyParams {
 		return gen.CreateStatedKeyParams{
-			ID: db.NewID(), UploadID: upload.ID, UserID: user.ID, AssetClass: &cash, Currency: ptr("USD"),
+			ID: db.NewID(), StatementID: statement.ID, UserID: user.ID, AssetClass: &cash, Currency: ptr("USD"),
 			Identifiers: []db.StatedIdentifier{{Type: "currency", Value: "USD"}},
 		}
 	}
 
-	created, err := q.CreateStatedKey(ctx, key(upload))
+	created, err := q.CreateStatedKey(ctx, key(statement))
 	require.NoError(t, err)
 	if created.Description != nil || created.AssetClass == nil || *created.AssetClass != gen.AssetClassCash {
 		t.Errorf("CreateStatedKey = %+v, want asset class cash and no description", created)
 	}
-	listed, err := q.ListStatedKeys(ctx, gen.ListStatedKeysParams{UploadID: upload.ID, UserID: user.ID})
+	listed, err := q.ListStatedKeys(ctx, gen.ListStatedKeysParams{StatementID: statement.ID, UserID: user.ID})
 	require.NoError(t, err)
 	if diff := cmp.Diff([]gen.StatedKey{created}, listed); diff != "" {
 		t.Errorf("ListStatedKeys mismatch (-want +got):\n%s", diff)
 	}
 
 	if _, err := q.CreateStatedKey(ctx, key(other)); err != nil {
-		t.Errorf("CreateStatedKey of the same key in another upload: err = %v, want nil", err)
+		t.Errorf("CreateStatedKey of the same key in another statement: err = %v, want nil", err)
 	}
 	// The unique violation aborts the transaction, so it is the last statement.
-	if _, err := q.CreateStatedKey(ctx, key(upload)); !db.IsConflict(err) {
-		t.Errorf("CreateStatedKey of a key the upload already holds: err = %v, want a conflict", err)
+	if _, err := q.CreateStatedKey(ctx, key(statement)); !db.IsConflict(err) {
+		t.Errorf("CreateStatedKey of a key the statement already holds: err = %v, want a conflict", err)
 	}
 }
 
@@ -65,15 +65,15 @@ func TestTransactions(t *testing.T) {
 	q := newTx(t)
 	ctx := context.Background()
 	user := newUser(t, q, "txs@example.com")
-	upload := newUpload(t, q, user)
+	statement := newStatement(t, q, user)
 	usd, err := q.GetListingByIdentifier(ctx, gen.GetListingByIdentifierParams{Type: gen.IdentifierTypeCurrency, Value: "USD"})
 	require.NoError(t, err)
-	key, err := q.CreateStatedKey(ctx, gen.CreateStatedKeyParams{ID: db.NewID(), UploadID: upload.ID, UserID: user.ID, Identifiers: []db.StatedIdentifier{{Type: "currency", Value: "USD"}}})
+	key, err := q.CreateStatedKey(ctx, gen.CreateStatedKeyParams{ID: db.NewID(), StatementID: statement.ID, UserID: user.ID, Identifiers: []db.StatedIdentifier{{Type: "currency", Value: "USD"}}})
 	require.NoError(t, err)
 	create := func(broker gen.Broker, order time.Time, quantity string) gen.Transaction {
 		t.Helper()
 		row, err := q.CreateTransaction(ctx, gen.CreateTransactionParams{
-			ID: db.NewID(), UserID: user.ID, Broker: broker, UploadID: upload.ID, StatedKeyID: key.ID,
+			ID: db.NewID(), UserID: user.ID, Broker: broker, StatementID: statement.ID, StatedKeyID: key.ID,
 			InstrumentID: usd.Listing.InstrumentID, ListingID: &usd.Listing.ID,
 			OrderDate: order, SettlementDate: order.AddDate(0, 0, 2), AsAt: order,
 			Quantity: decimal.RequireFromString(quantity), Currency: ptr("USD"),

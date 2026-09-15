@@ -7,17 +7,17 @@ import { fidelityCsv } from "./fidelity-csv";
 import { cash, fixture, hint, row, security } from "./test-utils";
 
 const text = fixture("fidelity.csv");
-const upload = fidelityCsv.marshal(text);
+const statement = fidelityCsv.marshal(text);
 
 const gbp = cash("GBP");
 
 describe("fidelityCsv", () => {
   it("takes the period from the preamble, cut at the earliest pending line", () => {
-    expect(upload.broker).toBe(Broker.FIDELITY);
-    expect(upload.orderFrom).toBe("2025-01-01");
-    expect(upload.orderBefore).toBe("2025-03-17");
-    expect(upload.rows).toHaveLength(11);
-    expect(upload.splits).toEqual([]);
+    expect(statement.broker).toBe(Broker.FIDELITY);
+    expect(statement.orderFrom).toBe("2025-01-01");
+    expect(statement.orderBefore).toBe("2025-03-17");
+    expect(statement.rows).toHaveLength(11);
+    expect(statement.splits).toEqual([]);
   });
 
   it("claims the whole timeframe when nothing is pending", () => {
@@ -55,7 +55,7 @@ describe("fidelityCsv", () => {
   });
 
   it("emits a cash line as a cash leg of its amount, whatever its type", () => {
-    expect(upload.rows[0]).toEqual(
+    expect(statement.rows[0]).toEqual(
       row(gbp, "2025-03-06", "2025-03-09", "-5.4", "GBP"),
     );
   });
@@ -67,7 +67,7 @@ describe("fidelityCsv", () => {
       [hint("VUSA")],
       "GBP",
     );
-    expect(upload.rows.slice(1, 4)).toEqual([
+    expect(statement.rows.slice(1, 4)).toEqual([
       row(vusa, "2025-02-24", "2025-02-26", "-141", "GBP"),
       row(gbp, "2025-02-24", "2025-02-26", "13587.84", "GBP"),
       row(gbp, "2025-02-24", "2025-02-24", "-7.5", "GBP"),
@@ -87,30 +87,32 @@ describe("fidelityCsv", () => {
       [],
       "GBP",
     );
-    expect(upload.rows[4]).toEqual(
+    expect(statement.rows[4]).toEqual(
       row(bae, "2025-02-10", "2025-02-12", "120", "GBP"),
     );
-    expect(upload.rows[7]).toEqual(
+    expect(statement.rows[7]).toEqual(
       row(fund, "2025-01-22", "2025-02-06", "19.26", "GBP"),
     );
   });
 
   it("keeps a settlement before its order date", () => {
-    expect(upload.rows[10]).toEqual(
+    expect(statement.rows[10]).toEqual(
       row(gbp, "2025-01-02", "2025-01-01", "25.35", "GBP"),
     );
   });
 
   it("does not emit a cancelled line or one awaiting completion", () => {
     expect(
-      upload.rows.filter((r) => r.orderDate === "2025-02-10"),
+      statement.rows.filter((r) => r.orderDate === "2025-02-10"),
     ).toHaveLength(3);
-    expect(upload.rows.filter((r) => r.quantity === "-0.03")).toHaveLength(0);
+    expect(statement.rows.filter((r) => r.quantity === "-0.03")).toHaveLength(
+      0,
+    );
   });
 
   it("reads a header without the trailing comma alike", () => {
     const trimmed = text.replace(/,(\r\n|$)/g, "$1");
-    expect(fidelityCsv.marshal(trimmed)).toEqual(upload);
+    expect(fidelityCsv.marshal(trimmed)).toEqual(statement);
   });
 
   it("fails on a security line of a type it does not know, naming the line", () => {

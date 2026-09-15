@@ -3,11 +3,11 @@
 import { create } from "@bufbuild/protobuf";
 import { describe, expect, it } from "vitest";
 import { AssetClass, Broker } from "@/gen/type/v1/type_pb";
-import { StatedSplitSchema } from "@/gen/upload/v1/upload_pb";
+import { StatedSplitSchema } from "@/gen/statement/v1/statement_pb";
 import { MarshalError } from "./error";
 import { cash, fixture, hint, security } from "./test-utils";
 import { create as make } from "@bufbuild/protobuf";
-import { RowSchema, type Row } from "@/gen/upload/v1/upload_pb";
+import { RowSchema, type Row } from "@/gen/statement/v1/statement_pb";
 import type { StatedKey } from "@/gen/type/v1/type_pb";
 
 // row is a leg stated as at the export date, as every Schwab row is.
@@ -32,7 +32,7 @@ import { schwab } from "./schwab";
 const json = fixture("schwab.json");
 const csv = fixture("schwab.csv");
 const EXPORTED = "2025-01-15";
-const upload = schwab.marshal(json, EXPORTED);
+const statement = schwab.marshal(json, EXPORTED);
 
 const usd = cash("USD");
 const stock = (symbol: string, description: string) =>
@@ -40,23 +40,23 @@ const stock = (symbol: string, description: string) =>
 
 describe("schwab", () => {
   it("takes the period from the JSON and states every row as at the export", () => {
-    expect(upload.broker).toBe(Broker.SCHWAB);
-    expect(upload.rows.every((r) => r.asAt === EXPORTED)).toBe(true);
-    expect(upload.orderFrom).toBe("2024-01-01");
-    expect(upload.orderBefore).toBe("2025-01-01");
-    expect(upload.rows).toHaveLength(17);
+    expect(statement.broker).toBe(Broker.SCHWAB);
+    expect(statement.rows.every((r) => r.asAt === EXPORTED)).toBe(true);
+    expect(statement.orderFrom).toBe("2024-01-01");
+    expect(statement.orderBefore).toBe("2025-01-01");
+    expect(statement.rows).toHaveLength(17);
   });
 
   it("derives the period from the rows of the CSV, which carry the same legs", () => {
     const fromCsv = schwab.marshal(csv, EXPORTED);
     expect(fromCsv.orderFrom).toBe("2024-04-17");
     expect(fromCsv.orderBefore).toBe("2024-12-17");
-    expect(fromCsv.rows).toEqual(upload.rows);
-    expect(fromCsv.splits).toEqual(upload.splits);
+    expect(fromCsv.rows).toEqual(statement.rows);
+    expect(fromCsv.splits).toEqual(statement.splits);
   });
 
   it("emits a dividend, interest and a wire as cash legs", () => {
-    expect(upload.rows.slice(0, 3)).toEqual([
+    expect(statement.rows.slice(0, 3)).toEqual([
       row(usd, "2024-12-16", "2024-12-16", "41.86", "USD"),
       row(usd, "2024-11-26", "2024-11-26", "0.42", "USD"),
       row(usd, "2024-11-12", "2024-11-12", "-20000", "USD"),
@@ -65,7 +65,7 @@ describe("schwab", () => {
 
   it("splits a sell into a negative security leg, gross cash and a fee", () => {
     const googl = stock("GOOGL", "ALPHABET INC CLASS A");
-    expect(upload.rows.slice(3, 6)).toEqual([
+    expect(statement.rows.slice(3, 6)).toEqual([
       row(googl, "2024-11-05", "2024-11-05", "-181", "USD"),
       row(usd, "2024-11-05", "2024-11-05", "50462.8", "USD"),
       row(usd, "2024-11-05", "2024-11-05", "-0.03", "USD"),
@@ -73,13 +73,13 @@ describe("schwab", () => {
   });
 
   it("orders an as-of line on the effective date and settles it on the posted date", () => {
-    expect(upload.rows[6]).toEqual(
+    expect(statement.rows[6]).toEqual(
       row(usd, "2024-10-03", "2024-10-04", "191.71", "USD"),
     );
   });
 
   it("states a split with no ratio", () => {
-    expect(upload.splits).toEqual([
+    expect(statement.splits).toEqual([
       create(StatedSplitSchema, {
         key: stock("TSLA", "TESLA INC"),
         effectiveDate: "2024-08-24",
@@ -94,7 +94,7 @@ describe("schwab", () => {
       "ATVI",
       "ACTIVISION BLIZZARD MANDATORY MERGER EFF: 05/13/24",
     );
-    expect(upload.rows.slice(10, 14)).toEqual([
+    expect(statement.rows.slice(10, 14)).toEqual([
       row(googl, "2024-06-14", "2024-06-14", "22", "USD"),
       row(usd, "2024-06-14", "2024-06-14", "-3923.7", "USD"),
       row(usd, "2024-05-13", "2024-05-13", "4445.21", "USD"),

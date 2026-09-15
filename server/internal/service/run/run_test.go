@@ -86,8 +86,8 @@ func TestGetRun(t *testing.T) {
 		{
 			name: "pending",
 			id:   runID.String(),
-			row:  gen.Run{ID: runID, UserID: userID, Kind: gen.RunKindUpload, Trigger: gen.RunTriggerUser, State: gen.RunStatePending, CreatedAt: created},
-			want: &runv1.Run{Id: runID.String(), Kind: runv1.RunKind_RUN_KIND_UPLOAD, Trigger: runv1.RunTrigger_RUN_TRIGGER_USER, State: runv1.RunState_RUN_STATE_PENDING, CreatedAt: timestamppb.New(created)},
+			row:  gen.Run{ID: runID, UserID: userID, Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser, State: gen.RunStatePending, CreatedAt: created},
+			want: &runv1.Run{Id: runID.String(), Kind: runv1.RunKind_RUN_KIND_STATEMENT, Trigger: runv1.RunTrigger_RUN_TRIGGER_USER, State: runv1.RunState_RUN_STATE_PENDING, CreatedAt: timestamppb.New(created)},
 		},
 		{
 			name: "failed child",

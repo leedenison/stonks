@@ -14,7 +14,7 @@ A run row carries one of five states.
 
 The three terminal states set `finished_at`, so the row also carries `created_at`.
 
-A parent's state is its own. An upload whose resolution failed fails itself.
+A parent's state is its own. A statement whose resolution failed fails itself.
 
 `interrupted` is kept apart from `failed` because nothing recorded why the run stopped,
 and it is the state an administrator restarts from. The boot sweep assumes one process,
@@ -23,11 +23,11 @@ deployment.
 
 ## Consequences
 
-The upload's write is one database transaction: delete the claimed period, insert the
+The statement's write is one database transaction: delete the claimed period, insert the
 accepted transactions, insert the item rows, set `completed`. A run in any other state
 has written no transactions and no items, and a re-upload is the recovery.
 
-What an interrupted or failed upload leaves behind is its run row, its stated keys, its
+What an interrupted or failed statement leaves behind is its run row, its stated keys, its
 resolution run, and any instruments the resolution created. Instruments are canonical
 and are kept whether or not the transactions that named them were written.
 

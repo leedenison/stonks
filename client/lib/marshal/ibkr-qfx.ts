@@ -1,6 +1,6 @@
 // The IBKR QFX investment statement: OFX 1.02 SGML, read by ofx-js into a
-// tree of tags. The statement is ASCII though its header declares CHARSET
-// 1252, so reading the file as UTF-8 is safe for the statements seen.
+// tree of tags. The file is ASCII though its header declares CHARSET 1252,
+// so reading it as UTF-8 is safe for the exports seen.
 //
 // A trade, an income and a bank transaction state a currency, and the
 // account's base currency CURDEF stands in where one is absent. A transfer
@@ -26,7 +26,11 @@ import {
   type Identifier,
   IdentifierType,
 } from "@/gen/type/v1/type_pb";
-import type { Row, StatedSplit, Upload } from "@/gen/upload/v1/upload_pb";
+import type {
+  Row,
+  StatedSplit,
+  Statement,
+} from "@/gen/statement/v1/statement_pb";
 import {
   cashKey,
   ident,
@@ -34,7 +38,7 @@ import {
   securityKey,
   split,
   trade,
-  upload,
+  statement,
 } from "./build";
 import { iso } from "./date";
 import { MarshalError } from "./error";
@@ -167,15 +171,15 @@ function optionOcc(el: Node, ticker: string): string | undefined {
 
 const SPLIT = /SPLIT (\d+) FOR (\d+)/;
 
-function marshal(input: string): Upload {
+function marshal(input: string): Statement {
   const ofx: unknown = parseSync(input).OFX;
   if (!isNode(ofx)) throw new MarshalError("not an OFX statement");
-  const statement = node(
+  const stmt = node(
     node(node(ofx, "INVSTMTMSGSRSV1"), "INVSTMTTRNRS"),
     "INVSTMTRS",
   );
-  const base = text(statement, "CURDEF");
-  const list = node(statement, "INVTRANLIST");
+  const base = text(stmt, "CURDEF");
+  const list = node(stmt, "INVTRANLIST");
   const known = securities(ofx);
   const rows: Row[] = [];
   const splits: StatedSplit[] = [];
@@ -231,7 +235,7 @@ function marshal(input: string): Upload {
     }
   }
 
-  return upload(Broker.IBKR, rows, splits, {
+  return statement(Broker.IBKR, rows, splits, {
     from: date(text(list, "DTSTART")),
     to: date(text(list, "DTEND")),
   });

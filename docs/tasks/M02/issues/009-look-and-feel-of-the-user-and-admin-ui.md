@@ -19,7 +19,7 @@ In:
 - The admin pages that follow this milestone, runs, findings and datasources, sketched
   to the same patterns so the shell does not change when they arrive.
 - The design as a canvas or mockups covering each page of issues
-  [007](007-uploads-in-the-browser.md) and [008](008-holdings-in-the-browser.md), and
+  [007](007-statements-in-the-browser.md) and [008](008-holdings-in-the-browser.md), and
   any change to the `frontend-design` skill the decisions require.
 - Applying the `frontend-design` skill to the existing UI: the shell, the sign-in and
   profile pages and the error and not-found pages, so the tokens, dark mode, typography,

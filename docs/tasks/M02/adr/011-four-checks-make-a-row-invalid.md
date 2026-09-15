@@ -13,5 +13,5 @@ settlement date may fall outside the period on either side.
 
 An invalid row is rejected on its own and recorded as an item of the run, so the
 validating interceptor cannot be what rejects it: a constraint on a row field would fail
-the whole upload. Row fields carry no protovalidate constraint, the interceptor validates
+the whole statement. Row fields carry no protovalidate constraint, the interceptor validates
 the envelope, and the handler checks each row.
