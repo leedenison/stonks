@@ -55,6 +55,6 @@ sql:
               pointer: true
           - column: stated_keys.identifiers
             go_type:
-              import: github.com/leedenison/stonks/server/internal/db
+              import: github.com/leedenison/stonks/server/internal/db/types
               type: StatedIdentifier
               slice: true
