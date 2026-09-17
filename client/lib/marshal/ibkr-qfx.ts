@@ -2,10 +2,11 @@
 // tree of tags. The file is ASCII though its header declares CHARSET 1252,
 // so reading it as UTF-8 is safe for the exports seen.
 //
-// A trade, an income and a bank transaction state a currency, and the
-// account's base currency CURDEF stands in where one is absent. A transfer
-// states none, and its key is left without one rather than given the base
-// currency, which would contradict the listing the description names.
+// Money moves in the currency a row states, or in the account's base
+// currency CURDEF where it states none. A security's key takes only a
+// currency the row states: the base currency names the account rather than
+// the security's line, and a key left without one matches the listing its
+// description names. A transfer states none.
 //
 // Every date is stated in the exchange's local zone with its offset, and the
 // date part is taken as stated: an evening posting is not moved to the next
@@ -85,9 +86,14 @@ function date(stamp: string): string {
   return iso(m[1], m[2], m[3]);
 }
 
-function currency(el: Node, base: string): string {
+// stated returns the currency el states, if any.
+function stated(el: Node): string | undefined {
   const cur = el["CURRENCY"];
-  return isNode(cur) ? text(cur, "CURSYM") : base;
+  return isNode(cur) ? text(cur, "CURSYM") : undefined;
+}
+
+function currency(el: Node, base: string): string {
+  return stated(el) ?? base;
 }
 
 // The asset class each kind of security list entry states.
@@ -196,29 +202,28 @@ function marshal(input: string): Statement {
     for (const el of many(list, kind)) {
       if (kind.startsWith("BUY") || kind.startsWith("SELL")) {
         const inv = node(el, kind.startsWith("BUY") ? "INVBUY" : "INVSELL");
-        const cur = currency(inv, base);
         const when = date(text(node(inv, "INVTRAN"), "DTTRADE"));
         rows.push(
           ...trade({
-            key: keyOf(inv, cur),
+            key: keyOf(inv, stated(inv)),
             orderDate: when,
             settlementDate: when,
             units: text(inv, "UNITS"),
             net: text(inv, "TOTAL"),
             fee: optText(inv, "COMMISSION") ?? "0",
             tax: optText(inv, "TAXES") ?? "0",
-            currency: cur,
+            settlementCurrency: currency(inv, base),
           }),
         );
       } else if (kind === "INCOME") {
         const cur = currency(el, base);
         const when = date(text(node(el, "INVTRAN"), "DTTRADE"));
-        rows.push(leg(cashKey(cur), when, when, text(el, "TOTAL"), cur));
+        rows.push(leg(cashKey(cur), when, when, text(el, "TOTAL")));
       } else if (kind === "INVBANKTRAN") {
         const trn = node(el, "STMTTRN");
         const cur = currency(trn, base);
         const when = date(text(trn, "DTPOSTED"));
-        rows.push(leg(cashKey(cur), when, when, text(trn, "TRNAMT"), cur));
+        rows.push(leg(cashKey(cur), when, when, text(trn, "TRNAMT")));
       } else if (kind === "TRANSFER") {
         const tran = node(el, "INVTRAN");
         const when = date(text(tran, "DTTRADE"));

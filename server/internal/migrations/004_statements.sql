@@ -17,9 +17,8 @@
 -- together when the export stated no ratio.
 --
 -- A resolution key is the item row of a run of kind 'resolution': the outcome
--- for one stated key. 'matched' names an existing listing, which is the cash
--- instrument's when the key stated a currency identifier; 'created' names the
--- instrument and listing the resolution made; 'rejected' names nothing and
+-- for one stated key. 'matched' names an existing listing; 'created' names
+-- the instrument and listing the resolution made; 'rejected' names nothing and
 -- carries the reason.
 
 CREATE TABLE statements (

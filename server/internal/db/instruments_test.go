@@ -44,29 +44,47 @@ func newListing(t *testing.T, q *gen.Queries, instrument gen.Instrument, currenc
 
 func ptr[T any](v T) *T { return &v }
 
-// TestCashSeed checks the system owned cash instrument the migration seeds:
-// one listing per currency, each named by a currency identifier.
-func TestCashSeed(t *testing.T) {
+// cashListing returns the listing money in currency is held against: the
+// currency instrument's listing in itself.
+func cashListing(t *testing.T, q *gen.Queries, currency string) gen.Listing {
+	t.Helper()
+	ctx := context.Background()
+	inst, err := q.GetInstrumentByIdentifier(ctx, gen.GetInstrumentByIdentifierParams{Type: gen.IdentifierTypeCurrency, Value: currency})
+	require.NoError(t, err)
+	l, err := q.GetListing(ctx, gen.GetListingParams{InstrumentID: inst.ID, Currency: currency})
+	require.NoError(t, err)
+	return l
+}
+
+// TestCurrencySeed checks the system owned currency instruments the
+// migration seeds: one per currency, named by its code, listed in itself.
+func TestCurrencySeed(t *testing.T) {
 	q := newTx(t)
 	ctx := context.Background()
 
-	usd, err := q.GetListingByIdentifier(ctx, gen.GetListingByIdentifierParams{Type: gen.IdentifierTypeCurrency, Value: "USD"})
+	usd, err := q.GetInstrumentByIdentifier(ctx, gen.GetInstrumentByIdentifierParams{Type: gen.IdentifierTypeCurrency, Value: "USD"})
 	require.NoError(t, err)
-	if usd.AssetClass != gen.AssetClassCash || usd.Listing.Currency != "USD" || usd.Listing.OwnerID != nil {
-		t.Errorf("GetListingByIdentifier(currency USD) = %+v, want a system owned USD listing of a cash instrument", usd)
+	if usd.AssetClass != gen.AssetClassCash || usd.OwnerID != nil {
+		t.Errorf("GetInstrumentByIdentifier(currency USD) = %+v, want a system owned instrument of class cash", usd)
 	}
-	gbx, err := q.GetListingByIdentifier(ctx, gen.GetListingByIdentifierParams{Type: gen.IdentifierTypeCurrency, Value: "GBX"})
-	require.NoError(t, err)
-	if gbx.Listing.InstrumentID != usd.Listing.InstrumentID || gbx.Listing.ID == usd.Listing.ID {
-		t.Errorf("GBX listing = %+v, want a second listing of instrument %s", gbx.Listing, usd.Listing.InstrumentID)
+	line := cashListing(t, q, "USD")
+	if line.InstrumentID != usd.ID || line.OwnerID != nil {
+		t.Errorf("USD listing = %+v, want a system owned listing of instrument %s", line, usd.ID)
+	}
+	if gbx := cashListing(t, q, "GBX"); gbx.InstrumentID == usd.ID {
+		t.Errorf("GBX listing = %+v, want one of an instrument other than USD's", gbx)
+	}
+	if _, err := q.GetListing(ctx, gen.GetListingParams{InstrumentID: usd.ID, Currency: "GBP"}); !errors.Is(err, db.ErrNotFound) {
+		t.Errorf("GetListing(USD, GBP): err = %v, want ErrNotFound until a rate is fetched", err)
 	}
 
-	var currencies, listings, identifiers int
+	var currencies, instruments, listings, identifiers int
 	require.NoError(t, pool.QueryRow(ctx, "SELECT count(*) FROM currencies").Scan(&currencies))
-	require.NoError(t, pool.QueryRow(ctx, "SELECT count(*) FROM listings WHERE instrument_id = $1", usd.Listing.InstrumentID).Scan(&listings))
-	require.NoError(t, pool.QueryRow(ctx, "SELECT count(*) FROM identifiers WHERE instrument_id = $1 AND type = 'currency' AND listing_id IS NOT NULL", usd.Listing.InstrumentID).Scan(&identifiers))
-	if listings != currencies || identifiers != currencies {
-		t.Errorf("cash has %d listings and %d currency identifiers, want %d of each", listings, identifiers, currencies)
+	require.NoError(t, pool.QueryRow(ctx, "SELECT count(*) FROM instruments WHERE asset_class = 'cash' AND owner_id IS NULL").Scan(&instruments))
+	require.NoError(t, pool.QueryRow(ctx, "SELECT count(*) FROM listings WHERE owner_id IS NULL").Scan(&listings))
+	require.NoError(t, pool.QueryRow(ctx, "SELECT count(*) FROM identifiers WHERE type = 'currency' AND listing_id IS NULL").Scan(&identifiers))
+	if instruments != currencies || listings != currencies || identifiers != currencies {
+		t.Errorf("seeded %d instruments, %d listings and %d identifiers, want %d of each", instruments, listings, identifiers, currencies)
 	}
 }
 

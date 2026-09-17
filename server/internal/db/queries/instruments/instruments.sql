@@ -43,3 +43,17 @@ VALUES ($1, $2, $3, $4, $5, $6, $7);
 SELECT * FROM resolution_keys
 WHERE run_id = $1 AND user_id = $2
 ORDER BY stated_key_id;
+
+-- name: GetInstrumentByIdentifier :one
+SELECT instruments.*
+FROM identifiers
+JOIN instruments ON instruments.id = identifiers.instrument_id
+WHERE identifiers.listing_id IS NULL
+  AND identifiers.owner_id IS NOT DISTINCT FROM sqlc.narg(owner_id)::uuid
+  AND identifiers.type = @type
+  AND identifiers.domain IS NOT DISTINCT FROM sqlc.narg(domain)::text
+  AND identifiers.value = @value::text;
+
+-- name: GetListing :one
+SELECT * FROM listings
+WHERE instrument_id = $1 AND currency = $2;

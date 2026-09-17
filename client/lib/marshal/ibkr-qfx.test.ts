@@ -51,10 +51,10 @@ describe("ibkrQfx", () => {
       "USD",
     );
     expect(statement.rows.slice(0, 4)).toEqual([
-      row(amd, "2024-01-15", "2024-01-15", "200", "USD"),
-      row(cash("USD"), "2024-01-15", "2024-01-15", "-14846.5602968", "USD"),
-      row(cash("USD"), "2024-01-15", "2024-01-15", "-0.78710536", "USD"),
-      row(cash("USD"), "2024-01-15", "2024-01-15", "-1.5", "USD"),
+      row(amd, "2024-01-15", "2024-01-15", "200"),
+      row(cash("USD"), "2024-01-15", "2024-01-15", "-14846.5602968"),
+      row(cash("USD"), "2024-01-15", "2024-01-15", "-0.78710536"),
+      row(cash("USD"), "2024-01-15", "2024-01-15", "-1.5"),
     ]);
   });
 
@@ -66,9 +66,9 @@ describe("ibkrQfx", () => {
       "EUR",
     );
     expect(statement.rows.slice(4, 7)).toEqual([
-      row(rhm, "2024-01-23", "2024-01-23", "-10", "EUR"),
-      row(cash("EUR"), "2024-01-23", "2024-01-23", "6094.72188", "EUR"),
-      row(cash("EUR"), "2024-01-23", "2024-01-23", "-3.04736094", "EUR"),
+      row(rhm, "2024-01-23", "2024-01-23", "-10"),
+      row(cash("EUR"), "2024-01-23", "2024-01-23", "6094.72188"),
+      row(cash("EUR"), "2024-01-23", "2024-01-23", "-3.04736094"),
     ]);
   });
 
@@ -80,27 +80,27 @@ describe("ibkrQfx", () => {
       "USD",
     );
     expect(statement.rows[7]).toEqual(
-      row(put, "2024-02-20", "2024-02-20", "1", "USD"),
+      row(put, "2024-02-20", "2024-02-20", "1"),
     );
     expect(statement.rows[10]).toEqual(
-      row(put, "2024-03-21", "2024-03-21", "-1", "USD"),
+      row(put, "2024-03-21", "2024-03-21", "-1"),
     );
     expect(statement.rows[11].quantity).toBe("1222.64415");
   });
 
   it("keeps the stated date of an evening posting", () => {
     expect(statement.rows[13]).toEqual(
-      row(cash("USD"), "2024-01-11", "2024-01-11", "96.9378592", "USD"),
+      row(cash("USD"), "2024-01-11", "2024-01-11", "96.9378592"),
     );
   });
 
   it("emits every bank transaction as a cash leg, including one before the period", () => {
     expect(statement.rows.slice(14, 19)).toEqual([
-      row(cash("USD"), "2024-02-05", "2024-02-05", "12.34", "USD"),
-      row(cash("GBP"), "2024-01-10", "2024-01-10", "50000", "GBP"),
-      row(cash("USD"), "2023-12-15", "2023-12-15", "-14.54", "USD"),
-      row(cash("USD"), "2024-01-03", "2024-01-03", "-22880.11960797", "USD"),
-      row(cash("GBP"), "2024-01-03", "2024-01-03", "18000", "GBP"),
+      row(cash("USD"), "2024-02-05", "2024-02-05", "12.34"),
+      row(cash("GBP"), "2024-01-10", "2024-01-10", "50000"),
+      row(cash("USD"), "2023-12-15", "2023-12-15", "-14.54"),
+      row(cash("USD"), "2024-01-03", "2024-01-03", "-22880.11960797"),
+      row(cash("GBP"), "2024-01-03", "2024-01-03", "18000"),
     ]);
   });
 
@@ -146,6 +146,17 @@ describe("ibkrQfx", () => {
       .replace(/<TRANSFER>[\s\S]*<\/TRANSFER>/, "")
       .replace(/<OPTINFO>[\s\S]*<\/OPTINFO>/, "");
     expect(ibkrQfx.marshal(one).rows).toEqual(statement.rows.slice(0, 4));
+  });
+
+  it("leaves a trade's key without a currency it does not state, and moves cash in the account's", () => {
+    const bare = text.replace(/<CURRENCY>[\s\S]*?<\/CURRENCY>/, "");
+    const rows = ibkrQfx.marshal(bare).rows;
+    expect(rows[0].key?.currency).toBeUndefined();
+    expect(rows.slice(1, 4).map((r) => r.key)).toEqual([
+      cash("GBP"),
+      cash("GBP"),
+      cash("GBP"),
+    ]);
   });
 
   it("carries no OCC symbol for a ticker in the broker's own form", () => {

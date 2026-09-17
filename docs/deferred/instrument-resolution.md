@@ -38,9 +38,12 @@ attached data.
 A listing carries the interval it was tradeable in. A delisting closes one. A
 redenomination closes one and merges what it holds into the listing taking over.
 
-Cash is one system owned instrument with a listing per supported currency, each listing
-carrying a CURRENCY identifier whose value is the ISO 4217 code.  An FX pair is the
-instrument a rate is a price of, and has one degenerate listing.
+A currency is a system owned instrument named by a CURRENCY identifier whose value is
+its code.  Its listing in itself is money in that currency, which a cash leg resolves to
+as any key does: the identifier names the instrument and the stated currency picks the
+listing.  Its listing in another currency carries the rate between the two, and is made
+when a rate is first fetched.  Whether GBX is a listing of the GBP instrument or an
+instrument of its own is the currency family question below.
 
 An option or a future references the listing of its underlying, a strike being quoted
 in the listing's currency.
@@ -351,10 +354,9 @@ UNKNOWN
     |   |-- ETF
     |   `-- MUTUAL_FUND
     |-- FIXED_INCOME
-    |-- DERIVATIVE
-    |   |-- OPTION
-    |   `-- FUTURE
-    `-- FX
+    `-- DERIVATIVE
+        |-- OPTION
+        `-- FUTURE
 ```
 
 ### Proposed Identifier Types
@@ -371,8 +373,7 @@ UNKNOWN
 | MIC_TICKER           | registry   | venue                | listing    | MIC-derived  |
 | OPENFIGI_TICKER      | registry   | venue                | listing    | MIC-derived  |
 | OCC                  | registry   | none                 | instrument | MIC-derived  |
-| CURRENCY             | registry   | none                 | listing    | stable       |
-| FX_PAIR              | registry   | none                 | instrument | stable       |
+| CURRENCY             | registry   | none                 | instrument | stable       |
 | DATASOURCE_TICKER    | datasource | datasource           | listing    | MIC-derived  |
 | BROKER_ID            | broker     | broker               | instrument | stable       |
 | BROKER_DESCRIPTION   | source     | broker + channel     | listing    | unverifiable |
