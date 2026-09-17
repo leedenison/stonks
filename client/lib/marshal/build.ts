@@ -31,8 +31,8 @@ export function ident(
   return create(IdentifierSchema, { type, value, domain });
 }
 
-// cashKey names money in one currency: a currency identifier, class CASH and
-// the currency.
+// cashKey names money in one currency: the currency's identifier, class CASH
+// and the currency.
 export function cashKey(currency: string): StatedKey {
   return create(StatedKeySchema, {
     identifiers: [ident(IdentifierType.CURRENCY, currency)],
@@ -56,7 +56,6 @@ export function leg(
   orderDate: string,
   settlementDate: string,
   quantity: string,
-  currency?: string,
   asAt?: string,
 ): Row {
   return create(RowSchema, {
@@ -65,7 +64,6 @@ export function leg(
     settlementDate,
     asAt: asAt ?? orderDate,
     quantity: normalise(quantity),
-    currency,
   });
 }
 
@@ -80,12 +78,12 @@ export function trade(t: {
   net: string;
   fee: string;
   tax: string;
-  currency: string;
+  settlementCurrency: string;
   asAt?: string;
 }): Row[] {
-  const cash = cashKey(t.currency);
+  const cash = cashKey(t.settlementCurrency);
   const at = (key: StatedKey, quantity: string) =>
-    leg(key, t.orderDate, t.settlementDate, quantity, t.currency, t.asAt);
+    leg(key, t.orderDate, t.settlementDate, quantity, t.asAt);
   const rows = [at(t.key, t.units), at(cash, add(add(t.net, t.fee), t.tax))];
   for (const charge of [t.fee, t.tax]) {
     if (!isZero(charge)) rows.push(at(cash, negate(charge)));

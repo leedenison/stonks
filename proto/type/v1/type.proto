@@ -54,9 +54,6 @@ enum AssetClass {
   ASSET_CLASS_OPTION = 10;
   // Under DERIVATIVE.
   ASSET_CLASS_FUTURE = 11;
-  // A currency pair. Under SECURITY rather than CASH: a pair is an instrument
-  // that holds a price, where cash is the money itself.
-  ASSET_CLASS_FX = 12;
 }
 
 // How an identifier's domain and value are read. A type names an instrument
@@ -84,17 +81,17 @@ enum IdentifierType {
   IDENTIFIER_TYPE_OPENFIGI_TICKER = 9;
   // An option contract, an instrument; no domain.
   IDENTIFIER_TYPE_OCC = 10;
-  // A listing of the cash instrument; no domain, the value an ISO 4217 code.
+  // A currency, an instrument; no domain, the value an ISO 4217 code. Its
+  // listing in its own currency is money in it, and a listing in another
+  // currency carries the rate between the two.
   IDENTIFIER_TYPE_CURRENCY = 11;
-  // An instrument; no domain.
-  IDENTIFIER_TYPE_FX_PAIR = 12;
   // A listing; the domain is the datasource that issued the value.
-  IDENTIFIER_TYPE_DATASOURCE_TICKER = 13;
+  IDENTIFIER_TYPE_DATASOURCE_TICKER = 12;
   // An instrument; the domain is the broker that issued the value.
-  IDENTIFIER_TYPE_BROKER_ID = 14;
+  IDENTIFIER_TYPE_BROKER_ID = 13;
   // A listing; the domain is the broker and the channel the description came
   // through, and the value is the description text as the export states it.
-  IDENTIFIER_TYPE_BROKER_DESCRIPTION = 15;
+  IDENTIFIER_TYPE_BROKER_DESCRIPTION = 14;
 }
 
 // A name for an instrument or for one of its listings.
@@ -115,7 +112,8 @@ message StatedKey {
   // The narrowest class the source can defend; UNSPECIFIED when it stated
   // none.
   AssetClass asset_class = 2;
-  // The currency code as the source stated it; unset when it stated none.
+  // The currency of the line the source states the instrument on, which
+  // picks the listing; unset when the source stated none.
   optional string currency = 3;
   // The source's description of the instrument; unset when it gave none.
   optional string description = 4;
@@ -144,6 +142,7 @@ message Transaction {
   // The change in units of the instrument: shares, contracts, or money for
   // cash. Negative for a disposal or an outflow.
   string quantity = 10;
-  // The precise currency code the source stated; unset when it stated none.
+  // The precise currency code the stated key states; unset when it states
+  // none.
   optional string currency = 11;
 }

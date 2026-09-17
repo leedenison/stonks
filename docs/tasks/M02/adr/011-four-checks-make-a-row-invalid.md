@@ -2,8 +2,7 @@
 
 A row is invalid when it:
 
-- states an identifier whose type its asset class does not admit, such as an ISIN on a
-  cash leg or a currency identifier on anything but cash;
+- states two identifiers of one type and domain, which one line cannot carry;
 - states an asset class outside the vocabulary;
 - states an order date outside the claimed period;
 - states an order date after today.

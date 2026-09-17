@@ -16,7 +16,6 @@ function row(
   orderDate: string,
   settlementDate: string,
   quantity: string,
-  currency: string,
 ): Row {
   return make(RowSchema, {
     key,
@@ -24,7 +23,6 @@ function row(
     settlementDate,
     asAt: EXPORTED,
     quantity,
-    currency,
   });
 }
 import { schwab } from "./schwab";
@@ -57,24 +55,24 @@ describe("schwab", () => {
 
   it("emits a dividend, interest and a wire as cash legs", () => {
     expect(statement.rows.slice(0, 3)).toEqual([
-      row(usd, "2024-12-16", "2024-12-16", "41.86", "USD"),
-      row(usd, "2024-11-26", "2024-11-26", "0.42", "USD"),
-      row(usd, "2024-11-12", "2024-11-12", "-20000", "USD"),
+      row(usd, "2024-12-16", "2024-12-16", "41.86"),
+      row(usd, "2024-11-26", "2024-11-26", "0.42"),
+      row(usd, "2024-11-12", "2024-11-12", "-20000"),
     ]);
   });
 
   it("splits a sell into a negative security leg, gross cash and a fee", () => {
     const googl = stock("GOOGL", "ALPHABET INC CLASS A");
     expect(statement.rows.slice(3, 6)).toEqual([
-      row(googl, "2024-11-05", "2024-11-05", "-181", "USD"),
-      row(usd, "2024-11-05", "2024-11-05", "50462.8", "USD"),
-      row(usd, "2024-11-05", "2024-11-05", "-0.03", "USD"),
+      row(googl, "2024-11-05", "2024-11-05", "-181"),
+      row(usd, "2024-11-05", "2024-11-05", "50462.8"),
+      row(usd, "2024-11-05", "2024-11-05", "-0.03"),
     ]);
   });
 
   it("orders an as-of line on the effective date and settles it on the posted date", () => {
     expect(statement.rows[6]).toEqual(
-      row(usd, "2024-10-03", "2024-10-04", "191.71", "USD"),
+      row(usd, "2024-10-03", "2024-10-04", "191.71"),
     );
   });
 
@@ -95,10 +93,10 @@ describe("schwab", () => {
       "ACTIVISION BLIZZARD MANDATORY MERGER EFF: 05/13/24",
     );
     expect(statement.rows.slice(10, 14)).toEqual([
-      row(googl, "2024-06-14", "2024-06-14", "22", "USD"),
-      row(usd, "2024-06-14", "2024-06-14", "-3923.7", "USD"),
-      row(usd, "2024-05-13", "2024-05-13", "4445.21", "USD"),
-      row(atvi, "2024-05-13", "2024-05-13", "-46.7917", "USD"),
+      row(googl, "2024-06-14", "2024-06-14", "22"),
+      row(usd, "2024-06-14", "2024-06-14", "-3923.7"),
+      row(usd, "2024-05-13", "2024-05-13", "4445.21"),
+      row(atvi, "2024-05-13", "2024-05-13", "-46.7917"),
     ]);
   });
 
