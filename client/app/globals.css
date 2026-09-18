@@ -47,6 +47,11 @@
   --color-*: initial;
   --color-background: var(--palette-background);
   --color-surface: var(--palette-surface);
+  --color-surface-tint: color-mix(
+    in srgb,
+    var(--palette-primary-dark) 4%,
+    var(--palette-surface)
+  );
   --color-border: var(--palette-border);
   --color-text-primary: var(--palette-text);
   --color-text-muted: var(--palette-text-muted);
