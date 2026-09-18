@@ -22,9 +22,6 @@
 // No component carries a raw colour. The tokens in globals.css are the whole
 // palette, and a colour that is missing is added there.
 //
-// No component carries a raw colour. The tokens in globals.css are the whole
-// palette, and a colour that is missing is added there.
-//
 // data-testid goes on page containers, tables, rows, buttons, modals and form
 // inputs, named for what the element is rather than where it sits. The e2e
 // suite selects on these and nothing else.

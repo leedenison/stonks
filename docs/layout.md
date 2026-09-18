@@ -42,6 +42,8 @@ server/
 ```
 client/
   app/                  routes; layout.tsx is the only server component
+    (app)/              the user pages, guarded by their layout; no URL segment
+    admin/              the admin area, guarded by its layout and the admin role
     components/         shared components, kebab-case filenames
     globals.css         the design system: theme tokens, dark mode, animations
   contexts/             React context providers, one file per concern
