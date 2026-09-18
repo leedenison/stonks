@@ -52,10 +52,10 @@ func (g *ingestion) validate(ordinal int32, r *statementv1.Row, today time.Time,
 		return reject("malformed quantity %q", r.GetQuantity())
 	}
 	if out.order.Before(g.from) || !out.order.Before(g.before) {
-		return reject("order date %s outside the claimed period", r.GetOrderDate())
+		return reject("order date outside the claimed period")
 	}
 	if out.order.After(today) {
-		return reject("order date %s after today", r.GetOrderDate())
+		return reject("order date after today")
 	}
 	if k.currency != nil && !currencies[*k.currency] {
 		return reject("unknown currency %q", *k.currency)

@@ -170,7 +170,7 @@ func TestIngest(t *testing.T) {
 		gotItems = append(gotItems, fmt.Sprintf("%d %s", it.Ordinal, it.Reason))
 	}
 	wantItems := []string{
-		"3 order date 2026-04-20 outside the claimed period",
+		"3 order date outside the claimed period",
 		"4 currency EUR contradicts the listing named, quoted in USD",
 		"5 asset class option contradicts the listing's equity",
 	}
