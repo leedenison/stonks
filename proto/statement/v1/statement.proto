@@ -1,6 +1,8 @@
-// The broker neutral format a statement of transactions is expressed in. A
-// marshaller in front of the API translates one broker's export into it, so
-// the service reads one format and interprets nothing broker specific.
+// The broker neutral format a statement of transactions is expressed in, and
+// the service that ingests one and lists what each ingestion did. A
+// marshaller in front of the API translates one broker's export into the
+// format, so the service reads one format and interprets nothing broker
+// specific.
 //
 // A statement claims every account the user holds at its broker over its
 // period, a half-open range of order dates. Ingestion replaces every
@@ -26,6 +28,7 @@ syntax = "proto3";
 package stonks.statement.v1;
 
 import "buf/validate/validate.proto";
+import "run/v1/run.proto";
 import "type/v1/type.proto";
 
 option go_package = "github.com/leedenison/stonks/proto/statement/v1;statementv1";
@@ -44,22 +47,29 @@ message Row {
 // The change in units between old and new as the export states it: 1 old to
 // 10 new for a ten-for-one split.
 message SplitRatio {
-  string from = 1;
-  string to = 2;
+  string from = 1 [(buf.validate.field).string.pattern = "^-?\\d+(\\.\\d+)?$"];
+  string to = 2 [(buf.validate.field).string.pattern = "^-?\\d+(\\.\\d+)?$"];
 }
 
 // A split as the export states it. Ingestion compares it with the corporate
-// event calendar and never applies it.
+// event calendar and never applies it. The marshaller builds a split, so an
+// invalid one fails the statement.
 message StatedSplit {
-  stonks.type.v1.StatedKey key = 1;
-  string effective_date = 2;
+  stonks.type.v1.StatedKey key = 1 [(buf.validate.field).required = true];
+  string effective_date = 2 [(buf.validate.field).string.pattern = "^\\d{4}-\\d{2}-\\d{2}$"];
   // The change in units the export states; negative for a short position.
-  string quantity = 3;
+  string quantity = 3 [(buf.validate.field).string.pattern = "^-?\\d+(\\.\\d+)?$"];
   // Unset when the export states no ratio.
   SplitRatio ratio = 4;
 }
 
 message Statement {
+  option (buf.validate.message).cel = {
+    id: "statement.period"
+    message: "order_from must precede order_before"
+    expression: "this.order_from < this.order_before"
+  };
+
   stonks.type.v1.Broker broker = 1 [(buf.validate.field).enum = {
     defined_only: true
     not_in: [0]
@@ -70,4 +80,60 @@ message Statement {
   string order_before = 3 [(buf.validate.field).string.pattern = "^\\d{4}-\\d{2}-\\d{2}$"];
   repeated Row rows = 4;
   repeated StatedSplit splits = 5;
+}
+
+// One ingestion of a statement and what it did. The run carries its state;
+// rows less rejected is the number of transactions written.
+message StatementSummary {
+  stonks.run.v1.Run run = 1;
+  stonks.type.v1.Broker broker = 2;
+  string order_from = 3;
+  string order_before = 4;
+  // The rows the statement carried.
+  int32 rows = 5;
+  // The rows rejected, each an item.
+  int32 rejected = 6;
+}
+
+// A rejected row: its position in the statement, why, and the row as stated.
+message StatementItem {
+  int32 ordinal = 1;
+  string reason = 2;
+  Row row = 3;
+}
+
+message CreateStatementRequest {
+  Statement statement = 1 [(buf.validate.field).required = true];
+}
+
+// The run ingesting the statement, pending when the call answers. Its
+// progress and outcome are read through the run and through GetStatement.
+message CreateStatementResponse {
+  stonks.run.v1.Run run = 1;
+}
+
+message ListStatementsRequest {}
+
+// The caller's statements, newest first.
+message ListStatementsResponse {
+  repeated StatementSummary statements = 1;
+}
+
+message GetStatementRequest {
+  string run_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message GetStatementResponse {
+  StatementSummary statement = 1;
+  // In statement order.
+  repeated StatementItem items = 2;
+}
+
+// Ingests statements and reads what each ingestion did. Every call reads or
+// writes only the caller's statements; another user's is not found.
+service StatementService {
+  // Validates the statement, records it and starts its run.
+  rpc CreateStatement(CreateStatementRequest) returns (CreateStatementResponse);
+  rpc ListStatements(ListStatementsRequest) returns (ListStatementsResponse);
+  rpc GetStatement(GetStatementRequest) returns (GetStatementResponse);
 }

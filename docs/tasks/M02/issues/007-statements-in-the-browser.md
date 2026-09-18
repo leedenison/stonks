@@ -1,7 +1,7 @@
 ---
 title: Statements in the browser
 type: task
-dependencies: [006, 009]
+dependencies: [009]
 ---
 
 ## Scope
