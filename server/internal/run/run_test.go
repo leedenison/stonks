@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -325,6 +326,27 @@ func TestPrepare(t *testing.T) {
 		if got.ID != row.ID || got.Error != "boom" {
 			t.Errorf("FailRun(%s, %q), want (%s, %q)", got.ID, got.Error, row.ID, "boom")
 		}
+	})
+	t.Run("panic fails the run and frees the lane", func(t *testing.T) {
+		f := newFixture(t)
+		failed, failedDone := signal()
+		f.store.EXPECT().FailRun(gomock.Any(), gomock.Any()).DoAndReturn(func(context.Context, gen.FailRunParams) error { failedDone(); return nil })
+		completed, completedDone := signal()
+		f.store.EXPECT().CompleteRun(gomock.Any(), gomock.Any()).DoAndReturn(func(context.Context, uuid.UUID) error { completedDone(); return nil })
+		spec := Spec{Kind: gen.RunKindStatement, UserID: userA, Lane: "ibkr", Prepare: func(context.Context, gen.Run) error { panic("boom") }}
+		_, err := f.runner.Start(context.Background(), spec, func(context.Context, gen.Run) error {
+			t.Error("work ran after Prepare panicked")
+			return nil
+		})
+		if err == nil || !strings.Contains(err.Error(), "panic: boom") {
+			t.Errorf("Start() error = %v, want the panic", err)
+		}
+		await(t, failed, "FailRun")
+		next := Spec{Kind: gen.RunKindStatement, UserID: userA, Lane: "ibkr"}
+		if _, err := f.runner.Start(context.Background(), next, func(context.Context, gen.Run) error { return nil }); err != nil {
+			t.Fatalf("Start() after the panic error = %v", err)
+		}
+		await(t, completed, "CompleteRun of the next run in the lane")
 	})
 }
 

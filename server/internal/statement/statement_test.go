@@ -152,6 +152,7 @@ func TestValidate(t *testing.T) {
 		{name: "two tickers at one venue", row: rowMsg(securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, "A", ptr.To("XNYS")), ident(typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, "B", ptr.To("XNYS"))), "2026-03-05", "1"), want: "two mic_ticker identifiers, A and B"},
 		{name: "two tickers at two venues", row: rowMsg(securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, "A", ptr.To("XNYS")), ident(typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, "A", ptr.To("XLON"))), "2026-03-05", "1")},
 		{name: "no admissible identifier", row: rowMsg(&typev1.StatedKey{AssetClass: typev1.AssetClass_ASSET_CLASS_EQUITY, Currency: &usd}, "2026-03-05", "1"), want: "no admissible identifier"},
+		{name: "empty description", row: rowMsg(securityKey("", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd), "2026-03-05", "1"), want: "no admissible identifier"},
 		{name: "malformed order date", row: &statementv1.Row{Key: equity, OrderDate: "2026-03-40", SettlementDate: "2026-03-05", AsAt: "2026-03-05", Quantity: "1"}, want: `malformed order date "2026-03-40"`},
 		{name: "malformed settlement date", row: &statementv1.Row{Key: equity, OrderDate: "2026-03-05", SettlementDate: "", AsAt: "2026-03-05", Quantity: "1"}, want: `malformed settlement date ""`},
 		{name: "malformed as at", row: &statementv1.Row{Key: equity, OrderDate: "2026-03-05", SettlementDate: "2026-03-05", AsAt: "5 March", Quantity: "1"}, want: `malformed as at "5 March"`},
@@ -198,6 +199,7 @@ func TestKeyForm(t *testing.T) {
 		{name: "currency", a: securityKey("A", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd), b: securityKey("A", typev1.AssetClass_ASSET_CLASS_EQUITY, nil)},
 		{name: "class", a: securityKey("A", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd), b: securityKey("A", typev1.AssetClass_ASSET_CLASS_UNSPECIFIED, &usd)},
 		{name: "description", a: securityKey("A", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd), b: securityKey("B", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd)},
+		{name: "empty description", a: cashKey("USD"), b: func() *typev1.StatedKey { k := cashKey("USD"); k.Description = ptr.To(""); return k }(), same: true},
 		{name: "empty description and none", a: &typev1.StatedKey{Identifiers: cashKey("USD").Identifiers, AssetClass: typev1.AssetClass_ASSET_CLASS_CASH, Description: ptr.To("")}, b: cashKey("USD")},
 	}
 	for _, tc := range tests {

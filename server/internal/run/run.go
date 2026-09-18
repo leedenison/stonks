@@ -24,7 +24,8 @@
 // itself. A kind whose writes and completion must be one database
 // transaction calls CompleteRun inside that transaction, and the update made
 // afterwards matches no row. Work returning an error marks the run failed
-// with the error's text. A panic in the work fails the run, not the process.
+// with the error's text. A panic in Prepare or the work fails the run, not
+// the process.
 package run
 
 //go:generate go tool mockgen -source=run.go -destination=mock/run_mock.go -package=mock
@@ -119,7 +120,7 @@ func (r *Runner) Start(ctx context.Context, spec Spec, work Work) (gen.Run, erro
 	go r.background(row, work, key, prev, done, ready)
 	r.mu.Unlock()
 	if spec.Prepare != nil {
-		err = spec.Prepare(ctx, row)
+		err = call(ctx, row, spec.Prepare)
 	}
 	ready <- err
 	return row, err
@@ -224,6 +225,8 @@ func (r *Runner) execute(ctx context.Context, row gen.Run, work Work) error {
 	return err
 }
 
+// call runs work and returns a panic in it as its error, so a run that
+// panics fails rather than wedging its lane.
 func call(ctx context.Context, row gen.Run, work Work) (err error) {
 	defer func() {
 		if p := recover(); p != nil {

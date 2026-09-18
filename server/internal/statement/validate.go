@@ -99,16 +99,19 @@ func (g *ingestion) split(ordinal int32, sp *statementv1.StatedSplit) (split, er
 }
 
 // keyOf reads a stated key into its canonical form: the class and
-// identifier types in the database vocabulary, and the identifiers sorted
-// by type, domain and value with an absent domain first. It fails a class
-// or type outside the vocabulary and two identifiers of one type and
-// domain.
+// identifier types in the database vocabulary, an empty description as
+// none, and the identifiers sorted by type, domain and value with an
+// absent domain first. It fails a class or type outside the vocabulary and
+// two identifiers of one type and domain.
 func keyOf(sk *typev1.StatedKey) (*key, error) {
 	class, ok := db.FromProto[gen.AssetClass](sk.GetAssetClass())
 	if !ok {
 		return nil, fmt.Errorf("asset class %d outside the vocabulary", sk.GetAssetClass())
 	}
 	k := &key{currency: sk.Currency, description: sk.Description, identifiers: []types.StatedIdentifier{}}
+	if sk.GetDescription() == "" {
+		k.description = nil
+	}
 	if class != "" {
 		k.class = &class
 	}
