@@ -61,10 +61,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       className={`${display.variable} ${body.variable} ${mono.variable}`}
       suppressHydrationWarning
     >
-      <head>
-        <script dangerouslySetInnerHTML={{ __html: schemeScript }} />
-      </head>
       <body className="min-h-dvh bg-background font-sans text-text-primary antialiased">
+        <script dangerouslySetInnerHTML={{ __html: schemeScript }} />
         <Providers>
           <TopBar />
           {children}

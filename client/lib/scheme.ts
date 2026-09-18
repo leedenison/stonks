@@ -18,6 +18,9 @@ export function applyScheme(root: HTMLElement, scheme: Scheme) {
   }
 }
 
-// schemeScript runs in <head> before first paint, so a stored override is on
-// <html> before any style is computed and nothing flashes the other scheme.
+// schemeScript is the first child of <body>, so a stored override is on
+// <html> before any content is painted and nothing flashes the other scheme.
+// It sits in <body> rather than <head> because a browser extension that
+// inserts a script at the top of <head> would otherwise be hydrated against
+// it.
 export const schemeScript = `(function(){try{var s=localStorage.getItem(${JSON.stringify(schemeKey)});if(s==="light"||s==="dark"){document.documentElement.setAttribute("data-theme",s)}}catch(e){}})()`;
