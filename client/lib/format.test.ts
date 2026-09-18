@@ -1,12 +1,21 @@
 import { timestampFromDate } from "@bufbuild/protobuf/wkt";
 import { describe, expect, it } from "vitest";
-import { formatElapsed, formatInstant } from "./format";
+import { formatElapsed, formatInstant, formatQuantity } from "./format";
 
 describe("format", () => {
   it("renders an instant to the minute in UTC", () => {
     expect(
       formatInstant(timestampFromDate(new Date("2026-09-16T08:30:59Z"))),
     ).toBe("2026-09-16 08:30 UTC");
+  });
+
+  it("rounds a quantity to two places and cuts a long one", () => {
+    expect(formatQuantity("100")).toBe("100.00");
+    expect(formatQuantity("-0.03")).toBe("-0.03");
+    expect(formatQuantity("13587.849")).toBe("13587.85");
+    expect(formatQuantity("123456789.12")).toBe("12345678\u2026");
+    expect(formatQuantity("1234567.1")).toBe("1234567\u2026");
+    expect(formatQuantity("abc")).toBe("abc");
   });
 
   it("renders elapsed time in its two largest units", () => {

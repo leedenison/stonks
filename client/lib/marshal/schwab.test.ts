@@ -123,10 +123,14 @@ describe("schwab.recognise", () => {
   });
 
   it("refuses a type Schwab does not issue before reading the contents", () => {
-    expect(schwab.recognise(fixture("schwab.json"), "")).toBe(false);
     expect(
       schwab.recognise(fixture("schwab.json"), "application/vnd.intu.qfx"),
     ).toBe(false);
+  });
+
+  it("needs a reported type, since JSON and CSV parse loosely", () => {
+    expect(schwab.recognise(fixture("schwab.json"), "")).toBe(false);
+    expect(schwab.recognise(fixture("schwab.csv"), "")).toBe(false);
   });
 
   it("refuses other text", () => {

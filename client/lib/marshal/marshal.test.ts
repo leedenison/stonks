@@ -34,9 +34,13 @@ describe("recognisedBy", () => {
     ]);
   });
 
-  it("names nobody for a file with no reported type", () => {
-    expect(recognisedBy(fixture("ibkr.qfx"), "")).toEqual([]);
+  it("judges a QFX with no reported type on its contents alone", () => {
+    expect(recognisedBy(fixture("ibkr.qfx"), "")).toEqual([Broker.IBKR]);
+  });
+
+  it("needs a type for a CSV or JSON", () => {
     expect(recognisedBy(fixture("fidelity-uk.csv"), "")).toEqual([]);
+    expect(recognisedBy(fixture("schwab.json"), "")).toEqual([]);
   });
 
   it("names nobody for text that is no export", () => {

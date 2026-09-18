@@ -207,7 +207,10 @@ describe("ibkrQfx.recognise", () => {
 
   it("refuses a type IBKR does not issue before reading the contents", () => {
     expect(ibkrQfx.recognise(qfx, "text/csv")).toBe(false);
-    expect(ibkrQfx.recognise(qfx, "")).toBe(false);
+  });
+
+  it("takes a QFX with no reported type on its contents alone", () => {
+    expect(ibkrQfx.recognise(qfx, "")).toBe(true);
   });
 
   it("refuses a statement from an account of another form", () => {

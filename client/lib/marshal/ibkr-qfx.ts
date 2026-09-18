@@ -254,10 +254,11 @@ function marshal(input: string): Statement {
   });
 }
 
-// recognise checks the type, the OFX header, then the account the
-// statement is from, stated as ACCTID under INVACCTFROM.
+// recognise checks the type where one is reported, the OFX header, then
+// the account the statement is from, stated as ACCTID under INVACCTFROM.
 function recognise(input: string, type: string): boolean {
-  if (!TYPES.has(mediaType(type))) return false;
+  const t = mediaType(type);
+  if (t !== "" && !TYPES.has(t)) return false;
   if (!/^\uFEFF?\s*OFXHEADER:/.test(input)) return false;
   try {
     const ofx: unknown = parseSync(input).OFX;

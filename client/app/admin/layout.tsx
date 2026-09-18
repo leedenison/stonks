@@ -27,7 +27,7 @@ function Gate({ children }: { children: ReactNode }) {
     );
   }
   return (
-    <div className="flex gap-8 px-6 py-6">
+    <div className="flex min-h-[calc(100dvh-var(--top-bar-height))]">
       <AdminNav />
       <main className="min-w-0 flex-1 animate-fade-in">{children}</main>
     </div>

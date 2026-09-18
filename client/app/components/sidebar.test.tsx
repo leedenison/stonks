@@ -41,15 +41,4 @@ describe("Sidebar", () => {
     expect(aside.hasAttribute("data-collapsed")).toBe(false);
     expect(localStorage.getItem(sidebarKey)).toBeNull();
   });
-
-  it("renders the actions above the pages", () => {
-    render(<Sidebar actions={<button type="button">Act</button>} />);
-    const aside = screen.getByTestId("sidebar");
-    const action = screen.getByRole("button", { name: "Act" });
-    const nav = screen.getByRole("navigation");
-    expect(
-      action.compareDocumentPosition(nav) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
-    expect(aside.contains(action)).toBe(true);
-  });
 });

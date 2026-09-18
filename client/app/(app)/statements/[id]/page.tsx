@@ -15,13 +15,18 @@ import { prevDay } from "@/lib/marshal/date";
 import { outcome } from "@/lib/run";
 
 // One statement: what was uploaded, how its run ended, and every rejected
-// row grouped by reason.
+// row grouped by reason. The title names the upload by its broker and the
+// moment it started.
 export default function StatementPage() {
   const { id } = useParams<{ id: string }>();
   const { data, isPending, error, refetch } = useStatement(id);
+  const s = data?.statement;
+  const title = s?.run?.createdAt
+    ? `${brokerLabel(s.broker)} upload @ ${formatInstant(s.run.createdAt)}`
+    : "Statement";
 
   return (
-    <Page title="Statement" width="wide" testId="statement-page">
+    <Page title={title} back="/statements" width="wide" testId="statement-page">
       {error && <Failure error={error} onRetry={() => refetch()} />}
       {!error && isPending && <Skeleton lines={4} />}
       {data?.statement && (

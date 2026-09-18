@@ -8,6 +8,7 @@ import { Page } from "@/app/components/page-frame";
 import { SkeletonRows } from "@/app/components/skeleton-rows";
 import { StateChip } from "@/app/components/state-chip";
 import { TableCard, Td, Th, Thead, Tr } from "@/app/components/table";
+import { UploadAction } from "@/app/components/upload-action";
 import { useStatements } from "@/hooks/use-statements";
 import { brokerLabel } from "@/lib/broker";
 import { formatInstant } from "@/lib/format";
@@ -19,7 +20,12 @@ export default function StatementsPage() {
   const statements = data?.statements ?? [];
 
   return (
-    <Page title="Statements" width="wide" testId="statements-page">
+    <Page
+      title="Statements"
+      width="wide"
+      testId="statements-page"
+      actions={<UploadAction />}
+    >
       {isError && (
         <Notice tone="error" onRetry={() => refetch()}>
           The statements could not be loaded.

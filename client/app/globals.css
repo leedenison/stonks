@@ -25,8 +25,9 @@
   the top bar. Positive and negative are reserved for gains and losses and
   for run outcomes. Text on a dark ground is on-dark, which sits on
   primary-dark and accent-dark; on accent it falls short of AA. Text on the
-  accent-soft notice tint is on-accent-soft. Numbers are set in the mono face
-  with tabular figures.
+  accent-soft notice tint is on-accent-soft, and an action written as text
+  on a surface is action, a step of the accent hue that reaches AA there.
+  Numbers are set in the mono face with tabular figures.
 
   The faces are the variables next/font sets on <html>, named --face-* because
   Tailwind's own font keys are --font-*.
@@ -62,6 +63,7 @@
   --color-accent-dark: var(--palette-accent-dark);
   --color-accent-soft: var(--palette-accent-soft);
   --color-on-accent-soft: var(--palette-on-accent-soft);
+  --color-action: var(--palette-action);
   --color-on-dark: var(--palette-on-dark);
   --color-positive: var(--palette-positive);
   --color-negative: var(--palette-negative);
@@ -100,6 +102,7 @@
     --palette-accent-dark: rgb(184 94 29);
     --palette-accent-soft: rgb(247 216 193);
     --palette-on-accent-soft: rgb(133 66 16);
+    --palette-action: rgb(160 80 24);
     --palette-on-dark: rgb(255 255 255);
     --palette-positive: rgb(21 128 61);
     --palette-negative: rgb(185 28 28);
@@ -120,6 +123,7 @@
       --palette-accent-dark: rgb(184 94 29);
       --palette-accent-soft: rgb(45 24 5);
       --palette-on-accent-soft: rgb(224 122 47);
+      --palette-action: rgb(224 122 47);
       --palette-on-dark: rgb(255 255 255);
       --palette-positive: rgb(74 222 128);
       --palette-negative: rgb(248 113 113);
@@ -140,6 +144,7 @@
     --palette-accent-dark: rgb(184 94 29);
     --palette-accent-soft: rgb(45 24 5);
     --palette-on-accent-soft: rgb(224 122 47);
+    --palette-action: rgb(224 122 47);
     --palette-on-dark: rgb(255 255 255);
     --palette-positive: rgb(74 222 128);
     --palette-negative: rgb(248 113 113);
