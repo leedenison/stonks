@@ -5,6 +5,7 @@ server/internal/db/gen/
 client/gen/
 e2e/gen/
 **/*_mock.go
+**/*_mock_test.go
 
 # Make stamps
 .stamps/

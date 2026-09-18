@@ -22,3 +22,8 @@ WHERE id = $1 AND state = 'running';
 -- name: InterruptRuns :execrows
 UPDATE runs SET state = 'interrupted', finished_at = now()
 WHERE state IN ('pending', 'running');
+
+-- name: ListChildRuns :many
+SELECT * FROM runs
+WHERE parent_id = $1 AND user_id = $2
+ORDER BY id;
