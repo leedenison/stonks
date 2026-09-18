@@ -1,5 +1,6 @@
 "use client";
 
+import { Page } from "@/app/components/page-frame";
 import { useAuth } from "@/contexts/auth-context";
 import { formatInstant } from "@/lib/format";
 import { roleLabel } from "@/lib/role";
@@ -14,8 +15,7 @@ export default function ProfilePage() {
   const expires = session.expiresAt ? formatInstant(session.expiresAt) : "";
 
   return (
-    <section data-testid="profile-page" className="flex flex-col gap-4">
-      <h1 className="text-2xl font-semibold tracking-tight">Profile</h1>
+    <Page title="Profile" testId="profile-page">
       <dl className="grid max-w-md grid-cols-[max-content_1fr] gap-x-6 gap-y-2 text-sm">
         <dt className="text-text-muted">Email</dt>
         <dd data-testid="profile-email">{user.email}</dd>
@@ -30,6 +30,6 @@ export default function ProfilePage() {
           {expires}
         </dd>
       </dl>
-    </section>
+    </Page>
   );
 }

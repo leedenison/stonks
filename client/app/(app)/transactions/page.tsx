@@ -1,9 +1,12 @@
 "use client";
 
+import { EmptyState } from "@/app/components/empty-state";
+import { Page } from "@/app/components/page-frame";
+
 export default function TransactionsPage() {
   return (
-    <section data-testid="transactions-page" className="flex flex-col gap-4">
-      <h1 className="text-2xl font-semibold tracking-tight">Transactions</h1>
-    </section>
+    <Page title="Transactions" width="wide" testId="transactions-page">
+      <EmptyState message="No transactions yet. Upload a statement to fill this table." />
+    </Page>
   );
 }
