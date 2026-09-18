@@ -4,6 +4,7 @@ import { GoogleOAuthProvider } from "@react-oauth/google";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
 import { AuthProvider, expireSession } from "@/contexts/auth-context";
+import { ClientsProvider } from "@/contexts/clients-context";
 import { newQueryClient } from "@/lib/query-client";
 import { newTransport } from "@/lib/transport";
 
@@ -18,7 +19,9 @@ export function Providers({ children }: { children: ReactNode }) {
   return (
     <QueryClientProvider client={client}>
       <GoogleOAuthProvider clientId={googleClientId}>
-        <AuthProvider transport={transport}>{children}</AuthProvider>
+        <ClientsProvider transport={transport}>
+          <AuthProvider transport={transport}>{children}</AuthProvider>
+        </ClientsProvider>
       </GoogleOAuthProvider>
     </QueryClientProvider>
   );

@@ -195,3 +195,39 @@ describe("ibkrQfx", () => {
     expect(() => ibkrQfx.marshal(odd)).toThrow("not in SECLIST");
   });
 });
+
+describe("ibkrQfx.recognise", () => {
+  const qfx = fixture("ibkr.qfx");
+  const QFX = "application/vnd.intu.qfx";
+
+  it("recognises a statement from an IBKR account", () => {
+    expect(ibkrQfx.recognise(qfx, QFX)).toBe(true);
+    expect(ibkrQfx.recognise(qfx, "Application/X-OFX; charset=x")).toBe(true);
+  });
+
+  it("refuses a type IBKR does not issue before reading the contents", () => {
+    expect(ibkrQfx.recognise(qfx, "text/csv")).toBe(false);
+    expect(ibkrQfx.recognise(qfx, "")).toBe(false);
+  });
+
+  it("refuses a statement from an account of another form", () => {
+    expect(
+      ibkrQfx.recognise(
+        qfx.replace("<ACCTID>U1234567", "<ACCTID>12345678"),
+        QFX,
+      ),
+    ).toBe(false);
+    expect(
+      ibkrQfx.recognise(
+        qfx.replace("<ACCTID>U1234567", "<ACCTID>1234567U"),
+        QFX,
+      ),
+    ).toBe(false);
+  });
+
+  it("refuses text that is no OFX statement", () => {
+    expect(ibkrQfx.recognise("", QFX)).toBe(false);
+    expect(ibkrQfx.recognise("OFXHEADER:100\nDATA:OFXSGML\n", QFX)).toBe(false);
+    expect(ibkrQfx.recognise(fixture("schwab.csv"), QFX)).toBe(false);
+  });
+});

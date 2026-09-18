@@ -5,4 +5,9 @@
 // key that silently refetches.
 export const qk = {
   session: () => ["session"] as const,
+  statements: () => ["statements"] as const,
+  statement: (id: string) => ["statements", id] as const,
+  run: (id: string) => ["runs", id] as const,
+  transactions: () => ["transactions"] as const,
+  holdings: () => ["holdings"] as const,
 };

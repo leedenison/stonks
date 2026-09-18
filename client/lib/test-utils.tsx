@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, type RenderResult } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { AuthProvider } from "@/contexts/auth-context";
+import { ClientsProvider } from "@/contexts/clients-context";
 
 // Test support for components under the auth provider. A component that
 // calls useRouter also needs next/navigation mocked in its test file, since
@@ -18,14 +19,16 @@ export function newTestQueryClient(): QueryClient {
   });
 }
 
-// authWrapper returns a wrapper mounting the query client and the auth
-// provider over transport, for render and renderHook.
+// authWrapper returns a wrapper mounting the query client, the clients and
+// the auth provider over transport, for render and renderHook.
 export function authWrapper(transport: Transport, client?: QueryClient) {
   const queryClient = client ?? newTestQueryClient();
   return function Wrapper({ children }: { children: ReactNode }) {
     return (
       <QueryClientProvider client={queryClient}>
-        <AuthProvider transport={transport}>{children}</AuthProvider>
+        <ClientsProvider transport={transport}>
+          <AuthProvider transport={transport}>{children}</AuthProvider>
+        </ClientsProvider>
       </QueryClientProvider>
     );
   };

@@ -51,7 +51,7 @@ func TestToProto(t *testing.T) {
 			}
 		})
 	}
-	if got := db.ToProto[typev1.Broker](gen.BrokerFidelity); got != typev1.Broker_BROKER_FIDELITY {
-		t.Errorf("ToProto(fidelity) = %v", got)
+	if got := db.ToProto[typev1.Broker](gen.BrokerFidelityUk); got != typev1.Broker_BROKER_FIDELITY_UK {
+		t.Errorf("ToProto(fidelity_uk) = %v", got)
 	}
 }

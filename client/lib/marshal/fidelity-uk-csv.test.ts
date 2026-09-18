@@ -3,17 +3,17 @@
 import { describe, expect, it } from "vitest";
 import { AssetClass, Broker } from "@/gen/type/v1/type_pb";
 import { MarshalError } from "./error";
-import { fidelityCsv } from "./fidelity-csv";
+import { fidelityUkCsv } from "./fidelity-uk-csv";
 import { cash, fixture, hint, row, security } from "./test-utils";
 
-const text = fixture("fidelity.csv");
-const statement = fidelityCsv.marshal(text);
+const text = fixture("fidelity-uk.csv");
+const statement = fidelityUkCsv.marshal(text);
 
 const gbp = cash("GBP");
 
-describe("fidelityCsv", () => {
+describe("fidelityUkCsv", () => {
   it("takes the period from the preamble, cut at the earliest pending line", () => {
-    expect(statement.broker).toBe(Broker.FIDELITY);
+    expect(statement.broker).toBe(Broker.FIDELITY_UK);
     expect(statement.orderFrom).toBe("2025-01-01");
     expect(statement.orderBefore).toBe("2025-03-17");
     expect(statement.rows).toHaveLength(11);
@@ -25,7 +25,7 @@ describe("fidelityCsv", () => {
       "17 Mar 2025,Pending",
       "17 Mar 2025,21 Mar 2025",
     );
-    const all = fidelityCsv.marshal(settled);
+    const all = fidelityUkCsv.marshal(settled);
     expect(all.orderBefore).toBe("2025-04-01");
     expect(all.rows).toHaveLength(14);
     expect(all.rows[2]).toEqual(row(gbp, "2025-03-17", "2025-03-21", "-0.03"));
@@ -36,7 +36,7 @@ describe("fidelityCsv", () => {
       'Pending,Tax On Interest,"Cash",Cash Management Account,AW10000003,,-0.03,0,0',
       'Pending,Dealing Fee,"Cash",Cash Management Account,AW10000003,,0.00,0,0',
     );
-    const all = fidelityCsv.marshal(zero);
+    const all = fidelityUkCsv.marshal(zero);
     expect(all.orderBefore).toBe("2025-04-01");
     expect(all.rows).toHaveLength(13);
   });
@@ -46,7 +46,7 @@ describe("fidelityCsv", () => {
       "02 Jan 2025,01 Jan 2025",
       "01 Jan 2025,Pending",
     );
-    const none = fidelityCsv.marshal(first);
+    const none = fidelityUkCsv.marshal(first);
     expect(none.rows).toEqual([]);
     expect(none.orderFrom).toBe("");
     expect(none.orderBefore).toBe("");
@@ -110,16 +110,55 @@ describe("fidelityCsv", () => {
 
   it("reads a header without the trailing comma alike", () => {
     const trimmed = text.replace(/,(\r\n|$)/g, "$1");
-    expect(fidelityCsv.marshal(trimmed)).toEqual(statement);
+    expect(fidelityUkCsv.marshal(trimmed)).toEqual(statement);
   });
 
   it("fails on a security line of a type it does not know, naming the line", () => {
     const odd = text.replace("Reinvestment From Income", "Switch In");
-    expect(() => fidelityCsv.marshal(odd)).toThrow(MarshalError);
+    expect(() => fidelityUkCsv.marshal(odd)).toThrow(MarshalError);
     try {
-      fidelityCsv.marshal(odd);
+      fidelityUkCsv.marshal(odd);
     } catch (e) {
       expect(e).toMatchObject({ line: 19, kind: "Switch In" });
     }
+  });
+});
+
+describe("fidelityUkCsv.recognise", () => {
+  const CSV = "text/csv";
+
+  it("recognises an export whose lines state Fidelity UK account numbers", () => {
+    expect(fidelityUkCsv.recognise(text, CSV)).toBe(true);
+    expect(fidelityUkCsv.recognise(text, "application/vnd.ms-excel")).toBe(
+      true,
+    );
+  });
+
+  it("refuses a type Fidelity UK does not issue before reading the contents", () => {
+    expect(fidelityUkCsv.recognise(text, "application/json")).toBe(false);
+    expect(fidelityUkCsv.recognise(text, "")).toBe(false);
+  });
+
+  it("refuses an export whose account numbers take another form", () => {
+    expect(
+      fidelityUkCsv.recognise(
+        text.replace(/,A[SGW]1000000(\d),/g, ",1000000$1,"),
+        CSV,
+      ),
+    ).toBe(false);
+    expect(
+      fidelityUkCsv.recognise(text.replace(",AS10000001,", ",AS1000001,"), CSV),
+    ).toBe(false);
+  });
+
+  it("refuses an export without the timeframe or the column", () => {
+    expect(
+      fidelityUkCsv.recognise(text.replace("Timeframe,", "Period,"), CSV),
+    ).toBe(false);
+    expect(
+      fidelityUkCsv.recognise(text.replace("Account Number", "Account"), CSV),
+    ).toBe(false);
+    expect(fidelityUkCsv.recognise("", CSV)).toBe(false);
+    expect(fidelityUkCsv.recognise(fixture("schwab.csv"), CSV)).toBe(false);
   });
 });
