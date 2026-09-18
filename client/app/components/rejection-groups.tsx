@@ -5,8 +5,38 @@ import { Chip } from "./chip";
 
 // RejectionGroups lists rejected rows by reason. Each reason is a line with
 // its count that opens to the rows it covers; a lone reason starts open.
-export function RejectionGroups({ items }: { items: StatementItem[] }) {
+// Without rows, as in a narrow column, each reason is the line alone.
+export function RejectionGroups({
+  items,
+  rows = true,
+}: {
+  items: StatementItem[];
+  rows?: boolean;
+}) {
   const groups = groupByReason(items);
+  if (!rows) {
+    return (
+      <ul data-testid="rejection-groups" className="flex flex-col gap-1">
+        {groups.map((g, i) => (
+          <li
+            key={g.reason}
+            data-testid={`rejection-group-${i}`}
+            className="flex items-start gap-2 text-sm"
+          >
+            <span
+              data-testid={`rejection-reason-${i}`}
+              className="min-w-0 flex-1 break-words text-text-primary"
+            >
+              {g.reason}
+            </span>
+            <Chip tone="accent" data-testid={`rejection-count-${i}`}>
+              {g.items.length}
+            </Chip>
+          </li>
+        ))}
+      </ul>
+    );
+  }
   return (
     <div data-testid="rejection-groups" className="flex flex-col gap-2">
       {groups.map((g, i) => (
@@ -34,10 +64,12 @@ export function RejectionGroups({ items }: { items: StatementItem[] }) {
           <table className="w-full border-t border-border text-sm">
             <thead>
               <tr className="text-xs font-semibold tracking-wider text-text-muted uppercase">
-                <th className="px-4 py-2 text-right">Row</th>
-                <th className="px-4 py-2 text-left">Order date</th>
-                <th className="px-4 py-2 text-left">Key</th>
-                <th className="px-4 py-2 text-right">Quantity</th>
+                <th className="px-3 py-2 text-right">Row</th>
+                <th className="px-3 py-2 text-left whitespace-nowrap">
+                  Order date
+                </th>
+                <th className="w-full px-3 py-2 text-left">Key</th>
+                <th className="px-3 py-2 text-right">Quantity</th>
               </tr>
             </thead>
             <tbody>
@@ -47,14 +79,16 @@ export function RejectionGroups({ items }: { items: StatementItem[] }) {
                   data-testid={`rejection-row-${item.ordinal}`}
                   className="border-t border-border"
                 >
-                  <td className="px-4 py-2 text-right font-mono tabular-nums text-text-muted">
+                  <td className="px-3 py-2 text-right font-mono tabular-nums text-text-muted">
                     {item.ordinal}
                   </td>
-                  <td className="px-4 py-2 font-mono tabular-nums">
+                  <td className="px-3 py-2 font-mono whitespace-nowrap tabular-nums">
                     {item.row?.orderDate}
                   </td>
-                  <td className="px-4 py-2">{keyLabel(item.row?.key)}</td>
-                  <td className="px-4 py-2 text-right font-mono tabular-nums">
+                  <td className="px-3 py-2 break-words">
+                    {keyLabel(item.row?.key)}
+                  </td>
+                  <td className="px-3 py-2 text-right font-mono whitespace-nowrap tabular-nums">
                     {item.row?.quantity}
                   </td>
                 </tr>

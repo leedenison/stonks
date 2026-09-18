@@ -39,9 +39,12 @@ export default function StatementPage() {
             <dd>
               <Chip>{brokerLabel(data.statement.broker)}</Chip>
             </dd>
-            <dt className="text-text-muted">Period</dt>
+            <dt className="text-text-muted">From</dt>
             <dd className="font-mono tabular-nums">
-              {data.statement.orderFrom} to{" "}
+              {data.statement.orderFrom}
+            </dd>
+            <dt className="text-text-muted">To</dt>
+            <dd className="font-mono tabular-nums">
               {prevDay(data.statement.orderBefore)}
             </dd>
             <dt className="text-text-muted">Started</dt>

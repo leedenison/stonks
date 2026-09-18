@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { SessionGuard } from "@/app/components/session-guard";
 import { Sidebar } from "@/app/components/sidebar";
 import { UploadDialog } from "@/app/components/upload-dialog";
+import { useActivity } from "@/contexts/activity-context";
 import { UploadProvider, useUpload } from "@/contexts/upload-context";
 
 // The segment every page needing a session lives under. The group adds no
@@ -21,6 +22,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
 function Shell({ children }: { children: ReactNode }) {
   const upload = useUpload();
+  const activity = useActivity();
   return (
     <div className="flex min-h-[calc(100dvh-var(--top-bar-height))]">
       <Sidebar />
@@ -30,6 +32,7 @@ function Shell({ children }: { children: ReactNode }) {
         open={upload.state.open}
         initial={upload.state.file}
         onClose={upload.close}
+        onCreated={activity.open}
       />
     </div>
   );

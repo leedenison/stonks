@@ -1,10 +1,6 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { Page } from "./page-frame";
-
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({ back: vi.fn(), push: vi.fn() }),
-}));
 
 describe("Page", () => {
   it("titles the section and holds its children", () => {
@@ -30,8 +26,10 @@ describe("Page", () => {
     expect(screen.queryByTestId("page-back")).toBeNull();
   });
 
-  it("shows a back arrow for a page reached from another", () => {
+  it("shows a back arrow for a page under another", () => {
     render(<Page title="Thing" back="/things" />);
-    expect(screen.getByTestId("page-back")).toBeTruthy();
+    expect(screen.getByTestId("page-back").getAttribute("href")).toBe(
+      "/things",
+    );
   });
 });

@@ -3,10 +3,10 @@ import { BackButton } from "./back-button";
 
 // Page is the column a page renders in: an action bar across the top with
 // the title on the left and the page's actions beside it, a rule below, and
-// the body. A page reached from another page, as a statement's is from the
-// statements, names that page as back, and a back arrow sits left of its
-// title. Prose width suits a form or a record; wide suits a table, which is
-// given the room its columns need.
+// the body. A page that belongs under another, as a statement's does under
+// the statements, names that page as back, and an arrow to it sits left of
+// the title. Prose width suits a form or a record; wide suits a table,
+// which is given the room its columns need.
 export function Page({
   title,
   back,
@@ -29,7 +29,7 @@ export function Page({
         className="flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-border bg-surface px-6 py-2.5"
       >
         <div className="flex items-center gap-2">
-          {back && <BackButton fallback={back} />}
+          {back && <BackButton to={back} />}
           <h1
             data-testid="page-title"
             className="text-xl font-semibold tracking-tight"

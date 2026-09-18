@@ -125,3 +125,16 @@ test("keeps the sidebar collapsed across a reload", async ({
   await page.reload();
   await expect(page.getByTestId("sidebar")).toHaveAttribute("data-collapsed");
 });
+
+test("toggles the activity sheet from its icon", async ({ context, page }) => {
+  const { session } = await seed();
+  await injectSession(context, session);
+  await page.goto("/transactions");
+  await page.getByTestId("activity-icon").click();
+  await expect(page.getByTestId("activity-sheet")).toBeVisible();
+  await page.getByTestId("activity-icon").click();
+  await expect(page.getByTestId("activity-sheet")).toBeHidden();
+  await page.getByTestId("activity-icon").click();
+  await page.keyboard.press("Escape");
+  await expect(page.getByTestId("activity-sheet")).toBeHidden();
+});

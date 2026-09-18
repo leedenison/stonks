@@ -114,7 +114,8 @@ describe("StatementPage", () => {
     expect(screen.getByTestId("page-back")).toBeTruthy();
     const summary = screen.getByTestId("statement-summary");
     expect(summary.textContent).toContain("Fidelity UK");
-    expect(summary.textContent).toContain("2025-02-01 to 2025-03-16");
+    expect(summary.textContent).toContain("From2025-02-01");
+    expect(summary.textContent).toContain("To2025-03-16");
     expect(summary.textContent).toContain("2026-09-17 09:30 UTC");
     expect(screen.getByTestId("statement-rejected").textContent).toBe("2");
     expect(screen.getByTestId("state-chip").getAttribute("data-state")).toBe(

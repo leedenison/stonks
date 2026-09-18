@@ -62,6 +62,14 @@ describe("TopBar", () => {
     });
     renderWithAuth(<TopBar />, transport);
     await openMenu();
+    const sheet = screen.getByTestId("activity-sheet") as HTMLDialogElement;
+    fireEvent.click(screen.getByTestId("activity-icon"));
+    expect(sheet.open).toBe(true);
+    fireEvent.click(screen.getByTestId("activity-icon"));
+    expect(sheet.open).toBe(false);
+    fireEvent.click(screen.getByTestId("activity-icon"));
+    fireEvent.click(screen.getByTestId("activity-sheet-close"));
+    expect(sheet.open).toBe(false);
     expect(screen.getByTestId("menu-profile").getAttribute("href")).toBe(
       "/profile",
     );

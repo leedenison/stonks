@@ -61,6 +61,7 @@ client/
 e2e/
   tests/                one spec per scenario
   helpers/              the shared test and its fixtures
+  fixtures/             the files a spec uploads
   gen/                  protobuf-es output (generated, gitignored)
 ```
 

@@ -20,6 +20,13 @@ describe("fidelityUkCsv", () => {
     expect(statement.splits).toEqual([]);
   });
 
+  // The e2e suite narrows the period to February and expects these rejected.
+  it("states four rows before February", () => {
+    expect(
+      statement.rows.filter((r) => r.orderDate < "2025-02-01"),
+    ).toHaveLength(4);
+  });
+
   it("claims the whole timeframe when nothing is pending", () => {
     const settled = text.replace(
       "17 Mar 2025,Pending",
