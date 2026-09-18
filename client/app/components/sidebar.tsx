@@ -8,7 +8,6 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
 import { useStoredValue } from "@/hooks/use-stored-value";
 
 const items = [
@@ -28,10 +27,10 @@ const items = [
 
 export const sidebarKey = "stonks.sidebar";
 
-// Sidebar lists the user pages, with the primary action above them. It is a
-// rail of icons below the lg breakpoint, and the user can collapse it to
-// the rail by hand at any width; that choice is kept in localStorage.
-export function Sidebar({ actions }: { actions?: ReactNode }) {
+// Sidebar lists the user pages. It is a rail of icons below the lg
+// breakpoint, and the user can collapse it to the rail by hand at any
+// width; that choice is kept in localStorage.
+export function Sidebar() {
   const pathname = usePathname();
   const [collapsed, set] = useStoredValue(
     sidebarKey,
@@ -45,7 +44,6 @@ export function Sidebar({ actions }: { actions?: ReactNode }) {
       data-collapsed={collapsed ? "" : undefined}
       className={`flex shrink-0 flex-col gap-4 border-r border-border bg-surface px-2 py-4 ${collapsed ? "w-14" : "w-14 lg:w-52 lg:px-3"}`}
     >
-      {actions && <div className="flex flex-col">{actions}</div>}
       <nav className="flex flex-col gap-1">
         {items.map(({ href, label: text, icon: Icon, testId }) => {
           const active = pathname === href || pathname.startsWith(href + "/");

@@ -14,7 +14,7 @@ export function TableCard({
   children: ReactNode;
 }) {
   return (
-    <div className="max-h-[calc(100dvh-var(--top-bar-height)-9rem)] overflow-auto rounded-md border border-border bg-surface shadow-xs">
+    <div className="max-h-[calc(100dvh-var(--top-bar-height)-11rem)] overflow-auto rounded-md border border-border bg-surface shadow-xs">
       <table data-testid={testId} className="w-full border-collapse text-sm">
         {children}
       </table>

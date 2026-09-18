@@ -75,7 +75,7 @@ export function AdminNav() {
   return (
     <nav
       data-testid="admin-nav"
-      className="w-48 shrink-0 border-r border-border pr-6"
+      className="w-56 shrink-0 border-r border-border bg-surface px-6 py-6"
     >
       <ul className="space-y-2">
         {entries.map((entry) =>

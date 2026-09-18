@@ -10,9 +10,7 @@
 // browser reports for the file, which a marshaller refuses before reading
 // the contents when its broker never issues it; then on the format; and,
 // for an export that states an account number, on that number sitting where
-// the export states it and taking the form the broker issues. A file format
-// is shared between brokers and a guess from it alone would be wrong as
-// often as right. A file with no reported type is recognised by nobody.
+// the export states it and taking the form the broker issues.
 
 import { Broker } from "@/gen/type/v1/type_pb";
 import type { Statement } from "@/gen/statement/v1/statement_pb";

@@ -22,8 +22,15 @@ import {
   StatementSummarySchema,
 } from "@/gen/statement/v1/statement_pb";
 import { Broker } from "@/gen/type/v1/type_pb";
+import { UploadProvider } from "@/contexts/upload-context";
 import { renderWithAuth } from "@/lib/test-utils";
 import StatementsPage from "./page";
+
+const page = (
+  <UploadProvider>
+    <StatementsPage />
+  </UploadProvider>
+);
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
@@ -78,7 +85,7 @@ const two = create(ListStatementsResponseSchema, {
 describe("StatementsPage", () => {
   it("shows skeleton rows while loading", () => {
     renderWithAuth(
-      <StatementsPage />,
+      page,
       transportWith(() => new Promise(() => {})),
     );
     expect(screen.getByTestId("statements-table")).toBeTruthy();
@@ -87,7 +94,7 @@ describe("StatementsPage", () => {
 
   it("shows the empty state without statements", async () => {
     renderWithAuth(
-      <StatementsPage />,
+      page,
       transportWith(() => create(ListStatementsResponseSchema, {})),
     );
     await waitFor(() => expect(screen.getByTestId("empty-state")).toBeTruthy());
@@ -96,7 +103,7 @@ describe("StatementsPage", () => {
 
   it("lists the statements with their outcome and links each", async () => {
     renderWithAuth(
-      <StatementsPage />,
+      page,
       transportWith(() => two),
     );
     await waitFor(() =>
@@ -131,7 +138,7 @@ describe("StatementsPage", () => {
   it("offers a retry when the list fails", async () => {
     let calls = 0;
     renderWithAuth(
-      <StatementsPage />,
+      page,
       transportWith(() => {
         if (++calls === 1) {
           throw new ConnectError("down", Code.Unavailable);

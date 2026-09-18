@@ -22,3 +22,11 @@ export function formatElapsed(ms: number): string {
   }
   return `${s}s`;
 }
+
+// formatQuantity renders a decimal quantity for a sample: rounded to two
+// places and cut with an ellipsis past nine characters.
+export function formatQuantity(quantity: string): string {
+  const n = Number(quantity);
+  const s = Number.isFinite(n) ? n.toFixed(2) : quantity;
+  return s.length > 9 ? `${s.slice(0, 8).replace(/\.$/, "")}\u2026` : s;
+}

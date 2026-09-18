@@ -108,6 +108,10 @@ describe("StatementPage", () => {
       expect.objectContaining({ runId: "r1" }),
       expect.anything(),
     );
+    expect(screen.getByTestId("page-title").textContent).toBe(
+      "Fidelity UK upload @ 2026-09-17 09:30 UTC",
+    );
+    expect(screen.getByTestId("page-back")).toBeTruthy();
     const summary = screen.getByTestId("statement-summary");
     expect(summary.textContent).toContain("Fidelity UK");
     expect(summary.textContent).toContain("2025-02-01 to 2025-03-16");

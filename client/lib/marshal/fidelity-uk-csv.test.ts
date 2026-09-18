@@ -136,6 +136,9 @@ describe("fidelityUkCsv.recognise", () => {
 
   it("refuses a type Fidelity UK does not issue before reading the contents", () => {
     expect(fidelityUkCsv.recognise(text, "application/json")).toBe(false);
+  });
+
+  it("needs a reported type, since CSV parses loosely", () => {
     expect(fidelityUkCsv.recognise(text, "")).toBe(false);
   });
 
