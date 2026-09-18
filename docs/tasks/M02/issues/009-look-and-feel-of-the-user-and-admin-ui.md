@@ -119,6 +119,9 @@ an access denied page under the top bar.
 - Primary action: accent-dark background, white semibold text, small padding, rounded-md,
   darkening on hover. At most one per view.
 - Secondary action: bordered surface, muted hover tint of primary-light.
+- Text action: an icon and a label in the action colour, a step of the accent hue that
+  reaches AA on a surface, with the muted hover tint. The form an action takes in the
+  action bar.
 - Inputs: bordered surface, primary border and a faint primary ring on focus.
 - An inline error or notice: accent-soft at half opacity with the text colour above.
 
@@ -162,8 +165,14 @@ each with its ordinal and the row as stated.
 
 ### Pages and dialogs
 
-A page is a centred column with a bold display heading, fading in on first render. A
-dialog is centred over a 40% black overlay on a rounded surface, with a titled header row
+A page is a column that fades in on first render. Across its top runs the action bar:
+the page title on the left, the page's actions beside it as text actions, and a rule
+below, on the surface colour. The body sits under the bar with its own padding, at prose
+width for a form or a record and wide for a table. A page without actions still has the
+bar with its title. The upload action sits in the bar of the transactions and statements
+pages.
+
+A dialog is centred over a 40% black overlay on a rounded surface, with a titled header row
 holding the close control, and traps focus.
 
 A dialog that starts work is staged. The upload dialog goes: choose or drop a file;
@@ -186,12 +195,5 @@ The sheet's items are runs and the UI calls them activity.
 
 ## Open questions
 
-- Where a page's actions sit beyond the empty state and the drop target. A button at the
-  top right of the table is the default and the least convincing. Alternatives:
-  - The primary action in the sidebar, above the page list, always visible. Upload is
-    an action of the user's, not of a page, so this fits it.
-  - A toolbar row between the heading and the table, left aligned with the table edge,
-    holding the actions beside the filters they relate to.
-  - The primary action in the top bar beside the context chip slot.
 - Whether the display and body faces change with the palette.
 - Whether submitting the dialog opens the sheet or only badges the icon.
