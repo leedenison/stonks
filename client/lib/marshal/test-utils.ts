@@ -60,7 +60,6 @@ export function row(
   orderDate: string,
   settlementDate: string,
   quantity: string,
-  currency?: string,
 ): Row {
   return create(RowSchema, {
     key,
@@ -68,6 +67,5 @@ export function row(
     settlementDate,
     asAt: orderDate,
     quantity,
-    currency,
   });
 }

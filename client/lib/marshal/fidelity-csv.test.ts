@@ -28,9 +28,7 @@ describe("fidelityCsv", () => {
     const all = fidelityCsv.marshal(settled);
     expect(all.orderBefore).toBe("2025-04-01");
     expect(all.rows).toHaveLength(14);
-    expect(all.rows[2]).toEqual(
-      row(gbp, "2025-03-17", "2025-03-21", "-0.03", "GBP"),
-    );
+    expect(all.rows[2]).toEqual(row(gbp, "2025-03-17", "2025-03-21", "-0.03"));
   });
 
   it("ignores a zero charge awaiting completion", () => {
@@ -56,7 +54,7 @@ describe("fidelityCsv", () => {
 
   it("emits a cash line as a cash leg of its amount, whatever its type", () => {
     expect(statement.rows[0]).toEqual(
-      row(gbp, "2025-03-06", "2025-03-09", "-5.4", "GBP"),
+      row(gbp, "2025-03-06", "2025-03-09", "-5.4"),
     );
   });
 
@@ -68,9 +66,9 @@ describe("fidelityCsv", () => {
       "GBP",
     );
     expect(statement.rows.slice(1, 4)).toEqual([
-      row(vusa, "2025-02-24", "2025-02-26", "-141", "GBP"),
-      row(gbp, "2025-02-24", "2025-02-26", "13587.84", "GBP"),
-      row(gbp, "2025-02-24", "2025-02-24", "-7.5", "GBP"),
+      row(vusa, "2025-02-24", "2025-02-26", "-141"),
+      row(gbp, "2025-02-24", "2025-02-26", "13587.84"),
+      row(gbp, "2025-02-24", "2025-02-24", "-7.5"),
     ]);
   });
 
@@ -88,16 +86,16 @@ describe("fidelityCsv", () => {
       "GBP",
     );
     expect(statement.rows[4]).toEqual(
-      row(bae, "2025-02-10", "2025-02-12", "120", "GBP"),
+      row(bae, "2025-02-10", "2025-02-12", "120"),
     );
     expect(statement.rows[7]).toEqual(
-      row(fund, "2025-01-22", "2025-02-06", "19.26", "GBP"),
+      row(fund, "2025-01-22", "2025-02-06", "19.26"),
     );
   });
 
   it("keeps a settlement before its order date", () => {
     expect(statement.rows[10]).toEqual(
-      row(gbp, "2025-01-02", "2025-01-01", "25.35", "GBP"),
+      row(gbp, "2025-01-02", "2025-01-01", "25.35"),
     );
   });
 

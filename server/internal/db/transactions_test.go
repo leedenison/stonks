@@ -36,7 +36,7 @@ func TestStatedKeys(t *testing.T) {
 	key := func(statement gen.Run) gen.CreateStatedKeyParams {
 		return gen.CreateStatedKeyParams{
 			ID: db.NewID(), StatementID: statement.ID, UserID: user.ID, AssetClass: &cash, Currency: ptr("USD"),
-			Identifiers: []types.StatedIdentifier{{Type: "currency", Value: "USD"}},
+			Identifiers: []types.StatedIdentifier{{Type: "system", Value: "cash"}},
 		}
 	}
 
@@ -67,15 +67,14 @@ func TestTransactions(t *testing.T) {
 	ctx := context.Background()
 	user := newUser(t, q, "txs@example.com")
 	statement := newStatement(t, q, user)
-	usd, err := q.GetListingByIdentifier(ctx, gen.GetListingByIdentifierParams{Type: gen.IdentifierTypeCurrency, Value: "USD"})
-	require.NoError(t, err)
-	key, err := q.CreateStatedKey(ctx, gen.CreateStatedKeyParams{ID: db.NewID(), StatementID: statement.ID, UserID: user.ID, Identifiers: []types.StatedIdentifier{{Type: "currency", Value: "USD"}}})
+	usd := cashListing(t, q, "USD")
+	key, err := q.CreateStatedKey(ctx, gen.CreateStatedKeyParams{ID: db.NewID(), StatementID: statement.ID, UserID: user.ID, Identifiers: []types.StatedIdentifier{{Type: "system", Value: "cash"}}})
 	require.NoError(t, err)
 	create := func(broker gen.Broker, order time.Time, quantity string) gen.Transaction {
 		t.Helper()
 		row, err := q.CreateTransaction(ctx, gen.CreateTransactionParams{
 			ID: db.NewID(), UserID: user.ID, Broker: broker, StatementID: statement.ID, StatedKeyID: key.ID,
-			InstrumentID: usd.Listing.InstrumentID, ListingID: &usd.Listing.ID,
+			InstrumentID: usd.InstrumentID, ListingID: &usd.ID,
 			OrderDate: order, SettlementDate: order.AddDate(0, 0, 2), AsAt: order,
 			Quantity: decimal.RequireFromString(quantity), Currency: ptr("USD"),
 		})

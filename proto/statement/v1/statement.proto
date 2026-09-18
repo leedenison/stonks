@@ -9,10 +9,10 @@
 //
 // A row is one leg: one stated key and one quantity. An export line carrying
 // a trade's security, cash, commission and tax becomes one row per leg, and
-// nothing links the rows of one line. A cash leg states a CURRENCY identifier
-// in its key, asset class CASH and the currency. A symbol the export states
-// without a venue is carried as a MIC_TICKER identifier with no domain, which
-// names nothing and is held as a hint.
+// nothing links the rows of one line. A cash leg states the identifier of
+// its currency in its key, asset class CASH and the currency. A symbol the
+// export states without a venue is carried as a MIC_TICKER identifier with
+// no domain, which names nothing and is held as a hint.
 //
 // Only the marshaller knows the broker's conventions, so it states every
 // date: the order date, the settlement date, and the date the row is stated
@@ -31,16 +31,14 @@ import "type/v1/type.proto";
 option go_package = "github.com/leedenison/stonks/proto/statement/v1;statementv1";
 
 // One leg: a change in the quantity of one instrument, stated as at a date.
-// Each field means what the field of the same name on Transaction in
-// type/v1/type.proto means. None carries a constraint, so that an invalid row
-// is rejected on its own rather than failing the statement.
+// Each field mirrors Transaction in meaning. None carries a constraint, so that
+// an invalid row is rejected on its own rather than failing the statement.
 message Row {
   stonks.type.v1.StatedKey key = 1;
   string order_date = 2;
   string settlement_date = 3;
   string as_at = 4;
   string quantity = 5;
-  optional string currency = 6;
 }
 
 // The change in units between old and new as the export states it: 1 old to

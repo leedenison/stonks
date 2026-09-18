@@ -1,10 +1,15 @@
 -- +goose Up
 
 -- An instrument is a thing that can be held and priced: a security, an option,
--- a future, cash. A listing is one currency an instrument trades in; an
+-- a future, a currency. A listing is one currency an instrument trades in,
+-- and every venue quoting it in that currency is that one listing, since
+-- neither brokers nor price sources tell venues apart reliably; an
 -- instrument has zero or more, and none means its listings are not known. A
 -- transaction, and later a price, attaches to an instrument and to a listing
--- when its currency is known.
+-- when its currency is known. A holding is of the instrument: a security's
+-- listings are summed into it and never converted between, since moving
+-- between them costs fees and a spread, while a currency's listings are the
+-- same money and it may be shown against any of them.
 --
 -- An identifier names an instrument or one of its listings by a type, an
 -- optional domain and a value. The identifier_type_traits table declares, per type,
@@ -26,11 +31,14 @@
 -- children of that user only. owner_id is set at insert and never changes.
 -- Both rules are enforced by triggers below.
 --
--- Cash is one system owned instrument of class cash with a listing per row of
--- currencies, and on each listing a currency identifier whose value is the
--- code. A cash leg states that identifier and resolves to the listing without
--- creating anything; a cash holding is the sum of a user's quantities against
--- one listing. These are the only system owned rows.
+-- A currency is a system owned instrument of class cash, named by a currency
+-- identifier whose value is its code. Its listing in its own currency is
+-- money in it: a cash leg states the identifier and the currency, resolves
+-- to that listing as any key resolves to a listing of the instrument its
+-- identifier names, and a cash holding is the sum of a user's quantities
+-- against the instrument. A listing in another currency carries the rate
+-- between the two, and is made when a rate is first fetched rather than
+-- seeded. These are the only system owned rows.
 --
 -- A stated key is what one source states about an instrument: its
 -- identifiers, asset class, currency and description. It is stored with the
@@ -47,7 +55,7 @@
 CREATE TYPE broker AS ENUM ('ibkr', 'schwab', 'fidelity');
 
 CREATE TYPE asset_class AS ENUM ('unknown', 'cash', 'security', 'equity', 'stock', 'etf',
-    'mutual_fund', 'fixed_income', 'derivative', 'option', 'future', 'fx');
+    'mutual_fund', 'fixed_income', 'derivative', 'option', 'future');
 
 -- The asset class tree. A leaf is a concrete class and a parent is the set of
 -- the leaves below it, so a source states the narrowest class it can defend
@@ -69,12 +77,11 @@ INSERT INTO asset_class_tree (class, parent) VALUES
     ('fixed_income', 'security'),
     ('derivative', 'security'),
     ('option', 'derivative'),
-    ('future', 'derivative'),
-    ('fx', 'security');
+    ('future', 'derivative');
 
 CREATE TYPE identifier_type AS ENUM ('isin', 'cusip', 'cins', 'wertpapier',
     'openfigi_share_class', 'sedol', 'openfigi_composite', 'mic_ticker', 'openfigi_ticker',
-    'occ', 'currency', 'fx_pair', 'datasource_ticker', 'broker_id', 'broker_description');
+    'occ', 'currency', 'datasource_ticker', 'broker_id', 'broker_description');
 CREATE TYPE identifier_scope AS ENUM ('registry', 'datasource', 'broker', 'source');
 CREATE TYPE identifier_domain AS ENUM ('none', 'venue', 'datasource', 'broker', 'channel');
 CREATE TYPE identifier_grain AS ENUM ('instrument', 'listing');
@@ -108,8 +115,7 @@ INSERT INTO identifier_type_traits (type, scope, domain, grain, reassignment) VA
     ('mic_ticker',           'registry',   'venue',      'listing',    'mic_derived'),
     ('openfigi_ticker',      'registry',   'venue',      'listing',    'mic_derived'),
     ('occ',                  'registry',   'none',       'instrument', 'mic_derived'),
-    ('currency',             'registry',   'none',       'listing',    'stable'),
-    ('fx_pair',              'registry',   'none',       'instrument', 'stable'),
+    ('currency',             'registry',   'none',       'instrument', 'stable'),
     ('datasource_ticker',    'datasource', 'datasource', 'listing',    'mic_derived'),
     ('broker_id',            'broker',     'broker',     'instrument', 'stable'),
     ('broker_description',   'source',     'channel',    'listing',    'unverifiable');
@@ -223,16 +229,17 @@ CREATE TRIGGER listings_owner_immutable BEFORE UPDATE OF owner_id ON listings
 CREATE TRIGGER identifiers_owner_immutable BEFORE UPDATE OF owner_id ON identifiers
     FOR EACH ROW EXECUTE FUNCTION refuse_owner_change();
 
-WITH cash AS (
-    INSERT INTO instruments (id, asset_class) VALUES (uuid_v7(), 'cash')
-    RETURNING id
+WITH named AS (
+    SELECT uuid_v7() AS id, code FROM currencies
+), cash AS (
+    INSERT INTO instruments (id, asset_class)
+    SELECT id, 'cash' FROM named
 ), cash_listings AS (
     INSERT INTO listings (id, instrument_id, currency)
-    SELECT uuid_v7(), cash.id, currencies.code FROM cash, currencies
-    RETURNING id, instrument_id, currency
+    SELECT uuid_v7(), id, code FROM named
 )
-INSERT INTO identifiers (id, instrument_id, listing_id, type, value)
-SELECT uuid_v7(), instrument_id, id, 'currency', currency FROM cash_listings;
+INSERT INTO identifiers (id, instrument_id, type, value)
+SELECT uuid_v7(), id, 'currency', code FROM named;
 
 -- identifiers is a JSON array of objects with type, value and, when stated, a
 -- domain, sorted by type, domain and value with no domain sorting first, so

@@ -22,10 +22,10 @@ In:
   [../adr/007-a-run-is-pending-running-completed-failed-or-interrupted.md](../adr/007-a-run-is-pending-running-completed-failed-or-interrupted.md).
 - Storage of one stated key per distinct key in the statement.
 - Resolution of each stated key against the database, as a resolution run with the
-  statement as parent. A key stating a currency identifier resolves to that listing of the
-  cash instrument. Any other key matches an existing user owned listing through its
-  broker description identifier, or creates an instrument and listing. A key whose
-  description names a listing but states a different currency or asset class
+  statement as parent. A key stating a currency identifier resolves to that currency's
+  listing in itself. Any other key matches an existing user owned listing
+  through its broker description identifier, or creates an instrument and listing. A key
+  whose description names a listing but states a different currency or asset class
   contradicts it, and its rows are rejected; see
   [../adr/005-a-broker-description-is-a-listing-grain-identifier.md](../adr/005-a-broker-description-is-a-listing-grain-identifier.md).
 - A stated split recorded against the run. No split is stored as an event or applied.

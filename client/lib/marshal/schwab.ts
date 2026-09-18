@@ -156,7 +156,7 @@ function marshal(text: string, exportedOn: string): Statement {
         net: l.amount,
         fee: l.fees === "" ? "0" : l.fees,
         tax: "0",
-        currency: USD,
+        settlementCurrency: USD,
         asAt: exportedOn,
       });
 
@@ -169,7 +169,7 @@ function marshal(text: string, exportedOn: string): Statement {
         rows.push(...bought(negate(l.quantity)));
         break;
       case "Cash Merger Adj":
-        rows.push(leg(key(), order, settlement, l.quantity, USD, exportedOn));
+        rows.push(leg(key(), order, settlement, l.quantity, exportedOn));
         break;
       case "Stock Split":
         splits.push(split(key(), order, l.quantity));
@@ -182,9 +182,7 @@ function marshal(text: string, exportedOn: string): Statement {
             l.action,
           );
         }
-        rows.push(
-          leg(cashKey(USD), order, settlement, l.amount, USD, exportedOn),
-        );
+        rows.push(leg(cashKey(USD), order, settlement, l.amount, exportedOn));
     }
   }
 

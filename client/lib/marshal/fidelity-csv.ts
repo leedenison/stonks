@@ -135,7 +135,7 @@ function marshal(text: string): Statement {
     )
       continue;
     if (l.investment === "Cash") {
-      rows.push(leg(cashKey(GBP), l.order, l.settlement, l.amount, GBP));
+      rows.push(leg(cashKey(GBP), l.order, l.settlement, l.amount));
       continue;
     }
     if (!BUYS.has(l.type) && !SELLS.has(l.type)) {
@@ -158,7 +158,6 @@ function marshal(text: string): Statement {
         l.order,
         l.settlement,
         SELLS.has(l.type) ? negate(l.quantity) : l.quantity,
-        GBP,
       ),
     );
   }
