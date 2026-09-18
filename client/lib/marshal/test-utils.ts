@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
 import { create } from "@bufbuild/protobuf";
 import {
   AssetClass,
@@ -14,9 +14,12 @@ import { type Row, RowSchema } from "@/gen/statement/v1/statement_pb";
 // Test support. Every fixture under testdata/ is modelled on a real export
 // with its account, reference and free-text identifiers replaced.
 
+// fixture reads a file under testdata/. The path is taken from the working
+// directory, the client root under vitest, because import.meta.url of a
+// module imported from another directory is root-relative there.
 export function fixture(name: string): string {
   return readFileSync(
-    fileURLToPath(new URL(`./testdata/${name}`, import.meta.url)),
+    resolve(process.cwd(), "lib/marshal/testdata", name),
     "utf8",
   );
 }

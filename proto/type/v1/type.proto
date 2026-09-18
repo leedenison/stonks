@@ -21,7 +21,7 @@ enum Broker {
   BROKER_UNSPECIFIED = 0;
   BROKER_IBKR = 1;
   BROKER_SCHWAB = 2;
-  BROKER_FIDELITY = 3;
+  BROKER_FIDELITY_UK = 3;
 }
 
 // What kind of thing an instrument is. The values form a tree: a leaf is a

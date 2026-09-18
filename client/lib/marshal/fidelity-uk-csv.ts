@@ -1,4 +1,4 @@
-// The Fidelity (UK) activity CSV: a preamble stating the timeframe, a blank
+// The Fidelity UK activity CSV: a preamble stating the timeframe, a blank
 // line, then a header and one line per transaction across every account.
 // Every amount is in GBP. A line whose investment is "Cash" is a cash leg of
 // its amount whatever its type; any other line is a security leg of its
@@ -20,8 +20,16 @@ import { cashKey, ident, leg, securityKey, statement } from "./build";
 import { isZero, negate } from "./decimal";
 import { iso, minDate, monthNumber, prevDay } from "./date";
 import { MarshalError } from "./error";
+import { mediaType } from "./media";
 
 const GBP = "GBP";
+
+// The types a browser reports for a CSV: its own, or a spreadsheet's on a
+// system where a spreadsheet owns the extension.
+const TYPES = new Set(["text/csv", "application/vnd.ms-excel"]);
+
+// An account number is two letters and eight digits, as AS10000001.
+const ACCOUNT = /^[A-Z]{2}\d{8}$/;
 
 const BUYS = new Set([
   "Buy",
@@ -73,7 +81,7 @@ function marshal(text: string): Statement {
     info: true,
   });
   if (!Array.isArray(parsed) || !parsed.every(isParsed)) {
-    throw new MarshalError("not a Fidelity activity export");
+    throw new MarshalError("not a Fidelity UK activity export");
   }
   let period: { from: string; to: string } | undefined;
   let columns: string[] | undefined;
@@ -111,7 +119,7 @@ function marshal(text: string): Statement {
       quantity: col("Quantity"),
     });
   }
-  if (!columns) throw new MarshalError("not a Fidelity activity export");
+  if (!columns) throw new MarshalError("not a Fidelity UK activity export");
 
   const pending = lines
     .filter(
@@ -162,8 +170,37 @@ function marshal(text: string): Statement {
     );
   }
 
-  return statement(Broker.FIDELITY, rows, [], period);
+  return statement(Broker.FIDELITY_UK, rows, [], period);
+}
+
+// recognise checks the type, the preamble's timeframe line, the header, and
+// that every transaction line states an account number in its Account
+// Number column.
+function recognise(text: string, type: string): boolean {
+  if (!TYPES.has(mediaType(type))) return false;
+  let parsed: unknown;
+  try {
+    parsed = parse(text, { bom: true, relax_column_count: true });
+  } catch {
+    return false;
+  }
+  if (!Array.isArray(parsed) || !parsed.every((r) => Array.isArray(r))) {
+    return false;
+  }
+  let timeframe = false;
+  let column = -1;
+  let seen = false;
+  for (const record of parsed as string[][]) {
+    if (column < 0) {
+      if (record[0] === "Timeframe") timeframe = true;
+      if (record[0] === "Order date") column = record.indexOf("Account Number");
+      continue;
+    }
+    if (!ACCOUNT.test(record[column] ?? "")) return false;
+    seen = true;
+  }
+  return timeframe && seen;
 }
 
 // The export date is not needed: every row is as at its order date.
-export const fidelityCsv = { marshal };
+export const fidelityUkCsv = { marshal, recognise };

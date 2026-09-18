@@ -29,8 +29,29 @@ import { negate } from "./decimal";
 import { iso } from "./date";
 import { MarshalError } from "./error";
 import type { Marshaller } from "./marshal";
+import { mediaType } from "./media";
 
 const USD = "USD";
+
+// The types a browser reports for the JSON and the CSV export. A CSV is
+// reported as a spreadsheet on a system where a spreadsheet owns the
+// extension.
+const TYPES = new Set([
+  "application/json",
+  "text/csv",
+  "application/vnd.ms-excel",
+]);
+
+const COLUMNS = [
+  "Date",
+  "Action",
+  "Symbol",
+  "Description",
+  "Quantity",
+  "Price",
+  "Fees & Comm",
+  "Amount",
+];
 
 interface Line {
   line: number;
@@ -189,4 +210,27 @@ function marshal(text: string, exportedOn: string): Statement {
   return statement(Broker.SCHWAB, rows, splits, period);
 }
 
-export const schwab: Marshaller = { marshal };
+// Neither export states an account number, so after the type recognition
+// rests on the format alone: the JSON's period and transaction list, or the
+// CSV's header.
+function recognise(text: string, type: string): boolean {
+  if (!TYPES.has(mediaType(type))) return false;
+  const body = text.replace(/^\uFEFF/, "").trimStart();
+  if (body.startsWith("{")) {
+    try {
+      const doc: unknown = JSON.parse(body);
+      return (
+        isRecord(doc) &&
+        typeof doc["FromDate"] === "string" &&
+        typeof doc["ToDate"] === "string" &&
+        Array.isArray(doc["BrokerageTransactions"])
+      );
+    } catch {
+      return false;
+    }
+  }
+  const header = body.split(/\r?\n/, 1)[0];
+  return header === COLUMNS.map((c) => `"${c}"`).join(",");
+}
+
+export const schwab: Marshaller = { marshal, recognise };

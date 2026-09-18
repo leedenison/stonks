@@ -52,7 +52,7 @@
 -- Replacement is keyed on user, broker and order date, so those are columns of
 -- the row rather than reached through the statement.
 
-CREATE TYPE broker AS ENUM ('ibkr', 'schwab', 'fidelity');
+CREATE TYPE broker AS ENUM ('ibkr', 'schwab', 'fidelity_uk');
 
 CREATE TYPE asset_class AS ENUM ('unknown', 'cash', 'security', 'equity', 'stock', 'etf',
     'mutual_fund', 'fixed_income', 'derivative', 'option', 'future');

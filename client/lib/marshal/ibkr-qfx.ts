@@ -43,7 +43,15 @@ import {
 } from "./build";
 import { iso } from "./date";
 import { MarshalError } from "./error";
+import { mediaType } from "./media";
 import { buildOcc, isOcc } from "./occ";
+
+// The types a browser reports for a QFX file: the registered one, and the
+// OFX one some systems map the extension to.
+const TYPES = new Set(["application/vnd.intu.qfx", "application/x-ofx"]);
+
+// An IBKR account is a U followed by digits, or DU for a paper account.
+const ACCOUNT = /^D?U\d{6,8}$/;
 
 type Node = Record<string, unknown>;
 
@@ -246,5 +254,23 @@ function marshal(input: string): Statement {
   });
 }
 
+// recognise checks the type, the OFX header, then the account the
+// statement is from, stated as ACCTID under INVACCTFROM.
+function recognise(input: string, type: string): boolean {
+  if (!TYPES.has(mediaType(type))) return false;
+  if (!/^\uFEFF?\s*OFXHEADER:/.test(input)) return false;
+  try {
+    const ofx: unknown = parseSync(input).OFX;
+    if (!isNode(ofx)) return false;
+    const stmt = node(
+      node(node(ofx, "INVSTMTMSGSRSV1"), "INVSTMTTRNRS"),
+      "INVSTMTRS",
+    );
+    return ACCOUNT.test(text(node(stmt, "INVACCTFROM"), "ACCTID"));
+  } catch {
+    return false;
+  }
+}
+
 // The export date is not needed: every row is as at its order date.
-export const ibkrQfx = { marshal };
+export const ibkrQfx = { marshal, recognise };
