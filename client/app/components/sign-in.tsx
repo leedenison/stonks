@@ -4,6 +4,7 @@ import { Code, ConnectError } from "@connectrpc/connect";
 import { GoogleLogin } from "@react-oauth/google";
 import { useState } from "react";
 import { useAuth } from "@/contexts/auth-context";
+import { Notice } from "./notice";
 
 // SignIn renders the Google button and hands the ID token it yields to the
 // service. Google fills the button in itself, so the test id sits on the
@@ -30,13 +31,9 @@ export function SignIn() {
         onError={() => setNoCredential(true)}
       />
       {error && (
-        <p
-          data-testid="sign-in-error"
-          role="alert"
-          className="text-sm text-negative"
-        >
+        <Notice tone="error" testId="sign-in-error">
           {error}
-        </p>
+        </Notice>
       )}
     </div>
   );

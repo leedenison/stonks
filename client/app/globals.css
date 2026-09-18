@@ -3,25 +3,45 @@
   switches that stop it.
 
   Colours are declared in two layers. The --palette-* variables in the base
-  layer hold the values, light in :root and dark under prefers-color-scheme,
-  because a theme key cannot be redeclared inside a media query. The --color-*
-  theme keys point at them, and inline substitutes the reference into each
-  utility so that text-text-muted resolves where it is used, in whichever
-  scheme applies. The palette names differ from the theme keys because a key
-  that referred to a variable of its own name would resolve to nothing. Every
-  value is a complete colour rather than a bare triple, so an opacity modifier
-  can wrap it in color-mix(). The default palette is cleared, so the only
-  colour utilities are the ones declared here.
+  layer hold the values and the --color-* theme keys point at them; inline
+  substitutes the reference into each utility so that text-text-muted
+  resolves where it is used, in whichever scheme applies. The palette names
+  differ from the theme keys because a key that referred to a variable of its
+  own name would resolve to nothing. Every value is a complete colour rather
+  than a bare triple, so an opacity modifier can wrap it in color-mix(). The
+  default palette is cleared, so the only colour utilities are the ones
+  declared here.
 
-  Colour carries meaning and nothing else: positive and negative for gains and
-  losses, primary for the single primary action in a view. Numbers are set in
-  the mono face with tabular figures.
+  The scheme is chosen three ways. With no data-theme on <html> it follows
+  prefers-color-scheme; data-theme="dark" or "light" overrides it. The dark
+  values are declared twice, under the media query and under the attribute,
+  because a media query and an attribute selector cannot share one rule.
+  color-scheme is set alongside so native controls, dialogs and backdrops
+  follow.
+
+  Two hues with distinct jobs. Primary is structural: the top bar, the active
+  navigation item, table header tints and focus rings. Accent marks action:
+  the primary button, the active marker in the navigation and the rule under
+  the top bar. Positive and negative are reserved for gains and losses and
+  for run outcomes. Text on a dark ground is on-dark, which sits on
+  primary-dark and accent-dark; on accent it falls short of AA. Text on the
+  accent-soft notice tint is on-accent-soft. Numbers are set in the mono face
+  with tabular figures.
 
   The faces are the variables next/font sets on <html>, named --face-* because
   Tailwind's own font keys are --font-*.
 */
 @import "tailwindcss";
-@custom-variant dark (@media (prefers-color-scheme: dark));
+@custom-variant dark {
+  &:where([data-theme="dark"], [data-theme="dark"] *) {
+    @slot;
+  }
+  @media (prefers-color-scheme: dark) {
+    &:where(:not([data-theme="light"], [data-theme="light"] *)) {
+      @slot;
+    }
+  }
+}
 
 @theme inline {
   --color-*: initial;
@@ -31,7 +51,13 @@
   --color-text-primary: var(--palette-text);
   --color-text-muted: var(--palette-text-muted);
   --color-primary: var(--palette-primary);
-  --color-on-primary: var(--palette-on-primary);
+  --color-primary-dark: var(--palette-primary-dark);
+  --color-primary-light: var(--palette-primary-light);
+  --color-accent: var(--palette-accent);
+  --color-accent-dark: var(--palette-accent-dark);
+  --color-accent-soft: var(--palette-accent-soft);
+  --color-on-accent-soft: var(--palette-on-accent-soft);
+  --color-on-dark: var(--palette-on-dark);
   --color-positive: var(--palette-positive);
   --color-negative: var(--palette-negative);
 
@@ -55,29 +81,63 @@
 
 @layer base {
   :root {
-    --palette-background: rgb(247 248 250);
+    color-scheme: light;
+    --top-bar-height: 3.75rem;
+    --palette-background: rgb(244 246 249);
     --palette-surface: rgb(255 255 255);
-    --palette-border: rgb(226 229 234);
-    --palette-text: rgb(24 27 33);
-    --palette-text-muted: rgb(92 99 110);
-    --palette-primary: rgb(29 78 216);
-    --palette-on-primary: rgb(255 255 255);
+    --palette-border: rgb(214 222 231);
+    --palette-text: rgb(15 23 32);
+    --palette-text-muted: rgb(90 107 122);
+    --palette-primary: rgb(62 107 138);
+    --palette-primary-dark: rgb(27 58 75);
+    --palette-primary-light: rgb(191 211 225);
+    --palette-accent: rgb(224 122 47);
+    --palette-accent-dark: rgb(184 94 29);
+    --palette-accent-soft: rgb(247 216 193);
+    --palette-on-accent-soft: rgb(133 66 16);
+    --palette-on-dark: rgb(255 255 255);
     --palette-positive: rgb(21 128 61);
     --palette-negative: rgb(185 28 28);
   }
 
   @media (prefers-color-scheme: dark) {
-    :root {
-      --palette-background: rgb(16 18 22);
-      --palette-surface: rgb(24 27 33);
-      --palette-border: rgb(44 48 56);
-      --palette-text: rgb(232 234 238);
-      --palette-text-muted: rgb(154 160 172);
-      --palette-primary: rgb(125 175 255);
-      --palette-on-primary: rgb(16 18 22);
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --palette-background: rgb(13 17 23);
+      --palette-surface: rgb(22 28 39);
+      --palette-border: rgb(37 47 62);
+      --palette-text: rgb(226 232 240);
+      --palette-text-muted: rgb(122 143 168);
+      --palette-primary: rgb(85 153 204);
+      --palette-primary-dark: rgb(26 48 72);
+      --palette-primary-light: rgb(30 61 90);
+      --palette-accent: rgb(224 122 47);
+      --palette-accent-dark: rgb(184 94 29);
+      --palette-accent-soft: rgb(45 24 5);
+      --palette-on-accent-soft: rgb(224 122 47);
+      --palette-on-dark: rgb(255 255 255);
       --palette-positive: rgb(74 222 128);
       --palette-negative: rgb(248 113 113);
     }
+  }
+
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --palette-background: rgb(13 17 23);
+    --palette-surface: rgb(22 28 39);
+    --palette-border: rgb(37 47 62);
+    --palette-text: rgb(226 232 240);
+    --palette-text-muted: rgb(122 143 168);
+    --palette-primary: rgb(85 153 204);
+    --palette-primary-dark: rgb(26 48 72);
+    --palette-primary-light: rgb(30 61 90);
+    --palette-accent: rgb(224 122 47);
+    --palette-accent-dark: rgb(184 94 29);
+    --palette-accent-soft: rgb(45 24 5);
+    --palette-on-accent-soft: rgb(224 122 47);
+    --palette-on-dark: rgb(255 255 255);
+    --palette-positive: rgb(74 222 128);
+    --palette-negative: rgb(248 113 113);
   }
 
   h1,
@@ -105,6 +165,15 @@
 /* Delays an animation by 60ms per step, for a staggered first render. */
 @utility stagger-* {
   animation-delay: calc(--value(integer) * 60ms);
+}
+
+/* Faint diagonal lines over a dark ground. */
+@utility hatch {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    transparent 0 16px,
+    color-mix(in srgb, var(--color-on-dark) 6%, transparent) 16px 17px
+  );
 }
 
 /* The e2e suite sets data-testmode on <html>, so no assertion races an animation. */
