@@ -14,22 +14,25 @@
 // A route segment that requires a session is guarded by its own layout, as
 // app/profile/layout.tsx does.
 //
+// No component carries a raw colour. The tokens in globals.css are the whole
+// palette, and a colour that is missing is added there.
+//
 // data-testid goes on page containers, tables, rows, buttons, modals and form
 // inputs, named for what the element is rather than where it sits. The e2e
 // suite selects on these and nothing else.
 import type { Metadata } from "next";
-import { Inter, JetBrains_Mono, Space_Grotesk } from "next/font/google";
+import { Archivo, JetBrains_Mono, Sora } from "next/font/google";
 import type { ReactNode } from "react";
 import "./globals.css";
 import { AppHeader } from "./components/app-header";
 import { Providers } from "./providers";
 
-const display = Space_Grotesk({
+const display = Archivo({
   subsets: ["latin"],
   variable: "--face-display",
   display: "swap",
 });
-const body = Inter({
+const body = Sora({
   subsets: ["latin"],
   variable: "--face-body",
   display: "swap",
