@@ -11,16 +11,18 @@ export default function Error({
   reset: () => void;
 }) {
   return (
-    <section data-testid="error-page" className="flex flex-col gap-3">
-      <h1 className="text-2xl font-semibold tracking-tight">
-        Something went wrong
-      </h1>
-      <Notice tone="error">
-        <span className="font-mono">{error.message}</span>
-      </Notice>
-      <Button data-testid="error-retry" onClick={reset}>
-        Try again
-      </Button>
-    </section>
+    <main className="mx-auto max-w-6xl px-4 py-6">
+      <section data-testid="error-page" className="flex flex-col gap-3">
+        <h1 className="text-2xl font-semibold tracking-tight">
+          Something went wrong
+        </h1>
+        <Notice tone="error">
+          <span className="font-mono">{error.message}</span>
+        </Notice>
+        <Button data-testid="error-retry" onClick={reset}>
+          Try again
+        </Button>
+      </section>
+    </main>
   );
 }

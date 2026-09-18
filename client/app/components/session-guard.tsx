@@ -2,12 +2,13 @@
 
 import { useRouter } from "next/navigation";
 import { type ReactNode, useEffect } from "react";
-import { Skeleton } from "@/app/components/skeleton";
 import { useAuth } from "@/contexts/auth-context";
+import { Skeleton } from "./skeleton";
 
-// The guard for the profile segment. Route guarding is done here rather than
-// in middleware, because only the browser holds the restored session.
-export default function ProfileLayout({ children }: { children: ReactNode }) {
+// SessionGuard renders its children only with a session, and sends a visitor
+// to the landing page. Guarding is done here rather than in middleware,
+// because only the browser holds the restored session.
+export function SessionGuard({ children }: { children: ReactNode }) {
   const { state } = useAuth();
   const router = useRouter();
 

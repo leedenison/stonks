@@ -11,8 +11,16 @@
 // lib/query-client.ts, and a query that needs a session through
 // hooks/use-authed-query.ts; keys come from lib/query-keys.ts.
 //
-// A route segment that requires a session is guarded by its own layout, as
-// app/profile/layout.tsx does.
+// A route segment that requires a session is guarded by its layout through
+// components/session-guard.tsx, as app/(app)/layout.tsx does. A page outside
+// such a segment renders its own <main>.
+//
+// A preference kept in the browser, such as the scheme, goes through
+// hooks/use-stored-value.ts, so the server render and the first client
+// render agree.
+//
+// No component carries a raw colour. The tokens in globals.css are the whole
+// palette, and a colour that is missing is added there.
 //
 // No component carries a raw colour. The tokens in globals.css are the whole
 // palette, and a colour that is missing is added there.
@@ -24,7 +32,8 @@ import type { Metadata } from "next";
 import { Archivo, JetBrains_Mono, Sora } from "next/font/google";
 import type { ReactNode } from "react";
 import "./globals.css";
-import { AppHeader } from "./components/app-header";
+import { schemeScript } from "@/lib/scheme";
+import { TopBar } from "./components/top-bar";
 import { Providers } from "./providers";
 
 const display = Archivo({
@@ -53,11 +62,13 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html
       lang="en"
       className={`${display.variable} ${body.variable} ${mono.variable}`}
+      suppressHydrationWarning
     >
       <body className="min-h-dvh bg-background font-sans text-text-primary antialiased">
+        <script dangerouslySetInnerHTML={{ __html: schemeScript }} />
         <Providers>
-          <AppHeader />
-          <main className="mx-auto max-w-6xl px-4 py-6">{children}</main>
+          <TopBar />
+          {children}
         </Providers>
       </body>
     </html>

@@ -11,7 +11,7 @@ import {
   UserSchema,
 } from "@/gen/auth/v1/auth_pb";
 import { renderWithAuth } from "@/lib/test-utils";
-import ProfileLayout from "./layout";
+import { SessionGuard } from "./session-guard";
 
 const router = { replace: vi.fn() };
 vi.mock("next/navigation", () => ({ useRouter: () => router }));
@@ -27,22 +27,21 @@ const live = create(GetSessionResponseSchema, {
   }),
 });
 
-function transportAnswering(answer: () => Promise<typeof live> | typeof live) {
+function transportAnswering(answer: () => typeof live) {
   return createRouterTransport(({ service }) => {
     service(AuthService, { getSession: answer });
   });
 }
 
-describe("ProfileLayout", () => {
+describe("SessionGuard", () => {
   beforeEach(() => router.replace.mockReset());
 
-  it("shows a skeleton while restoring, then the page", async () => {
-    const transport = transportAnswering(() => live);
+  it("shows a skeleton while restoring, then the children", async () => {
     renderWithAuth(
-      <ProfileLayout>
+      <SessionGuard>
         <p>child</p>
-      </ProfileLayout>,
-      transport,
+      </SessionGuard>,
+      transportAnswering(() => live),
     );
     expect(screen.getByTestId("skeleton")).toBeTruthy();
     await waitFor(() => expect(screen.getByText("child")).toBeTruthy());
@@ -50,14 +49,11 @@ describe("ProfileLayout", () => {
   });
 
   it("redirects to the landing page without a session", async () => {
-    const transport = transportAnswering(() =>
-      create(GetSessionResponseSchema, {}),
-    );
     renderWithAuth(
-      <ProfileLayout>
+      <SessionGuard>
         <p>child</p>
-      </ProfileLayout>,
-      transport,
+      </SessionGuard>,
+      transportAnswering(() => create(GetSessionResponseSchema, {})),
     );
     await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/"));
     expect(screen.queryByText("child")).toBeNull();
