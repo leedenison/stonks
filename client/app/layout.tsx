@@ -22,9 +22,14 @@
 // No component carries a raw colour. The tokens in globals.css are the whole
 // palette, and a colour that is missing is added there.
 //
-// data-testid goes on page containers, tables, rows, buttons, modals and form
-// inputs, named for what the element is rather than where it sits. The e2e
-// suite selects on these and nothing else.
+// Shared UI lives in app/components, and the frontend-design skill lists
+// each piece and when to reach for it: the page frame with its action bar,
+// the buttons, the table, the chips, the notice, the empty state, the
+// dialog and the sheet. A dialog is a native <dialog>.
+//
+// data-testid goes on page containers, tables, rows, buttons, dialogs and
+// form inputs, named for what the element is rather than where it sits. The
+// e2e suite selects on these and nothing else.
 import type { Metadata } from "next";
 import { Archivo, JetBrains_Mono, Sora } from "next/font/google";
 import type { ReactNode } from "react";

@@ -1,7 +1,6 @@
 ---
 title: Holdings in the browser
 type: task
-dependencies: [009]
 ---
 
 ## Scope
