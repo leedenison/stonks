@@ -34,7 +34,7 @@ test("offers sign-in to a visitor", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByTestId("landing-page")).toBeVisible();
   await expect(page.getByTestId("sign-in")).toBeVisible();
-  await expect(page.getByTestId("user-area")).toHaveText("Not signed in");
+  await expect(page.getByTestId("top-bar-sign-in")).toBeVisible();
 });
 
 test("sends a visitor from the profile to the landing page", async ({
@@ -45,14 +45,24 @@ test("sends a visitor from the profile to the landing page", async ({
   await expect(page.getByTestId("landing-page")).toBeVisible();
 });
 
-test("lands a signed-in user on the profile", async ({ context, page }) => {
+test("lands a signed-in user on the transactions", async ({
+  context,
+  page,
+}) => {
   const { user, session } = await seed();
   await injectSession(context, session);
   await page.goto("/");
-  await expect(page).toHaveURL("/profile");
+  await expect(page).toHaveURL("/transactions");
+  await expect(page.getByTestId("transactions-page")).toBeVisible();
+  await expect(page.getByTestId("user-email")).toHaveText(user.email);
+});
+
+test("shows the profile", async ({ context, page }) => {
+  const { user, session } = await seed();
+  await injectSession(context, session);
+  await page.goto("/profile");
   await expect(page.getByTestId("profile-email")).toHaveText(user.email);
   await expect(page.getByTestId("profile-role")).toHaveText("user");
-  await expect(page.getByTestId("user-email")).toHaveText(user.email);
 });
 
 test("shows the admin role", async ({ context, page }) => {
@@ -83,9 +93,10 @@ test("signs out", async ({ context, page }) => {
   await page.goto("/profile");
   await expect(page.getByTestId("profile-page")).toBeVisible();
 
+  await page.getByTestId("user-email").click();
   await page.getByTestId("sign-out").click();
   await expect(page).toHaveURL("/");
-  await expect(page.getByTestId("user-area")).toHaveText("Not signed in");
+  await expect(page.getByTestId("top-bar-sign-in")).toBeVisible();
 
   // The session is gone on the server, not only in the browser.
   const res = await authClient(session).getSession({});
