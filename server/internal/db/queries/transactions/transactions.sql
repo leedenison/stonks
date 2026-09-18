@@ -18,3 +18,8 @@ RETURNING *;
 DELETE FROM transactions
 WHERE user_id = $1 AND broker = $2
   AND order_date >= @order_from::date AND order_date < @order_before::date;
+
+-- name: ListTransactions :many
+SELECT * FROM transactions
+WHERE user_id = $1
+ORDER BY order_date, id;

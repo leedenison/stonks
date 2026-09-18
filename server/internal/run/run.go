@@ -4,17 +4,14 @@
 // with the row, and progress and the outcome are read against it.
 //
 // A run is started by a user or by another run. A user's run executes in a
-// goroutine of its own once the call starting it has answered; receipt never
-// waits. A run started by another run executes inline in its parent's
-// goroutine and takes its parent's place in the order. A parent's state is
-// its own: the parent decides whether a child's failure fails it.
+// goroutine of its own once the call starting it has answered. A run carries
+// out its prepare step in the caller. A run started by another run executes
+// inline in its parent's goroutine. The parent decides whether a child's
+// failure fails it.
 //
 // Runs of one user and lane execute in the order they were started: a run
 // stays pending until every earlier run of the same user and lane has
-// stopped. The caller names the lane. A statement's lane is its broker,
-// because a statement replaces every transaction of its broker in a period
-// and the later statement is the one to keep. Runs of different users or lanes proceed
-// in parallel. The order is held in memory, which assumes one process.
+// stopped. Runs of different users or lanes proceed in parallel.
 //
 // The work is a function held in memory, so nothing of it survives the
 // process. When the process stops, pending work is dropped and running work
@@ -61,14 +58,18 @@ var _ Store = (*gen.Queries)(nil)
 
 // Work is the body of a run. ctx is cancelled when the runner closes; work
 // that returns an error after that is left for Sweep rather than failed.
-type Work func(ctx context.Context) error
+type Work func(ctx context.Context, run gen.Run) error
 
 // Spec describes a run a user starts.
 type Spec struct {
 	Kind   gen.RunKind
 	UserID uuid.UUID
-	// Lane orders the run among the user's runs sharing it, such as a broker.
+	// Lane indicates which of a user's runs must be serialized (ie. two
+	// runs with the same lane must be serialized).
 	Lane string
+	// Prepare runs in the caller once the run has been created but
+	// before the goroutine is started.
+	Prepare Work
 }
 
 type laneKey struct {
@@ -86,7 +87,7 @@ type Runner struct {
 
 	mu     sync.Mutex
 	closed bool
-	// lanes holds, per lane, the channel closed when its latest run stops.
+	// lanes holds per lane channels.
 	lanes map[laneKey]chan struct{}
 }
 
@@ -95,26 +96,33 @@ func New(store Store, log *slog.Logger) *Runner {
 	return &Runner{store: store, log: log, closing: make(chan struct{}), lanes: map[laneKey]chan struct{}{}}
 }
 
-// Start records a run of trigger user and queues its work. It returns the
-// pending row without waiting for anything.
+// Start records a run of trigger user, runs spec.Prepare, and queues the
+// work. It returns the pending row without waiting for the work.
 func (r *Runner) Start(ctx context.Context, spec Spec, work Work) (gen.Run, error) {
 	// Held across the insert and the enqueue so lane order is creation order.
 	r.mu.Lock()
-	defer r.mu.Unlock()
 	if r.closed {
+		r.mu.Unlock()
 		return gen.Run{}, ErrClosed
 	}
 	row, err := r.store.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: spec.UserID, Kind: spec.Kind, Trigger: gen.RunTriggerUser})
 	if err != nil {
+		r.mu.Unlock()
 		return gen.Run{}, fmt.Errorf("create run: %w", err)
 	}
 	key := laneKey{user: spec.UserID, lane: spec.Lane}
 	prev := r.lanes[key]
 	done := make(chan struct{})
 	r.lanes[key] = done
+	ready := make(chan error, 1)
 	r.wg.Add(1)
-	go r.background(row, work, key, prev, done)
-	return row, nil
+	go r.background(row, work, key, prev, done, ready)
+	r.mu.Unlock()
+	if spec.Prepare != nil {
+		err = spec.Prepare(ctx, row)
+	}
+	ready <- err
+	return row, err
 }
 
 // Child records a run of trigger run under parent and executes its work
@@ -145,7 +153,7 @@ func (r *Runner) Close() {
 	r.wg.Wait()
 }
 
-func (r *Runner) background(row gen.Run, work Work, key laneKey, prev <-chan struct{}, done chan struct{}) {
+func (r *Runner) background(row gen.Run, work Work, key laneKey, prev <-chan struct{}, done chan struct{}, ready <-chan error) {
 	defer r.wg.Done()
 	defer func() {
 		close(done)
@@ -163,9 +171,12 @@ func (r *Runner) background(row gen.Run, work Work, key laneKey, prev <-chan str
 		}
 	}
 	select {
+	case err := <-ready:
+		if err != nil {
+			work = func(context.Context, gen.Run) error { return err }
+		}
 	case <-r.closing:
 		return
-	default:
 	}
 	ctx, cancel := r.context()
 	defer cancel()
@@ -197,7 +208,7 @@ func (r *Runner) execute(ctx context.Context, row gen.Run, work Work) error {
 		r.log.Error("start run", "run", row.ID, "kind", row.Kind, "err", err)
 		return fmt.Errorf("start run: %w", err)
 	}
-	err := call(ctx, work)
+	err := call(ctx, row, work)
 	write := context.WithoutCancel(ctx)
 	switch {
 	case err == nil:
@@ -213,13 +224,13 @@ func (r *Runner) execute(ctx context.Context, row gen.Run, work Work) error {
 	return err
 }
 
-func call(ctx context.Context, work Work) (err error) {
+func call(ctx context.Context, row gen.Run, work Work) (err error) {
 	defer func() {
 		if p := recover(); p != nil {
 			err = fmt.Errorf("panic: %v", p)
 		}
 	}()
-	return work(ctx)
+	return work(ctx, row)
 }
 
 // Sweep marks every pending and running run interrupted. It runs at boot,

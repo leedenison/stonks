@@ -74,7 +74,7 @@ func TestStart(t *testing.T) {
 	f.store.EXPECT().CompleteRun(gomock.Any(), gomock.Any()).DoAndReturn(func(context.Context, uuid.UUID) error { done(); return nil })
 
 	ran := make(chan struct{})
-	row, err := f.runner.Start(context.Background(), Spec{Kind: gen.RunKindStatement, UserID: userA, Lane: "ibkr"}, func(context.Context) error {
+	row, err := f.runner.Start(context.Background(), Spec{Kind: gen.RunKindStatement, UserID: userA, Lane: "ibkr"}, func(context.Context, gen.Run) error {
 		close(ran)
 		return nil
 	})
@@ -95,8 +95,8 @@ func TestStartRecordsFailure(t *testing.T) {
 		work Work
 		want string
 	}{
-		{name: "error", work: func(context.Context) error { return errors.New("boom") }, want: "boom"},
-		{name: "panic", work: func(context.Context) error { panic("boom") }, want: "panic: boom"},
+		{name: "error", work: func(context.Context, gen.Run) error { return errors.New("boom") }, want: "boom"},
+		{name: "panic", work: func(context.Context, gen.Run) error { panic("boom") }, want: "panic: boom"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -137,19 +137,19 @@ func TestStartOrdersLane(t *testing.T) {
 	firstStarted := make(chan struct{})
 	otherStarted := make(chan struct{})
 	secondDone := make(chan struct{})
-	first := func(context.Context) error {
+	first := func(context.Context, gen.Run) error {
 		record("first start")
 		close(firstStarted)
 		<-release
 		record("first end")
 		return nil
 	}
-	second := func(context.Context) error {
+	second := func(context.Context, gen.Run) error {
 		record("second")
 		close(secondDone)
 		return nil
 	}
-	other := func(context.Context) error {
+	other := func(context.Context, gen.Run) error {
 		close(otherStarted)
 		return nil
 	}
@@ -186,7 +186,7 @@ func TestParallelUsers(t *testing.T) {
 	wg.Add(2)
 	both := make(chan struct{})
 	go func() { wg.Wait(); close(both) }()
-	work := func(ctx context.Context) error {
+	work := func(ctx context.Context, _ gen.Run) error {
 		wg.Done()
 		select {
 		case <-both:
@@ -209,12 +209,12 @@ func TestParallelUsers(t *testing.T) {
 func TestClose(t *testing.T) {
 	f := newFixture(t)
 	started := make(chan struct{})
-	blocking := func(ctx context.Context) error {
+	blocking := func(ctx context.Context, _ gen.Run) error {
 		close(started)
 		<-ctx.Done()
 		return ctx.Err()
 	}
-	pending := func(context.Context) error {
+	pending := func(context.Context, gen.Run) error {
 		t.Error("pending work ran after Close")
 		return nil
 	}
@@ -244,10 +244,10 @@ func TestChild(t *testing.T) {
 		expect  func(f *fixture)
 		wantErr string
 	}{
-		{name: "completed", work: func(context.Context) error { return nil }, expect: func(f *fixture) {
+		{name: "completed", work: func(context.Context, gen.Run) error { return nil }, expect: func(f *fixture) {
 			f.store.EXPECT().CompleteRun(gomock.Any(), gomock.Any()).Return(nil)
 		}},
-		{name: "failed", work: func(context.Context) error { return errors.New("boom") }, expect: func(f *fixture) {
+		{name: "failed", work: func(context.Context, gen.Run) error { return errors.New("boom") }, expect: func(f *fixture) {
 			f.store.EXPECT().FailRun(gomock.Any(), gomock.Any()).Return(nil)
 		}, wantErr: "boom"},
 	}
@@ -256,9 +256,9 @@ func TestChild(t *testing.T) {
 			f := newFixture(t)
 			tc.expect(f)
 			ran := false
-			row, err := f.runner.Child(context.Background(), parent, gen.RunKindResolution, func(ctx context.Context) error {
+			row, err := f.runner.Child(context.Background(), parent, gen.RunKindResolution, func(ctx context.Context, run gen.Run) error {
 				ran = true
-				return tc.work(ctx)
+				return tc.work(ctx, run)
 			})
 			if !ran {
 				t.Fatal("Child() returned before its work ran")
@@ -272,6 +272,60 @@ func TestChild(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestPrepare checks that the work waits for Prepare, and that an error from
+// Prepare fails the run and is returned by Start.
+func TestPrepare(t *testing.T) {
+	t.Run("work waits", func(t *testing.T) {
+		f := newFixture(t)
+		completed, done := signal()
+		f.store.EXPECT().CompleteRun(gomock.Any(), gomock.Any()).DoAndReturn(func(context.Context, uuid.UUID) error { done(); return nil })
+		prepared := false
+		var preparedFor gen.Run
+		spec := Spec{Kind: gen.RunKindStatement, UserID: userA, Lane: "ibkr", Prepare: func(_ context.Context, run gen.Run) error {
+			time.Sleep(20 * time.Millisecond)
+			prepared = true
+			preparedFor = run
+			return nil
+		}}
+		row, err := f.runner.Start(context.Background(), spec, func(_ context.Context, run gen.Run) error {
+			if !prepared {
+				t.Error("work ran before Prepare returned")
+			}
+			if run.ID != preparedFor.ID {
+				t.Errorf("work ran as %s, Prepare ran for %s", run.ID, preparedFor.ID)
+			}
+			return nil
+		})
+		if err != nil || !prepared || row.ID != preparedFor.ID {
+			t.Fatalf("Start() = %+v, %v after Prepare for %+v", row, err, preparedFor)
+		}
+		await(t, completed, "CompleteRun")
+	})
+	t.Run("error fails the run", func(t *testing.T) {
+		f := newFixture(t)
+		failed, done := signal()
+		var got gen.FailRunParams
+		f.store.EXPECT().FailRun(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.FailRunParams) error {
+			got = arg
+			done()
+			return nil
+		})
+		boom := errors.New("boom")
+		spec := Spec{Kind: gen.RunKindStatement, UserID: userA, Prepare: func(context.Context, gen.Run) error { return boom }}
+		row, err := f.runner.Start(context.Background(), spec, func(context.Context, gen.Run) error {
+			t.Error("work ran after Prepare failed")
+			return nil
+		})
+		if !errors.Is(err, boom) {
+			t.Errorf("Start() error = %v, want %v", err, boom)
+		}
+		await(t, failed, "FailRun")
+		if got.ID != row.ID || got.Error != "boom" {
+			t.Errorf("FailRun(%s, %q), want (%s, %q)", got.ID, got.Error, row.ID, "boom")
+		}
+	})
 }
 
 func TestSweep(t *testing.T) {
