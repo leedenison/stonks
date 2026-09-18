@@ -157,9 +157,9 @@ func TestValidate(t *testing.T) {
 		{name: "malformed settlement date", row: &statementv1.Row{Key: equity, OrderDate: "2026-03-05", SettlementDate: "", AsAt: "2026-03-05", Quantity: "1"}, want: `malformed settlement date ""`},
 		{name: "malformed as at", row: &statementv1.Row{Key: equity, OrderDate: "2026-03-05", SettlementDate: "2026-03-05", AsAt: "5 March", Quantity: "1"}, want: `malformed as at "5 March"`},
 		{name: "malformed quantity", row: rowMsg(equity, "2026-03-05", "ten"), want: `malformed quantity "ten"`},
-		{name: "before the period", row: rowMsg(equity, "2026-02-28", "1"), want: "order date 2026-02-28 outside the claimed period"},
-		{name: "on the day after the period", row: rowMsg(equity, "2026-05-01", "1"), want: "order date 2026-05-01 outside the claimed period"},
-		{name: "after today", row: rowMsg(equity, "2026-04-20", "1"), want: "order date 2026-04-20 after today"},
+		{name: "before the period", row: rowMsg(equity, "2026-02-28", "1"), want: "order date outside the claimed period"},
+		{name: "on the day after the period", row: rowMsg(equity, "2026-05-01", "1"), want: "order date outside the claimed period"},
+		{name: "after today", row: rowMsg(equity, "2026-04-20", "1"), want: "order date after today"},
 		{name: "unknown currency", row: rowMsg(securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &xxx), "2026-03-05", "1"), want: `unknown currency "XXX"`},
 		{name: "a currency identifier stating no currency", row: rowMsg(&typev1.StatedKey{Identifiers: cashKey("USD").Identifiers, AssetClass: typev1.AssetClass_ASSET_CLASS_CASH}, "2026-03-05", "1")},
 		{name: "a currency identifier on an equity key", row: rowMsg(securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_CURRENCY, "USD", nil)), "2026-03-05", "1")},
@@ -538,7 +538,7 @@ func TestCreate(t *testing.T) {
 			t.Errorf("CreateStatementItem(%+v), want the statement's with the row", it)
 		}
 	}
-	wantItems := []string{"2 order date 2026-04-20 outside the claimed period", "3 currency EUR contradicts the listing named, quoted in USD"}
+	wantItems := []string{"2 order date outside the claimed period", "3 currency EUR contradicts the listing named, quoted in USD"}
 	if diff := cmp.Diff(wantItems, gotItems); diff != "" {
 		t.Errorf("items mismatch (-want +got):\n%s", diff)
 	}
