@@ -57,15 +57,16 @@ func (s *Server) GetRun(ctx context.Context, req *connect.Request[runv1.GetRunRe
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	return connect.NewResponse(&runv1.GetRunResponse{Run: toProto(row)}), nil
+	return connect.NewResponse(&runv1.GetRunResponse{Run: ToProto(row)}), nil
 }
 
-func toProto(r gen.Run) *runv1.Run {
+// ToProto converts a run row to its message.
+func ToProto(r gen.Run) *runv1.Run {
 	out := &runv1.Run{
 		Id:        r.ID.String(),
-		Kind:      kindToProto(r.Kind),
-		Trigger:   triggerToProto(r.Trigger),
-		State:     stateToProto(r.State),
+		Kind:      db.ToProto[runv1.RunKind](r.Kind),
+		Trigger:   db.ToProto[runv1.RunTrigger](r.Trigger),
+		State:     db.ToProto[runv1.RunState](r.State),
 		Error:     r.Error,
 		CreatedAt: timestamppb.New(r.CreatedAt),
 	}
@@ -80,40 +81,4 @@ func toProto(r gen.Run) *runv1.Run {
 		out.FinishedAt = timestamppb.New(*r.FinishedAt)
 	}
 	return out
-}
-
-func kindToProto(k gen.RunKind) runv1.RunKind {
-	switch k {
-	case gen.RunKindStatement:
-		return runv1.RunKind_RUN_KIND_STATEMENT
-	case gen.RunKindResolution:
-		return runv1.RunKind_RUN_KIND_RESOLUTION
-	}
-	return runv1.RunKind_RUN_KIND_UNSPECIFIED
-}
-
-func triggerToProto(t gen.RunTrigger) runv1.RunTrigger {
-	switch t {
-	case gen.RunTriggerUser:
-		return runv1.RunTrigger_RUN_TRIGGER_USER
-	case gen.RunTriggerRun:
-		return runv1.RunTrigger_RUN_TRIGGER_RUN
-	}
-	return runv1.RunTrigger_RUN_TRIGGER_UNSPECIFIED
-}
-
-func stateToProto(s gen.RunState) runv1.RunState {
-	switch s {
-	case gen.RunStatePending:
-		return runv1.RunState_RUN_STATE_PENDING
-	case gen.RunStateRunning:
-		return runv1.RunState_RUN_STATE_RUNNING
-	case gen.RunStateCompleted:
-		return runv1.RunState_RUN_STATE_COMPLETED
-	case gen.RunStateFailed:
-		return runv1.RunState_RUN_STATE_FAILED
-	case gen.RunStateInterrupted:
-		return runv1.RunState_RUN_STATE_INTERRUPTED
-	}
-	return runv1.RunState_RUN_STATE_UNSPECIFIED
 }

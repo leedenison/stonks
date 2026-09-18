@@ -20,9 +20,9 @@ of open issues and ADRs at `docs/tasks/<label>/`.
 ```
 001 open
  |
-006 statement ingestion   009 look and feel
- |                         |
- +-------------+-----------+
+009 look and feel
+ |
+ +-------------+
  |             |
 007 statements 008 holdings
  |             |
