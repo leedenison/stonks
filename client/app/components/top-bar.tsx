@@ -2,11 +2,13 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useActivity } from "@/contexts/activity-context";
 import { useAuth } from "@/contexts/auth-context";
 import { Role } from "@/gen/auth/v1/auth_pb";
 import { useScheme } from "@/hooks/use-scheme";
 import type { Scheme } from "@/lib/scheme";
 import { ActivityIcon } from "./activity-icon";
+import { ActivitySheet } from "./activity-sheet";
 import { Menu, MenuHeader, MenuItem, MenuLink, MenuSeparator } from "./menu";
 
 const schemes: { scheme: Scheme; label: string }[] = [
@@ -21,6 +23,7 @@ const schemes: { scheme: Scheme; label: string }[] = [
 export function TopBar() {
   const { state, signOut } = useAuth();
   const [scheme, setScheme] = useScheme();
+  const activity = useActivity();
 
   return (
     <header
@@ -55,7 +58,8 @@ export function TopBar() {
         )}
         {state.status === "authenticated" && (
           <>
-            <ActivityIcon count={0} />
+            <ActivityIcon count={activity.badge} onClick={activity.toggle} />
+            <ActivitySheet />
             <Menu
               label={state.user.email}
               testId="user-email"

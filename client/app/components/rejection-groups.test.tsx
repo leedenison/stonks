@@ -56,6 +56,14 @@ describe("RejectionGroups", () => {
     expect(row.textContent).toContain("-5.40");
   });
 
+  it("lists reasons and counts alone without rows", () => {
+    render(<RejectionGroups items={items} rows={false} />);
+    expect(screen.getAllByTestId(/^rejection-group-/).length).toBe(2);
+    expect(screen.getByTestId("rejection-count-0").textContent).toBe("2");
+    expect(screen.queryByTestId("rejection-row-2")).toBeNull();
+    expect(screen.queryByRole("table")).toBeNull();
+  });
+
   it("starts a lone reason open", () => {
     render(<RejectionGroups items={[items[1]]} />);
     const only = screen.getByTestId("rejection-group-0") as HTMLDetailsElement;

@@ -2,6 +2,7 @@ import type { Transport } from "@connectrpc/connect";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, type RenderResult } from "@testing-library/react";
 import type { ReactNode } from "react";
+import { ActivityProvider } from "@/contexts/activity-context";
 import { AuthProvider } from "@/contexts/auth-context";
 import { ClientsProvider } from "@/contexts/clients-context";
 
@@ -19,15 +20,18 @@ export function newTestQueryClient(): QueryClient {
   });
 }
 
-// authWrapper returns a wrapper mounting the query client, the clients and
-// the auth provider over transport, for render and renderHook.
+// authWrapper returns a wrapper mounting the query client, the clients, the
+// auth provider and the activity provider over transport, for render and
+// renderHook.
 export function authWrapper(transport: Transport, client?: QueryClient) {
   const queryClient = client ?? newTestQueryClient();
   return function Wrapper({ children }: { children: ReactNode }) {
     return (
       <QueryClientProvider client={queryClient}>
         <ClientsProvider transport={transport}>
-          <AuthProvider transport={transport}>{children}</AuthProvider>
+          <AuthProvider transport={transport}>
+            <ActivityProvider>{children}</ActivityProvider>
+          </AuthProvider>
         </ClientsProvider>
       </QueryClientProvider>
     );
