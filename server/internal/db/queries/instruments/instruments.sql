@@ -28,3 +28,18 @@ SELECT * FROM identifiers
 WHERE instrument_id = $1
   AND (owner_id IS NULL OR owner_id = @user_id::uuid)
 ORDER BY type, domain, value;
+
+-- name: ListCurrencies :many
+SELECT code FROM currencies ORDER BY code;
+
+-- name: ListAssetClassTree :many
+SELECT * FROM asset_class_tree ORDER BY class;
+
+-- name: CreateResolutionKey :exec
+INSERT INTO resolution_keys (run_id, user_id, stated_key_id, outcome, instrument_id, listing_id, reason)
+VALUES ($1, $2, $3, $4, $5, $6, $7);
+
+-- name: ListResolutionKeys :many
+SELECT * FROM resolution_keys
+WHERE run_id = $1 AND user_id = $2
+ORDER BY stated_key_id;

@@ -13,6 +13,7 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/db/types"
 )
 
 func newStatement(t *testing.T, q *gen.Queries, user gen.User) gen.Run {
@@ -35,7 +36,7 @@ func TestStatedKeys(t *testing.T) {
 	key := func(statement gen.Run) gen.CreateStatedKeyParams {
 		return gen.CreateStatedKeyParams{
 			ID: db.NewID(), StatementID: statement.ID, UserID: user.ID, AssetClass: &cash, Currency: ptr("USD"),
-			Identifiers: []db.StatedIdentifier{{Type: "currency", Value: "USD"}},
+			Identifiers: []types.StatedIdentifier{{Type: "currency", Value: "USD"}},
 		}
 	}
 
@@ -68,7 +69,7 @@ func TestTransactions(t *testing.T) {
 	statement := newStatement(t, q, user)
 	usd, err := q.GetListingByIdentifier(ctx, gen.GetListingByIdentifierParams{Type: gen.IdentifierTypeCurrency, Value: "USD"})
 	require.NoError(t, err)
-	key, err := q.CreateStatedKey(ctx, gen.CreateStatedKeyParams{ID: db.NewID(), StatementID: statement.ID, UserID: user.ID, Identifiers: []db.StatedIdentifier{{Type: "currency", Value: "USD"}}})
+	key, err := q.CreateStatedKey(ctx, gen.CreateStatedKeyParams{ID: db.NewID(), StatementID: statement.ID, UserID: user.ID, Identifiers: []types.StatedIdentifier{{Type: "currency", Value: "USD"}}})
 	require.NoError(t, err)
 	create := func(broker gen.Broker, order time.Time, quantity string) gen.Transaction {
 		t.Helper()

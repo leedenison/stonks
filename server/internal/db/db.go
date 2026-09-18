@@ -12,6 +12,15 @@
 // set of related rows is written in one batch without reading keys back. The
 // convention for keys is in [migrations.go](../migrations/migrations.go).
 //
+// Every query over a user's own data takes the caller's user id and filters
+// on it, so access is decided by the query and never checked after the read.
+// A caller with no access sees no row, and the handler answers not found;
+// see [service.go](../service/service.go).
+//
+// A consumer that must write several rows atomically declares the queries it
+// uses as an interface and takes a DB over it, whose Tx runs the interface
+// over one transaction; see [tx.go](tx.go).
+//
 // A condition a caller acts on crosses the package boundary as a sentinel
 // error, such as ErrNotFound, checked with errors.Is. A condition the driver
 // states as a SQLSTATE rather than an error value crosses as a predicate

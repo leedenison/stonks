@@ -1,11 +1,7 @@
 // Package run starts background work and records each piece of it as a run.
 //
 // A run is a row created before its work starts. The call starting it answers
-// with the row, and progress and the outcome are read against it. The states
-// and the columns each sets are on the runs table in
-// [002_runs.sql](../migrations/002_runs.sql). Each kind of work owns the
-// shape of its per-item rows, and the mix of outcomes for one run is a query
-// over them.
+// with the row, and progress and the outcome are read against it.
 //
 // A run is started by a user or by another run. A user's run executes in a
 // goroutine of its own once the call starting it has answered; receipt never
