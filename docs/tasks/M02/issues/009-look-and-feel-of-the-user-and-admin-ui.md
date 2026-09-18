@@ -170,9 +170,10 @@ the page title on the left, the page's actions beside it as text actions, and a 
 below, on the surface colour. The body sits under the bar with its own padding, at prose
 width for a form or a record and wide for a table. A page without actions still has the
 bar with its title. The upload action sits in the bar of the transactions and statements
-pages. A page that is not a top-level navigation item has a back arrow left of its title
-that returns to the previous screen, or to the page a user would have come from when it
-was opened directly. A statement's page is titled by its broker and the moment the upload
+pages. A page reached from another page, as a statement's page is from the statements,
+has a back arrow left of its title that returns to the previous screen, or to the page a
+user would have come from when it was opened directly. The statements and profile pages
+are top-level pages and have none. A statement's page is titled by its broker and the moment the upload
 started, as "IBKR upload @ 2026-09-18 13:07 UTC".
 
 A dialog is centred over a 40% black overlay on a rounded surface, with a titled header row
