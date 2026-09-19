@@ -1,5 +1,6 @@
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import { timestampDate } from "@bufbuild/protobuf/wkt";
+import { toFixed } from "./marshal/decimal";
 
 // formatInstant renders a timestamp to the minute in UTC, the zone every
 // time in the API is stated in.
@@ -26,7 +27,6 @@ export function formatElapsed(ms: number): string {
 // formatQuantity renders a decimal quantity for a sample: rounded to two
 // places and cut with an ellipsis past nine characters.
 export function formatQuantity(quantity: string): string {
-  const n = Number(quantity);
-  const s = Number.isFinite(n) ? n.toFixed(2) : quantity;
+  const s = toFixed(quantity, 2);
   return s.length > 9 ? `${s.slice(0, 8).replace(/\.$/, "")}\u2026` : s;
 }

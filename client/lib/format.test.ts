@@ -13,9 +13,11 @@ describe("format", () => {
     expect(formatQuantity("100")).toBe("100.00");
     expect(formatQuantity("-0.03")).toBe("-0.03");
     expect(formatQuantity("13587.849")).toBe("13587.85");
+    expect(formatQuantity("1.005")).toBe("1.01");
+    expect(formatQuantity("-0.001")).toBe("0.00");
     expect(formatQuantity("123456789.12")).toBe("12345678\u2026");
     expect(formatQuantity("1234567.1")).toBe("1234567\u2026");
-    expect(formatQuantity("abc")).toBe("abc");
+    expect(() => formatQuantity("abc")).toThrow("not a decimal: abc");
   });
 
   it("renders elapsed time in its two largest units", () => {

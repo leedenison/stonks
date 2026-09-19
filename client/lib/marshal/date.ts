@@ -1,5 +1,7 @@
 // Dates cross the wire as ISO 8601 strings with no time. Nothing here builds a
-// Date from an export's local time, so no zone conversion moves a date.
+// Date from an export's local time, so no zone conversion moves a date. The
+// one Date read from the clock is read in the browser's zone, so today is the
+// user's calendar date.
 
 const MONTHS: Record<string, string> = {
   Jan: "01",
@@ -24,6 +26,15 @@ export function iso(year: string, month: string, day: string): string {
 // undefined for anything else.
 export function monthNumber(name: string): string | undefined {
   return MONTHS[name];
+}
+
+// today is the calendar date of now in the browser's zone.
+export function today(now = new Date()): string {
+  return iso(
+    String(now.getFullYear()),
+    String(now.getMonth() + 1),
+    String(now.getDate()),
+  );
 }
 
 export function nextDay(date: string): string {

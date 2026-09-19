@@ -3,9 +3,9 @@
 //
 // The conventions the whole client follows:
 //
-// Money and quantities are exact decimals through big.js, never JavaScript
-// number arithmetic. The package is installed by the first code that handles
-// an amount.
+// Money and quantities are decimal strings, and every operation on one goes
+// through lib/marshal/decimal.ts, which is exact; none passes through a
+// JavaScript number.
 //
 // Nothing fetches in an effect. Server state goes through the query client,
 // lib/query-client.ts, and a query that needs a session through

@@ -10,7 +10,7 @@ import { Broker } from "@/gen/type/v1/type_pb";
 import { useCreateStatement } from "@/hooks/use-create-statement";
 import { brokerLabel, brokers } from "@/lib/broker";
 import { formatQuantity } from "@/lib/format";
-import { nextDay, prevDay } from "@/lib/marshal/date";
+import { nextDay, prevDay, today } from "@/lib/marshal/date";
 import { recognisedBy } from "@/lib/marshal/marshal";
 import { keyLabel } from "@/lib/rejections";
 import { needsExportDate, parseExport } from "@/lib/upload/parse";
@@ -27,9 +27,9 @@ const inputClass =
 
 type Loaded = { name: string; type: string; text: string };
 
-function today(): string {
-  return new Date().toISOString().slice(0, 10);
-}
+const oversize = (file: File) => file.size > maxBytes;
+const tooLarge = (file: File) => `${file.name} is larger than a broker export.`;
+const unreadable = (file: File) => `${file.name} could not be read.`;
 
 // UploadDialog takes a broker's export through its stages: choose or drop a
 // file, read it, review what the marshaller made of it with the broker,
@@ -46,9 +46,13 @@ export function UploadDialog({
   onClose: () => void;
   onCreated?: (run: Run) => void;
 }) {
-  const [reading, setReading] = useState(initial !== undefined);
+  const [reading, setReading] = useState(
+    initial !== undefined && !oversize(initial),
+  );
   const [loaded, setLoaded] = useState<Loaded>();
-  const [fileError, setFileError] = useState<string>();
+  const [fileError, setFileError] = useState(() =>
+    initial && oversize(initial) ? tooLarge(initial) : undefined,
+  );
   const [broker, setBroker] = useState<Broker>();
   const [guesses, setGuesses] = useState<Broker[]>([]);
   const [exportedOn, setExportedOn] = useState(today);
@@ -56,11 +60,6 @@ export function UploadDialog({
   const created = useCreateStatement();
 
   const finish = (file: File, text: string) => {
-    if (file.size > maxBytes) {
-      setFileError(`${file.name} is larger than a broker export.`);
-      setReading(false);
-      return;
-    }
     const found = recognisedBy(text, file.type);
     setLoaded({ name: file.name, type: file.type, text });
     setGuesses(found);
@@ -69,24 +68,45 @@ export function UploadDialog({
     setReading(false);
   };
 
-  const take = (file: File) => {
-    setFileError(undefined);
-    setReading(true);
-    file.text().then((text) => finish(file, text));
+  const refuse = (message: string) => {
+    setFileError(message);
+    setReading(false);
   };
 
-  // A file handed over at opening is read at once. The read is started here
-  // and settles after this opening, unless the dialog has gone by then.
+  // An oversize file is refused on its size alone; nothing of it is read.
+  const take = (file: File) => {
+    if (oversize(file)) {
+      setFileError(tooLarge(file));
+      return;
+    }
+    setFileError(undefined);
+    setReading(true);
+    file.text().then(
+      (text) => finish(file, text),
+      () => refuse(unreadable(file)),
+    );
+  };
+
+  // A file handed over at opening is read at once, unless its size already
+  // refused it. The read is started here and settles after this opening,
+  // unless the dialog has gone by then.
   useEffect(() => {
-    if (!initial) {
+    if (!initial || oversize(initial)) {
       return;
     }
     let live = true;
-    initial.text().then((text) => {
-      if (live) {
-        finish(initial, text);
-      }
-    });
+    initial.text().then(
+      (text) => {
+        if (live) {
+          finish(initial, text);
+        }
+      },
+      () => {
+        if (live) {
+          refuse(unreadable(initial));
+        }
+      },
+    );
     return () => {
       live = false;
     };
