@@ -20,8 +20,6 @@ of open issues and ADRs at `docs/tasks/<label>/`.
 ```
 001 open
  |
-008 holdings
- |
 002 close
 ```
 
