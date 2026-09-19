@@ -71,6 +71,3 @@ payment of fees and the payment of tax).
 **Leg** -- a component transaction making up one part of an economic event.
 
 **Residual** -- the remainder of an event whose transactions do not balance.
-
-**Holding** -- a quantity of one instrument held by a user, derived from that user's
-transactions in that instrument.

@@ -1,0 +1,39 @@
+// Holdings: the quantity of each instrument a user holds. A holding is the
+// sum of the user's transaction quantities in one instrument across every
+// listing of it, and a sum of zero is not a holding. Quantities are raw: no
+// corporate event restates them. Every RPC requires a session and reads the
+// caller's own transactions.
+
+syntax = "proto3";
+
+package stonks.holding.v1;
+
+import "type/v1/type.proto";
+
+option go_package = "github.com/leedenison/stonks/proto/holding/v1;holdingv1";
+
+message Holding {
+  // The instrument held; a UUID.
+  string instrument_id = 1;
+  stonks.type.v1.AssetClass asset_class = 2;
+  // Every identifier naming the instrument or one of its listings that is
+  // system owned or the caller's own, so a broker's description of a line
+  // is among them. Empty when nothing the caller can see names it.
+  repeated stonks.type.v1.Identifier identifiers = 3;
+  // The sum of the caller's transaction quantities: shares, contracts, or
+  // money for cash, with no trailing zeros. Negative when more has been
+  // disposed of than acquired.
+  string quantity = 4;
+}
+
+message ListHoldingsRequest {}
+
+message ListHoldingsResponse {
+  // In no particular order.
+  repeated Holding holdings = 1;
+}
+
+service HoldingService {
+  // Lists the caller's holdings.
+  rpc ListHoldings(ListHoldingsRequest) returns (ListHoldingsResponse);
+}

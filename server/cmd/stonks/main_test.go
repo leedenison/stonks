@@ -145,8 +145,8 @@ func TestServer(t *testing.T) {
 		if err != nil {
 			t.Fatalf("ListServices: %v", err)
 		}
-		if len(names) != 4 {
-			t.Errorf("ListServices = %v, want the four services", names)
+		if len(names) != 5 {
+			t.Errorf("ListServices = %v, want the five services", names)
 		}
 		if got := endedNames(); len(got) != 0 {
 			t.Errorf("reflection recorded spans %v, want none", got)
