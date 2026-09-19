@@ -20,6 +20,7 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
 	"github.com/leedenison/stonks/proto/auth/v1/authv1connect"
+	"github.com/leedenison/stonks/proto/holding/v1/holdingv1connect"
 	"github.com/leedenison/stonks/proto/instrument/v1/instrumentv1connect"
 	"github.com/leedenison/stonks/proto/run/v1/runv1connect"
 	"github.com/leedenison/stonks/proto/statement/v1/statementv1connect"
@@ -33,6 +34,7 @@ import (
 	runner "github.com/leedenison/stonks/server/internal/run"
 	"github.com/leedenison/stonks/server/internal/service"
 	authsvc "github.com/leedenison/stonks/server/internal/service/auth"
+	holdingsvc "github.com/leedenison/stonks/server/internal/service/holding"
 	"github.com/leedenison/stonks/server/internal/service/instrument"
 	runsvc "github.com/leedenison/stonks/server/internal/service/run"
 	stmtsvc "github.com/leedenison/stonks/server/internal/service/statement"
@@ -166,11 +168,12 @@ func newServer(addr string, log *slog.Logger, authn *auth.Authenticator, queries
 		w.WriteHeader(http.StatusOK)
 	})
 	mux.Handle(authv1connect.NewAuthServiceHandler(authsvc.New(authn, secure), opts...))
+	mux.Handle(holdingv1connect.NewHoldingServiceHandler(holdingsvc.New(queries), opts...))
 	mux.Handle(instrumentv1connect.NewInstrumentServiceHandler(instrument.New(), opts...))
 	mux.Handle(runv1connect.NewRunServiceHandler(runsvc.New(queries), opts...))
 	mux.Handle(statementv1connect.NewStatementServiceHandler(stmtsvc.New(ingester, queries), opts...))
 	reflector := grpcreflect.NewStaticReflector(
-		authv1connect.AuthServiceName, instrumentv1connect.InstrumentServiceName,
+		authv1connect.AuthServiceName, holdingv1connect.HoldingServiceName, instrumentv1connect.InstrumentServiceName,
 		runv1connect.RunServiceName, statementv1connect.StatementServiceName,
 	)
 	mux.Handle(grpcreflect.NewHandlerV1(reflector, opts...))
