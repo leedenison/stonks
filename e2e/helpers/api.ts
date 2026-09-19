@@ -2,6 +2,7 @@ import type { DescService } from "@bufbuild/protobuf";
 import { type Client, createClient } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
 import { AuthService } from "../gen/auth/v1/auth_pb";
+import { HoldingService } from "../gen/holding/v1/holding_pb";
 import { StatementService } from "../gen/statement/v1/statement_pb";
 import { sessionCookie } from "./auth";
 import { baseURL } from "./config";
@@ -33,4 +34,8 @@ export function authClient(sessionID?: string) {
 
 export function statementClient(sessionID: string) {
   return clientFor(StatementService, sessionID);
+}
+
+export function holdingClient(sessionID: string) {
+  return clientFor(HoldingService, sessionID);
 }

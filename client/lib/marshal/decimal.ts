@@ -51,3 +51,25 @@ export function negate(a: string): string {
 export function isZero(a: string): boolean {
   return parse(a).units === 0n;
 }
+
+// toFixed rounds to places decimal places, half away from zero, and keeps
+// the trailing zeros, so a column of quantities aligns.
+export function toFixed(a: string, places: number): string {
+  const x = parse(a);
+  let units: bigint;
+  if (x.scale > places) {
+    const div = 10n ** BigInt(x.scale - places);
+    const q = x.units / div;
+    const r = x.units % div;
+    const half = (r < 0n ? -r : r) * 2n >= div;
+    units = half ? q + (x.units < 0n ? -1n : 1n) : q;
+  } else {
+    units = rescale(x, places);
+  }
+  const digits = (units < 0n ? -units : units)
+    .toString()
+    .padStart(places + 1, "0");
+  const whole = digits.slice(0, digits.length - places);
+  const frac = digits.slice(digits.length - places);
+  return `${units < 0n ? "-" : ""}${whole}${places ? `.${frac}` : ""}`;
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { add, isZero, negate, normalise } from "./decimal";
+import { add, isZero, negate, normalise, toFixed } from "./decimal";
 
 describe("normalise", () => {
   it.each([
@@ -45,5 +45,27 @@ describe("isZero", () => {
     expect(isZero("0.00")).toBe(true);
     expect(isZero("-0")).toBe(true);
     expect(isZero("0.001")).toBe(false);
+  });
+});
+
+describe("toFixed", () => {
+  it.each([
+    ["120", "120.00"],
+    ["19.26", "19.26"],
+    ["0.1", "0.10"],
+    ["12092.79", "12092.79"],
+    ["0.005", "0.01"],
+    ["-0.005", "-0.01"],
+    ["1.995", "2.00"],
+    ["-141", "-141.00"],
+    ["-0.001", "0.00"],
+    ["13587.849", "13587.85"],
+  ])("rounds %s to two places as %s", (input, want) => {
+    expect(toFixed(input, 2)).toBe(want);
+  });
+
+  it("rounds to the whole with no places", () => {
+    expect(toFixed("2.5", 0)).toBe("3");
+    expect(toFixed("-2.5", 0)).toBe("-3");
   });
 });
