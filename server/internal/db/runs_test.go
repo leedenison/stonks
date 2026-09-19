@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgerrcode"
 	"github.com/stretchr/testify/require"
 
 	"github.com/leedenison/stonks/server/internal/db"
@@ -104,5 +105,19 @@ func TestRuns(t *testing.T) {
 	_, err = q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: owner.ID, Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser, ParentID: &completed.ID})
 	if err == nil {
 		t.Error("CreateRun with trigger user and a parent succeeded, want a check violation")
+	}
+}
+
+// TestRunParent checks that a run names as parent only a run of its own user.
+func TestRunParent(t *testing.T) {
+	q := newTx(t)
+	ctx := context.Background()
+	owner := newUser(t, q, "parent-owner@example.com")
+	other := newUser(t, q, "parent-other@example.com")
+	parent := newRun(t, q, owner)
+	// The violation aborts the transaction, so it is the last statement.
+	_, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: other.ID, Kind: gen.RunKindResolution, Trigger: gen.RunTriggerRun, ParentID: &parent.ID})
+	if !sqlstate(err, pgerrcode.ForeignKeyViolation) {
+		t.Errorf("CreateRun under another user's run: err = %v, want a foreign key violation", err)
 	}
 }

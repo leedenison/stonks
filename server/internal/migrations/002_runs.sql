@@ -22,12 +22,13 @@ CREATE TABLE runs (
     user_id     uuid        NOT NULL REFERENCES users (id),
     kind        run_kind    NOT NULL,
     trigger     run_trigger NOT NULL,
-    parent_id   uuid        REFERENCES runs (id),
+    parent_id   uuid,
     state       run_state   NOT NULL DEFAULT 'pending',
     error       text,
     created_at  timestamptz NOT NULL DEFAULT now(),
     started_at  timestamptz,
     finished_at timestamptz,
     CHECK ((trigger = 'run') = (parent_id IS NOT NULL)),
-    UNIQUE (id, user_id)
+    UNIQUE (id, user_id),
+    FOREIGN KEY (parent_id, user_id) REFERENCES runs (id, user_id)
 );
