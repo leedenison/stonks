@@ -121,6 +121,43 @@ func TestStartRecordsFailure(t *testing.T) {
 	}
 }
 
+// TestStartCreateFails checks that a run whose row cannot be inserted is
+// reported as never started and does not hold its lane.
+func TestStartCreateFails(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	t.Cleanup(ctrl.Finish)
+	store := mock.NewMockStore(ctrl)
+	boom := errors.New("boom")
+	store.EXPECT().CreateRun(gomock.Any(), gomock.Any()).Return(gen.Run{}, boom)
+	store.EXPECT().CreateRun(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.CreateRunParams) (gen.Run, error) {
+		return gen.Run{ID: arg.ID, UserID: arg.UserID, Kind: arg.Kind, Trigger: arg.Trigger, State: gen.RunStatePending}, nil
+	})
+	store.EXPECT().StartRun(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, id uuid.UUID) (gen.Run, error) {
+		return gen.Run{ID: id, State: gen.RunStateRunning}, nil
+	})
+	completed, done := signal()
+	store.EXPECT().CompleteRun(gomock.Any(), gomock.Any()).DoAndReturn(func(context.Context, uuid.UUID) error { done(); return nil })
+	r := New(store, slog.New(slog.DiscardHandler))
+	t.Cleanup(r.Close)
+
+	spec := Spec{Kind: gen.RunKindStatement, UserID: userA, Lane: "ibkr", Prepare: func(context.Context, gen.Run) error {
+		t.Error("Prepare ran for a run that was not inserted")
+		return nil
+	}}
+	_, err := r.Start(context.Background(), spec, func(context.Context, gen.Run) error {
+		t.Error("work ran for a run that was not inserted")
+		return nil
+	})
+	if !errors.Is(err, boom) {
+		t.Errorf("Start() error = %v, want %v", err, boom)
+	}
+	next := Spec{Kind: gen.RunKindStatement, UserID: userA, Lane: "ibkr"}
+	if _, err := r.Start(context.Background(), next, func(context.Context, gen.Run) error { return nil }); err != nil {
+		t.Fatalf("Start() after the failed insert error = %v", err)
+	}
+	await(t, completed, "CompleteRun of the next run in the lane")
+}
+
 // TestStartOrdersLane checks that a run of one user and lane does not start
 // until the earlier one has stopped, while other lanes are unaffected.
 func TestStartOrdersLane(t *testing.T) {

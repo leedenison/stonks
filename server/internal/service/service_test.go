@@ -88,13 +88,14 @@ func TestHandlerOptions(t *testing.T) {
 		name     string
 		token    string
 		wantCode connect.Code
+		wantMsg  string
 		wantLog  string
 	}{
 		{name: "ok", token: "token"},
 		{name: "invalid request", token: "", wantCode: connect.CodeInvalidArgument},
-		{name: "client fault", token: "missing", wantCode: connect.CodeNotFound},
-		{name: "server fault", token: "fault", wantCode: connect.CodeInternal, wantLog: "rpc failed"},
-		{name: "panic", token: "panic", wantCode: connect.CodeInternal, wantLog: "rpc panicked"},
+		{name: "client fault", token: "missing", wantCode: connect.CodeNotFound, wantMsg: "no such"},
+		{name: "server fault", token: "fault", wantCode: connect.CodeInternal, wantMsg: "internal error", wantLog: "boom"},
+		{name: "panic", token: "panic", wantCode: connect.CodeInternal, wantMsg: "internal error", wantLog: "rpc panicked"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -107,6 +108,9 @@ func TestHandlerOptions(t *testing.T) {
 				t.Errorf("SignIn(%q) error = %v, want nil", tc.token, err)
 			case tc.wantCode != 0 && connect.CodeOf(err) != tc.wantCode:
 				t.Errorf("SignIn(%q) code = %v (err %v), want %v", tc.token, connect.CodeOf(err), err, tc.wantCode)
+			}
+			if tc.wantMsg != "" && messageOf(err) != tc.wantMsg {
+				t.Errorf("SignIn(%q) message = %q, want %q", tc.token, messageOf(err), tc.wantMsg)
 			}
 			if tc.wantLog == "" {
 				if f.log.Len() > 0 {
@@ -128,13 +132,14 @@ func TestAuthenticate(t *testing.T) {
 		cookie   string
 		call     func(f *fixture) error
 		wantCode connect.Code
+		wantMsg  string
 		wantSeen *auth.Principal
 		wantLog  bool
 	}{
 		{name: "required without cookie", call: listInstruments, wantCode: connect.CodeUnauthenticated},
 		{name: "required with live session", cookie: "stonks_session=live", call: listInstruments, wantSeen: &live},
 		{name: "required with dead session", cookie: "stonks_session=dead", call: listInstruments, wantCode: connect.CodeUnauthenticated},
-		{name: "required with store failure", cookie: "stonks_session=broken", call: listInstruments, wantCode: connect.CodeInternal, wantLog: true},
+		{name: "required with store failure", cookie: "stonks_session=broken", call: listInstruments, wantCode: connect.CodeInternal, wantLog: true, wantMsg: "internal error"},
 		{name: "optional without cookie", call: getSession},
 		{name: "optional with live session", cookie: "stonks_session=live", call: getSession, wantSeen: &live},
 		{name: "optional with dead session", cookie: "stonks_session=dead", call: getSession},
@@ -160,6 +165,9 @@ func TestAuthenticate(t *testing.T) {
 			if codeOf(err) != tc.wantCode {
 				t.Errorf("call with cookie %q: code = %v (err %v), want %v", tc.cookie, connect.CodeOf(err), err, tc.wantCode)
 			}
+			if tc.wantMsg != "" && messageOf(err) != tc.wantMsg {
+				t.Errorf("call with cookie %q: message = %q, want %q", tc.cookie, messageOf(err), tc.wantMsg)
+			}
 			switch {
 			case tc.wantSeen == nil && f.stub.seen != nil:
 				t.Errorf("handler saw principal %+v, want none", *f.stub.seen)
@@ -168,6 +176,9 @@ func TestAuthenticate(t *testing.T) {
 			}
 			if got := strings.Count(f.log.String(), "level=ERROR"); (got == 1) != tc.wantLog {
 				t.Errorf("logged %d error lines, want logged %v:\n%s", got, tc.wantLog, f.log.String())
+			}
+			if tc.wantLog && !strings.Contains(f.log.String(), "redis down") {
+				t.Errorf("log lacks the store's error:\n%s", f.log.String())
 			}
 		})
 	}
@@ -196,6 +207,15 @@ func (c *cookieTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 		req.Header.Set("Cookie", c.cookie)
 	}
 	return c.next.RoundTrip(req)
+}
+
+// messageOf is the message a client reads from err, without its code prefix.
+func messageOf(err error) string {
+	var cerr *connect.Error
+	if errors.As(err, &cerr) {
+		return cerr.Message()
+	}
+	return ""
 }
 
 // codeOf is connect.CodeOf with 0 for success, so a want of 0 means no error.

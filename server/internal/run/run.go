@@ -83,56 +83,67 @@ type Runner struct {
 	store Store
 	log   *slog.Logger
 
-	closing chan struct{}
-	wg      sync.WaitGroup
+	// ctx is the context every run's work receives; Close cancels it.
+	ctx    context.Context
+	cancel context.CancelFunc
+	wg     sync.WaitGroup
 
-	mu     sync.Mutex
-	closed bool
-	// lanes holds per lane channels.
+	mu sync.Mutex
+	// lanes holds, per user and lane, the done channel of the last run
+	// started in it.
 	lanes map[laneKey]chan struct{}
 }
 
 // New returns a Runner over store.
 func New(store Store, log *slog.Logger) *Runner {
-	return &Runner{store: store, log: log, closing: make(chan struct{}), lanes: map[laneKey]chan struct{}{}}
+	ctx, cancel := context.WithCancel(context.Background())
+	return &Runner{store: store, log: log, ctx: ctx, cancel: cancel, lanes: map[laneKey]chan struct{}{}}
+}
+
+// handoff is what Start gives its goroutine once the row exists and Prepare
+// has run. The channel carrying it is closed without one when the insert
+// failed.
+type handoff struct {
+	row gen.Run
+	err error
 }
 
 // Start records a run of trigger user, runs spec.Prepare, and queues the
-// work. It returns the pending row without waiting for the work.
+// work. It returns the pending row without waiting for the work. A run whose
+// row could not be inserted was never started and holds no place in its lane.
 func (r *Runner) Start(ctx context.Context, spec Spec, work Work) (gen.Run, error) {
-	// Held across the insert and the enqueue so lane order is creation order.
+	// The id is minted and the lane linked under the lock, so lane order is
+	// id order; the insert and Prepare run outside it.
 	r.mu.Lock()
-	if r.closed {
+	if r.ctx.Err() != nil {
 		r.mu.Unlock()
 		return gen.Run{}, ErrClosed
 	}
-	row, err := r.store.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: spec.UserID, Kind: spec.Kind, Trigger: gen.RunTriggerUser})
-	if err != nil {
-		r.mu.Unlock()
-		return gen.Run{}, fmt.Errorf("create run: %w", err)
-	}
+	id := db.NewID()
 	key := laneKey{user: spec.UserID, lane: spec.Lane}
 	prev := r.lanes[key]
 	done := make(chan struct{})
 	r.lanes[key] = done
-	ready := make(chan error, 1)
+	ready := make(chan handoff, 1)
 	r.wg.Add(1)
-	go r.background(row, work, key, prev, done, ready)
+	go r.background(work, key, prev, done, ready)
 	r.mu.Unlock()
+	row, err := r.store.CreateRun(ctx, gen.CreateRunParams{ID: id, UserID: spec.UserID, Kind: spec.Kind, Trigger: gen.RunTriggerUser})
+	if err != nil {
+		close(ready)
+		return gen.Run{}, fmt.Errorf("create run: %w", err)
+	}
 	if spec.Prepare != nil {
 		err = call(ctx, row, spec.Prepare)
 	}
-	ready <- err
+	ready <- handoff{row: row, err: err}
 	return row, err
 }
 
 // Child records a run of trigger run under parent and executes its work
 // inline. It returns the row as created and the error the work returned.
 func (r *Runner) Child(ctx context.Context, parent gen.Run, kind gen.RunKind, work Work) (gen.Run, error) {
-	r.mu.Lock()
-	closed := r.closed
-	r.mu.Unlock()
-	if closed {
+	if r.ctx.Err() != nil {
 		return gen.Run{}, ErrClosed
 	}
 	row, err := r.store.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: parent.UserID, Kind: kind, Trigger: gen.RunTriggerRun, ParentID: &parent.ID})
@@ -146,15 +157,12 @@ func (r *Runner) Child(ctx context.Context, parent gen.Run, kind gen.RunKind, wo
 // goroutine to stop. Pending runs are dropped.
 func (r *Runner) Close() {
 	r.mu.Lock()
-	if !r.closed {
-		r.closed = true
-		close(r.closing)
-	}
+	r.cancel()
 	r.mu.Unlock()
 	r.wg.Wait()
 }
 
-func (r *Runner) background(row gen.Run, work Work, key laneKey, prev <-chan struct{}, done chan struct{}, ready <-chan error) {
+func (r *Runner) background(work Work, key laneKey, prev <-chan struct{}, done chan struct{}, ready <-chan handoff) {
 	defer r.wg.Done()
 	defer func() {
 		close(done)
@@ -167,38 +175,32 @@ func (r *Runner) background(row gen.Run, work Work, key laneKey, prev <-chan str
 	if prev != nil {
 		select {
 		case <-prev:
-		case <-r.closing:
+		case <-r.ctx.Done():
 			return
 		}
 	}
+	var (
+		h  handoff
+		ok bool
+	)
 	select {
-	case err := <-ready:
-		if err != nil {
-			work = func(context.Context, gen.Run) error { return err }
+	case h, ok = <-ready:
+		if !ok {
+			return
 		}
-	case <-r.closing:
+	case <-r.ctx.Done():
 		return
 	}
-	ctx, cancel := r.context()
-	defer cancel()
-	if err := r.execute(ctx, row, work); err != nil && ctx.Err() == nil {
-		r.log.Warn("run failed", "run", row.ID, "kind", row.Kind, "err", err)
+	if h.err != nil {
+		err := h.err
+		work = func(context.Context, gen.Run) error { return err }
 	}
-}
-
-// context returns a context cancelled when the runner closes.
-func (r *Runner) context() (context.Context, context.CancelFunc) {
-	ctx, cancel := context.WithCancel(context.Background())
-	r.wg.Add(1)
-	go func() {
-		defer r.wg.Done()
-		select {
-		case <-r.closing:
-			cancel()
-		case <-ctx.Done():
-		}
-	}()
-	return ctx, cancel
+	if r.ctx.Err() != nil {
+		return
+	}
+	if err := r.execute(r.ctx, h.row, work); err != nil && r.ctx.Err() == nil {
+		r.log.Warn("run failed", "run", h.row.ID, "kind", h.row.Kind, "err", err)
+	}
 }
 
 // execute moves row through running to a terminal state and returns the
