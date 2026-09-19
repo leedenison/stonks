@@ -91,7 +91,7 @@ func newIngestion(t *testing.T) (*fixture, *ingestion) {
 }
 
 func TestCreateInvalid(t *testing.T) {
-	usd := "USD"
+	usd, xxx := "USD", "XXX"
 	good := func() *statementv1.Statement {
 		return &statementv1.Statement{Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01"}
 	}
@@ -112,6 +112,9 @@ func TestCreateInvalid(t *testing.T) {
 		}},
 		{name: "split with a bad ratio", edit: func(m *statementv1.Statement) {
 			m.Splits = []*statementv1.StatedSplit{{Key: securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd), EffectiveDate: "2026-03-02", Quantity: "9", Ratio: &statementv1.SplitRatio{From: "1", To: "ten"}}}
+		}},
+		{name: "split with an unknown currency", edit: func(m *statementv1.Statement) {
+			m.Splits = []*statementv1.StatedSplit{{Key: securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &xxx), EffectiveDate: "2026-03-02", Quantity: "9"}}
 		}},
 		{name: "split with an inadmissible key", edit: func(m *statementv1.Statement) {
 			m.Splits = []*statementv1.StatedSplit{{Key: securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, "US1", nil), ident(typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, "US2", nil)), EffectiveDate: "2026-03-02", Quantity: "9"}}

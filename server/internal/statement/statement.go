@@ -126,7 +126,7 @@ func (s *Service) Create(ctx context.Context, userID uuid.UUID, msg *statementv1
 		g.rows = append(g.rows, g.validate(int32(i), r, today, currencies))
 	}
 	for i, sp := range msg.GetSplits() {
-		split, err := g.split(int32(i), sp)
+		split, err := g.split(int32(i), sp, currencies)
 		if err != nil {
 			return gen.Run{}, fmt.Errorf("%w: split %d: %w", ErrInvalid, i, err)
 		}
