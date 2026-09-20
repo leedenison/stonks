@@ -65,7 +65,7 @@ func (g *ingestion) validate(ordinal int32, r *statementv1.Row, today time.Time,
 }
 
 // split reads sp, whose key must pass the checks a row's does.
-func (g *ingestion) split(ordinal int32, sp *statementv1.StatedSplit) (split, error) {
+func (g *ingestion) split(ordinal int32, sp *statementv1.StatedSplit, currencies map[string]bool) (split, error) {
 	out := split{ordinal: ordinal}
 	if sp.GetKey() == nil {
 		return out, fmt.Errorf("no key")
@@ -76,6 +76,9 @@ func (g *ingestion) split(ordinal int32, sp *statementv1.StatedSplit) (split, er
 	}
 	if !k.admissible() {
 		return out, fmt.Errorf("no admissible identifier")
+	}
+	if k.currency != nil && !currencies[*k.currency] {
+		return out, fmt.Errorf("unknown currency %q", *k.currency)
 	}
 	if out.effective, err = parseDate(sp.GetEffectiveDate()); err != nil {
 		return out, fmt.Errorf("malformed effective date %q", sp.GetEffectiveDate())

@@ -93,6 +93,11 @@ func statementMsg() *statementv1.Statement {
 	return &statementv1.Statement{Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01"}
 }
 
+// splitMsg returns a split of key that passes every check but those on the key.
+func splitMsg(key *typev1.StatedKey) *statementv1.StatedSplit {
+	return &statementv1.StatedSplit{Key: key, EffectiveDate: "2026-03-05", Quantity: "10"}
+}
+
 func TestCreateStatement(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -108,6 +113,30 @@ func TestCreateStatement(t *testing.T) {
 		{name: "no broker", edit: func(m *statementv1.Statement) { m.Broker = typev1.Broker_BROKER_UNSPECIFIED }, wantCode: connect.CodeInvalidArgument},
 		{name: "malformed split", edit: func(m *statementv1.Statement) {
 			m.Splits = []*statementv1.StatedSplit{{Key: &typev1.StatedKey{}, EffectiveDate: "2026-03-05", Quantity: "ten"}}
+		}, wantCode: connect.CodeInvalidArgument},
+		{name: "split currency not a code", edit: func(m *statementv1.Statement) {
+			m.Splits = []*statementv1.StatedSplit{splitMsg(&typev1.StatedKey{Currency: ptr("usd")})}
+		}, wantCode: connect.CodeInvalidArgument},
+		{name: "split identifier without a type", edit: func(m *statementv1.Statement) {
+			m.Splits = []*statementv1.StatedSplit{splitMsg(&typev1.StatedKey{Identifiers: []*typev1.Identifier{{Value: "ACME"}}})}
+		}, wantCode: connect.CodeInvalidArgument},
+		{name: "split identifier without a value", edit: func(m *statementv1.Statement) {
+			m.Splits = []*statementv1.StatedSplit{splitMsg(&typev1.StatedKey{Identifiers: []*typev1.Identifier{{Type: typev1.IdentifierType_IDENTIFIER_TYPE_ISIN}}})}
+		}, wantCode: connect.CodeInvalidArgument},
+		{name: "split key with a currency and identifiers", edit: func(m *statementv1.Statement) {
+			m.Splits = []*statementv1.StatedSplit{splitMsg(&typev1.StatedKey{Currency: ptr("USD"), Identifiers: []*typev1.Identifier{{Type: typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, Value: "US0000000001"}}})}
+		}, called: true},
+		{name: "too many rows", edit: func(m *statementv1.Statement) {
+			m.Rows = make([]*statementv1.Row, 50001)
+			for i := range m.Rows {
+				m.Rows[i] = &statementv1.Row{}
+			}
+		}, wantCode: connect.CodeInvalidArgument},
+		{name: "too many splits", edit: func(m *statementv1.Statement) {
+			m.Splits = make([]*statementv1.StatedSplit, 1001)
+			for i := range m.Splits {
+				m.Splits[i] = splitMsg(&typev1.StatedKey{})
+			}
 		}, wantCode: connect.CodeInvalidArgument},
 		{name: "unreadable", err: fmt.Errorf("%w: split 0: no key", statement.ErrInvalid), called: true, wantCode: connect.CodeInvalidArgument},
 		{name: "failure", err: errors.New("boom"), called: true, wantCode: connect.CodeInternal},

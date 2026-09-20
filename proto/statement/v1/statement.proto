@@ -53,8 +53,20 @@ message SplitRatio {
 
 // A split as the export states it. Ingestion compares it with the corporate
 // event calendar and never applies it. The marshaller builds a split, so an
-// invalid one fails the statement.
+// invalid one fails the statement: its key states a currency as an ISO 4217
+// code or not at all, and every identifier of the key has a type and a value.
 message StatedSplit {
+  option (buf.validate.message).cel = {
+    id: "stated_split.currency"
+    message: "key.currency must be an ISO 4217 code"
+    expression: "!has(this.key.currency) || this.key.currency.matches('^[A-Z]{3}$')"
+  };
+  option (buf.validate.message).cel = {
+    id: "stated_split.identifiers"
+    message: "every key identifier must have a type and a value"
+    expression: "this.key.identifiers.all(i, i.type != 0 && i.value != '')"
+  };
+
   stonks.type.v1.StatedKey key = 1 [(buf.validate.field).required = true];
   string effective_date = 2 [(buf.validate.field).string.pattern = "^\\d{4}-\\d{2}-\\d{2}$"];
   // The change in units the export states; negative for a short position.
@@ -78,8 +90,11 @@ message Statement {
   string order_from = 2 [(buf.validate.field).string.pattern = "^\\d{4}-\\d{2}-\\d{2}$"];
   // The day after the last order date claimed.
   string order_before = 3 [(buf.validate.field).string.pattern = "^\\d{4}-\\d{2}-\\d{2}$"];
-  repeated Row rows = 4;
-  repeated StatedSplit splits = 5;
+  // The legs the statement carries, at most 50000. None is a statement
+  // deleting its period.
+  repeated Row rows = 4 [(buf.validate.field).repeated.max_items = 50000];
+  // The splits the export states, at most 1000.
+  repeated StatedSplit splits = 5 [(buf.validate.field).repeated.max_items = 1000];
 }
 
 // One ingestion of a statement and what it did. The run carries its state;
