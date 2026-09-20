@@ -4,7 +4,10 @@
 // gRPC and gRPC-Web protocols on one endpoint, so a cookie is a plain HTTP
 // header in both directions. Each proto package has one handler package below
 // this one. A handler translates the sentinel errors of the packages it calls
-// into Connect codes; nothing below this boundary imports connect.
+// into Connect codes; nothing below this boundary imports connect. An error
+// whose code a client cannot have caused is logged with its text and leaves
+// the process as the code alone, its message replaced by "internal error", so
+// nothing a database or session store said reaches a client.
 //
 // HandlerOptions gives every handler one chain, outermost first: the RPC is
 // traced and timed, and its span records whatever code the caller finally
@@ -154,7 +157,8 @@ func (a *authenticate) apply(ctx context.Context, procedure string, h http.Heade
 	return ctx, nil
 }
 
-// logErrors logs a failure whose code a client cannot have caused.
+// logErrors logs a failure whose code a client cannot have caused and
+// replaces its message before it leaves the process.
 func logErrors(log *slog.Logger) connect.UnaryInterceptorFunc {
 	return func(next connect.UnaryFunc) connect.UnaryFunc {
 		return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
@@ -164,11 +168,15 @@ func logErrors(log *slog.Logger) connect.UnaryInterceptorFunc {
 					"procedure", req.Spec().Procedure,
 					"code", connect.CodeOf(err).String(),
 					"err", err)
+				return res, connect.NewError(connect.CodeOf(err), errors.New(masked))
 			}
 			return res, err
 		}
 	}
 }
+
+// masked is the message of every error a client sees for a server fault.
+const masked = "internal error"
 
 func serverFault(c connect.Code) bool {
 	switch c {
@@ -182,6 +190,6 @@ func serverFault(c connect.Code) bool {
 func recoverPanic(log *slog.Logger) func(context.Context, connect.Spec, http.Header, any) error {
 	return func(ctx context.Context, spec connect.Spec, _ http.Header, p any) error {
 		log.ErrorContext(ctx, "rpc panicked", "procedure", spec.Procedure, "panic", p)
-		return connect.NewError(connect.CodeInternal, errors.New("internal error"))
+		return connect.NewError(connect.CodeInternal, errors.New(masked))
 	}
 }
