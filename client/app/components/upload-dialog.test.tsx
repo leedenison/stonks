@@ -157,11 +157,33 @@ describe("UploadDialog", () => {
     const big = new File([new Uint8Array(5 * 1024 * 1024 + 1)], "big.csv", {
       type: "text/csv",
     });
+    const text = vi.spyOn(big, "text");
     fireEvent.change(screen.getByTestId("upload-file"), {
       target: { files: [big] },
     });
     await waitFor(() =>
       expect(screen.getByTestId("upload-error")).toBeTruthy(),
+    );
+    expect(screen.getByTestId("upload-file")).toBeTruthy();
+    expect(text).not.toHaveBeenCalled();
+  });
+
+  it("reports a file that cannot be read and offers another", async () => {
+    renderWithAuth(
+      <UploadDialog open onClose={() => {}} />,
+      transportWith(() => pending),
+    );
+    const gone = new File(["x"], "gone.csv", { type: "text/csv" });
+    vi.spyOn(gone, "text").mockRejectedValue(
+      new DOMException("moved", "NotReadableError"),
+    );
+    fireEvent.change(screen.getByTestId("upload-file"), {
+      target: { files: [gone] },
+    });
+    await waitFor(() =>
+      expect(screen.getByTestId("upload-error").textContent).toBe(
+        "gone.csv could not be read.",
+      ),
     );
     expect(screen.getByTestId("upload-file")).toBeTruthy();
   });
@@ -186,6 +208,22 @@ describe("UploadDialog", () => {
       ),
     );
     expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("refuses an oversize file handed over at opening without reading it", async () => {
+    const big = new File([new Uint8Array(5 * 1024 * 1024 + 1)], "big.csv", {
+      type: "text/csv",
+    });
+    const text = vi.spyOn(big, "text");
+    renderWithAuth(
+      <UploadDialog open onClose={() => {}} initial={big} />,
+      transportWith(() => pending),
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId("upload-error")).toBeTruthy(),
+    );
+    expect(screen.getByTestId("upload-file")).toBeTruthy();
+    expect(text).not.toHaveBeenCalled();
   });
 
   it("reads a file handed over at opening", async () => {
