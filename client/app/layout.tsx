@@ -4,8 +4,7 @@
 // The conventions the whole client follows:
 //
 // Money and quantities are decimal strings, and every operation on one goes
-// through lib/marshal/decimal.ts, which is exact; none passes through a
-// JavaScript number.
+// through lib/marshal/decimal.ts, which is exact.
 //
 // Nothing fetches in an effect. Server state goes through the query client,
 // lib/query-client.ts, and a query that needs a session through

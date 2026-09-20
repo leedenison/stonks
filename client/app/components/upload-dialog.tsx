@@ -73,7 +73,7 @@ export function UploadDialog({
     setReading(false);
   };
 
-  // An oversize file is refused on its size alone; nothing of it is read.
+  // An oversize file is refused on its size, before any of it is read.
   const take = (file: File) => {
     if (oversize(file)) {
       setFileError(tooLarge(file));
