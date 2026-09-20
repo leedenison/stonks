@@ -1,15 +1,6 @@
 import { create } from "@bufbuild/protobuf";
-import { timestampFromDate } from "@bufbuild/protobuf/wkt";
-import { createRouterTransport } from "@connectrpc/connect";
-import { renderHook, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
-import {
-  AuthService,
-  GetSessionResponseSchema,
-  Role,
-  SessionSchema,
-  UserSchema,
-} from "@/gen/auth/v1/auth_pb";
+import { act, renderHook, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   GetRunResponseSchema,
   RunSchema,
@@ -23,21 +14,27 @@ import {
   StatementService,
   StatementSummarySchema,
 } from "@/gen/statement/v1/statement_pb";
-import { authWrapper } from "@/lib/test-utils";
+import { pollInterval } from "@/lib/run";
+import { authWrapper, liveSession, transportWith } from "@/lib/test-utils";
 import { useRun } from "./use-run";
 import { useStatement } from "./use-statement";
 import { useStatements } from "./use-statements";
 
-const live = create(GetSessionResponseSchema, {
-  user: create(UserSchema, {
-    id: "u1",
-    email: "a@example.com",
-    role: Role.USER,
-  }),
-  session: create(SessionSchema, {
-    expiresAt: timestampFromDate(new Date("2026-09-16T00:00:00Z")),
-  }),
-});
+const live = liveSession();
+
+afterEach(() => vi.useRealTimers());
+
+// advance moves the faked clock by ms, then lets what that starts settle.
+// The query notifies its observers through zero-delay timers, which the
+// faked clock lands one millisecond on when they are scheduled mid-tick, and
+// each act boundary flushes the render a notification causes, so an answer
+// takes a few one-millisecond rounds to reach the hook.
+async function advance(ms: number) {
+  await act(() => vi.advanceTimersByTimeAsync(ms));
+  for (let i = 0; i < 3; i++) {
+    await act(() => vi.advanceTimersByTimeAsync(1));
+  }
+}
 
 function summary(id: string, state: RunState) {
   return create(StatementSummarySchema, {
@@ -59,14 +56,13 @@ function runAfter(n: number) {
   );
 }
 
-function transportWith(
+function serving(
   listStatements: () => ReturnType<
     typeof create<typeof ListStatementsResponseSchema>
   >,
   getRun = runAfter(0),
 ) {
-  return createRouterTransport(({ service }) => {
-    service(AuthService, { getSession: () => live });
+  return transportWith(live, ({ service }) => {
     service(StatementService, {
       listStatements,
       getStatement: (req) =>
@@ -83,6 +79,7 @@ function transportWith(
 
 describe("useStatements", () => {
   it("lists the statements and stops polling once every run is terminal", async () => {
+    vi.useFakeTimers();
     let reads = 0;
     const listStatements = vi.fn(() =>
       create(ListStatementsResponseSchema, {
@@ -92,36 +89,43 @@ describe("useStatements", () => {
         ],
       }),
     );
-    const { result } = renderHook(() => useStatements(10), {
-      wrapper: authWrapper(transportWith(listStatements)),
+    const { result } = renderHook(() => useStatements(), {
+      wrapper: authWrapper(serving(listStatements)),
     });
-    await waitFor(() =>
-      expect(result.current.data?.statements[0].run?.state).toBe(
-        RunState.COMPLETED,
-      ),
+    await advance(0);
+    expect(listStatements).toHaveBeenCalledTimes(1);
+    expect(result.current.data?.statements[0].run?.state).toBe(
+      RunState.PENDING,
     );
-    const settled = listStatements.mock.calls.length;
-    expect(settled).toBeGreaterThanOrEqual(3);
-    await new Promise((r) => setTimeout(r, 60));
-    expect(listStatements).toHaveBeenCalledTimes(settled);
+    await advance(pollInterval);
+    expect(listStatements).toHaveBeenCalledTimes(2);
+    await advance(pollInterval);
+    expect(listStatements).toHaveBeenCalledTimes(3);
+    expect(result.current.data?.statements[0].run?.state).toBe(
+      RunState.COMPLETED,
+    );
+    await advance(pollInterval * 3);
+    expect(listStatements).toHaveBeenCalledTimes(3);
   });
 });
 
 describe("useRun", () => {
   it("polls until the run is terminal", async () => {
+    vi.useFakeTimers();
     const getRun = runAfter(2);
-    const { result } = renderHook(() => useRun("r1", 10), {
+    const { result } = renderHook(() => useRun("r1"), {
       wrapper: authWrapper(
-        transportWith(() => create(ListStatementsResponseSchema, {}), getRun),
+        serving(() => create(ListStatementsResponseSchema, {}), getRun),
       ),
     });
-    await waitFor(() =>
-      expect(result.current.data?.run?.state).toBe(RunState.COMPLETED),
-    );
-    const settled = getRun.mock.calls.length;
-    expect(settled).toBe(3);
-    await new Promise((r) => setTimeout(r, 60));
-    expect(getRun).toHaveBeenCalledTimes(settled);
+    await advance(0);
+    expect(getRun).toHaveBeenCalledTimes(1);
+    expect(result.current.data?.run?.state).toBe(RunState.PENDING);
+    await advance(pollInterval * 2);
+    expect(getRun).toHaveBeenCalledTimes(3);
+    expect(result.current.data?.run?.state).toBe(RunState.COMPLETED);
+    await advance(pollInterval * 3);
+    expect(getRun).toHaveBeenCalledTimes(3);
   });
 });
 
@@ -129,7 +133,7 @@ describe("useStatement", () => {
   it("reads the statement and its items", async () => {
     const { result } = renderHook(() => useStatement("r7"), {
       wrapper: authWrapper(
-        transportWith(() => create(ListStatementsResponseSchema, {})),
+        serving(() => create(ListStatementsResponseSchema, {})),
       ),
     });
     await waitFor(() => expect(result.current.data).toBeTruthy());

@@ -1,37 +1,14 @@
 import { create } from "@bufbuild/protobuf";
-import { timestampFromDate } from "@bufbuild/protobuf/wkt";
-import { createRouterTransport } from "@connectrpc/connect";
 import { screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  AuthService,
-  GetSessionResponseSchema,
-  Role,
-  SessionSchema,
-  UserSchema,
-} from "@/gen/auth/v1/auth_pb";
-import { renderWithAuth } from "@/lib/test-utils";
+import { GetSessionResponseSchema } from "@/gen/auth/v1/auth_pb";
+import { liveSession, renderWithAuth, transportWith } from "@/lib/test-utils";
 import { SessionGuard } from "./session-guard";
 
 const router = { replace: vi.fn() };
 vi.mock("next/navigation", () => ({ useRouter: () => router }));
 
-const live = create(GetSessionResponseSchema, {
-  user: create(UserSchema, {
-    id: "u1",
-    email: "a@example.com",
-    role: Role.USER,
-  }),
-  session: create(SessionSchema, {
-    expiresAt: timestampFromDate(new Date("2026-09-16T00:00:00Z")),
-  }),
-});
-
-function transportAnswering(answer: () => typeof live) {
-  return createRouterTransport(({ service }) => {
-    service(AuthService, { getSession: answer });
-  });
-}
+const live = liveSession();
 
 describe("SessionGuard", () => {
   beforeEach(() => router.replace.mockReset());
@@ -41,7 +18,7 @@ describe("SessionGuard", () => {
       <SessionGuard>
         <p>child</p>
       </SessionGuard>,
-      transportAnswering(() => live),
+      transportWith(live),
     );
     expect(screen.getByTestId("skeleton")).toBeTruthy();
     await waitFor(() => expect(screen.getByText("child")).toBeTruthy());
@@ -53,7 +30,7 @@ describe("SessionGuard", () => {
       <SessionGuard>
         <p>child</p>
       </SessionGuard>,
-      transportAnswering(() => create(GetSessionResponseSchema, {})),
+      transportWith(create(GetSessionResponseSchema, {})),
     );
     await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/"));
     expect(screen.queryByText("child")).toBeNull();

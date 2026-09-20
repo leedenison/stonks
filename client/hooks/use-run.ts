@@ -8,15 +8,12 @@ import { isTerminal, pollInterval } from "@/lib/run";
 import { useAuthedQuery } from "./use-authed-query";
 
 // useRun follows one run, polling until it reaches a terminal state.
-export function useRun(
-  id: string,
-  interval = pollInterval,
-): UseQueryResult<GetRunResponse> {
+export function useRun(id: string): UseQueryResult<GetRunResponse> {
   const { run } = useClients();
   return useAuthedQuery({
     queryKey: qk.run(id),
     queryFn: () => run.getRun({ runId: id }),
     refetchInterval: (q) =>
-      isTerminal(q.state.data?.run?.state) ? false : interval,
+      isTerminal(q.state.data?.run?.state) ? false : pollInterval,
   });
 }

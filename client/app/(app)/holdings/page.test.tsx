@@ -1,20 +1,7 @@
 import { create } from "@bufbuild/protobuf";
-import { timestampFromDate } from "@bufbuild/protobuf/wkt";
-import {
-  Code,
-  ConnectError,
-  createRouterTransport,
-  type ServiceImpl,
-} from "@connectrpc/connect";
+import { Code, ConnectError, type ServiceImpl } from "@connectrpc/connect";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import {
-  AuthService,
-  GetSessionResponseSchema,
-  Role,
-  SessionSchema,
-  UserSchema,
-} from "@/gen/auth/v1/auth_pb";
 import {
   HoldingSchema,
   HoldingService,
@@ -26,7 +13,7 @@ import {
   IdentifierType,
 } from "@/gen/type/v1/type_pb";
 import { UploadProvider } from "@/contexts/upload-context";
-import { renderWithAuth } from "@/lib/test-utils";
+import { liveSession, renderWithAuth, transportWith } from "@/lib/test-utils";
 import HoldingsPage from "./page";
 
 const page = (
@@ -37,22 +24,12 @@ const page = (
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
-const live = create(GetSessionResponseSchema, {
-  user: create(UserSchema, {
-    id: "u1",
-    email: "a@example.com",
-    role: Role.USER,
-  }),
-  session: create(SessionSchema, {
-    expiresAt: timestampFromDate(new Date("2026-09-16T00:00:00Z")),
-  }),
-});
+const live = liveSession();
 
-function transportWith(
+function serving(
   listHoldings: ServiceImpl<typeof HoldingService>["listHoldings"],
 ) {
-  return createRouterTransport(({ service }) => {
-    service(AuthService, { getSession: () => live });
+  return transportWith(live, ({ service }) => {
     service(HoldingService, { listHoldings });
   });
 }
@@ -101,7 +78,7 @@ describe("HoldingsPage", () => {
   it("shows skeleton rows while loading", () => {
     renderWithAuth(
       page,
-      transportWith(() => new Promise(() => {})),
+      serving(() => new Promise(() => {})),
     );
     expect(screen.getByTestId("holdings-table")).toBeTruthy();
     expect(screen.getByTestId("skeleton-rows")).toBeTruthy();
@@ -110,7 +87,7 @@ describe("HoldingsPage", () => {
   it("shows the empty state with an upload action without holdings", async () => {
     renderWithAuth(
       page,
-      transportWith(() => create(ListHoldingsResponseSchema, {})),
+      serving(() => create(ListHoldingsResponseSchema, {})),
     );
     await waitFor(() => expect(screen.getByTestId("empty-state")).toBeTruthy());
     expect(screen.getByTestId("upload-statement-empty")).toBeTruthy();
@@ -120,7 +97,7 @@ describe("HoldingsPage", () => {
   it("lists the holdings cash first with their label, class and quantity", async () => {
     renderWithAuth(
       page,
-      transportWith(() => three),
+      serving(() => three),
     );
     await waitFor(() =>
       expect(screen.getByTestId("holding-row-i-gbp")).toBeTruthy(),
@@ -149,7 +126,7 @@ describe("HoldingsPage", () => {
     let calls = 0;
     renderWithAuth(
       page,
-      transportWith(() => {
+      serving(() => {
         if (++calls === 1) {
           throw new ConnectError("down", Code.Unavailable);
         }

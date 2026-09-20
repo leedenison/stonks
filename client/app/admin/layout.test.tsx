@@ -1,16 +1,7 @@
-import { create } from "@bufbuild/protobuf";
-import { timestampFromDate } from "@bufbuild/protobuf/wkt";
-import { createRouterTransport } from "@connectrpc/connect";
 import { screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import {
-  AuthService,
-  GetSessionResponseSchema,
-  Role,
-  SessionSchema,
-  UserSchema,
-} from "@/gen/auth/v1/auth_pb";
-import { renderWithAuth } from "@/lib/test-utils";
+import { Role } from "@/gen/auth/v1/auth_pb";
+import { liveSession, renderWithAuth, transportWith } from "@/lib/test-utils";
 import AdminLayout from "./layout";
 
 vi.mock("next/navigation", () => ({
@@ -18,27 +9,13 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/admin",
 }));
 
-function transportFor(role: Role) {
-  return createRouterTransport(({ service }) => {
-    service(AuthService, {
-      getSession: () =>
-        create(GetSessionResponseSchema, {
-          user: create(UserSchema, { id: "u1", email: "a@example.com", role }),
-          session: create(SessionSchema, {
-            expiresAt: timestampFromDate(new Date("2026-09-16T00:00:00Z")),
-          }),
-        }),
-    });
-  });
-}
-
 describe("AdminLayout", () => {
   it("denies a user", async () => {
     renderWithAuth(
       <AdminLayout>
         <p>admin child</p>
       </AdminLayout>,
-      transportFor(Role.USER),
+      transportWith(liveSession({ role: Role.USER })),
     );
     await waitFor(() =>
       expect(screen.getByTestId("access-denied")).toBeTruthy(),
@@ -52,7 +29,7 @@ describe("AdminLayout", () => {
       <AdminLayout>
         <p>admin child</p>
       </AdminLayout>,
-      transportFor(Role.ADMIN),
+      transportWith(liveSession({ role: Role.ADMIN })),
     );
     await waitFor(() => expect(screen.getByText("admin child")).toBeTruthy());
     expect(screen.getByTestId("admin-nav")).toBeTruthy();

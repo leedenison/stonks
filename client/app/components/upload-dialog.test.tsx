@@ -1,20 +1,7 @@
 import { create } from "@bufbuild/protobuf";
-import { timestampFromDate } from "@bufbuild/protobuf/wkt";
-import {
-  Code,
-  ConnectError,
-  createRouterTransport,
-  type ServiceImpl,
-} from "@connectrpc/connect";
+import { Code, ConnectError, type ServiceImpl } from "@connectrpc/connect";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import {
-  AuthService,
-  GetSessionResponseSchema,
-  Role,
-  SessionSchema,
-  UserSchema,
-} from "@/gen/auth/v1/auth_pb";
 import { RunSchema, RunState } from "@/gen/run/v1/run_pb";
 import {
   type CreateStatementRequest,
@@ -23,29 +10,19 @@ import {
 } from "@/gen/statement/v1/statement_pb";
 import { Broker } from "@/gen/type/v1/type_pb";
 import { fixture } from "@/lib/marshal/test-utils";
-import { renderWithAuth } from "@/lib/test-utils";
+import { liveSession, renderWithAuth, transportWith } from "@/lib/test-utils";
 import { UploadDialog } from "./upload-dialog";
 
-const live = create(GetSessionResponseSchema, {
-  user: create(UserSchema, {
-    id: "u1",
-    email: "a@example.com",
-    role: Role.USER,
-  }),
-  session: create(SessionSchema, {
-    expiresAt: timestampFromDate(new Date("2026-09-16T00:00:00Z")),
-  }),
-});
+const live = liveSession();
 
 const pending = create(CreateStatementResponseSchema, {
   run: create(RunSchema, { id: "r1", state: RunState.PENDING }),
 });
 
-function transportWith(
+function serving(
   createStatement: ServiceImpl<typeof StatementService>["createStatement"],
 ) {
-  return createRouterTransport(({ service }) => {
-    service(AuthService, { getSession: () => live });
+  return transportWith(live, ({ service }) => {
     service(StatementService, { createStatement });
   });
 }
@@ -64,7 +41,7 @@ describe("UploadDialog", () => {
   it("recognises a Fidelity UK export and reviews it", async () => {
     renderWithAuth(
       <UploadDialog open onClose={() => {}} />,
-      transportWith(() => pending),
+      serving(() => pending),
     );
     choose("activity.csv", "text/csv", fixture("fidelity-uk.csv"));
     await waitFor(() =>
@@ -89,7 +66,7 @@ describe("UploadDialog", () => {
     >(() => pending);
     renderWithAuth(
       <UploadDialog open onClose={() => {}} />,
-      transportWith(createStatement),
+      serving(createStatement),
     );
     choose("history.csv", "text/csv", fixture("schwab.csv"));
     await waitFor(() => expect(select().value).toBe(String(Broker.SCHWAB)));
@@ -110,7 +87,7 @@ describe("UploadDialog", () => {
     const onCreated = vi.fn();
     renderWithAuth(
       <UploadDialog open onClose={onClose} onCreated={onCreated} />,
-      transportWith(createStatement),
+      serving(createStatement),
     );
     choose("activity.csv", "text/csv", fixture("fidelity-uk.csv"));
     await waitFor(() => expect(input("upload-from").value).toBe("2025-01-01"));
@@ -130,7 +107,7 @@ describe("UploadDialog", () => {
   it("shows why a file cannot be marshalled and offers another", async () => {
     renderWithAuth(
       <UploadDialog open onClose={() => {}} />,
-      transportWith(() => pending),
+      serving(() => pending),
     );
     choose("notes.txt", "text/plain", "hello,world\n1,2\n");
     await waitFor(() => expect(select()).toBeTruthy());
@@ -152,7 +129,7 @@ describe("UploadDialog", () => {
   it("refuses a file larger than an export", async () => {
     renderWithAuth(
       <UploadDialog open onClose={() => {}} />,
-      transportWith(() => pending),
+      serving(() => pending),
     );
     const big = new File([new Uint8Array(5 * 1024 * 1024 + 1)], "big.csv", {
       type: "text/csv",
@@ -171,7 +148,7 @@ describe("UploadDialog", () => {
   it("reports a file that cannot be read and offers another", async () => {
     renderWithAuth(
       <UploadDialog open onClose={() => {}} />,
-      transportWith(() => pending),
+      serving(() => pending),
     );
     const gone = new File(["x"], "gone.csv", { type: "text/csv" });
     vi.spyOn(gone, "text").mockRejectedValue(
@@ -192,7 +169,7 @@ describe("UploadDialog", () => {
     const onClose = vi.fn();
     renderWithAuth(
       <UploadDialog open onClose={onClose} />,
-      transportWith(() => {
+      serving(() => {
         throw new ConnectError(
           "order_from must precede order_before",
           Code.InvalidArgument,
@@ -217,7 +194,7 @@ describe("UploadDialog", () => {
     const text = vi.spyOn(big, "text");
     renderWithAuth(
       <UploadDialog open onClose={() => {}} initial={big} />,
-      transportWith(() => pending),
+      serving(() => pending),
     );
     await waitFor(() =>
       expect(screen.getByTestId("upload-error")).toBeTruthy(),
@@ -237,7 +214,7 @@ describe("UploadDialog", () => {
           })
         }
       />,
-      transportWith(() => pending),
+      serving(() => pending),
     );
     await waitFor(() => expect(select().value).toBe(String(Broker.SCHWAB)));
   });

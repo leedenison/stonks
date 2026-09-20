@@ -9,16 +9,14 @@ import { useAuthedQuery } from "./use-authed-query";
 
 // useStatements lists the caller's statements, newest first, and polls while
 // any of their runs is live so a chip changes without a reload.
-export function useStatements(
-  interval = pollInterval,
-): UseQueryResult<ListStatementsResponse> {
+export function useStatements(): UseQueryResult<ListStatementsResponse> {
   const { statement } = useClients();
   return useAuthedQuery({
     queryKey: qk.statements(),
     queryFn: () => statement.listStatements({}),
     refetchInterval: (q) =>
       anyLive((q.state.data?.statements ?? []).map((s) => s.run?.state))
-        ? interval
+        ? pollInterval
         : false,
   });
 }

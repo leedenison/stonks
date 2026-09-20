@@ -1,10 +1,25 @@
-import type { Transport } from "@connectrpc/connect";
+import { create, isMessage, type MessageInitShape } from "@bufbuild/protobuf";
+import { timestampFromDate } from "@bufbuild/protobuf/wkt";
+import {
+  type ConnectRouter,
+  createRouterTransport,
+  type ServiceImpl,
+  type Transport,
+} from "@connectrpc/connect";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, type RenderResult } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { ActivityProvider } from "@/contexts/activity-context";
 import { AuthProvider } from "@/contexts/auth-context";
 import { ClientsProvider } from "@/contexts/clients-context";
+import {
+  AuthService,
+  type GetSessionResponse,
+  GetSessionResponseSchema,
+  Role,
+  SessionSchema,
+  UserSchema,
+} from "@/gen/auth/v1/auth_pb";
 
 // Test support for components under the auth provider. A component that
 // calls useRouter also needs next/navigation mocked in its test file, since
@@ -45,4 +60,39 @@ export function renderWithAuth(
   client?: QueryClient,
 ): RenderResult {
   return render(ui, { wrapper: authWrapper(transport, client) });
+}
+
+// liveSession is GetSession's answer for a signed-in user. user overrides the
+// default identity and expiresAt the session's end.
+export function liveSession(
+  user?: MessageInitShape<typeof UserSchema>,
+  expiresAt = new Date("2026-09-16T00:00:00Z"),
+): GetSessionResponse {
+  return create(GetSessionResponseSchema, {
+    user: create(UserSchema, {
+      id: "u1",
+      email: "a@example.com",
+      role: Role.USER,
+      ...user,
+    }),
+    session: create(SessionSchema, { expiresAt: timestampFromDate(expiresAt) }),
+  });
+}
+
+// transportWith serves AuthService, answering GetSession with auth when it is
+// a response and with auth's methods otherwise, plus whatever mount registers.
+// The router serves every method of a service from one registration, so an
+// auth method a test needs goes in auth rather than in mount.
+export function transportWith(
+  auth: GetSessionResponse | Partial<ServiceImpl<typeof AuthService>>,
+  mount?: (router: ConnectRouter) => void,
+  options?: Parameters<typeof createRouterTransport>[1],
+): Transport {
+  const impl = isMessage(auth, GetSessionResponseSchema)
+    ? { getSession: () => auth }
+    : auth;
+  return createRouterTransport((router) => {
+    router.service(AuthService, impl);
+    mount?.(router);
+  }, options);
 }
