@@ -1,10 +1,5 @@
 import { create } from "@bufbuild/protobuf";
-import {
-  Code,
-  ConnectError,
-  createRouterTransport,
-  type ServiceImpl,
-} from "@connectrpc/connect";
+import { Code, ConnectError, type ServiceImpl } from "@connectrpc/connect";
 import type { CredentialResponse } from "@react-oauth/google";
 import { act, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
@@ -13,7 +8,7 @@ import {
   GetSessionResponseSchema,
   SignInResponseSchema,
 } from "@/gen/auth/v1/auth_pb";
-import { renderWithAuth } from "@/lib/test-utils";
+import { renderWithAuth, transportWith } from "@/lib/test-utils";
 import { SignIn } from "./sign-in";
 
 // Google's button is an iframe it fills in itself; the mock exposes the
@@ -32,19 +27,17 @@ vi.mock("@react-oauth/google", () => ({
   },
 }));
 
-function transportWith(signIn: ServiceImpl<typeof AuthService>["signIn"]) {
-  return createRouterTransport(({ service }) => {
-    service(AuthService, {
-      getSession: () => create(GetSessionResponseSchema, {}),
-      signIn,
-    });
+function serving(signIn: ServiceImpl<typeof AuthService>["signIn"]) {
+  return transportWith({
+    getSession: () => create(GetSessionResponseSchema, {}),
+    signIn,
   });
 }
 
 describe("SignIn", () => {
   it("sends the credential to the service", async () => {
     const signIn = vi.fn(() => create(SignInResponseSchema, {}));
-    renderWithAuth(<SignIn />, transportWith(signIn));
+    renderWithAuth(<SignIn />, serving(signIn));
     await waitFor(() => expect(google.onSuccess).not.toBeNull());
     act(() => google.onSuccess?.({ credential: "id-token" }));
     await waitFor(() => expect(signIn).toHaveBeenCalledTimes(1));
@@ -54,7 +47,7 @@ describe("SignIn", () => {
   it("explains a refused account", async () => {
     renderWithAuth(
       <SignIn />,
-      transportWith(() => {
+      serving(() => {
         throw new ConnectError("email not permitted", Code.PermissionDenied);
       }),
     );
@@ -69,7 +62,7 @@ describe("SignIn", () => {
 
   it("reports a missing credential without calling the service", async () => {
     const signIn = vi.fn(() => create(SignInResponseSchema, {}));
-    renderWithAuth(<SignIn />, transportWith(signIn));
+    renderWithAuth(<SignIn />, serving(signIn));
     await waitFor(() => expect(google.onSuccess).not.toBeNull());
     act(() => google.onSuccess?.({}));
     await waitFor(() =>

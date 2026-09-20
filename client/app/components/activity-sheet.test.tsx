@@ -1,15 +1,7 @@
 import { create } from "@bufbuild/protobuf";
 import { timestampFromDate } from "@bufbuild/protobuf/wkt";
-import { createRouterTransport } from "@connectrpc/connect";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
-import {
-  AuthService,
-  GetSessionResponseSchema,
-  Role,
-  SessionSchema,
-  UserSchema,
-} from "@/gen/auth/v1/auth_pb";
 import { RunSchema, RunState } from "@/gen/run/v1/run_pb";
 import {
   GetStatementResponseSchema,
@@ -20,19 +12,10 @@ import {
 } from "@/gen/statement/v1/statement_pb";
 import { Broker } from "@/gen/type/v1/type_pb";
 import { useActivity } from "@/contexts/activity-context";
-import { renderWithAuth } from "@/lib/test-utils";
+import { liveSession, renderWithAuth, transportWith } from "@/lib/test-utils";
 import { ActivitySheet } from "./activity-sheet";
 
-const live = create(GetSessionResponseSchema, {
-  user: create(UserSchema, {
-    id: "u1",
-    email: "a@example.com",
-    role: Role.USER,
-  }),
-  session: create(SessionSchema, {
-    expiresAt: timestampFromDate(new Date("2026-09-16T00:00:00Z")),
-  }),
-});
+const live = liveSession();
 
 function summary(
   id: string,
@@ -55,9 +38,8 @@ function summary(
   });
 }
 
-function transportWith(list: ReturnType<typeof summary>[]) {
-  return createRouterTransport(({ service }) => {
-    service(AuthService, { getSession: () => live });
+function serving(list: ReturnType<typeof summary>[]) {
+  return transportWith(live, ({ service }) => {
     service(StatementService, {
       listStatements: () =>
         create(ListStatementsResponseSchema, { statements: list }),
@@ -105,7 +87,7 @@ describe("ActivitySheet", () => {
         <Controls />
         <ActivitySheet />
       </>,
-      transportWith(list),
+      serving(list),
     );
     fireEvent.click(screen.getByText("open"));
     await waitFor(() =>
@@ -144,7 +126,7 @@ describe("ActivitySheet", () => {
         <Controls />
         <ActivitySheet />
       </>,
-      transportWith(list),
+      serving(list),
     );
     fireEvent.click(screen.getByText("open"));
     await waitFor(() =>
@@ -172,7 +154,7 @@ describe("ActivitySheet", () => {
         <Controls />
         <ActivitySheet />
       </>,
-      transportWith(list),
+      serving(list),
     );
     await waitFor(() =>
       expect(screen.getByTestId("badge").textContent).toBe("1"),

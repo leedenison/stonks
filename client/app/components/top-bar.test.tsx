@@ -1,30 +1,16 @@
 import { create } from "@bufbuild/protobuf";
-import { timestampFromDate } from "@bufbuild/protobuf/wkt";
-import { createRouterTransport } from "@connectrpc/connect";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  AuthService,
   GetSessionResponseSchema,
   Role,
-  SessionSchema,
   SignOutResponseSchema,
-  UserSchema,
 } from "@/gen/auth/v1/auth_pb";
 import { schemeKey } from "@/lib/scheme";
-import { renderWithAuth } from "@/lib/test-utils";
+import { liveSession, renderWithAuth, transportWith } from "@/lib/test-utils";
 import { TopBar } from "./top-bar";
 
 vi.mock("next/navigation", () => ({ usePathname: () => "/transactions" }));
-
-function live(role: Role) {
-  return create(GetSessionResponseSchema, {
-    user: create(UserSchema, { id: "u1", email: "a@example.com", role }),
-    session: create(SessionSchema, {
-      expiresAt: timestampFromDate(new Date("2026-09-16T00:00:00Z")),
-    }),
-  });
-}
 
 async function openMenu() {
   await waitFor(() =>
@@ -41,11 +27,7 @@ describe("TopBar", () => {
   });
 
   it("leads home and offers a visitor the sign-in", async () => {
-    const transport = createRouterTransport(({ service }) => {
-      service(AuthService, {
-        getSession: () => create(GetSessionResponseSchema, {}),
-      });
-    });
+    const transport = transportWith(create(GetSessionResponseSchema, {}));
     renderWithAuth(<TopBar />, transport);
     expect(
       screen.getByRole("link", { name: "Stonks" }).getAttribute("href"),
@@ -57,9 +39,7 @@ describe("TopBar", () => {
   });
 
   it("shows a user's menu without the admin link", async () => {
-    const transport = createRouterTransport(({ service }) => {
-      service(AuthService, { getSession: () => live(Role.USER) });
-    });
+    const transport = transportWith(liveSession({ role: Role.USER }));
     renderWithAuth(<TopBar />, transport);
     await openMenu();
     const sheet = screen.getByTestId("activity-sheet") as HTMLDialogElement;
@@ -81,9 +61,7 @@ describe("TopBar", () => {
   });
 
   it("shows an administrator the admin link", async () => {
-    const transport = createRouterTransport(({ service }) => {
-      service(AuthService, { getSession: () => live(Role.ADMIN) });
-    });
+    const transport = transportWith(liveSession({ role: Role.ADMIN }));
     renderWithAuth(<TopBar />, transport);
     await openMenu();
     expect(screen.getByTestId("menu-admin").getAttribute("href")).toBe(
@@ -92,9 +70,7 @@ describe("TopBar", () => {
   });
 
   it("switches the scheme and keeps the choice", async () => {
-    const transport = createRouterTransport(({ service }) => {
-      service(AuthService, { getSession: () => live(Role.USER) });
-    });
+    const transport = transportWith(liveSession({ role: Role.USER }));
     renderWithAuth(<TopBar />, transport);
     await openMenu();
     expect(
@@ -114,8 +90,9 @@ describe("TopBar", () => {
 
   it("signs out from the menu", async () => {
     const signOut = vi.fn(() => create(SignOutResponseSchema, {}));
-    const transport = createRouterTransport(({ service }) => {
-      service(AuthService, { getSession: () => live(Role.USER), signOut });
+    const transport = transportWith({
+      getSession: () => liveSession({ role: Role.USER }),
+      signOut,
     });
     renderWithAuth(<TopBar />, transport);
     await openMenu();

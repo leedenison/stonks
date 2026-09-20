@@ -1,20 +1,8 @@
 import { create } from "@bufbuild/protobuf";
 import { timestampFromDate } from "@bufbuild/protobuf/wkt";
-import {
-  Code,
-  ConnectError,
-  createRouterTransport,
-  type ServiceImpl,
-} from "@connectrpc/connect";
+import { Code, ConnectError, type ServiceImpl } from "@connectrpc/connect";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import {
-  AuthService,
-  GetSessionResponseSchema,
-  Role,
-  SessionSchema,
-  UserSchema,
-} from "@/gen/auth/v1/auth_pb";
 import { RunSchema, RunState } from "@/gen/run/v1/run_pb";
 import {
   ListStatementsResponseSchema,
@@ -23,7 +11,7 @@ import {
 } from "@/gen/statement/v1/statement_pb";
 import { Broker } from "@/gen/type/v1/type_pb";
 import { UploadProvider } from "@/contexts/upload-context";
-import { renderWithAuth } from "@/lib/test-utils";
+import { liveSession, renderWithAuth, transportWith } from "@/lib/test-utils";
 import StatementsPage from "./page";
 
 const page = (
@@ -34,22 +22,12 @@ const page = (
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
-const live = create(GetSessionResponseSchema, {
-  user: create(UserSchema, {
-    id: "u1",
-    email: "a@example.com",
-    role: Role.USER,
-  }),
-  session: create(SessionSchema, {
-    expiresAt: timestampFromDate(new Date("2026-09-16T00:00:00Z")),
-  }),
-});
+const live = liveSession();
 
-function transportWith(
+function serving(
   listStatements: ServiceImpl<typeof StatementService>["listStatements"],
 ) {
-  return createRouterTransport(({ service }) => {
-    service(AuthService, { getSession: () => live });
+  return transportWith(live, ({ service }) => {
     service(StatementService, { listStatements });
   });
 }
@@ -86,7 +64,7 @@ describe("StatementsPage", () => {
   it("shows skeleton rows while loading", () => {
     renderWithAuth(
       page,
-      transportWith(() => new Promise(() => {})),
+      serving(() => new Promise(() => {})),
     );
     expect(screen.getByTestId("statements-table")).toBeTruthy();
     expect(screen.getByTestId("skeleton-rows")).toBeTruthy();
@@ -95,7 +73,7 @@ describe("StatementsPage", () => {
   it("shows the empty state without statements", async () => {
     renderWithAuth(
       page,
-      transportWith(() => create(ListStatementsResponseSchema, {})),
+      serving(() => create(ListStatementsResponseSchema, {})),
     );
     await waitFor(() => expect(screen.getByTestId("empty-state")).toBeTruthy());
     expect(screen.queryByTestId("statements-table")).toBeNull();
@@ -104,7 +82,7 @@ describe("StatementsPage", () => {
   it("lists the statements with their outcome and links each", async () => {
     renderWithAuth(
       page,
-      transportWith(() => two),
+      serving(() => two),
     );
     await waitFor(() =>
       expect(screen.getByTestId("statement-row-r1")).toBeTruthy(),
@@ -139,7 +117,7 @@ describe("StatementsPage", () => {
     let calls = 0;
     renderWithAuth(
       page,
-      transportWith(() => {
+      serving(() => {
         if (++calls === 1) {
           throw new ConnectError("down", Code.Unavailable);
         }

@@ -1,55 +1,31 @@
 import { create } from "@bufbuild/protobuf";
-import { timestampFromDate } from "@bufbuild/protobuf/wkt";
-import {
-  Code,
-  ConnectError,
-  createRouterTransport,
-  type ServiceImpl,
-  type Transport,
-} from "@connectrpc/connect";
+import { Code, ConnectError } from "@connectrpc/connect";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import {
-  AuthService,
   GetSessionResponseSchema,
-  Role,
-  SessionSchema,
   SignInResponseSchema,
   SignOutResponseSchema,
-  UserSchema,
 } from "@/gen/auth/v1/auth_pb";
 import { qk } from "@/lib/query-keys";
-import { authWrapper, newTestQueryClient } from "@/lib/test-utils";
+import {
+  authWrapper,
+  liveSession,
+  newTestQueryClient,
+  transportWith,
+} from "@/lib/test-utils";
 import { sessionLoss } from "@/lib/transport";
 import { expireSession, useAuth } from "./auth-context";
 
-const user = create(UserSchema, {
-  id: "u1",
-  email: "someone@example.com",
-  name: "Someone",
-  role: Role.USER,
+const live = liveSession({ email: "someone@example.com", name: "Someone" });
+const signedIn = create(SignInResponseSchema, {
+  user: live.user,
+  session: live.session,
 });
-const session = create(SessionSchema, {
-  expiresAt: timestampFromDate(new Date("2026-09-16T00:00:00Z")),
-});
-
-function transportWith(
-  impl: Partial<ServiceImpl<typeof AuthService>>,
-  onLost: () => void = () => {},
-): Transport {
-  return createRouterTransport(
-    ({ service }) => {
-      service(AuthService, impl);
-    },
-    { transport: { interceptors: [sessionLoss(onLost)] } },
-  );
-}
 
 describe("AuthProvider", () => {
   it("restores a live session", async () => {
-    const transport = transportWith({
-      getSession: () => create(GetSessionResponseSchema, { user, session }),
-    });
+    const transport = transportWith(live);
     const { result } = renderHook(useAuth, { wrapper: authWrapper(transport) });
     expect(result.current.state.status).toBe("restoring");
     await waitFor(() =>
@@ -83,7 +59,7 @@ describe("AuthProvider", () => {
   });
 
   it("signs in", async () => {
-    const signIn = vi.fn(() => create(SignInResponseSchema, { user, session }));
+    const signIn = vi.fn(() => signedIn);
     const transport = transportWith({
       getSession: () => create(GetSessionResponseSchema, {}),
       signIn,
@@ -121,7 +97,7 @@ describe("AuthProvider", () => {
 
   it("signs out and drops every other query", async () => {
     const transport = transportWith({
-      getSession: () => create(GetSessionResponseSchema, { user, session }),
+      getSession: () => live,
       signOut: () => create(SignOutResponseSchema, {}),
     });
     const client = newTestQueryClient();
@@ -144,12 +120,15 @@ describe("AuthProvider", () => {
     const client = newTestQueryClient();
     const transport = transportWith(
       {
-        getSession: () => create(GetSessionResponseSchema, { user, session }),
+        getSession: () => live,
         signOut: () => {
           throw new ConnectError("session required", Code.Unauthenticated);
         },
       },
-      () => expireSession(client),
+      undefined,
+      {
+        transport: { interceptors: [sessionLoss(() => expireSession(client))] },
+      },
     );
     const { result } = renderHook(useAuth, {
       wrapper: authWrapper(transport, client),

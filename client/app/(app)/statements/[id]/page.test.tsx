@@ -1,20 +1,8 @@
 import { create } from "@bufbuild/protobuf";
 import { timestampFromDate } from "@bufbuild/protobuf/wkt";
-import {
-  Code,
-  ConnectError,
-  createRouterTransport,
-  type ServiceImpl,
-} from "@connectrpc/connect";
-import { fireEvent, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
-import {
-  AuthService,
-  GetSessionResponseSchema,
-  Role,
-  SessionSchema,
-  UserSchema,
-} from "@/gen/auth/v1/auth_pb";
+import { Code, ConnectError, type ServiceImpl } from "@connectrpc/connect";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { RunSchema, RunState } from "@/gen/run/v1/run_pb";
 import {
   GetStatementResponseSchema,
@@ -24,7 +12,8 @@ import {
   StatementSummarySchema,
 } from "@/gen/statement/v1/statement_pb";
 import { AssetClass, Broker, StatedKeySchema } from "@/gen/type/v1/type_pb";
-import { renderWithAuth } from "@/lib/test-utils";
+import { pollInterval } from "@/lib/run";
+import { liveSession, renderWithAuth, transportWith } from "@/lib/test-utils";
 import StatementPage from "./page";
 
 vi.mock("next/navigation", () => ({
@@ -32,16 +21,21 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
 }));
 
-const live = create(GetSessionResponseSchema, {
-  user: create(UserSchema, {
-    id: "u1",
-    email: "a@example.com",
-    role: Role.USER,
-  }),
-  session: create(SessionSchema, {
-    expiresAt: timestampFromDate(new Date("2026-09-16T00:00:00Z")),
-  }),
-});
+const live = liveSession();
+
+afterEach(() => vi.useRealTimers());
+
+// advance moves the faked clock by ms, then lets what that starts settle.
+// The query notifies its observers through zero-delay timers, which the
+// faked clock lands one millisecond on when they are scheduled mid-tick, and
+// each act boundary flushes the render a notification causes, so an answer
+// takes a few one-millisecond rounds to reach the hook.
+async function advance(ms: number) {
+  await act(() => vi.advanceTimersByTimeAsync(ms));
+  for (let i = 0; i < 3; i++) {
+    await act(() => vi.advanceTimersByTimeAsync(1));
+  }
+}
 
 function response(state: RunState, rejected: number, error?: string) {
   const gbp = create(StatedKeySchema, {
@@ -88,11 +82,10 @@ function response(state: RunState, rejected: number, error?: string) {
   });
 }
 
-function transportWith(
+function serving(
   getStatement: ServiceImpl<typeof StatementService>["getStatement"],
 ) {
-  return createRouterTransport(({ service }) => {
-    service(AuthService, { getSession: () => live });
+  return transportWith(live, ({ service }) => {
     service(StatementService, { getStatement });
   });
 }
@@ -100,7 +93,7 @@ function transportWith(
 describe("StatementPage", () => {
   it("shows the summary and the rejections grouped by reason", async () => {
     const getStatement = vi.fn(() => response(RunState.COMPLETED, 2));
-    renderWithAuth(<StatementPage />, transportWith(getStatement));
+    renderWithAuth(<StatementPage />, serving(getStatement));
     await waitFor(() =>
       expect(screen.getByTestId("statement-summary")).toBeTruthy(),
     );
@@ -129,30 +122,26 @@ describe("StatementPage", () => {
   });
 
   it("polls while the run is live and settles once it is terminal", async () => {
+    vi.useFakeTimers();
     let reads = 0;
     const getStatement = vi.fn(() =>
       response(++reads > 2 ? RunState.COMPLETED : RunState.RUNNING, 0),
     );
-    renderWithAuth(<StatementPage />, transportWith(getStatement));
-    await waitFor(() =>
-      expect(screen.getByRole("status").textContent).toContain(
-        "being ingested",
-      ),
-    );
-    await waitFor(
-      () =>
-        expect(screen.getByRole("status").textContent).toContain("accepted"),
-      { timeout: 8000 },
-    );
-    const settled = getStatement.mock.calls.length;
-    await new Promise((r) => setTimeout(r, 100));
-    expect(getStatement).toHaveBeenCalledTimes(settled);
-  }, 10000);
+    renderWithAuth(<StatementPage />, serving(getStatement));
+    await advance(0);
+    expect(getStatement).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("status").textContent).toContain("being ingested");
+    await advance(pollInterval * 2);
+    expect(getStatement).toHaveBeenCalledTimes(3);
+    expect(screen.getByRole("status").textContent).toContain("accepted");
+    await advance(pollInterval * 3);
+    expect(getStatement).toHaveBeenCalledTimes(3);
+  });
 
   it("shows a failed run's error", async () => {
     renderWithAuth(
       <StatementPage />,
-      transportWith(() => response(RunState.FAILED, 0, "database gone")),
+      serving(() => response(RunState.FAILED, 0, "database gone")),
     );
     await waitFor(() =>
       expect(screen.getByTestId("statement-summary").textContent).toContain(
@@ -165,7 +154,7 @@ describe("StatementPage", () => {
   it("says when there is no such statement", async () => {
     renderWithAuth(
       <StatementPage />,
-      transportWith(() => {
+      serving(() => {
         throw new ConnectError("no such statement", Code.NotFound);
       }),
     );
@@ -178,7 +167,7 @@ describe("StatementPage", () => {
     let calls = 0;
     renderWithAuth(
       <StatementPage />,
-      transportWith(() => {
+      serving(() => {
         if (++calls === 1) {
           throw new ConnectError("down", Code.Unavailable);
         }
