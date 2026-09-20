@@ -26,14 +26,17 @@ export function Thead({ children }: { children: ReactNode }) {
   return <thead className="sticky top-0 z-10">{children}</thead>;
 }
 
+// Th and Td are the cells of a page table, or with dense the tighter cells of
+// a table set inside another element, where the header carries no tint.
 export function Th({
   numeric,
+  dense,
   className = "",
   ...rest
-}: ComponentProps<"th"> & { numeric?: boolean }) {
+}: ComponentProps<"th"> & { numeric?: boolean; dense?: boolean }) {
   return (
     <th
-      className={`border-b-2 border-primary-dark/10 bg-surface-tint px-4 py-3 text-xs font-semibold tracking-wider text-text-muted uppercase ${numeric ? "text-right" : "text-left"} ${className}`}
+      className={`${dense ? "px-3 py-2" : "border-b-2 border-primary-dark/10 bg-surface-tint px-4 py-3"} text-xs font-semibold tracking-wider text-text-muted uppercase ${numeric ? "text-right" : "text-left"} ${className}`}
       {...rest}
     />
   );
@@ -41,12 +44,13 @@ export function Th({
 
 export function Td({
   numeric,
+  dense,
   className = "",
   ...rest
-}: ComponentProps<"td"> & { numeric?: boolean }) {
+}: ComponentProps<"td"> & { numeric?: boolean; dense?: boolean }) {
   return (
     <td
-      className={`border-b border-border px-4 py-3 ${numeric ? "text-right font-mono tabular-nums" : ""} ${className}`}
+      className={`${dense ? "px-3 py-2" : "border-b border-border px-4 py-3"} ${numeric ? "text-right font-mono tabular-nums" : ""} ${className}`}
       {...rest}
     />
   );

@@ -2,6 +2,7 @@ import { ChevronRight } from "lucide-react";
 import type { StatementItem } from "@/gen/statement/v1/statement_pb";
 import { groupByReason, keyLabel } from "@/lib/rejections";
 import { Chip } from "./chip";
+import { Td, Th } from "./table";
 
 // RejectionGroups lists rejected rows by reason. Each reason is a line with
 // its count that opens to the rows it covers; a lone reason starts open.
@@ -63,13 +64,19 @@ export function RejectionGroups({
           </summary>
           <table className="w-full border-t border-border text-sm">
             <thead>
-              <tr className="text-xs font-semibold tracking-wider text-text-muted uppercase">
-                <th className="px-3 py-2 text-right">Row</th>
-                <th className="px-3 py-2 text-left whitespace-nowrap">
+              <tr>
+                <Th dense numeric>
+                  Row
+                </Th>
+                <Th dense className="whitespace-nowrap">
                   Order date
-                </th>
-                <th className="w-full px-3 py-2 text-left">Key</th>
-                <th className="px-3 py-2 text-right">Quantity</th>
+                </Th>
+                <Th dense className="w-full">
+                  Key
+                </Th>
+                <Th dense numeric>
+                  Quantity
+                </Th>
               </tr>
             </thead>
             <tbody>
@@ -79,18 +86,21 @@ export function RejectionGroups({
                   data-testid={`rejection-row-${item.ordinal}`}
                   className="border-t border-border"
                 >
-                  <td className="px-3 py-2 text-right font-mono tabular-nums text-text-muted">
+                  <Td dense numeric className="text-text-muted">
                     {item.ordinal}
-                  </td>
-                  <td className="px-3 py-2 font-mono whitespace-nowrap tabular-nums">
+                  </Td>
+                  <Td
+                    dense
+                    className="font-mono whitespace-nowrap tabular-nums"
+                  >
                     {item.row?.orderDate}
-                  </td>
-                  <td className="px-3 py-2 break-words">
+                  </Td>
+                  <Td dense className="break-words">
                     {keyLabel(item.row?.key)}
-                  </td>
-                  <td className="px-3 py-2 text-right font-mono whitespace-nowrap tabular-nums">
+                  </Td>
+                  <Td dense numeric className="whitespace-nowrap">
                     {item.row?.quantity}
-                  </td>
+                  </Td>
                 </tr>
               ))}
             </tbody>
