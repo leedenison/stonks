@@ -76,9 +76,11 @@ and translates every key it is asked for and every answer it returns.
 ### On-Demand Fetch
 
 No datasource offers bulk fetching.  Data is fetched on demand for the keys users hold,
-covering the period they were held.  The datamodel records which periods have been fetched
-successfully for each key and datasource, and whether a fetch failed temporarily or
-permanently.
+covering the period they were held.  Ingesting a statement is what demands it: the
+identifier events, instrument identity, corporate events and prices its transactions need
+are attempted as it runs, for every instrument and period it newly covers.  The datamodel
+records which periods have been fetched successfully for each key and datasource, and
+whether a fetch failed temporarily or permanently.
 
 ### Fetching from Multiple Sources
 
@@ -118,10 +120,10 @@ states how it tolerates a temporary or permanent absence of its data.
 
 The framework owns the registry of integrations with each one's enabled state and
 precedence, the fetch and coverage rows, blocks and their clearing, and a rate limiter
-per datasource.  The run row, the admin surface and the telemetry mirror belong to the
-run framework.  See [runs.md](runs.md).  Each integration owns its request shapes, its
-parsing, the storage of its answers, its venue map, its symbol spelling map and the
-declaration of what it serves.
+per datasource.  The admin surface and the telemetry mirror belong to the run framework.
+See [runs.md](runs.md).  Each integration owns its request shapes, its parsing, the
+storage of its answers, its venue map, its symbol spelling map and the declaration of
+what it serves.
 
 Holdings and valuation read a per instrument summary of coverage and validity maintained
 at ingest, not the fetch tables.  The fetch tables are what the summary is rebuilt from.

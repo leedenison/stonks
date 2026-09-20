@@ -11,9 +11,6 @@ reliability and correctness properties.
 **Datasource** -- a source of market data: eg. prices, corporate events, instrument
 identity.
 
-**Marshaller** -- the code that translates one source and channel's format into the format
-the system accepts.
-
 **Authority** -- the trust a source and channel combination carries. **System authority**
 is assumed truthful, reliable and correct, **user authority** is not trusted for any of
 those properties, and **candidate authority** is a guess.
@@ -67,7 +64,5 @@ event, or inferred from two assertions.
 economic event (eg. a stock purchase is an event with component transactions covering
 the acquisition of the stock, the payment of the cost, the payment of commission, the
 payment of fees and the payment of tax).
-
-**Leg** -- a component transaction making up one part of an economic event.
 
 **Residual** -- the remainder of an event whose transactions do not balance.

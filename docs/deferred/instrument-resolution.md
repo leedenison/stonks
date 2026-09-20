@@ -1,19 +1,19 @@
 ---
 title: Instrument resolution
-recorded: 2026-09-14
+recorded: 2026-09-20
 ---
 
 # Instrument resolution
 
-Takes the identifiers and metadata a source states about an instrument and answers with
-the instrument the system already holds, or with what the system can determine from its
-configured datasources.
+Answers what a source states about an instrument from the configured datasources, so that
+the names different sources use collapse onto one instrument.
 
 ## Why
 
-Anything a user can hold in their portfolio is modelled as an instrument.  Brokers name
-instruments in their own terms, and holdings, prices and events can't be aggregated until
-those names collapse onto one instrument.
+Brokers name instruments in their own terms.  A broker description names one listing
+within the domain of its own broker and channel, so one security held at two brokers is
+two instruments, and holdings, prices and events cannot be aggregated across them until a
+datasource answers for the identifiers those sources state.
 
 ## Model
 
@@ -21,95 +21,53 @@ those names collapse onto one instrument.
 
 An instrument has one listing per currency family, so a source quoting a listing in GBp/GBX
 and one quoting it in GBP name one listing.  Stored prices, identifiers and transactions
-each keep the precise currency code they were stated in.  Instruments in reality must have
-at least one listing, but may have no listings associated with them in the datamodel
-indicating a lack of knowledge about that instrument's listings.
+each keep the precise currency code they were stated in.
 
 Venues are treated as display only metadata when they are available.  Listings across
 venues are considered fungible.  It will often be the case that a given datasource for
 price information will quote prices on a different venue from the one that is actually
 traded anyway.
 
-Transactions, prices, corporate events, etc attach to both an instrument and a listing
-when fully qualified.  This allows them to represent either precise knowledge when a
-currency is known, or the imprecise knowledge when a currency is not known for the
-attached data.
-
 A listing carries the interval it was tradeable in. A delisting closes one. A
 redenomination closes one and merges what it holds into the listing taking over.
 
-A currency is a system owned instrument named by a CURRENCY identifier whose value is
-its code.  Its listing in itself is money in that currency, which a cash leg resolves to
-as any key does: the identifier names the instrument and the stated currency picks the
-listing.  Its listing in another currency carries the rate between the two, and is made
-when a rate is first fetched.  Whether GBX is a listing of the GBP instrument or an
-instrument of its own is the currency family question below.
+A currency instrument's listing in another currency carries the rate between the two, and
+is made when a rate is first fetched.  Whether GBX is a listing of the GBP instrument or
+an instrument of its own is the currency family question below.
 
 An option or a future references the listing of its underlying, a strike being quoted
 in the listing's currency.
 
 ### Identifiers
 
-A broker's own description of an instrument is a listing grain identifier type, and the
-marshaller constructs a domain unique to the broker and the channel.  Broker description
-identifiers ensure statements carrying the same broker description are matched in the database
-without expensive calls to external services.  Within one domain and for one owner a
-description names one listing at a time, and a key stating the same description with a
-different currency or asset class contradicts that listing.
-
 A venue is named by its ISO 10383 MIC, normalised to the operating MIC through a
 reference MIC table seeded from the published list by a checked in generator.  The domain
 of a MIC_TICKER is the operating MIC, and that domain is the only way a source states a
 venue.
 
-An identifier of a venue-scoped type stated without its venue has no natural key and is
-not an identifier.  The marshaller states it in the stated key as a search hint, which
-resolution may use to query datasources but never to associate.  The weakest link rule
-then leaves a transaction stating nothing else on a broker description instrument, and
-nothing replays it, since no coverage can arrive for a key without a domain.
+Resolution may query a datasource with a symbol a source stated without its venue, but
+never associates on one.  The weakest link rule then leaves a transaction stating nothing
+else on a broker description instrument, and nothing replays it, since no coverage can
+arrive for a key without a domain.
 
-### Asset Class
+### Validity and the Weakest Link
 
-Every source states an asset class at whatever specificity it can defend, so a datasource
-that cannot distinguish a stock from an ETF states the class both fall under rather than
-choosing one.
+A MIC-derived identifier is trusted inside its validity interval, which is confirmed
+inside identifier event coverage and provisional outside it.  See
+[identifier-events.md](identifier-events.md).  It associates a transaction with an
+instrument when the transaction date lies inside its validity, and absorbs an instrument
+holding no stable identifier, but never decides between two instruments and never merges
+them.
 
-Classes are not compared for equality. Generally we want to determine if classes
-contradict; the sets implied by two values are disjoint.  Or we want to determine if
-classes corroborate; the stated class is strictly a subset of that found in
-authoritative datasources.
-
-### Identifier Type
-
-Scope says whether a value can be recognised outside the channel that supplied it, and
-whether a domain is needed to qualify it.
-
-Reassignment says whether a value moves between instruments, and what the system relies
-on to know when it has.
-
-- **Stable**: assumed never reassigned.  Trusted without coverage.
-- **MIC-derived**: reassigned exactly when the MIC_TICKER it derives from is, so
-  identifier event coverage of the MIC_TICKER is coverage of it.  Trusted inside its
-  validity interval, which is confirmed inside coverage and provisional outside it.  See
-  [identifier-events.md](identifier-events.md).  Associates a transaction with an
-  instrument when the transaction date lies inside its validity, and absorbs an
-  instrument holding no stable identifier, but never decides between two instruments and
-  never merges them.
-- **Unverifiable**: no datasource can witness a reassignment.  Assumed never reassigned
-  within its domain.  Associates a transaction with an instrument, and absorbs an
-  instrument that holds no other identifier, but never decides between two instruments
-  that verifiable identifiers can decide between.
+An unverifiable identifier associates a transaction with an instrument, and absorbs an
+instrument that holds no other identifier, but never decides between two instruments that
+verifiable identifiers can decide between.
 
 The weakest link governs.  A transaction stating only a ticker is associated via that
 ticker however many stable identifiers a datasource answers with, so the association is
 provisional until the ticker is covered.
 
 An identifier row exists only when the identifier is usable, provisionally or confirmed.
-A ticker stated without its venue is never usable and is held only in the stated key
-stored with the transaction.
-
-No identifier type is admitted whose reassignment depends on anything other than
-MIC_TICKER reassignment.
 
 ### Options
 
@@ -126,20 +84,6 @@ right, and strike and deliverable stated in current terms.  The symbol is admitt
 when corporate event coverage of the underlying spans that interval.  Otherwise it stays
 in the stated key and is replayed when coverage arrives.  Corporate events on the
 underlying therefore create no assumption and nothing to unwind.
-
-### Ownership
-
-A user owns instruments, listings and identifiers where they have uploaded data which could
-not be confirmed or contradicted by a more authoritative source.  Everything else is system
-owned.
-
-If instruments are considered the parent node with instrument identifier and listing children,
-with listings in turn having listing identifier children then we can say:
-
-- A system owned parent may have system owned children.
-- A system owned parent may have user owned children.
-- A user owned parent may have user owned children only when the users are equal.
-- A user owned parent may **NOT** have system owned children.
 
 ### Authority
 
@@ -166,10 +110,7 @@ statements.  Some instruments might be available and complete, others might only
 partially available and others still might be completely unavailable.
 
 The system must therefore accommodate instrument data which is some part system owned,
-some part user owned and some part missing entirely.  This is why user owned instrument
-data exists (See the `Ownership` section).  It is also why the system accommodates
-a variable number of identifiers associated with each instrument or listing, and why it
-accommodates instruments that have no listings associated with them.
+some part user owned and some part missing entirely.
 
 ### Attachment or Merger of Instruments
 
@@ -178,19 +119,12 @@ example a set of data in the database and a set of data supplied by a user which
 one or more identifiers, we must mediate when the data can be merged.
 
 Data with candidate authority is not stored.  Data with user authority is stored as user
-owned data.  Data with system authority is stored as system owned data.  The shape of the
-resulting data must conform with the rules laid out in the `Ownership` section.
+owned data.  Data with system authority is stored as system owned data.
 
 Two sets merge only when they share a stable identifier.  Sets that overlap only on a
 MIC-derived identifier are not merged: precedence picks the set the instrument keeps, the
 identifiers of the other are dropped, and the outcome is recorded as a finding of the
 run.
-
-### Unresolved is a First Class State
-
-An instrument which was not identified by any source beyond a broker description is still
-created and stored.  Holding quantities may be modified for the instrument via
-transactions. It is otherwise treated as a valid instrument like any other.
 
 ### Contradictions are Resolved Automatically and Recorded
 
@@ -218,16 +152,14 @@ unresolved instrument is re-attempted by a scheduled replay and on administrator
 
 A transaction is re-resolved from the stated key stored with it, so a later answer moves
 the transaction to the instrument the answer names.  An identifier event that leaves the
-transaction's date outside the validity it was associated under replays it.
+transaction's date outside the validity it was associated under replays it.  Holdings,
+event grouping and cached adjusted values derived from the transaction are recomputed.
 
 ### Datasources
 
 The datasource framework constraints apply, keyed on the stated key.  An absence of
-instrument data is tolerated by:
-
-- Storing user owned instruments under what the source did state.
-- Distinguishing an instrument nothing recognised from one whose identification was
-  unavailable and attempting re-resolution later.
+instrument data is tolerated by distinguishing an instrument nothing recognised from one
+whose identification was unavailable, and attempting re-resolution later.
 
 ## Invariants
 
@@ -262,12 +194,9 @@ merge.
 
 ## Sketch
 
-Resolution is keyed on what the source stated rather than on the transaction, so one key
-is resolved once per batch and every transaction carrying it receives the same answer.
-
-Identifier events for the MIC-derived identifiers the batch states are fetched first,
-where a source serves their domain or a stable identifier already held.  Their absence
-blocks nothing; resolution proceeds on provisional validity.  The order is then the database,
+Identifier events for the MIC-derived identifiers a batch states are fetched first, where
+a source serves their domain or a stable identifier already held.  Their absence blocks
+nothing; resolution proceeds on provisional validity.  The order is then the database,
 the batch cache, and datasources. A guess is produced only where what the source stated
 leaves the instrument or its listing open, and only after both lookups have missed.
 Corporate events are fetched for the instruments the batch resolved to once resolution
@@ -321,9 +250,10 @@ query for one symbol with another instrument's listing has neither returned nor
 filtered on the symbol.
 
 Confirming stated data: contradicting no stated field and confirming at least one, being
-a currency, an asset class the candidate corroborates, or an identifier of the same type
-and domain.  A candidate naming a venue no stated identifier names has answered about a
-different listing and confirms nothing.  A candidate too sparse to be checked against
+a currency, an asset class the candidate corroborates by the stated class lying strictly
+under the candidate's in the class tree, or an identifier of the same type and domain.
+A candidate naming a venue no stated identifier names has answered about a different
+listing and confirms nothing.  A candidate too sparse to be checked against
 anything neither contradicts nor confirms.
 
 Consistency: two answers describe one listing and do not contradict each other.  The
@@ -339,44 +269,6 @@ may have found several instruments the query admits.
 
 Filling: a value the winner holds is never replaced.  The asset class is never filled
 from another answer, since it decides which invariants the instrument must satisfy.
-
-A resolution records the outcome of each key it resolved as its own item rows.  See
-[runs.md](runs.md).
-
-### Proposed Asset Classes
-
-```
-UNKNOWN
-|-- CASH
-`-- SECURITY
-    |-- EQUITY
-    |   |-- STOCK
-    |   |-- ETF
-    |   `-- MUTUAL_FUND
-    |-- FIXED_INCOME
-    `-- DERIVATIVE
-        |-- OPTION
-        `-- FUTURE
-```
-
-### Proposed Identifier Types
-
-| Type                 | Scope      | Domain               | Grain      | Reassignment |
-| -------------------- | ---------- | -------------------- | ---------- | ------------ |
-| ISIN                 | registry   | none                 | instrument | stable       |
-| CUSIP                | registry   | none                 | instrument | stable       |
-| CINS                 | registry   | none                 | instrument | stable       |
-| WERTPAPIER           | registry   | none                 | instrument | stable       |
-| OPENFIGI_SHARE_CLASS | registry   | none                 | instrument | stable       |
-| SEDOL                | registry   | none                 | listing    | stable       |
-| OPENFIGI_COMPOSITE   | registry   | none                 | listing    | stable       |
-| MIC_TICKER           | registry   | venue                | listing    | MIC-derived  |
-| OPENFIGI_TICKER      | registry   | venue                | listing    | MIC-derived  |
-| OCC                  | registry   | none                 | instrument | MIC-derived  |
-| CURRENCY             | registry   | none                 | instrument | stable       |
-| DATASOURCE_TICKER    | datasource | datasource           | listing    | MIC-derived  |
-| BROKER_ID            | broker     | broker               | instrument | stable       |
-| BROKER_DESCRIPTION   | source     | broker + channel     | listing    | unverifiable |
 
 ## Undecided
 

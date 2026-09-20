@@ -80,8 +80,7 @@ key only one spec uses.
 ## Undecided
 
 Which provider, and whether more than one. Whether a fetch failure leaves the last known
-price in place or marks the valuation stale -- the spec currently says there is no
-staleness bound, and this is what would change that.
+price in place or marks the valuation stale.
 
 Whether the stub's fixtures are generated from the integration tier's recordings, so there
 is one source of authentic bytes and the stub cannot drift into answering in a shape the
