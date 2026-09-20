@@ -39,20 +39,6 @@
 -- against the instrument. A listing in another currency carries the rate
 -- between the two, and is made when a rate is first fetched rather than
 -- seeded. These are the only system owned rows.
---
--- A stated key is what one source states about an instrument: its
--- identifiers, asset class, currency and description. It is stored with the
--- statement that carried it, one row per distinct key, and is what resolution
--- answers. The identifiers it states become identifier rows only when
--- resolution admits them.
---
--- A transaction is a change in the quantity of one instrument held by a user,
--- with an order date and a settlement date, stated as at a date: the date on
--- which its values were true, and so which corporate events they reflect.
--- Replacement is keyed on user, broker and order date, so those are columns of
--- the row rather than reached through the statement.
-
-CREATE TYPE broker AS ENUM ('ibkr', 'schwab', 'fidelity_uk');
 
 CREATE TYPE asset_class AS ENUM ('unknown', 'cash', 'security', 'equity', 'stock', 'etf',
     'mutual_fund', 'fixed_income', 'derivative', 'option', 'future');
@@ -241,46 +227,3 @@ WITH named AS (
 INSERT INTO identifiers (id, instrument_id, type, value)
 SELECT uuid_v7(), id, 'currency', code FROM named;
 
--- identifiers is a JSON array of objects with type, value and, when stated, a
--- domain, sorted by type, domain and value with no domain sorting first, so
--- that two statements of one key compare equal. The whole key is the unique
--- index, which bounds it at one btree entry, about 2.7KB.
---
--- currency is the code as the source stated it, checked against nothing.
-CREATE TABLE stated_keys (
-    id          uuid        PRIMARY KEY,
-    statement_id   uuid        NOT NULL,
-    user_id     uuid        NOT NULL,
-    asset_class asset_class REFERENCES asset_class_tree (class),
-    currency    text,
-    description text,
-    identifiers jsonb       NOT NULL DEFAULT '[]',
-    created_at  timestamptz NOT NULL DEFAULT now(),
-    CHECK (jsonb_typeof(identifiers) = 'array'),
-    FOREIGN KEY (statement_id, user_id) REFERENCES runs (id, user_id),
-    UNIQUE NULLS NOT DISTINCT (statement_id, asset_class, currency, description, identifiers)
-);
-
--- listing_id is set when resolution named a listing, and currency when the
--- source stated one, as the precise code stated. quantity is in units of the
--- instrument: shares, contracts, or money for cash.
-CREATE TABLE transactions (
-    id              uuid        PRIMARY KEY,
-    user_id         uuid        NOT NULL REFERENCES users (id),
-    broker          broker      NOT NULL,
-    statement_id       uuid        NOT NULL,
-    stated_key_id   uuid        NOT NULL REFERENCES stated_keys (id),
-    instrument_id   uuid        NOT NULL REFERENCES instruments (id),
-    listing_id      uuid        REFERENCES listings (id),
-    order_date      date        NOT NULL,
-    settlement_date date        NOT NULL,
-    as_at           date        NOT NULL,
-    quantity        numeric     NOT NULL,
-    currency        text        REFERENCES currencies (code),
-    created_at      timestamptz NOT NULL DEFAULT now(),
-    FOREIGN KEY (statement_id, user_id) REFERENCES runs (id, user_id),
-    FOREIGN KEY (listing_id, instrument_id) REFERENCES listings (id, instrument_id)
-);
-
-CREATE INDEX transactions_period_idx ON transactions (user_id, broker, order_date);
-CREATE INDEX transactions_instrument_idx ON transactions (user_id, instrument_id, listing_id);

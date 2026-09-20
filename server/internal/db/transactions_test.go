@@ -16,13 +16,6 @@ import (
 	"github.com/leedenison/stonks/server/internal/db/types"
 )
 
-func newStatement(t *testing.T, q *gen.Queries, user gen.User) gen.Run {
-	t.Helper()
-	row, err := q.CreateRun(context.Background(), gen.CreateRunParams{ID: db.NewID(), UserID: user.ID, Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser})
-	require.NoError(t, err)
-	return row
-}
-
 func date(y int, m time.Month, d int) time.Time { return time.Date(y, m, d, 0, 0, 0, 0, time.UTC) }
 
 // TestStatedKeys checks that one statement holds one row per distinct key, and
@@ -33,7 +26,7 @@ func TestStatedKeys(t *testing.T) {
 	user := newUser(t, q, "keys@example.com")
 	statement, other := newStatement(t, q, user), newStatement(t, q, user)
 	cash := gen.AssetClassCash
-	key := func(statement gen.Run) gen.CreateStatedKeyParams {
+	key := func(statement gen.Statement) gen.CreateStatedKeyParams {
 		return gen.CreateStatedKeyParams{
 			ID: db.NewID(), StatementID: statement.ID, UserID: user.ID, AssetClass: &cash, Currency: ptr("USD"),
 			Identifiers: []types.StatedIdentifier{{Type: "system", Value: "cash"}},

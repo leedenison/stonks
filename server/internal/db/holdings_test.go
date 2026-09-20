@@ -20,7 +20,7 @@ import (
 // transactions under.
 type holder struct {
 	user      gen.User
-	statement gen.Run
+	statement gen.Statement
 	key       gen.StatedKey
 }
 
