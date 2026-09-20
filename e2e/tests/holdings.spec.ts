@@ -2,13 +2,6 @@ import path from "node:path";
 import type { Holding } from "../gen/holding/v1/holding_pb";
 import { AssetClass } from "../gen/type/v1/type_pb";
 import { holdingClient } from "../helpers/api";
-import {
-  closeRedis,
-  deleteSession,
-  injectSession,
-  seedSession,
-} from "../helpers/auth";
-import { closeDB, deleteUser, seedUser } from "../helpers/db";
 import { expect, test } from "../helpers/test";
 
 // The fixture is a copy of the client's Fidelity UK test export, modelled on
@@ -48,19 +41,6 @@ const expected = [
   },
 ];
 
-const users: string[] = [];
-const sessions: string[] = [];
-
-test.afterEach(async () => {
-  await Promise.all(sessions.splice(0).map(deleteSession));
-  await Promise.all(users.splice(0).map(deleteUser));
-});
-
-test.afterAll(async () => {
-  await closeDB();
-  await closeRedis();
-});
-
 // byName finds the holding one of whose identifiers is name.
 function byName(holdings: Holding[], name: string): Holding {
   const found = holdings.find((h) =>
@@ -73,15 +53,11 @@ function byName(holdings: Holding[], name: string): Holding {
 }
 
 test("uploads a statement and lists the holdings it produces", async ({
-  context,
+  signIn,
+  seed,
   page,
 }) => {
-  const user = await seedUser();
-  users.push(user.id);
-  const session = await seedSession(user);
-  sessions.push(session);
-  await injectSession(context, session);
-
+  const { session } = await signIn();
   await page.goto("/transactions");
   await page.getByTestId("upload-statement").click();
   await page.getByTestId("upload-file").setInputFiles(fixture);
@@ -128,10 +104,7 @@ test("uploads a statement and lists the holdings it produces", async ({
   );
 
   // Another user holds none of them.
-  const other = await seedUser();
-  users.push(other.id);
-  const otherSession = await seedSession(other);
-  sessions.push(otherSession);
-  const theirs = await holdingClient(otherSession).listHoldings({});
+  const other = await seed();
+  const theirs = await holdingClient(other.session).listHoldings({});
   expect(theirs.holdings).toHaveLength(0);
 });
