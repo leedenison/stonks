@@ -1,7 +1,6 @@
 "use client";
 
 import { create } from "@bufbuild/protobuf";
-import type { Transport } from "@connectrpc/connect";
 import {
   type QueryClient,
   type UseMutationResult,
@@ -10,6 +9,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { createContext, type ReactNode, useContext, useMemo } from "react";
+import { useClients } from "./clients-context";
 import {
   GetSessionResponseSchema,
   type Session,
@@ -17,7 +17,6 @@ import {
   type SignOutResponse,
   type User,
 } from "@/gen/auth/v1/auth_pb";
-import { newClients } from "@/lib/clients";
 import { qk } from "@/lib/query-keys";
 
 // The session as the client knows it. Restoring lasts from mount until
@@ -47,24 +46,17 @@ export function expireSession(client: QueryClient) {
 // session is restored through the session query on mount, so a stored value
 // paints at once and is revalidated behind it. A failed restore is treated
 // as no session: a network fault shows the sign-in rather than an error.
-export function AuthProvider({
-  transport,
-  children,
-}: {
-  transport: Transport;
-  children: ReactNode;
-}) {
+export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
-  const clients = useMemo(() => newClients(transport), [transport]);
+  const { auth } = useClients();
 
   const session = useQuery({
     queryKey: qk.session(),
-    queryFn: () => clients.auth.getSession({}),
+    queryFn: () => auth.getSession({}),
   });
 
   const signIn = useMutation({
-    mutationFn: (googleIdToken: string) =>
-      clients.auth.signIn({ googleIdToken }),
+    mutationFn: (googleIdToken: string) => auth.signIn({ googleIdToken }),
     onSuccess: (res) => {
       queryClient.setQueryData(
         qk.session(),
@@ -77,7 +69,7 @@ export function AuthProvider({
   });
 
   const signOut = useMutation({
-    mutationFn: () => clients.auth.signOut({}),
+    mutationFn: () => auth.signOut({}),
     onSuccess: () => expireSession(queryClient),
   });
 

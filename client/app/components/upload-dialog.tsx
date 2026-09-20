@@ -1,22 +1,24 @@
 "use client";
 
-import { create } from "@bufbuild/protobuf";
-import { Code, ConnectError } from "@connectrpc/connect";
 import { FileUp, LoaderCircle } from "lucide-react";
 import { type ChangeEvent, useEffect, useMemo, useState } from "react";
 import type { Run } from "@/gen/run/v1/run_pb";
-import { StatementSchema } from "@/gen/statement/v1/statement_pb";
+import type { Statement } from "@/gen/statement/v1/statement_pb";
 import { Broker } from "@/gen/type/v1/type_pb";
 import { useCreateStatement } from "@/hooks/use-create-statement";
+import { useDropTarget } from "@/hooks/use-drop-target";
 import { brokerLabel, brokers } from "@/lib/broker";
 import { formatQuantity } from "@/lib/format";
-import { nextDay, prevDay, today } from "@/lib/marshal/date";
+import { today } from "@/lib/marshal/date";
 import { recognisedBy } from "@/lib/marshal/marshal";
 import { keyLabel } from "@/lib/rejections";
 import { needsExportDate, parseExport } from "@/lib/upload/parse";
+import { claim, type Period, period } from "@/lib/upload/period";
+import { refusal } from "@/lib/upload/refusal";
 import { Button } from "./button";
 import { Dialog } from "./dialog";
 import { Notice } from "./notice";
+import { Td, Th } from "./table";
 
 // The largest file taken, in bytes. A broker export is kilobytes; anything
 // larger is not one.
@@ -56,7 +58,7 @@ export function UploadDialog({
   const [broker, setBroker] = useState<Broker>();
   const [guesses, setGuesses] = useState<Broker[]>([]);
   const [exportedOn, setExportedOn] = useState(today);
-  const [period, setPeriod] = useState<{ from: string; to: string }>();
+  const [chosen, setChosen] = useState<Period>();
   const created = useCreateStatement();
 
   const finish = (file: File, text: string) => {
@@ -64,7 +66,7 @@ export function UploadDialog({
     setLoaded({ name: file.name, type: file.type, text });
     setGuesses(found);
     setBroker(found.length === 1 ? found[0] : undefined);
-    setPeriod(undefined);
+    setChosen(undefined);
     setReading(false);
   };
 
@@ -120,40 +122,27 @@ export function UploadDialog({
     [loaded, broker, exportedOn],
   );
   const statement = parsed?.statement;
-  const from = period?.from ?? statement?.orderFrom ?? "";
-  const to = period?.to ?? (statement ? prevDay(statement.orderBefore) : "");
-  const outside = statement
-    ? statement.rows.filter((r) => r.orderDate < from || r.orderDate > to)
-        .length
-    : 0;
-  const periodValid = from !== "" && to !== "" && from <= to;
+  const span = statement ? period(statement, chosen) : undefined;
 
   const submit = () => {
-    if (!statement) {
+    if (!statement || !span) {
       return;
     }
-    created.mutate(
-      create(StatementSchema, {
-        ...statement,
-        orderFrom: from,
-        orderBefore: nextDay(to),
-      }),
-      {
-        onSuccess: (res) => {
-          onClose();
-          if (res.run) {
-            onCreated?.(res.run);
-          }
-        },
+    created.mutate(claim(statement, span), {
+      onSuccess: (res) => {
+        onClose();
+        if (res.run) {
+          onCreated?.(res.run);
+        }
       },
-    );
+    });
   };
 
   const back = () => {
     setLoaded(undefined);
     setBroker(undefined);
     setGuesses([]);
-    setPeriod(undefined);
+    setChosen(undefined);
     created.reset();
   };
 
@@ -175,7 +164,7 @@ export function UploadDialog({
             </Button>
             <Button
               data-testid="upload-submit"
-              disabled={!statement || !periodValid || created.isPending}
+              disabled={!span?.valid || created.isPending}
               onClick={submit}
             >
               {created.isPending ? "Uploading" : "Upload"}
@@ -213,7 +202,7 @@ export function UploadDialog({
                 setBroker(
                   e.target.value === "" ? undefined : Number(e.target.value),
                 );
-                setPeriod(undefined);
+                setChosen(undefined);
                 created.reset();
               }}
             >
@@ -242,7 +231,7 @@ export function UploadDialog({
               {parsed.error.message}
             </Notice>
           )}
-          {statement && (
+          {statement && span && (
             <>
               <p data-testid="upload-rows" className="text-sm">
                 <span className="font-mono tabular-nums">
@@ -259,8 +248,10 @@ export function UploadDialog({
                     type="date"
                     data-testid="upload-from"
                     className={inputClass}
-                    value={from}
-                    onChange={(e) => setPeriod({ from: e.target.value, to })}
+                    value={span.from}
+                    onChange={(e) =>
+                      setChosen({ from: e.target.value, to: span.to })
+                    }
                   />
                 </label>
                 <label className="flex flex-col gap-1">
@@ -269,18 +260,20 @@ export function UploadDialog({
                     type="date"
                     data-testid="upload-to"
                     className={inputClass}
-                    value={to}
-                    onChange={(e) => setPeriod({ from, to: e.target.value })}
+                    value={span.to}
+                    onChange={(e) =>
+                      setChosen({ from: span.from, to: e.target.value })
+                    }
                   />
                 </label>
               </div>
-              {outside > 0 && (
+              {span.outside > 0 && (
                 <Notice testId="upload-outside">
-                  {outside} of the rows fall outside the period and will be
+                  {span.outside} of the rows fall outside the period and will be
                   rejected.
                 </Notice>
               )}
-              {!periodValid && (
+              {!span.valid && (
                 <Notice tone="error">
                   The period must start before it ends.
                 </Notice>
@@ -306,7 +299,7 @@ function Choose({
   onFile: (file: File) => void;
   error?: string;
 }) {
-  const [over, setOver] = useState(false);
+  const drop = useDropTarget(onFile);
   const onChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -317,20 +310,7 @@ function Choose({
     <div className="flex flex-col gap-3">
       <label
         data-testid="upload-drop"
-        data-over={over || undefined}
-        onDragOver={(e) => {
-          e.preventDefault();
-          setOver(true);
-        }}
-        onDragLeave={() => setOver(false)}
-        onDrop={(e) => {
-          e.preventDefault();
-          setOver(false);
-          const file = e.dataTransfer.files[0];
-          if (file) {
-            onFile(file);
-          }
-        }}
+        {...drop}
         className="flex cursor-pointer flex-col items-center gap-2 rounded-md border border-dashed border-border px-6 py-10 text-center text-sm text-text-muted transition-colors hover:bg-primary-light/15 data-over:bg-primary-light/15"
       >
         <FileUp aria-hidden className="h-6 w-6" />
@@ -351,11 +331,7 @@ function Choose({
   );
 }
 
-function Preview({
-  statement,
-}: {
-  statement: { rows: { orderDate: string; quantity: string; key?: unknown }[] };
-}) {
+function Preview({ statement }: { statement: Statement }) {
   const rows = statement.rows.slice(0, 5);
   return (
     <table
@@ -366,40 +342,31 @@ function Preview({
         Sample
       </caption>
       <thead>
-        <tr className="text-xs font-semibold tracking-wider text-text-muted uppercase">
-          <th className="w-28 px-3 py-1.5 text-left">Order date</th>
-          <th className="px-3 py-1.5 text-left">Key</th>
-          <th className="w-24 px-3 py-1.5 text-right">Quantity</th>
+        <tr>
+          <Th dense className="w-28">
+            Order date
+          </Th>
+          <Th dense>Key</Th>
+          <Th dense numeric className="w-24">
+            Quantity
+          </Th>
         </tr>
       </thead>
       <tbody>
         {rows.map((r, i) => (
           <tr key={i} className="border-t border-border">
-            <td className="px-3 py-1.5 font-mono tabular-nums">
+            <Td dense className="font-mono tabular-nums">
               {r.orderDate}
-            </td>
-            <td
-              className="truncate px-3 py-1.5"
-              title={keyLabel(r.key as Parameters<typeof keyLabel>[0])}
-            >
-              {keyLabel(r.key as Parameters<typeof keyLabel>[0])}
-            </td>
-            <td
-              className="px-3 py-1.5 text-right font-mono tabular-nums"
-              title={r.quantity}
-            >
+            </Td>
+            <Td dense className="truncate" title={keyLabel(r.key)}>
+              {keyLabel(r.key)}
+            </Td>
+            <Td dense numeric title={r.quantity}>
               {formatQuantity(r.quantity)}
-            </td>
+            </Td>
           </tr>
         ))}
       </tbody>
     </table>
   );
-}
-
-function refusal(err: Error): string {
-  if (err instanceof ConnectError && err.code === Code.InvalidArgument) {
-    return `The service refused the statement: ${err.rawMessage}`;
-  }
-  return "The upload failed. Try again.";
 }

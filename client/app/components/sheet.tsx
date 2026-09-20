@@ -1,7 +1,8 @@
 "use client";
 
-import { X } from "lucide-react";
-import { type ReactNode, useEffect, useRef } from "react";
+import type { ReactNode } from "react";
+import { useModal } from "@/hooks/use-modal";
+import { DialogHeader } from "./dialog";
 
 // Sheet is a native <dialog> anchored to the right edge under the top bar,
 // full height, over the page but not modal: the top bar stays live, so its
@@ -21,33 +22,7 @@ export function Sheet({
   testId: string;
   children: ReactNode;
 }) {
-  const ref = useRef<HTMLDialogElement>(null);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) {
-      return;
-    }
-    if (open && !el.open) {
-      el.show();
-      el.querySelector("button")?.focus();
-    } else if (!open && el.open) {
-      el.close();
-    }
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        onClose();
-      }
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  const { ref } = useModal(open, onClose, { modal: false });
 
   return (
     <>
@@ -63,18 +38,7 @@ export function Sheet({
         data-testid={testId}
         className="fixed inset-auto top-(--top-bar-height) right-0 bottom-0 z-30 m-0 h-[calc(100dvh-var(--top-bar-height))] max-h-none w-full max-w-md flex-col border-l border-border bg-surface p-0 text-text-primary shadow-xl open:flex"
       >
-        <div className="flex items-center justify-between border-b border-border px-5 py-3">
-          <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
-          <button
-            type="button"
-            aria-label="Close"
-            data-testid={`${testId}-close`}
-            onClick={onClose}
-            className="rounded-md p-1 text-text-muted transition-colors hover:bg-primary-light/15 hover:text-text-primary"
-          >
-            <X aria-hidden className="h-5 w-5" />
-          </button>
-        </div>
+        <DialogHeader title={title} testId={testId} onClose={onClose} />
         <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-5 py-4">
           {children}
         </div>

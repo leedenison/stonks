@@ -44,7 +44,7 @@ export function authWrapper(transport: Transport, client?: QueryClient) {
     return (
       <QueryClientProvider client={queryClient}>
         <ClientsProvider transport={transport}>
-          <AuthProvider transport={transport}>
+          <AuthProvider>
             <ActivityProvider>{children}</ActivityProvider>
           </AuthProvider>
         </ClientsProvider>
