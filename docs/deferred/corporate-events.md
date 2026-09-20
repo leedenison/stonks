@@ -41,10 +41,9 @@ corporate event fetch replays every OCC stated key normalised through it.  See
 
 ### Statements Are Not a Source
 
-A split stated in an uploaded transaction history is neither stored as an event nor
-applied as an adjustment.  It is compared with the calendar, and flagged for the
-administrator when the calendar lacks it.  See
-[transaction-ingestion.md](transaction-ingestion.md).
+A split stated in an uploaded transaction history is never stored as an event.  It is
+compared with the calendar, and flagged for the administrator when the calendar lacks
+it.
 
 ### Unhandled Events
 
@@ -88,8 +87,8 @@ of derivatives.  This is straightforwardly true of any adjusted values computed 
 but the system also ensures that any cached, adjusted values affected by a corporate event
 are invalidated and recomputed.
 
-Where coverage does not span the period an instrument was held, the raw quantity is shown
-in place of an adjusted one.  Holdings read a per instrument summary of coverage
+An adjusted quantity is shown only where coverage spans the period an instrument was
+held, and the raw quantity elsewhere.  Holdings read a per instrument summary of coverage
 maintained at ingest.
 
 ## Sketch

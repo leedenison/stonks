@@ -49,8 +49,7 @@ one side only, and the transaction it names says nothing in return.
 Grouping runs over a neighbourhood of what was uploaded rather than over one statement or
 over everything.  The neighbourhood reaches as far as the evidence does, which is not a
 window of dates: a correlation a user asserted can link two transactions years apart.
-
-Grouping is a run.  See [runs.md](runs.md).
+Grouping is a run.
 
 The neutral format gains correlations when grouping is built.  Statements made before then
 carry none and are uploaded again to gain them.
