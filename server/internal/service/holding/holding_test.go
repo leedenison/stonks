@@ -3,9 +3,7 @@ package holding
 import (
 	"context"
 	"errors"
-	"log/slog"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -20,16 +18,16 @@ import (
 	typev1 "github.com/leedenison/stonks/proto/type/v1"
 	"github.com/leedenison/stonks/server/internal/auth"
 	"github.com/leedenison/stonks/server/internal/db/gen"
-	"github.com/leedenison/stonks/server/internal/service"
 	"github.com/leedenison/stonks/server/internal/service/holding/mock"
 	servicemock "github.com/leedenison/stonks/server/internal/service/mock"
+	"github.com/leedenison/stonks/server/internal/service/servicetest"
 )
 
 var (
 	userID    = uuid.MustParse("00000000-0000-0000-0000-000000000001")
 	gbpID     = uuid.MustParse("00000000-0000-0000-0000-000000000020")
 	acmeID    = uuid.MustParse("00000000-0000-0000-0000-000000000021")
-	principal = auth.Principal{User: gen.User{ID: userID, Email: "one@example.com"}, SessionID: "session-1"}
+	principal = auth.Principal{User: gen.User{ID: userID, Email: "one@example.com"}, SessionID: servicetest.Session}
 )
 
 type fixture struct {
@@ -45,27 +43,12 @@ func newFixture(t *testing.T) *fixture {
 	ctrl := gomock.NewController(t)
 	t.Cleanup(ctrl.Finish)
 	f := &fixture{reader: mock.NewMockReader(ctrl), authn: servicemock.NewMockAuthenticator(ctrl)}
-	opts, err := service.HandlerOptions(slog.New(slog.DiscardHandler), f.authn)
-	if err != nil {
-		t.Fatalf("HandlerOptions() error = %v", err)
-	}
-	mux := http.NewServeMux()
-	mux.Handle(holdingv1connect.NewHoldingServiceHandler(New(f.reader), opts...))
-	srv := httptest.NewServer(mux)
-	t.Cleanup(srv.Close)
-	client := srv.Client()
-	client.Transport = &cookieTransport{next: client.Transport}
-	f.client = holdingv1connect.NewHoldingServiceClient(client, srv.URL)
+	opts := servicetest.Options(t, f.authn)
+	srv := servicetest.Serve(t, func(mux *http.ServeMux) {
+		mux.Handle(holdingv1connect.NewHoldingServiceHandler(New(f.reader), opts...))
+	})
+	f.client = holdingv1connect.NewHoldingServiceClient(srv.Client, srv.URL)
 	return f
-}
-
-type cookieTransport struct {
-	next http.RoundTripper
-}
-
-func (c *cookieTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	req.Header.Set("Cookie", service.CookieName+"=session-1")
-	return c.next.RoundTrip(req)
 }
 
 func TestListHoldings(t *testing.T) {
@@ -115,7 +98,7 @@ func TestListHoldings(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newFixture(t)
-			f.authn.EXPECT().Authenticate(gomock.Any(), "session-1").Return(principal, tc.authErr)
+			f.authn.EXPECT().Authenticate(gomock.Any(), servicetest.Session).Return(principal, tc.authErr)
 			if tc.authErr == nil {
 				f.reader.EXPECT().ListHoldings(gomock.Any(), userID).Return(tc.rows, tc.rowsErr)
 			}
@@ -123,7 +106,7 @@ func TestListHoldings(t *testing.T) {
 				f.reader.EXPECT().ListHeldIdentifiers(gomock.Any(), userID).Return(tc.idents, tc.identsErr)
 			}
 			res, err := f.client.ListHoldings(context.Background(), connect.NewRequest(&holdingv1.ListHoldingsRequest{}))
-			if codeOf(err) != tc.wantCode {
+			if servicetest.CodeOf(err) != tc.wantCode {
 				t.Fatalf("ListHoldings() code = %v (err %v), want %v", connect.CodeOf(err), err, tc.wantCode)
 			}
 			if err != nil {
@@ -134,12 +117,4 @@ func TestListHoldings(t *testing.T) {
 			}
 		})
 	}
-}
-
-// codeOf is connect.CodeOf with 0 for success, so a want of 0 means no error.
-func codeOf(err error) connect.Code {
-	if err == nil {
-		return 0
-	}
-	return connect.CodeOf(err)
 }

@@ -14,6 +14,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/types"
+	"github.com/leedenison/stonks/server/internal/ptr"
 )
 
 func date(y int, m time.Month, d int) time.Time { return time.Date(y, m, d, 0, 0, 0, 0, time.UTC) }
@@ -28,7 +29,7 @@ func TestStatedKeys(t *testing.T) {
 	cash := gen.AssetClassCash
 	key := func(statement gen.Statement) gen.CreateStatedKeyParams {
 		return gen.CreateStatedKeyParams{
-			ID: db.NewID(), StatementID: statement.ID, UserID: user.ID, AssetClass: &cash, Currency: ptr("USD"),
+			ID: db.NewID(), StatementID: statement.ID, UserID: user.ID, AssetClass: &cash, Currency: ptr.To("USD"),
 			Identifiers: []types.StatedIdentifier{{Type: "system", Value: "cash"}},
 		}
 	}
@@ -69,7 +70,7 @@ func TestTransactions(t *testing.T) {
 			ID: db.NewID(), UserID: user.ID, Broker: broker, StatementID: statement.ID, StatedKeyID: key.ID,
 			InstrumentID: usd.InstrumentID, ListingID: &usd.ID,
 			OrderDate: order, SettlementDate: order.AddDate(0, 0, 2), AsAt: order,
-			Quantity: decimal.RequireFromString(quantity), Currency: ptr("USD"),
+			Quantity: decimal.RequireFromString(quantity), Currency: ptr.To("USD"),
 		})
 		require.NoError(t, err)
 		return row

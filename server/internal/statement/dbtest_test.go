@@ -155,8 +155,8 @@ func TestIngest(t *testing.T) {
 
 	st, err := s.q.GetStatement(ctx, gen.GetStatementParams{ID: parent.ID, UserID: s.user.ID})
 	require.NoError(t, err)
-	if st.Statement.Broker != gen.BrokerIbkr || st.Statement.RowCount != 6 || st.Rejected != 3 {
-		t.Errorf("GetStatement = %+v, want ibkr with 6 rows and 3 rejected", st)
+	if st.Statement.Broker != gen.BrokerIbkr || !st.Statement.OrderFrom.Equal(from) || !st.Statement.OrderBefore.Equal(until) || st.Statement.RowCount != 6 || st.Rejected != 3 {
+		t.Errorf("GetStatement = %+v, want ibkr over March with 6 rows and 3 rejected", st)
 	}
 	keys, err := s.q.ListStatedKeys(ctx, gen.ListStatedKeysParams{StatementID: parent.ID, UserID: s.user.ID})
 	require.NoError(t, err)

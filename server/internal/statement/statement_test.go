@@ -421,132 +421,19 @@ func TestResolveKeyError(t *testing.T) {
 	}
 }
 
-// TestCreate runs one statement through receipt, resolution and the write
-// against the mocks, and checks what each transaction wrote.
-func TestCreate(t *testing.T) {
+// TestCreateSpec checks the run Create starts: a statement run of the user,
+// in the broker's lane.
+func TestCreateSpec(t *testing.T) {
 	f := newFixture(t)
-	usd, eur := "USD", "EUR"
-	acme := securityKey("ACME CORP", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, "US0000000001", nil))
-	msg := &statementv1.Statement{
-		Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01",
-		Rows: []*statementv1.Row{
-			rowMsg(acme, "2026-03-05", "10"),
-			rowMsg(cashKey("USD"), "2026-03-05", "-1000"),
-			rowMsg(acme, "2026-04-20", "1"),
-			rowMsg(securityKey("ACME CORP", typev1.AssetClass_ASSET_CLASS_EQUITY, &eur), "2026-03-06", "1"),
-			rowMsg(acme, "2026-03-07", "5"),
-		},
-		Splits: []*statementv1.StatedSplit{{Key: acme, EffectiveDate: "2026-03-10", Quantity: "9", Ratio: &statementv1.SplitRatio{From: "1", To: "10"}}},
-	}
-	dom := "ibkr/upload"
-	cashInst := gen.Instrument{ID: db.NewID(), AssetClass: gen.AssetClassCash}
-	cash := gen.GetListingByIdentifierRow{Listing: gen.Listing{ID: db.NewID(), InstrumentID: cashInst.ID, Currency: "USD"}, AssetClass: gen.AssetClassCash}
-	created := gen.Listing{ID: db.NewID(), InstrumentID: db.NewID(), Currency: "USD", OwnerID: &userID}
-
-	var statements []gen.CreateStatementParams
-	var keys []gen.CreateStatedKeyParams
-	var splits []gen.CreateStatementSplitParams
-	var resolved []gen.CreateResolutionKeyParams
-	var deleted []gen.DeleteTransactionsParams
-	var txs []gen.CreateTransactionParams
-	var items []gen.CreateStatementItemParams
-	var completed []uuid.UUID
-	f.store.EXPECT().CreateStatement(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.CreateStatementParams) (gen.Statement, error) {
-		statements = append(statements, arg)
-		return gen.Statement{}, nil
-	})
-	f.store.EXPECT().CreateStatedKey(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.CreateStatedKeyParams) (gen.StatedKey, error) {
-		keys = append(keys, arg)
-		return gen.StatedKey{}, nil
-	}).Times(3)
-	f.store.EXPECT().CreateStatementSplit(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.CreateStatementSplitParams) error {
-		splits = append(splits, arg)
-		return nil
-	})
-	f.store.EXPECT().GetInstrumentByIdentifier(gomock.Any(), gen.GetInstrumentByIdentifierParams{Type: gen.IdentifierTypeCurrency, Value: "USD"}).Return(cashInst, nil)
-	f.store.EXPECT().GetListing(gomock.Any(), gen.GetListingParams{InstrumentID: cashInst.ID, Currency: "USD"}).Return(cash.Listing, nil)
-	byDescription := gen.GetListingByIdentifierParams{OwnerID: &userID, Type: gen.IdentifierTypeBrokerDescription, Domain: &dom, Value: "ACME CORP"}
-	gomock.InOrder(
-		f.store.EXPECT().GetListingByIdentifier(gomock.Any(), byDescription).Return(gen.GetListingByIdentifierRow{}, db.ErrNotFound),
-		f.store.EXPECT().CreateInstrument(gomock.Any(), gomock.Any()).Return(gen.Instrument{ID: created.InstrumentID}, nil),
-		f.store.EXPECT().CreateListing(gomock.Any(), gomock.Any()).Return(created, nil),
-		f.store.EXPECT().CreateIdentifier(gomock.Any(), gomock.Any()).Return(gen.Identifier{}, nil),
-		f.store.EXPECT().GetListingByIdentifier(gomock.Any(), byDescription).Return(gen.GetListingByIdentifierRow{Listing: created, AssetClass: gen.AssetClassEquity}, nil),
-	)
-	f.store.EXPECT().CreateResolutionKey(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.CreateResolutionKeyParams) error {
-		resolved = append(resolved, arg)
-		return nil
-	}).Times(3)
-	f.store.EXPECT().DeleteTransactions(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.DeleteTransactionsParams) (int64, error) {
-		deleted = append(deleted, arg)
-		return 0, nil
-	})
-	f.store.EXPECT().CreateTransaction(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.CreateTransactionParams) (gen.Transaction, error) {
-		txs = append(txs, arg)
-		return gen.Transaction{}, nil
-	}).Times(3)
-	f.store.EXPECT().CreateStatementItem(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.CreateStatementItemParams) error {
-		items = append(items, arg)
-		return nil
-	}).Times(2)
-	f.store.EXPECT().CompleteRun(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, id uuid.UUID) error {
-		completed = append(completed, id)
-		return nil
-	})
-
-	row, err := f.svc.Create(context.Background(), userID, msg)
-	if err != nil || f.workErr != nil {
+	f.store.EXPECT().CreateStatement(gomock.Any(), gomock.Any()).Return(gen.Statement{}, nil)
+	f.store.EXPECT().DeleteTransactions(gomock.Any(), gomock.Any()).Return(int64(0), nil)
+	f.store.EXPECT().CompleteRun(gomock.Any(), gomock.Any()).Return(nil)
+	msg := &statementv1.Statement{Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01"}
+	if _, err := f.svc.Create(context.Background(), userID, msg); err != nil || f.workErr != nil {
 		t.Fatalf("Create() error = %v, work error = %v", err, f.workErr)
 	}
 	if f.spec.Kind != gen.RunKindStatement || f.spec.Lane != "ibkr" || f.spec.UserID != userID {
 		t.Errorf("Start(%+v), want a statement run of the user in lane ibkr", f.spec)
-	}
-	wantStatement := []gen.CreateStatementParams{{ID: row.ID, UserID: userID, Broker: gen.BrokerIbkr, OrderFrom: from, OrderBefore: until, RowCount: 5}}
-	if diff := cmp.Diff(wantStatement, statements); diff != "" {
-		t.Errorf("CreateStatement mismatch (-want +got):\n%s", diff)
-	}
-	if len(keys) != 3 || len(splits) != 1 || splits[0].StatedKeyID != keys[0].ID && splits[0].StatedKeyID != keys[1].ID && splits[0].StatedKeyID != keys[2].ID {
-		t.Errorf("Prepare wrote %d keys and %d splits, want 3 keys and 1 split of one of them", len(keys), len(splits))
-	}
-	for _, k := range keys {
-		if k.StatementID != row.ID || k.UserID != userID {
-			t.Errorf("CreateStatedKey(%+v), want the statement's and the user's", k)
-		}
-	}
-	outcomes := map[gen.ResolutionOutcome]int{}
-	for _, r := range resolved {
-		outcomes[r.Outcome]++
-	}
-	if diff := cmp.Diff(map[gen.ResolutionOutcome]int{gen.ResolutionOutcomeMatched: 1, gen.ResolutionOutcomeCreated: 1, gen.ResolutionOutcomeRejected: 1}, outcomes); diff != "" {
-		t.Errorf("resolution outcomes mismatch (-want +got):\n%s", diff)
-	}
-	if diff := cmp.Diff([]gen.DeleteTransactionsParams{{UserID: userID, Broker: gen.BrokerIbkr, OrderFrom: from, OrderBefore: until}}, deleted); diff != "" {
-		t.Errorf("DeleteTransactions mismatch (-want +got):\n%s", diff)
-	}
-	var gotTxs []string
-	for _, tx := range txs {
-		gotTxs = append(gotTxs, tx.OrderDate.Format(time.DateOnly)+" "+tx.Quantity.String()+" "+tx.InstrumentID.String())
-		if tx.StatementID != row.ID || tx.UserID != userID || tx.Broker != gen.BrokerIbkr || tx.ListingID == nil {
-			t.Errorf("CreateTransaction(%+v), want the statement's, the user's and the broker's with a listing", tx)
-		}
-	}
-	wantTxs := []string{"2026-03-05 10 " + created.InstrumentID.String(), "2026-03-05 -1000 " + cash.Listing.InstrumentID.String(), "2026-03-07 5 " + created.InstrumentID.String()}
-	if diff := cmp.Diff(wantTxs, gotTxs); diff != "" {
-		t.Errorf("transactions mismatch (-want +got):\n%s", diff)
-	}
-	var gotItems []string
-	for _, it := range items {
-		gotItems = append(gotItems, string(rune('0'+it.Ordinal))+" "+it.Reason)
-		if it.StatementID != row.ID || len(it.Stated) == 0 {
-			t.Errorf("CreateStatementItem(%+v), want the statement's with the row", it)
-		}
-	}
-	wantItems := []string{"2 order date outside the claimed period", "3 currency EUR contradicts the listing named, quoted in USD"}
-	if diff := cmp.Diff(wantItems, gotItems); diff != "" {
-		t.Errorf("items mismatch (-want +got):\n%s", diff)
-	}
-	if diff := cmp.Diff([]uuid.UUID{row.ID}, completed); diff != "" {
-		t.Errorf("CompleteRun mismatch (-want +got):\n%s", diff)
 	}
 }
 

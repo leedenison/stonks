@@ -16,6 +16,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/types"
+	"github.com/leedenison/stonks/server/internal/ptr"
 )
 
 // newRun records a pending statement run with no statements row.
@@ -130,14 +131,14 @@ func TestResolutionKeys(t *testing.T) {
 	usd := cashListing(t, q, "USD")
 	newKey := func() gen.StatedKey {
 		t.Helper()
-		key, err := q.CreateStatedKey(ctx, gen.CreateStatedKeyParams{ID: db.NewID(), StatementID: statement.ID, UserID: user.ID, Description: ptr(uuid.NewString()), Identifiers: []types.StatedIdentifier{}})
+		key, err := q.CreateStatedKey(ctx, gen.CreateStatedKeyParams{ID: db.NewID(), StatementID: statement.ID, UserID: user.ID, Description: ptr.To(uuid.NewString()), Identifiers: []types.StatedIdentifier{}})
 		require.NoError(t, err)
 		return key
 	}
 	matched, rejected := newKey(), newKey()
 
 	require.NoError(t, q.CreateResolutionKey(ctx, gen.CreateResolutionKeyParams{RunID: resolution.ID, UserID: user.ID, StatedKeyID: matched.ID, Outcome: gen.ResolutionOutcomeMatched, InstrumentID: &usd.InstrumentID, ListingID: &usd.ID}))
-	require.NoError(t, q.CreateResolutionKey(ctx, gen.CreateResolutionKeyParams{RunID: resolution.ID, UserID: user.ID, StatedKeyID: rejected.ID, Outcome: gen.ResolutionOutcomeRejected, Reason: ptr("no currency")}))
+	require.NoError(t, q.CreateResolutionKey(ctx, gen.CreateResolutionKeyParams{RunID: resolution.ID, UserID: user.ID, StatedKeyID: rejected.ID, Outcome: gen.ResolutionOutcomeRejected, Reason: ptr.To("no currency")}))
 	keys, err := q.ListResolutionKeys(ctx, gen.ListResolutionKeysParams{RunID: resolution.ID, UserID: user.ID})
 	require.NoError(t, err)
 	if len(keys) != 2 {
@@ -151,10 +152,10 @@ func TestResolutionKeys(t *testing.T) {
 		name string
 		arg  gen.CreateResolutionKeyParams
 	}{
-		{name: "rejected with an instrument", arg: gen.CreateResolutionKeyParams{Outcome: gen.ResolutionOutcomeRejected, Reason: ptr("x"), InstrumentID: &usd.InstrumentID}},
+		{name: "rejected with an instrument", arg: gen.CreateResolutionKeyParams{Outcome: gen.ResolutionOutcomeRejected, Reason: ptr.To("x"), InstrumentID: &usd.InstrumentID}},
 		{name: "rejected without a reason", arg: gen.CreateResolutionKeyParams{Outcome: gen.ResolutionOutcomeRejected}},
 		{name: "matched without an instrument", arg: gen.CreateResolutionKeyParams{Outcome: gen.ResolutionOutcomeMatched}},
-		{name: "created with a reason", arg: gen.CreateResolutionKeyParams{Outcome: gen.ResolutionOutcomeCreated, InstrumentID: &usd.InstrumentID, Reason: ptr("x")}},
+		{name: "created with a reason", arg: gen.CreateResolutionKeyParams{Outcome: gen.ResolutionOutcomeCreated, InstrumentID: &usd.InstrumentID, Reason: ptr.To("x")}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

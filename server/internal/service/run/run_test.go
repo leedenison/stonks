@@ -3,9 +3,7 @@ package run
 import (
 	"context"
 	"errors"
-	"log/slog"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -21,9 +19,10 @@ import (
 	"github.com/leedenison/stonks/server/internal/auth"
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
-	"github.com/leedenison/stonks/server/internal/service"
+	"github.com/leedenison/stonks/server/internal/ptr"
 	servicemock "github.com/leedenison/stonks/server/internal/service/mock"
 	"github.com/leedenison/stonks/server/internal/service/run/mock"
+	"github.com/leedenison/stonks/server/internal/service/servicetest"
 )
 
 var (
@@ -31,7 +30,7 @@ var (
 	runID     = uuid.MustParse("00000000-0000-0000-0000-000000000010")
 	parentID  = uuid.MustParse("00000000-0000-0000-0000-000000000011")
 	created   = time.Date(2026, 9, 14, 12, 0, 0, 0, time.UTC)
-	principal = auth.Principal{User: gen.User{ID: userID, Email: "one@example.com"}, SessionID: "session-1"}
+	principal = auth.Principal{User: gen.User{ID: userID, Email: "one@example.com"}, SessionID: servicetest.Session}
 )
 
 type fixture struct {
@@ -47,27 +46,12 @@ func newFixture(t *testing.T) *fixture {
 	ctrl := gomock.NewController(t)
 	t.Cleanup(ctrl.Finish)
 	f := &fixture{reader: mock.NewMockReader(ctrl), authn: servicemock.NewMockAuthenticator(ctrl)}
-	opts, err := service.HandlerOptions(slog.New(slog.DiscardHandler), f.authn)
-	if err != nil {
-		t.Fatalf("HandlerOptions() error = %v", err)
-	}
-	mux := http.NewServeMux()
-	mux.Handle(runv1connect.NewRunServiceHandler(New(f.reader), opts...))
-	srv := httptest.NewServer(mux)
-	t.Cleanup(srv.Close)
-	client := srv.Client()
-	client.Transport = &cookieTransport{next: client.Transport}
-	f.client = runv1connect.NewRunServiceClient(client, srv.URL)
+	opts := servicetest.Options(t, f.authn)
+	srv := servicetest.Serve(t, func(mux *http.ServeMux) {
+		mux.Handle(runv1connect.NewRunServiceHandler(New(f.reader), opts...))
+	})
+	f.client = runv1connect.NewRunServiceClient(srv.Client, srv.URL)
 	return f
-}
-
-type cookieTransport struct {
-	next http.RoundTripper
-}
-
-func (c *cookieTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	req.Header.Set("Cookie", service.CookieName+"=session-1")
-	return c.next.RoundTrip(req)
 }
 
 func TestGetRun(t *testing.T) {
@@ -94,7 +78,7 @@ func TestGetRun(t *testing.T) {
 			id:   runID.String(),
 			row:  gen.Run{ID: runID, UserID: userID, Kind: gen.RunKindResolution, Trigger: gen.RunTriggerRun, ParentID: &parentID, State: gen.RunStateFailed, Error: &failure, CreatedAt: created, StartedAt: &started, FinishedAt: &finished},
 			want: &runv1.Run{
-				Id: runID.String(), Kind: runv1.RunKind_RUN_KIND_RESOLUTION, Trigger: runv1.RunTrigger_RUN_TRIGGER_RUN, ParentId: ptr(parentID.String()),
+				Id: runID.String(), Kind: runv1.RunKind_RUN_KIND_RESOLUTION, Trigger: runv1.RunTrigger_RUN_TRIGGER_RUN, ParentId: ptr.To(parentID.String()),
 				State: runv1.RunState_RUN_STATE_FAILED, Error: &failure, CreatedAt: timestamppb.New(created), StartedAt: timestamppb.New(started), FinishedAt: timestamppb.New(finished),
 			},
 		},
@@ -106,12 +90,12 @@ func TestGetRun(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newFixture(t)
-			f.authn.EXPECT().Authenticate(gomock.Any(), "session-1").Return(principal, tc.authErr)
+			f.authn.EXPECT().Authenticate(gomock.Any(), servicetest.Session).Return(principal, tc.authErr)
 			if tc.authErr == nil && tc.wantCode != connect.CodeInvalidArgument {
 				f.reader.EXPECT().GetRun(gomock.Any(), gen.GetRunParams{ID: runID, UserID: userID}).Return(tc.row, tc.err)
 			}
 			res, err := f.client.GetRun(context.Background(), connect.NewRequest(&runv1.GetRunRequest{RunId: tc.id}))
-			if codeOf(err) != tc.wantCode {
+			if servicetest.CodeOf(err) != tc.wantCode {
 				t.Fatalf("GetRun(%q) code = %v (err %v), want %v", tc.id, connect.CodeOf(err), err, tc.wantCode)
 			}
 			if err != nil {
@@ -122,14 +106,4 @@ func TestGetRun(t *testing.T) {
 			}
 		})
 	}
-}
-
-func ptr(s string) *string { return &s }
-
-// codeOf is connect.CodeOf with 0 for success, so a want of 0 means no error.
-func codeOf(err error) connect.Code {
-	if err == nil {
-		return 0
-	}
-	return connect.CodeOf(err)
 }
