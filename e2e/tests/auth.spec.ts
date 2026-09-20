@@ -1,34 +1,6 @@
 import { authClient } from "../helpers/api";
-import {
-  closeRedis,
-  deleteSession,
-  injectSession,
-  seedSession,
-} from "../helpers/auth";
-import { closeDB, deleteUser, seedUser, type Role } from "../helpers/db";
+import { deleteSession } from "../helpers/auth";
 import { expect, test } from "../helpers/test";
-
-// Each test owns the user it seeds; the session goes with the user's rows.
-const users: string[] = [];
-const sessions: string[] = [];
-
-async function seed(role: Role = "user") {
-  const user = await seedUser(role);
-  users.push(user.id);
-  const session = await seedSession(user);
-  sessions.push(session);
-  return { user, session };
-}
-
-test.afterEach(async () => {
-  await Promise.all(sessions.splice(0).map(deleteSession));
-  await Promise.all(users.splice(0).map(deleteUser));
-});
-
-test.afterAll(async () => {
-  await closeDB();
-  await closeRedis();
-});
 
 test("offers sign-in to a visitor", async ({ page }) => {
   await page.goto("/");
@@ -45,39 +17,32 @@ test("sends a visitor from the profile to the landing page", async ({
   await expect(page.getByTestId("landing-page")).toBeVisible();
 });
 
-test("lands a signed-in user on the transactions", async ({
-  context,
-  page,
-}) => {
-  const { user, session } = await seed();
-  await injectSession(context, session);
+test("lands a signed-in user on the transactions", async ({ signIn, page }) => {
+  const { user } = await signIn();
   await page.goto("/");
   await expect(page).toHaveURL("/transactions");
   await expect(page.getByTestId("transactions-page")).toBeVisible();
   await expect(page.getByTestId("user-email")).toHaveText(user.email);
 });
 
-test("shows the profile", async ({ context, page }) => {
-  const { user, session } = await seed();
-  await injectSession(context, session);
+test("shows the profile", async ({ signIn, page }) => {
+  const { user } = await signIn();
   await page.goto("/profile");
   await expect(page.getByTestId("profile-email")).toHaveText(user.email);
   await expect(page.getByTestId("profile-role")).toHaveText("user");
 });
 
-test("shows the admin role", async ({ context, page }) => {
-  const { session } = await seed("admin");
-  await injectSession(context, session);
+test("shows the admin role", async ({ signIn, page }) => {
+  await signIn("admin");
   await page.goto("/profile");
   await expect(page.getByTestId("profile-role")).toHaveText("admin");
 });
 
 test("returns to the landing page once the session is gone", async ({
-  context,
+  signIn,
   page,
 }) => {
-  const { session } = await seed();
-  await injectSession(context, session);
+  const { session } = await signIn();
   await page.goto("/profile");
   await expect(page.getByTestId("profile-page")).toBeVisible();
 
@@ -87,9 +52,8 @@ test("returns to the landing page once the session is gone", async ({
   await expect(page.getByTestId("sign-in")).toBeVisible();
 });
 
-test("signs out", async ({ context, page }) => {
-  const { session } = await seed();
-  await injectSession(context, session);
+test("signs out", async ({ signIn, page }) => {
+  const { session } = await signIn();
   await page.goto("/profile");
   await expect(page.getByTestId("profile-page")).toBeVisible();
 

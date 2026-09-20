@@ -1,12 +1,5 @@
 import path from "node:path";
 import { statementClient } from "../helpers/api";
-import {
-  closeRedis,
-  deleteSession,
-  injectSession,
-  seedSession,
-} from "../helpers/auth";
-import { closeDB, deleteUser, seedUser } from "../helpers/db";
 import { expect, test } from "../helpers/test";
 
 // The fixture is a copy of the client's Fidelity UK test export, modelled on
@@ -15,29 +8,11 @@ import { expect, test } from "../helpers/test";
 const fixture = path.resolve(__dirname, "..", "fixtures", "fidelity-uk.csv");
 const januaryRows = 4;
 
-const users: string[] = [];
-const sessions: string[] = [];
-
-test.afterEach(async () => {
-  await Promise.all(sessions.splice(0).map(deleteSession));
-  await Promise.all(users.splice(0).map(deleteUser));
-});
-
-test.afterAll(async () => {
-  await closeDB();
-  await closeRedis();
-});
-
 test("uploads a statement and shows its rejections in the activity and the history", async ({
-  context,
+  signIn,
   page,
 }) => {
-  const user = await seedUser();
-  users.push(user.id);
-  const session = await seedSession(user);
-  sessions.push(session);
-  await injectSession(context, session);
-
+  const { session } = await signIn();
   await page.goto("/transactions");
   await page.getByTestId("upload-statement").click();
   await expect(page.getByTestId("upload-dialog")).toBeVisible();
@@ -96,7 +71,9 @@ test("uploads a statement and shows its rejections in the activity and the histo
   );
 
   // The record behind the pages.
-  const res = await statementClient(session).getStatement({ runId: runId! });
+  const res = await statementClient(session).getStatement({
+    runId: runId!,
+  });
   expect(res.items).toHaveLength(januaryRows);
   expect(
     res.items.every(

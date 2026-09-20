@@ -44,17 +44,20 @@ actually has to parse what the provider sends.
 
 ## Shape of a spec
 
+`test` comes from `e2e/helpers/test.ts`, whose fixtures seed the users a test needs:
+`signIn(role)` seeds a user and puts their session in the browser context, and
+`seed(role)` seeds one without. What a test seeds is removed when it ends, and the
+database and Redis connections close with the worker.
+
 ```ts
 // Invented per spec, so no other spec competes over this instrument.
 const TICKER = "ZZHOLD";
 
 test.beforeAll(async () => { await seedInstrument(TICKER); });
-test.afterAll(async () => { await closeDB(); await closeRedis(); });
 
-test("shows the holdings", async ({ context, page }) => {
-  const user = await seedUser();
+test("shows the holdings", async ({ signIn, page }) => {
+  const { user } = await signIn();
   await seedHolding(user, TICKER, "120");
-  await injectSession(context, await seedSession(user));
   await page.goto("/holdings");
   await expect(page.getByTestId(`holding-qty-${TICKER}`)).toHaveText("120");
 });

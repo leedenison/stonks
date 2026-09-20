@@ -1,32 +1,4 @@
-import {
-  closeRedis,
-  deleteSession,
-  injectSession,
-  seedSession,
-} from "../helpers/auth";
-import { closeDB, deleteUser, seedUser, type Role } from "../helpers/db";
 import { expect, test } from "../helpers/test";
-
-const users: string[] = [];
-const sessions: string[] = [];
-
-async function seed(role: Role = "user") {
-  const user = await seedUser(role);
-  users.push(user.id);
-  const session = await seedSession(user);
-  sessions.push(session);
-  return { user, session };
-}
-
-test.afterEach(async () => {
-  await Promise.all(sessions.splice(0).map(deleteSession));
-  await Promise.all(users.splice(0).map(deleteUser));
-});
-
-test.afterAll(async () => {
-  await closeDB();
-  await closeRedis();
-});
 
 test("serves the shell through the edge", async ({ page }) => {
   await page.goto("/");
@@ -36,11 +8,10 @@ test("serves the shell through the edge", async ({ page }) => {
 });
 
 test("navigates the sidebar and marks the current page", async ({
-  context,
+  signIn,
   page,
 }) => {
-  const { session } = await seed();
-  await injectSession(context, session);
+  await signIn();
   await page.goto("/transactions");
   await expect(page.getByTestId("nav-transactions")).toHaveAttribute(
     "aria-current",
@@ -60,11 +31,10 @@ test("navigates the sidebar and marks the current page", async ({
 });
 
 test("reaches the statements and the profile from the menu", async ({
-  context,
+  signIn,
   page,
 }) => {
-  const { session } = await seed();
-  await injectSession(context, session);
+  await signIn();
   await page.goto("/transactions");
   await page.getByTestId("user-email").click();
   await page.getByTestId("menu-statements").click();
@@ -76,17 +46,15 @@ test("reaches the statements and the profile from the menu", async ({
   await expect(page.getByTestId("profile-page")).toBeVisible();
 });
 
-test("denies a user the admin area", async ({ context, page }) => {
-  const { session } = await seed();
-  await injectSession(context, session);
+test("denies a user the admin area", async ({ signIn, page }) => {
+  await signIn();
   await page.goto("/admin");
   await expect(page.getByTestId("access-denied")).toBeVisible();
   await expect(page.getByTestId("admin-nav")).toHaveCount(0);
 });
 
-test("shows an administrator the admin area", async ({ context, page }) => {
-  const { session } = await seed("admin");
-  await injectSession(context, session);
+test("shows an administrator the admin area", async ({ signIn, page }) => {
+  await signIn("admin");
   await page.goto("/transactions");
   await page.getByTestId("user-email").click();
   await page.getByTestId("menu-admin").click();
@@ -95,9 +63,8 @@ test("shows an administrator the admin area", async ({ context, page }) => {
   await expect(page.getByTestId("admin-page")).toBeVisible();
 });
 
-test("keeps the chosen scheme across a reload", async ({ context, page }) => {
-  const { session } = await seed();
-  await injectSession(context, session);
+test("keeps the chosen scheme across a reload", async ({ signIn, page }) => {
+  await signIn();
   await page.goto("/transactions");
   await expect(page.locator("html")).not.toHaveAttribute("data-theme");
   await page.getByTestId("user-email").click();
@@ -111,11 +78,10 @@ test("keeps the chosen scheme across a reload", async ({ context, page }) => {
 });
 
 test("keeps the sidebar collapsed across a reload", async ({
-  context,
+  signIn,
   page,
 }) => {
-  const { session } = await seed();
-  await injectSession(context, session);
+  await signIn();
   await page.goto("/transactions");
   await expect(page.getByTestId("sidebar")).not.toHaveAttribute(
     "data-collapsed",
@@ -126,9 +92,8 @@ test("keeps the sidebar collapsed across a reload", async ({
   await expect(page.getByTestId("sidebar")).toHaveAttribute("data-collapsed");
 });
 
-test("toggles the activity sheet from its icon", async ({ context, page }) => {
-  const { session } = await seed();
-  await injectSession(context, session);
+test("toggles the activity sheet from its icon", async ({ signIn, page }) => {
+  await signIn();
   await page.goto("/transactions");
   await page.getByTestId("activity-icon").click();
   await expect(page.getByTestId("activity-sheet")).toBeVisible();
