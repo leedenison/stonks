@@ -1,4 +1,4 @@
-package service
+package service_test
 
 import (
 	"bytes"
@@ -6,7 +6,6 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -19,7 +18,9 @@ import (
 	"github.com/leedenison/stonks/proto/instrument/v1/instrumentv1connect"
 	"github.com/leedenison/stonks/server/internal/auth"
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/service"
 	"github.com/leedenison/stonks/server/internal/service/mock"
+	"github.com/leedenison/stonks/server/internal/service/servicetest"
 )
 
 // stub answers SignIn according to the token it is given, and records the
@@ -63,7 +64,7 @@ type fixture struct {
 	log   *bytes.Buffer
 	authn *mock.MockAuthenticator
 	stub  *stub
-	srv   *httptest.Server
+	srv   *servicetest.Server
 }
 
 func newFixture(t *testing.T) *fixture {
@@ -71,15 +72,14 @@ func newFixture(t *testing.T) *fixture {
 	ctrl := gomock.NewController(t)
 	t.Cleanup(ctrl.Finish)
 	f := &fixture{log: &bytes.Buffer{}, authn: mock.NewMockAuthenticator(ctrl), stub: &stub{}}
-	opts, err := HandlerOptions(slog.New(slog.NewTextHandler(f.log, nil)), f.authn)
+	opts, err := service.HandlerOptions(slog.New(slog.NewTextHandler(f.log, nil)), f.authn)
 	if err != nil {
 		t.Fatalf("HandlerOptions() error = %v", err)
 	}
-	mux := http.NewServeMux()
-	mux.Handle(authv1connect.NewAuthServiceHandler(f.stub, opts...))
-	mux.Handle(instrumentv1connect.NewInstrumentServiceHandler(f.stub, opts...))
-	f.srv = httptest.NewServer(mux)
-	t.Cleanup(f.srv.Close)
+	f.srv = servicetest.Serve(t, func(mux *http.ServeMux) {
+		mux.Handle(authv1connect.NewAuthServiceHandler(f.stub, opts...))
+		mux.Handle(instrumentv1connect.NewInstrumentServiceHandler(f.stub, opts...))
+	})
 	return f
 }
 
@@ -100,7 +100,7 @@ func TestHandlerOptions(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newFixture(t)
-			client := authv1connect.NewAuthServiceClient(f.srv.Client(), f.srv.URL)
+			client := authv1connect.NewAuthServiceClient(f.srv.Client, f.srv.URL)
 
 			_, err := client.SignIn(context.Background(), connect.NewRequest(&authv1.SignInRequest{GoogleIdToken: tc.token}))
 			switch {
@@ -159,10 +159,10 @@ func TestAuthenticate(t *testing.T) {
 				}
 				return auth.Principal{}, auth.ErrUnauthenticated
 			}).AnyTimes()
-			f.srv.Client().Transport = &cookieTransport{cookie: tc.cookie, next: f.srv.Client().Transport}
+			f.srv.Cookie = tc.cookie
 
 			err := tc.call(f)
-			if codeOf(err) != tc.wantCode {
+			if servicetest.CodeOf(err) != tc.wantCode {
 				t.Errorf("call with cookie %q: code = %v (err %v), want %v", tc.cookie, connect.CodeOf(err), err, tc.wantCode)
 			}
 			if tc.wantMsg != "" && messageOf(err) != tc.wantMsg {
@@ -185,28 +185,15 @@ func TestAuthenticate(t *testing.T) {
 }
 
 func listInstruments(f *fixture) error {
-	client := instrumentv1connect.NewInstrumentServiceClient(f.srv.Client(), f.srv.URL)
+	client := instrumentv1connect.NewInstrumentServiceClient(f.srv.Client, f.srv.URL)
 	_, err := client.ListInstruments(context.Background(), connect.NewRequest(&instrumentv1.ListInstrumentsRequest{}))
 	return err
 }
 
 func getSession(f *fixture) error {
-	client := authv1connect.NewAuthServiceClient(f.srv.Client(), f.srv.URL)
+	client := authv1connect.NewAuthServiceClient(f.srv.Client, f.srv.URL)
 	_, err := client.GetSession(context.Background(), connect.NewRequest(&authv1.GetSessionRequest{}))
 	return err
-}
-
-// cookieTransport sends a raw Cookie header with every request.
-type cookieTransport struct {
-	cookie string
-	next   http.RoundTripper
-}
-
-func (c *cookieTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	if c.cookie != "" {
-		req.Header.Set("Cookie", c.cookie)
-	}
-	return c.next.RoundTrip(req)
 }
 
 // messageOf is the message a client reads from err, without its code prefix.
@@ -216,12 +203,4 @@ func messageOf(err error) string {
 		return cerr.Message()
 	}
 	return ""
-}
-
-// codeOf is connect.CodeOf with 0 for success, so a want of 0 means no error.
-func codeOf(err error) connect.Code {
-	if err == nil {
-		return 0
-	}
-	return connect.CodeOf(err)
 }

@@ -26,6 +26,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/auth/session"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/service"
+	"github.com/leedenison/stonks/server/internal/service/servicetest"
 )
 
 // spans records what the handler chain traced. The tracer provider installs
@@ -45,16 +46,6 @@ func endedNames() []string {
 		names = append(names, s.Name())
 	}
 	return names
-}
-
-// withCookie sends the session cookie with every request.
-type withCookie struct {
-	next http.RoundTripper
-}
-
-func (w withCookie) RoundTrip(req *http.Request) (*http.Response, error) {
-	req.AddCookie(&http.Cookie{Name: service.CookieName, Value: "live"})
-	return w.next.RoundTrip(req)
 }
 
 func TestServer(t *testing.T) {
@@ -100,8 +91,9 @@ func TestServer(t *testing.T) {
 	h2Only := new(http.Protocols)
 	h2Only.SetUnencryptedHTTP2(true)
 	h2Plain := &http.Client{Transport: &http.Transport{Protocols: h2Only}}
-	h1 := &http.Client{Transport: withCookie{srv.Client().Transport}}
-	h2 := &http.Client{Transport: withCookie{h2Plain.Transport}}
+	live := service.CookieName + "=live"
+	h1 := &http.Client{Transport: &servicetest.Transport{Cookie: live, Next: srv.Client().Transport}}
+	h2 := &http.Client{Transport: &servicetest.Transport{Cookie: live, Next: h2Plain.Transport}}
 	tests := []struct {
 		name   string
 		client instrumentv1connect.InstrumentServiceClient

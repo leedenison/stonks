@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
 	"go.uber.org/mock/gomock"
@@ -59,11 +60,12 @@ func TestSignIn(t *testing.T) {
 	sess := session.Session{ID: "session-1", UserID: userID, ExpiresAt: expires}
 
 	tests := []struct {
-		name    string
-		claims  google.Claims
-		expect  func(m mocks)
-		want    Principal
-		wantErr error
+		name       string
+		claims     google.Claims
+		expect     func(m mocks)
+		want       Principal
+		wantErr    error
+		wantCounts map[string]int64
 	}{
 		{
 			name:   "known subject",
@@ -73,6 +75,11 @@ func TestSignIn(t *testing.T) {
 				m.sessions.EXPECT().Create(any, userID).Return(sess, nil)
 			},
 			want: Principal{User: bound, SessionID: "session-1", ExpiresAt: expires},
+			wantCounts: map[string]int64{
+				"stonks.auth.sign_ins{outcome=success}":         1,
+				"stonks.auth.users_provisioned{reason=subject}": 1,
+				"stonks.session.creations":                      1,
+			},
 		},
 		{
 			name:   "bound by email",
@@ -86,6 +93,11 @@ func TestSignIn(t *testing.T) {
 				m.sessions.EXPECT().Create(any, userID).Return(sess, nil)
 			},
 			want: Principal{User: bound, SessionID: "session-1", ExpiresAt: expires},
+			wantCounts: map[string]int64{
+				"stonks.auth.sign_ins{outcome=success}":       1,
+				"stonks.auth.users_provisioned{reason=email}": 1,
+				"stonks.session.creations":                    1,
+			},
 		},
 		{
 			name:   "created",
@@ -99,6 +111,11 @@ func TestSignIn(t *testing.T) {
 				m.sessions.EXPECT().Create(any, userID).Return(sess, nil)
 			},
 			want: Principal{User: bound, SessionID: "session-1", ExpiresAt: expires},
+			wantCounts: map[string]int64{
+				"stonks.auth.sign_ins{outcome=success}":         1,
+				"stonks.auth.users_provisioned{reason=created}": 1,
+				"stonks.session.creations":                      1,
+			},
 		},
 		{
 			// Two sign-ins for one new account race; the insert that loses is
@@ -113,6 +130,11 @@ func TestSignIn(t *testing.T) {
 				m.sessions.EXPECT().Create(any, userID).Return(sess, nil)
 			},
 			want: Principal{User: bound, SessionID: "session-1", ExpiresAt: expires},
+			wantCounts: map[string]int64{
+				"stonks.auth.sign_ins{outcome=success}":         1,
+				"stonks.auth.users_provisioned{reason=subject}": 1,
+				"stonks.session.creations":                      1,
+			},
 		},
 		{
 			name:   "not allowed",
@@ -121,7 +143,8 @@ func TestSignIn(t *testing.T) {
 				m.users.EXPECT().GetUserByGoogleSubject(any, subject).Return(gen.User{}, db.ErrNotFound)
 				m.users.EXPECT().GetUserByEmail(any, "one@example.org").Return(gen.User{}, db.ErrNotFound)
 			},
-			wantErr: ErrNotAllowed,
+			wantErr:    ErrNotAllowed,
+			wantCounts: map[string]int64{"stonks.auth.sign_ins{outcome=not_allowed}": 1},
 		},
 		{
 			name:   "existing user outside the allowlist",
@@ -131,6 +154,11 @@ func TestSignIn(t *testing.T) {
 				m.sessions.EXPECT().Create(any, userID).Return(sess, nil)
 			},
 			want: Principal{User: bound, SessionID: "session-1", ExpiresAt: expires},
+			wantCounts: map[string]int64{
+				"stonks.auth.sign_ins{outcome=success}":         1,
+				"stonks.auth.users_provisioned{reason=subject}": 1,
+				"stonks.session.creations":                      1,
+			},
 		},
 		{
 			name:   "store failure",
@@ -138,7 +166,8 @@ func TestSignIn(t *testing.T) {
 			expect: func(m mocks) {
 				m.users.EXPECT().GetUserByGoogleSubject(any, subject).Return(gen.User{}, errBoom)
 			},
-			wantErr: errBoom,
+			wantErr:    errBoom,
+			wantCounts: map[string]int64{"stonks.auth.sign_ins{outcome=error}": 1},
 		},
 		{
 			name:   "session failure",
@@ -148,6 +177,10 @@ func TestSignIn(t *testing.T) {
 				m.sessions.EXPECT().Create(any, userID).Return(session.Session{}, errBoom)
 			},
 			wantErr: errBoom,
+			wantCounts: map[string]int64{
+				"stonks.auth.sign_ins{outcome=error}":           1,
+				"stonks.auth.users_provisioned{reason=subject}": 1,
+			},
 		},
 	}
 	for _, tc := range tests {
@@ -155,6 +188,7 @@ func TestSignIn(t *testing.T) {
 			m := newMocks(t)
 			m.verifier.EXPECT().Verify(any, "token").Return(tc.claims, nil)
 			tc.expect(m)
+			counts(t)
 			got, err := m.authenticator().SignIn(context.Background(), "token")
 			if !errors.Is(err, tc.wantErr) {
 				t.Fatalf("SignIn() error = %v, want %v", err, tc.wantErr)
@@ -162,17 +196,36 @@ func TestSignIn(t *testing.T) {
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("SignIn() mismatch (-want +got):\n%s", diff)
 			}
+			if diff := cmp.Diff(tc.wantCounts, counts(t), cmpopts.EquateEmpty()); diff != "" {
+				t.Errorf("SignIn() counters (-want +got):\n%s", diff)
+			}
 		})
 	}
 }
 
 func TestSignInVerifyFailure(t *testing.T) {
-	for _, want := range []error{google.ErrMalformed, google.ErrInvalid, google.ErrEmailUnverified, errBoom} {
-		m := newMocks(t)
-		m.verifier.EXPECT().Verify(gomock.Any(), "token").Return(google.Claims{}, want)
-		if _, err := m.authenticator().SignIn(context.Background(), "token"); !errors.Is(err, want) {
-			t.Errorf("SignIn() error = %v, want %v", err, want)
-		}
+	tests := []struct {
+		name       string
+		err        error
+		wantCounts map[string]int64
+	}{
+		{name: "malformed", err: google.ErrMalformed, wantCounts: map[string]int64{"stonks.auth.sign_ins{outcome=invalid_token}": 1}},
+		{name: "invalid", err: google.ErrInvalid, wantCounts: map[string]int64{"stonks.auth.sign_ins{outcome=invalid_token}": 1}},
+		{name: "unverified email", err: google.ErrEmailUnverified, wantCounts: map[string]int64{"stonks.auth.sign_ins{outcome=invalid_token}": 1}},
+		{name: "failure", err: errBoom, wantCounts: map[string]int64{"stonks.auth.sign_ins{outcome=error}": 1}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			m := newMocks(t)
+			m.verifier.EXPECT().Verify(gomock.Any(), "token").Return(google.Claims{}, tc.err)
+			counts(t)
+			if _, err := m.authenticator().SignIn(context.Background(), "token"); !errors.Is(err, tc.err) {
+				t.Errorf("SignIn() error = %v, want %v", err, tc.err)
+			}
+			if diff := cmp.Diff(tc.wantCounts, counts(t)); diff != "" {
+				t.Errorf("SignIn() counters (-want +got):\n%s", diff)
+			}
+		})
 	}
 }
 
@@ -181,10 +234,11 @@ func TestAuthenticate(t *testing.T) {
 	user := gen.User{ID: userID, Email: "one@example.com", Role: gen.UserRoleUser}
 	sess := session.Session{ID: "session-1", UserID: userID, ExpiresAt: expires}
 	tests := []struct {
-		name    string
-		expect  func(m mocks)
-		want    Principal
-		wantErr error
+		name       string
+		expect     func(m mocks)
+		want       Principal
+		wantErr    error
+		wantCounts map[string]int64
 	}{
 		{
 			name: "live",
@@ -192,14 +246,16 @@ func TestAuthenticate(t *testing.T) {
 				m.sessions.EXPECT().Get(any, "session-1").Return(sess, nil)
 				m.users.EXPECT().GetUser(any, userID).Return(user, nil)
 			},
-			want: Principal{User: user, SessionID: "session-1", ExpiresAt: expires},
+			want:       Principal{User: user, SessionID: "session-1", ExpiresAt: expires},
+			wantCounts: map[string]int64{"stonks.session.lookups{result=live}": 1},
 		},
 		{
 			name: "no session",
 			expect: func(m mocks) {
 				m.sessions.EXPECT().Get(any, "session-1").Return(session.Session{}, session.ErrNotFound)
 			},
-			wantErr: ErrUnauthenticated,
+			wantErr:    ErrUnauthenticated,
+			wantCounts: map[string]int64{"stonks.session.lookups{result=not_found}": 1},
 		},
 		{
 			name: "user gone",
@@ -209,19 +265,25 @@ func TestAuthenticate(t *testing.T) {
 				m.sessions.EXPECT().Delete(any, "session-1").Return(nil)
 			},
 			wantErr: ErrUnauthenticated,
+			wantCounts: map[string]int64{
+				"stonks.session.lookups{result=user_gone}":   1,
+				"stonks.session.deletions{reason=user_gone}": 1,
+			},
 		},
 		{
 			name: "store failure",
 			expect: func(m mocks) {
 				m.sessions.EXPECT().Get(any, "session-1").Return(session.Session{}, errBoom)
 			},
-			wantErr: errBoom,
+			wantErr:    errBoom,
+			wantCounts: map[string]int64{"stonks.session.lookups{result=error}": 1},
 		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			m := newMocks(t)
 			tc.expect(m)
+			counts(t)
 			got, err := m.authenticator().Authenticate(context.Background(), "session-1")
 			if !errors.Is(err, tc.wantErr) {
 				t.Fatalf("Authenticate() error = %v, want %v", err, tc.wantErr)
@@ -229,18 +291,33 @@ func TestAuthenticate(t *testing.T) {
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("Authenticate() mismatch (-want +got):\n%s", diff)
 			}
+			if diff := cmp.Diff(tc.wantCounts, counts(t)); diff != "" {
+				t.Errorf("Authenticate() counters (-want +got):\n%s", diff)
+			}
 		})
 	}
 }
 
 func TestSignOut(t *testing.T) {
-	m := newMocks(t)
-	m.sessions.EXPECT().Delete(gomock.Any(), "session-1").Return(nil)
-	if err := m.authenticator().SignOut(context.Background(), "session-1"); err != nil {
-		t.Errorf("SignOut() error = %v", err)
+	tests := []struct {
+		name       string
+		err        error
+		wantCounts map[string]int64
+	}{
+		{name: "ok", wantCounts: map[string]int64{"stonks.session.deletions{reason=sign_out}": 1}},
+		{name: "failure", err: errBoom},
 	}
-	m.sessions.EXPECT().Delete(gomock.Any(), "session-1").Return(errBoom)
-	if err := m.authenticator().SignOut(context.Background(), "session-1"); !errors.Is(err, errBoom) {
-		t.Errorf("SignOut() error = %v, want %v", err, errBoom)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			m := newMocks(t)
+			m.sessions.EXPECT().Delete(gomock.Any(), "session-1").Return(tc.err)
+			counts(t)
+			if err := m.authenticator().SignOut(context.Background(), "session-1"); !errors.Is(err, tc.err) {
+				t.Errorf("SignOut() error = %v, want %v", err, tc.err)
+			}
+			if diff := cmp.Diff(tc.wantCounts, counts(t), cmpopts.EquateEmpty()); diff != "" {
+				t.Errorf("SignOut() counters (-want +got):\n%s", diff)
+			}
+		})
 	}
 }

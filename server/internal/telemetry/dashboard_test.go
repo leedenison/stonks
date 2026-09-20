@@ -2,8 +2,13 @@ package telemetry_test
 
 import (
 	"encoding/json"
+	"go/ast"
+	"go/parser"
+	"go/token"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -15,6 +20,7 @@ import (
 const (
 	datasourceFile = "../../../docker/grafana/provisioning/datasources/telemetry.yaml"
 	dashboardDir   = "../../../docker/grafana/dashboards"
+	internalDir    = ".."
 )
 
 type datasourceFileYAML struct {
@@ -143,13 +149,14 @@ func TestPanelsAreDescribed(t *testing.T) {
 // TestPanelsQueryProducedMetrics fails a panel reading a stonks metric nothing
 // emits, so a rename shows up here rather than as an empty panel weeks later.
 func TestPanelsQueryProducedMetrics(t *testing.T) {
+	produced := producedMetrics(t)
 	for name, d := range dashboards(t) {
 		for _, p := range flatten(d.Panels) {
 			for _, tg := range p.Targets {
 				for _, metric := range stonksMetrics(tg.Expr) {
-					if !producedMetrics[metric] {
+					if !produced[metric] {
 						t.Errorf("%s panel %q reads %q, which nothing emits; the names the service produces are %v",
-							name, p.Title, metric, keys(producedMetrics))
+							name, p.Title, metric, keys(produced))
 					}
 				}
 			}
@@ -157,17 +164,45 @@ func TestPanelsQueryProducedMetrics(t *testing.T) {
 	}
 }
 
-// producedMetrics are the Prometheus names of the stonks_ series the service
-// emits, which is each instrument declared in
-// [metrics.go](../auth/metrics.go) with the suffix the exporter adds to a
-// monotonic sum. A hand-written instrument is added here as it is added to the
-// code.
-var producedMetrics = map[string]bool{
-	"stonks_auth_sign_ins_total":          true,
-	"stonks_auth_users_provisioned_total": true,
-	"stonks_session_creations_total":      true,
-	"stonks_session_deletions_total":      true,
-	"stonks_session_lookups_total":        true,
+// producedMetrics returns the Prometheus names of the stonks_ series the
+// service emits. An instrument is named by a "stonks." string literal in the
+// package that declares it, and every one is a monotonic counter, whose name
+// the exporter suffixes with _total. Another kind of instrument carries
+// another suffix, so constructing one fails here until its suffix is known.
+func producedMetrics(t *testing.T) map[string]bool {
+	t.Helper()
+	names := map[string]bool{}
+	fset := token.NewFileSet()
+	err := filepath.WalkDir(internalDir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+			return err
+		}
+		file, err := parser.ParseFile(fset, path, nil, parser.SkipObjectResolution)
+		if err != nil {
+			return err
+		}
+		ast.Inspect(file, func(n ast.Node) bool {
+			switch n := n.(type) {
+			case *ast.SelectorExpr:
+				if kind := n.Sel.Name; strings.HasSuffix(kind, "UpDownCounter") || strings.HasSuffix(kind, "Histogram") || strings.HasSuffix(kind, "Gauge") || strings.Contains(kind, "Observable") {
+					t.Errorf("%s constructs a %s, whose exported name carries a suffix producedMetrics does not know", path, kind)
+				}
+			case *ast.BasicLit:
+				if v, err := strconv.Unquote(n.Value); n.Kind == token.STRING && err == nil && strings.HasPrefix(v, "stonks.") {
+					names[strings.ReplaceAll(v, ".", "_")+"_total"] = true
+				}
+			}
+			return true
+		})
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walk %s: %v", internalDir, err)
+	}
+	if len(names) == 0 {
+		t.Fatalf("no instrument is named under %s", internalDir)
+	}
+	return names
 }
 
 func keys(m map[string]bool) []string {

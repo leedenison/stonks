@@ -13,6 +13,7 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/ptr"
 )
 
 // sqlstate reports whether err is a Postgres error with the given SQLSTATE.
@@ -41,8 +42,6 @@ func newListing(t *testing.T, q *gen.Queries, instrument gen.Instrument, currenc
 	require.NoError(t, err)
 	return row
 }
-
-func ptr[T any](v T) *T { return &v }
 
 // cashListing returns the listing money in currency is held against: the
 // currency instrument's listing in itself.
@@ -104,7 +103,7 @@ func TestIdentifierGrain(t *testing.T) {
 			q := newTx(t)
 			owner := newUser(t, q, "grain@example.com")
 			instrument := newInstrument(t, q, gen.AssetClassSecurity, &owner.ID)
-			arg := gen.CreateIdentifierParams{ID: db.NewID(), InstrumentID: instrument.ID, Type: tc.typ, Domain: ptr("d"), Value: "v", OwnerID: &owner.ID}
+			arg := gen.CreateIdentifierParams{ID: db.NewID(), InstrumentID: instrument.ID, Type: tc.typ, Domain: ptr.To("d"), Value: "v", OwnerID: &owner.ID}
 			if tc.listing {
 				listing := newListing(t, q, instrument, "USD", &owner.ID)
 				arg.ListingID = &listing.ID
@@ -127,7 +126,7 @@ func TestOwnerChain(t *testing.T) {
 		owner := newUser(t, q, "chain@example.com")
 		instrument := newInstrument(t, q, gen.AssetClassSecurity, nil)
 		listing := newListing(t, q, instrument, "USD", &owner.ID)
-		_, err := q.CreateIdentifier(ctx, gen.CreateIdentifierParams{ID: db.NewID(), InstrumentID: instrument.ID, ListingID: &listing.ID, Type: gen.IdentifierTypeBrokerDescription, Domain: ptr("ibkr/qfx"), Value: "ACME CORP", OwnerID: &owner.ID})
+		_, err := q.CreateIdentifier(ctx, gen.CreateIdentifierParams{ID: db.NewID(), InstrumentID: instrument.ID, ListingID: &listing.ID, Type: gen.IdentifierTypeBrokerDescription, Domain: ptr.To("ibkr/qfx"), Value: "ACME CORP", OwnerID: &owner.ID})
 		require.NoError(t, err)
 	})
 
@@ -202,17 +201,17 @@ func TestGetListingByIdentifier(t *testing.T) {
 	other := newUser(t, q, "match-other@example.com")
 	instrument := newInstrument(t, q, gen.AssetClassEquity, &owner.ID)
 	listing := newListing(t, q, instrument, "USD", &owner.ID)
-	_, err := q.CreateIdentifier(ctx, gen.CreateIdentifierParams{ID: db.NewID(), InstrumentID: instrument.ID, ListingID: &listing.ID, Type: gen.IdentifierTypeBrokerDescription, Domain: ptr("ibkr/qfx"), Value: "ACME CORP", OwnerID: &owner.ID})
+	_, err := q.CreateIdentifier(ctx, gen.CreateIdentifierParams{ID: db.NewID(), InstrumentID: instrument.ID, ListingID: &listing.ID, Type: gen.IdentifierTypeBrokerDescription, Domain: ptr.To("ibkr/qfx"), Value: "ACME CORP", OwnerID: &owner.ID})
 	require.NoError(t, err)
 
-	got, err := q.GetListingByIdentifier(ctx, gen.GetListingByIdentifierParams{OwnerID: &owner.ID, Type: gen.IdentifierTypeBrokerDescription, Domain: ptr("ibkr/qfx"), Value: "ACME CORP"})
+	got, err := q.GetListingByIdentifier(ctx, gen.GetListingByIdentifierParams{OwnerID: &owner.ID, Type: gen.IdentifierTypeBrokerDescription, Domain: ptr.To("ibkr/qfx"), Value: "ACME CORP"})
 	require.NoError(t, err)
 	if got.Listing.ID != listing.ID || got.AssetClass != gen.AssetClassEquity {
 		t.Errorf("GetListingByIdentifier = %+v, want listing %s of class equity", got, listing.ID)
 	}
 	for name, arg := range map[string]gen.GetListingByIdentifierParams{
-		"another owner": {OwnerID: &other.ID, Type: gen.IdentifierTypeBrokerDescription, Domain: ptr("ibkr/qfx"), Value: "ACME CORP"},
-		"the system":    {Type: gen.IdentifierTypeBrokerDescription, Domain: ptr("ibkr/qfx"), Value: "ACME CORP"},
+		"another owner": {OwnerID: &other.ID, Type: gen.IdentifierTypeBrokerDescription, Domain: ptr.To("ibkr/qfx"), Value: "ACME CORP"},
+		"the system":    {Type: gen.IdentifierTypeBrokerDescription, Domain: ptr.To("ibkr/qfx"), Value: "ACME CORP"},
 		"no domain":     {OwnerID: &owner.ID, Type: gen.IdentifierTypeBrokerDescription, Value: "ACME CORP"},
 	} {
 		if _, err := q.GetListingByIdentifier(ctx, arg); !errors.Is(err, db.ErrNotFound) {

@@ -14,6 +14,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/types"
+	"github.com/leedenison/stonks/server/internal/ptr"
 )
 
 // holder is one user with a statement and a stated key to record
@@ -122,7 +123,7 @@ func TestListHoldings(t *testing.T) {
 		require.NoError(t, err)
 		describe := func(h holder, listing gen.Listing, description string) {
 			t.Helper()
-			_, err := q.CreateIdentifier(ctx, gen.CreateIdentifierParams{ID: db.NewID(), InstrumentID: shared.ID, ListingID: &listing.ID, Type: gen.IdentifierTypeBrokerDescription, Domain: ptr("ibkr/upload"), Value: description, OwnerID: &h.user.ID})
+			_, err := q.CreateIdentifier(ctx, gen.CreateIdentifierParams{ID: db.NewID(), InstrumentID: shared.ID, ListingID: &listing.ID, Type: gen.IdentifierTypeBrokerDescription, Domain: ptr.To("ibkr/upload"), Value: description, OwnerID: &h.user.ID})
 			require.NoError(t, err)
 		}
 		aLine := newListing(t, q, shared, "USD", &a.user.ID)
@@ -142,7 +143,7 @@ func TestListHoldings(t *testing.T) {
 		require.NoError(t, err)
 		want := []gen.Identifier{
 			{InstrumentID: shared.ID, Type: gen.IdentifierTypeIsin, Value: "US0378331005", Grain: gen.IdentifierGrainInstrument},
-			{InstrumentID: shared.ID, ListingID: &aLine.ID, Type: gen.IdentifierTypeBrokerDescription, Domain: ptr("ibkr/upload"), Value: "ACME CORP", OwnerID: &a.user.ID, Grain: gen.IdentifierGrainListing},
+			{InstrumentID: shared.ID, ListingID: &aLine.ID, Type: gen.IdentifierTypeBrokerDescription, Domain: ptr.To("ibkr/upload"), Value: "ACME CORP", OwnerID: &a.user.ID, Grain: gen.IdentifierGrainListing},
 		}
 		if diff := cmp.Diff(want, idents, ignoreRowIDs); diff != "" {
 			t.Errorf("ListHeldIdentifiers for a mismatch (-want +got):\n%s", diff)
