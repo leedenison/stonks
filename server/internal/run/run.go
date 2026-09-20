@@ -112,8 +112,8 @@ type handoff struct {
 // work. It returns the pending row without waiting for the work. A run whose
 // row could not be inserted was never started and holds no place in its lane.
 func (r *Runner) Start(ctx context.Context, spec Spec, work Work) (gen.Run, error) {
-	// The id is minted and the lane linked under the lock, so lane order is
-	// id order; the insert and Prepare run outside it.
+	// Only the id and the lane link are under the lock, so lane order is id
+	// order.
 	r.mu.Lock()
 	if r.ctx.Err() != nil {
 		r.mu.Unlock()
