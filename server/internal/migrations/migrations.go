@@ -5,11 +5,6 @@
 // Migrations run under a Postgres session lock, so concurrent replicas cannot
 // race; the lock is held for the duration. A failed migration stops the service.
 //
-// The schema is pre-release. A change edits the migration that defines the
-// object, and a database that has already applied that migration is recreated:
-// the dev volume through make clean-docker, while the test and e2e databases
-// are tmpfs and start empty on every run.
-//
 // A row with no natural key has a surrogate key: a version 7 UUID, which the
 // server mints before the insert (see [db.go](../db/db.go)) and uuid_v7()
 // supplies for SQL written by hand. The key is the row's public identifier
