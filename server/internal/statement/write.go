@@ -58,6 +58,9 @@ func (g *ingestion) write(ctx context.Context, run gen.Run) error {
 				return fmt.Errorf("associate key: %w", err)
 			}
 		}
+		if err := g.regroup(ctx, q); err != nil {
+			return err
+		}
 		if err := q.CompleteRun(ctx, run.ID); err != nil {
 			return fmt.Errorf("complete run: %w", err)
 		}

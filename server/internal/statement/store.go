@@ -25,6 +25,9 @@ type Queries interface {
 	DeleteTransactions(ctx context.Context, arg gen.DeleteTransactionsParams) (int64, error)
 	CreateTransaction(ctx context.Context, arg gen.CreateTransactionParams) (gen.Transaction, error)
 	SetStatedKeyAssociation(ctx context.Context, arg gen.SetStatedKeyAssociationParams) error
+	ListGroupableKeys(ctx context.Context, userID uuid.UUID) ([]gen.ListGroupableKeysRow, error)
+	ClearStatedKeyGroups(ctx context.Context, userID uuid.UUID) error
+	SetStatedKeyGroups(ctx context.Context, arg gen.SetStatedKeyGroupsParams) error
 	CreateStatementItem(ctx context.Context, arg gen.CreateStatementItemParams) error
 	CompleteRun(ctx context.Context, id uuid.UUID) error
 }

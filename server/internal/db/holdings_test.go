@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 
@@ -30,7 +31,8 @@ func newHolder(t *testing.T, q *gen.Queries, email string) holder {
 }
 
 // key makes a stated key stating description, resolved to listing through
-// via. A key given no listing is one nothing answered for.
+// via. A key given no listing is unresolved, and group names the holding it
+// is summed into.
 func (h holder) key(t *testing.T, q *gen.Queries, description string, listing *gen.Listing, via *gen.Identifier) gen.StatedKey {
 	t.Helper()
 	ctx := context.Background()
@@ -62,14 +64,14 @@ func (h holder) record(t *testing.T, q *gen.Queries, key gen.StatedKey, currency
 
 var decimalEqual = cmp.Comparer(func(a, b decimal.Decimal) bool { return a.Equal(b) })
 
-func holding(instrument gen.Instrument, quantity string) gen.ListHoldingsRow {
-	return gen.ListHoldingsRow{InstrumentID: instrument.ID, AssetClass: instrument.AssetClass, Quantity: decimal.RequireFromString(quantity)}
+func holding(instrument gen.Instrument, quantity string) gen.ListInstrumentHoldingsRow {
+	return gen.ListInstrumentHoldingsRow{InstrumentID: instrument.ID, AssetClass: instrument.AssetClass, Quantity: decimal.RequireFromString(quantity)}
 }
 
-// TestListHoldings checks that a holding sums every key resolved to one
-// instrument for one user, that a zero sum is not a holding, and that a key
-// nothing answered for is no instrument holding.
-func TestListHoldings(t *testing.T) {
+// TestListInstrumentHoldings checks that a holding sums every key resolved
+// to one instrument for one user, that a zero sum is not a holding, and that
+// an unresolved key is no instrument holding.
+func TestListInstrumentHoldings(t *testing.T) {
 	ctx := context.Background()
 	ignoreRowIDs := cmpopts.IgnoreFields(gen.Identifier{}, "ID", "CreatedAt")
 
@@ -83,10 +85,10 @@ func TestListHoldings(t *testing.T) {
 		h.record(t, q, h.key(t, q, "ACME CORP", &usd, &via), "USD", "10")
 		h.record(t, q, h.key(t, q, "ACME CORPORATION", &gbp, &via), "GBP", "2.5")
 
-		got, err := q.ListHoldings(ctx, h.user.ID)
+		got, err := q.ListInstrumentHoldings(ctx, h.user.ID)
 		require.NoError(t, err)
-		if diff := cmp.Diff([]gen.ListHoldingsRow{holding(instrument, "12.5")}, got, decimalEqual); diff != "" {
-			t.Errorf("ListHoldings mismatch (-want +got):\n%s", diff)
+		if diff := cmp.Diff([]gen.ListInstrumentHoldingsRow{holding(instrument, "12.5")}, got, decimalEqual); diff != "" {
+			t.Errorf("ListInstrumentHoldings mismatch (-want +got):\n%s", diff)
 		}
 	})
 
@@ -98,11 +100,11 @@ func TestListHoldings(t *testing.T) {
 		h.record(t, q, key, "GBP", "100")
 		h.record(t, q, key, "GBP", "-25.5")
 
-		got, err := q.ListHoldings(ctx, h.user.ID)
+		got, err := q.ListInstrumentHoldings(ctx, h.user.ID)
 		require.NoError(t, err)
-		want := []gen.ListHoldingsRow{{InstrumentID: gbp.InstrumentID, AssetClass: gen.AssetClassCash, Quantity: decimal.RequireFromString("74.5")}}
+		want := []gen.ListInstrumentHoldingsRow{{InstrumentID: gbp.InstrumentID, AssetClass: gen.AssetClassCash, Quantity: decimal.RequireFromString("74.5")}}
 		if diff := cmp.Diff(want, got, decimalEqual); diff != "" {
-			t.Errorf("ListHoldings mismatch (-want +got):\n%s", diff)
+			t.Errorf("ListInstrumentHoldings mismatch (-want +got):\n%s", diff)
 		}
 		idents, err := q.ListHeldIdentifiers(ctx, h.user.ID)
 		require.NoError(t, err)
@@ -120,10 +122,10 @@ func TestListHoldings(t *testing.T) {
 		h.record(t, q, key, "USD", "10")
 		h.record(t, q, key, "USD", "-10")
 
-		got, err := q.ListHoldings(ctx, h.user.ID)
+		got, err := q.ListInstrumentHoldings(ctx, h.user.ID)
 		require.NoError(t, err)
 		if len(got) != 0 {
-			t.Errorf("ListHoldings = %+v, want none", got)
+			t.Errorf("ListInstrumentHoldings = %+v, want none", got)
 		}
 		idents, err := q.ListHeldIdentifiers(ctx, h.user.ID)
 		require.NoError(t, err)
@@ -132,18 +134,18 @@ func TestListHoldings(t *testing.T) {
 		}
 	})
 
-	t.Run("a key nothing answered for is no instrument holding", func(t *testing.T) {
+	t.Run("an unresolved key is no instrument holding", func(t *testing.T) {
 		q := newTx(t)
 		h := newHolder(t, q, "unresolved@example.com")
 		usd, via := cashListing(t, q, "USD")
 		h.record(t, q, h.key(t, q, "MYSTERY FUND", nil, nil), "USD", "40")
 		h.record(t, q, h.key(t, q, "USD", &usd, &via), "USD", "5")
 
-		got, err := q.ListHoldings(ctx, h.user.ID)
+		got, err := q.ListInstrumentHoldings(ctx, h.user.ID)
 		require.NoError(t, err)
-		want := []gen.ListHoldingsRow{{InstrumentID: usd.InstrumentID, AssetClass: gen.AssetClassCash, Quantity: decimal.RequireFromString("5")}}
+		want := []gen.ListInstrumentHoldingsRow{{InstrumentID: usd.InstrumentID, AssetClass: gen.AssetClassCash, Quantity: decimal.RequireFromString("5")}}
 		if diff := cmp.Diff(want, got, decimalEqual); diff != "" {
-			t.Errorf("ListHoldings mismatch (-want +got):\n%s", diff)
+			t.Errorf("ListInstrumentHoldings mismatch (-want +got):\n%s", diff)
 		}
 	})
 
@@ -160,10 +162,10 @@ func TestListHoldings(t *testing.T) {
 		gbp, gbpVia := cashListing(t, q, "GBP")
 		b.record(t, q, b.key(t, q, "GBP", &gbp, &gbpVia), "GBP", "50")
 
-		got, err := q.ListHoldings(ctx, a.user.ID)
+		got, err := q.ListInstrumentHoldings(ctx, a.user.ID)
 		require.NoError(t, err)
-		if diff := cmp.Diff([]gen.ListHoldingsRow{holding(shared, "10")}, got, decimalEqual); diff != "" {
-			t.Errorf("ListHoldings for a mismatch (-want +got):\n%s", diff)
+		if diff := cmp.Diff([]gen.ListInstrumentHoldingsRow{holding(shared, "10")}, got, decimalEqual); diff != "" {
+			t.Errorf("ListInstrumentHoldings for a mismatch (-want +got):\n%s", diff)
 		}
 		idents, err := q.ListHeldIdentifiers(ctx, a.user.ID)
 		require.NoError(t, err)
@@ -189,13 +191,98 @@ func TestListHoldings(t *testing.T) {
 		h.record(t, q, halvesKey, "USD", "1.50")
 		h.record(t, q, halvesKey, "USD", "2.50")
 
-		got, err := q.ListHoldings(ctx, h.user.ID)
+		got, err := q.ListInstrumentHoldings(ctx, h.user.ID)
 		require.NoError(t, err)
-		if diff := cmp.Diff([]gen.ListHoldingsRow{holding(tenths, "0.3"), holding(halves, "4")}, got, decimalEqual); diff != "" {
-			t.Errorf("ListHoldings mismatch (-want +got):\n%s", diff)
+		if diff := cmp.Diff([]gen.ListInstrumentHoldingsRow{holding(tenths, "0.3"), holding(halves, "4")}, got, decimalEqual); diff != "" {
+			t.Errorf("ListInstrumentHoldings mismatch (-want +got):\n%s", diff)
 		}
 		if len(got) == 2 && (got[0].Quantity.String() != "0.3" || got[1].Quantity.String() != "4") {
-			t.Errorf("ListHoldings quantities = %s, %s, want 0.3 and 4 with no trailing zeros", got[0].Quantity, got[1].Quantity)
+			t.Errorf("ListInstrumentHoldings quantities = %s, %s, want 0.3 and 4 with no trailing zeros", got[0].Quantity, got[1].Quantity)
+		}
+	})
+}
+
+// group puts every key in one group, named by the first, as the ingest does.
+func (h holder) group(t *testing.T, q *gen.Queries, keys ...gen.StatedKey) uuid.UUID {
+	t.Helper()
+	ids := make([]uuid.UUID, 0, len(keys))
+	groups := make([]uuid.UUID, 0, len(keys))
+	for _, k := range keys {
+		ids = append(ids, k.ID)
+		groups = append(groups, keys[0].ID)
+	}
+	arg := gen.SetStatedKeyGroupsParams{UserID: h.user.ID, Ids: ids, GroupIds: groups}
+	require.NoError(t, q.SetStatedKeyGroups(context.Background(), arg))
+	return keys[0].ID
+}
+
+// TestListGroupHoldings checks that a group sums its keys, that the keys read
+// back carry what they state, and that a zero sum and another user's group
+// are both excluded.
+func TestListGroupHoldings(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("sums the keys of one group and carries what they state", func(t *testing.T) {
+		q := newTx(t)
+		h := newHolder(t, q, "group@example.com")
+		one := h.key(t, q, "ACME CORP", nil, nil)
+		two := h.key(t, q, "ACME CORPORATION", nil, nil)
+		id := h.group(t, q, one, two)
+		h.record(t, q, one, "USD", "10")
+		h.record(t, q, two, "USD", "2.5")
+
+		got, err := q.ListGroupHoldings(ctx, h.user.ID)
+		require.NoError(t, err)
+		want := []gen.ListGroupHoldingsRow{{GroupID: id, Quantity: decimal.RequireFromString("12.5")}}
+		if diff := cmp.Diff(want, got, decimalEqual); diff != "" {
+			t.Errorf("ListGroupHoldings mismatch (-want +got):\n%s", diff)
+		}
+		keys, err := q.ListHeldGroupKeys(ctx, h.user.ID)
+		require.NoError(t, err)
+		if len(keys) != 2 {
+			t.Fatalf("ListHeldGroupKeys = %d keys, want 2", len(keys))
+		}
+		if *keys[0].StatedKey.Description != "ACME CORP" || keys[0].Broker != gen.BrokerIbkr {
+			t.Errorf("ListHeldGroupKeys[0] = %+v, want the ibkr key describing ACME CORP", keys[0])
+		}
+	})
+
+	t.Run("a zero sum is not a holding", func(t *testing.T) {
+		q := newTx(t)
+		h := newHolder(t, q, "groupzero@example.com")
+		one := h.key(t, q, "ACME CORP", nil, nil)
+		h.group(t, q, one)
+		h.record(t, q, one, "USD", "10")
+		h.record(t, q, one, "USD", "-10")
+
+		got, err := q.ListGroupHoldings(ctx, h.user.ID)
+		require.NoError(t, err)
+		if len(got) != 0 {
+			t.Errorf("ListGroupHoldings = %+v, want none", got)
+		}
+		keys, err := q.ListHeldGroupKeys(ctx, h.user.ID)
+		require.NoError(t, err)
+		if len(keys) != 0 {
+			t.Errorf("ListHeldGroupKeys = %+v, want none", keys)
+		}
+	})
+
+	t.Run("another user's group is excluded", func(t *testing.T) {
+		q := newTx(t)
+		a := newHolder(t, q, "groupa@example.com")
+		b := newHolder(t, q, "groupb@example.com")
+		mine := a.key(t, q, "ACME CORP", nil, nil)
+		theirs := b.key(t, q, "ACME CORP", nil, nil)
+		id := a.group(t, q, mine)
+		b.group(t, q, theirs)
+		a.record(t, q, mine, "USD", "10")
+		b.record(t, q, theirs, "USD", "7")
+
+		got, err := q.ListGroupHoldings(ctx, a.user.ID)
+		require.NoError(t, err)
+		want := []gen.ListGroupHoldingsRow{{GroupID: id, Quantity: decimal.RequireFromString("10")}}
+		if diff := cmp.Diff(want, got, decimalEqual); diff != "" {
+			t.Errorf("ListGroupHoldings for a mismatch (-want +got):\n%s", diff)
 		}
 	})
 }

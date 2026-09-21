@@ -19,7 +19,7 @@ import { toFixed } from "@/lib/marshal/decimal";
 export default function HoldingsPage() {
   const upload = useUpload();
   const { data, isPending, isError, refetch } = useHoldings();
-  const holdings = sortHoldings(data?.holdings ?? []);
+  const holdings = sortHoldings(data?.instruments ?? []);
 
   return (
     <Page

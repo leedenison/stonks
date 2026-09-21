@@ -10,6 +10,12 @@
 // Resolution. Each distinct key is resolved once, as a run of kind
 // resolution with the statement as parent, and every row carrying the key
 // takes its answer.
+//
+// Grouping. The unresolved keys a transaction names are gathered across
+// every statement of the user: two sharing an identifier,
+// or a description within one broker, are one holding, transitively. The
+// group is derived from what the keys state rather than asserted, so the
+// write recomputes it in full under the user's key lock.
 package statement
 
 import (
@@ -131,8 +137,8 @@ type split struct {
 
 // key is one distinct stated key, and once resolved, its answer: the
 // instrument and listing it names, the identifier row it names them through
-// and the validity of that, or the reason it names none. A key nothing
-// answered for carries none of them.
+// and the validity of that, or the reason it names none. An unresolved key
+// carries none of them.
 type key struct {
 	id          uuid.UUID
 	class       *gen.AssetClass

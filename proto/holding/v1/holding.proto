@@ -1,8 +1,9 @@
-// Holdings: the quantity of each instrument a user holds. A holding is the
-// sum of the user's transaction quantities in one instrument across every
-// listing of it, and a sum of zero is not a holding. Quantities are raw: no
-// corporate event restates them. Every RPC requires a session and reads the
-// caller's own transactions.
+// Holdings: what a user holds, of two kinds. A holding of an instrument is
+// the sum of their transaction quantities over every key resolved to it,
+// across its listings. A holding of a group is the sum over the unresolved
+// keys that state one holding between them. A sum of zero is neither.
+// Quantities are raw: no corporate event restates them. Every RPC requires a
+// session and reads the caller's own transactions.
 
 syntax = "proto3";
 
@@ -12,7 +13,15 @@ import "type/v1/type.proto";
 
 option go_package = "github.com/leedenison/stonks/proto/holding/v1;holdingv1";
 
-message Holding {
+// One broker's description of a line.
+message Description {
+  stonks.type.v1.Broker broker = 1;
+  // The description text as the export states it.
+  string text = 2;
+}
+
+// A holding of an instrument a datasource named.
+message InstrumentHolding {
   // The instrument held; a UUID.
   string instrument_id = 1;
   stonks.type.v1.AssetClass asset_class = 2;
@@ -25,14 +34,35 @@ message Holding {
   string quantity = 4;
 }
 
+// A holding of the caller's unresolved keys, gathered by what they state in
+// common. It rests on the caller's statements alone.
+message GroupHolding {
+  // Identifies the group; a UUID. It is the id of the group's earliest key,
+  // so it changes as keys join and leave.
+  string group_id = 1;
+  // Each class the keys state, once, in the order the tree declares them.
+  // Empty when none stated one.
+  repeated stonks.type.v1.AssetClass asset_classes = 2;
+  // Each identifier the keys state, once. A ticker stated without its venue
+  // is among them.
+  repeated stonks.type.v1.Identifier identifiers = 3;
+  // Each description the keys state, once per broker.
+  repeated Description descriptions = 4;
+  // The sum of the caller's transaction quantities over the group's keys,
+  // with no trailing zeros.
+  string quantity = 5;
+}
+
 message ListHoldingsRequest {}
 
 message ListHoldingsResponse {
   // In no particular order.
-  repeated Holding holdings = 1;
+  repeated InstrumentHolding instruments = 1;
+  // In no particular order.
+  repeated GroupHolding groups = 2;
 }
 
 service HoldingService {
-  // Lists the caller's holdings.
+  // Lists the caller's holdings of both kinds.
   rpc ListHoldings(ListHoldingsRequest) returns (ListHoldingsResponse);
 }

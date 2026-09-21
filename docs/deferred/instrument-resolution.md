@@ -63,9 +63,9 @@ however many stable identifiers a datasource answers with, so the association is
 provisional until the ticker is covered.
 
 An identifier row exists only from a datasource assertion.  A stated identifier no
-datasource answered for stays in the key, and a key nothing answered for stays
-unresolved: its holdings aggregate with the user's other unresolved keys on the
-identifiers they share, and nothing about it is stored against an instrument.
+datasource answered for stays in the key, and the key stays unresolved: its holdings
+aggregate with the user's other unresolved keys on the identifiers they share, and
+nothing about it is stored against an instrument.
 
 ### Options
 
@@ -101,7 +101,7 @@ statements.  Some instruments might be available and complete, others might only
 partially available and others still might be completely unavailable.
 
 A user's holdings are therefore some part keys resolved to instruments and some part
-keys nothing answered, and a key moves between the two as answers arrive.
+unresolved keys, and a key moves between the two as answers arrive.
 
 ### Merger of Instruments
 
