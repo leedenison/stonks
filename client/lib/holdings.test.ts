@@ -21,12 +21,13 @@ function holding(
 }
 
 const gbp = holding("i-gbp", AssetClass.CASH, [
-  ident(IdentifierType.BROKER_DESCRIPTION, "Pounds"),
+  ident(IdentifierType.SEDOL, "0000000"),
   ident(IdentifierType.CURRENCY, "GBP"),
 ]);
 const acme = holding("i-acme", AssetClass.SECURITY, [
+  ident(IdentifierType.CUSIP, "037833100"),
   ident(IdentifierType.ISIN, "US0378331005"),
-  ident(IdentifierType.BROKER_DESCRIPTION, "ACME CORP"),
+  ident(IdentifierType.MIC_TICKER, "ACME"),
 ]);
 const bare = holding("i-bare", AssetClass.EQUITY, [
   ident(IdentifierType.ISIN, "GB0002634946"),
@@ -38,11 +39,50 @@ describe("holdingLabel", () => {
     expect(holdingLabel(gbp)).toBe("GBP");
   });
 
-  it("names a security by its broker description", () => {
-    expect(holdingLabel(acme)).toBe("ACME CORP");
+  it("prefers a ticker to the registry codes", () => {
+    expect(holdingLabel(acme)).toBe("ACME");
   });
 
-  it("falls back to the first identifier, then the instrument id", () => {
+  it("takes a ticker stated without its venue", () => {
+    const hint = holding("i-hint", AssetClass.SECURITY, [
+      ident(IdentifierType.ISIN, "US0378331005"),
+      ident(IdentifierType.MIC_TICKER, "ACME"),
+    ]);
+    expect(holdingLabel(hint)).toBe("ACME");
+  });
+
+  it("prefers the registry codes by how widely they are quoted", () => {
+    const codes = holding("i-codes", AssetClass.STOCK, [
+      ident(IdentifierType.BROKER_ID, "624291205"),
+      ident(IdentifierType.OPENFIGI_COMPOSITE, "BBG000B9XRY4"),
+      ident(IdentifierType.SEDOL, "2046251"),
+      ident(IdentifierType.CUSIP, "037833100"),
+      ident(IdentifierType.ISIN, "US0378331005"),
+    ]);
+    expect(holdingLabel(codes)).toBe("US0378331005");
+  });
+
+  it("names an option by its OCC symbol and a future likewise", () => {
+    const ids = [
+      ident(IdentifierType.ISIN, "US0378331005"),
+      ident(IdentifierType.OCC, "ACME  260116C00150000"),
+    ];
+    expect(holdingLabel(holding("i-opt", AssetClass.OPTION, ids))).toBe(
+      "ACME  260116C00150000",
+    );
+    expect(holdingLabel(holding("i-fut", AssetClass.FUTURE, ids))).toBe(
+      "ACME  260116C00150000",
+    );
+  });
+
+  it("ignores a type its class does not prefer", () => {
+    const odd = holding("i-odd", AssetClass.SECURITY, [
+      ident(IdentifierType.CURRENCY, "USD"),
+    ]);
+    expect(holdingLabel(odd)).toBe("i-odd");
+  });
+
+  it("falls back through the order, then to the instrument id", () => {
     expect(holdingLabel(bare)).toBe("GB0002634946");
     expect(holdingLabel(unnamed)).toBe("i-unnamed");
   });

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 
@@ -61,14 +62,12 @@ func TestTransactions(t *testing.T) {
 	ctx := context.Background()
 	user := newUser(t, q, "txs@example.com")
 	statement := newStatement(t, q, user)
-	usd := cashListing(t, q, "USD")
 	key, err := q.CreateStatedKey(ctx, gen.CreateStatedKeyParams{ID: db.NewID(), StatementID: statement.ID, UserID: user.ID, Identifiers: []types.StatedIdentifier{{Type: "system", Value: "cash"}}})
 	require.NoError(t, err)
 	create := func(broker gen.Broker, order time.Time, quantity string) gen.Transaction {
 		t.Helper()
 		row, err := q.CreateTransaction(ctx, gen.CreateTransactionParams{
 			ID: db.NewID(), UserID: user.ID, Broker: broker, StatementID: statement.ID, StatedKeyID: key.ID,
-			InstrumentID: usd.InstrumentID, ListingID: &usd.ID,
 			OrderDate: order, SettlementDate: order.AddDate(0, 0, 2), AsAt: order,
 			Quantity: decimal.RequireFromString(quantity), Currency: ptr.To("USD"),
 		})
@@ -93,5 +92,42 @@ func TestTransactions(t *testing.T) {
 	require.NoError(t, err)
 	if n != 2 {
 		t.Errorf("DeleteTransactions over [%s, %s) = %d rows, want 2: the one at from and the one the day before before", from.Format(time.DateOnly), before.Format(time.DateOnly), n)
+	}
+}
+
+// TestStatedKeyAssociation checks that a key names an instrument, the
+// identifier it names it through and a validity together, and that a listing
+// it names is one of that instrument.
+func TestStatedKeyAssociation(t *testing.T) {
+	ctx := context.Background()
+	base := newTx(t)
+	usd, via := cashListing(t, base, "USD")
+	other := newInstrument(t, base, gen.AssetClassEquity)
+	otherLine := newListing(t, base, other, "USD")
+
+	tests := []struct {
+		name string
+		arg  gen.SetStatedKeyAssociationParams
+	}{
+		{name: "an instrument without the identifier it is named through", arg: gen.SetStatedKeyAssociationParams{InstrumentID: &usd.InstrumentID, Validity: ptr.To(gen.ValidityConfirmed)}},
+		{name: "an identifier without an instrument", arg: gen.SetStatedKeyAssociationParams{ViaID: &via.ID, Validity: ptr.To(gen.ValidityConfirmed)}},
+		{name: "an instrument without a validity", arg: gen.SetStatedKeyAssociationParams{InstrumentID: &usd.InstrumentID, ViaID: &via.ID}},
+		{name: "a listing without an instrument", arg: gen.SetStatedKeyAssociationParams{ListingID: &usd.ID}},
+		{name: "a listing of another instrument", arg: gen.SetStatedKeyAssociationParams{InstrumentID: &usd.InstrumentID, ListingID: &otherLine.ID, ViaID: &via.ID, Validity: ptr.To(gen.ValidityConfirmed)}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// Each violation aborts the transaction, so each case takes its own.
+			q := newTx(t)
+			user := newUser(t, q, "assoc-"+uuid.NewString()+"@example.com")
+			statement := newStatement(t, q, user)
+			key, err := q.CreateStatedKey(ctx, gen.CreateStatedKeyParams{ID: db.NewID(), StatementID: statement.ID, UserID: user.ID, Identifiers: []types.StatedIdentifier{}})
+			require.NoError(t, err)
+			arg := tc.arg
+			arg.ID, arg.UserID = key.ID, user.ID
+			if err := q.SetStatedKeyAssociation(ctx, arg); err == nil {
+				t.Errorf("SetStatedKeyAssociation with %s: err = nil, want a constraint violation", tc.name)
+			}
+		})
 	}
 }

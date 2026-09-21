@@ -13,12 +13,9 @@ message Instrument {
   // Identifies the instrument in every API; a UUID.
   string id = 1;
   stonks.type.v1.AssetClass asset_class = 2;
-  // The user whose statements alone support the instrument; unset when it is
-  // system owned.
-  optional string owner_id = 3;
-  // The instrument grain identifiers naming it, system owned and the
-  // caller's own. Empty when only its listings are named.
-  repeated stonks.type.v1.Identifier identifiers = 4;
+  // The instrument grain identifiers naming it. Empty when only its listings
+  // are named.
+  repeated stonks.type.v1.Identifier identifiers = 3;
 }
 
 // One currency an instrument trades in.
@@ -28,12 +25,8 @@ message Listing {
   string instrument_id = 2;
   // The code the listing is quoted in.
   string currency = 3;
-  // The user whose statements alone support the listing; unset when it is
-  // system owned.
-  optional string owner_id = 4;
-  // The listing grain identifiers naming it, system owned and the caller's
-  // own.
-  repeated stonks.type.v1.Identifier identifiers = 5;
+  // The listing grain identifiers naming it.
+  repeated stonks.type.v1.Identifier identifiers = 4;
 }
 
 message ListInstrumentsRequest {}

@@ -81,6 +81,7 @@ func (r syncRunner) execute(ctx context.Context, row gen.Run, work run.Work) err
 
 type stack struct {
 	q    *gen.Queries
+	tx   pgx.Tx
 	svc  *Service
 	user gen.User
 }
@@ -100,7 +101,7 @@ func newStack(t *testing.T) stack {
 	q := gen.New(tx)
 	user, err := q.CreateUser(ctx, gen.CreateUserParams{ID: db.NewID(), Email: fmt.Sprintf("%s@example.com", uuid.NewString()), Role: gen.UserRoleUser})
 	require.NoError(t, err)
-	return stack{q: q, svc: New(db.New[Queries](tx), syncRunner{q: q}, clock), user: user}
+	return stack{q: q, tx: tx, svc: New(db.New[Queries](tx), syncRunner{q: q}, clock), user: user}
 }
 
 func (s stack) ingest(t *testing.T, msg *statementv1.Statement) gen.Run {
@@ -137,8 +138,12 @@ func TestIngest(t *testing.T) {
 	s := newStack(t)
 	ctx := context.Background()
 	usd, eur := "USD", "EUR"
-	acme := securityKey("ACME CORP", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, "US0000000001", nil))
-	transfer := securityKey("ACME CORP", typev1.AssetClass_ASSET_CLASS_EQUITY, nil, ident(typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, "US0000000001", nil))
+	isin := ident(typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, "US0000000001", nil)
+	currency := ident(typev1.IdentifierType_IDENTIFIER_TYPE_CURRENCY, "USD", nil)
+	acme := securityKey("ACME CORP", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, isin)
+	transfer := securityKey("ACME CORP", typev1.AssetClass_ASSET_CLASS_EQUITY, nil, isin)
+	cashInEur := &typev1.StatedKey{Identifiers: []*typev1.Identifier{currency}, AssetClass: typev1.AssetClass_ASSET_CLASS_CASH, Currency: &eur}
+	equityAsCash := securityKey("ACME CORP", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, currency)
 	msg := &statementv1.Statement{
 		Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01",
 		Rows: []*statementv1.Row{
@@ -146,8 +151,8 @@ func TestIngest(t *testing.T) {
 			rowMsg(cashKey("USD"), "2026-03-05", "-1000"),
 			rowMsg(transfer, "2026-03-02", "3"),
 			rowMsg(acme, "2026-04-20", "1"),
-			rowMsg(securityKey("ACME CORP", typev1.AssetClass_ASSET_CLASS_EQUITY, &eur), "2026-03-06", "1"),
-			rowMsg(securityKey("ACME CORP", typev1.AssetClass_ASSET_CLASS_OPTION, &usd), "2026-03-06", "1"),
+			rowMsg(cashInEur, "2026-03-06", "1"),
+			rowMsg(equityAsCash, "2026-03-06", "1"),
 		},
 		Splits: []*statementv1.StatedSplit{{Key: securityKey("SPLIT CO", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd), EffectiveDate: "2026-03-10", Quantity: "9", Ratio: &statementv1.SplitRatio{From: "1", To: "10"}}},
 	}
@@ -161,7 +166,7 @@ func TestIngest(t *testing.T) {
 	keys, err := s.q.ListStatedKeys(ctx, gen.ListStatedKeysParams{StatementID: parent.ID, UserID: s.user.ID})
 	require.NoError(t, err)
 	if len(keys) != 6 {
-		t.Errorf("ListStatedKeys = %d keys, want 6: the trade, cash, the transfer, EUR, the option and the split", len(keys))
+		t.Errorf("ListStatedKeys = %d keys, want 6: the trade, cash, the transfer, cash in EUR, the equity stating a currency and the split", len(keys))
 	}
 	items, err := s.q.ListStatementItems(ctx, gen.ListStatementItemsParams{StatementID: parent.ID, UserID: s.user.ID})
 	require.NoError(t, err)
@@ -171,8 +176,8 @@ func TestIngest(t *testing.T) {
 	}
 	wantItems := []string{
 		"3 order date outside the claimed period",
-		"4 currency EUR contradicts the listing named, quoted in USD",
-		"5 asset class option contradicts the listing's equity",
+		"4 no listing of USD in EUR",
+		"5 asset class equity contradicts the instrument's cash",
 	}
 	if diff := cmp.Diff(wantItems, gotItems); diff != "" {
 		t.Errorf("items mismatch (-want +got):\n%s", diff)
@@ -182,22 +187,35 @@ func TestIngest(t *testing.T) {
 		t.Errorf("transactions mismatch (-want +got):\n%s", diff)
 	}
 
-	// The transfer, stating no currency, landed on the listing the trade created.
-	txs, err := s.q.ListTransactions(ctx, s.user.ID)
+	// Only the cash key was answered for, and it names the USD listing
+	// through the currency identifier that named the instrument.
+	found, err := s.q.GetInstrumentByIdentifier(ctx, gen.GetInstrumentByIdentifierParams{Type: gen.IdentifierTypeCurrency, Value: "USD"})
 	require.NoError(t, err)
-	if txs[0].ListingID == nil || txs[1].ListingID == nil || *txs[0].ListingID != *txs[1].ListingID || txs[0].InstrumentID != txs[1].InstrumentID {
-		t.Errorf("transfer landed on %v of %s, trade on %v of %s, want the same listing", txs[0].ListingID, txs[0].InstrumentID, txs[1].ListingID, txs[1].InstrumentID)
+	line, err := s.q.GetListing(ctx, gen.GetListingParams{InstrumentID: found.Instrument.ID, Currency: "USD"})
+	require.NoError(t, err)
+	var associated []gen.StatedKey
+	for _, k := range keys {
+		if k.InstrumentID != nil {
+			associated = append(associated, k)
+		}
 	}
-	dom := "ibkr/upload"
-	named, err := s.q.GetListingByIdentifier(ctx, gen.GetListingByIdentifierParams{OwnerID: &s.user.ID, Type: gen.IdentifierTypeBrokerDescription, Domain: &dom, Value: "ACME CORP"})
-	require.NoError(t, err)
-	if named.Listing.ID != *txs[0].ListingID || named.AssetClass != gen.AssetClassEquity || named.Listing.OwnerID == nil {
-		t.Errorf("the description names %+v, want the user owned equity listing the trade landed on", named)
+	if len(associated) != 1 {
+		t.Fatalf("%d keys carry an association, want only the cash key", len(associated))
 	}
-	ids, err := s.q.ListIdentifiers(ctx, gen.ListIdentifiersParams{InstrumentID: named.Listing.InstrumentID, UserID: s.user.ID})
-	require.NoError(t, err)
-	if len(ids) != 1 {
-		t.Errorf("ListIdentifiers = %+v, want only the broker description admitted", ids)
+	got := associated[0]
+	if *got.InstrumentID != found.Instrument.ID || got.ListingID == nil || *got.ListingID != line.ID {
+		t.Errorf("the cash key names instrument %s listing %v, want %s and %s", got.InstrumentID, got.ListingID, found.Instrument.ID, line.ID)
+	}
+	if got.ViaID == nil || *got.ViaID != found.Identifier.ID || got.Validity == nil || *got.Validity != gen.ValidityConfirmed {
+		t.Errorf("the cash key associates through %v held %v, want %s confirmed", got.ViaID, got.Validity, found.Identifier.ID)
+	}
+
+	// Nothing the statement stated wrote an instrument.
+	var instruments, currencies int
+	require.NoError(t, s.tx.QueryRow(ctx, "SELECT count(*) FROM instruments").Scan(&instruments))
+	require.NoError(t, s.tx.QueryRow(ctx, "SELECT count(*) FROM currencies").Scan(&currencies))
+	if instruments != currencies {
+		t.Errorf("%d instruments, want the %d the migration seeds", instruments, currencies)
 	}
 
 	children, err := s.q.ListChildRuns(ctx, gen.ListChildRunsParams{ParentID: &parent.ID, UserID: s.user.ID})
@@ -211,7 +229,7 @@ func TestIngest(t *testing.T) {
 	for _, r := range resolved {
 		outcomes[r.Outcome]++
 	}
-	wantOutcomes := map[gen.ResolutionOutcome]int{gen.ResolutionOutcomeCreated: 2, gen.ResolutionOutcomeMatched: 2, gen.ResolutionOutcomeRejected: 2}
+	wantOutcomes := map[gen.ResolutionOutcome]int{gen.ResolutionOutcomeMatched: 1, gen.ResolutionOutcomeRejected: 2, gen.ResolutionOutcomeUnresolved: 3}
 	if diff := cmp.Diff(wantOutcomes, outcomes); diff != "" {
 		t.Errorf("resolution outcomes mismatch (-want +got):\n%s", diff)
 	}

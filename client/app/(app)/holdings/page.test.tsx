@@ -41,9 +41,8 @@ const three = create(ListHoldingsResponseSchema, {
       assetClass: AssetClass.SECURITY,
       identifiers: [
         create(IdentifierSchema, {
-          type: IdentifierType.BROKER_DESCRIPTION,
-          domain: "fidelity_uk/upload",
-          value: "VANGUARD S&P 500 (VUSA)",
+          type: IdentifierType.ISIN,
+          value: "IE00B3XXRP09",
         }),
       ],
       quantity: "-141",
@@ -64,9 +63,8 @@ const three = create(ListHoldingsResponseSchema, {
       assetClass: AssetClass.SECURITY,
       identifiers: [
         create(IdentifierSchema, {
-          type: IdentifierType.BROKER_DESCRIPTION,
-          domain: "fidelity_uk/upload",
-          value: "BAE SYSTEMS (BA.)",
+          type: IdentifierType.ISIN,
+          value: "GB0002634946",
         }),
       ],
       quantity: "120",
@@ -115,7 +113,7 @@ describe("HoldingsPage", () => {
       "12092.79",
     );
     const vusa = screen.getByTestId("holding-row-i-vusa");
-    expect(vusa.textContent).toContain("VANGUARD S&P 500 (VUSA)");
+    expect(vusa.textContent).toContain("IE00B3XXRP09");
     expect(vusa.textContent).toContain("Security");
     expect(screen.getByTestId("holding-qty-i-vusa").textContent).toBe(
       "-141.00",
