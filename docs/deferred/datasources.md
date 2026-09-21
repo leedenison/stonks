@@ -57,7 +57,7 @@ serves under a ticker is its own history for the symbol, and no provider promise
 history follows the instrument across a reassignment, so provenance is recorded whichever
 identifier the fetch was keyed on.
 
-A merge rewrites the instrument on the absorbed instrument's fetch keys, so provenance
+A merge rewrites the instrument on the merged instrument's fetch keys, so provenance
 follows the data.
 
 ### Blocks

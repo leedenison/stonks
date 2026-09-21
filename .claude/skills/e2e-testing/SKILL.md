@@ -16,6 +16,12 @@ protobuf types in `e2e/gen`.
 compose project `stonks-e2e`.  Playwright runs as a compose service behind
 `profiles: [test]`.
 
+The service is the binary that ships, built from its production Dockerfile, and
+configuration is the only difference between this stack and any other. It carries no
+test-only endpoint, switch or hook. State a test needs to observe is exposed on the real
+API: if a test wants it an operator usually wants it too, so it is built as a feature with
+a supported read path.
+
 ## Assertions
 
 A spec asserts through the narrowest surface that can see the thing, in this order.

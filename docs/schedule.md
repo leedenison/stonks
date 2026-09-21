@@ -14,13 +14,28 @@ M, P and S numbers are append-only.
 The milestones that are scheduled, in the order they are implemented. Each has a directory
 of open issues and ADRs at `docs/tasks/<label>/`.
 
-- **M02** - Transaction ingestion from one broker's statement, and the holdings derived
-  from it.
+- **M03** - System owned instruments, the datasource framework, and resolution of stated
+  keys against one identity datasource.
 
 ```
 001 open
  |
-002 close
+ +-----------+--------------------+
+ |           |                    |
+003 keys   004 framework       006 MIC table
+ |           |          |         |
+ |         005 findings |         |
+ |           |          +----+----+
+ |           |               |
+ |           |         007 integration
+ |           |               |        |
+ +-----------+---------------+     010 e2e stub
+ |                                    |
+008 resolution                        |
+ |          |                         |
+009 replay  011 browser --------------+
+ |          |
+002 close --+
 ```
 
 ## Completed
@@ -28,6 +43,8 @@ of open issues and ADRs at `docs/tasks/<label>/`.
 The record of what has been built. A milestone lands here when its issue directory empties.
 
 - **M01** - Project scaffolding.
+- **M02** - Transaction ingestion from three brokers' exports, and the holdings derived
+  from it.
 
 ## Deferred
 
@@ -40,6 +57,7 @@ Each has a note in `docs/deferred` outlining how it might work.
 - **D-IDENT** - [Identifier events](deferred/identifier-events.md); ticker changes and the intervals over which an identifier names one instrument.
 - **D-DATASRC** - [Datasources](deferred/datasources.md); the framework every fetch from an external provider goes through.
 - **D-RUNS** - [Runs](deferred/runs.md); the fetch and replay kinds of work, and the findings they record.
+- **D-ANNOT** - [Annotations](deferred/annotations.md); what a user records against their own keys: pins, groupings, prices and keys made by hand.
 - **D-DEPLOY** - [Production deployment](deferred/production-deployment.md); TLS, cross-origin access and what each container publishes.
 
 ## Spike
