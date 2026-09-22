@@ -47,6 +47,9 @@ referencing the run and the rows it is about.
 **Block** -- a record that a datasource failed permanently for a key, suppressing further
 calls until an administrator clears it.
 
+**Annotation** -- what a user records against their own stated keys: a pin to an
+instrument, a grouping, a price, or a key made by hand. User data, never an assertion.
+
 **Portfolio** -- a defined subset of the holdings of a user including the degenerate
 'all holdings' portfolio.
 

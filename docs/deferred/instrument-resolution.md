@@ -10,10 +10,10 @@ the names different sources use collapse onto one instrument.
 
 ## Why
 
-Brokers name instruments in their own terms.  A broker description names one listing
-within the domain of its own broker and channel, so one security held at two brokers is
-two instruments, and holdings, prices and events cannot be aggregated across them until a
-datasource answers for the identifiers those sources state.
+Brokers name instruments in their own terms.  A key states what one broker called a
+line, so one security held at two brokers is two keys, and holdings, prices and events
+cannot be aggregated across them until a datasource answers for the identifiers those
+keys state.
 
 ## Model
 
@@ -46,28 +46,26 @@ of a MIC_TICKER is the operating MIC, and that domain is the only way a source s
 venue.
 
 Resolution may query a datasource with a symbol a source stated without its venue, but
-never associates on one.  The weakest link rule then leaves a transaction stating nothing
-else on a broker description instrument, and nothing replays it, since no coverage can
-arrive for a key without a domain.
+never associates on one.  The weakest link rule then leaves a key stating nothing else
+unresolved, and nothing replays it, since no coverage can arrive for a key without a
+domain.
 
 ### Validity and the Weakest Link
 
 A MIC-derived identifier is trusted inside its validity interval, which is confirmed
 inside identifier event coverage and provisional outside it.  See
-[identifier-events.md](identifier-events.md).  It associates a transaction with an
-instrument when the transaction date lies inside its validity, and absorbs an instrument
-holding no stable identifier, but never decides between two instruments and never merges
-them.
+[identifier-events.md](identifier-events.md).  It associates a key with an instrument
+when the key's transactions are dated inside its validity, but never decides between two
+instruments and never merges them.
 
-An unverifiable identifier associates a transaction with an instrument, and absorbs an
-instrument that holds no other identifier, but never decides between two instruments that
-verifiable identifiers can decide between.
-
-The weakest link governs.  A transaction stating only a ticker is associated via that
-ticker however many stable identifiers a datasource answers with, so the association is
+The weakest link governs.  A key stating only a ticker is associated through that ticker
+however many stable identifiers a datasource answers with, so the association is
 provisional until the ticker is covered.
 
-An identifier row exists only when the identifier is usable, provisionally or confirmed.
+An identifier row exists only from a datasource assertion.  A stated identifier no
+datasource answered for stays in the key, and a key nothing answered for stays
+unresolved: its holdings aggregate with the user's other unresolved keys on the
+identifiers they share, and nothing about it is stored against an instrument.
 
 ### Options
 
@@ -87,18 +85,11 @@ underlying therefore create no assumption and nothing to unwind.
 
 ### Authority
 
-System owned data is updated directly from a source with system authority.
-
-A source with user authority may freely update user owned data belonging to the uploading
-user.  Updates to system owned data must first be corroborated by a system authority
-source.  Any channel which is user authenticated to a non-admin user is limited to user
-authority.
-
-A source with candidate authority may update user owned data belonging to the user
-authenticated in the current request where that user implicitly or explicitly agrees to
-give authority to the guess, upgrading it, but may not override or contradict the values
-the user supplied.  Updates to system owned data must first be corroborated by a system
-authority source.  Any LLM driven source of data is limited to candidate authority.
+Instruments, listings and identifiers are system owned and written only from a source
+with system authority.  A source with user authority, a statement or an annotation,
+writes keys and what the user records against them, and never instrument data.  A
+source with candidate authority, any guess, writes nothing: a guess ranks candidates and
+never filters them.
 
 ## Constraints
 
@@ -109,38 +100,23 @@ datasources are configured and enabled as well as what the user provides with th
 statements.  Some instruments might be available and complete, others might only be
 partially available and others still might be completely unavailable.
 
-The system must therefore accommodate instrument data which is some part system owned,
-some part user owned and some part missing entirely.
+A user's holdings are therefore some part keys resolved to instruments and some part
+keys nothing answered, and a key moves between the two as answers arrive.
 
-### Attachment or Merger of Instruments
+### Merger of Instruments
 
-When we have two sets of instrument data which claim to be the same instrument, for
-example a set of data in the database and a set of data supplied by a user which share
-one or more identifiers, we must mediate when the data can be merged.
-
-Data with candidate authority is not stored.  Data with user authority is stored as user
-owned data.  Data with system authority is stored as system owned data.
-
-Two sets merge only when they share a stable identifier.  Sets that overlap only on a
-MIC-derived identifier are not merged: precedence picks the set the instrument keeps, the
+Two datasource answers, or an answer and the database, may describe one instrument.  They
+merge only when they share a stable identifier.  Answers that overlap only on a
+MIC-derived identifier are not merged: precedence picks the instrument kept, the
 identifiers of the other are dropped, and the outcome is recorded as a finding of the
 run.
 
 ### Contradictions are Resolved Automatically and Recorded
 
-Two sources may contradict each other's instrument data.  In general the contradictions
-are resolved automatically according to the following rules:
-
-- System authoritative sources take precedence over user authoritative sources, and both
-  over candidate authoritative sources.
-- Sources with the same level of authority must have an explicit precedence and are
-  consulted in precedence order.
-
-Non-overlapping data from sources with the same level of authority can be merged
-provided:
-
-- No datum in the sets provided by the sources is contradictory.
-- At least one valid identifier authoritatively links the two instruments.
+Two datasources may contradict each other's instrument data.  Contradictions are resolved
+automatically: datasources carry an explicit precedence and are consulted in precedence
+order.  Non-overlapping data from two datasources is merged provided no datum is
+contradictory and at least one stable identifier links the two.
 
 Despite the automatic resolution each contradiction is recorded as a finding of the
 resolution that met it.  See [runs.md](runs.md).
@@ -150,10 +126,10 @@ resolution that met it.  See [runs.md](runs.md).
 Datasources gain coverage, integrations are enabled and quota tiers change, so an
 unresolved instrument is re-attempted by a scheduled replay and on administrator demand.
 
-A transaction is re-resolved from the stated key stored with it, so a later answer moves
-the transaction to the instrument the answer names.  An identifier event that leaves the
-transaction's date outside the validity it was associated under replays it.  Holdings,
-event grouping and cached adjusted values derived from the transaction are recomputed.
+A key is re-resolved from what it states, so a later answer moves its association to the
+instrument the answer names.  An identifier event that leaves the key's transactions
+dated outside the validity it was associated under replays it.  Holdings, event grouping
+and cached adjusted values derived from the key's transactions are recomputed.
 
 ### Datasources
 
@@ -163,29 +139,9 @@ whose identification was unavailable, and attempting re-resolution later.
 
 ## Invariants
 
-### User or Candidate Authority Data is Upgraded When Possible
-
-Instrument data from a source with candidate authority is never stored directly unless it
-is confirmed by a higher authority.
-
-Instrument data from a source with user authority is stored as user owned data unless it
-is confirmed by a higher authority.
-
-Instrument data from a source with system authority is stored as system owned data.
-
-The system always attempts to upgrade the authority of sourced data before deciding
-whether and how to store it.
-
-Note: Determining the authority to upgrade can be subtle.  If a candidate authority
-source guesses an identifier (eg. a CUSIP) associated with a broker description and a
-listing currency, a system authority source can upgrade the association between the
-CUSIP and the guessed listing currency.  But a separate, probably user authority source,
-is needed to upgrade the association between the CUSIP and the broker description.
-
 ### An Identifier Names One Instrument At A Time
 
-No two instruments hold one identifier triple over overlapping validity intervals for one
-owner.
+No two instruments hold one identifier triple over overlapping validity intervals.
 
 ### No Merge Through a MIC-derived Identifier
 
@@ -272,17 +228,11 @@ from another answer, since it decides which invariants the instrument must satis
 
 ## Undecided
 
-- What happens to a user owned instrument left holding no transactions when
-  re-resolution moves them to another instrument.
-
 - Whether a datasource whose answer overlapped an existing instrument only on a
   MIC-derived identifier is barred from contributing to that instrument in later runs.
 
 - Which currencies form one family, and whether a family is anything more than a unit
   prefix.
-
-- What a user does when they believe the system has identified an instrument wrongly, and
-  what an administrator can correct that a user cannot.
 
 - Whether a candidate ranked up because it corroborates a higher precedence answer is
   independent corroboration of that answer.  A broad search may contain a candidate
