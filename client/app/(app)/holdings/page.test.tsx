@@ -3,12 +3,15 @@ import { Code, ConnectError, type ServiceImpl } from "@connectrpc/connect";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import {
+  DescriptionSchema,
+  GroupHoldingSchema,
   HoldingService,
   InstrumentHoldingSchema,
   ListHoldingsResponseSchema,
 } from "@/gen/holding/v1/holding_pb";
 import {
   AssetClass,
+  Broker,
   IdentifierSchema,
   IdentifierType,
 } from "@/gen/type/v1/type_pb";
@@ -58,13 +61,15 @@ const three = create(ListHoldingsResponseSchema, {
       ],
       quantity: "12092.79",
     }),
-    create(InstrumentHoldingSchema, {
-      instrumentId: "i-bae",
-      assetClass: AssetClass.SECURITY,
-      identifiers: [
-        create(IdentifierSchema, {
-          type: IdentifierType.ISIN,
-          value: "GB0002634946",
+  ],
+  groups: [
+    create(GroupHoldingSchema, {
+      groupId: "g-bae",
+      assetClasses: [AssetClass.SECURITY],
+      descriptions: [
+        create(DescriptionSchema, {
+          broker: Broker.FIDELITY_UK,
+          text: "BAE SYSTEMS (BA.)",
         }),
       ],
       quantity: "120",
@@ -103,7 +108,7 @@ describe("HoldingsPage", () => {
     const rows = screen.getAllByTestId(/^holding-row-/);
     expect(rows.map((r) => r.getAttribute("data-testid"))).toEqual([
       "holding-row-i-gbp",
-      "holding-row-i-bae",
+      "holding-row-g-bae",
       "holding-row-i-vusa",
     ]);
     const gbp = screen.getByTestId("holding-row-i-gbp");
@@ -118,6 +123,9 @@ describe("HoldingsPage", () => {
     expect(screen.getByTestId("holding-qty-i-vusa").textContent).toBe(
       "-141.00",
     );
+    const bae = screen.getByTestId("holding-row-g-bae");
+    expect(bae.textContent).toContain("BAE SYSTEMS (BA.)");
+    expect(screen.getByTestId("holding-qty-g-bae").textContent).toBe("120.00");
   });
 
   it("offers a retry when the list fails", async () => {
