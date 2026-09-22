@@ -11,7 +11,7 @@ import { UploadAction } from "@/app/components/upload-action";
 import { useUpload } from "@/contexts/upload-context";
 import { useHoldings } from "@/hooks/use-holdings";
 import { assetClassLabel } from "@/lib/asset-class";
-import { holdingLabel, sortHoldings } from "@/lib/holdings";
+import { holdingRows } from "@/lib/holdings";
 import { toFixed } from "@/lib/marshal/decimal";
 
 // The user's holdings, cash first, each with its raw quantity shown to two
@@ -19,7 +19,7 @@ import { toFixed } from "@/lib/marshal/decimal";
 export default function HoldingsPage() {
   const upload = useUpload();
   const { data, isPending, isError, refetch } = useHoldings();
-  const holdings = sortHoldings(data?.instruments ?? []);
+  const holdings = holdingRows(data);
 
   return (
     <Page
@@ -60,15 +60,14 @@ export default function HoldingsPage() {
           ) : (
             <tbody>
               {holdings.map((h) => (
-                <Tr
-                  key={h.instrumentId}
-                  data-testid={`holding-row-${h.instrumentId}`}
-                >
-                  <Td>{holdingLabel(h)}</Td>
+                <Tr key={h.id} data-testid={`holding-row-${h.id}`}>
+                  <Td>{h.label}</Td>
                   <Td>
-                    <Chip>{assetClassLabel(h.assetClass)}</Chip>
+                    {h.classes.map((c) => (
+                      <Chip key={c}>{assetClassLabel(c)}</Chip>
+                    ))}
                   </Td>
-                  <Td numeric data-testid={`holding-qty-${h.instrumentId}`}>
+                  <Td numeric data-testid={`holding-qty-${h.id}`}>
                     {toFixed(h.quantity, 2)}
                   </Td>
                 </Tr>
