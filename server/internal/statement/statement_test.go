@@ -64,6 +64,8 @@ func newFixture(t *testing.T) *fixture {
 	f.store.EXPECT().Tx(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, fn func(Queries) error) error { return fn(f.store) }).AnyTimes()
 	f.store.EXPECT().ListCurrencies(gomock.Any()).Return([]string{"EUR", "GBP", "USD"}, nil).AnyTimes()
 	f.store.EXPECT().LockUserKeys(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+	f.store.EXPECT().ListGroupableKeys(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
+	f.store.EXPECT().ClearStatedKeyGroups(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 	f.runs.EXPECT().Start(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, spec run.Spec, work run.Work) (gen.Run, error) {
 		f.spec = spec
 		row := gen.Run{ID: db.NewID(), UserID: spec.UserID, Kind: spec.Kind, Trigger: gen.RunTriggerUser, State: gen.RunStatePending}

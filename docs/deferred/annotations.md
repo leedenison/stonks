@@ -10,7 +10,7 @@ price, and a key made by hand for an asset no source states.
 
 ## Why
 
-A key no datasource answers is still a holding, and the user knows things about it that
+An unresolved key is still a holding, and the user knows things about it that
 no source can state: which instrument it is, that two keys are one holding, what it is
 worth. Some assets, a house or a mortgage, are stated by no source at all. In a
 multi-user system that knowledge reaches the user's own holdings only, so it is recorded
@@ -24,9 +24,11 @@ writes system owned data: a pin creates no identifier row and is not an assertio
 
 - A pin associates a key with an instrument, standing in for resolution's answer for that
   user's key alone.
-- A grouping joins two identifiers into one holding where they share none, and is
-  honoured every time groups are recomputed. There is no exclusion: a key that wrongly
-  joins two holdings is a defect in the export, and the fix is to correct the export.
+- An identifier a user adds to a key is what joins two holdings no source stated in
+  common. Grouping already gathers the keys sharing an identifier, so this needs no
+  grouping of its own and is honoured every time groups are recomputed. There is no
+  exclusion: a key that wrongly joins two holdings is a defect in the export, and the
+  fix is to correct the export.
 - A price is a value on a date for one identifier triple, in the currency the key states.
   A holding's user price series is the union over its identifiers' series, the latest
   entry winning on a date.

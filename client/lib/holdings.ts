@@ -1,4 +1,4 @@
-import type { Holding } from "@/gen/holding/v1/holding_pb";
+import type { InstrumentHolding } from "@/gen/holding/v1/holding_pb";
 import { AssetClass, IdentifierType } from "@/gen/type/v1/type_pb";
 
 // preferred names the identifier types a holding is labelled by, the one a
@@ -33,7 +33,7 @@ const leading: Partial<Record<AssetClass, IdentifierType>> = {
 // holds of a type its class prefers, else the instrument id. Where it holds
 // two of one type, such as a ticker at two venues, the first the API lists
 // wins.
-export function holdingLabel(holding: Holding): string {
+export function holdingLabel(holding: InstrumentHolding): string {
   const lead = leading[holding.assetClass];
   const order = lead === undefined ? preferred : [lead, ...preferred];
   for (const type of order) {
@@ -44,8 +44,11 @@ export function holdingLabel(holding: Holding): string {
 }
 
 // sortHoldings returns a copy with cash first, and each group by label.
-export function sortHoldings(holdings: Holding[]): Holding[] {
-  const rank = (h: Holding) => (h.assetClass === AssetClass.CASH ? 0 : 1);
+export function sortHoldings(
+  holdings: InstrumentHolding[],
+): InstrumentHolding[] {
+  const rank = (h: InstrumentHolding) =>
+    h.assetClass === AssetClass.CASH ? 0 : 1;
   return [...holdings].sort(
     (a, b) =>
       rank(a) - rank(b) || holdingLabel(a).localeCompare(holdingLabel(b)),

@@ -187,7 +187,7 @@ func TestIngest(t *testing.T) {
 		t.Errorf("transactions mismatch (-want +got):\n%s", diff)
 	}
 
-	// Only the cash key was answered for, and it names the USD listing
+	// Only the cash key resolved, and it names the USD listing
 	// through the currency identifier that named the instrument.
 	found, err := s.q.GetInstrumentByIdentifier(ctx, gen.GetInstrumentByIdentifierParams{Type: gen.IdentifierTypeCurrency, Value: "USD"})
 	require.NoError(t, err)
@@ -274,5 +274,23 @@ func TestTree(t *testing.T) {
 	}
 	if diff := cmp.Diff(parents, got); diff != "" {
 		t.Errorf("asset class tree mismatch (-code +table):\n%s", diff)
+	}
+}
+
+// TestDomained holds the domained map equal to the traits table.
+func TestDomained(t *testing.T) {
+	s := newStack(t)
+	rows, err := s.tx.Query(context.Background(), "SELECT type FROM identifier_type_traits WHERE domain <> 'none'")
+	require.NoError(t, err)
+	defer rows.Close()
+	want := map[gen.IdentifierType]bool{}
+	for rows.Next() {
+		var typ gen.IdentifierType
+		require.NoError(t, rows.Scan(&typ))
+		want[typ] = true
+	}
+	require.NoError(t, rows.Err())
+	if diff := cmp.Diff(want, domained); diff != "" {
+		t.Errorf("domained mismatch (-want +got):\n%s", diff)
 	}
 }

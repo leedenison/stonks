@@ -18,6 +18,8 @@ import (
 	typev1 "github.com/leedenison/stonks/proto/type/v1"
 	"github.com/leedenison/stonks/server/internal/auth"
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/db/types"
+	"github.com/leedenison/stonks/server/internal/ptr"
 	"github.com/leedenison/stonks/server/internal/service/holding/mock"
 	servicemock "github.com/leedenison/stonks/server/internal/service/mock"
 	"github.com/leedenison/stonks/server/internal/service/servicetest"
@@ -27,6 +29,7 @@ var (
 	userID    = uuid.MustParse("00000000-0000-0000-0000-000000000001")
 	gbpID     = uuid.MustParse("00000000-0000-0000-0000-000000000020")
 	acmeID    = uuid.MustParse("00000000-0000-0000-0000-000000000021")
+	groupID   = uuid.MustParse("00000000-0000-0000-0000-000000000030")
 	principal = auth.Principal{User: gen.User{ID: userID, Email: "one@example.com"}, SessionID: servicetest.Session}
 )
 
@@ -52,7 +55,7 @@ func newFixture(t *testing.T) *fixture {
 }
 
 func TestListHoldings(t *testing.T) {
-	rows := []gen.ListHoldingsRow{
+	rows := []gen.ListInstrumentHoldingsRow{
 		{InstrumentID: gbpID, AssetClass: gen.AssetClassCash, Quantity: decimal.RequireFromString("12092.79")},
 		{InstrumentID: acmeID, AssetClass: gen.AssetClassSecurity, Quantity: decimal.RequireFromString("-141")},
 	}
@@ -61,37 +64,68 @@ func TestListHoldings(t *testing.T) {
 		{InstrumentID: acmeID, Type: gen.IdentifierTypeIsin, Value: "GB0002634946"},
 		{InstrumentID: acmeID, Type: gen.IdentifierTypeSedol, Value: "0263494"},
 	}
+	wantInstruments := []*holdingv1.InstrumentHolding{
+		{
+			InstrumentId: gbpID.String(), AssetClass: typev1.AssetClass_ASSET_CLASS_CASH, Quantity: "12092.79",
+			Identifiers: []*typev1.Identifier{{Type: typev1.IdentifierType_IDENTIFIER_TYPE_CURRENCY, Value: "GBP"}},
+		},
+		{
+			InstrumentId: acmeID.String(), AssetClass: typev1.AssetClass_ASSET_CLASS_SECURITY, Quantity: "-141",
+			Identifiers: []*typev1.Identifier{
+				{Type: typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, Value: "GB0002634946"},
+				{Type: typev1.IdentifierType_IDENTIFIER_TYPE_SEDOL, Value: "0263494"},
+			},
+		},
+	}
+
+	// Two keys of one group, sharing an ISIN and differing in every other
+	// thing they state.
+	groupRows := []gen.ListGroupHoldingsRow{{GroupID: groupID, Quantity: decimal.RequireFromString("12.5")}}
+	isin := types.StatedIdentifier{Type: string(gen.IdentifierTypeIsin), Value: "US0000000001"}
+	ticker := types.StatedIdentifier{Type: string(gen.IdentifierTypeMicTicker), Value: "ACME"}
+	groupKeys := []gen.ListHeldGroupKeysRow{
+		{StatedKey: gen.StatedKey{GroupID: &groupID, AssetClass: ptr.To(gen.AssetClassEquity), Description: ptr.To("ACME CORP"), Identifiers: []types.StatedIdentifier{isin}}, Broker: gen.BrokerIbkr},
+		{StatedKey: gen.StatedKey{GroupID: &groupID, AssetClass: ptr.To(gen.AssetClassSecurity), Description: ptr.To("ACME CORPORATION"), Identifiers: []types.StatedIdentifier{isin, ticker}}, Broker: gen.BrokerSchwab},
+	}
+	wantGroups := []*holdingv1.GroupHolding{{
+		GroupId: groupID.String(), Quantity: "12.5",
+		AssetClasses: []typev1.AssetClass{typev1.AssetClass_ASSET_CLASS_SECURITY, typev1.AssetClass_ASSET_CLASS_EQUITY},
+		Identifiers: []*typev1.Identifier{
+			{Type: typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, Value: "US0000000001"},
+			{Type: typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, Value: "ACME"},
+		},
+		Descriptions: []*holdingv1.Description{
+			{Broker: typev1.Broker_BROKER_IBKR, Text: "ACME CORP"},
+			{Broker: typev1.Broker_BROKER_SCHWAB, Text: "ACME CORPORATION"},
+		},
+	}}
+
 	tests := []struct {
-		name      string
-		authErr   error
-		rows      []gen.ListHoldingsRow
-		rowsErr   error
-		idents    []gen.Identifier
-		identsErr error
-		want      []*holdingv1.Holding
-		wantCode  connect.Code
+		name       string
+		authErr    error
+		rows       []gen.ListInstrumentHoldingsRow
+		rowsErr    error
+		idents     []gen.Identifier
+		identsErr  error
+		groups     []gen.ListGroupHoldingsRow
+		groupsErr  error
+		keys       []gen.ListHeldGroupKeysRow
+		keysErr    error
+		want       []*holdingv1.InstrumentHolding
+		wantGroups []*holdingv1.GroupHolding
+		wantCode   connect.Code
 	}{
 		{name: "none"},
+		{name: "instruments only", rows: rows, idents: idents, want: wantInstruments},
+		{name: "groups only", groups: groupRows, keys: groupKeys, wantGroups: wantGroups},
 		{
-			name:   "cash and a security",
-			rows:   rows,
-			idents: idents,
-			want: []*holdingv1.Holding{
-				{
-					InstrumentId: gbpID.String(), AssetClass: typev1.AssetClass_ASSET_CLASS_CASH, Quantity: "12092.79",
-					Identifiers: []*typev1.Identifier{{Type: typev1.IdentifierType_IDENTIFIER_TYPE_CURRENCY, Value: "GBP"}},
-				},
-				{
-					InstrumentId: acmeID.String(), AssetClass: typev1.AssetClass_ASSET_CLASS_SECURITY, Quantity: "-141",
-					Identifiers: []*typev1.Identifier{
-						{Type: typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, Value: "GB0002634946"},
-						{Type: typev1.IdentifierType_IDENTIFIER_TYPE_SEDOL, Value: "0263494"},
-					},
-				},
-			},
+			name: "both kinds", rows: rows, idents: idents, groups: groupRows, keys: groupKeys,
+			want: wantInstruments, wantGroups: wantGroups,
 		},
 		{name: "holdings failure", rowsErr: errors.New("boom"), wantCode: connect.CodeInternal},
 		{name: "identifiers failure", rows: rows, identsErr: errors.New("boom"), wantCode: connect.CodeInternal},
+		{name: "group holdings failure", groupsErr: errors.New("boom"), wantCode: connect.CodeInternal},
+		{name: "group keys failure", groups: groupRows, keysErr: errors.New("boom"), wantCode: connect.CodeInternal},
 		{name: "unauthenticated", authErr: auth.ErrUnauthenticated, wantCode: connect.CodeUnauthenticated},
 	}
 	for _, tc := range tests {
@@ -99,10 +133,16 @@ func TestListHoldings(t *testing.T) {
 			f := newFixture(t)
 			f.authn.EXPECT().Authenticate(gomock.Any(), servicetest.Session).Return(principal, tc.authErr)
 			if tc.authErr == nil {
-				f.reader.EXPECT().ListHoldings(gomock.Any(), userID).Return(tc.rows, tc.rowsErr)
+				f.reader.EXPECT().ListInstrumentHoldings(gomock.Any(), userID).Return(tc.rows, tc.rowsErr)
 			}
 			if tc.authErr == nil && tc.rowsErr == nil && len(tc.rows) > 0 {
 				f.reader.EXPECT().ListHeldIdentifiers(gomock.Any(), userID).Return(tc.idents, tc.identsErr)
+			}
+			if tc.authErr == nil && tc.rowsErr == nil && tc.identsErr == nil {
+				f.reader.EXPECT().ListGroupHoldings(gomock.Any(), userID).Return(tc.groups, tc.groupsErr)
+			}
+			if tc.authErr == nil && tc.rowsErr == nil && tc.identsErr == nil && tc.groupsErr == nil && len(tc.groups) > 0 {
+				f.reader.EXPECT().ListHeldGroupKeys(gomock.Any(), userID).Return(tc.keys, tc.keysErr)
 			}
 			res, err := f.client.ListHoldings(context.Background(), connect.NewRequest(&holdingv1.ListHoldingsRequest{}))
 			if servicetest.CodeOf(err) != tc.wantCode {
@@ -111,7 +151,8 @@ func TestListHoldings(t *testing.T) {
 			if err != nil {
 				return
 			}
-			if diff := cmp.Diff(&holdingv1.ListHoldingsResponse{Holdings: tc.want}, res.Msg, protocmp.Transform()); diff != "" {
+			want := &holdingv1.ListHoldingsResponse{Instruments: tc.want, Groups: tc.wantGroups}
+			if diff := cmp.Diff(want, res.Msg, protocmp.Transform()); diff != "" {
 				t.Errorf("ListHoldings() mismatch (-want +got):\n%s", diff)
 			}
 		})

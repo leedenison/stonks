@@ -1,6 +1,9 @@
 import { create } from "@bufbuild/protobuf";
 import { describe, expect, it } from "vitest";
-import { type Holding, HoldingSchema } from "@/gen/holding/v1/holding_pb";
+import {
+  type InstrumentHolding,
+  InstrumentHoldingSchema,
+} from "@/gen/holding/v1/holding_pb";
 import {
   AssetClass,
   IdentifierSchema,
@@ -16,8 +19,12 @@ function holding(
   instrumentId: string,
   assetClass: AssetClass,
   identifiers: ReturnType<typeof ident>[],
-): Holding {
-  return create(HoldingSchema, { instrumentId, assetClass, identifiers });
+): InstrumentHolding {
+  return create(InstrumentHoldingSchema, {
+    instrumentId,
+    assetClass,
+    identifiers,
+  });
 }
 
 const gbp = holding("i-gbp", AssetClass.CASH, [

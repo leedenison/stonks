@@ -3,8 +3,8 @@ import { Code, ConnectError, type ServiceImpl } from "@connectrpc/connect";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import {
-  HoldingSchema,
   HoldingService,
+  InstrumentHoldingSchema,
   ListHoldingsResponseSchema,
 } from "@/gen/holding/v1/holding_pb";
 import {
@@ -35,8 +35,8 @@ function serving(
 }
 
 const three = create(ListHoldingsResponseSchema, {
-  holdings: [
-    create(HoldingSchema, {
+  instruments: [
+    create(InstrumentHoldingSchema, {
       instrumentId: "i-vusa",
       assetClass: AssetClass.SECURITY,
       identifiers: [
@@ -47,7 +47,7 @@ const three = create(ListHoldingsResponseSchema, {
       ],
       quantity: "-141",
     }),
-    create(HoldingSchema, {
+    create(InstrumentHoldingSchema, {
       instrumentId: "i-gbp",
       assetClass: AssetClass.CASH,
       identifiers: [
@@ -58,7 +58,7 @@ const three = create(ListHoldingsResponseSchema, {
       ],
       quantity: "12092.79",
     }),
-    create(HoldingSchema, {
+    create(InstrumentHoldingSchema, {
       instrumentId: "i-bae",
       assetClass: AssetClass.SECURITY,
       identifiers: [

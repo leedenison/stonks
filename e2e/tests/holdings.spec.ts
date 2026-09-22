@@ -1,5 +1,5 @@
 import path from "node:path";
-import type { Holding } from "../gen/holding/v1/holding_pb";
+import type { InstrumentHolding } from "../gen/holding/v1/holding_pb";
 import { AssetClass } from "../gen/type/v1/type_pb";
 import { holdingClient } from "../helpers/api";
 import { expect, test } from "../helpers/test";
@@ -7,8 +7,8 @@ import { expect, test } from "../helpers/test";
 // The fixture is a copy of the client's Fidelity UK test export, modelled on
 // a real export with its identifiers replaced. Its eleven rows state three
 // securities and the cash that paid for them. A security key states no
-// identifier resolution admits, so it is answered by nothing and is no
-// holding of an instrument; the cash keys state a currency identifier, which
+// identifier resolution admits, so it is unresolved and is no holding of an
+// instrument; the cash keys state a currency identifier, which
 // names the currency instrument. The API states the quantity exactly and the
 // page shows it to two places.
 const fixture = path.resolve(__dirname, "..", "fixtures", "fidelity-uk.csv");
@@ -23,7 +23,10 @@ const expected = [
 ];
 
 // byName finds the holding one of whose identifiers is name.
-function byName(holdings: Holding[], name: string): Holding {
+function byName(
+  holdings: InstrumentHolding[],
+  name: string,
+): InstrumentHolding {
   const found = holdings.find((h) =>
     h.identifiers.some((i) => i.value === name),
   );
@@ -56,7 +59,9 @@ test("uploads a statement and lists the holdings it produces", async ({
   );
 
   // The data behind the page.
-  const { holdings } = await holdingClient(session).listHoldings({});
+  const { instruments: holdings } = await holdingClient(session).listHoldings(
+    {},
+  );
   expect(holdings).toHaveLength(expected.length);
   for (const e of expected) {
     const h = byName(holdings, e.name);
@@ -87,5 +92,5 @@ test("uploads a statement and lists the holdings it produces", async ({
   // Another user holds none of them.
   const other = await seed();
   const theirs = await holdingClient(other.session).listHoldings({});
-  expect(theirs.holdings).toHaveLength(0);
+  expect(theirs.instruments).toHaveLength(0);
 });

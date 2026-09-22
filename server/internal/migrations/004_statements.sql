@@ -18,7 +18,11 @@
 -- instrument_id and listing_id name what it resolved to, via_id the identifier
 -- row the association was made through, and validity whether that identifier
 -- is known to name the instrument over the key's transactions ('confirmed') or
--- is assumed to ('provisional'). All four are NULL while nothing has answered.
+-- is assumed to ('provisional'). All four are NULL while the key is
+-- unresolved.
+--
+-- group_id gathers the unresolved keys which share an identifier, or a
+-- description transitively within one broker.
 --
 -- A statement item is a row the statement rejected: its position in the
 -- payload, why, and the row as stated, as protobuf JSON. An accepted row is
@@ -82,6 +86,7 @@ CREATE TABLE stated_keys (
     listing_id    uuid        REFERENCES listings (id),
     via_id        uuid        REFERENCES identifiers (id),
     validity      validity,
+    group_id      uuid        REFERENCES stated_keys (id),
     created_at    timestamptz NOT NULL DEFAULT now(),
     CHECK (jsonb_typeof(identifiers) = 'array'),
     FOREIGN KEY (statement_id, user_id) REFERENCES statements (id, user_id),
@@ -89,10 +94,12 @@ CREATE TABLE stated_keys (
     UNIQUE NULLS NOT DISTINCT (statement_id, asset_class, currency, description, identifiers),
     CHECK ((instrument_id IS NULL) = (via_id IS NULL)),
     CHECK ((instrument_id IS NULL) = (validity IS NULL)),
-    CHECK (listing_id IS NULL OR instrument_id IS NOT NULL)
+    CHECK (listing_id IS NULL OR instrument_id IS NOT NULL),
+    CHECK (group_id IS NULL OR instrument_id IS NULL)
 );
 
 CREATE INDEX stated_keys_instrument_idx ON stated_keys (user_id, instrument_id);
+CREATE INDEX stated_keys_group_idx ON stated_keys (user_id, group_id);
 
 CREATE TABLE statement_items (
     statement_id uuid        NOT NULL,

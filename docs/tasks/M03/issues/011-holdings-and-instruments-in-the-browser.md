@@ -6,7 +6,7 @@ dependencies: [008, 010]
 
 ## Scope
 
-What a user sees of a resolved holding and of one nothing answered.
+What a user sees of a resolved holding and of an unresolved one.
 
 In:
 
