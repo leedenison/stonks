@@ -27,10 +27,14 @@ HOST_GID ?= $(shell id -g)
 BUILD_REV ?= $(shell git rev-parse HEAD 2>/dev/null || echo unknown)
 export HOST_UID HOST_GID BUILD_REV
 
-COMPOSE_RUN  = docker compose -p stonks      -f docker/docker-compose.yml --env-file .env
-COMPOSE_DEV  = docker compose -p stonks-dev  -f docker/docker-compose.yml -f docker/docker-compose.dev.yml --env-file .env
-COMPOSE_E2E  = docker compose -p stonks-e2e  -f docker/docker-compose.yml -f docker/docker-compose.e2e.yml --env-file .env
-COMPOSE_TEST = docker compose -p stonks-test -f docker/docker-compose.test.yml
+# A compose volume is named for its project, so the dev project name is shared
+# between the stack's command and the volume `clean-db` removes.
+DEV_PROJECT := stonks-dev
+
+COMPOSE_RUN  = docker compose -p stonks         -f docker/docker-compose.yml --env-file .env
+COMPOSE_DEV  = docker compose -p $(DEV_PROJECT) -f docker/docker-compose.yml -f docker/docker-compose.dev.yml --env-file .env
+COMPOSE_E2E  = docker compose -p stonks-e2e     -f docker/docker-compose.yml -f docker/docker-compose.e2e.yml --env-file .env
+COMPOSE_TEST = docker compose -p stonks-test    -f docker/docker-compose.test.yml
 
 # One-shot tool invocations in the dev images, without the rest of the stack.
 COMPOSE_TOOLS        = $(COMPOSE_DEV) run --rm --no-deps -T stonks
@@ -166,11 +170,19 @@ clean: ## Remove the binary and the stamps
 	rm -f stonks
 	rm -rf $(STAMP_DIR)
 
+# The stack holds the volume open, so it comes down first. --force leaves a
+# volume that is already absent alone rather than failing.
+clean-db: stop ## Remove the dev database volume
+	docker volume rm --force $(DEV_PROJECT)_postgres_data
+
 clean-generated: ## Remove generated code and the generate stamp
 	find proto \( -name '*.pb.go' -o -name '*.connect.go' \) -delete 2>/dev/null || true
 	find server -name '*_mock.go' -delete 2>/dev/null || true
 	rm -rf server/internal/db/gen client/gen e2e/gen
 	rm -f $(STAMP_DIR)/generate
+
+# The next `make run` regenerates, migrates the empty database and seeds it.
+clean-derived: clean-db clean-generated ## Remove the dev database and generated code
 
 clean-docker: ## Remove every stack's containers, images and volumes, including the shared caches
 	$(COMPOSE_DEV) down --rmi local --volumes --remove-orphans
@@ -187,4 +199,4 @@ help: ## Show this help
 		/^##@/ { printf "\n%s\n", substr($$0, 5) } \
 		/^[a-zA-Z0-9_-]+:.*## / { printf "  %-18s %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
 
-.PHONY: generate run logs stop build check fmt fmt-check vet lint lint-go lint-proto lint-ts lint-ts-fix client-typecheck e2e-typecheck test server-test client-test db-test record e2e-test clean clean-generated clean-docker clean-node help
+.PHONY: generate run logs stop build check fmt fmt-check vet lint lint-go lint-proto lint-ts lint-ts-fix client-typecheck e2e-typecheck test server-test client-test db-test record e2e-test clean clean-db clean-generated clean-derived clean-docker clean-node help
