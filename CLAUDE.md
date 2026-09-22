@@ -69,11 +69,22 @@ so in the PR description, with the evidence that it fails on an unmodified tree.
 
 ### Merging
 
-Always squash: `gh pr merge <n> --squash`. **Never pass `--delete-branch`.** The
-repository has `delete_branch_on_merge` enabled, so the branch is removed as part of the
-merge, and that merge-linked deletion is what retargets any PR based on the branch. An
-explicit ref deletion is a plain branch deletion instead, which **closes** dependent PRs
-rather than retargeting them.
+A pull request arrives as one commit. Squash the branch before pushing it, and before
+branching the next pull request from it:
+
+```
+git reset --soft origin/main && git commit
+```
+
+Squashing a branch another branch already descends from orphans the descendant, so the
+squash comes first. A review that lands once the child branch exists takes a second
+commit.
+
+Merge with `gh pr merge <n> --merge`.
+
+**Never pass `--delete-branch`.** The repository has `delete_branch_on_merge` enabled, so
+the branch is removed as part of the merge, and that merge-linked deletion is what
+retargets any PR based on the branch.
 
 Merge a stack parent first, one at a time, and let each merge retarget the next.
 
