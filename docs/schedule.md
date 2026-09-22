@@ -9,6 +9,14 @@ Label schemes:
 
 M, P and S numbers are append-only.
 
+## Status
+
+The project is pre-release, so nothing it has built is depended on from outside it. A
+schema change edits the migration that defines the object rather than adding one, and a
+database that has already applied that migration is recreated: the dev volume through
+`make clean-docker`, while the test and e2e databases are tmpfs and start empty on every
+run.
+
 ## Scheduled
 
 The milestones that are scheduled, in the order they are implemented. Each has a directory
