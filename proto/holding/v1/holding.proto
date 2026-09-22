@@ -16,9 +16,8 @@ message Holding {
   // The instrument held; a UUID.
   string instrument_id = 1;
   stonks.type.v1.AssetClass asset_class = 2;
-  // Every identifier naming the instrument or one of its listings that is
-  // system owned or the caller's own, so a broker's description of a line
-  // is among them. Empty when nothing the caller can see names it.
+  // Every identifier naming the instrument or one of its listings. Empty
+  // when nothing names it.
   repeated stonks.type.v1.Identifier identifiers = 3;
   // The sum of the caller's transaction quantities: shares, contracts, or
   // money for cash, with no trailing zeros. Negative when more has been

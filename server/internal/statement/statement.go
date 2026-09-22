@@ -1,60 +1,15 @@
 // Package statement ingests a statement: one batch of transactions a user
-// submitted in the neutral format of proto/statement/v1/statement.proto,
-// claiming every account they hold at one broker over a half-open range of
-// order dates.
+// submitted, claiming every account they hold at one broker over a
+// half-open range of order dates.
 //
-// Receipt is the RPC. It validates the envelope and every row, deduplicates
-// the stated keys, and starts the run, whose Prepare writes the statement
-// row, the stated keys and the stated splits in one database transaction
-// before the call answers; see [run.go](../run/run.go).
-//
-// Validation. A row is invalid when a date or its quantity does not parse,
-// its asset class or an identifier type is outside the vocabulary, its
-// order date lies outside the claimed period or after today in UTC, or it
-// states a currency the system does not know. A key names one line, so it
-// states at most one identifier per type and domain, and at least one
-// identifier resolution admits, a description standing for a broker
-// description identifier. An invalid row is rejected on its own, recorded
-// as an item, and contributes no stated key; the remaining rows are
-// ingested. An invalid envelope or split refuses the whole statement, since
-// the marshaller builds them.
+// The RPC validates the envelope and every row, deduplicates the stated
+// keys, Prepares the statement row, the stated keys and the stated splits
+// in one database transaction before the call answers;
+// see [run.go](../run/run.go).
 //
 // Resolution. Each distinct key is resolved once, as a run of kind
 // resolution with the statement as parent, and every row carrying the key
-// takes its answer. A key resolves through the identifier it states that
-// resolution admits, today a currency identifier, which names the currency
-// instrument; or else through its broker description, a listing grain
-// identifier minted here whose value is the description text and whose
-// domain is the broker and the upload channel, as "ibkr/upload". Every
-// other stated identifier stays in the stated key. An instrument grain
-// identifier reaches the instrument, and the key's currency picks the
-// listing among its lines; a listing grain one reaches the listing, and the
-// key's currency is checked against it. A key stating no currency names the
-// instrument alone, or the listing its description names. A key stating a
-// currency the instrument has no line in, or an asset class disjoint from
-// the instrument's in the class tree, contradicts it and is rejected with
-// its rows; a class above or below is accepted, and the stored class is not
-// changed. A broker description nothing holds creates a user owned
-// instrument and listing carrying it, which needs a currency. Keys stating
-// a currency are resolved before those stating none, and otherwise in the
-// order they first appear, so a transfer stated beside the trade that first
-// names its listing finds it, and the first of two keys stating one
-// description with different currencies is the one that names the listing.
-// Two runs can race to create one identifier only when they share a user
-// and a broker, which the run order excludes; the unique index on
-// identifiers is the backstop, and an insert it refuses is re-read.
-//
-// The write is one database transaction: delete every transaction of the
-// user and broker whose order date lies in the period, insert the accepted
-// rows, insert the items, and complete the run. A statement that omits an
-// account deletes that account's transactions in the period, as an empty
-// range at a boundary deletes. A run in any other terminal state has written
-// no transactions and no items, and uploading the statement again is the
-// recovery; the payload is not persisted, so nothing is resumed. A failed or
-// interrupted statement leaves its run, its statement row, its stated keys,
-// its splits, its resolution run and any instruments the resolution created,
-// which are kept as canonical whether or not the transactions naming them
-// were written.
+// takes its answer.
 package statement
 
 import (
@@ -63,7 +18,6 @@ import (
 	"fmt"
 	"hash/maphash"
 	"slices"
-	"sort"
 	"time"
 
 	"github.com/google/uuid"
@@ -176,8 +130,9 @@ type split struct {
 }
 
 // key is one distinct stated key, and once resolved, its answer: the
-// listing it names and the instrument of that listing, or the reason it
-// names none.
+// instrument and listing it names, the identifier row it names them through
+// and the validity of that, or the reason it names none. A key nothing
+// answered for carries none of them.
 type key struct {
 	id          uuid.UUID
 	class       *gen.AssetClass
@@ -188,6 +143,8 @@ type key struct {
 	outcome    gen.ResolutionOutcome
 	instrument *uuid.UUID
 	listing    *uuid.UUID
+	via        *uuid.UUID
+	validity   *gen.Validity
 	reason     string
 }
 
@@ -241,8 +198,16 @@ func (k *key) identifier(t gen.IdentifierType) (types.StatedIdentifier, bool) {
 	return types.StatedIdentifier{}, false
 }
 
-func (k *key) set(outcome gen.ResolutionOutcome, l gen.Listing) {
-	k.outcome = outcome
+// associate records that k is matched, through identifier id held with
+// validity v.
+func (k *key) associate(id gen.Identifier, v gen.Validity) {
+	k.outcome = gen.ResolutionOutcomeMatched
+	k.via = &id.ID
+	k.validity = &v
+}
+
+// set names the listing k resolved to, and the instrument of that listing.
+func (k *key) set(l gen.Listing) {
 	k.instrument = &l.InstrumentID
 	k.listing = &l.ID
 }
@@ -267,16 +232,6 @@ func (g *ingestion) intern(k *key) *key {
 	return k
 }
 
-// orderedKeys returns the keys with those stating a currency first, and in
-// order of first appearance within each group.
-func (g *ingestion) orderedKeys() []*key {
-	keys := slices.Clone(g.order)
-	sort.SliceStable(keys, func(i, j int) bool {
-		return keys[i].currency != nil && keys[j].currency == nil
-	})
-	return keys
-}
-
 // prepare writes the statement row, its stated keys and its splits.
 func (g *ingestion) prepare(ctx context.Context, run gen.Run) error {
 	return g.store.Tx(ctx, func(q Queries) error {
@@ -284,7 +239,7 @@ func (g *ingestion) prepare(ctx context.Context, run gen.Run) error {
 		if _, err := q.CreateStatement(ctx, arg); err != nil {
 			return fmt.Errorf("create statement: %w", err)
 		}
-		for _, k := range g.orderedKeys() {
+		for _, k := range g.order {
 			arg := gen.CreateStatedKeyParams{ID: k.id, StatementID: run.ID, UserID: g.user, AssetClass: k.class, Currency: k.currency, Description: k.description, Identifiers: k.identifiers}
 			if _, err := q.CreateStatedKey(ctx, arg); err != nil {
 				return fmt.Errorf("create stated key: %w", err)

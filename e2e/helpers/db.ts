@@ -32,9 +32,9 @@ export async function seedUser(role: Role = "user"): Promise<SeededUser> {
 }
 
 // deleteUser removes a user this suite created and everything the user's
-// runs wrote, in the order the foreign keys allow, as one transaction. The
-// instruments a resolution created for the user go with them; system owned
-// ones stay.
+// runs wrote, in the order the foreign keys allow, as one transaction.
+// Instruments, listings and identifiers are the system's and are never
+// deleted by the suite.
 export async function deleteUser(id: string): Promise<void> {
   const client = await db().connect();
   try {
@@ -48,9 +48,6 @@ export async function deleteUser(id: string): Promise<void> {
       "statements",
     ]) {
       await client.query(`DELETE FROM ${table} WHERE user_id = $1`, [id]);
-    }
-    for (const table of ["identifiers", "listings", "instruments"]) {
-      await client.query(`DELETE FROM ${table} WHERE owner_id = $1`, [id]);
     }
     await client.query("DELETE FROM runs WHERE user_id = $1", [id]);
     await client.query("DELETE FROM users WHERE id = $1", [id]);

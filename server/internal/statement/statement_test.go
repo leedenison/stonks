@@ -8,8 +8,6 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
-	"github.com/jackc/pgerrcode"
-	"github.com/jackc/pgx/v5/pgconn"
 	"go.uber.org/mock/gomock"
 
 	statementv1 "github.com/leedenison/stonks/proto/statement/v1"
@@ -65,6 +63,7 @@ func newFixture(t *testing.T) *fixture {
 	f := &fixture{store: NewMockStore(ctrl), runs: NewMockRunner(ctrl)}
 	f.store.EXPECT().Tx(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, fn func(Queries) error) error { return fn(f.store) }).AnyTimes()
 	f.store.EXPECT().ListCurrencies(gomock.Any()).Return([]string{"EUR", "GBP", "USD"}, nil).AnyTimes()
+	f.store.EXPECT().LockUserKeys(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 	f.runs.EXPECT().Start(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, spec run.Spec, work run.Work) (gen.Run, error) {
 		f.spec = spec
 		row := gen.Run{ID: db.NewID(), UserID: spec.UserID, Kind: spec.Kind, Trigger: gen.RunTriggerUser, State: gen.RunStatePending}
@@ -154,8 +153,9 @@ func TestValidate(t *testing.T) {
 		{name: "two isins", row: rowMsg(securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, "US1", nil), ident(typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, "US2", nil)), "2026-03-05", "1"), want: "two isin identifiers, US1 and US2"},
 		{name: "two tickers at one venue", row: rowMsg(securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, "A", ptr.To("XNYS")), ident(typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, "B", ptr.To("XNYS"))), "2026-03-05", "1"), want: "two mic_ticker identifiers, A and B"},
 		{name: "two tickers at two venues", row: rowMsg(securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, "A", ptr.To("XNYS")), ident(typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, "A", ptr.To("XLON"))), "2026-03-05", "1")},
-		{name: "no admissible identifier", row: rowMsg(&typev1.StatedKey{AssetClass: typev1.AssetClass_ASSET_CLASS_EQUITY, Currency: &usd}, "2026-03-05", "1"), want: "no admissible identifier"},
-		{name: "empty description", row: rowMsg(securityKey("", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd), "2026-03-05", "1"), want: "no admissible identifier"},
+		{name: "nothing stated about the instrument", row: rowMsg(&typev1.StatedKey{AssetClass: typev1.AssetClass_ASSET_CLASS_EQUITY, Currency: &usd}, "2026-03-05", "1"), want: "no identifier or description"},
+		{name: "empty description", row: rowMsg(securityKey("", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd), "2026-03-05", "1"), want: "no identifier or description"},
+		{name: "an identifier and no description", row: rowMsg(securityKey("", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, "US0378331005", nil)), "2026-03-05", "1")},
 		{name: "malformed order date", row: &statementv1.Row{Key: equity, OrderDate: "2026-03-40", SettlementDate: "2026-03-05", AsAt: "2026-03-05", Quantity: "1"}, want: `malformed order date "2026-03-40"`},
 		{name: "malformed settlement date", row: &statementv1.Row{Key: equity, OrderDate: "2026-03-05", SettlementDate: "", AsAt: "2026-03-05", Quantity: "1"}, want: `malformed settlement date ""`},
 		{name: "malformed as at", row: &statementv1.Row{Key: equity, OrderDate: "2026-03-05", SettlementDate: "2026-03-05", AsAt: "5 March", Quantity: "1"}, want: `malformed as at "5 March"`},
@@ -229,156 +229,58 @@ func TestKeyForm(t *testing.T) {
 	}
 }
 
-// TestOrderedKeys checks that keys stating a currency come first, and that
-// first appearance orders the rest.
-func TestOrderedKeys(t *testing.T) {
-	usd := "USD"
-	_, g := newIngestion(t)
-	for i, k := range []*typev1.StatedKey{
-		securityKey("C", typev1.AssetClass_ASSET_CLASS_EQUITY, nil),
-		securityKey("B", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd),
-		securityKey("A", typev1.AssetClass_ASSET_CLASS_EQUITY, nil),
-		securityKey("D", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd),
-		securityKey("B", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd),
-	} {
-		if r := g.validate(int32(i), rowMsg(k, "2026-03-05", "1"), today, map[string]bool{"USD": true}); r.reason != "" {
-			t.Fatalf("validate(%d) rejected: %s", i, r.reason)
-		}
-	}
-	var got []string
-	for _, k := range g.orderedKeys() {
-		got = append(got, *k.description)
-	}
-	if diff := cmp.Diff([]string{"B", "D", "C", "A"}, got); diff != "" {
-		t.Errorf("orderedKeys mismatch (-want +got):\n%s", diff)
-	}
-}
-
-func listing(class gen.AssetClass, currency string, owner *uuid.UUID) gen.GetListingByIdentifierRow {
-	return gen.GetListingByIdentifierRow{Listing: gen.Listing{ID: db.NewID(), InstrumentID: db.NewID(), Currency: currency, OwnerID: owner}, AssetClass: class}
-}
-
-func conflict() error {
-	return &pgconn.PgError{Code: pgerrcode.UniqueViolation}
-}
-
 func TestResolveKey(t *testing.T) {
 	usd, eur := "USD", "EUR"
-	dom := "ibkr/upload"
-	byDescription := gen.GetListingByIdentifierParams{OwnerID: &userID, Type: gen.IdentifierTypeBrokerDescription, Domain: &dom, Value: "ACME"}
 	byCurrency := func(code string) gen.GetInstrumentByIdentifierParams {
 		return gen.GetInstrumentByIdentifierParams{Type: gen.IdentifierTypeCurrency, Value: code}
 	}
-	cashInst := gen.Instrument{ID: db.NewID(), AssetClass: gen.AssetClassCash}
-	cashLine := func(f *fixture, currency string, err error) gen.GetListingByIdentifierRow {
-		l := gen.Listing{ID: db.NewID(), InstrumentID: cashInst.ID, Currency: currency}
-		f.store.EXPECT().GetInstrumentByIdentifier(gomock.Any(), byCurrency("USD")).Return(cashInst, nil)
-		f.store.EXPECT().GetListing(gomock.Any(), gen.GetListingParams{InstrumentID: cashInst.ID, Currency: currency}).Return(l, err)
-		return gen.GetListingByIdentifierRow{Listing: l, AssetClass: cashInst.AssetClass}
+	cash := gen.GetInstrumentByIdentifierRow{
+		Identifier: gen.Identifier{ID: db.NewID(), Type: gen.IdentifierTypeCurrency, Value: "USD"},
+		Instrument: gen.Instrument{ID: db.NewID(), AssetClass: gen.AssetClassCash},
+	}
+	cashLine := func(f *fixture, currency string, err error) gen.Listing {
+		l := gen.Listing{ID: db.NewID(), InstrumentID: cash.Instrument.ID, Currency: currency}
+		f.store.EXPECT().GetInstrumentByIdentifier(gomock.Any(), byCurrency("USD")).Return(cash, nil)
+		f.store.EXPECT().GetListing(gomock.Any(), gen.GetListingParams{InstrumentID: cash.Instrument.ID, Currency: currency}).Return(l, err)
+		return l
 	}
 	tests := []struct {
 		name      string
 		key       *typev1.StatedKey
-		expect    func(f *fixture) gen.GetListingByIdentifierRow
+		expect    func(f *fixture) gen.Listing
 		outcome   gen.ResolutionOutcome
 		reason    string
-		created   *gen.CreateInstrumentParams
 		noListing bool
 	}{
-		{name: "cash", key: cashKey("USD"), expect: func(f *fixture) gen.GetListingByIdentifierRow {
+		{name: "cash", key: cashKey("USD"), expect: func(f *fixture) gen.Listing {
 			return cashLine(f, "USD", nil)
 		}, outcome: gen.ResolutionOutcomeMatched},
-		{name: "cash in a currency it has no line in", key: &typev1.StatedKey{Identifiers: cashKey("USD").Identifiers, AssetClass: typev1.AssetClass_ASSET_CLASS_CASH, Currency: &eur}, expect: func(f *fixture) gen.GetListingByIdentifierRow {
+		{name: "cash in a currency it has no line in", key: &typev1.StatedKey{Identifiers: cashKey("USD").Identifiers, AssetClass: typev1.AssetClass_ASSET_CLASS_CASH, Currency: &eur}, expect: func(f *fixture) gen.Listing {
 			cashLine(f, "EUR", db.ErrNotFound)
-			return gen.GetListingByIdentifierRow{}
+			return gen.Listing{}
 		}, outcome: gen.ResolutionOutcomeRejected, reason: "no listing of USD in EUR"},
-		{name: "currency of no instrument", key: cashKey("XXX"), expect: func(f *fixture) gen.GetListingByIdentifierRow {
-			f.store.EXPECT().GetInstrumentByIdentifier(gomock.Any(), byCurrency("XXX")).Return(gen.Instrument{}, db.ErrNotFound)
-			return gen.GetListingByIdentifierRow{}
+		{name: "currency of no instrument", key: cashKey("XXX"), expect: func(f *fixture) gen.Listing {
+			f.store.EXPECT().GetInstrumentByIdentifier(gomock.Any(), byCurrency("XXX")).Return(gen.GetInstrumentByIdentifierRow{}, db.ErrNotFound)
+			return gen.Listing{}
 		}, outcome: gen.ResolutionOutcomeRejected, reason: "no currency XXX"},
-		{name: "currency identifier on an equity key", key: securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_CURRENCY, "USD", nil)), expect: func(f *fixture) gen.GetListingByIdentifierRow {
-			f.store.EXPECT().GetInstrumentByIdentifier(gomock.Any(), byCurrency("USD")).Return(cashInst, nil)
-			return gen.GetListingByIdentifierRow{}
+		{name: "currency identifier on an equity key", key: securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_CURRENCY, "USD", nil)), expect: func(f *fixture) gen.Listing {
+			f.store.EXPECT().GetInstrumentByIdentifier(gomock.Any(), byCurrency("USD")).Return(cash, nil)
+			return gen.Listing{}
 		}, outcome: gen.ResolutionOutcomeRejected, reason: "asset class equity contradicts the instrument's cash"},
-		{name: "currency identifier stating no currency", key: &typev1.StatedKey{Identifiers: cashKey("USD").Identifiers, AssetClass: typev1.AssetClass_ASSET_CLASS_CASH}, expect: func(f *fixture) gen.GetListingByIdentifierRow {
-			f.store.EXPECT().GetInstrumentByIdentifier(gomock.Any(), byCurrency("USD")).Return(cashInst, nil)
-			return gen.GetListingByIdentifierRow{Listing: gen.Listing{InstrumentID: cashInst.ID}}
+		{name: "currency identifier stating no currency", key: &typev1.StatedKey{Identifiers: cashKey("USD").Identifiers, AssetClass: typev1.AssetClass_ASSET_CLASS_CASH}, expect: func(f *fixture) gen.Listing {
+			f.store.EXPECT().GetInstrumentByIdentifier(gomock.Any(), byCurrency("USD")).Return(cash, nil)
+			return gen.Listing{InstrumentID: cash.Instrument.ID}
 		}, outcome: gen.ResolutionOutcomeMatched, noListing: true},
-		{name: "description names a listing", key: securityKey("ACME", typev1.AssetClass_ASSET_CLASS_STOCK, &usd), expect: func(f *fixture) gen.GetListingByIdentifierRow {
-			l := listing(gen.AssetClassEquity, "USD", &userID)
-			f.store.EXPECT().GetListingByIdentifier(gomock.Any(), byDescription).Return(l, nil)
-			return l
-		}, outcome: gen.ResolutionOutcomeMatched},
-		{name: "description names a listing of a wider class", key: securityKey("ACME", typev1.AssetClass_ASSET_CLASS_SECURITY, &usd), expect: func(f *fixture) gen.GetListingByIdentifierRow {
-			l := listing(gen.AssetClassEquity, "USD", &userID)
-			f.store.EXPECT().GetListingByIdentifier(gomock.Any(), byDescription).Return(l, nil)
-			return l
-		}, outcome: gen.ResolutionOutcomeMatched},
-		{name: "no currency names a listing", key: securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, nil), expect: func(f *fixture) gen.GetListingByIdentifierRow {
-			l := listing(gen.AssetClassEquity, "USD", &userID)
-			f.store.EXPECT().GetListingByIdentifier(gomock.Any(), byDescription).Return(l, nil)
-			return l
-		}, outcome: gen.ResolutionOutcomeMatched},
-		{name: "currency contradicts the listing", key: securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &eur), expect: func(f *fixture) gen.GetListingByIdentifierRow {
-			f.store.EXPECT().GetListingByIdentifier(gomock.Any(), byDescription).Return(listing(gen.AssetClassEquity, "USD", &userID), nil)
-			return gen.GetListingByIdentifierRow{}
-		}, outcome: gen.ResolutionOutcomeRejected, reason: "currency EUR contradicts the listing named, quoted in USD"},
-		{name: "class contradicts the listing", key: securityKey("ACME", typev1.AssetClass_ASSET_CLASS_OPTION, &usd), expect: func(f *fixture) gen.GetListingByIdentifierRow {
-			f.store.EXPECT().GetListingByIdentifier(gomock.Any(), byDescription).Return(listing(gen.AssetClassEquity, "USD", &userID), nil)
-			return gen.GetListingByIdentifierRow{}
-		}, outcome: gen.ResolutionOutcomeRejected, reason: "asset class option contradicts the listing's equity"},
-		{name: "no currency and nothing named", key: securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, nil), expect: func(f *fixture) gen.GetListingByIdentifierRow {
-			f.store.EXPECT().GetListingByIdentifier(gomock.Any(), byDescription).Return(gen.GetListingByIdentifierRow{}, db.ErrNotFound)
-			return gen.GetListingByIdentifierRow{}
-		}, outcome: gen.ResolutionOutcomeRejected, reason: "no currency"},
-		{name: "created", key: securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd), expect: func(f *fixture) gen.GetListingByIdentifierRow {
-			f.store.EXPECT().GetListingByIdentifier(gomock.Any(), byDescription).Return(gen.GetListingByIdentifierRow{}, db.ErrNotFound)
-			return gen.GetListingByIdentifierRow{}
-		}, outcome: gen.ResolutionOutcomeCreated, created: &gen.CreateInstrumentParams{AssetClass: gen.AssetClassEquity, OwnerID: &userID}},
-		{name: "created from an unstated class", key: securityKey("ACME", typev1.AssetClass_ASSET_CLASS_UNSPECIFIED, &usd), expect: func(f *fixture) gen.GetListingByIdentifierRow {
-			f.store.EXPECT().GetListingByIdentifier(gomock.Any(), byDescription).Return(gen.GetListingByIdentifierRow{}, db.ErrNotFound)
-			return gen.GetListingByIdentifierRow{}
-		}, outcome: gen.ResolutionOutcomeCreated, created: &gen.CreateInstrumentParams{AssetClass: gen.AssetClassUnknown, OwnerID: &userID}},
-		{name: "creation lost a race", key: securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd), expect: func(f *fixture) gen.GetListingByIdentifierRow {
-			l := listing(gen.AssetClassEquity, "USD", &userID)
-			gomock.InOrder(
-				f.store.EXPECT().GetListingByIdentifier(gomock.Any(), byDescription).Return(gen.GetListingByIdentifierRow{}, db.ErrNotFound),
-				f.store.EXPECT().CreateInstrument(gomock.Any(), gomock.Any()).Return(gen.Instrument{}, nil),
-				f.store.EXPECT().CreateListing(gomock.Any(), gomock.Any()).Return(gen.Listing{}, nil),
-				f.store.EXPECT().CreateIdentifier(gomock.Any(), gomock.Any()).Return(gen.Identifier{}, conflict()),
-				f.store.EXPECT().GetListingByIdentifier(gomock.Any(), byDescription).Return(l, nil),
-			)
-			return l
-		}, outcome: gen.ResolutionOutcomeMatched},
+		{name: "a description alone", key: securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd), outcome: gen.ResolutionOutcomeUnresolved},
+		{name: "an isin and a description", key: securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, "US0378331005", nil)), outcome: gen.ResolutionOutcomeUnresolved},
+		{name: "a ticker with no venue", key: securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, "ACME", nil)), outcome: gen.ResolutionOutcomeUnresolved},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			f, g := newIngestion(t)
-			var want gen.GetListingByIdentifierRow
+			var want gen.Listing
 			if tc.expect != nil {
 				want = tc.expect(f)
-			}
-			var made gen.Listing
-			if tc.created != nil {
-				f.store.EXPECT().CreateInstrument(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.CreateInstrumentParams) (gen.Instrument, error) {
-					if diff := cmp.Diff(*tc.created, arg, cmp.FilterPath(func(p cmp.Path) bool { return p.Last().String() == ".ID" }, cmp.Ignore())); diff != "" {
-						t.Errorf("CreateInstrument mismatch (-want +got):\n%s", diff)
-					}
-					return gen.Instrument{ID: arg.ID, AssetClass: arg.AssetClass, OwnerID: arg.OwnerID}, nil
-				})
-				f.store.EXPECT().CreateListing(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.CreateListingParams) (gen.Listing, error) {
-					made = gen.Listing{ID: arg.ID, InstrumentID: arg.InstrumentID, Currency: arg.Currency, OwnerID: arg.OwnerID}
-					if arg.Currency != "USD" || arg.OwnerID == nil || *arg.OwnerID != userID {
-						t.Errorf("CreateListing(%+v), want USD owned by the user", arg)
-					}
-					return made, nil
-				})
-				f.store.EXPECT().CreateIdentifier(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.CreateIdentifierParams) (gen.Identifier, error) {
-					if arg.Type != gen.IdentifierTypeBrokerDescription || arg.Domain == nil || *arg.Domain != dom || arg.Value != "ACME" || arg.ListingID == nil || *arg.ListingID != made.ID || arg.OwnerID == nil || *arg.OwnerID != userID {
-						t.Errorf("CreateIdentifier(%+v), want the broker description on the listing, owned by the user", arg)
-					}
-					return gen.Identifier{}, nil
-				})
 			}
 			k, err := keyOf(tc.key)
 			if err != nil {
@@ -390,17 +292,24 @@ func TestResolveKey(t *testing.T) {
 			if k.outcome != tc.outcome || k.reason != tc.reason {
 				t.Errorf("resolveKey(%s) = %s %q, want %s %q", tc.name, k.outcome, k.reason, tc.outcome, tc.reason)
 			}
-			if tc.created != nil {
-				want.Listing = made
-			}
-			switch {
-			case tc.outcome == gen.ResolutionOutcomeRejected:
-			case tc.noListing:
-				if k.listing != nil || k.instrument == nil || *k.instrument != want.Listing.InstrumentID {
-					t.Errorf("resolveKey(%s) named listing %v of %v, want no listing of %s", tc.name, k.listing, k.instrument, want.Listing.InstrumentID)
+			switch tc.outcome {
+			case gen.ResolutionOutcomeMatched:
+				if k.via == nil || *k.via != cash.Identifier.ID || k.validity == nil || *k.validity != gen.ValidityConfirmed {
+					t.Errorf("resolveKey(%s) associated through %v held %v, want %s confirmed", tc.name, k.via, k.validity, cash.Identifier.ID)
 				}
-			case k.listing == nil || *k.listing != want.Listing.ID || *k.instrument != want.Listing.InstrumentID:
-				t.Errorf("resolveKey(%s) named listing %v of %v, want %s of %s", tc.name, k.listing, k.instrument, want.Listing.ID, want.Listing.InstrumentID)
+				if tc.noListing {
+					if k.listing != nil || k.instrument == nil || *k.instrument != want.InstrumentID {
+						t.Errorf("resolveKey(%s) named listing %v of %v, want no listing of %s", tc.name, k.listing, k.instrument, want.InstrumentID)
+					}
+					return
+				}
+				if k.listing == nil || *k.listing != want.ID || *k.instrument != want.InstrumentID {
+					t.Errorf("resolveKey(%s) named listing %v of %v, want %s of %s", tc.name, k.listing, k.instrument, want.ID, want.InstrumentID)
+				}
+			default:
+				if k.instrument != nil || k.listing != nil || k.via != nil || k.validity != nil {
+					t.Errorf("resolveKey(%s) named instrument %v listing %v via %v held %v, want none", tc.name, k.instrument, k.listing, k.via, k.validity)
+				}
 			}
 		})
 	}
@@ -411,7 +320,7 @@ func TestResolveKey(t *testing.T) {
 func TestResolveKeyError(t *testing.T) {
 	f, g := newIngestion(t)
 	boom := errors.New("boom")
-	f.store.EXPECT().GetInstrumentByIdentifier(gomock.Any(), gomock.Any()).Return(gen.Instrument{}, boom)
+	f.store.EXPECT().GetInstrumentByIdentifier(gomock.Any(), gomock.Any()).Return(gen.GetInstrumentByIdentifierRow{}, boom)
 	k, err := keyOf(cashKey("USD"))
 	if err != nil {
 		t.Fatal(err)
@@ -440,10 +349,9 @@ func TestCreateSpec(t *testing.T) {
 // TestCreateFailures checks that a failing Prepare is returned by Create,
 // and that a failing resolution fails the work before anything is written.
 func TestCreateFailures(t *testing.T) {
-	usd := "USD"
 	msg := func() *statementv1.Statement {
 		return &statementv1.Statement{Broker: typev1.Broker_BROKER_SCHWAB, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01",
-			Rows: []*statementv1.Row{rowMsg(securityKey("ACME", typev1.AssetClass_ASSET_CLASS_SECURITY, &usd), "2026-03-05", "1")}}
+			Rows: []*statementv1.Row{rowMsg(cashKey("USD"), "2026-03-05", "1")}}
 	}
 	boom := errors.New("boom")
 	t.Run("prepare", func(t *testing.T) {
@@ -457,7 +365,7 @@ func TestCreateFailures(t *testing.T) {
 		f := newFixture(t)
 		f.store.EXPECT().CreateStatement(gomock.Any(), gomock.Any()).Return(gen.Statement{}, nil)
 		f.store.EXPECT().CreateStatedKey(gomock.Any(), gomock.Any()).Return(gen.StatedKey{}, nil)
-		f.store.EXPECT().GetListingByIdentifier(gomock.Any(), gomock.Any()).Return(gen.GetListingByIdentifierRow{}, boom)
+		f.store.EXPECT().GetInstrumentByIdentifier(gomock.Any(), gomock.Any()).Return(gen.GetInstrumentByIdentifierRow{}, boom)
 		if _, err := f.svc.Create(context.Background(), userID, msg()); err != nil {
 			t.Fatalf("Create() error = %v", err)
 		}

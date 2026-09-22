@@ -89,9 +89,6 @@ enum IdentifierType {
   IDENTIFIER_TYPE_DATASOURCE_TICKER = 12;
   // An instrument; the domain is the broker that issued the value.
   IDENTIFIER_TYPE_BROKER_ID = 13;
-  // A listing; the domain is the broker and the channel the description came
-  // through, and the value is the description text as the export states it.
-  IDENTIFIER_TYPE_BROKER_DESCRIPTION = 14;
 }
 
 // A name for an instrument or for one of its listings.
@@ -123,26 +120,23 @@ message StatedKey {
 message Transaction {
   // Identifies the transaction in every API; a UUID.
   string id = 1;
-  // The instrument the transaction resolved to; a UUID.
-  string instrument_id = 2;
-  // The listing, set when the currency is known; a UUID.
-  optional string listing_id = 3;
   // The statement that wrote the transaction; the id of its run.
-  string statement_id = 4;
-  // The stated key the transaction was resolved from; a UUID.
-  string stated_key_id = 5;
-  Broker broker = 6;
+  string statement_id = 2;
+  // The key the transaction is of; its instrument and listing are the key's.
+  // A UUID.
+  string stated_key_id = 3;
+  Broker broker = 4;
   // The date the order was placed.
-  string order_date = 7;
+  string order_date = 5;
   // The date the order settled, which may precede order_date.
-  string settlement_date = 8;
+  string settlement_date = 6;
   // The date the values were true, and so which corporate events they
   // reflect.
-  string as_at = 9;
+  string as_at = 7;
   // The change in units of the instrument: shares, contracts, or money for
   // cash. Negative for a disposal or an outflow.
-  string quantity = 10;
+  string quantity = 8;
   // The precise currency code the stated key states; unset when it states
   // none.
-  optional string currency = 11;
+  optional string currency = 9;
 }

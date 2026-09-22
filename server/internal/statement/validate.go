@@ -35,8 +35,8 @@ func (g *ingestion) validate(ordinal int32, r *statementv1.Row, today time.Time,
 	if err != nil {
 		return reject("%v", err)
 	}
-	if !k.admissible() {
-		return reject("no admissible identifier")
+	if !k.statable() {
+		return reject("no identifier or description")
 	}
 	dates := []struct {
 		name string
@@ -74,8 +74,8 @@ func (g *ingestion) split(ordinal int32, sp *statementv1.StatedSplit, currencies
 	if err != nil {
 		return out, err
 	}
-	if !k.admissible() {
-		return out, fmt.Errorf("no admissible identifier")
+	if !k.statable() {
+		return out, fmt.Errorf("no identifier or description")
 	}
 	if k.currency != nil && !currencies[*k.currency] {
 		return out, fmt.Errorf("unknown currency %q", *k.currency)

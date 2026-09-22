@@ -1,6 +1,3 @@
-// The mock is generated into this package as a test file: its Tx takes a
-// function over Queries, so a mock in a package of its own would import this
-// one, and the tests could not.
 package statement
 
 //go:generate go tool mockgen -source=store.go -destination=store_mock_test.go -package=statement -self_package=github.com/leedenison/stonks/server/internal/statement
@@ -21,15 +18,13 @@ type Queries interface {
 	CreateStatedKey(ctx context.Context, arg gen.CreateStatedKeyParams) (gen.StatedKey, error)
 	CreateStatementSplit(ctx context.Context, arg gen.CreateStatementSplitParams) error
 	ListCurrencies(ctx context.Context) ([]string, error)
-	GetListingByIdentifier(ctx context.Context, arg gen.GetListingByIdentifierParams) (gen.GetListingByIdentifierRow, error)
-	GetInstrumentByIdentifier(ctx context.Context, arg gen.GetInstrumentByIdentifierParams) (gen.Instrument, error)
+	GetInstrumentByIdentifier(ctx context.Context, arg gen.GetInstrumentByIdentifierParams) (gen.GetInstrumentByIdentifierRow, error)
 	GetListing(ctx context.Context, arg gen.GetListingParams) (gen.Listing, error)
-	CreateInstrument(ctx context.Context, arg gen.CreateInstrumentParams) (gen.Instrument, error)
-	CreateListing(ctx context.Context, arg gen.CreateListingParams) (gen.Listing, error)
-	CreateIdentifier(ctx context.Context, arg gen.CreateIdentifierParams) (gen.Identifier, error)
 	CreateResolutionKey(ctx context.Context, arg gen.CreateResolutionKeyParams) error
+	LockUserKeys(ctx context.Context, userID uuid.UUID) error
 	DeleteTransactions(ctx context.Context, arg gen.DeleteTransactionsParams) (int64, error)
 	CreateTransaction(ctx context.Context, arg gen.CreateTransactionParams) (gen.Transaction, error)
+	SetStatedKeyAssociation(ctx context.Context, arg gen.SetStatedKeyAssociationParams) error
 	CreateStatementItem(ctx context.Context, arg gen.CreateStatementItemParams) error
 	CompleteRun(ctx context.Context, id uuid.UUID) error
 }

@@ -5,8 +5,8 @@
 -- and every venue quoting it in that currency is that one listing, since
 -- neither brokers nor price sources tell venues apart reliably; an
 -- instrument has zero or more, and none means its listings are not known. A
--- transaction, and later a price, attaches to an instrument and to a listing
--- when its currency is known. A holding is of the instrument: a security's
+-- price attaches to an instrument and to a listing when its currency is
+-- known. A holding is of the instrument: a security's
 -- listings are summed into it and never converted between, since moving
 -- between them costs fees and a spread, while a currency's listings are the
 -- same money and it may be shown against any of them.
@@ -17,28 +17,17 @@
 -- kind of row it names) and its reassignment (whether the value moves between
 -- instruments, and what the system relies on to know it has). A row of
 -- identifiers attaches at its type's grain, which the generated grain column
--- and its foreign key enforce. One owner holds one triple (type, domain,
--- value) at most once, so an identifier names one subject.
+-- and its foreign key enforce. One triple (type, domain, value) exists at
+-- most once, so an identifier names one subject.
 --
--- A broker's description of an instrument is stated beside a currency, and the
--- two together are what the broker calls the line, so broker_description is
--- listing grain. Its domain is the broker and the channel the description
--- arrived through.
---
--- Ownership. An instrument, listing or identifier is owned by the user whose
--- statements alone support it, or by the system when owner_id is NULL. A system
--- owned parent may hold children of any owner; a user owned parent holds
--- children of that user only. owner_id is set at insert and never changes.
--- Both rules are enforced by triggers below.
---
--- A currency is a system owned instrument of class cash, named by a currency
+-- A currency is an instrument of class cash, named by a currency
 -- identifier whose value is its code. Its listing in its own currency is
 -- money in it: a cash leg states the identifier and the currency, resolves
 -- to that listing as any key resolves to a listing of the instrument its
 -- identifier names, and a cash holding is the sum of a user's quantities
 -- against the instrument. A listing in another currency carries the rate
 -- between the two, and is made when a rate is first fetched rather than
--- seeded. These are the only system owned rows.
+-- seeded.
 
 CREATE TYPE asset_class AS ENUM ('unknown', 'cash', 'security', 'equity', 'stock', 'etf',
     'mutual_fund', 'fixed_income', 'derivative', 'option', 'future');
@@ -67,20 +56,18 @@ INSERT INTO asset_class_tree (class, parent) VALUES
 
 CREATE TYPE identifier_type AS ENUM ('isin', 'cusip', 'cins', 'wertpapier',
     'openfigi_share_class', 'sedol', 'openfigi_composite', 'mic_ticker', 'openfigi_ticker',
-    'occ', 'currency', 'datasource_ticker', 'broker_id', 'broker_description');
-CREATE TYPE identifier_scope AS ENUM ('registry', 'datasource', 'broker', 'source');
-CREATE TYPE identifier_domain AS ENUM ('none', 'venue', 'datasource', 'broker', 'channel');
+    'occ', 'currency', 'datasource_ticker', 'broker_id');
+CREATE TYPE identifier_scope AS ENUM ('registry', 'datasource', 'broker');
+CREATE TYPE identifier_domain AS ENUM ('none', 'venue', 'datasource', 'broker');
 CREATE TYPE identifier_grain AS ENUM ('instrument', 'listing');
-CREATE TYPE identifier_reassignment AS ENUM ('stable', 'mic_derived', 'unverifiable');
+CREATE TYPE identifier_reassignment AS ENUM ('stable', 'mic_derived');
 
--- scope: 'registry' values are recognised by any source, 'datasource' and
--- 'broker' values only by the one that issued them, and 'source' values only
--- by the source and channel they came through.
+-- scope: 'registry' values are recognised by any source, and 'datasource'
+-- and 'broker' values only by the one that issued them.
 -- domain: what qualifies the value. 'venue' is an ISO 10383 operating MIC.
--- reassignment: 'stable' values are assumed never reassigned, 'mic_derived'
--- values move exactly when the mic_ticker they derive from does, and
--- 'unverifiable' values are assumed never reassigned within their domain
--- because no datasource can witness a move.
+-- reassignment: 'stable' values are assumed never reassigned, and
+-- 'mic_derived' values move exactly when the mic_ticker they derive from
+-- does.
 CREATE TABLE identifier_type_traits (
     type         identifier_type         PRIMARY KEY,
     scope        identifier_scope        NOT NULL,
@@ -103,8 +90,7 @@ INSERT INTO identifier_type_traits (type, scope, domain, grain, reassignment) VA
     ('occ',                  'registry',   'none',       'instrument', 'mic_derived'),
     ('currency',             'registry',   'none',       'instrument', 'stable'),
     ('datasource_ticker',    'datasource', 'datasource', 'listing',    'mic_derived'),
-    ('broker_id',            'broker',     'broker',     'instrument', 'stable'),
-    ('broker_description',   'source',     'channel',    'listing',    'unverifiable');
+    ('broker_id',            'broker',     'broker',     'instrument', 'stable');
 
 -- The currency codes a listing may be quoted in: ISO 4217, plus GBX for
 -- sterling in pence, which is a listing of its own beside GBP.
@@ -129,7 +115,6 @@ INSERT INTO currencies (code) VALUES
 CREATE TABLE instruments (
     id          uuid        PRIMARY KEY,
     asset_class asset_class NOT NULL REFERENCES asset_class_tree (class),
-    owner_id    uuid        REFERENCES users (id),
     created_at  timestamptz NOT NULL DEFAULT now()
 );
 
@@ -137,7 +122,6 @@ CREATE TABLE listings (
     id            uuid        PRIMARY KEY,
     instrument_id uuid        NOT NULL REFERENCES instruments (id),
     currency      text        NOT NULL REFERENCES currencies (code),
-    owner_id      uuid        REFERENCES users (id),
     created_at    timestamptz NOT NULL DEFAULT now(),
     UNIQUE (instrument_id, currency),
     UNIQUE (id, instrument_id)
@@ -154,66 +138,16 @@ CREATE TABLE identifiers (
     type          identifier_type NOT NULL,
     domain        text,
     value         text            NOT NULL,
-    owner_id      uuid            REFERENCES users (id),
     created_at    timestamptz     NOT NULL DEFAULT now(),
     grain         identifier_grain NOT NULL GENERATED ALWAYS AS
         (CASE WHEN listing_id IS NULL THEN 'instrument'::identifier_grain
               ELSE 'listing'::identifier_grain END) STORED,
     FOREIGN KEY (type, grain) REFERENCES identifier_type_traits (type, grain),
     FOREIGN KEY (listing_id, instrument_id) REFERENCES listings (id, instrument_id),
-    UNIQUE NULLS NOT DISTINCT (owner_id, type, domain, value)
+    UNIQUE NULLS NOT DISTINCT (type, domain, value)
 );
 
 CREATE INDEX identifiers_instrument_idx ON identifiers (instrument_id);
-
--- +goose StatementBegin
-CREATE FUNCTION check_owner_chain() RETURNS trigger LANGUAGE plpgsql AS $$
-DECLARE
-    parent_owner uuid;
-BEGIN
-    SELECT owner_id INTO parent_owner FROM instruments WHERE id = NEW.instrument_id;
-    IF parent_owner IS NOT NULL AND NEW.owner_id IS DISTINCT FROM parent_owner THEN
-        RAISE check_violation USING MESSAGE = format(
-            '%s %s must be owned by the owner of instrument %s', TG_TABLE_NAME, NEW.id, NEW.instrument_id);
-    END IF;
-    IF TG_TABLE_NAME = 'identifiers' THEN
-        IF NEW.listing_id IS NOT NULL THEN
-            SELECT owner_id INTO parent_owner FROM listings WHERE id = NEW.listing_id;
-            IF parent_owner IS NOT NULL AND NEW.owner_id IS DISTINCT FROM parent_owner THEN
-                RAISE check_violation USING MESSAGE = format(
-                    'identifier %s must be owned by the owner of listing %s', NEW.id, NEW.listing_id);
-            END IF;
-        END IF;
-    END IF;
-    RETURN NULL;
-END;
-$$;
--- +goose StatementEnd
-
--- +goose StatementBegin
-CREATE FUNCTION refuse_owner_change() RETURNS trigger LANGUAGE plpgsql AS $$
-BEGIN
-    IF NEW.owner_id IS DISTINCT FROM OLD.owner_id THEN
-        RAISE check_violation USING MESSAGE = format('%s %s: owner_id cannot change', TG_TABLE_NAME, OLD.id);
-    END IF;
-    RETURN NEW;
-END;
-$$;
--- +goose StatementEnd
-
-CREATE CONSTRAINT TRIGGER listings_owner_chain
-    AFTER INSERT OR UPDATE OF instrument_id, owner_id ON listings
-    FOR EACH ROW EXECUTE FUNCTION check_owner_chain();
-CREATE CONSTRAINT TRIGGER identifiers_owner_chain
-    AFTER INSERT OR UPDATE OF instrument_id, listing_id, owner_id ON identifiers
-    FOR EACH ROW EXECUTE FUNCTION check_owner_chain();
-
-CREATE TRIGGER instruments_owner_immutable BEFORE UPDATE OF owner_id ON instruments
-    FOR EACH ROW EXECUTE FUNCTION refuse_owner_change();
-CREATE TRIGGER listings_owner_immutable BEFORE UPDATE OF owner_id ON listings
-    FOR EACH ROW EXECUTE FUNCTION refuse_owner_change();
-CREATE TRIGGER identifiers_owner_immutable BEFORE UPDATE OF owner_id ON identifiers
-    FOR EACH ROW EXECUTE FUNCTION refuse_owner_change();
 
 WITH named AS (
     SELECT uuid_v7() AS id, code FROM currencies

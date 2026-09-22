@@ -5,10 +5,12 @@ import { holdingClient } from "../helpers/api";
 import { expect, test } from "../helpers/test";
 
 // The fixture is a copy of the client's Fidelity UK test export, modelled on
-// a real export with its identifiers replaced. Uploaded over the period it
-// states, its eleven rows sum to these holdings, listed as the page orders
-// them: cash first, then by name. The API states each quantity exactly and
-// the page shows it to two places.
+// a real export with its identifiers replaced. Its eleven rows state three
+// securities and the cash that paid for them. A security key states no
+// identifier resolution admits, so it is answered by nothing and is no
+// holding of an instrument; the cash keys state a currency identifier, which
+// names the currency instrument. The API states the quantity exactly and the
+// page shows it to two places.
 const fixture = path.resolve(__dirname, "..", "fixtures", "fidelity-uk.csv");
 const expected = [
   {
@@ -17,27 +19,6 @@ const expected = [
     shown: "12092.79",
     assetClass: AssetClass.CASH,
     className: "Cash",
-  },
-  {
-    name: "BAE SYSTEMS, ORD GBP0.025 (BA.)",
-    quantity: "120",
-    shown: "120.00",
-    assetClass: AssetClass.SECURITY,
-    className: "Security",
-  },
-  {
-    name: "Baillie Gifford Responsible Global Equity Income B Inc",
-    quantity: "19.26",
-    shown: "19.26",
-    assetClass: AssetClass.SECURITY,
-    className: "Security",
-  },
-  {
-    name: "VANGUARD FUNDS PLC, S&P 500 UCITS ETF USD DIS (VUSA)",
-    quantity: "-141",
-    shown: "-141.00",
-    assetClass: AssetClass.SECURITY,
-    className: "Security",
   },
 ];
 

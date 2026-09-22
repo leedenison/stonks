@@ -52,7 +52,6 @@ func newFixture(t *testing.T) *fixture {
 }
 
 func TestListHoldings(t *testing.T) {
-	dom := "fidelity_uk/upload"
 	rows := []gen.ListHoldingsRow{
 		{InstrumentID: gbpID, AssetClass: gen.AssetClassCash, Quantity: decimal.RequireFromString("12092.79")},
 		{InstrumentID: acmeID, AssetClass: gen.AssetClassSecurity, Quantity: decimal.RequireFromString("-141")},
@@ -60,7 +59,7 @@ func TestListHoldings(t *testing.T) {
 	idents := []gen.Identifier{
 		{InstrumentID: gbpID, Type: gen.IdentifierTypeCurrency, Value: "GBP"},
 		{InstrumentID: acmeID, Type: gen.IdentifierTypeIsin, Value: "GB0002634946"},
-		{InstrumentID: acmeID, Type: gen.IdentifierTypeBrokerDescription, Domain: &dom, Value: "ACME CORP", OwnerID: &userID},
+		{InstrumentID: acmeID, Type: gen.IdentifierTypeSedol, Value: "0263494"},
 	}
 	tests := []struct {
 		name      string
@@ -86,7 +85,7 @@ func TestListHoldings(t *testing.T) {
 					InstrumentId: acmeID.String(), AssetClass: typev1.AssetClass_ASSET_CLASS_SECURITY, Quantity: "-141",
 					Identifiers: []*typev1.Identifier{
 						{Type: typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, Value: "GB0002634946"},
-						{Type: typev1.IdentifierType_IDENTIFIER_TYPE_BROKER_DESCRIPTION, Domain: &dom, Value: "ACME CORP"},
+						{Type: typev1.IdentifierType_IDENTIFIER_TYPE_SEDOL, Value: "0263494"},
 					},
 				},
 			},
