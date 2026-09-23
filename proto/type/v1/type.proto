@@ -24,116 +24,98 @@ enum Broker {
   BROKER_FIDELITY_UK = 3;
 }
 
-// What kind of thing an instrument is. The values form a tree: a leaf is a
-// concrete class and a parent is the set of the leaves below it. A source
-// states the narrowest class it can defend, so an internal node is a legal
-// stored value. ASSET_CLASS_UNSPECIFIED is a field nobody set and is not a
-// node of the tree.
+// What kind of thing an instrument is. A source states the narrowest class it
+// can defend, so an internal node is a legal stored value.
+// ASSET_CLASS_UNSPECIFIED when unset.
+//
+//   UNKNOWN            type is unknown to the source
+//     CASH             money in one currency
+//     SECURITY
+//       EQUITY         a shareholding, direct or pooled
+//         STOCK
+//         ETF
+//         MUTUAL_FUND
+//       FIXED_INCOME
+//       DERIVATIVE     a strike quoted in a listing of something else
+//         OPTION
+//         FUTURE
 enum AssetClass {
   ASSET_CLASS_UNSPECIFIED = 0;
-  // The root: money or a security, and a claim that rules nothing out.
   ASSET_CLASS_UNKNOWN = 1;
-  // Money in one currency. Under UNKNOWN.
   ASSET_CLASS_CASH = 2;
-  // A security of unstated class. Under UNKNOWN.
   ASSET_CLASS_SECURITY = 3;
-  // A shareholding, direct or pooled. Under SECURITY.
   ASSET_CLASS_EQUITY = 4;
-  // Under EQUITY.
   ASSET_CLASS_STOCK = 5;
-  // Under EQUITY.
   ASSET_CLASS_ETF = 6;
-  // Under EQUITY.
   ASSET_CLASS_MUTUAL_FUND = 7;
-  // Under SECURITY.
   ASSET_CLASS_FIXED_INCOME = 8;
-  // A contract whose strike is quoted in a listing of something else. Under
-  // SECURITY.
   ASSET_CLASS_DERIVATIVE = 9;
-  // Under DERIVATIVE.
   ASSET_CLASS_OPTION = 10;
-  // Under DERIVATIVE.
   ASSET_CLASS_FUTURE = 11;
 }
 
-// How an identifier's domain and value are read. A type names an instrument
-// or one listing of it; the comment on each says which and what its domain
-// is.
+// How an identifier's domain and value are read.
 enum IdentifierType {
   IDENTIFIER_TYPE_UNSPECIFIED = 0;
-  // An instrument; no domain.
   IDENTIFIER_TYPE_ISIN = 1;
-  // An instrument; no domain.
   IDENTIFIER_TYPE_CUSIP = 2;
-  // An instrument; no domain.
   IDENTIFIER_TYPE_CINS = 3;
-  // An instrument; no domain.
   IDENTIFIER_TYPE_WERTPAPIER = 4;
-  // An instrument; no domain.
   IDENTIFIER_TYPE_OPENFIGI_SHARE_CLASS = 5;
-  // A listing; no domain.
+  // A listing.
   IDENTIFIER_TYPE_SEDOL = 6;
-  // A listing; no domain.
+  // A listing.
   IDENTIFIER_TYPE_OPENFIGI_COMPOSITE = 7;
   // A listing; the domain is the ISO 10383 operating MIC of the venue.
   IDENTIFIER_TYPE_MIC_TICKER = 8;
   // A listing; the domain is the OpenFIGI exchange code.
   IDENTIFIER_TYPE_OPENFIGI_TICKER = 9;
-  // An option contract, an instrument; no domain.
+  // An option contract.
   IDENTIFIER_TYPE_OCC = 10;
-  // A currency, an instrument; no domain, the value an ISO 4217 code. Its
-  // listing in its own currency is money in it, and a listing in another
-  // currency carries the rate between the two.
+  // A currency, the value an ISO 4217 code. Its listing in its own currency
+  // is money in it, and a listing in another currency carries the rate
+  // between the two.
   IDENTIFIER_TYPE_CURRENCY = 11;
   // A listing; the domain is the datasource that issued the value.
   IDENTIFIER_TYPE_DATASOURCE_TICKER = 12;
-  // An instrument; the domain is the broker that issued the value.
+  // The domain is the broker that issued the value.
   IDENTIFIER_TYPE_BROKER_ID = 13;
 }
 
 // A name for an instrument or for one of its listings.
 message Identifier {
   IdentifierType type = 1;
-  // Qualifies the value for a type that has a domain; unset otherwise. A
-  // value of a venue-scoped type stated without its domain is a search hint
-  // and names nothing.
+  // Qualifies the value for a type that has a domain; unset otherwise.
   optional string domain = 2;
   string value = 3;
 }
 
-// What one source states about an instrument. The identifiers it states are
-// admitted or held as hints by resolution; none is taken as a name on its
-// own.
+// What one source states about an instrument.
 message StatedKey {
   repeated Identifier identifiers = 1;
-  // The narrowest class the source can defend; UNSPECIFIED when it stated
-  // none.
   AssetClass asset_class = 2;
-  // The currency of the line the source states the instrument on, which
-  // picks the listing; unset when the source stated none.
+  // The currency of the line the source states the instrument on.
   optional string currency = 3;
-  // The source's description of the instrument; unset when it gave none.
+  // The source's description of the instrument.
   optional string description = 4;
 }
 
 // A change in the quantity of one instrument held by a user.
 message Transaction {
-  // Identifies the transaction in every API; a UUID.
   string id = 1;
   // The statement that wrote the transaction; the id of its run.
   string statement_id = 2;
-  // The key the transaction is of; its instrument and listing are the key's.
-  // A UUID.
+  // The key read from the statement row that created this transaction.
   string stated_key_id = 3;
   Broker broker = 4;
   // The date the order was placed.
   string order_date = 5;
-  // The date the order settled, which may precede order_date.
+  // The date the order settled.
   string settlement_date = 6;
-  // The date the values were true, and so which corporate events they
+  // The date the values were true, ie. which corporate events they
   // reflect.
   string as_at = 7;
-  // The change in units of the instrument: shares, contracts, or money for
-  // cash. Negative for a disposal or an outflow.
+  // The change in units of the instrument: eg. shares, contracts, or
+  // money. Negative for a disposal or an outflow.
   string quantity = 8;
 }

@@ -294,7 +294,7 @@ func TestTree(t *testing.T) {
 // TestDomained holds the domained map equal to the traits table.
 func TestDomained(t *testing.T) {
 	s := newStack(t)
-	rows, err := s.tx.Query(context.Background(), "SELECT type FROM identifier_type_traits WHERE domain <> 'none'")
+	rows, err := s.tx.Query(context.Background(), "SELECT type FROM identifier_type_traits WHERE domain <> 'global'")
 	require.NoError(t, err)
 	defer rows.Close()
 	want := map[gen.IdentifierType]bool{}

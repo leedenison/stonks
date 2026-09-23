@@ -1,27 +1,11 @@
-// The broker neutral format a statement of transactions is expressed in, and
-// the service that ingests one and lists what each ingestion did. A
-// marshaller in front of the API translates one broker's export into the
-// format, so the service reads one format and interprets nothing broker
-// specific.
+// The broker neutral format a statement of transactions is expressed in.
 //
 // A statement claims every account the user holds at its broker over its
-// period, a half-open range of order dates. Ingestion replaces every
-// transaction of that user and broker whose order date lies in the range, so
-// a re-upload is idempotent and an empty range at a boundary is a deletion.
+// period. Ingestion replaces every transaction of that user and broker
+// whose order date lies in the range.  Re-upload is idempotent and an empty
+// range is a deletion.
 //
-// A row is one leg: one stated key and one quantity. An export line carrying
-// a trade's security, cash, commission and tax becomes one row per leg, and
-// nothing links the rows of one line. A cash leg states the identifier of
-// its currency in its key, asset class CASH and the currency. A symbol the
-// export states without a venue is carried as a MIC_TICKER identifier with
-// no domain, which names nothing and is held as a hint.
-//
-// Only the marshaller knows the broker's conventions, so it states every
-// date: the order date, the settlement date, and the date the row is stated
-// as at. Where the export gives one date, order and settlement are that date.
-// A broker that restates every quantity to the units held at export states
-// its rows as at the export date; one that states each row as traded states
-// it as at the order date.
+// A row is one leg: one stated key and one quantity.
 
 syntax = "proto3";
 
@@ -51,10 +35,7 @@ message SplitRatio {
   string to = 2 [(buf.validate.field).string.pattern = "^-?\\d+(\\.\\d+)?$"];
 }
 
-// A split as the export states it. Ingestion compares it with the corporate
-// event calendar and never applies it. The marshaller builds a split, so an
-// invalid one fails the statement: its key states a currency as an ISO 4217
-// code or not at all, and every identifier of the key has a type and a value.
+// A split as the export states it.
 message StatedSplit {
   option (buf.validate.message).cel = {
     id: "stated_split.currency"
@@ -90,15 +71,14 @@ message Statement {
   string order_from = 2 [(buf.validate.field).string.pattern = "^\\d{4}-\\d{2}-\\d{2}$"];
   // The day after the last order date claimed.
   string order_before = 3 [(buf.validate.field).string.pattern = "^\\d{4}-\\d{2}-\\d{2}$"];
-  // The legs the statement carries, at most 50000. None is a statement
-  // deleting its period.
+  // The legs the statement carries.
   repeated Row rows = 4 [(buf.validate.field).repeated.max_items = 50000];
-  // The splits the export states, at most 1000.
+  // The splits the export states.
   repeated StatedSplit splits = 5 [(buf.validate.field).repeated.max_items = 1000];
 }
 
-// One ingestion of a statement and what it did. The run carries its state;
-// rows less rejected is the number of transactions written.
+// One ingestion of a statement.
+// Rows less rejected is the number of transactions written.
 message StatementSummary {
   stonks.run.v1.Run run = 1;
   stonks.type.v1.Broker broker = 2;
@@ -121,8 +101,8 @@ message CreateStatementRequest {
   Statement statement = 1 [(buf.validate.field).required = true];
 }
 
-// The run ingesting the statement, pending when the call answers. Its
-// progress and outcome are read through the run and through GetStatement.
+// The run ingesting the statement. Its progress and outcome are read through
+// the run and through GetStatement.
 message CreateStatementResponse {
   stonks.run.v1.Run run = 1;
 }
@@ -144,8 +124,7 @@ message GetStatementResponse {
   repeated StatementItem items = 2;
 }
 
-// Ingests statements and reads what each ingestion did. Every call reads or
-// writes only the caller's statements; another user's is not found.
+// Ingests statements and reads what each ingestion did.
 service StatementService {
   // Validates the statement, records it and starts its run.
   rpc CreateStatement(CreateStatementRequest) returns (CreateStatementResponse);

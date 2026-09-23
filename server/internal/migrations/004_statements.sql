@@ -1,57 +1,12 @@
 -- +goose Up
 
--- A statement is a run of kind 'statement': one batch of transactions a user
--- submitted in the neutral format, claiming every account they hold at one
--- broker over a half-open range of order dates. The row is keyed by the run
--- and exists from receipt, so a pending statement lists with its broker and
--- period. row_count is the number of rows received; those not recorded as
--- items were written as transactions. Every row a statement leaves names
--- the statement and its user together, so a link cannot cross users or name
--- a run of another kind.
---
--- A stated key is what one source states about an instrument: its
--- identifiers, asset class, currency and description. It is stored with the
--- statement that carried it, one row per distinct key, and is what resolution
--- answers. The identifiers it states become identifier rows only from a
--- datasource's answer.
---
--- instrument_id and listing_id name what it resolved to, via_id the identifier
--- row the association was made through, and validity whether that identifier
--- is known to name the instrument over the key's transactions ('confirmed') or
--- is assumed to ('provisional'). All four are NULL while the key is
--- unresolved.
---
--- group_id gathers the unresolved keys which share an identifier, or a
--- description transitively within one broker.
---
--- A statement item is a row the statement rejected: its position in the
--- payload, why, and the row as stated, as protobuf JSON. An accepted row is
--- recorded as its transaction and has no item.
---
--- A statement split is a split as the export stated it, recorded against the
--- statement and never applied. ratio_from and ratio_to are the change in units
--- between old and new, 1 and 10 for a ten-for-one split, and are NULL
--- together when the export stated no ratio.
---
--- A transaction is a change in the quantity of one instrument held by a user,
--- with an order date and a settlement date, stated as at a date: the date on
--- which its values were true, and so which corporate events they reflect. Its
--- instrument and listing are its key's.
--- Replacement is keyed on user, broker and order date, so those are columns of
--- the row rather than reached through the statement.
---
--- A resolution key is the item row of a run of kind 'resolution': the outcome
--- for one stated key. 'matched' records that the run answered for the key,
--- which carries what it resolved to; 'unresolved' that nothing the run
--- consulted answered for it; 'rejected' that the key contradicts what its
--- identifier names, and carries the reason. The reason is the only thing the
--- outcome does not say, since a rejected key and an unresolved one each carry
--- no association.
-
 CREATE TYPE broker AS ENUM ('ibkr', 'schwab', 'fidelity_uk');
 
--- The unique constraint on (user_id, id) is what the links from the rows
--- below reference, and its index serves the list by user in id order.
+-- A statement is a run of kind 'statement': one batch of transactions a user
+-- submitted in the neutral format, claiming every account they hold at one
+-- broker over a half-open range of order dates.
+--  
+-- The row is keyed by the run and exists from receipt.
 CREATE TABLE statements (
     id           uuid        PRIMARY KEY,
     user_id      uuid        NOT NULL REFERENCES users (id),
@@ -68,12 +23,11 @@ CREATE TABLE statements (
 
 CREATE TYPE validity AS ENUM ('confirmed', 'provisional');
 
--- identifiers is a JSON array of objects with type, value and, when stated, a
--- domain, sorted by type, domain and value with no domain sorting first, so
--- that two statements of one key compare equal. The whole key is the unique
--- index, which bounds it at one btree entry, about 2.7KB.
---
--- currency is the code as the source stated it, checked against nothing.
+-- A stated key is what one source states about an instrument: its
+-- identifiers, asset class, currency and description. It is stored with the
+-- statement that carried it and is what parameterizes resolution requests.
+-- The identifiers it states become identifier rows only when confirmed by a
+-- datasource.
 CREATE TABLE stated_keys (
     id            uuid        PRIMARY KEY,
     statement_id  uuid        NOT NULL,
@@ -81,11 +35,26 @@ CREATE TABLE stated_keys (
     asset_class   asset_class REFERENCES asset_class_tree (class),
     currency      text,
     description   text,
+    -- identifiers is a JSON array of objects with type, value and, when
+    -- stated, a domain, sorted by type, domain and value with no domain
+    -- sorting first, so that two statements of one key compare equal. The
+    -- whole key is the unique index, which bounds it at one btree entry
+    -- (about 2.7KB).
     identifiers   jsonb       NOT NULL DEFAULT '[]',
+    -- instrument_id references the instrument this stated_key resolved to.
     instrument_id uuid        REFERENCES instruments (id),
+    -- listing_id references the listing this stated_key resolved to, if known.
     listing_id    uuid        REFERENCES listings (id),
+    -- via_id references the identifier used to make the instrument/listing
+    -- association.
     via_id        uuid        REFERENCES identifiers (id),
+    -- validity indicates whether the association is 'confirmed', either
+    -- because the identifier is stable or we have identifier event coverage
+    -- that includes the resolution time.  Otherwise validity is marked
+    -- 'provisional'.
     validity      validity,
+    -- group_id gathers the unresolved keys which share an identifier, or a
+    -- description transitively within one broker.
     group_id      uuid        REFERENCES stated_keys (id),
     created_at    timestamptz NOT NULL DEFAULT now(),
     CHECK (jsonb_typeof(identifiers) = 'array'),
@@ -101,6 +70,8 @@ CREATE TABLE stated_keys (
 CREATE INDEX stated_keys_instrument_idx ON stated_keys (user_id, instrument_id);
 CREATE INDEX stated_keys_group_idx ON stated_keys (user_id, group_id);
 
+-- A statement item is a row the statement rejected: its position in the
+-- payload, why, and the row as stated (as protobuf JSON).
 CREATE TABLE statement_items (
     statement_id uuid        NOT NULL,
     user_id      uuid        NOT NULL,
@@ -113,6 +84,7 @@ CREATE TABLE statement_items (
     CHECK (jsonb_typeof(stated) = 'object')
 );
 
+-- A statement split records stock splits included in ingested statements.
 CREATE TABLE statement_splits (
     statement_id   uuid        NOT NULL,
     user_id        uuid        NOT NULL,
@@ -120,7 +92,9 @@ CREATE TABLE statement_splits (
     stated_key_id  uuid        NOT NULL REFERENCES stated_keys (id),
     effective_date date        NOT NULL,
     quantity       numeric     NOT NULL,
+    -- ratio_from is the change in units before the split.
     ratio_from     numeric,
+    -- ratio_to is the change in units after the split.
     ratio_to       numeric,
     created_at     timestamptz NOT NULL DEFAULT now(),
     PRIMARY KEY (statement_id, ordinal),
@@ -128,6 +102,14 @@ CREATE TABLE statement_splits (
     CHECK ((ratio_from IS NULL) = (ratio_to IS NULL))
 );
 
+-- A transaction is a change in the quantity of one instrument held by a user,
+-- with an order date and a settlement date, stated as at a date: the date on
+-- which its values were true, and so which corporate events they reflect. Its
+-- instrument and listing are its key's.
+--
+-- Replacement is keyed on user, broker and order date, so those are columns of
+-- the row rather than reached through the statement.
+--
 -- quantity is in units of the instrument: shares, contracts, or money for
 -- cash. The currency it is stated in is the key's.
 CREATE TABLE transactions (
@@ -149,11 +131,17 @@ CREATE INDEX transactions_key_idx ON transactions (user_id, stated_key_id);
 
 CREATE TYPE resolution_outcome AS ENUM ('matched', 'rejected', 'unresolved');
 
+-- A resolution key is the item row of a run of kind 'resolution': the outcome
+-- for one stated key.
 CREATE TABLE resolution_keys (
     run_id        uuid               NOT NULL,
     user_id       uuid               NOT NULL,
     stated_key_id uuid               NOT NULL REFERENCES stated_keys (id),
+    -- outcome is one of: 'matched' - the run resolved the key; 'unresolved' the
+    -- run failed to resolve the key; 'rejected' the run could not attempt to
+    -- resolve the key.
     outcome       resolution_outcome NOT NULL,
+    -- reason carries the reason for rejecting a key.
     reason        text,
     created_at    timestamptz        NOT NULL DEFAULT now(),
     PRIMARY KEY (run_id, stated_key_id),

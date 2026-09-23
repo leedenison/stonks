@@ -2,20 +2,20 @@
 // submitted, claiming every account they hold at one broker over a
 // half-open range of order dates.
 //
-// The RPC validates the envelope and every row, deduplicates the stated
-// keys, Prepares the statement row, the stated keys and the stated splits
-// in one database transaction before the call answers;
-// see [run.go](../run/run.go).
+// The RPC validates the envelope and every row, deduplicates the stated keys,
+// then Prepares the statement row, the stated keys and the stated splits in
+// one database transaction before the call answers; see
+// [run.go](../run/run.go).
 //
 // Resolution. Each distinct key is resolved once, as a run of kind
 // resolution with the statement as parent, and every row carrying the key
 // takes its answer.
 //
 // Grouping. The unresolved keys a transaction names are gathered across
-// every statement of the user: two sharing an identifier,
-// or a description within one broker, are one holding, transitively. The
-// group is derived from what the keys state rather than asserted, so the
-// write recomputes it in full under the user's key lock.
+// every statement of the user: two sharing an identifier, or a description
+// within one broker, are one holding, transitively. The group is derived from
+// what the keys state, so the write recomputes it in full under the user's
+// key lock.
 package statement
 
 import (

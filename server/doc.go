@@ -26,9 +26,8 @@
 // metrics are counters of decisions the code makes, named
 // stonks.<area>.<plural noun>, carrying attributes drawn from a set closed in
 // the file that declares the instrument, and never a user, session or request
-// identifier. Export is a no-op unless a collector endpoint is configured
-// which disables telemetry in tests.
+// identifier. Export is a no-op unless a collector endpoint is configured.
 //
-// Context. Every function that does IO takes a context.Context first. It is
-// never stored in a struct, and context.TODO never appears outside a test.
+// Context. Every function that does IO takes a context.Context first, never
+// stored in a struct. context.TODO never appears outside a test.
 package server
