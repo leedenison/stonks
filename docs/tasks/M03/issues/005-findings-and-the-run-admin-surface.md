@@ -1,7 +1,6 @@
 ---
 title: Findings and the run admin surface
 type: task
-dependencies: [004]
 ---
 
 ## Scope

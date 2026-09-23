@@ -31,21 +31,10 @@ the answer states.
 **Coverage** -- the periods over which one datasource has answered for one key, or for
 every key in one domain.
 
-**Integration** -- the code adapting one datasource to the fetch framework: its request
-shapes, parsing, venue map and the declaration of what it serves.
-
-**Fetch** -- a run asking one datasource for one kind of data over one period.
-
-**Fetch Key** -- one key inside a fetch, recorded as a row: the identifier sent for it,
-the outcome, and the identifiers the answer returned.
-
 **Provenance** -- the fetch key that produced a stored row.
 
 **Finding** -- a row recording something a run met that an administrator may need to see,
 referencing the run and the rows it is about.
-
-**Block** -- a record that a datasource failed permanently for a key, suppressing further
-calls until an administrator clears it.
 
 **Annotation** -- what a user records against their own stated keys: a pin to an
 instrument, a grouping, a price, or a key made by hand. User data, never an assertion.

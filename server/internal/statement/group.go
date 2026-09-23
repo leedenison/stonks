@@ -22,6 +22,23 @@ var domained = map[types.IdentifierType]bool{
 	types.IdentifierTypeBrokerID:         true,
 }
 
+// descriptionKey is a description as a map key, under the broker that gave
+// it. Two brokers describing an instrument alike is not one holding.
+type descriptionKey struct {
+	broker gen.Broker
+	text   string
+}
+
+// join unions id with the first key seen stating the same thing, or records
+// it as that first key.
+func join[K comparable](first map[K]uuid.UUID, parent map[uuid.UUID]uuid.UUID, k K, id uuid.UUID) {
+	if held, ok := first[k]; ok {
+		union(parent, held, id)
+		return
+	}
+	first[k] = id
+}
+
 // find returns the root of k's component, compressing the path it walks.
 func find(parent map[uuid.UUID]uuid.UUID, k uuid.UUID) uuid.UUID {
 	for parent[k] != k {
@@ -53,25 +70,19 @@ func groups(keys []gen.ListGroupableKeysRow) map[uuid.UUID]uuid.UUID {
 	for _, r := range keys {
 		parent[r.StatedKey.ID] = r.StatedKey.ID
 	}
-	// first holds, per thing a key can state, the first key seen stating it.
-	first := map[string]uuid.UUID{}
-	join := func(label string, id uuid.UUID) {
-		if held, ok := first[label]; ok {
-			union(parent, held, id)
-			return
-		}
-		first[label] = id
-	}
+	// A map per thing a key can state holds the first key seen stating it.
+	byIdentifier := map[types.Identifier]uuid.UUID{}
+	byDescription := map[descriptionKey]uuid.UUID{}
 	for _, r := range keys {
 		k := r.StatedKey
 		for _, i := range k.Identifiers {
 			if domained[i.Type] && i.Domain == "" {
 				continue
 			}
-			join(fmt.Sprintf("i\x00%s\x00%s\x00%s", i.Type, i.Domain, i.Value), k.ID)
+			join(byIdentifier, parent, i, k.ID)
 		}
 		if k.Description != nil {
-			join(fmt.Sprintf("d\x00%s\x00%s", r.Broker, *k.Description), k.ID)
+			join(byDescription, parent, descriptionKey{broker: r.Broker, text: *k.Description}, k.ID)
 		}
 	}
 	out := make(map[uuid.UUID]uuid.UUID, len(keys))

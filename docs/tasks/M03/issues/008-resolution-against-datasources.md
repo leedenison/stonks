@@ -23,15 +23,23 @@ In:
   fetch. Coverage is owned by the consumer of each kind of data rather than by the fetch
   framework, since the key it is recorded against and the period it spans differ per
   kind.
-- Choosing among candidates: dropping those that do not name the queried identifier,
-  contradict the stated data or are inconsistent with a higher precedence answer;
-  ranking the rest; taking the winner's metadata and the corroborating identifiers and
-  blank fields from the others.
-- Writing the answer: a system owned instrument, listing and identifiers created or
-  enriched from it, each referencing the fetch key as provenance, and the key's
-  association set through the weakest identifier it stated, with provisional validity.
-  Two instruments merge only through a stable identifier, and only datasource answers
-  merge them.
+- Grouping candidates by the instrument-grain identifiers they share, transitively, so
+  each group is one instrument and the groups are what compete. A call strictly filtered
+  on an instrument-grain identifier answers about one instrument, so its candidates are
+  one group whether or not they return that identifier.
+- Collapsing each group to one listing per currency family. Venues are fungible within a
+  listing, so candidates differing only on venue describe one listing. A group spanning
+  several families resolves to the stated family's listing, or, where the source stated
+  none, to the instrument without a listing.
+- Choosing among the groups that compete: dropping those that do not name the queried
+  identifier, contradict the stated data or are inconsistent with a higher precedence
+  answer; ranking the rest; taking the winner's metadata and the corroborating
+  identifiers and blank fields from the others.
+- Writing the answer: a system owned instrument, its listing where one was determined,
+  and identifiers created or enriched from it, each referencing the fetch key as
+  provenance, and the key's association set through the weakest identifier it stated,
+  with provisional validity. Two instruments merge only through a stable identifier, and
+  only datasource answers merge them.
 - A finding per contradiction resolved by precedence and per candidate dropped,
   recording how many candidates each datasource offered and which step dropped each one.
 - Creation serialised per stated key with an advisory lock, so two runs stating one key
