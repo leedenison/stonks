@@ -19,7 +19,10 @@ In:
   answers for a datasource only where that datasource has covered the instrument, so a
   matched instrument is enriched by the datasources that have not yet answered for it,
   inside the run and before it completes.
-- Identity coverage per instrument and datasource, written from each served fetch.
+- The identity coverage table, per instrument and datasource, written from each served
+  fetch. Coverage is owned by the consumer of each kind of data rather than by the fetch
+  framework, since the key it is recorded against and the period it spans differ per
+  kind.
 - Choosing among candidates: dropping those that do not name the queried identifier,
   contradict the stated data or are inconsistent with a higher precedence answer;
   ranking the rest; taking the winner's metadata and the corroborating identifiers and
@@ -47,6 +50,11 @@ Out:
 - Anything a user records against a key.
 
 ## Design
+
+Every enabled datasource is asked concurrently, each fetch a child of the resolution.
+A child run holds no place in a lane and is not counted by the runner, so the resolution
+waits for its own fan-out before returning, and the fetches share no database
+transaction. See [run.go](../../../../server/internal/run/run.go).
 
 The weakest link governs: a key stating only a ticker is associated through that ticker
 however many stable identifiers the answer carries. Datasource answers are held apart

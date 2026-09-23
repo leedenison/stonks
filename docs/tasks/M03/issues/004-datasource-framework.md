@@ -12,28 +12,32 @@ In:
 
 - The integration interface: the kinds of data and the keys it serves, answered locally
   without spending quota; the identifier it sends for a key; the classification of a
-  failure as temporary or permanent; and its map between the provider's venue codes and
-  operating MICs.
-- The registry of integrations, each with an enabled state and a precedence, read from
-  configuration so any instance may run a different combination.
-- The fetch kind of run: one datasource, one kind of data, a set of keys and a period.
-  Per key it records the outcome, served, not served or failed temporarily or
-  permanently, the identifier sent, the instrument the answer was attached to and the
-  identifiers that answer named. Those identifiers are the fetch's assertions: at the
+  failure as temporary or permanent and as being about the identifier or the datasource;
+  and its map between the provider's venue codes and operating MICs. It is called with
+  a batch of identifiers and answers per identifier, since a provider charges and rate
+  limits per request, and chunks the batch to whatever the provider accepts.
+- The registry of integrations, a table each instance seeds with the datasources it
+  holds credentials for, carrying an enabled state, a precedence, the credential and the
+  endpoint, so any instance may run a different combination.
+- The fetch kind of run: one datasource, one kind of data and a set of keys. Per key it
+  records the outcome, served, not served, blocked or failed temporarily or permanently,
+  the identifier sent, the calls made, the instrument the answer was attached to and the
+  identifiers the answer returned. Those identifiers are the fetch's assertions: at the
   moment of the fetch, the datasource said each names the instrument it described. A
   candidate the resolution dropped was attached to nothing, asserts nothing and is
   recorded as a finding, not as identifiers.
-- Coverage per key, per datasource and per period, written only from a served key. A
-  range answer is recorded against the domain rather than against each value in it.
-- Blocks: a permanent failure for a key the integration declared it serves, one row per
-  key, datasource and kind, suppressing further calls until an administrator clears it.
-- A rate limiter per datasource.
+- Blocks: one row per datasource and kind, scoped either to the identifier the call was
+  sent under or to the whole datasource, suppressing further calls until an
+  administrator clears it.
+- A rate limiter per datasource, and the backoff a temporary failure is retried under.
 
 Out:
 
 - Any integration, and the finding row and admin surface; issues
   [005](005-findings-and-the-run-admin-surface.md) and
   [007](007-the-first-identity-integration.md).
+- Coverage. It is owned by the consumer of each kind of data, so identity coverage lands
+  in issue [008](008-resolution-against-datasources.md).
 - The schedule trigger.
 
 ## Design
@@ -47,8 +51,15 @@ resting on an identifier that later proves to have moved is found from the event
 searching the data. A run is kept for as long as anything references it. A truncated
 fetch covers nothing.
 
+A fetch records no period. A period qualifies one key rather than the call, and the
+coverage a fetch earns is the consumer's to record.
+
 ```sql
-fetch(run_id, datasource, kind, period, fetched_at)
-fetch_key(id, run_id, key, outcome, instrument_id, sent_type, sent_domain, sent_value)
-fetch_identifier(fetch_key_id, type, domain, value)
+datasources(name, enabled, precedence, credential, endpoint)
+fetches(id, user_id, datasource, kind)
+fetch_keys(id, fetch_id, user_id, stated_key_id, outcome, attempts, instrument_id,
+    sent_type, sent_domain, sent_value, reason)
+fetch_identifiers(fetch_key_id, type, domain, value)
+datasource_blocks(id, datasource, kind, scope, sent_type, sent_domain, sent_value,
+    reason, fetch_key_id, cleared_at)
 ```

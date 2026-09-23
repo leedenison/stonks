@@ -46,7 +46,7 @@ MIC_TICKER serve them all.
 
 ### Assertions
 
-A fetch whose answer names an identifier asserts that the identifier names the instrument
+A fetch whose answer returns an identifier asserts that the identifier names the instrument
 the answer described.  An identity lookup asserts, and so does a price or corporate event
 fetch whose answer echoes the identifier it served.  An assertion holds at the moment of
 the fetch unless the answer states an interval: a point in time lookup asserts on the

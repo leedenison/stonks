@@ -17,6 +17,8 @@ enum RunKind {
   RUN_KIND_STATEMENT = 1;
   // Answers the stated keys of a statement.
   RUN_KIND_RESOLUTION = 2;
+  // Asks one datasource for one kind of data.
+  RUN_KIND_FETCH = 3;
 }
 
 // What started a run.
