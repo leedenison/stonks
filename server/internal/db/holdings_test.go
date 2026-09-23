@@ -51,13 +51,13 @@ func (h holder) key(t *testing.T, q *gen.Queries, description string, listing *g
 }
 
 // record writes one transaction of quantity against key.
-func (h holder) record(t *testing.T, q *gen.Queries, key gen.StatedKey, currency string, quantity string) {
+func (h holder) record(t *testing.T, q *gen.Queries, key gen.StatedKey, quantity string) {
 	t.Helper()
 	day := date(2026, 3, 1)
 	_, err := q.CreateTransaction(context.Background(), gen.CreateTransactionParams{
 		ID: db.NewID(), UserID: h.user.ID, Broker: gen.BrokerIbkr, StatementID: h.statement.ID, StatedKeyID: key.ID,
 		OrderDate: day, SettlementDate: day, AsAt: day,
-		Quantity: decimal.RequireFromString(quantity), Currency: &currency,
+		Quantity: decimal.RequireFromString(quantity),
 	})
 	require.NoError(t, err)
 }
@@ -82,8 +82,8 @@ func TestListInstrumentHoldings(t *testing.T) {
 		via := newIdentifier(t, q, instrument, "US0378331005")
 		usd := newListing(t, q, instrument, "USD")
 		gbp := newListing(t, q, instrument, "GBP")
-		h.record(t, q, h.key(t, q, "ACME CORP", &usd, &via), "USD", "10")
-		h.record(t, q, h.key(t, q, "ACME CORPORATION", &gbp, &via), "GBP", "2.5")
+		h.record(t, q, h.key(t, q, "ACME CORP", &usd, &via), "10")
+		h.record(t, q, h.key(t, q, "ACME CORPORATION", &gbp, &via), "2.5")
 
 		got, err := q.ListInstrumentHoldings(ctx, h.user.ID)
 		require.NoError(t, err)
@@ -97,8 +97,8 @@ func TestListInstrumentHoldings(t *testing.T) {
 		h := newHolder(t, q, "cash@example.com")
 		gbp, via := cashListing(t, q, "GBP")
 		key := h.key(t, q, "GBP", &gbp, &via)
-		h.record(t, q, key, "GBP", "100")
-		h.record(t, q, key, "GBP", "-25.5")
+		h.record(t, q, key, "100")
+		h.record(t, q, key, "-25.5")
 
 		got, err := q.ListInstrumentHoldings(ctx, h.user.ID)
 		require.NoError(t, err)
@@ -119,8 +119,8 @@ func TestListInstrumentHoldings(t *testing.T) {
 		h := newHolder(t, q, "zero@example.com")
 		usd, via := cashListing(t, q, "USD")
 		key := h.key(t, q, "USD", &usd, &via)
-		h.record(t, q, key, "USD", "10")
-		h.record(t, q, key, "USD", "-10")
+		h.record(t, q, key, "10")
+		h.record(t, q, key, "-10")
 
 		got, err := q.ListInstrumentHoldings(ctx, h.user.ID)
 		require.NoError(t, err)
@@ -138,8 +138,8 @@ func TestListInstrumentHoldings(t *testing.T) {
 		q := newTx(t)
 		h := newHolder(t, q, "unresolved@example.com")
 		usd, via := cashListing(t, q, "USD")
-		h.record(t, q, h.key(t, q, "MYSTERY FUND", nil, nil), "USD", "40")
-		h.record(t, q, h.key(t, q, "USD", &usd, &via), "USD", "5")
+		h.record(t, q, h.key(t, q, "MYSTERY FUND", nil, nil), "40")
+		h.record(t, q, h.key(t, q, "USD", &usd, &via), "5")
 
 		got, err := q.ListInstrumentHoldings(ctx, h.user.ID)
 		require.NoError(t, err)
@@ -157,10 +157,10 @@ func TestListInstrumentHoldings(t *testing.T) {
 		via := newIdentifier(t, q, shared, "US0378331005")
 		aLine := newListing(t, q, shared, "USD")
 		bLine := newListing(t, q, shared, "GBP")
-		a.record(t, q, a.key(t, q, "ACME CORP", &aLine, &via), "USD", "10")
-		b.record(t, q, b.key(t, q, "ACME CORPORATION", &bLine, &via), "GBP", "7")
+		a.record(t, q, a.key(t, q, "ACME CORP", &aLine, &via), "10")
+		b.record(t, q, b.key(t, q, "ACME CORPORATION", &bLine, &via), "7")
 		gbp, gbpVia := cashListing(t, q, "GBP")
-		b.record(t, q, b.key(t, q, "GBP", &gbp, &gbpVia), "GBP", "50")
+		b.record(t, q, b.key(t, q, "GBP", &gbp, &gbpVia), "50")
 
 		got, err := q.ListInstrumentHoldings(ctx, a.user.ID)
 		require.NoError(t, err)
@@ -186,10 +186,10 @@ func TestListInstrumentHoldings(t *testing.T) {
 		halvesLine := newListing(t, q, halves, "USD")
 		tenthsKey := h.key(t, q, "TENTHS", &tenthsLine, &tenthsVia)
 		halvesKey := h.key(t, q, "HALVES", &halvesLine, &halvesVia)
-		h.record(t, q, tenthsKey, "USD", "0.1")
-		h.record(t, q, tenthsKey, "USD", "0.2")
-		h.record(t, q, halvesKey, "USD", "1.50")
-		h.record(t, q, halvesKey, "USD", "2.50")
+		h.record(t, q, tenthsKey, "0.1")
+		h.record(t, q, tenthsKey, "0.2")
+		h.record(t, q, halvesKey, "1.50")
+		h.record(t, q, halvesKey, "2.50")
 
 		got, err := q.ListInstrumentHoldings(ctx, h.user.ID)
 		require.NoError(t, err)
@@ -228,8 +228,8 @@ func TestListGroupHoldings(t *testing.T) {
 		one := h.key(t, q, "ACME CORP", nil, nil)
 		two := h.key(t, q, "ACME CORPORATION", nil, nil)
 		id := h.group(t, q, one, two)
-		h.record(t, q, one, "USD", "10")
-		h.record(t, q, two, "USD", "2.5")
+		h.record(t, q, one, "10")
+		h.record(t, q, two, "2.5")
 
 		got, err := q.ListGroupHoldings(ctx, h.user.ID)
 		require.NoError(t, err)
@@ -252,8 +252,8 @@ func TestListGroupHoldings(t *testing.T) {
 		h := newHolder(t, q, "groupzero@example.com")
 		one := h.key(t, q, "ACME CORP", nil, nil)
 		h.group(t, q, one)
-		h.record(t, q, one, "USD", "10")
-		h.record(t, q, one, "USD", "-10")
+		h.record(t, q, one, "10")
+		h.record(t, q, one, "-10")
 
 		got, err := q.ListGroupHoldings(ctx, h.user.ID)
 		require.NoError(t, err)
@@ -275,8 +275,8 @@ func TestListGroupHoldings(t *testing.T) {
 		theirs := b.key(t, q, "ACME CORP", nil, nil)
 		id := a.group(t, q, mine)
 		b.group(t, q, theirs)
-		a.record(t, q, mine, "USD", "10")
-		b.record(t, q, theirs, "USD", "7")
+		a.record(t, q, mine, "10")
+		b.record(t, q, theirs, "7")
 
 		got, err := q.ListGroupHoldings(ctx, a.user.ID)
 		require.NoError(t, err)

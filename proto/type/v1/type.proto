@@ -136,7 +136,4 @@ message Transaction {
   // The change in units of the instrument: shares, contracts, or money for
   // cash. Negative for a disposal or an outflow.
   string quantity = 8;
-  // The precise currency code the stated key states; unset when it states
-  // none.
-  optional string currency = 9;
 }

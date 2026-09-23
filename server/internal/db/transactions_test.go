@@ -69,7 +69,7 @@ func TestTransactions(t *testing.T) {
 		row, err := q.CreateTransaction(ctx, gen.CreateTransactionParams{
 			ID: db.NewID(), UserID: user.ID, Broker: broker, StatementID: statement.ID, StatedKeyID: key.ID,
 			OrderDate: order, SettlementDate: order.AddDate(0, 0, 2), AsAt: order,
-			Quantity: decimal.RequireFromString(quantity), Currency: ptr.To("USD"),
+			Quantity: decimal.RequireFromString(quantity),
 		})
 		require.NoError(t, err)
 		return row

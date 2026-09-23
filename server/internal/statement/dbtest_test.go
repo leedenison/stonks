@@ -119,15 +119,29 @@ func (s stack) ingest(t *testing.T, msg *statementv1.Statement) gen.Run {
 
 func (s stack) transactions(t *testing.T) []string {
 	t.Helper()
-	rows, err := s.q.ListTransactions(context.Background(), s.user.ID)
+	ctx := context.Background()
+	rows, err := s.q.ListTransactions(ctx, s.user.ID)
 	require.NoError(t, err)
+	// A transaction is denominated in its key's currency.
+	currency := map[uuid.UUID]string{}
+	listed := map[uuid.UUID]bool{}
+	for _, r := range rows {
+		if listed[r.StatementID] {
+			continue
+		}
+		listed[r.StatementID] = true
+		keys, err := s.q.ListStatedKeys(ctx, gen.ListStatedKeysParams{StatementID: r.StatementID, UserID: s.user.ID})
+		require.NoError(t, err)
+		for _, k := range keys {
+			currency[k.ID] = "-"
+			if k.Currency != nil {
+				currency[k.ID] = *k.Currency
+			}
+		}
+	}
 	var out []string
 	for _, r := range rows {
-		cur := "-"
-		if r.Currency != nil {
-			cur = *r.Currency
-		}
-		out = append(out, fmt.Sprintf("%s %s %s %s", r.OrderDate.Format(time.DateOnly), r.Broker, r.Quantity, cur))
+		out = append(out, fmt.Sprintf("%s %s %s %s", r.OrderDate.Format(time.DateOnly), r.Broker, r.Quantity, currency[r.StatedKeyID]))
 	}
 	return out
 }

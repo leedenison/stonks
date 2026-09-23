@@ -10,8 +10,8 @@ ORDER BY id;
 
 -- name: CreateTransaction :one
 INSERT INTO transactions (id, user_id, broker, statement_id, stated_key_id,
-                          order_date, settlement_date, as_at, quantity, currency)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                          order_date, settlement_date, as_at, quantity)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 RETURNING *;
 
 -- name: DeleteTransactions :execrows

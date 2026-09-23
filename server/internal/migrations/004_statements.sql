@@ -128,9 +128,8 @@ CREATE TABLE statement_splits (
     CHECK ((ratio_from IS NULL) = (ratio_to IS NULL))
 );
 
--- currency is set when the source stated one, as the precise code stated.
 -- quantity is in units of the instrument: shares, contracts, or money for
--- cash.
+-- cash. The currency it is stated in is the key's.
 CREATE TABLE transactions (
     id              uuid        PRIMARY KEY,
     user_id         uuid        NOT NULL REFERENCES users (id),
@@ -141,7 +140,6 @@ CREATE TABLE transactions (
     settlement_date date        NOT NULL,
     as_at           date        NOT NULL,
     quantity        numeric     NOT NULL,
-    currency        text        REFERENCES currencies (code),
     created_at      timestamptz NOT NULL DEFAULT now(),
     FOREIGN KEY (statement_id, user_id) REFERENCES statements (id, user_id)
 );

@@ -42,7 +42,7 @@ func (g *ingestion) write(ctx context.Context, run gen.Run) error {
 			}
 			tx := gen.CreateTransactionParams{
 				ID: db.NewID(), UserID: g.user, Broker: g.broker, StatementID: run.ID, StatedKeyID: r.key.id,
-				OrderDate: r.order, SettlementDate: r.settlement, AsAt: r.asAt, Quantity: r.quantity, Currency: r.key.currency,
+				OrderDate: r.order, SettlementDate: r.settlement, AsAt: r.asAt, Quantity: r.quantity,
 			}
 			if _, err := q.CreateTransaction(ctx, tx); err != nil {
 				return fmt.Errorf("create transaction %d: %w", r.ordinal, err)
