@@ -1,0 +1,25 @@
+# A stack merge moves the next pull request's base to main, and GitHub reports
+# that as an edit. CI does not listen for edits, since an edit that changes only
+# the title or description would cancel a run in progress and post a result for
+# gates on the head commit. This workflow dispatches CI on the head branch for an
+# edit that changes the base.
+name: Retarget
+
+on:
+  pull_request:
+    branches: [main]
+    types: [edited]
+
+permissions:
+  actions: write
+
+jobs:
+  dispatch:
+    if: github.event.changes.base != null
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - run: gh workflow run ci.yml --repo "$GITHUB_REPOSITORY" --ref "$REF"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REF: ${{ github.event.pull_request.head.ref }}
