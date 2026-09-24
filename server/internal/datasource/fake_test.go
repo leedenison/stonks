@@ -60,24 +60,28 @@ func (f *fake) Serves(key StatedKey) (types.Identifier, error) {
 	return id, nil
 }
 
-func (f *fake) Fetch(_ context.Context, sent []types.Identifier) ([]IdentityResult, error) {
+func (f *fake) Fetch(_ context.Context, reqs []FetchRequest[StatedKey]) ([]FetchResponse[IdentityResult], error) {
 	f.calls++
+	sent := make([]types.Identifier, len(reqs))
+	for i, r := range reqs {
+		sent[i] = r.Sent
+	}
 	f.sent = append(f.sent, sent)
 	if f.calls <= len(f.errs) {
 		if err := f.errs[f.calls-1]; err != nil {
 			return nil, err
 		}
 	}
-	out := make([]IdentityResult, len(sent))
+	out := make([]FetchResponse[IdentityResult], len(sent))
 	for i, id := range sent {
 		if err, ok := f.perKey[id.Value]; ok {
-			out[i] = IdentityResult{Err: err}
+			out[i] = FetchResponse[IdentityResult]{Err: err}
 			continue
 		}
-		out[i] = IdentityResult{
+		out[i] = FetchResponse[IdentityResult]{Value: IdentityResult{
 			Filtered:   []types.Identifier{id},
 			Candidates: []Candidate{{Identifiers: []types.Identifier{id}, Class: gen.AssetClassStock, Currency: "USD"}},
-		}
+		}}
 	}
 	return out, nil
 }
