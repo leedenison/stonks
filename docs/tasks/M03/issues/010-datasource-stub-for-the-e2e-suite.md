@@ -17,7 +17,9 @@ In:
   unknown key answers an error naming the key, never a default.
 - Fixtures for the cross-broker case: two brokers' exports stating one security under
   different descriptions.
-- The compose wiring.
+- The compose wiring, and the datasources row naming the stub and its endpoint. The e2e
+  stack seeds no datasources, so without the row the registry is empty and resolution
+  calls nothing.
 
 Out:
 
