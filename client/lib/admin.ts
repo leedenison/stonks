@@ -83,3 +83,23 @@ export function fromParam(
   const v = e[s.toUpperCase()];
   return typeof v === "number" && v !== 0 ? v : undefined;
 }
+
+// ListParams is what the findings and blocks pages list by, as held in
+// their address.
+export type ListParams = { cleared: boolean; before: string };
+
+export function readList(params: URLSearchParams): ListParams {
+  return {
+    cleared: params.get("cleared") === "1",
+    before: params.get("before") ?? "",
+  };
+}
+
+// listQuery is the address of the page at path with p applied.
+export function listQuery(path: string, p: ListParams): string {
+  const params = new URLSearchParams();
+  if (p.cleared) params.set("cleared", "1");
+  if (p.before) params.set("before", p.before);
+  const q = params.toString();
+  return q ? `${path}?${q}` : path;
+}

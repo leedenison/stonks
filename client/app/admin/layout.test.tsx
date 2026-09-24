@@ -38,8 +38,8 @@ describe("AdminLayout", () => {
         .getByRole("link", { name: "Overview" })
         .getAttribute("aria-current"),
     ).toBe("page");
-    expect(screen.getByText("Datasources").getAttribute("aria-disabled")).toBe(
-      "true",
-    );
+    expect(
+      screen.getByRole("link", { name: "Blocks" }).getAttribute("href"),
+    ).toBe("/admin/blocks");
   });
 });
