@@ -32,7 +32,7 @@ export default function StatementsPage() {
         </Notice>
       )}
       {!isError && data && statements.length === 0 && (
-        <EmptyState message="No statements yet. Each upload is listed here with its outcome." />
+        <EmptyState message="No statements yet." />
       )}
       {!isError && (isPending || statements.length > 0) && (
         <TableCard testId="statements-table">

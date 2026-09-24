@@ -46,7 +46,7 @@ function Blocks() {
         </Notice>
       )}
       {!isError && data && blocks.length === 0 && (
-        <EmptyState message="No blocks. A call a datasource refuses for good is suppressed and listed here." />
+        <EmptyState message="No blocks." />
       )}
       {!isError && (isPending || blocks.length > 0) && (
         <TableCard testId="admin-blocks-table">

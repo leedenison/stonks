@@ -47,7 +47,7 @@ function Findings() {
         </Notice>
       )}
       {!isError && data && findings.length === 0 && (
-        <EmptyState message="No findings. What a run meets that needs an administrator is listed here." />
+        <EmptyState message="No findings." />
       )}
       {!isError && (isPending || findings.length > 0) && (
         <TableCard testId="admin-findings-table">

@@ -9,7 +9,7 @@ export default function NotFound() {
         <h1 className="text-2xl font-semibold tracking-tight">
           Page not found
         </h1>
-        <p className="text-text-muted">There is nothing at this address.</p>
+        <p className="text-text-muted">Not found.</p>
         <LinkButton data-testid="not-found-home" href="/" variant="secondary">
           Back to the start
         </LinkButton>

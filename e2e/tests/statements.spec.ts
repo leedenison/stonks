@@ -23,7 +23,7 @@ test("uploads a statement and shows its rejections in the activity and the histo
   await expect(page.getByTestId("upload-rows")).toHaveText("11 rows");
   await page.getByTestId("upload-from").fill("2025-02-01");
   await expect(page.getByTestId("upload-outside")).toContainText(
-    `${januaryRows} of the rows`,
+    `${januaryRows} rows fall outside`,
   );
   await page.getByTestId("upload-submit").click();
 

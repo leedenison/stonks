@@ -11,9 +11,7 @@ describe("refusal", () => {
           Code.InvalidArgument,
         ),
       ),
-    ).toBe(
-      "The service refused the statement: order_from must precede order_before",
-    );
+    ).toBe("Statement rejected: order_from must precede order_before");
   });
 
   it("offers a retry for any other failure", () => {

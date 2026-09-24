@@ -30,7 +30,7 @@ const inputClass =
 type Loaded = { name: string; type: string; text: string };
 
 const oversize = (file: File) => file.size > maxBytes;
-const tooLarge = (file: File) => `${file.name} is larger than a broker export.`;
+const tooLarge = (file: File) => `${file.name} is too large.`;
 const unreadable = (file: File) => `${file.name} could not be read.`;
 
 // UploadDialog takes a broker's export through its stages: choose or drop a
@@ -189,7 +189,7 @@ export function UploadDialog({
             <span className="font-medium text-text-primary">{loaded.name}</span>
             {" - "}
             {guesses.length === 0
-              ? "Not recognised: choose the broker"
+              ? "Not recognised: choose a broker"
               : `Recognised as: ${guesses.map(brokerLabel).join(" or ")} export`}
           </p>
           <label className="flex flex-col gap-1 text-sm">
@@ -216,7 +216,9 @@ export function UploadDialog({
           </label>
           {broker !== undefined && needsExportDate(broker) && (
             <label className="flex flex-col gap-1 text-sm">
-              <span className="text-text-muted">Date the export was taken</span>
+              <span className="text-text-muted">
+                Date the data was exported
+              </span>
               <input
                 type="date"
                 data-testid="upload-exported-on"
@@ -269,7 +271,7 @@ export function UploadDialog({
               </div>
               {span.outside > 0 && (
                 <Notice testId="upload-outside">
-                  {span.outside} of the rows fall outside the period and will be
+                  {span.outside} rows fall outside the period and will be
                   rejected.
                 </Notice>
               )}

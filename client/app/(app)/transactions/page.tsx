@@ -25,7 +25,7 @@ export default function TransactionsPage() {
         actions={<UploadAction />}
       >
         <EmptyState
-          message="No transactions yet. Upload a statement to fill this table."
+          message="No transactions yet. Upload a statement."
           action={
             <Button
               data-testid="upload-statement-empty"
