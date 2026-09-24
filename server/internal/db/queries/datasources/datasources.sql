@@ -67,3 +67,19 @@ FROM fetch_keys
 JOIN stated_keys ON stated_keys.id = fetch_keys.stated_key_id
 WHERE fetch_keys.fetch_id = $1
 ORDER BY fetch_keys.id;
+
+-- name: ListDatasourceSettings :many
+SELECT name, enabled, precedence, endpoint FROM datasources
+ORDER BY precedence, name;
+
+-- name: ListBlocks :many
+SELECT sqlc.embed(datasource_blocks), fetch_keys.fetch_id
+FROM datasource_blocks
+JOIN fetch_keys ON fetch_keys.id = datasource_blocks.fetch_key_id
+WHERE (@include_cleared::bool OR datasource_blocks.cleared_at IS NULL)
+  AND (sqlc.narg(before)::uuid IS NULL OR datasource_blocks.id < sqlc.narg(before))
+ORDER BY datasource_blocks.id DESC
+LIMIT @lim;
+
+-- name: GetDatasourceBlock :one
+SELECT * FROM datasource_blocks WHERE id = $1;

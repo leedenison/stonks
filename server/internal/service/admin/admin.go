@@ -1,6 +1,6 @@
 // Package admin serves stonks.admin.v1.
 //
-// Every RPC reads across users, and the handler chain refuses a caller
+// Every RPC acts across users, and the handler chain refuses a caller
 // without the admin role before any of them runs; see
 // [service.go](../service.go). A listing is paged newest first on the row's
 // id, which is ordered by creation time, so the page token is the id of the
@@ -38,6 +38,13 @@ type Reader interface {
 	ListStatementItems(ctx context.Context, arg gen.ListStatementItemsParams) ([]gen.StatementItem, error)
 	ListResolutionItems(ctx context.Context, runID uuid.UUID) ([]gen.ListResolutionItemsRow, error)
 	ListFetchItems(ctx context.Context, fetchID uuid.UUID) ([]gen.ListFetchItemsRow, error)
+	ListFindings(ctx context.Context, arg gen.ListFindingsParams) ([]gen.Finding, error)
+	GetFinding(ctx context.Context, id uuid.UUID) (gen.Finding, error)
+	ClearFinding(ctx context.Context, id uuid.UUID) error
+	ListDatasourceSettings(ctx context.Context) ([]gen.ListDatasourceSettingsRow, error)
+	ListBlocks(ctx context.Context, arg gen.ListBlocksParams) ([]gen.ListBlocksRow, error)
+	GetDatasourceBlock(ctx context.Context, id uuid.UUID) (gen.DatasourceBlock, error)
+	ClearDatasourceBlock(ctx context.Context, id uuid.UUID) error
 }
 
 var _ Reader = (*gen.Queries)(nil)
@@ -59,12 +66,11 @@ func New(reader Reader) *Server {
 // ListRuns lists every user's runs matching the filters, newest first.
 func (s *Server) ListRuns(ctx context.Context, req *connect.Request[adminv1.ListRunsRequest]) (*connect.Response[adminv1.ListRunsResponse], error) {
 	m := req.Msg
-	size := int(m.GetPageSize())
-	if size == 0 {
-		size = defaultPageSize
+	p, err := newPage(m.GetPageSize(), m.GetPageToken())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	arg := gen.ListUserRunsParams{Lim: int32(size + 1)}
-	var err error
+	arg := gen.ListUserRunsParams{Before: p.before, Lim: p.lim()}
 	if arg.Kind, err = filter[gen.RunKind](m.Kind); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
@@ -77,20 +83,12 @@ func (s *Server) ListRuns(ctx context.Context, req *connect.Request[adminv1.List
 	if arg.UserID, err = optionalID(m.UserId); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	if t := m.GetPageToken(); t != "" {
-		if arg.Before, err = optionalID(&t); err != nil {
-			return nil, connect.NewError(connect.CodeInvalidArgument, err)
-		}
-	}
 	rows, err := s.reader.ListUserRuns(ctx, arg)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	out := &adminv1.ListRunsResponse{}
-	if len(rows) > size {
-		rows = rows[:size]
-		out.NextPageToken = rows[size-1].Run.ID.String()
-	}
+	rows, out.NextPageToken = trim(p, rows, func(r gen.ListUserRunsRow) uuid.UUID { return r.Run.ID })
 	for _, r := range rows {
 		out.Runs = append(out.Runs, userRun(r.Run, r.Email))
 	}
@@ -183,6 +181,121 @@ func (s *Server) fill(ctx context.Context, run gen.Run, out *adminv1.GetRunRespo
 	return nil
 }
 
+// ListFindings lists findings across every run, newest first.
+func (s *Server) ListFindings(ctx context.Context, req *connect.Request[adminv1.ListFindingsRequest]) (*connect.Response[adminv1.ListFindingsResponse], error) {
+	m := req.Msg
+	p, err := newPage(m.GetPageSize(), m.GetPageToken())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	arg := gen.ListFindingsParams{IncludeCleared: m.GetIncludeCleared(), Before: p.before, Lim: p.lim()}
+	if arg.RunID, err = optionalID(m.RunId); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	rows, err := s.reader.ListFindings(ctx, arg)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	out := &adminv1.ListFindingsResponse{}
+	rows, out.NextPageToken = trim(p, rows, func(f gen.Finding) uuid.UUID { return f.ID })
+	for _, f := range rows {
+		out.Findings = append(out.Findings, finding(f))
+	}
+	return connect.NewResponse(out), nil
+}
+
+// ClearFinding clears a finding that reports no block.
+func (s *Server) ClearFinding(ctx context.Context, req *connect.Request[adminv1.ClearFindingRequest]) (*connect.Response[adminv1.ClearFindingResponse], error) {
+	id, err := uuid.Parse(req.Msg.GetFindingId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	f, err := s.reader.GetFinding(ctx, id)
+	if errors.Is(err, db.ErrNotFound) {
+		return nil, connect.NewError(connect.CodeNotFound, errors.New("no such finding"))
+	}
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	if f.BlockID != nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("the finding reports a block; clear the block"))
+	}
+	if err := s.reader.ClearFinding(ctx, id); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(&adminv1.ClearFindingResponse{}), nil
+}
+
+// ListDatasources lists the registered datasources in precedence order.
+func (s *Server) ListDatasources(ctx context.Context, _ *connect.Request[adminv1.ListDatasourcesRequest]) (*connect.Response[adminv1.ListDatasourcesResponse], error) {
+	rows, err := s.reader.ListDatasourceSettings(ctx)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	out := &adminv1.ListDatasourcesResponse{}
+	for _, r := range rows {
+		out.Datasources = append(out.Datasources, &adminv1.Datasource{
+			Name: r.Name, Enabled: r.Enabled, Precedence: r.Precedence, Endpoint: r.Endpoint,
+		})
+	}
+	return connect.NewResponse(out), nil
+}
+
+// ListBlocks lists datasource blocks, newest first.
+func (s *Server) ListBlocks(ctx context.Context, req *connect.Request[adminv1.ListBlocksRequest]) (*connect.Response[adminv1.ListBlocksResponse], error) {
+	m := req.Msg
+	p, err := newPage(m.GetPageSize(), m.GetPageToken())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	rows, err := s.reader.ListBlocks(ctx, gen.ListBlocksParams{IncludeCleared: m.GetIncludeCleared(), Before: p.before, Lim: p.lim()})
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	out := &adminv1.ListBlocksResponse{}
+	rows, out.NextPageToken = trim(p, rows, func(r gen.ListBlocksRow) uuid.UUID { return r.DatasourceBlock.ID })
+	for _, r := range rows {
+		out.Blocks = append(out.Blocks, block(r.DatasourceBlock, r.FetchID))
+	}
+	return connect.NewResponse(out), nil
+}
+
+// ClearBlock clears a block and the finding reporting it.
+func (s *Server) ClearBlock(ctx context.Context, req *connect.Request[adminv1.ClearBlockRequest]) (*connect.Response[adminv1.ClearBlockResponse], error) {
+	id, err := uuid.Parse(req.Msg.GetBlockId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	if _, err := s.reader.GetDatasourceBlock(ctx, id); errors.Is(err, db.ErrNotFound) {
+		return nil, connect.NewError(connect.CodeNotFound, errors.New("no such block"))
+	} else if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	if err := s.reader.ClearDatasourceBlock(ctx, id); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(&adminv1.ClearBlockResponse{}), nil
+}
+
+func block(b gen.DatasourceBlock, runID uuid.UUID) *adminv1.Block {
+	out := &adminv1.Block{
+		Id:         b.ID.String(),
+		Datasource: b.Datasource,
+		Kind:       db.ToProto[adminv1.FetchKind](b.Kind),
+		Scope:      db.ToProto[adminv1.BlockScope](b.Scope),
+		Reason:     b.Reason,
+		RunId:      runID.String(),
+		CreatedAt:  timestamppb.New(b.CreatedAt),
+	}
+	if b.SentType != nil && b.SentValue != nil {
+		out.Sent = identifier(types.Identifier{Type: *b.SentType, Domain: b.SentDomain, Value: *b.SentValue})
+	}
+	if b.ClearedAt != nil {
+		out.ClearedAt = timestamppb.New(*b.ClearedAt)
+	}
+	return out
+}
+
 func finding(f gen.Finding) *adminv1.Finding {
 	out := &adminv1.Finding{
 		Id:        f.ID.String(),
@@ -217,6 +330,43 @@ func statedKey(k gen.StatedKey) *typev1.StatedKey {
 
 func identifier(i types.Identifier) *typev1.Identifier {
 	return &typev1.Identifier{Type: db.ToProto[typev1.IdentifierType](i.Type), Domain: i.Domain, Value: i.Value}
+}
+
+// page is one page of a listing: its size, and the id every row it holds
+// precedes.
+type page struct {
+	size   int
+	before *uuid.UUID
+}
+
+func newPage(size int32, token string) (page, error) {
+	p := page{size: int(size)}
+	if p.size == 0 {
+		p.size = defaultPageSize
+	}
+	if token == "" {
+		return p, nil
+	}
+	id, err := uuid.Parse(token)
+	if err != nil {
+		return page{}, err
+	}
+	p.before = &id
+	return p, nil
+}
+
+// lim is one more row than the page holds, so a full page is known to have a
+// successor.
+func (p page) lim() int32 { return int32(p.size + 1) }
+
+// trim cuts rows to the page and answers the token of the next page, empty
+// when there is none.
+func trim[T any](p page, rows []T, id func(T) uuid.UUID) ([]T, string) {
+	if len(rows) <= p.size {
+		return rows, ""
+	}
+	rows = rows[:p.size]
+	return rows, id(rows[p.size-1]).String()
 }
 
 // filter converts an optional enum field to the database value it matches.

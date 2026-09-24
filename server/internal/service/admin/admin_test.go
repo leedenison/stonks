@@ -262,3 +262,134 @@ func TestGetRunErrors(t *testing.T) {
 		})
 	}
 }
+
+func TestListFindings(t *testing.T) {
+	older := uuid.MustParse("00000000-0000-0000-0000-000000000029")
+	cleared := created.Add(time.Hour)
+	f := newFixture(t)
+	f.reader.EXPECT().ListFindings(gomock.Any(), gen.ListFindingsParams{IncludeCleared: true, RunID: &runID, Lim: 2}).Return([]gen.Finding{
+		{ID: findingID, RunID: runID, Kind: gen.FindingKindBlock, BlockID: &blockID, CreatedAt: created, ClearedAt: &cleared},
+		{ID: older, RunID: runID, Kind: gen.FindingKindBlock, BlockID: &blockID, CreatedAt: created},
+	}, nil)
+	req := &adminv1.ListFindingsRequest{IncludeCleared: true, RunId: ptr.To(runID.String()), PageSize: 1}
+	res, err := f.client.ListFindings(context.Background(), connect.NewRequest(req))
+	if err != nil {
+		t.Fatalf("ListFindings() error = %v", err)
+	}
+	want := &adminv1.ListFindingsResponse{
+		Findings: []*adminv1.Finding{{
+			Id: findingID.String(), RunId: runID.String(), Kind: adminv1.FindingKind_FINDING_KIND_BLOCK,
+			BlockId: ptr.To(blockID.String()), CreatedAt: timestamppb.New(created), ClearedAt: timestamppb.New(cleared),
+		}},
+		NextPageToken: findingID.String(),
+	}
+	if diff := cmp.Diff(want, res.Msg, protocmp.Transform()); diff != "" {
+		t.Errorf("ListFindings() mismatch (-want +got):\n%s", diff)
+	}
+}
+
+func TestClearFinding(t *testing.T) {
+	tests := []struct {
+		name     string
+		row      gen.Finding
+		err      error
+		clears   bool
+		wantCode connect.Code
+	}{
+		{name: "reports nothing withheld", row: gen.Finding{ID: findingID}, clears: true},
+		{name: "reports a block", row: gen.Finding{ID: findingID, BlockID: &blockID}, wantCode: connect.CodeFailedPrecondition},
+		{name: "not found", err: db.ErrNotFound, wantCode: connect.CodeNotFound},
+		{name: "failure", err: errors.New("boom"), wantCode: connect.CodeInternal},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFixture(t)
+			f.reader.EXPECT().GetFinding(gomock.Any(), findingID).Return(tc.row, tc.err)
+			if tc.clears {
+				f.reader.EXPECT().ClearFinding(gomock.Any(), findingID).Return(nil)
+			}
+			_, err := f.client.ClearFinding(context.Background(), connect.NewRequest(&adminv1.ClearFindingRequest{FindingId: findingID.String()}))
+			if servicetest.CodeOf(err) != tc.wantCode {
+				t.Errorf("ClearFinding() code = %v (err %v), want %v", connect.CodeOf(err), err, tc.wantCode)
+			}
+		})
+	}
+}
+
+func TestListDatasources(t *testing.T) {
+	f := newFixture(t)
+	f.reader.EXPECT().ListDatasourceSettings(gomock.Any()).Return([]gen.ListDatasourceSettingsRow{
+		{Name: "openfigi", Enabled: true, Precedence: 10, Endpoint: ptr.To("http://stub")},
+		{Name: "other", Precedence: 20},
+	}, nil)
+	res, err := f.client.ListDatasources(context.Background(), connect.NewRequest(&adminv1.ListDatasourcesRequest{}))
+	if err != nil {
+		t.Fatalf("ListDatasources() error = %v", err)
+	}
+	want := &adminv1.ListDatasourcesResponse{Datasources: []*adminv1.Datasource{
+		{Name: "openfigi", Enabled: true, Precedence: 10, Endpoint: ptr.To("http://stub")},
+		{Name: "other", Precedence: 20},
+	}}
+	if diff := cmp.Diff(want, res.Msg, protocmp.Transform()); diff != "" {
+		t.Errorf("ListDatasources() mismatch (-want +got):\n%s", diff)
+	}
+}
+
+func TestListBlocks(t *testing.T) {
+	isin := types.IdentifierTypeIsin
+	f := newFixture(t)
+	f.reader.EXPECT().ListBlocks(gomock.Any(), gen.ListBlocksParams{Before: &findingID, Lim: defaultPageSize + 1}).Return([]gen.ListBlocksRow{
+		{DatasourceBlock: gen.DatasourceBlock{
+			ID: blockID, Datasource: "openfigi", Kind: gen.FetchKindIdentity, Scope: gen.BlockScopeIdentifier,
+			SentType: &isin, SentValue: ptr.To("GB00B03MLX29"), Reason: "unknown identifier", CreatedAt: created,
+		}, FetchID: childID},
+		{DatasourceBlock: gen.DatasourceBlock{
+			ID: keyID, Datasource: "openfigi", Kind: gen.FetchKindIdentity, Scope: gen.BlockScopeDatasource,
+			Reason: "quota spent", CreatedAt: created,
+		}, FetchID: childID},
+	}, nil)
+	res, err := f.client.ListBlocks(context.Background(), connect.NewRequest(&adminv1.ListBlocksRequest{PageToken: findingID.String()}))
+	if err != nil {
+		t.Fatalf("ListBlocks() error = %v", err)
+	}
+	want := &adminv1.ListBlocksResponse{Blocks: []*adminv1.Block{
+		{
+			Id: blockID.String(), Datasource: "openfigi", Kind: adminv1.FetchKind_FETCH_KIND_IDENTITY, Scope: adminv1.BlockScope_BLOCK_SCOPE_IDENTIFIER,
+			Sent:   &typev1.Identifier{Type: typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, Value: "GB00B03MLX29"},
+			Reason: "unknown identifier", RunId: childID.String(), CreatedAt: timestamppb.New(created),
+		},
+		{
+			Id: keyID.String(), Datasource: "openfigi", Kind: adminv1.FetchKind_FETCH_KIND_IDENTITY, Scope: adminv1.BlockScope_BLOCK_SCOPE_DATASOURCE,
+			Reason: "quota spent", RunId: childID.String(), CreatedAt: timestamppb.New(created),
+		},
+	}}
+	if diff := cmp.Diff(want, res.Msg, protocmp.Transform()); diff != "" {
+		t.Errorf("ListBlocks() mismatch (-want +got):\n%s", diff)
+	}
+}
+
+func TestClearBlock(t *testing.T) {
+	tests := []struct {
+		name     string
+		err      error
+		clears   bool
+		wantCode connect.Code
+	}{
+		{name: "found", clears: true},
+		{name: "not found", err: db.ErrNotFound, wantCode: connect.CodeNotFound},
+		{name: "failure", err: errors.New("boom"), wantCode: connect.CodeInternal},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFixture(t)
+			f.reader.EXPECT().GetDatasourceBlock(gomock.Any(), blockID).Return(gen.DatasourceBlock{ID: blockID}, tc.err)
+			if tc.clears {
+				f.reader.EXPECT().ClearDatasourceBlock(gomock.Any(), blockID).Return(nil)
+			}
+			_, err := f.client.ClearBlock(context.Background(), connect.NewRequest(&adminv1.ClearBlockRequest{BlockId: blockID.String()}))
+			if servicetest.CodeOf(err) != tc.wantCode {
+				t.Errorf("ClearBlock() code = %v (err %v), want %v", connect.CodeOf(err), err, tc.wantCode)
+			}
+		})
+	}
+}
