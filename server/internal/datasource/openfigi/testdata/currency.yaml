@@ -1,0 +1,79 @@
+---
+version: 2
+interactions:
+    - id: 0
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 64
+        host: api.openfigi.com
+        body: '[{"idType":"ID_ISIN","idValue":"GB00BH4HKS39","currency":"GBp"}]'
+        headers:
+            Content-Type:
+                - application/json
+        url: https://api.openfigi.com/v3/mapping
+        method: POST
+      response:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        transfer_encoding:
+            - chunked
+        content_length: 8071
+        uncompressed: true
+        body: '[{"data":[{"figi":"BBG000C6K6G9","name":"VODAFONE GROUP PLC","ticker":"VOD","exchCode":"LN","compositeFIGI":"BBG000C6K5W3","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6PJ31","securityType2":"Common Stock","securityDescription":"VOD"},{"figi":"BBG000LZMCM3","name":"VODAFONE GROUP PLC","ticker":"VODL","exchCode":"IX","compositeFIGI":"BBG000LZMBW4","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6PJ31","securityType2":"Common Stock","securityDescription":"VODL"},{"figi":"BBG000N8CXQ2","name":"VODAFONE GROUP PLC","ticker":"VOD","exchCode":"EO","compositeFIGI":"BBG000N8CXQ2","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6PJ31","securityType2":"Common Stock","securityDescription":"VOD"},{"figi":"BBG000N8D001","name":"VODAFONE GROUP PLC","ticker":"VOD","exchCode":"XH","compositeFIGI":"BBG000N8CXQ2","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6PJ31","securityType2":"Common Stock","securityDescription":"VOD"},{"figi":"BBG000N8D0Q3","name":"VODAFONE GROUP PLC","ticker":"VOD","exchCode":"XF","compositeFIGI":"BBG000N8CXQ2","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6PJ31","securityType2":"Common Stock","securityDescription":"VOD"},{"figi":"BBG000N8D298","name":"VODAFONE GROUP PLC","ticker":"VOD","exchCode":"XE","compositeFIGI":"BBG000N8CXQ2","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6PJ31","securityType2":"Common Stock","securityDescription":"VOD"},{"figi":"BBG000N8D3D1","name":"VODAFONE GROUP PLC","ticker":"VOD","exchCode":"XJ","compositeFIGI":"BBG000N8CXQ2","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6PJ31","securityType2":"Common Stock","securityDescription":"VOD"},{"figi":"BBG000N8D3S5","name":"VODAFONE GROUP PLC","ticker":"VOD","exchCode":"XL","compositeFIGI":"BBG000N8CXQ2","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6PJ31","securityType2":"Common Stock","securityDescription":"VOD"},{"figi":"BBG000N8D485","name":"VODAFONE GROUP PLC","ticker":"VOD","exchCode":"XG","compositeFIGI":"BBG000N8CXQ2","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6PJ31","securityType2":"Common Stock","securityDescription":"VOD"},{"figi":"BBG000N8D4V9","name":"VODAFONE GROUP PLC","ticker":"VOD","exchCode":"XO","compositeFIGI":"BBG000N8CXQ2","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6PJ31","securityType2":"Common Stock","securityDescription":"VOD"},{"figi":"BBG000N8F9L7","name":"VODAFONE GROUP PLC","ticker":"VOD","exchCode":"XA","compositeFIGI":"BBG000N8CXQ2","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6PJ31","securityType2":"Common Stock","securityDescription":"VOD"},{"figi":"BBG000N8GCN7","name":"VODAFONE GROUP PLC","ticker":"VOD","exchCode":"E1","compositeFIGI":"BBG000N8CXQ2","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6PJ31","securityType2":"Common Stock","securityDescription":"VOD"},{"figi":"BBG000N8GF32","name":"VODAFONE GROUP PLC","ticker":"VOD","exchCode":"XW","compositeFIGI":"BBG000N8CXQ2","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6PJ31","securityType2":"Common Stock","securityDescription":"VOD"},{"figi":"BBG000N8GGF7","name":"VODAFONE GROUP PLC","ticker":"VOD","exchCode":"EU","compositeFIGI":"BBG000N8GFX9","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6PJ31","securityType2":"Common Stock","securityDescription":"VOD"},{"figi":"BBG000NT4Z80","name":"VODAFONE GROUP PLC","ticker":"VODL","exchCode":"EB","compositeFIGI":"BBG000NT4YH3","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6PJ31","securityType2":"Common Stock","securityDescription":"VODL"},{"figi":"BBG000PCB0N7","name":"VODAFONE GROUP PLC","ticker":"VODL","exchCode":"BQ","compositeFIGI":"BBG000PCB0J2","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6PJ31","securityType2":"Common Stock","securityDescription":"VODL"},{"figi":"BBG000PJ89T1","name":"VODAFONE GROUP PLC","ticker":"VODL","exchCode":"TQ","compositeFIGI":"BBG000PJ88L1","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6PJ31","securityType2":"Common Stock","securityDescription":"VODL"},{"figi":"BBG001MBVY72","name":"VODAFONE GROUP PLC","ticker":"VODL","exchCode":"S1","compositeFIGI":"BBG001MB4TX4","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6PJ31","securityType2":"Common Stock","securityDescription":"VODL"},{"figi":"BBG002G50K10","name":"VODAFONE GROUP PLC","ticker":"VOD","exchCode":"XU","compositeFIGI":"BBG000N8CXQ2","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6PJ31","securityType2":"Common Stock","securityDescription":"VOD"},{"figi":"BBG002JV37S7","name":"VODAFONE GROUP PLC","ticker":"VODL","exchCode":"PO","compositeFIGI":"BBG000LFFC27","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6PJ31","securityType2":"Common Stock","securityDescription":"VODL"},{"figi":"BBG00591FNT8","name":"VODAFONE GROUP PLC","ticker":"VOD","exchCode":"XV","compositeFIGI":"BBG000N8CXQ2","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6PJ31","securityType2":"Common Stock","securityDescription":"VOD"},{"figi":"BBG005HVB375","name":"VODAFONE GROUP PLC","ticker":"VODL","exchCode":"QX","compositeFIGI":"BBG005HVB366","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6PJ31","securityType2":"Common Stock","securityDescription":"VODL"},{"figi":"BBG006T7BWX0","name":"VODAFONE GROUP PLC","ticker":"VODL","exchCode":"B3","compositeFIGI":"BBG006T7BWW1","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6PJ31","securityType2":"Common Stock","securityDescription":"VODL"},{"figi":"BBG006TBFKB7","name":"VODAFONE GROUP PLC","ticker":"VODL","exchCode":"L3","compositeFIGI":"BBG006TBFK90","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6PJ31","securityType2":"Common Stock","securityDescription":"VODL"},{"figi":"BBG00JN7C9S4","name":"VODAFONE GROUP PLC","ticker":"VOD","exchCode":"XX","compositeFIGI":"BBG000N8CXQ2","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6PJ31","securityType2":"Common Stock","securityDescription":"VOD"},{"figi":"BBG00N0VP903","name":"VODAFONE GROUP PLC","ticker":"VODGBP","exchCode":"T2","compositeFIGI":"BBG00N0VP8Z7","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6PJ31","securityType2":"Common Stock","securityDescription":"VODGBP"},{"figi":"BBG00N6W8W12","name":"VODAFONE GROUP PLC","ticker":"VOD","exchCode":"EZ","compositeFIGI":"BBG00N6W8W03","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6PJ31","securityType2":"Common Stock","securityDescription":"VOD"},{"figi":"BBG00N6W94F8","name":"VODAFONE GROUP PLC","ticker":"VOD","exchCode":"EP","compositeFIGI":"BBG00N6W94D0","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6PJ31","securityType2":"Common Stock","securityDescription":"VOD"},{"figi":"BBG00NRHB401","name":"VODAFONE GROUP PLC","ticker":"VODGBP","exchCode":"WT","compositeFIGI":"BBG00NRHB3Z5","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6PJ31","securityType2":"Common Stock","securityDescription":"VODGBP"},{"figi":"BBG00Q5MPC22","name":"VODAFONE GROUP PLC","ticker":"VOD","exchCode":"X2","compositeFIGI":"BBG000N8CXQ2","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6PJ31","securityType2":"Common Stock","securityDescription":"VOD"},{"figi":"BBG00QFY6095","name":"VODAFONE GROUP PLC","ticker":"VOD","exchCode":"X1","compositeFIGI":"BBG000N8CXQ2","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6PJ31","securityType2":"Common Stock","securityDescription":"VOD"}]}]'
+        headers:
+            Cache-Control:
+                - private, no-cache, no-store, must-revalidate
+            Content-Security-Policy:
+                - 'default-src ''self'';base-uri ''self'';font-src ''self'' https: data:;form-action ''self'';frame-ancestors ''self'';img-src ''self'' data:;object-src ''none'';script-src ''self'';script-src-attr ''none'';style-src ''self'' https: ''unsafe-inline'';upgrade-insecure-requests'
+            Content-Type:
+                - application/json; charset=utf-8
+            Cross-Origin-Opener-Policy:
+                - same-origin
+            Cross-Origin-Resource-Policy:
+                - same-origin
+            Date:
+                - Thu, 24 Sep 2026 20:46:29 GMT
+            Expires:
+                - "0"
+            Origin-Agent-Cluster:
+                - ?1
+            Pragma:
+                - no-cache
+            Ratelimit-Limit:
+                - "25"
+            Ratelimit-Policy:
+                - 25;w=60
+            Ratelimit-Remaining:
+                - "24"
+            Ratelimit-Reset:
+                - "60"
+            Referrer-Policy:
+                - no-referrer
+            Server:
+                - istio-envoy
+            Strict-Transport-Security:
+                - max-age=31536000; includeSubDomains
+            Vary:
+                - Origin, Accept-Encoding
+            X-Content-Type-Options:
+                - nosniff
+            X-Dns-Prefetch-Control:
+                - 'off'
+            X-Download-Options:
+                - noopen
+            X-Envoy-Upstream-Service-Time:
+                - "16"
+            X-Frame-Options:
+                - SAMEORIGIN
+            X-Permitted-Cross-Domain-Policies:
+                - none
+            X-Request-Id:
+                - e0544356-9e87-47fb-8346-e26934e9b62b
+            X-Xss-Protection:
+                - "0"
+        status: 200 OK
+        code: 200
+        duration: 959.197576ms

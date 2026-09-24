@@ -1,6 +1,7 @@
 ---
 title: Datasource stub for the e2e suite
 type: task
+dependencies: [012]
 ---
 
 ## Scope

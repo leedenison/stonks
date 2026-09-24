@@ -12,26 +12,34 @@ import (
 // BRK-B and "BRK B".
 const classSeps = ".-/ "
 
-// withClassSep writes ticker with every share class separator as sep.
-func withClassSep(ticker string, sep rune) string {
-	return strings.Map(func(r rune) rune {
+// withClassSep writes ticker with its share class separator as sep.
+func withClassSep(ticker string, sep rune) (string, bool) {
+	n := 0
+	out := strings.Map(func(r rune) rune {
 		if strings.ContainsRune(classSeps, r) {
+			n++
 			return sep
 		}
 		return r
 	}, ticker)
+	if n > 1 {
+		return ticker, false
+	}
+	return out, true
 }
 
 // answer reads the listings OpenFIGI mapped sent to. Where sent is a
 // MIC_TICKER naming a venue, OpenFIGI filtered on the ticker alone and the
-// listings at other venues are dropped.
-func answer(sent types.Identifier, data []result, mics mic.Table) datasource.IdentityResult {
+// listings at other venues are dropped. Where the call filtered on a currency,
+// every listing is in it.
+func answer(sent types.Identifier, currency string, data []result, mics mic.Table) datasource.IdentityResult {
 	out := datasource.IdentityResult{Filtered: []types.Identifier{sent}}
 	for _, r := range data {
 		c := candidate(r, mics)
 		if sent.Type == types.IdentifierTypeMicTicker && sent.Domain != "" && !atVenue(c, sent.Domain) {
 			continue
 		}
+		c.Currency = currency
 		out.Candidates = append(out.Candidates, c)
 	}
 	return out
@@ -59,8 +67,12 @@ func candidate(r result, mics mic.Table) datasource.Candidate {
 		return c
 	}
 	c.Identifiers = append(c.Identifiers, types.Identifier{Type: types.IdentifierTypeOpenfigiTicker, Domain: r.ExchCode, Value: r.Ticker})
-	if m, ok := venue(r.ExchCode, mics); ok {
-		c.Identifiers = append(c.Identifiers, types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: m, Value: withClassSep(r.Ticker, '.')})
+	m, ok := venue(r.ExchCode, mics)
+	if !ok {
+		return c
+	}
+	if t, ok := withClassSep(r.Ticker, '.'); ok {
+		c.Identifiers = append(c.Identifiers, types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: m, Value: t})
 	}
 	return c
 }

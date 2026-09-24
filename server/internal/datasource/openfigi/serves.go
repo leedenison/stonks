@@ -25,9 +25,7 @@ var idTypes = []struct {
 	{types.IdentifierTypeMicTicker, "TICKER"},
 }
 
-// Serves returns the strongest identifier of key OpenFIGI accepts. A
-// MIC_TICKER is sent under the operating MIC of its venue, and one naming a
-// venue that is not a MIC is not served.
+// Serves returns the strongest identifier of key OpenFIGI accepts.
 func (c *Client) Serves(key datasource.StatedKey) (types.Identifier, error) {
 	var unknown error
 	for _, t := range idTypes {
@@ -58,21 +56,32 @@ type job struct {
 	IDType   string `json:"idType"`
 	IDValue  string `json:"idValue"`
 	ExchCode string `json:"exchCode,omitempty"`
+	Currency string `json:"currency,omitempty"`
 }
 
-// jobOf returns the mapping job for an identifier Serves returned.
-func jobOf(id types.Identifier) job {
+// bloomberg spells the minor unit currencies as OpenFIGI does, the major code
+// with its last letter lowercased.
+var bloomberg = map[string]string{"GBX": "GBp"}
+
+// jobOf returns the mapping job for an identifier Serves returned. A stated
+// currency filters the job strictly.
+func jobOf(id types.Identifier, currency string) job {
 	for _, t := range idTypes {
 		if t.typ != id.Type {
 			continue
 		}
+		j := job{IDType: t.idType, IDValue: id.Value, Currency: currency}
+		if b, ok := bloomberg[currency]; ok {
+			j.Currency = b
+		}
 		switch id.Type {
 		case types.IdentifierTypeOpenfigiTicker:
-			return job{IDType: t.idType, IDValue: id.Value, ExchCode: id.Domain}
+			j.IDValue, _ = withClassSep(id.Value, '/')
+			j.ExchCode = id.Domain
 		case types.IdentifierTypeMicTicker:
-			return job{IDType: t.idType, IDValue: withClassSep(id.Value, '/')}
+			j.IDValue, _ = withClassSep(id.Value, '/')
 		}
-		return job{IDType: t.idType, IDValue: id.Value}
+		return j
 	}
 	return job{}
 }

@@ -33,6 +33,12 @@ var (
 	appleNYSE       = types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XNYS", Value: "AAPL"}
 )
 
+// fetch asks c about sent for a key stating currency, as the framework would.
+func fetch(c *Client, sent types.Identifier, currency string) ([]datasource.FetchResponse[datasource.IdentityResult], error) {
+	req := datasource.FetchRequest[datasource.StatedKey]{Value: datasource.StatedKey{Currency: currency}, Sent: sent}
+	return c.Fetch(context.Background(), []datasource.FetchRequest[datasource.StatedKey]{req})
+}
+
 // names reports whether some candidate returns id.
 func names(r datasource.IdentityResult, id types.Identifier) bool {
 	return slices.ContainsFunc(r.Candidates, func(c datasource.Candidate) bool {
@@ -45,6 +51,7 @@ func TestFetchListings(t *testing.T) {
 	tests := []struct {
 		cassette string
 		sent     types.Identifier
+		currency string
 		// every is named by every candidate; some by at least one.
 		every []types.Identifier
 		some  []types.Identifier
@@ -85,23 +92,30 @@ func TestFetchListings(t *testing.T) {
 			class: gen.AssetClassStock,
 		},
 		{
+			cassette: "currency",
+			sent:     types.Identifier{Type: types.IdentifierTypeIsin, Value: "GB00BH4HKS39"},
+			currency: "GBX",
+			some:     []types.Identifier{{Type: types.IdentifierTypeMicTicker, Domain: "XLON", Value: "VOD"}},
+			n:        31,
+		},
+		{
 			cassette: "not_found",
 			sent:     types.Identifier{Type: types.IdentifierTypeIsin, Value: "US0000000002"},
 		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.cassette, func(t *testing.T) {
-			got, err := replay(t, tc.cassette, "").Fetch(context.Background(), []types.Identifier{tc.sent})
+			got, err := fetch(replay(t, tc.cassette, ""), tc.sent, tc.currency)
 			if err != nil {
 				t.Fatalf("Fetch(%v) error = %v", tc.sent, err)
 			}
 			if len(got) != 1 {
 				t.Fatalf("Fetch(%v) answered %d results, want 1", tc.sent, len(got))
 			}
-			r := got[0]
-			if r.Err != nil {
-				t.Fatalf("Fetch(%v) job error = %v", tc.sent, r.Err)
+			if got[0].Err != nil {
+				t.Fatalf("Fetch(%v) job error = %v", tc.sent, got[0].Err)
 			}
+			r := got[0].Value
 			if diff := cmp.Diff([]types.Identifier{tc.sent}, r.Filtered); diff != "" {
 				t.Errorf("Fetch(%v) filtered (-want +got):\n%s", tc.sent, diff)
 			}
@@ -109,6 +123,9 @@ func TestFetchListings(t *testing.T) {
 				t.Errorf("Fetch(%v) answered %d candidates, want %d", tc.sent, len(r.Candidates), tc.n)
 			}
 			for _, c := range r.Candidates {
+				if c.Currency != tc.currency {
+					t.Errorf("Fetch(%v) candidate %v currency = %q, want %q", tc.sent, c.Identifiers, c.Currency, tc.currency)
+				}
 				if tc.class != "" && c.Class != tc.class {
 					t.Errorf("Fetch(%v) candidate %v class = %s, want %s", tc.sent, c.Identifiers, c.Class, tc.class)
 				}
@@ -151,7 +168,7 @@ func TestFetchRefused(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.cassette, func(t *testing.T) {
 			c := replay(t, tc.cassette, tc.key)
-			got, err := c.Fetch(context.Background(), []types.Identifier{tc.sent})
+			got, err := fetch(c, tc.sent, "")
 			if err == nil {
 				if len(got) != 1 || got[0].Err == nil {
 					t.Fatalf("Fetch(%v) = %+v, want a refusal", tc.sent, got)
@@ -198,7 +215,7 @@ func TestClassifyStatus(t *testing.T) {
 			t.Cleanup(srv.Close)
 			c := New(datasource.Config{Endpoint: srv.URL}, mics)
 
-			_, err := c.Fetch(context.Background(), []types.Identifier{{Type: types.IdentifierTypeIsin, Value: "US0378331005"}})
+			_, err := fetch(c, types.Identifier{Type: types.IdentifierTypeIsin, Value: "US0378331005"}, "")
 			if err == nil {
 				t.Fatalf("Fetch() against status %d succeeded, want an error", tc.status)
 			}

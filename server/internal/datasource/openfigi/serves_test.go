@@ -60,18 +60,23 @@ func TestServes(t *testing.T) {
 
 func TestJobOf(t *testing.T) {
 	tests := []struct {
-		id   types.Identifier
-		want job
+		id       types.Identifier
+		currency string
+		want     job
 	}{
-		{types.Identifier{Type: types.IdentifierTypeIsin, Value: "US0378331005"}, job{IDType: "ID_ISIN", IDValue: "US0378331005"}},
-		{types.Identifier{Type: types.IdentifierTypeOpenfigiComposite, Value: "BBG000B9XRY4"}, job{IDType: "COMPOSITE_ID_BB_GLOBAL", IDValue: "BBG000B9XRY4"}},
-		{types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XNYS", Value: "BRK.B"}, job{IDType: "TICKER", IDValue: "BRK/B"}},
-		{types.Identifier{Type: types.IdentifierTypeMicTicker, Value: "BRK B"}, job{IDType: "TICKER", IDValue: "BRK/B"}},
-		{types.Identifier{Type: types.IdentifierTypeOpenfigiTicker, Domain: "UN", Value: "BRK/B"}, job{IDType: "TICKER", IDValue: "BRK/B", ExchCode: "UN"}},
+		{id: types.Identifier{Type: types.IdentifierTypeIsin, Value: "US0378331005"}, want: job{IDType: "ID_ISIN", IDValue: "US0378331005"}},
+		{id: types.Identifier{Type: types.IdentifierTypeOpenfigiComposite, Value: "BBG000B9XRY4"}, want: job{IDType: "COMPOSITE_ID_BB_GLOBAL", IDValue: "BBG000B9XRY4"}},
+		{id: types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XNYS", Value: "BRK.B"}, want: job{IDType: "TICKER", IDValue: "BRK/B"}},
+		{id: types.Identifier{Type: types.IdentifierTypeMicTicker, Value: "BRK B"}, want: job{IDType: "TICKER", IDValue: "BRK/B"}},
+		{id: types.Identifier{Type: types.IdentifierTypeMicTicker, Value: "BF-B"}, want: job{IDType: "TICKER", IDValue: "BF/B"}},
+		{id: types.Identifier{Type: types.IdentifierTypeOpenfigiTicker, Domain: "UN", Value: "BRK.B"}, want: job{IDType: "TICKER", IDValue: "BRK/B", ExchCode: "UN"}},
+		{id: types.Identifier{Type: types.IdentifierTypeOpenfigiTicker, Domain: "US", Value: "T 2 1/2 05/15/24"}, want: job{IDType: "TICKER", IDValue: "T 2 1/2 05/15/24", ExchCode: "US"}},
+		{id: types.Identifier{Type: types.IdentifierTypeIsin, Value: "US0378331005"}, currency: "USD", want: job{IDType: "ID_ISIN", IDValue: "US0378331005", Currency: "USD"}},
+		{id: types.Identifier{Type: types.IdentifierTypeIsin, Value: "GB00BH4HKS39"}, currency: "GBX", want: job{IDType: "ID_ISIN", IDValue: "GB00BH4HKS39", Currency: "GBp"}},
 	}
 	for _, tc := range tests {
-		if got := jobOf(tc.id); got != tc.want {
-			t.Errorf("jobOf(%v) = %+v, want %+v", tc.id, got, tc.want)
+		if got := jobOf(tc.id, tc.currency); got != tc.want {
+			t.Errorf("jobOf(%v, %q) = %+v, want %+v", tc.id, tc.currency, got, tc.want)
 		}
 	}
 }

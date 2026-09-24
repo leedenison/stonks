@@ -1,6 +1,7 @@
 ---
 title: Resolution against datasources
 type: task
+dependencies: [012]
 ---
 
 ## Scope
@@ -13,6 +14,10 @@ In:
 
 - Admitting ISIN, CUSIP and MIC_TICKER stated keys to resolution. A ticker without a
   venue may be sent to a datasource but never associates.
+- OpenFIGI answering a MIC_TICKER whose venue filter leaves no listing with every listing
+  of the ticker, and the venue dropped from what the call filtered on. A venue that no
+  OpenFIGI exchange code maps to alone, or a statement naming the wrong venue, then
+  leaves the choice to resolution rather than the key unrecognised.
 - The order: the database, then the keys already resolved in the run, then every enabled
   datasource concurrently, each as a fetch with the resolution as parent. The database
   answers for a datasource only where that datasource has covered the instrument, so a

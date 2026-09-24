@@ -5,7 +5,10 @@
 // share class and composite FIGIs, the ticker under OpenFIGI's exchange code,
 // and the ticker under the operating MIC where the exchange code names exactly
 // one venue.  A composite exchange code names a market rather than a venue, so
-// its listings carry no MIC_TICKER.  OpenFIGI states no currency.
+// its listings carry no MIC_TICKER.
+//
+// OpenFIGI answers no currency.  Where the key states one, the call filters on
+// it strictly, so every candidate is in the stated currency.
 //
 // A ticker is sent in OpenFIGI's form, with a share class separated by a
 // slash, and a MIC_TICKER is answered with the class separated by a dot.
@@ -26,11 +29,12 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/datasource"
 	"github.com/leedenison/stonks/server/internal/db/gen"
-	"github.com/leedenison/stonks/server/internal/db/types"
 	"github.com/leedenison/stonks/server/internal/mic"
 )
 
 const endpoint = "https://api.openfigi.com"
+
+var _ datasource.Identity = (*Client)(nil)
 
 // Client is the OpenFIGI integration.
 type Client struct {
@@ -48,8 +52,7 @@ func WithHTTPClient(h *http.Client) Option {
 	return func(c *Client) { c.http = h }
 }
 
-// New returns a Client for cfg. The credential is optional, and without one
-// OpenFIGI serves fewer, smaller requests. An empty endpoint is OpenFIGI's own.
+// New returns a Client for cfg. The credential is optional.
 func New(cfg datasource.Config, mics mic.Table, opts ...Option) *Client {
 	c := &Client{mics: mics, http: &http.Client{Timeout: 30 * time.Second}, endpoint: endpoint, key: cfg.Credential}
 	if cfg.Endpoint != "" {
@@ -68,7 +71,7 @@ func Factory(mics mic.Table) datasource.Factory {
 	}
 }
 
-// Limit is OpenFIGI's published rate for the credential held.
+// Limit is OpenFIGI's published rate.
 func (c *Client) Limit() (rate.Limit, int) {
 	if c.key == "" {
 		return rate.Every(time.Minute / 25), 1
@@ -76,8 +79,7 @@ func (c *Client) Limit() (rate.Limit, int) {
 	return rate.Every(6 * time.Second / 25), 1
 }
 
-// Batch is OpenFIGI's published limit on jobs per request for the credential
-// held.
+// Batch is OpenFIGI's published limit on jobs per request.
 func (c *Client) Batch() int {
 	if c.key == "" {
 		return 10
@@ -85,7 +87,7 @@ func (c *Client) Batch() int {
 	return 100
 }
 
-// statusError is a request OpenFIGI refused as a whole.
+// statusError returned on a request error.
 type statusError struct {
 	code       int
 	retryAfter time.Duration
@@ -130,11 +132,11 @@ type reply struct {
 	Error   string   `json:"error"`
 }
 
-// Fetch sends one mapping request with a job per identifier.
-func (c *Client) Fetch(ctx context.Context, sent []types.Identifier) ([]datasource.IdentityResult, error) {
-	jobs := make([]job, len(sent))
-	for i, id := range sent {
-		jobs[i] = jobOf(id)
+// Fetch sends one mapping request with a job per request.
+func (c *Client) Fetch(ctx context.Context, reqs []datasource.FetchRequest[datasource.StatedKey]) ([]datasource.FetchResponse[datasource.IdentityResult], error) {
+	jobs := make([]job, len(reqs))
+	for i, r := range reqs {
+		jobs[i] = jobOf(r.Sent, r.Value.Currency)
 	}
 	body, err := json.Marshal(jobs)
 	if err != nil {
@@ -144,13 +146,13 @@ func (c *Client) Fetch(ctx context.Context, sent []types.Identifier) ([]datasour
 	if err != nil {
 		return nil, err
 	}
-	out := make([]datasource.IdentityResult, min(len(replies), len(sent)))
+	out := make([]datasource.FetchResponse[datasource.IdentityResult], min(len(replies), len(reqs)))
 	for i := range out {
 		if replies[i].Error != "" {
-			out[i] = datasource.IdentityResult{Err: jobError(replies[i].Error)}
+			out[i].Err = jobError(replies[i].Error)
 			continue
 		}
-		out[i] = answer(sent[i], replies[i].Data, c.mics)
+		out[i].Value = answer(reqs[i].Sent, reqs[i].Value.Currency, replies[i].Data, c.mics)
 	}
 	return out, nil
 }
