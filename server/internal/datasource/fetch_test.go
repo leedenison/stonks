@@ -79,9 +79,9 @@ func keyOf(f *fake, value string) StatedKey {
 // unservedKey returns a key the fake serves nothing for.
 func unservedKey() StatedKey { return StatedKey{ID: db.NewID()} }
 
-func (h *harness) run(t *testing.T, keys ...StatedKey) []KeyResult {
+func (h *harness) run(t *testing.T, keys ...StatedKey) []Result[StatedKey, IdentityResult] {
 	t.Helper()
-	_, results, err := h.fetcher.Fetch(context.Background(), h.parent, h.entry, gen.FetchKindIdentity, keys)
+	_, results, err := Fetch(context.Background(), h.fetcher, h.parent, h.entry, IdentityKind, keys)
 	if err != nil {
 		t.Fatalf("Fetch() error = %v", err)
 	}
@@ -136,8 +136,8 @@ func TestFetchServed(t *testing.T) {
 		if r.Outcome != gen.FetchOutcomeServed {
 			t.Errorf("result %d outcome = %s, want served", i, r.Outcome)
 		}
-		if len(r.Candidates) != 1 {
-			t.Errorf("result %d candidates = %d, want 1", i, len(r.Candidates))
+		if len(r.Response.Candidates) != 1 {
+			t.Errorf("result %d candidates = %d, want 1", i, len(r.Response.Candidates))
 		}
 	}
 	if row := h.key(t, one.ID); row.Attempts != 1 || row.Reason != nil {
@@ -348,7 +348,7 @@ func TestFetchChunks(t *testing.T) {
 			t.Errorf("result %d outcome = %s, want served", i, r.Outcome)
 			continue
 		}
-		if got := r.Candidates[0].Identifiers[0].Value; got != values[i] {
+		if got := r.Response.Candidates[0].Identifiers[0].Value; got != values[i] {
 			t.Errorf("result %d answered %s, want %s", i, got, values[i])
 		}
 	}
@@ -395,5 +395,25 @@ func TestFetchChunkBlocksDatasource(t *testing.T) {
 	}
 	if len(h.blocks) != 1 || h.blocks[0].Scope != gen.BlockScopeDatasource {
 		t.Errorf("blocks = %+v, want one on the datasource", h.blocks)
+	}
+}
+
+// TestFetchKindNotServed checks that a datasource without a server for the
+// kind is not called, and that its keys say why.
+func TestFetchKindNotServed(t *testing.T) {
+	f := &fake{}
+	h := newHarness(t, f, nil)
+	h.entry.Identity = nil
+	k := keyOf(f, "GB00B03MLX29")
+
+	results := h.run(t, k)
+	if results[0].Outcome != gen.FetchOutcomeNotServed {
+		t.Errorf("outcome = %s, want not_served", results[0].Outcome)
+	}
+	if f.calls != 0 {
+		t.Errorf("calls = %d, want 0", f.calls)
+	}
+	if row := h.key(t, k.ID); row.SentType != nil || row.Reason == nil {
+		t.Errorf("row = %+v, want no identifier sent and a reason", row)
 	}
 }
