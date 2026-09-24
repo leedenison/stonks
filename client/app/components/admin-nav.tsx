@@ -17,12 +17,13 @@ const entries: (Entry | Section)[] = [
   },
   {
     section: "Findings",
-    children: [{ href: "/admin/findings", label: "Findings", disabled: true }],
+    children: [{ href: "/admin/findings", label: "Findings" }],
   },
   {
     section: "Data",
     children: [
-      { href: "/admin/datasources", label: "Datasources", disabled: true },
+      { href: "/admin/datasources", label: "Datasources" },
+      { href: "/admin/blocks", label: "Blocks" },
     ],
   },
 ];
