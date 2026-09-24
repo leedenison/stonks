@@ -134,9 +134,131 @@ message GetRunResponse {
   repeated FetchItem fetch_items = 6;
 }
 
+message ListFindingsRequest {
+  // Includes the findings an administrator has cleared.
+  bool include_cleared = 1;
+  // Only the findings of this run; unset for every run.
+  optional string run_id = 2 [(buf.validate.field).string.uuid = true];
+  // At most this many findings; 0 means 50.
+  int32 page_size = 3 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 200
+  }];
+  // The next_page_token of the previous page; empty for the first.
+  string page_token = 4 [
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
+    (buf.validate.field).string.uuid = true
+  ];
+}
+
+// Findings newest first.
+message ListFindingsResponse {
+  repeated Finding findings = 1;
+  // Continues the listing; empty on the last page.
+  string next_page_token = 2;
+}
+
+message ClearFindingRequest {
+  string finding_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message ClearFindingResponse {}
+
+// One external provider this instance may call.
+message Datasource {
+  string name = 1;
+  bool enabled = 2;
+  // Orders answers from several datasources, lowest first, with the name
+  // breaking a tie.
+  int32 precedence = 3;
+  // The address the integration calls; unset for the provider's default.
+  optional string endpoint = 4;
+}
+
+message ListDatasourcesRequest {}
+
+// Datasources in precedence order.
+message ListDatasourcesResponse {
+  repeated Datasource datasources = 1;
+}
+
+// The kind of data a fetch requests.
+enum FetchKind {
+  FETCH_KIND_UNSPECIFIED = 0;
+  FETCH_KIND_IDENTITY = 1;
+}
+
+// What a block suppresses.
+enum BlockScope {
+  BLOCK_SCOPE_UNSPECIFIED = 0;
+  // Calls sent under one identifier.
+  BLOCK_SCOPE_IDENTIFIER = 1;
+  // Every call to the datasource for the kind of data.
+  BLOCK_SCOPE_DATASOURCE = 2;
+}
+
+// A call that failed unrecoverably, suppressing further calls until an
+// administrator clears it.
+message Block {
+  string id = 1;
+  string datasource = 2;
+  FetchKind kind = 3;
+  BlockScope scope = 4;
+  // The identifier blocked; set only when the scope is IDENTIFIER.
+  stonks.type.v1.Identifier sent = 5;
+  string reason = 6;
+  // The fetch run whose call created the block.
+  string run_id = 7;
+  google.protobuf.Timestamp created_at = 8;
+  // When an administrator cleared the block; unset while it holds.
+  google.protobuf.Timestamp cleared_at = 9;
+}
+
+message ListBlocksRequest {
+  // Includes the blocks an administrator has cleared.
+  bool include_cleared = 1;
+  // At most this many blocks; 0 means 50.
+  int32 page_size = 2 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 200
+  }];
+  // The next_page_token of the previous page; empty for the first.
+  string page_token = 3 [
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
+    (buf.validate.field).string.uuid = true
+  ];
+}
+
+// Blocks newest first.
+message ListBlocksResponse {
+  repeated Block blocks = 1;
+  // Continues the listing; empty on the last page.
+  string next_page_token = 2;
+}
+
+message ClearBlockRequest {
+  string block_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message ClearBlockResponse {}
+
 service AdminService {
   // Lists every user's runs matching the filters.
   rpc ListRuns(ListRunsRequest) returns (ListRunsResponse);
   // Reads any user's run with its items, children and findings.
   rpc GetRun(GetRunRequest) returns (GetRunResponse);
+  // Lists findings across every run.
+  rpc ListFindings(ListFindingsRequest) returns (ListFindingsResponse);
+  // Clears a finding. A finding reporting a block is cleared only by
+  // clearing the block, and is refused as a failed precondition. Clearing a
+  // cleared finding succeeds.
+  rpc ClearFinding(ClearFindingRequest) returns (ClearFindingResponse);
+  // Lists the datasources this instance has registered. The credential is
+  // never read.
+  rpc ListDatasources(ListDatasourcesRequest) returns (ListDatasourcesResponse);
+  // Lists datasource blocks.
+  rpc ListBlocks(ListBlocksRequest) returns (ListBlocksResponse);
+  // Clears a block and the finding reporting it. Clearing a cleared block
+  // succeeds.
+  rpc ClearBlock(ClearBlockRequest) returns (ClearBlockResponse);
 }
