@@ -35,7 +35,7 @@ export default function HoldingsPage() {
       )}
       {!isError && data && holdings.length === 0 && (
         <EmptyState
-          message="No holdings yet. Holdings are derived from the transactions a statement supplies."
+          message="No holdings yet."
           action={
             <Button
               data-testid="upload-statement-empty"

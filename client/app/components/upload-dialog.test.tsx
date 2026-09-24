@@ -93,7 +93,7 @@ describe("UploadDialog", () => {
     await waitFor(() => expect(input("upload-from").value).toBe("2025-01-01"));
     fireEvent.change(input("upload-from"), { target: { value: "2025-02-01" } });
     expect(screen.getByTestId("upload-outside").textContent).toMatch(
-      /^\d+ of the rows fall outside/,
+      /^\d+ rows fall outside/,
     );
     fireEvent.click(screen.getByTestId("upload-submit"));
     await waitFor(() => expect(createStatement).toHaveBeenCalledTimes(1));
@@ -113,7 +113,7 @@ describe("UploadDialog", () => {
     await waitFor(() => expect(select()).toBeTruthy());
     expect(select().value).toBe("");
     expect(screen.getByTestId("upload-recognised").textContent).toBe(
-      "notes.txt - Not recognised: choose the broker",
+      "notes.txt - Not recognised: choose a broker",
     );
     expect(
       screen.queryByTestId("upload-submit")?.hasAttribute("disabled"),

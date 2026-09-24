@@ -82,7 +82,7 @@ function Runs() {
         </Notice>
       )}
       {!isError && data && runs.length === 0 && (
-        <EmptyState message="No runs match. Each upload, resolution and fetch is listed here." />
+        <EmptyState message="No runs match." />
       )}
       {!isError && (isPending || runs.length > 0) && (
         <TableCard testId="admin-runs-table">

@@ -22,7 +22,7 @@ export default function DatasourcesPage() {
         </Notice>
       )}
       {!isError && data && sources.length === 0 && (
-        <EmptyState message="No datasources are registered, so nothing is resolved against one." />
+        <EmptyState message="No datasources are registered." />
       )}
       {!isError && (isPending || sources.length > 0) && (
         <TableCard testId="admin-datasources-table">

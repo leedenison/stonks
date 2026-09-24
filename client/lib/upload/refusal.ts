@@ -4,7 +4,7 @@ import { Code, ConnectError } from "@connectrpc/connect";
 // service's reason where it refused the statement, and otherwise a retry.
 export function refusal(err: Error): string {
   if (err instanceof ConnectError && err.code === Code.InvalidArgument) {
-    return `The service refused the statement: ${err.rawMessage}`;
+    return `Statement rejected: ${err.rawMessage}`;
   }
   return "The upload failed. Try again.";
 }
