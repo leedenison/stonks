@@ -79,3 +79,7 @@ at ingest, not the fetch tables. The fetch tables are what the summary is rebuil
 
 - Whether an administrator-started replay clears the temporary identifier blocks it
   re-tries, so that a provider's bad hour is not cleared by hand.
+
+- Whether a request that fails as a whole, on a failure classified as about the
+  identifier, blocks every identifier it carried. A batch of forty keys meeting an outage
+  that outlasts the retries leaves forty blocks to clear.
