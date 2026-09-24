@@ -9,7 +9,6 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/types"
-	"github.com/leedenison/stonks/server/internal/ptr"
 )
 
 // id returns the nth key id, ordered so that a smaller n is the earlier key.
@@ -26,13 +25,13 @@ func keyRow(n int, broker gen.Broker, description string, ids ...types.StatedIde
 	return gen.ListGroupableKeysRow{StatedKey: k, Broker: broker}
 }
 
-func stated(t gen.IdentifierType, value string, domain *string) types.StatedIdentifier {
+func stated(t gen.IdentifierType, value, domain string) types.StatedIdentifier {
 	return types.StatedIdentifier{Type: string(t), Domain: domain, Value: value}
 }
 
 func TestGroups(t *testing.T) {
-	isin := func(v string) types.StatedIdentifier { return stated(gen.IdentifierTypeIsin, v, nil) }
-	ticker := func(v string, domain *string) types.StatedIdentifier {
+	isin := func(v string) types.StatedIdentifier { return stated(gen.IdentifierTypeIsin, v, "") }
+	ticker := func(v, domain string) types.StatedIdentifier {
 		return stated(gen.IdentifierTypeMicTicker, v, domain)
 	}
 	tests := []struct {
@@ -67,24 +66,24 @@ func TestGroups(t *testing.T) {
 		{
 			name: "a ticker without its venue names nothing",
 			keys: []gen.ListGroupableKeysRow{
-				keyRow(1, gen.BrokerSchwab, "ACME CORP", ticker("ACME", nil)),
-				keyRow(2, gen.BrokerFidelityUk, "ACME PLC", ticker("ACME", nil)),
+				keyRow(1, gen.BrokerSchwab, "ACME CORP", ticker("ACME", "")),
+				keyRow(2, gen.BrokerFidelityUk, "ACME PLC", ticker("ACME", "")),
 			},
 			want: map[int]int{1: 1, 2: 2},
 		},
 		{
 			name: "a ticker at one venue joins",
 			keys: []gen.ListGroupableKeysRow{
-				keyRow(1, gen.BrokerSchwab, "ACME CORP", ticker("ACME", ptr.To("XNAS"))),
-				keyRow(2, gen.BrokerFidelityUk, "ACME PLC", ticker("ACME", ptr.To("XNAS"))),
+				keyRow(1, gen.BrokerSchwab, "ACME CORP", ticker("ACME", "XNAS")),
+				keyRow(2, gen.BrokerFidelityUk, "ACME PLC", ticker("ACME", "XNAS")),
 			},
 			want: map[int]int{1: 1, 2: 1},
 		},
 		{
 			name: "a ticker at two venues stays apart",
 			keys: []gen.ListGroupableKeysRow{
-				keyRow(1, gen.BrokerSchwab, "ACME CORP", ticker("ACME", ptr.To("XNAS"))),
-				keyRow(2, gen.BrokerFidelityUk, "ACME PLC", ticker("ACME", ptr.To("XLON"))),
+				keyRow(1, gen.BrokerSchwab, "ACME CORP", ticker("ACME", "XNAS")),
+				keyRow(2, gen.BrokerFidelityUk, "ACME PLC", ticker("ACME", "XLON")),
 			},
 			want: map[int]int{1: 1, 2: 2},
 		},
@@ -92,7 +91,7 @@ func TestGroups(t *testing.T) {
 			name: "one value under two types stays apart",
 			keys: []gen.ListGroupableKeysRow{
 				keyRow(1, gen.BrokerIbkr, "ACME CORP", isin("US0000000001")),
-				keyRow(2, gen.BrokerSchwab, "ACME PLC", stated(gen.IdentifierTypeCusip, "US0000000001", nil)),
+				keyRow(2, gen.BrokerSchwab, "ACME PLC", stated(gen.IdentifierTypeCusip, "US0000000001", "")),
 			},
 			want: map[int]int{1: 1, 2: 2},
 		},

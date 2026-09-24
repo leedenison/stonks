@@ -177,7 +177,8 @@ func (k *key) hash() uint64 {
 	for _, id := range k.identifiers {
 		h.WriteString(id.Type)
 		h.WriteByte(0)
-		part(id.Domain)
+		h.WriteString(id.Domain)
+		h.WriteByte(0)
 		h.WriteString(id.Value)
 		h.WriteByte(0)
 	}
@@ -189,9 +190,7 @@ func (k *key) equal(o *key) bool {
 	if !ptr.Equal(k.class, o.class) || !ptr.Equal(k.currency, o.currency) || !ptr.Equal(k.description, o.description) {
 		return false
 	}
-	return slices.EqualFunc(k.identifiers, o.identifiers, func(a, b types.StatedIdentifier) bool {
-		return a.Type == b.Type && ptr.Equal(a.Domain, b.Domain) && a.Value == b.Value
-	})
+	return slices.Equal(k.identifiers, o.identifiers)
 }
 
 // identifier returns the identifier of type t the key states, if any.

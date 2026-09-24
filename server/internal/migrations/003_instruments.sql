@@ -30,7 +30,7 @@ CREATE TYPE identifier_type AS ENUM ('isin', 'cusip', 'cins', 'wertpapier',
     'occ', 'currency', 'datasource_ticker', 'broker_id');
 
 -- What is used to qualify the identifier value.
--- 'global' identifier values are not partitioned (their domain is NULL).  They
+-- 'global' identifier values are not partitioned (their domain is empty).  They
 -- are recognised by all parties.
 -- 'venue' identifier values are partitioned by ISO 10383 operating MIC. They
 -- are recognised by all parties.
@@ -116,15 +116,16 @@ CREATE TABLE listings (
     UNIQUE (id, instrument_id)
 );
 
--- An identifier names an instrument or one of its listings by a type, an
--- optional domain and a value. An identifier names one subject.
+-- An identifier names an instrument or one of its listings by a type, a
+-- domain and a value, the domain empty where its type has none. An identifier
+-- names one subject.
 CREATE TABLE identifiers (
     id            uuid            PRIMARY KEY,
     instrument_id uuid            NOT NULL REFERENCES instruments (id),
     -- listing_id is only set for a listing grain identifier, NULL otherwise.
     listing_id    uuid            REFERENCES listings (id),
     type          identifier_type NOT NULL,
-    domain        text,
+    domain        text            NOT NULL DEFAULT '',
     value         text            NOT NULL,
     created_at    timestamptz     NOT NULL DEFAULT now(),
     grain         identifier_grain NOT NULL GENERATED ALWAYS AS
@@ -132,7 +133,7 @@ CREATE TABLE identifiers (
               ELSE 'listing'::identifier_grain END) STORED,
     FOREIGN KEY (type, grain) REFERENCES identifier_type_traits (type, grain),
     FOREIGN KEY (listing_id, instrument_id) REFERENCES listings (id, instrument_id),
-    UNIQUE NULLS NOT DISTINCT (type, domain, value)
+    UNIQUE (type, domain, value)
 );
 
 CREATE INDEX identifiers_instrument_idx ON identifiers (instrument_id);

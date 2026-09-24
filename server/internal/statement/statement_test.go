@@ -29,12 +29,12 @@ var (
 	until = time.Date(2026, time.April, 1, 0, 0, 0, 0, time.UTC)
 )
 
-func ident(t typev1.IdentifierType, value string, domain *string) *typev1.Identifier {
+func ident(t typev1.IdentifierType, value, domain string) *typev1.Identifier {
 	return &typev1.Identifier{Type: t, Value: value, Domain: domain}
 }
 
 func cashKey(code string) *typev1.StatedKey {
-	return &typev1.StatedKey{Identifiers: []*typev1.Identifier{ident(typev1.IdentifierType_IDENTIFIER_TYPE_CURRENCY, code, nil)}, AssetClass: typev1.AssetClass_ASSET_CLASS_CASH, Currency: &code}
+	return &typev1.StatedKey{Identifiers: []*typev1.Identifier{ident(typev1.IdentifierType_IDENTIFIER_TYPE_CURRENCY, code, "")}, AssetClass: typev1.AssetClass_ASSET_CLASS_CASH, Currency: &code}
 }
 
 func securityKey(description string, class typev1.AssetClass, currency *string, ids ...*typev1.Identifier) *typev1.StatedKey {
@@ -118,7 +118,7 @@ func TestCreateInvalid(t *testing.T) {
 			m.Splits = []*statementv1.StatedSplit{{Key: securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &xxx), EffectiveDate: "2026-03-02", Quantity: "9"}}
 		}},
 		{name: "split with an inadmissible key", edit: func(m *statementv1.Statement) {
-			m.Splits = []*statementv1.StatedSplit{{Key: securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, "US1", nil), ident(typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, "US2", nil)), EffectiveDate: "2026-03-02", Quantity: "9"}}
+			m.Splits = []*statementv1.StatedSplit{{Key: securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, "US1", ""), ident(typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, "US2", "")), EffectiveDate: "2026-03-02", Quantity: "9"}}
 		}},
 	}
 	for _, tc := range tests {
@@ -139,7 +139,7 @@ func TestCreateInvalid(t *testing.T) {
 
 func TestValidate(t *testing.T) {
 	usd, xxx := "USD", "XXX"
-	equity := securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, "ACME", nil))
+	equity := securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, "ACME", ""))
 	tests := []struct {
 		name string
 		row  *statementv1.Row
@@ -149,15 +149,15 @@ func TestValidate(t *testing.T) {
 		{name: "on the first day", row: rowMsg(equity, "2026-03-01", "10")},
 		{name: "no key", row: &statementv1.Row{OrderDate: "2026-03-05"}, want: "no key"},
 		{name: "class outside the vocabulary", row: rowMsg(securityKey("ACME", 99, &usd), "2026-03-05", "1"), want: "asset class 99 outside the vocabulary"},
-		{name: "type outside the vocabulary", row: rowMsg(securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(99, "x", nil)), "2026-03-05", "1"), want: "identifier type 99 outside the vocabulary"},
-		{name: "unspecified type", row: rowMsg(securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_UNSPECIFIED, "x", nil)), "2026-03-05", "1"), want: "identifier type 0 outside the vocabulary"},
+		{name: "type outside the vocabulary", row: rowMsg(securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(99, "x", "")), "2026-03-05", "1"), want: "identifier type 99 outside the vocabulary"},
+		{name: "unspecified type", row: rowMsg(securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_UNSPECIFIED, "x", "")), "2026-03-05", "1"), want: "identifier type 0 outside the vocabulary"},
 		{name: "cash naming two currencies", row: rowMsg(&typev1.StatedKey{Identifiers: append(cashKey("USD").Identifiers, cashKey("EUR").Identifiers...), AssetClass: typev1.AssetClass_ASSET_CLASS_CASH}, "2026-03-05", "1"), want: "two currency identifiers, USD and EUR"},
-		{name: "two isins", row: rowMsg(securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, "US1", nil), ident(typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, "US2", nil)), "2026-03-05", "1"), want: "two isin identifiers, US1 and US2"},
-		{name: "two tickers at one venue", row: rowMsg(securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, "A", ptr.To("XNYS")), ident(typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, "B", ptr.To("XNYS"))), "2026-03-05", "1"), want: "two mic_ticker identifiers, A and B"},
-		{name: "two tickers at two venues", row: rowMsg(securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, "A", ptr.To("XNYS")), ident(typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, "A", ptr.To("XLON"))), "2026-03-05", "1")},
+		{name: "two isins", row: rowMsg(securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, "US1", ""), ident(typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, "US2", "")), "2026-03-05", "1"), want: "two isin identifiers, US1 and US2"},
+		{name: "two tickers at one venue", row: rowMsg(securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, "A", "XNYS"), ident(typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, "B", "XNYS")), "2026-03-05", "1"), want: "two mic_ticker identifiers, A and B"},
+		{name: "two tickers at two venues", row: rowMsg(securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, "A", "XNYS"), ident(typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, "A", "XLON")), "2026-03-05", "1")},
 		{name: "nothing stated about the instrument", row: rowMsg(&typev1.StatedKey{AssetClass: typev1.AssetClass_ASSET_CLASS_EQUITY, Currency: &usd}, "2026-03-05", "1"), want: "no identifier or description"},
 		{name: "empty description", row: rowMsg(securityKey("", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd), "2026-03-05", "1"), want: "no identifier or description"},
-		{name: "an identifier and no description", row: rowMsg(securityKey("", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, "US0378331005", nil)), "2026-03-05", "1")},
+		{name: "an identifier and no description", row: rowMsg(securityKey("", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, "US0378331005", "")), "2026-03-05", "1")},
 		{name: "malformed order date", row: &statementv1.Row{Key: equity, OrderDate: "2026-03-40", SettlementDate: "2026-03-05", AsAt: "2026-03-05", Quantity: "1"}, want: `malformed order date "2026-03-40"`},
 		{name: "malformed settlement date", row: &statementv1.Row{Key: equity, OrderDate: "2026-03-05", SettlementDate: "", AsAt: "2026-03-05", Quantity: "1"}, want: `malformed settlement date ""`},
 		{name: "malformed as at", row: &statementv1.Row{Key: equity, OrderDate: "2026-03-05", SettlementDate: "2026-03-05", AsAt: "5 March", Quantity: "1"}, want: `malformed as at "5 March"`},
@@ -167,7 +167,7 @@ func TestValidate(t *testing.T) {
 		{name: "after today", row: rowMsg(equity, "2026-04-20", "1"), want: "order date after today"},
 		{name: "unknown currency", row: rowMsg(securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &xxx), "2026-03-05", "1"), want: `unknown currency "XXX"`},
 		{name: "a currency identifier stating no currency", row: rowMsg(&typev1.StatedKey{Identifiers: cashKey("USD").Identifiers, AssetClass: typev1.AssetClass_ASSET_CLASS_CASH}, "2026-03-05", "1")},
-		{name: "a currency identifier on an equity key", row: rowMsg(securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_CURRENCY, "USD", nil)), "2026-03-05", "1")},
+		{name: "a currency identifier on an equity key", row: rowMsg(securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_CURRENCY, "USD", "")), "2026-03-05", "1")},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -191,7 +191,7 @@ func TestValidate(t *testing.T) {
 // TestKeyForm checks which stated keys are one key.
 func TestKeyForm(t *testing.T) {
 	usd := "USD"
-	mic := func(v string, domain *string) *typev1.Identifier {
+	mic := func(v, domain string) *typev1.Identifier {
 		return ident(typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, v, domain)
 	}
 	tests := []struct {
@@ -199,8 +199,8 @@ func TestKeyForm(t *testing.T) {
 		a, b *typev1.StatedKey
 		same bool
 	}{
-		{name: "identifier order", a: securityKey("A", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, mic("X", nil), mic("Y", ptr.To("XNYS"))), b: securityKey("A", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, mic("Y", ptr.To("XNYS")), mic("X", nil)), same: true},
-		{name: "domain", a: securityKey("A", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, mic("X", nil)), b: securityKey("A", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, mic("X", ptr.To("XNYS")))},
+		{name: "identifier order", a: securityKey("A", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, mic("X", ""), mic("Y", "XNYS")), b: securityKey("A", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, mic("Y", "XNYS"), mic("X", "")), same: true},
+		{name: "domain", a: securityKey("A", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, mic("X", "")), b: securityKey("A", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, mic("X", "XNYS"))},
 		{name: "currency", a: securityKey("A", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd), b: securityKey("A", typev1.AssetClass_ASSET_CLASS_EQUITY, nil)},
 		{name: "class", a: securityKey("A", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd), b: securityKey("A", typev1.AssetClass_ASSET_CLASS_UNSPECIFIED, &usd)},
 		{name: "description", a: securityKey("A", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd), b: securityKey("B", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd)},
@@ -221,8 +221,8 @@ func TestKeyForm(t *testing.T) {
 		})
 	}
 	_, g := newIngestion(t)
-	got := g.validate(0, rowMsg(securityKey("A", typev1.AssetClass_ASSET_CLASS_STOCK, &usd, mic("Y", ptr.To("XNYS")), ident(typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, "US1", nil), mic("X", nil)), "2026-03-05", "1"), today, map[string]bool{"USD": true})
-	want := []types.StatedIdentifier{{Type: "isin", Value: "US1"}, {Type: "mic_ticker", Value: "X"}, {Type: "mic_ticker", Domain: ptr.To("XNYS"), Value: "Y"}}
+	got := g.validate(0, rowMsg(securityKey("A", typev1.AssetClass_ASSET_CLASS_STOCK, &usd, mic("Y", "XNYS"), ident(typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, "US1", ""), mic("X", "")), "2026-03-05", "1"), today, map[string]bool{"USD": true})
+	want := []types.StatedIdentifier{{Type: "isin", Value: "US1"}, {Type: "mic_ticker", Value: "X"}, {Type: "mic_ticker", Domain: "XNYS", Value: "Y"}}
 	if diff := cmp.Diff(want, got.key.identifiers); diff != "" {
 		t.Errorf("identifiers order mismatch (-want +got):\n%s", diff)
 	}
@@ -265,7 +265,7 @@ func TestResolveKey(t *testing.T) {
 			f.store.EXPECT().GetInstrumentByIdentifier(gomock.Any(), byCurrency("XXX")).Return(gen.GetInstrumentByIdentifierRow{}, db.ErrNotFound)
 			return gen.Listing{}
 		}, outcome: gen.ResolutionOutcomeRejected, reason: "no currency XXX"},
-		{name: "currency identifier on an equity key", key: securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_CURRENCY, "USD", nil)), expect: func(f *fixture) gen.Listing {
+		{name: "currency identifier on an equity key", key: securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_CURRENCY, "USD", "")), expect: func(f *fixture) gen.Listing {
 			f.store.EXPECT().GetInstrumentByIdentifier(gomock.Any(), byCurrency("USD")).Return(cash, nil)
 			return gen.Listing{}
 		}, outcome: gen.ResolutionOutcomeRejected, reason: "asset class equity contradicts the instrument's cash"},
@@ -274,8 +274,8 @@ func TestResolveKey(t *testing.T) {
 			return gen.Listing{InstrumentID: cash.Instrument.ID}
 		}, outcome: gen.ResolutionOutcomeMatched, noListing: true},
 		{name: "a description alone", key: securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd), outcome: gen.ResolutionOutcomeUnresolved},
-		{name: "an isin and a description", key: securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, "US0378331005", nil)), outcome: gen.ResolutionOutcomeUnresolved},
-		{name: "a ticker with no venue", key: securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, "ACME", nil)), outcome: gen.ResolutionOutcomeUnresolved},
+		{name: "an isin and a description", key: securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, "US0378331005", "")), outcome: gen.ResolutionOutcomeUnresolved},
+		{name: "a ticker with no venue", key: securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, "ACME", "")), outcome: gen.ResolutionOutcomeUnresolved},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
