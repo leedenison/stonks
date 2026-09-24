@@ -37,7 +37,7 @@ shapes, parsing, venue map and the declaration of what it serves.
 **Fetch** -- a run asking one datasource for one kind of data over one period.
 
 **Fetch Key** -- one key inside a fetch, recorded as a row: the identifier sent for it,
-the outcome, and the identifiers the answer named.
+the outcome, and the identifiers the answer returned.
 
 **Provenance** -- the fetch key that produced a stored row.
 

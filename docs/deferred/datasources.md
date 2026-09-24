@@ -43,8 +43,8 @@ A fetch is a run of one datasource, one kind of data, a set of keys and a period
 not served, or failed temporarily or permanently.
 
 A fetch key also records the identifier the integration sent to the provider, the
-instrument the answer was attached to, and every identifier the answer named.  The
-identifiers named are the fetch's assertions.  See
+instrument the answer was attached to, and every identifier the answer returned.  The
+identifiers returned are the fetch's assertions.  See
 [identifier-events.md](identifier-events.md).
 
 ### Provenance

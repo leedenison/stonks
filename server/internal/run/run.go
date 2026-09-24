@@ -12,6 +12,9 @@
 // stays pending until every earlier run of the same user and lane has
 // stopped. Runs of different users or lanes proceed in parallel.
 //
+// Child is safe to call concurrently. A child holds no place in a lane and is
+// not counted in the wait group.
+//
 // The work is a function held in memory, so nothing of it survives the
 // process. When the process stops, pending work is dropped and running work
 // is cancelled, and their rows stay as they were; Sweep, run at boot before
