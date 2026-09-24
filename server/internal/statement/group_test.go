@@ -17,7 +17,7 @@ func id(n int) uuid.UUID {
 }
 
 // keyRow states what one key of broker says about an instrument.
-func keyRow(n int, broker gen.Broker, description string, ids ...types.StatedIdentifier) gen.ListGroupableKeysRow {
+func keyRow(n int, broker gen.Broker, description string, ids ...types.Identifier) gen.ListGroupableKeysRow {
 	k := gen.StatedKey{ID: id(n), Identifiers: ids}
 	if description != "" {
 		k.Description = &description
@@ -25,14 +25,14 @@ func keyRow(n int, broker gen.Broker, description string, ids ...types.StatedIde
 	return gen.ListGroupableKeysRow{StatedKey: k, Broker: broker}
 }
 
-func stated(t gen.IdentifierType, value, domain string) types.StatedIdentifier {
-	return types.StatedIdentifier{Type: string(t), Domain: domain, Value: value}
+func stated(t types.IdentifierType, value, domain string) types.Identifier {
+	return types.Identifier{Type: t, Domain: domain, Value: value}
 }
 
 func TestGroups(t *testing.T) {
-	isin := func(v string) types.StatedIdentifier { return stated(gen.IdentifierTypeIsin, v, "") }
-	ticker := func(v, domain string) types.StatedIdentifier {
-		return stated(gen.IdentifierTypeMicTicker, v, domain)
+	isin := func(v string) types.Identifier { return stated(types.IdentifierTypeIsin, v, "") }
+	ticker := func(v, domain string) types.Identifier {
+		return stated(types.IdentifierTypeMicTicker, v, domain)
 	}
 	tests := []struct {
 		name string
@@ -91,7 +91,7 @@ func TestGroups(t *testing.T) {
 			name: "one value under two types stays apart",
 			keys: []gen.ListGroupableKeysRow{
 				keyRow(1, gen.BrokerIbkr, "ACME CORP", isin("US0000000001")),
-				keyRow(2, gen.BrokerSchwab, "ACME PLC", stated(gen.IdentifierTypeCusip, "US0000000001", "")),
+				keyRow(2, gen.BrokerSchwab, "ACME PLC", stated(types.IdentifierTypeCusip, "US0000000001", "")),
 			},
 			want: map[int]int{1: 1, 2: 2},
 		},

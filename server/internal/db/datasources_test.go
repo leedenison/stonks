@@ -46,7 +46,7 @@ func newStatedKey(t *testing.T, q *gen.Queries, user gen.User, statement gen.Sta
 	t.Helper()
 	key, err := q.CreateStatedKey(context.Background(), gen.CreateStatedKeyParams{
 		ID: db.NewID(), StatementID: statement.ID, UserID: user.ID,
-		Description: ptr.To(uuid.NewString()), Identifiers: []types.StatedIdentifier{},
+		Description: ptr.To(uuid.NewString()), Identifiers: []types.Identifier{},
 	})
 	require.NoError(t, err)
 	return key
@@ -59,7 +59,7 @@ func servedKey(t *testing.T, q *gen.Queries, fetch gen.Fetch, key gen.StatedKey,
 	require.NoError(t, q.CreateFetchKey(context.Background(), gen.CreateFetchKeyParams{
 		ID: id, FetchID: fetch.ID, UserID: fetch.UserID, StatedKeyID: key.ID,
 		Outcome: gen.FetchOutcomeServed, Attempts: 1,
-		SentType: ptr.To(gen.IdentifierTypeIsin), SentValue: ptr.To(value),
+		SentType: ptr.To(types.IdentifierTypeIsin), SentValue: ptr.To(value),
 	}))
 	return id
 }
@@ -154,7 +154,7 @@ func TestFetches(t *testing.T) {
 func TestFetchKeys(t *testing.T) {
 	ctx := context.Background()
 
-	isin := ptr.To(gen.IdentifierTypeIsin)
+	isin := ptr.To(types.IdentifierTypeIsin)
 	tests := []struct {
 		name string
 		want string
@@ -202,7 +202,7 @@ func TestFetchKeys(t *testing.T) {
 		require.NoError(t, err)
 		fetch := newFetch(t, q, user, run, newDatasource(t, q, "fetch-keys-instrument", 10))
 		key := newStatedKey(t, q, user, statement)
-		found, err := q.GetInstrumentByIdentifier(ctx, gen.GetInstrumentByIdentifierParams{Type: gen.IdentifierTypeCurrency, Value: "USD"})
+		found, err := q.GetInstrumentByIdentifier(ctx, gen.GetInstrumentByIdentifierParams{Type: types.IdentifierTypeCurrency, Value: "USD"})
 		require.NoError(t, err)
 
 		id := db.NewID()
@@ -249,9 +249,9 @@ func TestFetchIdentifiers(t *testing.T) {
 	key := servedKey(t, q, fetch, newStatedKey(t, q, user, statement), "GB00B03MLX29")
 
 	require.NoError(t, q.CreateFetchIdentifier(ctx, gen.CreateFetchIdentifierParams{
-		FetchKeyID: key, Type: gen.IdentifierTypeIsin, Value: "GB00B03MLX29"}))
+		FetchKeyID: key, Type: types.IdentifierTypeIsin, Value: "GB00B03MLX29"}))
 	require.NoError(t, q.CreateFetchIdentifier(ctx, gen.CreateFetchIdentifierParams{
-		FetchKeyID: key, Type: gen.IdentifierTypeMicTicker, Domain: "XLON", Value: "SHEL"}))
+		FetchKeyID: key, Type: types.IdentifierTypeMicTicker, Domain: "XLON", Value: "SHEL"}))
 
 	listed, err := q.ListFetchIdentifiers(ctx, key)
 	require.NoError(t, err)
@@ -260,7 +260,7 @@ func TestFetchIdentifiers(t *testing.T) {
 	}
 
 	err = q.CreateFetchIdentifier(ctx, gen.CreateFetchIdentifierParams{
-		FetchKeyID: key, Type: gen.IdentifierTypeIsin, Value: "GB00B03MLX29"})
+		FetchKeyID: key, Type: types.IdentifierTypeIsin, Value: "GB00B03MLX29"})
 	if !sqlstate(err, pgerrcode.UniqueViolation) {
 		t.Errorf("CreateFetchIdentifier of a triple with no domain twice: err = %v, want a unique violation", err)
 	}
@@ -285,7 +285,7 @@ func TestDatasourceBlocks(t *testing.T) {
 			Scope: scope, Reason: "refused", FetchKeyID: key,
 		}
 		if value != nil {
-			arg.SentType, arg.SentValue = ptr.To(gen.IdentifierTypeIsin), value
+			arg.SentType, arg.SentValue = ptr.To(types.IdentifierTypeIsin), value
 		}
 		return arg
 	}

@@ -110,7 +110,7 @@ func keyOf(sk *typev1.StatedKey) (*key, error) {
 	if !ok {
 		return nil, fmt.Errorf("asset class %d outside the vocabulary", sk.GetAssetClass())
 	}
-	k := &key{currency: sk.Currency, description: sk.Description, identifiers: []types.StatedIdentifier{}}
+	k := &key{currency: sk.Currency, description: sk.Description, identifiers: []types.Identifier{}}
 	if sk.GetDescription() == "" {
 		k.description = nil
 	}
@@ -118,16 +118,16 @@ func keyOf(sk *typev1.StatedKey) (*key, error) {
 		k.class = &class
 	}
 	for _, id := range sk.GetIdentifiers() {
-		t, ok := db.FromProto[gen.IdentifierType](id.GetType())
+		t, ok := db.FromProto[types.IdentifierType](id.GetType())
 		if !ok || t == "" {
 			return nil, fmt.Errorf("identifier type %d outside the vocabulary", id.GetType())
 		}
 		for _, held := range k.identifiers {
-			if held.Type == string(t) && held.Domain == id.GetDomain() {
+			if held.Type == t && held.Domain == id.GetDomain() {
 				return nil, fmt.Errorf("two %s identifiers, %s and %s", t, held.Value, id.GetValue())
 			}
 		}
-		k.identifiers = append(k.identifiers, types.StatedIdentifier{Type: string(t), Domain: id.GetDomain(), Value: id.GetValue()})
+		k.identifiers = append(k.identifiers, types.Identifier{Type: t, Domain: id.GetDomain(), Value: id.GetValue()})
 	}
 	sort.Slice(k.identifiers, func(i, j int) bool {
 		a, b := k.identifiers[i], k.identifiers[j]

@@ -60,9 +60,9 @@ func TestListHoldings(t *testing.T) {
 		{InstrumentID: acmeID, AssetClass: gen.AssetClassSecurity, Quantity: decimal.RequireFromString("-141")},
 	}
 	idents := []gen.Identifier{
-		{InstrumentID: gbpID, Type: gen.IdentifierTypeCurrency, Value: "GBP"},
-		{InstrumentID: acmeID, Type: gen.IdentifierTypeIsin, Value: "GB0002634946"},
-		{InstrumentID: acmeID, Type: gen.IdentifierTypeSedol, Value: "0263494"},
+		{InstrumentID: gbpID, Type: types.IdentifierTypeCurrency, Value: "GBP"},
+		{InstrumentID: acmeID, Type: types.IdentifierTypeIsin, Value: "GB0002634946"},
+		{InstrumentID: acmeID, Type: types.IdentifierTypeSedol, Value: "0263494"},
 	}
 	wantInstruments := []*holdingv1.InstrumentHolding{
 		{
@@ -81,11 +81,11 @@ func TestListHoldings(t *testing.T) {
 	// Two keys of one group, sharing an ISIN and differing in every other
 	// thing they state.
 	groupRows := []gen.ListGroupHoldingsRow{{GroupID: groupID, Quantity: decimal.RequireFromString("12.5")}}
-	isin := types.StatedIdentifier{Type: string(gen.IdentifierTypeIsin), Value: "US0000000001"}
-	ticker := types.StatedIdentifier{Type: string(gen.IdentifierTypeMicTicker), Value: "ACME"}
+	isin := types.Identifier{Type: types.IdentifierTypeIsin, Value: "US0000000001"}
+	ticker := types.Identifier{Type: types.IdentifierTypeMicTicker, Value: "ACME"}
 	groupKeys := []gen.ListHeldGroupKeysRow{
-		{StatedKey: gen.StatedKey{GroupID: &groupID, AssetClass: ptr.To(gen.AssetClassEquity), Description: ptr.To("ACME CORP"), Identifiers: []types.StatedIdentifier{isin}}, Broker: gen.BrokerIbkr},
-		{StatedKey: gen.StatedKey{GroupID: &groupID, AssetClass: ptr.To(gen.AssetClassSecurity), Description: ptr.To("ACME CORPORATION"), Identifiers: []types.StatedIdentifier{isin, ticker}}, Broker: gen.BrokerSchwab},
+		{StatedKey: gen.StatedKey{GroupID: &groupID, AssetClass: ptr.To(gen.AssetClassEquity), Description: ptr.To("ACME CORP"), Identifiers: []types.Identifier{isin}}, Broker: gen.BrokerIbkr},
+		{StatedKey: gen.StatedKey{GroupID: &groupID, AssetClass: ptr.To(gen.AssetClassSecurity), Description: ptr.To("ACME CORPORATION"), Identifiers: []types.Identifier{isin, ticker}}, Broker: gen.BrokerSchwab},
 	}
 	wantGroups := []*holdingv1.GroupHolding{{
 		GroupId: groupID.String(), Quantity: "12.5",

@@ -8,17 +8,18 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/db/types"
 )
 
 // domained holds the identifier types whose value is read with a domain. A
 // test holds it equal to the identifier_type_traits table. A value of one of
 // these types stated without its domain names nothing, so two keys stating
 // it are not thereby the same holding.
-var domained = map[gen.IdentifierType]bool{
-	gen.IdentifierTypeMicTicker:        true,
-	gen.IdentifierTypeOpenfigiTicker:   true,
-	gen.IdentifierTypeDatasourceTicker: true,
-	gen.IdentifierTypeBrokerID:         true,
+var domained = map[types.IdentifierType]bool{
+	types.IdentifierTypeMicTicker:        true,
+	types.IdentifierTypeOpenfigiTicker:   true,
+	types.IdentifierTypeDatasourceTicker: true,
+	types.IdentifierTypeBrokerID:         true,
 }
 
 // find returns the root of k's component, compressing the path it walks.
@@ -64,7 +65,7 @@ func groups(keys []gen.ListGroupableKeysRow) map[uuid.UUID]uuid.UUID {
 	for _, r := range keys {
 		k := r.StatedKey
 		for _, i := range k.Identifiers {
-			if domained[gen.IdentifierType(i.Type)] && i.Domain == "" {
+			if domained[i.Type] && i.Domain == "" {
 				continue
 			}
 			join(fmt.Sprintf("i\x00%s\x00%s\x00%s", i.Type, i.Domain, i.Value), k.ID)

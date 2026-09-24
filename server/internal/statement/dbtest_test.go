@@ -21,6 +21,7 @@ import (
 	typev1 "github.com/leedenison/stonks/proto/type/v1"
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/db/types"
 	"github.com/leedenison/stonks/server/internal/run"
 )
 
@@ -203,7 +204,7 @@ func TestIngest(t *testing.T) {
 
 	// Only the cash key resolved, and it names the USD listing
 	// through the currency identifier that named the instrument.
-	found, err := s.q.GetInstrumentByIdentifier(ctx, gen.GetInstrumentByIdentifierParams{Type: gen.IdentifierTypeCurrency, Value: "USD"})
+	found, err := s.q.GetInstrumentByIdentifier(ctx, gen.GetInstrumentByIdentifierParams{Type: types.IdentifierTypeCurrency, Value: "USD"})
 	require.NoError(t, err)
 	line, err := s.q.GetListing(ctx, gen.GetListingParams{InstrumentID: found.Instrument.ID, Currency: "USD"})
 	require.NoError(t, err)
@@ -297,9 +298,9 @@ func TestDomained(t *testing.T) {
 	rows, err := s.tx.Query(context.Background(), "SELECT type FROM identifier_type_traits WHERE domain <> 'global'")
 	require.NoError(t, err)
 	defer rows.Close()
-	want := map[gen.IdentifierType]bool{}
+	want := map[types.IdentifierType]bool{}
 	for rows.Next() {
-		var typ gen.IdentifierType
+		var typ types.IdentifierType
 		require.NoError(t, rows.Scan(&typ))
 		want[typ] = true
 	}

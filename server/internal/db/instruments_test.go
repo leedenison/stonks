@@ -7,11 +7,13 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/require"
 
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/db/types"
 )
 
 // sqlstate reports whether err is a Postgres error with the given SQLSTATE.
@@ -45,7 +47,7 @@ func newListing(t *testing.T, q *gen.Queries, instrument gen.Instrument, currenc
 // associate through.
 func newIdentifier(t *testing.T, q *gen.Queries, instrument gen.Instrument, isin string) gen.Identifier {
 	t.Helper()
-	row, err := q.CreateIdentifier(context.Background(), gen.CreateIdentifierParams{ID: db.NewID(), InstrumentID: instrument.ID, Type: gen.IdentifierTypeIsin, Value: isin})
+	row, err := q.CreateIdentifier(context.Background(), gen.CreateIdentifierParams{ID: db.NewID(), InstrumentID: instrument.ID, Type: types.IdentifierTypeIsin, Value: isin})
 	require.NoError(t, err)
 	return row
 }
@@ -55,7 +57,7 @@ func newIdentifier(t *testing.T, q *gen.Queries, instrument gen.Instrument, isin
 func cashListing(t *testing.T, q *gen.Queries, currency string) (gen.Listing, gen.Identifier) {
 	t.Helper()
 	ctx := context.Background()
-	found, err := q.GetInstrumentByIdentifier(ctx, gen.GetInstrumentByIdentifierParams{Type: gen.IdentifierTypeCurrency, Value: currency})
+	found, err := q.GetInstrumentByIdentifier(ctx, gen.GetInstrumentByIdentifierParams{Type: types.IdentifierTypeCurrency, Value: currency})
 	require.NoError(t, err)
 	l, err := q.GetListing(ctx, gen.GetListingParams{InstrumentID: found.Instrument.ID, Currency: currency})
 	require.NoError(t, err)
@@ -68,7 +70,7 @@ func TestCurrencySeed(t *testing.T) {
 	q := newTx(t)
 	ctx := context.Background()
 
-	usd, err := q.GetInstrumentByIdentifier(ctx, gen.GetInstrumentByIdentifierParams{Type: gen.IdentifierTypeCurrency, Value: "USD"})
+	usd, err := q.GetInstrumentByIdentifier(ctx, gen.GetInstrumentByIdentifierParams{Type: types.IdentifierTypeCurrency, Value: "USD"})
 	require.NoError(t, err)
 	if usd.Instrument.AssetClass != gen.AssetClassCash {
 		t.Errorf("GetInstrumentByIdentifier(currency USD) = %+v, want an instrument of class cash", usd.Instrument)
@@ -102,11 +104,11 @@ func TestIdentifierGrain(t *testing.T) {
 	ctx := context.Background()
 	tests := []struct {
 		name    string
-		typ     gen.IdentifierType
+		typ     types.IdentifierType
 		listing bool
 	}{
-		{name: "instrument type on a listing", typ: gen.IdentifierTypeIsin, listing: true},
-		{name: "listing type on an instrument", typ: gen.IdentifierTypeSedol, listing: false},
+		{name: "instrument type on a listing", typ: types.IdentifierTypeIsin, listing: true},
+		{name: "listing type on an instrument", typ: types.IdentifierTypeSedol, listing: false},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -134,8 +136,31 @@ func TestIdentifierUniqueness(t *testing.T) {
 	newIdentifier(t, q, one, "US0378331005")
 
 	// The unique violation aborts the transaction, so it is the last statement.
-	_, err := q.CreateIdentifier(ctx, gen.CreateIdentifierParams{ID: db.NewID(), InstrumentID: two.ID, Type: gen.IdentifierTypeIsin, Value: "US0378331005"})
+	_, err := q.CreateIdentifier(ctx, gen.CreateIdentifierParams{ID: db.NewID(), InstrumentID: two.ID, Type: types.IdentifierTypeIsin, Value: "US0378331005"})
 	if !db.IsConflict(err) {
 		t.Errorf("CreateIdentifier of a triple another instrument holds: err = %v, want a conflict", err)
+	}
+}
+
+// TestIdentifierTypes holds the hand written enum equal to the database, in
+// value and in order.
+func TestIdentifierTypes(t *testing.T) {
+	tx := begin(t)
+	rows, err := tx.Query(context.Background(),
+		`SELECT enumlabel FROM pg_enum
+		 JOIN pg_type ON pg_type.oid = pg_enum.enumtypid
+		 WHERE pg_type.typname = 'identifier_type'
+		 ORDER BY enumsortorder`)
+	require.NoError(t, err)
+	defer rows.Close()
+	var want []types.IdentifierType
+	for rows.Next() {
+		var label types.IdentifierType
+		require.NoError(t, rows.Scan(&label))
+		want = append(want, label)
+	}
+	require.NoError(t, rows.Err())
+	if diff := cmp.Diff(want, types.IdentifierTypes); diff != "" {
+		t.Errorf("IdentifierTypes mismatch (-database +code):\n%s", diff)
 	}
 }

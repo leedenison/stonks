@@ -222,7 +222,7 @@ func TestKeyForm(t *testing.T) {
 	}
 	_, g := newIngestion(t)
 	got := g.validate(0, rowMsg(securityKey("A", typev1.AssetClass_ASSET_CLASS_STOCK, &usd, mic("Y", "XNYS"), ident(typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, "US1", ""), mic("X", "")), "2026-03-05", "1"), today, map[string]bool{"USD": true})
-	want := []types.StatedIdentifier{{Type: "isin", Value: "US1"}, {Type: "mic_ticker", Value: "X"}, {Type: "mic_ticker", Domain: "XNYS", Value: "Y"}}
+	want := []types.Identifier{{Type: "isin", Value: "US1"}, {Type: "mic_ticker", Value: "X"}, {Type: "mic_ticker", Domain: "XNYS", Value: "Y"}}
 	if diff := cmp.Diff(want, got.key.identifiers); diff != "" {
 		t.Errorf("identifiers order mismatch (-want +got):\n%s", diff)
 	}
@@ -234,10 +234,10 @@ func TestKeyForm(t *testing.T) {
 func TestResolveKey(t *testing.T) {
 	usd, eur := "USD", "EUR"
 	byCurrency := func(code string) gen.GetInstrumentByIdentifierParams {
-		return gen.GetInstrumentByIdentifierParams{Type: gen.IdentifierTypeCurrency, Value: code}
+		return gen.GetInstrumentByIdentifierParams{Type: types.IdentifierTypeCurrency, Value: code}
 	}
 	cash := gen.GetInstrumentByIdentifierRow{
-		Identifier: gen.Identifier{ID: db.NewID(), Type: gen.IdentifierTypeCurrency, Value: "USD"},
+		Identifier: gen.Identifier{ID: db.NewID(), Type: types.IdentifierTypeCurrency, Value: "USD"},
 		Instrument: gen.Instrument{ID: db.NewID(), AssetClass: gen.AssetClassCash},
 	}
 	cashLine := func(f *fixture, currency string, err error) gen.Listing {
