@@ -46,6 +46,10 @@ type Identity interface {
 	Integration
 	// Serves reports the identifier to send for key. An error means the
 	// integration serves nothing for it and the error's text is the reason.
+	//
+	// The identifier sent may differ from every identifier key states, as when
+	// a venue is normalised to its operating MIC.  A key holds what its source
+	// said, and the fetch records what was sent.
 	Serves(key StatedKey) (types.Identifier, error)
 	// Fetch calls the provider and marshalls the results.
 	//

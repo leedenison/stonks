@@ -27,8 +27,6 @@ of open issues and ADRs at `docs/tasks/<label>/`.
 
 ```
 001 open
- |
-007 integration
  |              |
 008 resolution  010 e2e stub
  |       |      |
