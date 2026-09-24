@@ -322,3 +322,78 @@ func TestFetchRecordsAgainstItsRun(t *testing.T) {
 		t.Errorf("row = %+v, want the child run and the parent's user", row)
 	}
 }
+
+// TestFetchChunks checks that a batch larger than the integration accepts is
+// sent as several requests, each answered in the order of its keys.
+func TestFetchChunks(t *testing.T) {
+	f := &fake{batch: 2}
+	h := newHarness(t, f, nil)
+	values := []string{"GB00B03MLX29", "US0378331005", "US5949181045", "US0231351067", "US02079K3059"}
+	keys := make([]StatedKey, len(values))
+	for i, v := range values {
+		keys[i] = keyOf(f, v)
+	}
+
+	results := h.run(t, keys...)
+	if f.calls != 3 {
+		t.Errorf("calls = %d, want 3 requests of at most 2", f.calls)
+	}
+	for n, sent := range f.sent {
+		if len(sent) > 2 {
+			t.Errorf("request %d sent %d identifiers, want at most 2", n, len(sent))
+		}
+	}
+	for i, r := range results {
+		if r.Outcome != gen.FetchOutcomeServed {
+			t.Errorf("result %d outcome = %s, want served", i, r.Outcome)
+			continue
+		}
+		if got := r.Candidates[0].Identifiers[0].Value; got != values[i] {
+			t.Errorf("result %d answered %s, want %s", i, got, values[i])
+		}
+	}
+}
+
+// TestFetchChunkFails checks that a request failing about its identifiers
+// fails only the keys it carried.
+func TestFetchChunkFails(t *testing.T) {
+	f := &fake{batch: 1, errs: []error{nil, permanent("refused")}}
+	h := newHarness(t, f, nil)
+	one, two, three := keyOf(f, "GB00B03MLX29"), keyOf(f, "US0378331005"), keyOf(f, "US5949181045")
+
+	results := h.run(t, one, two, three)
+	want := []gen.FetchOutcome{gen.FetchOutcomeServed, gen.FetchOutcomeFailedPermanent, gen.FetchOutcomeServed}
+	for i, w := range want {
+		if results[i].Outcome != w {
+			t.Errorf("result %d outcome = %s, want %s", i, results[i].Outcome, w)
+		}
+	}
+	if len(h.blocks) != 1 || *h.blocks[0].SentValue != "US0378331005" {
+		t.Errorf("blocks = %+v, want one on the identifier of the failed request", h.blocks)
+	}
+}
+
+// TestFetchChunkBlocksDatasource checks that a request blocking the datasource
+// leaves the requests after it unsent and their keys blocked.
+func TestFetchChunkBlocksDatasource(t *testing.T) {
+	f := &fake{batch: 1, errs: []error{nil, credential("401")}}
+	h := newHarness(t, f, nil)
+	one, two, three := keyOf(f, "GB00B03MLX29"), keyOf(f, "US0378331005"), keyOf(f, "US5949181045")
+
+	results := h.run(t, one, two, three)
+	if f.calls != 2 {
+		t.Errorf("calls = %d, want 2: nothing is sent once the datasource is blocked", f.calls)
+	}
+	want := []gen.FetchOutcome{gen.FetchOutcomeServed, gen.FetchOutcomeFailedPermanent, gen.FetchOutcomeBlocked}
+	for i, w := range want {
+		if results[i].Outcome != w {
+			t.Errorf("result %d outcome = %s, want %s", i, results[i].Outcome, w)
+		}
+	}
+	if row := h.key(t, three.ID); row.Attempts != 0 || row.Reason == nil || *row.Reason != "401" {
+		t.Errorf("row = %+v, want no attempt and the reason of the datasource block", row)
+	}
+	if len(h.blocks) != 1 || h.blocks[0].Scope != gen.BlockScopeDatasource {
+		t.Errorf("blocks = %+v, want one on the datasource", h.blocks)
+	}
+}

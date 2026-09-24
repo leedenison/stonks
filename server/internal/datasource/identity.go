@@ -49,8 +49,8 @@ type Identity interface {
 	Serves(key StatedKey) (types.Identifier, error)
 	// Fetch calls the provider and marshalls the results.
 	//
-	// Fetch is called with a batch. The integration chunks the batch to whatever
-	// the provider accepts. Rate limits are applied per datasource for the life
-	// of the process, so concurrent resolutions share the quota.
+	// Fetch is called with at most Batch identifiers, as one request. Rate
+	// limits are applied per datasource for the life of the process, so
+	// concurrent resolutions share the quota.
 	Fetch(ctx context.Context, sent []types.Identifier) ([]IdentityResult, error)
 }

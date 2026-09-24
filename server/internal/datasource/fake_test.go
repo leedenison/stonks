@@ -45,6 +45,8 @@ type fake struct {
 	errs []error
 	// perKey is the error returned for one position of a good response.
 	perKey map[string]error
+	// batch is the most keys one request carries.
+	batch int
 
 	calls int
 	sent  [][]types.Identifier
@@ -89,6 +91,8 @@ func (f *fake) Classify(err error) Failure {
 }
 
 func (*fake) Limit() (rate.Limit, int) { return rate.Inf, 1 }
+
+func (f *fake) Batch() int { return f.batch }
 
 func factoryOf(i Integration) Factory {
 	return func(Config) (Integration, error) { return i, nil }

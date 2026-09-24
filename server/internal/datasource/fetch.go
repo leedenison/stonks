@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math/rand/v2"
+	"slices"
 	"time"
 
 	"github.com/google/uuid"
@@ -107,8 +108,20 @@ func (f *Fetcher) fetch(ctx context.Context, row gen.Run, e *Entry, kind gen.Fet
 	}
 
 	var blocks []gen.CreateDatasourceBlockParams
-	if len(batch) > 0 {
-		blocks = f.call(ctx, e, results, batch)
+	for _, chunk := range chunks(batch, e.Integration.Batch()) {
+		if blocked.all {
+			for _, i := range chunk {
+				results[i].Outcome, results[i].Reason = gen.FetchOutcomeBlocked, blocked.datasource
+			}
+			continue
+		}
+		earned := f.call(ctx, e, results, chunk)
+		for _, b := range earned {
+			if b.Scope == gen.BlockScopeDatasource {
+				blocked.all, blocked.datasource = true, b.Reason
+			}
+		}
+		blocks = append(blocks, earned...)
 	}
 	for i := range results {
 		if err := f.record(ctx, row, results[i]); err != nil {
@@ -187,6 +200,17 @@ func requestFailed(fail Failure, err error, results []KeyResult, batch []int, at
 		blocks = append(blocks, identifierBlock(results[i]))
 	}
 	return blocks
+}
+
+// chunks splits batch into runs of at most n, or one run where n is zero.
+func chunks(batch []int, n int) [][]int {
+	if len(batch) == 0 {
+		return nil
+	}
+	if n <= 0 {
+		return [][]int{batch}
+	}
+	return slices.Collect(slices.Chunk(batch, n))
 }
 
 func identifierBlock(r KeyResult) gen.CreateDatasourceBlockParams {

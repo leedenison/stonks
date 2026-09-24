@@ -6,6 +6,11 @@
 //
 // The registry is built at startup from the datasources table.
 //
+// A fetch splits its keys into requests no larger than the integration's
+// batch.  Each request waits on the datasource's rate limit and is retried
+// on its own, so a failed request fails only the keys it carried.  A request
+// that blocks the datasource leaves the requests not yet sent blocked.
+//
 // Integrations interpret datasource errors and report them.  Fetches that
 // fail durably are blocked.
 package datasource
@@ -35,6 +40,8 @@ type Integration interface {
 	Classify(err error) Failure
 	// Limit is the rate the provider is called at, and the burst it tolerates.
 	Limit() (rate.Limit, int)
+	// Batch is the most keys one request carries, zero for no limit.
+	Batch() int
 }
 
 // Config for a datasource.
@@ -46,6 +53,3 @@ type Config struct {
 
 // Factory builds an integration from its configuration.
 type Factory func(Config) (Integration, error)
-
-// Integrations returns the factory of every integration.
-func Integrations() map[string]Factory { return map[string]Factory{} }
