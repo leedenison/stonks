@@ -85,8 +85,8 @@ enum IdentifierType {
 // A name for an instrument or for one of its listings.
 message Identifier {
   IdentifierType type = 1;
-  // Qualifies the value for a type that has a domain; unset otherwise.
-  optional string domain = 2;
+  // Qualifies the value for a type that has a domain; empty otherwise.
+  string domain = 2;
   string value = 3;
 }
 

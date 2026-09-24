@@ -39,7 +39,7 @@ FROM identifiers
 JOIN instruments ON instruments.id = identifiers.instrument_id
 WHERE identifiers.listing_id IS NULL
   AND identifiers.type = @type
-  AND identifiers.domain IS NOT DISTINCT FROM sqlc.narg(domain)::text
+  AND identifiers.domain = @domain::text
   AND identifiers.value = @value::text;
 
 -- name: GetListing :one

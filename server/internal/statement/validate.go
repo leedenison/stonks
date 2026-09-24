@@ -12,7 +12,6 @@ import (
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/types"
-	"github.com/leedenison/stonks/server/internal/ptr"
 )
 
 // parseDate reads an ISO 8601 date as midnight UTC.
@@ -124,22 +123,19 @@ func keyOf(sk *typev1.StatedKey) (*key, error) {
 			return nil, fmt.Errorf("identifier type %d outside the vocabulary", id.GetType())
 		}
 		for _, held := range k.identifiers {
-			if held.Type == string(t) && ptr.Equal(held.Domain, id.Domain) {
+			if held.Type == string(t) && held.Domain == id.GetDomain() {
 				return nil, fmt.Errorf("two %s identifiers, %s and %s", t, held.Value, id.GetValue())
 			}
 		}
-		k.identifiers = append(k.identifiers, types.StatedIdentifier{Type: string(t), Domain: id.Domain, Value: id.GetValue()})
+		k.identifiers = append(k.identifiers, types.StatedIdentifier{Type: string(t), Domain: id.GetDomain(), Value: id.GetValue()})
 	}
 	sort.Slice(k.identifiers, func(i, j int) bool {
 		a, b := k.identifiers[i], k.identifiers[j]
 		if a.Type != b.Type {
 			return a.Type < b.Type
 		}
-		if (a.Domain == nil) != (b.Domain == nil) {
-			return a.Domain == nil
-		}
-		if a.Domain != nil && *a.Domain != *b.Domain {
-			return *a.Domain < *b.Domain
+		if a.Domain != b.Domain {
+			return a.Domain < b.Domain
 		}
 		return a.Value < b.Value
 	})

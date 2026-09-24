@@ -51,7 +51,7 @@ CREATE TABLE fetch_keys (
     -- attempts is the number of calls made.
     attempts      smallint        NOT NULL,
     sent_type     identifier_type,
-    sent_domain   text,
+    sent_domain   text            NOT NULL DEFAULT '',
     sent_value    text,
     -- instrument_id is what the answer was attached to.
     instrument_id uuid            REFERENCES instruments (id),
@@ -62,6 +62,7 @@ CREATE TABLE fetch_keys (
     UNIQUE (fetch_id, stated_key_id),
     CHECK ((outcome = 'not_served') = (sent_type IS NULL)),
     CHECK ((sent_type IS NULL) = (sent_value IS NULL)),
+    CHECK (sent_type IS NOT NULL OR sent_domain = ''),
     CHECK ((outcome = 'served') = (reason IS NULL)),
     CHECK ((outcome IN ('not_served', 'blocked')) = (attempts = 0)),
     CHECK (instrument_id IS NULL OR outcome = 'served')
@@ -76,10 +77,10 @@ CREATE INDEX fetch_keys_instrument_idx ON fetch_keys (instrument_id);
 CREATE TABLE fetch_identifiers (
     fetch_key_id uuid            NOT NULL REFERENCES fetch_keys (id),
     type         identifier_type NOT NULL,
-    domain       text,
+    domain       text            NOT NULL DEFAULT '',
     value        text            NOT NULL,
     created_at   timestamptz     NOT NULL DEFAULT now(),
-    UNIQUE NULLS NOT DISTINCT (fetch_key_id, type, domain, value)
+    UNIQUE (fetch_key_id, type, domain, value)
 );
 
 CREATE INDEX fetch_identifiers_value_idx ON fetch_identifiers (type, domain, value);
@@ -93,7 +94,7 @@ CREATE TABLE datasource_blocks (
     -- scope is either a single identifier or an entire datasource.
     scope        block_scope NOT NULL,
     sent_type    identifier_type,
-    sent_domain  text,
+    sent_domain  text        NOT NULL DEFAULT '',
     sent_value   text,
     reason       text        NOT NULL,
     -- fetch_key_id is the call that created the block.
@@ -101,12 +102,12 @@ CREATE TABLE datasource_blocks (
     created_at   timestamptz NOT NULL DEFAULT now(),
     cleared_at   timestamptz,
     CHECK ((scope = 'identifier') = (sent_type IS NOT NULL)),
-    CHECK ((sent_type IS NULL) = (sent_value IS NULL))
+    CHECK ((sent_type IS NULL) = (sent_value IS NULL)),
+    CHECK (sent_type IS NOT NULL OR sent_domain = '')
 );
 
 CREATE UNIQUE INDEX datasource_blocks_identifier_idx
     ON datasource_blocks (datasource, kind, sent_type, sent_domain, sent_value)
-    NULLS NOT DISTINCT
     WHERE cleared_at IS NULL AND scope = 'identifier';
 
 CREATE UNIQUE INDEX datasource_blocks_datasource_idx

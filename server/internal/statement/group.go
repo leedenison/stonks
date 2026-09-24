@@ -64,14 +64,10 @@ func groups(keys []gen.ListGroupableKeysRow) map[uuid.UUID]uuid.UUID {
 	for _, r := range keys {
 		k := r.StatedKey
 		for _, i := range k.Identifiers {
-			if domained[gen.IdentifierType(i.Type)] && i.Domain == nil {
+			if domained[gen.IdentifierType(i.Type)] && i.Domain == "" {
 				continue
 			}
-			domain := ""
-			if i.Domain != nil {
-				domain = *i.Domain
-			}
-			join(fmt.Sprintf("i\x00%s\x00%s\x00%s", i.Type, domain, i.Value), k.ID)
+			join(fmt.Sprintf("i\x00%s\x00%s\x00%s", i.Type, i.Domain, i.Value), k.ID)
 		}
 		if k.Description != nil {
 			join(fmt.Sprintf("d\x00%s\x00%s", r.Broker, *k.Description), k.ID)

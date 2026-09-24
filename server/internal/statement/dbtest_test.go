@@ -152,8 +152,8 @@ func TestIngest(t *testing.T) {
 	s := newStack(t)
 	ctx := context.Background()
 	usd, eur := "USD", "EUR"
-	isin := ident(typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, "US0000000001", nil)
-	currency := ident(typev1.IdentifierType_IDENTIFIER_TYPE_CURRENCY, "USD", nil)
+	isin := ident(typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, "US0000000001", "")
+	currency := ident(typev1.IdentifierType_IDENTIFIER_TYPE_CURRENCY, "USD", "")
 	acme := securityKey("ACME CORP", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, isin)
 	transfer := securityKey("ACME CORP", typev1.AssetClass_ASSET_CLASS_EQUITY, nil, isin)
 	cashInEur := &typev1.StatedKey{Identifiers: []*typev1.Identifier{currency}, AssetClass: typev1.AssetClass_ASSET_CLASS_CASH, Currency: &eur}

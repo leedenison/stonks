@@ -174,6 +174,8 @@ func TestFetchKeys(t *testing.T) {
 			Outcome: gen.FetchOutcomeBlocked, Attempts: 1, SentType: isin, SentValue: ptr.To("v"), Reason: ptr.To("r")}},
 		{name: "failed without calling", want: pgerrcode.CheckViolation, arg: gen.CreateFetchKeyParams{
 			Outcome: gen.FetchOutcomeFailedTemporary, Attempts: 0, SentType: isin, SentValue: ptr.To("v"), Reason: ptr.To("r")}},
+		{name: "a domain sent with no identifier", want: pgerrcode.CheckViolation, arg: gen.CreateFetchKeyParams{
+			Outcome: gen.FetchOutcomeNotServed, SentDomain: "XLON", Reason: ptr.To("r")}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -234,7 +236,7 @@ func TestFetchKeys(t *testing.T) {
 	})
 }
 
-// TestFetchIdentifiers checks one assertion per triple, counting null domains
+// TestFetchIdentifiers checks one assertion per triple, counting empty domains
 // as equal.
 func TestFetchIdentifiers(t *testing.T) {
 	ctx := context.Background()
@@ -249,7 +251,7 @@ func TestFetchIdentifiers(t *testing.T) {
 	require.NoError(t, q.CreateFetchIdentifier(ctx, gen.CreateFetchIdentifierParams{
 		FetchKeyID: key, Type: gen.IdentifierTypeIsin, Value: "GB00B03MLX29"}))
 	require.NoError(t, q.CreateFetchIdentifier(ctx, gen.CreateFetchIdentifierParams{
-		FetchKeyID: key, Type: gen.IdentifierTypeMicTicker, Domain: ptr.To("XLON"), Value: "SHEL"}))
+		FetchKeyID: key, Type: gen.IdentifierTypeMicTicker, Domain: "XLON", Value: "SHEL"}))
 
 	listed, err := q.ListFetchIdentifiers(ctx, key)
 	require.NoError(t, err)
@@ -310,12 +312,15 @@ func TestDatasourceBlocks(t *testing.T) {
 		t.Errorf("ListOpenBlocks after clearing one and opening it again = %d rows, want 3", len(open))
 	}
 
+	domained := block(gen.BlockScopeDatasource, nil)
+	domained.SentDomain = "XLON"
 	scopes := []struct {
 		name string
 		arg  gen.CreateDatasourceBlockParams
 	}{
 		{name: "an identifier block naming none", arg: block(gen.BlockScopeIdentifier, nil)},
 		{name: "a datasource block naming one", arg: block(gen.BlockScopeDatasource, ptr.To("GB00B03MLX29"))},
+		{name: "a datasource block naming a domain", arg: domained},
 	}
 	for _, tc := range scopes {
 		t.Run(tc.name, func(t *testing.T) {
