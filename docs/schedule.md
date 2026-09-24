@@ -28,12 +28,10 @@ of open issues and ADRs at `docs/tasks/<label>/`.
 ```
 001 open
  |
- +----------------+
- |                |
-004 framework   006 MIC table
- |      |         |
-005     +----+----+
- |           |
+ +--------+
+ |        |
+005     006 MIC table
+ |        |
  |      007 integration
  |       |         |
  +---+---+    010 e2e stub

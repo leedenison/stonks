@@ -28,6 +28,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/auth/google"
 	"github.com/leedenison/stonks/server/internal/auth/session"
 	"github.com/leedenison/stonks/server/internal/config"
+	"github.com/leedenison/stonks/server/internal/datasource"
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/logger"
@@ -111,6 +112,11 @@ func run() (err error) {
 	}
 	runs := runner.New(queries, runLog)
 	defer runs.Close()
+	sources, err := datasource.New(ctx, queries, datasource.Integrations(), logger.WithCategory(log, "internal/datasource"))
+	if err != nil {
+		return err
+	}
+	log.Info("datasources", "enabled", sources.Names())
 	rdb, err := session.Open(ctx, cfg.RedisURL, session.WithTracing())
 	if err != nil {
 		return err

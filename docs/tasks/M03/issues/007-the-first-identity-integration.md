@@ -1,7 +1,7 @@
 ---
 title: The first identity integration
 type: task
-dependencies: [004, 006]
+dependencies: [006]
 ---
 
 ## Scope
@@ -14,9 +14,14 @@ In:
 - The client for the provider, tested against recorded traffic redacted as it is saved.
 - The declaration of the identifier types and domains it serves, and the identifier it
   sends for each.
-- Conversion of each answer to the canonical candidate shape: the identifiers returned, the
-  asset class, the currency, the venue normalised to its operating MIC, and what the
-  call strictly filtered on. Candidates are not ranked.
+- Conversion of each answer to the canonical candidate shape: the identifiers returned,
+  the asset class, the currency, and what the call strictly filtered on. A venue is
+  returned as the domain of a MIC_TICKER, normalised to its operating MIC. Candidates
+  are not ranked.
+- Returning every identifier the provider gave a candidate, the instrument-grain ones
+  included. Whether two candidates are listings of one instrument or competing answers
+  is read from the identifiers they share, so an integration that drops them makes an
+  exact answer at instrument grain look like a choice.
 - The classification of the provider's error codes as temporary or permanent, and its
   rate limit.
 - Configuration that enables the integration and carries its credential.

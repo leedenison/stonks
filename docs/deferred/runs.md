@@ -20,7 +20,6 @@ record addressed to an administrator.
 
 ### Kinds
 
-- A fetch asks one datasource for one kind of data over one period.
 - A replay re-resolves the transactions an event or new coverage has affected.
 
 ### Triggers
@@ -70,9 +69,6 @@ it.
 ## Sketch
 
 ```sql
-fetch(run_id, datasource, kind, period, fetched_at)
-fetch_key(id, run_id, key, outcome, instrument_id, sent_type, sent_domain, sent_value)
-fetch_identifier(fetch_key_id, type, domain, value)
 finding(id, run_id, kind, consequence, subject, cleared_at)
 ```
 
