@@ -3,11 +3,10 @@
 // A run is a row created before its work starts. The call starting it answers
 // with the row, and progress and the outcome are read against it.
 //
-// A run is started by a user or by another run. A user's run executes in a
-// goroutine of its own once the call starting it has answered. A run carries
-// out its prepare step in the caller. A run started by another run executes
-// inline in its parent's goroutine. The parent decides whether a child's
-// failure fails it.
+// A user's run executes in a goroutine of its own once the call starting it
+// has answered, after carrying out its prepare step in the caller. A run
+// started by another run executes inline in its parent's goroutine, and the
+// parent decides whether its failure fails it.
 //
 // Runs of one user and lane execute in the order they were started: a run
 // stays pending until every earlier run of the same user and lane has
@@ -17,15 +16,14 @@
 // process. When the process stops, pending work is dropped and running work
 // is cancelled, and their rows stay as they were; Sweep, run at boot before
 // any run starts, marks them interrupted. An interrupted run is neither
-// resumed nor restarted. It is kept apart from failed because nothing
+// resumed nor restarted, and is kept apart from failed because nothing
 // recorded why it stopped.
 //
 // Work reaching its end marks the run completed unless the work did so
 // itself. A kind whose writes and completion must be one database
 // transaction calls CompleteRun inside that transaction, and the update made
 // afterwards matches no row. Work returning an error marks the run failed
-// with the error's text. A panic in Prepare or the work fails the run, not
-// the process.
+// with the error's text. A panic in Prepare or the work fails the run.
 package run
 
 //go:generate go tool mockgen -source=run.go -destination=mock/run_mock.go -package=mock

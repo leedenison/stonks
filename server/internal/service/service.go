@@ -13,7 +13,7 @@
 // traced and timed, and its span records whatever code the caller finally
 // saw. Tracing is outermost because that is the only position that sees a
 // refusal the chain itself decided, such as one from authentication or from
-// request validation. Only gRPC reflection is left untraced.
+// request validation.
 //
 // Authentication reads the session cookie, CookieName, and applies a policy
 // by procedure. The default is that a live session is required, so a new RPC
@@ -92,14 +92,13 @@ func policyFor(procedure string) policy {
 	return required
 }
 
-// isReflection reports whether procedure belongs to gRPC reflection, which
-// carries no session and is not traced.
+// isReflection reports whether procedure belongs to gRPC reflection.
 func isReflection(procedure string) bool {
 	return strings.HasPrefix(procedure, "/grpc.reflection.")
 }
 
 // sessionID returns the value of the session cookie in h, or "". A malformed
-// neighbouring cookie is skipped rather than failing the lookup.
+// neighbouring cookie is skipped.
 func sessionID(h http.Header) string {
 	c, err := (&http.Request{Header: h}).Cookie(CookieName)
 	if err != nil {

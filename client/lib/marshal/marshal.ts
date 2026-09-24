@@ -1,16 +1,7 @@
-// A marshaller translates one broker's export, given as its text, into the
-// neutral format in proto/statement/v1/statement.proto. All knowledge of the
-// broker's conventions lives here: which lines are legs, which dates are
-// stated, which identifiers the export carries, and which lines are not
-// emitted. A line of a kind the marshaller does not know fails the whole
-// export, so no leg is silently dropped.
-//
-// A marshaller also recognises its broker's export, so the broker can be
-// guessed for the user to confirm. Recognition rests on the media type the
-// browser reports for the file, which a marshaller refuses before reading
-// the contents when its broker never issues it; then on the format; and,
-// for an export that states an account number, on that number sitting where
-// the export states it and taking the form the broker issues.
+// A marshaller translates one broker's export into the broker neutral
+// format in proto/statement/v1/statement.proto. All knowledge of the
+// broker's conventions live in the marshaller. A line of a kind the
+// marshaller does not know fails the whole export.
 
 import { Broker } from "@/gen/type/v1/type_pb";
 import type { Statement } from "@/gen/statement/v1/statement_pb";
@@ -25,8 +16,8 @@ export interface Marshaller {
   // exportedOn is the date the export was taken, for a broker that restates
   // every quantity to the units held at export.
   marshal(text: string, exportedOn: string): Statement;
-  // type is the media type the browser reports for the file. recognise
-  // never throws; text of any kind is answered.
+  // type is the media type the browser reports for the file. recognise never
+  // throws.
   recognise(text: string, type: string): boolean;
 }
 
@@ -44,8 +35,7 @@ export function marshallerFor(broker: Broker): Marshaller {
   return found[1];
 }
 
-// recognisedBy returns the brokers whose marshaller recognises text. One is
-// a guess for the user to confirm; none or several leaves the choice open.
+// recognisedBy returns the brokers whose marshaller recognises text.
 export function recognisedBy(text: string, type: string): Broker[] {
   return marshallers.filter(([, m]) => m.recognise(text, type)).map(([b]) => b);
 }

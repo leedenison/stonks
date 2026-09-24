@@ -39,11 +39,10 @@ const (
 	resultError    = "error"
 )
 
-// instruments count what this package decides. They are built from the global
-// meter provider when the package initialises: the API rebinds an instrument
-// created before a provider is installed, so nothing here depends on running
-// after telemetry setup, and a failed construction yields an instrument that
-// does nothing, so no call site is guarded.
+// instruments count what this package decides. They are built at package
+// initialisation: the API rebinds an instrument created before a provider is
+// installed, and a failed construction yields one that does nothing, so no
+// call site is guarded.
 type instruments struct {
 	signIns     metric.Int64Counter
 	provisioned metric.Int64Counter
@@ -93,7 +92,7 @@ func (i instruments) lookup(ctx context.Context, result string) {
 }
 
 // signInOutcome classifies a sign-in failure. The set is closed, so a failure
-// it does not recognise is an error rather than a new series.
+// it does not recognise is an error.
 func signInOutcome(err error) string {
 	switch {
 	case err == nil:

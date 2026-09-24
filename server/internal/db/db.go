@@ -6,27 +6,21 @@
 // directly. Each consumer declares the narrow interface it needs, which
 // *gen.Queries satisfies structurally, and mocks that.
 //
-// The driver is pgx v5, which sqlc targets natively.
-//
 // An insert takes its surrogate key from the caller, minted with NewID, so a
 // set of related rows is written in one batch without reading keys back. The
 // convention for keys is in [migrations.go](../migrations/migrations.go).
 //
 // Every query over a user's own data takes the caller's user id and filters
-// on it, so access is decided by the query and never checked after the read.
-// A caller with no access sees no row, and the handler answers not found;
+// on it, so access is decided by the query and never checked after the read;
 // see [service.go](../service/service.go).
 //
 // A consumer that must write several rows atomically declares the queries it
 // uses as an interface and takes a DB over it, whose Tx runs the interface
 // over one transaction; see [tx.go](tx.go).
 //
-// A condition a caller acts on crosses the package boundary as a sentinel
-// error, such as ErrNotFound, checked with errors.Is. A condition the driver
-// states as a SQLSTATE rather than an error value crosses as a predicate
-// instead, IsConflict. Every other failure is wrapped.
-//
-// Generated code is gitignored, so make generate precedes compilation.
+// This API reports sentinel errors such as ErrNotFound, checked with
+// errors.Is. SQLSTATEs reported by the driver are interrogated with
+// predicates such as IsConflict.
 package db
 
 import (
@@ -51,15 +45,13 @@ import (
 // sqlcNamePrefix introduces the query name sqlc emits above each statement.
 const sqlcNamePrefix = "-- name: "
 
-// ErrNotFound is what a generated single-row query returns when no row matches.
+// ErrNotFound indeicates single-row query returned no rows.
 var ErrNotFound = pgx.ErrNoRows
 
-// NewID mints a surrogate key. It panics only if the random source fails,
-// which crypto/rand treats as unrecoverable itself.
+// NewID mints a surrogate key.
 func NewID() uuid.UUID { return uuid.Must(uuid.NewV7()) }
 
-// IsConflict reports whether err is a write a unique constraint refused, which
-// is how a caller learns that the row it meant to insert already exists.
+// IsConflict returns true if a unique constraint refused a write.
 func IsConflict(err error) bool {
 	var pgErr *pgconn.PgError
 	return errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation

@@ -40,12 +40,10 @@ const Placeholder = "REDACTED"
 // recordEnv holds the base name of the one cassette to re-record.
 const recordEnv = "STONKS_RECORD"
 
-// allowedHeaders are the request headers a recording keeps. Everything else
-// is dropped as the interaction is saved.
+// allowedHeaders are the request headers a recording keeps.
 var allowedHeaders = []string{"Accept", "Accept-Encoding", "Content-Type", "User-Agent"}
 
-// droppedResponseHeaders are removed from every recording, whatever the client
-// declares.
+// droppedResponseHeaders are removed whatever the client declares.
 var droppedResponseHeaders = []string{"Set-Cookie"}
 
 // Scrub is a client's declaration of what its traffic carries that must not

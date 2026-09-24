@@ -1,18 +1,13 @@
 // Package telemetry configures the OpenTelemetry SDK for the process.
 //
 // Setup installs a tracer provider, a meter provider and a W3C trace context
-// propagator as the process globals, so an instrumented library finds them
-// without being handed one. It is called once, at startup, and returns the
-// function that flushes and stops what it started.
+// propagator as the process globals. It is called once, at startup.
 //
 // Export is over OTLP/HTTP to one collector endpoint taken from the
 // configuration rather than from the OTEL_* variables the SDK reads for
-// itself, because the environment is read in one package and this is not it.
-// See [config.go](../config/config.go). An empty endpoint installs no
-// providers, so a process with no collector starts no exporter, no background
-// goroutine and no periodic reader, and every span and measurement is a no-op.
-// That is what keeps telemetry out of tests and out of the end-to-end stack,
-// which run the same binary with the endpoint unset.
+// itself. See [config.go](../config/config.go). An empty endpoint installs no
+// providers and every span and measurement is a no-op, which is what keeps
+// telemetry out of tests and out of the end-to-end stack.
 //
 // Every span is sampled. A deployment this size is diagnosed one request at a
 // time, and a sampler drops the request being diagnosed. Metrics are pushed on
@@ -21,11 +16,11 @@
 //
 // The resource identifies the process. service.instance.id is what separates
 // two processes' series, so it is the hostname, stable across a restart of the
-// same container, rather than an identifier minted at each start.
+// same container.
 //
 // The SDK reports its own failures through an error handler and a logger, both
 // bridged to slog, so a collector that cannot be reached says so in the
-// service log rather than silently dropping telemetry.
+// service log.
 package telemetry
 
 import (
