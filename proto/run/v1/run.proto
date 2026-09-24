@@ -1,5 +1,5 @@
-// Read a run: one unit of background work, started by a user or by another
-// run, whose progress and outcome are read against it.
+// Read a run: one unit of background work, started by a user, an
+// administrator or another run, whose progress and outcome are read against it.
 
 syntax = "proto3";
 
@@ -27,6 +27,8 @@ enum RunTrigger {
   RUN_TRIGGER_USER = 1;
   // Another run, named as the parent.
   RUN_TRIGGER_RUN = 2;
+  // An administrator, who is the run's user.
+  RUN_TRIGGER_ADMINISTRATOR = 3;
 }
 
 // Where a run is in its life. The last three are terminal.

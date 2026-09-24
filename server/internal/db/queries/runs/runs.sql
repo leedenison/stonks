@@ -19,9 +19,10 @@ WHERE id = $1 AND state = 'running';
 UPDATE runs SET state = 'failed', error = @error::text, finished_at = now()
 WHERE id = $1 AND state = 'running';
 
--- name: InterruptRuns :execrows
+-- name: InterruptRuns :many
 UPDATE runs SET state = 'interrupted', finished_at = now()
-WHERE state IN ('pending', 'running');
+WHERE state IN ('pending', 'running')
+RETURNING kind, trigger;
 
 -- name: ListChildRuns :many
 SELECT * FROM runs

@@ -12,6 +12,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/types"
+	"github.com/leedenison/stonks/server/internal/run"
 )
 
 const (
@@ -76,9 +77,9 @@ func (f *Fetcher) Fetch(ctx context.Context, parent gen.Run, e *Entry, kind gen.
 	return row, results, err
 }
 
-func (f *Fetcher) fetch(ctx context.Context, run gen.Run, e *Entry, kind gen.FetchKind, keys []StatedKey) ([]KeyResult, error) {
+func (f *Fetcher) fetch(ctx context.Context, row gen.Run, e *Entry, kind gen.FetchKind, keys []StatedKey) ([]KeyResult, error) {
 	if _, err := f.store.CreateFetch(ctx, gen.CreateFetchParams{
-		ID: run.ID, UserID: run.UserID, Datasource: e.Name, Kind: kind,
+		ID: row.ID, UserID: row.UserID, Datasource: e.Name, Kind: kind,
 	}); err != nil {
 		return nil, fmt.Errorf("create fetch: %w", err)
 	}
@@ -110,15 +111,20 @@ func (f *Fetcher) fetch(ctx context.Context, run gen.Run, e *Entry, kind gen.Fet
 		blocks = f.call(ctx, e, results, batch)
 	}
 	for i := range results {
-		if err := f.record(ctx, run, results[i]); err != nil {
+		if err := f.record(ctx, row, results[i]); err != nil {
 			return results, err
 		}
 		instr.key(ctx, e.Name, results[i].Outcome)
 	}
 	for _, b := range blocks {
 		b.ID, b.Datasource, b.Kind = db.NewID(), e.Name, kind
-		if err := f.store.CreateDatasourceBlock(ctx, b); err != nil {
+		b.FindingID, b.RunID = db.NewID(), row.ID
+		n, err := f.store.CreateDatasourceBlock(ctx, b)
+		if err != nil {
 			return results, fmt.Errorf("create block: %w", err)
+		}
+		if n > 0 {
+			run.Found(ctx, gen.FindingKindBlock)
 		}
 	}
 	return results, nil

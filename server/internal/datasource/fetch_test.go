@@ -53,9 +53,9 @@ func newHarness(t *testing.T, integration Identity, open []gen.DatasourceBlock) 
 			return nil
 		}).AnyTimes()
 	h.store.EXPECT().CreateDatasourceBlock(gomock.Any(), gomock.Any()).
-		DoAndReturn(func(_ context.Context, arg gen.CreateDatasourceBlockParams) error {
+		DoAndReturn(func(_ context.Context, arg gen.CreateDatasourceBlockParams) (int64, error) {
 			h.blocks = append(h.blocks, arg)
-			return nil
+			return 1, nil
 		}).AnyTimes()
 
 	h.fetcher = NewFetcher(h.store, runs, discard(), WithRetry(time.Millisecond, 3))
@@ -186,6 +186,9 @@ func TestFetchRetriesExhausted(t *testing.T) {
 	}
 	if *h.blocks[0].SentValue != "GB00B03MLX29" {
 		t.Errorf("block value = %s, want the identifier sent", *h.blocks[0].SentValue)
+	}
+	if h.blocks[0].RunID != h.child.ID || h.blocks[0].FindingID == uuid.Nil {
+		t.Errorf("block finding = %s on run %s, want a finding on the fetch run %s", h.blocks[0].FindingID, h.blocks[0].RunID, h.child.ID)
 	}
 }
 

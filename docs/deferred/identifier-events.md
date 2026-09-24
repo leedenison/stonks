@@ -108,7 +108,7 @@ description.
   and accepts it.
 - A witnessed event inside a bracket of same-holder assertions is a contradiction.  The
   event wins, and the contradiction is recorded as a finding of the run that met it.  See
-  [runs.md](runs.md).
+  [006_findings.sql](../../server/internal/migrations/006_findings.sql).
 
 ## Constraints
 

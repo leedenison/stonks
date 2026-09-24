@@ -3,10 +3,12 @@
 // A run is a row created before its work starts. The call starting it answers
 // with the row, and progress and the outcome are read against it.
 //
-// A user's run executes in a goroutine of its own once the call starting it
-// has answered, after carrying out its prepare step in the caller. A run
-// started by another run executes inline in its parent's goroutine, and the
-// parent decides whether its failure fails it.
+// A run is started by a user, by an administrator, who is then its user, or
+// by another run. A run a user or an administrator starts executes in a
+// goroutine of its own once the call starting it has answered, after carrying
+// out its prepare step in the caller. A run started by another run executes
+// inline in its parent's goroutine, and the parent decides whether its
+// failure fails it.
 //
 // Runs of one user and lane execute in the order they were started: a run
 // stays pending until every earlier run of the same user and lane has
@@ -27,6 +29,15 @@
 // transaction calls CompleteRun inside that transaction, and the update made
 // afterwards matches no row. Work returning an error marks the run failed
 // with the error's text. A panic in Prepare or the work fails the run.
+//
+// A run records what an administrator may need to see as findings, which
+// belong to the run and are written by the work that met them; see
+// [006_findings.sql](../migrations/006_findings.sql). The items a run writes
+// are addressed to its user.
+//
+// Telemetry mirrors runs by kind, trigger and terminal state, and findings by
+// kind. Its attributes are bounded, so nothing is counted per
+// run, and nothing reads it back: the rows are the record.
 package run
 
 //go:generate go tool mockgen -source=run.go -destination=mock/run_mock.go -package=mock
@@ -53,7 +64,7 @@ type Store interface {
 	StartRun(ctx context.Context, id uuid.UUID) (gen.Run, error)
 	CompleteRun(ctx context.Context, id uuid.UUID) error
 	FailRun(ctx context.Context, arg gen.FailRunParams) error
-	InterruptRuns(ctx context.Context) (int64, error)
+	InterruptRuns(ctx context.Context) ([]gen.InterruptRunsRow, error)
 }
 
 var _ Store = (*gen.Queries)(nil)
@@ -62,10 +73,12 @@ var _ Store = (*gen.Queries)(nil)
 // that returns an error after that is left for Sweep rather than failed.
 type Work func(ctx context.Context, run gen.Run) error
 
-// Spec describes a run a user starts.
+// Spec describes a run a user or an administrator starts.
 type Spec struct {
-	Kind   gen.RunKind
-	UserID uuid.UUID
+	Kind gen.RunKind
+	// Trigger is user or administrator.
+	Trigger gen.RunTrigger
+	UserID  uuid.UUID
 	// Lane indicates which of a user's runs must be serialized (ie. two
 	// runs with the same lane must be serialized).
 	Lane string
@@ -109,7 +122,7 @@ type handoff struct {
 	err error
 }
 
-// Start records a run of trigger user, runs spec.Prepare, and queues the
+// Start records a run of spec.Trigger, runs spec.Prepare, and queues the
 // work. It returns the pending row without waiting for the work. A run whose
 // row could not be inserted was never started and holds no place in its lane.
 func (r *Runner) Start(ctx context.Context, spec Spec, work Work) (gen.Run, error) {
@@ -129,7 +142,7 @@ func (r *Runner) Start(ctx context.Context, spec Spec, work Work) (gen.Run, erro
 	r.wg.Add(1)
 	go r.background(work, key, prev, done, ready)
 	r.mu.Unlock()
-	row, err := r.store.CreateRun(ctx, gen.CreateRunParams{ID: id, UserID: spec.UserID, Kind: spec.Kind, Trigger: gen.RunTriggerUser})
+	row, err := r.store.CreateRun(ctx, gen.CreateRunParams{ID: id, UserID: spec.UserID, Kind: spec.Kind, Trigger: spec.Trigger})
 	if err != nil {
 		close(ready)
 		return gen.Run{}, fmt.Errorf("create run: %w", err)
@@ -216,11 +229,13 @@ func (r *Runner) execute(ctx context.Context, row gen.Run, work Work) error {
 	write := context.WithoutCancel(ctx)
 	switch {
 	case err == nil:
+		instr.run(ctx, row, gen.RunStateCompleted)
 		if cerr := r.store.CompleteRun(write, row.ID); cerr != nil {
 			r.log.Error("complete run", "run", row.ID, "kind", row.Kind, "err", cerr)
 		}
 	case ctx.Err() != nil:
 	default:
+		instr.run(ctx, row, gen.RunStateFailed)
 		if ferr := r.store.FailRun(write, gen.FailRunParams{ID: row.ID, Error: err.Error()}); ferr != nil {
 			r.log.Error("fail run", "run", row.ID, "kind", row.Kind, "err", ferr)
 		}
@@ -243,12 +258,15 @@ func call(ctx context.Context, row gen.Run, work Work) (err error) {
 // before any run starts, so every row it finds belongs to a process that
 // stopped.
 func Sweep(ctx context.Context, store Store, log *slog.Logger) error {
-	n, err := store.InterruptRuns(ctx)
+	rows, err := store.InterruptRuns(ctx)
 	if err != nil {
 		return fmt.Errorf("interrupt runs: %w", err)
 	}
-	if n > 0 {
-		log.Info("interrupted runs", "count", n)
+	for _, r := range rows {
+		instr.run(ctx, gen.Run{Kind: r.Kind, Trigger: r.Trigger}, gen.RunStateInterrupted)
+	}
+	if len(rows) > 0 {
+		log.Info("interrupted runs", "count", len(rows))
 	}
 	return nil
 }

@@ -11,6 +11,8 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel"
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.uber.org/goleak"
 	"go.uber.org/mock/gomock"
 
@@ -19,6 +21,7 @@ import (
 )
 
 func TestMain(m *testing.M) {
+	otel.SetMeterProvider(sdkmetric.NewMeterProvider(sdkmetric.WithReader(reader)))
 	goleak.VerifyTestMain(m)
 }
 
@@ -70,24 +73,28 @@ func await(t *testing.T, ch <-chan struct{}, what string) {
 }
 
 func TestStart(t *testing.T) {
-	f := newFixture(t)
-	completed, done := signal()
-	f.store.EXPECT().CompleteRun(gomock.Any(), gomock.Any()).DoAndReturn(func(context.Context, uuid.UUID) error { done(); return nil })
+	for _, trigger := range []gen.RunTrigger{gen.RunTriggerUser, gen.RunTriggerAdministrator} {
+		t.Run(string(trigger), func(t *testing.T) {
+			f := newFixture(t)
+			completed, done := signal()
+			f.store.EXPECT().CompleteRun(gomock.Any(), gomock.Any()).DoAndReturn(func(context.Context, uuid.UUID) error { done(); return nil })
 
-	ran := make(chan struct{})
-	row, err := f.runner.Start(context.Background(), Spec{Kind: gen.RunKindStatement, UserID: userA, Lane: "ibkr"}, func(context.Context, gen.Run) error {
-		close(ran)
-		return nil
-	})
-	if err != nil {
-		t.Fatalf("Start() error = %v", err)
+			ran := make(chan struct{})
+			row, err := f.runner.Start(context.Background(), Spec{Kind: gen.RunKindStatement, Trigger: trigger, UserID: userA, Lane: "ibkr"}, func(context.Context, gen.Run) error {
+				close(ran)
+				return nil
+			})
+			if err != nil {
+				t.Fatalf("Start() error = %v", err)
+			}
+			want := gen.Run{ID: row.ID, UserID: userA, Kind: gen.RunKindStatement, Trigger: trigger, State: gen.RunStatePending}
+			if diff := cmp.Diff(want, row); diff != "" {
+				t.Errorf("Start() row mismatch (-want +got):\n%s", diff)
+			}
+			await(t, ran, "the work to run")
+			await(t, completed, "CompleteRun")
+		})
 	}
-	want := gen.Run{ID: row.ID, UserID: userA, Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser, State: gen.RunStatePending}
-	if diff := cmp.Diff(want, row); diff != "" {
-		t.Errorf("Start() row mismatch (-want +got):\n%s", diff)
-	}
-	await(t, ran, "the work to run")
-	await(t, completed, "CompleteRun")
 }
 
 func TestStartRecordsFailure(t *testing.T) {
@@ -109,7 +116,7 @@ func TestStartRecordsFailure(t *testing.T) {
 				done()
 				return nil
 			})
-			row, err := f.runner.Start(context.Background(), Spec{Kind: gen.RunKindStatement, UserID: userA}, tc.work)
+			row, err := f.runner.Start(context.Background(), Spec{Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser, UserID: userA}, tc.work)
 			if err != nil {
 				t.Fatalf("Start() error = %v", err)
 			}
@@ -140,7 +147,7 @@ func TestStartCreateFails(t *testing.T) {
 	r := New(store, slog.New(slog.DiscardHandler))
 	t.Cleanup(r.Close)
 
-	spec := Spec{Kind: gen.RunKindStatement, UserID: userA, Lane: "ibkr", Prepare: func(context.Context, gen.Run) error {
+	spec := Spec{Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser, UserID: userA, Lane: "ibkr", Prepare: func(context.Context, gen.Run) error {
 		t.Error("Prepare ran for a run that was not inserted")
 		return nil
 	}}
@@ -151,7 +158,7 @@ func TestStartCreateFails(t *testing.T) {
 	if !errors.Is(err, boom) {
 		t.Errorf("Start() error = %v, want %v", err, boom)
 	}
-	next := Spec{Kind: gen.RunKindStatement, UserID: userA, Lane: "ibkr"}
+	next := Spec{Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser, UserID: userA, Lane: "ibkr"}
 	if _, err := r.Start(context.Background(), next, func(context.Context, gen.Run) error { return nil }); err != nil {
 		t.Fatalf("Start() after the failed insert error = %v", err)
 	}
@@ -196,9 +203,9 @@ func TestStartOrdersLane(t *testing.T) {
 		spec Spec
 		work Work
 	}{
-		{Spec{Kind: gen.RunKindStatement, UserID: userA, Lane: "ibkr"}, first},
-		{Spec{Kind: gen.RunKindStatement, UserID: userA, Lane: "ibkr"}, second},
-		{Spec{Kind: gen.RunKindStatement, UserID: userA, Lane: "schwab"}, other},
+		{Spec{Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser, UserID: userA, Lane: "ibkr"}, first},
+		{Spec{Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser, UserID: userA, Lane: "ibkr"}, second},
+		{Spec{Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser, UserID: userA, Lane: "schwab"}, other},
 	} {
 		if _, err := f.runner.Start(ctx, s.spec, s.work); err != nil {
 			t.Fatalf("Start(%+v) error = %v", s.spec, err)
@@ -234,7 +241,7 @@ func TestParallelUsers(t *testing.T) {
 		}
 	}
 	for _, u := range []uuid.UUID{userA, userB} {
-		if _, err := f.runner.Start(context.Background(), Spec{Kind: gen.RunKindStatement, UserID: u, Lane: "ibkr"}, work); err != nil {
+		if _, err := f.runner.Start(context.Background(), Spec{Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser, UserID: u, Lane: "ibkr"}, work); err != nil {
 			t.Fatalf("Start() error = %v", err)
 		}
 	}
@@ -257,7 +264,7 @@ func TestClose(t *testing.T) {
 		return nil
 	}
 	ctx := context.Background()
-	spec := Spec{Kind: gen.RunKindStatement, UserID: userA, Lane: "ibkr"}
+	spec := Spec{Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser, UserID: userA, Lane: "ibkr"}
 	if _, err := f.runner.Start(ctx, spec, blocking); err != nil {
 		t.Fatalf("Start() error = %v", err)
 	}
@@ -281,18 +288,20 @@ func TestChild(t *testing.T) {
 		work    Work
 		expect  func(f *fixture)
 		wantErr string
+		counted string
 	}{
 		{name: "completed", work: func(context.Context, gen.Run) error { return nil }, expect: func(f *fixture) {
 			f.store.EXPECT().CompleteRun(gomock.Any(), gomock.Any()).Return(nil)
-		}},
+		}, counted: "stonks.runs{kind=resolution,outcome=completed,trigger=run}"},
 		{name: "failed", work: func(context.Context, gen.Run) error { return errors.New("boom") }, expect: func(f *fixture) {
 			f.store.EXPECT().FailRun(gomock.Any(), gomock.Any()).Return(nil)
-		}, wantErr: "boom"},
+		}, wantErr: "boom", counted: "stonks.runs{kind=resolution,outcome=failed,trigger=run}"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newFixture(t)
 			tc.expect(f)
+			counts(t)
 			ran := false
 			row, err := f.runner.Child(context.Background(), parent, gen.RunKindResolution, func(ctx context.Context, run gen.Run) error {
 				ran = true
@@ -308,6 +317,9 @@ func TestChild(t *testing.T) {
 			if diff := cmp.Diff(want, row); diff != "" {
 				t.Errorf("Child() row mismatch (-want +got):\n%s", diff)
 			}
+			if diff := cmp.Diff(map[string]int64{tc.counted: 1}, counts(t)); diff != "" {
+				t.Errorf("Child() counts mismatch (-want +got):\n%s", diff)
+			}
 		})
 	}
 }
@@ -321,7 +333,7 @@ func TestPrepare(t *testing.T) {
 		f.store.EXPECT().CompleteRun(gomock.Any(), gomock.Any()).DoAndReturn(func(context.Context, uuid.UUID) error { done(); return nil })
 		prepared := false
 		var preparedFor gen.Run
-		spec := Spec{Kind: gen.RunKindStatement, UserID: userA, Lane: "ibkr", Prepare: func(_ context.Context, run gen.Run) error {
+		spec := Spec{Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser, UserID: userA, Lane: "ibkr", Prepare: func(_ context.Context, run gen.Run) error {
 			time.Sleep(20 * time.Millisecond)
 			prepared = true
 			preparedFor = run
@@ -351,7 +363,7 @@ func TestPrepare(t *testing.T) {
 			return nil
 		})
 		boom := errors.New("boom")
-		spec := Spec{Kind: gen.RunKindStatement, UserID: userA, Prepare: func(context.Context, gen.Run) error { return boom }}
+		spec := Spec{Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser, UserID: userA, Prepare: func(context.Context, gen.Run) error { return boom }}
 		row, err := f.runner.Start(context.Background(), spec, func(context.Context, gen.Run) error {
 			t.Error("work ran after Prepare failed")
 			return nil
@@ -370,7 +382,7 @@ func TestPrepare(t *testing.T) {
 		f.store.EXPECT().FailRun(gomock.Any(), gomock.Any()).DoAndReturn(func(context.Context, gen.FailRunParams) error { failedDone(); return nil })
 		completed, completedDone := signal()
 		f.store.EXPECT().CompleteRun(gomock.Any(), gomock.Any()).DoAndReturn(func(context.Context, uuid.UUID) error { completedDone(); return nil })
-		spec := Spec{Kind: gen.RunKindStatement, UserID: userA, Lane: "ibkr", Prepare: func(context.Context, gen.Run) error { panic("boom") }}
+		spec := Spec{Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser, UserID: userA, Lane: "ibkr", Prepare: func(context.Context, gen.Run) error { panic("boom") }}
 		_, err := f.runner.Start(context.Background(), spec, func(context.Context, gen.Run) error {
 			t.Error("work ran after Prepare panicked")
 			return nil
@@ -379,7 +391,7 @@ func TestPrepare(t *testing.T) {
 			t.Errorf("Start() error = %v, want the panic", err)
 		}
 		await(t, failed, "FailRun")
-		next := Spec{Kind: gen.RunKindStatement, UserID: userA, Lane: "ibkr"}
+		next := Spec{Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser, UserID: userA, Lane: "ibkr"}
 		if _, err := f.runner.Start(context.Background(), next, func(context.Context, gen.Run) error { return nil }); err != nil {
 			t.Fatalf("Start() after the panic error = %v", err)
 		}
@@ -388,25 +400,35 @@ func TestPrepare(t *testing.T) {
 }
 
 func TestSweep(t *testing.T) {
+	statement := gen.InterruptRunsRow{Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser}
+	fetch := gen.InterruptRunsRow{Kind: gen.RunKindFetch, Trigger: gen.RunTriggerRun}
 	tests := []struct {
 		name    string
-		n       int64
+		rows    []gen.InterruptRunsRow
 		err     error
 		wantErr bool
+		want    map[string]int64
 	}{
-		{name: "none", n: 0},
-		{name: "some", n: 2},
-		{name: "failure", err: errors.New("boom"), wantErr: true},
+		{name: "none", want: map[string]int64{}},
+		{name: "some", rows: []gen.InterruptRunsRow{statement, fetch, fetch}, want: map[string]int64{
+			"stonks.runs{kind=statement,outcome=interrupted,trigger=user}": 1,
+			"stonks.runs{kind=fetch,outcome=interrupted,trigger=run}":      2,
+		}},
+		{name: "failure", err: errors.New("boom"), wantErr: true, want: map[string]int64{}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			t.Cleanup(ctrl.Finish)
 			store := mock.NewMockStore(ctrl)
-			store.EXPECT().InterruptRuns(gomock.Any()).Return(tc.n, tc.err)
+			store.EXPECT().InterruptRuns(gomock.Any()).Return(tc.rows, tc.err)
+			counts(t)
 			err := Sweep(context.Background(), store, slog.New(slog.DiscardHandler))
 			if (err != nil) != tc.wantErr {
 				t.Errorf("Sweep() error = %v, wantErr %v", err, tc.wantErr)
+			}
+			if diff := cmp.Diff(tc.want, counts(t)); diff != "" {
+				t.Errorf("Sweep() counts mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
