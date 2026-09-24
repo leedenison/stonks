@@ -21,6 +21,9 @@ ORDER BY type, domain, value;
 -- name: ListCurrencies :many
 SELECT code FROM currencies ORDER BY code;
 
+-- name: ListMICs :many
+SELECT mic, operating_mic FROM mics ORDER BY mic;
+
 -- name: ListAssetClassTree :many
 SELECT * FROM asset_class_tree ORDER BY class;
 
