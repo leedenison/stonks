@@ -36,7 +36,7 @@ func newHolder(t *testing.T, q *gen.Queries, email string) holder {
 func (h holder) key(t *testing.T, q *gen.Queries, description string, listing *gen.Listing, via *gen.Identifier) gen.StatedKey {
 	t.Helper()
 	ctx := context.Background()
-	k, err := q.CreateStatedKey(ctx, gen.CreateStatedKeyParams{ID: db.NewID(), StatementID: h.statement.ID, UserID: h.user.ID, Description: &description, Identifiers: []types.StatedIdentifier{}})
+	k, err := q.CreateStatedKey(ctx, gen.CreateStatedKeyParams{ID: db.NewID(), StatementID: h.statement.ID, UserID: h.user.ID, Description: &description, Identifiers: []types.Identifier{}})
 	require.NoError(t, err)
 	if listing == nil {
 		return k
@@ -108,7 +108,7 @@ func TestListInstrumentHoldings(t *testing.T) {
 		}
 		idents, err := q.ListHeldIdentifiers(ctx, h.user.ID)
 		require.NoError(t, err)
-		wantIdents := []gen.Identifier{{InstrumentID: gbp.InstrumentID, Type: gen.IdentifierTypeCurrency, Value: "GBP", Grain: gen.IdentifierGrainInstrument}}
+		wantIdents := []gen.Identifier{{InstrumentID: gbp.InstrumentID, Type: types.IdentifierTypeCurrency, Value: "GBP", Grain: gen.IdentifierGrainInstrument}}
 		if diff := cmp.Diff(wantIdents, idents, ignoreRowIDs); diff != "" {
 			t.Errorf("ListHeldIdentifiers mismatch (-want +got):\n%s", diff)
 		}
@@ -169,7 +169,7 @@ func TestListInstrumentHoldings(t *testing.T) {
 		}
 		idents, err := q.ListHeldIdentifiers(ctx, a.user.ID)
 		require.NoError(t, err)
-		want := []gen.Identifier{{InstrumentID: shared.ID, Type: gen.IdentifierTypeIsin, Value: "US0378331005", Grain: gen.IdentifierGrainInstrument}}
+		want := []gen.Identifier{{InstrumentID: shared.ID, Type: types.IdentifierTypeIsin, Value: "US0378331005", Grain: gen.IdentifierGrainInstrument}}
 		if diff := cmp.Diff(want, idents, ignoreRowIDs); diff != "" {
 			t.Errorf("ListHeldIdentifiers for a mismatch (-want +got):\n%s", diff)
 		}

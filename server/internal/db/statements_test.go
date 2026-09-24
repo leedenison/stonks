@@ -101,7 +101,7 @@ func TestStatements(t *testing.T) {
 			return err
 		}},
 		{name: "key under a run with no statement", want: pgerrcode.ForeignKeyViolation, do: func(q *gen.Queries, user, _ gen.User) error {
-			_, err := q.CreateStatedKey(ctx, gen.CreateStatedKeyParams{ID: db.NewID(), StatementID: newRun(t, q, user).ID, UserID: user.ID, Identifiers: []types.StatedIdentifier{}})
+			_, err := q.CreateStatedKey(ctx, gen.CreateStatedKeyParams{ID: db.NewID(), StatementID: newRun(t, q, user).ID, UserID: user.ID, Identifiers: []types.Identifier{}})
 			return err
 		}},
 		{name: "item under another user's statement", want: pgerrcode.ForeignKeyViolation, do: func(q *gen.Queries, user, other gen.User) error {
@@ -130,7 +130,7 @@ func TestResolutionKeys(t *testing.T) {
 	require.NoError(t, err)
 	newKey := func() gen.StatedKey {
 		t.Helper()
-		key, err := q.CreateStatedKey(ctx, gen.CreateStatedKeyParams{ID: db.NewID(), StatementID: statement.ID, UserID: user.ID, Description: ptr.To(uuid.NewString()), Identifiers: []types.StatedIdentifier{}})
+		key, err := q.CreateStatedKey(ctx, gen.CreateStatedKeyParams{ID: db.NewID(), StatementID: statement.ID, UserID: user.ID, Description: ptr.To(uuid.NewString()), Identifiers: []types.Identifier{}})
 		require.NoError(t, err)
 		return key
 	}
@@ -163,7 +163,7 @@ func TestResolutionKeys(t *testing.T) {
 			statement := newStatement(t, q, user)
 			run, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: user.ID, Kind: gen.RunKindResolution, Trigger: gen.RunTriggerRun, ParentID: &statement.ID})
 			require.NoError(t, err)
-			key, err := q.CreateStatedKey(ctx, gen.CreateStatedKeyParams{ID: db.NewID(), StatementID: statement.ID, UserID: user.ID, Identifiers: []types.StatedIdentifier{}})
+			key, err := q.CreateStatedKey(ctx, gen.CreateStatedKeyParams{ID: db.NewID(), StatementID: statement.ID, UserID: user.ID, Identifiers: []types.Identifier{}})
 			require.NoError(t, err)
 			tc.arg.RunID, tc.arg.UserID, tc.arg.StatedKeyID = run.ID, user.ID, key.ID
 			if err := q.CreateResolutionKey(ctx, tc.arg); !sqlstate(err, pgerrcode.CheckViolation) {

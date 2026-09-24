@@ -144,7 +144,7 @@ type key struct {
 	class       *gen.AssetClass
 	currency    *string
 	description *string
-	identifiers []types.StatedIdentifier
+	identifiers []types.Identifier
 
 	outcome    gen.ResolutionOutcome
 	instrument *uuid.UUID
@@ -175,7 +175,7 @@ func (k *key) hash() uint64 {
 	part(k.currency)
 	part(k.description)
 	for _, id := range k.identifiers {
-		h.WriteString(id.Type)
+		h.WriteString(string(id.Type))
 		h.WriteByte(0)
 		h.WriteString(id.Domain)
 		h.WriteByte(0)
@@ -194,13 +194,13 @@ func (k *key) equal(o *key) bool {
 }
 
 // identifier returns the identifier of type t the key states, if any.
-func (k *key) identifier(t gen.IdentifierType) (types.StatedIdentifier, bool) {
+func (k *key) identifier(t types.IdentifierType) (types.Identifier, bool) {
 	for _, id := range k.identifiers {
-		if id.Type == string(t) {
+		if id.Type == t {
 			return id, true
 		}
 	}
-	return types.StatedIdentifier{}, false
+	return types.Identifier{}, false
 }
 
 // associate records that k is matched, through identifier id held with

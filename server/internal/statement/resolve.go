@@ -7,6 +7,7 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/db/types"
 )
 
 // statable reports whether k says anything about an instrument at all: an
@@ -67,12 +68,12 @@ func (g *ingestion) resolve(ctx context.Context, res gen.Run) error {
 // seed is the only thing that has named an instrument; a key stating none is
 // unresolved.
 func (g *ingestion) resolveKey(ctx context.Context, k *key) error {
-	id, ok := k.identifier(gen.IdentifierTypeCurrency)
+	id, ok := k.identifier(types.IdentifierTypeCurrency)
 	if !ok {
 		k.outcome = gen.ResolutionOutcomeUnresolved
 		return nil
 	}
-	found, err := g.store.GetInstrumentByIdentifier(ctx, gen.GetInstrumentByIdentifierParams{Type: gen.IdentifierTypeCurrency, Value: id.Value})
+	found, err := g.store.GetInstrumentByIdentifier(ctx, gen.GetInstrumentByIdentifierParams{Type: types.IdentifierTypeCurrency, Value: id.Value})
 	switch {
 	case errors.Is(err, db.ErrNotFound):
 		k.reject("no currency %s", id.Value)

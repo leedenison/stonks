@@ -7,6 +7,7 @@ import (
 	typev1 "github.com/leedenison/stonks/proto/type/v1"
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/db/types"
 )
 
 func TestFromProto(t *testing.T) {
@@ -29,7 +30,7 @@ func TestFromProto(t *testing.T) {
 			}
 		})
 	}
-	if got, ok := db.FromProto[gen.IdentifierType](typev1.IdentifierType_IDENTIFIER_TYPE_OPENFIGI_SHARE_CLASS); got != gen.IdentifierTypeOpenfigiShareClass || !ok {
+	if got, ok := db.FromProto[types.IdentifierType](typev1.IdentifierType_IDENTIFIER_TYPE_OPENFIGI_SHARE_CLASS); got != types.IdentifierTypeOpenfigiShareClass || !ok {
 		t.Errorf("FromProto(OPENFIGI_SHARE_CLASS) = %q, %v", got, ok)
 	}
 }

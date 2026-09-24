@@ -6,6 +6,9 @@
 # a primary key. The overrides keep pgtype out of the signatures consumers see
 # and mock; numeric is named pg_catalog.numeric because the parser qualifies
 # it, and an override naming a type the parser does not is silently unmatched.
+# The identifier_type override points at a hand written enum, so that it and the
+# identifiers it types sit where generated code and its consumers can both name
+# them. sqlc emits its own copy regardless, which a lint rule forbids.
 version: "2"
 sql:
   - engine: postgresql
@@ -53,8 +56,18 @@ sql:
               import: time
               type: Time
               pointer: true
+          - db_type: identifier_type
+            go_type:
+              import: github.com/leedenison/stonks/server/internal/db/types
+              type: IdentifierType
+          - db_type: identifier_type
+            nullable: true
+            go_type:
+              import: github.com/leedenison/stonks/server/internal/db/types
+              type: IdentifierType
+              pointer: true
           - column: stated_keys.identifiers
             go_type:
               import: github.com/leedenison/stonks/server/internal/db/types
-              type: StatedIdentifier
+              type: Identifier
               slice: true
