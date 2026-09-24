@@ -15,6 +15,7 @@
 
 ```
 proto/
+  admin/v1/admin.proto            stonks.admin.v1       -- what runs did, across every user
   auth/v1/auth.proto              stonks.auth.v1        -- sign in, session, sign out
   holding/v1/holding.proto        stonks.holding.v1     -- holdings
   instrument/v1/instrument.proto  stonks.instrument.v1  -- instruments
