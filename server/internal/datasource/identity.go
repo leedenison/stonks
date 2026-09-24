@@ -1,8 +1,6 @@
 package datasource
 
 import (
-	"context"
-
 	"github.com/google/uuid"
 
 	"github.com/leedenison/stonks/server/internal/db/gen"
@@ -35,8 +33,6 @@ type IdentityResult struct {
 	// with Filtered.  Where Filtered is empty, candidates contain the results
 	// of an unconstrained search.
 	Candidates []Candidate
-	// Err is set when the provider failed for the identifier.
-	Err error
 }
 
 // Identity looks up the set of identifiers that refer to the same instrument
@@ -44,13 +40,12 @@ type IdentityResult struct {
 // known to the datasource is also returned.
 type Identity interface {
 	Integration
-	// Serves reports the identifier to send for key. An error means the
-	// integration serves nothing for it and the error's text is the reason.
-	Serves(key StatedKey) (types.Identifier, error)
-	// Fetch calls the provider and marshalls the results.
-	//
-	// Fetch is called with a batch. The integration chunks the batch to whatever
-	// the provider accepts. Rate limits are applied per datasource for the life
-	// of the process, so concurrent resolutions share the quota.
-	Fetch(ctx context.Context, sent []types.Identifier) ([]IdentityResult, error)
+	Server[StatedKey, IdentityResult]
+}
+
+// IdentityKind is the identity of the instruments stated keys name.
+var IdentityKind = Kind[StatedKey, IdentityResult]{
+	name:    gen.FetchKindIdentity,
+	server:  func(e *Entry) Server[StatedKey, IdentityResult] { return e.Identity },
+	subject: func(k StatedKey) uuid.UUID { return k.ID },
 }

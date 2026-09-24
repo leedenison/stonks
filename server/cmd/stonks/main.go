@@ -114,7 +114,8 @@ func run() (err error) {
 	}
 	runs := runner.New(queries, runLog)
 	defer runs.Close()
-	sources, err := datasource.New(ctx, queries, datasource.Integrations(), logger.WithCategory(log, "internal/datasource"))
+	integrations := map[string]datasource.Factory{}
+	sources, err := datasource.New(ctx, queries, integrations, logger.WithCategory(log, "internal/datasource"))
 	if err != nil {
 		return err
 	}
