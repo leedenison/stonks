@@ -1,7 +1,7 @@
 ---
 title: Resolution against datasources
 type: task
-dependencies: [005, 007]
+dependencies: [007]
 ---
 
 ## Scope
