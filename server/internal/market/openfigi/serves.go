@@ -4,8 +4,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/leedenison/stonks/server/internal/datasource"
 	"github.com/leedenison/stonks/server/internal/db/types"
+	"github.com/leedenison/stonks/server/internal/market"
 )
 
 // idTypes are the identifier types sent, strongest first, and the OpenFIGI
@@ -26,7 +26,7 @@ var idTypes = []struct {
 }
 
 // Serves returns the strongest identifier of key OpenFIGI accepts.
-func (c *Client) Serves(key datasource.StatedKey) (types.Identifier, error) {
+func (c *Client) Serves(key market.StatedKey) (types.Identifier, error) {
 	var unknown error
 	for _, t := range idTypes {
 		for _, id := range key.Identifiers {

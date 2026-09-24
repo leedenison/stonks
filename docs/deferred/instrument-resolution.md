@@ -170,15 +170,15 @@ parent.  Once all have returned:
 1. Each datasource returns its candidates.  A datasource asked about one identifier may
    find several listings, since a bare ticker names a listing at every venue that quotes
    the symbol.  The integration converts each to the canonical shape, since only it knows
-   which provider field carries the asset class or that a market-wide listing names a
-   market rather than a venue, and declares what the call strictly filtered on.  It does
+   which provider field carries the asset class or that a composite listing spans several
+   venues rather than naming one, and declares what the call strictly filtered on.  It does
    not rank them.
 2. Candidates are dropped that do not name the queried identifier, that contradict
    stated data, or that are inconsistent with the answer chosen for a higher precedence
    datasource.
 3. Each datasource's remaining candidates are ranked: confirms stated data, then
    corroborates a higher precedence answer, then agrees with a guess, then the
-   datasource's own order with a market-wide listing preferred over an arbitrary venue.
+   datasource's own order with a composite listing preferred over an arbitrary venue.
 4. The winner is the top candidate of the highest precedence datasource with any
    candidate left.  It supplies the instrument's metadata.
 5. Each losing datasource contributes its top candidate where it corroborates the

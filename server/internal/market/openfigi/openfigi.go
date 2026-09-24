@@ -4,8 +4,8 @@
 // every listing OpenFIGI maps it to is a candidate.  A candidate carries the
 // share class and composite FIGIs, the ticker under OpenFIGI's exchange code,
 // and the ticker under the operating MIC where the exchange code names exactly
-// one venue.  A composite exchange code names a market rather than a venue, so
-// its listings carry no MIC_TICKER.
+// one venue.  A composite exchange code spans the venues of a country rather
+// than naming one, so its listings carry no MIC_TICKER.
 //
 // OpenFIGI answers no currency.  Where the key states one, the call filters on
 // it strictly, so every candidate is in the stated currency.
@@ -27,14 +27,14 @@ import (
 
 	"golang.org/x/time/rate"
 
-	"github.com/leedenison/stonks/server/internal/datasource"
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/mic"
 )
 
 const endpoint = "https://api.openfigi.com"
 
-var _ datasource.Identity = (*Client)(nil)
+var _ market.Identity = (*Client)(nil)
 
 // Client is the OpenFIGI integration.
 type Client struct {
@@ -53,7 +53,7 @@ func WithHTTPClient(h *http.Client) Option {
 }
 
 // New returns a Client for cfg. The credential is optional.
-func New(cfg datasource.Config, mics mic.Table, opts ...Option) *Client {
+func New(cfg market.Config, mics mic.Table, opts ...Option) *Client {
 	c := &Client{mics: mics, http: &http.Client{Timeout: 30 * time.Second}, endpoint: endpoint, key: cfg.Credential}
 	if cfg.Endpoint != "" {
 		c.endpoint = cfg.Endpoint
@@ -65,8 +65,8 @@ func New(cfg datasource.Config, mics mic.Table, opts ...Option) *Client {
 }
 
 // Factory returns the factory of Clients normalising venues through mics.
-func Factory(mics mic.Table) datasource.Factory {
-	return func(cfg datasource.Config) (datasource.Integration, error) {
+func Factory(mics mic.Table) market.Factory {
+	return func(cfg market.Config) (market.Integration, error) {
 		return New(cfg, mics), nil
 	}
 }
@@ -106,22 +106,22 @@ func (e jobError) Error() string { return "openfigi refused the job: " + string(
 // Classify reads a failed request by its status. A whole request refused
 // other than for its rate or the provider's health is malformed for every key
 // or unauthorised, and so blocks the datasource.
-func (c *Client) Classify(err error) datasource.Failure {
+func (c *Client) Classify(err error) market.Failure {
 	var job jobError
 	if errors.As(err, &job) {
-		return datasource.Failure{Scope: gen.BlockScopeIdentifier}
+		return market.Failure{Scope: gen.BlockScopeIdentifier}
 	}
 	var status statusError
 	if !errors.As(err, &status) {
-		return datasource.Failure{Temporary: true, Scope: gen.BlockScopeIdentifier}
+		return market.Failure{Temporary: true, Scope: gen.BlockScopeIdentifier}
 	}
 	switch {
 	case status.code == http.StatusTooManyRequests:
-		return datasource.Failure{Temporary: true, Scope: gen.BlockScopeIdentifier, RetryAfter: status.retryAfter}
+		return market.Failure{Temporary: true, Scope: gen.BlockScopeIdentifier, RetryAfter: status.retryAfter}
 	case status.code >= http.StatusInternalServerError:
-		return datasource.Failure{Temporary: true, Scope: gen.BlockScopeIdentifier}
+		return market.Failure{Temporary: true, Scope: gen.BlockScopeIdentifier}
 	}
-	return datasource.Failure{Scope: gen.BlockScopeDatasource}
+	return market.Failure{Scope: gen.BlockScopeDatasource}
 }
 
 // reply is OpenFIGI's answer to one job: data, a warning that nothing was
@@ -133,7 +133,7 @@ type reply struct {
 }
 
 // Fetch sends one mapping request with a job per request.
-func (c *Client) Fetch(ctx context.Context, reqs []datasource.FetchRequest[datasource.StatedKey]) ([]datasource.FetchResponse[datasource.IdentityResult], error) {
+func (c *Client) Fetch(ctx context.Context, reqs []market.Request[market.StatedKey]) ([]market.Response[market.IdentityResult], error) {
 	jobs := make([]job, len(reqs))
 	for i, r := range reqs {
 		jobs[i] = jobOf(r.Sent, r.Value.Currency)
@@ -146,7 +146,7 @@ func (c *Client) Fetch(ctx context.Context, reqs []datasource.FetchRequest[datas
 	if err != nil {
 		return nil, err
 	}
-	out := make([]datasource.FetchResponse[datasource.IdentityResult], min(len(replies), len(reqs)))
+	out := make([]market.Response[market.IdentityResult], min(len(replies), len(reqs)))
 	for i := range out {
 		if replies[i].Error != "" {
 			out[i].Err = jobError(replies[i].Error)

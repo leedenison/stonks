@@ -5,9 +5,9 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
-	"github.com/leedenison/stonks/server/internal/datasource"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/types"
+	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/ptr"
 )
 
@@ -114,7 +114,7 @@ func TestAnswer(t *testing.T) {
 	}
 }
 
-func exchOf(c datasource.Candidate) string {
+func exchOf(c market.Candidate) string {
 	for _, id := range c.Identifiers {
 		if id.Type == types.IdentifierTypeOpenfigiTicker {
 			return id.Domain

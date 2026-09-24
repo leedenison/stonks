@@ -1,4 +1,4 @@
-package datasource
+package market
 
 import (
 	"github.com/google/uuid"

@@ -29,11 +29,11 @@ import (
 	"github.com/leedenison/stonks/server/internal/auth/google"
 	"github.com/leedenison/stonks/server/internal/auth/session"
 	"github.com/leedenison/stonks/server/internal/config"
-	"github.com/leedenison/stonks/server/internal/datasource"
-	"github.com/leedenison/stonks/server/internal/datasource/openfigi"
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/logger"
+	"github.com/leedenison/stonks/server/internal/market"
+	"github.com/leedenison/stonks/server/internal/market/openfigi"
 	"github.com/leedenison/stonks/server/internal/mic"
 	runner "github.com/leedenison/stonks/server/internal/run"
 	"github.com/leedenison/stonks/server/internal/service"
@@ -120,8 +120,8 @@ func run() (err error) {
 	if err != nil {
 		return err
 	}
-	integrations := map[string]datasource.Factory{"openfigi": openfigi.Factory(mics)}
-	sources, err := datasource.New(ctx, queries, integrations, logger.WithCategory(log, "internal/datasource"))
+	integrations := map[string]market.Factory{"openfigi": openfigi.Factory(mics)}
+	sources, err := market.New(ctx, queries, integrations, logger.WithCategory(log, "internal/market"))
 	if err != nil {
 		return err
 	}

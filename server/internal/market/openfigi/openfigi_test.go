@@ -11,9 +11,9 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"golang.org/x/time/rate"
 
-	"github.com/leedenison/stonks/server/internal/datasource"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/types"
+	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/testutil/vcr"
 )
 
@@ -24,7 +24,7 @@ var scrub = vcr.Scrub{Body: func(body string) string { return body }, MatchBody:
 
 func replay(t *testing.T, cassette, key string) *Client {
 	t.Helper()
-	return New(datasource.Config{Credential: key}, mics, WithHTTPClient(vcr.New(t, "testdata/"+cassette, scrub)))
+	return New(market.Config{Credential: key}, mics, WithHTTPClient(vcr.New(t, "testdata/"+cassette, scrub)))
 }
 
 var (
@@ -34,14 +34,14 @@ var (
 )
 
 // fetch asks c about sent for a key stating currency, as the framework would.
-func fetch(c *Client, sent types.Identifier, currency string) ([]datasource.FetchResponse[datasource.IdentityResult], error) {
-	req := datasource.FetchRequest[datasource.StatedKey]{Value: datasource.StatedKey{Currency: currency}, Sent: sent}
-	return c.Fetch(context.Background(), []datasource.FetchRequest[datasource.StatedKey]{req})
+func fetch(c *Client, sent types.Identifier, currency string) ([]market.Response[market.IdentityResult], error) {
+	req := market.Request[market.StatedKey]{Value: market.StatedKey{Currency: currency}, Sent: sent}
+	return c.Fetch(context.Background(), []market.Request[market.StatedKey]{req})
 }
 
 // names reports whether some candidate returns id.
-func names(r datasource.IdentityResult, id types.Identifier) bool {
-	return slices.ContainsFunc(r.Candidates, func(c datasource.Candidate) bool {
+func names(r market.IdentityResult, id types.Identifier) bool {
+	return slices.ContainsFunc(r.Candidates, func(c market.Candidate) bool {
 		return slices.Contains(c.Identifiers, id)
 	})
 }
@@ -151,18 +151,18 @@ func TestFetchRefused(t *testing.T) {
 		cassette string
 		key      string
 		sent     types.Identifier
-		want     datasource.Failure
+		want     market.Failure
 	}{
 		{
 			cassette: "invalid_value",
 			sent:     types.Identifier{Type: types.IdentifierTypeCusip, Value: "!!!"},
-			want:     datasource.Failure{Scope: gen.BlockScopeIdentifier},
+			want:     market.Failure{Scope: gen.BlockScopeIdentifier},
 		},
 		{
 			cassette: "unauthorised",
 			key:      "not-a-key",
 			sent:     isin,
-			want:     datasource.Failure{Scope: gen.BlockScopeDatasource},
+			want:     market.Failure{Scope: gen.BlockScopeDatasource},
 		},
 	}
 	for _, tc := range tests {
@@ -189,19 +189,19 @@ func TestClassifyStatus(t *testing.T) {
 		name   string
 		status int
 		reset  string
-		want   datasource.Failure
+		want   market.Failure
 	}{
 		{
 			name: "rate limited", status: http.StatusTooManyRequests, reset: "12",
-			want: datasource.Failure{Temporary: true, Scope: gen.BlockScopeIdentifier, RetryAfter: 12 * time.Second},
+			want: market.Failure{Temporary: true, Scope: gen.BlockScopeIdentifier, RetryAfter: 12 * time.Second},
 		},
 		{
 			name: "unavailable", status: http.StatusServiceUnavailable,
-			want: datasource.Failure{Temporary: true, Scope: gen.BlockScopeIdentifier},
+			want: market.Failure{Temporary: true, Scope: gen.BlockScopeIdentifier},
 		},
 		{
 			name: "malformed", status: http.StatusBadRequest,
-			want: datasource.Failure{Scope: gen.BlockScopeDatasource},
+			want: market.Failure{Scope: gen.BlockScopeDatasource},
 		},
 	}
 	for _, tc := range tests {
@@ -213,7 +213,7 @@ func TestClassifyStatus(t *testing.T) {
 				w.WriteHeader(tc.status)
 			}))
 			t.Cleanup(srv.Close)
-			c := New(datasource.Config{Endpoint: srv.URL}, mics)
+			c := New(market.Config{Endpoint: srv.URL}, mics)
 
 			_, err := fetch(c, types.Identifier{Type: types.IdentifierTypeIsin, Value: "US0378331005"}, "")
 			if err == nil {
@@ -236,7 +236,7 @@ func TestLimits(t *testing.T) {
 		{key: "", every: time.Minute / 25, batch: 10},
 		{key: "k", every: 6 * time.Second / 25, batch: 100},
 	} {
-		c := New(datasource.Config{Credential: tc.key}, mics)
+		c := New(market.Config{Credential: tc.key}, mics)
 		limit, burst := c.Limit()
 		if limit != rate.Every(tc.every) || burst != 1 {
 			t.Errorf("Limit() with credential %q = %v, burst %d, want one per %s, burst 1", tc.key, limit, burst, tc.every)

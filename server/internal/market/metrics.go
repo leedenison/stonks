@@ -1,4 +1,4 @@
-package datasource
+package market
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 )
 
 // meterName scopes the instruments below to this package.
-const meterName = "github.com/leedenison/stonks/server/internal/datasource"
+const meterName = "github.com/leedenison/stonks/server/internal/market"
 
 // The attribute keys and the closed set of values the outcome takes. The
 // datasource is bounded by the rows an instance seeds.
