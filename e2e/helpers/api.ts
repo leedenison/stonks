@@ -1,6 +1,7 @@
 import type { DescService } from "@bufbuild/protobuf";
 import { type Client, createClient } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
+import { AdminService } from "../gen/admin/v1/admin_pb";
 import { AuthService } from "../gen/auth/v1/auth_pb";
 import { HoldingService } from "../gen/holding/v1/holding_pb";
 import { StatementService } from "../gen/statement/v1/statement_pb";
@@ -26,6 +27,10 @@ export function clientFor<T extends DescService>(
     ],
   });
   return createClient(service, transport);
+}
+
+export function adminClient(sessionID: string) {
+  return clientFor(AdminService, sessionID);
 }
 
 export function authClient(sessionID?: string) {
