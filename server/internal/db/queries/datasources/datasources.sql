@@ -38,12 +38,25 @@ SELECT * FROM datasource_blocks
 WHERE datasource = $1 AND kind = $2 AND cleared_at IS NULL
 ORDER BY id;
 
--- name: CreateDatasourceBlock :exec
-INSERT INTO datasource_blocks (id, datasource, kind, scope, sent_type, sent_domain,
-    sent_value, reason, fetch_key_id)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-ON CONFLICT DO NOTHING;
+-- name: CreateDatasourceBlock :execrows
+-- The block and the finding reporting it are written together, and neither is
+-- written while an open block of the same scope exists.
+WITH block AS (
+    INSERT INTO datasource_blocks (id, datasource, kind, scope, sent_type, sent_domain,
+        sent_value, reason, fetch_key_id)
+    VALUES (@id, @datasource, @kind, @scope, @sent_type, @sent_domain, @sent_value,
+        @reason, @fetch_key_id)
+    ON CONFLICT DO NOTHING
+    RETURNING id
+)
+INSERT INTO findings (id, run_id, kind, block_id)
+SELECT @finding_id, @run_id, 'block', block.id FROM block;
 
 -- name: ClearDatasourceBlock :exec
-UPDATE datasource_blocks SET cleared_at = now()
-WHERE id = $1 AND cleared_at IS NULL;
+WITH block AS (
+    UPDATE datasource_blocks SET cleared_at = now()
+    WHERE datasource_blocks.id = $1 AND cleared_at IS NULL
+    RETURNING id
+)
+UPDATE findings SET cleared_at = now()
+FROM block WHERE findings.block_id = block.id;

@@ -16,7 +16,7 @@ type Store interface {
 	ListOpenBlocks(ctx context.Context, arg gen.ListOpenBlocksParams) ([]gen.DatasourceBlock, error)
 	CreateFetch(ctx context.Context, arg gen.CreateFetchParams) (gen.Fetch, error)
 	CreateFetchKey(ctx context.Context, arg gen.CreateFetchKeyParams) error
-	CreateDatasourceBlock(ctx context.Context, arg gen.CreateDatasourceBlockParams) error
+	CreateDatasourceBlock(ctx context.Context, arg gen.CreateDatasourceBlockParams) (int64, error)
 }
 
 var _ Store = (*gen.Queries)(nil)

@@ -5,16 +5,14 @@ recorded: 2026-09-20
 
 # Runs
 
-The fetch and replay kinds of work, and the findings every run records for an
-administrator.
+The replay kind of work, the schedule trigger, and starting a run from the admin
+surface.
 
 ## Why
 
-A fetch and a replay each take longer than the request starting them can wait, and each
-answers per key rather than as a whole.  Each also meets contradictions it must record: a
-contradiction resolved by precedence, a candidate dropped, a stated split the corporate
-event calendar lacks and an event the system cannot handle all pass unseen without a
-record addressed to an administrator.
+A replay takes longer than the request starting it can wait, and answers per key rather
+than as a whole.  Some work is started by no user: a replay after an event, or one an
+administrator asks for.
 
 ## Model
 
@@ -24,34 +22,18 @@ record addressed to an administrator.
 
 ### Triggers
 
-A run is started by an administrator or by a schedule as well as by a user or another run.
+A run is started by a schedule as well as by a user, an administrator or another run.
 Provenance says what produced a row.  Lineage says why the work happened: a resolution
 contains the fetches it sent, and a replay caused by an event names the fetch that
 recorded the event.
 
 ### Findings
 
-A finding is a row recording something a run met that an administrator may need to see: a
-contradiction resolved by precedence, a candidate dropped, a stated split the calendar
-lacks, an event the system cannot handle.  It references the run that met it and the rows
-it is about, and carries its kind and whether an administrator has cleared it.  The items
-a run writes are addressed to the user whose work made them; findings are addressed to the
-administrator.
-
-A finding is informational when the run decided the matter and stored data, and blocking
-when something is withheld until an administrator acts.  A finding never changes
-behaviour on its own.  A block on a key and an unhandled corporate event are rows of
-their own, each reported by a finding that references it.
+A stated split the calendar lacks and an event the system cannot handle are findings of
+the runs that meet them.  An unhandled corporate event is a row of its own, reported by a
+finding that references it.
 
 ## Constraints
-
-### Rows are the Record
-
-Findings are the record a run leaves for an administrator, and the admin surface and tests
-read them.  Telemetry carries a bounded mirror of counts per kind, trigger and outcome.
-Scoping a count to one run would be an unbounded metric attribute, and telemetry is
-batched, expired and absent whenever no collector is configured, so nothing is driven
-from it.
 
 ### Interruption
 
@@ -68,15 +50,7 @@ it.
 
 ## Sketch
 
-```sql
-finding(id, run_id, kind, consequence, subject, cleared_at)
-```
-
-The framework owns the finding row, the admin surface and the telemetry mirror.  Each kind
-owns its item rows and the rows it stores.
-
-The admin surface lists runs by kind, trigger and state, starts a run, and lists and
-clears findings.
+The admin surface starts a run.
 
 ### Resolution Against Datasources
 
@@ -90,16 +64,10 @@ where no earlier non-terminal run shares its user and lane.
 
 ## Undecided
 
-- Whether clearing the finding on a block or an unhandled event is what clears the block,
-  or the two are cleared separately.
-
-- Whether a finding on one subject met by two runs is one finding or two.
+- Whether clearing the finding on an unhandled event is what clears the event.
 
 - Whether a run can be cancelled, and whether an interrupted run is resumed or restarted
   once its payload is persisted.
 
 - How overlapping runs that touch one instrument are ordered, such as a scheduled replay
   starting during a user's upload.
-
-- Which findings are shown to the user whose statement met them, such as one contradicted
-  by a datasource.

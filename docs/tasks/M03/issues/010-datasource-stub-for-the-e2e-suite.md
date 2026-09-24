@@ -20,6 +20,8 @@ In:
 - The compose wiring, and the datasources row naming the stub and its endpoint. The e2e
   stack seeds no datasources, so without the row the registry is empty and resolution
   calls nothing.
+- An e2e spec in which a key the stub refuses permanently leaves a block, and an
+  administrator clears it from the blocks page, clearing the finding reporting it.
 
 Out:
 

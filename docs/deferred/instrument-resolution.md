@@ -119,7 +119,7 @@ order.  Non-overlapping data from two datasources is merged provided no datum is
 contradictory and at least one stable identifier links the two.
 
 Despite the automatic resolution each contradiction is recorded as a finding of the
-resolution that met it.  See [runs.md](runs.md).
+resolution that met it.  See [006_findings.sql](../../server/internal/migrations/006_findings.sql).
 
 ### Re-Resolution
 

@@ -33,9 +33,6 @@ every key in one domain.
 
 **Provenance** -- the fetch key that produced a stored row.
 
-**Finding** -- a row recording something a run met that an administrator may need to see,
-referencing the run and the rows it is about.
-
 **Annotation** -- what a user records against their own stated keys: a pin to an
 instrument, a grouping, a price, or a key made by hand. User data, never an assertion.
 

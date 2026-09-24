@@ -56,8 +56,7 @@ will implement the option to simply store an event as unhandled so that the admi
 is informed and can decide what to do about it, without the need to implement the most
 complex handling up front.
 
-An unhandled event is a row, reported by a blocking finding of the fetch that met it.  The
-admin interface reads the backlog from those findings.  See [runs.md](runs.md).
+An unhandled event is a row, reported by a finding of the fetch that met it.
 
 ### Datasources
 

@@ -538,6 +538,132 @@
       "options": {
         "showHeader": true
       }
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "Runs by kind and outcome",
+      "description": "Runs reaching a terminal state. interrupted is counted by the process that starts after the one that stopped, so it arrives with the restart. The runs admin page is the record; this is its bounded mirror.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "stonks-prometheus"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 25
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "stonks-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (kind, outcome) (rate(stonks_runs_total{job=\"stonks\"}[$__rate_interval]))",
+          "range": true,
+          "instant": false,
+          "format": "time_series",
+          "refId": "A",
+          "legendFormat": "{{kind}} {{outcome}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            }
+          },
+          "min": 0,
+          "unit": "ops",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "Findings by kind",
+      "description": "Findings written by runs. A finding on a block waits on an administrator, who clears the block from the admin pages; this panel drives nothing.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "stonks-prometheus"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 25
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "stonks-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (kind) (rate(stonks_findings_total{job=\"stonks\"}[$__rate_interval]))",
+          "range": true,
+          "instant": false,
+          "format": "time_series",
+          "refId": "A",
+          "legendFormat": "{{kind}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            }
+          },
+          "min": 0,
+          "unit": "ops",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
     }
   ],
   "templating": {

@@ -1,7 +1,7 @@
 -- +goose Up
 
 CREATE TYPE run_kind AS ENUM ('statement', 'resolution', 'fetch');
-CREATE TYPE run_trigger AS ENUM ('user', 'run');
+CREATE TYPE run_trigger AS ENUM ('user', 'administrator', 'run');
 CREATE TYPE run_state AS ENUM ('pending', 'running', 'completed', 'failed', 'interrupted');
 
 -- A run is one unit of background work: a statement, ingesting one batch of

@@ -84,10 +84,10 @@ func TestRuns(t *testing.T) {
 		t.Errorf("FailRun left %+v, want failed with finished_at, the error and the parent", got)
 	}
 
-	n, err := q.InterruptRuns(ctx)
+	interrupted, err := q.InterruptRuns(ctx)
 	require.NoError(t, err)
-	if n != 2 {
-		t.Errorf("InterruptRuns = %d rows, want 2", n)
+	if len(interrupted) != 2 {
+		t.Errorf("InterruptRuns = %+v, want 2 rows", interrupted)
 	}
 	for _, id := range []uuid.UUID{pending.ID, running.ID} {
 		if got := state(id); got.State != gen.RunStateInterrupted || got.FinishedAt == nil {

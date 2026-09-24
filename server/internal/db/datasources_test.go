@@ -266,7 +266,8 @@ func TestFetchIdentifiers(t *testing.T) {
 	}
 }
 
-// TestDatasourceBlocks checks one open block per scope, and that clearing one
+// TestDatasourceBlocks checks one open block per scope, each reported by a
+// finding of the fetch run, and that clearing one clears its finding and
 // admits the next.
 func TestDatasourceBlocks(t *testing.T) {
 	ctx := context.Background()
@@ -283,6 +284,7 @@ func TestDatasourceBlocks(t *testing.T) {
 		arg := gen.CreateDatasourceBlockParams{
 			ID: db.NewID(), Datasource: ds.Name, Kind: gen.FetchKindIdentity,
 			Scope: scope, Reason: "refused", FetchKeyID: key,
+			FindingID: db.NewID(), RunID: fetch.ID,
 		}
 		if value != nil {
 			arg.SentType, arg.SentValue = ptr.To(types.IdentifierTypeIsin), value
@@ -290,22 +292,46 @@ func TestDatasourceBlocks(t *testing.T) {
 		return arg
 	}
 
+	create := func(arg gen.CreateDatasourceBlockParams, want int64) {
+		t.Helper()
+		n, err := q.CreateDatasourceBlock(ctx, arg)
+		require.NoError(t, err)
+		if n != want {
+			t.Errorf("CreateDatasourceBlock(%s %v) = %d findings, want %d", arg.Scope, arg.SentValue, n, want)
+		}
+	}
 	first := block(gen.BlockScopeIdentifier, ptr.To("GB00B03MLX29"))
-	require.NoError(t, q.CreateDatasourceBlock(ctx, first))
-	// ON CONFLICT hides the violation, so the count below is the assertion.
-	require.NoError(t, q.CreateDatasourceBlock(ctx, block(gen.BlockScopeIdentifier, ptr.To("GB00B03MLX29"))))
-	require.NoError(t, q.CreateDatasourceBlock(ctx, block(gen.BlockScopeIdentifier, ptr.To("US0378331005"))))
-	require.NoError(t, q.CreateDatasourceBlock(ctx, block(gen.BlockScopeDatasource, nil)))
-	require.NoError(t, q.CreateDatasourceBlock(ctx, block(gen.BlockScopeDatasource, nil)))
+	create(first, 1)
+	create(block(gen.BlockScopeIdentifier, ptr.To("GB00B03MLX29")), 0)
+	create(block(gen.BlockScopeIdentifier, ptr.To("US0378331005")), 1)
+	create(block(gen.BlockScopeDatasource, nil), 1)
+	create(block(gen.BlockScopeDatasource, nil), 0)
 
 	open, err := q.ListOpenBlocks(ctx, gen.ListOpenBlocksParams{Datasource: ds.Name, Kind: gen.FetchKindIdentity})
 	require.NoError(t, err)
 	if len(open) != 3 {
 		t.Fatalf("ListOpenBlocks = %d rows, want 3: two identifiers and the datasource", len(open))
 	}
+	findings, err := q.ListRunFindings(ctx, fetch.ID)
+	require.NoError(t, err)
+	if len(findings) != 3 {
+		t.Fatalf("ListRunFindings = %+v, want one per open block", findings)
+	}
+	for _, f := range findings {
+		if f.Kind != gen.FindingKindBlock || f.BlockID == nil || f.ClearedAt != nil {
+			t.Errorf("finding = %+v, want an open finding on a block", f)
+		}
+	}
 
 	require.NoError(t, q.ClearDatasourceBlock(ctx, first.ID))
-	require.NoError(t, q.CreateDatasourceBlock(ctx, block(gen.BlockScopeIdentifier, ptr.To("GB00B03MLX29"))))
+	findings, err = q.ListRunFindings(ctx, fetch.ID)
+	require.NoError(t, err)
+	for _, f := range findings {
+		if cleared := f.ClearedAt != nil; cleared != (*f.BlockID == first.ID) {
+			t.Errorf("finding on block %s cleared = %v after clearing block %s", *f.BlockID, cleared, first.ID)
+		}
+	}
+	create(block(gen.BlockScopeIdentifier, ptr.To("GB00B03MLX29")), 1)
 	open, err = q.ListOpenBlocks(ctx, gen.ListOpenBlocksParams{Datasource: ds.Name, Kind: gen.FetchKindIdentity})
 	require.NoError(t, err)
 	if len(open) != 3 {
@@ -335,7 +361,8 @@ func TestDatasourceBlocks(t *testing.T) {
 			arg := tc.arg
 			arg.Datasource = ds.Name
 			arg.FetchKeyID = servedKey(t, q, fetch, newStatedKey(t, q, user, statement), "GB00B03MLX29")
-			if err := q.CreateDatasourceBlock(ctx, arg); !sqlstate(err, pgerrcode.CheckViolation) {
+			arg.RunID = fetch.ID
+			if _, err := q.CreateDatasourceBlock(ctx, arg); !sqlstate(err, pgerrcode.CheckViolation) {
 				t.Errorf("CreateDatasourceBlock(%s): err = %v, want a check violation", tc.name, err)
 			}
 		})
