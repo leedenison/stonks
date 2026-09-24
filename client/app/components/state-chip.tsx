@@ -3,9 +3,10 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { LoaderCircle } from "lucide-react";
 import { useEffect, useState } from "react";
+import type { Run } from "@/gen/run/v1/run_pb";
 import type { StatementSummary } from "@/gen/statement/v1/statement_pb";
 import { formatElapsed } from "@/lib/format";
-import { type Outcome, outcome } from "@/lib/run";
+import { type Outcome, outcome, runOutcome } from "@/lib/run";
 import { Chip, type Tone } from "./chip";
 
 const looks: Record<Outcome, { tone: Tone; label: string }> = {
@@ -32,10 +33,18 @@ function useNow(active: boolean): number {
 // StateChip shows a run's outcome the same way everywhere. A running run
 // carries a spinner and the time since it started.
 export function StateChip({ summary }: { summary: StatementSummary }) {
-  const o = outcome(summary);
+  return <OutcomeChip o={outcome(summary)} run={summary.run} />;
+}
+
+// RunChip is StateChip for a run read without its statement.
+export function RunChip({ run }: { run: Run | undefined }) {
+  return <OutcomeChip o={runOutcome(run)} run={run} />;
+}
+
+function OutcomeChip({ o, run }: { o: Outcome; run: Run | undefined }) {
   const running = o === "running";
   const now = useNow(running);
-  const started = summary.run?.startedAt;
+  const started = run?.startedAt;
   return (
     <Chip tone={looks[o].tone} data-testid="state-chip" data-state={o}>
       {running && <LoaderCircle aria-hidden className="h-3 w-3 animate-spin" />}

@@ -1,3 +1,5 @@
+import type { RunFilters } from "./admin";
+
 // Query keys, in one place so invalidation and the queries it targets cannot
 // drift apart. The first element is the resource name, so invalidateQueries
 // prefix-matches every variant of it, and every parameter is a primitive,
@@ -10,4 +12,7 @@ export const qk = {
   run: (id: string) => ["runs", id] as const,
   transactions: () => ["transactions"] as const,
   holdings: () => ["holdings"] as const,
+  adminRuns: (f: RunFilters) =>
+    ["admin-runs", f.kind, f.trigger, f.state, f.user, f.before] as const,
+  adminRun: (id: string) => ["admin-runs", id] as const,
 };
