@@ -45,3 +45,10 @@ WHERE identifiers.listing_id IS NULL
 -- name: GetListing :one
 SELECT * FROM listings
 WHERE instrument_id = $1 AND currency = $2;
+
+-- name: ListResolutionItems :many
+SELECT sqlc.embed(resolution_keys), sqlc.embed(stated_keys)
+FROM resolution_keys
+JOIN stated_keys ON stated_keys.id = resolution_keys.stated_key_id
+WHERE resolution_keys.run_id = $1
+ORDER BY resolution_keys.stated_key_id;

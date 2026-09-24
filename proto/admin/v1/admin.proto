@@ -1,0 +1,142 @@
+// Read what runs did across every user. Every RPC here requires the admin
+// role.
+
+syntax = "proto3";
+
+package stonks.admin.v1;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+import "run/v1/run.proto";
+import "statement/v1/statement.proto";
+import "type/v1/type.proto";
+
+option go_package = "github.com/leedenison/stonks/proto/admin/v1;adminv1";
+
+// A run and the user it belongs to.
+message UserRun {
+  stonks.run.v1.Run run = 1;
+  string user_id = 2;
+  string user_email = 3;
+}
+
+// What a run of kind RESOLUTION made of one stated key.
+enum ResolutionOutcome {
+  RESOLUTION_OUTCOME_UNSPECIFIED = 0;
+  // The key was associated with an instrument.
+  RESOLUTION_OUTCOME_MATCHED = 1;
+  // The key was attempted and nothing answered for it.
+  RESOLUTION_OUTCOME_UNRESOLVED = 2;
+  // The key could not be attempted.
+  RESOLUTION_OUTCOME_REJECTED = 3;
+}
+
+message ResolutionItem {
+  stonks.type.v1.StatedKey stated_key = 1;
+  string stated_key_id = 2;
+  ResolutionOutcome outcome = 3;
+  // Why the key was rejected; set only when the outcome is REJECTED.
+  optional string reason = 4;
+}
+
+// What one key of a fetch got.
+enum FetchOutcome {
+  FETCH_OUTCOME_UNSPECIFIED = 0;
+  // The datasource returned a result set, possibly empty.
+  FETCH_OUTCOME_SERVED = 1;
+  // The integration declared the key out of its scope, so no call was made.
+  FETCH_OUTCOME_NOT_SERVED = 2;
+  // An open block suppressed the call.
+  FETCH_OUTCOME_BLOCKED = 3;
+  FETCH_OUTCOME_FAILED_TEMPORARY = 4;
+  FETCH_OUTCOME_FAILED_PERMANENT = 5;
+}
+
+message FetchItem {
+  stonks.type.v1.StatedKey stated_key = 1;
+  string stated_key_id = 2;
+  FetchOutcome outcome = 3;
+  // The number of calls the key rode in.
+  int32 attempts = 4;
+  // The identifier the key was sent under; unset when it was not served.
+  stonks.type.v1.Identifier sent = 5;
+  // The datasource's error; unset when the key was served.
+  optional string reason = 6;
+}
+
+enum FindingKind {
+  FINDING_KIND_UNSPECIFIED = 0;
+  // The run wrote a datasource block, which withholds calls until an
+  // administrator clears it.
+  FINDING_KIND_BLOCK = 1;
+}
+
+// Something a run met that an administrator may need to see.
+message Finding {
+  string id = 1;
+  string run_id = 2;
+  FindingKind kind = 3;
+  // The block reported; set only when the kind is BLOCK.
+  optional string block_id = 4;
+  google.protobuf.Timestamp created_at = 5;
+  // When an administrator cleared the finding; unset while it is open.
+  google.protobuf.Timestamp cleared_at = 6;
+}
+
+message ListRunsRequest {
+  // Each filter left unset matches every run.
+  optional stonks.run.v1.RunKind kind = 1 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
+  optional stonks.run.v1.RunTrigger trigger = 2 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
+  optional stonks.run.v1.RunState state = 3 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
+  optional string user_id = 4 [(buf.validate.field).string.uuid = true];
+  // At most this many runs; 0 means 50.
+  int32 page_size = 5 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 200
+  }];
+  // The next_page_token of the previous page; empty for the first.
+  string page_token = 6 [
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
+    (buf.validate.field).string.uuid = true
+  ];
+}
+
+// Runs newest first.
+message ListRunsResponse {
+  repeated UserRun runs = 1;
+  // Continues the listing; empty on the last page.
+  string next_page_token = 2;
+}
+
+message GetRunRequest {
+  string run_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message GetRunResponse {
+  UserRun run = 1;
+  // The runs this one started, oldest first.
+  repeated stonks.run.v1.Run children = 2;
+  repeated Finding findings = 3;
+  // The rows this run rejected when its kind is STATEMENT.
+  repeated stonks.statement.v1.StatementItem statement_items = 4;
+  // The keys this run answered when its kind is RESOLUTION.
+  repeated ResolutionItem resolution_items = 5;
+  // The keys this run fetched when its kind is FETCH.
+  repeated FetchItem fetch_items = 6;
+}
+
+service AdminService {
+  // Lists every user's runs matching the filters.
+  rpc ListRuns(ListRunsRequest) returns (ListRunsResponse);
+  // Reads any user's run with its items, children and findings.
+  rpc GetRun(GetRunRequest) returns (GetRunResponse);
+}

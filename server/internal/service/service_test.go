@@ -12,6 +12,8 @@ import (
 	"connectrpc.com/connect"
 	"go.uber.org/mock/gomock"
 
+	adminv1 "github.com/leedenison/stonks/proto/admin/v1"
+	"github.com/leedenison/stonks/proto/admin/v1/adminv1connect"
 	authv1 "github.com/leedenison/stonks/proto/auth/v1"
 	"github.com/leedenison/stonks/proto/auth/v1/authv1connect"
 	instrumentv1 "github.com/leedenison/stonks/proto/instrument/v1"
@@ -24,8 +26,9 @@ import (
 )
 
 // stub answers SignIn according to the token it is given, and records the
-// principal GetSession and ListInstruments see.
+// principal GetSession, ListInstruments and ListRuns see.
 type stub struct {
+	adminv1connect.UnimplementedAdminServiceHandler
 	authv1connect.UnimplementedAuthServiceHandler
 	instrumentv1connect.UnimplementedInstrumentServiceHandler
 	seen *auth.Principal
@@ -53,6 +56,11 @@ func (s *stub) ListInstruments(ctx context.Context, _ *connect.Request[instrumen
 	return connect.NewResponse(&instrumentv1.ListInstrumentsResponse{}), nil
 }
 
+func (s *stub) ListRuns(ctx context.Context, _ *connect.Request[adminv1.ListRunsRequest]) (*connect.Response[adminv1.ListRunsResponse], error) {
+	s.record(ctx)
+	return connect.NewResponse(&adminv1.ListRunsResponse{}), nil
+}
+
 func (s *stub) record(ctx context.Context) {
 	s.seen = nil
 	if p, ok := auth.PrincipalFrom(ctx); ok {
@@ -77,6 +85,7 @@ func newFixture(t *testing.T) *fixture {
 		t.Fatalf("HandlerOptions() error = %v", err)
 	}
 	f.srv = servicetest.Serve(t, func(mux *http.ServeMux) {
+		mux.Handle(adminv1connect.NewAdminServiceHandler(f.stub, opts...))
 		mux.Handle(authv1connect.NewAuthServiceHandler(f.stub, opts...))
 		mux.Handle(instrumentv1connect.NewInstrumentServiceHandler(f.stub, opts...))
 	})
@@ -126,7 +135,8 @@ func TestHandlerOptions(t *testing.T) {
 }
 
 func TestAuthenticate(t *testing.T) {
-	live := auth.Principal{User: gen.User{Email: "one@example.com"}, SessionID: "live"}
+	live := auth.Principal{User: gen.User{Email: "one@example.com", Role: gen.UserRoleUser}, SessionID: "live"}
+	admin := auth.Principal{User: gen.User{Email: "admin@example.com", Role: gen.UserRoleAdmin}, SessionID: "admin"}
 	tests := []struct {
 		name     string
 		cookie   string
@@ -146,6 +156,9 @@ func TestAuthenticate(t *testing.T) {
 		{name: "optional with store failure", cookie: "stonks_session=broken", call: getSession, wantCode: connect.CodeInternal, wantLog: true},
 		{name: "malformed neighbour", cookie: `bad=";; \x01"; stonks_session=live`, call: listInstruments, wantSeen: &live},
 		{name: "other cookie only", cookie: "other=live", call: listInstruments, wantCode: connect.CodeUnauthenticated},
+		{name: "admin without cookie", call: listRuns, wantCode: connect.CodeUnauthenticated},
+		{name: "admin with a user's session", cookie: "stonks_session=live", call: listRuns, wantCode: connect.CodePermissionDenied},
+		{name: "admin with an administrator's session", cookie: "stonks_session=admin", call: listRuns, wantSeen: &admin},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -154,6 +167,8 @@ func TestAuthenticate(t *testing.T) {
 				switch id {
 				case "live":
 					return live, nil
+				case "admin":
+					return admin, nil
 				case "broken":
 					return auth.Principal{}, errors.New("redis down")
 				}
@@ -187,6 +202,12 @@ func TestAuthenticate(t *testing.T) {
 func listInstruments(f *fixture) error {
 	client := instrumentv1connect.NewInstrumentServiceClient(f.srv.Client, f.srv.URL)
 	_, err := client.ListInstruments(context.Background(), connect.NewRequest(&instrumentv1.ListInstrumentsRequest{}))
+	return err
+}
+
+func listRuns(f *fixture) error {
+	client := adminv1connect.NewAdminServiceClient(f.srv.Client, f.srv.URL)
+	_, err := client.ListRuns(context.Background(), connect.NewRequest(&adminv1.ListRunsRequest{}))
 	return err
 }
 

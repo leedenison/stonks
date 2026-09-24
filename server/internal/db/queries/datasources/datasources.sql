@@ -60,3 +60,10 @@ WITH block AS (
 )
 UPDATE findings SET cleared_at = now()
 FROM block WHERE findings.block_id = block.id;
+
+-- name: ListFetchItems :many
+SELECT sqlc.embed(fetch_keys), sqlc.embed(stated_keys)
+FROM fetch_keys
+JOIN stated_keys ON stated_keys.id = fetch_keys.stated_key_id
+WHERE fetch_keys.fetch_id = $1
+ORDER BY fetch_keys.id;

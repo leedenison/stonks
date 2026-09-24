@@ -113,7 +113,7 @@ func (s *Server) GetStatement(ctx context.Context, req *connect.Request[statemen
 	}
 	out := &statementv1.GetStatementResponse{Statement: summary(row.Statement, row.Run, row.Rejected)}
 	for _, it := range items {
-		item, err := itemToProto(it)
+		item, err := ItemToProto(it)
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInternal, err)
 		}
@@ -133,7 +133,8 @@ func summary(st gen.Statement, run gen.Run, rejected int32) *statementv1.Stateme
 	}
 }
 
-func itemToProto(it gen.StatementItem) (*statementv1.StatementItem, error) {
+// ItemToProto converts a rejected row to its message.
+func ItemToProto(it gen.StatementItem) (*statementv1.StatementItem, error) {
 	row := &statementv1.Row{}
 	if err := protojson.Unmarshal(it.Stated, row); err != nil {
 		return nil, fmt.Errorf("read item %d: %w", it.Ordinal, err)

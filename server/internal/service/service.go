@@ -18,8 +18,10 @@
 // Authentication reads the session cookie, CookieName, and applies a policy
 // by procedure. The default is that a live session is required, so a new RPC
 // is protected unless it is exempted here: SignIn needs no session, GetSession
-// and SignOut tolerate its absence, and gRPC reflection is skipped. A live
-// session puts its principal in the context, where [auth.go](../auth/auth.go)
+// and SignOut tolerate its absence, and gRPC reflection is skipped. Every
+// AdminService RPC also requires the admin role, and refuses any other
+// principal as permission denied. A live session puts its principal in the
+// context, where [auth.go](../auth/auth.go)
 // reads it; a missing or dead one on a protected RPC is refused as
 // unauthenticated, and a failure to reach the session store is an internal
 // error. /healthz is served outside the chain.
@@ -39,6 +41,7 @@ import (
 	"connectrpc.com/otelconnect"
 	"connectrpc.com/validate"
 
+	"github.com/leedenison/stonks/proto/admin/v1/adminv1connect"
 	"github.com/leedenison/stonks/proto/auth/v1/authv1connect"
 	"github.com/leedenison/stonks/server/internal/auth"
 )
@@ -75,6 +78,7 @@ type policy int
 
 const (
 	required policy = iota
+	admin
 	optional
 	none
 )
@@ -88,6 +92,9 @@ func policyFor(procedure string) policy {
 	}
 	if isReflection(procedure) {
 		return none
+	}
+	if strings.HasPrefix(procedure, "/"+adminv1connect.AdminServiceName+"/") {
+		return admin
 	}
 	return required
 }
@@ -145,12 +152,16 @@ func (a *authenticate) apply(ctx context.Context, procedure string, h http.Heade
 		p, err := a.authn.Authenticate(ctx, id)
 		switch {
 		case err == nil:
-			return auth.WithPrincipal(ctx, p), nil
+			ctx = auth.WithPrincipal(ctx, p)
+			if _, err := auth.Admin(ctx); pol == admin && err != nil {
+				return nil, connect.NewError(connect.CodePermissionDenied, err)
+			}
+			return ctx, nil
 		case !errors.Is(err, auth.ErrUnauthenticated):
 			return nil, connect.NewError(connect.CodeInternal, err)
 		}
 	}
-	if pol == required {
+	if pol == required || pol == admin {
 		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("session required"))
 	}
 	return ctx, nil
