@@ -1,4 +1,4 @@
-import { RunState } from "@/gen/run/v1/run_pb";
+import { type Run, RunState } from "@/gen/run/v1/run_pb";
 import type { StatementSummary } from "@/gen/statement/v1/statement_pb";
 
 // What a run's chip shows. A completed run with rejected rows is its own
@@ -17,11 +17,17 @@ export function isTerminal(state: RunState | undefined): boolean {
 }
 
 export function outcome(s: StatementSummary): Outcome {
-  switch (s.run?.state) {
+  return runOutcome(s.run, s.rejected);
+}
+
+// runOutcome is the outcome of a run whose rejected items are counted
+// elsewhere, or not at all.
+export function runOutcome(run: Run | undefined, rejected = 0): Outcome {
+  switch (run?.state) {
     case RunState.RUNNING:
       return "running";
     case RunState.COMPLETED:
-      return s.rejected > 0 ? "rejections" : "completed";
+      return rejected > 0 ? "rejections" : "completed";
     case RunState.FAILED:
     case RunState.INTERRUPTED:
       return "failed";
