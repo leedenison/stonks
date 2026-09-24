@@ -1,7 +1,6 @@
 ---
 title: The first identity integration
 type: task
-dependencies: [006]
 ---
 
 ## Scope

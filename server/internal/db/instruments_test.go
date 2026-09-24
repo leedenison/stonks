@@ -14,6 +14,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/types"
+	"github.com/leedenison/stonks/server/internal/mic"
 )
 
 // sqlstate reports whether err is a Postgres error with the given SQLSTATE.
@@ -96,6 +97,25 @@ func TestCurrencySeed(t *testing.T) {
 	require.NoError(t, pool.QueryRow(ctx, "SELECT count(*) FROM identifiers WHERE type = 'currency' AND listing_id IS NULL").Scan(&identifiers))
 	if instruments != currencies || listings != currencies || identifiers != currencies {
 		t.Errorf("seeded %d instruments, %d listings and %d identifiers, want %d of each", instruments, listings, identifiers, currencies)
+	}
+}
+
+// TestMICSeed checks that every MIC normalises to an operating MIC that is its own.
+func TestMICSeed(t *testing.T) {
+	tbl, err := mic.Load(context.Background(), newTx(t))
+	require.NoError(t, err)
+	if len(tbl) != 1078 {
+		t.Errorf("seeded %d MICs, want 1078", len(tbl))
+	}
+	for m, want := range map[string]string{"XNGS": "XNAS", "ARCX": "XNYS", "XLON": "XLON"} {
+		if got, ok := tbl.Operating(m); got != want || !ok {
+			t.Errorf("Operating(%q) = %q, %v, want %q, true", m, got, ok, want)
+		}
+	}
+	for m, op := range tbl {
+		if tbl[op] != op {
+			t.Errorf("%s: operating MIC %s has operating MIC %q, want itself", m, op, tbl[op])
+		}
 	}
 }
 
