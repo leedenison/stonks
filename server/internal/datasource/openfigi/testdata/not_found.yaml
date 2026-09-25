@@ -1,0 +1,79 @@
+---
+version: 2
+interactions:
+    - id: 0
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 47
+        host: api.openfigi.com
+        body: '[{"idType":"ID_ISIN","idValue":"US0000000002"}]'
+        headers:
+            Content-Type:
+                - application/json
+        url: https://api.openfigi.com/v3/mapping
+        method: POST
+      response:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        transfer_encoding:
+            - chunked
+        content_length: 36
+        uncompressed: true
+        body: '[{"warning":"No identifier found."}]'
+        headers:
+            Cache-Control:
+                - private, no-cache, no-store, must-revalidate
+            Content-Security-Policy:
+                - 'default-src ''self'';base-uri ''self'';font-src ''self'' https: data:;form-action ''self'';frame-ancestors ''self'';img-src ''self'' data:;object-src ''none'';script-src ''self'';script-src-attr ''none'';style-src ''self'' https: ''unsafe-inline'';upgrade-insecure-requests'
+            Content-Type:
+                - application/json; charset=utf-8
+            Cross-Origin-Opener-Policy:
+                - same-origin
+            Cross-Origin-Resource-Policy:
+                - same-origin
+            Date:
+                - Thu, 24 Sep 2026 18:33:00 GMT
+            Expires:
+                - "0"
+            Origin-Agent-Cluster:
+                - ?1
+            Pragma:
+                - no-cache
+            Ratelimit-Limit:
+                - "25"
+            Ratelimit-Policy:
+                - 25;w=60
+            Ratelimit-Remaining:
+                - "18"
+            Ratelimit-Reset:
+                - "14"
+            Referrer-Policy:
+                - no-referrer
+            Server:
+                - istio-envoy
+            Strict-Transport-Security:
+                - max-age=31536000; includeSubDomains
+            Vary:
+                - Origin, Accept-Encoding
+            X-Content-Type-Options:
+                - nosniff
+            X-Dns-Prefetch-Control:
+                - 'off'
+            X-Download-Options:
+                - noopen
+            X-Envoy-Upstream-Service-Time:
+                - "15"
+            X-Frame-Options:
+                - SAMEORIGIN
+            X-Permitted-Cross-Domain-Policies:
+                - none
+            X-Request-Id:
+                - 7df9f193-2321-4f1c-96ac-ddd89545a5e0
+            X-Xss-Protection:
+                - "0"
+        status: 200 OK
+        code: 200
+        duration: 921.308729ms

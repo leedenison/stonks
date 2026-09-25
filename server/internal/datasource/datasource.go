@@ -78,6 +78,10 @@ type FetchResponse[P any] struct {
 type Server[Q, P any] interface {
 	// Serves reports the identifier to send for req. An error means the
 	// integration serves nothing for it and the error's text is the reason.
+	//
+	// The identifier sent may differ from every identifier req states, as when
+	// a venue is normalised to its operating MIC.  A request holds what its
+	// source said, and the fetch records what was sent.
 	Serves(req Q) (types.Identifier, error)
 	// Fetch calls the provider and marshalls the results, one response per
 	// request in the order given.

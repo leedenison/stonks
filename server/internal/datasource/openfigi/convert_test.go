@@ -45,6 +45,11 @@ func TestCandidate(t *testing.T) {
 			},
 		},
 		{
+			name: "bond at a venue",
+			in:   result{Ticker: "T 2 1/2 05/15/24", ExchCode: "UN", MarketSector: "Govt"},
+			want: []types.Identifier{{Type: types.IdentifierTypeOpenfigiTicker, Domain: "UN", Value: "T 2 1/2 05/15/24"}},
+		},
+		{
 			name: "null figis",
 			in:   result{Ticker: "T 2 1/2 05/15/24", ExchCode: "", MarketSector: "Govt"},
 		},
@@ -62,9 +67,10 @@ func TestCandidate(t *testing.T) {
 func TestAnswer(t *testing.T) {
 	data := []result{listing("AAPL", "US"), listing("AAPL", "UW"), listing("AAPL", "UN"), listing("AAPL", "LN")}
 	tests := []struct {
-		name  string
-		sent  types.Identifier
-		exchs []string
+		name     string
+		sent     types.Identifier
+		currency string
+		exchs    []string
 	}{
 		{
 			name:  "isin keeps every listing",
@@ -81,18 +87,24 @@ func TestAnswer(t *testing.T) {
 			sent:  types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "AAPL"},
 			exchs: []string{"UW"},
 		},
+		{
+			name:     "currency filtered",
+			sent:     types.Identifier{Type: types.IdentifierTypeIsin, Value: "US0378331005"},
+			currency: "USD",
+			exchs:    []string{"US", "UW", "UN", "LN"},
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got := answer(tc.sent, data, mics)
+			got := answer(tc.sent, tc.currency, data, mics)
 			if diff := cmp.Diff([]types.Identifier{tc.sent}, got.Filtered); diff != "" {
 				t.Errorf("answer(%v) filtered (-want +got):\n%s", tc.sent, diff)
 			}
 			var exchs []string
 			for _, c := range got.Candidates {
 				exchs = append(exchs, exchOf(c))
-				if c.Class != gen.AssetClassStock || c.Currency != "" {
-					t.Errorf("answer(%v) candidate class %s, currency %q, want stock and none", tc.sent, c.Class, c.Currency)
+				if c.Class != gen.AssetClassStock || c.Currency != tc.currency {
+					t.Errorf("answer(%v) candidate class %s, currency %q, want stock and %q", tc.sent, c.Class, c.Currency, tc.currency)
 				}
 			}
 			if diff := cmp.Diff(tc.exchs, exchs); diff != "" {

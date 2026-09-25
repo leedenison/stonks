@@ -30,9 +30,11 @@ import (
 	"github.com/leedenison/stonks/server/internal/auth/session"
 	"github.com/leedenison/stonks/server/internal/config"
 	"github.com/leedenison/stonks/server/internal/datasource"
+	"github.com/leedenison/stonks/server/internal/datasource/openfigi"
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/logger"
+	"github.com/leedenison/stonks/server/internal/mic"
 	runner "github.com/leedenison/stonks/server/internal/run"
 	"github.com/leedenison/stonks/server/internal/service"
 	adminsvc "github.com/leedenison/stonks/server/internal/service/admin"
@@ -114,7 +116,11 @@ func run() (err error) {
 	}
 	runs := runner.New(queries, runLog)
 	defer runs.Close()
-	integrations := map[string]datasource.Factory{}
+	mics, err := mic.Load(ctx, queries)
+	if err != nil {
+		return err
+	}
+	integrations := map[string]datasource.Factory{"openfigi": openfigi.Factory(mics)}
 	sources, err := datasource.New(ctx, queries, integrations, logger.WithCategory(log, "internal/datasource"))
 	if err != nil {
 		return err
