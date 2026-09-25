@@ -1,4 +1,4 @@
-package datasource
+package market
 
 import (
 	"context"
@@ -142,9 +142,9 @@ func fetch[Q, P any](ctx context.Context, f *Fetcher, row gen.Run, e *Entry, kin
 // fetchChunk sends the requests of batch and fills their results. It returns the
 // blocks its failures call for, which are written once their fetch keys exist.
 func fetchChunk[Q, P any](ctx context.Context, f *Fetcher, e *Entry, s Server[Q, P], results []Result[Q, P], batch []int) []gen.CreateDatasourceBlockParams {
-	reqs := make([]FetchRequest[Q], len(batch))
+	reqs := make([]Request[Q], len(batch))
 	for n, i := range batch {
-		reqs[n] = FetchRequest[Q]{Value: results[i].Request, Sent: *results[i].Sent}
+		reqs[n] = Request[Q]{Value: results[i].Request, Sent: *results[i].Sent}
 	}
 	resps, attempts, err := request(ctx, f, e, s, reqs)
 	if err != nil {

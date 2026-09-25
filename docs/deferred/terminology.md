@@ -2,8 +2,8 @@
 
 The terms used in the documentation, the API and the datamodel.
 
-**Source** -- the origin of data the system ingests; a broker statement, a market
-datasource, reference data, etc that can state a fact the system records.
+**Source** -- the origin of data the system ingests; a broker statement, a datasource,
+reference data, etc that can state a fact the system records.
 
 **Channel** -- the route data to enter the system with its own authentication,
 reliability and correctness properties.
@@ -18,7 +18,7 @@ those properties, and **candidate authority** is a guess.
 **Currency Family** -- the currency codes that denote one currency at different unit
 scales. GBP and GBp/GBX are one family.
 
-**Venue** -- the market a listing trades on.
+**Venue** -- the exchange or trading system a listing trades on.
 
 **Validity** -- the interval over which an identifier names one instrument.
 **Confirmed** where coverage or assertions establish it, **provisional** where it rests

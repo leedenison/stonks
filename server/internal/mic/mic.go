@@ -2,7 +2,7 @@
 //
 // A venue is named by a MIC, which is either an operating MIC or a segment of one. The
 // domain of a MIC_TICKER is always the operating MIC, so a source naming a segment and a
-// source naming its market state the same listing.
+// source naming its operating MIC state the same listing.
 package mic
 
 import (

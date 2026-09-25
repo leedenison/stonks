@@ -1,4 +1,4 @@
-package datasource
+package market
 
 import (
 	"context"
@@ -19,7 +19,7 @@ const (
 // request calls the provider, waiting on the datasource's limiter before each
 // attempt. A temporary failure is retried under an exponential backoff unless
 // it is about the datasource, which repeating cannot help.
-func request[Q, P any](ctx context.Context, f *Fetcher, e *Entry, s Server[Q, P], reqs []FetchRequest[Q]) ([]FetchResponse[P], int, error) {
+func request[Q, P any](ctx context.Context, f *Fetcher, e *Entry, s Server[Q, P], reqs []Request[Q]) ([]Response[P], int, error) {
 	wait := f.base
 	for attempt := 1; ; attempt++ {
 		if err := e.limiter.Wait(ctx); err != nil {

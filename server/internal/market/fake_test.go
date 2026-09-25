@@ -1,4 +1,4 @@
-package datasource
+package market
 
 import (
 	"context"
@@ -60,7 +60,7 @@ func (f *fake) Serves(key StatedKey) (types.Identifier, error) {
 	return id, nil
 }
 
-func (f *fake) Fetch(_ context.Context, reqs []FetchRequest[StatedKey]) ([]FetchResponse[IdentityResult], error) {
+func (f *fake) Fetch(_ context.Context, reqs []Request[StatedKey]) ([]Response[IdentityResult], error) {
 	f.calls++
 	sent := make([]types.Identifier, len(reqs))
 	for i, r := range reqs {
@@ -72,13 +72,13 @@ func (f *fake) Fetch(_ context.Context, reqs []FetchRequest[StatedKey]) ([]Fetch
 			return nil, err
 		}
 	}
-	out := make([]FetchResponse[IdentityResult], len(sent))
+	out := make([]Response[IdentityResult], len(sent))
 	for i, id := range sent {
 		if err, ok := f.perKey[id.Value]; ok {
-			out[i] = FetchResponse[IdentityResult]{Err: err}
+			out[i] = Response[IdentityResult]{Err: err}
 			continue
 		}
-		out[i] = FetchResponse[IdentityResult]{Value: IdentityResult{
+		out[i] = Response[IdentityResult]{Value: IdentityResult{
 			Filtered:   []types.Identifier{id},
 			Candidates: []Candidate{{Identifiers: []types.Identifier{id}, Class: gen.AssetClassStock, Currency: "USD"}},
 		}}

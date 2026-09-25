@@ -5,8 +5,8 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
-	"github.com/leedenison/stonks/server/internal/datasource"
 	"github.com/leedenison/stonks/server/internal/db/types"
+	"github.com/leedenison/stonks/server/internal/market"
 )
 
 func TestServes(t *testing.T) {
@@ -47,7 +47,7 @@ func TestServes(t *testing.T) {
 	c := &Client{mics: mics}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := c.Serves(datasource.StatedKey{Identifiers: tc.stated})
+			got, err := c.Serves(market.StatedKey{Identifiers: tc.stated})
 			if (err != nil) != tc.wantErr {
 				t.Fatalf("Serves(%v) error = %v, wantErr %v", tc.stated, err, tc.wantErr)
 			}

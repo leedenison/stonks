@@ -1,4 +1,4 @@
-// Package datasource defines the interface for external datasources.
+// Package market fetches market data from external datasources.
 // Datasources fetch one kind of data about a set of requests from one
 // external provider, and records what was requested and what came back.
 // A fetch is a child run of the work that needed the data.
@@ -16,7 +16,7 @@
 //
 // Integrations interpret datasource errors and report them.  Fetches that
 // fail durably are blocked.
-package datasource
+package market
 
 import (
 	"context"
@@ -60,16 +60,16 @@ type Config struct {
 // Factory builds an integration from its configuration.
 type Factory func(Config) (Integration, error)
 
-// FetchRequest is one request as sent: the request, and the identifier
+// Request is one request as sent: the request, and the identifier
 // Serves chose to send it under.
-type FetchRequest[Q any] struct {
+type Request[Q any] struct {
 	Value Q
 	Sent  types.Identifier
 }
 
-// FetchResponse is an integration's response to one request. Err is set when
+// Response is an integration's response to one request. Err is set when
 // the provider failed for that request alone.
-type FetchResponse[P any] struct {
+type Response[P any] struct {
 	Value P
 	Err   error
 }
@@ -89,7 +89,7 @@ type Server[Q, P any] interface {
 	// Fetch is called with at most Batch requests, as one call. Rate limits
 	// are applied per datasource for the life of the process, so concurrent
 	// resolutions share the quota.
-	Fetch(ctx context.Context, reqs []FetchRequest[Q]) ([]FetchResponse[P], error)
+	Fetch(ctx context.Context, reqs []Request[Q]) ([]Response[P], error)
 }
 
 // Kind is one kind of data: its label in the fetch records, and the server

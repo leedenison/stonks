@@ -1,6 +1,6 @@
-package datasource
+package market
 
-//go:generate go tool mockgen -source=store.go -destination=store_mock_test.go -package=datasource -self_package=github.com/leedenison/stonks/server/internal/datasource
+//go:generate go tool mockgen -source=store.go -destination=store_mock_test.go -package=market -self_package=github.com/leedenison/stonks/server/internal/market
 
 import (
 	"context"
