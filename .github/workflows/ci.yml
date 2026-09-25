@@ -10,11 +10,7 @@
 name: CI
 
 on:
-  # The default pull_request activity types exclude the edit a retarget produces,
-  # so a pull request whose base moved under a stack merge starts its checks from
-  # a dispatch sent by retarget.yml.
   pull_request:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
