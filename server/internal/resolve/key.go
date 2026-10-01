@@ -38,7 +38,7 @@ func under(a, b gen.AssetClass) bool {
 // class is disjoint from none.
 func Disjoint(a, b gen.AssetClass) bool { return !under(a, b) && !under(b, a) }
 
-// multi holds the types of which one listing holds several values in one
+// multi is the types of which one listing has several values in one
 // domain, so a value of one does not contradict another.
 var multi = map[types.IdentifierType]bool{types.IdentifierTypeOpenfigiComposite: true}
 
@@ -62,8 +62,8 @@ func strength(id types.Identifier) int {
 	return n
 }
 
-// guids returns the identifiers k states that every party recognises,
-// strongest first.
+// guids returns the identifiers k states that are recognised across
+// organizations, strongest first.
 func guids(k gen.StatedKey) []types.Identifier {
 	var out []types.Identifier
 	for _, id := range k.Identifiers {

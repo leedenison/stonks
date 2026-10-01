@@ -53,7 +53,7 @@ CREATE TABLE fetch_keys (
     sent_type     identifier_type,
     sent_domain   text            NOT NULL DEFAULT '',
     sent_value    text,
-    -- instrument_id is the instrument that holds the response.
+    -- instrument_id is the instrument the response was attached to.
     instrument_id uuid            REFERENCES instruments (id),
     -- reason records the datasource's error when results are not returned.
     reason        text,
@@ -83,7 +83,8 @@ ALTER TABLE identifiers ADD COLUMN fetch_key_id uuid REFERENCES fetch_keys (id);
 -- Identity coverage: the datasource has responded for the instrument, so it
 -- is not requested again for a key that resolves to it. An identity response
 -- holds at the moment of the fetch, so the row carries that moment and the
--- fetch key.
+-- fetch key. Reference data, the instruments with no provenance, is covered
+-- by every datasource without a row.
 CREATE TABLE identity_coverage (
     instrument_id uuid        NOT NULL REFERENCES instruments (id),
     datasource    text        NOT NULL REFERENCES datasources (name),

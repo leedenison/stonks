@@ -4,16 +4,26 @@ package resolve
 
 import (
 	"context"
+	"errors"
 	"log"
+	"log/slog"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/time/rate"
 
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/db/to"
+	"github.com/leedenison/stonks/server/internal/db/types"
+	"github.com/leedenison/stonks/server/internal/market"
+	"github.com/leedenison/stonks/server/internal/run"
 )
 
 var pool *pgxpool.Pool
@@ -48,5 +58,255 @@ func TestTree(t *testing.T) {
 	}
 	if diff := cmp.Diff(parents, got); diff != "" {
 		t.Errorf("asset class tree mismatch (-code +table):\n%s", diff)
+	}
+}
+
+// script is an integration whose response to each identifier is scripted.
+type script struct {
+	responses map[types.Identifier]market.IdentityResult
+}
+
+func (s *script) Classify(error) market.Failure {
+	return market.Failure{Temporary: true, Scope: gen.BlockScopeIdentifier}
+}
+func (s *script) Limit() (rate.Limit, int) { return rate.Inf, 1 }
+func (s *script) Batch() int               { return 10 }
+func (s *script) Serves(k market.StatedKey) (types.Identifier, error) {
+	for _, id := range k.Identifiers {
+		if market.IsGUID(id) {
+			return id, nil
+		}
+	}
+	return types.Identifier{}, errors.New("states no identifier recognised globally")
+}
+
+func (s *script) Fetch(_ context.Context, reqs []market.Request[market.StatedKey]) ([]market.Response[market.IdentityResult], error) {
+	out := make([]market.Response[market.IdentityResult], len(reqs))
+	for i, r := range reqs {
+		out[i] = market.Response[market.IdentityResult]{Value: s.responses[r.Sent]}
+	}
+	return out, nil
+}
+
+// syncRunner records each child run inline over the test's transaction.
+type syncRunner struct {
+	q *gen.Queries
+}
+
+func (r syncRunner) Child(ctx context.Context, parent gen.Run, kind gen.RunKind, work run.Work) (gen.Run, error) {
+	row, err := r.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: parent.UserID, Kind: kind, Trigger: gen.RunTriggerRun, ParentID: &parent.ID})
+	if err != nil {
+		return row, err
+	}
+	if _, err := r.q.StartRun(ctx, row.ID); err != nil {
+		return row, err
+	}
+	if err := work(ctx, row); err != nil {
+		return row, errors.Join(err, r.q.FailRun(ctx, gen.FailRunParams{ID: row.ID, Error: err.Error()}))
+	}
+	return row, r.q.CompleteRun(ctx, row.ID)
+}
+
+// stack is a resolver over a transaction rolled back when the test ends,
+// with one scripted datasource, and a user with a statement to state keys
+// under.
+type stack struct {
+	q          *gen.Queries
+	tx         pgx.Tx
+	user       gen.User
+	statement  gen.Run
+	resolution gen.Run
+	script     *script
+	resolver   *Resolver
+}
+
+func newStack(t *testing.T) *stack {
+	t.Helper()
+	ctx := context.Background()
+	tx, err := pool.Begin(ctx)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		if err := tx.Rollback(ctx); err != nil && !errors.Is(err, pgx.ErrTxClosed) {
+			t.Errorf("rollback: %v", err)
+		}
+	})
+	q := gen.New(tx)
+	s := &stack{q: q, tx: tx, script: &script{responses: map[types.Identifier]market.IdentityResult{}}}
+	s.user, err = q.CreateUser(ctx, gen.CreateUserParams{ID: db.NewID(), Email: uuid.NewString() + "@example.com", Role: gen.UserRoleUser})
+	require.NoError(t, err)
+	s.statement, err = q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: s.user.ID, Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser})
+	require.NoError(t, err)
+	_, err = q.CreateStatement(ctx, gen.CreateStatementParams{ID: s.statement.ID, UserID: s.user.ID, Broker: gen.BrokerIbkr, OrderFrom: time.Date(2026, time.March, 1, 0, 0, 0, 0, time.UTC), OrderBefore: time.Date(2026, time.April, 1, 0, 0, 0, 0, time.UTC)})
+	require.NoError(t, err)
+	s.resolution, err = q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: s.user.ID, Kind: gen.RunKindResolution, Trigger: gen.RunTriggerRun, ParentID: &s.statement.ID})
+	require.NoError(t, err)
+	_, err = q.CreateDatasource(ctx, gen.CreateDatasourceParams{Name: "alpha", Enabled: true, Precedence: 10})
+	require.NoError(t, err)
+	log := slog.New(slog.DiscardHandler)
+	factories := map[string]market.Factory{"alpha": func(market.Config) (market.Integration, error) { return s.script, nil }}
+	sources, err := market.New(ctx, q, factories, log)
+	require.NoError(t, err)
+	fetcher := market.NewFetcher(q, syncRunner{q: q}, log)
+	s.resolver = New(db.New[Queries](tx), market.IdentityFetcher{F: fetcher}, sources, log)
+	return s
+}
+
+// state records a stated key under the statement.
+func (s *stack) state(t *testing.T, class gen.AssetClass, currency string, ids ...types.Identifier) gen.StatedKey {
+	t.Helper()
+	arg := gen.CreateStatedKeyParams{ID: db.NewID(), StatementID: s.statement.ID, UserID: s.user.ID, Identifiers: ids}
+	if class != "" {
+		arg.AssetClass = &class
+	}
+	if currency != "" {
+		arg.Currency = &currency
+	}
+	row, err := s.q.CreateStatedKey(context.Background(), arg)
+	require.NoError(t, err)
+	return row
+}
+
+func (s *stack) resolve(t *testing.T, keys ...gen.StatedKey) []gen.ResolutionKey {
+	t.Helper()
+	out, err := s.resolver.Resolve(context.Background(), s.resolution, keys)
+	require.NoError(t, err)
+	return out
+}
+
+func (s *stack) key(t *testing.T, id uuid.UUID) gen.StatedKey {
+	t.Helper()
+	keys, err := s.q.ListStatedKeys(context.Background(), gen.ListStatedKeysParams{StatementID: s.statement.ID, UserID: s.user.ID})
+	require.NoError(t, err)
+	for _, k := range keys {
+		if k.ID == id {
+			return k
+		}
+	}
+	t.Fatalf("no stated key %s", id)
+	return gen.StatedKey{}
+}
+
+// TestResolveWrites checks a resolution against real rows: the instrument a
+// response creates with its listing, identifiers, provenance, fetch
+// identifiers and coverage; a second key attaching to it without a fetch; a
+// cash key resolving to the seed; and a key whose every group is dropped,
+// with its finding.
+func TestResolveWrites(t *testing.T) {
+	s := newStack(t)
+	ctx := context.Background()
+	s.script.responses[isin] = market.IdentityResult{Filtered: []types.Identifier{isin}, Candidates: []market.Candidate{
+		{Class: gen.AssetClassStock, Currency: "GBX", Identifiers: []types.Identifier{figi, isin, comp, xlon}},
+	}}
+	trade := s.state(t, gen.AssetClassStock, "GBX", isin, xlon)
+	transfer := s.state(t, gen.AssetClassEquity, "", isin)
+	cash := s.state(t, gen.AssetClassCash, "GBX", id(types.IdentifierTypeCurrency, "", "GBX"))
+	wrong := s.state(t, gen.AssetClassStock, "USD", cusip)
+	s.script.responses[cusip] = market.IdentityResult{Filtered: []types.Identifier{cusip}, Candidates: []market.Candidate{
+		{Class: gen.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{figi2, cusip, xetr}},
+	}}
+
+	got := s.resolve(t, trade, transfer, cash, wrong)
+	outcomes := make([]string, len(got))
+	for i, r := range got {
+		outcomes[i] = string(r.Outcome)
+		if r.Reason != nil {
+			outcomes[i] += ": " + *r.Reason
+		}
+	}
+	want := []string{"matched", "matched", "matched", "unrecognised: alpha: 1 candidates, 1 dropped"}
+	if diff := cmp.Diff(want, outcomes); diff != "" {
+		t.Errorf("outcomes mismatch (-want +got):\n%s", diff)
+	}
+
+	// The trade created the instrument, from the fetch key that served it.
+	found, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: types.IdentifierTypeIsin, Value: isin.Value})
+	require.NoError(t, err)
+	inst := found.Instrument
+	if inst.AssetClass != gen.AssetClassStock || inst.FetchKeyID == nil {
+		t.Errorf("instrument = %+v, want a stock with provenance", inst)
+	}
+	listings, err := s.q.ListListings(ctx, inst.ID)
+	require.NoError(t, err)
+	if len(listings) != 1 || listings[0].Currency != "GBP" || listings[0].FetchKeyID == nil {
+		t.Fatalf("listings = %+v, want one GBP listing with provenance", listings)
+	}
+	ids, err := s.q.ListIdentifiers(ctx, inst.ID)
+	require.NoError(t, err)
+	var identifiers []string
+	for _, row := range ids {
+		where := "instrument"
+		if row.ListingID != nil {
+			where = "listing"
+		}
+		identifiers = append(identifiers, where+" "+name(to.Identifier(row)))
+		if row.FetchKeyID == nil || *row.FetchKeyID != *inst.FetchKeyID {
+			t.Errorf("identifier %s from fetch key %v, want the instrument's %s", row.Value, row.FetchKeyID, *inst.FetchKeyID)
+		}
+	}
+	wantIdentifiers := []string{"instrument isin GB00BH4HKS39", "instrument openfigi_share_class BBG001S5XDT5", "listing openfigi_composite BBG000C6K6G9", "listing mic_ticker XLON:VOD"}
+	if diff := cmp.Diff(wantIdentifiers, identifiers); diff != "" {
+		t.Errorf("identifiers mismatch (-want +got):\n%s", diff)
+	}
+	asserted, err := s.q.ListFetchIdentifiers(ctx, *inst.FetchKeyID)
+	require.NoError(t, err)
+	if len(asserted) != 4 {
+		t.Errorf("%d fetch identifiers, want the 4 the response named", len(asserted))
+	}
+
+	// The trade associates through its ISIN, confirmed, on the GBP listing,
+	// its ticker being the weaker; the transfer through the ISIN with no
+	// listing.
+	tradeKey, transferKey := s.key(t, trade.ID), s.key(t, transfer.ID)
+	via := map[uuid.UUID]string{}
+	for _, row := range ids {
+		via[row.ID] = name(to.Identifier(row))
+	}
+	if tradeKey.InstrumentID == nil || *tradeKey.InstrumentID != inst.ID || tradeKey.ListingID == nil || *tradeKey.ListingID != listings[0].ID || via[*tradeKey.ViaID] != "isin GB00BH4HKS39" || *tradeKey.Validity != gen.ValidityConfirmed {
+		t.Errorf("trade = %+v, want the instrument's GBP listing via its ISIN, confirmed", tradeKey)
+	}
+	if transferKey.InstrumentID == nil || *transferKey.InstrumentID != inst.ID || transferKey.ListingID != nil || via[*transferKey.ViaID] != "isin GB00BH4HKS39" || *transferKey.Validity != gen.ValidityConfirmed {
+		t.Errorf("transfer = %+v, want the instrument via its ISIN, confirmed, with no listing", transferKey)
+	}
+
+	// The cash key names the GBP seed through the GBX identifier.
+	gbx, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: types.IdentifierTypeCurrency, Value: "GBX"})
+	require.NoError(t, err)
+	cashKey := s.key(t, cash.ID)
+	if cashKey.InstrumentID == nil || *cashKey.InstrumentID != gbx.Instrument.ID || cashKey.ViaID == nil || *cashKey.ViaID != gbx.Identifier.ID || cashKey.ListingID == nil {
+		t.Errorf("cash = %+v, want the GBP seed via the GBX identifier", cashKey)
+	}
+
+	// One fetch served every key but cash, since every lookup precedes the
+	// writes: the transfer's response attached to the instrument the trade
+	// created, and the coverage row carries its fetch key, the later.
+	children, err := s.q.ListChildRuns(ctx, gen.ListChildRunsParams{ParentID: &s.resolution.ID, UserID: s.user.ID})
+	require.NoError(t, err)
+	if len(children) != 1 || children[0].Kind != gen.RunKindFetch || children[0].State != gen.RunStateCompleted {
+		t.Fatalf("ListChildRuns = %+v, want one completed fetch", children)
+	}
+	items, err := s.q.ListFetchItems(ctx, children[0].ID)
+	require.NoError(t, err)
+	sent := map[uuid.UUID]gen.FetchKey{}
+	for _, it := range items {
+		sent[it.StatedKey.ID] = it.FetchKey
+	}
+	attached := func(id uuid.UUID) bool { return sent[id].InstrumentID != nil && *sent[id].InstrumentID == inst.ID }
+	if len(sent) != 3 || !attached(trade.ID) || !attached(transfer.ID) || sent[wrong.ID].InstrumentID != nil {
+		t.Errorf("fetch items = %+v, want the trade and the transfer attached to the instrument and the mis-stated key attached to nothing", sent)
+	}
+	coverage, err := s.q.ListIdentityCoverage(ctx, []uuid.UUID{inst.ID})
+	require.NoError(t, err)
+	if len(coverage) != 1 || coverage[0].Datasource != "alpha" || coverage[0].FetchKeyID != sent[transfer.ID].ID {
+		t.Errorf("coverage = %+v, want alpha through the transfer's fetch key", coverage)
+	}
+
+	// Dropping the mis-stated key's group is a finding of the resolution.
+	findings, err := s.q.ListRunFindings(ctx, s.resolution.ID)
+	require.NoError(t, err)
+	if len(findings) != 1 || findings[0].Kind != gen.FindingKindDropped || *findings[0].Step != gen.DropStepStated || *findings[0].StatedKeyID != wrong.ID || *findings[0].Detail != "listings in GBP, none in the stated USD" {
+		t.Errorf("findings = %+v, want one stated drop against the mis-stated key", findings)
+	}
+	if _, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: types.IdentifierTypeCusip, Value: cusip.Value}); !errors.Is(err, db.ErrNotFound) {
+		t.Errorf("FindIdentifier(cusip) error = %v, want not found: a dropped group is not stored", err)
 	}
 }

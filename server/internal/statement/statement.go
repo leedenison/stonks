@@ -207,7 +207,7 @@ func (k *key) identifier(t types.IdentifierType) (types.Identifier, bool) {
 	return types.Identifier{}, false
 }
 
-// associate records that k is matched, through identifier id held with
+// associate records that k is matched, through identifier id, with
 // validity v.
 func (k *key) associate(id gen.Identifier, v gen.Validity) {
 	k.outcome = gen.ResolutionOutcomeMatched
