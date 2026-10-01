@@ -1,6 +1,8 @@
 package market
 
 import (
+	"context"
+
 	"github.com/google/uuid"
 
 	"github.com/leedenison/stonks/server/internal/db/gen"
@@ -49,4 +51,16 @@ var IdentityKind = Kind[StatedKey, IdentityResult]{
 	server:  func(e *Entry) Server[StatedKey, IdentityResult] { return e.Identity },
 	subject: func(k StatedKey) uuid.UUID { return k.ID },
 	count:   func(r IdentityResult) int { return len(r.Candidates) },
+}
+
+// IdentityFetcher fetches identity through F.
+type IdentityFetcher struct {
+	F *Fetcher
+}
+
+// Identity fetches the identity of keys from e, as a child run of parent,
+// and returns a result per key whether or not the run failed.
+func (a IdentityFetcher) Identity(ctx context.Context, parent gen.Run, e *Entry, keys []StatedKey) ([]Result[StatedKey, IdentityResult], error) {
+	_, results, err := Fetch(ctx, a.F, parent, e, IdentityKind, keys)
+	return results, err
 }

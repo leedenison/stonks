@@ -33,6 +33,7 @@ var (
 	isin   = id(types.IdentifierTypeIsin, "", "GB00BH4HKS39")
 	cusip  = id(types.IdentifierTypeCusip, "", "92857W308")
 	figi   = id(types.IdentifierTypeOpenfigiShareClass, "", "BBG001S5XDT5")
+	figi2  = id(types.IdentifierTypeOpenfigiShareClass, "", "BBG001S5XDT6")
 	comp   = id(types.IdentifierTypeOpenfigiComposite, "", "BBG000C6K6G9")
 	xlon   = id(types.IdentifierTypeMicTicker, "XLON", "VOD")
 	xnas   = id(types.IdentifierTypeMicTicker, "XNAS", "VOD")
@@ -46,7 +47,6 @@ func served(source string, sent types.Identifier, filtered []types.Identifier, c
 }
 
 func TestGroups(t *testing.T) {
-	figi2 := id(types.IdentifierTypeOpenfigiShareClass, "", "BBG001S5XDT6")
 	tests := []struct {
 		name string
 		r    *result
@@ -69,7 +69,7 @@ func TestGroups(t *testing.T) {
 			},
 		},
 		{
-			name: "a strict filter is one group holding the identifier",
+			name: "a strict filter is one group identified by the identifier",
 			r: served("a", isin, []types.Identifier{isin},
 				cand(gen.AssetClassUnknown, "GBP", xlon),
 				cand(gen.AssetClassStock, "USD", figi, xnas),
@@ -115,12 +115,13 @@ func TestGroups(t *testing.T) {
 }
 
 // outcome writes a choice as the winner, the attached groups, the findings
-// and the routine drops, each group named by its source and order.
+// and the groups not naming the identifier sent, each group named by its
+// source and order.
 type outcome struct {
-	winner   string
-	attached []string
-	findings []string
-	routine  map[routine]int
+	winner    string
+	attached  []string
+	findings  []string
+	notNaming map[string]int
 }
 
 func label(g *group) string {
@@ -135,15 +136,19 @@ func label(g *group) string {
 
 // describe writes c, naming each finding's fetch key by its source.
 func describe(c choice, source map[uuid.UUID]string) outcome {
-	o := outcome{winner: label(c.winner), routine: c.routine}
+	o := outcome{winner: label(c.winner), notNaming: c.notNaming}
 	for _, g := range c.attached {
 		o.attached = append(o.attached, label(g))
 	}
 	for _, f := range c.findings {
-		if f.RunID != uuid.Nil || f.StatedKeyID != nil || f.FetchKeyID == nil || f.Step == nil || f.Detail == nil {
-			panic(fmt.Sprintf("finding %+v, want the fetch key, step and detail and nothing else", f))
+		if f.RunID != uuid.Nil || f.StatedKeyID != nil || f.FetchKeyID == nil || f.Detail == nil || (f.Step != nil) != (f.Kind == gen.FindingKindDropped) {
+			panic(fmt.Sprintf("finding %+v, want the fetch key and detail, a step only when dropped, and nothing else", f))
 		}
-		o.findings = append(o.findings, fmt.Sprintf("%s %s %s: %s", source[*f.FetchKeyID], f.Kind, *f.Step, *f.Detail))
+		s := fmt.Sprintf("%s %s", source[*f.FetchKeyID], f.Kind)
+		if f.Step != nil {
+			s += " " + string(*f.Step)
+		}
+		o.findings = append(o.findings, s+": "+*f.Detail)
 	}
 	return o
 }
@@ -151,17 +156,15 @@ func describe(c choice, source map[uuid.UUID]string) outcome {
 func TestChoose(t *testing.T) {
 	stock := ptr.To(gen.AssetClassStock)
 	other := id(types.IdentifierTypeCusip, "", "92857W309")
-	figi2 := id(types.IdentifierTypeOpenfigiShareClass, "", "BBG001S5XDT6")
 	strict := func(source string, sent types.Identifier, cs ...market.Candidate) *result {
 		return served(source, sent, []types.Identifier{sent}, cs...)
 	}
 	search := func(source string, sent types.Identifier, cs ...market.Candidate) *result {
 		return served(source, sent, []types.Identifier{ticker}, cs...)
 	}
-	held := &group{class: gen.AssetClassStock, instrument: []types.Identifier{isin, cusip}, listings: map[string][]types.Identifier{
+	existing := &group{class: gen.AssetClassStock, instrument: []types.Identifier{isin, cusip}, listings: map[string][]types.Identifier{
 		"GBP": {comp, xlon},
 	}}
-	naming := func(source string, n int) map[routine]int { return map[routine]int{{source, gen.DropStepNaming}: n} }
 	tests := []struct {
 		name    string
 		results []*result
@@ -176,7 +179,7 @@ func TestChoose(t *testing.T) {
 				cand(gen.AssetClassStock, "GBP", figi, isin, xlon),
 			)},
 			k:    gen.StatedKey{Identifiers: []types.Identifier{isin}},
-			want: outcome{winner: "a#1", attached: []string{"a#1"}, routine: naming("a", 1)},
+			want: outcome{winner: "a#1", attached: []string{"a#1"}, notNaming: map[string]int{"a": 1}},
 		},
 		{
 			name:    "a listing in no stated family contradicts the statement",
@@ -231,30 +234,30 @@ func TestChoose(t *testing.T) {
 			}},
 		},
 		{
-			name: "the database holds the key and a contradicting response is a contradiction",
+			name: "the database names the key and a contradicting response is a contradiction",
 			results: []*result{
 				strict("a", isin, cand(gen.AssetClassStock, "GBP", figi, other, xlon)),
 				strict("b", isin, cand(gen.AssetClassStock, "GBP", figi, id(types.IdentifierTypeMicTicker, "XLON", "VODL"))),
 			},
 			k:  gen.StatedKey{Identifiers: []types.Identifier{isin}},
-			db: held,
+			db: existing,
 			want: outcome{winner: "database", findings: []string{
-				"a contradiction precedence: cusip 92857W309 contradicts the instrument's cusip 92857W308",
-				"b contradiction precedence: mic_ticker XLON:VODL contradicts the instrument's mic_ticker XLON:VOD",
+				"a contradiction: cusip 92857W309 contradicts the instrument's cusip 92857W308",
+				"b contradiction: mic_ticker XLON:VODL contradicts the instrument's mic_ticker XLON:VOD",
 			}},
 		},
 		{
 			name:    "a second composite in a listing contradicts nothing",
 			results: []*result{strict("a", isin, cand(gen.AssetClassStock, "GBP", figi, id(types.IdentifierTypeOpenfigiComposite, "", "BBG000C6K6H0")))},
 			k:       gen.StatedKey{Identifiers: []types.Identifier{isin}},
-			db:      held,
+			db:      existing,
 			want:    outcome{winner: "database", attached: []string{"a#0"}},
 		},
 		{
 			name:    "a group sharing no stable identifier with the winner is dropped",
 			results: []*result{search("a", xlon, cand(gen.AssetClassStock, "GBP", figi, xlon))},
 			k:       gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{xlon}},
-			db:      held,
+			db:      existing,
 			want:    outcome{winner: "database", findings: []string{"a dropped corroboration: shares no stable identifier with the instrument"}},
 		},
 		{
@@ -264,7 +267,7 @@ func TestChoose(t *testing.T) {
 				search("b", xlon, cand(gen.AssetClassStock, "GBP", figi, xlon), cand(gen.AssetClassStock, "GBP", figi2, xnas)),
 			},
 			k:    gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{isin, xlon}},
-			want: outcome{winner: "a#0", attached: []string{"a#0", "b#0"}, routine: naming("b", 1)},
+			want: outcome{winner: "a#0", attached: []string{"a#0", "b#0"}, notNaming: map[string]int{"b": 1}},
 		},
 		{
 			name: "survivors rank by the stated data they confirm, then the datasource's order",
@@ -274,13 +277,13 @@ func TestChoose(t *testing.T) {
 				cand(gen.AssetClassStock, "GBP", id(types.IdentifierTypeOpenfigiShareClass, "", "BBG001S5XDT7"), xlon),
 			)},
 			k:    gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{cusip, xlon}},
-			want: outcome{winner: "a#1", attached: []string{"a#1"}, routine: map[routine]int{{"a", gen.DropStepRank}: 2}},
+			want: outcome{winner: "a#1", attached: []string{"a#1"}},
 		},
 		{
 			name:    "the group at the stated venue names the key",
 			results: []*result{search("a", xlon, cand(gen.AssetClassStock, "GBP", figi2, xnas), cand(gen.AssetClassStock, "GBP", figi, xlon))},
 			k:       gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{xlon}},
-			want:    outcome{winner: "a#1", attached: []string{"a#1"}, routine: naming("a", 1)},
+			want:    outcome{winner: "a#1", attached: []string{"a#1"}, notNaming: map[string]int{"a": 1}},
 		},
 		{
 			name:    "a mis-stated venue associates with the one group that survives",
@@ -292,20 +295,20 @@ func TestChoose(t *testing.T) {
 			name:    "a mis-stated venue with several survivors chooses none",
 			results: []*result{search("a", xlon, cand(gen.AssetClassStock, "GBP", figi, xetr), cand(gen.AssetClassStock, "GBP", figi2, xnas))},
 			k:       gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{xlon}},
-			want:    outcome{routine: naming("a", 2)},
+			want:    outcome{notNaming: map[string]int{"a": 2}},
 		},
 		{
-			name:    "a mis-stated venue with the key held narrows to the group corroborating the instrument",
+			name:    "a mis-stated venue with the key found narrows to the group corroborating the instrument",
 			results: []*result{search("a", xlon, cand(gen.AssetClassStock, "GBP", figi2, xnas), cand(gen.AssetClassStock, "GBP", isin, xetr))},
 			k:       gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{xlon}},
-			db:      held,
+			db:      existing,
 			want:    outcome{winner: "database", attached: []string{"a#1"}, findings: []string{"a dropped corroboration: shares no stable identifier with the instrument"}},
 		},
 		{
 			name:    "a bare ticker is never chosen",
 			results: []*result{search("a", ticker, cand(gen.AssetClassStock, "GBP", figi, xlon))},
 			k:       gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{ticker}},
-			want:    outcome{routine: naming("a", 1)},
+			want:    outcome{notNaming: map[string]int{"a": 1}},
 		},
 		{
 			name:    "nothing served",
@@ -321,11 +324,11 @@ func TestChoose(t *testing.T) {
 				r.ID = uuid.UUID{byte(i + 1)}
 				source[r.ID] = r.Source
 			}
-			if tc.want.routine == nil {
-				tc.want.routine = map[routine]int{}
+			if tc.want.notNaming == nil {
+				tc.want.notNaming = map[string]int{}
 			}
 			got := describe(choose(tc.results, tc.k, tc.db, families), source)
-			if diff := cmp.Diff(tc.want, got, cmp.AllowUnexported(outcome{}, routine{})); diff != "" {
+			if diff := cmp.Diff(tc.want, got, cmp.AllowUnexported(outcome{})); diff != "" {
 				t.Errorf("choose mismatch (-want +got):\n%s", diff)
 			}
 		})

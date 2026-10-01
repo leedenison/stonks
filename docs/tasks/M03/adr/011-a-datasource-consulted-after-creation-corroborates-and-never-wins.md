@@ -6,7 +6,7 @@ datasource enabled later, or one that had not covered the instrument when it was
 created, is still requested for the next key that resolves to the instrument. Its
 response corroborates: it adds the identifiers of the group that shares a stable
 identifier with the instrument and fills the listing the stated family lacks. It never
-replaces what the instrument holds, never changes the class, and raises a contradiction
+replaces the instrument's identifiers or listings, never changes the class, and raises a contradiction
 finding where it disagrees. The outcome therefore depends on the order datasources were
 enabled, and no instrument is re-resolved when the registry changes.
 

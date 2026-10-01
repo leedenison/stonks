@@ -167,7 +167,7 @@ func TestIdentifierUniqueness(t *testing.T) {
 	// The unique violation aborts the transaction, so it is the last statement.
 	_, err := q.CreateIdentifier(ctx, gen.CreateIdentifierParams{ID: db.NewID(), InstrumentID: two.ID, Type: types.IdentifierTypeIsin, Value: "US0378331005"})
 	if !db.IsConflict(err) {
-		t.Errorf("CreateIdentifier of a triple another instrument holds: err = %v, want a conflict", err)
+		t.Errorf("CreateIdentifier of a triple identifying another instrument: err = %v, want a conflict", err)
 	}
 }
 

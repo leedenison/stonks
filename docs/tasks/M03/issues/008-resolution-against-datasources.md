@@ -41,9 +41,9 @@ In:
   identifiers and blank fields from the others.
 - Writing the answer: a system owned instrument, its listing where one was determined,
   and identifiers created or enriched from it, each referencing the fetch key as
-  provenance, and the key's association set through the weakest identifier it stated,
-  with provisional validity. Two instruments merge only through a stable identifier, and
-  only datasource answers merge them.
+  provenance, and the key's association set through the strongest identifier it stated,
+  confirmed where that identifier is stable. Two instruments merge only through a stable
+  identifier, and only datasource answers merge them.
 - A finding per contradiction resolved by precedence and per candidate dropped for
   contradicting the stated data, a higher precedence answer or the winner, recording
   which step dropped it. A candidate outranked or not naming the identifier sent is
@@ -70,7 +70,8 @@ A child run holds no place in a lane and is not counted by the runner, so the re
 waits for its own fan-out before returning, and the fetches share no database
 transaction. See [run.go](../../../../server/internal/run/run.go).
 
-The weakest link governs: a key stating only a ticker is associated through that ticker
-however many stable identifiers the answer carries. Datasource answers are held apart
+The source's claim governs: a key is associated through the strongest identifier it
+stated, so a key stating only a ticker is associated through that ticker however many
+stable identifiers the answer carries. Datasource answers are held apart
 rather than flattened into one set, since what makes an association a claim is that one
 source stated both halves of it.

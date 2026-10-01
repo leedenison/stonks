@@ -19,10 +19,10 @@ type result = market.Result[market.StatedKey, market.IdentityResult]
 // instrument grain identifier, transitively, collapsed to the listing grain
 // identifiers of one listing per currency family, the family empty where
 // the candidates carry no currency. r is the result the group came from,
-// nil for the group of what the database holds. order is the position of
+// nil for the group of the instrument found in the database. order is the position of
 // its first candidate in the response, class the class of the first
-// candidate stating one, and named whether it holds the identifier the key
-// was sent under.
+// candidate stating one, and named whether the identifier the key was sent
+// under identifies it.
 type group struct {
 	r          *result
 	order      int
@@ -32,30 +32,22 @@ type group struct {
 	named      bool
 }
 
-// routine counts the drops of one step that are summarised rather than
-// recorded: those not naming the identifier sent, and those outranked.
-type routine struct {
-	source string
-	step   gen.DropStep
-}
-
 // choice is the outcome of choosing among the groups of every response.
-// winner is nil where no group survived; attached are the top groups of the
+// winner is nil where no group survived; attached are the best groups of the
 // datasources in precedence order, the winner among them where the
-// database did not hold the key. findings are the drops worth recording,
-// each with its kind, fetch key, step and detail and awaiting the run and
-// the stated key.
+// database did not hold the key.
+// notNaming counts, per datasource, the groups dropped for not naming the
+// identifier sent, which the reason of a key no group won summarises.
 type choice struct {
-	winner   *group
-	attached []*group
-	findings []gen.CreateFindingParams
-	routine  map[routine]int
+	winner    *group
+	attached  []*group
+	findings  []gen.CreateFindingParams
+	notNaming map[string]int
 }
 
-// groups builds the groups of r: a union over the instrument grain
-// identifiers candidates share, every candidate one group where the call
-// filtered on an instrument grain identifier. families maps a currency code
-// to its family.
+// groups builds the groups of r, one per set partition finds, each carrying
+// the instrument grain identifiers the call filtered on. families maps a
+// currency code to its family.
 func groups(r *result, families func(string) string) []*group {
 	var strict []types.Identifier
 	for _, id := range r.Response.Filtered {
@@ -64,11 +56,40 @@ func groups(r *result, families func(string) string) []*group {
 		}
 	}
 	cs := r.Response.Candidates
+	roots := partition(cs, len(strict) > 0)
+	byRoot := map[int]*group{}
+	var out []*group
+	for i, c := range cs {
+		g := byRoot[roots[i]]
+		if g == nil {
+			g = &group{r: r, order: i, listings: map[string][]types.Identifier{}}
+			g.instrument = append(g.instrument, strict...)
+			byRoot[roots[i]] = g
+			out = append(out, g)
+		}
+		family := ""
+		if c.Currency != "" {
+			family = families(c.Currency)
+		}
+		g.add(c, family)
+	}
+	if r.Sent != nil {
+		for _, g := range out {
+			g.named = g.identifiedBy(*r.Sent)
+		}
+	}
+	return out
+}
+
+// partition returns, for each candidate, the index of the candidate
+// representing its set: a union over the instrument grain identifiers
+// candidates share, transitively, or one set where the call was strict.
+func partition(cs []market.Candidate, strict bool) []int {
 	parent := make([]int, len(cs))
 	owner := map[types.Identifier]int{}
 	for i, c := range cs {
 		parent[i] = i
-		if len(strict) > 0 {
+		if strict {
 			union(parent, 0, i)
 		}
 		for _, id := range c.Identifiers {
@@ -82,29 +103,11 @@ func groups(r *result, families func(string) string) []*group {
 			}
 		}
 	}
-	byRoot := map[int]*group{}
-	var out []*group
-	for i, c := range cs {
-		root := find(parent, i)
-		g := byRoot[root]
-		if g == nil {
-			g = &group{r: r, order: i, listings: map[string][]types.Identifier{}}
-			g.instrument = append(g.instrument, strict...)
-			byRoot[root] = g
-			out = append(out, g)
-		}
-		family := ""
-		if c.Currency != "" {
-			family = families(c.Currency)
-		}
-		g.add(c, family)
+	roots := make([]int, len(cs))
+	for i := range cs {
+		roots[i] = find(parent, i)
 	}
-	if r.Sent != nil {
-		for _, g := range out {
-			g.named = g.holds(*r.Sent)
-		}
-	}
-	return out
+	return roots
 }
 
 func find(parent []int, i int) int {
@@ -164,9 +167,10 @@ func (g *group) all(yield func(types.Identifier) bool) {
 	}
 }
 
-func (g *group) holds(id types.Identifier) bool {
-	for held := range g.all {
-		if held == id {
+// identifiedBy reports whether id is among g's identifiers at either grain.
+func (g *group) identifiedBy(id types.Identifier) bool {
+	for h := range g.all {
+		if h == id {
 			return true
 		}
 	}
@@ -186,14 +190,13 @@ func (g *group) families() []string {
 	return out
 }
 
-// contradicts returns the value g holds of id's type and domain where none
-// equals id's. A type of which a listing holds several values contradicts
-// nothing.
+// contradicts reports whether g carries an identifier of id's type and
+// domain but none with id's value, returning one that differs.
 func (g *group) contradicts(id types.Identifier) (types.Identifier, bool) {
 	if multi[id.Type] {
 		return types.Identifier{}, false
 	}
-	var held types.Identifier
+	var other types.Identifier
 	found := false
 	for h := range g.all {
 		if h.Type != id.Type || h.Domain != id.Domain {
@@ -202,9 +205,9 @@ func (g *group) contradicts(id types.Identifier) (types.Identifier, bool) {
 		if h.Value == id.Value {
 			return types.Identifier{}, false
 		}
-		held, found = h, true
+		other, found = h, true
 	}
-	return held, found
+	return other, found
 }
 
 // who names g in a detail.
@@ -228,8 +231,8 @@ func (g *group) against(k gen.StatedKey, fam string) (string, bool) {
 		return fmt.Sprintf("class %s contradicts the stated %s", g.class, *k.AssetClass), true
 	}
 	for _, id := range k.Identifiers {
-		if held, ok := g.contradicts(id); ok {
-			return fmt.Sprintf("%s contradicts the stated %s", name(held), name(id)), true
+		if other, ok := g.contradicts(id); ok {
+			return fmt.Sprintf("%s contradicts the stated %s", name(other), name(id)), true
 		}
 	}
 	return "", false
@@ -243,8 +246,8 @@ func (g *group) inconsistent(a *group) (string, bool) {
 		return fmt.Sprintf("class %s contradicts %s's %s", g.class, a.who(), a.class), true
 	}
 	for id := range a.all {
-		if held, ok := g.contradicts(id); ok {
-			return fmt.Sprintf("%s contradicts %s's %s", name(held), a.who(), name(id)), true
+		if other, ok := g.contradicts(id); ok {
+			return fmt.Sprintf("%s contradicts %s's %s", name(other), a.who(), name(id)), true
 		}
 	}
 	return "", false
@@ -253,19 +256,19 @@ func (g *group) inconsistent(a *group) (string, bool) {
 // corroborates reports whether g shares a stable identifier with a.
 func (g *group) corroborates(a *group) bool {
 	for id := range g.all {
-		if stable(id) && a.holds(id) {
+		if stable(id) && a.identifiedBy(id) {
 			return true
 		}
 	}
 	return false
 }
 
-// confirms counts the stated identifiers g holds, and the stated family
+// confirms counts the stated identifiers identifying g, and the stated family
 // where it has that listing.
 func (g *group) confirms(k gen.StatedKey, fam string) int {
 	n := 0
 	for _, id := range k.Identifiers {
-		if g.holds(id) {
+		if g.identifiedBy(id) {
 			n++
 		}
 	}
@@ -276,61 +279,72 @@ func (g *group) confirms(k gen.StatedKey, fam string) int {
 }
 
 // choose chooses among the groups of results, taken in precedence order,
-// for the key k. db is the group of the instrument the database holds for
-// the key, nil where it holds none, and families maps a currency code to
+// for the key k. db is the group of the instrument the database names for
+// the key, nil where it names none, and families maps a currency code to
 // its family.
 func choose(results []*result, k gen.StatedKey, db *group, families func(string) string) choice {
-	c := choice{winner: db, routine: map[routine]int{}}
+	c := choice{winner: db, notNaming: map[string]int{}}
 	var chosen []*group
 	if db != nil {
 		chosen = append(chosen, db)
 	}
 	fam := family(k, families)
 	for _, r := range results {
-		top := c.pick(r, groups(r, families), k, fam, chosen)
-		if top == nil {
+		best := c.bestGroup(r, groups(r, families), k, fam, chosen)
+		if best == nil {
 			continue
 		}
-		c.attached = append(c.attached, top)
-		chosen = append(chosen, top)
+		c.attached = append(c.attached, best)
+		chosen = append(chosen, best)
 		if c.winner == nil {
-			c.winner = top
+			c.winner = best
 		}
 	}
 	return c
 }
 
-// pick returns the top group of r for the key k stating the family fam,
-// nil where none survives. chosen holds the groups chosen above r, the
-// winner first.
-func (c *choice) pick(r *result, gs []*group, k gen.StatedKey, fam string, chosen []*group) *group {
-	if r.Sent == nil {
-		return nil
+// record appends a finding against r's fetch key, with a step only when the
+// kind is dropped.
+func (c *choice) record(r *result, kind gen.FindingKind, step gen.DropStep, detail string) {
+	f := gen.CreateFindingParams{Kind: kind, FetchKeyID: ptr.To(r.ID), Detail: ptr.To(detail)}
+	if kind == gen.FindingKindDropped {
+		f.Step = ptr.To(step)
 	}
-	record := func(kind gen.FindingKind, step gen.DropStep, detail string) {
-		c.findings = append(c.findings, gen.CreateFindingParams{Kind: kind, FetchKeyID: ptr.To(r.ID), Step: ptr.To(step), Detail: ptr.To(detail)})
-	}
-	count := func(step gen.DropStep, n int) {
-		if n > 0 {
-			c.routine[routine{r.Source, step}] += n
-		}
-	}
-	var survivors []*group
+	c.findings = append(c.findings, f)
+}
+
+// naming returns the groups of r that name the identifier it was sent
+// under, and whether the venue fallback is in effect: a venue ticker was
+// sent, the datasource filtered on the ticker alone, and no group carries
+// the venue, so every group is kept. A bare ticker names no group.
+func (c *choice) naming(r *result, gs []*group) ([]*group, bool) {
 	sent := *r.Sent
 	bare := sent.Domain == "" && grain(sent) == gen.IdentifierGrainListing
 	named := slices.ContainsFunc(gs, func(g *group) bool { return g.named })
 	ticker := types.Identifier{Type: types.IdentifierTypeMicTicker, Value: sent.Value}
 	fallback := !named && sent.Type == types.IdentifierTypeMicTicker && !bare && slices.Contains(r.Response.Filtered, ticker)
+	var survivors []*group
 	for _, g := range gs {
 		if bare || (!g.named && !fallback) {
-			count(gen.DropStepNaming, 1)
+			c.notNaming[r.Source]++
 			continue
 		}
 		survivors = append(survivors, g)
 	}
+	return survivors, fallback
+}
+
+// bestGroup returns the best group of r for the key k stating the family
+// fam, nil where none survives. chosen is the groups chosen above r, the
+// winner first.
+func (c *choice) bestGroup(r *result, gs []*group, k gen.StatedKey, fam string, chosen []*group) *group {
+	if r.Sent == nil {
+		return nil
+	}
+	survivors, fallback := c.naming(r, gs)
 	survivors = slices.DeleteFunc(survivors, func(g *group) bool {
 		if detail, ok := g.against(k, fam); ok {
-			record(gen.FindingKindDropped, gen.DropStepStated, detail)
+			c.record(r, gen.FindingKindDropped, gen.DropStepStated, detail)
 			return true
 		}
 		for _, a := range chosen {
@@ -339,12 +353,12 @@ func (c *choice) pick(r *result, gs []*group, k gen.StatedKey, fam string, chose
 				if a.r == nil {
 					kind = gen.FindingKindContradiction
 				}
-				record(kind, gen.DropStepPrecedence, detail)
+				c.record(r, kind, gen.DropStepPrecedence, detail)
 				return true
 			}
 		}
 		if len(chosen) > 0 && !g.corroborates(chosen[0]) {
-			record(gen.FindingKindDropped, gen.DropStepCorroboration, fmt.Sprintf("shares no stable identifier with %s", chosen[0].who()))
+			c.record(r, gen.FindingKindDropped, gen.DropStepCorroboration, fmt.Sprintf("shares no stable identifier with %s", chosen[0].who()))
 			return true
 		}
 		return false
@@ -353,7 +367,7 @@ func (c *choice) pick(r *result, gs []*group, k gen.StatedKey, fam string, chose
 		return nil
 	}
 	if fallback && len(chosen) == 0 && len(survivors) > 1 {
-		count(gen.DropStepNaming, len(survivors))
+		c.notNaming[r.Source] += len(survivors)
 		return nil
 	}
 	slices.SortStableFunc(survivors, func(a, b *group) int {
@@ -368,6 +382,5 @@ func (c *choice) pick(r *result, gs []*group, k gen.StatedKey, fam string, chose
 		}
 		return a.order - b.order
 	})
-	count(gen.DropStepRank, len(survivors)-1)
 	return survivors[0]
 }
