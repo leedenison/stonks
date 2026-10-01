@@ -53,7 +53,7 @@ CREATE TABLE fetch_keys (
     sent_type     identifier_type,
     sent_domain   text            NOT NULL DEFAULT '',
     sent_value    text,
-    -- instrument_id is the instrument the response was attached to.
+    -- instrument_id is the instrument that holds the response.
     instrument_id uuid            REFERENCES instruments (id),
     -- reason records the datasource's error when results are not returned.
     reason        text,

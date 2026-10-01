@@ -13,7 +13,7 @@
 CREATE TYPE finding_kind AS ENUM ('block', 'dropped', 'contradiction', 'merged');
 
 -- The step of the choice that dropped a candidate group: it did not name the
--- identifier the key was sent under, contradicted the stated data, was
+-- identifier that carried the key, contradicted the stated data, was
 -- inconsistent with a higher precedence response, shared no stable identifier
 -- with the winner, or was outranked within its datasource.
 CREATE TYPE drop_step AS ENUM ('naming', 'stated', 'precedence', 'corroboration', 'rank');
@@ -24,7 +24,7 @@ CREATE TABLE findings (
     run_id        uuid         NOT NULL REFERENCES runs (id),
     kind          finding_kind NOT NULL,
     block_id      uuid         UNIQUE REFERENCES datasource_blocks (id),
-    -- stated_key_id is the key the finding is about, for every kind but block.
+    -- stated_key_id is the finding's key, for every kind but block.
     stated_key_id uuid         REFERENCES stated_keys (id),
     -- fetch_key_id is the response involved, where one was.
     fetch_key_id  uuid         REFERENCES fetch_keys (id),

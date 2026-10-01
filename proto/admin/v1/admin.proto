@@ -86,7 +86,7 @@ enum FindingKind {
 // The step of the choice that dropped a candidate group.
 enum DropStep {
   DROP_STEP_UNSPECIFIED = 0;
-  // The group did not name the identifier the key was sent under.
+  // The group did not name the identifier that carried the key.
   DROP_STEP_NAMING = 1;
   // The group contradicted the stated data.
   DROP_STEP_STATED = 2;
@@ -105,7 +105,7 @@ message Finding {
   FindingKind kind = 3;
   // The block reported; set only when the kind is BLOCK.
   optional string block_id = 4;
-  // The stated key the finding is about; set for every kind but BLOCK.
+  // The finding's stated key; set for every kind but BLOCK.
   optional string stated_key_id = 5;
   // The fetch key of the response involved; unset for a contradiction
   // found in the database.
