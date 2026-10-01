@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { BackButton } from "./back-button";
 
-// Page is the column a page renders in: an action bar across the top with
+// Page is the column where a page renders: an action bar across the top with
 // the title on the left and the page's actions beside it, a rule below, and
 // the body. A page that belongs under another, as a statement's does under
 // the statements, names that page as back, and an arrow to it sits left of

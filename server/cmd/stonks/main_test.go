@@ -86,8 +86,8 @@ func TestServer(t *testing.T) {
 		t.Errorf("GET /healthz recorded spans %v, want none", names)
 	}
 
-	// A transport allowing only unencrypted HTTP/2 speaks it with prior
-	// knowledge, which the server accepts only when it is enabled.
+	// Where a transport allows only unencrypted HTTP/2, it speaks the protocol
+	// with prior knowledge, which the server accepts only when it is enabled.
 	h2Only := new(http.Protocols)
 	h2Only.SetUnencryptedHTTP2(true)
 	h2Plain := &http.Client{Transport: &http.Transport{Protocols: h2Only}}

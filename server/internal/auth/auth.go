@@ -45,7 +45,7 @@ var (
 	ErrNotAllowed = errors.New("email not allowed")
 )
 
-// UserStore is the view of the user queries this package depends on.
+// UserStore is this package's view of the user queries.
 type UserStore interface {
 	CreateUser(ctx context.Context, arg gen.CreateUserParams) (gen.User, error)
 	GetUser(ctx context.Context, id uuid.UUID) (gen.User, error)
@@ -56,7 +56,7 @@ type UserStore interface {
 
 var _ UserStore = (*gen.Queries)(nil)
 
-// SessionStore is the view of the session store this package depends on.
+// SessionStore is this package's view of the session store.
 type SessionStore interface {
 	Create(ctx context.Context, userID uuid.UUID) (session.Session, error)
 	Get(ctx context.Context, id string) (session.Session, error)
@@ -65,7 +65,7 @@ type SessionStore interface {
 
 var _ SessionStore = (*session.Store)(nil)
 
-// Verifier is the view of the token verifier this package depends on.
+// Verifier is this package's view of the token verifier.
 type Verifier interface {
 	Verify(ctx context.Context, token string) (google.Claims, error)
 }

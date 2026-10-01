@@ -28,7 +28,7 @@ import { formatInstant } from "@/lib/format";
 
 // Every user's runs, newest first, filtered by what the address names, each
 // top-level run a row that opens onto the runs below it. The filters live in
-// the address so a listing can be linked to and paged.
+// the address so a listing can be linked and paged.
 export default function RunsPage() {
   return (
     <Suspense>

@@ -22,16 +22,16 @@ events calendar to be able to identify OCC identified options.
 
 ## Model
 
-An event names the instrument it applies to by primary key, so events are fetched only
-once the instrument is resolved, covering the period it was held.
+An event names its instrument by primary key, so events are fetched only once the
+instrument is resolved, covering the period it was held.
 
 An event references the fetch key that fetched it.  Where the fetch was sent under a
 MIC-derived identifier, an identifier event on that identifier invalidates every event
 whose ex-date lies on the far side of it from the fetch, and those events are refetched.
 See [datasources.md](datasources.md).
 
-An event that retires a listing writes an identifier event closing the validity of the
-listing's MIC_TICKER on the ex-date.  It counts as no identifier event coverage.
+When an event retires a listing, it writes an identifier event closing the validity of
+the listing's MIC_TICKER on the ex-date.  It counts as no identifier event coverage.
 
 Events on an underlying decide how an OCC symbol is normalised, so invalidating a
 corporate event fetch replays every OCC stated key normalised through it.  See
@@ -41,9 +41,9 @@ corporate event fetch replays every OCC stated key normalised through it.  See
 
 ### Statements Are Not a Source
 
-A split stated in an uploaded transaction history is never stored as an event.  It is
-compared with the calendar, and flagged for the administrator when the calendar lacks
-it.
+Where an uploaded transaction history states a split, the split is never stored as an
+event.  It is compared with the calendar, and flagged for the administrator when the
+calendar lacks it.
 
 ### Unhandled Events
 
@@ -83,8 +83,8 @@ disallows open ended requests then a lookahead window is configured for the data
 Adjusted prices and quantities of instruments always return the current correct value
 based on all known splits and dividends for the instrument, or its underlying in the case
 of derivatives.  This is straightforwardly true of any adjusted values computed on demand,
-but the system also ensures that any cached, adjusted values affected by a corporate event
-are invalidated and recomputed.
+but when a corporate event affects cached, adjusted values, the system also invalidates
+and recomputes them.
 
 An adjusted quantity is shown only where coverage spans the period an instrument was
 held, and the raw quantity elsewhere.  Holdings read a per instrument summary of coverage

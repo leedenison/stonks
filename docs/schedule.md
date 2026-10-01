@@ -49,12 +49,12 @@ The record of what has been built. A milestone lands here when its issue directo
 
 Each has a note in `docs/deferred` outlining how it might work.
 
-- **D-EVENTS** - [Events](deferred/events.md); grouping transactions into the economic events they are legs of.
+- **D-EVENTS** - [Events](deferred/events.md); grouping transactions into the economic events whose legs they are.
 - **D-INSTR** - [Instrument resolution](deferred/instrument-resolution.md); answering what a source states about an instrument from external datasources.
 - **D-PRICES** - [Price ingestion](deferred/price-ingestion.md) from external providers.
 - **D-CORP** - [Corporate events](deferred/corporate-events.md); splits and the restatement of recorded quantities.
 - **D-IDENT** - [Identifier events](deferred/identifier-events.md); ticker changes and the intervals over which an identifier names one instrument.
-- **D-DATASRC** - [Datasources](deferred/datasources.md); the framework every fetch from an external provider goes through.
+- **D-DATASRC** - [Datasources](deferred/datasources.md); the framework that carries every fetch from an external provider.
 - **D-RUNS** - [Runs](deferred/runs.md); the replay kind of work, the schedule trigger, and starting a run from the admin surface.
 - **D-ANNOT** - [Annotations](deferred/annotations.md); what a user records against their own keys: pins, groupings, prices and keys made by hand.
 - **D-DEPLOY** - [Production deployment](deferred/production-deployment.md); TLS, cross-origin access and what each container publishes.

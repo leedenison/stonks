@@ -72,7 +72,7 @@ message GetRunResponse {
 }
 
 service RunService {
-  // Reads a run the caller started. A run started by another user is not
-  // found.
+  // Reads a run the caller started. When another user started the run, it
+  // is not found.
   rpc GetRun(GetRunRequest) returns (GetRunResponse);
 }

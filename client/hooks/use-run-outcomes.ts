@@ -9,8 +9,9 @@ import { isTerminal } from "@/lib/run";
 
 // useRunOutcomes watches the listed runs and, when one goes from live to
 // terminal, invalidates what its work changed: the transactions, the
-// holdings and the statement itself. Runs first seen terminal are not
-// changes; a page refreshes only for work that finished while it was open.
+// holdings and the statement itself. When a run is first seen terminal, it is
+// not a change; a page refreshes only for work that finished while it was
+// open.
 export function useRunOutcomes(statements: StatementSummary[]) {
   const queryClient = useQueryClient();
   const seen = useRef(new Map<string, RunState>());

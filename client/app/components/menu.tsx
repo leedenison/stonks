@@ -19,7 +19,7 @@ const itemClass =
 
 // Menu is a dropdown under its trigger. It closes on Escape, on a click
 // outside, when an item is chosen and on navigation: the open state is the
-// route it was opened on, so a route change closes it by derivation.
+// route where it was opened, so a route change closes it by derivation.
 export function Menu({
   label,
   testId,

@@ -5,7 +5,7 @@ recorded: 2026-09-14
 
 # Events
 
-The grouping of transactions into the economic events they are legs of, and the
+The grouping of transactions into the economic events whose legs they are, and the
 correlating evidence a source supplies to make that grouping possible.
 
 ## Why
@@ -29,16 +29,16 @@ The remainder of an event whose legs do not balance is its residual.
 ### Correlations
 
 A correlation is evidence a marshaller attaches to a transaction from the source's own
-conventions, expressed in a form the server can compare without knowing the source.  A
-statement that carries a purchase, its cash debit, its fees and its commission on one
-line becomes several transactions sharing one reference.
+conventions, expressed in a form the server can compare without knowing the source.
+Where a statement carries a purchase, its cash debit, its fees and its commission on one
+line, it becomes several transactions sharing one reference.
 
 | Type     | Compares                                       | Direction | Concludes                                          |
 | -------- | ---------------------------------------------- | --------- | -------------------------------------------------- |
 | EXACT    | equality of the reference                      | symmetric | the transactions are legs of one event             |
 | ORDINAL  | distance between two ordinals, within the span | symmetric | the transactions are candidates for one event      |
 | ACCOUNT  | the reference against another account          | directed  | the two are candidates for the sides of a transfer |
-| ATTACHES | the reference against another transaction      | directed  | the bearer joins the event that transaction is in  |
+| ATTACHES | the reference against another transaction      | directed  | the bearer joins that transaction's event          |
 
 One reference carries as many of these as are true of it; a reference that numbers
 sequentially supplies both equality and proximity.  A directed correlation is carried by

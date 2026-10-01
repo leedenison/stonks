@@ -14,5 +14,5 @@ export function brokerLabel(broker: Broker): string {
   }
 }
 
-// The brokers a user can upload a statement from, in the order offered.
+// The brokers whose statements a user can upload, in the order offered.
 export const brokers = [Broker.IBKR, Broker.SCHWAB, Broker.FIDELITY_UK];

@@ -1,8 +1,8 @@
 // The Schwab transaction history, as the JSON export or the CSV export. Both
-// carry the same lines; the JSON states the period and the CSV does not. A
-// line stating a posted date "as of" an effective date is ordered on the
-// effective date and settled on the posted date. Every amount is in USD, and
-// a symbol is carried as a hint with no venue.
+// carry the same lines; the JSON states the period and the CSV does not.
+// Where a line states a posted date "as of" an effective date, it is ordered
+// on the effective date and settled on the posted date. Every amount is in
+// USD, and a symbol is carried as a hint with no venue.
 //
 // A quantity is restated to the units held after every split up to the
 // export while the price stays as traded, and the split is still stated as a

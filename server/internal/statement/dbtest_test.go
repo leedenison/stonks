@@ -91,8 +91,8 @@ type stack struct {
 }
 
 // newStack returns a service over a transaction rolled back when the test
-// ends, resolving against the database and no datasource, and a user to
-// ingest as.
+// ends, resolving against the database and no datasource, and a user whose
+// statements it ingests.
 func newStack(t *testing.T) stack {
 	t.Helper()
 	ctx := context.Background()
@@ -259,9 +259,9 @@ func TestIngest(t *testing.T) {
 	}
 }
 
-// TestFamily checks that a cash key stating pence resolves to the pound
-// listing, since a listing is keyed by the currency family, and keeps the
-// code it stated.
+// TestFamily checks that when a cash key states pence, it resolves to the
+// pound listing, since a listing is keyed by the currency family, and keeps
+// the code it stated.
 func TestFamily(t *testing.T) {
 	s := newStack(t)
 	ctx := context.Background()

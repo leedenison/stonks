@@ -15,15 +15,15 @@ import (
 
 // Config is the service configuration.
 type Config struct {
-	// ListenAddr is STONKS_LISTEN_ADDR, the address the HTTP server listens
-	// on. Default ":8090".
+	// ListenAddr is STONKS_LISTEN_ADDR, the HTTP server's listen address.
+	// Default ":8090".
 	ListenAddr string
 	// DBURL is STONKS_DB_URL, the Postgres connection URL. Required.
 	DBURL string
 	// RedisURL is STONKS_REDIS_URL, the Redis connection URL. Required.
 	RedisURL string
-	// GoogleClientID is STONKS_GOOGLE_OAUTH_CLIENT_ID, the OAuth client an ID
-	// token must be issued for. Required.
+	// GoogleClientID is STONKS_GOOGLE_OAUTH_CLIENT_ID, the OAuth client whose
+	// ID tokens are accepted. Required.
 	GoogleClientID string
 	// AllowedEmails is STONKS_ALLOWED_EMAILS, a comma-separated list of glob
 	// patterns an email must match for an account to be created, such as
@@ -40,9 +40,9 @@ type Config struct {
 	// collector's OTLP/HTTP receiver, such as "http://otel-collector:4318".
 	// Default empty, which exports no traces or metrics.
 	OTLPEndpoint string
-	// Environment is STONKS_ENVIRONMENT, the deployment this process belongs
-	// to, reported as the deployment.environment.name resource attribute.
-	// Default "development".
+	// Environment is STONKS_ENVIRONMENT, this process's deployment, reported
+	// as the deployment.environment.name resource attribute. Default
+	// "development".
 	Environment string
 }
 

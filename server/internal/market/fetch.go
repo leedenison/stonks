@@ -15,8 +15,8 @@ import (
 )
 
 // Result is what one request of a fetch got. Source is the datasource that
-// served it, and ID the fetch_keys row, which the consumer attaches its
-// response to.
+// served it, and ID the fetch_keys row, where the consumer attaches its
+// response.
 type Result[Q, P any] struct {
 	Request  Q
 	Source   string
@@ -26,7 +26,7 @@ type Result[Q, P any] struct {
 	Reason   string
 	Response P
 
-	// attempts is the number of calls the request rode in.
+	// attempts is the number of calls that carried the request.
 	attempts int
 }
 
@@ -177,7 +177,7 @@ func fetchChunk[Q, P any](ctx context.Context, f *Fetcher, e *Entry, s Server[Q,
 }
 
 // requestFailed records a failure of the request itself against every key it
-// carried. A block rests on what the integration says the failure was about:
+// carried. A block rests on what the integration says the failure concerned:
 // the whole datasource, or each identifier the request named.
 func requestFailed[Q, P any](fail Failure, err error, results []Result[Q, P], batch []int, attempts int) []gen.CreateDatasourceBlockParams {
 	outcome := gen.FetchOutcomeFailedPermanent

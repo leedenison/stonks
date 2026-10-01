@@ -51,8 +51,8 @@ const exportInterval = 15 * time.Second
 // Options are the settings of the process's telemetry.
 type Options struct {
 	// Endpoint is the base URL of the collector's OTLP/HTTP receiver, such as
-	// "http://otel-collector:4318". The path each signal is posted to is
-	// appended to it. Empty exports nothing.
+	// "http://otel-collector:4318". The OTLP path of each signal is appended
+	// to it. Empty exports nothing.
 	Endpoint string
 	// Service is the service.name every signal carries.
 	Service string
@@ -116,9 +116,9 @@ func Setup(ctx context.Context, o Options) (func(context.Context) error, error) 
 	return stop, nil
 }
 
-// signalURL appends a signal's OTLP path to the collector's base URL. A URL
-// carrying no path targets the root, so the path is joined here rather than
-// left to the exporter's default.
+// signalURL appends a signal's OTLP path to the collector's base URL. Where a
+// URL carries no path, it targets the root, so the path is joined here rather
+// than left to the exporter's default.
 func signalURL(base, signal string) (string, error) {
 	u, err := url.JoinPath(base, "v1", signal)
 	if err != nil {
@@ -127,8 +127,9 @@ func signalURL(base, signal string) (string, error) {
 	return u, nil
 }
 
-// newResource describes the process every signal is attributed to. It is built
-// by hand rather than from resource.Default, which reads the environment.
+// newResource describes the process to which every signal is attributed. It
+// is built by hand rather than from resource.Default, which reads the
+// environment.
 func newResource(o Options) (*resource.Resource, error) {
 	host, err := os.Hostname()
 	if err != nil {

@@ -5,8 +5,8 @@ type: task
 
 ## Scope
 
-A cash holding summed across the codes of one currency family, so a key stating pence
-and a key stating pounds on one instrument sum in pounds.
+A cash holding summed across the codes of one currency family, so where one key states
+pence and another states pounds on one instrument, they sum in pounds.
 
 ## Design
 

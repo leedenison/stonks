@@ -1,8 +1,8 @@
 // Package mic normalises a venue to its ISO 10383 operating MIC.
 //
 // A venue is named by a MIC, which is either an operating MIC or a segment of one. The
-// domain of a MIC_TICKER is always the operating MIC, so a source naming a segment and a
-// source naming its operating MIC state the same listing.
+// domain of a MIC_TICKER is always the operating MIC, so where one source names a
+// segment and another names its operating MIC, they state the same listing.
 package mic
 
 import (

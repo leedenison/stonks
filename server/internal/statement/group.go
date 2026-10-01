@@ -12,9 +12,9 @@ import (
 )
 
 // domained holds the identifier types whose value is read with a domain. A
-// test holds it equal to the identifier_type_traits table. A value of one of
-// these types stated without its domain names nothing, so two keys stating
-// it are not thereby the same holding.
+// test holds it equal to the identifier_type_traits table. Where a value of
+// one of these types is stated without its domain, it names nothing, so two
+// keys stating it are not thereby the same holding.
 var domained = map[types.IdentifierType]bool{
 	types.IdentifierTypeMicTicker:        true,
 	types.IdentifierTypeOpenfigiTicker:   true,
@@ -63,8 +63,8 @@ func union(parent map[uuid.UUID]uuid.UUID, a, b uuid.UUID) {
 }
 
 // groups partitions keys into groups and returns the group of each: the id
-// of the earliest key it shares an identifier or a description with, however
-// many keys the chain runs through.
+// of the earliest key sharing an identifier or a description with it,
+// however many keys the chain runs through.
 func groups(keys []gen.ListGroupableKeysRow) map[uuid.UUID]uuid.UUID {
 	parent := make(map[uuid.UUID]uuid.UUID, len(keys))
 	for _, r := range keys {

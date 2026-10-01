@@ -18,12 +18,12 @@ message Instrument {
   repeated stonks.type.v1.Identifier identifiers = 3;
 }
 
-// One currency an instrument trades in.
+// One currency in which an instrument trades.
 message Listing {
   // Identifies the listing in every API; a UUID.
   string id = 1;
   string instrument_id = 2;
-  // The code the listing is quoted in.
+  // The code in which the listing is quoted.
   string currency = 3;
   // The listing grain identifiers naming it.
   repeated stonks.type.v1.Identifier identifiers = 4;

@@ -14,9 +14,9 @@
 // on it, so access is decided by the query and never checked after the read;
 // see [service.go](../service/service.go).
 //
-// A consumer that must write several rows atomically declares the queries it
-// uses as an interface and takes a DB over it, whose Tx runs the interface
-// over one transaction; see [tx.go](tx.go).
+// Where a consumer must write several rows atomically, it declares the
+// queries it uses as an interface and takes a DB over it, whose Tx runs the
+// interface over one transaction; see [tx.go](tx.go).
 //
 // This API reports sentinel errors such as ErrNotFound, checked with
 // errors.Is. SQLSTATEs reported by the driver are interrogated with
@@ -101,8 +101,8 @@ func Open(ctx context.Context, url string, opts ...Option) (*pgxpool.Pool, error
 
 // queryName names the span of a statement. sqlc emits each query with its name
 // as a leading "-- name: <Name> :<kind>" comment, and that name is what a
-// reader recognises. A statement carrying no such comment is named by its
-// leading keyword, so the set of span names stays bounded by the queries that
+// reader recognises. Where a statement carries no such comment, its leading
+// keyword names it, so the set of span names stays bounded by the queries that
 // exist rather than growing with traffic.
 func queryName(sql string) string {
 	sql = strings.TrimSpace(sql)

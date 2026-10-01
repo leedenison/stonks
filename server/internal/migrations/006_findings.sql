@@ -4,9 +4,9 @@
 -- 'block' means the run wrote a datasource block.
 -- 'dropped' means the resolution dropped a candidate group a datasource
 -- offered because it contradicted the stated data, a higher precedence
--- response or the winner. A group outranked within its datasource, or not
--- naming the identifier sent, is routine and is recorded on the resolution
--- key rather than as a finding.
+-- response or the winner. When a group is outranked within its datasource,
+-- or does not name the identifier sent, the drop is routine and is recorded
+-- on the resolution key rather than as a finding.
 -- 'contradiction' means a response contradicted the instrument the key
 -- already matched, and the database's precedence decided.
 -- 'merged' means the response merged two instruments.
@@ -14,9 +14,9 @@ CREATE TYPE finding_kind AS ENUM ('block', 'dropped', 'contradiction', 'merged')
 
 -- The step of the choice that dropped a candidate group: it contradicted the
 -- stated data, was inconsistent with a higher precedence response, or shared
--- no stable identifier with the winner. A group dropped for not naming the
--- identifier sent or for being outranked within its datasource is routine and
--- is summarised on the resolution key instead.
+-- no stable identifier with the winner. When a group is dropped for not
+-- naming the identifier sent or for being outranked within its datasource,
+-- the drop is routine and is summarised on the resolution key instead.
 CREATE TYPE drop_step AS ENUM ('stated', 'precedence', 'corroboration');
 
 -- A finding highlights abnormal run outcomes to administrators.

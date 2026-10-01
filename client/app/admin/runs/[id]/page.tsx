@@ -31,9 +31,9 @@ import {
 } from "@/lib/admin";
 import { formatInstant } from "@/lib/format";
 
-// One run as an administrator reads it: who it belongs to, how it ended,
-// its place among the runs above and below it, the findings it recorded
-// and the items of its kind.
+// One run as an administrator reads it: its owner, how it ended, its place
+// among the runs above and below it, the findings it recorded and the
+// items of its kind.
 export default function AdminRunPage() {
   const { id } = useParams<{ id: string }>();
   const { data, isPending, error, refetch } = useAdminRun(id);
@@ -145,7 +145,7 @@ function Lineage({ data }: { data: GetRunResponse }) {
 }
 
 // LineageRow is one run of the lineage at its depth. open is set where the
-// row has rows below it. current marks the run the page is about, which
+// row has rows below it. current marks the run the page describes, which
 // neither opens its own page nor changes under the pointer.
 function LineageRow({
   run: r,

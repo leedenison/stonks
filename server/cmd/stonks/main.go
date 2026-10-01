@@ -51,7 +51,7 @@ import (
 var buildRevision = "unknown"
 
 const (
-	// serviceName is the service.name every signal is attributed to.
+	// serviceName is the service.name every signal carries.
 	serviceName = "stonks"
 	// flushTimeout bounds the final export of buffered telemetry at shutdown.
 	flushTimeout = 5 * time.Second
@@ -165,8 +165,8 @@ func run() (err error) {
 	return nil
 }
 
-// tracedClient returns the client outbound calls are made with, so a call to
-// an external service is a span of the request that provoked it.
+// tracedClient returns the client for outbound calls, so a call to an
+// external service is a span of the request that provoked it.
 func tracedClient() *http.Client {
 	return &http.Client{Timeout: httpTimeout, Transport: otelhttp.NewTransport(http.DefaultTransport)}
 }

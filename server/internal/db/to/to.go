@@ -19,14 +19,14 @@ func Identifier(row gen.Identifier) types.Identifier {
 	return types.Identifier{Type: row.Type, Domain: row.Domain, Value: row.Value}
 }
 
-// Sent returns the identifier a fetch key was sent under, false where the
-// key was not sent.
+// Sent returns the identifier under which a fetch key was sent, false where
+// the key was not sent.
 func Sent(k gen.FetchKey) (types.Identifier, bool) {
 	return sent(k.SentType, k.SentDomain, k.SentValue)
 }
 
-// BlockSent returns the identifier a block was raised under, false where
-// the block is of the whole datasource.
+// BlockSent returns the identifier under which a block was raised, false
+// where the block is of the whole datasource.
 func BlockSent(b gen.DatasourceBlock) (types.Identifier, bool) {
 	return sent(b.SentType, b.SentDomain, b.SentValue)
 }

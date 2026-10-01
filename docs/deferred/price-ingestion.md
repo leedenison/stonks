@@ -23,10 +23,11 @@ currency of USD.
 ### As At Convention
 
 A fetched price must carry an "as at" date which declares the date at which the value was
-true.  This allows the server to know which corporate events the price is adjusted for.  A
-datasource that restates its history as corporate events arise answers differently for the
-same trading day either side of an ex. date. A price held without an "as at" date can
-neither be compared with nor accumulated alongside one fetched at another time.
+true.  This tells the server the corporate events for which the price is adjusted.  Where a
+datasource restates its history as corporate events arise, it answers differently for the
+same trading day either side of an ex. date. Where a price is stored without an "as at"
+date, it can neither be compared with nor accumulated alongside one fetched at another
+time.
 
 A typical convention for a datasource serving adjusted prices is that the whole series is
 stated as at the date of the request, and for one serving as traded prices that each price
@@ -36,19 +37,19 @@ know its conventions.  So the client must interpret the conventions and provide 
 
 An FX rate is not restated by corporate events, so it is stated as at its own date.
 
-The "as at" date says nothing about the identifier a price was fetched under.  That
+The "as at" date says nothing about the identifier sent to fetch the price.  That
 identifier and the moment it was asserted are carried by the fetch key the price
 references.  See [datasources.md](datasources.md).  The two dates coincide for an
 adjusted series and differ for an as-traded one, and neither convention is refused.
 
 ### Provenance
 
-A price dated d fetched at t under a MIC-derived identifier rests on the assumption that
-the identifier named the same instrument on d as at t.  An identifier event between d and
-t invalidates the price, whatever its "as at" date, and the price is refetched.  A fetch
-is keyed on a stable identifier where the provider accepts one, which yields a fresh
-assertion of the ticker the provider maps it to, and the fetch key records that ticker as
-the identifier sent.
+When a price dated d is fetched at t under a MIC-derived identifier, it rests on the
+assumption that the identifier named the same instrument on d as at t.  An identifier
+event between d and t invalidates the price, whatever its "as at" date, and the price is
+refetched.  A fetch is keyed on a stable identifier where the provider accepts one, which
+yields a fresh assertion of the provider's ticker for it, and the fetch key records that
+ticker as the identifier sent.
 
 ### Datasources
 
@@ -72,10 +73,10 @@ binary.
 The sketch for that is a stub service in the e2e overlay, reached by configuration, serving
 a corpus **keyed on the request rather than put into a scenario by a control call**. The
 stub does not know which test is running; it knows that a lookup for `ZZNF` is a 404 and one
-for `ZZRL` is a 429. A spec picks its case by choosing what to ask about, which keeps specs
-independent and the suite parallel. An unknown key returns an error naming the key, never a
-plausible default. A case that is genuinely stateful -- fails once, then succeeds -- needs a
-key only one spec uses.
+for `ZZRL` is a 429. A spec picks its case by choosing the key it looks up, which keeps
+specs independent and the suite parallel. An unknown key returns an error naming the key,
+never a plausible default. Where a case is genuinely stateful -- fails once, then
+succeeds -- it needs a key only one spec uses.
 
 ## Undecided
 

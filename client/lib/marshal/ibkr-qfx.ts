@@ -5,8 +5,8 @@
 // Money moves in the currency a row states, or in the account's base
 // currency CURDEF where it states none. A security's key takes only a
 // currency the row states: the base currency names the account rather than
-// the security's line, and a key left without one matches the listing its
-// description names. A transfer states none.
+// the security's line, and where a key is left without one, it matches the
+// listing its description names. A transfer states none.
 //
 // Every date is stated in the exchange's local zone with its offset, and the
 // date part is taken as stated: an evening posting is not moved to the next
@@ -47,7 +47,7 @@ import { mediaType } from "./media";
 import { buildOcc, isOcc } from "./occ";
 
 // The types a browser reports for a QFX file: the registered one, and the
-// OFX one some systems map the extension to.
+// OFX one to which some systems map the extension.
 const TYPES = new Set(["application/vnd.intu.qfx", "application/x-ofx"]);
 
 // An IBKR account is a U followed by digits, or DU for a paper account.
@@ -255,7 +255,7 @@ function marshal(input: string): Statement {
 }
 
 // recognise checks the type where one is reported, the OFX header, then
-// the account the statement is from, stated as ACCTID under INVACCTFROM.
+// the statement's account, stated as ACCTID under INVACCTFROM.
 function recognise(input: string, type: string): boolean {
   const t = mediaType(type);
   if (t !== "" && !TYPES.has(t)) return false;

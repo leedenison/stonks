@@ -24,7 +24,7 @@ enum Role {
 message User {
   // Identifies the user in every API; a UUID.
   string id = 1;
-  // The Google-verified email the account was created from.
+  // The Google-verified email from which the account was created.
   string email = 2;
   // The display name Google reported at sign-in; empty when it reported none.
   string name = 3;
@@ -46,7 +46,7 @@ message SignInRequest {
 }
 
 message SignInResponse {
-  // The account the token was exchanged for.
+  // The account the token yielded.
   User user = 1;
   // The session started for it.
   Session session = 2;

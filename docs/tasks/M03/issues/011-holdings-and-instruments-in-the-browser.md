@@ -14,7 +14,7 @@ In:
   stable identifiers and summed across brokers, and an unresolved one named by the
   identifiers and descriptions its keys state and marked as resting on the user's
   statements alone.
-- An instruments RPC and page listing the instruments a user's keys resolved to, with
+- An instruments RPC and page listing the instruments resolved from a user's keys, with
   their listings and identifiers.
 - The statement page distinguishing a key whose identification was unavailable from one
   nothing recognised.

@@ -3,7 +3,7 @@
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
-// BackButton leads to the page the current one belongs under, as a
+// BackButton leads to the page under which the current one belongs, as a
 // statement's page belongs under the statements. It is a fixed destination
 // rather than the browser's history, so it reads the same however the page
 // was reached.

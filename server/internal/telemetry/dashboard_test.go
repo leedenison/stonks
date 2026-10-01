@@ -16,7 +16,7 @@ import (
 )
 
 // The dashboards and the datasource that serves them are files nothing
-// compiles, so what they refer to is checked here instead.
+// compiles, so their references are checked here instead.
 const (
 	datasourceFile = "../../../docker/grafana/provisioning/datasources/telemetry.yaml"
 	dashboardDir   = "../../../docker/grafana/dashboards"
@@ -109,8 +109,8 @@ func dashboards(t *testing.T) map[string]dashboard {
 	return out
 }
 
-// TestDashboardsNameADeclaredDatasource is the check the fixed uid exists for:
-// a panel naming a uid nothing provisions renders as an error rather than as
+// TestDashboardsNameADeclaredDatasource is why the fixed uid exists: where a
+// panel names a uid nothing provisions, it renders as an error rather than as
 // no data.
 func TestDashboardsNameADeclaredDatasource(t *testing.T) {
 	uids := declaredUIDs(t)

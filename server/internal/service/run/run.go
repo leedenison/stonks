@@ -1,7 +1,7 @@
 // Package run serves stonks.run.v1.
 //
-// A run is read with the caller's user id in the query, so a run another
-// user started is not found rather than forbidden.
+// A run is read with the caller's user id in the query, so where another
+// user started a run, it is not found rather than forbidden.
 package run
 
 import (
@@ -19,7 +19,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/db/to"
 )
 
-// Reader is the view of the run queries this package depends on.
+// Reader is this package's view of the run queries.
 type Reader interface {
 	GetRun(ctx context.Context, arg gen.GetRunParams) (gen.Run, error)
 }

@@ -28,6 +28,6 @@ Out:
 
 ## Design
 
-A spec picks its case by choosing what to ask about, which keeps specs independent and
-the suite parallel. A case that is stateful, failing once and then succeeding, needs a
-key only one spec uses.
+A spec picks its case by choosing the key it looks up, which keeps specs independent and
+the suite parallel. Where a case is stateful, failing once and then succeeding, it needs
+a key only one spec uses.

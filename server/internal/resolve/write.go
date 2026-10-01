@@ -20,9 +20,10 @@ import (
 // insert refuses it.
 const tries = 3
 
-// write records the outcome of res against run. A key the lookup decided
-// takes its findings and resolution key; any other is chosen among its
-// results and, where a group won, written under the identifier locks.
+// write records the outcome of res against run. Where the lookup decided
+// the key, the write records its findings and resolution key; otherwise it
+// chooses among the key's results and, where a group won, writes under the
+// identifier locks.
 func (r *Resolver) write(ctx context.Context, run gen.Run, res *resolution, families func(string) string) (gen.ResolutionKey, error) {
 	var out gen.ResolutionKey
 	var written []gen.FindingKind
@@ -156,7 +157,7 @@ func lock(ctx context.Context, q Queries, ids []types.Identifier) error {
 }
 
 // reread finds the instruments any of ids identifies, each with the
-// identifiers it was found by, the earliest created first.
+// identifiers that matched it, the earliest created first.
 func reread(ctx context.Context, q Queries, ids []types.Identifier) ([]hit, error) {
 	arg := gen.ListInstrumentsByIdentifiersParams{Types: make([]string, len(ids)), Domains: make([]string, len(ids)), Values: make([]string, len(ids))}
 	for i, id := range ids {
@@ -273,7 +274,7 @@ type writer struct {
 	taken       map[types.Identifier]bool
 }
 
-// reuse takes f as the instrument written to, with its rows.
+// reuse takes f as the writer's instrument, with its rows.
 func (w *writer) reuse(f *found) {
 	w.instrument = f.instrument
 	for _, id := range f.identifiers {

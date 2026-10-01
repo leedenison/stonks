@@ -1,9 +1,9 @@
 // Package statement serves stonks.statement.v1.
 //
 // A statement is read with the caller's user id in the query, so another
-// user's is not found rather than forbidden. A statement the ingester cannot
-// read is an invalid argument; a row it rejects is not, and is read back as
-// an item.
+// user's is not found rather than forbidden. When the ingester cannot read a
+// statement, the statement is an invalid argument; when it rejects a row, the
+// row is not, and is read back as an item.
 package statement
 
 import (
@@ -31,7 +31,7 @@ type Ingester interface {
 	Create(ctx context.Context, userID uuid.UUID, msg *statementv1.Statement) (gen.Run, error)
 }
 
-// Reader is the view of the statement queries this package depends on.
+// Reader is this package's view of the statement queries.
 type Reader interface {
 	ListStatements(ctx context.Context, userID uuid.UUID) ([]gen.ListStatementsRow, error)
 	GetStatement(ctx context.Context, arg gen.GetStatementParams) (gen.GetStatementRow, error)

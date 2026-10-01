@@ -45,8 +45,8 @@ func newListing(t *testing.T, q *gen.Queries, instrument gen.Instrument, currenc
 	return row
 }
 
-// newIdentifier names instrument by an ISIN, so a key has something to
-// associate through.
+// newIdentifier names instrument by an ISIN, so a key can associate through
+// it.
 func newIdentifier(t *testing.T, q *gen.Queries, instrument gen.Instrument, isin string) gen.Identifier {
 	t.Helper()
 	row, err := q.CreateIdentifier(context.Background(), gen.CreateIdentifierParams{ID: db.NewID(), InstrumentID: instrument.ID, Type: types.IdentifierTypeIsin, Value: isin})
@@ -54,8 +54,8 @@ func newIdentifier(t *testing.T, q *gen.Queries, instrument gen.Instrument, isin
 	return row
 }
 
-// cashListing returns the listing money in currency is held against, the
-// currency instrument's listing in itself, and the identifier naming it.
+// cashListing returns the listing against which money in currency is held,
+// the currency instrument's listing in itself, and the identifier naming it.
 func cashListing(t *testing.T, q *gen.Queries, currency string) (gen.Listing, gen.Identifier) {
 	t.Helper()
 	ctx := context.Background()

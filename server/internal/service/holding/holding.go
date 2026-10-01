@@ -4,7 +4,7 @@
 // through the caller's own keys, so another user's never contribute, and a
 // caller with none is answered with empty lists rather than not found. A
 // resolved key is summed into its instrument, and an unresolved one into the
-// group it shares what it states with.
+// group whose keys state what it states.
 package holding
 
 import (
@@ -23,7 +23,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/db/types"
 )
 
-// Reader is the view of the holdings queries this package depends on.
+// Reader is this package's view of the holdings queries.
 type Reader interface {
 	ListInstrumentHoldings(ctx context.Context, userID uuid.UUID) ([]gen.ListInstrumentHoldingsRow, error)
 	ListHeldIdentifiers(ctx context.Context, userID uuid.UUID) ([]gen.Identifier, error)
@@ -63,8 +63,8 @@ func (s *Server) ListHoldings(ctx context.Context, _ *connect.Request[holdingv1.
 	return connect.NewResponse(res), nil
 }
 
-// instruments answers the holdings of the instruments the user's keys
-// resolved to, each named by every identifier naming it.
+// instruments answers the holdings of the instruments to which the user's
+// keys resolved, each named by every identifier naming it.
 func (s *Server) instruments(ctx context.Context, user uuid.UUID) ([]*holdingv1.InstrumentHolding, error) {
 	rows, err := s.reader.ListInstrumentHoldings(ctx, user)
 	if err != nil || len(rows) == 0 {

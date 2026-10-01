@@ -2,7 +2,7 @@ import { type Run, RunState } from "@/gen/run/v1/run_pb";
 import type { StatementSummary } from "@/gen/statement/v1/statement_pb";
 
 // What a run's chip shows. A completed run with rejected rows is its own
-// outcome, since the user has something to look at. Interrupted reads as
+// outcome, since the user has something to see. Interrupted reads as
 // failed: the work stopped short and uploading again is the recovery either
 // way.
 export type Outcome =

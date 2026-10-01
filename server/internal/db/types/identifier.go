@@ -72,8 +72,8 @@ func (e IdentifierType) Valid() bool { return slices.Contains(IdentifierTypes, e
 // It is also the element of the identifiers column of a stated key. That
 // column is compared whole by the unique index, so a writer sorts the array
 // by type, domain and value, and an absent domain is empty and omitted
-// rather than written as null. A key stating no identifiers holds an empty
-// slice, since nil encodes as null and the column refuses it.
+// rather than written as null. When a key states no identifiers, it carries
+// an empty slice, since nil encodes as null and the column refuses it.
 type Identifier struct {
 	Type   IdentifierType `json:"type"`
 	Domain string         `json:"domain,omitempty"`

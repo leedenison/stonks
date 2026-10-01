@@ -1,14 +1,15 @@
 // Package resolve resolves stated keys to system owned instruments.
 //
 // A key is resolved through the identifiers it states that are recognised
-// globally: eg. an ISIN, a SEDOL or a ticker with its venue. A key stating
-// only a bare ticker never associates through it.
+// globally: eg. an ISIN, a SEDOL or a ticker with its venue. When a key
+// states only a bare ticker, nothing associates through it.
 //
 // Order. A key is looked up in the database by each such identifier,
-// strongest first; two naming different instruments leave the key
-// unrecognised with a contradiction finding. Every undecided key is
-// then requested from each enabled datasource that has not covered the
-// instrument it was found on, or from every one where it was not found.
+// strongest first; where two name different instruments, the key is left
+// unrecognised with a contradiction finding. Every undecided key is then
+// requested from each enabled datasource that has not covered the
+// instrument the lookup found for it, or from every one where the lookup
+// found none.
 //
 // Choice. Datasources return candidates, and the candidates of each
 // response are grouped transitively by the instrument grain identifiers
@@ -17,14 +18,15 @@
 //
 // Write. Each key with a winner is written in a transaction of its own,
 // under an advisory lock on the identifiers it states, so two runs stating
-// one key produce one instrument. The database is re-read under the lock:
-// the instrument found is attached to, or created as needed.  The key is
-// associated through the strongest identifier it stated.
+// one key produce one instrument. The write re-reads the database under
+// the lock, attaches to the instrument found, and creates one where none is
+// found. The key is associated through the strongest identifier it stated.
 //
-// Merge. A response identifying two instruments describes one stored
-// twice, and the later created is folded into the earlier with a merged
-// finding. Two carrying different values of one identifier type and
-// domain, or disjoint classes, are left apart with a contradiction finding.
+// Merge. When a response identifies two instruments, they are one stored
+// twice. The resolver folds the later created instrument into the earlier
+// and records a merged finding. Where two carry different values of one
+// identifier type and domain, or disjoint classes, the resolver leaves
+// them apart with a contradiction finding.
 //
 // Outcomes. A key is matched when associated, rejected when it contradicts
 // the seed, unavailable when a datasource failed or was blocked before

@@ -108,8 +108,8 @@ func (r syncRunner) Child(ctx context.Context, parent gen.Run, kind gen.RunKind,
 }
 
 // stack is a resolver over a transaction rolled back when the test ends,
-// with one scripted datasource, and a user with a statement to state keys
-// under.
+// with one scripted datasource, and a user with a statement for stating
+// keys.
 type stack struct {
 	q          *gen.Queries
 	tx         pgx.Tx
@@ -311,11 +311,11 @@ func TestResolveWrites(t *testing.T) {
 	}
 }
 
-// TestMergeRows checks the merge against real rows: a response
-// identifying two instruments folds the later into the earlier, moving the
-// listing the survivor lacks with its identifiers, relinking the stated keys,
-// fetch keys and coverage, and deleting the rest, under the deferred
-// constraints.
+// TestMergeRows checks the merge against real rows: when a response
+// identifies two instruments, the merge folds the later into the earlier,
+// moving the listing the survivor lacks with its identifiers, relinking the
+// stated keys, fetch keys and coverage, and deleting the rest, under the
+// deferred constraints.
 func TestMergeRows(t *testing.T) {
 	s := newStack(t)
 	ctx := context.Background()
