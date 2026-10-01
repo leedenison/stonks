@@ -11,7 +11,8 @@ import (
 )
 
 // write replaces the period with the accepted rows, records the rejected
-// ones as items and completes the run, in one transaction.
+// ones as items and completes the run, in one transaction. A row is rejected
+// by validation or by its key's rejection.
 func (g *ingestion) write(ctx context.Context, run gen.Run) error {
 	var accepted, rejected int64
 	err := g.store.Tx(ctx, func(q Queries) error {
@@ -25,7 +26,7 @@ func (g *ingestion) write(ctx context.Context, run gen.Run) error {
 		for i := range g.rows {
 			r := &g.rows[i]
 			reason := r.reason
-			if reason == "" {
+			if reason == "" && r.key.outcome == gen.ResolutionOutcomeRejected {
 				reason = r.key.reason
 			}
 			if reason != "" {
@@ -48,15 +49,6 @@ func (g *ingestion) write(ctx context.Context, run gen.Run) error {
 				return fmt.Errorf("create transaction %d: %w", r.ordinal, err)
 			}
 			accepted++
-		}
-		for _, k := range g.order {
-			if k.outcome != gen.ResolutionOutcomeMatched {
-				continue
-			}
-			arg := gen.SetStatedKeyAssociationParams{ID: k.id, UserID: g.user, InstrumentID: k.instrument, ListingID: k.listing, ViaID: k.via, Validity: k.validity}
-			if err := q.SetStatedKeyAssociation(ctx, arg); err != nil {
-				return fmt.Errorf("associate key: %w", err)
-			}
 		}
 		if err := g.regroup(ctx, q); err != nil {
 			return err

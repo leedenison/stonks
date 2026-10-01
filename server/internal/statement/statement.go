@@ -4,12 +4,13 @@
 //
 // The RPC validates the envelope and every row, deduplicates the stated keys,
 // then Prepares the statement row, the stated keys and the stated splits in
-// one database transaction before the call answers; see
+// one database transaction before the call responds; see
 // [run.go](../run/run.go).
 //
 // Resolution. Each distinct key is resolved once, as a run of kind
-// resolution with the statement as parent, and every row carrying the key
-// takes its answer.
+// resolution with the statement as parent, by the resolve package; see
+// [resolve.go](../resolve/resolve.go). Every row carrying the key takes its
+// outcome, and a rejected key rejects its rows.
 //
 // Grouping. The unresolved keys a transaction names are gathered across
 // every statement of the user: two sharing an identifier, or a description
@@ -44,17 +45,18 @@ var ErrInvalid = errors.New("invalid statement")
 
 // Service ingests statements.
 type Service struct {
-	store Store
-	runs  Runner
-	clock func() time.Time
+	store    Store
+	runs     Runner
+	resolver Resolver
+	clock    func() time.Time
 }
 
 // New returns a Service. clock supplies today for the order date check.
-func New(store Store, runs Runner, clock func() time.Time) *Service {
-	return &Service{store: store, runs: runs, clock: clock}
+func New(store Store, runs Runner, resolver Resolver, clock func() time.Time) *Service {
+	return &Service{store: store, runs: runs, resolver: resolver, clock: clock}
 }
 
-// Create validates msg, starts its run and answers with the pending row.
+// Create validates msg, starts its run and responds with the pending row.
 func (s *Service) Create(ctx context.Context, userID uuid.UUID, msg *statementv1.Statement) (gen.Run, error) {
 	broker, ok := db.FromProto[gen.Broker](msg.GetBroker())
 	if !ok || broker == "" {
@@ -83,7 +85,7 @@ func (s *Service) Create(ctx context.Context, userID uuid.UUID, msg *statementv1
 	}
 	now := s.clock().UTC()
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
-	g := &ingestion{store: s.store, runs: s.runs, user: userID, broker: broker, from: from, before: before, families: families, keys: map[uint64][]*key{}}
+	g := &ingestion{store: s.store, runs: s.runs, resolver: s.resolver, user: userID, broker: broker, from: from, before: before, families: families, keys: map[uint64][]*key{}}
 	for i, r := range msg.GetRows() {
 		g.rows = append(g.rows, g.validate(int32(i), r, today, currencies))
 	}
@@ -100,14 +102,15 @@ func (s *Service) Create(ctx context.Context, userID uuid.UUID, msg *statementv1
 
 // ingestion is one statement's work, from receipt to the write.
 type ingestion struct {
-	store  Store
-	runs   Runner
-	user   uuid.UUID
-	broker gen.Broker
-	from   time.Time
-	before time.Time
-	rows   []row
-	splits []split
+	store    Store
+	runs     Runner
+	resolver Resolver
+	user     uuid.UUID
+	broker   gen.Broker
+	from     time.Time
+	before   time.Time
+	rows     []row
+	splits   []split
 	// families maps each currency code to its family, the key of a listing.
 	families map[string]string
 	// keys holds each distinct stated key under its hash, and order lists
@@ -139,10 +142,8 @@ type split struct {
 	to        *decimal.Decimal
 }
 
-// key is one distinct stated key, and once resolved, its answer: the
-// instrument and listing it names, the identifier row it names them through
-// and the validity of that, or the reason it names none. An unresolved key
-// carries none of them.
+// key is one distinct stated key: once prepared, its row, and once resolved,
+// its outcome and the reason it names no instrument.
 type key struct {
 	id          uuid.UUID
 	class       *gen.AssetClass
@@ -150,12 +151,16 @@ type key struct {
 	description *string
 	identifiers []types.Identifier
 
-	outcome    gen.ResolutionOutcome
-	instrument *uuid.UUID
-	listing    *uuid.UUID
-	via        *uuid.UUID
-	validity   *gen.Validity
-	reason     string
+	row     gen.StatedKey
+	outcome gen.ResolutionOutcome
+	reason  string
+}
+
+// statable reports whether k says anything about an instrument at all: an
+// identifier or a description. A key stating neither names nothing, now or
+// later, and its rows are rejected.
+func (k *key) statable() bool {
+	return k.description != nil || len(k.identifiers) > 0
 }
 
 // seed salts key hashes for the life of the process.
@@ -197,35 +202,6 @@ func (k *key) equal(o *key) bool {
 	return slices.Equal(k.identifiers, o.identifiers)
 }
 
-// identifier returns the identifier of type t the key states, if any.
-func (k *key) identifier(t types.IdentifierType) (types.Identifier, bool) {
-	for _, id := range k.identifiers {
-		if id.Type == t {
-			return id, true
-		}
-	}
-	return types.Identifier{}, false
-}
-
-// associate records that k is matched, through identifier id, with
-// validity v.
-func (k *key) associate(id gen.Identifier, v gen.Validity) {
-	k.outcome = gen.ResolutionOutcomeMatched
-	k.via = &id.ID
-	k.validity = &v
-}
-
-// set names the listing k resolved to, and the instrument of that listing.
-func (k *key) set(l gen.Listing) {
-	k.instrument = &l.InstrumentID
-	k.listing = &l.ID
-}
-
-func (k *key) reject(format string, args ...any) {
-	k.outcome = gen.ResolutionOutcomeRejected
-	k.reason = fmt.Sprintf(format, args...)
-}
-
 // intern returns the key equal to k the statement already holds, or k with
 // an id minted for it.
 func (g *ingestion) intern(k *key) *key {
@@ -250,9 +226,11 @@ func (g *ingestion) prepare(ctx context.Context, run gen.Run) error {
 		}
 		for _, k := range g.order {
 			arg := gen.CreateStatedKeyParams{ID: k.id, StatementID: run.ID, UserID: g.user, AssetClass: k.class, Currency: k.currency, Description: k.description, Identifiers: k.identifiers}
-			if _, err := q.CreateStatedKey(ctx, arg); err != nil {
+			row, err := q.CreateStatedKey(ctx, arg)
+			if err != nil {
 				return fmt.Errorf("create stated key: %w", err)
 			}
+			k.row = row
 		}
 		for _, sp := range g.splits {
 			arg := gen.CreateStatementSplitParams{StatementID: run.ID, UserID: g.user, Ordinal: sp.ordinal, StatedKeyID: sp.key.id, EffectiveDate: sp.effective, Quantity: sp.quantity, RatioFrom: sp.from, RatioTo: sp.to}
@@ -270,4 +248,24 @@ func (g *ingestion) work(ctx context.Context, run gen.Run) error {
 		return fmt.Errorf("resolution: %w", err)
 	}
 	return g.write(ctx, run)
+}
+
+// resolve resolves every key through the resolver and takes each outcome
+// onto its key.
+func (g *ingestion) resolve(ctx context.Context, res gen.Run) error {
+	rows := make([]gen.StatedKey, len(g.order))
+	for i, k := range g.order {
+		rows[i] = k.row
+	}
+	out, err := g.resolver.Resolve(ctx, res, rows)
+	if err != nil {
+		return err
+	}
+	for i, k := range g.order {
+		k.outcome = out[i].Outcome
+		if out[i].Reason != nil {
+			k.reason = *out[i].Reason
+		}
+	}
+	return nil
 }

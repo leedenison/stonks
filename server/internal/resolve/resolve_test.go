@@ -373,15 +373,15 @@ func TestResolveUnresolved(t *testing.T) {
 			name:    "nothing recognised",
 			key:     keyOf(gen.AssetClassStock, "USD", id(types.IdentifierTypeBrokerID, "ibkr", "1")),
 			outcome: gen.ResolutionOutcomeUnrecognised,
-			reason:  "states no identifier recognised globally",
+			reason:  "no global identifier",
 		},
 		{
 			name:    "no datasource served it",
 			key:     keyOf(gen.AssetClassStock, "USD", isin),
-			results: []result{{ID: db.NewID(), Outcome: gen.FetchOutcomeNotServed, Reason: "states no identifier it maps"}},
+			results: []result{{ID: db.NewID(), Outcome: gen.FetchOutcomeNotServed, Reason: "no recognised identifier type"}},
 			fetched: true,
 			outcome: gen.ResolutionOutcomeUnrecognised,
-			reason:  "a: not_served (states no identifier it maps)",
+			reason:  "a: skipped: no recognised identifier type",
 		},
 		{
 			name:    "a datasource failed",
@@ -389,7 +389,7 @@ func TestResolveUnresolved(t *testing.T) {
 			results: []result{{ID: db.NewID(), Outcome: gen.FetchOutcomeFailedTemporary, Reason: "503"}},
 			fetched: true,
 			outcome: gen.ResolutionOutcomeUnavailable,
-			reason:  "a: failed_temporary (503)",
+			reason:  "a: failed: 503",
 		},
 		{
 			name:    "a bare ticker is sent and never associates",

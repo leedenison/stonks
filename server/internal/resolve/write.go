@@ -192,6 +192,14 @@ func unresolved(res *resolution) gen.ResolutionOutcome {
 	return gen.ResolutionOutcomeUnrecognised
 }
 
+// unserved words each outcome other than served for a reason.
+var unserved = map[gen.FetchOutcome]string{
+	gen.FetchOutcomeNotServed:       "skipped",
+	gen.FetchOutcomeBlocked:         "blocked",
+	gen.FetchOutcomeFailedTemporary: "failed",
+	gen.FetchOutcomeFailedPermanent: "failed",
+}
+
 // summary says what each datasource served for res and what became of it.
 func summary(res *resolution, c choice) string {
 	if len(res.results) == 0 {
@@ -200,9 +208,9 @@ func summary(res *resolution, c choice) string {
 	parts := make([]string, 0, len(res.results))
 	for _, rs := range res.results {
 		if rs.Outcome != gen.FetchOutcomeServed {
-			s := fmt.Sprintf("%s: %s", rs.Source, rs.Outcome)
+			s := rs.Source + ": " + unserved[rs.Outcome]
 			if rs.Reason != "" {
-				s += " (" + rs.Reason + ")"
+				s += ": " + rs.Reason
 			}
 			parts = append(parts, s)
 			continue

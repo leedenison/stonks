@@ -35,6 +35,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/market/openfigi"
 	"github.com/leedenison/stonks/server/internal/mic"
+	"github.com/leedenison/stonks/server/internal/resolve"
 	runner "github.com/leedenison/stonks/server/internal/run"
 	"github.com/leedenison/stonks/server/internal/service"
 	adminsvc "github.com/leedenison/stonks/server/internal/service/admin"
@@ -142,7 +143,9 @@ func run() (err error) {
 		Sessions: session.New(rdb, time.Now),
 		Allowed:  cfg.AllowedEmails,
 	})
-	ingester := stmt.New(db.New[stmt.Queries](pool), runs, time.Now)
+	fetcher := market.NewFetcher(queries, runs, logger.WithCategory(log, "internal/market"))
+	resolver := resolve.New(db.New[resolve.Queries](pool), market.IdentityFetcher{F: fetcher}, sources, logger.WithCategory(log, "internal/resolve"))
+	ingester := stmt.New(db.New[stmt.Queries](pool), runs, resolver, time.Now)
 	srv, err := newServer(cfg.ListenAddr, log, authn, queries, sources, ingester, cfg.CookieSecure)
 	if err != nil {
 		return err
