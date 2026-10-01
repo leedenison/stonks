@@ -105,12 +105,12 @@ func partition(cs []market.Candidate, strict bool) []int {
 	}
 	roots := make([]int, len(cs))
 	for i := range cs {
-		roots[i] = find(parent, i)
+		roots[i] = root(parent, i)
 	}
 	return roots
 }
 
-func find(parent []int, i int) int {
+func root(parent []int, i int) int {
 	for parent[i] != i {
 		parent[i] = parent[parent[i]]
 		i = parent[i]
@@ -119,7 +119,7 @@ func find(parent []int, i int) int {
 }
 
 func union(parent []int, a, b int) {
-	ra, rb := find(parent, a), find(parent, b)
+	ra, rb := root(parent, a), root(parent, b)
 	if ra != rb {
 		parent[rb] = ra
 	}
@@ -290,7 +290,7 @@ func choose(results []*result, k gen.StatedKey, db *group, families func(string)
 	}
 	fam := family(k, families)
 	for _, r := range results {
-		best := c.bestGroup(r, groups(r, families), k, fam, chosen)
+		best := c.bestGroup(r, k, fam, families, chosen)
 		if best == nil {
 			continue
 		}
@@ -313,13 +313,10 @@ func (c *choice) record(r *result, kind gen.FindingKind, step gen.DropStep, deta
 	c.findings = append(c.findings, f)
 }
 
-// naming returns the groups of r that name the identifier it was sent
-// under, and whether the venue fallback is in effect: a venue ticker was
-// sent, the datasource filtered on the ticker alone, and no group carries
-// the venue, so every group is kept. A bare ticker names no group.
+// naming filters gs to the groups that carry the identifier r was sent.
 func (c *choice) naming(r *result, gs []*group) ([]*group, bool) {
 	sent := *r.Sent
-	bare := sent.Domain == "" && grain(sent) == gen.IdentifierGrainListing
+	bare := !market.IsGUID(sent)
 	named := slices.ContainsFunc(gs, func(g *group) bool { return g.named })
 	ticker := types.Identifier{Type: types.IdentifierTypeMicTicker, Value: sent.Value}
 	fallback := !named && sent.Type == types.IdentifierTypeMicTicker && !bare && slices.Contains(r.Response.Filtered, ticker)
@@ -337,11 +334,11 @@ func (c *choice) naming(r *result, gs []*group) ([]*group, bool) {
 // bestGroup returns the best group of r for the key k stating the family
 // fam, nil where none survives. chosen is the groups chosen above r, the
 // winner first.
-func (c *choice) bestGroup(r *result, gs []*group, k gen.StatedKey, fam string, chosen []*group) *group {
+func (c *choice) bestGroup(r *result, k gen.StatedKey, fam string, families func(string) string, chosen []*group) *group {
 	if r.Sent == nil {
 		return nil
 	}
-	survivors, fallback := c.naming(r, gs)
+	survivors, fallback := c.naming(r, groups(r, families))
 	survivors = slices.DeleteFunc(survivors, func(g *group) bool {
 		if detail, ok := g.against(k, fam); ok {
 			c.record(r, gen.FindingKindDropped, gen.DropStepStated, detail)

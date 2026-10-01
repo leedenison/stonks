@@ -12,11 +12,12 @@
 -- 'merged' means the response merged two instruments.
 CREATE TYPE finding_kind AS ENUM ('block', 'dropped', 'contradiction', 'merged');
 
--- The step of the choice that dropped a candidate group: it did not name the
--- identifier that carried the key, contradicted the stated data, was
--- inconsistent with a higher precedence response, shared no stable identifier
--- with the winner, or was outranked within its datasource.
-CREATE TYPE drop_step AS ENUM ('naming', 'stated', 'precedence', 'corroboration', 'rank');
+-- The step of the choice that dropped a candidate group: it contradicted the
+-- stated data, was inconsistent with a higher precedence response, or shared
+-- no stable identifier with the winner. A group dropped for not naming the
+-- identifier sent or for being outranked within its datasource is routine and
+-- is summarised on the resolution key instead.
+CREATE TYPE drop_step AS ENUM ('stated', 'precedence', 'corroboration');
 
 -- A finding highlights abnormal run outcomes to administrators.
 CREATE TABLE findings (
@@ -38,8 +39,7 @@ CREATE TABLE findings (
     CHECK ((kind = 'block') = (detail IS NULL)),
     CHECK (fetch_key_id IS NULL OR stated_key_id IS NOT NULL),
     CHECK ((kind = 'dropped') = (step IS NOT NULL)),
-    CHECK (kind <> 'dropped' OR fetch_key_id IS NOT NULL),
-    CHECK (kind <> 'dropped' OR step IN ('stated', 'precedence', 'corroboration'))
+    CHECK (kind <> 'dropped' OR fetch_key_id IS NOT NULL)
 );
 
 CREATE INDEX findings_run_idx ON findings (run_id);

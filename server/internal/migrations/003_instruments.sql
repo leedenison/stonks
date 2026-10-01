@@ -143,7 +143,10 @@ CREATE TABLE identifiers (
         (CASE WHEN listing_id IS NULL THEN 'instrument'::identifier_grain
               ELSE 'listing'::identifier_grain END) STORED,
     FOREIGN KEY (type, grain) REFERENCES identifier_type_traits (type, grain),
-    FOREIGN KEY (listing_id, instrument_id) REFERENCES listings (id, instrument_id),
+    -- Deferrable so a merge can move a listing and its identifiers between
+    -- instruments in separate statements of one transaction.
+    FOREIGN KEY (listing_id, instrument_id) REFERENCES listings (id, instrument_id)
+        DEFERRABLE INITIALLY IMMEDIATE,
     UNIQUE (type, domain, value)
 );
 

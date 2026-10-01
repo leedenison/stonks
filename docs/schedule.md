@@ -26,17 +26,15 @@ of open issues and ADRs at `docs/tasks/<label>/`.
   keys against one identity datasource.
 
 ```
-001 open
- |                      |              |
-008 resolution          010 e2e stub   014 datasources
- |       |        |     |              |
- |       |        +--+--+              |
- |       |           |                 |
-009  013 descr   011 browser           |
- |       |           |                 |
- +-------+-----+-----+-----------------+
-               |
-           002 close
+              001 open
+ |       |          |             |
+009  013 descr   010 e2e stub   014 datasources
+ |       |          |             |
+ |       |     011 browser        |
+ |       |          |             |
+ +-------+----------+-------------+
+                    |
+                002 close
 ```
 
 ## Completed

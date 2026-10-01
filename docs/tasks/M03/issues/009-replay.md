@@ -1,7 +1,6 @@
 ---
 title: Replay
 type: task
-dependencies: [008]
 ---
 
 ## Scope

@@ -58,7 +58,8 @@ CREATE TABLE stated_keys (
     created_at    timestamptz NOT NULL DEFAULT now(),
     CHECK (jsonb_typeof(identifiers) = 'array'),
     FOREIGN KEY (statement_id, user_id) REFERENCES statements (id, user_id),
-    FOREIGN KEY (listing_id, instrument_id) REFERENCES listings (id, instrument_id),
+    FOREIGN KEY (listing_id, instrument_id) REFERENCES listings (id, instrument_id)
+        DEFERRABLE INITIALLY IMMEDIATE,
     UNIQUE NULLS NOT DISTINCT (statement_id, asset_class, currency, description, identifiers),
     CHECK ((instrument_id IS NULL) = (via_id IS NULL)),
     CHECK ((instrument_id IS NULL) = (validity IS NULL)),
