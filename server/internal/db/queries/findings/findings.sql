@@ -1,3 +1,7 @@
+-- name: CreateFinding :exec
+INSERT INTO findings (id, run_id, kind, stated_key_id, fetch_key_id, step, detail)
+VALUES ($1, $2, $3, $4, $5, $6, $7);
+
 -- name: ListRunFindings :many
 SELECT * FROM findings WHERE run_id = $1 ORDER BY id;
 

@@ -166,6 +166,18 @@ func TestFindingsAndBlocks(t *testing.T) {
 	if diff := cmp.Diff([]uuid.UUID{secondFinding, firstFinding}, findings(true)); diff != "" {
 		t.Errorf("ListFindings including the cleared mismatch (-want +got):\n%s", diff)
 	}
+	got, err := q.GetUserRun(ctx, fetch.ID)
+	require.NoError(t, err)
+	if got.OpenFindings != 1 {
+		t.Errorf("GetUserRun(fetch).OpenFindings = %d, want 1: one of two findings was cleared", got.OpenFindings)
+	}
+	listed, err := q.ListUserRuns(ctx, gen.ListUserRunsParams{UserID: &user.ID, Lim: 10})
+	require.NoError(t, err)
+	for _, r := range listed {
+		if want := map[bool]int32{true: 1}[r.Run.ID == fetch.ID]; r.OpenFindings != want {
+			t.Errorf("ListUserRuns row %s open findings = %d, want %d", r.Run.ID, r.OpenFindings, want)
+		}
+	}
 
 	blocks, err := q.ListBlocks(ctx, gen.ListBlocksParams{IncludeCleared: true, Lim: 10})
 	require.NoError(t, err)

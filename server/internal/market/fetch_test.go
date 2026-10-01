@@ -119,7 +119,7 @@ func TestFetchNotServed(t *testing.T) {
 	}
 }
 
-// TestFetchServed checks that one call answers every key of the batch.
+// TestFetchServed checks that one call serves every key of the batch.
 func TestFetchServed(t *testing.T) {
 	f := &fake{}
 	h := newHarness(t, f, nil)
@@ -140,8 +140,8 @@ func TestFetchServed(t *testing.T) {
 			t.Errorf("result %d candidates = %d, want 1", i, len(r.Response.Candidates))
 		}
 	}
-	if row := h.key(t, one.ID); row.Attempts != 1 || row.Reason != nil {
-		t.Errorf("row = %+v, want one attempt and no reason", row)
+	if row := h.key(t, one.ID); row.Attempts != 1 || row.Reason != nil || row.Candidates != 1 {
+		t.Errorf("row = %+v, want one attempt, no reason and one candidate", row)
 	}
 	if len(h.blocks) != 0 {
 		t.Errorf("blocks = %+v, want none", h.blocks)
@@ -324,7 +324,7 @@ func TestFetchRecordsAgainstItsRun(t *testing.T) {
 }
 
 // TestFetchChunks checks that a batch larger than the integration accepts is
-// sent as several requests, each answered in the order of its keys.
+// sent as several requests, each responded to in the order of its keys.
 func TestFetchChunks(t *testing.T) {
 	f := &fake{batch: 2}
 	h := newHarness(t, f, nil)
@@ -349,7 +349,7 @@ func TestFetchChunks(t *testing.T) {
 			continue
 		}
 		if got := r.Response.Candidates[0].Identifiers[0].Value; got != values[i] {
-			t.Errorf("result %d answered %s, want %s", i, got, values[i])
+			t.Errorf("result %d returned %s, want %s", i, got, values[i])
 		}
 	}
 }

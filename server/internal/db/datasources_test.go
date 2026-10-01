@@ -176,6 +176,8 @@ func TestFetchKeys(t *testing.T) {
 			Outcome: gen.FetchOutcomeFailedTemporary, Attempts: 0, SentType: isin, SentValue: ptr.To("v"), Reason: ptr.To("r")}},
 		{name: "a domain sent with no identifier", want: pgerrcode.CheckViolation, arg: gen.CreateFetchKeyParams{
 			Outcome: gen.FetchOutcomeNotServed, SentDomain: "XLON", Reason: ptr.To("r")}},
+		{name: "candidates offered by a key not served", want: pgerrcode.CheckViolation, arg: gen.CreateFetchKeyParams{
+			Outcome: gen.FetchOutcomeNotServed, Reason: ptr.To("r"), Candidates: 2}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -194,7 +196,7 @@ func TestFetchKeys(t *testing.T) {
 		})
 	}
 
-	t.Run("an instrument on a key nothing answered", func(t *testing.T) {
+	t.Run("an instrument on a key nothing served", func(t *testing.T) {
 		q := newTx(t)
 		user := newUser(t, q, "fetch-keys-instrument@example.com")
 		statement := newStatement(t, q, user)
@@ -202,7 +204,7 @@ func TestFetchKeys(t *testing.T) {
 		require.NoError(t, err)
 		fetch := newFetch(t, q, user, run, newDatasource(t, q, "fetch-keys-instrument", 10))
 		key := newStatedKey(t, q, user, statement)
-		found, err := q.GetInstrumentByIdentifier(ctx, gen.GetInstrumentByIdentifierParams{Type: types.IdentifierTypeCurrency, Value: "USD"})
+		found, err := q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: types.IdentifierTypeCurrency, Value: "USD"})
 		require.NoError(t, err)
 
 		id := db.NewID()
@@ -366,5 +368,43 @@ func TestDatasourceBlocks(t *testing.T) {
 				t.Errorf("CreateDatasourceBlock(%s): err = %v, want a check violation", tc.name, err)
 			}
 		})
+	}
+}
+
+// TestIdentityCoverage checks one row per instrument and datasource, the
+// latest served fetch key winning, and the provenance a fetch key gives the
+// rows written from its response.
+func TestIdentityCoverage(t *testing.T) {
+	ctx := context.Background()
+	q := newTx(t)
+	user := newUser(t, q, "coverage@example.com")
+	statement := newStatement(t, q, user)
+	run, err := q.GetRun(ctx, gen.GetRunParams{ID: statement.ID, UserID: user.ID})
+	require.NoError(t, err)
+	ds := newDatasource(t, q, "coverage", 10)
+	fetch := newFetch(t, q, user, run, ds)
+	key := newStatedKey(t, q, user, statement)
+	first := servedKey(t, q, fetch, key, "GB00B03MLX29")
+	second := servedKey(t, q, newFetch(t, q, user, run, ds), key, "GB00B03MLX29")
+
+	instrument, err := q.CreateInstrument(ctx, gen.CreateInstrumentParams{ID: db.NewID(), AssetClass: gen.AssetClassStock, FetchKeyID: &first})
+	require.NoError(t, err)
+	if instrument.FetchKeyID == nil || *instrument.FetchKeyID != first {
+		t.Errorf("instrument provenance = %v, want fetch key %s", instrument.FetchKeyID, first)
+	}
+	listing, err := q.CreateListing(ctx, gen.CreateListingParams{ID: db.NewID(), InstrumentID: instrument.ID, Currency: "GBP", FetchKeyID: &first})
+	require.NoError(t, err)
+	identifier, err := q.CreateIdentifier(ctx, gen.CreateIdentifierParams{ID: db.NewID(), InstrumentID: instrument.ID, ListingID: &listing.ID, Type: types.IdentifierTypeSedol, Value: "B03MLX2", FetchKeyID: &first})
+	require.NoError(t, err)
+	if listing.FetchKeyID == nil || identifier.FetchKeyID == nil || *listing.FetchKeyID != first || *identifier.FetchKeyID != first {
+		t.Errorf("listing provenance %v, identifier provenance %v, want fetch key %s", listing.FetchKeyID, identifier.FetchKeyID, first)
+	}
+
+	require.NoError(t, q.UpsertIdentityCoverage(ctx, gen.UpsertIdentityCoverageParams{InstrumentID: instrument.ID, Datasource: ds.Name, FetchKeyID: first}))
+	require.NoError(t, q.UpsertIdentityCoverage(ctx, gen.UpsertIdentityCoverageParams{InstrumentID: instrument.ID, Datasource: ds.Name, FetchKeyID: second}))
+	rows, err := q.ListIdentityCoverage(ctx, []uuid.UUID{instrument.ID, db.NewID()})
+	require.NoError(t, err)
+	if len(rows) != 1 || rows[0].Datasource != ds.Name || rows[0].FetchKeyID != second {
+		t.Errorf("ListIdentityCoverage = %+v, want one row for %s holding fetch key %s", rows, ds.Name, second)
 	}
 }

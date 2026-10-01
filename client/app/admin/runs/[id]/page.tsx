@@ -22,6 +22,7 @@ import { useAdminRun } from "@/hooks/use-admin-run";
 import {
   enumLabel,
   filterQuery,
+  findingText,
   identifierText,
   keyText,
   runEnums,
@@ -169,6 +170,7 @@ function Findings({ data }: { data: GetRunResponse }) {
         <tr>
           <Th>Recorded</Th>
           <Th>Kind</Th>
+          <Th>Detail</Th>
           <Th>Cleared</Th>
         </tr>
       </Thead>
@@ -183,6 +185,7 @@ function Findings({ data }: { data: GetRunResponse }) {
                 {enumLabel(FindingKind, f.kind)}
               </Chip>
             </Td>
+            <Td>{findingText(f)}</Td>
             <Td className="font-mono tabular-nums">
               {f.clearedAt ? formatInstant(f.clearedAt) : ""}
             </Td>

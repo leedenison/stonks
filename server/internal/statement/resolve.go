@@ -73,7 +73,7 @@ func (g *ingestion) resolveKey(ctx context.Context, k *key) error {
 		k.outcome = gen.ResolutionOutcomeUnrecognised
 		return nil
 	}
-	found, err := g.store.GetInstrumentByIdentifier(ctx, gen.GetInstrumentByIdentifierParams{Type: types.IdentifierTypeCurrency, Value: id.Value})
+	found, err := g.store.FindIdentifier(ctx, gen.FindIdentifierParams{Type: types.IdentifierTypeCurrency, Value: id.Value})
 	switch {
 	case errors.Is(err, db.ErrNotFound):
 		k.reject("no currency %s", id.Value)
@@ -88,7 +88,7 @@ func (g *ingestion) resolveKey(ctx context.Context, k *key) error {
 // of k's currency family, unless k contradicts the instrument or names a
 // line it lacks. A currency identifier is seeded beside the instrument it
 // names, so the association it makes is confirmed.
-func (g *ingestion) matchInstrument(ctx context.Context, k *key, found gen.GetInstrumentByIdentifierRow, code string) error {
+func (g *ingestion) matchInstrument(ctx context.Context, k *key, found gen.FindIdentifierRow, code string) error {
 	if k.class != nil && disjoint(*k.class, found.Instrument.AssetClass) {
 		k.reject("asset class %s contradicts the instrument's %s", *k.class, found.Instrument.AssetClass)
 		return nil

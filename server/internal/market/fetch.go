@@ -56,8 +56,8 @@ func NewFetcher(store Store, runs Runner, log *slog.Logger, opts ...Option) *Fet
 	return f
 }
 
-// Fetch asks e for kind about reqs, as a child run of parent. It answers one
-// result per request, in the order they were given, whether or not the run
+// Fetch requests kind about reqs from e, as a child run of parent. It returns
+// one result per request, in the order they were given, whether or not the run
 // failed.
 func Fetch[Q, P any](ctx context.Context, f *Fetcher, parent gen.Run, e *Entry, kind Kind[Q, P], reqs []Q) (gen.Run, []Result[Q, P], error) {
 	var results []Result[Q, P]
@@ -156,7 +156,7 @@ func fetchChunk[Q, P any](ctx context.Context, f *Fetcher, e *Entry, s Server[Q,
 		r := &results[i]
 		r.attempts = attempts
 		if n >= len(resps) {
-			r.Outcome, r.Reason = gen.FetchOutcomeFailedTemporary, "the datasource answered fewer results than it was asked for"
+			r.Outcome, r.Reason = gen.FetchOutcomeFailedTemporary, "the datasource returned fewer results than it was sent"
 			continue
 		}
 		resp := resps[n]
@@ -213,7 +213,9 @@ func record[Q, P any](ctx context.Context, f *Fetcher, run gen.Run, kind Kind[Q,
 	if r.Sent != nil {
 		arg.SentType, arg.SentDomain, arg.SentValue = &r.Sent.Type, r.Sent.Domain, &r.Sent.Value
 	}
-	if r.Outcome != gen.FetchOutcomeServed {
+	if r.Outcome == gen.FetchOutcomeServed {
+		arg.Candidates = int16(kind.count(r.Response))
+	} else {
 		reason := r.Reason
 		arg.Reason = &reason
 	}

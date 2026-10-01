@@ -30,14 +30,16 @@ import (
 )
 
 var (
-	userID    = uuid.MustParse("00000000-0000-0000-0000-000000000001")
-	runID     = uuid.MustParse("00000000-0000-0000-0000-000000000010")
-	childID   = uuid.MustParse("00000000-0000-0000-0000-000000000011")
-	keyID     = uuid.MustParse("00000000-0000-0000-0000-000000000020")
-	findingID = uuid.MustParse("00000000-0000-0000-0000-000000000030")
-	blockID   = uuid.MustParse("00000000-0000-0000-0000-000000000031")
-	created   = time.Date(2026, 9, 24, 12, 0, 0, 0, time.UTC)
-	principal = auth.Principal{User: gen.User{Email: "admin@example.com", Role: gen.UserRoleAdmin}, SessionID: servicetest.Session}
+	userID     = uuid.MustParse("00000000-0000-0000-0000-000000000001")
+	runID      = uuid.MustParse("00000000-0000-0000-0000-000000000010")
+	childID    = uuid.MustParse("00000000-0000-0000-0000-000000000011")
+	keyID      = uuid.MustParse("00000000-0000-0000-0000-000000000020")
+	findingID  = uuid.MustParse("00000000-0000-0000-0000-000000000030")
+	droppedID  = uuid.MustParse("00000000-0000-0000-0000-000000000033")
+	fetchKeyID = uuid.MustParse("00000000-0000-0000-0000-000000000034")
+	blockID    = uuid.MustParse("00000000-0000-0000-0000-000000000031")
+	created    = time.Date(2026, 9, 24, 12, 0, 0, 0, time.UTC)
+	principal  = auth.Principal{User: gen.User{Email: "admin@example.com", Role: gen.UserRoleAdmin}, SessionID: servicetest.Session}
 )
 
 type fixture struct {
@@ -72,7 +74,7 @@ func runMsg(id uuid.UUID, kind runv1.RunKind) *adminv1.UserRun {
 			Id: id.String(), Kind: kind, Trigger: runv1.RunTrigger_RUN_TRIGGER_USER,
 			State: runv1.RunState_RUN_STATE_COMPLETED, CreatedAt: timestamppb.New(created),
 		},
-		UserId: userID.String(), UserEmail: "one@example.com",
+		UserId: userID.String(), UserEmail: "one@example.com", OpenFindings: 1,
 	}
 }
 
@@ -83,7 +85,7 @@ func TestListRuns(t *testing.T) {
 	rows := func(ids ...uuid.UUID) []gen.ListUserRunsRow {
 		var out []gen.ListUserRunsRow
 		for _, id := range ids {
-			out = append(out, gen.ListUserRunsRow{Run: runRow(id, gen.RunKindStatement), Email: "one@example.com"})
+			out = append(out, gen.ListUserRunsRow{Run: runRow(id, gen.RunKindStatement), Email: "one@example.com", OpenFindings: 1})
 		}
 		return out
 	}
@@ -206,13 +208,15 @@ func TestGetRun(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newFixture(t)
 			r := f.reader.EXPECT()
-			r.GetUserRun(gomock.Any(), runID).Return(gen.GetUserRunRow{Run: runRow(runID, tc.kind), Email: "one@example.com"}, nil)
+			r.GetUserRun(gomock.Any(), runID).Return(gen.GetUserRunRow{Run: runRow(runID, tc.kind), Email: "one@example.com", OpenFindings: 1}, nil)
 			child := runRow(childID, gen.RunKindFetch)
 			child.Trigger, child.ParentID = gen.RunTriggerRun, &runID
 			r.ListChildRuns(gomock.Any(), gen.ListChildRunsParams{ParentID: &runID, UserID: userID}).Return([]gen.Run{child}, nil)
-			r.ListRunFindings(gomock.Any(), runID).Return([]gen.Finding{{
-				ID: findingID, RunID: runID, Kind: gen.FindingKindBlock, BlockID: &blockID, CreatedAt: created,
-			}}, nil)
+			r.ListRunFindings(gomock.Any(), runID).Return([]gen.Finding{
+				{ID: findingID, RunID: runID, Kind: gen.FindingKindBlock, BlockID: &blockID, CreatedAt: created},
+				{ID: droppedID, RunID: runID, Kind: gen.FindingKindDropped, StatedKeyID: &keyID, FetchKeyID: &fetchKeyID,
+					Step: ptr.To(gen.DropStepStated), Detail: ptr.To("candidates in USD, not the stated GBP"), CreatedAt: created},
+			}, nil)
 			tc.expect(r)
 
 			res, err := f.client.GetRun(context.Background(), connect.NewRequest(&adminv1.GetRunRequest{RunId: runID.String()}))
@@ -225,10 +229,18 @@ func TestGetRun(t *testing.T) {
 					Id: childID.String(), Kind: runv1.RunKind_RUN_KIND_FETCH, Trigger: runv1.RunTrigger_RUN_TRIGGER_RUN,
 					ParentId: ptr.To(runID.String()), State: runv1.RunState_RUN_STATE_COMPLETED, CreatedAt: timestamppb.New(created),
 				}},
-				Findings: []*adminv1.Finding{{
-					Id: findingID.String(), RunId: runID.String(), Kind: adminv1.FindingKind_FINDING_KIND_BLOCK,
-					BlockId: ptr.To(blockID.String()), CreatedAt: timestamppb.New(created),
-				}},
+				Findings: []*adminv1.Finding{
+					{
+						Id: findingID.String(), RunId: runID.String(), Kind: adminv1.FindingKind_FINDING_KIND_BLOCK,
+						BlockId: ptr.To(blockID.String()), CreatedAt: timestamppb.New(created),
+					},
+					{
+						Id: droppedID.String(), RunId: runID.String(), Kind: adminv1.FindingKind_FINDING_KIND_DROPPED,
+						StatedKeyId: ptr.To(keyID.String()), FetchKeyId: ptr.To(fetchKeyID.String()),
+						Step: ptr.To(adminv1.DropStep_DROP_STEP_STATED), Detail: ptr.To("candidates in USD, not the stated GBP"),
+						CreatedAt: timestamppb.New(created),
+					},
+				},
 			}
 			tc.want(want)
 			if diff := cmp.Diff(want, res.Msg, protocmp.Transform()); diff != "" {

@@ -13,7 +13,7 @@ import { SkeletonRows } from "@/app/components/skeleton-rows";
 import { TableCard, Td, Th, Thead, Tr } from "@/app/components/table";
 import { FindingKind } from "@/gen/admin/v1/admin_pb";
 import { useClearFinding, useFindings } from "@/hooks/use-findings";
-import { enumLabel, readList } from "@/lib/admin";
+import { enumLabel, findingText, readList } from "@/lib/admin";
 import { formatInstant } from "@/lib/format";
 
 const path = "/admin/findings";
@@ -55,12 +55,13 @@ function Findings() {
             <tr>
               <Th>Recorded</Th>
               <Th>Kind</Th>
+              <Th>Detail</Th>
               <Th>Run</Th>
               <Th>Cleared</Th>
             </tr>
           </Thead>
           {isPending ? (
-            <SkeletonRows columns={4} />
+            <SkeletonRows columns={5} />
           ) : (
             <tbody>
               {findings.map((f) => (
@@ -73,6 +74,7 @@ function Findings() {
                       {enumLabel(FindingKind, f.kind)}
                     </Chip>
                   </Td>
+                  <Td>{findingText(f)}</Td>
                   <Td>
                     <Link
                       href={`/admin/runs/${f.runId}`}

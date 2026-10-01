@@ -12,7 +12,7 @@ import (
 
 // Entry is one enabled datasource and the integration serving it. A field
 // per kind of data is set where the integration serves that kind, and nil
-// where the datasource is not asked for it.
+// where the datasource is not sent requests for it.
 type Entry struct {
 	Name        string
 	Precedence  int32

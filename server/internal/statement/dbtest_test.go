@@ -204,7 +204,7 @@ func TestIngest(t *testing.T) {
 
 	// Only the cash key resolved, and it names the USD listing
 	// through the currency identifier that named the instrument.
-	found, err := s.q.GetInstrumentByIdentifier(ctx, gen.GetInstrumentByIdentifierParams{Type: types.IdentifierTypeCurrency, Value: "USD"})
+	found, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: types.IdentifierTypeCurrency, Value: "USD"})
 	require.NoError(t, err)
 	line, err := s.q.GetListing(ctx, gen.GetListingParams{InstrumentID: found.Instrument.ID, Currency: "USD"})
 	require.NoError(t, err)
@@ -261,7 +261,7 @@ func TestFamily(t *testing.T) {
 	keys, err := s.q.ListStatedKeys(ctx, gen.ListStatedKeysParams{StatementID: parent.ID, UserID: s.user.ID})
 	require.NoError(t, err)
 	require.Len(t, keys, 1)
-	gbp, err := s.q.GetInstrumentByIdentifier(ctx, gen.GetInstrumentByIdentifierParams{Type: types.IdentifierTypeCurrency, Value: "GBP"})
+	gbp, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: types.IdentifierTypeCurrency, Value: "GBP"})
 	require.NoError(t, err)
 	line, err := s.q.GetListing(ctx, gen.GetListingParams{InstrumentID: gbp.Instrument.ID, Currency: "GBP"})
 	require.NoError(t, err)

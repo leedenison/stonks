@@ -90,7 +90,7 @@ func (s *Server) ListRuns(ctx context.Context, req *connect.Request[adminv1.List
 	out := &adminv1.ListRunsResponse{}
 	rows, out.NextPageToken = trim(p, rows, func(r gen.ListUserRunsRow) uuid.UUID { return r.Run.ID })
 	for _, r := range rows {
-		out.Runs = append(out.Runs, userRun(r.Run, r.Email))
+		out.Runs = append(out.Runs, userRun(r.Run, r.Email, r.OpenFindings))
 	}
 	return connect.NewResponse(out), nil
 }
@@ -109,7 +109,7 @@ func (s *Server) GetRun(ctx context.Context, req *connect.Request[adminv1.GetRun
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	out := &adminv1.GetRunResponse{Run: userRun(row.Run, row.Email)}
+	out := &adminv1.GetRunResponse{Run: userRun(row.Run, row.Email, row.OpenFindings)}
 	if err := s.fill(ctx, row.Run, out); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
@@ -307,14 +307,27 @@ func finding(f gen.Finding) *adminv1.Finding {
 		id := f.BlockID.String()
 		out.BlockId = &id
 	}
+	if f.StatedKeyID != nil {
+		id := f.StatedKeyID.String()
+		out.StatedKeyId = &id
+	}
+	if f.FetchKeyID != nil {
+		id := f.FetchKeyID.String()
+		out.FetchKeyId = &id
+	}
+	if f.Step != nil {
+		step := db.ToProto[adminv1.DropStep](*f.Step)
+		out.Step = &step
+	}
+	out.Detail = f.Detail
 	if f.ClearedAt != nil {
 		out.ClearedAt = timestamppb.New(*f.ClearedAt)
 	}
 	return out
 }
 
-func userRun(r gen.Run, email string) *adminv1.UserRun {
-	return &adminv1.UserRun{Run: runsvc.ToProto(r), UserId: r.UserID.String(), UserEmail: email}
+func userRun(r gen.Run, email string, open int32) *adminv1.UserRun {
+	return &adminv1.UserRun{Run: runsvc.ToProto(r), UserId: r.UserID.String(), UserEmail: email, OpenFindings: open}
 }
 
 func statedKey(k gen.StatedKey) *typev1.StatedKey {

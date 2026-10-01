@@ -35,7 +35,7 @@ func credential(text string) error {
 	return failure{Failure: Failure{Scope: gen.BlockScopeDatasource, Reason: text}, text: text}
 }
 
-// fake is an integration whose every answer is scripted. errs is consumed one
+// fake is an integration whose every response is scripted. errs is consumed one
 // entry per request, so a case can fail twice and then succeed.
 type fake struct {
 	// serves reports what to send for a key; a key absent from it is not
