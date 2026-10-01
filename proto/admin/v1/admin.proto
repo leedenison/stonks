@@ -318,7 +318,7 @@ service AdminService {
   // never read.
   rpc ListDatasources(ListDatasourcesRequest) returns (ListDatasourcesResponse);
   // Sets a datasource's state, endpoint and credential, taking effect at
-  // once. Enabling a datasource this build carries no integration for is
+  // once. Enabling a datasource without an integration in this build is
   // refused as a failed precondition.
   rpc UpdateDatasource(UpdateDatasourceRequest) returns (UpdateDatasourceResponse);
   // Orders the datasources by precedence, taking effect at once. A list that

@@ -52,9 +52,9 @@ type Reader interface {
 
 var _ Reader = (*gen.Queries)(nil)
 
-// Sources is the view of the datasource registry this package depends on:
-// whether the build carries an integration, and the reload that makes a
-// change to the table take effect.
+// Sources is this package's view of the datasource registry: whether the
+// build carries an integration, and the reload that makes a change to the
+// table take effect.
 type Sources interface {
 	Carries(name string) bool
 	Reload(ctx context.Context) error
