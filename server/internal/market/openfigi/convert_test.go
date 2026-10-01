@@ -70,7 +70,7 @@ func TestIdentity(t *testing.T) {
 		name     string
 		sent     types.Identifier
 		currency string
-		// filtered is what the call filtered on, sent where empty.
+		// filtered is the call's filter, sent where empty.
 		filtered types.Identifier
 		exchs    []string
 	}{

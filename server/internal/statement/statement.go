@@ -108,8 +108,7 @@ type ingestion struct {
 	before time.Time
 	rows   []row
 	splits []split
-	// families maps each currency code to its family, the code a listing is
-	// keyed by.
+	// families maps each currency code to its family, the key of a listing.
 	families map[string]string
 	// keys holds each distinct stated key under its hash, and order lists
 	// them by first appearance.

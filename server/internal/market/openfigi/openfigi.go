@@ -1,9 +1,9 @@
 // Package openfigi is the identity integration with the OpenFIGI mapping API.
 //
 // A stated key is sent under its strongest identifier OpenFIGI accepts, and
-// every listing OpenFIGI maps it to is a candidate.  A ticker is filtered on
-// without its venue, so the listings at every venue are returned and the
-// stated venue is left for resolution to choose a composite by.  A candidate
+// every listing in OpenFIGI's mapping of it is a candidate.  A ticker is
+// filtered on without its venue, so the listings at every venue are returned
+// and resolution chooses a composite from the stated venue.  A candidate
 // carries the share class and composite FIGIs, the ticker under OpenFIGI's
 // exchange code, and the ticker under the operating MIC where the exchange
 // code names exactly one venue.  A composite exchange code spans the venues of

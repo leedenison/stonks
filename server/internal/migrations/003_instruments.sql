@@ -70,8 +70,8 @@ INSERT INTO identifier_type_traits (type, domain, grain, reassignment) VALUES
 
 -- The currency codes a source may state: ISO 4217, plus GBX for sterling in
 -- pence. A family is the codes of one currency at different unit scales, named
--- by one of them, and is what a listing is keyed by: GBP and GBX are one
--- family, GBP.
+-- by one of them, and is the key of a listing: GBP and GBX are one family,
+-- GBP.
 CREATE TABLE currencies (
     code   text PRIMARY KEY,
     family text NOT NULL REFERENCES currencies (code),
@@ -111,11 +111,11 @@ CREATE TABLE instruments (
     created_at  timestamptz NOT NULL DEFAULT now()
 );
 
--- A listing is one currency family an instrument trades in. Venues are
+-- A listing is one trading currency family of an instrument. Venues are
 -- fungible within a listing: a composite identifier names the venues of one
 -- market, tickers sharing a composite name one listing, and a listing carries
--- a composite per market it trades in. A ticker is kept per venue as a handle
--- for a datasource that must be asked at one venue.
+-- a composite per market in which it trades. A ticker is kept per venue as a
+-- handle for a datasource that must be asked at one venue.
 CREATE TABLE listings (
     id            uuid        PRIMARY KEY,
     instrument_id uuid        NOT NULL REFERENCES instruments (id),

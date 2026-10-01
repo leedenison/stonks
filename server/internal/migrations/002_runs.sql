@@ -7,7 +7,7 @@ CREATE TYPE run_state AS ENUM ('pending', 'running', 'completed', 'failed', 'int
 -- A run is one unit of background work: a statement, ingesting one batch of
 -- transactions a user submitted, a resolution resolving the stated keys of a
 -- statement, or a fetch requesting one kind of data from one datasource. The
--- row exists before the work starts and is what its outcome is read against.
+-- row exists before the work starts and carries its outcome.
 CREATE TABLE runs (
     id          uuid        PRIMARY KEY,
     user_id     uuid        NOT NULL REFERENCES users (id),

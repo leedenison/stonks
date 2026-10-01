@@ -52,7 +52,7 @@ func TestFetchListings(t *testing.T) {
 		cassette string
 		sent     types.Identifier
 		currency string
-		// filtered is what the call filtered on, sent where empty.
+		// filtered is the call's filter, sent where empty.
 		filtered types.Identifier
 		// every is named by every candidate; some by at least one.
 		every []types.Identifier

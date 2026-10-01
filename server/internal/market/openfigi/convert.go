@@ -30,8 +30,8 @@ func withClassSep(ticker string, sep rune) (string, bool) {
 
 // identity converts the listings OpenFIGI returned for the identifier sent,
 // each listing one candidate. A MIC_TICKER is filtered on its ticker alone,
-// so its venue is dropped from what was filtered on. Where the call filtered
-// on a currency, every listing is in it.
+// so its venue is dropped from the filter. Where the call filtered on a
+// currency, every listing is in it.
 func identity(sent types.Identifier, currency string, data []result, mics mic.Table) market.IdentityResult {
 	filtered := sent
 	if filtered.Type == types.IdentifierTypeMicTicker {
