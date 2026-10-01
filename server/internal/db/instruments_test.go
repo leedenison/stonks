@@ -66,7 +66,7 @@ func cashListing(t *testing.T, q *gen.Queries, currency string) (gen.Listing, ge
 }
 
 // TestCurrencySeed checks the currency instruments the migration seeds: one
-// per currency, named by its code, listed in itself.
+// per family, named by each code of the family, listed in the family.
 func TestCurrencySeed(t *testing.T) {
 	q := newTx(t)
 	ctx := context.Background()
@@ -83,20 +83,28 @@ func TestCurrencySeed(t *testing.T) {
 	if via.ID != usd.Identifier.ID {
 		t.Errorf("USD identifier = %s, want %s", via.ID, usd.Identifier.ID)
 	}
-	if gbx, _ := cashListing(t, q, "GBX"); gbx.InstrumentID == usd.Instrument.ID {
-		t.Errorf("GBX listing = %+v, want one of an instrument other than USD's", gbx)
+	gbp, err := q.GetInstrumentByIdentifier(ctx, gen.GetInstrumentByIdentifierParams{Type: types.IdentifierTypeCurrency, Value: "GBP"})
+	require.NoError(t, err)
+	gbx, err := q.GetInstrumentByIdentifier(ctx, gen.GetInstrumentByIdentifierParams{Type: types.IdentifierTypeCurrency, Value: "GBX"})
+	require.NoError(t, err)
+	if gbx.Instrument.ID != gbp.Instrument.ID {
+		t.Errorf("GBX names instrument %s, want GBP's %s: one family is one instrument", gbx.Instrument.ID, gbp.Instrument.ID)
+	}
+	if _, err := q.GetListing(ctx, gen.GetListingParams{InstrumentID: gbp.Instrument.ID, Currency: "GBX"}); !errors.Is(err, db.ErrNotFound) {
+		t.Errorf("GetListing(GBP, GBX): err = %v, want ErrNotFound: a listing is keyed by the family", err)
 	}
 	if _, err := q.GetListing(ctx, gen.GetListingParams{InstrumentID: usd.Instrument.ID, Currency: "GBP"}); !errors.Is(err, db.ErrNotFound) {
 		t.Errorf("GetListing(USD, GBP): err = %v, want ErrNotFound until a rate is fetched", err)
 	}
 
-	var currencies, instruments, listings, identifiers int
+	var currencies, families, instruments, listings, identifiers int
 	require.NoError(t, pool.QueryRow(ctx, "SELECT count(*) FROM currencies").Scan(&currencies))
+	require.NoError(t, pool.QueryRow(ctx, "SELECT count(*) FROM currencies WHERE code = family").Scan(&families))
 	require.NoError(t, pool.QueryRow(ctx, "SELECT count(*) FROM instruments WHERE asset_class = 'cash'").Scan(&instruments))
 	require.NoError(t, pool.QueryRow(ctx, "SELECT count(*) FROM listings").Scan(&listings))
 	require.NoError(t, pool.QueryRow(ctx, "SELECT count(*) FROM identifiers WHERE type = 'currency' AND listing_id IS NULL").Scan(&identifiers))
-	if instruments != currencies || listings != currencies || identifiers != currencies {
-		t.Errorf("seeded %d instruments, %d listings and %d identifiers, want %d of each", instruments, listings, identifiers, currencies)
+	if families != currencies-1 || instruments != families || listings != families || identifiers != currencies {
+		t.Errorf("seeded %d instruments, %d listings and %d identifiers over %d currencies, want one instrument and listing per family (%d) and an identifier per code", instruments, listings, identifiers, currencies, families)
 	}
 }
 

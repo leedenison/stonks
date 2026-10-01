@@ -1,17 +1,16 @@
 // Package openfigi is the identity integration with the OpenFIGI mapping API.
 //
 // A stated key is sent under its strongest identifier OpenFIGI accepts, and
-// every listing OpenFIGI maps it to is a candidate.  A candidate carries the
-// share class and composite FIGIs, the ticker under OpenFIGI's exchange code,
-// and the ticker under the operating MIC where the exchange code names exactly
-// one venue.  A composite exchange code spans the venues of a country rather
-// than naming one, so its listings carry no MIC_TICKER.
+// every listing OpenFIGI maps it to is a candidate.  A ticker is filtered on
+// without its venue, so the listings at every venue are returned and the
+// stated venue is left for resolution to choose a composite by.  A candidate
+// carries the share class and composite FIGIs, the ticker under OpenFIGI's
+// exchange code, and the ticker under the operating MIC where the exchange
+// code names exactly one venue.  A composite exchange code spans the venues of
+// a country rather than naming one, so its listings carry no MIC_TICKER.
 //
-// OpenFIGI answers no currency.  Where the key states one, the call filters on
+// OpenFIGI returns no currency.  Where the key states one, the call filters on
 // it strictly, so every candidate is in the stated currency.
-//
-// A ticker is sent in OpenFIGI's form, with a share class separated by a
-// slash, and a MIC_TICKER is answered with the class separated by a dot.
 package openfigi
 
 import (
@@ -95,7 +94,7 @@ type statusError struct {
 }
 
 func (e statusError) Error() string {
-	return fmt.Sprintf("openfigi answered %d: %s", e.code, e.body)
+	return fmt.Sprintf("openfigi responded %d: %s", e.code, e.body)
 }
 
 // jobError is a job OpenFIGI refused within a request it served.
@@ -124,9 +123,9 @@ func (c *Client) Classify(err error) market.Failure {
 	return market.Failure{Scope: gen.BlockScopeDatasource}
 }
 
-// reply is OpenFIGI's answer to one job: data, a warning that nothing was
-// found, or an error.
-type reply struct {
+// openfigiResponse is OpenFIGI's response to one job: data, a warning that
+// nothing was found, or an error.
+type openfigiResponse struct {
 	Data    []result `json:"data"`
 	Warning string   `json:"warning"`
 	Error   string   `json:"error"`
@@ -142,23 +141,23 @@ func (c *Client) Fetch(ctx context.Context, reqs []market.Request[market.StatedK
 	if err != nil {
 		return nil, fmt.Errorf("encode jobs: %w", err)
 	}
-	replies, err := c.post(ctx, body)
+	responses, err := c.post(ctx, body)
 	if err != nil {
 		return nil, err
 	}
-	out := make([]market.Response[market.IdentityResult], min(len(replies), len(reqs)))
+	out := make([]market.Response[market.IdentityResult], min(len(responses), len(reqs)))
 	for i := range out {
-		if replies[i].Error != "" {
-			out[i].Err = jobError(replies[i].Error)
+		if responses[i].Error != "" {
+			out[i].Err = jobError(responses[i].Error)
 			continue
 		}
-		out[i].Value = answer(reqs[i].Sent, reqs[i].Value.Currency, replies[i].Data, c.mics)
+		out[i].Value = identity(reqs[i].Sent, reqs[i].Value.Currency, responses[i].Data, c.mics)
 	}
 	return out, nil
 }
 
 // post sends one mapping request.
-func (c *Client) post(ctx context.Context, body []byte) (replies []reply, err error) {
+func (c *Client) post(ctx context.Context, body []byte) (responses []openfigiResponse, err error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.endpoint+"/v3/mapping", bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("build request: %w", err)
@@ -177,10 +176,10 @@ func (c *Client) post(ctx context.Context, body []byte) (replies []reply, err er
 		status := statusError{code: resp.StatusCode, retryAfter: reset(resp.Header), body: string(bytes.TrimSpace(text))}
 		return nil, errors.Join(status, rerr)
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&replies); err != nil {
-		return nil, fmt.Errorf("decode openfigi answer: %w", err)
+	if err := json.NewDecoder(resp.Body).Decode(&responses); err != nil {
+		return nil, fmt.Errorf("decode openfigi response: %w", err)
 	}
-	return replies, nil
+	return responses, nil
 }
 
 // reset reads the seconds until the rate limit window reopens.
@@ -192,7 +191,7 @@ func reset(h http.Header) time.Duration {
 	return time.Duration(n) * time.Second
 }
 
-// result is one listing of a mapping job's answer.
+// result is one listing of a mapping job's response.
 type result struct {
 	Ticker         string  `json:"ticker"`
 	ExchCode       string  `json:"exchCode"`

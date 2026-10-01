@@ -48,10 +48,9 @@ CREATE TABLE stated_keys (
     -- via_id references the identifier used to make the instrument/listing
     -- association.
     via_id        uuid        REFERENCES identifiers (id),
-    -- validity indicates whether the association is 'confirmed', either
-    -- because the identifier is stable or we have identifier event coverage
-    -- that includes the resolution time.  Otherwise validity is marked
-    -- 'provisional'.
+    -- validity is 'confirmed' where the identifier via_id names is stable, and
+    -- 'provisional' where it is MIC-derived, until identifier event coverage
+    -- confirms it.
     validity      validity,
     -- group_id gathers the unresolved keys which share an identifier, or a
     -- description transitively within one broker.
@@ -129,7 +128,7 @@ CREATE TABLE transactions (
 CREATE INDEX transactions_period_idx ON transactions (user_id, broker, order_date);
 CREATE INDEX transactions_key_idx ON transactions (user_id, stated_key_id);
 
-CREATE TYPE resolution_outcome AS ENUM ('matched', 'rejected', 'unresolved');
+CREATE TYPE resolution_outcome AS ENUM ('matched', 'rejected', 'unrecognised', 'unavailable');
 
 -- A resolution key is the item row of a run of kind 'resolution': the outcome
 -- for one stated key.
@@ -137,14 +136,17 @@ CREATE TABLE resolution_keys (
     run_id        uuid               NOT NULL,
     user_id       uuid               NOT NULL,
     stated_key_id uuid               NOT NULL REFERENCES stated_keys (id),
-    -- outcome is one of: 'matched' - the run resolved the key; 'unresolved' the
-    -- run failed to resolve the key; 'rejected' the run could not attempt to
-    -- resolve the key.
+    -- outcome: 'matched', the key is associated with an instrument;
+    -- 'rejected', the key contradicts the reference data it names and its rows
+    -- are refused; 'unrecognised', the key was attempted and nothing named it
+    -- or every candidate was dropped; 'unavailable', nothing served the key
+    -- and a datasource serving it failed or was blocked, which replay re-tries.
     outcome       resolution_outcome NOT NULL,
-    -- reason carries the reason for rejecting a key.
+    -- reason says why the key did not match. A rejected key always carries one.
     reason        text,
     created_at    timestamptz        NOT NULL DEFAULT now(),
     PRIMARY KEY (run_id, stated_key_id),
     FOREIGN KEY (run_id, user_id) REFERENCES runs (id, user_id),
-    CHECK ((outcome = 'rejected') = (reason IS NOT NULL))
+    CHECK (outcome <> 'matched' OR reason IS NULL),
+    CHECK (outcome <> 'rejected' OR reason IS NOT NULL)
 );

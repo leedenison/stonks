@@ -68,13 +68,19 @@ INSERT INTO identifier_type_traits (type, domain, grain, reassignment) VALUES
     ('datasource_ticker',    'issuer', 'listing',    'mic_derived'),
     ('broker_id',            'issuer', 'instrument', 'stable');
 
--- The currency codes a listing may be quoted in: ISO 4217, plus GBX for
--- sterling in pence, which is a listing of its own beside GBP.
+-- The currency codes a source may state: ISO 4217, plus GBX for sterling in
+-- pence. A family is the codes of one currency at different unit scales, named
+-- by one of them, and is what a listing is keyed by: GBP and GBX are one
+-- family, GBP.
 CREATE TABLE currencies (
-    code text PRIMARY KEY
+    code   text PRIMARY KEY,
+    family text NOT NULL REFERENCES currencies (code),
+    UNIQUE (code, family)
 );
 
-INSERT INTO currencies (code) VALUES
+INSERT INTO currencies (code, family)
+SELECT code, CASE WHEN code = 'GBX' THEN 'GBP' ELSE code END
+FROM (VALUES
     ('USD'), ('EUR'), ('JPY'), ('GBP'), ('GBX'), ('CHF'), ('CNY'), ('AUD'), ('CAD'),
     ('NZD'), ('SEK'), ('NOK'), ('DKK'), ('HKD'), ('SGD'), ('KRW'), ('INR'), ('TWD'),
     ('MXN'), ('BRL'), ('ZAR'), ('TRY'), ('RUB'), ('PLN'), ('CZK'), ('HUF'), ('RON'),
@@ -86,16 +92,16 @@ INSERT INTO currencies (code) VALUES
     ('VND'), ('MYR'), ('IDR'), ('PHP'), ('KHR'), ('LAK'), ('BND'), ('MOP'), ('KZT'),
     ('UZS'), ('GEL'), ('AMD'), ('AZN'), ('RSD'), ('UAH'), ('MDL'), ('ISK'), ('ALL'),
     ('MKD'), ('BAM'), ('JOD'), ('LBP'), ('IQD'), ('IRR'), ('AFN'), ('MUR'), ('BWP'),
-    ('ZMW'), ('AOA'), ('MZN'), ('SCR');
+    ('ZMW'), ('AOA'), ('MZN'), ('SCR')) AS v (code);
 
 -- An instrument is a thing that can be held and priced: a security, an option,
 -- a future, a currency. A price attaches to an instrument, and also to a
 -- listing when its currency is known. A holding is of the instrument: a
 -- security's listings are summed together.
 --
--- A currency is an instrument of class cash, named by a currency
--- identifier whose value is its code. Its listing in its own currency is
--- money in that currency.
+-- A currency family is an instrument of class cash, named by a currency
+-- identifier per code in the family. Its listing in its own family is money
+-- in that currency.
 --
 -- FX rates are represented as listings on a currency instrument in another
 -- currency.
@@ -105,15 +111,20 @@ CREATE TABLE instruments (
     created_at  timestamptz NOT NULL DEFAULT now()
 );
 
--- A listing is one currency an instrument trades in.  Since neither brokers
--- nor price sources distinguish venues reliably, they are treated as fungible.
+-- A listing is one currency family an instrument trades in. Venues are
+-- fungible within a listing: a composite identifier names the venues of one
+-- market, tickers sharing a composite name one listing, and a listing carries
+-- a composite per market it trades in. A ticker is kept per venue as a handle
+-- for a datasource that must be asked at one venue.
 CREATE TABLE listings (
     id            uuid        PRIMARY KEY,
     instrument_id uuid        NOT NULL REFERENCES instruments (id),
-    currency      text        NOT NULL REFERENCES currencies (code),
+    -- currency is a family code: a listing quoted in pence is the GBP listing.
+    currency      text        NOT NULL,
     created_at    timestamptz NOT NULL DEFAULT now(),
     UNIQUE (instrument_id, currency),
-    UNIQUE (id, instrument_id)
+    UNIQUE (id, instrument_id),
+    FOREIGN KEY (currency, currency) REFERENCES currencies (code, family)
 );
 
 -- An identifier names an instrument or one of its listings by a type, a
@@ -139,7 +150,7 @@ CREATE TABLE identifiers (
 CREATE INDEX identifiers_instrument_idx ON identifiers (instrument_id);
 
 WITH named AS (
-    SELECT uuid_v7() AS id, code FROM currencies
+    SELECT uuid_v7() AS id, code FROM currencies WHERE code = family
 ), cash AS (
     INSERT INTO instruments (id, asset_class)
     SELECT id, 'cash' FROM named
@@ -148,5 +159,6 @@ WITH named AS (
     SELECT uuid_v7(), id, code FROM named
 )
 INSERT INTO identifiers (id, instrument_id, type, value)
-SELECT uuid_v7(), id, 'currency', code FROM named;
+SELECT uuid_v7(), named.id, 'currency', currencies.code
+FROM named JOIN currencies ON currencies.family = named.code;
 

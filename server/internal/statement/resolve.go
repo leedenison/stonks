@@ -46,7 +46,7 @@ func under(a, b gen.AssetClass) bool {
 // disjoint reports whether no instrument can be of both classes.
 func disjoint(a, b gen.AssetClass) bool { return !under(a, b) && !under(b, a) }
 
-// resolve answers every key and records each answer against res.
+// resolve resolves every key and records each outcome against res.
 func (g *ingestion) resolve(ctx context.Context, res gen.Run) error {
 	for _, k := range g.order {
 		if err := g.resolveKey(ctx, k); err != nil {
@@ -63,14 +63,14 @@ func (g *ingestion) resolve(ctx context.Context, res gen.Run) error {
 	return nil
 }
 
-// resolveKey answers k from the identifier it states that resolution
+// resolveKey resolves k from the identifier it states that resolution
 // admits. A currency identifier is the only one admitted here, since the
 // seed is the only thing that has named an instrument; a key stating none is
-// unresolved.
+// unrecognised.
 func (g *ingestion) resolveKey(ctx context.Context, k *key) error {
 	id, ok := k.identifier(types.IdentifierTypeCurrency)
 	if !ok {
-		k.outcome = gen.ResolutionOutcomeUnresolved
+		k.outcome = gen.ResolutionOutcomeUnrecognised
 		return nil
 	}
 	found, err := g.store.GetInstrumentByIdentifier(ctx, gen.GetInstrumentByIdentifierParams{Type: types.IdentifierTypeCurrency, Value: id.Value})
@@ -84,10 +84,10 @@ func (g *ingestion) resolveKey(ctx context.Context, k *key) error {
 	return g.matchInstrument(ctx, k, found, id.Value)
 }
 
-// matchInstrument answers k with the instrument found names and the listing
-// k's currency picks, unless k contradicts the instrument or names a line it
-// lacks. A currency identifier is seeded beside the instrument it names, so
-// the association it makes is confirmed.
+// matchInstrument resolves k to the instrument found names and the listing
+// of k's currency family, unless k contradicts the instrument or names a
+// line it lacks. A currency identifier is seeded beside the instrument it
+// names, so the association it makes is confirmed.
 func (g *ingestion) matchInstrument(ctx context.Context, k *key, found gen.GetInstrumentByIdentifierRow, code string) error {
 	if k.class != nil && disjoint(*k.class, found.Instrument.AssetClass) {
 		k.reject("asset class %s contradicts the instrument's %s", *k.class, found.Instrument.AssetClass)
@@ -98,7 +98,7 @@ func (g *ingestion) matchInstrument(ctx context.Context, k *key, found gen.GetIn
 		k.instrument = &found.Instrument.ID
 		return nil
 	}
-	l, err := g.store.GetListing(ctx, gen.GetListingParams{InstrumentID: found.Instrument.ID, Currency: *k.currency})
+	l, err := g.store.GetListing(ctx, gen.GetListingParams{InstrumentID: found.Instrument.ID, Currency: g.families[*k.currency]})
 	switch {
 	case errors.Is(err, db.ErrNotFound):
 		k.reject("no listing of %s in %s", code, *k.currency)

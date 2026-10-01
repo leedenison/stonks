@@ -28,30 +28,22 @@ func withClassSep(ticker string, sep rune) (string, bool) {
 	return out, true
 }
 
-// answer reads the listings OpenFIGI mapped sent to. Where sent is a
-// MIC_TICKER naming a venue, OpenFIGI filtered on the ticker alone and the
-// listings at other venues are dropped. Where the call filtered on a currency,
-// every listing is in it.
-func answer(sent types.Identifier, currency string, data []result, mics mic.Table) market.IdentityResult {
-	out := market.IdentityResult{Filtered: []types.Identifier{sent}}
+// identity converts the listings OpenFIGI returned for the identifier sent,
+// each listing one candidate. A MIC_TICKER is filtered on its ticker alone,
+// so its venue is dropped from what was filtered on. Where the call filtered
+// on a currency, every listing is in it.
+func identity(sent types.Identifier, currency string, data []result, mics mic.Table) market.IdentityResult {
+	filtered := sent
+	if filtered.Type == types.IdentifierTypeMicTicker {
+		filtered.Domain = ""
+	}
+	out := market.IdentityResult{Filtered: []types.Identifier{filtered}}
 	for _, r := range data {
 		c := candidate(r, mics)
-		if sent.Type == types.IdentifierTypeMicTicker && sent.Domain != "" && !atVenue(c, sent.Domain) {
-			continue
-		}
 		c.Currency = currency
 		out.Candidates = append(out.Candidates, c)
 	}
 	return out
-}
-
-func atVenue(c market.Candidate, venue string) bool {
-	for _, id := range c.Identifiers {
-		if id.Type == types.IdentifierTypeMicTicker && id.Domain == venue {
-			return true
-		}
-	}
-	return false
 }
 
 // candidate converts one listing, skipping the fields OpenFIGI left null.

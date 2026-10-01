@@ -46,12 +46,14 @@ func names(r market.IdentityResult, id types.Identifier) bool {
 	})
 }
 
-// TestFetchListings checks what OpenFIGI answered for identifiers it maps.
+// TestFetchListings checks what OpenFIGI returned for identifiers it maps.
 func TestFetchListings(t *testing.T) {
 	tests := []struct {
 		cassette string
 		sent     types.Identifier
 		currency string
+		// filtered is what the call filtered on, sent where empty.
+		filtered types.Identifier
 		// every is named by every candidate; some by at least one.
 		every []types.Identifier
 		some  []types.Identifier
@@ -82,14 +84,15 @@ func TestFetchListings(t *testing.T) {
 		{
 			cassette: "mic_ticker",
 			sent:     types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XLON", Value: "VOD"},
-			every: []types.Identifier{
+			filtered: types.Identifier{Type: types.IdentifierTypeMicTicker, Value: "VOD"},
+			some: []types.Identifier{
 				{Type: types.IdentifierTypeOpenfigiShareClass, Value: "BBG001S6PJ31"},
 				{Type: types.IdentifierTypeOpenfigiComposite, Value: "BBG000C6K5W3"},
 				{Type: types.IdentifierTypeOpenfigiTicker, Domain: "LN", Value: "VOD"},
 				{Type: types.IdentifierTypeMicTicker, Domain: "XLON", Value: "VOD"},
+				{Type: types.IdentifierTypeMicTicker, Domain: "XNYS", Value: "VOD"},
 			},
-			n:     1,
-			class: gen.AssetClassStock,
+			n: 50,
 		},
 		{
 			cassette: "currency",
@@ -110,17 +113,20 @@ func TestFetchListings(t *testing.T) {
 				t.Fatalf("Fetch(%v) error = %v", tc.sent, err)
 			}
 			if len(got) != 1 {
-				t.Fatalf("Fetch(%v) answered %d results, want 1", tc.sent, len(got))
+				t.Fatalf("Fetch(%v) returned %d results, want 1", tc.sent, len(got))
 			}
 			if got[0].Err != nil {
 				t.Fatalf("Fetch(%v) job error = %v", tc.sent, got[0].Err)
 			}
 			r := got[0].Value
-			if diff := cmp.Diff([]types.Identifier{tc.sent}, r.Filtered); diff != "" {
+			if tc.filtered == (types.Identifier{}) {
+				tc.filtered = tc.sent
+			}
+			if diff := cmp.Diff([]types.Identifier{tc.filtered}, r.Filtered); diff != "" {
 				t.Errorf("Fetch(%v) filtered (-want +got):\n%s", tc.sent, diff)
 			}
 			if len(r.Candidates) != tc.n {
-				t.Errorf("Fetch(%v) answered %d candidates, want %d", tc.sent, len(r.Candidates), tc.n)
+				t.Errorf("Fetch(%v) returned %d candidates, want %d", tc.sent, len(r.Candidates), tc.n)
 			}
 			for _, c := range r.Candidates {
 				if c.Currency != tc.currency {

@@ -64,12 +64,14 @@ func TestCandidate(t *testing.T) {
 	}
 }
 
-func TestAnswer(t *testing.T) {
+func TestIdentity(t *testing.T) {
 	data := []result{listing("AAPL", "US"), listing("AAPL", "UW"), listing("AAPL", "UN"), listing("AAPL", "LN")}
 	tests := []struct {
 		name     string
 		sent     types.Identifier
 		currency string
+		// filtered is what the call filtered on, sent where empty.
+		filtered types.Identifier
 		exchs    []string
 	}{
 		{
@@ -83,9 +85,10 @@ func TestAnswer(t *testing.T) {
 			exchs: []string{"US", "UW", "UN", "LN"},
 		},
 		{
-			name:  "ticker at a venue keeps its listings",
-			sent:  types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "AAPL"},
-			exchs: []string{"UW"},
+			name:     "ticker at a venue keeps every listing",
+			sent:     types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "AAPL"},
+			filtered: types.Identifier{Type: types.IdentifierTypeMicTicker, Value: "AAPL"},
+			exchs:    []string{"US", "UW", "UN", "LN"},
 		},
 		{
 			name:     "currency filtered",
@@ -96,19 +99,22 @@ func TestAnswer(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got := answer(tc.sent, tc.currency, data, mics)
-			if diff := cmp.Diff([]types.Identifier{tc.sent}, got.Filtered); diff != "" {
-				t.Errorf("answer(%v) filtered (-want +got):\n%s", tc.sent, diff)
+			got := identity(tc.sent, tc.currency, data, mics)
+			if tc.filtered == (types.Identifier{}) {
+				tc.filtered = tc.sent
+			}
+			if diff := cmp.Diff([]types.Identifier{tc.filtered}, got.Filtered); diff != "" {
+				t.Errorf("identity(%v) filtered (-want +got):\n%s", tc.sent, diff)
 			}
 			var exchs []string
 			for _, c := range got.Candidates {
 				exchs = append(exchs, exchOf(c))
 				if c.Class != gen.AssetClassStock || c.Currency != tc.currency {
-					t.Errorf("answer(%v) candidate class %s, currency %q, want stock and %q", tc.sent, c.Class, c.Currency, tc.currency)
+					t.Errorf("identity(%v) candidate class %s, currency %q, want stock and %q", tc.sent, c.Class, c.Currency, tc.currency)
 				}
 			}
 			if diff := cmp.Diff(tc.exchs, exchs); diff != "" {
-				t.Errorf("answer(%v) listings (-want +got):\n%s", tc.sent, diff)
+				t.Errorf("identity(%v) listings (-want +got):\n%s", tc.sent, diff)
 			}
 		})
 	}

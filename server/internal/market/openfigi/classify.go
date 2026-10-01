@@ -27,7 +27,7 @@ func set(vals ...string) map[string]bool {
 // OpenFIGI named, the securityType, to what it implied, the market sector,
 // which OpenFIGI's guidance reads only where securityType2 is absent.
 //
-// An FX answer matches no rule and is unknown: a currency pair, swap or
+// An FX result matches no rule and is unknown: a currency pair, swap or
 // forward is not a currency held.
 var rules = []rule{
 	{

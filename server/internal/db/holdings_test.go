@@ -108,7 +108,11 @@ func TestListInstrumentHoldings(t *testing.T) {
 		}
 		idents, err := q.ListHeldIdentifiers(ctx, h.user.ID)
 		require.NoError(t, err)
-		wantIdents := []gen.Identifier{{InstrumentID: gbp.InstrumentID, Type: types.IdentifierTypeCurrency, Value: "GBP", Grain: gen.IdentifierGrainInstrument}}
+		// The pound instrument is named by every code of its family.
+		wantIdents := []gen.Identifier{
+			{InstrumentID: gbp.InstrumentID, Type: types.IdentifierTypeCurrency, Value: "GBP", Grain: gen.IdentifierGrainInstrument},
+			{InstrumentID: gbp.InstrumentID, Type: types.IdentifierTypeCurrency, Value: "GBX", Grain: gen.IdentifierGrainInstrument},
+		}
 		if diff := cmp.Diff(wantIdents, idents, ignoreRowIDs); diff != "" {
 			t.Errorf("ListHeldIdentifiers mismatch (-want +got):\n%s", diff)
 		}

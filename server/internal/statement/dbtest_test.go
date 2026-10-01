@@ -226,11 +226,11 @@ func TestIngest(t *testing.T) {
 	}
 
 	// Nothing the statement stated wrote an instrument.
-	var instruments, currencies int
+	var instruments, families int
 	require.NoError(t, s.tx.QueryRow(ctx, "SELECT count(*) FROM instruments").Scan(&instruments))
-	require.NoError(t, s.tx.QueryRow(ctx, "SELECT count(*) FROM currencies").Scan(&currencies))
-	if instruments != currencies {
-		t.Errorf("%d instruments, want the %d the migration seeds", instruments, currencies)
+	require.NoError(t, s.tx.QueryRow(ctx, "SELECT count(*) FROM currencies WHERE code = family").Scan(&families))
+	if instruments != families {
+		t.Errorf("%d instruments, want the %d the migration seeds", instruments, families)
 	}
 
 	children, err := s.q.ListChildRuns(ctx, gen.ListChildRunsParams{ParentID: &parent.ID, UserID: s.user.ID})
@@ -244,9 +244,33 @@ func TestIngest(t *testing.T) {
 	for _, r := range resolved {
 		outcomes[r.Outcome]++
 	}
-	wantOutcomes := map[gen.ResolutionOutcome]int{gen.ResolutionOutcomeMatched: 1, gen.ResolutionOutcomeRejected: 2, gen.ResolutionOutcomeUnresolved: 3}
+	wantOutcomes := map[gen.ResolutionOutcome]int{gen.ResolutionOutcomeMatched: 1, gen.ResolutionOutcomeRejected: 2, gen.ResolutionOutcomeUnrecognised: 3}
 	if diff := cmp.Diff(wantOutcomes, outcomes); diff != "" {
 		t.Errorf("resolution outcomes mismatch (-want +got):\n%s", diff)
+	}
+}
+
+// TestFamily checks that a cash key stating pence resolves to the pound
+// listing, since a listing is keyed by the currency family, and keeps the
+// code it stated.
+func TestFamily(t *testing.T) {
+	s := newStack(t)
+	ctx := context.Background()
+	parent := s.ingest(t, &statementv1.Statement{Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01",
+		Rows: []*statementv1.Row{rowMsg(cashKey("GBX"), "2026-03-05", "250")}})
+	keys, err := s.q.ListStatedKeys(ctx, gen.ListStatedKeysParams{StatementID: parent.ID, UserID: s.user.ID})
+	require.NoError(t, err)
+	require.Len(t, keys, 1)
+	gbp, err := s.q.GetInstrumentByIdentifier(ctx, gen.GetInstrumentByIdentifierParams{Type: types.IdentifierTypeCurrency, Value: "GBP"})
+	require.NoError(t, err)
+	line, err := s.q.GetListing(ctx, gen.GetListingParams{InstrumentID: gbp.Instrument.ID, Currency: "GBP"})
+	require.NoError(t, err)
+	k := keys[0]
+	if k.InstrumentID == nil || *k.InstrumentID != gbp.Instrument.ID || k.ListingID == nil || *k.ListingID != line.ID {
+		t.Errorf("the GBX key names instrument %v listing %v, want GBP's %s and %s", k.InstrumentID, k.ListingID, gbp.Instrument.ID, line.ID)
+	}
+	if k.Currency == nil || *k.Currency != "GBX" {
+		t.Errorf("the key states currency %v, want GBX as stated", k.Currency)
 	}
 }
 

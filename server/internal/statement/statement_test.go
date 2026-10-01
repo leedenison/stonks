@@ -29,6 +29,18 @@ var (
 	until = time.Date(2026, time.April, 1, 0, 0, 0, 0, time.UTC)
 )
 
+// currencies is the vocabulary the fixture's store lists, with GBX in the GBP
+// family.
+var currencies = []gen.Currency{{Code: "EUR", Family: "EUR"}, {Code: "GBP", Family: "GBP"}, {Code: "GBX", Family: "GBP"}, {Code: "USD", Family: "USD"}}
+
+func families() map[string]string {
+	out := map[string]string{}
+	for _, c := range currencies {
+		out[c.Code] = c.Family
+	}
+	return out
+}
+
 func ident(t typev1.IdentifierType, value, domain string) *typev1.Identifier {
 	return &typev1.Identifier{Type: t, Value: value, Domain: domain}
 }
@@ -62,7 +74,7 @@ func newFixture(t *testing.T) *fixture {
 	t.Cleanup(ctrl.Finish)
 	f := &fixture{store: NewMockStore(ctrl), runs: NewMockRunner(ctrl)}
 	f.store.EXPECT().Tx(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, fn func(Queries) error) error { return fn(f.store) }).AnyTimes()
-	f.store.EXPECT().ListCurrencies(gomock.Any()).Return([]string{"EUR", "GBP", "USD"}, nil).AnyTimes()
+	f.store.EXPECT().ListCurrencies(gomock.Any()).Return(currencies, nil).AnyTimes()
 	f.store.EXPECT().LockUserKeys(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 	f.store.EXPECT().ListGroupableKeys(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
 	f.store.EXPECT().ClearStatedKeyGroups(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
@@ -88,7 +100,7 @@ func newFixture(t *testing.T) *fixture {
 func newIngestion(t *testing.T) (*fixture, *ingestion) {
 	t.Helper()
 	f := newFixture(t)
-	return f, &ingestion{store: f.store, runs: f.runs, user: userID, broker: gen.BrokerIbkr, from: from, before: until, keys: map[uint64][]*key{}}
+	return f, &ingestion{store: f.store, runs: f.runs, user: userID, broker: gen.BrokerIbkr, from: from, before: until, families: families(), keys: map[uint64][]*key{}}
 }
 
 func TestCreateInvalid(t *testing.T) {
@@ -257,6 +269,12 @@ func TestResolveKey(t *testing.T) {
 		{name: "cash", key: cashKey("USD"), expect: func(f *fixture) gen.Listing {
 			return cashLine(f, "USD", nil)
 		}, outcome: gen.ResolutionOutcomeMatched},
+		{name: "cash in pence names the pound listing", key: cashKey("GBX"), expect: func(f *fixture) gen.Listing {
+			l := gen.Listing{ID: db.NewID(), InstrumentID: cash.Instrument.ID, Currency: "GBP"}
+			f.store.EXPECT().GetInstrumentByIdentifier(gomock.Any(), byCurrency("GBX")).Return(cash, nil)
+			f.store.EXPECT().GetListing(gomock.Any(), gen.GetListingParams{InstrumentID: cash.Instrument.ID, Currency: "GBP"}).Return(l, nil)
+			return l
+		}, outcome: gen.ResolutionOutcomeMatched},
 		{name: "cash in a currency it has no line in", key: &typev1.StatedKey{Identifiers: cashKey("USD").Identifiers, AssetClass: typev1.AssetClass_ASSET_CLASS_CASH, Currency: &eur}, expect: func(f *fixture) gen.Listing {
 			cashLine(f, "EUR", db.ErrNotFound)
 			return gen.Listing{}
@@ -273,9 +291,9 @@ func TestResolveKey(t *testing.T) {
 			f.store.EXPECT().GetInstrumentByIdentifier(gomock.Any(), byCurrency("USD")).Return(cash, nil)
 			return gen.Listing{InstrumentID: cash.Instrument.ID}
 		}, outcome: gen.ResolutionOutcomeMatched, noListing: true},
-		{name: "a description alone", key: securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd), outcome: gen.ResolutionOutcomeUnresolved},
-		{name: "an isin and a description", key: securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, "US0378331005", "")), outcome: gen.ResolutionOutcomeUnresolved},
-		{name: "a ticker with no venue", key: securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, "ACME", "")), outcome: gen.ResolutionOutcomeUnresolved},
+		{name: "a description alone", key: securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd), outcome: gen.ResolutionOutcomeUnrecognised},
+		{name: "an isin and a description", key: securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, "US0378331005", "")), outcome: gen.ResolutionOutcomeUnrecognised},
+		{name: "a ticker with no venue", key: securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, "ACME", "")), outcome: gen.ResolutionOutcomeUnrecognised},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

@@ -172,12 +172,12 @@ func TestGetRun(t *testing.T) {
 			kind: gen.RunKindResolution,
 			expect: func(r *mock.MockReaderMockRecorder) {
 				r.ListResolutionItems(gomock.Any(), runID).Return([]gen.ListResolutionItemsRow{{
-					ResolutionKey: gen.ResolutionKey{StatedKeyID: keyID, Outcome: gen.ResolutionOutcomeUnresolved}, StatedKey: key,
+					ResolutionKey: gen.ResolutionKey{StatedKeyID: keyID, Outcome: gen.ResolutionOutcomeUnrecognised}, StatedKey: key,
 				}}, nil)
 			},
 			want: func(out *adminv1.GetRunResponse) {
 				out.ResolutionItems = []*adminv1.ResolutionItem{{
-					StatedKey: keyMsg, StatedKeyId: keyID.String(), Outcome: adminv1.ResolutionOutcome_RESOLUTION_OUTCOME_UNRESOLVED,
+					StatedKey: keyMsg, StatedKeyId: keyID.String(), Outcome: adminv1.ResolutionOutcome_RESOLUTION_OUTCOME_UNRECOGNISED,
 				}}
 			},
 		},

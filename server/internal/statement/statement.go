@@ -71,17 +71,19 @@ func (s *Service) Create(ctx context.Context, userID uuid.UUID, msg *statementv1
 	if !from.Before(before) {
 		return gen.Run{}, fmt.Errorf("%w: period [%s, %s) is empty", ErrInvalid, msg.GetOrderFrom(), msg.GetOrderBefore())
 	}
-	codes, err := s.store.ListCurrencies(ctx)
+	rows, err := s.store.ListCurrencies(ctx)
 	if err != nil {
 		return gen.Run{}, fmt.Errorf("list currencies: %w", err)
 	}
-	currencies := make(map[string]bool, len(codes))
-	for _, c := range codes {
-		currencies[c] = true
+	currencies := make(map[string]bool, len(rows))
+	families := make(map[string]string, len(rows))
+	for _, c := range rows {
+		currencies[c.Code] = true
+		families[c.Code] = c.Family
 	}
 	now := s.clock().UTC()
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
-	g := &ingestion{store: s.store, runs: s.runs, user: userID, broker: broker, from: from, before: before, keys: map[uint64][]*key{}}
+	g := &ingestion{store: s.store, runs: s.runs, user: userID, broker: broker, from: from, before: before, families: families, keys: map[uint64][]*key{}}
 	for i, r := range msg.GetRows() {
 		g.rows = append(g.rows, g.validate(int32(i), r, today, currencies))
 	}
@@ -106,6 +108,9 @@ type ingestion struct {
 	before time.Time
 	rows   []row
 	splits []split
+	// families maps each currency code to its family, the code a listing is
+	// keyed by.
+	families map[string]string
 	// keys holds each distinct stated key under its hash, and order lists
 	// them by first appearance.
 	keys  map[uint64][]*key
