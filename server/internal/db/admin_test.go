@@ -96,12 +96,12 @@ func TestRunItems(t *testing.T) {
 	key := newStatedKey(t, q, user, statement)
 
 	require.NoError(t, q.CreateResolutionKey(ctx, gen.CreateResolutionKeyParams{
-		RunID: parent.ID, UserID: user.ID, StatedKeyID: key.ID, Outcome: gen.ResolutionOutcomeUnresolved,
+		RunID: parent.ID, UserID: user.ID, StatedKeyID: key.ID, Outcome: gen.ResolutionOutcomeUnrecognised,
 	}))
 	resolved, err := q.ListResolutionItems(ctx, parent.ID)
 	require.NoError(t, err)
-	if len(resolved) != 1 || resolved[0].StatedKey.ID != key.ID || resolved[0].ResolutionKey.Outcome != gen.ResolutionOutcomeUnresolved {
-		t.Errorf("ListResolutionItems = %+v, want the unresolved key", resolved)
+	if len(resolved) != 1 || resolved[0].StatedKey.ID != key.ID || resolved[0].ResolutionKey.Outcome != gen.ResolutionOutcomeUnrecognised {
+		t.Errorf("ListResolutionItems = %+v, want the unrecognised key", resolved)
 	}
 
 	fetch := newFetch(t, q, user, parent, newDatasource(t, q, "admin-items", 10))

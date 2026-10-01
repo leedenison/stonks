@@ -120,7 +120,8 @@ func TestStatements(t *testing.T) {
 	}
 }
 
-// TestResolutionKeys checks that only a rejection carries a reason.
+// TestResolutionKeys checks that a rejection always carries a reason, a match
+// never does, and an unresolved outcome may.
 func TestResolutionKeys(t *testing.T) {
 	ctx := context.Background()
 	q := newTx(t)
@@ -134,17 +135,18 @@ func TestResolutionKeys(t *testing.T) {
 		require.NoError(t, err)
 		return key
 	}
-	matched, rejected := newKey(), newKey()
+	matched, rejected, unrecognised := newKey(), newKey(), newKey()
 
 	require.NoError(t, q.CreateResolutionKey(ctx, gen.CreateResolutionKeyParams{RunID: resolution.ID, UserID: user.ID, StatedKeyID: matched.ID, Outcome: gen.ResolutionOutcomeMatched}))
 	require.NoError(t, q.CreateResolutionKey(ctx, gen.CreateResolutionKeyParams{RunID: resolution.ID, UserID: user.ID, StatedKeyID: rejected.ID, Outcome: gen.ResolutionOutcomeRejected, Reason: ptr.To("no currency")}))
+	require.NoError(t, q.CreateResolutionKey(ctx, gen.CreateResolutionKeyParams{RunID: resolution.ID, UserID: user.ID, StatedKeyID: unrecognised.ID, Outcome: gen.ResolutionOutcomeUnrecognised, Reason: ptr.To("nothing named it")}))
 	keys, err := q.ListResolutionKeys(ctx, gen.ListResolutionKeysParams{RunID: resolution.ID, UserID: user.ID})
 	require.NoError(t, err)
-	if len(keys) != 2 {
-		t.Fatalf("ListResolutionKeys = %d rows, want 2", len(keys))
+	if len(keys) != 3 {
+		t.Fatalf("ListResolutionKeys = %d rows, want 3", len(keys))
 	}
-	if keys[0].StatedKeyID != matched.ID || keys[0].Outcome != gen.ResolutionOutcomeMatched || keys[1].Reason == nil {
-		t.Errorf("ListResolutionKeys = %+v, want the matched key then the rejected one with its reason", keys)
+	if keys[0].StatedKeyID != matched.ID || keys[0].Outcome != gen.ResolutionOutcomeMatched || keys[1].Reason == nil || keys[2].Outcome != gen.ResolutionOutcomeUnrecognised || keys[2].Reason == nil {
+		t.Errorf("ListResolutionKeys = %+v, want the matched key, then the rejected and unrecognised ones with their reasons", keys)
 	}
 
 	tests := []struct {
@@ -153,7 +155,6 @@ func TestResolutionKeys(t *testing.T) {
 	}{
 		{name: "rejected without a reason", arg: gen.CreateResolutionKeyParams{Outcome: gen.ResolutionOutcomeRejected}},
 		{name: "matched with a reason", arg: gen.CreateResolutionKeyParams{Outcome: gen.ResolutionOutcomeMatched, Reason: ptr.To("x")}},
-		{name: "unresolved with a reason", arg: gen.CreateResolutionKeyParams{Outcome: gen.ResolutionOutcomeUnresolved, Reason: ptr.To("x")}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

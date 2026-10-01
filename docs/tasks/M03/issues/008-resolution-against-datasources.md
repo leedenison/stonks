@@ -13,10 +13,10 @@ In:
 
 - Admitting ISIN, CUSIP and MIC_TICKER stated keys to resolution. A ticker without a
   venue may be sent to a datasource but never associates.
-- OpenFIGI answering a MIC_TICKER whose venue filter leaves no listing with every listing
-  of the ticker, and the venue dropped from what the call filtered on. A venue that no
-  OpenFIGI exchange code maps to alone, or a statement naming the wrong venue, then
-  leaves the choice to resolution rather than the key unrecognised.
+- OpenFIGI filtering a MIC_TICKER on its ticker alone, answering every venue with the
+  venue dropped from what the call filtered on. The stated venue chooses the composite it
+  belongs to; a venue that no OpenFIGI exchange code maps to alone, or a statement naming
+  the wrong venue, leaves the choice to ranking rather than the key unrecognised.
 - The order: the database, then the keys already resolved in the run, then every enabled
   datasource concurrently, each as a fetch with the resolution as parent. The database
   answers for a datasource only where that datasource has covered the instrument, so a
@@ -30,8 +30,9 @@ In:
   each group is one instrument and the groups are what compete. A call strictly filtered
   on an instrument-grain identifier answers about one instrument, so its candidates are
   one group whether or not they return that identifier.
-- Collapsing each group to one listing per currency family. Venues are fungible within a
-  listing, so candidates differing only on venue describe one listing. A group spanning
+- Collapsing each group to one listing per currency family. Candidates sharing a
+  composite describe one listing, as do candidates in one family with no composite, and
+  every composite and venue ticker of the group is stored on the listing. A group spanning
   several families resolves to the stated family's listing, or, where the source stated
   none, to the instrument without a listing.
 - Choosing among the groups that compete: dropping those that do not name the queried

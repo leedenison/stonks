@@ -15,9 +15,9 @@ enum RunKind {
   RUN_KIND_UNSPECIFIED = 0;
   // Ingests one batch of transactions.
   RUN_KIND_STATEMENT = 1;
-  // Answers the stated keys of a statement.
+  // Resolves the stated keys of a statement.
   RUN_KIND_RESOLUTION = 2;
-  // Asks one datasource for one kind of data.
+  // Requests one kind of data from one datasource.
   RUN_KIND_FETCH = 3;
 }
 
