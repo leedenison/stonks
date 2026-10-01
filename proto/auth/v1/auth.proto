@@ -12,8 +12,8 @@ import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/leedenison/stonks/proto/auth/v1;authv1";
 
-// What a user may act on: every user their own data, an admin also the data
-// shared by all users.
+// The scope of a user's actions: every user their own data, an admin also the
+// data shared by all users.
 enum Role {
   ROLE_UNSPECIFIED = 0;
   ROLE_USER = 1;
@@ -24,7 +24,7 @@ enum Role {
 message User {
   // Identifies the user in every API; a UUID.
   string id = 1;
-  // The Google-verified email from which the account was created.
+  // The Google-verified email behind the account.
   string email = 2;
   // The display name Google reported at sign-in; empty when it reported none.
   string name = 3;
@@ -46,7 +46,7 @@ message SignInRequest {
 }
 
 message SignInResponse {
-  // The account the token yielded.
+  // The signed-in account.
   User user = 1;
   // The session started for it.
   Session session = 2;

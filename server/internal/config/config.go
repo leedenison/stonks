@@ -40,9 +40,9 @@ type Config struct {
 	// collector's OTLP/HTTP receiver, such as "http://otel-collector:4318".
 	// Default empty, which exports no traces or metrics.
 	OTLPEndpoint string
-	// Environment is STONKS_ENVIRONMENT, this process's deployment, reported
-	// as the deployment.environment.name resource attribute. Default
-	// "development".
+	// Environment is STONKS_ENVIRONMENT, the deployment hosting this process,
+	// reported as the deployment.environment.name resource attribute.
+	// Default "development".
 	Environment string
 }
 

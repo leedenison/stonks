@@ -67,7 +67,7 @@ message FetchItem {
   FetchOutcome outcome = 3;
   // The number of calls that carried the key.
   int32 attempts = 4;
-  // The identifier sent for the key; unset when it was not served.
+  // The identifier that carried the key; unset when it was not served.
   stonks.type.v1.Identifier sent = 5;
   // The datasource's error; unset when the key was served.
   optional string reason = 6;

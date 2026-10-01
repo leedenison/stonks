@@ -1,6 +1,6 @@
 // Package migrations holds the schema as goose-format SQL, embedded in the
 // binary and applied by the service as it starts. cmd/migrate applies it to a
-// database the service is not running against, such as the test stack's.
+// database with no running service, such as the test stack's.
 //
 // Migrations run under a Postgres session lock, so concurrent replicas cannot
 // race; the lock is held for the duration. A failed migration stops the service.

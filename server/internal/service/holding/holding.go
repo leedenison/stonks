@@ -4,7 +4,7 @@
 // through the caller's own keys, so another user's never contribute, and a
 // caller with none is answered with empty lists rather than not found. A
 // resolved key is summed into its instrument, and an unresolved one into the
-// group whose keys state what it states.
+// group sharing its stated data.
 package holding
 
 import (
@@ -63,8 +63,8 @@ func (s *Server) ListHoldings(ctx context.Context, _ *connect.Request[holdingv1.
 	return connect.NewResponse(res), nil
 }
 
-// instruments answers the holdings of the instruments to which the user's
-// keys resolved, each named by every identifier naming it.
+// instruments answers the holdings of the instruments resolved from the
+// user's keys, each named by every identifier naming it.
 func (s *Server) instruments(ctx context.Context, user uuid.UUID) ([]*holdingv1.InstrumentHolding, error) {
 	rows, err := s.reader.ListInstrumentHoldings(ctx, user)
 	if err != nil || len(rows) == 0 {

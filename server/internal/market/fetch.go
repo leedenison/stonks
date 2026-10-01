@@ -142,7 +142,7 @@ func fetch[Q, P any](ctx context.Context, f *Fetcher, row gen.Run, e *Entry, kin
 }
 
 // fetchChunk sends the requests of batch and fills their results. It returns the
-// blocks its failures call for, which are written once their fetch keys exist.
+// blocks its failures require, which are written once their fetch keys exist.
 func fetchChunk[Q, P any](ctx context.Context, f *Fetcher, e *Entry, s Server[Q, P], results []Result[Q, P], batch []int) []gen.CreateDatasourceBlockParams {
 	reqs := make([]Request[Q], len(batch))
 	for n, i := range batch {
@@ -177,8 +177,8 @@ func fetchChunk[Q, P any](ctx context.Context, f *Fetcher, e *Entry, s Server[Q,
 }
 
 // requestFailed records a failure of the request itself against every key it
-// carried. A block rests on what the integration says the failure concerned:
-// the whole datasource, or each identifier the request named.
+// carried. A block rests on the integration's account of the failure: the
+// whole datasource, or each identifier the request named.
 func requestFailed[Q, P any](fail Failure, err error, results []Result[Q, P], batch []int, attempts int) []gen.CreateDatasourceBlockParams {
 	outcome := gen.FetchOutcomeFailedPermanent
 	if fail.Temporary {

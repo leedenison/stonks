@@ -18,7 +18,7 @@ function db(): Pool {
   return pool;
 }
 
-// seedUser creates a user with an invented identity that collides with no
+// seedUser creates a user with an invented identity distinct from every
 // other spec's, and returns it.
 export async function seedUser(role: Role = "user"): Promise<SeededUser> {
   const tag = randomUUID();

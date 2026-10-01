@@ -22,7 +22,7 @@ $$;
 CREATE TYPE user_role AS ENUM ('user', 'admin');
 
 -- A user is a person with an account, identified internally by a UUID and
--- externally by the Google account they used to sign in.
+-- externally by their Google account.
 CREATE TABLE users (
     id             uuid        PRIMARY KEY DEFAULT uuid_v7(),
     -- The stable identifier of the Google account; null until the account's

@@ -107,8 +107,8 @@ func TestListUserRuns(t *testing.T) {
 	}
 }
 
-// TestRunItems checks that the items of a resolution and of a fetch carry the
-// stated key each is about.
+// TestRunItems checks that the items of a resolution and of a fetch each carry
+// their stated key.
 func TestRunItems(t *testing.T) {
 	ctx := context.Background()
 	q := newTx(t)

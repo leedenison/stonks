@@ -378,7 +378,7 @@ func (w *writer) associate(ctx context.Context, res *resolution, families func(s
 	return true, nil
 }
 
-// via returns the identifier res associates through: the strongest it
+// via returns the identifier carrying res's association: the strongest it
 // stated that identifies the instrument, else a venue ticker of the chosen
 // listing, else a venue ticker of the instrument.
 func (w *writer) via(res *resolution, listing *uuid.UUID) (gen.Identifier, bool) {

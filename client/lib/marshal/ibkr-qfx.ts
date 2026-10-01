@@ -47,7 +47,7 @@ import { mediaType } from "./media";
 import { buildOcc, isOcc } from "./occ";
 
 // The types a browser reports for a QFX file: the registered one, and the
-// OFX one to which some systems map the extension.
+// OFX one that some systems assign to the extension.
 const TYPES = new Set(["application/vnd.intu.qfx", "application/x-ofx"]);
 
 // An IBKR account is a U followed by digits, or DU for a paper account.

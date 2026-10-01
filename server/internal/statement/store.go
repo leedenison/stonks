@@ -13,7 +13,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/run"
 )
 
-// Queries is the view of the generated queries this package depends on.
+// Queries is this package's view of the generated queries.
 type Queries interface {
 	CreateStatement(ctx context.Context, arg gen.CreateStatementParams) (gen.Statement, error)
 	CreateStatedKey(ctx context.Context, arg gen.CreateStatedKeyParams) (gen.StatedKey, error)
@@ -40,7 +40,7 @@ type Store interface {
 
 var _ Store = (*db.DB[Queries])(nil)
 
-// Runner is the view of the run framework this package depends on.
+// Runner is this package's view of the run framework.
 type Runner interface {
 	Start(ctx context.Context, spec run.Spec, work run.Work) (gen.Run, error)
 	Child(ctx context.Context, parent gen.Run, kind gen.RunKind, work run.Work) (gen.Run, error)
@@ -48,7 +48,7 @@ type Runner interface {
 
 var _ Runner = (*run.Runner)(nil)
 
-// Resolver is the view of the resolve package this package depends on: the
+// Resolver is this package's view of the resolve package: the
 // body of a resolution run over the stated keys of a statement, with an
 // outcome per key in their order.
 type Resolver interface {

@@ -54,8 +54,8 @@ func newIdentifier(t *testing.T, q *gen.Queries, instrument gen.Instrument, isin
 	return row
 }
 
-// cashListing returns the listing against which money in currency is held,
-// the currency instrument's listing in itself, and the identifier naming it.
+// cashListing returns the listing that holds money in currency, the currency
+// instrument's listing in itself, and the identifier naming it.
 func cashListing(t *testing.T, q *gen.Queries, currency string) (gen.Listing, gen.Identifier) {
 	t.Helper()
 	ctx := context.Background()

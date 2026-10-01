@@ -18,8 +18,8 @@ const itemClass =
   "flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-text-primary transition-colors hover:bg-primary-light/15";
 
 // Menu is a dropdown under its trigger. It closes on Escape, on a click
-// outside, when an item is chosen and on navigation: the open state is the
-// route where it was opened, so a route change closes it by derivation.
+// outside, when an item is chosen and on navigation: the open state holds
+// the route current at opening, so a route change closes it by derivation.
 export function Menu({
   label,
   testId,

@@ -63,8 +63,8 @@ func union(parent map[uuid.UUID]uuid.UUID, a, b uuid.UUID) {
 }
 
 // groups partitions keys into groups and returns the group of each: the id
-// of the earliest key sharing an identifier or a description with it,
-// however many keys the chain runs through.
+// of the earliest key sharing an identifier or a description with it, however
+// many keys the chain runs through.
 func groups(keys []gen.ListGroupableKeysRow) map[uuid.UUID]uuid.UUID {
 	parent := make(map[uuid.UUID]uuid.UUID, len(keys))
 	for _, r := range keys {

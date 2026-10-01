@@ -6,8 +6,8 @@ import {
   type StatedKey,
 } from "@/gen/type/v1/type_pb";
 
-// RunFilters is the filters the runs page applies, as held in its address.
-// An empty string matches everything.
+// RunFilters is the runs page's filters, as held in its address. An
+// empty string matches everything.
 export type RunFilters = {
   kind: string;
   trigger: string;
@@ -94,8 +94,8 @@ export function fromParam(
   return typeof v === "number" && v !== 0 ? v : undefined;
 }
 
-// ListParams is the parameters the findings and blocks pages apply, as held
-// in their address.
+// ListParams is the findings and blocks pages' filters, as held in their
+// address.
 export type ListParams = { cleared: boolean; before: string };
 
 export function readList(params: URLSearchParams): ListParams {

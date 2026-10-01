@@ -54,7 +54,7 @@ type Authenticator interface {
 	Authenticate(ctx context.Context, sessionID string) (auth.Principal, error)
 }
 
-// HandlerOptions returns the options for mounting every handler. It fails
+// HandlerOptions returns the options shared by every handler. It fails
 // only if the telemetry interceptor cannot build its instruments.
 func HandlerOptions(log *slog.Logger, authn Authenticator) ([]connect.HandlerOption, error) {
 	traceRPC, err := otelconnect.NewInterceptor(

@@ -76,7 +76,7 @@ func keyOf(f *fake, value string) gen.StatedKey {
 	return k
 }
 
-// unservedKey returns a key the fake does not serve.
+// unservedKey returns a key that the fake leaves unserved.
 func unservedKey() gen.StatedKey { return gen.StatedKey{ID: db.NewID()} }
 
 func (h *harness) run(t *testing.T, keys ...gen.StatedKey) []Result[gen.StatedKey, IdentityResult] {
@@ -173,7 +173,7 @@ func TestFetchRetries(t *testing.T) {
 }
 
 // TestFetchRetriesExhausted checks that a temporary failure that never clears
-// becomes a block on the identifiers sent.
+// becomes a block on the identifiers it carried.
 func TestFetchRetriesExhausted(t *testing.T) {
 	f := &fake{errs: []error{temporary("503"), temporary("503"), temporary("503")}}
 	h := newHarness(t, f, nil)

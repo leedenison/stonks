@@ -9,8 +9,8 @@ import (
 	"github.com/leedenison/stonks/server/internal/run"
 )
 
-// Store is the view of the generated queries this package depends on. No
-// write of a fetch depends on another, so the package needs no transaction.
+// Store is this package's view of the generated queries. No write of a fetch
+// depends on another, so the package needs no transaction.
 type Store interface {
 	ListDatasources(ctx context.Context) ([]gen.Datasource, error)
 	ListOpenBlocks(ctx context.Context, arg gen.ListOpenBlocksParams) ([]gen.DatasourceBlock, error)
@@ -21,7 +21,7 @@ type Store interface {
 
 var _ Store = (*gen.Queries)(nil)
 
-// Runner is the view of the run framework this package depends on.
+// Runner is this package's view of the run framework.
 type Runner interface {
 	Child(ctx context.Context, parent gen.Run, kind gen.RunKind, work run.Work) (gen.Run, error)
 }

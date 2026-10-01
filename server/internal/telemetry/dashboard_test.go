@@ -109,8 +109,8 @@ func dashboards(t *testing.T) map[string]dashboard {
 	return out
 }
 
-// TestDashboardsNameADeclaredDatasource is why the fixed uid exists: where a
-// panel names a uid nothing provisions, it renders as an error rather than as
+// TestDashboardsNameADeclaredDatasource is the reason the fixed uid exists:
+// a panel naming a uid nothing provisions renders as an error rather than as
 // no data.
 func TestDashboardsNameADeclaredDatasource(t *testing.T) {
 	uids := declaredUIDs(t)
