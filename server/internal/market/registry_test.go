@@ -134,3 +134,41 @@ func TestRegistryStoreFails(t *testing.T) {
 		t.Error("New() with an unreadable table: err = nil, want an error")
 	}
 }
+
+// TestRegistryReload checks that a reload replaces the entries, keeps a
+// datasource's limiter, and leaves the entries as they were when it fails.
+func TestRegistryReload(t *testing.T) {
+	ctx := context.Background()
+	ctrl := gomock.NewController(t)
+	t.Cleanup(ctrl.Finish)
+	store := NewMockStore(ctrl)
+	factories := map[string]Factory{"one": factoryOf(&fake{}), "two": factoryOf(&fake{})}
+	store.EXPECT().ListDatasources(gomock.Any()).Return([]gen.Datasource{row("one", true, 10)}, nil)
+	r, err := New(ctx, store, factories, discard())
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	before := r.Enabled()[0].limiter
+	if !r.Carries("two") || r.Carries("absent") {
+		t.Errorf("Carries(two) = %v, Carries(absent) = %v, want true and false", r.Carries("two"), r.Carries("absent"))
+	}
+
+	store.EXPECT().ListDatasources(gomock.Any()).Return([]gen.Datasource{row("two", true, 5), row("one", true, 10)}, nil)
+	if err := r.Reload(ctx); err != nil {
+		t.Fatalf("Reload() error = %v", err)
+	}
+	if got := r.Names(); len(got) != 2 || got[0] != "two" || got[1] != "one" {
+		t.Errorf("Names() after reload = %v, want [two one]", got)
+	}
+	if r.Enabled()[1].limiter != before {
+		t.Error("the limiter of one was replaced by the reload, want it kept")
+	}
+
+	store.EXPECT().ListDatasources(gomock.Any()).Return([]gen.Datasource{row("absent", true, 1)}, nil)
+	if err := r.Reload(ctx); err == nil {
+		t.Error("Reload() with an enabled row the build lacks: err = nil, want an error")
+	}
+	if got := r.Names(); len(got) != 2 {
+		t.Errorf("Names() after a failed reload = %v, want the two kept", got)
+	}
+}

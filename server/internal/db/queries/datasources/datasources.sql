@@ -80,8 +80,25 @@ WHERE fetch_keys.fetch_id = $1
 ORDER BY fetch_keys.id;
 
 -- name: ListDatasourceSettings :many
-SELECT name, enabled, precedence, endpoint FROM datasources
+SELECT name, enabled, precedence, endpoint, (credential IS NOT NULL)::bool AS has_credential
+FROM datasources
 ORDER BY precedence, name;
+
+-- name: UpdateDatasource :one
+-- A NULL credential keeps the one held and an empty one clears it.
+UPDATE datasources
+SET enabled = @enabled,
+    endpoint = sqlc.narg(endpoint),
+    credential = CASE WHEN sqlc.narg(credential)::text IS NULL THEN credential
+                      WHEN sqlc.narg(credential)::text = '' THEN NULL
+                      ELSE sqlc.narg(credential)::text END
+WHERE name = @name
+RETURNING *;
+
+-- name: SetDatasourcePrecedence :exec
+UPDATE datasources SET precedence = v.precedence
+FROM (SELECT unnest(@names::text[]) AS name, unnest(@precedences::int[]) AS precedence) AS v
+WHERE datasources.name = v.name;
 
 -- name: ListBlocks :many
 SELECT sqlc.embed(datasource_blocks), fetch_keys.fetch_id

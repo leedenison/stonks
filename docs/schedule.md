@@ -27,14 +27,14 @@ of open issues and ADRs at `docs/tasks/<label>/`.
 
 ```
 001 open
- |                      |
-008 resolution          010 e2e stub
- |       |        |     |
- |       |        +--+--+
- |       |           |
-009  013 descr   011 browser
- |       |           |
- +-------+-----+-----+
+ |                      |              |
+008 resolution          010 e2e stub   014 datasources
+ |       |        |     |              |
+ |       |        +--+--+              |
+ |       |           |                 |
+009  013 descr   011 browser           |
+ |       |           |                 |
+ +-------+-----+-----+-----------------+
                |
            002 close
 ```

@@ -43,8 +43,9 @@ var (
 )
 
 type fixture struct {
-	reader *mock.MockReader
-	client adminv1connect.AdminServiceClient
+	reader  *mock.MockReader
+	sources *mock.MockSources
+	client  adminv1connect.AdminServiceClient
 }
 
 // newFixture mounts a Server with the real handler chain, and a client whose
@@ -55,10 +56,10 @@ func newFixture(t *testing.T) *fixture {
 	t.Cleanup(ctrl.Finish)
 	authn := servicemock.NewMockAuthenticator(ctrl)
 	authn.EXPECT().Authenticate(gomock.Any(), servicetest.Session).Return(principal, nil).AnyTimes()
-	f := &fixture{reader: mock.NewMockReader(ctrl)}
+	f := &fixture{reader: mock.NewMockReader(ctrl), sources: mock.NewMockSources(ctrl)}
 	opts := servicetest.Options(t, authn)
 	srv := servicetest.Serve(t, func(mux *http.ServeMux) {
-		mux.Handle(adminv1connect.NewAdminServiceHandler(New(f.reader), opts...))
+		mux.Handle(adminv1connect.NewAdminServiceHandler(New(f.reader, f.sources), opts...))
 	})
 	f.client = adminv1connect.NewAdminServiceClient(srv.Client, srv.URL)
 	return f
@@ -331,7 +332,7 @@ func TestClearFinding(t *testing.T) {
 func TestListDatasources(t *testing.T) {
 	f := newFixture(t)
 	f.reader.EXPECT().ListDatasourceSettings(gomock.Any()).Return([]gen.ListDatasourceSettingsRow{
-		{Name: "openfigi", Enabled: true, Precedence: 10, Endpoint: ptr.To("http://stub")},
+		{Name: "openfigi", Enabled: true, Precedence: 10, Endpoint: ptr.To("http://stub"), HasCredential: true},
 		{Name: "other", Precedence: 20},
 	}, nil)
 	res, err := f.client.ListDatasources(context.Background(), connect.NewRequest(&adminv1.ListDatasourcesRequest{}))
@@ -339,11 +340,107 @@ func TestListDatasources(t *testing.T) {
 		t.Fatalf("ListDatasources() error = %v", err)
 	}
 	want := &adminv1.ListDatasourcesResponse{Datasources: []*adminv1.Datasource{
-		{Name: "openfigi", Enabled: true, Precedence: 10, Endpoint: ptr.To("http://stub")},
+		{Name: "openfigi", Enabled: true, Precedence: 10, Endpoint: ptr.To("http://stub"), HasCredential: true},
 		{Name: "other", Precedence: 20},
 	}}
 	if diff := cmp.Diff(want, res.Msg, protocmp.Transform()); diff != "" {
 		t.Errorf("ListDatasources() mismatch (-want +got):\n%s", diff)
+	}
+}
+
+// TestUpdateDatasource checks that a change is written and the registry
+// reloaded, that the credential never comes back, and what is refused.
+func TestUpdateDatasource(t *testing.T) {
+	tests := []struct {
+		name     string
+		req      *adminv1.UpdateDatasourceRequest
+		carries  bool
+		wantArg  *gen.UpdateDatasourceParams
+		row      gen.Datasource
+		err      error
+		want     *adminv1.Datasource
+		wantCode connect.Code
+	}{
+		{
+			name:    "enabled with an endpoint and a credential",
+			req:     &adminv1.UpdateDatasourceRequest{Name: "openfigi", Enabled: true, Endpoint: ptr.To("http://stub"), Credential: ptr.To("secret")},
+			carries: true,
+			wantArg: &gen.UpdateDatasourceParams{Name: "openfigi", Enabled: true, Endpoint: ptr.To("http://stub"), Credential: ptr.To("secret")},
+			row:     gen.Datasource{Name: "openfigi", Enabled: true, Precedence: 10, Endpoint: ptr.To("http://stub"), Credential: ptr.To("secret")},
+			want:    &adminv1.Datasource{Name: "openfigi", Enabled: true, Precedence: 10, Endpoint: ptr.To("http://stub"), HasCredential: true},
+		},
+		{
+			name:    "disabled with the endpoint cleared",
+			req:     &adminv1.UpdateDatasourceRequest{Name: "absent", Endpoint: ptr.To("")},
+			wantArg: &gen.UpdateDatasourceParams{Name: "absent"},
+			row:     gen.Datasource{Name: "absent", Precedence: 20},
+			want:    &adminv1.Datasource{Name: "absent", Precedence: 20},
+		},
+		{
+			name:     "enabling an integration the build lacks",
+			req:      &adminv1.UpdateDatasourceRequest{Name: "absent", Enabled: true},
+			wantCode: connect.CodeFailedPrecondition,
+		},
+		{
+			name:     "no such datasource",
+			req:      &adminv1.UpdateDatasourceRequest{Name: "gone"},
+			wantArg:  &gen.UpdateDatasourceParams{Name: "gone"},
+			err:      db.ErrNotFound,
+			wantCode: connect.CodeNotFound,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFixture(t)
+			f.sources.EXPECT().Carries(tc.req.GetName()).Return(tc.carries).AnyTimes()
+			if tc.wantArg != nil {
+				f.reader.EXPECT().UpdateDatasource(gomock.Any(), *tc.wantArg).Return(tc.row, tc.err)
+			}
+			if tc.want != nil {
+				f.sources.EXPECT().Reload(gomock.Any()).Return(nil)
+			}
+			res, err := f.client.UpdateDatasource(context.Background(), connect.NewRequest(tc.req))
+			if (err != nil) != (tc.wantCode != 0) || (err != nil && connect.CodeOf(err) != tc.wantCode) {
+				t.Fatalf("UpdateDatasource() error = %v, want code %v", err, tc.wantCode)
+			}
+			if tc.want == nil {
+				return
+			}
+			if diff := cmp.Diff(&adminv1.UpdateDatasourceResponse{Datasource: tc.want}, res.Msg, protocmp.Transform()); diff != "" {
+				t.Errorf("UpdateDatasource() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+// TestReorderDatasources checks that the position becomes the precedence and
+// that a list naming the datasources wrongly is refused.
+func TestReorderDatasources(t *testing.T) {
+	rows := []gen.Datasource{{Name: "alpha", Precedence: 1}, {Name: "beta", Precedence: 2}}
+	tests := []struct {
+		name     string
+		names    []string
+		wantArg  *gen.SetDatasourcePrecedenceParams
+		wantCode connect.Code
+	}{
+		{name: "reversed", names: []string{"beta", "alpha"}, wantArg: &gen.SetDatasourcePrecedenceParams{Names: []string{"beta", "alpha"}, Precedences: []int32{1, 2}}},
+		{name: "one named twice", names: []string{"beta", "beta"}, wantCode: connect.CodeInvalidArgument},
+		{name: "one left out", names: []string{"beta"}, wantCode: connect.CodeInvalidArgument},
+		{name: "one that is no datasource", names: []string{"beta", "alpha", "gamma"}, wantCode: connect.CodeInvalidArgument},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFixture(t)
+			f.reader.EXPECT().ListDatasources(gomock.Any()).Return(rows, nil)
+			if tc.wantArg != nil {
+				f.reader.EXPECT().SetDatasourcePrecedence(gomock.Any(), *tc.wantArg).Return(nil)
+				f.sources.EXPECT().Reload(gomock.Any()).Return(nil)
+			}
+			_, err := f.client.ReorderDatasources(context.Background(), connect.NewRequest(&adminv1.ReorderDatasourcesRequest{Names: tc.names}))
+			if (err != nil) != (tc.wantCode != 0) || (err != nil && connect.CodeOf(err) != tc.wantCode) {
+				t.Errorf("ReorderDatasources(%v) error = %v, want code %v", tc.names, err, tc.wantCode)
+			}
+		})
 	}
 }
 
