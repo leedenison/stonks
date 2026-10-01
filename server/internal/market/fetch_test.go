@@ -85,6 +85,11 @@ func (h *harness) run(t *testing.T, keys ...StatedKey) []Result[StatedKey, Ident
 	if err != nil {
 		t.Fatalf("Fetch() error = %v", err)
 	}
+	for i, r := range results {
+		if r.Source != h.entry.Name {
+			t.Errorf("result %d names source %q, want %q", i, r.Source, h.entry.Name)
+		}
+	}
 	return results
 }
 

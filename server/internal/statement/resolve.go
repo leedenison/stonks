@@ -8,6 +8,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/types"
+	"github.com/leedenison/stonks/server/internal/resolve"
 )
 
 // statable reports whether k says anything about an instrument at all: an
@@ -16,35 +17,6 @@ import (
 func (k *key) statable() bool {
 	return k.description != nil || len(k.identifiers) > 0
 }
-
-// parents is the asset class tree, the root mapping to "". A test holds it
-// equal to the asset_class_tree table.
-var parents = map[gen.AssetClass]gen.AssetClass{
-	gen.AssetClassUnknown:     "",
-	gen.AssetClassCash:        gen.AssetClassUnknown,
-	gen.AssetClassSecurity:    gen.AssetClassUnknown,
-	gen.AssetClassEquity:      gen.AssetClassSecurity,
-	gen.AssetClassStock:       gen.AssetClassEquity,
-	gen.AssetClassEtf:         gen.AssetClassEquity,
-	gen.AssetClassMutualFund:  gen.AssetClassEquity,
-	gen.AssetClassFixedIncome: gen.AssetClassSecurity,
-	gen.AssetClassDerivative:  gen.AssetClassSecurity,
-	gen.AssetClassOption:      gen.AssetClassDerivative,
-	gen.AssetClassFuture:      gen.AssetClassDerivative,
-}
-
-// under reports whether a is b or lies below it.
-func under(a, b gen.AssetClass) bool {
-	for c := a; c != ""; c = parents[c] {
-		if c == b {
-			return true
-		}
-	}
-	return false
-}
-
-// disjoint reports whether no instrument can be of both classes.
-func disjoint(a, b gen.AssetClass) bool { return !under(a, b) && !under(b, a) }
 
 // resolve resolves every key and records each outcome against res.
 func (g *ingestion) resolve(ctx context.Context, res gen.Run) error {
@@ -63,9 +35,9 @@ func (g *ingestion) resolve(ctx context.Context, res gen.Run) error {
 	return nil
 }
 
-// resolveKey resolves k from the identifier it states that resolution
-// admits. A currency identifier is the only one admitted here, since the
-// seed is the only thing that has named an instrument; a key stating none is
+// resolveKey resolves k from the stated identifier that resolution admits. A
+// currency identifier is the only one admitted here, since the seed is the
+// only thing that has named an instrument; a key stating none is
 // unrecognised.
 func (g *ingestion) resolveKey(ctx context.Context, k *key) error {
 	id, ok := k.identifier(types.IdentifierTypeCurrency)
@@ -89,7 +61,7 @@ func (g *ingestion) resolveKey(ctx context.Context, k *key) error {
 // line it lacks. A currency identifier is seeded beside the instrument it
 // names, so the association it makes is confirmed.
 func (g *ingestion) matchInstrument(ctx context.Context, k *key, found gen.FindIdentifierRow, code string) error {
-	if k.class != nil && disjoint(*k.class, found.Instrument.AssetClass) {
+	if k.class != nil && resolve.Disjoint(*k.class, found.Instrument.AssetClass) {
 		k.reject("asset class %s contradicts the instrument's %s", *k.class, found.Instrument.AssetClass)
 		return nil
 	}

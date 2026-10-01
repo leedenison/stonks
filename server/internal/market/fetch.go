@@ -14,10 +14,12 @@ import (
 	"github.com/leedenison/stonks/server/internal/run"
 )
 
-// Result is what one request of a fetch got. ID is the fetch_keys row, which
-// the consumer attaches its response to.
+// Result is what one request of a fetch got. Source is the datasource that
+// served it, and ID the fetch_keys row, which the consumer attaches its
+// response to.
 type Result[Q, P any] struct {
 	Request  Q
+	Source   string
 	ID       uuid.UUID
 	Outcome  gen.FetchOutcome
 	Sent     *types.Identifier
@@ -85,7 +87,7 @@ func fetch[Q, P any](ctx context.Context, f *Fetcher, row gen.Run, e *Entry, kin
 	results := make([]Result[Q, P], len(reqs))
 	var batch []int
 	for i, q := range reqs {
-		results[i] = Result[Q, P]{Request: q, ID: db.NewID()}
+		results[i] = Result[Q, P]{Request: q, Source: e.Name, ID: db.NewID()}
 		if s == nil {
 			results[i].Outcome, results[i].Reason = gen.FetchOutcomeNotServed, fmt.Sprintf("the datasource serves no %s", kind.name)
 			continue

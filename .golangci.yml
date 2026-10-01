@@ -26,7 +26,8 @@ linters:
           msg: configuration is read only in server/internal/config
         - pattern: ^context\.TODO$
           msg: take a context.Context from the caller, or context.Background at the root
-        - pattern: ^gen\.IdentifierType
+        # The enum and its constants, leaving the identifier_type_traits row.
+        - pattern: ^gen\.IdentifierType($|[^T]|T[^r])
           msg: sqlc still emits this enum, but the columns take types.IdentifierType
     depguard:
       rules:
