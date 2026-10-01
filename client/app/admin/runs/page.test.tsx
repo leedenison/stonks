@@ -29,22 +29,52 @@ function serving(listRuns: ServiceImpl<typeof AdminService>["listRuns"]) {
   });
 }
 
+// A statement with its resolution under it, the resolution holding the
+// findings, and an older statement after it.
 const page = create(ListRunsResponseSchema, {
   runs: [
     create(UserRunSchema, {
       run: create(RunSchema, {
-        id: "r2",
-        kind: RunKind.RESOLUTION,
-        trigger: RunTrigger.RUN,
+        id: "r1",
+        kind: RunKind.STATEMENT,
+        trigger: RunTrigger.USER,
         state: RunState.COMPLETED,
         createdAt: timestampFromDate(new Date("2026-09-24T10:00:00Z")),
       }),
       userId: "u1",
       userEmail: "one@example.com",
-      openFindings: 2,
+      matched: true,
+      children: [
+        create(UserRunSchema, {
+          run: create(RunSchema, {
+            id: "r2",
+            kind: RunKind.RESOLUTION,
+            trigger: RunTrigger.RUN,
+            state: RunState.COMPLETED,
+            parentId: "r1",
+            createdAt: timestampFromDate(new Date("2026-09-24T10:00:01Z")),
+          }),
+          userId: "u1",
+          userEmail: "one@example.com",
+          openFindings: 2,
+          matched: true,
+        }),
+      ],
+    }),
+    create(UserRunSchema, {
+      run: create(RunSchema, {
+        id: "r0",
+        kind: RunKind.STATEMENT,
+        trigger: RunTrigger.USER,
+        state: RunState.COMPLETED,
+        createdAt: timestampFromDate(new Date("2026-09-23T10:00:00Z")),
+      }),
+      userId: "u1",
+      userEmail: "one@example.com",
+      matched: true,
     }),
   ],
-  nextPageToken: "r2",
+  nextPageToken: "r0",
 });
 
 describe("RunsPage", () => {
@@ -53,26 +83,58 @@ describe("RunsPage", () => {
     router.replace.mockClear();
   });
 
-  it("lists runs with their user and outcome, and pages", async () => {
+  it("lists top-level runs closed, with the findings below each, and opens one", async () => {
     renderWithAuth(
       <RunsPage />,
       serving(() => page),
     );
-    await waitFor(() => expect(screen.getByTestId("run-row-r2")).toBeTruthy());
-    const row = screen.getByTestId("run-row-r2");
+    await waitFor(() => expect(screen.getByTestId("run-row-r1")).toBeTruthy());
+    const row = screen.getByTestId("run-row-r1");
     expect(row.textContent).toContain("2026-09-24 10:00 UTC");
-    expect(row.textContent).toContain("resolution");
+    expect(row.textContent).toContain("statement");
     expect(row.textContent).toContain("one@example.com");
     expect(
       row
         .querySelector('[data-testid="state-chip"]')
         ?.getAttribute("data-state"),
     ).toBe("completed");
-    expect(row.querySelector("a")?.getAttribute("href")).toBe("/admin/runs/r2");
+    expect(row.querySelector("a")?.getAttribute("href")).toBe("/admin/runs/r1");
+    expect(screen.queryByTestId("run-row-r2")).toBeNull();
+    expect(screen.getByTestId("run-open-findings-r1").textContent).toBe("2");
+    expect(screen.queryByTestId("run-toggle-r0")).toBeNull();
+
+    fireEvent.click(screen.getByTestId("run-toggle-r1"));
+    expect(screen.getByTestId("run-row-r2").textContent).toContain(
+      "resolution",
+    );
+    expect(
+      screen.getByTestId("run-toggle-r1").getAttribute("aria-expanded"),
+    ).toBe("true");
+    expect(screen.queryByTestId("run-open-findings-r1")).toBeNull();
     expect(screen.getByTestId("run-open-findings-r2").textContent).toBe("2");
     expect(screen.getByTestId("runs-older").getAttribute("href")).toBe(
-      "/admin/runs?before=r2",
+      "/admin/runs?before=r0",
     );
+  });
+
+  it("opens the path to a match that a filter reached", async () => {
+    params = new URLSearchParams("kind=resolution");
+    const reached = create(ListRunsResponseSchema, {
+      runs: [
+        create(UserRunSchema, {
+          ...page.runs[0],
+          matched: false,
+        }),
+      ],
+    });
+    renderWithAuth(
+      <RunsPage />,
+      serving(() => reached),
+    );
+    await waitFor(() => expect(screen.getByTestId("run-row-r2")).toBeTruthy());
+    expect(
+      screen.getByTestId("run-toggle-r1").getAttribute("aria-expanded"),
+    ).toBe("true");
   });
 
   it("sends the filters in the address and replaces them on a change", async () => {

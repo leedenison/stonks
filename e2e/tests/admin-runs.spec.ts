@@ -50,8 +50,8 @@ test("shows an administrator the runs a user's upload produced", async ({
   const statement = await admin.getRun({ runId: runId! });
   expect(statement.run?.userEmail).toBe(user.email);
   expect(statement.statementItems).toHaveLength(januaryRows);
-  expect(statement.children).toHaveLength(1);
-  const child = statement.children[0];
+  expect(statement.run?.children).toHaveLength(1);
+  const child = statement.run!.children[0].run!;
   expect(child.kind).toBe(RunKind.RESOLUTION);
   const resolution = await admin.getRun({ runId: child.id });
   expect(resolution.resolutionItems.length).toBeGreaterThan(0);
@@ -63,20 +63,23 @@ test("shows an administrator the runs a user's upload produced", async ({
     expect(findings).toHaveLength(0);
   }
 
-  // The pages: the user's runs, the statement run, then its resolution.
+  // The pages: the user's runs with the resolution under its statement,
+  // the statement run, then its resolution.
   await page.goto(`/admin/runs?user=${user.id}`);
   const row = page.getByTestId(`run-row-${runId}`);
   await expect(row.getByTestId("state-chip")).toHaveAttribute(
     "data-state",
     "completed",
   );
+  await expect(page.getByTestId(`run-row-${child.id}`)).toHaveCount(0);
+  await row.getByTestId(`run-toggle-${runId}`).click();
   await expect(page.getByTestId(`run-row-${child.id}`)).toBeVisible();
   await expect(page.getByTestId("runs-filter-user")).toContainText(user.email);
 
   await row.getByRole("link").first().click();
   await expect(page).toHaveURL(`/admin/runs/${runId}`);
   const run = page.getByTestId("admin-run-page");
-  await expect(run.getByTestId("admin-run-summary")).toContainText(user.email);
+  await expect(run.getByTestId("admin-run-lineage")).toContainText(user.email);
   await expect(run.getByTestId("rejection-count-0")).toHaveText(
     String(januaryRows),
   );
@@ -84,16 +87,22 @@ test("shows an administrator the runs a user's upload produced", async ({
     "The run recorded no findings.",
   );
 
+  await run.getByTestId(`run-toggle-${runId}`).click();
   await run
-    .getByTestId("admin-run-children")
+    .getByTestId("admin-run-lineage")
     .getByTestId(`run-row-${child.id}`)
     .getByRole("link")
+    .first()
     .click();
   await expect(page).toHaveURL(`/admin/runs/${child.id}`);
-  await expect(page.getByTestId("admin-run-parent")).toHaveAttribute(
-    "href",
-    `/admin/runs/${runId}`,
+  const lineage = page.getByTestId("admin-run-lineage");
+  await expect(lineage.getByTestId(`run-row-${child.id}`)).toHaveAttribute(
+    "aria-current",
+    "page",
   );
+  await expect(
+    lineage.getByTestId(`run-row-${runId}`).getByRole("link").first(),
+  ).toHaveAttribute("href", `/admin/runs/${runId}`);
   await expect(page.getByTestId(/^item-row-/)).toHaveCount(
     resolution.resolutionItems.length,
   );

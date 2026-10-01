@@ -1,9 +1,10 @@
 "use client";
 
 import { Code, ConnectError } from "@connectrpc/connect";
+import { Minus, Plus } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import { Chip } from "@/app/components/chip";
 import { EmptyState } from "@/app/components/empty-state";
 import { Notice } from "@/app/components/notice";
@@ -17,6 +18,7 @@ import {
   FindingKind,
   type GetRunResponse,
   ResolutionOutcome,
+  type UserRun,
 } from "@/gen/admin/v1/admin_pb";
 import { useAdminRun } from "@/hooks/use-admin-run";
 import {
@@ -30,7 +32,8 @@ import {
 import { formatInstant } from "@/lib/format";
 
 // One run as an administrator reads it: who it belongs to, how it ended,
-// the runs it started, the findings it recorded and the items of its kind.
+// its place among the runs above and below it, the findings it recorded
+// and the items of its kind.
 export default function AdminRunPage() {
   const { id } = useParams<{ id: string }>();
   const { data, isPending, error, refetch } = useAdminRun(id);
@@ -45,65 +48,14 @@ export default function AdminRunPage() {
       {!error && isPending && <Skeleton lines={4} />}
       {data && run && (
         <>
-          <dl
-            data-testid="admin-run-summary"
-            className="grid max-w-2xl grid-cols-[max-content_1fr] gap-x-6 gap-y-2 rounded-md border border-border bg-surface px-4 py-3 text-sm"
-          >
-            <dt className="text-text-muted">User</dt>
-            <dd>
-              <Link
-                href={filterQuery({
-                  kind: "",
-                  trigger: "",
-                  state: "",
-                  before: "",
-                  user: data.run?.userId ?? "",
-                })}
-                className="text-action underline-offset-4 hover:underline"
-              >
-                {data.run?.userEmail}
-              </Link>
-            </dd>
-            <dt className="text-text-muted">Trigger</dt>
-            <dd>{enumLabel(runEnums.trigger, run.trigger)}</dd>
-            {run.parentId && (
-              <>
-                <dt className="text-text-muted">Parent</dt>
-                <dd>
-                  <Link
-                    href={`/admin/runs/${run.parentId}`}
-                    data-testid="admin-run-parent"
-                    className="font-mono text-action underline-offset-4 hover:underline"
-                  >
-                    {run.parentId}
-                  </Link>
-                </dd>
-              </>
-            )}
-            <dt className="text-text-muted">State</dt>
-            <dd>
-              <RunChip run={run} />
-            </dd>
-            {run.finishedAt && (
-              <>
-                <dt className="text-text-muted">Finished</dt>
-                <dd className="font-mono tabular-nums">
-                  {formatInstant(run.finishedAt)}
-                </dd>
-              </>
-            )}
-            {run.error && (
-              <>
-                <dt className="text-text-muted">Error</dt>
-                <dd className="font-mono text-negative">{run.error}</dd>
-              </>
-            )}
-          </dl>
-          {data.children.length > 0 && (
-            <Section title="Started">
-              <Children data={data} />
-            </Section>
+          {run.error && (
+            <Notice tone="error" testId="admin-run-error">
+              {run.error}
+            </Notice>
           )}
+          <Section title="Started By">
+            <Lineage data={data} />
+          </Section>
           <Section title="Findings">
             <Findings data={data} />
           </Section>
@@ -123,40 +75,174 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-function Children({ data }: { data: GetRunResponse }) {
+// Lineage is the run's place in its tree: the runs above it from the
+// top-level run down, the run itself tinted, and every run below it,
+// without the siblings of any run above. A row opens its page, and the
+// button before the date opens and closes the rows below it; the page
+// opens with the rows above the run open and the rest closed.
+function Lineage({ data }: { data: GetRunResponse }) {
+  const [toggled, setToggled] = useState<Record<string, boolean>>({});
+  const self = data.run;
+  const rows: ReactNode[] = [];
+  const toggle = (id: string, open: boolean) =>
+    setToggled({ ...toggled, [id]: open });
+  let depth = 0;
+  let cut = false;
+  for (const a of data.ancestors) {
+    const open = toggled[a.run?.id ?? ""] ?? true;
+    rows.push(
+      <LineageRow
+        key={a.run?.id}
+        run={a}
+        depth={depth}
+        open={open}
+        toggle={toggle}
+      />,
+    );
+    if (!open) {
+      cut = true;
+      break;
+    }
+    depth++;
+  }
+  if (self && !cut) {
+    const below = (runs: UserRun[], depth: number) => {
+      for (const r of runs) {
+        const id = r.run?.id ?? "";
+        const open = toggled[id] ?? false;
+        rows.push(
+          <LineageRow
+            key={id}
+            run={r}
+            depth={depth}
+            current={id === self.run?.id}
+            open={r.children.length > 0 ? open : undefined}
+            toggle={toggle}
+          />,
+        );
+        if (open) {
+          below(r.children, depth + 1);
+        }
+      }
+    };
+    below([self], depth);
+  }
   return (
-    <TableCard testId="admin-run-children">
+    <TableCard testId="admin-run-lineage">
       <Thead>
         <tr>
           <Th>Started</Th>
           <Th>Kind</Th>
+          <Th>Trigger</Th>
+          <Th>User</Th>
           <Th>State</Th>
+          <Th>Findings</Th>
         </tr>
       </Thead>
-      <tbody>
-        {data.children.map((c) => {
-          const href = `/admin/runs/${c.id}`;
-          return (
-            <Tr key={c.id} href={href} data-testid={`run-row-${c.id}`}>
-              <Td className="font-mono tabular-nums">
-                <Link
-                  href={href}
-                  className="underline-offset-4 hover:underline"
-                >
-                  {c.createdAt ? formatInstant(c.createdAt) : ""}
-                </Link>
-              </Td>
-              <Td>
-                <Chip>{enumLabel(runEnums.kind, c.kind)}</Chip>
-              </Td>
-              <Td>
-                <RunChip run={c} />
-              </Td>
-            </Tr>
-          );
-        })}
-      </tbody>
+      <tbody>{rows}</tbody>
     </TableCard>
+  );
+}
+
+// LineageRow is one run of the lineage at its depth. open is set where the
+// row has rows below it. current marks the run the page is about, which
+// neither opens its own page nor changes under the pointer.
+function LineageRow({
+  run: r,
+  depth,
+  current = false,
+  open,
+  toggle,
+}: {
+  run: UserRun;
+  depth: number;
+  current?: boolean;
+  open?: boolean;
+  toggle: (id: string, open: boolean) => void;
+}) {
+  const id = r.run?.id ?? "";
+  const href = `/admin/runs/${id}`;
+  const started = r.run?.createdAt ? formatInstant(r.run.createdAt) : "";
+  const Toggle = open ? Minus : Plus;
+  const cells = (
+    <>
+      <Td className="font-mono tabular-nums">
+        <span
+          className="flex items-center gap-1"
+          style={{ paddingLeft: `${depth * 1.25}rem` }}
+        >
+          {open === undefined ? (
+            <span className="size-4" aria-hidden="true" />
+          ) : (
+            <button
+              type="button"
+              aria-expanded={open}
+              aria-label={open ? "Close" : "Open"}
+              data-testid={`run-toggle-${id}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                toggle(id, !open);
+              }}
+              className="rounded border border-border text-text-muted hover:text-text-primary"
+            >
+              <Toggle className="size-4" aria-hidden="true" />
+            </button>
+          )}
+          {current ? (
+            started
+          ) : (
+            <Link href={href} className="underline-offset-4 hover:underline">
+              {started}
+            </Link>
+          )}
+        </span>
+      </Td>
+      <Td>
+        <Chip>{enumLabel(runEnums.kind, r.run?.kind ?? 0)}</Chip>
+      </Td>
+      <Td>{enumLabel(runEnums.trigger, r.run?.trigger ?? 0)}</Td>
+      <Td>
+        <Link
+          href={filterQuery({
+            kind: "",
+            trigger: "",
+            state: "",
+            before: "",
+            user: r.userId,
+          })}
+          onClick={(e) => e.stopPropagation()}
+          className="text-action underline-offset-4 hover:underline"
+        >
+          {r.userEmail}
+        </Link>
+      </Td>
+      <Td>
+        <RunChip run={r.run} />
+      </Td>
+      <Td className="font-mono tabular-nums">
+        {r.openFindings > 0 && (
+          <Chip tone="accent" data-testid={`run-open-findings-${id}`}>
+            {r.openFindings}
+          </Chip>
+        )}
+      </Td>
+    </>
+  );
+  if (current) {
+    return (
+      <tr
+        data-testid={`run-row-${id}`}
+        aria-current="page"
+        className="bg-accent-soft/50"
+      >
+        {cells}
+      </tr>
+    );
+  }
+  return (
+    <Tr href={href} data-testid={`run-row-${id}`}>
+      {cells}
+    </Tr>
   );
 }
 

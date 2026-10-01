@@ -3,7 +3,7 @@
 import type { UseQueryResult } from "@tanstack/react-query";
 import { useClients } from "@/contexts/clients-context";
 import type { ListRunsResponse } from "@/gen/admin/v1/admin_pb";
-import { fromParam, type RunFilters, runEnums } from "@/lib/admin";
+import { flattenRuns, fromParam, type RunFilters, runEnums } from "@/lib/admin";
 import { qk } from "@/lib/query-keys";
 import { anyLive, pollInterval } from "@/lib/run";
 import { useAuthedQuery } from "./use-authed-query";
@@ -23,7 +23,7 @@ export function useAdminRuns(f: RunFilters): UseQueryResult<ListRunsResponse> {
         pageToken: f.before,
       }),
     refetchInterval: (q) =>
-      anyLive((q.state.data?.runs ?? []).map((r) => r.run?.state))
+      anyLive(flattenRuns(q.state.data?.runs ?? []).map((r) => r.run?.state))
         ? pollInterval
         : false,
   });

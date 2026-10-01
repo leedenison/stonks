@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense } from "react";
+import { Minus, Plus } from "lucide-react";
+import { Fragment, Suspense, useState } from "react";
 import { LinkButton } from "@/app/components/button";
 import { Chip } from "@/app/components/chip";
 import { EmptyState } from "@/app/components/empty-state";
@@ -11,20 +12,23 @@ import { Page } from "@/app/components/page-frame";
 import { SkeletonRows } from "@/app/components/skeleton-rows";
 import { RunChip } from "@/app/components/state-chip";
 import { TableCard, Td, Th, Thead, Tr } from "@/app/components/table";
+import type { UserRun } from "@/gen/admin/v1/admin_pb";
 import { useAdminRuns } from "@/hooks/use-admin-runs";
 import {
   enumLabel,
   enumParam,
   enumValues,
   filterQuery,
+  openFindingsBelow,
   readFilters,
   type RunFilters,
   runEnums,
 } from "@/lib/admin";
 import { formatInstant } from "@/lib/format";
 
-// Every user's runs, newest first, filtered by what the address names. The
-// filters live in the address so a listing can be linked to and paged.
+// Every user's runs, newest first, filtered by what the address names, each
+// top-level run a row that opens onto the runs below it. The filters live in
+// the address so a listing can be linked to and paged.
 export default function RunsPage() {
   return (
     <Suspense>
@@ -38,6 +42,9 @@ function Runs() {
   const router = useRouter();
   const { data, isPending, isError, refetch } = useAdminRuns(f);
   const runs = data?.runs ?? [];
+  // toggled holds the rows an administrator opened or closed; a row not in
+  // it is open when it is on the path to a match rather than a match.
+  const [toggled, setToggled] = useState<Record<string, boolean>>({});
   const go = (next: Partial<RunFilters>) =>
     router.replace(filterQuery({ ...f, before: "", ...next }));
 
@@ -100,48 +107,13 @@ function Runs() {
             <SkeletonRows columns={6} />
           ) : (
             <tbody>
-              {runs.map(({ run, userId, userEmail, openFindings }) => {
-                const id = run?.id ?? "";
-                const href = `/admin/runs/${id}`;
-                return (
-                  <Tr key={id} href={href} data-testid={`run-row-${id}`}>
-                    <Td className="font-mono tabular-nums">
-                      <Link
-                        href={href}
-                        className="underline-offset-4 hover:underline"
-                      >
-                        {run?.createdAt ? formatInstant(run.createdAt) : ""}
-                      </Link>
-                    </Td>
-                    <Td>
-                      <Chip>{enumLabel(runEnums.kind, run?.kind ?? 0)}</Chip>
-                    </Td>
-                    <Td>{enumLabel(runEnums.trigger, run?.trigger ?? 0)}</Td>
-                    <Td>
-                      <Link
-                        href={filterQuery({ ...f, before: "", user: userId })}
-                        onClick={(e) => e.stopPropagation()}
-                        className="text-action underline-offset-4 hover:underline"
-                      >
-                        {userEmail}
-                      </Link>
-                    </Td>
-                    <Td>
-                      <RunChip run={run} />
-                    </Td>
-                    <Td className="font-mono tabular-nums">
-                      {openFindings > 0 && (
-                        <Chip
-                          tone="accent"
-                          data-testid={`run-open-findings-${id}`}
-                        >
-                          {openFindings}
-                        </Chip>
-                      )}
-                    </Td>
-                  </Tr>
-                );
-              })}
+              <RunRows
+                runs={runs}
+                depth={0}
+                filters={f}
+                toggled={toggled}
+                toggle={(id, open) => setToggled({ ...toggled, [id]: open })}
+              />
             </tbody>
           )}
         </TableCard>
@@ -168,5 +140,109 @@ function Runs() {
         </div>
       )}
     </Page>
+  );
+}
+
+// RunRows renders runs and, under each open one, its children indented a
+// level deeper. A row opens its page; the button before the date opens and
+// closes its children. A closed row with children shows the findings of its
+// whole subtree.
+function RunRows({
+  runs,
+  depth,
+  filters,
+  toggled,
+  toggle,
+}: {
+  runs: UserRun[];
+  depth: number;
+  filters: RunFilters;
+  toggled: Record<string, boolean>;
+  toggle: (id: string, open: boolean) => void;
+}) {
+  return (
+    <>
+      {runs.map((r) => {
+        const { run, userId, userEmail, openFindings, matched, children } = r;
+        const id = run?.id ?? "";
+        const href = `/admin/runs/${id}`;
+        const open = toggled[id] ?? !matched;
+        const findings =
+          open || children.length === 0 ? openFindings : openFindingsBelow(r);
+        const Toggle = open ? Minus : Plus;
+        return (
+          <Fragment key={id}>
+            <Tr
+              href={href}
+              data-testid={`run-row-${id}`}
+              className={matched ? "" : "text-text-muted"}
+            >
+              <Td className="font-mono tabular-nums">
+                <span
+                  className="flex items-center gap-1"
+                  style={{ paddingLeft: `${depth * 1.25}rem` }}
+                >
+                  {children.length > 0 ? (
+                    <button
+                      type="button"
+                      aria-expanded={open}
+                      aria-label={open ? "Close" : "Open"}
+                      data-testid={`run-toggle-${id}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggle(id, !open);
+                      }}
+                      className="rounded border border-border text-text-muted hover:text-text-primary"
+                    >
+                      <Toggle className="size-4" aria-hidden="true" />
+                    </button>
+                  ) : (
+                    <span className="size-4" aria-hidden="true" />
+                  )}
+                  <Link
+                    href={href}
+                    className="underline-offset-4 hover:underline"
+                  >
+                    {run?.createdAt ? formatInstant(run.createdAt) : ""}
+                  </Link>
+                </span>
+              </Td>
+              <Td>
+                <Chip>{enumLabel(runEnums.kind, run?.kind ?? 0)}</Chip>
+              </Td>
+              <Td>{enumLabel(runEnums.trigger, run?.trigger ?? 0)}</Td>
+              <Td>
+                <Link
+                  href={filterQuery({ ...filters, before: "", user: userId })}
+                  onClick={(e) => e.stopPropagation()}
+                  className="text-action underline-offset-4 hover:underline"
+                >
+                  {userEmail}
+                </Link>
+              </Td>
+              <Td>
+                <RunChip run={run} />
+              </Td>
+              <Td className="font-mono tabular-nums">
+                {findings > 0 && (
+                  <Chip tone="accent" data-testid={`run-open-findings-${id}`}>
+                    {findings}
+                  </Chip>
+                )}
+              </Td>
+            </Tr>
+            {open && children.length > 0 && (
+              <RunRows
+                runs={children}
+                depth={depth + 1}
+                filters={filters}
+                toggled={toggled}
+                toggle={toggle}
+              />
+            )}
+          </Fragment>
+        );
+      })}
+    </>
   );
 }

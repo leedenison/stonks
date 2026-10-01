@@ -1,7 +1,7 @@
 import { create } from "@bufbuild/protobuf";
 import { timestampFromDate } from "@bufbuild/protobuf/wkt";
 import { Code, ConnectError, type ServiceImpl } from "@connectrpc/connect";
-import { screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import {
   AdminService,
@@ -41,6 +41,8 @@ const isin = create(IdentifierSchema, {
   value: "GB00B03MLX29",
 });
 
+// A fetch under a resolution under a statement, the fetch being the run
+// read, with one run below it.
 const fetch = create(GetRunResponseSchema, {
   run: create(UserRunSchema, {
     run: create(RunSchema, {
@@ -53,7 +55,47 @@ const fetch = create(GetRunResponseSchema, {
     }),
     userId: "u1",
     userEmail: "one@example.com",
+    children: [
+      create(UserRunSchema, {
+        run: create(RunSchema, {
+          id: "c1",
+          kind: RunKind.FETCH,
+          trigger: RunTrigger.RUN,
+          parentId: "f1",
+          state: RunState.COMPLETED,
+          createdAt: timestampFromDate(new Date("2026-09-24T10:00:05Z")),
+        }),
+        userId: "u1",
+        userEmail: "one@example.com",
+        openFindings: 1,
+      }),
+    ],
   }),
+  ancestors: [
+    create(UserRunSchema, {
+      run: create(RunSchema, {
+        id: "s1",
+        kind: RunKind.STATEMENT,
+        trigger: RunTrigger.USER,
+        state: RunState.COMPLETED,
+        createdAt: timestampFromDate(new Date("2026-09-24T09:59:00Z")),
+      }),
+      userId: "u1",
+      userEmail: "one@example.com",
+    }),
+    create(UserRunSchema, {
+      run: create(RunSchema, {
+        id: "p1",
+        kind: RunKind.RESOLUTION,
+        trigger: RunTrigger.RUN,
+        parentId: "s1",
+        state: RunState.COMPLETED,
+        createdAt: timestampFromDate(new Date("2026-09-24T09:59:30Z")),
+      }),
+      userId: "u1",
+      userEmail: "one@example.com",
+    }),
+  ],
   findings: [
     create(FindingSchema, {
       id: "x1",
@@ -89,20 +131,40 @@ const fetch = create(GetRunResponseSchema, {
 });
 
 describe("AdminRunPage", () => {
-  it("shows the run, its parent, its findings and its items", async () => {
+  it("shows the run among its ancestors, its findings and its items", async () => {
     renderWithAuth(
       <AdminRunPage />,
       serving(() => fetch),
     );
     await waitFor(() =>
-      expect(screen.getByTestId("admin-run-summary")).toBeTruthy(),
+      expect(screen.getByTestId("admin-run-lineage")).toBeTruthy(),
     );
     expect(screen.getByTestId("page-title").textContent).toBe(
       "fetch run @ 2026-09-24 10:00 UTC",
     );
-    expect(screen.getByTestId("admin-run-parent").getAttribute("href")).toBe(
-      "/admin/runs/p1",
-    );
+    const lineage = screen.getByTestId("admin-run-lineage");
+    const shown = () =>
+      Array.from(lineage.querySelectorAll("tbody tr")).map((tr) =>
+        tr.getAttribute("data-testid"),
+      );
+    expect(shown()).toEqual(["run-row-s1", "run-row-p1", "run-row-f1"]);
+    const self = screen.getByTestId("run-row-f1");
+    expect(self.getAttribute("aria-current")).toBe("page");
+    expect(self.textContent).toContain("one@example.com");
+    expect(self.querySelector('a[href="/admin/runs/f1"]')).toBeNull();
+    expect(
+      screen.getByTestId("run-row-p1").querySelector("a")?.getAttribute("href"),
+    ).toBe("/admin/runs/p1");
+    fireEvent.click(screen.getByTestId("run-toggle-f1"));
+    expect(shown()).toEqual([
+      "run-row-s1",
+      "run-row-p1",
+      "run-row-f1",
+      "run-row-c1",
+    ]);
+    expect(screen.getByTestId("run-open-findings-c1").textContent).toBe("1");
+    fireEvent.click(screen.getByTestId("run-toggle-p1"));
+    expect(shown()).toEqual(["run-row-s1", "run-row-p1"]);
     expect(screen.getByTestId("finding-row-x1").textContent).toContain("block");
     expect(screen.getByTestId("finding-row-x2").textContent).toContain(
       "stated: candidates in USD, not the stated GBP",
