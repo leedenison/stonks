@@ -30,6 +30,15 @@ type Queries interface {
 	CreateFinding(ctx context.Context, arg gen.CreateFindingParams) error
 	SetStatedKeyAssociation(ctx context.Context, arg gen.SetStatedKeyAssociationParams) error
 	CreateResolutionKey(ctx context.Context, arg gen.CreateResolutionKeyParams) error
+	DeferConstraints(ctx context.Context) error
+	MoveListing(ctx context.Context, arg gen.MoveListingParams) error
+	RelinkIdentifiers(ctx context.Context, arg gen.RelinkIdentifiersParams) error
+	RelinkStatedKeys(ctx context.Context, arg gen.RelinkStatedKeysParams) error
+	RelinkFetchKeys(ctx context.Context, arg gen.RelinkFetchKeysParams) error
+	MoveIdentityCoverage(ctx context.Context, arg gen.MoveIdentityCoverageParams) error
+	DeleteIdentityCoverage(ctx context.Context, instrumentID uuid.UUID) error
+	DeleteListings(ctx context.Context, instrumentID uuid.UUID) error
+	DeleteInstrument(ctx context.Context, id uuid.UUID) error
 }
 
 var _ Queries = (*gen.Queries)(nil)

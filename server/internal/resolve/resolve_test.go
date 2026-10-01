@@ -3,8 +3,10 @@ package resolve
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
@@ -49,6 +51,9 @@ type fixture struct {
 	// conflicts is how many transactions are refused as a concurrent insert
 	// would, after their writes.
 	conflicts int
+	// stored is what the store has, and merges the merge steps run against it.
+	stored []stored
+	merges []string
 }
 
 func newFixture(t *testing.T, entries ...*market.Entry) *fixture {
@@ -105,6 +110,54 @@ func newFixture(t *testing.T, entries ...*market.Entry) *fixture {
 		return nil
 	}).AnyTimes()
 	f.sources.EXPECT().Enabled().Return(entries).AnyTimes()
+	merge := func(step string) func(context.Context, any) error {
+		return func(_ context.Context, arg any) error {
+			f.merges = append(f.merges, fmt.Sprintf("%s %v", step, arg))
+			return nil
+		}
+	}
+	f.store.EXPECT().DeferConstraints(gomock.Any()).DoAndReturn(func(context.Context) error {
+		f.merges = append(f.merges, "defer")
+		return nil
+	}).AnyTimes()
+	f.store.EXPECT().MoveListing(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.MoveListingParams) error {
+		return merge("move listing")(context.Background(), arg.ID)
+	}).AnyTimes()
+	f.store.EXPECT().RelinkIdentifiers(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.RelinkIdentifiersParams) error {
+		var survivor, loser *stored
+		for i := range f.stored {
+			switch f.stored[i].instrument.ID {
+			case arg.Survivor:
+				survivor = &f.stored[i]
+			case arg.Loser:
+				loser = &f.stored[i]
+			}
+		}
+		for _, id := range loser.identifiers {
+			id.InstrumentID = survivor.instrument.ID
+			survivor.identifiers = append(survivor.identifiers, id)
+		}
+		loser.identifiers = nil
+		return merge("relink identifiers")(context.Background(), arg.Loser)
+	}).AnyTimes()
+	f.store.EXPECT().RelinkStatedKeys(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.RelinkStatedKeysParams) error {
+		return merge("relink stated keys")(context.Background(), arg.Loser)
+	}).AnyTimes()
+	f.store.EXPECT().RelinkFetchKeys(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.RelinkFetchKeysParams) error {
+		return merge("relink fetch keys")(context.Background(), arg.Loser)
+	}).AnyTimes()
+	f.store.EXPECT().MoveIdentityCoverage(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.MoveIdentityCoverageParams) error {
+		return merge("move coverage")(context.Background(), arg.Loser)
+	}).AnyTimes()
+	f.store.EXPECT().DeleteIdentityCoverage(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, id uuid.UUID) error {
+		return merge("delete coverage")(context.Background(), id)
+	}).AnyTimes()
+	f.store.EXPECT().DeleteListings(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, id uuid.UUID) error {
+		return merge("delete listings")(context.Background(), id)
+	}).AnyTimes()
+	f.store.EXPECT().DeleteInstrument(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, id uuid.UUID) error {
+		return merge("delete instrument")(context.Background(), id)
+	}).AnyTimes()
 	f.resolver = New(f.store, f.fetcher, f.sources, slog.New(slog.DiscardHandler))
 	return f
 }
@@ -125,33 +178,60 @@ type stored struct {
 	covered     []string
 }
 
+// stores adds h to what the store has. The reads consult every stored
+// instrument, so a later call adds a second.
 func (f *fixture) stores(h stored) {
+	f.stored = append(f.stored, h)
+	if len(f.stored) > 1 {
+		return
+	}
 	f.store.EXPECT().FindIdentifier(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.FindIdentifierParams) (gen.FindIdentifierRow, error) {
-		for _, id := range h.identifiers {
-			if id.Type == arg.Type && id.Domain == arg.Domain && id.Value == arg.Value {
-				return gen.FindIdentifierRow{Identifier: id, Instrument: h.instrument}, nil
+		for _, h := range f.stored {
+			for _, id := range h.identifiers {
+				if id.Type == arg.Type && id.Domain == arg.Domain && id.Value == arg.Value {
+					return gen.FindIdentifierRow{Identifier: id, Instrument: h.instrument}, nil
+				}
 			}
 		}
 		return gen.FindIdentifierRow{}, db.ErrNotFound
 	}).AnyTimes()
 	f.store.EXPECT().ListInstrumentsByIdentifiers(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.ListInstrumentsByIdentifiersParams) ([]gen.ListInstrumentsByIdentifiersRow, error) {
 		var rows []gen.ListInstrumentsByIdentifiersRow
-		for i := range arg.Types {
-			for _, id := range h.identifiers {
-				if string(id.Type) == arg.Types[i] && id.Domain == arg.Domains[i] && id.Value == arg.Values[i] {
-					rows = append(rows, gen.ListInstrumentsByIdentifiersRow{Identifier: id, Instrument: h.instrument})
+		for _, h := range f.stored {
+			for i := range arg.Types {
+				for _, id := range h.identifiers {
+					if string(id.Type) == arg.Types[i] && id.Domain == arg.Domains[i] && id.Value == arg.Values[i] {
+						rows = append(rows, gen.ListInstrumentsByIdentifiersRow{Identifier: id, Instrument: h.instrument})
+					}
 				}
 			}
 		}
 		return rows, nil
 	}).AnyTimes()
-	f.store.EXPECT().ListIdentifiers(gomock.Any(), h.instrument.ID).Return(h.identifiers, nil).AnyTimes()
-	f.store.EXPECT().ListListings(gomock.Any(), h.instrument.ID).Return(h.listings, nil).AnyTimes()
-	var coverage []gen.IdentityCoverage
-	for _, c := range h.covered {
-		coverage = append(coverage, gen.IdentityCoverage{InstrumentID: h.instrument.ID, Datasource: c})
+	f.store.EXPECT().ListIdentifiers(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, id uuid.UUID) ([]gen.Identifier, error) {
+		return f.storedBy(id).identifiers, nil
+	}).AnyTimes()
+	f.store.EXPECT().ListListings(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, id uuid.UUID) ([]gen.Listing, error) {
+		return f.storedBy(id).listings, nil
+	}).AnyTimes()
+	f.store.EXPECT().ListIdentityCoverage(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, ids []uuid.UUID) ([]gen.IdentityCoverage, error) {
+		var coverage []gen.IdentityCoverage
+		for _, id := range ids {
+			for _, c := range f.storedBy(id).covered {
+				coverage = append(coverage, gen.IdentityCoverage{InstrumentID: id, Datasource: c})
+			}
+		}
+		return coverage, nil
+	}).AnyTimes()
+}
+
+func (f *fixture) storedBy(id uuid.UUID) stored {
+	for _, h := range f.stored {
+		if h.instrument.ID == id {
+			return h
+		}
 	}
-	f.store.EXPECT().ListIdentityCoverage(gomock.Any(), []uuid.UUID{h.instrument.ID}).Return(coverage, nil).AnyTimes()
+	return stored{}
 }
 
 // serves has e serve one result per key, in the order of the keys.
@@ -522,6 +602,82 @@ func TestResolveErrors(t *testing.T) {
 		f.fetcher.EXPECT().Identity(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, boom)
 		if _, err := f.resolver.Resolve(context.Background(), res, []gen.StatedKey{keyOf("", "", isin)}); !errors.Is(err, boom) {
 			t.Errorf("Resolve() error = %v, want %v", err, boom)
+		}
+	})
+}
+
+// TestResolveMerge checks that a response identifying two instruments folds
+// the later created into the earlier, and that two instruments disagreeing
+// on an identifier are left apart with a contradiction finding.
+func TestResolveMerge(t *testing.T) {
+	earlier, later := time.Date(2026, time.September, 1, 0, 0, 0, 0, time.UTC), time.Date(2026, time.September, 2, 0, 0, 0, 0, time.UTC)
+	aID, bID, figiID, cusipID := db.NewID(), db.NewID(), db.NewID(), db.NewID()
+	byFIGI := stored{
+		instrument:  gen.Instrument{ID: aID, AssetClass: gen.AssetClassStock, CreatedAt: earlier, FetchKeyID: ptr.To(db.NewID())},
+		identifiers: []gen.Identifier{{ID: figiID, InstrumentID: aID, Type: figi.Type, Value: figi.Value}},
+	}
+	gbp := gen.Listing{ID: db.NewID(), InstrumentID: bID, Currency: "GBP"}
+	byCUSIP := stored{
+		instrument:  gen.Instrument{ID: bID, AssetClass: gen.AssetClassStock, CreatedAt: later, FetchKeyID: ptr.To(db.NewID())},
+		identifiers: []gen.Identifier{{ID: cusipID, InstrumentID: bID, Type: cusip.Type, Value: cusip.Value}},
+		listings:    []gen.Listing{gbp},
+	}
+	t.Run("folded", func(t *testing.T) {
+		f := newFixture(t, entryA)
+		f.stores(byFIGI)
+		f.stores(byCUSIP)
+		r := servedResult(isin, []types.Identifier{isin}, cand(gen.AssetClassStock, "GBP", figi, isin, cusip, xlon))
+		f.serves(entryA, r)
+		got := f.resolve(keyOf(gen.AssetClassStock, "GBP", isin))
+		if got[0].Outcome != gen.ResolutionOutcomeMatched {
+			t.Fatalf("Resolve = %+v, want matched", got)
+		}
+		want := []string{"defer", "move listing " + gbp.ID.String(), "relink identifiers " + bID.String(), "relink stated keys " + bID.String(),
+			"relink fetch keys " + bID.String(), "move coverage " + bID.String(), "delete coverage " + bID.String(), "delete listings " + bID.String(), "delete instrument " + bID.String()}
+		if diff := cmp.Diff(want, f.merges); diff != "" {
+			t.Errorf("merge steps mismatch (-want +got):\n%s", diff)
+		}
+		if len(f.findings) != 1 || f.findings[0].Kind != gen.FindingKindMerged || *f.findings[0].FetchKeyID != r.ID || *f.findings[0].Detail != fmt.Sprintf("folded instrument %s into %s, both identified: cusip 92857W308", bID, aID) {
+			t.Errorf("findings = %+v, want one merged finding naming the fold", f.findings)
+		}
+		if len(f.associated) != 1 || *f.associated[0].InstrumentID != aID {
+			t.Errorf("associated %+v, want the survivor", f.associated)
+		}
+		for _, c := range f.identifiers {
+			if c.Type == cusip.Type {
+				t.Errorf("created %s again after relinking it", c.Value)
+			}
+		}
+	})
+	t.Run("refused", func(t *testing.T) {
+		f := newFixture(t, entryA)
+		other := id(types.IdentifierTypeIsin, "", "GB00BH4HKS40")
+		a := byFIGI
+		a.identifiers = append([]gen.Identifier{{ID: db.NewID(), InstrumentID: aID, Type: isin.Type, Value: isin.Value}}, a.identifiers...)
+		b := byCUSIP
+		b.identifiers = append([]gen.Identifier{{ID: db.NewID(), InstrumentID: bID, Type: other.Type, Value: other.Value}}, b.identifiers...)
+		f.stores(a)
+		f.stores(b)
+		r := servedResult(cusip, []types.Identifier{cusip}, cand(gen.AssetClassStock, "GBP", figi, cusip, xlon))
+		f.serves(entryA, r)
+		got := f.resolve(keyOf(gen.AssetClassStock, "GBP", cusip))
+		if got[0].Outcome != gen.ResolutionOutcomeMatched {
+			t.Fatalf("Resolve = %+v, want matched", got)
+		}
+		if len(f.merges) != 0 {
+			t.Errorf("merge steps %v, want none", f.merges)
+		}
+		detail := fmt.Sprintf("isin GB00BH4HKS39 identifies instrument %s and isin GB00BH4HKS40 identifies %s; not merged", aID, bID)
+		if len(f.findings) != 1 || f.findings[0].Kind != gen.FindingKindContradiction || *f.findings[0].Detail != detail {
+			t.Errorf("findings = %+v, want one contradiction: %s", f.findings, detail)
+		}
+		if len(f.associated) != 1 || *f.associated[0].InstrumentID != bID || *f.associated[0].ViaID != cusipID {
+			t.Errorf("associated %+v, want the instrument the stated CUSIP identifies", f.associated)
+		}
+		for _, c := range f.identifiers {
+			if c.Type == figi.Type {
+				t.Errorf("created %s, which the other instrument carries", c.Value)
+			}
 		}
 	})
 }

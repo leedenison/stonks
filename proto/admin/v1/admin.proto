@@ -91,16 +91,12 @@ enum FindingKind {
 // The step of the choice that dropped a candidate group.
 enum DropStep {
   DROP_STEP_UNSPECIFIED = 0;
-  // The group did not name the identifier that carried the key.
-  DROP_STEP_NAMING = 1;
   // The group contradicted the stated data.
-  DROP_STEP_STATED = 2;
+  DROP_STEP_STATED = 1;
   // The group was inconsistent with a higher precedence response.
-  DROP_STEP_PRECEDENCE = 3;
+  DROP_STEP_PRECEDENCE = 2;
   // The group shared no stable identifier with the winner.
-  DROP_STEP_CORROBORATION = 4;
-  // The group was outranked within its datasource.
-  DROP_STEP_RANK = 5;
+  DROP_STEP_CORROBORATION = 3;
 }
 
 // Something a run met that an administrator may need to see.

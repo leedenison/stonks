@@ -44,6 +44,19 @@ VALUES ($1, $2, $3)
 ON CONFLICT (instrument_id, datasource) DO UPDATE
 SET fetch_key_id = EXCLUDED.fetch_key_id, covered_at = now();
 
+-- name: RelinkFetchKeys :exec
+UPDATE fetch_keys SET instrument_id = @survivor::uuid WHERE instrument_id = @loser::uuid;
+
+-- name: MoveIdentityCoverage :exec
+-- Carries loser's coverage onto survivor where survivor lacks the datasource.
+INSERT INTO identity_coverage (instrument_id, datasource, fetch_key_id, covered_at)
+SELECT @survivor::uuid, datasource, fetch_key_id, covered_at
+FROM identity_coverage WHERE instrument_id = @loser::uuid
+ON CONFLICT (instrument_id, datasource) DO NOTHING;
+
+-- name: DeleteIdentityCoverage :exec
+DELETE FROM identity_coverage WHERE instrument_id = $1;
+
 -- name: ListOpenBlocks :many
 SELECT * FROM datasource_blocks
 WHERE datasource = $1 AND kind = $2 AND cleared_at IS NULL

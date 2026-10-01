@@ -56,35 +56,24 @@ func (r *Resolver) resolveKey(ctx context.Context, q Queries, run gen.Run, res *
 		return gen.ResolutionKey{}, nil, err
 	}
 	c := choose(res.results, res.row, nil, families)
-	ids := slices.Clone(res.guids)
-	for _, g := range c.attached {
-		for id := range g.all {
-			ids = appendUnique(ids, id)
-		}
-	}
-	f, err := reread(ctx, q, ids)
+	f, taken, merged, err := find(ctx, q, res, c)
 	if err != nil {
 		return gen.ResolutionKey{}, nil, err
 	}
 	if f != nil {
 		if res.row.AssetClass != nil && Disjoint(*res.row.AssetClass, f.instrument.AssetClass) {
 			reason := fmt.Sprintf("asset class %s contradicts the instrument's %s", *res.row.AssetClass, f.instrument.AssetClass)
-			return record(ctx, q, run, res, gen.ResolutionOutcomeUnrecognised, reason, c.findings)
+			return record(ctx, q, run, res, gen.ResolutionOutcomeUnrecognised, reason, append(c.findings, merged...))
 		}
 		c = choose(res.results, res.row, f.group(), families)
 	}
+	c.findings = append(c.findings, merged...)
 	if c.winner == nil {
 		return record(ctx, q, run, res, unresolved(res), summary(res, c), c.findings)
 	}
-	w := writer{q: q, user: run.UserID, identifiers: map[types.Identifier]gen.Identifier{}, listings: map[string]gen.Listing{}}
+	w := writer{q: q, user: run.UserID, identifiers: map[types.Identifier]gen.Identifier{}, listings: map[string]gen.Listing{}, taken: taken}
 	if f != nil {
-		w.instrument = f.instrument
-		for _, id := range f.identifiers {
-			w.identifiers[to.Identifier(id)] = id
-		}
-		for _, l := range f.listings {
-			w.listings[l.Currency] = l
-		}
+		w.reuse(f)
 	} else if w.instrument, err = w.create(ctx, c.winner); err != nil {
 		return gen.ResolutionKey{}, nil, err
 	}
@@ -93,32 +82,60 @@ func (r *Resolver) resolveKey(ctx context.Context, q Queries, run gen.Run, res *
 			return gen.ResolutionKey{}, nil, err
 		}
 	}
-	for _, rs := range res.results {
-		if rs.Outcome != gen.FetchOutcomeServed {
-			continue
-		}
-		arg := gen.UpsertIdentityCoverageParams{InstrumentID: w.instrument.ID, Datasource: rs.Source, FetchKeyID: rs.ID}
-		if err := q.UpsertIdentityCoverage(ctx, arg); err != nil {
-			return gen.ResolutionKey{}, nil, fmt.Errorf("cover %s: %w", rs.Source, err)
-		}
+	if err := cover(ctx, q, w.instrument.ID, res.results); err != nil {
+		return gen.ResolutionKey{}, nil, err
 	}
-	var listingID *uuid.UUID
-	if l, ok := w.listings[family(res.row, families)]; ok {
-		listingID = &l.ID
+	ok, err := w.associate(ctx, res, families)
+	if err != nil {
+		return gen.ResolutionKey{}, nil, err
 	}
-	via, ok := w.via(res, listingID)
 	if !ok {
 		return record(ctx, q, run, res, gen.ResolutionOutcomeUnrecognised, "no identifier to associate through", c.findings)
 	}
-	validity := gen.ValidityProvisional
-	if stable(to.Identifier(via)) {
-		validity = gen.ValidityConfirmed
-	}
-	arg := gen.SetStatedKeyAssociationParams{ID: res.row.ID, UserID: run.UserID, InstrumentID: &w.instrument.ID, ListingID: listingID, ViaID: &via.ID, Validity: &validity}
-	if err := q.SetStatedKeyAssociation(ctx, arg); err != nil {
-		return gen.ResolutionKey{}, nil, fmt.Errorf("associate key: %w", err)
-	}
 	return record(ctx, q, run, res, gen.ResolutionOutcomeMatched, "", c.findings)
+}
+
+// find re-reads the database by the identifiers res states and the groups
+// c attached name, and returns the instrument found, nil where none is.
+// When several are found they are merged: taken is the identifiers of the
+// instruments left apart and merged the findings.
+func find(ctx context.Context, q Queries, res *resolution, c choice) (*found, map[types.Identifier]bool, []gen.CreateFindingParams, error) {
+	ids := slices.Clone(res.guids)
+	for _, g := range c.attached {
+		for id := range g.all {
+			ids = appendUnique(ids, id)
+		}
+	}
+	hits, err := reread(ctx, q, ids)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	switch len(hits) {
+	case 0:
+		return nil, nil, nil, nil
+	case 1:
+		return hits[0].found, nil, nil, nil
+	}
+	var fetchKey *uuid.UUID
+	if c.winner != nil && c.winner.r != nil {
+		fetchKey = &c.winner.r.ID
+	}
+	return merge(ctx, q, res, fetchKey, hits)
+}
+
+// cover records instrument as covered by every datasource that served a
+// result.
+func cover(ctx context.Context, q Queries, instrument uuid.UUID, results []*result) error {
+	for _, rs := range results {
+		if rs.Outcome != gen.FetchOutcomeServed {
+			continue
+		}
+		arg := gen.UpsertIdentityCoverageParams{InstrumentID: instrument, Datasource: rs.Source, FetchKeyID: rs.ID}
+		if err := q.UpsertIdentityCoverage(ctx, arg); err != nil {
+			return fmt.Errorf("cover %s: %w", rs.Source, err)
+		}
+	}
+	return nil
 }
 
 // lock takes the transaction's advisory lock on each of ids, in one order
@@ -138,9 +155,9 @@ func lock(ctx context.Context, q Queries, ids []types.Identifier) error {
 	return nil
 }
 
-// reread finds the instrument any of ids identifies, nil where none does.
-// Two instruments identified among them is an error.
-func reread(ctx context.Context, q Queries, ids []types.Identifier) (*found, error) {
+// reread finds the instruments any of ids identifies, each with the
+// identifiers it was found by, the earliest created first.
+func reread(ctx context.Context, q Queries, ids []types.Identifier) ([]hit, error) {
 	arg := gen.ListInstrumentsByIdentifiersParams{Types: make([]string, len(ids)), Domains: make([]string, len(ids)), Values: make([]string, len(ids))}
 	for i, id := range ids {
 		arg.Types[i], arg.Domains[i], arg.Values[i] = string(id.Type), id.Domain, id.Value
@@ -149,15 +166,25 @@ func reread(ctx context.Context, q Queries, ids []types.Identifier) (*found, err
 	if err != nil {
 		return nil, fmt.Errorf("find instruments: %w", err)
 	}
-	if len(rows) == 0 {
-		return nil, nil
-	}
-	for _, row := range rows[1:] {
-		if row.Instrument.ID != rows[0].Instrument.ID {
-			return nil, fmt.Errorf("%s names instrument %s and %s names %s", name(to.Identifier(rows[0].Identifier)), rows[0].Instrument.ID, name(to.Identifier(row.Identifier)), row.Instrument.ID)
+	var hits []hit
+	byID := map[uuid.UUID]int{}
+	for _, row := range rows {
+		i, ok := byID[row.Instrument.ID]
+		if !ok {
+			f, err := load(ctx, q, row.Instrument)
+			if err != nil {
+				return nil, err
+			}
+			i = len(hits)
+			byID[row.Instrument.ID] = i
+			hits = append(hits, hit{found: f})
 		}
+		hits[i].matched = append(hits[i].matched, to.Identifier(row.Identifier))
 	}
-	return load(ctx, q, rows[0].Instrument)
+	slices.SortFunc(hits, func(a, b hit) int {
+		return a.found.instrument.CreatedAt.Compare(b.found.instrument.CreatedAt)
+	})
+	return hits, nil
 }
 
 // record writes res's findings and resolution key.
@@ -234,14 +261,27 @@ func summary(res *resolution, c choice) string {
 }
 
 // writer writes the listings and identifiers of the attached groups onto
-// one instrument, skipping each the instrument already has. identifiers and
-// listings start as the instrument's rows and take each row written.
+// one instrument, skipping each the instrument already has and each another
+// instrument has, which taken names. identifiers and listings start as the
+// instrument's rows and take each row written.
 type writer struct {
 	q           Queries
 	user        uuid.UUID
 	instrument  gen.Instrument
 	identifiers map[types.Identifier]gen.Identifier
 	listings    map[string]gen.Listing
+	taken       map[types.Identifier]bool
+}
+
+// reuse takes f as the instrument written to, with its rows.
+func (w *writer) reuse(f *found) {
+	w.instrument = f.instrument
+	for _, id := range f.identifiers {
+		w.identifiers[to.Identifier(id)] = id
+	}
+	for _, l := range f.listings {
+		w.listings[l.Currency] = l
+	}
 }
 
 // create writes the instrument of the winner, with its class and provenance.
@@ -302,7 +342,7 @@ func (w *writer) attach(ctx context.Context, g *group) error {
 // identify writes id on the instrument, or on listing where set, unless it
 // already identifies the instrument.
 func (w *writer) identify(ctx context.Context, id types.Identifier, listing *uuid.UUID, fetchKey uuid.UUID) error {
-	if _, ok := w.identifiers[id]; ok {
+	if _, ok := w.identifiers[id]; ok || w.taken[id] {
 		return nil
 	}
 	arg := gen.CreateIdentifierParams{ID: db.NewID(), InstrumentID: w.instrument.ID, ListingID: listing, Type: id.Type, Domain: id.Domain, Value: id.Value, FetchKeyID: &fetchKey}
@@ -312,6 +352,29 @@ func (w *writer) identify(ctx context.Context, id types.Identifier, listing *uui
 	}
 	w.identifiers[id] = row
 	return nil
+}
+
+// associate writes the association of res with the instrument, through the
+// identifier via returns and on the listing of the stated family. It
+// reports false when no identifier identifies the instrument.
+func (w *writer) associate(ctx context.Context, res *resolution, families func(string) string) (bool, error) {
+	var listingID *uuid.UUID
+	if l, ok := w.listings[family(res.row, families)]; ok {
+		listingID = &l.ID
+	}
+	via, ok := w.via(res, listingID)
+	if !ok {
+		return false, nil
+	}
+	validity := gen.ValidityProvisional
+	if stable(to.Identifier(via)) {
+		validity = gen.ValidityConfirmed
+	}
+	arg := gen.SetStatedKeyAssociationParams{ID: res.row.ID, UserID: w.user, InstrumentID: &w.instrument.ID, ListingID: listingID, ViaID: &via.ID, Validity: &validity}
+	if err := w.q.SetStatedKeyAssociation(ctx, arg); err != nil {
+		return false, fmt.Errorf("associate key: %w", err)
+	}
+	return true, nil
 }
 
 // via returns the identifier res associates through: the strongest it

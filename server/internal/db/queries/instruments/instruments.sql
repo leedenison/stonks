@@ -70,6 +70,38 @@ ORDER BY instruments.id, identifiers.type, identifiers.domain, identifiers.value
 -- locks in one order. The seed keeps the keys apart from LockUserKeys.
 SELECT pg_advisory_xact_lock(hashtextextended(k, 1)) FROM unnest(@keys::text[]) AS k;
 
+-- name: DeferConstraints :exec
+SET CONSTRAINTS ALL DEFERRED;
+
+-- name: MoveListing :exec
+UPDATE listings SET instrument_id = @instrument_id WHERE id = @id;
+
+-- name: RelinkIdentifiers :exec
+-- Moves the identifiers of loser onto survivor, each listing grain one onto
+-- survivor's listing of its family.
+UPDATE identifiers
+SET instrument_id = @survivor::uuid,
+    listing_id = (SELECT s.id FROM listings s
+                  JOIN listings l ON l.currency = s.currency
+                  WHERE l.id = identifiers.listing_id AND s.instrument_id = @survivor::uuid)
+WHERE instrument_id = @loser::uuid;
+
+-- name: RelinkStatedKeys :exec
+-- Moves the stated keys of loser onto survivor, each listing onto survivor's
+-- listing of its family.
+UPDATE stated_keys
+SET instrument_id = @survivor::uuid,
+    listing_id = (SELECT s.id FROM listings s
+                  JOIN listings l ON l.currency = s.currency
+                  WHERE l.id = stated_keys.listing_id AND s.instrument_id = @survivor::uuid)
+WHERE instrument_id = @loser::uuid;
+
+-- name: DeleteListings :exec
+DELETE FROM listings WHERE instrument_id = $1;
+
+-- name: DeleteInstrument :exec
+DELETE FROM instruments WHERE id = $1;
+
 -- name: GetListing :one
 SELECT * FROM listings
 WHERE instrument_id = $1 AND currency = $2;

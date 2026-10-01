@@ -15,14 +15,23 @@
 // they share. The best group of the highest precedence datasource is
 // chosen.
 //
-// Write. Each key with a winner is written in a transaction of its own.
-// The winner is either matched to an instrument or one is created. The key
-// is associated through the strongest identifier it stated that identifies
-// the instrument, whatever the datasource answered.
+// Write. Each key with a winner is written in a transaction of its own,
+// under an advisory lock on the identifiers it states, so two runs stating
+// one key produce one instrument. The database is re-read under the lock:
+// the instrument found is attached to, or created as needed.  The key is
+// associated through the strongest identifier it stated.
+//
+// Merge. A response identifying two instruments describes one stored
+// twice, and the later created is folded into the earlier with a merged
+// finding. Two carrying different values of one identifier type and
+// domain, or disjoint classes, are left apart with a contradiction finding.
 //
 // Outcomes. A key is matched when associated, rejected when it contradicts
-// the seed, unavailable when nothing served it and a datasource failed or
-// was blocked, and unrecognised otherwise.
+// the seed, unavailable when a datasource failed or was blocked before
+// anything served it, and unrecognised otherwise. Only a currency key can
+// be rejected, so whether a statement is refused never depends on what
+// another user resolved first. A drop is a finding, except for a group not
+// naming the identifier sent, which is summarised in the key's reason.
 package resolve
 
 import (

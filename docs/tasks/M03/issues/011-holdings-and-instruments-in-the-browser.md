@@ -1,7 +1,7 @@
 ---
 title: Holdings and instruments in the browser
 type: task
-dependencies: [008, 010]
+dependencies: [010]
 ---
 
 ## Scope

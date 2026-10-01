@@ -310,3 +310,112 @@ func TestResolveWrites(t *testing.T) {
 		t.Errorf("FindIdentifier(cusip) error = %v, want not found: a dropped group is not stored", err)
 	}
 }
+
+// TestMergeRows checks the merge against real rows: a response
+// identifying two instruments folds the later into the earlier, moving the
+// listing the survivor lacks with its identifiers, relinking the stated keys,
+// fetch keys and coverage, and deleting the rest, under the deferred
+// constraints.
+func TestMergeRows(t *testing.T) {
+	s := newStack(t)
+	ctx := context.Background()
+	s.script.responses[isin] = market.IdentityResult{Filtered: []types.Identifier{isin}, Candidates: []market.Candidate{
+		{Class: gen.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{figi, isin, xlon}},
+	}}
+	s.script.responses[cusip] = market.IdentityResult{Filtered: []types.Identifier{cusip}, Candidates: []market.Candidate{
+		{Class: gen.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{cusip, xnas}},
+	}}
+	first := s.state(t, gen.AssetClassStock, "GBP", isin)
+	second := s.state(t, gen.AssetClassStock, "USD", cusip)
+	s.resolve(t, first, second)
+	a, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: isin.Type, Value: isin.Value})
+	require.NoError(t, err)
+	b, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: cusip.Type, Value: cusip.Value})
+	require.NoError(t, err)
+	if a.Instrument.ID == b.Instrument.ID {
+		t.Fatal("the two keys resolved to one instrument before the merge")
+	}
+
+	// A third key states a SEDOL the database lacks, in USD, and the
+	// response names the FIGI of the first instrument and the CUSIP of the
+	// second.
+	sedol := id(types.IdentifierTypeSedol, "", "BH4HKS3")
+	s.script.responses[sedol] = market.IdentityResult{Filtered: []types.Identifier{sedol}, Candidates: []market.Candidate{
+		{Class: gen.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{figi, cusip, sedol, xnas}},
+	}}
+	third := s.state(t, gen.AssetClassStock, "USD", sedol)
+	got := s.resolve(t, third)
+	if got[0].Outcome != gen.ResolutionOutcomeMatched {
+		reason := ""
+		if got[0].Reason != nil {
+			reason = *got[0].Reason
+		}
+		findings, _ := s.q.ListRunFindings(ctx, s.resolution.ID)
+		var details []string
+		for _, f := range findings {
+			details = append(details, string(f.Kind)+": "+*f.Detail)
+		}
+		t.Fatalf("Resolve = %s (%s), want matched; findings %v", got[0].Outcome, reason, details)
+	}
+	_, err = s.tx.Exec(ctx, "SET CONSTRAINTS ALL IMMEDIATE")
+	require.NoError(t, err, "the deferred constraints hold after the merge")
+
+	survivor := a.Instrument.ID
+	var instruments int
+	require.NoError(t, s.tx.QueryRow(ctx, "SELECT count(*) FROM instruments WHERE id = $1", b.Instrument.ID).Scan(&instruments))
+	if instruments != 0 {
+		t.Errorf("the later instrument %s still exists", b.Instrument.ID)
+	}
+	listings, err := s.q.ListListings(ctx, survivor)
+	require.NoError(t, err)
+	families := map[string]uuid.UUID{}
+	for _, l := range listings {
+		families[l.Currency] = l.ID
+	}
+	if len(families) != 2 || families["GBP"] == uuid.Nil || families["USD"] == uuid.Nil {
+		t.Fatalf("survivor listings = %+v, want GBP and USD", listings)
+	}
+	ids, err := s.q.ListIdentifiers(ctx, survivor)
+	require.NoError(t, err)
+	where := map[string]string{}
+	for _, row := range ids {
+		listing := "instrument"
+		if row.ListingID != nil {
+			for fam, id := range families {
+				if id == *row.ListingID {
+					listing = fam
+				}
+			}
+		}
+		where[name(to.Identifier(row))] = listing
+	}
+	wantWhere := map[string]string{
+		"isin GB00BH4HKS39": "instrument", "openfigi_share_class BBG001S5XDT5": "instrument",
+		"cusip 92857W308":     "instrument",
+		"mic_ticker XLON:VOD": "GBP", "mic_ticker XNAS:VOD": "USD", "sedol BH4HKS3": "USD",
+	}
+	if diff := cmp.Diff(wantWhere, where); diff != "" {
+		t.Errorf("survivor identifiers mismatch (-want +got):\n%s", diff)
+	}
+	for _, id := range []uuid.UUID{second.ID, third.ID} {
+		k := s.key(t, id)
+		if k.InstrumentID == nil || *k.InstrumentID != survivor || k.ListingID == nil || *k.ListingID != families["USD"] {
+			t.Errorf("key %s = instrument %v listing %v, want the survivor's USD listing", id, k.InstrumentID, k.ListingID)
+		}
+	}
+	var relinked int
+	require.NoError(t, s.tx.QueryRow(ctx, "SELECT count(*) FROM fetch_keys WHERE stated_key_id = $1 AND instrument_id = $2", second.ID, survivor).Scan(&relinked))
+	if relinked != 1 {
+		t.Errorf("%d fetch keys of the second key name the survivor, want 1", relinked)
+	}
+	coverage, err := s.q.ListIdentityCoverage(ctx, []uuid.UUID{survivor, b.Instrument.ID})
+	require.NoError(t, err)
+	if len(coverage) != 1 || coverage[0].InstrumentID != survivor {
+		t.Errorf("coverage = %+v, want one row on the survivor", coverage)
+	}
+	findings, err := s.q.ListRunFindings(ctx, s.resolution.ID)
+	require.NoError(t, err)
+	if len(findings) != 1 || findings[0].Kind != gen.FindingKindMerged || *findings[0].StatedKeyID != third.ID || findings[0].FetchKeyID == nil {
+		t.Errorf("findings = %+v, want one merged finding on the third key with its fetch key", findings)
+	}
+}
