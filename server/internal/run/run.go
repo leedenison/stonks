@@ -1,11 +1,11 @@
 // Package run starts background work and records each piece of it as a run.
 //
-// A run is a row created before its work starts. The call starting it answers
+// A run is a row created before its work starts. The call starting it responds
 // with the row, and progress and the outcome are read against it.
 //
 // A run is started by a user, by an administrator, who is then its user, or
 // by another run. A run a user or an administrator starts executes in a
-// goroutine of its own once the call starting it has answered, after carrying
+// goroutine of its own once the call starting it has responded, after carrying
 // out its prepare step in the caller. A run started by another run executes
 // inline in its parent's goroutine, and the parent decides whether its
 // failure fails it.

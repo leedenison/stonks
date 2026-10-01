@@ -9,6 +9,7 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/resolve"
 	"github.com/leedenison/stonks/server/internal/run"
 )
 
@@ -18,13 +19,9 @@ type Queries interface {
 	CreateStatedKey(ctx context.Context, arg gen.CreateStatedKeyParams) (gen.StatedKey, error)
 	CreateStatementSplit(ctx context.Context, arg gen.CreateStatementSplitParams) error
 	ListCurrencies(ctx context.Context) ([]gen.Currency, error)
-	FindIdentifier(ctx context.Context, arg gen.FindIdentifierParams) (gen.FindIdentifierRow, error)
-	GetListing(ctx context.Context, arg gen.GetListingParams) (gen.Listing, error)
-	CreateResolutionKey(ctx context.Context, arg gen.CreateResolutionKeyParams) error
 	LockUserKeys(ctx context.Context, userID uuid.UUID) error
 	DeleteTransactions(ctx context.Context, arg gen.DeleteTransactionsParams) (int64, error)
 	CreateTransaction(ctx context.Context, arg gen.CreateTransactionParams) (gen.Transaction, error)
-	SetStatedKeyAssociation(ctx context.Context, arg gen.SetStatedKeyAssociationParams) error
 	ListGroupableKeys(ctx context.Context, userID uuid.UUID) ([]gen.ListGroupableKeysRow, error)
 	ClearStatedKeyGroups(ctx context.Context, userID uuid.UUID) error
 	SetStatedKeyGroups(ctx context.Context, arg gen.SetStatedKeyGroupsParams) error
@@ -50,3 +47,12 @@ type Runner interface {
 }
 
 var _ Runner = (*run.Runner)(nil)
+
+// Resolver is the view of the resolve package this package depends on: the
+// body of a resolution run over the stated keys of a statement, with an
+// outcome per key in their order.
+type Resolver interface {
+	Resolve(ctx context.Context, res gen.Run, keys []gen.StatedKey) ([]gen.ResolutionKey, error)
+}
+
+var _ Resolver = (*resolve.Resolver)(nil)

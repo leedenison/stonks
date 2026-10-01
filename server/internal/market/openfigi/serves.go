@@ -48,7 +48,7 @@ func (c *Client) Serves(key market.StatedKey) (types.Identifier, error) {
 	if unknown != nil {
 		return types.Identifier{}, unknown
 	}
-	return types.Identifier{}, errors.New("states no identifier OpenFIGI maps")
+	return types.Identifier{}, errors.New("no recognised identifier type")
 }
 
 // job is one entry of a mapping request.

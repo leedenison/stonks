@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"log/slog"
 	"os"
 	"testing"
 	"time"
@@ -22,6 +23,8 @@ import (
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/types"
+	"github.com/leedenison/stonks/server/internal/market"
+	"github.com/leedenison/stonks/server/internal/resolve"
 	"github.com/leedenison/stonks/server/internal/run"
 )
 
@@ -88,7 +91,8 @@ type stack struct {
 }
 
 // newStack returns a service over a transaction rolled back when the test
-// ends, and a user to ingest as.
+// ends, resolving against the database and no datasource, and a user to
+// ingest as.
 func newStack(t *testing.T) stack {
 	t.Helper()
 	ctx := context.Background()
@@ -102,7 +106,12 @@ func newStack(t *testing.T) stack {
 	q := gen.New(tx)
 	user, err := q.CreateUser(ctx, gen.CreateUserParams{ID: db.NewID(), Email: fmt.Sprintf("%s@example.com", uuid.NewString()), Role: gen.UserRoleUser})
 	require.NoError(t, err)
-	return stack{q: q, tx: tx, svc: New(db.New[Queries](tx), syncRunner{q: q}, clock), user: user}
+	log := slog.New(slog.DiscardHandler)
+	sources, err := market.New(ctx, q, nil, log)
+	require.NoError(t, err)
+	runs := syncRunner{q: q}
+	resolver := resolve.New(db.New[resolve.Queries](tx), market.IdentityFetcher{F: market.NewFetcher(q, runs, log)}, sources, log)
+	return stack{q: q, tx: tx, svc: New(db.New[Queries](tx), runs, resolver, clock), user: user}
 }
 
 func (s stack) ingest(t *testing.T, msg *statementv1.Statement) gen.Run {

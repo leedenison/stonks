@@ -77,7 +77,7 @@ func (r *Resolver) lookup(ctx context.Context, row gen.StatedKey, families func(
 		}
 	}
 	if len(res.guids) == 0 && !bare(row) {
-		res.decide(gen.ResolutionOutcomeUnrecognised, "states no identifier recognised globally")
+		res.decide(gen.ResolutionOutcomeUnrecognised, "no global identifier")
 		return res, nil
 	}
 	var hits []gen.FindIdentifierRow

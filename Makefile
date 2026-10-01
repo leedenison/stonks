@@ -82,6 +82,7 @@ generate: $(STAMP_DIR)/generate ## Generate protobuf, sqlc and mock code (skippe
 run: $(STAMP_DIR)/generate ## Start the dev stack with live reload; app at localhost:8080
 	$(COMPOSE_DEV) up -d --build --wait
 	@scripts/seed-db.sh "$(COMPOSE_DEV)" "$(DEV_SEED_SQL)"
+	$(COMPOSE_DEV) restart stonks
 
 logs: ## Tail dev stack logs; S=<service> narrows to one
 	$(COMPOSE_DEV) logs -f --tail=100 $(S)

@@ -77,7 +77,7 @@ func (s *script) Serves(k market.StatedKey) (types.Identifier, error) {
 			return id, nil
 		}
 	}
-	return types.Identifier{}, errors.New("states no identifier recognised globally")
+	return types.Identifier{}, errors.New("no global identifier")
 }
 
 func (s *script) Fetch(_ context.Context, reqs []market.Request[market.StatedKey]) ([]market.Response[market.IdentityResult], error) {
