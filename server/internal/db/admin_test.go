@@ -17,8 +17,9 @@ import (
 	"github.com/leedenison/stonks/server/internal/ptr"
 )
 
-// TestListUserRuns checks each filter, the order and the page boundary of the
-// listing across users.
+// TestListUserRuns checks each filter, the grouping of matches under their
+// top-level runs with the path to them, and the page boundary between
+// top-level runs.
 func TestListUserRuns(t *testing.T) {
 	ctx := context.Background()
 	q := newTx(t)
@@ -34,13 +35,16 @@ func TestListUserRuns(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	ids := func(arg gen.ListUserRunsParams) []uuid.UUID {
+	list := func(arg gen.ListUserRunsParams) []gen.ListUserRunsRow {
 		t.Helper()
 		if arg.Lim == 0 {
 			arg.Lim = 10
 		}
 		rows, err := q.ListUserRuns(ctx, arg)
 		require.NoError(t, err)
+		return rows
+	}
+	ids := func(rows []gen.ListUserRunsRow) []uuid.UUID {
 		var out []uuid.UUID
 		for _, r := range rows {
 			out = append(out, r.Run.ID)
@@ -55,22 +59,41 @@ func TestListUserRuns(t *testing.T) {
 		arg  gen.ListUserRunsParams
 		want []uuid.UUID
 	}{
-		{name: "user, newest first", arg: gen.ListUserRunsParams{UserID: &owner.ID}, want: []uuid.UUID{child.ID, statement.ID}},
-		{name: "kind", arg: gen.ListUserRunsParams{UserID: &owner.ID, Kind: &resolution}, want: []uuid.UUID{child.ID}},
+		{name: "user, the top-level run then its child", arg: gen.ListUserRunsParams{UserID: &owner.ID}, want: []uuid.UUID{statement.ID, child.ID}},
+		{name: "kind, the match under the path to it", arg: gen.ListUserRunsParams{UserID: &owner.ID, Kind: &resolution}, want: []uuid.UUID{statement.ID, child.ID}},
 		{name: "trigger", arg: gen.ListUserRunsParams{Trigger: &administrator, UserID: &admin.ID}, want: []uuid.UUID{started.ID}},
-		{name: "state", arg: gen.ListUserRunsParams{UserID: &owner.ID, State: &pending}, want: []uuid.UUID{child.ID, statement.ID}},
-		{name: "first page", arg: gen.ListUserRunsParams{UserID: &owner.ID, Lim: 1}, want: []uuid.UUID{child.ID}},
-		{name: "next page", arg: gen.ListUserRunsParams{UserID: &owner.ID, Before: &child.ID}, want: []uuid.UUID{statement.ID}},
+		{name: "state", arg: gen.ListUserRunsParams{UserID: &owner.ID, State: &pending}, want: []uuid.UUID{statement.ID, child.ID}},
+		{name: "first page holds a whole family", arg: gen.ListUserRunsParams{UserID: &owner.ID, Lim: 1}, want: []uuid.UUID{statement.ID, child.ID}},
+		{name: "next page", arg: gen.ListUserRunsParams{UserID: &owner.ID, Before: &statement.ID}, want: nil},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			if diff := cmp.Diff(tc.want, ids(tc.arg)); diff != "" {
+			if diff := cmp.Diff(tc.want, ids(list(tc.arg))); diff != "" {
 				t.Errorf("ListUserRuns(%+v) mismatch (-want +got):\n%s", tc.arg, diff)
 			}
 		})
 	}
 
-	all := ids(gen.ListUserRunsParams{})
+	byKind := list(gen.ListUserRunsParams{UserID: &owner.ID, Kind: &resolution})
+	if byKind[0].Matched || !byKind[1].Matched || byKind[0].RootID != statement.ID || byKind[1].RootID != statement.ID {
+		t.Errorf("ListUserRuns by kind = %+v, want the statement unmatched and the child matched, both under the statement", byKind)
+	}
+
+	ancestors, err := q.ListRunAncestors(ctx, child.ID)
+	require.NoError(t, err)
+	if len(ancestors) != 1 || ancestors[0].Run.ID != statement.ID || ancestors[0].Email != owner.Email {
+		t.Errorf("ListRunAncestors(child) = %+v, want the statement with its user", ancestors)
+	}
+	if top, err := q.ListRunAncestors(ctx, statement.ID); err != nil || len(top) != 0 {
+		t.Errorf("ListRunAncestors(top-level) = %v, %v, want none", top, err)
+	}
+	descendants, err := q.ListRunDescendants(ctx, &statement.ID)
+	require.NoError(t, err)
+	if len(descendants) != 1 || descendants[0].Run.ID != child.ID || descendants[0].Email != owner.Email {
+		t.Errorf("ListRunDescendants(statement) = %+v, want the child with its user", descendants)
+	}
+
+	all := ids(list(gen.ListUserRunsParams{}))
 	for _, id := range []uuid.UUID{statement.ID, child.ID, started.ID} {
 		if !slices.Contains(all, id) {
 			t.Errorf("ListUserRuns with no filter = %v, want it to include %s", all, id)

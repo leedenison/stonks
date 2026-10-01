@@ -1,4 +1,4 @@
-import { DropStep, type Finding } from "@/gen/admin/v1/admin_pb";
+import { DropStep, type Finding, type UserRun } from "@/gen/admin/v1/admin_pb";
 import { RunKind, RunState, RunTrigger } from "@/gen/run/v1/run_pb";
 import {
   type Identifier,
@@ -112,4 +112,14 @@ export function listQuery(path: string, p: ListParams): string {
   if (p.before) params.set("before", p.before);
   const q = params.toString();
   return q ? `${path}?${q}` : path;
+}
+
+// flattenRuns lists every run of the trees, each parent before its children.
+export function flattenRuns(runs: UserRun[]): UserRun[] {
+  return runs.flatMap((r) => [r, ...flattenRuns(r.children)]);
+}
+
+// openFindingsBelow sums the open findings of r and every run under it.
+export function openFindingsBelow(r: UserRun): number {
+  return r.children.reduce((n, c) => n + openFindingsBelow(c), r.openFindings);
 }

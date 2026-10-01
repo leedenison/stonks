@@ -32,6 +32,7 @@ import (
 var (
 	userID     = uuid.MustParse("00000000-0000-0000-0000-000000000001")
 	runID      = uuid.MustParse("00000000-0000-0000-0000-000000000010")
+	parentID   = uuid.MustParse("00000000-0000-0000-0000-000000000009")
 	childID    = uuid.MustParse("00000000-0000-0000-0000-000000000011")
 	keyID      = uuid.MustParse("00000000-0000-0000-0000-000000000020")
 	findingID  = uuid.MustParse("00000000-0000-0000-0000-000000000030")
@@ -75,7 +76,7 @@ func runMsg(id uuid.UUID, kind runv1.RunKind) *adminv1.UserRun {
 			Id: id.String(), Kind: kind, Trigger: runv1.RunTrigger_RUN_TRIGGER_USER,
 			State: runv1.RunState_RUN_STATE_COMPLETED, CreatedAt: timestamppb.New(created),
 		},
-		UserId: userID.String(), UserEmail: "one@example.com", OpenFindings: 1,
+		UserId: userID.String(), UserEmail: "one@example.com", OpenFindings: 1, Matched: true,
 	}
 }
 
@@ -86,11 +87,26 @@ func TestListRuns(t *testing.T) {
 	rows := func(ids ...uuid.UUID) []gen.ListUserRunsRow {
 		var out []gen.ListUserRunsRow
 		for _, id := range ids {
-			out = append(out, gen.ListUserRunsRow{Run: runRow(id, gen.RunKindStatement), Email: "one@example.com", OpenFindings: 1})
+			out = append(out, gen.ListUserRunsRow{Run: runRow(id, gen.RunKindStatement), Email: "one@example.com", OpenFindings: 1, RootID: id, Matched: true})
 		}
 		return out
 	}
+	// A resolution matched under a statement that was not: the statement is
+	// the path to it.
+	child := uuid.MustParse("00000000-0000-0000-0000-000000000104")
+	childRow := runRow(child, gen.RunKindResolution)
+	childRow.ParentID = &first
+	nested := []gen.ListUserRunsRow{
+		{Run: runRow(first, gen.RunKindStatement), Email: "one@example.com", OpenFindings: 1, RootID: first, Matched: false},
+		{Run: childRow, Email: "one@example.com", OpenFindings: 1, RootID: first, Matched: true},
+	}
+	nestedMsg := runMsg(first, runv1.RunKind_RUN_KIND_STATEMENT)
+	nestedMsg.Matched = false
+	childMsg := runMsg(child, runv1.RunKind_RUN_KIND_RESOLUTION)
+	childMsg.Run.ParentId = ptr.To(first.String())
+	nestedMsg.Children = []*adminv1.UserRun{childMsg}
 	statement := gen.RunKindStatement
+	resolution := gen.RunKindResolution
 	administrator := gen.RunTriggerAdministrator
 	tests := []struct {
 		name     string
@@ -120,6 +136,20 @@ func TestListRuns(t *testing.T) {
 				Runs:          []*adminv1.UserRun{runMsg(first, runv1.RunKind_RUN_KIND_STATEMENT), runMsg(second, runv1.RunKind_RUN_KIND_STATEMENT)},
 				NextPageToken: second.String(),
 			},
+		},
+		{
+			name:    "a match nested under its unmatched parent",
+			req:     &adminv1.ListRunsRequest{Kind: runv1.RunKind_RUN_KIND_RESOLUTION.Enum()},
+			wantArg: gen.ListUserRunsParams{Kind: &resolution, Lim: defaultPageSize + 1},
+			rows:    nested,
+			want:    &adminv1.ListRunsResponse{Runs: []*adminv1.UserRun{nestedMsg}},
+		},
+		{
+			name:    "a page is cut between top-level runs",
+			req:     &adminv1.ListRunsRequest{PageSize: 1},
+			wantArg: gen.ListUserRunsParams{Lim: 2},
+			rows:    append(append([]gen.ListUserRunsRow{}, nested...), rows(second)...),
+			want:    &adminv1.ListRunsResponse{Runs: []*adminv1.UserRun{nestedMsg}, NextPageToken: first.String()},
 		},
 		{name: "unspecified kind", req: &adminv1.ListRunsRequest{Kind: runv1.RunKind_RUN_KIND_UNSPECIFIED.Enum()}, wantCode: connect.CodeInvalidArgument},
 		{name: "oversized page", req: &adminv1.ListRunsRequest{PageSize: 201}, wantCode: connect.CodeInvalidArgument},
@@ -210,9 +240,11 @@ func TestGetRun(t *testing.T) {
 			f := newFixture(t)
 			r := f.reader.EXPECT()
 			r.GetUserRun(gomock.Any(), runID).Return(gen.GetUserRunRow{Run: runRow(runID, tc.kind), Email: "one@example.com", OpenFindings: 1}, nil)
+			parent := runRow(parentID, gen.RunKindStatement)
+			r.ListRunAncestors(gomock.Any(), runID).Return([]gen.ListRunAncestorsRow{{Run: parent, Email: "one@example.com", OpenFindings: 1}}, nil)
 			child := runRow(childID, gen.RunKindFetch)
 			child.Trigger, child.ParentID = gen.RunTriggerRun, &runID
-			r.ListChildRuns(gomock.Any(), gen.ListChildRunsParams{ParentID: &runID, UserID: userID}).Return([]gen.Run{child}, nil)
+			r.ListRunDescendants(gomock.Any(), &runID).Return([]gen.ListRunDescendantsRow{{Run: child, Email: "one@example.com", OpenFindings: 1}}, nil)
 			r.ListRunFindings(gomock.Any(), runID).Return([]gen.Finding{
 				{ID: findingID, RunID: runID, Kind: gen.FindingKindBlock, BlockID: &blockID, CreatedAt: created},
 				{ID: droppedID, RunID: runID, Kind: gen.FindingKindDropped, StatedKeyID: &keyID, FetchKeyID: &fetchKeyID,
@@ -224,12 +256,13 @@ func TestGetRun(t *testing.T) {
 			if err != nil {
 				t.Fatalf("GetRun() error = %v", err)
 			}
+			self := runMsg(runID, db.ToProto[runv1.RunKind](tc.kind))
+			childMsg := runMsg(childID, runv1.RunKind_RUN_KIND_FETCH)
+			childMsg.Run.Trigger, childMsg.Run.ParentId = runv1.RunTrigger_RUN_TRIGGER_RUN, ptr.To(runID.String())
+			self.Children = []*adminv1.UserRun{childMsg}
 			want := &adminv1.GetRunResponse{
-				Run: runMsg(runID, db.ToProto[runv1.RunKind](tc.kind)),
-				Children: []*runv1.Run{{
-					Id: childID.String(), Kind: runv1.RunKind_RUN_KIND_FETCH, Trigger: runv1.RunTrigger_RUN_TRIGGER_RUN,
-					ParentId: ptr.To(runID.String()), State: runv1.RunState_RUN_STATE_COMPLETED, CreatedAt: timestamppb.New(created),
-				}},
+				Run:       self,
+				Ancestors: []*adminv1.UserRun{runMsg(parentID, runv1.RunKind_RUN_KIND_STATEMENT)},
 				Findings: []*adminv1.Finding{
 					{
 						Id: findingID.String(), RunId: runID.String(), Kind: adminv1.FindingKind_FINDING_KIND_BLOCK,

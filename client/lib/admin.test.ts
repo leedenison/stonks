@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
+import { create } from "@bufbuild/protobuf";
+import { UserRunSchema } from "@/gen/admin/v1/admin_pb";
 import { RunKind, RunState } from "@/gen/run/v1/run_pb";
 import {
   enumLabel,
   enumParam,
   filterQuery,
+  flattenRuns,
   fromParam,
+  openFindingsBelow,
   readFilters,
 } from "./admin";
 
@@ -28,5 +32,25 @@ describe("admin", () => {
     expect(fromParam(RunKind, "unspecified")).toBeUndefined();
     expect(fromParam(RunKind, "nonsense")).toBeUndefined();
     expect(enumLabel(RunState, RunState.INTERRUPTED)).toBe("interrupted");
+  });
+
+  it("walks a tree of runs and sums the findings below each", () => {
+    const fetch = create(UserRunSchema, { userId: "f", openFindings: 2 });
+    const resolution = create(UserRunSchema, {
+      userId: "r",
+      openFindings: 1,
+      children: [fetch],
+    });
+    const statement = create(UserRunSchema, {
+      userId: "s",
+      children: [resolution],
+    });
+    expect(flattenRuns([statement]).map((r) => r.userId)).toEqual([
+      "s",
+      "r",
+      "f",
+    ]);
+    expect(openFindingsBelow(statement)).toBe(3);
+    expect(openFindingsBelow(fetch)).toBe(2);
   });
 });

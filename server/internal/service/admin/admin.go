@@ -33,7 +33,8 @@ const defaultPageSize = 50
 type Reader interface {
 	ListUserRuns(ctx context.Context, arg gen.ListUserRunsParams) ([]gen.ListUserRunsRow, error)
 	GetUserRun(ctx context.Context, id uuid.UUID) (gen.GetUserRunRow, error)
-	ListChildRuns(ctx context.Context, arg gen.ListChildRunsParams) ([]gen.Run, error)
+	ListRunAncestors(ctx context.Context, id uuid.UUID) ([]gen.ListRunAncestorsRow, error)
+	ListRunDescendants(ctx context.Context, parentID *uuid.UUID) ([]gen.ListRunDescendantsRow, error)
 	ListRunFindings(ctx context.Context, runID uuid.UUID) ([]gen.Finding, error)
 	ListStatementItems(ctx context.Context, arg gen.ListStatementItemsParams) ([]gen.StatementItem, error)
 	ListResolutionItems(ctx context.Context, runID uuid.UUID) ([]gen.ListResolutionItemsRow, error)
@@ -75,7 +76,8 @@ func New(reader Reader, sources Sources) *Server {
 	return &Server{reader: reader, sources: sources}
 }
 
-// ListRuns lists every user's runs matching the filters, newest first.
+// ListRuns lists every user's runs matching the filters, newest first,
+// each under the top-level run it descends from.
 func (s *Server) ListRuns(ctx context.Context, req *connect.Request[adminv1.ListRunsRequest]) (*connect.Response[adminv1.ListRunsResponse], error) {
 	m := req.Msg
 	p, err := newPage(m.GetPageSize(), m.GetPageToken())
@@ -100,14 +102,41 @@ func (s *Server) ListRuns(ctx context.Context, req *connect.Request[adminv1.List
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	out := &adminv1.ListRunsResponse{}
-	rows, out.NextPageToken = trim(p, rows, func(r gen.ListUserRunsRow) uuid.UUID { return r.Run.ID })
+	rows, out.NextPageToken = trimTrees(p, rows)
+	byID := map[uuid.UUID]*adminv1.UserRun{}
 	for _, r := range rows {
-		out.Runs = append(out.Runs, userRun(r.Run, r.Email, r.OpenFindings))
+		msg := userRun(r.Run, r.Email, r.OpenFindings)
+		msg.Matched = r.Matched
+		byID[r.Run.ID] = msg
+		if r.Run.ParentID != nil {
+			if parent := byID[*r.Run.ParentID]; parent != nil {
+				parent.Children = append(parent.Children, msg)
+				continue
+			}
+		}
+		out.Runs = append(out.Runs, msg)
 	}
 	return connect.NewResponse(out), nil
 }
 
-// GetRun reads any user's run with its children, its findings and the items
+// trimTrees cuts rows, grouped by top-level run, to the page's top-level
+// runs and answers the token of the next page, empty when there is none.
+func trimTrees(p page, rows []gen.ListUserRunsRow) ([]gen.ListUserRunsRow, string) {
+	roots := 0
+	var last uuid.UUID
+	for i, r := range rows {
+		if i == 0 || r.RootID != last {
+			roots++
+			last = r.RootID
+		}
+		if roots > p.size {
+			return rows[:i], rows[i-1].RootID.String()
+		}
+	}
+	return rows, ""
+}
+
+// GetRun reads any user's run with the runs above and below it, its findings and the items
 // of its kind.
 func (s *Server) GetRun(ctx context.Context, req *connect.Request[adminv1.GetRunRequest]) (*connect.Response[adminv1.GetRunResponse], error) {
 	id, err := uuid.Parse(req.Msg.GetRunId())
@@ -129,12 +158,24 @@ func (s *Server) GetRun(ctx context.Context, req *connect.Request[adminv1.GetRun
 }
 
 func (s *Server) fill(ctx context.Context, run gen.Run, out *adminv1.GetRunResponse) error {
-	children, err := s.reader.ListChildRuns(ctx, gen.ListChildRunsParams{ParentID: &run.ID, UserID: run.UserID})
+	ancestors, err := s.reader.ListRunAncestors(ctx, run.ID)
 	if err != nil {
 		return err
 	}
-	for _, c := range children {
-		out.Children = append(out.Children, runsvc.ToProto(c))
+	for _, a := range ancestors {
+		out.Ancestors = append(out.Ancestors, userRun(a.Run, a.Email, a.OpenFindings))
+	}
+	descendants, err := s.reader.ListRunDescendants(ctx, &run.ID)
+	if err != nil {
+		return err
+	}
+	byID := map[uuid.UUID]*adminv1.UserRun{run.ID: out.Run}
+	for _, d := range descendants {
+		msg := userRun(d.Run, d.Email, d.OpenFindings)
+		byID[d.Run.ID] = msg
+		if parent := byID[*d.Run.ParentID]; parent != nil {
+			parent.Children = append(parent.Children, msg)
+		}
 	}
 	findings, err := s.reader.ListRunFindings(ctx, run.ID)
 	if err != nil {
@@ -404,7 +445,7 @@ func finding(f gen.Finding) *adminv1.Finding {
 }
 
 func userRun(r gen.Run, email string, open int32) *adminv1.UserRun {
-	return &adminv1.UserRun{Run: runsvc.ToProto(r), UserId: r.UserID.String(), UserEmail: email, OpenFindings: open}
+	return &adminv1.UserRun{Run: runsvc.ToProto(r), UserId: r.UserID.String(), UserEmail: email, OpenFindings: open, Matched: true}
 }
 
 func statedKey(k gen.StatedKey) *typev1.StatedKey {

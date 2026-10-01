@@ -20,6 +20,11 @@ message UserRun {
   string user_email = 3;
   // The findings of the run no administrator has cleared.
   int32 open_findings = 4;
+  // Whether the run matches the listing's filters. A run that does not is
+  // listed only as an ancestor of one that does.
+  bool matched = 5;
+  // The runs this one started that the listing holds, oldest first.
+  repeated UserRun children = 6;
 }
 
 // What a run of kind RESOLUTION made of one stated key.
@@ -149,6 +154,8 @@ message ListRunsRequest {
 
 // Runs newest first.
 message ListRunsResponse {
+  // The top-level runs, newest first, each with the runs below it that the
+  // filters match and the path to them.
   repeated UserRun runs = 1;
   // Continues the listing; empty on the last page.
   string next_page_token = 2;
@@ -159,9 +166,10 @@ message GetRunRequest {
 }
 
 message GetRunResponse {
+  // The run, with every run below it nested under children.
   UserRun run = 1;
-  // The runs this one started, oldest first.
-  repeated stonks.run.v1.Run children = 2;
+  // The runs above this one, the top-level run first, each without children.
+  repeated UserRun ancestors = 2;
   repeated Finding findings = 3;
   // The rows this run rejected when its kind is STATEMENT.
   repeated stonks.statement.v1.StatementItem statement_items = 4;
