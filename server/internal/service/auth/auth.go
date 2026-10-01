@@ -20,7 +20,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/auth"
 	"github.com/leedenison/stonks/server/internal/auth/google"
 	"github.com/leedenison/stonks/server/internal/auth/session"
-	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/db/to"
 	"github.com/leedenison/stonks/server/internal/service"
 )
 
@@ -51,7 +51,7 @@ func (s *Server) SignIn(ctx context.Context, req *connect.Request[authv1.SignInR
 	if err != nil {
 		return nil, signInError(err)
 	}
-	res := connect.NewResponse(&authv1.SignInResponse{User: toProto(p.User), Session: &authv1.Session{ExpiresAt: timestamppb.New(p.ExpiresAt)}})
+	res := connect.NewResponse(&authv1.SignInResponse{User: to.ProtoUser(p.User), Session: &authv1.Session{ExpiresAt: timestamppb.New(p.ExpiresAt)}})
 	res.Header().Set("Set-Cookie", s.cookie(p.SessionID, int(session.Max.Seconds())).String())
 	return res, nil
 }
@@ -62,7 +62,7 @@ func (*Server) GetSession(ctx context.Context, _ *connect.Request[authv1.GetSess
 	if !ok {
 		return connect.NewResponse(&authv1.GetSessionResponse{}), nil
 	}
-	return connect.NewResponse(&authv1.GetSessionResponse{User: toProto(p.User), Session: &authv1.Session{ExpiresAt: timestamppb.New(p.ExpiresAt)}}), nil
+	return connect.NewResponse(&authv1.GetSessionResponse{User: to.ProtoUser(p.User), Session: &authv1.Session{ExpiresAt: timestamppb.New(p.ExpiresAt)}}), nil
 }
 
 // SignOut ends the session the request carries and expires its cookie.
@@ -99,15 +99,4 @@ func signInError(err error) error {
 		return connect.NewError(connect.CodePermissionDenied, errors.New("email not permitted"))
 	}
 	return connect.NewError(connect.CodeInternal, err)
-}
-
-func toProto(u gen.User) *authv1.User {
-	role := authv1.Role_ROLE_UNSPECIFIED
-	switch u.Role {
-	case gen.UserRoleUser:
-		role = authv1.Role_ROLE_USER
-	case gen.UserRoleAdmin:
-		role = authv1.Role_ROLE_ADMIN
-	}
-	return &authv1.User{Id: u.ID.String(), Email: u.Email, Name: u.Name, Role: role}
 }

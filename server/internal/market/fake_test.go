@@ -52,7 +52,7 @@ type fake struct {
 	sent  [][]types.Identifier
 }
 
-func (f *fake) Serves(key StatedKey) (types.Identifier, error) {
+func (f *fake) Serves(key gen.StatedKey) (types.Identifier, error) {
 	id, ok := f.serves[key.ID.String()]
 	if !ok {
 		return types.Identifier{}, errors.New("serves no identifier of this key")
@@ -60,7 +60,7 @@ func (f *fake) Serves(key StatedKey) (types.Identifier, error) {
 	return id, nil
 }
 
-func (f *fake) Fetch(_ context.Context, reqs []Request[StatedKey]) ([]Response[IdentityResult], error) {
+func (f *fake) Fetch(_ context.Context, reqs []Request[gen.StatedKey]) ([]Response[IdentityResult], error) {
 	f.calls++
 	sent := make([]types.Identifier, len(reqs))
 	for i, r := range reqs {

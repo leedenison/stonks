@@ -58,7 +58,7 @@ func New(store Store, runs Runner, resolver Resolver, clock func() time.Time) *S
 
 // Create validates msg, starts its run and responds with the pending row.
 func (s *Service) Create(ctx context.Context, userID uuid.UUID, msg *statementv1.Statement) (gen.Run, error) {
-	broker, ok := db.FromProto[gen.Broker](msg.GetBroker())
+	broker, ok := types.FromProto[gen.Broker](msg.GetBroker())
 	if !ok || broker == "" {
 		return gen.Run{}, fmt.Errorf("%w: broker %v", ErrInvalid, msg.GetBroker())
 	}

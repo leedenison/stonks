@@ -1,11 +1,10 @@
-package db_test
+package types_test
 
 import (
 	"testing"
 
 	runv1 "github.com/leedenison/stonks/proto/run/v1"
 	typev1 "github.com/leedenison/stonks/proto/type/v1"
-	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/types"
 )
@@ -24,13 +23,13 @@ func TestFromProto(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got, ok := db.FromProto[gen.AssetClass](tc.in)
+			got, ok := types.FromProto[gen.AssetClass](tc.in)
 			if got != tc.want || ok != tc.ok {
 				t.Errorf("FromProto(%v) = %q, %v, want %q, %v", tc.in, got, ok, tc.want, tc.ok)
 			}
 		})
 	}
-	if got, ok := db.FromProto[types.IdentifierType](typev1.IdentifierType_IDENTIFIER_TYPE_OPENFIGI_SHARE_CLASS); got != types.IdentifierTypeOpenfigiShareClass || !ok {
+	if got, ok := types.FromProto[types.IdentifierType](typev1.IdentifierType_IDENTIFIER_TYPE_OPENFIGI_SHARE_CLASS); got != types.IdentifierTypeOpenfigiShareClass || !ok {
 		t.Errorf("FromProto(OPENFIGI_SHARE_CLASS) = %q, %v", got, ok)
 	}
 }
@@ -47,12 +46,12 @@ func TestToProto(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := db.ToProto[runv1.RunState](tc.in); got != tc.want {
+			if got := types.ToProto[runv1.RunState](tc.in); got != tc.want {
 				t.Errorf("ToProto(%q) = %v, want %v", tc.in, got, tc.want)
 			}
 		})
 	}
-	if got := db.ToProto[typev1.Broker](gen.BrokerFidelityUk); got != typev1.Broker_BROKER_FIDELITY_UK {
+	if got := types.ToProto[typev1.Broker](gen.BrokerFidelityUk); got != typev1.Broker_BROKER_FIDELITY_UK {
 		t.Errorf("ToProto(fidelity_uk) = %v", got)
 	}
 }

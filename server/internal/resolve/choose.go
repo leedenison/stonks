@@ -13,7 +13,7 @@ import (
 )
 
 // result is what one datasource served for a key.
-type result = market.Result[market.StatedKey, market.IdentityResult]
+type result = market.Result[gen.StatedKey, market.IdentityResult]
 
 // group is one instrument a response describes: the candidates sharing an
 // instrument grain identifier, transitively, collapsed to the listing grain

@@ -18,8 +18,9 @@ import (
 	"github.com/leedenison/stonks/proto/holding/v1/holdingv1connect"
 	typev1 "github.com/leedenison/stonks/proto/type/v1"
 	"github.com/leedenison/stonks/server/internal/auth"
-	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/db/to"
+	"github.com/leedenison/stonks/server/internal/db/types"
 )
 
 // Reader is the view of the holdings queries this package depends on.
@@ -75,13 +76,13 @@ func (s *Server) instruments(ctx context.Context, user uuid.UUID) ([]*holdingv1.
 	}
 	named := make(map[uuid.UUID][]*typev1.Identifier, len(rows))
 	for _, i := range idents {
-		named[i.InstrumentID] = append(named[i.InstrumentID], toProto(i))
+		named[i.InstrumentID] = append(named[i.InstrumentID], to.Identifier(i).ToProto())
 	}
 	out := make([]*holdingv1.InstrumentHolding, 0, len(rows))
 	for _, r := range rows {
 		out = append(out, &holdingv1.InstrumentHolding{
 			InstrumentId: r.InstrumentID.String(),
-			AssetClass:   db.ToProto[typev1.AssetClass](r.AssetClass),
+			AssetClass:   types.ToProto[typev1.AssetClass](r.AssetClass),
 			Identifiers:  named[r.InstrumentID],
 			Quantity:     r.Quantity.String(),
 		})
@@ -130,13 +131,13 @@ func (s *Server) groups(ctx context.Context, user uuid.UUID) ([]*holdingv1.Group
 // has already stated.
 func fold(h *holdingv1.GroupHolding, k gen.ListHeldGroupKeysRow) {
 	if k.StatedKey.AssetClass != nil {
-		class := db.ToProto[typev1.AssetClass](*k.StatedKey.AssetClass)
+		class := types.ToProto[typev1.AssetClass](*k.StatedKey.AssetClass)
 		if !slices.Contains(h.AssetClasses, class) {
 			h.AssetClasses = append(h.AssetClasses, class)
 		}
 	}
 	for _, i := range k.StatedKey.Identifiers {
-		id := &typev1.Identifier{Type: db.ToProto[typev1.IdentifierType](i.Type), Domain: i.Domain, Value: i.Value}
+		id := &typev1.Identifier{Type: types.ToProto[typev1.IdentifierType](i.Type), Domain: i.Domain, Value: i.Value}
 		if !slices.ContainsFunc(h.Identifiers, func(o *typev1.Identifier) bool {
 			return o.GetType() == id.GetType() && o.GetDomain() == id.GetDomain() && o.GetValue() == id.GetValue()
 		}) {
@@ -144,15 +145,11 @@ func fold(h *holdingv1.GroupHolding, k gen.ListHeldGroupKeysRow) {
 		}
 	}
 	if k.StatedKey.Description != nil {
-		d := &holdingv1.Description{Broker: db.ToProto[typev1.Broker](k.Broker), Text: *k.StatedKey.Description}
+		d := &holdingv1.Description{Broker: types.ToProto[typev1.Broker](k.Broker), Text: *k.StatedKey.Description}
 		if !slices.ContainsFunc(h.Descriptions, func(o *holdingv1.Description) bool {
 			return o.GetBroker() == d.GetBroker() && o.GetText() == d.GetText()
 		}) {
 			h.Descriptions = append(h.Descriptions, d)
 		}
 	}
-}
-
-func toProto(i gen.Identifier) *typev1.Identifier {
-	return &typev1.Identifier{Type: db.ToProto[typev1.IdentifierType](i.Type), Domain: i.Domain, Value: i.Value}
 }

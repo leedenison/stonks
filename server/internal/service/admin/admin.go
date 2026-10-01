@@ -18,11 +18,10 @@ import (
 
 	adminv1 "github.com/leedenison/stonks/proto/admin/v1"
 	"github.com/leedenison/stonks/proto/admin/v1/adminv1connect"
-	typev1 "github.com/leedenison/stonks/proto/type/v1"
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/db/to"
 	"github.com/leedenison/stonks/server/internal/db/types"
-	runsvc "github.com/leedenison/stonks/server/internal/service/run"
 	stmtsvc "github.com/leedenison/stonks/server/internal/service/statement"
 )
 
@@ -205,9 +204,9 @@ func (s *Server) fill(ctx context.Context, run gen.Run, out *adminv1.GetRunRespo
 		for _, it := range items {
 			k := it.ResolutionKey
 			out.ResolutionItems = append(out.ResolutionItems, &adminv1.ResolutionItem{
-				StatedKey:   statedKey(it.StatedKey),
+				StatedKey:   to.ProtoStatedKey(it.StatedKey),
 				StatedKeyId: k.StatedKeyID.String(),
-				Outcome:     db.ToProto[adminv1.ResolutionOutcome](k.Outcome),
+				Outcome:     types.ToProto[adminv1.ResolutionOutcome](k.Outcome),
 				Reason:      k.Reason,
 			})
 		}
@@ -219,14 +218,14 @@ func (s *Server) fill(ctx context.Context, run gen.Run, out *adminv1.GetRunRespo
 		for _, it := range items {
 			k := it.FetchKey
 			item := &adminv1.FetchItem{
-				StatedKey:   statedKey(it.StatedKey),
+				StatedKey:   to.ProtoStatedKey(it.StatedKey),
 				StatedKeyId: k.StatedKeyID.String(),
-				Outcome:     db.ToProto[adminv1.FetchOutcome](k.Outcome),
+				Outcome:     types.ToProto[adminv1.FetchOutcome](k.Outcome),
 				Attempts:    int32(k.Attempts),
 				Reason:      k.Reason,
 			}
-			if k.SentType != nil && k.SentValue != nil {
-				item.Sent = identifier(types.Identifier{Type: *k.SentType, Domain: k.SentDomain, Value: *k.SentValue})
+			if sent, ok := to.Sent(k); ok {
+				item.Sent = sent.ToProto()
 			}
 			out.FetchItems = append(out.FetchItems, item)
 		}
@@ -399,14 +398,14 @@ func block(b gen.DatasourceBlock, runID uuid.UUID) *adminv1.Block {
 	out := &adminv1.Block{
 		Id:         b.ID.String(),
 		Datasource: b.Datasource,
-		Kind:       db.ToProto[adminv1.FetchKind](b.Kind),
-		Scope:      db.ToProto[adminv1.BlockScope](b.Scope),
+		Kind:       types.ToProto[adminv1.FetchKind](b.Kind),
+		Scope:      types.ToProto[adminv1.BlockScope](b.Scope),
 		Reason:     b.Reason,
 		RunId:      runID.String(),
 		CreatedAt:  timestamppb.New(b.CreatedAt),
 	}
-	if b.SentType != nil && b.SentValue != nil {
-		out.Sent = identifier(types.Identifier{Type: *b.SentType, Domain: b.SentDomain, Value: *b.SentValue})
+	if sent, ok := to.BlockSent(b); ok {
+		out.Sent = sent.ToProto()
 	}
 	if b.ClearedAt != nil {
 		out.ClearedAt = timestamppb.New(*b.ClearedAt)
@@ -418,7 +417,7 @@ func finding(f gen.Finding) *adminv1.Finding {
 	out := &adminv1.Finding{
 		Id:        f.ID.String(),
 		RunId:     f.RunID.String(),
-		Kind:      db.ToProto[adminv1.FindingKind](f.Kind),
+		Kind:      types.ToProto[adminv1.FindingKind](f.Kind),
 		CreatedAt: timestamppb.New(f.CreatedAt),
 	}
 	if f.BlockID != nil {
@@ -434,7 +433,7 @@ func finding(f gen.Finding) *adminv1.Finding {
 		out.FetchKeyId = &id
 	}
 	if f.Step != nil {
-		step := db.ToProto[adminv1.DropStep](*f.Step)
+		step := types.ToProto[adminv1.DropStep](*f.Step)
 		out.Step = &step
 	}
 	out.Detail = f.Detail
@@ -445,22 +444,7 @@ func finding(f gen.Finding) *adminv1.Finding {
 }
 
 func userRun(r gen.Run, email string, open int32) *adminv1.UserRun {
-	return &adminv1.UserRun{Run: runsvc.ToProto(r), UserId: r.UserID.String(), UserEmail: email, OpenFindings: open, Matched: true}
-}
-
-func statedKey(k gen.StatedKey) *typev1.StatedKey {
-	out := &typev1.StatedKey{Currency: k.Currency, Description: k.Description}
-	if k.AssetClass != nil {
-		out.AssetClass = db.ToProto[typev1.AssetClass](*k.AssetClass)
-	}
-	for _, i := range k.Identifiers {
-		out.Identifiers = append(out.Identifiers, identifier(i))
-	}
-	return out
-}
-
-func identifier(i types.Identifier) *typev1.Identifier {
-	return &typev1.Identifier{Type: db.ToProto[typev1.IdentifierType](i.Type), Domain: i.Domain, Value: i.Value}
+	return &adminv1.UserRun{Run: to.ProtoRun(r), UserId: r.UserID.String(), UserEmail: email, OpenFindings: open, Matched: true}
 }
 
 // page is one page of a listing: its size, and the id every row it holds
@@ -501,11 +485,11 @@ func trim[T any](p page, rows []T, id func(T) uuid.UUID) ([]T, string) {
 }
 
 // filter converts an optional enum field to the database value it matches.
-func filter[T db.Enum, P db.ProtoEnum](p *P) (*T, error) {
+func filter[T types.Enum, P types.ProtoEnum](p *P) (*T, error) {
 	if p == nil {
 		return nil, nil
 	}
-	v, ok := db.FromProto[T](*p)
+	v, ok := types.FromProto[T](*p)
 	if !ok {
 		return nil, fmt.Errorf("undefined value %v", *p)
 	}

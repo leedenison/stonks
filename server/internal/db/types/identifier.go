@@ -1,11 +1,15 @@
 // Package types holds the Go types of columns sqlc does not map itself,
-// named in the overrides in sqlc.yaml. It imports nothing of the server, so
-// generated code may depend on it without a cycle.
+// named in the overrides in sqlc.yaml, each type's conversion to its proto
+// message, and the conversions between a database enum and its proto
+// counterpart. It imports nothing of the server, so generated code may
+// depend on it without a cycle.
 package types
 
 import (
 	"fmt"
 	"slices"
+
+	typev1 "github.com/leedenison/stonks/proto/type/v1"
 )
 
 // IdentifierType is the identifier_type enum. It is written here rather than
@@ -74,4 +78,9 @@ type Identifier struct {
 	Type   IdentifierType `json:"type"`
 	Domain string         `json:"domain,omitempty"`
 	Value  string         `json:"value"`
+}
+
+// ToProto writes i as its proto message.
+func (i Identifier) ToProto() *typev1.Identifier {
+	return &typev1.Identifier{Type: ToProto[typev1.IdentifierType](i.Type), Domain: i.Domain, Value: i.Value}
 }

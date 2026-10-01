@@ -9,14 +9,6 @@ import (
 	"github.com/leedenison/stonks/server/internal/db/types"
 )
 
-// StatedKey is one key of an identity fetch.
-type StatedKey struct {
-	ID          uuid.UUID
-	Identifiers []types.Identifier
-	Class       gen.AssetClass
-	Currency    string
-}
-
 // Candidate results of one fetch. Candidates are unranked, and several may be
 // listings of one instrument rather than competing responses.
 type Candidate struct {
@@ -42,14 +34,15 @@ type IdentityResult struct {
 // known to the datasource is also returned.
 type Identity interface {
 	Integration
-	Server[StatedKey, IdentityResult]
+	Server[gen.StatedKey, IdentityResult]
 }
 
-// IdentityKind is the identity of the instruments stated keys name.
-var IdentityKind = Kind[StatedKey, IdentityResult]{
+// IdentityKind is the identity of the instruments stated keys name. The
+// request is the stated key row, and its id is the subject of the fetch key.
+var IdentityKind = Kind[gen.StatedKey, IdentityResult]{
 	name:    gen.FetchKindIdentity,
-	server:  func(e *Entry) Server[StatedKey, IdentityResult] { return e.Identity },
-	subject: func(k StatedKey) uuid.UUID { return k.ID },
+	server:  func(e *Entry) Server[gen.StatedKey, IdentityResult] { return e.Identity },
+	subject: func(k gen.StatedKey) uuid.UUID { return k.ID },
 	count:   func(r IdentityResult) int { return len(r.Candidates) },
 }
 
@@ -60,7 +53,7 @@ type IdentityFetcher struct {
 
 // Identity fetches the identity of keys from e, as a child run of parent,
 // and returns a result per key whether or not the run failed.
-func (a IdentityFetcher) Identity(ctx context.Context, parent gen.Run, e *Entry, keys []StatedKey) ([]Result[StatedKey, IdentityResult], error) {
+func (a IdentityFetcher) Identity(ctx context.Context, parent gen.Run, e *Entry, keys []gen.StatedKey) ([]Result[gen.StatedKey, IdentityResult], error) {
 	_, results, err := Fetch(ctx, a.F, parent, e, IdentityKind, keys)
 	return results, err
 }
