@@ -32,6 +32,9 @@ SELECT mic, operating_mic FROM mics ORDER BY mic;
 -- name: ListAssetClassTree :many
 SELECT * FROM asset_class_tree ORDER BY class;
 
+-- name: ListIdentifierTypeTraits :many
+SELECT * FROM identifier_type_traits ORDER BY type;
+
 -- name: CreateResolutionKey :exec
 INSERT INTO resolution_keys (run_id, user_id, stated_key_id, outcome, reason)
 VALUES ($1, $2, $3, $4, $5);

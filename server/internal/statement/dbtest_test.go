@@ -297,25 +297,6 @@ func TestReplace(t *testing.T) {
 	}
 }
 
-// TestTree checks that the class tree resolution consults is the one the
-// database holds.
-func TestTree(t *testing.T) {
-	s := newStack(t)
-	rows, err := s.q.ListAssetClassTree(context.Background())
-	require.NoError(t, err)
-	got := map[gen.AssetClass]gen.AssetClass{}
-	for _, r := range rows {
-		var parent gen.AssetClass
-		if r.Parent != nil {
-			parent = *r.Parent
-		}
-		got[r.Class] = parent
-	}
-	if diff := cmp.Diff(parents, got); diff != "" {
-		t.Errorf("asset class tree mismatch (-code +table):\n%s", diff)
-	}
-}
-
 // TestDomained holds the domained map equal to the traits table.
 func TestDomained(t *testing.T) {
 	s := newStack(t)

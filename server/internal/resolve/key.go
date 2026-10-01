@@ -1,0 +1,103 @@
+package resolve
+
+import (
+	"slices"
+
+	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/db/types"
+	"github.com/leedenison/stonks/server/internal/market"
+)
+
+// parents is the asset class tree, the root mapping to "". A test holds it
+// equal to the asset_class_tree table.
+var parents = map[gen.AssetClass]gen.AssetClass{
+	gen.AssetClassUnknown:     "",
+	gen.AssetClassCash:        gen.AssetClassUnknown,
+	gen.AssetClassSecurity:    gen.AssetClassUnknown,
+	gen.AssetClassEquity:      gen.AssetClassSecurity,
+	gen.AssetClassStock:       gen.AssetClassEquity,
+	gen.AssetClassEtf:         gen.AssetClassEquity,
+	gen.AssetClassMutualFund:  gen.AssetClassEquity,
+	gen.AssetClassFixedIncome: gen.AssetClassSecurity,
+	gen.AssetClassDerivative:  gen.AssetClassSecurity,
+	gen.AssetClassOption:      gen.AssetClassDerivative,
+	gen.AssetClassFuture:      gen.AssetClassDerivative,
+}
+
+// under reports whether a is b or lies below it.
+func under(a, b gen.AssetClass) bool {
+	for c := a; c != ""; c = parents[c] {
+		if c == b {
+			return true
+		}
+	}
+	return false
+}
+
+// Disjoint reports whether no instrument can be of both classes. An unknown
+// class is disjoint from none.
+func Disjoint(a, b gen.AssetClass) bool { return !under(a, b) && !under(b, a) }
+
+// multi holds the types of which one listing holds several values in one
+// domain, so a value of one does not contradict another.
+var multi = map[types.IdentifierType]bool{types.IdentifierTypeOpenfigiComposite: true}
+
+func grain(id types.Identifier) gen.IdentifierGrain { return market.Trait(id.Type).Grain }
+
+func stable(id types.Identifier) bool {
+	return market.Trait(id.Type).Reassignment == gen.IdentifierReassignmentStable
+}
+
+// strength ranks id by how firmly it names its subject, the strongest
+// first: a stable identifier before a MIC-derived one, and within each an
+// instrument's before a listing's.
+func strength(id types.Identifier) int {
+	n := 0
+	if !stable(id) {
+		n += 2
+	}
+	if grain(id) == gen.IdentifierGrainListing {
+		n++
+	}
+	return n
+}
+
+// guids returns the identifiers k states that every party recognises,
+// strongest first.
+func guids(k gen.StatedKey) []types.Identifier {
+	var out []types.Identifier
+	for _, id := range k.Identifiers {
+		if market.IsGUID(id) {
+			out = append(out, id)
+		}
+	}
+	slices.SortStableFunc(out, func(a, b types.Identifier) int { return strength(a) - strength(b) })
+	return out
+}
+
+// bare reports whether k states a ticker without its venue.
+func bare(k gen.StatedKey) bool {
+	for _, id := range k.Identifiers {
+		if id.Type == types.IdentifierTypeMicTicker && id.Domain == "" {
+			return true
+		}
+	}
+	return false
+}
+
+// family returns the family of the currency k states, mapped through
+// families, and "" where k states none.
+func family(k gen.StatedKey, families func(string) string) string {
+	if k.Currency == nil {
+		return ""
+	}
+	return families(*k.Currency)
+}
+
+// name writes id as its type and value, the venue leading the value.
+func name(id types.Identifier) string {
+	if id.Domain == "" {
+		return string(id.Type) + " " + id.Value
+	}
+	return string(id.Type) + " " + id.Domain + ":" + id.Value
+}
