@@ -256,7 +256,7 @@ func TestGetRun(t *testing.T) {
 			if err != nil {
 				t.Fatalf("GetRun() error = %v", err)
 			}
-			self := runMsg(runID, db.ToProto[runv1.RunKind](tc.kind))
+			self := runMsg(runID, types.ToProto[runv1.RunKind](tc.kind))
 			childMsg := runMsg(childID, runv1.RunKind_RUN_KIND_FETCH)
 			childMsg.Run.Trigger, childMsg.Run.ParentId = runv1.RunTrigger_RUN_TRIGGER_RUN, ptr.To(runID.String())
 			self.Children = []*adminv1.UserRun{childMsg}

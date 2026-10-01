@@ -67,8 +67,8 @@ func isin(value string) types.Identifier {
 }
 
 // keyOf returns a key and the identifier the fake sends for it.
-func keyOf(f *fake, value string) StatedKey {
-	k := StatedKey{ID: db.NewID()}
+func keyOf(f *fake, value string) gen.StatedKey {
+	k := gen.StatedKey{ID: db.NewID()}
 	if f.serves == nil {
 		f.serves = map[string]types.Identifier{}
 	}
@@ -77,9 +77,9 @@ func keyOf(f *fake, value string) StatedKey {
 }
 
 // unservedKey returns a key the fake serves nothing for.
-func unservedKey() StatedKey { return StatedKey{ID: db.NewID()} }
+func unservedKey() gen.StatedKey { return gen.StatedKey{ID: db.NewID()} }
 
-func (h *harness) run(t *testing.T, keys ...StatedKey) []Result[StatedKey, IdentityResult] {
+func (h *harness) run(t *testing.T, keys ...gen.StatedKey) []Result[gen.StatedKey, IdentityResult] {
 	t.Helper()
 	_, results, err := Fetch(context.Background(), h.fetcher, h.parent, h.entry, IdentityKind, keys)
 	if err != nil {
@@ -334,7 +334,7 @@ func TestFetchChunks(t *testing.T) {
 	f := &fake{batch: 2}
 	h := newHarness(t, f, nil)
 	values := []string{"GB00B03MLX29", "US0378331005", "US5949181045", "US0231351067", "US02079K3059"}
-	keys := make([]StatedKey, len(values))
+	keys := make([]gen.StatedKey, len(values))
 	for i, v := range values {
 		keys[i] = keyOf(f, v)
 	}

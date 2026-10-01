@@ -9,7 +9,6 @@ import (
 
 	statementv1 "github.com/leedenison/stonks/proto/statement/v1"
 	typev1 "github.com/leedenison/stonks/proto/type/v1"
-	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/types"
 )
@@ -106,7 +105,7 @@ func (g *ingestion) split(ordinal int32, sp *statementv1.StatedSplit, currencies
 // absent domain first. It fails a class or type outside the vocabulary and
 // two identifiers of one type and domain.
 func keyOf(sk *typev1.StatedKey) (*key, error) {
-	class, ok := db.FromProto[gen.AssetClass](sk.GetAssetClass())
+	class, ok := types.FromProto[gen.AssetClass](sk.GetAssetClass())
 	if !ok {
 		return nil, fmt.Errorf("asset class %d outside the vocabulary", sk.GetAssetClass())
 	}
@@ -118,7 +117,7 @@ func keyOf(sk *typev1.StatedKey) (*key, error) {
 		k.class = &class
 	}
 	for _, id := range sk.GetIdentifiers() {
-		t, ok := db.FromProto[types.IdentifierType](id.GetType())
+		t, ok := types.FromProto[types.IdentifierType](id.GetType())
 		if !ok || t == "" {
 			return nil, fmt.Errorf("identifier type %d outside the vocabulary", id.GetType())
 		}

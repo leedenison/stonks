@@ -7,7 +7,6 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/leedenison/stonks/server/internal/db/gen"
-	"github.com/leedenison/stonks/server/internal/market"
 )
 
 // request fetches the identity of every undecided key from each enabled
@@ -33,9 +32,9 @@ func (r *Resolver) request(ctx context.Context, run gen.Run, resolutions []*reso
 		if len(batches[i]) == 0 {
 			continue
 		}
-		reqs := make([]market.StatedKey, len(batches[i]))
+		reqs := make([]gen.StatedKey, len(batches[i]))
 		for j, res := range batches[i] {
-			reqs[j] = stated(res.row)
+			reqs[j] = res.row
 		}
 		g.Go(func() error {
 			rs, err := r.fetcher.Identity(gctx, run, e, reqs)
@@ -55,16 +54,4 @@ func (r *Resolver) request(ctx context.Context, run gen.Run, resolutions []*reso
 		}
 	}
 	return nil
-}
-
-// stated writes row as the key of an identity fetch.
-func stated(row gen.StatedKey) market.StatedKey {
-	k := market.StatedKey{ID: row.ID, Identifiers: row.Identifiers}
-	if row.AssetClass != nil {
-		k.Class = *row.AssetClass
-	}
-	if row.Currency != nil {
-		k.Currency = *row.Currency
-	}
-	return k
 }

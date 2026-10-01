@@ -53,7 +53,7 @@ var _ Sources = (*market.Registry)(nil)
 // Fetcher is the view of the fetch framework this package depends on: one
 // identity fetch from e, as a child run of parent, with a result per key.
 type Fetcher interface {
-	Identity(ctx context.Context, parent gen.Run, e *market.Entry, keys []market.StatedKey) ([]result, error)
+	Identity(ctx context.Context, parent gen.Run, e *market.Entry, keys []gen.StatedKey) ([]result, error)
 }
 
 var _ Fetcher = market.IdentityFetcher{}

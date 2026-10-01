@@ -10,13 +10,13 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	runv1 "github.com/leedenison/stonks/proto/run/v1"
 	"github.com/leedenison/stonks/proto/run/v1/runv1connect"
 	"github.com/leedenison/stonks/server/internal/auth"
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/db/to"
 )
 
 // Reader is the view of the run queries this package depends on.
@@ -57,28 +57,5 @@ func (s *Server) GetRun(ctx context.Context, req *connect.Request[runv1.GetRunRe
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	return connect.NewResponse(&runv1.GetRunResponse{Run: ToProto(row)}), nil
-}
-
-// ToProto converts a run row to its message.
-func ToProto(r gen.Run) *runv1.Run {
-	out := &runv1.Run{
-		Id:        r.ID.String(),
-		Kind:      db.ToProto[runv1.RunKind](r.Kind),
-		Trigger:   db.ToProto[runv1.RunTrigger](r.Trigger),
-		State:     db.ToProto[runv1.RunState](r.State),
-		Error:     r.Error,
-		CreatedAt: timestamppb.New(r.CreatedAt),
-	}
-	if r.ParentID != nil {
-		parent := r.ParentID.String()
-		out.ParentId = &parent
-	}
-	if r.StartedAt != nil {
-		out.StartedAt = timestamppb.New(*r.StartedAt)
-	}
-	if r.FinishedAt != nil {
-		out.FinishedAt = timestamppb.New(*r.FinishedAt)
-	}
-	return out
+	return connect.NewResponse(&runv1.GetRunResponse{Run: to.ProtoRun(row)}), nil
 }

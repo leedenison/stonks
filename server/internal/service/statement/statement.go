@@ -21,7 +21,8 @@ import (
 	"github.com/leedenison/stonks/server/internal/auth"
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
-	runsvc "github.com/leedenison/stonks/server/internal/service/run"
+	"github.com/leedenison/stonks/server/internal/db/to"
+	"github.com/leedenison/stonks/server/internal/db/types"
 	"github.com/leedenison/stonks/server/internal/statement"
 )
 
@@ -70,7 +71,7 @@ func (s *Server) CreateStatement(ctx context.Context, req *connect.Request[state
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	return connect.NewResponse(&statementv1.CreateStatementResponse{Run: runsvc.ToProto(run)}), nil
+	return connect.NewResponse(&statementv1.CreateStatementResponse{Run: to.ProtoRun(run)}), nil
 }
 
 // ListStatements reads the caller's statements, newest first.
@@ -124,8 +125,8 @@ func (s *Server) GetStatement(ctx context.Context, req *connect.Request[statemen
 
 func summary(st gen.Statement, run gen.Run, rejected int32) *statementv1.StatementSummary {
 	return &statementv1.StatementSummary{
-		Run:         runsvc.ToProto(run),
-		Broker:      db.ToProto[typev1.Broker](st.Broker),
+		Run:         to.ProtoRun(run),
+		Broker:      types.ToProto[typev1.Broker](st.Broker),
 		OrderFrom:   st.OrderFrom.Format("2006-01-02"),
 		OrderBefore: st.OrderBefore.Format("2006-01-02"),
 		Rows:        st.RowCount,

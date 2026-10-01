@@ -71,7 +71,7 @@ func (s *script) Classify(error) market.Failure {
 }
 func (s *script) Limit() (rate.Limit, int) { return rate.Inf, 1 }
 func (s *script) Batch() int               { return 10 }
-func (s *script) Serves(k market.StatedKey) (types.Identifier, error) {
+func (s *script) Serves(k gen.StatedKey) (types.Identifier, error) {
 	for _, id := range k.Identifiers {
 		if market.IsGUID(id) {
 			return id, nil
@@ -80,7 +80,7 @@ func (s *script) Serves(k market.StatedKey) (types.Identifier, error) {
 	return types.Identifier{}, errors.New("no global identifier")
 }
 
-func (s *script) Fetch(_ context.Context, reqs []market.Request[market.StatedKey]) ([]market.Response[market.IdentityResult], error) {
+func (s *script) Fetch(_ context.Context, reqs []market.Request[gen.StatedKey]) ([]market.Response[market.IdentityResult], error) {
 	out := make([]market.Response[market.IdentityResult], len(reqs))
 	for i, r := range reqs {
 		out[i] = market.Response[market.IdentityResult]{Value: s.responses[r.Sent]}

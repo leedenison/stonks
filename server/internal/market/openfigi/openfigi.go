@@ -132,10 +132,10 @@ type openfigiResponse struct {
 }
 
 // Fetch sends one mapping request with a job per request.
-func (c *Client) Fetch(ctx context.Context, reqs []market.Request[market.StatedKey]) ([]market.Response[market.IdentityResult], error) {
+func (c *Client) Fetch(ctx context.Context, reqs []market.Request[gen.StatedKey]) ([]market.Response[market.IdentityResult], error) {
 	jobs := make([]job, len(reqs))
 	for i, r := range reqs {
-		jobs[i] = jobOf(r.Sent, r.Value.Currency)
+		jobs[i] = jobOf(r.Sent, currency(r.Value))
 	}
 	body, err := json.Marshal(jobs)
 	if err != nil {
@@ -151,7 +151,7 @@ func (c *Client) Fetch(ctx context.Context, reqs []market.Request[market.StatedK
 			out[i].Err = jobError(responses[i].Error)
 			continue
 		}
-		out[i].Value = identity(reqs[i].Sent, reqs[i].Value.Currency, responses[i].Data, c.mics)
+		out[i].Value = identity(reqs[i].Sent, currency(reqs[i].Value), responses[i].Data, c.mics)
 	}
 	return out, nil
 }
@@ -200,4 +200,12 @@ type result struct {
 	MarketSector   string  `json:"marketSector"`
 	ShareClassFIGI *string `json:"shareClassFIGI"`
 	CompositeFIGI  *string `json:"compositeFIGI"`
+}
+
+// currency returns the code the key states, "" where it states none.
+func currency(k gen.StatedKey) string {
+	if k.Currency == nil {
+		return ""
+	}
+	return *k.Currency
 }

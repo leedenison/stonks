@@ -156,7 +156,7 @@ func (f *fixture) stores(h stored) {
 
 // serves has e serve one result per key, in the order of the keys.
 func (f *fixture) serves(e *market.Entry, results ...result) {
-	f.fetcher.EXPECT().Identity(gomock.Any(), res, e, gomock.Any()).DoAndReturn(func(_ context.Context, _ gen.Run, _ *market.Entry, keys []market.StatedKey) ([]result, error) {
+	f.fetcher.EXPECT().Identity(gomock.Any(), res, e, gomock.Any()).DoAndReturn(func(_ context.Context, _ gen.Run, _ *market.Entry, keys []gen.StatedKey) ([]result, error) {
 		if len(keys) != len(results) {
 			f.t.Errorf("%s was sent %d keys, want %d", e.Name, len(keys), len(results))
 		}

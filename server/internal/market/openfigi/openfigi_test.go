@@ -35,8 +35,11 @@ var (
 
 // fetch asks c about sent for a key stating currency, as the framework would.
 func fetch(c *Client, sent types.Identifier, currency string) ([]market.Response[market.IdentityResult], error) {
-	req := market.Request[market.StatedKey]{Value: market.StatedKey{Currency: currency}, Sent: sent}
-	return c.Fetch(context.Background(), []market.Request[market.StatedKey]{req})
+	req := market.Request[gen.StatedKey]{Sent: sent}
+	if currency != "" {
+		req.Value.Currency = &currency
+	}
+	return c.Fetch(context.Background(), []market.Request[gen.StatedKey]{req})
 }
 
 // names reports whether some candidate returns id.
