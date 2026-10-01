@@ -92,6 +92,48 @@ func TestDatasources(t *testing.T) {
 	}
 }
 
+// TestUpdateDatasource checks the credential's three cases, the endpoint, and
+// the precedence set by position.
+func TestUpdateDatasource(t *testing.T) {
+	ctx := context.Background()
+	q := newTx(t)
+	newDatasource(t, q, "alpha", 1)
+	newDatasource(t, q, "beta", 2)
+
+	row, err := q.UpdateDatasource(ctx, gen.UpdateDatasourceParams{Name: "beta", Enabled: false, Endpoint: ptr.To("http://stub"), Credential: ptr.To("secret")})
+	require.NoError(t, err)
+	if row.Enabled || row.Endpoint == nil || *row.Endpoint != "http://stub" || row.Credential == nil || *row.Credential != "secret" {
+		t.Errorf("UpdateDatasource = %+v, want disabled at http://stub holding secret", row)
+	}
+	row, err = q.UpdateDatasource(ctx, gen.UpdateDatasourceParams{Name: "beta", Enabled: true, Endpoint: ptr.To("http://stub")})
+	require.NoError(t, err)
+	if !row.Enabled || row.Credential == nil || *row.Credential != "secret" {
+		t.Errorf("UpdateDatasource with no credential = %+v, want enabled and the credential kept", row)
+	}
+	row, err = q.UpdateDatasource(ctx, gen.UpdateDatasourceParams{Name: "beta", Enabled: true, Credential: ptr.To("")})
+	require.NoError(t, err)
+	if row.Credential != nil || row.Endpoint != nil {
+		t.Errorf("UpdateDatasource with an empty credential and no endpoint = %+v, want both cleared", row)
+	}
+	settings, err := q.ListDatasourceSettings(ctx)
+	require.NoError(t, err)
+	for _, s := range settings {
+		if s.HasCredential {
+			t.Errorf("ListDatasourceSettings reports %s holding a credential, want none held", s.Name)
+		}
+	}
+	if _, err := q.UpdateDatasource(ctx, gen.UpdateDatasourceParams{Name: "gone"}); !errors.Is(err, db.ErrNotFound) {
+		t.Errorf("UpdateDatasource of no datasource: err = %v, want ErrNotFound", err)
+	}
+
+	require.NoError(t, q.SetDatasourcePrecedence(ctx, gen.SetDatasourcePrecedenceParams{Names: []string{"beta", "alpha"}, Precedences: []int32{1, 2}}))
+	listed, err := q.ListDatasources(ctx)
+	require.NoError(t, err)
+	if len(listed) != 2 || listed[0].Name != "beta" || listed[0].Precedence != 1 || listed[1].Precedence != 2 {
+		t.Errorf("ListDatasources after reorder = %+v, want beta at 1 then alpha at 2", listed)
+	}
+}
+
 // TestFetches checks that a fetch is a run of its own user.
 func TestFetches(t *testing.T) {
 	ctx := context.Background()

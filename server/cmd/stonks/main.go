@@ -143,7 +143,7 @@ func run() (err error) {
 		Allowed:  cfg.AllowedEmails,
 	})
 	ingester := stmt.New(db.New[stmt.Queries](pool), runs, time.Now)
-	srv, err := newServer(cfg.ListenAddr, log, authn, queries, ingester, cfg.CookieSecure)
+	srv, err := newServer(cfg.ListenAddr, log, authn, queries, sources, ingester, cfg.CookieSecure)
 	if err != nil {
 		return err
 	}
@@ -173,7 +173,7 @@ func tracedClient() *http.Client {
 // once the server listens, which is after the migrations have applied. It is
 // outside the Connect chain and the mux carries no HTTP instrumentation, so
 // the container probing it every two seconds produces no telemetry.
-func newServer(addr string, log *slog.Logger, authn *auth.Authenticator, queries *gen.Queries, ingester stmtsvc.Ingester, secure bool) (*http.Server, error) {
+func newServer(addr string, log *slog.Logger, authn *auth.Authenticator, queries *gen.Queries, sources *market.Registry, ingester stmtsvc.Ingester, secure bool) (*http.Server, error) {
 	opts, err := service.HandlerOptions(logger.WithCategory(log, "internal/service"), authn)
 	if err != nil {
 		return nil, err
@@ -182,7 +182,7 @@ func newServer(addr string, log *slog.Logger, authn *auth.Authenticator, queries
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
-	mux.Handle(adminv1connect.NewAdminServiceHandler(adminsvc.New(queries), opts...))
+	mux.Handle(adminv1connect.NewAdminServiceHandler(adminsvc.New(queries, sources), opts...))
 	mux.Handle(authv1connect.NewAuthServiceHandler(authsvc.New(authn, secure), opts...))
 	mux.Handle(holdingv1connect.NewHoldingServiceHandler(holdingsvc.New(queries), opts...))
 	mux.Handle(instrumentv1connect.NewInstrumentServiceHandler(instrument.New(), opts...))

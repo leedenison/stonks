@@ -8,7 +8,8 @@
 // receives and the response it gives.  An integration serves a kind by
 // implementing its Server.
 //
-// The registry is built at startup from the datasources table.
+// The registry is built at startup from the datasources table and rebuilt
+// when an administrator changes a row; see [registry.go](registry.go).
 //
 // A fetch splits its requests into calls no larger than the integration's
 // batch.  Each call waits on the datasource's rate limit and is retried

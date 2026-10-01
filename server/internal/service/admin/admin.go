@@ -42,6 +42,9 @@ type Reader interface {
 	GetFinding(ctx context.Context, id uuid.UUID) (gen.Finding, error)
 	ClearFinding(ctx context.Context, id uuid.UUID) error
 	ListDatasourceSettings(ctx context.Context) ([]gen.ListDatasourceSettingsRow, error)
+	ListDatasources(ctx context.Context) ([]gen.Datasource, error)
+	UpdateDatasource(ctx context.Context, arg gen.UpdateDatasourceParams) (gen.Datasource, error)
+	SetDatasourcePrecedence(ctx context.Context, arg gen.SetDatasourcePrecedenceParams) error
 	ListBlocks(ctx context.Context, arg gen.ListBlocksParams) ([]gen.ListBlocksRow, error)
 	GetDatasourceBlock(ctx context.Context, id uuid.UUID) (gen.DatasourceBlock, error)
 	ClearDatasourceBlock(ctx context.Context, id uuid.UUID) error
@@ -49,18 +52,27 @@ type Reader interface {
 
 var _ Reader = (*gen.Queries)(nil)
 
+// Sources is this package's view of the datasource registry: whether the
+// build carries an integration, and the reload that makes a change to the
+// table take effect.
+type Sources interface {
+	Carries(name string) bool
+	Reload(ctx context.Context) error
+}
+
 //go:generate go tool mockgen -source=admin.go -destination=mock/admin_mock.go -package=mock
 
 // Server implements AdminService.
 type Server struct {
-	reader Reader
+	reader  Reader
+	sources Sources
 }
 
 var _ adminv1connect.AdminServiceHandler = (*Server)(nil)
 
 // New returns a Server.
-func New(reader Reader) *Server {
-	return &Server{reader: reader}
+func New(reader Reader, sources Sources) *Server {
+	return &Server{reader: reader, sources: sources}
 }
 
 // ListRuns lists every user's runs matching the filters, newest first.
@@ -234,11 +246,76 @@ func (s *Server) ListDatasources(ctx context.Context, _ *connect.Request[adminv1
 	}
 	out := &adminv1.ListDatasourcesResponse{}
 	for _, r := range rows {
-		out.Datasources = append(out.Datasources, &adminv1.Datasource{
-			Name: r.Name, Enabled: r.Enabled, Precedence: r.Precedence, Endpoint: r.Endpoint,
-		})
+		out.Datasources = append(out.Datasources, datasource(r.Name, r.Enabled, r.Precedence, r.Endpoint, r.HasCredential))
 	}
 	return connect.NewResponse(out), nil
+}
+
+// UpdateDatasource sets a datasource's state, endpoint and credential, and
+// reloads the registry so the change takes effect. An empty endpoint is the
+// provider's default.
+func (s *Server) UpdateDatasource(ctx context.Context, req *connect.Request[adminv1.UpdateDatasourceRequest]) (*connect.Response[adminv1.UpdateDatasourceResponse], error) {
+	m := req.Msg
+	if m.GetEnabled() && !s.sources.Carries(m.GetName()) {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("this build carries no integration named %s", m.GetName()))
+	}
+	arg := gen.UpdateDatasourceParams{Name: m.GetName(), Enabled: m.GetEnabled(), Credential: m.Credential}
+	if m.GetEndpoint() != "" {
+		arg.Endpoint = m.Endpoint
+	}
+	row, err := s.reader.UpdateDatasource(ctx, arg)
+	switch {
+	case errors.Is(err, db.ErrNotFound):
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("no datasource named %s", m.GetName()))
+	case err != nil:
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	if err := s.sources.Reload(ctx); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("reload datasources: %w", err))
+	}
+	out := &adminv1.UpdateDatasourceResponse{Datasource: datasource(row.Name, row.Enabled, row.Precedence, row.Endpoint, row.Credential != nil)}
+	return connect.NewResponse(out), nil
+}
+
+// ReorderDatasources gives each datasource the precedence of its position in
+// the list, and reloads the registry. A list that does not name every
+// datasource exactly once is refused.
+func (s *Server) ReorderDatasources(ctx context.Context, req *connect.Request[adminv1.ReorderDatasourcesRequest]) (*connect.Response[adminv1.ReorderDatasourcesResponse], error) {
+	names := req.Msg.GetNames()
+	rows, err := s.reader.ListDatasources(ctx)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	seen := make(map[string]bool, len(names))
+	for _, n := range names {
+		if seen[n] {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("%s is named twice", n))
+		}
+		seen[n] = true
+	}
+	for _, r := range rows {
+		if !seen[r.Name] {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("%s is not named", r.Name))
+		}
+	}
+	if len(names) != len(rows) {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("a name is no datasource"))
+	}
+	precedences := make([]int32, len(names))
+	for i := range names {
+		precedences[i] = int32(i + 1)
+	}
+	if err := s.reader.SetDatasourcePrecedence(ctx, gen.SetDatasourcePrecedenceParams{Names: names, Precedences: precedences}); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	if err := s.sources.Reload(ctx); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("reload datasources: %w", err))
+	}
+	return connect.NewResponse(&adminv1.ReorderDatasourcesResponse{}), nil
+}
+
+func datasource(name string, enabled bool, precedence int32, endpoint *string, held bool) *adminv1.Datasource {
+	return &adminv1.Datasource{Name: name, Enabled: enabled, Precedence: precedence, Endpoint: endpoint, HasCredential: held}
 }
 
 // ListBlocks lists datasource blocks, newest first.

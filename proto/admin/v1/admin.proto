@@ -210,9 +210,33 @@ message Datasource {
   int32 precedence = 3;
   // The address the integration calls; unset for the provider's default.
   optional string endpoint = 4;
+  // A credential is held; its value is never returned.
+  bool has_credential = 5;
 }
 
 message ListDatasourcesRequest {}
+
+message UpdateDatasourceRequest {
+  string name = 1 [(buf.validate.field).string.min_len = 1];
+  bool enabled = 2;
+  // The address the integration calls; unset or empty for the provider's
+  // default.
+  optional string endpoint = 3;
+  // The credential to hold; unset keeps the one held, and empty clears it.
+  optional string credential = 4;
+}
+
+message UpdateDatasourceResponse {
+  Datasource datasource = 1;
+}
+
+// Every datasource, in the precedence wanted: the first named is consulted
+// first.
+message ReorderDatasourcesRequest {
+  repeated string names = 1 [(buf.validate.field).repeated.min_items = 1];
+}
+
+message ReorderDatasourcesResponse {}
 
 // Datasources in precedence order.
 message ListDatasourcesResponse {
@@ -293,6 +317,13 @@ service AdminService {
   // Lists the datasources this instance has registered. The credential is
   // never read.
   rpc ListDatasources(ListDatasourcesRequest) returns (ListDatasourcesResponse);
+  // Sets a datasource's state, endpoint and credential, taking effect at
+  // once. Enabling a datasource without an integration in this build is
+  // refused as a failed precondition.
+  rpc UpdateDatasource(UpdateDatasourceRequest) returns (UpdateDatasourceResponse);
+  // Orders the datasources by precedence, taking effect at once. A list that
+  // does not name every datasource exactly once is refused.
+  rpc ReorderDatasources(ReorderDatasourcesRequest) returns (ReorderDatasourcesResponse);
   // Lists datasource blocks.
   rpc ListBlocks(ListBlocksRequest) returns (ListBlocksResponse);
   // Clears a block and the finding reporting it. Clearing a cleared block
