@@ -76,7 +76,7 @@ func keyOf(f *fake, value string) gen.StatedKey {
 	return k
 }
 
-// unservedKey returns a key the fake serves nothing for.
+// unservedKey returns a key the fake does not serve.
 func unservedKey() gen.StatedKey { return gen.StatedKey{ID: db.NewID()} }
 
 func (h *harness) run(t *testing.T, keys ...gen.StatedKey) []Result[gen.StatedKey, IdentityResult] {
@@ -104,8 +104,8 @@ func (h *harness) key(t *testing.T, id uuid.UUID) gen.CreateFetchKeyParams {
 	return gen.CreateFetchKeyParams{}
 }
 
-// TestFetchNotServed checks that a key the integration declines costs no call
-// and leaves no identifier sent.
+// TestFetchNotServed checks that when the integration declines a key, the key
+// costs no call and leaves no identifier sent.
 func TestFetchNotServed(t *testing.T) {
 	f := &fake{}
 	h := newHarness(t, f, nil)
@@ -173,7 +173,7 @@ func TestFetchRetries(t *testing.T) {
 }
 
 // TestFetchRetriesExhausted checks that a temporary failure that never clears
-// becomes a block on the identifiers it was sent for.
+// becomes a block on the identifiers sent.
 func TestFetchRetriesExhausted(t *testing.T) {
 	f := &fake{errs: []error{temporary("503"), temporary("503"), temporary("503")}}
 	h := newHarness(t, f, nil)
@@ -259,8 +259,8 @@ func TestFetchPerKeyError(t *testing.T) {
 	}
 }
 
-// TestFetchOpenBlocks checks that a block read as the fetch starts suppresses
-// its call, and that a datasource block suppresses every call.
+// TestFetchOpenBlocks checks that where a block is read as the fetch starts,
+// it suppresses its call, and that a datasource block suppresses every call.
 func TestFetchOpenBlocks(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -328,8 +328,9 @@ func TestFetchRecordsAgainstItsRun(t *testing.T) {
 	}
 }
 
-// TestFetchChunks checks that a batch larger than the integration accepts is
-// sent as several requests, each responded to in the order of its keys.
+// TestFetchChunks checks that where a batch is larger than the integration
+// accepts, it is sent as several requests, each responded to in the order of
+// its keys.
 func TestFetchChunks(t *testing.T) {
 	f := &fake{batch: 2}
 	h := newHarness(t, f, nil)
@@ -359,8 +360,8 @@ func TestFetchChunks(t *testing.T) {
 	}
 }
 
-// TestFetchChunkFails checks that a request failing about its identifiers
-// fails only the keys it carried.
+// TestFetchChunkFails checks that when a request fails about its identifiers,
+// it fails only the keys it carried.
 func TestFetchChunkFails(t *testing.T) {
 	f := &fake{batch: 1, errs: []error{nil, permanent("refused")}}
 	h := newHarness(t, f, nil)
@@ -378,8 +379,9 @@ func TestFetchChunkFails(t *testing.T) {
 	}
 }
 
-// TestFetchChunkBlocksDatasource checks that a request blocking the datasource
-// leaves the requests after it unsent and their keys blocked.
+// TestFetchChunkBlocksDatasource checks that when a request blocks the
+// datasource, the fetch leaves the requests after it unsent and their keys
+// blocked.
 func TestFetchChunkBlocksDatasource(t *testing.T) {
 	f := &fake{batch: 1, errs: []error{nil, credential("401")}}
 	h := newHarness(t, f, nil)

@@ -18,7 +18,7 @@ those properties, and **candidate authority** is a guess.
 **Currency Family** -- the currency codes that denote one currency at different unit
 scales. GBP and GBp/GBX are one family.
 
-**Venue** -- the exchange or trading system a listing trades on.
+**Venue** -- the exchange or trading system where a listing trades.
 
 **Validity** -- the interval over which an identifier names one instrument.
 **Confirmed** where coverage or assertions establish it, **provisional** where it rests

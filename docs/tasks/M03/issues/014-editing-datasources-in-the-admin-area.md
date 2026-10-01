@@ -15,7 +15,7 @@ In:
   endpoint and whether a credential is held, a toggle for its state, an edit dialog for
   the endpoint and credential, and a drag handle that reorders the rows, the first row
   consulted first.
-- The RPCs the page calls, refusing a datasource this build carries no integration for
+- The RPCs the page calls, refusing a datasource without an integration in this build
   and an order that does not name every datasource once.
 - The registry reloading from the table when a datasource changes, so no restart is
   needed, each resolution reading the enabled datasources once as it starts.

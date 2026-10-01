@@ -38,10 +38,10 @@ func credential(text string) error {
 // fake is an integration whose every response is scripted. errs is consumed one
 // entry per request, so a case can fail twice and then succeed.
 type fake struct {
-	// serves reports what to send for a key; a key absent from it is not
-	// served.
+	// serves reports what to send for a key; where it lacks a key, the fake
+	// does not serve it.
 	serves map[string]types.Identifier
-	// errs is the error each successive request fails with, nil to succeed.
+	// errs is the error of each successive request, nil to succeed.
 	errs []error
 	// perKey is the error returned for one position of a good response.
 	perKey map[string]error

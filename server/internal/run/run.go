@@ -4,11 +4,11 @@
 // with the row, and progress and the outcome are read against it.
 //
 // A run is started by a user, by an administrator, who is then its user, or
-// by another run. A run a user or an administrator starts executes in a
-// goroutine of its own once the call starting it has responded, after carrying
-// out its prepare step in the caller. A run started by another run executes
-// inline in its parent's goroutine, and the parent decides whether its
-// failure fails it.
+// by another run. When a user or an administrator starts a run, it executes
+// in a goroutine of its own once the call starting it has responded, after
+// carrying out its prepare step in the caller. When a run starts another run,
+// the child executes inline in its parent's goroutine, and the parent decides
+// whether the child's failure fails it.
 //
 // Runs of one user and lane execute in the order they were started: a run
 // stays pending until every earlier run of the same user and lane has
@@ -24,11 +24,12 @@
 // resumed nor restarted, and is kept apart from failed because nothing
 // recorded why it stopped.
 //
-// Work reaching its end marks the run completed unless the work did so
-// itself. A kind whose writes and completion must be one database
+// When work reaches its end, the runner marks the run completed unless the
+// work did so itself. A kind whose writes and completion must be one database
 // transaction calls CompleteRun inside that transaction, and the update made
-// afterwards matches no row. Work returning an error marks the run failed
-// with the error's text. A panic in Prepare or the work fails the run.
+// afterwards matches no row. When work returns an error, the runner marks the
+// run failed with the error's text. A panic in Prepare or the work fails the
+// run.
 //
 // A run records what an administrator may need to see as findings, which
 // belong to the run and are written by the work that met them; see
@@ -58,7 +59,7 @@ import (
 // ErrClosed is returned by Start and Child once Close has been called.
 var ErrClosed = errors.New("runner closed")
 
-// Store is the view of the run queries this package depends on.
+// Store is this package's view of the run queries.
 type Store interface {
 	CreateRun(ctx context.Context, arg gen.CreateRunParams) (gen.Run, error)
 	StartRun(ctx context.Context, id uuid.UUID) (gen.Run, error)

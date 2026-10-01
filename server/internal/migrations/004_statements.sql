@@ -41,9 +41,11 @@ CREATE TABLE stated_keys (
     -- whole key is the unique index, which bounds it at one btree entry
     -- (about 2.7KB).
     identifiers   jsonb       NOT NULL DEFAULT '[]',
-    -- instrument_id references the instrument this stated_key resolved to.
+    -- instrument_id references the instrument to which this stated_key
+    -- resolved.
     instrument_id uuid        REFERENCES instruments (id),
-    -- listing_id references the listing this stated_key resolved to, if known.
+    -- listing_id references the listing to which this stated_key resolved, if
+    -- known.
     listing_id    uuid        REFERENCES listings (id),
     -- via_id references the identifier used to make the instrument/listing
     -- association.
@@ -111,7 +113,7 @@ CREATE TABLE statement_splits (
 -- the row rather than reached through the statement.
 --
 -- quantity is in units of the instrument: shares, contracts, or money for
--- cash. The currency it is stated in is the key's.
+-- cash. Its stated currency is the key's.
 CREATE TABLE transactions (
     id              uuid        PRIMARY KEY,
     user_id         uuid        NOT NULL REFERENCES users (id),

@@ -3,8 +3,8 @@
 import { createContext, type ReactNode, useContext, useState } from "react";
 
 // What the upload dialog is showing. Each opening has its own key, so the
-// dialog starts afresh from the first stage; a file given at opening skips
-// the choosing stage.
+// dialog starts afresh from the first stage; when a file is given at
+// opening, the dialog skips the choosing stage.
 export type UploadState = {
   open: boolean;
   file?: File;

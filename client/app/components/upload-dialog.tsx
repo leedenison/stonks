@@ -89,9 +89,9 @@ export function UploadDialog({
     );
   };
 
-  // A file handed over at opening is read at once, unless its size already
-  // refused it. The read is started here and settles after this opening,
-  // unless the dialog has gone by then.
+  // When a file is handed over at opening, the dialog reads it at once,
+  // unless its size already refused it. The read is started here and settles
+  // after this opening, unless the dialog has gone by then.
   useEffect(() => {
     if (!initial || oversize(initial)) {
       return;

@@ -24,7 +24,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/service"
 )
 
-// Signer is the view of the authenticator this package depends on.
+// Signer is this package's view of the authenticator.
 type Signer interface {
 	SignIn(ctx context.Context, token string) (auth.Principal, error)
 	SignOut(ctx context.Context, sessionID string) error

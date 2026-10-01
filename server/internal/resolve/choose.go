@@ -18,11 +18,11 @@ type result = market.Result[gen.StatedKey, market.IdentityResult]
 // group is one instrument a response describes: the candidates sharing an
 // instrument grain identifier, transitively, collapsed to the listing grain
 // identifiers of one listing per currency family, the family empty where
-// the candidates carry no currency. r is the result the group came from,
-// nil for the group of the instrument found in the database. order is the position of
-// its first candidate in the response, class the class of the first
-// candidate stating one, and named whether the identifier the key was sent
-// under identifies it.
+// the candidates carry no currency. r is the result from which the group
+// was built, nil for the group of the instrument found in the database.
+// order is the position of its first candidate in the response, class the
+// class of the first candidate stating one, and named whether the
+// identifier the key was sent under identifies it.
 type group struct {
 	r          *result
 	order      int
@@ -35,7 +35,7 @@ type group struct {
 // choice is the outcome of choosing among the groups of every response.
 // winner is nil where no group survived; attached are the best groups of the
 // datasources in precedence order, the winner among them where the
-// database did not hold the key.
+// database named no instrument for the key.
 // notNaming counts, per datasource, the groups dropped for not naming the
 // identifier sent, which the reason of a key no group won summarises.
 type choice struct {
@@ -46,7 +46,7 @@ type choice struct {
 }
 
 // groups builds the groups of r, one per set partition finds, each carrying
-// the instrument grain identifiers the call filtered on. families maps a
+// the instrument grain identifiers of the call's filter. families maps a
 // currency code to its family.
 func groups(r *result, families func(string) string) []*group {
 	var strict []types.Identifier
@@ -177,7 +177,7 @@ func (g *group) identifiedBy(id types.Identifier) bool {
 	return false
 }
 
-// families returns the families g has a listing in, sorted, leaving out
+// families returns the families where g has a listing, sorted, leaving out
 // the listing of no family.
 func (g *group) families() []string {
 	var out []string

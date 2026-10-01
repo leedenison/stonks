@@ -137,8 +137,8 @@ func TestRunItems(t *testing.T) {
 }
 
 // TestFindingsAndBlocks checks the open and cleared listings of findings and
-// blocks, that a finding reporting a block is not cleared alone, and that the
-// datasource settings leave the credential out.
+// blocks, that a finding is not cleared alone where it reports a block, and
+// that the datasource settings leave the credential out.
 func TestFindingsAndBlocks(t *testing.T) {
 	ctx := context.Background()
 	q := newTx(t)

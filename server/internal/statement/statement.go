@@ -13,10 +13,10 @@
 // outcome, and a rejected key rejects its rows.
 //
 // Grouping. The unresolved keys a transaction names are gathered across
-// every statement of the user: two sharing an identifier, or a description
-// within one broker, are one holding, transitively. The group is derived from
-// what the keys state, so the write recomputes it in full under the user's
-// key lock.
+// every statement of the user: where two share an identifier, or a
+// description within one broker, they are one holding, transitively. The
+// group is derived from what the keys state, so the write recomputes it in
+// full under the user's key lock.
 package statement
 
 import (
@@ -157,8 +157,8 @@ type key struct {
 }
 
 // statable reports whether k says anything about an instrument at all: an
-// identifier or a description. A key stating neither names nothing, now or
-// later, and its rows are rejected.
+// identifier or a description. Where a key states neither, it names nothing,
+// now or later, and its rows are rejected.
 func (k *key) statable() bool {
 	return k.description != nil || len(k.identifiers) > 0
 }
@@ -202,8 +202,8 @@ func (k *key) equal(o *key) bool {
 	return slices.Equal(k.identifiers, o.identifiers)
 }
 
-// intern returns the key equal to k the statement already holds, or k with
-// an id minted for it.
+// intern returns the key equal to k the statement already has, or k with an
+// id minted for it.
 func (g *ingestion) intern(k *key) *key {
 	h := k.hash()
 	for _, held := range g.keys[h] {

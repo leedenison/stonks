@@ -388,9 +388,10 @@ func TestResolveCreate(t *testing.T) {
 	}
 }
 
-// TestResolveCovered checks that a key found in the database is requested
-// only from the datasources that have not covered its instrument, and that
-// their response fills what the instrument lacks without replacing it.
+// TestResolveCovered checks that where a key is found in the database, it is
+// requested only from the datasources that have not covered its instrument,
+// and that their response fills what the instrument lacks without replacing
+// it.
 func TestResolveCovered(t *testing.T) {
 	f := newFixture(t, entryA, entryB)
 	instID, isinID, gbpID := db.NewID(), db.NewID(), db.NewID()
@@ -559,8 +560,8 @@ func TestResolveHeld(t *testing.T) {
 	})
 }
 
-// TestResolveRetry checks that a write a concurrent insert refuses is
-// retried, and the re-read then attaches to the instrument inserted.
+// TestResolveRetry checks that when a concurrent insert refuses a write, the
+// write is retried, and the re-read then attaches to the instrument inserted.
 func TestResolveRetry(t *testing.T) {
 	f := newFixture(t, entryA)
 	instID, isinID := db.NewID(), db.NewID()
@@ -606,9 +607,10 @@ func TestResolveErrors(t *testing.T) {
 	})
 }
 
-// TestResolveMerge checks that a response identifying two instruments folds
-// the later created into the earlier, and that two instruments disagreeing
-// on an identifier are left apart with a contradiction finding.
+// TestResolveMerge checks that when a response identifies two instruments,
+// the merge folds the later created into the earlier, and that where two
+// instruments disagree on an identifier, they are left apart with a
+// contradiction finding.
 func TestResolveMerge(t *testing.T) {
 	earlier, later := time.Date(2026, time.September, 1, 0, 0, 0, 0, time.UTC), time.Date(2026, time.September, 2, 0, 0, 0, 0, time.UTC)
 	aID, bID, figiID, cusipID := db.NewID(), db.NewID(), db.NewID(), db.NewID()

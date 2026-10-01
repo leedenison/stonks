@@ -14,8 +14,8 @@ import (
 	"github.com/leedenison/stonks/server/internal/ptr"
 )
 
-// hit is an instrument the re-read found, with the identifiers it was found
-// by.
+// hit is an instrument the re-read found, with the identifiers that matched
+// it.
 type hit struct {
 	found   *found
 	matched []types.Identifier
@@ -85,9 +85,9 @@ func refuse(res *resolution, fetchKey *uuid.UUID, hits []hit, detail string) (*f
 }
 
 // fold moves the loser h into survivor under deferred constraints and
-// returns the merged finding. families is the currency families survivor
-// has a listing in; a listing of the loser in another moves across and
-// joins it, the rest are relinked onto the survivor's and deleted.
+// returns the merged finding. families is the currency families where
+// survivor has a listing; a listing of the loser in another moves across
+// and joins it, the rest are relinked onto the survivor's and deleted.
 func fold(ctx context.Context, q Queries, survivor *found, h hit, families map[string]bool, fetchKey *uuid.UUID) (gen.CreateFindingParams, error) {
 	loser := h.found
 	for _, l := range loser.listings {

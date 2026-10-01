@@ -8,10 +8,10 @@ import { nextDay, prevDay } from "@/lib/marshal/date";
 // Period is an inclusive range of order dates, each an ISO date.
 export type Period = { from: string; to: string };
 
-// period is the period a statement is uploaded over: chosen where one has
-// been, and otherwise the one the export states with its end made inclusive.
-// outside counts the rows the period excludes, and valid is false while an
-// end is blank or the period is reversed.
+// period is the period over which a statement is uploaded: chosen where one
+// has been, and otherwise the one the export states with its end made
+// inclusive. outside counts the rows the period excludes, and valid is false
+// while an end is blank or the period is reversed.
 export function period(
   statement: Statement,
   chosen?: Period,

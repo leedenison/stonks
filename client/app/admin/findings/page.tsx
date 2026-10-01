@@ -18,9 +18,9 @@ import { formatInstant } from "@/lib/format";
 
 const path = "/admin/findings";
 
-// What runs met that an administrator may need to see, newest first. A
-// finding reporting a block is cleared with the block, so it leads to the
-// blocks page rather than offering a clear of its own.
+// What runs met that an administrator may need to see, newest first. Where
+// a finding reports a block, clearing the block clears it, so it leads to
+// the blocks page rather than offering a clear of its own.
 export default function FindingsPage() {
   return (
     <Suspense>

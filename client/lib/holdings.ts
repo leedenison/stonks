@@ -5,11 +5,11 @@ import type {
 } from "@/gen/holding/v1/holding_pb";
 import { AssetClass, IdentifierType } from "@/gen/type/v1/type_pb";
 
-// preferred names the identifier types a holding is labelled by, the one a
+// preferred names the identifier types that label a holding, the one a
 // holder recognises most readily first: a ticker, then the registry codes by
-// how widely they are quoted, then the codes only their issuer reads. A
-// ticker stated without its venue names nothing, and is still the string a
-// holder knows the line by, so it is eligible here.
+// how widely they are quoted, then the codes only their issuer reads. Where
+// a ticker is stated without its venue, it names nothing and is still how a
+// holder knows the line, so it is eligible here.
 const preferred: IdentifierType[] = [
   IdentifierType.MIC_TICKER,
   IdentifierType.DATASOURCE_TICKER,
@@ -25,8 +25,8 @@ const preferred: IdentifierType[] = [
 ];
 
 // leading names the type a class is known by ahead of any other, for the
-// classes that have one. A class not named here takes preferred alone, and
-// every class takes preferred after its own.
+// classes that have one. Where a class is not named here, it takes preferred
+// alone, and every class takes preferred after its own.
 const leading: Partial<Record<AssetClass, IdentifierType>> = {
   [AssetClass.CASH]: IdentifierType.CURRENCY,
   [AssetClass.OPTION]: IdentifierType.OCC,
@@ -34,8 +34,8 @@ const leading: Partial<Record<AssetClass, IdentifierType>> = {
 };
 
 // instrumentLabel names an instrument holding as the user knows it: the
-// first identifier it holds of a type its class prefers, else the instrument
-// id. Where it holds two of one type, such as a ticker at two venues, the
+// first identifier it has of a type its class prefers, else the instrument
+// id. Where it has two of one type, such as a ticker at two venues, the
 // first the API lists wins.
 function instrumentLabel(holding: InstrumentHolding): string {
   const lead = leading[holding.assetClass];

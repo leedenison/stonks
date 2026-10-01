@@ -13,15 +13,15 @@ import "type/v1/type.proto";
 
 option go_package = "github.com/leedenison/stonks/proto/admin/v1;adminv1";
 
-// A run and the user it belongs to.
+// A run and its user.
 message UserRun {
   stonks.run.v1.Run run = 1;
   string user_id = 2;
   string user_email = 3;
   // The findings of the run no administrator has cleared.
   int32 open_findings = 4;
-  // Whether the run matches the listing's filters. A run that does not is
-  // listed only as an ancestor of one that does.
+  // Whether the run matches the listing's filters. Where it does not, the
+  // listing includes it only as an ancestor of one that does.
   bool matched = 5;
   // The runs this one started that the listing holds, oldest first.
   repeated UserRun children = 6;
@@ -65,9 +65,9 @@ message FetchItem {
   stonks.type.v1.StatedKey stated_key = 1;
   string stated_key_id = 2;
   FetchOutcome outcome = 3;
-  // The number of calls the key rode in.
+  // The number of calls that carried the key.
   int32 attempts = 4;
-  // The identifier the key was sent under; unset when it was not served.
+  // The identifier sent for the key; unset when it was not served.
   stonks.type.v1.Identifier sent = 5;
   // The datasource's error; unset when the key was served.
   optional string reason = 6;
@@ -314,9 +314,9 @@ service AdminService {
   rpc GetRun(GetRunRequest) returns (GetRunResponse);
   // Lists findings across every run.
   rpc ListFindings(ListFindingsRequest) returns (ListFindingsResponse);
-  // Clears a finding. A finding reporting a block is cleared only by
-  // clearing the block, and is refused as a failed precondition. Clearing a
-  // cleared finding succeeds.
+  // Clears a finding. Where the finding reports a block, only clearing the
+  // block clears it, and the call is refused as a failed precondition.
+  // Clearing a cleared finding succeeds.
   rpc ClearFinding(ClearFindingRequest) returns (ClearFindingResponse);
   // Lists the datasources this instance has registered. The credential is
   // never read.
@@ -325,8 +325,8 @@ service AdminService {
   // once. Enabling a datasource without an integration in this build is
   // refused as a failed precondition.
   rpc UpdateDatasource(UpdateDatasourceRequest) returns (UpdateDatasourceResponse);
-  // Orders the datasources by precedence, taking effect at once. A list that
-  // does not name every datasource exactly once is refused.
+  // Orders the datasources by precedence, taking effect at once. Where the
+  // list does not name every datasource exactly once, the call is refused.
   rpc ReorderDatasources(ReorderDatasourcesRequest) returns (ReorderDatasourcesResponse);
   // Lists datasource blocks.
   rpc ListBlocks(ListBlocksRequest) returns (ListBlocksResponse);

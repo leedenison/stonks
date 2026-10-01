@@ -28,7 +28,7 @@ import (
 // defaultPageSize is the page size of a request that names none.
 const defaultPageSize = 50
 
-// Reader is the view of the queries this package depends on.
+// Reader is this package's view of the queries.
 type Reader interface {
 	ListUserRuns(ctx context.Context, arg gen.ListUserRunsParams) ([]gen.ListUserRunsRow, error)
 	GetUserRun(ctx context.Context, id uuid.UUID) (gen.GetUserRunRow, error)
@@ -76,7 +76,7 @@ func New(reader Reader, sources Sources) *Server {
 }
 
 // ListRuns lists every user's runs matching the filters, newest first,
-// each under the top-level run it descends from.
+// each under its top-level ancestor.
 func (s *Server) ListRuns(ctx context.Context, req *connect.Request[adminv1.ListRunsRequest]) (*connect.Response[adminv1.ListRunsResponse], error) {
 	m := req.Msg
 	p, err := newPage(m.GetPageSize(), m.GetPageToken())

@@ -221,9 +221,9 @@ function Row({
   );
 }
 
-// EditDialog edits the endpoint and the credential. The credential held is
-// never shown: a blank field keeps it, a value replaces it, and the clear
-// box drops it.
+// EditDialog edits the endpoint and the credential. The stored credential
+// is never shown: a blank field keeps it, a value replaces it, and the
+// clear box drops it.
 function EditDialog({
   d,
   busy,

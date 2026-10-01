@@ -56,7 +56,7 @@ func TestStatedKeys(t *testing.T) {
 }
 
 // TestTransactions checks the decimal and date round trip, and the half-open
-// period the delete is keyed on.
+// period keying the delete.
 func TestTransactions(t *testing.T) {
 	q := newTx(t)
 	ctx := context.Background()
@@ -96,8 +96,8 @@ func TestTransactions(t *testing.T) {
 }
 
 // TestStatedKeyAssociation checks that a key names an instrument, the
-// identifier it names it through and a validity together, and that a listing
-// it names is one of that instrument.
+// identifier through which it associates and a validity together, and that a
+// listing it names is one of that instrument.
 func TestStatedKeyAssociation(t *testing.T) {
 	ctx := context.Background()
 	base := newTx(t)

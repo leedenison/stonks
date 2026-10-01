@@ -65,7 +65,7 @@ type fixture struct {
 	spec     run.Spec
 	workErr  error
 	// outcomes is what the resolver answers for the keys, every key
-	// unrecognised by default, and resolveErr is the error it fails with.
+	// unrecognised by default, and resolveErr is its error.
 	outcomes   func(keys []gen.StatedKey) []gen.ResolutionKey
 	resolveErr error
 }
@@ -262,7 +262,7 @@ func TestKeyForm(t *testing.T) {
 }
 
 // TestOutcomes checks that a rejected key rejects its rows with its reason,
-// and an unresolved key carrying a reason keeps them.
+// and that where an unresolved key carries a reason, it keeps its rows.
 func TestOutcomes(t *testing.T) {
 	f := newFixture(t)
 	usd := "USD"

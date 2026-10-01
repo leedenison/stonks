@@ -7,7 +7,7 @@
 //
 // Failures cross the package boundary as sentinels: ErrMalformed for a token
 // that is not a JWT, ErrInvalid for one that fails verification, and
-// ErrEmailUnverified for a verified token whose email cannot be relied on. A
+// ErrEmailUnverified for a verified token whose email cannot be trusted. A
 // failure to fetch the JWKS is none of these; it is wrapped and returned as
 // is.
 package google
@@ -67,7 +67,7 @@ func WithHTTPClient(c *http.Client) Option {
 	return func(v *Verifier) { v.keys.http = c }
 }
 
-// WithJWKSURL sets where the JWKS is fetched from.
+// WithJWKSURL sets the URL of the JWKS.
 func WithJWKSURL(url string) Option {
 	return func(v *Verifier) { v.keys.url = url }
 }

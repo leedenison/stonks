@@ -27,7 +27,7 @@ afterEach(() => vi.useRealTimers());
 
 // advance moves the faked clock by ms, then lets what that starts settle.
 // The query notifies its observers through zero-delay timers, which the
-// faked clock lands one millisecond on when they are scheduled mid-tick, and
+// faked clock lands one millisecond later when scheduled mid-tick, and
 // each act boundary flushes the render a notification causes, so an answer
 // takes a few one-millisecond rounds to reach the hook.
 async function advance(ms: number) {

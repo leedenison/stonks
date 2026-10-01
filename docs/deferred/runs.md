@@ -12,7 +12,7 @@ surface.
 
 A replay takes longer than the request starting it can wait, and answers per key rather
 than as a whole.  Some work is started by no user: a replay after an event, or one an
-administrator asks for.
+administrator requests.
 
 ## Model
 
@@ -24,8 +24,8 @@ administrator asks for.
 
 A run is started by a schedule as well as by a user, an administrator or another run.
 Provenance says what produced a row.  Lineage says why the work happened: a resolution
-contains the fetches it sent, and a replay caused by an event names the fetch that
-recorded the event.
+contains the fetches it sent, and when an event causes a replay, the replay names the
+fetch that recorded the event.
 
 ### Findings
 
@@ -54,10 +54,11 @@ The admin surface starts a run.
 
 ### Resolution Against Datasources
 
-A key resolved against a datasource takes seconds, and the system owned instruments it
+Resolving a key against a datasource takes seconds, and the system owned instruments it
 creates are shared across users.  Read-only resolution therefore proceeds in parallel.
-Creation is serialised per stated key, with an advisory lock keyed on it, so two runs
-stating one key produce one instrument.  The write of transactions stays ordered.
+Creation is serialised per stated key, with an advisory lock keyed on it, so when two
+runs state one key, they produce one instrument.  The write of transactions stays
+ordered.
 
 With more than one process, pending runs are claimed from the database with `SKIP LOCKED`
 where no earlier non-terminal run shares its user and lane.

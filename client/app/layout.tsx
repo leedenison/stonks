@@ -14,9 +14,9 @@
 // components/session-guard.tsx, as app/(app)/layout.tsx does. A page outside
 // such a segment renders its own <main>.
 //
-// A preference kept in the browser, such as the scheme, goes through
-// hooks/use-stored-value.ts, so the server render and the first client
-// render agree.
+// Where a preference is kept in the browser, such as the scheme, it goes
+// through hooks/use-stored-value.ts, so the server render and the first
+// client render agree.
 //
 // No component carries a raw colour. The tokens in globals.css are the whole
 // palette.

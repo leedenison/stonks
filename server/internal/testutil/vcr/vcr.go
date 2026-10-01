@@ -14,7 +14,7 @@
 //
 // A recording carries the timestamps of the moment it was made, and they
 // recede. Code that compares against the current time takes a clock, and the
-// test pins it to a time the cassette is consistent with.
+// test pins it to a time consistent with the cassette.
 package vcr
 
 import (

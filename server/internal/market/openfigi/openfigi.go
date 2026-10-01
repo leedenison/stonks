@@ -46,7 +46,7 @@ type Client struct {
 // Option adjusts a Client.
 type Option func(*Client)
 
-// WithHTTPClient sets the client requests are sent through.
+// WithHTTPClient sets the client that sends requests.
 func WithHTTPClient(h *http.Client) Option {
 	return func(c *Client) { c.http = h }
 }
@@ -102,9 +102,9 @@ type jobError string
 
 func (e jobError) Error() string { return "openfigi refused the job: " + string(e) }
 
-// Classify reads a failed request by its status. A whole request refused
-// other than for its rate or the provider's health is malformed for every key
-// or unauthorised, and so blocks the datasource.
+// Classify reads a failed request by its status. Where a whole request is
+// refused other than for its rate or the provider's health, it is malformed
+// for every key or unauthorised, and so blocks the datasource.
 func (c *Client) Classify(err error) market.Failure {
 	var job jobError
 	if errors.As(err, &job) {

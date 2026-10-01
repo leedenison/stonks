@@ -55,8 +55,8 @@ func newFixture(t *testing.T) *fixture {
 	return f
 }
 
-// signal returns a channel closed when the store call it stands in for is
-// made, so a test can wait for the write that ends a run.
+// signal returns a channel closed when the store call it represents is made,
+// so a test can wait for the write that ends a run.
 func signal() (chan struct{}, func()) {
 	ch := make(chan struct{})
 	var once sync.Once

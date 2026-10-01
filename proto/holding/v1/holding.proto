@@ -43,8 +43,8 @@ message GroupHolding {
   // Each class the keys state, once, in the order the tree declares them.
   // Empty when none stated one.
   repeated stonks.type.v1.AssetClass asset_classes = 2;
-  // Each identifier the keys state, once. A ticker stated without its venue
-  // is among them.
+  // Each identifier the keys state, once. When a ticker is stated without
+  // its venue, it is among them.
   repeated stonks.type.v1.Identifier identifiers = 3;
   // Each description the keys state, once per broker.
   repeated Description descriptions = 4;

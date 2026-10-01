@@ -1,8 +1,8 @@
 // Package session holds sessions in Redis.
 //
-// A session is an opaque bearer token, mapped to the user it belongs to and
-// its timing. It is read from the process's cryptographic source and nothing
-// is derived from it, so it carries no structure a client can read or forge.
+// A session is an opaque bearer token, mapped to its user and its timing. It
+// is read from the process's cryptographic source and nothing is derived from
+// it, so it carries no structure a client can read or forge.
 // The record is stored as JSON under the key "stonks:session:<id>" with a key
 // TTL equal to its remaining life:
 //

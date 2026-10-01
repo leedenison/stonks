@@ -18,7 +18,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/ptr"
 )
 
-// holder is one user with a statement to record transactions under.
+// holder is one user with a statement under which to record transactions.
 type holder struct {
 	user      gen.User
 	statement gen.Statement
@@ -31,8 +31,8 @@ func newHolder(t *testing.T, q *gen.Queries, email string) holder {
 }
 
 // key makes a stated key stating description, resolved to listing through
-// via. A key given no listing is unresolved, and group names the holding it
-// is summed into.
+// via. Where no listing is given, the key is unresolved, and group names the
+// holding that sums it.
 func (h holder) key(t *testing.T, q *gen.Queries, description string, listing *gen.Listing, via *gen.Identifier) gen.StatedKey {
 	t.Helper()
 	ctx := context.Background()

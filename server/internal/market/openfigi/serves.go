@@ -9,7 +9,7 @@ import (
 )
 
 // idTypes are the identifier types sent, strongest first, and the OpenFIGI
-// idType each is sent as.
+// idType of each.
 var idTypes = []struct {
 	typ    types.IdentifierType
 	idType string

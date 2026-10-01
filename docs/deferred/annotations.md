@@ -24,8 +24,8 @@ writes system owned data: a pin creates no identifier row and is not an assertio
 
 - A pin associates a key with an instrument, standing in for resolution's answer for that
   user's key alone.
-- An identifier a user adds to a key is what joins two holdings no source stated in
-  common. Grouping already gathers the keys sharing an identifier, so this needs no
+- A user joins two holdings no source stated in common by adding an identifier to a
+  key. Grouping already gathers the keys sharing an identifier, so this needs no
   grouping of its own and is honoured every time groups are recomputed. There is no
   exclusion: a key that wrongly joins two holdings is a defect in the export, and the
   fix is to correct the export.

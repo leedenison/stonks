@@ -10,9 +10,10 @@ import (
 )
 
 // request fetches the identity of every undecided key from each enabled
-// datasource that has not covered the instrument it was found on, one fetch
-// per datasource, concurrently. Each key takes its results in precedence
-// order. Whether a datasource serves a key is the datasource's to say.
+// datasource that has not covered the instrument the lookup found for it,
+// one fetch per datasource, concurrently. Each key takes its results in
+// precedence order. Whether a datasource serves a key is the datasource's
+// to say.
 func (r *Resolver) request(ctx context.Context, run gen.Run, resolutions []*resolution) error {
 	entries := r.sources.Enabled()
 	batches := make([][]*resolution, len(entries))

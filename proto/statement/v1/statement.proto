@@ -1,4 +1,4 @@
-// The broker neutral format a statement of transactions is expressed in.
+// The broker neutral format of a statement of transactions.
 //
 // A statement claims every account the user holds at its broker over its
 // period. Ingestion replaces every transaction of that user and broker
