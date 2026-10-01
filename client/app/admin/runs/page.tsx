@@ -93,13 +93,14 @@ function Runs() {
               <Th>Trigger</Th>
               <Th>User</Th>
               <Th>State</Th>
+              <Th>Findings</Th>
             </tr>
           </Thead>
           {isPending ? (
-            <SkeletonRows columns={5} />
+            <SkeletonRows columns={6} />
           ) : (
             <tbody>
-              {runs.map(({ run, userId, userEmail }) => {
+              {runs.map(({ run, userId, userEmail, openFindings }) => {
                 const id = run?.id ?? "";
                 const href = `/admin/runs/${id}`;
                 return (
@@ -127,6 +128,16 @@ function Runs() {
                     </Td>
                     <Td>
                       <RunChip run={run} />
+                    </Td>
+                    <Td className="font-mono tabular-nums">
+                      {openFindings > 0 && (
+                        <Chip
+                          tone="accent"
+                          data-testid={`run-open-findings-${id}`}
+                        >
+                          {openFindings}
+                        </Chip>
+                      )}
                     </Td>
                   </Tr>
                 );

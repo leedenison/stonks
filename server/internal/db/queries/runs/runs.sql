@@ -30,7 +30,9 @@ WHERE parent_id = $1 AND user_id = $2
 ORDER BY id;
 
 -- name: ListUserRuns :many
-SELECT sqlc.embed(runs), users.email
+SELECT sqlc.embed(runs), users.email,
+       (SELECT count(*) FROM findings
+        WHERE findings.run_id = runs.id AND findings.cleared_at IS NULL)::int AS open_findings
 FROM runs
 JOIN users ON users.id = runs.user_id
 WHERE (sqlc.narg(kind)::run_kind IS NULL OR runs.kind = sqlc.narg(kind))
@@ -42,7 +44,9 @@ ORDER BY runs.id DESC
 LIMIT @lim;
 
 -- name: GetUserRun :one
-SELECT sqlc.embed(runs), users.email
+SELECT sqlc.embed(runs), users.email,
+       (SELECT count(*) FROM findings
+        WHERE findings.run_id = runs.id AND findings.cleared_at IS NULL)::int AS open_findings
 FROM runs
 JOIN users ON users.id = runs.user_id
 WHERE runs.id = $1;

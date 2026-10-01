@@ -44,8 +44,10 @@ In:
   provenance, and the key's association set through the weakest identifier it stated,
   with provisional validity. Two instruments merge only through a stable identifier, and
   only datasource answers merge them.
-- A finding per contradiction resolved by precedence and per candidate dropped,
-  recording how many candidates each datasource offered and which step dropped each one.
+- A finding per contradiction resolved by precedence and per candidate dropped for
+  contradicting the stated data, a higher precedence answer or the winner, recording
+  which step dropped it. A candidate outranked or not naming the identifier sent is
+  summarised on the resolution key, beside how many candidates each datasource offered.
 - Creation serialised per stated key with an advisory lock, so two runs stating one key
   produce one instrument, while lookups proceed in parallel.
 - The outcomes unavailable, when every datasource serving the key failed temporarily,

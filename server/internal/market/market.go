@@ -4,8 +4,8 @@
 // A fetch is a child run of the work that needed the data.
 // See [run.go](../run/run.go).
 //
-// Each kind of data is a Kind, which names the request an integration is
-// asked and the response it gives.  An integration serves a kind by
+// Each kind of data is a Kind, which names the request an integration
+// receives and the response it gives.  An integration serves a kind by
 // implementing its Server.
 //
 // The registry is built at startup from the datasources table.
@@ -30,7 +30,7 @@ import (
 )
 
 // Failure is how an integration reads a call that failed. RetryAfter is the
-// delay the provider asked for, and zero uses the framework's own schedule.
+// delay the provider requested, and zero uses the framework's own schedule.
 type Failure struct {
 	Temporary  bool
 	Scope      gen.BlockScope
@@ -100,4 +100,7 @@ type Kind[Q, P any] struct {
 	server func(*Entry) Server[Q, P]
 	// subject is what the fetch_keys row records a request as.
 	subject func(Q) uuid.UUID
+	// count is how many results a served response offered, which the
+	// fetch_keys row records.
+	count func(P) int
 }

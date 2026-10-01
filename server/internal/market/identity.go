@@ -16,7 +16,7 @@ type StatedKey struct {
 }
 
 // Candidate results of one fetch. Candidates are unranked, and several may be
-// listings of one instrument rather than competing answers.
+// listings of one instrument rather than competing responses.
 type Candidate struct {
 	Identifiers []types.Identifier
 	Class       gen.AssetClass
@@ -48,4 +48,5 @@ var IdentityKind = Kind[StatedKey, IdentityResult]{
 	name:    gen.FetchKindIdentity,
 	server:  func(e *Entry) Server[StatedKey, IdentityResult] { return e.Identity },
 	subject: func(k StatedKey) uuid.UUID { return k.ID },
+	count:   func(r IdentityResult) int { return len(r.Candidates) },
 }

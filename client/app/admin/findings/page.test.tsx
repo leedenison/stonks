@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   AdminService,
   ClearFindingResponseSchema,
+  DropStep,
   FindingKind,
   FindingSchema,
   ListFindingsResponseSchema,
@@ -59,6 +60,38 @@ describe("FindingsPage", () => {
         .getByTestId("finding-row-x1")
         .querySelector('a[href="/admin/runs/f1"]'),
     ).toBeTruthy();
+  });
+
+  it("says what a dropped finding met and offers to clear it", async () => {
+    renderWithAuth(
+      <FindingsPage />,
+      serving({
+        listFindings: () =>
+          create(ListFindingsResponseSchema, {
+            findings: [
+              create(FindingSchema, {
+                id: "x3",
+                runId: "r1",
+                kind: FindingKind.DROPPED,
+                statedKeyId: "k1",
+                fetchKeyId: "fk1",
+                step: DropStep.STATED,
+                detail: "candidates in USD, not the stated GBP",
+                createdAt: at,
+              }),
+            ],
+          }),
+      }),
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId("finding-row-x3")).toBeTruthy(),
+    );
+    const row = screen.getByTestId("finding-row-x3");
+    expect(row.textContent).toContain("dropped");
+    expect(row.textContent).toContain(
+      "stated: candidates in USD, not the stated GBP",
+    );
+    expect(screen.getByTestId("finding-clear-x3")).toBeTruthy();
   });
 
   it("clears a finding that reports no block", async () => {

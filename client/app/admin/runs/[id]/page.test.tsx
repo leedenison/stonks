@@ -7,6 +7,7 @@ import {
   AdminService,
   FetchItemSchema,
   FetchOutcome,
+  DropStep,
   FindingKind,
   FindingSchema,
   GetRunResponseSchema,
@@ -61,6 +62,16 @@ const fetch = create(GetRunResponseSchema, {
       blockId: "b1",
       createdAt: timestampFromDate(new Date("2026-09-24T10:01:00Z")),
     }),
+    create(FindingSchema, {
+      id: "x2",
+      runId: "f1",
+      kind: FindingKind.DROPPED,
+      statedKeyId: "k1",
+      fetchKeyId: "fk1",
+      step: DropStep.STATED,
+      detail: "candidates in USD, not the stated GBP",
+      createdAt: timestampFromDate(new Date("2026-09-24T10:01:00Z")),
+    }),
   ],
   fetchItems: [
     create(FetchItemSchema, {
@@ -93,6 +104,9 @@ describe("AdminRunPage", () => {
       "/admin/runs/p1",
     );
     expect(screen.getByTestId("finding-row-x1").textContent).toContain("block");
+    expect(screen.getByTestId("finding-row-x2").textContent).toContain(
+      "stated: candidates in USD, not the stated GBP",
+    );
     const item = screen.getByTestId("item-row-k1");
     expect(item.textContent).toContain("ISIN GB00B03MLX29 · SHELL PLC");
     expect(item.textContent).toContain("failed permanent");

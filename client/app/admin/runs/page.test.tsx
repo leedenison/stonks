@@ -41,6 +41,7 @@ const page = create(ListRunsResponseSchema, {
       }),
       userId: "u1",
       userEmail: "one@example.com",
+      openFindings: 2,
     }),
   ],
   nextPageToken: "r2",
@@ -68,6 +69,7 @@ describe("RunsPage", () => {
         ?.getAttribute("data-state"),
     ).toBe("completed");
     expect(row.querySelector("a")?.getAttribute("href")).toBe("/admin/runs/r2");
+    expect(screen.getByTestId("run-open-findings-r2").textContent).toBe("2");
     expect(screen.getByTestId("runs-older").getAttribute("href")).toBe(
       "/admin/runs?before=r2",
     );

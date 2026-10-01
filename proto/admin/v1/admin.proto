@@ -18,6 +18,8 @@ message UserRun {
   stonks.run.v1.Run run = 1;
   string user_id = 2;
   string user_email = 3;
+  // The findings of the run no administrator has cleared.
+  int32 open_findings = 4;
 }
 
 // What a run of kind RESOLUTION made of one stated key.
@@ -71,6 +73,29 @@ enum FindingKind {
   // The run wrote a datasource block, which withholds calls until an
   // administrator clears it.
   FINDING_KIND_BLOCK = 1;
+  // The resolution dropped a candidate group a datasource offered because it
+  // contradicted the stated data, a higher precedence response or the winner.
+  FINDING_KIND_DROPPED = 2;
+  // A response contradicted the instrument the key already matched, and the
+  // database's precedence decided.
+  FINDING_KIND_CONTRADICTION = 3;
+  // The response merged two instruments.
+  FINDING_KIND_MERGED = 4;
+}
+
+// The step of the choice that dropped a candidate group.
+enum DropStep {
+  DROP_STEP_UNSPECIFIED = 0;
+  // The group did not name the identifier that carried the key.
+  DROP_STEP_NAMING = 1;
+  // The group contradicted the stated data.
+  DROP_STEP_STATED = 2;
+  // The group was inconsistent with a higher precedence response.
+  DROP_STEP_PRECEDENCE = 3;
+  // The group shared no stable identifier with the winner.
+  DROP_STEP_CORROBORATION = 4;
+  // The group was outranked within its datasource.
+  DROP_STEP_RANK = 5;
 }
 
 // Something a run met that an administrator may need to see.
@@ -80,9 +105,19 @@ message Finding {
   FindingKind kind = 3;
   // The block reported; set only when the kind is BLOCK.
   optional string block_id = 4;
-  google.protobuf.Timestamp created_at = 5;
+  // The finding's stated key; set for every kind but BLOCK.
+  optional string stated_key_id = 5;
+  // The fetch key of the response involved; unset for a contradiction
+  // found in the database.
+  optional string fetch_key_id = 6;
+  // The step that dropped the group; set only when the kind is DROPPED, and
+  // then one of STATED, PRECEDENCE and CORROBORATION.
+  optional DropStep step = 7;
+  // The grounds, in words; set for every kind but BLOCK.
+  optional string detail = 8;
+  google.protobuf.Timestamp created_at = 9;
   // When an administrator cleared the finding; unset while it is open.
-  google.protobuf.Timestamp cleared_at = 6;
+  google.protobuf.Timestamp cleared_at = 10;
 }
 
 message ListRunsRequest {

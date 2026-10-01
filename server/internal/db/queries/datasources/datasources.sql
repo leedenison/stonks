@@ -16,8 +16,8 @@ SELECT * FROM fetches WHERE id = $1 AND user_id = $2;
 
 -- name: CreateFetchKey :exec
 INSERT INTO fetch_keys (id, fetch_id, user_id, stated_key_id, outcome, attempts,
-    sent_type, sent_domain, sent_value, reason)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10);
+    sent_type, sent_domain, sent_value, reason, candidates)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11);
 
 -- name: ListFetchKeys :many
 SELECT * FROM fetch_keys WHERE fetch_id = $1 AND user_id = $2 ORDER BY id;
@@ -32,6 +32,17 @@ VALUES ($1, $2, $3, $4);
 -- name: ListFetchIdentifiers :many
 SELECT * FROM fetch_identifiers WHERE fetch_key_id = $1
 ORDER BY type, domain, value;
+
+-- name: ListIdentityCoverage :many
+SELECT * FROM identity_coverage
+WHERE instrument_id = ANY(@instrument_ids::uuid[])
+ORDER BY instrument_id, datasource;
+
+-- name: UpsertIdentityCoverage :exec
+INSERT INTO identity_coverage (instrument_id, datasource, fetch_key_id)
+VALUES ($1, $2, $3)
+ON CONFLICT (instrument_id, datasource) DO UPDATE
+SET fetch_key_id = EXCLUDED.fetch_key_id, covered_at = now();
 
 -- name: ListOpenBlocks :many
 SELECT * FROM datasource_blocks

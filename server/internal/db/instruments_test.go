@@ -5,6 +5,7 @@ package db_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -58,7 +59,7 @@ func newIdentifier(t *testing.T, q *gen.Queries, instrument gen.Instrument, isin
 func cashListing(t *testing.T, q *gen.Queries, currency string) (gen.Listing, gen.Identifier) {
 	t.Helper()
 	ctx := context.Background()
-	found, err := q.GetInstrumentByIdentifier(ctx, gen.GetInstrumentByIdentifierParams{Type: types.IdentifierTypeCurrency, Value: currency})
+	found, err := q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: types.IdentifierTypeCurrency, Value: currency})
 	require.NoError(t, err)
 	l, err := q.GetListing(ctx, gen.GetListingParams{InstrumentID: found.Instrument.ID, Currency: currency})
 	require.NoError(t, err)
@@ -71,10 +72,10 @@ func TestCurrencySeed(t *testing.T) {
 	q := newTx(t)
 	ctx := context.Background()
 
-	usd, err := q.GetInstrumentByIdentifier(ctx, gen.GetInstrumentByIdentifierParams{Type: types.IdentifierTypeCurrency, Value: "USD"})
+	usd, err := q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: types.IdentifierTypeCurrency, Value: "USD"})
 	require.NoError(t, err)
 	if usd.Instrument.AssetClass != gen.AssetClassCash {
-		t.Errorf("GetInstrumentByIdentifier(currency USD) = %+v, want an instrument of class cash", usd.Instrument)
+		t.Errorf("FindIdentifier(currency USD) = %+v, want an instrument of class cash", usd.Instrument)
 	}
 	line, via := cashListing(t, q, "USD")
 	if line.InstrumentID != usd.Instrument.ID {
@@ -83,9 +84,9 @@ func TestCurrencySeed(t *testing.T) {
 	if via.ID != usd.Identifier.ID {
 		t.Errorf("USD identifier = %s, want %s", via.ID, usd.Identifier.ID)
 	}
-	gbp, err := q.GetInstrumentByIdentifier(ctx, gen.GetInstrumentByIdentifierParams{Type: types.IdentifierTypeCurrency, Value: "GBP"})
+	gbp, err := q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: types.IdentifierTypeCurrency, Value: "GBP"})
 	require.NoError(t, err)
-	gbx, err := q.GetInstrumentByIdentifier(ctx, gen.GetInstrumentByIdentifierParams{Type: types.IdentifierTypeCurrency, Value: "GBX"})
+	gbx, err := q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: types.IdentifierTypeCurrency, Value: "GBX"})
 	require.NoError(t, err)
 	if gbx.Instrument.ID != gbp.Instrument.ID {
 		t.Errorf("GBX names instrument %s, want GBP's %s: one family is one instrument", gbx.Instrument.ID, gbp.Instrument.ID)
@@ -190,5 +191,36 @@ func TestIdentifierTypes(t *testing.T) {
 	require.NoError(t, rows.Err())
 	if diff := cmp.Diff(want, types.IdentifierTypes); diff != "" {
 		t.Errorf("IdentifierTypes mismatch (-database +code):\n%s", diff)
+	}
+}
+
+// TestListInstrumentsByIdentifiers checks the lookup over several identifiers
+// at either grain, with the instrument each names.
+func TestListInstrumentsByIdentifiers(t *testing.T) {
+	ctx := context.Background()
+	q := newTx(t)
+	one := newInstrument(t, q, gen.AssetClassStock)
+	two := newInstrument(t, q, gen.AssetClassStock)
+	newIdentifier(t, q, one, "GB00B03MLX29")
+	listing := newListing(t, q, two, "USD")
+	_, err := q.CreateIdentifier(ctx, gen.CreateIdentifierParams{ID: db.NewID(), InstrumentID: two.ID, ListingID: &listing.ID, Type: types.IdentifierTypeMicTicker, Domain: "XNYS", Value: "ACME"})
+	require.NoError(t, err)
+
+	rows, err := q.ListInstrumentsByIdentifiers(ctx, gen.ListInstrumentsByIdentifiersParams{
+		Types:   []string{"isin", "mic_ticker", "cusip"},
+		Domains: []string{"", "XNYS", ""},
+		Values:  []string{"GB00B03MLX29", "ACME", "037833100"},
+	})
+	require.NoError(t, err)
+	var got []string
+	for _, r := range rows {
+		got = append(got, fmt.Sprintf("%s %s %s", r.Instrument.ID, r.Identifier.Type, r.Identifier.Value))
+	}
+	want := []string{
+		fmt.Sprintf("%s isin GB00B03MLX29", one.ID),
+		fmt.Sprintf("%s mic_ticker ACME", two.ID),
+	}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("ListInstrumentsByIdentifiers mismatch (-want +got):\n%s", diff)
 	}
 }

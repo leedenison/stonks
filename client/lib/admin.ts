@@ -1,3 +1,4 @@
+import { DropStep, type Finding } from "@/gen/admin/v1/admin_pb";
 import { RunKind, RunState, RunTrigger } from "@/gen/run/v1/run_pb";
 import {
   type Identifier,
@@ -53,6 +54,15 @@ export const runEnums = {
   trigger: RunTrigger,
   state: RunState,
 } as const;
+
+// findingText renders what a finding says: the step that dropped a candidate
+// group where there is one, then the grounds.
+export function findingText(f: Finding): string {
+  const parts: string[] = [];
+  if (f.step !== undefined) parts.push(enumLabel(DropStep, f.step));
+  if (f.detail) parts.push(f.detail);
+  return parts.join(": ");
+}
 
 // identifierText renders an identifier as its type, its domain where it has
 // one, and its value.

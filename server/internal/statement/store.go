@@ -18,7 +18,7 @@ type Queries interface {
 	CreateStatedKey(ctx context.Context, arg gen.CreateStatedKeyParams) (gen.StatedKey, error)
 	CreateStatementSplit(ctx context.Context, arg gen.CreateStatementSplitParams) error
 	ListCurrencies(ctx context.Context) ([]gen.Currency, error)
-	GetInstrumentByIdentifier(ctx context.Context, arg gen.GetInstrumentByIdentifierParams) (gen.GetInstrumentByIdentifierRow, error)
+	FindIdentifier(ctx context.Context, arg gen.FindIdentifierParams) (gen.FindIdentifierRow, error)
 	GetListing(ctx context.Context, arg gen.GetListingParams) (gen.Listing, error)
 	CreateResolutionKey(ctx context.Context, arg gen.CreateResolutionKeyParams) error
 	LockUserKeys(ctx context.Context, userID uuid.UUID) error

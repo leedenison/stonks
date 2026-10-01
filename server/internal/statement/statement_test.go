@@ -245,16 +245,16 @@ func TestKeyForm(t *testing.T) {
 
 func TestResolveKey(t *testing.T) {
 	usd, eur := "USD", "EUR"
-	byCurrency := func(code string) gen.GetInstrumentByIdentifierParams {
-		return gen.GetInstrumentByIdentifierParams{Type: types.IdentifierTypeCurrency, Value: code}
+	byCurrency := func(code string) gen.FindIdentifierParams {
+		return gen.FindIdentifierParams{Type: types.IdentifierTypeCurrency, Value: code}
 	}
-	cash := gen.GetInstrumentByIdentifierRow{
+	cash := gen.FindIdentifierRow{
 		Identifier: gen.Identifier{ID: db.NewID(), Type: types.IdentifierTypeCurrency, Value: "USD"},
 		Instrument: gen.Instrument{ID: db.NewID(), AssetClass: gen.AssetClassCash},
 	}
 	cashLine := func(f *fixture, currency string, err error) gen.Listing {
 		l := gen.Listing{ID: db.NewID(), InstrumentID: cash.Instrument.ID, Currency: currency}
-		f.store.EXPECT().GetInstrumentByIdentifier(gomock.Any(), byCurrency("USD")).Return(cash, nil)
+		f.store.EXPECT().FindIdentifier(gomock.Any(), byCurrency("USD")).Return(cash, nil)
 		f.store.EXPECT().GetListing(gomock.Any(), gen.GetListingParams{InstrumentID: cash.Instrument.ID, Currency: currency}).Return(l, err)
 		return l
 	}
@@ -271,7 +271,7 @@ func TestResolveKey(t *testing.T) {
 		}, outcome: gen.ResolutionOutcomeMatched},
 		{name: "cash in pence names the pound listing", key: cashKey("GBX"), expect: func(f *fixture) gen.Listing {
 			l := gen.Listing{ID: db.NewID(), InstrumentID: cash.Instrument.ID, Currency: "GBP"}
-			f.store.EXPECT().GetInstrumentByIdentifier(gomock.Any(), byCurrency("GBX")).Return(cash, nil)
+			f.store.EXPECT().FindIdentifier(gomock.Any(), byCurrency("GBX")).Return(cash, nil)
 			f.store.EXPECT().GetListing(gomock.Any(), gen.GetListingParams{InstrumentID: cash.Instrument.ID, Currency: "GBP"}).Return(l, nil)
 			return l
 		}, outcome: gen.ResolutionOutcomeMatched},
@@ -280,15 +280,15 @@ func TestResolveKey(t *testing.T) {
 			return gen.Listing{}
 		}, outcome: gen.ResolutionOutcomeRejected, reason: "no listing of USD in EUR"},
 		{name: "currency of no instrument", key: cashKey("XXX"), expect: func(f *fixture) gen.Listing {
-			f.store.EXPECT().GetInstrumentByIdentifier(gomock.Any(), byCurrency("XXX")).Return(gen.GetInstrumentByIdentifierRow{}, db.ErrNotFound)
+			f.store.EXPECT().FindIdentifier(gomock.Any(), byCurrency("XXX")).Return(gen.FindIdentifierRow{}, db.ErrNotFound)
 			return gen.Listing{}
 		}, outcome: gen.ResolutionOutcomeRejected, reason: "no currency XXX"},
 		{name: "currency identifier on an equity key", key: securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_CURRENCY, "USD", "")), expect: func(f *fixture) gen.Listing {
-			f.store.EXPECT().GetInstrumentByIdentifier(gomock.Any(), byCurrency("USD")).Return(cash, nil)
+			f.store.EXPECT().FindIdentifier(gomock.Any(), byCurrency("USD")).Return(cash, nil)
 			return gen.Listing{}
 		}, outcome: gen.ResolutionOutcomeRejected, reason: "asset class equity contradicts the instrument's cash"},
 		{name: "currency identifier stating no currency", key: &typev1.StatedKey{Identifiers: cashKey("USD").Identifiers, AssetClass: typev1.AssetClass_ASSET_CLASS_CASH}, expect: func(f *fixture) gen.Listing {
-			f.store.EXPECT().GetInstrumentByIdentifier(gomock.Any(), byCurrency("USD")).Return(cash, nil)
+			f.store.EXPECT().FindIdentifier(gomock.Any(), byCurrency("USD")).Return(cash, nil)
 			return gen.Listing{InstrumentID: cash.Instrument.ID}
 		}, outcome: gen.ResolutionOutcomeMatched, noListing: true},
 		{name: "a description alone", key: securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd), outcome: gen.ResolutionOutcomeUnrecognised},
@@ -340,7 +340,7 @@ func TestResolveKey(t *testing.T) {
 func TestResolveKeyError(t *testing.T) {
 	f, g := newIngestion(t)
 	boom := errors.New("boom")
-	f.store.EXPECT().GetInstrumentByIdentifier(gomock.Any(), gomock.Any()).Return(gen.GetInstrumentByIdentifierRow{}, boom)
+	f.store.EXPECT().FindIdentifier(gomock.Any(), gomock.Any()).Return(gen.FindIdentifierRow{}, boom)
 	k, err := keyOf(cashKey("USD"))
 	if err != nil {
 		t.Fatal(err)
@@ -385,7 +385,7 @@ func TestCreateFailures(t *testing.T) {
 		f := newFixture(t)
 		f.store.EXPECT().CreateStatement(gomock.Any(), gomock.Any()).Return(gen.Statement{}, nil)
 		f.store.EXPECT().CreateStatedKey(gomock.Any(), gomock.Any()).Return(gen.StatedKey{}, nil)
-		f.store.EXPECT().GetInstrumentByIdentifier(gomock.Any(), gomock.Any()).Return(gen.GetInstrumentByIdentifierRow{}, boom)
+		f.store.EXPECT().FindIdentifier(gomock.Any(), gomock.Any()).Return(gen.FindIdentifierRow{}, boom)
 		if _, err := f.svc.Create(context.Background(), userID, msg()); err != nil {
 			t.Fatalf("Create() error = %v", err)
 		}
