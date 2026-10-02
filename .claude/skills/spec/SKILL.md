@@ -39,6 +39,8 @@ specific package that contain the concepts being defined.  Related concepts that
 the scope of the package or file should not be restate or redefined.  Refer to the package
 or file that defines them (eg. See [auth.go](../auth/auth.go)).
 
+Package and file level comments follow the Sentences rules in CLAUDE.md.
+
 ### Writing up an ADR
 
 A milestone's ADRs move into package or file level comments as their work lands. Writing

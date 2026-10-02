@@ -28,7 +28,7 @@ func newRun(t *testing.T, q *gen.Queries, user gen.User) gen.Run {
 }
 
 // newStatement records a run and its statement, of ibkr over March 2026 with
-// no rows, under which to record keys, items and transactions.
+// no rows, as the parent of keys, items and transactions.
 func newStatement(t *testing.T, q *gen.Queries, user gen.User) gen.Statement {
 	t.Helper()
 	run := newRun(t, q, user)

@@ -63,7 +63,7 @@ linters:
         linters:
           - forbidigo
       # The recorder is provisioned by STONKS_RECORD and by whatever variable
-      # holds the provider credential it is recording against.
+      # holds the credential of the provider being recorded.
       - path: server/internal/testutil/
         linters:
           - forbidigo

@@ -10,8 +10,8 @@ import (
 	"github.com/leedenison/stonks/server/internal/db/gen"
 )
 
-// Conn underlies a DB: the pool, or a transaction in a test, under which Tx
-// nests as a savepoint.
+// Conn is the connection beneath a DB: the pool, or a transaction in a test,
+// under which Tx nests as a savepoint.
 type Conn interface {
 	gen.DBTX
 	Begin(ctx context.Context) (pgx.Tx, error)

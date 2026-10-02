@@ -14,8 +14,8 @@ import (
 	"github.com/leedenison/stonks/server/internal/ptr"
 )
 
-// resolution is one stated key's resolution: the identifiers it resolves
-// through, what the lookup found, the results the datasources served, and
+// resolution is one stated key's resolution: the identifiers that resolve
+// it, what the lookup found, the results the datasources served, and
 // the outcome once decided.
 type resolution struct {
 	row      gen.StatedKey

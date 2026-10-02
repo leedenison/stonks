@@ -22,6 +22,8 @@ silence the checker.
 ESLint carries no formatting rules; it is there for correctness alone. `npm run lint` is
 `eslint --max-warnings 0 .` -- warnings are failures.
 
+Comments follow the Sentences rules in CLAUDE.md.
+
 ## Styling
 
 Never write a raw colour in a component. If no token provides what is needed, add one.

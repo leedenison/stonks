@@ -8,9 +8,9 @@
 // A cancelled line is not emitted. Where a line awaits completion, it is not
 // emitted either, nor is any line ordered on or after the earliest such line,
 // and the claimed period ends there: a later export supplies them all, where
-// a period claiming their days would have deleted them for good. Where a zero
-// charge awaits completion, it is left out of that: real exports carry zero
-// dealing fees and levies that stay pending for months, and a line that
+// a period claiming their days would have deleted them for good.
+// A zero charge awaiting completion is left out of that: real exports carry
+// zero dealing fees and levies that stay pending for months, and a line that
 // moves nothing has nothing to supply later.
 
 import { parse } from "csv-parse/sync";

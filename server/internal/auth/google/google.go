@@ -7,9 +7,9 @@
 //
 // Failures cross the package boundary as sentinels: ErrMalformed for a token
 // that is not a JWT, ErrInvalid for one that fails verification, and
-// ErrEmailUnverified for a verified token whose email cannot be trusted. A
-// failure to fetch the JWKS is none of these; it is wrapped and returned as
-// is.
+// ErrEmailUnverified for a token that verifies but carries an unverified
+// email. A failure to fetch the JWKS is none of these; it is wrapped and
+// returned as is.
 package google
 
 import (

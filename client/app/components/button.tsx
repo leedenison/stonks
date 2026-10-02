@@ -5,7 +5,7 @@ import type { ComponentProps, ReactNode } from "react";
 
 export type Variant = "primary" | "secondary" | "text";
 
-// Primary is the one action a view exists to offer; a view holds at most one.
+// Primary is the view's defining action; a view holds at most one.
 // Text is an action in a page's action bar, an icon and a label.
 const styles: Record<Variant, string> = {
   primary: "bg-accent-dark px-3.5 text-on-dark hover:brightness-95",

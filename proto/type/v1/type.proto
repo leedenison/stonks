@@ -94,7 +94,7 @@ message Identifier {
 message StatedKey {
   repeated Identifier identifiers = 1;
   AssetClass asset_class = 2;
-  // The currency of the line where the source states the instrument.
+  // The currency of the source line stating the instrument.
   optional string currency = 3;
   // The source's description of the instrument.
   optional string description = 4;

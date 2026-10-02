@@ -12,7 +12,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/market"
 )
 
-// Queries is the view of the generated queries this package depends on.
+// Queries is this package's view of the generated queries.
 type Queries interface {
 	ListCurrencies(ctx context.Context) ([]gen.Currency, error)
 	FindIdentifier(ctx context.Context, arg gen.FindIdentifierParams) (gen.FindIdentifierRow, error)
@@ -52,14 +52,14 @@ type Store interface {
 
 var _ Store = (*db.DB[Queries])(nil)
 
-// Sources is the view of the datasource registry this package depends on.
+// Sources is this package's view of the datasource registry.
 type Sources interface {
 	Enabled() []*market.Entry
 }
 
 var _ Sources = (*market.Registry)(nil)
 
-// Fetcher is the view of the fetch framework this package depends on: one
+// Fetcher is this package's view of the fetch framework: one
 // identity fetch from e, as a child run of parent, with a result per key.
 type Fetcher interface {
 	Identity(ctx context.Context, parent gen.Run, e *market.Entry, keys []gen.StatedKey) ([]result, error)

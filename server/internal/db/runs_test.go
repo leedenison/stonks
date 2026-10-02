@@ -15,8 +15,8 @@ import (
 	"github.com/leedenison/stonks/server/internal/db/gen"
 )
 
-// TestRuns covers the transitions that depend on a row's state, and the read
-// scoped to the user who started the run.
+// TestRuns covers the transitions that depend on a row's state, and
+// the read scoped to the user who started the run.
 func TestRuns(t *testing.T) {
 	q := newTx(t)
 	ctx := context.Background()

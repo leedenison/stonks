@@ -25,6 +25,8 @@ generated languages.
 Say what the field means, and what an absent or empty value means. Do not describe the
 type.
 
+Field comments follow the Sentences rules in CLAUDE.md.
+
 ## Validation
 
 Declare constraints with protovalidate rather than checking them in each handler:

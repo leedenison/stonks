@@ -112,9 +112,9 @@ func TestSetupExports(t *testing.T) {
 
 	mu.Lock()
 	defer mu.Unlock()
-	// Where a base URL carries no path, it targets the root, so a post to
-	// each signal path is what proves the endpoint is joined rather than left
-	// to the exporter's default.
+	// A base URL carrying no path targets the root, so a post to both signal
+	// paths is what proves the endpoint is joined rather than left to the
+	// exporter's default.
 	for _, want := range []string{"/v1/traces", "/v1/metrics"} {
 		if !slices.Contains(paths, want) {
 			t.Errorf("collector received %v, want a post to %s", paths, want)

@@ -2,9 +2,9 @@
 
 import type { ReactNode } from "react";
 
-// Notice is the inline message above the content it concerns: an error the
-// reader can address, or a fact they should know before reading on.
-// An error is announced; an info notice is not.
+// Notice is the inline message above the content it concerns: an error that
+// asks the reader to act, or a fact they should know before reading on. An
+// error is announced; an info notice is not.
 export function Notice({
   tone = "info",
   onRetry,

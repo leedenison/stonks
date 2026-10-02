@@ -7,9 +7,9 @@ import { AssetClass, IdentifierType } from "@/gen/type/v1/type_pb";
 
 // preferred names the identifier types that label a holding, the one a
 // holder recognises most readily first: a ticker, then the registry codes by
-// how widely they are quoted, then the codes only their issuer reads. Where
-// a ticker is stated without its venue, it names nothing and is still how a
-// holder knows the line, so it is eligible here.
+// how widely they are quoted, then the codes only their issuer reads. A
+// ticker stated without its venue names nothing, and is still the holder's
+// name for the line, so it is eligible here.
 const preferred: IdentifierType[] = [
   IdentifierType.MIC_TICKER,
   IdentifierType.DATASOURCE_TICKER,

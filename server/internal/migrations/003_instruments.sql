@@ -41,8 +41,8 @@ CREATE TYPE identifier_grain AS ENUM ('instrument', 'listing');
 
 -- How readily an identifier is reassigned.
 -- 'stable' identifiers are assumed to never be reassigned.
--- 'mic_derived' identifiers are reassigned when the mic_ticker from which
--- they derive is reassigned.
+-- 'mic_derived' identifiers are reassigned when their source mic_ticker is
+-- reassigned.
 CREATE TYPE identifier_reassignment AS ENUM ('stable', 'mic_derived');
 
 CREATE TABLE identifier_type_traits (

@@ -105,6 +105,32 @@ Whenever you begin work in a new worktree you should:
 
 Prefer terse names when naming functions and variables.
 
+## Sentences
+
+Do not strand a preposition. A relative clause or an embedded question must not end in
+a preposition whose object is the noun it modifies or the question word. Not "the
+identifier the key was sent under", "the rate the provider is called at", "what the call
+filtered on" or "where the JWKS is fetched from". A preposition that completes a verb
+("left out", "signs everyone out", "reading on") is part of the verb and is fine.
+
+Rewrite in the first form that reads naturally:
+
+* A noun or possessive: "the provider's call rate", "a row's state", "its owner".
+* The modified noun as subject of an active verb: "the identifier that carried the key",
+  "the client that makes outbound calls".
+* A participle or prepositional phrase after the noun: "the deployment hosting this
+  process", "a time consistent with the cassette", "the period of an upload".
+* Two sentences: "A key states identifiers. Those that can carry an association admit
+  it to resolution: ...".
+* The preposition before a relative pronoun, only when the preposition carries meaning
+  the other forms lose: "the zone in which every API time is stated".
+
+A relative clause must not contain a further clause that holds its gap: not "the
+identifiers it states that an association can rest on" or "the identifier Serves chose
+to send it under". Split the sentence instead.
+
+This applies to documentation, comments, issues, plans and commit messages alike.
+
 ## Documentation
 
 Keep documentation short and to the point.  Avoid repetition.  Do not write sentences in
@@ -117,7 +143,7 @@ this repository; explain it standalone as it is today.
 Never use smart quotes when generating documentation or plans.
 
 Important: When you have completed a change that includes documentation you must review it
-against the documentation and personal data rules in Claude.md and relevant skills before
+against the sentence, documentation and personal data rules in Claude.md and relevant skills before
 committing to the repository.
 
 ## Code Comments
@@ -152,7 +178,7 @@ Comments should only explain what is not already obvious from the code.
   factors.
 
 Important: When you have completed a change that includes code comments you must review it
-against the code comments and personal data rules in Claude.md and relevant skills before
+against the sentence, code comment and personal data rules in Claude.md and relevant skills before
 committing to the repository.
 
 ## Personal Data

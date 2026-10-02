@@ -45,7 +45,7 @@ type Integration interface {
 	// Classify reads an error a fetch returned. Only the integration knows the
 	// provider's codes.
 	Classify(err error) Failure
-	// Limit is the provider's call rate, and the burst it tolerates.
+	// Limit is the provider's call rate and the burst it tolerates.
 	Limit() (rate.Limit, int)
 	// Batch is the maximum number of keys per batch.
 	Batch() int
@@ -61,8 +61,8 @@ type Config struct {
 // Factory builds an integration from its configuration.
 type Factory func(Config) (Integration, error)
 
-// Request is one request as sent: the request, and the identifier
-// Serves chose to send.
+// Request is one request as sent: the request, and the identifier Serves
+// chose to carry it.
 type Request[Q any] struct {
 	Value Q
 	Sent  types.Identifier

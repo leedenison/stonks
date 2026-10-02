@@ -29,6 +29,8 @@ updating the docs, if the conflicting code change was intentional, or by updatin
 the code if the conflicting code change did not intend to change the spec.  Always
 highlight such reconciliation to the user.
 
+Doc comments follow the Sentences rules in CLAUDE.md.
+
 ## Tests
 
 Tests are colocated as `*_test.go` (do not place tests in the same files as the code they
