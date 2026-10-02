@@ -121,6 +121,22 @@ func newFixture(t *testing.T, entries ...*market.Entry) *fixture {
 		return nil
 	}).AnyTimes()
 	f.store.EXPECT().MoveListing(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.MoveListingParams) error {
+		for i := range f.stored {
+			h := &f.stored[i]
+			for j, l := range h.listings {
+				if l.ID != arg.ID {
+					continue
+				}
+				h.listings = append(h.listings[:j], h.listings[j+1:]...)
+				l.InstrumentID = arg.InstrumentID
+				for k := range f.stored {
+					if f.stored[k].instrument.ID == arg.InstrumentID {
+						f.stored[k].listings = append(f.stored[k].listings, l)
+					}
+				}
+				return merge("move listing")(context.Background(), arg.ID)
+			}
+		}
 		return merge("move listing")(context.Background(), arg.ID)
 	}).AnyTimes()
 	f.store.EXPECT().RelinkIdentifiers(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.RelinkIdentifiersParams) error {
@@ -478,7 +494,7 @@ func TestResolveUnresolved(t *testing.T) {
 			results: []result{servedResult(ticker, []types.Identifier{ticker}, cand(gen.AssetClassStock, "GBP", figi, xlon))},
 			fetched: true,
 			outcome: gen.ResolutionOutcomeUnrecognised,
-			reason:  "a: 1 candidates, 1 not naming mic_ticker VOD",
+			reason:  "a: 1 candidate in 1 group, 1 group not naming mic_ticker VOD",
 		},
 		{
 			name:     "every group dropped",
@@ -486,8 +502,8 @@ func TestResolveUnresolved(t *testing.T) {
 			results:  []result{servedResult(isin, []types.Identifier{isin}, cand(gen.AssetClassStock, "USD", figi, xnas))},
 			fetched:  true,
 			outcome:  gen.ResolutionOutcomeUnrecognised,
-			reason:   "a: 1 candidates, 1 dropped",
-			findings: []finding{{kind: gen.FindingKindDropped, step: ptr.To(gen.DropStepStated), detail: "listings in USD, none in the stated GBP", fetch: true}},
+			reason:   "a: 1 candidate in 1 group, 1 group dropped",
+			findings: []finding{{kind: gen.FindingKindDropped, step: ptr.To(gen.DropStepStated), detail: "isin GB00BH4HKS39: stated GBP has no listing among USD (a)", fetch: true}},
 		},
 	}
 	for _, tc := range tests {
@@ -639,8 +655,9 @@ func TestResolveMerge(t *testing.T) {
 		if diff := cmp.Diff(want, f.merges); diff != "" {
 			t.Errorf("merge steps mismatch (-want +got):\n%s", diff)
 		}
-		if len(f.findings) != 1 || f.findings[0].Kind != gen.FindingKindMerged || *f.findings[0].FetchKeyID != r.ID || *f.findings[0].Detail != fmt.Sprintf("folded instrument %s into %s, both identified: cusip 92857W308", bID, aID) {
-			t.Errorf("findings = %+v, want one merged finding naming the fold", f.findings)
+		detail := "merged the instrument created 2026-09-02 00:00:00 UTC into the instrument created 2026-09-01 00:00:00 UTC; the response identified the first by cusip 92857W308 and the second by openfigi_share_class BBG001S5XDT5"
+		if len(f.findings) != 1 || f.findings[0].Kind != gen.FindingKindMerged || *f.findings[0].FetchKeyID != r.ID || *f.findings[0].Detail != detail {
+			t.Errorf("findings = %+v, want one merged finding: %s", f.findings, detail)
 		}
 		if len(f.associated) != 1 || *f.associated[0].InstrumentID != aID {
 			t.Errorf("associated %+v, want the survivor", f.associated)
@@ -649,6 +666,30 @@ func TestResolveMerge(t *testing.T) {
 			if c.Type == cusip.Type {
 				t.Errorf("created %s again after relinking it", c.Value)
 			}
+		}
+	})
+	t.Run("folded across currency lines", func(t *testing.T) {
+		// Each instrument carries a ticker at one venue, on listings of
+		// different families, which is no disagreement.
+		f := newFixture(t, entryA)
+		aGBP := gen.Listing{ID: db.NewID(), InstrumentID: aID, Currency: "GBP"}
+		a := byFIGI
+		a.listings = []gen.Listing{aGBP}
+		a.identifiers = append([]gen.Identifier{{ID: db.NewID(), InstrumentID: aID, ListingID: &aGBP.ID, Type: xlon.Type, Domain: xlon.Domain, Value: xlon.Value}}, a.identifiers...)
+		usd := gen.Listing{ID: db.NewID(), InstrumentID: bID, Currency: "USD"}
+		b := byCUSIP
+		b.listings = []gen.Listing{usd}
+		b.identifiers = append([]gen.Identifier{{ID: db.NewID(), InstrumentID: bID, ListingID: &usd.ID, Type: types.IdentifierTypeMicTicker, Domain: "XLON", Value: "VODUSD"}}, b.identifiers...)
+		f.stores(a)
+		f.stores(b)
+		r := servedResult(isin, []types.Identifier{isin}, cand(gen.AssetClassStock, "GBP", figi, isin, cusip, xlon))
+		f.serves(entryA, r)
+		got := f.resolve(keyOf(gen.AssetClassStock, "GBP", isin))
+		if got[0].Outcome != gen.ResolutionOutcomeMatched {
+			t.Fatalf("Resolve = %+v, want matched", got)
+		}
+		if len(f.merges) == 0 || len(f.findings) != 1 || f.findings[0].Kind != gen.FindingKindMerged {
+			t.Errorf("merges %v, findings %+v, want the fold and its merged finding", f.merges, f.findings)
 		}
 	})
 	t.Run("refused", func(t *testing.T) {

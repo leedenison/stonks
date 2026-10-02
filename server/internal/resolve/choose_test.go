@@ -185,7 +185,7 @@ func TestChoose(t *testing.T) {
 			name:    "a listing in no stated family contradicts the statement",
 			results: []*result{strict("a", isin, cand(gen.AssetClassStock, "USD", figi, xnas))},
 			k:       gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{isin}},
-			want:    outcome{findings: []string{"a dropped stated: listings in USD, none in the stated GBP"}},
+			want:    outcome{findings: []string{"a dropped stated: isin GB00BH4HKS39: stated GBP has no listing among USD (a)"}},
 		},
 		{
 			name:    "a listing of no family does not",
@@ -197,7 +197,7 @@ func TestChoose(t *testing.T) {
 			name:    "a disjoint class contradicts the statement",
 			results: []*result{strict("a", isin, cand(gen.AssetClassEtf, "GBP", figi, xlon))},
 			k:       gen.StatedKey{AssetClass: stock, Identifiers: []types.Identifier{isin}},
-			want:    outcome{findings: []string{"a dropped stated: class etf contradicts the stated stock"}},
+			want:    outcome{findings: []string{"a dropped stated: isin GB00BH4HKS39: stated stock contradicts the class etf (a)"}},
 		},
 		{
 			name:    "an unknown class does not",
@@ -209,7 +209,7 @@ func TestChoose(t *testing.T) {
 			name:    "an identifier of a stated type with another value contradicts the statement",
 			results: []*result{strict("a", isin, cand(gen.AssetClassStock, "GBP", figi, other, xlon))},
 			k:       gen.StatedKey{Identifiers: []types.Identifier{cusip, isin}},
-			want:    outcome{findings: []string{"a dropped stated: cusip 92857W309 contradicts the stated cusip 92857W308"}},
+			want:    outcome{findings: []string{"a dropped stated: isin GB00BH4HKS39: stated cusip 92857W308 contradicts cusip 92857W309 (a)"}},
 		},
 		{
 			name: "the winner is the highest precedence datasource with a survivor, and the rest attach",
@@ -229,8 +229,8 @@ func TestChoose(t *testing.T) {
 			},
 			k: gen.StatedKey{Identifiers: []types.Identifier{isin}},
 			want: outcome{winner: "a#0", attached: []string{"a#0"}, findings: []string{
-				"b dropped precedence: cusip 92857W309 contradicts a's cusip 92857W308",
-				"c dropped precedence: class etf contradicts a's stock",
+				"b dropped precedence: isin GB00BH4HKS39: cusip 92857W309 contradicts cusip 92857W308 (a)",
+				"c dropped precedence: isin GB00BH4HKS39: class etf contradicts the class stock (a)",
 			}},
 		},
 		{
@@ -242,9 +242,16 @@ func TestChoose(t *testing.T) {
 			k:  gen.StatedKey{Identifiers: []types.Identifier{isin}},
 			db: existing,
 			want: outcome{winner: "database", findings: []string{
-				"a contradiction: cusip 92857W309 contradicts the instrument's cusip 92857W308",
-				"b contradiction: mic_ticker XLON:VODL contradicts the instrument's mic_ticker XLON:VOD",
+				"a contradiction: isin GB00BH4HKS39: cusip 92857W309 contradicts cusip 92857W308 (database)",
+				"b contradiction: isin GB00BH4HKS39: mic_ticker XLON:VODL contradicts mic_ticker XLON:VOD (database)",
 			}},
+		},
+		{
+			name:    "a ticker of another currency line at the venue contradicts nothing",
+			results: []*result{strict("a", isin, cand(gen.AssetClassStock, "USD", figi, id(types.IdentifierTypeMicTicker, "XLON", "VODUSD")))},
+			k:       gen.StatedKey{Identifiers: []types.Identifier{isin}},
+			db:      existing,
+			want:    outcome{winner: "database", attached: []string{"a#0"}},
 		},
 		{
 			name:    "a second composite in a listing contradicts nothing",
@@ -258,7 +265,7 @@ func TestChoose(t *testing.T) {
 			results: []*result{search("a", xlon, cand(gen.AssetClassStock, "GBP", figi, xlon))},
 			k:       gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{xlon}},
 			db:      existing,
-			want:    outcome{winner: "database", findings: []string{"a dropped corroboration: shares no stable identifier with the instrument"}},
+			want:    outcome{winner: "database", findings: []string{"a dropped corroboration: openfigi_share_class BBG001S5XDT5: shares no stable identifier with the instrument identified by isin GB00BH4HKS39 (database)"}},
 		},
 		{
 			name: "a lower datasource corroborates the winner through a stable identifier",
@@ -289,7 +296,7 @@ func TestChoose(t *testing.T) {
 			name:    "a mis-stated venue associates with the one group that survives",
 			results: []*result{search("a", xlon, cand(gen.AssetClassStock, "GBP", figi, xetr), cand(gen.AssetClassStock, "USD", figi2, xnas))},
 			k:       gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{xlon}},
-			want:    outcome{winner: "a#0", attached: []string{"a#0"}, findings: []string{"a dropped stated: listings in USD, none in the stated GBP"}},
+			want:    outcome{winner: "a#0", attached: []string{"a#0"}, findings: []string{"a dropped stated: openfigi_share_class BBG001S5XDT6: stated GBP has no listing among USD (a)"}},
 		},
 		{
 			name:    "a mis-stated venue with several survivors chooses none",
@@ -302,7 +309,7 @@ func TestChoose(t *testing.T) {
 			results: []*result{search("a", xlon, cand(gen.AssetClassStock, "GBP", figi2, xnas), cand(gen.AssetClassStock, "GBP", isin, xetr))},
 			k:       gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{xlon}},
 			db:      existing,
-			want:    outcome{winner: "database", attached: []string{"a#1"}, findings: []string{"a dropped corroboration: shares no stable identifier with the instrument"}},
+			want:    outcome{winner: "database", attached: []string{"a#1"}, findings: []string{"a dropped corroboration: openfigi_share_class BBG001S5XDT6: shares no stable identifier with the instrument identified by isin GB00BH4HKS39 (database)"}},
 		},
 		{
 			name:    "a bare ticker is never chosen",

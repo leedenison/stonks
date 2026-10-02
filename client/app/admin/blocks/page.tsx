@@ -7,13 +7,14 @@ import { ClearedToggle, Pager } from "@/app/components/admin-list";
 import { Button } from "@/app/components/button";
 import { Chip } from "@/app/components/chip";
 import { EmptyState } from "@/app/components/empty-state";
+import { IdentifierChip } from "@/app/components/identifier-chip";
 import { Notice } from "@/app/components/notice";
 import { Page } from "@/app/components/page-frame";
 import { SkeletonRows } from "@/app/components/skeleton-rows";
 import { TableCard, Td, Th, Thead, Tr } from "@/app/components/table";
 import { BlockScope, FetchKind } from "@/gen/admin/v1/admin_pb";
 import { useBlocks, useClearBlock } from "@/hooks/use-blocks";
-import { enumLabel, identifierText, readList } from "@/lib/admin";
+import { enumLabel, readList } from "@/lib/admin";
 import { formatInstant } from "@/lib/format";
 
 const path = "/admin/blocks";
@@ -72,10 +73,12 @@ function Blocks() {
                   <Td>
                     {b.datasource} <Chip>{enumLabel(FetchKind, b.kind)}</Chip>
                   </Td>
-                  <Td className="font-mono">
-                    {b.scope === BlockScope.IDENTIFIER && b.sent
-                      ? identifierText(b.sent)
-                      : "every call"}
+                  <Td>
+                    {b.scope === BlockScope.IDENTIFIER && b.sent ? (
+                      <IdentifierChip id={b.sent} />
+                    ) : (
+                      "every call"
+                    )}
                   </Td>
                   <Td>{b.reason}</Td>
                   <Td>

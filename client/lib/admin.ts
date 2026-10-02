@@ -1,10 +1,5 @@
 import { DropStep, type Finding, type UserRun } from "@/gen/admin/v1/admin_pb";
 import { RunKind, RunState, RunTrigger } from "@/gen/run/v1/run_pb";
-import {
-  type Identifier,
-  IdentifierType,
-  type StatedKey,
-} from "@/gen/type/v1/type_pb";
 
 // RunFilters is the runs page's filters, as held in its address. An
 // empty string matches everything.
@@ -64,22 +59,6 @@ export function findingText(f: Finding): string {
   return parts.join(": ");
 }
 
-// identifierText renders an identifier as its type, its domain where it has
-// one, and its value.
-export function identifierText(i: Identifier): string {
-  const type = IdentifierType[i.type] ?? "";
-  return `${type} ${i.domain ? `${i.domain}:` : ""}${i.value}`;
-}
-
-// keyText renders what a stated key states: its identifiers, then its
-// description.
-export function keyText(k: StatedKey | undefined): string {
-  if (!k) return "";
-  const parts = k.identifiers.map(identifierText);
-  if (k.description) parts.push(k.description);
-  return parts.join(" · ");
-}
-
 // enumParam and fromParam carry an enum value in an address as its lower
 // case name, as RunKind.STATEMENT to "statement".
 export function enumParam(e: Record<number, string>, v: number): string {
@@ -94,8 +73,7 @@ export function fromParam(
   return typeof v === "number" && v !== 0 ? v : undefined;
 }
 
-// ListParams is the findings and blocks pages' filters, as held in their
-// address.
+// ListParams is the blocks page's filters, as held in its address.
 export type ListParams = { cleared: boolean; before: string };
 
 export function readList(params: URLSearchParams): ListParams {

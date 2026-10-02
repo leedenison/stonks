@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Minus, Plus } from "lucide-react";
 import { Fragment, Suspense, useState } from "react";
 import { LinkButton } from "@/app/components/button";
 import { Chip } from "@/app/components/chip";
@@ -12,6 +11,7 @@ import { Page } from "@/app/components/page-frame";
 import { SkeletonRows } from "@/app/components/skeleton-rows";
 import { RunChip } from "@/app/components/state-chip";
 import { TableCard, Td, Th, Thead, Tr } from "@/app/components/table";
+import { Toggle } from "@/app/components/toggle";
 import type { UserRun } from "@/gen/admin/v1/admin_pb";
 import { useAdminRuns } from "@/hooks/use-admin-runs";
 import {
@@ -169,7 +169,6 @@ function RunRows({
         const open = toggled[id] ?? !matched;
         const findings =
           open || children.length === 0 ? openFindings : openFindingsBelow(r);
-        const Toggle = open ? Minus : Plus;
         return (
           <Fragment key={id}>
             <Tr
@@ -182,23 +181,11 @@ function RunRows({
                   className="flex items-center gap-1"
                   style={{ paddingLeft: `${depth * 1.25}rem` }}
                 >
-                  {children.length > 0 ? (
-                    <button
-                      type="button"
-                      aria-expanded={open}
-                      aria-label={open ? "Close" : "Open"}
-                      data-testid={`run-toggle-${id}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggle(id, !open);
-                      }}
-                      className="rounded border border-border text-text-muted hover:text-text-primary"
-                    >
-                      <Toggle className="size-4" aria-hidden="true" />
-                    </button>
-                  ) : (
-                    <span className="size-4" aria-hidden="true" />
-                  )}
+                  <Toggle
+                    open={children.length > 0 ? open : undefined}
+                    onToggle={() => toggle(id, !open)}
+                    testId={`run-toggle-${id}`}
+                  />
                   <Link
                     href={href}
                     className="underline-offset-4 hover:underline"

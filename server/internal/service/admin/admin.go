@@ -11,6 +11,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
@@ -34,11 +35,10 @@ type Reader interface {
 	GetUserRun(ctx context.Context, id uuid.UUID) (gen.GetUserRunRow, error)
 	ListRunAncestors(ctx context.Context, id uuid.UUID) ([]gen.ListRunAncestorsRow, error)
 	ListRunDescendants(ctx context.Context, parentID *uuid.UUID) ([]gen.ListRunDescendantsRow, error)
-	ListRunFindings(ctx context.Context, runID uuid.UUID) ([]gen.Finding, error)
+	ListRunFindings(ctx context.Context, runIds []uuid.UUID) ([]gen.ListRunFindingsRow, error)
 	ListStatementItems(ctx context.Context, arg gen.ListStatementItemsParams) ([]gen.StatementItem, error)
 	ListResolutionItems(ctx context.Context, runID uuid.UUID) ([]gen.ListResolutionItemsRow, error)
 	ListFetchItems(ctx context.Context, fetchID uuid.UUID) ([]gen.ListFetchItemsRow, error)
-	ListFindings(ctx context.Context, arg gen.ListFindingsParams) ([]gen.Finding, error)
 	GetFinding(ctx context.Context, id uuid.UUID) (gen.Finding, error)
 	ClearFinding(ctx context.Context, id uuid.UUID) error
 	ListDatasourceSettings(ctx context.Context) ([]gen.ListDatasourceSettingsRow, error)
@@ -169,17 +169,23 @@ func (s *Server) fill(ctx context.Context, run gen.Run, out *adminv1.GetRunRespo
 		return err
 	}
 	byID := map[uuid.UUID]*adminv1.UserRun{run.ID: out.Run}
+	ids := []uuid.UUID{run.ID}
 	for _, d := range descendants {
+		ids = append(ids, d.Run.ID)
 		msg := userRun(d.Run, d.Email, d.OpenFindings)
 		byID[d.Run.ID] = msg
 		if parent := byID[*d.Run.ParentID]; parent != nil {
 			parent.Children = append(parent.Children, msg)
 		}
 	}
-	findings, err := s.reader.ListRunFindings(ctx, run.ID)
+	findings, err := s.reader.ListRunFindings(ctx, ids)
 	if err != nil {
 		return err
 	}
+	order := treeOrder(out.Run)
+	slices.SortStableFunc(findings, func(a, b gen.ListRunFindingsRow) int {
+		return order[a.Finding.RunID.String()] - order[b.Finding.RunID.String()]
+	})
 	for _, f := range findings {
 		out.Findings = append(out.Findings, finding(f))
 	}
@@ -231,29 +237,6 @@ func (s *Server) fill(ctx context.Context, run gen.Run, out *adminv1.GetRunRespo
 		}
 	}
 	return nil
-}
-
-// ListFindings lists findings across every run, newest first.
-func (s *Server) ListFindings(ctx context.Context, req *connect.Request[adminv1.ListFindingsRequest]) (*connect.Response[adminv1.ListFindingsResponse], error) {
-	m := req.Msg
-	p, err := newPage(m.GetPageSize(), m.GetPageToken())
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, err)
-	}
-	arg := gen.ListFindingsParams{IncludeCleared: m.GetIncludeCleared(), Before: p.before, Lim: p.lim()}
-	if arg.RunID, err = optionalID(m.RunId); err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, err)
-	}
-	rows, err := s.reader.ListFindings(ctx, arg)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
-	}
-	out := &adminv1.ListFindingsResponse{}
-	rows, out.NextPageToken = trim(p, rows, func(f gen.Finding) uuid.UUID { return f.ID })
-	for _, f := range rows {
-		out.Findings = append(out.Findings, finding(f))
-	}
-	return connect.NewResponse(out), nil
 }
 
 // ClearFinding clears a finding that reports no block.
@@ -413,12 +396,19 @@ func block(b gen.DatasourceBlock, runID uuid.UUID) *adminv1.Block {
 	return out
 }
 
-func finding(f gen.Finding) *adminv1.Finding {
+// finding writes row as its message, with what the key concerned states.
+func finding(row gen.ListRunFindingsRow) *adminv1.Finding {
+	f := row.Finding
 	out := &adminv1.Finding{
 		Id:        f.ID.String(),
 		RunId:     f.RunID.String(),
 		Kind:      types.ToProto[adminv1.FindingKind](f.Kind),
 		CreatedAt: timestamppb.New(f.CreatedAt),
+	}
+	if row.KeyID != nil {
+		out.StatedKey = to.ProtoStatedKey(gen.StatedKey{
+			Identifiers: row.KeyIdentifiers, AssetClass: row.KeyAssetClass, Currency: row.KeyCurrency, Description: row.KeyDescription,
+		})
 	}
 	if f.BlockID != nil {
 		id := f.BlockID.String()
@@ -437,10 +427,28 @@ func finding(f gen.Finding) *adminv1.Finding {
 		out.Step = &step
 	}
 	out.Detail = f.Detail
+	if f.Kind == gen.FindingKindBlock {
+		out.Detail = row.BlockReason
+	}
 	if f.ClearedAt != nil {
 		out.ClearedAt = timestamppb.New(*f.ClearedAt)
 	}
 	return out
+}
+
+// treeOrder numbers the runs of the tree under root in tree order: each run
+// before the runs below it, and those before its next sibling.
+func treeOrder(root *adminv1.UserRun) map[string]int {
+	order := map[string]int{}
+	var walk func(r *adminv1.UserRun)
+	walk = func(r *adminv1.UserRun) {
+		order[r.GetRun().GetId()] = len(order)
+		for _, c := range r.GetChildren() {
+			walk(c)
+		}
+	}
+	walk(root)
+	return order
 }
 
 func userRun(r gen.Run, email string, open int32) *adminv1.UserRun {

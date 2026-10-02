@@ -173,21 +173,14 @@ func TestFindingsAndBlocks(t *testing.T) {
 	}
 	require.NoError(t, q.ClearDatasourceBlock(ctx, firstBlock))
 
-	findings := func(include bool) []uuid.UUID {
-		t.Helper()
-		rows, err := q.ListFindings(ctx, gen.ListFindingsParams{IncludeCleared: include, RunID: &fetch.ID, Lim: 10})
-		require.NoError(t, err)
-		var out []uuid.UUID
-		for _, r := range rows {
-			out = append(out, r.ID)
-		}
-		return out
+	rows, err := q.ListRunFindings(ctx, []uuid.UUID{fetch.ID})
+	require.NoError(t, err)
+	cleared := map[uuid.UUID]bool{}
+	for _, r := range rows {
+		cleared[r.Finding.ID] = r.Finding.ClearedAt != nil
 	}
-	if diff := cmp.Diff([]uuid.UUID{secondFinding}, findings(false)); diff != "" {
-		t.Errorf("ListFindings of the open mismatch (-want +got):\n%s", diff)
-	}
-	if diff := cmp.Diff([]uuid.UUID{secondFinding, firstFinding}, findings(true)); diff != "" {
-		t.Errorf("ListFindings including the cleared mismatch (-want +got):\n%s", diff)
+	if diff := cmp.Diff(map[uuid.UUID]bool{firstFinding: true, secondFinding: false}, cleared); diff != "" {
+		t.Errorf("ListRunFindings cleared mismatch (-want +got):\n%s", diff)
 	}
 	got, err := q.GetUserRun(ctx, fetch.ID)
 	require.NoError(t, err)

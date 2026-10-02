@@ -55,13 +55,8 @@ test("shows an administrator the runs a user's upload produced", async ({
   expect(child.kind).toBe(RunKind.RESOLUTION);
   const resolution = await admin.getRun({ runId: child.id });
   expect(resolution.resolutionItems.length).toBeGreaterThan(0);
-  for (const id of [runId!, child.id]) {
-    const { findings } = await admin.listFindings({
-      runId: id,
-      includeCleared: true,
-    });
-    expect(findings).toHaveLength(0);
-  }
+  expect(statement.findings).toHaveLength(0);
+  expect(resolution.findings).toHaveLength(0);
 
   // The pages: the user's runs with the resolution under its statement,
   // the statement run, then its resolution.

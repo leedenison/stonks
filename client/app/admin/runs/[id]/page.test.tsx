@@ -5,6 +5,8 @@ import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import {
   AdminService,
+  ClearBlockResponseSchema,
+  ClearFindingResponseSchema,
   FetchItemSchema,
   FetchOutcome,
   DropStep,
@@ -16,6 +18,7 @@ import {
 import { Role } from "@/gen/auth/v1/auth_pb";
 import { RunKind, RunSchema, RunState, RunTrigger } from "@/gen/run/v1/run_pb";
 import {
+  AssetClass,
   IdentifierSchema,
   IdentifierType,
   StatedKeySchema,
@@ -30,15 +33,23 @@ vi.mock("next/navigation", () => ({
 
 const admin = liveSession({ role: Role.ADMIN });
 
-function serving(getRun: ServiceImpl<typeof AdminService>["getRun"]) {
+function serving(
+  getRun: ServiceImpl<typeof AdminService>["getRun"],
+  impl: Partial<ServiceImpl<typeof AdminService>> = {},
+) {
   return transportWith(admin, ({ service }) => {
-    service(AdminService, { getRun });
+    service(AdminService, { getRun, ...impl });
   });
 }
 
 const isin = create(IdentifierSchema, {
   type: IdentifierType.ISIN,
   value: "GB00B03MLX29",
+});
+const ticker = create(IdentifierSchema, {
+  type: IdentifierType.MIC_TICKER,
+  domain: "XLON",
+  value: "SHEL",
 });
 
 // A fetch under a resolution under a statement, the fetch being the run
@@ -102,16 +113,23 @@ const fetch = create(GetRunResponseSchema, {
       runId: "f1",
       kind: FindingKind.BLOCK,
       blockId: "b1",
+      detail: "openfigi rejected the identifier: Invalid idValue format.",
       createdAt: timestampFromDate(new Date("2026-09-24T10:01:00Z")),
     }),
     create(FindingSchema, {
       id: "x2",
-      runId: "f1",
+      runId: "c1",
       kind: FindingKind.DROPPED,
       statedKeyId: "k1",
       fetchKeyId: "fk1",
       step: DropStep.STATED,
       detail: "candidates in USD, not the stated GBP",
+      statedKey: create(StatedKeySchema, {
+        identifiers: [isin, ticker],
+        assetClass: AssetClass.EQUITY,
+        currency: "GBP",
+        description: "SHELL PLC",
+      }),
       createdAt: timestampFromDate(new Date("2026-09-24T10:01:00Z")),
     }),
   ],
@@ -155,6 +173,9 @@ describe("AdminRunPage", () => {
     expect(
       screen.getByTestId("run-row-p1").querySelector("a")?.getAttribute("href"),
     ).toBe("/admin/runs/p1");
+    // Closed, the run counts the findings of the run it hides; open, each
+    // row counts its own.
+    expect(screen.getByTestId("run-open-findings-f1").textContent).toBe("1");
     fireEvent.click(screen.getByTestId("run-toggle-f1"));
     expect(shown()).toEqual([
       "run-row-s1",
@@ -162,17 +183,114 @@ describe("AdminRunPage", () => {
       "run-row-f1",
       "run-row-c1",
     ]);
+    expect(screen.queryByTestId("run-open-findings-f1")).toBeNull();
     expect(screen.getByTestId("run-open-findings-c1").textContent).toBe("1");
     fireEvent.click(screen.getByTestId("run-toggle-p1"));
     expect(shown()).toEqual(["run-row-s1", "run-row-p1"]);
+    expect(screen.getByTestId("finding-row-x1").textContent).toContain(
+      "fetch @ 2026-09-24 10:00 UTC",
+    );
+    expect(
+      screen.getByTestId("finding-row-x1").querySelector("a[href]"),
+    ).toBeNull();
     expect(screen.getByTestId("finding-row-x1").textContent).toContain("block");
+    expect(screen.getByTestId("finding-row-x1").textContent).toContain(
+      "openfigi rejected the identifier: Invalid idValue format.",
+    );
+    expect(screen.getByTestId("finding-run-c1").getAttribute("href")).toBe(
+      "/admin/runs/c1",
+    );
     expect(screen.getByTestId("finding-row-x2").textContent).toContain(
       "stated: candidates in USD, not the stated GBP",
     );
+    expect(screen.getByTestId("finding-row-x2").textContent).not.toContain(
+      "10:01 UTC",
+    );
+
+    // One finding opens at a time, from its toggle or its row.
+    expect(screen.queryByTestId("finding-detail-x1")).toBeNull();
+    fireEvent.click(screen.getByTestId("finding-toggle-x1"));
+    expect(screen.getByTestId("finding-detail-x1").textContent).toBe(
+      "No stated key.",
+    );
+    fireEvent.click(screen.getByTestId("finding-row-x2"));
+    expect(screen.queryByTestId("finding-detail-x1")).toBeNull();
+    const detail = screen.getByTestId("finding-detail-x2");
+    expect(detail.querySelectorAll("[data-identifier-type]")).toHaveLength(2);
+    expect(detail.textContent).toContain("GB00B03MLX29");
+    expect(detail.textContent).toContain("SHEL(XLON)");
+    expect(detail.textContent).toContain("SHELL PLC");
+    expect(detail.textContent).toContain("equity");
+    expect(detail.textContent).toContain("GBP");
+    expect(detail.textContent).not.toContain("fk1");
+    fireEvent.click(screen.getByTestId("finding-row-x2"));
+    expect(screen.queryByTestId("finding-detail-x2")).toBeNull();
+
     const item = screen.getByTestId("item-row-k1");
-    expect(item.textContent).toContain("ISIN GB00B03MLX29 · SHELL PLC");
+    const chips = item.querySelectorAll("[data-identifier-type='ISIN']");
+    expect(chips).toHaveLength(2);
+    expect(item.textContent).toContain("GB00B03MLX29");
+    expect(item.textContent).toContain("SHELL PLC");
     expect(item.textContent).toContain("failed permanent");
     expect(item.textContent).toContain("unknown identifier");
+  });
+
+  it("clears a finding, and a block's finding through its block", async () => {
+    const clearFinding = vi.fn(() => create(ClearFindingResponseSchema, {}));
+    const clearBlock = vi.fn(() => create(ClearBlockResponseSchema, {}));
+    renderWithAuth(
+      <AdminRunPage />,
+      serving(() => fetch, { clearFinding, clearBlock }),
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId("finding-clear-block-x1")).toBeTruthy(),
+    );
+    expect(screen.getByTestId("finding-clear-block-x1").tagName).toBe("BUTTON");
+    expect(screen.queryByTestId("finding-clear-x1")).toBeNull();
+    expect(screen.queryByTestId("finding-clear-block-x2")).toBeNull();
+
+    fireEvent.click(screen.getByTestId("finding-clear-block-x1"));
+    await waitFor(() =>
+      expect(clearBlock).toHaveBeenCalledWith(
+        expect.objectContaining({ blockId: "b1" }),
+        expect.anything(),
+      ),
+    );
+    await waitFor(() =>
+      expect(
+        (screen.getByTestId("finding-clear-x2") as HTMLButtonElement).disabled,
+      ).toBe(false),
+    );
+    fireEvent.click(screen.getByTestId("finding-clear-x2"));
+    await waitFor(() =>
+      expect(clearFinding).toHaveBeenCalledWith(
+        expect.objectContaining({ findingId: "x2" }),
+        expect.anything(),
+      ),
+    );
+  });
+
+  it("shows when a finding was cleared in place of its clear", async () => {
+    const cleared = create(GetRunResponseSchema, {
+      ...fetch,
+      findings: [
+        create(FindingSchema, {
+          ...fetch.findings[1],
+          clearedAt: timestampFromDate(new Date("2026-09-24T11:00:00Z")),
+        }),
+      ],
+    });
+    renderWithAuth(
+      <AdminRunPage />,
+      serving(() => cleared),
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId("finding-row-x2")).toBeTruthy(),
+    );
+    expect(screen.getByTestId("finding-row-x2").textContent).toContain(
+      "2026-09-24 11:00 UTC",
+    );
+    expect(screen.queryByTestId("finding-clear-x2")).toBeNull();
   });
 
   it("says when there is no such run", async () => {

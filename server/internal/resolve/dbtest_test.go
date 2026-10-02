@@ -213,7 +213,7 @@ func TestResolveWrites(t *testing.T) {
 			outcomes[i] += ": " + *r.Reason
 		}
 	}
-	want := []string{"matched", "matched", "matched", "unrecognised: alpha: 1 candidates, 1 dropped"}
+	want := []string{"matched", "matched", "matched", "unrecognised: alpha: 1 candidate in 1 group, 1 group dropped"}
 	if diff := cmp.Diff(want, outcomes); diff != "" {
 		t.Errorf("outcomes mismatch (-want +got):\n%s", diff)
 	}
@@ -301,9 +301,9 @@ func TestResolveWrites(t *testing.T) {
 	}
 
 	// Dropping the mis-stated key's group is a finding of the resolution.
-	findings, err := s.q.ListRunFindings(ctx, s.resolution.ID)
+	findings, err := s.q.ListRunFindings(ctx, []uuid.UUID{s.resolution.ID})
 	require.NoError(t, err)
-	if len(findings) != 1 || findings[0].Kind != gen.FindingKindDropped || *findings[0].Step != gen.DropStepStated || *findings[0].StatedKeyID != wrong.ID || *findings[0].Detail != "listings in GBP, none in the stated USD" {
+	if len(findings) != 1 || findings[0].Finding.Kind != gen.FindingKindDropped || *findings[0].Finding.Step != gen.DropStepStated || *findings[0].Finding.StatedKeyID != wrong.ID || *findings[0].Finding.Detail != "cusip 92857W308: stated USD has no listing among GBP (alpha)" {
 		t.Errorf("findings = %+v, want one stated drop against the mis-stated key", findings)
 	}
 	if _, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: types.IdentifierTypeCusip, Value: cusip.Value}); !errors.Is(err, db.ErrNotFound) {
@@ -350,10 +350,10 @@ func TestMergeRows(t *testing.T) {
 		if got[0].Reason != nil {
 			reason = *got[0].Reason
 		}
-		findings, _ := s.q.ListRunFindings(ctx, s.resolution.ID)
+		findings, _ := s.q.ListRunFindings(ctx, []uuid.UUID{s.resolution.ID})
 		var details []string
 		for _, f := range findings {
-			details = append(details, string(f.Kind)+": "+*f.Detail)
+			details = append(details, string(f.Finding.Kind)+": "+*f.Finding.Detail)
 		}
 		t.Fatalf("Resolve = %s (%s), want matched; findings %v", got[0].Outcome, reason, details)
 	}
@@ -413,9 +413,9 @@ func TestMergeRows(t *testing.T) {
 	if len(coverage) != 1 || coverage[0].InstrumentID != survivor {
 		t.Errorf("coverage = %+v, want one row on the survivor", coverage)
 	}
-	findings, err := s.q.ListRunFindings(ctx, s.resolution.ID)
+	findings, err := s.q.ListRunFindings(ctx, []uuid.UUID{s.resolution.ID})
 	require.NoError(t, err)
-	if len(findings) != 1 || findings[0].Kind != gen.FindingKindMerged || *findings[0].StatedKeyID != third.ID || findings[0].FetchKeyID == nil {
+	if len(findings) != 1 || findings[0].Finding.Kind != gen.FindingKindMerged || *findings[0].Finding.StatedKeyID != third.ID || findings[0].Finding.FetchKeyID == nil {
 		t.Errorf("findings = %+v, want one merged finding on the third key with its fetch key", findings)
 	}
 }

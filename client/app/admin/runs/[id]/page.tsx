@@ -1,32 +1,43 @@
 "use client";
 
 import { Code, ConnectError } from "@connectrpc/connect";
-import { Minus, Plus } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { type ReactNode, useState } from "react";
+import { Fragment, type ReactNode, useState } from "react";
+import { Button } from "@/app/components/button";
 import { Chip } from "@/app/components/chip";
 import { EmptyState } from "@/app/components/empty-state";
+import {
+  IdentifierChip,
+  IdentifierChips,
+  StatedKeyChips,
+} from "@/app/components/identifier-chip";
 import { Notice } from "@/app/components/notice";
 import { Page } from "@/app/components/page-frame";
 import { RejectionGroups } from "@/app/components/rejection-groups";
 import { Skeleton } from "@/app/components/skeleton";
 import { RunChip } from "@/app/components/state-chip";
 import { TableCard, Td, Th, Thead, Tr } from "@/app/components/table";
+import { Toggle } from "@/app/components/toggle";
 import {
   FetchOutcome,
+  type Finding,
   FindingKind,
   type GetRunResponse,
   ResolutionOutcome,
   type UserRun,
 } from "@/gen/admin/v1/admin_pb";
+import type { Run } from "@/gen/run/v1/run_pb";
+import { AssetClass } from "@/gen/type/v1/type_pb";
 import { useAdminRun } from "@/hooks/use-admin-run";
+import { useClearBlock } from "@/hooks/use-blocks";
+import { useClearFinding } from "@/hooks/use-findings";
 import {
   enumLabel,
   filterQuery,
   findingText,
-  identifierText,
-  keyText,
+  flattenRuns,
+  openFindingsBelow,
   runEnums,
 } from "@/lib/admin";
 import { formatInstant } from "@/lib/format";
@@ -145,8 +156,9 @@ function Lineage({ data }: { data: GetRunResponse }) {
 }
 
 // LineageRow is one run of the lineage at its depth. open is set where the
-// row has rows below it. current marks the run the page describes, which
-// neither opens its own page nor changes under the pointer.
+// row has rows below it, and a closed row counts the open findings of the
+// rows it hides with its own. current marks the run the page describes,
+// which neither opens its own page nor changes under the pointer.
 function LineageRow({
   run: r,
   depth,
@@ -163,7 +175,7 @@ function LineageRow({
   const id = r.run?.id ?? "";
   const href = `/admin/runs/${id}`;
   const started = r.run?.createdAt ? formatInstant(r.run.createdAt) : "";
-  const Toggle = open ? Minus : Plus;
+  const findings = open === false ? openFindingsBelow(r) : r.openFindings;
   const cells = (
     <>
       <Td className="font-mono tabular-nums">
@@ -171,23 +183,11 @@ function LineageRow({
           className="flex items-center gap-1"
           style={{ paddingLeft: `${depth * 1.25}rem` }}
         >
-          {open === undefined ? (
-            <span className="size-4" aria-hidden="true" />
-          ) : (
-            <button
-              type="button"
-              aria-expanded={open}
-              aria-label={open ? "Close" : "Open"}
-              data-testid={`run-toggle-${id}`}
-              onClick={(e) => {
-                e.stopPropagation();
-                toggle(id, !open);
-              }}
-              className="rounded border border-border text-text-muted hover:text-text-primary"
-            >
-              <Toggle className="size-4" aria-hidden="true" />
-            </button>
-          )}
+          <Toggle
+            open={open}
+            onToggle={() => toggle(id, !open)}
+            testId={`run-toggle-${id}`}
+          />
           {current ? (
             started
           ) : (
@@ -220,9 +220,9 @@ function LineageRow({
         <RunChip run={r.run} />
       </Td>
       <Td className="font-mono tabular-nums">
-        {r.openFindings > 0 && (
+        {findings > 0 && (
           <Chip tone="accent" data-testid={`run-open-findings-${id}`}>
-            {r.openFindings}
+            {findings}
           </Chip>
         )}
       </Td>
@@ -246,39 +246,165 @@ function LineageRow({
   );
 }
 
+// Findings lists what the run and every run below it met, each with the run
+// that met it. A row opens to the finding's record below it, one at a time.
+// An open finding offers its clear: a finding that reports a block clears
+// with the block, which lifts it.
 function Findings({ data }: { data: GetRunResponse }) {
+  const clearFinding = useClearFinding();
+  const clearBlock = useClearBlock();
+  const [openId, setOpenId] = useState<string | null>(null);
   if (data.findings.length === 0) {
     return <EmptyState message="The run recorded no findings." />;
   }
+  const pending = clearFinding.isPending || clearBlock.isPending;
+  const self = data.run?.run?.id;
+  const runs = new Map(
+    flattenRuns(data.run ? [data.run] : []).map((r) => [r.run?.id, r.run]),
+  );
+  const columns = 4;
   return (
-    <TableCard testId="admin-run-findings">
-      <Thead>
-        <tr>
-          <Th>Recorded</Th>
-          <Th>Kind</Th>
-          <Th>Detail</Th>
-          <Th>Cleared</Th>
-        </tr>
-      </Thead>
-      <tbody>
-        {data.findings.map((f) => (
-          <Tr key={f.id} data-testid={`finding-row-${f.id}`}>
-            <Td className="font-mono tabular-nums">
-              {f.createdAt ? formatInstant(f.createdAt) : ""}
-            </Td>
-            <Td>
-              <Chip tone={f.clearedAt ? "muted" : "accent"}>
-                {enumLabel(FindingKind, f.kind)}
-              </Chip>
-            </Td>
-            <Td>{findingText(f)}</Td>
-            <Td className="font-mono tabular-nums">
-              {f.clearedAt ? formatInstant(f.clearedAt) : ""}
-            </Td>
-          </Tr>
+    <>
+      {clearFinding.isError && (
+        <Notice tone="error">The finding could not be cleared.</Notice>
+      )}
+      {clearBlock.isError && (
+        <Notice tone="error">The block could not be cleared.</Notice>
+      )}
+      <TableCard testId="admin-run-findings">
+        <Thead>
+          <tr>
+            <Th>Run</Th>
+            <Th>Kind</Th>
+            <Th>Detail</Th>
+            <Th>Cleared</Th>
+          </tr>
+        </Thead>
+        <tbody>
+          {data.findings.map((f) => {
+            const open = openId === f.id;
+            const toggle = () => setOpenId(open ? null : f.id);
+            return (
+              <Fragment key={f.id}>
+                <Tr
+                  data-testid={`finding-row-${f.id}`}
+                  onClick={toggle}
+                  className={`cursor-pointer ${open ? "bg-primary-light/15" : ""}`}
+                >
+                  <Td>
+                    <span className="flex items-center gap-1">
+                      <Toggle
+                        open={open}
+                        onToggle={toggle}
+                        testId={`finding-toggle-${f.id}`}
+                      />
+                      <FindingRun
+                        run={runs.get(f.runId)}
+                        self={f.runId === self}
+                      />
+                    </span>
+                  </Td>
+                  <Td>
+                    <Chip tone={f.clearedAt ? "muted" : "accent"}>
+                      {enumLabel(FindingKind, f.kind)}
+                    </Chip>
+                  </Td>
+                  <Td>{findingText(f)}</Td>
+                  <Td onClick={(e) => e.stopPropagation()}>
+                    {f.clearedAt ? (
+                      <span className="font-mono tabular-nums">
+                        {formatInstant(f.clearedAt)}
+                      </span>
+                    ) : f.blockId ? (
+                      <Button
+                        variant="secondary"
+                        data-testid={`finding-clear-block-${f.id}`}
+                        disabled={pending}
+                        onClick={() =>
+                          f.blockId && clearBlock.mutate(f.blockId)
+                        }
+                      >
+                        Clear block
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="secondary"
+                        data-testid={`finding-clear-${f.id}`}
+                        disabled={pending}
+                        onClick={() => clearFinding.mutate(f.id)}
+                      >
+                        Clear
+                      </Button>
+                    )}
+                  </Td>
+                </Tr>
+                {open && (
+                  <tr data-testid={`finding-detail-${f.id}`}>
+                    <td
+                      colSpan={columns}
+                      className="border-b border-border bg-surface-tint px-4 py-3"
+                    >
+                      <FindingDetail finding={f} />
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
+            );
+          })}
+        </tbody>
+      </TableCard>
+    </>
+  );
+}
+
+// FindingDetail is what the key concerned states: each identifier, the
+// description, the asset class and the currency, each only where stated.
+function FindingDetail({ finding: f }: { finding: Finding }) {
+  const k = f.statedKey;
+  if (!k) {
+    return <p className="text-text-muted">No stated key.</p>;
+  }
+  const rows: [string, ReactNode][] = [
+    [
+      "Identifiers",
+      k.identifiers.length > 0 && <IdentifierChips ids={k.identifiers} />,
+    ],
+    ["Description", k.description],
+    ["Asset class", k.assetClass !== 0 && enumLabel(AssetClass, k.assetClass)],
+    ["Currency", k.currency],
+  ];
+  return (
+    <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1">
+      {rows
+        .filter(([, v]) => v)
+        .map(([k, v]) => (
+          <Fragment key={k}>
+            <dt className="text-text-muted">{k}</dt>
+            <dd>{v}</dd>
+          </Fragment>
         ))}
-      </tbody>
-    </TableCard>
+    </dl>
+  );
+}
+
+// FindingRun names the run that met a finding by its kind and start, linking
+// to its page unless it is the run the page describes.
+function FindingRun({ run, self }: { run?: Run; self: boolean }) {
+  if (!run) return null;
+  const label = `${enumLabel(runEnums.kind, run.kind)} @ ${
+    run.createdAt ? formatInstant(run.createdAt) : ""
+  }`;
+  if (self) {
+    return <span className="font-mono tabular-nums">{label}</span>;
+  }
+  return (
+    <Link
+      href={`/admin/runs/${run.id}`}
+      data-testid={`finding-run-${run.id}`}
+      className="font-mono text-action tabular-nums underline-offset-4 hover:underline"
+    >
+      {label}
+    </Link>
   );
 }
 
@@ -307,7 +433,9 @@ function Items({ data }: { data: GetRunResponse }) {
                 key={it.statedKeyId}
                 data-testid={`item-row-${it.statedKeyId}`}
               >
-                <Td className="font-mono">{keyText(it.statedKey)}</Td>
+                <Td>
+                  <StatedKeyChips statedKey={it.statedKey} />
+                </Td>
                 <Td>
                   <Chip>{enumLabel(ResolutionOutcome, it.outcome)}</Chip>
                 </Td>
@@ -338,10 +466,10 @@ function Items({ data }: { data: GetRunResponse }) {
                 key={it.statedKeyId}
                 data-testid={`item-row-${it.statedKeyId}`}
               >
-                <Td className="font-mono">{keyText(it.statedKey)}</Td>
-                <Td className="font-mono">
-                  {it.sent ? identifierText(it.sent) : ""}
+                <Td>
+                  <StatedKeyChips statedKey={it.statedKey} />
                 </Td>
+                <Td>{it.sent && <IdentifierChip id={it.sent} />}</Td>
                 <Td>
                   <Chip>{enumLabel(FetchOutcome, it.outcome)}</Chip>
                 </Td>

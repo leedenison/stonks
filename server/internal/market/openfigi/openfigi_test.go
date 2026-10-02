@@ -255,3 +255,22 @@ func TestLimits(t *testing.T) {
 		}
 	}
 }
+
+func TestStatusErrorText(t *testing.T) {
+	tests := []struct {
+		name string
+		err  statusError
+		want string
+	}{
+		{name: "known status with a body", err: statusError{code: 429, body: `{"error":"slow down"}`}, want: `openfigi returned too many requests: {"error":"slow down"}`},
+		{name: "known status alone", err: statusError{code: 500}, want: "openfigi returned internal server error"},
+		{name: "unknown status", err: statusError{code: 599, body: "x"}, want: "openfigi returned 599: x"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := tc.err.Error(); got != tc.want {
+				t.Errorf("statusError{%d, %q}.Error() = %q, want %q", tc.err.code, tc.err.body, got, tc.want)
+			}
+		})
+	}
+}
