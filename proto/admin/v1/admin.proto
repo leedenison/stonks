@@ -108,17 +108,20 @@ message Finding {
   optional string block_id = 4;
   // The finding's stated key; set for every kind but BLOCK.
   optional string stated_key_id = 5;
+  // What the key concerned states: the finding's own key, or for a block
+  // the key whose call created it.
+  stonks.type.v1.StatedKey stated_key = 6;
   // The fetch key of the response involved; unset for a contradiction
   // found in the database.
-  optional string fetch_key_id = 6;
+  optional string fetch_key_id = 7;
   // The step that dropped the group; set only when the kind is DROPPED, and
   // then one of STATED, PRECEDENCE and CORROBORATION.
-  optional DropStep step = 7;
-  // The grounds, in words; set for every kind but BLOCK.
-  optional string detail = 8;
-  google.protobuf.Timestamp created_at = 9;
+  optional DropStep step = 8;
+  // The grounds, in words; for a BLOCK, the block's reason.
+  optional string detail = 9;
+  google.protobuf.Timestamp created_at = 10;
   // When an administrator cleared the finding; unset while it is open.
-  google.protobuf.Timestamp cleared_at = 10;
+  google.protobuf.Timestamp cleared_at = 11;
 }
 
 message ListRunsRequest {
@@ -166,6 +169,8 @@ message GetRunResponse {
   UserRun run = 1;
   // The runs above this one, the top-level run first, each without children.
   repeated UserRun ancestors = 2;
+  // The findings of the run and of every run below it, in tree order: a
+  // run's findings oldest first, then those of each run below it in turn.
   repeated Finding findings = 3;
   // The rows this run rejected when its kind is STATEMENT.
   repeated stonks.statement.v1.StatementItem statement_items = 4;
@@ -173,30 +178,6 @@ message GetRunResponse {
   repeated ResolutionItem resolution_items = 5;
   // The keys this run fetched when its kind is FETCH.
   repeated FetchItem fetch_items = 6;
-}
-
-message ListFindingsRequest {
-  // Includes the findings an administrator has cleared.
-  bool include_cleared = 1;
-  // Only the findings of this run; unset for every run.
-  optional string run_id = 2 [(buf.validate.field).string.uuid = true];
-  // At most this many findings; 0 means 50.
-  int32 page_size = 3 [(buf.validate.field).int32 = {
-    gte: 0
-    lte: 200
-  }];
-  // The next_page_token of the previous page; empty for the first.
-  string page_token = 4 [
-    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
-    (buf.validate.field).string.uuid = true
-  ];
-}
-
-// Findings newest first.
-message ListFindingsResponse {
-  repeated Finding findings = 1;
-  // Continues the listing; empty on the last page.
-  string next_page_token = 2;
 }
 
 message ClearFindingRequest {
@@ -312,8 +293,6 @@ service AdminService {
   rpc ListRuns(ListRunsRequest) returns (ListRunsResponse);
   // Reads any user's run with its items, children and findings.
   rpc GetRun(GetRunRequest) returns (GetRunResponse);
-  // Lists findings across every run.
-  rpc ListFindings(ListFindingsRequest) returns (ListFindingsResponse);
   // Clears a finding. Where the finding reports a block, only clearing the
   // block clears it, and the call is refused as a failed precondition.
   // Clearing a cleared finding succeeds.

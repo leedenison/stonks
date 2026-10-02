@@ -22,6 +22,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"golang.org/x/time/rate"
@@ -93,14 +94,24 @@ type statusError struct {
 	body       string
 }
 
+// Error names the status in words, with the body where there is one:
+// "openfigi returned too many requests".
 func (e statusError) Error() string {
-	return fmt.Sprintf("openfigi responded %d: %s", e.code, e.body)
+	text := strings.ToLower(http.StatusText(e.code))
+	if text == "" {
+		text = strconv.Itoa(e.code)
+	}
+	if e.body == "" {
+		return "openfigi returned " + text
+	}
+	return fmt.Sprintf("openfigi returned %s: %s", text, e.body)
 }
 
-// jobError is a job OpenFIGI refused within a request it served.
+// jobError is a job OpenFIGI refused within a request it served, with the
+// text it gave.
 type jobError string
 
-func (e jobError) Error() string { return "openfigi refused the job: " + string(e) }
+func (e jobError) Error() string { return "openfigi rejected the identifier: " + string(e) }
 
 // Classify reads a failed request by its status. Where a whole request is
 // refused other than for its rate or the provider's health, it is malformed

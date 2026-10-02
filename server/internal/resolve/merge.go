@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -26,9 +27,9 @@ type hit struct {
 // fetchKey is the response that brought the instruments together.
 //
 // Where two of the instruments carry identifiers of one type and domain with
-// different values, or disjoint classes, nothing merges: the instrument the
-// strongest stated identifier identifies is returned with a contradiction
-// finding.
+// different values, on the instruments or on listings of one currency
+// family, or disjoint classes, nothing merges: the instrument the strongest
+// stated identifier identifies is returned with a contradiction finding.
 //
 // Another user's keys are relinked without that user's key lock, so one
 // write of theirs may see the instrument it folded.
@@ -50,7 +51,7 @@ func merge(ctx context.Context, q Queries, res *resolution, fetchKey *uuid.UUID,
 	}
 	var findings []gen.CreateFindingParams
 	for _, h := range hits[1:] {
-		finding, err := fold(ctx, q, survivor, h, families, fetchKey)
+		finding, err := fold(ctx, q, survivor, hits[0].matched, h, families, fetchKey)
 		if err != nil {
 			return nil, nil, nil, err
 		}
@@ -85,10 +86,13 @@ func refuse(res *resolution, fetchKey *uuid.UUID, hits []hit, detail string) (*f
 }
 
 // fold moves the loser h into survivor under deferred constraints and
-// returns the merged finding. families is the currency families where
-// survivor has a listing; a listing of the loser in another moves across
-// and joins it, the rest are relinked onto the survivor's and deleted.
-func fold(ctx context.Context, q Queries, survivor *found, h hit, families map[string]bool, fetchKey *uuid.UUID) (gen.CreateFindingParams, error) {
+// returns the merged finding, which names each instrument by when it was
+// created and by the identifiers of the response that found it: matched
+// for the survivor, h's own for the loser. families is the currency
+// families where survivor has a listing; a listing of the loser in another
+// moves across and joins it, the rest are relinked onto the survivor's and
+// deleted.
+func fold(ctx context.Context, q Queries, survivor *found, matched []types.Identifier, h hit, families map[string]bool, fetchKey *uuid.UUID) (gen.CreateFindingParams, error) {
 	loser := h.found
 	for _, l := range loser.listings {
 		if families[l.Currency] {
@@ -124,21 +128,31 @@ func fold(ctx context.Context, q Queries, survivor *found, h hit, families map[s
 			return gen.CreateFindingParams{}, fmt.Errorf("%s: %w", s.name, err)
 		}
 	}
-	matched := make([]string, len(h.matched))
-	for i, id := range h.matched {
-		matched[i] = name(id)
-	}
-	detail := fmt.Sprintf("folded instrument %s into %s, both identified: %s", loser.instrument.ID, survivor.instrument.ID, strings.Join(matched, ", "))
+	detail := fmt.Sprintf("merged the instrument created %s into the instrument created %s; the response identified the first by %s and the second by %s",
+		stamp(loser.instrument.CreatedAt), stamp(survivor.instrument.CreatedAt), names(h.matched), names(matched))
 	return gen.CreateFindingParams{Kind: gen.FindingKindMerged, FetchKeyID: fetchKey, Detail: ptr.To(detail)}, nil
+}
+
+func stamp(t time.Time) string { return t.UTC().Format("2006-01-02 15:04:05 UTC") }
+
+// names writes ids as a list.
+func names(ids []types.Identifier) string {
+	out := make([]string, len(ids))
+	for i, id := range ids {
+		out[i] = name(id)
+	}
+	return strings.Join(out, ", ")
 }
 
 // disagree returns why the instruments of hits cannot be one, if they
 // cannot: two carry identifiers of one type and domain with different
-// values, or disjoint classes.
+// values naming one subject, the instrument or a listing of one currency
+// family, or disjoint classes.
 func disagree(hits []hit) (string, bool) {
 	type key struct {
 		typ    types.IdentifierType
 		domain string
+		family string
 	}
 	type seen struct {
 		id         types.Identifier
@@ -146,12 +160,19 @@ func disagree(hits []hit) (string, bool) {
 	}
 	first := map[key]seen{}
 	for _, h := range hits {
+		family := map[uuid.UUID]string{}
+		for _, l := range h.found.listings {
+			family[l.ID] = l.Currency
+		}
 		for _, row := range h.found.identifiers {
 			id := to.Identifier(row)
 			if multi[id.Type] {
 				continue
 			}
-			k := key{id.Type, id.Domain}
+			k := key{typ: id.Type, domain: id.Domain}
+			if row.ListingID != nil {
+				k.family = family[*row.ListingID]
+			}
 			if prior, ok := first[k]; ok && prior.id.Value != id.Value && prior.instrument != row.InstrumentID {
 				return fmt.Sprintf("%s identifies instrument %s and %s identifies %s", name(prior.id), prior.instrument, name(id), row.InstrumentID), true
 			}

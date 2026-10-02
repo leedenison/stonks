@@ -30,17 +30,23 @@ import (
 )
 
 var (
-	userID     = uuid.MustParse("00000000-0000-0000-0000-000000000001")
-	runID      = uuid.MustParse("00000000-0000-0000-0000-000000000010")
-	parentID   = uuid.MustParse("00000000-0000-0000-0000-000000000009")
-	childID    = uuid.MustParse("00000000-0000-0000-0000-000000000011")
-	keyID      = uuid.MustParse("00000000-0000-0000-0000-000000000020")
-	findingID  = uuid.MustParse("00000000-0000-0000-0000-000000000030")
-	droppedID  = uuid.MustParse("00000000-0000-0000-0000-000000000033")
-	fetchKeyID = uuid.MustParse("00000000-0000-0000-0000-000000000034")
-	blockID    = uuid.MustParse("00000000-0000-0000-0000-000000000031")
-	created    = time.Date(2026, 9, 24, 12, 0, 0, 0, time.UTC)
-	principal  = auth.Principal{User: gen.User{Email: "admin@example.com", Role: gen.UserRoleAdmin}, SessionID: servicetest.Session}
+	userID   = uuid.MustParse("00000000-0000-0000-0000-000000000001")
+	runID    = uuid.MustParse("00000000-0000-0000-0000-000000000010")
+	parentID = uuid.MustParse("00000000-0000-0000-0000-000000000009")
+	childID  = uuid.MustParse("00000000-0000-0000-0000-000000000011")
+	// A second child of the run and a child of the first, so a listing shows
+	// tree order: the first child's subtree before its sibling.
+	siblingID           = uuid.MustParse("00000000-0000-0000-0000-000000000012")
+	grandchildID        = uuid.MustParse("00000000-0000-0000-0000-000000000013")
+	keyID               = uuid.MustParse("00000000-0000-0000-0000-000000000020")
+	findingID           = uuid.MustParse("00000000-0000-0000-0000-000000000030")
+	droppedID           = uuid.MustParse("00000000-0000-0000-0000-000000000033")
+	siblingFindingID    = uuid.MustParse("00000000-0000-0000-0000-000000000035")
+	grandchildFindingID = uuid.MustParse("00000000-0000-0000-0000-000000000036")
+	fetchKeyID          = uuid.MustParse("00000000-0000-0000-0000-000000000034")
+	blockID             = uuid.MustParse("00000000-0000-0000-0000-000000000031")
+	created             = time.Date(2026, 9, 24, 12, 0, 0, 0, time.UTC)
+	principal           = auth.Principal{User: gen.User{Email: "admin@example.com", Role: gen.UserRoleAdmin}, SessionID: servicetest.Session}
 )
 
 type fixture struct {
@@ -242,13 +248,38 @@ func TestGetRun(t *testing.T) {
 			r.GetUserRun(gomock.Any(), runID).Return(gen.GetUserRunRow{Run: runRow(runID, tc.kind), Email: "one@example.com", OpenFindings: 1}, nil)
 			parent := runRow(parentID, gen.RunKindStatement)
 			r.ListRunAncestors(gomock.Any(), runID).Return([]gen.ListRunAncestorsRow{{Run: parent, Email: "one@example.com", OpenFindings: 1}}, nil)
-			child := runRow(childID, gen.RunKindFetch)
-			child.Trigger, child.ParentID = gen.RunTriggerRun, &runID
-			r.ListRunDescendants(gomock.Any(), &runID).Return([]gen.ListRunDescendantsRow{{Run: child, Email: "one@example.com", OpenFindings: 1}}, nil)
-			r.ListRunFindings(gomock.Any(), runID).Return([]gen.Finding{
-				{ID: findingID, RunID: runID, Kind: gen.FindingKindBlock, BlockID: &blockID, CreatedAt: created},
-				{ID: droppedID, RunID: runID, Kind: gen.FindingKindDropped, StatedKeyID: &keyID, FetchKeyID: &fetchKeyID,
-					Step: ptr.To(gen.DropStepStated), Detail: ptr.To("candidates in USD, not the stated GBP"), CreatedAt: created},
+			below := func(id, parent uuid.UUID) gen.ListRunDescendantsRow {
+				row := runRow(id, gen.RunKindFetch)
+				row.Trigger, row.ParentID = gen.RunTriggerRun, &parent
+				return gen.ListRunDescendantsRow{Run: row, Email: "one@example.com", OpenFindings: 1}
+			}
+			r.ListRunDescendants(gomock.Any(), &runID).Return([]gen.ListRunDescendantsRow{
+				below(childID, runID), below(siblingID, runID), below(grandchildID, childID),
+			}, nil)
+			// Returned oldest first, so the sibling's finding precedes the
+			// grandchild's until the handler orders them.
+			r.ListRunFindings(gomock.Any(), []uuid.UUID{runID, childID, siblingID, grandchildID}).Return([]gen.ListRunFindingsRow{
+				{
+					Finding:     gen.Finding{ID: findingID, RunID: runID, Kind: gen.FindingKindBlock, BlockID: &blockID, CreatedAt: created},
+					BlockReason: ptr.To("openfigi rejected the identifier: Invalid idValue format."),
+					KeyID:       &keyID,
+					KeyIdentifiers: []types.Identifier{
+						{Type: types.IdentifierTypeBrokerID, Domain: "ibkr", Value: "100000001"},
+						{Type: types.IdentifierTypeIsin, Value: "GB00B03MLX29"},
+					},
+					KeyAssetClass:  ptr.To(gen.AssetClassEquity),
+					KeyCurrency:    ptr.To("GBP"),
+					KeyDescription: ptr.To("ROYAL DUTCH SHELL A"),
+				},
+				{
+					Finding: gen.Finding{ID: droppedID, RunID: childID, Kind: gen.FindingKindDropped, StatedKeyID: &keyID, FetchKeyID: &fetchKeyID,
+						Step: ptr.To(gen.DropStepStated), Detail: ptr.To("candidates in USD, not the stated GBP"), CreatedAt: created},
+					KeyID:          &keyID,
+					KeyIdentifiers: []types.Identifier{},
+					KeyDescription: ptr.To("Cash fund"),
+				},
+				{Finding: gen.Finding{ID: siblingFindingID, RunID: siblingID, Kind: gen.FindingKindBlock, BlockID: &blockID, CreatedAt: created}},
+				{Finding: gen.Finding{ID: grandchildFindingID, RunID: grandchildID, Kind: gen.FindingKindBlock, BlockID: &blockID, CreatedAt: created}},
 			}, nil)
 			tc.expect(r)
 
@@ -257,22 +288,43 @@ func TestGetRun(t *testing.T) {
 				t.Fatalf("GetRun() error = %v", err)
 			}
 			self := runMsg(runID, types.ToProto[runv1.RunKind](tc.kind))
-			childMsg := runMsg(childID, runv1.RunKind_RUN_KIND_FETCH)
-			childMsg.Run.Trigger, childMsg.Run.ParentId = runv1.RunTrigger_RUN_TRIGGER_RUN, ptr.To(runID.String())
-			self.Children = []*adminv1.UserRun{childMsg}
+			belowMsg := func(id, parent uuid.UUID) *adminv1.UserRun {
+				msg := runMsg(id, runv1.RunKind_RUN_KIND_FETCH)
+				msg.Run.Trigger, msg.Run.ParentId = runv1.RunTrigger_RUN_TRIGGER_RUN, ptr.To(parent.String())
+				return msg
+			}
+			childMsg := belowMsg(childID, runID)
+			childMsg.Children = []*adminv1.UserRun{belowMsg(grandchildID, childID)}
+			self.Children = []*adminv1.UserRun{childMsg, belowMsg(siblingID, runID)}
 			want := &adminv1.GetRunResponse{
 				Run:       self,
 				Ancestors: []*adminv1.UserRun{runMsg(parentID, runv1.RunKind_RUN_KIND_STATEMENT)},
 				Findings: []*adminv1.Finding{
 					{
 						Id: findingID.String(), RunId: runID.String(), Kind: adminv1.FindingKind_FINDING_KIND_BLOCK,
+						BlockId: ptr.To(blockID.String()), Detail: ptr.To("openfigi rejected the identifier: Invalid idValue format."),
+						StatedKey: &typev1.StatedKey{
+							Identifiers: []*typev1.Identifier{
+								{Type: typev1.IdentifierType_IDENTIFIER_TYPE_BROKER_ID, Domain: "ibkr", Value: "100000001"},
+								{Type: typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, Value: "GB00B03MLX29"},
+							},
+							AssetClass: typev1.AssetClass_ASSET_CLASS_EQUITY, Currency: ptr.To("GBP"), Description: ptr.To("ROYAL DUTCH SHELL A"),
+						},
+						CreatedAt: timestamppb.New(created),
+					},
+					{
+						Id: droppedID.String(), RunId: childID.String(), Kind: adminv1.FindingKind_FINDING_KIND_DROPPED,
+						StatedKeyId: ptr.To(keyID.String()), StatedKey: &typev1.StatedKey{Description: ptr.To("Cash fund")}, FetchKeyId: ptr.To(fetchKeyID.String()),
+						Step: ptr.To(adminv1.DropStep_DROP_STEP_STATED), Detail: ptr.To("candidates in USD, not the stated GBP"),
+						CreatedAt: timestamppb.New(created),
+					},
+					{
+						Id: grandchildFindingID.String(), RunId: grandchildID.String(), Kind: adminv1.FindingKind_FINDING_KIND_BLOCK,
 						BlockId: ptr.To(blockID.String()), CreatedAt: timestamppb.New(created),
 					},
 					{
-						Id: droppedID.String(), RunId: runID.String(), Kind: adminv1.FindingKind_FINDING_KIND_DROPPED,
-						StatedKeyId: ptr.To(keyID.String()), FetchKeyId: ptr.To(fetchKeyID.String()),
-						Step: ptr.To(adminv1.DropStep_DROP_STEP_STATED), Detail: ptr.To("candidates in USD, not the stated GBP"),
-						CreatedAt: timestamppb.New(created),
+						Id: siblingFindingID.String(), RunId: siblingID.String(), Kind: adminv1.FindingKind_FINDING_KIND_BLOCK,
+						BlockId: ptr.To(blockID.String()), CreatedAt: timestamppb.New(created),
 					},
 				},
 			}
@@ -306,31 +358,6 @@ func TestGetRunErrors(t *testing.T) {
 				t.Errorf("GetRun(%q) code = %v (err %v), want %v", tc.id, connect.CodeOf(err), err, tc.wantCode)
 			}
 		})
-	}
-}
-
-func TestListFindings(t *testing.T) {
-	older := uuid.MustParse("00000000-0000-0000-0000-000000000029")
-	cleared := created.Add(time.Hour)
-	f := newFixture(t)
-	f.reader.EXPECT().ListFindings(gomock.Any(), gen.ListFindingsParams{IncludeCleared: true, RunID: &runID, Lim: 2}).Return([]gen.Finding{
-		{ID: findingID, RunID: runID, Kind: gen.FindingKindBlock, BlockID: &blockID, CreatedAt: created, ClearedAt: &cleared},
-		{ID: older, RunID: runID, Kind: gen.FindingKindBlock, BlockID: &blockID, CreatedAt: created},
-	}, nil)
-	req := &adminv1.ListFindingsRequest{IncludeCleared: true, RunId: ptr.To(runID.String()), PageSize: 1}
-	res, err := f.client.ListFindings(context.Background(), connect.NewRequest(req))
-	if err != nil {
-		t.Fatalf("ListFindings() error = %v", err)
-	}
-	want := &adminv1.ListFindingsResponse{
-		Findings: []*adminv1.Finding{{
-			Id: findingID.String(), RunId: runID.String(), Kind: adminv1.FindingKind_FINDING_KIND_BLOCK,
-			BlockId: ptr.To(blockID.String()), CreatedAt: timestamppb.New(created), ClearedAt: timestamppb.New(cleared),
-		}},
-		NextPageToken: findingID.String(),
-	}
-	if diff := cmp.Diff(want, res.Msg, protocmp.Transform()); diff != "" {
-		t.Errorf("ListFindings() mismatch (-want +got):\n%s", diff)
 	}
 }
 

@@ -67,9 +67,10 @@ describe("BlocksPage", () => {
     await waitFor(() =>
       expect(screen.getByTestId("block-row-b1")).toBeTruthy(),
     );
-    expect(screen.getByTestId("block-row-b1").textContent).toContain(
-      "ISIN GB00B03MLX29",
-    );
+    const sent = screen
+      .getByTestId("block-row-b1")
+      .querySelector("[data-identifier-type='ISIN']");
+    expect(sent?.textContent).toContain("GB00B03MLX29");
     expect(screen.getByTestId("block-row-b2").textContent).toContain(
       "every call",
     );

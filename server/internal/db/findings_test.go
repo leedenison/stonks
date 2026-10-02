@@ -17,7 +17,8 @@ import (
 
 // TestFindings checks what each kind of finding carries: a block its block
 // alone, the other kinds their stated key and grounds, and a dropped
-// candidate its fetch key and one of the steps that is a finding.
+// candidate its fetch key and one of the steps that is a finding. A finding
+// is listed with what its key states.
 func TestFindings(t *testing.T) {
 	ctx := context.Background()
 	q := newTx(t)
@@ -37,13 +38,25 @@ func TestFindings(t *testing.T) {
 	require.NoError(t, q.CreateFinding(ctx, gen.CreateFindingParams{
 		ID: db.NewID(), RunID: run.ID, Kind: gen.FindingKindContradiction, StatedKeyID: &key.ID, Detail: ptr.To("ISIN and CUSIP name different instruments"),
 	}))
-	findings, err := q.ListRunFindings(ctx, run.ID)
+	findings, err := q.ListRunFindings(ctx, []uuid.UUID{run.ID})
 	require.NoError(t, err)
 	if len(findings) != 2 {
 		t.Fatalf("ListRunFindings = %d rows, want 2", len(findings))
 	}
-	if f := findings[0]; f.Kind != gen.FindingKindDropped || f.Step == nil || *f.Step != gen.DropStepStated || f.FetchKeyID == nil || *f.FetchKeyID != fetchKey || f.Detail == nil {
+	if f := findings[0].Finding; f.Kind != gen.FindingKindDropped || f.Step == nil || *f.Step != gen.DropStepStated || f.FetchKeyID == nil || *f.FetchKeyID != fetchKey || f.Detail == nil {
 		t.Errorf("dropped finding = %+v, want its step, fetch key and detail", f)
+	}
+	below := gen.CreateFindingParams{
+		ID: db.NewID(), RunID: fetch.ID, Kind: gen.FindingKindContradiction, StatedKeyID: &key.ID, Detail: ptr.To("found below"),
+	}
+	require.NoError(t, q.CreateFinding(ctx, below))
+	if rolled, err := q.ListRunFindings(ctx, []uuid.UUID{run.ID, fetch.ID}); err != nil || len(rolled) != 3 || rolled[2].Finding.ID != below.ID {
+		t.Errorf("ListRunFindings(run, fetch) = %d rows, %v, want the run's two then the fetch's", len(rolled), err)
+	}
+	for _, f := range findings {
+		if f.KeyDescription == nil || *f.KeyDescription != *key.Description || len(f.KeyIdentifiers) != 0 {
+			t.Errorf("finding %s key = %v %v, want the key's description %q and no identifiers", f.Finding.Kind, f.KeyIdentifiers, f.KeyDescription, *key.Description)
+		}
 	}
 
 	tests := []struct {

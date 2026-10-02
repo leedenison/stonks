@@ -290,7 +290,8 @@ func TestFetchIdentifiers(t *testing.T) {
 	run, err := q.GetRun(ctx, gen.GetRunParams{ID: statement.ID, UserID: user.ID})
 	require.NoError(t, err)
 	fetch := newFetch(t, q, user, run, newDatasource(t, q, "fetch-identifiers", 10))
-	key := servedKey(t, q, fetch, newStatedKey(t, q, user, statement), "GB00B03MLX29")
+	stated := newStatedKey(t, q, user, statement)
+	key := servedKey(t, q, fetch, stated, "GB00B03MLX29")
 
 	require.NoError(t, q.CreateFetchIdentifier(ctx, gen.CreateFetchIdentifierParams{
 		FetchKeyID: key, Type: types.IdentifierTypeIsin, Value: "GB00B03MLX29"}))
@@ -322,7 +323,8 @@ func TestDatasourceBlocks(t *testing.T) {
 	require.NoError(t, err)
 	ds := newDatasource(t, q, "blocks", 10)
 	fetch := newFetch(t, q, user, run, ds)
-	key := servedKey(t, q, fetch, newStatedKey(t, q, user, statement), "GB00B03MLX29")
+	stated := newStatedKey(t, q, user, statement)
+	key := servedKey(t, q, fetch, stated, "GB00B03MLX29")
 
 	block := func(scope gen.BlockScope, value *string) gen.CreateDatasourceBlockParams {
 		arg := gen.CreateDatasourceBlockParams{
@@ -356,23 +358,29 @@ func TestDatasourceBlocks(t *testing.T) {
 	if len(open) != 3 {
 		t.Fatalf("ListOpenBlocks = %d rows, want 3: two identifiers and the datasource", len(open))
 	}
-	findings, err := q.ListRunFindings(ctx, fetch.ID)
+	findings, err := q.ListRunFindings(ctx, []uuid.UUID{fetch.ID})
 	require.NoError(t, err)
 	if len(findings) != 3 {
 		t.Fatalf("ListRunFindings = %+v, want one per open block", findings)
 	}
 	for _, f := range findings {
-		if f.Kind != gen.FindingKindBlock || f.BlockID == nil || f.ClearedAt != nil {
-			t.Errorf("finding = %+v, want an open finding on a block", f)
+		if f.Finding.Kind != gen.FindingKindBlock || f.Finding.BlockID == nil || f.Finding.ClearedAt != nil {
+			t.Errorf("finding = %+v, want an open finding on a block", f.Finding)
+		}
+		if f.KeyDescription == nil || *f.KeyDescription != *stated.Description {
+			t.Errorf("block finding key description = %v, want %q: the key whose call created the block", f.KeyDescription, *stated.Description)
+		}
+		if f.BlockReason == nil || *f.BlockReason != "refused" {
+			t.Errorf("block finding reason = %v, want the block's %q", f.BlockReason, "refused")
 		}
 	}
 
 	require.NoError(t, q.ClearDatasourceBlock(ctx, first.ID))
-	findings, err = q.ListRunFindings(ctx, fetch.ID)
+	findings, err = q.ListRunFindings(ctx, []uuid.UUID{fetch.ID})
 	require.NoError(t, err)
 	for _, f := range findings {
-		if cleared := f.ClearedAt != nil; cleared != (*f.BlockID == first.ID) {
-			t.Errorf("finding on block %s cleared = %v after clearing block %s", *f.BlockID, cleared, first.ID)
+		if cleared := f.Finding.ClearedAt != nil; cleared != (*f.Finding.BlockID == first.ID) {
+			t.Errorf("finding on block %s cleared = %v after clearing block %s", *f.Finding.BlockID, cleared, first.ID)
 		}
 	}
 	create(block(gen.BlockScopeIdentifier, ptr.To("GB00B03MLX29")), 1)

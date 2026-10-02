@@ -36,12 +36,14 @@ type group struct {
 // winner is nil where no group survived; attached are the best groups of the
 // datasources in precedence order, the winner among them where the
 // database named no instrument for the key.
-// notNaming counts, per datasource, the groups dropped for not naming the
-// identifier sent, which the reason of a key no group won summarises.
+// groups counts the groups of each datasource's response, and notNaming
+// those dropped for not naming the identifier sent; the reason of a key no
+// group won summarises both.
 type choice struct {
 	winner    *group
 	attached  []*group
 	findings  []gen.CreateFindingParams
+	groups    map[string]int
 	notNaming map[string]int
 }
 
@@ -191,14 +193,27 @@ func (g *group) families() []string {
 }
 
 // contradicts reports whether g carries an identifier of id's type and
-// domain but none with id's value, returning one that differs.
-func (g *group) contradicts(id types.Identifier) (types.Identifier, bool) {
+// domain but none with id's value, returning one that differs. Only the
+// identifiers that may name what id names are compared: the instrument's
+// for an instrument grain id; for a listing grain id, those of the listing
+// in family fam and of the listing of no family, or of every listing where
+// fam is empty.
+func (g *group) contradicts(id types.Identifier, fam string) (types.Identifier, bool) {
 	if multi[id.Type] {
 		return types.Identifier{}, false
 	}
+	pool := g.instrument
+	if grain(id) == gen.IdentifierGrainListing {
+		pool = nil
+		for _, f := range slices.Sorted(maps.Keys(g.listings)) {
+			if fam == "" || f == fam || f == "" {
+				pool = append(pool, g.listings[f]...)
+			}
+		}
+	}
 	var other types.Identifier
 	found := false
-	for h := range g.all {
+	for _, h := range pool {
 		if h.Type != id.Type || h.Domain != id.Domain {
 			continue
 		}
@@ -210,29 +225,73 @@ func (g *group) contradicts(id types.Identifier) (types.Identifier, bool) {
 	return other, found
 }
 
-// who names g in a detail.
-func (g *group) who() string {
+// from names where g came from: the database for the instrument the key
+// names, else the datasource that served it.
+func (g *group) from() string {
 	if g.r == nil {
-		return "the instrument"
+		return "database"
 	}
 	return g.r.Source
 }
 
-// against returns why g contradicts what k states, if it does: a listing in
-// no stated family fam, a disjoint class, or an identifier of a stated type
-// and domain with another value.
+// strongest returns the identifier of g that names it most firmly, the
+// first of equal strength, and false where g carries none.
+func (g *group) strongest() (types.Identifier, bool) {
+	var best types.Identifier
+	found := false
+	for id := range g.all {
+		if !found || strength(id) < strength(best) {
+			best, found = id, true
+		}
+	}
+	return best, found
+}
+
+// label leads a detail about g with its strongest identifier.
+func (g *group) label(detail string) string {
+	if id, ok := g.strongest(); ok {
+		return name(id) + ": " + detail
+	}
+	return detail
+}
+
+// ref names g as the other side of a comparison: the instrument or the
+// candidate, its strongest identifier where it has one, and its source.
+func (g *group) ref() string {
+	what := "the instrument"
+	if g.r != nil {
+		what = "the candidate"
+	}
+	if id, ok := g.strongest(); ok {
+		what += " identified by " + name(id)
+	}
+	return fmt.Sprintf("%s (%s)", what, g.from())
+}
+
+// against returns why what k states contradicts g, if it does: no listing
+// of g in the stated family fam, a disjoint class, or an identifier of a
+// stated type and domain with another value. The stated side leads, and the
+// datasource that served g closes.
 func (g *group) against(k gen.StatedKey, fam string) (string, bool) {
+	detail, ok := g.contradicted(k, fam)
+	if !ok {
+		return "", false
+	}
+	return fmt.Sprintf("%s (%s)", detail, g.r.Source), true
+}
+
+func (g *group) contradicted(k gen.StatedKey, fam string) (string, bool) {
 	if fams := g.families(); fam != "" && len(fams) > 0 && !slices.Contains(fams, fam) {
 		if _, unknown := g.listings[""]; !unknown {
-			return fmt.Sprintf("listings in %s, none in the stated %s", strings.Join(fams, ", "), fam), true
+			return fmt.Sprintf("stated %s has no listing among %s", fam, strings.Join(fams, ", ")), true
 		}
 	}
 	if k.AssetClass != nil && Disjoint(g.class, *k.AssetClass) {
-		return fmt.Sprintf("class %s contradicts the stated %s", g.class, *k.AssetClass), true
+		return fmt.Sprintf("stated %s contradicts the class %s", *k.AssetClass, g.class), true
 	}
 	for _, id := range k.Identifiers {
-		if other, ok := g.contradicts(id); ok {
-			return fmt.Sprintf("%s contradicts the stated %s", name(other), name(id)), true
+		if other, ok := g.contradicts(id, fam); ok {
+			return fmt.Sprintf("stated %s contradicts %s", name(id), name(other)), true
 		}
 	}
 	return "", false
@@ -240,14 +299,22 @@ func (g *group) against(k gen.StatedKey, fam string) (string, bool) {
 
 // inconsistent returns why g contradicts a, a group chosen above it, if it
 // does: a disjoint class, or an identifier of one type and domain with
-// another value at either grain.
+// another value, the instrument's or those of one listing. The detail
+// closes with a's source.
 func (g *group) inconsistent(a *group) (string, bool) {
 	if Disjoint(g.class, a.class) {
-		return fmt.Sprintf("class %s contradicts %s's %s", g.class, a.who(), a.class), true
+		return fmt.Sprintf("class %s contradicts the class %s (%s)", g.class, a.class, a.from()), true
 	}
-	for id := range a.all {
-		if other, ok := g.contradicts(id); ok {
-			return fmt.Sprintf("%s contradicts %s's %s", name(other), a.who(), name(id)), true
+	for _, id := range a.instrument {
+		if other, ok := g.contradicts(id, ""); ok {
+			return fmt.Sprintf("%s contradicts %s (%s)", name(other), name(id), a.from()), true
+		}
+	}
+	for _, f := range slices.Sorted(maps.Keys(a.listings)) {
+		for _, id := range a.listings[f] {
+			if other, ok := g.contradicts(id, f); ok {
+				return fmt.Sprintf("%s contradicts %s (%s)", name(other), name(id), a.from()), true
+			}
 		}
 	}
 	return "", false
@@ -283,7 +350,7 @@ func (g *group) confirms(k gen.StatedKey, fam string) int {
 // the key, nil where it names none, and families maps a currency code to
 // its family.
 func choose(results []*result, k gen.StatedKey, db *group, families func(string) string) choice {
-	c := choice{winner: db, notNaming: map[string]int{}}
+	c := choice{winner: db, groups: map[string]int{}, notNaming: map[string]int{}}
 	var chosen []*group
 	if db != nil {
 		chosen = append(chosen, db)
@@ -338,10 +405,12 @@ func (c *choice) bestGroup(r *result, k gen.StatedKey, fam string, families func
 	if r.Sent == nil {
 		return nil
 	}
-	survivors, fallback := c.naming(r, groups(r, families))
+	gs := groups(r, families)
+	c.groups[r.Source] = len(gs)
+	survivors, fallback := c.naming(r, gs)
 	survivors = slices.DeleteFunc(survivors, func(g *group) bool {
 		if detail, ok := g.against(k, fam); ok {
-			c.record(r, gen.FindingKindDropped, gen.DropStepStated, detail)
+			c.record(r, gen.FindingKindDropped, gen.DropStepStated, g.label(detail))
 			return true
 		}
 		for _, a := range chosen {
@@ -350,12 +419,12 @@ func (c *choice) bestGroup(r *result, k gen.StatedKey, fam string, families func
 				if a.r == nil {
 					kind = gen.FindingKindContradiction
 				}
-				c.record(r, kind, gen.DropStepPrecedence, detail)
+				c.record(r, kind, gen.DropStepPrecedence, g.label(detail))
 				return true
 			}
 		}
 		if len(chosen) > 0 && !g.corroborates(chosen[0]) {
-			c.record(r, gen.FindingKindDropped, gen.DropStepCorroboration, fmt.Sprintf("shares no stable identifier with %s", chosen[0].who()))
+			c.record(r, gen.FindingKindDropped, gen.DropStepCorroboration, g.label("shares no stable identifier with "+chosen[0].ref()))
 			return true
 		}
 		return false

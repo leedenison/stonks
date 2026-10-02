@@ -3,15 +3,20 @@ INSERT INTO findings (id, run_id, kind, stated_key_id, fetch_key_id, step, detai
 VALUES ($1, $2, $3, $4, $5, $6, $7);
 
 -- name: ListRunFindings :many
-SELECT * FROM findings WHERE run_id = $1 ORDER BY id;
-
--- name: ListFindings :many
-SELECT * FROM findings
-WHERE (@include_cleared::bool OR cleared_at IS NULL)
-  AND (sqlc.narg(run_id)::uuid IS NULL OR run_id = sqlc.narg(run_id))
-  AND (sqlc.narg(before)::uuid IS NULL OR id < sqlc.narg(before))
-ORDER BY id DESC
-LIMIT @lim;
+-- The findings of the runs, oldest first, each with what the key concerned
+-- states: the finding's own key, or for a block the key whose call created
+-- it. The key columns are null where no key is concerned. A block finding
+-- carries its block's reason.
+SELECT sqlc.embed(findings), datasource_blocks.reason AS block_reason,
+       stated_keys.id AS key_id, stated_keys.identifiers AS key_identifiers,
+       stated_keys.asset_class AS key_asset_class, stated_keys.currency AS key_currency,
+       stated_keys.description AS key_description
+FROM findings
+LEFT JOIN datasource_blocks ON datasource_blocks.id = findings.block_id
+LEFT JOIN fetch_keys ON fetch_keys.id = datasource_blocks.fetch_key_id
+LEFT JOIN stated_keys ON stated_keys.id = coalesce(findings.stated_key_id, fetch_keys.stated_key_id)
+WHERE findings.run_id = ANY(@run_ids::uuid[])
+ORDER BY findings.id;
 
 -- name: GetFinding :one
 SELECT * FROM findings WHERE id = $1;

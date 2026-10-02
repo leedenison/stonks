@@ -243,9 +243,12 @@ func summary(res *resolution, c choice) string {
 			parts = append(parts, s)
 			continue
 		}
-		s := fmt.Sprintf("%s: %d candidates", rs.Source, len(rs.Response.Candidates))
+		s := rs.Source + ": " + plural(len(rs.Response.Candidates), "candidate")
+		if n := c.groups[rs.Source]; n > 0 {
+			s += " in " + plural(n, "group")
+		}
 		if n := c.notNaming[rs.Source]; n > 0 {
-			s += fmt.Sprintf(", %d not naming %s", n, name(*rs.Sent))
+			s += fmt.Sprintf(", %s not naming %s", plural(n, "group"), name(*rs.Sent))
 		}
 		dropped := 0
 		for _, f := range c.findings {
@@ -254,11 +257,19 @@ func summary(res *resolution, c choice) string {
 			}
 		}
 		if dropped > 0 {
-			s += fmt.Sprintf(", %d dropped", dropped)
+			s += ", " + plural(dropped, "group") + " dropped"
 		}
 		parts = append(parts, s)
 	}
 	return strings.Join(parts, "; ")
+}
+
+// plural counts n of noun: "1 group", "2 groups".
+func plural(n int, noun string) string {
+	if n == 1 {
+		return "1 " + noun
+	}
+	return fmt.Sprintf("%d %ss", n, noun)
 }
 
 // writer writes the listings and identifiers of the attached groups onto

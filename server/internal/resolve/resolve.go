@@ -25,7 +25,8 @@
 // Merge. When a response identifies two instruments, they are one stored
 // twice. The resolver folds the later created instrument into the earlier
 // and records a merged finding. Where two carry different values of one
-// identifier type and domain, or disjoint classes, the resolver leaves
+// identifier type and domain naming one subject, the instrument or a
+// listing of one currency family, or disjoint classes, the resolver leaves
 // them apart with a contradiction finding.
 //
 // Outcomes. A key is matched when associated, rejected when it contradicts
