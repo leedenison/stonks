@@ -45,6 +45,7 @@ export async function deleteUser(id: string): Promise<void> {
       "statement_splits",
       "statement_items",
       "stated_keys",
+      "replays",
       "statements",
     ]) {
       await client.query(`DELETE FROM ${table} WHERE user_id = $1`, [id]);
