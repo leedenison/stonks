@@ -2,7 +2,8 @@
 
 import { Code, ConnectError } from "@connectrpc/connect";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { RotateCcw } from "lucide-react";
+import { useParams, useRouter } from "next/navigation";
 import { Fragment, type ReactNode, useState } from "react";
 import { Button } from "@/app/components/button";
 import { Chip } from "@/app/components/chip";
@@ -27,7 +28,7 @@ import {
   ResolutionOutcome,
   type UserRun,
 } from "@/gen/admin/v1/admin_pb";
-import type { Run } from "@/gen/run/v1/run_pb";
+import { type Run, RunKind } from "@/gen/run/v1/run_pb";
 import { AssetClass } from "@/gen/type/v1/type_pb";
 import { useAdminRun } from "@/hooks/use-admin-run";
 import { useClearBlock } from "@/hooks/use-blocks";
@@ -41,20 +42,42 @@ import {
   runEnums,
 } from "@/lib/admin";
 import { formatInstant } from "@/lib/format";
+import { ReplayDialog } from "../replay-dialog";
 
 // One run as an administrator reads it: its owner, how it ended, its place
 // among the runs above and below it, the findings it recorded and the
-// items of its kind.
+// items of its kind. A statement or resolution run carries the action that
+// replays its keys.
 export default function AdminRunPage() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
   const { data, isPending, error, refetch } = useAdminRun(id);
+  const [replaying, setReplaying] = useState(false);
   const run = data?.run?.run;
   const title = run
     ? `${enumLabel(runEnums.kind, run.kind)} run${run.createdAt ? ` @ ${formatInstant(run.createdAt)}` : ""}`
     : "Run";
 
   return (
-    <Page title={title} back="/admin/runs" width="wide" testId="admin-run-page">
+    <Page
+      title={title}
+      back="/admin/runs"
+      width="wide"
+      testId="admin-run-page"
+      actions={
+        run &&
+        replayable(run.kind) && (
+          <Button
+            variant="text"
+            data-testid="run-replay"
+            onClick={() => setReplaying(true)}
+          >
+            <RotateCcw aria-hidden className="h-4 w-4" />
+            Replay
+          </Button>
+        )
+      }
+    >
       {error && <Failure error={error} onRetry={() => refetch()} />}
       {!error && isPending && <Skeleton lines={4} />}
       {data && run && (
@@ -73,8 +96,23 @@ export default function AdminRunPage() {
           <Items data={data} />
         </>
       )}
+      {replaying && data?.run && (
+        <ReplayDialog
+          run={data.run}
+          onClose={() => setReplaying(false)}
+          onStarted={(started) => {
+            setReplaying(false);
+            router.push(`/admin/runs/${started.id}`);
+          }}
+        />
+      )}
     </Page>
   );
+}
+
+// replayable reports whether a run of kind has keys a replay re-resolves.
+function replayable(kind: RunKind): boolean {
+  return kind === RunKind.STATEMENT || kind === RunKind.RESOLUTION;
 }
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
@@ -87,11 +125,19 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 }
 
 // Lineage is the run's place in its tree: the runs above it from the
-// top-level run down, the run itself tinted, and every run below it,
-// without the siblings of any run above. A row opens its page, and the
-// button before the date opens and closes the rows below it; the page
-// opens with the rows above the run open and the rest closed.
-function Lineage({ data }: { data: GetRunResponse }) {
+// top-level run down, the run itself tinted when it is current, and every
+// run below it, without the siblings of any run above. A row opens its
+// page, and the button before the date opens and closes the rows below it;
+// the page opens with the rows above the run open and the rest closed.
+function Lineage({
+  data,
+  testId = "admin-run-lineage",
+  current = true,
+}: {
+  data: GetRunResponse;
+  testId?: string;
+  current?: boolean;
+}) {
   const [toggled, setToggled] = useState<Record<string, boolean>>({});
   const self = data.run;
   const rows: ReactNode[] = [];
@@ -126,7 +172,7 @@ function Lineage({ data }: { data: GetRunResponse }) {
             key={id}
             run={r}
             depth={depth}
-            current={id === self.run?.id}
+            current={current && id === self.run?.id}
             open={r.children.length > 0 ? open : undefined}
             toggle={toggle}
           />,
@@ -139,7 +185,7 @@ function Lineage({ data }: { data: GetRunResponse }) {
     below([self], depth);
   }
   return (
-    <TableCard testId="admin-run-lineage">
+    <TableCard testId={testId}>
       <Thead>
         <tr>
           <Th>Started</Th>
@@ -409,6 +455,13 @@ function FindingRun({ run, self }: { run?: Run; self: boolean }) {
 }
 
 function Items({ data }: { data: GetRunResponse }) {
+  if (data.replay) {
+    return (
+      <Section title="Replay Of">
+        <SourceRun id={data.replay.sourceRunId} />
+      </Section>
+    );
+  }
   if (data.statementItems.length > 0) {
     return (
       <Section title={`Rejected rows (${data.statementItems.length})`}>
@@ -483,6 +536,19 @@ function Items({ data }: { data: GetRunResponse }) {
     );
   }
   return null;
+}
+
+// SourceRun is the tree of the run a replay re-resolved, read as its own
+// page would read it, every row of it opening its page.
+function SourceRun({ id }: { id: string }) {
+  const { data, isPending, error, refetch } = useAdminRun(id);
+  if (error) {
+    return <Failure error={error} onRetry={() => refetch()} />;
+  }
+  if (isPending || !data) {
+    return <Skeleton lines={2} />;
+  }
+  return <Lineage data={data} testId="admin-run-source" current={false} />;
 }
 
 function Failure({ error, onRetry }: { error: Error; onRetry: () => void }) {

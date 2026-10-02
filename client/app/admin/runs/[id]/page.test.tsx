@@ -13,6 +13,9 @@ import {
   FindingKind,
   FindingSchema,
   GetRunResponseSchema,
+  ListDatasourcesResponseSchema,
+  ReplaySchema,
+  StartReplayResponseSchema,
   UserRunSchema,
 } from "@/gen/admin/v1/admin_pb";
 import { Role } from "@/gen/auth/v1/auth_pb";
@@ -26,8 +29,10 @@ import {
 import { liveSession, renderWithAuth, transportWith } from "@/lib/test-utils";
 import AdminRunPage from "./page";
 
+const router = { push: vi.fn() };
+
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn() }),
+  useRouter: () => router,
   useParams: () => ({ id: "f1" }),
 }));
 
@@ -303,5 +308,116 @@ describe("AdminRunPage", () => {
     await waitFor(() =>
       expect(screen.getByText("There is no run at this address.")).toBeTruthy(),
     );
+  });
+  it("shows the tree of the run a replay re-resolved", async () => {
+    const replay = create(GetRunResponseSchema, {
+      run: create(UserRunSchema, {
+        run: create(RunSchema, {
+          id: "f1",
+          kind: RunKind.REPLAY,
+          trigger: RunTrigger.ADMINISTRATOR,
+          state: RunState.COMPLETED,
+          createdAt: timestampFromDate(new Date("2026-09-24T10:00:00Z")),
+        }),
+        userId: "u1",
+        userEmail: "one@example.com",
+      }),
+      replay: create(ReplaySchema, {
+        sourceRunId: "s1",
+        startedBy: "admin@example.com",
+      }),
+    });
+    // The source, a statement with its resolution under it.
+    const source = create(GetRunResponseSchema, {
+      run: create(UserRunSchema, {
+        run: create(RunSchema, {
+          id: "s1",
+          kind: RunKind.STATEMENT,
+          trigger: RunTrigger.USER,
+          state: RunState.COMPLETED,
+          createdAt: timestampFromDate(new Date("2026-09-23T10:00:00Z")),
+        }),
+        userId: "u1",
+        userEmail: "one@example.com",
+        children: [
+          create(UserRunSchema, {
+            run: create(RunSchema, {
+              id: "s2",
+              kind: RunKind.RESOLUTION,
+              trigger: RunTrigger.RUN,
+              parentId: "s1",
+              state: RunState.COMPLETED,
+            }),
+            userId: "u1",
+            userEmail: "one@example.com",
+          }),
+        ],
+      }),
+    });
+    renderWithAuth(
+      <AdminRunPage />,
+      serving((req) => (req.runId === "s1" ? source : replay)),
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId("admin-run-source")).toBeTruthy(),
+    );
+    const tree = screen.getByTestId("admin-run-source");
+    const row = tree.querySelector('[data-testid="run-row-s1"]');
+    expect(row?.textContent).toContain("statement");
+    expect(row?.getAttribute("aria-current")).toBeNull();
+    expect(row?.querySelector("a")?.getAttribute("href")).toBe(
+      "/admin/runs/s1",
+    );
+    expect(tree.querySelector('[data-testid="run-row-s2"]')).toBeNull();
+    fireEvent.click(screen.getByTestId("run-toggle-s1"));
+    expect(tree.querySelector('[data-testid="run-row-s2"]')).toBeTruthy();
+    expect(screen.queryByTestId("run-replay")).toBeNull();
+  });
+
+  it("replays a statement's keys from its action bar and goes to the run", async () => {
+    const statement = create(GetRunResponseSchema, {
+      run: create(UserRunSchema, {
+        run: create(RunSchema, {
+          id: "f1",
+          kind: RunKind.STATEMENT,
+          trigger: RunTrigger.USER,
+          state: RunState.COMPLETED,
+          createdAt: timestampFromDate(new Date("2026-09-24T10:00:00Z")),
+        }),
+        userId: "u1",
+        userEmail: "one@example.com",
+      }),
+    });
+    const startReplay = vi.fn(() =>
+      create(StartReplayResponseSchema, {
+        run: create(RunSchema, { id: "x1", kind: RunKind.REPLAY }),
+      }),
+    );
+    router.push.mockClear();
+    renderWithAuth(
+      <AdminRunPage />,
+      serving(() => statement, {
+        listDatasources: () => create(ListDatasourcesResponseSchema, {}),
+        startReplay,
+      }),
+    );
+    await waitFor(() => expect(screen.getByTestId("run-replay")).toBeTruthy());
+    expect(screen.queryByTestId("replay-dialog")).toBeNull();
+    fireEvent.click(screen.getByTestId("run-replay"));
+    expect(screen.getByTestId("replay-dialog").textContent).toContain(
+      "statement run @ 2026-09-24 10:00 UTC for one@example.com",
+    );
+    fireEvent.click(screen.getByTestId("replay-start"));
+    await waitFor(() =>
+      expect(router.push).toHaveBeenCalledWith("/admin/runs/x1"),
+    );
+    expect(startReplay).toHaveBeenCalledWith(
+      expect.objectContaining({
+        runId: "f1",
+        scope: { case: "unavailable", value: true },
+      }),
+      expect.anything(),
+    );
+    expect(screen.queryByTestId("replay-dialog")).toBeNull();
   });
 });

@@ -21,6 +21,9 @@ In:
   calls nothing.
 - An e2e spec in which a key the stub refuses permanently leaves a block, and an
   administrator clears it from the blocks page, clearing the finding reporting it.
+- An e2e spec in which an administrator replays, from a statement's row on the runs
+  page, a key the stub first refused temporarily, seeing it resolve and the replay run
+  appear under the user.
 
 Out:
 
