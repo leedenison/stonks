@@ -15,10 +15,12 @@ enum RunKind {
   RUN_KIND_UNSPECIFIED = 0;
   // Ingests one batch of transactions.
   RUN_KIND_STATEMENT = 1;
-  // Resolves the stated keys of a statement.
+  // Resolves stated keys for a statement or a replay.
   RUN_KIND_RESOLUTION = 2;
   // Requests one kind of data from one datasource.
   RUN_KIND_FETCH = 3;
+  // Re-resolves the keys of one run.
+  RUN_KIND_REPLAY = 4;
 }
 
 // What started a run.
@@ -27,7 +29,7 @@ enum RunTrigger {
   RUN_TRIGGER_USER = 1;
   // Another run, named as the parent.
   RUN_TRIGGER_RUN = 2;
-  // An administrator, who is the run's user.
+  // An administrator. The run belongs to the user whose keys it re-resolves.
   RUN_TRIGGER_ADMINISTRATOR = 3;
 }
 

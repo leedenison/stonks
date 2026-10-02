@@ -100,6 +100,22 @@ func TestTransactions(t *testing.T) {
 // it names is one of that instrument.
 func TestStatedKeyAssociation(t *testing.T) {
 	ctx := context.Background()
+	t.Run("clears the group of a key that becomes associated", func(t *testing.T) {
+		q := newTx(t)
+		user := newUser(t, q, "grouped@example.com")
+		statement := newStatement(t, q, user)
+		one, two := newStatedKey(t, q, user, statement), newStatedKey(t, q, user, statement)
+		require.NoError(t, q.SetStatedKeyGroups(ctx, gen.SetStatedKeyGroupsParams{UserID: user.ID, Ids: []uuid.UUID{one.ID, two.ID}, GroupIds: []uuid.UUID{one.ID, one.ID}}))
+		usd, via := cashListing(t, q, "USD")
+		arg := gen.SetStatedKeyAssociationParams{ID: two.ID, UserID: user.ID, InstrumentID: &usd.InstrumentID, ListingID: &usd.ID, ViaID: &via.ID, Validity: ptr.To(gen.ValidityConfirmed)}
+		require.NoError(t, q.SetStatedKeyAssociation(ctx, arg))
+		keys, err := q.ListStatedKeys(ctx, gen.ListStatedKeysParams{StatementID: statement.ID, UserID: user.ID})
+		require.NoError(t, err)
+		if len(keys) != 2 || keys[0].GroupID == nil || keys[1].GroupID != nil || keys[1].InstrumentID == nil {
+			t.Errorf("keys after association = %+v, want the first still grouped and the second associated with no group", keys)
+		}
+	})
+
 	base := newTx(t)
 	usd, via := cashListing(t, base, "USD")
 	other := newInstrument(t, base, gen.AssetClassEquity)

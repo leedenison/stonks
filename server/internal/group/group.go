@@ -1,4 +1,10 @@
-package statement
+// Package group gathers a user's unresolved keys into the holdings that sum
+// them. Where two keys a transaction names share an identifier, or a
+// description within one broker, they are one holding, transitively, named by
+// the earliest key. A group is derived from what the keys state, so it is
+// recomputed in full for the user under the user's key lock, which the caller
+// holds; see [transactions.sql](../db/queries/transactions/transactions.sql).
+package group
 
 import (
 	"bytes"
@@ -10,6 +16,15 @@ import (
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/types"
 )
+
+// Queries is this package's view of the generated queries.
+type Queries interface {
+	ListGroupableKeys(ctx context.Context, userID uuid.UUID) ([]gen.ListGroupableKeysRow, error)
+	ClearStatedKeyGroups(ctx context.Context, userID uuid.UUID) error
+	SetStatedKeyGroups(ctx context.Context, arg gen.SetStatedKeyGroupsParams) error
+}
+
+var _ Queries = (*gen.Queries)(nil)
 
 // domained holds the identifier types whose value is read with a domain. A
 // test holds it equal to the identifier_type_traits table. Where a value of
@@ -62,10 +77,10 @@ func union(parent map[uuid.UUID]uuid.UUID, a, b uuid.UUID) {
 	parent[rb] = ra
 }
 
-// groups partitions keys into groups and returns the group of each: the id
+// Of partitions keys into groups and returns the group of each: the id
 // of the earliest key sharing an identifier or a description with it, however
 // many keys the chain runs through.
-func groups(keys []gen.ListGroupableKeysRow) map[uuid.UUID]uuid.UUID {
+func Of(keys []gen.ListGroupableKeysRow) map[uuid.UUID]uuid.UUID {
 	parent := make(map[uuid.UUID]uuid.UUID, len(keys))
 	for _, r := range keys {
 		parent[r.StatedKey.ID] = r.StatedKey.ID
@@ -92,26 +107,26 @@ func groups(keys []gen.ListGroupableKeysRow) map[uuid.UUID]uuid.UUID {
 	return out
 }
 
-// regroup recomputes every group of the user, over the unresolved keys a
+// Regroup recomputes every group of user, over the unresolved keys a
 // transaction names.
-func (g *ingestion) regroup(ctx context.Context, q Queries) error {
-	keys, err := q.ListGroupableKeys(ctx, g.user)
+func Regroup(ctx context.Context, q Queries, user uuid.UUID) error {
+	keys, err := q.ListGroupableKeys(ctx, user)
 	if err != nil {
 		return fmt.Errorf("list groupable keys: %w", err)
 	}
-	if err := q.ClearStatedKeyGroups(ctx, g.user); err != nil {
+	if err := q.ClearStatedKeyGroups(ctx, user); err != nil {
 		return fmt.Errorf("clear groups: %w", err)
 	}
 	if len(keys) == 0 {
 		return nil
 	}
-	of := groups(keys)
+	of := Of(keys)
 	ids, group := make([]uuid.UUID, 0, len(of)), make([]uuid.UUID, 0, len(of))
 	for _, r := range keys {
 		ids = append(ids, r.StatedKey.ID)
 		group = append(group, of[r.StatedKey.ID])
 	}
-	if err := q.SetStatedKeyGroups(ctx, gen.SetStatedKeyGroupsParams{UserID: g.user, Ids: ids, GroupIds: group}); err != nil {
+	if err := q.SetStatedKeyGroups(ctx, gen.SetStatedKeyGroupsParams{UserID: user, Ids: ids, GroupIds: group}); err != nil {
 		return fmt.Errorf("set groups: %w", err)
 	}
 	return nil

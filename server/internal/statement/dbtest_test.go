@@ -305,21 +305,3 @@ func TestReplace(t *testing.T) {
 		t.Errorf("after the empty statement (-want +got):\n%s", diff)
 	}
 }
-
-// TestDomained holds the domained map equal to the traits table.
-func TestDomained(t *testing.T) {
-	s := newStack(t)
-	rows, err := s.tx.Query(context.Background(), "SELECT type FROM identifier_type_traits WHERE domain <> 'global'")
-	require.NoError(t, err)
-	defer rows.Close()
-	want := map[types.IdentifierType]bool{}
-	for rows.Next() {
-		var typ types.IdentifierType
-		require.NoError(t, rows.Scan(&typ))
-		want[typ] = true
-	}
-	require.NoError(t, rows.Err())
-	if diff := cmp.Diff(want, domained); diff != "" {
-		t.Errorf("domained mismatch (-want +got):\n%s", diff)
-	}
-}

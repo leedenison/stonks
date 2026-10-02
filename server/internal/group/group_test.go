@@ -1,4 +1,4 @@
-package statement
+package group
 
 import (
 	"fmt"
@@ -29,7 +29,7 @@ func stated(t types.IdentifierType, value, domain string) types.Identifier {
 	return types.Identifier{Type: t, Domain: domain, Value: value}
 }
 
-func TestGroups(t *testing.T) {
+func TestOf(t *testing.T) {
 	isin := func(v string) types.Identifier { return stated(types.IdentifierTypeIsin, v, "") }
 	ticker := func(v, domain string) types.Identifier {
 		return stated(types.IdentifierTypeMicTicker, v, domain)
@@ -132,8 +132,8 @@ func TestGroups(t *testing.T) {
 			for k, v := range tc.want {
 				want[id(k)] = id(v)
 			}
-			if diff := cmp.Diff(want, groups(tc.keys)); diff != "" {
-				t.Errorf("groups mismatch (-want +got):\n%s", diff)
+			if diff := cmp.Diff(want, Of(tc.keys)); diff != "" {
+				t.Errorf("Of mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
