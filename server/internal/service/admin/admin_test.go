@@ -24,6 +24,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/types"
 	"github.com/leedenison/stonks/server/internal/ptr"
+	"github.com/leedenison/stonks/server/internal/replay"
 	"github.com/leedenison/stonks/server/internal/service/admin/mock"
 	servicemock "github.com/leedenison/stonks/server/internal/service/mock"
 	"github.com/leedenison/stonks/server/internal/service/servicetest"
@@ -46,12 +47,14 @@ var (
 	fetchKeyID          = uuid.MustParse("00000000-0000-0000-0000-000000000034")
 	blockID             = uuid.MustParse("00000000-0000-0000-0000-000000000031")
 	created             = time.Date(2026, 9, 24, 12, 0, 0, 0, time.UTC)
-	principal           = auth.Principal{User: gen.User{Email: "admin@example.com", Role: gen.UserRoleAdmin}, SessionID: servicetest.Session}
+	adminID             = uuid.MustParse("00000000-0000-0000-0000-000000000002")
+	principal           = auth.Principal{User: gen.User{ID: adminID, Email: "admin@example.com", Role: gen.UserRoleAdmin}, SessionID: servicetest.Session}
 )
 
 type fixture struct {
 	reader  *mock.MockReader
 	sources *mock.MockSources
+	replays *mock.MockReplayer
 	client  adminv1connect.AdminServiceClient
 }
 
@@ -63,10 +66,10 @@ func newFixture(t *testing.T) *fixture {
 	t.Cleanup(ctrl.Finish)
 	authn := servicemock.NewMockAuthenticator(ctrl)
 	authn.EXPECT().Authenticate(gomock.Any(), servicetest.Session).Return(principal, nil).AnyTimes()
-	f := &fixture{reader: mock.NewMockReader(ctrl), sources: mock.NewMockSources(ctrl)}
+	f := &fixture{reader: mock.NewMockReader(ctrl), sources: mock.NewMockSources(ctrl), replays: mock.NewMockReplayer(ctrl)}
 	opts := servicetest.Options(t, authn)
 	srv := servicetest.Serve(t, func(mux *http.ServeMux) {
-		mux.Handle(adminv1connect.NewAdminServiceHandler(New(f.reader, f.sources), opts...))
+		mux.Handle(adminv1connect.NewAdminServiceHandler(New(f.reader, f.sources, f.replays), opts...))
 	})
 	f.client = adminv1connect.NewAdminServiceClient(srv.Client, srv.URL)
 	return f
@@ -240,6 +243,18 @@ func TestGetRun(t *testing.T) {
 				}}
 			},
 		},
+		{
+			name: "replay",
+			kind: gen.RunKindReplay,
+			expect: func(r *mock.MockReaderMockRecorder) {
+				r.GetReplay(gomock.Any(), runID).Return(gen.GetReplayRow{
+					Replay: gen.Replay{ID: runID, UserID: userID, SourceID: parentID, Datasource: ptr.To("openfigi"), StartedBy: adminID}, StartedByEmail: "admin@example.com",
+				}, nil)
+			},
+			want: func(out *adminv1.GetRunResponse) {
+				out.Replay = &adminv1.Replay{SourceRunId: parentID.String(), Datasource: "openfigi", StartedBy: "admin@example.com"}
+			},
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -356,6 +371,55 @@ func TestGetRunErrors(t *testing.T) {
 			_, err := f.client.GetRun(context.Background(), connect.NewRequest(&adminv1.GetRunRequest{RunId: tc.id}))
 			if servicetest.CodeOf(err) != tc.wantCode {
 				t.Errorf("GetRun(%q) code = %v (err %v), want %v", tc.id, connect.CodeOf(err), err, tc.wantCode)
+			}
+		})
+	}
+}
+
+func TestStartReplay(t *testing.T) {
+	source := runRow(runID, gen.RunKindStatement)
+	started := gen.Run{ID: childID, UserID: userID, Kind: gen.RunKindReplay, Trigger: gen.RunTriggerAdministrator, State: gen.RunStatePending, CreatedAt: created}
+	unavailable := &adminv1.StartReplayRequest{RunId: runID.String(), Scope: &adminv1.StartReplayRequest_Unavailable{Unavailable: true}}
+	datasource := &adminv1.StartReplayRequest{RunId: runID.String(), Scope: &adminv1.StartReplayRequest_Datasource{Datasource: "openfigi"}}
+	tests := []struct {
+		name      string
+		req       *adminv1.StartReplayRequest
+		readErr   error
+		wantScope *replay.Scope
+		startErr  error
+		wantCode  connect.Code
+	}{
+		{name: "the keys left unavailable", req: unavailable, wantScope: &replay.Scope{}},
+		{name: "the keys a datasource has not answered", req: datasource, wantScope: &replay.Scope{Datasource: "openfigi"}},
+		{name: "no such run", req: unavailable, readErr: db.ErrNotFound, wantCode: connect.CodeNotFound},
+		{name: "a run without keys", req: unavailable, wantScope: &replay.Scope{}, startErr: replay.ErrKind, wantCode: connect.CodeFailedPrecondition},
+		{name: "nothing to replay", req: unavailable, wantScope: &replay.Scope{}, startErr: replay.ErrEmpty, wantCode: connect.CodeFailedPrecondition},
+		{name: "a datasource not enabled", req: datasource, wantScope: &replay.Scope{Datasource: "openfigi"}, startErr: replay.ErrDisabled, wantCode: connect.CodeFailedPrecondition},
+		{name: "failure", req: unavailable, wantScope: &replay.Scope{}, startErr: errors.New("boom"), wantCode: connect.CodeInternal},
+		{name: "no scope", req: &adminv1.StartReplayRequest{RunId: runID.String()}, wantCode: connect.CodeInvalidArgument},
+		{name: "unavailable unset", req: &adminv1.StartReplayRequest{RunId: runID.String(), Scope: &adminv1.StartReplayRequest_Unavailable{}}, wantCode: connect.CodeInvalidArgument},
+		{name: "an empty datasource", req: &adminv1.StartReplayRequest{RunId: runID.String(), Scope: &adminv1.StartReplayRequest_Datasource{}}, wantCode: connect.CodeInvalidArgument},
+		{name: "malformed run id", req: &adminv1.StartReplayRequest{RunId: "not-a-uuid", Scope: &adminv1.StartReplayRequest_Unavailable{Unavailable: true}}, wantCode: connect.CodeInvalidArgument},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFixture(t)
+			if tc.wantCode != connect.CodeInvalidArgument {
+				f.reader.EXPECT().GetUserRun(gomock.Any(), runID).Return(gen.GetUserRunRow{Run: source, Email: "one@example.com"}, tc.readErr)
+			}
+			if tc.wantScope != nil {
+				f.replays.EXPECT().Start(gomock.Any(), adminID, source, *tc.wantScope).Return(started, tc.startErr)
+			}
+			res, err := f.client.StartReplay(context.Background(), connect.NewRequest(tc.req))
+			if servicetest.CodeOf(err) != tc.wantCode {
+				t.Fatalf("StartReplay(%s) code = %v (err %v), want %v", tc.name, connect.CodeOf(err), err, tc.wantCode)
+			}
+			if err != nil {
+				return
+			}
+			got := res.Msg.GetRun()
+			if got.GetId() != childID.String() || got.GetKind() != runv1.RunKind_RUN_KIND_REPLAY || got.GetTrigger() != runv1.RunTrigger_RUN_TRIGGER_ADMINISTRATOR || got.GetState() != runv1.RunState_RUN_STATE_PENDING {
+				t.Errorf("StartReplay(%s) = %v, want the pending replay run", tc.name, got)
 			}
 		})
 	}

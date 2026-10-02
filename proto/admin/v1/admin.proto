@@ -1,5 +1,5 @@
-// Read what runs did across every user. Every RPC here requires the admin
-// role.
+// Read what runs did across every user, and start a replay. Every RPC here
+// requires the admin role.
 
 syntax = "proto3";
 
@@ -178,6 +178,8 @@ message GetRunResponse {
   repeated ResolutionItem resolution_items = 5;
   // The keys this run fetched when its kind is FETCH.
   repeated FetchItem fetch_items = 6;
+  // What this run re-resolves when its kind is REPLAY.
+  Replay replay = 7;
 }
 
 message ClearFindingRequest {
@@ -288,6 +290,37 @@ message ClearBlockRequest {
 
 message ClearBlockResponse {}
 
+// What a run of kind REPLAY re-resolves.
+message Replay {
+  // The run whose keys are replayed.
+  string source_run_id = 1;
+  // The datasource scope; empty when the scope is the keys left unavailable.
+  string datasource = 2;
+  // The email of the administrator who started the replay.
+  string started_by = 3;
+}
+
+// Re-resolves the keys of one run. Every scope is confined to the run's keys
+// that a transaction names.
+message StartReplayRequest {
+  // A run of kind STATEMENT or RESOLUTION.
+  string run_id = 1 [(buf.validate.field).string.uuid = true];
+  oneof scope {
+    option (buf.validate.oneof).required = true;
+    // Every key whose latest resolution left it unavailable.
+    bool unavailable = 2 [(buf.validate.field).bool.const = true];
+    // Every key the named datasource serves and has not yet answered: the
+    // unresolved keys, and those on an instrument without its identity
+    // coverage.
+    string datasource = 3 [(buf.validate.field).string.min_len = 1];
+  }
+}
+
+message StartReplayResponse {
+  // The replay run, pending.
+  stonks.run.v1.Run run = 1;
+}
+
 service AdminService {
   // Lists every user's runs matching the filters.
   rpc ListRuns(ListRunsRequest) returns (ListRunsResponse);
@@ -312,4 +345,8 @@ service AdminService {
   // Clears a block and the finding reporting it. Clearing a cleared block
   // succeeds.
   rpc ClearBlock(ClearBlockRequest) returns (ClearBlockResponse);
+  // Starts a replay over the keys of a run, as a run of that run's user. A
+  // run of another kind, a scope selecting no key, or a datasource that is
+  // not enabled, is refused as a failed precondition.
+  rpc StartReplay(StartReplayRequest) returns (StartReplayResponse);
 }
