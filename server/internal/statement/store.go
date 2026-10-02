@@ -9,12 +9,14 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/group"
 	"github.com/leedenison/stonks/server/internal/resolve"
 	"github.com/leedenison/stonks/server/internal/run"
 )
 
 // Queries is this package's view of the generated queries.
 type Queries interface {
+	group.Queries
 	CreateStatement(ctx context.Context, arg gen.CreateStatementParams) (gen.Statement, error)
 	CreateStatedKey(ctx context.Context, arg gen.CreateStatedKeyParams) (gen.StatedKey, error)
 	CreateStatementSplit(ctx context.Context, arg gen.CreateStatementSplitParams) error
@@ -22,9 +24,6 @@ type Queries interface {
 	LockUserKeys(ctx context.Context, userID uuid.UUID) error
 	DeleteTransactions(ctx context.Context, arg gen.DeleteTransactionsParams) (int64, error)
 	CreateTransaction(ctx context.Context, arg gen.CreateTransactionParams) (gen.Transaction, error)
-	ListGroupableKeys(ctx context.Context, userID uuid.UUID) ([]gen.ListGroupableKeysRow, error)
-	ClearStatedKeyGroups(ctx context.Context, userID uuid.UUID) error
-	SetStatedKeyGroups(ctx context.Context, arg gen.SetStatedKeyGroupsParams) error
 	CreateStatementItem(ctx context.Context, arg gen.CreateStatementItemParams) error
 	CompleteRun(ctx context.Context, id uuid.UUID) error
 }

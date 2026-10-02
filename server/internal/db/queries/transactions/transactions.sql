@@ -25,8 +25,9 @@ WHERE user_id = $1
 ORDER BY order_date, id;
 
 -- name: SetStatedKeyAssociation :exec
+-- An associated key belongs to no group.
 UPDATE stated_keys
-SET instrument_id = $3, listing_id = $4, via_id = $5, validity = $6
+SET instrument_id = $3, listing_id = $4, via_id = $5, validity = $6, group_id = NULL
 WHERE id = $1 AND user_id = $2;
 
 -- name: LockUserKeys :exec

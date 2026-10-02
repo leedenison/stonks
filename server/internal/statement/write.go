@@ -8,6 +8,7 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/group"
 )
 
 // write replaces the period with the accepted rows, records the rejected
@@ -50,7 +51,7 @@ func (g *ingestion) write(ctx context.Context, run gen.Run) error {
 			}
 			accepted++
 		}
-		if err := g.regroup(ctx, q); err != nil {
+		if err := group.Regroup(ctx, q, g.user); err != nil {
 			return err
 		}
 		if err := q.CompleteRun(ctx, run.ID); err != nil {

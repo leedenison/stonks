@@ -12,11 +12,8 @@
 // [resolve.go](../resolve/resolve.go). Every row carrying the key takes its
 // outcome, and a rejected key rejects its rows.
 //
-// Grouping. The unresolved keys a transaction names are gathered across
-// every statement of the user: where two share an identifier, or a
-// description within one broker, they are one holding, transitively. The
-// group is derived from what the keys state, so the write recomputes it in
-// full under the user's key lock.
+// Grouping. The write recomputes the user's groups under the user's key
+// lock; see [group.go](../group/group.go).
 package statement
 
 import (
