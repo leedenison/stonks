@@ -3,12 +3,13 @@
 // A run is a row created before its work starts. The call starting it responds
 // with the row, and progress and the outcome are read against it.
 //
-// A run is started by a user, by an administrator, who is then its user, or
-// by another run. When a user or an administrator starts a run, it executes
-// in a goroutine of its own once the call starting it has responded, after
-// carrying out its prepare step in the caller. When a run starts another run,
-// the child executes inline in its parent's goroutine, and the parent decides
-// whether the child's failure fails it.
+// A run is started by a user, by an administrator, or by another run. An
+// administrator's run belongs to the user whose keys it re-resolves. When a
+// user or an administrator starts a run, it executes in a goroutine of its
+// own once the call starting it has responded, after carrying out its prepare
+// step in the caller. When a run starts another run, the child executes
+// inline in its parent's goroutine, and the parent decides whether the
+// child's failure fails it.
 //
 // Runs of one user and lane execute in the order they were started: a run
 // stays pending until every earlier run of the same user and lane has
@@ -34,7 +35,8 @@
 // A run records what an administrator may need to see as findings, which
 // belong to the run and are written by the work that met them; see
 // [006_findings.sql](../migrations/006_findings.sql). The items a run writes
-// are addressed to its user.
+// are addressed to its user, who for an administrator's run is the user whose
+// keys it re-resolves.
 //
 // Telemetry mirrors runs by kind, trigger and terminal state, and findings by
 // kind. Its attributes are bounded, so nothing is counted per

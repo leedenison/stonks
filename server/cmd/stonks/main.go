@@ -35,6 +35,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/market/openfigi"
 	"github.com/leedenison/stonks/server/internal/mic"
+	"github.com/leedenison/stonks/server/internal/replay"
 	"github.com/leedenison/stonks/server/internal/resolve"
 	runner "github.com/leedenison/stonks/server/internal/run"
 	"github.com/leedenison/stonks/server/internal/service"
@@ -146,7 +147,8 @@ func run() (err error) {
 	fetcher := market.NewFetcher(queries, runs, logger.WithCategory(log, "internal/market"))
 	resolver := resolve.New(db.New[resolve.Queries](pool), market.IdentityFetcher{F: fetcher}, sources, logger.WithCategory(log, "internal/resolve"))
 	ingester := stmt.New(db.New[stmt.Queries](pool), runs, resolver, time.Now)
-	srv, err := newServer(cfg.ListenAddr, log, authn, queries, sources, ingester, cfg.CookieSecure)
+	replays := replay.New(db.New[replay.Queries](pool), runs, resolver, sources)
+	srv, err := newServer(cfg.ListenAddr, log, authn, queries, sources, ingester, replays, cfg.CookieSecure)
 	if err != nil {
 		return err
 	}
@@ -176,7 +178,7 @@ func tracedClient() *http.Client {
 // once the server listens, which is after the migrations have applied. It is
 // outside the Connect chain and the mux carries no HTTP instrumentation, so
 // the container probing it every two seconds produces no telemetry.
-func newServer(addr string, log *slog.Logger, authn *auth.Authenticator, queries *gen.Queries, sources *market.Registry, ingester stmtsvc.Ingester, secure bool) (*http.Server, error) {
+func newServer(addr string, log *slog.Logger, authn *auth.Authenticator, queries *gen.Queries, sources *market.Registry, ingester stmtsvc.Ingester, replays adminsvc.Replayer, secure bool) (*http.Server, error) {
 	opts, err := service.HandlerOptions(logger.WithCategory(log, "internal/service"), authn)
 	if err != nil {
 		return nil, err
@@ -185,7 +187,7 @@ func newServer(addr string, log *slog.Logger, authn *auth.Authenticator, queries
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
-	mux.Handle(adminv1connect.NewAdminServiceHandler(adminsvc.New(queries, sources), opts...))
+	mux.Handle(adminv1connect.NewAdminServiceHandler(adminsvc.New(queries, sources, replays), opts...))
 	mux.Handle(authv1connect.NewAuthServiceHandler(authsvc.New(authn, secure), opts...))
 	mux.Handle(holdingv1connect.NewHoldingServiceHandler(holdingsvc.New(queries), opts...))
 	mux.Handle(instrumentv1connect.NewInstrumentServiceHandler(instrument.New(), opts...))

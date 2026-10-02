@@ -19,10 +19,12 @@ import (
 
 	adminv1 "github.com/leedenison/stonks/proto/admin/v1"
 	"github.com/leedenison/stonks/proto/admin/v1/adminv1connect"
+	"github.com/leedenison/stonks/server/internal/auth"
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/to"
 	"github.com/leedenison/stonks/server/internal/db/types"
+	"github.com/leedenison/stonks/server/internal/replay"
 	stmtsvc "github.com/leedenison/stonks/server/internal/service/statement"
 )
 
@@ -39,6 +41,7 @@ type Reader interface {
 	ListStatementItems(ctx context.Context, arg gen.ListStatementItemsParams) ([]gen.StatementItem, error)
 	ListResolutionItems(ctx context.Context, runID uuid.UUID) ([]gen.ListResolutionItemsRow, error)
 	ListFetchItems(ctx context.Context, fetchID uuid.UUID) ([]gen.ListFetchItemsRow, error)
+	GetReplay(ctx context.Context, id uuid.UUID) (gen.GetReplayRow, error)
 	GetFinding(ctx context.Context, id uuid.UUID) (gen.Finding, error)
 	ClearFinding(ctx context.Context, id uuid.UUID) error
 	ListDatasourceSettings(ctx context.Context) ([]gen.ListDatasourceSettingsRow, error)
@@ -60,19 +63,27 @@ type Sources interface {
 	Reload(ctx context.Context) error
 }
 
+// Replayer is this package's view of the replay service.
+type Replayer interface {
+	Start(ctx context.Context, admin uuid.UUID, source gen.Run, scope replay.Scope) (gen.Run, error)
+}
+
+var _ Replayer = (*replay.Service)(nil)
+
 //go:generate go tool mockgen -source=admin.go -destination=mock/admin_mock.go -package=mock
 
 // Server implements AdminService.
 type Server struct {
 	reader  Reader
 	sources Sources
+	replays Replayer
 }
 
 var _ adminv1connect.AdminServiceHandler = (*Server)(nil)
 
 // New returns a Server.
-func New(reader Reader, sources Sources) *Server {
-	return &Server{reader: reader, sources: sources}
+func New(reader Reader, sources Sources, replays Replayer) *Server {
+	return &Server{reader: reader, sources: sources, replays: replays}
 }
 
 // ListRuns lists every user's runs matching the filters, newest first,
@@ -235,6 +246,15 @@ func (s *Server) fill(ctx context.Context, run gen.Run, out *adminv1.GetRunRespo
 			}
 			out.FetchItems = append(out.FetchItems, item)
 		}
+	case gen.RunKindReplay:
+		r, err := s.reader.GetReplay(ctx, run.ID)
+		if err != nil {
+			return err
+		}
+		out.Replay = &adminv1.Replay{SourceRunId: r.Replay.SourceID.String(), StartedBy: r.StartedByEmail}
+		if r.Replay.Datasource != nil {
+			out.Replay.Datasource = *r.Replay.Datasource
+		}
 	}
 	return nil
 }
@@ -375,6 +395,35 @@ func (s *Server) ClearBlock(ctx context.Context, req *connect.Request[adminv1.Cl
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	return connect.NewResponse(&adminv1.ClearBlockResponse{}), nil
+}
+
+// StartReplay starts a replay over the keys of a run, as a run of that run's
+// user started by the caller.
+func (s *Server) StartReplay(ctx context.Context, req *connect.Request[adminv1.StartReplayRequest]) (*connect.Response[adminv1.StartReplayResponse], error) {
+	p, err := auth.Admin(ctx)
+	if err != nil {
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
+	}
+	id, err := uuid.Parse(req.Msg.GetRunId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	row, err := s.reader.GetUserRun(ctx, id)
+	if errors.Is(err, db.ErrNotFound) {
+		return nil, connect.NewError(connect.CodeNotFound, errors.New("no such run"))
+	}
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	scope := replay.Scope{Datasource: req.Msg.GetDatasource()}
+	started, err := s.replays.Start(ctx, p.User.ID, row.Run, scope)
+	switch {
+	case errors.Is(err, replay.ErrKind), errors.Is(err, replay.ErrEmpty), errors.Is(err, replay.ErrDisabled):
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+	case err != nil:
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(&adminv1.StartReplayResponse{Run: to.ProtoRun(started)}), nil
 }
 
 func block(b gen.DatasourceBlock, runID uuid.UUID) *adminv1.Block {
