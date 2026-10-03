@@ -134,8 +134,8 @@ Never use smart quotes in documentation, comments or plans.
 
 Important: When a change includes documentation you must execute a Sonnet agent
 to ensure it complies with the Plain English, Documentation and Personal Data rules.
-Then fix any errors highlighted before telling the user that the change is ready for
-review.
+The agent reports violations and does not edit. Then fix any errors highlighted before
+telling the user that the change is ready for review.
 
 ## Code Comments
 
