@@ -2,11 +2,8 @@
 // tree of tags. The file is ASCII though its header declares CHARSET 1252,
 // so reading it as UTF-8 is safe for the exports seen.
 //
-// Money moves in the currency a row states, or in the account's base
-// currency CURDEF where it states none. A security's key takes only a
-// currency the row states: the base currency names the account rather than
-// the security's line, and where a key is left without one, it matches the
-// listing its description names. A transfer states none.
+// A row's amounts are in the currency its CURRENCY block states, or in the
+// account's base currency CURDEF where it has none, as OFX defines them.
 //
 // A row is stated as traded, and a split arrives as a transfer of the units
 // it added, so every row is as at its order date.
@@ -207,9 +204,10 @@ function marshal(input: string): Statement {
       if (kind.startsWith("BUY") || kind.startsWith("SELL")) {
         const inv = node(el, kind.startsWith("BUY") ? "INVBUY" : "INVSELL");
         const when = date(text(node(inv, "INVTRAN"), "DTTRADE"));
+        // The key and the cash legs share the row's currency.
         rows.push(
           ...trade({
-            key: keyOf(inv, stated(inv)),
+            key: keyOf(inv, currency(inv, base)),
             orderDate: when,
             settlementDate: when,
             units: text(inv, "UNITS"),
@@ -236,6 +234,7 @@ function marshal(input: string): Statement {
         if (m) {
           splits.push(split(keyOf(el), when, units, { from: m[2], to: m[1] }));
         } else {
+          // A transfer moves units only, so its key has no currency.
           rows.push(leg(keyOf(el), when, when, units));
         }
       } else {
