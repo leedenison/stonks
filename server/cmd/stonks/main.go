@@ -187,7 +187,7 @@ func newServer(addr string, log *slog.Logger, authn *auth.Authenticator, queries
 	mux.Handle(adminv1connect.NewAdminServiceHandler(adminsvc.New(queries, sources, replays), opts...))
 	mux.Handle(authv1connect.NewAuthServiceHandler(authsvc.New(authn, secure), opts...))
 	mux.Handle(holdingv1connect.NewHoldingServiceHandler(holdingsvc.New(queries), opts...))
-	mux.Handle(instrumentv1connect.NewInstrumentServiceHandler(instrument.New(), opts...))
+	mux.Handle(instrumentv1connect.NewInstrumentServiceHandler(instrument.New(queries), opts...))
 	mux.Handle(runv1connect.NewRunServiceHandler(runsvc.New(queries), opts...))
 	mux.Handle(statementv1connect.NewStatementServiceHandler(stmtsvc.New(ingester, queries), opts...))
 	reflector := grpcreflect.NewStaticReflector(

@@ -9,33 +9,7 @@ import {
   type Identifier,
   IdentifierType,
 } from "@/gen/type/v1/type_pb";
-
-// preferred names the identifier types that label a holding, the one a
-// holder recognises most readily first: a ticker, then the registry codes by
-// how widely they are quoted, then the codes only their issuer reads. A
-// ticker stated without its venue names nothing, and is still the holder's
-// name for the line, so it is eligible here.
-const preferred: IdentifierType[] = [
-  IdentifierType.MIC_TICKER,
-  IdentifierType.DATASOURCE_TICKER,
-  IdentifierType.ISIN,
-  IdentifierType.CUSIP,
-  IdentifierType.SEDOL,
-  IdentifierType.CINS,
-  IdentifierType.WERTPAPIER,
-  IdentifierType.OPENFIGI_COMPOSITE,
-  IdentifierType.OPENFIGI_TICKER,
-  IdentifierType.OPENFIGI_SHARE_CLASS,
-  IdentifierType.BROKER_ID,
-];
-
-// leading names the type a class is known by ahead of any other, for the
-// classes that have one.
-const leading: Partial<Record<AssetClass, IdentifierType>> = {
-  [AssetClass.CASH]: IdentifierType.CURRENCY,
-  [AssetClass.OPTION]: IdentifierType.OCC,
-  [AssetClass.FUTURE]: IdentifierType.OCC,
-};
+import { nameOf, pick, preferred } from "./identifiers";
 
 // shown names the identifier types displayed beside a resolved holding's
 // name, the registry codes that identify an instrument. The instruments page
@@ -50,33 +24,6 @@ const shown: IdentifierType[] = [
   IdentifierType.OPENFIGI_COMPOSITE,
   IdentifierType.OPENFIGI_SHARE_CLASS,
 ];
-
-// pick returns the first identifier of the first type in order that has
-// one. Where there are two of one type, such as a ticker at two venues, the
-// first the API lists wins.
-function pick(
-  order: IdentifierType[],
-  identifiers: Identifier[],
-): Identifier | undefined {
-  for (const type of order) {
-    const found = identifiers.find((i) => i.type === type);
-    if (found) return found;
-  }
-  return undefined;
-}
-
-// nameOf returns the identifier naming an instrument of assetClass as the
-// user knows it, by its class's leading type, then preferred.
-function nameOf(
-  assetClass: AssetClass,
-  identifiers: Identifier[],
-): Identifier | undefined {
-  const lead = leading[assetClass];
-  return pick(
-    lead === undefined ? preferred : [lead, ...preferred],
-    identifiers,
-  );
-}
 
 // A HoldingRow is one line of the holdings table.
 export type HoldingRow = {

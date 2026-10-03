@@ -19,6 +19,9 @@ describe("Sidebar", () => {
     expect(screen.getByTestId("nav-holdings").getAttribute("href")).toBe(
       "/holdings",
     );
+    expect(screen.getByTestId("nav-instruments").getAttribute("href")).toBe(
+      "/instruments",
+    );
   });
 
   it("marks a page from a path beneath it", () => {

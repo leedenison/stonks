@@ -1,5 +1,5 @@
 // Instruments: the things that can be held and priced. Every RPC requires a
-// session.
+// session and reads only the instruments the caller's keys resolved to.
 
 syntax = "proto3";
 
@@ -9,6 +9,17 @@ import "type/v1/type.proto";
 
 option go_package = "github.com/leedenison/stonks/proto/instrument/v1;instrumentv1";
 
+// One trading currency of an instrument.
+message Listing {
+  // Identifies the listing in every API; a UUID.
+  string id = 1;
+  // The listing's currency code; a family code, so a listing quoted in pence
+  // is the GBP listing.
+  string currency = 2;
+  // The listing grain identifiers naming it.
+  repeated stonks.type.v1.Identifier identifiers = 3;
+}
+
 message Instrument {
   // Identifies the instrument in every API; a UUID.
   string id = 1;
@@ -17,24 +28,19 @@ message Instrument {
   // The instrument grain identifiers naming it. Empty when only its listings
   // are named.
   repeated stonks.type.v1.Identifier identifiers = 3;
-}
-
-// One trading currency of an instrument.
-message Listing {
-  // Identifies the listing in every API; a UUID.
-  string id = 1;
-  string instrument_id = 2;
-  // The listing's currency code.
-  string currency = 3;
-  // The listing grain identifiers naming it.
-  repeated stonks.type.v1.Identifier identifiers = 4;
+  // One per currency family the instrument trades in, by currency.
+  repeated Listing listings = 4;
 }
 
 message ListInstrumentsRequest {}
 
-message ListInstrumentsResponse {}
+message ListInstrumentsResponse {
+  // In no particular order.
+  repeated Instrument instruments = 1;
+}
 
 service InstrumentService {
-  // A stub: it returns no instruments yet.
+  // Lists the instruments resolved from the caller's keys that a transaction
+  // names, each with its listings.
   rpc ListInstruments(ListInstrumentsRequest) returns (ListInstrumentsResponse);
 }
