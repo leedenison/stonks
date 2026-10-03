@@ -11,9 +11,10 @@ import (
 	"github.com/leedenison/stonks/server/internal/group"
 )
 
-// write replaces the period with the accepted rows, records the rejected
-// ones as items and completes the run, in one transaction. A row is rejected
-// by validation or by its key's rejection.
+// write replaces the statement's period with the accepted rows and records
+// the rejected rows as items, in one transaction under the user's key lock.
+// In that transaction it also recomputes the user's groups and completes the
+// run. A row is rejected by validation or by its key's rejection.
 func (g *ingestion) write(ctx context.Context, run gen.Run) error {
 	var accepted, rejected int64
 	err := g.store.Tx(ctx, func(q Queries) error {

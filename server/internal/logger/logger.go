@@ -10,10 +10,6 @@
 // A level spec is a comma-separated list in which a bare level is the default
 // and category=level is an override, for example "info,internal/db=debug".
 // Levels are debug, info, warn and error, case-insensitive.
-//
-// A record made while a span is in flight carries that span's trace_id and
-// span_id, so the lines of one request can be gathered out of an interleaved
-// log.
 package logger
 
 import (
@@ -117,6 +113,9 @@ func (h *handler) Enabled(_ context.Context, level slog.Level) bool {
 	return level >= h.levels.For(h.category)
 }
 
+// Handle stamps a record made while a span is in flight with that span's
+// trace_id and span_id, so the lines of one request can be gathered out of
+// an interleaved log.
 func (h *handler) Handle(ctx context.Context, r slog.Record) error {
 	if sc := trace.SpanContextFromContext(ctx); sc.IsValid() {
 		r.AddAttrs(

@@ -1,34 +1,6 @@
-// Package replay re-resolves the keys of one run, so a later answer moves each
-// key's association, its group is recomputed and the holdings derived from
-// its transactions follow.
-//
-// A replay is a run of kind replay over the keys of a source run: a statement
-// run's stated keys, or a resolution run's resolved keys. A replay run's keys
-// are reached through its resolution child, and any other kind is refused.
-// The replay belongs to the source's user, with trigger administrator, and
-// its replays row names the source, the scope and the administrator. It runs
-// in a lane of its own under that user, beside the user's uploads. Order
-// against an upload does not matter: the resolver serialises creation on the
-// stated identifiers and retries on conflict, and the regroup is a full
-// recompute under the user key lock, which the statement write holds
-// throughout; see [resolve.go](../resolve/resolve.go) and
-// [group.go](../group/group.go).
-//
-// Selection. The set is fixed when the replay starts and confined to the
-// source's keys that a transaction names. Unavailable selects the keys whose
-// latest resolution, over any run, left them unavailable. A datasource
-// selects the keys that datasource serves and has not yet answered: the
-// unresolved keys, and the keys on an instrument without its identity
-// coverage, reference data excluded. A replay asks every enabled datasource,
-// as a fresh resolution does; the datasource scope only picks the keys. A key
-// resolved while no datasource was enabled is unrecognised, so a datasource
-// scope is how it is reached. An empty selection is refused and no run is
-// created.
-//
-// The work is one resolution child over every selected key, then one regroup
-// of the user. A partial replay, failed or interrupted, leaves each key the
-// resolution wrote re-resolved and the groups as they were, less any key that
-// became associated.
+// Package replay re-resolves the keys of one run, the source, as a run of
+// the source's user. Its order against that user's uploads does not matter;
+// see [resolve.go](../resolve/resolve.go) and [group.go](../group/group.go).
 package replay
 
 import (
@@ -55,11 +27,18 @@ var (
 	ErrKind = errors.New("the run has no keys to replay")
 )
 
-// lane serialises a user's replays.
+// lane serialises a user's replays, apart from the user's uploads.
 const lane = "replay"
 
-// Scope selects the keys of a replay: those the named datasource serves and
-// has not yet answered, or when Datasource is empty, those left unavailable.
+// Scope selects the keys of a replay, among the source's keys that a
+// transaction names. An empty Datasource selects the keys whose latest
+// resolution, over any run, left them unavailable. A named datasource
+// selects the keys it serves and has not yet answered: the unresolved keys,
+// and the keys on an instrument whose identity it has not covered, reference
+// data excluded. A key resolved while no datasource was enabled is
+// unrecognised, so a datasource scope is how it is reached. The scope only
+// picks the keys; the replay asks every enabled datasource, as a fresh
+// resolution does.
 type Scope struct {
 	Datasource string
 }
@@ -77,8 +56,8 @@ func New(store Store, runs Runner, resolver Resolver, sources Sources) *Service 
 	return &Service{store: store, runs: runs, resolver: resolver, sources: sources}
 }
 
-// Start selects the keys scope names among source's and starts their replay
-// as a run of source's user started by admin, answering the pending row.
+// Start starts a replay of source's keys as a run of source's user, started
+// by admin, and returns the pending row.
 func (s *Service) Start(ctx context.Context, admin uuid.UUID, source gen.Run, scope Scope) (gen.Run, error) {
 	keys, err := s.selectKeys(ctx, source, scope)
 	if err != nil {
@@ -89,6 +68,8 @@ func (s *Service) Start(ctx context.Context, admin uuid.UUID, source gen.Run, sc
 	return s.runs.Start(ctx, spec, w.work)
 }
 
+// selectKeys picks the keys once, when the replay starts. A key that becomes
+// eligible later waits for another replay.
 func (s *Service) selectKeys(ctx context.Context, source gen.Run, scope Scope) ([]gen.StatedKey, error) {
 	keys, err := s.sourceKeys(ctx, source)
 	if err != nil {
@@ -131,7 +112,9 @@ func (s *Service) selectKeys(ctx context.Context, source gen.Run, scope Scope) (
 	return out, nil
 }
 
-// sourceKeys reads the keys of source by its kind.
+// sourceKeys reads the keys of source by its kind: a statement run's stated
+// keys, or a resolution run's resolved keys. A replay run's keys are reached
+// through its resolution child, and any other kind is refused.
 func (s *Service) sourceKeys(ctx context.Context, source gen.Run) ([]gen.StatedKey, error) {
 	switch source.Kind {
 	case gen.RunKindStatement:
@@ -186,7 +169,9 @@ func (r *replay) prepare(ctx context.Context, run gen.Run) error {
 	return nil
 }
 
-// work resolves the keys as a child run, then regroups the user.
+// A partial replay, failed or interrupted, leaves each key the resolution
+// wrote re-resolved and the groups as they were, less any key that became
+// associated.
 func (r *replay) work(ctx context.Context, run gen.Run) error {
 	if _, err := r.runs.Child(ctx, run, gen.RunKindResolution, r.resolve); err != nil {
 		return fmt.Errorf("resolution: %w", err)

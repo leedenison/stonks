@@ -25,8 +25,7 @@ const preferred: IdentifierType[] = [
 ];
 
 // leading names the type a class is known by ahead of any other, for the
-// classes that have one. Where a class is not named here, it takes preferred
-// alone, and every class takes preferred after its own.
+// classes that have one.
 const leading: Partial<Record<AssetClass, IdentifierType>> = {
   [AssetClass.CASH]: IdentifierType.CURRENCY,
   [AssetClass.OPTION]: IdentifierType.OCC,

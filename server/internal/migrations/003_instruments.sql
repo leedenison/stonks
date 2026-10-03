@@ -25,6 +25,17 @@ INSERT INTO asset_class_tree (class, parent) VALUES
     ('option', 'derivative'),
     ('future', 'derivative');
 
+-- The kinds of identifier an instrument or a listing carries:
+-- 'isin', 'cusip', 'cins', 'wertpapier' and 'sedol' are the national and
+-- international securities numbers;
+-- 'openfigi_share_class' and 'openfigi_composite' are the FIGIs OpenFIGI
+-- assigns to a share class and to a country-wide composite listing;
+-- 'mic_ticker' is a ticker at an operating MIC, and 'openfigi_ticker' a
+-- ticker under OpenFIGI's own exchange code;
+-- 'occ' is an OCC option symbol;
+-- 'currency' is an ISO 4217 code, the identifier of money;
+-- 'datasource_ticker' and 'broker_id' are identifiers in one datasource's or
+-- one broker's own namespace.
 CREATE TYPE identifier_type AS ENUM ('isin', 'cusip', 'cins', 'wertpapier',
     'openfigi_share_class', 'sedol', 'openfigi_composite', 'mic_ticker', 'openfigi_ticker',
     'occ', 'currency', 'datasource_ticker', 'broker_id');
@@ -45,6 +56,9 @@ CREATE TYPE identifier_grain AS ENUM ('instrument', 'listing');
 -- reassigned.
 CREATE TYPE identifier_reassignment AS ENUM ('stable', 'mic_derived');
 
+-- The traits of each identifier type: how its values are partitioned, what it
+-- names, and how readily it is reassigned. The server holds a copy that a
+-- test checks against this table.
 CREATE TABLE identifier_type_traits (
     type         identifier_type         PRIMARY KEY,
     domain       identifier_domain       NOT NULL,

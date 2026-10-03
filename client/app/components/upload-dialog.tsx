@@ -33,10 +33,8 @@ const oversize = (file: File) => file.size > maxBytes;
 const tooLarge = (file: File) => `${file.name} is too large.`;
 const unreadable = (file: File) => `${file.name} could not be read.`;
 
-// UploadDialog takes a broker's export through its stages: choose or drop a
-// file, read it, review what the marshaller made of it with the broker,
-// the export date and the period open to change, and submit. The
-// dialog closes once the run is created and hands it to onCreated.
+// UploadDialog takes a broker's export from file to submitted statement.
+// The dialog closes once the run is created and hands it to onCreated.
 export function UploadDialog({
   open,
   initial,

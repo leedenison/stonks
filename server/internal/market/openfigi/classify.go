@@ -24,8 +24,9 @@ func set(vals ...string) map[string]bool {
 }
 
 // rules are tried in order, the first match deciding. They run from what
-// OpenFIGI named, the securityType, to what it implied, the market sector,
-// which OpenFIGI's guidance reads only where securityType2 is absent.
+// OpenFIGI named, the securityType, to what it implied, the market sector.
+// OpenFIGI's guidance reads the market sector only where securityType2 is
+// absent.
 //
 // An FX result matches no rule and is unknown: a currency pair, swap or
 // forward is not a currency held.

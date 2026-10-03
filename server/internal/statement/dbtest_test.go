@@ -46,8 +46,7 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-// syncRunner runs each run inline over the test's transaction, moving the
-// row through the states the real runner would.
+// syncRunner runs each run inline over the test's transaction.
 type syncRunner struct {
 	q *gen.Queries
 }
@@ -90,9 +89,8 @@ type stack struct {
 	user gen.User
 }
 
-// newStack returns a service over a transaction rolled back when the test
-// ends, resolving against the database and no datasource, and a user whose
-// statements it ingests.
+// newStack returns a statement service with no datasource, over a
+// rolled-back transaction.
 func newStack(t *testing.T) stack {
 	t.Helper()
 	ctx := context.Background()
@@ -211,8 +209,6 @@ func TestIngest(t *testing.T) {
 		t.Errorf("transactions mismatch (-want +got):\n%s", diff)
 	}
 
-	// Only the cash key resolved, and it names the USD listing
-	// through the currency identifier that named the instrument.
 	found, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: types.IdentifierTypeCurrency, Value: "USD"})
 	require.NoError(t, err)
 	line, err := s.q.GetListing(ctx, gen.GetListingParams{InstrumentID: found.Instrument.ID, Currency: "USD"})
@@ -234,7 +230,6 @@ func TestIngest(t *testing.T) {
 		t.Errorf("the cash key associates through %v held %v, want %s confirmed", got.ViaID, got.Validity, found.Identifier.ID)
 	}
 
-	// Nothing the statement stated wrote an instrument.
 	var instruments, families int
 	require.NoError(t, s.tx.QueryRow(ctx, "SELECT count(*) FROM instruments").Scan(&instruments))
 	require.NoError(t, s.tx.QueryRow(ctx, "SELECT count(*) FROM currencies WHERE code = family").Scan(&families))

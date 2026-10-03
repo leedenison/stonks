@@ -48,7 +48,6 @@ SET fetch_key_id = EXCLUDED.fetch_key_id, covered_at = now();
 UPDATE fetch_keys SET instrument_id = @survivor::uuid WHERE instrument_id = @loser::uuid;
 
 -- name: MoveIdentityCoverage :exec
--- Carries loser's coverage onto survivor where survivor lacks the datasource.
 INSERT INTO identity_coverage (instrument_id, datasource, fetch_key_id, covered_at)
 SELECT @survivor::uuid, datasource, fetch_key_id, covered_at
 FROM identity_coverage WHERE instrument_id = @loser::uuid

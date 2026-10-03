@@ -20,10 +20,9 @@ import (
 // insert refuses it.
 const tries = 3
 
-// write records the outcome of res against run. Where the lookup decided
-// the key, the write records its findings and resolution key; otherwise it
-// chooses among the key's results and, where a group won, writes under the
-// identifier locks.
+// write records the outcome of res against run in a transaction of its own,
+// retried on conflict. A key with a winner is written under an advisory lock
+// on the identifiers it states; a key the lookup decided takes no lock.
 func (r *Resolver) write(ctx context.Context, run gen.Run, res *resolution, families func(string) string) (gen.ResolutionKey, error) {
 	var out gen.ResolutionKey
 	var written []gen.FindingKind
@@ -96,10 +95,9 @@ func (r *Resolver) resolveKey(ctx context.Context, q Queries, run gen.Run, res *
 	return record(ctx, q, run, res, gen.ResolutionOutcomeMatched, "", c.findings)
 }
 
-// find re-reads the database by the identifiers res states and the groups
-// c attached name, and returns the instrument found, nil where none is.
-// When several are found they are merged: taken is the identifiers of the
-// instruments left apart and merged the findings.
+// find re-reads the database for the instrument the key and its attached
+// groups name, nil where there is none. Several found are merged, and taken
+// is the identifiers of any left apart.
 func find(ctx context.Context, q Queries, res *resolution, c choice) (*found, map[types.Identifier]bool, []gen.CreateFindingParams, error) {
 	ids := slices.Clone(res.guids)
 	for _, g := range c.attached {

@@ -114,9 +114,8 @@ func TestGroups(t *testing.T) {
 	}
 }
 
-// outcome writes a choice as the winner, the attached groups, the findings
-// and the groups not naming the identifier sent, each group named by its
-// source and order.
+// outcome renders a choice for comparison, each group named by its source
+// and order.
 type outcome struct {
 	winner    string
 	attached  []string

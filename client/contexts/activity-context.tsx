@@ -29,14 +29,16 @@ type ActivityValue = {
 
 const ActivityContext = createContext<ActivityValue | null>(null);
 
-// The moment the sheet was last open, kept per user so a badge does not
-// carry from one account to another on the same browser. Nothing stored
-// means the sheet has never been opened, and nothing that finished before
-// counts: a first visit does not open on a badge full of history.
+// seenKey names where the moment the sheet was last open is stored. The key
+// is per user so a badge does not carry from one account to another on the
+// same browser.
 function seenKey(userId: string) {
   return `stonks.activity.seen.${userId}`;
 }
 
+// parseSeen reads nothing stored as a sheet never opened. No finished run
+// then counts toward the badge, so a first visit does not open on a badge
+// full of history.
 function parseSeen(raw: string | null): number {
   return raw ? Number(raw) : Number.POSITIVE_INFINITY;
 }

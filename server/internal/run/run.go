@@ -15,32 +15,16 @@
 // stays pending until every earlier run of the same user and lane has
 // stopped. Runs of different users or lanes proceed in parallel.
 //
-// Child is safe to call concurrently. A child holds no place in a lane and is
-// not counted in the wait group.
-//
 // The work is a function held in memory, so nothing of it survives the
 // process. When the process stops, pending work is dropped and running work
-// is cancelled, and their rows stay as they were; Sweep, run at boot before
-// any run starts, marks them interrupted. An interrupted run is neither
-// resumed nor restarted, and is kept apart from failed because nothing
-// recorded why it stopped.
-//
-// When work reaches its end, the runner marks the run completed unless the
-// work did so itself. A kind whose writes and completion must be one database
-// transaction calls CompleteRun inside that transaction, and the update made
-// afterwards matches no row. When work returns an error, the runner marks the
-// run failed with the error's text. A panic in Prepare or the work fails the
-// run.
+// is cancelled, and their rows stay as they were until the next boot marks
+// them interrupted. An interrupted run is neither resumed nor restarted, and
+// is kept apart from failed because nothing recorded why it stopped.
 //
 // A run records what an administrator may need to see as findings, which
 // belong to the run and are written by the work that met them; see
 // [006_findings.sql](../migrations/006_findings.sql). The items a run writes
-// are addressed to its user, who for an administrator's run is the user whose
-// keys it re-resolves.
-//
-// Telemetry mirrors runs by kind, trigger and terminal state, and findings by
-// kind. Its attributes are bounded, so nothing is counted per
-// run, and nothing reads it back: the rows are the record.
+// are addressed to its user.
 package run
 
 //go:generate go tool mockgen -source=run.go -destination=mock/run_mock.go -package=mock
@@ -72,8 +56,12 @@ type Store interface {
 
 var _ Store = (*gen.Queries)(nil)
 
-// Work is the body of a run. ctx is cancelled when the runner closes; work
-// that returns an error after that is left for Sweep rather than failed.
+// Work is the body of a run. The runner marks the run completed when work
+// returns nil and failed with the error's text otherwise; a panic counts as
+// an error. Work whose writes and completion must be one database
+// transaction calls CompleteRun inside it, and the runner's later update
+// matches no row. ctx is cancelled when the runner closes; work that returns
+// an error after that is left for Sweep rather than failed.
 type Work func(ctx context.Context, run gen.Run) error
 
 // Spec describes a run a user or an administrator starts.
@@ -82,8 +70,7 @@ type Spec struct {
 	// Trigger is user or administrator.
 	Trigger gen.RunTrigger
 	UserID  uuid.UUID
-	// Lane indicates which of a user's runs must be serialized (ie. two
-	// runs with the same lane must be serialized).
+	// Lane serialises a user's runs that share it.
 	Lane string
 	// Prepare runs in the caller once the run has been created but
 	// before the goroutine is started.
@@ -125,9 +112,9 @@ type handoff struct {
 	err error
 }
 
-// Start records a run of spec.Trigger, runs spec.Prepare, and queues the
-// work. It returns the pending row without waiting for the work. A run whose
-// row could not be inserted was never started and holds no place in its lane.
+// Start records a run and queues its work, returning the pending row without
+// waiting. A run whose row could not be inserted was never started and holds
+// no place in its lane.
 func (r *Runner) Start(ctx context.Context, spec Spec, work Work) (gen.Run, error) {
 	// Only the id and the lane link are under the lock, so lane order is id
 	// order.
@@ -157,8 +144,9 @@ func (r *Runner) Start(ctx context.Context, spec Spec, work Work) (gen.Run, erro
 	return row, err
 }
 
-// Child records a run of trigger run under parent and executes its work
-// inline. It returns the row as created and the error the work returned.
+// Child records a run under parent and executes its work inline, returning
+// the work's error. It is safe to call concurrently; a child holds no place
+// in a lane and is not counted in the wait group.
 func (r *Runner) Child(ctx context.Context, parent gen.Run, kind gen.RunKind, work Work) (gen.Run, error) {
 	if r.ctx.Err() != nil {
 		return gen.Run{}, ErrClosed

@@ -1,9 +1,7 @@
-// Holdings: what a user holds, of two kinds. A holding of an instrument is
-// the sum of their transaction quantities over every key resolved to it,
-// across its listings. A holding of a group is the sum over the unresolved
-// keys that state one holding between them. A sum of zero is neither.
-// Quantities are raw: no corporate event restates them. Every RPC requires a
-// session and reads the caller's own transactions.
+// Holdings: what a user holds, of two kinds, one per instrument and one per
+// group of unresolved keys. A sum of zero is no holding. Quantities are raw: no
+// corporate event restates them. Every RPC requires a session and reads the
+// caller's own transactions.
 
 syntax = "proto3";
 
@@ -20,22 +18,24 @@ message Description {
   string text = 2;
 }
 
-// A holding of an instrument a datasource named.
+// A holding of an instrument a datasource named, across its listings.
 message InstrumentHolding {
   // The instrument held; a UUID.
   string instrument_id = 1;
+  // The narrowest class known for the instrument.
   stonks.type.v1.AssetClass asset_class = 2;
   // Every identifier naming the instrument or one of its listings. Empty
   // when nothing names it.
   repeated stonks.type.v1.Identifier identifiers = 3;
-  // The sum of the caller's transaction quantities: shares, contracts, or
-  // money for cash, with no trailing zeros. Negative when more has been
-  // disposed of than acquired.
+  // The sum of the caller's transaction quantities over every key resolved to
+  // the instrument: shares, contracts, or money for cash, with no trailing
+  // zeros. Negative when more has been disposed of than acquired.
   string quantity = 4;
 }
 
-// A holding of the caller's unresolved keys, gathered by what they state in
-// common. It rests on the caller's statements alone.
+// A holding of the caller's unresolved keys that state one holding between
+// them, gathered by what they state in common. It rests on the caller's
+// statements alone.
 message GroupHolding {
   // Identifies the group; a UUID. It is the id of the group's earliest key,
   // so it changes as keys join and leave.

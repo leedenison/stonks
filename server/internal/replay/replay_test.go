@@ -74,9 +74,7 @@ type fixture struct {
 	regrouped  []uuid.UUID
 }
 
-// newFixture returns a service whose store runs a transaction inline over
-// itself and whose runner runs Prepare and the work inline, so a case
-// observes every write in order.
+// newFixture returns a service whose writes run inline and in order.
 func newFixture(t *testing.T) *fixture {
 	t.Helper()
 	ctrl := gomock.NewController(t)

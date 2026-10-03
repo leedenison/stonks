@@ -14,9 +14,8 @@
 // on it, so access is decided by the query and never checked after the read;
 // see [service.go](../service/service.go).
 //
-// Where a consumer must write several rows atomically, it declares the
-// queries it uses as an interface and takes a DB over it, whose Tx runs the
-// interface over one transaction; see [tx.go](tx.go).
+// A consumer that writes several rows atomically takes a DB; see
+// [tx.go](tx.go).
 //
 // This API reports sentinel errors such as ErrNotFound, checked with
 // errors.Is. SQLSTATEs reported by the driver are interrogated with
@@ -45,7 +44,7 @@ import (
 // sqlcNamePrefix introduces the query name sqlc emits above each statement.
 const sqlcNamePrefix = "-- name: "
 
-// ErrNotFound indeicates single-row query returned no rows.
+// ErrNotFound reports that a single-row query matched no row.
 var ErrNotFound = pgx.ErrNoRows
 
 // NewID mints a surrogate key.
@@ -116,7 +115,8 @@ func queryName(sql string) string {
 }
 
 // Migrate applies every pending migration in migrations.FS under goose's
-// session lock.
+// session lock, so concurrent replicas wait rather than race. A failure is
+// returned and the service does not start.
 func Migrate(ctx context.Context, pool *pgxpool.Pool) (err error) {
 	locker, err := lock.NewPostgresSessionLocker()
 	if err != nil {

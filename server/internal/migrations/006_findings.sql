@@ -14,9 +14,7 @@ CREATE TYPE finding_kind AS ENUM ('block', 'dropped', 'contradiction', 'merged')
 
 -- The step of the choice that dropped a candidate group: it contradicted the
 -- stated data, was inconsistent with a higher precedence response, or shared
--- no stable identifier with the winner. When a group is dropped for not
--- naming the identifier sent or for being outranked within its datasource,
--- the drop is routine and is summarised on the resolution key instead.
+-- no stable identifier with the winner.
 CREATE TYPE drop_step AS ENUM ('stated', 'precedence', 'corroboration');
 
 -- A finding highlights abnormal run outcomes to administrators.

@@ -30,9 +30,7 @@ func newHolder(t *testing.T, q *gen.Queries, email string) holder {
 	return holder{user: user, statement: newStatement(t, q, user)}
 }
 
-// key makes a stated key stating description, resolved to listing through
-// via. A key given no listing is unresolved, and group names the holding that
-// sums it.
+// key makes a stated key, resolved where a listing is given.
 func (h holder) key(t *testing.T, q *gen.Queries, description string, listing *gen.Listing, via *gen.Identifier) gen.StatedKey {
 	t.Helper()
 	ctx := context.Background()

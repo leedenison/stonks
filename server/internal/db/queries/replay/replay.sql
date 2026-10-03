@@ -1,5 +1,4 @@
 -- name: ListResolvedKeys :many
--- The stated keys a resolution run resolved.
 SELECT sqlc.embed(stated_keys)
 FROM stated_keys
 JOIN resolution_keys ON resolution_keys.stated_key_id = stated_keys.id
@@ -7,9 +6,8 @@ WHERE resolution_keys.run_id = $1 AND resolution_keys.user_id = $2
 ORDER BY stated_keys.id;
 
 -- name: ListUnavailableKeys :many
--- Those of ids that a transaction names and whose latest resolution left
--- them unavailable. Run ids order by creation, so the latest resolution of a
--- key is its row with the greatest run id.
+-- Run ids order by creation, so the latest resolution of a key is its row
+-- with the greatest run id.
 SELECT sqlc.embed(stated_keys)
 FROM stated_keys
 JOIN LATERAL (
@@ -24,9 +22,8 @@ WHERE stated_keys.id = ANY(@ids::uuid[])
 ORDER BY stated_keys.id;
 
 -- name: ListKeysUncoveredBy :many
--- Those of ids that a transaction names and are unresolved, or associated
--- with an instrument lacking the datasource's identity coverage. Keys of
--- reference data are left out: every datasource covers it without a row.
+-- Keys of reference data are left out: every datasource covers it without a
+-- row.
 SELECT sqlc.embed(stated_keys)
 FROM stated_keys
 LEFT JOIN instruments ON instruments.id = stated_keys.instrument_id

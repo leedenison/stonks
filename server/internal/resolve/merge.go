@@ -26,13 +26,13 @@ type hit struct {
 // which is returned reloaded, with a merged finding per instrument.
 // fetchKey is the response that brought the instruments together.
 //
-// Where two of the instruments carry identifiers of one type and domain with
-// different values, on the instruments or on listings of one currency
-// family, or disjoint classes, nothing merges: the instrument the strongest
-// stated identifier identifies is returned with a contradiction finding.
+// Where disagree finds the instruments cannot be one, nothing merges: the
+// instrument the strongest stated identifier identifies is returned with a
+// contradiction finding.
 //
-// Another user's keys are relinked without that user's key lock, so one
-// write of theirs may see the instrument it folded.
+// The merge relinks another user's keys without holding that user's key
+// lock. That user's concurrent write may therefore see an instrument the
+// merge has since folded.
 func merge(ctx context.Context, q Queries, res *resolution, fetchKey *uuid.UUID, hits []hit) (*found, map[types.Identifier]bool, []gen.CreateFindingParams, error) {
 	slices.SortFunc(hits, func(a, b hit) int {
 		return a.found.instrument.CreatedAt.Compare(b.found.instrument.CreatedAt)
@@ -86,12 +86,10 @@ func refuse(res *resolution, fetchKey *uuid.UUID, hits []hit, detail string) (*f
 }
 
 // fold moves the loser h into survivor under deferred constraints and
-// returns the merged finding, which names each instrument by when it was
-// created and by the identifiers of the response that found it: matched
-// for the survivor, h's own for the loser. families is the currency
-// families where survivor has a listing; a listing of the loser in another
-// moves across and joins it, the rest are relinked onto the survivor's and
-// deleted.
+// returns the merged finding. A
+// listing of the loser in a currency family the survivor lacks moves across
+// whole; one in a family the survivor has is relinked onto the survivor's
+// listing and deleted.
 func fold(ctx context.Context, q Queries, survivor *found, matched []types.Identifier, h hit, families map[string]bool, fetchKey *uuid.UUID) (gen.CreateFindingParams, error) {
 	loser := h.found
 	for _, l := range loser.listings {

@@ -14,14 +14,16 @@ import (
 	"github.com/leedenison/stonks/server/internal/run"
 )
 
-// Result is what one request of a fetch got. Source is the datasource that
-// served it, and ID the fetch_keys row, where the consumer attaches its
-// response.
+// Result is what one request of a fetch got.
 type Result[Q, P any] struct {
-	Request  Q
-	Source   string
-	ID       uuid.UUID
-	Outcome  gen.FetchOutcome
+	Request Q
+	// Source is the datasource that served the request.
+	Source string
+	// ID is the fetch_keys row, where the consumer attaches its response.
+	ID      uuid.UUID
+	Outcome gen.FetchOutcome
+	// Sent is the identifier the request went out under, nil where the
+	// datasource does not serve the request.
 	Sent     *types.Identifier
 	Reason   string
 	Response P
@@ -177,10 +179,8 @@ func fetchChunk[Q, P any](ctx context.Context, f *Fetcher, e *Entry, s Server[Q,
 }
 
 // requestFailed records a failure of the request itself against every key it
-// carried. A temporary failure leaves no block: the keys are failed
-// temporarily and a later fetch asks for them again. A permanent failure
-// blocks at the scope the integration gives it, the whole datasource or each
-// identifier the request named.
+// carried. A temporary failure leaves no block; a permanent one blocks at the
+// scope the integration gives it.
 func requestFailed[Q, P any](fail Failure, err error, results []Result[Q, P], batch []int, attempts int) []gen.CreateDatasourceBlockParams {
 	outcome := gen.FetchOutcomeFailedPermanent
 	if fail.Temporary {

@@ -19,6 +19,7 @@ option go_package = "github.com/leedenison/stonks/proto/type/v1;typev1";
 // A broker whose exports the system accepts.
 enum Broker {
   BROKER_UNSPECIFIED = 0;
+  // Interactive Brokers.
   BROKER_IBKR = 1;
   BROKER_SCHWAB = 2;
   BROKER_FIDELITY_UK = 3;
@@ -26,7 +27,6 @@ enum Broker {
 
 // What kind of thing an instrument is. A source states the narrowest class it
 // can defend, so an internal node is a legal stored value.
-// ASSET_CLASS_UNSPECIFIED when unset.
 //
 //   UNKNOWN            type is unknown to the source
 //     CASH             money in one currency
@@ -102,6 +102,7 @@ message StatedKey {
 
 // A change in the quantity of one instrument held by a user.
 message Transaction {
+  // Identifies the transaction in every API; a UUID.
   string id = 1;
   // The statement that wrote the transaction; the id of its run.
   string statement_id = 2;

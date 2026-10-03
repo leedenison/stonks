@@ -1,9 +1,7 @@
 -- +goose Up
 
--- A replay is a run of kind 'replay' and this row: the run whose keys it
--- re-resolves, the scope selecting them, and the administrator who started
--- it. source_id names a run of kind 'statement' or 'resolution' of the same
--- user.
+-- A replay is a run of kind 'replay' and this row. source_id names a run of
+-- kind 'statement' or 'resolution' of the same user.
 CREATE TABLE replays (
     id         uuid PRIMARY KEY,
     user_id    uuid NOT NULL REFERENCES users (id),

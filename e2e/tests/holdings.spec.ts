@@ -4,13 +4,12 @@ import { holdingClient } from "../helpers/api";
 import { expect, test } from "../helpers/test";
 
 // The fixture is a copy of the client's Fidelity UK test export, modelled on
-// a real export with its identifiers replaced. Its eleven rows sum to these
-// holdings, listed as the page orders them: cash first, then by name. The
-// cash keys state a currency identifier, which names the currency
-// instrument. Each security key states a description and at most a ticker
-// with no venue, which names nothing, so each is unresolved and is a holding
-// of its keys alone. The API states each quantity exactly and the page shows
-// it to two places.
+// a real export with its identifiers replaced. These are the holdings its
+// rows sum to, in the page's order: cash first, then by name. A cash key
+// states a currency identifier, which names the currency instrument. Each
+// security states at most a ticker with no venue, which names nothing, so
+// each stays a group holding of its keys alone. The API states each quantity
+// exactly and the page shows it to two places.
 const fixture = path.resolve(__dirname, "..", "fixtures", "fidelity-uk.csv");
 const expected = [
   {

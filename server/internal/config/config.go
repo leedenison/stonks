@@ -46,6 +46,7 @@ type Config struct {
 	Environment string
 }
 
+// Load reads the configuration from the environment and validates it.
 func Load() (Config, error) {
 	var errs []error
 	cfg := Config{
@@ -73,6 +74,8 @@ func Load() (Config, error) {
 	return cfg, nil
 }
 
+// Validate reports every required value that is missing, and a malformed
+// endpoint, as one error.
 func (c Config) Validate() error {
 	var errs []error
 	for _, r := range []struct{ key, val string }{

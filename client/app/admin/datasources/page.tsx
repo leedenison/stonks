@@ -38,9 +38,7 @@ const inputClass =
   "rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-text-primary focus:border-primary focus:ring-1 focus:ring-primary/30 focus:outline-hidden";
 
 // The datasources this instance has registered, in precedence order, the
-// first consulted first. A row is dragged by its handle to reorder them,
-// its state toggles in place, and its endpoint and credential are edited in
-// a dialog. A change takes effect at once.
+// first consulted first. A change takes effect at once.
 export default function DatasourcesPage() {
   const { data, isPending, isError, refetch } = useDatasources();
   const update = useUpdateDatasource();

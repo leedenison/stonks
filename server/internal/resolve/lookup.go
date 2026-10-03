@@ -14,9 +14,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/ptr"
 )
 
-// resolution is one stated key's resolution: the identifiers that resolve
-// it, what the lookup found, the results the datasources served, and
-// the outcome once decided.
+// resolution is one stated key's progress from lookup to outcome.
 type resolution struct {
 	row      gen.StatedKey
 	guids    []types.Identifier
@@ -27,8 +25,7 @@ type resolution struct {
 	reason   string
 }
 
-// found is the instrument the database names for a key, with its
-// identifiers and listings and the datasources with a coverage row for it.
+// found is the instrument the database names for a key.
 type found struct {
 	instrument  gen.Instrument
 	identifiers []gen.Identifier
@@ -68,7 +65,9 @@ func (res *resolution) decide(outcome gen.ResolutionOutcome, format string, args
 }
 
 // lookup finds the instrument the database names for row and decides the
-// resolutions that never reach a datasource.
+// resolutions that never reach a datasource. Each global identifier is
+// looked up, strongest first; where two name different instruments the key
+// is left unrecognised with a contradiction finding.
 func (r *Resolver) lookup(ctx context.Context, row gen.StatedKey, families func(string) string) (*resolution, error) {
 	res := &resolution{row: row, guids: guids(row)}
 	for _, id := range row.Identifiers {
@@ -114,9 +113,8 @@ func (r *Resolver) lookup(ctx context.Context, row gen.StatedKey, families func(
 	return res, nil
 }
 
-// lookupCurrency resolves a currency key against the seed, rejecting it
-// where it names a code the seed lacks, a class disjoint from the
-// instrument's, or a listing the instrument lacks.
+// lookupCurrency resolves a currency key against the seed; a currency key
+// never reaches a datasource.
 func (r *Resolver) lookupCurrency(ctx context.Context, res *resolution, code string, families func(string) string) error {
 	hit, err := r.store.FindIdentifier(ctx, gen.FindIdentifierParams{Type: types.IdentifierTypeCurrency, Value: code})
 	switch {

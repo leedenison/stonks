@@ -19,13 +19,10 @@ type Candidate struct {
 
 // IdentityResult is what was returned for one identifier of a batch.
 type IdentityResult struct {
-	// Filtered contains one or more identifiers when the datasource strictly
-	// filtered on them, empty otherwise.  This allows the framework to
-	// correctly interpret the Candidates set.
-	Filtered []types.Identifier
-	// Candidates contains the results that are constrained to be consistent
-	// with Filtered.  Where Filtered is empty, candidates contain the results
-	// of an unconstrained search.
+	// Filtered is the identifiers the datasource filtered on strictly, so
+	// every candidate is consistent with them. Empty means an unconstrained
+	// search.
+	Filtered   []types.Identifier
 	Candidates []Candidate
 }
 
@@ -37,8 +34,7 @@ type Identity interface {
 	Server[gen.StatedKey, IdentityResult]
 }
 
-// IdentityKind is the identity of the instruments stated keys name. The
-// request is the stated key row, and its id is the subject of the fetch key.
+// IdentityKind is the identity of the instruments stated keys name.
 var IdentityKind = Kind[gen.StatedKey, IdentityResult]{
 	name:    gen.FetchKindIdentity,
 	server:  func(e *Entry) Server[gen.StatedKey, IdentityResult] { return e.Identity },

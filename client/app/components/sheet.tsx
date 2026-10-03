@@ -4,11 +4,10 @@ import type { ReactNode } from "react";
 import { useModal } from "@/hooks/use-modal";
 import { DialogHeader } from "./dialog";
 
-// Sheet is a native <dialog> anchored to the right edge under the top bar,
-// full height, over the page but not modal: the top bar stays live, so its
-// icon can toggle the sheet closed. An overlay covers the page below the
-// bar, and a click on it, Escape, or the close control asks the owner to
-// close.
+// Sheet is a panel anchored to the right edge of the page, under the top
+// bar. It is not modal, so the top bar stays live and its icon can
+// toggle the sheet closed. A click on the overlay, Escape or the close
+// control asks the owner to close.
 export function Sheet({
   open,
   onClose,

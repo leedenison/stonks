@@ -5,7 +5,7 @@ CREATE TYPE broker AS ENUM ('ibkr', 'schwab', 'fidelity_uk');
 -- A statement is a run of kind 'statement': one batch of transactions a user
 -- submitted in the neutral format, claiming every account they hold at one
 -- broker over a half-open range of order dates.
---  
+--
 -- The row is keyed by the run and exists from receipt.
 CREATE TABLE statements (
     id           uuid        PRIMARY KEY,
@@ -41,9 +41,7 @@ CREATE TABLE stated_keys (
     -- whole key is the unique index, which bounds it at one btree entry
     -- (about 2.7KB).
     identifiers   jsonb       NOT NULL DEFAULT '[]',
-    -- instrument_id references this stated_key's resolved instrument.
     instrument_id uuid        REFERENCES instruments (id),
-    -- listing_id references this stated_key's resolved listing, if known.
     listing_id    uuid        REFERENCES listings (id),
     -- via_id references the identifier used to make the instrument/listing
     -- association.

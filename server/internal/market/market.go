@@ -1,8 +1,8 @@
 // Package market fetches market data from external datasources.
-// Datasources fetch one kind of data about a set of requests from one
-// external provider, and records what was requested and what came back.
-// A fetch is a child run of the work that needed the data.
-// See [run.go](../run/run.go).
+//
+// A fetch asks one datasource for one kind of data about a set of requests,
+// and records what was requested and what came back. A fetch is a child run
+// of the work that needed the data; see [run.go](../run/run.go).
 //
 // Each kind of data is a Kind, which names the request an integration
 // receives and the response it gives.  An integration serves a kind by
@@ -84,9 +84,7 @@ type Server[Q, P any] interface {
 	// Fetch calls the provider and marshalls the results, one response per
 	// request in the order given.
 	//
-	// Fetch is called with at most Batch requests, as one call. Rate limits
-	// are applied per datasource for the life of the process, so concurrent
-	// resolutions share the quota.
+	// Fetch is called with at most Batch requests, as one call.
 	Fetch(ctx context.Context, reqs []Request[Q]) ([]Response[P], error)
 }
 

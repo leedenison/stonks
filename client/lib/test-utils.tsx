@@ -35,9 +35,8 @@ export function newTestQueryClient(): QueryClient {
   });
 }
 
-// authWrapper returns a wrapper mounting the query client, the clients, the
-// auth provider and the activity provider over transport, for render and
-// renderHook.
+// authWrapper gives render and renderHook the providers a signed-in page
+// needs, served over transport.
 export function authWrapper(transport: Transport, client?: QueryClient) {
   const queryClient = client ?? newTestQueryClient();
   return function Wrapper({ children }: { children: ReactNode }) {

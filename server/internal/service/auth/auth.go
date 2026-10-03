@@ -1,10 +1,4 @@
 // Package auth serves stonks.auth.v1.
-//
-// SignIn answers with the session cookie, HttpOnly, SameSite=Lax, Path=/,
-// Secure outside local development, and a Max-Age of the session's maximum
-// lifetime; the server-side idle window governs whether it is still live.
-// SignOut answers with the same cookie expired. A refused sign-in reveals
-// nothing about whether an account exists.
 package auth
 
 import (
@@ -77,6 +71,10 @@ func (s *Server) SignOut(ctx context.Context, _ *connect.Request[authv1.SignOutR
 	return res, nil
 }
 
+// cookie is the session cookie: HttpOnly, SameSite=Lax, Path=/ and Secure
+// outside local development. SignIn sets it with a Max-Age of the session's
+// maximum lifetime, and SignOut with -1 to expire it; the server-side idle
+// window governs whether the session is still live.
 func (s *Server) cookie(value string, maxAge int) *http.Cookie {
 	return &http.Cookie{
 		Name:     service.CookieName,
@@ -89,6 +87,8 @@ func (s *Server) cookie(value string, maxAge int) *http.Cookie {
 	}
 }
 
+// signInError maps a refused sign-in to an error that reveals nothing about
+// whether an account exists.
 func signInError(err error) error {
 	switch {
 	case errors.Is(err, google.ErrMalformed):

@@ -1,9 +1,4 @@
 // Package statement serves stonks.statement.v1.
-//
-// A statement is read with the caller's user id in the query, so another
-// user's is not found rather than forbidden. When the ingester cannot read a
-// statement, the statement is an invalid argument; when it rejects a row, the
-// row is not, and is read back as an item.
 package statement
 
 import (
@@ -58,7 +53,9 @@ func New(ingester Ingester, reader Reader) *Server {
 	return &Server{ingester: ingester, reader: reader}
 }
 
-// CreateStatement starts ingesting the statement and answers with its run.
+// CreateStatement starts ingesting the statement and answers with its run. A
+// statement the ingester cannot read is an invalid argument. A row it rejects
+// is not an error; the row is read back as an item of the statement.
 func (s *Server) CreateStatement(ctx context.Context, req *connect.Request[statementv1.CreateStatementRequest]) (*connect.Response[statementv1.CreateStatementResponse], error) {
 	p, err := auth.User(ctx)
 	if err != nil {
@@ -91,7 +88,9 @@ func (s *Server) ListStatements(ctx context.Context, _ *connect.Request[statemen
 	return connect.NewResponse(out), nil
 }
 
-// GetStatement reads one of the caller's statements with its items.
+// GetStatement reads one of the caller's statements with its items. The query
+// carries the caller's user id, so another user's statement is not found
+// rather than forbidden.
 func (s *Server) GetStatement(ctx context.Context, req *connect.Request[statementv1.GetStatementRequest]) (*connect.Response[statementv1.GetStatementResponse], error) {
 	p, err := auth.User(ctx)
 	if err != nil {

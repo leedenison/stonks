@@ -173,9 +173,8 @@ function marshal(text: string): Statement {
   return statement(Broker.FIDELITY_UK, rows, [], period);
 }
 
-// recognise checks the type, the preamble's timeframe line, the header, and
-// that every transaction line states an account number in its Account
-// Number column.
+// recognise tells a Fidelity UK export by the account number on every
+// transaction line.
 function recognise(text: string, type: string): boolean {
   if (!TYPES.has(mediaType(type))) return false;
   let parsed: unknown;

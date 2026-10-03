@@ -81,8 +81,7 @@ func (s *script) Fetch(_ context.Context, reqs []market.Request[gen.StatedKey]) 
 	return out, nil
 }
 
-// syncRunner runs each run inline over the test's transaction, moving the
-// row through the states the real runner would.
+// syncRunner runs each run inline over the test's transaction.
 type syncRunner struct {
 	q *gen.Queries
 }
@@ -118,10 +117,8 @@ func (r syncRunner) execute(ctx context.Context, row gen.Run, work run.Work) err
 	return r.q.CompleteRun(ctx, row.ID)
 }
 
-// stack is a replay service and a statement service over one transaction
-// rolled back when the test ends, with two scripted datasources, alpha
-// enabled and beta not, a user whose statements are ingested, and an
-// administrator.
+// stack is the replay and statement services over one rolled-back
+// transaction. Datasource alpha is enabled and beta is not.
 type stack struct {
 	q          *gen.Queries
 	user       gen.User
@@ -174,8 +171,8 @@ var answer = market.IdentityResult{Filtered: []types.Identifier{isin}, Candidate
 	{Class: gen.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{isin}},
 }}
 
-// ingest ingests a statement holding ten of the ISIN's stock, bought with USD
-// cash, and returns the completed statement run.
+// ingest ingests one statement, a stock bought with USD cash, and returns
+// its completed run.
 func (s *stack) ingest(t *testing.T) gen.Run {
 	t.Helper()
 	ctx := context.Background()

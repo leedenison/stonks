@@ -1,26 +1,11 @@
 // Package telemetry configures the OpenTelemetry SDK for the process.
 //
-// Setup installs a tracer provider, a meter provider and a W3C trace context
-// propagator as the process globals. It is called once, at startup.
-//
 // Export is over OTLP/HTTP to one collector endpoint taken from the
 // configuration rather than from the OTEL_* variables the SDK reads for
-// itself. See [config.go](../config/config.go). An empty endpoint installs no
-// providers and every span and measurement is a no-op, which is what keeps
-// telemetry out of tests and out of the end-to-end stack.
+// itself. See [config.go](../config/config.go).
 //
 // Every span is sampled. A deployment this size is diagnosed one request at a
-// time, and a sampler drops the request being diagnosed. Metrics are pushed on
-// a fixed interval and held by the collector for Prometheus to scrape, so a
-// value is at most one interval plus one scrape old.
-//
-// The resource identifies the process. service.instance.id is what separates
-// two processes' series, so it is the hostname, stable across a restart of the
-// same container.
-//
-// The SDK reports its own failures through an error handler and a logger, both
-// bridged to slog, so a collector that cannot be reached says so in the
-// service log.
+// time, and a sampler drops the request being diagnosed.
 package telemetry
 
 import (
@@ -45,7 +30,8 @@ import (
 )
 
 // exportInterval is how often metrics are pushed. It matches the scrape
-// interval on the other side of the collector.
+// interval on the other side of the collector, so a value is at most one
+// interval plus one scrape old.
 const exportInterval = 15 * time.Second
 
 // Options are the settings of the process's telemetry.
@@ -64,10 +50,12 @@ type Options struct {
 	Log *slog.Logger
 }
 
-// Setup installs the process's OpenTelemetry providers and returns the
+// Setup installs the tracer provider, the meter provider and the W3C trace
+// context propagator as the process globals, once at startup, and returns the
 // function that shuts them down. The returned function is never nil, so a
-// caller defers it without checking, and it is a no-op when o.Endpoint is
-// empty.
+// caller defers it without checking. When o.Endpoint is empty no providers
+// are installed and every span and measurement is a no-op, which is what
+// keeps telemetry out of tests and out of the end-to-end stack.
 func Setup(ctx context.Context, o Options) (func(context.Context) error, error) {
 	bridge(o.Log)
 	nop := func(context.Context) error { return nil }
@@ -129,6 +117,8 @@ func signalURL(base, signal string) (string, error) {
 
 // newResource describes the process that emits every signal. It is built
 // by hand rather than from resource.Default, which reads the environment.
+// service.instance.id is what separates two processes' series, so it is the
+// hostname, stable across a restart of the same container.
 func newResource(o Options) (*resource.Resource, error) {
 	host, err := os.Hostname()
 	if err != nil {
@@ -143,7 +133,8 @@ func newResource(o Options) (*resource.Resource, error) {
 	), nil
 }
 
-// bridge routes the SDK's own errors and internal logging to log.
+// bridge routes the SDK's own errors and internal logging to log, so a
+// collector that cannot be reached says so in the service log.
 func bridge(log *slog.Logger) {
 	otel.SetErrorHandler(otel.ErrorHandlerFunc(func(err error) {
 		log.Error("opentelemetry", "err", err)

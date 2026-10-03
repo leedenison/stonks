@@ -31,6 +31,9 @@ SET instrument_id = $3, listing_id = $4, via_id = $5, validity = $6, group_id = 
 WHERE id = $1 AND user_id = $2;
 
 -- name: LockUserKeys :exec
+-- The user's key lock: an advisory lock serialising every write to one user's
+-- stated keys and groups, for the transaction. Its seed keeps it apart from
+-- LockIdentifiers.
 SELECT pg_advisory_xact_lock(hashtextextended(CAST(@user_id::uuid AS text), 0));
 
 -- name: ListGroupableKeys :many

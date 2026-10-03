@@ -25,8 +25,9 @@ type Entry struct {
 
 // Registry holds the enabled datasources in precedence order. It is built at
 // startup and rebuilt by Reload when an administrator changes the table. A
-// datasource's rate limiter outlives a reload, so a change does not reset
-// the quota spent.
+// datasource's rate limiter lives as long as the process and outlives a
+// reload, so concurrent fetches share one quota and a change does not reset
+// what is spent.
 type Registry struct {
 	store     Store
 	factories map[string]Factory
