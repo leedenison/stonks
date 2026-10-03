@@ -1,6 +1,7 @@
 import path from "node:path";
-import { FetchOutcome, ResolutionOutcome } from "../gen/admin/v1/admin_pb";
+import { FetchOutcome } from "../gen/admin/v1/admin_pb";
 import { RunKind, RunTrigger } from "../gen/run/v1/run_pb";
+import { ResolutionOutcome } from "../gen/type/v1/type_pb";
 import { adminClient, holdingClient } from "../helpers/api";
 import { expect, test } from "../helpers/test";
 

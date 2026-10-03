@@ -173,3 +173,31 @@ func TestResolutionKeys(t *testing.T) {
 		})
 	}
 }
+
+// TestLatestResolutions checks that a key's latest resolution over any run is
+// the one answered, that a key no resolution has reached has no row, and that
+// another user's keys are left out.
+func TestLatestResolutions(t *testing.T) {
+	ctx := context.Background()
+	q := newTx(t)
+	user := newUser(t, q, "latest@example.com")
+	other := newUser(t, q, "latest-other@example.com")
+	statement, theirs := newStatement(t, q, user), newStatement(t, q, other)
+	newKey := func(st gen.Statement) gen.StatedKey {
+		t.Helper()
+		key, err := q.CreateStatedKey(ctx, gen.CreateStatedKeyParams{ID: db.NewID(), StatementID: st.ID, UserID: st.UserID, Description: ptr.To(uuid.NewString()), Identifiers: []types.Identifier{}})
+		require.NoError(t, err)
+		return key
+	}
+	healed, unreached, foreign := newKey(statement), newKey(statement), newKey(theirs)
+	first, second := newResolution(t, q, user, statement), newResolution(t, q, user, statement)
+	resolved(t, q, first, healed, gen.ResolutionOutcomeUnavailable)
+	resolved(t, q, second, healed, gen.ResolutionOutcomeMatched)
+	resolved(t, q, newResolution(t, q, other, theirs), foreign, gen.ResolutionOutcomeMatched)
+
+	got, err := q.ListLatestResolutions(ctx, gen.ListLatestResolutionsParams{Ids: keyIDs(healed, unreached, foreign), UserID: user.ID})
+	require.NoError(t, err)
+	if len(got) != 1 || got[0].StatedKeyID != healed.ID || got[0].RunID != second.ID || got[0].Outcome != gen.ResolutionOutcomeMatched {
+		t.Errorf("ListLatestResolutions = %+v, want the healed key's second resolution alone", got)
+	}
+}

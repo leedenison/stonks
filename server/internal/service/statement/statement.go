@@ -31,6 +31,8 @@ type Reader interface {
 	ListStatements(ctx context.Context, userID uuid.UUID) ([]gen.ListStatementsRow, error)
 	GetStatement(ctx context.Context, arg gen.GetStatementParams) (gen.GetStatementRow, error)
 	ListStatementItems(ctx context.Context, arg gen.ListStatementItemsParams) ([]gen.StatementItem, error)
+	ListStatedKeys(ctx context.Context, arg gen.ListStatedKeysParams) ([]gen.StatedKey, error)
+	ListLatestResolutions(ctx context.Context, arg gen.ListLatestResolutionsParams) ([]gen.ResolutionKey, error)
 }
 
 var (
@@ -88,9 +90,9 @@ func (s *Server) ListStatements(ctx context.Context, _ *connect.Request[statemen
 	return connect.NewResponse(out), nil
 }
 
-// GetStatement reads one of the caller's statements with its items. The query
-// carries the caller's user id, so another user's statement is not found
-// rather than forbidden.
+// GetStatement reads one of the caller's statements with its items and its
+// keys. The query carries the caller's user id, so another user's statement
+// is not found rather than forbidden.
 func (s *Server) GetStatement(ctx context.Context, req *connect.Request[statementv1.GetStatementRequest]) (*connect.Response[statementv1.GetStatementResponse], error) {
 	p, err := auth.User(ctx)
 	if err != nil {
@@ -119,7 +121,41 @@ func (s *Server) GetStatement(ctx context.Context, req *connect.Request[statemen
 		}
 		out.Items = append(out.Items, item)
 	}
+	if out.Keys, err = s.keys(ctx, id, p.User.ID); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
 	return connect.NewResponse(out), nil
+}
+
+// keys answers the statement's keys, each with the outcome of its latest
+// resolution where one has recorded it.
+func (s *Server) keys(ctx context.Context, statement, user uuid.UUID) ([]*typev1.ResolutionItem, error) {
+	keys, err := s.reader.ListStatedKeys(ctx, gen.ListStatedKeysParams{StatementID: statement, UserID: user})
+	if err != nil || len(keys) == 0 {
+		return nil, err
+	}
+	ids := make([]uuid.UUID, 0, len(keys))
+	for _, k := range keys {
+		ids = append(ids, k.ID)
+	}
+	latest, err := s.reader.ListLatestResolutions(ctx, gen.ListLatestResolutionsParams{Ids: ids, UserID: user})
+	if err != nil {
+		return nil, err
+	}
+	outcome := make(map[uuid.UUID]gen.ResolutionKey, len(latest))
+	for _, r := range latest {
+		outcome[r.StatedKeyID] = r
+	}
+	out := make([]*typev1.ResolutionItem, 0, len(keys))
+	for _, k := range keys {
+		item := &typev1.ResolutionItem{StatedKey: to.ProtoStatedKey(k), StatedKeyId: k.ID.String()}
+		if r, ok := outcome[k.ID]; ok {
+			item.Outcome = types.ToProto[typev1.ResolutionOutcome](r.Outcome)
+			item.Reason = r.Reason
+		}
+		out = append(out, item)
+	}
+	return out, nil
 }
 
 func summary(st gen.Statement, run gen.Run, rejected int32) *statementv1.StatementSummary {

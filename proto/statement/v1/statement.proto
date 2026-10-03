@@ -130,6 +130,10 @@ message GetStatementResponse {
   StatementSummary statement = 1;
   // In statement order.
   repeated StatementItem items = 2;
+  // Every key the statement stated, each with the outcome of its latest
+  // resolution over any run. The outcome is unset while no resolution has
+  // recorded one for the key.
+  repeated stonks.type.v1.ResolutionItem keys = 3;
 }
 
 // Ingests statements and reads what each ingestion did.

@@ -218,8 +218,8 @@ func TestGetRun(t *testing.T) {
 				}}, nil)
 			},
 			want: func(out *adminv1.GetRunResponse) {
-				out.ResolutionItems = []*adminv1.ResolutionItem{{
-					StatedKey: keyMsg, StatedKeyId: keyID.String(), Outcome: adminv1.ResolutionOutcome_RESOLUTION_OUTCOME_UNRECOGNISED,
+				out.ResolutionItems = []*typev1.ResolutionItem{{
+					StatedKey: keyMsg, StatedKeyId: keyID.String(), Outcome: typev1.ResolutionOutcome_RESOLUTION_OUTCOME_UNRECOGNISED,
 				}}
 			},
 		},

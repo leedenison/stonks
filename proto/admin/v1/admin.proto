@@ -27,29 +27,6 @@ message UserRun {
   repeated UserRun children = 6;
 }
 
-// What a run of kind RESOLUTION made of one stated key.
-enum ResolutionOutcome {
-  RESOLUTION_OUTCOME_UNSPECIFIED = 0;
-  // The key was associated with an instrument.
-  RESOLUTION_OUTCOME_MATCHED = 1;
-  // The key contradicts the reference data it names, and its rows were refused.
-  RESOLUTION_OUTCOME_REJECTED = 2;
-  // The key was attempted and nothing resolved it, or every candidate was dropped.
-  RESOLUTION_OUTCOME_UNRECOGNISED = 3;
-  // Nothing served the key and a datasource serving it failed or was blocked.
-  RESOLUTION_OUTCOME_UNAVAILABLE = 4;
-}
-
-// One stated key a resolution attempted, with its outcome.
-message ResolutionItem {
-  stonks.type.v1.StatedKey stated_key = 1;
-  // Identifies the key across runs.
-  string stated_key_id = 2;
-  ResolutionOutcome outcome = 3;
-  // Why the key did not match.
-  optional string reason = 4;
-}
-
 // What one key of a fetch got.
 enum FetchOutcome {
   FETCH_OUTCOME_UNSPECIFIED = 0;
@@ -180,7 +157,7 @@ message GetRunResponse {
   // The rows this run rejected when its kind is STATEMENT.
   repeated stonks.statement.v1.StatementItem statement_items = 4;
   // The keys this run resolved when its kind is RESOLUTION.
-  repeated ResolutionItem resolution_items = 5;
+  repeated stonks.type.v1.ResolutionItem resolution_items = 5;
   // The keys this run fetched when its kind is FETCH.
   repeated FetchItem fetch_items = 6;
   // What this run re-resolves when its kind is REPLAY.

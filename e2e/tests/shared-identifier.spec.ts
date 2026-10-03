@@ -22,16 +22,19 @@ test("gathers the keys of two statements that share an identifier", async ({
   const { session } = await signIn();
   await page.goto("/transactions");
 
-  for (const fixture of [january, february]) {
+  const uploads = [january, february];
+  for (const [n, fixture] of uploads.entries()) {
     await page.getByTestId("upload-statement").click();
     await page.getByTestId("upload-file").setInputFiles(fixture);
     await expect(page.getByTestId("upload-rows")).toHaveText("3 rows");
     await page.getByTestId("upload-submit").click();
-    const item = page
+    // The sheet lists the earlier upload, completed, until it has read the
+    // new run, so the new item is awaited before its state is.
+    const items = page
       .getByTestId("activity-sheet")
-      .getByTestId(/^activity-item-/)
-      .first();
-    await expect(item.getByTestId("state-chip")).toHaveAttribute(
+      .getByTestId(/^activity-item-/);
+    await expect(items).toHaveCount(n + 1);
+    await expect(items.first().getByTestId("state-chip")).toHaveAttribute(
       "data-state",
       "completed",
     );

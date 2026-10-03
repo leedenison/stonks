@@ -51,6 +51,27 @@ const three = create(ListHoldingsResponseSchema, {
       quantity: "-141",
     }),
     create(InstrumentHoldingSchema, {
+      instrumentId: "i-acme",
+      assetClass: AssetClass.STOCK,
+      identifiers: [
+        create(IdentifierSchema, {
+          type: IdentifierType.MIC_TICKER,
+          domain: "XNAS",
+          value: "ACME",
+        }),
+        create(IdentifierSchema, {
+          type: IdentifierType.MIC_TICKER,
+          domain: "XNYS",
+          value: "ACME",
+        }),
+        create(IdentifierSchema, {
+          type: IdentifierType.ISIN,
+          value: "US0378331005",
+        }),
+      ],
+      quantity: "10",
+    }),
+    create(InstrumentHoldingSchema, {
       instrumentId: "i-gbp",
       assetClass: AssetClass.CASH,
       identifiers: [
@@ -66,10 +87,20 @@ const three = create(ListHoldingsResponseSchema, {
     create(GroupHoldingSchema, {
       groupId: "g-bae",
       assetClasses: [AssetClass.SECURITY],
+      identifiers: [
+        create(IdentifierSchema, {
+          type: IdentifierType.MIC_TICKER,
+          value: "BA.",
+        }),
+      ],
       descriptions: [
         create(DescriptionSchema, {
           broker: Broker.FIDELITY_UK,
           text: "BAE SYSTEMS (BA.)",
+        }),
+        create(DescriptionSchema, {
+          broker: Broker.IBKR,
+          text: "BAE SYSTEMS PLC",
         }),
       ],
       quantity: "120",
@@ -108,6 +139,7 @@ describe("HoldingsPage", () => {
     const rows = screen.getAllByTestId(/^holding-row-/);
     expect(rows.map((r) => r.getAttribute("data-testid"))).toEqual([
       "holding-row-i-gbp",
+      "holding-row-i-acme",
       "holding-row-g-bae",
       "holding-row-i-vusa",
     ]);
@@ -126,6 +158,42 @@ describe("HoldingsPage", () => {
     const bae = screen.getByTestId("holding-row-g-bae");
     expect(bae.textContent).toContain("BAE SYSTEMS (BA.)");
     expect(screen.getByTestId("holding-qty-g-bae").textContent).toBe("120.00");
+  });
+
+  it("marks a group as resting on the statements and shows what its keys state", async () => {
+    renderWithAuth(
+      page,
+      serving(() => three),
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId("holding-row-g-bae")).toBeTruthy(),
+    );
+    const bae = screen.getByTestId("holding-row-g-bae");
+    expect(bae.getAttribute("data-kind")).toBe("group");
+    const basis = screen.getByTestId("holding-basis");
+    expect(bae.contains(basis)).toBe(true);
+    expect(basis.getAttribute("data-state")).toBe("statements");
+    expect(basis.textContent).toBe("Statements only");
+    expect(bae.textContent).toContain("BA.");
+    expect(bae.textContent).toContain("IBKR");
+    expect(bae.textContent).toContain("BAE SYSTEMS PLC");
+    expect(screen.getAllByTestId("holding-basis")).toHaveLength(1);
+  });
+
+  it("names a resolved holding by its ticker with its registry codes beside it", async () => {
+    renderWithAuth(
+      page,
+      serving(() => three),
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId("holding-row-i-acme")).toBeTruthy(),
+    );
+    const acme = screen.getByTestId("holding-row-i-acme");
+    expect(acme.getAttribute("data-kind")).toBe("instrument");
+    expect(acme.textContent).toContain("ACME");
+    expect(acme.textContent).toContain("US0378331005");
+    expect(acme.textContent).not.toContain("XNYS");
+    expect(acme.textContent).not.toContain("Statements only");
   });
 
   it("offers a retry when the list fails", async () => {

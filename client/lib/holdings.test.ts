@@ -152,6 +152,76 @@ describe("holdingRows", () => {
     ]);
   });
 
+  it("shows the registry codes beside a resolved holding's name", () => {
+    const acme = instrument("i-acme", AssetClass.STOCK, [
+      ident(IdentifierType.OPENFIGI_SHARE_CLASS, "BBG001S5N8V8"),
+      ident(IdentifierType.CUSIP, "037833100"),
+      ident(IdentifierType.ISIN, "US0378331005"),
+      create(IdentifierSchema, {
+        type: IdentifierType.MIC_TICKER,
+        domain: "XNAS",
+        value: "ACME",
+      }),
+      create(IdentifierSchema, {
+        type: IdentifierType.MIC_TICKER,
+        domain: "XNYS",
+        value: "ACME",
+      }),
+      create(IdentifierSchema, {
+        type: IdentifierType.BROKER_ID,
+        domain: "ibkr",
+        value: "265598",
+      }),
+    ]);
+    const row = rows([acme])[0];
+    expect(row.kind).toBe("instrument");
+    expect(row.label).toBe("ACME");
+    expect(row.identifiers.map((i) => i.value)).toEqual([
+      "BBG001S5N8V8",
+      "037833100",
+      "US0378331005",
+    ]);
+  });
+
+  it("shows everything else a group's keys state beside its name", () => {
+    const g = group(
+      "g-5",
+      [AssetClass.SECURITY],
+      [
+        ident(IdentifierType.MIC_TICKER, "ACME"),
+        ident(IdentifierType.ISIN, "US0000000001"),
+      ],
+      [
+        { broker: Broker.IBKR, text: "ACME CORP" },
+        { broker: Broker.SCHWAB, text: "ACME CORPORATION" },
+      ],
+    );
+    const row = rows([], [g])[0];
+    expect(row.kind).toBe("group");
+    expect(row.label).toBe("ACME CORP");
+    expect(row.identifiers.map((i) => i.value)).toEqual([
+      "ACME",
+      "US0000000001",
+    ]);
+    if (row.kind !== "group") throw new Error("not a group");
+    expect(row.descriptions.map((d) => d.text)).toEqual(["ACME CORPORATION"]);
+  });
+
+  it("leaves out of a group's identifiers the one that names it", () => {
+    const g = group(
+      "g-6",
+      [],
+      [
+        ident(IdentifierType.ISIN, "US0000000001"),
+        ident(IdentifierType.MIC_TICKER, "ACME"),
+      ],
+      [],
+    );
+    const row = rows([], [g])[0];
+    expect(row.label).toBe("ACME");
+    expect(row.identifiers.map((i) => i.value)).toEqual(["US0000000001"]);
+  });
+
   it("puts cash first and the rest by label, of either kind", () => {
     const gbp = instrument("i-gbp", AssetClass.CASH, [
       ident(IdentifierType.CURRENCY, "GBP"),
