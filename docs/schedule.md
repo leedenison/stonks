@@ -27,12 +27,12 @@ of open issues and ADRs at `docs/tasks/<label>/`.
 
 ```
          001 open
-    |          |             |
-013 descr   011 browser    014 datasources
-    |          |             |
-    +----------+-------------+
-               |
-           002 close
+    |             |
+013 descr   014 datasources
+    |             |
+    +------+------+
+           |
+       002 close
 ```
 
 ## Completed

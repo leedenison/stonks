@@ -2,7 +2,7 @@ import path from "node:path";
 import { FetchOutcome } from "../gen/admin/v1/admin_pb";
 import { RunKind, RunTrigger } from "../gen/run/v1/run_pb";
 import { ResolutionOutcome } from "../gen/type/v1/type_pb";
-import { adminClient, holdingClient } from "../helpers/api";
+import { adminClient, holdingClient, statementClient } from "../helpers/api";
 import { expect, test } from "../helpers/test";
 
 // One IBKR line, derived from the client's IBKR test export, which is
@@ -35,6 +35,22 @@ test("replays a statement's unavailable key from the runs page and resolves it",
     "",
   );
   expect(runId).toBeTruthy();
+
+  // Unavailable, not unrecognised: the refusal is temporary.
+  await page.getByTestId("activity-sheet-close").click();
+  const keys = (
+    await statementClient(userSession).getStatement({ runId: runId! })
+  ).keys;
+  const key = keys.find((k) =>
+    k.statedKey?.identifiers.some((i) => i.value === isin),
+  );
+  expect(key).toBeTruthy();
+  await page.goto(`/statements/${runId}`);
+  await expect(
+    page
+      .getByTestId(`key-row-${key!.statedKeyId}`)
+      .getByTestId("resolution-chip"),
+  ).toHaveAttribute("data-state", "unavailable");
 
   // A temporary refusal leaves no block, so the holding rests on the key alone.
   const { session } = await signIn("admin");

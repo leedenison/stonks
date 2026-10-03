@@ -11,7 +11,7 @@ interactions:
       request:
         method: POST
         url: https://api.openfigi.com/v3/mapping
-        body: '[{"idType":"ID_ISIN","idValue":"US0378331005"}]'
+        body: '[{"idType":"ID_ISIN","idValue":"US0378331005","currency":"USD"}]'
       response:
         status: 429 Too Many Requests
         code: 429
@@ -20,7 +20,7 @@ interactions:
       request:
         method: POST
         url: https://api.openfigi.com/v3/mapping
-        body: '[{"idType":"ID_ISIN","idValue":"US0378331005"}]'
+        body: '[{"idType":"ID_ISIN","idValue":"US0378331005","currency":"USD"}]'
       response:
         status: 429 Too Many Requests
         code: 429
@@ -29,7 +29,7 @@ interactions:
       request:
         method: POST
         url: https://api.openfigi.com/v3/mapping
-        body: '[{"idType":"ID_ISIN","idValue":"US0378331005"}]'
+        body: '[{"idType":"ID_ISIN","idValue":"US0378331005","currency":"USD"}]'
       response:
         status: 429 Too Many Requests
         code: 429

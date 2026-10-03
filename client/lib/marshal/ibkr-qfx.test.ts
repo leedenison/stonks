@@ -148,10 +148,10 @@ describe("ibkrQfx", () => {
     expect(ibkrQfx.marshal(one).rows).toEqual(statement.rows.slice(0, 4));
   });
 
-  it("leaves a trade's key without a currency it does not state, and moves cash in the account's", () => {
+  it("takes the account's currency for a trade that states none, key and cash alike", () => {
     const bare = text.replace(/<CURRENCY>[\s\S]*?<\/CURRENCY>/, "");
     const rows = ibkrQfx.marshal(bare).rows;
-    expect(rows[0].key?.currency).toBeUndefined();
+    expect(rows[0].key?.currency).toBe("GBP");
     expect(rows.slice(1, 4).map((r) => r.key)).toEqual([
       cash("GBP"),
       cash("GBP"),
