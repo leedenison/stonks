@@ -19,6 +19,7 @@ import (
 
 	adminv1 "github.com/leedenison/stonks/proto/admin/v1"
 	"github.com/leedenison/stonks/proto/admin/v1/adminv1connect"
+	typev1 "github.com/leedenison/stonks/proto/type/v1"
 	"github.com/leedenison/stonks/server/internal/auth"
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
@@ -220,10 +221,10 @@ func (s *Server) fill(ctx context.Context, run gen.Run, out *adminv1.GetRunRespo
 		}
 		for _, it := range items {
 			k := it.ResolutionKey
-			out.ResolutionItems = append(out.ResolutionItems, &adminv1.ResolutionItem{
+			out.ResolutionItems = append(out.ResolutionItems, &typev1.ResolutionItem{
 				StatedKey:   to.ProtoStatedKey(it.StatedKey),
 				StatedKeyId: k.StatedKeyID.String(),
-				Outcome:     types.ToProto[adminv1.ResolutionOutcome](k.Outcome),
+				Outcome:     types.ToProto[typev1.ResolutionOutcome](k.Outcome),
 				Reason:      k.Reason,
 			})
 		}

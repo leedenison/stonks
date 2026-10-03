@@ -39,6 +39,14 @@ SELECT * FROM identifier_type_traits ORDER BY type;
 INSERT INTO resolution_keys (run_id, user_id, stated_key_id, outcome, reason)
 VALUES ($1, $2, $3, $4, $5);
 
+-- name: ListLatestResolutions :many
+-- Run ids order by creation, so the latest resolution of a key is its row
+-- with the greatest run id. A key no resolution has reached has no row.
+SELECT DISTINCT ON (stated_key_id) *
+FROM resolution_keys
+WHERE stated_key_id = ANY(@ids::uuid[]) AND user_id = @user_id::uuid
+ORDER BY stated_key_id, run_id DESC;
+
 -- name: ListResolutionKeys :many
 SELECT * FROM resolution_keys
 WHERE run_id = $1 AND user_id = $2

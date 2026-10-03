@@ -11,7 +11,15 @@ import {
   StatementService,
   StatementSummarySchema,
 } from "@/gen/statement/v1/statement_pb";
-import { AssetClass, Broker, StatedKeySchema } from "@/gen/type/v1/type_pb";
+import {
+  AssetClass,
+  Broker,
+  IdentifierSchema,
+  IdentifierType,
+  ResolutionItemSchema,
+  ResolutionOutcome,
+  StatedKeySchema,
+} from "@/gen/type/v1/type_pb";
 import { pollInterval } from "@/lib/run";
 import { liveSession, renderWithAuth, transportWith } from "@/lib/test-utils";
 import StatementPage from "./page";
@@ -35,12 +43,63 @@ async function advance(ms: number) {
   }
 }
 
-function response(state: RunState, rejected: number, error?: string) {
+// keys returns a statement's three keys: cash matched, one key nothing
+// recognised and one whose datasource failed. While the run is live, two of
+// them are listed with no outcome yet.
+function keys(resolved: boolean) {
+  const gbp = create(StatedKeySchema, {
+    assetClass: AssetClass.CASH,
+    currency: "GBP",
+  });
+  const isin = create(StatedKeySchema, {
+    identifiers: [
+      create(IdentifierSchema, {
+        type: IdentifierType.ISIN,
+        value: "US0378331005",
+      }),
+    ],
+    description: "APPLE INC",
+  });
+  const bare = create(StatedKeySchema, { description: "Baillie Gifford" });
+  if (!resolved) {
+    return [
+      create(ResolutionItemSchema, { statedKey: gbp, statedKeyId: "k-gbp" }),
+      create(ResolutionItemSchema, { statedKey: isin, statedKeyId: "k-isin" }),
+    ];
+  }
+  return [
+    create(ResolutionItemSchema, {
+      statedKey: gbp,
+      statedKeyId: "k-gbp",
+      outcome: ResolutionOutcome.MATCHED,
+    }),
+    create(ResolutionItemSchema, {
+      statedKey: isin,
+      statedKeyId: "k-isin",
+      outcome: ResolutionOutcome.UNAVAILABLE,
+      reason: "openfigi: failed: 429",
+    }),
+    create(ResolutionItemSchema, {
+      statedKey: bare,
+      statedKeyId: "k-bare",
+      outcome: ResolutionOutcome.UNRECOGNISED,
+      reason: "no global identifier",
+    }),
+  ];
+}
+
+function response(
+  state: RunState,
+  rejected: number,
+  error?: string,
+  withKeys = false,
+) {
   const gbp = create(StatedKeySchema, {
     assetClass: AssetClass.CASH,
     currency: "GBP",
   });
   return create(GetStatementResponseSchema, {
+    keys: withKeys ? keys(state === RunState.COMPLETED) : [],
     statement: create(StatementSummarySchema, {
       run: create(RunSchema, {
         id: "r1",
@@ -134,6 +193,43 @@ describe("StatementPage", () => {
     expect(screen.getByRole("status").textContent).toContain("accepted");
     await advance(pollInterval * 3);
     expect(getStatement).toHaveBeenCalledTimes(3);
+  });
+
+  it("lists each key with what its latest resolution made of it", async () => {
+    renderWithAuth(
+      <StatementPage />,
+      serving(() => response(RunState.COMPLETED, 0, undefined, true)),
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId("statement-keys")).toBeTruthy(),
+    );
+    const state = (id: string) =>
+      screen
+        .getByTestId(`key-row-${id}`)
+        .querySelector("[data-testid=resolution-chip]")
+        ?.getAttribute("data-state");
+    expect(state("k-gbp")).toBe("matched");
+    expect(state("k-isin")).toBe("unavailable");
+    expect(state("k-bare")).toBe("unrecognised");
+    const isin = screen.getByTestId("key-row-k-isin");
+    expect(isin.textContent).toContain("US0378331005");
+    expect(isin.textContent).toContain("APPLE INC");
+    expect(isin.textContent).toContain("openfigi: failed: 429");
+  });
+
+  it("shows a key as resolving while the run is live", async () => {
+    renderWithAuth(
+      <StatementPage />,
+      serving(() => response(RunState.RUNNING, 0, undefined, true)),
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId("statement-keys")).toBeTruthy(),
+    );
+    const chips = screen.getAllByTestId("resolution-chip");
+    expect(chips.map((c) => c.getAttribute("data-state"))).toEqual([
+      "resolving",
+      "resolving",
+    ]);
   });
 
   it("shows a failed run's error", async () => {

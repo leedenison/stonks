@@ -3,20 +3,24 @@
 import { Code, ConnectError } from "@connectrpc/connect";
 import { useParams } from "next/navigation";
 import { Chip } from "@/app/components/chip";
+import { StatedKeyChips } from "@/app/components/identifier-chip";
 import { Notice } from "@/app/components/notice";
 import { Page } from "@/app/components/page-frame";
 import { RejectionGroups } from "@/app/components/rejection-groups";
+import { ResolutionChip } from "@/app/components/resolution-chip";
 import { Skeleton } from "@/app/components/skeleton";
 import { StateChip } from "@/app/components/state-chip";
+import { TableCard, Td, Th, Thead, Tr } from "@/app/components/table";
+import type { ResolutionItem } from "@/gen/type/v1/type_pb";
 import { useStatement } from "@/hooks/use-statement";
 import { brokerLabel } from "@/lib/broker";
 import { formatInstant } from "@/lib/format";
 import { prevDay } from "@/lib/marshal/date";
-import { outcome } from "@/lib/run";
+import { isTerminal, outcome } from "@/lib/run";
 
-// One statement: what was uploaded, how its run ended, and every rejected
-// row grouped by reason. The title names the upload by its broker and the
-// moment it started.
+// One statement, with its run, its rejected rows and the resolution of every
+// key it stated. The title names the upload by its broker and the moment it
+// started.
 export default function StatementPage() {
   const { id } = useParams<{ id: string }>();
   const { data, isPending, error, refetch } = useStatement(id);
@@ -81,6 +85,12 @@ export default function StatementPage() {
           >
             <RejectionGroups items={data.items} />
           </Body>
+          {data.keys.length > 0 && (
+            <Keys
+              keys={data.keys}
+              live={!isTerminal(data.statement.run?.state)}
+            />
+          )}
         </>
       )}
     </Page>
@@ -114,6 +124,38 @@ function Body({
         </section>
       );
   }
+}
+
+// Keys lists what the statement stated, one row per key, with the outcome
+// of the key's latest resolution.
+function Keys({ keys, live }: { keys: ResolutionItem[]; live: boolean }) {
+  return (
+    <section className="flex flex-col gap-2">
+      <h2 className="text-lg font-semibold tracking-tight">Keys</h2>
+      <TableCard testId="statement-keys">
+        <Thead>
+          <tr>
+            <Th>Stated key</Th>
+            <Th>Outcome</Th>
+            <Th>Reason</Th>
+          </tr>
+        </Thead>
+        <tbody>
+          {keys.map((k) => (
+            <Tr key={k.statedKeyId} data-testid={`key-row-${k.statedKeyId}`}>
+              <Td>
+                <StatedKeyChips statedKey={k.statedKey} />
+              </Td>
+              <Td>
+                <ResolutionChip outcome={k.outcome} live={live} />
+              </Td>
+              <Td>{k.reason}</Td>
+            </Tr>
+          ))}
+        </tbody>
+      </TableCard>
+    </section>
+  );
 }
 
 function Failure({ error, onRetry }: { error: Error; onRetry: () => void }) {

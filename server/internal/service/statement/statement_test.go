@@ -23,6 +23,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/auth"
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/db/types"
 	"github.com/leedenison/stonks/server/internal/ptr"
 	servicemock "github.com/leedenison/stonks/server/internal/service/mock"
 	"github.com/leedenison/stonks/server/internal/service/servicetest"
@@ -190,25 +191,55 @@ func TestGetStatement(t *testing.T) {
 		t.Fatal(err)
 	}
 	items := []gen.StatementItem{{StatementID: runID, UserID: userID, Ordinal: 2, Reason: "no admissible identifier", Stated: stated}}
+	// Three keys the statement stated: one matched by its latest resolution
+	// after an earlier one left it unavailable, one left unrecognised, and
+	// one no resolution has reached.
+	matchedID, unrecognisedID, unreachedID := uuid.MustParse("00000000-0000-0000-0000-000000000021"), uuid.MustParse("00000000-0000-0000-0000-000000000022"), uuid.MustParse("00000000-0000-0000-0000-000000000023")
+	isin := types.Identifier{Type: types.IdentifierTypeIsin, Value: "US0378331005"}
+	keys := []gen.StatedKey{
+		{ID: matchedID, StatementID: runID, UserID: userID, Identifiers: []types.Identifier{isin}},
+		{ID: unrecognisedID, StatementID: runID, UserID: userID, Description: ptr.To("ACME"), Identifiers: []types.Identifier{}},
+		{ID: unreachedID, StatementID: runID, UserID: userID, Currency: ptr.To("GBP"), Identifiers: []types.Identifier{}},
+	}
+	latest := []gen.ResolutionKey{
+		{StatedKeyID: matchedID, Outcome: gen.ResolutionOutcomeMatched},
+		{StatedKeyID: unrecognisedID, Outcome: gen.ResolutionOutcomeUnrecognised, Reason: ptr.To("no global identifier")},
+	}
+	keyMsgs := []*typev1.ResolutionItem{
+		{StatedKey: &typev1.StatedKey{Identifiers: []*typev1.Identifier{{Type: typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, Value: "US0378331005"}}}, StatedKeyId: matchedID.String(), Outcome: typev1.ResolutionOutcome_RESOLUTION_OUTCOME_MATCHED},
+		{StatedKey: &typev1.StatedKey{Description: ptr.To("ACME")}, StatedKeyId: unrecognisedID.String(), Outcome: typev1.ResolutionOutcome_RESOLUTION_OUTCOME_UNRECOGNISED, Reason: ptr.To("no global identifier")},
+		{StatedKey: &typev1.StatedKey{Currency: ptr.To("GBP")}, StatedKeyId: unreachedID.String()},
+	}
 	tests := []struct {
-		name     string
-		id       string
-		authErr  error
-		row      gen.GetStatementRow
-		err      error
-		items    []gen.StatementItem
-		itemsErr error
-		want     *statementv1.GetStatementResponse
-		wantCode connect.Code
+		name      string
+		id        string
+		authErr   error
+		row       gen.GetStatementRow
+		err       error
+		items     []gen.StatementItem
+		itemsErr  error
+		readsKeys bool
+		keys      []gen.StatedKey
+		keysErr   error
+		latest    []gen.ResolutionKey
+		latestErr error
+		want      *statementv1.GetStatementResponse
+		wantCode  connect.Code
 	}{
 		{
-			name: "with items", id: runID.String(), row: gen.GetStatementRow{Statement: stmt, Run: run, Rejected: 1}, items: items,
+			name: "with items", id: runID.String(), row: gen.GetStatementRow{Statement: stmt, Run: run, Rejected: 1}, items: items, readsKeys: true,
 			want: &statementv1.GetStatementResponse{Statement: summ, Items: []*statementv1.StatementItem{{Ordinal: 2, Reason: "no admissible identifier", Row: rowMsg}}},
+		},
+		{
+			name: "with keys", id: runID.String(), row: gen.GetStatementRow{Statement: stmt, Run: run, Rejected: 1}, readsKeys: true, keys: keys, latest: latest,
+			want: &statementv1.GetStatementResponse{Statement: summ, Keys: keyMsgs},
 		},
 		{name: "not found", id: runID.String(), err: db.ErrNotFound, wantCode: connect.CodeNotFound},
 		{name: "failure", id: runID.String(), err: errors.New("boom"), wantCode: connect.CodeInternal},
 		{name: "items failure", id: runID.String(), row: gen.GetStatementRow{Statement: stmt, Run: run}, itemsErr: errors.New("boom"), wantCode: connect.CodeInternal},
 		{name: "unreadable item", id: runID.String(), row: gen.GetStatementRow{Statement: stmt, Run: run}, items: []gen.StatementItem{{Ordinal: 0, Stated: []byte("{")}}, wantCode: connect.CodeInternal},
+		{name: "keys failure", id: runID.String(), row: gen.GetStatementRow{Statement: stmt, Run: run}, readsKeys: true, keysErr: errors.New("boom"), wantCode: connect.CodeInternal},
+		{name: "resolutions failure", id: runID.String(), row: gen.GetStatementRow{Statement: stmt, Run: run}, readsKeys: true, keys: keys, latestErr: errors.New("boom"), wantCode: connect.CodeInternal},
 		{name: "malformed id", id: "not-a-uuid", wantCode: connect.CodeInvalidArgument},
 		{name: "unauthenticated", id: runID.String(), authErr: auth.ErrUnauthenticated, wantCode: connect.CodeUnauthenticated},
 	}
@@ -220,6 +251,12 @@ func TestGetStatement(t *testing.T) {
 				f.reader.EXPECT().GetStatement(gomock.Any(), gen.GetStatementParams{ID: runID, UserID: userID}).Return(tc.row, tc.err)
 				if tc.err == nil {
 					f.reader.EXPECT().ListStatementItems(gomock.Any(), gen.ListStatementItemsParams{StatementID: runID, UserID: userID}).Return(tc.items, tc.itemsErr)
+				}
+				if tc.readsKeys {
+					f.reader.EXPECT().ListStatedKeys(gomock.Any(), gen.ListStatedKeysParams{StatementID: runID, UserID: userID}).Return(tc.keys, tc.keysErr)
+				}
+				if tc.readsKeys && tc.keysErr == nil && len(tc.keys) > 0 {
+					f.reader.EXPECT().ListLatestResolutions(gomock.Any(), gen.ListLatestResolutionsParams{Ids: []uuid.UUID{matchedID, unrecognisedID, unreachedID}, UserID: userID}).Return(tc.latest, tc.latestErr)
 				}
 			}
 			res, err := f.client.GetStatement(context.Background(), connect.NewRequest(&statementv1.GetStatementRequest{RunId: tc.id}))

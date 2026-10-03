@@ -1,9 +1,6 @@
 import path from "node:path";
-import {
-  FetchOutcome,
-  FindingKind,
-  ResolutionOutcome,
-} from "../gen/admin/v1/admin_pb";
+import { FetchOutcome, FindingKind } from "../gen/admin/v1/admin_pb";
+import { ResolutionOutcome } from "../gen/type/v1/type_pb";
 import { adminClient } from "../helpers/api";
 import { expect, test } from "../helpers/test";
 

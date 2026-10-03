@@ -16,6 +16,7 @@ import {
 import { Notice } from "@/app/components/notice";
 import { Page } from "@/app/components/page-frame";
 import { RejectionGroups } from "@/app/components/rejection-groups";
+import { ResolutionChip } from "@/app/components/resolution-chip";
 import { Skeleton } from "@/app/components/skeleton";
 import { RunChip } from "@/app/components/state-chip";
 import { TableCard, Td, Th, Thead, Tr } from "@/app/components/table";
@@ -25,7 +26,6 @@ import {
   type Finding,
   FindingKind,
   type GetRunResponse,
-  ResolutionOutcome,
   type UserRun,
 } from "@/gen/admin/v1/admin_pb";
 import { type Run, RunKind } from "@/gen/run/v1/run_pb";
@@ -487,7 +487,7 @@ function Items({ data }: { data: GetRunResponse }) {
                   <StatedKeyChips statedKey={it.statedKey} />
                 </Td>
                 <Td>
-                  <Chip>{enumLabel(ResolutionOutcome, it.outcome)}</Chip>
+                  <ResolutionChip outcome={it.outcome} />
                 </Td>
                 <Td>{it.reason}</Td>
               </Tr>

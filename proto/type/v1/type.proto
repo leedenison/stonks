@@ -100,6 +100,29 @@ message StatedKey {
   optional string description = 4;
 }
 
+// What a run of kind RESOLUTION made of one stated key.
+enum ResolutionOutcome {
+  RESOLUTION_OUTCOME_UNSPECIFIED = 0;
+  // The key was associated with an instrument.
+  RESOLUTION_OUTCOME_MATCHED = 1;
+  // The key contradicts the reference data it names, and its rows were refused.
+  RESOLUTION_OUTCOME_REJECTED = 2;
+  // The key was attempted and nothing resolved it, or every candidate was dropped.
+  RESOLUTION_OUTCOME_UNRECOGNISED = 3;
+  // Nothing served the key and a datasource serving it failed or was blocked.
+  RESOLUTION_OUTCOME_UNAVAILABLE = 4;
+}
+
+// One stated key with what a resolution made of it.
+message ResolutionItem {
+  StatedKey stated_key = 1;
+  // Identifies the key across runs.
+  string stated_key_id = 2;
+  ResolutionOutcome outcome = 3;
+  // Why the key did not match.
+  optional string reason = 4;
+}
+
 // A change in the quantity of one instrument held by a user.
 message Transaction {
   // Identifies the transaction in every API; a UUID.
