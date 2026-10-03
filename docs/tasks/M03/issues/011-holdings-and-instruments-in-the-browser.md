@@ -1,7 +1,6 @@
 ---
 title: Holdings and instruments in the browser
 type: task
-dependencies: [010]
 ---
 
 ## Scope
@@ -18,8 +17,7 @@ In:
   their listings and identifiers.
 - The statement page distinguishing a key whose identification was unavailable from one
   nothing recognised.
-- An e2e spec uploading the two-broker fixtures against the stub and asserting one
-  resolved holding.
+- An e2e spec uploading the two-broker fixtures and asserting one resolved holding.
 
 Out:
 
