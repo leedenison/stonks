@@ -8,6 +8,27 @@ INSERT INTO listings (id, instrument_id, currency, fetch_key_id)
 VALUES ($1, $2, $3, $4)
 RETURNING *;
 
+-- name: ListUserInstruments :many
+-- The instruments the user's keys resolved to, counting only the keys that
+-- a transaction names.
+SELECT * FROM instruments
+WHERE id IN (
+    SELECT stated_keys.instrument_id FROM stated_keys
+    WHERE stated_keys.user_id = @user_id::uuid
+      AND stated_keys.instrument_id IS NOT NULL
+      AND EXISTS (SELECT 1 FROM transactions WHERE transactions.stated_key_id = stated_keys.id))
+ORDER BY id;
+
+-- name: ListListingsOf :many
+SELECT * FROM listings
+WHERE instrument_id = ANY(@ids::uuid[])
+ORDER BY instrument_id, currency;
+
+-- name: ListIdentifiersOf :many
+SELECT * FROM identifiers
+WHERE instrument_id = ANY(@ids::uuid[])
+ORDER BY instrument_id, listing_id NULLS FIRST, type, domain, value;
+
 -- name: ListListings :many
 SELECT * FROM listings
 WHERE instrument_id = $1

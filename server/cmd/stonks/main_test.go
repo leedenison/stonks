@@ -19,6 +19,8 @@ import (
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 	"go.uber.org/mock/gomock"
 
+	authv1 "github.com/leedenison/stonks/proto/auth/v1"
+	"github.com/leedenison/stonks/proto/auth/v1/authv1connect"
 	instrumentv1 "github.com/leedenison/stonks/proto/instrument/v1"
 	"github.com/leedenison/stonks/proto/instrument/v1/instrumentv1connect"
 	"github.com/leedenison/stonks/server/internal/auth"
@@ -94,28 +96,35 @@ func TestServer(t *testing.T) {
 	live := service.CookieName + "=live"
 	h1 := &http.Client{Transport: &servicetest.Transport{Cookie: live, Next: srv.Client().Transport}}
 	h2 := &http.Client{Transport: &servicetest.Transport{Cookie: live, Next: h2Plain.Transport}}
+	// GetSession is the probe through the chain: it needs no database, and
+	// answering the user shows the session reached the handler.
 	tests := []struct {
 		name   string
-		client instrumentv1connect.InstrumentServiceClient
+		client authv1connect.AuthServiceClient
 	}{
-		{name: "connect over http/1.1", client: instrumentv1connect.NewInstrumentServiceClient(h1, srv.URL)},
-		{name: "grpc over unencrypted http/2", client: instrumentv1connect.NewInstrumentServiceClient(h2, srv.URL, connect.WithGRPC())},
+		{name: "connect over http/1.1", client: authv1connect.NewAuthServiceClient(h1, srv.URL)},
+		{name: "grpc over unencrypted http/2", client: authv1connect.NewAuthServiceClient(h2, srv.URL, connect.WithGRPC())},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			spans.Reset()
-			_, err := tc.client.ListInstruments(context.Background(), connect.NewRequest(&instrumentv1.ListInstrumentsRequest{}))
+			res, err := tc.client.GetSession(context.Background(), connect.NewRequest(&authv1.GetSessionRequest{}))
 			if err != nil {
-				t.Errorf("ListInstruments: %v", err)
+				t.Fatalf("GetSession: %v", err)
+			}
+			if got := res.Msg.GetUser().GetEmail(); got != "one@example.com" {
+				t.Errorf("GetSession user = %q, want the session's user", got)
 			}
 			// The span is named for the procedure without its leading slash.
-			want := []string{strings.TrimPrefix(instrumentv1connect.InstrumentServiceListInstrumentsProcedure, "/")}
+			want := []string{strings.TrimPrefix(authv1connect.AuthServiceGetSessionProcedure, "/")}
 			if got := endedNames(); !slices.Equal(got, want) {
-				t.Errorf("ListInstruments recorded spans %v, want %v", got, want)
+				t.Errorf("GetSession recorded spans %v, want %v", got, want)
 			}
 		})
 	}
 
+	// A handler that needs a session refuses a visitor before it reads
+	// anything, so no database is needed here either.
 	t.Run("no session", func(t *testing.T) {
 		client := instrumentv1connect.NewInstrumentServiceClient(srv.Client(), srv.URL)
 		_, err := client.ListInstruments(context.Background(), connect.NewRequest(&instrumentv1.ListInstrumentsRequest{}))

@@ -7,9 +7,10 @@ import { UploadDialog } from "@/app/components/upload-dialog";
 import { useActivity } from "@/contexts/activity-context";
 import { UploadProvider, useUpload } from "@/contexts/upload-context";
 
-// The segment that holds every page needing a session. The group adds no
-// URL segment, so the pages keep their paths. The upload dialog is mounted
-// once here, so any page can open it.
+// The shell of the user pages, every one of which needs a session: under
+// the top bar, the sidebar listing the pages beside the page's own column,
+// with the upload dialog mounted once so any page can open it. The group
+// adds no URL segment, so the pages keep their paths.
 export default function AppLayout({ children }: { children: ReactNode }) {
   return (
     <SessionGuard>

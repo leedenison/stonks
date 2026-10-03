@@ -7,8 +7,9 @@ import { SessionGuard } from "@/app/components/session-guard";
 import { useAuth } from "@/contexts/auth-context";
 import { Role } from "@/gen/auth/v1/auth_pb";
 
-// The admin area shares the top bar and has its own navigation. A user
-// without the admin role sees access denied under the top bar.
+// The shell of the admin area: under the shared top bar, the area's own
+// sectioned navigation beside the page's column. A user without the admin
+// role sees access denied under the top bar.
 export default function AdminLayout({ children }: { children: ReactNode }) {
   return (
     <SessionGuard>

@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/require"
 
@@ -222,5 +223,39 @@ func TestListInstrumentsByIdentifiers(t *testing.T) {
 	}
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("ListInstrumentsByIdentifiers mismatch (-want +got):\n%s", diff)
+	}
+}
+
+// TestListUserInstruments checks that a resolved key with a transaction lists
+// its instrument even when its transactions sum to zero. A key without a
+// transaction, an unresolved key and another user's key list nothing.
+func TestListUserInstruments(t *testing.T) {
+	ctx := context.Background()
+	q := newTx(t)
+	h, other := newHolder(t, q, "instruments@example.com"), newHolder(t, q, "instruments-other@example.com")
+	usd, usdVia := cashListing(t, q, "USD")
+	gbp, gbpVia := cashListing(t, q, "GBP")
+	eur, eurVia := cashListing(t, q, "EUR")
+	sold := h.key(t, q, "USD", &usd, &usdVia)
+	h.record(t, q, sold, "10")
+	h.record(t, q, sold, "-10")
+	h.key(t, q, "GBP", &gbp, &gbpVia)
+	h.record(t, q, h.key(t, q, "ACME", nil, nil), "5")
+	other.record(t, q, other.key(t, q, "EUR", &eur, &eurVia), "1")
+
+	got, err := q.ListUserInstruments(ctx, h.user.ID)
+	require.NoError(t, err)
+	if len(got) != 1 || got[0].ID != usd.InstrumentID {
+		t.Fatalf("ListUserInstruments = %+v, want the dollar alone", got)
+	}
+	listings, err := q.ListListingsOf(ctx, []uuid.UUID{usd.InstrumentID})
+	require.NoError(t, err)
+	if len(listings) != 1 || listings[0].ID != usd.ID {
+		t.Errorf("ListListingsOf = %+v, want the dollar's listing", listings)
+	}
+	idents, err := q.ListIdentifiersOf(ctx, []uuid.UUID{usd.InstrumentID})
+	require.NoError(t, err)
+	if len(idents) != 1 || idents[0].ID != usdVia.ID {
+		t.Errorf("ListIdentifiersOf = %+v, want the dollar's code", idents)
 	}
 }

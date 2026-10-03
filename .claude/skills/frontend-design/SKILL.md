@@ -61,16 +61,9 @@ body text. JetBrains Mono with tabular figures for every number, date and identi
 
 ## Shell
 
-- `components/top-bar.tsx`: the logo and wordmark leading home, the activity icon with
-  its badge, and the profile menu with the secondary pages, the admin link for an
-  administrator, the scheme switch and sign out. A visitor sees a sign-in link.
-- `components/sidebar.tsx`: Holdings and Transactions with icons. The current page has the
-  tint and the accent bar. It is an icon rail below `lg`, and collapses by hand with the
-  choice kept in localStorage.
-- `components/admin-nav.tsx` and `access-denied.tsx`: the admin area's sectioned
-  navigation, with unbuilt pages dimmed and inert, and what a non-admin sees.
-- `components/session-guard.tsx`: the guard a layout wraps its segment in, as
-  `app/(app)/layout.tsx` and `app/admin/layout.tsx` do.
+The sidebar holds the user pages and the profile menu the secondary pages. Each layout's
+file comment describes the shell it builds: `app/(app)/layout.tsx` for the user pages and
+`app/admin/layout.tsx` for the admin area.
 
 ## Pages
 

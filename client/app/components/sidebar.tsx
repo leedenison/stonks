@@ -4,6 +4,7 @@ import {
   ArrowLeftRight,
   PanelLeftClose,
   PanelLeftOpen,
+  Tags,
   Wallet,
 } from "lucide-react";
 import Link from "next/link";
@@ -16,6 +17,12 @@ const items = [
     label: "Holdings",
     icon: Wallet,
     testId: "nav-holdings",
+  },
+  {
+    href: "/instruments",
+    label: "Instruments",
+    icon: Tags,
+    testId: "nav-instruments",
   },
   {
     href: "/transactions",
