@@ -14,9 +14,6 @@
 // A fetch splits its requests into calls no larger than the integration's
 // batch.  Each call waits on the datasource's rate limit and is retried
 // separately.
-//
-// Integrations interpret datasource errors and report them.  Fetches that
-// fail durably are blocked.
 package market
 
 import (

@@ -173,7 +173,7 @@ func TestFetchRetries(t *testing.T) {
 }
 
 // TestFetchRetriesExhausted checks that a temporary failure that never clears
-// becomes a block on the identifiers it carried.
+// leaves its keys failed temporarily, with the calls spent, and no block.
 func TestFetchRetriesExhausted(t *testing.T) {
 	f := &fake{errs: []error{temporary("503"), temporary("503"), temporary("503")}}
 	h := newHarness(t, f, nil)
@@ -186,19 +186,16 @@ func TestFetchRetriesExhausted(t *testing.T) {
 	if f.calls != 3 {
 		t.Errorf("calls = %d, want the cap of 3", f.calls)
 	}
-	if len(h.blocks) != 1 || h.blocks[0].Scope != gen.BlockScopeIdentifier {
-		t.Fatalf("blocks = %+v, want one on the identifier", h.blocks)
+	if row := h.key(t, k.ID); row.Attempts != 3 || row.Reason == nil || *row.Reason != "503" {
+		t.Errorf("row = %+v, want 3 attempts and the failure's reason", row)
 	}
-	if *h.blocks[0].SentValue != "GB00B03MLX29" {
-		t.Errorf("block value = %s, want the identifier sent", *h.blocks[0].SentValue)
-	}
-	if h.blocks[0].RunID != h.child.ID || h.blocks[0].FindingID == uuid.Nil {
-		t.Errorf("block finding = %s on run %s, want a finding on the fetch run %s", h.blocks[0].FindingID, h.blocks[0].RunID, h.child.ID)
+	if len(h.blocks) != 0 {
+		t.Errorf("blocks = %+v, want none: a later fetch asks again", h.blocks)
 	}
 }
 
 // TestFetchQuotaIsNotRetried checks that a temporary failure about the
-// datasource costs one call and blocks the datasource.
+// datasource costs one call and blocks nothing.
 func TestFetchQuotaIsNotRetried(t *testing.T) {
 	f := &fake{errs: []error{quota("429")}}
 	h := newHarness(t, f, nil)
@@ -213,11 +210,8 @@ func TestFetchQuotaIsNotRetried(t *testing.T) {
 			t.Errorf("result %d outcome = %s, want failed_temporary", i, r.Outcome)
 		}
 	}
-	if len(h.blocks) != 1 || h.blocks[0].Scope != gen.BlockScopeDatasource {
-		t.Fatalf("blocks = %+v, want one on the datasource", h.blocks)
-	}
-	if h.blocks[0].SentType != nil {
-		t.Errorf("block names %v, want no identifier", h.blocks[0].SentType)
+	if len(h.blocks) != 0 {
+		t.Errorf("blocks = %+v, want none: a spent quota returns", h.blocks)
 	}
 }
 

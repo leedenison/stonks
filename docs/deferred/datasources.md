@@ -76,10 +76,3 @@ at ingest, not the fetch tables. The summary is rebuilt from the fetch tables.
 
 - Whether a fetch stops calling a datasource after some number of consecutive temporary
   failures, rather than spending its retries on every key.
-
-- Whether an administrator-started replay clears the temporary identifier blocks it
-  re-tries, so that a provider's bad hour is not cleared by hand.
-
-- Whether a request that fails as a whole, on a failure classified as about the
-  identifier, blocks every identifier it carried. When a batch of forty keys meets an
-  outage that outlasts the retries, it leaves forty blocks to clear.
