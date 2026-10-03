@@ -19,13 +19,9 @@ API definitions live in `proto/<area>/v1/<area>.proto`. Generated code is produc
 
 ## Documentation
 
-Document fields in the proto with a leading comment. The comment carries through to both
-generated languages.
-
-Say what the field means, and what an absent or empty value means. Do not describe the
-type.
-
-Field comments follow the Sentences rules in CLAUDE.md.
+Every message, field, enum value and RPC carries a leading comment; it is the API
+documentation in both generated languages. Trailing comments are not used. Comments
+follow the `comments` skill; load it with this one.
 
 ## Validation
 

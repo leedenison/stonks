@@ -19,6 +19,7 @@ Never discard an error to satisfy a linter.
 ## Doc Comments
 
 Every exported identifier and package carries a doc comment beginning with its name.
+An unexported identifier is commented only when the name does not carry it.
 
 Go package docs carry the specification of the system.  You must read the package
 docs for any package being modified, and each of its parent packages, when planning
@@ -29,7 +30,13 @@ updating the docs, if the conflicting code change was intentional, or by updatin
 the code if the conflicting code change did not intend to change the spec.  Always
 highlight such reconciliation to the user.
 
-Doc comments follow the Sentences rules in CLAUDE.md.
+Doc comments follow the `comments` skill; load it with this one.
+
+## SQL Comments
+
+A table, type or column that is the primary artifact for a term carries the comment
+defining it, and an enum's comment states each value's meaning. A query carries a comment
+only when its shape is surprising.
 
 ## Tests
 
