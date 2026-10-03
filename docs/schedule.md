@@ -28,9 +28,7 @@ of open issues and ADRs at `docs/tasks/<label>/`.
 ```
          001 open
     |          |             |
-013 descr   010 e2e stub   014 datasources
-    |          |             |
-    |     011 browser        |
+013 descr   011 browser    014 datasources
     |          |             |
     +----------+-------------+
                |
