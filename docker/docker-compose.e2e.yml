@@ -2,6 +2,11 @@
 # from its production Dockerfile with only its configuration changed, and
 # Playwright as a service behind the test profile. The database lives on tmpfs,
 # so every run starts empty.
+#
+# The provider is vcrproxy, replaying traffic recorded in docker/vcrproxy. The
+# suite's global setup names it in the datasources table, so the service reaches
+# it through the row that would name the real provider. E2E_VCR_MODE=record
+# forwards what the recording lacks to the provider and appends it.
 services:
   postgres:
     tmpfs:
@@ -13,7 +18,31 @@ services:
     ports: !override
       - "6381:6379"
 
+  vcrproxy:
+    build:
+      context: ..
+      dockerfile: docker/vcrproxy/Dockerfile
+    # The recording is written as the developer, like Playwright's output.
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    command:
+      - -mode
+      - ${E2E_VCR_MODE:-replay}
+      - -recorded
+      - /cassettes/recorded.yaml
+      - -authored
+      - /cassettes/authored.yaml
+    volumes:
+      - ./vcrproxy:/cassettes
+    healthcheck:
+      test: ["CMD", "/healthcheck", "http://127.0.0.1:8080/healthz"]
+      interval: 2s
+      timeout: 2s
+      retries: 15
+
   stonks:
+    depends_on:
+      vcrproxy:
+        condition: service_healthy
     environment:
       STONKS_GOOGLE_OAUTH_CLIENT_ID: e2e-test-client-id
       # The stack is reached over plain HTTP which cannot transport

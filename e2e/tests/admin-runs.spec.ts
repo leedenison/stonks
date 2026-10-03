@@ -44,7 +44,7 @@ test("shows an administrator the runs a user's upload produced", async ({
   expect(ConnectError.from(refused).code).toBe(Code.PermissionDenied);
 
   // The record: the statement run, the resolution it started, the rows it
-  // rejected, and no findings, since nothing was fetched.
+  // rejected, and no findings, since every fetch was answered.
   const { session } = await signIn("admin");
   const admin = adminClient(session);
   const statement = await admin.getRun({ runId: runId! });

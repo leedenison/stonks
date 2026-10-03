@@ -66,23 +66,11 @@ calls it, a schedule, and a story for the provider being down or wrong.
 
 Testing it needs two different things at two tiers. The client that parses what the provider
 sends is tested against recorded traffic, which is what the integration tier already does.
-The e2e suite is a different problem: it needs the provider to answer deterministically, not
-authentically, and it cannot load a recording because the server it drives is the shipped
-binary.
-
-The sketch for that is a stub service in the e2e overlay, reached by configuration, serving
-a corpus **keyed on the request rather than put into a scenario by a control call**. The
-stub does not know which test is running; it knows that a lookup for `ZZNF` is a 404 and one
-for `ZZRL` is a 429. A spec picks its case by choosing the key it looks up, which keeps
-specs independent and the suite parallel. An unknown key returns an error naming the key,
-never a plausible default. Where a case is genuinely stateful -- fails once, then
-succeeds -- it needs a key only one spec uses.
+The e2e suite drives the shipped binary, so its provider is a proxy in the e2e overlay that
+replays traffic recorded from the real one; a price provider would be a second upstream of
+that proxy, or a second instance of it.
 
 ## Undecided
 
 Which provider, and whether more than one. Whether a fetch failure leaves the last known
 price in place or marks the valuation stale.
-
-Whether the stub's fixtures are generated from the integration tier's recordings, so there
-is one source of authentic bytes and the stub cannot drift into answering in a shape the
-provider abandoned. Attractive, and unnecessary until the stub exists.

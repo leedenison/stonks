@@ -7,9 +7,10 @@ import { expect, test } from "../helpers/test";
 // identifiers replaced.
 const fixture = path.resolve(__dirname, "..", "fixtures", "fidelity-uk.csv");
 
-// The stack has no datasource, so every key resolves unrecognised and a
-// replay over the keys left unavailable is refused. The refusal is the
-// path exercised here; a replay that resolves a key needs a datasource.
+// Fidelity's keys state a ticker with no venue, which the datasource answers
+// but which never associates, so every key resolves unrecognised and a replay
+// over the keys left unavailable is refused. The refusal is the path
+// exercised here.
 test("offers a replay on a statement's page and shows its refusal", async ({
   signIn,
   page,
