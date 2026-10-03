@@ -105,87 +105,52 @@ Whenever you begin work in a new worktree you should:
 
 Prefer terse names when naming functions and variables.
 
-## Sentences
+## Plain English
 
-Do not strand a preposition. A relative clause or an embedded question must not end in
-a preposition whose object is the noun it modifies or the question word. Not "the
-identifier the key was sent under", "the rate the provider is called at", "what the call
-filtered on" or "where the JWKS is fetched from". A preposition that completes a verb
-("left out", "signs everyone out", "reading on") is part of the verb and is fine.
+Use plain English when writing comments and documentation.  In addition to your
+own judgement apply the following rules:
 
-Rewrite in the first form that reads naturally:
-
-* A noun or possessive: "the provider's call rate", "a row's state", "its owner".
-* The modified noun as subject of an active verb: "the identifier that carried the key",
-  "the client that makes outbound calls".
-* A participle or prepositional phrase after the noun: "the deployment hosting this
-  process", "a time consistent with the cassette", "the period of an upload".
-* Two sentences: "A key states identifiers. Those that can carry an association admit
-  it to resolution: ...".
-* The preposition before a relative pronoun, only when the preposition carries meaning
-  the other forms lose: "the zone in which every API time is stated".
-
-A relative clause must not contain a further clause that holds its gap: not "the
-identifiers it states that an association can rest on" or "the identifier Serves chose
-to send it under". Split the sentence instead.
-
-This applies to documentation, comments, issues, plans and commit messages alike.
+- Do not write sentences in which the later clause states the inverse of the earlier
+  clause.
+- Do not strand prepositions. A relative clause or an embedded question must not end in
+  a preposition whose object is the noun it modifies or the question word. A preposition
+  that completes a verb ("left out", "signs everyone out", "reading on") is part of the
+  verb and is fine.
+- Do not pack a condition into the subject as a reduced relative clause with a passive
+  predicate. Write the condition as a subordinate clause with a named actor and an
+  active verb. A sentence that defines a term ("A hit is an instrument the re-read
+  found") is fine.
+- Prefer short sentences with one clause per sentence.
 
 ## Documentation
 
-Keep documentation short and to the point.  Avoid repetition.  Do not write sentences in
-which the later clause states the inverse of the earlier clause.  Write in an expository
+Keep documentation short and to the point.  Avoid repetition.  Write in an expository
 style not a narrative style.  
 
 Important: Do not explain any idea in reference to any previous state or prior art in
 this repository; explain it standalone as it is today.
 
-Never use smart quotes when generating documentation or plans.
+Never use smart quotes in documentation, comments or plans.
 
-Important: When you have completed a change that includes documentation you must review it
-against the sentence, documentation and personal data rules in Claude.md and relevant skills before
-committing to the repository.
+Important: When a change includes documentation you must execute a Sonnet agent
+to ensure it complies with the Plain English, Documentation and Personal Data rules.
+Then fix any errors highlighted before telling the user that the change is ready for
+review.
 
 ## Code Comments
 
-Keep comments short and to the point.  Avoid repetition.  Do not write sentences in
-which the later clause states the inverse of the earlier clause.  Write in an expository
-style not a narrative style.  
-
-Important: Do not explain code or functionality in reference to any previous state or prior
-art of this repository's code; explain it standalone as it is today.
-
-Do not refer to project tasks or milestones in comments.
-
-Comments should only explain what is not already obvious from the code. 
-
-- Comments must focus on the most important elements of code being described.  Do **NOT** add
-  comments to code describing the change you just made simply because you made the change.
-  Always evaluate whether the comment meets the important threshold.
-- Comments on packages explain the large scale design choices captured in the package in
-  terms of invariants maintained, constraints adhered to and conventions followed.
-- Comments on type definitions should explain what real world concepts are being modelled
-  and what each field represents when these are not obvious from the names chosen, or there
-  is some subtlety that the reader may not expect.  Illustrate example values when valid
-  values are more restrictive than the type itself implies.
-- Comments on functions or RPCs should explain the behaviour of the function when it is not
-  obvious from the name chosen.  Parameters should only be explained if their use or handling
-  of their value is surprising in some way.  Return values should only be explained if their
-  values are surprising under some circumstances.  Error values should only be explained if
-  the cases when they are raised are surprising or the mechanism is surprising (eg. they
-  cause a panic).
-- Inline comments are reserved for code that must be a certain way because of external
-  factors.
-
-Important: When you have completed a change that includes code comments you must review it
-against the sentence, code comment and personal data rules in Claude.md and relevant skills before
-committing to the repository.
+Important: When a change includes comments you must execute a Sonnet agent
+to ensure it complies with the Plain English, Documentation and Personal Data rules and
+with the `comments` skill. Where the change touches a package or file comment, the agent
+applies the skill's package level test to each paragraph of it. The agent reports
+violations and does not edit. Then fix any errors highlighted before telling the user
+that the change is ready for review.
 
 ## Personal Data
 
 The repository must contain no personal data belonging to a real person. This applies to
 code, tests, fixtures, comments, commit messages, issues, specs and plans alike. `local/`
-is gitignored and is where real account exports belong; it is the only place they belong.
+is gitignored and is the only place where real account exports belong.
 
 Never commit any of the following:
 

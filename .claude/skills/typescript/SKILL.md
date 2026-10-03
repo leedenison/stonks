@@ -22,7 +22,9 @@ silence the checker.
 ESLint carries no formatting rules; it is there for correctness alone. `npm run lint` is
 `eslint --max-warnings 0 .` -- warnings are failures.
 
-Comments follow the Sentences rules in CLAUDE.md.
+An exported function, component, hook or query carries a doc comment when its name does
+not carry it. JSDoc tags are not used; the types say it. Comments follow the `comments`
+skill; load it with this one.
 
 ## Styling
 

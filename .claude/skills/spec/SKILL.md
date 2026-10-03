@@ -9,7 +9,7 @@ Several kinds of document describe behaviour. They differ in what they claim.
 
 | Location | Claims |
 |---|---|
-| Package or file level comments in code | specification of the existing system |
+| Package or file level comments in code | specification of the existing system; the `comments` skill says how they are written |
 | `docs/deferred/` | future unscheduled ideas for functionality |
 | `docs/tasks/<label>/spike.md` | this is what the spike is exploring |
 
@@ -29,17 +29,8 @@ do not repeat the definition on database row types, etc).
 Present tense, describing the system as it has been decided and built in terms of
 system behaviour, invariants maintained, constraints adhered to and conventions followed.
 
-A package or file level comment states behaviour, constraints, invariants, conventions and,
-if not obvious, the reasoning behind them.  Package and file level comments assume the
-reader has context for the technologies and platforms used by the system, but no context
-for the system itself.
-
-Behaviour, constraints, invariants and conventions should be documented in the most
-specific package that contain the concepts being defined.  Related concepts that are beyond
-the scope of the package or file should not be restate or redefined.  Refer to the package
-or file that defines them (eg. See [auth.go](../auth/auth.go)).
-
-Package and file level comments follow the Sentences rules in CLAUDE.md.
+How a package or file comment is written, and what belongs at that level rather than on
+a declaration, is in the `comments` skill; load it with this one.
 
 ### Writing up an ADR
 
