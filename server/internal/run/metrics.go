@@ -21,7 +21,9 @@ const (
 	outcomeKey = attribute.Key("outcome")
 )
 
-// instruments count what this package and the writers of findings decide; see
+// instruments count runs by kind, trigger and terminal state, and findings
+// by kind. The attributes are bounded, so nothing is counted per run, and
+// nothing reads the counts back: the rows are the record. See
 // [metrics.go](../auth/metrics.go) for why construction is unguarded.
 type instruments struct {
 	runs     metric.Int64Counter

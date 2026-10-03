@@ -11,13 +11,6 @@
 // Every authorization decision is made in the service. The edge proxy routes
 // and terminates TLS; it does not authenticate and injects no identity.
 //
-// A user is provisioned on first sight, in this order: by Google subject; by
-// email, case-insensitively, binding the subject to that account; else
-// created from the verified email and name.
-//
-// A principal is loaded from the users table on every authenticated request,
-// so a role change or a deleted account takes effect at once.
-//
 // The package depends on the user queries, the session store and the token
 // verifier only through the narrow interfaces it declares here.
 package auth

@@ -1,14 +1,6 @@
 // Package vcr replays recorded HTTP traffic, so a client of an external
 // service is tested against what that service really sent.
 //
-// A cassette is replayed unless STONKS_RECORD names it.
-//
-// Request headers are redacted by allowlist.
-//
-// Query parameters, response headers and bodies are named by the client under
-// test, in a Scrub it has to state.  A redacted value is replaced with
-// Placeholder, and Credential returns Placeholder when replaying.
-//
 // Cassettes are YAML under testdata/ beside the test that plays them, one per
 // scenario, named for the case.
 //

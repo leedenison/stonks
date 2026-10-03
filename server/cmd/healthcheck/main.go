@@ -1,6 +1,6 @@
-// Reports whether the service is healthy, for a container healthcheck: exits
-// 0 when a GET of the URL named by the one argument answers 200, and 1
-// otherwise. Only the status code is asserted.
+// Command healthcheck is the container healthcheck: it exits 0 when a GET of
+// the URL named by its one argument answers 200, and 1 otherwise. Only the
+// status code is asserted.
 package main
 
 import (

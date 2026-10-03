@@ -4,27 +4,11 @@
 // gRPC and gRPC-Web protocols on one endpoint, so a cookie is a plain HTTP
 // header in both directions. Each proto package has one handler package below
 // this one. A handler translates the sentinel errors of the packages it calls
-// into Connect codes; nothing below this boundary imports connect. An error
-// whose code a client cannot have caused is logged with its text and leaves
-// the process as the code alone, its message replaced by "internal error", so
-// nothing a database or session store said reaches a client.
+// into Connect codes; nothing below this boundary imports connect. Nothing a
+// database or session store said reaches a client.
 //
-// HandlerOptions gives every handler one chain, outermost first: the RPC is
-// traced and timed, and its span records whatever code the caller finally
-// saw. Tracing is outermost because that is the only position that sees a
-// refusal the chain itself decided, such as one from authentication or from
-// request validation.
-//
-// Authentication reads the session cookie, CookieName, and applies a policy
-// by procedure. The default is that a live session is required, so a new RPC
-// is protected unless it is exempted here: SignIn needs no session, GetSession
-// and SignOut tolerate its absence, and gRPC reflection is skipped. Every
-// AdminService RPC also requires the admin role, and refuses any other
-// principal as permission denied. A live session puts its principal in the
-// context, where [auth.go](../auth/auth.go)
-// reads it; a missing or dead one on a protected RPC is refused as
-// unauthenticated, and a failure to reach the session store is an internal
-// error. /healthz is served outside the chain.
+// Every handler shares one interceptor chain, and authentication is a policy
+// by procedure within it; see HandlerOptions and policyFor.
 package service
 
 //go:generate go tool mockgen -source=service.go -destination=mock/service_mock.go -package=mock
@@ -54,8 +38,12 @@ type Authenticator interface {
 	Authenticate(ctx context.Context, sessionID string) (auth.Principal, error)
 }
 
-// HandlerOptions returns the options shared by every handler. It fails
-// only if the telemetry interceptor cannot build its instruments.
+// HandlerOptions returns the options shared by every handler: one chain,
+// outermost first. The RPC is traced and timed, and its span records whatever
+// code the caller finally saw. Tracing is outermost because that is the only
+// position that sees a refusal the chain itself decided, such as one from
+// authentication or from request validation. HandlerOptions fails only if
+// the telemetry interceptor cannot build its instruments.
 func HandlerOptions(log *slog.Logger, authn Authenticator) ([]connect.HandlerOption, error) {
 	traceRPC, err := otelconnect.NewInterceptor(
 		// The client's address and port would otherwise be an attribute of
@@ -83,6 +71,9 @@ const (
 	none
 )
 
+// policyFor is the authentication policy of a procedure. The default is that
+// a live session is required, so a new RPC is protected unless it is
+// exempted here.
 func policyFor(procedure string) policy {
 	switch procedure {
 	case authv1connect.AuthServiceSignInProcedure:
@@ -143,6 +134,9 @@ func (a *authenticate) WrapStreamingHandler(next connect.StreamingHandlerFunc) c
 	}
 }
 
+// apply reads the session cookie, CookieName, and enforces the procedure's
+// policy. A live session puts its principal in the context, where
+// [auth.go](../auth/auth.go) reads it.
 func (a *authenticate) apply(ctx context.Context, procedure string, h http.Header) (context.Context, error) {
 	pol := policyFor(procedure)
 	if pol == none {

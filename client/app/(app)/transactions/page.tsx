@@ -7,8 +7,8 @@ import { UploadAction } from "@/app/components/upload-action";
 import { useUpload } from "@/contexts/upload-context";
 import { useDropTarget } from "@/hooks/use-drop-target";
 
-// The transactions page is a drop target: an export dropped anywhere on it
-// opens the upload dialog with that file.
+// The transactions page is a drop target. When the user drops an export
+// anywhere on the page, the upload dialog opens with that file.
 export default function TransactionsPage() {
   const upload = useUpload();
   const drop = useDropTarget(upload.open);

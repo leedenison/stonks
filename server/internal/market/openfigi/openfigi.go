@@ -1,16 +1,4 @@
 // Package openfigi is the identity integration with the OpenFIGI mapping API.
-//
-// A stated key is sent under its strongest identifier OpenFIGI accepts, and
-// every listing in OpenFIGI's mapping of it is a candidate.  A ticker is
-// filtered on without its venue, so the listings at every venue are returned
-// and resolution chooses a composite from the stated venue.  A candidate
-// carries the share class and composite FIGIs, the ticker under OpenFIGI's
-// exchange code, and the ticker under the operating MIC where the exchange
-// code names exactly one venue.  A composite exchange code spans the venues of
-// a country rather than naming one, so its listings carry no MIC_TICKER.
-//
-// OpenFIGI returns no currency.  Where the key states one, the call filters on
-// it strictly, so every candidate is in the stated currency.
 package openfigi
 
 import (
@@ -87,7 +75,7 @@ func (c *Client) Batch() int {
 	return 100
 }
 
-// statusError returned on a request error.
+// statusError is a response from OpenFIGI with a status other than 200.
 type statusError struct {
 	code       int
 	retryAfter time.Duration
@@ -113,9 +101,9 @@ type jobError string
 
 func (e jobError) Error() string { return "openfigi rejected the identifier: " + string(e) }
 
-// Classify reads a failed request by its status. Where a whole request is
-// refused other than for its rate or the provider's health, it is malformed
-// for every key or unauthorised, and so blocks the datasource.
+// Classify reads a failed request by its status. A refusal of the whole
+// request for any reason other than rate or provider health means every key
+// is malformed or the client is unauthorised, so it blocks the datasource.
 func (c *Client) Classify(err error) market.Failure {
 	var job jobError
 	if errors.As(err, &job) {

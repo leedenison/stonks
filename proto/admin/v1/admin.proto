@@ -1,5 +1,5 @@
-// Read what runs did across every user, and start a replay. Every RPC here
-// requires the admin role.
+// The administrator's API. Every RPC acts across users and requires the admin
+// role.
 
 syntax = "proto3";
 
@@ -40,8 +40,10 @@ enum ResolutionOutcome {
   RESOLUTION_OUTCOME_UNAVAILABLE = 4;
 }
 
+// One stated key a resolution attempted, with its outcome.
 message ResolutionItem {
   stonks.type.v1.StatedKey stated_key = 1;
+  // Identifies the key across runs.
   string stated_key_id = 2;
   ResolutionOutcome outcome = 3;
   // Why the key did not match.
@@ -57,12 +59,16 @@ enum FetchOutcome {
   FETCH_OUTCOME_NOT_SERVED = 2;
   // An open block suppressed the call.
   FETCH_OUTCOME_BLOCKED = 3;
+  // The calls failed with a temporary error. A later fetch asks again.
   FETCH_OUTCOME_FAILED_TEMPORARY = 4;
+  // The calls failed with a permanent error, and the run wrote a block.
   FETCH_OUTCOME_FAILED_PERMANENT = 5;
 }
 
+// One stated key a fetch asked a datasource about, with its outcome.
 message FetchItem {
   stonks.type.v1.StatedKey stated_key = 1;
+  // Identifies the key across runs.
   string stated_key_id = 2;
   FetchOutcome outcome = 3;
   // The number of calls that carried the key.
@@ -103,6 +109,7 @@ enum DropStep {
 message Finding {
   string id = 1;
   string run_id = 2;
+  // What the finding reports. It decides which optional fields are set.
   FindingKind kind = 3;
   // The block reported; set only when the kind is BLOCK.
   optional string block_id = 4;
@@ -114,8 +121,7 @@ message Finding {
   // The fetch key of the response involved; unset for a contradiction
   // found in the database.
   optional string fetch_key_id = 7;
-  // The step that dropped the group; set only when the kind is DROPPED, and
-  // then one of STATED, PRECEDENCE and CORROBORATION.
+  // The step that dropped the group; set only when the kind is DROPPED.
   optional DropStep step = 8;
   // The grounds, in words; for a BLOCK, the block's reason.
   optional string detail = 9;
@@ -124,8 +130,8 @@ message Finding {
   google.protobuf.Timestamp cleared_at = 11;
 }
 
+// Each filter left unset matches every run.
 message ListRunsRequest {
-  // Each filter left unset matches every run.
   optional stonks.run.v1.RunKind kind = 1 [(buf.validate.field).enum = {
     defined_only: true
     not_in: [0]
@@ -139,7 +145,7 @@ message ListRunsRequest {
     not_in: [0]
   }];
   optional string user_id = 4 [(buf.validate.field).string.uuid = true];
-  // At most this many runs; 0 means 50.
+  // At most this many top-level runs; 0 means 50.
   int32 page_size = 5 [(buf.validate.field).int32 = {
     gte: 0
     lte: 200
@@ -151,7 +157,6 @@ message ListRunsRequest {
   ];
 }
 
-// Runs newest first.
 message ListRunsResponse {
   // The top-level runs, newest first, each with the runs below it that the
   // filters match and the path to them.
@@ -190,6 +195,7 @@ message ClearFindingResponse {}
 
 // One external provider this instance may call.
 message Datasource {
+  // Selects the integration.
   string name = 1;
   bool enabled = 2;
   // Orders responses from several datasources, lowest first, with the name
@@ -217,22 +223,23 @@ message UpdateDatasourceResponse {
   Datasource datasource = 1;
 }
 
-// Every datasource, in the precedence wanted: the first named is consulted
-// first.
 message ReorderDatasourcesRequest {
+  // Every datasource's name, in the precedence wanted: the first named is
+  // consulted first.
   repeated string names = 1 [(buf.validate.field).repeated.min_items = 1];
 }
 
 message ReorderDatasourcesResponse {}
 
-// Datasources in precedence order.
 message ListDatasourcesResponse {
+  // In precedence order.
   repeated Datasource datasources = 1;
 }
 
 // The kind of data a fetch requests.
 enum FetchKind {
   FETCH_KIND_UNSPECIFIED = 0;
+  // The identifiers that name an instrument and its listings.
   FETCH_KIND_IDENTITY = 1;
 }
 
@@ -254,6 +261,7 @@ message Block {
   BlockScope scope = 4;
   // The identifier blocked; set only when the scope is IDENTIFIER.
   stonks.type.v1.Identifier sent = 5;
+  // The error of the failed call, in words.
   string reason = 6;
   // The fetch run whose call created the block.
   string run_id = 7;
@@ -277,8 +285,8 @@ message ListBlocksRequest {
   ];
 }
 
-// Blocks newest first.
 message ListBlocksResponse {
+  // Newest first.
   repeated Block blocks = 1;
   // Continues the listing; empty on the last page.
   string next_page_token = 2;
@@ -321,6 +329,8 @@ message StartReplayResponse {
   stonks.run.v1.Run run = 1;
 }
 
+// Reads every user's runs and findings, manages datasources and their
+// blocks, and starts replays.
 service AdminService {
   // Lists every user's runs matching the filters.
   rpc ListRuns(ListRunsRequest) returns (ListRunsResponse);

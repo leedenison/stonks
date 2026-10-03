@@ -27,9 +27,7 @@ var (
 	errUnknownKey = errors.New("unknown key")
 )
 
-// keyset caches the RSA public keys of a JWKS, refreshing when the set is
-// stale by its Cache-Control max-age, or when a kid is missing from a fresh
-// set and the last fetch was at least minRefetch ago. Fetches are lazy and
+// keyset caches the RSA public keys of a JWKS. Fetches are lazy and
 // serialised, so a burst of requests during a refresh waits rather than
 // fetching in parallel.
 type keyset struct {

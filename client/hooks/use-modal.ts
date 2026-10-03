@@ -2,13 +2,11 @@
 
 import { type MouseEvent, type SyntheticEvent, useEffect, useRef } from "react";
 
-// useModal keeps a <dialog> open while open is true. A modal one is shown
-// through showModal, so the element traps focus, paints its backdrop and
-// raises cancel on Escape. One that is not modal is shown beside the page
-// with focus moved to its first button, and Escape reaches it through a
-// document listener, since only a modal dialog raises cancel. Escape and a
-// click on the backdrop ask the owner to close rather than closing the
-// element, so the owner's state stays the one truth.
+// useModal keeps a <dialog> open while open is true. A dialog that is not
+// modal is shown beside the page with focus on its first button, and hears
+// Escape through a document listener, because only a modal dialog raises
+// cancel. Escape and a backdrop click ask the owner to close
+// and leave the element alone, so the owner's state stays the one truth.
 export function useModal(
   open: boolean,
   onClose: () => void,

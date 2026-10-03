@@ -36,6 +36,7 @@ var IdentifierTypes = []IdentifierType{
 	IdentifierTypeBrokerID,
 }
 
+// The identifier types, spelled as the identifier_type enum spells them.
 const (
 	IdentifierTypeIsin               IdentifierType = "isin"
 	IdentifierTypeCusip              IdentifierType = "cusip"
@@ -52,6 +53,7 @@ const (
 	IdentifierTypeBrokerID           IdentifierType = "broker_id"
 )
 
+// Scan reads the enum from a text or bytea column.
 func (e *IdentifierType) Scan(src any) error {
 	switch s := src.(type) {
 	case []byte:
@@ -64,16 +66,12 @@ func (e *IdentifierType) Scan(src any) error {
 	return nil
 }
 
+// Valid reports whether e is one of the enum's values.
 func (e IdentifierType) Valid() bool { return slices.Contains(IdentifierTypes, e) }
 
 // Identifier is one identifier triple: a type, a value, and a domain empty
-// where the type has none.
-//
-// It is also the element of the identifiers column of a stated key. That
-// column is compared whole by the unique index, so a writer sorts the array
-// by type, domain and value, and an absent domain is empty and omitted
-// rather than written as null. When a key states no identifiers, it carries
-// an empty slice, since nil encodes as null and the column refuses it.
+// where the type has none. A key stating no identifiers carries an empty
+// slice, since nil encodes as null and the identifiers column refuses it.
 type Identifier struct {
 	Type   IdentifierType `json:"type"`
 	Domain string         `json:"domain,omitempty"`

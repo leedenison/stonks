@@ -26,6 +26,7 @@ enum RunKind {
 // What started a run.
 enum RunTrigger {
   RUN_TRIGGER_UNSPECIFIED = 0;
+  // A user, through a call such as CreateStatement.
   RUN_TRIGGER_USER = 1;
   // Another run, named as the parent.
   RUN_TRIGGER_RUN = 2;
@@ -51,10 +52,12 @@ enum RunState {
 message Run {
   // Identifies the run in every API; a UUID.
   string id = 1;
+  // The work the run does, which decides the items it records.
   RunKind kind = 2;
   RunTrigger trigger = 3;
   // The run that started this one; set only when the trigger is RUN.
   optional string parent_id = 4;
+  // A run never returns to an earlier state.
   RunState state = 5;
   // Why the work stopped; set only when the state is FAILED.
   optional string error = 6;

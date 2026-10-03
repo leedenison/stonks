@@ -2,9 +2,6 @@
 // binary and applied by the service as it starts. cmd/migrate applies it to a
 // database with no running service, such as the test stack's.
 //
-// Migrations run under a Postgres session lock, so concurrent replicas cannot
-// race; the lock is held for the duration. A failed migration stops the service.
-//
 // A row with no natural key has a surrogate key: a version 7 UUID, which the
 // server mints before the insert (see [db.go](../db/db.go)) and uuid_v7()
 // supplies for SQL written by hand. The key is the row's public identifier

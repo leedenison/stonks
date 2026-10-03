@@ -13,8 +13,8 @@ import (
 // meterName scopes the instruments below to this package.
 const meterName = "github.com/leedenison/stonks/server/internal/market"
 
-// The attribute keys and the closed set of values the outcome takes. The
-// datasource is bounded by the rows an instance seeds.
+// The attribute keys. Both value sets are closed: outcome is a database enum,
+// and datasource is bounded by the rows an instance seeds.
 const (
 	datasourceKey = attribute.Key("datasource")
 	outcomeKey    = attribute.Key("outcome")

@@ -7,11 +7,9 @@ import type { StatementSummary } from "@/gen/statement/v1/statement_pb";
 import { qk } from "@/lib/query-keys";
 import { isTerminal } from "@/lib/run";
 
-// useRunOutcomes watches the listed runs and, when one goes from live to
-// terminal, invalidates what its work changed: the transactions, the
-// holdings and the statement itself. When a run is first seen terminal, it is
-// not a change; a page refreshes only for work that finished while it was
-// open.
+// useRunOutcomes refreshes the data a run changed once the run finishes
+// while the page is open. A run that is already terminal on first sight
+// does not count as finishing.
 export function useRunOutcomes(statements: StatementSummary[]) {
   const queryClient = useQueryClient();
   const seen = useRef(new Map<string, RunState>());

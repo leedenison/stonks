@@ -63,8 +63,9 @@ type job struct {
 // with its last letter lowercased.
 var bloomberg = map[string]string{"GBX": "GBp"}
 
-// jobOf returns the mapping job for an identifier Serves returned. A stated
-// currency filters the job strictly.
+// jobOf returns the mapping job for an identifier Serves returned. OpenFIGI
+// returns no currency, so a stated currency filters the job strictly and
+// every candidate is in it.
 func jobOf(id types.Identifier, currency string) job {
 	for _, t := range idTypes {
 		if t.typ != id.Type {

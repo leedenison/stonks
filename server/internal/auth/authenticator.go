@@ -52,7 +52,9 @@ func (a *Authenticator) SignIn(ctx context.Context, token string) (p Principal, 
 }
 
 // Authenticate returns the principal of a live session, extending it, or
-// ErrUnauthenticated when the session is unknown or its user is gone.
+// ErrUnauthenticated when the session is unknown or its user is gone. The
+// principal is read from the users table on every call, so a role change or
+// a deleted account takes effect at once.
 func (a *Authenticator) Authenticate(ctx context.Context, sessionID string) (Principal, error) {
 	// Both refusals wrap ErrUnauthenticated, so the result is tracked here
 	// rather than classified from the error the way a sign-in is.
@@ -92,6 +94,8 @@ func (a *Authenticator) SignOut(ctx context.Context, sessionID string) error {
 	return nil
 }
 
+// provision returns the account the claims name, created from the verified
+// email and name where lookup finds none.
 func (a *Authenticator) provision(ctx context.Context, c google.Claims) (gen.User, error) {
 	u, err := a.lookup(ctx, c)
 	switch {
@@ -121,8 +125,8 @@ func (a *Authenticator) provision(ctx context.Context, c google.Claims) (gen.Use
 	return u, nil
 }
 
-// lookup returns the account the claims name, by Google subject and otherwise
-// by email, binding the subject to an account reached by email. It returns
+// lookup returns the account the claims name: by Google subject, else by
+// email, case-insensitively, binding the subject to that account. It returns
 // db.ErrNotFound, unwrapped, when no account matches either.
 func (a *Authenticator) lookup(ctx context.Context, c google.Claims) (gen.User, error) {
 	u, err := a.o.Users.GetUserByGoogleSubject(ctx, c.Subject)

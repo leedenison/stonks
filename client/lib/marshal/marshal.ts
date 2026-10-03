@@ -1,6 +1,6 @@
 // A marshaller translates one broker's export into the broker neutral
 // format in proto/statement/v1/statement.proto. All knowledge of the
-// broker's conventions live in the marshaller. A line of a kind the
+// broker's conventions lives in the marshaller. A line of a kind the
 // marshaller does not know fails the whole export.
 
 import { Broker } from "@/gen/type/v1/type_pb";

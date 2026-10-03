@@ -53,8 +53,6 @@ WHERE identifiers.type = @type
   AND identifiers.value = @value::text;
 
 -- name: ListInstrumentsByIdentifiers :many
--- The stored identifiers among those given, at either grain, with the
--- instruments they name.
 SELECT sqlc.embed(identifiers), sqlc.embed(instruments)
 FROM (SELECT unnest(@types::text[]) AS type, unnest(@domains::text[]) AS domain,
              unnest(@values::text[]) AS value) AS k

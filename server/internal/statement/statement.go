@@ -2,18 +2,10 @@
 // submitted, claiming every account they hold at one broker over a
 // half-open range of order dates.
 //
-// The RPC validates the envelope and every row, deduplicates the stated keys,
-// then Prepares the statement row, the stated keys and the stated splits in
-// one database transaction before the call responds; see
-// [run.go](../run/run.go).
-//
-// Resolution. Each distinct key is resolved once, as a run of kind
-// resolution with the statement as parent, by the resolve package; see
-// [resolve.go](../resolve/resolve.go). Every row carrying the key takes its
-// outcome, and a rejected key rejects its rows.
-//
-// Grouping. The write recomputes the user's groups under the user's key
-// lock; see [group.go](../group/group.go).
+// Ingestion is a run: the call responds with the pending row once the
+// statement is recorded, and resolution and the write follow; see
+// [run.go](../run/run.go). Each distinct key is resolved once, however many
+// rows state it; see [resolve.go](../resolve/resolve.go).
 package statement
 
 import (
@@ -35,9 +27,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/run"
 )
 
-// ErrInvalid is returned by Create for a statement it cannot read: a broker
-// outside the vocabulary, a period bound that does not parse or an empty
-// period, or a split whose key, date, quantity or ratio does not parse.
+// ErrInvalid is returned by Create for a statement it cannot read.
 var ErrInvalid = errors.New("invalid statement")
 
 // Service ingests statements.
@@ -116,11 +106,11 @@ type ingestion struct {
 	order []*key
 }
 
-// row is one row of the payload. reason is set when validation rejected it,
-// and key is set otherwise.
+// row is one row of the payload.
 type row struct {
-	ordinal    int32
-	stated     *statementv1.Row
+	ordinal int32
+	stated  *statementv1.Row
+	// key is nil where validation rejected the row; reason then says why.
 	key        *key
 	order      time.Time
 	settlement time.Time
@@ -154,8 +144,8 @@ type key struct {
 }
 
 // statable reports whether k says anything about an instrument at all: an
-// identifier or a description. Where a key states neither, it names nothing,
-// now or later, and its rows are rejected.
+// identifier or a description. Where a key states neither, it names nothing
+// and its rows are rejected.
 func (k *key) statable() bool {
 	return k.description != nil || len(k.identifiers) > 0
 }
@@ -163,8 +153,7 @@ func (k *key) statable() bool {
 // seed salts key hashes for the life of the process.
 var seed = maphash.MakeSeed()
 
-// hash agrees with equal: it covers the class, currency, description and
-// the sorted identifiers, each field led by whether it is set.
+// hash agrees with equal.
 func (k *key) hash() uint64 {
 	var h maphash.Hash
 	h.SetSeed(seed)
@@ -239,7 +228,6 @@ func (g *ingestion) prepare(ctx context.Context, run gen.Run) error {
 	})
 }
 
-// work resolves the keys as a child run, then writes.
 func (g *ingestion) work(ctx context.Context, run gen.Run) error {
 	if _, err := g.runs.Child(ctx, run, gen.RunKindResolution, g.resolve); err != nil {
 		return fmt.Errorf("resolution: %w", err)
@@ -247,8 +235,8 @@ func (g *ingestion) work(ctx context.Context, run gen.Run) error {
 	return g.write(ctx, run)
 }
 
-// resolve resolves every key through the resolver and takes each outcome
-// onto its key.
+// resolve resolves the keys as a child run and takes each outcome onto its
+// key.
 func (g *ingestion) resolve(ctx context.Context, res gen.Run) error {
 	rows := make([]gen.StatedKey, len(g.order))
 	for i, k := range g.order {

@@ -1,7 +1,4 @@
 // Package run serves stonks.run.v1.
-//
-// A run is read with the caller's user id in the query, so where another
-// user started a run, it is not found rather than forbidden.
 package run
 
 import (
@@ -40,7 +37,8 @@ func New(reader Reader) *Server {
 	return &Server{reader: reader}
 }
 
-// GetRun reads a run the caller started.
+// GetRun reads a run the caller started. The query carries the caller's user
+// id, so another user's run is not found rather than forbidden.
 func (s *Server) GetRun(ctx context.Context, req *connect.Request[runv1.GetRunRequest]) (*connect.Response[runv1.GetRunResponse], error) {
 	p, err := auth.User(ctx)
 	if err != nil {

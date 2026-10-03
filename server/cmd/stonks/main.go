@@ -1,9 +1,6 @@
-// The service binary. All wiring happens here: configuration is read from the
-// environment, telemetry is set up before anything instrumented connects,
-// migrations are applied, Postgres and Redis are connected, runs the previous
-// process left unfinished are swept, and every handler is mounted on one mux
-// served with unencrypted HTTP/2 enabled, so a gRPC client reaches it without
-// TLS.
+// Command stonks is the service binary. It wires every package and serves
+// the handlers on one mux with unencrypted HTTP/2 enabled, so a gRPC client
+// reaches it without TLS.
 package main
 
 import (

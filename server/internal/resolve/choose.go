@@ -17,39 +17,41 @@ type result = market.Result[gen.StatedKey, market.IdentityResult]
 
 // group is one instrument a response describes: the candidates sharing an
 // instrument grain identifier, transitively, collapsed to the listing grain
-// identifiers of one listing per currency family, the family empty where
-// the candidates carry no currency. r is the result from which the group
-// was built, nil for the group of the instrument found in the database.
-// order is the position of its first candidate in the response, class the
-// class of the first candidate stating one, and named whether the
-// identifier the key was sent under identifies it.
+// identifiers of one listing per currency family.
 type group struct {
-	r          *result
-	order      int
+	// r is the result the group was built from, nil for the group of the
+	// instrument the database names.
+	r *result
+	// order is the position of the group's first candidate in the response.
+	order int
+	// class is the class of the first candidate stating one.
 	class      gen.AssetClass
 	instrument []types.Identifier
-	listings   map[string][]types.Identifier
-	named      bool
+	// listings is keyed by currency family, "" where the candidates carry
+	// no currency.
+	listings map[string][]types.Identifier
+	// named reports whether the identifier the key was sent under
+	// identifies the group.
+	named bool
 }
 
 // choice is the outcome of choosing among the groups of every response.
-// winner is nil where no group survived; attached are the best groups of the
-// datasources in precedence order, the winner among them where the
-// database named no instrument for the key.
-// groups counts the groups of each datasource's response, and notNaming
-// those dropped for not naming the identifier sent; the reason of a key no
-// group won summarises both.
 type choice struct {
-	winner    *group
-	attached  []*group
-	findings  []gen.CreateFindingParams
+	// winner is nil where no group survived.
+	winner *group
+	// attached is the best group of each datasource in precedence order,
+	// the winner among them where the database named no instrument.
+	attached []*group
+	findings []gen.CreateFindingParams
+	// groups counts the groups of each datasource's response, and notNaming
+	// those dropped for not naming the identifier sent. The reason of a key
+	// no group won summarises both.
 	groups    map[string]int
 	notNaming map[string]int
 }
 
-// groups builds the groups of r, one per set partition finds, each carrying
-// the instrument grain identifiers of the call's filter. families maps a
-// currency code to its family.
+// groups builds the groups of r. Every group carries the instrument grain
+// identifiers the call filtered on.
 func groups(r *result, families func(string) string) []*group {
 	var strict []types.Identifier
 	for _, id := range r.Response.Filtered {
@@ -192,12 +194,11 @@ func (g *group) families() []string {
 	return out
 }
 
-// contradicts reports whether g carries an identifier of id's type and
-// domain but none with id's value, returning one that differs. Only the
-// identifiers that may name what id names are compared: the instrument's
-// for an instrument grain id; for a listing grain id, those of the listing
-// in family fam and of the listing of no family, or of every listing where
-// fam is empty.
+// contradicts reports whether g names id's subject by another value,
+// returning the value that differs. Only the identifiers that may name what
+// id names are compared: the instrument's for an instrument grain id; for a
+// listing grain id, those of the listing in family fam and of the listing
+// of no family, or of every listing where fam is empty.
 func (g *group) contradicts(id types.Identifier, fam string) (types.Identifier, bool) {
 	if multi[id.Type] {
 		return types.Identifier{}, false
@@ -268,10 +269,8 @@ func (g *group) ref() string {
 	return fmt.Sprintf("%s (%s)", what, g.from())
 }
 
-// against returns why what k states contradicts g, if it does: no listing
-// of g in the stated family fam, a disjoint class, or an identifier of a
-// stated type and domain with another value. The stated side leads, and the
-// datasource that served g closes.
+// against returns why what k states contradicts g, if it does. The stated
+// side leads the detail, and the datasource that served g closes it.
 func (g *group) against(k gen.StatedKey, fam string) (string, bool) {
 	detail, ok := g.contradicted(k, fam)
 	if !ok {
@@ -298,9 +297,7 @@ func (g *group) contradicted(k gen.StatedKey, fam string) (string, bool) {
 }
 
 // inconsistent returns why g contradicts a, a group chosen above it, if it
-// does: a disjoint class, or an identifier of one type and domain with
-// another value, the instrument's or those of one listing. The detail
-// closes with a's source.
+// does. The detail closes with a's source.
 func (g *group) inconsistent(a *group) (string, bool) {
 	if Disjoint(g.class, a.class) {
 		return fmt.Sprintf("class %s contradicts the class %s (%s)", g.class, a.class, a.from()), true
@@ -345,10 +342,9 @@ func (g *group) confirms(k gen.StatedKey, fam string) int {
 	return n
 }
 
-// choose chooses among the groups of results, taken in precedence order,
-// for the key k. db is the group of the instrument the database names for
-// the key, nil where it names none, and families maps a currency code to
-// its family.
+// choose picks the winner for k. db, the group of the instrument the
+// database names, wins where it is not nil; otherwise the best group of the
+// highest precedence datasource does.
 func choose(results []*result, k gen.StatedKey, db *group, families func(string) string) choice {
 	c := choice{winner: db, groups: map[string]int{}, notNaming: map[string]int{}}
 	var chosen []*group
@@ -398,9 +394,8 @@ func (c *choice) naming(r *result, gs []*group) ([]*group, bool) {
 	return survivors, fallback
 }
 
-// bestGroup returns the best group of r for the key k stating the family
-// fam, nil where none survives. chosen is the groups chosen above r, the
-// winner first.
+// bestGroup returns the best surviving group of r for k, nil where none
+// survives. chosen is the groups chosen above r, the winner first.
 func (c *choice) bestGroup(r *result, k gen.StatedKey, fam string, families func(string) string, chosen []*group) *group {
 	if r.Sent == nil {
 		return nil

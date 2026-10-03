@@ -10,14 +10,6 @@
 //
 // The e2e suite writes this record directly, so its shape is part of the
 // contract.
-//
-// A session lives while it is used: each Get moves expires_at to Idle from
-// now, up to Max from created_at, after which it is gone. Delete removes it
-// at once, and a removed identifier is never accepted again because there is
-// nothing left to accept.
-//
-// Redis is a hard dependency of the request path. A failure to reach it is
-// returned wrapped, and is not ErrNotFound.
 package session
 
 import (
@@ -107,7 +99,9 @@ func (s *Store) Create(ctx context.Context, userID uuid.UUID) (Session, error) {
 	return sess, nil
 }
 
-// Get returns the live session with id, extended by its use.
+// Get returns the live session with id, extended by its use: expires_at
+// moves to Idle from now, up to Max from created_at. A failure to reach Redis
+// is returned wrapped, and is not ErrNotFound.
 func (s *Store) Get(ctx context.Context, id string) (Session, error) {
 	val, err := s.rdb.Get(ctx, prefix+id).Bytes()
 	if errors.Is(err, redis.Nil) {

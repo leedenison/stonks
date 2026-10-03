@@ -24,11 +24,9 @@ const live = liveSession();
 
 afterEach(() => vi.useRealTimers());
 
-// advance moves the faked clock by ms, then lets what that starts settle.
-// The query notifies its observers through zero-delay timers, which the
-// faked clock places one millisecond later when they are scheduled
-// mid-tick, and each act boundary flushes the render a notification
-// causes, so an answer takes a few one-millisecond rounds to reach the hook.
+// advance moves the faked clock by ms and lets the query's answer reach the
+// hook. The faked clock runs a zero-delay timer one millisecond late when
+// a tick schedules it, so the answer needs a few one-millisecond rounds.
 async function advance(ms: number) {
   await act(() => vi.advanceTimersByTimeAsync(ms));
   for (let i = 0; i < 3; i++) {

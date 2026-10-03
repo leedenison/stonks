@@ -18,8 +18,8 @@ func parseDate(s string) (time.Time, error) {
 	return time.ParseInLocation(time.DateOnly, s, time.UTC)
 }
 
-// validate reads r, and either rejects it with the first failing check as
-// its reason or interns its key.
+// validate reads r into a row. A row that fails a check carries the first
+// failing check as its reason; any other row carries its interned key.
 func (g *ingestion) validate(ordinal int32, r *statementv1.Row, today time.Time, currencies map[string]bool) row {
 	out := row{ordinal: ordinal, stated: r}
 	reject := func(format string, args ...any) row {
@@ -99,11 +99,9 @@ func (g *ingestion) split(ordinal int32, sp *statementv1.StatedSplit, currencies
 	return out, nil
 }
 
-// keyOf reads a stated key into its canonical form: the class and
-// identifier types in the database vocabulary, an empty description as
-// none, and the identifiers sorted by type, domain and value with an
-// absent domain first. It fails a class or type outside the vocabulary and
-// two identifiers of one type and domain.
+// keyOf reads a stated key into its canonical form, so that two keys stating
+// the same thing compare equal: the identifiers sorted by type, domain and
+// value with an absent domain first, and an empty description read as none.
 func keyOf(sk *typev1.StatedKey) (*key, error) {
 	class, ok := types.FromProto[gen.AssetClass](sk.GetAssetClass())
 	if !ok {

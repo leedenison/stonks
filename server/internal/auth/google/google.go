@@ -1,15 +1,4 @@
 // Package google verifies Google ID tokens.
-//
-// A token is accepted when its RS256 signature checks against a key in
-// Google's published JWKS, its issuer is Google, its audience is the
-// configured OAuth client id, it has not expired, and Google reports its email
-// as verified. Only the subject, email and name are taken from it.
-//
-// Failures cross the package boundary as sentinels: ErrMalformed for a token
-// that is not a JWT, ErrInvalid for one that fails verification, and
-// ErrEmailUnverified for a token that verifies but carries an unverified
-// email. A failure to fetch the JWKS is none of these; it is wrapped and
-// returned as is.
 package google
 
 import (
@@ -93,7 +82,12 @@ func New(clientID string, opts ...Option) *Verifier {
 	return v
 }
 
-// Verify checks token and returns the identity it asserts.
+// Verify checks token and returns the identity it asserts. A token is
+// accepted when its RS256 signature checks against a key in Google's
+// published JWKS, its issuer is Google, its audience is the configured OAuth
+// client id, it has not expired, and Google reports its email as verified. A
+// failure to fetch the JWKS is none of the sentinels; it is wrapped and
+// returned as is.
 func (v *Verifier) Verify(ctx context.Context, token string) (Claims, error) {
 	var c claims
 	_, err := v.parser.ParseWithClaims(token, &c, func(t *jwt.Token) (any, error) {

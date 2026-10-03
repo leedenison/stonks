@@ -32,8 +32,8 @@ message User {
   Role role = 4;
 }
 
-// The session a request carries. Its identifier is the cookie and is not
-// repeated here.
+// The session a request carries. Its identifier is the cookie, so no field
+// repeats it.
 message Session {
   // The instant the session lapses unless a later authenticated request
   // extends it.
@@ -69,8 +69,8 @@ service AuthService {
   // Verifies a Google ID token, provisions the account on first sight and
   // starts a session, returned in a cookie.
   rpc SignIn(SignInRequest) returns (SignInResponse);
-  // Reports the session the request carries; succeeds with both fields unset
-  // when it carries none.
+  // Reports the session the request carries. A request without a valid
+  // session still succeeds.
   rpc GetSession(GetSessionRequest) returns (GetSessionResponse);
   // Ends the session the request carries and clears its cookie; succeeds when
   // it carries none.

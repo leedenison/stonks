@@ -8,17 +8,8 @@
 // the security's line, and where a key is left without one, it matches the
 // listing its description names. A transfer states none.
 //
-// Every date is stated in the exchange's local zone with its offset, and the
-// date part is taken as stated: an evening posting is not moved to the next
-// UTC day.
-//
 // A row is stated as traded, and a split arrives as a transfer of the units
 // it added, so every row is as at its order date.
-//
-// The security list prints an option's ticker in OCC form for a contract OCC
-// lists and in IBKR's own form otherwise. A ticker in OCC form is carried as
-// an OCC identifier only when the terms the same record states name that
-// symbol; a record whose printed symbol and terms disagree fails the file.
 
 import { parseSync } from "ofx-js";
 import {
@@ -88,6 +79,9 @@ function many(parent: Node, name: string): Node[] {
   return list;
 }
 
+// date reads the date part of a stamp as stated. The file states every
+// stamp in the exchange's local zone with its offset, so an evening posting
+// stays on its own day and does not move to the next UTC day.
 function date(stamp: string): string {
   const m = /^(\d{4})(\d{2})(\d{2})/.exec(stamp);
   if (!m) throw new MarshalError(`malformed date ${stamp}`);
@@ -166,7 +160,9 @@ function securities(ofx: Node): Map<string, Security> {
 }
 
 // optionOcc returns the OCC symbol an OPTINFO states, or undefined when its
-// ticker is not in OCC form.
+// ticker is not in OCC form. The security list prints the ticker in OCC form
+// for a contract OCC lists and in IBKR's own form otherwise. A record whose
+// printed symbol and terms disagree fails the file.
 function optionOcc(el: Node, ticker: string): string | undefined {
   if (!isOcc(ticker)) return undefined;
   const built = buildOcc(
@@ -254,8 +250,7 @@ function marshal(input: string): Statement {
   });
 }
 
-// recognise checks the type where one is reported, the OFX header, then
-// the statement's account, stated as ACCTID under INVACCTFROM.
+// recognise tells an IBKR QFX file by its statement account.
 function recognise(input: string, type: string): boolean {
   const t = mediaType(type);
   if (t !== "" && !TYPES.has(t)) return false;

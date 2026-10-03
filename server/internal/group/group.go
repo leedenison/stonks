@@ -1,9 +1,7 @@
 // Package group gathers a user's unresolved keys into the holdings that sum
 // them. Where two keys a transaction names share an identifier, or a
 // description within one broker, they are one holding, transitively, named by
-// the earliest key. A group is derived from what the keys state, so it is
-// recomputed in full for the user under the user's key lock, which the caller
-// holds; see [transactions.sql](../db/queries/transactions/transactions.sql).
+// the earliest key.
 package group
 
 import (
@@ -44,8 +42,7 @@ type descriptionKey struct {
 	text   string
 }
 
-// join unions id with the first key seen stating the same thing, or records
-// it as that first key.
+// join unions id with the first key stating k.
 func join[K comparable](first map[K]uuid.UUID, parent map[uuid.UUID]uuid.UUID, k K, id uuid.UUID) {
 	if held, ok := first[k]; ok {
 		union(parent, held, id)
@@ -107,8 +104,9 @@ func Of(keys []gen.ListGroupableKeysRow) map[uuid.UUID]uuid.UUID {
 	return out
 }
 
-// Regroup recomputes every group of user, over the unresolved keys a
-// transaction names.
+// Regroup recomputes every group of user in full, over the unresolved keys a
+// transaction names. The caller holds the user's key lock; see
+// [transactions.sql](../db/queries/transactions/transactions.sql).
 func Regroup(ctx context.Context, q Queries, user uuid.UUID) error {
 	keys, err := q.ListGroupableKeys(ctx, user)
 	if err != nil {

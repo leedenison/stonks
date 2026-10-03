@@ -12,6 +12,7 @@ option go_package = "github.com/leedenison/stonks/proto/instrument/v1;instrument
 message Instrument {
   // Identifies the instrument in every API; a UUID.
   string id = 1;
+  // The narrowest class known for the instrument.
   stonks.type.v1.AssetClass asset_class = 2;
   // The instrument grain identifiers naming it. Empty when only its listings
   // are named.
@@ -34,6 +35,6 @@ message ListInstrumentsRequest {}
 message ListInstrumentsResponse {}
 
 service InstrumentService {
-  // Returns no instruments.
+  // A stub: it returns no instruments yet.
   rpc ListInstruments(ListInstrumentsRequest) returns (ListInstrumentsResponse);
 }

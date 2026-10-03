@@ -1,12 +1,8 @@
 import type { ReactNode } from "react";
 import { BackButton } from "./back-button";
 
-// Page is the column that holds a page: an action bar across the top with
-// the title on the left and the page's actions beside it, a rule below, and
-// the body. A page that belongs under another, as a statement's does under
-// the statements, names that page as back, and an arrow to it sits left of
-// the title. Prose width suits a form or a record; wide suits a table,
-// which is given the room its columns need.
+// Page is the frame of every page: an action bar with the title and the
+// page's actions, then the body.
 export function Page({
   title,
   back,
@@ -16,8 +12,12 @@ export function Page({
   children,
 }: {
   title: string;
+  // back is the page this one belongs under, as the statements page is for
+  // a statement.
   back?: string;
   actions?: ReactNode;
+  // Prose suits a form or a record. Wide suits a table and gives its
+  // columns the room they need.
   width?: "prose" | "wide";
   testId?: string;
   children?: ReactNode;

@@ -1,6 +1,8 @@
 -- +goose Up
 
 CREATE TYPE run_kind AS ENUM ('statement', 'resolution', 'fetch', 'replay');
+-- What started a run: 'user' and 'administrator' are a person's request, and
+-- 'run' is a parent run starting a child.
 CREATE TYPE run_trigger AS ENUM ('user', 'administrator', 'run');
 CREATE TYPE run_state AS ENUM ('pending', 'running', 'completed', 'failed', 'interrupted');
 

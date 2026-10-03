@@ -1,5 +1,5 @@
-// Applies the schema migrations to the database named by the one argument, a
-// Postgres URL.
+// Command migrate applies the schema migrations to the database named by its
+// one argument, a Postgres URL.
 package main
 
 import (

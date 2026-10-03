@@ -124,11 +124,9 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-// Lineage is the run's place in its tree: the runs above it from the
-// top-level run down, the run itself tinted when it is current, and every
-// run below it, without the siblings of any run above. A row opens its
-// page, and the button before the date opens and closes the rows below it;
-// the page opens with the rows above the run open and the rest closed.
+// Lineage is the run's place in its tree: the runs above it and every run
+// below it, without the siblings of any run above. The rows above the run
+// start open and the rest start closed.
 function Lineage({
   data,
   testId = "admin-run-lineage",
@@ -201,10 +199,7 @@ function Lineage({
   );
 }
 
-// LineageRow is one run of the lineage at its depth. open is set where the
-// row has rows below it, and a closed row counts the open findings of the
-// rows it hides with its own. current marks the run the page describes,
-// which neither opens its own page nor changes under the pointer.
+// LineageRow is one run of the lineage at its depth.
 function LineageRow({
   run: r,
   depth,
@@ -214,7 +209,11 @@ function LineageRow({
 }: {
   run: UserRun;
   depth: number;
+  // current marks the run the page describes. Its row links nowhere and
+  // does not change under the pointer.
   current?: boolean;
+  // open is unset when the row has no rows below it. A closed row adds the
+  // open findings of the rows it hides to its own.
   open?: boolean;
   toggle: (id: string, open: boolean) => void;
 }) {
@@ -292,10 +291,8 @@ function LineageRow({
   );
 }
 
-// Findings lists what the run and every run below it met, each with the run
-// that met it. A row opens to the finding's record below it, one at a time.
-// An open finding offers its clear: a finding that reports a block clears
-// with the block, which lifts it.
+// Findings lists what the run and every run below it met. A finding that
+// reports a block clears with the block, which lifts it.
 function Findings({ data }: { data: GetRunResponse }) {
   const clearFinding = useClearFinding();
   const clearBlock = useClearBlock();

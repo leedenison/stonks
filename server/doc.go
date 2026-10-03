@@ -2,9 +2,7 @@
 // declares nothing; each rule points at the package that owns its detail.
 //
 // Amounts. Money and quantities are exact decimals,
-// github.com/shopspring/decimal, never a float. The module is required by the
-// first code that handles an amount, because go mod tidy drops a module
-// nothing imports.
+// github.com/shopspring/decimal, never a float.
 //
 // Time. Every time.Time is UTC. A time interval is half open: a function
 // taking validFrom and validBefore acts on an instant equal to validFrom and
@@ -26,7 +24,7 @@
 // metrics are counters of decisions the code makes, named
 // stonks.<area>.<plural noun>, carrying attributes drawn from a set closed in
 // the file that declares the instrument, and never a user, session or request
-// identifier. Export is a no-op unless a collector endpoint is configured.
+// identifier.
 //
 // Context. Every function that does IO takes a context.Context first, never
 // stored in a struct. context.TODO never appears outside a test.

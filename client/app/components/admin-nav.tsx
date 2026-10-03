@@ -6,9 +6,7 @@ import { usePathname } from "next/navigation";
 type Entry = { href: string; label: string; disabled?: boolean };
 type Section = { section: string; children: Entry[] };
 
-// The admin pages, in the shape they take once built. An entry that is not
-// yet built is listed dimmed and inert, so the navigation does not change
-// when it arrives.
+// The admin pages. An entry marked disabled is listed dimmed and inert.
 const entries: (Entry | Section)[] = [
   { href: "/admin", label: "Overview" },
   {

@@ -2,13 +2,8 @@
 
 import { useCallback, useSyncExternalStore } from "react";
 
-// A value kept in localStorage. It is read through useSyncExternalStore so
-// the server render and the first client render agree on the fallback and
-// the stored value paints on the next. Storage can be absent or refuse
-// access, in a private window or a sandbox; the value is then the fallback
-// and a write is dropped. A write in this tab notifies every hook holding a
-// key; a write in another tab arrives as a storage event.
-
+// listeners hears a write in this tab. A write in another tab arrives as a
+// storage event.
 const listeners = new Set<() => void>();
 
 function subscribe(cb: () => void) {
@@ -20,6 +15,8 @@ function subscribe(cb: () => void) {
   };
 }
 
+// readStored returns null when storage is absent or refuses access, as in a
+// private window or a sandbox.
 export function readStored(key: string): string | null {
   try {
     return localStorage.getItem(key);
@@ -41,6 +38,9 @@ export function writeStored(key: string, value: string | null) {
   listeners.forEach((cb) => cb());
 }
 
+// useStoredValue keeps a value in localStorage under key. The server render
+// and the first client render both see nothing stored, so they agree. The
+// stored value paints on the render after.
 export function useStoredValue<T>(
   key: string,
   parse: (raw: string | null) => T,

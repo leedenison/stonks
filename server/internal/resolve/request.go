@@ -9,11 +9,10 @@ import (
 	"github.com/leedenison/stonks/server/internal/db/gen"
 )
 
-// request fetches the identity of every undecided key from each enabled
-// datasource that has not covered the instrument the lookup found for it,
-// one fetch per datasource, concurrently. Each key takes its results in
-// precedence order. Whether a datasource serves a key is the datasource's
-// to say.
+// request fetches the identity of every undecided key, one concurrent fetch
+// per datasource. A datasource that already covers the instrument the
+// lookup found is not asked. Each key takes its results in precedence
+// order, and whether a datasource serves a key is the datasource's to say.
 func (r *Resolver) request(ctx context.Context, run gen.Run, resolutions []*resolution) error {
 	entries := r.sources.Enabled()
 	batches := make([][]*resolution, len(entries))

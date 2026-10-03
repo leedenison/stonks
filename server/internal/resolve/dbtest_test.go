@@ -107,9 +107,8 @@ func (r syncRunner) Child(ctx context.Context, parent gen.Run, kind gen.RunKind,
 	return row, r.q.CompleteRun(ctx, row.ID)
 }
 
-// stack is a resolver over a transaction rolled back when the test ends,
-// with one scripted datasource, and a user with a statement for stating
-// keys.
+// stack is a resolver with one scripted datasource, over a rolled-back
+// transaction.
 type stack struct {
 	q          *gen.Queries
 	tx         pgx.Tx
@@ -186,11 +185,8 @@ func (s *stack) key(t *testing.T, id uuid.UUID) gen.StatedKey {
 	return gen.StatedKey{}
 }
 
-// TestResolveWrites checks a resolution against real rows: the instrument a
-// response creates with its listing, identifiers, provenance, fetch
-// identifiers and coverage; a second key attaching to it without a fetch; a
-// cash key resolving to the seed; and a key whose every group is dropped,
-// with its finding.
+// TestResolveWrites checks what one resolution writes: a created instrument,
+// a second key attaching to it, a cash key on the seed and a dropped group.
 func TestResolveWrites(t *testing.T) {
 	s := newStack(t)
 	ctx := context.Background()
@@ -218,7 +214,6 @@ func TestResolveWrites(t *testing.T) {
 		t.Errorf("outcomes mismatch (-want +got):\n%s", diff)
 	}
 
-	// The trade created the instrument, from the fetch key that served it.
 	found, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: types.IdentifierTypeIsin, Value: isin.Value})
 	require.NoError(t, err)
 	inst := found.Instrument
@@ -253,9 +248,6 @@ func TestResolveWrites(t *testing.T) {
 		t.Errorf("%d fetch identifiers, want the 4 the response named", len(asserted))
 	}
 
-	// The trade associates through its ISIN, confirmed, on the GBP listing,
-	// its ticker being the weaker; the transfer through the ISIN with no
-	// listing.
 	tradeKey, transferKey := s.key(t, trade.ID), s.key(t, transfer.ID)
 	via := map[uuid.UUID]string{}
 	for _, row := range ids {
@@ -268,7 +260,6 @@ func TestResolveWrites(t *testing.T) {
 		t.Errorf("transfer = %+v, want the instrument via its ISIN, confirmed, with no listing", transferKey)
 	}
 
-	// The cash key names the GBP seed through the GBX identifier.
 	gbx, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: types.IdentifierTypeCurrency, Value: "GBX"})
 	require.NoError(t, err)
 	cashKey := s.key(t, cash.ID)
@@ -300,7 +291,6 @@ func TestResolveWrites(t *testing.T) {
 		t.Errorf("coverage = %+v, want alpha through the transfer's fetch key", coverage)
 	}
 
-	// Dropping the mis-stated key's group is a finding of the resolution.
 	findings, err := s.q.ListRunFindings(ctx, []uuid.UUID{s.resolution.ID})
 	require.NoError(t, err)
 	if len(findings) != 1 || findings[0].Finding.Kind != gen.FindingKindDropped || *findings[0].Finding.Step != gen.DropStepStated || *findings[0].Finding.StatedKeyID != wrong.ID || *findings[0].Finding.Detail != "cusip 92857W308: stated USD has no listing among GBP (alpha)" {
@@ -311,11 +301,9 @@ func TestResolveWrites(t *testing.T) {
 	}
 }
 
-// TestMergeRows checks the merge against real rows: when a response
-// identifies two instruments, the merge folds the later into the earlier,
-// moving the listing the survivor lacks with its identifiers, relinking the
-// stated keys, fetch keys and coverage, and deleting the rest, under the
-// deferred constraints.
+// TestMergeRows checks that a response identifying two instruments folds
+// the later into the earlier, with every row that pointed at the loser
+// relinked or moved.
 func TestMergeRows(t *testing.T) {
 	s := newStack(t)
 	ctx := context.Background()
@@ -336,9 +324,8 @@ func TestMergeRows(t *testing.T) {
 		t.Fatal("the two keys resolved to one instrument before the merge")
 	}
 
-	// A third key states a SEDOL the database lacks, in USD, and the
-	// response names the FIGI of the first instrument and the CUSIP of the
-	// second.
+	// The third key's response names both instruments, which is what brings
+	// them together.
 	sedol := id(types.IdentifierTypeSedol, "", "BH4HKS3")
 	s.script.responses[sedol] = market.IdentityResult{Filtered: []types.Identifier{sedol}, Candidates: []market.Candidate{
 		{Class: gen.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{figi, cusip, sedol, xnas}},

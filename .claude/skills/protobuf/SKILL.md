@@ -19,9 +19,10 @@ API definitions live in `proto/<area>/v1/<area>.proto`. Generated code is produc
 
 ## Documentation
 
-Every message, field, enum value and RPC carries a leading comment; it is the API
-documentation in both generated languages. Trailing comments are not used. Comments
-follow the `comments` skill; load it with this one.
+A message, field, enum value or RPC carries a leading comment when its name does not
+carry its meaning; the comments are the API documentation in both generated languages.
+Trailing comments are not used. Comments follow the `comments` skill; load it with this
+one.
 
 ## Validation
 

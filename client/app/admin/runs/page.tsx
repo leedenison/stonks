@@ -144,9 +144,7 @@ function Runs() {
 }
 
 // RunRows renders runs and, under each open one, its children indented a
-// level deeper. A row opens its page; the button before the date opens and
-// closes its children. A closed row with children shows the findings of its
-// whole subtree.
+// level deeper.
 function RunRows({
   runs,
   depth,

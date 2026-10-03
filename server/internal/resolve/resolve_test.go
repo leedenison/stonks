@@ -603,7 +603,7 @@ func TestResolveRetry(t *testing.T) {
 	}
 }
 
-// TestResolveErrors checks that a store or fetch error fails the res.
+// TestResolveErrors checks that a store or fetch error fails the resolution.
 func TestResolveErrors(t *testing.T) {
 	boom := errors.New("boom")
 	t.Run("lookup", func(t *testing.T) {

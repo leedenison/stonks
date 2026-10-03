@@ -48,12 +48,10 @@ CREATE TABLE fetch_keys (
     user_id       uuid            NOT NULL,
     stated_key_id uuid            NOT NULL REFERENCES stated_keys (id),
     outcome       fetch_outcome   NOT NULL,
-    -- attempts is the number of calls made.
     attempts      smallint        NOT NULL,
     sent_type     identifier_type,
     sent_domain   text            NOT NULL DEFAULT '',
     sent_value    text,
-    -- instrument_id is the instrument to which the response was attached.
     instrument_id uuid            REFERENCES instruments (id),
     -- reason records the datasource's error when results are not returned.
     reason        text,
@@ -113,7 +111,6 @@ CREATE TABLE datasource_blocks (
     id           uuid        PRIMARY KEY,
     datasource   text        NOT NULL REFERENCES datasources (name),
     kind         fetch_kind  NOT NULL,
-    -- scope is either a single identifier or an entire datasource.
     scope        block_scope NOT NULL,
     sent_type    identifier_type,
     sent_domain  text        NOT NULL DEFAULT '',
