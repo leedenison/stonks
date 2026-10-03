@@ -3,6 +3,7 @@ import { baseURL } from "./helpers/config";
 
 export default defineConfig({
   testDir: "./tests",
+  globalSetup: "./helpers/setup.ts",
   fullyParallel: true,
   retries: 0,
   reporter: "list",

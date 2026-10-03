@@ -35,6 +35,7 @@ server/
   cmd/stonks/            the service binary; all wiring happens in main.go
   cmd/migrate/           applies the schema migrations to the database named by its argument
   cmd/healthcheck/       exits 0 when the URL named by its argument answers 200; the container healthcheck
+  cmd/vcrproxy/          the e2e stack's provider: a reverse proxy replaying recorded traffic
   internal/              private packages
   pkg/                   packages with externally visible interfaces
 ```
@@ -74,9 +75,10 @@ docker/
   docker-compose.yml         base stack: postgres, redis, stonks, client, envoy
   docker-compose.dev.yml     dev overlay: bind mounts, live reload, observability
   docker-compose.test.yml    standalone stack for integration tests
-  docker-compose.e2e.yml     e2e overlay: shifted ports, playwright service
+  docker-compose.e2e.yml     e2e overlay: shifted ports, the vcrproxy provider, playwright service
   server/                    Dockerfile, Dockerfile.dev, air.toml
   client/                    Dockerfile, Dockerfile.dev, entrypoint.sh, dev.sh
+  vcrproxy/                  Dockerfile and the cassettes it replays
   envoy/                     envoy.yaml, envoy.dev.yaml
   otel-collector/            config.yaml
   prometheus/                prometheus.yml

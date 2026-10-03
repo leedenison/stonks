@@ -42,11 +42,19 @@ isolation, where the failure messages are better and the test is faster.
 
 ## External services
 
-Nothing in a suite reaches a third party, and nothing in it replays recorded traffic.
+Nothing reaches a third party during a test run. The provider is `vcrproxy`, a reverse
+proxy in the e2e overlay that replays traffic recorded with go-vcr, named as the
+datasource by the suite's global setup. `make e2e-record` forwards what the recording
+lacks to the real provider and appends what comes back; every other run replays. The
+cassettes live in `docker/vcrproxy/`: `recorded.yaml` holds only what the provider sent,
+and `authored.yaml` the few hand-written interactions, such as rate limit refusals, that
+cannot be recorded.
 
-E2E needs a provider to answer deterministically, not authentically. Authenticity is what
-the integration tier's cassettes are for, and it is bought there with the client code that
-actually has to parse what the provider sends.
+A spec picks its case by the identifier its fixture states, so specs stay independent and
+the suite parallel. A fixture states a real public identifier where a listing is wanted,
+a different security per spec, so no spec's lookup finds an instrument another spec's
+fetch created. The integration tier owns what the parser makes of the provider's
+responses; e2e asserts what the system does with the outcome.
 
 ## Shape of a spec
 

@@ -101,8 +101,8 @@ func New(t *testing.T, cassette string, s Scrub) *http.Client {
 	rec, err := recorder.New(cassette,
 		recorder.WithMode(mode),
 		recorder.WithSkipRequestLatency(true),
-		recorder.WithMatcher(s.match),
-		recorder.WithHook(s.redact, recorder.BeforeSaveHook),
+		recorder.WithMatcher(s.Match),
+		recorder.WithHook(s.Redact, recorder.BeforeSaveHook),
 	)
 	require.NoError(t, err)
 	t.Cleanup(func() { require.NoError(t, rec.Stop()) })
@@ -110,8 +110,9 @@ func New(t *testing.T, cassette string, s Scrub) *http.Client {
 	return rec.GetDefaultClient()
 }
 
-// redact rewrites an interaction on its way to disk.
-func (s Scrub) redact(i *cassette.Interaction) error {
+// Redact rewrites an interaction on its way to disk, as a recorder's
+// BeforeSaveHook.
+func (s Scrub) Redact(i *cassette.Interaction) error {
 	for _, name := range slices.Collect(maps.Keys(i.Request.Headers)) {
 		if !slices.Contains(allowedHeaders, name) {
 			i.Request.Headers.Del(name)
@@ -173,10 +174,10 @@ func (s Scrub) redactQuery(raw string) string {
 	return u.String()
 }
 
-// match compares the method and the URL, and the body when the client says
+// Match compares the method and the URL, and the body when the client says
 // that is what distinguishes its requests. Never the headers: dates, nonces
 // and authorization differ between a recording and a replay.
-func (s Scrub) match(r *http.Request, i cassette.Request) bool {
+func (s Scrub) Match(r *http.Request, i cassette.Request) bool {
 	if r.Method != i.Method || canonical(r.URL.String()) != canonical(i.URL) {
 		return false
 	}
