@@ -177,8 +177,10 @@ func fetchChunk[Q, P any](ctx context.Context, f *Fetcher, e *Entry, s Server[Q,
 }
 
 // requestFailed records a failure of the request itself against every key it
-// carried. A block rests on the integration's account of the failure: the
-// whole datasource, or each identifier the request named.
+// carried. A temporary failure leaves no block: the keys are failed
+// temporarily and a later fetch asks for them again. A permanent failure
+// blocks at the scope the integration gives it, the whole datasource or each
+// identifier the request named.
 func requestFailed[Q, P any](fail Failure, err error, results []Result[Q, P], batch []int, attempts int) []gen.CreateDatasourceBlockParams {
 	outcome := gen.FetchOutcomeFailedPermanent
 	if fail.Temporary {
@@ -187,6 +189,9 @@ func requestFailed[Q, P any](fail Failure, err error, results []Result[Q, P], ba
 	for _, i := range batch {
 		results[i].Outcome, results[i].Reason = outcome, reasonOf(fail, err)
 		results[i].attempts = attempts
+	}
+	if fail.Temporary {
+		return nil
 	}
 	var blocks []gen.CreateDatasourceBlockParams
 	if fail.Scope == gen.BlockScopeDatasource {
