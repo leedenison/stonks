@@ -2,8 +2,8 @@
 // tree of tags. The file is ASCII though its header declares CHARSET 1252,
 // so reading it as UTF-8 is safe for the exports seen.
 //
-// A row's amounts are in the currency its CURRENCY block states, or in the
-// account's base currency CURDEF where it has none, as OFX defines them.
+// OFX defines a row's amounts as being in the currency its CURRENCY block
+// states. A row without the block is in the account's base currency, CURDEF.
 //
 // A row is stated as traded, and a split arrives as a transfer of the units
 // it added, so every row is as at its order date.
