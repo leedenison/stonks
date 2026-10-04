@@ -497,6 +497,20 @@ func TestResolveUnresolved(t *testing.T) {
 			reason:  "a: 1 candidate in 1 group, 1 group not naming mic_ticker VOD",
 		},
 		{
+			name:    "a description nobody holds",
+			key:     keyOf(gen.AssetClassStock, "USD", descr),
+			outcome: gen.ResolutionOutcomeUnrecognised,
+			reason:  "no instrument is identified by broker_description ibkr:ACME CORP",
+		},
+		{
+			name:    "a bare ticker beside a description nobody holds",
+			key:     keyOf(gen.AssetClassStock, "GBP", ticker, descr),
+			results: []result{servedResult(ticker, []types.Identifier{ticker}, cand(gen.AssetClassStock, "GBP", figi, xlon))},
+			fetched: true,
+			outcome: gen.ResolutionOutcomeUnrecognised,
+			reason:  "a: 1 candidate in 1 group, 1 group not naming mic_ticker VOD",
+		},
+		{
 			name:     "every group dropped",
 			key:      keyOf(gen.AssetClassStock, "GBP", isin),
 			results:  []result{servedResult(isin, []types.Identifier{isin}, cand(gen.AssetClassStock, "USD", figi, xnas))},
@@ -530,6 +544,81 @@ func TestResolveUnresolved(t *testing.T) {
 			}
 			if len(f.instruments)+len(f.associated) != 0 {
 				t.Errorf("wrote %d instruments and %d associations, want none", len(f.instruments), len(f.associated))
+			}
+			f.noDescriptions()
+		})
+	}
+}
+
+// noDescriptions checks that no stated description became an identifier row.
+func (f *fixture) noDescriptions() {
+	f.t.Helper()
+	for _, c := range f.identifiers {
+		if c.Type == types.IdentifierTypeBrokerDescription {
+			f.t.Errorf("wrote the description %s as an identifier", c.Value)
+		}
+	}
+}
+
+// TestResolveDescribed checks the keys that the database names through a
+// broker description, without a datasource answer.
+func TestResolveDescribed(t *testing.T) {
+	instID, descrID, isinID, gbpID := db.NewID(), db.NewID(), db.NewID(), db.NewID()
+	acme := stored{
+		instrument: gen.Instrument{ID: instID, AssetClass: gen.AssetClassStock, FetchKeyID: ptr.To(db.NewID())},
+		identifiers: []gen.Identifier{
+			{ID: isinID, InstrumentID: instID, Type: types.IdentifierTypeIsin, Value: isin.Value},
+			{ID: descrID, InstrumentID: instID, Type: descr.Type, Domain: descr.Domain, Value: descr.Value},
+			{ID: db.NewID(), InstrumentID: instID, ListingID: &gbpID, Type: xlon.Type, Domain: xlon.Domain, Value: xlon.Value},
+		},
+		listings: []gen.Listing{{ID: gbpID, InstrumentID: instID, Currency: "GBP"}},
+	}
+	otherID := db.NewID()
+	other := stored{
+		instrument:  gen.Instrument{ID: otherID, AssetClass: gen.AssetClassStock, FetchKeyID: ptr.To(db.NewID())},
+		identifiers: []gen.Identifier{{ID: db.NewID(), InstrumentID: otherID, Type: types.IdentifierTypeCusip, Value: cusip.Value}},
+	}
+	notServed := result{ID: db.NewID(), Outcome: gen.FetchOutcomeNotServed, Reason: "no recognised identifier type"}
+	provisional, confirmed := gen.ValidityProvisional, gen.ValidityConfirmed
+	tests := []struct {
+		name   string
+		key    gen.StatedKey
+		result result
+		via    uuid.UUID
+		valid  gen.Validity
+		reason string
+	}{
+		{name: "a description alone", key: keyOf(gen.AssetClassStock, "GBP", descr), result: notServed, via: descrID, valid: provisional},
+		{name: "an identifier the instrument carries is stronger", key: keyOf(gen.AssetClassStock, "GBP", isin, descr), result: notServed, via: isinID, valid: confirmed},
+		{name: "a bare ticker beside the description", key: keyOf(gen.AssetClassStock, "GBP", ticker, descr), result: servedResult(ticker, []types.Identifier{ticker}, cand(gen.AssetClassStock, "GBP", figi, xlon)), via: descrID, valid: provisional},
+		{name: "a description and an identifier naming different instruments", key: keyOf(gen.AssetClassStock, "USD", cusip, descr), reason: "cusip 92857W308 and broker_description ibkr:ACME CORP name different instruments"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFixture(t, entryA)
+			f.stores(acme)
+			f.stores(other)
+			if tc.reason == "" {
+				f.serves(entryA, tc.result)
+			}
+			got := f.resolve(tc.key)
+			f.noDescriptions()
+			if tc.reason != "" {
+				want := []gen.ResolutionKey{{RunID: res.ID, UserID: userID, StatedKeyID: tc.key.ID, Outcome: gen.ResolutionOutcomeUnrecognised, Reason: &tc.reason}}
+				if diff := cmp.Diff(want, got); diff != "" {
+					t.Errorf("Resolve mismatch (-want +got):\n%s", diff)
+				}
+				if len(f.findings) != 1 || f.findings[0].Kind != gen.FindingKindContradiction || len(f.associated) != 0 {
+					t.Errorf("findings = %+v, associated = %+v, want one contradiction and no association", f.findings, f.associated)
+				}
+				return
+			}
+			if len(got) != 1 || got[0].Outcome != gen.ResolutionOutcomeMatched {
+				t.Fatalf("Resolve = %+v, want matched", got)
+			}
+			wantAssoc := []gen.SetStatedKeyAssociationParams{{ID: tc.key.ID, UserID: userID, InstrumentID: &instID, ListingID: &gbpID, ViaID: &tc.via, Validity: &tc.valid}}
+			if diff := cmp.Diff(wantAssoc, f.associated); diff != "" {
+				t.Errorf("association mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}

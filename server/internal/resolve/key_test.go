@@ -60,6 +60,22 @@ func TestGUIDs(t *testing.T) {
 	}
 }
 
+// TestTrusted checks that trusted returns every GUID and every broker
+// description, strongest first, and nothing else.
+func TestTrusted(t *testing.T) {
+	isin := id(types.IdentifierTypeIsin, "", "GB00BH4HKS39")
+	venue := id(types.IdentifierTypeMicTicker, "XLON", "VOD")
+	ticker := id(types.IdentifierTypeMicTicker, "", "VOD")
+	broker := id(types.IdentifierTypeBrokerID, "ibkr", "12345")
+	a := id(types.IdentifierTypeBrokerDescription, "ibkr", "VODAFONE GROUP PLC")
+	b := id(types.IdentifierTypeBrokerDescription, "ibkr", "VODAFONE GRP")
+	k := gen.StatedKey{Identifiers: []types.Identifier{a, venue, ticker, broker, b, isin}}
+	want := []types.Identifier{isin, venue, a, b}
+	if diff := cmp.Diff(want, trusted(k)); diff != "" {
+		t.Errorf("trusted mismatch (-want +got):\n%s", diff)
+	}
+}
+
 func TestFamily(t *testing.T) {
 	if got := family(gen.StatedKey{Currency: ptr.To("GBX")}, families); got != "GBP" {
 		t.Errorf("family(GBX) = %q, want GBP", got)

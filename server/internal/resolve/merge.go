@@ -67,7 +67,7 @@ func merge(ctx context.Context, q Queries, res *resolution, fetchKey *uuid.UUID,
 // contradiction finding carrying detail.
 func refuse(res *resolution, fetchKey *uuid.UUID, hits []hit, detail string) (*found, map[types.Identifier]bool, gen.CreateFindingParams) {
 	pick := hits[0]
-	for _, id := range res.guids {
+	for _, id := range res.ids {
 		if i := slices.IndexFunc(hits, func(h hit) bool { return slices.Contains(h.matched, id) }); i >= 0 {
 			pick = hits[i]
 			break

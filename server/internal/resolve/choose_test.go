@@ -39,6 +39,7 @@ var (
 	xnas   = id(types.IdentifierTypeMicTicker, "XNAS", "VOD")
 	xetr   = id(types.IdentifierTypeMicTicker, "XETR", "VODI")
 	ticker = id(types.IdentifierTypeMicTicker, "", "VOD")
+	descr  = id(types.IdentifierTypeBrokerDescription, "ibkr", "ACME CORP")
 )
 
 // served returns a result served under sent, filtered on filtered.

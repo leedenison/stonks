@@ -52,7 +52,7 @@ func (r *Resolver) resolveKey(ctx context.Context, q Queries, run gen.Run, res *
 	if res.outcome != "" {
 		return record(ctx, q, run, res, res.outcome, res.reason, res.findings)
 	}
-	if err := lock(ctx, q, res.guids); err != nil {
+	if err := lock(ctx, q, res.ids); err != nil {
 		return gen.ResolutionKey{}, nil, err
 	}
 	c := choose(res.results, res.row, nil, families)
@@ -99,7 +99,7 @@ func (r *Resolver) resolveKey(ctx context.Context, q Queries, run gen.Run, res *
 // groups name, nil where there is none. Several found are merged, and taken
 // is the identifiers of any left apart.
 func find(ctx context.Context, q Queries, res *resolution, c choice) (*found, map[types.Identifier]bool, []gen.CreateFindingParams, error) {
-	ids := slices.Clone(res.guids)
+	ids := slices.Clone(res.ids)
 	for _, g := range c.attached {
 		for id := range g.all {
 			ids = appendUnique(ids, id)
@@ -387,11 +387,12 @@ func (w *writer) associate(ctx context.Context, res *resolution, families func(s
 	return true, nil
 }
 
-// via returns the identifier carrying res's association: the strongest it
-// stated that identifies the instrument, else a venue ticker of the chosen
-// listing, else a venue ticker of the instrument.
+// via returns the identifier that carries res's association: the strongest
+// identifier the key states that identifies the instrument, a description
+// ranking below every GUID, else a venue ticker of the chosen listing, else
+// a venue ticker of the instrument.
 func (w *writer) via(res *resolution, listing *uuid.UUID) (gen.Identifier, bool) {
-	for _, id := range res.guids {
+	for _, id := range res.ids {
 		if row, ok := w.identifiers[id]; ok {
 			return row, true
 		}

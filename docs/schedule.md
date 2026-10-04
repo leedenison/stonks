@@ -26,13 +26,11 @@ of open issues and ADRs at `docs/tasks/<label>/`.
   keys against one identity datasource.
 
 ```
-         001 open
-    |             |
-013 descr   014 datasources
-    |             |
-    +------+------+
-           |
-       002 close
+    001 open
+        |
+014 datasources
+        |
+    002 close
 ```
 
 ## Completed

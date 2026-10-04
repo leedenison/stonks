@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 
@@ -16,8 +17,10 @@ import (
 
 // resolution is one stated key's progress from lookup to outcome.
 type resolution struct {
-	row      gen.StatedKey
-	guids    []types.Identifier
+	row gen.StatedKey
+	// ids is every GUID and broker description the key states, strongest
+	// first.
+	ids      []types.Identifier
 	found    *found
 	results  []*result
 	findings []gen.CreateFindingParams
@@ -65,22 +68,20 @@ func (res *resolution) decide(outcome gen.ResolutionOutcome, format string, args
 }
 
 // lookup finds the instrument the database names for row and decides the
-// resolutions that never reach a datasource. Each global identifier is
-// looked up, strongest first; where two name different instruments the key
-// is left unrecognised with a contradiction finding.
+// resolutions that never reach a datasource. Each global identifier and
+// each broker description is looked up, strongest first; where two name
+// different instruments the key is left unrecognised with a contradiction
+// finding. When the key states no global identifier and no description the
+// database holds, lookup decides it is unrecognised.
 func (r *Resolver) lookup(ctx context.Context, row gen.StatedKey, families func(string) string) (*resolution, error) {
-	res := &resolution{row: row, guids: guids(row)}
+	res := &resolution{row: row, ids: trusted(row)}
 	for _, id := range row.Identifiers {
 		if id.Type == types.IdentifierTypeCurrency {
 			return res, r.lookupCurrency(ctx, res, id.Value, families)
 		}
 	}
-	if len(res.guids) == 0 && !bare(row) {
-		res.decide(gen.ResolutionOutcomeUnrecognised, "no global identifier")
-		return res, nil
-	}
 	var hits []gen.FindIdentifierRow
-	for _, id := range res.guids {
+	for _, id := range res.ids {
 		hit, err := r.store.FindIdentifier(ctx, gen.FindIdentifierParams{Type: id.Type, Domain: id.Domain, Value: id.Value})
 		switch {
 		case errors.Is(err, db.ErrNotFound):
@@ -91,6 +92,9 @@ func (r *Resolver) lookup(ctx context.Context, row gen.StatedKey, families func(
 		hits = append(hits, hit)
 	}
 	if len(hits) == 0 {
+		if len(guids(row)) == 0 && !bare(row) {
+			res.decide(gen.ResolutionOutcomeUnrecognised, "%s", unnamed(res.ids))
+		}
 		return res, nil
 	}
 	first := hits[0]
@@ -111,6 +115,20 @@ func (r *Resolver) lookup(ctx context.Context, row gen.StatedKey, families func(
 		res.decide(gen.ResolutionOutcomeUnrecognised, "asset class %s contradicts the instrument's %s", *row.AssetClass, f.instrument.AssetClass)
 	}
 	return res, nil
+}
+
+// unnamed returns the reason for a key that states no global identifier. It
+// names each description the key states, or says there is no global
+// identifier when the key states none.
+func unnamed(ids []types.Identifier) string {
+	if len(ids) == 0 {
+		return "no global identifier"
+	}
+	parts := make([]string, len(ids))
+	for i, id := range ids {
+		parts[i] = name(id)
+	}
+	return "no instrument is identified by " + strings.Join(parts, " or ")
 }
 
 // lookupCurrency resolves a currency key against the seed; a currency key
