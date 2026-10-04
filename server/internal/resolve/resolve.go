@@ -1,8 +1,11 @@
 // Package resolve resolves stated keys to system owned instruments.
 //
 // A key is resolved through the identifiers it states that are recognised
-// globally: eg. an ISIN, a SEDOL or a ticker with its venue. When a key
-// states only a bare ticker, nothing associates through it.
+// globally, such as an ISIN, a SEDOL or a ticker with its venue. It also
+// resolves through the broker's description of the line, when the system
+// holds one. When a key states only a bare ticker, nothing associates
+// through it. The resolver never writes a stated description as an
+// identifier row.
 //
 // The database is consulted before any datasource, and only the keys it
 // leaves undecided are sent out. Two runs stating one key produce one

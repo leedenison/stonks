@@ -79,6 +79,20 @@ func guids(k gen.StatedKey) []types.Identifier {
 	return out
 }
 
+// trusted returns the identifiers k states that the lookup trusts a hit on
+// to name the instrument: every GUID and every broker description, strongest
+// first.
+func trusted(k gen.StatedKey) []types.Identifier {
+	out := guids(k)
+	for _, id := range k.Identifiers {
+		if id.Type == types.IdentifierTypeBrokerDescription {
+			out = append(out, id)
+		}
+	}
+	slices.SortStableFunc(out, func(a, b types.Identifier) int { return strength(a) - strength(b) })
+	return out
+}
+
 // bare reports whether k states a ticker without its venue.
 func bare(k gen.StatedKey) bool {
 	for _, id := range k.Identifiers {

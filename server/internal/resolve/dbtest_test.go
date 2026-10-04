@@ -71,9 +71,12 @@ func (s *script) Classify(error) market.Failure {
 }
 func (s *script) Limit() (rate.Limit, int) { return rate.Inf, 1 }
 func (s *script) Batch() int               { return 10 }
+
+// Serves takes the first GUID, or a ticker without its venue, as the
+// OpenFIGI integration does.
 func (s *script) Serves(k gen.StatedKey) (types.Identifier, error) {
 	for _, id := range k.Identifiers {
-		if market.IsGUID(id) {
+		if market.IsGUID(id) || id.Type == types.IdentifierTypeMicTicker {
 			return id, nil
 		}
 	}
@@ -107,15 +110,19 @@ func (r syncRunner) Child(ctx context.Context, parent gen.Run, kind gen.RunKind,
 	return row, r.q.CompleteRun(ctx, row.ID)
 }
 
-// stack is a resolver with one scripted datasource, over a rolled-back
-// transaction.
+// stack is a resolver over a rolled-back transaction. It scripts two
+// datasources: alpha, which is enabled, and beta, which a test enables with
+// enableBeta.
 type stack struct {
 	q          *gen.Queries
 	tx         pgx.Tx
 	user       gen.User
 	statement  gen.Run
+	statements []gen.Run
 	resolution gen.Run
 	script     *script
+	beta       *script
+	sources    *market.Registry
 	resolver   *Resolver
 }
 
@@ -130,30 +137,57 @@ func newStack(t *testing.T) *stack {
 		}
 	})
 	q := gen.New(tx)
-	s := &stack{q: q, tx: tx, script: &script{responses: map[types.Identifier]market.IdentityResult{}}}
+	s := &stack{q: q, tx: tx, script: &script{responses: map[types.Identifier]market.IdentityResult{}}, beta: &script{responses: map[types.Identifier]market.IdentityResult{}}}
 	s.user, err = q.CreateUser(ctx, gen.CreateUserParams{ID: db.NewID(), Email: uuid.NewString() + "@example.com", Role: gen.UserRoleUser})
 	require.NoError(t, err)
-	s.statement, err = q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: s.user.ID, Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser})
-	require.NoError(t, err)
-	_, err = q.CreateStatement(ctx, gen.CreateStatementParams{ID: s.statement.ID, UserID: s.user.ID, Broker: gen.BrokerIbkr, OrderFrom: time.Date(2026, time.March, 1, 0, 0, 0, 0, time.UTC), OrderBefore: time.Date(2026, time.April, 1, 0, 0, 0, 0, time.UTC)})
-	require.NoError(t, err)
+	s.statement = s.newStatement(t, gen.BrokerIbkr)
 	s.resolution, err = q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: s.user.ID, Kind: gen.RunKindResolution, Trigger: gen.RunTriggerRun, ParentID: &s.statement.ID})
 	require.NoError(t, err)
 	_, err = q.CreateDatasource(ctx, gen.CreateDatasourceParams{Name: "alpha", Enabled: true, Precedence: 10})
 	require.NoError(t, err)
 	log := slog.New(slog.DiscardHandler)
-	factories := map[string]market.Factory{"alpha": func(market.Config) (market.Integration, error) { return s.script, nil }}
-	sources, err := market.New(ctx, q, factories, log)
+	factories := map[string]market.Factory{
+		"alpha": func(market.Config) (market.Integration, error) { return s.script, nil },
+		"beta":  func(market.Config) (market.Integration, error) { return s.beta, nil },
+	}
+	s.sources, err = market.New(ctx, q, factories, log)
 	require.NoError(t, err)
 	fetcher := market.NewFetcher(q, syncRunner{q: q}, log)
-	s.resolver = New(db.New[Queries](tx), market.IdentityFetcher{F: fetcher}, sources, log)
+	s.resolver = New(db.New[Queries](tx), market.IdentityFetcher{F: fetcher}, s.sources, log)
 	return s
 }
 
-// state records a stated key under the statement.
+// newStatement records a statement run of broker and returns the run.
+func (s *stack) newStatement(t *testing.T, broker gen.Broker) gen.Run {
+	t.Helper()
+	ctx := context.Background()
+	run, err := s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: s.user.ID, Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser})
+	require.NoError(t, err)
+	_, err = s.q.CreateStatement(ctx, gen.CreateStatementParams{ID: run.ID, UserID: s.user.ID, Broker: broker, OrderFrom: time.Date(2026, time.March, 1, 0, 0, 0, 0, time.UTC), OrderBefore: time.Date(2026, time.April, 1, 0, 0, 0, 0, time.UTC)})
+	require.NoError(t, err)
+	s.statements = append(s.statements, run)
+	return run
+}
+
+// enableBeta enables beta with a lower precedence than alpha.
+func (s *stack) enableBeta(t *testing.T) {
+	t.Helper()
+	ctx := context.Background()
+	_, err := s.q.CreateDatasource(ctx, gen.CreateDatasourceParams{Name: "beta", Enabled: true, Precedence: 20})
+	require.NoError(t, err)
+	require.NoError(t, s.sources.Reload(ctx))
+}
+
+// state records a stated key under the stack's statement.
 func (s *stack) state(t *testing.T, class gen.AssetClass, currency string, ids ...types.Identifier) gen.StatedKey {
 	t.Helper()
-	arg := gen.CreateStatedKeyParams{ID: db.NewID(), StatementID: s.statement.ID, UserID: s.user.ID, Identifiers: ids}
+	return s.stateUnder(t, s.statement, class, currency, ids...)
+}
+
+// stateUnder records a stated key under statement.
+func (s *stack) stateUnder(t *testing.T, statement gen.Run, class gen.AssetClass, currency string, ids ...types.Identifier) gen.StatedKey {
+	t.Helper()
+	arg := gen.CreateStatedKeyParams{ID: db.NewID(), StatementID: statement.ID, UserID: s.user.ID, Identifiers: ids}
 	if class != "" {
 		arg.AssetClass = &class
 	}
@@ -174,11 +208,13 @@ func (s *stack) resolve(t *testing.T, keys ...gen.StatedKey) []gen.ResolutionKey
 
 func (s *stack) key(t *testing.T, id uuid.UUID) gen.StatedKey {
 	t.Helper()
-	keys, err := s.q.ListStatedKeys(context.Background(), gen.ListStatedKeysParams{StatementID: s.statement.ID, UserID: s.user.ID})
-	require.NoError(t, err)
-	for _, k := range keys {
-		if k.ID == id {
-			return k
+	for _, st := range s.statements {
+		keys, err := s.q.ListStatedKeys(context.Background(), gen.ListStatedKeysParams{StatementID: st.ID, UserID: s.user.ID})
+		require.NoError(t, err)
+		for _, k := range keys {
+			if k.ID == id {
+				return k
+			}
 		}
 	}
 	t.Fatalf("no stated key %s", id)
@@ -405,4 +441,202 @@ func TestMergeRows(t *testing.T) {
 	if len(findings) != 1 || findings[0].Finding.Kind != gen.FindingKindMerged || *findings[0].Finding.StatedKeyID != third.ID || findings[0].Finding.FetchKeyID == nil {
 		t.Errorf("findings = %+v, want one merged finding on the third key with its fetch key", findings)
 	}
+}
+
+// TestDescribedRows checks resolution through a system owned broker
+// description against a real database.
+func TestDescribedRows(t *testing.T) {
+	s := newStack(t)
+	ctx := context.Background()
+	descr := id(types.IdentifierTypeBrokerDescription, "ibkr", "ACME CORP")
+	// alpha creates the instrument the description names, and a second
+	// instrument that the description must not match.
+	s.script.responses[isin] = market.IdentityResult{Filtered: []types.Identifier{isin}, Candidates: []market.Candidate{
+		{Class: gen.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{figi, isin, xlon}},
+	}}
+	s.script.responses[cusip] = market.IdentityResult{Filtered: []types.Identifier{cusip}, Candidates: []market.Candidate{
+		{Class: gen.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{figi2, cusip, xnas}},
+	}}
+	s.resolve(t, s.state(t, gen.AssetClassStock, "GBP", isin), s.state(t, gen.AssetClassStock, "USD", cusip))
+	found, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: isin.Type, Value: isin.Value})
+	require.NoError(t, err)
+	inst := found.Instrument
+	listings, err := s.q.ListListings(ctx, inst.ID)
+	require.NoError(t, err)
+	require.Len(t, listings, 1)
+	row, err := s.q.CreateIdentifier(ctx, gen.CreateIdentifierParams{ID: db.NewID(), InstrumentID: inst.ID, Type: descr.Type, Domain: descr.Domain, Value: descr.Value})
+	require.NoError(t, err)
+	s.enableBeta(t)
+
+	fetches := func() []gen.Run {
+		children, err := s.q.ListChildRuns(ctx, gen.ListChildRunsParams{ParentID: &s.resolution.ID, UserID: s.user.ID})
+		require.NoError(t, err)
+		return children
+	}
+	// item returns the fetch key datasource wrote for key.
+	item := func(key uuid.UUID, datasource string) gen.FetchKey {
+		for _, child := range fetches() {
+			fetch, err := s.q.GetFetch(ctx, gen.GetFetchParams{ID: child.ID, UserID: s.user.ID})
+			require.NoError(t, err)
+			if fetch.Datasource != datasource {
+				continue
+			}
+			items, err := s.q.ListFetchItems(ctx, child.ID)
+			require.NoError(t, err)
+			for _, it := range items {
+				if it.StatedKey.ID == key {
+					return it.FetchKey
+				}
+			}
+		}
+		t.Fatalf("no fetch key for %s from %s", key, datasource)
+		return gen.FetchKey{}
+	}
+	outcome := func(rk gen.ResolutionKey) string {
+		out := string(rk.Outcome)
+		if rk.Reason != nil {
+			out += ": " + *rk.Reason
+		}
+		return out
+	}
+	// via checks that key matched inst through row, on the GBP listing,
+	// provisionally.
+	via := func(t *testing.T, key gen.StatedKey) {
+		t.Helper()
+		if key.InstrumentID == nil || *key.InstrumentID != inst.ID || key.ViaID == nil || *key.ViaID != row.ID || key.ListingID == nil || *key.ListingID != listings[0].ID || *key.Validity != gen.ValidityProvisional {
+			t.Errorf("key = %+v, want the instrument's GBP listing via the description, provisional", key)
+		}
+	}
+	findings := func(key uuid.UUID) []gen.FindingKind {
+		rows, err := s.q.ListRunFindings(ctx, []uuid.UUID{s.resolution.ID})
+		require.NoError(t, err)
+		var kinds []gen.FindingKind
+		for _, f := range rows {
+			if f.Finding.StatedKeyID != nil && *f.Finding.StatedKeyID == key {
+				kinds = append(kinds, f.Finding.Kind)
+			}
+		}
+		return kinds
+	}
+
+	t.Run("a description alone matches, and beta is asked and serves nothing", func(t *testing.T) {
+		before := len(fetches())
+		k := s.state(t, gen.AssetClassStock, "GBP", descr)
+		got := s.resolve(t, k)
+		if outcome(got[0]) != "matched" {
+			t.Fatalf("outcome = %s, want matched", outcome(got[0]))
+		}
+		via(t, s.key(t, k.ID))
+		if len(fetches()) != before+1 {
+			t.Errorf("%d fetches, want one more: alpha covers the instrument and beta does not", len(fetches())-before)
+		}
+		if fk := item(k.ID, "beta"); fk.Outcome != gen.FetchOutcomeNotServed {
+			t.Errorf("beta's fetch key = %+v, want not served", fk)
+		}
+		ids, err := s.q.ListIdentifiers(ctx, inst.ID)
+		require.NoError(t, err)
+		var descriptions []uuid.UUID
+		for _, i := range ids {
+			if i.Type == types.IdentifierTypeBrokerDescription {
+				descriptions = append(descriptions, i.ID)
+			}
+		}
+		if len(descriptions) != 1 || descriptions[0] != row.ID {
+			t.Errorf("description rows = %v, want the one inserted", descriptions)
+		}
+	})
+
+	t.Run("a datasource answering an unknown ISIN with another instrument is a contradiction", func(t *testing.T) {
+		other := id(types.IdentifierTypeIsin, "", "GB00B03MLX29")
+		s.beta.responses[other] = market.IdentityResult{Filtered: []types.Identifier{other}, Candidates: []market.Candidate{
+			{Class: gen.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{id(types.IdentifierTypeOpenfigiShareClass, "", "BBG001S5XDT7"), other, id(types.IdentifierTypeMicTicker, "XLON", "SHEL")}},
+		}}
+		k := s.state(t, gen.AssetClassStock, "GBP", other, descr)
+		got := s.resolve(t, k)
+		if outcome(got[0]) != "matched" {
+			t.Fatalf("outcome = %s, want matched", outcome(got[0]))
+		}
+		via(t, s.key(t, k.ID))
+		if diff := cmp.Diff([]gen.FindingKind{gen.FindingKindContradiction}, findings(k.ID)); diff != "" {
+			t.Errorf("findings mismatch (-want +got):\n%s", diff)
+		}
+	})
+
+	t.Run("a description and an identifier naming different instruments", func(t *testing.T) {
+		k := s.state(t, gen.AssetClassStock, "USD", cusip, descr)
+		got := s.resolve(t, k)
+		want := "unrecognised: cusip 92857W308 and broker_description ibkr:ACME CORP name different instruments"
+		if outcome(got[0]) != want {
+			t.Errorf("outcome = %s, want %s", outcome(got[0]), want)
+		}
+		if key := s.key(t, k.ID); key.InstrumentID != nil {
+			t.Errorf("key = %+v, want no association", key)
+		}
+		if diff := cmp.Diff([]gen.FindingKind{gen.FindingKindContradiction}, findings(k.ID)); diff != "" {
+			t.Errorf("findings mismatch (-want +got):\n%s", diff)
+		}
+	})
+
+	t.Run("a bare ticker beside the description is sent and the description associates", func(t *testing.T) {
+		// beta served the instrument above and so covers it. Its coverage is
+		// cleared so that it is asked again, and alpha's kept, since the
+		// stack's one connection cannot carry two fetches at once.
+		_, err := s.tx.Exec(ctx, "DELETE FROM identity_coverage WHERE instrument_id = $1 AND datasource = 'beta'", inst.ID)
+		require.NoError(t, err)
+		s.beta.responses[ticker] = market.IdentityResult{Filtered: []types.Identifier{ticker}, Candidates: []market.Candidate{
+			{Class: gen.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{figi, xlon}},
+		}}
+		k := s.state(t, gen.AssetClassStock, "GBP", ticker, descr)
+		got := s.resolve(t, k)
+		if outcome(got[0]) != "matched" {
+			t.Fatalf("outcome = %s, want matched", outcome(got[0]))
+		}
+		via(t, s.key(t, k.ID))
+		if fk := item(k.ID, "beta"); fk.Outcome != gen.FetchOutcomeServed || fk.SentType == nil || *fk.SentType != types.IdentifierTypeMicTicker {
+			t.Errorf("beta's fetch key = %+v, want served under the ticker", fk)
+		}
+	})
+
+	t.Run("another broker's description of the same text names nothing", func(t *testing.T) {
+		schwab := s.newStatement(t, gen.BrokerSchwab)
+		k := s.stateUnder(t, schwab, gen.AssetClassStock, "USD", id(types.IdentifierTypeBrokerDescription, "schwab", "ACME CORP"))
+		got := s.resolve(t, k)
+		want := "unrecognised: no instrument is identified by broker_description schwab:ACME CORP"
+		if outcome(got[0]) != want {
+			t.Errorf("outcome = %s, want %s", outcome(got[0]), want)
+		}
+	})
+
+	t.Run("two descriptions, one known", func(t *testing.T) {
+		k := s.state(t, gen.AssetClassStock, "GBP", descr, id(types.IdentifierTypeBrokerDescription, "ibkr", "ACME CORPORATION"))
+		got := s.resolve(t, k)
+		if outcome(got[0]) != "matched" {
+			t.Fatalf("outcome = %s, want matched", outcome(got[0]))
+		}
+		via(t, s.key(t, k.ID))
+	})
+
+	t.Run("reference data is asked of no datasource", func(t *testing.T) {
+		ref, err := s.q.CreateInstrument(ctx, gen.CreateInstrumentParams{ID: db.NewID(), AssetClass: gen.AssetClassEquity})
+		require.NoError(t, err)
+		listing, err := s.q.CreateListing(ctx, gen.CreateListingParams{ID: db.NewID(), InstrumentID: ref.ID, Currency: "GBP"})
+		require.NoError(t, err)
+		fund := id(types.IdentifierTypeBrokerDescription, "fidelity_uk", "ZZ FUND ACC")
+		seeded, err := s.q.CreateIdentifier(ctx, gen.CreateIdentifierParams{ID: db.NewID(), InstrumentID: ref.ID, Type: fund.Type, Domain: fund.Domain, Value: fund.Value})
+		require.NoError(t, err)
+		fidelity := s.newStatement(t, gen.BrokerFidelityUk)
+		before := len(fetches())
+		k := s.stateUnder(t, fidelity, gen.AssetClassSecurity, "GBP", fund)
+		got := s.resolve(t, k)
+		if outcome(got[0]) != "matched" {
+			t.Fatalf("outcome = %s, want matched", outcome(got[0]))
+		}
+		key := s.key(t, k.ID)
+		if key.InstrumentID == nil || *key.InstrumentID != ref.ID || *key.ViaID != seeded.ID || *key.ListingID != listing.ID || *key.Validity != gen.ValidityProvisional {
+			t.Errorf("key = %+v, want the reference instrument via its description, provisional", key)
+		}
+		if len(fetches()) != before {
+			t.Errorf("%d new fetches, want none: reference data is covered by every datasource", len(fetches())-before)
+		}
+	})
 }

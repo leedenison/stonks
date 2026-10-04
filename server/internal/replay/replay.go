@@ -36,9 +36,10 @@ const lane = "replay"
 // selects the keys it serves and has not yet answered: the unresolved keys,
 // and the keys on an instrument whose identity it has not covered, reference
 // data excluded. A key resolved while no datasource was enabled is
-// unrecognised, so a datasource scope is how it is reached. The scope only
-// picks the keys; the replay asks every enabled datasource, as a fresh
-// resolution does.
+// unrecognised, so a datasource scope is how it is reached. No scope selects
+// a key that states only a broker description.
+// The scope only picks the keys; the replay asks every enabled datasource,
+// as a fresh resolution does.
 type Scope struct {
 	Datasource string
 }
