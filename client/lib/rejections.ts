@@ -1,5 +1,9 @@
 import type { StatementItem } from "@/gen/statement/v1/statement_pb";
-import { AssetClass, type StatedKey } from "@/gen/type/v1/type_pb";
+import {
+  AssetClass,
+  IdentifierType,
+  type StatedKey,
+} from "@/gen/type/v1/type_pb";
 
 export type Group = { reason: string; items: StatementItem[] };
 
@@ -19,14 +23,16 @@ export function groupByReason(items: StatementItem[]): Group[] {
   return [...groups.values()];
 }
 
-// keyLabel names a stated key as the export named it: its description, or
-// its currency for a cash key, or the first identifier it states.
+// keyLabel names a stated key as the export named it.
 export function keyLabel(key: StatedKey | undefined): string {
   if (!key) {
     return "";
   }
-  if (key.description) {
-    return key.description;
+  const description = key.identifiers.find(
+    (i) => i.type === IdentifierType.BROKER_DESCRIPTION,
+  );
+  if (description) {
+    return description.value;
   }
   if (key.assetClass === AssetClass.CASH && key.currency) {
     return key.currency;

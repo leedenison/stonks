@@ -1,7 +1,6 @@
 // Package group gathers a user's unresolved keys into the holdings that sum
-// them. Where two keys a transaction names share an identifier, or a
-// description within one broker, they are one holding, transitively, named by
-// the earliest key.
+// them. Where two keys a transaction names share an identifier, they are one
+// holding, transitively, named by the earliest key.
 package group
 
 import (
@@ -17,7 +16,7 @@ import (
 
 // Queries is this package's view of the generated queries.
 type Queries interface {
-	ListGroupableKeys(ctx context.Context, userID uuid.UUID) ([]gen.ListGroupableKeysRow, error)
+	ListGroupableKeys(ctx context.Context, userID uuid.UUID) ([]gen.StatedKey, error)
 	ClearStatedKeyGroups(ctx context.Context, userID uuid.UUID) error
 	SetStatedKeyGroups(ctx context.Context, arg gen.SetStatedKeyGroupsParams) error
 }
@@ -29,17 +28,11 @@ var _ Queries = (*gen.Queries)(nil)
 // one of these types is stated without its domain, it names nothing, so two
 // keys stating it are not thereby the same holding.
 var domained = map[types.IdentifierType]bool{
-	types.IdentifierTypeMicTicker:        true,
-	types.IdentifierTypeOpenfigiTicker:   true,
-	types.IdentifierTypeDatasourceTicker: true,
-	types.IdentifierTypeBrokerID:         true,
-}
-
-// descriptionKey is a description as a map key, under the broker that gave
-// it. Two brokers describing an instrument alike is not one holding.
-type descriptionKey struct {
-	broker gen.Broker
-	text   string
+	types.IdentifierTypeMicTicker:         true,
+	types.IdentifierTypeOpenfigiTicker:    true,
+	types.IdentifierTypeDatasourceTicker:  true,
+	types.IdentifierTypeBrokerID:          true,
+	types.IdentifierTypeBrokerDescription: true,
 }
 
 // join unions id with the first key stating k.
@@ -75,31 +68,26 @@ func union(parent map[uuid.UUID]uuid.UUID, a, b uuid.UUID) {
 }
 
 // Of partitions keys into groups and returns the group of each: the id
-// of the earliest key sharing an identifier or a description with it, however
-// many keys the chain runs through.
-func Of(keys []gen.ListGroupableKeysRow) map[uuid.UUID]uuid.UUID {
+// of the earliest key sharing an identifier with it, however many keys the
+// chain runs through.
+func Of(keys []gen.StatedKey) map[uuid.UUID]uuid.UUID {
 	parent := make(map[uuid.UUID]uuid.UUID, len(keys))
-	for _, r := range keys {
-		parent[r.StatedKey.ID] = r.StatedKey.ID
+	for _, k := range keys {
+		parent[k.ID] = k.ID
 	}
-	// A map per thing a key can state holds the first key seen stating it.
-	byIdentifier := map[types.Identifier]uuid.UUID{}
-	byDescription := map[descriptionKey]uuid.UUID{}
-	for _, r := range keys {
-		k := r.StatedKey
+	// first holds the first key seen stating each identifier.
+	first := map[types.Identifier]uuid.UUID{}
+	for _, k := range keys {
 		for _, i := range k.Identifiers {
 			if domained[i.Type] && i.Domain == "" {
 				continue
 			}
-			join(byIdentifier, parent, i, k.ID)
-		}
-		if k.Description != nil {
-			join(byDescription, parent, descriptionKey{broker: r.Broker, text: *k.Description}, k.ID)
+			join(first, parent, i, k.ID)
 		}
 	}
 	out := make(map[uuid.UUID]uuid.UUID, len(keys))
-	for _, r := range keys {
-		out[r.StatedKey.ID] = find(parent, r.StatedKey.ID)
+	for _, k := range keys {
+		out[k.ID] = find(parent, k.ID)
 	}
 	return out
 }
@@ -120,9 +108,9 @@ func Regroup(ctx context.Context, q Queries, user uuid.UUID) error {
 	}
 	of := Of(keys)
 	ids, group := make([]uuid.UUID, 0, len(of)), make([]uuid.UUID, 0, len(of))
-	for _, r := range keys {
-		ids = append(ids, r.StatedKey.ID)
-		group = append(group, of[r.StatedKey.ID])
+	for _, k := range keys {
+		ids = append(ids, k.ID)
+		group = append(group, of[k.ID])
 	}
 	if err := q.SetStatedKeyGroups(ctx, gen.SetStatedKeyGroupsParams{UserID: user, Ids: ids, GroupIds: group}); err != nil {
 		return fmt.Errorf("set groups: %w", err)

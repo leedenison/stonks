@@ -1,5 +1,4 @@
 import type {
-  Description,
   GroupHolding,
   InstrumentHolding,
   ListHoldingsResponse,
@@ -14,7 +13,7 @@ import { nameOf, pick, preferred } from "./identifiers";
 // shown names the identifier types displayed beside a resolved holding's
 // name, the registry codes that identify an instrument. The instruments page
 // lists every other identifier under its listing, such as tickers at other
-// venues and the codes of one datasource or broker.
+// venues and the codes and descriptions of one datasource or broker.
 const shown: IdentifierType[] = [
   IdentifierType.ISIN,
   IdentifierType.CUSIP,
@@ -35,15 +34,8 @@ export type HoldingRow = {
   // The identifiers shown beside the label, excluding the one that names
   // the holding.
   identifiers: Identifier[];
-} & (
-  | { kind: "instrument" }
-  | {
-      kind: "group";
-      // The descriptions the keys state, excluding the one that names the
-      // holding.
-      descriptions: Description[];
-    }
-);
+  kind: "instrument" | "group";
+};
 
 function instrumentRow(h: InstrumentHolding): HoldingRow {
   const name = nameOf(h.assetClass, h.identifiers);
@@ -59,21 +51,17 @@ function instrumentRow(h: InstrumentHolding): HoldingRow {
   };
 }
 
-// groupRow names a group by what a user most readily recognises of a holding
-// nothing has identified, which is a broker's description. Everything else
-// its keys state is shown beside the name.
+// groupRow names a group by what a user most readily recognises among what
+// its keys state. Everything else they state is shown beside the name.
 function groupRow(h: GroupHolding): HoldingRow {
-  const described = h.descriptions[0];
-  const name =
-    described === undefined ? pick(preferred, h.identifiers) : undefined;
+  const name = pick(preferred, h.identifiers);
   return {
     kind: "group",
     id: h.groupId,
-    label: described?.text ?? name?.value ?? h.groupId,
+    label: name?.value ?? h.groupId,
     classes: h.assetClasses,
     quantity: h.quantity,
     identifiers: h.identifiers.filter((i) => i !== name),
-    descriptions: h.descriptions.filter((d) => d !== described),
   };
 }
 

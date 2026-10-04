@@ -38,21 +38,25 @@ func under(a, b gen.AssetClass) bool {
 // class is disjoint from none.
 func Disjoint(a, b gen.AssetClass) bool { return !under(a, b) && !under(b, a) }
 
-// multi is the types of which one listing has several values in one
-// domain, so a value of one does not contradict another.
-var multi = map[types.IdentifierType]bool{types.IdentifierTypeOpenfigiComposite: true}
-
 func grain(id types.Identifier) gen.IdentifierGrain { return market.Trait(id.Type).Grain }
+
+// exclusive reports whether a second value of id's type for one subject in
+// one domain contradicts id.
+func exclusive(id types.Identifier) bool { return market.Trait(id.Type).Exclusive }
 
 func stable(id types.Identifier) bool {
 	return market.Trait(id.Type).Reassignment == gen.IdentifierReassignmentStable
 }
 
 // strength ranks id by how firmly it names its subject, the strongest
-// first: a stable identifier before a MIC-derived one, and within each an
-// instrument's before a listing's.
+// first: an identifier every party reads before an issuer's own, a stable
+// identifier before a reassignable one, and within each an instrument's
+// before a listing's.
 func strength(id types.Identifier) int {
 	n := 0
+	if market.Trait(id.Type).Domain == gen.IdentifierDomainIssuer {
+		n += 4
+	}
 	if !stable(id) {
 		n += 2
 	}

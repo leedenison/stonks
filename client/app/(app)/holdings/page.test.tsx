@@ -3,7 +3,6 @@ import { Code, ConnectError, type ServiceImpl } from "@connectrpc/connect";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import {
-  DescriptionSchema,
   GroupHoldingSchema,
   HoldingService,
   InstrumentHoldingSchema,
@@ -11,7 +10,6 @@ import {
 } from "@/gen/holding/v1/holding_pb";
 import {
   AssetClass,
-  Broker,
   IdentifierSchema,
   IdentifierType,
 } from "@/gen/type/v1/type_pb";
@@ -92,15 +90,15 @@ const three = create(ListHoldingsResponseSchema, {
           type: IdentifierType.MIC_TICKER,
           value: "BA.",
         }),
-      ],
-      descriptions: [
-        create(DescriptionSchema, {
-          broker: Broker.FIDELITY_UK,
-          text: "BAE SYSTEMS (BA.)",
+        create(IdentifierSchema, {
+          type: IdentifierType.BROKER_DESCRIPTION,
+          domain: "fidelity_uk",
+          value: "BAE SYSTEMS (BA.)",
         }),
-        create(DescriptionSchema, {
-          broker: Broker.IBKR,
-          text: "BAE SYSTEMS PLC",
+        create(IdentifierSchema, {
+          type: IdentifierType.BROKER_DESCRIPTION,
+          domain: "ibkr",
+          value: "BAE SYSTEMS PLC",
         }),
       ],
       quantity: "120",
@@ -175,7 +173,7 @@ describe("HoldingsPage", () => {
     expect(basis.getAttribute("data-state")).toBe("statements");
     expect(basis.textContent).toBe("Statements only");
     expect(bae.textContent).toContain("BA.");
-    expect(bae.textContent).toContain("IBKR");
+    expect(bae.textContent).toContain("(ibkr)");
     expect(bae.textContent).toContain("BAE SYSTEMS PLC");
     expect(screen.getAllByTestId("holding-basis")).toHaveLength(1);
   });

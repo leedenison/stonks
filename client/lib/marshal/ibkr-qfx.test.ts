@@ -164,9 +164,9 @@ describe("ibkrQfx", () => {
       "<TICKER>NVDA  240315P00420000</TICKER>",
       "<TICKER>P NVDA  20240315 420 M</TICKER>",
     );
-    expect(ibkrQfx.marshal(own).rows[7].key?.identifiers).toEqual([
-      conid("624291205"),
-    ]);
+    const ids = ibkrQfx.marshal(own).rows[7].key?.identifiers ?? [];
+    expect(ids).toContainEqual(conid("624291205"));
+    expect(ids.map((i) => i.type)).not.toContain(IdentifierType.OCC);
   });
 
   it("fails when an OCC ticker and the option's terms disagree", () => {

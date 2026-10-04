@@ -83,20 +83,20 @@ func TestListHoldings(t *testing.T) {
 	groupRows := []gen.ListGroupHoldingsRow{{GroupID: groupID, Quantity: decimal.RequireFromString("12.5")}}
 	isin := types.Identifier{Type: types.IdentifierTypeIsin, Value: "US0000000001"}
 	ticker := types.Identifier{Type: types.IdentifierTypeMicTicker, Value: "ACME"}
-	groupKeys := []gen.ListHeldGroupKeysRow{
-		{StatedKey: gen.StatedKey{GroupID: &groupID, AssetClass: ptr.To(gen.AssetClassEquity), Description: ptr.To("ACME CORP"), Identifiers: []types.Identifier{isin}}, Broker: gen.BrokerIbkr},
-		{StatedKey: gen.StatedKey{GroupID: &groupID, AssetClass: ptr.To(gen.AssetClassSecurity), Description: ptr.To("ACME CORPORATION"), Identifiers: []types.Identifier{isin, ticker}}, Broker: gen.BrokerSchwab},
+	ibkr := types.Identifier{Type: types.IdentifierTypeBrokerDescription, Domain: "ibkr", Value: "ACME CORP"}
+	schwab := types.Identifier{Type: types.IdentifierTypeBrokerDescription, Domain: "schwab", Value: "ACME CORPORATION"}
+	groupKeys := []gen.StatedKey{
+		{GroupID: &groupID, AssetClass: ptr.To(gen.AssetClassEquity), Identifiers: []types.Identifier{ibkr, isin}},
+		{GroupID: &groupID, AssetClass: ptr.To(gen.AssetClassSecurity), Identifiers: []types.Identifier{schwab, isin, ticker}},
 	}
 	wantGroups := []*holdingv1.GroupHolding{{
 		GroupId: groupID.String(), Quantity: "12.5",
 		AssetClasses: []typev1.AssetClass{typev1.AssetClass_ASSET_CLASS_SECURITY, typev1.AssetClass_ASSET_CLASS_EQUITY},
 		Identifiers: []*typev1.Identifier{
+			{Type: typev1.IdentifierType_IDENTIFIER_TYPE_BROKER_DESCRIPTION, Domain: "ibkr", Value: "ACME CORP"},
 			{Type: typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, Value: "US0000000001"},
+			{Type: typev1.IdentifierType_IDENTIFIER_TYPE_BROKER_DESCRIPTION, Domain: "schwab", Value: "ACME CORPORATION"},
 			{Type: typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, Value: "ACME"},
-		},
-		Descriptions: []*holdingv1.Description{
-			{Broker: typev1.Broker_BROKER_IBKR, Text: "ACME CORP"},
-			{Broker: typev1.Broker_BROKER_SCHWAB, Text: "ACME CORPORATION"},
 		},
 	}}
 
@@ -109,7 +109,7 @@ func TestListHoldings(t *testing.T) {
 		identsErr  error
 		groups     []gen.ListGroupHoldingsRow
 		groupsErr  error
-		keys       []gen.ListHeldGroupKeysRow
+		keys       []gen.StatedKey
 		keysErr    error
 		want       []*holdingv1.InstrumentHolding
 		wantGroups []*holdingv1.GroupHolding

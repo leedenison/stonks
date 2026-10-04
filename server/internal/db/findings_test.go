@@ -4,6 +4,7 @@ package db_test
 
 import (
 	"context"
+	"slices"
 	"testing"
 
 	"github.com/google/uuid"
@@ -54,8 +55,8 @@ func TestFindings(t *testing.T) {
 		t.Errorf("ListRunFindings(run, fetch) = %d rows, %v, want the run's two then the fetch's", len(rolled), err)
 	}
 	for _, f := range findings {
-		if f.KeyDescription == nil || *f.KeyDescription != *key.Description || len(f.KeyIdentifiers) != 0 {
-			t.Errorf("finding %s key = %v %v, want the key's description %q and no identifiers", f.Finding.Kind, f.KeyIdentifiers, f.KeyDescription, *key.Description)
+		if !slices.Equal(f.KeyIdentifiers, key.Identifiers) {
+			t.Errorf("finding %s key = %v, want the key's identifiers %v", f.Finding.Kind, f.KeyIdentifiers, key.Identifiers)
 		}
 	}
 

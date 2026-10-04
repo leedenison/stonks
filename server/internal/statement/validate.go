@@ -11,6 +11,7 @@ import (
 	typev1 "github.com/leedenison/stonks/proto/type/v1"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/types"
+	"github.com/leedenison/stonks/server/internal/market"
 )
 
 // parseDate reads an ISO 8601 date as midnight UTC.
@@ -34,7 +35,7 @@ func (g *ingestion) validate(ordinal int32, r *statementv1.Row, today time.Time,
 		return reject("%v", err)
 	}
 	if !k.statable() {
-		return reject("no identifier or description")
+		return reject("no identifier")
 	}
 	dates := []struct {
 		name string
@@ -73,7 +74,7 @@ func (g *ingestion) split(ordinal int32, sp *statementv1.StatedSplit, currencies
 		return out, err
 	}
 	if !k.statable() {
-		return out, fmt.Errorf("no identifier or description")
+		return out, fmt.Errorf("no identifier")
 	}
 	if k.currency != nil && !currencies[*k.currency] {
 		return out, fmt.Errorf("unknown currency %q", *k.currency)
@@ -101,16 +102,14 @@ func (g *ingestion) split(ordinal int32, sp *statementv1.StatedSplit, currencies
 
 // keyOf reads a stated key into its canonical form, so that two keys stating
 // the same thing compare equal: the identifiers sorted by type, domain and
-// value with an absent domain first, and an empty description read as none.
+// value with an absent domain first. Two values of an exclusive type in one
+// domain contradict each other and are refused.
 func keyOf(sk *typev1.StatedKey) (*key, error) {
 	class, ok := types.FromProto[gen.AssetClass](sk.GetAssetClass())
 	if !ok {
 		return nil, fmt.Errorf("asset class %d outside the vocabulary", sk.GetAssetClass())
 	}
-	k := &key{currency: sk.Currency, description: sk.Description, identifiers: []types.Identifier{}}
-	if sk.GetDescription() == "" {
-		k.description = nil
-	}
+	k := &key{currency: sk.Currency, identifiers: []types.Identifier{}}
 	if class != "" {
 		k.class = &class
 	}
@@ -120,7 +119,7 @@ func keyOf(sk *typev1.StatedKey) (*key, error) {
 			return nil, fmt.Errorf("identifier type %d outside the vocabulary", id.GetType())
 		}
 		for _, held := range k.identifiers {
-			if held.Type == t && held.Domain == id.GetDomain() {
+			if held.Type == t && held.Domain == id.GetDomain() && market.Trait(t).Exclusive {
 				return nil, fmt.Errorf("two %s identifiers, %s and %s", t, held.Value, id.GetValue())
 			}
 		}

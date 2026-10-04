@@ -21,6 +21,7 @@ const labels: Record<number, string> = {
   [IdentifierType.CURRENCY]: "Currency",
   [IdentifierType.DATASOURCE_TICKER]: "Source ticker",
   [IdentifierType.BROKER_ID]: "Broker id",
+  [IdentifierType.BROKER_DESCRIPTION]: "Description",
 };
 
 export function identifierLabel(type: IdentifierType): string {
@@ -54,14 +55,8 @@ export function IdentifierChips({ ids }: { ids: Identifier[] }) {
   );
 }
 
-// StatedKeyChips is what a stated key states: its identifiers, then its
-// description.
+// StatedKeyChips renders a stated key's identifiers as chips.
 export function StatedKeyChips({ statedKey }: { statedKey?: StatedKey }) {
   if (!statedKey) return null;
-  return (
-    <span className="flex flex-wrap items-center gap-1">
-      <IdentifierChips ids={statedKey.identifiers} />
-      {statedKey.description && <span>{statedKey.description}</span>}
-    </span>
-  );
+  return <IdentifierChips ids={statedKey.identifiers} />;
 }

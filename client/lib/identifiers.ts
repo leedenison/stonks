@@ -5,12 +5,12 @@ import {
 } from "@/gen/type/v1/type_pb";
 
 // preferred names the identifier types that label an instrument, the one a
-// holder recognises most readily first: a ticker, then the registry codes by
-// how widely they are quoted, then the codes only their issuer reads. A
-// ticker stated without its venue names no listing, but it is still the name
-// the holder uses, so it is eligible.
+// holder recognises most readily first. A ticker stated without its venue
+// names no listing, but it is still the name the holder uses, so it is
+// eligible.
 export const preferred: IdentifierType[] = [
   IdentifierType.MIC_TICKER,
+  IdentifierType.BROKER_DESCRIPTION,
   IdentifierType.DATASOURCE_TICKER,
   IdentifierType.ISIN,
   IdentifierType.CUSIP,

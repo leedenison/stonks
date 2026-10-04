@@ -28,7 +28,7 @@ type Reader interface {
 	ListInstrumentHoldings(ctx context.Context, userID uuid.UUID) ([]gen.ListInstrumentHoldingsRow, error)
 	ListHeldIdentifiers(ctx context.Context, userID uuid.UUID) ([]gen.Identifier, error)
 	ListGroupHoldings(ctx context.Context, userID uuid.UUID) ([]gen.ListGroupHoldingsRow, error)
-	ListHeldGroupKeys(ctx context.Context, userID uuid.UUID) ([]gen.ListHeldGroupKeysRow, error)
+	ListHeldGroupKeys(ctx context.Context, userID uuid.UUID) ([]gen.StatedKey, error)
 }
 
 var _ Reader = (*gen.Queries)(nil)
@@ -91,7 +91,7 @@ func (s *Server) instruments(ctx context.Context, user uuid.UUID) ([]*holdingv1.
 }
 
 // groups answers the holdings of the user's groups, each carrying what its
-// keys state: the classes, the identifiers and the descriptions, once each.
+// keys state: the classes and the identifiers, once each.
 func (s *Server) groups(ctx context.Context, user uuid.UUID) ([]*holdingv1.GroupHolding, error) {
 	rows, err := s.reader.ListGroupHoldings(ctx, user)
 	if err != nil || len(rows) == 0 {
@@ -103,13 +103,13 @@ func (s *Server) groups(ctx context.Context, user uuid.UUID) ([]*holdingv1.Group
 	}
 	stated := make(map[uuid.UUID]*holdingv1.GroupHolding, len(rows))
 	for _, k := range keys {
-		if k.StatedKey.GroupID == nil {
+		if k.GroupID == nil {
 			continue
 		}
-		h, ok := stated[*k.StatedKey.GroupID]
+		h, ok := stated[*k.GroupID]
 		if !ok {
 			h = &holdingv1.GroupHolding{}
-			stated[*k.StatedKey.GroupID] = h
+			stated[*k.GroupID] = h
 		}
 		fold(h, k)
 	}
@@ -129,27 +129,19 @@ func (s *Server) groups(ctx context.Context, user uuid.UUID) ([]*holdingv1.Group
 
 // fold adds what k states to h, leaving out what another key of the group
 // has already stated.
-func fold(h *holdingv1.GroupHolding, k gen.ListHeldGroupKeysRow) {
-	if k.StatedKey.AssetClass != nil {
-		class := types.ToProto[typev1.AssetClass](*k.StatedKey.AssetClass)
+func fold(h *holdingv1.GroupHolding, k gen.StatedKey) {
+	if k.AssetClass != nil {
+		class := types.ToProto[typev1.AssetClass](*k.AssetClass)
 		if !slices.Contains(h.AssetClasses, class) {
 			h.AssetClasses = append(h.AssetClasses, class)
 		}
 	}
-	for _, i := range k.StatedKey.Identifiers {
+	for _, i := range k.Identifiers {
 		id := &typev1.Identifier{Type: types.ToProto[typev1.IdentifierType](i.Type), Domain: i.Domain, Value: i.Value}
 		if !slices.ContainsFunc(h.Identifiers, func(o *typev1.Identifier) bool {
 			return o.GetType() == id.GetType() && o.GetDomain() == id.GetDomain() && o.GetValue() == id.GetValue()
 		}) {
 			h.Identifiers = append(h.Identifiers, id)
-		}
-	}
-	if k.StatedKey.Description != nil {
-		d := &holdingv1.Description{Broker: types.ToProto[typev1.Broker](k.Broker), Text: *k.StatedKey.Description}
-		if !slices.ContainsFunc(h.Descriptions, func(o *holdingv1.Description) bool {
-			return o.GetBroker() == d.GetBroker() && o.GetText() == d.GetText()
-		}) {
-			h.Descriptions = append(h.Descriptions, d)
 		}
 	}
 }

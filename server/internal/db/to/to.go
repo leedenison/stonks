@@ -68,7 +68,7 @@ func ProtoUser(u gen.User) *authv1.User {
 
 // ProtoStatedKey writes a stated key row as the key its source stated.
 func ProtoStatedKey(k gen.StatedKey) *typev1.StatedKey {
-	out := &typev1.StatedKey{Currency: k.Currency, Description: k.Description}
+	out := &typev1.StatedKey{Currency: k.Currency}
 	if k.AssetClass != nil {
 		out.AssetClass = types.ToProto[typev1.AssetClass](*k.AssetClass)
 	}

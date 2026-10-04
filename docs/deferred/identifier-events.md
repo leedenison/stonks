@@ -97,7 +97,7 @@ assumption that the value did not move.
 Two assertions naming different instruments bound an inferred event.  The earlier
 instrument's validity ends at its last assertion, the later instrument's begins at its
 first, and between them the value names nothing.  When a transaction is dated in that
-gap, it resolves to its broker description.
+gap, its key resolves through its broker description, where the system holds one.
 
 ### Assumptions
 
@@ -142,8 +142,9 @@ tolerated by provisional validity and by retaining the stated key with the trans
 so resolution is replayed when coverage or an event arrives.
 
 Where a ticker is stated without its venue, it has no natural key, so no fetch is made
-for it and no coverage arrives for it.  Where a transaction states nothing else, it stays
-on its broker description instrument until a user or administrator supplies the venue.
+for it and no coverage arrives for it.  Where a transaction states nothing else, its key
+resolves through its broker description or stays unresolved until a user or administrator
+supplies the venue.
 
 ## Invariants
 

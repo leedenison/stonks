@@ -57,10 +57,22 @@ function keys(resolved: boolean) {
         type: IdentifierType.ISIN,
         value: "US0378331005",
       }),
+      create(IdentifierSchema, {
+        type: IdentifierType.BROKER_DESCRIPTION,
+        domain: "ibkr",
+        value: "APPLE INC",
+      }),
     ],
-    description: "APPLE INC",
   });
-  const bare = create(StatedKeySchema, { description: "Baillie Gifford" });
+  const bare = create(StatedKeySchema, {
+    identifiers: [
+      create(IdentifierSchema, {
+        type: IdentifierType.BROKER_DESCRIPTION,
+        domain: "fidelity_uk",
+        value: "Baillie Gifford",
+      }),
+    ],
+  });
   if (!resolved) {
     return [
       create(ResolutionItemSchema, { statedKey: gbp, statedKeyId: "k-gbp" }),

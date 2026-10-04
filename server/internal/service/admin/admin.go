@@ -457,7 +457,7 @@ func finding(row gen.ListRunFindingsRow) *adminv1.Finding {
 	}
 	if row.KeyID != nil {
 		out.StatedKey = to.ProtoStatedKey(gen.StatedKey{
-			Identifiers: row.KeyIdentifiers, AssetClass: row.KeyAssetClass, Currency: row.KeyCurrency, Description: row.KeyDescription,
+			Identifiers: row.KeyIdentifiers, AssetClass: row.KeyAssetClass, Currency: row.KeyCurrency,
 		})
 	}
 	if f.BlockID != nil {

@@ -9,8 +9,7 @@ VALUES ($1, $2, $3, $4, $5, $6, $7);
 -- carries its block's reason.
 SELECT sqlc.embed(findings), datasource_blocks.reason AS block_reason,
        stated_keys.id AS key_id, stated_keys.identifiers AS key_identifiers,
-       stated_keys.asset_class AS key_asset_class, stated_keys.currency AS key_currency,
-       stated_keys.description AS key_description
+       stated_keys.asset_class AS key_asset_class, stated_keys.currency AS key_currency
 FROM findings
 LEFT JOIN datasource_blocks ON datasource_blocks.id = findings.block_id
 LEFT JOIN fetch_keys ON fetch_keys.id = datasource_blocks.fetch_key_id

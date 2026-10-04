@@ -71,6 +71,7 @@ describe("fidelityUkCsv", () => {
       AssetClass.SECURITY,
       [hint("VUSA")],
       "GBP",
+      "fidelity_uk",
     );
     expect(statement.rows.slice(1, 4)).toEqual([
       row(vusa, "2025-02-24", "2025-02-26", "-141"),
@@ -85,12 +86,14 @@ describe("fidelityUkCsv", () => {
       AssetClass.SECURITY,
       [hint("BA.")],
       "GBP",
+      "fidelity_uk",
     );
     const fund = security(
       "Baillie Gifford Responsible Global Equity Income B Inc",
       AssetClass.SECURITY,
       [],
       "GBP",
+      "fidelity_uk",
     );
     expect(statement.rows[4]).toEqual(
       row(bae, "2025-02-10", "2025-02-12", "120"),

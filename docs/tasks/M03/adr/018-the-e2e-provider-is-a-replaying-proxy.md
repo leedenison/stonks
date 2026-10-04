@@ -16,6 +16,8 @@ and is kept in a file of its own, so recorded bytes are never edited.
 ## Consequences
 
 Fixtures state real public identifiers where a listing is wanted, each spec a different
-security, so no spec's lookup finds an instrument another spec's fetch created. A change
-to how the client builds a request invalidates the recording as a whole, and every spec
-fails with a 502 naming the request until `make e2e-record` is run again.
+security, so no spec's lookup finds an instrument another spec's fetch created. A seeded
+instrument that no spec fetches carries invented identifiers, so no recorded answer can
+merge onto it. Any fixture that draws a provider answer states real public identifiers.
+A change to how the client builds a request invalidates the recording as a whole, and
+every spec fails with a 502 naming the request until `make e2e-record` is run again.

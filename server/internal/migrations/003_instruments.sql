@@ -35,10 +35,12 @@ INSERT INTO asset_class_tree (class, parent) VALUES
 -- 'occ' is an OCC option symbol;
 -- 'currency' is an ISO 4217 code, the identifier of money;
 -- 'datasource_ticker' and 'broker_id' are identifiers in one datasource's or
--- one broker's own namespace.
+-- one broker's own namespace;
+-- 'broker_description' is a line's description as one broker states it, the
+-- domain being the broker.
 CREATE TYPE identifier_type AS ENUM ('isin', 'cusip', 'cins', 'wertpapier',
     'openfigi_share_class', 'sedol', 'openfigi_composite', 'mic_ticker', 'openfigi_ticker',
-    'occ', 'currency', 'datasource_ticker', 'broker_id');
+    'occ', 'currency', 'datasource_ticker', 'broker_id', 'broker_description');
 
 -- What is used to qualify the identifier value.
 -- 'global' identifier values are not partitioned (their domain is empty).  They
@@ -54,33 +56,44 @@ CREATE TYPE identifier_grain AS ENUM ('instrument', 'listing');
 -- 'stable' identifiers are assumed to never be reassigned.
 -- 'mic_derived' identifiers are reassigned when their source mic_ticker is
 -- reassigned.
-CREATE TYPE identifier_reassignment AS ENUM ('stable', 'mic_derived');
+-- 'unverifiable' identifiers are reassigned at the issuer's discretion, and no
+-- source reports a reassignment.
+CREATE TYPE identifier_reassignment AS ENUM ('stable', 'mic_derived', 'unverifiable');
 
 -- The traits of each identifier type: how its values are partitioned, what it
--- names, and how readily it is reassigned. The server holds a copy that a
--- test checks against this table.
+-- names, how readily it is reassigned, and whether it is exclusive. The server
+-- holds a copy that a test checks against this table.
 CREATE TABLE identifier_type_traits (
     type         identifier_type         PRIMARY KEY,
     domain       identifier_domain       NOT NULL,
     grain        identifier_grain        NOT NULL,
     reassignment identifier_reassignment NOT NULL,
+    -- exclusive is whether a second value of the type for one subject in one
+    -- domain contradicts the first. A listing carries one composite per market
+    -- and a broker describes one line in several ways, so those types are
+    -- not exclusive.
+    exclusive    boolean                 NOT NULL,
     UNIQUE (type, grain)
 );
 
-INSERT INTO identifier_type_traits (type, domain, grain, reassignment) VALUES
-    ('isin',                 'global', 'instrument', 'stable'),
-    ('cusip',                'global', 'instrument', 'stable'),
-    ('cins',                 'global', 'instrument', 'stable'),
-    ('wertpapier',           'global', 'instrument', 'stable'),
-    ('openfigi_share_class', 'global', 'instrument', 'stable'),
-    ('sedol',                'global', 'listing',    'stable'),
-    ('openfigi_composite',   'global', 'listing',    'stable'),
-    ('mic_ticker',           'venue',  'listing',    'mic_derived'),
-    ('openfigi_ticker',      'venue',  'listing',    'mic_derived'),
-    ('occ',                  'global', 'instrument', 'mic_derived'),
-    ('currency',             'global', 'instrument', 'stable'),
-    ('datasource_ticker',    'issuer', 'listing',    'mic_derived'),
-    ('broker_id',            'issuer', 'instrument', 'stable');
+INSERT INTO identifier_type_traits (type, domain, grain, reassignment, exclusive) VALUES
+    ('isin',                 'global', 'instrument', 'stable',       true),
+    ('cusip',                'global', 'instrument', 'stable',       true),
+    ('cins',                 'global', 'instrument', 'stable',       true),
+    ('wertpapier',           'global', 'instrument', 'stable',       true),
+    ('openfigi_share_class', 'global', 'instrument', 'stable',       true),
+    ('sedol',                'global', 'listing',    'stable',       true),
+    ('openfigi_composite',   'global', 'listing',    'stable',       false),
+    ('mic_ticker',           'venue',  'listing',    'mic_derived',  true),
+    ('openfigi_ticker',      'venue',  'listing',    'mic_derived',  true),
+    ('occ',                  'global', 'instrument', 'mic_derived',  true),
+    -- The seed names a cash instrument by every code of its family, which is
+    -- one currency at different unit scales. A key states one code, so
+    -- currency is exclusive.
+    ('currency',             'global', 'instrument', 'stable',       true),
+    ('datasource_ticker',    'issuer', 'listing',    'mic_derived',  true),
+    ('broker_id',            'issuer', 'instrument', 'stable',       true),
+    ('broker_description',   'issuer', 'instrument', 'unverifiable', false);
 
 -- The currency codes a source may state: ISO 4217, plus GBX for sterling in
 -- pence. A family is the codes of one currency at different unit scales, named

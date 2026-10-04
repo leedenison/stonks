@@ -8,6 +8,7 @@ import (
 	"log"
 	"log/slog"
 	"os"
+	"slices"
 	"testing"
 	"time"
 
@@ -24,7 +25,6 @@ import (
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/types"
 	"github.com/leedenison/stonks/server/internal/market"
-	"github.com/leedenison/stonks/server/internal/ptr"
 	"github.com/leedenison/stonks/server/internal/resolve"
 	"github.com/leedenison/stonks/server/internal/run"
 	stmt "github.com/leedenison/stonks/server/internal/statement"
@@ -178,8 +178,11 @@ func (s *stack) ingest(t *testing.T) gen.Run {
 	ctx := context.Background()
 	usd := "USD"
 	acme := &typev1.StatedKey{
-		Identifiers: []*typev1.Identifier{{Type: typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, Value: isin.Value}},
-		AssetClass:  typev1.AssetClass_ASSET_CLASS_STOCK, Currency: &usd, Description: ptr.To("ACME CORP"),
+		Identifiers: []*typev1.Identifier{
+			{Type: typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, Value: isin.Value},
+			{Type: typev1.IdentifierType_IDENTIFIER_TYPE_BROKER_DESCRIPTION, Domain: "ibkr", Value: "ACME CORP"},
+		},
+		AssetClass: typev1.AssetClass_ASSET_CLASS_STOCK, Currency: &usd,
 	}
 	cash := &typev1.StatedKey{
 		Identifiers: []*typev1.Identifier{{Type: typev1.IdentifierType_IDENTIFIER_TYPE_CURRENCY, Value: usd}},
@@ -229,7 +232,7 @@ func (s *stack) acme(t *testing.T, statement gen.Run) gen.StatedKey {
 	keys, err := s.q.ListStatedKeys(context.Background(), gen.ListStatedKeysParams{StatementID: statement.ID, UserID: s.user.ID})
 	require.NoError(t, err)
 	for _, k := range keys {
-		if k.Description != nil && *k.Description == "ACME CORP" {
+		if slices.Contains(k.Identifiers, types.Identifier{Type: types.IdentifierTypeBrokerDescription, Domain: "ibkr", Value: "ACME CORP"}) {
 			return k
 		}
 	}

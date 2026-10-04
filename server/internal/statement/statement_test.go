@@ -49,8 +49,21 @@ func cashKey(code string) *typev1.StatedKey {
 	return &typev1.StatedKey{Identifiers: []*typev1.Identifier{ident(typev1.IdentifierType_IDENTIFIER_TYPE_CURRENCY, code, "")}, AssetClass: typev1.AssetClass_ASSET_CLASS_CASH, Currency: &code}
 }
 
+// securityKey builds a stated key as an IBKR export states it.
 func securityKey(description string, class typev1.AssetClass, currency *string, ids ...*typev1.Identifier) *typev1.StatedKey {
-	return &typev1.StatedKey{Identifiers: ids, AssetClass: class, Currency: currency, Description: &description}
+	if description != "" {
+		ids = append(ids, ident(typev1.IdentifierType_IDENTIFIER_TYPE_BROKER_DESCRIPTION, description, "ibkr"))
+	}
+	return &typev1.StatedKey{Identifiers: ids, AssetClass: class, Currency: currency}
+}
+
+func described(k gen.StatedKey, description string) bool {
+	for _, id := range k.Identifiers {
+		if id.Type == types.IdentifierTypeBrokerDescription && id.Value == description {
+			return true
+		}
+	}
+	return false
 }
 
 func rowMsg(key *typev1.StatedKey, order, quantity string) *statementv1.Row {
@@ -185,8 +198,8 @@ func TestValidate(t *testing.T) {
 		{name: "two isins", row: rowMsg(securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, "US1", ""), ident(typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, "US2", "")), "2026-03-05", "1"), want: "two isin identifiers, US1 and US2"},
 		{name: "two tickers at one venue", row: rowMsg(securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, "A", "XNYS"), ident(typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, "B", "XNYS")), "2026-03-05", "1"), want: "two mic_ticker identifiers, A and B"},
 		{name: "two tickers at two venues", row: rowMsg(securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, "A", "XNYS"), ident(typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, "A", "XLON")), "2026-03-05", "1")},
-		{name: "nothing stated about the instrument", row: rowMsg(&typev1.StatedKey{AssetClass: typev1.AssetClass_ASSET_CLASS_EQUITY, Currency: &usd}, "2026-03-05", "1"), want: "no identifier or description"},
-		{name: "empty description", row: rowMsg(securityKey("", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd), "2026-03-05", "1"), want: "no identifier or description"},
+		{name: "two descriptions", row: rowMsg(securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_BROKER_DESCRIPTION, "ACME CORP", "ibkr")), "2026-03-05", "1")},
+		{name: "nothing stated about the instrument", row: rowMsg(&typev1.StatedKey{AssetClass: typev1.AssetClass_ASSET_CLASS_EQUITY, Currency: &usd}, "2026-03-05", "1"), want: "no identifier"},
 		{name: "an identifier and no description", row: rowMsg(securityKey("", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, "US0378331005", "")), "2026-03-05", "1")},
 		{name: "malformed order date", row: &statementv1.Row{Key: equity, OrderDate: "2026-03-40", SettlementDate: "2026-03-05", AsAt: "2026-03-05", Quantity: "1"}, want: `malformed order date "2026-03-40"`},
 		{name: "malformed settlement date", row: &statementv1.Row{Key: equity, OrderDate: "2026-03-05", SettlementDate: "", AsAt: "2026-03-05", Quantity: "1"}, want: `malformed settlement date ""`},
@@ -234,8 +247,6 @@ func TestKeyForm(t *testing.T) {
 		{name: "currency", a: securityKey("A", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd), b: securityKey("A", typev1.AssetClass_ASSET_CLASS_EQUITY, nil)},
 		{name: "class", a: securityKey("A", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd), b: securityKey("A", typev1.AssetClass_ASSET_CLASS_UNSPECIFIED, &usd)},
 		{name: "description", a: securityKey("A", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd), b: securityKey("B", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd)},
-		{name: "empty description", a: cashKey("USD"), b: func() *typev1.StatedKey { k := cashKey("USD"); k.Description = ptr.To(""); return k }(), same: true},
-		{name: "empty description and none", a: &typev1.StatedKey{Identifiers: cashKey("USD").Identifiers, AssetClass: typev1.AssetClass_ASSET_CLASS_CASH, Description: ptr.To("")}, b: cashKey("USD")},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -252,7 +263,7 @@ func TestKeyForm(t *testing.T) {
 	}
 	_, g := newIngestion(t)
 	got := g.validate(0, rowMsg(securityKey("A", typev1.AssetClass_ASSET_CLASS_STOCK, &usd, mic("Y", "XNYS"), ident(typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, "US1", ""), mic("X", "")), "2026-03-05", "1"), today, map[string]bool{"USD": true})
-	want := []types.Identifier{{Type: "isin", Value: "US1"}, {Type: "mic_ticker", Value: "X"}, {Type: "mic_ticker", Domain: "XNYS", Value: "Y"}}
+	want := []types.Identifier{{Type: "broker_description", Domain: "ibkr", Value: "A"}, {Type: "isin", Value: "US1"}, {Type: "mic_ticker", Value: "X"}, {Type: "mic_ticker", Domain: "XNYS", Value: "Y"}}
 	if diff := cmp.Diff(want, got.key.identifiers); diff != "" {
 		t.Errorf("identifiers order mismatch (-want +got):\n%s", diff)
 	}
@@ -272,7 +283,7 @@ func TestOutcomes(t *testing.T) {
 		out := make([]gen.ResolutionKey, len(keys))
 		for i, k := range keys {
 			out[i] = gen.ResolutionKey{StatedKeyID: k.ID, Outcome: gen.ResolutionOutcomeUnrecognised, Reason: ptr.To("no datasource enabled")}
-			if *k.Description == "ACME" {
+			if described(k, "ACME") {
 				out[i].Outcome, out[i].Reason = gen.ResolutionOutcomeRejected, ptr.To("asset class equity contradicts the instrument's cash")
 			}
 		}
@@ -280,7 +291,7 @@ func TestOutcomes(t *testing.T) {
 	}
 	f.store.EXPECT().CreateStatement(gomock.Any(), gomock.Any()).Return(gen.Statement{}, nil)
 	f.store.EXPECT().CreateStatedKey(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.CreateStatedKeyParams) (gen.StatedKey, error) {
-		return gen.StatedKey{ID: arg.ID, Description: arg.Description, Identifiers: arg.Identifiers}, nil
+		return gen.StatedKey{ID: arg.ID, Identifiers: arg.Identifiers}, nil
 	}).Times(2)
 	f.store.EXPECT().DeleteTransactions(gomock.Any(), gomock.Any()).Return(int64(0), nil)
 	var items []gen.CreateStatementItemParams

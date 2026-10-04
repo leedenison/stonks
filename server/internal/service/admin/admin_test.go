@@ -187,10 +187,13 @@ func TestListRuns(t *testing.T) {
 
 func TestGetRun(t *testing.T) {
 	isin := types.Identifier{Type: types.IdentifierTypeIsin, Value: "GB00B03MLX29"}
-	key := gen.StatedKey{ID: keyID, Description: ptr.To("ROYAL DUTCH SHELL"), Identifiers: []types.Identifier{isin}}
+	shell := types.Identifier{Type: types.IdentifierTypeBrokerDescription, Domain: "ibkr", Value: "ROYAL DUTCH SHELL"}
+	key := gen.StatedKey{ID: keyID, Identifiers: []types.Identifier{shell, isin}}
 	keyMsg := &typev1.StatedKey{
-		Description: ptr.To("ROYAL DUTCH SHELL"),
-		Identifiers: []*typev1.Identifier{{Type: typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, Value: "GB00B03MLX29"}},
+		Identifiers: []*typev1.Identifier{
+			{Type: typev1.IdentifierType_IDENTIFIER_TYPE_BROKER_DESCRIPTION, Domain: "ibkr", Value: "ROYAL DUTCH SHELL"},
+			{Type: typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, Value: "GB00B03MLX29"},
+		},
 	}
 	tests := []struct {
 		name   string
@@ -279,19 +282,18 @@ func TestGetRun(t *testing.T) {
 					BlockReason: ptr.To("openfigi rejected the identifier: Invalid idValue format."),
 					KeyID:       &keyID,
 					KeyIdentifiers: []types.Identifier{
+						{Type: types.IdentifierTypeBrokerDescription, Domain: "ibkr", Value: "ROYAL DUTCH SHELL A"},
 						{Type: types.IdentifierTypeBrokerID, Domain: "ibkr", Value: "100000001"},
 						{Type: types.IdentifierTypeIsin, Value: "GB00B03MLX29"},
 					},
-					KeyAssetClass:  ptr.To(gen.AssetClassEquity),
-					KeyCurrency:    ptr.To("GBP"),
-					KeyDescription: ptr.To("ROYAL DUTCH SHELL A"),
+					KeyAssetClass: ptr.To(gen.AssetClassEquity),
+					KeyCurrency:   ptr.To("GBP"),
 				},
 				{
 					Finding: gen.Finding{ID: droppedID, RunID: childID, Kind: gen.FindingKindDropped, StatedKeyID: &keyID, FetchKeyID: &fetchKeyID,
 						Step: ptr.To(gen.DropStepStated), Detail: ptr.To("candidates in USD, not the stated GBP"), CreatedAt: created},
 					KeyID:          &keyID,
-					KeyIdentifiers: []types.Identifier{},
-					KeyDescription: ptr.To("Cash fund"),
+					KeyIdentifiers: []types.Identifier{{Type: types.IdentifierTypeBrokerDescription, Domain: "ibkr", Value: "Cash fund"}},
 				},
 				{Finding: gen.Finding{ID: siblingFindingID, RunID: siblingID, Kind: gen.FindingKindBlock, BlockID: &blockID, CreatedAt: created}},
 				{Finding: gen.Finding{ID: grandchildFindingID, RunID: grandchildID, Kind: gen.FindingKindBlock, BlockID: &blockID, CreatedAt: created}},
@@ -320,16 +322,17 @@ func TestGetRun(t *testing.T) {
 						BlockId: ptr.To(blockID.String()), Detail: ptr.To("openfigi rejected the identifier: Invalid idValue format."),
 						StatedKey: &typev1.StatedKey{
 							Identifiers: []*typev1.Identifier{
+								{Type: typev1.IdentifierType_IDENTIFIER_TYPE_BROKER_DESCRIPTION, Domain: "ibkr", Value: "ROYAL DUTCH SHELL A"},
 								{Type: typev1.IdentifierType_IDENTIFIER_TYPE_BROKER_ID, Domain: "ibkr", Value: "100000001"},
 								{Type: typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, Value: "GB00B03MLX29"},
 							},
-							AssetClass: typev1.AssetClass_ASSET_CLASS_EQUITY, Currency: ptr.To("GBP"), Description: ptr.To("ROYAL DUTCH SHELL A"),
+							AssetClass: typev1.AssetClass_ASSET_CLASS_EQUITY, Currency: ptr.To("GBP"),
 						},
 						CreatedAt: timestamppb.New(created),
 					},
 					{
 						Id: droppedID.String(), RunId: childID.String(), Kind: adminv1.FindingKind_FINDING_KIND_DROPPED,
-						StatedKeyId: ptr.To(keyID.String()), StatedKey: &typev1.StatedKey{Description: ptr.To("Cash fund")}, FetchKeyId: ptr.To(fetchKeyID.String()),
+						StatedKeyId: ptr.To(keyID.String()), StatedKey: &typev1.StatedKey{Identifiers: []*typev1.Identifier{{Type: typev1.IdentifierType_IDENTIFIER_TYPE_BROKER_DESCRIPTION, Domain: "ibkr", Value: "Cash fund"}}}, FetchKeyId: ptr.To(fetchKeyID.String()),
 						Step: ptr.To(adminv1.DropStep_DROP_STEP_STATED), Detail: ptr.To("candidates in USD, not the stated GBP"),
 						CreatedAt: timestamppb.New(created),
 					},

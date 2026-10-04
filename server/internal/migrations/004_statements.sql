@@ -24,17 +24,15 @@ CREATE TABLE statements (
 CREATE TYPE validity AS ENUM ('confirmed', 'provisional');
 
 -- A stated key is what one source states about an instrument: its
--- identifiers, asset class, currency and description. It is stored with the
--- statement that carried it and is what parameterizes resolution requests.
--- The identifiers it states become identifier rows only when confirmed by a
--- datasource.
+-- identifiers, asset class and currency. It is stored with the statement that
+-- carried it and is what parameterizes resolution requests. The identifiers it
+-- states become identifier rows only when confirmed by a datasource.
 CREATE TABLE stated_keys (
     id            uuid        PRIMARY KEY,
     statement_id  uuid        NOT NULL,
     user_id       uuid        NOT NULL,
     asset_class   asset_class REFERENCES asset_class_tree (class),
     currency      text,
-    description   text,
     -- identifiers is a JSON array of objects with type, value and, when
     -- stated, a domain, sorted by type, domain and value with no domain
     -- sorting first, so that two statements of one key compare equal. The
@@ -47,18 +45,17 @@ CREATE TABLE stated_keys (
     -- association.
     via_id        uuid        REFERENCES identifiers (id),
     -- validity is 'confirmed' where the identifier via_id names is stable, and
-    -- 'provisional' where it is MIC-derived, until identifier event coverage
-    -- confirms it.
+    -- 'provisional' otherwise.
     validity      validity,
-    -- group_id gathers the unresolved keys which share an identifier, or a
-    -- description transitively within one broker.
+    -- group_id gathers the unresolved keys which share an identifier,
+    -- transitively.
     group_id      uuid        REFERENCES stated_keys (id),
     created_at    timestamptz NOT NULL DEFAULT now(),
     CHECK (jsonb_typeof(identifiers) = 'array'),
     FOREIGN KEY (statement_id, user_id) REFERENCES statements (id, user_id),
     FOREIGN KEY (listing_id, instrument_id) REFERENCES listings (id, instrument_id)
         DEFERRABLE INITIALLY IMMEDIATE,
-    UNIQUE NULLS NOT DISTINCT (statement_id, asset_class, currency, description, identifiers),
+    UNIQUE NULLS NOT DISTINCT (statement_id, asset_class, currency, identifiers),
     CHECK ((instrument_id IS NULL) = (via_id IS NULL)),
     CHECK ((instrument_id IS NULL) = (validity IS NULL)),
     CHECK (listing_id IS NULL OR instrument_id IS NOT NULL),

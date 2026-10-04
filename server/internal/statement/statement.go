@@ -135,7 +135,6 @@ type key struct {
 	id          uuid.UUID
 	class       *gen.AssetClass
 	currency    *string
-	description *string
 	identifiers []types.Identifier
 
 	row     gen.StatedKey
@@ -143,12 +142,9 @@ type key struct {
 	reason  string
 }
 
-// statable reports whether k says anything about an instrument at all: an
-// identifier or a description. Where a key states neither, it names nothing
-// and its rows are rejected.
-func (k *key) statable() bool {
-	return k.description != nil || len(k.identifiers) > 0
-}
+// statable reports whether k says anything about an instrument at all. A key
+// stating no identifier names nothing and its rows are rejected.
+func (k *key) statable() bool { return len(k.identifiers) > 0 }
 
 // seed salts key hashes for the life of the process.
 var seed = maphash.MakeSeed()
@@ -168,7 +164,6 @@ func (k *key) hash() uint64 {
 	}
 	part((*string)(k.class))
 	part(k.currency)
-	part(k.description)
 	for _, id := range k.identifiers {
 		h.WriteString(string(id.Type))
 		h.WriteByte(0)
@@ -182,7 +177,7 @@ func (k *key) hash() uint64 {
 
 // equal reports whether k and o state the same key.
 func (k *key) equal(o *key) bool {
-	if !ptr.Equal(k.class, o.class) || !ptr.Equal(k.currency, o.currency) || !ptr.Equal(k.description, o.description) {
+	if !ptr.Equal(k.class, o.class) || !ptr.Equal(k.currency, o.currency) {
 		return false
 	}
 	return slices.Equal(k.identifiers, o.identifiers)
@@ -211,7 +206,7 @@ func (g *ingestion) prepare(ctx context.Context, run gen.Run) error {
 			return fmt.Errorf("create statement: %w", err)
 		}
 		for _, k := range g.order {
-			arg := gen.CreateStatedKeyParams{ID: k.id, StatementID: run.ID, UserID: g.user, AssetClass: k.class, Currency: k.currency, Description: k.description, Identifiers: k.identifiers}
+			arg := gen.CreateStatedKeyParams{ID: k.id, StatementID: run.ID, UserID: g.user, AssetClass: k.class, Currency: k.currency, Identifiers: k.identifiers}
 			row, err := q.CreateStatedKey(ctx, arg)
 			if err != nil {
 				return fmt.Errorf("create stated key: %w", err)

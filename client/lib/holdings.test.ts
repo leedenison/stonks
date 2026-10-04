@@ -1,21 +1,24 @@
 import { create } from "@bufbuild/protobuf";
 import { describe, expect, it } from "vitest";
 import {
-  DescriptionSchema,
   GroupHoldingSchema,
   InstrumentHoldingSchema,
   ListHoldingsResponseSchema,
 } from "@/gen/holding/v1/holding_pb";
 import {
   AssetClass,
-  Broker,
   IdentifierSchema,
   IdentifierType,
 } from "@/gen/type/v1/type_pb";
 import { holdingRows } from "./holdings";
 
-function ident(type: IdentifierType, value: string) {
-  return create(IdentifierSchema, { type, value });
+function ident(type: IdentifierType, value: string, domain = "") {
+  return create(IdentifierSchema, { type, value, domain });
+}
+
+// described builds the identifier a key states for one broker's description.
+function described(broker: string, text: string) {
+  return ident(IdentifierType.BROKER_DESCRIPTION, text, broker);
 }
 
 function instrument(
@@ -36,14 +39,12 @@ function group(
   groupId: string,
   assetClasses: AssetClass[],
   identifiers: ReturnType<typeof ident>[],
-  descriptions: { broker: Broker; text: string }[],
   quantity = "1",
 ) {
   return create(GroupHoldingSchema, {
     groupId,
     assetClasses,
     identifiers,
-    descriptions: descriptions.map((d) => create(DescriptionSchema, d)),
     quantity,
   });
 }
@@ -114,27 +115,22 @@ describe("holdingRows", () => {
     expect(rows([unnamed])[0].label).toBe("i-unnamed");
   });
 
-  it("names a group by a description a broker gave the line", () => {
+  it("names a group by a description a broker gave the line before a code", () => {
     const g = group(
       "g-1",
       [AssetClass.SECURITY],
-      [ident(IdentifierType.ISIN, "US0000000001")],
       [
-        { broker: Broker.IBKR, text: "ACME CORP" },
-        { broker: Broker.SCHWAB, text: "ACME CORPORATION" },
+        ident(IdentifierType.ISIN, "US0000000001"),
+        described("ibkr", "ACME CORP"),
+        described("schwab", "ACME CORPORATION"),
       ],
     );
     expect(rows([], [g])[0].label).toBe("ACME CORP");
   });
 
   it("falls back to a group's identifiers, then to the group id", () => {
-    const named = group(
-      "g-2",
-      [],
-      [ident(IdentifierType.MIC_TICKER, "ACME")],
-      [],
-    );
-    const unnamed = group("g-3", [], [], []);
+    const named = group("g-2", [], [ident(IdentifierType.MIC_TICKER, "ACME")]);
+    const unnamed = group("g-3", [], []);
     expect(rows([], [named])[0].label).toBe("ACME");
     expect(rows([], [unnamed])[0].label).toBe("g-3");
   });
@@ -143,8 +139,7 @@ describe("holdingRows", () => {
     const g = group(
       "g-4",
       [AssetClass.SECURITY, AssetClass.EQUITY],
-      [],
-      [{ broker: Broker.IBKR, text: "ACME CORP" }],
+      [described("ibkr", "ACME CORP")],
     );
     expect(rows([], [g])[0].classes).toEqual([
       AssetClass.SECURITY,
@@ -190,21 +185,18 @@ describe("holdingRows", () => {
       [
         ident(IdentifierType.MIC_TICKER, "ACME"),
         ident(IdentifierType.ISIN, "US0000000001"),
-      ],
-      [
-        { broker: Broker.IBKR, text: "ACME CORP" },
-        { broker: Broker.SCHWAB, text: "ACME CORPORATION" },
+        described("ibkr", "ACME CORP"),
+        described("schwab", "ACME CORPORATION"),
       ],
     );
     const row = rows([], [g])[0];
     expect(row.kind).toBe("group");
-    expect(row.label).toBe("ACME CORP");
+    expect(row.label).toBe("ACME");
     expect(row.identifiers.map((i) => i.value)).toEqual([
-      "ACME",
       "US0000000001",
+      "ACME CORP",
+      "ACME CORPORATION",
     ]);
-    if (row.kind !== "group") throw new Error("not a group");
-    expect(row.descriptions.map((d) => d.text)).toEqual(["ACME CORPORATION"]);
   });
 
   it("leaves out of a group's identifiers the one that names it", () => {
@@ -215,7 +207,6 @@ describe("holdingRows", () => {
         ident(IdentifierType.ISIN, "US0000000001"),
         ident(IdentifierType.MIC_TICKER, "ACME"),
       ],
-      [],
     );
     const row = rows([], [g])[0];
     expect(row.label).toBe("ACME");
@@ -232,8 +223,7 @@ describe("holdingRows", () => {
     const bae = group(
       "g-bae",
       [AssetClass.SECURITY],
-      [],
-      [{ broker: Broker.FIDELITY_UK, text: "BAE SYSTEMS" }],
+      [described("fidelity_uk", "BAE SYSTEMS")],
     );
     expect(rows([vanguard, gbp], [bae]).map((r) => r.id)).toEqual([
       "i-gbp",

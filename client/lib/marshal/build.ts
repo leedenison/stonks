@@ -41,13 +41,23 @@ export function cashKey(currency: string): StatedKey {
   });
 }
 
+// securityKey is the stated key for a broker's line. The description becomes
+// a BROKER_DESCRIPTION identifier in the broker's domain.
 export function securityKey(key: {
+  broker: string;
   description: string;
   assetClass: AssetClass;
   currency?: string;
   identifiers: Identifier[];
 }): StatedKey {
-  return create(StatedKeySchema, key);
+  return create(StatedKeySchema, {
+    assetClass: key.assetClass,
+    currency: key.currency,
+    identifiers: [
+      ...key.identifiers,
+      ident(IdentifierType.BROKER_DESCRIPTION, key.description, key.broker),
+    ],
+  });
 }
 
 // leg builds one row, stated as at its order date unless asAt says otherwise.

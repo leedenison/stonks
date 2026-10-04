@@ -8,19 +8,20 @@ import (
 // traits holds each identifier type's row of identifier_type_traits. A test
 // holds it equal to the table.
 var traits = map[types.IdentifierType]gen.IdentifierTypeTrait{
-	types.IdentifierTypeIsin:               {Domain: gen.IdentifierDomainGlobal, Grain: gen.IdentifierGrainInstrument, Reassignment: gen.IdentifierReassignmentStable},
-	types.IdentifierTypeCusip:              {Domain: gen.IdentifierDomainGlobal, Grain: gen.IdentifierGrainInstrument, Reassignment: gen.IdentifierReassignmentStable},
-	types.IdentifierTypeCins:               {Domain: gen.IdentifierDomainGlobal, Grain: gen.IdentifierGrainInstrument, Reassignment: gen.IdentifierReassignmentStable},
-	types.IdentifierTypeWertpapier:         {Domain: gen.IdentifierDomainGlobal, Grain: gen.IdentifierGrainInstrument, Reassignment: gen.IdentifierReassignmentStable},
-	types.IdentifierTypeOpenfigiShareClass: {Domain: gen.IdentifierDomainGlobal, Grain: gen.IdentifierGrainInstrument, Reassignment: gen.IdentifierReassignmentStable},
-	types.IdentifierTypeSedol:              {Domain: gen.IdentifierDomainGlobal, Grain: gen.IdentifierGrainListing, Reassignment: gen.IdentifierReassignmentStable},
-	types.IdentifierTypeOpenfigiComposite:  {Domain: gen.IdentifierDomainGlobal, Grain: gen.IdentifierGrainListing, Reassignment: gen.IdentifierReassignmentStable},
-	types.IdentifierTypeMicTicker:          {Domain: gen.IdentifierDomainVenue, Grain: gen.IdentifierGrainListing, Reassignment: gen.IdentifierReassignmentMicDerived},
-	types.IdentifierTypeOpenfigiTicker:     {Domain: gen.IdentifierDomainVenue, Grain: gen.IdentifierGrainListing, Reassignment: gen.IdentifierReassignmentMicDerived},
-	types.IdentifierTypeOcc:                {Domain: gen.IdentifierDomainGlobal, Grain: gen.IdentifierGrainInstrument, Reassignment: gen.IdentifierReassignmentMicDerived},
-	types.IdentifierTypeCurrency:           {Domain: gen.IdentifierDomainGlobal, Grain: gen.IdentifierGrainInstrument, Reassignment: gen.IdentifierReassignmentStable},
-	types.IdentifierTypeDatasourceTicker:   {Domain: gen.IdentifierDomainIssuer, Grain: gen.IdentifierGrainListing, Reassignment: gen.IdentifierReassignmentMicDerived},
-	types.IdentifierTypeBrokerID:           {Domain: gen.IdentifierDomainIssuer, Grain: gen.IdentifierGrainInstrument, Reassignment: gen.IdentifierReassignmentStable},
+	types.IdentifierTypeIsin:               {Domain: gen.IdentifierDomainGlobal, Grain: gen.IdentifierGrainInstrument, Reassignment: gen.IdentifierReassignmentStable, Exclusive: true},
+	types.IdentifierTypeCusip:              {Domain: gen.IdentifierDomainGlobal, Grain: gen.IdentifierGrainInstrument, Reassignment: gen.IdentifierReassignmentStable, Exclusive: true},
+	types.IdentifierTypeCins:               {Domain: gen.IdentifierDomainGlobal, Grain: gen.IdentifierGrainInstrument, Reassignment: gen.IdentifierReassignmentStable, Exclusive: true},
+	types.IdentifierTypeWertpapier:         {Domain: gen.IdentifierDomainGlobal, Grain: gen.IdentifierGrainInstrument, Reassignment: gen.IdentifierReassignmentStable, Exclusive: true},
+	types.IdentifierTypeOpenfigiShareClass: {Domain: gen.IdentifierDomainGlobal, Grain: gen.IdentifierGrainInstrument, Reassignment: gen.IdentifierReassignmentStable, Exclusive: true},
+	types.IdentifierTypeSedol:              {Domain: gen.IdentifierDomainGlobal, Grain: gen.IdentifierGrainListing, Reassignment: gen.IdentifierReassignmentStable, Exclusive: true},
+	types.IdentifierTypeOpenfigiComposite:  {Domain: gen.IdentifierDomainGlobal, Grain: gen.IdentifierGrainListing, Reassignment: gen.IdentifierReassignmentStable, Exclusive: false},
+	types.IdentifierTypeMicTicker:          {Domain: gen.IdentifierDomainVenue, Grain: gen.IdentifierGrainListing, Reassignment: gen.IdentifierReassignmentMicDerived, Exclusive: true},
+	types.IdentifierTypeOpenfigiTicker:     {Domain: gen.IdentifierDomainVenue, Grain: gen.IdentifierGrainListing, Reassignment: gen.IdentifierReassignmentMicDerived, Exclusive: true},
+	types.IdentifierTypeOcc:                {Domain: gen.IdentifierDomainGlobal, Grain: gen.IdentifierGrainInstrument, Reassignment: gen.IdentifierReassignmentMicDerived, Exclusive: true},
+	types.IdentifierTypeCurrency:           {Domain: gen.IdentifierDomainGlobal, Grain: gen.IdentifierGrainInstrument, Reassignment: gen.IdentifierReassignmentStable, Exclusive: true},
+	types.IdentifierTypeDatasourceTicker:   {Domain: gen.IdentifierDomainIssuer, Grain: gen.IdentifierGrainListing, Reassignment: gen.IdentifierReassignmentMicDerived, Exclusive: true},
+	types.IdentifierTypeBrokerID:           {Domain: gen.IdentifierDomainIssuer, Grain: gen.IdentifierGrainInstrument, Reassignment: gen.IdentifierReassignmentStable, Exclusive: true},
+	types.IdentifierTypeBrokerDescription:  {Domain: gen.IdentifierDomainIssuer, Grain: gen.IdentifierGrainInstrument, Reassignment: gen.IdentifierReassignmentUnverifiable, Exclusive: false},
 }
 
 // Trait returns the traits of t.
