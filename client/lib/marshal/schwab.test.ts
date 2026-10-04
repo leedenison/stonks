@@ -34,7 +34,7 @@ const statement = schwab.marshal(json, EXPORTED);
 
 const usd = cash("USD");
 const stock = (symbol: string, description: string) =>
-  security(description, AssetClass.SECURITY, [hint(symbol)], "USD");
+  security(description, AssetClass.SECURITY, [hint(symbol)], "USD", "schwab");
 
 describe("schwab", () => {
   it("takes the period from the JSON and states every row as at the export", () => {

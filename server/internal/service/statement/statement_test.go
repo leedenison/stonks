@@ -185,7 +185,8 @@ func TestListStatements(t *testing.T) {
 }
 
 func TestGetStatement(t *testing.T) {
-	rowMsg := &statementv1.Row{Key: &typev1.StatedKey{Description: ptr.To("ACME")}, OrderDate: "2026-03-05", SettlementDate: "2026-03-07", AsAt: "2026-03-05", Quantity: "10"}
+	acme := &typev1.Identifier{Type: typev1.IdentifierType_IDENTIFIER_TYPE_BROKER_DESCRIPTION, Domain: "ibkr", Value: "ACME"}
+	rowMsg := &statementv1.Row{Key: &typev1.StatedKey{Identifiers: []*typev1.Identifier{acme}}, OrderDate: "2026-03-05", SettlementDate: "2026-03-07", AsAt: "2026-03-05", Quantity: "10"}
 	stated, err := protojson.Marshal(rowMsg)
 	if err != nil {
 		t.Fatal(err)
@@ -198,7 +199,7 @@ func TestGetStatement(t *testing.T) {
 	isin := types.Identifier{Type: types.IdentifierTypeIsin, Value: "US0378331005"}
 	keys := []gen.StatedKey{
 		{ID: matchedID, StatementID: runID, UserID: userID, Identifiers: []types.Identifier{isin}},
-		{ID: unrecognisedID, StatementID: runID, UserID: userID, Description: ptr.To("ACME"), Identifiers: []types.Identifier{}},
+		{ID: unrecognisedID, StatementID: runID, UserID: userID, Identifiers: []types.Identifier{{Type: types.IdentifierTypeBrokerDescription, Domain: "ibkr", Value: "ACME"}}},
 		{ID: unreachedID, StatementID: runID, UserID: userID, Currency: ptr.To("GBP"), Identifiers: []types.Identifier{}},
 	}
 	latest := []gen.ResolutionKey{
@@ -207,7 +208,7 @@ func TestGetStatement(t *testing.T) {
 	}
 	keyMsgs := []*typev1.ResolutionItem{
 		{StatedKey: &typev1.StatedKey{Identifiers: []*typev1.Identifier{{Type: typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, Value: "US0378331005"}}}, StatedKeyId: matchedID.String(), Outcome: typev1.ResolutionOutcome_RESOLUTION_OUTCOME_MATCHED},
-		{StatedKey: &typev1.StatedKey{Description: ptr.To("ACME")}, StatedKeyId: unrecognisedID.String(), Outcome: typev1.ResolutionOutcome_RESOLUTION_OUTCOME_UNRECOGNISED, Reason: ptr.To("no global identifier")},
+		{StatedKey: &typev1.StatedKey{Identifiers: []*typev1.Identifier{acme}}, StatedKeyId: unrecognisedID.String(), Outcome: typev1.ResolutionOutcome_RESOLUTION_OUTCOME_UNRECOGNISED, Reason: ptr.To("no global identifier")},
 		{StatedKey: &typev1.StatedKey{Currency: ptr.To("GBP")}, StatedKeyId: unreachedID.String()},
 	}
 	tests := []struct {

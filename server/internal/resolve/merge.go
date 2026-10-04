@@ -164,7 +164,7 @@ func disagree(hits []hit) (string, bool) {
 		}
 		for _, row := range h.found.identifiers {
 			id := to.Identifier(row)
-			if multi[id.Type] {
+			if !exclusive(id) {
 				continue
 			}
 			k := key{typ: id.Type, domain: id.Domain}

@@ -5,6 +5,7 @@ package db_test
 import (
 	"context"
 	"errors"
+	"slices"
 	"testing"
 
 	"github.com/google/uuid"
@@ -46,7 +47,7 @@ func newStatedKey(t *testing.T, q *gen.Queries, user gen.User, statement gen.Sta
 	t.Helper()
 	key, err := q.CreateStatedKey(context.Background(), gen.CreateStatedKeyParams{
 		ID: db.NewID(), StatementID: statement.ID, UserID: user.ID,
-		Description: ptr.To(uuid.NewString()), Identifiers: []types.Identifier{},
+		Identifiers: []types.Identifier{{Type: types.IdentifierTypeBrokerDescription, Domain: "ibkr", Value: uuid.NewString()}},
 	})
 	require.NoError(t, err)
 	return key
@@ -367,8 +368,8 @@ func TestDatasourceBlocks(t *testing.T) {
 		if f.Finding.Kind != gen.FindingKindBlock || f.Finding.BlockID == nil || f.Finding.ClearedAt != nil {
 			t.Errorf("finding = %+v, want an open finding on a block", f.Finding)
 		}
-		if f.KeyDescription == nil || *f.KeyDescription != *stated.Description {
-			t.Errorf("block finding key description = %v, want %q: the key whose call created the block", f.KeyDescription, *stated.Description)
+		if !slices.Equal(f.KeyIdentifiers, stated.Identifiers) {
+			t.Errorf("block finding key = %v, want %v: the key whose call created the block", f.KeyIdentifiers, stated.Identifiers)
 		}
 		if f.BlockReason == nil || *f.BlockReason != "refused" {
 			t.Errorf("block finding reason = %v, want the block's %q", f.BlockReason, "refused")

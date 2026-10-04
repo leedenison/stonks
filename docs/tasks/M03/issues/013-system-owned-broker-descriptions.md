@@ -27,8 +27,7 @@ Out:
 
 ## Design
 
-A broker description differs from the other identifier types. It is not stable, since a
-broker may rename a line, and not MIC-derived. Several descriptions of one broker may
-name one instrument, where two ISINs cannot. Whether it is an identifier type with traits
-of its own or a table of its own is the open question this issue settles first; see
-[001](001-open-m03.md).
+A broker description is an identifier type with traits of its own; see
+[019](../adr/019-a-broker-description-is-an-identifier.md). A stated key carries its
+descriptions among its identifiers, and the resolution step through a system owned
+description follows.

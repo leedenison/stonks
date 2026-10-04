@@ -67,7 +67,7 @@ test("replays a statement's unavailable key from the runs page and resolves it",
   );
   const before = await holdingClient(userSession).listHoldings({});
   expect(before.groups).toHaveLength(1);
-  expect(before.groups[0].identifiers.map((i) => i.value)).toEqual([isin]);
+  expect(before.groups[0].identifiers.map((i) => i.value)).toContain(isin);
   expect(before.groups[0].quantity).toBe("100");
   expect(before.instruments).toHaveLength(1);
 

@@ -47,9 +47,8 @@ test("gathers the keys of two statements that share an identifier", async ({
   expect(res.groups).toHaveLength(1);
   const group = res.groups[0];
   expect(group.quantity).toBe("250");
-  expect(group.identifiers.map((i) => i.value)).toEqual(["US0000000002"]);
-  expect(group.descriptions.map((d) => d.text).sort()).toEqual(
-    [...descriptions].sort(),
+  expect(group.identifiers.map((i) => i.value).sort()).toEqual(
+    ["US0000000002", ...descriptions].sort(),
   );
   expect(res.instruments).toHaveLength(1);
   expect(res.instruments[0].quantity).toBe("-18852.84710536");

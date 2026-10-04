@@ -62,7 +62,8 @@ The weakest link governs.  Where a key states only a ticker, it is associated th
 that ticker however many stable identifiers a datasource's answer names, so the
 association is provisional until the ticker is covered.
 
-An identifier row exists only from a datasource assertion.  Where no datasource answered
+An identifier row exists only from a datasource assertion or from reference data, of
+which a broker description is one.  Where no datasource answered
 for a stated identifier, it stays in the key, and the key stays unresolved: its holdings
 aggregate with the user's other unresolved keys on the identifiers they share, and
 nothing about it is stored against an instrument.
@@ -216,9 +217,9 @@ against anything, it neither contradicts nor confirms.
 
 Consistency: two answers describe one listing and do not contradict each other.  The
 currency decides whether they describe one listing, and the venue decides only where a
-currency is absent.  Identifiers contradict when both name one subject, the same type
-and domain, with different values.  An identifier the other answer also named is
-agreement, and agreement anywhere in that answer settles it.
+currency is absent.  Identifiers of an exclusive type contradict when both name one
+subject, the same type and domain, with different values.  An identifier the other
+answer also named is agreement, and agreement anywhere in that answer settles it.
 
 Corroboration: at least one stable identifier is named by both.  Agreeing on a
 MIC-derived identifier is the query restated rather than evidence about the instrument,

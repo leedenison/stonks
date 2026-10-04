@@ -74,9 +74,9 @@ test("shows a resolved holding and an unresolved one from two brokers", async ({
   const group = holdings.groups[0];
   expect(group.quantity).toBe("10");
   expect(group.identifiers.map((i) => [i.type, i.value])).toEqual([
+    [IdentifierType.BROKER_DESCRIPTION, description],
     [IdentifierType.MIC_TICKER, ticker],
   ]);
-  expect(group.descriptions.map((d) => d.text)).toEqual([description]);
 
   const instruments = await instrumentClient(session).listInstruments({});
   const instrument = instruments.instruments.find((i) =>

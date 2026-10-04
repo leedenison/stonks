@@ -44,18 +44,23 @@ describe("IdentifierChip", () => {
 });
 
 describe("StatedKeyChips", () => {
-  it("renders a chip per identifier, then the description", () => {
+  it("renders a chip per identifier", () => {
+    const description = create(IdentifierSchema, {
+      type: IdentifierType.BROKER_DESCRIPTION,
+      value: "SHELL PLC",
+      domain: "ibkr",
+    });
     const { container } = render(
       <StatedKeyChips
         statedKey={create(StatedKeySchema, {
-          identifiers: [isin, ticker],
-          description: "SHELL PLC",
+          identifiers: [isin, ticker, description],
         })}
       />,
     );
     expect(container.querySelectorAll("[data-identifier-type]")).toHaveLength(
-      2,
+      3,
     );
+    expect(container.textContent).toContain("Description");
     expect(container.textContent).toContain("SHELL PLC");
   });
 

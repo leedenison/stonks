@@ -1,6 +1,6 @@
 -- name: CreateStatedKey :one
-INSERT INTO stated_keys (id, statement_id, user_id, asset_class, currency, description, identifiers)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
+INSERT INTO stated_keys (id, statement_id, user_id, asset_class, currency, identifiers)
+VALUES ($1, $2, $3, $4, $5, $6)
 RETURNING *;
 
 -- name: ListStatedKeys :many
@@ -37,9 +37,7 @@ WHERE id = $1 AND user_id = $2;
 SELECT pg_advisory_xact_lock(hashtextextended(CAST(@user_id::uuid AS text), 0));
 
 -- name: ListGroupableKeys :many
-SELECT sqlc.embed(stated_keys), statements.broker
-FROM stated_keys
-JOIN statements ON statements.id = stated_keys.statement_id
+SELECT * FROM stated_keys
 WHERE stated_keys.user_id = @user_id::uuid
   AND stated_keys.instrument_id IS NULL
   AND EXISTS (

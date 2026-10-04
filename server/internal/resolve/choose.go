@@ -200,7 +200,7 @@ func (g *group) families() []string {
 // listing grain id, those of the listing in family fam and of the listing
 // of no family, or of every listing where fam is empty.
 func (g *group) contradicts(id types.Identifier, fam string) (types.Identifier, bool) {
-	if multi[id.Type] {
+	if !exclusive(id) {
 		return types.Identifier{}, false
 	}
 	pool := g.instrument

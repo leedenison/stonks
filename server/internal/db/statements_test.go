@@ -131,7 +131,7 @@ func TestResolutionKeys(t *testing.T) {
 	require.NoError(t, err)
 	newKey := func() gen.StatedKey {
 		t.Helper()
-		key, err := q.CreateStatedKey(ctx, gen.CreateStatedKeyParams{ID: db.NewID(), StatementID: statement.ID, UserID: user.ID, Description: ptr.To(uuid.NewString()), Identifiers: []types.Identifier{}})
+		key, err := q.CreateStatedKey(ctx, gen.CreateStatedKeyParams{ID: db.NewID(), StatementID: statement.ID, UserID: user.ID, Identifiers: []types.Identifier{{Type: types.IdentifierTypeBrokerDescription, Domain: "ibkr", Value: uuid.NewString()}}})
 		require.NoError(t, err)
 		return key
 	}
@@ -185,7 +185,7 @@ func TestLatestResolutions(t *testing.T) {
 	statement, theirs := newStatement(t, q, user), newStatement(t, q, other)
 	newKey := func(st gen.Statement) gen.StatedKey {
 		t.Helper()
-		key, err := q.CreateStatedKey(ctx, gen.CreateStatedKeyParams{ID: db.NewID(), StatementID: st.ID, UserID: st.UserID, Description: ptr.To(uuid.NewString()), Identifiers: []types.Identifier{}})
+		key, err := q.CreateStatedKey(ctx, gen.CreateStatedKeyParams{ID: db.NewID(), StatementID: st.ID, UserID: st.UserID, Identifiers: []types.Identifier{{Type: types.IdentifierTypeBrokerDescription, Domain: "ibkr", Value: uuid.NewString()}}})
 		require.NoError(t, err)
 		return key
 	}

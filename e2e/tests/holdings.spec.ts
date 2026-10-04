@@ -43,8 +43,8 @@ const expected = [
 ];
 
 // rowOf finds the holding named name and the id its row carries: an
-// instrument holding by an identifier naming it, a group by a description
-// one of its brokers gave the line.
+// instrument holding by an identifier naming it, a group by an identifier one
+// of its keys states, such as a broker description.
 function rowOf(
   res: ListHoldingsResponse,
   name: string,
@@ -56,7 +56,7 @@ function rowOf(
     return { id: instrument.instrumentId, quantity: instrument.quantity };
   }
   const group = res.groups.find((g) =>
-    g.descriptions.some((d) => d.text === name),
+    g.identifiers.some((i) => i.value === name),
   );
   if (!group) {
     throw new Error(`no holding named ${name}`);

@@ -56,6 +56,11 @@ const ticker = create(IdentifierSchema, {
   domain: "XLON",
   value: "SHEL",
 });
+const shell = create(IdentifierSchema, {
+  type: IdentifierType.BROKER_DESCRIPTION,
+  domain: "ibkr",
+  value: "SHELL PLC",
+});
 
 // A fetch under a resolution under a statement, the fetch being the run
 // read, with one run below it.
@@ -130,10 +135,9 @@ const fetch = create(GetRunResponseSchema, {
       step: DropStep.STATED,
       detail: "candidates in USD, not the stated GBP",
       statedKey: create(StatedKeySchema, {
-        identifiers: [isin, ticker],
+        identifiers: [isin, ticker, shell],
         assetClass: AssetClass.EQUITY,
         currency: "GBP",
-        description: "SHELL PLC",
       }),
       createdAt: timestampFromDate(new Date("2026-09-24T10:01:00Z")),
     }),
@@ -141,8 +145,7 @@ const fetch = create(GetRunResponseSchema, {
   fetchItems: [
     create(FetchItemSchema, {
       statedKey: create(StatedKeySchema, {
-        identifiers: [isin],
-        description: "SHELL PLC",
+        identifiers: [isin, shell],
       }),
       statedKeyId: "k1",
       sent: isin,
@@ -221,7 +224,7 @@ describe("AdminRunPage", () => {
     fireEvent.click(screen.getByTestId("finding-row-x2"));
     expect(screen.queryByTestId("finding-detail-x1")).toBeNull();
     const detail = screen.getByTestId("finding-detail-x2");
-    expect(detail.querySelectorAll("[data-identifier-type]")).toHaveLength(2);
+    expect(detail.querySelectorAll("[data-identifier-type]")).toHaveLength(3);
     expect(detail.textContent).toContain("GB00B03MLX29");
     expect(detail.textContent).toContain("SHEL(XLON)");
     expect(detail.textContent).toContain("SHELL PLC");

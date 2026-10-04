@@ -195,7 +195,7 @@ function marshal(input: string): Statement {
     const { key } = secId(el);
     const sec = known.get(key);
     if (!sec) throw new MarshalError(`security ${key} not in SECLIST`);
-    return securityKey({ ...sec, currency: cur });
+    return securityKey({ ...sec, broker: "ibkr", currency: cur });
   };
 
   for (const kind of Object.keys(list)) {

@@ -34,6 +34,7 @@ var IdentifierTypes = []IdentifierType{
 	IdentifierTypeCurrency,
 	IdentifierTypeDatasourceTicker,
 	IdentifierTypeBrokerID,
+	IdentifierTypeBrokerDescription,
 }
 
 // The identifier types, spelled as the identifier_type enum spells them.
@@ -51,6 +52,7 @@ const (
 	IdentifierTypeCurrency           IdentifierType = "currency"
 	IdentifierTypeDatasourceTicker   IdentifierType = "datasource_ticker"
 	IdentifierTypeBrokerID           IdentifierType = "broker_id"
+	IdentifierTypeBrokerDescription  IdentifierType = "broker_description"
 )
 
 // Scan reads the enum from a text or bytea column.

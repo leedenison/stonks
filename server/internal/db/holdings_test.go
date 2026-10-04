@@ -4,6 +4,7 @@ package db_test
 
 import (
 	"context"
+	"slices"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -34,7 +35,8 @@ func newHolder(t *testing.T, q *gen.Queries, email string) holder {
 func (h holder) key(t *testing.T, q *gen.Queries, description string, listing *gen.Listing, via *gen.Identifier) gen.StatedKey {
 	t.Helper()
 	ctx := context.Background()
-	k, err := q.CreateStatedKey(ctx, gen.CreateStatedKeyParams{ID: db.NewID(), StatementID: h.statement.ID, UserID: h.user.ID, Description: &description, Identifiers: []types.Identifier{}})
+	described := types.Identifier{Type: types.IdentifierTypeBrokerDescription, Domain: "ibkr", Value: description}
+	k, err := q.CreateStatedKey(ctx, gen.CreateStatedKeyParams{ID: db.NewID(), StatementID: h.statement.ID, UserID: h.user.ID, Identifiers: []types.Identifier{described}})
 	require.NoError(t, err)
 	if listing == nil {
 		return k
@@ -244,7 +246,7 @@ func TestListGroupHoldings(t *testing.T) {
 		if len(keys) != 2 {
 			t.Fatalf("ListHeldGroupKeys = %d keys, want 2", len(keys))
 		}
-		if *keys[0].StatedKey.Description != "ACME CORP" || keys[0].Broker != gen.BrokerIbkr {
+		if want := []types.Identifier{{Type: types.IdentifierTypeBrokerDescription, Domain: "ibkr", Value: "ACME CORP"}}; !slices.Equal(keys[0].Identifiers, want) {
 			t.Errorf("ListHeldGroupKeys[0] = %+v, want the ibkr key describing ACME CORP", keys[0])
 		}
 	})

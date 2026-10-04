@@ -33,9 +33,7 @@ HAVING SUM(transactions.quantity) <> 0
 ORDER BY stated_keys.group_id;
 
 -- name: ListHeldGroupKeys :many
-SELECT sqlc.embed(stated_keys), statements.broker
-FROM stated_keys
-JOIN statements ON statements.id = stated_keys.statement_id
+SELECT * FROM stated_keys
 WHERE stated_keys.user_id = @user_id::uuid
   AND stated_keys.group_id IN (
       SELECT stated_keys.group_id

@@ -80,6 +80,9 @@ enum IdentifierType {
   IDENTIFIER_TYPE_DATASOURCE_TICKER = 12;
   // The domain is the broker that issued the value.
   IDENTIFIER_TYPE_BROKER_ID = 13;
+  // A line's description as the broker states it; the domain is the broker
+  // that stated the value.
+  IDENTIFIER_TYPE_BROKER_DESCRIPTION = 14;
 }
 
 // A name for an instrument or for one of its listings.
@@ -96,8 +99,6 @@ message StatedKey {
   AssetClass asset_class = 2;
   // The currency of the source line stating the instrument.
   optional string currency = 3;
-  // The source's description of the instrument.
-  optional string description = 4;
 }
 
 // What a run of kind RESOLUTION made of one stated key.

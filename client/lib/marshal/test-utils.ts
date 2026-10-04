@@ -37,17 +37,25 @@ export function cash(currency: string): StatedKey {
   });
 }
 
+// security is the stated key a marshaller builds for a broker's line.
 export function security(
   description: string,
   assetClass: AssetClass,
   identifiers: Identifier[],
   currency?: string,
+  broker = "ibkr",
 ): StatedKey {
   return create(StatedKeySchema, {
-    identifiers,
+    identifiers: [
+      ...identifiers,
+      create(IdentifierSchema, {
+        type: IdentifierType.BROKER_DESCRIPTION,
+        value: description,
+        domain: broker,
+      }),
+    ],
     assetClass,
     currency,
-    description,
   });
 }
 

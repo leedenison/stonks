@@ -36,7 +36,21 @@ describe("keyLabel", () => {
   it("prefers the description, then the currency of cash, then an identifier", () => {
     expect(keyLabel(undefined)).toBe("");
     expect(
-      keyLabel(create(StatedKeySchema, { description: "ACME CORP" })),
+      keyLabel(
+        create(StatedKeySchema, {
+          identifiers: [
+            create(IdentifierSchema, {
+              type: IdentifierType.ISIN,
+              value: "US0000000001",
+            }),
+            create(IdentifierSchema, {
+              type: IdentifierType.BROKER_DESCRIPTION,
+              value: "ACME CORP",
+              domain: "ibkr",
+            }),
+          ],
+        }),
+      ),
     ).toBe("ACME CORP");
     expect(
       keyLabel(

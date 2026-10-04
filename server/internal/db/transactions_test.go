@@ -37,8 +37,8 @@ func TestStatedKeys(t *testing.T) {
 
 	created, err := q.CreateStatedKey(ctx, key(statement))
 	require.NoError(t, err)
-	if created.Description != nil || created.AssetClass == nil || *created.AssetClass != gen.AssetClassCash {
-		t.Errorf("CreateStatedKey = %+v, want asset class cash and no description", created)
+	if created.AssetClass == nil || *created.AssetClass != gen.AssetClassCash {
+		t.Errorf("CreateStatedKey = %+v, want asset class cash", created)
 	}
 	listed, err := q.ListStatedKeys(ctx, gen.ListStatedKeysParams{StatementID: statement.ID, UserID: user.ID})
 	require.NoError(t, err)

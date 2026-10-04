@@ -12,7 +12,6 @@ import { UploadAction } from "@/app/components/upload-action";
 import { useUpload } from "@/contexts/upload-context";
 import { useHoldings } from "@/hooks/use-holdings";
 import { assetClassLabel } from "@/lib/asset-class";
-import { brokerLabel } from "@/lib/broker";
 import { type HoldingRow, holdingRows } from "@/lib/holdings";
 import { toFixed } from "@/lib/marshal/decimal";
 
@@ -90,10 +89,9 @@ export default function HoldingsPage() {
   );
 }
 
-// Name shows a holding's label with its identifiers, and for a group, its
-// descriptions and the statements-only mark.
+// Name shows a holding's label with its identifiers, and for a group, the
+// statements-only mark.
 function Name({ row }: { row: HoldingRow }) {
-  const described = row.kind === "group" ? row.descriptions : [];
   return (
     <span className="flex flex-col gap-1">
       <span className="flex items-center gap-2">
@@ -104,17 +102,7 @@ function Name({ row }: { row: HoldingRow }) {
           </Chip>
         )}
       </span>
-      {(row.identifiers.length > 0 || described.length > 0) && (
-        <span className="flex flex-wrap gap-1">
-          <IdentifierChips ids={row.identifiers} />
-          {described.map((d) => (
-            <Chip key={`${d.broker}-${d.text}`}>
-              <span className="font-semibold">{brokerLabel(d.broker)}</span>
-              <span>{d.text}</span>
-            </Chip>
-          ))}
-        </span>
-      )}
+      {row.identifiers.length > 0 && <IdentifierChips ids={row.identifiers} />}
     </span>
   );
 }

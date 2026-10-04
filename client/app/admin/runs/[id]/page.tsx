@@ -400,8 +400,8 @@ function Findings({ data }: { data: GetRunResponse }) {
   );
 }
 
-// FindingDetail is what the key concerned states: each identifier, the
-// description, the asset class and the currency, each only where stated.
+// FindingDetail is what the key concerned states: each identifier, the asset
+// class and the currency, each only where stated.
 function FindingDetail({ finding: f }: { finding: Finding }) {
   const k = f.statedKey;
   if (!k) {
@@ -412,7 +412,6 @@ function FindingDetail({ finding: f }: { finding: Finding }) {
       "Identifiers",
       k.identifiers.length > 0 && <IdentifierChips ids={k.identifiers} />,
     ],
-    ["Description", k.description],
     ["Asset class", k.assetClass !== 0 && enumLabel(AssetClass, k.assetClass)],
     ["Currency", k.currency],
   ];

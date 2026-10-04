@@ -77,3 +77,39 @@ func TestName(t *testing.T) {
 		t.Errorf("name(mic_ticker) = %q", got)
 	}
 }
+
+// TestStrength holds the order identifiers are tried in: every party's
+// identifiers before an issuer's, stable before reassignable, and an
+// instrument's before a listing's.
+func TestStrength(t *testing.T) {
+	want := []types.Identifier{
+		id(types.IdentifierTypeIsin, "", "GB00BH4HKS39"),
+		id(types.IdentifierTypeSedol, "", "BH4HKS3"),
+		id(types.IdentifierTypeOcc, "", "VOD   260116C00010000"),
+		id(types.IdentifierTypeMicTicker, "XLON", "VOD"),
+		id(types.IdentifierTypeBrokerID, "ibkr", "12345"),
+		id(types.IdentifierTypeBrokerDescription, "ibkr", "VODAFONE GROUP PLC"),
+		id(types.IdentifierTypeDatasourceTicker, "alpha", "VOD.L"),
+	}
+	for i := 1; i < len(want); i++ {
+		if a, b := strength(want[i-1]), strength(want[i]); a >= b {
+			t.Errorf("strength(%s) = %d, strength(%s) = %d, want the first stronger", name(want[i-1]), a, name(want[i]), b)
+		}
+	}
+}
+
+// TestExclusive checks that a second value of an exclusive type contradicts
+// the first, and a second description of one broker does not.
+func TestExclusive(t *testing.T) {
+	isin := id(types.IdentifierTypeIsin, "", "GB00BH4HKS39")
+	other := id(types.IdentifierTypeIsin, "", "US0378331005")
+	descr := id(types.IdentifierTypeBrokerDescription, "ibkr", "VODAFONE GROUP PLC")
+	renamed := id(types.IdentifierTypeBrokerDescription, "ibkr", "VODAFONE GRP")
+	g := &group{instrument: []types.Identifier{isin, descr}, listings: map[string][]types.Identifier{}}
+	if got, ok := g.contradicts(other, ""); !ok || got != isin {
+		t.Errorf("contradicts(%s) = %v, %v, want the isin", name(other), got, ok)
+	}
+	if got, ok := g.contradicts(renamed, ""); ok {
+		t.Errorf("contradicts(%s) = %v, want no contradiction between two descriptions", name(renamed), got)
+	}
+}

@@ -72,8 +72,8 @@ CREATE TABLE fetch_keys (
 CREATE INDEX fetch_keys_stated_key_idx ON fetch_keys (stated_key_id);
 CREATE INDEX fetch_keys_instrument_idx ON fetch_keys (instrument_id);
 
--- Provenance: the fetch key whose response asserted the row, NULL for the
--- reference data the migrations seed.
+-- Provenance: the fetch key whose response asserted the row, NULL for
+-- reference data.
 ALTER TABLE instruments ADD COLUMN fetch_key_id uuid REFERENCES fetch_keys (id);
 ALTER TABLE listings ADD COLUMN fetch_key_id uuid REFERENCES fetch_keys (id);
 ALTER TABLE identifiers ADD COLUMN fetch_key_id uuid REFERENCES fetch_keys (id);

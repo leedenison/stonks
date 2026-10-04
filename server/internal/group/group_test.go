@@ -16,13 +16,14 @@ func id(n int) uuid.UUID {
 	return uuid.MustParse(fmt.Sprintf("00000000-0000-7000-8000-%012d", n))
 }
 
-// keyRow states what one key of broker says about an instrument.
-func keyRow(n int, broker gen.Broker, description string, ids ...types.Identifier) gen.ListGroupableKeysRow {
+// keyRow builds a stated key that carries the broker's description among its
+// identifiers.
+func keyRow(n int, broker gen.Broker, description string, ids ...types.Identifier) gen.StatedKey {
 	k := gen.StatedKey{ID: id(n), Identifiers: ids}
 	if description != "" {
-		k.Description = &description
+		k.Identifiers = append(k.Identifiers, types.Identifier{Type: types.IdentifierTypeBrokerDescription, Domain: string(broker), Value: description})
 	}
-	return gen.ListGroupableKeysRow{StatedKey: k, Broker: broker}
+	return k
 }
 
 func stated(t types.IdentifierType, value, domain string) types.Identifier {
@@ -36,12 +37,12 @@ func TestOf(t *testing.T) {
 	}
 	tests := []struct {
 		name string
-		keys []gen.ListGroupableKeysRow
+		keys []gen.StatedKey
 		want map[int]int
 	}{
 		{
 			name: "a shared identifier joins two brokers",
-			keys: []gen.ListGroupableKeysRow{
+			keys: []gen.StatedKey{
 				keyRow(1, gen.BrokerIbkr, "ACME CORP", isin("US0000000001")),
 				keyRow(2, gen.BrokerSchwab, "ACME CORPORATION", isin("US0000000001")),
 			},
@@ -49,7 +50,7 @@ func TestOf(t *testing.T) {
 		},
 		{
 			name: "a shared description joins within one broker",
-			keys: []gen.ListGroupableKeysRow{
+			keys: []gen.StatedKey{
 				keyRow(1, gen.BrokerIbkr, "ACME CORP"),
 				keyRow(2, gen.BrokerIbkr, "ACME CORP"),
 			},
@@ -57,7 +58,7 @@ func TestOf(t *testing.T) {
 		},
 		{
 			name: "one description at two brokers stays apart",
-			keys: []gen.ListGroupableKeysRow{
+			keys: []gen.StatedKey{
 				keyRow(1, gen.BrokerIbkr, "ACME CORP"),
 				keyRow(2, gen.BrokerSchwab, "ACME CORP"),
 			},
@@ -65,7 +66,7 @@ func TestOf(t *testing.T) {
 		},
 		{
 			name: "a ticker without its venue names nothing",
-			keys: []gen.ListGroupableKeysRow{
+			keys: []gen.StatedKey{
 				keyRow(1, gen.BrokerSchwab, "ACME CORP", ticker("ACME", "")),
 				keyRow(2, gen.BrokerFidelityUk, "ACME PLC", ticker("ACME", "")),
 			},
@@ -73,7 +74,7 @@ func TestOf(t *testing.T) {
 		},
 		{
 			name: "a ticker at one venue joins",
-			keys: []gen.ListGroupableKeysRow{
+			keys: []gen.StatedKey{
 				keyRow(1, gen.BrokerSchwab, "ACME CORP", ticker("ACME", "XNAS")),
 				keyRow(2, gen.BrokerFidelityUk, "ACME PLC", ticker("ACME", "XNAS")),
 			},
@@ -81,7 +82,7 @@ func TestOf(t *testing.T) {
 		},
 		{
 			name: "a ticker at two venues stays apart",
-			keys: []gen.ListGroupableKeysRow{
+			keys: []gen.StatedKey{
 				keyRow(1, gen.BrokerSchwab, "ACME CORP", ticker("ACME", "XNAS")),
 				keyRow(2, gen.BrokerFidelityUk, "ACME PLC", ticker("ACME", "XLON")),
 			},
@@ -89,7 +90,7 @@ func TestOf(t *testing.T) {
 		},
 		{
 			name: "one value under two types stays apart",
-			keys: []gen.ListGroupableKeysRow{
+			keys: []gen.StatedKey{
 				keyRow(1, gen.BrokerIbkr, "ACME CORP", isin("US0000000001")),
 				keyRow(2, gen.BrokerSchwab, "ACME PLC", stated(types.IdentifierTypeCusip, "US0000000001", "")),
 			},
@@ -97,7 +98,7 @@ func TestOf(t *testing.T) {
 		},
 		{
 			name: "the chain runs through the key that links it",
-			keys: []gen.ListGroupableKeysRow{
+			keys: []gen.StatedKey{
 				keyRow(1, gen.BrokerIbkr, "ACME CORP", isin("US0000000001")),
 				keyRow(2, gen.BrokerIbkr, "ACME CORP", isin("US0000000002")),
 				keyRow(3, gen.BrokerSchwab, "ACME PLC", isin("US0000000002")),
@@ -106,7 +107,7 @@ func TestOf(t *testing.T) {
 		},
 		{
 			name: "the earliest key names the group whichever order they arrive",
-			keys: []gen.ListGroupableKeysRow{
+			keys: []gen.StatedKey{
 				keyRow(3, gen.BrokerIbkr, "ACME CORP", isin("US0000000001")),
 				keyRow(1, gen.BrokerSchwab, "ACME PLC", isin("US0000000001")),
 			},
@@ -114,14 +115,14 @@ func TestOf(t *testing.T) {
 		},
 		{
 			name: "a key sharing nothing is its own group",
-			keys: []gen.ListGroupableKeysRow{keyRow(1, gen.BrokerIbkr, "ACME CORP")},
+			keys: []gen.StatedKey{keyRow(1, gen.BrokerIbkr, "ACME CORP")},
 			want: map[int]int{1: 1},
 		},
 		{
 			name: "a key stating nothing shares nothing",
-			keys: []gen.ListGroupableKeysRow{
-				{StatedKey: gen.StatedKey{ID: id(1)}, Broker: gen.BrokerIbkr},
-				{StatedKey: gen.StatedKey{ID: id(2)}, Broker: gen.BrokerIbkr},
+			keys: []gen.StatedKey{
+				{ID: id(1)},
+				{ID: id(2)},
 			},
 			want: map[int]int{1: 1, 2: 2},
 		},
