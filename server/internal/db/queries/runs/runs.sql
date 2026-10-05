@@ -42,9 +42,9 @@ ORDER BY up.depth DESC;
 -- name: ListRunDescendants :many
 -- The runs below a run, every parent before its children.
 WITH RECURSIVE down AS (
-    SELECT runs.id FROM runs WHERE runs.parent_id = $1
+    SELECT runs.id, 1 AS depth FROM runs WHERE runs.parent_id = $1
     UNION ALL
-    SELECT runs.id FROM runs JOIN down ON runs.parent_id = down.id
+    SELECT runs.id, down.depth + 1 AS depth FROM runs JOIN down ON runs.parent_id = down.id
 )
 SELECT sqlc.embed(runs), users.email,
        (SELECT count(*) FROM findings
@@ -52,12 +52,35 @@ SELECT sqlc.embed(runs), users.email,
 FROM down
 JOIN runs ON runs.id = down.id
 JOIN users ON users.id = runs.user_id
-ORDER BY runs.id;
+ORDER BY down.depth, runs.id;
 
 -- name: ListChildRuns :many
 SELECT * FROM runs
 WHERE parent_id = $1 AND user_id = $2
 ORDER BY id;
+
+-- name: ListRootRuns :many
+-- The top-level runs, newest first, each followed by the runs below it,
+-- oldest first. The columns are those of ListUserRuns, with matched true for
+-- every row.
+WITH RECURSIVE roots AS (
+    SELECT id FROM runs
+    WHERE parent_id IS NULL AND (sqlc.narg(before)::uuid IS NULL OR id < sqlc.narg(before))
+    ORDER BY id DESC
+    LIMIT @lim
+), tree AS (
+    SELECT id, id AS root_id FROM roots
+    UNION ALL
+    SELECT runs.id, tree.root_id FROM runs JOIN tree ON runs.parent_id = tree.id
+)
+SELECT sqlc.embed(runs), users.email,
+       (SELECT count(*) FROM findings
+        WHERE findings.run_id = runs.id AND findings.cleared_at IS NULL)::int AS open_findings,
+       tree.root_id, true::bool AS matched
+FROM tree
+JOIN runs ON runs.id = tree.id
+JOIN users ON users.id = runs.user_id
+ORDER BY tree.root_id DESC, runs.id;
 
 -- name: ListUserRuns :many
 -- The runs matching the filters and the ancestors leading to each, grouped

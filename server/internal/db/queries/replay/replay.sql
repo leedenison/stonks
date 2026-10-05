@@ -1,34 +1,44 @@
--- name: ListResolvedKeys :many
-SELECT sqlc.embed(stated_keys)
-FROM stated_keys
-JOIN resolution_keys ON resolution_keys.stated_key_id = stated_keys.id
-WHERE resolution_keys.run_id = $1 AND resolution_keys.user_id = $2
-ORDER BY stated_keys.id;
-
 -- name: ListUnavailableKeys :many
--- Run ids order by creation, so the latest resolution of a key is its row
--- with the greatest run id.
+-- The source run is a statement run, which supplies its statement's keys, or
+-- a resolution run, which supplies the keys it resolved. Run ids order by
+-- creation, so the latest resolution of a key is its row with the greatest
+-- run id.
 SELECT sqlc.embed(stated_keys)
 FROM stated_keys
 JOIN LATERAL (
     SELECT outcome FROM resolution_keys
     WHERE resolution_keys.stated_key_id = stated_keys.id
+      AND resolution_keys.user_id = stated_keys.user_id
     ORDER BY resolution_keys.run_id DESC
     LIMIT 1
 ) latest ON true
-WHERE stated_keys.id = ANY(@ids::uuid[])
+WHERE stated_keys.user_id = @user_id::uuid
+  AND (stated_keys.statement_id = @source_id::uuid
+       OR EXISTS (SELECT 1 FROM resolution_keys
+                  WHERE resolution_keys.run_id = @source_id::uuid
+                    AND resolution_keys.user_id = stated_keys.user_id
+                    AND resolution_keys.stated_key_id = stated_keys.id))
   AND latest.outcome = 'unavailable'
-  AND EXISTS (SELECT 1 FROM transactions WHERE transactions.stated_key_id = stated_keys.id)
+  AND EXISTS (SELECT 1 FROM transactions
+              WHERE transactions.user_id = stated_keys.user_id
+                AND transactions.stated_key_id = stated_keys.id)
 ORDER BY stated_keys.id;
 
 -- name: ListKeysUncoveredBy :many
--- Keys of reference data are left out: every datasource covers it without a
--- row.
+-- The source is read as in ListUnavailableKeys. Keys of reference data are
+-- left out: every datasource covers it without a row.
 SELECT sqlc.embed(stated_keys)
 FROM stated_keys
 LEFT JOIN instruments ON instruments.id = stated_keys.instrument_id
-WHERE stated_keys.id = ANY(@ids::uuid[])
-  AND EXISTS (SELECT 1 FROM transactions WHERE transactions.stated_key_id = stated_keys.id)
+WHERE stated_keys.user_id = @user_id::uuid
+  AND (stated_keys.statement_id = @source_id::uuid
+       OR EXISTS (SELECT 1 FROM resolution_keys
+                  WHERE resolution_keys.run_id = @source_id::uuid
+                    AND resolution_keys.user_id = stated_keys.user_id
+                    AND resolution_keys.stated_key_id = stated_keys.id))
+  AND EXISTS (SELECT 1 FROM transactions
+              WHERE transactions.user_id = stated_keys.user_id
+                AND transactions.stated_key_id = stated_keys.id)
   AND (stated_keys.instrument_id IS NULL
        OR (instruments.fetch_key_id IS NOT NULL
            AND NOT EXISTS (

@@ -118,19 +118,10 @@ func newFixture(t *testing.T) *fixture {
 	return f
 }
 
-func ids(keys ...gen.StatedKey) []uuid.UUID {
-	out := make([]uuid.UUID, 0, len(keys))
-	for _, k := range keys {
-		out = append(out, k.ID)
-	}
-	return out
-}
-
 func TestStartUnavailable(t *testing.T) {
 	f := newFixture(t)
-	one, two := statedKey(1, isin), statedKey(2)
-	f.store.EXPECT().ListStatedKeys(gomock.Any(), gen.ListStatedKeysParams{StatementID: sourceID, UserID: userID}).Return([]gen.StatedKey{one, two}, nil)
-	f.store.EXPECT().ListUnavailableKeys(gomock.Any(), ids(one, two)).Return([]gen.ListUnavailableKeysRow{{StatedKey: two}}, nil)
+	two := statedKey(2)
+	f.store.EXPECT().ListUnavailableKeys(gomock.Any(), gen.ListUnavailableKeysParams{UserID: userID, SourceID: sourceID}).Return([]gen.ListUnavailableKeysRow{{StatedKey: two}}, nil)
 
 	row, err := f.svc.Start(context.Background(), adminID, source(gen.RunKindStatement), Scope{})
 	if err != nil || f.workErr != nil {
@@ -160,8 +151,7 @@ func TestStartUnavailable(t *testing.T) {
 func TestStartResolution(t *testing.T) {
 	f := newFixture(t)
 	one := statedKey(1, isin)
-	f.store.EXPECT().ListResolvedKeys(gomock.Any(), gen.ListResolvedKeysParams{RunID: sourceID, UserID: userID}).Return([]gen.ListResolvedKeysRow{{StatedKey: one}}, nil)
-	f.store.EXPECT().ListUnavailableKeys(gomock.Any(), ids(one)).Return([]gen.ListUnavailableKeysRow{{StatedKey: one}}, nil)
+	f.store.EXPECT().ListUnavailableKeys(gomock.Any(), gen.ListUnavailableKeysParams{UserID: userID, SourceID: sourceID}).Return([]gen.ListUnavailableKeysRow{{StatedKey: one}}, nil)
 
 	if _, err := f.svc.Start(context.Background(), adminID, source(gen.RunKindResolution), Scope{}); err != nil || f.workErr != nil {
 		t.Fatalf("Start() error = %v, work error = %v", err, f.workErr)
@@ -175,8 +165,7 @@ func TestStartDatasource(t *testing.T) {
 	f := newFixture(t)
 	f.entries = []*market.Entry{{Name: "alpha", Integration: identity{}}}
 	served, unserved := statedKey(1, isin), statedKey(2)
-	f.store.EXPECT().ListStatedKeys(gomock.Any(), gomock.Any()).Return([]gen.StatedKey{served, unserved}, nil)
-	f.store.EXPECT().ListKeysUncoveredBy(gomock.Any(), gen.ListKeysUncoveredByParams{Ids: ids(served, unserved), Datasource: "alpha"}).
+	f.store.EXPECT().ListKeysUncoveredBy(gomock.Any(), gen.ListKeysUncoveredByParams{UserID: userID, SourceID: sourceID, Datasource: "alpha"}).
 		Return([]gen.ListKeysUncoveredByRow{{StatedKey: served}, {StatedKey: unserved}}, nil)
 
 	row, err := f.svc.Start(context.Background(), adminID, source(gen.RunKindStatement), Scope{Datasource: "alpha"})
@@ -192,7 +181,6 @@ func TestStartDatasource(t *testing.T) {
 }
 
 func TestStartRefused(t *testing.T) {
-	key := statedKey(1, isin)
 	tests := []struct {
 		name    string
 		kind    gen.RunKind
@@ -214,8 +202,7 @@ func TestStartRefused(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newFixture(t)
 			f.entries = tc.entries
-			f.store.EXPECT().ListStatedKeys(gomock.Any(), gomock.Any()).Return([]gen.StatedKey{key, statedKey(2)}, nil).AnyTimes()
-			f.store.EXPECT().ListUnavailableKeys(gomock.Any(), gomock.Any()).DoAndReturn(func(context.Context, []uuid.UUID) ([]gen.ListUnavailableKeysRow, error) {
+			f.store.EXPECT().ListUnavailableKeys(gomock.Any(), gomock.Any()).DoAndReturn(func(context.Context, gen.ListUnavailableKeysParams) ([]gen.ListUnavailableKeysRow, error) {
 				var rows []gen.ListUnavailableKeysRow
 				for _, k := range tc.unavailable {
 					rows = append(rows, gen.ListUnavailableKeysRow{StatedKey: k})
@@ -257,7 +244,6 @@ func TestWorkFails(t *testing.T) {
 			f := newFixture(t)
 			f.resolveErr, f.lockErr = tc.resolveErr, tc.lockErr
 			key := statedKey(1, isin)
-			f.store.EXPECT().ListStatedKeys(gomock.Any(), gomock.Any()).Return([]gen.StatedKey{key}, nil)
 			f.store.EXPECT().ListUnavailableKeys(gomock.Any(), gomock.Any()).Return([]gen.ListUnavailableKeysRow{{StatedKey: key}}, nil)
 
 			if _, err := f.svc.Start(context.Background(), adminID, source(gen.RunKindStatement), Scope{}); err != nil {

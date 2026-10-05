@@ -42,4 +42,3 @@ CREATE TABLE findings (
 
 CREATE INDEX findings_run_idx ON findings (run_id);
 CREATE INDEX findings_stated_key_idx ON findings (stated_key_id);
-CREATE INDEX findings_open_idx ON findings (created_at) WHERE cleared_at IS NULL;

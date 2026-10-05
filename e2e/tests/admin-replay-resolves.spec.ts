@@ -94,7 +94,7 @@ test("replays a statement's unavailable key from the runs page and resolves it",
   expect(replay.run?.run?.trigger).toBe(RunTrigger.ADMINISTRATOR);
   expect(replay.run?.userEmail).toBe(user.email);
   expect(replay.replay?.sourceRunId).toBe(runId);
-  expect(replay.replay?.datasource).toBe("");
+  expect(replay.replay?.scope).toEqual({ case: "unavailable", value: true });
   const replayed = await admin.getRun({
     runId: replay.run!.children[0].run!.id,
   });

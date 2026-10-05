@@ -220,16 +220,18 @@ func (r *Runner) execute(ctx context.Context, row gen.Run, work Work) error {
 	write := context.WithoutCancel(ctx)
 	switch {
 	case err == nil:
-		instr.run(ctx, row, gen.RunStateCompleted)
 		if cerr := r.store.CompleteRun(write, row.ID); cerr != nil {
 			r.log.Error("complete run", "run", row.ID, "kind", row.Kind, "err", cerr)
+			break
 		}
+		instr.run(ctx, row, gen.RunStateCompleted)
 	case ctx.Err() != nil:
 	default:
-		instr.run(ctx, row, gen.RunStateFailed)
 		if ferr := r.store.FailRun(write, gen.FailRunParams{ID: row.ID, Error: err.Error()}); ferr != nil {
 			r.log.Error("fail run", "run", row.ID, "kind", row.Kind, "err", ferr)
+			break
 		}
+		instr.run(ctx, row, gen.RunStateFailed)
 	}
 	return err
 }

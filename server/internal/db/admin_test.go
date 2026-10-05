@@ -5,6 +5,7 @@ package db_test
 import (
 	"context"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -104,6 +105,73 @@ func TestListUserRuns(t *testing.T) {
 	require.NoError(t, err)
 	if got.Email != admin.Email || got.Run.Trigger != gen.RunTriggerAdministrator {
 		t.Errorf("GetUserRun = %+v, want the administrator's run and email", got)
+	}
+}
+
+// TestListRootRuns checks that a page holds whole families of its top-level
+// runs, newest first and each run after its parent, and that before pages by
+// top-level run.
+func TestListRootRuns(t *testing.T) {
+	ctx := context.Background()
+	q := newTx(t)
+	owner := newUser(t, q, "root-runs@example.com")
+	child := func(parent gen.Run, kind gen.RunKind) gen.Run {
+		t.Helper()
+		row, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: owner.ID, Kind: kind, Trigger: gen.RunTriggerRun, ParentID: &parent.ID})
+		require.NoError(t, err)
+		return row
+	}
+	var roots, children []gen.Run
+	for range 3 {
+		root := newRun(t, q, owner)
+		roots = append(roots, root)
+		children = append(children, child(root, gen.RunKindResolution))
+	}
+	grandchild := child(children[2], gen.RunKindFetch)
+	// The test's rows are visible to its own transaction alone, so the
+	// pages hold these runs and no others.
+	page := func(arg gen.ListRootRunsParams) []uuid.UUID {
+		t.Helper()
+		rows, err := q.ListRootRuns(ctx, arg)
+		require.NoError(t, err)
+		var out []uuid.UUID
+		for _, r := range rows {
+			if !r.Matched {
+				t.Errorf("row %s unmatched, want every row matched", r.Run.ID)
+			}
+			out = append(out, r.Run.ID)
+		}
+		return out
+	}
+	first := []uuid.UUID{roots[2].ID, children[2].ID, grandchild.ID, roots[1].ID, children[1].ID}
+	if diff := cmp.Diff(first, page(gen.ListRootRunsParams{Lim: 2})); diff != "" {
+		t.Errorf("first page mismatch (-want +got):\n%s", diff)
+	}
+	next := page(gen.ListRootRunsParams{Before: &roots[1].ID, Lim: 1})
+	if diff := cmp.Diff([]uuid.UUID{roots[0].ID, children[0].ID}, next); diff != "" {
+		t.Errorf("next page mismatch (-want +got):\n%s", diff)
+	}
+
+	descendants, err := q.ListRunDescendants(ctx, &roots[2].ID)
+	require.NoError(t, err)
+	var below []uuid.UUID
+	for _, d := range descendants {
+		below = append(below, d.Run.ID)
+	}
+	if diff := cmp.Diff([]uuid.UUID{children[2].ID, grandchild.ID}, below); diff != "" {
+		t.Errorf("ListRunDescendants mismatch (-want +got):\n%s", diff)
+	}
+}
+
+// TestListRootRunsIndex checks that the walk down from the top-level runs
+// searches runs_parent_idx on the parent.
+func TestListRootRunsIndex(t *testing.T) {
+	q, e := explain(t)
+	_, err := q.ListRootRuns(context.Background(), gen.ListRootRunsParams{Lim: 10})
+	require.NoError(t, err)
+	conds := indexConds(t, e.plan, "runs_parent_idx")
+	if !slices.ContainsFunc(conds, func(c string) bool { return strings.Contains(c, "parent_id = ") }) {
+		t.Errorf("runs_parent_idx is not searched on the parent:\n%s", e.plan)
 	}
 }
 

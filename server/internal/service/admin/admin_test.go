@@ -118,8 +118,11 @@ func TestListRuns(t *testing.T) {
 	resolution := gen.RunKindResolution
 	administrator := gen.RunTriggerAdministrator
 	tests := []struct {
-		name     string
-		req      *adminv1.ListRunsRequest
+		name string
+		req  *adminv1.ListRunsRequest
+		// root is true when the request has no filter, so the page is read
+		// from its top-level runs.
+		root     bool
 		wantArg  gen.ListUserRunsParams
 		rows     []gen.ListUserRunsRow
 		err      error
@@ -129,6 +132,7 @@ func TestListRuns(t *testing.T) {
 		{
 			name:    "default page",
 			req:     &adminv1.ListRunsRequest{},
+			root:    true,
 			wantArg: gen.ListUserRunsParams{Lim: defaultPageSize + 1},
 			rows:    rows(first),
 			want:    &adminv1.ListRunsResponse{Runs: []*adminv1.UserRun{runMsg(first, runv1.RunKind_RUN_KIND_STATEMENT)}},
@@ -156,6 +160,7 @@ func TestListRuns(t *testing.T) {
 		{
 			name:    "a page is cut between top-level runs",
 			req:     &adminv1.ListRunsRequest{PageSize: 1},
+			root:    true,
 			wantArg: gen.ListUserRunsParams{Lim: 2},
 			rows:    append(append([]gen.ListUserRunsRow{}, nested...), rows(second)...),
 			want:    &adminv1.ListRunsResponse{Runs: []*adminv1.UserRun{nestedMsg}, NextPageToken: first.String()},
@@ -163,12 +168,21 @@ func TestListRuns(t *testing.T) {
 		{name: "unspecified kind", req: &adminv1.ListRunsRequest{Kind: runv1.RunKind_RUN_KIND_UNSPECIFIED.Enum()}, wantCode: connect.CodeInvalidArgument},
 		{name: "oversized page", req: &adminv1.ListRunsRequest{PageSize: 201}, wantCode: connect.CodeInvalidArgument},
 		{name: "malformed token", req: &adminv1.ListRunsRequest{PageToken: "next"}, wantCode: connect.CodeInvalidArgument},
-		{name: "failure", req: &adminv1.ListRunsRequest{}, wantArg: gen.ListUserRunsParams{Lim: defaultPageSize + 1}, err: errors.New("boom"), wantCode: connect.CodeInternal},
+		{name: "failure", req: &adminv1.ListRunsRequest{}, root: true, wantArg: gen.ListUserRunsParams{Lim: defaultPageSize + 1}, err: errors.New("boom"), wantCode: connect.CodeInternal},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newFixture(t)
-			if tc.wantCode != connect.CodeInvalidArgument {
+			switch {
+			case tc.wantCode == connect.CodeInvalidArgument:
+			case tc.root:
+				rows := make([]gen.ListRootRunsRow, len(tc.rows))
+				for i, r := range tc.rows {
+					rows[i] = gen.ListRootRunsRow(r)
+				}
+				arg := gen.ListRootRunsParams{Before: tc.wantArg.Before, Lim: tc.wantArg.Lim}
+				f.reader.EXPECT().ListRootRuns(gomock.Any(), arg).Return(rows, tc.err)
+			default:
 				f.reader.EXPECT().ListUserRuns(gomock.Any(), tc.wantArg).Return(tc.rows, tc.err)
 			}
 			res, err := f.client.ListRuns(context.Background(), connect.NewRequest(tc.req))
@@ -255,7 +269,7 @@ func TestGetRun(t *testing.T) {
 				}, nil)
 			},
 			want: func(out *adminv1.GetRunResponse) {
-				out.Replay = &adminv1.Replay{SourceRunId: parentID.String(), Datasource: "openfigi", StartedBy: "admin@example.com"}
+				out.Replay = &adminv1.Replay{SourceRunId: parentID.String(), Scope: &adminv1.Replay_Datasource{Datasource: "openfigi"}, StartedBy: "admin@example.com"}
 			},
 		},
 	}
