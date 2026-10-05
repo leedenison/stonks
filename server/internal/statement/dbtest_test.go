@@ -4,11 +4,8 @@ package statement
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"log"
 	"log/slog"
-	"os"
 	"testing"
 	"time"
 
@@ -25,62 +22,13 @@ import (
 	"github.com/leedenison/stonks/server/internal/db/types"
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/resolve"
-	"github.com/leedenison/stonks/server/internal/run"
+	"github.com/leedenison/stonks/server/internal/testutil/dbtest"
+	"github.com/leedenison/stonks/server/internal/testutil/runtest"
 )
 
 var pool *pgxpool.Pool
 
-func TestMain(m *testing.M) {
-	url := os.Getenv("STONKS_TEST_DATABASE_URL")
-	if url == "" {
-		log.Fatal("STONKS_TEST_DATABASE_URL is not set")
-	}
-	ctx := context.Background()
-	var err error
-	pool, err = db.Open(ctx, url)
-	if err != nil {
-		log.Fatalf("open pool: %v", err)
-	}
-	code := m.Run()
-	pool.Close()
-	os.Exit(code)
-}
-
-// syncRunner runs each run inline over the test's transaction.
-type syncRunner struct {
-	q *gen.Queries
-}
-
-func (r syncRunner) Start(ctx context.Context, spec run.Spec, work run.Work) (gen.Run, error) {
-	row, err := r.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: spec.UserID, Kind: spec.Kind, Trigger: gen.RunTriggerUser})
-	if err != nil {
-		return row, err
-	}
-	if spec.Prepare != nil {
-		if err := spec.Prepare(ctx, row); err != nil {
-			return row, err
-		}
-	}
-	return row, r.execute(ctx, row, work)
-}
-
-func (r syncRunner) Child(ctx context.Context, parent gen.Run, kind gen.RunKind, work run.Work) (gen.Run, error) {
-	row, err := r.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: parent.UserID, Kind: kind, Trigger: gen.RunTriggerRun, ParentID: &parent.ID})
-	if err != nil {
-		return row, err
-	}
-	return row, r.execute(ctx, row, work)
-}
-
-func (r syncRunner) execute(ctx context.Context, row gen.Run, work run.Work) error {
-	if _, err := r.q.StartRun(ctx, row.ID); err != nil {
-		return err
-	}
-	if err := work(ctx, row); err != nil {
-		return errors.Join(err, r.q.FailRun(ctx, gen.FailRunParams{ID: row.ID, Error: err.Error()}))
-	}
-	return r.q.CompleteRun(ctx, row.ID)
-}
+func TestMain(m *testing.M) { dbtest.Main(m, &pool) }
 
 type stack struct {
 	q    *gen.Queries
@@ -94,20 +42,15 @@ type stack struct {
 func newStack(t *testing.T) stack {
 	t.Helper()
 	ctx := context.Background()
-	tx, err := pool.Begin(ctx)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		if err := tx.Rollback(ctx); err != nil && !errors.Is(err, pgx.ErrTxClosed) {
-			t.Errorf("rollback: %v", err)
-		}
-	})
+	tx := dbtest.Begin(t, pool)
+	var err error
 	q := gen.New(tx)
 	user, err := q.CreateUser(ctx, gen.CreateUserParams{ID: db.NewID(), Email: fmt.Sprintf("%s@example.com", uuid.NewString()), Role: gen.UserRoleUser})
 	require.NoError(t, err)
 	log := slog.New(slog.DiscardHandler)
 	sources, err := market.New(ctx, q, nil, log)
 	require.NoError(t, err)
-	runs := syncRunner{q: q}
+	runs := runtest.Runner{Q: q}
 	resolver := resolve.New(db.New[resolve.Queries](tx), market.NewFetcher(db.New[market.Queries](tx), runs, log), sources, log)
 	return stack{q: q, tx: tx, svc: New(db.New[Queries](tx), runs, resolver, clock), user: user}
 }

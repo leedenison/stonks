@@ -11,8 +11,6 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
-	"go.opentelemetry.io/otel"
-	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.uber.org/goleak"
 	"go.uber.org/mock/gomock"
 
@@ -21,7 +19,6 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	otel.SetMeterProvider(sdkmetric.NewMeterProvider(sdkmetric.WithReader(reader)))
 	goleak.VerifyTestMain(m)
 }
 

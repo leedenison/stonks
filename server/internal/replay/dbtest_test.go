@@ -5,19 +5,15 @@ package replay
 import (
 	"context"
 	"errors"
-	"log"
 	"log/slog"
-	"os"
 	"slices"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/time/rate"
 
 	statementv1 "github.com/leedenison/stonks/proto/statement/v1"
 	typev1 "github.com/leedenison/stonks/proto/type/v1"
@@ -26,96 +22,15 @@ import (
 	"github.com/leedenison/stonks/server/internal/db/types"
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/resolve"
-	"github.com/leedenison/stonks/server/internal/run"
 	stmt "github.com/leedenison/stonks/server/internal/statement"
+	"github.com/leedenison/stonks/server/internal/testutil/dbtest"
+	"github.com/leedenison/stonks/server/internal/testutil/runtest"
+	"github.com/leedenison/stonks/server/internal/testutil/scripted"
 )
 
 var pool *pgxpool.Pool
 
-func TestMain(m *testing.M) {
-	url := os.Getenv("STONKS_TEST_DATABASE_URL")
-	if url == "" {
-		log.Fatal("STONKS_TEST_DATABASE_URL is not set")
-	}
-	ctx := context.Background()
-	var err error
-	pool, err = db.Open(ctx, url)
-	if err != nil {
-		log.Fatalf("open pool: %v", err)
-	}
-	code := m.Run()
-	pool.Close()
-	os.Exit(code)
-}
-
-// script is an identity integration whose response to each ISIN is scripted,
-// and which fails every request while down.
-type script struct {
-	down      bool
-	responses map[types.Identifier]market.IdentityResult
-}
-
-func (s *script) Classify(error) market.Failure {
-	return market.Failure{Temporary: true, Scope: gen.BlockScopeIdentifier}
-}
-func (s *script) Limit() (rate.Limit, int) { return rate.Inf, 1 }
-func (s *script) Batch() int               { return 10 }
-func (s *script) Serves(k gen.StatedKey) (types.Identifier, error) {
-	for _, id := range k.Identifiers {
-		if id.Type == types.IdentifierTypeIsin {
-			return id, nil
-		}
-	}
-	return types.Identifier{}, errors.New("no ISIN")
-}
-
-func (s *script) Fetch(_ context.Context, reqs []market.Request[gen.StatedKey]) ([]market.Response[market.IdentityResult], error) {
-	out := make([]market.Response[market.IdentityResult], len(reqs))
-	for i, r := range reqs {
-		if s.down {
-			out[i] = market.Response[market.IdentityResult]{Err: errors.New("the provider is down")}
-			continue
-		}
-		out[i] = market.Response[market.IdentityResult]{Value: s.responses[r.Sent]}
-	}
-	return out, nil
-}
-
-// syncRunner runs each run inline over the test's transaction.
-type syncRunner struct {
-	q *gen.Queries
-}
-
-func (r syncRunner) Start(ctx context.Context, spec run.Spec, work run.Work) (gen.Run, error) {
-	row, err := r.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: spec.UserID, Kind: spec.Kind, Trigger: spec.Trigger})
-	if err != nil {
-		return row, err
-	}
-	if spec.Prepare != nil {
-		if err := spec.Prepare(ctx, row); err != nil {
-			return row, err
-		}
-	}
-	return row, r.execute(ctx, row, work)
-}
-
-func (r syncRunner) Child(ctx context.Context, parent gen.Run, kind gen.RunKind, work run.Work) (gen.Run, error) {
-	row, err := r.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: parent.UserID, Kind: kind, Trigger: gen.RunTriggerRun, ParentID: &parent.ID})
-	if err != nil {
-		return row, err
-	}
-	return row, r.execute(ctx, row, work)
-}
-
-func (r syncRunner) execute(ctx context.Context, row gen.Run, work run.Work) error {
-	if _, err := r.q.StartRun(ctx, row.ID); err != nil {
-		return err
-	}
-	if err := work(ctx, row); err != nil {
-		return errors.Join(err, r.q.FailRun(ctx, gen.FailRunParams{ID: row.ID, Error: err.Error()}))
-	}
-	return r.q.CompleteRun(ctx, row.ID)
-}
+func TestMain(m *testing.M) { dbtest.Main(m, &pool) }
 
 // stack is the replay and statement services over one rolled-back
 // transaction. Datasource alpha is enabled and beta is not.
@@ -123,8 +38,8 @@ type stack struct {
 	q          *gen.Queries
 	user       gen.User
 	admin      gen.User
-	alpha      *script
-	beta       *script
+	alpha      *scripted.Identity
+	beta       *scripted.Identity
 	sources    *market.Registry
 	statements *stmt.Service
 	svc        *Service
@@ -133,15 +48,10 @@ type stack struct {
 func newStack(t *testing.T) *stack {
 	t.Helper()
 	ctx := context.Background()
-	tx, err := pool.Begin(ctx)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		if err := tx.Rollback(ctx); err != nil && !errors.Is(err, pgx.ErrTxClosed) {
-			t.Errorf("rollback: %v", err)
-		}
-	})
+	tx := dbtest.Begin(t, pool)
+	var err error
 	q := gen.New(tx)
-	s := &stack{q: q, alpha: &script{responses: map[types.Identifier]market.IdentityResult{}}, beta: &script{responses: map[types.Identifier]market.IdentityResult{}}}
+	s := &stack{q: q, alpha: scripted.New(), beta: scripted.New()}
 	s.user, err = q.CreateUser(ctx, gen.CreateUserParams{ID: db.NewID(), Email: uuid.NewString() + "@example.com", Role: gen.UserRoleUser})
 	require.NoError(t, err)
 	s.admin, err = q.CreateUser(ctx, gen.CreateUserParams{ID: db.NewID(), Email: uuid.NewString() + "@example.com", Role: gen.UserRoleAdmin})
@@ -157,7 +67,7 @@ func newStack(t *testing.T) *stack {
 	}
 	s.sources, err = market.New(ctx, q, factories, log)
 	require.NoError(t, err)
-	runs := syncRunner{q: q}
+	runs := runtest.Runner{Q: q}
 	fetcher := market.NewFetcher(db.New[market.Queries](tx), runs, log)
 	resolver := resolve.New(db.New[resolve.Queries](tx), fetcher, s.sources, log)
 	clock := func() time.Time { return time.Date(2026, time.April, 10, 0, 0, 0, 0, time.UTC) }
@@ -260,7 +170,7 @@ func outcomeOf(items []gen.ListResolutionItemsRow, key gen.StatedKey) gen.Resolu
 func TestReplay(t *testing.T) {
 	s := newStack(t)
 	ctx := context.Background()
-	s.alpha.down = true
+	s.alpha.Down = true
 	statement := s.ingest(t)
 	require.Equal(t, gen.RunStateCompleted, statement.State)
 	_, items := s.resolution(t, statement)
@@ -277,8 +187,8 @@ func TestReplay(t *testing.T) {
 		t.Fatalf("group holdings while down = %+v, want one", groups)
 	}
 
-	s.alpha.down = false
-	s.alpha.responses[isin] = answer
+	s.alpha.Down = false
+	s.alpha.Responses[isin] = answer
 	row, err := s.svc.Start(ctx, s.admin.ID, statement, Scope{})
 	require.NoError(t, err)
 	replayed := s.run(t, row.ID)
@@ -322,7 +232,7 @@ func TestReplay(t *testing.T) {
 	_, err = s.q.UpdateDatasource(ctx, gen.UpdateDatasourceParams{Name: "beta", Enabled: true})
 	require.NoError(t, err)
 	require.NoError(t, s.sources.Reload(ctx))
-	s.beta.responses[isin] = answer
+	s.beta.Responses[isin] = answer
 	fetches := s.children(t, resolution)
 	if _, err := s.svc.Start(ctx, s.admin.ID, fetches[0], Scope{Datasource: "beta"}); !errors.Is(err, ErrKind) {
 		t.Errorf("replay of a fetch run: err = %v, want %v", err, ErrKind)

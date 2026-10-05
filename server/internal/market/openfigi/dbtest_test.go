@@ -4,26 +4,20 @@ package openfigi
 
 import (
 	"context"
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/mic"
+	"github.com/leedenison/stonks/server/internal/testutil/dbtest"
 )
 
 // TestCodesAreMICs checks that every venue an exchange code names is in the
 // MIC reference table.
 func TestCodesAreMICs(t *testing.T) {
-	url := os.Getenv("STONKS_TEST_DATABASE_URL")
-	if url == "" {
-		t.Fatal("STONKS_TEST_DATABASE_URL is not set")
-	}
 	ctx := context.Background()
-	pool, err := db.Open(ctx, url)
-	require.NoError(t, err)
+	pool := dbtest.Open()
 	t.Cleanup(pool.Close)
 	tbl, err := mic.Load(ctx, gen.New(pool))
 	require.NoError(t, err)
