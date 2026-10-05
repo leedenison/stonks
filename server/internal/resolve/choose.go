@@ -52,7 +52,7 @@ type choice struct {
 
 // groups builds the groups of r. Every group carries the instrument grain
 // identifiers the call filtered on.
-func groups(r *result, families func(string) string) []*group {
+func groups(r *result, fams families) []*group {
 	var strict []types.Identifier
 	for _, id := range r.Response.Filtered {
 		if grain(id) == gen.IdentifierGrainInstrument {
@@ -71,11 +71,7 @@ func groups(r *result, families func(string) string) []*group {
 			byRoot[roots[i]] = g
 			out = append(out, g)
 		}
-		family := ""
-		if c.Currency != "" {
-			family = families(c.Currency)
-		}
-		g.add(c, family)
+		g.add(c, fams[c.Currency])
 	}
 	if r.Sent != nil {
 		for _, g := range out {
@@ -129,15 +125,12 @@ func union(parent []int, a, b int) {
 	}
 }
 
-// add folds c into g as a candidate of the listing of family.
-func (g *group) add(c market.Candidate, family string) {
+// add folds c into g as a candidate of the listing of fam.
+func (g *group) add(c market.Candidate, fam string) {
 	if g.class == "" || g.class == gen.AssetClassUnknown {
 		g.class = c.Class
 	}
-	l, ok := g.listings[family]
-	if !ok {
-		g.listings[family] = nil
-	}
+	l := g.listings[fam]
 	for _, id := range c.Identifiers {
 		if grain(id) == gen.IdentifierGrainInstrument {
 			g.instrument = appendUnique(g.instrument, id)
@@ -145,7 +138,7 @@ func (g *group) add(c market.Candidate, family string) {
 			l = appendUnique(l, id)
 		}
 	}
-	g.listings[family] = l
+	g.listings[fam] = l
 }
 
 func appendUnique(ids []types.Identifier, id types.Identifier) []types.Identifier {
@@ -285,7 +278,7 @@ func (g *group) contradicted(k gen.StatedKey, fam string) (string, bool) {
 			return fmt.Sprintf("stated %s has no listing among %s", fam, strings.Join(fams, ", ")), true
 		}
 	}
-	if k.AssetClass != nil && Disjoint(g.class, *k.AssetClass) {
+	if k.AssetClass != nil && disjoint(g.class, *k.AssetClass) {
 		return fmt.Sprintf("stated %s contradicts the class %s", *k.AssetClass, g.class), true
 	}
 	for _, id := range k.Identifiers {
@@ -299,7 +292,7 @@ func (g *group) contradicted(k gen.StatedKey, fam string) (string, bool) {
 // inconsistent returns why g contradicts a, a group chosen above it, if it
 // does. The detail closes with a's source.
 func (g *group) inconsistent(a *group) (string, bool) {
-	if Disjoint(g.class, a.class) {
+	if disjoint(g.class, a.class) {
 		return fmt.Sprintf("class %s contradicts the class %s (%s)", g.class, a.class, a.from()), true
 	}
 	for _, id := range a.instrument {
@@ -342,18 +335,19 @@ func (g *group) confirms(k gen.StatedKey, fam string) int {
 	return n
 }
 
-// choose picks the winner for k. db, the group of the instrument the
+// choose picks the winner for res. db, the group of the instrument the
 // database names, wins where it is not nil; otherwise the best group of the
 // highest precedence datasource does.
-func choose(results []*result, k gen.StatedKey, db *group, families func(string) string) choice {
+func choose(res *resolution, db *group) choice {
 	c := choice{winner: db, groups: map[string]int{}, notNaming: map[string]int{}}
 	var chosen []*group
 	if db != nil {
 		chosen = append(chosen, db)
 	}
-	fam := family(k, families)
-	for _, r := range results {
-		best := c.bestGroup(r, k, fam, families, chosen)
+	k := res.row
+	fam := res.fams.family(k)
+	for _, r := range res.results {
+		best := c.bestGroup(r, k, fam, res.fams, chosen)
 		if best == nil {
 			continue
 		}
@@ -379,13 +373,13 @@ func (c *choice) record(r *result, kind gen.FindingKind, step gen.DropStep, deta
 // naming filters gs to the groups that carry the identifier r was sent.
 func (c *choice) naming(r *result, gs []*group) ([]*group, bool) {
 	sent := *r.Sent
-	bare := !market.IsGUID(sent)
+	nonGUID := !market.IsGUID(sent)
 	named := slices.ContainsFunc(gs, func(g *group) bool { return g.named })
 	ticker := types.Identifier{Type: types.IdentifierTypeMicTicker, Value: sent.Value}
-	fallback := !named && sent.Type == types.IdentifierTypeMicTicker && !bare && slices.Contains(r.Response.Filtered, ticker)
+	fallback := !named && sent.Type == types.IdentifierTypeMicTicker && !nonGUID && slices.Contains(r.Response.Filtered, ticker)
 	var survivors []*group
 	for _, g := range gs {
-		if bare || (!g.named && !fallback) {
+		if nonGUID || (!g.named && !fallback) {
 			c.notNaming[r.Source]++
 			continue
 		}
@@ -396,11 +390,11 @@ func (c *choice) naming(r *result, gs []*group) ([]*group, bool) {
 
 // bestGroup returns the best surviving group of r for k, nil where none
 // survives. chosen is the groups chosen above r, the winner first.
-func (c *choice) bestGroup(r *result, k gen.StatedKey, fam string, families func(string) string, chosen []*group) *group {
+func (c *choice) bestGroup(r *result, k gen.StatedKey, fam string, fams families, chosen []*group) *group {
 	if r.Sent == nil {
 		return nil
 	}
-	gs := groups(r, families)
+	gs := groups(r, fams)
 	c.groups[r.Source] = len(gs)
 	survivors, fallback := c.naming(r, gs)
 	survivors = slices.DeleteFunc(survivors, func(g *group) bool {

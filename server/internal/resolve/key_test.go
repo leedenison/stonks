@@ -24,8 +24,8 @@ func TestDisjoint(t *testing.T) {
 		{gen.AssetClassCash, gen.AssetClassSecurity, true},
 	}
 	for _, tc := range tests {
-		if got := Disjoint(tc.a, tc.b); got != tc.want {
-			t.Errorf("Disjoint(%s, %s) = %v, want %v", tc.a, tc.b, got, tc.want)
+		if got := disjoint(tc.a, tc.b); got != tc.want {
+			t.Errorf("disjoint(%s, %s) = %v, want %v", tc.a, tc.b, got, tc.want)
 		}
 	}
 }
@@ -50,8 +50,8 @@ func TestGUIDs(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			k := gen.StatedKey{Identifiers: tc.stated}
-			if diff := cmp.Diff(tc.want, guids(k)); diff != "" {
-				t.Errorf("guids mismatch (-want +got):\n%s", diff)
+			if diff := cmp.Diff(tc.want, trusted(k)); diff != "" {
+				t.Errorf("trusted mismatch (-want +got):\n%s", diff)
 			}
 			if got := bare(k); got != tc.bare {
 				t.Errorf("bare = %v, want %v", got, tc.bare)
@@ -77,10 +77,10 @@ func TestTrusted(t *testing.T) {
 }
 
 func TestFamily(t *testing.T) {
-	if got := family(gen.StatedKey{Currency: ptr.To("GBX")}, families); got != "GBP" {
+	if got := fams.family(gen.StatedKey{Currency: ptr.To("GBX")}); got != "GBP" {
 		t.Errorf("family(GBX) = %q, want GBP", got)
 	}
-	if got := family(gen.StatedKey{}, families); got != "" {
+	if got := fams.family(gen.StatedKey{}); got != "" {
 		t.Errorf("family(none) = %q, want none", got)
 	}
 }

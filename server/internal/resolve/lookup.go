@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/google/uuid"
@@ -12,6 +13,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/to"
 	"github.com/leedenison/stonks/server/internal/db/types"
+	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/ptr"
 )
 
@@ -21,6 +23,7 @@ type resolution struct {
 	// ids is every GUID and broker description the key states, strongest
 	// first.
 	ids      []types.Identifier
+	fams     families
 	found    *found
 	results  []*result
 	findings []gen.CreateFindingParams
@@ -46,9 +49,9 @@ func (f *found) covered(datasource string) bool {
 // group returns f as a group.
 func (f *found) group() *group {
 	g := &group{class: f.instrument.AssetClass, listings: map[string][]types.Identifier{}}
-	family := map[uuid.UUID]string{}
+	famOf := map[uuid.UUID]string{}
 	for _, l := range f.listings {
-		family[l.ID] = l.Currency
+		famOf[l.ID] = l.Currency
 		g.listings[l.Currency] = nil
 	}
 	for _, id := range f.identifiers {
@@ -57,8 +60,8 @@ func (f *found) group() *group {
 			g.instrument = append(g.instrument, v)
 			continue
 		}
-		f := family[*id.ListingID]
-		g.listings[f] = append(g.listings[f], v)
+		fam := famOf[*id.ListingID]
+		g.listings[fam] = append(g.listings[fam], v)
 	}
 	return g
 }
@@ -67,59 +70,76 @@ func (res *resolution) decide(outcome gen.ResolutionOutcome, format string, args
 	res.outcome, res.reason = outcome, fmt.Sprintf(format, args...)
 }
 
-// lookup finds the instrument the database names for row and decides the
-// resolutions that never reach a datasource. Each global identifier and
-// each broker description is looked up, strongest first; where two name
-// different instruments the key is left unrecognised with a contradiction
-// finding. When the key states no global identifier and no description the
-// database holds, lookup decides it is unrecognised.
-func (r *Resolver) lookup(ctx context.Context, row gen.StatedKey, families func(string) string) (*resolution, error) {
-	res := &resolution{row: row, ids: trusted(row)}
-	for _, id := range row.Identifiers {
-		if id.Type == types.IdentifierTypeCurrency {
-			return res, r.lookupCurrency(ctx, res, id.Value, families)
+// lookup finds the instrument the database names for each of rs and decides
+// the resolutions that never reach a datasource. Every key's identifiers are
+// read in one query.
+func (r *Resolver) lookup(ctx context.Context, rs []*resolution) error {
+	var ids []types.Identifier
+	for _, res := range rs {
+		if !currency(res.row) {
+			ids = append(ids, res.ids...)
 		}
 	}
-	var hits []gen.FindIdentifierRow
-	for _, id := range res.ids {
-		hit, err := r.store.FindIdentifier(ctx, gen.FindIdentifierParams{Type: id.Type, Domain: id.Domain, Value: id.Value})
-		switch {
-		case errors.Is(err, db.ErrNotFound):
-			continue
-		case err != nil:
-			return nil, fmt.Errorf("look up %s: %w", name(id), err)
-		}
-		hits = append(hits, hit)
-	}
-	if len(hits) == 0 {
-		if len(guids(row)) == 0 && !bare(row) {
-			res.decide(gen.ResolutionOutcomeUnrecognised, "%s", unnamed(res.ids))
-		}
-		return res, nil
-	}
-	first := hits[0]
-	for _, hit := range hits[1:] {
-		if hit.Instrument.ID != first.Instrument.ID {
-			detail := fmt.Sprintf("%s and %s name different instruments", name(to.Identifier(first.Identifier)), name(to.Identifier(hit.Identifier)))
-			res.findings = append(res.findings, gen.CreateFindingParams{Kind: gen.FindingKindContradiction, Detail: ptr.To(detail)})
-			res.decide(gen.ResolutionOutcomeUnrecognised, "%s", detail)
-			return res, nil
-		}
-	}
-	f, err := load(ctx, r.store, first.Instrument)
+	hits, err := reread(ctx, r.store, ids)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	res.found = f
-	if row.AssetClass != nil && Disjoint(*row.AssetClass, f.instrument.AssetClass) {
-		res.decide(gen.ResolutionOutcomeUnrecognised, "asset class %s contradicts the instrument's %s", *row.AssetClass, f.instrument.AssetClass)
+	byID := map[types.Identifier]*found{}
+	for _, h := range hits {
+		for _, id := range h.matched {
+			byID[id] = h.found
+		}
 	}
-	return res, nil
+	for _, res := range rs {
+		if currency(res.row) {
+			if err := r.lookupCurrency(ctx, res); err != nil {
+				return err
+			}
+			continue
+		}
+		res.match(byID)
+	}
+	return nil
 }
 
-// unnamed returns the reason for a key that states no global identifier. It
-// names each description the key states, or says there is no global
-// identifier when the key states none.
+// currency reports whether k states a currency, which names money in it.
+func currency(k gen.StatedKey) bool {
+	return slices.ContainsFunc(k.Identifiers, func(id types.Identifier) bool { return id.Type == types.IdentifierTypeCurrency })
+}
+
+// match attaches to res the instrument byID names for it. It decides res
+// when its identifiers name different instruments, when the class
+// conflicts, or when the key names nothing a datasource could be asked.
+func (res *resolution) match(byID map[types.Identifier]*found) {
+	var first types.Identifier
+	var f *found
+	for _, id := range res.ids {
+		hit, ok := byID[id]
+		switch {
+		case !ok:
+			continue
+		case f == nil:
+			first, f = id, hit
+		case hit.instrument.ID != f.instrument.ID:
+			detail := fmt.Sprintf("%s and %s name different instruments", name(first), name(id))
+			res.findings = append(res.findings, gen.CreateFindingParams{Kind: gen.FindingKindContradiction, Detail: ptr.To(detail)})
+			res.decide(gen.ResolutionOutcomeUnrecognised, "%s", detail)
+			return
+		}
+	}
+	if f == nil {
+		if !slices.ContainsFunc(res.ids, market.IsGUID) && !bare(res.row) {
+			res.decide(gen.ResolutionOutcomeUnrecognised, "%s", unnamed(res.ids))
+		}
+		return
+	}
+	res.found = f
+	if reason, ok := classConflict(res.row, f.instrument.AssetClass); ok {
+		res.decide(gen.ResolutionOutcomeUnrecognised, "%s", reason)
+	}
+}
+
+// unnamed returns the reason for a key that states no global identifier.
 func unnamed(ids []types.Identifier) string {
 	if len(ids) == 0 {
 		return "no global identifier"
@@ -133,7 +153,14 @@ func unnamed(ids []types.Identifier) string {
 
 // lookupCurrency resolves a currency key against the seed; a currency key
 // never reaches a datasource.
-func (r *Resolver) lookupCurrency(ctx context.Context, res *resolution, code string, families func(string) string) error {
+func (r *Resolver) lookupCurrency(ctx context.Context, res *resolution) error {
+	var code string
+	for _, id := range res.row.Identifiers {
+		if id.Type == types.IdentifierTypeCurrency {
+			code = id.Value
+			break
+		}
+	}
 	hit, err := r.store.FindIdentifier(ctx, gen.FindIdentifierParams{Type: types.IdentifierTypeCurrency, Value: code})
 	switch {
 	case errors.Is(err, db.ErrNotFound):
@@ -142,15 +169,16 @@ func (r *Resolver) lookupCurrency(ctx context.Context, res *resolution, code str
 	case err != nil:
 		return fmt.Errorf("look up currency %s: %w", code, err)
 	}
-	if res.row.AssetClass != nil && Disjoint(*res.row.AssetClass, hit.Instrument.AssetClass) {
-		res.decide(gen.ResolutionOutcomeRejected, "asset class %s contradicts the instrument's %s", *res.row.AssetClass, hit.Instrument.AssetClass)
+	if reason, ok := classConflict(res.row, hit.Instrument.AssetClass); ok {
+		res.decide(gen.ResolutionOutcomeRejected, "%s", reason)
 		return nil
 	}
-	f, err := load(ctx, r.store, hit.Instrument)
+	loaded, err := load(ctx, r.store, []gen.Instrument{hit.Instrument})
 	if err != nil {
 		return err
 	}
-	if fam := family(res.row, families); fam != "" && f.listing(fam) == nil {
+	f := loaded[hit.Instrument.ID]
+	if fam := res.fams.family(res.row); fam != "" && f.listing(fam) == nil {
 		res.decide(gen.ResolutionOutcomeRejected, "no listing of %s in %s", code, *res.row.Currency)
 		return nil
 	}
@@ -158,30 +186,47 @@ func (r *Resolver) lookupCurrency(ctx context.Context, res *resolution, code str
 	return nil
 }
 
-// load reads instrument's identifiers, listings and coverage.
-func load(ctx context.Context, q Queries, instrument gen.Instrument) (*found, error) {
-	f := &found{instrument: instrument, coverage: map[string]bool{}}
-	var err error
-	if f.identifiers, err = q.ListIdentifiers(ctx, instrument.ID); err != nil {
+// load reads the identifiers, listings and coverage of instruments.
+func load(ctx context.Context, q Queries, instruments []gen.Instrument) (map[uuid.UUID]*found, error) {
+	out := make(map[uuid.UUID]*found, len(instruments))
+	ids := make([]uuid.UUID, len(instruments))
+	for i, inst := range instruments {
+		out[inst.ID] = &found{instrument: inst, coverage: map[string]bool{}}
+		ids[i] = inst.ID
+	}
+	if len(ids) == 0 {
+		return out, nil
+	}
+	identifiers, err := q.ListIdentifiersOf(ctx, ids)
+	if err != nil {
 		return nil, fmt.Errorf("list identifiers: %w", err)
 	}
-	if f.listings, err = q.ListListings(ctx, instrument.ID); err != nil {
+	for _, row := range identifiers {
+		f := out[row.InstrumentID]
+		f.identifiers = append(f.identifiers, row)
+	}
+	listings, err := q.ListListingsOf(ctx, ids)
+	if err != nil {
 		return nil, fmt.Errorf("list listings: %w", err)
 	}
-	coverage, err := q.ListIdentityCoverage(ctx, []uuid.UUID{instrument.ID})
+	for _, l := range listings {
+		f := out[l.InstrumentID]
+		f.listings = append(f.listings, l)
+	}
+	coverage, err := q.ListIdentityCoverage(ctx, ids)
 	if err != nil {
 		return nil, fmt.Errorf("list coverage: %w", err)
 	}
 	for _, c := range coverage {
-		f.coverage[c.Datasource] = true
+		out[c.InstrumentID].coverage[c.Datasource] = true
 	}
-	return f, nil
+	return out, nil
 }
 
-// listing returns the listing of family, nil where the instrument has none.
-func (f *found) listing(family string) *gen.Listing {
+// listing returns the listing of fam, nil where the instrument has none.
+func (f *found) listing(fam string) *gen.Listing {
 	for i := range f.listings {
-		if f.listings[i].Currency == family {
+		if f.listings[i].Currency == fam {
 			return &f.listings[i]
 		}
 	}

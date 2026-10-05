@@ -17,8 +17,8 @@ type Queries interface {
 	ListCurrencies(ctx context.Context) ([]gen.Currency, error)
 	FindIdentifier(ctx context.Context, arg gen.FindIdentifierParams) (gen.FindIdentifierRow, error)
 	ListInstrumentsByIdentifiers(ctx context.Context, arg gen.ListInstrumentsByIdentifiersParams) ([]gen.ListInstrumentsByIdentifiersRow, error)
-	ListIdentifiers(ctx context.Context, instrumentID uuid.UUID) ([]gen.Identifier, error)
-	ListListings(ctx context.Context, instrumentID uuid.UUID) ([]gen.Listing, error)
+	ListIdentifiersOf(ctx context.Context, ids []uuid.UUID) ([]gen.Identifier, error)
+	ListListingsOf(ctx context.Context, ids []uuid.UUID) ([]gen.Listing, error)
 	ListIdentityCoverage(ctx context.Context, instrumentIds []uuid.UUID) ([]gen.IdentityCoverage, error)
 	LockIdentifiers(ctx context.Context, keys []string) error
 	CreateInstrument(ctx context.Context, arg gen.CreateInstrumentParams) (gen.Instrument, error)
@@ -29,7 +29,7 @@ type Queries interface {
 	CreateFetchIdentifier(ctx context.Context, arg gen.CreateFetchIdentifierParams) error
 	CreateFinding(ctx context.Context, arg gen.CreateFindingParams) error
 	SetStatedKeyAssociation(ctx context.Context, arg gen.SetStatedKeyAssociationParams) error
-	CreateResolutionKey(ctx context.Context, arg gen.CreateResolutionKeyParams) error
+	CreateResolutionKey(ctx context.Context, arg gen.CreateResolutionKeyParams) (gen.ResolutionKey, error)
 	DeferConstraints(ctx context.Context) error
 	MoveListing(ctx context.Context, arg gen.MoveListingParams) error
 	RelinkIdentifiers(ctx context.Context, arg gen.RelinkIdentifiersParams) error

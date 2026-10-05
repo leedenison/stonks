@@ -19,7 +19,7 @@
 //
 // This API reports sentinel errors such as ErrNotFound, checked with
 // errors.Is. SQLSTATEs reported by the driver are interrogated with
-// predicates such as IsConflict.
+// predicates such as IsConflict and IsRetryable.
 package db
 
 import (
@@ -54,6 +54,20 @@ func NewID() uuid.UUID { return uuid.Must(uuid.NewV7()) }
 func IsConflict(err error) bool {
 	var pgErr *pgconn.PgError
 	return errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation
+}
+
+// IsRetryable returns true if a transaction failed because of another running
+// concurrently, so running it again may succeed.
+func IsRetryable(err error) bool {
+	var pgErr *pgconn.PgError
+	if !errors.As(err, &pgErr) {
+		return false
+	}
+	switch pgErr.Code {
+	case pgerrcode.UniqueViolation, pgerrcode.DeadlockDetected, pgerrcode.SerializationFailure:
+		return true
+	}
+	return false
 }
 
 // Option configures a pool.

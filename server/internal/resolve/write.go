@@ -16,26 +16,27 @@ import (
 	runs "github.com/leedenison/stonks/server/internal/run"
 )
 
-// tries is the number of times a key's write is attempted when a concurrent
-// insert refuses it.
+// tries is the number of times a key's write is attempted when the database
+// refuses it for a concurrent transaction.
 const tries = 3
 
-// write records the outcome of res against run in a transaction of its own,
-// retried on conflict. A key with a winner is written under an advisory lock
-// on the identifiers it states; a key the lookup decided takes no lock.
-func (r *Resolver) write(ctx context.Context, run gen.Run, res *resolution, families func(string) string) (gen.ResolutionKey, error) {
+// write records the outcome of res against run in a transaction of its own.
+// A key with a winner is written under an advisory lock on the identifiers
+// it states and every identifier its responses name, which covers every
+// identifier the write may insert.
+func (r *Resolver) write(ctx context.Context, run gen.Run, res *resolution) (gen.ResolutionKey, error) {
 	var out gen.ResolutionKey
 	var written []gen.FindingKind
 	for attempt := 1; ; attempt++ {
 		err := r.store.Tx(ctx, func(q Queries) error {
 			var err error
-			out, written, err = r.resolveKey(ctx, q, run, res, families)
+			out, written, err = r.resolveKey(ctx, q, run, res)
 			return err
 		})
 		if err == nil {
 			break
 		}
-		if !db.IsConflict(err) || attempt >= tries {
+		if !db.IsRetryable(err) || attempt >= tries {
 			return gen.ResolutionKey{}, fmt.Errorf("resolve key %s: %w", res.row.ID, err)
 		}
 		r.log.Debug("retrying a resolution write", "key", res.row.ID, "attempt", attempt)
@@ -48,32 +49,31 @@ func (r *Resolver) write(ctx context.Context, run gen.Run, res *resolution, fami
 
 // resolveKey writes res's outcome in one transaction, returning the resolution
 // key and the kinds of the findings written.
-func (r *Resolver) resolveKey(ctx context.Context, q Queries, run gen.Run, res *resolution, families func(string) string) (gen.ResolutionKey, []gen.FindingKind, error) {
+func (r *Resolver) resolveKey(ctx context.Context, q Queries, run gen.Run, res *resolution) (gen.ResolutionKey, []gen.FindingKind, error) {
 	if res.outcome != "" {
 		return record(ctx, q, run, res, res.outcome, res.reason, res.findings)
 	}
-	if err := lock(ctx, q, res.ids); err != nil {
+	if err := lock(ctx, q, lockSet(res)); err != nil {
 		return gen.ResolutionKey{}, nil, err
 	}
-	c := choose(res.results, res.row, nil, families)
-	f, taken, merged, err := find(ctx, q, res, c)
+	c := choose(res, nil)
+	t, err := find(ctx, q, res, c)
 	if err != nil {
 		return gen.ResolutionKey{}, nil, err
 	}
-	if f != nil {
-		if res.row.AssetClass != nil && Disjoint(*res.row.AssetClass, f.instrument.AssetClass) {
-			reason := fmt.Sprintf("asset class %s contradicts the instrument's %s", *res.row.AssetClass, f.instrument.AssetClass)
-			return record(ctx, q, run, res, gen.ResolutionOutcomeUnrecognised, reason, append(c.findings, merged...))
+	if t.found != nil {
+		if reason, ok := classConflict(res.row, t.found.instrument.AssetClass); ok {
+			return record(ctx, q, run, res, gen.ResolutionOutcomeUnrecognised, reason, t.findings)
 		}
-		c = choose(res.results, res.row, f.group(), families)
+		c = choose(res, t.found.group())
 	}
-	c.findings = append(c.findings, merged...)
+	c.findings = append(c.findings, t.findings...)
 	if c.winner == nil {
 		return record(ctx, q, run, res, unresolved(res), summary(res, c), c.findings)
 	}
-	w := writer{q: q, user: run.UserID, identifiers: map[types.Identifier]gen.Identifier{}, listings: map[string]gen.Listing{}, taken: taken}
-	if f != nil {
-		w.reuse(f)
+	w := writer{q: q, user: run.UserID, identifiers: map[types.Identifier]gen.Identifier{}, listings: map[string]gen.Listing{}, taken: t.taken}
+	if t.found != nil {
+		w.reuse(t.found)
 	} else if w.instrument, err = w.create(ctx, c.winner); err != nil {
 		return gen.ResolutionKey{}, nil, err
 	}
@@ -85,7 +85,7 @@ func (r *Resolver) resolveKey(ctx context.Context, q Queries, run gen.Run, res *
 	if err := cover(ctx, q, w.instrument.ID, res.results); err != nil {
 		return gen.ResolutionKey{}, nil, err
 	}
-	ok, err := w.associate(ctx, res, families)
+	ok, err := w.associate(ctx, res)
 	if err != nil {
 		return gen.ResolutionKey{}, nil, err
 	}
@@ -95,10 +95,39 @@ func (r *Resolver) resolveKey(ctx context.Context, q Queries, run gen.Run, res *
 	return record(ctx, q, run, res, gen.ResolutionOutcomeMatched, "", c.findings)
 }
 
-// find re-reads the database for the instrument the key and its attached
-// groups name, nil where there is none. Several found are merged, and taken
-// is the identifiers of any left apart.
-func find(ctx context.Context, q Queries, res *resolution, c choice) (*found, map[types.Identifier]bool, []gen.CreateFindingParams, error) {
+// lockSet returns the identifiers res states and every identifier a
+// response served for it names.
+func lockSet(res *resolution) []types.Identifier {
+	ids := slices.Clone(res.ids)
+	for _, rs := range res.results {
+		if rs.Outcome != gen.FetchOutcomeServed {
+			continue
+		}
+		for _, id := range rs.Response.Filtered {
+			ids = appendUnique(ids, id)
+		}
+		for _, cand := range rs.Response.Candidates {
+			for _, id := range cand.Identifiers {
+				ids = appendUnique(ids, id)
+			}
+		}
+	}
+	return ids
+}
+
+// target is where a key's write lands.
+type target struct {
+	// found is nil where the write creates an instrument.
+	found *found
+	// taken is the identifiers of the instruments the write leaves apart
+	// from found.
+	taken    map[types.Identifier]bool
+	findings []gen.CreateFindingParams
+}
+
+// find re-reads the database for the instrument the key and the groups c
+// attaches name. Several found are merged.
+func find(ctx context.Context, q Queries, res *resolution, c choice) (target, error) {
 	ids := slices.Clone(res.ids)
 	for _, g := range c.attached {
 		for id := range g.all {
@@ -107,13 +136,13 @@ func find(ctx context.Context, q Queries, res *resolution, c choice) (*found, ma
 	}
 	hits, err := reread(ctx, q, ids)
 	if err != nil {
-		return nil, nil, nil, err
+		return target{}, err
 	}
 	switch len(hits) {
 	case 0:
-		return nil, nil, nil, nil
+		return target{}, nil
 	case 1:
-		return hits[0].found, nil, nil, nil
+		return target{found: hits[0].found}, nil
 	}
 	var fetchKey *uuid.UUID
 	if c.winner != nil && c.winner.r != nil {
@@ -157,6 +186,9 @@ func lock(ctx context.Context, q Queries, ids []types.Identifier) error {
 // reread finds the instruments any of ids identifies, each with the
 // identifiers that matched it, the earliest created first.
 func reread(ctx context.Context, q Queries, ids []types.Identifier) ([]hit, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
 	arg := gen.ListInstrumentsByIdentifiersParams{Types: make([]string, len(ids)), Domains: make([]string, len(ids)), Values: make([]string, len(ids))}
 	for i, id := range ids {
 		arg.Types[i], arg.Domains[i], arg.Values[i] = string(id.Type), id.Domain, id.Value
@@ -165,20 +197,21 @@ func reread(ctx context.Context, q Queries, ids []types.Identifier) ([]hit, erro
 	if err != nil {
 		return nil, fmt.Errorf("find instruments: %w", err)
 	}
-	var hits []hit
-	byID := map[uuid.UUID]int{}
+	var instruments []gen.Instrument
+	matched := map[uuid.UUID][]types.Identifier{}
 	for _, row := range rows {
-		i, ok := byID[row.Instrument.ID]
-		if !ok {
-			f, err := load(ctx, q, row.Instrument)
-			if err != nil {
-				return nil, err
-			}
-			i = len(hits)
-			byID[row.Instrument.ID] = i
-			hits = append(hits, hit{found: f})
+		if _, ok := matched[row.Instrument.ID]; !ok {
+			instruments = append(instruments, row.Instrument)
 		}
-		hits[i].matched = append(hits[i].matched, to.Identifier(row.Identifier))
+		matched[row.Instrument.ID] = append(matched[row.Instrument.ID], to.Identifier(row.Identifier))
+	}
+	loaded, err := load(ctx, q, instruments)
+	if err != nil {
+		return nil, err
+	}
+	hits := make([]hit, len(instruments))
+	for i, inst := range instruments {
+		hits[i] = hit{found: loaded[inst.ID], matched: matched[inst.ID]}
 	}
 	slices.SortFunc(hits, func(a, b hit) int {
 		return a.found.instrument.CreatedAt.Compare(b.found.instrument.CreatedAt)
@@ -200,10 +233,11 @@ func record(ctx context.Context, q Queries, run gen.Run, res *resolution, outcom
 	if reason != "" {
 		arg.Reason = &reason
 	}
-	if err := q.CreateResolutionKey(ctx, arg); err != nil {
+	rk, err := q.CreateResolutionKey(ctx, arg)
+	if err != nil {
 		return gen.ResolutionKey{}, nil, fmt.Errorf("record resolution: %w", err)
 	}
-	return gen.ResolutionKey{RunID: run.ID, UserID: run.UserID, StatedKeyID: res.row.ID, Outcome: outcome, Reason: arg.Reason}, kinds, nil
+	return rk, kinds, nil
 }
 
 // unresolved is the outcome of a resolution no group won: unavailable where a
@@ -250,7 +284,7 @@ func summary(res *resolution, c choice) string {
 		}
 		dropped := 0
 		for _, f := range c.findings {
-			if *f.FetchKeyID == rs.ID {
+			if f.Kind == gen.FindingKindDropped && f.FetchKeyID != nil && *f.FetchKeyID == rs.ID {
 				dropped++
 			}
 		}
@@ -367,9 +401,9 @@ func (w *writer) identify(ctx context.Context, id types.Identifier, listing *uui
 // associate writes the association of res with the instrument, through the
 // identifier via returns and on the listing of the stated family. It
 // reports false when no identifier identifies the instrument.
-func (w *writer) associate(ctx context.Context, res *resolution, families func(string) string) (bool, error) {
+func (w *writer) associate(ctx context.Context, res *resolution) (bool, error) {
 	var listingID *uuid.UUID
-	if l, ok := w.listings[family(res.row, families)]; ok {
+	if l, ok := w.listings[res.fams.family(res.row)]; ok {
 		listingID = &l.ID
 	}
 	via, ok := w.via(res, listingID)

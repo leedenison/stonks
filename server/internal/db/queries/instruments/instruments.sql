@@ -56,9 +56,10 @@ SELECT * FROM asset_class_tree ORDER BY class;
 -- name: ListIdentifierTypeTraits :many
 SELECT * FROM identifier_type_traits ORDER BY type;
 
--- name: CreateResolutionKey :exec
+-- name: CreateResolutionKey :one
 INSERT INTO resolution_keys (run_id, user_id, stated_key_id, outcome, reason)
-VALUES ($1, $2, $3, $4, $5);
+VALUES ($1, $2, $3, $4, $5)
+RETURNING *;
 
 -- name: ListLatestResolutions :many
 -- Run ids order by creation, so the latest resolution of a key is its row
@@ -82,10 +83,12 @@ WHERE identifiers.type = @type
   AND identifiers.value = @value::text;
 
 -- name: ListInstrumentsByIdentifiers :many
+-- The cast sits on the parameter, so the unique index on identifiers serves the
+-- join.
 SELECT sqlc.embed(identifiers), sqlc.embed(instruments)
 FROM (SELECT unnest(@types::text[]) AS type, unnest(@domains::text[]) AS domain,
              unnest(@values::text[]) AS value) AS k
-JOIN identifiers ON identifiers.type::text = k.type
+JOIN identifiers ON identifiers.type = k.type::identifier_type
   AND identifiers.domain = k.domain
   AND identifiers.value = k.value
 JOIN instruments ON instruments.id = identifiers.instrument_id

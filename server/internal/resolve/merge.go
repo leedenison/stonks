@@ -23,8 +23,9 @@ type hit struct {
 }
 
 // merge folds every later created instrument of hits into the earliest,
-// which is returned reloaded, with a merged finding per instrument.
-// fetchKey is the response that brought the instruments together.
+// which is returned reloaded, with a merged finding per instrument. hits is
+// sorted earliest created first. fetchKey is the response that brought the
+// instruments together.
 //
 // Where disagree finds the instruments cannot be one, nothing merges: the
 // instrument the strongest stated identifier identifies is returned with a
@@ -33,39 +34,37 @@ type hit struct {
 // The merge relinks another user's keys without holding that user's key
 // lock. That user's concurrent write may therefore see an instrument the
 // merge has since folded.
-func merge(ctx context.Context, q Queries, res *resolution, fetchKey *uuid.UUID, hits []hit) (*found, map[types.Identifier]bool, []gen.CreateFindingParams, error) {
-	slices.SortFunc(hits, func(a, b hit) int {
-		return a.found.instrument.CreatedAt.Compare(b.found.instrument.CreatedAt)
-	})
+func merge(ctx context.Context, q Queries, res *resolution, fetchKey *uuid.UUID, hits []hit) (target, error) {
 	if detail, ok := disagree(hits); ok {
-		f, taken, finding := refuse(res, fetchKey, hits, detail)
-		return f, taken, []gen.CreateFindingParams{finding}, nil
+		return refuse(res, fetchKey, hits, detail), nil
 	}
 	survivor := hits[0].found
 	if err := q.DeferConstraints(ctx); err != nil {
-		return nil, nil, nil, fmt.Errorf("defer constraints: %w", err)
+		return target{}, fmt.Errorf("defer constraints: %w", err)
 	}
-	families := map[string]bool{}
+	present := map[string]bool{}
 	for _, l := range survivor.listings {
-		families[l.Currency] = true
+		present[l.Currency] = true
 	}
 	var findings []gen.CreateFindingParams
 	for _, h := range hits[1:] {
-		finding, err := fold(ctx, q, survivor, hits[0].matched, h, families, fetchKey)
+		finding, err := fold(ctx, q, survivor, hits[0].matched, h, present, fetchKey)
 		if err != nil {
-			return nil, nil, nil, err
+			return target{}, err
 		}
 		findings = append(findings, finding)
 	}
-	f, err := load(ctx, q, survivor.instrument)
-	return f, nil, findings, err
+	loaded, err := load(ctx, q, []gen.Instrument{survivor.instrument})
+	if err != nil {
+		return target{}, err
+	}
+	return target{found: loaded[survivor.instrument.ID], findings: findings}, nil
 }
 
-// refuse picks the instrument of hits the strongest stated identifier of
-// res identifies, the earliest where none does, and returns it with the
-// identifiers of the others, which the write leaves alone, and a
-// contradiction finding carrying detail.
-func refuse(res *resolution, fetchKey *uuid.UUID, hits []hit, detail string) (*found, map[types.Identifier]bool, gen.CreateFindingParams) {
+// refuse targets the instrument of hits the strongest stated identifier of
+// res identifies, the earliest where none does, leaving the others apart
+// with a contradiction finding carrying detail.
+func refuse(res *resolution, fetchKey *uuid.UUID, hits []hit, detail string) target {
 	pick := hits[0]
 	for _, id := range res.ids {
 		if i := slices.IndexFunc(hits, func(h hit) bool { return slices.Contains(h.matched, id) }); i >= 0 {
@@ -82,7 +81,7 @@ func refuse(res *resolution, fetchKey *uuid.UUID, hits []hit, detail string) (*f
 		}
 	}
 	finding := gen.CreateFindingParams{Kind: gen.FindingKindContradiction, FetchKeyID: fetchKey, Detail: ptr.To(detail + "; not merged")}
-	return pick.found, taken, finding
+	return target{found: pick.found, taken: taken, findings: []gen.CreateFindingParams{finding}}
 }
 
 // fold moves the loser h into survivor under deferred constraints and
@@ -90,16 +89,16 @@ func refuse(res *resolution, fetchKey *uuid.UUID, hits []hit, detail string) (*f
 // listing of the loser in a currency family the survivor lacks moves across
 // whole; one in a family the survivor has is relinked onto the survivor's
 // listing and deleted.
-func fold(ctx context.Context, q Queries, survivor *found, matched []types.Identifier, h hit, families map[string]bool, fetchKey *uuid.UUID) (gen.CreateFindingParams, error) {
+func fold(ctx context.Context, q Queries, survivor *found, matched []types.Identifier, h hit, present map[string]bool, fetchKey *uuid.UUID) (gen.CreateFindingParams, error) {
 	loser := h.found
 	for _, l := range loser.listings {
-		if families[l.Currency] {
+		if present[l.Currency] {
 			continue
 		}
 		if err := q.MoveListing(ctx, gen.MoveListingParams{ID: l.ID, InstrumentID: survivor.instrument.ID}); err != nil {
 			return gen.CreateFindingParams{}, fmt.Errorf("move listing: %w", err)
 		}
-		families[l.Currency] = true
+		present[l.Currency] = true
 	}
 	steps := []struct {
 		name string
@@ -158,9 +157,9 @@ func disagree(hits []hit) (string, bool) {
 	}
 	first := map[key]seen{}
 	for _, h := range hits {
-		family := map[uuid.UUID]string{}
+		famOf := map[uuid.UUID]string{}
 		for _, l := range h.found.listings {
-			family[l.ID] = l.Currency
+			famOf[l.ID] = l.Currency
 		}
 		for _, row := range h.found.identifiers {
 			id := to.Identifier(row)
@@ -169,7 +168,7 @@ func disagree(hits []hit) (string, bool) {
 			}
 			k := key{typ: id.Type, domain: id.Domain}
 			if row.ListingID != nil {
-				k.family = family[*row.ListingID]
+				k.family = famOf[*row.ListingID]
 			}
 			if prior, ok := first[k]; ok && prior.id.Value != id.Value && prior.instrument != row.InstrumentID {
 				return fmt.Sprintf("%s identifies instrument %s and %s identifies %s", name(prior.id), prior.instrument, name(id), row.InstrumentID), true
@@ -181,7 +180,7 @@ func disagree(hits []hit) (string, bool) {
 	}
 	for i, a := range hits {
 		for _, b := range hits[i+1:] {
-			if Disjoint(a.found.instrument.AssetClass, b.found.instrument.AssetClass) {
+			if disjoint(a.found.instrument.AssetClass, b.found.instrument.AssetClass) {
 				return fmt.Sprintf("class %s of instrument %s contradicts class %s of %s", a.found.instrument.AssetClass, a.found.instrument.ID, b.found.instrument.AssetClass, b.found.instrument.ID), true
 			}
 		}
