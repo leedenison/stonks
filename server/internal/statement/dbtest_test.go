@@ -283,13 +283,17 @@ func TestFamily(t *testing.T) {
 func TestReplace(t *testing.T) {
 	s := newStack(t)
 	usd := "USD"
+	// Each broker states the line in its own domain.
 	acme := securityKey("ACME CORP", typev1.AssetClass_ASSET_CLASS_SECURITY, &usd)
+	schwab := &typev1.StatedKey{AssetClass: acme.AssetClass, Currency: acme.Currency, Identifiers: []*typev1.Identifier{
+		{Type: typev1.IdentifierType_IDENTIFIER_TYPE_BROKER_DESCRIPTION, Domain: "schwab", Value: "ACME CORP"},
+	}}
 	s.ingest(t, &statementv1.Statement{Broker: typev1.Broker_BROKER_SCHWAB, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01",
-		Rows: []*statementv1.Row{rowMsg(acme, "2026-03-05", "1"), rowMsg(acme, "2026-03-20", "2")}})
+		Rows: []*statementv1.Row{rowMsg(schwab, "2026-03-05", "1"), rowMsg(schwab, "2026-03-20", "2")}})
 	s.ingest(t, &statementv1.Statement{Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01",
 		Rows: []*statementv1.Row{rowMsg(acme, "2026-03-20", "7")}})
 	s.ingest(t, &statementv1.Statement{Broker: typev1.Broker_BROKER_SCHWAB, OrderFrom: "2026-03-15", OrderBefore: "2026-04-01",
-		Rows: []*statementv1.Row{rowMsg(acme, "2026-03-20", "3")}})
+		Rows: []*statementv1.Row{rowMsg(schwab, "2026-03-20", "3")}})
 	want := []string{"2026-03-05 schwab 1 USD", "2026-03-20 ibkr 7 USD", "2026-03-20 schwab 3 USD"}
 	if diff := cmp.Diff(want, s.transactions(t)); diff != "" {
 		t.Errorf("after the overlapping statement (-want +got):\n%s", diff)

@@ -22,6 +22,10 @@ ORDER BY statements.id DESC;
 INSERT INTO statement_items (statement_id, user_id, ordinal, reason, stated)
 VALUES ($1, $2, $3, $4, $5);
 
+-- name: CreateStatementItems :copyfrom
+INSERT INTO statement_items (statement_id, user_id, ordinal, reason, stated)
+VALUES ($1, $2, $3, $4, $5);
+
 -- name: ListStatementItems :many
 -- A NULL after starts at the first item, and a NULL lim reads every item.
 SELECT * FROM statement_items

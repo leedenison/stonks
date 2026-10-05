@@ -4,7 +4,7 @@
 import { create } from "@bufbuild/protobuf";
 import {
   AssetClass,
-  type Broker,
+  Broker,
   type Identifier,
   IdentifierSchema,
   IdentifierType,
@@ -41,10 +41,16 @@ export function cashKey(currency: string): StatedKey {
   });
 }
 
+// brokerDomain returns the domain of the identifiers a broker issues, spelled
+// as the server spells it: "fidelity_uk" for Broker.FIDELITY_UK.
+export function brokerDomain(broker: Broker): string {
+  return Broker[broker].toLowerCase();
+}
+
 // securityKey is the stated key for a broker's line. The description becomes
 // a BROKER_DESCRIPTION identifier in the broker's domain.
 export function securityKey(key: {
-  broker: string;
+  broker: Broker;
   description: string;
   assetClass: AssetClass;
   currency?: string;
@@ -55,7 +61,11 @@ export function securityKey(key: {
     currency: key.currency,
     identifiers: [
       ...key.identifiers,
-      ident(IdentifierType.BROKER_DESCRIPTION, key.description, key.broker),
+      ident(
+        IdentifierType.BROKER_DESCRIPTION,
+        key.description,
+        brokerDomain(key.broker),
+      ),
     ],
   });
 }

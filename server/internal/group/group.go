@@ -12,6 +12,7 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/types"
+	"github.com/leedenison/stonks/server/internal/market"
 )
 
 // Queries is this package's view of the generated queries.
@@ -23,20 +24,8 @@ type Queries interface {
 
 var _ Queries = (*gen.Queries)(nil)
 
-// domained holds the identifier types whose value is read with a domain. A
-// test holds it equal to the identifier_type_traits table. Where a value of
-// one of these types is stated without its domain, it names nothing, so two
-// keys stating it are not thereby the same holding.
-var domained = map[types.IdentifierType]bool{
-	types.IdentifierTypeMicTicker:         true,
-	types.IdentifierTypeOpenfigiTicker:    true,
-	types.IdentifierTypeDatasourceTicker:  true,
-	types.IdentifierTypeBrokerID:          true,
-	types.IdentifierTypeBrokerDescription: true,
-}
-
 // join unions id with the first key stating k.
-func join[K comparable](first map[K]uuid.UUID, parent map[uuid.UUID]uuid.UUID, k K, id uuid.UUID) {
+func join(first map[types.Identifier]uuid.UUID, parent map[uuid.UUID]uuid.UUID, k types.Identifier, id uuid.UUID) {
 	if held, ok := first[k]; ok {
 		union(parent, held, id)
 		return
@@ -79,7 +68,9 @@ func Of(keys []gen.StatedKey) map[uuid.UUID]uuid.UUID {
 	first := map[types.Identifier]uuid.UUID{}
 	for _, k := range keys {
 		for _, i := range k.Identifiers {
-			if domained[i.Type] && i.Domain == "" {
+			// An identifier of a type read with a domain names nothing when its
+			// domain is empty, so sharing its value does not join two keys.
+			if market.Trait(i.Type).Domain != gen.IdentifierDomainGlobal && i.Domain == "" {
 				continue
 			}
 			join(first, parent, i, k.ID)

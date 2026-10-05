@@ -132,21 +132,16 @@ func TestListHoldings(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newFixture(t)
 			f.authn.EXPECT().Authenticate(gomock.Any(), servicetest.Session).Return(principal, tc.authErr)
-			if tc.authErr == nil {
-				f.reader.EXPECT().ListInstrumentHoldings(gomock.Any(), userID).Return(tc.rows, tc.rowsErr)
-			}
-			if tc.authErr == nil && tc.rowsErr == nil && len(tc.rows) > 0 {
-				f.reader.EXPECT().ListHeldIdentifiers(gomock.Any(), userID).Return(tc.idents, tc.identsErr)
-			}
-			if tc.authErr == nil && tc.rowsErr == nil && tc.identsErr == nil {
-				f.reader.EXPECT().ListGroupHoldings(gomock.Any(), userID).Return(tc.groups, tc.groupsErr)
-			}
-			if tc.authErr == nil && tc.rowsErr == nil && tc.identsErr == nil && tc.groupsErr == nil && len(tc.groups) > 0 {
-				f.reader.EXPECT().ListHeldGroupKeys(gomock.Any(), userID).Return(tc.keys, tc.keysErr)
-			}
+			// Each read is offered once, and what the handler reads after a
+			// failure does not matter to the response.
+			f.reader.EXPECT().ListInstrumentHoldings(gomock.Any(), userID).Return(tc.rows, tc.rowsErr).MaxTimes(1)
+			f.reader.EXPECT().ListIdentifiersOf(gomock.Any(), []uuid.UUID{gbpID, acmeID}).Return(tc.idents, tc.identsErr).MaxTimes(1)
+			f.reader.EXPECT().ListGroupHoldings(gomock.Any(), userID).Return(tc.groups, tc.groupsErr).MaxTimes(1)
+			keysArg := gen.ListStatedKeysOfGroupsParams{UserID: userID, GroupIds: []uuid.UUID{groupID}}
+			f.reader.EXPECT().ListStatedKeysOfGroups(gomock.Any(), keysArg).Return(tc.keys, tc.keysErr).MaxTimes(1)
 			res, err := f.client.ListHoldings(context.Background(), connect.NewRequest(&holdingv1.ListHoldingsRequest{}))
 			if servicetest.CodeOf(err) != tc.wantCode {
-				t.Fatalf("ListHoldings() code = %v (err %v), want %v", connect.CodeOf(err), err, tc.wantCode)
+				t.Fatalf("ListHoldings() code = %v (err %v), want %v", servicetest.CodeOf(err), err, tc.wantCode)
 			}
 			if err != nil {
 				return

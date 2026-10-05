@@ -106,7 +106,7 @@ func TestListInstrumentHoldings(t *testing.T) {
 		if diff := cmp.Diff(want, got, decimalEqual); diff != "" {
 			t.Errorf("ListInstrumentHoldings mismatch (-want +got):\n%s", diff)
 		}
-		idents, err := q.ListHeldIdentifiers(ctx, h.user.ID)
+		idents, err := q.ListIdentifiersOf(ctx, []uuid.UUID{gbp.InstrumentID})
 		require.NoError(t, err)
 		// The pound instrument is named by every code of its family.
 		wantIdents := []gen.Identifier{
@@ -114,7 +114,7 @@ func TestListInstrumentHoldings(t *testing.T) {
 			{InstrumentID: gbp.InstrumentID, Type: types.IdentifierTypeCurrency, Value: "GBX", Grain: gen.IdentifierGrainInstrument},
 		}
 		if diff := cmp.Diff(wantIdents, idents, ignoreRowIDs); diff != "" {
-			t.Errorf("ListHeldIdentifiers mismatch (-want +got):\n%s", diff)
+			t.Errorf("ListIdentifiersOf mismatch (-want +got):\n%s", diff)
 		}
 	})
 
@@ -130,11 +130,6 @@ func TestListInstrumentHoldings(t *testing.T) {
 		require.NoError(t, err)
 		if len(got) != 0 {
 			t.Errorf("ListInstrumentHoldings = %+v, want none", got)
-		}
-		idents, err := q.ListHeldIdentifiers(ctx, h.user.ID)
-		require.NoError(t, err)
-		if len(idents) != 0 {
-			t.Errorf("ListHeldIdentifiers = %+v, want none", idents)
 		}
 	})
 
@@ -171,12 +166,7 @@ func TestListInstrumentHoldings(t *testing.T) {
 		if diff := cmp.Diff([]gen.ListInstrumentHoldingsRow{holding(shared, "10")}, got, decimalEqual); diff != "" {
 			t.Errorf("ListInstrumentHoldings for a mismatch (-want +got):\n%s", diff)
 		}
-		idents, err := q.ListHeldIdentifiers(ctx, a.user.ID)
-		require.NoError(t, err)
-		want := []gen.Identifier{{InstrumentID: shared.ID, Type: types.IdentifierTypeIsin, Value: "US0378331005", Grain: gen.IdentifierGrainInstrument}}
-		if diff := cmp.Diff(want, idents, ignoreRowIDs); diff != "" {
-			t.Errorf("ListHeldIdentifiers for a mismatch (-want +got):\n%s", diff)
-		}
+
 	})
 
 	t.Run("exact decimal", func(t *testing.T) {
@@ -241,13 +231,13 @@ func TestListGroupHoldings(t *testing.T) {
 		if diff := cmp.Diff(want, got, decimalEqual); diff != "" {
 			t.Errorf("ListGroupHoldings mismatch (-want +got):\n%s", diff)
 		}
-		keys, err := q.ListHeldGroupKeys(ctx, h.user.ID)
+		keys, err := q.ListStatedKeysOfGroups(ctx, gen.ListStatedKeysOfGroupsParams{UserID: h.user.ID, GroupIds: []uuid.UUID{id}})
 		require.NoError(t, err)
 		if len(keys) != 2 {
-			t.Fatalf("ListHeldGroupKeys = %d keys, want 2", len(keys))
+			t.Fatalf("ListStatedKeysOfGroups = %d keys, want 2", len(keys))
 		}
 		if want := []types.Identifier{{Type: types.IdentifierTypeBrokerDescription, Domain: "ibkr", Value: "ACME CORP"}}; !slices.Equal(keys[0].Identifiers, want) {
-			t.Errorf("ListHeldGroupKeys[0] = %+v, want the ibkr key describing ACME CORP", keys[0])
+			t.Errorf("ListStatedKeysOfGroups[0] = %+v, want the ibkr key describing ACME CORP", keys[0])
 		}
 	})
 
@@ -264,11 +254,6 @@ func TestListGroupHoldings(t *testing.T) {
 		if len(got) != 0 {
 			t.Errorf("ListGroupHoldings = %+v, want none", got)
 		}
-		keys, err := q.ListHeldGroupKeys(ctx, h.user.ID)
-		require.NoError(t, err)
-		if len(keys) != 0 {
-			t.Errorf("ListHeldGroupKeys = %+v, want none", keys)
-		}
 	})
 
 	t.Run("another user's group is excluded", func(t *testing.T) {
@@ -278,7 +263,7 @@ func TestListGroupHoldings(t *testing.T) {
 		mine := a.key(t, q, "ACME CORP", nil, nil)
 		theirs := b.key(t, q, "ACME CORP", nil, nil)
 		id := a.group(t, q, mine)
-		b.group(t, q, theirs)
+		other := b.group(t, q, theirs)
 		a.record(t, q, mine, "10")
 		b.record(t, q, theirs, "7")
 
@@ -287,6 +272,11 @@ func TestListGroupHoldings(t *testing.T) {
 		want := []gen.ListGroupHoldingsRow{{GroupID: id, Quantity: decimal.RequireFromString("10")}}
 		if diff := cmp.Diff(want, got, decimalEqual); diff != "" {
 			t.Errorf("ListGroupHoldings for a mismatch (-want +got):\n%s", diff)
+		}
+		keys, err := q.ListStatedKeysOfGroups(ctx, gen.ListStatedKeysOfGroupsParams{UserID: a.user.ID, GroupIds: []uuid.UUID{other}})
+		require.NoError(t, err)
+		if len(keys) != 0 {
+			t.Errorf("ListStatedKeysOfGroups of another user's group = %+v, want none", keys)
 		}
 	})
 }

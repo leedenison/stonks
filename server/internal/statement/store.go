@@ -23,8 +23,8 @@ type Queries interface {
 	ListCurrencies(ctx context.Context) ([]gen.Currency, error)
 	LockUserKeys(ctx context.Context, userID uuid.UUID) error
 	DeleteTransactions(ctx context.Context, arg gen.DeleteTransactionsParams) (int64, error)
-	CreateTransaction(ctx context.Context, arg gen.CreateTransactionParams) (gen.Transaction, error)
-	CreateStatementItem(ctx context.Context, arg gen.CreateStatementItemParams) error
+	CreateTransactions(ctx context.Context, arg []gen.CreateTransactionsParams) (int64, error)
+	CreateStatementItems(ctx context.Context, arg []gen.CreateStatementItemsParams) (int64, error)
 	CompleteRun(ctx context.Context, id uuid.UUID) error
 }
 
