@@ -24,18 +24,20 @@ type Entry struct {
 }
 
 // Registry holds the enabled datasources in precedence order. It is built at
-// startup and rebuilt by Reload when an administrator changes the table. A
-// datasource's rate limiter lives as long as the process and outlives a
-// reload, so concurrent fetches share one quota and a change does not reset
-// what is spent.
+// startup and rebuilt by Reload when an administrator changes the table.
+// Reloads run one at a time, so the entries come from the latest read of the
+// table. A datasource's rate limiter lives as long as the process and
+// outlives a reload, so concurrent fetches share one quota and a change does
+// not reset what is spent.
 type Registry struct {
 	store     Store
 	factories map[string]Factory
 	log       *slog.Logger
 
-	mu       sync.RWMutex
-	entries  []*Entry
-	limiters map[string]*rate.Limiter
+	reloadLck sync.Mutex
+	entryLck  sync.RWMutex
+	entries   []*Entry
+	limiters  map[string]*rate.Limiter
 }
 
 // New reads the datasources table and pairs each enabled row with the
@@ -53,6 +55,8 @@ func New(ctx context.Context, store Store, factories map[string]Factory, log *sl
 // Reload reads the datasources table again and replaces the entries. It
 // fails as New does, leaving the entries as they were.
 func (r *Registry) Reload(ctx context.Context) error {
+	r.reloadLck.Lock()
+	defer r.reloadLck.Unlock()
 	rows, err := r.store.ListDatasources(ctx)
 	if err != nil {
 		return fmt.Errorf("list datasources: %w", err)
@@ -86,8 +90,8 @@ func (r *Registry) Reload(ctx context.Context) error {
 			r.log.Info("integration has no datasource row", "datasource", name)
 		}
 	}
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	r.entryLck.Lock()
+	defer r.entryLck.Unlock()
 	for _, e := range entries {
 		limit, burst := e.Integration.Limit()
 		e.limiter = r.limiter(e.Name, limit, burst)
@@ -97,7 +101,7 @@ func (r *Registry) Reload(ctx context.Context) error {
 }
 
 // limiter returns the datasource's limiter at the rate given, made on its
-// first use. The caller holds mu.
+// first use. The caller holds entryLck.
 func (r *Registry) limiter(name string, limit rate.Limit, burst int) *rate.Limiter {
 	l, ok := r.limiters[name]
 	if !ok {
@@ -120,8 +124,8 @@ func (r *Registry) Carries(name string) bool {
 // last reload. A reload replaces the slice rather than changing it, so the
 // caller keeps the datasources it read.
 func (r *Registry) Enabled() []*Entry {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
+	r.entryLck.RLock()
+	defer r.entryLck.RUnlock()
 	return r.entries
 }
 

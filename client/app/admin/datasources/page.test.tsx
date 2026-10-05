@@ -1,4 +1,5 @@
 import { create } from "@bufbuild/protobuf";
+import { Code, ConnectError } from "@connectrpc/connect";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import {
@@ -120,6 +121,26 @@ describe("DatasourcesPage", () => {
         expect.objectContaining({ name: "openfigi", credential: "" }),
         expect.anything(),
       ),
+    );
+  });
+
+  it("shows a refusal to enable a datasource", async () => {
+    const updateDatasource = vi.fn();
+    const transport = serving(updateDatasource);
+    updateDatasource.mockImplementation(() => {
+      throw new ConnectError("no such integration", Code.FailedPrecondition);
+    });
+    renderWithAuth(<DatasourcesPage />, transport);
+    await waitFor(() =>
+      expect(screen.getByTestId("datasource-toggle-other")).toBeTruthy(),
+    );
+    fireEvent.click(screen.getByTestId("datasource-toggle-other"));
+    await waitFor(() =>
+      expect(screen.getByTestId("datasource-update-error")).toBeTruthy(),
+    );
+    expect(updateDatasource).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "other", enabled: true }),
+      expect.anything(),
     );
   });
 });
