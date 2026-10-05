@@ -11,7 +11,10 @@ CREATE TABLE datasources (
     credential text,
     endpoint   text,
     created_at timestamptz NOT NULL DEFAULT now(),
-    CHECK (name <> '')
+    CHECK (name <> ''),
+    -- Deferred, so a reorder that swaps two precedences passes. A deferrable
+    -- constraint cannot arbitrate ON CONFLICT, so no upsert may name it.
+    UNIQUE (precedence) DEFERRABLE INITIALLY DEFERRED
 );
 
 -- The kind of data a fetch requests.

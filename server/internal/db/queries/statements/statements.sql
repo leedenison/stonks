@@ -23,9 +23,12 @@ INSERT INTO statement_items (statement_id, user_id, ordinal, reason, stated)
 VALUES ($1, $2, $3, $4, $5);
 
 -- name: ListStatementItems :many
+-- A NULL after starts at the first item, and a NULL lim reads every item.
 SELECT * FROM statement_items
-WHERE statement_id = $1 AND user_id = $2
-ORDER BY ordinal;
+WHERE statement_id = @statement_id AND user_id = @user_id
+  AND (sqlc.narg(after)::int IS NULL OR ordinal > sqlc.narg(after))
+ORDER BY ordinal
+LIMIT sqlc.narg(lim)::int;
 
 -- name: CreateStatementSplit :exec
 INSERT INTO statement_splits (statement_id, user_id, ordinal, stated_key_id, effective_date, quantity, ratio_from, ratio_to)

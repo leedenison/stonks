@@ -17,9 +17,10 @@ LEFT JOIN stated_keys ON stated_keys.id = coalesce(findings.stated_key_id, fetch
 WHERE findings.run_id = ANY(@run_ids::uuid[])
 ORDER BY findings.id;
 
--- name: GetFinding :one
-SELECT * FROM findings WHERE id = $1;
-
--- name: ClearFinding :exec
-UPDATE findings SET cleared_at = now()
-WHERE id = $1 AND block_id IS NULL AND cleared_at IS NULL;
+-- name: ClearFinding :one
+-- A finding that reports a block stays open until its block is cleared.
+-- Clearing a cleared finding keeps the time it was first cleared.
+UPDATE findings
+SET cleared_at = CASE WHEN block_id IS NULL THEN coalesce(cleared_at, now()) ELSE cleared_at END
+WHERE id = $1
+RETURNING block_id;

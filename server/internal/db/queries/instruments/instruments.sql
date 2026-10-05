@@ -139,8 +139,11 @@ SELECT * FROM listings
 WHERE instrument_id = $1 AND currency = $2;
 
 -- name: ListResolutionItems :many
+-- A NULL after starts at the first item, and a NULL lim reads every item.
 SELECT sqlc.embed(resolution_keys), sqlc.embed(stated_keys)
 FROM resolution_keys
 JOIN stated_keys ON stated_keys.id = resolution_keys.stated_key_id
-WHERE resolution_keys.run_id = $1
-ORDER BY resolution_keys.stated_key_id;
+WHERE resolution_keys.run_id = @run_id
+  AND (sqlc.narg(after)::uuid IS NULL OR resolution_keys.stated_key_id > sqlc.narg(after))
+ORDER BY resolution_keys.stated_key_id
+LIMIT sqlc.narg(lim)::int;

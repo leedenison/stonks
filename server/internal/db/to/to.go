@@ -77,3 +77,14 @@ func ProtoStatedKey(k gen.StatedKey) *typev1.StatedKey {
 	}
 	return out
 }
+
+// ProtoResolutionItem writes k with what a resolution made of it. A nil r,
+// for a key no resolution has reached, leaves the outcome unset.
+func ProtoResolutionItem(k gen.StatedKey, r *gen.ResolutionKey) *typev1.ResolutionItem {
+	out := &typev1.ResolutionItem{StatedKey: ProtoStatedKey(k), StatedKeyId: k.ID.String()}
+	if r != nil {
+		out.Outcome = types.ToProto[typev1.ResolutionOutcome](r.Outcome)
+		out.Reason = r.Reason
+	}
+	return out
+}

@@ -154,14 +154,40 @@ message GetRunResponse {
   // The findings of the run and of every run below it, in tree order: a
   // run's findings oldest first, then those of each run below it in turn.
   repeated Finding findings = 3;
-  // The rows this run rejected when its kind is STATEMENT.
-  repeated stonks.statement.v1.StatementItem statement_items = 4;
-  // The keys this run resolved when its kind is RESOLUTION.
-  repeated stonks.type.v1.ResolutionItem resolution_items = 5;
-  // The keys this run fetched when its kind is FETCH.
-  repeated FetchItem fetch_items = 6;
   // What this run re-resolves when its kind is REPLAY.
-  Replay replay = 7;
+  Replay replay = 4;
+}
+
+message ListRunItemsRequest {
+  string run_id = 1 [(buf.validate.field).string.uuid = true];
+  // At most this many items; 0 means 50.
+  int32 page_size = 2 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 200
+  }];
+  // The next_page_token of the previous page; empty for the first. The token
+  // is opaque.
+  string page_token = 3;
+}
+
+// One item a run wrote, of the run's kind.
+message RunItem {
+  oneof item {
+    // A row a STATEMENT run rejected.
+    stonks.statement.v1.StatementItem statement = 1;
+    // A key a RESOLUTION run resolved.
+    stonks.type.v1.ResolutionItem resolution = 2;
+    // A key a FETCH run asked a datasource about.
+    FetchItem fetch = 3;
+  }
+}
+
+message ListRunItemsResponse {
+  // A statement run's rejected rows in payload order, or a resolution or
+  // fetch run's keys in key id order. A replay run has none.
+  repeated RunItem items = 1;
+  // Continues the listing; empty on the last page.
+  string next_page_token = 2;
 }
 
 message ClearFindingRequest {
@@ -189,8 +215,8 @@ message ListDatasourcesRequest {}
 message UpdateDatasourceRequest {
   string name = 1 [(buf.validate.field).string.min_len = 1];
   bool enabled = 2;
-  // The address the integration calls; unset or empty for the provider's
-  // default.
+  // The address the integration calls; unset keeps the one held, and empty
+  // clears it for the provider's default.
   optional string endpoint = 3;
   // The credential to hold; unset keeps the one held, and empty clears it.
   optional string credential = 4;
@@ -315,8 +341,10 @@ message StartReplayResponse {
 service AdminService {
   // Lists every user's runs matching the filters.
   rpc ListRuns(ListRunsRequest) returns (ListRunsResponse);
-  // Reads any user's run with its items, children and findings.
+  // Reads any user's run with the runs above and below it and its findings.
   rpc GetRun(GetRunRequest) returns (GetRunResponse);
+  // Lists the items a run wrote.
+  rpc ListRunItems(ListRunItemsRequest) returns (ListRunItemsResponse);
   // Clears a finding. Where the finding reports a block, only clearing the
   // block clears it, and the call is refused as a failed precondition.
   // Clearing a cleared finding succeeds.
@@ -325,8 +353,9 @@ service AdminService {
   // never read.
   rpc ListDatasources(ListDatasourcesRequest) returns (ListDatasourcesResponse);
   // Sets a datasource's state, endpoint and credential, taking effect at
-  // once. Enabling a datasource without an integration in this build is
-  // refused as a failed precondition.
+  // once. The call fails with a failed precondition, and writes nothing,
+  // when the change would enable a datasource that has no integration in
+  // this build or whose integration refuses the config.
   rpc UpdateDatasource(UpdateDatasourceRequest) returns (UpdateDatasourceResponse);
   // Orders the datasources by precedence, taking effect at once. Where the
   // list does not name every datasource exactly once, the call is refused.

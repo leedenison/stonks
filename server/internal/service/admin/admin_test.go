@@ -23,9 +23,9 @@ import (
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/types"
+	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/ptr"
 	"github.com/leedenison/stonks/server/internal/replay"
-	"github.com/leedenison/stonks/server/internal/service/admin/mock"
 	servicemock "github.com/leedenison/stonks/server/internal/service/mock"
 	"github.com/leedenison/stonks/server/internal/service/servicetest"
 )
@@ -52,10 +52,13 @@ var (
 )
 
 type fixture struct {
-	reader  *mock.MockReader
-	sources *mock.MockSources
-	replays *mock.MockReplayer
+	store   *MockStore
+	sources *MockSources
+	replays *MockReplayer
 	client  adminv1connect.AdminServiceClient
+	// txErrs is what each transaction returned, so a test sees one rolled
+	// back.
+	txErrs []error
 }
 
 // newFixture mounts a Server with the real handler chain, and a client whose
@@ -66,10 +69,15 @@ func newFixture(t *testing.T) *fixture {
 	t.Cleanup(ctrl.Finish)
 	authn := servicemock.NewMockAuthenticator(ctrl)
 	authn.EXPECT().Authenticate(gomock.Any(), servicetest.Session).Return(principal, nil).AnyTimes()
-	f := &fixture{reader: mock.NewMockReader(ctrl), sources: mock.NewMockSources(ctrl), replays: mock.NewMockReplayer(ctrl)}
+	f := &fixture{store: NewMockStore(ctrl), sources: NewMockSources(ctrl), replays: NewMockReplayer(ctrl)}
+	f.store.EXPECT().Tx(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, fn func(Queries) error) error {
+		err := fn(f.store)
+		f.txErrs = append(f.txErrs, err)
+		return err
+	}).AnyTimes()
 	opts := servicetest.Options(t, authn)
 	srv := servicetest.Serve(t, func(mux *http.ServeMux) {
-		mux.Handle(adminv1connect.NewAdminServiceHandler(New(f.reader, f.sources, f.replays), opts...))
+		mux.Handle(adminv1connect.NewAdminServiceHandler(New(f.store, f.sources, f.replays), opts...))
 	})
 	f.client = adminv1connect.NewAdminServiceClient(srv.Client, srv.URL)
 	return f
@@ -181,13 +189,13 @@ func TestListRuns(t *testing.T) {
 					rows[i] = gen.ListRootRunsRow(r)
 				}
 				arg := gen.ListRootRunsParams{Before: tc.wantArg.Before, Lim: tc.wantArg.Lim}
-				f.reader.EXPECT().ListRootRuns(gomock.Any(), arg).Return(rows, tc.err)
+				f.store.EXPECT().ListRootRuns(gomock.Any(), arg).Return(rows, tc.err)
 			default:
-				f.reader.EXPECT().ListUserRuns(gomock.Any(), tc.wantArg).Return(tc.rows, tc.err)
+				f.store.EXPECT().ListUserRuns(gomock.Any(), tc.wantArg).Return(tc.rows, tc.err)
 			}
 			res, err := f.client.ListRuns(context.Background(), connect.NewRequest(tc.req))
 			if servicetest.CodeOf(err) != tc.wantCode {
-				t.Fatalf("ListRuns(%v) code = %v (err %v), want %v", tc.req, connect.CodeOf(err), err, tc.wantCode)
+				t.Fatalf("ListRuns(%v) code = %v (err %v), want %v", tc.req, servicetest.CodeOf(err), err, tc.wantCode)
 			}
 			if err != nil {
 				return
@@ -199,71 +207,36 @@ func TestListRuns(t *testing.T) {
 	}
 }
 
-func TestGetRun(t *testing.T) {
-	isin := types.Identifier{Type: types.IdentifierTypeIsin, Value: "GB00B03MLX29"}
-	shell := types.Identifier{Type: types.IdentifierTypeBrokerDescription, Domain: "ibkr", Value: "ROYAL DUTCH SHELL"}
-	key := gen.StatedKey{ID: keyID, Identifiers: []types.Identifier{shell, isin}}
-	keyMsg := &typev1.StatedKey{
+// itemKey is the stated key of the items the tests read, and itemKeyMsg its
+// message.
+var (
+	itemISIN   = types.Identifier{Type: types.IdentifierTypeIsin, Value: "GB00B03MLX29"}
+	itemKey    = gen.StatedKey{ID: keyID, Identifiers: []types.Identifier{{Type: types.IdentifierTypeBrokerDescription, Domain: "ibkr", Value: "ROYAL DUTCH SHELL"}, itemISIN}}
+	itemKeyMsg = &typev1.StatedKey{
 		Identifiers: []*typev1.Identifier{
 			{Type: typev1.IdentifierType_IDENTIFIER_TYPE_BROKER_DESCRIPTION, Domain: "ibkr", Value: "ROYAL DUTCH SHELL"},
 			{Type: typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, Value: "GB00B03MLX29"},
 		},
 	}
+)
+
+func TestGetRun(t *testing.T) {
 	tests := []struct {
 		name   string
 		kind   gen.RunKind
-		expect func(r *mock.MockReaderMockRecorder)
+		expect func(r *MockStoreMockRecorder)
 		want   func(out *adminv1.GetRunResponse)
 	}{
 		{
-			name: "statement",
-			kind: gen.RunKindStatement,
-			expect: func(r *mock.MockReaderMockRecorder) {
-				r.ListStatementItems(gomock.Any(), gen.ListStatementItemsParams{StatementID: runID, UserID: userID}).
-					Return([]gen.StatementItem{{Ordinal: 3, Reason: "no quantity", Stated: []byte(`{}`)}}, nil)
-			},
-			want: func(out *adminv1.GetRunResponse) {
-				out.StatementItems = []*statementv1.StatementItem{{Ordinal: 3, Reason: "no quantity", Row: &statementv1.Row{}}}
-			},
-		},
-		{
-			name: "resolution",
-			kind: gen.RunKindResolution,
-			expect: func(r *mock.MockReaderMockRecorder) {
-				r.ListResolutionItems(gomock.Any(), runID).Return([]gen.ListResolutionItemsRow{{
-					ResolutionKey: gen.ResolutionKey{StatedKeyID: keyID, Outcome: gen.ResolutionOutcomeUnrecognised}, StatedKey: key,
-				}}, nil)
-			},
-			want: func(out *adminv1.GetRunResponse) {
-				out.ResolutionItems = []*typev1.ResolutionItem{{
-					StatedKey: keyMsg, StatedKeyId: keyID.String(), Outcome: typev1.ResolutionOutcome_RESOLUTION_OUTCOME_UNRECOGNISED,
-				}}
-			},
-		},
-		{
-			name: "fetch",
-			kind: gen.RunKindFetch,
-			expect: func(r *mock.MockReaderMockRecorder) {
-				r.ListFetchItems(gomock.Any(), runID).Return([]gen.ListFetchItemsRow{{
-					FetchKey: gen.FetchKey{
-						StatedKeyID: keyID, Outcome: gen.FetchOutcomeFailedPermanent, Attempts: 1,
-						SentType: &isin.Type, SentValue: &isin.Value, Reason: ptr.To("unknown identifier"),
-					},
-					StatedKey: key,
-				}}, nil)
-			},
-			want: func(out *adminv1.GetRunResponse) {
-				out.FetchItems = []*adminv1.FetchItem{{
-					StatedKey: keyMsg, StatedKeyId: keyID.String(), Outcome: adminv1.FetchOutcome_FETCH_OUTCOME_FAILED_PERMANENT, Attempts: 1,
-					Sent:   &typev1.Identifier{Type: typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, Value: "GB00B03MLX29"},
-					Reason: ptr.To("unknown identifier"),
-				}}
-			},
+			name:   "statement",
+			kind:   gen.RunKindStatement,
+			expect: func(*MockStoreMockRecorder) {},
+			want:   func(*adminv1.GetRunResponse) {},
 		},
 		{
 			name: "replay",
 			kind: gen.RunKindReplay,
-			expect: func(r *mock.MockReaderMockRecorder) {
+			expect: func(r *MockStoreMockRecorder) {
 				r.GetReplay(gomock.Any(), runID).Return(gen.GetReplayRow{
 					Replay: gen.Replay{ID: runID, UserID: userID, SourceID: parentID, Datasource: ptr.To("openfigi"), StartedBy: adminID}, StartedByEmail: "admin@example.com",
 				}, nil)
@@ -272,11 +245,19 @@ func TestGetRun(t *testing.T) {
 				out.Replay = &adminv1.Replay{SourceRunId: parentID.String(), Scope: &adminv1.Replay_Datasource{Datasource: "openfigi"}, StartedBy: "admin@example.com"}
 			},
 		},
+		{
+			name: "a replay whose prepare step failed",
+			kind: gen.RunKindReplay,
+			expect: func(r *MockStoreMockRecorder) {
+				r.GetReplay(gomock.Any(), runID).Return(gen.GetReplayRow{}, db.ErrNotFound)
+			},
+			want: func(*adminv1.GetRunResponse) {},
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newFixture(t)
-			r := f.reader.EXPECT()
+			r := f.store.EXPECT()
 			r.GetUserRun(gomock.Any(), runID).Return(gen.GetUserRunRow{Run: runRow(runID, tc.kind), Email: "one@example.com", OpenFindings: 1}, nil)
 			parent := runRow(parentID, gen.RunKindStatement)
 			r.ListRunAncestors(gomock.Any(), runID).Return([]gen.ListRunAncestorsRow{{Run: parent, Email: "one@example.com", OpenFindings: 1}}, nil)
@@ -368,6 +349,99 @@ func TestGetRun(t *testing.T) {
 	}
 }
 
+func TestListRunItems(t *testing.T) {
+	statementItem := func(ordinal int32) gen.StatementItem {
+		return gen.StatementItem{Ordinal: ordinal, Reason: "no quantity", Stated: []byte(`{}`)}
+	}
+	statementMsg := func(ordinal int32) *adminv1.RunItem {
+		return &adminv1.RunItem{Item: &adminv1.RunItem_Statement{Statement: &statementv1.StatementItem{Ordinal: ordinal, Reason: "no quantity", Row: &statementv1.Row{}}}}
+	}
+	three, fifty := int32(3), int32(defaultPageSize+1)
+	tests := []struct {
+		name     string
+		kind     gen.RunKind
+		req      *adminv1.ListRunItemsRequest
+		expect   func(r *MockStoreMockRecorder)
+		want     *adminv1.ListRunItemsResponse
+		wantCode connect.Code
+	}{
+		{
+			name: "a statement's first page",
+			kind: gen.RunKindStatement,
+			req:  &adminv1.ListRunItemsRequest{PageSize: 2},
+			expect: func(r *MockStoreMockRecorder) {
+				r.ListStatementItems(gomock.Any(), gen.ListStatementItemsParams{StatementID: runID, UserID: userID, Lim: &three}).
+					Return([]gen.StatementItem{statementItem(1), statementItem(2), statementItem(3)}, nil)
+			},
+			want: &adminv1.ListRunItemsResponse{Items: []*adminv1.RunItem{statementMsg(1), statementMsg(2)}, NextPageToken: "2"},
+		},
+		{
+			name: "a statement's last page",
+			kind: gen.RunKindStatement,
+			req:  &adminv1.ListRunItemsRequest{PageSize: 2, PageToken: "2"},
+			expect: func(r *MockStoreMockRecorder) {
+				r.ListStatementItems(gomock.Any(), gen.ListStatementItemsParams{StatementID: runID, UserID: userID, After: ptr.To(int32(2)), Lim: &three}).
+					Return([]gen.StatementItem{statementItem(3)}, nil)
+			},
+			want: &adminv1.ListRunItemsResponse{Items: []*adminv1.RunItem{statementMsg(3)}},
+		},
+		{
+			name: "a resolution",
+			kind: gen.RunKindResolution,
+			req:  &adminv1.ListRunItemsRequest{},
+			expect: func(r *MockStoreMockRecorder) {
+				r.ListResolutionItems(gomock.Any(), gen.ListResolutionItemsParams{RunID: runID, Lim: &fifty}).Return([]gen.ListResolutionItemsRow{{
+					ResolutionKey: gen.ResolutionKey{StatedKeyID: keyID, Outcome: gen.ResolutionOutcomeUnrecognised}, StatedKey: itemKey,
+				}}, nil)
+			},
+			want: &adminv1.ListRunItemsResponse{Items: []*adminv1.RunItem{{Item: &adminv1.RunItem_Resolution{Resolution: &typev1.ResolutionItem{
+				StatedKey: itemKeyMsg, StatedKeyId: keyID.String(), Outcome: typev1.ResolutionOutcome_RESOLUTION_OUTCOME_UNRECOGNISED,
+			}}}}},
+		},
+		{
+			name: "a fetch's page after a key",
+			kind: gen.RunKindFetch,
+			req:  &adminv1.ListRunItemsRequest{PageToken: childID.String()},
+			expect: func(r *MockStoreMockRecorder) {
+				r.ListFetchItems(gomock.Any(), gen.ListFetchItemsParams{FetchID: runID, After: &childID, Lim: &fifty}).Return([]gen.ListFetchItemsRow{{
+					FetchKey: gen.FetchKey{
+						StatedKeyID: keyID, Outcome: gen.FetchOutcomeFailedPermanent, Attempts: 1,
+						SentType: &itemISIN.Type, SentValue: &itemISIN.Value, Reason: ptr.To("unknown identifier"),
+					},
+					StatedKey: itemKey,
+				}}, nil)
+			},
+			want: &adminv1.ListRunItemsResponse{Items: []*adminv1.RunItem{{Item: &adminv1.RunItem_Fetch{Fetch: &adminv1.FetchItem{
+				StatedKey: itemKeyMsg, StatedKeyId: keyID.String(), Outcome: adminv1.FetchOutcome_FETCH_OUTCOME_FAILED_PERMANENT, Attempts: 1,
+				Sent:   &typev1.Identifier{Type: typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, Value: "GB00B03MLX29"},
+				Reason: ptr.To("unknown identifier"),
+			}}}}},
+		},
+		{name: "a replay has none", kind: gen.RunKindReplay, req: &adminv1.ListRunItemsRequest{}, expect: func(*MockStoreMockRecorder) {}, want: &adminv1.ListRunItemsResponse{}},
+		{name: "a statement's malformed token", kind: gen.RunKindStatement, req: &adminv1.ListRunItemsRequest{PageToken: "next"}, expect: func(*MockStoreMockRecorder) {}, wantCode: connect.CodeInvalidArgument},
+		{name: "a resolution's malformed token", kind: gen.RunKindResolution, req: &adminv1.ListRunItemsRequest{PageToken: "2"}, expect: func(*MockStoreMockRecorder) {}, wantCode: connect.CodeInvalidArgument},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFixture(t)
+			r := f.store.EXPECT()
+			r.GetUserRun(gomock.Any(), runID).Return(gen.GetUserRunRow{Run: runRow(runID, tc.kind), Email: "one@example.com"}, nil)
+			tc.expect(r)
+			tc.req.RunId = runID.String()
+			res, err := f.client.ListRunItems(context.Background(), connect.NewRequest(tc.req))
+			if servicetest.CodeOf(err) != tc.wantCode {
+				t.Fatalf("ListRunItems(%v) code = %v (err %v), want %v", tc.req, servicetest.CodeOf(err), err, tc.wantCode)
+			}
+			if err != nil {
+				return
+			}
+			if diff := cmp.Diff(tc.want, res.Msg, protocmp.Transform()); diff != "" {
+				t.Errorf("ListRunItems(%v) mismatch (-want +got):\n%s", tc.req, diff)
+			}
+		})
+	}
+}
+
 func TestGetRunErrors(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -383,11 +457,11 @@ func TestGetRunErrors(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newFixture(t)
 			if tc.wantCode != connect.CodeInvalidArgument {
-				f.reader.EXPECT().GetUserRun(gomock.Any(), runID).Return(gen.GetUserRunRow{}, tc.err)
+				f.store.EXPECT().GetUserRun(gomock.Any(), runID).Return(gen.GetUserRunRow{}, tc.err)
 			}
 			_, err := f.client.GetRun(context.Background(), connect.NewRequest(&adminv1.GetRunRequest{RunId: tc.id}))
 			if servicetest.CodeOf(err) != tc.wantCode {
-				t.Errorf("GetRun(%q) code = %v (err %v), want %v", tc.id, connect.CodeOf(err), err, tc.wantCode)
+				t.Errorf("GetRun(%q) code = %v (err %v), want %v", tc.id, servicetest.CodeOf(err), err, tc.wantCode)
 			}
 		})
 	}
@@ -423,14 +497,14 @@ func TestStartReplay(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newFixture(t)
 			if tc.wantCode != connect.CodeInvalidArgument {
-				f.reader.EXPECT().GetUserRun(gomock.Any(), runID).Return(gen.GetUserRunRow{Run: source, Email: "one@example.com"}, tc.readErr)
+				f.store.EXPECT().GetUserRun(gomock.Any(), runID).Return(gen.GetUserRunRow{Run: source, Email: "one@example.com"}, tc.readErr)
 			}
 			if tc.wantScope != nil {
 				f.replays.EXPECT().Start(gomock.Any(), adminID, source, *tc.wantScope).Return(started, tc.startErr)
 			}
 			res, err := f.client.StartReplay(context.Background(), connect.NewRequest(tc.req))
 			if servicetest.CodeOf(err) != tc.wantCode {
-				t.Fatalf("StartReplay(%s) code = %v (err %v), want %v", tc.name, connect.CodeOf(err), err, tc.wantCode)
+				t.Fatalf("StartReplay(%s) code = %v (err %v), want %v", tc.name, servicetest.CodeOf(err), err, tc.wantCode)
 			}
 			if err != nil {
 				return
@@ -446,26 +520,22 @@ func TestStartReplay(t *testing.T) {
 func TestClearFinding(t *testing.T) {
 	tests := []struct {
 		name     string
-		row      gen.Finding
+		block    *uuid.UUID
 		err      error
-		clears   bool
 		wantCode connect.Code
 	}{
-		{name: "reports nothing withheld", row: gen.Finding{ID: findingID}, clears: true},
-		{name: "reports a block", row: gen.Finding{ID: findingID, BlockID: &blockID}, wantCode: connect.CodeFailedPrecondition},
+		{name: "reports nothing withheld"},
+		{name: "reports a block", block: &blockID, wantCode: connect.CodeFailedPrecondition},
 		{name: "not found", err: db.ErrNotFound, wantCode: connect.CodeNotFound},
 		{name: "failure", err: errors.New("boom"), wantCode: connect.CodeInternal},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newFixture(t)
-			f.reader.EXPECT().GetFinding(gomock.Any(), findingID).Return(tc.row, tc.err)
-			if tc.clears {
-				f.reader.EXPECT().ClearFinding(gomock.Any(), findingID).Return(nil)
-			}
+			f.store.EXPECT().ClearFinding(gomock.Any(), findingID).Return(tc.block, tc.err)
 			_, err := f.client.ClearFinding(context.Background(), connect.NewRequest(&adminv1.ClearFindingRequest{FindingId: findingID.String()}))
 			if servicetest.CodeOf(err) != tc.wantCode {
-				t.Errorf("ClearFinding() code = %v (err %v), want %v", connect.CodeOf(err), err, tc.wantCode)
+				t.Errorf("ClearFinding() code = %v (err %v), want %v", servicetest.CodeOf(err), err, tc.wantCode)
 			}
 		})
 	}
@@ -473,7 +543,7 @@ func TestClearFinding(t *testing.T) {
 
 func TestListDatasources(t *testing.T) {
 	f := newFixture(t)
-	f.reader.EXPECT().ListDatasourceSettings(gomock.Any()).Return([]gen.ListDatasourceSettingsRow{
+	f.store.EXPECT().ListDatasourceSettings(gomock.Any()).Return([]gen.ListDatasourceSettingsRow{
 		{Name: "openfigi", Enabled: true, Precedence: 10, Endpoint: ptr.To("http://stub"), HasCredential: true},
 		{Name: "other", Precedence: 20},
 	}, nil)
@@ -491,59 +561,89 @@ func TestListDatasources(t *testing.T) {
 }
 
 // TestUpdateDatasource checks that a change is written and the registry
-// reloaded, that the credential never comes back, and what is refused.
+// reloaded, that the credential never comes back, and that a change the
+// registry would refuse is rolled back.
 func TestUpdateDatasource(t *testing.T) {
+	stub := gen.Datasource{Name: "openfigi", Enabled: true, Precedence: 10, Endpoint: ptr.To("http://stub")}
 	tests := []struct {
 		name     string
 		req      *adminv1.UpdateDatasourceRequest
-		carries  bool
-		wantArg  *gen.UpdateDatasourceParams
+		wantArg  gen.UpdateDatasourceParams
 		row      gen.Datasource
 		err      error
-		want     *adminv1.Datasource
-		wantCode connect.Code
+		checkErr error
+		// checked is whether the registry is asked to check the row, which
+		// it is when the row is enabled.
+		checked   bool
+		reloadErr error
+		want      *adminv1.Datasource
+		wantCode  connect.Code
 	}{
 		{
 			name:    "enabled with an endpoint and a credential",
 			req:     &adminv1.UpdateDatasourceRequest{Name: "openfigi", Enabled: true, Endpoint: ptr.To("http://stub"), Credential: ptr.To("secret")},
-			carries: true,
-			wantArg: &gen.UpdateDatasourceParams{Name: "openfigi", Enabled: true, Endpoint: ptr.To("http://stub"), Credential: ptr.To("secret")},
+			wantArg: gen.UpdateDatasourceParams{Name: "openfigi", Enabled: true, Endpoint: ptr.To("http://stub"), Credential: ptr.To("secret")},
 			row:     gen.Datasource{Name: "openfigi", Enabled: true, Precedence: 10, Endpoint: ptr.To("http://stub"), Credential: ptr.To("secret")},
+			checked: true,
 			want:    &adminv1.Datasource{Name: "openfigi", Enabled: true, Precedence: 10, Endpoint: ptr.To("http://stub"), HasCredential: true},
+		},
+		{
+			name:    "an unset endpoint keeps the one held",
+			req:     &adminv1.UpdateDatasourceRequest{Name: "openfigi", Enabled: true},
+			wantArg: gen.UpdateDatasourceParams{Name: "openfigi", Enabled: true},
+			row:     stub,
+			checked: true,
+			want:    &adminv1.Datasource{Name: "openfigi", Enabled: true, Precedence: 10, Endpoint: ptr.To("http://stub")},
 		},
 		{
 			name:    "disabled with the endpoint cleared",
 			req:     &adminv1.UpdateDatasourceRequest{Name: "absent", Endpoint: ptr.To("")},
-			wantArg: &gen.UpdateDatasourceParams{Name: "absent"},
+			wantArg: gen.UpdateDatasourceParams{Name: "absent", Endpoint: ptr.To("")},
 			row:     gen.Datasource{Name: "absent", Precedence: 20},
 			want:    &adminv1.Datasource{Name: "absent", Precedence: 20},
 		},
 		{
-			name:     "enabling an integration the build lacks",
+			name:     "enabling a datasource the registry refuses",
 			req:      &adminv1.UpdateDatasourceRequest{Name: "absent", Enabled: true},
+			wantArg:  gen.UpdateDatasourceParams{Name: "absent", Enabled: true},
+			row:      gen.Datasource{Name: "absent", Enabled: true, Precedence: 20},
+			checked:  true,
+			checkErr: market.ErrNoIntegration,
 			wantCode: connect.CodeFailedPrecondition,
 		},
 		{
 			name:     "no such datasource",
 			req:      &adminv1.UpdateDatasourceRequest{Name: "gone"},
-			wantArg:  &gen.UpdateDatasourceParams{Name: "gone"},
+			wantArg:  gen.UpdateDatasourceParams{Name: "gone"},
 			err:      db.ErrNotFound,
 			wantCode: connect.CodeNotFound,
+		},
+		{
+			name:      "the reload fails",
+			req:       &adminv1.UpdateDatasourceRequest{Name: "openfigi", Enabled: true},
+			wantArg:   gen.UpdateDatasourceParams{Name: "openfigi", Enabled: true},
+			row:       stub,
+			checked:   true,
+			reloadErr: errors.New("boom"),
+			wantCode:  connect.CodeInternal,
 		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newFixture(t)
-			f.sources.EXPECT().Carries(tc.req.GetName()).Return(tc.carries).AnyTimes()
-			if tc.wantArg != nil {
-				f.reader.EXPECT().UpdateDatasource(gomock.Any(), *tc.wantArg).Return(tc.row, tc.err)
+			f.store.EXPECT().UpdateDatasource(gomock.Any(), tc.wantArg).Return(tc.row, tc.err)
+			if tc.checked {
+				f.sources.EXPECT().Check(market.ConfigOf(tc.row)).Return(tc.checkErr)
 			}
-			if tc.want != nil {
-				f.sources.EXPECT().Reload(gomock.Any()).Return(nil)
+			if tc.err == nil && tc.checkErr == nil {
+				f.sources.EXPECT().Reload(gomock.Any()).Return(tc.reloadErr)
 			}
 			res, err := f.client.UpdateDatasource(context.Background(), connect.NewRequest(tc.req))
-			if (err != nil) != (tc.wantCode != 0) || (err != nil && connect.CodeOf(err) != tc.wantCode) {
-				t.Fatalf("UpdateDatasource() error = %v, want code %v", err, tc.wantCode)
+			if servicetest.CodeOf(err) != tc.wantCode {
+				t.Fatalf("UpdateDatasource() code = %v (err %v), want %v", servicetest.CodeOf(err), err, tc.wantCode)
+			}
+			if tc.checkErr != nil && (len(f.txErrs) != 1 || f.txErrs[0] == nil) {
+				t.Errorf("transactions returned %v, want the one rolled back", f.txErrs)
 			}
 			if tc.want == nil {
 				return
@@ -555,17 +655,17 @@ func TestUpdateDatasource(t *testing.T) {
 	}
 }
 
-// TestReorderDatasources checks that the position becomes the precedence and
-// that a list naming the datasources wrongly is refused.
+// TestReorderDatasources checks that the names are written in the order
+// given and that a list naming the datasources wrongly is refused.
 func TestReorderDatasources(t *testing.T) {
 	rows := []gen.Datasource{{Name: "alpha", Precedence: 1}, {Name: "beta", Precedence: 2}}
 	tests := []struct {
 		name     string
 		names    []string
-		wantArg  *gen.SetDatasourcePrecedenceParams
+		writes   bool
 		wantCode connect.Code
 	}{
-		{name: "reversed", names: []string{"beta", "alpha"}, wantArg: &gen.SetDatasourcePrecedenceParams{Names: []string{"beta", "alpha"}, Precedences: []int32{1, 2}}},
+		{name: "reversed", names: []string{"beta", "alpha"}, writes: true},
 		{name: "one named twice", names: []string{"beta", "beta"}, wantCode: connect.CodeInvalidArgument},
 		{name: "one left out", names: []string{"beta"}, wantCode: connect.CodeInvalidArgument},
 		{name: "one that is no datasource", names: []string{"beta", "alpha", "gamma"}, wantCode: connect.CodeInvalidArgument},
@@ -573,14 +673,14 @@ func TestReorderDatasources(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newFixture(t)
-			f.reader.EXPECT().ListDatasources(gomock.Any()).Return(rows, nil)
-			if tc.wantArg != nil {
-				f.reader.EXPECT().SetDatasourcePrecedence(gomock.Any(), *tc.wantArg).Return(nil)
+			f.store.EXPECT().ListDatasources(gomock.Any()).Return(rows, nil)
+			if tc.writes {
+				f.store.EXPECT().SetDatasourcePrecedence(gomock.Any(), tc.names).Return(nil)
 				f.sources.EXPECT().Reload(gomock.Any()).Return(nil)
 			}
 			_, err := f.client.ReorderDatasources(context.Background(), connect.NewRequest(&adminv1.ReorderDatasourcesRequest{Names: tc.names}))
-			if (err != nil) != (tc.wantCode != 0) || (err != nil && connect.CodeOf(err) != tc.wantCode) {
-				t.Errorf("ReorderDatasources(%v) error = %v, want code %v", tc.names, err, tc.wantCode)
+			if servicetest.CodeOf(err) != tc.wantCode {
+				t.Errorf("ReorderDatasources(%v) code = %v (err %v), want %v", tc.names, servicetest.CodeOf(err), err, tc.wantCode)
 			}
 		})
 	}
@@ -589,7 +689,7 @@ func TestReorderDatasources(t *testing.T) {
 func TestListBlocks(t *testing.T) {
 	isin := types.IdentifierTypeIsin
 	f := newFixture(t)
-	f.reader.EXPECT().ListBlocks(gomock.Any(), gen.ListBlocksParams{Before: &findingID, Lim: defaultPageSize + 1}).Return([]gen.ListBlocksRow{
+	f.store.EXPECT().ListBlocks(gomock.Any(), gen.ListBlocksParams{Before: &findingID, Lim: defaultPageSize + 1}).Return([]gen.ListBlocksRow{
 		{DatasourceBlock: gen.DatasourceBlock{
 			ID: blockID, Datasource: "openfigi", Kind: gen.FetchKindIdentity, Scope: gen.BlockScopeIdentifier,
 			SentType: &isin, SentValue: ptr.To("GB00B03MLX29"), Reason: "unknown identifier", CreatedAt: created,
@@ -619,27 +719,41 @@ func TestListBlocks(t *testing.T) {
 	}
 }
 
+// TestListBlocksPages checks that a full page is cut to its size and that
+// the token of the next page is the id of the last block served.
+func TestListBlocksPages(t *testing.T) {
+	f := newFixture(t)
+	rows := []gen.ListBlocksRow{
+		{DatasourceBlock: gen.DatasourceBlock{ID: blockID, Datasource: "openfigi", Kind: gen.FetchKindIdentity, Scope: gen.BlockScopeDatasource, Reason: "a", CreatedAt: created}, FetchID: childID},
+		{DatasourceBlock: gen.DatasourceBlock{ID: keyID, Datasource: "openfigi", Kind: gen.FetchKindIdentity, Scope: gen.BlockScopeDatasource, Reason: "b", CreatedAt: created}, FetchID: childID},
+	}
+	f.store.EXPECT().ListBlocks(gomock.Any(), gen.ListBlocksParams{Lim: 2}).Return(rows, nil)
+	res, err := f.client.ListBlocks(context.Background(), connect.NewRequest(&adminv1.ListBlocksRequest{PageSize: 1}))
+	if err != nil {
+		t.Fatalf("ListBlocks() error = %v", err)
+	}
+	if len(res.Msg.GetBlocks()) != 1 || res.Msg.GetBlocks()[0].GetId() != blockID.String() || res.Msg.GetNextPageToken() != blockID.String() {
+		t.Errorf("ListBlocks() = %v, want the first block and its id as the next token", res.Msg)
+	}
+}
+
 func TestClearBlock(t *testing.T) {
 	tests := []struct {
 		name     string
 		err      error
-		clears   bool
 		wantCode connect.Code
 	}{
-		{name: "found", clears: true},
+		{name: "found"},
 		{name: "not found", err: db.ErrNotFound, wantCode: connect.CodeNotFound},
 		{name: "failure", err: errors.New("boom"), wantCode: connect.CodeInternal},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newFixture(t)
-			f.reader.EXPECT().GetDatasourceBlock(gomock.Any(), blockID).Return(gen.DatasourceBlock{ID: blockID}, tc.err)
-			if tc.clears {
-				f.reader.EXPECT().ClearDatasourceBlock(gomock.Any(), blockID).Return(nil)
-			}
+			f.store.EXPECT().ClearDatasourceBlock(gomock.Any(), blockID).Return(blockID, tc.err)
 			_, err := f.client.ClearBlock(context.Background(), connect.NewRequest(&adminv1.ClearBlockRequest{BlockId: blockID.String()}))
 			if servicetest.CodeOf(err) != tc.wantCode {
-				t.Errorf("ClearBlock() code = %v (err %v), want %v", connect.CodeOf(err), err, tc.wantCode)
+				t.Errorf("ClearBlock() code = %v (err %v), want %v", servicetest.CodeOf(err), err, tc.wantCode)
 			}
 		})
 	}

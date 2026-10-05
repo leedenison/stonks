@@ -89,8 +89,8 @@ func newFetching(t *testing.T, q *gen.Queries) fetching {
 	return f
 }
 
-// TestDatasources checks that the schema seeds none, and that name breaks a
-// tie in precedence.
+// TestDatasources checks that the schema seeds none, that they list in
+// precedence order, and that two may not share a precedence.
 func TestDatasources(t *testing.T) {
 	ctx := context.Background()
 	q := newTx(t)
@@ -102,7 +102,7 @@ func TestDatasources(t *testing.T) {
 	}
 
 	newDatasource(t, q, "beta", 20)
-	newDatasource(t, q, "gamma", 10)
+	newDatasource(t, q, "gamma", 30)
 	newDatasource(t, q, "alpha", 10)
 
 	listed, err := q.ListDatasources(ctx)
@@ -111,13 +111,24 @@ func TestDatasources(t *testing.T) {
 	for _, ds := range listed {
 		names = append(names, ds.Name)
 	}
-	if diff := cmp.Diff([]string{"alpha", "gamma", "beta"}, names); diff != "" {
+	if diff := cmp.Diff([]string{"alpha", "beta", "gamma"}, names); diff != "" {
 		t.Errorf("ListDatasources mismatch (-want +got):\n%s", diff)
 	}
+
+	t.Run("a shared precedence", func(t *testing.T) {
+		tx := begin(t)
+		q := gen.New(tx)
+		newDatasource(t, q, "one", 1)
+		newDatasource(t, q, "two", 1)
+		_, err := tx.Exec(ctx, "SET CONSTRAINTS ALL IMMEDIATE")
+		if !sqlstate(err, pgerrcode.UniqueViolation) {
+			t.Errorf("two datasources at one precedence: err = %v, want a unique violation", err)
+		}
+	})
 }
 
-// TestUpdateDatasource checks the credential's three cases, the endpoint, and
-// the precedence set by position.
+// TestUpdateDatasource checks the three cases of the credential and of the
+// endpoint, and the precedence set by position.
 func TestUpdateDatasource(t *testing.T) {
 	ctx := context.Background()
 	q := newTx(t)
@@ -129,15 +140,15 @@ func TestUpdateDatasource(t *testing.T) {
 	if row.Enabled || row.Endpoint == nil || *row.Endpoint != "http://stub" || row.Credential == nil || *row.Credential != "secret" {
 		t.Errorf("UpdateDatasource = %+v, want disabled at http://stub holding secret", row)
 	}
-	row, err = q.UpdateDatasource(ctx, gen.UpdateDatasourceParams{Name: "beta", Enabled: true, Endpoint: ptr.To("http://stub")})
+	row, err = q.UpdateDatasource(ctx, gen.UpdateDatasourceParams{Name: "beta", Enabled: true})
 	require.NoError(t, err)
-	if !row.Enabled || row.Credential == nil || *row.Credential != "secret" {
-		t.Errorf("UpdateDatasource with no credential = %+v, want enabled and the credential kept", row)
+	if !row.Enabled || row.Credential == nil || *row.Credential != "secret" || row.Endpoint == nil || *row.Endpoint != "http://stub" {
+		t.Errorf("UpdateDatasource with no credential and no endpoint = %+v, want enabled and both kept", row)
 	}
-	row, err = q.UpdateDatasource(ctx, gen.UpdateDatasourceParams{Name: "beta", Enabled: true, Credential: ptr.To("")})
+	row, err = q.UpdateDatasource(ctx, gen.UpdateDatasourceParams{Name: "beta", Enabled: true, Endpoint: ptr.To(""), Credential: ptr.To("")})
 	require.NoError(t, err)
 	if row.Credential != nil || row.Endpoint != nil {
-		t.Errorf("UpdateDatasource with an empty credential and no endpoint = %+v, want both cleared", row)
+		t.Errorf("UpdateDatasource with an empty credential and an empty endpoint = %+v, want both cleared", row)
 	}
 	settings, err := q.ListDatasourceSettings(ctx)
 	require.NoError(t, err)
@@ -150,7 +161,9 @@ func TestUpdateDatasource(t *testing.T) {
 		t.Errorf("UpdateDatasource of no datasource: err = %v, want ErrNotFound", err)
 	}
 
-	require.NoError(t, q.SetDatasourcePrecedence(ctx, gen.SetDatasourcePrecedenceParams{Names: []string{"beta", "alpha"}, Precedences: []int32{1, 2}}))
+	// alpha and beta swap precedences in one statement, which the deferred
+	// constraint admits.
+	require.NoError(t, q.SetDatasourcePrecedence(ctx, []string{"beta", "alpha"}))
 	listed, err := q.ListDatasources(ctx)
 	require.NoError(t, err)
 	if len(listed) != 2 || listed[0].Name != "beta" || listed[0].Precedence != 1 || listed[1].Precedence != 2 {
@@ -374,7 +387,8 @@ func TestDatasourceBlocks(t *testing.T) {
 		}
 	}
 
-	require.NoError(t, q.ClearDatasourceBlock(ctx, first.ID))
+	_, err = q.ClearDatasourceBlock(ctx, first.ID)
+	require.NoError(t, err)
 	findings, err = q.ListRunFindings(ctx, []uuid.UUID{fetch.ID})
 	require.NoError(t, err)
 	for _, f := range findings {

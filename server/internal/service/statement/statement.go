@@ -4,11 +4,9 @@ package statement
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
-	"google.golang.org/protobuf/encoding/protojson"
 
 	statementv1 "github.com/leedenison/stonks/proto/statement/v1"
 	"github.com/leedenison/stonks/proto/statement/v1/statementv1connect"
@@ -115,7 +113,7 @@ func (s *Server) GetStatement(ctx context.Context, req *connect.Request[statemen
 	}
 	out := &statementv1.GetStatementResponse{Statement: summary(row.Statement, row.Run, row.Rejected)}
 	for _, it := range items {
-		item, err := ItemToProto(it)
+		item, err := statement.ItemToProto(it)
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInternal, err)
 		}
@@ -148,12 +146,11 @@ func (s *Server) keys(ctx context.Context, statement, user uuid.UUID) ([]*typev1
 	}
 	out := make([]*typev1.ResolutionItem, 0, len(keys))
 	for _, k := range keys {
-		item := &typev1.ResolutionItem{StatedKey: to.ProtoStatedKey(k), StatedKeyId: k.ID.String()}
+		var latest *gen.ResolutionKey
 		if r, ok := outcome[k.ID]; ok {
-			item.Outcome = types.ToProto[typev1.ResolutionOutcome](r.Outcome)
-			item.Reason = r.Reason
+			latest = &r
 		}
-		out = append(out, item)
+		out = append(out, to.ProtoResolutionItem(k, latest))
 	}
 	return out, nil
 }
@@ -167,13 +164,4 @@ func summary(st gen.Statement, run gen.Run, rejected int32) *statementv1.Stateme
 		Rows:        st.RowCount,
 		Rejected:    rejected,
 	}
-}
-
-// ItemToProto converts a rejected row to its message.
-func ItemToProto(it gen.StatementItem) (*statementv1.StatementItem, error) {
-	row := &statementv1.Row{}
-	if err := protojson.Unmarshal(it.Stated, row); err != nil {
-		return nil, fmt.Errorf("read item %d: %w", it.Ordinal, err)
-	}
-	return &statementv1.StatementItem{Ordinal: it.Ordinal, Reason: it.Reason, Row: row}, nil
 }

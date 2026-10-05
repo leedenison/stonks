@@ -241,7 +241,7 @@ func (s *stack) fetchKey(t *testing.T, key uuid.UUID, datasource string) gen.Fet
 		if fetch.Datasource != datasource {
 			continue
 		}
-		items, err := s.q.ListFetchItems(ctx, child.ID)
+		items, err := s.q.ListFetchItems(ctx, gen.ListFetchItemsParams{FetchID: child.ID})
 		require.NoError(t, err)
 		for _, it := range items {
 			if it.StatedKey.ID == key {
@@ -374,7 +374,7 @@ func TestResolveWrites(t *testing.T) {
 	if len(children) != 1 || children[0].Kind != gen.RunKindFetch || children[0].State != gen.RunStateCompleted {
 		t.Fatalf("ListChildRuns = %+v, want one completed fetch", children)
 	}
-	items, err := s.q.ListFetchItems(ctx, children[0].ID)
+	items, err := s.q.ListFetchItems(ctx, gen.ListFetchItemsParams{FetchID: children[0].ID})
 	require.NoError(t, err)
 	sent := map[uuid.UUID]gen.FetchKey{}
 	for _, it := range items {

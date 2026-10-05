@@ -221,7 +221,7 @@ func (s *stack) resolution(t *testing.T, parent gen.Run) (gen.Run, []gen.ListRes
 	if len(children) != 1 || children[0].Kind != gen.RunKindResolution {
 		t.Fatalf("children of %s = %+v, want one resolution", parent.ID, children)
 	}
-	items, err := s.q.ListResolutionItems(context.Background(), children[0].ID)
+	items, err := s.q.ListResolutionItems(context.Background(), gen.ListResolutionItemsParams{RunID: children[0].ID})
 	require.NoError(t, err)
 	return children[0], items
 }
