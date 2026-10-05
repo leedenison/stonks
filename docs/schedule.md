@@ -22,13 +22,15 @@ run.
 The milestones that are scheduled, in the order they are implemented. Each has a directory
 of open issues and ADRs at `docs/tasks/<label>/`.
 
-- **M03** - System owned instruments, the datasource framework, and resolution of stated
-  keys against one identity datasource.
+- **M04** - Identity datasources for Massive and EODHD, and confirming a candidate that a
+  fetch served for a key it could not associate.
 
 ```
-    001 open
-        |
-    002 close
+               001 open
+             /    |    \
+  002 massive  003 eodhd  004 confirm
+             \    |    /
+               005 close
 ```
 
 ## Completed
@@ -38,6 +40,8 @@ The record of what has been built. A milestone lands here when its issue directo
 - **M01** - Project scaffolding.
 - **M02** - Transaction ingestion from three brokers' exports, and the holdings derived
   from it.
+- **M03** - System owned instruments, the datasource framework, and resolution of stated
+  keys against one identity datasource.
 
 ## Deferred
 

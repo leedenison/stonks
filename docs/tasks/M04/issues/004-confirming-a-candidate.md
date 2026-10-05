@@ -5,9 +5,9 @@ type: task
 
 ## Scope
 
-Where a key's fetch served candidates but associated nothing, as with one stating a bare
-ticker, the key keeps those candidates, so a guess can rank them and the user can confirm
-one, either in the upload flow or later.
+A fetch can serve candidates and associate nothing, as with a key that states a bare
+ticker. The key keeps those candidates. A guess can rank them, and the user confirms one,
+either in the upload flow or later.
 
 A confirmed candidate is a datasource's assertion: it creates the system owned
 instrument, listing and identifiers the candidate names, and the key takes an ordinary
@@ -16,6 +16,6 @@ the user's.
 
 ## Design
 
-Nothing settled. The candidates of a served fetch are not stored today, since
+Nothing settled. The candidates of a served fetch are not stored, since
 fetch_identifiers stores one set of identifiers per fetch key, and a guess that ranks
 them has candidate authority and never filters.
