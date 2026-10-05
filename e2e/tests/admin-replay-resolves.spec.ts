@@ -9,13 +9,16 @@ import {
   resolutionItems,
   statementClient,
 } from "../helpers/api";
+import { uploadStatement } from "../helpers/upload";
 import { expect, test } from "../helpers/test";
 
 // One IBKR line, derived from the client's IBKR test export, which is
 // modelled on a real export with its identifiers replaced. It states Apple's
 // ISIN, which the provider answers with a rate limit on every try of the
 // first fetch and serves on the next, so the key stays unavailable until an
-// administrator replays it.
+// administrator replays it. The proxy answers each authored refusal once in
+// its lifetime, so the spec passes only against the fresh proxy that
+// make e2e-test starts.
 const fixture = path.resolve(__dirname, "..", "fixtures", "ibkr-retry.qfx");
 const isin = "US0378331005";
 
@@ -25,27 +28,12 @@ test("replays a statement's unavailable key from the runs page and resolves it",
 }) => {
   const { user, session: userSession } = await signIn();
   await page.goto("/transactions");
-  await page.getByTestId("upload-statement").click();
-  await page.getByTestId("upload-file").setInputFiles(fixture);
-  await page.getByTestId("upload-submit").click();
-  const item = page
-    .getByTestId("activity-sheet")
-    .getByTestId(/^activity-item-/)
-    .first();
-  await expect(item.getByTestId("state-chip")).toHaveAttribute(
-    "data-state",
-    "completed",
-  );
-  const runId = (await item.getAttribute("data-testid"))?.replace(
-    "activity-item-",
-    "",
-  );
-  expect(runId).toBeTruthy();
+  const runId = await uploadStatement(page, fixture, { state: "completed" });
 
   // Unavailable, not unrecognised: the refusal is temporary.
   await page.getByTestId("activity-sheet-close").click();
   const keys = (
-    await statementClient(userSession).getStatement({ runId: runId! })
+    await statementClient(userSession).getStatement({ runId: runId })
   ).keys;
   const key = keys.find((k) =>
     k.statedKey?.identifiers.some((i) => i.value === isin),
@@ -61,7 +49,7 @@ test("replays a statement's unavailable key from the runs page and resolves it",
   // A temporary refusal leaves no block, so the holding rests on the key alone.
   const { session } = await signIn("admin");
   const admin = adminClient(session);
-  const statement = await admin.getRun({ runId: runId! });
+  const statement = await admin.getRun({ runId: runId });
   expect(statement.findings).toHaveLength(0);
   const resolution = statement.run!.children[0];
   const fetched = await fetchItems(admin, resolution.children[0].run!.id);
@@ -76,7 +64,7 @@ test("replays a statement's unavailable key from the runs page and resolves it",
   expect(before.instruments).toHaveLength(1);
 
   await page.goto(`/admin/runs?user=${user.id}`);
-  await page.getByTestId(`run-row-${runId}`).getByRole("link").first().click();
+  await page.getByTestId(`run-link-${runId}`).click();
   await expect(page).toHaveURL(`/admin/runs/${runId}`);
   await page.getByTestId("run-replay").click();
   const dialog = page.getByTestId("replay-dialog");

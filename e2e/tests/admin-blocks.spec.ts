@@ -2,6 +2,7 @@ import path from "node:path";
 import { FetchOutcome, FindingKind } from "../gen/admin/v1/admin_pb";
 import { ResolutionOutcome } from "../gen/type/v1/type_pb";
 import { adminClient, fetchItems, resolutionItems } from "../helpers/api";
+import { uploadStatement } from "../helpers/upload";
 import { expect, test } from "../helpers/test";
 
 // One IBKR line, derived from the client's IBKR test export, which is
@@ -17,27 +18,12 @@ test("clears a block from the blocks page, clearing the finding reporting it", a
 }) => {
   const { user } = await signIn();
   await page.goto("/transactions");
-  await page.getByTestId("upload-statement").click();
-  await page.getByTestId("upload-file").setInputFiles(fixture);
-  await page.getByTestId("upload-submit").click();
-  const item = page
-    .getByTestId("activity-sheet")
-    .getByTestId(/^activity-item-/)
-    .first();
-  await expect(item.getByTestId("state-chip")).toHaveAttribute(
-    "data-state",
-    "completed",
-  );
-  const runId = (await item.getAttribute("data-testid"))?.replace(
-    "activity-item-",
-    "",
-  );
-  expect(runId).toBeTruthy();
+  const runId = await uploadStatement(page, fixture, { state: "completed" });
 
   // A permanent refusal blocks the identifier and reports it as a finding.
   const { session } = await signIn("admin");
   const admin = adminClient(session);
-  const statement = await admin.getRun({ runId: runId! });
+  const statement = await admin.getRun({ runId: runId });
   expect(statement.findings).toHaveLength(1);
   const finding = statement.findings[0];
   expect(finding.kind).toBe(FindingKind.BLOCK);
@@ -68,7 +54,7 @@ test("clears a block from the blocks page, clearing the finding reporting it", a
   await expect(
     page.getByTestId(`finding-clear-block-${finding.id}`),
   ).toHaveCount(0);
-  const after = await admin.getRun({ runId: runId! });
+  const after = await admin.getRun({ runId: runId });
   expect(after.findings[0].clearedAt).toBeDefined();
   const blocks = await admin.listBlocks({ includeCleared: true });
   const block = blocks.blocks.find((b) => b.id === finding.blockId);

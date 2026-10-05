@@ -1,6 +1,6 @@
 import { adminClient } from "./api";
 import { closeRedis, deleteSession, seedSession } from "./auth";
-import { closeDB, deleteUser, seedDatasource, seedUser } from "./db";
+import { closeDB, deleteUsers, seedDatasource, seedUser } from "./db";
 
 const name = "openfigi";
 const endpoint = "http://vcrproxy:8080";
@@ -26,7 +26,7 @@ export default async function setup(): Promise<void> {
       });
     } finally {
       await deleteSession(session);
-      await deleteUser(admin.id);
+      await deleteUsers([admin.id]);
     }
   } finally {
     await closeDB();

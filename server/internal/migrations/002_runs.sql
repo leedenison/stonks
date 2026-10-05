@@ -13,7 +13,7 @@ CREATE TYPE run_state AS ENUM ('pending', 'running', 'completed', 'failed', 'int
 -- outcome.
 CREATE TABLE runs (
     id          uuid        PRIMARY KEY,
-    user_id     uuid        NOT NULL REFERENCES users (id),
+    user_id     uuid        NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     kind        run_kind    NOT NULL,
     -- trigger is what started the run.
     trigger     run_trigger NOT NULL,
@@ -32,7 +32,7 @@ CREATE TABLE runs (
     finished_at timestamptz,
     CHECK ((trigger = 'run') = (parent_id IS NOT NULL)),
     UNIQUE (id, user_id),
-    FOREIGN KEY (parent_id, user_id) REFERENCES runs (id, user_id)
+    FOREIGN KEY (parent_id, user_id) REFERENCES runs (id, user_id) ON DELETE CASCADE
 );
 
 -- runs_parent_idx serves the walk from a run to its children, and with a NULL

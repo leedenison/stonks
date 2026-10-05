@@ -173,6 +173,7 @@ function Row({
     transform,
     transition,
     isDragging,
+    isOver,
   } = useSortable({ id: d.name });
   return (
     <Tr
@@ -183,6 +184,8 @@ function Row({
         opacity: isDragging ? 0.5 : 1,
       }}
       data-testid={`datasource-row-${d.name}`}
+      // data-over marks the row a drop would land on.
+      data-over={isOver ? "true" : undefined}
     >
       <Td className="w-8">
         <button

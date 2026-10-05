@@ -2,6 +2,7 @@ import path from "node:path";
 import { IdentifierType, ResolutionOutcome } from "../gen/type/v1/type_pb";
 import { holdingClient, statementClient } from "../helpers/api";
 import { seedDescribedInstrument } from "../helpers/db";
+import { uploadStatement } from "../helpers/upload";
 import { expect, test } from "../helpers/test";
 
 // Modelled on a real Fidelity UK export with its identifiers replaced. The
@@ -38,22 +39,10 @@ test("resolves a line through the description the broker gave it", async ({
 }) => {
   const { session } = await signIn();
   await page.goto("/transactions");
-  await page.getByTestId("upload-statement").click();
-  await page.getByTestId("upload-file").setInputFiles(fixture);
-  await expect(page.getByTestId("upload-rows")).toHaveText("5 rows");
-  await page.getByTestId("upload-submit").click();
-  const item = page
-    .getByTestId("activity-sheet")
-    .getByTestId(/^activity-item-/)
-    .first();
-  await expect(item.getByTestId("state-chip")).toHaveAttribute(
-    "data-state",
-    "completed",
-  );
-  const runId = (await item.getAttribute("data-testid"))!.replace(
-    "activity-item-",
-    "",
-  );
+  const runId = await uploadStatement(page, fixture, {
+    state: "completed",
+    rows: "5 rows",
+  });
   await page.getByTestId("activity-sheet-close").click();
 
   const keys = (await statementClient(session).getStatement({ runId })).keys;
