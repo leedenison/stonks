@@ -14,6 +14,11 @@ INSERT INTO transactions (id, user_id, broker, statement_id, stated_key_id,
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 RETURNING *;
 
+-- name: CreateTransactions :copyfrom
+INSERT INTO transactions (id, user_id, broker, statement_id, stated_key_id,
+                          order_date, settlement_date, as_at, quantity)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9);
+
 -- name: DeleteTransactions :execrows
 DELETE FROM transactions
 WHERE user_id = $1 AND broker = $2

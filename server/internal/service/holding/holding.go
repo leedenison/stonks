@@ -26,9 +26,9 @@ import (
 // Reader is this package's view of the holdings queries.
 type Reader interface {
 	ListInstrumentHoldings(ctx context.Context, userID uuid.UUID) ([]gen.ListInstrumentHoldingsRow, error)
-	ListHeldIdentifiers(ctx context.Context, userID uuid.UUID) ([]gen.Identifier, error)
+	ListIdentifiersOf(ctx context.Context, ids []uuid.UUID) ([]gen.Identifier, error)
 	ListGroupHoldings(ctx context.Context, userID uuid.UUID) ([]gen.ListGroupHoldingsRow, error)
-	ListHeldGroupKeys(ctx context.Context, userID uuid.UUID) ([]gen.StatedKey, error)
+	ListStatedKeysOfGroups(ctx context.Context, arg gen.ListStatedKeysOfGroupsParams) ([]gen.StatedKey, error)
 }
 
 var _ Reader = (*gen.Queries)(nil)
@@ -70,7 +70,11 @@ func (s *Server) instruments(ctx context.Context, user uuid.UUID) ([]*holdingv1.
 	if err != nil || len(rows) == 0 {
 		return nil, err
 	}
-	idents, err := s.reader.ListHeldIdentifiers(ctx, user)
+	ids := make([]uuid.UUID, len(rows))
+	for i, r := range rows {
+		ids[i] = r.InstrumentID
+	}
+	idents, err := s.reader.ListIdentifiersOf(ctx, ids)
 	if err != nil {
 		return nil, err
 	}
@@ -97,27 +101,28 @@ func (s *Server) groups(ctx context.Context, user uuid.UUID) ([]*holdingv1.Group
 	if err != nil || len(rows) == 0 {
 		return nil, err
 	}
-	keys, err := s.reader.ListHeldGroupKeys(ctx, user)
+	ids := make([]uuid.UUID, len(rows))
+	for i, r := range rows {
+		ids[i] = r.GroupID
+	}
+	keys, err := s.reader.ListStatedKeysOfGroups(ctx, gen.ListStatedKeysOfGroupsParams{UserID: user, GroupIds: ids})
 	if err != nil {
 		return nil, err
 	}
-	stated := make(map[uuid.UUID]*holdingv1.GroupHolding, len(rows))
+	stated := make(map[uuid.UUID]*stating, len(rows))
 	for _, k := range keys {
-		if k.GroupID == nil {
-			continue
-		}
-		h, ok := stated[*k.GroupID]
+		st, ok := stated[*k.GroupID]
 		if !ok {
-			h = &holdingv1.GroupHolding{}
-			stated[*k.GroupID] = h
+			st = &stating{h: &holdingv1.GroupHolding{}, classes: map[gen.AssetClass]bool{}, ids: map[types.Identifier]bool{}}
+			stated[*k.GroupID] = st
 		}
-		fold(h, k)
+		st.fold(k)
 	}
 	out := make([]*holdingv1.GroupHolding, 0, len(rows))
 	for _, r := range rows {
-		h := stated[r.GroupID]
-		if h == nil {
-			h = &holdingv1.GroupHolding{}
+		h := &holdingv1.GroupHolding{}
+		if st := stated[r.GroupID]; st != nil {
+			h = st.h
 		}
 		h.GroupId = r.GroupID.String()
 		h.Quantity = r.Quantity.String()
@@ -127,21 +132,25 @@ func (s *Server) groups(ctx context.Context, user uuid.UUID) ([]*holdingv1.Group
 	return out, nil
 }
 
-// fold adds what k states to h, leaving out what another key of the group
-// has already stated.
-func fold(h *holdingv1.GroupHolding, k gen.StatedKey) {
-	if k.AssetClass != nil {
-		class := types.ToProto[typev1.AssetClass](*k.AssetClass)
-		if !slices.Contains(h.AssetClasses, class) {
-			h.AssetClasses = append(h.AssetClasses, class)
-		}
+// stating is what the keys of one group state, each class and identifier
+// once.
+type stating struct {
+	h       *holdingv1.GroupHolding
+	classes map[gen.AssetClass]bool
+	ids     map[types.Identifier]bool
+}
+
+// fold adds the asset class and identifiers of k that the group has not yet
+// stated.
+func (st *stating) fold(k gen.StatedKey) {
+	if k.AssetClass != nil && !st.classes[*k.AssetClass] {
+		st.classes[*k.AssetClass] = true
+		st.h.AssetClasses = append(st.h.AssetClasses, types.ToProto[typev1.AssetClass](*k.AssetClass))
 	}
-	for _, i := range k.Identifiers {
-		id := &typev1.Identifier{Type: types.ToProto[typev1.IdentifierType](i.Type), Domain: i.Domain, Value: i.Value}
-		if !slices.ContainsFunc(h.Identifiers, func(o *typev1.Identifier) bool {
-			return o.GetType() == id.GetType() && o.GetDomain() == id.GetDomain() && o.GetValue() == id.GetValue()
-		}) {
-			h.Identifiers = append(h.Identifiers, id)
+	for _, id := range k.Identifiers {
+		if !st.ids[id] {
+			st.ids[id] = true
+			st.h.Identifiers = append(st.h.Identifiers, id.ToProto())
 		}
 	}
 }

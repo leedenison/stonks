@@ -48,6 +48,7 @@ a reason naming the description.
 The exclusive trait replaces the resolve package's own list of the types that admit
 several values. Statement validation accepts several values of a non-exclusive type.
 The write path re-reads the description under the lock as it re-reads the global
-identifiers. The domain of a stated description is what the source states, as for
-`broker_id`. No replay scope selects a key stating only a description, so a mapping
-written later does not re-resolve it. That is later work.
+identifiers. A statement states a description or a broker id only in its own broker's
+domain. Validation rejects a row that states one in another domain. No replay scope
+selects a key stating only a description, so a mapping written later does not re-resolve
+it. That is later work.

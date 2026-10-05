@@ -12,8 +12,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"hash/maphash"
-	"slices"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -23,7 +22,6 @@ import (
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/types"
-	"github.com/leedenison/stonks/server/internal/ptr"
 	"github.com/leedenison/stonks/server/internal/run"
 )
 
@@ -65,14 +63,12 @@ func (s *Service) Create(ctx context.Context, userID uuid.UUID, msg *statementv1
 		return gen.Run{}, fmt.Errorf("list currencies: %w", err)
 	}
 	currencies := make(map[string]bool, len(rows))
-	families := make(map[string]string, len(rows))
 	for _, c := range rows {
 		currencies[c.Code] = true
-		families[c.Code] = c.Family
 	}
 	now := s.clock().UTC()
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
-	g := &ingestion{store: s.store, runs: s.runs, resolver: s.resolver, user: userID, broker: broker, from: from, before: before, families: families, keys: map[uint64][]*key{}}
+	g := &ingestion{store: s.store, runs: s.runs, resolver: s.resolver, user: userID, broker: broker, from: from, before: before, keys: map[string]*key{}}
 	for i, r := range msg.GetRows() {
 		g.rows = append(g.rows, g.validate(int32(i), r, today, currencies))
 	}
@@ -98,11 +94,9 @@ type ingestion struct {
 	before   time.Time
 	rows     []row
 	splits   []split
-	// families maps each currency code to its family, the key of a listing.
-	families map[string]string
-	// keys holds each distinct stated key under its hash, and order lists
-	// them by first appearance.
-	keys  map[uint64][]*key
+	// keys holds each distinct stated key under its canonical encoding, and
+	// order lists them by first appearance.
+	keys  map[string]*key
 	order []*key
 }
 
@@ -146,54 +140,38 @@ type key struct {
 // stating no identifier names nothing and its rows are rejected.
 func (k *key) statable() bool { return len(k.identifiers) > 0 }
 
-// seed salts key hashes for the life of the process.
-var seed = maphash.MakeSeed()
-
-// hash agrees with equal.
-func (k *key) hash() uint64 {
-	var h maphash.Hash
-	h.SetSeed(seed)
+// canon encodes k so that two keys stating the same thing encode alike. Each
+// part ends in a NUL, which no stated value carries. An absent field encodes
+// as a NUL alone.
+func (k *key) canon() string {
+	var b strings.Builder
 	part := func(s *string) {
-		if s == nil {
-			h.WriteByte(0)
-			return
+		if s != nil {
+			b.WriteByte(1)
+			b.WriteString(*s)
 		}
-		h.WriteByte(1)
-		h.WriteString(*s)
-		h.WriteByte(0)
+		b.WriteByte(0)
 	}
 	part((*string)(k.class))
 	part(k.currency)
 	for _, id := range k.identifiers {
-		h.WriteString(string(id.Type))
-		h.WriteByte(0)
-		h.WriteString(id.Domain)
-		h.WriteByte(0)
-		h.WriteString(id.Value)
-		h.WriteByte(0)
+		for _, s := range []string{string(id.Type), id.Domain, id.Value} {
+			b.WriteString(s)
+			b.WriteByte(0)
+		}
 	}
-	return h.Sum64()
-}
-
-// equal reports whether k and o state the same key.
-func (k *key) equal(o *key) bool {
-	if !ptr.Equal(k.class, o.class) || !ptr.Equal(k.currency, o.currency) {
-		return false
-	}
-	return slices.Equal(k.identifiers, o.identifiers)
+	return b.String()
 }
 
 // intern returns the key equal to k the statement already has, or k with an
 // id minted for it.
 func (g *ingestion) intern(k *key) *key {
-	h := k.hash()
-	for _, held := range g.keys[h] {
-		if held.equal(k) {
-			return held
-		}
+	c := k.canon()
+	if held, ok := g.keys[c]; ok {
+		return held
 	}
 	k.id = db.NewID()
-	g.keys[h] = append(g.keys[h], k)
+	g.keys[c] = k
 	g.order = append(g.order, k)
 	return k
 }
@@ -241,10 +219,18 @@ func (g *ingestion) resolve(ctx context.Context, res gen.Run) error {
 	if err != nil {
 		return err
 	}
-	for i, k := range g.order {
-		k.outcome = out[i].Outcome
-		if out[i].Reason != nil {
-			k.reason = *out[i].Reason
+	byKey := make(map[uuid.UUID]gen.ResolutionKey, len(out))
+	for _, rk := range out {
+		byKey[rk.StatedKeyID] = rk
+	}
+	for _, k := range g.order {
+		rk, ok := byKey[k.id]
+		if !ok {
+			return fmt.Errorf("the resolution recorded no outcome for key %s", k.id)
+		}
+		k.outcome = rk.Outcome
+		if rk.Reason != nil {
+			k.reason = *rk.Reason
 		}
 	}
 	return nil

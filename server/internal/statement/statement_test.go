@@ -3,6 +3,7 @@ package statement
 import (
 	"context"
 	"errors"
+	"slices"
 	"testing"
 	"time"
 
@@ -32,14 +33,6 @@ var (
 // currencies is the vocabulary the fixture's store lists, with GBX in the GBP
 // family.
 var currencies = []gen.Currency{{Code: "EUR", Family: "EUR"}, {Code: "GBP", Family: "GBP"}, {Code: "GBX", Family: "GBP"}, {Code: "USD", Family: "USD"}}
-
-func families() map[string]string {
-	out := map[string]string{}
-	for _, c := range currencies {
-		out[c.Code] = c.Family
-	}
-	return out
-}
 
 func ident(t typev1.IdentifierType, value, domain string) *typev1.Identifier {
 	return &typev1.Identifier{Type: t, Value: value, Domain: domain}
@@ -131,7 +124,7 @@ func newFixture(t *testing.T) *fixture {
 func newIngestion(t *testing.T) (*fixture, *ingestion) {
 	t.Helper()
 	f := newFixture(t)
-	return f, &ingestion{store: f.store, runs: f.runs, resolver: f.resolver, user: userID, broker: gen.BrokerIbkr, from: from, before: until, families: families(), keys: map[uint64][]*key{}}
+	return f, &ingestion{store: f.store, runs: f.runs, resolver: f.resolver, user: userID, broker: gen.BrokerIbkr, from: from, before: until, keys: map[string]*key{}}
 }
 
 func TestCreateInvalid(t *testing.T) {
@@ -210,6 +203,9 @@ func TestValidate(t *testing.T) {
 		{name: "after today", row: rowMsg(equity, "2026-04-20", "1"), want: "order date after today"},
 		{name: "unknown currency", row: rowMsg(securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &xxx), "2026-03-05", "1"), want: `unknown currency "XXX"`},
 		{name: "a currency identifier stating no currency", row: rowMsg(&typev1.StatedKey{Identifiers: cashKey("USD").Identifiers, AssetClass: typev1.AssetClass_ASSET_CLASS_CASH}, "2026-03-05", "1")},
+		{name: "a description of another broker", row: rowMsg(securityKey("", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_BROKER_DESCRIPTION, "ACME", "schwab")), "2026-03-05", "1"), want: `broker_description identifier of broker "schwab" in a statement of ibkr`},
+		{name: "a broker id of another broker", row: rowMsg(securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_BROKER_ID, "1", "schwab")), "2026-03-05", "1"), want: `broker_id identifier of broker "schwab" in a statement of ibkr`},
+		{name: "an empty value", row: rowMsg(securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, "", "")), "2026-03-05", "1"), want: "isin identifier with no value"},
 		{name: "a currency identifier on an equity key", row: rowMsg(securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_CURRENCY, "USD", "")), "2026-03-05", "1")},
 	}
 	for _, tc := range tests {
@@ -247,6 +243,7 @@ func TestKeyForm(t *testing.T) {
 		{name: "currency", a: securityKey("A", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd), b: securityKey("A", typev1.AssetClass_ASSET_CLASS_EQUITY, nil)},
 		{name: "class", a: securityKey("A", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd), b: securityKey("A", typev1.AssetClass_ASSET_CLASS_UNSPECIFIED, &usd)},
 		{name: "description", a: securityKey("A", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd), b: securityKey("B", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd)},
+		{name: "a repeated identifier", a: securityKey("A", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, mic("X", "XNYS"), mic("X", "XNYS")), b: securityKey("A", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, mic("X", "XNYS")), same: true},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -272,49 +269,75 @@ func TestKeyForm(t *testing.T) {
 	}
 }
 
-// TestOutcomes checks that a rejected key rejects its rows with its reason,
-// and that where an unresolved key carries a reason, it keeps its rows.
+// TestOutcomes checks how the resolver's answer maps back onto keys and rows.
+// A rejected key rejects its rows with its reason. An unresolved key keeps its
+// rows. The answer may arrive in any order, and one that leaves a key out
+// fails the work.
 func TestOutcomes(t *testing.T) {
-	f := newFixture(t)
-	usd := "USD"
-	rejected := securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, "US0378331005", ""))
-	unresolved := securityKey("BETA", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, "US0378331006", ""))
-	f.outcomes = func(keys []gen.StatedKey) []gen.ResolutionKey {
-		out := make([]gen.ResolutionKey, len(keys))
-		for i, k := range keys {
-			out[i] = gen.ResolutionKey{StatedKeyID: k.ID, Outcome: gen.ResolutionOutcomeUnrecognised, Reason: ptr.To("no datasource enabled")}
-			if described(k, "ACME") {
-				out[i].Outcome, out[i].Reason = gen.ResolutionOutcomeRejected, ptr.To("asset class equity contradicts the instrument's cash")
+	tests := []struct {
+		name    string
+		answer  func(out []gen.ResolutionKey) []gen.ResolutionKey
+		wantErr bool
+	}{
+		{name: "in key order", answer: func(out []gen.ResolutionKey) []gen.ResolutionKey { return out }},
+		{name: "in reverse order", answer: func(out []gen.ResolutionKey) []gen.ResolutionKey {
+			slices.Reverse(out)
+			return out
+		}},
+		{name: "a key left out", answer: func(out []gen.ResolutionKey) []gen.ResolutionKey { return out[1:] }, wantErr: true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFixture(t)
+			usd := "USD"
+			rejected := securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, "US0378331005", ""))
+			unresolved := securityKey("BETA", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, "US0378331006", ""))
+			f.outcomes = func(keys []gen.StatedKey) []gen.ResolutionKey {
+				out := make([]gen.ResolutionKey, len(keys))
+				for i, k := range keys {
+					out[i] = gen.ResolutionKey{StatedKeyID: k.ID, Outcome: gen.ResolutionOutcomeUnrecognised, Reason: ptr.To("no datasource enabled")}
+					if described(k, "ACME") {
+						out[i].Outcome, out[i].Reason = gen.ResolutionOutcomeRejected, ptr.To("asset class equity contradicts the instrument's cash")
+					}
+				}
+				return tc.answer(out)
 			}
-		}
-		return out
-	}
-	f.store.EXPECT().CreateStatement(gomock.Any(), gomock.Any()).Return(gen.Statement{}, nil)
-	f.store.EXPECT().CreateStatedKey(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.CreateStatedKeyParams) (gen.StatedKey, error) {
-		return gen.StatedKey{ID: arg.ID, Identifiers: arg.Identifiers}, nil
-	}).Times(2)
-	f.store.EXPECT().DeleteTransactions(gomock.Any(), gomock.Any()).Return(int64(0), nil)
-	var items []gen.CreateStatementItemParams
-	f.store.EXPECT().CreateStatementItem(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.CreateStatementItemParams) error {
-		items = append(items, arg)
-		return nil
-	})
-	var transactions []gen.CreateTransactionParams
-	f.store.EXPECT().CreateTransaction(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.CreateTransactionParams) (gen.Transaction, error) {
-		transactions = append(transactions, arg)
-		return gen.Transaction{}, nil
-	})
-	f.store.EXPECT().CompleteRun(gomock.Any(), gomock.Any()).Return(nil)
-	msg := &statementv1.Statement{Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01",
-		Rows: []*statementv1.Row{rowMsg(rejected, "2026-03-05", "1"), rowMsg(unresolved, "2026-03-06", "2")}}
-	if _, err := f.svc.Create(context.Background(), userID, msg); err != nil || f.workErr != nil {
-		t.Fatalf("Create() error = %v, work error = %v", err, f.workErr)
-	}
-	if len(items) != 1 || items[0].Ordinal != 0 || items[0].Reason != "asset class equity contradicts the instrument's cash" {
-		t.Errorf("items = %+v, want the rejected key's row with its reason", items)
-	}
-	if len(transactions) != 1 || transactions[0].OrderDate.Day() != 6 {
-		t.Errorf("transactions = %+v, want the unresolved key's row kept", transactions)
+			f.store.EXPECT().CreateStatement(gomock.Any(), gomock.Any()).Return(gen.Statement{}, nil)
+			f.store.EXPECT().CreateStatedKey(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.CreateStatedKeyParams) (gen.StatedKey, error) {
+				return gen.StatedKey{ID: arg.ID, Identifiers: arg.Identifiers}, nil
+			}).Times(2)
+			var items []gen.CreateStatementItemsParams
+			var transactions []gen.CreateTransactionsParams
+			if !tc.wantErr {
+				f.store.EXPECT().DeleteTransactions(gomock.Any(), gomock.Any()).Return(int64(0), nil)
+				f.store.EXPECT().CreateStatementItems(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg []gen.CreateStatementItemsParams) (int64, error) {
+					items = append(items, arg...)
+					return int64(len(arg)), nil
+				})
+				f.store.EXPECT().CreateTransactions(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg []gen.CreateTransactionsParams) (int64, error) {
+					transactions = append(transactions, arg...)
+					return int64(len(arg)), nil
+				})
+				f.store.EXPECT().CompleteRun(gomock.Any(), gomock.Any()).Return(nil)
+			}
+			msg := &statementv1.Statement{Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01",
+				Rows: []*statementv1.Row{rowMsg(rejected, "2026-03-05", "1"), rowMsg(unresolved, "2026-03-06", "2")}}
+			if _, err := f.svc.Create(context.Background(), userID, msg); err != nil {
+				t.Fatalf("Create() error = %v", err)
+			}
+			if (f.workErr != nil) != tc.wantErr {
+				t.Fatalf("work error = %v, wantErr %v", f.workErr, tc.wantErr)
+			}
+			if tc.wantErr {
+				return
+			}
+			if len(items) != 1 || items[0].Ordinal != 0 || items[0].Reason != "asset class equity contradicts the instrument's cash" {
+				t.Errorf("items = %+v, want the rejected key's row with its reason", items)
+			}
+			if len(transactions) != 1 || transactions[0].OrderDate.Day() != 6 {
+				t.Errorf("transactions = %+v, want the unresolved key's row kept", transactions)
+			}
+		})
 	}
 }
 

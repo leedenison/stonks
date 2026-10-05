@@ -162,7 +162,7 @@ function marshal(text: string, exportedOn: string): Statement {
       if (l.symbol === "")
         throw new MarshalError(`${l.action} without a symbol`, l.line);
       return securityKey({
-        broker: "schwab",
+        broker: Broker.SCHWAB,
         description: l.description,
         assetClass: AssetClass.SECURITY,
         currency: USD,

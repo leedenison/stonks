@@ -26,6 +26,8 @@ func (g *ingestion) write(ctx context.Context, run gen.Run) error {
 		if _, err := q.DeleteTransactions(ctx, period); err != nil {
 			return fmt.Errorf("delete period: %w", err)
 		}
+		var items []gen.CreateStatementItemsParams
+		var txs []gen.CreateTransactionsParams
 		for i := range g.rows {
 			r := &g.rows[i]
 			reason := r.reason
@@ -37,21 +39,24 @@ func (g *ingestion) write(ctx context.Context, run gen.Run) error {
 				if err != nil {
 					return fmt.Errorf("encode row %d: %w", r.ordinal, err)
 				}
-				item := gen.CreateStatementItemParams{StatementID: run.ID, UserID: g.user, Ordinal: r.ordinal, Reason: reason, Stated: stated}
-				if err := q.CreateStatementItem(ctx, item); err != nil {
-					return fmt.Errorf("create item %d: %w", r.ordinal, err)
-				}
-				rejected++
+				items = append(items, gen.CreateStatementItemsParams{StatementID: run.ID, UserID: g.user, Ordinal: r.ordinal, Reason: reason, Stated: stated})
 				continue
 			}
-			tx := gen.CreateTransactionParams{
+			txs = append(txs, gen.CreateTransactionsParams{
 				ID: db.NewID(), UserID: g.user, Broker: g.broker, StatementID: run.ID, StatedKeyID: r.key.id,
 				OrderDate: r.order, SettlementDate: r.settlement, AsAt: r.asAt, Quantity: r.quantity,
+			})
+		}
+		var err error
+		if len(items) > 0 {
+			if rejected, err = q.CreateStatementItems(ctx, items); err != nil {
+				return fmt.Errorf("create items: %w", err)
 			}
-			if _, err := q.CreateTransaction(ctx, tx); err != nil {
-				return fmt.Errorf("create transaction %d: %w", r.ordinal, err)
+		}
+		if len(txs) > 0 {
+			if accepted, err = q.CreateTransactions(ctx, txs); err != nil {
+				return fmt.Errorf("create transactions: %w", err)
 			}
-			accepted++
 		}
 		if err := group.Regroup(ctx, q, g.user); err != nil {
 			return err

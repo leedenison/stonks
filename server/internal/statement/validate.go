@@ -1,8 +1,10 @@
 package statement
 
 import (
+	"cmp"
+	"errors"
 	"fmt"
-	"sort"
+	"slices"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -27,15 +29,9 @@ func (g *ingestion) validate(ordinal int32, r *statementv1.Row, today time.Time,
 		out.reason = fmt.Sprintf(format, args...)
 		return out
 	}
-	if r.GetKey() == nil {
-		return reject("no key")
-	}
-	k, err := keyOf(r.GetKey())
+	k, err := g.keyFor(r.GetKey(), currencies)
 	if err != nil {
 		return reject("%v", err)
-	}
-	if !k.statable() {
-		return reject("no identifier")
 	}
 	dates := []struct {
 		name string
@@ -56,9 +52,6 @@ func (g *ingestion) validate(ordinal int32, r *statementv1.Row, today time.Time,
 	if out.order.After(today) {
 		return reject("order date after today")
 	}
-	if k.currency != nil && !currencies[*k.currency] {
-		return reject("unknown currency %q", *k.currency)
-	}
 	out.key = g.intern(k)
 	return out
 }
@@ -66,18 +59,9 @@ func (g *ingestion) validate(ordinal int32, r *statementv1.Row, today time.Time,
 // split reads sp, whose key must pass the checks a row's does.
 func (g *ingestion) split(ordinal int32, sp *statementv1.StatedSplit, currencies map[string]bool) (split, error) {
 	out := split{ordinal: ordinal}
-	if sp.GetKey() == nil {
-		return out, fmt.Errorf("no key")
-	}
-	k, err := keyOf(sp.GetKey())
+	k, err := g.keyFor(sp.GetKey(), currencies)
 	if err != nil {
 		return out, err
-	}
-	if !k.statable() {
-		return out, fmt.Errorf("no identifier")
-	}
-	if k.currency != nil && !currencies[*k.currency] {
-		return out, fmt.Errorf("unknown currency %q", *k.currency)
 	}
 	if out.effective, err = parseDate(sp.GetEffectiveDate()); err != nil {
 		return out, fmt.Errorf("malformed effective date %q", sp.GetEffectiveDate())
@@ -100,11 +84,31 @@ func (g *ingestion) split(ordinal int32, sp *statementv1.StatedSplit, currencies
 	return out, nil
 }
 
+// keyFor reads a key stated by a row or a split. It refuses a key that names
+// no instrument or an unknown currency.
+func (g *ingestion) keyFor(sk *typev1.StatedKey, currencies map[string]bool) (*key, error) {
+	if sk == nil {
+		return nil, errors.New("no key")
+	}
+	k, err := keyOf(sk, g.broker)
+	if err != nil {
+		return nil, err
+	}
+	if !k.statable() {
+		return nil, errors.New("no identifier")
+	}
+	if k.currency != nil && !currencies[*k.currency] {
+		return nil, fmt.Errorf("unknown currency %q", *k.currency)
+	}
+	return k, nil
+}
+
 // keyOf reads a stated key into its canonical form, so that two keys stating
 // the same thing compare equal: the identifiers sorted by type, domain and
-// value with an absent domain first. Two values of an exclusive type in one
-// domain contradict each other and are refused.
-func keyOf(sk *typev1.StatedKey) (*key, error) {
+// value with an absent domain first, and stated once each. Two values of an
+// exclusive type in one domain contradict each other and are refused. A
+// statement states an issuer's identifier only in its own broker's domain.
+func keyOf(sk *typev1.StatedKey, broker gen.Broker) (*key, error) {
 	class, ok := types.FromProto[gen.AssetClass](sk.GetAssetClass())
 	if !ok {
 		return nil, fmt.Errorf("asset class %d outside the vocabulary", sk.GetAssetClass())
@@ -113,27 +117,30 @@ func keyOf(sk *typev1.StatedKey) (*key, error) {
 	if class != "" {
 		k.class = &class
 	}
-	for _, id := range sk.GetIdentifiers() {
-		t, ok := types.FromProto[types.IdentifierType](id.GetType())
+	for _, msg := range sk.GetIdentifiers() {
+		t, ok := types.FromProto[types.IdentifierType](msg.GetType())
 		if !ok || t == "" {
-			return nil, fmt.Errorf("identifier type %d outside the vocabulary", id.GetType())
+			return nil, fmt.Errorf("identifier type %d outside the vocabulary", msg.GetType())
+		}
+		id := types.Identifier{Type: t, Domain: msg.GetDomain(), Value: msg.GetValue()}
+		if id.Value == "" {
+			return nil, fmt.Errorf("%s identifier with no value", t)
+		}
+		if (t == types.IdentifierTypeBrokerID || t == types.IdentifierTypeBrokerDescription) && id.Domain != string(broker) {
+			return nil, fmt.Errorf("%s identifier of broker %q in a statement of %s", t, id.Domain, broker)
+		}
+		if slices.Contains(k.identifiers, id) {
+			continue
 		}
 		for _, held := range k.identifiers {
-			if held.Type == t && held.Domain == id.GetDomain() && market.Trait(t).Exclusive {
-				return nil, fmt.Errorf("two %s identifiers, %s and %s", t, held.Value, id.GetValue())
+			if held.Type == t && held.Domain == id.Domain && market.Trait(t).Exclusive {
+				return nil, fmt.Errorf("two %s identifiers, %s and %s", t, held.Value, id.Value)
 			}
 		}
-		k.identifiers = append(k.identifiers, types.Identifier{Type: t, Domain: id.GetDomain(), Value: id.GetValue()})
+		k.identifiers = append(k.identifiers, id)
 	}
-	sort.Slice(k.identifiers, func(i, j int) bool {
-		a, b := k.identifiers[i], k.identifiers[j]
-		if a.Type != b.Type {
-			return a.Type < b.Type
-		}
-		if a.Domain != b.Domain {
-			return a.Domain < b.Domain
-		}
-		return a.Value < b.Value
+	slices.SortFunc(k.identifiers, func(a, b types.Identifier) int {
+		return cmp.Or(cmp.Compare(a.Type, b.Type), cmp.Compare(a.Domain, b.Domain), cmp.Compare(a.Value, b.Value))
 	})
 	return k, nil
 }

@@ -155,7 +155,7 @@ function marshal(text: string): Statement {
     }
     const symbol = SYMBOL.exec(l.investment)?.[1];
     const key = securityKey({
-      broker: "fidelity_uk",
+      broker: Broker.FIDELITY_UK,
       description: l.investment,
       assetClass: AssetClass.SECURITY,
       currency: GBP,

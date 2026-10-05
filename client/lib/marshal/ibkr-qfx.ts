@@ -21,6 +21,7 @@ import type {
   Statement,
 } from "@/gen/statement/v1/statement_pb";
 import {
+  brokerDomain,
   cashKey,
   ident,
   leg,
@@ -123,7 +124,11 @@ function secId(el: Node): { key: string; identifier: Identifier } {
       case "SEDOL":
         return ident(IdentifierType.SEDOL, value);
       case "CONID":
-        return ident(IdentifierType.BROKER_ID, value, "ibkr");
+        return ident(
+          IdentifierType.BROKER_ID,
+          value,
+          brokerDomain(Broker.IBKR),
+        );
       default:
         throw new MarshalError(
           `unknown identifier type ${type}`,
@@ -195,7 +200,7 @@ function marshal(input: string): Statement {
     const { key } = secId(el);
     const sec = known.get(key);
     if (!sec) throw new MarshalError(`security ${key} not in SECLIST`);
-    return securityKey({ ...sec, broker: "ibkr", currency: cur });
+    return securityKey({ ...sec, broker: Broker.IBKR, currency: cur });
   };
 
   for (const kind of Object.keys(list)) {
