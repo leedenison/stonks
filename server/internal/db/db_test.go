@@ -6,8 +6,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"log"
-	"os"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -19,38 +17,17 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/testutil/dbtest"
 )
 
 var pool *pgxpool.Pool
 
-func TestMain(m *testing.M) {
-	url := os.Getenv("STONKS_TEST_DATABASE_URL")
-	if url == "" {
-		log.Fatal("STONKS_TEST_DATABASE_URL is not set")
-	}
-	ctx := context.Background()
-	var err error
-	pool, err = db.Open(ctx, url)
-	if err != nil {
-		log.Fatalf("open: %v", err)
-	}
-	code := m.Run()
-	pool.Close()
-	os.Exit(code)
-}
+func TestMain(m *testing.M) { dbtest.Main(m, &pool) }
 
 // begin returns a transaction that is rolled back when the test ends.
 func begin(t *testing.T) pgx.Tx {
 	t.Helper()
-	ctx := context.Background()
-	tx, err := pool.Begin(ctx)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		if err := tx.Rollback(ctx); err != nil && !errors.Is(err, pgx.ErrTxClosed) {
-			t.Errorf("rollback: %v", err)
-		}
-	})
-	return tx
+	return dbtest.Begin(t, pool)
 }
 
 // explainer runs each query of a transaction and records the plan of the
