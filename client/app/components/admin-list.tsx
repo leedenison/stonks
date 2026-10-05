@@ -25,34 +25,25 @@ export function ClearedToggle({ path, p }: { path: string; p: ListParams }) {
   );
 }
 
-// Pager leads to the newest page and to the next older one, where they
-// differ from the page shown.
+// Pager links to the newest page and the next older page, each only when
+// the listing has one.
 export function Pager({
-  path,
-  p,
-  next,
+  newest,
+  older,
 }: {
-  path: string;
-  p: ListParams;
-  next: string | undefined;
+  newest: string | undefined;
+  older: string | undefined;
 }) {
-  if (!p.before && !next) return null;
+  if (!newest && !older) return null;
   return (
     <div className="flex gap-2">
-      {p.before && (
-        <LinkButton
-          variant="secondary"
-          href={listQuery(path, { ...p, before: "" })}
-        >
+      {newest && (
+        <LinkButton variant="secondary" href={newest}>
           Newest
         </LinkButton>
       )}
-      {next && (
-        <LinkButton
-          variant="secondary"
-          data-testid="list-older"
-          href={listQuery(path, { ...p, before: next })}
-        >
+      {older && (
+        <LinkButton variant="secondary" data-testid="list-older" href={older}>
           Older
         </LinkButton>
       )}

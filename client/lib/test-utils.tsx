@@ -1,5 +1,5 @@
 import { create, isMessage, type MessageInitShape } from "@bufbuild/protobuf";
-import { timestampFromDate } from "@bufbuild/protobuf/wkt";
+import { type Timestamp, timestampFromDate } from "@bufbuild/protobuf/wkt";
 import {
   type ConnectRouter,
   createRouterTransport,
@@ -12,6 +12,7 @@ import type { ReactNode } from "react";
 import { ActivityProvider } from "@/contexts/activity-context";
 import { AuthProvider } from "@/contexts/auth-context";
 import { ClientsProvider } from "@/contexts/clients-context";
+import { type UserRun, UserRunSchema } from "@/gen/admin/v1/admin_pb";
 import {
   AuthService,
   type GetSessionResponse,
@@ -20,6 +21,7 @@ import {
   SessionSchema,
   UserSchema,
 } from "@/gen/auth/v1/auth_pb";
+import { RunSchema, RunState } from "@/gen/run/v1/run_pb";
 
 // Test support for components under the auth provider. A component that
 // calls useRouter also needs next/navigation mocked in its test file, since
@@ -94,4 +96,29 @@ export function transportWith(
     router.service(AuthService, impl);
     mount?.(router);
   }, options);
+}
+
+// instant reads an ISO 8601 time as a timestamp.
+export function instant(iso: string): Timestamp {
+  return timestampFromDate(new Date(iso));
+}
+
+// userRun builds a completed, matched run of user u1 as the admin listing
+// returns it. run overrides the run's fields and rest the listing's.
+export function userRun(
+  run: MessageInitShape<typeof RunSchema>,
+  rest: Partial<
+    Pick<
+      UserRun,
+      "userId" | "userEmail" | "openFindings" | "matched" | "children"
+    >
+  > = {},
+): UserRun {
+  return create(UserRunSchema, {
+    userId: "u1",
+    userEmail: "one@example.com",
+    matched: true,
+    ...rest,
+    run: create(RunSchema, { state: RunState.COMPLETED, ...run }),
+  });
 }

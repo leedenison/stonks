@@ -14,7 +14,8 @@ import { SkeletonRows } from "@/app/components/skeleton-rows";
 import { TableCard, Td, Th, Thead, Tr } from "@/app/components/table";
 import { BlockScope, FetchKind } from "@/gen/admin/v1/admin_pb";
 import { useBlocks, useClearBlock } from "@/hooks/use-blocks";
-import { enumLabel, readList } from "@/lib/admin";
+import { listQuery, readList } from "@/lib/admin";
+import { enumLabel } from "@/lib/enum";
 import { formatInstant } from "@/lib/format";
 
 const path = "/admin/blocks";
@@ -111,7 +112,14 @@ function Blocks() {
           )}
         </TableCard>
       )}
-      <Pager path={path} p={p} next={data?.nextPageToken} />
+      <Pager
+        newest={p.before ? listQuery(path, { ...p, before: "" }) : undefined}
+        older={
+          data?.nextPageToken
+            ? listQuery(path, { ...p, before: data.nextPageToken })
+            : undefined
+        }
+      />
     </Page>
   );
 }

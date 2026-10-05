@@ -143,4 +143,26 @@ describe("DatasourcesPage", () => {
       expect.anything(),
     );
   });
+  it("shows a refused save in the dialog, which stays open", async () => {
+    const updateDatasource = vi.fn();
+    const transport = serving(updateDatasource);
+    updateDatasource.mockImplementation(() => {
+      throw new ConnectError(
+        "the integration refuses",
+        Code.FailedPrecondition,
+      );
+    });
+    renderWithAuth(<DatasourcesPage />, transport);
+    await waitFor(() =>
+      expect(screen.getByTestId("datasource-edit-openfigi")).toBeTruthy(),
+    );
+    fireEvent.click(screen.getByTestId("datasource-edit-openfigi"));
+    fireEvent.click(screen.getByTestId("datasource-save"));
+    const notice = await screen.findByTestId("datasource-dialog-error");
+    expect(notice.textContent).toContain("the integration refuses");
+    expect(
+      screen.getByTestId("datasource-dialog").contains(notice),
+    ).toBeTruthy();
+    expect(screen.queryByTestId("datasource-update-error")).toBeNull();
+  });
 });

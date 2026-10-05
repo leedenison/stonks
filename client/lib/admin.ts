@@ -1,5 +1,7 @@
 import { DropStep, type Finding, type UserRun } from "@/gen/admin/v1/admin_pb";
-import { RunKind, RunState, RunTrigger } from "@/gen/run/v1/run_pb";
+import { type Run, RunKind, RunState, RunTrigger } from "@/gen/run/v1/run_pb";
+import { enumLabel } from "./enum";
+import { formatInstant } from "./format";
 
 // RunFilters is the runs page's filters, as held in its address. An
 // empty string matches everything.
@@ -21,27 +23,34 @@ export function readFilters(params: URLSearchParams): RunFilters {
   return f;
 }
 
+// queryHref returns path with a query string of the params that have a
+// value.
+export function queryHref(
+  path: string,
+  params: Record<string, string>,
+): string {
+  const q = new URLSearchParams(
+    Object.entries(params).filter(([, v]) => v !== ""),
+  ).toString();
+  return q ? `${path}?${q}` : path;
+}
+
 // filterQuery is the address of the runs page with f applied.
-export function filterQuery(f: RunFilters): string {
-  const params = new URLSearchParams();
+export function filterQuery(f: Partial<RunFilters>): string {
+  const params: Record<string, string> = {};
   for (const k of filterKeys) {
-    if (f[k]) params.set(k, f[k]);
+    params[k] = f[k] ?? "";
   }
-  const q = params.toString();
-  return q ? `/admin/runs?${q}` : "/admin/runs";
+  return queryHref("/admin/runs", params);
 }
 
-// enumLabel renders a generated enum value as lower case words, as
-// FAILED_PERMANENT to "failed permanent".
-export function enumLabel(e: Record<number, string>, v: number): string {
-  return (e[v] ?? "").toLowerCase().replaceAll("_", " ");
-}
-
-// The enum values a filter offers, UNSPECIFIED left out.
-export function enumValues(e: Record<number, string>): number[] {
-  return Object.keys(e)
-    .map(Number)
-    .filter((v) => !Number.isNaN(v) && v !== 0);
+// runLabel names a run by its kind and when it started.
+export function runLabel(run: Run | undefined): string {
+  if (!run) {
+    return "run";
+  }
+  const at = formatInstant(run.createdAt);
+  return `${enumLabel(RunKind, run.kind)} run${at ? ` @ ${at}` : ""}`;
 }
 
 export const runEnums = {
@@ -59,20 +68,6 @@ export function findingText(f: Finding): string {
   return parts.join(": ");
 }
 
-// enumParam and fromParam carry an enum value in an address as its lower
-// case name, as RunKind.STATEMENT to "statement".
-export function enumParam(e: Record<number, string>, v: number): string {
-  return (e[v] ?? "").toLowerCase();
-}
-
-export function fromParam(
-  e: Record<string, string | number>,
-  s: string,
-): number | undefined {
-  const v = e[s.toUpperCase()];
-  return typeof v === "number" && v !== 0 ? v : undefined;
-}
-
 // ListParams is the blocks page's filters, as held in its address.
 export type ListParams = { cleared: boolean; before: string };
 
@@ -85,11 +80,7 @@ export function readList(params: URLSearchParams): ListParams {
 
 // listQuery is the address of the page at path with p applied.
 export function listQuery(path: string, p: ListParams): string {
-  const params = new URLSearchParams();
-  if (p.cleared) params.set("cleared", "1");
-  if (p.before) params.set("before", p.before);
-  const q = params.toString();
-  return q ? `${path}?${q}` : path;
+  return queryHref(path, { cleared: p.cleared ? "1" : "", before: p.before });
 }
 
 // flattenRuns lists every run of the trees, each parent before its children.

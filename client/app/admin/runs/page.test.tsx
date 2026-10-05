@@ -1,5 +1,4 @@
 import { create } from "@bufbuild/protobuf";
-import { timestampFromDate } from "@bufbuild/protobuf/wkt";
 import type { ServiceImpl } from "@connectrpc/connect";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -9,8 +8,14 @@ import {
   UserRunSchema,
 } from "@/gen/admin/v1/admin_pb";
 import { Role } from "@/gen/auth/v1/auth_pb";
-import { RunKind, RunSchema, RunState, RunTrigger } from "@/gen/run/v1/run_pb";
-import { liveSession, renderWithAuth, transportWith } from "@/lib/test-utils";
+import { RunKind, RunTrigger } from "@/gen/run/v1/run_pb";
+import {
+  liveSession,
+  renderWithAuth,
+  transportWith,
+  instant,
+  userRun,
+} from "@/lib/test-utils";
 import RunsPage from "./page";
 
 const router = { push: vi.fn(), replace: vi.fn() };
@@ -33,45 +38,33 @@ function serving(listRuns: ServiceImpl<typeof AdminService>["listRuns"]) {
 // findings, and an older statement after it.
 const page = create(ListRunsResponseSchema, {
   runs: [
-    create(UserRunSchema, {
-      run: create(RunSchema, {
+    userRun(
+      {
         id: "r1",
         kind: RunKind.STATEMENT,
         trigger: RunTrigger.USER,
-        state: RunState.COMPLETED,
-        createdAt: timestampFromDate(new Date("2026-09-24T10:00:00Z")),
-      }),
-      userId: "u1",
-      userEmail: "one@example.com",
-      matched: true,
-      children: [
-        create(UserRunSchema, {
-          run: create(RunSchema, {
-            id: "r2",
-            kind: RunKind.RESOLUTION,
-            trigger: RunTrigger.RUN,
-            state: RunState.COMPLETED,
-            parentId: "r1",
-            createdAt: timestampFromDate(new Date("2026-09-24T10:00:01Z")),
-          }),
-          userId: "u1",
-          userEmail: "one@example.com",
-          openFindings: 2,
-          matched: true,
-        }),
-      ],
-    }),
-    create(UserRunSchema, {
-      run: create(RunSchema, {
-        id: "r0",
-        kind: RunKind.STATEMENT,
-        trigger: RunTrigger.USER,
-        state: RunState.COMPLETED,
-        createdAt: timestampFromDate(new Date("2026-09-23T10:00:00Z")),
-      }),
-      userId: "u1",
-      userEmail: "one@example.com",
-      matched: true,
+        createdAt: instant("2026-09-24T10:00:00Z"),
+      },
+      {
+        children: [
+          userRun(
+            {
+              id: "r2",
+              kind: RunKind.RESOLUTION,
+              trigger: RunTrigger.RUN,
+              parentId: "r1",
+              createdAt: instant("2026-09-24T10:00:01Z"),
+            },
+            { openFindings: 2 },
+          ),
+        ],
+      },
+    ),
+    userRun({
+      id: "r0",
+      kind: RunKind.STATEMENT,
+      trigger: RunTrigger.USER,
+      createdAt: instant("2026-09-23T10:00:00Z"),
     }),
   ],
   nextPageToken: "r0",
@@ -112,7 +105,7 @@ describe("RunsPage", () => {
     ).toBe("true");
     expect(screen.queryByTestId("run-open-findings-r1")).toBeNull();
     expect(screen.getByTestId("run-open-findings-r2").textContent).toBe("2");
-    expect(screen.getByTestId("runs-older").getAttribute("href")).toBe(
+    expect(screen.getByTestId("list-older").getAttribute("href")).toBe(
       "/admin/runs?before=r0",
     );
   });

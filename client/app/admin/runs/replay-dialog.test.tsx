@@ -1,5 +1,4 @@
 import { create } from "@bufbuild/protobuf";
-import { timestampFromDate } from "@bufbuild/protobuf/wkt";
 import { Code, ConnectError } from "@connectrpc/connect";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
@@ -8,23 +7,23 @@ import {
   DatasourceSchema,
   ListDatasourcesResponseSchema,
   StartReplayResponseSchema,
-  UserRunSchema,
 } from "@/gen/admin/v1/admin_pb";
 import { Role } from "@/gen/auth/v1/auth_pb";
 import { RunKind, RunSchema, RunState, RunTrigger } from "@/gen/run/v1/run_pb";
-import { liveSession, renderWithAuth, transportWith } from "@/lib/test-utils";
+import {
+  liveSession,
+  renderWithAuth,
+  transportWith,
+  instant,
+  userRun,
+} from "@/lib/test-utils";
 import { ReplayDialog } from "./replay-dialog";
 
-const statement = create(UserRunSchema, {
-  run: create(RunSchema, {
-    id: "r1",
-    kind: RunKind.STATEMENT,
-    trigger: RunTrigger.USER,
-    state: RunState.COMPLETED,
-    createdAt: timestampFromDate(new Date("2026-09-24T10:00:00Z")),
-  }),
-  userId: "u1",
-  userEmail: "one@example.com",
+const statement = userRun({
+  id: "r1",
+  kind: RunKind.STATEMENT,
+  trigger: RunTrigger.USER,
+  createdAt: instant("2026-09-24T10:00:00Z"),
 });
 
 const started = create(RunSchema, {

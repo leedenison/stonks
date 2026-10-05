@@ -23,6 +23,7 @@ import { Button } from "@/app/components/button";
 import { Chip } from "@/app/components/chip";
 import { Dialog } from "@/app/components/dialog";
 import { EmptyState } from "@/app/components/empty-state";
+import { Input } from "@/app/components/input";
 import { Notice } from "@/app/components/notice";
 import { Page } from "@/app/components/page-frame";
 import { SkeletonRows } from "@/app/components/skeleton-rows";
@@ -33,9 +34,7 @@ import {
   useReorderDatasources,
   useUpdateDatasource,
 } from "@/hooks/use-datasources";
-
-const inputClass =
-  "rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-text-primary focus:border-primary focus:ring-1 focus:ring-primary/30 focus:outline-hidden";
+import { refusal } from "@/lib/refusal";
 
 // The datasources this instance has registered, in precedence order, the
 // first consulted first. A change takes effect at once.
@@ -67,9 +66,9 @@ export default function DatasourcesPage() {
           The datasources could not be loaded.
         </Notice>
       )}
-      {update.isError && (
+      {update.isError && !editing && (
         <Notice tone="error" testId="datasource-update-error">
-          The datasource could not be changed.
+          {refusal(update.error, "The datasource could not be changed.")}
         </Notice>
       )}
       {reorder.isError && (
@@ -118,7 +117,10 @@ export default function DatasourcesPage() {
                           endpoint: d.endpoint,
                         })
                       }
-                      onEdit={() => setEditing(d)}
+                      onEdit={() => {
+                        update.reset();
+                        setEditing(d);
+                      }}
                     />
                   ))}
                 </tbody>
@@ -131,7 +133,11 @@ export default function DatasourcesPage() {
         <EditDialog
           d={editing}
           busy={update.isPending}
-          onClose={() => setEditing(undefined)}
+          error={update.error}
+          onClose={() => {
+            update.reset();
+            setEditing(undefined);
+          }}
           onSave={(endpoint, credential) =>
             update.mutate(
               {
@@ -231,11 +237,15 @@ function Row({
 function EditDialog({
   d,
   busy,
+  error,
   onClose,
   onSave,
 }: {
   d: Datasource;
   busy: boolean;
+  // error is the failure of the last save. The dialog shows it and stays
+  // open.
+  error: Error | null;
   onClose: () => void;
   onSave: (endpoint: string, credential: string | undefined) => void;
 }) {
@@ -265,12 +275,16 @@ function EditDialog({
         </>
       }
     >
+      {error && (
+        <Notice tone="error" testId="datasource-dialog-error">
+          {refusal(error, "The datasource could not be changed.")}
+        </Notice>
+      )}
       <label className="flex flex-col gap-1 text-sm">
         <span className="text-text-muted">Endpoint</span>
-        <input
+        <Input
           type="url"
           data-testid="datasource-endpoint"
-          className={inputClass}
           value={endpoint}
           placeholder="the provider's default"
           onChange={(e) => setEndpoint(e.target.value)}
@@ -280,10 +294,9 @@ function EditDialog({
         <span className="text-text-muted">
           Credential{d.hasCredential ? " (one is held)" : ""}
         </span>
-        <input
+        <Input
           type="password"
           data-testid="datasource-credential"
-          className={inputClass}
           value={credential}
           placeholder={d.hasCredential ? "unchanged" : "none"}
           disabled={clear}

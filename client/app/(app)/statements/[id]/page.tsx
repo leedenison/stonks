@@ -3,14 +3,13 @@
 import { Code, ConnectError } from "@connectrpc/connect";
 import { useParams } from "next/navigation";
 import { Chip } from "@/app/components/chip";
-import { StatedKeyChips } from "@/app/components/identifier-chip";
 import { Notice } from "@/app/components/notice";
 import { Page } from "@/app/components/page-frame";
 import { RejectionGroups } from "@/app/components/rejection-groups";
-import { ResolutionChip } from "@/app/components/resolution-chip";
+import { ResolutionKeys } from "@/app/components/resolution-keys";
+import { Section } from "@/app/components/section";
 import { Skeleton } from "@/app/components/skeleton";
 import { StateChip } from "@/app/components/state-chip";
-import { TableCard, Td, Th, Thead, Tr } from "@/app/components/table";
 import type { ResolutionItem } from "@/gen/type/v1/type_pb";
 import { useStatement } from "@/hooks/use-statement";
 import { brokerLabel } from "@/lib/broker";
@@ -116,12 +115,7 @@ function Body({
       return <Notice>Every row was accepted.</Notice>;
     case "rejections":
       return (
-        <section className="flex flex-col gap-2">
-          <h2 className="text-lg font-semibold tracking-tight">
-            Rejected rows ({rejected})
-          </h2>
-          {children}
-        </section>
+        <Section title={`Rejected rows (${rejected})`}>{children}</Section>
       );
   }
 }
@@ -130,31 +124,14 @@ function Body({
 // of the key's latest resolution.
 function Keys({ keys, live }: { keys: ResolutionItem[]; live: boolean }) {
   return (
-    <section className="flex flex-col gap-2">
-      <h2 className="text-lg font-semibold tracking-tight">Keys</h2>
-      <TableCard testId="statement-keys">
-        <Thead>
-          <tr>
-            <Th>Stated key</Th>
-            <Th>Outcome</Th>
-            <Th>Reason</Th>
-          </tr>
-        </Thead>
-        <tbody>
-          {keys.map((k) => (
-            <Tr key={k.statedKeyId} data-testid={`key-row-${k.statedKeyId}`}>
-              <Td>
-                <StatedKeyChips statedKey={k.statedKey} />
-              </Td>
-              <Td>
-                <ResolutionChip outcome={k.outcome} live={live} />
-              </Td>
-              <Td>{k.reason}</Td>
-            </Tr>
-          ))}
-        </tbody>
-      </TableCard>
-    </section>
+    <Section title="Keys">
+      <ResolutionKeys
+        keys={keys}
+        live={live}
+        testId="statement-keys"
+        rowTestId={(id) => `key-row-${id}`}
+      />
+    </Section>
   );
 }
 
