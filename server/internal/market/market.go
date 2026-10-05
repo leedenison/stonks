@@ -7,12 +7,6 @@
 // Each kind of data is a Kind, which names the request an integration
 // receives and the response it gives.  An integration serves a kind by
 // implementing its Server.
-//
-// The registry is built at startup from the datasources table and rebuilt
-// when an administrator changes a row; see [registry.go](registry.go).
-//
-// Every caller of a datasource shares its rate limit and any wait the
-// provider asks for; see [registry.go](registry.go).
 package market
 
 import (
