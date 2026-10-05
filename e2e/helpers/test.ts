@@ -2,7 +2,7 @@ import { test as base, expect } from "@playwright/test";
 import { closeRedis, deleteSession, injectSession, seedSession } from "./auth";
 import {
   closeDB,
-  deleteUser,
+  deleteUsers,
   type Role,
   type SeededUser,
   seedUser,
@@ -68,7 +68,7 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
       return { user, session };
     });
     await Promise.all(sessions.map(deleteSession));
-    await Promise.all(users.map(deleteUser));
+    await deleteUsers(users);
   },
   signIn: async ({ context, seed }, use) => {
     await use(async (role?: Role) => {

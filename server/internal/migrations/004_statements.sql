@@ -9,13 +9,13 @@ CREATE TYPE broker AS ENUM ('ibkr', 'schwab', 'fidelity_uk');
 -- The row is keyed by the run and exists from receipt.
 CREATE TABLE statements (
     id           uuid        PRIMARY KEY,
-    user_id      uuid        NOT NULL REFERENCES users (id),
+    user_id      uuid        NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     broker       broker      NOT NULL,
     order_from   date        NOT NULL,
     order_before date        NOT NULL,
     row_count    integer     NOT NULL,
     created_at   timestamptz NOT NULL DEFAULT now(),
-    FOREIGN KEY (id, user_id) REFERENCES runs (id, user_id),
+    FOREIGN KEY (id, user_id) REFERENCES runs (id, user_id) ON DELETE CASCADE,
     UNIQUE (user_id, id),
     CHECK (order_from < order_before),
     CHECK (row_count >= 0)
@@ -49,10 +49,10 @@ CREATE TABLE stated_keys (
     validity      validity,
     -- group_id gathers the unresolved keys which share an identifier,
     -- transitively.
-    group_id      uuid        REFERENCES stated_keys (id),
+    group_id      uuid        REFERENCES stated_keys (id) ON DELETE CASCADE,
     created_at    timestamptz NOT NULL DEFAULT now(),
     CHECK (jsonb_typeof(identifiers) = 'array'),
-    FOREIGN KEY (statement_id, user_id) REFERENCES statements (id, user_id),
+    FOREIGN KEY (statement_id, user_id) REFERENCES statements (id, user_id) ON DELETE CASCADE,
     FOREIGN KEY (listing_id, instrument_id) REFERENCES listings (id, instrument_id)
         DEFERRABLE INITIALLY IMMEDIATE,
     UNIQUE NULLS NOT DISTINCT (statement_id, asset_class, currency, identifiers),
@@ -75,7 +75,7 @@ CREATE TABLE statement_items (
     stated       jsonb       NOT NULL,
     created_at   timestamptz NOT NULL DEFAULT now(),
     PRIMARY KEY (statement_id, ordinal),
-    FOREIGN KEY (statement_id, user_id) REFERENCES statements (id, user_id),
+    FOREIGN KEY (statement_id, user_id) REFERENCES statements (id, user_id) ON DELETE CASCADE,
     CHECK (jsonb_typeof(stated) = 'object')
 );
 
@@ -84,7 +84,7 @@ CREATE TABLE statement_splits (
     statement_id   uuid        NOT NULL,
     user_id        uuid        NOT NULL,
     ordinal        integer     NOT NULL,
-    stated_key_id  uuid        NOT NULL REFERENCES stated_keys (id),
+    stated_key_id  uuid        NOT NULL REFERENCES stated_keys (id) ON DELETE CASCADE,
     effective_date date        NOT NULL,
     quantity       numeric     NOT NULL,
     -- ratio_from is the change in units before the split.
@@ -93,7 +93,7 @@ CREATE TABLE statement_splits (
     ratio_to       numeric,
     created_at     timestamptz NOT NULL DEFAULT now(),
     PRIMARY KEY (statement_id, ordinal),
-    FOREIGN KEY (statement_id, user_id) REFERENCES statements (id, user_id),
+    FOREIGN KEY (statement_id, user_id) REFERENCES statements (id, user_id) ON DELETE CASCADE,
     CHECK ((ratio_from IS NULL) = (ratio_to IS NULL))
 );
 
@@ -109,16 +109,16 @@ CREATE TABLE statement_splits (
 -- cash. Its stated currency is the key's.
 CREATE TABLE transactions (
     id              uuid        PRIMARY KEY,
-    user_id         uuid        NOT NULL REFERENCES users (id),
+    user_id         uuid        NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     broker          broker      NOT NULL,
     statement_id    uuid        NOT NULL,
-    stated_key_id   uuid        NOT NULL REFERENCES stated_keys (id),
+    stated_key_id   uuid        NOT NULL REFERENCES stated_keys (id) ON DELETE CASCADE,
     order_date      date        NOT NULL,
     settlement_date date        NOT NULL,
     as_at           date        NOT NULL,
     quantity        numeric     NOT NULL,
     created_at      timestamptz NOT NULL DEFAULT now(),
-    FOREIGN KEY (statement_id, user_id) REFERENCES statements (id, user_id)
+    FOREIGN KEY (statement_id, user_id) REFERENCES statements (id, user_id) ON DELETE CASCADE
 );
 
 CREATE INDEX transactions_period_idx ON transactions (user_id, broker, order_date);
@@ -131,7 +131,7 @@ CREATE TYPE resolution_outcome AS ENUM ('matched', 'rejected', 'unrecognised', '
 CREATE TABLE resolution_keys (
     run_id        uuid               NOT NULL,
     user_id       uuid               NOT NULL,
-    stated_key_id uuid               NOT NULL REFERENCES stated_keys (id),
+    stated_key_id uuid               NOT NULL REFERENCES stated_keys (id) ON DELETE CASCADE,
     -- outcome: 'matched', the key is associated with an instrument;
     -- 'rejected', the key contradicts the reference data it names and its rows
     -- are refused; 'unrecognised', the key was attempted and nothing named it
@@ -142,7 +142,7 @@ CREATE TABLE resolution_keys (
     reason        text,
     created_at    timestamptz        NOT NULL DEFAULT now(),
     PRIMARY KEY (run_id, stated_key_id),
-    FOREIGN KEY (run_id, user_id) REFERENCES runs (id, user_id),
+    FOREIGN KEY (run_id, user_id) REFERENCES runs (id, user_id) ON DELETE CASCADE,
     CHECK (outcome <> 'matched' OR reason IS NULL),
     CHECK (outcome <> 'rejected' OR reason IS NOT NULL)
 );

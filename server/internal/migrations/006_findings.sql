@@ -20,13 +20,13 @@ CREATE TYPE drop_step AS ENUM ('stated', 'precedence', 'corroboration');
 -- A finding highlights abnormal run outcomes to administrators.
 CREATE TABLE findings (
     id            uuid         PRIMARY KEY,
-    run_id        uuid         NOT NULL REFERENCES runs (id),
+    run_id        uuid         NOT NULL REFERENCES runs (id) ON DELETE CASCADE,
     kind          finding_kind NOT NULL,
-    block_id      uuid         UNIQUE REFERENCES datasource_blocks (id),
+    block_id      uuid         UNIQUE REFERENCES datasource_blocks (id) ON DELETE CASCADE,
     -- stated_key_id is the finding's key, for every kind but block.
-    stated_key_id uuid         REFERENCES stated_keys (id),
+    stated_key_id uuid         REFERENCES stated_keys (id) ON DELETE CASCADE,
     -- fetch_key_id is the response involved, where one was.
-    fetch_key_id  uuid         REFERENCES fetch_keys (id),
+    fetch_key_id  uuid         REFERENCES fetch_keys (id) ON DELETE CASCADE,
     step          drop_step,
     -- detail says the grounds in words.
     detail        text,

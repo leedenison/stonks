@@ -1,7 +1,8 @@
 import path from "node:path";
-import { Code, ConnectError } from "@connectrpc/connect";
+import { Code } from "@connectrpc/connect";
 import { RunKind } from "../gen/run/v1/run_pb";
 import { adminClient, resolutionItems, statementItems } from "../helpers/api";
+import { uploadStatement } from "../helpers/upload";
 import { expect, test } from "../helpers/test";
 
 // The client's Fidelity UK test export, modelled on a real export with its
@@ -16,40 +17,23 @@ test("shows an administrator the runs a user's upload produced", async ({
 }) => {
   const { user, session: userSession } = await signIn();
   await page.goto("/transactions");
-  await page.getByTestId("upload-statement").click();
-  await page.getByTestId("upload-file").setInputFiles(fixture);
-  await page.getByTestId("upload-from").fill("2025-02-01");
-  await page.getByTestId("upload-submit").click();
-  const item = page
-    .getByTestId("activity-sheet")
-    .getByTestId(/^activity-item-/)
-    .first();
-  await expect(item.getByTestId("state-chip")).toHaveAttribute(
-    "data-state",
-    "rejections",
-  );
-  const runId = (await item.getAttribute("data-testid"))?.replace(
-    "activity-item-",
-    "",
-  );
-  expect(runId).toBeTruthy();
+  const runId = await uploadStatement(page, fixture, {
+    state: "rejections",
+    from: "2025-02-01",
+  });
 
   // The admin RPCs refuse the user.
-  const refused = await adminClient(userSession)
-    .listRuns({})
-    .then(
-      () => undefined,
-      (e: unknown) => e,
-    );
-  expect(ConnectError.from(refused).code).toBe(Code.PermissionDenied);
+  await expect(adminClient(userSession).listRuns({})).rejects.toMatchObject({
+    code: Code.PermissionDenied,
+  });
 
   // The record: the statement run, the resolution it started, the rows it
   // rejected, and no findings, since every fetch was answered.
   const { session } = await signIn("admin");
   const admin = adminClient(session);
-  const statement = await admin.getRun({ runId: runId! });
+  const statement = await admin.getRun({ runId: runId });
   expect(statement.run?.userEmail).toBe(user.email);
-  expect(await statementItems(admin, runId!)).toHaveLength(januaryRows);
+  expect(await statementItems(admin, runId)).toHaveLength(januaryRows);
   expect(statement.run?.children).toHaveLength(1);
   const child = statement.run!.children[0].run!;
   expect(child.kind).toBe(RunKind.RESOLUTION);
@@ -72,7 +56,7 @@ test("shows an administrator the runs a user's upload produced", async ({
   await expect(page.getByTestId(`run-row-${child.id}`)).toBeVisible();
   await expect(page.getByTestId("runs-filter-user")).toContainText(user.email);
 
-  await row.getByRole("link").first().click();
+  await row.getByTestId(`run-link-${runId}`).click();
   await expect(page).toHaveURL(`/admin/runs/${runId}`);
   const run = page.getByTestId("admin-run-page");
   await expect(run.getByTestId("admin-run-lineage")).toContainText(user.email);
@@ -87,8 +71,7 @@ test("shows an administrator the runs a user's upload produced", async ({
   await run
     .getByTestId("admin-run-lineage")
     .getByTestId(`run-row-${child.id}`)
-    .getByRole("link")
-    .first()
+    .getByTestId(`run-link-${child.id}`)
     .click();
   await expect(page).toHaveURL(`/admin/runs/${child.id}`);
   const lineage = page.getByTestId("admin-run-lineage");
@@ -96,8 +79,9 @@ test("shows an administrator the runs a user's upload produced", async ({
     "aria-current",
     "page",
   );
-  await expect(
-    lineage.getByTestId(`run-row-${runId}`).getByRole("link").first(),
-  ).toHaveAttribute("href", `/admin/runs/${runId}`);
+  await expect(lineage.getByTestId(`run-link-${runId}`)).toHaveAttribute(
+    "href",
+    `/admin/runs/${runId}`,
+  );
   await expect(page.getByTestId(/^item-row-/)).toHaveCount(resolved.length);
 });

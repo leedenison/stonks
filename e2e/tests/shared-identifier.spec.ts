@@ -1,5 +1,6 @@
 import path from "node:path";
 import { holdingClient } from "../helpers/api";
+import { uploadStatement } from "../helpers/upload";
 import { expect, test } from "../helpers/test";
 
 // Two IBKR exports over disjoint periods, derived from the client's IBKR
@@ -24,20 +25,11 @@ test("gathers the keys of two statements that share an identifier", async ({
 
   const uploads = [january, february];
   for (const [n, fixture] of uploads.entries()) {
-    await page.getByTestId("upload-statement").click();
-    await page.getByTestId("upload-file").setInputFiles(fixture);
-    await expect(page.getByTestId("upload-rows")).toHaveText("3 rows");
-    await page.getByTestId("upload-submit").click();
-    // The sheet lists the earlier upload, completed, until it has read the
-    // new run, so the new item is awaited before its state is.
-    const items = page
-      .getByTestId("activity-sheet")
-      .getByTestId(/^activity-item-/);
-    await expect(items).toHaveCount(n + 1);
-    await expect(items.first().getByTestId("state-chip")).toHaveAttribute(
-      "data-state",
-      "completed",
-    );
+    await uploadStatement(page, fixture, {
+      state: "completed",
+      earlier: n,
+      rows: "3 rows",
+    });
     await page.getByTestId("activity-sheet-close").click();
   }
 

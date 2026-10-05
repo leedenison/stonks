@@ -62,56 +62,26 @@ export async function deleteDatasource(name: string): Promise<void> {
   await db().query("DELETE FROM datasources WHERE name = $1", [name]);
 }
 
-// deleteUser removes a user this suite created and everything the user's
-// runs wrote, in the order the foreign keys allow, as one transaction.
+// deleteUsers removes users this suite created and everything their runs
+// wrote, as one transaction. The schema cascades from a user to their rows.
 // Instruments, listings and identifiers are the system's and are never
-// deleted by the suite; those the user's fetches created lose their
-// provenance and stand as reference data to later specs.
-export async function deleteUser(id: string): Promise<void> {
+// deleted by the suite; those the users' fetches created lose their
+// provenance and stand as reference data to later specs. An administrator's
+// replay of another user's run names both, so it goes before either user.
+// The API offers no way to delete a user.
+export async function deleteUsers(ids: string[]): Promise<void> {
   const client = await db().connect();
-  const keys = "SELECT id FROM fetch_keys WHERE user_id = $1";
+  const keys = "SELECT id FROM fetch_keys WHERE user_id = ANY($1)";
   try {
     await client.query("BEGIN");
-    await client.query(
-      "DELETE FROM findings WHERE run_id IN (SELECT id FROM runs WHERE user_id = $1)",
-      [id],
-    );
-    for (const table of [
-      "datasource_blocks",
-      "identity_coverage",
-      "fetch_identifiers",
-    ]) {
-      await client.query(
-        `DELETE FROM ${table} WHERE fetch_key_id IN (${keys})`,
-        [id],
-      );
-    }
     for (const table of ["instruments", "listings", "identifiers"]) {
       await client.query(
         `UPDATE ${table} SET fetch_key_id = NULL WHERE fetch_key_id IN (${keys})`,
-        [id],
+        [ids],
       );
     }
-    for (const table of [
-      "fetch_keys",
-      "fetches",
-      "transactions",
-      "resolution_keys",
-      "statement_splits",
-      "statement_items",
-      "stated_keys",
-      "statements",
-    ]) {
-      await client.query(`DELETE FROM ${table} WHERE user_id = $1`, [id]);
-    }
-    // An administrator's replay of another user's run names both, and the
-    // two are deleted in no fixed order.
-    await client.query(
-      "DELETE FROM replays WHERE user_id = $1 OR started_by = $1",
-      [id],
-    );
-    await client.query("DELETE FROM runs WHERE user_id = $1", [id]);
-    await client.query("DELETE FROM users WHERE id = $1", [id]);
+    await client.query("DELETE FROM replays WHERE started_by = ANY($1)", [ids]);
+    await client.query("DELETE FROM users WHERE id = ANY($1)", [ids]);
     await client.query("COMMIT");
   } catch (e) {
     await client.query("ROLLBACK");

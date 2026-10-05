@@ -1,6 +1,7 @@
 import path from "node:path";
-import { Code, ConnectError } from "@connectrpc/connect";
+import { Code } from "@connectrpc/connect";
 import { adminClient } from "../helpers/api";
+import { uploadStatement } from "../helpers/upload";
 import { expect, test } from "../helpers/test";
 
 // The client's Fidelity UK test export, modelled on a real export with its
@@ -17,42 +18,22 @@ test("offers a replay on a statement's page and shows its refusal", async ({
 }) => {
   const { session: userSession } = await signIn();
   await page.goto("/transactions");
-  await page.getByTestId("upload-statement").click();
-  await page.getByTestId("upload-file").setInputFiles(fixture);
-  await page.getByTestId("upload-submit").click();
-  const item = page
-    .getByTestId("activity-sheet")
-    .getByTestId(/^activity-item-/)
-    .first();
-  await expect(item.getByTestId("state-chip")).toHaveAttribute(
-    "data-state",
-    "completed",
-  );
-  const runId = (await item.getAttribute("data-testid"))?.replace(
-    "activity-item-",
-    "",
-  );
-  expect(runId).toBeTruthy();
+  const runId = await uploadStatement(page, fixture, { state: "completed" });
 
   // The RPC refuses the user, and refuses a datasource that is not enabled.
-  const refused = await adminClient(userSession)
-    .startReplay({ runId: runId!, scope: { case: "unavailable", value: true } })
-    .then(
-      () => undefined,
-      (e: unknown) => e,
-    );
-  expect(ConnectError.from(refused).code).toBe(Code.PermissionDenied);
+  await expect(
+    adminClient(userSession).startReplay({
+      runId,
+      scope: { case: "unavailable", value: true },
+    }),
+  ).rejects.toMatchObject({ code: Code.PermissionDenied });
   const { session } = await signIn("admin");
-  const disabled = await adminClient(session)
-    .startReplay({
-      runId: runId!,
+  await expect(
+    adminClient(session).startReplay({
+      runId,
       scope: { case: "datasource", value: "nothing" },
-    })
-    .then(
-      () => undefined,
-      (e: unknown) => e,
-    );
-  expect(ConnectError.from(disabled).code).toBe(Code.FailedPrecondition);
+    }),
+  ).rejects.toMatchObject({ code: Code.FailedPrecondition });
 
   // The pages: the statement and its resolution carry the action, and the
   // dialog reports that nothing is left unavailable.
@@ -67,7 +48,7 @@ test("offers a replay on a statement's page and shows its refusal", async ({
   );
   await expect(page).toHaveURL(`/admin/runs/${runId}`);
 
-  const statement = await adminClient(session).getRun({ runId: runId! });
+  const statement = await adminClient(session).getRun({ runId: runId });
   const child = statement.run!.children[0].run!;
   await page.goto(`/admin/runs/${child.id}`);
   await expect(page.getByTestId("run-replay")).toBeVisible();

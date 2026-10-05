@@ -144,9 +144,7 @@ test("reorders the datasources by dragging a row", async ({ signIn, page }) => {
 // keyboard drag is one key event per step, where a pointer drag has to cross
 // the sensor's activation distance. The sensor listens for the arrow keys
 // from the task after the pick-up, so one task is yielded first. The drop
-// waits until the neighbour has shifted aside, since the render that shifts
-// it is the one that sets the drop target; the dragged row itself moves a
-// render earlier.
+// waits until the page marks the neighbour as the drop target.
 async function move(
   page: Page,
   name: string,
@@ -154,12 +152,12 @@ async function move(
   key: "ArrowUp" | "ArrowDown",
 ) {
   const grip = page.getByTestId(`datasource-grip-${name}`);
-  const shifted = page.getByTestId(`datasource-row-${neighbour}`);
+  const target = page.getByTestId(`datasource-row-${neighbour}`);
   await grip.press("Space");
   await expect(grip).toHaveAttribute("aria-pressed", "true");
   await page.evaluate(() => new Promise((resolve) => setTimeout(resolve)));
   await page.keyboard.press(key);
-  await expect(shifted).toHaveCSS("transform", /, -?[1-9][0-9.]*\)$/);
+  await expect(target).toHaveAttribute("data-over", "true");
   await page.keyboard.press("Space");
   await expect(grip).not.toHaveAttribute("aria-pressed", "true");
 }

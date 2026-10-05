@@ -35,11 +35,11 @@ CREATE TYPE block_scope AS ENUM ('identifier', 'datasource');
 -- A fetch represents requests for one set of keys to one datasource.
 CREATE TABLE fetches (
     id         uuid        PRIMARY KEY,
-    user_id    uuid        NOT NULL REFERENCES users (id),
+    user_id    uuid        NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     datasource text        NOT NULL REFERENCES datasources (name),
     kind       fetch_kind  NOT NULL,
     created_at timestamptz NOT NULL DEFAULT now(),
-    FOREIGN KEY (id, user_id) REFERENCES runs (id, user_id),
+    FOREIGN KEY (id, user_id) REFERENCES runs (id, user_id) ON DELETE CASCADE,
     UNIQUE (user_id, id)
 );
 
@@ -49,7 +49,7 @@ CREATE TABLE fetch_keys (
     id            uuid            PRIMARY KEY,
     fetch_id      uuid            NOT NULL,
     user_id       uuid            NOT NULL,
-    stated_key_id uuid            NOT NULL REFERENCES stated_keys (id),
+    stated_key_id uuid            NOT NULL REFERENCES stated_keys (id) ON DELETE CASCADE,
     outcome       fetch_outcome   NOT NULL,
     attempts      smallint        NOT NULL,
     sent_type     identifier_type,
@@ -61,7 +61,7 @@ CREATE TABLE fetch_keys (
     -- candidates is how many results the datasource offered; zero unless served.
     candidates    smallint        NOT NULL DEFAULT 0,
     created_at    timestamptz     NOT NULL DEFAULT now(),
-    FOREIGN KEY (fetch_id, user_id) REFERENCES fetches (id, user_id),
+    FOREIGN KEY (fetch_id, user_id) REFERENCES fetches (id, user_id) ON DELETE CASCADE,
     UNIQUE (fetch_id, stated_key_id),
     CHECK ((outcome = 'not_served') = (sent_type IS NULL)),
     CHECK ((sent_type IS NULL) = (sent_value IS NULL)),
@@ -76,7 +76,8 @@ CREATE INDEX fetch_keys_stated_key_idx ON fetch_keys (stated_key_id);
 CREATE INDEX fetch_keys_instrument_idx ON fetch_keys (instrument_id);
 
 -- Provenance: the fetch key whose response asserted the row, NULL for
--- reference data.
+-- reference data. Deleting a fetch key does not delete what it asserted, so
+-- the caller first moves the provenance elsewhere or clears it.
 ALTER TABLE instruments ADD COLUMN fetch_key_id uuid REFERENCES fetch_keys (id);
 ALTER TABLE listings ADD COLUMN fetch_key_id uuid REFERENCES fetch_keys (id);
 ALTER TABLE identifiers ADD COLUMN fetch_key_id uuid REFERENCES fetch_keys (id);
@@ -85,11 +86,11 @@ ALTER TABLE identifiers ADD COLUMN fetch_key_id uuid REFERENCES fetch_keys (id);
 -- is not requested again for a key that resolves to it. An identity response
 -- holds at the moment of the fetch, so the row carries that moment and the
 -- fetch key. Reference data, the instruments with no provenance, is covered
--- by every datasource without a row.
+-- by every datasource without a row. A row goes with its fetch key.
 CREATE TABLE identity_coverage (
     instrument_id uuid        NOT NULL REFERENCES instruments (id),
     datasource    text        NOT NULL REFERENCES datasources (name),
-    fetch_key_id  uuid        NOT NULL REFERENCES fetch_keys (id),
+    fetch_key_id  uuid        NOT NULL REFERENCES fetch_keys (id) ON DELETE CASCADE,
     covered_at    timestamptz NOT NULL DEFAULT now(),
     PRIMARY KEY (instrument_id, datasource)
 );
@@ -98,7 +99,7 @@ CREATE TABLE identity_coverage (
 -- datasource that the identifiers refer to the same instrument at the time
 -- of the fetch.
 CREATE TABLE fetch_identifiers (
-    fetch_key_id uuid            NOT NULL REFERENCES fetch_keys (id),
+    fetch_key_id uuid            NOT NULL REFERENCES fetch_keys (id) ON DELETE CASCADE,
     type         identifier_type NOT NULL,
     domain       text            NOT NULL DEFAULT '',
     value        text            NOT NULL,
@@ -109,7 +110,8 @@ CREATE TABLE fetch_identifiers (
 CREATE INDEX fetch_identifiers_value_idx ON fetch_identifiers (type, domain, value);
 
 -- A block records that a call failed unrecoverably, and suppresses further calls
--- until an administrator clears it.
+-- until an administrator clears it. A block goes with the fetch key whose call
+-- created it.
 CREATE TABLE datasource_blocks (
     id           uuid        PRIMARY KEY,
     datasource   text        NOT NULL REFERENCES datasources (name),
@@ -120,7 +122,7 @@ CREATE TABLE datasource_blocks (
     sent_value   text,
     reason       text        NOT NULL,
     -- fetch_key_id is the call that created the block.
-    fetch_key_id uuid        NOT NULL REFERENCES fetch_keys (id),
+    fetch_key_id uuid        NOT NULL REFERENCES fetch_keys (id) ON DELETE CASCADE,
     created_at   timestamptz NOT NULL DEFAULT now(),
     cleared_at   timestamptz,
     CHECK ((scope = 'identifier') = (sent_type IS NOT NULL)),

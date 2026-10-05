@@ -5,6 +5,7 @@ import {
   instrumentClient,
   statementClient,
 } from "../helpers/api";
+import { uploadStatement } from "../helpers/upload";
 import { expect, test } from "../helpers/test";
 
 // One line at each of two brokers, derived from the client's IBKR and Schwab
@@ -30,23 +31,12 @@ test("shows a resolved holding and an unresolved one from two brokers", async ({
 
   const runs: string[] = [];
   for (const [n, fixture] of [ibkr, schwab].entries()) {
-    await page.getByTestId("upload-statement").click();
-    await page.getByTestId("upload-file").setInputFiles(fixture);
-    await expect(page.getByTestId("upload-rows")).toHaveText("3 rows");
-    await page.getByTestId("upload-submit").click();
-    // The sheet lists the earlier upload, completed, until it has read the
-    // new run, so the new item is awaited before its state is.
-    const items = page
-      .getByTestId("activity-sheet")
-      .getByTestId(/^activity-item-/);
-    await expect(items).toHaveCount(n + 1);
-    const item = items.first();
-    await expect(item.getByTestId("state-chip")).toHaveAttribute(
-      "data-state",
-      "completed",
-    );
     runs.push(
-      (await item.getAttribute("data-testid"))!.replace("activity-item-", ""),
+      await uploadStatement(page, fixture, {
+        state: "completed",
+        earlier: n,
+        rows: "3 rows",
+      }),
     );
     await page.getByTestId("activity-sheet-close").click();
   }
