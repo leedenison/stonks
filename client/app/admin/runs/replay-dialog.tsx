@@ -1,18 +1,16 @@
 "use client";
 
-import { Code, ConnectError } from "@connectrpc/connect";
 import { useState } from "react";
 import { Button } from "@/app/components/button";
 import { Dialog } from "@/app/components/dialog";
+import { Select } from "@/app/components/input";
 import { Notice } from "@/app/components/notice";
 import type { UserRun } from "@/gen/admin/v1/admin_pb";
 import type { Run } from "@/gen/run/v1/run_pb";
 import { useDatasources } from "@/hooks/use-datasources";
 import { useStartReplay } from "@/hooks/use-replay";
-import { enumLabel, runEnums } from "@/lib/admin";
-import { formatInstant } from "@/lib/format";
-
-const selectClass = "rounded-md border border-border bg-surface px-2 py-1";
+import { runLabel } from "@/lib/admin";
+import { refusal } from "@/lib/refusal";
 
 // ReplayDialog starts a replay over the keys of run: those left unavailable,
 // or those an enabled datasource has not yet answered. A refusal is shown in
@@ -35,9 +33,7 @@ export function ReplayDialog({
   const [datasource, setDatasource] = useState("");
   const chosen = datasource || enabled[0]?.name || "";
   const r = run.run;
-  const label = r
-    ? `${enumLabel(runEnums.kind, r.kind)} run${r.createdAt ? ` @ ${formatInstant(r.createdAt)}` : ""}`
-    : "run";
+  const label = runLabel(r);
   const submit = () =>
     start.mutate(
       {
@@ -80,51 +76,47 @@ export function ReplayDialog({
       </p>
       {start.isError && (
         <Notice tone="error" testId="replay-error">
-          {refusal(start.error)}
+          {refusal(start.error, "The replay could not be started.")}
         </Notice>
       )}
-      <label className="flex items-center gap-2 text-sm">
-        <input
-          type="radio"
-          name="scope"
-          data-testid="replay-scope-unavailable"
-          checked={scope === "unavailable"}
-          onChange={() => setScope("unavailable")}
-        />
-        <span>Keys left unavailable</span>
-      </label>
-      <label className="flex items-center gap-2 text-sm">
-        <input
-          type="radio"
-          name="scope"
-          data-testid="replay-scope-datasource"
-          checked={scope === "datasource"}
-          onChange={() => setScope("datasource")}
-        />
-        <span>Keys a datasource has not yet answered</span>
-        <select
-          data-testid="replay-datasource"
-          className={selectClass}
-          value={chosen}
-          disabled={scope !== "datasource"}
-          onChange={(e) => setDatasource(e.target.value)}
-        >
-          {enabled.map((d) => (
-            <option key={d.name} value={d.name}>
-              {d.name}
-            </option>
-          ))}
-        </select>
-      </label>
+      <fieldset className="flex flex-col gap-2 text-sm">
+        <legend className="mb-1 text-text-muted">Keys</legend>
+        <label className="flex items-center gap-2">
+          <input
+            type="radio"
+            name="scope"
+            data-testid="replay-scope-unavailable"
+            checked={scope === "unavailable"}
+            onChange={() => setScope("unavailable")}
+          />
+          <span>Keys left unavailable</span>
+        </label>
+        <div className="flex items-center gap-2">
+          <label className="flex items-center gap-2">
+            <input
+              type="radio"
+              name="scope"
+              data-testid="replay-scope-datasource"
+              checked={scope === "datasource"}
+              onChange={() => setScope("datasource")}
+            />
+            <span>Keys a datasource has not yet answered</span>
+          </label>
+          <Select
+            data-testid="replay-datasource"
+            aria-label="Datasource"
+            value={chosen}
+            disabled={scope !== "datasource"}
+            onChange={(e) => setDatasource(e.target.value)}
+          >
+            {enabled.map((d) => (
+              <option key={d.name} value={d.name}>
+                {d.name}
+              </option>
+            ))}
+          </Select>
+        </div>
+      </fieldset>
     </Dialog>
   );
-}
-
-// refusal is the message of a refused start, which carries the service's
-// reason, and a fixed line for any other failure.
-function refusal(error: Error | null): string {
-  if (error instanceof ConnectError && error.code === Code.FailedPrecondition) {
-    return error.rawMessage;
-  }
-  return "The replay could not be started.";
 }

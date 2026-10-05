@@ -18,17 +18,22 @@ import {
   ReplaySchema,
   RunItemSchema,
   StartReplayResponseSchema,
-  UserRunSchema,
 } from "@/gen/admin/v1/admin_pb";
 import { Role } from "@/gen/auth/v1/auth_pb";
-import { RunKind, RunSchema, RunState, RunTrigger } from "@/gen/run/v1/run_pb";
+import { RunKind, RunSchema, RunTrigger } from "@/gen/run/v1/run_pb";
 import {
   AssetClass,
   IdentifierSchema,
   IdentifierType,
   StatedKeySchema,
 } from "@/gen/type/v1/type_pb";
-import { liveSession, renderWithAuth, transportWith } from "@/lib/test-utils";
+import {
+  liveSession,
+  renderWithAuth,
+  transportWith,
+  instant,
+  userRun,
+} from "@/lib/test-utils";
 import AdminRunPage from "./page";
 
 const router = { push: vi.fn() };
@@ -73,56 +78,42 @@ const shell = create(IdentifierSchema, {
 // A fetch under a resolution under a statement, the fetch being the run
 // read, with one run below it.
 const fetch = create(GetRunResponseSchema, {
-  run: create(UserRunSchema, {
-    run: create(RunSchema, {
+  run: userRun(
+    {
       id: "f1",
       kind: RunKind.FETCH,
       trigger: RunTrigger.RUN,
       parentId: "p1",
-      state: RunState.COMPLETED,
-      createdAt: timestampFromDate(new Date("2026-09-24T10:00:00Z")),
-    }),
-    userId: "u1",
-    userEmail: "one@example.com",
-    children: [
-      create(UserRunSchema, {
-        run: create(RunSchema, {
-          id: "c1",
-          kind: RunKind.FETCH,
-          trigger: RunTrigger.RUN,
-          parentId: "f1",
-          state: RunState.COMPLETED,
-          createdAt: timestampFromDate(new Date("2026-09-24T10:00:05Z")),
-        }),
-        userId: "u1",
-        userEmail: "one@example.com",
-        openFindings: 1,
-      }),
-    ],
-  }),
+      createdAt: instant("2026-09-24T10:00:00Z"),
+    },
+    {
+      children: [
+        userRun(
+          {
+            id: "c1",
+            kind: RunKind.FETCH,
+            trigger: RunTrigger.RUN,
+            parentId: "f1",
+            createdAt: instant("2026-09-24T10:00:05Z"),
+          },
+          { openFindings: 1 },
+        ),
+      ],
+    },
+  ),
   ancestors: [
-    create(UserRunSchema, {
-      run: create(RunSchema, {
-        id: "s1",
-        kind: RunKind.STATEMENT,
-        trigger: RunTrigger.USER,
-        state: RunState.COMPLETED,
-        createdAt: timestampFromDate(new Date("2026-09-24T09:59:00Z")),
-      }),
-      userId: "u1",
-      userEmail: "one@example.com",
+    userRun({
+      id: "s1",
+      kind: RunKind.STATEMENT,
+      trigger: RunTrigger.USER,
+      createdAt: instant("2026-09-24T09:59:00Z"),
     }),
-    create(UserRunSchema, {
-      run: create(RunSchema, {
-        id: "p1",
-        kind: RunKind.RESOLUTION,
-        trigger: RunTrigger.RUN,
-        parentId: "s1",
-        state: RunState.COMPLETED,
-        createdAt: timestampFromDate(new Date("2026-09-24T09:59:30Z")),
-      }),
-      userId: "u1",
-      userEmail: "one@example.com",
+    userRun({
+      id: "p1",
+      kind: RunKind.RESOLUTION,
+      trigger: RunTrigger.RUN,
+      parentId: "s1",
+      createdAt: instant("2026-09-24T09:59:30Z"),
     }),
   ],
   findings: [
@@ -244,7 +235,7 @@ describe("AdminRunPage", () => {
     expect(detail.textContent).toContain("GB00B03MLX29");
     expect(detail.textContent).toContain("SHEL(XLON)");
     expect(detail.textContent).toContain("SHELL PLC");
-    expect(detail.textContent).toContain("equity");
+    expect(detail.textContent).toContain("Equity");
     expect(detail.textContent).toContain("GBP");
     expect(detail.textContent).not.toContain("fk1");
     fireEvent.click(screen.getByTestId("finding-row-x2"));
@@ -330,16 +321,11 @@ describe("AdminRunPage", () => {
   });
   it("shows the tree of the run a replay re-resolved", async () => {
     const replay = create(GetRunResponseSchema, {
-      run: create(UserRunSchema, {
-        run: create(RunSchema, {
-          id: "f1",
-          kind: RunKind.REPLAY,
-          trigger: RunTrigger.ADMINISTRATOR,
-          state: RunState.COMPLETED,
-          createdAt: timestampFromDate(new Date("2026-09-24T10:00:00Z")),
-        }),
-        userId: "u1",
-        userEmail: "one@example.com",
+      run: userRun({
+        id: "f1",
+        kind: RunKind.REPLAY,
+        trigger: RunTrigger.ADMINISTRATOR,
+        createdAt: instant("2026-09-24T10:00:00Z"),
       }),
       replay: create(ReplaySchema, {
         sourceRunId: "s1",
@@ -348,30 +334,24 @@ describe("AdminRunPage", () => {
     });
     // The source, a statement with its resolution under it.
     const source = create(GetRunResponseSchema, {
-      run: create(UserRunSchema, {
-        run: create(RunSchema, {
+      run: userRun(
+        {
           id: "s1",
           kind: RunKind.STATEMENT,
           trigger: RunTrigger.USER,
-          state: RunState.COMPLETED,
-          createdAt: timestampFromDate(new Date("2026-09-23T10:00:00Z")),
-        }),
-        userId: "u1",
-        userEmail: "one@example.com",
-        children: [
-          create(UserRunSchema, {
-            run: create(RunSchema, {
+          createdAt: instant("2026-09-23T10:00:00Z"),
+        },
+        {
+          children: [
+            userRun({
               id: "s2",
               kind: RunKind.RESOLUTION,
               trigger: RunTrigger.RUN,
               parentId: "s1",
-              state: RunState.COMPLETED,
             }),
-            userId: "u1",
-            userEmail: "one@example.com",
-          }),
-        ],
-      }),
+          ],
+        },
+      ),
     });
     renderWithAuth(
       <AdminRunPage />,
@@ -395,16 +375,11 @@ describe("AdminRunPage", () => {
 
   it("replays a statement's keys from its action bar and goes to the run", async () => {
     const statement = create(GetRunResponseSchema, {
-      run: create(UserRunSchema, {
-        run: create(RunSchema, {
-          id: "f1",
-          kind: RunKind.STATEMENT,
-          trigger: RunTrigger.USER,
-          state: RunState.COMPLETED,
-          createdAt: timestampFromDate(new Date("2026-09-24T10:00:00Z")),
-        }),
-        userId: "u1",
-        userEmail: "one@example.com",
+      run: userRun({
+        id: "f1",
+        kind: RunKind.STATEMENT,
+        trigger: RunTrigger.USER,
+        createdAt: instant("2026-09-24T10:00:00Z"),
       }),
     });
     const startReplay = vi.fn(() =>

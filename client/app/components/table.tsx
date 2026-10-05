@@ -57,7 +57,8 @@ export function Td({
 }
 
 // Tr with an href is a row that opens a page. The row itself navigates on
-// a click, and its first cell holds the link so a keyboard reaches it.
+// a click, and its first cell holds the link so a keyboard reaches it. The
+// row ignores a click on a link or a button inside it.
 export function Tr({
   href,
   className = "",
@@ -66,7 +67,16 @@ export function Tr({
   const router = useRouter();
   return (
     <tr
-      onClick={href ? () => router.push(href) : undefined}
+      onClick={
+        href
+          ? (e) => {
+              if ((e.target as Element).closest("a, button")) {
+                return;
+              }
+              router.push(href);
+            }
+          : undefined
+      }
       className={`transition-colors hover:bg-primary-light/15 ${href ? "cursor-pointer" : ""} ${className}`}
       {...rest}
     />

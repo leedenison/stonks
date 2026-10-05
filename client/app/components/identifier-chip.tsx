@@ -3,7 +3,7 @@ import {
   IdentifierType,
   type StatedKey,
 } from "@/gen/type/v1/type_pb";
-import { enumLabel } from "@/lib/admin";
+import { enumLabel } from "@/lib/enum";
 import { Chip } from "./chip";
 
 // The short name each identifier type is shown under.

@@ -15,10 +15,10 @@ import {
 } from "@/app/components/identifier-chip";
 import { Notice } from "@/app/components/notice";
 import { Page } from "@/app/components/page-frame";
+import { ResolutionKeys } from "@/app/components/resolution-keys";
+import { Section } from "@/app/components/section";
 import { RejectionGroups } from "@/app/components/rejection-groups";
-import { ResolutionChip } from "@/app/components/resolution-chip";
 import { Skeleton } from "@/app/components/skeleton";
-import { RunChip } from "@/app/components/state-chip";
 import { TableCard, Td, Th, Thead, Tr } from "@/app/components/table";
 import { Toggle } from "@/app/components/toggle";
 import {
@@ -29,22 +29,17 @@ import {
   type UserRun,
 } from "@/gen/admin/v1/admin_pb";
 import { type Run, RunKind } from "@/gen/run/v1/run_pb";
-import { AssetClass } from "@/gen/type/v1/type_pb";
 import { useAdminRun } from "@/hooks/use-admin-run";
 import { useAdminRunItems } from "@/hooks/use-admin-run-items";
 import { useClearBlock } from "@/hooks/use-blocks";
 import { useClearFinding } from "@/hooks/use-findings";
-import {
-  enumLabel,
-  filterQuery,
-  findingText,
-  flattenRuns,
-  openFindingsBelow,
-  runEnums,
-} from "@/lib/admin";
+import { findingText, flattenRuns, runEnums, runLabel } from "@/lib/admin";
+import { enumLabel } from "@/lib/enum";
 import { formatInstant } from "@/lib/format";
 import { anyLive } from "@/lib/run";
+import { assetClassLabel } from "@/lib/asset-class";
 import { ReplayDialog } from "../replay-dialog";
+import { RunRow, RunTreeTable } from "../run-tree";
 
 // One run as an administrator reads it: its owner, how it ended, its place
 // among the runs above and below it, the findings it recorded and the
@@ -56,9 +51,7 @@ export default function AdminRunPage() {
   const { data, isPending, error, refetch } = useAdminRun(id);
   const [replaying, setReplaying] = useState(false);
   const run = data?.run?.run;
-  const title = run
-    ? `${enumLabel(runEnums.kind, run.kind)} run${run.createdAt ? ` @ ${formatInstant(run.createdAt)}` : ""}`
-    : "Run";
+  const title = run ? runLabel(run) : "Run";
 
   return (
     <Page
@@ -117,15 +110,6 @@ function replayable(kind: RunKind): boolean {
   return kind === RunKind.STATEMENT || kind === RunKind.RESOLUTION;
 }
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <section className="flex flex-col gap-2">
-      <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
-      {children}
-    </section>
-  );
-}
-
 // Lineage is the run's place in its tree: the runs above it and every run
 // below it, without the siblings of any run above. The rows above the run
 // start open and the rest start closed.
@@ -142,18 +126,19 @@ function Lineage({
   const self = data.run;
   const rows: ReactNode[] = [];
   const toggle = (id: string, open: boolean) =>
-    setToggled({ ...toggled, [id]: open });
+    setToggled((t) => ({ ...t, [id]: open }));
   let depth = 0;
   let cut = false;
   for (const a of data.ancestors) {
-    const open = toggled[a.run?.id ?? ""] ?? true;
+    const id = a.run?.id ?? "";
+    const open = toggled[id] ?? true;
     rows.push(
-      <LineageRow
-        key={a.run?.id}
+      <RunRow
+        key={id}
         run={a}
         depth={depth}
         open={open}
-        toggle={toggle}
+        onToggle={() => toggle(id, !open)}
       />,
     );
     if (!open) {
@@ -168,13 +153,13 @@ function Lineage({
         const id = r.run?.id ?? "";
         const open = toggled[id] ?? false;
         rows.push(
-          <LineageRow
+          <RunRow
             key={id}
             run={r}
             depth={depth}
             current={current && id === self.run?.id}
             open={r.children.length > 0 ? open : undefined}
-            toggle={toggle}
+            onToggle={() => toggle(id, !open)}
           />,
         );
         if (open) {
@@ -184,113 +169,7 @@ function Lineage({
     };
     below([self], depth);
   }
-  return (
-    <TableCard testId={testId}>
-      <Thead>
-        <tr>
-          <Th>Started</Th>
-          <Th>Kind</Th>
-          <Th>Trigger</Th>
-          <Th>User</Th>
-          <Th>State</Th>
-          <Th>Findings</Th>
-        </tr>
-      </Thead>
-      <tbody>{rows}</tbody>
-    </TableCard>
-  );
-}
-
-// LineageRow is one run of the lineage at its depth.
-function LineageRow({
-  run: r,
-  depth,
-  current = false,
-  open,
-  toggle,
-}: {
-  run: UserRun;
-  depth: number;
-  // current marks the run the page describes. Its row links nowhere and
-  // does not change under the pointer.
-  current?: boolean;
-  // open is unset when the row has no rows below it. A closed row adds the
-  // open findings of the rows it hides to its own.
-  open?: boolean;
-  toggle: (id: string, open: boolean) => void;
-}) {
-  const id = r.run?.id ?? "";
-  const href = `/admin/runs/${id}`;
-  const started = r.run?.createdAt ? formatInstant(r.run.createdAt) : "";
-  const findings = open === false ? openFindingsBelow(r) : r.openFindings;
-  const cells = (
-    <>
-      <Td className="font-mono tabular-nums">
-        <span
-          className="flex items-center gap-1"
-          style={{ paddingLeft: `${depth * 1.25}rem` }}
-        >
-          <Toggle
-            open={open}
-            onToggle={() => toggle(id, !open)}
-            testId={`run-toggle-${id}`}
-          />
-          {current ? (
-            started
-          ) : (
-            <Link href={href} className="underline-offset-4 hover:underline">
-              {started}
-            </Link>
-          )}
-        </span>
-      </Td>
-      <Td>
-        <Chip>{enumLabel(runEnums.kind, r.run?.kind ?? 0)}</Chip>
-      </Td>
-      <Td>{enumLabel(runEnums.trigger, r.run?.trigger ?? 0)}</Td>
-      <Td>
-        <Link
-          href={filterQuery({
-            kind: "",
-            trigger: "",
-            state: "",
-            before: "",
-            user: r.userId,
-          })}
-          onClick={(e) => e.stopPropagation()}
-          className="text-action underline-offset-4 hover:underline"
-        >
-          {r.userEmail}
-        </Link>
-      </Td>
-      <Td>
-        <RunChip run={r.run} />
-      </Td>
-      <Td className="font-mono tabular-nums">
-        {findings > 0 && (
-          <Chip tone="accent" data-testid={`run-open-findings-${id}`}>
-            {findings}
-          </Chip>
-        )}
-      </Td>
-    </>
-  );
-  if (current) {
-    return (
-      <tr
-        data-testid={`run-row-${id}`}
-        aria-current="page"
-        className="bg-accent-soft/50"
-      >
-        {cells}
-      </tr>
-    );
-  }
-  return (
-    <Tr href={href} data-testid={`run-row-${id}`}>
-      {cells}
-    </Tr>
-  );
+  return <RunTreeTable testId={testId}>{rows}</RunTreeTable>;
 }
 
 // Findings lists what the run and every run below it met. A finding that
@@ -414,7 +293,7 @@ function FindingDetail({ finding: f }: { finding: Finding }) {
       "Identifiers",
       k.identifiers.length > 0 && <IdentifierChips ids={k.identifiers} />,
     ],
-    ["Asset class", k.assetClass !== 0 && enumLabel(AssetClass, k.assetClass)],
+    ["Asset class", k.assetClass !== 0 && assetClassLabel(k.assetClass)],
     ["Currency", k.currency],
   ];
   return (
@@ -435,9 +314,7 @@ function FindingDetail({ finding: f }: { finding: Finding }) {
 // to its page unless it is the run the page describes.
 function FindingRun({ run, self }: { run?: Run; self: boolean }) {
   if (!run) return null;
-  const label = `${enumLabel(runEnums.kind, run.kind)} @ ${
-    run.createdAt ? formatInstant(run.createdAt) : ""
-  }`;
+  const label = `${enumLabel(runEnums.kind, run.kind)} @ ${formatInstant(run.createdAt)}`;
   if (self) {
     return <span className="font-mono tabular-nums">{label}</span>;
   }
@@ -522,31 +399,12 @@ function RunItems({ id, live }: { id: string; live: boolean }) {
   if (resolved.length > 0) {
     return (
       <Section title="Keys">
-        <TableCard testId="admin-run-items">
-          <Thead>
-            <tr>
-              <Th>Stated key</Th>
-              <Th>Outcome</Th>
-              <Th>Reason</Th>
-            </tr>
-          </Thead>
-          <tbody>
-            {resolved.map((it) => (
-              <Tr
-                key={it.statedKeyId}
-                data-testid={`item-row-${it.statedKeyId}`}
-              >
-                <Td>
-                  <StatedKeyChips statedKey={it.statedKey} />
-                </Td>
-                <Td>
-                  <ResolutionChip outcome={it.outcome} live={live} />
-                </Td>
-                <Td>{it.reason}</Td>
-              </Tr>
-            ))}
-          </tbody>
-        </TableCard>
+        <ResolutionKeys
+          keys={resolved}
+          live={live}
+          testId="admin-run-items"
+          rowTestId={(id) => `item-row-${id}`}
+        />
         {more}
       </Section>
     );

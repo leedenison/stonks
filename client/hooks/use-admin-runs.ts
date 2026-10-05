@@ -3,7 +3,8 @@
 import type { UseQueryResult } from "@tanstack/react-query";
 import { useClients } from "@/contexts/clients-context";
 import type { ListRunsResponse } from "@/gen/admin/v1/admin_pb";
-import { flattenRuns, fromParam, type RunFilters, runEnums } from "@/lib/admin";
+import { flattenRuns, type RunFilters, runEnums } from "@/lib/admin";
+import { fromParam } from "@/lib/enum";
 import { qk } from "@/lib/query-keys";
 import { anyLive, pollInterval } from "@/lib/run";
 import { useAuthedQuery } from "./use-authed-query";

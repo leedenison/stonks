@@ -1,3 +1,4 @@
+import type { QueryClient } from "@tanstack/react-query";
 import type { RunFilters } from "./admin";
 
 // Query keys, in one place so invalidation and the queries it targets cannot
@@ -21,4 +22,15 @@ export const qk = {
   datasources: () => ["datasources"] as const,
   blocks: (cleared: boolean, before: string) =>
     ["blocks", cleared, before] as const,
+  blocksAll: () => ["blocks"] as const,
 };
+
+// invalidateCleared refreshes the listings that clearing a finding or a
+// block affects.
+export function invalidateCleared(queryClient: QueryClient) {
+  return Promise.all(
+    [qk.blocksAll(), qk.adminRunsAll()].map((queryKey) =>
+      queryClient.invalidateQueries({ queryKey }),
+    ),
+  );
+}

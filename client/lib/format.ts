@@ -3,8 +3,11 @@ import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { toFixed } from "./marshal/decimal";
 
 // formatInstant renders a timestamp to the minute in UTC, the zone of every
-// time in the API.
-export function formatInstant(ts: Timestamp): string {
+// time in the API. It renders an absent timestamp as "".
+export function formatInstant(ts: Timestamp | undefined): string {
+  if (!ts) {
+    return "";
+  }
   return `${timestampDate(ts).toISOString().slice(0, 16).replace("T", " ")} UTC`;
 }
 

@@ -1,15 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { create } from "@bufbuild/protobuf";
 import { UserRunSchema } from "@/gen/admin/v1/admin_pb";
-import { RunKind, RunState } from "@/gen/run/v1/run_pb";
+import { timestampFromDate } from "@bufbuild/protobuf/wkt";
+import { RunKind, RunSchema } from "@/gen/run/v1/run_pb";
 import {
-  enumLabel,
-  enumParam,
   filterQuery,
   flattenRuns,
-  fromParam,
   openFindingsBelow,
+  queryHref,
   readFilters,
+  runLabel,
 } from "./admin";
 
 describe("admin", () => {
@@ -26,12 +26,24 @@ describe("admin", () => {
     expect(filterQuery({ ...f, state: "", before: "" })).toBe("/admin/runs");
   });
 
-  it("carries an enum value as its lower case name", () => {
-    expect(enumParam(RunKind, RunKind.STATEMENT)).toBe("statement");
-    expect(fromParam(RunKind, "statement")).toBe(RunKind.STATEMENT);
-    expect(fromParam(RunKind, "unspecified")).toBeUndefined();
-    expect(fromParam(RunKind, "nonsense")).toBeUndefined();
-    expect(enumLabel(RunState, RunState.INTERRUPTED)).toBe("interrupted");
+  it("leaves an unset param out of an address", () => {
+    expect(queryHref("/admin/blocks", { cleared: "1", before: "" })).toBe(
+      "/admin/blocks?cleared=1",
+    );
+    expect(queryHref("/admin/blocks", { cleared: "" })).toBe("/admin/blocks");
+    expect(filterQuery({ user: "u1" })).toBe("/admin/runs?user=u1");
+  });
+
+  it("names a run by its kind and when it started", () => {
+    const run = create(RunSchema, {
+      kind: RunKind.FETCH,
+      createdAt: timestampFromDate(new Date("2026-09-24T10:00:00Z")),
+    });
+    expect(runLabel(run)).toBe("fetch run @ 2026-09-24 10:00 UTC");
+    expect(runLabel(create(RunSchema, { kind: RunKind.FETCH }))).toBe(
+      "fetch run",
+    );
+    expect(runLabel(undefined)).toBe("run");
   });
 
   it("walks a tree of runs and sums the findings below each", () => {

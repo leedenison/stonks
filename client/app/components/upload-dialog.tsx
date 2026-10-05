@@ -17,15 +17,13 @@ import { claim, type Period, period } from "@/lib/upload/period";
 import { refusal } from "@/lib/upload/refusal";
 import { Button } from "./button";
 import { Dialog } from "./dialog";
+import { Input, Select } from "./input";
 import { Notice } from "./notice";
 import { Td, Th } from "./table";
 
 // The largest file taken, in bytes. A broker export is kilobytes; anything
 // larger is not one.
 const maxBytes = 5 * 1024 * 1024;
-
-const inputClass =
-  "rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-text-primary focus:border-primary focus:ring-1 focus:ring-primary/30 focus:outline-hidden";
 
 type Loaded = { name: string; type: string; text: string };
 
@@ -192,9 +190,8 @@ export function UploadDialog({
           </p>
           <label className="flex flex-col gap-1 text-sm">
             <span className="text-text-muted">Broker</span>
-            <select
+            <Select
               data-testid="upload-broker"
-              className={inputClass}
               value={broker ?? ""}
               onChange={(e) => {
                 setBroker(
@@ -210,17 +207,16 @@ export function UploadDialog({
                   {brokerLabel(b)}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           {broker !== undefined && needsExportDate(broker) && (
             <label className="flex flex-col gap-1 text-sm">
               <span className="text-text-muted">
                 Date the data was exported
               </span>
-              <input
+              <Input
                 type="date"
                 data-testid="upload-exported-on"
-                className={inputClass}
                 value={exportedOn}
                 onChange={(e) => setExportedOn(e.target.value)}
               />
@@ -244,10 +240,9 @@ export function UploadDialog({
               <div className="flex flex-wrap gap-4 text-sm">
                 <label className="flex flex-col gap-1">
                   <span className="text-text-muted">Period from</span>
-                  <input
+                  <Input
                     type="date"
                     data-testid="upload-from"
-                    className={inputClass}
                     value={span.from}
                     onChange={(e) =>
                       setChosen({ from: e.target.value, to: span.to })
@@ -256,10 +251,9 @@ export function UploadDialog({
                 </label>
                 <label className="flex flex-col gap-1">
                   <span className="text-text-muted">Period to</span>
-                  <input
+                  <Input
                     type="date"
                     data-testid="upload-to"
-                    className={inputClass}
                     value={span.to}
                     onChange={(e) =>
                       setChosen({ from: span.from, to: e.target.value })
