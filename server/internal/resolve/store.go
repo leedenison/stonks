@@ -64,4 +64,4 @@ type Fetcher interface {
 	Identity(ctx context.Context, parent gen.Run, e *market.Entry, keys []gen.StatedKey) ([]result, error)
 }
 
-var _ Fetcher = market.IdentityFetcher{}
+var _ Fetcher = (*market.Fetcher)(nil)

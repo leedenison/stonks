@@ -8,6 +8,7 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
 	"github.com/jackc/pgerrcode"
 	"github.com/stretchr/testify/require"
@@ -65,6 +66,29 @@ func servedKey(t *testing.T, q *gen.Queries, fetch gen.Fetch, key gen.StatedKey,
 	return id
 }
 
+// fetching is a fetch on fresh rows, with the rows it needs.
+type fetching struct {
+	user      gen.User
+	statement gen.Statement
+	run       gen.Run
+	ds        gen.Datasource
+	fetch     gen.Fetch
+	key       gen.StatedKey
+}
+
+func newFetching(t *testing.T, q *gen.Queries) fetching {
+	t.Helper()
+	f := fetching{user: newUser(t, q, "fetching-"+uuid.NewString()+"@example.com")}
+	f.statement = newStatement(t, q, f.user)
+	var err error
+	f.run, err = q.GetRun(context.Background(), gen.GetRunParams{ID: f.statement.ID, UserID: f.user.ID})
+	require.NoError(t, err)
+	f.ds = newDatasource(t, q, "fetching-"+uuid.NewString(), 10)
+	f.fetch = newFetch(t, q, f.user, f.run, f.ds)
+	f.key = newStatedKey(t, q, f.user, f.statement)
+	return f
+}
+
 // TestDatasources checks that the schema seeds none, and that name breaks a
 // tie in precedence.
 func TestDatasources(t *testing.T) {
@@ -87,9 +111,8 @@ func TestDatasources(t *testing.T) {
 	for _, ds := range listed {
 		names = append(names, ds.Name)
 	}
-	want := []string{"alpha", "gamma", "beta"}
-	if len(names) != len(want) || names[0] != want[0] || names[1] != want[1] || names[2] != want[2] {
-		t.Errorf("ListDatasources = %v, want %v", names, want)
+	if diff := cmp.Diff([]string{"alpha", "gamma", "beta"}, names); diff != "" {
+		t.Errorf("ListDatasources mismatch (-want +got):\n%s", diff)
 	}
 }
 
@@ -226,13 +249,8 @@ func TestFetchKeys(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Each violation aborts the transaction, so each case takes its own.
 			q := newTx(t)
-			user := newUser(t, q, "fetch-keys-"+uuid.NewString()+"@example.com")
-			statement := newStatement(t, q, user)
-			run, err := q.GetRun(ctx, gen.GetRunParams{ID: statement.ID, UserID: user.ID})
-			require.NoError(t, err)
-			fetch := newFetch(t, q, user, run, newDatasource(t, q, "fetch-keys-"+uuid.NewString(), 10))
-			key := newStatedKey(t, q, user, statement)
-			tc.arg.ID, tc.arg.FetchID, tc.arg.UserID, tc.arg.StatedKeyID = db.NewID(), fetch.ID, user.ID, key.ID
+			f := newFetching(t, q)
+			tc.arg.ID, tc.arg.FetchID, tc.arg.UserID, tc.arg.StatedKeyID = db.NewID(), f.fetch.ID, f.user.ID, f.key.ID
 			if err := q.CreateFetchKey(ctx, tc.arg); !sqlstate(err, tc.want) {
 				t.Errorf("CreateFetchKey(%s): err = %v, want sqlstate %s", tc.name, err, tc.want)
 			}
@@ -241,21 +259,16 @@ func TestFetchKeys(t *testing.T) {
 
 	t.Run("an instrument on a key nothing served", func(t *testing.T) {
 		q := newTx(t)
-		user := newUser(t, q, "fetch-keys-instrument@example.com")
-		statement := newStatement(t, q, user)
-		run, err := q.GetRun(ctx, gen.GetRunParams{ID: statement.ID, UserID: user.ID})
-		require.NoError(t, err)
-		fetch := newFetch(t, q, user, run, newDatasource(t, q, "fetch-keys-instrument", 10))
-		key := newStatedKey(t, q, user, statement)
+		f := newFetching(t, q)
 		found, err := q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: types.IdentifierTypeCurrency, Value: "USD"})
 		require.NoError(t, err)
 
 		id := db.NewID()
 		require.NoError(t, q.CreateFetchKey(ctx, gen.CreateFetchKeyParams{
-			ID: id, FetchID: fetch.ID, UserID: user.ID, StatedKeyID: key.ID,
+			ID: id, FetchID: f.fetch.ID, UserID: f.user.ID, StatedKeyID: f.key.ID,
 			Outcome: gen.FetchOutcomeNotServed, Reason: ptr.To("serves no isin"),
 		}))
-		err = q.SetFetchKeyInstrument(ctx, gen.SetFetchKeyInstrumentParams{ID: id, UserID: user.ID, InstrumentID: &found.Instrument.ID})
+		err = q.SetFetchKeyInstrument(ctx, gen.SetFetchKeyInstrumentParams{ID: id, UserID: f.user.ID, InstrumentID: &found.Instrument.ID})
 		if !sqlstate(err, pgerrcode.CheckViolation) {
 			t.Errorf("SetFetchKeyInstrument on a not_served key: err = %v, want a check violation", err)
 		}
@@ -263,16 +276,11 @@ func TestFetchKeys(t *testing.T) {
 
 	t.Run("one row per key of a fetch", func(t *testing.T) {
 		q := newTx(t)
-		user := newUser(t, q, "fetch-keys-unique@example.com")
-		statement := newStatement(t, q, user)
-		run, err := q.GetRun(ctx, gen.GetRunParams{ID: statement.ID, UserID: user.ID})
-		require.NoError(t, err)
-		fetch := newFetch(t, q, user, run, newDatasource(t, q, "fetch-keys-unique", 10))
-		key := newStatedKey(t, q, user, statement)
+		f := newFetching(t, q)
 
-		servedKey(t, q, fetch, key, "GB00B03MLX29")
-		err = q.CreateFetchKey(ctx, gen.CreateFetchKeyParams{
-			ID: db.NewID(), FetchID: fetch.ID, UserID: user.ID, StatedKeyID: key.ID,
+		servedKey(t, q, f.fetch, f.key, "GB00B03MLX29")
+		err := q.CreateFetchKey(ctx, gen.CreateFetchKeyParams{
+			ID: db.NewID(), FetchID: f.fetch.ID, UserID: f.user.ID, StatedKeyID: f.key.ID,
 			Outcome: gen.FetchOutcomeNotServed, Reason: ptr.To("r"),
 		})
 		if !sqlstate(err, pgerrcode.UniqueViolation) {
@@ -286,13 +294,8 @@ func TestFetchKeys(t *testing.T) {
 func TestFetchIdentifiers(t *testing.T) {
 	ctx := context.Background()
 	q := newTx(t)
-	user := newUser(t, q, "fetch-identifiers@example.com")
-	statement := newStatement(t, q, user)
-	run, err := q.GetRun(ctx, gen.GetRunParams{ID: statement.ID, UserID: user.ID})
-	require.NoError(t, err)
-	fetch := newFetch(t, q, user, run, newDatasource(t, q, "fetch-identifiers", 10))
-	stated := newStatedKey(t, q, user, statement)
-	key := servedKey(t, q, fetch, stated, "GB00B03MLX29")
+	f := newFetching(t, q)
+	key := servedKey(t, q, f.fetch, f.key, "GB00B03MLX29")
 
 	require.NoError(t, q.CreateFetchIdentifier(ctx, gen.CreateFetchIdentifierParams{
 		FetchKeyID: key, Type: types.IdentifierTypeIsin, Value: "GB00B03MLX29"}))
@@ -318,13 +321,8 @@ func TestFetchIdentifiers(t *testing.T) {
 func TestDatasourceBlocks(t *testing.T) {
 	ctx := context.Background()
 	q := newTx(t)
-	user := newUser(t, q, "blocks@example.com")
-	statement := newStatement(t, q, user)
-	run, err := q.GetRun(ctx, gen.GetRunParams{ID: statement.ID, UserID: user.ID})
-	require.NoError(t, err)
-	ds := newDatasource(t, q, "blocks", 10)
-	fetch := newFetch(t, q, user, run, ds)
-	stated := newStatedKey(t, q, user, statement)
+	f := newFetching(t, q)
+	ds, fetch, stated := f.ds, f.fetch, f.key
 	key := servedKey(t, q, fetch, stated, "GB00B03MLX29")
 
 	block := func(scope gen.BlockScope, value *string) gen.CreateDatasourceBlockParams {
@@ -405,16 +403,11 @@ func TestDatasourceBlocks(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// The violation aborts the transaction, so each case takes its own.
 			q := newTx(t)
-			user := newUser(t, q, "blocks-"+uuid.NewString()+"@example.com")
-			statement := newStatement(t, q, user)
-			run, err := q.GetRun(ctx, gen.GetRunParams{ID: statement.ID, UserID: user.ID})
-			require.NoError(t, err)
-			ds := newDatasource(t, q, "blocks-"+uuid.NewString(), 10)
-			fetch := newFetch(t, q, user, run, ds)
+			f := newFetching(t, q)
 			arg := tc.arg
-			arg.Datasource = ds.Name
-			arg.FetchKeyID = servedKey(t, q, fetch, newStatedKey(t, q, user, statement), "GB00B03MLX29")
-			arg.RunID = fetch.ID
+			arg.Datasource = f.ds.Name
+			arg.FetchKeyID = servedKey(t, q, f.fetch, f.key, "GB00B03MLX29")
+			arg.RunID = f.fetch.ID
 			if _, err := q.CreateDatasourceBlock(ctx, arg); !sqlstate(err, pgerrcode.CheckViolation) {
 				t.Errorf("CreateDatasourceBlock(%s): err = %v, want a check violation", tc.name, err)
 			}
@@ -428,15 +421,10 @@ func TestDatasourceBlocks(t *testing.T) {
 func TestIdentityCoverage(t *testing.T) {
 	ctx := context.Background()
 	q := newTx(t)
-	user := newUser(t, q, "coverage@example.com")
-	statement := newStatement(t, q, user)
-	run, err := q.GetRun(ctx, gen.GetRunParams{ID: statement.ID, UserID: user.ID})
-	require.NoError(t, err)
-	ds := newDatasource(t, q, "coverage", 10)
-	fetch := newFetch(t, q, user, run, ds)
-	key := newStatedKey(t, q, user, statement)
-	first := servedKey(t, q, fetch, key, "GB00B03MLX29")
-	second := servedKey(t, q, newFetch(t, q, user, run, ds), key, "GB00B03MLX29")
+	f := newFetching(t, q)
+	ds := f.ds
+	first := servedKey(t, q, f.fetch, f.key, "GB00B03MLX29")
+	second := servedKey(t, q, newFetch(t, q, f.user, f.run, ds), f.key, "GB00B03MLX29")
 
 	instrument, err := q.CreateInstrument(ctx, gen.CreateInstrumentParams{ID: db.NewID(), AssetClass: gen.AssetClassStock, FetchKeyID: &first})
 	require.NoError(t, err)

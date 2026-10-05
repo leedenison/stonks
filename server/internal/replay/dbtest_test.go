@@ -158,8 +158,8 @@ func newStack(t *testing.T) *stack {
 	s.sources, err = market.New(ctx, q, factories, log)
 	require.NoError(t, err)
 	runs := syncRunner{q: q}
-	fetcher := market.NewFetcher(q, runs, log)
-	resolver := resolve.New(db.New[resolve.Queries](tx), market.IdentityFetcher{F: fetcher}, s.sources, log)
+	fetcher := market.NewFetcher(db.New[market.Queries](tx), runs, log)
+	resolver := resolve.New(db.New[resolve.Queries](tx), fetcher, s.sources, log)
 	clock := func() time.Time { return time.Date(2026, time.April, 10, 0, 0, 0, 0, time.UTC) }
 	s.statements = stmt.New(db.New[stmt.Queries](tx), runs, resolver, clock)
 	s.svc = New(db.New[Queries](tx), runs, resolver, s.sources)

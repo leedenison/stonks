@@ -22,6 +22,9 @@ var (
 	// ErrDisabled is returned by Start when the scope names a datasource
 	// that is not enabled.
 	ErrDisabled = errors.New("the datasource is not enabled")
+	// ErrNoIdentity is returned by Start when the scope names a datasource
+	// that serves no identity.
+	ErrNoIdentity = errors.New("the datasource serves no identity")
 	// ErrKind is returned by Start when the source is neither a statement
 	// nor a resolution run.
 	ErrKind = errors.New("the run has no keys to replay")
@@ -94,15 +97,16 @@ func (s *Service) selectKeys(ctx context.Context, source gen.Run, scope Scope) (
 		if entry == nil {
 			return nil, ErrDisabled
 		}
+		identity, ok := entry.Integration.(market.Identity)
+		if !ok {
+			return nil, ErrNoIdentity
+		}
 		rows, err := s.store.ListKeysUncoveredBy(ctx, gen.ListKeysUncoveredByParams{Ids: ids, Datasource: scope.Datasource})
 		if err != nil {
 			return nil, fmt.Errorf("list uncovered keys: %w", err)
 		}
 		for _, r := range rows {
-			if entry.Identity == nil {
-				break
-			}
-			if _, err := entry.Identity.Serves(r.StatedKey); err == nil {
+			if _, err := identity.Serves(r.StatedKey); err == nil {
 				out = append(out, r.StatedKey)
 			}
 		}

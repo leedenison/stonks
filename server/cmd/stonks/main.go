@@ -141,8 +141,8 @@ func run() (err error) {
 		Sessions: session.New(rdb, time.Now),
 		Allowed:  cfg.AllowedEmails,
 	})
-	fetcher := market.NewFetcher(queries, runs, logger.WithCategory(log, "internal/market"))
-	resolver := resolve.New(db.New[resolve.Queries](pool), market.IdentityFetcher{F: fetcher}, sources, logger.WithCategory(log, "internal/resolve"))
+	fetcher := market.NewFetcher(db.New[market.Queries](pool), runs, logger.WithCategory(log, "internal/market"))
+	resolver := resolve.New(db.New[resolve.Queries](pool), fetcher, sources, logger.WithCategory(log, "internal/resolve"))
 	ingester := stmt.New(db.New[stmt.Queries](pool), runs, resolver, time.Now)
 	replays := replay.New(db.New[replay.Queries](pool), runs, resolver, sources)
 	srv, err := newServer(cfg.ListenAddr, log, authn, queries, sources, ingester, replays, cfg.CookieSecure)

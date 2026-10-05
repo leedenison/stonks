@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"go.uber.org/mock/gomock"
 
 	"github.com/leedenison/stonks/server/internal/db/gen"
@@ -72,7 +74,7 @@ func TestRegistry(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			t.Cleanup(ctrl.Finish)
-			store := NewMockStore(ctrl)
+			store := NewMockQueries(ctrl)
 			store.EXPECT().ListDatasources(gomock.Any()).Return(tc.rows, nil)
 
 			r, err := New(ctx, store, tc.factories, discard())
@@ -82,17 +84,8 @@ func TestRegistry(t *testing.T) {
 			if tc.wantErr {
 				return
 			}
-			var got []string
-			for _, e := range r.Enabled() {
-				got = append(got, e.Name)
-			}
-			if len(got) != len(tc.want) {
-				t.Fatalf("Enabled() = %v, want %v", got, tc.want)
-			}
-			for i := range got {
-				if got[i] != tc.want[i] {
-					t.Errorf("Enabled() = %v, want %v", got, tc.want)
-				}
+			if diff := cmp.Diff(tc.want, r.Names(), cmpopts.EquateEmpty()); diff != "" {
+				t.Errorf("Names() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
@@ -103,7 +96,7 @@ func TestRegistry(t *testing.T) {
 func TestRegistryConfig(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	t.Cleanup(ctrl.Finish)
-	store := NewMockStore(ctrl)
+	store := NewMockQueries(ctrl)
 	store.EXPECT().ListDatasources(gomock.Any()).Return([]gen.Datasource{
 		{Name: "one", Enabled: true, Credential: ptr.To("secret"), Endpoint: ptr.To("http://stub")},
 		{Name: "two", Enabled: true},
@@ -118,10 +111,8 @@ func TestRegistryConfig(t *testing.T) {
 		t.Fatalf("New() error = %v", err)
 	}
 	want := []Config{{Name: "one", Credential: "secret", Endpoint: "http://stub"}, {Name: "two"}}
-	for i := range want {
-		if seen[i] != want[i] {
-			t.Errorf("config %d = %+v, want %+v", i, seen[i], want[i])
-		}
+	if diff := cmp.Diff(want, seen); diff != "" {
+		t.Errorf("configs mismatch (-want +got):\n%s", diff)
 	}
 }
 
@@ -130,7 +121,7 @@ func TestRegistryConfig(t *testing.T) {
 func TestRegistryStoreFails(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	t.Cleanup(ctrl.Finish)
-	store := NewMockStore(ctrl)
+	store := NewMockQueries(ctrl)
 	store.EXPECT().ListDatasources(gomock.Any()).Return(nil, errors.New("no database"))
 	if _, err := New(context.Background(), store, nil, discard()); err == nil {
 		t.Error("New() with an unreadable table: err = nil, want an error")
@@ -138,12 +129,13 @@ func TestRegistryStoreFails(t *testing.T) {
 }
 
 // TestRegistryReload checks that a reload replaces the entries, keeps a
-// datasource's limiter, and leaves the entries as they were when it fails.
+// datasource's limiter and its hold, and leaves the entries as they were when
+// it fails.
 func TestRegistryReload(t *testing.T) {
 	ctx := context.Background()
 	ctrl := gomock.NewController(t)
 	t.Cleanup(ctrl.Finish)
-	store := NewMockStore(ctrl)
+	store := NewMockQueries(ctrl)
 	factories := map[string]Factory{"one": factoryOf(&fake{}), "two": factoryOf(&fake{})}
 	store.EXPECT().ListDatasources(gomock.Any()).Return([]gen.Datasource{row("one", true, 10)}, nil)
 	r, err := New(ctx, store, factories, discard())
@@ -151,6 +143,7 @@ func TestRegistryReload(t *testing.T) {
 		t.Fatalf("New() error = %v", err)
 	}
 	before := r.Enabled()[0].limiter
+	before.holdUntil(start.Add(time.Second))
 	if !r.Carries("two") || r.Carries("absent") {
 		t.Errorf("Carries(two) = %v, Carries(absent) = %v, want true and false", r.Carries("two"), r.Carries("absent"))
 	}
@@ -159,11 +152,11 @@ func TestRegistryReload(t *testing.T) {
 	if err := r.Reload(ctx); err != nil {
 		t.Fatalf("Reload() error = %v", err)
 	}
-	if got := r.Names(); len(got) != 2 || got[0] != "two" || got[1] != "one" {
-		t.Errorf("Names() after reload = %v, want [two one]", got)
+	if diff := cmp.Diff([]string{"two", "one"}, r.Names()); diff != "" {
+		t.Errorf("Names() after reload mismatch (-want +got):\n%s", diff)
 	}
-	if r.Enabled()[1].limiter != before {
-		t.Error("the limiter of one was replaced by the reload, want it kept")
+	if kept := r.Enabled()[1].limiter; kept != before || kept.held(start) != time.Second {
+		t.Error("the limiter of one or its hold was replaced by the reload, want both kept")
 	}
 
 	store.EXPECT().ListDatasources(gomock.Any()).Return([]gen.Datasource{row("absent", true, 1)}, nil)
@@ -176,12 +169,13 @@ func TestRegistryReload(t *testing.T) {
 }
 
 // TestRegistryReloadOverlap checks that when two reloads overlap, the entries
-// come from the reload that read the table second.
+// come from the reload that read the table second, whichever reload stores
+// its entries last.
 func TestRegistryReloadOverlap(t *testing.T) {
 	ctx := context.Background()
 	ctrl := gomock.NewController(t)
 	t.Cleanup(ctrl.Finish)
-	store := NewMockStore(ctrl)
+	store := NewMockQueries(ctrl)
 	factories := map[string]Factory{"one": factoryOf(&fake{}), "two": factoryOf(&fake{})}
 	store.EXPECT().ListDatasources(gomock.Any()).Return(nil, nil)
 	r, err := New(ctx, store, factories, discard())
@@ -213,12 +207,9 @@ func TestRegistryReloadOverlap(t *testing.T) {
 			t.Errorf("second Reload() error = %v", err)
 		}
 	}()
-	// Nothing signals that the second reload is waiting on the lock, so sleep
-	// briefly.
-	time.Sleep(20 * time.Millisecond)
 	close(release)
 	wg.Wait()
-	if got := r.Names(); len(got) != 1 || got[0] != "two" {
-		t.Errorf("Names() after overlapping reloads = %v, want [two]", got)
+	if diff := cmp.Diff([]string{"two"}, r.Names()); diff != "" {
+		t.Errorf("Names() after overlapping reloads mismatch (-want +got):\n%s", diff)
 	}
 }
