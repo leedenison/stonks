@@ -47,7 +47,7 @@ func request[Q, P any](ctx context.Context, f *Fetcher, e *Entry, s Server[Q, P]
 			f.log.Debug("holding a datasource", "datasource", e.Name, "attempt", attempt, "hold", hold)
 			continue
 		}
-		pause := min(wait+rand.N(wait/2+1), retryMax)
+		pause := min(wait+rand.N(wait/2+1), retryMax) //nolint:gosec // jitter needs no secrecy
 		f.log.Debug("retrying a fetch", "datasource", e.Name, "attempt", attempt, "wait", pause)
 		if err := f.sleep(ctx, pause); err != nil {
 			return nil, attempt, err
