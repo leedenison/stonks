@@ -35,6 +35,7 @@ const defaultPageSize = 50
 // Reader is this package's view of the queries.
 type Reader interface {
 	ListUserRuns(ctx context.Context, arg gen.ListUserRunsParams) ([]gen.ListUserRunsRow, error)
+	ListRootRuns(ctx context.Context, arg gen.ListRootRunsParams) ([]gen.ListRootRunsRow, error)
 	GetUserRun(ctx context.Context, id uuid.UUID) (gen.GetUserRunRow, error)
 	ListRunAncestors(ctx context.Context, id uuid.UUID) ([]gen.ListRunAncestorsRow, error)
 	ListRunDescendants(ctx context.Context, parentID *uuid.UUID) ([]gen.ListRunDescendantsRow, error)
@@ -108,7 +109,7 @@ func (s *Server) ListRuns(ctx context.Context, req *connect.Request[adminv1.List
 	if arg.UserID, err = optionalID(m.UserId); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	rows, err := s.reader.ListUserRuns(ctx, arg)
+	rows, err := s.listRuns(ctx, arg)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
@@ -128,6 +129,23 @@ func (s *Server) ListRuns(ctx context.Context, req *connect.Request[adminv1.List
 		out.Runs = append(out.Runs, msg)
 	}
 	return connect.NewResponse(out), nil
+}
+
+// listRuns reads the runs arg selects. When no filter is set, it reads the
+// page from its top-level runs down and spares the walk up from every run.
+func (s *Server) listRuns(ctx context.Context, arg gen.ListUserRunsParams) ([]gen.ListUserRunsRow, error) {
+	if arg.Kind != nil || arg.Trigger != nil || arg.State != nil || arg.UserID != nil {
+		return s.reader.ListUserRuns(ctx, arg)
+	}
+	rows, err := s.reader.ListRootRuns(ctx, gen.ListRootRunsParams{Before: arg.Before, Lim: arg.Lim})
+	if err != nil {
+		return nil, err
+	}
+	out := make([]gen.ListUserRunsRow, len(rows))
+	for i, r := range rows {
+		out[i] = gen.ListUserRunsRow(r)
+	}
+	return out, nil
 }
 
 // trimTrees cuts rows, grouped by top-level run, to the page's top-level
@@ -254,7 +272,9 @@ func (s *Server) fill(ctx context.Context, run gen.Run, out *adminv1.GetRunRespo
 		}
 		out.Replay = &adminv1.Replay{SourceRunId: r.Replay.SourceID.String(), StartedBy: r.StartedByEmail}
 		if r.Replay.Datasource != nil {
-			out.Replay.Datasource = *r.Replay.Datasource
+			out.Replay.Scope = &adminv1.Replay_Datasource{Datasource: *r.Replay.Datasource}
+		} else {
+			out.Replay.Scope = &adminv1.Replay_Unavailable{Unavailable: true}
 		}
 	}
 	return nil

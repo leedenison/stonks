@@ -34,3 +34,8 @@ CREATE TABLE runs (
     UNIQUE (id, user_id),
     FOREIGN KEY (parent_id, user_id) REFERENCES runs (id, user_id)
 );
+
+-- runs_parent_idx serves the walk from a run to its children, and with a NULL
+-- parent_id the newest top-level runs.
+CREATE INDEX runs_parent_idx ON runs (parent_id, id);
+CREATE INDEX runs_user_idx ON runs (user_id, id);

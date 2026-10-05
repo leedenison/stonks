@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 
@@ -236,8 +237,8 @@ func TestListInstrumentsByIdentifiersIndex(t *testing.T) {
 		Types: []string{"isin"}, Domains: []string{""}, Values: []string{"GB00B03MLX29"},
 	})
 	require.NoError(t, err)
-	cond, ok := indexCond(t, e.plan, "identifiers_type_domain_value_key")
-	if !ok || !strings.Contains(cond, "(type = ") {
+	conds := indexConds(t, e.plan, "identifiers_type_domain_value_key")
+	if !slices.ContainsFunc(conds, func(c string) bool { return strings.Contains(c, "(type = ") }) {
 		t.Errorf("the identifiers unique index is not searched on type:\n%s", e.plan)
 	}
 }

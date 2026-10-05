@@ -67,10 +67,10 @@ func (e *explainer) Query(ctx context.Context, sql string, args ...any) (pgx.Row
 	return e.Tx.Query(ctx, sql, args...)
 }
 
-// indexCond returns the Index Cond of the plan node that scans index, and
-// false if no node does. A condition the index cannot serve shows as the
-// node's filter, so it is absent here.
-func indexCond(t *testing.T, plan, index string) (string, bool) {
+// indexConds returns the Index Cond of every plan node that scans index. A
+// condition the index cannot serve shows as the node's filter, so it is
+// absent here.
+func indexConds(t *testing.T, plan, index string) []string {
 	t.Helper()
 	type node struct {
 		IndexName string `json:"Index Name"`
@@ -81,24 +81,20 @@ func indexCond(t *testing.T, plan, index string) (string, bool) {
 		Plan node `json:"Plan"`
 	}
 	require.NoError(t, json.Unmarshal([]byte(plan), &root))
-	var walk func(n node) (string, bool)
-	walk = func(n node) (string, bool) {
+	var out []string
+	var walk func(n node)
+	walk = func(n node) {
 		if n.IndexName == index {
-			return n.IndexCond, true
+			out = append(out, n.IndexCond)
 		}
 		for _, c := range n.Plans {
-			if cond, ok := walk(c); ok {
-				return cond, true
-			}
+			walk(c)
 		}
-		return "", false
 	}
 	for _, r := range root {
-		if cond, ok := walk(r.Plan); ok {
-			return cond, true
-		}
+		walk(r.Plan)
 	}
-	return "", false
+	return out
 }
 
 // explain returns queries over a rolled-back transaction with sequential

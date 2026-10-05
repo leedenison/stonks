@@ -288,6 +288,8 @@ func TestChild(t *testing.T) {
 		work    Work
 		expect  func(f *fixture)
 		wantErr string
+		// counted is the run the metric counts, or none when the state write
+		// failed.
 		counted string
 	}{
 		{name: "completed", work: func(context.Context, gen.Run) error { return nil }, expect: func(f *fixture) {
@@ -296,6 +298,12 @@ func TestChild(t *testing.T) {
 		{name: "failed", work: func(context.Context, gen.Run) error { return errors.New("boom") }, expect: func(f *fixture) {
 			f.store.EXPECT().FailRun(gomock.Any(), gomock.Any()).Return(nil)
 		}, wantErr: "boom", counted: "stonks.runs{kind=resolution,outcome=failed,trigger=run}"},
+		{name: "completion not written", work: func(context.Context, gen.Run) error { return nil }, expect: func(f *fixture) {
+			f.store.EXPECT().CompleteRun(gomock.Any(), gomock.Any()).Return(errors.New("down"))
+		}},
+		{name: "failure not written", work: func(context.Context, gen.Run) error { return errors.New("boom") }, expect: func(f *fixture) {
+			f.store.EXPECT().FailRun(gomock.Any(), gomock.Any()).Return(errors.New("down"))
+		}, wantErr: "boom"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -317,7 +325,11 @@ func TestChild(t *testing.T) {
 			if diff := cmp.Diff(want, row); diff != "" {
 				t.Errorf("Child() row mismatch (-want +got):\n%s", diff)
 			}
-			if diff := cmp.Diff(map[string]int64{tc.counted: 1}, counts(t)); diff != "" {
+			wantCounts := map[string]int64{}
+			if tc.counted != "" {
+				wantCounts[tc.counted] = 1
+			}
+			if diff := cmp.Diff(wantCounts, counts(t)); diff != "" {
 				t.Errorf("Child() counts mismatch (-want +got):\n%s", diff)
 			}
 		})
@@ -334,7 +346,6 @@ func TestPrepare(t *testing.T) {
 		prepared := false
 		var preparedFor gen.Run
 		spec := Spec{Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser, UserID: userA, Lane: "ibkr", Prepare: func(_ context.Context, run gen.Run) error {
-			time.Sleep(20 * time.Millisecond)
 			prepared = true
 			preparedFor = run
 			return nil

@@ -279,10 +279,14 @@ message ClearBlockResponse {}
 message Replay {
   // The run whose keys are replayed.
   string source_run_id = 1;
-  // The datasource scope; empty when the scope is the keys left unavailable.
-  string datasource = 2;
+  // The keys the replay selected among the source's, as StartReplayRequest
+  // names them.
+  oneof scope {
+    bool unavailable = 2;
+    string datasource = 3;
+  }
   // The email of the administrator who started the replay.
-  string started_by = 3;
+  string started_by = 4;
 }
 
 // Re-resolves the keys of one run. Every scope is confined to the run's keys

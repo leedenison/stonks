@@ -18,9 +18,7 @@ import (
 // Queries is this package's view of the generated queries.
 type Queries interface {
 	group.Queries
-	ListStatedKeys(ctx context.Context, arg gen.ListStatedKeysParams) ([]gen.StatedKey, error)
-	ListResolvedKeys(ctx context.Context, arg gen.ListResolvedKeysParams) ([]gen.ListResolvedKeysRow, error)
-	ListUnavailableKeys(ctx context.Context, ids []uuid.UUID) ([]gen.ListUnavailableKeysRow, error)
+	ListUnavailableKeys(ctx context.Context, arg gen.ListUnavailableKeysParams) ([]gen.ListUnavailableKeysRow, error)
 	ListKeysUncoveredBy(ctx context.Context, arg gen.ListKeysUncoveredByParams) ([]gen.ListKeysUncoveredByRow, error)
 	CreateReplay(ctx context.Context, arg gen.CreateReplayParams) error
 	LockUserKeys(ctx context.Context, userID uuid.UUID) error

@@ -40,6 +40,14 @@ func newStatement(t *testing.T, q *gen.Queries, user gen.User) gen.Statement {
 	return row
 }
 
+func keyIDs(keys ...gen.StatedKey) []uuid.UUID {
+	ids := make([]uuid.UUID, 0, len(keys))
+	for _, k := range keys {
+		ids = append(ids, k.ID)
+	}
+	return ids
+}
+
 // TestStatements checks the statement read with its rejected count, the order of
 // the list, the scoping of both to the user, and that every row a statement
 // leaves names a statement of its own user.

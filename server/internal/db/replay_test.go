@@ -6,6 +6,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
@@ -45,67 +46,56 @@ func resolved(t *testing.T, q *gen.Queries, run gen.Run, key gen.StatedKey, outc
 	require.NoError(t, err)
 }
 
-func keyIDs(keys ...gen.StatedKey) []uuid.UUID {
-	ids := make([]uuid.UUID, 0, len(keys))
-	for _, k := range keys {
-		ids = append(ids, k.ID)
-	}
-	return ids
-}
-
-// TestListResolvedKeys checks that a resolution's keys are read in id order
-// and scoped to its user.
-func TestListResolvedKeys(t *testing.T) {
-	ctx := context.Background()
-	q := newTx(t)
-	user := newUser(t, q, "resolved@example.com")
-	statement := newStatement(t, q, user)
-	run := newResolution(t, q, user, statement)
-	one, two, other := newStatedKey(t, q, user, statement), newStatedKey(t, q, user, statement), newStatedKey(t, q, user, statement)
-	resolved(t, q, run, two, gen.ResolutionOutcomeMatched)
-	resolved(t, q, run, one, gen.ResolutionOutcomeUnavailable)
-	resolved(t, q, newResolution(t, q, user, statement), other, gen.ResolutionOutcomeMatched)
-
-	rows, err := q.ListResolvedKeys(ctx, gen.ListResolvedKeysParams{RunID: run.ID, UserID: user.ID})
-	require.NoError(t, err)
-	if len(rows) != 2 || rows[0].StatedKey.ID != one.ID || rows[1].StatedKey.ID != two.ID {
-		t.Errorf("ListResolvedKeys = %+v, want %s then %s", rows, one.ID, two.ID)
-	}
-	rows, err = q.ListResolvedKeys(ctx, gen.ListResolvedKeysParams{RunID: run.ID, UserID: db.NewID()})
-	require.NoError(t, err)
-	if len(rows) != 0 {
-		t.Errorf("ListResolvedKeys for another user = %+v, want none", rows)
-	}
-}
-
 // TestListUnavailableKeys checks that a key is selected on its latest
-// outcome alone, that a key no transaction names or no run resolved is left
-// out, and that only the ids given are read.
+// outcome alone, from the keys of the source run: its statement's keys, or
+// the keys it resolved. A key no transaction names or no run resolved is left
+// out, and so is every key of another user.
 func TestListUnavailableKeys(t *testing.T) {
 	ctx := context.Background()
 	q := newTx(t)
 	user := newUser(t, q, "unavailable@example.com")
-	statement := newStatement(t, q, user)
+	statement, later := newStatement(t, q, user), newStatement(t, q, user)
 	first, second := newResolution(t, q, user, statement), newResolution(t, q, user, statement)
+	third := newResolution(t, q, user, later)
 	healed := newStatedKey(t, q, user, statement)
 	broken := newStatedKey(t, q, user, statement)
 	idle := newStatedKey(t, q, user, statement)
 	fresh := newStatedKey(t, q, user, statement)
-	outside := newStatedKey(t, q, user, statement)
-	for _, k := range []gen.StatedKey{healed, broken, fresh, outside} {
+	outside := newStatedKey(t, q, user, later)
+	for _, k := range []gen.StatedKey{healed, broken, fresh} {
 		names(t, q, statement, k)
 	}
+	names(t, q, later, outside)
 	resolved(t, q, first, healed, gen.ResolutionOutcomeUnavailable)
 	resolved(t, q, second, healed, gen.ResolutionOutcomeMatched)
 	resolved(t, q, first, broken, gen.ResolutionOutcomeMatched)
 	resolved(t, q, second, broken, gen.ResolutionOutcomeUnavailable)
 	resolved(t, q, first, idle, gen.ResolutionOutcomeUnavailable)
-	resolved(t, q, first, outside, gen.ResolutionOutcomeUnavailable)
+	resolved(t, q, third, outside, gen.ResolutionOutcomeUnavailable)
 
-	rows, err := q.ListUnavailableKeys(ctx, keyIDs(healed, broken, idle, fresh))
-	require.NoError(t, err)
-	if len(rows) != 1 || rows[0].StatedKey.ID != broken.ID {
-		t.Errorf("ListUnavailableKeys = %+v, want only %s", rows, broken.ID)
+	tests := []struct {
+		name   string
+		source uuid.UUID
+		user   uuid.UUID
+		want   []uuid.UUID
+	}{
+		{name: "a statement", source: statement.ID, user: user.ID, want: []uuid.UUID{broken.ID}},
+		{name: "a resolution", source: second.ID, user: user.ID, want: []uuid.UUID{broken.ID}},
+		{name: "a sibling resolution", source: third.ID, user: user.ID, want: []uuid.UUID{outside.ID}},
+		{name: "another user", source: statement.ID, user: db.NewID(), want: nil},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			rows, err := q.ListUnavailableKeys(ctx, gen.ListUnavailableKeysParams{UserID: tc.user, SourceID: tc.source})
+			require.NoError(t, err)
+			var got []uuid.UUID
+			for _, r := range rows {
+				got = append(got, r.StatedKey.ID)
+			}
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("ListUnavailableKeys mismatch (-want +got):\n%s", diff)
+			}
+		})
 	}
 }
 
@@ -142,7 +132,7 @@ func TestListKeysUncoveredBy(t *testing.T) {
 	covered := newStatedKey(t, q, user, statement)
 	uncovered := newStatedKey(t, q, user, statement)
 	cash := newStatedKey(t, q, user, statement)
-	silent := newStatedKey(t, q, user, statement)
+	newStatedKey(t, q, user, statement)
 	for _, k := range []gen.StatedKey{unresolved, covered, uncovered, cash} {
 		names(t, q, statement, k)
 	}
@@ -154,16 +144,23 @@ func TestListKeysUncoveredBy(t *testing.T) {
 	usd, usdVia := cashListing(t, q, "USD")
 	associate(cash, usd, usdVia)
 
-	ids := keyIDs(unresolved, covered, uncovered, cash, silent)
-	rows, err := q.ListKeysUncoveredBy(ctx, gen.ListKeysUncoveredByParams{Ids: ids, Datasource: alpha.Name})
+	source := gen.ListKeysUncoveredByParams{UserID: user.ID, SourceID: statement.ID, Datasource: alpha.Name}
+	rows, err := q.ListKeysUncoveredBy(ctx, source)
 	require.NoError(t, err)
 	if len(rows) != 2 || rows[0].StatedKey.ID != unresolved.ID || rows[1].StatedKey.ID != uncovered.ID {
 		t.Errorf("ListKeysUncoveredBy(alpha) = %+v, want %s then %s", rows, unresolved.ID, uncovered.ID)
 	}
-	rows, err = q.ListKeysUncoveredBy(ctx, gen.ListKeysUncoveredByParams{Ids: ids, Datasource: beta.Name})
+	source.Datasource = beta.Name
+	rows, err = q.ListKeysUncoveredBy(ctx, source)
 	require.NoError(t, err)
 	if len(rows) != 3 || rows[0].StatedKey.ID != unresolved.ID || rows[1].StatedKey.ID != covered.ID || rows[2].StatedKey.ID != uncovered.ID {
 		t.Errorf("ListKeysUncoveredBy(beta) = %+v, want %s, %s then %s", rows, unresolved.ID, covered.ID, uncovered.ID)
+	}
+	source.UserID = db.NewID()
+	rows, err = q.ListKeysUncoveredBy(ctx, source)
+	require.NoError(t, err)
+	if len(rows) != 0 {
+		t.Errorf("ListKeysUncoveredBy for another user = %+v, want none", rows)
 	}
 }
 

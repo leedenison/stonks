@@ -16,7 +16,9 @@ WHERE id IN (
     SELECT stated_keys.instrument_id FROM stated_keys
     WHERE stated_keys.user_id = @user_id::uuid
       AND stated_keys.instrument_id IS NOT NULL
-      AND EXISTS (SELECT 1 FROM transactions WHERE transactions.stated_key_id = stated_keys.id))
+      AND EXISTS (SELECT 1 FROM transactions
+                  WHERE transactions.user_id = stated_keys.user_id
+                    AND transactions.stated_key_id = stated_keys.id))
 ORDER BY id;
 
 -- name: ListListingsOf :many

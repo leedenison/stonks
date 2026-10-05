@@ -73,19 +73,16 @@ func (s *Service) Start(ctx context.Context, admin uuid.UUID, source gen.Run, sc
 }
 
 // selectKeys picks the keys once, when the replay starts. A key that becomes
-// eligible later waits for another replay.
+// eligible later waits for another replay. A replay run's keys are reached
+// through its resolution child, so a source of any kind but statement or
+// resolution is refused.
 func (s *Service) selectKeys(ctx context.Context, source gen.Run, scope Scope) ([]gen.StatedKey, error) {
-	keys, err := s.sourceKeys(ctx, source)
-	if err != nil {
-		return nil, err
-	}
-	ids := make([]uuid.UUID, 0, len(keys))
-	for _, k := range keys {
-		ids = append(ids, k.ID)
+	if source.Kind != gen.RunKindStatement && source.Kind != gen.RunKindResolution {
+		return nil, ErrKind
 	}
 	var out []gen.StatedKey
 	if scope.Datasource == "" {
-		rows, err := s.store.ListUnavailableKeys(ctx, ids)
+		rows, err := s.store.ListUnavailableKeys(ctx, gen.ListUnavailableKeysParams{UserID: source.UserID, SourceID: source.ID})
 		if err != nil {
 			return nil, fmt.Errorf("list unavailable keys: %w", err)
 		}
@@ -101,7 +98,7 @@ func (s *Service) selectKeys(ctx context.Context, source gen.Run, scope Scope) (
 		if !ok {
 			return nil, ErrNoIdentity
 		}
-		rows, err := s.store.ListKeysUncoveredBy(ctx, gen.ListKeysUncoveredByParams{Ids: ids, Datasource: scope.Datasource})
+		rows, err := s.store.ListKeysUncoveredBy(ctx, gen.ListKeysUncoveredByParams{UserID: source.UserID, SourceID: source.ID, Datasource: scope.Datasource})
 		if err != nil {
 			return nil, fmt.Errorf("list uncovered keys: %w", err)
 		}
@@ -115,31 +112,6 @@ func (s *Service) selectKeys(ctx context.Context, source gen.Run, scope Scope) (
 		return nil, ErrEmpty
 	}
 	return out, nil
-}
-
-// sourceKeys reads the keys of source by its kind: a statement run's stated
-// keys, or a resolution run's resolved keys. A replay run's keys are reached
-// through its resolution child, and any other kind is refused.
-func (s *Service) sourceKeys(ctx context.Context, source gen.Run) ([]gen.StatedKey, error) {
-	switch source.Kind {
-	case gen.RunKindStatement:
-		keys, err := s.store.ListStatedKeys(ctx, gen.ListStatedKeysParams{StatementID: source.ID, UserID: source.UserID})
-		if err != nil {
-			return nil, fmt.Errorf("list stated keys: %w", err)
-		}
-		return keys, nil
-	case gen.RunKindResolution:
-		rows, err := s.store.ListResolvedKeys(ctx, gen.ListResolvedKeysParams{RunID: source.ID, UserID: source.UserID})
-		if err != nil {
-			return nil, fmt.Errorf("list resolved keys: %w", err)
-		}
-		keys := make([]gen.StatedKey, 0, len(rows))
-		for _, r := range rows {
-			keys = append(keys, r.StatedKey)
-		}
-		return keys, nil
-	}
-	return nil, ErrKind
 }
 
 func (s *Service) entry(name string) *market.Entry {
