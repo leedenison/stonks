@@ -36,20 +36,16 @@ type Identity interface {
 
 // IdentityKind is the identity of the instruments stated keys name.
 var IdentityKind = Kind[gen.StatedKey, IdentityResult]{
-	name:    gen.FetchKindIdentity,
-	server:  func(e *Entry) Server[gen.StatedKey, IdentityResult] { return e.Identity },
+	name: gen.FetchKindIdentity,
+	server: func(e *Entry) Server[gen.StatedKey, IdentityResult] {
+		s, _ := e.Integration.(Identity)
+		return s
+	},
 	subject: func(k gen.StatedKey) uuid.UUID { return k.ID },
 	count:   func(r IdentityResult) int { return len(r.Candidates) },
 }
 
-// IdentityFetcher fetches identity through F.
-type IdentityFetcher struct {
-	F *Fetcher
-}
-
-// Identity fetches the identity of keys from e, as a child run of parent,
-// and returns a result per key whether or not the run failed.
-func (a IdentityFetcher) Identity(ctx context.Context, parent gen.Run, e *Entry, keys []gen.StatedKey) ([]Result[gen.StatedKey, IdentityResult], error) {
-	_, results, err := Fetch(ctx, a.F, parent, e, IdentityKind, keys)
-	return results, err
+// Identity fetches the identity of keys from e, as a child run of parent.
+func (f *Fetcher) Identity(ctx context.Context, parent gen.Run, e *Entry, keys []gen.StatedKey) ([]Result[gen.StatedKey, IdentityResult], error) {
+	return Fetch(ctx, f, parent, e, IdentityKind, keys)
 }

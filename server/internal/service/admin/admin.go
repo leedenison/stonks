@@ -419,7 +419,7 @@ func (s *Server) StartReplay(ctx context.Context, req *connect.Request[adminv1.S
 	scope := replay.Scope{Datasource: req.Msg.GetDatasource()}
 	started, err := s.replays.Start(ctx, p.User.ID, row.Run, scope)
 	switch {
-	case errors.Is(err, replay.ErrKind), errors.Is(err, replay.ErrEmpty), errors.Is(err, replay.ErrDisabled):
+	case errors.Is(err, replay.ErrKind), errors.Is(err, replay.ErrEmpty), errors.Is(err, replay.ErrDisabled), errors.Is(err, replay.ErrNoIdentity):
 		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 	case err != nil:
 		return nil, connect.NewError(connect.CodeInternal, err)

@@ -101,9 +101,11 @@ type jobError string
 
 func (e jobError) Error() string { return "openfigi rejected the identifier: " + string(e) }
 
-// Classify reads a failed request by its status. A refusal of the whole
-// request for any reason other than rate or provider health means every key
-// is malformed or the client is unauthorised, so it blocks the datasource.
+// Classify reads a failed request by its status. A refusal for rate or for
+// OpenFIGI's health is temporary. Any other refusal of a whole request is a
+// defect of the request or its API key, as 401, 400, 413 and 415 are. A
+// defect recurs on every request, so it blocks the datasource until an
+// administrator clears it.
 func (c *Client) Classify(err error) market.Failure {
 	var job jobError
 	if errors.As(err, &job) {

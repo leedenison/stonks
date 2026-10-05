@@ -334,6 +334,6 @@ service AdminService {
   rpc ClearBlock(ClearBlockRequest) returns (ClearBlockResponse);
   // Starts a replay over the keys of a run, as a run of that run's user. A
   // run of another kind, a scope selecting no key, or a datasource that is
-  // not enabled, is refused as a failed precondition.
+  // not enabled or serves no identity, is refused as a failed precondition.
   rpc StartReplay(StartReplayRequest) returns (StartReplayResponse);
 }

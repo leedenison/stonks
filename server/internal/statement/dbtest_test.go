@@ -108,7 +108,7 @@ func newStack(t *testing.T) stack {
 	sources, err := market.New(ctx, q, nil, log)
 	require.NoError(t, err)
 	runs := syncRunner{q: q}
-	resolver := resolve.New(db.New[resolve.Queries](tx), market.IdentityFetcher{F: market.NewFetcher(q, runs, log)}, sources, log)
+	resolver := resolve.New(db.New[resolve.Queries](tx), market.NewFetcher(db.New[market.Queries](tx), runs, log), sources, log)
 	return stack{q: q, tx: tx, svc: New(db.New[Queries](tx), runs, resolver, clock), user: user}
 }
 

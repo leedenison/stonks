@@ -5,13 +5,13 @@ package market
 import (
 	"context"
 
+	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/run"
 )
 
-// Store is this package's view of the generated queries. No write of a fetch
-// depends on another, so the package needs no transaction.
-type Store interface {
+// Queries is this package's view of the generated queries.
+type Queries interface {
 	ListDatasources(ctx context.Context) ([]gen.Datasource, error)
 	ListOpenBlocks(ctx context.Context, arg gen.ListOpenBlocksParams) ([]gen.DatasourceBlock, error)
 	CreateFetch(ctx context.Context, arg gen.CreateFetchParams) (gen.Fetch, error)
@@ -19,7 +19,16 @@ type Store interface {
 	CreateDatasourceBlock(ctx context.Context, arg gen.CreateDatasourceBlockParams) (int64, error)
 }
 
-var _ Store = (*gen.Queries)(nil)
+var _ Queries = (*gen.Queries)(nil)
+
+// Store is the database as this package sees it: the queries, and Tx, which
+// runs a set of them in one transaction.
+type Store interface {
+	Queries
+	Tx(ctx context.Context, fn func(Queries) error) error
+}
+
+var _ Store = (*db.DB[Queries])(nil)
 
 // Runner is this package's view of the run framework.
 type Runner interface {

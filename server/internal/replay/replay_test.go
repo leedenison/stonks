@@ -173,7 +173,7 @@ func TestStartResolution(t *testing.T) {
 
 func TestStartDatasource(t *testing.T) {
 	f := newFixture(t)
-	f.entries = []*market.Entry{{Name: "alpha", Identity: identity{}}}
+	f.entries = []*market.Entry{{Name: "alpha", Integration: identity{}}}
 	served, unserved := statedKey(1, isin), statedKey(2)
 	f.store.EXPECT().ListStatedKeys(gomock.Any(), gomock.Any()).Return([]gen.StatedKey{served, unserved}, nil)
 	f.store.EXPECT().ListKeysUncoveredBy(gomock.Any(), gen.ListKeysUncoveredByParams{Ids: ids(served, unserved), Datasource: "alpha"}).
@@ -206,9 +206,9 @@ func TestStartRefused(t *testing.T) {
 	}{
 		{name: "a fetch run", kind: gen.RunKindFetch, want: ErrKind},
 		{name: "no key left unavailable", kind: gen.RunKindStatement, want: ErrEmpty},
-		{name: "a datasource not enabled", kind: gen.RunKindStatement, scope: Scope{Datasource: "beta"}, entries: []*market.Entry{{Name: "alpha", Identity: identity{}}}, want: ErrDisabled},
-		{name: "a datasource serving no identity", kind: gen.RunKindStatement, scope: Scope{Datasource: "alpha"}, entries: []*market.Entry{{Name: "alpha"}}, uncovered: []gen.StatedKey{key}, want: ErrEmpty},
-		{name: "no key the datasource serves", kind: gen.RunKindStatement, scope: Scope{Datasource: "alpha"}, entries: []*market.Entry{{Name: "alpha", Identity: identity{}}}, uncovered: []gen.StatedKey{statedKey(2)}, want: ErrEmpty},
+		{name: "a datasource not enabled", kind: gen.RunKindStatement, scope: Scope{Datasource: "beta"}, entries: []*market.Entry{{Name: "alpha", Integration: identity{}}}, want: ErrDisabled},
+		{name: "a datasource serving no identity", kind: gen.RunKindStatement, scope: Scope{Datasource: "alpha"}, entries: []*market.Entry{{Name: "alpha"}}, want: ErrNoIdentity},
+		{name: "no key the datasource serves", kind: gen.RunKindStatement, scope: Scope{Datasource: "alpha"}, entries: []*market.Entry{{Name: "alpha", Integration: identity{}}}, uncovered: []gen.StatedKey{statedKey(2)}, want: ErrEmpty},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

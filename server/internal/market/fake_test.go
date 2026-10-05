@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"golang.org/x/time/rate"
 
@@ -27,6 +28,10 @@ func permanent(text string) error {
 	return failure{Failure: Failure{Scope: gen.BlockScopeIdentifier, Reason: text}, text: text}
 }
 
+func rateLimited(text string, after time.Duration) error {
+	return failure{Failure: Failure{Temporary: true, Scope: gen.BlockScopeIdentifier, Reason: text, RetryAfter: after}, text: text}
+}
+
 func quota(text string) error {
 	return failure{Failure: Failure{Temporary: true, Scope: gen.BlockScopeDatasource, Reason: text}, text: text}
 }
@@ -47,6 +52,8 @@ type fake struct {
 	perKey map[string]error
 	// batch is the most keys one request carries.
 	batch int
+	// drop is how many responses the fake leaves off the end of each.
+	drop int
 
 	calls int
 	sent  [][]types.Identifier
@@ -83,7 +90,7 @@ func (f *fake) Fetch(_ context.Context, reqs []Request[gen.StatedKey]) ([]Respon
 			Candidates: []Candidate{{Identifiers: []types.Identifier{id}, Class: gen.AssetClassStock, Currency: "USD"}},
 		}}
 	}
-	return out, nil
+	return out[:len(out)-f.drop], nil
 }
 
 func (f *fake) Classify(err error) Failure {

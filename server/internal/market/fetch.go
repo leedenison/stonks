@@ -40,6 +40,8 @@ type Fetcher struct {
 
 	base  time.Duration
 	tries int
+	now   func() time.Time
+	sleep func(ctx context.Context, d time.Duration) error
 }
 
 // Option adjusts a Fetcher.
@@ -51,9 +53,15 @@ func WithRetry(base time.Duration, tries int) Option {
 	return func(f *Fetcher) { f.base, f.tries = base, tries }
 }
 
+// WithClock sets the clock and the sleep a Fetcher uses. The sleep returns
+// the context's error once ctx is done.
+func WithClock(now func() time.Time, sleep func(ctx context.Context, d time.Duration) error) Option {
+	return func(f *Fetcher) { f.now, f.sleep = now, sleep }
+}
+
 // NewFetcher returns a Fetcher over store.
 func NewFetcher(store Store, runs Runner, log *slog.Logger, opts ...Option) *Fetcher {
-	f := &Fetcher{store: store, runs: runs, log: log, base: retryBase, tries: retryTries}
+	f := &Fetcher{store: store, runs: runs, log: log, base: retryBase, tries: retryTries, now: time.Now, sleep: sleep}
 	for _, o := range opts {
 		o(f)
 	}
@@ -61,16 +69,18 @@ func NewFetcher(store Store, runs Runner, log *slog.Logger, opts ...Option) *Fet
 }
 
 // Fetch requests kind about reqs from e, as a child run of parent. It returns
-// one result per request, in the order they were given, whether or not the run
-// failed.
-func Fetch[Q, P any](ctx context.Context, f *Fetcher, parent gen.Run, e *Entry, kind Kind[Q, P], reqs []Q) (gen.Run, []Result[Q, P], error) {
+// one result per request, in the order they were given.
+func Fetch[Q, P any](ctx context.Context, f *Fetcher, parent gen.Run, e *Entry, kind Kind[Q, P], reqs []Q) ([]Result[Q, P], error) {
 	var results []Result[Q, P]
-	row, err := f.runs.Child(ctx, parent, gen.RunKindFetch, func(ctx context.Context, run gen.Run) error {
+	_, err := f.runs.Child(ctx, parent, gen.RunKindFetch, func(ctx context.Context, run gen.Run) error {
 		var werr error
 		results, werr = fetch(ctx, f, run, e, kind, reqs)
 		return werr
 	})
-	return row, results, err
+	if err != nil {
+		return nil, err
+	}
+	return results, nil
 }
 
 func fetch[Q, P any](ctx context.Context, f *Fetcher, row gen.Run, e *Entry, kind Kind[Q, P], reqs []Q) ([]Result[Q, P], error) {
@@ -107,38 +117,51 @@ func fetch[Q, P any](ctx context.Context, f *Fetcher, row gen.Run, e *Entry, kin
 		batch = append(batch, i)
 	}
 
+	// A request that blocks an identifier or the datasource suppresses the
+	// requests after it, as an open block does.
 	var pending []gen.CreateDatasourceBlockParams
 	for _, chunk := range chunks(batch, e.Integration.Batch()) {
-		if blocked.all {
-			for _, i := range chunk {
-				results[i].Outcome, results[i].Reason = gen.FetchOutcomeBlocked, blocked.datasource
+		var send []int
+		for _, i := range chunk {
+			if reason, ok := blocked.covers(*results[i].Sent); ok {
+				results[i].Outcome, results[i].Reason = gen.FetchOutcomeBlocked, reason
+				continue
 			}
+			send = append(send, i)
+		}
+		if len(send) == 0 {
 			continue
 		}
-		blocks := fetchChunk(ctx, f, e, s, results, chunk)
-		for _, b := range blocks {
-			if b.Scope == gen.BlockScopeDatasource {
-				blocked.all, blocked.datasource = true, b.Reason
-			}
-		}
+		blocks := fetchChunk(ctx, f, e, s, results, send)
+		blocked.add(blocks)
 		pending = append(pending, blocks...)
 	}
-	for i := range results {
-		if err := record(ctx, f, row, kind, results[i]); err != nil {
-			return results, err
+	found := 0
+	err = f.store.Tx(ctx, func(q Queries) error {
+		for i := range results {
+			if err := record(ctx, q, row, kind, results[i]); err != nil {
+				return err
+			}
 		}
-		instr.key(ctx, e.Name, results[i].Outcome)
+		for _, b := range pending {
+			b.ID, b.Datasource, b.Kind = db.NewID(), e.Name, kind.name
+			b.FindingID, b.RunID = db.NewID(), row.ID
+			n, err := q.CreateDatasourceBlock(ctx, b)
+			if err != nil {
+				return fmt.Errorf("create block: %w", err)
+			}
+			found += int(n)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
-	for _, b := range pending {
-		b.ID, b.Datasource, b.Kind = db.NewID(), e.Name, kind.name
-		b.FindingID, b.RunID = db.NewID(), row.ID
-		n, err := f.store.CreateDatasourceBlock(ctx, b)
-		if err != nil {
-			return results, fmt.Errorf("create block: %w", err)
-		}
-		if n > 0 {
-			run.Found(ctx, gen.FindingKindBlock)
-		}
+	for _, r := range results {
+		instr.key(ctx, e.Name, r.Outcome)
+	}
+	for range found {
+		run.Found(ctx, gen.FindingKindBlock)
 	}
 	return results, nil
 }
@@ -212,7 +235,7 @@ func identifierBlock[Q, P any](r Result[Q, P]) gen.CreateDatasourceBlockParams {
 	}
 }
 
-func record[Q, P any](ctx context.Context, f *Fetcher, run gen.Run, kind Kind[Q, P], r Result[Q, P]) error {
+func record[Q, P any](ctx context.Context, q Queries, run gen.Run, kind Kind[Q, P], r Result[Q, P]) error {
 	arg := gen.CreateFetchKeyParams{
 		ID: r.ID, FetchID: run.ID, UserID: run.UserID, StatedKeyID: kind.subject(r.Request),
 		Outcome: r.Outcome, Attempts: int16(r.attempts),
@@ -226,7 +249,7 @@ func record[Q, P any](ctx context.Context, f *Fetcher, run gen.Run, kind Kind[Q,
 		reason := r.Reason
 		arg.Reason = &reason
 	}
-	if err := f.store.CreateFetchKey(ctx, arg); err != nil {
+	if err := q.CreateFetchKey(ctx, arg); err != nil {
 		return fmt.Errorf("create fetch key: %w", err)
 	}
 	return nil
@@ -260,6 +283,18 @@ func newBlockSet(rows []gen.DatasourceBlock) *blockSet {
 		}
 	}
 	return b
+}
+
+// add takes in the blocks a request wrote, so they suppress the requests
+// after it.
+func (b *blockSet) add(blocks []gen.CreateDatasourceBlockParams) {
+	for _, bl := range blocks {
+		if bl.Scope == gen.BlockScopeDatasource {
+			b.all, b.datasource = true, bl.Reason
+			continue
+		}
+		b.identifier[types.Identifier{Type: *bl.SentType, Domain: bl.SentDomain, Value: *bl.SentValue}] = bl.Reason
+	}
 }
 
 // covers reports whether a block suppresses a call under id, and why.

@@ -2,9 +2,12 @@ package market
 
 import (
 	"context"
+	"errors"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
 	"go.uber.org/mock/gomock"
 	"golang.org/x/time/rate"
@@ -16,7 +19,11 @@ import (
 	"github.com/leedenison/stonks/server/internal/run"
 )
 
-// harness wires a Fetcher over mocks and records what it wrote.
+// start is the time the harness's clock reads before it sleeps.
+var start = time.Date(2026, time.October, 1, 0, 0, 0, 0, time.UTC)
+
+// harness is a Fetcher whose clock advances only when it sleeps, with its
+// writes and sleeps recorded.
 type harness struct {
 	store   *MockStore
 	entry   *Entry
@@ -26,17 +33,27 @@ type harness struct {
 	keys   []gen.CreateFetchKeyParams
 	blocks []gen.CreateDatasourceBlockParams
 	child  gen.Run
+	now    time.Time
+	sleeps []time.Duration
+	// created is what each block write reports it inserted.
+	created int64
+	// keyErr fails every fetch key write.
+	keyErr error
+	// onSleep runs as the clock sleeps.
+	onSleep func()
 }
 
-func newHarness(t *testing.T, integration Identity, open []gen.DatasourceBlock) *harness {
+func newHarness(t *testing.T, integration Integration, open []gen.DatasourceBlock) *harness {
 	t.Helper()
 	ctrl := gomock.NewController(t)
 	t.Cleanup(ctrl.Finish)
 	h := &harness{
-		store:  NewMockStore(ctrl),
-		parent: gen.Run{ID: db.NewID(), UserID: db.NewID(), Kind: gen.RunKindResolution},
+		store:   NewMockStore(ctrl),
+		parent:  gen.Run{ID: db.NewID(), UserID: db.NewID(), Kind: gen.RunKindResolution},
+		now:     start,
+		created: 1,
 	}
-	h.entry = &Entry{Name: "fake", Integration: integration, Identity: integration, limiter: rate.NewLimiter(rate.Inf, 1)}
+	h.entry = &Entry{Name: "fake", Integration: integration, limiter: newLimiter(rate.Inf, 1)}
 
 	runs := NewMockRunner(ctrl)
 	runs.EXPECT().Child(gomock.Any(), gomock.Any(), gen.RunKindFetch, gomock.Any()).
@@ -45,20 +62,35 @@ func newHarness(t *testing.T, integration Identity, open []gen.DatasourceBlock) 
 			return h.child, work(ctx, h.child)
 		}).AnyTimes()
 
+	h.store.EXPECT().Tx(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, fn func(Queries) error) error {
+		return fn(h.store)
+	}).AnyTimes()
 	h.store.EXPECT().CreateFetch(gomock.Any(), gomock.Any()).Return(gen.Fetch{}, nil).AnyTimes()
 	h.store.EXPECT().ListOpenBlocks(gomock.Any(), gomock.Any()).Return(open, nil).AnyTimes()
 	h.store.EXPECT().CreateFetchKey(gomock.Any(), gomock.Any()).
 		DoAndReturn(func(_ context.Context, arg gen.CreateFetchKeyParams) error {
+			if h.keyErr != nil {
+				return h.keyErr
+			}
 			h.keys = append(h.keys, arg)
 			return nil
 		}).AnyTimes()
 	h.store.EXPECT().CreateDatasourceBlock(gomock.Any(), gomock.Any()).
 		DoAndReturn(func(_ context.Context, arg gen.CreateDatasourceBlockParams) (int64, error) {
 			h.blocks = append(h.blocks, arg)
-			return 1, nil
+			return h.created, nil
 		}).AnyTimes()
 
-	h.fetcher = NewFetcher(h.store, runs, discard(), WithRetry(time.Millisecond, 3))
+	clock := func() time.Time { return h.now }
+	sleep := func(ctx context.Context, d time.Duration) error {
+		h.sleeps = append(h.sleeps, d)
+		h.now = h.now.Add(d)
+		if h.onSleep != nil {
+			h.onSleep()
+		}
+		return ctx.Err()
+	}
+	h.fetcher = NewFetcher(h.store, runs, discard(), WithRetry(time.Millisecond, 3), WithClock(clock, sleep))
 	return h
 }
 
@@ -81,7 +113,7 @@ func unservedKey() gen.StatedKey { return gen.StatedKey{ID: db.NewID()} }
 
 func (h *harness) run(t *testing.T, keys ...gen.StatedKey) []Result[gen.StatedKey, IdentityResult] {
 	t.Helper()
-	_, results, err := Fetch(context.Background(), h.fetcher, h.parent, h.entry, IdentityKind, keys)
+	results, err := Fetch(context.Background(), h.fetcher, h.parent, h.entry, IdentityKind, keys)
 	if err != nil {
 		t.Fatalf("Fetch() error = %v", err)
 	}
@@ -399,12 +431,18 @@ func TestFetchChunkBlocksDatasource(t *testing.T) {
 	}
 }
 
+// plain is an integration that serves no kind of data.
+type plain struct{ f *fake }
+
+func (p plain) Classify(err error) Failure { return p.f.Classify(err) }
+func (p plain) Limit() (rate.Limit, int)   { return p.f.Limit() }
+func (p plain) Batch() int                 { return p.f.Batch() }
+
 // TestFetchKindNotServed checks that a datasource without a server for the
 // kind is not called, and that its keys say why.
 func TestFetchKindNotServed(t *testing.T) {
 	f := &fake{}
-	h := newHarness(t, f, nil)
-	h.entry.Identity = nil
+	h := newHarness(t, plain{f}, nil)
 	k := keyOf(f, "GB00B03MLX29")
 
 	results := h.run(t, k)
@@ -416,5 +454,156 @@ func TestFetchKindNotServed(t *testing.T) {
 	}
 	if row := h.key(t, k.ID); row.SentType != nil || row.Reason == nil {
 		t.Errorf("row = %+v, want no identifier sent and a reason", row)
+	}
+}
+
+// TestFetchRetryAfter checks that a refusal naming when to try again holds
+// the datasource for that long, capped, rather than backing off.
+func TestFetchRetryAfter(t *testing.T) {
+	tests := []struct {
+		name  string
+		after time.Duration
+		want  time.Duration
+	}{
+		{name: "a short wait", after: 500 * time.Millisecond, want: 500 * time.Millisecond},
+		{name: "a long wait is capped", after: time.Minute, want: retryMax},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			f := &fake{errs: []error{rateLimited("429", tc.after)}}
+			h := newHarness(t, f, nil)
+			k := keyOf(f, "GB00B03MLX29")
+
+			results := h.run(t, k)
+			if results[0].Outcome != gen.FetchOutcomeServed || f.calls != 2 {
+				t.Errorf("outcome = %s after %d calls, want served after 2", results[0].Outcome, f.calls)
+			}
+			if diff := cmp.Diff([]time.Duration{tc.want}, h.sleeps); diff != "" {
+				t.Errorf("sleeps mismatch (-want +got):\n%s", diff)
+			}
+			if got := h.entry.limiter.held(start); got != tc.want {
+				t.Errorf("hold from the start = %s, want %s", got, tc.want)
+			}
+		})
+	}
+}
+
+// TestFetchHeld checks that a fetch on a held datasource waits once for what
+// remains of the hold before its first call.
+func TestFetchHeld(t *testing.T) {
+	f := &fake{}
+	h := newHarness(t, f, nil)
+	h.entry.limiter.holdUntil(start.Add(time.Second))
+	k := keyOf(f, "GB00B03MLX29")
+
+	h.run(t, k)
+	if diff := cmp.Diff([]time.Duration{time.Second}, h.sleeps); diff != "" {
+		t.Errorf("sleeps mismatch (-want +got):\n%s", diff)
+	}
+	if f.calls != 1 {
+		t.Errorf("calls = %d, want 1", f.calls)
+	}
+}
+
+// TestFetchCancelled checks that a fetch whose context ends during the
+// backoff makes no further call.
+func TestFetchCancelled(t *testing.T) {
+	f := &fake{errs: []error{temporary("503"), temporary("503")}}
+	h := newHarness(t, f, nil)
+	k := keyOf(f, "GB00B03MLX29")
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	h.onSleep = cancel
+
+	results, err := Fetch(ctx, h.fetcher, h.parent, h.entry, IdentityKind, []gen.StatedKey{k})
+	if err != nil {
+		t.Fatalf("Fetch() error = %v", err)
+	}
+	if f.calls != 1 || len(h.sleeps) != 1 {
+		t.Errorf("calls = %d, sleeps = %v, want one call and one sleep", f.calls, h.sleeps)
+	}
+	if results[0].Outcome != gen.FetchOutcomeFailedTemporary {
+		t.Errorf("outcome = %s, want failed_temporary", results[0].Outcome)
+	}
+}
+
+// TestFetchShortResponse checks that the keys a response leaves out fail
+// temporarily, so a later fetch asks again.
+func TestFetchShortResponse(t *testing.T) {
+	f := &fake{drop: 1}
+	h := newHarness(t, f, nil)
+	one, two := keyOf(f, "GB00B03MLX29"), keyOf(f, "US0378331005")
+
+	results := h.run(t, one, two)
+	want := []gen.FetchOutcome{gen.FetchOutcomeServed, gen.FetchOutcomeFailedTemporary}
+	for i, w := range want {
+		if results[i].Outcome != w {
+			t.Errorf("result %d outcome = %s, want %s", i, results[i].Outcome, w)
+		}
+	}
+}
+
+// TestFetchBlockSuppressesLaterRequests checks that an identifier a request
+// blocks is not sent by a later request of the same fetch.
+func TestFetchBlockSuppressesLaterRequests(t *testing.T) {
+	f := &fake{batch: 1, perKey: map[string]error{"US0378331005": permanent("unknown identifier")}}
+	h := newHarness(t, f, nil)
+	one, two := keyOf(f, "US0378331005"), keyOf(f, "US0378331005")
+
+	results := h.run(t, one, two)
+	if f.calls != 1 {
+		t.Errorf("calls = %d, want 1: the block from the first request suppresses the second", f.calls)
+	}
+	want := []gen.FetchOutcome{gen.FetchOutcomeFailedPermanent, gen.FetchOutcomeBlocked}
+	for i, w := range want {
+		if results[i].Outcome != w {
+			t.Errorf("result %d outcome = %s, want %s", i, results[i].Outcome, w)
+		}
+	}
+}
+
+// TestFetchFindings checks that a block counts a finding only where its write
+// inserted one.
+func TestFetchFindings(t *testing.T) {
+	tests := []struct {
+		name    string
+		created int64
+		want    map[string]int64
+	}{
+		{name: "a new block", created: 1, want: map[string]int64{"stonks.findings{kind=block}": 1}},
+		{name: "a block already open", created: 0, want: map[string]int64{}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			f := &fake{errs: []error{credential("401")}}
+			h := newHarness(t, f, nil)
+			h.created = tc.created
+			counts(t)
+
+			h.run(t, keyOf(f, "GB00B03MLX29"))
+			got := counts(t)
+			for name := range got {
+				if !strings.HasPrefix(name, "stonks.findings") {
+					delete(got, name)
+				}
+			}
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("counts mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+// TestFetchWriteFails checks that a fetch whose rows cannot be written fails
+// with no results.
+func TestFetchWriteFails(t *testing.T) {
+	f := &fake{}
+	h := newHarness(t, f, nil)
+	boom := errors.New("boom")
+	h.keyErr = boom
+
+	results, err := Fetch(context.Background(), h.fetcher, h.parent, h.entry, IdentityKind, []gen.StatedKey{keyOf(f, "GB00B03MLX29")})
+	if !errors.Is(err, boom) || results != nil {
+		t.Errorf("Fetch() = %v, %v, want no results and %v", results, err, boom)
 	}
 }

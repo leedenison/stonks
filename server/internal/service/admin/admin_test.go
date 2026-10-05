@@ -398,6 +398,7 @@ func TestStartReplay(t *testing.T) {
 		{name: "a run without keys", req: unavailable, wantScope: &replay.Scope{}, startErr: replay.ErrKind, wantCode: connect.CodeFailedPrecondition},
 		{name: "nothing to replay", req: unavailable, wantScope: &replay.Scope{}, startErr: replay.ErrEmpty, wantCode: connect.CodeFailedPrecondition},
 		{name: "a datasource not enabled", req: datasource, wantScope: &replay.Scope{Datasource: "openfigi"}, startErr: replay.ErrDisabled, wantCode: connect.CodeFailedPrecondition},
+		{name: "a datasource serving no identity", req: datasource, wantScope: &replay.Scope{Datasource: "openfigi"}, startErr: replay.ErrNoIdentity, wantCode: connect.CodeFailedPrecondition},
 		{name: "failure", req: unavailable, wantScope: &replay.Scope{}, startErr: errors.New("boom"), wantCode: connect.CodeInternal},
 		{name: "no scope", req: &adminv1.StartReplayRequest{RunId: runID.String()}, wantCode: connect.CodeInvalidArgument},
 		{name: "unavailable unset", req: &adminv1.StartReplayRequest{RunId: runID.String(), Scope: &adminv1.StartReplayRequest_Unavailable{}}, wantCode: connect.CodeInvalidArgument},

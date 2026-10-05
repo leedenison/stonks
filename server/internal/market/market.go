@@ -11,9 +11,8 @@
 // The registry is built at startup from the datasources table and rebuilt
 // when an administrator changes a row; see [registry.go](registry.go).
 //
-// A fetch splits its requests into calls no larger than the integration's
-// batch.  Each call waits on the datasource's rate limit and is retried
-// separately.
+// Every caller of a datasource shares its rate limit and any wait the
+// provider asks for; see [registry.go](registry.go).
 package market
 
 import (
@@ -92,7 +91,7 @@ type Server[Q, P any] interface {
 // an entry has for it.
 type Kind[Q, P any] struct {
 	name gen.FetchKind
-	// server is nil where the entry does not serve the kind.
+	// server returns nil where the entry does not serve the kind.
 	server func(*Entry) Server[Q, P]
 	// subject is what the fetch_keys row records a request as.
 	subject func(Q) uuid.UUID
