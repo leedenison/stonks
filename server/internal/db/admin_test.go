@@ -118,9 +118,10 @@ func TestRunItems(t *testing.T) {
 	require.NoError(t, err)
 	key := newStatedKey(t, q, user, statement)
 
-	require.NoError(t, q.CreateResolutionKey(ctx, gen.CreateResolutionKeyParams{
+	_, err = q.CreateResolutionKey(ctx, gen.CreateResolutionKeyParams{
 		RunID: parent.ID, UserID: user.ID, StatedKeyID: key.ID, Outcome: gen.ResolutionOutcomeUnrecognised,
-	}))
+	})
+	require.NoError(t, err)
 	resolved, err := q.ListResolutionItems(ctx, parent.ID)
 	require.NoError(t, err)
 	if len(resolved) != 1 || resolved[0].StatedKey.ID != key.ID || resolved[0].ResolutionKey.Outcome != gen.ResolutionOutcomeUnrecognised {

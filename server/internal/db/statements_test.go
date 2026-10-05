@@ -137,9 +137,12 @@ func TestResolutionKeys(t *testing.T) {
 	}
 	matched, rejected, unrecognised := newKey(), newKey(), newKey()
 
-	require.NoError(t, q.CreateResolutionKey(ctx, gen.CreateResolutionKeyParams{RunID: resolution.ID, UserID: user.ID, StatedKeyID: matched.ID, Outcome: gen.ResolutionOutcomeMatched}))
-	require.NoError(t, q.CreateResolutionKey(ctx, gen.CreateResolutionKeyParams{RunID: resolution.ID, UserID: user.ID, StatedKeyID: rejected.ID, Outcome: gen.ResolutionOutcomeRejected, Reason: ptr.To("no currency")}))
-	require.NoError(t, q.CreateResolutionKey(ctx, gen.CreateResolutionKeyParams{RunID: resolution.ID, UserID: user.ID, StatedKeyID: unrecognised.ID, Outcome: gen.ResolutionOutcomeUnrecognised, Reason: ptr.To("nothing named it")}))
+	_, err = q.CreateResolutionKey(ctx, gen.CreateResolutionKeyParams{RunID: resolution.ID, UserID: user.ID, StatedKeyID: matched.ID, Outcome: gen.ResolutionOutcomeMatched})
+	require.NoError(t, err)
+	_, err = q.CreateResolutionKey(ctx, gen.CreateResolutionKeyParams{RunID: resolution.ID, UserID: user.ID, StatedKeyID: rejected.ID, Outcome: gen.ResolutionOutcomeRejected, Reason: ptr.To("no currency")})
+	require.NoError(t, err)
+	_, err = q.CreateResolutionKey(ctx, gen.CreateResolutionKeyParams{RunID: resolution.ID, UserID: user.ID, StatedKeyID: unrecognised.ID, Outcome: gen.ResolutionOutcomeUnrecognised, Reason: ptr.To("nothing named it")})
+	require.NoError(t, err)
 	keys, err := q.ListResolutionKeys(ctx, gen.ListResolutionKeysParams{RunID: resolution.ID, UserID: user.ID})
 	require.NoError(t, err)
 	if len(keys) != 3 {
@@ -167,7 +170,7 @@ func TestResolutionKeys(t *testing.T) {
 			key, err := q.CreateStatedKey(ctx, gen.CreateStatedKeyParams{ID: db.NewID(), StatementID: statement.ID, UserID: user.ID, Identifiers: []types.Identifier{}})
 			require.NoError(t, err)
 			tc.arg.RunID, tc.arg.UserID, tc.arg.StatedKeyID = run.ID, user.ID, key.ID
-			if err := q.CreateResolutionKey(ctx, tc.arg); !sqlstate(err, pgerrcode.CheckViolation) {
+			if _, err := q.CreateResolutionKey(ctx, tc.arg); !sqlstate(err, pgerrcode.CheckViolation) {
 				t.Errorf("CreateResolutionKey(%s): err = %v, want a check violation", tc.name, err)
 			}
 		})

@@ -37,24 +37,26 @@ func New(store Store, fetcher Fetcher, sources Sources, log *slog.Logger) *Resol
 }
 
 // Resolve is the body of a resolution run. It returns one resolution key per
-// row, in the order of rows.
+// row, in the order of rows. A run that fails partway leaves the keys it has
+// already written resolved.
 func (r *Resolver) Resolve(ctx context.Context, run gen.Run, rows []gen.StatedKey) ([]gen.ResolutionKey, error) {
-	families, err := r.families(ctx)
+	fams, err := r.families(ctx)
 	if err != nil {
 		return nil, err
 	}
 	resolutions := make([]*resolution, len(rows))
 	for i, row := range rows {
-		if resolutions[i], err = r.lookup(ctx, row, families); err != nil {
-			return nil, err
-		}
+		resolutions[i] = &resolution{row: row, ids: trusted(row), fams: fams}
+	}
+	if err := r.lookup(ctx, resolutions); err != nil {
+		return nil, err
 	}
 	if err := r.request(ctx, run, resolutions); err != nil {
 		return nil, err
 	}
 	out := make([]gen.ResolutionKey, 0, len(resolutions))
 	for _, res := range resolutions {
-		rk, err := r.write(ctx, run, res, families)
+		rk, err := r.write(ctx, run, res)
 		if err != nil {
 			return nil, err
 		}
@@ -63,15 +65,15 @@ func (r *Resolver) Resolve(ctx context.Context, run gen.Run, rows []gen.StatedKe
 	return out, nil
 }
 
-// families reads the currency table as a map from code to family.
-func (r *Resolver) families(ctx context.Context) (func(string) string, error) {
+// families reads the currency table.
+func (r *Resolver) families(ctx context.Context) (families, error) {
 	rows, err := r.store.ListCurrencies(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("list currencies: %w", err)
 	}
-	m := make(map[string]string, len(rows))
+	fams := make(families, len(rows))
 	for _, c := range rows {
-		m[c.Code] = c.Family
+		fams[c.Code] = c.Family
 	}
-	return func(code string) string { return m[code] }, nil
+	return fams, nil
 }

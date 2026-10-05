@@ -41,7 +41,8 @@ func resolved(t *testing.T, q *gen.Queries, run gen.Run, key gen.StatedKey, outc
 	if outcome != gen.ResolutionOutcomeMatched {
 		arg.Reason = ptr.To(string(outcome))
 	}
-	require.NoError(t, q.CreateResolutionKey(context.Background(), arg))
+	_, err := q.CreateResolutionKey(context.Background(), arg)
+	require.NoError(t, err)
 }
 
 func keyIDs(keys ...gen.StatedKey) []uuid.UUID {

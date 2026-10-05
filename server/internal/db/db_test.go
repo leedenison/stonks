@@ -4,6 +4,7 @@ package db_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"log"
 	"os"
@@ -50,6 +51,65 @@ func begin(t *testing.T) pgx.Tx {
 		}
 	})
 	return tx
+}
+
+// explainer runs each query of a transaction and records the plan of the
+// last one, so a test asserts the plan of the query sqlc generated.
+type explainer struct {
+	pgx.Tx
+	plan string
+}
+
+func (e *explainer) Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error) {
+	if err := e.Tx.QueryRow(ctx, "EXPLAIN (FORMAT JSON) "+sql, args...).Scan(&e.plan); err != nil {
+		return nil, err
+	}
+	return e.Tx.Query(ctx, sql, args...)
+}
+
+// indexCond returns the Index Cond of the plan node that scans index, and
+// false if no node does. A condition the index cannot serve shows as the
+// node's filter, so it is absent here.
+func indexCond(t *testing.T, plan, index string) (string, bool) {
+	t.Helper()
+	type node struct {
+		IndexName string `json:"Index Name"`
+		IndexCond string `json:"Index Cond"`
+		Plans     []node `json:"Plans"`
+	}
+	var root []struct {
+		Plan node `json:"Plan"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(plan), &root))
+	var walk func(n node) (string, bool)
+	walk = func(n node) (string, bool) {
+		if n.IndexName == index {
+			return n.IndexCond, true
+		}
+		for _, c := range n.Plans {
+			if cond, ok := walk(c); ok {
+				return cond, true
+			}
+		}
+		return "", false
+	}
+	for _, r := range root {
+		if cond, ok := walk(r.Plan); ok {
+			return cond, true
+		}
+	}
+	return "", false
+}
+
+// explain returns queries over a rolled-back transaction with sequential
+// scans disabled, and the explainer that records their plans.
+func explain(t *testing.T) (*gen.Queries, *explainer) {
+	t.Helper()
+	tx := begin(t)
+	_, err := tx.Exec(context.Background(), "SET LOCAL enable_seqscan = off")
+	require.NoError(t, err)
+	e := &explainer{Tx: tx}
+	return gen.New(e), e
 }
 
 // newTx returns queries over a transaction that is rolled back when the test

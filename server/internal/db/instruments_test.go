@@ -6,10 +6,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/require"
 
@@ -223,6 +225,56 @@ func TestListInstrumentsByIdentifiers(t *testing.T) {
 	}
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("ListInstrumentsByIdentifiers mismatch (-want +got):\n%s", diff)
+	}
+}
+
+// TestListInstrumentsByIdentifiersIndex checks that the unique index on
+// identifiers serves the lookup, which runs under the resolver's locks.
+func TestListInstrumentsByIdentifiersIndex(t *testing.T) {
+	q, e := explain(t)
+	_, err := q.ListInstrumentsByIdentifiers(context.Background(), gen.ListInstrumentsByIdentifiersParams{
+		Types: []string{"isin"}, Domains: []string{""}, Values: []string{"GB00B03MLX29"},
+	})
+	require.NoError(t, err)
+	cond, ok := indexCond(t, e.plan, "identifiers_type_domain_value_key")
+	if !ok || !strings.Contains(cond, "(type = ") {
+		t.Errorf("the identifiers unique index is not searched on type:\n%s", e.plan)
+	}
+}
+
+// TestIsRetryable checks the predicate against the error Postgres raises when
+// two transactions take advisory locks in opposite orders. Postgres refuses one
+// of them, and the other proceeds once the first rolls back.
+func TestIsRetryable(t *testing.T) {
+	ctx := context.Background()
+	a, b := uuid.NewString(), uuid.NewString()
+	open := func() pgx.Tx {
+		tx, err := pool.Begin(ctx)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			if err := tx.Rollback(ctx); err != nil && !errors.Is(err, pgx.ErrTxClosed) {
+				t.Errorf("rollback: %v", err)
+			}
+		})
+		return tx
+	}
+	one, two := open(), open()
+	require.NoError(t, gen.New(one).LockIdentifiers(ctx, []string{a}))
+	require.NoError(t, gen.New(two).LockIdentifiers(ctx, []string{b}))
+	type attempt struct {
+		tx  pgx.Tx
+		err error
+	}
+	done := make(chan attempt, 2)
+	go func() { done <- attempt{one, gen.New(one).LockIdentifiers(ctx, []string{b})} }()
+	go func() { done <- attempt{two, gen.New(two).LockIdentifiers(ctx, []string{a})} }()
+	refused := <-done
+	if !db.IsRetryable(refused.err) {
+		t.Errorf("IsRetryable(%v) = false, want true", refused.err)
+	}
+	require.NoError(t, refused.tx.Rollback(ctx))
+	if survived := <-done; survived.err != nil {
+		t.Errorf("the other transaction failed: %v", survived.err)
 	}
 }
 

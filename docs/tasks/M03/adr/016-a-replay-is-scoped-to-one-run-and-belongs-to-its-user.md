@@ -22,8 +22,9 @@ resolution does; the datasource scope only picks the keys. An empty selection or
 datasource that is not enabled is refused and no run is created.
 
 A replay runs in lane "replay" under its user, beside the user's uploads. Order against an
-upload does not matter: the resolver serialises creation on the stated identifiers and
-retries on conflict, and the regroup is a full recompute under the user key lock, which
+upload does not matter. The resolver serialises creation on the identifiers a key states
+and those its responses name, and retries when the database reports a conflict, deadlock
+or serialisation failure. The regroup is a full recompute under the user key lock, which
 the statement write holds throughout. The replay's work is one resolution child over
 every selected key, then one regroup of the user. A partial replay leaves each key the
 resolution wrote re-resolved and the groups as they were, less any key that became
