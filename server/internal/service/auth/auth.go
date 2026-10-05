@@ -76,7 +76,7 @@ func (s *Server) SignOut(ctx context.Context, _ *connect.Request[authv1.SignOutR
 // maximum lifetime, and SignOut with -1 to expire it; the server-side idle
 // window governs whether the session is still live.
 func (s *Server) cookie(value string, maxAge int) *http.Cookie {
-	return &http.Cookie{
+	return &http.Cookie{ //nolint:gosec // Secure is off only for local development over plain HTTP
 		Name:     service.CookieName,
 		Value:    value,
 		Path:     "/",

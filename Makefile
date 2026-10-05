@@ -133,6 +133,13 @@ client-typecheck: $(STAMP_DIR)/generate ## Typecheck the client
 e2e-typecheck: $(STAMP_DIR)/generate ## Typecheck the e2e suite
 	$(COMPOSE_TOOLS_E2E) npm run typecheck
 
+# Not a gate: every clone it lists is a lead for the quality review to judge.
+# dupl covers Go and jscpd covers TypeScript, both at 75 tokens. jscpd skips
+# what .gitignore lists, which includes the generated code.
+dupes: $(STAMP_DIR)/generate ## List duplicated code for the quality review
+	$(COMPOSE_TOOLS) go tool golangci-lint run --enable-only dupl --issues-exit-code=0 --show-stats=false ./server/...
+	$(COMPOSE_TOOLS_ROOT) sh -c 'out=$$(client/node_modules/.bin/jscpd --min-tokens 75 --format typescript,tsx,javascript --ignore "**/*.d.ts" --absolute --no-colors client e2e) || exit; echo "$$out" | sed "s| /app/| |"'
+
 ##@ Tests
 
 DBTEST_PKGS := $(shell grep -rl --include='*_test.go' '^//go:build dbtest' server 2>/dev/null \
@@ -207,4 +214,4 @@ help: ## Show this help
 		/^##@/ { printf "\n%s\n", substr($$0, 5) } \
 		/^[a-zA-Z0-9_-]+:.*## / { printf "  %-18s %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
 
-.PHONY: generate run logs stop build check fmt fmt-check vet lint lint-go lint-proto lint-ts lint-ts-fix client-typecheck e2e-typecheck test server-test client-test db-test record e2e-test clean clean-db clean-generated clean-derived clean-docker clean-node help
+.PHONY: generate run logs stop build check fmt fmt-check vet lint lint-go lint-proto lint-ts lint-ts-fix client-typecheck e2e-typecheck dupes test server-test client-test db-test record e2e-test clean clean-db clean-generated clean-derived clean-docker clean-node help

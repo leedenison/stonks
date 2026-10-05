@@ -1,7 +1,8 @@
-# The standard set plus the rules that carry the conventions a linter can
-# check: configuration is read only in server/internal/config, connect is
-# imported only at the service boundary, logging is log/slog, and context.TODO
-# is confined to tests. govet is make vet.
+# The standard set plus gosec, and the rules that carry the conventions a
+# linter can check: configuration is read only in server/internal/config,
+# connect is imported only at the service boundary, logging is log/slog,
+# context.TODO is confined to tests, and every nolint names its linter and
+# says why. govet is make vet.
 version: "2"
 
 # A test that needs the test stack carries the dbtest build tag. Nothing is
@@ -18,7 +19,23 @@ linters:
   enable:
     - depguard
     - forbidigo
+    - gosec
+    - nolintlint
   settings:
+    # errcheck already reports G104. G115 and G304 flag every integer
+    # conversion and every file read from a variable path.
+    gosec:
+      excludes:
+        - G104
+        - G115
+        - G304
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+    # Not a gate: make dupes runs dupl for the quality review. jscpd uses the
+    # same threshold for TypeScript.
+    dupl:
+      threshold: 75
     forbidigo:
       analyze-types: true
       forbid:
@@ -67,6 +84,16 @@ linters:
       - path: server/internal/testutil/
         linters:
           - forbidigo
+      # Test credentials are invented.
+      - path: _test\.go
+        linters:
+          - gosec
+        text: G101
+      # The healthcheck fetches the URL it is given.
+      - path: server/cmd/healthcheck/
+        linters:
+          - gosec
+        text: G704
 
 # The defaults cap output per linter and per repeated issue, which makes a
 # truncated run read as a nearly clean one.

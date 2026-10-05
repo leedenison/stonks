@@ -152,7 +152,7 @@ func (c *Client) Fetch(ctx context.Context, reqs []market.Request[gen.StatedKey]
 			out[i].Err = jobError(responses[i].Error)
 			continue
 		}
-		out[i].Value = identity(reqs[i].Sent, currency(reqs[i].Value), responses[i].Data, c.mics)
+		out[i].Value = identity(reqs[i].Sent, currency(reqs[i].Value), responses[i].Data, c.mics) //nolint:gosec // out is no longer than reqs
 	}
 	return out, nil
 }

@@ -193,7 +193,7 @@ Titled `Close <label>`. Its job is review, acceptance and handover, and it is th
 of the milestone to close.
 
 ```markdown
-- Review the codebase for quality issues.
+- Run the quality review with the `quality-reviewer` agent, and fix what it finds.
 - Run the acceptance pass.
 - Write up or discard remaining milestone ADRs.
 - Review any issues marked `status: unreviewed`.
@@ -203,9 +203,8 @@ of the milestone to close.
 
 What each of those means:
 
-* **Read the milestone's code** for what accumulates across a milestone rather than within
-  any one issue of it: duplicate type definitions, near-identical helpers, dead code, drift
-  between the specification and what was built.
+* **The quality review**  audits the milestone's code for defects that build up across
+  its issues. The milestone's commits run from the commit that scheduled it to `HEAD`.
 * **The acceptance pass** is user testing which will be carried out manually.
 * **Empty the `adr/` directory**: anything not already written up goes into code
   comments now, or is deleted as not worth keeping. The `adr` skill describes how.
