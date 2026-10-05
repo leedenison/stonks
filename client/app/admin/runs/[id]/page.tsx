@@ -31,6 +31,7 @@ import {
 import { type Run, RunKind } from "@/gen/run/v1/run_pb";
 import { AssetClass } from "@/gen/type/v1/type_pb";
 import { useAdminRun } from "@/hooks/use-admin-run";
+import { useAdminRunItems } from "@/hooks/use-admin-run-items";
 import { useClearBlock } from "@/hooks/use-blocks";
 import { useClearFinding } from "@/hooks/use-findings";
 import {
@@ -42,6 +43,7 @@ import {
   runEnums,
 } from "@/lib/admin";
 import { formatInstant } from "@/lib/format";
+import { anyLive } from "@/lib/run";
 import { ReplayDialog } from "../replay-dialog";
 
 // One run as an administrator reads it: its owner, how it ended, its place
@@ -458,14 +460,66 @@ function Items({ data }: { data: GetRunResponse }) {
       </Section>
     );
   }
-  if (data.statementItems.length > 0) {
+  const id = data.run?.run?.id;
+  if (!id) {
+    return null;
+  }
+  const live = anyLive(
+    flattenRuns(data.run ? [data.run] : []).map((r) => r.run?.state),
+  );
+  return <RunItems id={id} live={live} />;
+}
+
+// RunItems lists the items of the run, a page at a time.
+function RunItems({ id, live }: { id: string; live: boolean }) {
+  const {
+    data,
+    error,
+    refetch,
+    hasNextPage,
+    fetchNextPage,
+    isFetchingNextPage,
+  } = useAdminRunItems(id, live);
+  if (error) {
     return (
-      <Section title={`Rejected rows (${data.statementItems.length})`}>
-        <RejectionGroups items={data.statementItems} />
+      <Notice tone="error" onRetry={() => refetch()}>
+        The items could not be loaded.
+      </Notice>
+    );
+  }
+  if (!data) {
+    return <Skeleton lines={2} />;
+  }
+  const items = data.pages.flatMap((p) => p.items);
+  const more = hasNextPage && (
+    <div>
+      <Button
+        variant="secondary"
+        data-testid="admin-run-items-more"
+        disabled={isFetchingNextPage}
+        onClick={() => fetchNextPage()}
+      >
+        More
+      </Button>
+    </div>
+  );
+  const rejected = items.flatMap((i) =>
+    i.item.case === "statement" ? [i.item.value] : [],
+  );
+  if (rejected.length > 0) {
+    return (
+      <Section
+        title={`Rejected rows (${rejected.length}${hasNextPage ? "+" : ""})`}
+      >
+        <RejectionGroups items={rejected} />
+        {more}
       </Section>
     );
   }
-  if (data.resolutionItems.length > 0) {
+  const resolved = items.flatMap((i) =>
+    i.item.case === "resolution" ? [i.item.value] : [],
+  );
+  if (resolved.length > 0) {
     return (
       <Section title="Keys">
         <TableCard testId="admin-run-items">
@@ -477,7 +531,7 @@ function Items({ data }: { data: GetRunResponse }) {
             </tr>
           </Thead>
           <tbody>
-            {data.resolutionItems.map((it) => (
+            {resolved.map((it) => (
               <Tr
                 key={it.statedKeyId}
                 data-testid={`item-row-${it.statedKeyId}`}
@@ -486,17 +540,21 @@ function Items({ data }: { data: GetRunResponse }) {
                   <StatedKeyChips statedKey={it.statedKey} />
                 </Td>
                 <Td>
-                  <ResolutionChip outcome={it.outcome} />
+                  <ResolutionChip outcome={it.outcome} live={live} />
                 </Td>
                 <Td>{it.reason}</Td>
               </Tr>
             ))}
           </tbody>
         </TableCard>
+        {more}
       </Section>
     );
   }
-  if (data.fetchItems.length > 0) {
+  const fetched = items.flatMap((i) =>
+    i.item.case === "fetch" ? [i.item.value] : [],
+  );
+  if (fetched.length > 0) {
     return (
       <Section title="Keys">
         <TableCard testId="admin-run-items">
@@ -510,7 +568,7 @@ function Items({ data }: { data: GetRunResponse }) {
             </tr>
           </Thead>
           <tbody>
-            {data.fetchItems.map((it) => (
+            {fetched.map((it) => (
               <Tr
                 key={it.statedKeyId}
                 data-testid={`item-row-${it.statedKeyId}`}
@@ -528,6 +586,7 @@ function Items({ data }: { data: GetRunResponse }) {
             ))}
           </tbody>
         </TableCard>
+        {more}
       </Section>
     );
   }

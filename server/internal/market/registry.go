@@ -2,6 +2,7 @@ package market
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"sync"
@@ -12,6 +13,10 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/db/gen"
 )
+
+// ErrNoIntegration reports that this build has no integration for the
+// datasource named.
+var ErrNoIntegration = errors.New("this build carries no such integration")
 
 // Entry is one enabled datasource and the integration serving it.
 type Entry struct {
@@ -100,9 +105,9 @@ func (r *Registry) Reload(ctx context.Context) error {
 			r.log.Info("datasource disabled", "datasource", row.Name, "carried", ok)
 			continue
 		case !ok:
-			return fmt.Errorf("datasource %s is enabled and this build carries no such integration", row.Name)
+			return fmt.Errorf("datasource %s is enabled: %w", row.Name, ErrNoIntegration)
 		}
-		integration, err := factory(config(row))
+		integration, err := factory(ConfigOf(row))
 		if err != nil {
 			return fmt.Errorf("datasource %s: %w", row.Name, err)
 		}
@@ -135,10 +140,17 @@ func (r *Registry) limiter(name string, limit rate.Limit, burst int) *limiter {
 	return l
 }
 
-// Carries reports whether this binary has an integration of the name.
-func (r *Registry) Carries(name string) bool {
-	_, ok := r.factories[name]
-	return ok
+// Check builds the integration cfg configures without installing it. A
+// caller uses it to reject a row before writing it.
+func (r *Registry) Check(cfg Config) error {
+	factory, ok := r.factories[cfg.Name]
+	if !ok {
+		return fmt.Errorf("datasource %s: %w", cfg.Name, ErrNoIntegration)
+	}
+	if _, err := factory(cfg); err != nil {
+		return fmt.Errorf("datasource %s: %w", cfg.Name, err)
+	}
+	return nil
 }
 
 // Enabled returns the enabled datasources in precedence order, as of the
@@ -161,9 +173,9 @@ func (r *Registry) Names() []string {
 	return out
 }
 
-// config reads the row as the integration it names sees it. A NULL credential
-// or endpoint reaches the integration as empty.
-func config(row gen.Datasource) Config {
+// ConfigOf reads the row as the integration it names sees it. A NULL
+// credential or endpoint reaches the integration as empty.
+func ConfigOf(row gen.Datasource) Config {
 	c := Config{Name: row.Name}
 	if row.Credential != nil {
 		c.Credential = *row.Credential

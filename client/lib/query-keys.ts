@@ -16,6 +16,7 @@ export const qk = {
   adminRuns: (f: RunFilters) =>
     ["admin-runs", f.kind, f.trigger, f.state, f.user, f.before] as const,
   adminRun: (id: string) => ["admin-runs", id] as const,
+  adminRunItems: (id: string) => ["admin-runs", id, "items"] as const,
   adminRunsAll: () => ["admin-runs"] as const,
   datasources: () => ["datasources"] as const,
   blocks: (cleared: boolean, before: string) =>

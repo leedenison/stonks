@@ -4,6 +4,7 @@ package db_test
 
 import (
 	"context"
+	"errors"
 	"slices"
 	"strings"
 	"testing"
@@ -175,8 +176,9 @@ func TestListRootRunsIndex(t *testing.T) {
 	}
 }
 
-// TestRunItems checks that the items of a resolution and of a fetch each carry
-// their stated key.
+// TestRunItems checks that each kind's items carry their stated key and
+// page in the order the run wrote them: a statement's by ordinal, and a
+// resolution's and a fetch's by stated key id.
 func TestRunItems(t *testing.T) {
 	ctx := context.Background()
 	q := newTx(t)
@@ -184,24 +186,52 @@ func TestRunItems(t *testing.T) {
 	statement := newStatement(t, q, user)
 	parent, err := q.GetRun(ctx, gen.GetRunParams{ID: statement.ID, UserID: user.ID})
 	require.NoError(t, err)
-	key := newStatedKey(t, q, user, statement)
+	one, two := newStatedKey(t, q, user, statement), newStatedKey(t, q, user, statement)
+	one32 := int32(1)
 
-	_, err = q.CreateResolutionKey(ctx, gen.CreateResolutionKeyParams{
-		RunID: parent.ID, UserID: user.ID, StatedKeyID: key.ID, Outcome: gen.ResolutionOutcomeUnrecognised,
-	})
+	for _, k := range []gen.StatedKey{two, one} {
+		_, err = q.CreateResolutionKey(ctx, gen.CreateResolutionKeyParams{
+			RunID: parent.ID, UserID: user.ID, StatedKeyID: k.ID, Outcome: gen.ResolutionOutcomeUnrecognised, Reason: ptr.To("r"),
+		})
+		require.NoError(t, err)
+	}
+	resolved, err := q.ListResolutionItems(ctx, gen.ListResolutionItemsParams{RunID: parent.ID, Lim: &one32})
 	require.NoError(t, err)
-	resolved, err := q.ListResolutionItems(ctx, parent.ID)
+	if len(resolved) != 1 || resolved[0].StatedKey.ID != one.ID || resolved[0].ResolutionKey.Outcome != gen.ResolutionOutcomeUnrecognised {
+		t.Errorf("ListResolutionItems first page = %+v, want the first key, unrecognised", resolved)
+	}
+	resolved, err = q.ListResolutionItems(ctx, gen.ListResolutionItemsParams{RunID: parent.ID, After: &one.ID, Lim: &one32})
 	require.NoError(t, err)
-	if len(resolved) != 1 || resolved[0].StatedKey.ID != key.ID || resolved[0].ResolutionKey.Outcome != gen.ResolutionOutcomeUnrecognised {
-		t.Errorf("ListResolutionItems = %+v, want the unrecognised key", resolved)
+	if len(resolved) != 1 || resolved[0].StatedKey.ID != two.ID {
+		t.Errorf("ListResolutionItems after the first key = %+v, want the second", resolved)
 	}
 
 	fetch := newFetch(t, q, user, parent, newDatasource(t, q, "admin-items", 10))
-	servedKey(t, q, fetch, key, "GB00B03MLX29")
-	fetched, err := q.ListFetchItems(ctx, fetch.ID)
+	servedKey(t, q, fetch, two, "US0378331005")
+	servedKey(t, q, fetch, one, "GB00B03MLX29")
+	fetched, err := q.ListFetchItems(ctx, gen.ListFetchItemsParams{FetchID: fetch.ID, Lim: &one32})
 	require.NoError(t, err)
-	if len(fetched) != 1 || fetched[0].StatedKey.ID != key.ID || fetched[0].FetchKey.Outcome != gen.FetchOutcomeServed {
-		t.Errorf("ListFetchItems = %+v, want the served key", fetched)
+	if len(fetched) != 1 || fetched[0].StatedKey.ID != one.ID || fetched[0].FetchKey.Outcome != gen.FetchOutcomeServed {
+		t.Errorf("ListFetchItems first page = %+v, want the first key, served", fetched)
+	}
+	fetched, err = q.ListFetchItems(ctx, gen.ListFetchItemsParams{FetchID: fetch.ID, After: &one.ID})
+	require.NoError(t, err)
+	if len(fetched) != 1 || fetched[0].StatedKey.ID != two.ID {
+		t.Errorf("ListFetchItems after the first key = %+v, want the second", fetched)
+	}
+
+	for _, ordinal := range []int32{2, 0, 1} {
+		require.NoError(t, q.CreateStatementItem(ctx, gen.CreateStatementItemParams{StatementID: statement.ID, UserID: user.ID, Ordinal: ordinal, Reason: "r", Stated: []byte(`{}`)}))
+	}
+	two32 := int32(2)
+	items, err := q.ListStatementItems(ctx, gen.ListStatementItemsParams{StatementID: statement.ID, UserID: user.ID, After: ptr.To(int32(0)), Lim: &two32})
+	require.NoError(t, err)
+	var ordinals []int32
+	for _, it := range items {
+		ordinals = append(ordinals, it.Ordinal)
+	}
+	if diff := cmp.Diff([]int32{1, 2}, ordinals); diff != "" {
+		t.Errorf("ListStatementItems after ordinal 0 mismatch (-want +got):\n%s", diff)
 	}
 }
 
@@ -236,11 +266,20 @@ func TestFindingsAndBlocks(t *testing.T) {
 	firstBlock, firstFinding := open("GB00B03MLX29")
 	secondBlock, secondFinding := open("US0378331005")
 
-	require.NoError(t, q.ClearFinding(ctx, firstFinding))
-	if f, err := q.GetFinding(ctx, firstFinding); err != nil || f.ClearedAt != nil {
-		t.Errorf("GetFinding after ClearFinding of a block's finding = %+v, %v, want it open", f, err)
+	reported, err := q.ClearFinding(ctx, firstFinding)
+	require.NoError(t, err)
+	if reported == nil || *reported != firstBlock {
+		t.Errorf("ClearFinding of a block's finding = %v, want the block %s", reported, firstBlock)
 	}
-	require.NoError(t, q.ClearDatasourceBlock(ctx, firstBlock))
+	if _, err := q.ClearDatasourceBlock(ctx, firstBlock); err != nil {
+		t.Fatalf("ClearDatasourceBlock() error = %v", err)
+	}
+	if _, err := q.ClearDatasourceBlock(ctx, db.NewID()); !errors.Is(err, db.ErrNotFound) {
+		t.Errorf("ClearDatasourceBlock of no block: err = %v, want ErrNotFound", err)
+	}
+	if _, err := q.ClearFinding(ctx, db.NewID()); !errors.Is(err, db.ErrNotFound) {
+		t.Errorf("ClearFinding of no finding: err = %v, want ErrNotFound", err)
+	}
 
 	rows, err := q.ListRunFindings(ctx, []uuid.UUID{fetch.ID})
 	require.NoError(t, err)

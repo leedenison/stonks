@@ -2,9 +2,9 @@
 //
 // Every RPC acts across users, and the handler chain refuses a caller
 // without the admin role before any of them runs; see
-// [service.go](../service.go). A listing is paged newest first on the row's
-// id, which is ordered by creation time, so the page token is the id of the
-// last row served.
+// [service.go](../service.go). A listing of runs or blocks is paged newest
+// first on the row's id, which is ordered by creation time, so the page token
+// is the id of the last row served.
 package admin
 
 import (
@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strconv"
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
@@ -19,21 +20,21 @@ import (
 
 	adminv1 "github.com/leedenison/stonks/proto/admin/v1"
 	"github.com/leedenison/stonks/proto/admin/v1/adminv1connect"
-	typev1 "github.com/leedenison/stonks/proto/type/v1"
 	"github.com/leedenison/stonks/server/internal/auth"
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/to"
 	"github.com/leedenison/stonks/server/internal/db/types"
+	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/replay"
-	stmtsvc "github.com/leedenison/stonks/server/internal/service/statement"
+	"github.com/leedenison/stonks/server/internal/statement"
 )
 
 // defaultPageSize is the page size of a request that names none.
 const defaultPageSize = 50
 
-// Reader is this package's view of the queries.
-type Reader interface {
+// Queries is this package's view of the generated queries.
+type Queries interface {
 	ListUserRuns(ctx context.Context, arg gen.ListUserRunsParams) ([]gen.ListUserRunsRow, error)
 	ListRootRuns(ctx context.Context, arg gen.ListRootRunsParams) ([]gen.ListRootRunsRow, error)
 	GetUserRun(ctx context.Context, id uuid.UUID) (gen.GetUserRunRow, error)
@@ -41,29 +42,38 @@ type Reader interface {
 	ListRunDescendants(ctx context.Context, parentID *uuid.UUID) ([]gen.ListRunDescendantsRow, error)
 	ListRunFindings(ctx context.Context, runIds []uuid.UUID) ([]gen.ListRunFindingsRow, error)
 	ListStatementItems(ctx context.Context, arg gen.ListStatementItemsParams) ([]gen.StatementItem, error)
-	ListResolutionItems(ctx context.Context, runID uuid.UUID) ([]gen.ListResolutionItemsRow, error)
-	ListFetchItems(ctx context.Context, fetchID uuid.UUID) ([]gen.ListFetchItemsRow, error)
+	ListResolutionItems(ctx context.Context, arg gen.ListResolutionItemsParams) ([]gen.ListResolutionItemsRow, error)
+	ListFetchItems(ctx context.Context, arg gen.ListFetchItemsParams) ([]gen.ListFetchItemsRow, error)
 	GetReplay(ctx context.Context, id uuid.UUID) (gen.GetReplayRow, error)
-	GetFinding(ctx context.Context, id uuid.UUID) (gen.Finding, error)
-	ClearFinding(ctx context.Context, id uuid.UUID) error
+	ClearFinding(ctx context.Context, id uuid.UUID) (*uuid.UUID, error)
 	ListDatasourceSettings(ctx context.Context) ([]gen.ListDatasourceSettingsRow, error)
 	ListDatasources(ctx context.Context) ([]gen.Datasource, error)
 	UpdateDatasource(ctx context.Context, arg gen.UpdateDatasourceParams) (gen.Datasource, error)
-	SetDatasourcePrecedence(ctx context.Context, arg gen.SetDatasourcePrecedenceParams) error
+	SetDatasourcePrecedence(ctx context.Context, names []string) error
 	ListBlocks(ctx context.Context, arg gen.ListBlocksParams) ([]gen.ListBlocksRow, error)
-	GetDatasourceBlock(ctx context.Context, id uuid.UUID) (gen.DatasourceBlock, error)
-	ClearDatasourceBlock(ctx context.Context, id uuid.UUID) error
+	ClearDatasourceBlock(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 }
 
-var _ Reader = (*gen.Queries)(nil)
+var _ Queries = (*gen.Queries)(nil)
 
-// Sources is this package's view of the datasource registry: whether the
-// build carries an integration, and the reload that makes a change to the
+// Store is the database as this package sees it: the queries, and Tx, which
+// runs a set of them in one transaction.
+type Store interface {
+	Queries
+	Tx(ctx context.Context, fn func(Queries) error) error
+}
+
+var _ Store = (*db.DB[Queries])(nil)
+
+// Sources is this package's view of the datasource registry: the check that
+// the registry would accept a row, and the reload that makes a change to the
 // table take effect.
 type Sources interface {
-	Carries(name string) bool
+	Check(cfg market.Config) error
 	Reload(ctx context.Context) error
 }
+
+var _ Sources = (*market.Registry)(nil)
 
 // Replayer is this package's view of the replay service.
 type Replayer interface {
@@ -72,11 +82,11 @@ type Replayer interface {
 
 var _ Replayer = (*replay.Service)(nil)
 
-//go:generate go tool mockgen -source=admin.go -destination=mock/admin_mock.go -package=mock
+//go:generate go tool mockgen -source=admin.go -destination=admin_mock_test.go -package=admin -self_package=github.com/leedenison/stonks/server/internal/service/admin
 
 // Server implements AdminService.
 type Server struct {
-	reader  Reader
+	store   Store
 	sources Sources
 	replays Replayer
 }
@@ -84,8 +94,8 @@ type Server struct {
 var _ adminv1connect.AdminServiceHandler = (*Server)(nil)
 
 // New returns a Server.
-func New(reader Reader, sources Sources, replays Replayer) *Server {
-	return &Server{reader: reader, sources: sources, replays: replays}
+func New(store Store, sources Sources, replays Replayer) *Server {
+	return &Server{store: store, sources: sources, replays: replays}
 }
 
 // ListRuns lists every user's runs matching the filters, newest first,
@@ -135,9 +145,9 @@ func (s *Server) ListRuns(ctx context.Context, req *connect.Request[adminv1.List
 // page from its top-level runs down and spares the walk up from every run.
 func (s *Server) listRuns(ctx context.Context, arg gen.ListUserRunsParams) ([]gen.ListUserRunsRow, error) {
 	if arg.Kind != nil || arg.Trigger != nil || arg.State != nil || arg.UserID != nil {
-		return s.reader.ListUserRuns(ctx, arg)
+		return s.store.ListUserRuns(ctx, arg)
 	}
-	rows, err := s.reader.ListRootRuns(ctx, gen.ListRootRunsParams{Before: arg.Before, Lim: arg.Lim})
+	rows, err := s.store.ListRootRuns(ctx, gen.ListRootRunsParams{Before: arg.Before, Lim: arg.Lim})
 	if err != nil {
 		return nil, err
 	}
@@ -165,38 +175,59 @@ func trimTrees(p page, rows []gen.ListUserRunsRow) ([]gen.ListUserRunsRow, strin
 	return rows, ""
 }
 
-// GetRun reads any user's run with the runs above and below it, its findings and the items
-// of its kind.
+// GetRun reads any user's run with the runs above and below it and its
+// findings.
 func (s *Server) GetRun(ctx context.Context, req *connect.Request[adminv1.GetRunRequest]) (*connect.Response[adminv1.GetRunResponse], error) {
-	id, err := uuid.Parse(req.Msg.GetRunId())
+	row, err := s.userRun(ctx, req.Msg.GetRunId())
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, err)
-	}
-	row, err := s.reader.GetUserRun(ctx, id)
-	if errors.Is(err, db.ErrNotFound) {
-		return nil, connect.NewError(connect.CodeNotFound, errors.New("no such run"))
-	}
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, err
 	}
 	out := &adminv1.GetRunResponse{Run: userRun(row.Run, row.Email, row.OpenFindings)}
-	if err := s.fill(ctx, row.Run, out); err != nil {
+	ids, err := s.tree(ctx, row.Run, out)
+	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	if err := s.findings(ctx, ids, out); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	if row.Run.Kind == gen.RunKindReplay {
+		if out.Replay, err = s.replay(ctx, row.Run.ID); err != nil {
+			return nil, connect.NewError(connect.CodeInternal, err)
+		}
 	}
 	return connect.NewResponse(out), nil
 }
 
-func (s *Server) fill(ctx context.Context, run gen.Run, out *adminv1.GetRunResponse) error {
-	ancestors, err := s.reader.ListRunAncestors(ctx, run.ID)
+// userRun reads the run id names. A failure comes back as a connect error
+// that the caller returns unchanged.
+func (s *Server) userRun(ctx context.Context, id string) (gen.GetUserRunRow, error) {
+	runID, err := uuid.Parse(id)
 	if err != nil {
-		return err
+		return gen.GetUserRunRow{}, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	row, err := s.store.GetUserRun(ctx, runID)
+	if errors.Is(err, db.ErrNotFound) {
+		return gen.GetUserRunRow{}, connect.NewError(connect.CodeNotFound, errors.New("no such run"))
+	}
+	if err != nil {
+		return gen.GetUserRunRow{}, connect.NewError(connect.CodeInternal, err)
+	}
+	return row, nil
+}
+
+// tree adds the runs above and below run to out, and returns the ids of run
+// and of every run below it.
+func (s *Server) tree(ctx context.Context, run gen.Run, out *adminv1.GetRunResponse) ([]uuid.UUID, error) {
+	ancestors, err := s.store.ListRunAncestors(ctx, run.ID)
+	if err != nil {
+		return nil, err
 	}
 	for _, a := range ancestors {
 		out.Ancestors = append(out.Ancestors, userRun(a.Run, a.Email, a.OpenFindings))
 	}
-	descendants, err := s.reader.ListRunDescendants(ctx, &run.ID)
+	descendants, err := s.store.ListRunDescendants(ctx, &run.ID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	byID := map[uuid.UUID]*adminv1.UserRun{run.ID: out.Run}
 	ids := []uuid.UUID{run.ID}
@@ -208,76 +239,157 @@ func (s *Server) fill(ctx context.Context, run gen.Run, out *adminv1.GetRunRespo
 			parent.Children = append(parent.Children, msg)
 		}
 	}
-	findings, err := s.reader.ListRunFindings(ctx, ids)
+	return ids, nil
+}
+
+// findings adds the findings of the runs ids names to out, in tree order.
+func (s *Server) findings(ctx context.Context, ids []uuid.UUID, out *adminv1.GetRunResponse) error {
+	rows, err := s.store.ListRunFindings(ctx, ids)
 	if err != nil {
 		return err
 	}
 	order := treeOrder(out.Run)
-	slices.SortStableFunc(findings, func(a, b gen.ListRunFindingsRow) int {
+	slices.SortStableFunc(rows, func(a, b gen.ListRunFindingsRow) int {
 		return order[a.Finding.RunID.String()] - order[b.Finding.RunID.String()]
 	})
-	for _, f := range findings {
+	for _, f := range rows {
 		out.Findings = append(out.Findings, finding(f))
 	}
+	return nil
+}
+
+// replay reads what the replay run id re-resolves. A replay whose prepare
+// step failed has no replays row, and reads as nil.
+func (s *Server) replay(ctx context.Context, id uuid.UUID) (*adminv1.Replay, error) {
+	r, err := s.store.GetReplay(ctx, id)
+	if errors.Is(err, db.ErrNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	out := &adminv1.Replay{SourceRunId: r.Replay.SourceID.String(), StartedBy: r.StartedByEmail}
+	if r.Replay.Datasource != nil {
+		out.Scope = &adminv1.Replay_Datasource{Datasource: *r.Replay.Datasource}
+	} else {
+		out.Scope = &adminv1.Replay_Unavailable{Unavailable: true}
+	}
+	return out, nil
+}
+
+// ListRunItems lists the items a run wrote, in the order it wrote them, a
+// page at a time. The page token is the last item's ordinal for a statement
+// run and its stated key id for any other kind.
+func (s *Server) ListRunItems(ctx context.Context, req *connect.Request[adminv1.ListRunItemsRequest]) (*connect.Response[adminv1.ListRunItemsResponse], error) {
+	m := req.Msg
+	row, err := s.userRun(ctx, m.GetRunId())
+	if err != nil {
+		return nil, err
+	}
+	p, err := newPage(m.GetPageSize(), "")
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	run, lim := row.Run, p.lim()
+	out := &adminv1.ListRunItemsResponse{}
 	switch run.Kind {
 	case gen.RunKindStatement:
-		items, err := s.reader.ListStatementItems(ctx, gen.ListStatementItemsParams{StatementID: run.ID, UserID: run.UserID})
+		after, err := ordinalCursor(m.GetPageToken())
 		if err != nil {
-			return err
+			return nil, connect.NewError(connect.CodeInvalidArgument, err)
 		}
-		for _, it := range items {
-			item, err := stmtsvc.ItemToProto(it)
+		rows, err := s.store.ListStatementItems(ctx, gen.ListStatementItemsParams{StatementID: run.ID, UserID: run.UserID, After: after, Lim: &lim})
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInternal, err)
+		}
+		rows, more := cut(p, rows)
+		for _, it := range rows {
+			item, err := statement.ItemToProto(it)
 			if err != nil {
-				return err
+				return nil, connect.NewError(connect.CodeInternal, err)
 			}
-			out.StatementItems = append(out.StatementItems, item)
+			out.Items = append(out.Items, &adminv1.RunItem{Item: &adminv1.RunItem_Statement{Statement: item}})
+		}
+		if more {
+			out.NextPageToken = strconv.Itoa(int(rows[len(rows)-1].Ordinal))
 		}
 	case gen.RunKindResolution:
-		items, err := s.reader.ListResolutionItems(ctx, run.ID)
+		after, err := keyCursor(m.GetPageToken())
 		if err != nil {
-			return err
+			return nil, connect.NewError(connect.CodeInvalidArgument, err)
 		}
-		for _, it := range items {
-			k := it.ResolutionKey
-			out.ResolutionItems = append(out.ResolutionItems, &typev1.ResolutionItem{
-				StatedKey:   to.ProtoStatedKey(it.StatedKey),
-				StatedKeyId: k.StatedKeyID.String(),
-				Outcome:     types.ToProto[typev1.ResolutionOutcome](k.Outcome),
-				Reason:      k.Reason,
-			})
+		rows, err := s.store.ListResolutionItems(ctx, gen.ListResolutionItemsParams{RunID: run.ID, After: after, Lim: &lim})
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInternal, err)
+		}
+		rows, more := cut(p, rows)
+		for _, it := range rows {
+			item := to.ProtoResolutionItem(it.StatedKey, &it.ResolutionKey)
+			out.Items = append(out.Items, &adminv1.RunItem{Item: &adminv1.RunItem_Resolution{Resolution: item}})
+		}
+		if more {
+			out.NextPageToken = rows[len(rows)-1].StatedKey.ID.String()
 		}
 	case gen.RunKindFetch:
-		items, err := s.reader.ListFetchItems(ctx, run.ID)
+		after, err := keyCursor(m.GetPageToken())
 		if err != nil {
-			return err
+			return nil, connect.NewError(connect.CodeInvalidArgument, err)
 		}
-		for _, it := range items {
-			k := it.FetchKey
-			item := &adminv1.FetchItem{
-				StatedKey:   to.ProtoStatedKey(it.StatedKey),
-				StatedKeyId: k.StatedKeyID.String(),
-				Outcome:     types.ToProto[adminv1.FetchOutcome](k.Outcome),
-				Attempts:    int32(k.Attempts),
-				Reason:      k.Reason,
-			}
-			if sent, ok := to.Sent(k); ok {
-				item.Sent = sent.ToProto()
-			}
-			out.FetchItems = append(out.FetchItems, item)
-		}
-	case gen.RunKindReplay:
-		r, err := s.reader.GetReplay(ctx, run.ID)
+		rows, err := s.store.ListFetchItems(ctx, gen.ListFetchItemsParams{FetchID: run.ID, After: after, Lim: &lim})
 		if err != nil {
-			return err
+			return nil, connect.NewError(connect.CodeInternal, err)
 		}
-		out.Replay = &adminv1.Replay{SourceRunId: r.Replay.SourceID.String(), StartedBy: r.StartedByEmail}
-		if r.Replay.Datasource != nil {
-			out.Replay.Scope = &adminv1.Replay_Datasource{Datasource: *r.Replay.Datasource}
-		} else {
-			out.Replay.Scope = &adminv1.Replay_Unavailable{Unavailable: true}
+		rows, more := cut(p, rows)
+		for _, it := range rows {
+			out.Items = append(out.Items, &adminv1.RunItem{Item: &adminv1.RunItem_Fetch{Fetch: fetchItem(it)}})
+		}
+		if more {
+			out.NextPageToken = rows[len(rows)-1].StatedKey.ID.String()
 		}
 	}
-	return nil
+	return connect.NewResponse(out), nil
+}
+
+func fetchItem(it gen.ListFetchItemsRow) *adminv1.FetchItem {
+	k := it.FetchKey
+	item := &adminv1.FetchItem{
+		StatedKey:   to.ProtoStatedKey(it.StatedKey),
+		StatedKeyId: k.StatedKeyID.String(),
+		Outcome:     types.ToProto[adminv1.FetchOutcome](k.Outcome),
+		Attempts:    int32(k.Attempts),
+		Reason:      k.Reason,
+	}
+	if sent, ok := to.Sent(k); ok {
+		item.Sent = sent.ToProto()
+	}
+	return item
+}
+
+// ordinalCursor reads a statement run's page token, the ordinal of the last
+// item served.
+func ordinalCursor(token string) (*int32, error) {
+	if token == "" {
+		return nil, nil
+	}
+	n, err := strconv.ParseInt(token, 10, 32)
+	if err != nil {
+		return nil, fmt.Errorf("page token %q: %w", token, err)
+	}
+	ordinal := int32(n)
+	return &ordinal, nil
+}
+
+// keyCursor reads a resolution or fetch run's page token, the stated key id
+// of the last item served.
+func keyCursor(token string) (*uuid.UUID, error) {
+	if token == "" {
+		return nil, nil
+	}
+	id, err := uuid.Parse(token)
+	if err != nil {
+		return nil, fmt.Errorf("page token %q: %w", token, err)
+	}
+	return &id, nil
 }
 
 // ClearFinding clears a finding that reports no block.
@@ -286,25 +398,22 @@ func (s *Server) ClearFinding(ctx context.Context, req *connect.Request[adminv1.
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	f, err := s.reader.GetFinding(ctx, id)
+	block, err := s.store.ClearFinding(ctx, id)
 	if errors.Is(err, db.ErrNotFound) {
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("no such finding"))
 	}
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	if f.BlockID != nil {
+	if block != nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("the finding reports a block; clear the block"))
-	}
-	if err := s.reader.ClearFinding(ctx, id); err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	return connect.NewResponse(&adminv1.ClearFindingResponse{}), nil
 }
 
 // ListDatasources lists the registered datasources in precedence order.
 func (s *Server) ListDatasources(ctx context.Context, _ *connect.Request[adminv1.ListDatasourcesRequest]) (*connect.Response[adminv1.ListDatasourcesResponse], error) {
-	rows, err := s.reader.ListDatasourceSettings(ctx)
+	rows, err := s.store.ListDatasourceSettings(ctx)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
@@ -316,29 +425,46 @@ func (s *Server) ListDatasources(ctx context.Context, _ *connect.Request[adminv1
 }
 
 // UpdateDatasource sets a datasource's state, endpoint and credential, and
-// reloads the registry so the change takes effect. An empty endpoint is the
-// provider's default.
+// reloads the registry so the change takes effect. If the registry would
+// refuse the row, it writes nothing.
 func (s *Server) UpdateDatasource(ctx context.Context, req *connect.Request[adminv1.UpdateDatasourceRequest]) (*connect.Response[adminv1.UpdateDatasourceResponse], error) {
 	m := req.Msg
-	if m.GetEnabled() && !s.sources.Carries(m.GetName()) {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("this build carries no integration named %s", m.GetName()))
-	}
-	arg := gen.UpdateDatasourceParams{Name: m.GetName(), Enabled: m.GetEnabled(), Credential: m.Credential}
-	if m.GetEndpoint() != "" {
-		arg.Endpoint = m.Endpoint
-	}
-	row, err := s.reader.UpdateDatasource(ctx, arg)
+	arg := gen.UpdateDatasourceParams{Name: m.GetName(), Enabled: m.GetEnabled(), Endpoint: m.Endpoint, Credential: m.Credential}
+	var row gen.Datasource
+	var refused error
+	err := s.store.Tx(ctx, func(q Queries) error {
+		var err error
+		if row, err = q.UpdateDatasource(ctx, arg); err != nil {
+			return err
+		}
+		if row.Enabled {
+			refused = s.sources.Check(market.ConfigOf(row))
+		}
+		return refused
+	})
 	switch {
+	case refused != nil:
+		return nil, connect.NewError(connect.CodeFailedPrecondition, refused)
 	case errors.Is(err, db.ErrNotFound):
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("no datasource named %s", m.GetName()))
 	case err != nil:
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	if err := s.sources.Reload(ctx); err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("reload datasources: %w", err))
+	if err := s.reload(ctx); err != nil {
+		return nil, err
 	}
 	out := &adminv1.UpdateDatasourceResponse{Datasource: datasource(row.Name, row.Enabled, row.Precedence, row.Endpoint, row.Credential != nil)}
 	return connect.NewResponse(out), nil
+}
+
+// reload rebuilds the registry once the table has changed. It runs to the
+// end whether or not the caller has gone, so the table and the registry stay
+// in step.
+func (s *Server) reload(ctx context.Context) error {
+	if err := s.sources.Reload(context.WithoutCancel(ctx)); err != nil {
+		return connect.NewError(connect.CodeInternal, fmt.Errorf("reload datasources: %w", err))
+	}
+	return nil
 }
 
 // ReorderDatasources gives each datasource the precedence of its position in
@@ -346,36 +472,48 @@ func (s *Server) UpdateDatasource(ctx context.Context, req *connect.Request[admi
 // datasource exactly once is refused.
 func (s *Server) ReorderDatasources(ctx context.Context, req *connect.Request[adminv1.ReorderDatasourcesRequest]) (*connect.Response[adminv1.ReorderDatasourcesResponse], error) {
 	names := req.Msg.GetNames()
-	rows, err := s.reader.ListDatasources(ctx)
-	if err != nil {
+	var invalid error
+	err := s.store.Tx(ctx, func(q Queries) error {
+		rows, err := q.ListDatasources(ctx)
+		if err != nil {
+			return err
+		}
+		if invalid = everyOnce(names, rows); invalid != nil {
+			return invalid
+		}
+		return q.SetDatasourcePrecedence(ctx, names)
+	})
+	switch {
+	case invalid != nil:
+		return nil, connect.NewError(connect.CodeInvalidArgument, invalid)
+	case err != nil:
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
+	if err := s.reload(ctx); err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&adminv1.ReorderDatasourcesResponse{}), nil
+}
+
+// everyOnce reports why names does not name every datasource of rows exactly
+// once, if it does not.
+func everyOnce(names []string, rows []gen.Datasource) error {
 	seen := make(map[string]bool, len(names))
 	for _, n := range names {
 		if seen[n] {
-			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("%s is named twice", n))
+			return fmt.Errorf("%s is named twice", n)
 		}
 		seen[n] = true
 	}
 	for _, r := range rows {
 		if !seen[r.Name] {
-			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("%s is not named", r.Name))
+			return fmt.Errorf("%s is not named", r.Name)
 		}
 	}
 	if len(names) != len(rows) {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("a name is no datasource"))
+		return errors.New("a name is no datasource")
 	}
-	precedences := make([]int32, len(names))
-	for i := range names {
-		precedences[i] = int32(i + 1)
-	}
-	if err := s.reader.SetDatasourcePrecedence(ctx, gen.SetDatasourcePrecedenceParams{Names: names, Precedences: precedences}); err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
-	}
-	if err := s.sources.Reload(ctx); err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("reload datasources: %w", err))
-	}
-	return connect.NewResponse(&adminv1.ReorderDatasourcesResponse{}), nil
+	return nil
 }
 
 func datasource(name string, enabled bool, precedence int32, endpoint *string, held bool) *adminv1.Datasource {
@@ -389,7 +527,7 @@ func (s *Server) ListBlocks(ctx context.Context, req *connect.Request[adminv1.Li
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	rows, err := s.reader.ListBlocks(ctx, gen.ListBlocksParams{IncludeCleared: m.GetIncludeCleared(), Before: p.before, Lim: p.lim()})
+	rows, err := s.store.ListBlocks(ctx, gen.ListBlocksParams{IncludeCleared: m.GetIncludeCleared(), Before: p.before, Lim: p.lim()})
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
@@ -407,12 +545,9 @@ func (s *Server) ClearBlock(ctx context.Context, req *connect.Request[adminv1.Cl
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	if _, err := s.reader.GetDatasourceBlock(ctx, id); errors.Is(err, db.ErrNotFound) {
+	if _, err := s.store.ClearDatasourceBlock(ctx, id); errors.Is(err, db.ErrNotFound) {
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("no such block"))
 	} else if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
-	}
-	if err := s.reader.ClearDatasourceBlock(ctx, id); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	return connect.NewResponse(&adminv1.ClearBlockResponse{}), nil
@@ -429,7 +564,7 @@ func (s *Server) StartReplay(ctx context.Context, req *connect.Request[adminv1.S
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	row, err := s.reader.GetUserRun(ctx, id)
+	row, err := s.store.GetUserRun(ctx, id)
 	if errors.Is(err, db.ErrNotFound) {
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("no such run"))
 	}
@@ -552,14 +687,22 @@ func newPage(size int32, token string) (page, error) {
 // successor.
 func (p page) lim() int32 { return int32(p.size + 1) }
 
+// cut trims rows to the page and reports whether a further page follows.
+func cut[T any](p page, rows []T) ([]T, bool) {
+	if len(rows) <= p.size {
+		return rows, false
+	}
+	return rows[:p.size], true
+}
+
 // trim cuts rows to the page and answers the token of the next page, empty
 // when there is none.
 func trim[T any](p page, rows []T, id func(T) uuid.UUID) ([]T, string) {
-	if len(rows) <= p.size {
+	rows, more := cut(p, rows)
+	if !more {
 		return rows, ""
 	}
-	rows = rows[:p.size]
-	return rows, id(rows[p.size-1]).String()
+	return rows, id(rows[len(rows)-1]).String()
 }
 
 // filter converts an optional enum field to the database value it matches.

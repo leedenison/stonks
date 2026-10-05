@@ -34,6 +34,43 @@ export function adminClient(sessionID: string) {
   return clientFor(AdminService, sessionID);
 }
 
+// items reads the items a run wrote. Every run a spec makes writes few
+// enough for one page, which the read asserts.
+async function items(admin: Client<typeof AdminService>, runId: string) {
+  const res = await admin.listRunItems({ runId });
+  if (res.nextPageToken !== "") {
+    throw new Error(`run ${runId} has more than one page of items`);
+  }
+  return res.items;
+}
+
+export async function statementItems(
+  admin: Client<typeof AdminService>,
+  runId: string,
+) {
+  return (await items(admin, runId)).flatMap((i) =>
+    i.item.case === "statement" ? [i.item.value] : [],
+  );
+}
+
+export async function resolutionItems(
+  admin: Client<typeof AdminService>,
+  runId: string,
+) {
+  return (await items(admin, runId)).flatMap((i) =>
+    i.item.case === "resolution" ? [i.item.value] : [],
+  );
+}
+
+export async function fetchItems(
+  admin: Client<typeof AdminService>,
+  runId: string,
+) {
+  return (await items(admin, runId)).flatMap((i) =>
+    i.item.case === "fetch" ? [i.item.value] : [],
+  );
+}
+
 export function authClient(sessionID?: string) {
   return clientFor(AuthService, sessionID);
 }

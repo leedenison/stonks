@@ -2,7 +2,13 @@ import path from "node:path";
 import { FetchOutcome } from "../gen/admin/v1/admin_pb";
 import { RunKind, RunTrigger } from "../gen/run/v1/run_pb";
 import { ResolutionOutcome } from "../gen/type/v1/type_pb";
-import { adminClient, holdingClient, statementClient } from "../helpers/api";
+import {
+  adminClient,
+  fetchItems,
+  holdingClient,
+  resolutionItems,
+  statementClient,
+} from "../helpers/api";
 import { expect, test } from "../helpers/test";
 
 // One IBKR line, derived from the client's IBKR test export, which is
@@ -58,13 +64,11 @@ test("replays a statement's unavailable key from the runs page and resolves it",
   const statement = await admin.getRun({ runId: runId! });
   expect(statement.findings).toHaveLength(0);
   const resolution = statement.run!.children[0];
-  const fetched = await admin.getRun({ runId: resolution.children[0].run!.id });
-  expect(fetched.fetchItems[0].outcome).toBe(FetchOutcome.FAILED_TEMPORARY);
-  expect(fetched.fetchItems[0].attempts).toBe(3);
-  const resolved = await admin.getRun({ runId: resolution.run!.id });
-  expect(resolved.resolutionItems[0].outcome).toBe(
-    ResolutionOutcome.UNAVAILABLE,
-  );
+  const fetched = await fetchItems(admin, resolution.children[0].run!.id);
+  expect(fetched[0].outcome).toBe(FetchOutcome.FAILED_TEMPORARY);
+  expect(fetched[0].attempts).toBe(3);
+  const resolved = await resolutionItems(admin, resolution.run!.id);
+  expect(resolved[0].outcome).toBe(ResolutionOutcome.UNAVAILABLE);
   const before = await holdingClient(userSession).listHoldings({});
   expect(before.groups).toHaveLength(1);
   expect(before.groups[0].identifiers.map((i) => i.value)).toContain(isin);
@@ -95,10 +99,11 @@ test("replays a statement's unavailable key from the runs page and resolves it",
   expect(replay.run?.userEmail).toBe(user.email);
   expect(replay.replay?.sourceRunId).toBe(runId);
   expect(replay.replay?.scope).toEqual({ case: "unavailable", value: true });
-  const replayed = await admin.getRun({
-    runId: replay.run!.children[0].run!.id,
-  });
-  expect(replayed.resolutionItems[0].outcome).toBe(ResolutionOutcome.MATCHED);
+  const replayed = await resolutionItems(
+    admin,
+    replay.run!.children[0].run!.id,
+  );
+  expect(replayed[0].outcome).toBe(ResolutionOutcome.MATCHED);
   await page.goto(`/admin/runs?user=${user.id}`);
   await expect(page.getByTestId(`run-row-${replayId}`)).toBeVisible();
 

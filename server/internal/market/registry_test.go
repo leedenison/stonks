@@ -144,9 +144,6 @@ func TestRegistryReload(t *testing.T) {
 	}
 	before := r.Enabled()[0].limiter
 	before.holdUntil(start.Add(time.Second))
-	if !r.Carries("two") || r.Carries("absent") {
-		t.Errorf("Carries(two) = %v, Carries(absent) = %v, want true and false", r.Carries("two"), r.Carries("absent"))
-	}
 
 	store.EXPECT().ListDatasources(gomock.Any()).Return([]gen.Datasource{row("two", true, 5), row("one", true, 10)}, nil)
 	if err := r.Reload(ctx); err != nil {
@@ -211,5 +208,31 @@ func TestRegistryReloadOverlap(t *testing.T) {
 	wg.Wait()
 	if diff := cmp.Diff([]string{"two"}, r.Names()); diff != "" {
 		t.Errorf("Names() after overlapping reloads mismatch (-want +got):\n%s", diff)
+	}
+}
+
+// TestRegistryCheck checks that Check refuses an unknown datasource name and
+// a config its integration rejects, and installs nothing.
+func TestRegistryCheck(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	t.Cleanup(ctrl.Finish)
+	store := NewMockQueries(ctrl)
+	store.EXPECT().ListDatasources(gomock.Any()).Return(nil, nil)
+	factories := map[string]Factory{"one": factoryOf(&fake{}), "refusing": failingFactory("no credential")}
+	r, err := New(context.Background(), store, factories, discard())
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	if err := r.Check(Config{Name: "one"}); err != nil {
+		t.Errorf("Check(one) error = %v, want nil", err)
+	}
+	if err := r.Check(Config{Name: "absent"}); !errors.Is(err, ErrNoIntegration) {
+		t.Errorf("Check(absent) error = %v, want ErrNoIntegration", err)
+	}
+	if err := r.Check(Config{Name: "refusing"}); err == nil {
+		t.Error("Check(refusing) error = nil, want the factory's")
+	}
+	if len(r.Enabled()) != 0 {
+		t.Errorf("Enabled() = %v after Check, want nothing installed", r.Names())
 	}
 }

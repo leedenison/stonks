@@ -14,7 +14,9 @@ import {
   FindingSchema,
   GetRunResponseSchema,
   ListDatasourcesResponseSchema,
+  ListRunItemsResponseSchema,
   ReplaySchema,
+  RunItemSchema,
   StartReplayResponseSchema,
   UserRunSchema,
 } from "@/gen/admin/v1/admin_pb";
@@ -38,12 +40,18 @@ vi.mock("next/navigation", () => ({
 
 const admin = liveSession({ role: Role.ADMIN });
 
+// serving answers getRun as given and lists no items unless impl says
+// otherwise.
 function serving(
   getRun: ServiceImpl<typeof AdminService>["getRun"],
   impl: Partial<ServiceImpl<typeof AdminService>> = {},
 ) {
   return transportWith(admin, ({ service }) => {
-    service(AdminService, { getRun, ...impl });
+    service(AdminService, {
+      getRun,
+      listRunItems: () => create(ListRunItemsResponseSchema, {}),
+      ...impl,
+    });
   });
 }
 
@@ -142,16 +150,24 @@ const fetch = create(GetRunResponseSchema, {
       createdAt: timestampFromDate(new Date("2026-09-24T10:01:00Z")),
     }),
   ],
-  fetchItems: [
-    create(FetchItemSchema, {
-      statedKey: create(StatedKeySchema, {
-        identifiers: [isin, shell],
-      }),
-      statedKeyId: "k1",
-      sent: isin,
-      outcome: FetchOutcome.FAILED_PERMANENT,
-      attempts: 1,
-      reason: "unknown identifier",
+});
+
+const fetchItems = create(ListRunItemsResponseSchema, {
+  items: [
+    create(RunItemSchema, {
+      item: {
+        case: "fetch",
+        value: create(FetchItemSchema, {
+          statedKey: create(StatedKeySchema, {
+            identifiers: [isin, shell],
+          }),
+          statedKeyId: "k1",
+          sent: isin,
+          outcome: FetchOutcome.FAILED_PERMANENT,
+          attempts: 1,
+          reason: "unknown identifier",
+        }),
+      },
     }),
   ],
 });
@@ -160,7 +176,7 @@ describe("AdminRunPage", () => {
   it("shows the run among its ancestors, its findings and its items", async () => {
     renderWithAuth(
       <AdminRunPage />,
-      serving(() => fetch),
+      serving(() => fetch, { listRunItems: () => fetchItems }),
     );
     await waitFor(() =>
       expect(screen.getByTestId("admin-run-lineage")).toBeTruthy(),
@@ -234,7 +250,7 @@ describe("AdminRunPage", () => {
     fireEvent.click(screen.getByTestId("finding-row-x2"));
     expect(screen.queryByTestId("finding-detail-x2")).toBeNull();
 
-    const item = screen.getByTestId("item-row-k1");
+    const item = await screen.findByTestId("item-row-k1");
     const chips = item.querySelectorAll("[data-identifier-type='ISIN']");
     expect(chips).toHaveLength(2);
     expect(item.textContent).toContain("GB00B03MLX29");
@@ -422,5 +438,37 @@ describe("AdminRunPage", () => {
       expect.anything(),
     );
     expect(screen.queryByTestId("replay-dialog")).toBeNull();
+  });
+  it("reads further items a page at a time", async () => {
+    const page = (key: string, next: string) =>
+      create(ListRunItemsResponseSchema, {
+        items: [
+          create(RunItemSchema, {
+            item: {
+              case: "fetch",
+              value: create(FetchItemSchema, {
+                statedKey: create(StatedKeySchema, { identifiers: [isin] }),
+                statedKeyId: key,
+                outcome: FetchOutcome.SERVED,
+                attempts: 1,
+              }),
+            },
+          }),
+        ],
+        nextPageToken: next,
+      });
+    renderWithAuth(
+      <AdminRunPage />,
+      serving(() => fetch, {
+        listRunItems: (req) =>
+          req.pageToken === "k1" ? page("k2", "") : page("k1", "k1"),
+      }),
+    );
+    await screen.findByTestId("item-row-k1");
+    expect(screen.queryByTestId("item-row-k2")).toBeNull();
+    fireEvent.click(screen.getByTestId("admin-run-items-more"));
+    await screen.findByTestId("item-row-k2");
+    expect(screen.getByTestId("item-row-k1")).toBeTruthy();
+    expect(screen.queryByTestId("admin-run-items-more")).toBeNull();
   });
 });

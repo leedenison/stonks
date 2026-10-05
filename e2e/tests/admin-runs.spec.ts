@@ -1,7 +1,7 @@
 import path from "node:path";
 import { Code, ConnectError } from "@connectrpc/connect";
 import { RunKind } from "../gen/run/v1/run_pb";
-import { adminClient } from "../helpers/api";
+import { adminClient, resolutionItems, statementItems } from "../helpers/api";
 import { expect, test } from "../helpers/test";
 
 // The client's Fidelity UK test export, modelled on a real export with its
@@ -49,12 +49,13 @@ test("shows an administrator the runs a user's upload produced", async ({
   const admin = adminClient(session);
   const statement = await admin.getRun({ runId: runId! });
   expect(statement.run?.userEmail).toBe(user.email);
-  expect(statement.statementItems).toHaveLength(januaryRows);
+  expect(await statementItems(admin, runId!)).toHaveLength(januaryRows);
   expect(statement.run?.children).toHaveLength(1);
   const child = statement.run!.children[0].run!;
   expect(child.kind).toBe(RunKind.RESOLUTION);
   const resolution = await admin.getRun({ runId: child.id });
-  expect(resolution.resolutionItems.length).toBeGreaterThan(0);
+  const resolved = await resolutionItems(admin, child.id);
+  expect(resolved.length).toBeGreaterThan(0);
   expect(statement.findings).toHaveLength(0);
   expect(resolution.findings).toHaveLength(0);
 
@@ -98,7 +99,5 @@ test("shows an administrator the runs a user's upload produced", async ({
   await expect(
     lineage.getByTestId(`run-row-${runId}`).getByRole("link").first(),
   ).toHaveAttribute("href", `/admin/runs/${runId}`);
-  await expect(page.getByTestId(/^item-row-/)).toHaveCount(
-    resolution.resolutionItems.length,
-  );
+  await expect(page.getByTestId(/^item-row-/)).toHaveCount(resolved.length);
 });
