@@ -31,17 +31,35 @@ export async function seedUser(role: Role = "user"): Promise<SeededUser> {
   return { id: rows[0].id, email, name, role };
 }
 
-// seedDatasource inserts a datasources row, or leaves the one already there.
-// No RPC creates a row.
-export async function seedDatasource(
-  name: string,
-  endpoint: string,
-  credential: string,
-): Promise<void> {
+// seedDatasource writes a datasources row as given, replacing any row with
+// the same name. No RPC creates a row.
+export async function seedDatasource({
+  name,
+  endpoint,
+  credential,
+  enabled = true,
+  precedence = 1,
+}: {
+  name: string;
+  endpoint: string;
+  credential: string | null;
+  enabled?: boolean;
+  precedence?: number;
+}): Promise<void> {
   await db().query(
-    "INSERT INTO datasources (name, enabled, precedence, credential, endpoint) VALUES ($1, true, 1, $2, $3) ON CONFLICT DO NOTHING",
-    [name, credential, endpoint],
+    `INSERT INTO datasources (name, enabled, precedence, credential, endpoint)
+     VALUES ($1, $2, $3, $4, $5)
+     ON CONFLICT (name) DO UPDATE
+     SET enabled = EXCLUDED.enabled, precedence = EXCLUDED.precedence,
+         credential = EXCLUDED.credential, endpoint = EXCLUDED.endpoint`,
+    [name, enabled, precedence, credential, endpoint],
   );
+}
+
+// deleteDatasource removes a row this suite seeded. No fetch names that
+// datasource, so nothing references the row.
+export async function deleteDatasource(name: string): Promise<void> {
+  await db().query("DELETE FROM datasources WHERE name = $1", [name]);
 }
 
 // deleteUser removes a user this suite created and everything the user's

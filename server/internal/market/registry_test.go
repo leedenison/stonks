@@ -5,7 +5,9 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"sync"
 	"testing"
+	"time"
 
 	"go.uber.org/mock/gomock"
 
@@ -170,5 +172,53 @@ func TestRegistryReload(t *testing.T) {
 	}
 	if got := r.Names(); len(got) != 2 {
 		t.Errorf("Names() after a failed reload = %v, want the two kept", got)
+	}
+}
+
+// TestRegistryReloadOverlap checks that when two reloads overlap, the entries
+// come from the reload that read the table second.
+func TestRegistryReloadOverlap(t *testing.T) {
+	ctx := context.Background()
+	ctrl := gomock.NewController(t)
+	t.Cleanup(ctrl.Finish)
+	store := NewMockStore(ctrl)
+	factories := map[string]Factory{"one": factoryOf(&fake{}), "two": factoryOf(&fake{})}
+	store.EXPECT().ListDatasources(gomock.Any()).Return(nil, nil)
+	r, err := New(ctx, store, factories, discard())
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+
+	entered := make(chan struct{})
+	release := make(chan struct{})
+	first := store.EXPECT().ListDatasources(gomock.Any()).DoAndReturn(func(context.Context) ([]gen.Datasource, error) {
+		close(entered)
+		<-release
+		return []gen.Datasource{row("one", true, 1)}, nil
+	})
+	store.EXPECT().ListDatasources(gomock.Any()).Return([]gen.Datasource{row("two", true, 1)}, nil).After(first)
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		if err := r.Reload(ctx); err != nil {
+			t.Errorf("first Reload() error = %v", err)
+		}
+	}()
+	<-entered
+	go func() {
+		defer wg.Done()
+		if err := r.Reload(ctx); err != nil {
+			t.Errorf("second Reload() error = %v", err)
+		}
+	}()
+	// Nothing signals that the second reload is waiting on the lock, so sleep
+	// briefly.
+	time.Sleep(20 * time.Millisecond)
+	close(release)
+	wg.Wait()
+	if got := r.Names(); len(got) != 1 || got[0] != "two" {
+		t.Errorf("Names() after overlapping reloads = %v, want [two]", got)
 	}
 }

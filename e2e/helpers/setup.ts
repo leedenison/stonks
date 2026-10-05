@@ -14,7 +14,7 @@ const credential = "e2e";
 // through it.
 export default async function setup(): Promise<void> {
   try {
-    await seedDatasource(name, endpoint, credential);
+    await seedDatasource({ name, endpoint, credential });
     const admin = await seedUser("admin");
     const session = await seedSession(admin);
     try {

@@ -68,10 +68,14 @@ export default function DatasourcesPage() {
         </Notice>
       )}
       {update.isError && (
-        <Notice tone="error">The datasource could not be changed.</Notice>
+        <Notice tone="error" testId="datasource-update-error">
+          The datasource could not be changed.
+        </Notice>
       )}
       {reorder.isError && (
-        <Notice tone="error">The datasources could not be reordered.</Notice>
+        <Notice tone="error" testId="datasource-reorder-error">
+          The datasources could not be reordered.
+        </Notice>
       )}
       {!isError && data && sources.length === 0 && (
         <EmptyState message="No datasources are registered." />
@@ -186,7 +190,9 @@ function Row({
           <GripVertical aria-hidden className="h-4 w-4" />
         </button>
       </Td>
-      <Td numeric>{d.precedence}</Td>
+      <Td numeric data-testid={`datasource-precedence-${d.name}`}>
+        {d.precedence}
+      </Td>
       <Td>{d.name}</Td>
       <Td>
         <div className="flex items-center gap-3">
