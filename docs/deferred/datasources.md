@@ -11,8 +11,8 @@ events, corporate events, prices and FX rates.
 ## Why
 
 No provider covers every instrument a user can hold, every provider charges by quota, and
-any provider can be down. The framework that carries each fetch is built; what remains is
-the data each kind asks for and what it records.
+any provider can be down. This note covers the data each kind asks for and what it
+records.
 
 ## Model
 
@@ -69,10 +69,6 @@ Holdings and valuation read a per instrument summary of coverage and validity ma
 at ingest, not the fetch tables. The summary is rebuilt from the fetch tables.
 
 ## Undecided
-
-- Whether an administrator enabling or disabling a datasource takes effect without a
-  restart, which would need the registry re-read and would let two concurrent runs see
-  different precedence.
 
 - Whether a fetch stops calling a datasource after some number of consecutive temporary
   failures, rather than spending its retries on every key.
