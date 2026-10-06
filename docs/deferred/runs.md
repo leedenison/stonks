@@ -5,27 +5,24 @@ recorded: 2026-09-20
 
 # Runs
 
-The replay kind of work, the schedule trigger, and starting a run from the admin
-surface.
+Runs that an event, new coverage or a schedule starts, and runs spread over several
+processes.
 
 ## Why
 
-A replay takes longer than the request starting it can wait, and answers per key rather
-than as a whole.  Some work is started by no user: a replay after an event, or one an
-administrator requests.
+An event or new coverage can leave an association stale while no user is present. The
+association stays stale until an administrator starts a replay.
 
 ## Model
 
 ### Kinds
 
-- A replay re-resolves the transactions an event or new coverage has affected.
+- A replay re-resolves the transactions that an event or new coverage has affected.
 
 ### Triggers
 
-A run is started by a schedule as well as by a user, an administrator or another run.
-Provenance says what produced a row.  Lineage says why the work happened: a resolution
-contains the fetches it sent, and when an event causes a replay, the replay names the
-fetch that recorded the event.
+A schedule starts a run.  When an event causes a replay, the replay names the fetch that
+recorded the event.
 
 ### Findings
 
@@ -50,16 +47,6 @@ it.
 
 ## Sketch
 
-The admin surface starts a run.
-
-### Resolution Against Datasources
-
-Resolving a key against a datasource takes seconds, and the system owned instruments it
-creates are shared across users.  Read-only resolution therefore proceeds in parallel.
-Creation is serialised per stated key, with an advisory lock keyed on it, so when two
-runs state one key, they produce one instrument.  The write of transactions stays
-ordered.
-
 With more than one process, pending runs are claimed from the database with `SKIP LOCKED`
 where no earlier non-terminal run shares its user and lane.
 
@@ -67,8 +54,4 @@ where no earlier non-terminal run shares its user and lane.
 
 - Whether clearing the finding on an unhandled event is what clears the event.
 
-- Whether a run can be cancelled, and whether an interrupted run is resumed or restarted
-  once its payload is persisted.
-
-- How overlapping runs that touch one instrument are ordered, such as a scheduled replay
-  starting during a user's upload.
+- Whether a run can be cancelled.

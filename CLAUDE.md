@@ -121,6 +121,8 @@ own judgement apply the following rules:
   active verb. A sentence that defines a term ("A hit is an instrument the re-read
   found") is fine.
 - Prefer short sentences with one clause per sentence.
+- Do not use 'no negation' (eg. "writes no block") unless it is idiomatic (eg. "takes
+  no notice").
 
 ## Documentation
 
