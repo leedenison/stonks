@@ -61,11 +61,10 @@ stated data leaves the listing open.  Where the key leaves the currency open, a 
 with complete coverage settles the listing, and one with limited coverage returns
 candidates for the listing guess.
 
-A datasource declares its coverage in code, on its identity server beside Serves: the
-operating MICs and the asset classes it covers, an empty set meaning every one.
-Coverage is complete where both sets are empty.  Every listing a candidate names carries
-an operating MIC, so the framework tests a candidate against the declaration without the
-integration's help.
+Each identity integration declares whether its coverage is complete.  It declines a key
+that states a venue or a class outside its coverage, without asking the provider.  Its
+conversion produces candidates only for the venues and classes it serves, and resolution
+accepts each candidate as given.
 
 A candidate that agrees with a guess ranks below one that confirms stated data or
 corroborates a higher precedence answer.  It ranks above the datasource's own order.

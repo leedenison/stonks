@@ -26,8 +26,6 @@ of open issues and ADRs at `docs/tasks/<label>/`.
   fetch served for a key it could not associate.
 
 ```
-               001 open
-             /    |    \
   002 massive  003 eodhd  004 confirm
              \    |    /
                005 close
@@ -55,6 +53,7 @@ Each has a note in `docs/deferred` outlining how it might work.
 - **D-IDENT** - [Identifier events](deferred/identifier-events.md); ticker changes and the intervals over which an identifier names one instrument.
 - **D-DATASRC** - [Datasources](deferred/datasources.md); identifier events, corporate events, prices and FX rates.
 - **D-RUNS** - [Runs](deferred/runs.md); replays that an event or new coverage causes, the schedule trigger, and running on more than one process.
+- **D-COMPANY** - [Companies](deferred/companies.md); issuers identified by CIK and LEI, and the instruments they issue.
 - **D-ANNOT** - [Annotations](deferred/annotations.md); what a user records against their own keys: pins, groupings, prices and keys made by hand.
 - **D-DEPLOY** - [Production deployment](deferred/production-deployment.md); TLS, cross-origin access and what each container publishes.
 
