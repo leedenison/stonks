@@ -14,9 +14,8 @@ In:
 - The client for Massive, tested against recorded traffic redacted as it is saved.
 - The declaration of the identifier types and domains it serves, and the identifier it
   sends for each.
-- Answering only for the venues and asset classes Massive covers: North American
-  equities and options. How it is kept to them is an open question of
-  [001](001-open-m04.md).
+- Answering only for the venues and asset classes Massive covers: US equities. How it
+  is kept to them is an open question of [001](001-open-m04.md).
 - Conversion of each answer to the canonical candidate shape. A venue is returned as the
   domain of a MIC_TICKER, normalised to its operating MIC. Every identifier Massive gave a
   candidate is returned, and candidates are not ranked.

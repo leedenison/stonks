@@ -82,7 +82,7 @@ func (r *Resolver) resolveKey(ctx context.Context, q Queries, run gen.Run, res *
 			return gen.ResolutionKey{}, nil, err
 		}
 	}
-	if err := cover(ctx, q, w.instrument.ID, res.results); err != nil {
+	if err := cover(ctx, q, w.instrument.ID, c, res.results); err != nil {
 		return gen.ResolutionKey{}, nil, err
 	}
 	ok, err := w.associate(ctx, res)
@@ -151,11 +151,17 @@ func find(ctx context.Context, q Queries, res *resolution, c choice) (target, er
 	return merge(ctx, q, res, fetchKey, hits)
 }
 
-// cover records instrument as covered by every datasource that served a
-// result.
-func cover(ctx context.Context, q Queries, instrument uuid.UUID, results []*result) error {
+// cover records instrument as covered by every datasource whose group c
+// attached, and by every datasource that served no candidate. When c drops
+// every candidate of a datasource, the next key that names the instrument
+// asks that datasource again.
+func cover(ctx context.Context, q Queries, instrument uuid.UUID, c choice, results []*result) error {
 	for _, rs := range results {
 		if rs.Outcome != gen.FetchOutcomeServed {
+			continue
+		}
+		attached := slices.ContainsFunc(c.attached, func(g *group) bool { return g.r == rs })
+		if !attached && len(rs.Response.Candidates) > 0 {
 			continue
 		}
 		arg := gen.UpsertIdentityCoverageParams{InstrumentID: instrument, Datasource: rs.Source, FetchKeyID: rs.ID}

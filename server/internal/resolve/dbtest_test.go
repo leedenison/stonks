@@ -703,6 +703,74 @@ func TestCoveredRows(t *testing.T) {
 	}
 }
 
+// TestDroppedUncovered checks that when the resolver drops a datasource's
+// answer, the datasource does not cover the instrument and is asked again,
+// and that an answer with no candidate covers it.
+func TestDroppedUncovered(t *testing.T) {
+	s := newStack(t)
+	ctx := context.Background()
+	s.script.Responses[isin] = market.IdentityResult{Filtered: []types.Identifier{isin}, Candidates: []market.Candidate{
+		{Class: gen.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{figi, isin, xlon}},
+	}}
+	s.resolve(t, s.state(t, gen.AssetClassStock, "GBP", isin))
+	found, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: isin.Type, Value: isin.Value})
+	require.NoError(t, err)
+	inst := found.Instrument.ID
+	covered := func() []string {
+		rows, err := s.q.ListIdentityCoverage(ctx, []uuid.UUID{inst})
+		require.NoError(t, err)
+		var out []string
+		for _, c := range rows {
+			out = append(out, c.Datasource)
+		}
+		return out
+	}
+	s.enableBeta(t)
+	// Each key needs a new statement, because a statement states a key once.
+	state := func() gen.StatedKey {
+		return s.stateUnder(t, s.newStatement(t, gen.BrokerIbkr), gen.AssetClassStock, "GBP", isin)
+	}
+
+	// beta's share class contradicts the instrument's, so its group is
+	// dropped and it is asked again for each key.
+	s.beta.Responses[isin] = market.IdentityResult{Filtered: []types.Identifier{isin}, Candidates: []market.Candidate{
+		{Class: gen.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{figi2, isin, xlon}},
+	}}
+	for n := range 2 {
+		fetched := len(s.fetches(t))
+		k := state()
+		got := s.resolve(t, k)
+		if written(got[0]) != "matched" {
+			t.Fatalf("outcome = %s, want matched", written(got[0]))
+		}
+		if d := len(s.fetches(t)) - fetched; d != 1 {
+			t.Errorf("key %d: %d new fetches, want 1: a dropped answer does not cover the instrument", n, d)
+		}
+		if diff := cmp.Diff([]gen.FindingKind{gen.FindingKindContradiction}, s.findings(t, k.ID)); diff != "" {
+			t.Errorf("key %d: findings mismatch (-want +got):\n%s", n, diff)
+		}
+		if diff := cmp.Diff([]string{"alpha"}, covered()); diff != "" {
+			t.Errorf("key %d: coverage mismatch (-want +got):\n%s", n, diff)
+		}
+	}
+
+	// An answer with no candidate covers the instrument.
+	s.beta.Responses[isin] = market.IdentityResult{Filtered: []types.Identifier{isin}}
+	fetched := len(s.fetches(t))
+	s.resolve(t, state())
+	if d := len(s.fetches(t)) - fetched; d != 1 {
+		t.Errorf("%d new fetches, want 1: beta is asked once more", d)
+	}
+	if diff := cmp.Diff([]string{"alpha", "beta"}, covered()); diff != "" {
+		t.Errorf("coverage mismatch (-want +got):\n%s", diff)
+	}
+	fetched = len(s.fetches(t))
+	s.resolve(t, state())
+	if d := len(s.fetches(t)) - fetched; d != 0 {
+		t.Errorf("%d new fetches, want none: an empty answer covers the instrument", d)
+	}
+}
+
 // TestLookupRows checks the keys the lookup decides against what the
 // database names: two stated identifiers naming different instruments, and
 // a stated class disjoint from the instrument's.
