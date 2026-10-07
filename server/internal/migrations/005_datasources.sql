@@ -82,8 +82,10 @@ ALTER TABLE instruments ADD COLUMN fetch_key_id uuid REFERENCES fetch_keys (id);
 ALTER TABLE listings ADD COLUMN fetch_key_id uuid REFERENCES fetch_keys (id);
 ALTER TABLE identifiers ADD COLUMN fetch_key_id uuid REFERENCES fetch_keys (id);
 
--- Identity coverage: the datasource has responded for the instrument, so it
--- is not requested again for a key that resolves to it. An identity response
+-- Identity coverage: the datasource has answered for the instrument. Either
+-- its answer attached to the instrument, or it served no candidate for a key
+-- the instrument names. It is not requested again for a key that resolves
+-- to the instrument. An identity response
 -- holds at the moment of the fetch, so the row carries that moment and the
 -- fetch key. Reference data, the instruments with no provenance, is covered
 -- by every datasource without a row. A row goes with its fetch key.
