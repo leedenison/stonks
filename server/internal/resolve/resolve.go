@@ -11,6 +11,9 @@
 // leaves undecided are sent out. Two runs stating one key produce one
 // instrument, however they interleave; see write.go.
 //
+// A datasource that lists only some of an instrument's listings never
+// contradicts a stated currency.
+//
 // Only a currency key can be rejected, so whether a statement is refused
 // never depends on what another user resolved first.
 package resolve

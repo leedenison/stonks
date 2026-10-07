@@ -20,9 +20,8 @@ In:
   domain of a MIC_TICKER, normalised to its operating MIC. Every identifier Massive gave a
   candidate is returned, and candidates are not ranked.
 - The classification of Massive's errors as temporary or permanent, and its rate limit.
-- The declaration of each identity integration's coverage as complete or limited, and the
-  change to the contradiction check that
-  [008](../adr/008-only-a-complete-provider-contradicts-a-stated-currency.md) describes.
+- The declaration of whether each identity integration lists every listing of an
+  instrument, and the contradiction check that reads it.
 - A datasources row and the credential and config it carries, so an administrator can
   enable the integration from the admin area.
 - End to end coverage through vcrproxy of a key that OpenFIGI and Massive both answer.

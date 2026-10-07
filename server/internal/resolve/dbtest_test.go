@@ -636,6 +636,52 @@ func TestCurrencyRows(t *testing.T) {
 	}
 }
 
+// TestLimitedDatasource checks that a datasource listing only some of an
+// instrument's listings never contradicts a stated currency, and that one
+// listing every listing does. Alpha covers the instrument first, so only
+// beta is asked the second key.
+func TestLimitedDatasource(t *testing.T) {
+	for _, limited := range []bool{false, true} {
+		t.Run(fmt.Sprintf("limited %t", limited), func(t *testing.T) {
+			s := newStack(t)
+			ctx := context.Background()
+			s.script.Responses[isin] = market.IdentityResult{Filtered: []types.Identifier{isin}, Candidates: []market.Candidate{
+				{Class: gen.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{figi, isin, xlon}},
+			}}
+			s.resolve(t, s.state(t, gen.AssetClassStock, "GBP", isin))
+			s.enableBeta(t)
+			s.beta.Limited = limited
+			s.beta.Responses[isin] = market.IdentityResult{Filtered: []types.Identifier{isin}, Candidates: []market.Candidate{
+				{Class: gen.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{figi, xnas}},
+			}}
+			k := s.stateUnder(t, s.newStatement(t, gen.BrokerIbkr), gen.AssetClassStock, "GBP", isin)
+			if got := s.resolve(t, k); written(got[0]) != "matched" {
+				t.Fatalf("outcome = %s, want matched", written(got[0]))
+			}
+			var want []gen.FindingKind
+			if !limited {
+				want = []gen.FindingKind{gen.FindingKindDropped}
+			}
+			if diff := cmp.Diff(want, s.findings(t, k.ID)); diff != "" {
+				t.Errorf("findings mismatch (-want +got):\n%s", diff)
+			}
+			key := s.key(t, k.ID)
+			listings, err := s.q.ListListings(ctx, *key.InstrumentID)
+			require.NoError(t, err)
+			if n := 1 + btoi(limited); len(listings) != n {
+				t.Errorf("listings = %+v, want %d", listings, n)
+			}
+		})
+	}
+}
+
+func btoi(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
+}
+
 // TestCoveredRows checks that a key the database names is requested only
 // from the datasources that have not covered its instrument, and that their
 // response fills what the instrument lacks without replacing what it has.

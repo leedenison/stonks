@@ -273,9 +273,12 @@ func (g *group) against(res *resolution) (string, bool) {
 	return fmt.Sprintf("%s (%s)", detail, g.r.Source), true
 }
 
+// contradicted returns why what res states contradicts g. A limited answer
+// is silent about the listings it lacks, so it never contradicts the stated
+// currency family.
 func (g *group) contradicted(res *resolution) (string, bool) {
 	k, fam := res.row, res.fam
-	if listed := g.listed(); fam != noFamily && len(listed) > 0 && !slices.Contains(listed, fam) {
+	if listed := g.listed(); !g.r.Response.Limited && fam != noFamily && len(listed) > 0 && !slices.Contains(listed, fam) {
 		if _, unknown := g.listings[noFamily]; !unknown {
 			return fmt.Sprintf("stated %s has no listing among %s", fam, strings.Join(listed, ", ")), true
 		}
