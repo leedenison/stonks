@@ -20,6 +20,7 @@ const openfigi = create(DatasourceSchema, {
   precedence: 1,
   endpoint: "http://stub",
   hasCredential: true,
+  config: { plan: "basic" },
 });
 const other = create(DatasourceSchema, { name: "other", precedence: 2 });
 
@@ -106,6 +107,49 @@ describe("DatasourcesPage", () => {
       ),
     );
   });
+
+  it("prefills the config and sends the one edited", async () => {
+    const updateDatasource = vi.fn();
+    renderWithAuth(<DatasourcesPage />, serving(updateDatasource));
+    await waitFor(() =>
+      expect(screen.getByTestId("datasource-edit-openfigi")).toBeTruthy(),
+    );
+    fireEvent.click(screen.getByTestId("datasource-edit-openfigi"));
+    const field = screen.getByTestId(
+      "datasource-config",
+    ) as HTMLTextAreaElement;
+    expect(JSON.parse(field.value)).toEqual({ plan: "basic" });
+    fireEvent.change(field, { target: { value: '{"plan": "starter"}' } });
+    fireEvent.click(screen.getByTestId("datasource-save"));
+    await waitFor(() =>
+      expect(updateDatasource).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: "openfigi",
+          config: { plan: "starter" },
+        }),
+        expect.anything(),
+      ),
+    );
+  });
+
+  it.each(["{", "[]", "1"])(
+    "refuses a config of %s without sending it",
+    async (text) => {
+      const updateDatasource = vi.fn();
+      renderWithAuth(<DatasourcesPage />, serving(updateDatasource));
+      await waitFor(() =>
+        expect(screen.getByTestId("datasource-edit-openfigi")).toBeTruthy(),
+      );
+      fireEvent.click(screen.getByTestId("datasource-edit-openfigi"));
+      fireEvent.change(screen.getByTestId("datasource-config"), {
+        target: { value: text },
+      });
+      fireEvent.click(screen.getByTestId("datasource-save"));
+      expect(screen.getByTestId("datasource-config-error")).toBeTruthy();
+      expect(screen.getByTestId("datasource-dialog")).toBeTruthy();
+      expect(updateDatasource).not.toHaveBeenCalled();
+    },
+  );
 
   it("clears the credential held", async () => {
     const updateDatasource = vi.fn();

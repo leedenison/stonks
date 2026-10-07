@@ -6,6 +6,7 @@ syntax = "proto3";
 package stonks.admin.v1;
 
 import "buf/validate/validate.proto";
+import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
 import "run/v1/run.proto";
 import "statement/v1/statement.proto";
@@ -208,6 +209,8 @@ message Datasource {
   optional string endpoint = 4;
   // A credential is held; its value is never returned.
   bool has_credential = 5;
+  // Settings that only the datasource's integration reads.
+  google.protobuf.Struct config = 6;
 }
 
 message ListDatasourcesRequest {}
@@ -220,6 +223,8 @@ message UpdateDatasourceRequest {
   optional string endpoint = 3;
   // The credential to hold; unset keeps the one held, and empty clears it.
   optional string credential = 4;
+  // The settings to hold; unset keeps the ones held.
+  google.protobuf.Struct config = 5;
 }
 
 message UpdateDatasourceResponse {

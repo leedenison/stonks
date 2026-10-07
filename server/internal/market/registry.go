@@ -176,7 +176,7 @@ func (r *Registry) Names() []string {
 // ConfigOf reads the row as the integration it names sees it. A NULL
 // credential or endpoint reaches the integration as empty.
 func ConfigOf(row gen.Datasource) Config {
-	c := Config{Name: row.Name}
+	c := Config{Name: row.Name, JSON: row.Config}
 	if row.Credential != nil {
 		c.Credential = *row.Credential
 	}

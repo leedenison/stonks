@@ -12,10 +12,11 @@ and a lower precedence answer attaches only by sharing a stable identifier with 
 winner. Massive is above EODHD because it returns FIGIs, so its answer corroborates an
 OpenFIGI answer directly. Massive and EODHD each cover a limited set of venues.
 
-A migration seeds the three datasources rows in this order. OpenFIGI is seeded enabled,
-since it answers without a credential. Massive and EODHD each need an API key, so they
-are seeded disabled and an administrator enables each by supplying its credential. The
-e2e and dev setups start from the seeded rows.
+The migrations leave the datasources table empty. The dev seed, `local/seed.sql`, writes
+the three rows in this order, and the e2e setup writes the rows its specs use. OpenFIGI
+is seeded enabled, since it answers without a credential. Massive and EODHD each need an
+API key, so each is enabled only where the seed holds its credential. Otherwise an
+administrator enables it by supplying one.
 
 ## Consequences
 

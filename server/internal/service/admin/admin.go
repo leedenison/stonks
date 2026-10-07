@@ -9,6 +9,7 @@ package admin
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
@@ -16,6 +17,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
+	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	adminv1 "github.com/leedenison/stonks/proto/admin/v1"
@@ -419,17 +421,28 @@ func (s *Server) ListDatasources(ctx context.Context, _ *connect.Request[adminv1
 	}
 	out := &adminv1.ListDatasourcesResponse{}
 	for _, r := range rows {
-		out.Datasources = append(out.Datasources, datasource(r.Name, r.Enabled, r.Precedence, r.Endpoint, r.HasCredential))
+		d, err := datasource(r.Name, r.Enabled, r.Precedence, r.Endpoint, r.HasCredential, r.Config)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInternal, err)
+		}
+		out.Datasources = append(out.Datasources, d)
 	}
 	return connect.NewResponse(out), nil
 }
 
-// UpdateDatasource sets a datasource's state, endpoint and credential, and
-// reloads the registry so the change takes effect. If the registry would
-// refuse the row, it writes nothing.
+// UpdateDatasource sets a datasource's state, endpoint, credential and
+// config, and reloads the registry so the change takes effect. If the
+// registry would refuse the row, the row stays as it was.
 func (s *Server) UpdateDatasource(ctx context.Context, req *connect.Request[adminv1.UpdateDatasourceRequest]) (*connect.Response[adminv1.UpdateDatasourceResponse], error) {
 	m := req.Msg
 	arg := gen.UpdateDatasourceParams{Name: m.GetName(), Enabled: m.GetEnabled(), Endpoint: m.Endpoint, Credential: m.Credential}
+	if m.Config != nil {
+		cfg, err := json.Marshal(m.Config.AsMap())
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("config: %w", err))
+		}
+		arg.Config = cfg
+	}
 	var row gen.Datasource
 	var refused error
 	err := s.store.Tx(ctx, func(q Queries) error {
@@ -453,8 +466,11 @@ func (s *Server) UpdateDatasource(ctx context.Context, req *connect.Request[admi
 	if err := s.reload(ctx); err != nil {
 		return nil, err
 	}
-	out := &adminv1.UpdateDatasourceResponse{Datasource: datasource(row.Name, row.Enabled, row.Precedence, row.Endpoint, row.Credential != nil)}
-	return connect.NewResponse(out), nil
+	d, err := datasource(row.Name, row.Enabled, row.Precedence, row.Endpoint, row.Credential != nil, row.Config)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(&adminv1.UpdateDatasourceResponse{Datasource: d}), nil
 }
 
 // reload rebuilds the registry once the table has changed. It runs to the
@@ -516,8 +532,16 @@ func everyOnce(names []string, rows []gen.Datasource) error {
 	return nil
 }
 
-func datasource(name string, enabled bool, precedence int32, endpoint *string, held bool) *adminv1.Datasource {
-	return &adminv1.Datasource{Name: name, Enabled: enabled, Precedence: precedence, Endpoint: endpoint, HasCredential: held}
+func datasource(name string, enabled bool, precedence int32, endpoint *string, held bool, config []byte) (*adminv1.Datasource, error) {
+	var m map[string]any
+	if err := json.Unmarshal(config, &m); err != nil {
+		return nil, fmt.Errorf("config of datasource %s: %w", name, err)
+	}
+	cfg, err := structpb.NewStruct(m)
+	if err != nil {
+		return nil, fmt.Errorf("config of datasource %s: %w", name, err)
+	}
+	return &adminv1.Datasource{Name: name, Enabled: enabled, Precedence: precedence, Endpoint: endpoint, HasCredential: held, Config: cfg}, nil
 }
 
 // ListBlocks lists datasource blocks, newest first.

@@ -327,7 +327,7 @@ func TestFindingsAndBlocks(t *testing.T) {
 
 	settings, err := q.ListDatasourceSettings(ctx)
 	require.NoError(t, err)
-	want := []gen.ListDatasourceSettingsRow{{Name: ds.Name, Enabled: true, Precedence: 10, Endpoint: ptr.To("http://stub"), HasCredential: true}}
+	want := []gen.ListDatasourceSettingsRow{{Name: ds.Name, Enabled: true, Precedence: 10, Endpoint: ptr.To("http://stub"), HasCredential: true, Config: []byte("{}")}}
 	if diff := cmp.Diff(want, settings); diff != "" {
 		t.Errorf("ListDatasourceSettings mismatch (-want +got):\n%s", diff)
 	}

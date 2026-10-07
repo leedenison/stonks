@@ -1,6 +1,7 @@
 ---
 title: EODHD identity integration
 type: task
+dependencies: [002]
 ---
 
 ## Scope
