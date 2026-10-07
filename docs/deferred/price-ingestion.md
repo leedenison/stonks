@@ -42,6 +42,12 @@ identifier and the moment it was asserted are carried by the fetch key the price
 references.  See [datasources.md](datasources.md).  The two dates coincide for an
 adjusted series and differ for an as-traded one, and neither convention is refused.
 
+### Venue
+
+Some price sources, such as GOOGLEFINANCE, take a ticker only together with its venue,
+since one symbol can name different securities on different venues. Such a source is
+asked through one of the MIC_TICKERs a listing carries.
+
 ### Provenance
 
 When a price dated d is fetched at t under a MIC-derived identifier, it rests on the

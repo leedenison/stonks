@@ -5,18 +5,26 @@ type: task
 
 ## Scope
 
-A fetch can serve candidates and associate nothing, as with a key that states a bare
-ticker. The key keeps those candidates. A guess can rank them, and the user confirms one,
-either in the upload flow or later.
+A key can go unrecognised although a fetch served candidates for it, as with a key that
+states a bare ticker. The user picks one of the candidates on the statement upload
+details page, and the key takes an ordinary association through the identifiers the
+candidate names.
 
-A confirmed candidate is a datasource's assertion: it creates the system owned
-instrument, listing and identifiers the candidate names, and the key takes an ordinary
-association through one of those identifier rows. Only the choice among candidates is
-the user's.
+In:
 
-## Design
+- Listing the candidates of a key that has no association, by a synchronous
+  re-resolution. See
+  [009](../adr/009-candidates-come-from-a-synchronous-re-resolution.md).
+- Confirming one candidate, which writes it as a winner with system authority.
+- A fetch cache shared by resolution runs and synchronous resolutions. See
+  [011](../adr/011-fetches-are-cached-for-an-hour.md).
+- The arbiter of an association, and the rules that keep a user's choice. See
+  [010](../adr/010-an-association-records-its-arbiter.md).
+- An unranked list of candidates on the statement upload details page.
 
-Nothing settled. The candidates of a served fetch are not stored, since
-fetch_identifiers stores one set of identifiers per fetch key. A guess that ranks them
-has candidate authority, and an association it decides records the arbiter as guess. See
-[guesses.md](../../../deferred/guesses.md).
+Out:
+
+- Ranking the candidates by a guess. Guesses are deferred.
+- Choosing again for a key that already has an association. A pin over a datasource's
+  association belongs to annotations, which are deferred.
+

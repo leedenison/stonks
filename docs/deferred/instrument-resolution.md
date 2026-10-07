@@ -56,6 +56,9 @@ when corporate event coverage of the underlying spans that interval.  Otherwise 
 in the stated key and is replayed when coverage arrives.  Corporate events on the
 underlying therefore create no assumption and nothing to unwind.
 
+Massive's options contracts endpoint states a contract's underlying ticker, expiry, right,
+strike and shares per contract, and is the source of the canonical contract.
+
 ### Authority
 
 Instruments, listings and identifiers are system owned and written only from a source
@@ -74,6 +77,17 @@ merge only when they share a stable identifier.  Where answers overlap only on a
 MIC-derived identifier, they are not merged: precedence picks the instrument kept, the
 identifiers of the other are dropped, and the outcome is recorded as a finding of the
 run.
+
+When a datasource's answer overlaps an instrument only on a MIC-derived identifier,
+resolution asks that datasource again in later runs. Another route may add to the
+instrument a stable identifier that the datasource's answer carries, and the answer then
+merges through it.
+
+### Corroboration
+
+An answer corroborates only the claims it states itself. Where the ranking raised a
+candidate for agreeing with a higher precedence answer, the candidate corroborates the
+identifiers, class and listings it restates.
 
 ### Re-Resolution
 
@@ -104,8 +118,3 @@ resolution proceeds on provisional validity.  The order is then the database,
 the batch cache, and datasources.  A guess is produced where they leave the instrument
 or its listing open.  See [guesses.md](guesses.md).  Corporate events are fetched for the
 batch's resolved instruments once resolution completes.
-
-## Undecided
-
-- Whether a datasource whose answer overlapped an existing instrument only on a
-  MIC-derived identifier is barred from contributing to that instrument in later runs.
