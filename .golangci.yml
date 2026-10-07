@@ -84,6 +84,11 @@ linters:
       - path: server/internal/testutil/
         linters:
           - forbidigo
+      # vcrproxy records with the credential in the variable its hosts file
+      # names for each provider.
+      - path: server/cmd/vcrproxy/
+        linters:
+          - forbidigo
       # Test credentials are invented.
       - path: _test\.go
         linters:

@@ -25,8 +25,7 @@ In:
 - A datasources row and the credential and config it carries, so an administrator can
   enable the integration from the admin area.
 - End to end coverage through vcrproxy of a key that OpenFIGI and Massive both answer.
-- One vcrproxy serving every provider by hostname, as
-  [007](../adr/007-one-vcrproxy-serves-every-provider.md) describes.
+- One vcrproxy serving every provider by hostname.
 
 Out:
 

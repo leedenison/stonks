@@ -42,12 +42,15 @@ isolation, where the failure messages are better and the test is faster.
 
 ## External services
 
-Nothing reaches a third party during a test run. The provider is `vcrproxy`, a reverse
-proxy in the e2e overlay that replays traffic recorded with go-vcr, named as the
-datasource by the suite's global setup. `make e2e-record` forwards what the recording
-lacks to the real provider and appends what comes back; every other run replays. The
-cassettes live in `docker/vcrproxy/`: `recorded.yaml` holds only what the provider sent,
-and `authored.yaml` the few hand-written interactions, such as rate limit refusals, that
+Nothing reaches a third party during a test run. Every provider is `vcrproxy`, a reverse
+proxy in the e2e overlay that replays traffic recorded with go-vcr. Each provider has a
+hostname of its own, such as `openfigi.vcr`. The compose network aliases it to the proxy,
+and the suite's global setup names it as the datasource's endpoint.
+`docker/vcrproxy/hosts.json` maps each hostname to the provider's settings.
+`make e2e-record` forwards what a recording lacks to the real provider and appends what
+comes back; every other run replays. Each provider's cassettes live in
+`docker/vcrproxy/<provider>/`: `recorded.yaml` holds only what the provider sent, and
+`authored.yaml` the few hand-written interactions, such as rate limit refusals, that
 cannot be recorded.
 
 A spec picks its case by the identifier its fixture states, so specs stay independent and

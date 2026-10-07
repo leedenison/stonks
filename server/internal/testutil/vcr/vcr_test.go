@@ -220,3 +220,33 @@ func TestMatchBody(t *testing.T) {
 		t.Errorf("replayed body = %q, want the ZZALPHA interaction", got)
 	}
 }
+
+// TestRedactFields checks that named members are replaced at any depth, and
+// that a body naming none of them, or not JSON, comes back unchanged.
+func TestRedactFields(t *testing.T) {
+	redact := vcr.RedactFields("address", "phone_number")
+	tests := []struct {
+		name, body, want string
+	}{
+		{
+			name: "nested members",
+			body: `{"results":{"ticker":"AAPL","address":{"city":"X"},"phone_number":"1","n":1.50}}`,
+			want: `{"results":{"address":"REDACTED","n":1.50,"phone_number":"REDACTED","ticker":"AAPL"}}`,
+		},
+		{
+			name: "members within an array",
+			body: `[{"address":"a"},{"ticker":"B"}]`,
+			want: `[{"address":"REDACTED"},{"ticker":"B"}]`,
+		},
+		{name: "none named", body: `{ "ticker" : "AAPL" }`, want: `{ "ticker" : "AAPL" }`},
+		{name: "not JSON", body: "Too Many Requests", want: "Too Many Requests"},
+		{name: "empty", body: "", want: ""},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := redact(tc.body); got != tc.want {
+				t.Errorf("RedactFields(%s) = %s, want %s", tc.body, got, tc.want)
+			}
+		})
+	}
+}
