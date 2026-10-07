@@ -5,8 +5,8 @@ recorded: 2026-09-20
 
 # Instrument resolution
 
-How resolution handles the life of a listing, options, guesses and the validity of a
-MIC-derived identifier, and the replays that keep an association current.
+How resolution handles the life of a listing, options and the validity of a MIC-derived
+identifier, and the replays that keep an association current.
 
 ## Why
 
@@ -61,8 +61,9 @@ underlying therefore create no assumption and nothing to unwind.
 Instruments, listings and identifiers are system owned and written only from a source
 with system authority.  A source with user authority, a statement or an annotation,
 writes keys and what the user records against them, and never instrument data.  A
-source with candidate authority, any guess, writes nothing: a guess ranks candidates and
-never filters them.
+source with candidate authority, any guess, does not write instrument data.  Its rank may
+decide an association, which then records the guess for the user to confirm or revise.
+See [guesses.md](guesses.md).
 
 ## Constraints
 
@@ -100,13 +101,9 @@ merge.
 Identifier events for the MIC-derived identifiers a batch states are fetched first, where
 a source serves their domain or a stable identifier already stored.  Where they are absent,
 resolution proceeds on provisional validity.  The order is then the database,
-the batch cache, and datasources. A guess is produced only where what the source stated
-leaves the instrument or its listing open, and only after both lookups have missed.
-Corporate events are fetched for the batch's resolved instruments once resolution
-completes.
-
-A candidate that agrees with a guess ranks below one that confirms stated data or
-corroborates a higher precedence answer.  It ranks above the datasource's own order.
+the batch cache, and datasources.  A guess is produced where they leave the instrument
+or its listing open.  See [guesses.md](guesses.md).  Corporate events are fetched for the
+batch's resolved instruments once resolution completes.
 
 ## Undecided
 

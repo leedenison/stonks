@@ -24,6 +24,11 @@ scales. GBP and GBp/GBX are one family.
 **Confirmed** where coverage or assertions establish it, **provisional** where it rests
 on the assumption that the identifier has not moved.
 
+**Arbiter** -- what settled an association among candidates.  **Stated** where the
+stated data and the system's reference data left one, **datasource** where a datasource
+answered for an identifier the key states and left one, **guess** where a guess's rank
+settled it, **user** where the user did.
+
 **Assertion** -- a datasource's claim, made by a fetch, that an identifier names the
 instrument its answer describes, holding at the moment of the fetch or over the interval
 the answer states.
