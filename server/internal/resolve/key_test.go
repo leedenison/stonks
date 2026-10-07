@@ -50,7 +50,7 @@ func TestGUIDs(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			k := gen.StatedKey{Identifiers: tc.stated}
-			if diff := cmp.Diff(tc.want, trusted(k)); diff != "" {
+			if diff := cmp.Diff(tc.want, (&resolution{row: k}).trustedIDs()); diff != "" {
 				t.Errorf("trusted mismatch (-want +got):\n%s", diff)
 			}
 			if got := bare(k); got != tc.bare {
@@ -60,7 +60,7 @@ func TestGUIDs(t *testing.T) {
 	}
 }
 
-// TestTrusted checks that trusted returns every GUID and every broker
+// TestTrusted checks that trustedIDs returns every GUID and every broker
 // description, strongest first, and nothing else.
 func TestTrusted(t *testing.T) {
 	isin := id(types.IdentifierTypeIsin, "", "GB00BH4HKS39")
@@ -71,7 +71,7 @@ func TestTrusted(t *testing.T) {
 	b := id(types.IdentifierTypeBrokerDescription, "ibkr", "VODAFONE GRP")
 	k := gen.StatedKey{Identifiers: []types.Identifier{a, venue, ticker, broker, b, isin}}
 	want := []types.Identifier{isin, venue, a, b}
-	if diff := cmp.Diff(want, trusted(k)); diff != "" {
+	if diff := cmp.Diff(want, (&resolution{row: k}).trustedIDs()); diff != "" {
 		t.Errorf("trusted mismatch (-want +got):\n%s", diff)
 	}
 }

@@ -95,10 +95,10 @@ func (r *Resolver) resolveKey(ctx context.Context, q Queries, run gen.Run, res *
 	return record(ctx, q, run, res, gen.ResolutionOutcomeMatched, "", c.findings)
 }
 
-// lockSet returns the identifiers res states and every identifier a
+// lockSet returns the identifiers res trusts and every identifier a
 // response served for it names.
 func lockSet(res *resolution) []types.Identifier {
-	ids := slices.Clone(res.ids)
+	ids := slices.Clone(res.trusted)
 	for _, rs := range res.results {
 		if rs.Outcome != gen.FetchOutcomeServed {
 			continue
@@ -125,10 +125,10 @@ type target struct {
 	findings []gen.CreateFindingParams
 }
 
-// find re-reads the database for the instrument the key and the groups c
-// attaches name. Several found are merged.
+// find re-reads the database for the instrument. The identifiers res trusts
+// and the groups c attaches each name it. It merges several found.
 func find(ctx context.Context, q Queries, res *resolution, c choice) (target, error) {
-	ids := slices.Clone(res.ids)
+	ids := slices.Clone(res.trusted)
 	for _, g := range c.attached {
 		for id := range g.all {
 			ids = appendUnique(ids, id)
@@ -427,12 +427,12 @@ func (w *writer) associate(ctx context.Context, res *resolution) (bool, error) {
 	return true, nil
 }
 
-// via returns the identifier that carries res's association: the strongest
-// identifier the key states that identifies the instrument, a description
-// ranking below every GUID, else a venue ticker of the chosen listing, else
-// a venue ticker of the instrument.
+// via returns the identifier that carries res's association. That is the
+// strongest trusted identifier of the instrument, with a description ranking
+// below every GUID. Failing that, it is a venue ticker of the chosen listing,
+// then a venue ticker of the instrument.
 func (w *writer) via(res *resolution, listing *uuid.UUID) (gen.Identifier, bool) {
-	for _, id := range res.ids {
+	for _, id := range res.trusted {
 		if row, ok := w.identifiers[id]; ok {
 			return row, true
 		}

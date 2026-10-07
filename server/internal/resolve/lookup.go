@@ -20,9 +20,8 @@ import (
 // resolution is one stated key's progress from lookup to outcome.
 type resolution struct {
 	row gen.StatedKey
-	// ids is every GUID and broker description the key states, strongest
-	// first.
-	ids      []types.Identifier
+	// trusted caches trustedIDs.
+	trusted  []types.Identifier
 	fams     families
 	found    *found
 	results  []*result
@@ -66,6 +65,19 @@ func (f *found) group() *group {
 	return g
 }
 
+// trustedIDs returns every GUID and every broker description the key
+// states, strongest first. A lookup hit on one of them names the instrument.
+func (res *resolution) trustedIDs() []types.Identifier {
+	var out []types.Identifier
+	for _, id := range res.row.Identifiers {
+		if market.IsGUID(id) || id.Type == types.IdentifierTypeBrokerDescription {
+			out = append(out, id)
+		}
+	}
+	slices.SortStableFunc(out, func(a, b types.Identifier) int { return strength(a) - strength(b) })
+	return out
+}
+
 func (res *resolution) decide(outcome gen.ResolutionOutcome, format string, args ...any) {
 	res.outcome, res.reason = outcome, fmt.Sprintf(format, args...)
 }
@@ -77,7 +89,7 @@ func (r *Resolver) lookup(ctx context.Context, rs []*resolution) error {
 	var ids []types.Identifier
 	for _, res := range rs {
 		if !currency(res.row) {
-			ids = append(ids, res.ids...)
+			ids = append(ids, res.trusted...)
 		}
 	}
 	hits, err := reread(ctx, r.store, ids)
@@ -113,7 +125,7 @@ func currency(k gen.StatedKey) bool {
 func (res *resolution) match(byID map[types.Identifier]*found) {
 	var first types.Identifier
 	var f *found
-	for _, id := range res.ids {
+	for _, id := range res.trusted {
 		hit, ok := byID[id]
 		switch {
 		case !ok:
@@ -128,8 +140,8 @@ func (res *resolution) match(byID map[types.Identifier]*found) {
 		}
 	}
 	if f == nil {
-		if !slices.ContainsFunc(res.ids, market.IsGUID) && !bare(res.row) {
-			res.decide(gen.ResolutionOutcomeUnrecognised, "%s", unnamed(res.ids))
+		if !slices.ContainsFunc(res.trusted, market.IsGUID) && !bare(res.row) {
+			res.decide(gen.ResolutionOutcomeUnrecognised, "%s", unnamed(res.trusted))
 		}
 		return
 	}

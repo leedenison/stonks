@@ -46,7 +46,9 @@ func (r *Resolver) Resolve(ctx context.Context, run gen.Run, rows []gen.StatedKe
 	}
 	resolutions := make([]*resolution, len(rows))
 	for i, row := range rows {
-		resolutions[i] = &resolution{row: row, ids: trusted(row), fams: fams}
+		res := &resolution{row: row, fams: fams}
+		res.trusted = res.trustedIDs()
+		resolutions[i] = res
 	}
 	if err := r.lookup(ctx, resolutions); err != nil {
 		return nil, err

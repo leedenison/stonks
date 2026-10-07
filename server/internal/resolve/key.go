@@ -2,7 +2,6 @@ package resolve
 
 import (
 	"fmt"
-	"slices"
 
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/types"
@@ -74,20 +73,6 @@ func strength(id types.Identifier) int {
 		n++
 	}
 	return n
-}
-
-// trusted returns the identifiers k states that the lookup trusts a hit on
-// to name the instrument: every GUID and every broker description, strongest
-// first.
-func trusted(k gen.StatedKey) []types.Identifier {
-	var out []types.Identifier
-	for _, id := range k.Identifiers {
-		if market.IsGUID(id) || id.Type == types.IdentifierTypeBrokerDescription {
-			out = append(out, id)
-		}
-	}
-	slices.SortStableFunc(out, func(a, b types.Identifier) int { return strength(a) - strength(b) })
-	return out
 }
 
 // bare reports whether k states a ticker without its venue.
