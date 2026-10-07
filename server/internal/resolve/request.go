@@ -13,7 +13,9 @@ import (
 // per datasource. A datasource that already covers the instrument the
 // lookup found is not asked. Each key takes its results in precedence
 // order, and whether a datasource serves a key is the datasource's to say.
-func (r *Resolver) request(ctx context.Context, run gen.Run, resolutions []*resolution) error {
+// It replaces the currency of every candidate it returns with the
+// currency's family.
+func (r *Resolver) request(ctx context.Context, run gen.Run, resolutions []*resolution, cur currencies) error {
 	entries := r.sources.Enabled()
 	batches := make([][]*resolution, len(entries))
 	for _, res := range resolutions {
@@ -47,6 +49,13 @@ func (r *Resolver) request(ctx context.Context, run gen.Run, resolutions []*reso
 	}
 	if err := g.Wait(); err != nil {
 		return err
+	}
+	for _, rs := range results {
+		for j := range rs {
+			for k, c := range rs[j].Response.Candidates {
+				rs[j].Response.Candidates[k].Currency = cur[c.Currency]
+			}
+		}
 	}
 	for i := range entries {
 		for j, res := range batches[i] {

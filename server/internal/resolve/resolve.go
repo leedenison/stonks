@@ -40,20 +40,20 @@ func New(store Store, fetcher Fetcher, sources Sources, log *slog.Logger) *Resol
 // row, in the order of rows. A run that fails partway leaves the keys it has
 // already written resolved.
 func (r *Resolver) Resolve(ctx context.Context, run gen.Run, rows []gen.StatedKey) ([]gen.ResolutionKey, error) {
-	fams, err := r.families(ctx)
+	cur, err := r.currencies(ctx)
 	if err != nil {
 		return nil, err
 	}
 	resolutions := make([]*resolution, len(rows))
 	for i, row := range rows {
-		res := &resolution{row: row, fams: fams}
+		res := &resolution{row: row, fam: cur.family(row)}
 		res.trusted = res.trustedIDs()
 		resolutions[i] = res
 	}
 	if err := r.lookup(ctx, resolutions); err != nil {
 		return nil, err
 	}
-	if err := r.request(ctx, run, resolutions); err != nil {
+	if err := r.request(ctx, run, resolutions, cur); err != nil {
 		return nil, err
 	}
 	out := make([]gen.ResolutionKey, 0, len(resolutions))
@@ -67,15 +67,15 @@ func (r *Resolver) Resolve(ctx context.Context, run gen.Run, rows []gen.StatedKe
 	return out, nil
 }
 
-// families reads the currency table.
-func (r *Resolver) families(ctx context.Context) (families, error) {
+// currencies reads the currency table.
+func (r *Resolver) currencies(ctx context.Context) (currencies, error) {
 	rows, err := r.store.ListCurrencies(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("list currencies: %w", err)
 	}
-	fams := make(families, len(rows))
+	cur := make(currencies, len(rows))
 	for _, c := range rows {
-		fams[c.Code] = c.Family
+		cur[c.Code] = c.Family
 	}
-	return fams, nil
+	return cur, nil
 }

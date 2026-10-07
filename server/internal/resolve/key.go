@@ -85,16 +85,20 @@ func bare(k gen.StatedKey) bool {
 	return false
 }
 
-// families maps a currency code to its family, the key of a listing.
-type families map[string]string
+// noFamily is the family of a currency the system does not know, and of a
+// key or candidate that states no currency. A listing of no family matches
+// any family.
+const noFamily = ""
 
-// family returns the family of the currency k states, "" where k states
-// none.
-func (fs families) family(k gen.StatedKey) string {
+// currencies maps a currency code to its family, the key of a listing.
+type currencies map[string]string
+
+// family returns the family of the currency k states.
+func (cs currencies) family(k gen.StatedKey) string {
 	if k.Currency == nil {
-		return ""
+		return noFamily
 	}
-	return fs[*k.Currency]
+	return cs[*k.Currency]
 }
 
 // name writes id as its type and value, the venue leading the value.

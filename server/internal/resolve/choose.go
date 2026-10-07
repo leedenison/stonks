@@ -27,8 +27,8 @@ type group struct {
 	// class is the class of the first candidate stating one.
 	class      gen.AssetClass
 	instrument []types.Identifier
-	// listings is keyed by currency family, "" where the candidates carry
-	// no currency.
+	// listings is keyed by currency family, noFamily where the candidates
+	// carry no known currency.
 	listings map[string][]types.Identifier
 	// named reports whether the identifier the key was sent under
 	// identifies the group.
@@ -50,9 +50,10 @@ type choice struct {
 	notNaming map[string]int
 }
 
-// groups builds the groups of r. Every group carries the instrument grain
+// groups builds the groups of r. The candidates of r carry currency
+// families, not currency codes. Every group carries the instrument grain
 // identifiers the call filtered on.
-func groups(r *result, fams families) []*group {
+func groups(r *result) []*group {
 	var strict []types.Identifier
 	for _, id := range r.Response.Filtered {
 		if grain(id) == gen.IdentifierGrainInstrument {
@@ -71,7 +72,7 @@ func groups(r *result, fams families) []*group {
 			byRoot[roots[i]] = g
 			out = append(out, g)
 		}
-		g.add(c, fams[c.Currency])
+		g.add(c, c.Currency)
 	}
 	if r.Sent != nil {
 		for _, g := range out {
@@ -174,12 +175,12 @@ func (g *group) identifiedBy(id types.Identifier) bool {
 	return false
 }
 
-// families returns the families where g has a listing, sorted, leaving out
+// listed returns the families where g has a listing, sorted, leaving out
 // the listing of no family.
-func (g *group) families() []string {
+func (g *group) listed() []string {
 	var out []string
 	for f := range g.listings {
-		if f != "" {
+		if f != noFamily {
 			out = append(out, f)
 		}
 	}
@@ -191,7 +192,7 @@ func (g *group) families() []string {
 // returning the value that differs. Only the identifiers that may name what
 // id names are compared: the instrument's for an instrument grain id; for a
 // listing grain id, those of the listing in family fam and of the listing
-// of no family, or of every listing where fam is empty.
+// of no family, or of every listing where fam is noFamily.
 func (g *group) contradicts(id types.Identifier, fam string) (types.Identifier, bool) {
 	if !exclusive(id) {
 		return types.Identifier{}, false
@@ -200,7 +201,7 @@ func (g *group) contradicts(id types.Identifier, fam string) (types.Identifier, 
 	if grain(id) == gen.IdentifierGrainListing {
 		pool = nil
 		for _, f := range slices.Sorted(maps.Keys(g.listings)) {
-			if fam == "" || f == fam || f == "" {
+			if fam == noFamily || f == fam || f == noFamily {
 				pool = append(pool, g.listings[f]...)
 			}
 		}
@@ -262,20 +263,21 @@ func (g *group) ref() string {
 	return fmt.Sprintf("%s (%s)", what, g.from())
 }
 
-// against returns why what k states contradicts g, if it does. The stated
+// against returns why what res states contradicts g, if it does. The stated
 // side leads the detail, and the datasource that served g closes it.
-func (g *group) against(k gen.StatedKey, fam string) (string, bool) {
-	detail, ok := g.contradicted(k, fam)
+func (g *group) against(res *resolution) (string, bool) {
+	detail, ok := g.contradicted(res)
 	if !ok {
 		return "", false
 	}
 	return fmt.Sprintf("%s (%s)", detail, g.r.Source), true
 }
 
-func (g *group) contradicted(k gen.StatedKey, fam string) (string, bool) {
-	if fams := g.families(); fam != "" && len(fams) > 0 && !slices.Contains(fams, fam) {
-		if _, unknown := g.listings[""]; !unknown {
-			return fmt.Sprintf("stated %s has no listing among %s", fam, strings.Join(fams, ", ")), true
+func (g *group) contradicted(res *resolution) (string, bool) {
+	k, fam := res.row, res.fam
+	if listed := g.listed(); fam != noFamily && len(listed) > 0 && !slices.Contains(listed, fam) {
+		if _, unknown := g.listings[noFamily]; !unknown {
+			return fmt.Sprintf("stated %s has no listing among %s", fam, strings.Join(listed, ", ")), true
 		}
 	}
 	if k.AssetClass != nil && disjoint(g.class, *k.AssetClass) {
@@ -296,7 +298,7 @@ func (g *group) inconsistent(a *group) (string, bool) {
 		return fmt.Sprintf("class %s contradicts the class %s (%s)", g.class, a.class, a.from()), true
 	}
 	for _, id := range a.instrument {
-		if other, ok := g.contradicts(id, ""); ok {
+		if other, ok := g.contradicts(id, noFamily); ok {
 			return fmt.Sprintf("%s contradicts %s (%s)", name(other), name(id), a.from()), true
 		}
 	}
@@ -322,14 +324,14 @@ func (g *group) corroborates(a *group) bool {
 
 // confirms counts the stated identifiers identifying g, and the stated family
 // where it has that listing.
-func (g *group) confirms(k gen.StatedKey, fam string) int {
+func (g *group) confirms(res *resolution) int {
 	n := 0
-	for _, id := range k.Identifiers {
+	for _, id := range res.row.Identifiers {
 		if g.identifiedBy(id) {
 			n++
 		}
 	}
-	if _, ok := g.listings[fam]; ok && fam != "" {
+	if _, ok := g.listings[res.fam]; ok && res.fam != noFamily {
 		n++
 	}
 	return n
@@ -344,10 +346,8 @@ func choose(res *resolution, db *group) choice {
 	if db != nil {
 		chosen = append(chosen, db)
 	}
-	k := res.row
-	fam := res.fams.family(k)
 	for _, r := range res.results {
-		best := c.bestGroup(r, k, fam, res.fams, chosen)
+		best := c.bestGroup(r, res, chosen)
 		if best == nil {
 			continue
 		}
@@ -388,17 +388,17 @@ func (c *choice) naming(r *result, gs []*group) ([]*group, bool) {
 	return survivors, fallback
 }
 
-// bestGroup returns the best surviving group of r for k, nil where none
+// bestGroup returns the best surviving group of r for res, nil where none
 // survives. chosen is the groups chosen above r, the winner first.
-func (c *choice) bestGroup(r *result, k gen.StatedKey, fam string, fams families, chosen []*group) *group {
+func (c *choice) bestGroup(r *result, res *resolution, chosen []*group) *group {
 	if r.Sent == nil {
 		return nil
 	}
-	gs := groups(r, fams)
+	gs := groups(r)
 	c.groups[r.Source] = len(gs)
 	survivors, fallback := c.naming(r, gs)
 	survivors = slices.DeleteFunc(survivors, func(g *group) bool {
-		if detail, ok := g.against(k, fam); ok {
+		if detail, ok := g.against(res); ok {
 			c.record(r, gen.FindingKindDropped, gen.DropStepStated, g.label(detail))
 			return true
 		}
@@ -432,7 +432,7 @@ func (c *choice) bestGroup(r *result, k gen.StatedKey, fam string, fams families
 			}
 			return 1
 		}
-		if d := b.confirms(k, fam) - a.confirms(k, fam); d != 0 {
+		if d := b.confirms(res) - a.confirms(res); d != 0 {
 			return d
 		}
 		return a.order - b.order

@@ -21,8 +21,8 @@ func cand(class gen.AssetClass, currency string, ids ...types.Identifier) market
 	return market.Candidate{Class: class, Currency: currency, Identifiers: ids}
 }
 
-// fams maps GBX to GBP and every other code to itself.
-var fams = families{"EUR": "EUR", "GBP": "GBP", "GBX": "GBP", "USD": "USD"}
+// cur maps GBX to GBP and every other code to itself.
+var cur = currencies{"EUR": "EUR", "GBP": "GBP", "GBX": "GBP", "USD": "USD"}
 
 var (
 	isin   = id(types.IdentifierTypeIsin, "", "GB00BH4HKS39")
@@ -51,7 +51,7 @@ func TestGroups(t *testing.T) {
 		{
 			name: "a shared instrument identifier joins candidates",
 			r: served("a", isin, nil,
-				cand(gen.AssetClassStock, "GBX", figi, isin, comp, xlon),
+				cand(gen.AssetClassStock, "GBP", figi, isin, comp, xlon),
 				cand(gen.AssetClassStock, "GBP", figi, xetr),
 				cand(gen.AssetClassStock, "USD", figi2, xnas),
 			),
@@ -96,7 +96,7 @@ func TestGroups(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got := groups(tc.r, fams)
+			got := groups(tc.r)
 			for _, g := range got {
 				if g.r != tc.r {
 					t.Errorf("group %d names result %p, want %p", g.order, g.r, tc.r)
@@ -329,7 +329,7 @@ func TestChoose(t *testing.T) {
 			if tc.want.notNaming == nil {
 				tc.want.notNaming = map[string]int{}
 			}
-			got := describe(choose(&resolution{row: tc.k, results: tc.results, fams: fams}, tc.db), source)
+			got := describe(choose(&resolution{row: tc.k, results: tc.results, fam: cur.family(tc.k)}, tc.db), source)
 			if diff := cmp.Diff(tc.want, got, cmp.AllowUnexported(outcome{})); diff != "" {
 				t.Errorf("choose mismatch (-want +got):\n%s", diff)
 			}

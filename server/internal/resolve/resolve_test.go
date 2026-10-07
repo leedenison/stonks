@@ -21,11 +21,11 @@ import (
 )
 
 var (
-	userID     = uuid.MustParse("00000000-0000-0000-0000-000000000001")
-	res        = gen.Run{ID: uuid.MustParse("00000000-0000-0000-0000-000000000002"), UserID: userID, Kind: gen.RunKindResolution}
-	currencies = []gen.Currency{{Code: "EUR", Family: "EUR"}, {Code: "GBP", Family: "GBP"}, {Code: "GBX", Family: "GBP"}, {Code: "USD", Family: "USD"}}
-	entryA     = &market.Entry{Name: "a", Precedence: 10}
-	entryB     = &market.Entry{Name: "b", Precedence: 20}
+	userID       = uuid.MustParse("00000000-0000-0000-0000-000000000001")
+	res          = gen.Run{ID: uuid.MustParse("00000000-0000-0000-0000-000000000002"), UserID: userID, Kind: gen.RunKindResolution}
+	currencyRows = []gen.Currency{{Code: "EUR", Family: "EUR"}, {Code: "GBP", Family: "GBP"}, {Code: "GBX", Family: "GBP"}, {Code: "USD", Family: "USD"}}
+	entryA       = &market.Entry{Name: "a", Precedence: 10}
+	entryB       = &market.Entry{Name: "b", Precedence: 20}
 )
 
 // fixture is a resolver over a store that finds nothing and runs each
@@ -46,7 +46,7 @@ func newFixture(t *testing.T, entries ...*market.Entry) *fixture {
 	t.Helper()
 	ctrl := gomock.NewController(t)
 	f := &fixture{t: t, store: NewMockStore(ctrl), fetcher: NewMockFetcher(ctrl), sources: NewMockSources(ctrl)}
-	f.store.EXPECT().ListCurrencies(gomock.Any()).Return(currencies, nil).AnyTimes()
+	f.store.EXPECT().ListCurrencies(gomock.Any()).Return(currencyRows, nil).AnyTimes()
 	f.sources.EXPECT().Enabled().Return(entries).AnyTimes()
 	f.resolver = New(f.store, f.fetcher, f.sources, slog.New(slog.DiscardHandler))
 	return f
