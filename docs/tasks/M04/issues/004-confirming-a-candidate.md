@@ -17,5 +17,6 @@ the user's.
 ## Design
 
 Nothing settled. The candidates of a served fetch are not stored, since
-fetch_identifiers stores one set of identifiers per fetch key, and a guess that ranks
-them has candidate authority and never filters.
+fetch_identifiers stores one set of identifiers per fetch key. A guess that ranks them
+has candidate authority, and an association it decides records the arbiter as guess. See
+[guesses.md](../../../deferred/guesses.md).

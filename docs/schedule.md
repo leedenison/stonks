@@ -48,7 +48,8 @@ The record of what has been built. A milestone lands here when its issue directo
 Each has a note in `docs/deferred` outlining how it might work.
 
 - **D-EVENTS** - [Events](deferred/events.md); grouping transactions into the economic events whose legs they are.
-- **D-INSTR** - [Instrument resolution](deferred/instrument-resolution.md); the life of a listing, options, validity, guesses, and the replays that keep an association current.
+- **D-INSTR** - [Instrument resolution](deferred/instrument-resolution.md); the life of a listing, options, validity, and the replays that keep an association current.
+- **D-GUESS** - [Guesses](deferred/guesses.md); the sources that rank candidates where the stated data leaves an association open, and the arbiter an association records.
 - **D-PRICES** - [Price ingestion](deferred/price-ingestion.md) from external providers.
 - **D-CORP** - [Corporate events](deferred/corporate-events.md); splits and the restatement of recorded quantities.
 - **D-IDENT** - [Identifier events](deferred/identifier-events.md); ticker changes and the intervals over which an identifier names one instrument.
