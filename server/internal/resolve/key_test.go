@@ -77,10 +77,10 @@ func TestTrusted(t *testing.T) {
 }
 
 func TestFamily(t *testing.T) {
-	if got := fams.family(gen.StatedKey{Currency: ptr.To("GBX")}); got != "GBP" {
+	if got := cur.family(gen.StatedKey{Currency: ptr.To("GBX")}); got != "GBP" {
 		t.Errorf("family(GBX) = %q, want GBP", got)
 	}
-	if got := fams.family(gen.StatedKey{}); got != "" {
+	if got := cur.family(gen.StatedKey{}); got != "" {
 		t.Errorf("family(none) = %q, want none", got)
 	}
 }
@@ -122,10 +122,10 @@ func TestExclusive(t *testing.T) {
 	descr := id(types.IdentifierTypeBrokerDescription, "ibkr", "VODAFONE GROUP PLC")
 	renamed := id(types.IdentifierTypeBrokerDescription, "ibkr", "VODAFONE GRP")
 	g := &group{instrument: []types.Identifier{isin, descr}, listings: map[string][]types.Identifier{}}
-	if got, ok := g.contradicts(other, ""); !ok || got != isin {
+	if got, ok := g.contradicts(other, noFamily); !ok || got != isin {
 		t.Errorf("contradicts(%s) = %v, %v, want the isin", name(other), got, ok)
 	}
-	if got, ok := g.contradicts(renamed, ""); ok {
+	if got, ok := g.contradicts(renamed, noFamily); ok {
 		t.Errorf("contradicts(%s) = %v, want no contradiction between two descriptions", name(renamed), got)
 	}
 }

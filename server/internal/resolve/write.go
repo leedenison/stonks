@@ -358,7 +358,7 @@ func (w *writer) attach(ctx context.Context, g *group) error {
 		}
 	}
 	for _, fam := range slices.Sorted(maps.Keys(g.listings)) {
-		if fam == "" {
+		if fam == noFamily {
 			continue
 		}
 		l, ok := w.listings[fam]
@@ -409,7 +409,7 @@ func (w *writer) identify(ctx context.Context, id types.Identifier, listing *uui
 // reports false when no identifier identifies the instrument.
 func (w *writer) associate(ctx context.Context, res *resolution) (bool, error) {
 	var listingID *uuid.UUID
-	if l, ok := w.listings[res.fams.family(res.row)]; ok {
+	if l, ok := w.listings[res.fam]; ok {
 		listingID = &l.ID
 	}
 	via, ok := w.via(res, listingID)

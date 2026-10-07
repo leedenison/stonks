@@ -21,8 +21,9 @@ import (
 type resolution struct {
 	row gen.StatedKey
 	// trusted caches trustedIDs.
-	trusted  []types.Identifier
-	fams     families
+	trusted []types.Identifier
+	// fam is the family of the currency the key states.
+	fam      string
 	found    *found
 	results  []*result
 	findings []gen.CreateFindingParams
@@ -190,7 +191,7 @@ func (r *Resolver) lookupCurrency(ctx context.Context, res *resolution) error {
 		return err
 	}
 	f := loaded[hit.Instrument.ID]
-	if fam := res.fams.family(res.row); fam != "" && f.listing(fam) == nil {
+	if res.fam != noFamily && f.listing(res.fam) == nil {
 		res.decide(gen.ResolutionOutcomeRejected, "no listing of %s in %s", code, *res.row.Currency)
 		return nil
 	}
