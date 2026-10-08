@@ -42,6 +42,13 @@ func served(source string, sent types.Identifier, filtered []types.Identifier, c
 	return &result{Source: source, Outcome: gen.FetchOutcomeServed, Sent: &sent, Response: market.IdentityResult{Filtered: filtered, Candidates: cs}}
 }
 
+// limited marks r as an answer from a provider that lists only some of an
+// instrument's listings.
+func limited(r *result) *result {
+	r.Response.Limited = true
+	return r
+}
+
 func TestGroups(t *testing.T) {
 	tests := []struct {
 		name string
@@ -187,6 +194,30 @@ func TestChoose(t *testing.T) {
 			results: []*result{strict("a", isin, cand(gen.AssetClassStock, "", figi, xnas))},
 			k:       gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{isin}},
 			want:    outcome{winner: "a#0", attached: []string{"a#0"}},
+		},
+		{
+			name:    "a limited datasource's listing in no stated family contradicts nothing",
+			results: []*result{limited(strict("m", isin, cand(gen.AssetClassStock, "USD", figi, xnas)))},
+			k:       gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{isin}},
+			want:    outcome{winner: "m#0", attached: []string{"m#0"}},
+		},
+		{
+			name: "below the winner a limited group in no stated family attaches through a stable identifier",
+			results: []*result{
+				strict("a", isin, cand(gen.AssetClassStock, "GBP", figi, xlon)),
+				limited(strict("m", isin, cand(gen.AssetClassStock, "USD", figi, xnas))),
+			},
+			k:    gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{isin}},
+			want: outcome{winner: "a#0", attached: []string{"a#0", "m#0"}},
+		},
+		{
+			name: "below the winner a limited group sharing no stable identifier is dropped",
+			results: []*result{
+				strict("a", isin, cand(gen.AssetClassStock, "GBP", figi, xlon)),
+				limited(search("m", xlon, cand(gen.AssetClassStock, "USD", xlon))),
+			},
+			k:    gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{isin, xlon}},
+			want: outcome{winner: "a#0", attached: []string{"a#0"}, findings: []string{"m dropped corroboration: mic_ticker XLON:VOD: shares no stable identifier with the candidate identified by isin GB00BH4HKS39 (a)"}},
 		},
 		{
 			name:    "a disjoint class contradicts the statement",

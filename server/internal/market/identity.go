@@ -24,6 +24,10 @@ type IdentityResult struct {
 	// search.
 	Filtered   []types.Identifier
 	Candidates []Candidate
+	// Limited reports that the provider lists only some of an instrument's
+	// listings. Otherwise an answer without a listing in a currency means
+	// the instrument has none in it.
+	Limited bool
 }
 
 // Identity looks up the set of identifiers that refer to the same instrument

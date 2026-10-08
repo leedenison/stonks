@@ -17,6 +17,9 @@ import (
 type Identity struct {
 	// Down fails every key of every request.
 	Down bool
+	// Limited marks every answer as from a provider that lists only some of
+	// an instrument's listings.
+	Limited bool
 	// Responses maps each identifier sent to its answer. An identifier it
 	// lacks is answered with an empty result.
 	Responses map[types.Identifier]market.IdentityResult
@@ -59,7 +62,9 @@ func (s *Identity) Fetch(_ context.Context, reqs []market.Request[gen.StatedKey]
 			out[i] = market.Response[market.IdentityResult]{Err: errors.New("the provider is down")}
 			continue
 		}
-		out[i] = market.Response[market.IdentityResult]{Value: s.Responses[r.Sent]}
+		v := s.Responses[r.Sent]
+		v.Limited = s.Limited
+		out[i] = market.Response[market.IdentityResult]{Value: v}
 	}
 	return out, nil
 }

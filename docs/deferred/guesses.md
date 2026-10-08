@@ -58,13 +58,13 @@ Resolution consults the stated data, the database, the batch cache and the datas
 first.  A guess ranks at two grains.  It ranks instruments where the lookups miss and
 leave the instrument open.  It ranks listings where the instrument is found and the
 stated data leaves the listing open.  Where the key leaves the currency open, a datasource
-with complete coverage settles the listing, and one with limited coverage returns
-candidates for the listing guess.
+that lists every listing of an instrument settles the listing, and one that lists only
+some returns candidates for the listing guess.
 
-Each identity integration declares whether its coverage is complete.  It declines a key
-that states a venue or a class outside its coverage, without asking the provider.  Its
-conversion produces candidates only for the venues and classes it serves, and resolution
-accepts each candidate as given.
+Each identity integration declares whether it lists every listing of an instrument.  It
+declines a key that states a venue or a class outside what the provider serves, without
+asking the provider.  Its conversion produces candidates only for the venues and classes
+it serves, and resolution accepts each candidate as given.
 
 A candidate that agrees with a guess ranks below one that confirms stated data or
 corroborates a higher precedence answer.  It ranks above the datasource's own order.
