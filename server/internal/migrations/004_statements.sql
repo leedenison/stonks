@@ -138,11 +138,12 @@ CREATE TABLE resolution_keys (
     -- or every candidate was dropped; 'unavailable', nothing served the key
     -- and a datasource serving it failed or was blocked, which replay re-tries.
     outcome       resolution_outcome NOT NULL,
-    -- reason says why the key did not match. A rejected key always carries one.
-    reason        text,
+    -- reasons says why the key did not match. Where datasources were asked,
+    -- each has one entry. A rejected key always has at least one entry.
+    reasons       text[]             NOT NULL DEFAULT '{}',
     created_at    timestamptz        NOT NULL DEFAULT now(),
     PRIMARY KEY (run_id, stated_key_id),
     FOREIGN KEY (run_id, user_id) REFERENCES runs (id, user_id) ON DELETE CASCADE,
-    CHECK (outcome <> 'matched' OR reason IS NULL),
-    CHECK (outcome <> 'rejected' OR reason IS NOT NULL)
+    CHECK (outcome <> 'matched' OR cardinality(reasons) = 0),
+    CHECK (outcome <> 'rejected' OR cardinality(reasons) > 0)
 );

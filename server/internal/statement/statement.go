@@ -229,9 +229,7 @@ func (g *ingestion) resolve(ctx context.Context, res gen.Run) error {
 			return fmt.Errorf("the resolution recorded no outcome for key %s", k.id)
 		}
 		k.outcome = rk.Outcome
-		if rk.Reason != nil {
-			k.reason = *rk.Reason
-		}
+		k.reason = strings.Join(rk.Reasons, "; ")
 	}
 	return nil
 }

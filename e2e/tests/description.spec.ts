@@ -57,7 +57,7 @@ test("resolves a line through the description the broker gave it", async ({
   expect(states(described)?.outcome).toBe(ResolutionOutcome.MATCHED);
   const unknown = states(undescribed);
   expect(unknown?.outcome).toBe(ResolutionOutcome.UNRECOGNISED);
-  expect(unknown?.reason).toBe("failed to match broker description");
+  expect(unknown?.reasons).toEqual(["failed to match broker description"]);
 
   const holdings = await holdingClient(session).listHoldings({});
   const group = holdings.groups.find((g) =>

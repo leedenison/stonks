@@ -236,7 +236,7 @@ func TestRunItems(t *testing.T) {
 
 	for _, k := range []gen.StatedKey{two, one} {
 		_, err = q.CreateResolutionKey(ctx, gen.CreateResolutionKeyParams{
-			RunID: parent.ID, UserID: user.ID, StatedKeyID: k.ID, Outcome: gen.ResolutionOutcomeUnrecognised, Reason: ptr.To("r"),
+			RunID: parent.ID, UserID: user.ID, StatedKeyID: k.ID, Outcome: gen.ResolutionOutcomeUnrecognised, Reasons: []string{"r"},
 		})
 		require.NoError(t, err)
 	}

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -209,8 +210,8 @@ func (s *stack) exists(t *testing.T, id uuid.UUID) bool {
 // written writes a resolution key as its outcome and reason.
 func written(rk gen.ResolutionKey) string {
 	out := string(rk.Outcome)
-	if rk.Reason != nil {
-		out += ": " + *rk.Reason
+	if len(rk.Reasons) > 0 {
+		out += ": " + strings.Join(rk.Reasons, "; ")
 	}
 	return out
 }
@@ -234,10 +235,7 @@ func TestResolveWrites(t *testing.T) {
 	got := s.resolve(t, trade, transfer, cash, wrong)
 	outcomes := make([]string, len(got))
 	for i, r := range got {
-		outcomes[i] = string(r.Outcome)
-		if r.Reason != nil {
-			outcomes[i] += ": " + *r.Reason
-		}
+		outcomes[i] = written(r)
 	}
 	want := []string{"matched", "matched", "matched", "unrecognised: alpha: 1 candidate in 1 group, 1 group dropped"}
 	if diff := cmp.Diff(want, outcomes); diff != "" {
@@ -363,10 +361,7 @@ func TestMergeRows(t *testing.T) {
 	third := s.state(t, gen.AssetClassStock, "USD", sedol)
 	got := s.resolve(t, third)
 	if got[0].Outcome != gen.ResolutionOutcomeMatched {
-		reason := ""
-		if got[0].Reason != nil {
-			reason = *got[0].Reason
-		}
+		reason := strings.Join(got[0].Reasons, "; ")
 		findings, _ := s.q.ListRunFindings(ctx, []uuid.UUID{s.resolution.ID})
 		var details []string
 		for _, f := range findings {

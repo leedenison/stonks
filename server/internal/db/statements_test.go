@@ -16,7 +16,6 @@ import (
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/types"
-	"github.com/leedenison/stonks/server/internal/ptr"
 )
 
 // newRun records a pending statement run with no statements row.
@@ -147,16 +146,16 @@ func TestResolutionKeys(t *testing.T) {
 
 	_, err = q.CreateResolutionKey(ctx, gen.CreateResolutionKeyParams{RunID: resolution.ID, UserID: user.ID, StatedKeyID: matched.ID, Outcome: gen.ResolutionOutcomeMatched})
 	require.NoError(t, err)
-	_, err = q.CreateResolutionKey(ctx, gen.CreateResolutionKeyParams{RunID: resolution.ID, UserID: user.ID, StatedKeyID: rejected.ID, Outcome: gen.ResolutionOutcomeRejected, Reason: ptr.To("no currency")})
+	_, err = q.CreateResolutionKey(ctx, gen.CreateResolutionKeyParams{RunID: resolution.ID, UserID: user.ID, StatedKeyID: rejected.ID, Outcome: gen.ResolutionOutcomeRejected, Reasons: []string{"no currency"}})
 	require.NoError(t, err)
-	_, err = q.CreateResolutionKey(ctx, gen.CreateResolutionKeyParams{RunID: resolution.ID, UserID: user.ID, StatedKeyID: unrecognised.ID, Outcome: gen.ResolutionOutcomeUnrecognised, Reason: ptr.To("nothing named it")})
+	_, err = q.CreateResolutionKey(ctx, gen.CreateResolutionKeyParams{RunID: resolution.ID, UserID: user.ID, StatedKeyID: unrecognised.ID, Outcome: gen.ResolutionOutcomeUnrecognised, Reasons: []string{"nothing named it"}})
 	require.NoError(t, err)
 	keys, err := q.ListResolutionKeys(ctx, gen.ListResolutionKeysParams{RunID: resolution.ID, UserID: user.ID})
 	require.NoError(t, err)
 	if len(keys) != 3 {
 		t.Fatalf("ListResolutionKeys = %d rows, want 3", len(keys))
 	}
-	if keys[0].StatedKeyID != matched.ID || keys[0].Outcome != gen.ResolutionOutcomeMatched || keys[1].Reason == nil || keys[2].Outcome != gen.ResolutionOutcomeUnrecognised || keys[2].Reason == nil {
+	if keys[0].StatedKeyID != matched.ID || keys[0].Outcome != gen.ResolutionOutcomeMatched || len(keys[1].Reasons) == 0 || keys[2].Outcome != gen.ResolutionOutcomeUnrecognised || len(keys[2].Reasons) == 0 {
 		t.Errorf("ListResolutionKeys = %+v, want the matched key, then the rejected and unrecognised ones with their reasons", keys)
 	}
 
@@ -165,7 +164,7 @@ func TestResolutionKeys(t *testing.T) {
 		arg  gen.CreateResolutionKeyParams
 	}{
 		{name: "rejected without a reason", arg: gen.CreateResolutionKeyParams{Outcome: gen.ResolutionOutcomeRejected}},
-		{name: "matched with a reason", arg: gen.CreateResolutionKeyParams{Outcome: gen.ResolutionOutcomeMatched, Reason: ptr.To("x")}},
+		{name: "matched with a reason", arg: gen.CreateResolutionKeyParams{Outcome: gen.ResolutionOutcomeMatched, Reasons: []string{"x"}}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

@@ -59,8 +59,9 @@ SELECT * FROM asset_class_tree ORDER BY class;
 SELECT * FROM identifier_type_traits ORDER BY type;
 
 -- name: CreateResolutionKey :one
-INSERT INTO resolution_keys (run_id, user_id, stated_key_id, outcome, reason)
-VALUES ($1, $2, $3, $4, $5)
+-- A match passes no reasons, which are stored as an empty array.
+INSERT INTO resolution_keys (run_id, user_id, stated_key_id, outcome, reasons)
+VALUES (@run_id, @user_id, @stated_key_id, @outcome, COALESCE(@reasons::text[], '{}'))
 RETURNING *;
 
 -- name: ListLatestResolutions :many

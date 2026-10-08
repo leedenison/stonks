@@ -89,13 +89,13 @@ function keys(resolved: boolean) {
       statedKey: isin,
       statedKeyId: "k-isin",
       outcome: ResolutionOutcome.UNAVAILABLE,
-      reason: "openfigi: failed: 429",
+      reasons: ["openfigi: failed: 429"],
     }),
     create(ResolutionItemSchema, {
       statedKey: bare,
       statedKeyId: "k-bare",
       outcome: ResolutionOutcome.UNRECOGNISED,
-      reason: "openfigi: 0 candidates; massive: 1 candidate",
+      reasons: ["openfigi: 0 candidates", "massive: 1 candidate"],
     }),
   ];
 }

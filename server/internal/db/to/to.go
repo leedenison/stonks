@@ -84,7 +84,7 @@ func ProtoResolutionItem(k gen.StatedKey, r *gen.ResolutionKey) *typev1.Resoluti
 	out := &typev1.ResolutionItem{StatedKey: ProtoStatedKey(k), StatedKeyId: k.ID.String()}
 	if r != nil {
 		out.Outcome = types.ToProto[typev1.ResolutionOutcome](r.Outcome)
-		out.Reason = r.Reason
+		out.Reasons = r.Reasons
 	}
 	return out
 }
