@@ -40,7 +40,7 @@ func resolved(t *testing.T, q *gen.Queries, run gen.Run, key gen.StatedKey, outc
 	t.Helper()
 	arg := gen.CreateResolutionKeyParams{RunID: run.ID, UserID: run.UserID, StatedKeyID: key.ID, Outcome: outcome}
 	if outcome != gen.ResolutionOutcomeMatched {
-		arg.Reason = ptr.To(string(outcome))
+		arg.Reasons = []string{string(outcome)}
 	}
 	_, err := q.CreateResolutionKey(context.Background(), arg)
 	require.NoError(t, err)

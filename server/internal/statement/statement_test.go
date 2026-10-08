@@ -16,7 +16,6 @@ import (
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/types"
-	"github.com/leedenison/stonks/server/internal/ptr"
 	"github.com/leedenison/stonks/server/internal/run"
 )
 
@@ -295,9 +294,9 @@ func TestOutcomes(t *testing.T) {
 			f.outcomes = func(keys []gen.StatedKey) []gen.ResolutionKey {
 				out := make([]gen.ResolutionKey, len(keys))
 				for i, k := range keys {
-					out[i] = gen.ResolutionKey{StatedKeyID: k.ID, Outcome: gen.ResolutionOutcomeUnrecognised, Reason: ptr.To("no datasource enabled")}
+					out[i] = gen.ResolutionKey{StatedKeyID: k.ID, Outcome: gen.ResolutionOutcomeUnrecognised, Reasons: []string{"no datasource enabled"}}
 					if described(k, "ACME") {
-						out[i].Outcome, out[i].Reason = gen.ResolutionOutcomeRejected, ptr.To("asset class equity contradicts the instrument's cash")
+						out[i].Outcome, out[i].Reasons = gen.ResolutionOutcomeRejected, []string{"asset class equity contradicts the instrument's cash"}
 					}
 				}
 				return tc.answer(out)

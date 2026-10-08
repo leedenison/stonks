@@ -51,7 +51,7 @@ func (r *Resolver) write(ctx context.Context, run gen.Run, res *resolution) (gen
 // key and the kinds of the findings written.
 func (r *Resolver) resolveKey(ctx context.Context, q Queries, run gen.Run, res *resolution) (gen.ResolutionKey, []gen.FindingKind, error) {
 	if res.outcome != "" {
-		return record(ctx, q, run, res, res.outcome, res.reason, res.findings)
+		return record(ctx, q, run, res, res.outcome, reasons(res.reason), res.findings)
 	}
 	if err := lock(ctx, q, lockSet(res)); err != nil {
 		return gen.ResolutionKey{}, nil, err
@@ -63,7 +63,7 @@ func (r *Resolver) resolveKey(ctx context.Context, q Queries, run gen.Run, res *
 	}
 	if t.found != nil {
 		if reason, ok := classConflict(res.row, t.found.instrument.AssetClass); ok {
-			return record(ctx, q, run, res, gen.ResolutionOutcomeUnrecognised, reason, t.findings)
+			return record(ctx, q, run, res, gen.ResolutionOutcomeUnrecognised, []string{reason}, t.findings)
 		}
 		c = choose(res, t.found.group())
 	}
@@ -90,9 +90,9 @@ func (r *Resolver) resolveKey(ctx context.Context, q Queries, run gen.Run, res *
 		return gen.ResolutionKey{}, nil, err
 	}
 	if !ok {
-		return record(ctx, q, run, res, gen.ResolutionOutcomeUnrecognised, "no identifier to associate through", c.findings)
+		return record(ctx, q, run, res, gen.ResolutionOutcomeUnrecognised, []string{"no identifier to associate through"}, c.findings)
 	}
-	return record(ctx, q, run, res, gen.ResolutionOutcomeMatched, "", c.findings)
+	return record(ctx, q, run, res, gen.ResolutionOutcomeMatched, nil, c.findings)
 }
 
 // lockSet returns the identifiers res trusts and every identifier a
@@ -226,7 +226,7 @@ func reread(ctx context.Context, q Queries, ids []types.Identifier) ([]hit, erro
 }
 
 // record writes res's findings and resolution key.
-func record(ctx context.Context, q Queries, run gen.Run, res *resolution, outcome gen.ResolutionOutcome, reason string, findings []gen.CreateFindingParams) (gen.ResolutionKey, []gen.FindingKind, error) {
+func record(ctx context.Context, q Queries, run gen.Run, res *resolution, outcome gen.ResolutionOutcome, reasons []string, findings []gen.CreateFindingParams) (gen.ResolutionKey, []gen.FindingKind, error) {
 	var kinds []gen.FindingKind
 	for _, f := range findings {
 		f.ID, f.RunID, f.StatedKeyID = db.NewID(), run.ID, &res.row.ID
@@ -235,10 +235,7 @@ func record(ctx context.Context, q Queries, run gen.Run, res *resolution, outcom
 		}
 		kinds = append(kinds, f.Kind)
 	}
-	arg := gen.CreateResolutionKeyParams{RunID: run.ID, UserID: run.UserID, StatedKeyID: res.row.ID, Outcome: outcome}
-	if reason != "" {
-		arg.Reason = &reason
-	}
+	arg := gen.CreateResolutionKeyParams{RunID: run.ID, UserID: run.UserID, StatedKeyID: res.row.ID, Outcome: outcome, Reasons: reasons}
 	rk, err := q.CreateResolutionKey(ctx, arg)
 	if err != nil {
 		return gen.ResolutionKey{}, nil, fmt.Errorf("record resolution: %w", err)
@@ -266,10 +263,19 @@ var unserved = map[gen.FetchOutcome]string{
 	gen.FetchOutcomeFailedPermanent: "failed",
 }
 
-// summary says what each datasource served for res and what became of it.
-func summary(res *resolution, c choice) string {
+// reasons returns reason as a one-entry list, or nil if reason is empty.
+func reasons(reason string) []string {
+	if reason == "" {
+		return nil
+	}
+	return []string{reason}
+}
+
+// summary says, for each datasource, what it served for res and what became
+// of it.
+func summary(res *resolution, c choice) []string {
 	if len(res.results) == 0 {
-		return "no datasource enabled"
+		return []string{"no datasource enabled"}
 	}
 	parts := make([]string, 0, len(res.results))
 	for _, rs := range res.results {
@@ -299,7 +305,7 @@ func summary(res *resolution, c choice) string {
 		}
 		parts = append(parts, s)
 	}
-	return strings.Join(parts, "; ")
+	return parts
 }
 
 // plural counts n of noun: "1 group", "2 groups".

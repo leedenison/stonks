@@ -67,7 +67,7 @@ func (f *fixture) records() {
 		return nil
 	}).AnyTimes()
 	f.store.EXPECT().CreateResolutionKey(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.CreateResolutionKeyParams) (gen.ResolutionKey, error) {
-		return gen.ResolutionKey{RunID: arg.RunID, UserID: arg.UserID, StatedKeyID: arg.StatedKeyID, Outcome: arg.Outcome, Reason: arg.Reason}, nil
+		return gen.ResolutionKey{RunID: arg.RunID, UserID: arg.UserID, StatedKeyID: arg.StatedKeyID, Outcome: arg.Outcome, Reasons: arg.Reasons}, nil
 	}).AnyTimes()
 }
 
@@ -196,14 +196,14 @@ func TestResolveUnresolved(t *testing.T) {
 		results  []result
 		fetched  bool
 		outcome  gen.ResolutionOutcome
-		reason   string
+		reasons  []string
 		findings []finding
 	}{
 		{
 			name:    "nothing recognised",
 			key:     keyOf(gen.AssetClassStock, "USD", id(types.IdentifierTypeBrokerID, "ibkr", "1")),
 			outcome: gen.ResolutionOutcomeUnrecognised,
-			reason:  "no global identifier",
+			reasons: []string{"no global identifier"},
 		},
 		{
 			name:    "no datasource served it",
@@ -211,7 +211,7 @@ func TestResolveUnresolved(t *testing.T) {
 			results: []result{{ID: db.NewID(), Outcome: gen.FetchOutcomeNotServed, Reason: "no recognised identifier type"}},
 			fetched: true,
 			outcome: gen.ResolutionOutcomeUnrecognised,
-			reason:  "a: skipped: no recognised identifier type",
+			reasons: []string{"a: skipped: no recognised identifier type"},
 		},
 		{
 			name:    "a datasource failed",
@@ -219,7 +219,7 @@ func TestResolveUnresolved(t *testing.T) {
 			results: []result{{ID: db.NewID(), Outcome: gen.FetchOutcomeFailedTemporary, Reason: "503"}},
 			fetched: true,
 			outcome: gen.ResolutionOutcomeUnavailable,
-			reason:  "a: failed: 503",
+			reasons: []string{"a: failed: 503"},
 		},
 		{
 			name:    "a bare ticker is sent and never associates",
@@ -227,13 +227,13 @@ func TestResolveUnresolved(t *testing.T) {
 			results: []result{servedResult(ticker, []types.Identifier{ticker}, cand(gen.AssetClassStock, "GBP", figi, xlon))},
 			fetched: true,
 			outcome: gen.ResolutionOutcomeUnrecognised,
-			reason:  "a: 1 candidate in 1 group, 1 group not naming mic_ticker VOD",
+			reasons: []string{"a: 1 candidate in 1 group, 1 group not naming mic_ticker VOD"},
 		},
 		{
 			name:    "a description that matches no instrument",
 			key:     keyOf(gen.AssetClassStock, "USD", descr),
 			outcome: gen.ResolutionOutcomeUnrecognised,
-			reason:  "failed to match broker description",
+			reasons: []string{"failed to match broker description"},
 		},
 		{
 			name:    "a bare ticker beside an unknown description",
@@ -241,7 +241,7 @@ func TestResolveUnresolved(t *testing.T) {
 			results: []result{servedResult(ticker, []types.Identifier{ticker}, cand(gen.AssetClassStock, "GBP", figi, xlon))},
 			fetched: true,
 			outcome: gen.ResolutionOutcomeUnrecognised,
-			reason:  "a: 1 candidate in 1 group, 1 group not naming mic_ticker VOD",
+			reasons: []string{"a: 1 candidate in 1 group, 1 group not naming mic_ticker VOD"},
 		},
 		{
 			name:     "every group dropped",
@@ -249,7 +249,7 @@ func TestResolveUnresolved(t *testing.T) {
 			results:  []result{servedResult(isin, []types.Identifier{isin}, cand(gen.AssetClassStock, "USD", figi, xnas))},
 			fetched:  true,
 			outcome:  gen.ResolutionOutcomeUnrecognised,
-			reason:   "a: 1 candidate in 1 group, 1 group dropped",
+			reasons:  []string{"a: 1 candidate in 1 group, 1 group dropped"},
 			findings: []finding{{kind: gen.FindingKindDropped, step: ptr.To(gen.DropStepStated), detail: "isin GB00BH4HKS39: stated GBP has no listing among USD (a)", fetch: true}},
 		},
 	}
@@ -262,7 +262,7 @@ func TestResolveUnresolved(t *testing.T) {
 				f.serves(entryA, tc.results...)
 			}
 			got := f.resolve(tc.key)
-			want := []gen.ResolutionKey{{RunID: res.ID, UserID: userID, StatedKeyID: tc.key.ID, Outcome: tc.outcome, Reason: &tc.reason}}
+			want := []gen.ResolutionKey{{RunID: res.ID, UserID: userID, StatedKeyID: tc.key.ID, Outcome: tc.outcome, Reasons: tc.reasons}}
 			if diff := cmp.Diff(want, got); diff != "" {
 				t.Errorf("Resolve mismatch (-want +got):\n%s", diff)
 			}

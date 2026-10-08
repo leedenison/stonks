@@ -120,8 +120,9 @@ message ResolutionItem {
   // Identifies the key across runs.
   string stated_key_id = 2;
   ResolutionOutcome outcome = 3;
-  // Why the key did not match.
-  optional string reason = 4;
+  // Why the key did not match. Where datasources were asked, each has one
+  // entry.
+  repeated string reasons = 4;
 }
 
 // A change in the quantity of one instrument held by a user.

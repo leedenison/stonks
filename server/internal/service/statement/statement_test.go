@@ -204,11 +204,11 @@ func TestGetStatement(t *testing.T) {
 	}
 	latest := []gen.ResolutionKey{
 		{StatedKeyID: matchedID, Outcome: gen.ResolutionOutcomeMatched},
-		{StatedKeyID: unrecognisedID, Outcome: gen.ResolutionOutcomeUnrecognised, Reason: ptr.To("no global identifier")},
+		{StatedKeyID: unrecognisedID, Outcome: gen.ResolutionOutcomeUnrecognised, Reasons: []string{"no global identifier"}},
 	}
 	keyMsgs := []*typev1.ResolutionItem{
 		{StatedKey: &typev1.StatedKey{Identifiers: []*typev1.Identifier{{Type: typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, Value: "US0378331005"}}}, StatedKeyId: matchedID.String(), Outcome: typev1.ResolutionOutcome_RESOLUTION_OUTCOME_MATCHED},
-		{StatedKey: &typev1.StatedKey{Identifiers: []*typev1.Identifier{acme}}, StatedKeyId: unrecognisedID.String(), Outcome: typev1.ResolutionOutcome_RESOLUTION_OUTCOME_UNRECOGNISED, Reason: ptr.To("no global identifier")},
+		{StatedKey: &typev1.StatedKey{Identifiers: []*typev1.Identifier{acme}}, StatedKeyId: unrecognisedID.String(), Outcome: typev1.ResolutionOutcome_RESOLUTION_OUTCOME_UNRECOGNISED, Reasons: []string{"no global identifier"}},
 		{StatedKey: &typev1.StatedKey{Currency: ptr.To("GBP")}, StatedKeyId: unreachedID.String()},
 	}
 	tests := []struct {
