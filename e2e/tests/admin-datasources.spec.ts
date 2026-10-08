@@ -3,12 +3,14 @@ import { adminClient } from "../helpers/api";
 import { deleteDatasource, seedDatasource } from "../helpers/db";
 import { expect, test } from "../helpers/test";
 
-// The global setup seeds the suite's one enabled datasource, and every spec
-// that resolves a key depends on it. This spec leaves that row alone. It works
-// on its own row, seeded disabled and named for an integration the build does
-// not carry. The service refuses to enable that row, so the registry's enabled
-// entries never change.
+// The global setup seeds the suite's enabled datasources, and every spec that
+// resolves a key depends on them. This spec leaves those rows alone. It works
+// on its own row, seeded disabled below them and named for an integration the
+// build does not carry. The service refuses to enable that row, so the
+// registry's enabled entries never change. The drag moves it only past the
+// last enabled row, so the enabled rows keep their order among themselves.
 const served = "openfigi";
+const last = "massive";
 const unserved = "unserved";
 const endpoint = "http://unserved.invalid";
 
@@ -21,7 +23,7 @@ test.beforeAll(async () => {
     endpoint,
     credential: null,
     enabled: false,
-    precedence: 2,
+    precedence: 3,
   });
 });
 
@@ -39,12 +41,16 @@ test("lists the datasources, refuses enabling one the build does not serve, and 
   const rows = page
     .getByTestId("admin-datasources-table")
     .getByTestId(/^datasource-row-/);
-  await expect(rows).toHaveCount(2);
+  await expect(rows).toHaveCount(3);
   await expect(rows.nth(0)).toHaveAttribute(
     "data-testid",
     `datasource-row-${served}`,
   );
   await expect(rows.nth(1)).toHaveAttribute(
+    "data-testid",
+    `datasource-row-${last}`,
+  );
+  await expect(rows.nth(2)).toHaveAttribute(
     "data-testid",
     `datasource-row-${unserved}`,
   );
@@ -104,41 +110,43 @@ test("reorders the datasources by dragging a row", async ({ signIn, page }) => {
   const rows = page
     .getByTestId("admin-datasources-table")
     .getByTestId(/^datasource-row-/);
-  await expect(rows.nth(1)).toHaveAttribute(
+  await expect(rows.nth(2)).toHaveAttribute(
     "data-testid",
     `datasource-row-${unserved}`,
   );
 
-  await move(page, unserved, served, "ArrowUp");
-  await expect(rows.nth(0)).toHaveAttribute(
+  await move(page, unserved, last, "ArrowUp");
+  await expect(rows.nth(1)).toHaveAttribute(
     "data-testid",
     `datasource-row-${unserved}`,
   );
   await expect(
     page.getByTestId(`datasource-precedence-${unserved}`),
-  ).toHaveText("1");
-  await expect(page.getByTestId(`datasource-precedence-${served}`)).toHaveText(
-    "2",
+  ).toHaveText("2");
+  await expect(page.getByTestId(`datasource-precedence-${last}`)).toHaveText(
+    "3",
   );
   const moved = await admin.listDatasources({});
   expect(moved.datasources.map((d) => [d.name, d.precedence])).toEqual([
-    [unserved, 1],
-    [served, 2],
+    [served, 1],
+    [unserved, 2],
+    [last, 3],
   ]);
 
   // Moving it back restores the seeded order.
-  await move(page, unserved, served, "ArrowDown");
-  await expect(rows.nth(0)).toHaveAttribute(
+  await move(page, unserved, last, "ArrowDown");
+  await expect(rows.nth(2)).toHaveAttribute(
     "data-testid",
-    `datasource-row-${served}`,
+    `datasource-row-${unserved}`,
   );
-  await expect(page.getByTestId(`datasource-precedence-${served}`)).toHaveText(
-    "1",
+  await expect(page.getByTestId(`datasource-precedence-${last}`)).toHaveText(
+    "2",
   );
   const restored = await admin.listDatasources({});
   expect(restored.datasources.map((d) => [d.name, d.precedence])).toEqual([
     [served, 1],
-    [unserved, 2],
+    [last, 2],
+    [unserved, 3],
   ]);
 });
 

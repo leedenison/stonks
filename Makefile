@@ -173,7 +173,8 @@ e2e-test: $(STAMP_DIR)/generate ## Playwright against the full stack on shifted 
 	$(COMPOSE_E2E) --profile test down --remove-orphans; exit $$rc
 
 # Each recording is append-only: only what it lacks is fetched. Delete a provider's
-# docker/vcrproxy/<provider>/recorded.yaml to refresh it.
+# docker/vcrproxy/<provider>/recorded.yaml to refresh it. The suite's waits
+# stretch while recording to cover each provider's interval between calls.
 e2e-record: ## Run the e2e suite against the provider, appending to the recording
 	E2E_VCR_MODE=record $(MAKE) e2e-test
 

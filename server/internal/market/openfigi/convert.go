@@ -41,7 +41,7 @@ func candidate(r result, mics mic.Table) market.Candidate {
 	if !ok {
 		return c
 	}
-	if t, ok := mic.WithClassSep(r.Ticker, '.'); ok {
+	if t, ok := market.WithClassSep(r.Ticker, '.'); ok {
 		c.Identifiers = append(c.Identifiers, types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: m, Value: t})
 	}
 	return c

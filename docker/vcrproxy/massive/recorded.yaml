@@ -1,0 +1,201 @@
+---
+version: 2
+interactions:
+    - id: 0
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /v3/reference/tickers/VUSA?apiKey=REDACTED
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://api.massive.com/v3/reference/tickers/VUSA
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 100
+        body: '{"status":"NOT_FOUND","request_id":"d3fb770a285156815f6e8843f478bf6b","message":"Ticker not found."}'
+        headers:
+            Content-Length:
+                - "100"
+            Content-Type:
+                - application/json
+            Date:
+                - Thu, 08 Oct 2026 08:38:49 GMT
+            Strict-Transport-Security:
+                - max-age=15724800; includeSubDomains
+            Vary:
+                - Accept-Encoding
+            X-Polygon-Cluster-Name:
+                - polygon-ny5
+            X-Request-Id:
+                - d3fb770a285156815f6e8843f478bf6b
+        status: 404 Not Found
+        code: 404
+        duration: 796.403077ms
+    - id: 1
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /v3/reference/tickers?apiKey=REDACTED&cusip=594918104&market=stocks
+        form:
+            cusip:
+                - "594918104"
+            market:
+                - stocks
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://api.massive.com/v3/reference/tickers?cusip=594918104&market=stocks
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 369
+        uncompressed: true
+        body: '{"results":[{"ticker":"MSFT","name":"Microsoft Corp","market":"stocks","locale":"us","primary_exchange":"XNAS","type":"CS","active":true,"currency_name":"usd","cik":"0000789019","composite_figi":"BBG000BPH459","share_class_figi":"BBG001S5TD05","last_updated_utc":"2026-10-08T06:11:45.35756715Z"}],"status":"OK","request_id":"8d21950d642b6f3f91004d926d84aba7","count":1}'
+        headers:
+            Content-Type:
+                - application/json
+            Date:
+                - Thu, 08 Oct 2026 08:39:00 GMT
+            Strict-Transport-Security:
+                - max-age=15724800; includeSubDomains
+            Vary:
+                - Accept-Encoding
+                - Accept-Encoding
+            X-Item-Count:
+                - "1"
+            X-Polygon-Cluster-Name:
+                - polygon-ny5
+            X-Request-Id:
+                - 8d21950d642b6f3f91004d926d84aba7
+        status: 200 OK
+        code: 200
+        duration: 11.357836435s
+    - id: 2
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /v3/reference/tickers?apiKey=REDACTED&cusip=478160104&market=stocks
+        form:
+            cusip:
+                - "478160104"
+            market:
+                - stocks
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://api.massive.com/v3/reference/tickers?cusip=478160104&market=stocks
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 372
+        uncompressed: true
+        body: '{"results":[{"ticker":"JNJ","name":"Johnson & Johnson","market":"stocks","locale":"us","primary_exchange":"XNYS","type":"CS","active":true,"currency_name":"usd","cik":"0000200406","composite_figi":"BBG000BMHYD1","share_class_figi":"BBG001S5SHQ9","last_updated_utc":"2026-10-08T06:11:45.357405071Z"}],"status":"OK","request_id":"c468a547d07dc3dc24746885c7dc4473","count":1}'
+        headers:
+            Content-Type:
+                - application/json
+            Date:
+                - Thu, 08 Oct 2026 08:39:12 GMT
+            Strict-Transport-Security:
+                - max-age=15724800; includeSubDomains
+            Vary:
+                - Accept-Encoding
+                - Accept-Encoding
+            X-Item-Count:
+                - "1"
+            X-Polygon-Cluster-Name:
+                - polygon-ny5
+            X-Request-Id:
+                - c468a547d07dc3dc24746885c7dc4473
+        status: 200 OK
+        code: 200
+        duration: 11.993329066s
+    - id: 3
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /v3/reference/tickers/BA.?apiKey=REDACTED
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://api.massive.com/v3/reference/tickers/BA.
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 100
+        body: '{"status":"NOT_FOUND","request_id":"68e7b5152f601995aca6c817ec22b41d","message":"Ticker not found."}'
+        headers:
+            Content-Length:
+                - "100"
+            Content-Type:
+                - application/json
+            Date:
+                - Thu, 08 Oct 2026 08:39:24 GMT
+            Strict-Transport-Security:
+                - max-age=15724800; includeSubDomains
+            Vary:
+                - Accept-Encoding
+            X-Polygon-Cluster-Name:
+                - polygon-ny5
+            X-Request-Id:
+                - 68e7b5152f601995aca6c817ec22b41d
+        status: 404 Not Found
+        code: 404
+        duration: 5.311104922s
+    - id: 4
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /v3/reference/tickers/MSFT?apiKey=REDACTED
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://api.massive.com/v3/reference/tickers/MSFT
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 934
+        uncompressed: true
+        body: '{"request_id":"ebeb2c2e81057578c44edf91ee802ab3","results":{"active":true,"address":"REDACTED","branding":{"icon_url":"https://api.massive.com/v1/reference/company-branding/bWljcm9zb2Z0LmNvbQ/images/2026-10-01_icon.jpeg","logo_url":"https://api.massive.com/v1/reference/company-branding/bWljcm9zb2Z0LmNvbQ/images/2026-10-01_logo.svg"},"cik":"0000789019","composite_figi":"BBG000BPH459","currency_name":"usd","description":"REDACTED","homepage_url":"https://www.microsoft.com","list_date":"1986-03-13","locale":"us","market":"stocks","market_cap":3.93375697931216e+12,"name":"Microsoft Corp","phone_number":"REDACTED","primary_exchange":"XNAS","round_lot":40,"share_class_figi":"BBG001S5TD05","share_class_shares_outstanding":7425545491,"sic_code":"7372","sic_description":"SERVICES-PREPACKAGED SOFTWARE","ticker":"MSFT","ticker_root":"MSFT","total_employees":223000,"type":"CS","weighted_shares_outstanding":7425545491},"status":"OK"}'
+        headers:
+            Content-Type:
+                - application/json
+            Date:
+                - Thu, 08 Oct 2026 08:39:36 GMT
+            Strict-Transport-Security:
+                - max-age=15724800; includeSubDomains
+            Vary:
+                - Accept-Encoding
+            X-Polygon-Cluster-Name:
+                - polygon-ny5
+            X-Request-Id:
+                - ebeb2c2e81057578c44edf91ee802ab3
+        status: 200 OK
+        code: 200
+        duration: 4.75707709s

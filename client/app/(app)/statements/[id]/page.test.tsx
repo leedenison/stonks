@@ -204,7 +204,7 @@ describe("StatementPage", () => {
     expect(getStatement).toHaveBeenCalledTimes(3);
     const done = screen.getByRole("status");
     expect(done.textContent).toBe("All rows are valid.");
-    expect(done.className).toContain("text-positive");
+    expect(done.getAttribute("data-tone")).toBe("positive");
     await advance(pollInterval * 3);
     expect(getStatement).toHaveBeenCalledTimes(3);
   });

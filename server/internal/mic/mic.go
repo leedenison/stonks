@@ -40,24 +40,3 @@ func (t Table) Operating(m string) (string, bool) {
 	op, ok := t[strings.ToUpper(strings.TrimSpace(m))]
 	return op, ok
 }
-
-// classSeps separate a ticker's root from its share class, as in BRK.B, BRK/B,
-// BRK-B and "BRK B". A MIC_TICKER writes the separator as a dot.
-const classSeps = ".-/ "
-
-// WithClassSep writes ticker with its share class separator as sep. It
-// reports false, returning ticker, when ticker has more than one separator.
-func WithClassSep(ticker string, sep rune) (string, bool) {
-	n := 0
-	out := strings.Map(func(r rune) rune {
-		if strings.ContainsRune(classSeps, r) {
-			n++
-			return sep
-		}
-		return r
-	}, ticker)
-	if n > 1 {
-		return ticker, false
-	}
-	return out, true
-}

@@ -157,6 +157,9 @@ func load(path string) (map[string]host, error) {
 	}
 	dir := filepath.Dir(path)
 	for name, h := range hosts {
+		if h.Recorded == "" {
+			return nil, fmt.Errorf("hosts %s: %s names no recorded cassette", path, name)
+		}
 		h.Recorded = filepath.Join(dir, h.Recorded)
 		if h.Authored != "" {
 			h.Authored = filepath.Join(dir, h.Authored)
@@ -190,15 +193,12 @@ func newProxy(mode string, hosts map[string]host, log *slog.Logger) (*proxy, err
 }
 
 // route builds the reverse proxy of one provider, adding its recorders to
-// p. Recording fails to start when the environment lacks the provider's
-// credential, since the cassette would hold only refusals.
+// p. When recording, a provider whose credential is unset replays instead,
+// so its cassette never gains a refusal.
 func (p *proxy) route(mode string, h host) (*httputil.ReverseProxy, error) {
 	up, err := url.Parse(h.Upstream)
 	if err != nil {
 		return nil, fmt.Errorf("upstream: %w", err)
-	}
-	if h.Recorded == "" {
-		return nil, errors.New("names no recorded cassette")
 	}
 	scrub := vcr.Scrub{Body: vcr.RedactFields(h.Redact...), MatchBody: true}
 	var secret string
@@ -212,7 +212,8 @@ func (p *proxy) route(mode string, h host) (*httputil.ReverseProxy, error) {
 		}
 		if mode == "record" && c.Env != "" {
 			if secret = os.Getenv(c.Env); secret == "" {
-				return nil, fmt.Errorf("recording needs the credential in %s", c.Env)
+				p.log.Warn("replaying a provider without its credential", "upstream", h.Upstream, "env", c.Env)
+				mode = "replay"
 			}
 		}
 	}

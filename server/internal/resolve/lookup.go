@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"slices"
-	"strings"
 
 	"github.com/google/uuid"
 
@@ -152,20 +151,14 @@ func (res *resolution) match(byID map[types.Identifier]*found) {
 	}
 }
 
-// unnamed returns the reason for a key that states no global identifier. The
-// reason names only the types of the identifiers, since the key shows their
-// values beside it.
+// unnamed returns the reason for a key that states no global identifier.
+// Such a key trusts only a broker description, so the reason names that. The
+// key shows the description's value beside the reason.
 func unnamed(ids []types.Identifier) string {
 	if len(ids) == 0 {
 		return "no global identifier"
 	}
-	var parts []string
-	for _, id := range ids {
-		if p := strings.ReplaceAll(string(id.Type), "_", " "); !slices.Contains(parts, p) {
-			parts = append(parts, p)
-		}
-	}
-	return "failed to match " + strings.Join(parts, " or ")
+	return "failed to match broker description"
 }
 
 // lookupCurrency resolves a currency key against the seed; a currency key

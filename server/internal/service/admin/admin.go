@@ -533,12 +533,8 @@ func everyOnce(names []string, rows []gen.Datasource) error {
 }
 
 func datasource(name string, enabled bool, precedence int32, endpoint *string, held bool, config []byte) (*adminv1.Datasource, error) {
-	var m map[string]any
-	if err := json.Unmarshal(config, &m); err != nil {
-		return nil, fmt.Errorf("config of datasource %s: %w", name, err)
-	}
-	cfg, err := structpb.NewStruct(m)
-	if err != nil {
+	cfg := &structpb.Struct{}
+	if err := cfg.UnmarshalJSON(config); err != nil {
 		return nil, fmt.Errorf("config of datasource %s: %w", name, err)
 	}
 	return &adminv1.Datasource{Name: name, Enabled: enabled, Precedence: precedence, Endpoint: endpoint, HasCredential: held, Config: cfg}, nil

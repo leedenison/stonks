@@ -5,5 +5,12 @@
     "authored": "openfigi/authored.yaml",
     "interval": "240ms",
     "credential": { "in": "header", "name": "X-OPENFIGI-APIKEY", "env": "OPENFIGI_API_KEY" }
+  },
+  "massive.vcr": {
+    "upstream": "https://api.massive.com",
+    "recorded": "massive/recorded.yaml",
+    "interval": "12s",
+    "credential": { "in": "query", "name": "apiKey", "env": "MASSIVE_API_KEY" },
+    "redact": ["address", "phone_number", "description"]
   }
 }
