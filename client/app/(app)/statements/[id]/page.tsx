@@ -112,7 +112,7 @@ function Body({
     case "failed":
       return <Notice tone="error">No rows were written.</Notice>;
     case "completed":
-      return <Notice>Every row was accepted.</Notice>;
+      return <Notice tone="positive">All rows are valid.</Notice>;
     case "rejections":
       return (
         <Section title={`Rejected rows (${rejected})`}>{children}</Section>

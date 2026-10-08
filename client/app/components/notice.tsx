@@ -3,15 +3,15 @@
 import type { ReactNode } from "react";
 
 // Notice is the inline message above the content it concerns: an error that
-// asks the reader to act, or a fact they should know before reading on. An
-// error is announced; an info notice is not.
+// asks the reader to act, a fact they should know before reading on, or the
+// news that something succeeded in full. Only an error is announced.
 export function Notice({
   tone = "info",
   onRetry,
   testId,
   children,
 }: {
-  tone?: "error" | "info";
+  tone?: "error" | "info" | "positive";
   onRetry?: () => void;
   testId?: string;
   children: ReactNode;
@@ -20,7 +20,11 @@ export function Notice({
     <div
       role={tone === "error" ? "alert" : "status"}
       data-testid={testId}
-      className="flex items-start gap-3 rounded-md bg-accent-soft/50 px-3 py-2 text-sm text-on-accent-soft"
+      className={`flex items-start gap-3 rounded-md px-3 py-2 text-sm ${
+        tone === "positive"
+          ? "bg-positive/10 text-positive"
+          : "bg-accent-soft/50 text-on-accent-soft"
+      }`}
     >
       <p className="flex-1">{children}</p>
       {onRetry && (

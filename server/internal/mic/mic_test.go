@@ -25,3 +25,22 @@ func TestOperating(t *testing.T) {
 		})
 	}
 }
+
+func TestWithClassSep(t *testing.T) {
+	tests := []struct {
+		ticker string
+		want   string
+		ok     bool
+	}{
+		{"BRK.B", "BRK/B", true},
+		{"BRK-B", "BRK/B", true},
+		{"BRK B", "BRK/B", true},
+		{"AAPL", "AAPL", true},
+		{"A.B.C", "A.B.C", false},
+	}
+	for _, tc := range tests {
+		if got, ok := WithClassSep(tc.ticker, '/'); got != tc.want || ok != tc.ok {
+			t.Errorf("WithClassSep(%q) = %q, %v, want %q, %v", tc.ticker, got, ok, tc.want, tc.ok)
+		}
+	}
+}

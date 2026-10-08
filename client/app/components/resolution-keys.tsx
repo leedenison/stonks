@@ -36,10 +36,28 @@ export function ResolutionKeys({
             <Td>
               <ResolutionChip outcome={k.outcome} live={live} />
             </Td>
-            <Td>{k.reason}</Td>
+            <Td>
+              <Reason text={k.reason} />
+            </Td>
           </Tr>
         ))}
       </tbody>
     </TableCard>
+  );
+}
+
+// Reason lists the parts of a resolution reason. The server joins one part
+// per datasource with semicolons.
+function Reason({ text }: { text?: string }) {
+  const parts = (text ?? "")
+    .split(";")
+    .map((p) => p.trim())
+    .filter(Boolean);
+  return (
+    <ul>
+      {parts.map((p, i) => (
+        <li key={i}>{p}</li>
+      ))}
+    </ul>
   );
 }

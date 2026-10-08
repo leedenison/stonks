@@ -34,7 +34,7 @@ DEV_PROJECT := stonks-dev
 COMPOSE_RUN  = docker compose -p stonks         -f docker/docker-compose.yml --env-file .env
 COMPOSE_DEV  = docker compose -p $(DEV_PROJECT) -f docker/docker-compose.yml -f docker/docker-compose.dev.yml --env-file .env
 COMPOSE_E2E  = docker compose -p stonks-e2e     -f docker/docker-compose.yml -f docker/docker-compose.e2e.yml --env-file .env
-COMPOSE_TEST = docker compose -p stonks-test    -f docker/docker-compose.test.yml
+COMPOSE_TEST = docker compose -p stonks-test    -f docker/docker-compose.test.yml --env-file .env
 
 # One-shot tool invocations in the dev images, without the rest of the stack.
 COMPOSE_TOOLS        = $(COMPOSE_DEV) run --rm --no-deps -T stonks
@@ -157,13 +157,13 @@ db-test: $(STAMP_DIR)/generate ## Go tests against real Postgres and Redis in th
 	@[ -n "$(DBTEST_PKGS)" ] || { echo "db-test: no package carries the dbtest build tag"; exit 1; }
 	@rc=0; $(COMPOSE_TESTER) sh -c 'go run ./server/cmd/migrate "$$STONKS_TEST_DATABASE_URL" && go test -tags dbtest -count=1 $(DBTEST_PKGS)' || rc=$$?; $(COMPOSE_TEST) down; exit $$rc
 
-# Recording reaches the real provider, so it needs the network and whatever
-# credentials that provider takes, which reach the container through .env. Only
-# the named cassette records; every other test replays, so a response that has
-# drifted since its own recording cannot rewrite the case built against it.
+# Recording reaches the real provider, so it needs the network and the
+# credentials the test stack's tester takes from .env. Only the named cassette
+# records; every other test replays, so a response that has drifted since its
+# own recording cannot rewrite the case built against it.
 record: $(STAMP_DIR)/generate ## Re-record one cassette: make record CASSETTE=<name>
 	@[ -n "$(CASSETTE)" ] || { echo "usage: make record CASSETTE=<name>"; exit 1; }
-	$(COMPOSE_TOOLS) env STONKS_RECORD=$(CASSETTE) go test -count=1 ./server/...
+	$(COMPOSE_TEST) run --rm --no-deps -T -e STONKS_RECORD=$(CASSETTE) tester go test -count=1 ./server/...
 
 e2e-test: $(STAMP_DIR)/generate ## Playwright against the full stack on shifted ports
 	@$(COMPOSE_E2E) --profile test down --remove-orphans 2>/dev/null; \

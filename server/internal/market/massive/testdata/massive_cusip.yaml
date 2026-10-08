@@ -1,0 +1,45 @@
+---
+version: 2
+interactions:
+    - id: 0
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: api.massive.com
+        form:
+            apiKey:
+                - REDACTED
+            cusip:
+                - "037833100"
+            market:
+                - stocks
+        url: https://api.massive.com/v3/reference/tickers?apiKey=REDACTED&cusip=037833100&market=stocks
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 366
+        uncompressed: true
+        body: '{"results":[{"ticker":"AAPL","name":"Apple Inc.","market":"stocks","locale":"us","primary_exchange":"XNAS","type":"CS","active":true,"currency_name":"usd","cik":"0000320193","composite_figi":"BBG000B9XRY4","share_class_figi":"BBG001S5N8V8","last_updated_utc":"2026-10-07T06:11:24.923109962Z"}],"status":"OK","request_id":"149b403439c8ab7cc75158d530d83815","count":1}'
+        headers:
+            Content-Type:
+                - application/json
+            Date:
+                - Wed, 07 Oct 2026 18:45:23 GMT
+            Strict-Transport-Security:
+                - max-age=15724800; includeSubDomains
+            Vary:
+                - Accept-Encoding
+                - Accept-Encoding
+            X-Item-Count:
+                - "1"
+            X-Polygon-Cluster-Name:
+                - polygon-ny5
+            X-Request-Id:
+                - 149b403439c8ab7cc75158d530d83815
+        status: 200 OK
+        code: 200
+        duration: 884.094198ms

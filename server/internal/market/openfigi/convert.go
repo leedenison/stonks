@@ -1,32 +1,10 @@
 package openfigi
 
 import (
-	"strings"
-
 	"github.com/leedenison/stonks/server/internal/db/types"
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/mic"
 )
-
-// classSeps separate a ticker's root from its share class, as in BRK.B, BRK/B,
-// BRK-B and "BRK B".
-const classSeps = ".-/ "
-
-// withClassSep writes ticker with its share class separator as sep.
-func withClassSep(ticker string, sep rune) (string, bool) {
-	n := 0
-	out := strings.Map(func(r rune) rune {
-		if strings.ContainsRune(classSeps, r) {
-			n++
-			return sep
-		}
-		return r
-	}, ticker)
-	if n > 1 {
-		return ticker, false
-	}
-	return out, true
-}
 
 // identity converts the listings OpenFIGI returned for the identifier sent,
 // each listing one candidate. A MIC_TICKER is filtered on its ticker alone,
@@ -63,7 +41,7 @@ func candidate(r result, mics mic.Table) market.Candidate {
 	if !ok {
 		return c
 	}
-	if t, ok := withClassSep(r.Ticker, '.'); ok {
+	if t, ok := mic.WithClassSep(r.Ticker, '.'); ok {
 		c.Identifiers = append(c.Identifiers, types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: m, Value: t})
 	}
 	return c

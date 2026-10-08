@@ -1,0 +1,42 @@
+---
+version: 2
+interactions:
+    - id: 0
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: api.massive.com
+        form:
+            apiKey:
+                - REDACTED
+            asset_class:
+                - stocks
+            locale:
+                - us
+        url: https://api.massive.com/v3/reference/tickers/types?apiKey=REDACTED&asset_class=stocks&locale=us
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 1951
+        uncompressed: true
+        body: '{"count":24,"request_id":"c92c418333efa4d89af419272ae426a3","results":[{"asset_class":"stocks","code":"CS","description":"REDACTED","locale":"us"},{"asset_class":"stocks","code":"PFD","description":"REDACTED","locale":"us"},{"asset_class":"stocks","code":"WARRANT","description":"REDACTED","locale":"us"},{"asset_class":"stocks","code":"RIGHT","description":"REDACTED","locale":"us"},{"asset_class":"stocks","code":"BOND","description":"REDACTED","locale":"us"},{"asset_class":"stocks","code":"ETF","description":"REDACTED","locale":"us"},{"asset_class":"stocks","code":"ETN","description":"REDACTED","locale":"us"},{"asset_class":"stocks","code":"ETV","description":"REDACTED","locale":"us"},{"asset_class":"stocks","code":"SP","description":"REDACTED","locale":"us"},{"asset_class":"stocks","code":"ADRC","description":"REDACTED","locale":"us"},{"asset_class":"stocks","code":"ADRP","description":"REDACTED","locale":"us"},{"asset_class":"stocks","code":"ADRW","description":"REDACTED","locale":"us"},{"asset_class":"stocks","code":"ADRR","description":"REDACTED","locale":"us"},{"asset_class":"stocks","code":"FUND","description":"REDACTED","locale":"us"},{"asset_class":"stocks","code":"BASKET","description":"REDACTED","locale":"us"},{"asset_class":"stocks","code":"UNIT","description":"REDACTED","locale":"us"},{"asset_class":"stocks","code":"LT","description":"REDACTED","locale":"us"},{"asset_class":"stocks","code":"OS","description":"REDACTED","locale":"us"},{"asset_class":"stocks","code":"GDR","description":"REDACTED","locale":"us"},{"asset_class":"stocks","code":"OTHER","description":"REDACTED","locale":"us"},{"asset_class":"stocks","code":"NYRS","description":"REDACTED","locale":"us"},{"asset_class":"stocks","code":"AGEN","description":"REDACTED","locale":"us"},{"asset_class":"stocks","code":"EQLK","description":"REDACTED","locale":"us"},{"asset_class":"stocks","code":"ETS","description":"REDACTED","locale":"us"}],"status":"OK"}'
+        headers:
+            Content-Type:
+                - application/json
+            Date:
+                - Wed, 07 Oct 2026 18:47:03 GMT
+            Strict-Transport-Security:
+                - max-age=15724800; includeSubDomains
+            Vary:
+                - Accept-Encoding
+            X-Polygon-Cluster-Name:
+                - polygon-ny5
+            X-Request-Id:
+                - c92c418333efa4d89af419272ae426a3
+        status: 200 OK
+        code: 200
+        duration: 234.769244ms
