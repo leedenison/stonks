@@ -1,0 +1,97 @@
+---
+version: 2
+interactions:
+    - id: 0
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: eodhd.com
+        form:
+            api_token:
+                - REDACTED
+            fmt:
+                - json
+            limit:
+                - "500"
+        url: https://eodhd.com/api/search/AAPL?api_token=REDACTED&fmt=json&limit=500
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 6203
+        uncompressed: true
+        body: '[{"Code":"AAPL","Exchange":"US","Name":"Apple Inc.","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US0378331005","isPrimary":true,"previousClose":336.67,"previousCloseDate":"2026-10-07"},{"Code":"AAPL","Exchange":"TO","Name":"Apple CDR (CAD Hedged)","Type":"Common Stock","Country":"Canada","Currency":"CAD","ISIN":"CA03785Y1007","isPrimary":false,"previousClose":47.36,"previousCloseDate":"2026-10-07"},{"Code":"AAPL","Exchange":"NEO","Name":"Apple Inc CDR","Type":"Common Stock","Country":"Canada","Currency":"CAD","ISIN":"US0378331005","isPrimary":false,"previousClose":47.32,"previousCloseDate":"2026-10-07"},{"Code":"AAPL","Exchange":"MX","Name":"Apple Inc","Type":"Common Stock","Country":"Mexico","Currency":"MXN","ISIN":"US0378331005","isPrimary":false,"previousClose":6058,"previousCloseDate":"2026-10-07"},{"Code":"AAPL","Exchange":"BA","Name":"Apple Inc DRC","Type":"Common Stock","Country":"Argentina","Currency":"ARS","ISIN":"US0378331005","isPrimary":false,"previousClose":27100,"previousCloseDate":"2026-10-07"},{"Code":"AAPLX-USD","Exchange":"CC","Name":"Apple tokenized stock (xStock)","Type":"Currency","Country":"Unknown","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":336.8171081543,"previousCloseDate":"2026-10-08"},{"Code":"AAPL34","Exchange":"SA","Name":"Apple Inc","Type":"Common Stock","Country":"Brazil","Currency":"BRL","ISIN":"BRAAPLBDR004","isPrimary":false,"previousClose":84.38,"previousCloseDate":"2026-10-07"},{"Code":"AAPL80","Exchange":"BK","Name":"Apple Inc.","Type":"Common Stock","Country":"Thailand","Currency":"THB","ISIN":null,"isPrimary":false,"previousClose":11.3,"previousCloseDate":"2026-10-07"},{"Code":"AAPL01","Exchange":"BK","Name":"Apple Inc. DR","Type":"Common Stock","Country":"Thailand","Currency":"THB","ISIN":null,"isPrimary":false,"previousClose":33,"previousCloseDate":"2026-10-07"},{"Code":"AAPL03","Exchange":"BK","Name":"Apple Inc.","Type":"Common Stock","Country":"Thailand","Currency":"THB","ISIN":null,"isPrimary":false,"previousClose":3.76,"previousCloseDate":"2026-10-07"},{"Code":"AAPL19","Exchange":"BK","Name":"Apple Inc.","Type":"Common Stock","Country":"Thailand","Currency":"THB","ISIN":null,"isPrimary":false,"previousClose":7.55,"previousCloseDate":"2026-10-07"},{"Code":"AAPD","Exchange":"US","Name":"Daily AAPL Bear 1X ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US25461A3041","isPrimary":false,"previousClose":10.19,"previousCloseDate":"2026-10-07"},{"Code":"AAPU","Exchange":"US","Name":"Daily AAPL Bull 2X ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US25461A8743","isPrimary":false,"previousClose":45.04,"previousCloseDate":"2026-10-07"},{"Code":"APLY","Exchange":"US","Name":"YieldMax AAPL Option Income Strategy ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US88634T8577","isPrimary":false,"previousClose":11.82,"previousCloseDate":"2026-10-07"},{"Code":"AAPW","Exchange":"US","Name":"Roundhill AAPL WeeklyPay ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US77926X7912","isPrimary":false,"previousClose":40.965,"previousCloseDate":"2026-10-07"},{"Code":"3SAA","Exchange":"LSE","Name":"Leverage Shares -3x Short Apple (AAPL) ETP Securities","Type":"ETF","Country":"UK","Currency":"GBX","ISIN":null,"isPrimary":false,"previousClose":1925.75,"previousCloseDate":"2026-10-07"},{"Code":"AAPU","Exchange":"TO","Name":"SavvyLong (2X) AAPL ETF","Type":"ETF","Country":"Canada","Currency":"CAD","ISIN":null,"isPrimary":false,"previousClose":46.87,"previousCloseDate":"2026-10-07"},{"Code":"APLY","Exchange":"NEO","Name":"APPLE (AAPL) Yield Shares Purpose ETF","Type":"ETF","Country":"Canada","Currency":"CAD","ISIN":"CA03783G1019","isPrimary":true,"previousClose":37.38,"previousCloseDate":"2026-10-07"},{"Code":"AAPY","Exchange":"US","Name":"Kurv Yield Premium Strategy Apple (AAPL) ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US5009485005","isPrimary":false,"previousClose":27.899,"previousCloseDate":"2026-10-07"},{"Code":"3SAA","Exchange":"XETRA","Name":"Leverage Shares -3x Short Apple AAPL","Type":"ETF","Country":"Germany","Currency":"EUR","ISIN":"XS2472334742","isPrimary":false,"previousClose":22.682,"previousCloseDate":"2026-10-07"},{"Code":"SALE","Exchange":"LSE","Name":"Leverage Shares 3x Short Apple (AAPL) ETP Securities EUR","Type":"ETF","Country":"UK","Currency":"EUR","ISIN":"XS2472334742","isPrimary":false,"previousClose":22.725,"previousCloseDate":"2026-10-07"},{"Code":"AAPY","Exchange":"LSE","Name":"IncomeShares Apple (AAPL) Options ETP","Type":"ETF","Country":"UK","Currency":"USD","ISIN":"XS2901884663","isPrimary":false,"previousClose":8.1163,"previousCloseDate":"2026-10-07"},{"Code":"AAPY","Exchange":"XETRA","Name":"IncomeShares Apple (AAPL) Options ETP","Type":"ETF","Country":"Germany","Currency":"EUR","ISIN":"XS2901884663","isPrimary":false,"previousClose":7.2675,"previousCloseDate":"2026-10-07"},{"Code":"AAPI","Exchange":"LSE","Name":"IncomeShares Apple (AAPL) Options ETP GBP","Type":"ETF","Country":"UK","Currency":"GBX","ISIN":"XS2901884663","isPrimary":false,"previousClose":614.375,"previousCloseDate":"2026-10-07"},{"Code":"ZAAP","Exchange":"NEO","Name":"APPLE (aapl) BMO CDR (CAD HEDGED)","Type":"Common Stock","Country":"Canada","Currency":"CAD","ISIN":null,"isPrimary":false,"previousClose":12.01,"previousCloseDate":"2026-10-06"},{"Code":"AAPY","Exchange":"AS","Name":"IncomeShares Apple (AAPL) Optio","Type":"ETF","Country":"Netherlands","Currency":"EUR","ISIN":null,"isPrimary":false,"previousClose":7.251,"previousCloseDate":"2026-10-07"},{"Code":"IOSX","Exchange":"US","Name":"Corgi AAPL 2x Daily ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US21874J5294","isPrimary":false,"previousClose":34.053,"previousCloseDate":"2026-10-07"},{"Code":"AAPE","Exchange":"US","Name":"Leverage Shares 2X Long AAPL Daily ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US8829276505","isPrimary":false,"previousClose":16.6,"previousCloseDate":"2026-10-07"},{"Code":"XVAP","Exchange":"US","Name":"FT Vest AAPL \u0026 Target Income ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":31.8958,"previousCloseDate":"2026-10-07"}]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Thu, 08 Oct 2026 09:43:33 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1184"
+        status: 200 OK
+        code: 200
+        duration: 607.663893ms
+    - id: 1
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: eodhd.com
+        form:
+            api_token:
+                - REDACTED
+            fmt:
+                - json
+            symbols:
+                - AAPL
+        url: https://eodhd.com/api/exchange-symbol-list/US?api_token=REDACTED&fmt=json&symbols=AAPL
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 134
+        uncompressed: true
+        body: '[{"Code":"AAPL","Name":"Apple Inc.","Country":"USA","Exchange":"NASDAQ","Currency":"USD","Type":"Common Stock","Isin":"US0378331005"}]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Thu, 08 Oct 2026 09:43:34 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1183"
+        status: 200 OK
+        code: 200
+        duration: 284.088355ms

@@ -1,0 +1,144 @@
+---
+version: 2
+interactions:
+    - id: 0
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: eodhd.com
+        form:
+            api_token:
+                - REDACTED
+            fmt:
+                - json
+            limit:
+                - "500"
+        url: https://eodhd.com/api/search/TCEHY?api_token=REDACTED&fmt=json&limit=500
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 217
+        uncompressed: true
+        body: '[{"Code":"TCEHY","Exchange":"US","Name":"Tencent Holdings Ltd ADR","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US88032Q1094","isPrimary":false,"previousClose":53.5,"previousCloseDate":"2026-10-07"}]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Thu, 08 Oct 2026 09:43:36 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1182"
+        status: 200 OK
+        code: 200
+        duration: 561.309228ms
+    - id: 1
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: eodhd.com
+        form:
+            api_token:
+                - REDACTED
+            filter[isin]:
+                - US88032Q1094
+            fmt:
+                - json
+        url: https://eodhd.com/api/id-mapping?api_token=REDACTED&filter%5Bisin%5D=US88032Q1094&fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 526
+        uncompressed: true
+        body: '{"meta":{"limit":1000,"offset":0,"total":4},"data":[{"symbol":"0LEA.LSE","isin":"US88032Q1094","figi":null,"lei":"254900N4SLUMW4XUYY11","cusip":null,"cik":null},{"symbol":"NNN1.F","isin":"US88032Q1094","figi":null,"lei":"254900N4SLUMW4XUYY11","cusip":null,"cik":null},{"symbol":"NNN1.STU","isin":"US88032Q1094","figi":null,"lei":"254900N4SLUMW4XUYY11","cusip":null,"cik":null},{"symbol":"TCEHY.US","isin":"US88032Q1094","figi":"BBG000SGZ3Z0","lei":"254900N4SLUMW4XUYY11","cusip":"88032Q109","cik":null}],"links":{"next":null}}'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Thu, 08 Oct 2026 09:43:36 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1181"
+        status: 200 OK
+        code: 200
+        duration: 170.910914ms
+    - id: 2
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: eodhd.com
+        form:
+            api_token:
+                - REDACTED
+            fmt:
+                - json
+            symbols:
+                - TCEHY
+        url: https://eodhd.com/api/exchange-symbol-list/US?api_token=REDACTED&fmt=json&symbols=TCEHY
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 147
+        uncompressed: true
+        body: '[{"Code":"TCEHY","Name":"Tencent Holdings Ltd ADR","Country":"USA","Exchange":"PINK","Currency":"USD","Type":"Common Stock","Isin":"US88032Q1094"}]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Thu, 08 Oct 2026 09:43:36 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1180"
+        status: 200 OK
+        code: 200
+        duration: 270.680613ms

@@ -49,6 +49,7 @@ services:
       # Read only by make record, to authenticate to each provider.
       OPENFIGI_API_KEY: ${OPENFIGI_API_KEY:-}
       MASSIVE_API_KEY: ${MASSIVE_API_KEY:-}
+      EODHD_API_KEY: ${EODHD_API_KEY:-}
     volumes:
       - ..:/app
       - go-mod:/go/pkg/mod
