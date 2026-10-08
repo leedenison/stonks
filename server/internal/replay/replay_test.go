@@ -40,6 +40,7 @@ type identity struct{}
 func (identity) Classify(error) market.Failure { return market.Failure{Temporary: true} }
 func (identity) Limit() (rate.Limit, int)      { return rate.Inf, 1 }
 func (identity) Batch() int                    { return 10 }
+func (identity) Endpoint() string              { return "https://identity.test" }
 func (identity) Serves(k gen.StatedKey) (types.Identifier, error) {
 	for _, id := range k.Identifiers {
 		if id.Type == types.IdentifierTypeIsin {

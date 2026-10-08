@@ -85,7 +85,7 @@ func Fetch[Q, P any](ctx context.Context, f *Fetcher, parent gen.Run, e *Entry, 
 
 func fetch[Q, P any](ctx context.Context, f *Fetcher, row gen.Run, e *Entry, kind Kind[Q, P], reqs []Q) ([]Result[Q, P], error) {
 	if _, err := f.store.CreateFetch(ctx, gen.CreateFetchParams{
-		ID: row.ID, UserID: row.UserID, Datasource: e.Name, Kind: kind.name,
+		ID: row.ID, UserID: row.UserID, Datasource: e.Name, Endpoint: e.Integration.Endpoint(), Kind: kind.name,
 	}); err != nil {
 		return nil, fmt.Errorf("create fetch: %w", err)
 	}

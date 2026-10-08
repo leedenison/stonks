@@ -53,6 +53,19 @@ export function runLabel(run: Run | undefined): string {
   return `${enumLabel(RunKind, run.kind)} run${at ? ` @ ${at}` : ""}`;
 }
 
+// runTitle names a listed run: a fetch run by the host it called, and any
+// other run as runLabel does.
+export function runTitle(r: UserRun): string {
+  if (r.endpoint) {
+    try {
+      return new URL(r.endpoint).host;
+    } catch {
+      return r.endpoint;
+    }
+  }
+  return runLabel(r.run);
+}
+
 export const runEnums = {
   kind: RunKind,
   trigger: RunTrigger,

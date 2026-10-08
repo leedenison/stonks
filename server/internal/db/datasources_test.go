@@ -38,7 +38,7 @@ func newFetch(t *testing.T, q *gen.Queries, user gen.User, parent gen.Run, ds ge
 	})
 	require.NoError(t, err)
 	row, err := q.CreateFetch(ctx, gen.CreateFetchParams{
-		ID: run.ID, UserID: user.ID, Datasource: ds.Name, Kind: gen.FetchKindIdentity,
+		ID: run.ID, UserID: user.ID, Datasource: ds.Name, Endpoint: "https://" + ds.Name + ".test", Kind: gen.FetchKindIdentity,
 	})
 	require.NoError(t, err)
 	return row

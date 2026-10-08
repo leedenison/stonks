@@ -87,6 +87,8 @@ const fetch = create(GetRunResponseSchema, {
       createdAt: instant("2026-09-24T10:00:00Z"),
     },
     {
+      datasource: "openfigi",
+      endpoint: "https://api.openfigi.com",
       children: [
         userRun(
           {
@@ -173,7 +175,7 @@ describe("AdminRunPage", () => {
       expect(screen.getByTestId("admin-run-lineage")).toBeTruthy(),
     );
     expect(screen.getByTestId("page-title").textContent).toBe(
-      "fetch run @ 2026-09-24 10:00 UTC",
+      "api.openfigi.com",
     );
     const lineage = screen.getByTestId("admin-run-lineage");
     const shown = () =>
@@ -184,6 +186,10 @@ describe("AdminRunPage", () => {
     const self = screen.getByTestId("run-row-f1");
     expect(self.getAttribute("aria-current")).toBe("page");
     expect(self.textContent).toContain("one@example.com");
+    expect(self.textContent).toContain("api.openfigi.com");
+    expect(screen.getByTestId("run-row-p1").textContent).toContain(
+      "resolution run @ 2026-09-24 09:59 UTC",
+    );
     expect(self.querySelector('a[href="/admin/runs/f1"]')).toBeNull();
     expect(
       screen.getByTestId("run-row-p1").querySelector("a")?.getAttribute("href"),

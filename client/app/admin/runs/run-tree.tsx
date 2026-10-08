@@ -13,9 +13,9 @@ import {
   openFindingsBelow,
   type RunFilters,
   runEnums,
+  runTitle,
 } from "@/lib/admin";
 import { enumLabel } from "@/lib/enum";
-import { formatInstant } from "@/lib/format";
 
 // RunTreeTable shows runs nested under the run that started each. It shows
 // placeholder rows while pending is set.
@@ -32,7 +32,7 @@ export function RunTreeTable({
     <TableCard testId={testId}>
       <Thead>
         <tr>
-          <Th>Started</Th>
+          <Th>Run</Th>
           <Th>Kind</Th>
           <Th>Trigger</Th>
           <Th>User</Th>
@@ -72,25 +72,25 @@ export function RunRow({
 }) {
   const id = r.run?.id ?? "";
   const href = `/admin/runs/${id}`;
-  const started = formatInstant(r.run?.createdAt);
+  const title = runTitle(r);
   const findings = open === false ? openFindingsBelow(r) : r.openFindings;
   const cells = (
     <>
-      <Td className="font-mono tabular-nums">
+      <Td>
         <span
           className="flex items-center gap-1"
           style={{ paddingLeft: `${depth * 1.25}rem` }}
         >
           <Toggle open={open} onToggle={onToggle} testId={`run-toggle-${id}`} />
           {current ? (
-            started
+            title
           ) : (
             <Link
               href={href}
               data-testid={`run-link-${id}`}
               className="underline-offset-4 hover:underline"
             >
-              {started}
+              {title}
             </Link>
           )}
         </span>

@@ -67,6 +67,9 @@ func (c *Client) Limit() (rate.Limit, int) {
 	return rate.Every(6 * time.Second / 25), 1
 }
 
+// Endpoint is the address the Client calls.
+func (c *Client) Endpoint() string { return c.endpoint }
+
 // Batch is OpenFIGI's published limit on jobs per request.
 func (c *Client) Batch() int {
 	if c.key == "" {

@@ -43,6 +43,9 @@ func (s *Identity) Limit() (rate.Limit, int) { return rate.Inf, 1 }
 // Batch is the most keys one call carries.
 func (s *Identity) Batch() int { return 10 }
 
+// Endpoint is the address of a provider that is never called.
+func (s *Identity) Endpoint() string { return "https://scripted.test" }
+
 // Serves sends the first GUID the key states, or a ticker without its venue,
 // as the OpenFIGI integration does.
 func (s *Identity) Serves(k gen.StatedKey) (types.Identifier, error) {

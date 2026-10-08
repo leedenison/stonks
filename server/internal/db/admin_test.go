@@ -164,6 +164,51 @@ func TestListRootRuns(t *testing.T) {
 	}
 }
 
+// TestRunFetchColumns checks that every listing of runs names the datasource
+// and endpoint of a fetch run, and leaves them unset for another run.
+func TestRunFetchColumns(t *testing.T) {
+	ctx := context.Background()
+	q := newTx(t)
+	owner := newUser(t, q, "run-fetch@example.com")
+	root := newRun(t, q, owner)
+	fetch := newFetch(t, q, owner, root, newDatasource(t, q, "run-fetch", 100))
+	want := map[uuid.UUID][2]*string{
+		root.ID:  {nil, nil},
+		fetch.ID: {ptr.To("run-fetch"), ptr.To("https://run-fetch.test")},
+	}
+	check := func(query string, id uuid.UUID, datasource, endpoint *string) {
+		t.Helper()
+		if diff := cmp.Diff(want[id], [2]*string{datasource, endpoint}); diff != "" {
+			t.Errorf("%s: run %s datasource and endpoint mismatch (-want +got):\n%s", query, id, diff)
+		}
+	}
+
+	roots, err := q.ListRootRuns(ctx, gen.ListRootRunsParams{Lim: 1})
+	require.NoError(t, err)
+	for _, r := range roots {
+		check("ListRootRuns", r.Run.ID, r.Datasource, r.Endpoint)
+	}
+	users, err := q.ListUserRuns(ctx, gen.ListUserRunsParams{UserID: &owner.ID, Lim: 1})
+	require.NoError(t, err)
+	for _, r := range users {
+		check("ListUserRuns", r.Run.ID, r.Datasource, r.Endpoint)
+	}
+	if len(roots) != 2 || len(users) != 2 {
+		t.Errorf("ListRootRuns and ListUserRuns returned %d and %d runs, want 2 each", len(roots), len(users))
+	}
+	below, err := q.ListRunDescendants(ctx, &root.ID)
+	require.NoError(t, err)
+	require.Len(t, below, 1)
+	check("ListRunDescendants", below[0].Run.ID, below[0].Datasource, below[0].Endpoint)
+	above, err := q.ListRunAncestors(ctx, fetch.ID)
+	require.NoError(t, err)
+	require.Len(t, above, 1)
+	check("ListRunAncestors", above[0].Run.ID, above[0].Datasource, above[0].Endpoint)
+	got, err := q.GetUserRun(ctx, fetch.ID)
+	require.NoError(t, err)
+	check("GetUserRun", got.Run.ID, got.Datasource, got.Endpoint)
+}
+
 // TestListRootRunsIndex checks that the walk down from the top-level runs
 // searches runs_parent_idx on the parent.
 func TestListRootRunsIndex(t *testing.T) {
