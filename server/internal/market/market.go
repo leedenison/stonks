@@ -8,6 +8,14 @@
 // receives and the response it gives.  An integration serves a kind by
 // implementing its Server.
 //
+// An integration reads a provider's venue codes through a table generated
+// from the provider's own list. Every venue a table names normalises to an
+// operating MIC.
+//
+// An integration declines a key before asking when the provider does not
+// cover the key's class or venue. Its conversion keeps only the classes and
+// markets it serves.
+//
 // When a provider refuses every call for a while, as when a daily quota is
 // spent, the framework pauses the datasource for the whole delay the provider
 // gives. While it lasts, each of the datasource's keys fails temporarily

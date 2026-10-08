@@ -34,6 +34,7 @@ services:
     environment:
       OPENFIGI_API_KEY: ${OPENFIGI_API_KEY:-}
       MASSIVE_API_KEY: ${MASSIVE_API_KEY:-}
+      EODHD_API_KEY: ${EODHD_API_KEY:-}
     volumes:
       - ./vcrproxy:/cassettes
     networks:
@@ -41,6 +42,7 @@ services:
         aliases:
           - openfigi.vcr
           - massive.vcr
+          - eodhd.vcr
     healthcheck:
       test: ["CMD", "/healthcheck", "http://127.0.0.1:8080/healthz"]
       interval: 2s

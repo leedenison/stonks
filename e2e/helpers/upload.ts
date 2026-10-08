@@ -1,4 +1,5 @@
 import type { Page } from "@playwright/test";
+import { recording } from "./config";
 import { expect } from "./test";
 
 // uploadStatement uploads the export at fixture from the current page and
@@ -17,6 +18,9 @@ export async function uploadStatement(
     from?: string;
     // rows is the count of rows the dialog must read before submitting.
     rows?: string;
+    // timeout is how long the run may take to reach state, for a run that
+    // waits out its retries. A recording ignores it.
+    timeout?: number;
   },
 ): Promise<string> {
   await page.getByTestId("upload-statement").click();
@@ -36,6 +40,7 @@ export async function uploadStatement(
   await expect(item.getByTestId("state-chip")).toHaveAttribute(
     "data-state",
     opts.state,
+    { timeout: recording ? undefined : opts.timeout },
   );
   const id = await item.getAttribute("data-testid");
   if (!id) {

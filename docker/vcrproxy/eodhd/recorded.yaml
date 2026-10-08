@@ -1,0 +1,983 @@
+---
+version: 2
+interactions:
+    - id: 0
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/search/US0378331005?api_token=REDACTED&fmt=json&limit=500
+        form:
+            fmt:
+                - json
+            limit:
+                - "500"
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/search/US0378331005?fmt=json&limit=500
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 2664
+        uncompressed: true
+        body: '[{"Code":"AAPL","Exchange":"US","Name":"Apple Inc.","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US0378331005","isPrimary":true,"previousClose":336.67,"previousCloseDate":"2026-10-07"},{"Code":"0R2V","Exchange":"LSE","Name":"Apple Inc.","Type":"Common Stock","Country":"UK","Currency":"USD","ISIN":"US0378331005","isPrimary":false,"previousClose":337.16,"previousCloseDate":"2026-10-07"},{"Code":"0R2V","Exchange":"IL","Name":"Apple Inc.","Type":"Common Stock","Country":"UK","Currency":"USD","ISIN":"US0378331005","isPrimary":false,"previousClose":332.85,"previousCloseDate":"2026-10-06"},{"Code":"APC","Exchange":"XETRA","Name":"Apple Inc","Type":"Common Stock","Country":"Germany","Currency":"EUR","ISIN":"US0378331005","isPrimary":false,"previousClose":300,"previousCloseDate":"2026-10-07"},{"Code":"AAPL","Exchange":"NEO","Name":"Apple Inc CDR","Type":"Common Stock","Country":"Canada","Currency":"CAD","ISIN":"US0378331005","isPrimary":false,"previousClose":47.32,"previousCloseDate":"2026-10-07"},{"Code":"APC","Exchange":"F","Name":"Apple Inc","Type":"Common Stock","Country":"Germany","Currency":"EUR","ISIN":"US0378331005","isPrimary":false,"previousClose":300.55,"previousCloseDate":"2026-10-07"},{"Code":"AAPL","Exchange":"MX","Name":"Apple Inc","Type":"Common Stock","Country":"Mexico","Currency":"MXN","ISIN":"US0378331005","isPrimary":false,"previousClose":6058,"previousCloseDate":"2026-10-07"},{"Code":"AAPL","Exchange":"BA","Name":"Apple Inc DRC","Type":"Common Stock","Country":"Argentina","Currency":"ARS","ISIN":"US0378331005","isPrimary":false,"previousClose":27100,"previousCloseDate":"2026-10-07"},{"Code":"APC","Exchange":"STU","Name":"Apple Inc","Type":"Common Stock","Country":"Germany","Currency":"EUR","ISIN":"US0378331005","isPrimary":false,"previousClose":296.05,"previousCloseDate":"2026-10-06"},{"Code":"APC","Exchange":"MU","Name":"Apple Inc","Type":"Common Stock","Country":"Germany","Currency":"EUR","ISIN":"US0378331005","isPrimary":false,"previousClose":300.15,"previousCloseDate":"2026-10-07"},{"Code":"APC","Exchange":"DU","Name":"Apple Inc","Type":"Common Stock","Country":"Germany","Currency":"EUR","ISIN":"US0378331005","isPrimary":false,"previousClose":299.2,"previousCloseDate":"2026-10-07"},{"Code":"APC","Exchange":"HA","Name":"Apple Inc","Type":"Common Stock","Country":"Germany","Currency":"EUR","ISIN":"US0378331005","isPrimary":false,"previousClose":299.55,"previousCloseDate":"2026-10-07"},{"Code":"APC","Exchange":"HM","Name":"Apple Inc","Type":"Common Stock","Country":"Germany","Currency":"EUR","ISIN":"US0378331005","isPrimary":false,"previousClose":300.8,"previousCloseDate":"2026-10-07"}]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Thu, 08 Oct 2026 09:50:28 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1199"
+        status: 200 OK
+        code: 200
+        duration: 8.920283545s
+    - id: 1
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/search/VUSA?api_token=REDACTED&fmt=json&limit=500
+        form:
+            fmt:
+                - json
+            limit:
+                - "500"
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/search/VUSA?fmt=json&limit=500
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 1151
+        uncompressed: true
+        body: '[{"Code":"VUSA","Exchange":"LSE","Name":"Vanguard S\u0026P 500 UCITS ETF","Type":"ETF","Country":"UK","Currency":"GBP","ISIN":"IE00B3XXRP09","isPrimary":false,"previousClose":111.5525,"previousCloseDate":"2026-10-07"},{"Code":"VUSA","Exchange":"AS","Name":"Vanguard S\u0026P 500 UCITS ETF","Type":"ETF","Country":"Netherlands","Currency":"EUR","ISIN":"IE00B3XXRP09","isPrimary":false,"previousClose":131.753,"previousCloseDate":"2026-10-07"},{"Code":"VUSA","Exchange":"XETRA","Name":"Vanguard S\u0026P 500 UCITS ETF EUR","Type":"ETF","Country":"Germany","Currency":"EUR","ISIN":"IE00B3XXRP09","isPrimary":false,"previousClose":131.805,"previousCloseDate":"2026-10-07"},{"Code":"VUSA","Exchange":"SW","Name":"Vanguard S\u0026P 500 UCITS ETF CHF","Type":"ETF","Country":"Switzerland","Currency":"CHF","ISIN":"IE00B3XXRP09","isPrimary":false,"previousClose":122.88,"previousCloseDate":"2026-10-07"},{"Code":"VUSA","Exchange":"F","Name":"Vanguard Funds Public Limited Company - Vanguard S\u0026P 500 UCITS ETF","Type":"ETF","Country":"Germany","Currency":"EUR","ISIN":"IE00B3XXRP09","isPrimary":false,"previousClose":132,"previousCloseDate":"2026-10-07"}]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Thu, 08 Oct 2026 09:50:29 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1198"
+        status: 200 OK
+        code: 200
+        duration: 1.843825885s
+    - id: 2
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/search/ZZBLOCK01?api_token=REDACTED&fmt=json&limit=500
+        form:
+            fmt:
+                - json
+            limit:
+                - "500"
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/search/ZZBLOCK01?fmt=json&limit=500
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 2
+        uncompressed: true
+        body: '[]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Thu, 08 Oct 2026 09:50:30 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1197"
+        status: 200 OK
+        code: 200
+        duration: 740.009225ms
+    - id: 3
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/id-mapping?api_token=REDACTED&filter%5Bcusip%5D=594918104&fmt=json
+        form:
+            filter[cusip]:
+                - "594918104"
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/id-mapping?filter%5Bcusip%5D=594918104&fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 208
+        uncompressed: true
+        body: '{"meta":{"limit":1000,"offset":0,"total":1},"data":[{"symbol":"MSFT.US","isin":"US5949181045","figi":"BBG000BPH459","lei":"INR2EJN1ERAN0W5ZP974","cusip":"594918104","cik":"0000789019"}],"links":{"next":null}}'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Thu, 08 Oct 2026 09:50:31 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1196"
+        status: 200 OK
+        code: 200
+        duration: 714.548856ms
+    - id: 4
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/search/US7427181091?api_token=REDACTED&fmt=json&limit=500
+        form:
+            fmt:
+                - json
+            limit:
+                - "500"
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/search/US7427181091?fmt=json&limit=500
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 1132
+        uncompressed: true
+        body: '[{"Code":"PG","Exchange":"US","Name":"Procter \u0026 Gamble Company","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US7427181091","isPrimary":true,"previousClose":147.82,"previousCloseDate":"2026-10-07"},{"Code":"0NOF","Exchange":"LSE","Name":"Procter \u0026 Gamble Company","Type":"Common Stock","Country":"UK","Currency":"USD","ISIN":"US7427181091","isPrimary":false,"previousClose":148.37,"previousCloseDate":"2026-10-07"},{"Code":"PRG","Exchange":"F","Name":"The Procter \u0026 Gamble Company","Type":"Common Stock","Country":"Germany","Currency":"EUR","ISIN":"US7427181091","isPrimary":false,"previousClose":133.12,"previousCloseDate":"2026-10-07"},{"Code":"PRG","Exchange":"XETRA","Name":"The Procter \u0026 Gamble Company","Type":"Common Stock","Country":"Germany","Currency":"EUR","ISIN":"US7427181091","isPrimary":false,"previousClose":133.38,"previousCloseDate":"2026-10-07"},{"Code":"PRG","Exchange":"STU","Name":"The Procter \u0026 Gamble Company","Type":"Common Stock","Country":"Germany","Currency":"EUR","ISIN":"US7427181091","isPrimary":false,"previousClose":131.98,"previousCloseDate":"2026-10-06"}]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Thu, 08 Oct 2026 09:50:32 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1195"
+        status: 200 OK
+        code: 200
+        duration: 716.234149ms
+    - id: 5
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/id-mapping?api_token=REDACTED&filter%5Bcusip%5D=478160104&fmt=json
+        form:
+            filter[cusip]:
+                - "478160104"
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/id-mapping?filter%5Bcusip%5D=478160104&fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 207
+        uncompressed: true
+        body: '{"meta":{"limit":1000,"offset":0,"total":1},"data":[{"symbol":"JNJ.US","isin":"US4781601046","figi":"BBG000BMHYD1","lei":"549300G0CFPGEF6X2043","cusip":"478160104","cik":"0000200406"}],"links":{"next":null}}'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Thu, 08 Oct 2026 09:50:32 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1194"
+        status: 200 OK
+        code: 200
+        duration: 228.776753ms
+    - id: 6
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/search/US0000000002?api_token=REDACTED&fmt=json&limit=500
+        form:
+            fmt:
+                - json
+            limit:
+                - "500"
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/search/US0000000002?fmt=json&limit=500
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 2
+        uncompressed: true
+        body: '[]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Thu, 08 Oct 2026 09:50:32 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1193"
+        status: 200 OK
+        code: 200
+        duration: 336.285465ms
+    - id: 7
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/id-mapping?api_token=REDACTED&filter%5Bisin%5D=US0378331005&fmt=json
+        form:
+            filter[isin]:
+                - US0378331005
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/id-mapping?filter%5Bisin%5D=US0378331005&fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 2044
+        uncompressed: true
+        body: '{"meta":{"limit":1000,"offset":0,"total":18},"data":[{"symbol":"0R2V.IL","isin":"US0378331005","figi":null,"lei":"HWUPKR0MPOU8FGXBT394","cusip":null,"cik":null},{"symbol":"0R2V.LSE","isin":"US0378331005","figi":null,"lei":"HWUPKR0MPOU8FGXBT394","cusip":null,"cik":null},{"symbol":"1AAPL.MI","isin":"US0378331005","figi":null,"lei":"HWUPKR0MPOU8FGXBT394","cusip":null,"cik":null},{"symbol":"AAPL.SN","isin":"US0378331005","figi":null,"lei":"HWUPKR0MPOU8FGXBT394","cusip":null,"cik":null},{"symbol":"AAPL.NEO","isin":"US0378331005","figi":null,"lei":"HWUPKR0MPOU8FGXBT394","cusip":null,"cik":null},{"symbol":"AAPL.BA","isin":"US0378331005","figi":null,"lei":"HWUPKR0MPOU8FGXBT394","cusip":null,"cik":null},{"symbol":"AAPL.MI","isin":"US0378331005","figi":null,"lei":"HWUPKR0MPOU8FGXBT394","cusip":null,"cik":null},{"symbol":"AAPL.LIM","isin":"US0378331005","figi":null,"lei":"HWUPKR0MPOU8FGXBT394","cusip":null,"cik":null},{"symbol":"AAPL.MX","isin":"US0378331005","figi":null,"lei":"HWUPKR0MPOU8FGXBT394","cusip":null,"cik":null},{"symbol":"AAPL.US","isin":"US0378331005","figi":"BBG000B9XRY4","lei":"HWUPKR0MPOU8FGXBT394","cusip":"037833100","cik":"0000320193"},{"symbol":"APC.STU","isin":"US0378331005","figi":null,"lei":"HWUPKR0MPOU8FGXBT394","cusip":null,"cik":null},{"symbol":"APC.DU","isin":"US0378331005","figi":null,"lei":"HWUPKR0MPOU8FGXBT394","cusip":null,"cik":null},{"symbol":"APC.XETRA","isin":"US0378331005","figi":null,"lei":"HWUPKR0MPOU8FGXBT394","cusip":null,"cik":null},{"symbol":"APC.HM","isin":"US0378331005","figi":null,"lei":"HWUPKR0MPOU8FGXBT394","cusip":null,"cik":null},{"symbol":"APC.HA","isin":"US0378331005","figi":null,"lei":"HWUPKR0MPOU8FGXBT394","cusip":null,"cik":null},{"symbol":"APC.F","isin":"US0378331005","figi":null,"lei":"HWUPKR0MPOU8FGXBT394","cusip":null,"cik":null},{"symbol":"APC.BE","isin":"US0378331005","figi":null,"lei":"HWUPKR0MPOU8FGXBT394","cusip":null,"cik":null},{"symbol":"APC.MU","isin":"US0378331005","figi":null,"lei":"HWUPKR0MPOU8FGXBT394","cusip":null,"cik":null}],"links":{"next":null}}'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Thu, 08 Oct 2026 09:50:32 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1192"
+        status: 200 OK
+        code: 200
+        duration: 195.679673ms
+    - id: 8
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/id-mapping?api_token=REDACTED&filter%5Bisin%5D=IE00B3XXRP09&fmt=json
+        form:
+            filter[isin]:
+                - IE00B3XXRP09
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/id-mapping?filter%5Bisin%5D=IE00B3XXRP09&fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 719
+        uncompressed: true
+        body: '{"meta":{"limit":1000,"offset":0,"total":7},"data":[{"symbol":"VUSA.F","isin":"IE00B3XXRP09","figi":null,"lei":null,"cusip":null,"cik":null},{"symbol":"VUSA.LSE","isin":"IE00B3XXRP09","figi":null,"lei":null,"cusip":null,"cik":null},{"symbol":"VUSA.XETRA","isin":"IE00B3XXRP09","figi":null,"lei":null,"cusip":null,"cik":null},{"symbol":"VUSA.MI","isin":"IE00B3XXRP09","figi":null,"lei":null,"cusip":null,"cik":null},{"symbol":"VUSA.AS","isin":"IE00B3XXRP09","figi":null,"lei":null,"cusip":null,"cik":null},{"symbol":"VUSA.SW","isin":"IE00B3XXRP09","figi":"BBG0042XVY25","lei":null,"cusip":null,"cik":null},{"symbol":"VUSD.LSE","isin":"IE00B3XXRP09","figi":null,"lei":null,"cusip":null,"cik":null}],"links":{"next":null}}'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Thu, 08 Oct 2026 09:50:33 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1191"
+        status: 200 OK
+        code: 200
+        duration: 206.641268ms
+    - id: 9
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/search/US5949181045?api_token=REDACTED&fmt=json&limit=500
+        form:
+            fmt:
+                - json
+            limit:
+                - "500"
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/search/US5949181045?fmt=json&limit=500
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 2170
+        uncompressed: true
+        body: '[{"Code":"MSFT","Exchange":"US","Name":"Microsoft Corporation","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US5949181045","isPrimary":true,"previousClose":529.76,"previousCloseDate":"2026-10-07"},{"Code":"MSF","Exchange":"XETRA","Name":"Microsoft Corporation","Type":"Common Stock","Country":"Germany","Currency":"EUR","ISIN":"US5949181045","isPrimary":false,"previousClose":471.65,"previousCloseDate":"2026-10-07"},{"Code":"MSFT","Exchange":"BA","Name":"Microsoft Corporation","Type":"Common Stock","Country":"Argentina","Currency":"ARS","ISIN":"US5949181045","isPrimary":false,"previousClose":28440,"previousCloseDate":"2026-10-07"},{"Code":"MSF","Exchange":"F","Name":"Microsoft Corporation","Type":"Common Stock","Country":"Germany","Currency":"EUR","ISIN":"US5949181045","isPrimary":false,"previousClose":473.25,"previousCloseDate":"2026-10-07"},{"Code":"MSF","Exchange":"STU","Name":"Microsoft Corporation","Type":"Common Stock","Country":"Germany","Currency":"EUR","ISIN":"US5949181045","isPrimary":false,"previousClose":470.15,"previousCloseDate":"2026-10-06"},{"Code":"MSF","Exchange":"HM","Name":"Microsoft Corporation","Type":"Common Stock","Country":"Germany","Currency":"EUR","ISIN":"US5949181045","isPrimary":false,"previousClose":471.05,"previousCloseDate":"2026-10-07"},{"Code":"MSF","Exchange":"MU","Name":"Microsoft Corporation","Type":"Common Stock","Country":"Germany","Currency":"EUR","ISIN":"US5949181045","isPrimary":false,"previousClose":469.95,"previousCloseDate":"2026-10-07"},{"Code":"MSF","Exchange":"DU","Name":"Microsoft Corporation","Type":"Common Stock","Country":"Germany","Currency":"EUR","ISIN":"US5949181045","isPrimary":false,"previousClose":471.6,"previousCloseDate":"2026-10-07"},{"Code":"MSF","Exchange":"HA","Name":"Microsoft Corporation","Type":"Common Stock","Country":"Germany","Currency":"EUR","ISIN":"US5949181045","isPrimary":false,"previousClose":471.05,"previousCloseDate":"2026-10-07"},{"Code":"MSFT","Exchange":"SN","Name":"Microsoft Corporation","Type":"Common Stock","Country":"Chile","Currency":"USD","ISIN":"US5949181045","isPrimary":false,"previousClose":525.18,"previousCloseDate":"2026-10-07"}]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Thu, 08 Oct 2026 09:50:33 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1190"
+        status: 200 OK
+        code: 200
+        duration: 324.74754ms
+    - id: 10
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/id-mapping?api_token=REDACTED&filter%5Bisin%5D=US7427181091&fmt=json
+        form:
+            filter[isin]:
+                - US7427181091
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/id-mapping?filter%5Bisin%5D=US7427181091&fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 748
+        uncompressed: true
+        body: '{"meta":{"limit":1000,"offset":0,"total":6},"data":[{"symbol":"0NOF.LSE","isin":"US7427181091","figi":null,"lei":"2572IBTT8CCZW6AU4141","cusip":null,"cik":null},{"symbol":"4852.TSE","isin":"US7427181091","figi":null,"lei":"2572IBTT8CCZW6AU4141","cusip":null,"cik":null},{"symbol":"PG.US","isin":"US7427181091","figi":"BBG000BR2TH3","lei":"2572IBTT8CCZW6AU4141","cusip":"742718109","cik":"0000080424"},{"symbol":"PRG.XETRA","isin":"US7427181091","figi":null,"lei":"2572IBTT8CCZW6AU4141","cusip":null,"cik":null},{"symbol":"PRG.F","isin":"US7427181091","figi":null,"lei":"2572IBTT8CCZW6AU4141","cusip":null,"cik":null},{"symbol":"PRG.STU","isin":"US7427181091","figi":null,"lei":"2572IBTT8CCZW6AU4141","cusip":null,"cik":null}],"links":{"next":null}}'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Thu, 08 Oct 2026 09:50:33 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1189"
+        status: 200 OK
+        code: 200
+        duration: 169.224514ms
+    - id: 11
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/search/US4781601046?api_token=REDACTED&fmt=json&limit=500
+        form:
+            fmt:
+                - json
+            limit:
+                - "500"
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/search/US4781601046?fmt=json&limit=500
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 869
+        uncompressed: true
+        body: '[{"Code":"JNJ","Exchange":"US","Name":"Johnson \u0026 Johnson","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US4781601046","isPrimary":true,"previousClose":258.45,"previousCloseDate":"2026-10-07"},{"Code":"JNJ","Exchange":"XETRA","Name":"Johnson \u0026 Johnson","Type":"Common Stock","Country":"Germany","Currency":"EUR","ISIN":"US4781601046","isPrimary":false,"previousClose":232.8,"previousCloseDate":"2026-10-07"},{"Code":"JNJ","Exchange":"F","Name":"Johnson \u0026 Johnson","Type":"Common Stock","Country":"Germany","Currency":"EUR","ISIN":"US4781601046","isPrimary":false,"previousClose":233.45,"previousCloseDate":"2026-10-07"},{"Code":"JNJ","Exchange":"STU","Name":"Johnson \u0026 Johnson","Type":"Common Stock","Country":"Germany","Currency":"EUR","ISIN":"US4781601046","isPrimary":false,"previousClose":226.1,"previousCloseDate":"2026-10-06"}]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Thu, 08 Oct 2026 09:50:33 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1188"
+        status: 200 OK
+        code: 200
+        duration: 386.296812ms
+    - id: 12
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/exchange-symbol-list/US?api_token=REDACTED&fmt=json&symbols=AAPL
+        form:
+            fmt:
+                - json
+            symbols:
+                - AAPL
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/exchange-symbol-list/US?fmt=json&symbols=AAPL
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 134
+        uncompressed: true
+        body: '[{"Code":"AAPL","Name":"Apple Inc.","Country":"USA","Exchange":"NASDAQ","Currency":"USD","Type":"Common Stock","Isin":"US0378331005"}]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Thu, 08 Oct 2026 09:50:34 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1187"
+        status: 200 OK
+        code: 200
+        duration: 307.598904ms
+    - id: 13
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/search/BA-?api_token=REDACTED&fmt=json&limit=500
+        form:
+            fmt:
+                - json
+            limit:
+                - "500"
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/search/BA-?fmt=json&limit=500
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 834
+        uncompressed: true
+        body: '[{"Code":"BA-PA","Exchange":"US","Name":"Boeing Co","Type":"Preferred Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":58.75,"previousCloseDate":"2026-10-07"},{"Code":"BA-P-A","Exchange":"US","Name":"BA-P-A","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":58.75,"previousCloseDate":"2026-10-07"},{"Code":"BA-C","Exchange":"BA","Name":"BANK OF AMERICA CORPORATION CED","Type":"Common Stock","Country":"Argentina","Currency":"ARS","ISIN":null,"isPrimary":false,"previousClose":21610,"previousCloseDate":"2026-10-07"},{"Code":"LU1417812945","Exchange":"EUFUND","Name":"PROTEA ORCAD GB SUS BA-C ACC","Type":"FUND","Country":"Unknown","Currency":"EUR","ISIN":"LU1417812945","isPrimary":false,"previousClose":165.67,"previousCloseDate":"2026-10-06"}]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Thu, 08 Oct 2026 09:50:34 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1186"
+        status: 200 OK
+        code: 200
+        duration: 344.840535ms
+    - id: 14
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/id-mapping?api_token=REDACTED&filter%5Bisin%5D=US5949181045&fmt=json
+        form:
+            filter[isin]:
+                - US5949181045
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/id-mapping?filter%5Bisin%5D=US5949181045&fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 1728
+        uncompressed: true
+        body: '{"meta":{"limit":1000,"offset":0,"total":15},"data":[{"symbol":"0QYP.LSE","isin":"US5949181045","figi":null,"lei":"INR2EJN1ERAN0W5ZP974","cusip":null,"cik":null},{"symbol":"0QYP.IL","isin":"US5949181045","figi":null,"lei":"INR2EJN1ERAN0W5ZP974","cusip":null,"cik":null},{"symbol":"1MSFT.MI","isin":"US5949181045","figi":null,"lei":"INR2EJN1ERAN0W5ZP974","cusip":null,"cik":null},{"symbol":"4338.HK","isin":"US5949181045","figi":"BBG000HPKT18","lei":"INR2EJN1ERAN0W5ZP974","cusip":null,"cik":null},{"symbol":"MSF.XETRA","isin":"US5949181045","figi":null,"lei":"INR2EJN1ERAN0W5ZP974","cusip":null,"cik":null},{"symbol":"MSF.MU","isin":"US5949181045","figi":null,"lei":"INR2EJN1ERAN0W5ZP974","cusip":null,"cik":null},{"symbol":"MSF.BE","isin":"US5949181045","figi":null,"lei":"INR2EJN1ERAN0W5ZP974","cusip":null,"cik":null},{"symbol":"MSF.F","isin":"US5949181045","figi":null,"lei":"INR2EJN1ERAN0W5ZP974","cusip":null,"cik":null},{"symbol":"MSF.STU","isin":"US5949181045","figi":null,"lei":"INR2EJN1ERAN0W5ZP974","cusip":null,"cik":null},{"symbol":"MSF.HA","isin":"US5949181045","figi":null,"lei":"INR2EJN1ERAN0W5ZP974","cusip":null,"cik":null},{"symbol":"MSF.DU","isin":"US5949181045","figi":null,"lei":"INR2EJN1ERAN0W5ZP974","cusip":null,"cik":null},{"symbol":"MSF.HM","isin":"US5949181045","figi":null,"lei":"INR2EJN1ERAN0W5ZP974","cusip":null,"cik":null},{"symbol":"MSFT.US","isin":"US5949181045","figi":"BBG000BPH459","lei":"INR2EJN1ERAN0W5ZP974","cusip":"594918104","cik":"0000789019"},{"symbol":"MSFT.SN","isin":"US5949181045","figi":null,"lei":"INR2EJN1ERAN0W5ZP974","cusip":null,"cik":null},{"symbol":"MSFT.BA","isin":"US5949181045","figi":null,"lei":"INR2EJN1ERAN0W5ZP974","cusip":null,"cik":null}],"links":{"next":null}}'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Thu, 08 Oct 2026 09:50:34 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1185"
+        status: 200 OK
+        code: 200
+        duration: 213.56037ms
+    - id: 15
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/exchange-symbol-list/US?api_token=REDACTED&fmt=json&symbols=PG
+        form:
+            fmt:
+                - json
+            symbols:
+                - PG
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/exchange-symbol-list/US?fmt=json&symbols=PG
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 144
+        uncompressed: true
+        body: '[{"Code":"PG","Name":"Procter & Gamble Company","Country":"USA","Exchange":"NYSE","Currency":"USD","Type":"Common Stock","Isin":"US7427181091"}]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Thu, 08 Oct 2026 09:50:35 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1184"
+        status: 200 OK
+        code: 200
+        duration: 336.823523ms
+    - id: 16
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/id-mapping?api_token=REDACTED&filter%5Bisin%5D=US4781601046&fmt=json
+        form:
+            filter[isin]:
+                - US4781601046
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/id-mapping?filter%5Bisin%5D=US4781601046&fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 747
+        uncompressed: true
+        body: '{"meta":{"limit":1000,"offset":0,"total":6},"data":[{"symbol":"0R34.LSE","isin":"US4781601046","figi":null,"lei":"549300G0CFPGEF6X2043","cusip":null,"cik":null},{"symbol":"JNJ.US","isin":"US4781601046","figi":"BBG000BMHYD1","lei":"549300G0CFPGEF6X2043","cusip":"478160104","cik":"0000200406"},{"symbol":"JNJ.TO","isin":"US4781601046","figi":null,"lei":"549300G0CFPGEF6X2043","cusip":null,"cik":null},{"symbol":"JNJ.F","isin":"US4781601046","figi":null,"lei":"549300G0CFPGEF6X2043","cusip":null,"cik":null},{"symbol":"JNJ.XETRA","isin":"US4781601046","figi":null,"lei":"549300G0CFPGEF6X2043","cusip":null,"cik":null},{"symbol":"JNJ.STU","isin":"US4781601046","figi":null,"lei":"549300G0CFPGEF6X2043","cusip":null,"cik":null}],"links":{"next":null}}'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Thu, 08 Oct 2026 09:50:35 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1183"
+        status: 200 OK
+        code: 200
+        duration: 184.568494ms
+    - id: 17
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/exchange-symbol-list/US?api_token=REDACTED&fmt=json&symbols=JNJ
+        form:
+            fmt:
+                - json
+            symbols:
+                - JNJ
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/exchange-symbol-list/US?fmt=json&symbols=JNJ
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 138
+        uncompressed: true
+        body: '[{"Code":"JNJ","Name":"Johnson & Johnson","Country":"USA","Exchange":"NYSE","Currency":"USD","Type":"Common Stock","Isin":"US4781601046"}]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Thu, 08 Oct 2026 09:50:35 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1182"
+        status: 200 OK
+        code: 200
+        duration: 384.700583ms
+    - id: 18
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/exchange-symbol-list/US?api_token=REDACTED&fmt=json&symbols=MSFT
+        form:
+            fmt:
+                - json
+            symbols:
+                - MSFT
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/exchange-symbol-list/US?fmt=json&symbols=MSFT
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 145
+        uncompressed: true
+        body: '[{"Code":"MSFT","Name":"Microsoft Corporation","Country":"USA","Exchange":"NASDAQ","Currency":"USD","Type":"Common Stock","Isin":"US5949181045"}]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Thu, 08 Oct 2026 09:50:36 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1181"
+        status: 200 OK
+        code: 200
+        duration: 303.950166ms
+    - id: 19
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/search/MSFT?api_token=REDACTED&fmt=json&limit=500
+        form:
+            fmt:
+                - json
+            limit:
+                - "500"
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/search/MSFT?fmt=json&limit=500
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 6729
+        uncompressed: true
+        body: '[{"Code":"MSFT","Exchange":"US","Name":"Microsoft Corporation","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US5949181045","isPrimary":true,"previousClose":529.76,"previousCloseDate":"2026-10-07"},{"Code":"MSFT","Exchange":"TO","Name":"Microsoft CDR (CAD Hedged)","Type":"Common Stock","Country":"Canada","Currency":"CAD","ISIN":null,"isPrimary":false,"previousClose":36.97,"previousCloseDate":"2026-10-07"},{"Code":"MSFT","Exchange":"NEO","Name":"Microsoft Corp CDR","Type":"Common Stock","Country":"Canada","Currency":"CAD","ISIN":"CA59516M1041","isPrimary":true,"previousClose":36.99,"previousCloseDate":"2026-10-07"},{"Code":"MSFT","Exchange":"BA","Name":"Microsoft Corporation","Type":"Common Stock","Country":"Argentina","Currency":"ARS","ISIN":"US5949181045","isPrimary":false,"previousClose":28440,"previousCloseDate":"2026-10-07"},{"Code":"MSFT","Exchange":"MX","Name":"Microsoft Corporation","Type":"Common Stock","Country":"Mexico","Currency":"MXN","ISIN":null,"isPrimary":false,"previousClose":9529.1104,"previousCloseDate":"2026-10-07"},{"Code":"MSFT","Exchange":"LSE","Name":"LS 1x Microsoft Tracker ETP Securities","Type":"ETF","Country":"UK","Currency":"GBX","ISIN":"XS2337100320","isPrimary":false,"previousClose":818.75,"previousCloseDate":"2026-10-07"},{"Code":"MSFT","Exchange":"SN","Name":"Microsoft Corporation","Type":"Common Stock","Country":"Chile","Currency":"USD","ISIN":"US5949181045","isPrimary":false,"previousClose":525.18,"previousCloseDate":"2026-10-07"},{"Code":"MSFT","Exchange":"AS","Name":"1X MSFT","Type":"ETF","Country":"Netherlands","Currency":"EUR","ISIN":"XS2337100320","isPrimary":false,"previousClose":9.635,"previousCloseDate":"2026-10-07"},{"Code":"MSFTX-USD","Exchange":"CC","Name":"Microsoft tokenized stock (xStock)","Type":"Currency","Country":"Unknown","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":531.60925292969,"previousCloseDate":"2026-10-08"},{"Code":"MSFT34","Exchange":"SA","Name":"Microsoft Corporation","Type":"Common Stock","Country":"Brazil","Currency":"BRL","ISIN":null,"isPrimary":false,"previousClose":110.32,"previousCloseDate":"2026-10-07"},{"Code":"MSFT80","Exchange":"BK","Name":"Microsoft Corporation","Type":"Common Stock","Country":"Thailand","Currency":"THB","ISIN":null,"isPrimary":false,"previousClose":9,"previousCloseDate":"2026-10-07"},{"Code":"MSFT01","Exchange":"BK","Name":"Microsoft Corporation","Type":"Common Stock","Country":"Thailand","Currency":"THB","ISIN":null,"isPrimary":false,"previousClose":5.3,"previousCloseDate":"2026-10-07"},{"Code":"MSFT06","Exchange":"BK","Name":"Microsoft Corporation","Type":"Common Stock","Country":"Thailand","Currency":"THB","ISIN":null,"isPrimary":false,"previousClose":4.48,"previousCloseDate":"2026-10-07"},{"Code":"MSFT03","Exchange":"BK","Name":"Microsoft Corporation","Type":"Common Stock","Country":"Thailand","Currency":"THB","ISIN":null,"isPrimary":false,"previousClose":3.58,"previousCloseDate":"2026-10-07"},{"Code":"MSFT19","Exchange":"BK","Name":"Microsoft Corporation","Type":"Common Stock","Country":"Thailand","Currency":"THB","ISIN":null,"isPrimary":false,"previousClose":5.95,"previousCloseDate":"2026-10-07"},{"Code":"MSFT23","Exchange":"BK","Name":"Microsoft Corporation","Type":"Common Stock","Country":"Thailand","Currency":"THB","ISIN":null,"isPrimary":false,"previousClose":3.3,"previousCloseDate":"2026-10-07"},{"Code":"MSFU","Exchange":"US","Name":"Daily MSFT Bull 2X ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US25461A8669","isPrimary":false,"previousClose":41.81,"previousCloseDate":"2026-10-07"},{"Code":"MSFL","Exchange":"US","Name":"GraniteShares 2x Long MSFT Daily ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US38747R7364","isPrimary":false,"previousClose":28.0412,"previousCloseDate":"2026-10-07"},{"Code":"MSFD","Exchange":"US","Name":"Direxion Daily MSFT Bear 1X Shares","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US25461A4031","isPrimary":false,"previousClose":9.6618,"previousCloseDate":"2026-10-07"},{"Code":"MSFO","Exchange":"US","Name":"YieldMax MSFT Option Income Strategy ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US88634T4287","isPrimary":false,"previousClose":12.61,"previousCloseDate":"2026-10-07"},{"Code":"MSFU","Exchange":"TO","Name":"SavvyLong (2X) MSFT ETF","Type":"ETF","Country":"Canada","Currency":"CAD","ISIN":null,"isPrimary":false,"previousClose":22.02,"previousCloseDate":"2026-10-07"},{"Code":"MSFW","Exchange":"US","Name":"Roundhill ETF Trust - Roundhill MSFT WeeklyPay ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US77926X7342","isPrimary":false,"previousClose":33.737,"previousCloseDate":"2026-10-07"},{"Code":"MSFY","Exchange":"NEO","Name":"Microsoft (MSFT) Yield Shares Purpose ETF","Type":"ETF","Country":"Canada","Currency":"CAD","ISIN":null,"isPrimary":false,"previousClose":19.69,"previousCloseDate":"2026-10-07"},{"Code":"3SMF","Exchange":"LSE","Name":"Leverage Shares 3x Short Microsoft (MSFT) ETP Securities GBP","Type":"ETF","Country":"UK","Currency":"GBX","ISIN":"XS2472334239","isPrimary":false,"previousClose":14.75,"previousCloseDate":"2026-10-07"},{"Code":"MSFY","Exchange":"LSE","Name":"IncomeShares Microsoft (MSFT) Options ETP","Type":"ETF","Country":"UK","Currency":"USD","ISIN":"XS2901886288","isPrimary":false,"previousClose":7.5625,"previousCloseDate":"2026-10-07"},{"Code":"ZMSF","Exchange":"NEO","Name":"MICROSOFT (MSFT) BMO CDR (CAD HEDGED)","Type":"Common Stock","Country":"Canada","Currency":"CAD","ISIN":null,"isPrimary":false,"previousClose":10.535,"previousCloseDate":"2026-10-07"},{"Code":"SMF3","Exchange":"XETRA","Name":"Leverage Shares -3x Short Microsoft (MSFT) ETP Securities","Type":"ETF","Country":"Germany","Currency":"EUR","ISIN":"XS2472334239","isPrimary":false,"previousClose":0.1737,"previousCloseDate":"2026-10-07"},{"Code":"MSFI","Exchange":"LSE","Name":"IncomeShares Microsoft (MSFT) Options ETP GBP","Type":"ETF","Country":"UK","Currency":"GBX","ISIN":"XS2901886288","isPrimary":false,"previousClose":572.375,"previousCloseDate":"2026-10-07"},{"Code":"YMSF","Exchange":"XETRA","Name":"IncomeShares Microsoft (MSFT) Options ETP","Type":"ETF","Country":"Germany","Currency":"EUR","ISIN":"XS2901886288","isPrimary":false,"previousClose":6.768,"previousCloseDate":"2026-10-07"},{"Code":"MSFC","Exchange":"US","Name":"CORGI MSFT 2X DAILY ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US21874J6771","isPrimary":false,"previousClose":52.88,"previousCloseDate":"2026-10-07"},{"Code":"XVMS","Exchange":"US","Name":"FT Vest MSFT \u0026 Target Income ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":31.8524,"previousCloseDate":"2026-10-07"}]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Thu, 08 Oct 2026 09:50:38 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1180"
+        status: 200 OK
+        code: 200
+        duration: 426.407664ms

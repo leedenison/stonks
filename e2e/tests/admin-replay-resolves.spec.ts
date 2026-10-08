@@ -15,9 +15,9 @@ import { expect, test } from "../helpers/test";
 
 // One IBKR line, derived from the client's IBKR test export, which is
 // modelled on a real export with its identifiers replaced. It states Apple's
-// ISIN, which the provider answers with a rate limit on every try of the
-// first fetch and serves on the next, so the key stays unavailable until an
-// administrator replays it. The proxy answers each authored refusal once in
+// ISIN, which OpenFIGI and EODHD each answer with a rate limit on every try of
+// the first fetch and serve on the next, so the key stays unavailable until
+// an administrator replays it. The proxy answers each authored refusal once in
 // its lifetime, so the spec passes only against the fresh proxy that
 // make e2e-test starts.
 const fixture = path.resolve(__dirname, "..", "fixtures", "ibkr-retry.qfx");
@@ -29,7 +29,11 @@ test("replays a statement's unavailable key from the runs page and resolves it",
 }) => {
   const { user, session: userSession } = await signIn();
   await page.goto("/transactions");
-  const runId = await uploadStatement(page, fixture, { state: "completed" });
+  // Each datasource spends its three tries, with backoff, before the run ends.
+  const runId = await uploadStatement(page, fixture, {
+    state: "completed",
+    timeout: 15_000,
+  });
 
   // Unavailable, not unrecognised: the refusal is temporary.
   await page.getByTestId("activity-sheet-close").click();
@@ -53,12 +57,11 @@ test("replays a statement's unavailable key from the runs page and resolves it",
   const statement = await admin.getRun({ runId: runId });
   expect(statement.findings).toHaveLength(0);
   const resolution = statement.run!.children[0];
-  const fetched = await fetchItems(
-    admin,
-    fetchRun(resolution, "openfigi").run!.id,
-  );
-  expect(fetched[0].outcome).toBe(FetchOutcome.FAILED_TEMPORARY);
-  expect(fetched[0].attempts).toBe(3);
+  for (const name of ["openfigi", "eodhd"]) {
+    const fetched = await fetchItems(admin, fetchRun(resolution, name).run!.id);
+    expect(fetched[0].outcome, name).toBe(FetchOutcome.FAILED_TEMPORARY);
+    expect(fetched[0].attempts, name).toBe(3);
+  }
   const resolved = await resolutionItems(admin, resolution.run!.id);
   expect(resolved[0].outcome).toBe(ResolutionOutcome.UNAVAILABLE);
   const before = await holdingClient(userSession).listHoldings({});

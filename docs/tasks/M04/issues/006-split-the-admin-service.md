@@ -2,7 +2,7 @@
 title: Split the admin service
 type: task
 status: unreviewed
-dependencies: [003, 004, 007]
+dependencies: [004, 007]
 ---
 
 ## Scope
@@ -25,5 +25,4 @@ Out:
 
 The service has ten RPCs across four areas. Its handler, its tests and its mock are each
 around 700 lines long.
-[003](003-eodhd-identity-integration.md) and [004](004-confirming-a-candidate.md) each add
-to it.
+[004](004-confirming-a-candidate.md) adds to it.
