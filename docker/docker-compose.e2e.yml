@@ -73,7 +73,7 @@ services:
     # The tag must equal the @playwright/test version in e2e/package.json, and
     # its npm must share a major with the client image's: both install
     # e2e/node_modules from the same lockfile.
-    image: mcr.microsoft.com/playwright:v1.63.0-noble
+    image: mcr.microsoft.com/playwright:v1.64.0-noble
     profiles:
       - test
     user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
