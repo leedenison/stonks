@@ -172,10 +172,8 @@ e2e-test: $(STAMP_DIR)/generate ## Playwright against the full stack on shifted 
 	if [ $$rc -ne 0 ]; then $(COMPOSE_E2E) logs --tail=100 stonks client envoy vcrproxy; fi; \
 	$(COMPOSE_E2E) --profile test down --remove-orphans; exit $$rc
 
-# The provider is reached unauthenticated, at its rate for an anonymous caller,
-# so no fixture may send more than ten keys in one statement. The recording is
-# append-only: only what it lacks is fetched. Delete docker/vcrproxy/recorded.yaml
-# to refresh everything.
+# Each recording is append-only: only what it lacks is fetched. Delete a provider's
+# docker/vcrproxy/<provider>/recorded.yaml to refresh it.
 e2e-record: ## Run the e2e suite against the provider, appending to the recording
 	E2E_VCR_MODE=record $(MAKE) e2e-test
 

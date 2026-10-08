@@ -3,10 +3,11 @@
 # Playwright as a service behind the test profile. The database lives on tmpfs,
 # so every run starts empty.
 #
-# The provider is vcrproxy, replaying traffic recorded in docker/vcrproxy. The
-# suite's global setup names it in the datasources table, so the service reaches
-# it through the row that would name the real provider. E2E_VCR_MODE=record
-# forwards what the recording lacks to the provider and appends it.
+# Every provider is vcrproxy, replaying traffic recorded in docker/vcrproxy. Each
+# provider has a hostname of its own, aliased to the proxy on the stack's network,
+# and the suite's global setup names that hostname in the provider's datasources
+# row. E2E_VCR_MODE=record forwards what a recording lacks to the provider and
+# appends it.
 services:
   postgres:
     tmpfs:
@@ -27,12 +28,17 @@ services:
     command:
       - -mode
       - ${E2E_VCR_MODE:-replay}
-      - -recorded
-      - /cassettes/recorded.yaml
-      - -authored
-      - /cassettes/authored.yaml
+      - -hosts
+      - /cassettes/hosts.json
+    # Recording reads each provider's credential from here.
+    environment:
+      MASSIVE_API_KEY: ${MASSIVE_API_KEY:-}
     volumes:
       - ./vcrproxy:/cassettes
+    networks:
+      default:
+        aliases:
+          - openfigi.vcr
     healthcheck:
       test: ["CMD", "/healthcheck", "http://127.0.0.1:8080/healthz"]
       interval: 2s

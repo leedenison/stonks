@@ -53,7 +53,7 @@ test("lists the datasources, refuses enabling one the build does not serve, and 
     "enabled",
   );
   await expect(page.getByTestId(`datasource-row-${served}`)).toContainText(
-    "http://vcrproxy:8080",
+    "http://openfigi.vcr:8080",
   );
   await expect(page.getByTestId(`datasource-row-${served}`)).toContainText(
     "held",

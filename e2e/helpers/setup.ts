@@ -3,7 +3,7 @@ import { closeRedis, deleteSession, seedSession } from "./auth";
 import { closeDB, deleteUsers, seedDatasource, seedUser } from "./db";
 
 const name = "openfigi";
-const endpoint = "http://vcrproxy:8080";
+const endpoint = "http://openfigi.vcr:8080";
 // A placeholder: the proxy strips the header before anything leaves the stack.
 // Holding one lifts the service's call rate to the provider's authenticated
 // rate, so the suite's fetches are not spaced by seconds.

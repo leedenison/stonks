@@ -11,6 +11,7 @@ package vcr
 
 import (
 	"bytes"
+	"encoding/json"
 	"io"
 	"maps"
 	"net/http"
@@ -19,6 +20,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -56,6 +58,48 @@ type Scrub struct {
 // NoScrub is the declaration of a client whose bodies carry nothing that has
 // to be removed.
 var NoScrub = Scrub{Body: func(body string) string { return body }}
+
+// RedactFields returns a body rewrite that replaces the value of every JSON
+// object member named in names, at any depth, with Placeholder. When the
+// body is not JSON or holds none of the names, the rewrite returns it
+// unchanged, so a request body still matches the request it records.
+func RedactFields(names ...string) func(string) string {
+	return func(body string) string {
+		dec := json.NewDecoder(strings.NewReader(body))
+		dec.UseNumber()
+		var v any
+		if err := dec.Decode(&v); err != nil || !redact(v, names) {
+			return body
+		}
+		out, err := json.Marshal(v)
+		if err != nil {
+			return ""
+		}
+		return string(out)
+	}
+}
+
+// redact replaces the members of v named in names, reporting whether it
+// replaced any.
+func redact(v any, names []string) bool {
+	found := false
+	switch v := v.(type) {
+	case map[string]any:
+		for k, m := range v {
+			if slices.Contains(names, k) {
+				v[k] = Placeholder
+				found = true
+				continue
+			}
+			found = redact(m, names) || found
+		}
+	case []any:
+		for _, m := range v {
+			found = redact(m, names) || found
+		}
+	}
+	return found
+}
 
 // Recording reports whether STONKS_RECORD names this cassette.
 func Recording(cassette string) bool {
