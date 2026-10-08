@@ -2,8 +2,10 @@
 SELECT * FROM datasources ORDER BY precedence, name;
 
 -- name: CreateDatasource :one
-INSERT INTO datasources (name, enabled, precedence, credential, endpoint)
-VALUES ($1, $2, $3, $4, $5)
+-- A NULL config is the empty object.
+INSERT INTO datasources (name, enabled, precedence, credential, endpoint, config)
+VALUES (@name, @enabled, @precedence, sqlc.narg(credential), sqlc.narg(endpoint),
+    COALESCE(sqlc.narg(config)::jsonb, '{}'))
 RETURNING *;
 
 -- name: CreateFetch :one
@@ -100,13 +102,13 @@ ORDER BY fetch_keys.stated_key_id
 LIMIT sqlc.narg(lim)::int;
 
 -- name: ListDatasourceSettings :many
-SELECT name, enabled, precedence, endpoint, (credential IS NOT NULL)::bool AS has_credential
+SELECT name, enabled, precedence, endpoint, (credential IS NOT NULL)::bool AS has_credential, config
 FROM datasources
 ORDER BY precedence, name;
 
 -- name: UpdateDatasource :one
--- A NULL endpoint or credential keeps the one held and an empty one clears
--- it.
+-- A NULL endpoint, credential or config keeps the one held. An empty
+-- endpoint or credential clears it.
 UPDATE datasources
 SET enabled = @enabled,
     endpoint = CASE WHEN sqlc.narg(endpoint)::text IS NULL THEN endpoint
@@ -114,7 +116,8 @@ SET enabled = @enabled,
                     ELSE sqlc.narg(endpoint)::text END,
     credential = CASE WHEN sqlc.narg(credential)::text IS NULL THEN credential
                       WHEN sqlc.narg(credential)::text = '' THEN NULL
-                      ELSE sqlc.narg(credential)::text END
+                      ELSE sqlc.narg(credential)::text END,
+    config = COALESCE(sqlc.narg(config)::jsonb, config)
 WHERE name = @name
 RETURNING *;
 

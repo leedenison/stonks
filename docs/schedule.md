@@ -26,9 +26,13 @@ of open issues and ADRs at `docs/tasks/<label>/`.
   fetch served for a key it could not associate.
 
 ```
-  002 massive  003 eodhd  004 confirm
-             \    |    /
-               005 close
+  002 massive
+      |
+  003 eodhd   004 confirm
+        \      /
+     006 split admin
+           |
+       005 close
 ```
 
 ## Completed

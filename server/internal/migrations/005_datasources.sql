@@ -10,8 +10,11 @@ CREATE TABLE datasources (
     precedence integer     NOT NULL,
     credential text,
     endpoint   text,
+    -- config holds settings that are specific to one integration.
+    config     jsonb       NOT NULL DEFAULT '{}',
     created_at timestamptz NOT NULL DEFAULT now(),
     CHECK (name <> ''),
+    CHECK (jsonb_typeof(config) = 'object'),
     -- Deferred, so a reorder that swaps two precedences passes. A deferrable
     -- constraint cannot arbitrate ON CONFLICT, so no upsert may name it.
     UNIQUE (precedence) DEFERRABLE INITIALLY DEFERRED

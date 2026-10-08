@@ -90,7 +90,8 @@ func newFetching(t *testing.T, q *gen.Queries) fetching {
 }
 
 // TestDatasources checks that the schema seeds none, that they list in
-// precedence order, and that two may not share a precedence.
+// precedence order, that two may not share a precedence, and that a config
+// is a JSON object.
 func TestDatasources(t *testing.T) {
 	ctx := context.Background()
 	q := newTx(t)
@@ -125,30 +126,38 @@ func TestDatasources(t *testing.T) {
 			t.Errorf("two datasources at one precedence: err = %v, want a unique violation", err)
 		}
 	})
+
+	t.Run("a config that is not an object", func(t *testing.T) {
+		q := gen.New(begin(t))
+		_, err := q.CreateDatasource(ctx, gen.CreateDatasourceParams{Name: "listed", Precedence: 12, Config: []byte("[]")})
+		if !sqlstate(err, pgerrcode.CheckViolation) {
+			t.Errorf("CreateDatasource with an array config: err = %v, want a check violation", err)
+		}
+	})
 }
 
 // TestUpdateDatasource checks the three cases of the credential and of the
-// endpoint, and the precedence set by position.
+// endpoint, the two cases of the config, and the precedence set by position.
 func TestUpdateDatasource(t *testing.T) {
 	ctx := context.Background()
 	q := newTx(t)
 	newDatasource(t, q, "alpha", 1)
 	newDatasource(t, q, "beta", 2)
 
-	row, err := q.UpdateDatasource(ctx, gen.UpdateDatasourceParams{Name: "beta", Enabled: false, Endpoint: ptr.To("http://stub"), Credential: ptr.To("secret")})
+	row, err := q.UpdateDatasource(ctx, gen.UpdateDatasourceParams{Name: "beta", Enabled: false, Endpoint: ptr.To("http://stub"), Credential: ptr.To("secret"), Config: []byte(`{"plan": "basic"}`)})
 	require.NoError(t, err)
-	if row.Enabled || row.Endpoint == nil || *row.Endpoint != "http://stub" || row.Credential == nil || *row.Credential != "secret" {
-		t.Errorf("UpdateDatasource = %+v, want disabled at http://stub holding secret", row)
+	if row.Enabled || row.Endpoint == nil || *row.Endpoint != "http://stub" || row.Credential == nil || *row.Credential != "secret" || string(row.Config) != `{"plan": "basic"}` {
+		t.Errorf("UpdateDatasource = %+v, want disabled at http://stub holding secret and plan basic", row)
 	}
 	row, err = q.UpdateDatasource(ctx, gen.UpdateDatasourceParams{Name: "beta", Enabled: true})
 	require.NoError(t, err)
-	if !row.Enabled || row.Credential == nil || *row.Credential != "secret" || row.Endpoint == nil || *row.Endpoint != "http://stub" {
-		t.Errorf("UpdateDatasource with no credential and no endpoint = %+v, want enabled and both kept", row)
+	if !row.Enabled || row.Credential == nil || *row.Credential != "secret" || row.Endpoint == nil || *row.Endpoint != "http://stub" || string(row.Config) != `{"plan": "basic"}` {
+		t.Errorf("UpdateDatasource with no credential, endpoint or config = %+v, want enabled and all three kept", row)
 	}
-	row, err = q.UpdateDatasource(ctx, gen.UpdateDatasourceParams{Name: "beta", Enabled: true, Endpoint: ptr.To(""), Credential: ptr.To("")})
+	row, err = q.UpdateDatasource(ctx, gen.UpdateDatasourceParams{Name: "beta", Enabled: true, Endpoint: ptr.To(""), Credential: ptr.To(""), Config: []byte("{}")})
 	require.NoError(t, err)
-	if row.Credential != nil || row.Endpoint != nil {
-		t.Errorf("UpdateDatasource with an empty credential and an empty endpoint = %+v, want both cleared", row)
+	if row.Credential != nil || row.Endpoint != nil || string(row.Config) != "{}" {
+		t.Errorf("UpdateDatasource with an empty credential, endpoint and config = %+v, want both cleared and the config empty", row)
 	}
 	settings, err := q.ListDatasourceSettings(ctx)
 	require.NoError(t, err)

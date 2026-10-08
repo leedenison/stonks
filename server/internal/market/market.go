@@ -11,6 +11,7 @@ package market
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 
 	"github.com/google/uuid"
@@ -46,6 +47,9 @@ type Config struct {
 	Name       string
 	Credential string
 	Endpoint   string
+	// JSON holds the integration's own settings, from the row's config
+	// column.
+	JSON json.RawMessage
 }
 
 // Factory builds an integration from its configuration.

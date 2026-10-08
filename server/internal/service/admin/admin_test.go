@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	"go.uber.org/mock/gomock"
 	"google.golang.org/protobuf/testing/protocmp"
+	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	adminv1 "github.com/leedenison/stonks/proto/admin/v1"
@@ -544,27 +545,37 @@ func TestClearFinding(t *testing.T) {
 func TestListDatasources(t *testing.T) {
 	f := newFixture(t)
 	f.store.EXPECT().ListDatasourceSettings(gomock.Any()).Return([]gen.ListDatasourceSettingsRow{
-		{Name: "openfigi", Enabled: true, Precedence: 10, Endpoint: ptr.To("http://stub"), HasCredential: true},
-		{Name: "other", Precedence: 20},
+		{Name: "openfigi", Enabled: true, Precedence: 10, Endpoint: ptr.To("http://stub"), HasCredential: true, Config: []byte(`{"plan": "basic"}`)},
+		{Name: "other", Precedence: 20, Config: []byte("{}")},
 	}, nil)
 	res, err := f.client.ListDatasources(context.Background(), connect.NewRequest(&adminv1.ListDatasourcesRequest{}))
 	if err != nil {
 		t.Fatalf("ListDatasources() error = %v", err)
 	}
 	want := &adminv1.ListDatasourcesResponse{Datasources: []*adminv1.Datasource{
-		{Name: "openfigi", Enabled: true, Precedence: 10, Endpoint: ptr.To("http://stub"), HasCredential: true},
-		{Name: "other", Precedence: 20},
+		{Name: "openfigi", Enabled: true, Precedence: 10, Endpoint: ptr.To("http://stub"), HasCredential: true, Config: config(t, map[string]any{"plan": "basic"})},
+		{Name: "other", Precedence: 20, Config: config(t, nil)},
 	}}
 	if diff := cmp.Diff(want, res.Msg, protocmp.Transform()); diff != "" {
 		t.Errorf("ListDatasources() mismatch (-want +got):\n%s", diff)
 	}
 }
 
+// config returns the struct of m.
+func config(t *testing.T, m map[string]any) *structpb.Struct {
+	t.Helper()
+	s, err := structpb.NewStruct(m)
+	if err != nil {
+		t.Fatalf("NewStruct(%v): %v", m, err)
+	}
+	return s
+}
+
 // TestUpdateDatasource checks that a change is written and the registry
 // reloaded, that the credential never comes back, and that a change the
 // registry would refuse is rolled back.
 func TestUpdateDatasource(t *testing.T) {
-	stub := gen.Datasource{Name: "openfigi", Enabled: true, Precedence: 10, Endpoint: ptr.To("http://stub")}
+	stub := gen.Datasource{Name: "openfigi", Enabled: true, Precedence: 10, Endpoint: ptr.To("http://stub"), Config: []byte("{}")}
 	tests := []struct {
 		name     string
 		req      *adminv1.UpdateDatasourceRequest
@@ -583,24 +594,32 @@ func TestUpdateDatasource(t *testing.T) {
 			name:    "enabled with an endpoint and a credential",
 			req:     &adminv1.UpdateDatasourceRequest{Name: "openfigi", Enabled: true, Endpoint: ptr.To("http://stub"), Credential: ptr.To("secret")},
 			wantArg: gen.UpdateDatasourceParams{Name: "openfigi", Enabled: true, Endpoint: ptr.To("http://stub"), Credential: ptr.To("secret")},
-			row:     gen.Datasource{Name: "openfigi", Enabled: true, Precedence: 10, Endpoint: ptr.To("http://stub"), Credential: ptr.To("secret")},
+			row:     gen.Datasource{Name: "openfigi", Enabled: true, Precedence: 10, Endpoint: ptr.To("http://stub"), Credential: ptr.To("secret"), Config: []byte("{}")},
 			checked: true,
-			want:    &adminv1.Datasource{Name: "openfigi", Enabled: true, Precedence: 10, Endpoint: ptr.To("http://stub"), HasCredential: true},
+			want:    &adminv1.Datasource{Name: "openfigi", Enabled: true, Precedence: 10, Endpoint: ptr.To("http://stub"), HasCredential: true, Config: config(t, nil)},
 		},
 		{
-			name:    "an unset endpoint keeps the one held",
+			name:    "an unset endpoint and config keep the ones held",
 			req:     &adminv1.UpdateDatasourceRequest{Name: "openfigi", Enabled: true},
 			wantArg: gen.UpdateDatasourceParams{Name: "openfigi", Enabled: true},
 			row:     stub,
 			checked: true,
-			want:    &adminv1.Datasource{Name: "openfigi", Enabled: true, Precedence: 10, Endpoint: ptr.To("http://stub")},
+			want:    &adminv1.Datasource{Name: "openfigi", Enabled: true, Precedence: 10, Endpoint: ptr.To("http://stub"), Config: config(t, nil)},
+		},
+		{
+			name:    "a config is written as JSON",
+			req:     &adminv1.UpdateDatasourceRequest{Name: "openfigi", Enabled: true, Config: config(t, map[string]any{"plan": "basic"})},
+			wantArg: gen.UpdateDatasourceParams{Name: "openfigi", Enabled: true, Config: []byte(`{"plan":"basic"}`)},
+			row:     gen.Datasource{Name: "openfigi", Enabled: true, Precedence: 10, Config: []byte(`{"plan": "basic"}`)},
+			checked: true,
+			want:    &adminv1.Datasource{Name: "openfigi", Enabled: true, Precedence: 10, Config: config(t, map[string]any{"plan": "basic"})},
 		},
 		{
 			name:    "disabled with the endpoint cleared",
 			req:     &adminv1.UpdateDatasourceRequest{Name: "absent", Endpoint: ptr.To("")},
 			wantArg: gen.UpdateDatasourceParams{Name: "absent", Endpoint: ptr.To("")},
-			row:     gen.Datasource{Name: "absent", Precedence: 20},
-			want:    &adminv1.Datasource{Name: "absent", Precedence: 20},
+			row:     gen.Datasource{Name: "absent", Precedence: 20, Config: []byte("{}")},
+			want:    &adminv1.Datasource{Name: "absent", Precedence: 20, Config: config(t, nil)},
 		},
 		{
 			name:     "enabling a datasource the registry refuses",

@@ -1,5 +1,6 @@
 "use client";
 
+import type { JsonObject } from "@bufbuild/protobuf";
 import {
   closestCenter,
   DndContext,
@@ -23,7 +24,7 @@ import { Button } from "@/app/components/button";
 import { Chip } from "@/app/components/chip";
 import { Dialog } from "@/app/components/dialog";
 import { EmptyState } from "@/app/components/empty-state";
-import { Input } from "@/app/components/input";
+import { Input, Textarea } from "@/app/components/input";
 import { Notice } from "@/app/components/notice";
 import { Page } from "@/app/components/page-frame";
 import { SkeletonRows } from "@/app/components/skeleton-rows";
@@ -138,13 +139,14 @@ export default function DatasourcesPage() {
             update.reset();
             setEditing(undefined);
           }}
-          onSave={(endpoint, credential) =>
+          onSave={(endpoint, credential, config) =>
             update.mutate(
               {
                 name: editing.name,
                 enabled: editing.enabled,
                 endpoint,
                 credential,
+                config,
               },
               { onSuccess: () => setEditing(undefined) },
             )
@@ -234,9 +236,10 @@ function Row({
   );
 }
 
-// EditDialog edits the endpoint and the credential. The stored credential
-// is never shown: a blank field keeps it, a value replaces it, and the
-// clear box drops it.
+// EditDialog edits the endpoint, the credential and the config. The stored
+// credential is never shown: a blank field keeps it, a value replaces it,
+// and the clear box drops it. The config is edited as JSON text. A save
+// sends the config only once the text is a JSON object.
 function EditDialog({
   d,
   busy,
@@ -250,11 +253,24 @@ function EditDialog({
   // open.
   error: Error | null;
   onClose: () => void;
-  onSave: (endpoint: string, credential: string | undefined) => void;
+  onSave: (
+    endpoint: string,
+    credential: string | undefined,
+    config: JsonObject,
+  ) => void;
 }) {
   const [endpoint, setEndpoint] = useState(d.endpoint ?? "");
   const [credential, setCredential] = useState("");
   const [clear, setClear] = useState(false);
+  const [config, setConfig] = useState(JSON.stringify(d.config ?? {}, null, 2));
+  const [invalid, setInvalid] = useState(false);
+  const save = () => {
+    const parsed = jsonObject(config);
+    setInvalid(parsed === undefined);
+    if (parsed !== undefined) {
+      onSave(endpoint, clear ? "" : credential || undefined, parsed);
+    }
+  };
   return (
     <Dialog
       open
@@ -266,13 +282,7 @@ function EditDialog({
           <Button variant="secondary" onClick={onClose} disabled={busy}>
             Cancel
           </Button>
-          <Button
-            data-testid="datasource-save"
-            disabled={busy}
-            onClick={() =>
-              onSave(endpoint, clear ? "" : credential || undefined)
-            }
-          >
+          <Button data-testid="datasource-save" disabled={busy} onClick={save}>
             Save
           </Button>
         </>
@@ -318,6 +328,35 @@ function EditDialog({
           <span>Clear the credential held</span>
         </label>
       )}
+      <label className="flex flex-col gap-1 text-sm">
+        <span className="text-text-muted">Config</span>
+        <Textarea
+          data-testid="datasource-config"
+          className="font-mono"
+          rows={6}
+          spellCheck={false}
+          value={config}
+          onChange={(e) => setConfig(e.target.value)}
+        />
+      </label>
+      {invalid && (
+        <Notice tone="error" testId="datasource-config-error">
+          The config must be a JSON object.
+        </Notice>
+      )}
     </Dialog>
   );
+}
+
+// jsonObject returns text parsed as a JSON object, or undefined.
+function jsonObject(text: string): JsonObject | undefined {
+  try {
+    const v: unknown = JSON.parse(text);
+    if (typeof v === "object" && v !== null && !Array.isArray(v)) {
+      return v as JsonObject;
+    }
+  } catch {
+    // The text is not JSON.
+  }
+  return undefined;
 }

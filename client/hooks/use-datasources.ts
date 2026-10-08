@@ -24,8 +24,8 @@ export function useDatasources(): UseQueryResult<ListDatasourcesResponse> {
   });
 }
 
-// useUpdateDatasource sets a datasource's state, endpoint and credential,
-// and refreshes the listing.
+// useUpdateDatasource sets a datasource's state, endpoint, credential and
+// config, and refreshes the listing.
 export function useUpdateDatasource() {
   const { admin } = useClients();
   const queryClient = useQueryClient();

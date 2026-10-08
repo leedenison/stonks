@@ -29,7 +29,7 @@ test.afterAll(async () => {
   await deleteDatasource(unserved);
 });
 
-test("lists the datasources, refuses enabling one the build does not serve, and edits the endpoint and credential", async ({
+test("lists the datasources, refuses enabling one the build does not serve, and edits the endpoint, credential and config", async ({
   signIn,
   page,
 }) => {
@@ -73,6 +73,7 @@ test("lists the datasources, refuses enabling one the build does not serve, and 
   await page.getByTestId(`datasource-edit-${unserved}`).click();
   await page.getByTestId("datasource-endpoint").fill(`${endpoint}/v2`);
   await page.getByTestId("datasource-credential").fill("secret");
+  await page.getByTestId("datasource-config").fill('{"plan": "basic"}');
   await page.getByTestId("datasource-save").click();
   await expect(page.getByTestId("datasource-dialog")).toHaveCount(0);
   await expect(row).toContainText(`${endpoint}/v2`);
@@ -82,6 +83,7 @@ test("lists the datasources, refuses enabling one the build does not serve, and 
     enabled: false,
     endpoint: `${endpoint}/v2`,
     hasCredential: true,
+    config: { plan: "basic" },
   });
 
   await page.getByTestId(`datasource-edit-${unserved}`).click();

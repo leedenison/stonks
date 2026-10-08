@@ -12,3 +12,10 @@ export function Input({ className = "", ...rest }: ComponentProps<"input">) {
 export function Select({ className = "", ...rest }: ComponentProps<"select">) {
   return <select className={`${fieldClass} ${className}`} {...rest} />;
 }
+
+export function Textarea({
+  className = "",
+  ...rest
+}: ComponentProps<"textarea">) {
+  return <textarea className={`${fieldClass} ${className}`} {...rest} />;
+}
