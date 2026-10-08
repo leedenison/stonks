@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import type { JsonObject } from "@bufbuild/protobuf";
 import { Pool } from "pg";
 import { databaseURL } from "./config";
 
@@ -39,20 +40,23 @@ export async function seedDatasource({
   credential,
   enabled = true,
   precedence = 1,
+  config = {},
 }: {
   name: string;
   endpoint: string;
   credential: string | null;
   enabled?: boolean;
   precedence?: number;
+  config?: JsonObject;
 }): Promise<void> {
   await db().query(
-    `INSERT INTO datasources (name, enabled, precedence, credential, endpoint)
-     VALUES ($1, $2, $3, $4, $5)
+    `INSERT INTO datasources (name, enabled, precedence, credential, endpoint, config)
+     VALUES ($1, $2, $3, $4, $5, $6)
      ON CONFLICT (name) DO UPDATE
      SET enabled = EXCLUDED.enabled, precedence = EXCLUDED.precedence,
-         credential = EXCLUDED.credential, endpoint = EXCLUDED.endpoint`,
-    [name, enabled, precedence, credential, endpoint],
+         credential = EXCLUDED.credential, endpoint = EXCLUDED.endpoint,
+         config = EXCLUDED.config`,
+    [name, enabled, precedence, credential, endpoint, JSON.stringify(config)],
   );
 }
 

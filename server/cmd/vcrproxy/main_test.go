@@ -208,18 +208,44 @@ func TestRecordingCredential(t *testing.T) {
 	}
 }
 
-// TestRecordNeedsCredential checks that record mode refuses to start for a
-// provider whose credential the environment lacks.
-func TestRecordNeedsCredential(t *testing.T) {
+// TestRecordWithoutCredentialReplays checks that a provider whose
+// credential is unset replays while recording, so its cassette answers what
+// it holds and gains nothing.
+func TestRecordWithoutCredentialReplays(t *testing.T) {
+	var calls atomic.Int32
+	up := upstream(t, &calls, credential{In: "header", Name: header}, secret)
+	h := figi(up.URL, t.TempDir())
+	h.Credential.Env = secretEnv
+	t.Setenv(secretEnv, secret)
+	record(t, map[string]host{figiHost: h}, func(srv *httptest.Server) {
+		post(t, srv, figiHost, mapping, apple)
+	})
+	saved := read(t, h.Recorded)
+
 	t.Setenv(secretEnv, "")
-	dir := t.TempDir()
-	hosts := map[string]host{"p.vcr": {Upstream: "https://example.invalid", Recorded: filepath.Join(dir, "recorded.yaml"), Credential: &credential{In: "query", Name: "apiKey", Env: secretEnv}}}
-	_, err := newProxy("record", hosts, slog.New(slog.DiscardHandler))
-	if err == nil || !strings.Contains(err.Error(), secretEnv) {
-		t.Fatalf("newProxy() error = %v, want one naming %s", err, secretEnv)
+	record(t, map[string]host{figiHost: h}, func(srv *httptest.Server) {
+		if code, _ := post(t, srv, figiHost, mapping, apple); code != http.StatusOK {
+			t.Errorf("recorded request answered %d, want 200", code)
+		}
+		if code, _ := post(t, srv, figiHost, mapping, `[{"idType":"ID_ISIN","idValue":"US5949181045"}]`); code == http.StatusOK {
+			t.Error("unrecorded request answered 200, want a refusal")
+		}
+	})
+	if got := calls.Load(); got != 1 {
+		t.Errorf("upstream calls = %d, want 1", got)
 	}
-	if _, err := os.Stat(filepath.Join(dir, "recorded.yaml")); !os.IsNotExist(err) {
-		t.Errorf("recording written: stat err = %v", err)
+	if read(t, h.Recorded) != saved {
+		t.Error("recording changed without its credential")
+	}
+}
+
+// TestLoadNeedsRecorded checks that a host without a recorded cassette is
+// refused.
+func TestLoadNeedsRecorded(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "hosts.json")
+	require.NoError(t, os.WriteFile(path, []byte(`{"p.vcr": {"upstream": "https://example.invalid"}}`), 0o600))
+	if _, err := load(path); err == nil || !strings.Contains(err.Error(), "p.vcr") {
+		t.Errorf("load() error = %v, want one naming p.vcr", err)
 	}
 }
 

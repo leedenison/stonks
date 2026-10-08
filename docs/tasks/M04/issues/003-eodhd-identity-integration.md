@@ -22,6 +22,10 @@ In:
   domain of a MIC_TICKER, normalised to its operating MIC. Every identifier EODHD gave a
   candidate is returned, and candidates are not ranked.
 - The classification of EODHD's errors as temporary or permanent, and its rate limit.
+- One handling of a provider's HTTP response in the market package, shared by OpenFIGI,
+  Massive and EODHD: an error carrying the provider's name, the status and the start of
+  the body, and a call that decodes a 200 and returns that error otherwise. Each
+  integration keeps only the classification of its statuses and the headers it reads.
 - A hold on the datasource for the whole Retry-After of a temporary datasource failure.
   While the hold lasts, the fetch framework fails each key without a call, so a spent
   daily quota waits for its reset.

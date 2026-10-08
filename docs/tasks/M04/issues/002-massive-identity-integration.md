@@ -60,11 +60,13 @@ results, and both are an empty answer.
 An answer is one candidate, the listing at the primary exchange. It carries the share
 class FIGI, the composite FIGI and a MIC_TICKER at the primary exchange normalised to its
 operating MIC. The currency is `currency_name` upper cased. The class comes from `type`:
-CS, PFD, OS, ADRC, ADRP, ADRR, GDR and NYRS are stock; ETF, ETN and ETV are etf; FUND and
-BASKET are mutual_fund. A record converts to a candidate only when its type maps to a class
-and its market is `stocks`; see
+CS, PFD, OS, ADRC, ADRP, ADRR, GDR and NYRS are stock; ETF, ETN, ETV and ETS are etf;
+FUND and BASKET are mutual_fund. A record converts to a candidate only when its type maps
+to a class and its market is `stocks`; see
 [005](../adr/005-massive-and-eodhd-serve-listed-stock-etfs-and-funds.md). The live list
-of codes is read from `/v3/reference/tickers/types`, since it grows. The CIK is discarded; the deferred companies note records it.
+of codes at `/v3/reference/tickers/types` grows, so a recorded test fails when the live
+list has a code that the integration neither converts nor declares unconverted. The CIK
+is discarded; the deferred companies note records it.
 
 The credential is sent as the `apiKey` query parameter. Massive answers one key per
 request, so a batch is one key. The rate comes from the plan the datasources row's config names,

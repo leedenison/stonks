@@ -60,8 +60,9 @@ type plan struct {
 }
 
 // New returns a Client for cfg. It fails when cfg has no credential, when
-// its config has an unknown member, or when the config names a plan that it
-// does not describe.
+// its endpoint is not an absolute URL, when its config has an unknown
+// member, or when the config names a plan that it does not describe or whose
+// rate is negative.
 func New(cfg market.Config, mics mic.Table, opts ...Option) (*Client, error) {
 	if cfg.Credential == "" {
 		return nil, errors.New("massive needs an API key")
@@ -76,6 +77,9 @@ func New(cfg market.Config, mics mic.Table, opts ...Option) (*Client, error) {
 	if !ok {
 		return nil, fmt.Errorf("massive config names plan %q, which it does not describe", conf.Plan)
 	}
+	if p.PerMinute < 0 {
+		return nil, fmt.Errorf("massive plan %q has a negative rate", conf.Plan)
+	}
 	c := &Client{
 		mics:     mics,
 		venues:   operating(mics),
@@ -88,6 +92,11 @@ func New(cfg market.Config, mics mic.Table, opts ...Option) (*Client, error) {
 		c.limit = rate.Every(time.Minute / time.Duration(p.PerMinute))
 	}
 	if cfg.Endpoint != "" {
+		// A request URL that fails to parse is quoted in its error, key and
+		// all, so the endpoint is checked here, before any key is added.
+		if u, err := url.Parse(cfg.Endpoint); err != nil || !u.IsAbs() {
+			return nil, fmt.Errorf("massive endpoint %q is not an absolute URL", cfg.Endpoint)
+		}
 		c.endpoint = cfg.Endpoint
 	}
 	for _, o := range opts {
@@ -130,6 +139,15 @@ func (c *Client) Batch() int { return 1 }
 type statusError struct {
 	code int
 	body string
+}
+
+// unknown reports whether the body is Massive's answer for a ticker it does
+// not know.
+func (e statusError) unknown() bool {
+	var body struct {
+		Status string `json:"status"`
+	}
+	return json.Unmarshal([]byte(e.body), &body) == nil && body.Status == "NOT_FOUND"
 }
 
 // Error names the status in words, with the body where there is one:
@@ -178,7 +196,9 @@ func (c *Client) Fetch(ctx context.Context, reqs []market.Request[gen.StatedKey]
 
 // records returns what Massive holds for id: the record of a ticker, or the
 // records the cusip filter of the ticker list matches. An unknown ticker
-// returns an empty result.
+// returns an empty result. Massive marks an unknown ticker with the status
+// NOT_FOUND in the body, which distinguishes it from a 404 for a path that
+// Massive does not serve.
 func (c *Client) records(ctx context.Context, id types.Identifier) ([]record, error) {
 	q := url.Values{"apiKey": {c.key}}
 	if id.Type == types.IdentifierTypeCusip {
@@ -192,14 +212,14 @@ func (c *Client) records(ctx context.Context, id types.Identifier) ([]record, er
 		}
 		return page.Results, nil
 	}
-	ticker, _ := mic.WithClassSep(id.Value, '.')
+	ticker, _ := market.WithClassSep(id.Value, '.')
 	var one struct {
 		Results *record `json:"results"`
 	}
 	err := c.get(ctx, "/v3/reference/tickers/"+url.PathEscape(ticker), q, &one)
 	var status statusError
 	switch {
-	case errors.As(err, &status) && status.code == http.StatusNotFound:
+	case errors.As(err, &status) && status.code == http.StatusNotFound && status.unknown():
 		return nil, nil
 	case err != nil:
 		return nil, err
@@ -213,7 +233,7 @@ func (c *Client) records(ctx context.Context, id types.Identifier) ([]record, er
 func (c *Client) get(ctx context.Context, path string, q url.Values, v any) (err error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.endpoint+path+"?"+q.Encode(), nil)
 	if err != nil {
-		return fmt.Errorf("build request: %w", err)
+		return fmt.Errorf("build request: %w", redacted(err))
 	}
 	resp, err := c.http.Do(req)
 	if err != nil {

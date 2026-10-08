@@ -4,7 +4,8 @@ import type { ReactNode } from "react";
 
 // Notice is the inline message above the content it concerns: an error that
 // asks the reader to act, a fact they should know before reading on, or the
-// news that something succeeded in full. Only an error is announced.
+// news that something succeeded in full. An error is announced at once, and
+// any other notice when the reader is idle.
 export function Notice({
   tone = "info",
   onRetry,
@@ -20,6 +21,7 @@ export function Notice({
     <div
       role={tone === "error" ? "alert" : "status"}
       data-testid={testId}
+      data-tone={tone}
       className={`flex items-start gap-3 rounded-md px-3 py-2 text-sm ${
         tone === "positive"
           ? "bg-positive/10 text-positive"

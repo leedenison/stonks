@@ -30,7 +30,9 @@ var mics = mic.Table{
 }
 
 // scrub removes the API key from every URL and the issuer's address,
-// telephone number and description from every record.
+// telephone number and description from every record. The massive.vcr entry
+// of docker/vcrproxy/hosts.json redacts the same fields, and a field that
+// one of them gains belongs in both.
 var scrub = vcr.Scrub{Query: []string{"apiKey"}, Body: vcr.RedactFields("address", "phone_number", "description")}
 
 func replay(t *testing.T, cassette, key string) *Client {
@@ -203,6 +205,41 @@ func TestClassifyStatus(t *testing.T) {
 	}
 }
 
+// TestNotFound checks that a ticker Massive does not know gets an empty
+// answer, and that a 404 from a path Massive does not serve is an error.
+func TestNotFound(t *testing.T) {
+	tests := []struct {
+		name  string
+		body  string
+		fails bool
+	}{
+		{name: "an unknown ticker", body: `{"status":"NOT_FOUND","message":"Ticker not found."}`},
+		{name: "a path Massive does not serve", body: "404 page not found", fails: true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(http.StatusNotFound)
+				_, _ = w.Write([]byte(tc.body))
+			}))
+			t.Cleanup(srv.Close)
+			c, err := New(market.Config{Credential: "k", Endpoint: srv.URL, JSON: json.RawMessage(conf)}, mics)
+			require.NoError(t, err)
+			got, err := fetch(c, ticker("", "ZZZZQQ"))
+			if tc.fails {
+				if err == nil {
+					t.Errorf("Fetch() = %+v, want an error", got)
+				}
+				return
+			}
+			require.NoError(t, err)
+			if len(got) != 1 || len(got[0].Value.Candidates) != 0 {
+				t.Errorf("Fetch() = %+v, want one empty answer", got)
+			}
+		})
+	}
+}
+
 // TestConfig checks the rate each plan gives and the configs New refuses.
 func TestConfig(t *testing.T) {
 	limit := func(t *testing.T, plan string) rate.Limit {
@@ -235,6 +272,8 @@ func TestConfig(t *testing.T) {
 		{name: "a plan it does not describe", cfg: market.Config{Credential: "k", JSON: json.RawMessage(`{"plan": "gold", "plans": {"basic": {}}}`)}},
 		{name: "an unknown member", cfg: market.Config{Credential: "k", JSON: json.RawMessage(`{"plan": "basic", "plans": {"basic": {"per_minute": 5}}}`)}},
 		{name: "not an object", cfg: market.Config{Credential: "k", JSON: json.RawMessage(`[]`)}},
+		{name: "a negative rate", cfg: market.Config{Credential: "k", JSON: json.RawMessage(`{"plan": "basic", "plans": {"basic": {"perMinute": -1}}}`)}},
+		{name: "an endpoint that is not a URL", cfg: market.Config{Credential: "k", Endpoint: "api.massive.com", JSON: json.RawMessage(conf)}},
 	}
 	for _, tc := range refused {
 		if _, err := New(tc.cfg, mics); err == nil {
