@@ -1,6 +1,6 @@
 //go:build dbtest
 
-package openfigi
+package eodhd
 
 import (
 	"context"
@@ -13,9 +13,9 @@ import (
 	"github.com/leedenison/stonks/server/internal/testutil/dbtest"
 )
 
-// TestCodesAreMICs checks that every venue an exchange code names is in the
-// MIC reference table.
-func TestCodesAreMICs(t *testing.T) {
+// TestVenuesAreMICs checks that every MIC the tables name is in the MIC
+// reference table.
+func TestVenuesAreMICs(t *testing.T) {
 	ctx := context.Background()
 	pool := dbtest.Open()
 	t.Cleanup(pool.Close)
@@ -24,9 +24,14 @@ func TestCodesAreMICs(t *testing.T) {
 
 	for code, ms := range codes {
 		for _, m := range ms {
-			if op, ok := tbl.Operating(m); !ok || op != m {
-				t.Errorf("code %s names %s, want an operating MIC of the reference table, got %q, %v", code, m, op, ok)
+			if _, ok := tbl.Operating(m); !ok {
+				t.Errorf("code %s names %s, which is not in the MIC reference table", code, m)
 			}
+		}
+	}
+	for name, m := range usVenues {
+		if _, ok := tbl.Operating(m); !ok {
+			t.Errorf("US venue %s is %s, which is not in the MIC reference table", name, m)
 		}
 	}
 }

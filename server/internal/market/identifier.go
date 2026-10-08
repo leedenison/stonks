@@ -5,6 +5,7 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/types"
+	"github.com/leedenison/stonks/server/internal/mic"
 )
 
 // traits holds each identifier type's row of identifier_type_traits. A test
@@ -66,4 +67,18 @@ func WithClassSep(ticker string, sep rune) (string, bool) {
 		return ticker, false
 	}
 	return out, true
+}
+
+// OpenFIGIUS is OpenFIGI's exchange code for a US composite listing.
+const OpenFIGIUS = "US"
+
+// OpenFIGIVenue returns the operating MIC an OpenFIGI exchange code names. It
+// reports false for a code spanning several venues, such as a country's
+// composite, and for a MIC that mics does not list.
+func OpenFIGIVenue(code string, mics mic.Table) (string, bool) {
+	m := openfigiCodes[code]
+	if len(m) != 1 {
+		return "", false
+	}
+	return mics.Operating(m[0])
 }

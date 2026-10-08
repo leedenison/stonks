@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/leedenison/stonks/server/internal/db/types"
+	"github.com/leedenison/stonks/server/internal/mic"
 )
 
 func TestIsGUID(t *testing.T) {
@@ -40,6 +41,35 @@ func TestWithClassSep(t *testing.T) {
 	for _, tc := range tests {
 		if got, ok := WithClassSep(tc.ticker, '/'); got != tc.want || ok != tc.ok {
 			t.Errorf("WithClassSep(%q) = %q, %v, want %q, %v", tc.ticker, got, ok, tc.want, tc.ok)
+		}
+	}
+}
+
+// venueMICs is a MIC table holding the venues TestOpenFIGIVenue names.
+var venueMICs = mic.Table{
+	"XNYS": "XNYS", "ARCX": "XNYS", "XNAS": "XNAS", "XNGS": "XNAS",
+	"XLON": "XLON", "XTAI": "XTAI", "ROCO": "ROCO",
+}
+
+func TestOpenFIGIVenue(t *testing.T) {
+	tests := []struct {
+		code   string
+		want   string
+		wantOK bool
+	}{
+		{code: "UN", want: "XNYS", wantOK: true},
+		{code: "UW", want: "XNAS", wantOK: true},
+		{code: "UP", want: "XNYS", wantOK: true},
+		{code: "LN", want: "XLON", wantOK: true},
+		{code: "US"},
+		{code: "TT"},
+		{code: "GY"},
+		{code: ""},
+	}
+	for _, tc := range tests {
+		got, ok := OpenFIGIVenue(tc.code, venueMICs)
+		if got != tc.want || ok != tc.wantOK {
+			t.Errorf("OpenFIGIVenue(%q) = %q, %v, want %q, %v", tc.code, got, ok, tc.want, tc.wantOK)
 		}
 	}
 }

@@ -37,7 +37,7 @@ func candidate(r result, mics mic.Table) market.Candidate {
 		return c
 	}
 	c.Identifiers = append(c.Identifiers, types.Identifier{Type: types.IdentifierTypeOpenfigiTicker, Domain: r.ExchCode, Value: r.Ticker})
-	m, ok := venue(r.ExchCode, mics)
+	m, ok := market.OpenFIGIVenue(r.ExchCode, mics)
 	if !ok {
 		return c
 	}
