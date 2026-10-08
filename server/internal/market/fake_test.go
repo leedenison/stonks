@@ -105,6 +105,8 @@ func (*fake) Limit() (rate.Limit, int) { return rate.Inf, 1 }
 
 func (f *fake) Batch() int { return f.batch }
 
+func (*fake) Endpoint() string { return "https://fake.test" }
+
 func factoryOf(i Integration) Factory {
 	return func(Config) (Integration, error) { return i, nil }
 }

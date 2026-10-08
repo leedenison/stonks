@@ -437,6 +437,7 @@ type plain struct{ f *fake }
 func (p plain) Classify(err error) Failure { return p.f.Classify(err) }
 func (p plain) Limit() (rate.Limit, int)   { return p.f.Limit() }
 func (p plain) Batch() int                 { return p.f.Batch() }
+func (p plain) Endpoint() string           { return p.f.Endpoint() }
 
 // TestFetchKindNotServed checks that a datasource without a server for the
 // kind is not called, and that its keys say why.

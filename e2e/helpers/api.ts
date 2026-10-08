@@ -1,7 +1,7 @@
 import type { DescService } from "@bufbuild/protobuf";
 import { type Client, createClient } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
-import { AdminService } from "../gen/admin/v1/admin_pb";
+import { AdminService, type UserRun } from "../gen/admin/v1/admin_pb";
 import { AuthService } from "../gen/auth/v1/auth_pb";
 import { HoldingService } from "../gen/holding/v1/holding_pb";
 import { InstrumentService } from "../gen/instrument/v1/instrument_pb";
@@ -69,6 +69,16 @@ export async function fetchItems(
   return (await items(admin, runId)).flatMap((i) =>
     i.item.case === "fetch" ? [i.item.value] : [],
   );
+}
+
+// fetchRun returns the fetch run below resolution that asked the named
+// datasource.
+export function fetchRun(resolution: UserRun, datasource: string): UserRun {
+  const run = resolution.children.find((c) => c.datasource === datasource);
+  if (!run) {
+    throw new Error(`no fetch run asked ${datasource}`);
+  }
+  return run;
 }
 
 export function authClient(sessionID?: string) {

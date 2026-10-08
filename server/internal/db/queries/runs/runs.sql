@@ -33,10 +33,12 @@ WITH RECURSIVE up AS (
 )
 SELECT sqlc.embed(runs), users.email,
        (SELECT count(*) FROM findings
-        WHERE findings.run_id = runs.id AND findings.cleared_at IS NULL)::int AS open_findings
+        WHERE findings.run_id = runs.id AND findings.cleared_at IS NULL)::int AS open_findings,
+       fetches.datasource, fetches.endpoint
 FROM up
 JOIN runs ON runs.id = up.id
 JOIN users ON users.id = runs.user_id
+LEFT JOIN fetches ON fetches.id = runs.id
 ORDER BY up.depth DESC;
 
 -- name: ListRunDescendants :many
@@ -48,10 +50,12 @@ WITH RECURSIVE down AS (
 )
 SELECT sqlc.embed(runs), users.email,
        (SELECT count(*) FROM findings
-        WHERE findings.run_id = runs.id AND findings.cleared_at IS NULL)::int AS open_findings
+        WHERE findings.run_id = runs.id AND findings.cleared_at IS NULL)::int AS open_findings,
+       fetches.datasource, fetches.endpoint
 FROM down
 JOIN runs ON runs.id = down.id
 JOIN users ON users.id = runs.user_id
+LEFT JOIN fetches ON fetches.id = runs.id
 ORDER BY down.depth, runs.id;
 
 -- name: ListChildRuns :many
@@ -76,10 +80,11 @@ WITH RECURSIVE roots AS (
 SELECT sqlc.embed(runs), users.email,
        (SELECT count(*) FROM findings
         WHERE findings.run_id = runs.id AND findings.cleared_at IS NULL)::int AS open_findings,
-       tree.root_id, true::bool AS matched
+       fetches.datasource, fetches.endpoint, tree.root_id, true::bool AS matched
 FROM tree
 JOIN runs ON runs.id = tree.id
 JOIN users ON users.id = runs.user_id
+LEFT JOIN fetches ON fetches.id = runs.id
 ORDER BY tree.root_id DESC, runs.id;
 
 -- name: ListUserRuns :many
@@ -110,17 +115,20 @@ WITH RECURSIVE matched AS (
 SELECT sqlc.embed(runs), users.email,
        (SELECT count(*) FROM findings
         WHERE findings.run_id = runs.id AND findings.cleared_at IS NULL)::int AS open_findings,
-       tree.root_id, (runs.id IN (SELECT id FROM matched))::bool AS matched
+       fetches.datasource, fetches.endpoint, tree.root_id, (runs.id IN (SELECT id FROM matched))::bool AS matched
 FROM tree
 JOIN runs ON runs.id = tree.id
 JOIN users ON users.id = runs.user_id
+LEFT JOIN fetches ON fetches.id = runs.id
 WHERE runs.id IN (SELECT id FROM lineage)
 ORDER BY tree.root_id DESC, runs.id;
 
 -- name: GetUserRun :one
 SELECT sqlc.embed(runs), users.email,
        (SELECT count(*) FROM findings
-        WHERE findings.run_id = runs.id AND findings.cleared_at IS NULL)::int AS open_findings
+        WHERE findings.run_id = runs.id AND findings.cleared_at IS NULL)::int AS open_findings,
+       fetches.datasource, fetches.endpoint
 FROM runs
 JOIN users ON users.id = runs.user_id
+LEFT JOIN fetches ON fetches.id = runs.id
 WHERE runs.id = $1;

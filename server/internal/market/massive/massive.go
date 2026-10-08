@@ -120,6 +120,9 @@ func Factory(mics mic.Table) market.Factory {
 // only stock requests.
 func (c *Client) Limit() (rate.Limit, int) { return c.limit, 1 }
 
+// Endpoint is the address the Client calls.
+func (c *Client) Endpoint() string { return c.endpoint }
+
 // Batch is one, since Massive answers one ticker or CUSIP per request.
 func (c *Client) Batch() int { return 1 }
 

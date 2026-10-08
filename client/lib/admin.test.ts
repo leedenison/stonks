@@ -10,6 +10,7 @@ import {
   queryHref,
   readFilters,
   runLabel,
+  runTitle,
 } from "./admin";
 
 describe("admin", () => {
@@ -44,6 +45,24 @@ describe("admin", () => {
       "fetch run",
     );
     expect(runLabel(undefined)).toBe("run");
+  });
+
+  it("names a fetch run by the host it called", () => {
+    const run = create(RunSchema, {
+      kind: RunKind.FETCH,
+      createdAt: timestampFromDate(new Date("2026-09-24T10:00:00Z")),
+    });
+    expect(
+      runTitle(
+        create(UserRunSchema, { run, endpoint: "http://massive.vcr:8080" }),
+      ),
+    ).toBe("massive.vcr:8080");
+    expect(
+      runTitle(create(UserRunSchema, { run, endpoint: "not a url" })),
+    ).toBe("not a url");
+    expect(runTitle(create(UserRunSchema, { run }))).toBe(
+      "fetch run @ 2026-09-24 10:00 UTC",
+    );
   });
 
   it("walks a tree of runs and sums the findings below each", () => {

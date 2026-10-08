@@ -129,7 +129,7 @@ func (s *Server) ListRuns(ctx context.Context, req *connect.Request[adminv1.List
 	rows, out.NextPageToken = trimTrees(p, rows)
 	byID := map[uuid.UUID]*adminv1.UserRun{}
 	for _, r := range rows {
-		msg := userRun(r.Run, r.Email, r.OpenFindings)
+		msg := userRun(r.Run, r.Email, r.OpenFindings, r.Datasource, r.Endpoint)
 		msg.Matched = r.Matched
 		byID[r.Run.ID] = msg
 		if r.Run.ParentID != nil {
@@ -184,7 +184,7 @@ func (s *Server) GetRun(ctx context.Context, req *connect.Request[adminv1.GetRun
 	if err != nil {
 		return nil, err
 	}
-	out := &adminv1.GetRunResponse{Run: userRun(row.Run, row.Email, row.OpenFindings)}
+	out := &adminv1.GetRunResponse{Run: userRun(row.Run, row.Email, row.OpenFindings, row.Datasource, row.Endpoint)}
 	ids, err := s.tree(ctx, row.Run, out)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
@@ -225,7 +225,7 @@ func (s *Server) tree(ctx context.Context, run gen.Run, out *adminv1.GetRunRespo
 		return nil, err
 	}
 	for _, a := range ancestors {
-		out.Ancestors = append(out.Ancestors, userRun(a.Run, a.Email, a.OpenFindings))
+		out.Ancestors = append(out.Ancestors, userRun(a.Run, a.Email, a.OpenFindings, a.Datasource, a.Endpoint))
 	}
 	descendants, err := s.store.ListRunDescendants(ctx, &run.ID)
 	if err != nil {
@@ -235,7 +235,7 @@ func (s *Server) tree(ctx context.Context, run gen.Run, out *adminv1.GetRunRespo
 	ids := []uuid.UUID{run.ID}
 	for _, d := range descendants {
 		ids = append(ids, d.Run.ID)
-		msg := userRun(d.Run, d.Email, d.OpenFindings)
+		msg := userRun(d.Run, d.Email, d.OpenFindings, d.Datasource, d.Endpoint)
 		byID[d.Run.ID] = msg
 		if parent := byID[*d.Run.ParentID]; parent != nil {
 			parent.Children = append(parent.Children, msg)
@@ -680,8 +680,12 @@ func treeOrder(root *adminv1.UserRun) map[string]int {
 	return order
 }
 
-func userRun(r gen.Run, email string, open int32) *adminv1.UserRun {
-	return &adminv1.UserRun{Run: to.ProtoRun(r), UserId: r.UserID.String(), UserEmail: email, OpenFindings: open, Matched: true}
+// userRun builds a run as the admin listings return it.
+func userRun(r gen.Run, email string, open int32, datasource, endpoint *string) *adminv1.UserRun {
+	return &adminv1.UserRun{
+		Run: to.ProtoRun(r), UserId: r.UserID.String(), UserEmail: email, OpenFindings: open, Matched: true,
+		Datasource: datasource, Endpoint: endpoint,
+	}
 }
 
 // page is one page of a listing: its size, and the id every row it holds

@@ -26,6 +26,10 @@ message UserRun {
   bool matched = 5;
   // The runs this one started that the listing holds, oldest first.
   repeated UserRun children = 6;
+  // The datasource a FETCH run asked; unset for any other kind.
+  optional string datasource = 7;
+  // The address a FETCH run called; unset for any other kind.
+  optional string endpoint = 8;
 }
 
 // What one key of a fetch got.

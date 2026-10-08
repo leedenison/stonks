@@ -1,7 +1,12 @@
 import path from "node:path";
 import { FetchOutcome, FindingKind } from "../gen/admin/v1/admin_pb";
 import { ResolutionOutcome } from "../gen/type/v1/type_pb";
-import { adminClient, fetchItems, resolutionItems } from "../helpers/api";
+import {
+  adminClient,
+  fetchItems,
+  fetchRun,
+  resolutionItems,
+} from "../helpers/api";
 import { uploadStatement } from "../helpers/upload";
 import { expect, test } from "../helpers/test";
 
@@ -30,7 +35,7 @@ test("clears a block from the blocks page, clearing the finding reporting it", a
   expect(finding.blockId).toBeTruthy();
   expect(finding.clearedAt).toBeUndefined();
   const resolution = statement.run!.children[0];
-  const fetch = resolution.children[0];
+  const fetch = fetchRun(resolution, "openfigi");
   const fetched = await fetchItems(admin, fetch.run!.id);
   expect(fetched).toHaveLength(1);
   expect(fetched[0].outcome).toBe(FetchOutcome.FAILED_PERMANENT);

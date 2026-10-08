@@ -40,6 +40,9 @@ type Integration interface {
 	Limit() (rate.Limit, int)
 	// Batch is the maximum number of keys per batch.
 	Batch() int
+	// Endpoint is the address the integration calls. It is the provider's
+	// default unless the datasource sets one.
+	Endpoint() string
 }
 
 // Config for a datasource.

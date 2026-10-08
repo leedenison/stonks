@@ -9,8 +9,8 @@ VALUES (@name, @enabled, @precedence, sqlc.narg(credential), sqlc.narg(endpoint)
 RETURNING *;
 
 -- name: CreateFetch :one
-INSERT INTO fetches (id, user_id, datasource, kind)
-VALUES ($1, $2, $3, $4)
+INSERT INTO fetches (id, user_id, datasource, endpoint, kind)
+VALUES ($1, $2, $3, $4, $5)
 RETURNING *;
 
 -- name: GetFetch :one

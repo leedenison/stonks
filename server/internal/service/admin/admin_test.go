@@ -265,7 +265,7 @@ func TestGetRun(t *testing.T) {
 			below := func(id, parent uuid.UUID) gen.ListRunDescendantsRow {
 				row := runRow(id, gen.RunKindFetch)
 				row.Trigger, row.ParentID = gen.RunTriggerRun, &parent
-				return gen.ListRunDescendantsRow{Run: row, Email: "one@example.com", OpenFindings: 1}
+				return gen.ListRunDescendantsRow{Run: row, Email: "one@example.com", OpenFindings: 1, Datasource: ptr.To("openfigi"), Endpoint: ptr.To("https://api.openfigi.com")}
 			}
 			r.ListRunDescendants(gomock.Any(), &runID).Return([]gen.ListRunDescendantsRow{
 				below(childID, runID), below(siblingID, runID), below(grandchildID, childID),
@@ -304,6 +304,7 @@ func TestGetRun(t *testing.T) {
 			belowMsg := func(id, parent uuid.UUID) *adminv1.UserRun {
 				msg := runMsg(id, runv1.RunKind_RUN_KIND_FETCH)
 				msg.Run.Trigger, msg.Run.ParentId = runv1.RunTrigger_RUN_TRIGGER_RUN, ptr.To(parent.String())
+				msg.Datasource, msg.Endpoint = ptr.To("openfigi"), ptr.To("https://api.openfigi.com")
 				return msg
 			}
 			childMsg := belowMsg(childID, runID)

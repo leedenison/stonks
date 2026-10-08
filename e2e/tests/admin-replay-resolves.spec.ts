@@ -5,6 +5,7 @@ import { ResolutionOutcome } from "../gen/type/v1/type_pb";
 import {
   adminClient,
   fetchItems,
+  fetchRun,
   holdingClient,
   resolutionItems,
   statementClient,
@@ -52,7 +53,10 @@ test("replays a statement's unavailable key from the runs page and resolves it",
   const statement = await admin.getRun({ runId: runId });
   expect(statement.findings).toHaveLength(0);
   const resolution = statement.run!.children[0];
-  const fetched = await fetchItems(admin, resolution.children[0].run!.id);
+  const fetched = await fetchItems(
+    admin,
+    fetchRun(resolution, "openfigi").run!.id,
+  );
   expect(fetched[0].outcome).toBe(FetchOutcome.FAILED_TEMPORARY);
   expect(fetched[0].attempts).toBe(3);
   const resolved = await resolutionItems(admin, resolution.run!.id);

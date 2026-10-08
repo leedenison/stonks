@@ -33,7 +33,7 @@ import { useAdminRun } from "@/hooks/use-admin-run";
 import { useAdminRunItems } from "@/hooks/use-admin-run-items";
 import { useClearBlock } from "@/hooks/use-blocks";
 import { useClearFinding } from "@/hooks/use-findings";
-import { findingText, flattenRuns, runEnums, runLabel } from "@/lib/admin";
+import { findingText, flattenRuns, runEnums, runTitle } from "@/lib/admin";
 import { enumLabel } from "@/lib/enum";
 import { formatInstant } from "@/lib/format";
 import { anyLive } from "@/lib/run";
@@ -51,7 +51,7 @@ export default function AdminRunPage() {
   const { data, isPending, error, refetch } = useAdminRun(id);
   const [replaying, setReplaying] = useState(false);
   const run = data?.run?.run;
-  const title = run ? runLabel(run) : "Run";
+  const title = data?.run ? runTitle(data.run) : "Run";
 
   return (
     <Page

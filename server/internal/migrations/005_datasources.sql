@@ -40,6 +40,9 @@ CREATE TABLE fetches (
     id         uuid        PRIMARY KEY,
     user_id    uuid        NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     datasource text        NOT NULL REFERENCES datasources (name),
+    -- endpoint is the address the integration called. It is the provider's
+    -- default unless the datasource set one.
+    endpoint   text        NOT NULL,
     kind       fetch_kind  NOT NULL,
     created_at timestamptz NOT NULL DEFAULT now(),
     FOREIGN KEY (id, user_id) REFERENCES runs (id, user_id) ON DELETE CASCADE,
