@@ -95,7 +95,7 @@ function keys(resolved: boolean) {
       statedKey: bare,
       statedKeyId: "k-bare",
       outcome: ResolutionOutcome.UNRECOGNISED,
-      reason: "no global identifier",
+      reason: "openfigi: 0 candidates; massive: 1 candidate",
     }),
   ];
 }
@@ -202,7 +202,9 @@ describe("StatementPage", () => {
     expect(screen.getByRole("status").textContent).toContain("being ingested");
     await advance(pollInterval * 2);
     expect(getStatement).toHaveBeenCalledTimes(3);
-    expect(screen.getByRole("status").textContent).toContain("accepted");
+    const done = screen.getByRole("status");
+    expect(done.textContent).toBe("All rows are valid.");
+    expect(done.className).toContain("text-positive");
     await advance(pollInterval * 3);
     expect(getStatement).toHaveBeenCalledTimes(3);
   });
@@ -227,6 +229,10 @@ describe("StatementPage", () => {
     expect(isin.textContent).toContain("US0378331005");
     expect(isin.textContent).toContain("APPLE INC");
     expect(isin.textContent).toContain("openfigi: failed: 429");
+    const parts = [
+      ...screen.getByTestId("key-row-k-bare").querySelectorAll("li"),
+    ].map((li) => li.textContent);
+    expect(parts).toEqual(["openfigi: 0 candidates", "massive: 1 candidate"]);
   });
 
   it("shows a key as resolving while the run is live", async () => {

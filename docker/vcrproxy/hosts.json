@@ -3,7 +3,7 @@
     "upstream": "https://api.openfigi.com",
     "recorded": "openfigi/recorded.yaml",
     "authored": "openfigi/authored.yaml",
-    "interval": "2.5s",
-    "credential": { "in": "header", "name": "X-OPENFIGI-APIKEY" }
+    "interval": "240ms",
+    "credential": { "in": "header", "name": "X-OPENFIGI-APIKEY", "env": "OPENFIGI_API_KEY" }
   }
 }

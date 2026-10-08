@@ -553,7 +553,7 @@ func TestDescribedRows(t *testing.T) {
 		schwab := s.newStatement(t, gen.BrokerSchwab)
 		k := s.stateUnder(t, schwab, gen.AssetClassStock, "USD", id(types.IdentifierTypeBrokerDescription, "schwab", "ACME CORP"))
 		got := s.resolve(t, k)
-		want := "unrecognised: no instrument is identified by broker_description schwab:ACME CORP"
+		want := "unrecognised: failed to match broker description"
 		if written(got[0]) != want {
 			t.Errorf("outcome = %s, want %s", written(got[0]), want)
 		}

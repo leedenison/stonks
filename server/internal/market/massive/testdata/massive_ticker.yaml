@@ -1,0 +1,38 @@
+---
+version: 2
+interactions:
+    - id: 0
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: api.massive.com
+        form:
+            apiKey:
+                - REDACTED
+        url: https://api.massive.com/v3/reference/tickers/AAPL?apiKey=REDACTED
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 902
+        uncompressed: true
+        body: '{"request_id":"f93280f56cddd88730ee06f2c572e156","results":{"active":true,"address":"REDACTED","branding":{"icon_url":"https://api.massive.com/v1/reference/company-branding/YXBwbGUuY29t/images/2026-10-01_icon.png","logo_url":"https://api.massive.com/v1/reference/company-branding/YXBwbGUuY29t/images/2026-10-01_logo.svg"},"cik":"0000320193","composite_figi":"BBG000B9XRY4","currency_name":"usd","description":"REDACTED","homepage_url":"https://www.apple.com","list_date":"1980-12-12","locale":"us","market":"stocks","market_cap":4.8690562734e+12,"name":"Apple Inc.","phone_number":"REDACTED","primary_exchange":"XNAS","round_lot":40,"share_class_figi":"BBG001S5N8V8","share_class_shares_outstanding":14594180000,"sic_code":"3571","sic_description":"ELECTRONIC COMPUTERS","ticker":"AAPL","ticker_root":"AAPL","total_employees":166000,"type":"CS","weighted_shares_outstanding":14594180000},"status":"OK"}'
+        headers:
+            Content-Type:
+                - application/json
+            Date:
+                - Wed, 07 Oct 2026 18:44:50 GMT
+            Strict-Transport-Security:
+                - max-age=15724800; includeSubDomains
+            Vary:
+                - Accept-Encoding
+            X-Polygon-Cluster-Name:
+                - polygon-ny5
+            X-Request-Id:
+                - f93280f56cddd88730ee06f2c572e156
+        status: 200 OK
+        code: 200
+        duration: 844.811037ms

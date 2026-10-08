@@ -32,6 +32,7 @@ services:
       - /cassettes/hosts.json
     # Recording reads each provider's credential from here.
     environment:
+      OPENFIGI_API_KEY: ${OPENFIGI_API_KEY:-}
       MASSIVE_API_KEY: ${MASSIVE_API_KEY:-}
     volumes:
       - ./vcrproxy:/cassettes

@@ -9,8 +9,8 @@ An integration declines a key before asking when the key places it outside the
 provider's coverage. It declines a key that states a class other than stock, etf or
 mutual_fund, or a parent of them. It declines a ticker at a venue outside the provider's
 venue table. Every OTC venue is outside the table. When the integration declines a key, the
-provider records no coverage of it. When a key states only a stable identifier, or a
-ticker without a venue, the integration asks the provider.
+provider records no coverage of it. When a key states only a stable identifier that the
+provider accepts, or a ticker without a venue, the integration asks the provider.
 
 Resolution does not check an answer against the provider's coverage. Each integration's
 conversion produces candidates only for the classes and markets it serves:

@@ -1,0 +1,39 @@
+---
+version: 2
+interactions:
+    - id: 0
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: api.massive.com
+        form:
+            apiKey:
+                - REDACTED
+        url: https://api.massive.com/v3/reference/tickers/TCEHY?apiKey=REDACTED
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 365
+        uncompressed: true
+        body: '{"request_id":"8012ef8137a9c128f1956419c36b550d","results":{"active":true,"composite_figi":"BBG000SGZ3Z0","currency_name":"USD","description":"REDACTED","locale":"us","market":"otc","name":"TENCENT HLDGS UNSP/ADR","primary_exchange":"OTC Link","share_class_figi":"BBG001T3RVC8","ticker":"TCEHY","ticker_root":"TCEH","ticker_suffix":"Y","type":"ADRC"},"status":"OK"}'
+        headers:
+            Content-Type:
+                - application/json
+            Date:
+                - Wed, 07 Oct 2026 18:46:30 GMT
+            Strict-Transport-Security:
+                - max-age=15724800; includeSubDomains
+            Vary:
+                - Accept-Encoding
+                - Accept-Encoding
+            X-Polygon-Cluster-Name:
+                - polygon-ny5
+            X-Request-Id:
+                - 8012ef8137a9c128f1956419c36b550d
+        status: 200 OK
+        code: 200
+        duration: 775.874078ms

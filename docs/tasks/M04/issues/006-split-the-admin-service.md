@@ -2,7 +2,7 @@
 title: Split the admin service
 type: task
 status: unreviewed
-dependencies: [002, 003, 004]
+dependencies: [002, 003, 004, 007]
 ---
 
 ## Scope

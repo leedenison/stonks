@@ -6,6 +6,7 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/types"
+	"github.com/leedenison/stonks/server/internal/mic"
 )
 
 // idTypes are the identifier types sent, strongest first, and the OpenFIGI
@@ -77,10 +78,10 @@ func jobOf(id types.Identifier, currency string) job {
 		}
 		switch id.Type {
 		case types.IdentifierTypeOpenfigiTicker:
-			j.IDValue, _ = withClassSep(id.Value, '/')
+			j.IDValue, _ = mic.WithClassSep(id.Value, '/')
 			j.ExchCode = id.Domain
 		case types.IdentifierTypeMicTicker:
-			j.IDValue, _ = withClassSep(id.Value, '/')
+			j.IDValue, _ = mic.WithClassSep(id.Value, '/')
 		}
 		return j
 	}

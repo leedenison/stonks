@@ -230,10 +230,10 @@ func TestResolveUnresolved(t *testing.T) {
 			reason:  "a: 1 candidate in 1 group, 1 group not naming mic_ticker VOD",
 		},
 		{
-			name:    "a description no instrument is identified by",
+			name:    "a description that matches no instrument",
 			key:     keyOf(gen.AssetClassStock, "USD", descr),
 			outcome: gen.ResolutionOutcomeUnrecognised,
-			reason:  "no instrument is identified by broker_description ibkr:ACME CORP",
+			reason:  "failed to match broker description",
 		},
 		{
 			name:    "a bare ticker beside an unknown description",

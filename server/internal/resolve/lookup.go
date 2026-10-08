@@ -152,16 +152,20 @@ func (res *resolution) match(byID map[types.Identifier]*found) {
 	}
 }
 
-// unnamed returns the reason for a key that states no global identifier.
+// unnamed returns the reason for a key that states no global identifier. The
+// reason names only the types of the identifiers, since the key shows their
+// values beside it.
 func unnamed(ids []types.Identifier) string {
 	if len(ids) == 0 {
 		return "no global identifier"
 	}
-	parts := make([]string, len(ids))
-	for i, id := range ids {
-		parts[i] = name(id)
+	var parts []string
+	for _, id := range ids {
+		if p := strings.ReplaceAll(string(id.Type), "_", " "); !slices.Contains(parts, p) {
+			parts = append(parts, p)
+		}
 	}
-	return "no instrument is identified by " + strings.Join(parts, " or ")
+	return "failed to match " + strings.Join(parts, " or ")
 }
 
 // lookupCurrency resolves a currency key against the seed; a currency key

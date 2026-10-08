@@ -18,8 +18,7 @@ import (
 )
 
 // scrub declares that OpenFIGI's bodies carry only public security
-// identifiers, and that its requests differ only in their bodies. The
-// cassettes are recorded without a credential.
+// identifiers, and that its requests differ only in their bodies.
 var scrub = vcr.Scrub{Body: func(body string) string { return body }, MatchBody: true}
 
 func replay(t *testing.T, cassette, key string) *Client {
@@ -111,7 +110,7 @@ func TestFetchListings(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.cassette, func(t *testing.T) {
-			got, err := fetch(replay(t, tc.cassette, ""), tc.sent, tc.currency)
+			got, err := fetch(replay(t, tc.cassette, vcr.Credential(t, "OPENFIGI_API_KEY", "testdata/"+tc.cassette)), tc.sent, tc.currency)
 			if err != nil {
 				t.Fatalf("Fetch(%v) error = %v", tc.sent, err)
 			}

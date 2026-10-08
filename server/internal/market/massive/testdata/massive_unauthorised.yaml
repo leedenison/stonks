@@ -1,0 +1,35 @@
+---
+version: 2
+interactions:
+    - id: 0
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: api.massive.com
+        form:
+            apiKey:
+                - REDACTED
+        url: https://api.massive.com/v3/reference/tickers/AAPL?apiKey=REDACTED
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 92
+        body: '{"status":"ERROR","request_id":"c6c7747fbfc211ffef0c73ab6118c6bb","error":"Unknown API Key"}'
+        headers:
+            Content-Length:
+                - "92"
+            Content-Type:
+                - application/json
+            Date:
+                - Wed, 07 Oct 2026 18:46:46 GMT
+            Strict-Transport-Security:
+                - max-age=15724800; includeSubDomains
+            X-Request-Id:
+                - c6c7747fbfc211ffef0c73ab6118c6bb
+        status: 401 Unauthorized
+        code: 401
+        duration: 232.123884ms
