@@ -30,6 +30,7 @@ func TestServes(t *testing.T) {
 		{name: "a CUSIP beside a ticker at a venue Massive does not list", ids: []types.Identifier{cusip, ticker("XLON", "AAPL")}, fails: true},
 		{name: "a ticker under another composite", ids: []types.Identifier{{Type: types.IdentifierTypeOpenfigiTicker, Domain: "LN", Value: "VOD"}}, fails: true},
 		{name: "an ISIN alone", ids: []types.Identifier{isin}, fails: true},
+		{name: "a bare ticker beside an ISIN", ids: []types.Identifier{ticker("", "AAPL"), isin}, fails: true},
 		{name: "a class above those served", class: ptr.To(gen.AssetClassEquity), ids: []types.Identifier{cusip}, want: cusip},
 		{name: "a class Massive does not serve", class: ptr.To(gen.AssetClassOption), ids: []types.Identifier{cusip}, fails: true},
 	}

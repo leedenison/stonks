@@ -14,7 +14,8 @@
 //
 // An integration declines a key before asking when the provider does not
 // cover the key's class or venue. Its conversion keeps only the classes and
-// markets it serves.
+// markets it serves. A ticker without its venue is declined for a key that
+// states a GUID; see Bare.
 //
 // When a provider refuses every call for a while, as when a daily quota is
 // spent, the framework pauses the datasource for the whole delay the provider

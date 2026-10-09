@@ -34,8 +34,11 @@ func (c *Client) Serves(key gen.StatedKey) (types.Identifier, error) {
 			if id.Type != t.typ {
 				continue
 			}
-			if id.Type != types.IdentifierTypeMicTicker || id.Domain == "" {
+			if id.Type != types.IdentifierTypeMicTicker {
 				return id, nil
+			}
+			if id.Domain == "" {
+				return market.Bare(key, id)
 			}
 			op, ok := c.mics.Operating(id.Domain)
 			if !ok {

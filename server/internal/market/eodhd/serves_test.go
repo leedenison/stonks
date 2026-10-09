@@ -40,6 +40,7 @@ func TestServes(t *testing.T) {
 		{name: "a ticker at an OTC venue", ids: []types.Identifier{ticker("OTCM", "TCEHY")}, fails: true},
 		{name: "an ISIN beside a ticker at a venue EODHD does not list", ids: []types.Identifier{isin, ticker("XXXX", "AAPL")}, fails: true},
 		{name: "a share class FIGI alone", ids: []types.Identifier{shareClass}, fails: true},
+		{name: "a bare ticker beside a share class FIGI", ids: []types.Identifier{ticker("", "AAPL"), shareClass}, fails: true},
 		{name: "a class above those served", class: ptr.To(gen.AssetClassEquity), ids: []types.Identifier{isin}, want: isin},
 		{name: "a class EODHD does not serve", class: ptr.To(gen.AssetClassOption), ids: []types.Identifier{isin}, fails: true},
 	}

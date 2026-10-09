@@ -6,9 +6,10 @@ import { expect, test } from "../helpers/test";
 // Two IBKR exports over disjoint periods, derived from the client's IBKR
 // test export, which is modelled on a real export with its identifiers
 // replaced. Both state one ISIN under a description the broker changed
-// between them. The datasource knows nothing of the ISIN, so both keys are
-// unresolved and the shared ISIN makes them one holding. The periods are
-// disjoint because a statement replaces the period it claims for its broker.
+// between them, and the ticker AMD. The datasource knows nothing of the
+// ISIN and declines the bare ticker beside it, so both keys are unresolved
+// and the shared ISIN makes them one holding. The periods are disjoint
+// because a statement replaces the period it claims for its broker.
 const january = path.resolve(__dirname, "..", "fixtures", "ibkr-january.qfx");
 const february = path.resolve(__dirname, "..", "fixtures", "ibkr-february.qfx");
 const descriptions = [
@@ -40,7 +41,7 @@ test("gathers the keys of two statements that share an identifier", async ({
   const group = res.groups[0];
   expect(group.quantity).toBe("250");
   expect(group.identifiers.map((i) => i.value).sort()).toEqual(
-    ["US0000000002", ...descriptions].sort(),
+    ["US0000000002", "AMD", ...descriptions].sort(),
   );
   expect(res.instruments).toHaveLength(1);
   expect(res.instruments[0].quantity).toBe("-18852.84710536");

@@ -1,6 +1,7 @@
 package market
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/leedenison/stonks/server/internal/db/gen"
@@ -46,6 +47,18 @@ func IsGUID(id types.Identifier) bool {
 		return id.Domain != ""
 	}
 	return false
+}
+
+// Bare returns the ticker bare to send for key, or an error when key
+// states a GUID. A provider given only the ticker answers for whichever
+// instrument matches it, which need not be the one the GUID names.
+func Bare(key gen.StatedKey, bare types.Identifier) (types.Identifier, error) {
+	for _, id := range key.Identifiers {
+		if IsGUID(id) {
+			return types.Identifier{}, fmt.Errorf("ticker '%s' without a venue declined: the key states %s '%s'", bare.Value, id.Type, id.Value)
+		}
+	}
+	return bare, nil
 }
 
 // classSeps separate a ticker's root from its share class, as in BRK.B, BRK/B,
