@@ -32,11 +32,20 @@ describe("nameOf", () => {
   it("names an option by its OCC symbol and a future likewise", () => {
     const ids = [
       ident(IdentifierType.ISIN, "US0378331005"),
+      ident(IdentifierType.OPTION, "ACME  260116C00150000"),
       ident(IdentifierType.OCC, "ACME  260116C00150000"),
     ];
     for (const c of [AssetClass.OPTION, AssetClass.FUTURE]) {
       expect(nameOf(c, ids)?.type).toBe(IdentifierType.OCC);
     }
+  });
+
+  it("names an option by the symbol its stated terms build when it lacks an OCC symbol", () => {
+    const ids = [
+      ident(IdentifierType.BROKER_ID, "624291205", "ibkr"),
+      ident(IdentifierType.OPTION, "ACME  260116C00150000"),
+    ];
+    expect(nameOf(AssetClass.OPTION, ids)?.type).toBe(IdentifierType.OPTION);
   });
 
   it("ignores a type its class does not prefer, and names nothing without one", () => {

@@ -23,12 +23,13 @@ export const preferred: IdentifierType[] = [
   IdentifierType.BROKER_ID,
 ];
 
-// leading names the type that identifies a class before any other, for the
-// classes that have one.
-const leading: Partial<Record<AssetClass, IdentifierType>> = {
-  [AssetClass.CASH]: IdentifierType.CURRENCY,
-  [AssetClass.OPTION]: IdentifierType.OCC,
-  [AssetClass.FUTURE]: IdentifierType.OCC,
+// leading names the types that identify a class before any other, for the
+// classes that have them. A datasource's OCC symbol outranks the symbol a
+// broker's terms build.
+const leading: Partial<Record<AssetClass, IdentifierType[]>> = {
+  [AssetClass.CASH]: [IdentifierType.CURRENCY],
+  [AssetClass.OPTION]: [IdentifierType.OCC, IdentifierType.OPTION],
+  [AssetClass.FUTURE]: [IdentifierType.OCC, IdentifierType.OPTION],
 };
 
 // pick returns the first identifier of the first type in order that has
@@ -46,14 +47,10 @@ export function pick(
 }
 
 // nameOf returns the identifier naming an instrument of assetClass as the
-// user knows it, by its class's leading type, then preferred.
+// user knows it, by its class's leading types, then preferred.
 export function nameOf(
   assetClass: AssetClass,
   identifiers: Identifier[],
 ): Identifier | undefined {
-  const lead = leading[assetClass];
-  return pick(
-    lead === undefined ? preferred : [lead, ...preferred],
-    identifiers,
-  );
+  return pick([...(leading[assetClass] ?? []), ...preferred], identifiers);
 }

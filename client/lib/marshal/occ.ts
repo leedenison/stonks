@@ -1,5 +1,7 @@
 // OCC option symbols: a root padded to six characters, the expiry as YYMMDD,
 // C or P, and the strike in thousandths as eight digits, 21 characters in all.
+// A marshaller states a symbol it builds as an OPTION identifier, whatever
+// venue lists the contract; an OCC identifier comes from a datasource.
 
 const OCC = /^(.{6})(\d{6})([CP])(\d{8})$/;
 

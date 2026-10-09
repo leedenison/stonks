@@ -22,6 +22,7 @@ const labels: Record<number, string> = {
   [IdentifierType.DATASOURCE_TICKER]: "Source ticker",
   [IdentifierType.BROKER_ID]: "Broker id",
   [IdentifierType.BROKER_DESCRIPTION]: "Description",
+  [IdentifierType.OPTION]: "Option",
 };
 
 export function identifierLabel(type: IdentifierType): string {

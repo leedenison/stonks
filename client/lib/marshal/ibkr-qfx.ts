@@ -170,36 +170,44 @@ function securities(ofx: Node): Map<string, Security> {
       if (TICKERED.has(kind)) {
         identifiers.push(ident(IdentifierType.MIC_TICKER, venueTicker(ticker)));
       }
-      const occ = kind === "OPTINFO" ? optionOcc(el, ticker) : undefined;
-      if (occ) identifiers.push(ident(IdentifierType.OCC, occ));
-      out.set(key, {
-        description: text(info, "SECNAME"),
-        assetClass,
-        identifiers,
-      });
+      const name = text(info, "SECNAME");
+      const symbol = kind === "OPTINFO" ? optionSymbol(el, ticker, name) : "";
+      if (symbol) identifiers.push(ident(IdentifierType.OPTION, symbol));
+      out.set(key, { description: name, assetClass, identifiers });
     }
   }
   return out;
 }
 
-// optionOcc returns the OCC symbol an OPTINFO states, or undefined when its
-// ticker is not in OCC form. The security list prints the ticker in OCC form
-// for a contract OCC lists and in IBKR's own form otherwise. A record whose
-// printed symbol and terms disagree fails the file.
-function optionOcc(el: Node, ticker: string): string | undefined {
-  if (!isOcc(ticker)) return undefined;
+// optionSymbol returns the symbol an OPTINFO's terms build, in the OCC
+// format, or "" when the strike does not fit it. The root is read from the
+// name, which in every form IBKR prints is the ticker, then the underlying's
+// ticker in IBKR's spelling, the expiry, the strike and the right. OCC joins
+// a share class onto the root, so "BRK B" becomes BRKB. The ticker is in OCC
+// form for a contract OCC lists and in IBKR's own form otherwise. A name
+// that does not follow the form fails the file, as does a ticker in OCC
+// form that disagrees with its terms.
+function optionSymbol(el: Node, ticker: string, name: string): string {
+  const words = name.startsWith(ticker)
+    ? name
+        .slice(ticker.length)
+        .split(" ")
+        .filter((w) => w !== "")
+    : [];
+  if (words.length < 4) throw new MarshalError(`malformed option ${name}`);
+  const root = words.slice(0, -3).join("").replace(CLASS_SEP, "");
   const built = buildOcc(
-    ticker.slice(0, 6).trimEnd(),
+    root,
     text(el, "DTEXPIRE"),
     text(el, "OPTTYPE"),
     text(el, "STRIKEPRICE"),
   );
-  if (built !== undefined && built !== ticker) {
+  if (built !== undefined && isOcc(ticker) && built !== ticker) {
     throw new MarshalError(
       `option printed as ${ticker} but its terms name ${built}`,
     );
   }
-  return built;
+  return built ?? "";
 }
 
 const SPLIT = /SPLIT (\d+) FOR (\d+)/;
