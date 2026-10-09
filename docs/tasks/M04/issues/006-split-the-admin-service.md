@@ -2,7 +2,7 @@
 title: Split the admin service
 type: task
 status: unreviewed
-dependencies: [004, 007]
+dependencies: [007]
 ---
 
 ## Scope
@@ -25,4 +25,3 @@ Out:
 
 The service has ten RPCs across four areas. Its handler, its tests and its mock are each
 around 700 lines long.
-[004](004-confirming-a-candidate.md) adds to it.

@@ -26,11 +26,11 @@ of open issues and ADRs at `docs/tasks/<label>/`.
   fetch served for a key it could not associate.
 
 ```
-  007 settings   004 confirm
-            \     /
-        006 split admin
-              |
-          005 close
+  007 settings
+        |
+  006 split admin
+        |
+    005 close
 ```
 
 ## Completed
