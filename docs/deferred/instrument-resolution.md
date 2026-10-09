@@ -42,6 +42,17 @@ association is provisional until the ticker is covered.
 
 ### Options
 
+A broker states a contract as an OPTION identifier: a symbol in the OCC format, built
+from the root, expiry, right and strike the export states, whatever venue lists the
+contract.  Only a datasource that lists the contract adds an OCC symbol to the
+instrument.  OpenFIGI takes the stated symbol as an OCC_SYMBOL.  Massive takes it under
+its O: prefix.  OpenFIGI, Massive and EODHD's options API cover US contracts only, so a
+contract listed elsewhere keeps its stated symbol until a datasource covers it.
+
+A contract's terms are stored on the instrument apart from its identifiers: underlying,
+expiry, right, strike and shares per contract, in current terms.  A re-resolution
+rebuilds the symbol to send from them.
+
 An OCC symbol embeds the underlying's ticker as its root and the strike in current terms.
 It is renamed when the underlying's ticker is, which is the MIC-derived path, and
 rewritten by corporate events on the underlying, which is separate.  A rewrite reassigns
