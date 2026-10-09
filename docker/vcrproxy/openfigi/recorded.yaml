@@ -633,3 +633,161 @@ interactions:
         status: 200 OK
         code: 200
         duration: 1.166038364s
+    - id: 8
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 55
+        host: ""
+        request_uri: /v3/mapping
+        body: '[{"idType":"TICKER","idValue":"INTC","currency":"USD"}]'
+        headers:
+            Content-Type:
+                - application/json
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://api.openfigi.com/v3/mapping
+        method: POST
+      response:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        transfer_encoding:
+            - chunked
+        content_length: 11889
+        uncompressed: true
+        body: '[{"data":[{"figi":"BBG000C0G1D1","name":"INTEL CORP","ticker":"INTC","exchCode":"US","compositeFIGI":"BBG000C0G1D1","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SF65","securityType2":"Common Stock","securityDescription":"INTC"},{"figi":"BBG000C0G597","name":"INTEL CORP","ticker":"INTC","exchCode":"UA","compositeFIGI":"BBG000C0G1D1","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SF65","securityType2":"Common Stock","securityDescription":"INTC"},{"figi":"BBG000C0G631","name":"INTEL CORP","ticker":"INTC","exchCode":"UC","compositeFIGI":"BBG000C0G1D1","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SF65","securityType2":"Common Stock","securityDescription":"INTC"},{"figi":"BBG000C0G6Y7","name":"INTEL CORP","ticker":"INTC","exchCode":"UN","compositeFIGI":"BBG000C0G1D1","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SF65","securityType2":"Common Stock","securityDescription":"INTC"},{"figi":"BBG000C0G7Y5","name":"INTEL CORP","ticker":"INTC","exchCode":"UP","compositeFIGI":"BBG000C0G1D1","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SF65","securityType2":"Common Stock","securityDescription":"INTC"},{"figi":"BBG000C0G8X4","name":"INTEL CORP","ticker":"INTC","exchCode":"UB","compositeFIGI":"BBG000C0G1D1","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SF65","securityType2":"Common Stock","securityDescription":"INTC"},{"figi":"BBG000C0G9H0","name":"INTEL CORP","ticker":"INTC","exchCode":"UM","compositeFIGI":"BBG000C0G1D1","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SF65","securityType2":"Common Stock","securityDescription":"INTC"},{"figi":"BBG000C0G9V4","name":"INTEL CORP","ticker":"INTC","exchCode":"UX","compositeFIGI":"BBG000C0G1D1","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SF65","securityType2":"Common Stock","securityDescription":"INTC"},{"figi":"BBG000C0GDG2","name":"INTEL CORP","ticker":"INTC","exchCode":"UD","compositeFIGI":"BBG000C0G1D1","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SF65","securityType2":"Common Stock","securityDescription":"INTC"},{"figi":"BBG000C0GFS4","name":"INTEL CORP","ticker":"INTC","exchCode":"UW","compositeFIGI":"BBG000C0G1D1","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SF65","securityType2":"Common Stock","securityDescription":"INTC"},{"figi":"BBG000C0GG02","name":"INTEL CORP","ticker":"INTC","exchCode":"UF","compositeFIGI":"BBG000C0G1D1","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SF65","securityType2":"Common Stock","securityDescription":"INTC"},{"figi":"BBG000C0GG57","name":"INTEL CORP","ticker":"INTC","exchCode":"VY","compositeFIGI":"BBG000C0G1D1","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SF65","securityType2":"Common Stock","securityDescription":"INTC"},{"figi":"BBG000C0GGB0","name":"INTEL CORP","ticker":"INTC","exchCode":"VJ","compositeFIGI":"BBG000C0G1D1","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SF65","securityType2":"Common Stock","securityDescription":"INTC"},{"figi":"BBG000C0GH55","name":"INTEL CORP","ticker":"INTC","exchCode":"VK","compositeFIGI":"BBG000C0G1D1","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SF65","securityType2":"Common Stock","securityDescription":"INTC"},{"figi":"BBG0013TTBF8","name":"INTEL CORPORATION","ticker":"INTC","exchCode":null,"compositeFIGI":null,"securityType":"S.TERM LOAN NOTE","marketSector":"M-Mkt","shareClassFIGI":null,"securityType2":"M-Mkt","securityDescription":"INTC LNST"},{"figi":"BBG003PCF770","name":"INTEL CORP","ticker":"INTC","exchCode":"EO","compositeFIGI":"BBG003PCF770","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SF65","securityType2":"Common Stock","securityDescription":"INTC"},{"figi":"BBG003PCF7B5","name":"INTEL CORP","ticker":"INTC","exchCode":"XH","compositeFIGI":"BBG003PCF770","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SF65","securityType2":"Common Stock","securityDescription":"INTC"},{"figi":"BBG003PCF7D3","name":"INTEL CORP","ticker":"INTC","exchCode":"XF","compositeFIGI":"BBG003PCF770","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SF65","securityType2":"Common Stock","securityDescription":"INTC"},{"figi":"BBG003PCF7G0","name":"INTEL CORP","ticker":"INTC","exchCode":"XE","compositeFIGI":"BBG003PCF770","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SF65","securityType2":"Common Stock","securityDescription":"INTC"},{"figi":"BBG003PCF7H9","name":"INTEL CORP","ticker":"INTC","exchCode":"XJ","compositeFIGI":"BBG003PCF770","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SF65","securityType2":"Common Stock","securityDescription":"INTC"},{"figi":"BBG003PCF7J7","name":"INTEL CORP","ticker":"INTC","exchCode":"XL","compositeFIGI":"BBG003PCF770","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SF65","securityType2":"Common Stock","securityDescription":"INTC"},{"figi":"BBG003PCF7K5","name":"INTEL CORP","ticker":"INTC","exchCode":"XG","compositeFIGI":"BBG003PCF770","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SF65","securityType2":"Common Stock","securityDescription":"INTC"},{"figi":"BBG003PCF7L4","name":"INTEL CORP","ticker":"INTC","exchCode":"XO","compositeFIGI":"BBG003PCF770","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SF65","securityType2":"Common Stock","securityDescription":"INTC"},{"figi":"BBG003PCF7R8","name":"INTEL CORP","ticker":"INTC","exchCode":"XA","compositeFIGI":"BBG003PCF770","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SF65","securityType2":"Common Stock","securityDescription":"INTC"},{"figi":"BBG003PCF7S7","name":"INTEL CORP","ticker":"INTC","exchCode":"E1","compositeFIGI":"BBG003PCF770","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SF65","securityType2":"Common Stock","securityDescription":"INTC"},{"figi":"BBG003PCF7V3","name":"INTEL CORP","ticker":"INTC","exchCode":"XW","compositeFIGI":"BBG003PCF770","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SF65","securityType2":"Common Stock","securityDescription":"INTC"},{"figi":"BBG003PCF7W2","name":"INTEL CORP","ticker":"INTC","exchCode":"XU","compositeFIGI":"BBG003PCF770","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SF65","securityType2":"Common Stock","securityDescription":"INTC"},{"figi":"BBG004BW0ZN5","name":"INTEL CORP","ticker":"INTC","exchCode":"CI","compositeFIGI":"BBG004BW0ZN5","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SF65","securityType2":"Common Stock","securityDescription":"INTC"},{"figi":"BBG004BW0ZQ2","name":"INTEL CORP","ticker":"INTC","exchCode":"CC","compositeFIGI":"BBG004BW0ZN5","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SF65","securityType2":"Common Stock","securityDescription":"INTC"},{"figi":"BBG004BW0ZS0","name":"INTEL CORP","ticker":"INTC","exchCode":"CE","compositeFIGI":"BBG004BW0ZN5","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SF65","securityType2":"Common Stock","securityDescription":"INTC"},{"figi":"BBG005924Q20","name":"INTEL CORP","ticker":"INTC","exchCode":"XV","compositeFIGI":"BBG003PCF770","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SF65","securityType2":"Common Stock","securityDescription":"INTC"},{"figi":"BBG00DJCZPP3","name":"INTEL CORP","ticker":"INTC","exchCode":"VF","compositeFIGI":"BBG000C0G1D1","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SF65","securityType2":"Common Stock","securityDescription":"INTC"},{"figi":"BBG00GQGGP89","name":"INTEL CORP","ticker":"INTC","exchCode":"EU","compositeFIGI":"BBG00GQGGP70","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SF65","securityType2":"Common Stock","securityDescription":"INTC"},{"figi":"BBG00JN82912","name":"INTEL CORP","ticker":"INTC","exchCode":"XX","compositeFIGI":"BBG003PCF770","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SF65","securityType2":"Common Stock","securityDescription":"INTC"},{"figi":"BBG00PPY4MK7","name":"INTEL CORP","ticker":"INTC","exchCode":"EP","compositeFIGI":"BBG00PPY4MJ9","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SF65","securityType2":"Common Stock","securityDescription":"INTC"},{"figi":"BBG00PPY4MM5","name":"INTEL CORP","ticker":"INTC","exchCode":"EZ","compositeFIGI":"BBG00PPY4ML6","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SF65","securityType2":"Common Stock","securityDescription":"INTC"},{"figi":"BBG00Q5MMXJ1","name":"INTEL CORP","ticker":"INTC","exchCode":"X2","compositeFIGI":"BBG003PCF770","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SF65","securityType2":"Common Stock","securityDescription":"INTC"},{"figi":"BBG00QFYX3Q0","name":"INTEL CORP","ticker":"INTC","exchCode":"X1","compositeFIGI":"BBG003PCF770","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SF65","securityType2":"Common Stock","securityDescription":null},{"figi":"BBG00THD6F27","name":"INTEL CORP","ticker":"INTC","exchCode":"VL","compositeFIGI":"BBG000C0G1D1","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SF65","securityType2":"Common Stock","securityDescription":"INTC"},{"figi":"BBG00X1LB729","name":"INTEL CORP","ticker":"INTC","exchCode":"VG","compositeFIGI":"BBG000C0G1D1","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SF65","securityType2":"Common Stock","securityDescription":"INTC"},{"figi":"BBG00X1PRJ36","name":"INTEL CORP","ticker":"INTC","exchCode":"VP","compositeFIGI":"BBG000C0G1D1","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SF65","securityType2":"Common Stock","securityDescription":"INTC"},{"figi":"BBG00YB9J0Y5","name":"INTEL CORP","ticker":"INTC","exchCode":"PE","compositeFIGI":"BBG00YB9J0X6","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SF65","securityType2":"Common Stock","securityDescription":"INTC"},{"figi":"BBG00YJ7G1T8","name":"INTEL CORP","ticker":"INTC","exchCode":"X9","compositeFIGI":"BBG00YJ7G1S9","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SF65","securityType2":"Common Stock","securityDescription":"INTC"},{"figi":"BBG01V7W3VV6","name":"INTEL CORP","ticker":"INTC","exchCode":"OC","compositeFIGI":"BBG000C0G1D1","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SF65","securityType2":"Common Stock","securityDescription":"INTC"},{"figi":"BBG01X4JDV34","name":"INTEL CORP","ticker":"INTC","exchCode":"OD","compositeFIGI":"BBG000C0G1D1","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SF65","securityType2":"Common Stock","securityDescription":"INTC"},{"figi":"BBG021BZKWH4","name":"INTEL CORP","ticker":"INTC","exchCode":"VT","compositeFIGI":"BBG000C0G1D1","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SF65","securityType2":"Common Stock","securityDescription":"INTC"},{"figi":"BBG024YNFH52","name":"INTEL CORP","ticker":"INTC","exchCode":"ER","compositeFIGI":"BBG024YNFH25","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SF65","securityType2":"Common Stock","securityDescription":"INTC"}]}]'
+        headers:
+            Cache-Control:
+                - private, no-cache, no-store, must-revalidate
+            Content-Security-Policy:
+                - 'default-src ''self'';base-uri ''self'';font-src ''self'' https: data:;form-action ''self'';frame-ancestors ''self'';img-src ''self'' data:;object-src ''none'';script-src ''self'';script-src-attr ''none'';style-src ''self'' https: ''unsafe-inline'';upgrade-insecure-requests'
+            Content-Type:
+                - application/json; charset=utf-8
+            Cross-Origin-Opener-Policy:
+                - same-origin
+            Cross-Origin-Resource-Policy:
+                - same-origin
+            Date:
+                - Fri, 09 Oct 2026 19:27:24 GMT
+            Expires:
+                - "0"
+            Origin-Agent-Cluster:
+                - ?1
+            Pragma:
+                - no-cache
+            Ratelimit-Limit:
+                - "250"
+            Ratelimit-Policy:
+                - 250;w=60
+            Ratelimit-Remaining:
+                - "249"
+            Ratelimit-Reset:
+                - "60"
+            Referrer-Policy:
+                - no-referrer
+            Server:
+                - istio-envoy
+            Strict-Transport-Security:
+                - max-age=31536000; includeSubDomains
+            Vary:
+                - Origin, Accept-Encoding
+            X-Content-Type-Options:
+                - nosniff
+            X-Dns-Prefetch-Control:
+                - 'off'
+            X-Download-Options:
+                - noopen
+            X-Envoy-Upstream-Service-Time:
+                - "9"
+            X-Frame-Options:
+                - SAMEORIGIN
+            X-Permitted-Cross-Domain-Policies:
+                - none
+            X-Request-Id:
+                - efe5cbf3-5d92-409f-bae0-489d1ac64f15
+            X-Xss-Protection:
+                - "0"
+        status: 200 OK
+        code: 200
+        duration: 1.00433285s
+    - id: 9
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 55
+        host: ""
+        request_uri: /v3/mapping
+        body: '[{"idType":"TICKER","idValue":"CSCO","currency":"USD"}]'
+        headers:
+            Content-Type:
+                - application/json
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://api.openfigi.com/v3/mapping
+        method: POST
+      response:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        transfer_encoding:
+            - chunked
+        content_length: 6999
+        uncompressed: true
+        body: '[{"data":[{"figi":"BBG000C3J3C9","name":"CISCO SYSTEMS INC","ticker":"CSCO","exchCode":"US","compositeFIGI":"BBG000C3J3C9","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6HC62","securityType2":"Common Stock","securityDescription":"CSCO"},{"figi":"BBG000C3J3N7","name":"CISCO SYSTEMS INC","ticker":"CSCO","exchCode":"UA","compositeFIGI":"BBG000C3J3C9","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6HC62","securityType2":"Common Stock","securityDescription":"CSCO"},{"figi":"BBG000C3J428","name":"CISCO SYSTEMS INC","ticker":"CSCO","exchCode":"UC","compositeFIGI":"BBG000C3J3C9","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6HC62","securityType2":"Common Stock","securityDescription":"CSCO"},{"figi":"BBG000C3J4L7","name":"CISCO SYSTEMS INC","ticker":"CSCO","exchCode":"UN","compositeFIGI":"BBG000C3J3C9","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6HC62","securityType2":"Common Stock","securityDescription":"CSCO"},{"figi":"BBG000C3J4T9","name":"CISCO SYSTEMS INC","ticker":"CSCO","exchCode":"UP","compositeFIGI":"BBG000C3J3C9","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6HC62","securityType2":"Common Stock","securityDescription":"CSCO"},{"figi":"BBG000C3J5P0","name":"CISCO SYSTEMS INC","ticker":"CSCO","exchCode":"UB","compositeFIGI":"BBG000C3J3C9","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6HC62","securityType2":"Common Stock","securityDescription":"CSCO"},{"figi":"BBG000C3J6J5","name":"CISCO SYSTEMS INC","ticker":"CSCO","exchCode":"UM","compositeFIGI":"BBG000C3J3C9","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6HC62","securityType2":"Common Stock","securityDescription":"CSCO"},{"figi":"BBG000C3J6W0","name":"CISCO SYSTEMS INC","ticker":"CSCO","exchCode":"UX","compositeFIGI":"BBG000C3J3C9","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6HC62","securityType2":"Common Stock","securityDescription":"CSCO"},{"figi":"BBG000C3J9S9","name":"CISCO SYSTEMS INC","ticker":"CSCO","exchCode":"UD","compositeFIGI":"BBG000C3J3C9","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6HC62","securityType2":"Common Stock","securityDescription":"CSCO"},{"figi":"BBG000C3JBN9","name":"CISCO SYSTEMS INC","ticker":"CSCO","exchCode":"UW","compositeFIGI":"BBG000C3J3C9","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6HC62","securityType2":"Common Stock","securityDescription":"CSCO"},{"figi":"BBG000C3JCQ4","name":"CISCO SYSTEMS INC","ticker":"CSCO","exchCode":"UF","compositeFIGI":"BBG000C3J3C9","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6HC62","securityType2":"Common Stock","securityDescription":"CSCO"},{"figi":"BBG000C3JD37","name":"CISCO SYSTEMS INC","ticker":"CSCO","exchCode":"VY","compositeFIGI":"BBG000C3J3C9","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6HC62","securityType2":"Common Stock","securityDescription":"CSCO"},{"figi":"BBG000C3JF69","name":"CISCO SYSTEMS INC","ticker":"CSCO","exchCode":"VJ","compositeFIGI":"BBG000C3J3C9","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6HC62","securityType2":"Common Stock","securityDescription":"CSCO"},{"figi":"BBG000C3JFR6","name":"CISCO SYSTEMS INC","ticker":"CSCO","exchCode":"VK","compositeFIGI":"BBG000C3J3C9","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6HC62","securityType2":"Common Stock","securityDescription":"CSCO"},{"figi":"BBG000K1BS73","name":"CISCO SYSTEMS INC","ticker":"CSCO","exchCode":"PE","compositeFIGI":"BBG000K1BQZ6","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6HC62","securityType2":"Common Stock","securityDescription":"CSCO"},{"figi":"BBG001HM21B3","name":"CISCO SYSTEMS INC","ticker":"CSCO","exchCode":null,"compositeFIGI":null,"securityType":"U.S. CP","marketSector":"M-Mkt","shareClassFIGI":null,"securityType2":"CP","securityDescription":"CSCO CP"},{"figi":"BBG004BWKS40","name":"CISCO SYSTEMS INC","ticker":"CSCO","exchCode":"CI","compositeFIGI":"BBG004BWKS40","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6HC62","securityType2":"Common Stock","securityDescription":"CSCO"},{"figi":"BBG004BWKS59","name":"CISCO SYSTEMS INC","ticker":"CSCO","exchCode":"CC","compositeFIGI":"BBG004BWKS40","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6HC62","securityType2":"Common Stock","securityDescription":"CSCO"},{"figi":"BBG004BWKS68","name":"CISCO SYSTEMS INC","ticker":"CSCO","exchCode":"CE","compositeFIGI":"BBG004BWKS40","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6HC62","securityType2":"Common Stock","securityDescription":"CSCO"},{"figi":"BBG00DJD12Q8","name":"CISCO SYSTEMS INC","ticker":"CSCO","exchCode":"VF","compositeFIGI":"BBG000C3J3C9","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6HC62","securityType2":"Common Stock","securityDescription":"CSCO"},{"figi":"BBG00THD7SP3","name":"CISCO SYSTEMS INC","ticker":"CSCO","exchCode":"VL","compositeFIGI":"BBG000C3J3C9","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6HC62","securityType2":"Common Stock","securityDescription":"CSCO"},{"figi":"BBG00X1LCLP2","name":"CISCO SYSTEMS INC","ticker":"CSCO","exchCode":"VG","compositeFIGI":"BBG000C3J3C9","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6HC62","securityType2":"Common Stock","securityDescription":"CSCO"},{"figi":"BBG00X1PSWQ1","name":"CISCO SYSTEMS INC","ticker":"CSCO","exchCode":"VP","compositeFIGI":"BBG000C3J3C9","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6HC62","securityType2":"Common Stock","securityDescription":"CSCO"},{"figi":"BBG01V7W57F5","name":"CISCO SYSTEMS INC","ticker":"CSCO","exchCode":"OC","compositeFIGI":"BBG000C3J3C9","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6HC62","securityType2":"Common Stock","securityDescription":"CSCO"},{"figi":"BBG01X4JG6P2","name":"CISCO SYSTEMS INC","ticker":"CSCO","exchCode":"OD","compositeFIGI":"BBG000C3J3C9","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6HC62","securityType2":"Common Stock","securityDescription":"CSCO"},{"figi":"BBG021C273Y6","name":"CISCO SYSTEMS INC","ticker":"CSCO","exchCode":"VT","compositeFIGI":"BBG000C3J3C9","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6HC62","securityType2":"Common Stock","securityDescription":"CSCO"},{"figi":"BBG024Y2J8G2","name":"CISCO SYSTEMS INC","ticker":"CSCO","exchCode":"ER","compositeFIGI":"BBG024Y2J8F3","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6HC62","securityType2":"Common Stock","securityDescription":"CSCO"}]}]'
+        headers:
+            Cache-Control:
+                - private, no-cache, no-store, must-revalidate
+            Content-Security-Policy:
+                - 'default-src ''self'';base-uri ''self'';font-src ''self'' https: data:;form-action ''self'';frame-ancestors ''self'';img-src ''self'' data:;object-src ''none'';script-src ''self'';script-src-attr ''none'';style-src ''self'' https: ''unsafe-inline'';upgrade-insecure-requests'
+            Content-Type:
+                - application/json; charset=utf-8
+            Cross-Origin-Opener-Policy:
+                - same-origin
+            Cross-Origin-Resource-Policy:
+                - same-origin
+            Date:
+                - Fri, 09 Oct 2026 19:27:24 GMT
+            Expires:
+                - "0"
+            Origin-Agent-Cluster:
+                - ?1
+            Pragma:
+                - no-cache
+            Ratelimit-Limit:
+                - "250"
+            Ratelimit-Policy:
+                - 250;w=60
+            Ratelimit-Remaining:
+                - "248"
+            Ratelimit-Reset:
+                - "60"
+            Referrer-Policy:
+                - no-referrer
+            Server:
+                - istio-envoy
+            Strict-Transport-Security:
+                - max-age=31536000; includeSubDomains
+            Vary:
+                - Origin, Accept-Encoding
+            X-Content-Type-Options:
+                - nosniff
+            X-Dns-Prefetch-Control:
+                - 'off'
+            X-Download-Options:
+                - noopen
+            X-Envoy-Upstream-Service-Time:
+                - "9"
+            X-Frame-Options:
+                - SAMEORIGIN
+            X-Permitted-Cross-Domain-Policies:
+                - none
+            X-Request-Id:
+                - 8106d30a-82f0-4f30-95be-75b8ffe821f5
+            X-Xss-Protection:
+                - "0"
+        status: 200 OK
+        code: 200
+        duration: 91.229525ms

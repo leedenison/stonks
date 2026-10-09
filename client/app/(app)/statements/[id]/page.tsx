@@ -2,6 +2,8 @@
 
 import { Code, ConnectError } from "@connectrpc/connect";
 import { useParams } from "next/navigation";
+import { useState } from "react";
+import { Button } from "@/app/components/button";
 import { Chip } from "@/app/components/chip";
 import { Notice } from "@/app/components/notice";
 import { Page } from "@/app/components/page-frame";
@@ -10,12 +12,17 @@ import { ResolutionKeys } from "@/app/components/resolution-keys";
 import { Section } from "@/app/components/section";
 import { Skeleton } from "@/app/components/skeleton";
 import { StateChip } from "@/app/components/state-chip";
-import type { ResolutionItem } from "@/gen/type/v1/type_pb";
+import {
+  Arbiter,
+  type ResolutionItem,
+  ResolutionOutcome,
+} from "@/gen/type/v1/type_pb";
 import { useStatement } from "@/hooks/use-statement";
 import { brokerLabel } from "@/lib/broker";
 import { formatInstant } from "@/lib/format";
 import { prevDay } from "@/lib/marshal/date";
 import { isTerminal, outcome } from "@/lib/run";
+import { CandidatesDialog } from "./candidates-dialog";
 
 // One statement, with its run, its rejected rows and the resolution of every
 // key it stated. The title names the upload by its broker and the moment it
@@ -120,9 +127,21 @@ function Body({
   }
 }
 
+// choosable reports whether the user may choose an instrument for k. A key
+// that nothing has associated has an unspecified arbiter.
+function choosable(k: ResolutionItem): boolean {
+  return (
+    k.arbiter === Arbiter.UNSPECIFIED &&
+    (k.outcome === ResolutionOutcome.UNRECOGNISED ||
+      k.outcome === ResolutionOutcome.UNAVAILABLE)
+  );
+}
+
 // Keys lists what the statement stated, one row per key, with the outcome
-// of the key's latest resolution.
+// of the key's latest resolution and, for a key left unassociated, the
+// choice of an instrument.
 function Keys({ keys, live }: { keys: ResolutionItem[]; live: boolean }) {
+  const [choosing, setChoosing] = useState<ResolutionItem | null>(null);
   return (
     <Section title="Keys">
       <ResolutionKeys
@@ -130,7 +149,21 @@ function Keys({ keys, live }: { keys: ResolutionItem[]; live: boolean }) {
         live={live}
         testId="statement-keys"
         rowTestId={(id) => `key-row-${id}`}
+        action={(k) =>
+          !live && choosable(k) ? (
+            <Button
+              variant="secondary"
+              data-testid={`key-choose-${k.statedKeyId}`}
+              onClick={() => setChoosing(k)}
+            >
+              Choose
+            </Button>
+          ) : null
+        }
       />
+      {choosing && (
+        <CandidatesDialog item={choosing} onClose={() => setChoosing(null)} />
+      )}
     </Section>
   );
 }

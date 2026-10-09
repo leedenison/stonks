@@ -981,3 +981,199 @@ interactions:
         status: 200 OK
         code: 200
         duration: 426.407664ms
+    - id: 20
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/search/INTC?api_token=REDACTED&fmt=json&limit=500
+        form:
+            fmt:
+                - json
+            limit:
+                - "500"
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/search/INTC?fmt=json&limit=500
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 3739
+        uncompressed: true
+        body: '[{"Code":"INTC","Exchange":"US","Name":"Intel Corporation","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US4581401001","isPrimary":true,"previousClose":107.08,"previousCloseDate":"2026-10-08"},{"Code":"INTC","Exchange":"TO","Name":"Intel CDR (CAD Hedged)","Type":"Common Stock","Country":"Canada","Currency":"CAD","ISIN":null,"isPrimary":false,"previousClose":59.9,"previousCloseDate":"2026-10-08"},{"Code":"INTC","Exchange":"NEO","Name":"INTEL CDR (CAD HEDGED)","Type":"Common Stock","Country":"Canada","Currency":"CAD","ISIN":"US4581401001","isPrimary":false,"previousClose":59.96,"previousCloseDate":"2026-10-08"},{"Code":"INTC","Exchange":"BA","Name":"Intel Corp. CEDEAR","Type":"Common Stock","Country":"Argentina","Currency":"ARS","ISIN":"US4581401001","isPrimary":false,"previousClose":34560,"previousCloseDate":"2026-10-08"},{"Code":"INTC","Exchange":"MX","Name":"Intel Corporation","Type":"Common Stock","Country":"Mexico","Currency":"MXN","ISIN":"US4581401001","isPrimary":false,"previousClose":1945.96,"previousCloseDate":"2026-10-08"},{"Code":"INTC","Exchange":"SW","Name":"Intel Corporation","Type":"Common Stock","Country":"Switzerland","Currency":"CHF","ISIN":null,"isPrimary":false,"previousClose":88.28,"previousCloseDate":"2026-10-09"},{"Code":"INTW","Exchange":"US","Name":"GraniteShares 2x Long INTC Daily ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US38747R5533","isPrimary":false,"previousClose":24.68,"previousCloseDate":"2026-10-08"},{"Code":"300677","Exchange":"SHE","Name":"Shandong Intco Medical Products Co Ltd","Type":"Common Stock","Country":"China","Currency":"CNY","ISIN":"CNE100003456","isPrimary":true,"previousClose":49,"previousCloseDate":"2026-10-09"},{"Code":"688087","Exchange":"SHG","Name":"Shandong Intco Recycling Resources Co Ltd","Type":"Common Stock","Country":"China","Currency":"CNY","ISIN":"CNE100004PB3","isPrimary":true,"previousClose":31.29,"previousCloseDate":"2026-10-09"},{"Code":"LINT","Exchange":"US","Name":"Direxion Daily INTC Bull 2X ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US25461H8126","isPrimary":false,"previousClose":126.63,"previousCloseDate":"2026-10-08"},{"Code":"INT3","Exchange":"LSE","Name":"Leverage Shares Public Limited Company - 3X Long Intel (Intc) ETP","Type":"ETF","Country":"UK","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":220.68,"previousCloseDate":"2026-10-09"},{"Code":"ICG","Exchange":"US","Name":"Intchains Group Limited American Depositary Shares","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US45828E1047","isPrimary":true,"previousClose":1.01,"previousCloseDate":"2026-10-08"},{"Code":"ZINT","Exchange":"NEO","Name":"INTEL (INTC) BMO CDR (CAD HEDGED)","Type":"Common Stock","Country":"Canada","Currency":"CAD","ISIN":null,"isPrimary":false,"previousClose":27.98,"previousCloseDate":"2026-10-01"},{"Code":"YINT","Exchange":"LSE","Name":"INTEL (INTC) OPTIONS ETP","Type":"ETF","Country":"UK","Currency":"GBX","ISIN":null,"isPrimary":false,"previousClose":788.5,"previousCloseDate":"2026-10-09"},{"Code":"IYNY","Exchange":"XETRA","Name":"IncomeShares Intel (INTC) Options ETP","Type":"ETF","Country":"Germany","Currency":"EUR","ISIN":"XS3299468515","isPrimary":false,"previousClose":9.3295,"previousCloseDate":"2026-10-09"},{"Code":"INYY","Exchange":"US","Name":"Yieldmax Intc Option Income Strategy ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US88636J7256","isPrimary":false,"previousClose":36.14,"previousCloseDate":"2026-10-08"},{"Code":"INTY","Exchange":"LSE","Name":"IncomeShares Intel (INTC) Options ETP","Type":"ETF","Country":"UK","Currency":"USD","ISIN":"XS3299468515","isPrimary":false,"previousClose":10.435,"previousCloseDate":"2026-10-09"}]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Fri, 09 Oct 2026 19:27:25 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1199"
+        status: 200 OK
+        code: 200
+        duration: 1.596875646s
+    - id: 21
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/search/CSCO?api_token=REDACTED&fmt=json&limit=500
+        form:
+            fmt:
+                - json
+            limit:
+                - "500"
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/search/CSCO?fmt=json&limit=500
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 1937
+        uncompressed: true
+        body: '[{"Code":"CSCO","Exchange":"US","Name":"Cisco Systems Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US17275R1023","isPrimary":true,"previousClose":114.89,"previousCloseDate":"2026-10-08"},{"Code":"CSCO","Exchange":"TO","Name":"Cisco CDR (CAD Hedged)","Type":"Common Stock","Country":"Canada","Currency":"CAD","ISIN":"CA17278B1040","isPrimary":true,"previousClose":54.8,"previousCloseDate":"2026-10-08"},{"Code":"CSCO","Exchange":"MX","Name":"Cisco Systems Inc","Type":"Common Stock","Country":"Mexico","Currency":"MXN","ISIN":null,"isPrimary":false,"previousClose":2096.7,"previousCloseDate":"2026-10-08"},{"Code":"CSCO","Exchange":"NEO","Name":"CISCO CDR (CAD HEDGED)","Type":"Common Stock","Country":"Canada","Currency":"CAD","ISIN":"CA17278B1040","isPrimary":true,"previousClose":55.41,"previousCloseDate":"2026-10-08"},{"Code":"CSCO34","Exchange":"SA","Name":"Cisco Systems Inc","Type":"Common Stock","Country":"Brazil","Currency":"BRL","ISIN":null,"isPrimary":false,"previousClose":115.9,"previousCloseDate":"2026-10-08"},{"Code":"CSCO06","Exchange":"BK","Name":"Cisco Systems, Inc.","Type":"Common Stock","Country":"Thailand","Currency":"THB","ISIN":null,"isPrimary":false,"previousClose":4.84,"previousCloseDate":"2026-10-09"},{"Code":"CSCOX","Exchange":"US","Name":"Future Scholar 529 College Savings Plan S C - Clearbridge Small Cap 529 Fund","Type":"FUND","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":16.33,"previousCloseDate":"2026-10-08"},{"Code":"CSCL","Exchange":"US","Name":"Direxion Daily CSCO Bull 2X ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US25461A2886","isPrimary":false,"previousClose":56.318,"previousCloseDate":"2026-10-08"},{"Code":"CSCS","Exchange":"US","Name":"Direxion Daily CSCO Bear 1X ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US25461A2621","isPrimary":false,"previousClose":13.121,"previousCloseDate":"2026-10-08"}]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Fri, 09 Oct 2026 19:27:25 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1198"
+        status: 200 OK
+        code: 200
+        duration: 309.130743ms
+    - id: 22
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/exchange-symbol-list/US?api_token=REDACTED&fmt=json&symbols=INTC
+        form:
+            fmt:
+                - json
+            symbols:
+                - INTC
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/exchange-symbol-list/US?fmt=json&symbols=INTC
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 141
+        uncompressed: true
+        body: '[{"Code":"INTC","Name":"Intel Corporation","Country":"USA","Exchange":"NASDAQ","Currency":"USD","Type":"Common Stock","Isin":"US4581401001"}]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Fri, 09 Oct 2026 19:27:25 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1197"
+        status: 200 OK
+        code: 200
+        duration: 269.703107ms
+    - id: 23
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/exchange-symbol-list/US?api_token=REDACTED&fmt=json&symbols=CSCO
+        form:
+            fmt:
+                - json
+            symbols:
+                - CSCO
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/exchange-symbol-list/US?fmt=json&symbols=CSCO
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 141
+        uncompressed: true
+        body: '[{"Code":"CSCO","Name":"Cisco Systems Inc","Country":"USA","Exchange":"NASDAQ","Currency":"USD","Type":"Common Stock","Isin":"US17275R1023"}]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Fri, 09 Oct 2026 19:27:26 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1196"
+        status: 200 OK
+        code: 200
+        duration: 277.366491ms

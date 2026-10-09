@@ -10,6 +10,9 @@ export const qk = {
   session: () => ["session"] as const,
   statements: () => ["statements"] as const,
   statement: (id: string) => ["statements", id] as const,
+  // Under a resource of its own, so refreshing the statements after a
+  // choice does not run the resolution again.
+  candidates: (keyId: string) => ["candidates", keyId] as const,
   run: (id: string) => ["runs", id] as const,
   transactions: () => ["transactions"] as const,
   holdings: () => ["holdings"] as const,

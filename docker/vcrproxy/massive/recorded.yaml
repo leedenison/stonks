@@ -199,3 +199,75 @@ interactions:
         status: 200 OK
         code: 200
         duration: 4.75707709s
+    - id: 5
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /v3/reference/tickers/INTC?apiKey=REDACTED
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://api.massive.com/v3/reference/tickers/INTC
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 921
+        uncompressed: true
+        body: '{"request_id":"dad000838f61e2b9241f528b8e89d3a7","results":{"active":true,"address":"REDACTED","branding":{"icon_url":"https://api.massive.com/v1/reference/company-branding/aW50ZWwuY29t/images/2026-10-01_icon.png","logo_url":"https://api.massive.com/v1/reference/company-branding/aW50ZWwuY29t/images/2026-10-01_logo.svg"},"cik":"0000050863","composite_figi":"BBG000C0G1D1","currency_name":"usd","description":"REDACTED","homepage_url":"https://www.intel.com","list_date":"1971-10-13","locale":"us","market":"stocks","market_cap":5.6603615145496e+11,"name":"Intel Corp","phone_number":"REDACTED","primary_exchange":"XNAS","round_lot":100,"share_class_figi":"BBG001S5SF65","share_class_shares_outstanding":5044000000,"sic_code":"3674","sic_description":"SEMICONDUCTORS \u0026 RELATED DEVICES","ticker":"INTC","ticker_root":"INTC","total_employees":851001,"type":"CS","weighted_shares_outstanding":5286105262},"status":"OK"}'
+        headers:
+            Content-Type:
+                - application/json
+            Date:
+                - Fri, 09 Oct 2026 19:27:23 GMT
+            Strict-Transport-Security:
+                - max-age=15724800; includeSubDomains
+            Vary:
+                - Accept-Encoding
+            X-Polygon-Cluster-Name:
+                - polygon-ny5
+            X-Request-Id:
+                - dad000838f61e2b9241f528b8e89d3a7
+        status: 200 OK
+        code: 200
+        duration: 838.564999ms
+    - id: 6
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /v3/reference/tickers/CSCO?apiKey=REDACTED
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://api.massive.com/v3/reference/tickers/CSCO
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 947
+        uncompressed: true
+        body: '{"request_id":"a6969713770843a444472d050e7a6743","results":{"active":true,"address":"REDACTED","branding":{"icon_url":"https://api.massive.com/v1/reference/company-branding/Y2lzY28uY29t/images/2026-10-01_icon.jpeg","logo_url":"https://api.massive.com/v1/reference/company-branding/Y2lzY28uY29t/images/2026-10-01_logo.svg"},"cik":"0000858877","composite_figi":"BBG000C3J3C9","currency_name":"usd","description":"REDACTED","homepage_url":"https://www.cisco.com","list_date":"1990-02-16","locale":"us","market":"stocks","market_cap":4.5296380583897003e+11,"name":"Cisco Systems, Inc. Common Stock (DE)","phone_number":"REDACTED","primary_exchange":"XNAS","round_lot":100,"share_class_figi":"BBG001S6HC62","share_class_shares_outstanding":3942586873,"sic_code":"3576","sic_description":"COMPUTER COMMUNICATIONS EQUIPMENT","ticker":"CSCO","ticker_root":"CSCO","total_employees":82400,"type":"CS","weighted_shares_outstanding":3942586873},"status":"OK"}'
+        headers:
+            Content-Type:
+                - application/json
+            Date:
+                - Fri, 09 Oct 2026 19:27:34 GMT
+            Strict-Transport-Security:
+                - max-age=15724800; includeSubDomains
+            Vary:
+                - Accept-Encoding
+            X-Polygon-Cluster-Name:
+                - polygon-ny5
+            X-Request-Id:
+                - a6969713770843a444472d050e7a6743
+        status: 200 OK
+        code: 200
+        duration: 11.242579289s

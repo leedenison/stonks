@@ -5,6 +5,10 @@ import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { RunSchema, RunState } from "@/gen/run/v1/run_pb";
 import {
+  CandidateListingSchema,
+  CandidateSchema,
+  ConfirmCandidateResponseSchema,
+  FindCandidatesResponseSchema,
   GetStatementResponseSchema,
   RowSchema,
   StatementItemSchema,
@@ -12,6 +16,7 @@ import {
   StatementSummarySchema,
 } from "@/gen/statement/v1/statement_pb";
 import {
+  Arbiter,
   AssetClass,
   Broker,
   IdentifierSchema,
@@ -84,6 +89,7 @@ function keys(resolved: boolean) {
       statedKey: gbp,
       statedKeyId: "k-gbp",
       outcome: ResolutionOutcome.MATCHED,
+      arbiter: Arbiter.STATED,
     }),
     create(ResolutionItemSchema, {
       statedKey: isin,
@@ -153,9 +159,54 @@ function response(
 
 function serving(
   getStatement: ServiceImpl<typeof StatementService>["getStatement"],
+  rest: Partial<ServiceImpl<typeof StatementService>> = {},
 ) {
   return transportWith(live, ({ service }) => {
-    service(StatementService, { getStatement });
+    service(StatementService, { getStatement, ...rest });
+  });
+}
+
+const isin = create(IdentifierSchema, {
+  type: IdentifierType.ISIN,
+  value: "US4581401001",
+});
+
+// offer is one candidate from OpenFIGI, a stock listed in USD, beside a
+// datasource that served nothing.
+function offer() {
+  return create(FindCandidatesResponseSchema, {
+    candidates: [
+      create(CandidateSchema, {
+        datasource: "openfigi",
+        strongest: isin,
+        assetClass: AssetClass.STOCK,
+        identifiers: [isin],
+        listings: [
+          create(CandidateListingSchema, {
+            currency: "USD",
+            identifiers: [
+              create(IdentifierSchema, {
+                type: IdentifierType.MIC_TICKER,
+                domain: "XNAS",
+                value: "INTC",
+              }),
+            ],
+          }),
+        ],
+      }),
+    ],
+    reasons: ["eodhd: failed: paused"],
+  });
+}
+
+// chosen is the bare key as the confirmation returns it.
+function chosen() {
+  return create(ConfirmCandidateResponseSchema, {
+    key: create(ResolutionItemSchema, {
+      statedKeyId: "k-bare",
+      outcome: ResolutionOutcome.MATCHED,
+      arbiter: Arbiter.USER,
+    }),
   });
 }
 
@@ -290,6 +341,143 @@ describe("StatementPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
     await waitFor(() =>
       expect(screen.getByTestId("statement-summary")).toBeTruthy(),
+    );
+  });
+
+  it("offers a choice for a key left unassociated, once the run has stopped", async () => {
+    renderWithAuth(
+      <StatementPage />,
+      serving(() => response(RunState.COMPLETED, 0, undefined, true)),
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId("statement-keys")).toBeTruthy(),
+    );
+    expect(screen.queryByTestId("key-choose-k-gbp")).toBeNull();
+    expect(screen.getByTestId("key-choose-k-isin")).toBeTruthy();
+    expect(screen.getByTestId("key-choose-k-bare")).toBeTruthy();
+    expect(screen.queryByTestId(/^key-arbiter-/)).toBeNull();
+  });
+
+  it("marks a key the user chose an instrument for", async () => {
+    renderWithAuth(
+      <StatementPage />,
+      serving(() => {
+        const r = response(RunState.COMPLETED, 0, undefined, true);
+        r.keys[2].outcome = ResolutionOutcome.MATCHED;
+        r.keys[2].arbiter = Arbiter.USER;
+        return r;
+      }),
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId("key-arbiter-k-bare").textContent).toBe(
+        "Chosen",
+      ),
+    );
+    expect(screen.queryByTestId("key-choose-k-bare")).toBeNull();
+  });
+
+  it("lists the candidates and chooses one", async () => {
+    const getStatement = vi.fn(() =>
+      response(RunState.COMPLETED, 0, undefined, true),
+    );
+    const findCandidates = vi.fn(() => offer());
+    const confirmCandidate = vi.fn(() => chosen());
+    renderWithAuth(
+      <StatementPage />,
+      serving(getStatement, { findCandidates, confirmCandidate }),
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId("key-choose-k-bare")).toBeTruthy(),
+    );
+    fireEvent.click(screen.getByTestId("key-choose-k-bare"));
+    await waitFor(() =>
+      expect(
+        screen.getByTestId("candidate-row-openfigi-US4581401001"),
+      ).toBeTruthy(),
+    );
+    expect(findCandidates).toHaveBeenCalledWith(
+      expect.objectContaining({ statedKeyId: "k-bare" }),
+      expect.anything(),
+    );
+    const row = screen.getByTestId("candidate-row-openfigi-US4581401001");
+    expect(row.textContent).toContain("openfigi");
+    expect(row.textContent).toContain("stock");
+    expect(row.textContent).toContain("US4581401001");
+    expect(row.textContent).toContain("USD");
+    expect(row.textContent).toContain("INTC");
+    expect(screen.getByTestId("candidates-reasons").textContent).toContain(
+      "eodhd: failed: paused",
+    );
+    fireEvent.click(
+      screen.getByTestId("candidate-choose-openfigi-US4581401001"),
+    );
+    await waitFor(() =>
+      expect(screen.queryByTestId("candidates-dialog")).toBeNull(),
+    );
+    expect(confirmCandidate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        statedKeyId: "k-bare",
+        datasource: "openfigi",
+        identifier: expect.objectContaining({ value: "US4581401001" }),
+      }),
+      expect.anything(),
+    );
+    await waitFor(() => expect(getStatement).toHaveBeenCalledTimes(2));
+    expect(findCandidates).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows a refusal and finds the candidates again", async () => {
+    const findCandidates = vi.fn(() => offer());
+    renderWithAuth(
+      <StatementPage />,
+      serving(() => response(RunState.COMPLETED, 0, undefined, true), {
+        findCandidates,
+        confirmCandidate: () => {
+          throw new ConnectError(
+            "the answer lacks the candidate",
+            Code.FailedPrecondition,
+          );
+        },
+      }),
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId("key-choose-k-bare")).toBeTruthy(),
+    );
+    fireEvent.click(screen.getByTestId("key-choose-k-bare"));
+    await waitFor(() =>
+      expect(
+        screen.getByTestId("candidate-choose-openfigi-US4581401001"),
+      ).toBeTruthy(),
+    );
+    fireEvent.click(
+      screen.getByTestId("candidate-choose-openfigi-US4581401001"),
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId("candidates-error").textContent).toContain(
+        "the answer lacks the candidate",
+      ),
+    );
+    await waitFor(() => expect(findCandidates).toHaveBeenCalledTimes(2));
+    expect(screen.getByTestId("candidates-dialog")).toBeTruthy();
+  });
+
+  it("says when no instrument is offered", async () => {
+    renderWithAuth(
+      <StatementPage />,
+      serving(() => response(RunState.COMPLETED, 0, undefined, true), {
+        findCandidates: () =>
+          create(FindCandidatesResponseSchema, {
+            reasons: ["openfigi: failed: paused until tomorrow"],
+          }),
+      }),
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId("key-choose-k-bare")).toBeTruthy(),
+    );
+    fireEvent.click(screen.getByTestId("key-choose-k-bare"));
+    await waitFor(() => expect(screen.getByTestId("empty-state")).toBeTruthy());
+    expect(screen.getByTestId("candidates-reasons").textContent).toContain(
+      "paused until tomorrow",
     );
   });
 });
