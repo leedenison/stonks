@@ -54,6 +54,7 @@ services:
       # No collector, so the exporter is a no-op. The dev overlay sets it.
       STONKS_OTLP_ENDPOINT: ""
       STONKS_ENVIRONMENT: ${STONKS_ENVIRONMENT:-development}
+      STONKS_FETCH_CACHE_TTL: ${STONKS_FETCH_CACHE_TTL:-1h}
     ports:
       - "8090:8090"
     # Migrations run before the service listens, so the start period covers them.

@@ -147,11 +147,12 @@ func run() (err error) {
 		Sessions: session.New(rdb, time.Now),
 		Allowed:  cfg.AllowedEmails,
 	})
-	fetcher := market.NewFetcher(db.New[market.Queries](pool), runs, logger.WithCategory(log, "internal/market"))
+	cache := market.NewCache(rdb, cfg.FetchCacheTTL)
+	fetcher := market.NewFetcher(db.New[market.Queries](pool), runs, logger.WithCategory(log, "internal/market"), market.WithCache(cache))
 	resolver := resolve.New(db.New[resolve.Queries](pool), fetcher, sources, logger.WithCategory(log, "internal/resolve"))
 	ingester := stmt.New(db.New[stmt.Queries](pool), runs, resolver, time.Now)
 	replays := replay.New(db.New[replay.Queries](pool), runs, resolver, sources)
-	admin := adminsvc.New(db.New[adminsvc.Queries](pool), sources, replays)
+	admin := adminsvc.New(db.New[adminsvc.Queries](pool), sources, replays, cache)
 	srv, err := newServer(cfg.ListenAddr, log, authn, queries, admin, ingester, cfg.CookieSecure)
 	if err != nil {
 		return err

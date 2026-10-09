@@ -30,6 +30,17 @@ type Store interface {
 
 var _ Store = (*db.DB[Queries])(nil)
 
+// Cache holds a served answer under the key of the request that produced
+// it.
+type Cache interface {
+	// Get returns the entry of each key, nil where the key has none.
+	Get(ctx context.Context, keys []string) ([][]byte, error)
+	// Set stores value under key for the cache's lifetime.
+	Set(ctx context.Context, key string, value []byte) error
+	// Drop removes every entry of datasource.
+	Drop(ctx context.Context, datasource string) error
+}
+
 // Runner is this package's view of the run framework.
 type Runner interface {
 	Child(ctx context.Context, parent gen.Run, kind gen.RunKind, work run.Work) (gen.Run, error)

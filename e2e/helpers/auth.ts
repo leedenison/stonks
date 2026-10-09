@@ -1,21 +1,14 @@
 import { randomUUID } from "node:crypto";
 import type { BrowserContext } from "@playwright/test";
-import Redis from "ioredis";
-import { baseURL, redisURL } from "./config";
+import { baseURL } from "./config";
 import type { SeededUser } from "./db";
+import { store } from "./redis";
 
 // The session record and its key are the contract the server's session
 // package states; the cookie name is the one its service boundary reads.
 const prefix = "stonks:session:";
 const cookieName = "stonks_session";
 const lifeSeconds = 7 * 24 * 60 * 60;
-
-let redis: Redis | null = null;
-
-function store(): Redis {
-  redis ??= new Redis(redisURL);
-  return redis;
-}
 
 // seedSession starts a session for user without going through Google, and
 // returns its identifier, the cookie value.
@@ -59,7 +52,4 @@ export function sessionCookie(id: string): string {
   return `${cookieName}=${id}`;
 }
 
-export async function closeRedis(): Promise<void> {
-  await redis?.quit();
-  redis = null;
-}
+export { closeRedis } from "./redis";

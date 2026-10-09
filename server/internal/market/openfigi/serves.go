@@ -64,18 +64,34 @@ type job struct {
 // with its last letter lowercased.
 var bloomberg = map[string]string{"GBX": "GBp"}
 
-// jobOf returns the mapping job for an identifier Serves returned. OpenFIGI
-// returns no currency, so a stated currency filters the job strictly and
-// every candidate is in it.
+// filter returns the currency that a job for key uses as its filter, spelt
+// as OpenFIGI spells it, and "" where the key states none.
+func filter(key gen.StatedKey) string {
+	code := currency(key)
+	if b, ok := bloomberg[code]; ok {
+		return b
+	}
+	return code
+}
+
+// Params is the currency filter, which is the one parameter a job takes
+// from the key beyond the identifier sent.
+func (c *Client) Params(key gen.StatedKey) []string {
+	if f := filter(key); f != "" {
+		return []string{f}
+	}
+	return nil
+}
+
+// jobOf returns the mapping job for an identifier Serves returned, filtered
+// on currency. OpenFIGI returns no currency, so a stated currency filters
+// the job strictly and every candidate is in it.
 func jobOf(id types.Identifier, currency string) job {
 	for _, t := range idTypes {
 		if t.typ != id.Type {
 			continue
 		}
 		j := job{IDType: t.idType, IDValue: id.Value, Currency: currency}
-		if b, ok := bloomberg[currency]; ok {
-			j.Currency = b
-		}
 		switch id.Type {
 		case types.IdentifierTypeOpenfigiTicker:
 			j.IDValue, _ = market.WithClassSep(id.Value, '/')

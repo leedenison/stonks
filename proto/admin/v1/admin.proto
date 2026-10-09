@@ -53,7 +53,8 @@ message FetchItem {
   // Identifies the key across runs.
   string stated_key_id = 2;
   FetchOutcome outcome = 3;
-  // The number of calls that carried the key.
+  // The number of calls that carried the key; zero when the datasource was
+  // paused or the answer came from the cache.
   int32 attempts = 4;
   // The identifier that carried the key; unset when it was not served.
   stonks.type.v1.Identifier sent = 5;

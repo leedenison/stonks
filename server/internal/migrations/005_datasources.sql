@@ -58,7 +58,7 @@ CREATE TABLE fetch_keys (
     stated_key_id uuid            NOT NULL REFERENCES stated_keys (id) ON DELETE CASCADE,
     outcome       fetch_outcome   NOT NULL,
     -- attempts is how many calls carried the key. It is zero when the
-    -- datasource was paused.
+    -- datasource was paused or the answer came from the cache.
     attempts      smallint        NOT NULL,
     sent_type     identifier_type,
     sent_domain   text            NOT NULL DEFAULT '',
@@ -76,7 +76,6 @@ CREATE TABLE fetch_keys (
     CHECK (sent_type IS NOT NULL OR sent_domain = ''),
     CHECK ((outcome = 'served') = (reason IS NULL)),
     CHECK (outcome NOT IN ('not_served', 'blocked') OR attempts = 0),
-    CHECK (outcome <> 'served' OR attempts > 0),
     CHECK (instrument_id IS NULL OR outcome = 'served'),
     CHECK (outcome = 'served' OR candidates = 0)
 );

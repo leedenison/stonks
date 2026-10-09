@@ -84,6 +84,14 @@ type Replayer interface {
 
 var _ Replayer = (*replay.Service)(nil)
 
+// Dropper is this package's view of the fetch cache: the drop of a
+// datasource's entries once its settings change.
+type Dropper interface {
+	Drop(ctx context.Context, datasource string) error
+}
+
+var _ Dropper = market.Cache(nil)
+
 //go:generate go tool mockgen -source=admin.go -destination=admin_mock_test.go -package=admin -self_package=github.com/leedenison/stonks/server/internal/service/admin
 
 // Server implements AdminService.
@@ -91,13 +99,14 @@ type Server struct {
 	store   Store
 	sources Sources
 	replays Replayer
+	cache   Dropper
 }
 
 var _ adminv1connect.AdminServiceHandler = (*Server)(nil)
 
 // New returns a Server.
-func New(store Store, sources Sources, replays Replayer) *Server {
-	return &Server{store: store, sources: sources, replays: replays}
+func New(store Store, sources Sources, replays Replayer, cache Dropper) *Server {
+	return &Server{store: store, sources: sources, replays: replays, cache: cache}
 }
 
 // ListRuns lists every user's runs matching the filters, newest first,
@@ -431,8 +440,9 @@ func (s *Server) ListDatasources(ctx context.Context, _ *connect.Request[adminv1
 }
 
 // UpdateDatasource sets a datasource's state, endpoint, credential and
-// config, and reloads the registry so the change takes effect. If the
-// registry would refuse the row, the row stays as it was.
+// config, reloads the registry so the change takes effect, and drops the
+// datasource's cached answers. If the registry would refuse the row, the
+// row stays as it was.
 func (s *Server) UpdateDatasource(ctx context.Context, req *connect.Request[adminv1.UpdateDatasourceRequest]) (*connect.Response[adminv1.UpdateDatasourceResponse], error) {
 	m := req.Msg
 	arg := gen.UpdateDatasourceParams{Name: m.GetName(), Enabled: m.GetEnabled(), Endpoint: m.Endpoint, Credential: m.Credential}
@@ -466,6 +476,9 @@ func (s *Server) UpdateDatasource(ctx context.Context, req *connect.Request[admi
 	if err := s.reload(ctx); err != nil {
 		return nil, err
 	}
+	if err := s.cache.Drop(context.WithoutCancel(ctx), row.Name); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("drop cached answers: %w", err))
+	}
 	d, err := datasource(row.Name, row.Enabled, row.Precedence, row.Endpoint, row.Credential != nil, row.Config)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
@@ -484,8 +497,9 @@ func (s *Server) reload(ctx context.Context) error {
 }
 
 // ReorderDatasources gives each datasource the precedence of its position in
-// the list, and reloads the registry. A list that does not name every
-// datasource exactly once is refused.
+// the list, and reloads the registry. The cache keeps its entries, because
+// precedence orders answers after they are served. A list that does not
+// name every datasource exactly once is refused.
 func (s *Server) ReorderDatasources(ctx context.Context, req *connect.Request[adminv1.ReorderDatasourcesRequest]) (*connect.Response[adminv1.ReorderDatasourcesResponse], error) {
 	names := req.Msg.GetNames()
 	var invalid error

@@ -8,10 +8,12 @@ answer may have changed, and the user chooses among the candidates in the fresh 
 
 Finding the candidates is a synchronous resolution. It is a run like any other, so its
 fetches record fetch keys and its findings belong to it. It executes in the caller and
-responds with the candidates. It shares its lookups, fetches and checks against the
-stated key with a resolution run. It stops before choosing, and lists every group that
-survived the checks, ordered by datasource precedence and then by each provider's own
-order.
+responds with the candidates. It does not run in a lane. The writes it could race are an
+upload's or a replay's resolution of the same key. The identifier locks, the user's key
+lock and the refusal to change an association the user arbitrated serialise those
+writes. It shares its lookups, fetches and checks against the stated key with a
+resolution run. It stops before choosing, and lists every group that survived the
+checks, ordered by datasource precedence and then by each provider's own order.
 
 Confirming is a second synchronous resolution. The user's choice names the datasource and
 a stable identifier of the group, or a MIC_TICKER where the group lacks a stable

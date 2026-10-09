@@ -29,6 +29,7 @@ type harness struct {
 	entry   *Entry
 	fetcher *Fetcher
 	parent  gen.Run
+	cache   *memCache
 
 	keys   []gen.CreateFetchKeyParams
 	blocks []gen.CreateDatasourceBlockParams
@@ -50,6 +51,7 @@ func newHarness(t *testing.T, integration Integration, open []gen.DatasourceBloc
 	h := &harness{
 		store:   NewMockStore(ctrl),
 		parent:  gen.Run{ID: db.NewID(), UserID: db.NewID(), Kind: gen.RunKindResolution},
+		cache:   &memCache{entries: map[string][]byte{}},
 		now:     start,
 		created: 1,
 	}
@@ -90,9 +92,52 @@ func newHarness(t *testing.T, integration Integration, open []gen.DatasourceBloc
 		}
 		return ctx.Err()
 	}
-	h.fetcher = NewFetcher(h.store, runs, discard(), WithRetry(time.Millisecond, 3), WithClock(clock, sleep))
+	h.fetcher = NewFetcher(h.store, runs, discard(), WithRetry(time.Millisecond, 3), WithClock(clock, sleep), WithCache(h.cache))
 	return h
 }
+
+// memCache is a Cache in memory, so a hit reads what a miss stored.
+type memCache struct {
+	entries map[string][]byte
+	getErr  error
+	setErr  error
+}
+
+func (c *memCache) Get(_ context.Context, keys []string) ([][]byte, error) {
+	if c.getErr != nil {
+		return nil, c.getErr
+	}
+	out := make([][]byte, len(keys))
+	for i, k := range keys {
+		out[i] = c.entries[k]
+	}
+	return out, nil
+}
+
+func (c *memCache) Set(_ context.Context, key string, value []byte) error {
+	if c.setErr != nil {
+		return c.setErr
+	}
+	c.entries[key] = value
+	return nil
+}
+
+func (c *memCache) Drop(_ context.Context, datasource string) error {
+	for k := range c.entries {
+		if strings.HasPrefix(k, dropPrefix(datasource)) {
+			delete(c.entries, k)
+		}
+	}
+	return nil
+}
+
+// parameterised is a fake whose call takes params from every key.
+type parameterised struct {
+	*fake
+	params []string
+}
+
+func (p *parameterised) Params(gen.StatedKey) []string { return p.params }
 
 func isin(value string) types.Identifier {
 	return types.Identifier{Type: types.IdentifierTypeIsin, Value: value}
@@ -668,5 +713,138 @@ func TestFetchWriteFails(t *testing.T) {
 	results, err := Fetch(context.Background(), h.fetcher, h.parent, h.entry, IdentityKind, []gen.StatedKey{keyOf(f, "GB00B03MLX29")})
 	if !errors.Is(err, boom) || results != nil {
 		t.Errorf("Fetch() = %v, %v, want no results and %v", results, err, boom)
+	}
+}
+
+// TestFetchCacheHit checks that a key fetched again within the cache's
+// lifetime is served from the cache, with no call, zero attempts and the
+// answer the call produced.
+func TestFetchCacheHit(t *testing.T) {
+	f := &fake{}
+	h := newHarness(t, f, nil)
+	first, second := keyOf(f, "GB00B03MLX29"), keyOf(f, "GB00B03MLX29")
+	counts(t)
+
+	miss := h.run(t, first)[0]
+	if f.calls != 1 || miss.cached {
+		t.Fatalf("calls = %d, cached = %v after the first fetch, want one call that missed", f.calls, miss.cached)
+	}
+	if len(h.cache.entries) != 1 {
+		t.Fatalf("entries = %d, want the served answer stored", len(h.cache.entries))
+	}
+
+	hit := h.run(t, second)[0]
+	if f.calls != 1 {
+		t.Errorf("calls = %d, want 1: the second fetch is answered from the cache", f.calls)
+	}
+	if hit.Outcome != gen.FetchOutcomeServed || !hit.cached {
+		t.Errorf("outcome = %s, cached = %v, want served from the cache", hit.Outcome, hit.cached)
+	}
+	if diff := cmp.Diff(miss.Response, hit.Response); diff != "" {
+		t.Errorf("the cached answer differs from the one the call produced (-call +cache):\n%s", diff)
+	}
+	if row := h.key(t, second.ID); row.Outcome != gen.FetchOutcomeServed || row.Attempts != 0 || row.Candidates != 1 {
+		t.Errorf("row = %+v, want served with zero attempts and one candidate", row)
+	}
+	got := counts(t)
+	for name := range got {
+		if !strings.HasPrefix(name, "stonks.datasource.keys") {
+			delete(got, name)
+		}
+	}
+	want := map[string]int64{
+		"stonks.datasource.keys{cached=false,datasource=fake,outcome=served}": 1,
+		"stonks.datasource.keys{cached=true,datasource=fake,outcome=served}":  1,
+	}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("counts mismatch (-want +got):\n%s", diff)
+	}
+}
+
+// TestFetchCacheEmptyAnswer checks that an answer with no candidate is
+// cached as any other.
+func TestFetchCacheEmptyAnswer(t *testing.T) {
+	f := &fake{empty: true}
+	h := newHarness(t, f, nil)
+	first, second := keyOf(f, "GB00B03MLX29"), keyOf(f, "GB00B03MLX29")
+
+	h.run(t, first)
+	hit := h.run(t, second)[0]
+	if f.calls != 1 || !hit.cached || len(hit.Response.Candidates) != 0 {
+		t.Errorf("calls = %d, cached = %v, candidates = %d, want one call and an empty hit", f.calls, hit.cached, len(hit.Response.Candidates))
+	}
+}
+
+// TestFetchCacheFailureNotStored checks that a key the call failed is not
+// cached, so the next fetch calls again.
+func TestFetchCacheFailureNotStored(t *testing.T) {
+	f := &fake{perKey: map[string]error{"US0378331005": permanent("unknown identifier")}}
+	h := newHarness(t, f, nil)
+
+	h.run(t, keyOf(f, "US0378331005"))
+	if len(h.cache.entries) != 0 {
+		t.Errorf("entries = %v, want none: a failure is not an answer", h.cache.entries)
+	}
+}
+
+// TestFetchCacheParams checks that the parameters the integration derives
+// from a key are part of its cache key.
+func TestFetchCacheParams(t *testing.T) {
+	f := &fake{}
+	h := newHarness(t, &parameterised{fake: f, params: []string{"USD"}}, nil)
+	k := keyOf(f, "GB00B03MLX29")
+
+	h.run(t, k)
+	want := cacheKey(h.entry.Name, gen.FetchKindIdentity, isin("GB00B03MLX29"), []string{"USD"})
+	if _, ok := h.cache.entries[want]; !ok {
+		t.Errorf("entries = %v, want one under %q", h.cache.entries, want)
+	}
+}
+
+// TestFetchCachePaused checks that the cache is read before the pause: a
+// paused datasource serves a hit and fails a miss.
+func TestFetchCachePaused(t *testing.T) {
+	f := &fake{}
+	h := newHarness(t, f, nil)
+	cached, fresh := keyOf(f, "GB00B03MLX29"), keyOf(f, "US0378331005")
+	h.run(t, cached)
+	h.entry.limiter.pause(h.now.Add(time.Hour), "quota spent")
+
+	results := h.run(t, keyOf(f, "GB00B03MLX29"), fresh)
+	if f.calls != 1 {
+		t.Errorf("calls = %d, want 1: a paused datasource gets no call", f.calls)
+	}
+	if results[0].Outcome != gen.FetchOutcomeServed || !results[0].cached {
+		t.Errorf("cached key outcome = %s, want served from the cache", results[0].Outcome)
+	}
+	if results[1].Outcome != gen.FetchOutcomeFailedTemporary {
+		t.Errorf("fresh key outcome = %s, want failed_temporary", results[1].Outcome)
+	}
+}
+
+// TestFetchCacheErrors checks that a cache that cannot be read or written
+// fails the fetch with no results.
+func TestFetchCacheErrors(t *testing.T) {
+	boom := errors.New("boom")
+	tests := []struct {
+		name string
+		set  func(c *memCache)
+	}{
+		{name: "read", set: func(c *memCache) { c.getErr = boom }},
+		{name: "write", set: func(c *memCache) { c.setErr = boom }},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			f := &fake{}
+			h := newHarness(t, f, nil)
+			tc.set(h.cache)
+			results, err := Fetch(context.Background(), h.fetcher, h.parent, h.entry, IdentityKind, []gen.StatedKey{keyOf(f, "GB00B03MLX29")})
+			if !errors.Is(err, boom) || results != nil {
+				t.Errorf("Fetch() = %v, %v, want no results and %v", results, err, boom)
+			}
+			if len(h.keys) != 0 {
+				t.Errorf("fetch keys = %d, want none recorded", len(h.keys))
+			}
+		})
 	}
 }

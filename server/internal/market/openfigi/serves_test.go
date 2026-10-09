@@ -7,6 +7,8 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/types"
+	"github.com/leedenison/stonks/server/internal/market"
+	"github.com/leedenison/stonks/server/internal/ptr"
 )
 
 func TestServes(t *testing.T) {
@@ -72,11 +74,34 @@ func TestJobOf(t *testing.T) {
 		{id: types.Identifier{Type: types.IdentifierTypeOpenfigiTicker, Domain: "UN", Value: "BRK.B"}, want: job{IDType: "TICKER", IDValue: "BRK/B", ExchCode: "UN"}},
 		{id: types.Identifier{Type: types.IdentifierTypeOpenfigiTicker, Domain: "US", Value: "T 2 1/2 05/15/24"}, want: job{IDType: "TICKER", IDValue: "T 2 1/2 05/15/24", ExchCode: "US"}},
 		{id: types.Identifier{Type: types.IdentifierTypeIsin, Value: "US0378331005"}, currency: "USD", want: job{IDType: "ID_ISIN", IDValue: "US0378331005", Currency: "USD"}},
-		{id: types.Identifier{Type: types.IdentifierTypeIsin, Value: "GB00BH4HKS39"}, currency: "GBX", want: job{IDType: "ID_ISIN", IDValue: "GB00BH4HKS39", Currency: "GBp"}},
+		{id: types.Identifier{Type: types.IdentifierTypeIsin, Value: "GB00BH4HKS39"}, currency: "GBp", want: job{IDType: "ID_ISIN", IDValue: "GB00BH4HKS39", Currency: "GBp"}},
 	}
 	for _, tc := range tests {
 		if got := jobOf(tc.id, tc.currency); got != tc.want {
 			t.Errorf("jobOf(%v, %q) = %+v, want %+v", tc.id, tc.currency, got, tc.want)
 		}
+	}
+}
+
+// TestParams checks that the currency filter, as the job spells it, is the
+// one parameter a key adds to its cache key.
+func TestParams(t *testing.T) {
+	tests := []struct {
+		name     string
+		currency *string
+		want     []string
+	}{
+		{name: "no currency", currency: nil, want: nil},
+		{name: "a major unit", currency: ptr.To("USD"), want: []string{"USD"}},
+		{name: "a minor unit as OpenFIGI spells it", currency: ptr.To("GBX"), want: []string{"GBp"}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			c := New(market.Config{}, nil)
+			got := c.Params(gen.StatedKey{Currency: tc.currency})
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("Params() (-want +got):\n%s", diff)
+			}
+		})
 	}
 }

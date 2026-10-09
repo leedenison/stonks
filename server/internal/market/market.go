@@ -18,8 +18,21 @@
 //
 // When a provider refuses every call for a while, as when a daily quota is
 // spent, the framework pauses the datasource for the whole delay the provider
-// gives. While it lasts, each of the datasource's keys fails temporarily
-// without a call. The pause lives in the process.
+// gives. While it lasts, each of the datasource's keys that misses the cache
+// fails temporarily without a call. The pause lives in the process.
+//
+// A datasource's answer is cached in Redis for the lifetime the service
+// configures. An answer is a system fact, so the cache is shared by every
+// user. A fetch reads the cache before it checks blocks, the pause and the
+// rate, and calls the datasource only for a key that misses. Only a served
+// answer is cached, an empty one included. A hit records a served fetch key
+// with zero attempts. A cache error fails the fetch: Redis is a hard
+// dependency of the request path already, and a failed run is replayed as
+// any other. Answers are cached by request, so a reorder of the datasources
+// leaves them in place.
+//
+// The cache key is the request as the integration sends it. Its format is a
+// contract the e2e suite holds; see [cache.go](cache.go).
 package market
 
 import (
@@ -99,6 +112,14 @@ type Server[Q, P any] interface {
 	//
 	// Fetch is called with at most Batch requests, as one call.
 	Fetch(ctx context.Context, reqs []Request[Q]) ([]Response[P], error)
+}
+
+// Parameterised is a server whose call takes parameters from the request
+// beyond the identifier sent, such as a currency filter. Two requests sent
+// under one identifier with equal params get one answer, so the params are
+// part of the cache key.
+type Parameterised[Q any] interface {
+	Params(req Q) []string
 }
 
 // Kind is one kind of data: its label in the fetch records, and the server
