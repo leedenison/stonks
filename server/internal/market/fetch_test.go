@@ -245,6 +245,68 @@ func TestFetchQuotaIsNotRetried(t *testing.T) {
 	if len(h.blocks) != 0 {
 		t.Errorf("blocks = %+v, want none: a spent quota returns", h.blocks)
 	}
+	if _, paused := h.entry.limiter.paused(h.now); paused {
+		t.Error("the datasource is paused, want no pause without a delay")
+	}
+}
+
+// TestFetchPause checks that a temporary failure of the datasource with a
+// delay fails every later key without a call, sleep or block until the delay
+// passes.
+func TestFetchPause(t *testing.T) {
+	f := &fake{batch: 1, errs: []error{spent("quota spent", 6*time.Hour)}}
+	h := newHarness(t, f, nil)
+	one, two := keyOf(f, "GB00B03MLX29"), keyOf(f, "US0378331005")
+	const reason = "paused until 2026-10-01T06:00:00Z after: quota spent"
+
+	results := h.run(t, one, two)
+	if f.calls != 1 {
+		t.Errorf("calls = %d, want 1: the second key falls in the pause", f.calls)
+	}
+	want := []struct {
+		reason   string
+		attempts int16
+	}{{"quota spent", 1}, {reason, 0}}
+	for i, w := range want {
+		row := h.key(t, results[i].Request.ID)
+		if results[i].Outcome != gen.FetchOutcomeFailedTemporary || row.Reason == nil || *row.Reason != w.reason || row.Attempts != w.attempts {
+			t.Errorf("key %d = %s, %+v, want failed_temporary with %q after %d attempts", i, results[i].Outcome, row, w.reason, w.attempts)
+		}
+	}
+
+	three := keyOf(f, "US5949181045")
+	h.now = start.Add(time.Hour)
+	if r := h.run(t, three); f.calls != 1 || r[0].Reason != reason {
+		t.Errorf("a fetch inside the pause: calls = %d, reason %q, want no call and %q", f.calls, r[0].Reason, reason)
+	}
+	if len(h.sleeps) != 0 || len(h.blocks) != 0 {
+		t.Errorf("sleeps = %v, blocks = %+v, want none: a paused key fails at once and returns", h.sleeps, h.blocks)
+	}
+
+	h.now = start.Add(6 * time.Hour)
+	if r := h.run(t, three); f.calls != 2 || r[0].Outcome != gen.FetchOutcomeServed {
+		t.Errorf("a fetch after the pause: calls = %d, outcome %s, want a call that is served", f.calls, r[0].Outcome)
+	}
+}
+
+// TestFetchPauseDuringBackoff checks that a request waiting to retry makes no
+// further call once another fetch pauses the datasource.
+func TestFetchPauseDuringBackoff(t *testing.T) {
+	f := &fake{errs: []error{temporary("503")}}
+	h := newHarness(t, f, nil)
+	k := keyOf(f, "GB00B03MLX29")
+	h.onSleep = func() { h.entry.limiter.pause(h.now.Add(time.Hour), "quota spent") }
+
+	results := h.run(t, k)
+	if f.calls != 1 {
+		t.Errorf("calls = %d, want 1", f.calls)
+	}
+	if r := results[0]; r.Outcome != gen.FetchOutcomeFailedTemporary || !strings.HasPrefix(r.Reason, "paused until ") {
+		t.Errorf("result = %s %q, want failed_temporary for the pause", r.Outcome, r.Reason)
+	}
+	if len(h.blocks) != 0 {
+		t.Errorf("blocks = %+v, want none", h.blocks)
+	}
 }
 
 // TestFetchCredentialBlocksDatasource checks that a permanent failure about
@@ -458,8 +520,8 @@ func TestFetchKindNotServed(t *testing.T) {
 	}
 }
 
-// TestFetchRetryAfter checks that a refusal naming when to try again holds
-// the datasource for that long, capped, rather than backing off.
+// TestFetchRetryAfter checks that a refusal naming when to try again makes
+// the datasource wait that long, capped, rather than backing off.
 func TestFetchRetryAfter(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -482,19 +544,19 @@ func TestFetchRetryAfter(t *testing.T) {
 			if diff := cmp.Diff([]time.Duration{tc.want}, h.sleeps); diff != "" {
 				t.Errorf("sleeps mismatch (-want +got):\n%s", diff)
 			}
-			if got := h.entry.limiter.held(start); got != tc.want {
-				t.Errorf("hold from the start = %s, want %s", got, tc.want)
+			if got := h.entry.limiter.waits(start); got != tc.want {
+				t.Errorf("wait from the start = %s, want %s", got, tc.want)
 			}
 		})
 	}
 }
 
-// TestFetchHeld checks that a fetch on a held datasource waits once for what
-// remains of the hold before its first call.
-func TestFetchHeld(t *testing.T) {
+// TestFetchWaits checks that a fetch sleeps once, for what remains of the
+// provider's stated wait, before its first call.
+func TestFetchWaits(t *testing.T) {
 	f := &fake{}
 	h := newHarness(t, f, nil)
-	h.entry.limiter.holdUntil(start.Add(time.Second))
+	h.entry.limiter.waitUntil(start.Add(time.Second))
 	k := keyOf(f, "GB00B03MLX29")
 
 	h.run(t, k)

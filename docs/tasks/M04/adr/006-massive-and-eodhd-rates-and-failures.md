@@ -18,21 +18,15 @@ EODHD allows a thousand requests a minute, and a daily quota of calls that reset
 midnight GMT. A 402 means the quota is spent. It is a temporary failure of the whole
 datasource, and the integration states the time until midnight GMT as its Retry-After.
 
-The fetch framework holds a datasource for the Retry-After a provider states, but caps
-the hold at a few seconds and applies it only to a failure of one identifier. A spent
-quota needs a hold that lasts hours. The framework therefore holds the datasource for the
-whole Retry-After of a temporary datasource failure. While the hold lasts, it fails each
-key it would have sent as temporary without calling the provider, instead of waiting.
-A held datasource records no coverage, so its keys are asked again once the hold ends.
-The hold lives in the process, so a restart lifts it, and the first call after the
-restart meets the 402 again.
+The fetch framework pauses the datasource until then; see
+[market.go](../../../../server/internal/market/market.go).
 
 ## Failures
 
 For both providers:
 
 - a 401 or a 403 is permanent and blocks the datasource;
-- a 429 is temporary, held for the Retry-After where the provider states one;
+- a 429 is temporary, and when the provider states a Retry-After the next call waits for it;
 - a 5xx or a network error is temporary;
 - an empty answer is a served fetch with no candidates.
 

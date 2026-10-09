@@ -18,6 +18,8 @@ In:
 - Confirming one candidate, which writes it as a winner with system authority.
 - A fetch cache shared by resolution runs and synchronous resolutions. See
   [011](../adr/011-fetches-are-cached-for-an-hour.md).
+  A fetch reads the cache before it checks whether the datasource is paused, so a
+  pause fails only a key that misses the cache.
 - The arbiter of an association, and the rules that keep a user's choice. See
   [010](../adr/010-an-association-records-its-arbiter.md).
 - An unranked list of candidates on the statement upload details page.
