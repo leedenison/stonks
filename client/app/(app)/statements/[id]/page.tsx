@@ -12,11 +12,7 @@ import { ResolutionKeys } from "@/app/components/resolution-keys";
 import { Section } from "@/app/components/section";
 import { Skeleton } from "@/app/components/skeleton";
 import { StateChip } from "@/app/components/state-chip";
-import {
-  Arbiter,
-  type ResolutionItem,
-  ResolutionOutcome,
-} from "@/gen/type/v1/type_pb";
+import { Arbiter, type ResolutionItem } from "@/gen/type/v1/type_pb";
 import { useStatement } from "@/hooks/use-statement";
 import { brokerLabel } from "@/lib/broker";
 import { formatInstant } from "@/lib/format";
@@ -127,14 +123,11 @@ function Body({
   }
 }
 
-// choosable reports whether the user may choose an instrument for k. A key
-// that nothing has associated has an unspecified arbiter.
+// choosable reports whether the user may choose an instrument for k. That
+// holds when the resolution offered an instrument and no arbiter has
+// associated k.
 function choosable(k: ResolutionItem): boolean {
-  return (
-    k.arbiter === Arbiter.UNSPECIFIED &&
-    (k.outcome === ResolutionOutcome.UNRECOGNISED ||
-      k.outcome === ResolutionOutcome.UNAVAILABLE)
-  );
+  return k.offered > 0 && k.arbiter === Arbiter.UNSPECIFIED;
 }
 
 // Keys lists what the statement stated, one row per key, with the outcome

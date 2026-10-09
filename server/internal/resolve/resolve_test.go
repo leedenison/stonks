@@ -92,7 +92,7 @@ func (f *fixture) records() {
 	f.store.EXPECT().ListStatedKeysOfGroups(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
 	f.store.EXPECT().CreateResolutionKey(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.CreateResolutionKeyParams) (gen.ResolutionKey, error) {
 		f.resolutions++
-		return gen.ResolutionKey{RunID: arg.RunID, UserID: arg.UserID, StatedKeyID: arg.StatedKeyID, Outcome: arg.Outcome, Reasons: arg.Reasons}, nil
+		return gen.ResolutionKey{RunID: arg.RunID, UserID: arg.UserID, StatedKeyID: arg.StatedKeyID, Outcome: arg.Outcome, Reasons: arg.Reasons, Offered: arg.Offered}, nil
 	}).AnyTimes()
 }
 
@@ -225,6 +225,7 @@ func TestResolveUnresolved(t *testing.T) {
 		fetched  bool
 		outcome  gen.ResolutionOutcome
 		reasons  []string
+		offered  int32
 		findings []finding
 	}{
 		{
@@ -256,6 +257,7 @@ func TestResolveUnresolved(t *testing.T) {
 			fetched: true,
 			outcome: gen.ResolutionOutcomeUnrecognised,
 			reasons: []string{"a: 1 candidate in 1 group, 1 group not naming mic_ticker VOD"},
+			offered: 1,
 		},
 		{
 			name:    "a description that matches no instrument",
@@ -270,6 +272,7 @@ func TestResolveUnresolved(t *testing.T) {
 			fetched: true,
 			outcome: gen.ResolutionOutcomeUnrecognised,
 			reasons: []string{"a: 1 candidate in 1 group, 1 group not naming mic_ticker VOD"},
+			offered: 1,
 		},
 		{
 			name:     "every group dropped",
@@ -290,7 +293,7 @@ func TestResolveUnresolved(t *testing.T) {
 				f.serves(entryA, tc.results...)
 			}
 			got := f.resolve(tc.key)
-			want := []gen.ResolutionKey{{RunID: res.ID, UserID: userID, StatedKeyID: tc.key.ID, Outcome: tc.outcome, Reasons: tc.reasons}}
+			want := []gen.ResolutionKey{{RunID: res.ID, UserID: userID, StatedKeyID: tc.key.ID, Outcome: tc.outcome, Reasons: tc.reasons, Offered: tc.offered}}
 			if diff := cmp.Diff(want, got); diff != "" {
 				t.Errorf("Resolve mismatch (-want +got):\n%s", diff)
 			}

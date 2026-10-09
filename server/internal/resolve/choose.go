@@ -54,6 +54,9 @@ type choice struct {
 	// no group won summarises both.
 	groups    map[string]int
 	notNaming map[string]int
+	// offered counts the groups dropped only because the key was sent under
+	// a bare ticker. A confirmation lists them, and the user picks one.
+	offered int
 }
 
 // groups builds the groups of r. The candidates of r carry currency
@@ -408,7 +411,9 @@ func dropped(r *result, step gen.DropStep, detail string) gen.CreateFindingParam
 }
 
 // naming filters gs to the groups that carry the identifier r was sent.
-func (c *choice) naming(r *result, gs []*group) ([]*group, bool) {
+// When that identifier is not a GUID, naming drops every group and counts
+// as offered each one that agrees with the statement.
+func (c *choice) naming(r *result, gs []*group, res *resolution) ([]*group, bool) {
 	sent := *r.Sent
 	nonGUID := !market.IsGUID(sent)
 	named := slices.ContainsFunc(gs, func(g *group) bool { return g.named })
@@ -416,7 +421,14 @@ func (c *choice) naming(r *result, gs []*group) ([]*group, bool) {
 	fallback := !named && sent.Type == types.IdentifierTypeMicTicker && !nonGUID && slices.Contains(r.Response.Filtered, ticker)
 	var survivors []*group
 	for _, g := range gs {
-		if nonGUID || (!g.named && !fallback) {
+		if nonGUID {
+			c.notNaming[r.Source]++
+			if _, bad := g.against(res); !bad {
+				c.offered++
+			}
+			continue
+		}
+		if !g.named && !fallback {
 			c.notNaming[r.Source]++
 			continue
 		}
@@ -435,7 +447,7 @@ func (c *choice) bestGroup(r *result, res *resolution, chosen []*group) *group {
 	c.groups[r.Source] = len(gs)
 	survivors, fallback := gs, false
 	if !c.picked || market.IsGUID(*r.Sent) {
-		survivors, fallback = c.naming(r, gs)
+		survivors, fallback = c.naming(r, gs, res)
 	}
 	survivors = slices.DeleteFunc(survivors, func(g *group) bool {
 		if detail, ok := g.against(res); ok {

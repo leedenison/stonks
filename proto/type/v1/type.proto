@@ -145,6 +145,10 @@ message ResolutionItem {
   // The arbiter of the key's current association; unset while the key has
   // none.
   Arbiter arbiter = 5;
+  // How many instrument groups the resolution dropped only because the key
+  // was sent under a ticker without its venue. The user may choose among
+  // them; zero means there is nothing to choose. See FindCandidates.
+  int32 offered = 6;
 }
 
 // A change in the quantity of one instrument held by a user.

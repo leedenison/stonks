@@ -53,7 +53,7 @@ func (r *Resolver) write(ctx context.Context, run gen.Run, res *resolution, pick
 // key and the kinds of the findings written.
 func (r *Resolver) resolveKey(ctx context.Context, q Queries, run gen.Run, res *resolution, pick *group) (gen.ResolutionKey, []gen.FindingKind, error) {
 	if res.outcome != "" {
-		return record(ctx, q, run, res, res.outcome, reasons(res.reason), res.findings)
+		return record(ctx, q, run, res, res.outcome, reasons(res.reason), res.findings, 0)
 	}
 	if res.inherit != nil {
 		return inheritKey(ctx, q, run, res, res.cur)
@@ -71,7 +71,7 @@ func (r *Resolver) resolveKey(ctx context.Context, q Queries, run gen.Run, res *
 	}
 	if t.found != nil {
 		if reason, ok := classConflict(res.row, t.found.instrument.AssetClass); ok {
-			return record(ctx, q, run, res, gen.ResolutionOutcomeUnrecognised, []string{reason}, t.findings)
+			return record(ctx, q, run, res, gen.ResolutionOutcomeUnrecognised, []string{reason}, t.findings, c.offered)
 		}
 		c = choose(res, t.found.group(), pick)
 		if c.refused != "" {
@@ -81,7 +81,7 @@ func (r *Resolver) resolveKey(ctx context.Context, q Queries, run gen.Run, res *
 	c.findings = append(c.findings, t.findings...)
 	c.findings = append(c.findings, res.findings...)
 	if c.winner == nil {
-		return record(ctx, q, run, res, unresolved(res), summary(res, c), c.findings)
+		return record(ctx, q, run, res, unresolved(res), summary(res, c), c.findings, c.offered)
 	}
 	w := writer{q: q, user: run.UserID, identifiers: map[types.Identifier]gen.Identifier{}, listings: map[string]gen.Listing{}, taken: t.taken}
 	if t.found != nil {
@@ -115,14 +115,14 @@ func (r *Resolver) resolveKey(ctx context.Context, q Queries, run gen.Run, res *
 		return gen.ResolutionKey{}, nil, err
 	}
 	if !ok {
-		return record(ctx, q, run, res, gen.ResolutionOutcomeUnrecognised, []string{"no identifier to associate through"}, c.findings)
+		return record(ctx, q, run, res, gen.ResolutionOutcomeUnrecognised, []string{"no identifier to associate through"}, c.findings, c.offered)
 	}
 	if a != nil {
 		if err := confirmGroup(ctx, q, run, res, *a, mates); err != nil {
 			return gen.ResolutionKey{}, nil, err
 		}
 	}
-	return record(ctx, q, run, res, gen.ResolutionOutcomeMatched, nil, c.findings)
+	return record(ctx, q, run, res, gen.ResolutionOutcomeMatched, nil, c.findings, 0)
 }
 
 // lockGroup takes the user's key lock and returns the keys of res's group,
@@ -315,13 +315,14 @@ func writeFindings(ctx context.Context, q Queries, run gen.Run, res *resolution,
 	return kinds, nil
 }
 
-// record writes res's findings and resolution key.
-func record(ctx context.Context, q Queries, run gen.Run, res *resolution, outcome gen.ResolutionOutcome, reasons []string, findings []gen.CreateFindingParams) (gen.ResolutionKey, []gen.FindingKind, error) {
+// record writes res's findings and resolution key. A non-zero offered lets
+// the user choose an instrument.
+func record(ctx context.Context, q Queries, run gen.Run, res *resolution, outcome gen.ResolutionOutcome, reasons []string, findings []gen.CreateFindingParams, offered int) (gen.ResolutionKey, []gen.FindingKind, error) {
 	kinds, err := writeFindings(ctx, q, run, res, findings)
 	if err != nil {
 		return gen.ResolutionKey{}, nil, err
 	}
-	arg := gen.CreateResolutionKeyParams{RunID: run.ID, UserID: run.UserID, StatedKeyID: res.row.ID, Outcome: outcome, Reasons: reasons}
+	arg := gen.CreateResolutionKeyParams{RunID: run.ID, UserID: run.UserID, StatedKeyID: res.row.ID, Outcome: outcome, Reasons: reasons, Offered: int32(offered)}
 	rk, err := q.CreateResolutionKey(ctx, arg)
 	if err != nil {
 		return gen.ResolutionKey{}, nil, fmt.Errorf("record resolution: %w", err)
