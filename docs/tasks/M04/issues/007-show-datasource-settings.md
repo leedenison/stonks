@@ -2,7 +2,6 @@
 title: Show a datasource's endpoint and credential
 type: task
 status: unreviewed
-dependencies: [002]
 ---
 
 ## Scope

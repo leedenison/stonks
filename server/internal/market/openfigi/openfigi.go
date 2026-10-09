@@ -7,10 +7,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"golang.org/x/time/rate"
@@ -78,26 +76,6 @@ func (c *Client) Batch() int {
 	return 100
 }
 
-// statusError is a response from OpenFIGI with a status other than 200.
-type statusError struct {
-	code       int
-	retryAfter time.Duration
-	body       string
-}
-
-// Error names the status in words, with the body where there is one:
-// "openfigi returned too many requests".
-func (e statusError) Error() string {
-	text := strings.ToLower(http.StatusText(e.code))
-	if text == "" {
-		text = strconv.Itoa(e.code)
-	}
-	if e.body == "" {
-		return "openfigi returned " + text
-	}
-	return fmt.Sprintf("openfigi returned %s: %s", text, e.body)
-}
-
 // jobError is a job OpenFIGI refused within a request it served, with the
 // text it gave.
 type jobError string
@@ -114,14 +92,14 @@ func (c *Client) Classify(err error) market.Failure {
 	if errors.As(err, &job) {
 		return market.Failure{Scope: gen.BlockScopeIdentifier}
 	}
-	var status statusError
+	var status market.StatusError
 	if !errors.As(err, &status) {
 		return market.Failure{Temporary: true, Scope: gen.BlockScopeIdentifier}
 	}
 	switch {
-	case status.code == http.StatusTooManyRequests:
-		return market.Failure{Temporary: true, Scope: gen.BlockScopeIdentifier, RetryAfter: status.retryAfter}
-	case status.code >= http.StatusInternalServerError:
+	case status.Code == http.StatusTooManyRequests:
+		return market.Failure{Temporary: true, Scope: gen.BlockScopeIdentifier, RetryAfter: reset(status.Header)}
+	case status.Code >= http.StatusInternalServerError:
 		return market.Failure{Temporary: true, Scope: gen.BlockScopeIdentifier}
 	}
 	return market.Failure{Scope: gen.BlockScopeDatasource}
@@ -161,7 +139,7 @@ func (c *Client) Fetch(ctx context.Context, reqs []market.Request[gen.StatedKey]
 }
 
 // post sends one mapping request.
-func (c *Client) post(ctx context.Context, body []byte) (responses []openfigiResponse, err error) {
+func (c *Client) post(ctx context.Context, body []byte) ([]openfigiResponse, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.endpoint+"/v3/mapping", bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("build request: %w", err)
@@ -170,18 +148,9 @@ func (c *Client) post(ctx context.Context, body []byte) (responses []openfigiRes
 	if c.key != "" {
 		req.Header.Set("X-OPENFIGI-APIKEY", c.key)
 	}
-	resp, err := c.http.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("openfigi: %w", err)
-	}
-	defer func() { err = errors.Join(err, resp.Body.Close()) }()
-	if resp.StatusCode != http.StatusOK {
-		text, rerr := io.ReadAll(io.LimitReader(resp.Body, 512))
-		status := statusError{code: resp.StatusCode, retryAfter: reset(resp.Header), body: string(bytes.TrimSpace(text))}
-		return nil, errors.Join(status, rerr)
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&responses); err != nil {
-		return nil, fmt.Errorf("decode openfigi response: %w", err)
+	var responses []openfigiResponse
+	if err := market.Do(c.http, req, "openfigi", &responses); err != nil {
+		return nil, err
 	}
 	return responses, nil
 }
