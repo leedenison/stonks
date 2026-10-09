@@ -158,7 +158,7 @@ describe("HoldingsPage", () => {
     expect(screen.getByTestId("holding-qty-g-bae").textContent).toBe("120.00");
   });
 
-  it("marks a group as resting on the statements and shows what its keys state", async () => {
+  it("marks a group as unidentified and shows what its keys state", async () => {
     renderWithAuth(
       page,
       serving(() => three),
@@ -170,8 +170,8 @@ describe("HoldingsPage", () => {
     expect(bae.getAttribute("data-kind")).toBe("group");
     const basis = screen.getByTestId("holding-basis");
     expect(bae.contains(basis)).toBe(true);
-    expect(basis.getAttribute("data-state")).toBe("statements");
-    expect(basis.textContent).toBe("Statements only");
+    expect(basis.getAttribute("data-state")).toBe("unidentified");
+    expect(basis.textContent).toBe("Unidentified");
     expect(bae.textContent).toContain("BA.");
     expect(bae.textContent).toContain("(ibkr)");
     expect(bae.textContent).toContain("BAE SYSTEMS PLC");
@@ -191,7 +191,7 @@ describe("HoldingsPage", () => {
     expect(acme.textContent).toContain("ACME");
     expect(acme.textContent).toContain("US0378331005");
     expect(acme.textContent).not.toContain("XNYS");
-    expect(acme.textContent).not.toContain("Statements only");
+    expect(acme.textContent).not.toContain("Unidentified");
   });
 
   it("offers a retry when the list fails", async () => {
