@@ -83,6 +83,11 @@ enum IdentifierType {
   // A line's description as the broker states it; the domain is the broker
   // that stated the value.
   IDENTIFIER_TYPE_BROKER_DESCRIPTION = 14;
+  // An option contract's symbol in the OCC format, built from the terms a
+  // broker states. It equals the contract's OCC symbol where the clearing
+  // house lists the contract. A datasource that lists the contract writes
+  // the OCC identifier.
+  IDENTIFIER_TYPE_OPTION = 15;
 }
 
 // A name for an instrument or for one of its listings.

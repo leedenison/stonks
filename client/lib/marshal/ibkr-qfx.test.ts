@@ -25,8 +25,8 @@ const cusip = (value: string) =>
   create(IdentifierSchema, { type: IdentifierType.CUSIP, value });
 const isin = (value: string) =>
   create(IdentifierSchema, { type: IdentifierType.ISIN, value });
-const occ = (value: string) =>
-  create(IdentifierSchema, { type: IdentifierType.OCC, value });
+const option = (value: string) =>
+  create(IdentifierSchema, { type: IdentifierType.OPTION, value });
 const conid = (value: string) =>
   create(IdentifierSchema, {
     type: IdentifierType.BROKER_ID,
@@ -72,11 +72,11 @@ describe("ibkrQfx", () => {
     ]);
   });
 
-  it("names an option by its contract id and the OCC symbol its terms confirm", () => {
+  it("names an option by its contract id and the symbol its terms build", () => {
     const put = security(
       "NVDA  240315P00420000 NVDA 15MAR24 420 P",
       AssetClass.OPTION,
-      [conid("624291205"), occ("NVDA  240315P00420000")],
+      [conid("624291205"), option("NVDA  240315P00420000")],
       "USD",
     );
     expect(statement.rows[7]).toEqual(
@@ -130,7 +130,7 @@ describe("ibkrQfx", () => {
         key: security(
           "NVDA  241115P00091000 NVDA 15NOV24 91 P",
           AssetClass.OPTION,
-          [conid("678941159"), occ("NVDA  241115P00091000")],
+          [conid("678941159"), option("NVDA  241115P00091000")],
         ),
         effectiveDate: "2024-03-15",
         quantity: "-18",
@@ -181,15 +181,60 @@ describe("ibkrQfx", () => {
     );
   });
 
-  it("states neither an OCC symbol nor a ticker for an option in the broker's own form", () => {
-    const own = text.replace(
-      "<TICKER>NVDA  240315P00420000</TICKER>",
-      "<TICKER>P NVDA  20240315 420 M</TICKER>",
-    );
+  it("builds the symbol from the terms for a ticker in the broker's own form", () => {
+    const own = text
+      .replace(
+        "<SECNAME>NVDA  240315P00420000 NVDA 15MAR24 420 P</SECNAME>",
+        "<SECNAME>P NVDA  20240315 420 M NVDA 15MAR24 420 P</SECNAME>",
+      )
+      .replace(
+        "<TICKER>NVDA  240315P00420000</TICKER>",
+        "<TICKER>P NVDA  20240315 420 M</TICKER>",
+      );
     const ids = ibkrQfx.marshal(own).rows[7].key?.identifiers ?? [];
-    expect(ids).toContainEqual(conid("624291205"));
-    expect(ids.map((i) => i.type)).not.toContain(IdentifierType.OCC);
-    expect(ids.map((i) => i.type)).not.toContain(IdentifierType.MIC_TICKER);
+    expect(ids).toEqual([
+      conid("624291205"),
+      option("NVDA  240315P00420000"),
+      expect.objectContaining({ type: IdentifierType.BROKER_DESCRIPTION }),
+    ]);
+  });
+
+  it("reads the root from the name", () => {
+    const eurex = text
+      .replace(
+        "<SECNAME>NVDA  240315P00420000 NVDA 15MAR24 420 P</SECNAME>",
+        "<SECNAME>P RHM  20240315 420 M RHM 15MAR24 420 P</SECNAME>",
+      )
+      .replace(
+        "<TICKER>NVDA  240315P00420000</TICKER>",
+        "<TICKER>P RHM  20240315 420 M</TICKER>",
+      );
+    expect(ibkrQfx.marshal(eurex).rows[7].key?.identifiers).toContainEqual(
+      option("RHM   240315P00420000"),
+    );
+  });
+
+  it("joins a share class onto the root as OCC spells it", () => {
+    const berk = text
+      .replace(
+        "<SECNAME>NVDA  240315P00420000 NVDA 15MAR24 420 P</SECNAME>",
+        "<SECNAME>BRKB  240315P00420000 BRK B 15MAR24 420 P</SECNAME>",
+      )
+      .replace(
+        "<TICKER>NVDA  240315P00420000</TICKER>",
+        "<TICKER>BRKB  240315P00420000</TICKER>",
+      );
+    expect(ibkrQfx.marshal(berk).rows[7].key?.identifiers).toContainEqual(
+      option("BRKB  240315P00420000"),
+    );
+  });
+
+  it("fails on an option name that does not start with its ticker", () => {
+    const odd = text.replace(
+      "<SECNAME>NVDA  240315P00420000 NVDA 15MAR24 420 P</SECNAME>",
+      "<SECNAME>NVDA 15MAR24 420 P</SECNAME>",
+    );
+    expect(() => ibkrQfx.marshal(odd)).toThrow("malformed option");
   });
 
   it("fails when an OCC ticker and the option's terms disagree", () => {

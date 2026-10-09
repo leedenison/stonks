@@ -33,6 +33,8 @@ INSERT INTO asset_class_tree (class, parent) VALUES
 -- 'mic_ticker' is a ticker at an operating MIC, and 'openfigi_ticker' a
 -- ticker under OpenFIGI's own exchange code;
 -- 'occ' is an OCC option symbol;
+-- 'option' is an option symbol in the OCC format, built from the terms a
+-- broker states; a datasource names the same contract under 'occ';
 -- 'currency' is an ISO 4217 code, the identifier of money;
 -- 'datasource_ticker' and 'broker_id' are identifiers in one datasource's or
 -- one broker's own namespace;
@@ -40,7 +42,7 @@ INSERT INTO asset_class_tree (class, parent) VALUES
 -- domain being the broker.
 CREATE TYPE identifier_type AS ENUM ('isin', 'cusip', 'cins', 'wertpapier',
     'openfigi_share_class', 'sedol', 'openfigi_composite', 'mic_ticker', 'openfigi_ticker',
-    'occ', 'currency', 'datasource_ticker', 'broker_id', 'broker_description');
+    'occ', 'currency', 'datasource_ticker', 'broker_id', 'broker_description', 'option');
 
 -- What is used to qualify the identifier value.
 -- 'global' identifier values are not partitioned (their domain is empty).  They
@@ -93,7 +95,8 @@ INSERT INTO identifier_type_traits (type, domain, grain, reassignment, exclusive
     ('currency',             'global', 'instrument', 'stable',       true),
     ('datasource_ticker',    'issuer', 'listing',    'mic_derived',  true),
     ('broker_id',            'issuer', 'instrument', 'stable',       true),
-    ('broker_description',   'issuer', 'instrument', 'unverifiable', false);
+    ('broker_description',   'issuer', 'instrument', 'unverifiable', false),
+    ('option',               'global', 'instrument', 'mic_derived',  true);
 
 -- The currency codes a source may state: ISO 4217, plus GBX for sterling in
 -- pence. A family is the codes of one currency at different unit scales, named
