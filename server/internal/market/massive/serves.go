@@ -50,10 +50,13 @@ func (c *Client) Serves(key gen.StatedKey) (types.Identifier, error) {
 			ticker = &id
 		}
 	}
-	for _, id := range []*types.Identifier{cusip, ticker, composite, bare} {
+	for _, id := range []*types.Identifier{cusip, ticker, composite} {
 		if id != nil {
 			return *id, nil
 		}
+	}
+	if bare != nil {
+		return market.Bare(key, *bare)
 	}
 	return types.Identifier{}, errors.New("no CUSIP or US ticker")
 }

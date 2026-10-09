@@ -13,7 +13,7 @@ import {
   StatedSplitSchema,
 } from "@/gen/statement/v1/statement_pb";
 import { MarshalError } from "./error";
-import { cash, fixture, row, security } from "./test-utils";
+import { cash, fixture, hint, row, security } from "./test-utils";
 import { ibkrQfx } from "./ibkr-qfx";
 
 // The BUYSTOCK carries an invented nonzero TAXES; every real statement seen
@@ -47,7 +47,7 @@ describe("ibkrQfx", () => {
     const amd = security(
       "AMD ADVANCED MICRO DEVICES",
       AssetClass.EQUITY,
-      [cusip("007903107")],
+      [cusip("007903107"), hint("AMD")],
       "USD",
     );
     expect(statement.rows.slice(0, 4)).toEqual([
@@ -58,11 +58,11 @@ describe("ibkrQfx", () => {
     ]);
   });
 
-  it("emits a sell with no tax leg", () => {
+  it("emits a sell with no tax leg, the ticker stripped of its venue suffix", () => {
     const rhm = security(
       "RHMd RHEINMETALL AG",
       AssetClass.EQUITY,
-      [isin("DE0007030009")],
+      [isin("DE0007030009"), hint("RHM")],
       "EUR",
     );
     expect(statement.rows.slice(4, 7)).toEqual([
@@ -108,7 +108,7 @@ describe("ibkrQfx", () => {
     const djt = security(
       "DJT TRUMP MEDIA & TECHNOLOGY GRO",
       AssetClass.EQUITY,
-      [cusip("25400Q105")],
+      [cusip("25400Q105"), hint("DJT")],
     );
     expect(statement.rows[19]).toEqual(
       row(djt, "2024-03-01", "2024-03-01", "100"),
@@ -120,6 +120,7 @@ describe("ibkrQfx", () => {
       create(StatedSplitSchema, {
         key: security("AMZN AMAZON.COM INC", AssetClass.EQUITY, [
           cusip("023135106"),
+          hint("AMZN"),
         ]),
         effectiveDate: "2024-03-15",
         quantity: "1007",
@@ -159,7 +160,28 @@ describe("ibkrQfx", () => {
     ]);
   });
 
-  it("carries no OCC symbol for a ticker in the broker's own form", () => {
+  it("writes a share class separator as a dot", () => {
+    const berk = text.replace("<TICKER>AMD</TICKER>", "<TICKER>BRK B</TICKER>");
+    expect(ibkrQfx.marshal(berk).rows[0].key?.identifiers).toContainEqual(
+      hint("BRK.B"),
+    );
+  });
+
+  it("states the ticker of a fund and omits the ticker of a debt security", () => {
+    const amd =
+      /<STOCKINFO>(\s*<SECINFO>\s*<SECID>\s*<UNIQUEID>007903107[\s\S]*?<\/SECINFO>\s*)<\/STOCKINFO>/;
+    expect(text).toMatch(amd);
+    const fund = ibkrQfx.marshal(text.replace(amd, "<MFINFO>$1</MFINFO>"));
+    expect(fund.rows[0].key?.assetClass).toBe(AssetClass.MUTUAL_FUND);
+    expect(fund.rows[0].key?.identifiers).toContainEqual(hint("AMD"));
+    const debt = ibkrQfx.marshal(text.replace(amd, "<DEBTINFO>$1</DEBTINFO>"));
+    expect(debt.rows[0].key?.assetClass).toBe(AssetClass.FIXED_INCOME);
+    expect(debt.rows[0].key?.identifiers.map((i) => i.type)).not.toContain(
+      IdentifierType.MIC_TICKER,
+    );
+  });
+
+  it("states neither an OCC symbol nor a ticker for an option in the broker's own form", () => {
     const own = text.replace(
       "<TICKER>NVDA  240315P00420000</TICKER>",
       "<TICKER>P NVDA  20240315 420 M</TICKER>",
@@ -167,6 +189,7 @@ describe("ibkrQfx", () => {
     const ids = ibkrQfx.marshal(own).rows[7].key?.identifiers ?? [];
     expect(ids).toContainEqual(conid("624291205"));
     expect(ids.map((i) => i.type)).not.toContain(IdentifierType.OCC);
+    expect(ids.map((i) => i.type)).not.toContain(IdentifierType.MIC_TICKER);
   });
 
   it("fails when an OCC ticker and the option's terms disagree", () => {

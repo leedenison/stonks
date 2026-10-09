@@ -7,6 +7,9 @@
 //
 // A row is stated as traded, and a split arrives as a transfer of the units
 // it added, so every row is as at its order date.
+//
+// The file does not name a venue, so a stock's or a fund's ticker is stated
+// without one.
 
 import { parseSync } from "ofx-js";
 import {
@@ -105,6 +108,21 @@ const CLASS_OF: Record<string, AssetClass> = {
   OTHERINFO: AssetClass.SECURITY,
 };
 
+// The kinds whose TICKER is a venue's symbol, which the key states. A debt
+// entry prints a description of the issue there, and an option entry prints
+// its contract in the OCC form or in IBKR's own.
+const TICKERED = new Set(["STOCKINFO", "MFINFO"]);
+
+// IBKR spells a ticker its own way. A trailing lowercase letter is the
+// Uniform Symbology suffix of the listing's market. A share class follows a
+// space, a slash or a hyphen, where a MIC_TICKER separates it with a dot.
+const VENUE_SUFFIX = /[a-z]$/;
+const CLASS_SEP = /[ /-]/g;
+
+function venueTicker(ticker: string): string {
+  return ticker.replace(VENUE_SUFFIX, "").replace(CLASS_SEP, ".");
+}
+
 interface Security {
   description: string;
   assetClass: AssetClass;
@@ -148,8 +166,11 @@ function securities(ofx: Node): Map<string, Security> {
       const info = node(el, "SECINFO");
       const { key, identifier } = secId(info);
       const identifiers = [identifier];
-      const occ =
-        kind === "OPTINFO" ? optionOcc(el, text(info, "TICKER")) : undefined;
+      const ticker = text(info, "TICKER");
+      if (TICKERED.has(kind)) {
+        identifiers.push(ident(IdentifierType.MIC_TICKER, venueTicker(ticker)));
+      }
+      const occ = kind === "OPTINFO" ? optionOcc(el, ticker) : undefined;
       if (occ) identifiers.push(ident(IdentifierType.OCC, occ));
       out.set(key, {
         description: text(info, "SECNAME"),

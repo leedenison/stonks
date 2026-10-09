@@ -65,10 +65,13 @@ func (c *Client) Serves(key gen.StatedKey) (types.Identifier, error) {
 			ticker = &id
 		}
 	}
-	for _, id := range []*types.Identifier{isin, cusip, figi, ticker, openfigi, bare} {
+	for _, id := range []*types.Identifier{isin, cusip, figi, ticker, openfigi} {
 		if id != nil {
 			return *id, nil
 		}
+	}
+	if bare != nil {
+		return market.Bare(key, *bare)
 	}
 	return types.Identifier{}, errors.New("no ISIN, CUSIP, composite FIGI or ticker")
 }
