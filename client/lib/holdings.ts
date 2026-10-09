@@ -12,7 +12,7 @@ import {
 } from "@/gen/type/v1/type_pb";
 import { nameOf, pick } from "./identifiers";
 
-// registry lists the identifier types a holding can show as its code, the
+// registry lists the identifier types a holding shows as its codes, the
 // most widely quoted first.
 const registry: IdentifierType[] = [
   IdentifierType.ISIN,
@@ -33,8 +33,6 @@ export type HoldingRow = {
   venue: string;
   // The brokers' descriptions of the holding, other than the label.
   descriptions: string[];
-  // The one registry code shown beside the label.
-  code?: Identifier;
   // The currencies of the keys' listings, or of the keys' stated currency
   // for a group.
   currencies: string[];
@@ -42,8 +40,6 @@ export type HoldingRow = {
   quantity: string;
   // The holding's registry codes.
   identifiers: Identifier[];
-  listings: HoldingListing[];
-  keys: HoldingKey[];
   kind: "instrument" | "group";
 };
 
@@ -86,6 +82,8 @@ function heldListing(h: InstrumentHolding): HoldingListing | undefined {
   return best ?? h.listings[0];
 }
 
+// instrumentRow names a holding by the ticker of the listing the user holds,
+// at its venue, falling back to the instrument's other identifiers.
 function instrumentRow(h: InstrumentHolding): HoldingRow {
   const held = heldListing(h);
   const named = new Set(h.keys.map((k) => k.listingId).filter((id) => id));
@@ -102,21 +100,18 @@ function instrumentRow(h: InstrumentHolding): HoldingRow {
       h.instrumentId,
     venue: ticker ? (held?.venue ?? "") : "",
     descriptions: descriptionsOf(h.keys),
-    code: pick(registry, h.identifiers),
     currencies,
     classes: [h.assetClass],
     quantity: h.quantity,
     identifiers: h.identifiers.filter((i) => registry.includes(i.type)),
-    listings: h.listings,
-    keys: h.keys,
   };
 }
 
-// groupRow names a group by the ticker its keys state, else by the first
-// description a broker gave the line. The other descriptions sit beneath.
+// groupRow names a group by the option symbol or the ticker its keys state,
+// else by the first description a broker gave the line.
 function groupRow(h: GroupHolding): HoldingRow {
   const name =
-    pick([IdentifierType.MIC_TICKER], h.identifiers) ??
+    pick([IdentifierType.OPTION, IdentifierType.MIC_TICKER], h.identifiers) ??
     pick([IdentifierType.BROKER_DESCRIPTION], h.identifiers);
   const currencies: string[] = [];
   for (const k of h.keys) {
@@ -131,14 +126,22 @@ function groupRow(h: GroupHolding): HoldingRow {
     descriptions: h.identifiers
       .filter((i) => i.type === IdentifierType.BROKER_DESCRIPTION && i !== name)
       .map((i) => i.value),
-    code: pick(registry, h.identifiers),
     currencies,
     classes: h.assetClasses,
     quantity: h.quantity,
     identifiers: h.identifiers.filter((i) => registry.includes(i.type)),
-    listings: [],
-    keys: h.keys,
   };
+}
+
+// isCash reports whether a row holds cash alone.
+export function isCash(r: HoldingRow): boolean {
+  return r.classes.length === 1 && r.classes[0] === AssetClass.CASH;
+}
+
+// hasDetail reports whether a row opens: a row other than cash with a code
+// or a description to show.
+export function hasDetail(r: HoldingRow): boolean {
+  return !isCash(r) && (r.identifiers.length > 0 || r.descriptions.length > 0);
 }
 
 // holdingRows turns a response into the table's rows, cash first and the rest
@@ -150,8 +153,7 @@ export function holdingRows(
     ...(res?.instruments ?? []).map(instrumentRow),
     ...(res?.groups ?? []).map(groupRow),
   ];
-  const rank = (r: HoldingRow) =>
-    r.classes.length === 1 && r.classes[0] === AssetClass.CASH ? 0 : 1;
+  const rank = (r: HoldingRow) => (isCash(r) ? 0 : 1);
   return rows.sort(
     (a, b) => rank(a) - rank(b) || a.label.localeCompare(b.label),
   );

@@ -127,13 +127,7 @@ func listing(l gen.ListListingNamesRow) *holdingv1.HoldingListing {
 
 // key writes k as a key of a holding.
 func key(k gen.ListHoldingKeysRow) *holdingv1.HoldingKey {
-	out := &holdingv1.HoldingKey{
-		StatedKeyId: k.StatedKey.ID.String(),
-		StatementId: k.StatedKey.StatementID.String(),
-		Broker:      types.ToProto[typev1.Broker](k.Broker),
-		StatedKey:   to.ProtoStatedKey(k.StatedKey),
-		Quantity:    k.Quantity.String(),
-	}
+	out := &holdingv1.HoldingKey{StatedKey: to.ProtoStatedKey(k.StatedKey), Quantity: k.Quantity.String()}
 	if k.StatedKey.ListingID != nil {
 		out.ListingId = k.StatedKey.ListingID.String()
 	}

@@ -30,15 +30,11 @@ message HoldingListing {
 
 // One of the caller's keys contributing to a holding.
 message HoldingKey {
-  string stated_key_id = 1;
-  // The run id of the statement that stated the key.
-  string statement_id = 2;
-  stonks.type.v1.Broker broker = 3;
-  stonks.type.v1.StatedKey stated_key = 4;
+  stonks.type.v1.StatedKey stated_key = 1;
   // The listing the key associates through; empty where it names none.
-  string listing_id = 5;
+  string listing_id = 2;
   // The sum of the key's transaction quantities.
-  string quantity = 6;
+  string quantity = 3;
 }
 
 // A holding of an instrument a datasource named, across its listings.

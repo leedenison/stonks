@@ -12,9 +12,13 @@ import { expect, test } from "../helpers/test";
 // each stays a group holding of its keys alone. The API states each quantity
 // exactly and the page shows it to two places.
 const fixture = path.resolve(__dirname, "..", "fixtures", "fidelity-uk.csv");
+// Each holding the fixture produces: name is an identifier that finds it in
+// the API, and label is what its row shows, the ticker where a line stated
+// one.
 const expected = [
   {
     name: "GBP",
+    label: "GBP",
     quantity: "12092.79",
     shown: "12092.79",
     className: "Cash",
@@ -22,6 +26,7 @@ const expected = [
   },
   {
     name: "BAE SYSTEMS, ORD GBP0.025 (BA.)",
+    label: "BA.",
     quantity: "120",
     shown: "120.00",
     className: "Security",
@@ -29,6 +34,7 @@ const expected = [
   },
   {
     name: "Baillie Gifford Responsible Global Equity Income B Inc",
+    label: "Baillie Gifford Responsible Global Equity Income B Inc",
     quantity: "19.26",
     shown: "19.26",
     className: "Security",
@@ -36,6 +42,7 @@ const expected = [
   },
   {
     name: "VANGUARD FUNDS PLC, S&P 500 UCITS ETF USD DIS (VUSA)",
+    label: "VUSA",
     quantity: "-141",
     shown: "-141.00",
     className: "Security",
@@ -73,7 +80,10 @@ test("uploads a statement and lists the holdings it produces", async ({
   const { session } = await signIn();
   await page.goto("/transactions");
   // The run completes in the transaction that writes the rows.
-  await uploadStatement(page, fixture, { state: "completed", rows: "11 rows" });
+  await uploadStatement(page, fixture, {
+    state: "completed",
+    rows: "11 rows",
+  });
 
   // The data behind the page.
   const res = await holdingClient(session).listHoldings({});
@@ -96,7 +106,7 @@ test("uploads a statement and lists the holdings it produces", async ({
   for (const e of expected) {
     const { id } = rowOf(res, e.name);
     const row = table.getByTestId(`holding-row-${id}`);
-    await expect(row).toContainText(e.name);
+    await expect(row).toContainText(e.label);
     await expect(row).toContainText(e.className);
     await expect(row.getByTestId(`holding-qty-${id}`)).toHaveText(e.shown);
   }
@@ -106,6 +116,13 @@ test("uploads a statement and lists the holdings it produces", async ({
   expect(ids).toEqual(
     expected.map((e) => `holding-row-${rowOf(res, e.name).id}`),
   );
+
+  // A click on a row opens it to the brokers' descriptions of the holding.
+  const bae = rowOf(res, expected[1].name);
+  await table.getByTestId(`holding-row-${bae.id}`).click();
+  const detail = table.getByTestId(`holding-detail-${bae.id}`);
+  await expect(detail).toContainText(expected[1].name);
+  await expect(detail.getByRole("link")).toHaveCount(0);
 
   // Another user holds none of them.
   const other = await seed();

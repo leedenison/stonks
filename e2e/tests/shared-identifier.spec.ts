@@ -46,12 +46,18 @@ test("gathers the keys of two statements that share an identifier", async ({
   expect(res.instruments).toHaveLength(1);
   expect(res.instruments[0].quantity).toBe("-18852.84710536");
 
-  // The page shows the holding once, named by a description of the line.
+  // The page shows the holding once, named by the ticker, and opens to both
+  // descriptions.
   await page.getByTestId("nav-holdings").click();
   await expect(page).toHaveURL("/holdings");
   const row = page.getByTestId(`holding-row-${group.groupId}`);
-  await expect(row).toContainText(descriptions[0]);
+  await expect(row).toContainText("AMD");
   await expect(row.getByTestId(`holding-qty-${group.groupId}`)).toHaveText(
     "250.00",
   );
+  await row.click();
+  const detail = page.getByTestId(`holding-detail-${group.groupId}`);
+  for (const d of descriptions) {
+    await expect(detail).toContainText(d);
+  }
 });

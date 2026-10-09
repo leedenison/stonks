@@ -10,7 +10,7 @@ import {
   IdentifierSchema,
   IdentifierType,
 } from "@/gen/type/v1/type_pb";
-import { holdingRows } from "./holdings";
+import { hasDetail, holdingRows } from "./holdings";
 
 function ident(type: IdentifierType, value: string, domain = "") {
   return create(IdentifierSchema, { type, value, domain });
@@ -128,6 +128,22 @@ describe("holdingRows", () => {
     expect(rows([], [g])[0].label).toBe("ACME CORP");
   });
 
+  it("names a group of an option by the symbol its keys state", () => {
+    const g = group(
+      "g-opt",
+      [AssetClass.OPTION],
+      [
+        described("ibkr", "AMZN 240920P00135000 AMZN 20SEP24 135 P"),
+        ident(IdentifierType.OPTION, "AMZN  240920P00135000"),
+      ],
+    );
+    const row = rows([], [g])[0];
+    expect(row.label).toBe("AMZN  240920P00135000");
+    expect(row.descriptions).toEqual([
+      "AMZN 240920P00135000 AMZN 20SEP24 135 P",
+    ]);
+  });
+
   it("falls back to a group's identifiers, then to the group id", () => {
     const named = group("g-2", [], [ident(IdentifierType.MIC_TICKER, "ACME")]);
     const unnamed = group("g-3", [], []);
@@ -178,7 +194,7 @@ describe("holdingRows", () => {
     ]);
   });
 
-  it("shows a group's descriptions beneath its name and one code beside it", () => {
+  it("keeps a group's other descriptions apart from its name", () => {
     const g = group(
       "g-5",
       [AssetClass.SECURITY],
@@ -193,7 +209,6 @@ describe("holdingRows", () => {
     expect(row.kind).toBe("group");
     expect(row.label).toBe("ACME");
     expect(row.descriptions).toEqual(["ACME CORP", "ACME CORPORATION"]);
-    expect(row.code?.value).toBe("US0000000001");
   });
 
   it("keeps only the registry codes of a group among its identifiers", () => {
@@ -208,6 +223,26 @@ describe("holdingRows", () => {
     const row = rows([], [g])[0];
     expect(row.label).toBe("ACME");
     expect(row.identifiers.map((i) => i.value)).toEqual(["US0000000001"]);
+  });
+
+  it("opens a row other than cash that has a code or a description", () => {
+    const gbp = instrument("i-gbp", AssetClass.CASH, [
+      ident(IdentifierType.CURRENCY, "GBP"),
+    ]);
+    const coded = instrument("i-coded", AssetClass.SECURITY, [
+      ident(IdentifierType.ISIN, "US0378331005"),
+    ]);
+    const bare = instrument("i-bare", AssetClass.SECURITY, []);
+    const named = group("g-named", [], [described("ibkr", "ACME CORP")]);
+    const opens = Object.fromEntries(
+      rows([gbp, coded, bare], [named]).map((r) => [r.id, hasDetail(r)]),
+    );
+    expect(opens).toEqual({
+      "i-gbp": false,
+      "i-coded": true,
+      "i-bare": false,
+      "g-named": false,
+    });
   });
 
   it("puts cash first and the rest by label, of either kind", () => {

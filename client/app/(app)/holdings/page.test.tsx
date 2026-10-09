@@ -12,7 +12,6 @@ import {
 } from "@/gen/holding/v1/holding_pb";
 import {
   AssetClass,
-  Broker,
   IdentifierSchema,
   IdentifierType,
   StatedKeySchema,
@@ -86,9 +85,6 @@ const three = create(ListHoldingsResponseSchema, {
       ],
       keys: [
         create(HoldingKeySchema, {
-          statedKeyId: "k-acme",
-          statementId: "s-1",
-          broker: Broker.IBKR,
           listingId: "l-usd",
           quantity: "10",
           statedKey: create(StatedKeySchema, {
@@ -188,11 +184,11 @@ describe("HoldingsPage", () => {
       "-141.00",
     );
     const bae = screen.getByTestId("holding-row-g-bae");
-    expect(bae.textContent).toContain("BAE SYSTEMS (BA.)");
+    expect(bae.textContent).toContain("BA.");
     expect(screen.getByTestId("holding-qty-g-bae").textContent).toBe("120.00");
   });
 
-  it("marks a group as unidentified and shows what its keys state", async () => {
+  it("marks a group as unidentified and opens to what its keys state", async () => {
     renderWithAuth(
       page,
       serving(() => three),
@@ -207,13 +203,16 @@ describe("HoldingsPage", () => {
     expect(basis.getAttribute("data-state")).toBe("unidentified");
     expect(basis.textContent).toBe("Unidentified");
     expect(bae.textContent).toContain("BA.");
-    expect(bae.textContent).toContain("BAE SYSTEMS (BA.)");
-    expect(bae.textContent).toContain("BAE SYSTEMS PLC");
-    expect(bae.textContent).not.toContain("(ibkr)");
+    expect(bae.textContent).not.toContain("BAE SYSTEMS PLC");
     expect(screen.getAllByTestId("holding-basis")).toHaveLength(1);
+    fireEvent.click(bae);
+    const detail = screen.getByTestId("holding-detail-g-bae");
+    expect(detail.textContent).toContain("BAE SYSTEMS (BA.)");
+    expect(detail.textContent).toContain("BAE SYSTEMS PLC");
+    expect(detail.textContent).not.toContain("(ibkr)");
   });
 
-  it("names a resolved holding by its ticker at its venue, with the description and one code", async () => {
+  it("names a resolved holding by its ticker at its venue alone", async () => {
     renderWithAuth(
       page,
       serving(() => three),
@@ -227,14 +226,67 @@ describe("HoldingsPage", () => {
     expect(screen.getByTestId("holding-venue-i-acme").textContent).toBe(
       "Nasdaq",
     );
-    expect(acme.textContent).toContain("ACME INC");
-    expect(acme.textContent).toContain("US0378331005");
+    expect(acme.textContent).not.toContain("ACME INC");
+    expect(acme.textContent).not.toContain("US0378331005");
     expect(screen.getByTestId("holding-currency-i-acme").textContent).toBe(
       "USD",
     );
     expect(acme.textContent).not.toContain("XNYS");
     expect(acme.textContent).not.toContain("XNAS");
     expect(acme.textContent).not.toContain("Unidentified");
+  });
+
+  it("opens one holding's detail at a time on a click anywhere in its row", async () => {
+    renderWithAuth(
+      page,
+      serving(() => three),
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId("holding-row-i-acme")).toBeTruthy(),
+    );
+    const acme = screen.getByTestId("holding-row-i-acme");
+    expect(acme.getAttribute("aria-expanded")).toBe("false");
+    expect(screen.queryByTestId("holding-detail-i-acme")).toBeNull();
+    fireEvent.click(screen.getByTestId("holding-qty-i-acme"));
+    expect(acme.getAttribute("aria-expanded")).toBe("true");
+    const detail = screen.getByTestId("holding-detail-i-acme");
+    expect(detail.textContent).toContain("US0378331005");
+    expect(screen.getByTestId("holding-descriptions-i-acme").textContent).toBe(
+      "ACME INC",
+    );
+    expect(detail.textContent).not.toContain("Nasdaq");
+    expect(detail.querySelector("a")).toBeNull();
+    fireEvent.click(screen.getByTestId("holding-row-i-vusa"));
+    expect(screen.queryByTestId("holding-detail-i-acme")).toBeNull();
+    expect(screen.getByTestId("holding-detail-i-vusa")).toBeTruthy();
+    fireEvent.click(screen.getByTestId("holding-row-i-vusa"));
+    expect(screen.queryByTestId(/^holding-detail-/)).toBeNull();
+  });
+
+  it("does not open a cash row, or a row with nothing to show", async () => {
+    const bare = create(ListHoldingsResponseSchema, {
+      instruments: [
+        three.instruments[2],
+        create(InstrumentHoldingSchema, {
+          instrumentId: "i-bare",
+          assetClass: AssetClass.SECURITY,
+          quantity: "1",
+        }),
+      ],
+    });
+    renderWithAuth(
+      page,
+      serving(() => bare),
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId("holding-row-i-gbp")).toBeTruthy(),
+    );
+    for (const id of ["i-gbp", "i-bare"]) {
+      const row = screen.getByTestId(`holding-row-${id}`);
+      expect(row.getAttribute("aria-expanded")).toBeNull();
+      fireEvent.click(row);
+      expect(screen.queryByTestId(`holding-detail-${id}`)).toBeNull();
+    }
   });
 
   it("offers a retry when the list fails", async () => {
