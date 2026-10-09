@@ -16,14 +16,24 @@ const (
 	retryTries = 3
 )
 
+// pausedError reports that the framework made no call because the datasource
+// is paused. Its text is the reason a key records.
+type pausedError string
+
+func (e pausedError) Error() string { return string(e) }
+
 // request calls the provider and retries a temporary failure under backoff.
 // Where the provider says when to try again, every caller of the datasource
 // waits, not only this one. A refused call spends the quota of every fetch,
-// so one wait for all costs less than one refused call per request.
+// so one wait for all costs less than one refused call per request. A paused
+// datasource gets no call, and request returns a pausedError.
 func request[Q, P any](ctx context.Context, f *Fetcher, e *Entry, s Server[Q, P], reqs []Request[Q]) ([]Response[P], int, error) {
 	wait := f.base
 	for attempt := 1; ; attempt++ {
-		if d := e.limiter.held(f.now()); d > 0 {
+		if reason, ok := e.limiter.paused(f.now()); ok {
+			return nil, attempt - 1, pausedError(reason)
+		}
+		if d := e.limiter.waits(f.now()); d > 0 {
 			if err := f.sleep(ctx, d); err != nil {
 				return nil, attempt - 1, err
 			}
@@ -37,14 +47,19 @@ func request[Q, P any](ctx context.Context, f *Fetcher, e *Entry, s Server[Q, P]
 		}
 		fail := e.Integration.Classify(err)
 		// Repeating a call cannot help a temporary failure about the
-		// datasource, such as a spent daily quota.
+		// datasource, such as a spent daily quota. Where the provider says
+		// when to try again, no call is made until then.
+		if fail.Temporary && fail.Scope == gen.BlockScopeDatasource && fail.RetryAfter > 0 {
+			e.limiter.pause(f.now().Add(fail.RetryAfter), reasonOf(fail, err))
+			f.log.Info("pausing a datasource", "datasource", e.Name, "for", fail.RetryAfter)
+		}
 		if !fail.Temporary || fail.Scope == gen.BlockScopeDatasource || attempt >= f.tries {
 			return nil, attempt, err
 		}
 		if fail.RetryAfter > 0 {
-			hold := min(fail.RetryAfter, retryMax)
-			e.limiter.holdUntil(f.now().Add(hold))
-			f.log.Debug("holding a datasource", "datasource", e.Name, "attempt", attempt, "hold", hold)
+			d := min(fail.RetryAfter, retryMax)
+			e.limiter.waitUntil(f.now().Add(d))
+			f.log.Debug("waiting on a datasource", "datasource", e.Name, "attempt", attempt, "wait", d)
 			continue
 		}
 		pause := min(wait+rand.N(wait/2+1), retryMax) //nolint:gosec // jitter needs no secrecy

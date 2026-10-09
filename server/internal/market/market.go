@@ -7,6 +7,11 @@
 // Each kind of data is a Kind, which names the request an integration
 // receives and the response it gives.  An integration serves a kind by
 // implementing its Server.
+//
+// When a provider refuses every call for a while, as when a daily quota is
+// spent, the framework pauses the datasource for the whole delay the provider
+// gives. While it lasts, each of the datasource's keys fails temporarily
+// without a call. The pause lives in the process.
 package market
 
 import (

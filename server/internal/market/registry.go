@@ -28,35 +28,61 @@ type Entry struct {
 }
 
 // limiter paces the calls to one datasource. It outlives a reload, so
-// concurrent fetches share one quota and a reload keeps the quota spent and
-// any hold.
+// concurrent fetches share one quota and a reload keeps the quota spent, any
+// wait and any pause.
 type limiter struct {
 	rate *rate.Limiter
 
 	mu sync.Mutex
-	// hold is when the provider said calls may resume; zero when it has
-	// said nothing.
-	hold time.Time
+	// wait is when the provider said calls may resume after it refused one
+	// call for rate; zero when it has said nothing.
+	wait time.Time
+	// until is when the provider said calls may resume after it refused the
+	// whole datasource.
+	until time.Time
+	// why is the reason of that refusal.
+	why string
 }
 
 func newLimiter(limit rate.Limit, burst int) *limiter {
 	return &limiter{rate: rate.NewLimiter(limit, burst)}
 }
 
-// held returns how long a call made at now must wait for the hold.
-func (l *limiter) held(now time.Time) time.Duration {
+// waits returns how long a call made at now must wait.
+func (l *limiter) waits(now time.Time) time.Duration {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	return max(l.hold.Sub(now), 0)
+	return max(l.wait.Sub(now), 0)
 }
 
-// holdUntil holds every call until t, unless a later hold is in force.
-func (l *limiter) holdUntil(t time.Time) {
+// waitUntil makes every call wait until t, unless a later wait is in force.
+func (l *limiter) waitUntil(t time.Time) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	if t.After(l.hold) {
-		l.hold = t
+	if t.After(l.wait) {
+		l.wait = t
 	}
+}
+
+// pause fails every call until t, unless a later pause is in force. A
+// restart lifts it.
+func (l *limiter) pause(t time.Time, why string) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if t.After(l.until) {
+		l.until, l.why = t, why
+	}
+}
+
+// paused reports whether a call made at now falls in a pause. It also
+// returns the reason to record on each key the pause fails.
+func (l *limiter) paused(now time.Time) (string, bool) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if !now.Before(l.until) {
+		return "", false
+	}
+	return fmt.Sprintf("paused until %s after: %s", l.until.UTC().Format(time.RFC3339), l.why), true
 }
 
 // Registry holds the enabled datasources in precedence order. It is built at

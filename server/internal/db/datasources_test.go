@@ -260,8 +260,8 @@ func TestFetchKeys(t *testing.T) {
 			Outcome: gen.FetchOutcomeFailedPermanent, Attempts: 1, SentType: isin, SentValue: ptr.To("v")}},
 		{name: "blocked having called", want: pgerrcode.CheckViolation, arg: gen.CreateFetchKeyParams{
 			Outcome: gen.FetchOutcomeBlocked, Attempts: 1, SentType: isin, SentValue: ptr.To("v"), Reason: ptr.To("r")}},
-		{name: "failed without calling", want: pgerrcode.CheckViolation, arg: gen.CreateFetchKeyParams{
-			Outcome: gen.FetchOutcomeFailedTemporary, Attempts: 0, SentType: isin, SentValue: ptr.To("v"), Reason: ptr.To("r")}},
+		{name: "served without calling", want: pgerrcode.CheckViolation, arg: gen.CreateFetchKeyParams{
+			Outcome: gen.FetchOutcomeServed, Attempts: 0, SentType: isin, SentValue: ptr.To("v")}},
 		{name: "a domain sent with no identifier", want: pgerrcode.CheckViolation, arg: gen.CreateFetchKeyParams{
 			Outcome: gen.FetchOutcomeNotServed, SentDomain: "XLON", Reason: ptr.To("r")}},
 		{name: "candidates offered by a key not served", want: pgerrcode.CheckViolation, arg: gen.CreateFetchKeyParams{
@@ -278,6 +278,15 @@ func TestFetchKeys(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("a key that failed while its datasource was paused", func(t *testing.T) {
+		q := newTx(t)
+		f := newFetching(t, q)
+		require.NoError(t, q.CreateFetchKey(ctx, gen.CreateFetchKeyParams{
+			ID: db.NewID(), FetchID: f.fetch.ID, UserID: f.user.ID, StatedKeyID: f.key.ID,
+			Outcome: gen.FetchOutcomeFailedTemporary, Attempts: 0, SentType: isin, SentValue: ptr.To("v"), Reason: ptr.To("paused"),
+		}))
+	})
 
 	t.Run("an instrument on a key nothing served", func(t *testing.T) {
 		q := newTx(t)

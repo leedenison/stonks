@@ -36,6 +36,12 @@ func quota(text string) error {
 	return failure{Failure: Failure{Temporary: true, Scope: gen.BlockScopeDatasource, Reason: text}, text: text}
 }
 
+// spent is a temporary failure of the datasource that names when calls may
+// resume.
+func spent(text string, after time.Duration) error {
+	return failure{Failure: Failure{Temporary: true, Scope: gen.BlockScopeDatasource, Reason: text, RetryAfter: after}, text: text}
+}
+
 func credential(text string) error {
 	return failure{Failure: Failure{Scope: gen.BlockScopeDatasource, Reason: text}, text: text}
 }

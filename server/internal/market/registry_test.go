@@ -129,8 +129,8 @@ func TestRegistryStoreFails(t *testing.T) {
 }
 
 // TestRegistryReload checks that a reload replaces the entries, keeps a
-// datasource's limiter and its hold, and leaves the entries as they were when
-// it fails.
+// datasource's limiter with its wait and pause, and leaves the entries as they
+// were when it fails.
 func TestRegistryReload(t *testing.T) {
 	ctx := context.Background()
 	ctrl := gomock.NewController(t)
@@ -143,7 +143,8 @@ func TestRegistryReload(t *testing.T) {
 		t.Fatalf("New() error = %v", err)
 	}
 	before := r.Enabled()[0].limiter
-	before.holdUntil(start.Add(time.Second))
+	before.waitUntil(start.Add(time.Second))
+	before.pause(start.Add(time.Hour), "quota spent")
 
 	store.EXPECT().ListDatasources(gomock.Any()).Return([]gen.Datasource{row("two", true, 5), row("one", true, 10)}, nil)
 	if err := r.Reload(ctx); err != nil {
@@ -152,8 +153,9 @@ func TestRegistryReload(t *testing.T) {
 	if diff := cmp.Diff([]string{"two", "one"}, r.Names()); diff != "" {
 		t.Errorf("Names() after reload mismatch (-want +got):\n%s", diff)
 	}
-	if kept := r.Enabled()[1].limiter; kept != before || kept.held(start) != time.Second {
-		t.Error("the limiter of one or its hold was replaced by the reload, want both kept")
+	kept := r.Enabled()[1].limiter
+	if _, paused := kept.paused(start); kept != before || kept.waits(start) != time.Second || !paused {
+		t.Error("the limiter of one, its wait or its pause was replaced by the reload, want all kept")
 	}
 
 	store.EXPECT().ListDatasources(gomock.Any()).Return([]gen.Datasource{row("absent", true, 1)}, nil)

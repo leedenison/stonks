@@ -2,6 +2,7 @@ package market
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
@@ -174,6 +175,10 @@ func fetchChunk[Q, P any](ctx context.Context, f *Fetcher, e *Entry, s Server[Q,
 		reqs[n] = Request[Q]{Value: results[i].Request, Sent: *results[i].Sent}
 	}
 	resps, attempts, err := request(ctx, f, e, s, reqs)
+	var paused pausedError
+	if errors.As(err, &paused) {
+		return requestFailed(Failure{Temporary: true, Scope: gen.BlockScopeDatasource, Reason: string(paused)}, err, results, batch, attempts)
+	}
 	if err != nil {
 		return requestFailed(e.Integration.Classify(err), err, results, batch, attempts)
 	}
