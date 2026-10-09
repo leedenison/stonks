@@ -950,3 +950,105 @@ func TestMergeRefused(t *testing.T) {
 		}
 	}
 }
+
+// TestConfirmRows checks what a confirmation writes against real rows: the
+// pick's instrument, the user's association on the key and its group, and
+// what later resolutions make of it.
+func TestConfirmRows(t *testing.T) {
+	s := newStack(t)
+	ctx := context.Background()
+	s.script.Responses[ticker] = market.IdentityResult{Filtered: []types.Identifier{ticker}, Candidates: []market.Candidate{
+		{Class: gen.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{figi, isin, comp, xlon}},
+		{Class: gen.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{figi2, xnas}},
+	}}
+	key := s.state(t, gen.AssetClassStock, "GBP", ticker, descr)
+	later := s.newStatement(t, gen.BrokerIbkr)
+	mate := s.stateUnder(t, later, gen.AssetClassStock, "GBP", descr)
+	require.NoError(t, s.q.SetStatedKeyGroups(ctx, gen.SetStatedKeyGroupsParams{UserID: s.user.ID, Ids: []uuid.UUID{key.ID, mate.ID}, GroupIds: []uuid.UUID{key.ID, key.ID}}))
+
+	offer, err := s.resolver.Candidates(ctx, s.resolution, key)
+	require.NoError(t, err)
+	gbp := "GBP"
+	wantOffer := Offer{Candidates: []Candidate{{
+		Datasource: "alpha", Strongest: figi, AssetClass: gen.AssetClassStock, Identifiers: []types.Identifier{figi, isin},
+		Listings: []CandidateListing{{Currency: &gbp, Identifiers: []types.Identifier{comp, xlon}}},
+	}}}
+	if diff := cmp.Diff(wantOffer, offer); diff != "" {
+		t.Errorf("Candidates() mismatch (-want +got):\n%s", diff)
+	}
+	if kinds := s.findings(t, key.ID); len(kinds) != 1 || kinds[0] != gen.FindingKindDropped {
+		t.Errorf("findings = %v, want the USD group dropped", kinds)
+	}
+	if _, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: types.IdentifierTypeIsin, Value: isin.Value}); !errors.Is(err, db.ErrNotFound) {
+		t.Errorf("FindIdentifier(isin) error = %v, want not found: a listing writes no instrument", err)
+	}
+
+	rk, err := s.resolver.Confirm(ctx, s.resolution, key, Pick{Datasource: "alpha", Identifier: isin})
+	require.NoError(t, err)
+	if rk.Outcome != gen.ResolutionOutcomeMatched || rk.StatedKeyID != key.ID {
+		t.Fatalf("Confirm() = %+v, want the key matched", rk)
+	}
+	found, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: types.IdentifierTypeIsin, Value: isin.Value})
+	require.NoError(t, err)
+	inst := found.Instrument
+	if inst.AssetClass != gen.AssetClassStock || inst.FetchKeyID == nil {
+		t.Errorf("instrument = %+v, want a stock with provenance", inst)
+	}
+	ids, err := s.q.ListIdentifiers(ctx, inst.ID)
+	require.NoError(t, err)
+	via := map[uuid.UUID]string{}
+	for _, row := range ids {
+		via[row.ID] = name(to.Identifier(row))
+	}
+	for _, id := range []uuid.UUID{key.ID, mate.ID} {
+		k := s.key(t, id)
+		if k.InstrumentID == nil || *k.InstrumentID != inst.ID || k.ListingID == nil || via[*k.ViaID] != "mic_ticker XLON:VOD" || *k.Validity != gen.ValidityProvisional || *k.Arbiter != gen.ArbiterUser || k.GroupID != nil {
+			t.Errorf("key %s = %+v, want the instrument's GBP listing via its venue ticker, provisional, by the user, in no group", id, k)
+		}
+	}
+	resolved, err := s.q.ListResolutionKeys(ctx, gen.ListResolutionKeysParams{RunID: s.resolution.ID, UserID: s.user.ID})
+	require.NoError(t, err)
+	if len(resolved) != 2 || resolved[0].Outcome != gen.ResolutionOutcomeMatched || resolved[1].Outcome != gen.ResolutionOutcomeMatched {
+		t.Errorf("resolution keys = %+v, want the key and its mate matched", resolved)
+	}
+	if _, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: types.IdentifierTypeOpenfigiShareClass, Value: figi2.Value}); !errors.Is(err, db.ErrNotFound) {
+		t.Errorf("FindIdentifier(figi2) error = %v, want not found: the dropped group is not stored", err)
+	}
+
+	// A later resolution of the key, under a run of its own, finds nothing
+	// through its description, inherits from its mate, and the write leaves
+	// the association as it is.
+	s.resolution, err = s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: s.user.ID, Kind: gen.RunKindResolution, Trigger: gen.RunTriggerRun, ParentID: &s.statement.ID})
+	require.NoError(t, err)
+	fetches := len(s.fetches(t))
+	got := s.resolve(t, key)
+	if written(got[0]) != "matched" {
+		t.Errorf("a later resolution = %s, want matched", written(got[0]))
+	}
+	if k := s.key(t, key.ID); *k.Arbiter != gen.ArbiterUser || *k.InstrumentID != inst.ID {
+		t.Errorf("key after a later resolution = %+v, want the user's association", k)
+	}
+	if n := len(s.fetches(t)); n != fetches {
+		t.Errorf("%d fetches after a later resolution, want %d: an inheriting key is not sent", n, fetches)
+	}
+
+	// A new key stating the description inherits the association.
+	next := s.stateUnder(t, s.newStatement(t, gen.BrokerIbkr), gen.AssetClassStock, "GBP", ticker, descr)
+	got = s.resolve(t, next)
+	k := s.key(t, next.ID)
+	if written(got[0]) != "matched" || k.InstrumentID == nil || *k.InstrumentID != inst.ID || *k.Arbiter != gen.ArbiterUser || via[*k.ViaID] != "mic_ticker XLON:VOD" || *k.ListingID != *s.key(t, key.ID).ListingID {
+		t.Errorf("a new key = %s, %+v, want matched with the confirmed key's association", written(got[0]), k)
+	}
+
+	// A pick the database already holds reuses the instrument.
+	other := id(types.IdentifierTypeBrokerDescription, "ibkr", "OTHER CORP")
+	apart := s.stateUnder(t, s.newStatement(t, gen.BrokerIbkr), gen.AssetClassStock, "GBP", ticker, other)
+	rk, err = s.resolver.Confirm(ctx, s.resolution, apart, Pick{Datasource: "alpha", Identifier: isin})
+	require.NoError(t, err)
+	if k := s.key(t, apart.ID); rk.Outcome != gen.ResolutionOutcomeMatched || k.InstrumentID == nil || *k.InstrumentID != inst.ID || *k.Arbiter != gen.ArbiterUser {
+		t.Errorf("a second confirmation = %+v, %+v, want the same instrument by the user", rk, k)
+	}
+	if _, err := s.resolver.Confirm(ctx, s.resolution, apart, Pick{Datasource: "alpha", Identifier: cusip}); !errors.Is(err, ErrNoCandidate) {
+		t.Errorf("Confirm() with an identifier no group carries: error = %v, want ErrNoCandidate", err)
+	}
+}

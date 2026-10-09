@@ -44,9 +44,10 @@ func (h holder) key(t *testing.T, q *gen.Queries, description string, listing *g
 	arg := gen.SetStatedKeyAssociationParams{
 		ID: k.ID, UserID: h.user.ID,
 		InstrumentID: &listing.InstrumentID, ListingID: &listing.ID,
-		ViaID: &via.ID, Validity: ptr.To(gen.ValidityConfirmed),
+		ViaID: &via.ID, Validity: ptr.To(gen.ValidityConfirmed), Arbiter: gen.ArbiterDatasource,
 	}
-	require.NoError(t, q.SetStatedKeyAssociation(ctx, arg))
+	_, err = q.SetStatedKeyAssociation(ctx, arg)
+	require.NoError(t, err)
 	return k
 }
 

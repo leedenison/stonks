@@ -6,6 +6,8 @@ import (
 	"context"
 	"errors"
 
+	"github.com/google/uuid"
+
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/run"
@@ -34,6 +36,15 @@ func (r Runner) Start(ctx context.Context, spec run.Spec, work run.Work) (gen.Ru
 // Child runs work to completion, as a child of parent, before it returns.
 func (r Runner) Child(ctx context.Context, parent gen.Run, kind gen.RunKind, work run.Work) (gen.Run, error) {
 	row, err := r.Q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: parent.UserID, Kind: kind, Trigger: gen.RunTriggerRun, ParentID: &parent.ID})
+	if err != nil {
+		return row, err
+	}
+	return row, r.execute(ctx, row, work)
+}
+
+// Sync runs work to completion before it returns, as a run user started.
+func (r Runner) Sync(ctx context.Context, user uuid.UUID, kind gen.RunKind, trigger gen.RunTrigger, work run.Work) (gen.Run, error) {
+	row, err := r.Q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: user, Kind: kind, Trigger: trigger})
 	if err != nil {
 		return row, err
 	}

@@ -1,6 +1,8 @@
 // Package replay re-resolves the keys of one run, the source, as a run of
 // the source's user. Its order against that user's uploads does not matter;
 // see [resolve.go](../resolve/resolve.go) and [group.go](../group/group.go).
+// A key whose association the user arbitrated is never selected, so a
+// replay never changes it.
 package replay
 
 import (

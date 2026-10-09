@@ -23,14 +23,16 @@ const tries = 3
 // write records the outcome of res against run in a transaction of its own.
 // A key with a winner is written under an advisory lock on the identifiers
 // it states and every identifier its responses name, which covers every
-// identifier the write may insert.
-func (r *Resolver) write(ctx context.Context, run gen.Run, res *resolution) (gen.ResolutionKey, error) {
+// identifier the write may insert. pick is the group a confirmation takes
+// as the winner, nil in a run. The write leaves an association the user
+// arbitrated in place and records the key matched.
+func (r *Resolver) write(ctx context.Context, run gen.Run, res *resolution, pick *group) (gen.ResolutionKey, error) {
 	var out gen.ResolutionKey
 	var written []gen.FindingKind
 	for attempt := 1; ; attempt++ {
 		err := r.store.Tx(ctx, func(q Queries) error {
 			var err error
-			out, written, err = r.resolveKey(ctx, q, run, res)
+			out, written, err = r.resolveKey(ctx, q, run, res, pick)
 			return err
 		})
 		if err == nil {
@@ -49,15 +51,21 @@ func (r *Resolver) write(ctx context.Context, run gen.Run, res *resolution) (gen
 
 // resolveKey writes res's outcome in one transaction, returning the resolution
 // key and the kinds of the findings written.
-func (r *Resolver) resolveKey(ctx context.Context, q Queries, run gen.Run, res *resolution) (gen.ResolutionKey, []gen.FindingKind, error) {
+func (r *Resolver) resolveKey(ctx context.Context, q Queries, run gen.Run, res *resolution, pick *group) (gen.ResolutionKey, []gen.FindingKind, error) {
 	if res.outcome != "" {
 		return record(ctx, q, run, res, res.outcome, reasons(res.reason), res.findings)
+	}
+	if res.inherit != nil {
+		return inheritKey(ctx, q, run, res, res.cur)
 	}
 	if err := lock(ctx, q, lockSet(res)); err != nil {
 		return gen.ResolutionKey{}, nil, err
 	}
-	c := choose(res, nil)
-	t, err := find(ctx, q, res, c)
+	c := choose(res, nil, pick)
+	if c.refused != "" {
+		return gen.ResolutionKey{}, nil, fmt.Errorf("%w: %s", ErrNoCandidate, c.refused)
+	}
+	t, err := find(ctx, q, res, c, pick)
 	if err != nil {
 		return gen.ResolutionKey{}, nil, err
 	}
@@ -65,9 +73,13 @@ func (r *Resolver) resolveKey(ctx context.Context, q Queries, run gen.Run, res *
 		if reason, ok := classConflict(res.row, t.found.instrument.AssetClass); ok {
 			return record(ctx, q, run, res, gen.ResolutionOutcomeUnrecognised, []string{reason}, t.findings)
 		}
-		c = choose(res, t.found.group())
+		c = choose(res, t.found.group(), pick)
+		if c.refused != "" {
+			return gen.ResolutionKey{}, nil, fmt.Errorf("%w: %s", ErrNoCandidate, c.refused)
+		}
 	}
 	c.findings = append(c.findings, t.findings...)
+	c.findings = append(c.findings, res.findings...)
 	if c.winner == nil {
 		return record(ctx, q, run, res, unresolved(res), summary(res, c), c.findings)
 	}
@@ -85,14 +97,72 @@ func (r *Resolver) resolveKey(ctx context.Context, q Queries, run gen.Run, res *
 	if err := cover(ctx, q, w.instrument.ID, c, res.results); err != nil {
 		return gen.ResolutionKey{}, nil, err
 	}
-	ok, err := w.associate(ctx, res)
+	arbiter := gen.ArbiterStated
+	switch {
+	case pick != nil:
+		arbiter = gen.ArbiterUser
+	case c.winner.r != nil:
+		arbiter = gen.ArbiterDatasource
+	}
+	var mates []gen.StatedKey
+	if pick != nil {
+		if mates, err = lockGroup(ctx, q, run, res); err != nil {
+			return gen.ResolutionKey{}, nil, err
+		}
+	}
+	a, ok, err := w.associate(ctx, res, arbiter)
 	if err != nil {
 		return gen.ResolutionKey{}, nil, err
 	}
 	if !ok {
 		return record(ctx, q, run, res, gen.ResolutionOutcomeUnrecognised, []string{"no identifier to associate through"}, c.findings)
 	}
+	if a != nil {
+		if err := confirmGroup(ctx, q, run, res, *a, mates); err != nil {
+			return gen.ResolutionKey{}, nil, err
+		}
+	}
 	return record(ctx, q, run, res, gen.ResolutionOutcomeMatched, nil, c.findings)
+}
+
+// lockGroup takes the user's key lock and returns the keys of res's group,
+// read before the association clears the key's group. An upload or a
+// replay recomputes the groups under that lock.
+func lockGroup(ctx context.Context, q Queries, run gen.Run, res *resolution) ([]gen.StatedKey, error) {
+	if err := q.LockUserKeys(ctx, run.UserID); err != nil {
+		return nil, fmt.Errorf("lock keys: %w", err)
+	}
+	fresh, err := q.GetStatedKey(ctx, gen.GetStatedKeyParams{ID: res.row.ID, UserID: run.UserID})
+	if err != nil {
+		return nil, fmt.Errorf("read key: %w", err)
+	}
+	if fresh.GroupID == nil {
+		return nil, nil
+	}
+	mates, err := q.ListStatedKeysOfGroups(ctx, gen.ListStatedKeysOfGroupsParams{UserID: run.UserID, GroupIds: []uuid.UUID{*fresh.GroupID}})
+	if err != nil {
+		return nil, fmt.Errorf("list group: %w", err)
+	}
+	return mates, nil
+}
+
+// confirmGroup gives every key of mates but res's own the association a,
+// each with a matched resolution key of run.
+func confirmGroup(ctx context.Context, q Queries, run gen.Run, res *resolution, a gen.SetStatedKeyAssociationParams, mates []gen.StatedKey) error {
+	for _, k := range mates {
+		if k.ID == res.row.ID {
+			continue
+		}
+		a.ID = k.ID
+		if _, err := q.SetStatedKeyAssociation(ctx, a); err != nil {
+			return fmt.Errorf("associate key %s: %w", k.ID, err)
+		}
+		arg := gen.CreateResolutionKeyParams{RunID: run.ID, UserID: run.UserID, StatedKeyID: k.ID, Outcome: gen.ResolutionOutcomeMatched}
+		if _, err := q.CreateResolutionKey(ctx, arg); err != nil {
+			return fmt.Errorf("record resolution of key %s: %w", k.ID, err)
+		}
+	}
+	return nil
 }
 
 // lockSet returns the identifiers res trusts and every identifier a
@@ -126,10 +196,16 @@ type target struct {
 }
 
 // find re-reads the database for the instrument. The identifiers res trusts
-// and the groups c attaches each name it. It merges several found.
-func find(ctx context.Context, q Queries, res *resolution, c choice) (target, error) {
+// and the groups c attaches each name it. It merges several found. For a
+// confirmation only pick names the instrument, so that the instrument found
+// is the one the user named.
+func find(ctx context.Context, q Queries, res *resolution, c choice, pick *group) (target, error) {
 	ids := slices.Clone(res.trusted)
-	for _, g := range c.attached {
+	attached := c.attached
+	if pick != nil {
+		attached = []*group{pick}
+	}
+	for _, g := range attached {
 		for id := range g.all {
 			ids = appendUnique(ids, id)
 		}
@@ -225,15 +301,25 @@ func reread(ctx context.Context, q Queries, ids []types.Identifier) ([]hit, erro
 	return hits, nil
 }
 
-// record writes res's findings and resolution key.
-func record(ctx context.Context, q Queries, run gen.Run, res *resolution, outcome gen.ResolutionOutcome, reasons []string, findings []gen.CreateFindingParams) (gen.ResolutionKey, []gen.FindingKind, error) {
+// writeFindings writes findings against run and res's key, returning their
+// kinds.
+func writeFindings(ctx context.Context, q Queries, run gen.Run, res *resolution, findings []gen.CreateFindingParams) ([]gen.FindingKind, error) {
 	var kinds []gen.FindingKind
 	for _, f := range findings {
 		f.ID, f.RunID, f.StatedKeyID = db.NewID(), run.ID, &res.row.ID
 		if err := q.CreateFinding(ctx, f); err != nil {
-			return gen.ResolutionKey{}, nil, fmt.Errorf("create finding: %w", err)
+			return nil, fmt.Errorf("create finding: %w", err)
 		}
 		kinds = append(kinds, f.Kind)
+	}
+	return kinds, nil
+}
+
+// record writes res's findings and resolution key.
+func record(ctx context.Context, q Queries, run gen.Run, res *resolution, outcome gen.ResolutionOutcome, reasons []string, findings []gen.CreateFindingParams) (gen.ResolutionKey, []gen.FindingKind, error) {
+	kinds, err := writeFindings(ctx, q, run, res, findings)
+	if err != nil {
+		return gen.ResolutionKey{}, nil, err
 	}
 	arg := gen.CreateResolutionKeyParams{RunID: run.ID, UserID: run.UserID, StatedKeyID: res.row.ID, Outcome: outcome, Reasons: reasons}
 	rk, err := q.CreateResolutionKey(ctx, arg)
@@ -411,26 +497,33 @@ func (w *writer) identify(ctx context.Context, id types.Identifier, listing *uui
 }
 
 // associate writes the association of res with the instrument, through the
-// identifier via returns and on the listing of the stated family. It
-// reports false when no identifier identifies the instrument.
-func (w *writer) associate(ctx context.Context, res *resolution) (bool, error) {
+// identifier via returns and on the listing of the stated family, with
+// arbiter. It reports false when no identifier identifies the instrument.
+// It returns the association written. It returns nil when the user already
+// arbitrated the key's association; the write leaves that association in
+// place.
+func (w *writer) associate(ctx context.Context, res *resolution, arbiter gen.Arbiter) (*gen.SetStatedKeyAssociationParams, bool, error) {
 	var listingID *uuid.UUID
 	if l, ok := w.listings[res.fam]; ok {
 		listingID = &l.ID
 	}
 	via, ok := w.via(res, listingID)
 	if !ok {
-		return false, nil
+		return nil, false, nil
 	}
 	validity := gen.ValidityProvisional
 	if stable(to.Identifier(via)) {
 		validity = gen.ValidityConfirmed
 	}
-	arg := gen.SetStatedKeyAssociationParams{ID: res.row.ID, UserID: w.user, InstrumentID: &w.instrument.ID, ListingID: listingID, ViaID: &via.ID, Validity: &validity}
-	if err := w.q.SetStatedKeyAssociation(ctx, arg); err != nil {
-		return false, fmt.Errorf("associate key: %w", err)
+	arg := gen.SetStatedKeyAssociationParams{ID: res.row.ID, UserID: w.user, InstrumentID: &w.instrument.ID, ListingID: listingID, ViaID: &via.ID, Validity: &validity, Arbiter: arbiter}
+	n, err := w.q.SetStatedKeyAssociation(ctx, arg)
+	if err != nil {
+		return nil, false, fmt.Errorf("associate key: %w", err)
 	}
-	return true, nil
+	if n == 0 {
+		return nil, true, nil
+	}
+	return &arg, true, nil
 }
 
 // via returns the identifier that carries res's association. That is the

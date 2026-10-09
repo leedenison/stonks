@@ -37,7 +37,8 @@ configuration is silent.
 ### Arbiter
 
 An association records its validity and its arbiter separately.  The arbiter is stated,
-datasource, guess or user.  See [terminology.md](terminology.md).
+datasource, guess or user.  See
+[004_statements.sql](../../server/internal/migrations/004_statements.sql).
 
 ### Authority
 
@@ -72,7 +73,11 @@ corroborates a higher precedence answer.  It ranks above the datasource's own or
 Resolution always takes the top rank and records the arbiter as guess.  There is one
 review surface, in the upload flow and later: it lists the user's guessed associations,
 each with the candidates the guess ranked, and the user confirms the top rank or picks
-another.  Either writes the arbiter as user.
+another.  Either writes the arbiter as user.  The surface reuses the mechanism that
+confirms a candidate for an unassociated key: the same synchronous re-resolution lists
+the candidates, and the same confirmation writes the user's pick.  A guessed key has an
+association, arbitrated by a guess, and the confirmation replaces it.  The confirmation
+API refuses an associated key, and the guesses work lifts that refusal for a guessed one.
 
 A language model source is an integration like any other.  Its traffic is recorded and
 redacted as the recording proxy records every provider.

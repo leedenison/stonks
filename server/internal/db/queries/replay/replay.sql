@@ -26,7 +26,8 @@ ORDER BY stated_keys.id;
 
 -- name: ListKeysUncoveredBy :many
 -- The source is read as in ListUnavailableKeys. Keys of reference data are
--- left out: every datasource covers it without a row.
+-- left out: every datasource covers it without a row. A key the user
+-- arbitrated is left out: a replay never changes its association.
 SELECT sqlc.embed(stated_keys)
 FROM stated_keys
 LEFT JOIN instruments ON instruments.id = stated_keys.instrument_id
@@ -39,6 +40,7 @@ WHERE stated_keys.user_id = @user_id::uuid
   AND EXISTS (SELECT 1 FROM transactions
               WHERE transactions.user_id = stated_keys.user_id
                 AND transactions.stated_key_id = stated_keys.id)
+  AND stated_keys.arbiter IS DISTINCT FROM 'user'
   AND (stated_keys.instrument_id IS NULL
        OR (instruments.fetch_key_id IS NOT NULL
            AND NOT EXISTS (

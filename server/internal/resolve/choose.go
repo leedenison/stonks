@@ -39,6 +39,12 @@ type group struct {
 type choice struct {
 	// winner is nil where no group survived.
 	winner *group
+	// picked reports a confirmation, whose pick replaces the naming check
+	// for a key sent under an identifier that is not a GUID.
+	picked bool
+	// refused says why the pick of a confirmation fails a check, and is
+	// empty where there is no pick or it passes.
+	refused string
 	// attached is the best group of each datasource in precedence order,
 	// the winner among them where the database named no instrument.
 	attached []*group
@@ -341,15 +347,38 @@ func (g *group) confirms(res *resolution) int {
 }
 
 // choose picks the winner for res. db, the group of the instrument the
-// database names, wins where it is not nil; otherwise the best group of the
-// highest precedence datasource does.
-func choose(res *resolution, db *group) choice {
-	c := choice{winner: db, groups: map[string]int{}, notNaming: map[string]int{}}
+// database names, wins where it is not nil; otherwise pick, the group the
+// user confirms, does where it is not nil; otherwise the best group of the
+// highest precedence datasource does. A pick must pass the stated checks
+// and agree with the database group, and it takes the place of its
+// datasource's answer.
+func choose(res *resolution, db, pick *group) choice {
+	c := choice{winner: db, picked: pick != nil, groups: map[string]int{}, notNaming: map[string]int{}}
 	var chosen []*group
 	if db != nil {
 		chosen = append(chosen, db)
 	}
+	if pick != nil {
+		if detail, ok := pick.against(res); ok {
+			c.refused = pick.label(detail)
+			return c
+		}
+		if db != nil {
+			if detail, ok := pick.inconsistent(db); ok {
+				c.refused = pick.label(detail)
+				return c
+			}
+		}
+		c.attached = append(c.attached, pick)
+		chosen = append(chosen, pick)
+		if c.winner == nil {
+			c.winner = pick
+		}
+	}
 	for _, r := range res.results {
+		if pick != nil && r == pick.r {
+			continue
+		}
 		best := c.bestGroup(r, res, chosen)
 		if best == nil {
 			continue
@@ -371,6 +400,11 @@ func (c *choice) record(r *result, kind gen.FindingKind, step gen.DropStep, deta
 		f.Step = ptr.To(step)
 	}
 	c.findings = append(c.findings, f)
+}
+
+// dropped is a dropped finding against r's fetch key at step.
+func dropped(r *result, step gen.DropStep, detail string) gen.CreateFindingParams {
+	return gen.CreateFindingParams{Kind: gen.FindingKindDropped, FetchKeyID: ptr.To(r.ID), Detail: ptr.To(detail), Step: ptr.To(step)}
 }
 
 // naming filters gs to the groups that carry the identifier r was sent.
@@ -399,7 +433,10 @@ func (c *choice) bestGroup(r *result, res *resolution, chosen []*group) *group {
 	}
 	gs := groups(r)
 	c.groups[r.Source] = len(gs)
-	survivors, fallback := c.naming(r, gs)
+	survivors, fallback := gs, false
+	if !c.picked || market.IsGUID(*r.Sent) {
+		survivors, fallback = c.naming(r, gs)
+	}
 	survivors = slices.DeleteFunc(survivors, func(g *group) bool {
 		if detail, ok := g.against(res); ok {
 			c.record(r, gen.FindingKindDropped, gen.DropStepStated, g.label(detail))

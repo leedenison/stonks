@@ -6,6 +6,10 @@
 // statement is recorded, and resolution and the write follow; see
 // [run.go](../run/run.go). Each distinct key is resolved once, however many
 // rows state it; see [resolve.go](../resolve/resolve.go).
+//
+// The service also lists and confirms candidates for a key of the user's
+// that is not yet associated. Each call is a synchronous resolution run;
+// see [resolve.go](../resolve/resolve.go).
 package statement
 
 import (

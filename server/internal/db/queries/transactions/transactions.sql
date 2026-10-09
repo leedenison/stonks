@@ -29,11 +29,22 @@ SELECT * FROM transactions
 WHERE user_id = $1
 ORDER BY order_date, id;
 
--- name: SetStatedKeyAssociation :exec
--- An associated key belongs to no group.
+-- name: SetStatedKeyAssociation :execrows
+-- An associated key belongs to no group. The update skips a key whose
+-- association the user arbitrated, and so changes zero rows.
 UPDATE stated_keys
-SET instrument_id = $3, listing_id = $4, via_id = $5, validity = $6, group_id = NULL
-WHERE id = $1 AND user_id = $2;
+SET instrument_id = $3, listing_id = $4, via_id = $5, validity = $6,
+    arbiter = @arbiter::arbiter, group_id = NULL
+WHERE id = $1 AND user_id = $2 AND arbiter IS DISTINCT FROM 'user';
+
+-- name: GetStatedKey :one
+SELECT * FROM stated_keys WHERE id = $1 AND user_id = $2;
+
+-- name: ListUserArbitratedKeys :many
+-- The user's keys whose association the user arbitrated.
+SELECT * FROM stated_keys
+WHERE user_id = $1 AND arbiter = 'user'
+ORDER BY id;
 
 -- name: LockUserKeys :exec
 -- The user's key lock: an advisory lock serialising every write to one user's

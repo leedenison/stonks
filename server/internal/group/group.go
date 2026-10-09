@@ -56,6 +56,13 @@ func union(parent map[uuid.UUID]uuid.UUID, a, b uuid.UUID) {
 	parent[rb] = ra
 }
 
+// Joining reports whether id joins the keys that state it. An identifier of
+// a type read with a domain names nothing when its domain is empty, so a
+// bare ticker joins nothing.
+func Joining(id types.Identifier) bool {
+	return market.Trait(id.Type).Domain == gen.IdentifierDomainGlobal || id.Domain != ""
+}
+
 // Of partitions keys into groups and returns the group of each: the id
 // of the earliest key sharing an identifier with it, however many keys the
 // chain runs through.
@@ -68,12 +75,9 @@ func Of(keys []gen.StatedKey) map[uuid.UUID]uuid.UUID {
 	first := map[types.Identifier]uuid.UUID{}
 	for _, k := range keys {
 		for _, i := range k.Identifiers {
-			// An identifier of a type read with a domain names nothing when its
-			// domain is empty, so sharing its value does not join two keys.
-			if market.Trait(i.Type).Domain != gen.IdentifierDomainGlobal && i.Domain == "" {
-				continue
+			if Joining(i) {
+				join(first, parent, i, k.ID)
 			}
-			join(first, parent, i, k.ID)
 		}
 	}
 	out := make(map[uuid.UUID]uuid.UUID, len(keys))

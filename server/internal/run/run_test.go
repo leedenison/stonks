@@ -333,6 +333,57 @@ func TestChild(t *testing.T) {
 	}
 }
 
+// TestSync checks that a synchronous run executes in the caller, records
+// its outcome, and is refused once the runner has closed.
+func TestSync(t *testing.T) {
+	tests := []struct {
+		name    string
+		work    Work
+		expect  func(f *fixture)
+		wantErr string
+		counted string
+	}{
+		{name: "completed", work: func(context.Context, gen.Run) error { return nil }, expect: func(f *fixture) {
+			f.store.EXPECT().CompleteRun(gomock.Any(), gomock.Any()).Return(nil)
+		}, counted: "stonks.runs{kind=resolution,outcome=completed,trigger=user}"},
+		{name: "failed", work: func(context.Context, gen.Run) error { return errors.New("boom") }, expect: func(f *fixture) {
+			f.store.EXPECT().FailRun(gomock.Any(), gomock.Any()).Return(nil)
+		}, wantErr: "boom", counted: "stonks.runs{kind=resolution,outcome=failed,trigger=user}"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFixture(t)
+			tc.expect(f)
+			counts(t)
+			ran := false
+			row, err := f.runner.Sync(context.Background(), userA, gen.RunKindResolution, gen.RunTriggerUser, func(ctx context.Context, run gen.Run) error {
+				ran = true
+				return tc.work(ctx, run)
+			})
+			if !ran {
+				t.Fatal("Sync() returned before its work ran")
+			}
+			if (err == nil) != (tc.wantErr == "") || (err != nil && err.Error() != tc.wantErr) {
+				t.Errorf("Sync() error = %v, want %q", err, tc.wantErr)
+			}
+			want := gen.Run{ID: row.ID, UserID: userA, Kind: gen.RunKindResolution, Trigger: gen.RunTriggerUser, State: gen.RunStatePending}
+			if diff := cmp.Diff(want, row); diff != "" {
+				t.Errorf("Sync() row mismatch (-want +got):\n%s", diff)
+			}
+			if diff := cmp.Diff(map[string]int64{tc.counted: 1}, counts(t)); diff != "" {
+				t.Errorf("Sync() counts mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+	t.Run("closed", func(t *testing.T) {
+		f := newFixture(t)
+		f.runner.Close()
+		if _, err := f.runner.Sync(context.Background(), userA, gen.RunKindResolution, gen.RunTriggerUser, func(context.Context, gen.Run) error { return nil }); !errors.Is(err, ErrClosed) {
+			t.Errorf("Sync() after Close error = %v, want ErrClosed", err)
+		}
+	})
+}
+
 // TestPrepare checks that the work waits for Prepare, and that an error from
 // Prepare fails the run and is returned by Start.
 func TestPrepare(t *testing.T) {
