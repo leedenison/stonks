@@ -69,6 +69,9 @@ test("resolves a line through the description the broker gave it", async ({
   const resolved = page.getByTestId(`holding-row-${instrumentId}`);
   await expect(resolved).toHaveAttribute("data-kind", "instrument");
   await expect(resolved).toContainText(ticker);
+  await expect(
+    resolved.getByTestId(`holding-venue-${instrumentId}`),
+  ).toHaveText("LSE");
   await expect(resolved).toContainText(isin);
   await expect(resolved.getByTestId("holding-basis")).toHaveCount(0);
   await expect(resolved.getByTestId(`holding-qty-${instrumentId}`)).toHaveText(

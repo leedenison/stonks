@@ -178,7 +178,7 @@ describe("holdingRows", () => {
     ]);
   });
 
-  it("shows everything else a group's keys state beside its name", () => {
+  it("shows a group's descriptions beneath its name and one code beside it", () => {
     const g = group(
       "g-5",
       [AssetClass.SECURITY],
@@ -192,14 +192,11 @@ describe("holdingRows", () => {
     const row = rows([], [g])[0];
     expect(row.kind).toBe("group");
     expect(row.label).toBe("ACME");
-    expect(row.identifiers.map((i) => i.value)).toEqual([
-      "US0000000001",
-      "ACME CORP",
-      "ACME CORPORATION",
-    ]);
+    expect(row.descriptions).toEqual(["ACME CORP", "ACME CORPORATION"]);
+    expect(row.code?.value).toBe("US0000000001");
   });
 
-  it("leaves out of a group's identifiers the one that names it", () => {
+  it("keeps only the registry codes of a group among its identifiers", () => {
     const g = group(
       "g-6",
       [],

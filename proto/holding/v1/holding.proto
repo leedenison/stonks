@@ -1,7 +1,8 @@
 // Holdings: what a user holds, of two kinds, one per instrument and one per
 // group of unresolved keys. A sum of zero is no holding. Quantities are raw: no
 // corporate event restates them. Every RPC requires a session and reads the
-// caller's own transactions.
+// caller's own transactions, keys and statements. A holding carries the keys
+// it sums. An instrument holding also carries its listings.
 
 syntax = "proto3";
 
@@ -10,6 +11,35 @@ package stonks.holding.v1;
 import "type/v1/type.proto";
 
 option go_package = "github.com/leedenison/stonks/proto/holding/v1;holdingv1";
+
+// One listing of a held instrument, named for the user.
+message HoldingListing {
+  // The listing; a UUID.
+  string id = 1;
+  // The currency's family code, such as GBP for pence.
+  string currency = 2;
+  // The ticker that names the listing: at the venue a datasource stated as
+  // primary, else at the venue ranked first among those where the listing
+  // has tickers, else at the first by MIC. Unset where the listing has no
+  // ticker.
+  stonks.type.v1.Identifier ticker = 3;
+  // The venue's common name, or its MIC where it has none. Empty where
+  // ticker is unset.
+  string venue = 4;
+}
+
+// One of the caller's keys contributing to a holding.
+message HoldingKey {
+  string stated_key_id = 1;
+  // The run id of the statement that stated the key.
+  string statement_id = 2;
+  stonks.type.v1.Broker broker = 3;
+  stonks.type.v1.StatedKey stated_key = 4;
+  // The listing the key associates through; empty where it names none.
+  string listing_id = 5;
+  // The sum of the key's transaction quantities.
+  string quantity = 6;
+}
 
 // A holding of an instrument a datasource named, across its listings.
 message InstrumentHolding {
@@ -24,6 +54,10 @@ message InstrumentHolding {
   // the instrument: shares, contracts, or money for cash, with no trailing
   // zeros. Negative when more has been disposed of than acquired.
   string quantity = 4;
+  // Every listing of the instrument, by currency.
+  repeated HoldingListing listings = 5;
+  // The keys this holding sums, newest statement first.
+  repeated HoldingKey keys = 6;
 }
 
 // A holding of the caller's unresolved keys that state one holding between
@@ -42,6 +76,8 @@ message GroupHolding {
   // The sum of the caller's transaction quantities over the group's keys,
   // with no trailing zeros.
   string quantity = 4;
+  // The keys this holding sums, newest statement first.
+  repeated HoldingKey keys = 5;
 }
 
 message ListHoldingsRequest {}

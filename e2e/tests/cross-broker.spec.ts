@@ -1,5 +1,9 @@
 import path from "node:path";
-import { IdentifierType, ResolutionOutcome } from "../gen/type/v1/type_pb";
+import {
+  Broker,
+  IdentifierType,
+  ResolutionOutcome,
+} from "../gen/type/v1/type_pb";
 import {
   holdingClient,
   instrumentClient,
@@ -60,6 +64,16 @@ test("shows a resolved holding and an unresolved one from two brokers", async ({
       (i) => i.type === IdentifierType.MIC_TICKER && i.value === ticker,
     ),
   ).toBe(true);
+  // Massive states Nasdaq as the primary venue, so the dollar listing is
+  // named there, and the IBKR key holds it.
+  const dollars = shares!.listings.find((l) => l.currency === "USD");
+  expect(dollars?.venue).toBe("Nasdaq");
+  expect(dollars?.ticker?.value).toBe(ticker);
+  expect(shares!.keys).toHaveLength(1);
+  expect(shares!.keys[0].statementId).toBe(ibkrRun);
+  expect(shares!.keys[0].broker).toBe(Broker.IBKR);
+  expect(shares!.keys[0].listingId).toBe(dollars?.id);
+  expect(shares!.keys[0].quantity).toBe("10");
   expect(holdings.groups).toHaveLength(1);
   const group = holdings.groups[0];
   expect(group.quantity).toBe("10");
@@ -103,6 +117,9 @@ test("shows a resolved holding and an unresolved one from two brokers", async ({
   const resolved = page.getByTestId(`holding-row-${shares!.instrumentId}`);
   await expect(resolved).toHaveAttribute("data-kind", "instrument");
   await expect(resolved).toContainText(ticker);
+  await expect(
+    resolved.getByTestId(`holding-venue-${shares!.instrumentId}`),
+  ).toHaveText("Nasdaq");
   await expect(resolved).toContainText(cusip);
   await expect(resolved.getByTestId("holding-basis")).toHaveCount(0);
   const unresolved = page.getByTestId(`holding-row-${group.groupId}`);
