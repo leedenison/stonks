@@ -26,6 +26,7 @@ type Queries interface {
 	CreateTransactions(ctx context.Context, arg []gen.CreateTransactionsParams) (int64, error)
 	CreateStatementItems(ctx context.Context, arg []gen.CreateStatementItemsParams) (int64, error)
 	CompleteRun(ctx context.Context, id uuid.UUID) error
+	GetStatedKey(ctx context.Context, arg gen.GetStatedKeyParams) (gen.StatedKey, error)
 }
 
 var _ Queries = (*gen.Queries)(nil)
@@ -43,15 +44,18 @@ var _ Store = (*db.DB[Queries])(nil)
 type Runner interface {
 	Start(ctx context.Context, spec run.Spec, work run.Work) (gen.Run, error)
 	Child(ctx context.Context, parent gen.Run, kind gen.RunKind, work run.Work) (gen.Run, error)
+	Sync(ctx context.Context, user uuid.UUID, kind gen.RunKind, trigger gen.RunTrigger, work run.Work) (gen.Run, error)
 }
 
 var _ Runner = (*run.Runner)(nil)
 
-// Resolver is this package's view of the resolve package: the
-// body of a resolution run over the stated keys of a statement, with an
-// outcome per key in their order.
+// Resolver is this package's view of the resolve package: the body of a
+// resolution run over the stated keys of a statement, with an outcome per
+// key in their order, and the two synchronous resolutions of one key.
 type Resolver interface {
 	Resolve(ctx context.Context, res gen.Run, keys []gen.StatedKey) ([]gen.ResolutionKey, error)
+	Candidates(ctx context.Context, res gen.Run, key gen.StatedKey) (resolve.Offer, error)
+	Confirm(ctx context.Context, res gen.Run, key gen.StatedKey, p resolve.Pick) (gen.ResolutionKey, error)
 }
 
 var _ Resolver = (*resolve.Resolver)(nil)

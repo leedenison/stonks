@@ -4,6 +4,7 @@ package statement
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"testing"
@@ -24,6 +25,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/resolve"
 	"github.com/leedenison/stonks/server/internal/testutil/dbtest"
 	"github.com/leedenison/stonks/server/internal/testutil/runtest"
+	"github.com/leedenison/stonks/server/internal/testutil/scripted"
 )
 
 var pool *pgxpool.Pool
@@ -35,9 +37,11 @@ type stack struct {
 	tx   pgx.Tx
 	svc  *Service
 	user gen.User
+	// alpha is the one datasource, enabled, whose answers a test scripts.
+	alpha *scripted.Identity
 }
 
-// newStack returns a statement service with no datasource, over a
+// newStack returns a statement service with one scripted datasource, in a
 // rolled-back transaction.
 func newStack(t *testing.T) stack {
 	t.Helper()
@@ -47,12 +51,18 @@ func newStack(t *testing.T) stack {
 	q := gen.New(tx)
 	user, err := q.CreateUser(ctx, gen.CreateUserParams{ID: db.NewID(), Email: fmt.Sprintf("%s@example.com", uuid.NewString()), Role: gen.UserRoleUser})
 	require.NoError(t, err)
+	_, err = q.CreateDatasource(ctx, gen.CreateDatasourceParams{Name: "alpha", Enabled: true, Precedence: 10})
+	require.NoError(t, err)
 	log := slog.New(slog.DiscardHandler)
-	sources, err := market.New(ctx, q, nil, log)
+	alpha := scripted.New()
+	factories := map[string]market.Factory{
+		"alpha": func(market.Config) (market.Integration, error) { return alpha, nil },
+	}
+	sources, err := market.New(ctx, q, factories, log)
 	require.NoError(t, err)
 	runs := runtest.Runner{Q: q}
 	resolver := resolve.New(db.New[resolve.Queries](tx), market.NewFetcher(db.New[market.Queries](tx), runs, log), sources, log)
-	return stack{q: q, tx: tx, svc: New(db.New[Queries](tx), runs, resolver, clock), user: user}
+	return stack{q: q, tx: tx, svc: New(db.New[Queries](tx), runs, resolver, clock), user: user, alpha: alpha}
 }
 
 func (s stack) ingest(t *testing.T, msg *statementv1.Statement) gen.Run {
@@ -245,5 +255,128 @@ func TestReplace(t *testing.T) {
 	want = []string{"2026-03-05 schwab 1 USD", "2026-03-20 ibkr 7 USD"}
 	if diff := cmp.Diff(want, s.transactions(t)); diff != "" {
 		t.Errorf("after the empty statement (-want +got):\n%s", diff)
+	}
+}
+
+// TestConfirmCandidate checks a confirmation across statements: both keys
+// of a group take the user's pick, and a later statement's key inherits it.
+func TestConfirmCandidate(t *testing.T) {
+	s := newStack(t)
+	ctx := context.Background()
+	usd := "USD"
+	intc := types.Identifier{Type: types.IdentifierTypeMicTicker, Value: "INTC"}
+	isin := types.Identifier{Type: types.IdentifierTypeIsin, Value: "US4581401001"}
+	figi := types.Identifier{Type: types.IdentifierTypeOpenfigiShareClass, Value: "BBG001S5SM32"}
+	xnas := types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "INTC"}
+	s.alpha.Responses[intc] = market.IdentityResult{Filtered: []types.Identifier{intc}, Candidates: []market.Candidate{
+		{Class: gen.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{figi, isin, xnas}},
+	}}
+	key := &typev1.StatedKey{
+		Identifiers: []*typev1.Identifier{
+			ident(typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, "INTC", ""),
+			ident(typev1.IdentifierType_IDENTIFIER_TYPE_BROKER_DESCRIPTION, "INTEL CORP", "schwab"),
+		},
+		AssetClass: typev1.AssetClass_ASSET_CLASS_STOCK, Currency: &usd,
+	}
+	month := func(from, before, order, quantity string) gen.Run {
+		return s.ingest(t, &statementv1.Statement{
+			Broker: typev1.Broker_BROKER_SCHWAB, OrderFrom: from, OrderBefore: before,
+			Rows: []*statementv1.Row{rowMsg(key, order, quantity)},
+		})
+	}
+	keyOf := func(statement gen.Run) gen.StatedKey {
+		t.Helper()
+		keys, err := s.q.ListStatedKeys(ctx, gen.ListStatedKeysParams{StatementID: statement.ID, UserID: s.user.ID})
+		require.NoError(t, err)
+		if len(keys) != 1 {
+			t.Fatalf("statement %s has %d keys, want 1", statement.ID, len(keys))
+		}
+		return keys[0]
+	}
+	// syncRuns returns the user's synchronous resolution runs, oldest first.
+	syncRuns := func() []uuid.UUID {
+		t.Helper()
+		rows, err := s.tx.Query(ctx, "SELECT id FROM runs WHERE user_id = $1 AND kind = 'resolution' AND trigger = 'user' ORDER BY id", s.user.ID)
+		require.NoError(t, err)
+		defer rows.Close()
+		var ids []uuid.UUID
+		for rows.Next() {
+			var id uuid.UUID
+			require.NoError(t, rows.Scan(&id))
+			ids = append(ids, id)
+		}
+		return ids
+	}
+
+	first := keyOf(month("2026-03-01", "2026-04-01", "2026-03-05", "10"))
+	second := keyOf(month("2026-04-01", "2026-05-01", "2026-04-05", "5"))
+	groups, err := s.q.ListGroupHoldings(ctx, s.user.ID)
+	require.NoError(t, err)
+	if len(groups) != 1 || groups[0].Quantity.String() != "15" {
+		t.Fatalf("group holdings = %+v, want one of 15", groups)
+	}
+
+	offer, err := s.svc.Candidates(ctx, s.user.ID, first.ID)
+	require.NoError(t, err)
+	if len(offer.Candidates) != 1 || offer.Candidates[0].Datasource != "alpha" || offer.Candidates[0].Strongest != figi || len(offer.Reasons) != 0 {
+		t.Fatalf("Candidates() = %+v, want alpha's one group named by its FIGI", offer)
+	}
+	runs := syncRuns()
+	if len(runs) != 1 {
+		t.Fatalf("%d synchronous runs after listing, want 1", len(runs))
+	}
+	listing, err := s.q.GetRun(ctx, gen.GetRunParams{ID: runs[0], UserID: s.user.ID})
+	require.NoError(t, err)
+	children, err := s.q.ListChildRuns(ctx, gen.ListChildRunsParams{ParentID: &listing.ID, UserID: s.user.ID})
+	require.NoError(t, err)
+	if listing.State != gen.RunStateCompleted || len(children) != 1 || children[0].Kind != gen.RunKindFetch || children[0].State != gen.RunStateCompleted {
+		t.Fatalf("listing run = %+v with children %+v, want completed with one completed fetch", listing, children)
+	}
+	items, err := s.q.ListFetchItems(ctx, gen.ListFetchItemsParams{FetchID: children[0].ID})
+	require.NoError(t, err)
+	if len(items) != 1 || items[0].StatedKey.ID != first.ID || items[0].FetchKey.Outcome != gen.FetchOutcomeServed {
+		t.Errorf("fetch items = %+v, want the key served", items)
+	}
+
+	rk, err := s.svc.Confirm(ctx, s.user.ID, first.ID, resolve.Pick{Datasource: "alpha", Identifier: isin})
+	require.NoError(t, err)
+	if rk.Outcome != gen.ResolutionOutcomeMatched {
+		t.Fatalf("Confirm() = %+v, want matched", rk)
+	}
+	for _, k := range []gen.StatedKey{first, second} {
+		got, err := s.q.GetStatedKey(ctx, gen.GetStatedKeyParams{ID: k.ID, UserID: s.user.ID})
+		require.NoError(t, err)
+		if got.InstrumentID == nil || got.Arbiter == nil || *got.Arbiter != gen.ArbiterUser || got.GroupID != nil {
+			t.Errorf("key %s = %+v, want associated by the user in no group", k.ID, got)
+		}
+	}
+	groups, err = s.q.ListGroupHoldings(ctx, s.user.ID)
+	require.NoError(t, err)
+	instruments, err := s.q.ListInstrumentHoldings(ctx, s.user.ID)
+	require.NoError(t, err)
+	if len(groups) != 0 || len(instruments) != 1 || instruments[0].Quantity.String() != "15" {
+		t.Errorf("holdings = groups %+v, instruments %+v, want one instrument holding of 15", groups, instruments)
+	}
+	if _, err := s.svc.Confirm(ctx, s.user.ID, first.ID, resolve.Pick{Datasource: "alpha", Identifier: isin}); !errors.Is(err, ErrAssociated) {
+		t.Errorf("a second Confirm() error = %v, want ErrAssociated", err)
+	}
+
+	third := month("2026-02-01", "2026-03-01", "2026-02-05", "1")
+	k, err := s.q.GetStatedKey(ctx, gen.GetStatedKeyParams{ID: keyOf(third).ID, UserID: s.user.ID})
+	require.NoError(t, err)
+	if k.InstrumentID == nil || *k.InstrumentID != instruments[0].InstrumentID || k.Arbiter == nil || *k.Arbiter != gen.ArbiterUser {
+		t.Errorf("the third statement's key = %+v, want the confirmed association inherited", k)
+	}
+	resolution, err := s.q.ListChildRuns(ctx, gen.ListChildRunsParams{ParentID: &third.ID, UserID: s.user.ID})
+	require.NoError(t, err)
+	fetches, err := s.q.ListChildRuns(ctx, gen.ListChildRunsParams{ParentID: &resolution[0].ID, UserID: s.user.ID})
+	require.NoError(t, err)
+	if len(fetches) != 0 {
+		t.Errorf("the third statement's resolution started %d fetches, want none: an inheriting key is not sent", len(fetches))
+	}
+	instruments, err = s.q.ListInstrumentHoldings(ctx, s.user.ID)
+	require.NoError(t, err)
+	if len(instruments) != 1 || instruments[0].Quantity.String() != "16" {
+		t.Errorf("instrument holdings = %+v, want one of 16", instruments)
 	}
 }

@@ -22,8 +22,12 @@ type resolution struct {
 	// trusted caches trustedIDs.
 	trusted []types.Identifier
 	// fam is the family of the currency the key states.
-	fam      string
-	found    *found
+	fam   string
+	cur   currencies
+	found *found
+	// inherit is the user-arbitrated key whose association the key takes,
+	// nil where it takes none.
+	inherit  *gen.StatedKey
 	results  []*result
 	findings []gen.CreateFindingParams
 	outcome  gen.ResolutionOutcome

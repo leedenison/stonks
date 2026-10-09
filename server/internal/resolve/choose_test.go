@@ -121,6 +121,7 @@ func TestGroups(t *testing.T) {
 // and order.
 type outcome struct {
 	winner    string
+	refused   string
 	attached  []string
 	findings  []string
 	notNaming map[string]int
@@ -138,7 +139,7 @@ func label(g *group) string {
 
 // describe writes c, naming each finding's fetch key by its source.
 func describe(c choice, source map[uuid.UUID]string) outcome {
-	o := outcome{winner: label(c.winner), notNaming: c.notNaming}
+	o := outcome{winner: label(c.winner), refused: c.refused, notNaming: c.notNaming}
 	for _, g := range c.attached {
 		o.attached = append(o.attached, label(g))
 	}
@@ -360,7 +361,90 @@ func TestChoose(t *testing.T) {
 			if tc.want.notNaming == nil {
 				tc.want.notNaming = map[string]int{}
 			}
-			got := describe(choose(&resolution{row: tc.k, results: tc.results, fam: cur.family(tc.k)}, tc.db), source)
+			got := describe(choose(&resolution{row: tc.k, results: tc.results, fam: cur.family(tc.k)}, tc.db, nil), source)
+			if diff := cmp.Diff(tc.want, got, cmp.AllowUnexported(outcome{})); diff != "" {
+				t.Errorf("choose mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+// TestChoosePick checks the choice of a confirmation: the pick wins unless
+// the database names the instrument, the other datasources attach by the
+// usual rules, and a pick that fails a check is refused.
+func TestChoosePick(t *testing.T) {
+	strict := func(source string, sent types.Identifier, cs ...market.Candidate) *result {
+		return served(source, sent, []types.Identifier{sent}, cs...)
+	}
+	existing := &group{class: gen.AssetClassStock, instrument: []types.Identifier{isin, cusip}, listings: map[string][]types.Identifier{
+		"GBP": {comp, xlon},
+	}}
+	other := id(types.IdentifierTypeCusip, "", "92857W309")
+	tests := []struct {
+		name    string
+		results []*result
+		// pick names the result and the group within it the user picks.
+		pick [2]int
+		k    gen.StatedKey
+		db   *group
+		want outcome
+	}{
+		{
+			name: "the pick wins and a higher precedence datasource attaches through a stable identifier",
+			results: []*result{
+				strict("a", ticker, cand(gen.AssetClassStock, "GBP", figi, xlon)),
+				strict("b", ticker, cand(gen.AssetClassStock, "GBP", figi, isin, xlon)),
+			},
+			pick: [2]int{1, 0},
+			k:    gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{ticker}},
+			want: outcome{winner: "b#0", attached: []string{"b#0", "a#0"}},
+		},
+		{
+			name: "the pick's datasource's other groups are passed over",
+			results: []*result{
+				strict("a", ticker, cand(gen.AssetClassStock, "GBP", figi, xlon), cand(gen.AssetClassStock, "GBP", figi2, xetr)),
+			},
+			pick: [2]int{0, 0},
+			k:    gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{ticker}},
+			want: outcome{winner: "a#0", attached: []string{"a#0"}},
+		},
+		{
+			name:    "a pick whose listing is in no stated family is refused",
+			results: []*result{strict("a", ticker, cand(gen.AssetClassStock, "USD", figi, xnas))},
+			pick:    [2]int{0, 0},
+			k:       gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{ticker}},
+			want:    outcome{refused: "openfigi_share_class BBG001S5XDT5: stated GBP has no listing among USD (a)"},
+		},
+		{
+			name:    "a pick contradicting the instrument the database names is refused",
+			results: []*result{strict("a", ticker, cand(gen.AssetClassStock, "GBP", figi, other, xlon))},
+			pick:    [2]int{0, 0},
+			k:       gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{ticker}},
+			db:      existing,
+			want:    outcome{winner: "database", refused: "openfigi_share_class BBG001S5XDT5: cusip 92857W309 contradicts cusip 92857W308 (database)"},
+		},
+		{
+			name:    "a pick attaches to the instrument the database names",
+			results: []*result{strict("a", ticker, cand(gen.AssetClassStock, "GBP", figi, isin, xlon))},
+			pick:    [2]int{0, 0},
+			k:       gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{ticker}},
+			db:      existing,
+			want:    outcome{winner: "database", attached: []string{"a#0"}},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			source := map[uuid.UUID]string{}
+			for i, r := range tc.results {
+				r.ID = uuid.UUID{byte(i + 1)}
+				source[r.ID] = r.Source
+			}
+			if tc.want.notNaming == nil {
+				tc.want.notNaming = map[string]int{}
+			}
+			res := &resolution{row: tc.k, results: tc.results, fam: cur.family(tc.k)}
+			pick := groups(tc.results[tc.pick[0]])[tc.pick[1]]
+			got := describe(choose(res, tc.db, pick), source)
 			if diff := cmp.Diff(tc.want, got, cmp.AllowUnexported(outcome{})); diff != "" {
 				t.Errorf("choose mismatch (-want +got):\n%s", diff)
 			}

@@ -7,8 +7,10 @@
 -- response or the winner. When a group is outranked within its datasource,
 -- or does not name the identifier sent, the drop is routine and is recorded
 -- on the resolution key rather than as a finding.
--- 'contradiction' means a response contradicted the instrument the key
--- already matched, and the database's precedence decided.
+-- 'contradiction' means that two sources name different instruments for
+-- one key: the identifiers the key states, the user's confirmed keys, or a
+-- response. The database's precedence or the datasources decided between
+-- them.
 -- 'merged' means the response merged two instruments.
 CREATE TYPE finding_kind AS ENUM ('block', 'dropped', 'contradiction', 'merged');
 

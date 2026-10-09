@@ -112,10 +112,11 @@ func TestListKeysUncoveredBy(t *testing.T) {
 	require.NoError(t, err)
 	alpha, beta := newDatasource(t, q, "alpha", 10), newDatasource(t, q, "beta", 20)
 	fetch := newFetch(t, q, user, run, alpha)
-	associate := func(key gen.StatedKey, listing gen.Listing, via gen.Identifier) {
+	associate := func(key gen.StatedKey, listing gen.Listing, via gen.Identifier, arbiter gen.Arbiter) {
 		t.Helper()
-		arg := gen.SetStatedKeyAssociationParams{ID: key.ID, UserID: user.ID, InstrumentID: &listing.InstrumentID, ListingID: &listing.ID, ViaID: &via.ID, Validity: ptr.To(gen.ValidityConfirmed)}
-		require.NoError(t, q.SetStatedKeyAssociation(ctx, arg))
+		arg := gen.SetStatedKeyAssociationParams{ID: key.ID, UserID: user.ID, InstrumentID: &listing.InstrumentID, ListingID: &listing.ID, ViaID: &via.ID, Validity: ptr.To(gen.ValidityConfirmed), Arbiter: arbiter}
+		_, err := q.SetStatedKeyAssociation(ctx, arg)
+		require.NoError(t, err)
 	}
 	fetched := func(isin string) (gen.Listing, gen.Identifier, uuid.UUID) {
 		t.Helper()
@@ -132,17 +133,22 @@ func TestListKeysUncoveredBy(t *testing.T) {
 	covered := newStatedKey(t, q, user, statement)
 	uncovered := newStatedKey(t, q, user, statement)
 	cash := newStatedKey(t, q, user, statement)
+	arbitrated := newStatedKey(t, q, user, statement)
 	newStatedKey(t, q, user, statement)
-	for _, k := range []gen.StatedKey{unresolved, covered, uncovered, cash} {
+	for _, k := range []gen.StatedKey{unresolved, covered, uncovered, cash, arbitrated} {
 		names(t, q, statement, k)
 	}
 	listing, via, key := fetched("US0000000001")
-	associate(covered, listing, via)
+	associate(covered, listing, via, gen.ArbiterDatasource)
 	require.NoError(t, q.UpsertIdentityCoverage(ctx, gen.UpsertIdentityCoverageParams{InstrumentID: listing.InstrumentID, Datasource: alpha.Name, FetchKeyID: key}))
 	listing, via, _ = fetched("US0000000002")
-	associate(uncovered, listing, via)
+	associate(uncovered, listing, via, gen.ArbiterDatasource)
 	usd, usdVia := cashListing(t, q, "USD")
-	associate(cash, usd, usdVia)
+	associate(cash, usd, usdVia, gen.ArbiterStated)
+	// The user's choice stands, so neither scope selects the arbitrated
+	// key, though no datasource covers its instrument.
+	listing, via, _ = fetched("US0000000003")
+	associate(arbitrated, listing, via, gen.ArbiterUser)
 
 	source := gen.ListKeysUncoveredByParams{UserID: user.ID, SourceID: statement.ID, Datasource: alpha.Name}
 	rows, err := q.ListKeysUncoveredBy(ctx, source)

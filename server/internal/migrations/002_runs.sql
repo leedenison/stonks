@@ -6,11 +6,12 @@ CREATE TYPE run_kind AS ENUM ('statement', 'resolution', 'fetch', 'replay');
 CREATE TYPE run_trigger AS ENUM ('user', 'administrator', 'run');
 CREATE TYPE run_state AS ENUM ('pending', 'running', 'completed', 'failed', 'interrupted');
 
--- A run is one unit of background work: a statement, ingesting one batch of
+-- A run is one unit of work: a statement, ingesting one batch of
 -- transactions a user submitted, a resolution resolving stated keys, a replay
 -- re-resolving the keys of one run, or a fetch requesting one kind of data
--- from one datasource. The row exists before the work starts and carries its
--- outcome.
+-- from one datasource. Most run in the background. A resolution a user
+-- starts runs in the call that starts it. The row exists before the work
+-- starts and carries its outcome.
 CREATE TABLE runs (
     id          uuid        PRIMARY KEY,
     user_id     uuid        NOT NULL REFERENCES users (id) ON DELETE CASCADE,

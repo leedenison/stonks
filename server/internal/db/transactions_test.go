@@ -4,11 +4,13 @@ package db_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
+	"github.com/jackc/pgerrcode"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 
@@ -107,8 +109,12 @@ func TestStatedKeyAssociation(t *testing.T) {
 		one, two := newStatedKey(t, q, user, statement), newStatedKey(t, q, user, statement)
 		require.NoError(t, q.SetStatedKeyGroups(ctx, gen.SetStatedKeyGroupsParams{UserID: user.ID, Ids: []uuid.UUID{one.ID, two.ID}, GroupIds: []uuid.UUID{one.ID, one.ID}}))
 		usd, via := cashListing(t, q, "USD")
-		arg := gen.SetStatedKeyAssociationParams{ID: two.ID, UserID: user.ID, InstrumentID: &usd.InstrumentID, ListingID: &usd.ID, ViaID: &via.ID, Validity: ptr.To(gen.ValidityConfirmed)}
-		require.NoError(t, q.SetStatedKeyAssociation(ctx, arg))
+		arg := gen.SetStatedKeyAssociationParams{ID: two.ID, UserID: user.ID, InstrumentID: &usd.InstrumentID, ListingID: &usd.ID, ViaID: &via.ID, Validity: ptr.To(gen.ValidityConfirmed), Arbiter: gen.ArbiterDatasource}
+		n, err := q.SetStatedKeyAssociation(ctx, arg)
+		require.NoError(t, err)
+		if n != 1 {
+			t.Errorf("SetStatedKeyAssociation changed %d rows, want 1", n)
+		}
 		keys, err := q.ListStatedKeys(ctx, gen.ListStatedKeysParams{StatementID: statement.ID, UserID: user.ID})
 		require.NoError(t, err)
 		if len(keys) != 2 || keys[0].GroupID == nil || keys[1].GroupID != nil || keys[1].InstrumentID == nil {
@@ -125,11 +131,11 @@ func TestStatedKeyAssociation(t *testing.T) {
 		name string
 		arg  gen.SetStatedKeyAssociationParams
 	}{
-		{name: "an instrument without the identifier it is named through", arg: gen.SetStatedKeyAssociationParams{InstrumentID: &usd.InstrumentID, Validity: ptr.To(gen.ValidityConfirmed)}},
-		{name: "an identifier without an instrument", arg: gen.SetStatedKeyAssociationParams{ViaID: &via.ID, Validity: ptr.To(gen.ValidityConfirmed)}},
-		{name: "an instrument without a validity", arg: gen.SetStatedKeyAssociationParams{InstrumentID: &usd.InstrumentID, ViaID: &via.ID}},
-		{name: "a listing without an instrument", arg: gen.SetStatedKeyAssociationParams{ListingID: &usd.ID}},
-		{name: "a listing of another instrument", arg: gen.SetStatedKeyAssociationParams{InstrumentID: &usd.InstrumentID, ListingID: &otherLine.ID, ViaID: &via.ID, Validity: ptr.To(gen.ValidityConfirmed)}},
+		{name: "an instrument without the identifier it is named through", arg: gen.SetStatedKeyAssociationParams{InstrumentID: &usd.InstrumentID, Validity: ptr.To(gen.ValidityConfirmed), Arbiter: gen.ArbiterStated}},
+		{name: "an identifier without an instrument", arg: gen.SetStatedKeyAssociationParams{ViaID: &via.ID, Validity: ptr.To(gen.ValidityConfirmed), Arbiter: gen.ArbiterStated}},
+		{name: "an instrument without a validity", arg: gen.SetStatedKeyAssociationParams{InstrumentID: &usd.InstrumentID, ViaID: &via.ID, Arbiter: gen.ArbiterStated}},
+		{name: "a listing without an instrument", arg: gen.SetStatedKeyAssociationParams{ListingID: &usd.ID, Arbiter: gen.ArbiterStated}},
+		{name: "a listing of another instrument", arg: gen.SetStatedKeyAssociationParams{InstrumentID: &usd.InstrumentID, ListingID: &otherLine.ID, ViaID: &via.ID, Validity: ptr.To(gen.ValidityConfirmed), Arbiter: gen.ArbiterStated}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -141,9 +147,57 @@ func TestStatedKeyAssociation(t *testing.T) {
 			require.NoError(t, err)
 			arg := tc.arg
 			arg.ID, arg.UserID = key.ID, user.ID
-			if err := q.SetStatedKeyAssociation(ctx, arg); err == nil {
+			if _, err := q.SetStatedKeyAssociation(ctx, arg); err == nil {
 				t.Errorf("SetStatedKeyAssociation with %s: err = nil, want a constraint violation", tc.name)
 			}
 		})
 	}
+
+	t.Run("an association the user arbitrated stands", func(t *testing.T) {
+		q := newTx(t)
+		user := newUser(t, q, "arbitrated@example.com")
+		statement := newStatement(t, q, user)
+		chosen, plain := newStatedKey(t, q, user, statement), newStatedKey(t, q, user, statement)
+		usd, via := cashListing(t, q, "USD")
+		byUser := gen.SetStatedKeyAssociationParams{ID: chosen.ID, UserID: user.ID, InstrumentID: &usd.InstrumentID, ListingID: &usd.ID, ViaID: &via.ID, Validity: ptr.To(gen.ValidityConfirmed), Arbiter: gen.ArbiterUser}
+		n, err := q.SetStatedKeyAssociation(ctx, byUser)
+		require.NoError(t, err)
+		if n != 1 {
+			t.Fatalf("the user's association changed %d rows, want 1", n)
+		}
+		other := newInstrument(t, q, gen.AssetClassEquity)
+		otherVia := newIdentifier(t, q, other, "US0000000009")
+		byDatasource := gen.SetStatedKeyAssociationParams{ID: chosen.ID, UserID: user.ID, InstrumentID: &other.ID, ViaID: &otherVia.ID, Validity: ptr.To(gen.ValidityConfirmed), Arbiter: gen.ArbiterDatasource}
+		n, err = q.SetStatedKeyAssociation(ctx, byDatasource)
+		require.NoError(t, err)
+		if n != 0 {
+			t.Errorf("a later write changed %d rows, want 0: the user's association stands", n)
+		}
+		got, err := q.GetStatedKey(ctx, gen.GetStatedKeyParams{ID: chosen.ID, UserID: user.ID})
+		require.NoError(t, err)
+		if got.InstrumentID == nil || *got.InstrumentID != usd.InstrumentID || got.Arbiter == nil || *got.Arbiter != gen.ArbiterUser {
+			t.Errorf("key = %+v, want the user's association", got)
+		}
+		if _, err := q.GetStatedKey(ctx, gen.GetStatedKeyParams{ID: chosen.ID, UserID: db.NewID()}); !errors.Is(err, db.ErrNotFound) {
+			t.Errorf("GetStatedKey as another user: err = %v, want ErrNotFound", err)
+		}
+		arbitrated, err := q.ListUserArbitratedKeys(ctx, user.ID)
+		require.NoError(t, err)
+		if len(arbitrated) != 1 || arbitrated[0].ID != chosen.ID {
+			t.Errorf("ListUserArbitratedKeys = %+v, want the chosen key alone, not %s", arbitrated, plain.ID)
+		}
+	})
+
+	t.Run("an instrument without an arbiter", func(t *testing.T) {
+		tx := begin(t)
+		q := gen.New(tx)
+		user := newUser(t, q, "no-arbiter@example.com")
+		statement := newStatement(t, q, user)
+		key := newStatedKey(t, q, user, statement)
+		usd, via := cashListing(t, q, "USD")
+		_, err := tx.Exec(ctx, "UPDATE stated_keys SET instrument_id = $1, via_id = $2, validity = 'confirmed' WHERE id = $3", usd.InstrumentID, via.ID, key.ID)
+		if !sqlstate(err, pgerrcode.CheckViolation) {
+			t.Errorf("an association with no arbiter: err = %v, want a check violation", err)
+		}
+	})
 }

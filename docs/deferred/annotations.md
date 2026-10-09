@@ -23,7 +23,9 @@ instrument, so it survives the replacement of keys a re-upload performs. No anno
 writes system owned data: a pin creates no identifier row and is not an assertion.
 
 - A pin associates a key with an instrument, standing in for resolution's answer for that
-  user's key alone.
+  user's key alone.  It overrides an association resolution made, including one the user
+  confirmed; a confirmed candidate reaches a later key sharing an identifier with it
+  without a pin.
 - A user joins two holdings no source stated in common by adding an identifier to a
   key. Grouping already gathers the keys sharing an identifier, so this needs no
   grouping of its own and is honoured every time groups are recomputed. There is no

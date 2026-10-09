@@ -1,4 +1,4 @@
-// Package run starts background work and records each piece of it as a run.
+// Package run starts work and records each piece of it as a run.
 //
 // A run is a row created before its work starts. The call starting it responds
 // with the row, and progress and the outcome are read against it.
@@ -10,6 +10,9 @@
 // step in the caller. When a run starts another run, the child executes
 // inline in its parent's goroutine, and the parent decides whether the
 // child's failure fails it.
+//
+// A synchronous run executes in the call that starts it and responds when
+// the work has stopped. It is outside the lanes; see Sync.
 //
 // Runs of one user and lane execute in the order they were started: a run
 // stays pending until every earlier run of the same user and lane has
@@ -152,6 +155,21 @@ func (r *Runner) Child(ctx context.Context, parent gen.Run, kind gen.RunKind, wo
 		return gen.Run{}, ErrClosed
 	}
 	row, err := r.store.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: parent.UserID, Kind: kind, Trigger: gen.RunTriggerRun, ParentID: &parent.ID})
+	if err != nil {
+		return gen.Run{}, fmt.Errorf("create run: %w", err)
+	}
+	return row, r.execute(ctx, row, work)
+}
+
+// Sync records a run and executes its work in the caller, returning the row
+// once the work has stopped and the work's error. A synchronous run is
+// outside every lane: locks in the work serialise its writes, so a lane
+// would only add waiting.
+func (r *Runner) Sync(ctx context.Context, user uuid.UUID, kind gen.RunKind, trigger gen.RunTrigger, work Work) (gen.Run, error) {
+	if r.ctx.Err() != nil {
+		return gen.Run{}, ErrClosed
+	}
+	row, err := r.store.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: user, Kind: kind, Trigger: trigger})
 	if err != nil {
 		return gen.Run{}, fmt.Errorf("create run: %w", err)
 	}

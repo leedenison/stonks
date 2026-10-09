@@ -23,6 +23,14 @@ CREATE TABLE statements (
 
 CREATE TYPE validity AS ENUM ('confirmed', 'provisional');
 
+-- What settled an association among candidates: 'stated' where the
+-- identifiers the key states, read against the database, left one;
+-- 'datasource' where a datasource answered for an identifier the key states
+-- and left one; 'guess' where a guess's rank settled it; 'user' where the
+-- user did, by confirming a candidate for the key, for a key of its group,
+-- or for an earlier key sharing an identifier with it.
+CREATE TYPE arbiter AS ENUM ('stated', 'datasource', 'guess', 'user');
+
 -- A stated key is what one source states about an instrument: its
 -- identifiers, asset class and currency. It is stored with the statement that
 -- carried it and is what parameterizes resolution requests. The identifiers it
@@ -47,6 +55,7 @@ CREATE TABLE stated_keys (
     -- validity is 'confirmed' where the identifier via_id names is stable, and
     -- 'provisional' otherwise.
     validity      validity,
+    arbiter       arbiter,
     -- group_id gathers the unresolved keys which share an identifier,
     -- transitively.
     group_id      uuid        REFERENCES stated_keys (id) ON DELETE CASCADE,
@@ -58,6 +67,7 @@ CREATE TABLE stated_keys (
     UNIQUE NULLS NOT DISTINCT (statement_id, asset_class, currency, identifiers),
     CHECK ((instrument_id IS NULL) = (via_id IS NULL)),
     CHECK ((instrument_id IS NULL) = (validity IS NULL)),
+    CHECK ((instrument_id IS NULL) = (arbiter IS NULL)),
     CHECK (listing_id IS NULL OR instrument_id IS NOT NULL),
     CHECK (group_id IS NULL OR instrument_id IS NULL)
 );
