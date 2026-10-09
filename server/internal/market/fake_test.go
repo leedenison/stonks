@@ -60,6 +60,8 @@ type fake struct {
 	batch int
 	// drop is how many responses the fake leaves off the end of each.
 	drop int
+	// empty answers every key with an empty result.
+	empty bool
 
 	calls int
 	sent  [][]types.Identifier
@@ -91,10 +93,10 @@ func (f *fake) Fetch(_ context.Context, reqs []Request[gen.StatedKey]) ([]Respon
 			out[i] = Response[IdentityResult]{Err: err}
 			continue
 		}
-		out[i] = Response[IdentityResult]{Value: IdentityResult{
-			Filtered:   []types.Identifier{id},
-			Candidates: []Candidate{{Identifiers: []types.Identifier{id}, Class: gen.AssetClassStock, Currency: "USD"}},
-		}}
+		out[i] = Response[IdentityResult]{Value: IdentityResult{Filtered: []types.Identifier{id}}}
+		if !f.empty {
+			out[i].Value.Candidates = []Candidate{{Identifiers: []types.Identifier{id}, Class: gen.AssetClassStock, Currency: "USD"}}
+		}
 	}
 	return out[:len(out)-f.drop], nil
 }

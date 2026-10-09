@@ -3,6 +3,7 @@ package config
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -20,6 +21,7 @@ var keys = []string{
 	"STONKS_LOG_LEVEL",
 	"STONKS_OTLP_ENDPOINT",
 	"STONKS_ENVIRONMENT",
+	"STONKS_FETCH_CACHE_TTL",
 }
 
 var required = map[string]string{
@@ -49,17 +51,18 @@ func TestLoad(t *testing.T) {
 		{
 			name: "defaults",
 			env:  with(nil),
-			want: Config{ListenAddr: ":8090", DBURL: "postgres://db", RedisURL: "redis://cache", GoogleClientID: "client-id", CookieSecure: true, Environment: "development"},
+			want: Config{ListenAddr: ":8090", DBURL: "postgres://db", RedisURL: "redis://cache", GoogleClientID: "client-id", CookieSecure: true, Environment: "development", FetchCacheTTL: time.Hour},
 		},
 		{
 			name: "explicit",
 			env: with(map[string]string{
-				"STONKS_LISTEN_ADDR":    ":9000",
-				"STONKS_ALLOWED_EMAILS": "*@example.com, one@example.org",
-				"STONKS_COOKIE_SECURE":  "false",
-				"STONKS_LOG_LEVEL":      "warn,internal/db=debug",
-				"STONKS_OTLP_ENDPOINT":  "http://otel-collector:4318",
-				"STONKS_ENVIRONMENT":    "staging",
+				"STONKS_LISTEN_ADDR":     ":9000",
+				"STONKS_ALLOWED_EMAILS":  "*@example.com, one@example.org",
+				"STONKS_COOKIE_SECURE":   "false",
+				"STONKS_LOG_LEVEL":       "warn,internal/db=debug",
+				"STONKS_OTLP_ENDPOINT":   "http://otel-collector:4318",
+				"STONKS_ENVIRONMENT":     "staging",
+				"STONKS_FETCH_CACHE_TTL": "30m",
 			}),
 			want: Config{
 				ListenAddr:     ":9000",
@@ -69,6 +72,7 @@ func TestLoad(t *testing.T) {
 				AllowedEmails:  allowlist.List{"*@example.com", "one@example.org"},
 				OTLPEndpoint:   "http://otel-collector:4318",
 				Environment:    "staging",
+				FetchCacheTTL:  30 * time.Minute,
 			},
 		},
 		{
@@ -105,6 +109,16 @@ func TestLoad(t *testing.T) {
 			name:     "bad cookie secure",
 			env:      with(map[string]string{"STONKS_COOKIE_SECURE": "yes"}),
 			wantErrs: []string{`STONKS_COOKIE_SECURE: strconv.ParseBool: parsing "yes"`},
+		},
+		{
+			name:     "bad cache lifetime",
+			env:      with(map[string]string{"STONKS_FETCH_CACHE_TTL": "soon"}),
+			wantErrs: []string{`STONKS_FETCH_CACHE_TTL: time: invalid duration "soon"`},
+		},
+		{
+			name:     "cache lifetime not positive",
+			env:      with(map[string]string{"STONKS_FETCH_CACHE_TTL": "0s"}),
+			wantErrs: []string{"STONKS_FETCH_CACHE_TTL must be positive"},
 		},
 		{
 			name:     "bad log level",

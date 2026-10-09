@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/leedenison/stonks/server/internal/auth/allowlist"
 	"github.com/leedenison/stonks/server/internal/logger"
@@ -44,6 +45,9 @@ type Config struct {
 	// reported as the deployment.environment.name resource attribute.
 	// Default "development".
 	Environment string
+	// FetchCacheTTL is STONKS_FETCH_CACHE_TTL, how long a datasource's answer
+	// is cached, as a Go duration. Default "1h".
+	FetchCacheTTL time.Duration
 }
 
 // Load reads the configuration from the environment and validates it.
@@ -68,14 +72,19 @@ func Load() (Config, error) {
 		errs = append(errs, fmt.Errorf("STONKS_LOG_LEVEL: %w", err))
 	}
 	cfg.LogLevel = levels
+	ttl, err := time.ParseDuration(env("STONKS_FETCH_CACHE_TTL", "1h"))
+	if err != nil {
+		errs = append(errs, fmt.Errorf("STONKS_FETCH_CACHE_TTL: %w", err))
+	}
+	cfg.FetchCacheTTL = ttl
 	if err := errors.Join(append(errs, cfg.Validate())...); err != nil {
 		return Config{}, err
 	}
 	return cfg, nil
 }
 
-// Validate reports every required value that is missing, and a malformed
-// endpoint, as one error.
+// Validate reports every required value that is missing, a malformed
+// endpoint and a cache lifetime that is not positive, as one error.
 func (c Config) Validate() error {
 	var errs []error
 	for _, r := range []struct{ key, val string }{
@@ -89,6 +98,9 @@ func (c Config) Validate() error {
 	}
 	if err := validateEndpoint(c.OTLPEndpoint); err != nil {
 		errs = append(errs, fmt.Errorf("STONKS_OTLP_ENDPOINT: %w", err))
+	}
+	if c.FetchCacheTTL <= 0 {
+		errs = append(errs, fmt.Errorf("STONKS_FETCH_CACHE_TTL must be positive, not %v", c.FetchCacheTTL))
 	}
 	return errors.Join(errs...)
 }

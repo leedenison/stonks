@@ -2,6 +2,7 @@ package market
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -31,12 +32,15 @@ type Result[Q, P any] struct {
 
 	// attempts is the number of calls that carried the request.
 	attempts int
+	// cached reports that the cache answered the request.
+	cached bool
 }
 
 // Fetcher runs fetches against the datasources of a registry.
 type Fetcher struct {
 	store Store
 	runs  Runner
+	cache Cache
 	log   *slog.Logger
 
 	base  time.Duration
@@ -52,6 +56,12 @@ type Option func(*Fetcher)
 // calls one request may cost.
 func WithRetry(base time.Duration, tries int) Option {
 	return func(f *Fetcher) { f.base, f.tries = base, tries }
+}
+
+// WithCache sets the cache a Fetcher reads before it calls. Without one,
+// every request misses and nothing is stored.
+func WithCache(c Cache) Option {
+	return func(f *Fetcher) { f.cache = c }
 }
 
 // WithClock sets the clock and the sleep a Fetcher uses. The sleep returns
@@ -98,7 +108,8 @@ func fetch[Q, P any](ctx context.Context, f *Fetcher, row gen.Run, e *Entry, kin
 
 	s := kind.server(e)
 	results := make([]Result[Q, P], len(reqs))
-	var batch []int
+	var served []int
+	keys := map[int]string{}
 	for i, q := range reqs {
 		results[i] = Result[Q, P]{Request: q, Source: e.Name, ID: db.NewID()}
 		if s == nil {
@@ -111,7 +122,18 @@ func fetch[Q, P any](ctx context.Context, f *Fetcher, row gen.Run, e *Entry, kin
 			continue
 		}
 		results[i].Sent = &sent
-		if reason, ok := blocked.covers(sent); ok {
+		keys[i] = cacheKey(e.Name, kind.name, sent, params(s, q))
+		served = append(served, i)
+	}
+	if err := readCache(ctx, f, results, served, keys); err != nil {
+		return nil, err
+	}
+	var batch []int
+	for _, i := range served {
+		if results[i].cached {
+			continue
+		}
+		if reason, ok := blocked.covers(*results[i].Sent); ok {
 			results[i].Outcome, results[i].Reason = gen.FetchOutcomeBlocked, reason
 			continue
 		}
@@ -137,6 +159,9 @@ func fetch[Q, P any](ctx context.Context, f *Fetcher, row gen.Run, e *Entry, kin
 		blocked.add(blocks)
 		pending = append(pending, blocks...)
 	}
+	if err := writeCache(ctx, f, results, batch, keys); err != nil {
+		return nil, err
+	}
 	found := 0
 	err = f.store.Tx(ctx, func(q Queries) error {
 		for i := range results {
@@ -159,12 +184,68 @@ func fetch[Q, P any](ctx context.Context, f *Fetcher, row gen.Run, e *Entry, kin
 		return nil, err
 	}
 	for _, r := range results {
-		instr.key(ctx, e.Name, r.Outcome)
+		instr.key(ctx, e.Name, r.Outcome, r.cached)
 	}
 	for range found {
 		run.Found(ctx, gen.FindingKindBlock)
 	}
 	return results, nil
+}
+
+// params returns the parameters s derives from q, nil where s derives none.
+func params[Q, P any](s Server[Q, P], q Q) []string {
+	if p, ok := s.(Parameterised[Q]); ok {
+		return p.Params(q)
+	}
+	return nil
+}
+
+// readCache fills the results of the requests in served that the cache
+// holds. Each is a served result with zero attempts.
+func readCache[Q, P any](ctx context.Context, f *Fetcher, results []Result[Q, P], served []int, keys map[int]string) error {
+	if f.cache == nil || len(served) == 0 {
+		return nil
+	}
+	ks := make([]string, len(served))
+	for n, i := range served {
+		ks[n] = keys[i]
+	}
+	entries, err := f.cache.Get(ctx, ks)
+	if err != nil {
+		return err
+	}
+	for n, i := range served {
+		if entries[n] == nil {
+			continue
+		}
+		r := &results[i]
+		if err := json.Unmarshal(entries[n], &r.Response); err != nil {
+			return fmt.Errorf("decode cached answer: %w", err)
+		}
+		r.Outcome, r.cached = gen.FetchOutcomeServed, true
+	}
+	return nil
+}
+
+// writeCache stores the answer of each request in batch that a call served.
+func writeCache[Q, P any](ctx context.Context, f *Fetcher, results []Result[Q, P], batch []int, keys map[int]string) error {
+	if f.cache == nil {
+		return nil
+	}
+	for _, i := range batch {
+		r := &results[i]
+		if r.Outcome != gen.FetchOutcomeServed {
+			continue
+		}
+		b, err := json.Marshal(r.Response)
+		if err != nil {
+			return fmt.Errorf("encode answer: %w", err)
+		}
+		if err := f.cache.Set(ctx, keys[i], b); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // fetchChunk sends the requests of batch and fills their results. It returns the

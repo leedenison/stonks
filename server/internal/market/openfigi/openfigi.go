@@ -20,7 +20,10 @@ import (
 
 const endpoint = "https://api.openfigi.com"
 
-var _ market.Identity = (*Client)(nil)
+var (
+	_ market.Identity                     = (*Client)(nil)
+	_ market.Parameterised[gen.StatedKey] = (*Client)(nil)
+)
 
 // Client is the OpenFIGI integration.
 type Client struct {
@@ -117,7 +120,7 @@ type openfigiResponse struct {
 func (c *Client) Fetch(ctx context.Context, reqs []market.Request[gen.StatedKey]) ([]market.Response[market.IdentityResult], error) {
 	jobs := make([]job, len(reqs))
 	for i, r := range reqs {
-		jobs[i] = jobOf(r.Sent, currency(r.Value))
+		jobs[i] = jobOf(r.Sent, filter(r.Value))
 	}
 	body, err := json.Marshal(jobs)
 	if err != nil {

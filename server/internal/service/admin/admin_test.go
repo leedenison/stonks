@@ -56,6 +56,7 @@ type fixture struct {
 	store   *MockStore
 	sources *MockSources
 	replays *MockReplayer
+	cache   *MockDropper
 	client  adminv1connect.AdminServiceClient
 	// txErrs is what each transaction returned, so a test sees one rolled
 	// back.
@@ -70,7 +71,7 @@ func newFixture(t *testing.T) *fixture {
 	t.Cleanup(ctrl.Finish)
 	authn := servicemock.NewMockAuthenticator(ctrl)
 	authn.EXPECT().Authenticate(gomock.Any(), servicetest.Session).Return(principal, nil).AnyTimes()
-	f := &fixture{store: NewMockStore(ctrl), sources: NewMockSources(ctrl), replays: NewMockReplayer(ctrl)}
+	f := &fixture{store: NewMockStore(ctrl), sources: NewMockSources(ctrl), replays: NewMockReplayer(ctrl), cache: NewMockDropper(ctrl)}
 	f.store.EXPECT().Tx(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, fn func(Queries) error) error {
 		err := fn(f.store)
 		f.txErrs = append(f.txErrs, err)
@@ -78,7 +79,7 @@ func newFixture(t *testing.T) *fixture {
 	}).AnyTimes()
 	opts := servicetest.Options(t, authn)
 	srv := servicetest.Serve(t, func(mux *http.ServeMux) {
-		mux.Handle(adminv1connect.NewAdminServiceHandler(New(f.store, f.sources, f.replays), opts...))
+		mux.Handle(adminv1connect.NewAdminServiceHandler(New(f.store, f.sources, f.replays, f.cache), opts...))
 	})
 	f.client = adminv1connect.NewAdminServiceClient(srv.Client, srv.URL)
 	return f
@@ -588,6 +589,7 @@ func TestUpdateDatasource(t *testing.T) {
 		// it is when the row is enabled.
 		checked   bool
 		reloadErr error
+		dropErr   error
 		want      *adminv1.Datasource
 		wantCode  connect.Code
 	}{
@@ -647,6 +649,15 @@ func TestUpdateDatasource(t *testing.T) {
 			reloadErr: errors.New("boom"),
 			wantCode:  connect.CodeInternal,
 		},
+		{
+			name:     "the drop fails",
+			req:      &adminv1.UpdateDatasourceRequest{Name: "openfigi", Enabled: true},
+			wantArg:  gen.UpdateDatasourceParams{Name: "openfigi", Enabled: true},
+			row:      stub,
+			checked:  true,
+			dropErr:  errors.New("boom"),
+			wantCode: connect.CodeInternal,
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -657,6 +668,10 @@ func TestUpdateDatasource(t *testing.T) {
 			}
 			if tc.err == nil && tc.checkErr == nil {
 				f.sources.EXPECT().Reload(gomock.Any()).Return(tc.reloadErr)
+			}
+			// Drop only after the registry accepts the row.
+			if tc.err == nil && tc.checkErr == nil && tc.reloadErr == nil {
+				f.cache.EXPECT().Drop(gomock.Any(), tc.row.Name).Return(tc.dropErr)
 			}
 			res, err := f.client.UpdateDatasource(context.Background(), connect.NewRequest(tc.req))
 			if servicetest.CodeOf(err) != tc.wantCode {

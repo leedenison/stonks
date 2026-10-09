@@ -2,8 +2,9 @@
 
 A stated key records the arbiter of its association beside its validity: stated,
 datasource, guess or user. It is set whenever the instrument is set and cleared with it.
-Resolution writes stated or datasource. A confirmed candidate writes user. Nothing writes
-guess until guesses are built.
+Resolution writes stated or datasource, or user where the key inherits a confirmation; see
+[012](012-a-confirmation-carries-forward-through-a-shared-identifier.md). A confirmed
+candidate writes user. Nothing writes guess until guesses are built.
 
 Confirming a candidate for one key confirms it for every key in that key's group, the
 unresolved keys that share an identifier. Monthly statements each carry their own key
