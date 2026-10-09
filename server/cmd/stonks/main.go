@@ -30,6 +30,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/logger"
 	"github.com/leedenison/stonks/server/internal/market"
+	"github.com/leedenison/stonks/server/internal/market/eodhd"
 	"github.com/leedenison/stonks/server/internal/market/massive"
 	"github.com/leedenison/stonks/server/internal/market/openfigi"
 	"github.com/leedenison/stonks/server/internal/mic"
@@ -123,6 +124,7 @@ func run() (err error) {
 	integrations := map[string]market.Factory{
 		"openfigi": openfigi.Factory(mics),
 		"massive":  massive.Factory(mics),
+		"eodhd":    eodhd.Factory(mics),
 	}
 	sources, err := market.New(ctx, queries, integrations, logger.WithCategory(log, "internal/market"))
 	if err != nil {

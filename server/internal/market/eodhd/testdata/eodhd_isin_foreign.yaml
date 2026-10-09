@@ -1,0 +1,144 @@
+---
+version: 2
+interactions:
+    - id: 0
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: eodhd.com
+        form:
+            api_token:
+                - REDACTED
+            fmt:
+                - json
+            limit:
+                - "500"
+        url: https://eodhd.com/api/search/GB00BH4HKS39?api_token=REDACTED&fmt=json&limit=500
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 1073
+        uncompressed: true
+        body: '[{"Code":"VOD","Exchange":"LSE","Name":"Vodafone Group PLC","Type":"Common Stock","Country":"UK","Currency":"GBX","ISIN":"GB00BH4HKS39","isPrimary":true,"previousClose":127.75,"previousCloseDate":"2026-10-07"},{"Code":"VODI","Exchange":"XETRA","Name":"Vodafone Group PLC","Type":"Common Stock","Country":"Germany","Currency":"EUR","ISIN":"GB00BH4HKS39","isPrimary":false,"previousClose":1.507,"previousCloseDate":"2026-10-07"},{"Code":"VODI","Exchange":"F","Name":"Vodafone Group PLC","Type":"Common Stock","Country":"Germany","Currency":"EUR","ISIN":"GB00BH4HKS39","isPrimary":false,"previousClose":1.5025,"previousCloseDate":"2026-10-07"},{"Code":"VODI","Exchange":"STU","Name":"VODAFONE GROUP (VODI.SG)","Type":"Common Stock","Country":"Germany","Currency":"EUR","ISIN":"GB00BH4HKS39","isPrimary":false,"previousClose":1.4635,"previousCloseDate":"2026-10-06"},{"Code":"VODPF","Exchange":"US","Name":"Vodafone Group PLC","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"GB00BH4HKS39","isPrimary":false,"previousClose":1.68,"previousCloseDate":"2026-10-07"}]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Thu, 08 Oct 2026 09:43:25 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1192"
+        status: 200 OK
+        code: 200
+        duration: 584.928092ms
+    - id: 1
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: eodhd.com
+        form:
+            api_token:
+                - REDACTED
+            filter[isin]:
+                - GB00BH4HKS39
+            fmt:
+                - json
+        url: https://eodhd.com/api/id-mapping?api_token=REDACTED&filter%5Bisin%5D=GB00BH4HKS39&fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 768
+        uncompressed: true
+        body: '{"meta":{"limit":1000,"offset":0,"total":6},"data":[{"symbol":"GB00BH4HKS39.EUFUND","isin":"GB00BH4HKS39","figi":null,"lei":"213800TB53ELEUKM7Q61","cusip":null,"cik":null},{"symbol":"VOD.LSE","isin":"GB00BH4HKS39","figi":null,"lei":"213800TB53ELEUKM7Q61","cusip":null,"cik":"839923"},{"symbol":"VODI.XETRA","isin":"GB00BH4HKS39","figi":null,"lei":"213800TB53ELEUKM7Q61","cusip":null,"cik":null},{"symbol":"VODI.F","isin":"GB00BH4HKS39","figi":null,"lei":"213800TB53ELEUKM7Q61","cusip":null,"cik":null},{"symbol":"VODI.STU","isin":"GB00BH4HKS39","figi":null,"lei":"213800TB53ELEUKM7Q61","cusip":null,"cik":null},{"symbol":"VODPF.US","isin":"GB00BH4HKS39","figi":"BBG000JK82B9","lei":"213800TB53ELEUKM7Q61","cusip":"G93882101","cik":"0000839923"}],"links":{"next":null}}'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Thu, 08 Oct 2026 09:43:25 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1191"
+        status: 200 OK
+        code: 200
+        duration: 169.461094ms
+    - id: 2
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: eodhd.com
+        form:
+            api_token:
+                - REDACTED
+            fmt:
+                - json
+            symbols:
+                - VODPF
+        url: https://eodhd.com/api/exchange-symbol-list/US?api_token=REDACTED&fmt=json&symbols=VODPF
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 141
+        uncompressed: true
+        body: '[{"Code":"VODPF","Name":"Vodafone Group PLC","Country":"USA","Exchange":"PINK","Currency":"USD","Type":"Common Stock","Isin":"GB00BH4HKS39"}]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Thu, 08 Oct 2026 09:43:25 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1190"
+        status: 200 OK
+        code: 200
+        duration: 299.982981ms

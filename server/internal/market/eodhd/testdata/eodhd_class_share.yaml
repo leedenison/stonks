@@ -1,0 +1,146 @@
+---
+version: 2
+interactions:
+    - id: 0
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: eodhd.com
+        form:
+            api_token:
+                - REDACTED
+            exchange:
+                - US
+            fmt:
+                - json
+            limit:
+                - "500"
+        url: https://eodhd.com/api/search/BRK-B?api_token=REDACTED&exchange=US&fmt=json&limit=500
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 216
+        uncompressed: true
+        body: '[{"Code":"BRK-B","Exchange":"US","Name":"Berkshire Hathaway Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US0846707026","isPrimary":true,"previousClose":506.25,"previousCloseDate":"2026-10-07"}]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Thu, 08 Oct 2026 09:43:30 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1187"
+        status: 200 OK
+        code: 200
+        duration: 579.995776ms
+    - id: 1
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: eodhd.com
+        form:
+            api_token:
+                - REDACTED
+            filter[isin]:
+                - US0846707026
+            fmt:
+                - json
+        url: https://eodhd.com/api/id-mapping?api_token=REDACTED&filter%5Bisin%5D=US0846707026&fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 786
+        uncompressed: true
+        body: '{"meta":{"limit":1000,"offset":0,"total":6},"data":[{"symbol":"BRK-B.US","isin":"US0846707026","figi":"BBG000DWH8Q0","lei":"5493000C01ZX7D35SD85","cusip":"084670207","cik":"0001067983"},{"symbol":"BRK-B.US","isin":"US0846707026","figi":"BBG000DWH8Q0","lei":"5493000C01ZX7D35SD85","cusip":"084670702","cik":"0001067983"},{"symbol":"BRKB.US","isin":"US0846707026","figi":null,"lei":"5493000C01ZX7D35SD85","cusip":null,"cik":"0001067983"},{"symbol":"BRYN.F","isin":"US0846707026","figi":null,"lei":"5493000C01ZX7D35SD85","cusip":null,"cik":null},{"symbol":"BRYN.XETRA","isin":"US0846707026","figi":null,"lei":"5493000C01ZX7D35SD85","cusip":null,"cik":null},{"symbol":"BRYN.STU","isin":"US0846707026","figi":null,"lei":"5493000C01ZX7D35SD85","cusip":null,"cik":null}],"links":{"next":null}}'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Thu, 08 Oct 2026 09:43:30 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1186"
+        status: 200 OK
+        code: 200
+        duration: 159.53365ms
+    - id: 2
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: eodhd.com
+        form:
+            api_token:
+                - REDACTED
+            fmt:
+                - json
+            symbols:
+                - BRK-B
+        url: https://eodhd.com/api/exchange-symbol-list/US?api_token=REDACTED&fmt=json&symbols=BRK-B
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 145
+        uncompressed: true
+        body: '[{"Code":"BRK-B","Name":"Berkshire Hathaway Inc","Country":"USA","Exchange":"NYSE","Currency":"USD","Type":"Common Stock","Isin":"US0846707026"}]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Thu, 08 Oct 2026 09:43:31 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1185"
+        status: 200 OK
+        code: 200
+        duration: 508.377146ms

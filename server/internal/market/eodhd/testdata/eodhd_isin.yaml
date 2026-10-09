@@ -1,0 +1,144 @@
+---
+version: 2
+interactions:
+    - id: 0
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: eodhd.com
+        form:
+            api_token:
+                - REDACTED
+            fmt:
+                - json
+            limit:
+                - "500"
+        url: https://eodhd.com/api/search/US0378331005?api_token=REDACTED&fmt=json&limit=500
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 2664
+        uncompressed: true
+        body: '[{"Code":"AAPL","Exchange":"US","Name":"Apple Inc.","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US0378331005","isPrimary":true,"previousClose":336.67,"previousCloseDate":"2026-10-07"},{"Code":"0R2V","Exchange":"LSE","Name":"Apple Inc.","Type":"Common Stock","Country":"UK","Currency":"USD","ISIN":"US0378331005","isPrimary":false,"previousClose":337.16,"previousCloseDate":"2026-10-07"},{"Code":"0R2V","Exchange":"IL","Name":"Apple Inc.","Type":"Common Stock","Country":"UK","Currency":"USD","ISIN":"US0378331005","isPrimary":false,"previousClose":332.85,"previousCloseDate":"2026-10-06"},{"Code":"APC","Exchange":"XETRA","Name":"Apple Inc","Type":"Common Stock","Country":"Germany","Currency":"EUR","ISIN":"US0378331005","isPrimary":false,"previousClose":300,"previousCloseDate":"2026-10-07"},{"Code":"AAPL","Exchange":"NEO","Name":"Apple Inc CDR","Type":"Common Stock","Country":"Canada","Currency":"CAD","ISIN":"US0378331005","isPrimary":false,"previousClose":47.32,"previousCloseDate":"2026-10-07"},{"Code":"APC","Exchange":"F","Name":"Apple Inc","Type":"Common Stock","Country":"Germany","Currency":"EUR","ISIN":"US0378331005","isPrimary":false,"previousClose":300.55,"previousCloseDate":"2026-10-07"},{"Code":"AAPL","Exchange":"MX","Name":"Apple Inc","Type":"Common Stock","Country":"Mexico","Currency":"MXN","ISIN":"US0378331005","isPrimary":false,"previousClose":6058,"previousCloseDate":"2026-10-07"},{"Code":"AAPL","Exchange":"BA","Name":"Apple Inc DRC","Type":"Common Stock","Country":"Argentina","Currency":"ARS","ISIN":"US0378331005","isPrimary":false,"previousClose":27100,"previousCloseDate":"2026-10-07"},{"Code":"APC","Exchange":"STU","Name":"Apple Inc","Type":"Common Stock","Country":"Germany","Currency":"EUR","ISIN":"US0378331005","isPrimary":false,"previousClose":296.05,"previousCloseDate":"2026-10-06"},{"Code":"APC","Exchange":"MU","Name":"Apple Inc","Type":"Common Stock","Country":"Germany","Currency":"EUR","ISIN":"US0378331005","isPrimary":false,"previousClose":300.15,"previousCloseDate":"2026-10-07"},{"Code":"APC","Exchange":"DU","Name":"Apple Inc","Type":"Common Stock","Country":"Germany","Currency":"EUR","ISIN":"US0378331005","isPrimary":false,"previousClose":299.2,"previousCloseDate":"2026-10-07"},{"Code":"APC","Exchange":"HA","Name":"Apple Inc","Type":"Common Stock","Country":"Germany","Currency":"EUR","ISIN":"US0378331005","isPrimary":false,"previousClose":299.55,"previousCloseDate":"2026-10-07"},{"Code":"APC","Exchange":"HM","Name":"Apple Inc","Type":"Common Stock","Country":"Germany","Currency":"EUR","ISIN":"US0378331005","isPrimary":false,"previousClose":300.8,"previousCloseDate":"2026-10-07"}]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Thu, 08 Oct 2026 09:43:10 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1199"
+        status: 200 OK
+        code: 200
+        duration: 1.497977771s
+    - id: 1
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: eodhd.com
+        form:
+            api_token:
+                - REDACTED
+            filter[isin]:
+                - US0378331005
+            fmt:
+                - json
+        url: https://eodhd.com/api/id-mapping?api_token=REDACTED&filter%5Bisin%5D=US0378331005&fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 2044
+        uncompressed: true
+        body: '{"meta":{"limit":1000,"offset":0,"total":18},"data":[{"symbol":"0R2V.IL","isin":"US0378331005","figi":null,"lei":"HWUPKR0MPOU8FGXBT394","cusip":null,"cik":null},{"symbol":"0R2V.LSE","isin":"US0378331005","figi":null,"lei":"HWUPKR0MPOU8FGXBT394","cusip":null,"cik":null},{"symbol":"1AAPL.MI","isin":"US0378331005","figi":null,"lei":"HWUPKR0MPOU8FGXBT394","cusip":null,"cik":null},{"symbol":"AAPL.SN","isin":"US0378331005","figi":null,"lei":"HWUPKR0MPOU8FGXBT394","cusip":null,"cik":null},{"symbol":"AAPL.NEO","isin":"US0378331005","figi":null,"lei":"HWUPKR0MPOU8FGXBT394","cusip":null,"cik":null},{"symbol":"AAPL.BA","isin":"US0378331005","figi":null,"lei":"HWUPKR0MPOU8FGXBT394","cusip":null,"cik":null},{"symbol":"AAPL.MI","isin":"US0378331005","figi":null,"lei":"HWUPKR0MPOU8FGXBT394","cusip":null,"cik":null},{"symbol":"AAPL.LIM","isin":"US0378331005","figi":null,"lei":"HWUPKR0MPOU8FGXBT394","cusip":null,"cik":null},{"symbol":"AAPL.MX","isin":"US0378331005","figi":null,"lei":"HWUPKR0MPOU8FGXBT394","cusip":null,"cik":null},{"symbol":"AAPL.US","isin":"US0378331005","figi":"BBG000B9XRY4","lei":"HWUPKR0MPOU8FGXBT394","cusip":"037833100","cik":"0000320193"},{"symbol":"APC.STU","isin":"US0378331005","figi":null,"lei":"HWUPKR0MPOU8FGXBT394","cusip":null,"cik":null},{"symbol":"APC.DU","isin":"US0378331005","figi":null,"lei":"HWUPKR0MPOU8FGXBT394","cusip":null,"cik":null},{"symbol":"APC.XETRA","isin":"US0378331005","figi":null,"lei":"HWUPKR0MPOU8FGXBT394","cusip":null,"cik":null},{"symbol":"APC.HM","isin":"US0378331005","figi":null,"lei":"HWUPKR0MPOU8FGXBT394","cusip":null,"cik":null},{"symbol":"APC.HA","isin":"US0378331005","figi":null,"lei":"HWUPKR0MPOU8FGXBT394","cusip":null,"cik":null},{"symbol":"APC.F","isin":"US0378331005","figi":null,"lei":"HWUPKR0MPOU8FGXBT394","cusip":null,"cik":null},{"symbol":"APC.BE","isin":"US0378331005","figi":null,"lei":"HWUPKR0MPOU8FGXBT394","cusip":null,"cik":null},{"symbol":"APC.MU","isin":"US0378331005","figi":null,"lei":"HWUPKR0MPOU8FGXBT394","cusip":null,"cik":null}],"links":{"next":null}}'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Thu, 08 Oct 2026 09:43:10 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1198"
+        status: 200 OK
+        code: 200
+        duration: 172.579635ms
+    - id: 2
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: eodhd.com
+        form:
+            api_token:
+                - REDACTED
+            fmt:
+                - json
+            symbols:
+                - AAPL
+        url: https://eodhd.com/api/exchange-symbol-list/US?api_token=REDACTED&fmt=json&symbols=AAPL
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 134
+        uncompressed: true
+        body: '[{"Code":"AAPL","Name":"Apple Inc.","Country":"USA","Exchange":"NASDAQ","Currency":"USD","Type":"Common Stock","Isin":"US0378331005"}]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Thu, 08 Oct 2026 09:43:10 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1197"
+        status: 200 OK
+        code: 200
+        duration: 287.844206ms
