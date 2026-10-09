@@ -125,6 +125,7 @@ type outcome struct {
 	attached  []string
 	findings  []string
 	notNaming map[string]int
+	offered   int
 }
 
 func label(g *group) string {
@@ -139,7 +140,7 @@ func label(g *group) string {
 
 // describe writes c, naming each finding's fetch key by its source.
 func describe(c choice, source map[uuid.UUID]string) outcome {
-	o := outcome{winner: label(c.winner), refused: c.refused, notNaming: c.notNaming}
+	o := outcome{winner: label(c.winner), refused: c.refused, notNaming: c.notNaming, offered: c.offered}
 	for _, g := range c.attached {
 		o.attached = append(o.attached, label(g))
 	}
@@ -339,10 +340,16 @@ func TestChoose(t *testing.T) {
 			want:    outcome{winner: "database", attached: []string{"a#1"}, findings: []string{"a dropped corroboration: openfigi_share_class BBG001S5XDT6: shares no stable identifier with the instrument identified by isin GB00BH4HKS39 (database)"}},
 		},
 		{
-			name:    "a bare ticker is never chosen",
+			name:    "a bare ticker is never chosen, and its groups are offered",
 			results: []*result{search("a", ticker, cand(gen.AssetClassStock, "GBP", figi, xlon))},
 			k:       gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{ticker}},
-			want:    outcome{notNaming: map[string]int{"a": 1}},
+			want:    outcome{notNaming: map[string]int{"a": 1}, offered: 1},
+		},
+		{
+			name:    "a group contradicting the statement is not offered",
+			results: []*result{search("a", ticker, cand(gen.AssetClassStock, "GBP", figi, xlon), cand(gen.AssetClassStock, "USD", figi2, xnas))},
+			k:       gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{ticker}},
+			want:    outcome{notNaming: map[string]int{"a": 2}, offered: 1},
 		},
 		{
 			name:    "nothing served",

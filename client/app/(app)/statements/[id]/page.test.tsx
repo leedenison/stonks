@@ -102,6 +102,7 @@ function keys(resolved: boolean) {
       statedKeyId: "k-bare",
       outcome: ResolutionOutcome.UNRECOGNISED,
       reasons: ["openfigi: 0 candidates", "massive: 1 candidate"],
+      offered: 1,
     }),
   ];
 }
@@ -344,7 +345,7 @@ describe("StatementPage", () => {
     );
   });
 
-  it("offers a choice for a key left unassociated, once the run has stopped", async () => {
+  it("offers a choice only for a key whose resolution offered instruments, once the run has stopped", async () => {
     renderWithAuth(
       <StatementPage />,
       serving(() => response(RunState.COMPLETED, 0, undefined, true)),
@@ -353,7 +354,7 @@ describe("StatementPage", () => {
       expect(screen.getByTestId("statement-keys")).toBeTruthy(),
     );
     expect(screen.queryByTestId("key-choose-k-gbp")).toBeNull();
-    expect(screen.getByTestId("key-choose-k-isin")).toBeTruthy();
+    expect(screen.queryByTestId("key-choose-k-isin")).toBeNull();
     expect(screen.getByTestId("key-choose-k-bare")).toBeTruthy();
     expect(screen.queryByTestId(/^key-arbiter-/)).toBeNull();
   });

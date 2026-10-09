@@ -94,5 +94,5 @@ func inheritKey(ctx context.Context, q Queries, run gen.Run, res *resolution, cu
 	if _, err := q.SetStatedKeyAssociation(ctx, arg); err != nil {
 		return gen.ResolutionKey{}, nil, fmt.Errorf("associate key: %w", err)
 	}
-	return record(ctx, q, run, res, gen.ResolutionOutcomeMatched, nil, res.findings)
+	return record(ctx, q, run, res, gen.ResolutionOutcomeMatched, nil, res.findings, 0)
 }

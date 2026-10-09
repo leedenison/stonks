@@ -165,6 +165,8 @@ func TestResolutionKeys(t *testing.T) {
 	}{
 		{name: "rejected without a reason", arg: gen.CreateResolutionKeyParams{Outcome: gen.ResolutionOutcomeRejected}},
 		{name: "matched with a reason", arg: gen.CreateResolutionKeyParams{Outcome: gen.ResolutionOutcomeMatched, Reasons: []string{"x"}}},
+		{name: "matched with an offer", arg: gen.CreateResolutionKeyParams{Outcome: gen.ResolutionOutcomeMatched, Offered: 1}},
+		{name: "a negative offer", arg: gen.CreateResolutionKeyParams{Outcome: gen.ResolutionOutcomeUnrecognised, Offered: -1}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

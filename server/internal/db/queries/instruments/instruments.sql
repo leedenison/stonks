@@ -60,8 +60,8 @@ SELECT * FROM identifier_type_traits ORDER BY type;
 
 -- name: CreateResolutionKey :one
 -- A match passes no reasons, which are stored as an empty array.
-INSERT INTO resolution_keys (run_id, user_id, stated_key_id, outcome, reasons)
-VALUES (@run_id, @user_id, @stated_key_id, @outcome, COALESCE(@reasons::text[], '{}'))
+INSERT INTO resolution_keys (run_id, user_id, stated_key_id, outcome, reasons, offered)
+VALUES (@run_id, @user_id, @stated_key_id, @outcome, COALESCE(@reasons::text[], '{}'), @offered)
 RETURNING *;
 
 -- name: ListLatestResolutions :many

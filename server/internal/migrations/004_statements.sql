@@ -151,9 +151,15 @@ CREATE TABLE resolution_keys (
     -- reasons says why the key did not match. Where datasources were asked,
     -- each has one entry. A rejected key always has at least one entry.
     reasons       text[]             NOT NULL DEFAULT '{}',
+    -- offered counts the instrument groups the resolution dropped only
+    -- because the key was sent under a ticker without its venue. The user may
+    -- choose among them.
+    offered       integer            NOT NULL DEFAULT 0,
     created_at    timestamptz        NOT NULL DEFAULT now(),
     PRIMARY KEY (run_id, stated_key_id),
     FOREIGN KEY (run_id, user_id) REFERENCES runs (id, user_id) ON DELETE CASCADE,
     CHECK (outcome <> 'matched' OR cardinality(reasons) = 0),
-    CHECK (outcome <> 'rejected' OR cardinality(reasons) > 0)
+    CHECK (outcome <> 'rejected' OR cardinality(reasons) > 0),
+    CHECK (offered >= 0),
+    CHECK (outcome <> 'matched' OR offered = 0)
 );
