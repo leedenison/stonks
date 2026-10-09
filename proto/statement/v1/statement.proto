@@ -136,6 +136,50 @@ message GetStatementResponse {
   repeated stonks.type.v1.ResolutionItem keys = 3;
 }
 
+// One instrument a datasource's answer describes, offered for the user to
+// confirm: an instrument before it is written.
+message Candidate {
+  string datasource = 1;
+  // The identifier that names the candidate most firmly; the one to show.
+  stonks.type.v1.Identifier strongest = 2;
+  stonks.type.v1.AssetClass asset_class = 3;
+  // The identifiers of the instrument itself. Each listing carries its own.
+  repeated stonks.type.v1.Identifier identifiers = 4;
+  // One per currency family.
+  repeated CandidateListing listings = 5;
+}
+
+message CandidateListing {
+  // A family code. Unset where the datasource stated none. A confirmation
+  // does not write the identifiers of a listing with no currency.
+  optional string currency = 1;
+  repeated stonks.type.v1.Identifier identifiers = 2;
+}
+
+message FindCandidatesRequest {
+  string stated_key_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message FindCandidatesResponse {
+  // In datasource precedence order, then each datasource's own order.
+  repeated Candidate candidates = 1;
+  // One entry per datasource that served nothing, saying why. A key that
+  // reaches no datasource gets one entry saying so.
+  repeated string reasons = 2;
+}
+
+message ConfirmCandidateRequest {
+  string stated_key_id = 1 [(buf.validate.field).string.uuid = true];
+  string datasource = 2 [(buf.validate.field).string.min_len = 1];
+  // Any identifier of the candidate, as FindCandidates gave it.
+  stonks.type.v1.Identifier identifier = 3 [(buf.validate.field).required = true];
+}
+
+message ConfirmCandidateResponse {
+  // The key with the resolution the confirmation recorded.
+  stonks.type.v1.ResolutionItem key = 1;
+}
+
 // Ingests statements and reads what each ingestion did.
 service StatementService {
   // Starts ingesting a statement and returns its run without waiting for it.
@@ -144,4 +188,12 @@ service StatementService {
   // Reads one of the caller's statements. Another user's statement is not
   // found.
   rpc GetStatement(GetStatementRequest) returns (GetStatementResponse);
+  // Resolves one of the caller's keys again, in the call, and lists the
+  // candidates the datasources answer. Another user's key is not found. A
+  // key that has an association is refused as a failed precondition.
+  rpc FindCandidates(FindCandidatesRequest) returns (FindCandidatesResponse);
+  // Takes the candidate as the key's instrument, for the key and every key
+  // in its group. An answer that lacks the candidate is refused as a failed
+  // precondition, and the caller finds the candidates again.
+  rpc ConfirmCandidate(ConfirmCandidateRequest) returns (ConfirmCandidateResponse);
 }

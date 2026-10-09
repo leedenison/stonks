@@ -7,6 +7,8 @@ import (
 	"maps"
 	"slices"
 
+	statementv1 "github.com/leedenison/stonks/proto/statement/v1"
+	typev1 "github.com/leedenison/stonks/proto/type/v1"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/types"
 	"github.com/leedenison/stonks/server/internal/market"
@@ -28,12 +30,33 @@ type Candidate struct {
 	Listings []CandidateListing
 }
 
+// ToProto writes c as its proto message.
+func (c Candidate) ToProto() *statementv1.Candidate {
+	out := &statementv1.Candidate{Datasource: c.Datasource, Strongest: c.Strongest.ToProto(), AssetClass: types.ToProto[typev1.AssetClass](c.AssetClass)}
+	for _, id := range c.Identifiers {
+		out.Identifiers = append(out.Identifiers, id.ToProto())
+	}
+	for _, l := range c.Listings {
+		out.Listings = append(out.Listings, l.ToProto())
+	}
+	return out
+}
+
 // CandidateListing is one listing of a candidate.
 type CandidateListing struct {
 	// Currency is the family code, nil where the datasource stated none; a
 	// confirmation does not write that listing's identifiers.
 	Currency    *string
 	Identifiers []types.Identifier
+}
+
+// ToProto writes l as its proto message.
+func (l CandidateListing) ToProto() *statementv1.CandidateListing {
+	out := &statementv1.CandidateListing{Currency: l.Currency}
+	for _, id := range l.Identifiers {
+		out.Identifiers = append(out.Identifiers, id.ToProto())
+	}
+	return out
 }
 
 // Offer is what a synchronous resolution offers for a key.

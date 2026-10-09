@@ -114,6 +114,20 @@ enum ResolutionOutcome {
   RESOLUTION_OUTCOME_UNAVAILABLE = 4;
 }
 
+// What settled an association among candidates.
+enum Arbiter {
+  ARBITER_UNSPECIFIED = 0;
+  // The identifiers the key states, read against the database, left one.
+  ARBITER_STATED = 1;
+  // A datasource answered for an identifier the key states and left one.
+  ARBITER_DATASOURCE = 2;
+  // A guess's rank settled it.
+  ARBITER_GUESS = 3;
+  // The user confirmed a candidate, for the key, for a key of its group, or
+  // for an earlier key sharing an identifier with it.
+  ARBITER_USER = 4;
+}
+
 // One stated key with what a resolution made of it.
 message ResolutionItem {
   StatedKey stated_key = 1;
@@ -123,6 +137,9 @@ message ResolutionItem {
   // Why the key did not match. Where datasources were asked, each has one
   // entry.
   repeated string reasons = 4;
+  // The arbiter of the key's current association; unset while the key has
+  // none.
+  Arbiter arbiter = 5;
 }
 
 // A change in the quantity of one instrument held by a user.

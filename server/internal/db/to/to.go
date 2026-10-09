@@ -86,5 +86,8 @@ func ProtoResolutionItem(k gen.StatedKey, r *gen.ResolutionKey) *typev1.Resoluti
 		out.Outcome = types.ToProto[typev1.ResolutionOutcome](r.Outcome)
 		out.Reasons = r.Reasons
 	}
+	if k.Arbiter != nil {
+		out.Arbiter = types.ToProto[typev1.Arbiter](*k.Arbiter)
+	}
 	return out
 }

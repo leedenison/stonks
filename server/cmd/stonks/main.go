@@ -183,7 +183,7 @@ func tracedClient() *http.Client {
 // once the server listens, which is after the migrations have applied. It is
 // outside the Connect chain and the mux carries no HTTP instrumentation, so
 // the container probing it every two seconds produces no telemetry.
-func newServer(addr string, log *slog.Logger, authn *auth.Authenticator, queries *gen.Queries, admin *adminsvc.Server, ingester stmtsvc.Ingester, secure bool) (*http.Server, error) {
+func newServer(addr string, log *slog.Logger, authn *auth.Authenticator, queries *gen.Queries, admin *adminsvc.Server, statements *stmt.Service, secure bool) (*http.Server, error) {
 	opts, err := service.HandlerOptions(logger.WithCategory(log, "internal/service"), authn)
 	if err != nil {
 		return nil, err
@@ -197,7 +197,7 @@ func newServer(addr string, log *slog.Logger, authn *auth.Authenticator, queries
 	mux.Handle(holdingv1connect.NewHoldingServiceHandler(holdingsvc.New(queries), opts...))
 	mux.Handle(instrumentv1connect.NewInstrumentServiceHandler(instrument.New(queries), opts...))
 	mux.Handle(runv1connect.NewRunServiceHandler(runsvc.New(queries), opts...))
-	mux.Handle(statementv1connect.NewStatementServiceHandler(stmtsvc.New(ingester, queries), opts...))
+	mux.Handle(statementv1connect.NewStatementServiceHandler(stmtsvc.New(statements, statements, queries), opts...))
 	reflector := grpcreflect.NewStaticReflector(
 		adminv1connect.AdminServiceName, authv1connect.AuthServiceName, holdingv1connect.HoldingServiceName, instrumentv1connect.InstrumentServiceName,
 		runv1connect.RunServiceName, statementv1connect.StatementServiceName,
