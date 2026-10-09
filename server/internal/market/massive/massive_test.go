@@ -281,19 +281,3 @@ func TestConfig(t *testing.T) {
 		}
 	}
 }
-
-func TestStatusErrorText(t *testing.T) {
-	tests := []struct {
-		err  statusError
-		want string
-	}{
-		{err: statusError{code: 429, body: `{"status":"ERROR"}`}, want: `massive returned too many requests: {"status":"ERROR"}`},
-		{err: statusError{code: 500}, want: "massive returned internal server error"},
-		{err: statusError{code: 599, body: "x"}, want: "massive returned 599: x"},
-	}
-	for _, tc := range tests {
-		if got := tc.err.Error(); got != tc.want {
-			t.Errorf("statusError{%d, %q}.Error() = %q, want %q", tc.err.code, tc.err.body, got, tc.want)
-		}
-	}
-}

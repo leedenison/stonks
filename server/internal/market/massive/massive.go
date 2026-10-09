@@ -10,11 +10,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
-	"strconv"
-	"strings"
 	"time"
 
 	"golang.org/x/time/rate"
@@ -80,24 +77,20 @@ func New(cfg market.Config, mics mic.Table, opts ...Option) (*Client, error) {
 	if p.PerMinute < 0 {
 		return nil, fmt.Errorf("massive plan %q has a negative rate", conf.Plan)
 	}
+	ep, err := market.Endpoint(cfg, endpoint)
+	if err != nil {
+		return nil, err
+	}
 	c := &Client{
 		mics:     mics,
 		venues:   operating(mics),
 		limit:    rate.Inf,
 		http:     &http.Client{Timeout: 30 * time.Second},
-		endpoint: endpoint,
+		endpoint: ep,
 		key:      cfg.Credential,
 	}
 	if p.PerMinute > 0 {
 		c.limit = rate.Every(time.Minute / time.Duration(p.PerMinute))
-	}
-	if cfg.Endpoint != "" {
-		// A request URL that fails to parse is quoted in its error, key and
-		// all, so the endpoint is checked here, before any key is added.
-		if u, err := url.Parse(cfg.Endpoint); err != nil || !u.IsAbs() {
-			return nil, fmt.Errorf("massive endpoint %q is not an absolute URL", cfg.Endpoint)
-		}
-		c.endpoint = cfg.Endpoint
 	}
 	for _, o := range opts {
 		o(c)
@@ -135,32 +128,13 @@ func (c *Client) Endpoint() string { return c.endpoint }
 // Batch is one, since Massive answers one ticker or CUSIP per request.
 func (c *Client) Batch() int { return 1 }
 
-// statusError is a response from Massive with a status other than 200.
-type statusError struct {
-	code int
-	body string
-}
-
-// unknown reports whether the body is Massive's answer for a ticker it does
+// unknown reports whether a refusal is Massive's answer for a ticker it does
 // not know.
-func (e statusError) unknown() bool {
+func unknown(e market.StatusError) bool {
 	var body struct {
 		Status string `json:"status"`
 	}
-	return json.Unmarshal([]byte(e.body), &body) == nil && body.Status == "NOT_FOUND"
-}
-
-// Error names the status in words, with the body where there is one:
-// "massive returned too many requests".
-func (e statusError) Error() string {
-	text := strings.ToLower(http.StatusText(e.code))
-	if text == "" {
-		text = strconv.Itoa(e.code)
-	}
-	if e.body == "" {
-		return "massive returned " + text
-	}
-	return fmt.Sprintf("massive returned %s: %s", text, e.body)
+	return e.Code == http.StatusNotFound && json.Unmarshal([]byte(e.Body), &body) == nil && body.Status == "NOT_FOUND"
 }
 
 // Classify scopes a failure by its status. A 401 or 403 blocks the
@@ -168,14 +142,14 @@ func (e statusError) Error() string {
 // concerns only the key requested. A 429 or 5xx is temporary. Massive's 429
 // omits Retry-After, so the market package's retry schedule applies.
 func (c *Client) Classify(err error) market.Failure {
-	var status statusError
+	var status market.StatusError
 	if !errors.As(err, &status) {
 		return market.Failure{Temporary: true, Scope: gen.BlockScopeIdentifier}
 	}
 	switch {
-	case status.code == http.StatusUnauthorized || status.code == http.StatusForbidden:
+	case status.Code == http.StatusUnauthorized || status.Code == http.StatusForbidden:
 		return market.Failure{Scope: gen.BlockScopeDatasource}
-	case status.code == http.StatusTooManyRequests || status.code >= http.StatusInternalServerError:
+	case status.Code == http.StatusTooManyRequests || status.Code >= http.StatusInternalServerError:
 		return market.Failure{Temporary: true, Scope: gen.BlockScopeIdentifier}
 	}
 	return market.Failure{Scope: gen.BlockScopeIdentifier}
@@ -217,9 +191,9 @@ func (c *Client) records(ctx context.Context, id types.Identifier) ([]record, er
 		Results *record `json:"results"`
 	}
 	err := c.get(ctx, "/v3/reference/tickers/"+url.PathEscape(ticker), q, &one)
-	var status statusError
+	var status market.StatusError
 	switch {
-	case errors.As(err, &status) && status.code == http.StatusNotFound && status.unknown():
+	case errors.As(err, &status) && unknown(status):
 		return nil, nil
 	case err != nil:
 		return nil, err
@@ -230,32 +204,10 @@ func (c *Client) records(ctx context.Context, id types.Identifier) ([]record, er
 }
 
 // get sends one request and decodes a 200's body into v.
-func (c *Client) get(ctx context.Context, path string, q url.Values, v any) (err error) {
+func (c *Client) get(ctx context.Context, path string, q url.Values, v any) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.endpoint+path+"?"+q.Encode(), nil)
 	if err != nil {
-		return fmt.Errorf("build request: %w", redacted(err))
+		return fmt.Errorf("build request: %w", market.WithoutURL(err))
 	}
-	resp, err := c.http.Do(req)
-	if err != nil {
-		return fmt.Errorf("massive: %w", redacted(err))
-	}
-	defer func() { err = errors.Join(err, resp.Body.Close()) }()
-	if resp.StatusCode != http.StatusOK {
-		text, rerr := io.ReadAll(io.LimitReader(resp.Body, 512))
-		return errors.Join(statusError{code: resp.StatusCode, body: string(bytes.TrimSpace(text))}, rerr)
-	}
-	if err := json.NewDecoder(resp.Body).Decode(v); err != nil {
-		return fmt.Errorf("decode massive response: %w", err)
-	}
-	return nil
-}
-
-// redacted drops the URL from a transport error, since the URL carries the
-// API key and the error reaches the fetch records.
-func redacted(err error) error {
-	var u *url.Error
-	if errors.As(err, &u) {
-		return u.Err
-	}
-	return err
+	return market.Do(c.http, req, "massive", v)
 }

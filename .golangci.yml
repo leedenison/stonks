@@ -99,6 +99,12 @@ linters:
         linters:
           - gosec
         text: G704
+      # An integration's requests go to the endpoint an administrator gives
+      # its datasource.
+      - path: server/internal/market/http\.go
+        linters:
+          - gosec
+        text: G704
 
 # The defaults cap output per linter and per repeated issue, which makes a
 # truncated run read as a nearly clean one.
