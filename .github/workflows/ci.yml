@@ -7,6 +7,11 @@
 #
 # gates is the only required check. It reads the aggregated result of the matrix,
 # so a target added to the matrix needs no change to branch protection.
+#
+# Each job pulls its own base images. Docker Hub allows an anonymous address
+# only a few pulls an hour, and a burst of jobs exhausts that. A job logs in to
+# Docker Hub with the repository's secrets, and skips the login where they are
+# absent, as in a fork.
 name: CI
 
 on:
@@ -71,9 +76,16 @@ jobs:
           - client-test
           - db-test
           - e2e-test
+    env:
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
     steps:
       - uses: actions/checkout@v7
         if: needs.filter.outputs.gates == 'true'
+      - uses: docker/login-action@v3
+        if: needs.filter.outputs.gates == 'true' && env.DOCKERHUB_USERNAME != ''
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
       - run: make ${{ matrix.target }}
         if: needs.filter.outputs.gates == 'true'
 
