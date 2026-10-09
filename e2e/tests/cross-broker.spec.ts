@@ -111,7 +111,7 @@ test("shows a resolved holding and an unresolved one from two brokers", async ({
   await expect(unresolved).toContainText(ticker);
   await expect(unresolved.getByTestId("holding-basis")).toHaveAttribute(
     "data-state",
-    "statements",
+    "unidentified",
   );
   await expect(
     page.getByTestId(`holding-qty-${cash!.instrumentId}`),

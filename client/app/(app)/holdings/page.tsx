@@ -90,15 +90,15 @@ export default function HoldingsPage() {
 }
 
 // Name shows a holding's label with its identifiers, and for a group, the
-// statements-only mark.
+// unidentified mark.
 function Name({ row }: { row: HoldingRow }) {
   return (
     <span className="flex flex-col gap-1">
       <span className="flex items-center gap-2">
         <span>{row.label}</span>
         {row.kind === "group" && (
-          <Chip data-testid="holding-basis" data-state="statements">
-            Statements only
+          <Chip data-testid="holding-basis" data-state="unidentified">
+            Unidentified
           </Chip>
         )}
       </span>

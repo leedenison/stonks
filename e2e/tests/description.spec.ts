@@ -79,6 +79,6 @@ test("resolves a line through the description the broker gave it", async ({
   await expect(unresolved).toContainText(undescribed);
   await expect(unresolved.getByTestId("holding-basis")).toHaveAttribute(
     "data-state",
-    "statements",
+    "unidentified",
   );
 });
