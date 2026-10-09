@@ -11,6 +11,7 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/types"
+	"github.com/leedenison/stonks/server/internal/mic"
 	"github.com/leedenison/stonks/server/internal/testutil/dbtest"
 )
 
@@ -31,5 +32,23 @@ func TestTraits(t *testing.T) {
 	}
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("traits mismatch (-code +table):\n%s", diff)
+	}
+}
+
+// TestOpenFIGICodesAreMICs checks that every venue an exchange code names is in the
+// MIC reference table.
+func TestOpenFIGICodesAreMICs(t *testing.T) {
+	ctx := context.Background()
+	pool := dbtest.Open()
+	t.Cleanup(pool.Close)
+	tbl, err := mic.Load(ctx, gen.New(pool))
+	require.NoError(t, err)
+
+	for code, ms := range openfigiCodes {
+		for _, m := range ms {
+			if op, ok := tbl.Operating(m); !ok || op != m {
+				t.Errorf("code %s names %s, want an operating MIC of the reference table, got %q, %v", code, m, op, ok)
+			}
+		}
 	}
 }

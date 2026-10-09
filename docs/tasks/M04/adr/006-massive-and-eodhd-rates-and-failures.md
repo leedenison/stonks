@@ -25,7 +25,9 @@ The fetch framework pauses the datasource until then; see
 
 For both providers:
 
-- a 401 or a 403 is permanent and blocks the datasource;
+- a 401 is permanent and blocks the datasource;
+- a 403 is permanent. On Massive it blocks the datasource. On EODHD it means the key is
+  not entitled to the symbol, and it blocks only the identifier sent;
 - a 429 is temporary, and when the provider states a Retry-After the next call waits for it;
 - a 5xx or a network error is temporary;
 - an empty answer is a served fetch with no candidates.

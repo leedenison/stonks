@@ -6,10 +6,8 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/types"
+	"github.com/leedenison/stonks/server/internal/market"
 )
-
-// usComposite is OpenFIGI's exchange code for a US composite listing.
-const usComposite = "US"
 
 // served holds the stated classes Massive can answer: the classes it
 // converts and the classes above them.
@@ -38,7 +36,7 @@ func (c *Client) Serves(key gen.StatedKey) (types.Identifier, error) {
 		switch {
 		case id.Type == types.IdentifierTypeCusip:
 			cusip = &id
-		case id.Type == types.IdentifierTypeOpenfigiTicker && id.Domain == usComposite:
+		case id.Type == types.IdentifierTypeOpenfigiTicker && id.Domain == market.OpenFIGIUS:
 			composite = &id
 		case id.Type != types.IdentifierTypeMicTicker:
 		case id.Domain == "":

@@ -14,8 +14,15 @@ import (
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/types"
 	"github.com/leedenison/stonks/server/internal/market"
+	"github.com/leedenison/stonks/server/internal/mic"
 	"github.com/leedenison/stonks/server/internal/testutil/vcr"
 )
+
+// mics is a MIC table holding the venues the tests name.
+var mics = mic.Table{
+	"XNYS": "XNYS", "ARCX": "XNYS", "XNAS": "XNAS", "XNGS": "XNAS",
+	"XLON": "XLON", "XTAI": "XTAI", "ROCO": "ROCO",
+}
 
 // scrub declares that OpenFIGI's bodies carry only public security
 // identifiers, and that its requests differ only in their bodies.
