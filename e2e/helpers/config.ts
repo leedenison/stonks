@@ -6,3 +6,6 @@ export const databaseURL =
   process.env.E2E_DATABASE_URL ??
   "postgres://stonks:stonks@localhost:5434/stonks?sslmode=disable";
 export const redisURL = process.env.E2E_REDIS_URL ?? "redis://localhost:6381/0";
+
+// recording is set while the suite records each provider's traffic.
+export const recording = process.env.E2E_VCR_MODE === "record";

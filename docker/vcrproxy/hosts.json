@@ -12,5 +12,12 @@
     "interval": "12s",
     "credential": { "in": "query", "name": "apiKey", "env": "MASSIVE_API_KEY" },
     "redact": ["address", "phone_number", "description"]
+  },
+  "eodhd.vcr": {
+    "upstream": "https://eodhd.com",
+    "recorded": "eodhd/recorded.yaml",
+    "authored": "eodhd/authored.yaml",
+    "interval": "60ms",
+    "credential": { "in": "query", "name": "api_token", "env": "EODHD_API_KEY" }
   }
 }

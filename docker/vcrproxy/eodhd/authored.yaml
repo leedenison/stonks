@@ -1,0 +1,32 @@
+# Authored, not recorded: the only EODHD traffic in the e2e suite the provider
+# did not send. The proxy answers these before the recording, once each in
+# order, so the first search for Apple's ISIN is refused for its rate three
+# times, the fetch's whole allowance, as OpenFIGI's first answer for it is.
+# No Retry-After header, so the fetch retries on its own short backoff.
+---
+version: 2
+interactions:
+    - id: 0
+      request:
+        method: GET
+        url: https://eodhd.com/api/search/US0378331005?fmt=json&limit=500
+      response:
+        status: 429 Too Many Requests
+        code: 429
+        body: Too Many Requests
+    - id: 1
+      request:
+        method: GET
+        url: https://eodhd.com/api/search/US0378331005?fmt=json&limit=500
+      response:
+        status: 429 Too Many Requests
+        code: 429
+        body: Too Many Requests
+    - id: 2
+      request:
+        method: GET
+        url: https://eodhd.com/api/search/US0378331005?fmt=json&limit=500
+      response:
+        status: 429 Too Many Requests
+        code: 429
+        body: Too Many Requests
