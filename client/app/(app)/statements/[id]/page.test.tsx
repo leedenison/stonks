@@ -287,6 +287,33 @@ describe("StatementPage", () => {
     expect(parts).toEqual(["openfigi: 0 candidates", "massive: 1 candidate"]);
   });
 
+  it("lists the keys in a table per class, the unknown class last", async () => {
+    renderWithAuth(
+      <StatementPage />,
+      serving(() => response(RunState.COMPLETED, 0, undefined, true)),
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId("statement-keys")).toBeTruthy(),
+    );
+    const tables = screen
+      .getByTestId("statement-keys")
+      .querySelectorAll("table");
+    expect([...tables].map((t) => t.getAttribute("data-testid"))).toEqual([
+      "statement-keys-cash",
+      "statement-keys-unknown",
+    ]);
+    const cash = screen.getByTestId("statement-keys-cash");
+    expect(cash.querySelector("th")?.textContent).toBe("Description");
+    expect(cash.contains(screen.getByTestId("key-row-k-gbp"))).toBe(true);
+    const unknown = screen.getByTestId("statement-keys-unknown");
+    expect(unknown.contains(screen.getByTestId("key-row-k-isin"))).toBe(true);
+    expect(unknown.contains(screen.getByTestId("key-row-k-bare"))).toBe(true);
+    const headings = [
+      ...screen.getByTestId("statement-keys").querySelectorAll("h3"),
+    ].map((h) => h.textContent);
+    expect(headings).toEqual(["Cash", "Unknown class"]);
+  });
+
   it("shows a key as resolving while the run is live", async () => {
     renderWithAuth(
       <StatementPage />,

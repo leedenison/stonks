@@ -244,9 +244,8 @@ func TestListInstrumentsByIdentifiersIndex(t *testing.T) {
 }
 
 // TestIsRetryable checks the predicate against the error Postgres raises when
-// two transactions take advisory locks in opposite orders. Postgres refuses
-// one of them and releases its locks. The other transaction then proceeds and
-// can finish before the refusal reaches its client.
+// two transactions take advisory locks in opposite orders. Postgres refuses one
+// of them, and the other proceeds once the first rolls back.
 func TestIsRetryable(t *testing.T) {
 	ctx := context.Background()
 	a, b := uuid.NewString(), uuid.NewString()
@@ -270,14 +269,12 @@ func TestIsRetryable(t *testing.T) {
 	done := make(chan attempt, 2)
 	go func() { done <- attempt{one, gen.New(one).LockIdentifiers(ctx, []string{b})} }()
 	go func() { done <- attempt{two, gen.New(two).LockIdentifiers(ctx, []string{a})} }()
-	refused, survived := <-done, <-done
-	if refused.err == nil {
-		refused, survived = survived, refused
-	}
+	refused := <-done
 	if !db.IsRetryable(refused.err) {
 		t.Errorf("IsRetryable(%v) = false, want true", refused.err)
 	}
-	if survived.err != nil {
+	require.NoError(t, refused.tx.Rollback(ctx))
+	if survived := <-done; survived.err != nil {
 		t.Errorf("the other transaction failed: %v", survived.err)
 	}
 }
