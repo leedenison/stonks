@@ -60,6 +60,9 @@ func (c *Client) candidate(r row, m mapping, usVenue string) (market.Candidate, 
 	cand := market.Candidate{Class: class, Currency: r.Currency, Identifiers: []types.Identifier{
 		{Type: types.IdentifierTypeDatasourceTicker, Domain: domain, Value: r.symbol()},
 	}}
+	if r.IsPrimary {
+		cand.Primary = op
+	}
 	add := func(t types.IdentifierType, v string) {
 		if v != "" {
 			cand.Identifiers = append(cand.Identifiers, types.Identifier{Type: t, Value: v})

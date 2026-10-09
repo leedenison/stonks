@@ -47,9 +47,13 @@ type fixture struct {
 	rows         int64
 	// arbitrated is the user's keys the user arbitrated.
 	arbitrated []gen.StatedKey
-	// instruments is every instrument created, attached every fetch key
-	// attached, and resolutions how many resolution keys were written.
+	// instruments is every instrument created, listings every listing
+	// created, primaries every primary venue set on a listing, attached
+	// every fetch key attached, and resolutions how many resolution keys
+	// were written.
 	instruments []gen.CreateInstrumentParams
+	listings    []gen.CreateListingParams
+	primaries   []gen.SetListingPrimaryParams
 	attached    []uuid.UUID
 	resolutions int
 }
@@ -108,7 +112,12 @@ func (f *fixture) creates() {
 		return gen.Instrument{ID: arg.ID, AssetClass: arg.AssetClass, FetchKeyID: arg.FetchKeyID}, nil
 	}).AnyTimes()
 	f.store.EXPECT().CreateListing(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.CreateListingParams) (gen.Listing, error) {
-		return gen.Listing{ID: arg.ID, InstrumentID: arg.InstrumentID, Currency: arg.Currency}, nil
+		f.listings = append(f.listings, arg)
+		return gen.Listing{ID: arg.ID, InstrumentID: arg.InstrumentID, Currency: arg.Currency, PrimaryMic: arg.PrimaryMic}, nil
+	}).AnyTimes()
+	f.store.EXPECT().SetListingPrimary(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.SetListingPrimaryParams) error {
+		f.primaries = append(f.primaries, arg)
+		return nil
 	}).AnyTimes()
 	f.store.EXPECT().CreateIdentifier(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.CreateIdentifierParams) (gen.Identifier, error) {
 		return gen.Identifier{ID: arg.ID, InstrumentID: arg.InstrumentID, ListingID: arg.ListingID, Type: arg.Type, Domain: arg.Domain, Value: arg.Value}, nil
@@ -314,6 +323,63 @@ func TestResolveUnresolved(t *testing.T) {
 // TestResolveRetry checks that a write the database refuses for its
 // interleaving with another transaction is retried, up to tries attempts,
 // and that any other failure is not.
+// primary returns c stating mic as its listing's primary venue.
+func primary(c market.Candidate, mic string) market.Candidate {
+	c.Primary = mic
+	return c
+}
+
+// TestPrimaryVenue checks that a listing takes the primary venue of the
+// highest precedence datasource stating one, and that a lower one fills a
+// listing the higher left blank.
+func TestPrimaryVenue(t *testing.T) {
+	nyse, nasdaq := "XNYS", "XNAS"
+	tests := []struct {
+		name    string
+		a, b    result
+		created *string
+		set     []string
+	}{
+		{
+			name:    "a lower datasource fills the venue a higher left blank",
+			a:       servedResult(isin, nil, cand(gen.AssetClassStock, "USD", figi, isin, xnas)),
+			b:       servedResult(isin, nil, primary(cand(gen.AssetClassStock, "USD", figi, isin, xnas), nasdaq)),
+			created: nil,
+			set:     []string{nasdaq},
+		},
+		{
+			name:    "the higher datasource's venue stands",
+			a:       servedResult(isin, nil, primary(cand(gen.AssetClassStock, "USD", figi, isin, xnas), nyse)),
+			b:       servedResult(isin, nil, primary(cand(gen.AssetClassStock, "USD", figi, isin, xnas), nasdaq)),
+			created: &nyse,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFixture(t, entryA, entryB)
+			f.records()
+			f.findsNothing()
+			f.creates()
+			f.serves(entryA, tc.a)
+			f.serves(entryB, tc.b)
+			got := f.resolve(keyOf(gen.AssetClassStock, "USD", isin))
+			if len(got) != 1 || got[0].Outcome != gen.ResolutionOutcomeMatched {
+				t.Fatalf("Resolve() = %+v, want one matched key", got)
+			}
+			if len(f.listings) != 1 || !ptr.Equal(f.listings[0].PrimaryMic, tc.created) {
+				t.Errorf("created listings = %+v, want one with primary venue %v", f.listings, tc.created)
+			}
+			var set []string
+			for _, p := range f.primaries {
+				set = append(set, *p.PrimaryMic)
+			}
+			if diff := cmp.Diff(tc.set, set); diff != "" {
+				t.Errorf("primary venues set mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
 func TestResolveRetry(t *testing.T) {
 	refused := func(code string) error { return &pgconn.PgError{Code: code} }
 	boom := errors.New("boom")

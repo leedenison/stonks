@@ -329,6 +329,44 @@ func TestResolveWrites(t *testing.T) {
 	}
 }
 
+// TestPrimaryVenueRows checks that a listing takes the primary venue the
+// first run to learn one states, and keeps it.
+func TestPrimaryVenueRows(t *testing.T) {
+	s := newStack(t)
+	ctx := context.Background()
+	s.script.Responses[isin] = market.IdentityResult{Filtered: []types.Identifier{isin}, Candidates: []market.Candidate{
+		{Class: gen.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{figi, isin, xnas}},
+	}}
+	s.script.Responses[cusip] = market.IdentityResult{Filtered: []types.Identifier{cusip}, Candidates: []market.Candidate{
+		{Class: gen.AssetClassStock, Currency: "USD", Primary: "XNAS", Identifiers: []types.Identifier{figi, isin, cusip, xnas}},
+	}}
+	cusip2 := id(types.IdentifierTypeCusip, "", "594918104")
+	s.script.Responses[cusip2] = market.IdentityResult{Filtered: []types.Identifier{cusip2}, Candidates: []market.Candidate{
+		{Class: gen.AssetClassStock, Currency: "USD", Primary: "XNYS", Identifiers: []types.Identifier{figi, isin, cusip2, xnas}},
+	}}
+	found := func(t *testing.T) gen.Listing {
+		t.Helper()
+		row, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: types.IdentifierTypeIsin, Value: isin.Value})
+		require.NoError(t, err)
+		listings, err := s.q.ListListings(ctx, row.Instrument.ID)
+		require.NoError(t, err)
+		require.Len(t, listings, 1)
+		return listings[0]
+	}
+	s.resolve(t, s.state(t, gen.AssetClassStock, "USD", isin))
+	if l := found(t); l.PrimaryMic != nil {
+		t.Errorf("listing after an answer stating no primary venue = %+v, want none", l)
+	}
+	s.resolve(t, s.state(t, gen.AssetClassStock, "USD", cusip))
+	if l := found(t); l.PrimaryMic == nil || *l.PrimaryMic != "XNAS" {
+		t.Errorf("listing after an answer stating XNAS = %+v, want XNAS", l)
+	}
+	s.resolve(t, s.state(t, gen.AssetClassStock, "USD", cusip2))
+	if l := found(t); l.PrimaryMic == nil || *l.PrimaryMic != "XNAS" {
+		t.Errorf("listing after a later answer stating XNYS = %+v, want XNAS kept", l)
+	}
+}
+
 // TestMergeRows checks that a response identifying two instruments folds
 // the later into the earlier, with every row that pointed at the loser
 // relinked or moved.

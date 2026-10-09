@@ -13,7 +13,8 @@
 // key sharing a joining identifier with the user's confirmed keys takes
 // their association before any datasource is asked; see inherit.go. Two
 // runs stating one key produce one instrument, however they interleave; see
-// write.go.
+// write.go. The first run to learn a listing's primary venue sets it for
+// good; see attach in write.go.
 //
 // A synchronous resolution runs in the caller for one key the user is
 // confirming. It shares its lookups, inheritance and fetches with a

@@ -4,9 +4,16 @@ VALUES ($1, $2, $3)
 RETURNING *;
 
 -- name: CreateListing :one
-INSERT INTO listings (id, instrument_id, currency, fetch_key_id)
-VALUES ($1, $2, $3, $4)
+INSERT INTO listings (id, instrument_id, currency, fetch_key_id, primary_mic)
+VALUES ($1, $2, $3, $4, $5)
 RETURNING *;
+
+-- name: SetListingPrimary :exec
+-- Sets the primary venue of a listing that has none.
+UPDATE listings SET primary_mic = @primary_mic WHERE id = @id AND primary_mic IS NULL;
+
+-- name: ListVenueNames :many
+SELECT * FROM venue_names ORDER BY rank;
 
 -- name: ListUserInstruments :many
 -- The instruments the user's keys resolved to, counting only the keys that

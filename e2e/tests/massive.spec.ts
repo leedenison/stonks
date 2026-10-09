@@ -61,5 +61,6 @@ test("asks Massive beside OpenFIGI and matches the key once", async ({
     i.identifiers.some((x) => x.value === cusip),
   );
   expect(matched).toHaveLength(1);
-  expect(matched[0].listings.map((l) => l.currency)).toContain("USD");
+  const usd = matched[0].listings.find((l) => l.currency === "USD");
+  expect(usd?.primaryMic).toBe("XNYS");
 });

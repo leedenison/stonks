@@ -13,4 +13,6 @@ listing gathers a MIC_TICKER at each venue that some provider named.
 
 The listing does not record the venue of a transaction. The MIC_TICKERs are handles for a
 source that must be asked at one venue, such as a price source that needs a venue to tell
-two symbols apart.
+two symbols apart. A listing may record the venue a datasource states as its primary.
+The primary venue names the listing to the user. Which tickers associate a key does not
+depend on it.

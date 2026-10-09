@@ -18,12 +18,14 @@ import (
 const searchLimit = "500"
 
 // row is one listing a search returns. ISIN is null when EODHD states none.
+// IsPrimary marks the row at the security's primary venue.
 type row struct {
-	Code     string `json:"Code"`
-	Exchange string `json:"Exchange"`
-	Type     string `json:"Type"`
-	Currency string `json:"Currency"`
-	ISIN     string `json:"ISIN"`
+	Code      string `json:"Code"`
+	Exchange  string `json:"Exchange"`
+	Type      string `json:"Type"`
+	Currency  string `json:"Currency"`
+	ISIN      string `json:"ISIN"`
+	IsPrimary bool   `json:"isPrimary"`
 }
 
 // symbol is the row's ticker in EODHD's namespace, as in AAPL.US.

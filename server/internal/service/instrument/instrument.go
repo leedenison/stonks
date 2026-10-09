@@ -77,6 +77,9 @@ func (s *Server) instruments(ctx context.Context, user uuid.UUID) ([]*instrument
 	byListing := make(map[uuid.UUID]*instrumentv1.Listing, len(listings))
 	for _, l := range listings {
 		msg := &instrumentv1.Listing{Id: l.ID.String(), Currency: l.Currency}
+		if l.PrimaryMic != nil {
+			msg.PrimaryMic = *l.PrimaryMic
+		}
 		byListing[l.ID] = msg
 		instruments[l.InstrumentID].Listings = append(instruments[l.InstrumentID].Listings, msg)
 	}

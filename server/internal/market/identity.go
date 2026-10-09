@@ -15,6 +15,9 @@ type Candidate struct {
 	Identifiers []types.Identifier
 	Class       gen.AssetClass
 	Currency    string
+	// Primary is the operating MIC of the venue the datasource states as
+	// the listing's primary; empty where it states none.
+	Primary string
 }
 
 // IdentityResult is what was returned for one identifier of a batch.

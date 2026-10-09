@@ -68,12 +68,12 @@ func TestFetch(t *testing.T) {
 			cassette: "massive_ticker",
 			sent:     ticker("XNAS", "AAPL"),
 			filtered: ticker("", "AAPL"),
-			want:     []market.Candidate{{Class: gen.AssetClassStock, Currency: "USD", Identifiers: apple}},
+			want:     []market.Candidate{{Class: gen.AssetClassStock, Currency: "USD", Primary: "XNAS", Identifiers: apple}},
 		},
 		{
 			cassette: "massive_class_share",
 			sent:     ticker("", "BRK/B"),
-			want: []market.Candidate{{Class: gen.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{
+			want: []market.Candidate{{Class: gen.AssetClassStock, Currency: "USD", Primary: "XNYS", Identifiers: []types.Identifier{
 				{Type: types.IdentifierTypeOpenfigiShareClass, Value: "BBG001S90346"},
 				{Type: types.IdentifierTypeOpenfigiComposite, Value: "BBG000DWG505"},
 				ticker("XNYS", "BRK.B"),
@@ -82,14 +82,14 @@ func TestFetch(t *testing.T) {
 		{
 			cassette: "massive_cusip",
 			sent:     cusip,
-			want:     []market.Candidate{{Class: gen.AssetClassStock, Currency: "USD", Identifiers: apple}},
+			want:     []market.Candidate{{Class: gen.AssetClassStock, Currency: "USD", Primary: "XNAS", Identifiers: apple}},
 		},
 		{
 			// Bank of America's Series L preferred, which Massive spells BACpL
 			// and records without FIGIs.
 			cassette: "massive_preferred",
 			sent:     types.Identifier{Type: types.IdentifierTypeCusip, Value: "060505682"},
-			want:     []market.Candidate{{Class: gen.AssetClassStock, Currency: "USD"}},
+			want:     []market.Candidate{{Class: gen.AssetClassStock, Currency: "USD", Primary: "XNYS"}},
 		},
 		{
 			cassette: "massive_unknown_ticker",

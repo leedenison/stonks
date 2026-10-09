@@ -151,13 +151,13 @@ func bySymbol(r market.IdentityResult, symbol string) (market.Candidate, bool) {
 
 var (
 	appleISIN = types.Identifier{Type: types.IdentifierTypeIsin, Value: "US0378331005"}
-	apple     = market.Candidate{Class: gen.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{
+	apple     = market.Candidate{Class: gen.AssetClassStock, Currency: "USD", Primary: "XNAS", Identifiers: []types.Identifier{
 		{Type: types.IdentifierTypeDatasourceTicker, Domain: domain, Value: "AAPL.US"},
 		appleISIN,
 		{Type: types.IdentifierTypeCusip, Value: "037833100"},
 		ticker("XNAS", "AAPL"),
 	}}
-	vodafone = market.Candidate{Class: gen.AssetClassStock, Currency: "GBX", Identifiers: []types.Identifier{
+	vodafone = market.Candidate{Class: gen.AssetClassStock, Currency: "GBX", Primary: "XLON", Identifiers: []types.Identifier{
 		{Type: types.IdentifierTypeDatasourceTicker, Domain: domain, Value: "VOD.LSE"},
 		{Type: types.IdentifierTypeIsin, Value: "GB00BH4HKS39"},
 		ticker("XLON", "VOD"),
@@ -211,7 +211,7 @@ func TestFetch(t *testing.T) {
 			cassette: "eodhd_class_share",
 			sent:     ticker("XNYS", "BRK.B"),
 			filtered: ticker("", "BRK.B"),
-			want: map[string]market.Candidate{"BRK-B.US": {Class: gen.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{
+			want: map[string]market.Candidate{"BRK-B.US": {Class: gen.AssetClassStock, Currency: "USD", Primary: "XNYS", Identifiers: []types.Identifier{
 				{Type: types.IdentifierTypeDatasourceTicker, Domain: domain, Value: "BRK-B.US"},
 				{Type: types.IdentifierTypeIsin, Value: "US0846707026"},
 				ticker("XNYS", "BRK.B"),
@@ -224,7 +224,7 @@ func TestFetch(t *testing.T) {
 			// id-mapping is not asked.
 			cassette: "eodhd_ticker",
 			sent:     ticker("", "AAPL"),
-			want: map[string]market.Candidate{"AAPL.US": {Class: gen.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{
+			want: map[string]market.Candidate{"AAPL.US": {Class: gen.AssetClassStock, Currency: "USD", Primary: "XNAS", Identifiers: []types.Identifier{
 				{Type: types.IdentifierTypeDatasourceTicker, Domain: domain, Value: "AAPL.US"},
 				appleISIN,
 				ticker("XNAS", "AAPL"),
