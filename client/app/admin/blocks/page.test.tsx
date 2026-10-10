@@ -4,13 +4,13 @@ import type { ServiceImpl } from "@connectrpc/connect";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import {
-  AdminService,
   BlockSchema,
   BlockScope,
+  BlockService,
   ClearBlockResponseSchema,
   FetchKind,
   ListBlocksResponseSchema,
-} from "@/gen/admin/v1/admin_pb";
+} from "@/gen/admin/block/v1/block_pb";
 import { Role } from "@/gen/auth/v1/auth_pb";
 import { IdentifierSchema, IdentifierType } from "@/gen/type/v1/type_pb";
 import { liveSession, renderWithAuth, transportWith } from "@/lib/test-utils";
@@ -58,10 +58,10 @@ describe("BlocksPage", () => {
     renderWithAuth(
       <BlocksPage />,
       transportWith(admin, ({ service }) => {
-        service(AdminService, {
+        service(BlockService, {
           listBlocks: () => listed,
           clearBlock,
-        } satisfies Partial<ServiceImpl<typeof AdminService>>);
+        } satisfies Partial<ServiceImpl<typeof BlockService>>);
       }),
     );
     await waitFor(() =>

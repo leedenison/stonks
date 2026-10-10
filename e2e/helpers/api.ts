@@ -1,6 +1,7 @@
 import type { DescService } from "@bufbuild/protobuf";
 import { type Client, createClient } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
+import { BlockService } from "../gen/admin/block/v1/block_pb";
 import { AdminService, type UserRun } from "../gen/admin/v1/admin_pb";
 import { AuthService } from "../gen/auth/v1/auth_pb";
 import { HoldingService } from "../gen/holding/v1/holding_pb";
@@ -32,6 +33,10 @@ export function clientFor<T extends DescService>(
 
 export function adminClient(sessionID: string) {
   return clientFor(AdminService, sessionID);
+}
+
+export function blockClient(sessionID: string) {
+  return clientFor(BlockService, sessionID);
 }
 
 // items reads the items a run wrote. Every run a spec makes writes few

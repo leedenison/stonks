@@ -16,6 +16,7 @@
 ```
 proto/
   admin/v1/admin.proto            stonks.admin.v1       -- what runs did, across every user
+  admin/block/v1/block.proto      stonks.admin.block.v1 -- datasource blocks, across every user
   auth/v1/auth.proto              stonks.auth.v1        -- sign in, session, sign out
   holding/v1/holding.proto        stonks.holding.v1     -- holdings
   instrument/v1/instrument.proto  stonks.instrument.v1  -- instruments
@@ -23,6 +24,9 @@ proto/
   statement/v1/statement.proto    stonks.statement.v1   -- the neutral format of a statement, its ingestion and its outcome
   type/v1/type.proto              stonks.type.v1        -- shared types
 ```
+
+A service open to administrators alone nests under `admin/`, so one rule in the handler
+chain gates every procedure of a `stonks.admin` package.
 
 Generated Go lands beside the `.proto` files (`paths=source_relative`) and is gitignored:
 `auth/v1/auth.pb.go` for the messages and `auth/v1/authv1connect/` for the handlers and

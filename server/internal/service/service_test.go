@@ -12,6 +12,8 @@ import (
 	"connectrpc.com/connect"
 	"go.uber.org/mock/gomock"
 
+	adminblockv1 "github.com/leedenison/stonks/proto/admin/block/v1"
+	"github.com/leedenison/stonks/proto/admin/block/v1/adminblockv1connect"
 	adminv1 "github.com/leedenison/stonks/proto/admin/v1"
 	"github.com/leedenison/stonks/proto/admin/v1/adminv1connect"
 	authv1 "github.com/leedenison/stonks/proto/auth/v1"
@@ -26,8 +28,11 @@ import (
 )
 
 // stub answers SignIn according to the token it is given, and records the
-// principal GetSession, ListInstruments and ListRuns see.
+// principal GetSession, ListInstruments and ListRuns see. The other admin
+// services are left unimplemented, so a call that reaches one answers
+// Unimplemented.
 type stub struct {
+	adminblockv1connect.UnimplementedBlockServiceHandler
 	adminv1connect.UnimplementedAdminServiceHandler
 	authv1connect.UnimplementedAuthServiceHandler
 	instrumentv1connect.UnimplementedInstrumentServiceHandler
@@ -85,6 +90,7 @@ func newFixture(t *testing.T) *fixture {
 		t.Fatalf("HandlerOptions() error = %v", err)
 	}
 	f.srv = servicetest.Serve(t, func(mux *http.ServeMux) {
+		mux.Handle(adminblockv1connect.NewBlockServiceHandler(f.stub, opts...))
 		mux.Handle(adminv1connect.NewAdminServiceHandler(f.stub, opts...))
 		mux.Handle(authv1connect.NewAuthServiceHandler(f.stub, opts...))
 		mux.Handle(instrumentv1connect.NewInstrumentServiceHandler(f.stub, opts...))
@@ -159,6 +165,7 @@ func TestAuthenticate(t *testing.T) {
 		{name: "admin without cookie", call: listRuns, wantCode: connect.CodeUnauthenticated},
 		{name: "admin with a user's session", cookie: "stonks_session=live", call: listRuns, wantCode: connect.CodePermissionDenied},
 		{name: "admin with an administrator's session", cookie: "stonks_session=admin", call: listRuns, wantSeen: &admin},
+		{name: "block service with a user's session", cookie: "stonks_session=live", call: listBlocks, wantCode: connect.CodePermissionDenied},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -208,6 +215,12 @@ func listInstruments(f *fixture) error {
 func listRuns(f *fixture) error {
 	client := adminv1connect.NewAdminServiceClient(f.srv.Client, f.srv.URL)
 	_, err := client.ListRuns(context.Background(), connect.NewRequest(&adminv1.ListRunsRequest{}))
+	return err
+}
+
+func listBlocks(f *fixture) error {
+	client := adminblockv1connect.NewBlockServiceClient(f.srv.Client, f.srv.URL)
+	_, err := client.ListBlocks(context.Background(), connect.NewRequest(&adminblockv1.ListBlocksRequest{}))
 	return err
 }
 

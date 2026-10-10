@@ -1,0 +1,82 @@
+// Datasource blocks, and their clearing by an administrator.
+
+syntax = "proto3";
+
+package stonks.admin.block.v1;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+import "type/v1/type.proto";
+
+option go_package = "github.com/leedenison/stonks/proto/admin/block/v1;adminblockv1";
+
+// The kind of data a fetch requests.
+enum FetchKind {
+  FETCH_KIND_UNSPECIFIED = 0;
+  // The identifiers that name an instrument and its listings.
+  FETCH_KIND_IDENTITY = 1;
+}
+
+// What a block suppresses.
+enum BlockScope {
+  BLOCK_SCOPE_UNSPECIFIED = 0;
+  // Calls sent under one identifier.
+  BLOCK_SCOPE_IDENTIFIER = 1;
+  // Every call to the datasource for the kind of data.
+  BLOCK_SCOPE_DATASOURCE = 2;
+}
+
+// A call that failed unrecoverably, suppressing further calls until an
+// administrator clears it.
+message Block {
+  string id = 1;
+  string datasource = 2;
+  FetchKind kind = 3;
+  BlockScope scope = 4;
+  // The identifier blocked; set only when the scope is IDENTIFIER.
+  stonks.type.v1.Identifier sent = 5;
+  // The error of the failed call, in words.
+  string reason = 6;
+  // The fetch run whose call created the block.
+  string run_id = 7;
+  google.protobuf.Timestamp created_at = 8;
+  // When an administrator cleared the block; unset while it holds.
+  google.protobuf.Timestamp cleared_at = 9;
+}
+
+message ListBlocksRequest {
+  // Includes the blocks an administrator has cleared.
+  bool include_cleared = 1;
+  // At most this many blocks; 0 means 50.
+  int32 page_size = 2 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 200
+  }];
+  // The next_page_token of the previous page; empty for the first.
+  string page_token = 3 [
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
+    (buf.validate.field).string.uuid = true
+  ];
+}
+
+message ListBlocksResponse {
+  // Newest first.
+  repeated Block blocks = 1;
+  // Continues the listing; empty on the last page.
+  string next_page_token = 2;
+}
+
+message ClearBlockRequest {
+  string block_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message ClearBlockResponse {}
+
+// Lists datasource blocks and clears them.
+service BlockService {
+  // Lists datasource blocks.
+  rpc ListBlocks(ListBlocksRequest) returns (ListBlocksResponse);
+  // Clears a block and the finding reporting it. Clearing a cleared block
+  // succeeds.
+  rpc ClearBlock(ClearBlockRequest) returns (ClearBlockResponse);
+}

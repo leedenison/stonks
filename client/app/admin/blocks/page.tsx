@@ -12,7 +12,7 @@ import { Notice } from "@/app/components/notice";
 import { Page } from "@/app/components/page-frame";
 import { SkeletonRows } from "@/app/components/skeleton-rows";
 import { TableCard, Td, Th, Thead, Tr } from "@/app/components/table";
-import { BlockScope, FetchKind } from "@/gen/admin/v1/admin_pb";
+import { BlockScope, FetchKind } from "@/gen/admin/block/v1/block_pb";
 import { useBlocks, useClearBlock } from "@/hooks/use-blocks";
 import { listQuery, readList } from "@/lib/admin";
 import { enumLabel } from "@/lib/enum";

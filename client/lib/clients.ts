@@ -1,4 +1,5 @@
 import { createClient, type Transport } from "@connectrpc/connect";
+import { BlockService } from "@/gen/admin/block/v1/block_pb";
 import { AdminService } from "@/gen/admin/v1/admin_pb";
 import { AuthService } from "@/gen/auth/v1/auth_pb";
 import { HoldingService } from "@/gen/holding/v1/holding_pb";
@@ -11,6 +12,7 @@ export function newClients(transport: Transport) {
   return {
     admin: createClient(AdminService, transport),
     auth: createClient(AuthService, transport),
+    block: createClient(BlockService, transport),
     holding: createClient(HoldingService, transport),
     instrument: createClient(InstrumentService, transport),
     run: createClient(RunService, transport),
