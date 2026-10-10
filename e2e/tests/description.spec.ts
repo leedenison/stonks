@@ -72,8 +72,12 @@ test("resolves a line through the description the broker gave it", async ({
   await expect(
     resolved.getByTestId(`holding-venue-${instrumentId}`),
   ).toHaveText("LSE");
-  await expect(resolved).toContainText(isin);
+  await expect(resolved).not.toContainText(isin);
   await expect(resolved.getByTestId("holding-basis")).toHaveCount(0);
+  await resolved.click();
+  await expect(
+    page.getByTestId(`holding-detail-${instrumentId}`),
+  ).toContainText(isin);
   await expect(resolved.getByTestId(`holding-qty-${instrumentId}`)).toHaveText(
     "80.00",
   );

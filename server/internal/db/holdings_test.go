@@ -131,14 +131,13 @@ func TestListHoldingKeys(t *testing.T) {
 	require.NoError(t, err)
 	type row struct {
 		Key      uuid.UUID
-		Broker   gen.Broker
 		Quantity string
 	}
 	var rows []row
 	for _, r := range got {
-		rows = append(rows, row{r.StatedKey.ID, r.Broker, r.Quantity.String()})
+		rows = append(rows, row{r.StatedKey.ID, r.Quantity.String()})
 	}
-	want := []row{{newer.ID, gen.BrokerIbkr, "1"}, {resolved.ID, gen.BrokerIbkr, "7.5"}, {grouped.ID, gen.BrokerIbkr, "3"}}
+	want := []row{{newer.ID, "1"}, {resolved.ID, "7.5"}, {grouped.ID, "3"}}
 	if diff := cmp.Diff(want, rows); diff != "" {
 		t.Errorf("ListHoldingKeys mismatch (-want +got):\n%s", diff)
 	}

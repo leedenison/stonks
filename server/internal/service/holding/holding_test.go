@@ -75,7 +75,7 @@ func TestListHoldings(t *testing.T) {
 	acmeDescribed := types.Identifier{Type: types.IdentifierTypeBrokerDescription, Domain: "ibkr", Value: "ACME PLC"}
 	instrumentKeys := []gen.ListHoldingKeysRow{{
 		StatedKey: gen.StatedKey{ID: acmeKeyID, StatementID: stmtID, InstrumentID: &acmeID, ListingID: &acmeListingID, Identifiers: []types.Identifier{acmeISIN, acmeDescribed}},
-		Broker:    gen.BrokerIbkr, Quantity: decimal.RequireFromString("-141"),
+		Quantity:  decimal.RequireFromString("-141"),
 	}}
 	wantInstruments := []*holdingv1.InstrumentHolding{
 		{
@@ -94,7 +94,7 @@ func TestListHoldings(t *testing.T) {
 				Ticker: &typev1.Identifier{Type: typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, Domain: "XLON", Value: "ACME"},
 			}},
 			Keys: []*holdingv1.HoldingKey{{
-				StatedKeyId: acmeKeyID.String(), StatementId: stmtID.String(), Broker: typev1.Broker_BROKER_IBKR, ListingId: acmeListingID.String(), Quantity: "-141",
+				ListingId: acmeListingID.String(), Quantity: "-141",
 				StatedKey: &typev1.StatedKey{Identifiers: []*typev1.Identifier{
 					{Type: typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, Value: "GB0002634946"},
 					{Type: typev1.IdentifierType_IDENTIFIER_TYPE_BROKER_DESCRIPTION, Domain: "ibkr", Value: "ACME PLC"},
@@ -112,8 +112,8 @@ func TestListHoldings(t *testing.T) {
 	schwab := types.Identifier{Type: types.IdentifierTypeBrokerDescription, Domain: "schwab", Value: "ACME CORPORATION"}
 	k1, k2 := uuid.MustParse("00000000-0000-0000-0000-000000000061"), uuid.MustParse("00000000-0000-0000-0000-000000000062")
 	groupKeys := []gen.ListHoldingKeysRow{
-		{StatedKey: gen.StatedKey{ID: k1, StatementID: stmtID, GroupID: &groupID, AssetClass: ptr.To(gen.AssetClassEquity), Identifiers: []types.Identifier{ibkr, isin}}, Broker: gen.BrokerIbkr, Quantity: decimal.RequireFromString("10")},
-		{StatedKey: gen.StatedKey{ID: k2, StatementID: stmtID, GroupID: &groupID, AssetClass: ptr.To(gen.AssetClassSecurity), Identifiers: []types.Identifier{schwab, isin, ticker}}, Broker: gen.BrokerSchwab, Quantity: decimal.RequireFromString("2.5")},
+		{StatedKey: gen.StatedKey{ID: k1, StatementID: stmtID, GroupID: &groupID, AssetClass: ptr.To(gen.AssetClassEquity), Identifiers: []types.Identifier{ibkr, isin}}, Quantity: decimal.RequireFromString("10")},
+		{StatedKey: gen.StatedKey{ID: k2, StatementID: stmtID, GroupID: &groupID, AssetClass: ptr.To(gen.AssetClassSecurity), Identifiers: []types.Identifier{schwab, isin, ticker}}, Quantity: decimal.RequireFromString("2.5")},
 	}
 	protoISIN := &typev1.Identifier{Type: typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, Value: "US0000000001"}
 	protoIbkr := &typev1.Identifier{Type: typev1.IdentifierType_IDENTIFIER_TYPE_BROKER_DESCRIPTION, Domain: "ibkr", Value: "ACME CORP"}
@@ -124,8 +124,8 @@ func TestListHoldings(t *testing.T) {
 		AssetClasses: []typev1.AssetClass{typev1.AssetClass_ASSET_CLASS_SECURITY, typev1.AssetClass_ASSET_CLASS_EQUITY},
 		Identifiers:  []*typev1.Identifier{protoIbkr, protoISIN, protoSchwab, protoTicker},
 		Keys: []*holdingv1.HoldingKey{
-			{StatedKeyId: k1.String(), StatementId: stmtID.String(), Broker: typev1.Broker_BROKER_IBKR, Quantity: "10", StatedKey: &typev1.StatedKey{AssetClass: typev1.AssetClass_ASSET_CLASS_EQUITY, Identifiers: []*typev1.Identifier{protoIbkr, protoISIN}}},
-			{StatedKeyId: k2.String(), StatementId: stmtID.String(), Broker: typev1.Broker_BROKER_SCHWAB, Quantity: "2.5", StatedKey: &typev1.StatedKey{AssetClass: typev1.AssetClass_ASSET_CLASS_SECURITY, Identifiers: []*typev1.Identifier{protoSchwab, protoISIN, protoTicker}}},
+			{Quantity: "10", StatedKey: &typev1.StatedKey{AssetClass: typev1.AssetClass_ASSET_CLASS_EQUITY, Identifiers: []*typev1.Identifier{protoIbkr, protoISIN}}},
+			{Quantity: "2.5", StatedKey: &typev1.StatedKey{AssetClass: typev1.AssetClass_ASSET_CLASS_SECURITY, Identifiers: []*typev1.Identifier{protoSchwab, protoISIN, protoTicker}}},
 		},
 	}}
 

@@ -1,9 +1,5 @@
 import path from "node:path";
-import {
-  Broker,
-  IdentifierType,
-  ResolutionOutcome,
-} from "../gen/type/v1/type_pb";
+import { IdentifierType, ResolutionOutcome } from "../gen/type/v1/type_pb";
 import {
   holdingClient,
   instrumentClient,
@@ -70,8 +66,6 @@ test("shows a resolved holding and an unresolved one from two brokers", async ({
   expect(dollars?.venue).toBe("Nasdaq");
   expect(dollars?.ticker?.value).toBe(ticker);
   expect(shares!.keys).toHaveLength(1);
-  expect(shares!.keys[0].statementId).toBe(ibkrRun);
-  expect(shares!.keys[0].broker).toBe(Broker.IBKR);
   expect(shares!.keys[0].listingId).toBe(dollars?.id);
   expect(shares!.keys[0].quantity).toBe("10");
   expect(holdings.groups).toHaveLength(1);
@@ -120,16 +114,23 @@ test("shows a resolved holding and an unresolved one from two brokers", async ({
   await expect(
     resolved.getByTestId(`holding-venue-${shares!.instrumentId}`),
   ).toHaveText("Nasdaq");
-  await expect(resolved).toContainText(cusip);
+  await expect(resolved).not.toContainText(cusip);
   await expect(resolved.getByTestId("holding-basis")).toHaveCount(0);
+  await resolved.click();
+  await expect(
+    page.getByTestId(`holding-detail-${shares!.instrumentId}`),
+  ).toContainText(cusip);
   const unresolved = page.getByTestId(`holding-row-${group.groupId}`);
   await expect(unresolved).toHaveAttribute("data-kind", "group");
-  await expect(unresolved).toContainText(description);
   await expect(unresolved).toContainText(ticker);
   await expect(unresolved.getByTestId("holding-basis")).toHaveAttribute(
     "data-state",
     "unidentified",
   );
+  await unresolved.click();
+  await expect(
+    page.getByTestId(`holding-detail-${group.groupId}`),
+  ).toContainText(description);
   await expect(
     page.getByTestId(`holding-qty-${cash!.instrumentId}`),
   ).toHaveText("-8002.00");

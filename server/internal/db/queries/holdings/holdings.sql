@@ -21,14 +21,13 @@ HAVING SUM(transactions.quantity) <> 0
 ORDER BY stated_keys.group_id;
 
 -- name: ListHoldingKeys :many
--- The user's keys that have a transaction, each with the broker of its
--- statement and the sum of its transactions, newest statement first.
-SELECT sqlc.embed(stated_keys), statements.broker, SUM(transactions.quantity)::numeric AS quantity
+-- The user's keys that have a transaction, each with the sum of its
+-- transactions, newest statement first.
+SELECT sqlc.embed(stated_keys), SUM(transactions.quantity)::numeric AS quantity
 FROM stated_keys
-JOIN statements ON statements.id = stated_keys.statement_id
 JOIN transactions ON transactions.stated_key_id = stated_keys.id
 WHERE stated_keys.user_id = @user_id::uuid
-GROUP BY stated_keys.id, statements.broker
+GROUP BY stated_keys.id
 ORDER BY stated_keys.statement_id DESC, stated_keys.id;
 
 -- name: ListListingNames :many
