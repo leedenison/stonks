@@ -8,9 +8,9 @@ import {
   ListDatasourcesResponseSchema,
 } from "@/gen/admin/datasource/v1/datasource_pb";
 import {
-  AdminService,
+  ReplayService,
   StartReplayResponseSchema,
-} from "@/gen/admin/v1/admin_pb";
+} from "@/gen/admin/replay/v1/replay_pb";
 import { Role } from "@/gen/auth/v1/auth_pb";
 import { RunKind, RunSchema, RunState, RunTrigger } from "@/gen/run/v1/run_pb";
 import {
@@ -49,7 +49,7 @@ function serving(startReplay = vi.fn(starting)) {
           ],
         }),
     });
-    service(AdminService, { startReplay });
+    service(ReplayService, { startReplay });
   });
 }
 

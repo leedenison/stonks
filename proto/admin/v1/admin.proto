@@ -7,6 +7,7 @@ package stonks.admin.v1;
 
 import "buf/validate/validate.proto";
 import "google/protobuf/timestamp.proto";
+import "admin/replay/v1/replay.proto";
 import "run/v1/run.proto";
 import "statement/v1/statement.proto";
 import "type/v1/type.proto";
@@ -160,7 +161,7 @@ message GetRunResponse {
   // run's findings oldest first, then those of each run below it in turn.
   repeated Finding findings = 3;
   // What this run re-resolves when its kind is REPLAY.
-  Replay replay = 4;
+  stonks.admin.replay.v1.Replay replay = 4;
 }
 
 message ListRunItemsRequest {
@@ -201,42 +202,7 @@ message ClearFindingRequest {
 
 message ClearFindingResponse {}
 
-// What a run of kind REPLAY re-resolves.
-message Replay {
-  // The run whose keys are replayed.
-  string source_run_id = 1;
-  // The keys the replay selected among the source's, as StartReplayRequest
-  // names them.
-  oneof scope {
-    bool unavailable = 2;
-    string datasource = 3;
-  }
-  // The email of the administrator who started the replay.
-  string started_by = 4;
-}
-
-// Re-resolves the keys of one run. Every scope is confined to the run's keys
-// that a transaction names.
-message StartReplayRequest {
-  // A run of kind STATEMENT or RESOLUTION.
-  string run_id = 1 [(buf.validate.field).string.uuid = true];
-  oneof scope {
-    option (buf.validate.oneof).required = true;
-    // Every key whose latest resolution left it unavailable.
-    bool unavailable = 2 [(buf.validate.field).bool.const = true];
-    // Every key the named datasource serves and has not yet answered: the
-    // unresolved keys, and those on an instrument without its identity
-    // coverage.
-    string datasource = 3 [(buf.validate.field).string.min_len = 1];
-  }
-}
-
-message StartReplayResponse {
-  // The replay run, pending.
-  stonks.run.v1.Run run = 1;
-}
-
-// Reads every user's runs and findings, and starts replays.
+// Reads every user's runs and findings.
 service AdminService {
   // Lists every user's runs matching the filters.
   rpc ListRuns(ListRunsRequest) returns (ListRunsResponse);
@@ -248,8 +214,4 @@ service AdminService {
   // block clears it, and the call is refused as a failed precondition.
   // Clearing a cleared finding succeeds.
   rpc ClearFinding(ClearFindingRequest) returns (ClearFindingResponse);
-  // Starts a replay over the keys of a run, as a run of that run's user. A
-  // run of another kind, a scope selecting no key, or a datasource that is
-  // not enabled or serves no identity, is refused as a failed precondition.
-  rpc StartReplay(StartReplayRequest) returns (StartReplayResponse);
 }
