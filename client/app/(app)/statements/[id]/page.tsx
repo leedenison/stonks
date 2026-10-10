@@ -136,7 +136,7 @@ function choosable(k: ResolutionItem): boolean {
 function Keys({ keys, live }: { keys: ResolutionItem[]; live: boolean }) {
   const [choosing, setChoosing] = useState<ResolutionItem | null>(null);
   return (
-    <Section title="Keys">
+    <Section title="Instruments contained in the statement:">
       <ResolutionKeys
         keys={keys}
         live={live}

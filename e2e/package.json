@@ -8,18 +8,18 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "@bufbuild/protobuf": "2.16.0",
+    "@bufbuild/protobuf": "2.15.0",
     "@connectrpc/connect": "2.2.0",
     "@connectrpc/connect-web": "2.2.0",
     "@eslint/js": "9.39.5",
     "@playwright/test": "1.63.0",
-    "@types/node": "26.6.4",
+    "@types/node": "26.6.3",
     "@types/pg": "8.23.1",
     "eslint": "9.39.5",
     "ioredis": "6.0.0",
-    "pg": "8.23.1",
+    "pg": "8.23.0",
     "prettier": "3.9.9",
     "typescript": "6.0.3",
-    "typescript-eslint": "8.71.1"
+    "typescript-eslint": "8.71.0"
   }
 }

@@ -5,17 +5,24 @@ import type { ComponentProps, ReactNode } from "react";
 
 // A table sits in a card that scrolls in both directions within the page,
 // so its header stays put while the rows scroll under it and wide columns
-// scroll sideways. Numbers are right aligned in the mono face.
+// scroll sideways. Numbers are right aligned in the mono face. A fixed
+// table takes its column widths from its colgroup, so tables with the same
+// colgroup widths line up.
 export function TableCard({
   testId,
+  fixed,
   children,
 }: {
   testId?: string;
+  fixed?: boolean;
   children: ReactNode;
 }) {
   return (
     <div className="max-h-[calc(100dvh-var(--top-bar-height)-11rem)] overflow-auto rounded-md border border-border bg-surface shadow-xs">
-      <table data-testid={testId} className="w-full border-collapse text-sm">
+      <table
+        data-testid={testId}
+        className={`w-full border-collapse text-sm ${fixed ? "table-fixed" : ""}`}
+      >
         {children}
       </table>
     </div>
