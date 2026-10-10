@@ -1,9 +1,20 @@
 ---
 name: pr-merge
-description: How a pull request is squashed, opened, rerun and merged, alone or in a stack, and the rate at which CI runs may start so Docker Hub does not refuse the image pulls. Use when opening a pull request, merging one, rerunning its checks, or working through a stack of them.
+description: How a pull request is squashed, opened, rerun and merged, alone or in a stack, and the pace at which CI runs start. Use when opening a pull request, merging one, rerunning its checks, or working through a stack of them.
 ---
 
 # Pull Requests
+
+## Review
+
+Build a plan with several pull requests as a stack of branches. Each branch starts from
+the one before it. Each change is committed on its own branch and not pushed. The user
+reviews the stack locally. Review fixes follow the rules in One commit.
+
+After review, open the pull requests from the bottom of the stack. Push the lowest branch
+and open its pull request on main. Merge it when its checks are green. Then fetch, run
+`git rebase origin/main` on the next branch, and open its pull request. The rebase
+replays only that branch's own commits, because its parent's tip is an ancestor of main.
 
 ## One commit
 
@@ -33,31 +44,18 @@ recording lacks, run `make e2e-record` first. The target appends only the missin
 
 ## Opening
 
-Open a stacked pull request on its parent branch, with `gh pr create --base <parent>`.
-The description names the issue and the position in the stack ("Second of four PRs for
-M04 issue 004. Stacked on #150."), then says what the change does in prose, and ends with
-the attribution line.
+Open a pull request on main. If the parent branch is still open, open it on the parent
+with `gh pr create --base <parent>`. The description names the issue and the position in
+the stack ("Second of four PRs for M04 issue 004. Stacked on #150."), then says what the
+change does in prose, and ends with the attribution line.
 
 ## Merging
 
 Merge with `gh pr merge <n> --merge`. Never pass `--delete-branch`: the repository
 deletes the branch as part of the merge, and that merge-linked deletion is what retargets
-a child pull request to main. Merge a stack parent first, wait for the child to retarget,
-then merge the child. The `gates` check is the only required one, and a branch need not
-be current with main to merge.
-
-## Reruns
-
-Rerun with `gh run rerun <id> --failed`, so only the failed jobs run again. Rerun only a
-failure the change did not cause: a flake that has an issue under `docs/tasks/bugs/`, or
-an image pull that Docker Hub refused. When Docker Hub answers a pull with
-`429 Too Many Requests`, the pull limit is the cause. A rerun in the same six-hour window
-fails the same way.
+a child pull request to main. Where a child pull request is open on its parent, merge
+the parent first and wait for the child to retarget before merging it.
 
 ## Rate
 
-Every job pulls its own base images, so one CI run costs about twenty-five Docker Hub
-pulls. A Docker Personal account is allowed two hundred pulls in six hours. Start at most
-one run in any forty-five minutes, counting a push, a new pull request and a rerun
-alike. Keep at most one run in flight. Open a stack one pull request at a time, each
-after the previous one's run has finished.
+Open a stack one pull request at a time, each after the previous one's run has finished.
