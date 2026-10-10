@@ -5,7 +5,7 @@ import { Button } from "@/app/components/button";
 import { Dialog } from "@/app/components/dialog";
 import { Select } from "@/app/components/input";
 import { Notice } from "@/app/components/notice";
-import type { UserRun } from "@/gen/admin/v1/admin_pb";
+import type { UserRun } from "@/gen/admin/run/v1/run_pb";
 import type { Run } from "@/gen/run/v1/run_pb";
 import { useDatasources } from "@/hooks/use-datasources";
 import { useStartReplay } from "@/hooks/use-replay";

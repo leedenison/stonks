@@ -3,10 +3,10 @@ import type { ServiceImpl } from "@connectrpc/connect";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  AdminService,
+  RunService,
   ListRunsResponseSchema,
   UserRunSchema,
-} from "@/gen/admin/v1/admin_pb";
+} from "@/gen/admin/run/v1/run_pb";
 import { Role } from "@/gen/auth/v1/auth_pb";
 import { RunKind, RunTrigger } from "@/gen/run/v1/run_pb";
 import {
@@ -28,9 +28,9 @@ vi.mock("next/navigation", () => ({
 
 const admin = liveSession({ role: Role.ADMIN });
 
-function serving(listRuns: ServiceImpl<typeof AdminService>["listRuns"]) {
+function serving(listRuns: ServiceImpl<typeof RunService>["listRuns"]) {
   return transportWith(admin, ({ service }) => {
-    service(AdminService, { listRuns });
+    service(RunService, { listRuns });
   });
 }
 

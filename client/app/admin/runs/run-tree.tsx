@@ -7,7 +7,7 @@ import { SkeletonRows } from "@/app/components/skeleton-rows";
 import { RunChip } from "@/app/components/state-chip";
 import { TableCard, Td, Th, Thead, Tr } from "@/app/components/table";
 import { Toggle } from "@/app/components/toggle";
-import type { UserRun } from "@/gen/admin/v1/admin_pb";
+import type { UserRun } from "@/gen/admin/run/v1/run_pb";
 import {
   filterQuery,
   openFindingsBelow,

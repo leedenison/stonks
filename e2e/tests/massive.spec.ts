@@ -1,8 +1,8 @@
 import path from "node:path";
-import { FetchOutcome } from "../gen/admin/v1/admin_pb";
+import { FetchOutcome } from "../gen/admin/run/v1/run_pb";
 import { IdentifierType, ResolutionOutcome } from "../gen/type/v1/type_pb";
 import {
-  adminClient,
+  adminRunClient,
   fetchItems,
   fetchRun,
   holdingClient,
@@ -32,7 +32,7 @@ test("asks Massive beside OpenFIGI and matches the key once", async ({
   await page.getByTestId("activity-sheet-close").click();
 
   const { session } = await signIn("admin");
-  const admin = adminClient(session);
+  const admin = adminRunClient(session);
   const statement = await admin.getRun({ runId });
   expect(statement.findings).toHaveLength(0);
   const resolution = statement.run!.children[0];

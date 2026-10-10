@@ -12,7 +12,7 @@ import type { ReactNode } from "react";
 import { ActivityProvider } from "@/contexts/activity-context";
 import { AuthProvider } from "@/contexts/auth-context";
 import { ClientsProvider } from "@/contexts/clients-context";
-import { type UserRun, UserRunSchema } from "@/gen/admin/v1/admin_pb";
+import { type UserRun, UserRunSchema } from "@/gen/admin/run/v1/run_pb";
 import {
   AuthService,
   type GetSessionResponse,

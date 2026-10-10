@@ -1,8 +1,8 @@
 import path from "node:path";
-import { FetchOutcome, FindingKind } from "../gen/admin/v1/admin_pb";
+import { FetchOutcome, FindingKind } from "../gen/admin/run/v1/run_pb";
 import { ResolutionOutcome } from "../gen/type/v1/type_pb";
 import {
-  adminClient,
+  adminRunClient,
   blockClient,
   fetchItems,
   fetchRun,
@@ -28,7 +28,7 @@ test("clears a block from the blocks page, clearing the finding reporting it", a
 
   // A permanent refusal blocks the identifier and reports it as a finding.
   const { session } = await signIn("admin");
-  const admin = adminClient(session);
+  const admin = adminRunClient(session);
   const statement = await admin.getRun({ runId: runId });
   expect(statement.findings).toHaveLength(1);
   const finding = statement.findings[0];

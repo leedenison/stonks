@@ -27,7 +27,7 @@ import {
   FindingKind,
   type GetRunResponse,
   type UserRun,
-} from "@/gen/admin/v1/admin_pb";
+} from "@/gen/admin/run/v1/run_pb";
 import { type Run, RunKind } from "@/gen/run/v1/run_pb";
 import { useAdminRun } from "@/hooks/use-admin-run";
 import { useAdminRunItems } from "@/hooks/use-admin-run-items";

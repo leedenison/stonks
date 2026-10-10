@@ -1,4 +1,8 @@
-import { DropStep, type Finding, type UserRun } from "@/gen/admin/v1/admin_pb";
+import {
+  DropStep,
+  type Finding,
+  type UserRun,
+} from "@/gen/admin/run/v1/run_pb";
 import { type Run, RunKind, RunState, RunTrigger } from "@/gen/run/v1/run_pb";
 import { enumLabel } from "./enum";
 import { formatInstant } from "./format";

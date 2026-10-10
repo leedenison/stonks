@@ -8,7 +8,7 @@ import { EmptyState } from "@/app/components/empty-state";
 import { Notice } from "@/app/components/notice";
 import { Page } from "@/app/components/page-frame";
 import { Select } from "@/app/components/input";
-import type { UserRun } from "@/gen/admin/v1/admin_pb";
+import type { UserRun } from "@/gen/admin/run/v1/run_pb";
 import { useAdminRuns } from "@/hooks/use-admin-runs";
 import {
   filterQuery,

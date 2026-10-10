@@ -17,7 +17,7 @@ import {
   StartReplayResponseSchema,
 } from "@/gen/admin/replay/v1/replay_pb";
 import {
-  AdminService,
+  RunService,
   ClearFindingResponseSchema,
   FetchItemSchema,
   FetchOutcome,
@@ -27,7 +27,7 @@ import {
   GetRunResponseSchema,
   ListRunItemsResponseSchema,
   RunItemSchema,
-} from "@/gen/admin/v1/admin_pb";
+} from "@/gen/admin/run/v1/run_pb";
 import { Role } from "@/gen/auth/v1/auth_pb";
 import { RunKind, RunSchema, RunTrigger } from "@/gen/run/v1/run_pb";
 import {
@@ -54,28 +54,28 @@ vi.mock("next/navigation", () => ({
 
 const admin = liveSession({ role: Role.ADMIN });
 
-// serving answers getRun as given and lists no items unless the admin
+// serving answers getRun as given and lists no items unless the run
 // methods say otherwise, and serves the block, datasource and replay methods
 // given.
 function serving(
-  getRun: ServiceImpl<typeof AdminService>["getRun"],
+  getRun: ServiceImpl<typeof RunService>["getRun"],
   {
-    admin: adminImpl = {},
+    run: runImpl = {},
     block = {},
     datasource = {},
     replay = {},
   }: {
-    admin?: Partial<ServiceImpl<typeof AdminService>>;
+    run?: Partial<ServiceImpl<typeof RunService>>;
     block?: Partial<ServiceImpl<typeof BlockService>>;
     datasource?: Partial<ServiceImpl<typeof DatasourceService>>;
     replay?: Partial<ServiceImpl<typeof ReplayService>>;
   } = {},
 ) {
   return transportWith(admin, ({ service }) => {
-    service(AdminService, {
+    service(RunService, {
       getRun,
       listRunItems: () => create(ListRunItemsResponseSchema, {}),
-      ...adminImpl,
+      ...runImpl,
     });
     service(BlockService, block);
     service(DatasourceService, datasource);
@@ -192,7 +192,7 @@ describe("AdminRunPage", () => {
   it("shows the run among its ancestors, its findings and its items", async () => {
     renderWithAuth(
       <AdminRunPage />,
-      serving(() => fetch, { admin: { listRunItems: () => fetchItems } }),
+      serving(() => fetch, { run: { listRunItems: () => fetchItems } }),
     );
     await waitFor(() =>
       expect(screen.getByTestId("admin-run-lineage")).toBeTruthy(),
@@ -284,7 +284,7 @@ describe("AdminRunPage", () => {
     const clearBlock = vi.fn(() => create(ClearBlockResponseSchema, {}));
     renderWithAuth(
       <AdminRunPage />,
-      serving(() => fetch, { admin: { clearFinding }, block: { clearBlock } }),
+      serving(() => fetch, { run: { clearFinding }, block: { clearBlock } }),
     );
     await waitFor(() =>
       expect(screen.getByTestId("finding-clear-block-x1")).toBeTruthy(),
@@ -466,7 +466,7 @@ describe("AdminRunPage", () => {
     renderWithAuth(
       <AdminRunPage />,
       serving(() => fetch, {
-        admin: {
+        run: {
           listRunItems: (req) =>
             req.pageToken === "k1" ? page("k2", "") : page("k1", "k1"),
         },

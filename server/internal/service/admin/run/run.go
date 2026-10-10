@@ -1,5 +1,5 @@
-// Package admin serves stonks.admin.v1.
-package admin
+// Package run serves stonks.admin.run.v1.
+package run
 
 import (
 	"context"
@@ -13,8 +13,8 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	adminreplayv1 "github.com/leedenison/stonks/proto/admin/replay/v1"
-	adminv1 "github.com/leedenison/stonks/proto/admin/v1"
-	"github.com/leedenison/stonks/proto/admin/v1/adminv1connect"
+	adminrunv1 "github.com/leedenison/stonks/proto/admin/run/v1"
+	"github.com/leedenison/stonks/proto/admin/run/v1/adminrunv1connect"
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/to"
@@ -40,14 +40,14 @@ type Queries interface {
 
 var _ Queries = (*gen.Queries)(nil)
 
-//go:generate go tool mockgen -source=admin.go -destination=admin_mock_test.go -package=admin -self_package=github.com/leedenison/stonks/server/internal/service/admin
+//go:generate go tool mockgen -source=run.go -destination=run_mock_test.go -package=run
 
-// Server implements AdminService.
+// Server implements RunService.
 type Server struct {
 	store Queries
 }
 
-var _ adminv1connect.AdminServiceHandler = (*Server)(nil)
+var _ adminrunv1connect.RunServiceHandler = (*Server)(nil)
 
 // New returns a Server.
 func New(store Queries) *Server {
@@ -57,7 +57,7 @@ func New(store Queries) *Server {
 // ListRuns lists every user's runs matching the filters, newest first,
 // each under its top-level ancestor. The page token is the id of the last
 // top-level run served.
-func (s *Server) ListRuns(ctx context.Context, req *connect.Request[adminv1.ListRunsRequest]) (*connect.Response[adminv1.ListRunsResponse], error) {
+func (s *Server) ListRuns(ctx context.Context, req *connect.Request[adminrunv1.ListRunsRequest]) (*connect.Response[adminrunv1.ListRunsResponse], error) {
 	m := req.Msg
 	before, err := page.Before(m.GetPageToken())
 	if err != nil {
@@ -81,9 +81,9 @@ func (s *Server) ListRuns(ctx context.Context, req *connect.Request[adminv1.List
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	out := &adminv1.ListRunsResponse{}
+	out := &adminrunv1.ListRunsResponse{}
 	rows, out.NextPageToken = trimTrees(p, rows)
-	byID := map[uuid.UUID]*adminv1.UserRun{}
+	byID := map[uuid.UUID]*adminrunv1.UserRun{}
 	for _, r := range rows {
 		msg := userRun(r.Run, r.Email, r.OpenFindings, r.Datasource, r.Endpoint)
 		msg.Matched = r.Matched
@@ -135,12 +135,12 @@ func trimTrees(p page.Page, rows []gen.ListUserRunsRow) ([]gen.ListUserRunsRow, 
 
 // GetRun reads any user's run with the runs above and below it and its
 // findings.
-func (s *Server) GetRun(ctx context.Context, req *connect.Request[adminv1.GetRunRequest]) (*connect.Response[adminv1.GetRunResponse], error) {
+func (s *Server) GetRun(ctx context.Context, req *connect.Request[adminrunv1.GetRunRequest]) (*connect.Response[adminrunv1.GetRunResponse], error) {
 	row, err := s.userRun(ctx, req.Msg.GetRunId())
 	if err != nil {
 		return nil, err
 	}
-	out := &adminv1.GetRunResponse{Run: userRun(row.Run, row.Email, row.OpenFindings, row.Datasource, row.Endpoint)}
+	out := &adminrunv1.GetRunResponse{Run: userRun(row.Run, row.Email, row.OpenFindings, row.Datasource, row.Endpoint)}
 	ids, err := s.tree(ctx, row.Run, out)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
@@ -175,7 +175,7 @@ func (s *Server) userRun(ctx context.Context, id string) (gen.GetUserRunRow, err
 
 // tree adds the runs above and below run to out, and returns the ids of run
 // and of every run below it.
-func (s *Server) tree(ctx context.Context, run gen.Run, out *adminv1.GetRunResponse) ([]uuid.UUID, error) {
+func (s *Server) tree(ctx context.Context, run gen.Run, out *adminrunv1.GetRunResponse) ([]uuid.UUID, error) {
 	ancestors, err := s.store.ListRunAncestors(ctx, run.ID)
 	if err != nil {
 		return nil, err
@@ -187,7 +187,7 @@ func (s *Server) tree(ctx context.Context, run gen.Run, out *adminv1.GetRunRespo
 	if err != nil {
 		return nil, err
 	}
-	byID := map[uuid.UUID]*adminv1.UserRun{run.ID: out.Run}
+	byID := map[uuid.UUID]*adminrunv1.UserRun{run.ID: out.Run}
 	ids := []uuid.UUID{run.ID}
 	for _, d := range descendants {
 		ids = append(ids, d.Run.ID)
@@ -201,7 +201,7 @@ func (s *Server) tree(ctx context.Context, run gen.Run, out *adminv1.GetRunRespo
 }
 
 // findings adds the findings of the runs ids names to out, in tree order.
-func (s *Server) findings(ctx context.Context, ids []uuid.UUID, out *adminv1.GetRunResponse) error {
+func (s *Server) findings(ctx context.Context, ids []uuid.UUID, out *adminrunv1.GetRunResponse) error {
 	rows, err := s.store.ListRunFindings(ctx, ids)
 	if err != nil {
 		return err
@@ -238,7 +238,7 @@ func (s *Server) replay(ctx context.Context, id uuid.UUID) (*adminreplayv1.Repla
 // ListRunItems lists the items a run wrote, in the order it wrote them, a
 // page at a time. The page token is the last item's ordinal for a statement
 // run and its stated key id for any other kind.
-func (s *Server) ListRunItems(ctx context.Context, req *connect.Request[adminv1.ListRunItemsRequest]) (*connect.Response[adminv1.ListRunItemsResponse], error) {
+func (s *Server) ListRunItems(ctx context.Context, req *connect.Request[adminrunv1.ListRunItemsRequest]) (*connect.Response[adminrunv1.ListRunItemsResponse], error) {
 	m := req.Msg
 	row, err := s.userRun(ctx, m.GetRunId())
 	if err != nil {
@@ -246,7 +246,7 @@ func (s *Server) ListRunItems(ctx context.Context, req *connect.Request[adminv1.
 	}
 	p := page.New(m.GetPageSize())
 	run, lim := row.Run, p.Lim()
-	out := &adminv1.ListRunItemsResponse{}
+	out := &adminrunv1.ListRunItemsResponse{}
 	switch run.Kind {
 	case gen.RunKindStatement:
 		after, err := ordinalCursor(m.GetPageToken())
@@ -263,7 +263,7 @@ func (s *Server) ListRunItems(ctx context.Context, req *connect.Request[adminv1.
 			if err != nil {
 				return nil, connect.NewError(connect.CodeInternal, err)
 			}
-			out.Items = append(out.Items, &adminv1.RunItem{Item: &adminv1.RunItem_Statement{Statement: item}})
+			out.Items = append(out.Items, &adminrunv1.RunItem{Item: &adminrunv1.RunItem_Statement{Statement: item}})
 		}
 		if more {
 			out.NextPageToken = strconv.Itoa(int(rows[len(rows)-1].Ordinal))
@@ -280,7 +280,7 @@ func (s *Server) ListRunItems(ctx context.Context, req *connect.Request[adminv1.
 		rows, more := page.Cut(p, rows)
 		for _, it := range rows {
 			item := to.ProtoResolutionItem(it.StatedKey, &it.ResolutionKey)
-			out.Items = append(out.Items, &adminv1.RunItem{Item: &adminv1.RunItem_Resolution{Resolution: item}})
+			out.Items = append(out.Items, &adminrunv1.RunItem{Item: &adminrunv1.RunItem_Resolution{Resolution: item}})
 		}
 		if more {
 			out.NextPageToken = rows[len(rows)-1].StatedKey.ID.String()
@@ -296,7 +296,7 @@ func (s *Server) ListRunItems(ctx context.Context, req *connect.Request[adminv1.
 		}
 		rows, more := page.Cut(p, rows)
 		for _, it := range rows {
-			out.Items = append(out.Items, &adminv1.RunItem{Item: &adminv1.RunItem_Fetch{Fetch: fetchItem(it)}})
+			out.Items = append(out.Items, &adminrunv1.RunItem{Item: &adminrunv1.RunItem_Fetch{Fetch: fetchItem(it)}})
 		}
 		if more {
 			out.NextPageToken = rows[len(rows)-1].StatedKey.ID.String()
@@ -305,12 +305,12 @@ func (s *Server) ListRunItems(ctx context.Context, req *connect.Request[adminv1.
 	return connect.NewResponse(out), nil
 }
 
-func fetchItem(it gen.ListFetchItemsRow) *adminv1.FetchItem {
+func fetchItem(it gen.ListFetchItemsRow) *adminrunv1.FetchItem {
 	k := it.FetchKey
-	item := &adminv1.FetchItem{
+	item := &adminrunv1.FetchItem{
 		StatedKey:   to.ProtoStatedKey(it.StatedKey),
 		StatedKeyId: k.StatedKeyID.String(),
-		Outcome:     types.ToProto[adminv1.FetchOutcome](k.Outcome),
+		Outcome:     types.ToProto[adminrunv1.FetchOutcome](k.Outcome),
 		Attempts:    int32(k.Attempts),
 		Reason:      k.Reason,
 	}
@@ -348,7 +348,7 @@ func keyCursor(token string) (*uuid.UUID, error) {
 }
 
 // ClearFinding clears a finding that reports no block.
-func (s *Server) ClearFinding(ctx context.Context, req *connect.Request[adminv1.ClearFindingRequest]) (*connect.Response[adminv1.ClearFindingResponse], error) {
+func (s *Server) ClearFinding(ctx context.Context, req *connect.Request[adminrunv1.ClearFindingRequest]) (*connect.Response[adminrunv1.ClearFindingResponse], error) {
 	id, err := uuid.Parse(req.Msg.GetFindingId())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
@@ -363,16 +363,16 @@ func (s *Server) ClearFinding(ctx context.Context, req *connect.Request[adminv1.
 	if block != nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("the finding reports a block; clear the block"))
 	}
-	return connect.NewResponse(&adminv1.ClearFindingResponse{}), nil
+	return connect.NewResponse(&adminrunv1.ClearFindingResponse{}), nil
 }
 
 // finding writes row as its message, with what the key concerned states.
-func finding(row gen.ListRunFindingsRow) *adminv1.Finding {
+func finding(row gen.ListRunFindingsRow) *adminrunv1.Finding {
 	f := row.Finding
-	out := &adminv1.Finding{
+	out := &adminrunv1.Finding{
 		Id:        f.ID.String(),
 		RunId:     f.RunID.String(),
-		Kind:      types.ToProto[adminv1.FindingKind](f.Kind),
+		Kind:      types.ToProto[adminrunv1.FindingKind](f.Kind),
 		CreatedAt: timestamppb.New(f.CreatedAt),
 	}
 	if row.KeyID != nil {
@@ -393,7 +393,7 @@ func finding(row gen.ListRunFindingsRow) *adminv1.Finding {
 		out.FetchKeyId = &id
 	}
 	if f.Step != nil {
-		step := types.ToProto[adminv1.DropStep](*f.Step)
+		step := types.ToProto[adminrunv1.DropStep](*f.Step)
 		out.Step = &step
 	}
 	out.Detail = f.Detail
@@ -408,10 +408,10 @@ func finding(row gen.ListRunFindingsRow) *adminv1.Finding {
 
 // treeOrder numbers the runs of the tree under root in tree order: each run
 // before the runs below it, and those before its next sibling.
-func treeOrder(root *adminv1.UserRun) map[string]int {
+func treeOrder(root *adminrunv1.UserRun) map[string]int {
 	order := map[string]int{}
-	var walk func(r *adminv1.UserRun)
-	walk = func(r *adminv1.UserRun) {
+	var walk func(r *adminrunv1.UserRun)
+	walk = func(r *adminrunv1.UserRun) {
 		order[r.GetRun().GetId()] = len(order)
 		for _, c := range r.GetChildren() {
 			walk(c)
@@ -422,8 +422,8 @@ func treeOrder(root *adminv1.UserRun) map[string]int {
 }
 
 // userRun builds a run as the admin listings return it.
-func userRun(r gen.Run, email string, open int32, datasource, endpoint *string) *adminv1.UserRun {
-	return &adminv1.UserRun{
+func userRun(r gen.Run, email string, open int32, datasource, endpoint *string) *adminrunv1.UserRun {
+	return &adminrunv1.UserRun{
 		Run: to.ProtoRun(r), UserId: r.UserID.String(), UserEmail: email, OpenFindings: open, Matched: true,
 		Datasource: datasource, Endpoint: endpoint,
 	}

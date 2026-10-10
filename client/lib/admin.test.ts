@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { create } from "@bufbuild/protobuf";
-import { UserRunSchema } from "@/gen/admin/v1/admin_pb";
+import { UserRunSchema } from "@/gen/admin/run/v1/run_pb";
 import { timestampFromDate } from "@bufbuild/protobuf/wkt";
 import { RunKind, RunSchema } from "@/gen/run/v1/run_pb";
 import {

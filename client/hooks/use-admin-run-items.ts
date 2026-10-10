@@ -10,12 +10,12 @@ import { pollInterval } from "@/lib/run";
 // while live. A run is live while it or a run below it is still writing. As
 // useAuthedQuery does, it waits for a session.
 export function useAdminRunItems(id: string, live: boolean) {
-  const { admin } = useClients();
+  const { adminRun } = useClients();
   const { state } = useAuth();
   return useInfiniteQuery({
     queryKey: qk.adminRunItems(id),
     queryFn: ({ pageParam }) =>
-      admin.listRunItems({ runId: id, pageToken: pageParam }),
+      adminRun.listRunItems({ runId: id, pageToken: pageParam }),
     initialPageParam: "",
     getNextPageParam: (last) => last.nextPageToken || undefined,
     enabled: state.status === "authenticated",

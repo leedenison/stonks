@@ -39,8 +39,8 @@ const datasources: {
 const credential = "e2e";
 
 // Names the proxy as every datasource. The registry reads the table only
-// when a row changes through the admin service, so the values are also saved
-// through it.
+// when a row changes through the datasource service, so the values are
+// also saved through it.
 export default async function setup(): Promise<void> {
   try {
     for (const d of datasources) {
