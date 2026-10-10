@@ -3,7 +3,7 @@
 import { Button } from "@/app/components/button";
 import { Chip } from "@/app/components/chip";
 import { EmptyState } from "@/app/components/empty-state";
-import { IdentifierChips } from "@/app/components/identifier-chip";
+import { IdentifierChip } from "@/app/components/identifier-chip";
 import { Notice } from "@/app/components/notice";
 import { Page } from "@/app/components/page-frame";
 import { SkeletonRows } from "@/app/components/skeleton-rows";
@@ -16,9 +16,11 @@ import { type HoldingRow, holdingRows } from "@/lib/holdings";
 import { toFixed } from "@/lib/marshal/decimal";
 
 // The user's holdings, cash first, each with its raw quantity shown to two
-// places. A holding of an instrument is named by the instrument; a holding
-// of unresolved keys is named by what they state and marked as resting on
-// the user's statements alone.
+// places. A holding of an instrument is named by the ticker of the listing
+// the user holds. The venue follows the ticker, the brokers' descriptions
+// sit beneath, and one registry code sits beside. A holding of unresolved
+// keys is named by what they state and marked unidentified. Each row shows
+// the currencies held.
 export default function HoldingsPage() {
   const upload = useUpload();
   const { data, isPending, isError, refetch } = useHoldings();
@@ -55,6 +57,7 @@ export default function HoldingsPage() {
             <tr>
               <Th>Instrument</Th>
               <Th>Class</Th>
+              <Th>Currency</Th>
               <Th numeric>Quantity</Th>
             </tr>
           </Thead>
@@ -76,6 +79,12 @@ export default function HoldingsPage() {
                       <Chip key={c}>{assetClassLabel(c)}</Chip>
                     ))}
                   </Td>
+                  <Td
+                    className="font-mono tabular-nums"
+                    data-testid={`holding-currency-${h.id}`}
+                  >
+                    {h.currencies.join(" ")}
+                  </Td>
                   <Td numeric data-testid={`holding-qty-${h.id}`}>
                     {toFixed(h.quantity, 2)}
                   </Td>
@@ -89,20 +98,37 @@ export default function HoldingsPage() {
   );
 }
 
-// Name shows a holding's label with its identifiers, and for a group, the
-// unidentified mark.
+// Name shows a holding's label and what identifies it, and marks a group
+// unidentified.
 function Name({ row }: { row: HoldingRow }) {
   return (
     <span className="flex flex-col gap-1">
       <span className="flex items-center gap-2">
         <span>{row.label}</span>
+        {row.venue && (
+          <span
+            className="text-text-muted"
+            data-testid={`holding-venue-${row.id}`}
+          >
+            {row.venue}
+          </span>
+        )}
         {row.kind === "group" && (
           <Chip data-testid="holding-basis" data-state="unidentified">
             Unidentified
           </Chip>
         )}
       </span>
-      {row.identifiers.length > 0 && <IdentifierChips ids={row.identifiers} />}
+      {row.descriptions.length > 0 && (
+        <span className="text-sm text-text-muted">
+          {row.descriptions.join(" / ")}
+        </span>
+      )}
+      {row.code && (
+        <span>
+          <IdentifierChip id={row.code} />
+        </span>
+      )}
     </span>
   );
 }

@@ -4,14 +4,18 @@ import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import {
   GroupHoldingSchema,
+  HoldingKeySchema,
+  HoldingListingSchema,
   HoldingService,
   InstrumentHoldingSchema,
   ListHoldingsResponseSchema,
 } from "@/gen/holding/v1/holding_pb";
 import {
   AssetClass,
+  Broker,
   IdentifierSchema,
   IdentifierType,
+  StatedKeySchema,
 } from "@/gen/type/v1/type_pb";
 import { UploadProvider } from "@/contexts/upload-context";
 import { liveSession, renderWithAuth, transportWith } from "@/lib/test-utils";
@@ -68,6 +72,36 @@ const three = create(ListHoldingsResponseSchema, {
         }),
       ],
       quantity: "10",
+      listings: [
+        create(HoldingListingSchema, {
+          id: "l-usd",
+          currency: "USD",
+          venue: "Nasdaq",
+          ticker: create(IdentifierSchema, {
+            type: IdentifierType.MIC_TICKER,
+            domain: "XNAS",
+            value: "ACME",
+          }),
+        }),
+      ],
+      keys: [
+        create(HoldingKeySchema, {
+          statedKeyId: "k-acme",
+          statementId: "s-1",
+          broker: Broker.IBKR,
+          listingId: "l-usd",
+          quantity: "10",
+          statedKey: create(StatedKeySchema, {
+            identifiers: [
+              create(IdentifierSchema, {
+                type: IdentifierType.BROKER_DESCRIPTION,
+                domain: "ibkr",
+                value: "ACME INC",
+              }),
+            ],
+          }),
+        }),
+      ],
     }),
     create(InstrumentHoldingSchema, {
       instrumentId: "i-gbp",
@@ -173,12 +207,13 @@ describe("HoldingsPage", () => {
     expect(basis.getAttribute("data-state")).toBe("unidentified");
     expect(basis.textContent).toBe("Unidentified");
     expect(bae.textContent).toContain("BA.");
-    expect(bae.textContent).toContain("(ibkr)");
+    expect(bae.textContent).toContain("BAE SYSTEMS (BA.)");
     expect(bae.textContent).toContain("BAE SYSTEMS PLC");
+    expect(bae.textContent).not.toContain("(ibkr)");
     expect(screen.getAllByTestId("holding-basis")).toHaveLength(1);
   });
 
-  it("names a resolved holding by its ticker with its registry codes beside it", async () => {
+  it("names a resolved holding by its ticker at its venue, with the description and one code", async () => {
     renderWithAuth(
       page,
       serving(() => three),
@@ -189,8 +224,16 @@ describe("HoldingsPage", () => {
     const acme = screen.getByTestId("holding-row-i-acme");
     expect(acme.getAttribute("data-kind")).toBe("instrument");
     expect(acme.textContent).toContain("ACME");
+    expect(screen.getByTestId("holding-venue-i-acme").textContent).toBe(
+      "Nasdaq",
+    );
+    expect(acme.textContent).toContain("ACME INC");
     expect(acme.textContent).toContain("US0378331005");
+    expect(screen.getByTestId("holding-currency-i-acme").textContent).toBe(
+      "USD",
+    );
     expect(acme.textContent).not.toContain("XNYS");
+    expect(acme.textContent).not.toContain("XNAS");
     expect(acme.textContent).not.toContain("Unidentified");
   });
 

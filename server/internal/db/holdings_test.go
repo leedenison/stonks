@@ -65,6 +65,85 @@ func (h holder) record(t *testing.T, q *gen.Queries, key gen.StatedKey, quantity
 
 var decimalEqual = cmp.Comparer(func(a, b decimal.Decimal) bool { return a.Equal(b) })
 
+// venueTicker gives listing a ticker at venue.
+func venueTicker(t *testing.T, q *gen.Queries, listing gen.Listing, venue, value string) {
+	t.Helper()
+	_, err := q.CreateIdentifier(context.Background(), gen.CreateIdentifierParams{ID: db.NewID(), InstrumentID: listing.InstrumentID, ListingID: &listing.ID, Type: types.IdentifierTypeMicTicker, Domain: venue, Value: value})
+	require.NoError(t, err)
+}
+
+// TestListListingNames checks that each listing is named by one ticker,
+// chosen by primary venue, then rank, then MIC, and has none where it has
+// no tickers.
+func TestListListingNames(t *testing.T) {
+	ctx := context.Background()
+	q := newTx(t)
+	instrument := newInstrument(t, q, gen.AssetClassEquity)
+	primary := newListing(t, q, instrument, "GBP")
+	require.NoError(t, q.SetListingPrimary(ctx, gen.SetListingPrimaryParams{ID: primary.ID, PrimaryMic: ptr.To("XLON")}))
+	venueTicker(t, q, primary, "XNYS", "ACME")
+	venueTicker(t, q, primary, "XLON", "ACME")
+	ranked := newListing(t, q, instrument, "EUR")
+	venueTicker(t, q, ranked, "AQSE", "ACMX")
+	venueTicker(t, q, ranked, "XLON", "ACMX")
+	unranked := newListing(t, q, instrument, "USD")
+	venueTicker(t, q, unranked, "XXXB", "ACMU")
+	venueTicker(t, q, unranked, "XXXA", "ACMU")
+	bare := newListing(t, q, instrument, "CHF")
+
+	got, err := q.ListListingNames(ctx, []uuid.UUID{instrument.ID})
+	require.NoError(t, err)
+	want := []gen.ListListingNamesRow{
+		{ListingID: bare.ID, InstrumentID: instrument.ID, Currency: "CHF"},
+		{ListingID: ranked.ID, InstrumentID: instrument.ID, Currency: "EUR", TickerDomain: ptr.To("XLON"), TickerValue: ptr.To("ACMX"), Venue: "LSE"},
+		{ListingID: primary.ID, InstrumentID: instrument.ID, Currency: "GBP", TickerDomain: ptr.To("XLON"), TickerValue: ptr.To("ACME"), Venue: "LSE"},
+		{ListingID: unranked.ID, InstrumentID: instrument.ID, Currency: "USD", TickerDomain: ptr.To("XXXA"), TickerValue: ptr.To("ACMU"), Venue: "XXXA"},
+	}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("ListListingNames mismatch (-want +got):\n%s", diff)
+	}
+}
+
+// TestListHoldingKeys checks that the user's keys with a transaction are
+// listed with their transactions summed, resolved or grouped alike, newest
+// statement first, and that another user's keys are omitted.
+func TestListHoldingKeys(t *testing.T) {
+	ctx := context.Background()
+	q := newTx(t)
+	h := newHolder(t, q, "keys@example.com")
+	instrument := newInstrument(t, q, gen.AssetClassEquity)
+	via := newIdentifier(t, q, instrument, "US0378331005")
+	usd := newListing(t, q, instrument, "USD")
+	resolved := h.key(t, q, "ACME CORP", &usd, &via)
+	h.record(t, q, resolved, "10")
+	h.record(t, q, resolved, "-2.5")
+	grouped := h.key(t, q, "ACME CORPORATION", nil, nil)
+	require.NoError(t, q.SetStatedKeyGroups(ctx, gen.SetStatedKeyGroupsParams{UserID: h.user.ID, Ids: []uuid.UUID{grouped.ID}, GroupIds: []uuid.UUID{grouped.ID}}))
+	h.record(t, q, grouped, "3")
+	h.key(t, q, "NEVER TRADED", nil, nil)
+	later := holder{user: h.user, statement: newStatement(t, q, h.user)}
+	newer := later.key(t, q, "ACME CORP LATER", &usd, &via)
+	later.record(t, q, newer, "1")
+	other := newHolder(t, q, "other@example.com")
+	other.record(t, q, other.key(t, q, "ACME CORP", &usd, &via), "7")
+
+	got, err := q.ListHoldingKeys(ctx, h.user.ID)
+	require.NoError(t, err)
+	type row struct {
+		Key      uuid.UUID
+		Broker   gen.Broker
+		Quantity string
+	}
+	var rows []row
+	for _, r := range got {
+		rows = append(rows, row{r.StatedKey.ID, r.Broker, r.Quantity.String()})
+	}
+	want := []row{{newer.ID, gen.BrokerIbkr, "1"}, {resolved.ID, gen.BrokerIbkr, "7.5"}, {grouped.ID, gen.BrokerIbkr, "3"}}
+	if diff := cmp.Diff(want, rows); diff != "" {
+		t.Errorf("ListHoldingKeys mismatch (-want +got):\n%s", diff)
+	}
+}
+
 func holding(instrument gen.Instrument, quantity string) gen.ListInstrumentHoldingsRow {
 	return gen.ListInstrumentHoldingsRow{InstrumentID: instrument.ID, AssetClass: instrument.AssetClass, Quantity: decimal.RequireFromString(quantity)}
 }

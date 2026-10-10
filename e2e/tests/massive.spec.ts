@@ -51,11 +51,11 @@ test("asks Massive beside OpenFIGI and matches the key once", async ({
 
   const holdings = await holdingClient(userSession).listHoldings({});
   expect(holdings.groups).toHaveLength(0);
-  expect(
-    holdings.instruments.filter((h) =>
-      h.identifiers.some((i) => i.value === cusip),
-    ),
-  ).toHaveLength(1);
+  const held = holdings.instruments.filter((h) =>
+    h.identifiers.some((i) => i.value === cusip),
+  );
+  expect(held).toHaveLength(1);
+  expect(held[0].listings.map((l) => l.venue)).toContain("NYSE");
   const instruments = await instrumentClient(userSession).listInstruments({});
   const matched = instruments.instruments.filter((i) =>
     i.identifiers.some((x) => x.value === cusip),

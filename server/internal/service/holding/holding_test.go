@@ -55,6 +55,8 @@ func newFixture(t *testing.T) *fixture {
 }
 
 func TestListHoldings(t *testing.T) {
+	stmtID, acmeListingID, acmeKeyID := uuid.MustParse("00000000-0000-0000-0000-000000000040"), uuid.MustParse("00000000-0000-0000-0000-000000000050"), uuid.MustParse("00000000-0000-0000-0000-000000000060")
+	gbpListingID := uuid.MustParse("00000000-0000-0000-0000-000000000051")
 	rows := []gen.ListInstrumentHoldingsRow{
 		{InstrumentID: gbpID, AssetClass: gen.AssetClassCash, Quantity: decimal.RequireFromString("12092.79")},
 		{InstrumentID: acmeID, AssetClass: gen.AssetClassSecurity, Quantity: decimal.RequireFromString("-141")},
@@ -64,10 +66,22 @@ func TestListHoldings(t *testing.T) {
 		{InstrumentID: acmeID, Type: types.IdentifierTypeIsin, Value: "GB0002634946"},
 		{InstrumentID: acmeID, Type: types.IdentifierTypeSedol, Value: "0263494"},
 	}
+	// The pound listing has no ticker; ACME's is named at the LSE.
+	listings := []gen.ListListingNamesRow{
+		{ListingID: gbpListingID, InstrumentID: gbpID, Currency: "GBP"},
+		{ListingID: acmeListingID, InstrumentID: acmeID, Currency: "GBP", TickerDomain: ptr.To("XLON"), TickerValue: ptr.To("ACME"), Venue: "LSE"},
+	}
+	acmeISIN := types.Identifier{Type: types.IdentifierTypeIsin, Value: "GB0002634946"}
+	acmeDescribed := types.Identifier{Type: types.IdentifierTypeBrokerDescription, Domain: "ibkr", Value: "ACME PLC"}
+	instrumentKeys := []gen.ListHoldingKeysRow{{
+		StatedKey: gen.StatedKey{ID: acmeKeyID, StatementID: stmtID, InstrumentID: &acmeID, ListingID: &acmeListingID, Identifiers: []types.Identifier{acmeISIN, acmeDescribed}},
+		Broker:    gen.BrokerIbkr, Quantity: decimal.RequireFromString("-141"),
+	}}
 	wantInstruments := []*holdingv1.InstrumentHolding{
 		{
 			InstrumentId: gbpID.String(), AssetClass: typev1.AssetClass_ASSET_CLASS_CASH, Quantity: "12092.79",
 			Identifiers: []*typev1.Identifier{{Type: typev1.IdentifierType_IDENTIFIER_TYPE_CURRENCY, Value: "GBP"}},
+			Listings:    []*holdingv1.HoldingListing{{Id: gbpListingID.String(), Currency: "GBP"}},
 		},
 		{
 			InstrumentId: acmeID.String(), AssetClass: typev1.AssetClass_ASSET_CLASS_SECURITY, Quantity: "-141",
@@ -75,6 +89,17 @@ func TestListHoldings(t *testing.T) {
 				{Type: typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, Value: "GB0002634946"},
 				{Type: typev1.IdentifierType_IDENTIFIER_TYPE_SEDOL, Value: "0263494"},
 			},
+			Listings: []*holdingv1.HoldingListing{{
+				Id: acmeListingID.String(), Currency: "GBP", Venue: "LSE",
+				Ticker: &typev1.Identifier{Type: typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, Domain: "XLON", Value: "ACME"},
+			}},
+			Keys: []*holdingv1.HoldingKey{{
+				StatedKeyId: acmeKeyID.String(), StatementId: stmtID.String(), Broker: typev1.Broker_BROKER_IBKR, ListingId: acmeListingID.String(), Quantity: "-141",
+				StatedKey: &typev1.StatedKey{Identifiers: []*typev1.Identifier{
+					{Type: typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, Value: "GB0002634946"},
+					{Type: typev1.IdentifierType_IDENTIFIER_TYPE_BROKER_DESCRIPTION, Domain: "ibkr", Value: "ACME PLC"},
+				}},
+			}},
 		},
 	}
 
@@ -85,47 +110,54 @@ func TestListHoldings(t *testing.T) {
 	ticker := types.Identifier{Type: types.IdentifierTypeMicTicker, Value: "ACME"}
 	ibkr := types.Identifier{Type: types.IdentifierTypeBrokerDescription, Domain: "ibkr", Value: "ACME CORP"}
 	schwab := types.Identifier{Type: types.IdentifierTypeBrokerDescription, Domain: "schwab", Value: "ACME CORPORATION"}
-	groupKeys := []gen.StatedKey{
-		{GroupID: &groupID, AssetClass: ptr.To(gen.AssetClassEquity), Identifiers: []types.Identifier{ibkr, isin}},
-		{GroupID: &groupID, AssetClass: ptr.To(gen.AssetClassSecurity), Identifiers: []types.Identifier{schwab, isin, ticker}},
+	k1, k2 := uuid.MustParse("00000000-0000-0000-0000-000000000061"), uuid.MustParse("00000000-0000-0000-0000-000000000062")
+	groupKeys := []gen.ListHoldingKeysRow{
+		{StatedKey: gen.StatedKey{ID: k1, StatementID: stmtID, GroupID: &groupID, AssetClass: ptr.To(gen.AssetClassEquity), Identifiers: []types.Identifier{ibkr, isin}}, Broker: gen.BrokerIbkr, Quantity: decimal.RequireFromString("10")},
+		{StatedKey: gen.StatedKey{ID: k2, StatementID: stmtID, GroupID: &groupID, AssetClass: ptr.To(gen.AssetClassSecurity), Identifiers: []types.Identifier{schwab, isin, ticker}}, Broker: gen.BrokerSchwab, Quantity: decimal.RequireFromString("2.5")},
 	}
+	protoISIN := &typev1.Identifier{Type: typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, Value: "US0000000001"}
+	protoIbkr := &typev1.Identifier{Type: typev1.IdentifierType_IDENTIFIER_TYPE_BROKER_DESCRIPTION, Domain: "ibkr", Value: "ACME CORP"}
+	protoSchwab := &typev1.Identifier{Type: typev1.IdentifierType_IDENTIFIER_TYPE_BROKER_DESCRIPTION, Domain: "schwab", Value: "ACME CORPORATION"}
+	protoTicker := &typev1.Identifier{Type: typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, Value: "ACME"}
 	wantGroups := []*holdingv1.GroupHolding{{
 		GroupId: groupID.String(), Quantity: "12.5",
 		AssetClasses: []typev1.AssetClass{typev1.AssetClass_ASSET_CLASS_SECURITY, typev1.AssetClass_ASSET_CLASS_EQUITY},
-		Identifiers: []*typev1.Identifier{
-			{Type: typev1.IdentifierType_IDENTIFIER_TYPE_BROKER_DESCRIPTION, Domain: "ibkr", Value: "ACME CORP"},
-			{Type: typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, Value: "US0000000001"},
-			{Type: typev1.IdentifierType_IDENTIFIER_TYPE_BROKER_DESCRIPTION, Domain: "schwab", Value: "ACME CORPORATION"},
-			{Type: typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, Value: "ACME"},
+		Identifiers:  []*typev1.Identifier{protoIbkr, protoISIN, protoSchwab, protoTicker},
+		Keys: []*holdingv1.HoldingKey{
+			{StatedKeyId: k1.String(), StatementId: stmtID.String(), Broker: typev1.Broker_BROKER_IBKR, Quantity: "10", StatedKey: &typev1.StatedKey{AssetClass: typev1.AssetClass_ASSET_CLASS_EQUITY, Identifiers: []*typev1.Identifier{protoIbkr, protoISIN}}},
+			{StatedKeyId: k2.String(), StatementId: stmtID.String(), Broker: typev1.Broker_BROKER_SCHWAB, Quantity: "2.5", StatedKey: &typev1.StatedKey{AssetClass: typev1.AssetClass_ASSET_CLASS_SECURITY, Identifiers: []*typev1.Identifier{protoSchwab, protoISIN, protoTicker}}},
 		},
 	}}
 
 	tests := []struct {
-		name       string
-		authErr    error
-		rows       []gen.ListInstrumentHoldingsRow
-		rowsErr    error
-		idents     []gen.Identifier
-		identsErr  error
-		groups     []gen.ListGroupHoldingsRow
-		groupsErr  error
-		keys       []gen.StatedKey
-		keysErr    error
-		want       []*holdingv1.InstrumentHolding
-		wantGroups []*holdingv1.GroupHolding
-		wantCode   connect.Code
+		name        string
+		authErr     error
+		rows        []gen.ListInstrumentHoldingsRow
+		rowsErr     error
+		idents      []gen.Identifier
+		identsErr   error
+		listings    []gen.ListListingNamesRow
+		listingsErr error
+		groups      []gen.ListGroupHoldingsRow
+		groupsErr   error
+		keys        []gen.ListHoldingKeysRow
+		keysErr     error
+		want        []*holdingv1.InstrumentHolding
+		wantGroups  []*holdingv1.GroupHolding
+		wantCode    connect.Code
 	}{
 		{name: "none"},
-		{name: "instruments only", rows: rows, idents: idents, want: wantInstruments},
+		{name: "instruments only", rows: rows, idents: idents, listings: listings, keys: instrumentKeys, want: wantInstruments},
 		{name: "groups only", groups: groupRows, keys: groupKeys, wantGroups: wantGroups},
 		{
-			name: "both kinds", rows: rows, idents: idents, groups: groupRows, keys: groupKeys,
+			name: "both kinds", rows: rows, idents: idents, listings: listings, groups: groupRows, keys: append(instrumentKeys, groupKeys...),
 			want: wantInstruments, wantGroups: wantGroups,
 		},
+		{name: "keys failure", keysErr: errors.New("boom"), wantCode: connect.CodeInternal},
 		{name: "holdings failure", rowsErr: errors.New("boom"), wantCode: connect.CodeInternal},
 		{name: "identifiers failure", rows: rows, identsErr: errors.New("boom"), wantCode: connect.CodeInternal},
+		{name: "listings failure", rows: rows, idents: idents, listingsErr: errors.New("boom"), wantCode: connect.CodeInternal},
 		{name: "group holdings failure", groupsErr: errors.New("boom"), wantCode: connect.CodeInternal},
-		{name: "group keys failure", groups: groupRows, keysErr: errors.New("boom"), wantCode: connect.CodeInternal},
 		{name: "unauthenticated", authErr: auth.ErrUnauthenticated, wantCode: connect.CodeUnauthenticated},
 	}
 	for _, tc := range tests {
@@ -134,11 +166,11 @@ func TestListHoldings(t *testing.T) {
 			f.authn.EXPECT().Authenticate(gomock.Any(), servicetest.Session).Return(principal, tc.authErr)
 			// Each read is offered once, and what the handler reads after a
 			// failure does not matter to the response.
+			f.reader.EXPECT().ListHoldingKeys(gomock.Any(), userID).Return(tc.keys, tc.keysErr).MaxTimes(1)
 			f.reader.EXPECT().ListInstrumentHoldings(gomock.Any(), userID).Return(tc.rows, tc.rowsErr).MaxTimes(1)
 			f.reader.EXPECT().ListIdentifiersOf(gomock.Any(), []uuid.UUID{gbpID, acmeID}).Return(tc.idents, tc.identsErr).MaxTimes(1)
+			f.reader.EXPECT().ListListingNames(gomock.Any(), []uuid.UUID{gbpID, acmeID}).Return(tc.listings, tc.listingsErr).MaxTimes(1)
 			f.reader.EXPECT().ListGroupHoldings(gomock.Any(), userID).Return(tc.groups, tc.groupsErr).MaxTimes(1)
-			keysArg := gen.ListStatedKeysOfGroupsParams{UserID: userID, GroupIds: []uuid.UUID{groupID}}
-			f.reader.EXPECT().ListStatedKeysOfGroups(gomock.Any(), keysArg).Return(tc.keys, tc.keysErr).MaxTimes(1)
 			res, err := f.client.ListHoldings(context.Background(), connect.NewRequest(&holdingv1.ListHoldingsRequest{}))
 			if servicetest.CodeOf(err) != tc.wantCode {
 				t.Fatalf("ListHoldings() code = %v (err %v), want %v", servicetest.CodeOf(err), err, tc.wantCode)

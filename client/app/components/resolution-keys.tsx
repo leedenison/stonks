@@ -34,7 +34,7 @@ export function ResolutionKeys({
     <div data-testid={testId} className="flex flex-col gap-4">
       {byClass(keys).map(([c, group]) => (
         <div key={c} className="flex flex-col gap-2">
-          <h3 className="text-sm font-medium text-text-secondary">
+          <h3 className="text-sm font-medium text-text-muted">
             {c === AssetClass.UNKNOWN ? "Unknown class" : assetClassLabel(c)}
           </h3>
           <TableCard testId={`${testId}-${AssetClass[c].toLowerCase()}`} fixed>
