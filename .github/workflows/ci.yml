@@ -71,9 +71,27 @@ jobs:
           - client-test
           - db-test
           - e2e-test
+    env:
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
     steps:
       - uses: actions/checkout@v7
         if: needs.filter.outputs.gates == 'true'
+      # Pulls of images the mirror caches do not count against Docker Hub's limit.
+      - name: Pull through mirror.gcr.io
+        if: needs.filter.outputs.gates == 'true'
+        run: |
+          set -euo pipefail
+          conf=/etc/docker/daemon.json
+          [ -f "$conf" ] || echo '{}' | sudo tee "$conf" > /dev/null
+          jq '. + {"registry-mirrors": ["https://mirror.gcr.io"]}' "$conf" | sudo tee "$conf.new" > /dev/null
+          sudo mv "$conf.new" "$conf"
+          sudo systemctl restart docker
+      # Forks have no secrets, so the login is skipped.
+      - uses: docker/login-action@v3
+        if: needs.filter.outputs.gates == 'true' && env.DOCKERHUB_USERNAME != ''
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
       - run: make ${{ matrix.target }}
         if: needs.filter.outputs.gates == 'true'
 

@@ -60,40 +60,6 @@ Prefer smaller, focused PRs to reduce review burden:
 * Maximum: Going over is acceptable when necessary, but avoid PRs exceeding 1000 lines if
   they can be split
 
-### Before opening a PR
-
-Run `make check`, `make test` and `make e2e-test` and get them passing.
-
-A test that fails for a reason the change did not cause is still a result to act on: say
-so in the PR description, with the evidence that it fails on an unmodified tree.
-
-### Merging
-
-A pull request arrives as one commit. Squash the branch before pushing it, and before
-branching the next pull request from it:
-
-```
-git reset --soft origin/main && git commit
-```
-
-Squashing a branch another branch already descends from orphans the descendant, so the
-squash comes first. A review that lands once the child branch exists takes a second
-commit.
-
-Merge with `gh pr merge <n> --merge`.
-
-**Never pass `--delete-branch`.** The repository has `delete_branch_on_merge` enabled, so
-the branch is removed as part of the merge, and that merge-linked deletion is what
-retargets any PR based on the branch.
-
-Merge a stack parent first, one at a time, and let each merge retarget the next.
-
-### Branching Workflow
-
-When a plan calls for multiple PRs, create and complete each PR on its own feature branch
-before starting the next. Do not implement all changes on a single branch and attempt to
-separate them afterward -- this is error-prone and creates unnecessary rework.
-
 ### Worktrees
 
 Whenever you begin work in a new worktree you should:
