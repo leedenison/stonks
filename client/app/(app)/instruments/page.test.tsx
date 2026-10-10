@@ -49,6 +49,7 @@ const two = create(ListInstrumentsResponseSchema, {
         create(ListingSchema, {
           id: "l-usd",
           currency: "USD",
+          primaryMic: "XNYS",
           identifiers: [
             ident(IdentifierType.MIC_TICKER, "ACME", "XNAS"),
             ident(IdentifierType.OPENFIGI_COMPOSITE, "BBG000B9XRY4"),
@@ -110,6 +111,7 @@ describe("InstrumentsPage", () => {
     const usd = screen.getByTestId("listing-l-usd");
     expect(usd.textContent).toContain("USD");
     expect(usd.textContent).toContain("XNAS");
+    expect(usd.textContent).toContain("XNYS");
     expect(usd.textContent).toContain("BBG000B9XRY4");
     expect(screen.getByTestId("listing-l-gbp").textContent).toContain("XLON");
     const gbp = screen.getByTestId("instrument-row-i-gbp");

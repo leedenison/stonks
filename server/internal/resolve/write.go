@@ -442,7 +442,8 @@ func (w *writer) create(ctx context.Context, winner *group) (gen.Instrument, err
 
 // attach writes the listings and identifiers of g the instrument lacks,
 // each with g's fetch key as provenance, and records the fetch key's
-// response against the instrument.
+// response against the instrument. A listing takes the primary venue g
+// states only while it has none, whichever run or group created it.
 func (w *writer) attach(ctx context.Context, g *group) error {
 	fetchKey := g.r.ID
 	for _, id := range g.instrument {
@@ -455,12 +456,23 @@ func (w *writer) attach(ctx context.Context, g *group) error {
 			continue
 		}
 		l, ok := w.listings[fam]
-		if !ok {
+		var primary *string
+		if p := g.primary[fam]; p != "" {
+			primary = &p
+		}
+		switch {
+		case !ok:
 			var err error
-			l, err = w.q.CreateListing(ctx, gen.CreateListingParams{ID: db.NewID(), InstrumentID: w.instrument.ID, Currency: fam, FetchKeyID: &fetchKey})
+			l, err = w.q.CreateListing(ctx, gen.CreateListingParams{ID: db.NewID(), InstrumentID: w.instrument.ID, Currency: fam, FetchKeyID: &fetchKey, PrimaryMic: primary})
 			if err != nil {
 				return fmt.Errorf("create listing in %s: %w", fam, err)
 			}
+			w.listings[fam] = l
+		case l.PrimaryMic == nil && primary != nil:
+			if err := w.q.SetListingPrimary(ctx, gen.SetListingPrimaryParams{ID: l.ID, PrimaryMic: primary}); err != nil {
+				return fmt.Errorf("set primary venue of listing in %s: %w", fam, err)
+			}
+			l.PrimaryMic = primary
 			w.listings[fam] = l
 		}
 		for _, id := range g.listings[fam] {

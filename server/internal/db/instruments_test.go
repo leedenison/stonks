@@ -20,6 +20,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/types"
 	"github.com/leedenison/stonks/server/internal/mic"
+	"github.com/leedenison/stonks/server/internal/ptr"
 )
 
 // sqlstate reports whether err is a Postgres error with the given SQLSTATE.
@@ -128,6 +129,42 @@ func TestMICSeed(t *testing.T) {
 	for m, op := range tbl {
 		if tbl[op] != op {
 			t.Errorf("%s: operating MIC %s has operating MIC %q, want itself", m, op, tbl[op])
+		}
+	}
+}
+
+// TestVenueNames checks that every named venue is an operating MIC.
+func TestVenueNames(t *testing.T) {
+	ctx := context.Background()
+	q := newTx(t)
+	tbl, err := mic.Load(ctx, q)
+	require.NoError(t, err)
+	rows, err := q.ListVenueNames(ctx)
+	require.NoError(t, err)
+	if len(rows) == 0 {
+		t.Fatal("no venue names seeded")
+	}
+	for _, r := range rows {
+		if op, ok := tbl.Operating(r.Mic); !ok || op != r.Mic {
+			t.Errorf("%s (%s): operating MIC %q, %v, want itself", r.Mic, r.Name, op, ok)
+		}
+	}
+}
+
+// TestSetListingPrimary checks that a listing's primary venue is set once.
+func TestSetListingPrimary(t *testing.T) {
+	ctx := context.Background()
+	q := newTx(t)
+	listing := newListing(t, q, newInstrument(t, q, gen.AssetClassStock), "USD")
+	if listing.PrimaryMic != nil {
+		t.Fatalf("new listing primary venue = %q, want none", *listing.PrimaryMic)
+	}
+	for _, mic := range []string{"XNAS", "XNYS"} {
+		require.NoError(t, q.SetListingPrimary(ctx, gen.SetListingPrimaryParams{ID: listing.ID, PrimaryMic: ptr.To(mic)}))
+		rows, err := q.ListListings(ctx, listing.InstrumentID)
+		require.NoError(t, err)
+		if len(rows) != 1 || rows[0].PrimaryMic == nil || *rows[0].PrimaryMic != "XNAS" {
+			t.Errorf("after setting %s: listings = %+v, want the primary venue XNAS", mic, rows)
 		}
 	}
 }

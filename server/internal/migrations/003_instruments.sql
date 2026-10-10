@@ -145,12 +145,16 @@ CREATE TABLE instruments (
 -- fungible within a listing: a composite identifier names the venues of one
 -- market, tickers sharing a composite name one listing, and a listing carries
 -- a composite per market in which it trades. A ticker is kept per venue as a
--- handle for a datasource that must be asked at one venue.
+-- handle for a datasource that must be asked at one venue. A listing's
+-- primary venue names it to the user.
 CREATE TABLE listings (
     id            uuid        PRIMARY KEY,
     instrument_id uuid        NOT NULL REFERENCES instruments (id),
     -- currency is a family code: a listing quoted in pence is the GBP listing.
     currency      text        NOT NULL,
+    -- primary_mic is the operating MIC of the venue a datasource stated as
+    -- the listing's primary; NULL where none has.
+    primary_mic   text,
     created_at    timestamptz NOT NULL DEFAULT now(),
     UNIQUE (instrument_id, currency),
     UNIQUE (id, instrument_id),

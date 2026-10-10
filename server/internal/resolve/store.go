@@ -23,6 +23,7 @@ type Queries interface {
 	LockIdentifiers(ctx context.Context, keys []string) error
 	CreateInstrument(ctx context.Context, arg gen.CreateInstrumentParams) (gen.Instrument, error)
 	CreateListing(ctx context.Context, arg gen.CreateListingParams) (gen.Listing, error)
+	SetListingPrimary(ctx context.Context, arg gen.SetListingPrimaryParams) error
 	CreateIdentifier(ctx context.Context, arg gen.CreateIdentifierParams) (gen.Identifier, error)
 	UpsertIdentityCoverage(ctx context.Context, arg gen.UpsertIdentityCoverageParams) error
 	SetFetchKeyInstrument(ctx context.Context, arg gen.SetFetchKeyInstrumentParams) error

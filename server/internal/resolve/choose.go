@@ -30,6 +30,9 @@ type group struct {
 	// listings is keyed by currency family, noFamily where the candidates
 	// carry no known currency.
 	listings map[string][]types.Identifier
+	// primary is the primary venue of each family's listing, from the
+	// first candidate of the family stating one.
+	primary map[string]string
 	// named reports whether the identifier the key was sent under
 	// identifies the group.
 	named bool
@@ -149,6 +152,12 @@ func (g *group) add(c market.Candidate, fam string) {
 		}
 	}
 	g.listings[fam] = l
+	if c.Primary != "" && g.primary[fam] == "" {
+		if g.primary == nil {
+			g.primary = map[string]string{}
+		}
+		g.primary[fam] = c.Primary
+	}
 }
 
 func appendUnique(ids []types.Identifier, id types.Identifier) []types.Identifier {

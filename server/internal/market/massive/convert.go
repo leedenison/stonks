@@ -74,7 +74,11 @@ func candidate(r record, mics mic.Table) (market.Candidate, bool) {
 		c.Identifiers = append(c.Identifiers, types.Identifier{Type: types.IdentifierTypeOpenfigiComposite, Value: r.CompositeFIGI})
 	}
 	op, ok := mics.Operating(r.PrimaryExchange)
-	if ok && r.Ticker != "" && !preferred(r.Ticker) {
+	if !ok {
+		return c, true
+	}
+	c.Primary = op
+	if r.Ticker != "" && !preferred(r.Ticker) {
 		c.Identifiers = append(c.Identifiers, types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: op, Value: r.Ticker})
 	}
 	return c, true

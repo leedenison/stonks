@@ -32,6 +32,10 @@ func TestCandidate(t *testing.T) {
 			want: market.Candidate{Class: gen.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{symbol("AAPL.US"), isin, cusip, ticker("XNAS", "AAPL")}},
 		},
 		{
+			name: "the primary row states its venue", row: row{Code: "AAPL", Exchange: "US", Type: "Common Stock", Currency: "USD", ISIN: "US0378331005", IsPrimary: true}, mapping: mapped, venue: "NASDAQ", ok: true,
+			want: market.Candidate{Class: gen.AssetClassStock, Currency: "USD", Primary: "XNAS", Identifiers: []types.Identifier{symbol("AAPL.US"), isin, cusip, ticker("XNAS", "AAPL")}},
+		},
+		{
 			name: "a class share at a segment", row: row{Code: "BRK-B", Exchange: "US", Type: "Common Stock", Currency: "USD"}, venue: "NYSE ARCA", ok: true,
 			want: market.Candidate{Class: gen.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{symbol("BRK-B.US"), ticker("XNYS", "BRK.B")}},
 		},

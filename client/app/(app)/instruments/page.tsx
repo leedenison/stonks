@@ -82,6 +82,11 @@ export default function InstrumentsPage() {
                           <span className="font-mono tabular-nums">
                             {l.currency}
                           </span>
+                          {l.primaryMic && (
+                            <span className="text-text-muted">
+                              {l.primaryMic}
+                            </span>
+                          )}
                           <IdentifierChips ids={l.identifiers} />
                         </span>
                       ))}

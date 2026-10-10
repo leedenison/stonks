@@ -18,6 +18,9 @@ message Listing {
   string currency = 2;
   // The listing grain identifiers naming it.
   repeated stonks.type.v1.Identifier identifiers = 3;
+  // The operating MIC of the venue a datasource stated as the listing's
+  // primary; empty where none has.
+  string primary_mic = 4;
 }
 
 message Instrument {
