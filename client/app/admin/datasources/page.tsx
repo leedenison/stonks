@@ -29,7 +29,7 @@ import { Notice } from "@/app/components/notice";
 import { Page } from "@/app/components/page-frame";
 import { SkeletonRows } from "@/app/components/skeleton-rows";
 import { TableCard, Td, Th, Thead, Tr } from "@/app/components/table";
-import type { Datasource } from "@/gen/admin/v1/admin_pb";
+import type { Datasource } from "@/gen/admin/datasource/v1/datasource_pb";
 import {
   useDatasources,
   useReorderDatasources,

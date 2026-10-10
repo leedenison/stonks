@@ -1,5 +1,5 @@
 import type { JsonObject } from "@bufbuild/protobuf";
-import { adminClient } from "./api";
+import { datasourceClient } from "./api";
 import { closeRedis, deleteSession, seedSession } from "./auth";
 import { closeDB, deleteUsers, seedDatasource, seedUser } from "./db";
 
@@ -50,7 +50,7 @@ export default async function setup(): Promise<void> {
     const session = await seedSession(admin);
     try {
       for (const d of datasources) {
-        await adminClient(session).updateDatasource({
+        await datasourceClient(session).updateDatasource({
           name: d.name,
           enabled: true,
           endpoint: d.endpoint,

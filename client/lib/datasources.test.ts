@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   DatasourceSchema,
   ListDatasourcesResponseSchema,
-} from "@/gen/admin/v1/admin_pb";
+} from "@/gen/admin/datasource/v1/datasource_pb";
 import { reordered } from "./datasources";
 
 describe("reordered", () => {

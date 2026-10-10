@@ -8,6 +8,10 @@ import {
   ClearBlockResponseSchema,
 } from "@/gen/admin/block/v1/block_pb";
 import {
+  DatasourceService,
+  ListDatasourcesResponseSchema,
+} from "@/gen/admin/datasource/v1/datasource_pb";
+import {
   AdminService,
   ClearFindingResponseSchema,
   FetchItemSchema,
@@ -16,7 +20,6 @@ import {
   FindingKind,
   FindingSchema,
   GetRunResponseSchema,
-  ListDatasourcesResponseSchema,
   ListRunItemsResponseSchema,
   ReplaySchema,
   RunItemSchema,
@@ -49,15 +52,17 @@ vi.mock("next/navigation", () => ({
 const admin = liveSession({ role: Role.ADMIN });
 
 // serving answers getRun as given and lists no items unless the admin
-// methods say otherwise, and serves the block methods given.
+// methods say otherwise, and serves the block and datasource methods given.
 function serving(
   getRun: ServiceImpl<typeof AdminService>["getRun"],
   {
     admin: adminImpl = {},
     block = {},
+    datasource = {},
   }: {
     admin?: Partial<ServiceImpl<typeof AdminService>>;
     block?: Partial<ServiceImpl<typeof BlockService>>;
+    datasource?: Partial<ServiceImpl<typeof DatasourceService>>;
   } = {},
 ) {
   return transportWith(admin, ({ service }) => {
@@ -67,6 +72,7 @@ function serving(
       ...adminImpl,
     });
     service(BlockService, block);
+    service(DatasourceService, datasource);
   });
 }
 
@@ -407,9 +413,9 @@ describe("AdminRunPage", () => {
     renderWithAuth(
       <AdminRunPage />,
       serving(() => statement, {
-        admin: {
+        admin: { startReplay },
+        datasource: {
           listDatasources: () => create(ListDatasourcesResponseSchema, {}),
-          startReplay,
         },
       }),
     );

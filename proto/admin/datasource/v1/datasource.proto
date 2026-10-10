@@ -1,0 +1,72 @@
+// The external providers this instance may call, and their settings.
+
+syntax = "proto3";
+
+package stonks.admin.datasource.v1;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/struct.proto";
+
+option go_package = "github.com/leedenison/stonks/proto/admin/datasource/v1;admindatasourcev1";
+
+// One external provider this instance may call.
+message Datasource {
+  // Selects the integration.
+  string name = 1;
+  bool enabled = 2;
+  // Orders responses from several datasources, lowest first, with the name
+  // breaking a tie.
+  int32 precedence = 3;
+  // The address the integration calls; unset for the provider's default.
+  optional string endpoint = 4;
+  // A credential is held; its value is never returned.
+  bool has_credential = 5;
+  // Settings that only the datasource's integration reads.
+  google.protobuf.Struct config = 6;
+}
+
+message ListDatasourcesRequest {}
+
+message ListDatasourcesResponse {
+  // In precedence order.
+  repeated Datasource datasources = 1;
+}
+
+message UpdateDatasourceRequest {
+  string name = 1 [(buf.validate.field).string.min_len = 1];
+  bool enabled = 2;
+  // The address the integration calls; unset keeps the one held, and empty
+  // clears it for the provider's default.
+  optional string endpoint = 3;
+  // The credential to hold; unset keeps the one held, and empty clears it.
+  optional string credential = 4;
+  // The settings to hold; unset keeps the ones held.
+  google.protobuf.Struct config = 5;
+}
+
+message UpdateDatasourceResponse {
+  Datasource datasource = 1;
+}
+
+message ReorderDatasourcesRequest {
+  // Every datasource's name, in the precedence wanted: the first named is
+  // consulted first.
+  repeated string names = 1 [(buf.validate.field).repeated.min_items = 1];
+}
+
+message ReorderDatasourcesResponse {}
+
+// Lists the datasources and sets their settings and precedence.
+service DatasourceService {
+  // Lists the datasources this instance has registered. The credential is
+  // never read.
+  rpc ListDatasources(ListDatasourcesRequest) returns (ListDatasourcesResponse);
+  // Sets a datasource's state, endpoint and credential, taking effect at
+  // once. The call fails with a failed precondition, and writes nothing,
+  // when the change would enable a datasource that has no integration in
+  // this build or whose integration refuses the config.
+  rpc UpdateDatasource(UpdateDatasourceRequest) returns (UpdateDatasourceResponse);
+  // Orders the datasources by precedence, taking effect at once. Where the
+  // list does not name every datasource exactly once, the call is refused.
+  rpc ReorderDatasources(ReorderDatasourcesRequest) returns (ReorderDatasourcesResponse);
+}

@@ -17,6 +17,7 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
 	"github.com/leedenison/stonks/proto/admin/block/v1/adminblockv1connect"
+	"github.com/leedenison/stonks/proto/admin/datasource/v1/admindatasourcev1connect"
 	"github.com/leedenison/stonks/proto/admin/v1/adminv1connect"
 	"github.com/leedenison/stonks/proto/auth/v1/authv1connect"
 	"github.com/leedenison/stonks/proto/holding/v1/holdingv1connect"
@@ -41,6 +42,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/service"
 	adminsvc "github.com/leedenison/stonks/server/internal/service/admin"
 	adminblock "github.com/leedenison/stonks/server/internal/service/admin/block"
+	admindatasource "github.com/leedenison/stonks/server/internal/service/admin/datasource"
 	authsvc "github.com/leedenison/stonks/server/internal/service/auth"
 	holdingsvc "github.com/leedenison/stonks/server/internal/service/holding"
 	"github.com/leedenison/stonks/server/internal/service/instrument"
@@ -154,8 +156,9 @@ func run() (err error) {
 	resolver := resolve.New(db.New[resolve.Queries](pool), fetcher, sources, logger.WithCategory(log, "internal/resolve"))
 	ingester := stmt.New(db.New[stmt.Queries](pool), runs, resolver, time.Now)
 	replays := replay.New(db.New[replay.Queries](pool), runs, resolver, sources)
-	admin := adminsvc.New(db.New[adminsvc.Queries](pool), sources, replays, cache)
-	srv, err := newServer(cfg.ListenAddr, log, authn, queries, admin, adminblock.New(queries), ingester, cfg.CookieSecure)
+	admin := adminsvc.New(queries, replays)
+	datasources := admindatasource.New(db.New[admindatasource.Queries](pool), sources, cache)
+	srv, err := newServer(cfg.ListenAddr, log, authn, queries, admin, adminblock.New(queries), datasources, ingester, cfg.CookieSecure)
 	if err != nil {
 		return err
 	}
@@ -185,7 +188,7 @@ func tracedClient() *http.Client {
 // once the server listens, which is after the migrations have applied. It is
 // outside the Connect chain and the mux carries no HTTP instrumentation, so
 // the container probing it every two seconds produces no telemetry.
-func newServer(addr string, log *slog.Logger, authn *auth.Authenticator, queries *gen.Queries, admin *adminsvc.Server, blocks *adminblock.Server, statements *stmt.Service, secure bool) (*http.Server, error) {
+func newServer(addr string, log *slog.Logger, authn *auth.Authenticator, queries *gen.Queries, admin *adminsvc.Server, blocks *adminblock.Server, datasources *admindatasource.Server, statements *stmt.Service, secure bool) (*http.Server, error) {
 	opts, err := service.HandlerOptions(logger.WithCategory(log, "internal/service"), authn)
 	if err != nil {
 		return nil, err
@@ -195,6 +198,7 @@ func newServer(addr string, log *slog.Logger, authn *auth.Authenticator, queries
 		w.WriteHeader(http.StatusOK)
 	})
 	mux.Handle(adminblockv1connect.NewBlockServiceHandler(blocks, opts...))
+	mux.Handle(admindatasourcev1connect.NewDatasourceServiceHandler(datasources, opts...))
 	mux.Handle(adminv1connect.NewAdminServiceHandler(admin, opts...))
 	mux.Handle(authv1connect.NewAuthServiceHandler(authsvc.New(authn, secure), opts...))
 	mux.Handle(holdingv1connect.NewHoldingServiceHandler(holdingsvc.New(queries), opts...))
@@ -202,7 +206,7 @@ func newServer(addr string, log *slog.Logger, authn *auth.Authenticator, queries
 	mux.Handle(runv1connect.NewRunServiceHandler(runsvc.New(queries), opts...))
 	mux.Handle(statementv1connect.NewStatementServiceHandler(stmtsvc.New(statements, statements, queries), opts...))
 	reflector := grpcreflect.NewStaticReflector(
-		adminblockv1connect.BlockServiceName, adminv1connect.AdminServiceName, authv1connect.AuthServiceName, holdingv1connect.HoldingServiceName, instrumentv1connect.InstrumentServiceName,
+		adminblockv1connect.BlockServiceName, admindatasourcev1connect.DatasourceServiceName, adminv1connect.AdminServiceName, authv1connect.AuthServiceName, holdingv1connect.HoldingServiceName, instrumentv1connect.InstrumentServiceName,
 		runv1connect.RunServiceName, statementv1connect.StatementServiceName,
 	)
 	mux.Handle(grpcreflect.NewHandlerV1(reflector, opts...))

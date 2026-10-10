@@ -15,14 +15,15 @@
 
 ```
 proto/
-  admin/v1/admin.proto            stonks.admin.v1       -- what runs did, across every user
-  admin/block/v1/block.proto      stonks.admin.block.v1 -- datasource blocks, across every user
-  auth/v1/auth.proto              stonks.auth.v1        -- sign in, session, sign out
-  holding/v1/holding.proto        stonks.holding.v1     -- holdings
-  instrument/v1/instrument.proto  stonks.instrument.v1  -- instruments
-  run/v1/run.proto                stonks.run.v1         -- runs
-  statement/v1/statement.proto    stonks.statement.v1   -- the neutral format of a statement, its ingestion and its outcome
-  type/v1/type.proto              stonks.type.v1        -- shared types
+  admin/v1/admin.proto                  stonks.admin.v1            -- what runs did, across every user
+  admin/block/v1/block.proto            stonks.admin.block.v1      -- datasource blocks, across every user
+  admin/datasource/v1/datasource.proto  stonks.admin.datasource.v1 -- the external providers and their settings
+  auth/v1/auth.proto                    stonks.auth.v1             -- sign in, session, sign out
+  holding/v1/holding.proto              stonks.holding.v1          -- holdings
+  instrument/v1/instrument.proto        stonks.instrument.v1       -- instruments
+  run/v1/run.proto                      stonks.run.v1              -- runs
+  statement/v1/statement.proto          stonks.statement.v1        -- the neutral format of a statement, its ingestion and its outcome
+  type/v1/type.proto                    stonks.type.v1             -- shared types
 ```
 
 A service open to administrators alone nests under `admin/`, so one rule in the handler

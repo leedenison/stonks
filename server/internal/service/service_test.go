@@ -14,6 +14,8 @@ import (
 
 	adminblockv1 "github.com/leedenison/stonks/proto/admin/block/v1"
 	"github.com/leedenison/stonks/proto/admin/block/v1/adminblockv1connect"
+	admindatasourcev1 "github.com/leedenison/stonks/proto/admin/datasource/v1"
+	"github.com/leedenison/stonks/proto/admin/datasource/v1/admindatasourcev1connect"
 	adminv1 "github.com/leedenison/stonks/proto/admin/v1"
 	"github.com/leedenison/stonks/proto/admin/v1/adminv1connect"
 	authv1 "github.com/leedenison/stonks/proto/auth/v1"
@@ -33,6 +35,7 @@ import (
 // Unimplemented.
 type stub struct {
 	adminblockv1connect.UnimplementedBlockServiceHandler
+	admindatasourcev1connect.UnimplementedDatasourceServiceHandler
 	adminv1connect.UnimplementedAdminServiceHandler
 	authv1connect.UnimplementedAuthServiceHandler
 	instrumentv1connect.UnimplementedInstrumentServiceHandler
@@ -91,6 +94,7 @@ func newFixture(t *testing.T) *fixture {
 	}
 	f.srv = servicetest.Serve(t, func(mux *http.ServeMux) {
 		mux.Handle(adminblockv1connect.NewBlockServiceHandler(f.stub, opts...))
+		mux.Handle(admindatasourcev1connect.NewDatasourceServiceHandler(f.stub, opts...))
 		mux.Handle(adminv1connect.NewAdminServiceHandler(f.stub, opts...))
 		mux.Handle(authv1connect.NewAuthServiceHandler(f.stub, opts...))
 		mux.Handle(instrumentv1connect.NewInstrumentServiceHandler(f.stub, opts...))
@@ -166,6 +170,7 @@ func TestAuthenticate(t *testing.T) {
 		{name: "admin with a user's session", cookie: "stonks_session=live", call: listRuns, wantCode: connect.CodePermissionDenied},
 		{name: "admin with an administrator's session", cookie: "stonks_session=admin", call: listRuns, wantSeen: &admin},
 		{name: "block service with a user's session", cookie: "stonks_session=live", call: listBlocks, wantCode: connect.CodePermissionDenied},
+		{name: "datasource service with a user's session", cookie: "stonks_session=live", call: listDatasources, wantCode: connect.CodePermissionDenied},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -221,6 +226,12 @@ func listRuns(f *fixture) error {
 func listBlocks(f *fixture) error {
 	client := adminblockv1connect.NewBlockServiceClient(f.srv.Client, f.srv.URL)
 	_, err := client.ListBlocks(context.Background(), connect.NewRequest(&adminblockv1.ListBlocksRequest{}))
+	return err
+}
+
+func listDatasources(f *fixture) error {
+	client := admindatasourcev1connect.NewDatasourceServiceClient(f.srv.Client, f.srv.URL)
+	_, err := client.ListDatasources(context.Background(), connect.NewRequest(&admindatasourcev1.ListDatasourcesRequest{}))
 	return err
 }
 
