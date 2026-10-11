@@ -19,6 +19,7 @@ import InstrumentsPage from "./page";
 
 const router = { push: vi.fn(), replace: vi.fn() };
 let params = new URLSearchParams();
+beforeEach(() => router.replace.mockClear());
 
 vi.mock("next/navigation", () => ({
   useRouter: () => router,
@@ -154,10 +155,43 @@ describe("InstrumentsPage", () => {
     expect(usd.textContent).toContain("XNAS");
     const tickers = usd.querySelectorAll("[data-identifier-type='MIC_TICKER']");
     expect(tickers).toHaveLength(1);
-    expect(tickers[0].textContent).toContain("XNAS, XNYS");
+    expect(tickers[0].textContent).toContain("XNAS");
+    expect(tickers[0].textContent).toContain("XNYS");
+    expect(tickers[0].textContent).not.toContain(",");
     expect(screen.getByTestId("listing-l-gbp").textContent).toContain("XLON");
     expect(screen.getByText("First").getAttribute("href")).toBe(
       "/admin/instruments",
+    );
+  });
+
+  it("follows the search box and the class filter in the address", async () => {
+    params = new URLSearchParams("after=i-prev&id=i-acme&class=stock");
+    renderWithAuth(
+      <InstrumentsPage />,
+      serving(() => listed),
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId("instrument-row-i-acme")).toBeTruthy(),
+    );
+    const cls = screen.getByTestId("instruments-filter-class");
+    expect((cls as HTMLSelectElement).value).toBe("stock");
+    fireEvent.change(cls, { target: { value: "cash" } });
+    expect(router.replace).toHaveBeenCalledWith(
+      "/admin/instruments?class=cash",
+    );
+    fireEvent.change(screen.getByTestId("instruments-search"), {
+      target: { value: "ms" },
+    });
+    await waitFor(() =>
+      expect(router.replace).toHaveBeenCalledWith(
+        "/admin/instruments?q=ms&class=stock",
+      ),
+    );
+    expect(screen.getByText("First").getAttribute("href")).toBe(
+      "/admin/instruments?class=stock",
+    );
+    expect(screen.getByTestId("list-older").getAttribute("href")).toBe(
+      "/admin/instruments?after=i-acme&class=stock",
     );
   });
 

@@ -1,22 +1,34 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
 import { Pager } from "@/app/components/admin-list";
 import { Chip } from "@/app/components/chip";
 import { EmptyState } from "@/app/components/empty-state";
+import { Input, Select } from "@/app/components/input";
 import { Notice } from "@/app/components/notice";
 import { Page } from "@/app/components/page-frame";
 import { SkeletonRows } from "@/app/components/skeleton-rows";
 import { TableCard, Td, Th, Thead, Tr } from "@/app/components/table";
+import { AssetClass } from "@/gen/type/v1/type_pb";
 import { useAdminInstruments } from "@/hooks/use-admin-instruments";
-import { instrumentQuery, readInstrumentList } from "@/lib/admin";
+import {
+  type InstrumentParams,
+  instrumentQuery,
+  readInstrumentList,
+} from "@/lib/admin";
 import { assetClassLabel } from "@/lib/asset-class";
+import { enumParam, enumValues } from "@/lib/enum";
 import { InstrumentPane } from "./instrument-pane";
 
-// Every instrument by name, a page at a time, with the selected one in a
-// pane beside the table. The address carries the page and the selection.
+// The search box waits this long after the last keystroke before it
+// updates the address and the list.
+const searchDelay = 300;
+
+// The instruments by name, a page at a time, with the selected one in a
+// pane beside the table. The address carries the search, the class, the
+// page and the selection.
 export default function InstrumentsPage() {
   return (
     <Suspense>
@@ -27,12 +39,49 @@ export default function InstrumentsPage() {
 
 function Instruments() {
   const p = readInstrumentList(useSearchParams());
-  const { data, isPending, isError, refetch } = useAdminInstruments(p.after);
+  const router = useRouter();
+  const { data, isPending, isError, refetch } = useAdminInstruments(p);
   const instruments = data?.instruments ?? [];
   const selected = instruments.find((i) => i.id === p.id);
+  const go = (next: Partial<InstrumentParams>) =>
+    router.replace(instrumentQuery({ ...p, after: "", id: "", ...next }));
+  const [text, setText] = useState(p.q);
+  useEffect(() => {
+    if (text === p.q) {
+      return;
+    }
+    const t = setTimeout(() => go({ q: text }), searchDelay);
+    return () => clearTimeout(t);
+  });
 
   return (
     <Page title="Instruments" width="wide" testId="admin-instruments-page">
+      <div className="flex flex-wrap items-center gap-3 text-sm">
+        <Input
+          type="search"
+          data-testid="instruments-search"
+          placeholder="Search identifiers"
+          aria-label="Search identifiers"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          className="w-64"
+        />
+        <label className="flex items-center gap-2">
+          <span className="text-text-muted">Class</span>
+          <Select
+            data-testid="instruments-filter-class"
+            value={p.class}
+            onChange={(e) => go({ class: e.target.value })}
+          >
+            <option value="">any</option>
+            {enumValues(AssetClass).map((v) => (
+              <option key={v} value={enumParam(AssetClass, v)}>
+                {assetClassLabel(v)}
+              </option>
+            ))}
+          </Select>
+        </label>
+      </div>
       {isError && (
         <Notice tone="error" onRetry={() => refetch()}>
           The instruments could not be loaded.
@@ -56,7 +105,7 @@ function Instruments() {
               ) : (
                 <tbody>
                   {instruments.map((i) => {
-                    const href = instrumentQuery({ after: p.after, id: i.id });
+                    const href = instrumentQuery({ ...p, id: i.id });
                     const open = i.id === p.id;
                     return (
                       <Tr
@@ -87,11 +136,17 @@ function Instruments() {
             </TableCard>
             <Pager
               first={
-                p.after ? instrumentQuery({ after: "", id: "" }) : undefined
+                p.after
+                  ? instrumentQuery({ ...p, after: "", id: "" })
+                  : undefined
               }
               next={
                 data?.nextPageToken
-                  ? instrumentQuery({ after: data.nextPageToken, id: "" })
+                  ? instrumentQuery({
+                      ...p,
+                      after: data.nextPageToken,
+                      id: "",
+                    })
                   : undefined
               }
               labels={{ first: "First", next: "Next" }}

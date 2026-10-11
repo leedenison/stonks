@@ -34,7 +34,8 @@ message Instrument {
   // The instrument grain identifiers naming it. Empty when only its listings
   // are named.
   repeated stonks.type.v1.Identifier identifiers = 4;
-  // One per currency family the instrument trades in, by currency.
+  // One per currency family the instrument trades in: a listing with a
+  // primary venue first, then by currency.
   repeated Listing listings = 5;
 }
 
@@ -49,6 +50,15 @@ message ListInstrumentsRequest {
     (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
     (buf.validate.field).string.uuid = true
   ];
+  // Keeps the instruments with an identifier that contains it, ignoring
+  // case. Empty keeps every instrument.
+  string query = 3 [(buf.validate.field).string.max_len = 100];
+  // Keeps the instruments of this class and of the classes below it. Absent
+  // keeps every class.
+  optional stonks.type.v1.AssetClass asset_class = 4 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
 }
 
 message ListInstrumentsResponse {

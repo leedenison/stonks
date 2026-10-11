@@ -63,6 +63,7 @@ func TestListInstruments(t *testing.T) {
 		{ID: acmeID, AssetClass: gen.AssetClassStock, Name: "ACME"},
 		{ID: gbpID, AssetClass: gen.AssetClassCash, Name: "GBP"},
 	}
+	// The dollar listing has a primary venue, so it precedes the pound's.
 	listings := []gen.Listing{
 		{ID: gbpLine, InstrumentID: acmeID, Currency: "GBP"},
 		{ID: usdLine, InstrumentID: acmeID, Currency: "USD", PrimaryMic: ptr.To("XNYS")},
@@ -83,8 +84,8 @@ func TestListInstruments(t *testing.T) {
 			Id: acmeID.String(), Name: "ACME", AssetClass: typev1.AssetClass_ASSET_CLASS_STOCK,
 			Identifiers: []*typev1.Identifier{{Type: typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, Value: "GB0002634946"}},
 			Listings: []*admininstrumentv1.Listing{
-				{Id: gbpLine.String(), Currency: "GBP", Identifiers: []*typev1.Identifier{ticker("XLON")}},
 				{Id: usdLine.String(), Currency: "USD", PrimaryMic: "XNYS", Identifiers: []*typev1.Identifier{ticker("XNYS")}},
+				{Id: gbpLine.String(), Currency: "GBP", Identifiers: []*typev1.Identifier{ticker("XLON")}},
 			},
 		},
 		{
@@ -122,7 +123,14 @@ func TestListInstruments(t *testing.T) {
 			wantArg: &gen.ListInstrumentsParams{Lim: page.DefaultSize + 1},
 			want:    &admininstrumentv1.ListInstrumentsResponse{},
 		},
+		{
+			name:    "a query and a class, the query escaped",
+			req:     &admininstrumentv1.ListInstrumentsRequest{Query: "50%_", AssetClass: typev1.AssetClass_ASSET_CLASS_EQUITY.Enum()},
+			wantArg: &gen.ListInstrumentsParams{Lim: page.DefaultSize + 1, Q: ptr.To(`50\%\_`), AssetClass: ptr.To(gen.AssetClassEquity)},
+			want:    &admininstrumentv1.ListInstrumentsResponse{},
+		},
 		{name: "oversized page", req: &admininstrumentv1.ListInstrumentsRequest{PageSize: 201}, wantCode: connect.CodeInvalidArgument},
+		{name: "unspecified class", req: &admininstrumentv1.ListInstrumentsRequest{AssetClass: typev1.AssetClass_ASSET_CLASS_UNSPECIFIED.Enum()}, wantCode: connect.CodeInvalidArgument},
 		{name: "malformed token", req: &admininstrumentv1.ListInstrumentsRequest{PageToken: "not-a-uuid"}, wantCode: connect.CodeInvalidArgument},
 		{name: "instruments failure", req: &admininstrumentv1.ListInstrumentsRequest{}, wantArg: &gen.ListInstrumentsParams{Lim: page.DefaultSize + 1}, rowsErr: errors.New("boom"), wantCode: connect.CodeInternal},
 		{name: "listings failure", req: &admininstrumentv1.ListInstrumentsRequest{}, wantArg: &gen.ListInstrumentsParams{Lim: page.DefaultSize + 1}, rows: rows, listingsErr: errors.New("boom"), wantCode: connect.CodeInternal},
