@@ -12,13 +12,15 @@ import (
 	"github.com/leedenison/stonks/server/internal/db/types"
 )
 
-// keyPrefix leads every cache key.
-const keyPrefix = "stonks:fetch:"
+// keyPrefix begins every cached answer's key. Its version names the shape
+// of IdentityResult and Candidate. A change to either bumps it, so that a
+// build never reads an answer an older build wrote.
+const keyPrefix = "stonks:fetch:v1:"
 
 // scanCount is how many keys one SCAN page asks for.
 const scanCount = 100
 
-// cacheKey is the key of one request: "stonks:fetch:" then the datasource,
+// cacheKey is the key of one request: "stonks:fetch:v1:" then the datasource,
 // the kind, the type, domain and value of the identifier sent, and each
 // parameter the integration derives from the request, such as the currency
 // that OpenFIGI uses as a filter, joined by colons.

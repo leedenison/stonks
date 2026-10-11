@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
@@ -8,12 +9,15 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/leedenison/stonks/server/internal/market/massive"
 )
 
 const (
@@ -348,5 +352,17 @@ func TestLoad(t *testing.T) {
 	h.Credential.In = "body"
 	if _, err := newProxy("replay", map[string]host{figiHost: h}, slog.New(slog.DiscardHandler)); err == nil || !strings.Contains(err.Error(), "body") {
 		t.Errorf("newProxy() error = %v, want one refusing a credential in the body", err)
+	}
+}
+
+// TestMassiveRedaction checks that the proxy redacts the members of a Massive
+// record that the integration's own recordings redact.
+func TestMassiveRedaction(t *testing.T) {
+	b, err := os.ReadFile("../../../docker/vcrproxy/hosts.json")
+	require.NoError(t, err)
+	var hosts map[string]host
+	require.NoError(t, json.Unmarshal(b, &hosts))
+	if got := hosts["massive.vcr"].Redact; !slices.Equal(got, massive.Redacted) {
+		t.Errorf("massive.vcr redacts %v, want %v", got, massive.Redacted)
 	}
 }

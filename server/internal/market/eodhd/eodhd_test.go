@@ -23,7 +23,7 @@ import (
 // mics is a MIC table holding the venues the tests name.
 var mics = mic.Table{
 	"XNYS": "XNYS", "ARCX": "XNYS", "XASE": "XNYS", "XNAS": "XNAS", "XNGS": "XNAS",
-	"BATS": "BATS", "XCBO": "XCBO", "XLON": "XLON", "XETR": "XETR", "OTCM": "OTCM",
+	"BATS": "BATS", "XCBO": "XCBO", "XLON": "XLON", "XETR": "XETR", "OTCM": "OTCM", "XTSE": "XTSE",
 }
 
 func ticker(venue, value string) types.Identifier {
@@ -232,12 +232,27 @@ func TestFetch(t *testing.T) {
 				appleISIN,
 				ticker("XNAS", "AAPL"),
 			}}},
-			count: 1,
+			// The second is Apple's depositary receipt in Toronto, which
+			// carries its own ISIN.
+			count: 2,
 		},
 		{
 			// Tencent's ADR trades over the counter.
 			cassette: "eodhd_otc",
 			sent:     ticker("", "TCEHY"),
+		},
+		{
+			// Constellation Software, listed in Toronto and quoted over the
+			// counter in the US.
+			cassette: "eodhd_isin_canada",
+			sent:     types.Identifier{Type: types.IdentifierTypeIsin, Value: "CA21037X1006"},
+			want: map[string]market.Candidate{"CSU.TO": {Class: gen.AssetClassStock, Currency: "CAD", Primary: "XTSE", Identifiers: []types.Identifier{
+				{Type: types.IdentifierTypeDatasourceTicker, Domain: domain, Value: "CSU.TO"},
+				{Type: types.IdentifierTypeIsin, Value: "CA21037X1006"},
+				{Type: types.IdentifierTypeCusip, Value: "21037X100"},
+				ticker("XTSE", "CSU"),
+			}}},
+			count: 1,
 		},
 		{
 			// An invented ISIN that identifies no security.

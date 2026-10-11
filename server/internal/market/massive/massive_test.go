@@ -21,8 +21,8 @@ import (
 	"github.com/leedenison/stonks/server/internal/testutil/vcr"
 )
 
-// conf is the config the dev seed writes, with the plans Massive sells.
-const conf = `{"plan": "basic", "plans": {"basic": {"perMinute": 5}, "starter": {}, "developer": {}, "advanced": {}}}`
+// conf is the config the dev seed writes.
+const conf = `{"plan": "basic"}`
 
 // mics is a MIC table holding the venues the tests name.
 var mics = mic.Table{
@@ -30,11 +30,9 @@ var mics = mic.Table{
 	"BATS": "BATS", "XLON": "XLON",
 }
 
-// scrub removes the API key from every URL and the issuer's address,
-// telephone number and description from every record. The massive.vcr entry
-// of docker/vcrproxy/hosts.json redacts the same fields, and a field that
-// one of them gains belongs in both.
-var scrub = vcr.Scrub{Query: []string{"apiKey"}, Body: vcr.RedactFields("address", "phone_number", "description")}
+// scrub removes the API key from every URL and the Redacted fields from
+// every record.
+var scrub = vcr.Scrub{Query: []string{"apiKey"}, Body: vcr.RedactFields(Redacted...)}
 
 func replay(t *testing.T, cassette, key string) *Client {
 	t.Helper()
@@ -238,10 +236,7 @@ func TestNotFound(t *testing.T) {
 func TestConfig(t *testing.T) {
 	limit := func(t *testing.T, plan string) rate.Limit {
 		t.Helper()
-		var v map[string]any
-		require.NoError(t, json.Unmarshal([]byte(conf), &v))
-		v["plan"] = plan
-		b, err := json.Marshal(v)
+		b, err := json.Marshal(map[string]string{"plan": plan})
 		require.NoError(t, err)
 		c, err := New(market.Config{Credential: "k", JSON: b}, mics, http.DefaultClient)
 		require.NoError(t, err)
@@ -263,10 +258,9 @@ func TestConfig(t *testing.T) {
 		cfg  market.Config
 	}{
 		{name: "no credential", cfg: market.Config{JSON: json.RawMessage(conf)}},
-		{name: "a plan it does not describe", cfg: market.Config{Credential: "k", JSON: json.RawMessage(`{"plan": "gold", "plans": {"basic": {}}}`)}},
-		{name: "an unknown member", cfg: market.Config{Credential: "k", JSON: json.RawMessage(`{"plan": "basic", "plans": {"basic": {"per_minute": 5}}}`)}},
+		{name: "a plan Massive does not sell", cfg: market.Config{Credential: "k", JSON: json.RawMessage(`{"plan": "gold"}`)}},
+		{name: "an unknown member", cfg: market.Config{Credential: "k", JSON: json.RawMessage(`{"plan": "basic", "plans": {}}`)}},
 		{name: "not an object", cfg: market.Config{Credential: "k", JSON: json.RawMessage(`[]`)}},
-		{name: "a negative rate", cfg: market.Config{Credential: "k", JSON: json.RawMessage(`{"plan": "basic", "plans": {"basic": {"perMinute": -1}}}`)}},
 		{name: "an endpoint that is not a URL", cfg: market.Config{Credential: "k", Endpoint: "api.massive.com", JSON: json.RawMessage(conf)}},
 	}
 	for _, tc := range refused {

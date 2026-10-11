@@ -89,20 +89,6 @@ func (c *Client) answer(ctx context.Context, id types.Identifier) (answer, error
 		return a, err
 	}
 
-	if isin := sharedISIN(a.rows, func(r row) string { return r.ISIN }); isin != "" {
-		maps, err := c.idMapping(ctx, "isin", isin)
-		if err != nil {
-			return a, err
-		}
-		for _, m := range maps {
-			prev, ok := a.mappings[m.Symbol]
-			if ok && prev.CUSIP != m.CUSIP {
-				// EODHD keeps a symbol's old CUSIP beside its current one.
-				m.CUSIP = ""
-			}
-			a.mappings[m.Symbol] = m
-		}
-	}
 	var us []string
 	for _, r := range a.rows {
 		if r.Exchange == usCode && !slices.Contains(us, r.Code) {
@@ -120,7 +106,39 @@ func (c *Client) answer(ctx context.Context, id types.Identifier) (answer, error
 			a.venues[l.Code] = l.Exchange
 		}
 	}
+	if isin := sharedISIN(a.rows, func(r row) string { return r.ISIN }); isin != "" && cusipCovers(a) {
+		maps, err := c.idMapping(ctx, "isin", isin)
+		if err != nil {
+			return a, err
+		}
+		for _, m := range maps {
+			prev, ok := a.mappings[m.Symbol]
+			if ok && prev.CUSIP != m.CUSIP {
+				// EODHD keeps a symbol's old CUSIP beside its current one.
+				m.CUSIP = ""
+			}
+			a.mappings[m.Symbol] = m
+		}
+	}
 	return a, nil
+}
+
+// canadian holds EODHD's codes for the Canadian exchanges. Securities on
+// them carry CUSIPs, as US securities do.
+var canadian = []string{"TO", "V", "NEO"}
+
+// cusipCovers reports whether a has a listing that id-mapping can give a
+// CUSIP for: a US listing at a venue in usVenues, or a listing on a Canadian
+// exchange. EODHD does not document this rule. Its answers have shown CUSIPs
+// only on such listings, so the answer skips id-mapping otherwise.
+func cusipCovers(a answer) bool {
+	return slices.ContainsFunc(a.rows, func(r row) bool {
+		if r.Exchange == usCode {
+			_, ok := usVenues[a.venues[r.Code]]
+			return ok
+		}
+		return slices.Contains(canadian, r.Exchange)
+	})
 }
 
 // sharedISIN returns the one ISIN every item carries, or "" where they carry

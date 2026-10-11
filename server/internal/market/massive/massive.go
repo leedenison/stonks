@@ -22,6 +22,12 @@ import (
 
 const endpoint = "https://api.massive.com"
 
+// Redacted names the members of a Massive record that a recording replaces:
+// the issuer's address, telephone number and description. The massive.vcr
+// entry of docker/vcrproxy/hosts.json lists the same members, and
+// TestMassiveRedaction checks that the two match.
+var Redacted = []string{"address", "phone_number", "description"}
+
 var _ market.Identity = (*Client)(nil)
 
 // Client is the Massive integration.
@@ -35,22 +41,25 @@ type Client struct {
 	key      string
 }
 
-// config is the datasource row's config: the account's plan, and the rate
-// of each plan Massive sells.
+// config is the datasource row's config: the account's plan, which the
+// credential does not reveal.
 type config struct {
-	Plan  string          `json:"plan"`
-	Plans map[string]plan `json:"plans"`
+	Plan string `json:"plan"`
 }
 
-// plan is one of Massive's plans. A plan without PerMinute is unlimited.
-type plan struct {
-	PerMinute int `json:"perMinute"`
+// plans is the rate of each plan Massive sells, from its pricing page:
+// Basic allows five calls a minute and the paid plans are unlimited.
+var plans = map[string]rate.Limit{
+	"basic":     rate.Every(12 * time.Second),
+	"starter":   rate.Inf,
+	"developer": rate.Inf,
+	"advanced":  rate.Inf,
 }
 
 // New returns a Client for cfg that sends its requests through h. It fails
 // when cfg has no credential, when its endpoint is not a URL, when its
-// config has an unknown member, or when the config names a plan that it does
-// not describe or whose rate is negative.
+// config has an unknown member, or when the config names a plan Massive does
+// not sell.
 func New(cfg market.Config, mics mic.Table, h *http.Client) (*Client, error) {
 	if cfg.Credential == "" {
 		return nil, errors.New("massive needs an API key")
@@ -61,12 +70,9 @@ func New(cfg market.Config, mics mic.Table, h *http.Client) (*Client, error) {
 	if err := dec.Decode(&conf); err != nil {
 		return nil, fmt.Errorf("massive config: %w", err)
 	}
-	p, ok := conf.Plans[conf.Plan]
+	limit, ok := plans[conf.Plan]
 	if !ok {
-		return nil, fmt.Errorf("massive config names plan %q, which it does not describe", conf.Plan)
-	}
-	if p.PerMinute < 0 {
-		return nil, fmt.Errorf("massive plan %q has a negative rate", conf.Plan)
+		return nil, fmt.Errorf("massive config names plan %q, which Massive does not sell", conf.Plan)
 	}
 	ep, err := market.Endpoint(cfg, endpoint)
 	if err != nil {
@@ -75,13 +81,10 @@ func New(cfg market.Config, mics mic.Table, h *http.Client) (*Client, error) {
 	c := &Client{
 		mics:     mics,
 		venues:   operating(mics),
-		limit:    rate.Inf,
+		limit:    limit,
 		http:     h,
 		endpoint: ep,
 		key:      cfg.Credential,
-	}
-	if p.PerMinute > 0 {
-		c.limit = rate.Every(time.Minute / time.Duration(p.PerMinute))
 	}
 	c.prefer = market.Preference{
 		Served: market.Equities,
