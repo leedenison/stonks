@@ -429,7 +429,7 @@ describe("StatementPage", () => {
     );
     const row = screen.getByTestId("candidate-row-openfigi-US4581401001");
     expect(row.textContent).toContain("openfigi");
-    expect(row.textContent).toContain("stock");
+    expect(row.textContent).toContain("Stock");
     expect(row.textContent).toContain("US4581401001");
     expect(row.textContent).toContain("USD");
     expect(row.textContent).toContain("INTC");

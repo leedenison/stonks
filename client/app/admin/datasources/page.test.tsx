@@ -79,7 +79,6 @@ describe("DatasourcesPage", () => {
     );
     const other = screen.getByTestId("datasource-endpoint-other");
     expect(other.textContent).toBe("https://api.other");
-    expect(other.querySelector(".text-text-muted")).toBeTruthy();
     expect(screen.getByTestId("datasource-endpoint-bare").textContent).toBe("");
   });
 

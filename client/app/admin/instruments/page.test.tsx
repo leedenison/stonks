@@ -125,10 +125,10 @@ describe("InstrumentsPage", () => {
     expect(acme.getAttribute("aria-selected")).toBe("false");
     expect(screen.getByText("Select an instrument.")).toBeTruthy();
     expect(screen.queryByTestId("instrument-pane")).toBeNull();
-    expect(screen.getByTestId("list-older").getAttribute("href")).toBe(
+    expect(screen.getByTestId("list-next").getAttribute("href")).toBe(
       "/admin/instruments?after=i-acme",
     );
-    expect(screen.getByTestId("list-older").textContent).toBe("Next");
+    expect(screen.getByTestId("list-next").textContent).toBe("Next");
   });
 
   it("shows the selected instrument in the pane by section", async () => {
@@ -177,7 +177,7 @@ describe("InstrumentsPage", () => {
         .querySelectorAll("[data-name='true']"),
     ).toHaveLength(1);
     expect(screen.getByTestId("listing-l-gbp").textContent).toContain("XLON");
-    expect(screen.getByText("First").getAttribute("href")).toBe(
+    expect(screen.getByTestId("list-first").getAttribute("href")).toBe(
       "/admin/instruments",
     );
   });
@@ -205,10 +205,10 @@ describe("InstrumentsPage", () => {
         "/admin/instruments?q=ms&class=stock",
       ),
     );
-    expect(screen.getByText("First").getAttribute("href")).toBe(
+    expect(screen.getByTestId("list-first").getAttribute("href")).toBe(
       "/admin/instruments?class=stock",
     );
-    expect(screen.getByTestId("list-older").getAttribute("href")).toBe(
+    expect(screen.getByTestId("list-next").getAttribute("href")).toBe(
       "/admin/instruments?after=i-acme&class=stock",
     );
   });

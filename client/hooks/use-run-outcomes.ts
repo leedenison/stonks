@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 import type { RunState } from "@/gen/run/v1/run_pb";
 import type { StatementSummary } from "@/gen/statement/v1/statement_pb";
-import { qk } from "@/lib/query-keys";
+import { invalidateResolved } from "@/lib/query-keys";
 import { isTerminal } from "@/lib/run";
 
 // useRunOutcomes refreshes the data a run changed once the run finishes
@@ -33,10 +33,6 @@ export function useRunOutcomes(statements: StatementSummary[]) {
     if (finished.length === 0) {
       return;
     }
-    queryClient.invalidateQueries({ queryKey: qk.transactions() });
-    queryClient.invalidateQueries({ queryKey: qk.holdings() });
-    for (const id of finished) {
-      queryClient.invalidateQueries({ queryKey: qk.statement(id) });
-    }
+    invalidateResolved(queryClient, finished);
   }, [statements, queryClient]);
 }

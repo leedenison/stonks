@@ -17,23 +17,19 @@ import (
 	adminblockv1 "github.com/leedenison/stonks/proto/admin/block/v1"
 	"github.com/leedenison/stonks/proto/admin/block/v1/adminblockv1connect"
 	typev1 "github.com/leedenison/stonks/proto/type/v1"
-	"github.com/leedenison/stonks/server/internal/auth"
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/types"
 	"github.com/leedenison/stonks/server/internal/ptr"
 	"github.com/leedenison/stonks/server/internal/service/admin/page"
-	servicemock "github.com/leedenison/stonks/server/internal/service/mock"
 	"github.com/leedenison/stonks/server/internal/service/servicetest"
 )
 
 var (
-	fetchID   = uuid.MustParse("00000000-0000-0000-0000-000000000011")
-	blockID   = uuid.MustParse("00000000-0000-0000-0000-000000000031")
-	otherID   = uuid.MustParse("00000000-0000-0000-0000-000000000032")
-	created   = time.Date(2026, 9, 24, 12, 0, 0, 0, time.UTC)
-	adminID   = uuid.MustParse("00000000-0000-0000-0000-000000000002")
-	principal = auth.Principal{User: gen.User{ID: adminID, Email: "admin@example.com", Role: gen.UserRoleAdmin}, SessionID: servicetest.Session}
+	fetchID = uuid.MustParse("00000000-0000-0000-0000-000000000011")
+	blockID = uuid.MustParse("00000000-0000-0000-0000-000000000031")
+	otherID = uuid.MustParse("00000000-0000-0000-0000-000000000032")
+	created = time.Date(2026, 9, 24, 12, 0, 0, 0, time.UTC)
 )
 
 type fixture struct {
@@ -47,8 +43,7 @@ func newFixture(t *testing.T) *fixture {
 	t.Helper()
 	ctrl := gomock.NewController(t)
 	t.Cleanup(ctrl.Finish)
-	authn := servicemock.NewMockAuthenticator(ctrl)
-	authn.EXPECT().Authenticate(gomock.Any(), servicetest.Session).Return(principal, nil).AnyTimes()
+	authn := servicetest.AsAdmin(ctrl)
 	f := &fixture{queries: NewMockQueries(ctrl)}
 	opts := servicetest.Options(t, authn)
 	srv := servicetest.Serve(t, func(mux *http.ServeMux) {

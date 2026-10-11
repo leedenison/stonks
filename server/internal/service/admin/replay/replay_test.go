@@ -14,21 +14,18 @@ import (
 	adminreplayv1 "github.com/leedenison/stonks/proto/admin/replay/v1"
 	"github.com/leedenison/stonks/proto/admin/replay/v1/adminreplayv1connect"
 	runv1 "github.com/leedenison/stonks/proto/run/v1"
-	"github.com/leedenison/stonks/server/internal/auth"
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	replayer "github.com/leedenison/stonks/server/internal/replay"
-	servicemock "github.com/leedenison/stonks/server/internal/service/mock"
 	"github.com/leedenison/stonks/server/internal/service/servicetest"
 )
 
 var (
-	userID    = uuid.MustParse("00000000-0000-0000-0000-000000000001")
-	runID     = uuid.MustParse("00000000-0000-0000-0000-000000000010")
-	childID   = uuid.MustParse("00000000-0000-0000-0000-000000000011")
-	created   = time.Date(2026, 9, 24, 12, 0, 0, 0, time.UTC)
-	adminID   = uuid.MustParse("00000000-0000-0000-0000-000000000002")
-	principal = auth.Principal{User: gen.User{ID: adminID, Email: "admin@example.com", Role: gen.UserRoleAdmin}, SessionID: servicetest.Session}
+	userID  = uuid.MustParse("00000000-0000-0000-0000-000000000001")
+	runID   = uuid.MustParse("00000000-0000-0000-0000-000000000010")
+	childID = uuid.MustParse("00000000-0000-0000-0000-000000000011")
+	created = time.Date(2026, 9, 24, 12, 0, 0, 0, time.UTC)
+	adminID = servicetest.Admin.User.ID
 )
 
 type fixture struct {
@@ -43,8 +40,7 @@ func newFixture(t *testing.T) *fixture {
 	t.Helper()
 	ctrl := gomock.NewController(t)
 	t.Cleanup(ctrl.Finish)
-	authn := servicemock.NewMockAuthenticator(ctrl)
-	authn.EXPECT().Authenticate(gomock.Any(), servicetest.Session).Return(principal, nil).AnyTimes()
+	authn := servicetest.AsAdmin(ctrl)
 	f := &fixture{queries: NewMockQueries(ctrl), replays: NewMockReplayer(ctrl)}
 	opts := servicetest.Options(t, authn)
 	srv := servicetest.Serve(t, func(mux *http.ServeMux) {

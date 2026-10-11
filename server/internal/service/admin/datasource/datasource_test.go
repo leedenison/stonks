@@ -8,26 +8,20 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/uuid"
 	"go.uber.org/mock/gomock"
 	"google.golang.org/protobuf/testing/protocmp"
 	"google.golang.org/protobuf/types/known/structpb"
 
 	admindatasourcev1 "github.com/leedenison/stonks/proto/admin/datasource/v1"
 	"github.com/leedenison/stonks/proto/admin/datasource/v1/admindatasourcev1connect"
-	"github.com/leedenison/stonks/server/internal/auth"
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/ptr"
-	servicemock "github.com/leedenison/stonks/server/internal/service/mock"
 	"github.com/leedenison/stonks/server/internal/service/servicetest"
 )
 
-var (
-	adminID   = uuid.MustParse("00000000-0000-0000-0000-000000000002")
-	principal = auth.Principal{User: gen.User{ID: adminID, Email: "admin@example.com", Role: gen.UserRoleAdmin}, SessionID: servicetest.Session}
-)
+var ()
 
 type fixture struct {
 	store   *MockStore
@@ -45,8 +39,7 @@ func newFixture(t *testing.T) *fixture {
 	t.Helper()
 	ctrl := gomock.NewController(t)
 	t.Cleanup(ctrl.Finish)
-	authn := servicemock.NewMockAuthenticator(ctrl)
-	authn.EXPECT().Authenticate(gomock.Any(), servicetest.Session).Return(principal, nil).AnyTimes()
+	authn := servicetest.AsAdmin(ctrl)
 	f := &fixture{store: NewMockStore(ctrl), sources: NewMockSources(ctrl), cache: NewMockDropper(ctrl)}
 	f.store.EXPECT().Tx(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, fn func(Queries) error) error {
 		err := fn(f.store)

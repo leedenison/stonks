@@ -20,7 +20,9 @@ export function fetchCacheKey(
 }
 
 // dropFetchCache removes one cached answer, so the next fetch of the request
-// misses. A spec drops only the entries its own fixture produced.
+// misses. It goes to Redis because the API cannot drop a cached answer.
+// Only the suite drops one, to force a fetch miss. A spec drops only the
+// entries its own fixture produced.
 export async function dropFetchCache(key: string): Promise<void> {
   await store().del(key);
 }

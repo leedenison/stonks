@@ -4,6 +4,7 @@ import {
   type StatedKey,
 } from "@/gen/type/v1/type_pb";
 import { enumLabel } from "@/lib/enum";
+import { identifierKey } from "@/lib/identifiers";
 import { Chip } from "./chip";
 
 // The short name each identifier type is shown under.
@@ -50,7 +51,7 @@ export function IdentifierChips({ ids }: { ids: Identifier[] }) {
   return (
     <span className="flex flex-wrap gap-1">
       {ids.map((id) => (
-        <IdentifierChip key={`${id.type}-${id.domain}-${id.value}`} id={id} />
+        <IdentifierChip key={identifierKey(id)} id={id} />
       ))}
     </span>
   );

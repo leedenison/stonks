@@ -27,8 +27,8 @@ import { InstrumentPane } from "./instrument-pane";
 const searchDelay = 300;
 
 // The instruments by name, a page at a time, with the selected one in a
-// pane beside the table. The address carries the search, the class, the
-// page and the selection.
+// pane beside the table. The address carries the search, the class and the
+// page, and the selected row of that page.
 export default function InstrumentsPage() {
   return (
     <Suspense>

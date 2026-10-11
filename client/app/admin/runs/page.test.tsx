@@ -105,7 +105,7 @@ describe("RunsPage", () => {
     ).toBe("true");
     expect(screen.queryByTestId("run-open-findings-r1")).toBeNull();
     expect(screen.getByTestId("run-open-findings-r2").textContent).toBe("2");
-    expect(screen.getByTestId("list-older").getAttribute("href")).toBe(
+    expect(screen.getByTestId("list-next").getAttribute("href")).toBe(
       "/admin/runs?before=r0",
     );
   });

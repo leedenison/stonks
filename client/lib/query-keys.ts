@@ -29,6 +29,24 @@ export const qk = {
   blocksAll: () => ["blocks"] as const,
 };
 
+// invalidateResolved refreshes the holdings, the transactions and the
+// statements that a resolution changes. It refreshes the statements in
+// statementIds, or every statement and the statements list when the caller
+// passes none.
+export function invalidateResolved(
+  queryClient: QueryClient,
+  statementIds?: string[],
+) {
+  const statements = statementIds?.map((id) => qk.statement(id)) ?? [
+    qk.statements(),
+  ];
+  return Promise.all(
+    [qk.holdings(), qk.transactions(), ...statements].map((queryKey) =>
+      queryClient.invalidateQueries({ queryKey }),
+    ),
+  );
+}
+
 // invalidateCleared refreshes the listings that clearing a finding or a
 // block affects.
 export function invalidateCleared(queryClient: QueryClient) {
