@@ -3,12 +3,12 @@ import { Code, ConnectError } from "@connectrpc/connect";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import {
-  AdminService,
   DatasourceSchema,
+  DatasourceService,
   type ListDatasourcesResponse,
   ListDatasourcesResponseSchema,
   ReorderDatasourcesResponseSchema,
-} from "@/gen/admin/v1/admin_pb";
+} from "@/gen/admin/datasource/v1/datasource_pb";
 import { Role } from "@/gen/auth/v1/auth_pb";
 import { authWrapper, liveSession, transportWith } from "@/lib/test-utils";
 import { useDatasources, useReorderDatasources } from "./use-datasources";
@@ -25,7 +25,7 @@ function serving() {
   const transport = transportWith(
     liveSession({ role: Role.ADMIN }),
     ({ service }) => {
-      service(AdminService, {
+      service(DatasourceService, {
         listDatasources: () => {
           if (listed) return new Promise(() => {});
           listed = true;

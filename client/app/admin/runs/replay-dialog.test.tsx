@@ -3,9 +3,12 @@ import { Code, ConnectError } from "@connectrpc/connect";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import {
-  AdminService,
   DatasourceSchema,
+  DatasourceService,
   ListDatasourcesResponseSchema,
+} from "@/gen/admin/datasource/v1/datasource_pb";
+import {
+  AdminService,
   StartReplayResponseSchema,
 } from "@/gen/admin/v1/admin_pb";
 import { Role } from "@/gen/auth/v1/auth_pb";
@@ -37,7 +40,7 @@ const starting = () => create(StartReplayResponseSchema, { run: started });
 
 function serving(startReplay = vi.fn(starting)) {
   return transportWith(liveSession({ role: Role.ADMIN }), ({ service }) => {
-    service(AdminService, {
+    service(DatasourceService, {
       listDatasources: () =>
         create(ListDatasourcesResponseSchema, {
           datasources: [
@@ -45,8 +48,8 @@ function serving(startReplay = vi.fn(starting)) {
             create(DatasourceSchema, { name: "other", enabled: false }),
           ],
         }),
-      startReplay,
     });
+    service(AdminService, { startReplay });
   });
 }
 

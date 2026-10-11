@@ -10,28 +10,28 @@ import { useClients } from "@/contexts/clients-context";
 import type {
   ListDatasourcesResponse,
   UpdateDatasourceRequestSchema,
-} from "@/gen/admin/v1/admin_pb";
+} from "@/gen/admin/datasource/v1/datasource_pb";
 import { reordered } from "@/lib/datasources";
 import { qk } from "@/lib/query-keys";
 import { useAuthedQuery } from "./use-authed-query";
 
 // useDatasources lists the registered datasources in precedence order.
 export function useDatasources(): UseQueryResult<ListDatasourcesResponse> {
-  const { admin } = useClients();
+  const { datasource } = useClients();
   return useAuthedQuery({
     queryKey: qk.datasources(),
-    queryFn: () => admin.listDatasources({}),
+    queryFn: () => datasource.listDatasources({}),
   });
 }
 
 // useUpdateDatasource sets a datasource's state, endpoint, credential and
 // config, and refreshes the listing.
 export function useUpdateDatasource() {
-  const { admin } = useClients();
+  const { datasource } = useClients();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (req: MessageInitShape<typeof UpdateDatasourceRequestSchema>) =>
-      admin.updateDatasource(req),
+      datasource.updateDatasource(req),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: qk.datasources() }),
   });
@@ -41,11 +41,11 @@ export function useUpdateDatasource() {
 // confirms it, so a drag lands where it was dropped, and puts the previous
 // order back if the service refuses.
 export function useReorderDatasources() {
-  const { admin } = useClients();
+  const { datasource } = useClients();
   const queryClient = useQueryClient();
   const key = qk.datasources();
   return useMutation({
-    mutationFn: (names: string[]) => admin.reorderDatasources({ names }),
+    mutationFn: (names: string[]) => datasource.reorderDatasources({ names }),
     onMutate: async (names) => {
       await queryClient.cancelQueries({ queryKey: key });
       const previous = queryClient.getQueryData<ListDatasourcesResponse>(key);

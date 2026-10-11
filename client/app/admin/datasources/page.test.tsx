@@ -3,11 +3,11 @@ import { Code, ConnectError } from "@connectrpc/connect";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import {
-  AdminService,
   DatasourceSchema,
+  DatasourceService,
   ListDatasourcesResponseSchema,
   UpdateDatasourceResponseSchema,
-} from "@/gen/admin/v1/admin_pb";
+} from "@/gen/admin/datasource/v1/datasource_pb";
 import { Role } from "@/gen/auth/v1/auth_pb";
 import { liveSession, renderWithAuth, transportWith } from "@/lib/test-utils";
 import DatasourcesPage from "./page";
@@ -29,7 +29,7 @@ function serving(updateDatasource = vi.fn()) {
     create(UpdateDatasourceResponseSchema, { datasource: openfigi }),
   );
   return transportWith(liveSession({ role: Role.ADMIN }), ({ service }) => {
-    service(AdminService, {
+    service(DatasourceService, {
       listDatasources: () =>
         create(ListDatasourcesResponseSchema, {
           datasources: [openfigi, other],

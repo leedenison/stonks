@@ -4,7 +4,7 @@ import {
   DatasourceSchema,
   type ListDatasourcesResponse,
   ListDatasourcesResponseSchema,
-} from "@/gen/admin/v1/admin_pb";
+} from "@/gen/admin/datasource/v1/datasource_pb";
 
 // reordered is the listing in the order of names, each precedence its
 // position, which is what the service writes for that order. A name the

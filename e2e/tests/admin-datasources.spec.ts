@@ -1,5 +1,5 @@
 import type { Page } from "@playwright/test";
-import { adminClient } from "../helpers/api";
+import { datasourceClient } from "../helpers/api";
 import { deleteDatasource, seedDatasource } from "../helpers/db";
 import { expect, test } from "../helpers/test";
 
@@ -37,7 +37,7 @@ test("lists the datasources, refuses enabling one the build does not serve, and 
   page,
 }) => {
   const { session } = await signIn("admin");
-  const admin = adminClient(session);
+  const admin = datasourceClient(session);
   await page.goto("/admin/datasources");
   const rows = page
     .getByTestId("admin-datasources-table")
@@ -110,7 +110,7 @@ test("lists the datasources, refuses enabling one the build does not serve, and 
 
 test("reorders the datasources by dragging a row", async ({ signIn, page }) => {
   const { session } = await signIn("admin");
-  const admin = adminClient(session);
+  const admin = datasourceClient(session);
   await page.goto("/admin/datasources");
   const rows = page
     .getByTestId("admin-datasources-table")
