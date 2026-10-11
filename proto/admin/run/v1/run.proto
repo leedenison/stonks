@@ -1,9 +1,8 @@
-// The administrator's API. Every RPC acts across users and requires the admin
-// role.
+// Every user's runs, their items and their findings.
 
 syntax = "proto3";
 
-package stonks.admin.v1;
+package stonks.admin.run.v1;
 
 import "buf/validate/validate.proto";
 import "google/protobuf/timestamp.proto";
@@ -12,7 +11,7 @@ import "run/v1/run.proto";
 import "statement/v1/statement.proto";
 import "type/v1/type.proto";
 
-option go_package = "github.com/leedenison/stonks/proto/admin/v1;adminv1";
+option go_package = "github.com/leedenison/stonks/proto/admin/run/v1;adminrunv1";
 
 // A run and its user.
 message UserRun {
@@ -203,7 +202,7 @@ message ClearFindingRequest {
 message ClearFindingResponse {}
 
 // Reads every user's runs and findings.
-service AdminService {
+service RunService {
   // Lists every user's runs matching the filters.
   rpc ListRuns(ListRunsRequest) returns (ListRunsResponse);
   // Reads any user's run with the runs above and below it and its findings.

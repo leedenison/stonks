@@ -6,10 +6,10 @@ import { invalidateCleared } from "@/lib/query-keys";
 
 // useClearFinding clears a finding that reports no block.
 export function useClearFinding() {
-  const { admin } = useClients();
+  const { adminRun } = useClients();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => admin.clearFinding({ findingId: id }),
+    mutationFn: (id: string) => adminRun.clearFinding({ findingId: id }),
     onSuccess: () => invalidateCleared(queryClient),
   });
 }

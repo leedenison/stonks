@@ -1,7 +1,11 @@
 import path from "node:path";
 import { Code } from "@connectrpc/connect";
 import { RunKind } from "../gen/run/v1/run_pb";
-import { adminClient, resolutionItems, statementItems } from "../helpers/api";
+import {
+  adminRunClient,
+  resolutionItems,
+  statementItems,
+} from "../helpers/api";
 import { uploadStatement } from "../helpers/upload";
 import { expect, test } from "../helpers/test";
 
@@ -23,14 +27,14 @@ test("shows an administrator the runs a user's upload produced", async ({
   });
 
   // The admin RPCs refuse the user.
-  await expect(adminClient(userSession).listRuns({})).rejects.toMatchObject({
+  await expect(adminRunClient(userSession).listRuns({})).rejects.toMatchObject({
     code: Code.PermissionDenied,
   });
 
   // The record: the statement run, the resolution it started, the rows it
   // rejected, and no findings, since every fetch was answered.
   const { session } = await signIn("admin");
-  const admin = adminClient(session);
+  const admin = adminRunClient(session);
   const statement = await admin.getRun({ runId: runId });
   expect(statement.run?.userEmail).toBe(user.email);
   expect(await statementItems(admin, runId)).toHaveLength(januaryRows);

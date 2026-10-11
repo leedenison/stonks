@@ -1,6 +1,6 @@
 import path from "node:path";
 import { Code } from "@connectrpc/connect";
-import { adminClient, replayClient } from "../helpers/api";
+import { adminRunClient, replayClient } from "../helpers/api";
 import { uploadStatement } from "../helpers/upload";
 import { expect, test } from "../helpers/test";
 
@@ -48,7 +48,7 @@ test("offers a replay on a statement's page and shows its refusal", async ({
   );
   await expect(page).toHaveURL(`/admin/runs/${runId}`);
 
-  const statement = await adminClient(session).getRun({ runId: runId });
+  const statement = await adminRunClient(session).getRun({ runId: runId });
   const child = statement.run!.children[0].run!;
   await page.goto(`/admin/runs/${child.id}`);
   await expect(page.getByTestId("run-replay")).toBeVisible();

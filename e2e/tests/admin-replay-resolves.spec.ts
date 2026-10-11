@@ -1,9 +1,9 @@
 import path from "node:path";
-import { FetchOutcome } from "../gen/admin/v1/admin_pb";
+import { FetchOutcome } from "../gen/admin/run/v1/run_pb";
 import { RunKind, RunTrigger } from "../gen/run/v1/run_pb";
 import { ResolutionOutcome } from "../gen/type/v1/type_pb";
 import {
-  adminClient,
+  adminRunClient,
   fetchItems,
   fetchRun,
   holdingClient,
@@ -53,7 +53,7 @@ test("replays a statement's unavailable key from the runs page and resolves it",
 
   // A temporary refusal leaves no block, so the holding rests on the key alone.
   const { session } = await signIn("admin");
-  const admin = adminClient(session);
+  const admin = adminRunClient(session);
   const statement = await admin.getRun({ runId: runId });
   expect(statement.findings).toHaveLength(0);
   const resolution = statement.run!.children[0];

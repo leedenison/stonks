@@ -2,7 +2,7 @@
 
 import type { UseQueryResult } from "@tanstack/react-query";
 import { useClients } from "@/contexts/clients-context";
-import type { ListRunsResponse } from "@/gen/admin/v1/admin_pb";
+import type { ListRunsResponse } from "@/gen/admin/run/v1/run_pb";
 import { flattenRuns, type RunFilters, runEnums } from "@/lib/admin";
 import { fromParam } from "@/lib/enum";
 import { qk } from "@/lib/query-keys";
@@ -12,11 +12,11 @@ import { useAuthedQuery } from "./use-authed-query";
 // useAdminRuns lists every user's runs matching f, newest first, polling
 // while any listed run is live.
 export function useAdminRuns(f: RunFilters): UseQueryResult<ListRunsResponse> {
-  const { admin } = useClients();
+  const { adminRun } = useClients();
   return useAuthedQuery({
     queryKey: qk.adminRuns(f),
     queryFn: () =>
-      admin.listRuns({
+      adminRun.listRuns({
         kind: fromParam(runEnums.kind, f.kind),
         trigger: fromParam(runEnums.trigger, f.trigger),
         state: fromParam(runEnums.state, f.state),

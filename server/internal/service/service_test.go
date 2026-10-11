@@ -18,8 +18,8 @@ import (
 	"github.com/leedenison/stonks/proto/admin/datasource/v1/admindatasourcev1connect"
 	adminreplayv1 "github.com/leedenison/stonks/proto/admin/replay/v1"
 	"github.com/leedenison/stonks/proto/admin/replay/v1/adminreplayv1connect"
-	adminv1 "github.com/leedenison/stonks/proto/admin/v1"
-	"github.com/leedenison/stonks/proto/admin/v1/adminv1connect"
+	adminrunv1 "github.com/leedenison/stonks/proto/admin/run/v1"
+	"github.com/leedenison/stonks/proto/admin/run/v1/adminrunv1connect"
 	authv1 "github.com/leedenison/stonks/proto/auth/v1"
 	"github.com/leedenison/stonks/proto/auth/v1/authv1connect"
 	instrumentv1 "github.com/leedenison/stonks/proto/instrument/v1"
@@ -39,7 +39,7 @@ type stub struct {
 	adminblockv1connect.UnimplementedBlockServiceHandler
 	admindatasourcev1connect.UnimplementedDatasourceServiceHandler
 	adminreplayv1connect.UnimplementedReplayServiceHandler
-	adminv1connect.UnimplementedAdminServiceHandler
+	adminrunv1connect.UnimplementedRunServiceHandler
 	authv1connect.UnimplementedAuthServiceHandler
 	instrumentv1connect.UnimplementedInstrumentServiceHandler
 	seen *auth.Principal
@@ -67,9 +67,9 @@ func (s *stub) ListInstruments(ctx context.Context, _ *connect.Request[instrumen
 	return connect.NewResponse(&instrumentv1.ListInstrumentsResponse{}), nil
 }
 
-func (s *stub) ListRuns(ctx context.Context, _ *connect.Request[adminv1.ListRunsRequest]) (*connect.Response[adminv1.ListRunsResponse], error) {
+func (s *stub) ListRuns(ctx context.Context, _ *connect.Request[adminrunv1.ListRunsRequest]) (*connect.Response[adminrunv1.ListRunsResponse], error) {
 	s.record(ctx)
-	return connect.NewResponse(&adminv1.ListRunsResponse{}), nil
+	return connect.NewResponse(&adminrunv1.ListRunsResponse{}), nil
 }
 
 func (s *stub) record(ctx context.Context) {
@@ -99,7 +99,7 @@ func newFixture(t *testing.T) *fixture {
 		mux.Handle(adminblockv1connect.NewBlockServiceHandler(f.stub, opts...))
 		mux.Handle(admindatasourcev1connect.NewDatasourceServiceHandler(f.stub, opts...))
 		mux.Handle(adminreplayv1connect.NewReplayServiceHandler(f.stub, opts...))
-		mux.Handle(adminv1connect.NewAdminServiceHandler(f.stub, opts...))
+		mux.Handle(adminrunv1connect.NewRunServiceHandler(f.stub, opts...))
 		mux.Handle(authv1connect.NewAuthServiceHandler(f.stub, opts...))
 		mux.Handle(instrumentv1connect.NewInstrumentServiceHandler(f.stub, opts...))
 	})
@@ -223,8 +223,8 @@ func listInstruments(f *fixture) error {
 }
 
 func listRuns(f *fixture) error {
-	client := adminv1connect.NewAdminServiceClient(f.srv.Client, f.srv.URL)
-	_, err := client.ListRuns(context.Background(), connect.NewRequest(&adminv1.ListRunsRequest{}))
+	client := adminrunv1connect.NewRunServiceClient(f.srv.Client, f.srv.URL)
+	_, err := client.ListRuns(context.Background(), connect.NewRequest(&adminrunv1.ListRunsRequest{}))
 	return err
 }
 

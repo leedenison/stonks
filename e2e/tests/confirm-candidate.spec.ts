@@ -1,9 +1,9 @@
 import path from "node:path";
-import { FetchOutcome } from "../gen/admin/v1/admin_pb";
+import { FetchOutcome } from "../gen/admin/run/v1/run_pb";
 import { RunKind, RunTrigger } from "../gen/run/v1/run_pb";
 import { Arbiter, ResolutionOutcome } from "../gen/type/v1/type_pb";
 import {
-  adminClient,
+  adminRunClient,
   fetchItems,
   fetchRun,
   holdingClient,
@@ -90,7 +90,7 @@ test("chooses an instrument for a bare ticker", async ({ signIn, page }) => {
   // attempts. The choice called OpenFIGI once, because the spec dropped the
   // cache entry. The list is filtered to resolutions, so each run's fetches
   // come from its tree.
-  const admin = adminClient((await signIn("admin")).session);
+  const admin = adminRunClient((await signIn("admin")).session);
   const listed = await admin.listRuns({
     userId: user.id,
     kind: RunKind.RESOLUTION,
