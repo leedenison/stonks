@@ -365,6 +365,12 @@ func TestListInstruments(t *testing.T) {
 	names := map[uuid.UUID]string{}
 	for _, r := range all {
 		names[r.ID] = r.Name
+		if r.ID == stock.ID && (r.NameType != string(types.IdentifierTypeMicTicker) || r.NameDomain != "XSWX") {
+			t.Errorf("stock named by %q at %q, want the ticker at XSWX", r.NameType, r.NameDomain)
+		}
+		if r.ID == bare.ID && r.NameType != "" {
+			t.Errorf("unnamed instrument named by %q, want none", r.NameType)
+		}
 	}
 	want := map[uuid.UUID]string{usd.InstrumentID: "USD", stock.ID: "ZZSTOCKP", two.ID: "ZZTWON", option.ID: "ZZOPT260116C00150000", bare.ID: ""}
 	for id, name := range want {
@@ -417,5 +423,16 @@ func TestListInstruments(t *testing.T) {
 	require.NoError(t, err)
 	if len(idents) != 3 || idents[0].ListingID != nil || idents[1].ListingID == nil {
 		t.Errorf("ListIdentifiersOf = %+v, want the ISIN then the two tickers", idents)
+	}
+
+	// Two keys share the ISIN as their via identifier, so it is returned
+	// once. The option has no key, so it contributes nothing.
+	h := newHolder(t, q, "via@example.com")
+	h.key(t, q, "ZZ stock", &stockLine, &idents[0])
+	h.key(t, q, "ZZ stock again", &stockLine, &idents[0])
+	via, err := q.ListViaOf(ctx, []uuid.UUID{stock.ID, option.ID})
+	require.NoError(t, err)
+	if len(via) != 1 || via[0] != idents[0].ID {
+		t.Errorf("ListViaOf = %v, want the ISIN alone", via)
 	}
 }

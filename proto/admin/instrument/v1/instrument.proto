@@ -26,9 +26,9 @@ message Listing {
 message Instrument {
   // Identifies the instrument in every API; a UUID.
   string id = 1;
-  // The value of the identifier that names the instrument, chosen by the
-  // rank of its type; empty where it has none.
-  string name = 2;
+  // The identifier that names the instrument, chosen by the rank of its
+  // type; unset where it has none.
+  stonks.type.v1.Identifier name = 2;
   // The narrowest class known for the instrument.
   stonks.type.v1.AssetClass asset_class = 3;
   // The instrument grain identifiers naming it. Empty when only its listings
@@ -37,6 +37,9 @@ message Instrument {
   // One per currency family the instrument trades in: a listing with a
   // primary venue first, then by currency.
   repeated Listing listings = 5;
+  // The via identifiers of the stated keys that resolved to the instrument,
+  // at either grain. Empty where no key has.
+  repeated stonks.type.v1.Identifier via = 6;
 }
 
 message ListInstrumentsRequest {

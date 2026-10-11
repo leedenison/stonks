@@ -25,6 +25,13 @@ SELECT * FROM identifiers
 WHERE instrument_id = ANY(@ids::uuid[])
 ORDER BY instrument_id, listing_id NULLS FIRST, type, domain, value;
 
+-- name: ListViaOf :many
+-- The ids of the via identifiers recorded on the stated keys of the
+-- instruments.
+SELECT DISTINCT stated_keys.via_id::uuid AS id FROM stated_keys
+WHERE stated_keys.instrument_id = ANY(@ids::uuid[]) AND stated_keys.via_id IS NOT NULL
+ORDER BY id;
+
 -- name: ListListings :many
 SELECT * FROM listings
 WHERE instrument_id = $1
@@ -144,13 +151,13 @@ ORDER BY resolution_keys.stated_key_id
 LIMIT sqlc.narg(lim)::int;
 
 -- name: ListInstruments :many
--- Every instrument with the value that names it, by name then id. The name
--- is the value of the instrument's identifier whose type ranks first, over
+-- Every instrument with the identifier that names it, by its value then id.
+-- The name is the instrument's identifier whose type ranks first, over
 -- its own identifiers and its listings'. Among tickers the listing's primary
 -- venue wins, then the venue ranked first in venue_names, then the lowest
--- MIC. An instrument with no identifier has an empty name. The optional q
--- matches any of an instrument's identifiers, and the optional asset_class
--- includes the classes below it.
+-- MIC. An instrument with no identifier has an empty name and type. The
+-- optional q matches any of an instrument's identifiers, and the optional
+-- asset_class includes the classes below it.
 WITH RECURSIVE classes AS (
     SELECT class FROM asset_class_tree WHERE class = sqlc.narg(asset_class)::asset_class
     UNION ALL
@@ -158,16 +165,21 @@ WITH RECURSIVE classes AS (
     JOIN classes ON asset_class_tree.parent = classes.class
 ), named AS (
     SELECT instruments.id, instruments.asset_class,
-           COALESCE((SELECT identifiers.value FROM identifiers
-                     JOIN identifier_type_traits ON identifier_type_traits.type = identifiers.type
-                     LEFT JOIN listings ON listings.id = identifiers.listing_id
-                     LEFT JOIN venue_names ON venue_names.mic = identifiers.domain
-                     WHERE identifiers.instrument_id = instruments.id
-                     ORDER BY identifier_type_traits.name_rank,
-                              (identifiers.domain = listings.primary_mic) DESC NULLS LAST,
-                              venue_names.rank NULLS LAST, identifiers.domain, identifiers.value
-                     LIMIT 1), '')::text AS name
+           COALESCE(naming.value, '')::text AS name,
+           COALESCE(naming.type::text, '')::text AS name_type,
+           COALESCE(naming.domain, '')::text AS name_domain
     FROM instruments
+    LEFT JOIN LATERAL (
+        SELECT identifiers.type, identifiers.domain, identifiers.value FROM identifiers
+        JOIN identifier_type_traits ON identifier_type_traits.type = identifiers.type
+        LEFT JOIN listings ON listings.id = identifiers.listing_id
+        LEFT JOIN venue_names ON venue_names.mic = identifiers.domain
+        WHERE identifiers.instrument_id = instruments.id
+        ORDER BY identifier_type_traits.name_rank,
+                 (identifiers.domain = listings.primary_mic) DESC NULLS LAST,
+                 venue_names.rank NULLS LAST, identifiers.domain, identifiers.value
+        LIMIT 1
+    ) AS naming ON true
 )
 SELECT * FROM named
 WHERE (sqlc.narg(after)::uuid IS NULL

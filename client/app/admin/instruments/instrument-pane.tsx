@@ -5,10 +5,16 @@ import { Td, Th } from "@/app/components/table";
 import type { Instrument } from "@/gen/admin/instrument/v1/instrument_pb";
 import { type Identifier, IdentifierType } from "@/gen/type/v1/type_pb";
 import { assetClassLabel } from "@/lib/asset-class";
-import { groupIdentifiers } from "@/lib/identifiers";
+import { groupIdentifiers, identifierKey } from "@/lib/identifiers";
 
-// InstrumentPane shows one instrument in full, in sections.
+// InstrumentPane shows one instrument in full, in sections. The identifier
+// naming the instrument and each listing's primary venue are marked in the
+// accent tone.
 export function InstrumentPane({ instrument }: { instrument: Instrument }) {
+  const marks = {
+    via: new Set(instrument.via.map(identifierKey)),
+    name: new Set(instrument.name ? [identifierKey(instrument.name)] : []),
+  };
   return (
     <div
       data-testid="instrument-pane"
@@ -16,7 +22,7 @@ export function InstrumentPane({ instrument }: { instrument: Instrument }) {
     >
       <div className="flex flex-wrap items-baseline gap-3">
         <h2 className="text-xl font-semibold tracking-tight">
-          {instrument.name || instrument.id}
+          {instrument.name?.value || instrument.id}
         </h2>
         <Chip>{assetClassLabel(instrument.assetClass)}</Chip>
         <span className="font-mono text-xs text-text-muted">
@@ -26,6 +32,7 @@ export function InstrumentPane({ instrument }: { instrument: Instrument }) {
       <Section title="Identifiers">
         <Grouped
           ids={instrument.identifiers}
+          marks={marks}
           valueHead="Value"
           testId="instrument-identifiers"
         />
@@ -48,7 +55,12 @@ export function InstrumentPane({ instrument }: { instrument: Instrument }) {
                 </span>
               )}
             </div>
-            <Grouped ids={l.identifiers} valueHead="Symbol" />
+            <Grouped
+              ids={l.identifiers}
+              marks={marks}
+              primary={l.primaryMic}
+              valueHead="Symbol"
+            />
           </div>
         ))}
       </Section>
@@ -63,17 +75,22 @@ function None() {
 // Grouped lists identifiers by type, one row per value with its domains.
 function Grouped({
   ids,
+  marks,
+  primary = "",
   valueHead,
   testId,
 }: {
   ids: Identifier[];
+  marks: Parameters<typeof groupIdentifiers>[1];
+  // The domain to mark as the primary venue; empty for none.
+  primary?: string;
   valueHead: string;
   testId?: string;
 }) {
   if (ids.length === 0) {
     return <None />;
   }
-  const groups = groupIdentifiers(ids);
+  const groups = groupIdentifiers(ids, marks);
   const span = new Map<IdentifierType, number>();
   for (const g of groups) {
     span.set(g.type, (span.get(g.type) ?? 0) + 1);
@@ -104,6 +121,8 @@ function Grouped({
           <tr
             key={`${r.type}-${r.value}`}
             data-identifier-type={IdentifierType[r.type]}
+            data-via={r.via ? "true" : undefined}
+            data-name={r.name ? "true" : undefined}
           >
             {r.first && (
               <Td
@@ -115,14 +134,19 @@ function Grouped({
               </Td>
             )}
             <Td dense>
-              <Chip tone="primary" className="font-mono">
+              <Chip tone={r.name ? "accent" : "primary"} className="font-mono">
                 {r.value}
               </Chip>
             </Td>
             <Td dense>
               <span className="flex flex-wrap gap-1">
                 {r.domains.map((d) => (
-                  <Chip key={d} className="font-mono">
+                  <Chip
+                    key={d}
+                    tone={d === primary ? "accent" : "muted"}
+                    data-primary={d === primary ? "true" : undefined}
+                    className="font-mono"
+                  >
                     {d}
                   </Chip>
                 ))}
