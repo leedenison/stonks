@@ -56,7 +56,7 @@ func newStack(t *testing.T) stack {
 	log := slog.New(slog.DiscardHandler)
 	alpha := scripted.New()
 	factories := map[string]market.Factory{
-		"alpha": func(market.Config) (market.Integration, error) { return alpha, nil },
+		"alpha": market.Factory{New: func(market.Config) (market.Integration, error) { return alpha, nil }},
 	}
 	sources, err := market.New(ctx, q, factories, log)
 	require.NoError(t, err)

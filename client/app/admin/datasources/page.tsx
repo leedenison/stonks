@@ -116,6 +116,8 @@ export default function DatasourcesPage() {
                           name: d.name,
                           enabled: !d.enabled,
                           endpoint: d.endpoint,
+                          credential: d.credential,
+                          config: d.config,
                         })
                       }
                       onEdit={() => {
@@ -220,8 +222,14 @@ function Row({
           </Button>
         </div>
       </Td>
-      <Td className="font-mono">{d.endpoint}</Td>
-      <Td>{d.hasCredential ? "held" : "none"}</Td>
+      <Td className="font-mono" data-testid={`datasource-endpoint-${d.name}`}>
+        {d.endpoint || (
+          <span className="text-text-muted">{d.defaultEndpoint}</span>
+        )}
+      </Td>
+      <Td className="font-mono" data-testid={`datasource-credential-${d.name}`}>
+        {d.credential || <span className="text-text-muted">none</span>}
+      </Td>
       <Td>
         <Button
           variant="secondary"
@@ -236,10 +244,10 @@ function Row({
   );
 }
 
-// EditDialog edits the endpoint, the credential and the config. The stored
-// credential is never shown: a blank field keeps it, a value replaces it,
-// and the clear box drops it. The config is edited as JSON text. A save
-// sends the config only once the text is a JSON object.
+// EditDialog edits the endpoint, the credential and the config as the row
+// holds them. An empty endpoint takes the provider's default, and an empty
+// credential holds none. The config is edited as JSON text. A save sends the
+// config only once the text is a JSON object.
 function EditDialog({
   d,
   busy,
@@ -253,22 +261,17 @@ function EditDialog({
   // open.
   error: Error | null;
   onClose: () => void;
-  onSave: (
-    endpoint: string,
-    credential: string | undefined,
-    config: JsonObject,
-  ) => void;
+  onSave: (endpoint: string, credential: string, config: JsonObject) => void;
 }) {
-  const [endpoint, setEndpoint] = useState(d.endpoint ?? "");
-  const [credential, setCredential] = useState("");
-  const [clear, setClear] = useState(false);
+  const [endpoint, setEndpoint] = useState(d.endpoint);
+  const [credential, setCredential] = useState(d.credential);
   const [config, setConfig] = useState(JSON.stringify(d.config ?? {}, null, 2));
   const [invalid, setInvalid] = useState(false);
   const save = () => {
     const parsed = jsonObject(config);
     setInvalid(parsed === undefined);
     if (parsed !== undefined) {
-      onSave(endpoint, clear ? "" : credential || undefined, parsed);
+      onSave(endpoint, credential, parsed);
     }
   };
   return (
@@ -299,35 +302,22 @@ function EditDialog({
           type="url"
           data-testid="datasource-endpoint"
           value={endpoint}
-          placeholder="the provider's default"
+          placeholder={d.defaultEndpoint || "the provider's default"}
           onChange={(e) => setEndpoint(e.target.value)}
         />
       </label>
       <label className="flex flex-col gap-1 text-sm">
-        <span className="text-text-muted">
-          Credential{d.hasCredential ? " (one is held)" : ""}
-        </span>
+        <span className="text-text-muted">Credential</span>
         <Input
-          type="password"
+          type="text"
           data-testid="datasource-credential"
+          className="font-mono"
           value={credential}
-          placeholder={d.hasCredential ? "unchanged" : "none"}
-          disabled={clear}
+          placeholder="none"
           autoComplete="off"
           onChange={(e) => setCredential(e.target.value)}
         />
       </label>
-      {d.hasCredential && (
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            data-testid="datasource-clear-credential"
-            checked={clear}
-            onChange={(e) => setClear(e.target.checked)}
-          />
-          <span>Clear the credential held</span>
-        </label>
-      )}
       <label className="flex flex-col gap-1 text-sm">
         <span className="text-text-muted">Config</span>
         <Textarea

@@ -55,8 +55,11 @@ func New(cfg market.Config, mics mic.Table, opts ...Option) *Client {
 
 // Factory returns the factory of Clients normalising venues through mics.
 func Factory(mics mic.Table) market.Factory {
-	return func(cfg market.Config) (market.Integration, error) {
-		return New(cfg, mics), nil
+	return market.Factory{
+		Endpoint: endpoint,
+		New: func(cfg market.Config) (market.Integration, error) {
+			return New(cfg, mics), nil
+		},
 	}
 }
 

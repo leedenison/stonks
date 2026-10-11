@@ -20,3 +20,13 @@ func TestEqual(t *testing.T) {
 		}
 	}
 }
+
+func TestDeref(t *testing.T) {
+	x := "x"
+	if got := Deref(&x, "d"); got != "x" {
+		t.Errorf("Deref(&x) = %q, want x", got)
+	}
+	if got := Deref[string](nil, "d"); got != "d" {
+		t.Errorf("Deref(nil) = %q, want d", got)
+	}
+}

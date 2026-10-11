@@ -26,9 +26,7 @@ of open issues and ADRs at `docs/tasks/<label>/`.
   fetch served for a key it could not associate.
 
 ```
-  007 settings
-        |
-    005 close
+  005 close
 ```
 
 ## Completed

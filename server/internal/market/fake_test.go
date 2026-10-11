@@ -116,9 +116,9 @@ func (f *fake) Batch() int { return f.batch }
 func (*fake) Endpoint() string { return "https://fake.test" }
 
 func factoryOf(i Integration) Factory {
-	return func(Config) (Integration, error) { return i, nil }
+	return Factory{Endpoint: "https://fake.test", New: func(Config) (Integration, error) { return i, nil }}
 }
 
 func failingFactory(msg string) Factory {
-	return func(Config) (Integration, error) { return nil, fmt.Errorf("%s", msg) }
+	return Factory{New: func(Config) (Integration, error) { return nil, fmt.Errorf("%s", msg) }}
 }

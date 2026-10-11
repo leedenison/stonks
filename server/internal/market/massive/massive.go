@@ -112,8 +112,11 @@ func operating(mics mic.Table) map[string]bool {
 // Factory returns a market.Factory that builds Clients which normalise
 // venues through mics.
 func Factory(mics mic.Table) market.Factory {
-	return func(cfg market.Config) (market.Integration, error) {
-		return New(cfg, mics)
+	return market.Factory{
+		Endpoint: endpoint,
+		New: func(cfg market.Config) (market.Integration, error) {
+			return New(cfg, mics)
+		},
 	}
 }
 
