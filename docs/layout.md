@@ -17,6 +17,7 @@
 proto/
   admin/block/v1/block.proto            stonks.admin.block.v1      -- datasource blocks, across every user
   admin/datasource/v1/datasource.proto  stonks.admin.datasource.v1 -- the external providers and their settings
+  admin/instrument/v1/instrument.proto  stonks.admin.instrument.v1 -- every instrument, with its identifiers and listings
   admin/replay/v1/replay.proto          stonks.admin.replay.v1     -- replays, started by an administrator
   admin/run/v1/run.proto                stonks.admin.run.v1        -- what runs did, across every user
   auth/v1/auth.proto                    stonks.auth.v1             -- sign in, session, sign out

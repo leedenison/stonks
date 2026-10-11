@@ -18,6 +18,7 @@ import (
 
 	"github.com/leedenison/stonks/proto/admin/block/v1/adminblockv1connect"
 	"github.com/leedenison/stonks/proto/admin/datasource/v1/admindatasourcev1connect"
+	"github.com/leedenison/stonks/proto/admin/instrument/v1/admininstrumentv1connect"
 	"github.com/leedenison/stonks/proto/admin/replay/v1/adminreplayv1connect"
 	"github.com/leedenison/stonks/proto/admin/run/v1/adminrunv1connect"
 	"github.com/leedenison/stonks/proto/auth/v1/authv1connect"
@@ -43,6 +44,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/service"
 	adminblock "github.com/leedenison/stonks/server/internal/service/admin/block"
 	admindatasource "github.com/leedenison/stonks/server/internal/service/admin/datasource"
+	admininstrument "github.com/leedenison/stonks/server/internal/service/admin/instrument"
 	adminreplay "github.com/leedenison/stonks/server/internal/service/admin/replay"
 	adminrun "github.com/leedenison/stonks/server/internal/service/admin/run"
 	authsvc "github.com/leedenison/stonks/server/internal/service/auth"
@@ -159,7 +161,7 @@ func run() (err error) {
 	ingester := stmt.New(db.New[stmt.Queries](pool), runs, resolver, time.Now)
 	replays := replay.New(db.New[replay.Queries](pool), runs, resolver, sources)
 	datasources := admindatasource.New(db.New[admindatasource.Queries](pool), sources, cache)
-	srv, err := newServer(cfg.ListenAddr, log, authn, queries, adminrun.New(queries), adminblock.New(queries), datasources, adminreplay.New(queries, replays), ingester, cfg.CookieSecure)
+	srv, err := newServer(cfg.ListenAddr, log, authn, queries, adminrun.New(queries), adminblock.New(queries), datasources, admininstrument.New(queries), adminreplay.New(queries, replays), ingester, cfg.CookieSecure)
 	if err != nil {
 		return err
 	}
@@ -189,7 +191,7 @@ func tracedClient() *http.Client {
 // once the server listens, which is after the migrations have applied. It is
 // outside the Connect chain and the mux carries no HTTP instrumentation, so
 // the container probing it every two seconds produces no telemetry.
-func newServer(addr string, log *slog.Logger, authn *auth.Authenticator, queries *gen.Queries, runs *adminrun.Server, blocks *adminblock.Server, datasources *admindatasource.Server, replays *adminreplay.Server, statements *stmt.Service, secure bool) (*http.Server, error) {
+func newServer(addr string, log *slog.Logger, authn *auth.Authenticator, queries *gen.Queries, runs *adminrun.Server, blocks *adminblock.Server, datasources *admindatasource.Server, instruments *admininstrument.Server, replays *adminreplay.Server, statements *stmt.Service, secure bool) (*http.Server, error) {
 	opts, err := service.HandlerOptions(logger.WithCategory(log, "internal/service"), authn)
 	if err != nil {
 		return nil, err
@@ -200,6 +202,7 @@ func newServer(addr string, log *slog.Logger, authn *auth.Authenticator, queries
 	})
 	mux.Handle(adminblockv1connect.NewBlockServiceHandler(blocks, opts...))
 	mux.Handle(admindatasourcev1connect.NewDatasourceServiceHandler(datasources, opts...))
+	mux.Handle(admininstrumentv1connect.NewInstrumentServiceHandler(instruments, opts...))
 	mux.Handle(adminreplayv1connect.NewReplayServiceHandler(replays, opts...))
 	mux.Handle(adminrunv1connect.NewRunServiceHandler(runs, opts...))
 	mux.Handle(authv1connect.NewAuthServiceHandler(authsvc.New(authn, secure), opts...))
@@ -208,7 +211,7 @@ func newServer(addr string, log *slog.Logger, authn *auth.Authenticator, queries
 	mux.Handle(runv1connect.NewRunServiceHandler(runsvc.New(queries), opts...))
 	mux.Handle(statementv1connect.NewStatementServiceHandler(stmtsvc.New(statements, statements, queries), opts...))
 	reflector := grpcreflect.NewStaticReflector(
-		adminblockv1connect.BlockServiceName, admindatasourcev1connect.DatasourceServiceName, adminreplayv1connect.ReplayServiceName, adminrunv1connect.RunServiceName, authv1connect.AuthServiceName, holdingv1connect.HoldingServiceName, instrumentv1connect.InstrumentServiceName,
+		adminblockv1connect.BlockServiceName, admindatasourcev1connect.DatasourceServiceName, admininstrumentv1connect.InstrumentServiceName, adminreplayv1connect.ReplayServiceName, adminrunv1connect.RunServiceName, authv1connect.AuthServiceName, holdingv1connect.HoldingServiceName, instrumentv1connect.InstrumentServiceName,
 		runv1connect.RunServiceName, statementv1connect.StatementServiceName,
 	)
 	mux.Handle(grpcreflect.NewHandlerV1(reflector, opts...))

@@ -352,3 +352,81 @@ func TestListUserInstruments(t *testing.T) {
 		t.Errorf("ListIdentifiersOf = %+v, want the dollar's code", idents)
 	}
 }
+
+// TestListInstruments checks how the listing names and orders every
+// instrument. The seed's cash instruments are in every list, so the test's
+// own rows carry names after every currency code, and the assertions place
+// rows rather than count them.
+func TestListInstruments(t *testing.T) {
+	ctx := context.Background()
+	q := newTx(t)
+	usd, _ := cashListing(t, q, "USD")
+	ident := func(in gen.Instrument, listing *gen.Listing, typ types.IdentifierType, domain, value string) {
+		t.Helper()
+		var listingID *uuid.UUID
+		if listing != nil {
+			listingID = &listing.ID
+		}
+		_, err := q.CreateIdentifier(ctx, gen.CreateIdentifierParams{ID: db.NewID(), InstrumentID: in.ID, ListingID: listingID, Type: typ, Domain: domain, Value: value})
+		require.NoError(t, err)
+	}
+
+	// A stock with an ISIN and tickers at two venues, whose primary venue
+	// ranks after the other in venue_names and sorts after it by MIC.
+	stock := newInstrument(t, q, gen.AssetClassStock)
+	stockLine := newListing(t, q, stock, "USD")
+	require.NoError(t, q.SetListingPrimary(ctx, gen.SetListingPrimaryParams{ID: stockLine.ID, PrimaryMic: ptr.To("XSWX")}))
+	ident(stock, nil, types.IdentifierTypeIsin, "", "ZZ0000000001")
+	ident(stock, &stockLine, types.IdentifierTypeMicTicker, "XNYS", "ZZSTOCK")
+	ident(stock, &stockLine, types.IdentifierTypeMicTicker, "XSWX", "ZZSTOCKP")
+	// A stock with no primary venue, whose tickers differ at a venue ranked
+	// first in venue_names and at one sorting first by MIC.
+	two := newInstrument(t, q, gen.AssetClassStock)
+	twoLine := newListing(t, q, two, "USD")
+	ident(two, &twoLine, types.IdentifierTypeMicTicker, "XNAS", "ZZTWO")
+	ident(two, &twoLine, types.IdentifierTypeMicTicker, "XNYS", "ZZTWON")
+	// An option with an OCC symbol, a built symbol and a ticker.
+	option := newInstrument(t, q, gen.AssetClassOption)
+	optionLine := newListing(t, q, option, "USD")
+	ident(option, nil, types.IdentifierTypeOcc, "", "ZZOPT260116C00150000")
+	ident(option, nil, types.IdentifierTypeOption, "", "ZZOPTBUILT")
+	ident(option, &optionLine, types.IdentifierTypeMicTicker, "XCBO", "ZZOPTTICK")
+	// An instrument nothing names.
+	bare := newInstrument(t, q, gen.AssetClassSecurity)
+
+	all, err := q.ListInstruments(ctx, gen.ListInstrumentsParams{Lim: 1000})
+	require.NoError(t, err)
+	names := map[uuid.UUID]string{}
+	for _, r := range all {
+		names[r.ID] = r.Name
+	}
+	want := map[uuid.UUID]string{usd.InstrumentID: "USD", stock.ID: "ZZSTOCKP", two.ID: "ZZTWON", option.ID: "ZZOPT260116C00150000", bare.ID: ""}
+	for id, name := range want {
+		if names[id] != name {
+			t.Errorf("instrument %s named %q, want %q", id, names[id], name)
+		}
+	}
+	tail := all[len(all)-3:]
+	if tail[0].ID != option.ID || tail[1].ID != stock.ID || tail[2].ID != two.ID {
+		t.Errorf("last three = %v, want the option, the stock, then the second stock", tail)
+	}
+	if all[0].ID != bare.ID || all[0].AssetClass != gen.AssetClassSecurity {
+		t.Errorf("first = %+v, want the unnamed instrument", all[0])
+	}
+
+	first, err := q.ListInstruments(ctx, gen.ListInstrumentsParams{Lim: 1})
+	require.NoError(t, err)
+	if len(first) != 1 || first[0].ID != bare.ID {
+		t.Errorf("first page = %v, want the unnamed instrument alone", first)
+	}
+	next, err := q.ListInstruments(ctx, gen.ListInstrumentsParams{After: &option.ID, Lim: 1})
+	require.NoError(t, err)
+	if len(next) != 1 || next[0].ID != stock.ID {
+		t.Errorf("page after the option = %v, want the stock alone", next)
+	}
+	gone, err := q.ListInstruments(ctx, gen.ListInstrumentsParams{After: ptr.To(db.NewID()), Lim: 1})
+	require.NoError(t, err)
+	if len(gone) != 0 {
+		t.Errorf("page after an unknown id = %v, want none", gone)
+	}
+}

@@ -17,6 +17,7 @@ export const qk = {
   transactions: () => ["transactions"] as const,
   holdings: () => ["holdings"] as const,
   instruments: () => ["instruments"] as const,
+  adminInstruments: (after: string) => ["admin-instruments", after] as const,
   adminRuns: (f: RunFilters) =>
     ["admin-runs", f.kind, f.trigger, f.state, f.user, f.before] as const,
   adminRun: (id: string) => ["admin-runs", id] as const,

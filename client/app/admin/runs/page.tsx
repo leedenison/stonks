@@ -95,8 +95,8 @@ function Runs() {
         </RunTreeTable>
       )}
       <Pager
-        newest={f.before ? filterQuery({ ...f, before: "" }) : undefined}
-        older={
+        first={f.before ? filterQuery({ ...f, before: "" }) : undefined}
+        next={
           data?.nextPageToken
             ? filterQuery({ ...f, before: data.nextPageToken })
             : undefined

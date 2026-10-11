@@ -1,0 +1,173 @@
+package instrument
+
+import (
+	"context"
+	"errors"
+	"net/http"
+	"testing"
+
+	"connectrpc.com/connect"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/uuid"
+	"go.uber.org/mock/gomock"
+	"google.golang.org/protobuf/testing/protocmp"
+
+	admininstrumentv1 "github.com/leedenison/stonks/proto/admin/instrument/v1"
+	"github.com/leedenison/stonks/proto/admin/instrument/v1/admininstrumentv1connect"
+	typev1 "github.com/leedenison/stonks/proto/type/v1"
+	"github.com/leedenison/stonks/server/internal/auth"
+	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/db/types"
+	"github.com/leedenison/stonks/server/internal/ptr"
+	"github.com/leedenison/stonks/server/internal/service/admin/page"
+	servicemock "github.com/leedenison/stonks/server/internal/service/mock"
+	"github.com/leedenison/stonks/server/internal/service/servicetest"
+)
+
+var (
+	acmeID    = uuid.MustParse("00000000-0000-0000-0000-000000000021")
+	gbpID     = uuid.MustParse("00000000-0000-0000-0000-000000000022")
+	usdLine   = uuid.MustParse("00000000-0000-0000-0000-000000000031")
+	gbpLine   = uuid.MustParse("00000000-0000-0000-0000-000000000032")
+	cashLine  = uuid.MustParse("00000000-0000-0000-0000-000000000033")
+	adminID   = uuid.MustParse("00000000-0000-0000-0000-000000000002")
+	principal = auth.Principal{User: gen.User{ID: adminID, Email: "admin@example.com", Role: gen.UserRoleAdmin}, SessionID: servicetest.Session}
+)
+
+type fixture struct {
+	queries *MockQueries
+	client  admininstrumentv1connect.InstrumentServiceClient
+}
+
+// newFixture mounts a Server with the real handler chain, and a client whose
+// session belongs to an administrator.
+func newFixture(t *testing.T) *fixture {
+	t.Helper()
+	ctrl := gomock.NewController(t)
+	t.Cleanup(ctrl.Finish)
+	authn := servicemock.NewMockAuthenticator(ctrl)
+	authn.EXPECT().Authenticate(gomock.Any(), servicetest.Session).Return(principal, nil).AnyTimes()
+	f := &fixture{queries: NewMockQueries(ctrl)}
+	opts := servicetest.Options(t, authn)
+	srv := servicetest.Serve(t, func(mux *http.ServeMux) {
+		mux.Handle(admininstrumentv1connect.NewInstrumentServiceHandler(New(f.queries), opts...))
+	})
+	f.client = admininstrumentv1connect.NewInstrumentServiceClient(srv.Client, srv.URL)
+	return f
+}
+
+func TestListInstruments(t *testing.T) {
+	// A share listed in two currencies, named by an ISIN and by a ticker on
+	// each listing, and the pound, named by its codes with one listing.
+	rows := []gen.ListInstrumentsRow{
+		{ID: acmeID, AssetClass: gen.AssetClassStock, Name: "ACME"},
+		{ID: gbpID, AssetClass: gen.AssetClassCash, Name: "GBP"},
+	}
+	listings := []gen.Listing{
+		{ID: gbpLine, InstrumentID: acmeID, Currency: "GBP"},
+		{ID: usdLine, InstrumentID: acmeID, Currency: "USD", PrimaryMic: ptr.To("XNYS")},
+		{ID: cashLine, InstrumentID: gbpID, Currency: "GBP"},
+	}
+	idents := []gen.Identifier{
+		{InstrumentID: acmeID, Type: types.IdentifierTypeIsin, Value: "GB0002634946"},
+		{InstrumentID: acmeID, ListingID: &gbpLine, Type: types.IdentifierTypeMicTicker, Domain: "XLON", Value: "ACME"},
+		{InstrumentID: acmeID, ListingID: &usdLine, Type: types.IdentifierTypeMicTicker, Domain: "XNYS", Value: "ACME"},
+		{InstrumentID: gbpID, Type: types.IdentifierTypeCurrency, Value: "GBP"},
+		{InstrumentID: gbpID, Type: types.IdentifierTypeCurrency, Value: "GBX"},
+	}
+	ticker := func(domain string) *typev1.Identifier {
+		return &typev1.Identifier{Type: typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, Domain: domain, Value: "ACME"}
+	}
+	want := []*admininstrumentv1.Instrument{
+		{
+			Id: acmeID.String(), Name: "ACME", AssetClass: typev1.AssetClass_ASSET_CLASS_STOCK,
+			Identifiers: []*typev1.Identifier{{Type: typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, Value: "GB0002634946"}},
+			Listings: []*admininstrumentv1.Listing{
+				{Id: gbpLine.String(), Currency: "GBP", Identifiers: []*typev1.Identifier{ticker("XLON")}},
+				{Id: usdLine.String(), Currency: "USD", PrimaryMic: "XNYS", Identifiers: []*typev1.Identifier{ticker("XNYS")}},
+			},
+		},
+		{
+			Id: gbpID.String(), Name: "GBP", AssetClass: typev1.AssetClass_ASSET_CLASS_CASH,
+			Identifiers: []*typev1.Identifier{
+				{Type: typev1.IdentifierType_IDENTIFIER_TYPE_CURRENCY, Value: "GBP"},
+				{Type: typev1.IdentifierType_IDENTIFIER_TYPE_CURRENCY, Value: "GBX"},
+			},
+			Listings: []*admininstrumentv1.Listing{{Id: cashLine.String(), Currency: "GBP"}},
+		},
+	}
+	ids := []uuid.UUID{acmeID, gbpID}
+
+	tests := []struct {
+		name        string
+		req         *admininstrumentv1.ListInstrumentsRequest
+		wantArg     *gen.ListInstrumentsParams
+		rows        []gen.ListInstrumentsRow
+		rowsErr     error
+		listingsErr error
+		identsErr   error
+		want        *admininstrumentv1.ListInstrumentsResponse
+		wantCode    connect.Code
+	}{
+		{
+			name:    "a page after a token",
+			req:     &admininstrumentv1.ListInstrumentsRequest{PageToken: acmeID.String()},
+			wantArg: &gen.ListInstrumentsParams{After: &acmeID, Lim: page.DefaultSize + 1},
+			rows:    rows,
+			want:    &admininstrumentv1.ListInstrumentsResponse{Instruments: want},
+		},
+		{
+			name:    "none",
+			req:     &admininstrumentv1.ListInstrumentsRequest{},
+			wantArg: &gen.ListInstrumentsParams{Lim: page.DefaultSize + 1},
+			want:    &admininstrumentv1.ListInstrumentsResponse{},
+		},
+		{name: "oversized page", req: &admininstrumentv1.ListInstrumentsRequest{PageSize: 201}, wantCode: connect.CodeInvalidArgument},
+		{name: "malformed token", req: &admininstrumentv1.ListInstrumentsRequest{PageToken: "not-a-uuid"}, wantCode: connect.CodeInvalidArgument},
+		{name: "instruments failure", req: &admininstrumentv1.ListInstrumentsRequest{}, wantArg: &gen.ListInstrumentsParams{Lim: page.DefaultSize + 1}, rowsErr: errors.New("boom"), wantCode: connect.CodeInternal},
+		{name: "listings failure", req: &admininstrumentv1.ListInstrumentsRequest{}, wantArg: &gen.ListInstrumentsParams{Lim: page.DefaultSize + 1}, rows: rows, listingsErr: errors.New("boom"), wantCode: connect.CodeInternal},
+		{name: "identifiers failure", req: &admininstrumentv1.ListInstrumentsRequest{}, wantArg: &gen.ListInstrumentsParams{Lim: page.DefaultSize + 1}, rows: rows, identsErr: errors.New("boom"), wantCode: connect.CodeInternal},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFixture(t)
+			if tc.wantArg != nil {
+				f.queries.EXPECT().ListInstruments(gomock.Any(), *tc.wantArg).Return(tc.rows, tc.rowsErr)
+			}
+			if tc.rowsErr == nil && len(tc.rows) > 0 {
+				f.queries.EXPECT().ListListingsOf(gomock.Any(), ids).Return(listings, tc.listingsErr)
+			}
+			if tc.rowsErr == nil && len(tc.rows) > 0 && tc.listingsErr == nil {
+				f.queries.EXPECT().ListIdentifiersOf(gomock.Any(), ids).Return(idents, tc.identsErr)
+			}
+			res, err := f.client.ListInstruments(context.Background(), connect.NewRequest(tc.req))
+			if servicetest.CodeOf(err) != tc.wantCode {
+				t.Fatalf("ListInstruments(%v) code = %v (err %v), want %v", tc.req, servicetest.CodeOf(err), err, tc.wantCode)
+			}
+			if err != nil {
+				return
+			}
+			if diff := cmp.Diff(tc.want, res.Msg, protocmp.Transform()); diff != "" {
+				t.Errorf("ListInstruments(%v) mismatch (-want +got):\n%s", tc.req, diff)
+			}
+		})
+	}
+}
+
+// TestListInstrumentsPages checks that a full page is cut to its size and
+// that the token of the next page is the id of the last instrument served.
+func TestListInstrumentsPages(t *testing.T) {
+	f := newFixture(t)
+	rows := []gen.ListInstrumentsRow{{ID: acmeID, AssetClass: gen.AssetClassStock, Name: "ACME"}, {ID: gbpID, AssetClass: gen.AssetClassCash, Name: "GBP"}}
+	f.queries.EXPECT().ListInstruments(gomock.Any(), gen.ListInstrumentsParams{Lim: 2}).Return(rows, nil)
+	f.queries.EXPECT().ListListingsOf(gomock.Any(), []uuid.UUID{acmeID}).Return(nil, nil)
+	f.queries.EXPECT().ListIdentifiersOf(gomock.Any(), []uuid.UUID{acmeID}).Return(nil, nil)
+	res, err := f.client.ListInstruments(context.Background(), connect.NewRequest(&admininstrumentv1.ListInstrumentsRequest{PageSize: 1}))
+	if err != nil {
+		t.Fatalf("ListInstruments() error = %v", err)
+	}
+	got := res.Msg.GetInstruments()
+	if len(got) != 1 || got[0].GetId() != acmeID.String() || res.Msg.GetNextPageToken() != acmeID.String() {
+		t.Errorf("ListInstruments() = %v, want the first instrument and its id as the next token", res.Msg)
+	}
+}

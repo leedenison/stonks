@@ -1,0 +1,64 @@
+// Every instrument, with its identifiers and listings.
+
+syntax = "proto3";
+
+package stonks.admin.instrument.v1;
+
+import "buf/validate/validate.proto";
+import "type/v1/type.proto";
+
+option go_package = "github.com/leedenison/stonks/proto/admin/instrument/v1;admininstrumentv1";
+
+// One trading currency of an instrument.
+message Listing {
+  // Identifies the listing in every API; a UUID.
+  string id = 1;
+  // The listing's currency code; a family code, so a listing quoted in pence
+  // is the GBP listing.
+  string currency = 2;
+  // The listing grain identifiers naming it.
+  repeated stonks.type.v1.Identifier identifiers = 3;
+  // The operating MIC of the venue a datasource stated as the listing's
+  // primary; empty where none has.
+  string primary_mic = 4;
+}
+
+message Instrument {
+  // Identifies the instrument in every API; a UUID.
+  string id = 1;
+  // The value of the identifier that names the instrument, chosen by the
+  // rank of its type; empty where it has none.
+  string name = 2;
+  // The narrowest class known for the instrument.
+  stonks.type.v1.AssetClass asset_class = 3;
+  // The instrument grain identifiers naming it. Empty when only its listings
+  // are named.
+  repeated stonks.type.v1.Identifier identifiers = 4;
+  // One per currency family the instrument trades in, by currency.
+  repeated Listing listings = 5;
+}
+
+message ListInstrumentsRequest {
+  // At most this many instruments; 0 means 50.
+  int32 page_size = 1 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 200
+  }];
+  // The next_page_token of the previous page; empty for the first.
+  string page_token = 2 [
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
+    (buf.validate.field).string.uuid = true
+  ];
+}
+
+message ListInstrumentsResponse {
+  // By name, then by id.
+  repeated Instrument instruments = 1;
+  // Continues the listing; empty on the last page.
+  string next_page_token = 2;
+}
+
+service InstrumentService {
+  // Lists every instrument, each with its identifiers and listings.
+  rpc ListInstruments(ListInstrumentsRequest) returns (ListInstrumentsResponse);
+}
