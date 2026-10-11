@@ -28,6 +28,7 @@ var _ market.Identity = (*Client)(nil)
 type Client struct {
 	mics     mic.Table
 	venues   map[string]bool
+	prefer   market.Preference
 	limit    rate.Limit
 	http     *http.Client
 	endpoint string
@@ -81,6 +82,12 @@ func New(cfg market.Config, mics mic.Table, h *http.Client) (*Client, error) {
 	}
 	if p.PerMinute > 0 {
 		c.limit = rate.Every(time.Minute / time.Duration(p.PerMinute))
+	}
+	c.prefer = market.Preference{
+		Served: market.Equities,
+		Order:  []types.IdentifierType{types.IdentifierTypeCusip, types.IdentifierTypeMicTicker},
+		Lists:  func(op string) bool { return c.venues[op] },
+		Mics:   mics,
 	}
 	return c, nil
 }
@@ -195,9 +202,5 @@ func (c *Client) records(ctx context.Context, id types.Identifier) ([]record, er
 
 // get sends one request and decodes a 200's body into v.
 func (c *Client) get(ctx context.Context, path string, q url.Values, v any) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.endpoint+path+"?"+q.Encode(), nil)
-	if err != nil {
-		return fmt.Errorf("build request: %w", market.WithoutURL(err))
-	}
-	return market.Do(c.http, req, "massive", v)
+	return market.Get(ctx, c.http, "massive", c.endpoint+path+"?"+q.Encode(), v)
 }

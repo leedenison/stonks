@@ -2,6 +2,7 @@ package market
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,6 +11,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // StatusError is a provider's response with a status other than 200.
@@ -55,6 +57,27 @@ func Do(c *http.Client, req *http.Request, provider string, v any) (err error) {
 		return fmt.Errorf("decode %s response: %w", provider, err)
 	}
 	return nil
+}
+
+// Get sends a GET for rawURL through c and decodes a 200's body into v, as
+// Do does.
+func Get(ctx context.Context, c *http.Client, provider, rawURL string, v any) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
+	if err != nil {
+		return fmt.Errorf("build request: %w", WithoutURL(err))
+	}
+	return Do(c, req, provider, v)
+}
+
+// Seconds returns the delay in seconds that header name carries, or zero. A
+// Retry-After that is an HTTP-date reads as zero, which leaves the wait to
+// the retry schedule.
+func Seconds(h http.Header, name string) time.Duration {
+	n, err := strconv.Atoi(h.Get(name))
+	if err != nil || n <= 0 {
+		return 0
+	}
+	return time.Duration(n) * time.Second
 }
 
 // WithoutURL drops the URL from an error so that API keys are redacted.

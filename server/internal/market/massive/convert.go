@@ -46,11 +46,7 @@ var classes = map[string]gen.AssetClass{
 // compares the listing with the stated venue. Massive never returns the
 // CUSIP it was sent.
 func identity(sent types.Identifier, recs []record, mics mic.Table) market.IdentityResult {
-	filtered := sent
-	if filtered.Type == types.IdentifierTypeMicTicker {
-		filtered.Domain = ""
-	}
-	out := market.IdentityResult{Filtered: []types.Identifier{filtered}, Limited: true}
+	out := market.Answer(sent, true)
 	for _, r := range recs {
 		if c, ok := candidate(r, mics); ok {
 			out.Candidates = append(out.Candidates, c)

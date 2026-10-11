@@ -1,9 +1,6 @@
 package openfigi
 
 import (
-	"errors"
-	"fmt"
-
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/types"
 	"github.com/leedenison/stonks/server/internal/market"
@@ -28,31 +25,7 @@ var idTypes = []struct {
 
 // Serves returns the strongest identifier of key OpenFIGI accepts.
 func (c *Client) Serves(key gen.StatedKey) (types.Identifier, error) {
-	var unknown error
-	for _, t := range idTypes {
-		for _, id := range key.Identifiers {
-			if id.Type != t.typ {
-				continue
-			}
-			if id.Type != types.IdentifierTypeMicTicker {
-				return id, nil
-			}
-			if id.Domain == "" {
-				return market.Bare(key, id)
-			}
-			op, ok := c.mics.Operating(id.Domain)
-			if !ok {
-				unknown = fmt.Errorf("venue %s of ticker %s is not a MIC", id.Domain, id.Value)
-				continue
-			}
-			id.Domain = op
-			return id, nil
-		}
-	}
-	if unknown != nil {
-		return types.Identifier{}, unknown
-	}
-	return types.Identifier{}, errors.New("no recognised identifier type")
+	return c.prefer.Serves(key)
 }
 
 // job is one entry of a mapping request.

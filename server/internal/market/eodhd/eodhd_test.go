@@ -15,6 +15,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/types"
 	"github.com/leedenison/stonks/server/internal/market"
+	"github.com/leedenison/stonks/server/internal/market/markettest"
 	"github.com/leedenison/stonks/server/internal/mic"
 	"github.com/leedenison/stonks/server/internal/testutil/vcr"
 )
@@ -291,14 +292,7 @@ func TestFetchUnauthorised(t *testing.T) {
 	if vcr.Recording(cassette) {
 		key = "not-a-key"
 	}
-	c := replay(t, cassette, key)
-	_, err := fetch(c, appleISIN)
-	if err == nil {
-		t.Fatal("Fetch() with a refused key succeeded")
-	}
-	if got, want := c.Classify(err), (market.Failure{Scope: gen.BlockScopeDatasource}); got != want {
-		t.Errorf("Classify(%v) = %+v, want %+v", err, got, want)
-	}
+	markettest.Unauthorised(t, replay(t, cassette, key), appleISIN)
 }
 
 // TestNotFound checks that a 404 is an error. EODHD documents a 404 as the
