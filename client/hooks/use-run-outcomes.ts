@@ -35,7 +35,6 @@ export function useRunOutcomes(statements: StatementSummary[]) {
     }
     queryClient.invalidateQueries({ queryKey: qk.transactions() });
     queryClient.invalidateQueries({ queryKey: qk.holdings() });
-    queryClient.invalidateQueries({ queryKey: qk.instruments() });
     for (const id of finished) {
       queryClient.invalidateQueries({ queryKey: qk.statement(id) });
     }

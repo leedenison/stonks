@@ -47,7 +47,6 @@ describe("useRunOutcomes", () => {
     expect(keys).toEqual([
       JSON.stringify(["transactions"]),
       JSON.stringify(["holdings"]),
-      JSON.stringify(["instruments"]),
       JSON.stringify(["statements", "r1"]),
     ]);
 
@@ -57,6 +56,6 @@ describe("useRunOutcomes", () => {
         summary("r1", RunState.COMPLETED),
       ],
     });
-    expect(invalidate).toHaveBeenCalledTimes(4);
+    expect(invalidate).toHaveBeenCalledTimes(3);
   });
 });

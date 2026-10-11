@@ -23,7 +23,6 @@ import (
 	"github.com/leedenison/stonks/proto/admin/run/v1/adminrunv1connect"
 	"github.com/leedenison/stonks/proto/auth/v1/authv1connect"
 	"github.com/leedenison/stonks/proto/holding/v1/holdingv1connect"
-	"github.com/leedenison/stonks/proto/instrument/v1/instrumentv1connect"
 	"github.com/leedenison/stonks/proto/run/v1/runv1connect"
 	"github.com/leedenison/stonks/proto/statement/v1/statementv1connect"
 	"github.com/leedenison/stonks/server/internal/auth"
@@ -49,7 +48,6 @@ import (
 	adminrun "github.com/leedenison/stonks/server/internal/service/admin/run"
 	authsvc "github.com/leedenison/stonks/server/internal/service/auth"
 	holdingsvc "github.com/leedenison/stonks/server/internal/service/holding"
-	"github.com/leedenison/stonks/server/internal/service/instrument"
 	runsvc "github.com/leedenison/stonks/server/internal/service/run"
 	stmtsvc "github.com/leedenison/stonks/server/internal/service/statement"
 	stmt "github.com/leedenison/stonks/server/internal/statement"
@@ -207,11 +205,10 @@ func newServer(addr string, log *slog.Logger, authn *auth.Authenticator, queries
 	mux.Handle(adminrunv1connect.NewRunServiceHandler(runs, opts...))
 	mux.Handle(authv1connect.NewAuthServiceHandler(authsvc.New(authn, secure), opts...))
 	mux.Handle(holdingv1connect.NewHoldingServiceHandler(holdingsvc.New(queries), opts...))
-	mux.Handle(instrumentv1connect.NewInstrumentServiceHandler(instrument.New(queries), opts...))
 	mux.Handle(runv1connect.NewRunServiceHandler(runsvc.New(queries), opts...))
 	mux.Handle(statementv1connect.NewStatementServiceHandler(stmtsvc.New(statements, statements, queries), opts...))
 	reflector := grpcreflect.NewStaticReflector(
-		adminblockv1connect.BlockServiceName, admindatasourcev1connect.DatasourceServiceName, admininstrumentv1connect.InstrumentServiceName, adminreplayv1connect.ReplayServiceName, adminrunv1connect.RunServiceName, authv1connect.AuthServiceName, holdingv1connect.HoldingServiceName, instrumentv1connect.InstrumentServiceName,
+		adminblockv1connect.BlockServiceName, admindatasourcev1connect.DatasourceServiceName, admininstrumentv1connect.InstrumentServiceName, adminreplayv1connect.ReplayServiceName, adminrunv1connect.RunServiceName, authv1connect.AuthServiceName, holdingv1connect.HoldingServiceName,
 		runv1connect.RunServiceName, statementv1connect.StatementServiceName,
 	)
 	mux.Handle(grpcreflect.NewHandlerV1(reflector, opts...))

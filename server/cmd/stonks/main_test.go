@@ -21,8 +21,8 @@ import (
 
 	authv1 "github.com/leedenison/stonks/proto/auth/v1"
 	"github.com/leedenison/stonks/proto/auth/v1/authv1connect"
-	instrumentv1 "github.com/leedenison/stonks/proto/instrument/v1"
-	"github.com/leedenison/stonks/proto/instrument/v1/instrumentv1connect"
+	holdingv1 "github.com/leedenison/stonks/proto/holding/v1"
+	"github.com/leedenison/stonks/proto/holding/v1/holdingv1connect"
 	"github.com/leedenison/stonks/server/internal/auth"
 	"github.com/leedenison/stonks/server/internal/auth/mock"
 	"github.com/leedenison/stonks/server/internal/auth/session"
@@ -126,10 +126,10 @@ func TestServer(t *testing.T) {
 	// A handler that needs a session refuses a visitor before it reads
 	// anything, so no database is needed here either.
 	t.Run("no session", func(t *testing.T) {
-		client := instrumentv1connect.NewInstrumentServiceClient(srv.Client(), srv.URL)
-		_, err := client.ListInstruments(context.Background(), connect.NewRequest(&instrumentv1.ListInstrumentsRequest{}))
+		client := holdingv1connect.NewHoldingServiceClient(srv.Client(), srv.URL)
+		_, err := client.ListHoldings(context.Background(), connect.NewRequest(&holdingv1.ListHoldingsRequest{}))
 		if connect.CodeOf(err) != connect.CodeUnauthenticated {
-			t.Errorf("ListInstruments without a session: code = %v (err %v), want %v", connect.CodeOf(err), err, connect.CodeUnauthenticated)
+			t.Errorf("ListHoldings without a session: code = %v (err %v), want %v", connect.CodeOf(err), err, connect.CodeUnauthenticated)
 		}
 	})
 
@@ -146,8 +146,8 @@ func TestServer(t *testing.T) {
 		if err != nil {
 			t.Fatalf("ListServices: %v", err)
 		}
-		if len(names) != 10 {
-			t.Errorf("ListServices = %v, want the ten services", names)
+		if len(names) != 9 {
+			t.Errorf("ListServices = %v, want the nine services", names)
 		}
 		if got := endedNames(); len(got) != 0 {
 			t.Errorf("reflection recorded spans %v, want none", got)

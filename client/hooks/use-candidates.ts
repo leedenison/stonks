@@ -39,12 +39,9 @@ export function useChooseCandidate() {
       statement.confirmCandidate(req),
     onSuccess: () =>
       Promise.all(
-        [
-          qk.statements(),
-          qk.holdings(),
-          qk.instruments(),
-          qk.transactions(),
-        ].map((queryKey) => queryClient.invalidateQueries({ queryKey })),
+        [qk.statements(), qk.holdings(), qk.transactions()].map((queryKey) =>
+          queryClient.invalidateQueries({ queryKey }),
+        ),
       ),
   });
 }

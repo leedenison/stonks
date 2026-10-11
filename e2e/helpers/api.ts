@@ -11,7 +11,6 @@ import { ReplayService } from "../gen/admin/replay/v1/replay_pb";
 import { RunService, type UserRun } from "../gen/admin/run/v1/run_pb";
 import { AuthService } from "../gen/auth/v1/auth_pb";
 import { HoldingService } from "../gen/holding/v1/holding_pb";
-import { InstrumentService } from "../gen/instrument/v1/instrument_pb";
 import { StatementService } from "../gen/statement/v1/statement_pb";
 import { sessionCookie } from "./auth";
 import { baseURL } from "./config";
@@ -128,8 +127,4 @@ export function statementClient(sessionID: string) {
 
 export function holdingClient(sessionID: string) {
   return clientFor(HoldingService, sessionID);
-}
-
-export function instrumentClient(sessionID: string) {
-  return clientFor(InstrumentService, sessionID);
 }
