@@ -23,10 +23,10 @@ const tries = 3
 // write records the outcome of res against run in a transaction of its own.
 // A key with a winner is written under an advisory lock on the identifiers
 // it states and every identifier its responses name, which covers every
-// identifier the write may insert. pick is the group a confirmation takes
+// identifier the write may insert. pick is the set that a confirmation takes
 // as the winner, nil in a run. The write leaves an association the user
 // arbitrated in place and records the key matched.
-func (r *Resolver) write(ctx context.Context, run gen.Run, res *resolution, pick *group) (gen.ResolutionKey, error) {
+func (r *Resolver) write(ctx context.Context, run gen.Run, res *resolution, pick *idSet) (gen.ResolutionKey, error) {
 	var out gen.ResolutionKey
 	var written []gen.FindingKind
 	for attempt := 1; ; attempt++ {
@@ -51,7 +51,7 @@ func (r *Resolver) write(ctx context.Context, run gen.Run, res *resolution, pick
 
 // resolveKey writes res's outcome in one transaction, returning the resolution
 // key and the kinds of the findings written.
-func (r *Resolver) resolveKey(ctx context.Context, q Queries, run gen.Run, res *resolution, pick *group) (gen.ResolutionKey, []gen.FindingKind, error) {
+func (r *Resolver) resolveKey(ctx context.Context, q Queries, run gen.Run, res *resolution, pick *idSet) (gen.ResolutionKey, []gen.FindingKind, error) {
 	if res.outcome != "" {
 		return record(ctx, q, run, res, res.outcome, reasons(res.reason), res.findings, 0)
 	}
@@ -71,9 +71,9 @@ func (r *Resolver) resolveKey(ctx context.Context, q Queries, run gen.Run, res *
 	}
 	if t.found != nil {
 		if reason, ok := classConflict(res.row, t.found.instrument.AssetClass); ok {
-			return record(ctx, q, run, res, gen.ResolutionOutcomeUnrecognised, []string{reason}, t.findings, c.offered)
+			return record(ctx, q, run, res, gen.ResolutionOutcomeUnrecognised, []string{reason}, t.findings, len(c.offered))
 		}
-		c = choose(res, t.found.group(), pick)
+		c = choose(res, t.found.idSet(), pick)
 		if c.refused != "" {
 			return gen.ResolutionKey{}, nil, fmt.Errorf("%w: %s", ErrNoCandidate, c.refused)
 		}
@@ -81,7 +81,7 @@ func (r *Resolver) resolveKey(ctx context.Context, q Queries, run gen.Run, res *
 	c.findings = append(c.findings, t.findings...)
 	c.findings = append(c.findings, res.findings...)
 	if c.winner == nil {
-		return record(ctx, q, run, res, unresolved(res), summary(res, c), c.findings, c.offered)
+		return record(ctx, q, run, res, unresolved(res), summary(res, c), c.findings, len(c.offered))
 	}
 	w := writer{q: q, user: run.UserID, identifiers: map[types.Identifier]gen.Identifier{}, listings: map[string]gen.Listing{}, taken: t.taken}
 	if t.found != nil {
@@ -115,7 +115,7 @@ func (r *Resolver) resolveKey(ctx context.Context, q Queries, run gen.Run, res *
 		return gen.ResolutionKey{}, nil, err
 	}
 	if !ok {
-		return record(ctx, q, run, res, gen.ResolutionOutcomeUnrecognised, []string{"no identifier to associate through"}, c.findings, c.offered)
+		return record(ctx, q, run, res, gen.ResolutionOutcomeUnrecognised, []string{"no identifier to associate through"}, c.findings, len(c.offered))
 	}
 	if a != nil {
 		if err := confirmGroup(ctx, q, run, res, *a, mates); err != nil {
@@ -195,9 +195,9 @@ type target struct {
 }
 
 // find decides which instrument in the database a key takes: the instrument
-// identified by the key's identifiers and the winning groups from the
-// identifier datasources. When it finds none, the write creates one. If
-// the identifiers identify several instruments, find merges them.
+// identified by the key's identifiers and the winning sets of identifiers from
+// the identifier datasources. When it finds none, the write creates one. If the
+// identifiers identify several instruments, find merges them.
 func find(ctx context.Context, q Queries, res *resolution, c choice) (target, error) {
 	ids := slices.Clone(res.trusted)
 	for _, g := range c.attached {
@@ -222,7 +222,7 @@ func find(ctx context.Context, q Queries, res *resolution, c choice) (target, er
 	return merge(ctx, q, res, fetchKey, hits)
 }
 
-// cover records instrument as covered by every datasource whose group c
+// cover records instrument as covered by every datasource whose set c
 // attached, and by every datasource that served no candidate. When c drops
 // every candidate of a datasource, the next key that names the instrument
 // asks that datasource again.
@@ -231,7 +231,7 @@ func cover(ctx context.Context, q Queries, instrument uuid.UUID, c choice, resul
 		if rs.Outcome != gen.FetchOutcomeServed {
 			continue
 		}
-		attached := slices.ContainsFunc(c.attached, func(g *group) bool { return g.r == rs })
+		attached := slices.ContainsFunc(c.attached, func(g *idSet) bool { return g.r == rs })
 		if !attached && len(rs.Response.Candidates) > 0 {
 			continue
 		}
@@ -325,8 +325,9 @@ func record(ctx context.Context, q Queries, run gen.Run, res *resolution, outcom
 	return rk, kinds, nil
 }
 
-// unresolved is the outcome of a resolution no group won: unavailable where a
-// datasource failed or was blocked for it, unrecognised otherwise.
+// unresolved is the outcome of a resolution no set of identifiers won:
+// unavailable where a datasource failed or was blocked for it, unrecognised
+// otherwise.
 func unresolved(res *resolution) gen.ResolutionOutcome {
 	for _, rs := range res.results {
 		switch rs.Outcome {
@@ -343,6 +344,16 @@ var unserved = map[gen.FetchOutcome]string{
 	gen.FetchOutcomeBlocked:         "blocked",
 	gen.FetchOutcomeFailedTemporary: "failed",
 	gen.FetchOutcomeFailedPermanent: "failed",
+}
+
+// unservedReason says why r served nothing: the datasource, the outcome
+// and the reason recorded, as in "a: failed: 503".
+func unservedReason(r *result) string {
+	s := r.Source + ": " + unserved[r.Outcome]
+	if r.Reason != "" {
+		s += ": " + r.Reason
+	}
+	return s
 }
 
 // reasons returns reason as a one-entry list, or nil if reason is empty.
@@ -362,19 +373,15 @@ func summary(res *resolution, c choice) []string {
 	parts := make([]string, 0, len(res.results))
 	for _, rs := range res.results {
 		if rs.Outcome != gen.FetchOutcomeServed {
-			s := rs.Source + ": " + unserved[rs.Outcome]
-			if rs.Reason != "" {
-				s += ": " + rs.Reason
-			}
-			parts = append(parts, s)
+			parts = append(parts, unservedReason(rs))
 			continue
 		}
 		s := rs.Source + ": " + plural(len(rs.Response.Candidates), "candidate")
-		if n := c.groups[rs.Source]; n > 0 {
-			s += " in " + plural(n, "group")
+		if n := c.setCounts[rs.Source]; n > 0 {
+			s += " in " + sets(n)
 		}
 		if n := c.notNaming[rs.Source]; n > 0 {
-			s += fmt.Sprintf(", %s not naming %s", plural(n, "group"), name(*rs.Sent))
+			s += fmt.Sprintf(", %s not naming %s", sets(n), name(*rs.Sent))
 		}
 		dropped := 0
 		for _, f := range c.findings {
@@ -383,14 +390,14 @@ func summary(res *resolution, c choice) []string {
 			}
 		}
 		if dropped > 0 {
-			s += ", " + plural(dropped, "group") + " dropped"
+			s += ", " + sets(dropped) + " dropped"
 		}
 		parts = append(parts, s)
 	}
 	return parts
 }
 
-// plural counts n of noun: "1 group", "2 groups".
+// plural counts n of noun: "1 candidate", "2 candidates".
 func plural(n int, noun string) string {
 	if n == 1 {
 		return "1 " + noun
@@ -398,8 +405,17 @@ func plural(n int, noun string) string {
 	return fmt.Sprintf("%d %ss", n, noun)
 }
 
-// writer writes the listings and identifiers of the attached groups onto
-// one instrument, skipping each the instrument already has and each another
+// sets counts n sets of identifiers: "1 set of identifiers", "2 sets of
+// identifiers".
+func sets(n int) string {
+	if n == 1 {
+		return "1 set of identifiers"
+	}
+	return fmt.Sprintf("%d sets of identifiers", n)
+}
+
+// writer writes the listings and identifiers of the attached sets onto one
+// instrument. It skips each the instrument already has and each another
 // instrument has, which taken names. identifiers and listings start as the
 // instrument's rows and take each row written.
 type writer struct {
@@ -423,7 +439,7 @@ func (w *writer) reuse(f *found) {
 }
 
 // create writes the instrument of the winner, with its class and provenance.
-func (w *writer) create(ctx context.Context, winner *group) (gen.Instrument, error) {
+func (w *writer) create(ctx context.Context, winner *idSet) (gen.Instrument, error) {
 	class := winner.class
 	if class == "" {
 		class = gen.AssetClassUnknown
@@ -435,11 +451,11 @@ func (w *writer) create(ctx context.Context, winner *group) (gen.Instrument, err
 	return inst, nil
 }
 
-// attach writes the listings and identifiers of g the instrument lacks,
-// each with g's fetch key as provenance, and records the fetch key's
-// response against the instrument. A listing takes the primary venue g
-// states only while it has none, whichever run or group created it.
-func (w *writer) attach(ctx context.Context, g *group) error {
+// attach writes the listings and identifiers of g the instrument lacks, each
+// with g's fetch key as provenance, and records the fetch key's response
+// against the instrument. A listing takes the primary venue g states only
+// while it has none, whichever run or set created it.
+func (w *writer) attach(ctx context.Context, g *idSet) error {
 	fetchKey := g.r.ID
 	for _, id := range g.instrument {
 		if err := w.identify(ctx, id, nil, fetchKey); err != nil {

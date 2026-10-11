@@ -66,8 +66,9 @@ enum FindingKind {
   // The run wrote a datasource block, which withholds calls until an
   // administrator clears it.
   FINDING_KIND_BLOCK = 1;
-  // The resolution dropped a candidate group a datasource offered because it
-  // contradicted the stated data, a higher precedence response or the winner.
+  // The resolution dropped a set of identifiers a datasource offered because
+  // it contradicted the stated data, a higher precedence response or the
+  // winner.
   FINDING_KIND_DROPPED = 2;
   // Two sources name different instruments for one key: the identifiers the
   // key states, the user's confirmed keys, or a response. The database's
@@ -77,14 +78,14 @@ enum FindingKind {
   FINDING_KIND_MERGED = 4;
 }
 
-// The step of the choice that dropped a candidate group.
+// The step of the choice that dropped a set of identifiers.
 enum DropStep {
   DROP_STEP_UNSPECIFIED = 0;
-  // The group contradicted the stated data.
+  // The set contradicted the stated data.
   DROP_STEP_STATED = 1;
-  // The group was inconsistent with a higher precedence response.
+  // The set was inconsistent with a higher precedence response.
   DROP_STEP_PRECEDENCE = 2;
-  // The group shared no stable identifier with the winner.
+  // The set shared no stable identifier with the winner.
   DROP_STEP_CORROBORATION = 3;
 }
 
@@ -104,7 +105,8 @@ message Finding {
   // The fetch key of the response involved; unset for a contradiction
   // found in the database.
   optional string fetch_key_id = 7;
-  // The step that dropped the group; set only when the kind is DROPPED.
+  // The step that dropped the set of identifiers; present only when the kind
+  // is DROPPED.
   optional DropStep step = 8;
   // The grounds, in words; for a BLOCK, the block's reason.
   optional string detail = 9;

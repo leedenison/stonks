@@ -11,17 +11,17 @@ import (
 	typev1 "github.com/leedenison/stonks/proto/type/v1"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/types"
-	"github.com/leedenison/stonks/server/internal/market"
 	runs "github.com/leedenison/stonks/server/internal/run"
 )
 
-// Candidate is one group a datasource's answer describes, offered for the
-// user to confirm: an instrument before it is written. It is a group, not a
-// market.Candidate, which is one listing of an answer before grouping.
+// Candidate is one instrument a datasource's answer describes, as a set of
+// identifiers offered for the user to confirm before the instrument is
+// written. It differs from a market.Candidate, which is one listing of an
+// answer.
 type Candidate struct {
 	Datasource string
 	// Strongest is the identifier that names the candidate most firmly, as
-	// group.strongest picks it; the client names the candidate by it.
+	// idSet.strongest picks it; the client names the candidate by it.
 	Strongest  types.Identifier
 	AssetClass gen.AssetClass
 	// Identifiers name the instrument itself, not one of its listings.
@@ -78,11 +78,12 @@ type Pick struct {
 // the instrument the database names.
 var ErrNoCandidate = errors.New("the answer lacks the candidate")
 
-// Candidates is the body of a synchronous resolution that lists the groups
-// the datasources offer for key, in datasource precedence order and then
-// the datasource's own order. A group must pass the stated checks, and name
-// the identifier sent where that is a GUID. It writes the findings against
-// run, and stops before choosing, so it writes no resolution key.
+// Candidates is the body of a synchronous resolution that lists the sets of
+// identifiers the datasources offer for key, in datasource precedence order
+// and then the datasource's own order. A set is listed if it survives the
+// stated checks and, for a bare ticker, if it agrees with the statement. It
+// writes the findings against run and stops before choosing, so it writes no
+// resolution key.
 func (r *Resolver) Candidates(ctx context.Context, run gen.Run, key gen.StatedKey) (Offer, error) {
 	rs, err := r.prepare(ctx, run, []gen.StatedKey{key})
 	if err != nil {
@@ -99,22 +100,12 @@ func (r *Resolver) Candidates(ctx context.Context, run gen.Run, key gen.StatedKe
 	}
 	for _, rr := range res.results {
 		if rr.Outcome != gen.FetchOutcomeServed {
-			s := rr.Source + ": " + unserved[rr.Outcome]
-			if rr.Reason != "" {
-				s += ": " + rr.Reason
-			}
-			o.Reasons = append(o.Reasons, s)
+			o.Reasons = append(o.Reasons, unservedReason(rr))
 			continue
 		}
-		guid := market.IsGUID(*rr.Sent)
-		for _, g := range groups(rr) {
-			if guid && !g.named {
-				continue
-			}
-			if detail, ok := g.against(res); ok {
-				findings = append(findings, dropped(rr, gen.DropStepStated, g.label(detail)))
-				continue
-			}
+		alts := filterAlternatives(rr, res, false)
+		findings = append(findings, alts.findings...)
+		for _, g := range slices.Concat(alts.offered, alts.survivors) {
 			if c, ok := candidateOf(g); ok {
 				o.Candidates = append(o.Candidates, c)
 			}
@@ -137,11 +128,10 @@ func (r *Resolver) Candidates(ctx context.Context, run gen.Run, key gen.StatedKe
 	return o, nil
 }
 
-// Confirm is the body of a synchronous resolution that takes the candidate
-// p names as the winner for key, and writes it as a run writes a winner,
-// with the user as arbiter. Every key of key's group takes the same
-// instrument. It also takes the listing when it states the same currency
-// family as key.
+// Confirm is the body of a synchronous resolution that takes the candidate p
+// names as the winner for key, and writes it as a run writes a winner, with
+// the user as arbiter. Every key of key's group takes the same instrument. It
+// also takes the listing when it states the same currency family as key.
 func (r *Resolver) Confirm(ctx context.Context, run gen.Run, key gen.StatedKey, p Pick) (gen.ResolutionKey, error) {
 	rs, err := r.prepare(ctx, run, []gen.StatedKey{key})
 	if err != nil {
@@ -154,23 +144,23 @@ func (r *Resolver) Confirm(ctx context.Context, run gen.Run, key gen.StatedKey, 
 	case res.inherit != nil:
 		return gen.ResolutionKey{}, fmt.Errorf("%w: the key takes the association of a key the user confirmed", ErrNoCandidate)
 	}
-	g, err := pickGroup(res, p)
+	g, err := pickSet(res, p)
 	if err != nil {
 		return gen.ResolutionKey{}, err
 	}
 	return r.write(ctx, run, res, g)
 }
 
-// pickGroup returns the group of p's datasource's answer that p names.
-func pickGroup(res *resolution, p Pick) (*group, error) {
+// pickSet returns the set that p names in its datasource's answer.
+func pickSet(res *resolution, p Pick) (*idSet, error) {
 	for _, rr := range res.results {
 		if rr.Source != p.Datasource {
 			continue
 		}
 		if rr.Outcome != gen.FetchOutcomeServed {
-			return nil, fmt.Errorf("%w: %s: %s", ErrNoCandidate, rr.Source, unserved[rr.Outcome])
+			return nil, fmt.Errorf("%w: %s", ErrNoCandidate, unservedReason(rr))
 		}
-		for _, g := range groups(rr) {
+		for _, g := range idSets(rr) {
 			if g.identifiedBy(p.Identifier) {
 				return g, nil
 			}
@@ -182,7 +172,7 @@ func pickGroup(res *resolution, p Pick) (*group, error) {
 
 // candidateOf returns g as a Candidate, and false where g carries no
 // identifier to name it by.
-func candidateOf(g *group) (Candidate, bool) {
+func candidateOf(g *idSet) (Candidate, bool) {
 	strongest, ok := g.strongest()
 	if !ok {
 		return Candidate{}, false
