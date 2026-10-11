@@ -49,9 +49,9 @@ func (f *found) covered(datasource string) bool {
 	return f.instrument.FetchKeyID == nil || f.coverage[datasource]
 }
 
-// group returns f as a group.
-func (f *found) group() *group {
-	g := &group{class: f.instrument.AssetClass, listings: map[string][]types.Identifier{}}
+// idSet returns f as a set of identifiers.
+func (f *found) idSet() *idSet {
+	g := &idSet{class: f.instrument.AssetClass, listings: map[string][]types.Identifier{}}
 	famOf := map[uuid.UUID]string{}
 	for _, l := range f.listings {
 		famOf[l.ID] = l.Currency

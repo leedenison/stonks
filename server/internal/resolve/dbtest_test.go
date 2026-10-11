@@ -231,8 +231,9 @@ func written(rk gen.ResolutionKey) string {
 	return out
 }
 
-// TestResolveWrites checks what one resolution writes: a created instrument,
-// a second key attaching to it, a cash key on the seed and a dropped group.
+// TestResolveWrites checks what one resolution writes: a created instrument, a
+// second key attaching to it, a cash key on the seed and a dropped set of
+// identifiers.
 func TestResolveWrites(t *testing.T) {
 	s := newStack(t)
 	ctx := context.Background()
@@ -252,7 +253,7 @@ func TestResolveWrites(t *testing.T) {
 	for i, r := range got {
 		outcomes[i] = written(r)
 	}
-	want := []string{"matched", "matched", "matched", "unrecognised: alpha: 1 candidate in 1 group, 1 group dropped"}
+	want := []string{"matched", "matched", "matched", "unrecognised: alpha: 1 candidate in 1 set of identifiers, 1 set of identifiers dropped"}
 	if diff := cmp.Diff(want, outcomes); diff != "" {
 		t.Errorf("outcomes mismatch (-want +got):\n%s", diff)
 	}
@@ -340,7 +341,7 @@ func TestResolveWrites(t *testing.T) {
 		t.Errorf("findings = %+v, want one stated drop against the mis-stated key", findings)
 	}
 	if _, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: types.IdentifierTypeCusip, Value: cusip.Value}); !errors.Is(err, db.ErrNotFound) {
-		t.Errorf("FindIdentifier(cusip) error = %v, want not found: a dropped group is not stored", err)
+		t.Errorf("FindIdentifier(cusip) error = %v, want not found: a dropped set of identifiers is not stored", err)
 	}
 }
 
@@ -825,8 +826,8 @@ func TestDroppedUncovered(t *testing.T) {
 		return s.stateUnder(t, s.newStatement(t, gen.BrokerIbkr), gen.AssetClassStock, "GBP", isin)
 	}
 
-	// beta's share class contradicts the instrument's, so its group is
-	// dropped and it is asked again for each key.
+	// beta's share class contradicts the instrument's, so its set of
+	// identifiers is dropped and it is asked again for each key.
 	s.beta.Responses[isin] = market.IdentityResult{Filtered: []types.Identifier{isin}, Candidates: []market.Candidate{
 		{Class: gen.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{figi2, isin, xlon}},
 	}}
@@ -1029,8 +1030,8 @@ func TestConfirmRows(t *testing.T) {
 	if diff := cmp.Diff(wantOffer, offer); diff != "" {
 		t.Errorf("Candidates() mismatch (-want +got):\n%s", diff)
 	}
-	if kinds := s.findings(t, key.ID); len(kinds) != 1 || kinds[0] != gen.FindingKindDropped {
-		t.Errorf("findings = %v, want the USD group dropped", kinds)
+	if kinds := s.findings(t, key.ID); len(kinds) != 0 {
+		t.Errorf("findings = %v, want none: under a bare ticker the USD set of identifiers is not offered, and the drop is routine", kinds)
 	}
 	if _, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: types.IdentifierTypeIsin, Value: isin.Value}); !errors.Is(err, db.ErrNotFound) {
 		t.Errorf("FindIdentifier(isin) error = %v, want not found: a listing writes no instrument", err)
@@ -1065,7 +1066,7 @@ func TestConfirmRows(t *testing.T) {
 		t.Errorf("resolution keys = %+v, want the key and its mate matched", resolved)
 	}
 	if _, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: types.IdentifierTypeOpenfigiShareClass, Value: figi2.Value}); !errors.Is(err, db.ErrNotFound) {
-		t.Errorf("FindIdentifier(figi2) error = %v, want not found: the dropped group is not stored", err)
+		t.Errorf("FindIdentifier(figi2) error = %v, want not found: the dropped set of identifiers is not stored", err)
 	}
 
 	// A later resolution of the key, under a run of its own, finds nothing
@@ -1102,13 +1103,13 @@ func TestConfirmRows(t *testing.T) {
 		t.Errorf("a second confirmation = %+v, %+v, want the same instrument by the user", rk, k)
 	}
 	if _, err := s.resolver.Confirm(ctx, s.resolution, apart, Pick{Datasource: "alpha", Identifier: cusip}); !errors.Is(err, ErrNoCandidate) {
-		t.Errorf("Confirm() with an identifier no group carries: error = %v, want ErrNoCandidate", err)
+		t.Errorf("Confirm() with an identifier no set of identifiers carries: error = %v, want ErrNoCandidate", err)
 	}
 }
 
-// TestConfirmJoins checks that a confirmation lands on the instrument a
-// group attached beside the pick identifies, and adds the pick's
-// identifiers to it.
+// TestConfirmJoins checks that a confirmation lands on the instrument that a
+// set of identifiers attached beside the pick identifies, and adds the
+// pick's identifiers to it.
 func TestConfirmJoins(t *testing.T) {
 	s := newStack(t)
 	ctx := context.Background()

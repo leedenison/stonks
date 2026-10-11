@@ -151,9 +151,10 @@ CREATE TABLE resolution_keys (
     -- reasons says why the key did not match. Where datasources were asked,
     -- each has one entry. A rejected key always has at least one entry.
     reasons       text[]             NOT NULL DEFAULT '{}',
-    -- offered counts the instrument groups the resolution dropped only
-    -- because the key was sent under a ticker without its venue. The user may
-    -- choose among them.
+    -- offered counts the sets of identifiers from which the user may choose.
+    -- They are the sets the resolution dropped only because the key was sent
+    -- under a ticker without its venue, and the sets that survived a venue
+    -- ticker whose venue none of them names.
     offered       integer            NOT NULL DEFAULT 0,
     created_at    timestamptz        NOT NULL DEFAULT now(),
     PRIMARY KEY (run_id, stated_key_id),

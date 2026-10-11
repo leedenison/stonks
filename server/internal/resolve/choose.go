@@ -15,14 +15,14 @@ import (
 // result is what one datasource served for a key.
 type result = market.Result[gen.StatedKey, market.IdentityResult]
 
-// group is one instrument a response describes: the candidates sharing an
+// idSet is one instrument a response describes: the candidates sharing an
 // instrument grain identifier, transitively, collapsed to the listing grain
 // identifiers of one listing per currency family.
-type group struct {
-	// r is the result the group was built from, nil for the group of the
-	// instrument the database names.
+type idSet struct {
+	// r is the result that built the set, nil for the set of the instrument the
+	// database names.
 	r *result
-	// order is the position of the group's first candidate in the response.
+	// order is the position of the set's first candidate in the response.
 	order int
 	// class is the class of the first candidate stating one.
 	class      gen.AssetClass
@@ -33,39 +33,41 @@ type group struct {
 	// primary is the primary venue of each family's listing, from the
 	// first candidate of the family stating one.
 	primary map[string]string
-	// named reports whether the identifier the key was sent under
-	// identifies the group.
+	// named reports whether the identifier sent identifies the set.
 	named bool
 }
 
-// choice is the outcome of choosing among the groups of every response.
+// choice is the outcome of choosing among the sets of identifiers of every
+// response.
 type choice struct {
-	// winner is nil where no group survived.
-	winner *group
+	// winner is nil where no set survived.
+	winner *idSet
 	// picked reports a confirmation, whose pick replaces the naming check
 	// for a key sent under an identifier that is not a GUID.
 	picked bool
 	// refused says why the pick of a confirmation fails a check, and is
 	// empty where there is no pick or it passes.
 	refused string
-	// attached is the best group of each datasource in precedence order,
-	// the winner among them where the database named no instrument.
-	attached []*group
+	// attached is the best set of each datasource in precedence order, the
+	// winner among them where the database named no instrument.
+	attached []*idSet
 	findings []gen.CreateFindingParams
-	// groups counts the groups of each datasource's response, and notNaming
-	// those dropped for not naming the identifier sent. The reason of a key
-	// no group won summarises both.
-	groups    map[string]int
+	// setCounts counts the sets of each datasource's response, and notNaming
+	// those dropped for not naming the identifier sent. The reason of a key no
+	// set won summarises both.
+	setCounts map[string]int
 	notNaming map[string]int
-	// offered counts the groups dropped only because the key was sent under
-	// a bare ticker. A confirmation lists them, and the user picks one.
-	offered int
+	// offered holds the sets from which the user may choose. These are the sets
+	// dropped only because the key was sent under a bare ticker. Where the key
+	// was sent under a venue ticker that the provider filtered bare and no set
+	// names the venue, they are the survivors. Candidates lists them.
+	offered []*idSet
 }
 
-// groups builds the groups of r. The candidates of r carry currency
-// families, not currency codes. Every group carries the instrument grain
-// identifiers the call filtered on.
-func groups(r *result) []*group {
+// idSets builds the sets of identifiers of r. The candidates of r carry
+// currency families, not currency codes. Every set carries the instrument
+// grain identifiers the call filtered on.
+func idSets(r *result) []*idSet {
 	var strict []types.Identifier
 	for _, id := range r.Response.Filtered {
 		if grain(id) == gen.IdentifierGrainInstrument {
@@ -74,12 +76,12 @@ func groups(r *result) []*group {
 	}
 	cs := r.Response.Candidates
 	roots := partition(cs, len(strict) > 0)
-	byRoot := map[int]*group{}
-	var out []*group
+	byRoot := map[int]*idSet{}
+	var out []*idSet
 	for i, c := range cs {
 		g := byRoot[roots[i]]
 		if g == nil {
-			g = &group{r: r, order: i, listings: map[string][]types.Identifier{}}
+			g = &idSet{r: r, order: i, listings: map[string][]types.Identifier{}}
 			g.instrument = append(g.instrument, strict...)
 			byRoot[roots[i]] = g
 			out = append(out, g)
@@ -139,7 +141,7 @@ func union(parent []int, a, b int) {
 }
 
 // add folds c into g as a candidate of the listing of fam.
-func (g *group) add(c market.Candidate, fam string) {
+func (g *idSet) add(c market.Candidate, fam string) {
 	if g.class == "" || g.class == gen.AssetClassUnknown {
 		g.class = c.Class
 	}
@@ -168,7 +170,7 @@ func appendUnique(ids []types.Identifier, id types.Identifier) []types.Identifie
 }
 
 // all yields every identifier of g at either grain.
-func (g *group) all(yield func(types.Identifier) bool) {
+func (g *idSet) all(yield func(types.Identifier) bool) {
 	for _, id := range g.instrument {
 		if !yield(id) {
 			return
@@ -184,7 +186,7 @@ func (g *group) all(yield func(types.Identifier) bool) {
 }
 
 // identifiedBy reports whether id is among g's identifiers at either grain.
-func (g *group) identifiedBy(id types.Identifier) bool {
+func (g *idSet) identifiedBy(id types.Identifier) bool {
 	for h := range g.all {
 		if h == id {
 			return true
@@ -195,7 +197,7 @@ func (g *group) identifiedBy(id types.Identifier) bool {
 
 // listed returns the families where g has a listing, sorted, leaving out
 // the listing of no family.
-func (g *group) listed() []string {
+func (g *idSet) listed() []string {
 	var out []string
 	for f := range g.listings {
 		if f != noFamily {
@@ -211,7 +213,7 @@ func (g *group) listed() []string {
 // id names are compared: the instrument's for an instrument grain id; for a
 // listing grain id, those of the listing in family fam and of the listing
 // of no family, or of every listing where fam is noFamily.
-func (g *group) contradicts(id types.Identifier, fam string) (types.Identifier, bool) {
+func (g *idSet) contradicts(id types.Identifier, fam string) (types.Identifier, bool) {
 	if !exclusive(id) {
 		return types.Identifier{}, false
 	}
@@ -240,7 +242,7 @@ func (g *group) contradicts(id types.Identifier, fam string) (types.Identifier, 
 
 // from names where g came from: the database for the instrument the key
 // names, else the datasource that served it.
-func (g *group) from() string {
+func (g *idSet) from() string {
 	if g.r == nil {
 		return "database"
 	}
@@ -249,7 +251,7 @@ func (g *group) from() string {
 
 // strongest returns the identifier of g that names it most firmly, the
 // first of equal strength, and false where g carries none.
-func (g *group) strongest() (types.Identifier, bool) {
+func (g *idSet) strongest() (types.Identifier, bool) {
 	var best types.Identifier
 	found := false
 	for id := range g.all {
@@ -261,7 +263,7 @@ func (g *group) strongest() (types.Identifier, bool) {
 }
 
 // label leads a detail about g with its strongest identifier.
-func (g *group) label(detail string) string {
+func (g *idSet) label(detail string) string {
 	if id, ok := g.strongest(); ok {
 		return name(id) + ": " + detail
 	}
@@ -270,7 +272,7 @@ func (g *group) label(detail string) string {
 
 // ref names g as the other side of a comparison: the instrument or the
 // candidate, its strongest identifier where it has one, and its source.
-func (g *group) ref() string {
+func (g *idSet) ref() string {
 	what := "the instrument"
 	if g.r != nil {
 		what = "the candidate"
@@ -283,7 +285,7 @@ func (g *group) ref() string {
 
 // against returns why what res states contradicts g, if it does. The stated
 // side leads the detail, and the datasource that served g closes it.
-func (g *group) against(res *resolution) (string, bool) {
+func (g *idSet) against(res *resolution) (string, bool) {
 	detail, ok := g.contradicted(res)
 	if !ok {
 		return "", false
@@ -294,7 +296,7 @@ func (g *group) against(res *resolution) (string, bool) {
 // contradicted returns why what res states contradicts g. A limited answer
 // is silent about the listings it lacks, so it never contradicts the stated
 // currency family.
-func (g *group) contradicted(res *resolution) (string, bool) {
+func (g *idSet) contradicted(res *resolution) (string, bool) {
 	k, fam := res.row, res.fam
 	if listed := g.listed(); !g.r.Response.Limited && fam != noFamily && len(listed) > 0 && !slices.Contains(listed, fam) {
 		if _, unknown := g.listings[noFamily]; !unknown {
@@ -312,9 +314,9 @@ func (g *group) contradicted(res *resolution) (string, bool) {
 	return "", false
 }
 
-// inconsistent returns why g contradicts a, a group chosen above it, if it
-// does. The detail closes with a's source.
-func (g *group) inconsistent(a *group) (string, bool) {
+// inconsistent returns why g contradicts a, a set of identifiers chosen above
+// it, if it does. The detail closes with a's source.
+func (g *idSet) inconsistent(a *idSet) (string, bool) {
 	if disjoint(g.class, a.class) {
 		return fmt.Sprintf("class %s contradicts the class %s (%s)", g.class, a.class, a.from()), true
 	}
@@ -334,7 +336,7 @@ func (g *group) inconsistent(a *group) (string, bool) {
 }
 
 // corroborates reports whether g shares a stable identifier with a.
-func (g *group) corroborates(a *group) bool {
+func (g *idSet) corroborates(a *idSet) bool {
 	for id := range g.all {
 		if stable(id) && a.identifiedBy(id) {
 			return true
@@ -345,7 +347,7 @@ func (g *group) corroborates(a *group) bool {
 
 // confirms counts the stated identifiers identifying g, and the stated family
 // where it has that listing.
-func (g *group) confirms(res *resolution) int {
+func (g *idSet) confirms(res *resolution) int {
 	n := 0
 	for _, id := range res.row.Identifiers {
 		if g.identifiedBy(id) {
@@ -358,15 +360,14 @@ func (g *group) confirms(res *resolution) int {
 	return n
 }
 
-// choose picks the winner for res. db, the group of the instrument the
-// database names, wins where it is not nil; otherwise pick, the group the
-// user confirms, does where it is not nil; otherwise the best group of the
-// highest precedence datasource does. A pick must pass the stated checks
-// and agree with the database group, and it takes the place of its
-// datasource's answer.
-func choose(res *resolution, db, pick *group) choice {
-	c := choice{winner: db, picked: pick != nil, groups: map[string]int{}, notNaming: map[string]int{}}
-	var chosen []*group
+// choose picks the winner for res. The database's set, db, wins where it is
+// not nil. Otherwise the user's confirmed set, pick, wins where it is not
+// nil. Otherwise the best set of the highest precedence datasource wins. A
+// pick must pass the stated checks and agree with db, and it takes the place
+// of its datasource's answer.
+func choose(res *resolution, db, pick *idSet) choice {
+	c := choice{winner: db, picked: pick != nil, setCounts: map[string]int{}, notNaming: map[string]int{}}
+	var chosen []*idSet
 	if db != nil {
 		chosen = append(chosen, db)
 	}
@@ -391,7 +392,7 @@ func choose(res *resolution, db, pick *group) choice {
 		if pick != nil && r == pick.r {
 			continue
 		}
-		best := c.bestGroup(r, res, chosen)
+		best := c.bestSet(r, res, chosen)
 		if best == nil {
 			continue
 		}
@@ -419,54 +420,83 @@ func dropped(r *result, step gen.DropStep, detail string) gen.CreateFindingParam
 	return gen.CreateFindingParams{Kind: gen.FindingKindDropped, FetchKeyID: ptr.To(r.ID), Detail: ptr.To(detail), Step: ptr.To(step)}
 }
 
-// naming filters gs to the groups that carry the identifier r was sent.
-// When that identifier is not a GUID, naming drops every group and counts
-// as offered each one that agrees with the statement.
-func (c *choice) naming(r *result, gs []*group, res *resolution) ([]*group, bool) {
-	sent := *r.Sent
-	nonGUID := !market.IsGUID(sent)
-	named := slices.ContainsFunc(gs, func(g *group) bool { return g.named })
-	ticker := types.Identifier{Type: types.IdentifierTypeMicTicker, Value: sent.Value}
-	fallback := !named && sent.Type == types.IdentifierTypeMicTicker && !nonGUID && slices.Contains(r.Response.Filtered, ticker)
-	var survivors []*group
-	for _, g := range gs {
-		if nonGUID {
-			c.notNaming[r.Source]++
-			if _, bad := g.against(res); !bad {
-				c.offered++
-			}
-			continue
-		}
-		if !g.named && !fallback {
-			c.notNaming[r.Source]++
-			continue
-		}
-		survivors = append(survivors, g)
-	}
-	return survivors, fallback
+// alternatives is what one served result offers a key.
+type alternatives struct {
+	// setCount counts the sets of the result.
+	setCount int
+	// survivors name the identifier sent and agree with the statement.
+	survivors []*idSet
+	// offered holds the sets that agree with the statement but were dropped
+	// only because the key was sent under a bare ticker. The user may choose
+	// among them.
+	offered []*idSet
+	// fallback reports that the key was sent under a venue ticker the provider
+	// filtered bare, and no set names the venue, so every set survives the
+	// naming check.
+	fallback bool
+	// notNaming counts the sets dropped for not naming the identifier sent.
+	notNaming int
+	// findings records the sets dropped for disagreeing with the statement.
+	findings []gen.CreateFindingParams
 }
 
-// bestGroup returns the best surviving group of r for res, nil where none
-// survives. chosen is the groups chosen above r, the winner first.
-func (c *choice) bestGroup(r *result, res *resolution, chosen []*group) *group {
+// filterAlternatives sorts the sets of identifiers of r into survivors,
+// offers and findings for res. Under a GUID, a set survives if it names the
+// GUID and agrees with the statement. If the provider filtered a venue
+// ticker bare and no set names the venue, every set that agrees with the
+// statement survives. Under a bare ticker no set can name the identifier
+// sent, so the sets that agree with the statement are offered instead. A
+// confirmation, which picked reports, replaces the naming check for a bare
+// ticker, so every set that agrees with the statement survives.
+func filterAlternatives(r *result, res *resolution, picked bool) alternatives {
+	sent := *r.Sent
+	gs := idSets(r)
+	alts := alternatives{setCount: len(gs)}
+	guid := market.IsGUID(sent)
+	named := slices.ContainsFunc(gs, func(g *idSet) bool { return g.named })
+	ticker := types.Identifier{Type: types.IdentifierTypeMicTicker, Value: sent.Value}
+	alts.fallback = guid && !named && sent.Type == types.IdentifierTypeMicTicker && slices.Contains(r.Response.Filtered, ticker)
+	for _, g := range gs {
+		switch {
+		case !guid && !picked:
+			alts.notNaming++
+			if _, bad := g.against(res); !bad {
+				alts.offered = append(alts.offered, g)
+			}
+			continue
+		case guid && !g.named && !alts.fallback:
+			alts.notNaming++
+			continue
+		}
+		if detail, bad := g.against(res); bad {
+			alts.findings = append(alts.findings, dropped(r, gen.DropStepStated, g.label(detail)))
+			continue
+		}
+		alts.survivors = append(alts.survivors, g)
+	}
+	return alts
+}
+
+// bestSet returns the best surviving set of r for res, nil where none
+// survives. chosen is the sets chosen above r, the winner first. Under
+// fallback with nothing chosen above r, several survivors are offered rather
+// than chosen among.
+func (c *choice) bestSet(r *result, res *resolution, chosen []*idSet) *idSet {
 	if r.Sent == nil {
 		return nil
 	}
-	gs := groups(r)
-	c.groups[r.Source] = len(gs)
-	survivors, fallback := gs, false
-	if !c.picked || market.IsGUID(*r.Sent) {
-		survivors, fallback = c.naming(r, gs, res)
+	alts := filterAlternatives(r, res, c.picked)
+	c.setCounts[r.Source] = alts.setCount
+	if alts.notNaming > 0 {
+		c.notNaming[r.Source] += alts.notNaming
 	}
-	survivors = slices.DeleteFunc(survivors, func(g *group) bool {
-		if detail, ok := g.against(res); ok {
-			c.record(r, gen.FindingKindDropped, gen.DropStepStated, g.label(detail))
-			return true
-		}
-		for _, a := range chosen {
-			if detail, ok := g.inconsistent(a); ok {
+	c.findings = append(c.findings, alts.findings...)
+	c.offered = append(c.offered, alts.offered...)
+	survivors := slices.DeleteFunc(alts.survivors, func(g *idSet) bool {
+		for _, o := range chosen {
+			if detail, ok := g.inconsistent(o); ok {
 				kind := gen.FindingKindDropped
-				if a.r == nil {
+				if o.r == nil {
 					kind = gen.FindingKindContradiction
 				}
 				c.record(r, kind, gen.DropStepPrecedence, g.label(detail))
@@ -482,11 +512,11 @@ func (c *choice) bestGroup(r *result, res *resolution, chosen []*group) *group {
 	if len(survivors) == 0 {
 		return nil
 	}
-	if fallback && len(chosen) == 0 && len(survivors) > 1 {
-		c.notNaming[r.Source] += len(survivors)
+	if alts.fallback && len(chosen) == 0 && len(survivors) > 1 {
+		c.offered = append(c.offered, survivors...)
 		return nil
 	}
-	slices.SortStableFunc(survivors, func(a, b *group) int {
+	slices.SortStableFunc(survivors, func(a, b *idSet) int {
 		if a.named != b.named {
 			if a.named {
 				return -1

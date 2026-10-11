@@ -49,11 +49,11 @@ func limited(r *result) *result {
 	return r
 }
 
-func TestGroups(t *testing.T) {
+func TestIDSets(t *testing.T) {
 	tests := []struct {
 		name string
 		r    *result
-		want []*group
+		want []*idSet
 	}{
 		{
 			name: "a shared instrument identifier joins candidates",
@@ -62,7 +62,7 @@ func TestGroups(t *testing.T) {
 				cand(gen.AssetClassStock, "GBP", figi, xetr),
 				cand(gen.AssetClassStock, "USD", figi2, xnas),
 			),
-			want: []*group{
+			want: []*idSet{
 				{order: 0, class: gen.AssetClassStock, named: true, instrument: []types.Identifier{figi, isin}, listings: map[string][]types.Identifier{
 					"GBP": {comp, xlon, xetr},
 				}},
@@ -72,12 +72,12 @@ func TestGroups(t *testing.T) {
 			},
 		},
 		{
-			name: "a strict filter is one group identified by the identifier",
+			name: "a strict filter is one set of identifiers identified by the identifier",
 			r: served("a", isin, []types.Identifier{isin},
 				cand(gen.AssetClassUnknown, "GBP", xlon),
 				cand(gen.AssetClassStock, "USD", figi, xnas),
 			),
-			want: []*group{
+			want: []*idSet{
 				{order: 0, class: gen.AssetClassStock, named: true, instrument: []types.Identifier{isin, figi}, listings: map[string][]types.Identifier{
 					"GBP": {xlon},
 					"USD": {xnas},
@@ -85,12 +85,12 @@ func TestGroups(t *testing.T) {
 			},
 		},
 		{
-			name: "no currency is a listing of no family, and the venue sent names the group",
+			name: "no currency is a listing of no family, and the venue sent names the set of identifiers",
 			r: served("a", xlon, []types.Identifier{ticker},
 				cand(gen.AssetClassStock, "", figi, xlon),
 				cand(gen.AssetClassStock, "", figi, xnas),
 			),
-			want: []*group{
+			want: []*idSet{
 				{order: 0, class: gen.AssetClassStock, named: true, instrument: []types.Identifier{figi}, listings: map[string][]types.Identifier{
 					"": {xlon, xnas},
 				}},
@@ -103,22 +103,22 @@ func TestGroups(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got := groups(tc.r)
+			got := idSets(tc.r)
 			for _, g := range got {
 				if g.r != tc.r {
-					t.Errorf("group %d names result %p, want %p", g.order, g.r, tc.r)
+					t.Errorf("set of identifiers %d names result %p, want %p", g.order, g.r, tc.r)
 				}
 				g.r = nil
 			}
-			if diff := cmp.Diff(tc.want, got, cmp.AllowUnexported(group{})); diff != "" {
-				t.Errorf("groups mismatch (-want +got):\n%s", diff)
+			if diff := cmp.Diff(tc.want, got, cmp.AllowUnexported(idSet{})); diff != "" {
+				t.Errorf("sets of identifiers mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
 }
 
-// outcome renders a choice for comparison, each group named by its source
-// and order.
+// outcome renders a choice for comparison, each set of identifiers named by its
+// source and order.
 type outcome struct {
 	winner    string
 	refused   string
@@ -128,7 +128,7 @@ type outcome struct {
 	offered   int
 }
 
-func label(g *group) string {
+func label(g *idSet) string {
 	switch {
 	case g == nil:
 		return ""
@@ -140,7 +140,7 @@ func label(g *group) string {
 
 // describe writes c, naming each finding's fetch key by its source.
 func describe(c choice, source map[uuid.UUID]string) outcome {
-	o := outcome{winner: label(c.winner), refused: c.refused, notNaming: c.notNaming, offered: c.offered}
+	o := outcome{winner: label(c.winner), refused: c.refused, notNaming: c.notNaming, offered: len(c.offered)}
 	for _, g := range c.attached {
 		o.attached = append(o.attached, label(g))
 	}
@@ -166,18 +166,18 @@ func TestChoose(t *testing.T) {
 	search := func(source string, sent types.Identifier, cs ...market.Candidate) *result {
 		return served(source, sent, []types.Identifier{ticker}, cs...)
 	}
-	existing := &group{class: gen.AssetClassStock, instrument: []types.Identifier{isin, cusip}, listings: map[string][]types.Identifier{
+	existing := &idSet{class: gen.AssetClassStock, instrument: []types.Identifier{isin, cusip}, listings: map[string][]types.Identifier{
 		"GBP": {comp, xlon},
 	}}
 	tests := []struct {
 		name    string
 		results []*result
 		k       gen.StatedKey
-		db      *group
+		db      *idSet
 		want    outcome
 	}{
 		{
-			name: "a group not naming the identifier sent is dropped",
+			name: "a set of identifiers not naming the identifier sent is dropped",
 			results: []*result{served("a", isin, nil,
 				cand(gen.AssetClassStock, "GBP", figi2, xnas),
 				cand(gen.AssetClassStock, "GBP", figi, isin, xlon),
@@ -204,7 +204,7 @@ func TestChoose(t *testing.T) {
 			want:    outcome{winner: "m#0", attached: []string{"m#0"}},
 		},
 		{
-			name: "below the winner a limited group in no stated family attaches through a stable identifier",
+			name: "below the winner a limited set of identifiers in no stated family attaches through a stable identifier",
 			results: []*result{
 				strict("a", isin, cand(gen.AssetClassStock, "GBP", figi, xlon)),
 				limited(strict("m", isin, cand(gen.AssetClassStock, "USD", figi, xnas))),
@@ -213,7 +213,7 @@ func TestChoose(t *testing.T) {
 			want: outcome{winner: "a#0", attached: []string{"a#0", "m#0"}},
 		},
 		{
-			name: "below the winner a limited group sharing no stable identifier is dropped",
+			name: "below the winner a limited set of identifiers sharing no stable identifier is dropped",
 			results: []*result{
 				strict("a", isin, cand(gen.AssetClassStock, "GBP", figi, xlon)),
 				limited(search("m", xlon, cand(gen.AssetClassStock, "USD", xlon))),
@@ -249,7 +249,7 @@ func TestChoose(t *testing.T) {
 			want: outcome{winner: "a#0", attached: []string{"a#0", "b#0"}},
 		},
 		{
-			name: "a group inconsistent with one chosen above is dropped",
+			name: "a set of identifiers inconsistent with one chosen above is dropped",
 			results: []*result{
 				strict("a", isin, cand(gen.AssetClassStock, "GBP", figi, cusip, xlon)),
 				strict("b", isin, cand(gen.AssetClassStock, "GBP", figi, other)),
@@ -289,7 +289,7 @@ func TestChoose(t *testing.T) {
 			want:    outcome{winner: "database", attached: []string{"a#0"}},
 		},
 		{
-			name:    "a group sharing no stable identifier with the winner is dropped",
+			name:    "a set of identifiers sharing no stable identifier with the winner is dropped",
 			results: []*result{search("a", xlon, cand(gen.AssetClassStock, "GBP", figi, xlon))},
 			k:       gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{xlon}},
 			db:      existing,
@@ -315,38 +315,38 @@ func TestChoose(t *testing.T) {
 			want: outcome{winner: "a#1", attached: []string{"a#1"}},
 		},
 		{
-			name:    "the group at the stated venue names the key",
+			name:    "the set of identifiers at the stated venue names the key",
 			results: []*result{search("a", xlon, cand(gen.AssetClassStock, "GBP", figi2, xnas), cand(gen.AssetClassStock, "GBP", figi, xlon))},
 			k:       gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{xlon}},
 			want:    outcome{winner: "a#1", attached: []string{"a#1"}, notNaming: map[string]int{"a": 1}},
 		},
 		{
-			name:    "a mis-stated venue associates with the one group that survives",
+			name:    "a mis-stated venue associates with the one set of identifiers that survives",
 			results: []*result{search("a", xlon, cand(gen.AssetClassStock, "GBP", figi, xetr), cand(gen.AssetClassStock, "USD", figi2, xnas))},
 			k:       gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{xlon}},
 			want:    outcome{winner: "a#0", attached: []string{"a#0"}, findings: []string{"a dropped stated: openfigi_share_class BBG001S5XDT6: stated GBP has no listing among USD (a)"}},
 		},
 		{
-			name:    "a mis-stated venue with several survivors chooses none",
+			name:    "a mis-stated venue with several survivors offers them",
 			results: []*result{search("a", xlon, cand(gen.AssetClassStock, "GBP", figi, xetr), cand(gen.AssetClassStock, "GBP", figi2, xnas))},
 			k:       gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{xlon}},
-			want:    outcome{notNaming: map[string]int{"a": 2}},
+			want:    outcome{offered: 2},
 		},
 		{
-			name:    "a mis-stated venue with the key found narrows to the group corroborating the instrument",
+			name:    "a mis-stated venue with the key found narrows to the set of identifiers corroborating the instrument",
 			results: []*result{search("a", xlon, cand(gen.AssetClassStock, "GBP", figi2, xnas), cand(gen.AssetClassStock, "GBP", isin, xetr))},
 			k:       gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{xlon}},
 			db:      existing,
 			want:    outcome{winner: "database", attached: []string{"a#1"}, findings: []string{"a dropped corroboration: openfigi_share_class BBG001S5XDT6: shares no stable identifier with the instrument identified by isin GB00BH4HKS39 (database)"}},
 		},
 		{
-			name:    "a bare ticker is never chosen, and its groups are offered",
+			name:    "a bare ticker is never chosen, and its sets of identifiers are offered",
 			results: []*result{search("a", ticker, cand(gen.AssetClassStock, "GBP", figi, xlon))},
 			k:       gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{ticker}},
 			want:    outcome{notNaming: map[string]int{"a": 1}, offered: 1},
 		},
 		{
-			name:    "a group contradicting the statement is not offered",
+			name:    "a set of identifiers contradicting the statement is not offered",
 			results: []*result{search("a", ticker, cand(gen.AssetClassStock, "GBP", figi, xlon), cand(gen.AssetClassStock, "USD", figi2, xnas))},
 			k:       gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{ticker}},
 			want:    outcome{notNaming: map[string]int{"a": 2}, offered: 1},
@@ -383,17 +383,18 @@ func TestChoosePick(t *testing.T) {
 	strict := func(source string, sent types.Identifier, cs ...market.Candidate) *result {
 		return served(source, sent, []types.Identifier{sent}, cs...)
 	}
-	existing := &group{class: gen.AssetClassStock, instrument: []types.Identifier{isin, cusip}, listings: map[string][]types.Identifier{
+	existing := &idSet{class: gen.AssetClassStock, instrument: []types.Identifier{isin, cusip}, listings: map[string][]types.Identifier{
 		"GBP": {comp, xlon},
 	}}
 	other := id(types.IdentifierTypeCusip, "", "92857W309")
 	tests := []struct {
 		name    string
 		results []*result
-		// pick names the result and the group within it the user picks.
+		// pick names the result and the set of identifiers within it the user
+		// picks.
 		pick [2]int
 		k    gen.StatedKey
-		db   *group
+		db   *idSet
 		want outcome
 	}{
 		{
@@ -407,7 +408,7 @@ func TestChoosePick(t *testing.T) {
 			want: outcome{winner: "b#0", attached: []string{"b#0", "a#0"}},
 		},
 		{
-			name: "the pick's datasource's other groups are passed over",
+			name: "the pick's datasource's other sets of identifiers are passed over",
 			results: []*result{
 				strict("a", ticker, cand(gen.AssetClassStock, "GBP", figi, xlon), cand(gen.AssetClassStock, "GBP", figi2, xetr)),
 			},
@@ -450,7 +451,7 @@ func TestChoosePick(t *testing.T) {
 				tc.want.notNaming = map[string]int{}
 			}
 			res := &resolution{row: tc.k, results: tc.results, fam: cur.family(tc.k)}
-			pick := groups(tc.results[tc.pick[0]])[tc.pick[1]]
+			pick := idSets(tc.results[tc.pick[0]])[tc.pick[1]]
 			got := describe(choose(res, tc.db, pick), source)
 			if diff := cmp.Diff(tc.want, got, cmp.AllowUnexported(outcome{})); diff != "" {
 				t.Errorf("choose mismatch (-want +got):\n%s", diff)
