@@ -148,8 +148,15 @@ LIMIT sqlc.narg(lim)::int;
 -- is the value of the instrument's identifier whose type ranks first, over
 -- its own identifiers and its listings'. Among tickers the listing's primary
 -- venue wins, then the venue ranked first in venue_names, then the lowest
--- MIC. An instrument with no identifier has an empty name.
-WITH named AS (
+-- MIC. An instrument with no identifier has an empty name. The optional q
+-- matches any of an instrument's identifiers, and the optional asset_class
+-- includes the classes below it.
+WITH RECURSIVE classes AS (
+    SELECT class FROM asset_class_tree WHERE class = sqlc.narg(asset_class)::asset_class
+    UNION ALL
+    SELECT asset_class_tree.class FROM asset_class_tree
+    JOIN classes ON asset_class_tree.parent = classes.class
+), named AS (
     SELECT instruments.id, instruments.asset_class,
            COALESCE((SELECT identifiers.value FROM identifiers
                      JOIN identifier_type_traits ON identifier_type_traits.type = identifiers.type
@@ -163,7 +170,13 @@ WITH named AS (
     FROM instruments
 )
 SELECT * FROM named
-WHERE sqlc.narg(after)::uuid IS NULL
-   OR (name, id) > (SELECT name, id FROM named WHERE id = sqlc.narg(after))
+WHERE (sqlc.narg(after)::uuid IS NULL
+       OR (name, id) > (SELECT name, id FROM named WHERE id = sqlc.narg(after)))
+  AND (sqlc.narg(q)::text IS NULL
+       OR EXISTS (SELECT 1 FROM identifiers
+                  WHERE identifiers.instrument_id = named.id
+                    AND identifiers.value ILIKE '%' || sqlc.narg(q) || '%'))
+  AND (sqlc.narg(asset_class)::asset_class IS NULL
+       OR named.asset_class IN (SELECT class FROM classes))
 ORDER BY name, id
 LIMIT @lim;

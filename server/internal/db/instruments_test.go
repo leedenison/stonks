@@ -396,6 +396,18 @@ func TestListInstruments(t *testing.T) {
 		t.Errorf("page after an unknown id = %v, want none", gone)
 	}
 
+	// The query matches any identifier, ignoring case, and the class keeps
+	// the classes below it.
+	found, err := q.ListInstruments(ctx, gen.ListInstrumentsParams{Q: ptr.To("zz0000"), Lim: 10})
+	require.NoError(t, err)
+	if len(found) != 1 || found[0].ID != stock.ID {
+		t.Errorf("ListInstruments(q=zz0000) = %v, want the stock alone", found)
+	}
+	equities, err := q.ListInstruments(ctx, gen.ListInstrumentsParams{Q: ptr.To("ZZ"), AssetClass: ptr.To(gen.AssetClassEquity), Lim: 10})
+	require.NoError(t, err)
+	if len(equities) != 2 || equities[0].ID != stock.ID || equities[1].ID != two.ID {
+		t.Errorf("ListInstruments(q=ZZ, equity) = %v, want the two stocks", equities)
+	}
 	listings, err := q.ListListingsOf(ctx, []uuid.UUID{stock.ID})
 	require.NoError(t, err)
 	if len(listings) != 1 || listings[0].ID != stockLine.ID {

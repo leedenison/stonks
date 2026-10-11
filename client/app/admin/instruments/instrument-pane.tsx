@@ -83,7 +83,15 @@ function Grouped({
     first: i === 0 || groups[i - 1].type !== g.type,
   }));
   return (
-    <table data-testid={testId} className="w-full border-collapse text-sm">
+    <table
+      data-testid={testId}
+      className="w-full table-fixed border-collapse border-b border-border text-sm"
+    >
+      <colgroup>
+        <col className="w-1/5" />
+        <col className="w-1/5" />
+        <col />
+      </colgroup>
       <thead className="border-b border-border">
         <tr>
           <Th dense>Type</Th>
@@ -106,11 +114,19 @@ function Grouped({
                 {identifierLabel(r.type)}
               </Td>
             )}
-            <Td dense className="font-mono">
-              {r.value}
+            <Td dense>
+              <Chip tone="primary" className="font-mono">
+                {r.value}
+              </Chip>
             </Td>
-            <Td dense className="font-mono">
-              {r.domains.join(", ")}
+            <Td dense>
+              <span className="flex flex-wrap gap-1">
+                {r.domains.map((d) => (
+                  <Chip key={d} className="font-mono">
+                    {d}
+                  </Chip>
+                ))}
+              </span>
             </Td>
           </tr>
         ))}

@@ -32,13 +32,19 @@ const transport = transportWith(
 
 describe("useAdminInstruments", () => {
   it("lists the page after the token", async () => {
-    const { result } = renderHook(() => useAdminInstruments("t1"), {
-      wrapper: authWrapper(transport),
-    });
+    const { result } = renderHook(
+      () =>
+        useAdminInstruments({ after: "t1", id: "", q: "us", class: "cash" }),
+      { wrapper: authWrapper(transport) },
+    );
     await waitFor(() => expect(result.current.data).toBeTruthy());
     expect(result.current.data?.instruments[0].name).toBe("USD");
     expect(listInstruments).toHaveBeenCalledWith(
-      expect.objectContaining({ pageToken: "t1" }),
+      expect.objectContaining({
+        pageToken: "t1",
+        query: "us",
+        assetClass: AssetClass.CASH,
+      }),
       expect.anything(),
     );
   });

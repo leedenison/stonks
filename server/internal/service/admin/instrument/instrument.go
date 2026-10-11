@@ -3,6 +3,9 @@ package instrument
 
 import (
 	"context"
+	"errors"
+	"slices"
+	"strings"
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
@@ -13,8 +16,13 @@ import (
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/to"
 	"github.com/leedenison/stonks/server/internal/db/types"
+	"github.com/leedenison/stonks/server/internal/ptr"
 	"github.com/leedenison/stonks/server/internal/service/admin/page"
 )
+
+// likeEscape escapes the characters LIKE treats as patterns, so a query
+// matches them as text.
+var likeEscape = strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
 
 // Queries is this package's view of the generated queries.
 type Queries interface {
@@ -39,8 +47,8 @@ func New(queries Queries) *Server {
 	return &Server{queries: queries}
 }
 
-// ListInstruments lists every instrument by name then id. The page token is
-// the id of the last instrument served.
+// ListInstruments lists the instruments the query and the class keep, by
+// name then id. The page token is the id of the last instrument served.
 func (s *Server) ListInstruments(ctx context.Context, req *connect.Request[admininstrumentv1.ListInstrumentsRequest]) (*connect.Response[admininstrumentv1.ListInstrumentsResponse], error) {
 	m := req.Msg
 	after, err := page.Before(m.GetPageToken())
@@ -48,7 +56,18 @@ func (s *Server) ListInstruments(ctx context.Context, req *connect.Request[admin
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	p := page.New(m.GetPageSize())
-	rows, err := s.queries.ListInstruments(ctx, gen.ListInstrumentsParams{After: after, Lim: p.Lim()})
+	arg := gen.ListInstrumentsParams{After: after, Lim: p.Lim()}
+	if q := m.GetQuery(); q != "" {
+		arg.Q = ptr.To(likeEscape.Replace(q))
+	}
+	if m.AssetClass != nil {
+		class, ok := types.FromProto[gen.AssetClass](m.GetAssetClass())
+		if !ok {
+			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("unknown asset class"))
+		}
+		arg.AssetClass = &class
+	}
+	rows, err := s.queries.ListInstruments(ctx, arg)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
@@ -64,7 +83,8 @@ func (s *Server) ListInstruments(ctx context.Context, req *connect.Request[admin
 }
 
 // instruments assembles the page's instruments, each listing grain
-// identifier on its listing.
+// identifier on its listing. A listing with a primary venue precedes the
+// rest.
 func (s *Server) instruments(ctx context.Context, rows []gen.ListInstrumentsRow) ([]*admininstrumentv1.Instrument, error) {
 	if len(rows) == 0 {
 		return nil, nil
@@ -91,6 +111,11 @@ func (s *Server) instruments(ctx context.Context, rows []gen.ListInstrumentsRow)
 		byListing[l.ID] = msg
 		instruments[l.InstrumentID].Listings = append(instruments[l.InstrumentID].Listings, msg)
 	}
+	for _, in := range out {
+		slices.SortStableFunc(in.Listings, func(a, b *admininstrumentv1.Listing) int {
+			return primary(b) - primary(a)
+		})
+	}
 	idents, err := s.queries.ListIdentifiersOf(ctx, ids)
 	if err != nil {
 		return nil, err
@@ -106,4 +131,13 @@ func (s *Server) instruments(ctx context.Context, rows []gen.ListInstrumentsRow)
 		in.Identifiers = append(in.Identifiers, msg)
 	}
 	return out, nil
+}
+
+// primary ranks a listing for sorting, so one with a primary venue comes
+// first.
+func primary(l *admininstrumentv1.Listing) int {
+	if l.GetPrimaryMic() != "" {
+		return 1
+	}
+	return 0
 }

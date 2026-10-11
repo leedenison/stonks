@@ -100,12 +100,25 @@ export function listQuery(path: string, p: ListParams): string {
   return queryHref(path, { cleared: p.cleared ? "1" : "", before: p.before });
 }
 
-// InstrumentParams is the instruments page's address: the id of the
-// instrument the page follows, and the selected id.
-export type InstrumentParams = { after: string; id: string };
+// InstrumentParams is the instruments page's address.
+export type InstrumentParams = {
+  // The id of the instrument the page follows; empty for the first page.
+  after: string;
+  // The selected instrument; empty for none.
+  id: string;
+  // The search text; empty for none.
+  q: string;
+  // The asset class as enumParam writes it; empty for any.
+  class: string;
+};
 
 export function readInstrumentList(params: URLSearchParams): InstrumentParams {
-  return { after: params.get("after") ?? "", id: params.get("id") ?? "" };
+  return {
+    after: params.get("after") ?? "",
+    id: params.get("id") ?? "",
+    q: params.get("q") ?? "",
+    class: params.get("class") ?? "",
+  };
 }
 
 // instrumentQuery is the address of the instruments page with p applied.

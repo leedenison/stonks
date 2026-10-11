@@ -131,29 +131,30 @@ test("shows a resolved holding and an unresolved one from two brokers", async ({
       .getByTestId("resolution-chip"),
   ).toHaveAttribute("data-state", "unrecognised");
 
-  // Open the admin list at the page that starts with the instrument, with
-  // the token the Next link would carry, so the instrument is on the page
-  // whatever else the database holds.
+  // Search by the CUSIP so the instrument is on the page whatever else the
+  // database holds.
   const { session: adminSession } = await signIn("admin");
   const every = await allInstruments(adminInstrumentClient(adminSession));
-  const at = every.findIndex((i) =>
+  const instrument = every.find((i) =>
     i.identifiers.some((x) => x.value === cusip),
   );
-  expect(at).toBeGreaterThan(0);
-  const instrument = every[at];
-  expect(instrument.identifiers.map((i) => i.type)).toContain(
+  expect(instrument?.identifiers.map((i) => i.type)).toContain(
     IdentifierType.OPENFIGI_SHARE_CLASS,
   );
-  const usd = instrument.listings.find((l) => l.currency === "USD");
+  const usd = instrument!.listings.find((l) => l.currency === "USD");
   expect(usd?.identifiers.map((i) => i.type)).toContain(
     IdentifierType.OPENFIGI_COMPOSITE,
   );
-  await page.goto(
-    `/admin/instruments?after=${every[at - 1].id}&id=${instrument.id}`,
-  );
-  const adminRow = page.getByTestId(`instrument-row-${instrument.id}`);
+  await page.goto("/admin/instruments");
+  await page.getByTestId("instruments-search").fill(cusip);
+  await expect(page).toHaveURL(`/admin/instruments?q=${cusip}`);
+  const adminRow = page.getByTestId(`instrument-row-${instrument!.id}`);
   await expect(adminRow).toContainText(ticker);
   await expect(adminRow).not.toContainText(cusip);
+  await adminRow.click();
+  await expect(page).toHaveURL(
+    `/admin/instruments?id=${instrument!.id}&q=${cusip}`,
+  );
   await expect(adminRow).toHaveAttribute("aria-selected", "true");
   const pane = page.getByTestId("instrument-pane");
   await expect(pane).toContainText(cusip);
