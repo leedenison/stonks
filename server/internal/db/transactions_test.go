@@ -122,6 +122,23 @@ func TestStatedKeyAssociation(t *testing.T) {
 		}
 	})
 
+	t.Run("leaves an associated key out of a group", func(t *testing.T) {
+		q := newTx(t)
+		user := newUser(t, q, "regrouped@example.com")
+		statement := newStatement(t, q, user)
+		one, two := newStatedKey(t, q, user, statement), newStatedKey(t, q, user, statement)
+		usd, via := cashListing(t, q, "USD")
+		arg := gen.SetStatedKeyAssociationParams{ID: two.ID, UserID: user.ID, InstrumentID: &usd.InstrumentID, ListingID: &usd.ID, ViaID: &via.ID, Validity: ptr.To(gen.ValidityConfirmed), Arbiter: gen.ArbiterDatasource}
+		_, err := q.SetStatedKeyAssociation(ctx, arg)
+		require.NoError(t, err)
+		require.NoError(t, q.SetStatedKeyGroups(ctx, gen.SetStatedKeyGroupsParams{UserID: user.ID, Ids: []uuid.UUID{one.ID, two.ID}, GroupIds: []uuid.UUID{one.ID, one.ID}}))
+		keys, err := q.ListStatedKeys(ctx, gen.ListStatedKeysParams{StatementID: statement.ID, UserID: user.ID})
+		require.NoError(t, err)
+		if len(keys) != 2 || keys[0].GroupID == nil || keys[1].GroupID != nil || keys[1].InstrumentID == nil {
+			t.Errorf("keys after regrouping = %+v, want the first grouped and the second associated with no group", keys)
+		}
+	})
+
 	base := newTx(t)
 	usd, via := cashListing(t, base, "USD")
 	other := newInstrument(t, base, gen.AssetClassEquity)

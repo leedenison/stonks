@@ -56,7 +56,7 @@ func (r *Resolver) resolveKey(ctx context.Context, q Queries, run gen.Run, res *
 		return record(ctx, q, run, res, res.outcome, reasons(res.reason), res.findings, 0)
 	}
 	if res.inherit != nil {
-		return inheritKey(ctx, q, run, res, res.cur)
+		return inheritKey(ctx, q, run, res)
 	}
 	if err := lock(ctx, q, lockSet(res)); err != nil {
 		return gen.ResolutionKey{}, nil, err
@@ -65,7 +65,7 @@ func (r *Resolver) resolveKey(ctx context.Context, q Queries, run gen.Run, res *
 	if c.refused != "" {
 		return gen.ResolutionKey{}, nil, fmt.Errorf("%w: %s", ErrNoCandidate, c.refused)
 	}
-	t, err := find(ctx, q, res, c, pick)
+	t, err := find(ctx, q, res, c)
 	if err != nil {
 		return gen.ResolutionKey{}, nil, err
 	}
@@ -147,14 +147,13 @@ func lockGroup(ctx context.Context, q Queries, run gen.Run, res *resolution) ([]
 }
 
 // confirmGroup gives every key of mates but res's own the association a,
-// each with a matched resolution key of run.
+// carried to each, with a matched resolution key of run.
 func confirmGroup(ctx context.Context, q Queries, run gen.Run, res *resolution, a gen.SetStatedKeyAssociationParams, mates []gen.StatedKey) error {
 	for _, k := range mates {
 		if k.ID == res.row.ID {
 			continue
 		}
-		a.ID = k.ID
-		if _, err := q.SetStatedKeyAssociation(ctx, a); err != nil {
+		if _, err := q.SetStatedKeyAssociation(ctx, carry(a, res.fam, k, res.cur)); err != nil {
 			return fmt.Errorf("associate key %s: %w", k.ID, err)
 		}
 		arg := gen.CreateResolutionKeyParams{RunID: run.ID, UserID: run.UserID, StatedKeyID: k.ID, Outcome: gen.ResolutionOutcomeMatched}
@@ -195,17 +194,13 @@ type target struct {
 	findings []gen.CreateFindingParams
 }
 
-// find re-reads the database for the instrument. The identifiers res trusts
-// and the groups c attaches each name it. It merges several found. For a
-// confirmation only pick names the instrument, so that the instrument found
-// is the one the user named.
-func find(ctx context.Context, q Queries, res *resolution, c choice, pick *group) (target, error) {
+// find decides which instrument in the database a key takes: the instrument
+// identified by the key's identifiers and the winning groups from the
+// identifier datasources. When it finds none, the write creates one. If
+// the identifiers identify several instruments, find merges them.
+func find(ctx context.Context, q Queries, res *resolution, c choice) (target, error) {
 	ids := slices.Clone(res.trusted)
-	attached := c.attached
-	if pick != nil {
-		attached = []*group{pick}
-	}
-	for _, g := range attached {
+	for _, g := range c.attached {
 		for id := range g.all {
 			ids = appendUnique(ids, id)
 		}

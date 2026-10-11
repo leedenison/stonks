@@ -140,7 +140,8 @@ func (r *Resolver) Candidates(ctx context.Context, run gen.Run, key gen.StatedKe
 // Confirm is the body of a synchronous resolution that takes the candidate
 // p names as the winner for key, and writes it as a run writes a winner,
 // with the user as arbiter. Every key of key's group takes the same
-// association.
+// instrument. It also takes the listing when it states the same currency
+// family as key.
 func (r *Resolver) Confirm(ctx context.Context, run gen.Run, key gen.StatedKey, p Pick) (gen.ResolutionKey, error) {
 	rs, err := r.prepare(ctx, run, []gen.StatedKey{key})
 	if err != nil {

@@ -45,17 +45,24 @@ type fixture struct {
 	// write reports it changed.
 	associations []gen.SetStatedKeyAssociationParams
 	rows         int64
-	// arbitrated is the user's keys the user arbitrated.
+	// arbitrated is the user's keys the user arbitrated, and mates the keys
+	// of a confirmed key's group.
 	arbitrated []gen.StatedKey
+	mates      []gen.StatedKey
+	// found is the rows that a read of the database by identifier returns.
+	found []gen.ListInstrumentsByIdentifiersRow
 	// instruments is every instrument created, listings every listing
-	// created, primaries every primary venue set on a listing, attached
-	// every fetch key attached, and resolutions how many resolution keys
-	// were written.
+	// created, primaries every primary venue set on a listing, identifiers
+	// every identifier created, attached every fetch key attached,
+	// resolutions how many resolution keys were written, and txs how many
+	// transactions were run.
 	instruments []gen.CreateInstrumentParams
 	listings    []gen.CreateListingParams
 	primaries   []gen.SetListingPrimaryParams
+	identifiers []gen.CreateIdentifierParams
 	attached    []uuid.UUID
 	resolutions int
+	txs         int
 }
 
 func newFixture(t *testing.T, entries ...*market.Entry) *fixture {
@@ -75,6 +82,7 @@ func newFixture(t *testing.T, entries ...*market.Entry) *fixture {
 // and resolution keys.
 func (f *fixture) records() {
 	f.store.EXPECT().Tx(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, fn func(Queries) error) error {
+		f.txs++
 		return fn(f.store)
 	}).AnyTimes()
 	f.store.EXPECT().LockIdentifiers(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, keys []string) error {
@@ -91,18 +99,46 @@ func (f *fixture) records() {
 	}).AnyTimes()
 	f.store.EXPECT().LockUserKeys(gomock.Any(), userID).Return(nil).AnyTimes()
 	f.store.EXPECT().GetStatedKey(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.GetStatedKeyParams) (gen.StatedKey, error) {
-		return gen.StatedKey{ID: arg.ID, UserID: arg.UserID}, nil
+		k := gen.StatedKey{ID: arg.ID, UserID: arg.UserID}
+		if len(f.mates) > 0 {
+			k.GroupID = &k.ID
+		}
+		return k, nil
 	}).AnyTimes()
-	f.store.EXPECT().ListStatedKeysOfGroups(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
+	f.store.EXPECT().ListStatedKeysOfGroups(gomock.Any(), gomock.Any()).DoAndReturn(func(context.Context, gen.ListStatedKeysOfGroupsParams) ([]gen.StatedKey, error) {
+		return f.mates, nil
+	}).AnyTimes()
 	f.store.EXPECT().CreateResolutionKey(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.CreateResolutionKeyParams) (gen.ResolutionKey, error) {
 		f.resolutions++
 		return gen.ResolutionKey{RunID: arg.RunID, UserID: arg.UserID, StatedKeyID: arg.StatedKeyID, Outcome: arg.Outcome, Reasons: arg.Reasons, Offered: arg.Offered}, nil
 	}).AnyTimes()
 }
 
-// findsNothing has every read of the database find no instrument.
-func (f *fixture) findsNothing() {
-	f.store.EXPECT().ListInstrumentsByIdentifiers(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
+// finds serves the database's reads from f.found. With f.found empty, a
+// read finds nothing.
+func (f *fixture) finds() {
+	f.store.EXPECT().ListInstrumentsByIdentifiers(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.ListInstrumentsByIdentifiersParams) ([]gen.ListInstrumentsByIdentifiersRow, error) {
+		var out []gen.ListInstrumentsByIdentifiersRow
+		for _, row := range f.found {
+			for i := range arg.Types {
+				if arg.Types[i] == string(row.Identifier.Type) && arg.Domains[i] == row.Identifier.Domain && arg.Values[i] == row.Identifier.Value {
+					out = append(out, row)
+				}
+			}
+		}
+		return out, nil
+	}).AnyTimes()
+	f.store.EXPECT().ListIdentifiersOf(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, ids []uuid.UUID) ([]gen.Identifier, error) {
+		var out []gen.Identifier
+		for _, row := range f.found {
+			if slices.Contains(ids, row.Instrument.ID) {
+				out = append(out, row.Identifier)
+			}
+		}
+		return out, nil
+	}).AnyTimes()
+	f.store.EXPECT().ListListingsOf(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
+	f.store.EXPECT().ListIdentityCoverage(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
 }
 
 // creates accepts every write of a created instrument.
@@ -120,6 +156,7 @@ func (f *fixture) creates() {
 		return nil
 	}).AnyTimes()
 	f.store.EXPECT().CreateIdentifier(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.CreateIdentifierParams) (gen.Identifier, error) {
+		f.identifiers = append(f.identifiers, arg)
 		return gen.Identifier{ID: arg.ID, InstrumentID: arg.InstrumentID, ListingID: arg.ListingID, Type: arg.Type, Domain: arg.Domain, Value: arg.Value}, nil
 	}).AnyTimes()
 	f.store.EXPECT().UpsertIdentityCoverage(gomock.Any(), gomock.Any()).AnyTimes()
@@ -175,7 +212,7 @@ func servedResult(sent types.Identifier, filtered []types.Identifier, cs ...mark
 func TestResolveLocks(t *testing.T) {
 	f := newFixture(t, entryA)
 	f.records()
-	f.findsNothing()
+	f.finds()
 	f.creates()
 	k := keyOf(gen.AssetClassStock, "GBX", isin, xlon)
 	f.serves(entryA, servedResult(isin, []types.Identifier{isin}, cand(gen.AssetClassStock, "GBX", figi, isin, comp, xlon), cand(gen.AssetClassStock, "GBX", figi, xetr)))
@@ -297,7 +334,7 @@ func TestResolveUnresolved(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newFixture(t, entryA)
 			f.records()
-			f.findsNothing()
+			f.finds()
 			if tc.fetched {
 				f.serves(entryA, tc.results...)
 			}
@@ -358,7 +395,7 @@ func TestPrimaryVenue(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newFixture(t, entryA, entryB)
 			f.records()
-			f.findsNothing()
+			f.finds()
 			f.creates()
 			f.serves(entryA, tc.a)
 			f.serves(entryB, tc.b)
@@ -442,7 +479,7 @@ func TestArbiter(t *testing.T) {
 	t.Run("a fetched winner is the datasource's", func(t *testing.T) {
 		f := newFixture(t, entryA)
 		f.records()
-		f.findsNothing()
+		f.finds()
 		f.creates()
 		f.serves(entryA, servedResult(isin, []types.Identifier{isin}, cand(gen.AssetClassStock, "GBX", figi, isin, xlon)))
 		got := f.resolve(keyOf(gen.AssetClassStock, "GBX", isin))
@@ -466,7 +503,7 @@ func TestArbiter(t *testing.T) {
 	t.Run("an association the user arbitrated stands", func(t *testing.T) {
 		f := newFixture(t, entryA)
 		f.records()
-		f.findsNothing()
+		f.finds()
 		f.creates()
 		f.rows = 0
 		f.serves(entryA, servedResult(isin, []types.Identifier{isin}, cand(gen.AssetClassStock, "GBX", figi, isin, xlon)))
@@ -492,7 +529,7 @@ func TestInherit(t *testing.T) {
 	t.Run("a key stating a confirmed key's description inherits", func(t *testing.T) {
 		f := newFixture(t, entryA)
 		f.records()
-		f.findsNothing()
+		f.finds()
 		f.arbitrated = []gen.StatedKey{confirmed(instX, ticker, descr)}
 		got := f.resolve(keyOf(gen.AssetClassStock, "GBP", ticker, descr))
 		want := gen.SetStatedKeyAssociationParams{ID: got[0].StatedKeyID, UserID: userID, InstrumentID: &instX, ListingID: &listing, ViaID: &via, Validity: ptr.To(gen.ValidityProvisional), Arbiter: gen.ArbiterUser}
@@ -506,7 +543,7 @@ func TestInherit(t *testing.T) {
 	t.Run("a different currency family takes no listing", func(t *testing.T) {
 		f := newFixture(t, entryA)
 		f.records()
-		f.findsNothing()
+		f.finds()
 		f.arbitrated = []gen.StatedKey{confirmed(instX, ticker, descr)}
 		got := f.resolve(keyOf(gen.AssetClassStock, "USD", ticker, descr))
 		if got[0].Outcome != gen.ResolutionOutcomeMatched || len(f.associations) != 1 || f.associations[0].ListingID != nil {
@@ -516,7 +553,7 @@ func TestInherit(t *testing.T) {
 	t.Run("a bare ticker alone joins nothing", func(t *testing.T) {
 		f := newFixture(t, entryA)
 		f.records()
-		f.findsNothing()
+		f.finds()
 		f.arbitrated = []gen.StatedKey{confirmed(instX, ticker, descr)}
 		f.serves(entryA, result{ID: db.NewID(), Outcome: gen.FetchOutcomeNotServed, Reason: "no"})
 		got := f.resolve(keyOf(gen.AssetClassStock, "GBP", ticker))
@@ -527,7 +564,7 @@ func TestInherit(t *testing.T) {
 	t.Run("confirmed keys naming different instruments leave the key to the datasources", func(t *testing.T) {
 		f := newFixture(t, entryA)
 		f.records()
-		f.findsNothing()
+		f.finds()
 		f.arbitrated = []gen.StatedKey{confirmed(instX, ticker, descr), confirmed(instY, ticker, descr2)}
 		f.serves(entryA, result{ID: db.NewID(), Outcome: gen.FetchOutcomeNotServed, Reason: "no"})
 		got := f.resolve(keyOf(gen.AssetClassStock, "GBP", ticker, descr, descr2))
@@ -620,7 +657,7 @@ func TestCandidates(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newFixture(t, tc.entries...)
 			f.records()
-			f.findsNothing()
+			f.finds()
 			for _, e := range tc.entries {
 				if r, ok := tc.results[e]; ok {
 					f.serves(e, r)
@@ -651,19 +688,49 @@ func TestCandidates(t *testing.T) {
 }
 
 // TestConfirm checks that a confirmation takes the pick as the winner,
-// attaches the other datasources by the usual rules, and fails where the
-// answer lacks the pick or the pick fails a check.
+// attaches the other datasources by the usual rules, carries the
+// association to the key's group, lands on an instrument a group attached
+// beside the pick identifies, and fails where the answer lacks the pick or
+// the pick fails a check.
 func TestConfirm(t *testing.T) {
+	gbpMate, usdMate := keyOf(gen.AssetClassStock, "GBP", descr), keyOf(gen.AssetClassStock, "USD", descr)
+	other := gen.Instrument{ID: db.NewID(), AssetClass: gen.AssetClassStock}
 	tests := []struct {
 		name string
 		key  gen.StatedKey
 		a, b result
 		pick Pick
+		// mates is the key's group, and wantListed whether each mate takes
+		// the listing.
+		mates      []gen.StatedKey
+		wantListed []bool
+		// found is what the database holds; the confirmation lands on it
+		// where it is set.
+		found []gen.ListInstrumentsByIdentifiersRow
 		// wantAttached is the sources attached, the winner first; empty
 		// for a confirmation that fails.
 		wantAttached []string
 		wantFinding  string
 	}{
+		{
+			name:         "a mate takes the listing where it states its currency",
+			key:          keyOf(gen.AssetClassStock, "GBP", ticker, descr),
+			a:            servedResult(ticker, []types.Identifier{ticker}, cand(gen.AssetClassStock, "GBP", figi, xlon)),
+			b:            servedResult(ticker, []types.Identifier{ticker}, cand(gen.AssetClassStock, "GBP", figi, isin, xlon)),
+			pick:         Pick{Datasource: "b", Identifier: isin},
+			mates:        []gen.StatedKey{gbpMate, usdMate},
+			wantListed:   []bool{true, false},
+			wantAttached: []string{"b", "a"},
+		},
+		{
+			name:         "a group attached beside the pick identifies an instrument, and the confirmation lands on it",
+			key:          keyOf(gen.AssetClassStock, "GBP", ticker),
+			a:            servedResult(ticker, []types.Identifier{ticker}, cand(gen.AssetClassStock, "GBP", figi, isin, xlon)),
+			b:            servedResult(ticker, []types.Identifier{ticker}, cand(gen.AssetClassStock, "GBP", isin, xlon)),
+			pick:         Pick{Datasource: "b", Identifier: isin},
+			found:        []gen.ListInstrumentsByIdentifiersRow{{Instrument: other, Identifier: gen.Identifier{ID: db.NewID(), InstrumentID: other.ID, Type: figi.Type, Value: figi.Value}}},
+			wantAttached: []string{"b", "a"},
+		},
 		{
 			name:         "the pick in the lowest precedence datasource wins and a higher one attaches",
 			key:          keyOf(gen.AssetClassStock, "GBP", ticker),
@@ -721,8 +788,9 @@ func TestConfirm(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newFixture(t, entryA, entryB)
+			f.mates, f.found = tc.mates, tc.found
 			f.records()
-			f.findsNothing()
+			f.finds()
 			f.creates()
 			f.serves(entryA, tc.a)
 			f.serves(entryB, tc.b)
@@ -742,6 +810,9 @@ func TestConfirm(t *testing.T) {
 			if got.Outcome != gen.ResolutionOutcomeMatched || got.StatedKeyID != tc.key.ID {
 				t.Errorf("Confirm() = %+v, want the key matched", got)
 			}
+			if f.txs != 1 {
+				t.Errorf("Confirm() ran %d transactions, want 1", f.txs)
+			}
 			byID := map[uuid.UUID]string{tc.a.ID: "a", tc.b.ID: "b"}
 			var attached []string
 			for _, id := range f.attached {
@@ -750,11 +821,32 @@ func TestConfirm(t *testing.T) {
 			if diff := cmp.Diff(tc.wantAttached, attached); diff != "" {
 				t.Errorf("attached mismatch (-want +got):\n%s", diff)
 			}
-			if len(f.instruments) != 1 || f.instruments[0].FetchKeyID == nil || byID[*f.instruments[0].FetchKeyID] != tc.wantAttached[0] {
+			switch {
+			case len(tc.found) > 0:
+				if len(f.instruments) != 0 || len(f.associations) == 0 || *f.associations[0].InstrumentID != tc.found[0].Instrument.ID {
+					t.Errorf("instruments = %+v, associations = %+v, want the key on the instrument found and none created", f.instruments, f.associations)
+				}
+				for _, id := range f.identifiers {
+					if id.Type == tc.found[0].Identifier.Type && id.Value == tc.found[0].Identifier.Value {
+						t.Errorf("created %s again on the instrument that has it", id.Value)
+					}
+				}
+			case len(f.instruments) != 1 || f.instruments[0].FetchKeyID == nil || byID[*f.instruments[0].FetchKeyID] != tc.wantAttached[0]:
 				t.Errorf("instruments = %+v, want one with the winner's fetch key as provenance", f.instruments)
 			}
-			if len(f.associations) != 1 || f.associations[0].Arbiter != gen.ArbiterUser || *f.associations[0].Validity != gen.ValidityProvisional {
-				t.Errorf("associations = %+v, want one by the user, provisional through the venue ticker", f.associations)
+			if len(f.associations) != 1+len(tc.mates) || f.associations[0].ID != tc.key.ID || f.associations[0].Arbiter != gen.ArbiterUser || *f.associations[0].Validity != gen.ValidityProvisional || f.associations[0].ListingID == nil {
+				t.Errorf("associations = %+v, want the key's by the user, provisional through the venue ticker, on the listing, then one per mate", f.associations)
+			}
+			for i, m := range tc.mates {
+				if i+1 >= len(f.associations) {
+					break
+				}
+				if a := f.associations[i+1]; a.ID != m.ID || a.InstrumentID == nil || *a.InstrumentID != *f.associations[0].InstrumentID || (a.ListingID != nil) != tc.wantListed[i] || a.Arbiter != gen.ArbiterUser {
+					t.Errorf("mate %d association = %+v, want the key's instrument by the user, listed %t", i, a, tc.wantListed[i])
+				}
+			}
+			if f.resolutions != 1+len(tc.mates) {
+				t.Errorf("wrote %d resolution keys, want one for the key and one per mate", f.resolutions)
 			}
 			var findings []string
 			for _, w := range f.findings {

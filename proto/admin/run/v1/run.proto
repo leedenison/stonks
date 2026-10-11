@@ -69,8 +69,9 @@ enum FindingKind {
   // The resolution dropped a candidate group a datasource offered because it
   // contradicted the stated data, a higher precedence response or the winner.
   FINDING_KIND_DROPPED = 2;
-  // A response contradicted the instrument the key already matched, and the
-  // database's precedence decided.
+  // Two sources name different instruments for one key: the identifiers the
+  // key states, the user's confirmed keys, or a response. The database's
+  // precedence or the datasources decided between them.
   FINDING_KIND_CONTRADICTION = 3;
   // The response merged two instruments.
   FINDING_KIND_MERGED = 4;
