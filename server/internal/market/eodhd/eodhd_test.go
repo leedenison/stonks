@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -30,7 +31,7 @@ func ticker(venue, value string) types.Identifier {
 
 func client(t *testing.T) *Client {
 	t.Helper()
-	c, err := New(market.Config{Name: "eodhd", Credential: "k"}, mics)
+	c, err := New(market.Config{Name: "eodhd", Credential: "k"}, mics, http.DefaultClient)
 	require.NoError(t, err)
 	return c
 }
@@ -44,7 +45,7 @@ func TestNew(t *testing.T) {
 		{name: "an endpoint that is not a URL", cfg: market.Config{Name: "eodhd", Credential: "k", Endpoint: "eodhd.com"}},
 	}
 	for _, tc := range refused {
-		if _, err := New(tc.cfg, mics); err == nil {
+		if _, err := New(tc.cfg, mics, http.DefaultClient); err == nil {
 			t.Errorf("New() with %s succeeded, want an error", tc.name)
 		}
 	}
@@ -72,6 +73,7 @@ func TestClassify(t *testing.T) {
 		{name: "a rate limit without a delay", err: status(http.StatusTooManyRequests, nil), want: market.Failure{Temporary: true, Scope: gen.BlockScopeIdentifier}},
 		{name: "an outage", err: status(http.StatusBadGateway, nil), want: market.Failure{Temporary: true, Scope: gen.BlockScopeIdentifier}},
 		{name: "a bad request", err: status(http.StatusBadRequest, nil), want: market.Failure{Scope: gen.BlockScopeIdentifier}},
+		{name: "a path EODHD does not serve", err: status(http.StatusNotFound, nil), want: market.Failure{Scope: gen.BlockScopeIdentifier}},
 		{name: "a transport error", err: errors.New("eodhd: connection reset"), want: market.Failure{Temporary: true, Scope: gen.BlockScopeIdentifier}},
 	}
 	c := client(t)
@@ -128,7 +130,7 @@ var scrub = vcr.Scrub{Query: []string{"api_token"}, Body: vcr.NoScrub.Body}
 
 func replay(t *testing.T, cassette, key string) *Client {
 	t.Helper()
-	c, err := New(market.Config{Name: "eodhd", Credential: key}, mics, WithHTTPClient(vcr.New(t, "testdata/"+cassette, scrub)))
+	c, err := New(market.Config{Name: "eodhd", Credential: key}, mics, vcr.New(t, "testdata/"+cassette, scrub))
 	require.NoError(t, err)
 	return c
 }
@@ -296,5 +298,22 @@ func TestFetchUnauthorised(t *testing.T) {
 	}
 	if got, want := c.Classify(err), (market.Failure{Scope: gen.BlockScopeDatasource}); got != want {
 		t.Errorf("Classify(%v) = %+v, want %+v", err, got, want)
+	}
+}
+
+// TestNotFound checks that a 404 is an error. EODHD documents a 404 as the
+// answer to a wrong path or exchange code in its exchange symbol list API.
+// It answers an unknown symbol with an empty 200.
+func TestNotFound(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = w.Write([]byte("Exchange Not Found."))
+	}))
+	t.Cleanup(srv.Close)
+	c, err := New(market.Config{Name: "eodhd", Credential: "k", Endpoint: srv.URL}, mics, srv.Client())
+	require.NoError(t, err)
+	got, err := fetch(c, appleISIN)
+	if err == nil {
+		t.Errorf("Fetch() = %+v, want an error", got)
 	}
 }

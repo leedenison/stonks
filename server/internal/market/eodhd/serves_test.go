@@ -16,9 +16,6 @@ func TestServes(t *testing.T) {
 	cusip := types.Identifier{Type: types.IdentifierTypeCusip, Value: "037833100"}
 	figi := types.Identifier{Type: types.IdentifierTypeOpenfigiComposite, Value: "BBG000B9XRY4"}
 	shareClass := types.Identifier{Type: types.IdentifierTypeOpenfigiShareClass, Value: "BBG001S5N8V8"}
-	openfigi := func(code, value string) types.Identifier {
-		return types.Identifier{Type: types.IdentifierTypeOpenfigiTicker, Domain: code, Value: value}
-	}
 	tests := []struct {
 		name  string
 		class *gen.AssetClass
@@ -32,10 +29,6 @@ func TestServes(t *testing.T) {
 		{name: "a segment ticker at its operating MIC", ids: []types.Identifier{ticker("XNGS", "AAPL")}, want: ticker("XNAS", "AAPL")},
 		{name: "a ticker at a US venue named only by the venue table", ids: []types.Identifier{ticker("BATS", "AAAU")}, want: ticker("BATS", "AAAU")},
 		{name: "a ticker outside the US", ids: []types.Identifier{ticker("XLON", "VOD")}, want: ticker("XLON", "VOD")},
-		{name: "a venue ticker before an OpenFIGI one", ids: []types.Identifier{openfigi("US", "AAPL"), ticker("XNYS", "AAPL")}, want: ticker("XNYS", "AAPL")},
-		{name: "an OpenFIGI ticker at one venue", ids: []types.Identifier{openfigi("LN", "VOD")}, want: ticker("XLON", "VOD")},
-		{name: "an OpenFIGI ticker under the US composite", ids: []types.Identifier{ticker("", "AAPL"), openfigi("US", "AAPL")}, want: openfigi("US", "AAPL")},
-		{name: "an OpenFIGI ticker under another composite", ids: []types.Identifier{openfigi("GR", "SAP")}, fails: true},
 		{name: "a bare ticker", ids: []types.Identifier{ticker("", "AAPL")}, want: ticker("", "AAPL")},
 		{name: "a ticker at an OTC venue", ids: []types.Identifier{ticker("OTCM", "TCEHY")}, fails: true},
 		{name: "an ISIN beside a ticker at a venue EODHD does not list", ids: []types.Identifier{isin, ticker("XXXX", "AAPL")}, fails: true},

@@ -33,17 +33,9 @@ type Client struct {
 	key      string
 }
 
-// Option adjusts a Client.
-type Option func(*Client)
-
-// WithHTTPClient sets the client that sends requests.
-func WithHTTPClient(h *http.Client) Option {
-	return func(c *Client) { c.http = h }
-}
-
-// New returns a Client for cfg. It fails when cfg lacks a credential or its
-// endpoint is not an absolute URL.
-func New(cfg market.Config, mics mic.Table, opts ...Option) (*Client, error) {
+// New returns a Client for cfg that sends its requests through h. It fails
+// when cfg lacks a credential or its endpoint is not a URL.
+func New(cfg market.Config, mics mic.Table, h *http.Client) (*Client, error) {
 	if cfg.Credential == "" {
 		return nil, errors.New("eodhd needs an API key")
 	}
@@ -51,26 +43,16 @@ func New(cfg market.Config, mics mic.Table, opts ...Option) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	c := &Client{
-		mics:     mics,
-		exchange: exchanges(mics),
-		http:     &http.Client{Timeout: 30 * time.Second},
-		endpoint: ep,
-		key:      cfg.Credential,
-	}
-	for _, o := range opts {
-		o(c)
-	}
-	return c, nil
+	return &Client{mics: mics, exchange: exchanges(mics), http: h, endpoint: ep, key: cfg.Credential}, nil
 }
 
 // Factory returns a market.Factory that builds Clients which normalise
-// venues through mics.
-func Factory(mics mic.Table) market.Factory {
+// venues through mics and send through h.
+func Factory(mics mic.Table, h *http.Client) market.Factory {
 	return market.Factory{
 		Endpoint: endpoint,
 		New: func(cfg market.Config) (market.Integration, error) {
-			return New(cfg, mics)
+			return New(cfg, mics, h)
 		},
 	}
 }

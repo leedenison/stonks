@@ -65,6 +65,10 @@ const (
 	// the key cache's lock for its duration, so an unbounded one would stall
 	// every concurrent sign-in behind whatever the far end is doing.
 	httpTimeout = 10 * time.Second
+	// providerTimeout bounds a call to a market data provider. A batch of a
+	// hundred identifiers takes longer than the sign-in calls that
+	// httpTimeout bounds.
+	providerTimeout = 30 * time.Second
 	// shutdownTimeout bounds the wait for in-flight requests once a signal
 	// has stopped the listener.
 	shutdownTimeout = 10 * time.Second
@@ -127,10 +131,11 @@ func run() (err error) {
 	if err != nil {
 		return err
 	}
+	providers := tracedClient(providerTimeout)
 	integrations := map[string]market.Factory{
-		"openfigi": openfigi.Factory(mics),
-		"massive":  massive.Factory(mics),
-		"eodhd":    eodhd.Factory(mics),
+		"openfigi": openfigi.Factory(mics, providers),
+		"massive":  massive.Factory(mics, providers),
+		"eodhd":    eodhd.Factory(mics, providers),
 	}
 	sources, err := market.New(ctx, queries, integrations, logger.WithCategory(log, "internal/market"))
 	if err != nil {
@@ -148,7 +153,7 @@ func run() (err error) {
 	}()
 
 	authn := auth.New(auth.Options{
-		Verifier: google.New(cfg.GoogleClientID, google.WithHTTPClient(tracedClient())),
+		Verifier: google.New(cfg.GoogleClientID, google.WithHTTPClient(tracedClient(httpTimeout))),
 		Users:    queries,
 		Sessions: session.New(rdb, time.Now),
 		Allowed:  cfg.AllowedEmails,
@@ -178,10 +183,10 @@ func run() (err error) {
 	return nil
 }
 
-// tracedClient returns the client for outbound calls, so a call to
-// an external service is a span of the request that provoked it.
-func tracedClient() *http.Client {
-	return &http.Client{Timeout: httpTimeout, Transport: otelhttp.NewTransport(http.DefaultTransport)}
+// tracedClient returns a client for outbound calls bounded by timeout, so a
+// call to an external service is a span of the request that provoked it.
+func tracedClient(timeout time.Duration) *http.Client {
+	return &http.Client{Timeout: timeout, Transport: otelhttp.NewTransport(http.DefaultTransport)}
 }
 
 // newServer mounts /healthz, every Connect handler and gRPC reflection on one

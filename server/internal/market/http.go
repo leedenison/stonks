@@ -66,16 +66,18 @@ func WithoutURL(err error) error {
 	return err
 }
 
-// Endpoint returns cfg's endpoint or def, and rejects a relative one. When a
-// request URL fails to parse, net/http quotes the URL in its error, with the
-// credential. A provider that sends its credential in the query therefore
-// calls Endpoint before any request.
+// Endpoint returns cfg's endpoint or def. It rejects an endpoint that is not
+// an http or https URL with a host. Every integration calls it, because the
+// registry validates a datasource row only through the integration's
+// factory. The check also keeps a credential out of errors: when a request
+// URL fails to parse, net/http quotes the URL, credential included.
 func Endpoint(cfg Config, def string) (string, error) {
 	if cfg.Endpoint == "" {
 		return def, nil
 	}
-	if u, err := url.Parse(cfg.Endpoint); err != nil || !u.IsAbs() {
-		return "", fmt.Errorf("%s endpoint %q is not an absolute URL", cfg.Name, cfg.Endpoint)
+	u, err := url.Parse(cfg.Endpoint)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+		return "", fmt.Errorf("%s endpoint %q is not an http or https URL with a host", cfg.Name, cfg.Endpoint)
 	}
 	return cfg.Endpoint, nil
 }

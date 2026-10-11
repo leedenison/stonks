@@ -7,7 +7,6 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/types"
-	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/ptr"
 )
 
@@ -99,7 +98,7 @@ func TestParams(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			c := New(market.Config{}, nil)
+			c := &Client{}
 			got := c.Params(gen.StatedKey{Currency: tc.currency})
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("Params() (-want +got):\n%s", diff)

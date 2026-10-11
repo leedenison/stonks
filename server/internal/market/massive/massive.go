@@ -1,7 +1,5 @@
 // Package massive is the identity integration with Massive's reference data
 // API, which covers listed US stock, ETFs and funds.
-//
-// Massive keys a record by ticker alone.
 package massive
 
 import (
@@ -36,14 +34,6 @@ type Client struct {
 	key      string
 }
 
-// Option adjusts a Client.
-type Option func(*Client)
-
-// WithHTTPClient sets the client that sends requests.
-func WithHTTPClient(h *http.Client) Option {
-	return func(c *Client) { c.http = h }
-}
-
 // config is the datasource row's config: the account's plan, and the rate
 // of each plan Massive sells.
 type config struct {
@@ -56,11 +46,11 @@ type plan struct {
 	PerMinute int `json:"perMinute"`
 }
 
-// New returns a Client for cfg. It fails when cfg has no credential, when
-// its endpoint is not an absolute URL, when its config has an unknown
-// member, or when the config names a plan that it does not describe or whose
-// rate is negative.
-func New(cfg market.Config, mics mic.Table, opts ...Option) (*Client, error) {
+// New returns a Client for cfg that sends its requests through h. It fails
+// when cfg has no credential, when its endpoint is not a URL, when its
+// config has an unknown member, or when the config names a plan that it does
+// not describe or whose rate is negative.
+func New(cfg market.Config, mics mic.Table, h *http.Client) (*Client, error) {
 	if cfg.Credential == "" {
 		return nil, errors.New("massive needs an API key")
 	}
@@ -85,15 +75,12 @@ func New(cfg market.Config, mics mic.Table, opts ...Option) (*Client, error) {
 		mics:     mics,
 		venues:   operating(mics),
 		limit:    rate.Inf,
-		http:     &http.Client{Timeout: 30 * time.Second},
+		http:     h,
 		endpoint: ep,
 		key:      cfg.Credential,
 	}
 	if p.PerMinute > 0 {
 		c.limit = rate.Every(time.Minute / time.Duration(p.PerMinute))
-	}
-	for _, o := range opts {
-		o(c)
 	}
 	return c, nil
 }
@@ -110,12 +97,12 @@ func operating(mics mic.Table) map[string]bool {
 }
 
 // Factory returns a market.Factory that builds Clients which normalise
-// venues through mics.
-func Factory(mics mic.Table) market.Factory {
+// venues through mics and send through h.
+func Factory(mics mic.Table, h *http.Client) market.Factory {
 	return market.Factory{
 		Endpoint: endpoint,
 		New: func(cfg market.Config) (market.Integration, error) {
-			return New(cfg, mics)
+			return New(cfg, mics, h)
 		},
 	}
 }

@@ -37,7 +37,7 @@ var scrub = vcr.Scrub{Query: []string{"apiKey"}, Body: vcr.RedactFields("address
 
 func replay(t *testing.T, cassette, key string) *Client {
 	t.Helper()
-	c, err := New(market.Config{Credential: key, JSON: json.RawMessage(conf)}, mics, WithHTTPClient(vcr.New(t, "testdata/"+cassette, scrub)))
+	c, err := New(market.Config{Credential: key, JSON: json.RawMessage(conf)}, mics, vcr.New(t, "testdata/"+cassette, scrub))
 	require.NoError(t, err)
 	return c
 }
@@ -192,7 +192,7 @@ func TestClassifyStatus(t *testing.T) {
 				w.WriteHeader(tc.status)
 			}))
 			t.Cleanup(srv.Close)
-			c, err := New(market.Config{Credential: "k", Endpoint: srv.URL, JSON: json.RawMessage(conf)}, mics)
+			c, err := New(market.Config{Credential: "k", Endpoint: srv.URL, JSON: json.RawMessage(conf)}, mics, http.DefaultClient)
 			require.NoError(t, err)
 			_, err = fetch(c, cusip)
 			if err == nil {
@@ -223,7 +223,7 @@ func TestNotFound(t *testing.T) {
 				_, _ = w.Write([]byte(tc.body))
 			}))
 			t.Cleanup(srv.Close)
-			c, err := New(market.Config{Credential: "k", Endpoint: srv.URL, JSON: json.RawMessage(conf)}, mics)
+			c, err := New(market.Config{Credential: "k", Endpoint: srv.URL, JSON: json.RawMessage(conf)}, mics, http.DefaultClient)
 			require.NoError(t, err)
 			got, err := fetch(c, ticker("", "ZZZZQQ"))
 			if tc.fails {
@@ -249,7 +249,7 @@ func TestConfig(t *testing.T) {
 		v["plan"] = plan
 		b, err := json.Marshal(v)
 		require.NoError(t, err)
-		c, err := New(market.Config{Credential: "k", JSON: b}, mics)
+		c, err := New(market.Config{Credential: "k", JSON: b}, mics, http.DefaultClient)
 		require.NoError(t, err)
 		l, burst := c.Limit()
 		if burst != 1 {
@@ -276,7 +276,7 @@ func TestConfig(t *testing.T) {
 		{name: "an endpoint that is not a URL", cfg: market.Config{Credential: "k", Endpoint: "api.massive.com", JSON: json.RawMessage(conf)}},
 	}
 	for _, tc := range refused {
-		if _, err := New(tc.cfg, mics); err == nil {
+		if _, err := New(tc.cfg, mics, http.DefaultClient); err == nil {
 			t.Errorf("New() with %s succeeded, want an error", tc.name)
 		}
 	}
