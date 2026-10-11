@@ -133,24 +133,6 @@ func TestMICSeed(t *testing.T) {
 	}
 }
 
-// TestVenueNames checks that every named venue is an operating MIC.
-func TestVenueNames(t *testing.T) {
-	ctx := context.Background()
-	q := newTx(t)
-	tbl, err := mic.Load(ctx, q)
-	require.NoError(t, err)
-	rows, err := q.ListVenueNames(ctx)
-	require.NoError(t, err)
-	if len(rows) == 0 {
-		t.Fatal("no venue names seeded")
-	}
-	for _, r := range rows {
-		if op, ok := tbl.Operating(r.Mic); !ok || op != r.Mic {
-			t.Errorf("%s (%s): operating MIC %q, %v, want itself", r.Mic, r.Name, op, ok)
-		}
-	}
-}
-
 // TestSetListingPrimary checks that a listing's primary venue is set once.
 func TestSetListingPrimary(t *testing.T) {
 	ctx := context.Background()
@@ -391,15 +373,23 @@ func TestListInstruments(t *testing.T) {
 	if len(first) != 1 || first[0].ID != bare.ID {
 		t.Errorf("first page = %v, want the unnamed instrument alone", first)
 	}
-	next, err := q.ListInstruments(ctx, gen.ListInstrumentsParams{After: &option.ID, Lim: 1})
+	next, err := q.ListInstruments(ctx, gen.ListInstrumentsParams{AfterID: &option.ID, AfterName: ptr.To("ZZOPT260116C00150000"), Lim: 1})
 	require.NoError(t, err)
 	if len(next) != 1 || next[0].ID != stock.ID {
 		t.Errorf("page after the option = %v, want the stock alone", next)
 	}
-	gone, err := q.ListInstruments(ctx, gen.ListInstrumentsParams{After: ptr.To(db.NewID()), Lim: 1})
+	// A page continues past a cursor whose row has gone, by its name.
+	gone, err := q.ListInstruments(ctx, gen.ListInstrumentsParams{AfterID: ptr.To(db.NewID()), AfterName: ptr.To("ZZOPTZ"), Lim: 1})
 	require.NoError(t, err)
-	if len(gone) != 0 {
-		t.Errorf("page after an unknown id = %v, want none", gone)
+	if len(gone) != 1 || gone[0].ID != stock.ID {
+		t.Errorf("page after a row that has gone = %v, want the stock alone", gone)
+	}
+	// The cursor applies after the filters, so a filtered page continues
+	// from the cursor too.
+	filtered, err := q.ListInstruments(ctx, gen.ListInstrumentsParams{AfterID: &option.ID, AfterName: ptr.To("ZZOPT260116C00150000"), Q: ptr.To("zztwo"), Lim: 10})
+	require.NoError(t, err)
+	if len(filtered) != 1 || filtered[0].ID != two.ID {
+		t.Errorf("filtered page after the option = %v, want the second stock alone", filtered)
 	}
 
 	// The query matches any identifier, ignoring case, and the class keeps

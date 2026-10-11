@@ -3,6 +3,7 @@ package instrument
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"testing"
 
@@ -115,8 +116,8 @@ func TestListInstruments(t *testing.T) {
 	}{
 		{
 			name:    "a page after a token",
-			req:     &admininstrumentv1.ListInstrumentsRequest{PageToken: acmeID.String()},
-			wantArg: &gen.ListInstrumentsParams{After: &acmeID, Lim: page.DefaultSize + 1},
+			req:     &admininstrumentv1.ListInstrumentsRequest{PageToken: acmeID.String() + ":ACME"},
+			wantArg: &gen.ListInstrumentsParams{AfterID: &acmeID, AfterName: ptr.To("ACME"), Lim: page.DefaultSize + 1},
 			rows:    rows,
 			want:    &admininstrumentv1.ListInstrumentsResponse{Instruments: want},
 		},
@@ -134,7 +135,8 @@ func TestListInstruments(t *testing.T) {
 		},
 		{name: "oversized page", req: &admininstrumentv1.ListInstrumentsRequest{PageSize: 201}, wantCode: connect.CodeInvalidArgument},
 		{name: "unspecified class", req: &admininstrumentv1.ListInstrumentsRequest{AssetClass: typev1.AssetClass_ASSET_CLASS_UNSPECIFIED.Enum()}, wantCode: connect.CodeInvalidArgument},
-		{name: "malformed token", req: &admininstrumentv1.ListInstrumentsRequest{PageToken: "not-a-uuid"}, wantCode: connect.CodeInvalidArgument},
+		{name: "a token without a name", req: &admininstrumentv1.ListInstrumentsRequest{PageToken: acmeID.String()}, wantCode: connect.CodeInvalidArgument},
+		{name: "a token whose id is malformed", req: &admininstrumentv1.ListInstrumentsRequest{PageToken: "not-a-uuid:ACME"}, wantCode: connect.CodeInvalidArgument},
 		{name: "instruments failure", req: &admininstrumentv1.ListInstrumentsRequest{}, wantArg: &gen.ListInstrumentsParams{Lim: page.DefaultSize + 1}, rowsErr: errors.New("boom"), wantCode: connect.CodeInternal},
 		{name: "listings failure", req: &admininstrumentv1.ListInstrumentsRequest{}, wantArg: &gen.ListInstrumentsParams{Lim: page.DefaultSize + 1}, rows: rows, listingsErr: errors.New("boom"), wantCode: connect.CodeInternal},
 		{name: "identifiers failure", req: &admininstrumentv1.ListInstrumentsRequest{}, wantArg: &gen.ListInstrumentsParams{Lim: page.DefaultSize + 1}, rows: rows, identsErr: errors.New("boom"), wantCode: connect.CodeInternal},
@@ -169,11 +171,33 @@ func TestListInstruments(t *testing.T) {
 	}
 }
 
+// TestCursor checks that a page token carries the last row's id and name
+// back to the query whatever the name holds, and that a token with no name
+// or a malformed id is refused.
+func TestCursor(t *testing.T) {
+	for _, name := range []string{"ACME", "ACME: CLASS A", ""} {
+		t.Run(fmt.Sprintf("name %q", name), func(t *testing.T) {
+			id, got, err := parseCursor(cursor(gen.ListInstrumentsRow{ID: acmeID, Name: name}))
+			if err != nil || id == nil || *id != acmeID || got == nil || *got != name {
+				t.Errorf("parseCursor(cursor()) = %v, %v, %v, want the id and %q", id, got, err, name)
+			}
+		})
+	}
+	for _, token := range []string{acmeID.String(), "not-a-uuid:ACME", ":ACME"} {
+		if _, _, err := parseCursor(token); err == nil {
+			t.Errorf("parseCursor(%q) = nil, want an error", token)
+		}
+	}
+	if id, name, err := parseCursor(""); id != nil || name != nil || err != nil {
+		t.Errorf("parseCursor(\"\") = %v, %v, %v, want the first page", id, name, err)
+	}
+}
+
 // TestListInstrumentsPages checks that a full page is cut to its size and
-// that the token of the next page is the id of the last instrument served.
+// that the token of the next page names the last instrument served.
 func TestListInstrumentsPages(t *testing.T) {
 	f := newFixture(t)
-	rows := []gen.ListInstrumentsRow{{ID: acmeID, AssetClass: gen.AssetClassStock}, {ID: gbpID, AssetClass: gen.AssetClassCash}}
+	rows := []gen.ListInstrumentsRow{{ID: acmeID, AssetClass: gen.AssetClassStock, Name: "ACME"}, {ID: gbpID, AssetClass: gen.AssetClassCash, Name: "GBP"}}
 	f.queries.EXPECT().ListInstruments(gomock.Any(), gen.ListInstrumentsParams{Lim: 2}).Return(rows, nil)
 	f.queries.EXPECT().ListListingsOf(gomock.Any(), []uuid.UUID{acmeID}).Return(nil, nil)
 	f.queries.EXPECT().ListIdentifiersOf(gomock.Any(), []uuid.UUID{acmeID}).Return(nil, nil)
@@ -183,7 +207,7 @@ func TestListInstrumentsPages(t *testing.T) {
 		t.Fatalf("ListInstruments() error = %v", err)
 	}
 	got := res.Msg.GetInstruments()
-	if len(got) != 1 || got[0].GetId() != acmeID.String() || res.Msg.GetNextPageToken() != acmeID.String() {
-		t.Errorf("ListInstruments() = %v, want the first instrument and its id as the next token", res.Msg)
+	if len(got) != 1 || got[0].GetId() != acmeID.String() || res.Msg.GetNextPageToken() != acmeID.String()+":ACME" {
+		t.Errorf("ListInstruments() = %v, want the first instrument and a token naming it", res.Msg)
 	}
 }

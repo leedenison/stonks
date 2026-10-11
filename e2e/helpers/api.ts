@@ -3,17 +3,20 @@ import { type Client, createClient } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
 import { BlockService } from "../gen/admin/block/v1/block_pb";
 import { DatasourceService } from "../gen/admin/datasource/v1/datasource_pb";
-import {
-  type Instrument as AdminInstrument,
-  InstrumentService as AdminInstrumentService,
-} from "../gen/admin/instrument/v1/instrument_pb";
+import { InstrumentService as AdminInstrumentService } from "../gen/admin/instrument/v1/instrument_pb";
 import { ReplayService } from "../gen/admin/replay/v1/replay_pb";
-import { RunService, type UserRun } from "../gen/admin/run/v1/run_pb";
+import {
+  FetchOutcome,
+  RunService,
+  type UserRun,
+} from "../gen/admin/run/v1/run_pb";
+import type { IdentifierType } from "../gen/type/v1/type_pb";
 import { AuthService } from "../gen/auth/v1/auth_pb";
 import { HoldingService } from "../gen/holding/v1/holding_pb";
 import { StatementService } from "../gen/statement/v1/statement_pb";
 import { sessionCookie } from "./auth";
 import { baseURL } from "./config";
+import { expect } from "./test";
 
 // clientFor returns the generated client of service over the edge, carrying
 // the session as the browser would. Node's fetch keeps no cookies, so the
@@ -42,20 +45,6 @@ export function adminRunClient(sessionID: string) {
 
 export function adminInstrumentClient(sessionID: string) {
   return clientFor(AdminInstrumentService, sessionID);
-}
-
-// allInstruments reads every instrument, following the pages.
-export async function allInstruments(
-  admin: Client<typeof AdminInstrumentService>,
-): Promise<AdminInstrument[]> {
-  const out: AdminInstrument[] = [];
-  let pageToken = "";
-  do {
-    const res = await admin.listInstruments({ pageToken });
-    out.push(...res.instruments);
-    pageToken = res.nextPageToken;
-  } while (pageToken !== "");
-  return out;
 }
 
 export function blockClient(sessionID: string) {
@@ -105,6 +94,23 @@ export async function fetchItems(
   return (await items(admin, runId)).flatMap((i) =>
     i.item.case === "fetch" ? [i.item.value] : [],
   );
+}
+
+// expectServedOnce asserts that each named datasource, run below resolution,
+// was asked exactly once for the identifier sent and served it.
+export async function expectServedOnce(
+  admin: Client<typeof RunService>,
+  resolution: UserRun,
+  names: string[],
+  sent: { type: IdentifierType; value: string },
+): Promise<void> {
+  for (const name of names) {
+    const fetched = await fetchItems(admin, fetchRun(resolution, name).run!.id);
+    expect(fetched, name).toHaveLength(1);
+    expect(fetched[0].outcome, name).toBe(FetchOutcome.SERVED);
+    expect(fetched[0].sent?.type, name).toBe(sent.type);
+    expect(fetched[0].sent?.value, name).toBe(sent.value);
+  }
 }
 
 // fetchRun returns the fetch run below resolution that asked the named

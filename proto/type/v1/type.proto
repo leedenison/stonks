@@ -152,24 +152,3 @@ message ResolutionItem {
   // FindCandidates.
   int32 offered = 6;
 }
-
-// A change in the quantity of one instrument held by a user.
-message Transaction {
-  // Identifies the transaction in every API; a UUID.
-  string id = 1;
-  // The statement that wrote the transaction; the id of its run.
-  string statement_id = 2;
-  // The key read from the statement row that created this transaction.
-  string stated_key_id = 3;
-  Broker broker = 4;
-  // The date the order was placed.
-  string order_date = 5;
-  // The date the order settled.
-  string settlement_date = 6;
-  // The date the values were true, ie. which corporate events they
-  // reflect.
-  string as_at = 7;
-  // The change in units of the instrument: eg. shares, contracts, or
-  // money. Negative for a disposal or an outflow.
-  string quantity = 8;
-}

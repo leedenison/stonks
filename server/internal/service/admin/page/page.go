@@ -36,9 +36,9 @@ func Cut[T any](p Page, rows []T) ([]T, bool) {
 	return rows[:p.Size], true
 }
 
-// Before reads a page token that is the id of the last row served; "" is the
+// ID reads a page token that is the id of the last row served; "" is the
 // first page.
-func Before(token string) (*uuid.UUID, error) {
+func ID(token string) (*uuid.UUID, error) {
 	if token == "" {
 		return nil, nil
 	}

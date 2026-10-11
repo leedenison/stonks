@@ -12,9 +12,6 @@ RETURNING *;
 -- Sets the primary venue of a listing that has none.
 UPDATE listings SET primary_mic = @primary_mic WHERE id = @id AND primary_mic IS NULL;
 
--- name: ListVenueNames :many
-SELECT * FROM venue_names ORDER BY rank;
-
 -- name: ListListingsOf :many
 SELECT * FROM listings
 WHERE instrument_id = ANY(@ids::uuid[])
@@ -157,7 +154,8 @@ LIMIT sqlc.narg(lim)::int;
 -- venue wins, then the venue ranked first in venue_names, then the lowest
 -- MIC. An instrument with no identifier has an empty name and type. The
 -- optional q matches any of an instrument's identifiers, and the optional
--- asset_class includes the classes below it.
+-- asset_class includes the classes below it. A page continues past the name
+-- and id of the last instrument served, whether or not that row remains.
 WITH RECURSIVE classes AS (
     SELECT class FROM asset_class_tree WHERE class = sqlc.narg(asset_class)::asset_class
     UNION ALL
@@ -180,15 +178,15 @@ WITH RECURSIVE classes AS (
                  venue_names.rank NULLS LAST, identifiers.domain, identifiers.value
         LIMIT 1
     ) AS naming ON true
+    WHERE (sqlc.narg(q)::text IS NULL
+           OR EXISTS (SELECT 1 FROM identifiers
+                      WHERE identifiers.instrument_id = instruments.id
+                        AND identifiers.value ILIKE '%' || sqlc.narg(q) || '%'))
+      AND (sqlc.narg(asset_class)::asset_class IS NULL
+           OR instruments.asset_class IN (SELECT class FROM classes))
 )
 SELECT * FROM named
-WHERE (sqlc.narg(after)::uuid IS NULL
-       OR (name, id) > (SELECT name, id FROM named WHERE id = sqlc.narg(after)))
-  AND (sqlc.narg(q)::text IS NULL
-       OR EXISTS (SELECT 1 FROM identifiers
-                  WHERE identifiers.instrument_id = named.id
-                    AND identifiers.value ILIKE '%' || sqlc.narg(q) || '%'))
-  AND (sqlc.narg(asset_class)::asset_class IS NULL
-       OR named.asset_class IN (SELECT class FROM classes))
+WHERE sqlc.narg(after_id)::uuid IS NULL
+   OR (name, id) > (sqlc.narg(after_name)::text, sqlc.narg(after_id)::uuid)
 ORDER BY name, id
 LIMIT @lim;

@@ -102,17 +102,14 @@ message Finding {
   // What the key concerned states: the finding's own key, or for a block
   // the key whose call created it.
   stonks.type.v1.StatedKey stated_key = 6;
-  // The fetch key of the response involved; unset for a contradiction
-  // found in the database.
-  optional string fetch_key_id = 7;
   // The step that dropped the set of identifiers; present only when the kind
   // is DROPPED.
-  optional DropStep step = 8;
+  optional DropStep step = 7;
   // The grounds, in words; for a BLOCK, the block's reason.
-  optional string detail = 9;
-  google.protobuf.Timestamp created_at = 10;
+  optional string detail = 8;
+  google.protobuf.Timestamp created_at = 9;
   // When an administrator cleared the finding; unset while it is open.
-  google.protobuf.Timestamp cleared_at = 11;
+  google.protobuf.Timestamp cleared_at = 10;
 }
 
 // Each filter left unset matches every run.

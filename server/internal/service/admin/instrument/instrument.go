@@ -4,6 +4,7 @@ package instrument
 import (
 	"context"
 	"errors"
+	"fmt"
 	"slices"
 	"strings"
 
@@ -49,15 +50,17 @@ func New(queries Queries) *Server {
 }
 
 // ListInstruments lists the instruments the query and the class keep, by
-// name then id. The page token is the id of the last instrument served.
+// name then id. The page token names the last instrument served by its id
+// and name, so a page continues from the right place when that instrument
+// has gone or been renamed.
 func (s *Server) ListInstruments(ctx context.Context, req *connect.Request[admininstrumentv1.ListInstrumentsRequest]) (*connect.Response[admininstrumentv1.ListInstrumentsResponse], error) {
 	m := req.Msg
-	after, err := page.Before(m.GetPageToken())
+	afterID, afterName, err := parseCursor(m.GetPageToken())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	p := page.New(m.GetPageSize())
-	arg := gen.ListInstrumentsParams{After: after, Lim: p.Lim()}
+	arg := gen.ListInstrumentsParams{AfterID: afterID, AfterName: afterName, Lim: p.Lim()}
 	if q := m.GetQuery(); q != "" {
 		arg.Q = ptr.To(likeEscape.Replace(q))
 	}
@@ -78,9 +81,32 @@ func (s *Server) ListInstruments(ctx context.Context, req *connect.Request[admin
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	if more {
-		out.NextPageToken = rows[len(rows)-1].ID.String()
+		out.NextPageToken = cursor(rows[len(rows)-1])
 	}
 	return connect.NewResponse(out), nil
+}
+
+// cursor is the page token after row: its id, a colon, then its name. The
+// id holds no colon, so the first one ends it.
+func cursor(row gen.ListInstrumentsRow) string {
+	return row.ID.String() + ":" + row.Name
+}
+
+// parseCursor reads a page token into the id and name it carries; an empty
+// token is the first page.
+func parseCursor(token string) (*uuid.UUID, *string, error) {
+	if token == "" {
+		return nil, nil, nil
+	}
+	text, name, ok := strings.Cut(token, ":")
+	if !ok {
+		return nil, nil, fmt.Errorf("page token %q: no name", token)
+	}
+	id, err := uuid.Parse(text)
+	if err != nil {
+		return nil, nil, fmt.Errorf("page token %q: %w", token, err)
+	}
+	return &id, &name, nil
 }
 
 // instruments assembles the page's instruments, each listing grain

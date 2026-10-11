@@ -3,7 +3,6 @@ import { IdentifierType, ResolutionOutcome } from "../gen/type/v1/type_pb";
 import {
   adminInstrumentClient,
   holdingClient,
-  allInstruments,
   statementClient,
 } from "../helpers/api";
 import { uploadStatement } from "../helpers/upload";
@@ -134,26 +133,27 @@ test("shows a resolved holding and an unresolved one from two brokers", async ({
   // Search by the CUSIP so the instrument is on the page whatever else the
   // database holds.
   const { session: adminSession } = await signIn("admin");
-  const every = await allInstruments(adminInstrumentClient(adminSession));
-  const instrument = every.find((i) =>
-    i.identifiers.some((x) => x.value === cusip),
-  );
-  expect(instrument?.identifiers.map((i) => i.type)).toContain(
+  const found = await adminInstrumentClient(adminSession).listInstruments({
+    query: cusip,
+  });
+  expect(found.instruments).toHaveLength(1);
+  const instrument = found.instruments[0];
+  expect(instrument.identifiers.map((i) => i.type)).toContain(
     IdentifierType.OPENFIGI_SHARE_CLASS,
   );
-  const usd = instrument!.listings.find((l) => l.currency === "USD");
+  const usd = instrument.listings.find((l) => l.currency === "USD");
   expect(usd?.identifiers.map((i) => i.type)).toContain(
     IdentifierType.OPENFIGI_COMPOSITE,
   );
   await page.goto("/admin/instruments");
   await page.getByTestId("instruments-search").fill(cusip);
   await expect(page).toHaveURL(`/admin/instruments?q=${cusip}`);
-  const adminRow = page.getByTestId(`instrument-row-${instrument!.id}`);
+  const adminRow = page.getByTestId(`instrument-row-${instrument.id}`);
   await expect(adminRow).toContainText(ticker);
   await expect(adminRow).not.toContainText(cusip);
   await adminRow.click();
   await expect(page).toHaveURL(
-    `/admin/instruments?id=${instrument!.id}&q=${cusip}`,
+    `/admin/instruments?id=${instrument.id}&q=${cusip}`,
   );
   await expect(adminRow).toHaveAttribute("aria-selected", "true");
   const pane = page.getByTestId("instrument-pane");

@@ -16,8 +16,8 @@ import "type/v1/type.proto";
 option go_package = "github.com/leedenison/stonks/proto/statement/v1;statementv1";
 
 // One leg: a change in the quantity of one instrument, stated as at a date.
-// Each field mirrors Transaction in meaning. None carries a constraint, so that
-// an invalid row is rejected on its own rather than failing the statement.
+// None of its fields carries a constraint, so the server rejects an invalid
+// row alone and the statement still loads.
 message Row {
   stonks.type.v1.StatedKey key = 1;
   string order_date = 2;

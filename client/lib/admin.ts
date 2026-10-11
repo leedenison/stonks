@@ -102,7 +102,7 @@ export function listQuery(path: string, p: ListParams): string {
 
 // InstrumentParams is the instruments page's address.
 export type InstrumentParams = {
-  // The id of the instrument the page follows; empty for the first page.
+  // The token of the page, as the API returned it; empty for the first page.
   after: string;
   // The selected instrument; empty for none.
   id: string;
