@@ -18,18 +18,18 @@ func TestCacheKey(t *testing.T) {
 		{
 			name: "a global identifier",
 			sent: types.Identifier{Type: types.IdentifierTypeIsin, Value: "US0378331005"},
-			want: "stonks:fetch:openfigi:identity:isin::US0378331005",
+			want: "stonks:fetch:v1:openfigi:identity:isin::US0378331005",
 		},
 		{
 			name: "a venue ticker",
 			sent: types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "AAPL"},
-			want: "stonks:fetch:openfigi:identity:mic_ticker:XNAS:AAPL",
+			want: "stonks:fetch:v1:openfigi:identity:mic_ticker:XNAS:AAPL",
 		},
 		{
 			name:   "a bare ticker with a currency filter",
 			sent:   types.Identifier{Type: types.IdentifierTypeMicTicker, Value: "INTC"},
 			params: []string{"USD"},
-			want:   "stonks:fetch:openfigi:identity:mic_ticker::INTC:USD",
+			want:   "stonks:fetch:v1:openfigi:identity:mic_ticker::INTC:USD",
 		},
 	}
 	for _, tc := range tests {
@@ -39,7 +39,7 @@ func TestCacheKey(t *testing.T) {
 			}
 		})
 	}
-	if got, want := dropPrefix("openfigi"), "stonks:fetch:openfigi:"; got != want {
+	if got, want := dropPrefix("openfigi"), "stonks:fetch:v1:openfigi:"; got != want {
 		t.Errorf("dropPrefix() = %q, want %q", got, want)
 	}
 }

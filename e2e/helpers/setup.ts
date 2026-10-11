@@ -24,10 +24,7 @@ const datasources: {
     name: "massive",
     precedence: 2,
     endpoint: "http://massive.vcr:8080",
-    config: {
-      plan: "starter",
-      plans: { basic: { perMinute: 5 }, starter: {} },
-    },
+    config: { plan: "starter" },
   },
   {
     name: "eodhd",

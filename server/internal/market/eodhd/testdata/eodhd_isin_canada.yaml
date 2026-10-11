@@ -1,0 +1,97 @@
+---
+version: 2
+interactions:
+    - id: 0
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: eodhd.com
+        form:
+            api_token:
+                - REDACTED
+            fmt:
+                - json
+            limit:
+                - "500"
+        url: https://eodhd.com/api/search/CA21037X1006?api_token=REDACTED&fmt=json&limit=500
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 1328
+        uncompressed: true
+        body: '[{"Code":"CSU","Exchange":"TO","Name":"Constellation Software Inc.","Type":"Common Stock","Country":"Canada","Currency":"CAD","ISIN":"CA21037X1006","isPrimary":true,"previousClose":3003.78,"previousCloseDate":"2026-10-09"},{"Code":"W9C","Exchange":"STU","Name":"Constellation Software Inc.","Type":"Common Stock","Country":"Germany","Currency":"EUR","ISIN":"CA21037X1006","isPrimary":false,"previousClose":1870,"previousCloseDate":"2026-10-09"},{"Code":"W9C","Exchange":"F","Name":"Constellation Software Inc.","Type":"Common Stock","Country":"Germany","Currency":"EUR","ISIN":"CA21037X1006","isPrimary":false,"previousClose":1883,"previousCloseDate":"2026-10-09"},{"Code":"W9C","Exchange":"MU","Name":"Constellation Software Inc.","Type":"Common Stock","Country":"Germany","Currency":"EUR","ISIN":"CA21037X1006","isPrimary":false,"previousClose":1820,"previousCloseDate":"2026-10-09"},{"Code":"W9C","Exchange":"DU","Name":"Constellation Software Inc.","Type":"Common Stock","Country":"Germany","Currency":"EUR","ISIN":"CA21037X1006","isPrimary":false,"previousClose":1848,"previousCloseDate":"2026-10-09"},{"Code":"W9C","Exchange":"HA","Name":"Constellation Software Inc.","Type":"Common Stock","Country":"Germany","Currency":"EUR","ISIN":"CA21037X1006","isPrimary":false,"previousClose":1852,"previousCloseDate":"2026-10-09"}]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Sun, 11 Oct 2026 18:34:03 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1199"
+        status: 200 OK
+        code: 200
+        duration: 1.478768824s
+    - id: 1
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: eodhd.com
+        form:
+            api_token:
+                - REDACTED
+            filter[isin]:
+                - CA21037X1006
+            fmt:
+                - json
+        url: https://eodhd.com/api/id-mapping?api_token=REDACTED&filter%5Bisin%5D=CA21037X1006&fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 705
+        uncompressed: true
+        body: '{"meta":{"limit":1000,"offset":0,"total":7},"data":[{"symbol":"CSU.TO","isin":"CA21037X1006","figi":null,"lei":null,"cusip":"21037X100","cik":null},{"symbol":"W9C.F","isin":"CA21037X1006","figi":null,"lei":null,"cusip":null,"cik":null},{"symbol":"W9C.MU","isin":"CA21037X1006","figi":null,"lei":null,"cusip":null,"cik":null},{"symbol":"W9C.BE","isin":"CA21037X1006","figi":null,"lei":null,"cusip":null,"cik":null},{"symbol":"W9C.STU","isin":"CA21037X1006","figi":null,"lei":null,"cusip":null,"cik":null},{"symbol":"W9C.HA","isin":"CA21037X1006","figi":null,"lei":null,"cusip":null,"cik":null},{"symbol":"W9C.DU","isin":"CA21037X1006","figi":null,"lei":null,"cusip":null,"cik":null}],"links":{"next":null}}'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Sun, 11 Oct 2026 18:34:03 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1198"
+        status: 200 OK
+        code: 200
+        duration: 170.916597ms

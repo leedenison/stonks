@@ -4,7 +4,7 @@ import { store } from "./redis";
 // The key format is the contract the server's market package states: a
 // fixed prefix, then the datasource, the kind, the identifier sent and the
 // parameters the integration derives from the request, in that order.
-const prefix = "stonks:fetch:";
+const prefix = "stonks:fetch:v1:";
 
 // fetchCacheKey is the cache key of one request.
 export function fetchCacheKey(
