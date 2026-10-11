@@ -33,32 +33,23 @@ type Client struct {
 	key      string
 }
 
-// Option adjusts a Client.
-type Option func(*Client)
-
-// WithHTTPClient sets the client that sends requests.
-func WithHTTPClient(h *http.Client) Option {
-	return func(c *Client) { c.http = h }
+// New returns a Client for cfg that sends its requests through h. The
+// credential is optional. It fails when cfg's endpoint is not a URL.
+func New(cfg market.Config, mics mic.Table, h *http.Client) (*Client, error) {
+	ep, err := market.Endpoint(cfg, endpoint)
+	if err != nil {
+		return nil, err
+	}
+	return &Client{mics: mics, http: h, endpoint: ep, key: cfg.Credential}, nil
 }
 
-// New returns a Client for cfg. The credential is optional.
-func New(cfg market.Config, mics mic.Table, opts ...Option) *Client {
-	c := &Client{mics: mics, http: &http.Client{Timeout: 30 * time.Second}, endpoint: endpoint, key: cfg.Credential}
-	if cfg.Endpoint != "" {
-		c.endpoint = cfg.Endpoint
-	}
-	for _, o := range opts {
-		o(c)
-	}
-	return c
-}
-
-// Factory returns the factory of Clients normalising venues through mics.
-func Factory(mics mic.Table) market.Factory {
+// Factory returns the factory of Clients normalising venues through mics
+// and sending through h.
+func Factory(mics mic.Table, h *http.Client) market.Factory {
 	return market.Factory{
 		Endpoint: endpoint,
 		New: func(cfg market.Config) (market.Integration, error) {
-			return New(cfg, mics), nil
+			return New(cfg, mics, h)
 		},
 	}
 }

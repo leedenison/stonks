@@ -2,7 +2,6 @@ package eodhd
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -150,10 +149,7 @@ func (c *Client) searchISIN(ctx context.Context, isin string) ([]row, error) {
 func (c *Client) searchTicker(ctx context.Context, id types.Identifier) ([]row, error) {
 	code, _ := market.WithClassSep(id.Value, '-')
 	var exchanges []string
-	switch {
-	case id.Type == types.IdentifierTypeOpenfigiTicker:
-		exchanges = []string{usCode}
-	case id.Domain != "":
+	if id.Domain != "" {
 		exchanges = c.exchange[id.Domain]
 	}
 	filter := ""
@@ -201,8 +197,7 @@ func (c *Client) symbols(ctx context.Context, codes []string) ([]listing, error)
 	return out, err
 }
 
-// get sends one request and decodes a 200's body into v. A 404 is EODHD's
-// answer for a symbol it does not know, and leaves v empty.
+// get sends one request and decodes a 200's body into v.
 func (c *Client) get(ctx context.Context, path string, q url.Values, v any) error {
 	q.Set("api_token", c.key)
 	q.Set("fmt", "json")
@@ -210,10 +205,5 @@ func (c *Client) get(ctx context.Context, path string, q url.Values, v any) erro
 	if err != nil {
 		return fmt.Errorf("build request: %w", market.WithoutURL(err))
 	}
-	err = market.Do(c.http, req, "eodhd", v)
-	var status market.StatusError
-	if errors.As(err, &status) && status.Code == http.StatusNotFound {
-		return nil
-	}
-	return err
+	return market.Do(c.http, req, "eodhd", v)
 }

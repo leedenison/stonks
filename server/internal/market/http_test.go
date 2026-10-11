@@ -93,7 +93,10 @@ func TestEndpoint(t *testing.T) {
 	}{
 		{name: "unset", want: "https://default.test"},
 		{name: "set", endpoint: "http://proxy:8080", want: "http://proxy:8080"},
+		{name: "with a path", endpoint: "https://proxy:8080/base", want: "https://proxy:8080/base"},
 		{name: "relative", endpoint: "api.example.com", wantErr: true},
+		{name: "without a host", endpoint: "http://", wantErr: true},
+		{name: "another scheme", endpoint: "ftp://proxy", wantErr: true},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

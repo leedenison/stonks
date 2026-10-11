@@ -13,7 +13,6 @@ import (
 func TestServes(t *testing.T) {
 	c := &Client{mics: mics, venues: operating(mics)}
 	isin := types.Identifier{Type: types.IdentifierTypeIsin, Value: "US0378331005"}
-	composite := types.Identifier{Type: types.IdentifierTypeOpenfigiTicker, Domain: "US", Value: "AAPL"}
 	tests := []struct {
 		name  string
 		class *gen.AssetClass
@@ -23,12 +22,9 @@ func TestServes(t *testing.T) {
 	}{
 		{name: "a CUSIP before a ticker", ids: []types.Identifier{ticker("XNAS", "AAPL"), cusip}, want: cusip},
 		{name: "a segment ticker at its operating MIC", ids: []types.Identifier{ticker("XNGS", "AAPL")}, want: ticker("XNAS", "AAPL")},
-		{name: "a venue ticker before a composite one", ids: []types.Identifier{composite, ticker("XNYS", "AAPL")}, want: ticker("XNYS", "AAPL")},
-		{name: "a composite ticker before a bare one", ids: []types.Identifier{ticker("", "AAPL"), composite}, want: composite},
 		{name: "a bare ticker", ids: []types.Identifier{ticker("", "AAPL")}, want: ticker("", "AAPL")},
 		{name: "a ticker at a venue Massive does not list", ids: []types.Identifier{ticker("XLON", "VOD")}, fails: true},
 		{name: "a CUSIP beside a ticker at a venue Massive does not list", ids: []types.Identifier{cusip, ticker("XLON", "AAPL")}, fails: true},
-		{name: "a ticker under another composite", ids: []types.Identifier{{Type: types.IdentifierTypeOpenfigiTicker, Domain: "LN", Value: "VOD"}}, fails: true},
 		{name: "an ISIN alone", ids: []types.Identifier{isin}, fails: true},
 		{name: "a bare ticker beside an ISIN", ids: []types.Identifier{ticker("", "AAPL"), isin}, fails: true},
 		{name: "a class above those served", class: ptr.To(gen.AssetClassEquity), ids: []types.Identifier{cusip}, want: cusip},

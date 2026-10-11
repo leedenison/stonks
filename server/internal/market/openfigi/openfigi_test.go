@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/time/rate"
 
 	"github.com/leedenison/stonks/server/internal/db/gen"
@@ -30,7 +31,17 @@ var scrub = vcr.Scrub{Body: func(body string) string { return body }, MatchBody:
 
 func replay(t *testing.T, cassette, key string) *Client {
 	t.Helper()
-	return New(market.Config{Credential: key}, mics, WithHTTPClient(vcr.New(t, "testdata/"+cassette, scrub)))
+	c, err := New(market.Config{Credential: key}, mics, vcr.New(t, "testdata/"+cassette, scrub))
+	require.NoError(t, err)
+	return c
+}
+
+// TestNew checks that New refuses an endpoint that is not a URL. The
+// registry validates a datasource row through New.
+func TestNew(t *testing.T) {
+	if _, err := New(market.Config{Name: "openfigi", Endpoint: "api.openfigi.com"}, mics, http.DefaultClient); err == nil {
+		t.Error("New() with an endpoint that is not a URL succeeded, want an error")
+	}
 }
 
 var (
@@ -228,9 +239,9 @@ func TestClassifyStatus(t *testing.T) {
 				w.WriteHeader(tc.status)
 			}))
 			t.Cleanup(srv.Close)
-			c := New(market.Config{Endpoint: srv.URL}, mics)
-
-			_, err := fetch(c, types.Identifier{Type: types.IdentifierTypeIsin, Value: "US0378331005"}, "")
+			c, err := New(market.Config{Endpoint: srv.URL}, mics, srv.Client())
+			require.NoError(t, err)
+			_, err = fetch(c, types.Identifier{Type: types.IdentifierTypeIsin, Value: "US0378331005"}, "")
 			if err == nil {
 				t.Fatalf("Fetch() against status %d succeeded, want an error", tc.status)
 			}
@@ -251,7 +262,8 @@ func TestLimits(t *testing.T) {
 		{key: "", every: time.Minute / 25, batch: 10},
 		{key: "k", every: 6 * time.Second / 25, batch: 100},
 	} {
-		c := New(market.Config{Credential: tc.key}, mics)
+		c, err := New(market.Config{Credential: tc.key}, mics, http.DefaultClient)
+		require.NoError(t, err)
 		limit, burst := c.Limit()
 		if limit != rate.Every(tc.every) || burst != 1 {
 			t.Errorf("Limit() with credential %q = %v, burst %d, want one per %s, burst 1", tc.key, limit, burst, tc.every)
