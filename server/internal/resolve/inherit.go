@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/google/uuid"
-
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/types"
 	keygroup "github.com/leedenison/stonks/server/internal/group"
@@ -14,9 +12,9 @@ import (
 
 // inherit gives a key the association of the user's arbitrated keys when
 // the lookup left the key unassociated and the key shares a joining
-// identifier with them. Those keys must name one instrument. If they name
-// two, the key inherits only when they agree, a contradiction finding names
-// the two, and the key goes to the datasources.
+// identifier with them. Those keys must agree on one instrument. If two of
+// them name different instruments, the key does not inherit: a contradiction
+// finding names the two, and the key goes to the datasources.
 func (r *Resolver) inherit(ctx context.Context, run gen.Run, rs []*resolution) error {
 	var open []*resolution
 	for _, res := range rs {
@@ -80,17 +78,23 @@ func shared(k, arbitrated gen.StatedKey) string {
 	return arbitrated.ID.String()
 }
 
-// inheritKey writes the association res inherits, and a matched resolution
-// key. The listing carries over where the key states the same currency
-// family. The write only updates existing rows, so it skips the identifier
-// lock.
-func inheritKey(ctx context.Context, q Queries, run gen.Run, res *resolution, cur currencies) (gen.ResolutionKey, []gen.FindingKind, error) {
-	src := res.inherit
-	var listing *uuid.UUID
-	if res.fam != noFamily && res.fam == cur.family(*src) {
-		listing = src.ListingID
+// carry returns a as the association of k: the same instrument, via and
+// validity, with the listing only where k states the currency family fam.
+func carry(a gen.SetStatedKeyAssociationParams, fam string, k gen.StatedKey, cur currencies) gen.SetStatedKeyAssociationParams {
+	a.ID = k.ID
+	if fam == noFamily || cur.family(k) != fam {
+		a.ListingID = nil
 	}
-	arg := gen.SetStatedKeyAssociationParams{ID: res.row.ID, UserID: run.UserID, InstrumentID: src.InstrumentID, ListingID: listing, ViaID: src.ViaID, Validity: src.Validity, Arbiter: gen.ArbiterUser}
+	return a
+}
+
+// inheritKey writes the association res inherits, and a matched resolution
+// key. The write only updates existing rows, so it skips the identifier
+// lock.
+func inheritKey(ctx context.Context, q Queries, run gen.Run, res *resolution) (gen.ResolutionKey, []gen.FindingKind, error) {
+	src := res.inherit
+	a := gen.SetStatedKeyAssociationParams{UserID: run.UserID, InstrumentID: src.InstrumentID, ListingID: src.ListingID, ViaID: src.ViaID, Validity: src.Validity, Arbiter: gen.ArbiterUser}
+	arg := carry(a, res.cur.family(*src), res.row, res.cur)
 	if _, err := q.SetStatedKeyAssociation(ctx, arg); err != nil {
 		return gen.ResolutionKey{}, nil, fmt.Errorf("associate key: %w", err)
 	}

@@ -47,9 +47,10 @@ WHERE user_id = $1 AND arbiter = 'user'
 ORDER BY id;
 
 -- name: LockUserKeys :exec
--- The user's key lock: an advisory lock serialising every write to one user's
--- stated keys and groups, for the transaction. Its seed keeps it apart from
--- LockIdentifiers.
+-- The user's key lock: an advisory lock, held for the transaction, that
+-- serialises the writes to one user's groups. A regroup and a confirmation
+-- that associates a whole group take it. A resolution run associates a single
+-- key without it. Its seed keeps it apart from LockIdentifiers.
 SELECT pg_advisory_xact_lock(hashtextextended(CAST(@user_id::uuid AS text), 0));
 
 -- name: ListGroupableKeys :many
@@ -67,6 +68,8 @@ UPDATE stated_keys SET group_id = NULL
 WHERE user_id = $1 AND group_id IS NOT NULL;
 
 -- name: SetStatedKeyGroups :exec
+-- Skips any key that a resolution associated after the caller listed it.
 UPDATE stated_keys SET group_id = v.group_id
 FROM (SELECT unnest(@ids::uuid[]) AS id, unnest(@group_ids::uuid[]) AS group_id) AS v
-WHERE stated_keys.user_id = @user_id::uuid AND stated_keys.id = v.id;
+WHERE stated_keys.user_id = @user_id::uuid AND stated_keys.id = v.id
+  AND stated_keys.instrument_id IS NULL;

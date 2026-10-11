@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -87,8 +88,22 @@ func newStack(t *testing.T) *stack {
 	s.sources, err = market.New(ctx, q, factories, log)
 	require.NoError(t, err)
 	fetcher := market.NewFetcher(db.New[market.Queries](tx), runtest.Runner{Q: q}, log)
-	s.resolver = New(db.New[Queries](tx), fetcher, s.sources, log)
+	s.resolver = New(db.New[Queries](tx), &serial{Fetcher: fetcher}, s.sources, log)
 	return s
+}
+
+// serial runs the fetches of one request one at a time. The stack's queries
+// share one transaction, whose connection serves one query at a time, so the
+// datasources a request asks together cannot record their fetches at once.
+type serial struct {
+	Fetcher
+	mu sync.Mutex
+}
+
+func (s *serial) Identity(ctx context.Context, parent gen.Run, e *market.Entry, keys []gen.StatedKey) ([]result, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.Fetcher.Identity(ctx, parent, e, keys)
 }
 
 // newStatement records a statement run of broker and returns the run.
@@ -1088,5 +1103,43 @@ func TestConfirmRows(t *testing.T) {
 	}
 	if _, err := s.resolver.Confirm(ctx, s.resolution, apart, Pick{Datasource: "alpha", Identifier: cusip}); !errors.Is(err, ErrNoCandidate) {
 		t.Errorf("Confirm() with an identifier no group carries: error = %v, want ErrNoCandidate", err)
+	}
+}
+
+// TestConfirmJoins checks that a confirmation lands on the instrument a
+// group attached beside the pick identifies, and adds the pick's
+// identifiers to it.
+func TestConfirmJoins(t *testing.T) {
+	s := newStack(t)
+	ctx := context.Background()
+	other, err := s.q.CreateInstrument(ctx, gen.CreateInstrumentParams{ID: db.NewID(), AssetClass: gen.AssetClassStock})
+	require.NoError(t, err)
+	_, err = s.q.CreateIdentifier(ctx, gen.CreateIdentifierParams{ID: db.NewID(), InstrumentID: other.ID, Type: figi.Type, Domain: figi.Domain, Value: figi.Value})
+	require.NoError(t, err)
+	s.enableBeta(t)
+	s.script.Responses[ticker] = market.IdentityResult{Filtered: []types.Identifier{ticker}, Candidates: []market.Candidate{
+		{Class: gen.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{figi, isin, xlon}},
+	}}
+	s.beta.Responses[ticker] = market.IdentityResult{Filtered: []types.Identifier{ticker}, Candidates: []market.Candidate{
+		{Class: gen.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{isin, xlon}},
+	}}
+	key := s.state(t, gen.AssetClassStock, "GBP", ticker)
+	rk, err := s.resolver.Confirm(ctx, s.resolution, key, Pick{Datasource: "beta", Identifier: isin})
+	require.NoError(t, err)
+	k := s.key(t, key.ID)
+	if rk.Outcome != gen.ResolutionOutcomeMatched || k.InstrumentID == nil || *k.InstrumentID != other.ID || *k.Arbiter != gen.ArbiterUser {
+		t.Fatalf("Confirm() = %+v, %+v, want the key matched by the user with the instrument that has the FIGI", rk, k)
+	}
+	ids, err := s.q.ListIdentifiers(ctx, other.ID)
+	require.NoError(t, err)
+	var got []string
+	for _, row := range ids {
+		got = append(got, name(to.Identifier(row)))
+	}
+	slices.Sort(got)
+	want := []string{"isin GB00BH4HKS39", "mic_ticker XLON:VOD", name(figi)}
+	slices.Sort(want)
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("identifiers mismatch (-want +got):\n%s", diff)
 	}
 }
