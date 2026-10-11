@@ -10,7 +10,7 @@ import { qk } from "@/lib/query-keys";
 import { useAuthedQuery } from "./use-authed-query";
 
 // useAdminInstruments lists the instruments the search and the class keep,
-// by name, the page after the instrument the token names.
+// by name. The page token selects the page.
 export function useAdminInstruments(
   p: InstrumentParams,
 ): UseQueryResult<ListInstrumentsResponse> {

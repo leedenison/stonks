@@ -155,7 +155,6 @@ const fetch = create(GetRunResponseSchema, {
       runId: "c1",
       kind: FindingKind.DROPPED,
       statedKeyId: "k1",
-      fetchKeyId: "fk1",
       step: DropStep.STATED,
       detail: "candidates in USD, not the stated GBP",
       statedKey: create(StatedKeySchema, {

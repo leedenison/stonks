@@ -44,7 +44,7 @@ func New(queries Queries) *Server {
 // id of the last block served.
 func (s *Server) ListBlocks(ctx context.Context, req *connect.Request[adminblockv1.ListBlocksRequest]) (*connect.Response[adminblockv1.ListBlocksResponse], error) {
 	m := req.Msg
-	before, err := page.Before(m.GetPageToken())
+	before, err := page.ID(m.GetPageToken())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}

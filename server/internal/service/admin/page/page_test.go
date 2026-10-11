@@ -48,7 +48,7 @@ func TestCut(t *testing.T) {
 	}
 }
 
-func TestBefore(t *testing.T) {
+func TestID(t *testing.T) {
 	id := uuid.MustParse("00000000-0000-0000-0000-000000000001")
 	tests := []struct {
 		name    string
@@ -62,12 +62,12 @@ func TestBefore(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := Before(tc.token)
+			got, err := ID(tc.token)
 			if (err != nil) != tc.wantErr {
-				t.Fatalf("Before(%q) error = %v, wantErr %v", tc.token, err, tc.wantErr)
+				t.Fatalf("ID(%q) error = %v, wantErr %v", tc.token, err, tc.wantErr)
 			}
 			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("Before(%q) mismatch (-want +got):\n%s", tc.token, diff)
+				t.Errorf("ID(%q) mismatch (-want +got):\n%s", tc.token, diff)
 			}
 		})
 	}

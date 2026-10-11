@@ -318,7 +318,7 @@ func TestGetRun(t *testing.T) {
 					},
 					{
 						Id: droppedID.String(), RunId: childID.String(), Kind: adminrunv1.FindingKind_FINDING_KIND_DROPPED,
-						StatedKeyId: ptr.To(keyID.String()), StatedKey: &typev1.StatedKey{Identifiers: []*typev1.Identifier{{Type: typev1.IdentifierType_IDENTIFIER_TYPE_BROKER_DESCRIPTION, Domain: "ibkr", Value: "Cash fund"}}}, FetchKeyId: ptr.To(fetchKeyID.String()),
+						StatedKeyId: ptr.To(keyID.String()), StatedKey: &typev1.StatedKey{Identifiers: []*typev1.Identifier{{Type: typev1.IdentifierType_IDENTIFIER_TYPE_BROKER_DESCRIPTION, Domain: "ibkr", Value: "Cash fund"}}},
 						Step: ptr.To(adminrunv1.DropStep_DROP_STEP_STATED), Detail: ptr.To("candidates in USD, not the stated GBP"),
 						CreatedAt: timestamppb.New(created),
 					},

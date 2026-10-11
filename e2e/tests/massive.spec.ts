@@ -1,13 +1,10 @@
 import path from "node:path";
-import { FetchOutcome } from "../gen/admin/run/v1/run_pb";
 import { IdentifierType, ResolutionOutcome } from "../gen/type/v1/type_pb";
 import {
   adminRunClient,
-  fetchItems,
-  fetchRun,
   holdingClient,
   adminInstrumentClient,
-  allInstruments,
+  expectServedOnce,
   resolutionItems,
 } from "../helpers/api";
 import { uploadStatement } from "../helpers/upload";
@@ -37,13 +34,10 @@ test("asks Massive beside OpenFIGI and matches the key once", async ({
   const statement = await admin.getRun({ runId });
   expect(statement.findings).toHaveLength(0);
   const resolution = statement.run!.children[0];
-  for (const name of ["openfigi", "massive"]) {
-    const fetched = await fetchItems(admin, fetchRun(resolution, name).run!.id);
-    expect(fetched, name).toHaveLength(1);
-    expect(fetched[0].outcome, name).toBe(FetchOutcome.SERVED);
-    expect(fetched[0].sent?.type, name).toBe(IdentifierType.CUSIP);
-    expect(fetched[0].sent?.value, name).toBe(cusip);
-  }
+  await expectServedOnce(admin, resolution, ["openfigi", "massive"], {
+    type: IdentifierType.CUSIP,
+    value: cusip,
+  });
   const stated = (await resolutionItems(admin, resolution.run!.id)).filter(
     (k) => k.statedKey?.identifiers.some((i) => i.value === cusip),
   );
@@ -57,11 +51,10 @@ test("asks Massive beside OpenFIGI and matches the key once", async ({
   );
   expect(held).toHaveLength(1);
   expect(held[0].listings.map((l) => l.venue)).toContain("NYSE");
-  const instruments = await allInstruments(adminInstrumentClient(session));
-  const matched = instruments.filter((i) =>
-    i.identifiers.some((x) => x.value === cusip),
-  );
-  expect(matched).toHaveLength(1);
-  const usd = matched[0].listings.find((l) => l.currency === "USD");
+  const matched = await adminInstrumentClient(session).listInstruments({
+    query: cusip,
+  });
+  expect(matched.instruments).toHaveLength(1);
+  const usd = matched.instruments[0].listings.find((l) => l.currency === "USD");
   expect(usd?.primaryMic).toBe("XNYS");
 });

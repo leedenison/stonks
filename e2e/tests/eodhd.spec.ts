@@ -7,7 +7,7 @@ import {
   fetchRun,
   holdingClient,
   adminInstrumentClient,
-  allInstruments,
+  expectServedOnce,
   resolutionItems,
 } from "../helpers/api";
 import { uploadStatement } from "../helpers/upload";
@@ -36,13 +36,10 @@ test("asks EODHD beside OpenFIGI and matches the key once", async ({
   const statement = await admin.getRun({ runId });
   expect(statement.findings).toHaveLength(0);
   const resolution = statement.run!.children[0];
-  for (const name of ["openfigi", "eodhd"]) {
-    const fetched = await fetchItems(admin, fetchRun(resolution, name).run!.id);
-    expect(fetched, name).toHaveLength(1);
-    expect(fetched[0].outcome, name).toBe(FetchOutcome.SERVED);
-    expect(fetched[0].sent?.type, name).toBe(IdentifierType.ISIN);
-    expect(fetched[0].sent?.value, name).toBe(isin);
-  }
+  await expectServedOnce(admin, resolution, ["openfigi", "eodhd"], {
+    type: IdentifierType.ISIN,
+    value: isin,
+  });
   const massive = await fetchItems(
     admin,
     fetchRun(resolution, "massive").run!.id,
@@ -61,10 +58,11 @@ test("asks EODHD beside OpenFIGI and matches the key once", async ({
       h.identifiers.some((i) => i.value === isin),
     ),
   ).toHaveLength(1);
-  const instruments = await allInstruments(adminInstrumentClient(session));
-  const matched = instruments.filter((i) =>
-    i.identifiers.some((x) => x.value === isin),
+  const matched = await adminInstrumentClient(session).listInstruments({
+    query: isin,
+  });
+  expect(matched.instruments).toHaveLength(1);
+  expect(matched.instruments[0].listings.map((l) => l.currency)).toContain(
+    "USD",
   );
-  expect(matched).toHaveLength(1);
-  expect(matched[0].listings.map((l) => l.currency)).toContain("USD");
 });

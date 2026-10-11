@@ -59,7 +59,7 @@ func New(store Queries) *Server {
 // top-level run served.
 func (s *Server) ListRuns(ctx context.Context, req *connect.Request[adminrunv1.ListRunsRequest]) (*connect.Response[adminrunv1.ListRunsResponse], error) {
 	m := req.Msg
-	before, err := page.Before(m.GetPageToken())
+	before, err := page.ID(m.GetPageToken())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
@@ -269,7 +269,7 @@ func (s *Server) ListRunItems(ctx context.Context, req *connect.Request[adminrun
 			out.NextPageToken = strconv.Itoa(int(rows[len(rows)-1].Ordinal))
 		}
 	case gen.RunKindResolution:
-		after, err := keyCursor(m.GetPageToken())
+		after, err := page.ID(m.GetPageToken())
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInvalidArgument, err)
 		}
@@ -286,7 +286,7 @@ func (s *Server) ListRunItems(ctx context.Context, req *connect.Request[adminrun
 			out.NextPageToken = rows[len(rows)-1].StatedKey.ID.String()
 		}
 	case gen.RunKindFetch:
-		after, err := keyCursor(m.GetPageToken())
+		after, err := page.ID(m.GetPageToken())
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInvalidArgument, err)
 		}
@@ -334,19 +334,6 @@ func ordinalCursor(token string) (*int32, error) {
 	return &ordinal, nil
 }
 
-// keyCursor reads a resolution or fetch run's page token, the stated key id
-// of the last item served.
-func keyCursor(token string) (*uuid.UUID, error) {
-	if token == "" {
-		return nil, nil
-	}
-	id, err := uuid.Parse(token)
-	if err != nil {
-		return nil, fmt.Errorf("page token %q: %w", token, err)
-	}
-	return &id, nil
-}
-
 // ClearFinding clears a finding that reports no block.
 func (s *Server) ClearFinding(ctx context.Context, req *connect.Request[adminrunv1.ClearFindingRequest]) (*connect.Response[adminrunv1.ClearFindingResponse], error) {
 	id, err := uuid.Parse(req.Msg.GetFindingId())
@@ -387,10 +374,6 @@ func finding(row gen.ListRunFindingsRow) *adminrunv1.Finding {
 	if f.StatedKeyID != nil {
 		id := f.StatedKeyID.String()
 		out.StatedKeyId = &id
-	}
-	if f.FetchKeyID != nil {
-		id := f.FetchKeyID.String()
-		out.FetchKeyId = &id
 	}
 	if f.Step != nil {
 		step := types.ToProto[adminrunv1.DropStep](*f.Step)
