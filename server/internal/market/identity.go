@@ -20,6 +20,18 @@ type Candidate struct {
 	Primary string
 }
 
+// Answer returns the IdentityResult for sent with no candidates yet; the
+// caller adds them. A MIC_TICKER is filtered on its ticker alone, so the
+// listings at every venue come back and resolution chooses among them by the
+// stated venue. limited marks a provider that lists only some of an
+// instrument's listings.
+func Answer(sent types.Identifier, limited bool) IdentityResult {
+	if sent.Type == types.IdentifierTypeMicTicker {
+		sent.Domain = ""
+	}
+	return IdentityResult{Filtered: []types.Identifier{sent}, Limited: limited}
+}
+
 // IdentityResult is what was returned for one identifier of a batch.
 type IdentityResult struct {
 	// Filtered is the identifiers the datasource filtered on strictly, so

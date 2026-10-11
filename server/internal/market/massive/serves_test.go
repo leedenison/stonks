@@ -1,17 +1,22 @@
 package massive
 
 import (
+	"encoding/json"
+	"net/http"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/stretchr/testify/require"
 
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/types"
+	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/ptr"
 )
 
 func TestServes(t *testing.T) {
-	c := &Client{mics: mics, venues: operating(mics)}
+	c, err := New(market.Config{Credential: "k", JSON: json.RawMessage(conf)}, mics, http.DefaultClient)
+	require.NoError(t, err)
 	isin := types.Identifier{Type: types.IdentifierTypeIsin, Value: "US0378331005"}
 	tests := []struct {
 		name  string

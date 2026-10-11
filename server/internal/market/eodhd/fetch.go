@@ -3,7 +3,6 @@ package eodhd
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"net/url"
 	"slices"
 	"strings"
@@ -201,9 +200,5 @@ func (c *Client) symbols(ctx context.Context, codes []string) ([]listing, error)
 func (c *Client) get(ctx context.Context, path string, q url.Values, v any) error {
 	q.Set("api_token", c.key)
 	q.Set("fmt", "json")
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.endpoint+path+"?"+q.Encode(), nil)
-	if err != nil {
-		return fmt.Errorf("build request: %w", market.WithoutURL(err))
-	}
-	return market.Do(c.http, req, "eodhd", v)
+	return market.Get(ctx, c.http, "eodhd", c.endpoint+path+"?"+q.Encode(), v)
 }

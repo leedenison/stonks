@@ -11,11 +11,7 @@ import (
 // so the listings at every venue are returned and resolution chooses among
 // them by the stated venue.
 func identity(sent types.Identifier, currency string, data []result, mics mic.Table) market.IdentityResult {
-	filtered := sent
-	if filtered.Type == types.IdentifierTypeMicTicker {
-		filtered.Domain = ""
-	}
-	out := market.IdentityResult{Filtered: []types.Identifier{filtered}}
+	out := market.Answer(sent, false)
 	for _, r := range data {
 		c := candidate(r, mics)
 		c.Currency = currency

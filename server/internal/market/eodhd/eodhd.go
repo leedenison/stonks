@@ -9,12 +9,12 @@ package eodhd
 import (
 	"errors"
 	"net/http"
-	"strconv"
 	"time"
 
 	"golang.org/x/time/rate"
 
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/db/types"
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/mic"
 )
@@ -28,6 +28,7 @@ type Client struct {
 	mics mic.Table
 	// exchange maps an operating MIC to the EODHD codes that list it.
 	exchange map[string][]string
+	prefer   market.Preference
 	http     *http.Client
 	endpoint string
 	key      string
@@ -43,7 +44,14 @@ func New(cfg market.Config, mics mic.Table, h *http.Client) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Client{mics: mics, exchange: exchanges(mics), http: h, endpoint: ep, key: cfg.Credential}, nil
+	c := &Client{mics: mics, exchange: exchanges(mics), http: h, endpoint: ep, key: cfg.Credential}
+	c.prefer = market.Preference{
+		Served: market.Equities,
+		Order:  []types.IdentifierType{types.IdentifierTypeIsin, types.IdentifierTypeCusip, types.IdentifierTypeOpenfigiComposite, types.IdentifierTypeMicTicker},
+		Lists:  func(op string) bool { return len(c.exchange[op]) > 0 },
+		Mics:   mics,
+	}
+	return c, nil
 }
 
 // Factory returns a market.Factory that builds Clients which normalise
@@ -82,7 +90,7 @@ func (c *Client) Classify(err error) market.Failure {
 	case status.Code == http.StatusPaymentRequired:
 		return market.Failure{Temporary: true, Scope: gen.BlockScopeDatasource, RetryAfter: untilMidnight(time.Now())}
 	case status.Code == http.StatusTooManyRequests:
-		return market.Failure{Temporary: true, Scope: gen.BlockScopeIdentifier, RetryAfter: retryAfter(status.Header)}
+		return market.Failure{Temporary: true, Scope: gen.BlockScopeIdentifier, RetryAfter: market.Seconds(status.Header, "Retry-After")}
 	case status.Code >= http.StatusInternalServerError:
 		return market.Failure{Temporary: true, Scope: gen.BlockScopeIdentifier}
 	}
@@ -94,13 +102,4 @@ func untilMidnight(now time.Time) time.Duration {
 	now = now.UTC()
 	next := time.Date(now.Year(), now.Month(), now.Day()+1, 0, 0, 0, 0, time.UTC)
 	return next.Sub(now)
-}
-
-// retryAfter reads the seconds a Retry-After header gives.
-func retryAfter(h http.Header) time.Duration {
-	n, err := strconv.Atoi(h.Get("Retry-After"))
-	if err != nil || n <= 0 {
-		return 0
-	}
-	return time.Duration(n) * time.Second
 }

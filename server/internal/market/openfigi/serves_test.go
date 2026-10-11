@@ -1,12 +1,15 @@
 package openfigi
 
 import (
+	"net/http"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/stretchr/testify/require"
 
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/types"
+	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/ptr"
 )
 
@@ -47,7 +50,8 @@ func TestServes(t *testing.T) {
 		{name: "broker id", stated: []types.Identifier{{Type: types.IdentifierTypeBrokerID, Domain: "ibkr", Value: "265598"}}, wantErr: true},
 		{name: "nothing", wantErr: true},
 	}
-	c := &Client{mics: mics}
+	c, err := New(market.Config{}, mics, http.DefaultClient)
+	require.NoError(t, err)
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			got, err := c.Serves(gen.StatedKey{Identifiers: tc.stated})

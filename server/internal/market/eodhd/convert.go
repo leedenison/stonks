@@ -28,11 +28,7 @@ var classes = map[string]gen.AssetClass{
 // limited. The filter is a ticker without its venue, and resolution
 // compares each listing with the stated venue.
 func (c *Client) identity(sent types.Identifier, a answer) market.IdentityResult {
-	filtered := sent
-	if filtered.Type == types.IdentifierTypeMicTicker {
-		filtered.Domain = ""
-	}
-	out := market.IdentityResult{Filtered: []types.Identifier{filtered}, Limited: true}
+	out := market.Answer(sent, true)
 	for _, r := range a.rows {
 		if cand, ok := c.candidate(r, a.mappings[r.symbol()], a.venues[r.Code]); ok {
 			out.Candidates = append(out.Candidates, cand)

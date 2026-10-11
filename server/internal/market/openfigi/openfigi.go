@@ -8,12 +8,12 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strconv"
 	"time"
 
 	"golang.org/x/time/rate"
 
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/db/types"
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/mic"
 )
@@ -28,6 +28,7 @@ var (
 // Client is the OpenFIGI integration.
 type Client struct {
 	mics     mic.Table
+	prefer   market.Preference
 	http     *http.Client
 	endpoint string
 	key      string
@@ -40,7 +41,11 @@ func New(cfg market.Config, mics mic.Table, h *http.Client) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Client{mics: mics, http: h, endpoint: ep, key: cfg.Credential}, nil
+	order := make([]types.IdentifierType, len(idTypes))
+	for i, t := range idTypes {
+		order[i] = t.typ
+	}
+	return &Client{mics: mics, prefer: market.Preference{Order: order, Mics: mics}, http: h, endpoint: ep, key: cfg.Credential}, nil
 }
 
 // Factory returns the factory of Clients normalising venues through mics
@@ -95,7 +100,7 @@ func (c *Client) Classify(err error) market.Failure {
 	}
 	switch {
 	case status.Code == http.StatusTooManyRequests:
-		return market.Failure{Temporary: true, Scope: gen.BlockScopeIdentifier, RetryAfter: reset(status.Header)}
+		return market.Failure{Temporary: true, Scope: gen.BlockScopeIdentifier, RetryAfter: market.Seconds(status.Header, "ratelimit-reset")}
 	case status.Code >= http.StatusInternalServerError:
 		return market.Failure{Temporary: true, Scope: gen.BlockScopeIdentifier}
 	}
@@ -150,15 +155,6 @@ func (c *Client) post(ctx context.Context, body []byte) ([]openfigiResponse, err
 		return nil, err
 	}
 	return responses, nil
-}
-
-// reset reads the seconds until the rate limit window reopens.
-func reset(h http.Header) time.Duration {
-	n, err := strconv.Atoi(h.Get("ratelimit-reset"))
-	if err != nil || n <= 0 {
-		return 0
-	}
-	return time.Duration(n) * time.Second
 }
 
 // result is one listing of a mapping job's response.
