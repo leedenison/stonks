@@ -12,14 +12,13 @@ import (
 	"github.com/google/uuid"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	adminreplayv1 "github.com/leedenison/stonks/proto/admin/replay/v1"
 	adminv1 "github.com/leedenison/stonks/proto/admin/v1"
 	"github.com/leedenison/stonks/proto/admin/v1/adminv1connect"
-	"github.com/leedenison/stonks/server/internal/auth"
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/to"
 	"github.com/leedenison/stonks/server/internal/db/types"
-	"github.com/leedenison/stonks/server/internal/replay"
 	"github.com/leedenison/stonks/server/internal/service/admin/page"
 	"github.com/leedenison/stonks/server/internal/statement"
 )
@@ -41,26 +40,18 @@ type Queries interface {
 
 var _ Queries = (*gen.Queries)(nil)
 
-// Replayer is this package's view of the replay service.
-type Replayer interface {
-	Start(ctx context.Context, admin uuid.UUID, source gen.Run, scope replay.Scope) (gen.Run, error)
-}
-
-var _ Replayer = (*replay.Service)(nil)
-
 //go:generate go tool mockgen -source=admin.go -destination=admin_mock_test.go -package=admin -self_package=github.com/leedenison/stonks/server/internal/service/admin
 
 // Server implements AdminService.
 type Server struct {
-	store   Queries
-	replays Replayer
+	store Queries
 }
 
 var _ adminv1connect.AdminServiceHandler = (*Server)(nil)
 
 // New returns a Server.
-func New(store Queries, replays Replayer) *Server {
-	return &Server{store: store, replays: replays}
+func New(store Queries) *Server {
+	return &Server{store: store}
 }
 
 // ListRuns lists every user's runs matching the filters, newest first,
@@ -227,7 +218,7 @@ func (s *Server) findings(ctx context.Context, ids []uuid.UUID, out *adminv1.Get
 
 // replay reads what the replay run id re-resolves. A replay whose prepare
 // step failed has no replays row, and reads as nil.
-func (s *Server) replay(ctx context.Context, id uuid.UUID) (*adminv1.Replay, error) {
+func (s *Server) replay(ctx context.Context, id uuid.UUID) (*adminreplayv1.Replay, error) {
 	r, err := s.store.GetReplay(ctx, id)
 	if errors.Is(err, db.ErrNotFound) {
 		return nil, nil
@@ -235,11 +226,11 @@ func (s *Server) replay(ctx context.Context, id uuid.UUID) (*adminv1.Replay, err
 	if err != nil {
 		return nil, err
 	}
-	out := &adminv1.Replay{SourceRunId: r.Replay.SourceID.String(), StartedBy: r.StartedByEmail}
+	out := &adminreplayv1.Replay{SourceRunId: r.Replay.SourceID.String(), StartedBy: r.StartedByEmail}
 	if r.Replay.Datasource != nil {
-		out.Scope = &adminv1.Replay_Datasource{Datasource: *r.Replay.Datasource}
+		out.Scope = &adminreplayv1.Replay_Datasource{Datasource: *r.Replay.Datasource}
 	} else {
-		out.Scope = &adminv1.Replay_Unavailable{Unavailable: true}
+		out.Scope = &adminreplayv1.Replay_Unavailable{Unavailable: true}
 	}
 	return out, nil
 }
@@ -373,35 +364,6 @@ func (s *Server) ClearFinding(ctx context.Context, req *connect.Request[adminv1.
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("the finding reports a block; clear the block"))
 	}
 	return connect.NewResponse(&adminv1.ClearFindingResponse{}), nil
-}
-
-// StartReplay starts a replay over the keys of a run, as a run of that run's
-// user started by the caller.
-func (s *Server) StartReplay(ctx context.Context, req *connect.Request[adminv1.StartReplayRequest]) (*connect.Response[adminv1.StartReplayResponse], error) {
-	p, err := auth.Admin(ctx)
-	if err != nil {
-		return nil, connect.NewError(connect.CodePermissionDenied, err)
-	}
-	id, err := uuid.Parse(req.Msg.GetRunId())
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, err)
-	}
-	row, err := s.store.GetUserRun(ctx, id)
-	if errors.Is(err, db.ErrNotFound) {
-		return nil, connect.NewError(connect.CodeNotFound, errors.New("no such run"))
-	}
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
-	}
-	scope := replay.Scope{Datasource: req.Msg.GetDatasource()}
-	started, err := s.replays.Start(ctx, p.User.ID, row.Run, scope)
-	switch {
-	case errors.Is(err, replay.ErrKind), errors.Is(err, replay.ErrEmpty), errors.Is(err, replay.ErrDisabled), errors.Is(err, replay.ErrNoIdentity):
-		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
-	case err != nil:
-		return nil, connect.NewError(connect.CodeInternal, err)
-	}
-	return connect.NewResponse(&adminv1.StartReplayResponse{Run: to.ProtoRun(started)}), nil
 }
 
 // finding writes row as its message, with what the key concerned states.

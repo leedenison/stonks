@@ -12,6 +12,11 @@ import {
   ListDatasourcesResponseSchema,
 } from "@/gen/admin/datasource/v1/datasource_pb";
 import {
+  ReplaySchema,
+  ReplayService,
+  StartReplayResponseSchema,
+} from "@/gen/admin/replay/v1/replay_pb";
+import {
   AdminService,
   ClearFindingResponseSchema,
   FetchItemSchema,
@@ -21,9 +26,7 @@ import {
   FindingSchema,
   GetRunResponseSchema,
   ListRunItemsResponseSchema,
-  ReplaySchema,
   RunItemSchema,
-  StartReplayResponseSchema,
 } from "@/gen/admin/v1/admin_pb";
 import { Role } from "@/gen/auth/v1/auth_pb";
 import { RunKind, RunSchema, RunTrigger } from "@/gen/run/v1/run_pb";
@@ -52,17 +55,20 @@ vi.mock("next/navigation", () => ({
 const admin = liveSession({ role: Role.ADMIN });
 
 // serving answers getRun as given and lists no items unless the admin
-// methods say otherwise, and serves the block and datasource methods given.
+// methods say otherwise, and serves the block, datasource and replay methods
+// given.
 function serving(
   getRun: ServiceImpl<typeof AdminService>["getRun"],
   {
     admin: adminImpl = {},
     block = {},
     datasource = {},
+    replay = {},
   }: {
     admin?: Partial<ServiceImpl<typeof AdminService>>;
     block?: Partial<ServiceImpl<typeof BlockService>>;
     datasource?: Partial<ServiceImpl<typeof DatasourceService>>;
+    replay?: Partial<ServiceImpl<typeof ReplayService>>;
   } = {},
 ) {
   return transportWith(admin, ({ service }) => {
@@ -73,6 +79,7 @@ function serving(
     });
     service(BlockService, block);
     service(DatasourceService, datasource);
+    service(ReplayService, replay);
   });
 }
 
@@ -413,7 +420,7 @@ describe("AdminRunPage", () => {
     renderWithAuth(
       <AdminRunPage />,
       serving(() => statement, {
-        admin: { startReplay },
+        replay: { startReplay },
         datasource: {
           listDatasources: () => create(ListDatasourcesResponseSchema, {}),
         },

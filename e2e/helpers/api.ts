@@ -3,6 +3,7 @@ import { type Client, createClient } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
 import { BlockService } from "../gen/admin/block/v1/block_pb";
 import { DatasourceService } from "../gen/admin/datasource/v1/datasource_pb";
+import { ReplayService } from "../gen/admin/replay/v1/replay_pb";
 import { AdminService, type UserRun } from "../gen/admin/v1/admin_pb";
 import { AuthService } from "../gen/auth/v1/auth_pb";
 import { HoldingService } from "../gen/holding/v1/holding_pb";
@@ -42,6 +43,10 @@ export function blockClient(sessionID: string) {
 
 export function datasourceClient(sessionID: string) {
   return clientFor(DatasourceService, sessionID);
+}
+
+export function replayClient(sessionID: string) {
+  return clientFor(ReplayService, sessionID);
 }
 
 // items reads the items a run wrote. Every run a spec makes writes few
