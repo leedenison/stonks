@@ -43,6 +43,10 @@ const three = create(ListHoldingsResponseSchema, {
     create(InstrumentHoldingSchema, {
       instrumentId: "i-vusa",
       assetClass: AssetClass.SECURITY,
+      name: create(IdentifierSchema, {
+        type: IdentifierType.ISIN,
+        value: "IE00B3XXRP09",
+      }),
       identifiers: [
         create(IdentifierSchema, {
           type: IdentifierType.ISIN,
@@ -102,6 +106,10 @@ const three = create(ListHoldingsResponseSchema, {
     create(InstrumentHoldingSchema, {
       instrumentId: "i-gbp",
       assetClass: AssetClass.CASH,
+      name: create(IdentifierSchema, {
+        type: IdentifierType.CURRENCY,
+        value: "GBP",
+      }),
       identifiers: [
         create(IdentifierSchema, {
           type: IdentifierType.CURRENCY,
