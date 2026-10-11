@@ -133,7 +133,7 @@ func (r *Registry) Reload(ctx context.Context) error {
 		case !ok:
 			return fmt.Errorf("datasource %s is enabled: %w", row.Name, ErrNoIntegration)
 		}
-		integration, err := factory(ConfigOf(row))
+		integration, err := factory.New(ConfigOf(row))
 		if err != nil {
 			return fmt.Errorf("datasource %s: %w", row.Name, err)
 		}
@@ -173,10 +173,16 @@ func (r *Registry) Check(cfg Config) error {
 	if !ok {
 		return fmt.Errorf("datasource %s: %w", cfg.Name, ErrNoIntegration)
 	}
-	if _, err := factory(cfg); err != nil {
+	if _, err := factory.New(cfg); err != nil {
 		return fmt.Errorf("datasource %s: %w", cfg.Name, err)
 	}
 	return nil
+}
+
+// DefaultEndpoint returns the address the named integration calls when
+// its row sets none, and empty when this build carries no such integration.
+func (r *Registry) DefaultEndpoint(name string) string {
+	return r.factories[name].Endpoint
 }
 
 // Enabled returns the enabled datasources in precedence order, as of the

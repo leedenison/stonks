@@ -81,8 +81,8 @@ func newStack(t *testing.T) *stack {
 	require.NoError(t, err)
 	log := slog.New(slog.DiscardHandler)
 	factories := map[string]market.Factory{
-		"alpha": func(market.Config) (market.Integration, error) { return s.script, nil },
-		"beta":  func(market.Config) (market.Integration, error) { return s.beta, nil },
+		"alpha": market.Factory{New: func(market.Config) (market.Integration, error) { return s.script, nil }},
+		"beta":  market.Factory{New: func(market.Config) (market.Integration, error) { return s.beta, nil }},
 	}
 	s.sources, err = market.New(ctx, q, factories, log)
 	require.NoError(t, err)

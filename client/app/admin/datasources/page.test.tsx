@@ -19,10 +19,16 @@ const openfigi = create(DatasourceSchema, {
   enabled: true,
   precedence: 1,
   endpoint: "http://stub",
-  hasCredential: true,
+  defaultEndpoint: "https://api.stub",
+  credential: "key-1",
   config: { plan: "basic" },
 });
-const other = create(DatasourceSchema, { name: "other", precedence: 2 });
+const other = create(DatasourceSchema, {
+  name: "other",
+  precedence: 2,
+  defaultEndpoint: "https://api.other",
+});
+const bare = create(DatasourceSchema, { name: "bare", precedence: 3 });
 
 function serving(updateDatasource = vi.fn()) {
   updateDatasource.mockReturnValue(
@@ -32,7 +38,7 @@ function serving(updateDatasource = vi.fn()) {
     service(DatasourceService, {
       listDatasources: () =>
         create(ListDatasourcesResponseSchema, {
-          datasources: [openfigi, other],
+          datasources: [openfigi, other, bare],
         }),
       updateDatasource,
     });
@@ -40,7 +46,7 @@ function serving(updateDatasource = vi.fn()) {
 }
 
 describe("DatasourcesPage", () => {
-  it("lists the datasources in precedence order with their state", async () => {
+  it("lists the datasources in precedence order with their settings", async () => {
     renderWithAuth(<DatasourcesPage />, serving());
     await waitFor(() =>
       expect(screen.getByTestId("datasource-row-openfigi")).toBeTruthy(),
@@ -54,15 +60,30 @@ describe("DatasourcesPage", () => {
     expect(rows[1]?.getAttribute("data-testid")).toBe("datasource-row-other");
     const row = screen.getByTestId("datasource-row-openfigi");
     expect(row.textContent).toContain("enabled");
-    expect(row.textContent).toContain("http://stub");
-    expect(row.textContent).toContain("held");
+    expect(screen.getByTestId("datasource-endpoint-openfigi").textContent).toBe(
+      "http://stub",
+    );
+    expect(
+      screen.getByTestId("datasource-credential-openfigi").textContent,
+    ).toBe("key-1");
     expect(screen.getByTestId("datasource-grip-openfigi")).toBeTruthy();
-    expect(screen.getByTestId("datasource-row-other").textContent).toContain(
+    expect(screen.getByTestId("datasource-credential-other").textContent).toBe(
       "none",
     );
   });
 
-  it("toggles a datasource's state, keeping its endpoint", async () => {
+  it("shows the provider's default where the row leaves the endpoint empty", async () => {
+    renderWithAuth(<DatasourcesPage />, serving());
+    await waitFor(() =>
+      expect(screen.getByTestId("datasource-row-other")).toBeTruthy(),
+    );
+    const other = screen.getByTestId("datasource-endpoint-other");
+    expect(other.textContent).toBe("https://api.other");
+    expect(other.querySelector(".text-text-muted")).toBeTruthy();
+    expect(screen.getByTestId("datasource-endpoint-bare").textContent).toBe("");
+  });
+
+  it("toggles a datasource's state, sending its settings as held", async () => {
     const updateDatasource = vi.fn();
     renderWithAuth(<DatasourcesPage />, serving(updateDatasource));
     await waitFor(() =>
@@ -75,19 +96,27 @@ describe("DatasourcesPage", () => {
           name: "openfigi",
           enabled: false,
           endpoint: "http://stub",
+          credential: "key-1",
+          config: { plan: "basic" },
         }),
         expect.anything(),
       ),
     );
   });
 
-  it("edits the endpoint and replaces the credential", async () => {
+  it("prefills the endpoint and the credential, and sends the ones edited", async () => {
     const updateDatasource = vi.fn();
     renderWithAuth(<DatasourcesPage />, serving(updateDatasource));
     await waitFor(() =>
       expect(screen.getByTestId("datasource-edit-openfigi")).toBeTruthy(),
     );
     fireEvent.click(screen.getByTestId("datasource-edit-openfigi"));
+    expect(
+      (screen.getByTestId("datasource-endpoint") as HTMLInputElement).value,
+    ).toBe("http://stub");
+    expect(
+      (screen.getByTestId("datasource-credential") as HTMLInputElement).value,
+    ).toBe("key-1");
     fireEvent.change(screen.getByTestId("datasource-endpoint"), {
       target: { value: "http://elsewhere" },
     });
@@ -151,14 +180,16 @@ describe("DatasourcesPage", () => {
     },
   );
 
-  it("clears the credential held", async () => {
+  it("clears the credential when the field is emptied", async () => {
     const updateDatasource = vi.fn();
     renderWithAuth(<DatasourcesPage />, serving(updateDatasource));
     await waitFor(() =>
       expect(screen.getByTestId("datasource-edit-openfigi")).toBeTruthy(),
     );
     fireEvent.click(screen.getByTestId("datasource-edit-openfigi"));
-    fireEvent.click(screen.getByTestId("datasource-clear-credential"));
+    fireEvent.change(screen.getByTestId("datasource-credential"), {
+      target: { value: "" },
+    });
     fireEvent.click(screen.getByTestId("datasource-save"));
     await waitFor(() =>
       expect(updateDatasource).toHaveBeenCalledWith(

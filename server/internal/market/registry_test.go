@@ -103,10 +103,10 @@ func TestRegistryConfig(t *testing.T) {
 	}, nil)
 
 	var seen []Config
-	factory := func(c Config) (Integration, error) {
+	factory := Factory{New: func(c Config) (Integration, error) {
 		seen = append(seen, c)
 		return &fake{}, nil
-	}
+	}}
 	if _, err := New(context.Background(), store, map[string]Factory{"one": factory, "two": factory}, discard()); err != nil {
 		t.Fatalf("New() error = %v", err)
 	}
@@ -236,5 +236,25 @@ func TestRegistryCheck(t *testing.T) {
 	}
 	if len(r.Enabled()) != 0 {
 		t.Errorf("Enabled() = %v after Check, want nothing installed", r.Names())
+	}
+}
+
+// TestRegistryDefaultEndpoint checks that the default is the factory's,
+// whether or not the datasource has a row, and empty for a name the build
+// does not carry.
+func TestRegistryDefaultEndpoint(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	t.Cleanup(ctrl.Finish)
+	store := NewMockQueries(ctrl)
+	store.EXPECT().ListDatasources(gomock.Any()).Return(nil, nil)
+	r, err := New(context.Background(), store, map[string]Factory{"one": factoryOf(&fake{})}, discard())
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	if got := r.DefaultEndpoint("one"); got != "https://fake.test" {
+		t.Errorf("DefaultEndpoint(one) = %q, want https://fake.test", got)
+	}
+	if got := r.DefaultEndpoint("absent"); got != "" {
+		t.Errorf("DefaultEndpoint(absent) = %q, want empty", got)
 	}
 }

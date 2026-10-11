@@ -136,35 +136,24 @@ func TestDatasources(t *testing.T) {
 	})
 }
 
-// TestUpdateDatasource checks the three cases of the credential and of the
-// endpoint, the two cases of the config, and the precedence set by position.
+// TestUpdateDatasource checks that the endpoint and the credential are set
+// and cleared, that the config is replaced, and that the precedence is set
+// by position.
 func TestUpdateDatasource(t *testing.T) {
 	ctx := context.Background()
 	q := newTx(t)
 	newDatasource(t, q, "alpha", 1)
 	newDatasource(t, q, "beta", 2)
 
-	row, err := q.UpdateDatasource(ctx, gen.UpdateDatasourceParams{Name: "beta", Enabled: false, Endpoint: ptr.To("http://stub"), Credential: ptr.To("secret"), Config: []byte(`{"plan": "basic"}`)})
+	row, err := q.UpdateDatasource(ctx, gen.UpdateDatasourceParams{Name: "beta", Enabled: false, Endpoint: "http://stub", Credential: "secret", Config: []byte(`{"plan": "basic"}`)})
 	require.NoError(t, err)
 	if row.Enabled || row.Endpoint == nil || *row.Endpoint != "http://stub" || row.Credential == nil || *row.Credential != "secret" || string(row.Config) != `{"plan": "basic"}` {
 		t.Errorf("UpdateDatasource = %+v, want disabled at http://stub holding secret and plan basic", row)
 	}
 	row, err = q.UpdateDatasource(ctx, gen.UpdateDatasourceParams{Name: "beta", Enabled: true})
 	require.NoError(t, err)
-	if !row.Enabled || row.Credential == nil || *row.Credential != "secret" || row.Endpoint == nil || *row.Endpoint != "http://stub" || string(row.Config) != `{"plan": "basic"}` {
-		t.Errorf("UpdateDatasource with no credential, endpoint or config = %+v, want enabled and all three kept", row)
-	}
-	row, err = q.UpdateDatasource(ctx, gen.UpdateDatasourceParams{Name: "beta", Enabled: true, Endpoint: ptr.To(""), Credential: ptr.To(""), Config: []byte("{}")})
-	require.NoError(t, err)
-	if row.Credential != nil || row.Endpoint != nil || string(row.Config) != "{}" {
-		t.Errorf("UpdateDatasource with an empty credential, endpoint and config = %+v, want both cleared and the config empty", row)
-	}
-	settings, err := q.ListDatasourceSettings(ctx)
-	require.NoError(t, err)
-	for _, s := range settings {
-		if s.HasCredential {
-			t.Errorf("ListDatasourceSettings reports %s holding a credential, want none held", s.Name)
-		}
+	if !row.Enabled || row.Credential != nil || row.Endpoint != nil || string(row.Config) != "{}" {
+		t.Errorf("UpdateDatasource with an empty credential and endpoint and no config = %+v, want enabled with both NULL and the config empty", row)
 	}
 	if _, err := q.UpdateDatasource(ctx, gen.UpdateDatasourceParams{Name: "gone"}); !errors.Is(err, db.ErrNotFound) {
 		t.Errorf("UpdateDatasource of no datasource: err = %v, want ErrNotFound", err)

@@ -101,23 +101,14 @@ WHERE fetch_keys.fetch_id = @fetch_id
 ORDER BY fetch_keys.stated_key_id
 LIMIT sqlc.narg(lim)::int;
 
--- name: ListDatasourceSettings :many
-SELECT name, enabled, precedence, endpoint, (credential IS NOT NULL)::bool AS has_credential, config
-FROM datasources
-ORDER BY precedence, name;
-
 -- name: UpdateDatasource :one
--- A NULL endpoint, credential or config keeps the one held. An empty
--- endpoint or credential clears it.
+-- An empty endpoint or credential is stored as NULL. A NULL config is the
+-- empty object.
 UPDATE datasources
 SET enabled = @enabled,
-    endpoint = CASE WHEN sqlc.narg(endpoint)::text IS NULL THEN endpoint
-                    WHEN sqlc.narg(endpoint)::text = '' THEN NULL
-                    ELSE sqlc.narg(endpoint)::text END,
-    credential = CASE WHEN sqlc.narg(credential)::text IS NULL THEN credential
-                      WHEN sqlc.narg(credential)::text = '' THEN NULL
-                      ELSE sqlc.narg(credential)::text END,
-    config = COALESCE(sqlc.narg(config)::jsonb, config)
+    endpoint = NULLIF(@endpoint::text, ''),
+    credential = NULLIF(@credential::text, ''),
+    config = COALESCE(sqlc.narg(config)::jsonb, '{}')
 WHERE name = @name
 RETURNING *;
 

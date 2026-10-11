@@ -63,16 +63,18 @@ func newFixture(t *testing.T) *fixture {
 
 func TestListDatasources(t *testing.T) {
 	f := newFixture(t)
-	f.store.EXPECT().ListDatasourceSettings(gomock.Any()).Return([]gen.ListDatasourceSettingsRow{
-		{Name: "openfigi", Enabled: true, Precedence: 10, Endpoint: ptr.To("http://stub"), HasCredential: true, Config: []byte(`{"plan": "basic"}`)},
+	f.store.EXPECT().ListDatasources(gomock.Any()).Return([]gen.Datasource{
+		{Name: "openfigi", Enabled: true, Precedence: 10, Endpoint: ptr.To("http://stub"), Credential: ptr.To("secret"), Config: []byte(`{"plan": "basic"}`)},
 		{Name: "other", Precedence: 20, Config: []byte("{}")},
 	}, nil)
+	f.sources.EXPECT().DefaultEndpoint("openfigi").Return("https://api.stub")
+	f.sources.EXPECT().DefaultEndpoint("other").Return("")
 	res, err := f.client.ListDatasources(context.Background(), connect.NewRequest(&admindatasourcev1.ListDatasourcesRequest{}))
 	if err != nil {
 		t.Fatalf("ListDatasources() error = %v", err)
 	}
 	want := &admindatasourcev1.ListDatasourcesResponse{Datasources: []*admindatasourcev1.Datasource{
-		{Name: "openfigi", Enabled: true, Precedence: 10, Endpoint: ptr.To("http://stub"), HasCredential: true, Config: config(t, map[string]any{"plan": "basic"})},
+		{Name: "openfigi", Enabled: true, Precedence: 10, Endpoint: "http://stub", DefaultEndpoint: "https://api.stub", Credential: "secret", Config: config(t, map[string]any{"plan": "basic"})},
 		{Name: "other", Precedence: 20, Config: config(t, nil)},
 	}}
 	if diff := cmp.Diff(want, res.Msg, protocmp.Transform()); diff != "" {
@@ -90,11 +92,12 @@ func config(t *testing.T, m map[string]any) *structpb.Struct {
 	return s
 }
 
-// TestUpdateDatasource checks that a change is written and the registry
-// reloaded, that the credential never comes back, and that a change the
-// registry would refuse is rolled back.
+// TestUpdateDatasource checks that the row is written as the request
+// states it and the registry reloaded, and that a change the registry would
+// refuse is rolled back.
 func TestUpdateDatasource(t *testing.T) {
 	stub := gen.Datasource{Name: "openfigi", Enabled: true, Precedence: 10, Endpoint: ptr.To("http://stub"), Config: []byte("{}")}
+	empty := []byte("{}")
 	tests := []struct {
 		name     string
 		req      *admindatasourcev1.UpdateDatasourceRequest
@@ -112,19 +115,19 @@ func TestUpdateDatasource(t *testing.T) {
 	}{
 		{
 			name:    "enabled with an endpoint and a credential",
-			req:     &admindatasourcev1.UpdateDatasourceRequest{Name: "openfigi", Enabled: true, Endpoint: ptr.To("http://stub"), Credential: ptr.To("secret")},
-			wantArg: gen.UpdateDatasourceParams{Name: "openfigi", Enabled: true, Endpoint: ptr.To("http://stub"), Credential: ptr.To("secret")},
+			req:     &admindatasourcev1.UpdateDatasourceRequest{Name: "openfigi", Enabled: true, Endpoint: "http://stub", Credential: "secret"},
+			wantArg: gen.UpdateDatasourceParams{Name: "openfigi", Enabled: true, Endpoint: "http://stub", Credential: "secret", Config: empty},
 			row:     gen.Datasource{Name: "openfigi", Enabled: true, Precedence: 10, Endpoint: ptr.To("http://stub"), Credential: ptr.To("secret"), Config: []byte("{}")},
 			checked: true,
-			want:    &admindatasourcev1.Datasource{Name: "openfigi", Enabled: true, Precedence: 10, Endpoint: ptr.To("http://stub"), HasCredential: true, Config: config(t, nil)},
+			want:    &admindatasourcev1.Datasource{Name: "openfigi", Enabled: true, Precedence: 10, Endpoint: "http://stub", DefaultEndpoint: "https://api.stub", Credential: "secret", Config: config(t, nil)},
 		},
 		{
-			name:    "an unset endpoint and config keep the ones held",
+			name:    "a request without a config writes the empty object",
 			req:     &admindatasourcev1.UpdateDatasourceRequest{Name: "openfigi", Enabled: true},
-			wantArg: gen.UpdateDatasourceParams{Name: "openfigi", Enabled: true},
+			wantArg: gen.UpdateDatasourceParams{Name: "openfigi", Enabled: true, Config: empty},
 			row:     stub,
 			checked: true,
-			want:    &admindatasourcev1.Datasource{Name: "openfigi", Enabled: true, Precedence: 10, Endpoint: ptr.To("http://stub"), Config: config(t, nil)},
+			want:    &admindatasourcev1.Datasource{Name: "openfigi", Enabled: true, Precedence: 10, Endpoint: "http://stub", DefaultEndpoint: "https://api.stub", Config: config(t, nil)},
 		},
 		{
 			name:    "a config is written as JSON",
@@ -132,19 +135,19 @@ func TestUpdateDatasource(t *testing.T) {
 			wantArg: gen.UpdateDatasourceParams{Name: "openfigi", Enabled: true, Config: []byte(`{"plan":"basic"}`)},
 			row:     gen.Datasource{Name: "openfigi", Enabled: true, Precedence: 10, Config: []byte(`{"plan": "basic"}`)},
 			checked: true,
-			want:    &admindatasourcev1.Datasource{Name: "openfigi", Enabled: true, Precedence: 10, Config: config(t, map[string]any{"plan": "basic"})},
+			want:    &admindatasourcev1.Datasource{Name: "openfigi", Enabled: true, Precedence: 10, DefaultEndpoint: "https://api.stub", Config: config(t, map[string]any{"plan": "basic"})},
 		},
 		{
-			name:    "disabled with the endpoint cleared",
-			req:     &admindatasourcev1.UpdateDatasourceRequest{Name: "absent", Endpoint: ptr.To("")},
-			wantArg: gen.UpdateDatasourceParams{Name: "absent", Endpoint: ptr.To("")},
+			name:    "disabled with the endpoint and credential empty",
+			req:     &admindatasourcev1.UpdateDatasourceRequest{Name: "absent"},
+			wantArg: gen.UpdateDatasourceParams{Name: "absent", Config: empty},
 			row:     gen.Datasource{Name: "absent", Precedence: 20, Config: []byte("{}")},
 			want:    &admindatasourcev1.Datasource{Name: "absent", Precedence: 20, Config: config(t, nil)},
 		},
 		{
 			name:     "enabling a datasource the registry refuses",
 			req:      &admindatasourcev1.UpdateDatasourceRequest{Name: "absent", Enabled: true},
-			wantArg:  gen.UpdateDatasourceParams{Name: "absent", Enabled: true},
+			wantArg:  gen.UpdateDatasourceParams{Name: "absent", Enabled: true, Config: empty},
 			row:      gen.Datasource{Name: "absent", Enabled: true, Precedence: 20},
 			checked:  true,
 			checkErr: market.ErrNoIntegration,
@@ -153,14 +156,14 @@ func TestUpdateDatasource(t *testing.T) {
 		{
 			name:     "no such datasource",
 			req:      &admindatasourcev1.UpdateDatasourceRequest{Name: "gone"},
-			wantArg:  gen.UpdateDatasourceParams{Name: "gone"},
+			wantArg:  gen.UpdateDatasourceParams{Name: "gone", Config: empty},
 			err:      db.ErrNotFound,
 			wantCode: connect.CodeNotFound,
 		},
 		{
 			name:      "the reload fails",
 			req:       &admindatasourcev1.UpdateDatasourceRequest{Name: "openfigi", Enabled: true},
-			wantArg:   gen.UpdateDatasourceParams{Name: "openfigi", Enabled: true},
+			wantArg:   gen.UpdateDatasourceParams{Name: "openfigi", Enabled: true, Config: empty},
 			row:       stub,
 			checked:   true,
 			reloadErr: errors.New("boom"),
@@ -169,7 +172,7 @@ func TestUpdateDatasource(t *testing.T) {
 		{
 			name:     "the drop fails",
 			req:      &admindatasourcev1.UpdateDatasourceRequest{Name: "openfigi", Enabled: true},
-			wantArg:  gen.UpdateDatasourceParams{Name: "openfigi", Enabled: true},
+			wantArg:  gen.UpdateDatasourceParams{Name: "openfigi", Enabled: true, Config: empty},
 			row:      stub,
 			checked:  true,
 			dropErr:  errors.New("boom"),
@@ -189,6 +192,10 @@ func TestUpdateDatasource(t *testing.T) {
 			// Drop only after the registry accepts the row.
 			if tc.err == nil && tc.checkErr == nil && tc.reloadErr == nil {
 				f.cache.EXPECT().Drop(gomock.Any(), tc.row.Name).Return(tc.dropErr)
+			}
+			if tc.want != nil {
+				f.sources.EXPECT().DefaultEndpoint("openfigi").Return("https://api.stub").AnyTimes()
+				f.sources.EXPECT().DefaultEndpoint("absent").Return("").AnyTimes()
 			}
 			res, err := f.client.UpdateDatasource(context.Background(), connect.NewRequest(tc.req))
 			if servicetest.CodeOf(err) != tc.wantCode {

@@ -63,14 +63,19 @@ test("lists the datasources, refuses enabling one the build does not serve, and 
   await expect(page.getByTestId(`datasource-row-${served}`)).toContainText(
     "enabled",
   );
-  await expect(page.getByTestId(`datasource-row-${served}`)).toContainText(
+  await expect(page.getByTestId(`datasource-endpoint-${served}`)).toHaveText(
     "http://openfigi.vcr:8080",
   );
-  await expect(page.getByTestId(`datasource-row-${served}`)).toContainText(
-    "held",
+  await expect(page.getByTestId(`datasource-credential-${served}`)).toHaveText(
+    "e2e",
   );
   await expect(row).toContainText("disabled");
-  await expect(row).toContainText("none");
+  await expect(page.getByTestId(`datasource-endpoint-${unserved}`)).toHaveText(
+    endpoint,
+  );
+  await expect(
+    page.getByTestId(`datasource-credential-${unserved}`),
+  ).toHaveText("none");
 
   // The build carries no integration named unserved, so enabling is refused.
   await page.getByTestId(`datasource-toggle-${unserved}`).click();
@@ -87,25 +92,35 @@ test("lists the datasources, refuses enabling one the build does not serve, and 
   await page.getByTestId("datasource-config").fill('{"plan": "basic"}');
   await page.getByTestId("datasource-save").click();
   await expect(page.getByTestId("datasource-dialog")).toHaveCount(0);
-  await expect(row).toContainText(`${endpoint}/v2`);
-  await expect(row).toContainText("held");
+  await expect(page.getByTestId(`datasource-endpoint-${unserved}`)).toHaveText(
+    `${endpoint}/v2`,
+  );
+  await expect(
+    page.getByTestId(`datasource-credential-${unserved}`),
+  ).toHaveText("secret");
   const edited = await admin.listDatasources({});
   expect(edited.datasources.find((d) => d.name === unserved)).toMatchObject({
     enabled: false,
     endpoint: `${endpoint}/v2`,
-    hasCredential: true,
+    credential: "secret",
     config: { plan: "basic" },
+  });
+  // The default is the one the build registers under the row's name.
+  expect(edited.datasources.find((d) => d.name === served)).toMatchObject({
+    defaultEndpoint: "https://api.openfigi.com",
   });
 
   await page.getByTestId(`datasource-edit-${unserved}`).click();
-  await page.getByTestId("datasource-clear-credential").check();
+  await page.getByTestId("datasource-credential").fill("");
   await page.getByTestId("datasource-save").click();
   await expect(page.getByTestId("datasource-dialog")).toHaveCount(0);
-  await expect(row).toContainText("none");
+  await expect(
+    page.getByTestId(`datasource-credential-${unserved}`),
+  ).toHaveText("none");
   const cleared = await admin.listDatasources({});
-  expect(
-    cleared.datasources.find((d) => d.name === unserved)?.hasCredential,
-  ).toBe(false);
+  expect(cleared.datasources.find((d) => d.name === unserved)?.credential).toBe(
+    "",
+  );
 });
 
 test("reorders the datasources by dragging a row", async ({ signIn, page }) => {

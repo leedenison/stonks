@@ -82,8 +82,12 @@ type Config struct {
 	JSON json.RawMessage
 }
 
-// Factory builds an integration from its configuration.
-type Factory func(Config) (Integration, error)
+// Factory builds the integration of one datasource, and states the
+// address it calls when the row sets none.
+type Factory struct {
+	Endpoint string
+	New      func(Config) (Integration, error)
+}
 
 // Request is one request as sent: the request, and the identifier Serves
 // chose to carry it.
