@@ -82,6 +82,9 @@ CREATE TABLE identifier_type_traits (
     UNIQUE (type, grain)
 );
 
+-- The types only an option or cash carries, occ, option and currency, have
+-- the lowest ranks, so they name the instrument before any type a stock
+-- carries.
 INSERT INTO identifier_type_traits (type, domain, grain, reassignment, exclusive, name_rank) VALUES
     ('isin',                 'global', 'instrument', 'stable',       true,  7),
     ('cusip',                'global', 'instrument', 'stable',       true,  8),

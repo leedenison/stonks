@@ -3,7 +3,6 @@ import { IdentifierType, ResolutionOutcome } from "../gen/type/v1/type_pb";
 import {
   adminInstrumentClient,
   holdingClient,
-  instrumentClient,
   allInstruments,
   statementClient,
 } from "../helpers/api";
@@ -78,18 +77,6 @@ test("shows a resolved holding and an unresolved one from two brokers", async ({
     [IdentifierType.MIC_TICKER, ticker],
   ]);
 
-  const instruments = await instrumentClient(session).listInstruments({});
-  const instrument = instruments.instruments.find((i) =>
-    i.identifiers.some((x) => x.value === cusip),
-  );
-  expect(instrument?.identifiers.map((i) => i.type)).toContain(
-    IdentifierType.OPENFIGI_SHARE_CLASS,
-  );
-  const usd = instrument!.listings.find((l) => l.currency === "USD");
-  expect(usd?.identifiers.map((i) => i.type)).toContain(
-    IdentifierType.OPENFIGI_COMPOSITE,
-  );
-
   // What became of each key.
   const statements = statementClient(session);
   const ibkrKeys = (await statements.getStatement({ runId: ibkrRun })).keys;
@@ -137,13 +124,6 @@ test("shows a resolved holding and an unresolved one from two brokers", async ({
     page.getByTestId(`holding-qty-${cash!.instrumentId}`),
   ).toHaveText("-8002.00");
 
-  await page.getByTestId("nav-instruments").click();
-  await expect(page).toHaveURL("/instruments");
-  const row = page.getByTestId(`instrument-row-${instrument!.id}`);
-  await expect(row).toContainText(ticker);
-  await expect(row).toContainText(cusip);
-  await expect(row).toContainText("USD");
-
   await page.goto(`/statements/${schwabRun}`);
   await expect(
     page
@@ -156,12 +136,22 @@ test("shows a resolved holding and an unresolved one from two brokers", async ({
   // whatever else the database holds.
   const { session: adminSession } = await signIn("admin");
   const every = await allInstruments(adminInstrumentClient(adminSession));
-  const at = every.findIndex((i) => i.id === instrument!.id);
-  expect(at).toBeGreaterThan(0);
-  await page.goto(
-    `/admin/instruments?after=${every[at - 1].id}&id=${instrument!.id}`,
+  const at = every.findIndex((i) =>
+    i.identifiers.some((x) => x.value === cusip),
   );
-  const adminRow = page.getByTestId(`instrument-row-${instrument!.id}`);
+  expect(at).toBeGreaterThan(0);
+  const instrument = every[at];
+  expect(instrument.identifiers.map((i) => i.type)).toContain(
+    IdentifierType.OPENFIGI_SHARE_CLASS,
+  );
+  const usd = instrument.listings.find((l) => l.currency === "USD");
+  expect(usd?.identifiers.map((i) => i.type)).toContain(
+    IdentifierType.OPENFIGI_COMPOSITE,
+  );
+  await page.goto(
+    `/admin/instruments?after=${every[at - 1].id}&id=${instrument.id}`,
+  );
+  const adminRow = page.getByTestId(`instrument-row-${instrument.id}`);
   await expect(adminRow).toContainText(ticker);
   await expect(adminRow).not.toContainText(cusip);
   await expect(adminRow).toHaveAttribute("aria-selected", "true");

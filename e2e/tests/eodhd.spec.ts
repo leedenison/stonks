@@ -6,7 +6,8 @@ import {
   fetchItems,
   fetchRun,
   holdingClient,
-  instrumentClient,
+  adminInstrumentClient,
+  allInstruments,
   resolutionItems,
 } from "../helpers/api";
 import { uploadStatement } from "../helpers/upload";
@@ -60,8 +61,8 @@ test("asks EODHD beside OpenFIGI and matches the key once", async ({
       h.identifiers.some((i) => i.value === isin),
     ),
   ).toHaveLength(1);
-  const instruments = await instrumentClient(userSession).listInstruments({});
-  const matched = instruments.instruments.filter((i) =>
+  const instruments = await allInstruments(adminInstrumentClient(session));
+  const matched = instruments.filter((i) =>
     i.identifiers.some((x) => x.value === isin),
   );
   expect(matched).toHaveLength(1);

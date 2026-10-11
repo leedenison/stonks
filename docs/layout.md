@@ -22,7 +22,6 @@ proto/
   admin/run/v1/run.proto                stonks.admin.run.v1        -- what runs did, across every user
   auth/v1/auth.proto                    stonks.auth.v1             -- sign in, session, sign out
   holding/v1/holding.proto              stonks.holding.v1          -- holdings
-  instrument/v1/instrument.proto        stonks.instrument.v1       -- instruments
   run/v1/run.proto                      stonks.run.v1              -- runs
   statement/v1/statement.proto          stonks.statement.v1        -- the neutral format of a statement, its ingestion and its outcome
   type/v1/type.proto                    stonks.type.v1             -- shared types

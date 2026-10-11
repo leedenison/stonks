@@ -6,7 +6,8 @@ import {
   fetchItems,
   fetchRun,
   holdingClient,
-  instrumentClient,
+  adminInstrumentClient,
+  allInstruments,
   resolutionItems,
 } from "../helpers/api";
 import { uploadStatement } from "../helpers/upload";
@@ -56,8 +57,8 @@ test("asks Massive beside OpenFIGI and matches the key once", async ({
   );
   expect(held).toHaveLength(1);
   expect(held[0].listings.map((l) => l.venue)).toContain("NYSE");
-  const instruments = await instrumentClient(userSession).listInstruments({});
-  const matched = instruments.instruments.filter((i) =>
+  const instruments = await allInstruments(adminInstrumentClient(session));
+  const matched = instruments.filter((i) =>
     i.identifiers.some((x) => x.value === cusip),
   );
   expect(matched).toHaveLength(1);

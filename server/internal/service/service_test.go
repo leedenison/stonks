@@ -22,8 +22,8 @@ import (
 	"github.com/leedenison/stonks/proto/admin/run/v1/adminrunv1connect"
 	authv1 "github.com/leedenison/stonks/proto/auth/v1"
 	"github.com/leedenison/stonks/proto/auth/v1/authv1connect"
-	instrumentv1 "github.com/leedenison/stonks/proto/instrument/v1"
-	"github.com/leedenison/stonks/proto/instrument/v1/instrumentv1connect"
+	holdingv1 "github.com/leedenison/stonks/proto/holding/v1"
+	"github.com/leedenison/stonks/proto/holding/v1/holdingv1connect"
 	"github.com/leedenison/stonks/server/internal/auth"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/service"
@@ -32,7 +32,7 @@ import (
 )
 
 // stub answers SignIn according to the token it is given, and records the
-// principal GetSession, ListInstruments and ListRuns see. The other admin
+// principal GetSession, ListHoldings and ListRuns see. The other admin
 // services are left unimplemented, so a call that reaches one answers
 // Unimplemented.
 type stub struct {
@@ -41,7 +41,7 @@ type stub struct {
 	adminreplayv1connect.UnimplementedReplayServiceHandler
 	adminrunv1connect.UnimplementedRunServiceHandler
 	authv1connect.UnimplementedAuthServiceHandler
-	instrumentv1connect.UnimplementedInstrumentServiceHandler
+	holdingv1connect.UnimplementedHoldingServiceHandler
 	seen *auth.Principal
 }
 
@@ -62,9 +62,9 @@ func (s *stub) GetSession(ctx context.Context, _ *connect.Request[authv1.GetSess
 	return connect.NewResponse(&authv1.GetSessionResponse{}), nil
 }
 
-func (s *stub) ListInstruments(ctx context.Context, _ *connect.Request[instrumentv1.ListInstrumentsRequest]) (*connect.Response[instrumentv1.ListInstrumentsResponse], error) {
+func (s *stub) ListHoldings(ctx context.Context, _ *connect.Request[holdingv1.ListHoldingsRequest]) (*connect.Response[holdingv1.ListHoldingsResponse], error) {
 	s.record(ctx)
-	return connect.NewResponse(&instrumentv1.ListInstrumentsResponse{}), nil
+	return connect.NewResponse(&holdingv1.ListHoldingsResponse{}), nil
 }
 
 func (s *stub) ListRuns(ctx context.Context, _ *connect.Request[adminrunv1.ListRunsRequest]) (*connect.Response[adminrunv1.ListRunsResponse], error) {
@@ -101,7 +101,7 @@ func newFixture(t *testing.T) *fixture {
 		mux.Handle(adminreplayv1connect.NewReplayServiceHandler(f.stub, opts...))
 		mux.Handle(adminrunv1connect.NewRunServiceHandler(f.stub, opts...))
 		mux.Handle(authv1connect.NewAuthServiceHandler(f.stub, opts...))
-		mux.Handle(instrumentv1connect.NewInstrumentServiceHandler(f.stub, opts...))
+		mux.Handle(holdingv1connect.NewHoldingServiceHandler(f.stub, opts...))
 	})
 	return f
 }
@@ -160,16 +160,16 @@ func TestAuthenticate(t *testing.T) {
 		wantSeen *auth.Principal
 		wantLog  bool
 	}{
-		{name: "required without cookie", call: listInstruments, wantCode: connect.CodeUnauthenticated},
-		{name: "required with live session", cookie: "stonks_session=live", call: listInstruments, wantSeen: &live},
-		{name: "required with dead session", cookie: "stonks_session=dead", call: listInstruments, wantCode: connect.CodeUnauthenticated},
-		{name: "required with store failure", cookie: "stonks_session=broken", call: listInstruments, wantCode: connect.CodeInternal, wantLog: true, wantMsg: "internal error"},
+		{name: "required without cookie", call: listHoldings, wantCode: connect.CodeUnauthenticated},
+		{name: "required with live session", cookie: "stonks_session=live", call: listHoldings, wantSeen: &live},
+		{name: "required with dead session", cookie: "stonks_session=dead", call: listHoldings, wantCode: connect.CodeUnauthenticated},
+		{name: "required with store failure", cookie: "stonks_session=broken", call: listHoldings, wantCode: connect.CodeInternal, wantLog: true, wantMsg: "internal error"},
 		{name: "optional without cookie", call: getSession},
 		{name: "optional with live session", cookie: "stonks_session=live", call: getSession, wantSeen: &live},
 		{name: "optional with dead session", cookie: "stonks_session=dead", call: getSession},
 		{name: "optional with store failure", cookie: "stonks_session=broken", call: getSession, wantCode: connect.CodeInternal, wantLog: true},
-		{name: "malformed neighbour", cookie: `bad=";; \x01"; stonks_session=live`, call: listInstruments, wantSeen: &live},
-		{name: "other cookie only", cookie: "other=live", call: listInstruments, wantCode: connect.CodeUnauthenticated},
+		{name: "malformed neighbour", cookie: `bad=";; \x01"; stonks_session=live`, call: listHoldings, wantSeen: &live},
+		{name: "other cookie only", cookie: "other=live", call: listHoldings, wantCode: connect.CodeUnauthenticated},
 		{name: "admin without cookie", call: listRuns, wantCode: connect.CodeUnauthenticated},
 		{name: "admin with a user's session", cookie: "stonks_session=live", call: listRuns, wantCode: connect.CodePermissionDenied},
 		{name: "admin with an administrator's session", cookie: "stonks_session=admin", call: listRuns, wantSeen: &admin},
@@ -216,9 +216,9 @@ func TestAuthenticate(t *testing.T) {
 	}
 }
 
-func listInstruments(f *fixture) error {
-	client := instrumentv1connect.NewInstrumentServiceClient(f.srv.Client, f.srv.URL)
-	_, err := client.ListInstruments(context.Background(), connect.NewRequest(&instrumentv1.ListInstrumentsRequest{}))
+func listHoldings(f *fixture) error {
+	client := holdingv1connect.NewHoldingServiceClient(f.srv.Client, f.srv.URL)
+	_, err := client.ListHoldings(context.Background(), connect.NewRequest(&holdingv1.ListHoldingsRequest{}))
 	return err
 }
 
