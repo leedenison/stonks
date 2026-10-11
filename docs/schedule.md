@@ -26,6 +26,7 @@ of open issues and ADRs at `docs/tasks/<label>/`.
   fetch served for a key it could not associate.
 
 ```
+  010 offer merged candidates
   005 close
 ```
 
