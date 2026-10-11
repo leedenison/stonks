@@ -16,23 +16,19 @@ import (
 	admininstrumentv1 "github.com/leedenison/stonks/proto/admin/instrument/v1"
 	"github.com/leedenison/stonks/proto/admin/instrument/v1/admininstrumentv1connect"
 	typev1 "github.com/leedenison/stonks/proto/type/v1"
-	"github.com/leedenison/stonks/server/internal/auth"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/types"
 	"github.com/leedenison/stonks/server/internal/ptr"
 	"github.com/leedenison/stonks/server/internal/service/admin/page"
-	servicemock "github.com/leedenison/stonks/server/internal/service/mock"
 	"github.com/leedenison/stonks/server/internal/service/servicetest"
 )
 
 var (
-	acmeID    = uuid.MustParse("00000000-0000-0000-0000-000000000021")
-	gbpID     = uuid.MustParse("00000000-0000-0000-0000-000000000022")
-	usdLine   = uuid.MustParse("00000000-0000-0000-0000-000000000031")
-	gbpLine   = uuid.MustParse("00000000-0000-0000-0000-000000000032")
-	cashLine  = uuid.MustParse("00000000-0000-0000-0000-000000000033")
-	adminID   = uuid.MustParse("00000000-0000-0000-0000-000000000002")
-	principal = auth.Principal{User: gen.User{ID: adminID, Email: "admin@example.com", Role: gen.UserRoleAdmin}, SessionID: servicetest.Session}
+	acmeID   = uuid.MustParse("00000000-0000-0000-0000-000000000021")
+	gbpID    = uuid.MustParse("00000000-0000-0000-0000-000000000022")
+	usdLine  = uuid.MustParse("00000000-0000-0000-0000-000000000031")
+	gbpLine  = uuid.MustParse("00000000-0000-0000-0000-000000000032")
+	cashLine = uuid.MustParse("00000000-0000-0000-0000-000000000033")
 )
 
 type fixture struct {
@@ -46,8 +42,7 @@ func newFixture(t *testing.T) *fixture {
 	t.Helper()
 	ctrl := gomock.NewController(t)
 	t.Cleanup(ctrl.Finish)
-	authn := servicemock.NewMockAuthenticator(ctrl)
-	authn.EXPECT().Authenticate(gomock.Any(), servicetest.Session).Return(principal, nil).AnyTimes()
+	authn := servicetest.AsAdmin(ctrl)
 	f := &fixture{queries: NewMockQueries(ctrl)}
 	opts := servicetest.Options(t, authn)
 	srv := servicetest.Serve(t, func(mux *http.ServeMux) {

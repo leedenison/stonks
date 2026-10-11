@@ -10,7 +10,7 @@ import { Skeleton } from "@/app/components/skeleton";
 import type { Candidate } from "@/gen/statement/v1/statement_pb";
 import { AssetClass, type ResolutionItem } from "@/gen/type/v1/type_pb";
 import { useCandidates, useChooseCandidate } from "@/hooks/use-candidates";
-import { enumLabel } from "@/lib/enum";
+import { assetClassLabel } from "@/lib/asset-class";
 import { refusal } from "@/lib/refusal";
 
 // CandidatesDialog lists the instruments the datasources offer for a key
@@ -68,7 +68,7 @@ export function CandidatesDialog({
         <ul className="flex flex-col gap-3">
           {data.candidates.map((c) => (
             <CandidateRow
-              key={`${c.datasource}-${c.strongest?.value}`}
+              key={candidateId(c)}
               candidate={c}
               busy={choose.isPending}
               onChoose={() => pick(c)}
@@ -90,6 +90,12 @@ export function CandidatesDialog({
   );
 }
 
+// candidateId names a candidate by its datasource and the identifier that
+// names it most firmly, or by its datasource alone where it has none.
+function candidateId(c: Candidate): string {
+  return c.strongest ? `${c.datasource}-${c.strongest.value}` : c.datasource;
+}
+
 // CandidateRow is one instrument on offer, with the control that chooses
 // it.
 function CandidateRow({
@@ -102,7 +108,7 @@ function CandidateRow({
   onChoose: () => void;
 }) {
   const c = candidate;
-  const id = `${c.datasource}-${c.strongest?.value}`;
+  const id = candidateId(c);
   return (
     <li
       data-testid={`candidate-row-${id}`}
@@ -112,7 +118,7 @@ function CandidateRow({
         <span className="flex flex-wrap items-center gap-1">
           <Chip>{c.datasource}</Chip>
           {c.assetClass !== AssetClass.UNSPECIFIED && (
-            <Chip tone="accent">{enumLabel(AssetClass, c.assetClass)}</Chip>
+            <Chip tone="accent">{assetClassLabel(c.assetClass)}</Chip>
           )}
         </span>
         <Button

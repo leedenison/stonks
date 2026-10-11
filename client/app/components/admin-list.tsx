@@ -40,12 +40,12 @@ export function Pager({
   return (
     <div className="flex gap-2">
       {first && (
-        <LinkButton variant="secondary" href={first}>
+        <LinkButton variant="secondary" data-testid="list-first" href={first}>
           {labels.first}
         </LinkButton>
       )}
       {next && (
-        <LinkButton variant="secondary" data-testid="list-older" href={next}>
+        <LinkButton variant="secondary" data-testid="list-next" href={next}>
           {labels.next}
         </LinkButton>
       )}

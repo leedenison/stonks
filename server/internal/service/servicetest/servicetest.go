@@ -9,12 +9,31 @@ import (
 	"testing"
 
 	"connectrpc.com/connect"
+	"github.com/google/uuid"
+	"go.uber.org/mock/gomock"
 
+	"github.com/leedenison/stonks/server/internal/auth"
+	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/service"
+	servicemock "github.com/leedenison/stonks/server/internal/service/mock"
 )
 
 // Session is the session identifier the default cookie carries.
 const Session = "session-1"
+
+// Admin is the administrator an admin service test signs in as.
+var Admin = auth.Principal{
+	User:      gen.User{ID: uuid.MustParse("00000000-0000-0000-0000-000000000002"), Email: "admin@example.com", Role: gen.UserRoleAdmin},
+	SessionID: Session,
+}
+
+// AsAdmin returns an authenticator that answers Session with Admin, as often
+// as it is asked.
+func AsAdmin(ctrl *gomock.Controller) service.Authenticator {
+	authn := servicemock.NewMockAuthenticator(ctrl)
+	authn.EXPECT().Authenticate(gomock.Any(), Session).Return(Admin, nil).AnyTimes()
+	return authn
+}
 
 // Options returns handler options over authn that log nowhere.
 func Options(t *testing.T, authn service.Authenticator) []connect.HandlerOption {

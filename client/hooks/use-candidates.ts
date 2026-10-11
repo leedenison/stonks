@@ -11,7 +11,7 @@ import type {
   ConfirmCandidateRequestSchema,
   FindCandidatesResponse,
 } from "@/gen/statement/v1/statement_pb";
-import { qk } from "@/lib/query-keys";
+import { invalidateResolved, qk } from "@/lib/query-keys";
 import { useAuthedQuery } from "./use-authed-query";
 
 // useCandidates finds the candidates for a key. Each read is a resolution,
@@ -37,11 +37,6 @@ export function useChooseCandidate() {
   return useMutation({
     mutationFn: (req: MessageInitShape<typeof ConfirmCandidateRequestSchema>) =>
       statement.confirmCandidate(req),
-    onSuccess: () =>
-      Promise.all(
-        [qk.statements(), qk.holdings(), qk.transactions()].map((queryKey) =>
-          queryClient.invalidateQueries({ queryKey }),
-        ),
-      ),
+    onSuccess: () => invalidateResolved(queryClient),
   });
 }
