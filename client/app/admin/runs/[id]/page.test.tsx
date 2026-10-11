@@ -4,8 +4,11 @@ import { Code, ConnectError, type ServiceImpl } from "@connectrpc/connect";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import {
-  AdminService,
+  BlockService,
   ClearBlockResponseSchema,
+} from "@/gen/admin/block/v1/block_pb";
+import {
+  AdminService,
   ClearFindingResponseSchema,
   FetchItemSchema,
   FetchOutcome,
@@ -45,18 +48,25 @@ vi.mock("next/navigation", () => ({
 
 const admin = liveSession({ role: Role.ADMIN });
 
-// serving answers getRun as given and lists no items unless impl says
-// otherwise.
+// serving answers getRun as given and lists no items unless the admin
+// methods say otherwise, and serves the block methods given.
 function serving(
   getRun: ServiceImpl<typeof AdminService>["getRun"],
-  impl: Partial<ServiceImpl<typeof AdminService>> = {},
+  {
+    admin: adminImpl = {},
+    block = {},
+  }: {
+    admin?: Partial<ServiceImpl<typeof AdminService>>;
+    block?: Partial<ServiceImpl<typeof BlockService>>;
+  } = {},
 ) {
   return transportWith(admin, ({ service }) => {
     service(AdminService, {
       getRun,
       listRunItems: () => create(ListRunItemsResponseSchema, {}),
-      ...impl,
+      ...adminImpl,
     });
+    service(BlockService, block);
   });
 }
 
@@ -169,7 +179,7 @@ describe("AdminRunPage", () => {
   it("shows the run among its ancestors, its findings and its items", async () => {
     renderWithAuth(
       <AdminRunPage />,
-      serving(() => fetch, { listRunItems: () => fetchItems }),
+      serving(() => fetch, { admin: { listRunItems: () => fetchItems } }),
     );
     await waitFor(() =>
       expect(screen.getByTestId("admin-run-lineage")).toBeTruthy(),
@@ -261,7 +271,7 @@ describe("AdminRunPage", () => {
     const clearBlock = vi.fn(() => create(ClearBlockResponseSchema, {}));
     renderWithAuth(
       <AdminRunPage />,
-      serving(() => fetch, { clearFinding, clearBlock }),
+      serving(() => fetch, { admin: { clearFinding }, block: { clearBlock } }),
     );
     await waitFor(() =>
       expect(screen.getByTestId("finding-clear-block-x1")).toBeTruthy(),
@@ -397,8 +407,10 @@ describe("AdminRunPage", () => {
     renderWithAuth(
       <AdminRunPage />,
       serving(() => statement, {
-        listDatasources: () => create(ListDatasourcesResponseSchema, {}),
-        startReplay,
+        admin: {
+          listDatasources: () => create(ListDatasourcesResponseSchema, {}),
+          startReplay,
+        },
       }),
     );
     await waitFor(() => expect(screen.getByTestId("run-replay")).toBeTruthy());
@@ -441,8 +453,10 @@ describe("AdminRunPage", () => {
     renderWithAuth(
       <AdminRunPage />,
       serving(() => fetch, {
-        listRunItems: (req) =>
-          req.pageToken === "k1" ? page("k2", "") : page("k1", "k1"),
+        admin: {
+          listRunItems: (req) =>
+            req.pageToken === "k1" ? page("k2", "") : page("k1", "k1"),
+        },
       }),
     );
     await screen.findByTestId("item-row-k1");

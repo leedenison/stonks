@@ -3,6 +3,7 @@ package types_test
 import (
 	"testing"
 
+	adminblockv1 "github.com/leedenison/stonks/proto/admin/block/v1"
 	adminv1 "github.com/leedenison/stonks/proto/admin/v1"
 	authv1 "github.com/leedenison/stonks/proto/auth/v1"
 	runv1 "github.com/leedenison/stonks/proto/run/v1"
@@ -96,9 +97,9 @@ func TestEnumsCross(t *testing.T) {
 	t.Run("run trigger", func(t *testing.T) { crosses[gen.RunTrigger, runv1.RunTrigger](t, gen.AllRunTriggerValues()) })
 	t.Run("run state", func(t *testing.T) { crosses[gen.RunState, runv1.RunState](t, gen.AllRunStateValues()) })
 	t.Run("fetch outcome", func(t *testing.T) { crosses[gen.FetchOutcome, adminv1.FetchOutcome](t, gen.AllFetchOutcomeValues()) })
-	t.Run("fetch kind", func(t *testing.T) { crosses[gen.FetchKind, adminv1.FetchKind](t, gen.AllFetchKindValues()) })
+	t.Run("fetch kind", func(t *testing.T) { crosses[gen.FetchKind, adminblockv1.FetchKind](t, gen.AllFetchKindValues()) })
 	t.Run("finding kind", func(t *testing.T) { crosses[gen.FindingKind, adminv1.FindingKind](t, gen.AllFindingKindValues()) })
 	t.Run("drop step", func(t *testing.T) { crosses[gen.DropStep, adminv1.DropStep](t, gen.AllDropStepValues()) })
-	t.Run("block scope", func(t *testing.T) { crosses[gen.BlockScope, adminv1.BlockScope](t, gen.AllBlockScopeValues()) })
+	t.Run("block scope", func(t *testing.T) { crosses[gen.BlockScope, adminblockv1.BlockScope](t, gen.AllBlockScopeValues()) })
 	t.Run("user role", func(t *testing.T) { crosses[gen.UserRole, authv1.Role](t, gen.AllUserRoleValues()) })
 }

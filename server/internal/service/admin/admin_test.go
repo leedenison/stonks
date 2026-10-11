@@ -27,6 +27,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/ptr"
 	"github.com/leedenison/stonks/server/internal/replay"
+	"github.com/leedenison/stonks/server/internal/service/admin/page"
 	servicemock "github.com/leedenison/stonks/server/internal/service/mock"
 	"github.com/leedenison/stonks/server/internal/service/servicetest"
 )
@@ -143,7 +144,7 @@ func TestListRuns(t *testing.T) {
 			name:    "default page",
 			req:     &adminv1.ListRunsRequest{},
 			root:    true,
-			wantArg: gen.ListUserRunsParams{Lim: defaultPageSize + 1},
+			wantArg: gen.ListUserRunsParams{Lim: page.DefaultSize + 1},
 			rows:    rows(first),
 			want:    &adminv1.ListRunsResponse{Runs: []*adminv1.UserRun{runMsg(first, runv1.RunKind_RUN_KIND_STATEMENT)}},
 		},
@@ -163,7 +164,7 @@ func TestListRuns(t *testing.T) {
 		{
 			name:    "a match nested under its unmatched parent",
 			req:     &adminv1.ListRunsRequest{Kind: runv1.RunKind_RUN_KIND_RESOLUTION.Enum()},
-			wantArg: gen.ListUserRunsParams{Kind: &resolution, Lim: defaultPageSize + 1},
+			wantArg: gen.ListUserRunsParams{Kind: &resolution, Lim: page.DefaultSize + 1},
 			rows:    nested,
 			want:    &adminv1.ListRunsResponse{Runs: []*adminv1.UserRun{nestedMsg}},
 		},
@@ -178,7 +179,7 @@ func TestListRuns(t *testing.T) {
 		{name: "unspecified kind", req: &adminv1.ListRunsRequest{Kind: runv1.RunKind_RUN_KIND_UNSPECIFIED.Enum()}, wantCode: connect.CodeInvalidArgument},
 		{name: "oversized page", req: &adminv1.ListRunsRequest{PageSize: 201}, wantCode: connect.CodeInvalidArgument},
 		{name: "malformed token", req: &adminv1.ListRunsRequest{PageToken: "next"}, wantCode: connect.CodeInvalidArgument},
-		{name: "failure", req: &adminv1.ListRunsRequest{}, root: true, wantArg: gen.ListUserRunsParams{Lim: defaultPageSize + 1}, err: errors.New("boom"), wantCode: connect.CodeInternal},
+		{name: "failure", req: &adminv1.ListRunsRequest{}, root: true, wantArg: gen.ListUserRunsParams{Lim: page.DefaultSize + 1}, err: errors.New("boom"), wantCode: connect.CodeInternal},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -359,7 +360,7 @@ func TestListRunItems(t *testing.T) {
 	statementMsg := func(ordinal int32) *adminv1.RunItem {
 		return &adminv1.RunItem{Item: &adminv1.RunItem_Statement{Statement: &statementv1.StatementItem{Ordinal: ordinal, Reason: "no quantity", Row: &statementv1.Row{}}}}
 	}
-	three, fifty := int32(3), int32(defaultPageSize+1)
+	three, fifty := int32(3), int32(page.DefaultSize+1)
 	tests := []struct {
 		name     string
 		kind     gen.RunKind
@@ -716,79 +717,6 @@ func TestReorderDatasources(t *testing.T) {
 			_, err := f.client.ReorderDatasources(context.Background(), connect.NewRequest(&adminv1.ReorderDatasourcesRequest{Names: tc.names}))
 			if servicetest.CodeOf(err) != tc.wantCode {
 				t.Errorf("ReorderDatasources(%v) code = %v (err %v), want %v", tc.names, servicetest.CodeOf(err), err, tc.wantCode)
-			}
-		})
-	}
-}
-
-func TestListBlocks(t *testing.T) {
-	isin := types.IdentifierTypeIsin
-	f := newFixture(t)
-	f.store.EXPECT().ListBlocks(gomock.Any(), gen.ListBlocksParams{Before: &findingID, Lim: defaultPageSize + 1}).Return([]gen.ListBlocksRow{
-		{DatasourceBlock: gen.DatasourceBlock{
-			ID: blockID, Datasource: "openfigi", Kind: gen.FetchKindIdentity, Scope: gen.BlockScopeIdentifier,
-			SentType: &isin, SentValue: ptr.To("GB00B03MLX29"), Reason: "unknown identifier", CreatedAt: created,
-		}, FetchID: childID},
-		{DatasourceBlock: gen.DatasourceBlock{
-			ID: keyID, Datasource: "openfigi", Kind: gen.FetchKindIdentity, Scope: gen.BlockScopeDatasource,
-			Reason: "quota spent", CreatedAt: created,
-		}, FetchID: childID},
-	}, nil)
-	res, err := f.client.ListBlocks(context.Background(), connect.NewRequest(&adminv1.ListBlocksRequest{PageToken: findingID.String()}))
-	if err != nil {
-		t.Fatalf("ListBlocks() error = %v", err)
-	}
-	want := &adminv1.ListBlocksResponse{Blocks: []*adminv1.Block{
-		{
-			Id: blockID.String(), Datasource: "openfigi", Kind: adminv1.FetchKind_FETCH_KIND_IDENTITY, Scope: adminv1.BlockScope_BLOCK_SCOPE_IDENTIFIER,
-			Sent:   &typev1.Identifier{Type: typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, Value: "GB00B03MLX29"},
-			Reason: "unknown identifier", RunId: childID.String(), CreatedAt: timestamppb.New(created),
-		},
-		{
-			Id: keyID.String(), Datasource: "openfigi", Kind: adminv1.FetchKind_FETCH_KIND_IDENTITY, Scope: adminv1.BlockScope_BLOCK_SCOPE_DATASOURCE,
-			Reason: "quota spent", RunId: childID.String(), CreatedAt: timestamppb.New(created),
-		},
-	}}
-	if diff := cmp.Diff(want, res.Msg, protocmp.Transform()); diff != "" {
-		t.Errorf("ListBlocks() mismatch (-want +got):\n%s", diff)
-	}
-}
-
-// TestListBlocksPages checks that a full page is cut to its size and that
-// the token of the next page is the id of the last block served.
-func TestListBlocksPages(t *testing.T) {
-	f := newFixture(t)
-	rows := []gen.ListBlocksRow{
-		{DatasourceBlock: gen.DatasourceBlock{ID: blockID, Datasource: "openfigi", Kind: gen.FetchKindIdentity, Scope: gen.BlockScopeDatasource, Reason: "a", CreatedAt: created}, FetchID: childID},
-		{DatasourceBlock: gen.DatasourceBlock{ID: keyID, Datasource: "openfigi", Kind: gen.FetchKindIdentity, Scope: gen.BlockScopeDatasource, Reason: "b", CreatedAt: created}, FetchID: childID},
-	}
-	f.store.EXPECT().ListBlocks(gomock.Any(), gen.ListBlocksParams{Lim: 2}).Return(rows, nil)
-	res, err := f.client.ListBlocks(context.Background(), connect.NewRequest(&adminv1.ListBlocksRequest{PageSize: 1}))
-	if err != nil {
-		t.Fatalf("ListBlocks() error = %v", err)
-	}
-	if len(res.Msg.GetBlocks()) != 1 || res.Msg.GetBlocks()[0].GetId() != blockID.String() || res.Msg.GetNextPageToken() != blockID.String() {
-		t.Errorf("ListBlocks() = %v, want the first block and its id as the next token", res.Msg)
-	}
-}
-
-func TestClearBlock(t *testing.T) {
-	tests := []struct {
-		name     string
-		err      error
-		wantCode connect.Code
-	}{
-		{name: "found"},
-		{name: "not found", err: db.ErrNotFound, wantCode: connect.CodeNotFound},
-		{name: "failure", err: errors.New("boom"), wantCode: connect.CodeInternal},
-	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			f := newFixture(t)
-			f.store.EXPECT().ClearDatasourceBlock(gomock.Any(), blockID).Return(blockID, tc.err)
-			_, err := f.client.ClearBlock(context.Background(), connect.NewRequest(&adminv1.ClearBlockRequest{BlockId: blockID.String()}))
-			if servicetest.CodeOf(err) != tc.wantCode {
-				t.Errorf("ClearBlock() code = %v (err %v), want %v", servicetest.CodeOf(err), err, tc.wantCode)
 			}
 		})
 	}

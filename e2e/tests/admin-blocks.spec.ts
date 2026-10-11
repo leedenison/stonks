@@ -3,6 +3,7 @@ import { FetchOutcome, FindingKind } from "../gen/admin/v1/admin_pb";
 import { ResolutionOutcome } from "../gen/type/v1/type_pb";
 import {
   adminClient,
+  blockClient,
   fetchItems,
   fetchRun,
   resolutionItems,
@@ -61,7 +62,9 @@ test("clears a block from the blocks page, clearing the finding reporting it", a
   ).toHaveCount(0);
   const after = await admin.getRun({ runId: runId });
   expect(after.findings[0].clearedAt).toBeDefined();
-  const blocks = await admin.listBlocks({ includeCleared: true });
+  const blocks = await blockClient(session).listBlocks({
+    includeCleared: true,
+  });
   const block = blocks.blocks.find((b) => b.id === finding.blockId);
   expect(block?.clearedAt).toBeDefined();
   await page.goto(`/admin/runs?user=${user.id}`);

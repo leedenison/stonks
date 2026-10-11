@@ -8,7 +8,9 @@
 // database or session store said reaches a client.
 //
 // Every handler shares one interceptor chain, and authentication is a policy
-// by procedure within it; see HandlerOptions and policyFor.
+// by procedure within it; see HandlerOptions and policyFor. Every procedure
+// of a package under stonks.admin acts across users and requires the admin
+// role. The chain refuses any other caller before the handler runs.
 package service
 
 //go:generate go tool mockgen -source=service.go -destination=mock/service_mock.go -package=mock
@@ -25,13 +27,15 @@ import (
 	"connectrpc.com/otelconnect"
 	"connectrpc.com/validate"
 
-	"github.com/leedenison/stonks/proto/admin/v1/adminv1connect"
 	"github.com/leedenison/stonks/proto/auth/v1/authv1connect"
 	"github.com/leedenison/stonks/server/internal/auth"
 )
 
 // CookieName is the cookie carrying the session identifier.
 const CookieName = "stonks_session"
+
+// adminPackages is the procedure prefix of every package under stonks.admin.
+const adminPackages = "/stonks.admin."
 
 // Authenticator resolves a session identifier to its principal.
 type Authenticator interface {
@@ -84,7 +88,7 @@ func policyFor(procedure string) policy {
 	if isReflection(procedure) {
 		return none
 	}
-	if strings.HasPrefix(procedure, "/"+adminv1connect.AdminServiceName+"/") {
+	if strings.HasPrefix(procedure, adminPackages) {
 		return admin
 	}
 	return required
