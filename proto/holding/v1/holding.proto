@@ -18,10 +18,9 @@ message HoldingListing {
   string id = 1;
   // The currency's family code, such as GBP for pence.
   string currency = 2;
-  // The ticker that names the listing: at the venue a datasource stated as
-  // primary, else at the venue ranked first among those where the listing
-  // has tickers, else at the first by MIC. Unset where the listing has no
-  // ticker.
+  // The ticker that names the listing, by the listing's naming order: the
+  // primary venue, then the venue rank, then the MIC. Unset where the listing
+  // has no ticker.
   stonks.type.v1.Identifier ticker = 3;
   // The venue's common name, or its MIC where it has none. Empty where
   // ticker is unset.
@@ -43,8 +42,9 @@ message InstrumentHolding {
   string instrument_id = 1;
   // The narrowest class known for the instrument.
   stonks.type.v1.AssetClass asset_class = 2;
-  // Every identifier naming the instrument or one of its listings. Empty
-  // when nothing names it.
+  // Every identifier naming the instrument or one of its listings, by the
+  // rank of its type as a name, then by domain and value. Empty when nothing
+  // names it.
   repeated stonks.type.v1.Identifier identifiers = 3;
   // The sum of the caller's transaction quantities over every key resolved to
   // the instrument: shares, contracts, or money for cash, with no trailing
@@ -54,6 +54,9 @@ message InstrumentHolding {
   repeated HoldingListing listings = 5;
   // The keys this holding sums, newest statement first.
   repeated HoldingKey keys = 6;
+  // The identifier that names the instrument: the best-ranked type, and
+  // among tickers the primary venue first. Unset where nothing names it.
+  stonks.type.v1.Identifier name = 7;
 }
 
 // A holding of the caller's unresolved keys that state one holding between

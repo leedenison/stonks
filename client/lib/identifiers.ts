@@ -1,36 +1,4 @@
-import {
-  AssetClass,
-  type Identifier,
-  IdentifierType,
-} from "@/gen/type/v1/type_pb";
-
-// preferred names the identifier types that label an instrument, the one a
-// holder recognises most readily first. A ticker stated without its venue
-// names no listing, but it is still the name the holder uses, so it is
-// eligible.
-export const preferred: IdentifierType[] = [
-  IdentifierType.MIC_TICKER,
-  IdentifierType.BROKER_DESCRIPTION,
-  IdentifierType.DATASOURCE_TICKER,
-  IdentifierType.ISIN,
-  IdentifierType.CUSIP,
-  IdentifierType.SEDOL,
-  IdentifierType.CINS,
-  IdentifierType.WERTPAPIER,
-  IdentifierType.OPENFIGI_COMPOSITE,
-  IdentifierType.OPENFIGI_TICKER,
-  IdentifierType.OPENFIGI_SHARE_CLASS,
-  IdentifierType.BROKER_ID,
-];
-
-// leading names the types that identify a class before any other, for the
-// classes that have them. A datasource's OCC symbol outranks the symbol a
-// broker's terms build.
-const leading: Partial<Record<AssetClass, IdentifierType[]>> = {
-  [AssetClass.CASH]: [IdentifierType.CURRENCY],
-  [AssetClass.OPTION]: [IdentifierType.OCC, IdentifierType.OPTION],
-  [AssetClass.FUTURE]: [IdentifierType.OCC, IdentifierType.OPTION],
-};
+import { type Identifier, IdentifierType } from "@/gen/type/v1/type_pb";
 
 // pick returns the first identifier of the first type in order that has
 // one. Of two identifiers of one type, such as a ticker at two venues, the
@@ -44,15 +12,6 @@ export function pick(
     if (found) return found;
   }
   return undefined;
-}
-
-// nameOf returns the identifier naming an instrument of assetClass as the
-// user knows it, by its class's leading types, then preferred.
-export function nameOf(
-  assetClass: AssetClass,
-  identifiers: Identifier[],
-): Identifier | undefined {
-  return pick([...(leading[assetClass] ?? []), ...preferred], identifiers);
 }
 
 // An IdentifierGroup is the identifiers of one type and value, with their
@@ -72,20 +31,10 @@ export function identifierKey(id: Identifier): string {
   return `${id.type}\u0000${id.domain}\u0000${id.value}`;
 }
 
-// nameRank mirrors identifier_type_traits.name_rank: OCC, option and
-// currency first, then preferred.
-const nameRank: IdentifierType[] = [
-  IdentifierType.OCC,
-  IdentifierType.OPTION,
-  IdentifierType.CURRENCY,
-  ...preferred,
-];
-
-// groupIdentifiers gathers identifiers by type and value, in nameRank order
-// by type, then via groups first, then by value. Domains keep the order
-// given, without the empty one. A type outside nameRank follows the rest in
-// enum order. A group whose identifier is in marks.via or marks.name gets
-// the matching flag. Both sets hold identifierKey values.
+// groupIdentifiers gathers identifiers into one group per type and value,
+// listing the domains each appears in. Types keep the API's naming order,
+// and a group in marks.via sorts first within its type. marks.via and
+// marks.name hold identifierKey values and flag the groups they match.
 export function groupIdentifiers(
   ids: Identifier[],
   marks: { via?: Set<string>; name?: Set<string> } = {},
@@ -111,10 +60,11 @@ export function groupIdentifiers(
     g.via ||= marks.via?.has(k) ?? false;
     g.name ||= marks.name?.has(k) ?? false;
   }
-  const rank = (t: IdentifierType) => {
-    const i = nameRank.indexOf(t);
-    return i === -1 ? nameRank.length + t : i;
-  };
+  const order = new Map<IdentifierType, number>();
+  for (const g of groups.values()) {
+    if (!order.has(g.type)) order.set(g.type, order.size);
+  }
+  const rank = (t: IdentifierType) => order.get(t) ?? 0;
   return [...groups.values()].sort(
     (a, b) =>
       rank(a.type) - rank(b.type) ||

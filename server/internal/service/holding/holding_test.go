@@ -71,6 +71,9 @@ func TestListHoldings(t *testing.T) {
 		{ListingID: gbpListingID, InstrumentID: gbpID, Currency: "GBP"},
 		{ListingID: acmeListingID, InstrumentID: acmeID, Currency: "GBP", TickerDomain: ptr.To("XLON"), TickerValue: ptr.To("ACME"), Venue: "LSE"},
 	}
+	// ACME is named by its ISIN; the pound instrument's name is left out, as
+	// an instrument nothing names.
+	names := []gen.InstrumentName{{InstrumentID: acmeID, Type: types.IdentifierTypeIsin, Value: "GB0002634946"}}
 	acmeISIN := types.Identifier{Type: types.IdentifierTypeIsin, Value: "GB0002634946"}
 	acmeDescribed := types.Identifier{Type: types.IdentifierTypeBrokerDescription, Domain: "ibkr", Value: "ACME PLC"}
 	instrumentKeys := []gen.ListHoldingKeysRow{{
@@ -85,6 +88,7 @@ func TestListHoldings(t *testing.T) {
 		},
 		{
 			InstrumentId: acmeID.String(), AssetClass: typev1.AssetClass_ASSET_CLASS_SECURITY, Quantity: "-141",
+			Name: &typev1.Identifier{Type: typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, Value: "GB0002634946"},
 			Identifiers: []*typev1.Identifier{
 				{Type: typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, Value: "GB0002634946"},
 				{Type: typev1.IdentifierType_IDENTIFIER_TYPE_SEDOL, Value: "0263494"},
@@ -138,6 +142,8 @@ func TestListHoldings(t *testing.T) {
 		identsErr   error
 		listings    []gen.ListListingNamesRow
 		listingsErr error
+		names       []gen.InstrumentName
+		namesErr    error
 		groups      []gen.ListGroupHoldingsRow
 		groupsErr   error
 		keys        []gen.ListHoldingKeysRow
@@ -147,16 +153,17 @@ func TestListHoldings(t *testing.T) {
 		wantCode    connect.Code
 	}{
 		{name: "none"},
-		{name: "instruments only", rows: rows, idents: idents, listings: listings, keys: instrumentKeys, want: wantInstruments},
+		{name: "instruments only", rows: rows, idents: idents, listings: listings, names: names, keys: instrumentKeys, want: wantInstruments},
 		{name: "groups only", groups: groupRows, keys: groupKeys, wantGroups: wantGroups},
 		{
-			name: "both kinds", rows: rows, idents: idents, listings: listings, groups: groupRows, keys: append(instrumentKeys, groupKeys...),
+			name: "both kinds", rows: rows, idents: idents, listings: listings, names: names, groups: groupRows, keys: append(instrumentKeys, groupKeys...),
 			want: wantInstruments, wantGroups: wantGroups,
 		},
 		{name: "keys failure", keysErr: errors.New("boom"), wantCode: connect.CodeInternal},
 		{name: "holdings failure", rowsErr: errors.New("boom"), wantCode: connect.CodeInternal},
 		{name: "identifiers failure", rows: rows, identsErr: errors.New("boom"), wantCode: connect.CodeInternal},
 		{name: "listings failure", rows: rows, idents: idents, listingsErr: errors.New("boom"), wantCode: connect.CodeInternal},
+		{name: "names failure", rows: rows, idents: idents, listings: listings, namesErr: errors.New("boom"), wantCode: connect.CodeInternal},
 		{name: "group holdings failure", groupsErr: errors.New("boom"), wantCode: connect.CodeInternal},
 		{name: "unauthenticated", authErr: auth.ErrUnauthenticated, wantCode: connect.CodeUnauthenticated},
 	}
@@ -170,6 +177,7 @@ func TestListHoldings(t *testing.T) {
 			f.reader.EXPECT().ListInstrumentHoldings(gomock.Any(), userID).Return(tc.rows, tc.rowsErr).MaxTimes(1)
 			f.reader.EXPECT().ListIdentifiersOf(gomock.Any(), []uuid.UUID{gbpID, acmeID}).Return(tc.idents, tc.identsErr).MaxTimes(1)
 			f.reader.EXPECT().ListListingNames(gomock.Any(), []uuid.UUID{gbpID, acmeID}).Return(tc.listings, tc.listingsErr).MaxTimes(1)
+			f.reader.EXPECT().ListInstrumentNames(gomock.Any(), []uuid.UUID{gbpID, acmeID}).Return(tc.names, tc.namesErr).MaxTimes(1)
 			f.reader.EXPECT().ListGroupHoldings(gomock.Any(), userID).Return(tc.groups, tc.groupsErr).MaxTimes(1)
 			res, err := f.client.ListHoldings(context.Background(), connect.NewRequest(&holdingv1.ListHoldingsRequest{}))
 			if servicetest.CodeOf(err) != tc.wantCode {

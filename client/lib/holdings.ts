@@ -10,7 +10,7 @@ import {
   type Identifier,
   IdentifierType,
 } from "@/gen/type/v1/type_pb";
-import { nameOf, pick } from "./identifiers";
+import { pick } from "./identifiers";
 
 // registry lists the identifier types a holding shows as its codes, the
 // most widely quoted first.
@@ -73,17 +73,19 @@ function heldListing(h: InstrumentHolding): HoldingListing | undefined {
     }
   }
   let best: HoldingListing | undefined;
+  let bestWeight = 0;
   for (const l of h.listings) {
     const w = weight.get(l.id);
-    if (w !== undefined && (best === undefined || w > weight.get(best.id)!)) {
+    if (w !== undefined && (best === undefined || w > bestWeight)) {
       best = l;
+      bestWeight = w;
     }
   }
   return best ?? h.listings[0];
 }
 
 // instrumentRow names a holding by the ticker of the listing the user holds,
-// at its venue, falling back to the instrument's other identifiers.
+// at its venue, falling back to the name the API gives the instrument.
 function instrumentRow(h: InstrumentHolding): HoldingRow {
   const held = heldListing(h);
   const named = new Set(h.keys.map((k) => k.listingId).filter((id) => id));
@@ -94,10 +96,7 @@ function instrumentRow(h: InstrumentHolding): HoldingRow {
   return {
     kind: "instrument",
     id: h.instrumentId,
-    label:
-      ticker?.value ??
-      nameOf(h.assetClass, h.identifiers)?.value ??
-      h.instrumentId,
+    label: ticker?.value ?? h.name?.value ?? h.instrumentId,
     venue: ticker ? (held?.venue ?? "") : "",
     descriptions: descriptionsOf(h.keys),
     currencies,

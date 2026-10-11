@@ -2,6 +2,8 @@ import { create } from "@bufbuild/protobuf";
 import { describe, expect, it } from "vitest";
 import {
   GroupHoldingSchema,
+  HoldingKeySchema,
+  HoldingListingSchema,
   InstrumentHoldingSchema,
   ListHoldingsResponseSchema,
 } from "@/gen/holding/v1/holding_pb";
@@ -21,6 +23,8 @@ function described(broker: string, text: string) {
   return ident(IdentifierType.BROKER_DESCRIPTION, text, broker);
 }
 
+// instrument builds a holding named by the first of identifiers, as the
+// API names it, or unnamed where there is none.
 function instrument(
   instrumentId: string,
   assetClass: AssetClass,
@@ -30,6 +34,7 @@ function instrument(
   return create(InstrumentHoldingSchema, {
     instrumentId,
     assetClass,
+    name: identifiers[0],
     identifiers,
     quantity,
   });
@@ -59,59 +64,42 @@ function rows(
 }
 
 describe("holdingRows", () => {
-  it("names cash by its currency wherever that identifier sits", () => {
+  it("names a holding by the name the API gives it, whatever its class", () => {
     const gbp = instrument("i-gbp", AssetClass.CASH, [
-      ident(IdentifierType.SEDOL, "0000000"),
       ident(IdentifierType.CURRENCY, "GBP"),
+      ident(IdentifierType.SEDOL, "0000000"),
+    ]);
+    const option = instrument("i-opt", AssetClass.OPTION, [
+      ident(IdentifierType.OCC, "ACME  260116C00150000"),
+      ident(IdentifierType.ISIN, "US0378331005"),
     ]);
     expect(rows([gbp])[0].label).toBe("GBP");
+    expect(rows([option])[0].label).toBe("ACME  260116C00150000");
   });
 
-  it("prefers a ticker to the registry codes", () => {
-    const acme = instrument("i-acme", AssetClass.SECURITY, [
-      ident(IdentifierType.CUSIP, "037833100"),
-      ident(IdentifierType.ISIN, "US0378331005"),
-      ident(IdentifierType.MIC_TICKER, "ACME"),
-    ]);
-    expect(rows([acme])[0].label).toBe("ACME");
+  it("prefers the held listing's ticker to the name, at its venue", () => {
+    const acme = create(InstrumentHoldingSchema, {
+      instrumentId: "i-acme",
+      assetClass: AssetClass.OPTION,
+      name: ident(IdentifierType.OCC, "ACME  260116C00150000"),
+      quantity: "2",
+      listings: [
+        create(HoldingListingSchema, {
+          id: "l-usd",
+          currency: "USD",
+          venue: "Cboe",
+          ticker: ident(IdentifierType.MIC_TICKER, "ACMETICK", "XCBO"),
+        }),
+      ],
+      keys: [create(HoldingKeySchema, { listingId: "l-usd", quantity: "2" })],
+    });
+    const row = rows([acme])[0];
+    expect(row.label).toBe("ACMETICK");
+    expect(row.venue).toBe("Cboe");
   });
 
-  it("prefers the registry codes by how widely they are quoted", () => {
-    const codes = instrument("i-codes", AssetClass.STOCK, [
-      ident(IdentifierType.BROKER_ID, "624291205"),
-      ident(IdentifierType.OPENFIGI_COMPOSITE, "BBG000B9XRY4"),
-      ident(IdentifierType.SEDOL, "2046251"),
-      ident(IdentifierType.CUSIP, "037833100"),
-      ident(IdentifierType.ISIN, "US0378331005"),
-    ]);
-    expect(rows([codes])[0].label).toBe("US0378331005");
-  });
-
-  it("names an option by its OCC symbol and a future likewise", () => {
-    const ids = [
-      ident(IdentifierType.ISIN, "US0378331005"),
-      ident(IdentifierType.OCC, "ACME  260116C00150000"),
-    ];
-    for (const c of [AssetClass.OPTION, AssetClass.FUTURE]) {
-      expect(rows([instrument("i-d", c, ids)])[0].label).toBe(
-        "ACME  260116C00150000",
-      );
-    }
-  });
-
-  it("ignores a type its class does not prefer", () => {
-    const odd = instrument("i-odd", AssetClass.SECURITY, [
-      ident(IdentifierType.CURRENCY, "USD"),
-    ]);
-    expect(rows([odd])[0].label).toBe("i-odd");
-  });
-
-  it("falls back through the order, then to the instrument id", () => {
-    const bare = instrument("i-bare", AssetClass.EQUITY, [
-      ident(IdentifierType.ISIN, "GB0002634946"),
-    ]);
+  it("falls back to the instrument id without a name", () => {
     const unnamed = instrument("i-unnamed", AssetClass.EQUITY, []);
-    expect(rows([bare])[0].label).toBe("GB0002634946");
     expect(rows([unnamed])[0].label).toBe("i-unnamed");
   });
 
@@ -165,9 +153,6 @@ describe("holdingRows", () => {
 
   it("shows the registry codes beside a resolved holding's name", () => {
     const acme = instrument("i-acme", AssetClass.STOCK, [
-      ident(IdentifierType.OPENFIGI_SHARE_CLASS, "BBG001S5N8V8"),
-      ident(IdentifierType.CUSIP, "037833100"),
-      ident(IdentifierType.ISIN, "US0378331005"),
       create(IdentifierSchema, {
         type: IdentifierType.MIC_TICKER,
         domain: "XNAS",
@@ -178,6 +163,9 @@ describe("holdingRows", () => {
         domain: "XNYS",
         value: "ACME",
       }),
+      ident(IdentifierType.OPENFIGI_SHARE_CLASS, "BBG001S5N8V8"),
+      ident(IdentifierType.CUSIP, "037833100"),
+      ident(IdentifierType.ISIN, "US0378331005"),
       create(IdentifierSchema, {
         type: IdentifierType.BROKER_ID,
         domain: "ibkr",

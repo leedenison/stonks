@@ -29,6 +29,7 @@ type Reader interface {
 	ListInstrumentHoldings(ctx context.Context, userID uuid.UUID) ([]gen.ListInstrumentHoldingsRow, error)
 	ListIdentifiersOf(ctx context.Context, ids []uuid.UUID) ([]gen.Identifier, error)
 	ListListingNames(ctx context.Context, instrumentIds []uuid.UUID) ([]gen.ListListingNamesRow, error)
+	ListInstrumentNames(ctx context.Context, ids []uuid.UUID) ([]gen.InstrumentName, error)
 	ListGroupHoldings(ctx context.Context, userID uuid.UUID) ([]gen.ListGroupHoldingsRow, error)
 	ListHoldingKeys(ctx context.Context, userID uuid.UUID) ([]gen.ListHoldingKeysRow, error)
 }
@@ -70,7 +71,7 @@ func (s *Server) ListHoldings(ctx context.Context, _ *connect.Request[holdingv1.
 }
 
 // instruments answers the user's holdings of resolved instruments, each
-// with its identifiers, listings and keys.
+// with its name, identifiers, listings and keys.
 func (s *Server) instruments(ctx context.Context, user uuid.UUID, keys []gen.ListHoldingKeysRow) ([]*holdingv1.InstrumentHolding, error) {
 	rows, err := s.reader.ListInstrumentHoldings(ctx, user)
 	if err != nil || len(rows) == 0 {
@@ -96,6 +97,14 @@ func (s *Server) instruments(ctx context.Context, user uuid.UUID, keys []gen.Lis
 	for _, l := range listings {
 		listed[l.InstrumentID] = append(listed[l.InstrumentID], listing(l))
 	}
+	names, err := s.reader.ListInstrumentNames(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	nameOf := make(map[uuid.UUID]*typev1.Identifier, len(names))
+	for _, n := range names {
+		nameOf[n.InstrumentID] = types.Identifier{Type: n.Type, Domain: n.Domain, Value: n.Value}.ToProto()
+	}
 	held := map[uuid.UUID][]*holdingv1.HoldingKey{}
 	for _, k := range keys {
 		if k.StatedKey.InstrumentID != nil {
@@ -107,6 +116,7 @@ func (s *Server) instruments(ctx context.Context, user uuid.UUID, keys []gen.Lis
 		out = append(out, &holdingv1.InstrumentHolding{
 			InstrumentId: r.InstrumentID.String(),
 			AssetClass:   types.ToProto[typev1.AssetClass](r.AssetClass),
+			Name:         nameOf[r.InstrumentID],
 			Identifiers:  named[r.InstrumentID],
 			Quantity:     r.Quantity.String(),
 			Listings:     listed[r.InstrumentID],

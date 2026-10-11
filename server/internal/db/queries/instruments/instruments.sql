@@ -18,9 +18,17 @@ WHERE instrument_id = ANY(@ids::uuid[])
 ORDER BY instrument_id, currency;
 
 -- name: ListIdentifiersOf :many
-SELECT * FROM identifiers
+-- By the rank of the type as a name, then by domain and value, which is the
+-- order the API states.
+SELECT identifiers.* FROM identifiers
+JOIN identifier_type_traits ON identifier_type_traits.type = identifiers.type
+WHERE identifiers.instrument_id = ANY(@ids::uuid[])
+ORDER BY identifiers.instrument_id, identifier_type_traits.name_rank, identifiers.domain, identifiers.value;
+
+-- name: ListInstrumentNames :many
+SELECT * FROM instrument_names
 WHERE instrument_id = ANY(@ids::uuid[])
-ORDER BY instrument_id, listing_id NULLS FIRST, type, domain, value;
+ORDER BY instrument_id;
 
 -- name: ListViaOf :many
 -- The ids of the via identifiers recorded on the stated keys of the
@@ -148,14 +156,11 @@ ORDER BY resolution_keys.stated_key_id
 LIMIT sqlc.narg(lim)::int;
 
 -- name: ListInstruments :many
--- Every instrument with the identifier that names it, by its value then id.
--- The name is the instrument's identifier whose type ranks first, over
--- its own identifiers and its listings'. Among tickers the listing's primary
--- venue wins, then the venue ranked first in venue_names, then the lowest
--- MIC. An instrument with no identifier has an empty name and type. The
--- optional q matches any of an instrument's identifiers, and the optional
--- asset_class includes the classes below it. A page continues past the name
--- and id of the last instrument served, whether or not that row remains.
+-- Every instrument with the identifier that names it, ordered by that name's
+-- value, then id. An instrument with no identifier has an empty name and
+-- type. q matches any of an instrument's identifiers, and asset_class
+-- includes the classes below it. A page continues past the name and id of
+-- the last instrument served, whether or not that row remains.
 WITH RECURSIVE classes AS (
     SELECT class FROM asset_class_tree WHERE class = sqlc.narg(asset_class)::asset_class
     UNION ALL
@@ -163,21 +168,11 @@ WITH RECURSIVE classes AS (
     JOIN classes ON asset_class_tree.parent = classes.class
 ), named AS (
     SELECT instruments.id, instruments.asset_class,
-           COALESCE(naming.value, '')::text AS name,
-           COALESCE(naming.type::text, '')::text AS name_type,
-           COALESCE(naming.domain, '')::text AS name_domain
+           COALESCE(instrument_names.value, '')::text AS name,
+           COALESCE(instrument_names.type::text, '')::text AS name_type,
+           COALESCE(instrument_names.domain, '')::text AS name_domain
     FROM instruments
-    LEFT JOIN LATERAL (
-        SELECT identifiers.type, identifiers.domain, identifiers.value FROM identifiers
-        JOIN identifier_type_traits ON identifier_type_traits.type = identifiers.type
-        LEFT JOIN listings ON listings.id = identifiers.listing_id
-        LEFT JOIN venue_names ON venue_names.mic = identifiers.domain
-        WHERE identifiers.instrument_id = instruments.id
-        ORDER BY identifier_type_traits.name_rank,
-                 (identifiers.domain = listings.primary_mic) DESC NULLS LAST,
-                 venue_names.rank NULLS LAST, identifiers.domain, identifiers.value
-        LIMIT 1
-    ) AS naming ON true
+    LEFT JOIN instrument_names ON instrument_names.instrument_id = instruments.id
     WHERE (sqlc.narg(q)::text IS NULL
            OR EXISTS (SELECT 1 FROM identifiers
                       WHERE identifiers.instrument_id = instruments.id

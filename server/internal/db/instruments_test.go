@@ -360,6 +360,18 @@ func TestListInstruments(t *testing.T) {
 			t.Errorf("instrument %s named %q, want %q", id, names[id], name)
 		}
 	}
+	// instrument_names holds the same names, with a row only for each named
+	// instrument.
+	rows, err := q.ListInstrumentNames(ctx, []uuid.UUID{usd.InstrumentID, stock.ID, two.ID, option.ID, bare.ID})
+	require.NoError(t, err)
+	viewed := map[uuid.UUID]string{}
+	for _, r := range rows {
+		viewed[r.InstrumentID] = r.Value
+	}
+	delete(want, bare.ID)
+	if diff := cmp.Diff(want, viewed); diff != "" {
+		t.Errorf("ListInstrumentNames mismatch (-want +got):\n%s", diff)
+	}
 	tail := all[len(all)-3:]
 	if tail[0].ID != option.ID || tail[1].ID != stock.ID || tail[2].ID != two.ID {
 		t.Errorf("last three = %v, want the option, the stock, then the second stock", tail)
@@ -411,8 +423,8 @@ func TestListInstruments(t *testing.T) {
 	}
 	idents, err := q.ListIdentifiersOf(ctx, []uuid.UUID{stock.ID})
 	require.NoError(t, err)
-	if len(idents) != 3 || idents[0].ListingID != nil || idents[1].ListingID == nil {
-		t.Errorf("ListIdentifiersOf = %+v, want the ISIN then the two tickers", idents)
+	if len(idents) != 3 || idents[0].ListingID == nil || idents[1].ListingID == nil || idents[2].ListingID != nil {
+		t.Errorf("ListIdentifiersOf = %+v, want the two tickers then the ISIN, by the rank of the type as a name", idents)
 	}
 
 	// Two keys share the ISIN as their via identifier, so it is returned

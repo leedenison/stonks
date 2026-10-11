@@ -16,7 +16,8 @@ message Listing {
   // The listing's currency code; a family code, so a listing quoted in pence
   // is the GBP listing.
   string currency = 2;
-  // The listing grain identifiers naming it.
+  // The listing grain identifiers naming it, by the rank of the type as a
+  // name, then by domain and value.
   repeated stonks.type.v1.Identifier identifiers = 3;
   // The operating MIC of the venue a datasource stated as the listing's
   // primary; empty where none has.
@@ -27,12 +28,12 @@ message Instrument {
   // Identifies the instrument in every API; a UUID.
   string id = 1;
   // The identifier that names the instrument, chosen by the rank of its
-  // type; unset where it has none.
+  // type, then by the listing's naming order; unset where it has none.
   stonks.type.v1.Identifier name = 2;
   // The narrowest class known for the instrument.
   stonks.type.v1.AssetClass asset_class = 3;
-  // The instrument grain identifiers naming it. Empty when only its listings
-  // are named.
+  // The instrument grain identifiers naming it, by the rank of the type as a
+  // name, then by domain and value. Empty when only its listings are named.
   repeated stonks.type.v1.Identifier identifiers = 4;
   // One per currency family the instrument trades in: a listing with a
   // primary venue first, then by currency.
