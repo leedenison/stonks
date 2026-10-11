@@ -113,8 +113,8 @@ function Blocks() {
         </TableCard>
       )}
       <Pager
-        newest={p.before ? listQuery(path, { ...p, before: "" }) : undefined}
-        older={
+        first={p.before ? listQuery(path, { ...p, before: "" }) : undefined}
+        next={
           data?.nextPageToken
             ? listQuery(path, { ...p, before: data.nextPageToken })
             : undefined

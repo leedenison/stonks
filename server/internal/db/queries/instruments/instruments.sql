@@ -155,3 +155,28 @@ WHERE resolution_keys.run_id = @run_id
   AND (sqlc.narg(after)::uuid IS NULL OR resolution_keys.stated_key_id > sqlc.narg(after))
 ORDER BY resolution_keys.stated_key_id
 LIMIT sqlc.narg(lim)::int;
+
+-- name: ListInstruments :many
+-- Every instrument with the value that names it, by name then id. The name
+-- is the value of the instrument's identifier whose type ranks first, over
+-- its own identifiers and its listings'. Among tickers the listing's primary
+-- venue wins, then the venue ranked first in venue_names, then the lowest
+-- MIC. An instrument with no identifier has an empty name.
+WITH named AS (
+    SELECT instruments.id, instruments.asset_class,
+           COALESCE((SELECT identifiers.value FROM identifiers
+                     JOIN identifier_type_traits ON identifier_type_traits.type = identifiers.type
+                     LEFT JOIN listings ON listings.id = identifiers.listing_id
+                     LEFT JOIN venue_names ON venue_names.mic = identifiers.domain
+                     WHERE identifiers.instrument_id = instruments.id
+                     ORDER BY identifier_type_traits.name_rank,
+                              (identifiers.domain = listings.primary_mic) DESC NULLS LAST,
+                              venue_names.rank NULLS LAST, identifiers.domain, identifiers.value
+                     LIMIT 1), '')::text AS name
+    FROM instruments
+)
+SELECT * FROM named
+WHERE sqlc.narg(after)::uuid IS NULL
+   OR (name, id) > (SELECT name, id FROM named WHERE id = sqlc.narg(after))
+ORDER BY name, id
+LIMIT @lim;

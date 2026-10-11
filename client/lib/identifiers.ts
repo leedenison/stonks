@@ -54,3 +54,45 @@ export function nameOf(
 ): Identifier | undefined {
   return pick([...(leading[assetClass] ?? []), ...preferred], identifiers);
 }
+
+// An IdentifierGroup is the identifiers of one type and value, with their
+// domains.
+export type IdentifierGroup = {
+  type: IdentifierType;
+  value: string;
+  domains: string[];
+};
+
+// nameRank mirrors identifier_type_traits.name_rank: OCC, option and
+// currency first, then preferred.
+const nameRank: IdentifierType[] = [
+  IdentifierType.OCC,
+  IdentifierType.OPTION,
+  IdentifierType.CURRENCY,
+  ...preferred,
+];
+
+// groupIdentifiers gathers identifiers by type and value, in nameRank order
+// by type then by value. Domains keep the order given, without the empty
+// one. A type outside nameRank follows the rest in enum order.
+export function groupIdentifiers(ids: Identifier[]): IdentifierGroup[] {
+  const groups = new Map<string, IdentifierGroup>();
+  for (const id of ids) {
+    const key = `${id.type}\u0000${id.value}`;
+    let g = groups.get(key);
+    if (!g) {
+      g = { type: id.type, value: id.value, domains: [] };
+      groups.set(key, g);
+    }
+    if (id.domain) {
+      g.domains.push(id.domain);
+    }
+  }
+  const rank = (t: IdentifierType) => {
+    const i = nameRank.indexOf(t);
+    return i === -1 ? nameRank.length + t : i;
+  };
+  return [...groups.values()].sort(
+    (a, b) => rank(a.type) - rank(b.type) || a.value.localeCompare(b.value),
+  );
+}

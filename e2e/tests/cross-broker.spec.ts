@@ -1,8 +1,10 @@
 import path from "node:path";
 import { IdentifierType, ResolutionOutcome } from "../gen/type/v1/type_pb";
 import {
+  adminInstrumentClient,
   holdingClient,
   instrumentClient,
+  allInstruments,
   statementClient,
 } from "../helpers/api";
 import { uploadStatement } from "../helpers/upload";
@@ -148,4 +150,23 @@ test("shows a resolved holding and an unresolved one from two brokers", async ({
       .getByTestId(`key-row-${tickerKey!.statedKeyId}`)
       .getByTestId("resolution-chip"),
   ).toHaveAttribute("data-state", "unrecognised");
+
+  // Open the admin list at the page that starts with the instrument, with
+  // the token the Next link would carry, so the instrument is on the page
+  // whatever else the database holds.
+  const { session: adminSession } = await signIn("admin");
+  const every = await allInstruments(adminInstrumentClient(adminSession));
+  const at = every.findIndex((i) => i.id === instrument!.id);
+  expect(at).toBeGreaterThan(0);
+  await page.goto(
+    `/admin/instruments?after=${every[at - 1].id}&id=${instrument!.id}`,
+  );
+  const adminRow = page.getByTestId(`instrument-row-${instrument!.id}`);
+  await expect(adminRow).toContainText(ticker);
+  await expect(adminRow).not.toContainText(cusip);
+  await expect(adminRow).toHaveAttribute("aria-selected", "true");
+  const pane = page.getByTestId("instrument-pane");
+  await expect(pane).toContainText(cusip);
+  await expect(pane).toContainText("USD");
+  await expect(pane).toContainText(ticker);
 });

@@ -3,6 +3,10 @@ import { type Client, createClient } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
 import { BlockService } from "../gen/admin/block/v1/block_pb";
 import { DatasourceService } from "../gen/admin/datasource/v1/datasource_pb";
+import {
+  type Instrument as AdminInstrument,
+  InstrumentService as AdminInstrumentService,
+} from "../gen/admin/instrument/v1/instrument_pb";
 import { ReplayService } from "../gen/admin/replay/v1/replay_pb";
 import { RunService, type UserRun } from "../gen/admin/run/v1/run_pb";
 import { AuthService } from "../gen/auth/v1/auth_pb";
@@ -35,6 +39,24 @@ export function clientFor<T extends DescService>(
 
 export function adminRunClient(sessionID: string) {
   return clientFor(RunService, sessionID);
+}
+
+export function adminInstrumentClient(sessionID: string) {
+  return clientFor(AdminInstrumentService, sessionID);
+}
+
+// allInstruments reads every instrument, following the pages.
+export async function allInstruments(
+  admin: Client<typeof AdminInstrumentService>,
+): Promise<AdminInstrument[]> {
+  const out: AdminInstrument[] = [];
+  let pageToken = "";
+  do {
+    const res = await admin.listInstruments({ pageToken });
+    out.push(...res.instruments);
+    pageToken = res.nextPageToken;
+  } while (pageToken !== "");
+  return out;
 }
 
 export function blockClient(sessionID: string) {

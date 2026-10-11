@@ -63,8 +63,9 @@ CREATE TYPE identifier_grain AS ENUM ('instrument', 'listing');
 CREATE TYPE identifier_reassignment AS ENUM ('stable', 'mic_derived', 'unverifiable');
 
 -- The traits of each identifier type: how its values are partitioned, what it
--- names, how readily it is reassigned, and whether it is exclusive. The server
--- holds a copy that a test checks against this table.
+-- names, how readily it is reassigned, whether it is exclusive, and its rank
+-- for naming an instrument. The server holds a copy that a test checks
+-- against this table.
 CREATE TABLE identifier_type_traits (
     type         identifier_type         PRIMARY KEY,
     domain       identifier_domain       NOT NULL,
@@ -75,28 +76,31 @@ CREATE TABLE identifier_type_traits (
     -- and a broker describes one line in several ways, so those types are
     -- not exclusive.
     exclusive    boolean                 NOT NULL,
+    -- name_rank ranks the types for naming an instrument, lowest first. It
+    -- is unique, so no two types tie.
+    name_rank    integer                 NOT NULL UNIQUE,
     UNIQUE (type, grain)
 );
 
-INSERT INTO identifier_type_traits (type, domain, grain, reassignment, exclusive) VALUES
-    ('isin',                 'global', 'instrument', 'stable',       true),
-    ('cusip',                'global', 'instrument', 'stable',       true),
-    ('cins',                 'global', 'instrument', 'stable',       true),
-    ('wertpapier',           'global', 'instrument', 'stable',       true),
-    ('openfigi_share_class', 'global', 'instrument', 'stable',       true),
-    ('sedol',                'global', 'listing',    'stable',       true),
-    ('openfigi_composite',   'global', 'listing',    'stable',       false),
-    ('mic_ticker',           'venue',  'listing',    'mic_derived',  true),
-    ('openfigi_ticker',      'venue',  'listing',    'mic_derived',  true),
-    ('occ',                  'global', 'instrument', 'mic_derived',  true),
+INSERT INTO identifier_type_traits (type, domain, grain, reassignment, exclusive, name_rank) VALUES
+    ('isin',                 'global', 'instrument', 'stable',       true,  7),
+    ('cusip',                'global', 'instrument', 'stable',       true,  8),
+    ('cins',                 'global', 'instrument', 'stable',       true, 10),
+    ('wertpapier',           'global', 'instrument', 'stable',       true, 11),
+    ('openfigi_share_class', 'global', 'instrument', 'stable',       true, 14),
+    ('sedol',                'global', 'listing',    'stable',       true,  9),
+    ('openfigi_composite',   'global', 'listing',    'stable',       false, 12),
+    ('mic_ticker',           'venue',  'listing',    'mic_derived',  true,  4),
+    ('openfigi_ticker',      'venue',  'listing',    'mic_derived',  true, 13),
+    ('occ',                  'global', 'instrument', 'mic_derived',  true,  1),
     -- The seed names a cash instrument by every code of its family, which is
     -- one currency at different unit scales. A key states one code, so
     -- currency is exclusive.
-    ('currency',             'global', 'instrument', 'stable',       true),
-    ('datasource_ticker',    'issuer', 'listing',    'mic_derived',  true),
-    ('broker_id',            'issuer', 'instrument', 'stable',       true),
-    ('broker_description',   'issuer', 'instrument', 'unverifiable', false),
-    ('option',               'global', 'instrument', 'mic_derived',  true);
+    ('currency',             'global', 'instrument', 'stable',       true,  3),
+    ('datasource_ticker',    'issuer', 'listing',    'mic_derived',  true,  6),
+    ('broker_id',            'issuer', 'instrument', 'stable',       true, 15),
+    ('broker_description',   'issuer', 'instrument', 'unverifiable', false,  5),
+    ('option',               'global', 'instrument', 'mic_derived',  true,  2);
 
 -- The currency codes a source may state: ISO 4217, plus GBX for sterling in
 -- pence. A family is the codes of one currency at different unit scales, named
