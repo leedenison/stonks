@@ -122,7 +122,7 @@ function Instruments() {
                               i.name ? "" : "font-mono text-text-muted"
                             }
                           >
-                            {i.name || i.id}
+                            {i.name?.value || i.id}
                           </Link>
                         </Td>
                         <Td>

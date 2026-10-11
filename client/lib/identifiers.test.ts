@@ -5,7 +5,13 @@ import {
   IdentifierSchema,
   IdentifierType,
 } from "@/gen/type/v1/type_pb";
-import { groupIdentifiers, nameOf, pick, preferred } from "./identifiers";
+import {
+  groupIdentifiers,
+  identifierKey,
+  nameOf,
+  pick,
+  preferred,
+} from "./identifiers";
 
 function ident(type: IdentifierType, value: string, domain = "") {
   return create(IdentifierSchema, { type, value, domain });
@@ -69,7 +75,7 @@ describe("pick", () => {
 });
 
 describe("groupIdentifiers", () => {
-  it("gathers the domains of one value and orders the groups by name rank", () => {
+  it("gathers the domains of one value and orders the groups by name rank, via groups first within a type", () => {
     const ids = [
       ident(IdentifierType.OPENFIGI_COMPOSITE, "BBG000B9XRY4"),
       ident(IdentifierType.MIC_TICKER, "ACME", "XNYS"),
@@ -78,19 +84,36 @@ describe("groupIdentifiers", () => {
       ident(IdentifierType.SEDOL, "0000000"),
       ident(IdentifierType.CURRENCY, "USD"),
     ];
-    expect(groupIdentifiers(ids)).toEqual([
-      { type: IdentifierType.CURRENCY, value: "USD", domains: [] },
-      { type: IdentifierType.MIC_TICKER, value: "ACM", domains: ["XLON"] },
+    const marks = {
+      via: new Set([
+        identifierKey(ident(IdentifierType.MIC_TICKER, "ACME", "XNAS")),
+      ]),
+      name: new Set([
+        identifierKey(ident(IdentifierType.MIC_TICKER, "ACME", "XNYS")),
+      ]),
+    };
+    const plain = { via: false, name: false };
+    expect(groupIdentifiers(ids, marks)).toEqual([
+      { type: IdentifierType.CURRENCY, value: "USD", domains: [], ...plain },
       {
         type: IdentifierType.MIC_TICKER,
         value: "ACME",
         domains: ["XNYS", "XNAS"],
+        via: true,
+        name: true,
       },
-      { type: IdentifierType.SEDOL, value: "0000000", domains: [] },
+      {
+        type: IdentifierType.MIC_TICKER,
+        value: "ACM",
+        domains: ["XLON"],
+        ...plain,
+      },
+      { type: IdentifierType.SEDOL, value: "0000000", domains: [], ...plain },
       {
         type: IdentifierType.OPENFIGI_COMPOSITE,
         value: "BBG000B9XRY4",
         domains: [],
+        ...plain,
       },
     ]);
     expect(groupIdentifiers([])).toEqual([]);

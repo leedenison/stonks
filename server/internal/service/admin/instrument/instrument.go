@@ -29,6 +29,7 @@ type Queries interface {
 	ListInstruments(ctx context.Context, arg gen.ListInstrumentsParams) ([]gen.ListInstrumentsRow, error)
 	ListListingsOf(ctx context.Context, ids []uuid.UUID) ([]gen.Listing, error)
 	ListIdentifiersOf(ctx context.Context, ids []uuid.UUID) ([]gen.Identifier, error)
+	ListViaOf(ctx context.Context, ids []uuid.UUID) ([]uuid.UUID, error)
 }
 
 var _ Queries = (*gen.Queries)(nil)
@@ -84,7 +85,8 @@ func (s *Server) ListInstruments(ctx context.Context, req *connect.Request[admin
 
 // instruments assembles the page's instruments, each listing grain
 // identifier on its listing. A listing with a primary venue precedes the
-// rest.
+// rest. An instrument's Via holds the via identifiers of the keys that
+// resolved to it.
 func (s *Server) instruments(ctx context.Context, rows []gen.ListInstrumentsRow) ([]*admininstrumentv1.Instrument, error) {
 	if len(rows) == 0 {
 		return nil, nil
@@ -93,7 +95,10 @@ func (s *Server) instruments(ctx context.Context, rows []gen.ListInstrumentsRow)
 	instruments := make(map[uuid.UUID]*admininstrumentv1.Instrument, len(rows))
 	out := make([]*admininstrumentv1.Instrument, 0, len(rows))
 	for _, r := range rows {
-		msg := &admininstrumentv1.Instrument{Id: r.ID.String(), Name: r.Name, AssetClass: types.ToProto[typev1.AssetClass](r.AssetClass)}
+		msg := &admininstrumentv1.Instrument{Id: r.ID.String(), AssetClass: types.ToProto[typev1.AssetClass](r.AssetClass)}
+		if r.NameType != "" {
+			msg.Name = types.Identifier{Type: types.IdentifierType(r.NameType), Domain: r.NameDomain, Value: r.Name}.ToProto()
+		}
 		ids = append(ids, r.ID)
 		instruments[r.ID] = msg
 		out = append(out, msg)
@@ -120,8 +125,20 @@ func (s *Server) instruments(ctx context.Context, rows []gen.ListInstrumentsRow)
 	if err != nil {
 		return nil, err
 	}
+	viaIDs, err := s.queries.ListViaOf(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	via := make(map[uuid.UUID]bool, len(viaIDs))
+	for _, id := range viaIDs {
+		via[id] = true
+	}
 	for _, i := range idents {
 		msg := to.Identifier(i).ToProto()
+		if via[i.ID] {
+			in := instruments[i.InstrumentID]
+			in.Via = append(in.Via, to.Identifier(i).ToProto())
+		}
 		if i.ListingID != nil {
 			l := byListing[*i.ListingID]
 			l.Identifiers = append(l.Identifiers, msg)

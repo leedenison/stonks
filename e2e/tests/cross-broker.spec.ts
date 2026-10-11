@@ -158,6 +158,11 @@ test("shows a resolved holding and an unresolved one from two brokers", async ({
   await expect(adminRow).toHaveAttribute("aria-selected", "true");
   const pane = page.getByTestId("instrument-pane");
   await expect(pane).toContainText(cusip);
+  // The IBKR key's via identifier is the CUSIP, the ticker names the
+  // instrument, and Nasdaq is its primary venue.
+  await expect(pane.locator("[data-via='true']")).toContainText(cusip);
+  await expect(pane.locator("[data-name='true']")).toContainText(ticker);
+  await expect(pane.locator("[data-primary='true']")).toHaveText("XNAS");
   await expect(pane).toContainText("USD");
   await expect(pane).toContainText(ticker);
 });

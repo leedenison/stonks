@@ -61,7 +61,16 @@ export type IdentifierGroup = {
   type: IdentifierType;
   value: string;
   domains: string[];
+  // True when a stated key's via identifier is in the group.
+  via: boolean;
+  // True when the identifier naming the instrument is in the group.
+  name: boolean;
 };
+
+// identifierKey names an identifier for set membership.
+export function identifierKey(id: Identifier): string {
+  return `${id.type}\u0000${id.domain}\u0000${id.value}`;
+}
 
 // nameRank mirrors identifier_type_traits.name_rank: OCC, option and
 // currency first, then preferred.
@@ -73,26 +82,43 @@ const nameRank: IdentifierType[] = [
 ];
 
 // groupIdentifiers gathers identifiers by type and value, in nameRank order
-// by type then by value. Domains keep the order given, without the empty
-// one. A type outside nameRank follows the rest in enum order.
-export function groupIdentifiers(ids: Identifier[]): IdentifierGroup[] {
+// by type, then via groups first, then by value. Domains keep the order
+// given, without the empty one. A type outside nameRank follows the rest in
+// enum order. A group whose identifier is in marks.via or marks.name gets
+// the matching flag. Both sets hold identifierKey values.
+export function groupIdentifiers(
+  ids: Identifier[],
+  marks: { via?: Set<string>; name?: Set<string> } = {},
+): IdentifierGroup[] {
   const groups = new Map<string, IdentifierGroup>();
   for (const id of ids) {
     const key = `${id.type}\u0000${id.value}`;
     let g = groups.get(key);
     if (!g) {
-      g = { type: id.type, value: id.value, domains: [] };
+      g = {
+        type: id.type,
+        value: id.value,
+        domains: [],
+        via: false,
+        name: false,
+      };
       groups.set(key, g);
     }
     if (id.domain) {
       g.domains.push(id.domain);
     }
+    const k = identifierKey(id);
+    g.via ||= marks.via?.has(k) ?? false;
+    g.name ||= marks.name?.has(k) ?? false;
   }
   const rank = (t: IdentifierType) => {
     const i = nameRank.indexOf(t);
     return i === -1 ? nameRank.length + t : i;
   };
   return [...groups.values()].sort(
-    (a, b) => rank(a.type) - rank(b.type) || a.value.localeCompare(b.value),
+    (a, b) =>
+      rank(a.type) - rank(b.type) ||
+      Number(b.via) - Number(a.via) ||
+      a.value.localeCompare(b.value),
   );
 }

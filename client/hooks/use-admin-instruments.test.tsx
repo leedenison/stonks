@@ -7,7 +7,7 @@ import {
   ListInstrumentsResponseSchema,
 } from "@/gen/admin/instrument/v1/instrument_pb";
 import { Role } from "@/gen/auth/v1/auth_pb";
-import { AssetClass } from "@/gen/type/v1/type_pb";
+import { AssetClass, IdentifierType } from "@/gen/type/v1/type_pb";
 import { authWrapper, liveSession, transportWith } from "@/lib/test-utils";
 import { useAdminInstruments } from "./use-admin-instruments";
 
@@ -16,7 +16,7 @@ const listInstruments = vi.fn(() =>
     instruments: [
       create(InstrumentSchema, {
         id: "i1",
-        name: "USD",
+        name: { type: IdentifierType.CURRENCY, value: "USD" },
         assetClass: AssetClass.CASH,
       }),
     ],
@@ -38,7 +38,7 @@ describe("useAdminInstruments", () => {
       { wrapper: authWrapper(transport) },
     );
     await waitFor(() => expect(result.current.data).toBeTruthy());
-    expect(result.current.data?.instruments[0].name).toBe("USD");
+    expect(result.current.data?.instruments[0].name?.value).toBe("USD");
     expect(listInstruments).toHaveBeenCalledWith(
       expect.objectContaining({
         pageToken: "t1",

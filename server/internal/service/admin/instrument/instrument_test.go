@@ -59,9 +59,12 @@ func newFixture(t *testing.T) *fixture {
 func TestListInstruments(t *testing.T) {
 	// A share listed in two currencies, named by an ISIN and by a ticker on
 	// each listing, and the pound, named by its codes with one listing.
+	ticker := func(domain string) *typev1.Identifier {
+		return &typev1.Identifier{Type: typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, Domain: domain, Value: "ACME"}
+	}
 	rows := []gen.ListInstrumentsRow{
-		{ID: acmeID, AssetClass: gen.AssetClassStock, Name: "ACME"},
-		{ID: gbpID, AssetClass: gen.AssetClassCash, Name: "GBP"},
+		{ID: acmeID, AssetClass: gen.AssetClassStock, Name: "ACME", NameType: string(types.IdentifierTypeMicTicker), NameDomain: "XNYS"},
+		{ID: gbpID, AssetClass: gen.AssetClassCash, Name: "GBP", NameType: string(types.IdentifierTypeCurrency)},
 	}
 	// The dollar listing has a primary venue, so it precedes the pound's.
 	listings := []gen.Listing{
@@ -69,27 +72,26 @@ func TestListInstruments(t *testing.T) {
 		{ID: usdLine, InstrumentID: acmeID, Currency: "USD", PrimaryMic: ptr.To("XNYS")},
 		{ID: cashLine, InstrumentID: gbpID, Currency: "GBP"},
 	}
+	isinID := uuid.MustParse("00000000-0000-0000-0000-000000000041")
 	idents := []gen.Identifier{
-		{InstrumentID: acmeID, Type: types.IdentifierTypeIsin, Value: "GB0002634946"},
+		{ID: isinID, InstrumentID: acmeID, Type: types.IdentifierTypeIsin, Value: "GB0002634946"},
 		{InstrumentID: acmeID, ListingID: &gbpLine, Type: types.IdentifierTypeMicTicker, Domain: "XLON", Value: "ACME"},
 		{InstrumentID: acmeID, ListingID: &usdLine, Type: types.IdentifierTypeMicTicker, Domain: "XNYS", Value: "ACME"},
 		{InstrumentID: gbpID, Type: types.IdentifierTypeCurrency, Value: "GBP"},
 		{InstrumentID: gbpID, Type: types.IdentifierTypeCurrency, Value: "GBX"},
 	}
-	ticker := func(domain string) *typev1.Identifier {
-		return &typev1.Identifier{Type: typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, Domain: domain, Value: "ACME"}
-	}
 	want := []*admininstrumentv1.Instrument{
 		{
-			Id: acmeID.String(), Name: "ACME", AssetClass: typev1.AssetClass_ASSET_CLASS_STOCK,
+			Id: acmeID.String(), Name: ticker("XNYS"), AssetClass: typev1.AssetClass_ASSET_CLASS_STOCK,
 			Identifiers: []*typev1.Identifier{{Type: typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, Value: "GB0002634946"}},
 			Listings: []*admininstrumentv1.Listing{
 				{Id: usdLine.String(), Currency: "USD", PrimaryMic: "XNYS", Identifiers: []*typev1.Identifier{ticker("XNYS")}},
 				{Id: gbpLine.String(), Currency: "GBP", Identifiers: []*typev1.Identifier{ticker("XLON")}},
 			},
+			Via: []*typev1.Identifier{{Type: typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, Value: "GB0002634946"}},
 		},
 		{
-			Id: gbpID.String(), Name: "GBP", AssetClass: typev1.AssetClass_ASSET_CLASS_CASH,
+			Id: gbpID.String(), Name: &typev1.Identifier{Type: typev1.IdentifierType_IDENTIFIER_TYPE_CURRENCY, Value: "GBP"}, AssetClass: typev1.AssetClass_ASSET_CLASS_CASH,
 			Identifiers: []*typev1.Identifier{
 				{Type: typev1.IdentifierType_IDENTIFIER_TYPE_CURRENCY, Value: "GBP"},
 				{Type: typev1.IdentifierType_IDENTIFIER_TYPE_CURRENCY, Value: "GBX"},
@@ -107,6 +109,7 @@ func TestListInstruments(t *testing.T) {
 		rowsErr     error
 		listingsErr error
 		identsErr   error
+		viaErr      error
 		want        *admininstrumentv1.ListInstrumentsResponse
 		wantCode    connect.Code
 	}{
@@ -135,6 +138,7 @@ func TestListInstruments(t *testing.T) {
 		{name: "instruments failure", req: &admininstrumentv1.ListInstrumentsRequest{}, wantArg: &gen.ListInstrumentsParams{Lim: page.DefaultSize + 1}, rowsErr: errors.New("boom"), wantCode: connect.CodeInternal},
 		{name: "listings failure", req: &admininstrumentv1.ListInstrumentsRequest{}, wantArg: &gen.ListInstrumentsParams{Lim: page.DefaultSize + 1}, rows: rows, listingsErr: errors.New("boom"), wantCode: connect.CodeInternal},
 		{name: "identifiers failure", req: &admininstrumentv1.ListInstrumentsRequest{}, wantArg: &gen.ListInstrumentsParams{Lim: page.DefaultSize + 1}, rows: rows, identsErr: errors.New("boom"), wantCode: connect.CodeInternal},
+		{name: "via failure", req: &admininstrumentv1.ListInstrumentsRequest{}, wantArg: &gen.ListInstrumentsParams{Lim: page.DefaultSize + 1}, rows: rows, viaErr: errors.New("boom"), wantCode: connect.CodeInternal},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -147,6 +151,9 @@ func TestListInstruments(t *testing.T) {
 			}
 			if tc.rowsErr == nil && len(tc.rows) > 0 && tc.listingsErr == nil {
 				f.queries.EXPECT().ListIdentifiersOf(gomock.Any(), ids).Return(idents, tc.identsErr)
+			}
+			if tc.rowsErr == nil && len(tc.rows) > 0 && tc.listingsErr == nil && tc.identsErr == nil {
+				f.queries.EXPECT().ListViaOf(gomock.Any(), ids).Return([]uuid.UUID{isinID}, tc.viaErr)
 			}
 			res, err := f.client.ListInstruments(context.Background(), connect.NewRequest(tc.req))
 			if servicetest.CodeOf(err) != tc.wantCode {
@@ -166,10 +173,11 @@ func TestListInstruments(t *testing.T) {
 // that the token of the next page is the id of the last instrument served.
 func TestListInstrumentsPages(t *testing.T) {
 	f := newFixture(t)
-	rows := []gen.ListInstrumentsRow{{ID: acmeID, AssetClass: gen.AssetClassStock, Name: "ACME"}, {ID: gbpID, AssetClass: gen.AssetClassCash, Name: "GBP"}}
+	rows := []gen.ListInstrumentsRow{{ID: acmeID, AssetClass: gen.AssetClassStock}, {ID: gbpID, AssetClass: gen.AssetClassCash}}
 	f.queries.EXPECT().ListInstruments(gomock.Any(), gen.ListInstrumentsParams{Lim: 2}).Return(rows, nil)
 	f.queries.EXPECT().ListListingsOf(gomock.Any(), []uuid.UUID{acmeID}).Return(nil, nil)
 	f.queries.EXPECT().ListIdentifiersOf(gomock.Any(), []uuid.UUID{acmeID}).Return(nil, nil)
+	f.queries.EXPECT().ListViaOf(gomock.Any(), []uuid.UUID{acmeID}).Return(nil, nil)
 	res, err := f.client.ListInstruments(context.Background(), connect.NewRequest(&admininstrumentv1.ListInstrumentsRequest{PageSize: 1}))
 	if err != nil {
 		t.Fatalf("ListInstruments() error = %v", err)

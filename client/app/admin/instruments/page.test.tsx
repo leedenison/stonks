@@ -46,14 +46,14 @@ const listed = create(ListInstrumentsResponseSchema, {
   instruments: [
     create(InstrumentSchema, {
       id: "i-usd",
-      name: "USD",
+      name: ident(IdentifierType.CURRENCY, "USD"),
       assetClass: AssetClass.CASH,
       identifiers: [ident(IdentifierType.CURRENCY, "USD")],
       listings: [create(ListingSchema, { id: "l-cash", currency: "USD" })],
     }),
     create(InstrumentSchema, {
       id: "i-acme",
-      name: "ACME",
+      name: ident(IdentifierType.MIC_TICKER, "ACME", "XNAS"),
       assetClass: AssetClass.STOCK,
       identifiers: [
         ident(IdentifierType.ISIN, "US0000000001"),
@@ -76,6 +76,7 @@ const listed = create(ListInstrumentsResponseSchema, {
           identifiers: [ident(IdentifierType.MIC_TICKER, "ACM", "XLON")],
         }),
       ],
+      via: [ident(IdentifierType.BROKER_ID, "77", "ibkr")],
     }),
   ],
   nextPageToken: "i-acme",
@@ -149,6 +150,13 @@ describe("InstrumentsPage", () => {
     expect(
       ids.querySelector("[data-identifier-type='BROKER_ID']")?.textContent,
     ).toContain("ibkr");
+    // The via broker id is marked but does not move ahead of the ISIN,
+    // because type rank comes first.
+    const rows = ids.querySelectorAll("tbody tr");
+    expect(rows[0].getAttribute("data-identifier-type")).toBe("ISIN");
+    expect(rows[0].getAttribute("data-via")).toBeNull();
+    expect(rows[1].getAttribute("data-identifier-type")).toBe("BROKER_ID");
+    expect(rows[1].getAttribute("data-via")).toBe("true");
     const usd = screen.getByTestId("listing-l-usd");
     expect(usd.textContent).toContain("USD");
     expect(usd.textContent).toContain("Primary");
@@ -158,6 +166,16 @@ describe("InstrumentsPage", () => {
     expect(tickers[0].textContent).toContain("XNAS");
     expect(tickers[0].textContent).toContain("XNYS");
     expect(tickers[0].textContent).not.toContain(",");
+    const primary = tickers[0].querySelectorAll("[data-primary='true']");
+    expect(primary).toHaveLength(1);
+    expect(primary[0].textContent).toBe("XNAS");
+    // The ticker names the instrument, so its row alone is marked.
+    expect(tickers[0].getAttribute("data-name")).toBe("true");
+    expect(
+      screen
+        .getByTestId("instrument-pane")
+        .querySelectorAll("[data-name='true']"),
+    ).toHaveLength(1);
     expect(screen.getByTestId("listing-l-gbp").textContent).toContain("XLON");
     expect(screen.getByText("First").getAttribute("href")).toBe(
       "/admin/instruments",
