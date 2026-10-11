@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Chip } from "@/app/components/chip";
 import { identifierLabel } from "@/app/components/identifier-chip";
 import { Section } from "@/app/components/section";
@@ -7,11 +8,13 @@ import { type Identifier, IdentifierType } from "@/gen/type/v1/type_pb";
 import { assetClassLabel } from "@/lib/asset-class";
 import { groupIdentifiers, identifierKey } from "@/lib/identifiers";
 
+type Marks = Parameters<typeof groupIdentifiers>[1];
+
 // InstrumentPane shows one instrument in full, in sections. The identifier
 // naming the instrument and each listing's primary venue are marked in the
 // accent tone.
 export function InstrumentPane({ instrument }: { instrument: Instrument }) {
-  const marks = {
+  const marks: Marks = {
     via: new Set(instrument.via.map(identifierKey)),
     name: new Set(instrument.name ? [identifierKey(instrument.name)] : []),
   };
@@ -30,39 +33,47 @@ export function InstrumentPane({ instrument }: { instrument: Instrument }) {
         </span>
       </div>
       <Section title="Identifiers">
-        <Grouped
-          ids={instrument.identifiers}
-          marks={marks}
-          valueHead="Value"
-          testId="instrument-identifiers"
-        />
+        {instrument.identifiers.length === 0 ? (
+          <None />
+        ) : (
+          <Table valueHead="Value" testId="instrument-identifiers">
+            <tbody>
+              <Rows ids={instrument.identifiers} marks={marks} />
+            </tbody>
+          </Table>
+        )}
       </Section>
       <Section title="Listings">
-        {instrument.listings.length === 0 && <None />}
-        {instrument.listings.map((l) => (
-          <div
-            key={l.id}
-            data-testid={`listing-${l.id}`}
-            className="flex flex-col gap-1"
-          >
-            <div className="flex items-baseline gap-3 text-sm">
-              <span className="font-mono font-semibold tabular-nums">
-                {l.currency}
-              </span>
-              {l.primaryMic && (
-                <span className="text-text-muted">
-                  Primary <span className="font-mono">{l.primaryMic}</span>
-                </span>
-              )}
-            </div>
-            <Grouped
-              ids={l.identifiers}
-              marks={marks}
-              primary={l.primaryMic}
-              valueHead="Symbol"
-            />
-          </div>
-        ))}
+        {instrument.listings.length === 0 ? (
+          <None />
+        ) : (
+          <Table valueHead="Symbol">
+            {instrument.listings.map((l) => (
+              <tbody key={l.id} data-testid={`listing-${l.id}`}>
+                <tr>
+                  <td colSpan={3} className="bg-surface-tint px-3 py-2">
+                    <span className="flex items-baseline gap-3">
+                      <span className="font-mono font-semibold tabular-nums">
+                        {l.currency}
+                      </span>
+                      {l.primaryMic && (
+                        <span className="text-text-muted">
+                          Primary{" "}
+                          <span className="font-mono">{l.primaryMic}</span>
+                        </span>
+                      )}
+                    </span>
+                  </td>
+                </tr>
+                <Rows
+                  ids={l.identifiers}
+                  marks={marks}
+                  primary={l.primaryMic}
+                />
+              </tbody>
+            ))}
+          </Table>
+        )}
       </Section>
     </div>
   );
@@ -72,23 +83,59 @@ function None() {
   return <p className="text-sm text-text-muted">None.</p>;
 }
 
-// Grouped lists identifiers by type, one row per value with its domains.
-function Grouped({
+// Table is the header and frame for identifier rows, which the caller
+// supplies as tbody children.
+function Table({
+  valueHead,
+  testId,
+  children,
+}: {
+  valueHead: string;
+  testId?: string;
+  children: ReactNode;
+}) {
+  return (
+    <table
+      data-testid={testId}
+      className="w-full table-fixed border-collapse border-b border-border text-sm"
+    >
+      <colgroup>
+        <col className="w-[16%]" />
+        <col className="w-[16%]" />
+        <col />
+      </colgroup>
+      <thead className="border-b border-border">
+        <tr>
+          <Th dense>Type</Th>
+          <Th dense>{valueHead}</Th>
+          <Th dense>Domain</Th>
+        </tr>
+      </thead>
+      {children}
+    </table>
+  );
+}
+
+// Rows renders identifiers grouped by type. It returns bare rows, so the
+// caller places it inside a tbody.
+function Rows({
   ids,
   marks,
   primary = "",
-  valueHead,
-  testId,
 }: {
   ids: Identifier[];
-  marks: Parameters<typeof groupIdentifiers>[1];
+  marks: Marks;
   // The domain to mark as the primary venue; empty for none.
   primary?: string;
-  valueHead: string;
-  testId?: string;
 }) {
   if (ids.length === 0) {
-    return <None />;
+    return (
+      <tr>
+        <Td dense colSpan={3} className="text-text-muted">
+          None.
+        </Td>
+      </tr>
+    );
   }
   const groups = groupIdentifiers(ids, marks);
   const span = new Map<IdentifierType, number>();
@@ -99,62 +146,41 @@ function Grouped({
     ...g,
     first: i === 0 || groups[i - 1].type !== g.type,
   }));
-  return (
-    <table
-      data-testid={testId}
-      className="w-full table-fixed border-collapse border-b border-border text-sm"
+  return rows.map((r) => (
+    <tr
+      key={`${r.type}-${r.value}`}
+      data-identifier-type={IdentifierType[r.type]}
+      data-via={r.via ? "true" : undefined}
+      data-name={r.name ? "true" : undefined}
     >
-      <colgroup>
-        <col className="w-1/5" />
-        <col className="w-1/5" />
-        <col />
-      </colgroup>
-      <thead className="border-b border-border">
-        <tr>
-          <Th dense>Type</Th>
-          <Th dense>{valueHead}</Th>
-          <Th dense>Domain</Th>
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((r) => (
-          <tr
-            key={`${r.type}-${r.value}`}
-            data-identifier-type={IdentifierType[r.type]}
-            data-via={r.via ? "true" : undefined}
-            data-name={r.name ? "true" : undefined}
-          >
-            {r.first && (
-              <Td
-                dense
-                rowSpan={span.get(r.type)}
-                className="align-top text-text-muted"
-              >
-                {identifierLabel(r.type)}
-              </Td>
-            )}
-            <Td dense>
-              <Chip tone={r.name ? "accent" : "primary"} className="font-mono">
-                {r.value}
-              </Chip>
-            </Td>
-            <Td dense>
-              <span className="flex flex-wrap gap-1">
-                {r.domains.map((d) => (
-                  <Chip
-                    key={d}
-                    tone={d === primary ? "accent" : "muted"}
-                    data-primary={d === primary ? "true" : undefined}
-                    className="font-mono"
-                  >
-                    {d}
-                  </Chip>
-                ))}
-              </span>
-            </Td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
+      {r.first && (
+        <Td
+          dense
+          rowSpan={span.get(r.type)}
+          className="align-top text-text-muted"
+        >
+          {identifierLabel(r.type)}
+        </Td>
+      )}
+      <Td dense>
+        <Chip tone={r.name ? "accent" : "primary"} className="font-mono">
+          {r.value}
+        </Chip>
+      </Td>
+      <Td dense>
+        <span className="flex flex-wrap gap-1">
+          {r.domains.map((d) => (
+            <Chip
+              key={d}
+              tone={d === primary ? "accent" : "muted"}
+              data-primary={d === primary ? "true" : undefined}
+              className="font-mono"
+            >
+              {d}
+            </Chip>
+          ))}
+        </span>
+      </Td>
+    </tr>
+  ));
 }
