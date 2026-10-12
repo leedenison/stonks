@@ -171,10 +171,11 @@ func TestRunFetchColumns(t *testing.T) {
 	q := newTx(t)
 	owner := newUser(t, q, "run-fetch@example.com")
 	root := newRun(t, q, owner)
-	fetch := newFetch(t, q, owner, root, newDatasource(t, q, "run-fetch", 100))
+	ds := newDatasource(t, q, "run-fetch", 100)
+	fetch := newFetch(t, q, owner, root, ds)
 	want := map[uuid.UUID][2]*string{
 		root.ID:  {nil, nil},
-		fetch.ID: {ptr.To("run-fetch"), ptr.To("https://run-fetch.test")},
+		fetch.ID: {ptr.To(ds.Name), ptr.To("https://" + ds.Name + ".test")},
 	}
 	check := func(query string, id uuid.UUID, datasource, endpoint *string) {
 		t.Helper()

@@ -39,6 +39,8 @@ type stack struct {
 	user gen.User
 	// alpha is the one datasource, enabled, whose answers a test scripts.
 	alpha *scripted.Identity
+	// alphaName is alpha's name, unique to the test.
+	alphaName string
 }
 
 // newStack returns a statement service with one scripted datasource, in a
@@ -51,18 +53,19 @@ func newStack(t *testing.T) stack {
 	q := gen.New(tx)
 	user, err := q.CreateUser(ctx, gen.CreateUserParams{ID: db.NewID(), Email: fmt.Sprintf("%s@example.com", uuid.NewString()), Role: gen.UserRoleUser})
 	require.NoError(t, err)
-	_, err = q.CreateDatasource(ctx, gen.CreateDatasourceParams{Name: "alpha", Enabled: true, Precedence: 10})
+	name := "alpha-" + uuid.NewString()
+	_, err = q.CreateDatasource(ctx, gen.CreateDatasourceParams{Name: name, Enabled: true, Precedence: 10})
 	require.NoError(t, err)
 	log := slog.New(slog.DiscardHandler)
 	alpha := scripted.New()
 	factories := map[string]market.Factory{
-		"alpha": market.Factory{New: func(market.Config) (market.Integration, error) { return alpha, nil }},
+		name: market.Factory{New: func(market.Config) (market.Integration, error) { return alpha, nil }},
 	}
 	sources, err := market.New(ctx, q, factories, log)
 	require.NoError(t, err)
 	runs := runtest.Runner{Q: q}
 	resolver := resolve.New(db.New[resolve.Queries](tx), market.NewFetcher(db.New[market.Queries](tx), runs, log), sources, log)
-	return stack{q: q, tx: tx, svc: New(db.New[Queries](tx), runs, resolver, clock), user: user, alpha: alpha}
+	return stack{q: q, tx: tx, svc: New(db.New[Queries](tx), runs, resolver, clock), user: user, alpha: alpha, alphaName: name}
 }
 
 func (s stack) ingest(t *testing.T, msg *statementv1.Statement) gen.Run {
@@ -318,7 +321,7 @@ func TestConfirmCandidate(t *testing.T) {
 
 	offer, err := s.svc.Candidates(ctx, s.user.ID, first.ID)
 	require.NoError(t, err)
-	if len(offer.Candidates) != 1 || offer.Candidates[0].Datasource != "alpha" || offer.Candidates[0].Strongest != figi || len(offer.Reasons) != 0 {
+	if len(offer.Candidates) != 1 || offer.Candidates[0].Datasource != s.alphaName || offer.Candidates[0].Strongest != figi || len(offer.Reasons) != 0 {
 		t.Fatalf("Candidates() = %+v, want alpha's one group named by its FIGI", offer)
 	}
 	runs := syncRuns()
@@ -338,7 +341,7 @@ func TestConfirmCandidate(t *testing.T) {
 		t.Errorf("fetch items = %+v, want the key served", items)
 	}
 
-	rk, err := s.svc.Confirm(ctx, s.user.ID, first.ID, resolve.Pick{Datasource: "alpha", Identifier: isin})
+	rk, err := s.svc.Confirm(ctx, s.user.ID, first.ID, resolve.Pick{Datasource: s.alphaName, Identifier: isin})
 	require.NoError(t, err)
 	if rk.Outcome != gen.ResolutionOutcomeMatched {
 		t.Fatalf("Confirm() = %+v, want matched", rk)
@@ -357,7 +360,7 @@ func TestConfirmCandidate(t *testing.T) {
 	if len(groups) != 0 || len(instruments) != 1 || instruments[0].Quantity.String() != "15" {
 		t.Errorf("holdings = groups %+v, instruments %+v, want one instrument holding of 15", groups, instruments)
 	}
-	if _, err := s.svc.Confirm(ctx, s.user.ID, first.ID, resolve.Pick{Datasource: "alpha", Identifier: isin}); !errors.Is(err, ErrAssociated) {
+	if _, err := s.svc.Confirm(ctx, s.user.ID, first.ID, resolve.Pick{Datasource: s.alphaName, Identifier: isin}); !errors.Is(err, ErrAssociated) {
 		t.Errorf("a second Confirm() error = %v, want ErrAssociated", err)
 	}
 

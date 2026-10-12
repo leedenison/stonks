@@ -47,7 +47,7 @@ func TestDeleteUserCascades(t *testing.T) {
 			require.NoError(t, q.CreateStatementSplit(ctx, gen.CreateStatementSplitParams{StatementID: statement.ID, UserID: user.ID, Ordinal: 0, StatedKeyID: one.ID, EffectiveDate: date(2026, 3, 1), Quantity: decimal.NewFromInt(1)}))
 			resolved(t, q, newResolution(t, q, user, statement), one, gen.ResolutionOutcomeUnavailable)
 
-			ds := newDatasource(t, q, "cascade-"+uuid.NewString(), 10)
+			ds := newDatasource(t, q, "cascade", 10)
 			fetch := newFetch(t, q, user, run, ds)
 			key := servedKey(t, q, fetch, one, "GB00B03MLX29")
 			require.NoError(t, q.CreateFetchIdentifier(ctx, gen.CreateFetchIdentifierParams{FetchKeyID: key, Type: types.IdentifierTypeIsin, Value: "GB00B03MLX29"}))
