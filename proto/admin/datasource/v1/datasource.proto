@@ -20,7 +20,9 @@ message Datasource {
   // The address the row sets; empty for the provider's default.
   string endpoint = 4;
   // The address the integration calls when the row sets none; empty when
-  // this build carries no integration of the name.
+  // this build carries no integration of the name. A client shows it where
+  // endpoint is empty and saves endpoint unchanged. An empty endpoint then
+  // keeps following the build's default.
   string default_endpoint = 5;
   // Empty when none is held.
   string credential = 6;

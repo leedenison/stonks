@@ -94,6 +94,11 @@ var ErrNoCandidate = errors.New("the answers no longer offer the candidate")
 // checks and, for a bare ticker, if it agrees with the statement. Candidates
 // writes the findings against run and stops before choosing. The key's
 // resolution is left as it was.
+//
+// Sets agree only through a stable identifier they share, so one security
+// can still be offered twice. EODHD states an ISIN without a FIGI, so for a
+// US stock its candidate stands apart from OpenFIGI's. The datasource of the
+// candidate the user confirms supplies the instrument.
 func (r *Resolver) Candidates(ctx context.Context, run gen.Run, key gen.StatedKey) (Offer, error) {
 	rs, err := r.prepare(ctx, run, []gen.StatedKey{key})
 	if err != nil {
@@ -155,9 +160,10 @@ func offers(res *resolution) ([]*idSet, []gen.CreateFindingParams, []string) {
 
 // Confirm is the body of a synchronous resolution that takes the candidate p
 // names for key. It writes the candidate as a run writes a winner and the
-// sets attached to it, with the user as arbiter. Every key of key's group
-// takes the same instrument. It also takes the listing when it states the
-// same currency family as key.
+// sets attached to it, with the user as arbiter. Confirm gathers the
+// candidates again, so answers that changed since Candidates decide what it
+// writes. Every key of key's group takes the same instrument. It also takes
+// the listing when it states the same currency family as key.
 func (r *Resolver) Confirm(ctx context.Context, run gen.Run, key gen.StatedKey, p Pick) (gen.ResolutionKey, error) {
 	rs, err := r.prepare(ctx, run, []gen.StatedKey{key})
 	if err != nil {
