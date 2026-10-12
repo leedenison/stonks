@@ -35,11 +35,14 @@ func TestMain(m *testing.M) { dbtest.Main(m, &pool) }
 // stack is the replay and statement services over one rolled-back
 // transaction. Datasource alpha is enabled and beta is not.
 type stack struct {
-	q          *gen.Queries
-	user       gen.User
-	admin      gen.User
-	alpha      *scripted.Identity
-	beta       *scripted.Identity
+	q     *gen.Queries
+	user  gen.User
+	admin gen.User
+	alpha *scripted.Identity
+	beta  *scripted.Identity
+	// alphaName and betaName are unique to the test.
+	alphaName  string
+	betaName   string
 	sources    *market.Registry
 	statements *stmt.Service
 	svc        *Service
@@ -51,19 +54,19 @@ func newStack(t *testing.T) *stack {
 	tx := dbtest.Begin(t, pool)
 	var err error
 	q := gen.New(tx)
-	s := &stack{q: q, alpha: scripted.New(), beta: scripted.New()}
+	s := &stack{q: q, alpha: scripted.New(), beta: scripted.New(), alphaName: "alpha-" + uuid.NewString(), betaName: "beta-" + uuid.NewString()}
 	s.user, err = q.CreateUser(ctx, gen.CreateUserParams{ID: db.NewID(), Email: uuid.NewString() + "@example.com", Role: gen.UserRoleUser})
 	require.NoError(t, err)
 	s.admin, err = q.CreateUser(ctx, gen.CreateUserParams{ID: db.NewID(), Email: uuid.NewString() + "@example.com", Role: gen.UserRoleAdmin})
 	require.NoError(t, err)
-	_, err = q.CreateDatasource(ctx, gen.CreateDatasourceParams{Name: "alpha", Enabled: true, Precedence: 10})
+	_, err = q.CreateDatasource(ctx, gen.CreateDatasourceParams{Name: s.alphaName, Enabled: true, Precedence: 10})
 	require.NoError(t, err)
-	_, err = q.CreateDatasource(ctx, gen.CreateDatasourceParams{Name: "beta", Enabled: false, Precedence: 20})
+	_, err = q.CreateDatasource(ctx, gen.CreateDatasourceParams{Name: s.betaName, Enabled: false, Precedence: 20})
 	require.NoError(t, err)
 	log := slog.New(slog.DiscardHandler)
 	factories := map[string]market.Factory{
-		"alpha": market.Factory{New: func(market.Config) (market.Integration, error) { return s.alpha, nil }},
-		"beta":  market.Factory{New: func(market.Config) (market.Integration, error) { return s.beta, nil }},
+		s.alphaName: market.Factory{New: func(market.Config) (market.Integration, error) { return s.alpha, nil }},
+		s.betaName:  market.Factory{New: func(market.Config) (market.Integration, error) { return s.beta, nil }},
 	}
 	s.sources, err = market.New(ctx, q, factories, log)
 	require.NoError(t, err)
@@ -229,24 +232,24 @@ func TestReplay(t *testing.T) {
 		t.Errorf("second replay of the unavailable keys: err = %v, want %v", err, ErrEmpty)
 	}
 
-	_, err = s.q.UpdateDatasource(ctx, gen.UpdateDatasourceParams{Name: "beta", Enabled: true})
+	_, err = s.q.UpdateDatasource(ctx, gen.UpdateDatasourceParams{Name: s.betaName, Enabled: true})
 	require.NoError(t, err)
 	require.NoError(t, s.sources.Reload(ctx))
 	s.beta.Responses[isin] = answer
 	fetches := s.children(t, resolution)
-	if _, err := s.svc.Start(ctx, s.admin.ID, fetches[0], Scope{Datasource: "beta"}); !errors.Is(err, ErrKind) {
+	if _, err := s.svc.Start(ctx, s.admin.ID, fetches[0], Scope{Datasource: s.betaName}); !errors.Is(err, ErrKind) {
 		t.Errorf("replay of a fetch run: err = %v, want %v", err, ErrKind)
 	}
 	if _, err := s.svc.Start(ctx, s.admin.ID, statement, Scope{Datasource: "gamma"}); !errors.Is(err, ErrDisabled) {
 		t.Errorf("replay over gamma: err = %v, want %v", err, ErrDisabled)
 	}
-	row, err = s.svc.Start(ctx, s.admin.ID, resolution, Scope{Datasource: "beta"})
+	row, err = s.svc.Start(ctx, s.admin.ID, resolution, Scope{Datasource: s.betaName})
 	require.NoError(t, err)
 	second := s.run(t, row.ID)
 	require.Equal(t, gen.RunStateCompleted, second.State)
 	rep, err = s.q.GetReplay(ctx, row.ID)
 	require.NoError(t, err)
-	if rep.Replay.SourceID != resolution.ID || rep.Replay.Datasource == nil || *rep.Replay.Datasource != "beta" {
+	if rep.Replay.SourceID != resolution.ID || rep.Replay.Datasource == nil || *rep.Replay.Datasource != s.betaName {
 		t.Errorf("replays row = %+v, want the first replay's resolution and beta", rep)
 	}
 	resolution, items = s.resolution(t, second)
@@ -261,7 +264,7 @@ func TestReplay(t *testing.T) {
 	if len(coverage) != 2 {
 		t.Errorf("coverage after the beta replay = %+v, want alpha and beta", coverage)
 	}
-	if _, err := s.svc.Start(ctx, s.admin.ID, statement, Scope{Datasource: "beta"}); !errors.Is(err, ErrEmpty) {
+	if _, err := s.svc.Start(ctx, s.admin.ID, statement, Scope{Datasource: s.betaName}); !errors.Is(err, ErrEmpty) {
 		t.Errorf("second replay over beta: err = %v, want %v", err, ErrEmpty)
 	}
 }

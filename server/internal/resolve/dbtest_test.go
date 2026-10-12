@@ -62,8 +62,11 @@ type stack struct {
 	resolution gen.Run
 	script     *scripted.Identity
 	beta       *scripted.Identity
-	sources    *market.Registry
-	resolver   *Resolver
+	// alphaName and betaName are unique to the test.
+	alphaName string
+	betaName  string
+	sources   *market.Registry
+	resolver  *Resolver
 }
 
 func newStack(t *testing.T) *stack {
@@ -72,18 +75,18 @@ func newStack(t *testing.T) *stack {
 	tx := dbtest.Begin(t, pool)
 	var err error
 	q := gen.New(tx)
-	s := &stack{q: q, tx: tx, script: scripted.New(), beta: scripted.New()}
+	s := &stack{q: q, tx: tx, script: scripted.New(), beta: scripted.New(), alphaName: "alpha-" + uuid.NewString(), betaName: "beta-" + uuid.NewString()}
 	s.user, err = q.CreateUser(ctx, gen.CreateUserParams{ID: db.NewID(), Email: uuid.NewString() + "@example.com", Role: gen.UserRoleUser})
 	require.NoError(t, err)
 	s.statement = s.newStatement(t, gen.BrokerIbkr)
 	s.resolution, err = q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: s.user.ID, Kind: gen.RunKindResolution, Trigger: gen.RunTriggerRun, ParentID: &s.statement.ID})
 	require.NoError(t, err)
-	_, err = q.CreateDatasource(ctx, gen.CreateDatasourceParams{Name: "alpha", Enabled: true, Precedence: 10})
+	_, err = q.CreateDatasource(ctx, gen.CreateDatasourceParams{Name: s.alphaName, Enabled: true, Precedence: 10})
 	require.NoError(t, err)
 	log := slog.New(slog.DiscardHandler)
 	factories := map[string]market.Factory{
-		"alpha": market.Factory{New: func(market.Config) (market.Integration, error) { return s.script, nil }},
-		"beta":  market.Factory{New: func(market.Config) (market.Integration, error) { return s.beta, nil }},
+		s.alphaName: market.Factory{New: func(market.Config) (market.Integration, error) { return s.script, nil }},
+		s.betaName:  market.Factory{New: func(market.Config) (market.Integration, error) { return s.beta, nil }},
 	}
 	s.sources, err = market.New(ctx, q, factories, log)
 	require.NoError(t, err)
@@ -122,7 +125,7 @@ func (s *stack) newStatement(t *testing.T, broker gen.Broker) gen.Run {
 func (s *stack) enableBeta(t *testing.T) {
 	t.Helper()
 	ctx := context.Background()
-	_, err := s.q.CreateDatasource(ctx, gen.CreateDatasourceParams{Name: "beta", Enabled: true, Precedence: 20})
+	_, err := s.q.CreateDatasource(ctx, gen.CreateDatasourceParams{Name: s.betaName, Enabled: true, Precedence: 20})
 	require.NoError(t, err)
 	require.NoError(t, s.sources.Reload(ctx))
 }
@@ -253,7 +256,7 @@ func TestResolveWrites(t *testing.T) {
 	for i, r := range got {
 		outcomes[i] = written(r)
 	}
-	want := []string{"matched", "matched", "matched", "unrecognised: alpha: 1 candidate in 1 set of identifiers, 1 set of identifiers dropped"}
+	want := []string{"matched", "matched", "matched", "unrecognised: " + s.alphaName + ": 1 candidate in 1 set of identifiers, 1 set of identifiers dropped"}
 	if diff := cmp.Diff(want, outcomes); diff != "" {
 		t.Errorf("outcomes mismatch (-want +got):\n%s", diff)
 	}
@@ -331,13 +334,13 @@ func TestResolveWrites(t *testing.T) {
 	}
 	coverage, err := s.q.ListIdentityCoverage(ctx, []uuid.UUID{inst.ID})
 	require.NoError(t, err)
-	if len(coverage) != 1 || coverage[0].Datasource != "alpha" || coverage[0].FetchKeyID != sent[transfer.ID].ID {
+	if len(coverage) != 1 || coverage[0].Datasource != s.alphaName || coverage[0].FetchKeyID != sent[transfer.ID].ID {
 		t.Errorf("coverage = %+v, want alpha through the transfer's fetch key", coverage)
 	}
 
 	findings, err := s.q.ListRunFindings(ctx, []uuid.UUID{s.resolution.ID})
 	require.NoError(t, err)
-	if len(findings) != 1 || findings[0].Finding.Kind != gen.FindingKindDropped || *findings[0].Finding.Step != gen.DropStepStated || *findings[0].Finding.StatedKeyID != wrong.ID || *findings[0].Finding.Detail != "cusip 92857W308: stated USD has no listing among GBP (alpha)" {
+	if len(findings) != 1 || findings[0].Finding.Kind != gen.FindingKindDropped || *findings[0].Finding.Step != gen.DropStepStated || *findings[0].Finding.StatedKeyID != wrong.ID || *findings[0].Finding.Detail != "cusip 92857W308: stated USD has no listing among GBP ("+s.alphaName+")" {
 		t.Errorf("findings = %+v, want one stated drop against the mis-stated key", findings)
 	}
 	if _, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: types.IdentifierTypeCusip, Value: cusip.Value}); !errors.Is(err, db.ErrNotFound) {
@@ -531,7 +534,7 @@ func TestDescribedRows(t *testing.T) {
 		if len(s.fetches(t)) != before+1 {
 			t.Errorf("%d fetches, want one more: alpha covers the instrument and beta does not", len(s.fetches(t))-before)
 		}
-		if fk := s.fetchKey(t, k.ID, "beta"); fk.Outcome != gen.FetchOutcomeNotServed {
+		if fk := s.fetchKey(t, k.ID, s.betaName); fk.Outcome != gen.FetchOutcomeNotServed {
 			t.Errorf("beta's fetch key = %+v, want not served", fk)
 		}
 		ids, err := s.q.ListIdentifiers(ctx, inst.ID)
@@ -593,7 +596,7 @@ func TestDescribedRows(t *testing.T) {
 			t.Fatalf("outcome = %s, want matched", written(got[0]))
 		}
 		via(t, s.key(t, k.ID))
-		if fk := s.fetchKey(t, k.ID, "beta"); fk.Outcome != gen.FetchOutcomeServed || fk.SentType == nil || *fk.SentType != types.IdentifierTypeMicTicker {
+		if fk := s.fetchKey(t, k.ID, s.betaName); fk.Outcome != gen.FetchOutcomeServed || fk.SentType == nil || *fk.SentType != types.IdentifierTypeMicTicker {
 			t.Errorf("beta's fetch key = %+v, want served under the ticker", fk)
 		}
 	})
@@ -758,7 +761,7 @@ func TestCoveredRows(t *testing.T) {
 	if n := len(s.fetches(t)) - fetched; n != 1 {
 		t.Errorf("%d new fetches, want 1: alpha covers the instrument", n)
 	}
-	fk := s.fetchKey(t, k.ID, "beta")
+	fk := s.fetchKey(t, k.ID, s.betaName)
 	listings, err := s.q.ListListings(ctx, inst.ID)
 	require.NoError(t, err)
 	byFamily := map[string]gen.Listing{}
@@ -793,7 +796,7 @@ func TestCoveredRows(t *testing.T) {
 		sources = append(sources, c.Datasource)
 	}
 	slices.Sort(sources)
-	if diff := cmp.Diff([]string{"alpha", "beta"}, sources); diff != "" {
+	if diff := cmp.Diff([]string{s.alphaName, s.betaName}, sources); diff != "" {
 		t.Errorf("coverage mismatch (-want +got):\n%s", diff)
 	}
 }
@@ -844,7 +847,7 @@ func TestDroppedUncovered(t *testing.T) {
 		if diff := cmp.Diff([]gen.FindingKind{gen.FindingKindContradiction}, s.findings(t, k.ID)); diff != "" {
 			t.Errorf("key %d: findings mismatch (-want +got):\n%s", n, diff)
 		}
-		if diff := cmp.Diff([]string{"alpha"}, covered()); diff != "" {
+		if diff := cmp.Diff([]string{s.alphaName}, covered()); diff != "" {
 			t.Errorf("key %d: coverage mismatch (-want +got):\n%s", n, diff)
 		}
 	}
@@ -856,7 +859,7 @@ func TestDroppedUncovered(t *testing.T) {
 	if d := len(s.fetches(t)) - fetched; d != 1 {
 		t.Errorf("%d new fetches, want 1: beta is asked once more", d)
 	}
-	if diff := cmp.Diff([]string{"alpha", "beta"}, covered()); diff != "" {
+	if diff := cmp.Diff([]string{s.alphaName, s.betaName}, covered()); diff != "" {
 		t.Errorf("coverage mismatch (-want +got):\n%s", diff)
 	}
 	fetched = len(s.fetches(t))
@@ -1024,7 +1027,7 @@ func TestConfirmRows(t *testing.T) {
 	require.NoError(t, err)
 	gbp := "GBP"
 	wantOffer := Offer{Candidates: []Candidate{{
-		Datasource: "alpha", Strongest: figi, AssetClass: gen.AssetClassStock, Identifiers: []types.Identifier{figi, isin},
+		Datasource: s.alphaName, Strongest: figi, AssetClass: gen.AssetClassStock, Identifiers: []types.Identifier{figi, isin},
 		Listings: []CandidateListing{{Currency: &gbp, Identifiers: []types.Identifier{comp, xlon}}},
 	}}}
 	if diff := cmp.Diff(wantOffer, offer); diff != "" {
@@ -1037,7 +1040,7 @@ func TestConfirmRows(t *testing.T) {
 		t.Errorf("FindIdentifier(isin) error = %v, want not found: a listing writes no instrument", err)
 	}
 
-	rk, err := s.resolver.Confirm(ctx, s.resolution, key, Pick{Datasource: "alpha", Identifier: isin})
+	rk, err := s.resolver.Confirm(ctx, s.resolution, key, Pick{Datasource: s.alphaName, Identifier: isin})
 	require.NoError(t, err)
 	if rk.Outcome != gen.ResolutionOutcomeMatched || rk.StatedKeyID != key.ID {
 		t.Fatalf("Confirm() = %+v, want the key matched", rk)
@@ -1097,12 +1100,12 @@ func TestConfirmRows(t *testing.T) {
 	// A pick the database already holds reuses the instrument.
 	other := id(types.IdentifierTypeBrokerDescription, "ibkr", "OTHER CORP")
 	apart := s.stateUnder(t, s.newStatement(t, gen.BrokerIbkr), gen.AssetClassStock, "GBP", ticker, other)
-	rk, err = s.resolver.Confirm(ctx, s.resolution, apart, Pick{Datasource: "alpha", Identifier: isin})
+	rk, err = s.resolver.Confirm(ctx, s.resolution, apart, Pick{Datasource: s.alphaName, Identifier: isin})
 	require.NoError(t, err)
 	if k := s.key(t, apart.ID); rk.Outcome != gen.ResolutionOutcomeMatched || k.InstrumentID == nil || *k.InstrumentID != inst.ID || *k.Arbiter != gen.ArbiterUser {
 		t.Errorf("a second confirmation = %+v, %+v, want the same instrument by the user", rk, k)
 	}
-	if _, err := s.resolver.Confirm(ctx, s.resolution, apart, Pick{Datasource: "alpha", Identifier: cusip}); !errors.Is(err, ErrNoCandidate) {
+	if _, err := s.resolver.Confirm(ctx, s.resolution, apart, Pick{Datasource: s.alphaName, Identifier: cusip}); !errors.Is(err, ErrNoCandidate) {
 		t.Errorf("Confirm() with an identifier no set of identifiers carries: error = %v, want ErrNoCandidate", err)
 	}
 }
@@ -1124,7 +1127,7 @@ func TestConfirmJoins(t *testing.T) {
 		{Class: gen.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{figi, isin, xlon}},
 	}}
 	key := s.state(t, gen.AssetClassStock, "GBP", ticker)
-	rk, err := s.resolver.Confirm(ctx, s.resolution, key, Pick{Datasource: "alpha", Identifier: isin})
+	rk, err := s.resolver.Confirm(ctx, s.resolution, key, Pick{Datasource: s.alphaName, Identifier: isin})
 	require.NoError(t, err)
 	k := s.key(t, key.ID)
 	if rk.Outcome != gen.ResolutionOutcomeMatched || k.InstrumentID == nil || *k.InstrumentID != other.ID || *k.Arbiter != gen.ArbiterUser {
@@ -1163,7 +1166,7 @@ func TestConfirmMerged(t *testing.T) {
 	require.NoError(t, err)
 	gbp := "GBP"
 	wantOffer := Offer{Candidates: []Candidate{{
-		Datasource: "alpha", Attached: []string{"beta"}, Strongest: figi, AssetClass: gen.AssetClassStock, Identifiers: []types.Identifier{figi, isin},
+		Datasource: s.alphaName, Attached: []string{s.betaName}, Strongest: figi, AssetClass: gen.AssetClassStock, Identifiers: []types.Identifier{figi, isin},
 		Listings: []CandidateListing{{Currency: &gbp, Identifiers: []types.Identifier{xlon}}},
 	}}}
 	if diff := cmp.Diff(wantOffer, offer); diff != "" {
@@ -1174,9 +1177,9 @@ func TestConfirmMerged(t *testing.T) {
 	// the only ones the run holds.
 	s.resolution, err = s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: s.user.ID, Kind: gen.RunKindResolution, Trigger: gen.RunTriggerUser})
 	require.NoError(t, err)
-	_, err = s.resolver.Confirm(ctx, s.resolution, key, Pick{Datasource: "alpha", Identifier: figi})
+	_, err = s.resolver.Confirm(ctx, s.resolution, key, Pick{Datasource: s.alphaName, Identifier: figi})
 	require.NoError(t, err)
-	alpha, beta := s.fetchKey(t, key.ID, "alpha"), s.fetchKey(t, key.ID, "beta")
+	alpha, beta := s.fetchKey(t, key.ID, s.alphaName), s.fetchKey(t, key.ID, s.betaName)
 	found, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: types.IdentifierTypeIsin, Value: isin.Value})
 	require.NoError(t, err)
 	inst := found.Instrument

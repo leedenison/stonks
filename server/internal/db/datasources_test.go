@@ -19,10 +19,14 @@ import (
 	"github.com/leedenison/stonks/server/internal/ptr"
 )
 
-func newDatasource(t *testing.T, q *gen.Queries, name string, precedence int32) gen.Datasource {
+// newDatasource creates an enabled datasource named prefix and a random
+// suffix. Packages test concurrently against one database. Another
+// package's open transaction can hold a name, and an insert of that name
+// then blocks until the transaction ends.
+func newDatasource(t *testing.T, q *gen.Queries, prefix string, precedence int32) gen.Datasource {
 	t.Helper()
 	row, err := q.CreateDatasource(context.Background(), gen.CreateDatasourceParams{
-		Name: name, Enabled: true, Precedence: precedence,
+		Name: prefix + "-" + uuid.NewString(), Enabled: true, Precedence: precedence,
 	})
 	require.NoError(t, err)
 	return row
@@ -83,7 +87,7 @@ func newFetching(t *testing.T, q *gen.Queries) fetching {
 	var err error
 	f.run, err = q.GetRun(context.Background(), gen.GetRunParams{ID: f.statement.ID, UserID: f.user.ID})
 	require.NoError(t, err)
-	f.ds = newDatasource(t, q, "fetching-"+uuid.NewString(), 10)
+	f.ds = newDatasource(t, q, "fetching", 10)
 	f.fetch = newFetch(t, q, f.user, f.run, f.ds)
 	f.key = newStatedKey(t, q, f.user, f.statement)
 	return f
@@ -102,9 +106,9 @@ func TestDatasources(t *testing.T) {
 		t.Errorf("ListDatasources of a migrated database = %+v, want none", seeded)
 	}
 
-	newDatasource(t, q, "beta", 20)
-	newDatasource(t, q, "gamma", 30)
-	newDatasource(t, q, "alpha", 10)
+	beta := newDatasource(t, q, "beta", 20)
+	gamma := newDatasource(t, q, "gamma", 30)
+	alpha := newDatasource(t, q, "alpha", 10)
 
 	listed, err := q.ListDatasources(ctx)
 	require.NoError(t, err)
@@ -112,7 +116,7 @@ func TestDatasources(t *testing.T) {
 	for _, ds := range listed {
 		names = append(names, ds.Name)
 	}
-	if diff := cmp.Diff([]string{"alpha", "beta", "gamma"}, names); diff != "" {
+	if diff := cmp.Diff([]string{alpha.Name, beta.Name, gamma.Name}, names); diff != "" {
 		t.Errorf("ListDatasources mismatch (-want +got):\n%s", diff)
 	}
 
@@ -129,7 +133,7 @@ func TestDatasources(t *testing.T) {
 
 	t.Run("a config that is not an object", func(t *testing.T) {
 		q := gen.New(begin(t))
-		_, err := q.CreateDatasource(ctx, gen.CreateDatasourceParams{Name: "listed", Precedence: 12, Config: []byte("[]")})
+		_, err := q.CreateDatasource(ctx, gen.CreateDatasourceParams{Name: "listed-" + uuid.NewString(), Precedence: 12, Config: []byte("[]")})
 		if !sqlstate(err, pgerrcode.CheckViolation) {
 			t.Errorf("CreateDatasource with an array config: err = %v, want a check violation", err)
 		}
@@ -142,15 +146,14 @@ func TestDatasources(t *testing.T) {
 func TestUpdateDatasource(t *testing.T) {
 	ctx := context.Background()
 	q := newTx(t)
-	newDatasource(t, q, "alpha", 1)
-	newDatasource(t, q, "beta", 2)
+	alpha, beta := newDatasource(t, q, "alpha", 1), newDatasource(t, q, "beta", 2)
 
-	row, err := q.UpdateDatasource(ctx, gen.UpdateDatasourceParams{Name: "beta", Enabled: false, Endpoint: "http://stub", Credential: "secret", Config: []byte(`{"plan": "basic"}`)})
+	row, err := q.UpdateDatasource(ctx, gen.UpdateDatasourceParams{Name: beta.Name, Enabled: false, Endpoint: "http://stub", Credential: "secret", Config: []byte(`{"plan": "basic"}`)})
 	require.NoError(t, err)
 	if row.Enabled || row.Endpoint == nil || *row.Endpoint != "http://stub" || row.Credential == nil || *row.Credential != "secret" || string(row.Config) != `{"plan": "basic"}` {
 		t.Errorf("UpdateDatasource = %+v, want disabled at http://stub holding secret and plan basic", row)
 	}
-	row, err = q.UpdateDatasource(ctx, gen.UpdateDatasourceParams{Name: "beta", Enabled: true})
+	row, err = q.UpdateDatasource(ctx, gen.UpdateDatasourceParams{Name: beta.Name, Enabled: true})
 	require.NoError(t, err)
 	if !row.Enabled || row.Credential != nil || row.Endpoint != nil || string(row.Config) != "{}" {
 		t.Errorf("UpdateDatasource with an empty credential and endpoint and no config = %+v, want enabled with both NULL and the config empty", row)
@@ -161,10 +164,10 @@ func TestUpdateDatasource(t *testing.T) {
 
 	// alpha and beta swap precedences in one statement, which the deferred
 	// constraint admits.
-	require.NoError(t, q.SetDatasourcePrecedence(ctx, []string{"beta", "alpha"}))
+	require.NoError(t, q.SetDatasourcePrecedence(ctx, []string{beta.Name, alpha.Name}))
 	listed, err := q.ListDatasources(ctx)
 	require.NoError(t, err)
-	if len(listed) != 2 || listed[0].Name != "beta" || listed[0].Precedence != 1 || listed[1].Precedence != 2 {
+	if len(listed) != 2 || listed[0].Name != beta.Name || listed[0].Precedence != 1 || listed[1].Precedence != 2 {
 		t.Errorf("ListDatasources after reorder = %+v, want beta at 1 then alpha at 2", listed)
 	}
 }

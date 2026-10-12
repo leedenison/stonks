@@ -84,7 +84,7 @@ func TestFindings(t *testing.T) {
 				tc.arg.StatedKeyID = &key.ID
 			}
 			if tc.arg.FetchKeyID != nil {
-				fetch := newFetch(t, q, user, run, newDatasource(t, q, "findings-"+uuid.NewString(), 10))
+				fetch := newFetch(t, q, user, run, newDatasource(t, q, "findings", 10))
 				tc.arg.FetchKeyID = ptr.To(servedKey(t, q, fetch, key, "GB00B03MLX29"))
 			}
 			if err := q.CreateFinding(ctx, tc.arg); !sqlstate(err, pgerrcode.CheckViolation) {
