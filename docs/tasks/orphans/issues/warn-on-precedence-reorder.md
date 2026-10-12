@@ -1,7 +1,6 @@
 ---
 title: Warn an administrator who reorders datasources
 type: task
-status: unreviewed
 ---
 
 ## Scope
