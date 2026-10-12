@@ -57,6 +57,11 @@ test("chooses an instrument for a bare ticker", async ({ signIn, page }) => {
   const dialog = page.getByTestId("candidates-dialog");
   const offered = dialog.getByTestId(/^candidate-row-openfigi-/).first();
   await expect(offered).toContainText(ticker);
+  // OpenFIGI and Massive name one share class FIGI, so Massive's answer is
+  // gathered into OpenFIGI's candidate.
+  await expect(offered.getByTestId("candidate-datasource-massive")).toHaveCount(
+    1,
+  );
   await dropFetchCache(cacheKey);
   await offered.getByTestId(/^candidate-choose-openfigi-/).click();
   await expect(dialog).toBeHidden();

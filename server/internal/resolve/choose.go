@@ -57,11 +57,33 @@ type choice struct {
 	// set won summarises both.
 	setCounts map[string]int
 	notNaming map[string]int
-	// offered holds the sets from which the user may choose. These are the sets
-	// dropped only because the key was sent under a bare ticker. Where the key
-	// was sent under a venue ticker that the provider filtered bare and no set
-	// names the venue, they are the survivors. Candidates lists them.
-	offered []*idSet
+	// offered holds the agreements from which the user may choose. They are
+	// gathered from the sets that the resolution dropped only because the key
+	// was sent under a bare ticker. Where the key was sent under a venue ticker
+	// that the provider filtered bare and no set names the venue, they are
+	// gathered from the survivors.
+	offered []agreement
+}
+
+// agreement is a head set and its members. For each datasource below the
+// head, the member is the best ranked set that is consistent with every
+// member above it and shares a stable identifier with the head. That is the
+// set a run would attach to the head as the winner. The sets are in
+// precedence order, and one set may belong to several agreements.
+type agreement []*idSet
+
+// head is the set of the highest precedence datasource, which a
+// confirmation writes as the winner.
+func (a agreement) head() *idSet { return a[0] }
+
+// member returns the set of a that r served, nil where it has none.
+func (a agreement) member(r *result) *idSet {
+	for _, g := range a {
+		if g.r == r {
+			return g
+		}
+	}
+	return nil
 }
 
 // idSets builds the sets of identifiers of r. The candidates of r carry
@@ -361,39 +383,54 @@ func (g *idSet) confirms(res *resolution) int {
 }
 
 // choose picks the winner for res. The database's set, db, wins where it is
-// not nil. Otherwise the user's confirmed set, pick, wins where it is not
-// nil. Otherwise the best set of the highest precedence datasource wins. A
-// pick must pass the stated checks and agree with db, and it takes the place
-// of its datasource's answer.
-func choose(res *resolution, db, pick *idSet) choice {
+// not nil. Otherwise the head of the user's confirmed agreement, pick, wins
+// where pick is not nil. Otherwise the best set of the highest precedence
+// datasource wins. The head must pass the stated checks and agree with db.
+// Each other member of pick takes the place of its datasource's answer. It
+// attaches where it agrees with the sets that choose has already chosen. A
+// confirmation writes only the sets of pick. The answer of a datasource with
+// no member is checked for its findings, and none of its sets attach.
+func choose(res *resolution, db *idSet, pick agreement) choice {
 	c := choice{winner: db, picked: pick != nil, setCounts: map[string]int{}, notNaming: map[string]int{}}
 	var chosen []*idSet
 	if db != nil {
 		chosen = append(chosen, db)
 	}
 	if pick != nil {
-		if detail, ok := pick.against(res); ok {
-			c.refused = pick.label(detail)
+		head := pick.head()
+		if detail, ok := head.against(res); ok {
+			c.refused = head.label(detail)
 			return c
 		}
 		if db != nil {
-			if detail, ok := pick.inconsistent(db); ok {
-				c.refused = pick.label(detail)
+			if detail, ok := head.inconsistent(db); ok {
+				c.refused = head.label(detail)
 				return c
 			}
 		}
-		c.attached = append(c.attached, pick)
-		chosen = append(chosen, pick)
+		c.attached = append(c.attached, head)
+		chosen = append(chosen, head)
 		if c.winner == nil {
-			c.winner = pick
+			c.winner = head
 		}
 	}
+	var offered []*idSet
 	for _, r := range res.results {
-		if pick != nil && r == pick.r {
+		if m := pick.member(r); m != nil {
+			if m == pick.head() {
+				continue
+			}
+			if f, ok := m.rejects(chosen); ok {
+				c.findings = append(c.findings, f)
+				continue
+			}
+			c.attached = append(c.attached, m)
+			chosen = append(chosen, m)
 			continue
 		}
-		best := c.bestSet(r, res, chosen)
-		if best == nil {
+		best, more := c.bestSet(r, res, chosen)
+		offered = append(offered, more...)
+		if best == nil || pick != nil {
 			continue
 		}
 		c.attached = append(c.attached, best)
@@ -402,22 +439,23 @@ func choose(res *resolution, db, pick *idSet) choice {
 			c.winner = best
 		}
 	}
+	c.offered = gather(res, offered)
 	return c
 }
 
-// record appends a finding against r's fetch key, with a step only when the
-// kind is dropped.
-func (c *choice) record(r *result, kind gen.FindingKind, step gen.DropStep, detail string) {
+// finding returns a finding of kind against r's fetch key, with a step only
+// when the kind is dropped.
+func finding(r *result, kind gen.FindingKind, step gen.DropStep, detail string) gen.CreateFindingParams {
 	f := gen.CreateFindingParams{Kind: kind, FetchKeyID: ptr.To(r.ID), Detail: ptr.To(detail)}
 	if kind == gen.FindingKindDropped {
 		f.Step = ptr.To(step)
 	}
-	c.findings = append(c.findings, f)
+	return f
 }
 
 // dropped is a dropped finding against r's fetch key at step.
 func dropped(r *result, step gen.DropStep, detail string) gen.CreateFindingParams {
-	return gen.CreateFindingParams{Kind: gen.FindingKindDropped, FetchKeyID: ptr.To(r.ID), Detail: ptr.To(detail), Step: ptr.To(step)}
+	return finding(r, gen.FindingKindDropped, step, detail)
 }
 
 // alternatives is what one served result offers a key.
@@ -477,46 +515,31 @@ func filterAlternatives(r *result, res *resolution, picked bool) alternatives {
 	return alts
 }
 
-// bestSet returns the best surviving set of r for res, nil where none
-// survives. chosen is the sets chosen above r, the winner first. Under
-// fallback with nothing chosen above r, several survivors are offered rather
-// than chosen among.
-func (c *choice) bestSet(r *result, res *resolution, chosen []*idSet) *idSet {
-	if r.Sent == nil {
-		return nil
-	}
-	alts := filterAlternatives(r, res, c.picked)
-	c.setCounts[r.Source] = alts.setCount
-	if alts.notNaming > 0 {
-		c.notNaming[r.Source] += alts.notNaming
-	}
-	c.findings = append(c.findings, alts.findings...)
-	c.offered = append(c.offered, alts.offered...)
-	survivors := slices.DeleteFunc(alts.survivors, func(g *idSet) bool {
-		for _, o := range chosen {
-			if detail, ok := g.inconsistent(o); ok {
-				kind := gen.FindingKindDropped
-				if o.r == nil {
-					kind = gen.FindingKindContradiction
-				}
-				c.record(r, kind, gen.DropStepPrecedence, g.label(detail))
-				return true
+// rejects returns the finding that drops g below chosen, which lists the
+// winner first. It drops g when g contradicts a set in chosen, or when g
+// shares no stable identifier with the winner. A contradiction of the
+// database's set is recorded as a contradiction rather than a drop.
+func (g *idSet) rejects(chosen []*idSet) (gen.CreateFindingParams, bool) {
+	for _, o := range chosen {
+		if detail, ok := g.inconsistent(o); ok {
+			kind := gen.FindingKindDropped
+			if o.r == nil {
+				kind = gen.FindingKindContradiction
 			}
+			return finding(g.r, kind, gen.DropStepPrecedence, g.label(detail)), true
 		}
-		if len(chosen) > 0 && !g.corroborates(chosen[0]) {
-			c.record(r, gen.FindingKindDropped, gen.DropStepCorroboration, g.label("shares no stable identifier with "+chosen[0].ref()))
-			return true
-		}
-		return false
-	})
-	if len(survivors) == 0 {
-		return nil
 	}
-	if alts.fallback && len(chosen) == 0 && len(survivors) > 1 {
-		c.offered = append(c.offered, survivors...)
-		return nil
+	if len(chosen) > 0 && !g.corroborates(chosen[0]) {
+		return dropped(g.r, gen.DropStepCorroboration, g.label("shares no stable identifier with "+chosen[0].ref())), true
 	}
-	slices.SortStableFunc(survivors, func(a, b *idSet) int {
+	return gen.CreateFindingParams{}, false
+}
+
+// rank orders the sets of one response for res, the best first: a set
+// naming the identifier sent, then one confirming more of the stated data,
+// then the response's order.
+func rank(res *resolution) func(a, b *idSet) int {
+	return func(a, b *idSet) int {
 		if a.named != b.named {
 			if a.named {
 				return -1
@@ -527,6 +550,76 @@ func (c *choice) bestSet(r *result, res *resolution, chosen []*idSet) *idSet {
 			return d
 		}
 		return a.order - b.order
+	}
+}
+
+// bestSet returns the best surviving set of r for res, nil where none
+// survives, and the sets r offers the user. chosen holds the sets already
+// chosen for the datasources above r, the winner first. Under fallback with nothing chosen above r, several
+// survivors are offered rather than chosen among.
+func (c *choice) bestSet(r *result, res *resolution, chosen []*idSet) (*idSet, []*idSet) {
+	if r.Sent == nil {
+		return nil, nil
+	}
+	alts := filterAlternatives(r, res, c.picked)
+	c.setCounts[r.Source] = alts.setCount
+	if alts.notNaming > 0 {
+		c.notNaming[r.Source] += alts.notNaming
+	}
+	c.findings = append(c.findings, alts.findings...)
+	offered := alts.offered
+	survivors := slices.DeleteFunc(alts.survivors, func(g *idSet) bool {
+		f, ok := g.rejects(chosen)
+		if ok {
+			c.findings = append(c.findings, f)
+		}
+		return ok
 	})
-	return survivors[0]
+	if len(survivors) == 0 {
+		return nil, offered
+	}
+	if alts.fallback && len(chosen) == 0 && len(survivors) > 1 {
+		return nil, append(offered, survivors...)
+	}
+	slices.SortStableFunc(survivors, rank(res))
+	return survivors[0], offered
+}
+
+// gather returns the agreements among sets, which arrive in precedence order
+// and then each datasource's order. Each agreement formed so far takes its
+// member from the next datasource. A set that joins no agreement heads a new
+// one. Agreement between sets is not transitive, so precedence settles which
+// sets an agreement holds, as it does in a run.
+func gather(res *resolution, sets []*idSet) []agreement {
+	var out []agreement
+	for len(sets) > 0 {
+		n := 1
+		for n < len(sets) && sets[n].r == sets[0].r {
+			n++
+		}
+		group := sets[:n]
+		sets = sets[n:]
+		joined := map[*idSet]bool{}
+		for i, a := range out {
+			var best *idSet
+			for _, g := range group {
+				if _, ok := g.rejects(a); ok {
+					continue
+				}
+				if best == nil || rank(res)(g, best) < 0 {
+					best = g
+				}
+			}
+			if best != nil {
+				out[i] = append(a, best)
+				joined[best] = true
+			}
+		}
+		for _, g := range group {
+			if !joined[g] {
+				out = append(out, agreement{g})
+			}
+		}
+	}
+	return out
 }

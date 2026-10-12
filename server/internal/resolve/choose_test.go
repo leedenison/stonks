@@ -346,6 +346,15 @@ func TestChoose(t *testing.T) {
 			want:    outcome{notNaming: map[string]int{"a": 1}, offered: 1},
 		},
 		{
+			name: "two datasources describing one security under a bare ticker offer one candidate",
+			results: []*result{
+				search("a", ticker, cand(gen.AssetClassStock, "GBP", figi, xlon)),
+				search("b", ticker, cand(gen.AssetClassStock, "GBP", figi, isin, xlon)),
+			},
+			k:    gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{ticker}},
+			want: outcome{notNaming: map[string]int{"a": 1, "b": 1}, offered: 1},
+		},
+		{
 			name:    "a set of identifiers contradicting the statement is not offered",
 			results: []*result{search("a", ticker, cand(gen.AssetClassStock, "GBP", figi, xlon), cand(gen.AssetClassStock, "USD", figi2, xnas))},
 			k:       gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{ticker}},
@@ -376,9 +385,10 @@ func TestChoose(t *testing.T) {
 	}
 }
 
-// TestChoosePick checks the choice of a confirmation: the pick wins unless
-// the database names the instrument, the other datasources attach by the
-// usual rules, and a pick that fails a check is refused.
+// TestChoosePick checks the choice of a confirmation: the head of the pick
+// wins unless the database names the instrument, the other members attach
+// where they agree with the sets that outrank them, the other datasources
+// attach nothing, and a head that fails a check is refused.
 func TestChoosePick(t *testing.T) {
 	strict := func(source string, sent types.Identifier, cs ...market.Candidate) *result {
 		return served(source, sent, []types.Identifier{sent}, cs...)
@@ -390,43 +400,53 @@ func TestChoosePick(t *testing.T) {
 	tests := []struct {
 		name    string
 		results []*result
-		// pick names the result and the set of identifiers within it the user
-		// picks.
-		pick [2]int
+		// pick names, for each member, the result and the set of
+		// identifiers within it, the head first.
+		pick [][2]int
 		k    gen.StatedKey
 		db   *idSet
 		want outcome
 	}{
 		{
-			name: "the pick wins and a higher precedence datasource attaches through a stable identifier",
+			name: "the head wins and the members attach",
 			results: []*result{
 				strict("a", ticker, cand(gen.AssetClassStock, "GBP", figi, xlon)),
 				strict("b", ticker, cand(gen.AssetClassStock, "GBP", figi, isin, xlon)),
 			},
-			pick: [2]int{1, 0},
+			pick: [][2]int{{0, 0}, {1, 0}},
 			k:    gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{ticker}},
-			want: outcome{winner: "b#0", attached: []string{"b#0", "a#0"}},
+			want: outcome{winner: "a#0", attached: []string{"a#0", "b#0"}},
 		},
 		{
 			name: "the pick's datasource's other sets of identifiers are passed over",
 			results: []*result{
 				strict("a", ticker, cand(gen.AssetClassStock, "GBP", figi, xlon), cand(gen.AssetClassStock, "GBP", figi2, xetr)),
 			},
-			pick: [2]int{0, 0},
+			pick: [][2]int{{0, 0}},
 			k:    gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{ticker}},
 			want: outcome{winner: "a#0", attached: []string{"a#0"}},
 		},
 		{
+			name: "a datasource with no member attaches nothing, even where it agrees",
+			results: []*result{
+				strict("a", ticker, cand(gen.AssetClassStock, "GBP", figi, isin, xlon)),
+				strict("b", ticker, cand(gen.AssetClassStock, "GBP", isin, xlon)),
+			},
+			pick: [][2]int{{1, 0}},
+			k:    gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{ticker}},
+			want: outcome{winner: "b#0", attached: []string{"b#0"}},
+		},
+		{
 			name:    "a pick whose listing is in no stated family is refused",
 			results: []*result{strict("a", ticker, cand(gen.AssetClassStock, "USD", figi, xnas))},
-			pick:    [2]int{0, 0},
+			pick:    [][2]int{{0, 0}},
 			k:       gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{ticker}},
 			want:    outcome{refused: "openfigi_share_class BBG001S5XDT5: stated GBP has no listing among USD (a)"},
 		},
 		{
 			name:    "a pick contradicting the instrument the database names is refused",
 			results: []*result{strict("a", ticker, cand(gen.AssetClassStock, "GBP", figi, other, xlon))},
-			pick:    [2]int{0, 0},
+			pick:    [][2]int{{0, 0}},
 			k:       gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{ticker}},
 			db:      existing,
 			want:    outcome{winner: "database", refused: "openfigi_share_class BBG001S5XDT5: cusip 92857W309 contradicts cusip 92857W308 (database)"},
@@ -434,10 +454,37 @@ func TestChoosePick(t *testing.T) {
 		{
 			name:    "a pick attaches to the instrument the database names",
 			results: []*result{strict("a", ticker, cand(gen.AssetClassStock, "GBP", figi, isin, xlon))},
-			pick:    [2]int{0, 0},
+			pick:    [][2]int{{0, 0}},
 			k:       gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{ticker}},
 			db:      existing,
 			want:    outcome{winner: "database", attached: []string{"a#0"}},
+		},
+		{
+			name: "a member contradicting the instrument the database names is a contradiction, and the others attach",
+			results: []*result{
+				strict("a", ticker, cand(gen.AssetClassStock, "GBP", isin, xlon)),
+				strict("b", ticker, cand(gen.AssetClassStock, "GBP", isin, other, xlon)),
+				strict("c", ticker, cand(gen.AssetClassStock, "GBP", isin, comp)),
+			},
+			pick: [][2]int{{0, 0}, {1, 0}, {2, 0}},
+			k:    gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{ticker}},
+			db:   existing,
+			want: outcome{winner: "database", attached: []string{"a#0", "c#0"}, findings: []string{
+				"b contradiction: isin GB00BH4HKS39: cusip 92857W309 contradicts cusip 92857W308 (database)",
+			}},
+		},
+		{
+			name: "a member sharing no stable identifier with the instrument the database names is dropped",
+			results: []*result{
+				strict("a", ticker, cand(gen.AssetClassStock, "GBP", isin, xlon)),
+				strict("b", ticker, cand(gen.AssetClassStock, "GBP", figi, xlon)),
+			},
+			pick: [][2]int{{0, 0}, {1, 0}},
+			k:    gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{ticker}},
+			db:   existing,
+			want: outcome{winner: "database", attached: []string{"a#0"}, findings: []string{
+				"b dropped corroboration: openfigi_share_class BBG001S5XDT5: shares no stable identifier with the instrument identified by isin GB00BH4HKS39 (database)",
+			}},
 		},
 	}
 	for _, tc := range tests {
@@ -451,10 +498,89 @@ func TestChoosePick(t *testing.T) {
 				tc.want.notNaming = map[string]int{}
 			}
 			res := &resolution{row: tc.k, results: tc.results, fam: cur.family(tc.k)}
-			pick := idSets(tc.results[tc.pick[0]])[tc.pick[1]]
+			var pick agreement
+			for _, p := range tc.pick {
+				pick = append(pick, idSets(tc.results[p[0]])[p[1]])
+			}
 			got := describe(choose(res, tc.db, pick), source)
 			if diff := cmp.Diff(tc.want, got, cmp.AllowUnexported(outcome{})); diff != "" {
 				t.Errorf("choose mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+// TestGather checks which sets of identifiers each candidate gathers: the
+// head and, for each datasource below it, the best ranked set that agrees
+// with every member and corroborates the head.
+func TestGather(t *testing.T) {
+	other := id(types.IdentifierTypeCusip, "", "92857W309")
+	search := func(source string, cs ...market.Candidate) *result {
+		return served(source, ticker, []types.Identifier{ticker}, cs...)
+	}
+	bare := gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{ticker}}
+	tests := []struct {
+		name    string
+		results []*result
+		k       gen.StatedKey
+		want    [][]string
+	}{
+		{
+			name: "two datasources sharing a stable identifier form one candidate",
+			results: []*result{
+				search("a", cand(gen.AssetClassStock, "GBP", figi, xlon)),
+				search("b", cand(gen.AssetClassStock, "GBP", figi, isin, xlon)),
+			},
+			k:    bare,
+			want: [][]string{{"a#0", "b#0"}},
+		},
+		{
+			name: "a set corroborating a member but not the head heads its own candidate",
+			results: []*result{
+				search("a", cand(gen.AssetClassStock, "GBP", figi, xlon)),
+				search("b", cand(gen.AssetClassStock, "GBP", figi, isin, xlon)),
+				search("c", cand(gen.AssetClassStock, "GBP", isin, xlon)),
+			},
+			k:    bare,
+			want: [][]string{{"a#0", "b#0"}, {"c#0"}},
+		},
+		{
+			name: "a set agreeing with two heads that contradict each other joins both",
+			results: []*result{
+				search("a", cand(gen.AssetClassStock, "GBP", figi, cusip, xlon)),
+				search("b", cand(gen.AssetClassStock, "GBP", figi, other, xlon)),
+				search("c", cand(gen.AssetClassStock, "GBP", figi, xlon)),
+			},
+			k:    bare,
+			want: [][]string{{"a#0", "c#0"}, {"b#0", "c#0"}},
+		},
+		{
+			name: "of two sets of one datasource agreeing with a head, the better ranked joins and the other heads its own candidate",
+			results: []*result{
+				search("a", cand(gen.AssetClassStock, "GBP", figi, isin, xlon)),
+				search("b", cand(gen.AssetClassStock, "GBP", figi, xetr), cand(gen.AssetClassStock, "GBP", isin, xlon)),
+			},
+			k:    gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{ticker, isin}},
+			want: [][]string{{"a#0", "b#1"}, {"b#0"}},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			for i, r := range tc.results {
+				r.ID = uuid.UUID{byte(i + 1)}
+			}
+			res := &resolution{row: tc.k, results: tc.results, fam: cur.family(tc.k)}
+			sets, _, _ := offers(res)
+			var got [][]string
+			for _, a := range gather(res, sets) {
+				var labels []string
+				for _, g := range a {
+					labels = append(labels, label(g))
+				}
+				got = append(got, labels)
+			}
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("gather mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}

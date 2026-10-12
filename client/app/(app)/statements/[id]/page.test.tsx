@@ -1,7 +1,13 @@
 import { create } from "@bufbuild/protobuf";
 import { timestampFromDate } from "@bufbuild/protobuf/wkt";
 import { Code, ConnectError, type ServiceImpl } from "@connectrpc/connect";
-import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { RunSchema, RunState } from "@/gen/run/v1/run_pb";
 import {
@@ -172,13 +178,14 @@ const isin = create(IdentifierSchema, {
   value: "US4581401001",
 });
 
-// offer is one candidate from OpenFIGI, a stock listed in USD, beside a
-// datasource that served nothing.
+// offer is one candidate that OpenFIGI heads and Massive's answer joins, a
+// stock listed in USD, beside a datasource that served nothing.
 function offer() {
   return create(FindCandidatesResponseSchema, {
     candidates: [
       create(CandidateSchema, {
         datasource: "openfigi",
+        attached: ["massive"],
         strongest: isin,
         assetClass: AssetClass.STOCK,
         identifiers: [isin],
@@ -428,7 +435,12 @@ describe("StatementPage", () => {
       expect.anything(),
     );
     const row = screen.getByTestId("candidate-row-openfigi-US4581401001");
-    expect(row.textContent).toContain("openfigi");
+    expect(
+      within(row).getByTestId("candidate-datasource-openfigi"),
+    ).toBeTruthy();
+    expect(
+      within(row).getByTestId("candidate-datasource-massive"),
+    ).toBeTruthy();
     expect(row.textContent).toContain("Stock");
     expect(row.textContent).toContain("US4581401001");
     expect(row.textContent).toContain("USD");
@@ -462,7 +474,7 @@ describe("StatementPage", () => {
         findCandidates,
         confirmCandidate: () => {
           throw new ConnectError(
-            "the answer lacks the candidate",
+            "the answers no longer offer the candidate",
             Code.FailedPrecondition,
           );
         },
@@ -482,7 +494,7 @@ describe("StatementPage", () => {
     );
     await waitFor(() =>
       expect(screen.getByTestId("candidates-error").textContent).toContain(
-        "the answer lacks the candidate",
+        "the answers no longer offer the candidate",
       ),
     );
     await waitFor(() => expect(findCandidates).toHaveBeenCalledTimes(2));

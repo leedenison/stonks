@@ -282,7 +282,7 @@ func TestFindCandidates(t *testing.T) {
 	usd := "USD"
 	offer := resolve.Offer{
 		Candidates: []resolve.Candidate{{
-			Datasource: "openfigi", Strongest: types.Identifier{Type: types.IdentifierTypeIsin, Value: "US4581401001"}, AssetClass: gen.AssetClassStock,
+			Datasource: "openfigi", Attached: []string{"massive", "eodhd"}, Strongest: types.Identifier{Type: types.IdentifierTypeIsin, Value: "US4581401001"}, AssetClass: gen.AssetClassStock,
 			Identifiers: []types.Identifier{{Type: types.IdentifierTypeIsin, Value: "US4581401001"}},
 			Listings:    []resolve.CandidateListing{{Currency: &usd, Identifiers: []types.Identifier{{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "INTC"}}}, {Identifiers: []types.Identifier{{Type: types.IdentifierTypeMicTicker, Domain: "XLON", Value: "INTC"}}}},
 		}},
@@ -291,7 +291,7 @@ func TestFindCandidates(t *testing.T) {
 	isinMsg := &typev1.Identifier{Type: typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, Value: "US4581401001"}
 	want := &statementv1.FindCandidatesResponse{
 		Candidates: []*statementv1.Candidate{{
-			Datasource: "openfigi", Strongest: isinMsg, AssetClass: typev1.AssetClass_ASSET_CLASS_STOCK, Identifiers: []*typev1.Identifier{isinMsg},
+			Datasource: "openfigi", Attached: []string{"massive", "eodhd"}, Strongest: isinMsg, AssetClass: typev1.AssetClass_ASSET_CLASS_STOCK, Identifiers: []*typev1.Identifier{isinMsg},
 			Listings: []*statementv1.CandidateListing{
 				{Currency: &usd, Identifiers: []*typev1.Identifier{{Type: typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, Domain: "XNAS", Value: "INTC"}}},
 				{Identifiers: []*typev1.Identifier{{Type: typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, Domain: "XLON", Value: "INTC"}}},
@@ -362,7 +362,7 @@ func TestConfirmCandidate(t *testing.T) {
 		{name: "confirmed", req: good, called: true, want: want},
 		{name: "not found", req: good, called: true, err: db.ErrNotFound, wantCode: connect.CodeNotFound},
 		{name: "associated", req: good, called: true, err: statement.ErrAssociated, wantCode: connect.CodeFailedPrecondition},
-		{name: "the answer lacks the candidate", req: good, called: true, err: fmt.Errorf("%w: isin US4581401001 names no candidate of openfigi", resolve.ErrNoCandidate), wantCode: connect.CodeFailedPrecondition},
+		{name: "the answers no longer offer the candidate", req: good, called: true, err: fmt.Errorf("%w: isin US4581401001 names no candidate of openfigi", resolve.ErrNoCandidate), wantCode: connect.CodeFailedPrecondition},
 		{name: "failure", req: good, called: true, err: errors.New("boom"), wantCode: connect.CodeInternal},
 		{name: "the key cannot be read back", req: good, called: true, readErr: errors.New("boom"), wantCode: connect.CodeInternal},
 		{name: "no datasource", req: &statementv1.ConfirmCandidateRequest{StatedKeyId: keyID.String(), Identifier: isinMsg}, wantCode: connect.CodeInvalidArgument},

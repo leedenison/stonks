@@ -42,6 +42,11 @@ test("chooses an instrument for an IBKR security stated by ticker", async ({
   const dialog = page.getByTestId("candidates-dialog");
   const offered = dialog.getByTestId(/^candidate-row-openfigi-/).first();
   await expect(offered).toContainText(ticker);
+  // OpenFIGI and Massive name one share class FIGI, so Massive's answer is
+  // gathered into OpenFIGI's candidate.
+  await expect(offered.getByTestId("candidate-datasource-massive")).toHaveCount(
+    1,
+  );
   await offered.getByTestId(/^candidate-choose-openfigi-/).click();
   await expect(dialog).toBeHidden();
   await expect(row.getByTestId("resolution-chip")).toHaveAttribute(

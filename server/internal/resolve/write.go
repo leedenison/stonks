@@ -23,10 +23,10 @@ const tries = 3
 // write records the outcome of res against run in a transaction of its own.
 // A key with a winner is written under an advisory lock on the identifiers
 // it states and every identifier its responses name, which covers every
-// identifier the write may insert. pick is the set that a confirmation takes
-// as the winner, nil in a run. The write leaves an association the user
-// arbitrated in place and records the key matched.
-func (r *Resolver) write(ctx context.Context, run gen.Run, res *resolution, pick *idSet) (gen.ResolutionKey, error) {
+// identifier the write may insert. pick is the agreement that a confirmation
+// writes, with its head as the winner, and is nil in a run. The write leaves
+// an association the user arbitrated in place and records the key matched.
+func (r *Resolver) write(ctx context.Context, run gen.Run, res *resolution, pick agreement) (gen.ResolutionKey, error) {
 	var out gen.ResolutionKey
 	var written []gen.FindingKind
 	for attempt := 1; ; attempt++ {
@@ -51,7 +51,7 @@ func (r *Resolver) write(ctx context.Context, run gen.Run, res *resolution, pick
 
 // resolveKey writes res's outcome in one transaction, returning the resolution
 // key and the kinds of the findings written.
-func (r *Resolver) resolveKey(ctx context.Context, q Queries, run gen.Run, res *resolution, pick *idSet) (gen.ResolutionKey, []gen.FindingKind, error) {
+func (r *Resolver) resolveKey(ctx context.Context, q Queries, run gen.Run, res *resolution, pick agreement) (gen.ResolutionKey, []gen.FindingKind, error) {
 	if res.outcome != "" {
 		return record(ctx, q, run, res, res.outcome, reasons(res.reason), res.findings, 0)
 	}

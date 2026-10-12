@@ -161,7 +161,7 @@ func (s *Server) FindCandidates(ctx context.Context, req *connect.Request[statem
 
 // ConfirmCandidate takes the named candidate as the instrument of one of
 // the caller's keys. A key the caller does not own is not found; a key with
-// an association, or an answer that lacks the candidate, is a failed
+// an association, or answers that no longer offer the candidate, is a failed
 // precondition.
 func (s *Server) ConfirmCandidate(ctx context.Context, req *connect.Request[statementv1.ConfirmCandidateRequest]) (*connect.Response[statementv1.ConfirmCandidateResponse], error) {
 	p, err := auth.User(ctx)
