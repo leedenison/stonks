@@ -83,7 +83,9 @@ type Config struct {
 }
 
 // Factory builds the integration of one datasource, and states the
-// address it calls when the row sets none.
+// address it calls when the row sets none. The address is on the factory
+// because some factories fail without a credential, and a disabled row may
+// hold no credential.
 type Factory struct {
 	Endpoint string
 	New      func(Config) (Integration, error)
