@@ -1108,8 +1108,7 @@ func TestConfirmRows(t *testing.T) {
 }
 
 // TestConfirmJoins checks that a confirmation lands on the instrument that a
-// set of identifiers attached beside the pick identifies, and adds the
-// pick's identifiers to it.
+// member of the candidate identifies, and adds the head's identifiers to it.
 func TestConfirmJoins(t *testing.T) {
 	s := newStack(t)
 	ctx := context.Background()
@@ -1119,13 +1118,13 @@ func TestConfirmJoins(t *testing.T) {
 	require.NoError(t, err)
 	s.enableBeta(t)
 	s.script.Responses[ticker] = market.IdentityResult{Filtered: []types.Identifier{ticker}, Candidates: []market.Candidate{
-		{Class: gen.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{figi, isin, xlon}},
-	}}
-	s.beta.Responses[ticker] = market.IdentityResult{Filtered: []types.Identifier{ticker}, Candidates: []market.Candidate{
 		{Class: gen.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{isin, xlon}},
 	}}
+	s.beta.Responses[ticker] = market.IdentityResult{Filtered: []types.Identifier{ticker}, Candidates: []market.Candidate{
+		{Class: gen.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{figi, isin, xlon}},
+	}}
 	key := s.state(t, gen.AssetClassStock, "GBP", ticker)
-	rk, err := s.resolver.Confirm(ctx, s.resolution, key, Pick{Datasource: "beta", Identifier: isin})
+	rk, err := s.resolver.Confirm(ctx, s.resolution, key, Pick{Datasource: "alpha", Identifier: isin})
 	require.NoError(t, err)
 	k := s.key(t, key.ID)
 	if rk.Outcome != gen.ResolutionOutcomeMatched || k.InstrumentID == nil || *k.InstrumentID != other.ID || *k.Arbiter != gen.ArbiterUser {
@@ -1142,5 +1141,61 @@ func TestConfirmJoins(t *testing.T) {
 	slices.Sort(want)
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("identifiers mismatch (-want +got):\n%s", diff)
+	}
+}
+
+// TestConfirmMerged checks that two datasources describing one security
+// offer one candidate, and that confirming it writes the head as the winner
+// and attaches the member.
+func TestConfirmMerged(t *testing.T) {
+	s := newStack(t)
+	ctx := context.Background()
+	s.enableBeta(t)
+	s.script.Responses[ticker] = market.IdentityResult{Filtered: []types.Identifier{ticker}, Candidates: []market.Candidate{
+		{Class: gen.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{figi, xlon}},
+	}}
+	s.beta.Responses[ticker] = market.IdentityResult{Filtered: []types.Identifier{ticker}, Candidates: []market.Candidate{
+		{Class: gen.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{figi, isin, xlon}},
+	}}
+	key := s.state(t, gen.AssetClassStock, "GBP", ticker)
+
+	offer, err := s.resolver.Candidates(ctx, s.resolution, key)
+	require.NoError(t, err)
+	gbp := "GBP"
+	wantOffer := Offer{Candidates: []Candidate{{
+		Datasource: "alpha", Attached: []string{"beta"}, Strongest: figi, AssetClass: gen.AssetClassStock, Identifiers: []types.Identifier{figi, isin},
+		Listings: []CandidateListing{{Currency: &gbp, Identifiers: []types.Identifier{xlon}}},
+	}}}
+	if diff := cmp.Diff(wantOffer, offer); diff != "" {
+		t.Errorf("Candidates() mismatch (-want +got):\n%s", diff)
+	}
+
+	// The confirmation runs under a run of its own, so its fetch keys are
+	// the only ones the run holds.
+	s.resolution, err = s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: s.user.ID, Kind: gen.RunKindResolution, Trigger: gen.RunTriggerUser})
+	require.NoError(t, err)
+	_, err = s.resolver.Confirm(ctx, s.resolution, key, Pick{Datasource: "alpha", Identifier: figi})
+	require.NoError(t, err)
+	alpha, beta := s.fetchKey(t, key.ID, "alpha"), s.fetchKey(t, key.ID, "beta")
+	found, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: types.IdentifierTypeIsin, Value: isin.Value})
+	require.NoError(t, err)
+	inst := found.Instrument
+	if inst.FetchKeyID == nil || *inst.FetchKeyID != alpha.ID {
+		t.Errorf("instrument provenance = %v, want alpha's fetch key %s", inst.FetchKeyID, alpha.ID)
+	}
+	ids, err := s.q.ListIdentifiers(ctx, inst.ID)
+	require.NoError(t, err)
+	for _, row := range ids {
+		if row.Type == isin.Type && (row.FetchKeyID == nil || *row.FetchKeyID != beta.ID) {
+			t.Errorf("ISIN provenance = %v, want beta's fetch key %s", row.FetchKeyID, beta.ID)
+		}
+	}
+	for _, fk := range []gen.FetchKey{alpha, beta} {
+		if fk.InstrumentID == nil || *fk.InstrumentID != inst.ID {
+			t.Errorf("fetch key %s points at %v, want the instrument %s", fk.ID, fk.InstrumentID, inst.ID)
+		}
+	}
+	if k := s.key(t, key.ID); k.InstrumentID == nil || *k.InstrumentID != inst.ID || *k.Arbiter != gen.ArbiterUser {
+		t.Errorf("key = %+v, want the instrument by the user", k)
 	}
 }

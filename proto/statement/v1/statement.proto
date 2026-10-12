@@ -136,17 +136,25 @@ message GetStatementResponse {
   repeated stonks.type.v1.ResolutionItem keys = 3;
 }
 
-// One instrument a datasource's answer describes, offered for the user to
-// confirm: an instrument before it is written.
+// One security that one or more datasources describe, offered for the user
+// to confirm: an instrument before it is written. A candidate is the head
+// set of one datasource and the sets that a resolution run would attach to
+// it as the winner.
 message Candidate {
+  // The datasource whose set heads the candidate. A confirmation writes that
+  // set as the winner.
   string datasource = 1;
-  // The identifier that names the candidate most firmly; the one to show.
+  // The identifier that names the head most firmly. It is the one to show,
+  // and the one a confirmation sends.
   stonks.type.v1.Identifier strongest = 2;
   stonks.type.v1.AssetClass asset_class = 3;
   // The identifiers of the instrument itself. Each listing carries its own.
   repeated stonks.type.v1.Identifier identifiers = 4;
   // One per currency family.
   repeated CandidateListing listings = 5;
+  // The datasources, besides the head's, whose sets the candidate gathers,
+  // in precedence order.
+  repeated string attached = 6;
 }
 
 message CandidateListing {
@@ -161,7 +169,8 @@ message FindCandidatesRequest {
 }
 
 message FindCandidatesResponse {
-  // In datasource precedence order, then each datasource's own order.
+  // In the precedence order of each candidate's datasource, then that
+  // datasource's own order.
   repeated Candidate candidates = 1;
   // One entry per datasource that served nothing, saying why. A key that
   // reaches no datasource gets one entry saying so.
@@ -170,8 +179,9 @@ message FindCandidatesResponse {
 
 message ConfirmCandidateRequest {
   string stated_key_id = 1 [(buf.validate.field).string.uuid = true];
+  // The datasource of the candidate's head, as FindCandidates gave it.
   string datasource = 2 [(buf.validate.field).string.min_len = 1];
-  // Any identifier of the candidate, as FindCandidates gave it.
+  // Any identifier of the candidate's head, such as its strongest.
   stonks.type.v1.Identifier identifier = 3 [(buf.validate.field).required = true];
 }
 
@@ -193,7 +203,8 @@ service StatementService {
   // key that has an association is refused as a failed precondition.
   rpc FindCandidates(FindCandidatesRequest) returns (FindCandidatesResponse);
   // Takes the candidate as the key's instrument, for the key and every key
-  // in its group. An answer that lacks the candidate is refused as a failed
-  // precondition, and the caller finds the candidates again.
+  // in its group. When the answers no longer offer the candidate, the call is
+  // refused as a failed precondition, and the caller finds the candidates
+  // again.
   rpc ConfirmCandidate(ConfirmCandidateRequest) returns (ConfirmCandidateResponse);
 }

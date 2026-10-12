@@ -14,7 +14,8 @@ import { assetClassLabel } from "@/lib/asset-class";
 import { refusal } from "@/lib/refusal";
 
 // CandidatesDialog lists the instruments the datasources offer for a key
-// and lets the user choose one. Opening it resolves the key again. When
+// and lets the user choose one. Each candidate is one security, with every
+// datasource that describes it. Opening it resolves the key again. When
 // the service refuses a choice, the dialog shows the refusal and finds the
 // candidates again, since the answer may have changed. When a choice lands,
 // the dialog closes.
@@ -66,9 +67,9 @@ export function CandidatesDialog({
       )}
       {data && data.candidates.length > 0 && (
         <ul className="flex flex-col gap-3">
-          {data.candidates.map((c) => (
+          {data.candidates.map((c, i) => (
             <CandidateRow
-              key={candidateId(c)}
+              key={`${candidateId(c)}-${i}`}
               candidate={c}
               busy={choose.isPending}
               onChoose={() => pick(c)}
@@ -91,7 +92,8 @@ export function CandidatesDialog({
 }
 
 // candidateId names a candidate by its datasource and the identifier that
-// names it most firmly, or by its datasource alone where it has none.
+// names it most firmly, or by its datasource alone where it has none. Two
+// candidates may share both, so the list keys each row by its index too.
 function candidateId(c: Candidate): string {
   return c.strongest ? `${c.datasource}-${c.strongest.value}` : c.datasource;
 }
@@ -116,7 +118,11 @@ function CandidateRow({
     >
       <div className="flex items-center justify-between gap-3">
         <span className="flex flex-wrap items-center gap-1">
-          <Chip>{c.datasource}</Chip>
+          {[c.datasource, ...c.attached].map((d) => (
+            <Chip key={d} data-testid={`candidate-datasource-${d}`}>
+              {d}
+            </Chip>
+          ))}
           {c.assetClass !== AssetClass.UNSPECIFIED && (
             <Chip tone="accent">{assetClassLabel(c.assetClass)}</Chip>
           )}
