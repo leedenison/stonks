@@ -223,7 +223,14 @@ func TestStartOrdersLane(t *testing.T) {
 // once: each blocks until both have started.
 func TestParallelUsers(t *testing.T) {
 	f := newFixture(t)
-	f.store.EXPECT().CompleteRun(gomock.Any(), gomock.Any()).Return(nil).Times(2)
+	var completed sync.WaitGroup
+	completed.Add(2)
+	f.store.EXPECT().CompleteRun(gomock.Any(), gomock.Any()).DoAndReturn(func(context.Context, uuid.UUID) error {
+		completed.Done()
+		return nil
+	}).Times(2)
+	done := make(chan struct{})
+	go func() { completed.Wait(); close(done) }()
 	var wg sync.WaitGroup
 	wg.Add(2)
 	both := make(chan struct{})
@@ -243,7 +250,7 @@ func TestParallelUsers(t *testing.T) {
 		}
 	}
 	await(t, both, "both users' runs to start")
-	f.runner.Close()
+	await(t, done, "both users' runs to complete")
 }
 
 // TestClose checks that closing cancels running work, drops pending work,
