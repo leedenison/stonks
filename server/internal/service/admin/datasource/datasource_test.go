@@ -3,6 +3,7 @@ package datasource
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"testing"
 
@@ -14,23 +15,18 @@ import (
 
 	admindatasourcev1 "github.com/leedenison/stonks/proto/admin/datasource/v1"
 	"github.com/leedenison/stonks/proto/admin/datasource/v1/admindatasourcev1connect"
+	"github.com/leedenison/stonks/server/internal/datasource"
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
-	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/ptr"
 	"github.com/leedenison/stonks/server/internal/service/servicetest"
 )
 
-var ()
-
 type fixture struct {
-	store   *MockStore
+	queries *MockQueries
 	sources *MockSources
-	cache   *MockDropper
+	updater *MockUpdater
 	client  admindatasourcev1connect.DatasourceServiceClient
-	// txErrs is what each transaction returned, so a test sees one rolled
-	// back.
-	txErrs []error
 }
 
 // newFixture mounts a Server with the real handler chain, and a client whose
@@ -40,15 +36,10 @@ func newFixture(t *testing.T) *fixture {
 	ctrl := gomock.NewController(t)
 	t.Cleanup(ctrl.Finish)
 	authn := servicetest.AsAdmin(ctrl)
-	f := &fixture{store: NewMockStore(ctrl), sources: NewMockSources(ctrl), cache: NewMockDropper(ctrl)}
-	f.store.EXPECT().Tx(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, fn func(Queries) error) error {
-		err := fn(f.store)
-		f.txErrs = append(f.txErrs, err)
-		return err
-	}).AnyTimes()
+	f := &fixture{queries: NewMockQueries(ctrl), sources: NewMockSources(ctrl), updater: NewMockUpdater(ctrl)}
 	opts := servicetest.Options(t, authn)
 	srv := servicetest.Serve(t, func(mux *http.ServeMux) {
-		mux.Handle(admindatasourcev1connect.NewDatasourceServiceHandler(New(f.store, f.sources, f.cache), opts...))
+		mux.Handle(admindatasourcev1connect.NewDatasourceServiceHandler(New(f.queries, f.sources, f.updater), opts...))
 	})
 	f.client = admindatasourcev1connect.NewDatasourceServiceClient(srv.Client, srv.URL)
 	return f
@@ -56,7 +47,7 @@ func newFixture(t *testing.T) *fixture {
 
 func TestListDatasources(t *testing.T) {
 	f := newFixture(t)
-	f.store.EXPECT().ListDatasources(gomock.Any()).Return([]gen.Datasource{
+	f.queries.EXPECT().ListDatasources(gomock.Any()).Return([]gen.Datasource{
 		{Name: "openfigi", Enabled: true, Precedence: 10, Endpoint: ptr.To("http://stub"), Credential: ptr.To("secret"), Config: []byte(`{"plan": "basic"}`)},
 		{Name: "other", Precedence: 20, Config: []byte("{}")},
 	}, nil)
@@ -85,9 +76,9 @@ func config(t *testing.T, m map[string]any) *structpb.Struct {
 	return s
 }
 
-// TestUpdateDatasource checks that the row is written as the request
-// states it and the registry reloaded, and that a change the registry would
-// refuse is rolled back.
+// TestUpdateDatasource checks that the request is written as the service's
+// argument, the row returned as its message, and each error of the service
+// mapped to its code.
 func TestUpdateDatasource(t *testing.T) {
 	stub := gen.Datasource{Name: "openfigi", Enabled: true, Precedence: 10, Endpoint: ptr.To("http://stub"), Config: []byte("{}")}
 	empty := []byte("{}")
@@ -97,21 +88,14 @@ func TestUpdateDatasource(t *testing.T) {
 		wantArg  gen.UpdateDatasourceParams
 		row      gen.Datasource
 		err      error
-		checkErr error
-		// checked is whether the registry is asked to check the row, which
-		// it is when the row is enabled.
-		checked   bool
-		reloadErr error
-		dropErr   error
-		want      *admindatasourcev1.Datasource
-		wantCode  connect.Code
+		want     *admindatasourcev1.Datasource
+		wantCode connect.Code
 	}{
 		{
 			name:    "enabled with an endpoint and a credential",
 			req:     &admindatasourcev1.UpdateDatasourceRequest{Name: "openfigi", Enabled: true, Endpoint: "http://stub", Credential: "secret"},
 			wantArg: gen.UpdateDatasourceParams{Name: "openfigi", Enabled: true, Endpoint: "http://stub", Credential: "secret", Config: empty},
 			row:     gen.Datasource{Name: "openfigi", Enabled: true, Precedence: 10, Endpoint: ptr.To("http://stub"), Credential: ptr.To("secret"), Config: []byte("{}")},
-			checked: true,
 			want:    &admindatasourcev1.Datasource{Name: "openfigi", Enabled: true, Precedence: 10, Endpoint: "http://stub", DefaultEndpoint: "https://api.stub", Credential: "secret", Config: config(t, nil)},
 		},
 		{
@@ -119,7 +103,6 @@ func TestUpdateDatasource(t *testing.T) {
 			req:     &admindatasourcev1.UpdateDatasourceRequest{Name: "openfigi", Enabled: true},
 			wantArg: gen.UpdateDatasourceParams{Name: "openfigi", Enabled: true, Config: empty},
 			row:     stub,
-			checked: true,
 			want:    &admindatasourcev1.Datasource{Name: "openfigi", Enabled: true, Precedence: 10, Endpoint: "http://stub", DefaultEndpoint: "https://api.stub", Config: config(t, nil)},
 		},
 		{
@@ -127,75 +110,40 @@ func TestUpdateDatasource(t *testing.T) {
 			req:     &admindatasourcev1.UpdateDatasourceRequest{Name: "openfigi", Enabled: true, Config: config(t, map[string]any{"plan": "basic"})},
 			wantArg: gen.UpdateDatasourceParams{Name: "openfigi", Enabled: true, Config: []byte(`{"plan":"basic"}`)},
 			row:     gen.Datasource{Name: "openfigi", Enabled: true, Precedence: 10, Config: []byte(`{"plan": "basic"}`)},
-			checked: true,
 			want:    &admindatasourcev1.Datasource{Name: "openfigi", Enabled: true, Precedence: 10, DefaultEndpoint: "https://api.stub", Config: config(t, map[string]any{"plan": "basic"})},
 		},
 		{
-			name:    "disabled with the endpoint and credential empty",
-			req:     &admindatasourcev1.UpdateDatasourceRequest{Name: "absent"},
-			wantArg: gen.UpdateDatasourceParams{Name: "absent", Config: empty},
-			row:     gen.Datasource{Name: "absent", Precedence: 20, Config: []byte("{}")},
-			want:    &admindatasourcev1.Datasource{Name: "absent", Precedence: 20, Config: config(t, nil)},
-		},
-		{
-			name:     "enabling a datasource the registry refuses",
+			name:     "a datasource the registry refuses",
 			req:      &admindatasourcev1.UpdateDatasourceRequest{Name: "absent", Enabled: true},
 			wantArg:  gen.UpdateDatasourceParams{Name: "absent", Enabled: true, Config: empty},
-			row:      gen.Datasource{Name: "absent", Enabled: true, Precedence: 20},
-			checked:  true,
-			checkErr: market.ErrNoIntegration,
+			err:      fmt.Errorf("x: %w", datasource.ErrRefused),
 			wantCode: connect.CodeFailedPrecondition,
 		},
 		{
 			name:     "no such datasource",
 			req:      &admindatasourcev1.UpdateDatasourceRequest{Name: "gone"},
 			wantArg:  gen.UpdateDatasourceParams{Name: "gone", Config: empty},
-			err:      db.ErrNotFound,
+			err:      fmt.Errorf("x: %w", db.ErrNotFound),
 			wantCode: connect.CodeNotFound,
 		},
 		{
-			name:      "the reload fails",
-			req:       &admindatasourcev1.UpdateDatasourceRequest{Name: "openfigi", Enabled: true},
-			wantArg:   gen.UpdateDatasourceParams{Name: "openfigi", Enabled: true, Config: empty},
-			row:       stub,
-			checked:   true,
-			reloadErr: errors.New("boom"),
-			wantCode:  connect.CodeInternal,
-		},
-		{
-			name:     "the drop fails",
+			name:     "any other failure",
 			req:      &admindatasourcev1.UpdateDatasourceRequest{Name: "openfigi", Enabled: true},
 			wantArg:  gen.UpdateDatasourceParams{Name: "openfigi", Enabled: true, Config: empty},
-			row:      stub,
-			checked:  true,
-			dropErr:  errors.New("boom"),
+			err:      errors.New("boom"),
 			wantCode: connect.CodeInternal,
 		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newFixture(t)
-			f.store.EXPECT().UpdateDatasource(gomock.Any(), tc.wantArg).Return(tc.row, tc.err)
-			if tc.checked {
-				f.sources.EXPECT().Check(market.ConfigOf(tc.row)).Return(tc.checkErr)
-			}
-			if tc.err == nil && tc.checkErr == nil {
-				f.sources.EXPECT().Reload(gomock.Any()).Return(tc.reloadErr)
-			}
-			// Drop only after the registry accepts the row.
-			if tc.err == nil && tc.checkErr == nil && tc.reloadErr == nil {
-				f.cache.EXPECT().Drop(gomock.Any(), tc.row.Name).Return(tc.dropErr)
-			}
+			f.updater.EXPECT().Update(gomock.Any(), tc.wantArg).Return(tc.row, tc.err)
 			if tc.want != nil {
-				f.sources.EXPECT().DefaultEndpoint("openfigi").Return("https://api.stub").AnyTimes()
-				f.sources.EXPECT().DefaultEndpoint("absent").Return("").AnyTimes()
+				f.sources.EXPECT().DefaultEndpoint("openfigi").Return("https://api.stub")
 			}
 			res, err := f.client.UpdateDatasource(context.Background(), connect.NewRequest(tc.req))
 			if servicetest.CodeOf(err) != tc.wantCode {
 				t.Fatalf("UpdateDatasource() code = %v (err %v), want %v", servicetest.CodeOf(err), err, tc.wantCode)
-			}
-			if tc.checkErr != nil && (len(f.txErrs) != 1 || f.txErrs[0] == nil) {
-				t.Errorf("transactions returned %v, want the one rolled back", f.txErrs)
 			}
 			if tc.want == nil {
 				return
@@ -207,31 +155,25 @@ func TestUpdateDatasource(t *testing.T) {
 	}
 }
 
-// TestReorderDatasources checks that the names are written in the order
-// given and that a list naming the datasources wrongly is refused.
+// TestReorderDatasources checks that the names reach the service in the
+// order given, and that each refusal is mapped to its code.
 func TestReorderDatasources(t *testing.T) {
-	rows := []gen.Datasource{{Name: "alpha", Precedence: 1}, {Name: "beta", Precedence: 2}}
 	tests := []struct {
 		name     string
 		names    []string
-		writes   bool
+		err      error
 		wantCode connect.Code
 	}{
-		{name: "reversed", names: []string{"beta", "alpha"}, writes: true},
-		{name: "one named twice", names: []string{"beta", "beta"}, wantCode: connect.CodeInvalidArgument},
-		{name: "one left out", names: []string{"beta"}, wantCode: connect.CodeInvalidArgument},
-		{name: "one that is no datasource", names: []string{"beta", "alpha", "gamma"}, wantCode: connect.CodeInvalidArgument},
+		{name: "reversed", names: []string{"beta", "alpha"}},
+		{name: "a list the service refuses", names: []string{"beta", "beta"}, err: fmt.Errorf("x: %w", datasource.ErrOrder), wantCode: connect.CodeInvalidArgument},
+		{name: "any other failure", names: []string{"beta", "alpha"}, err: errors.New("boom"), wantCode: connect.CodeInternal},
 		{name: "an empty list", names: nil, wantCode: connect.CodeInvalidArgument},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newFixture(t)
 			if tc.names != nil {
-				f.store.EXPECT().ListDatasources(gomock.Any()).Return(rows, nil)
-			}
-			if tc.writes {
-				f.store.EXPECT().SetDatasourcePrecedence(gomock.Any(), tc.names).Return(nil)
-				f.sources.EXPECT().Reload(gomock.Any()).Return(nil)
+				f.updater.EXPECT().Reorder(gomock.Any(), tc.names).Return(tc.err)
 			}
 			_, err := f.client.ReorderDatasources(context.Background(), connect.NewRequest(&admindatasourcev1.ReorderDatasourcesRequest{Names: tc.names}))
 			if servicetest.CodeOf(err) != tc.wantCode {

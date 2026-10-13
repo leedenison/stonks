@@ -12,6 +12,7 @@ import (
 
 	admindatasourcev1 "github.com/leedenison/stonks/proto/admin/datasource/v1"
 	"github.com/leedenison/stonks/proto/admin/datasource/v1/admindatasourcev1connect"
+	"github.com/leedenison/stonks/server/internal/datasource"
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/market"
@@ -21,59 +22,45 @@ import (
 // Queries is this package's view of the generated queries.
 type Queries interface {
 	ListDatasources(ctx context.Context) ([]gen.Datasource, error)
-	UpdateDatasource(ctx context.Context, arg gen.UpdateDatasourceParams) (gen.Datasource, error)
-	SetDatasourcePrecedence(ctx context.Context, names []string) error
 }
 
 var _ Queries = (*gen.Queries)(nil)
 
-// Store is the database as this package sees it: the queries, and Tx, which
-// runs a set of them in one transaction.
-type Store interface {
-	Queries
-	Tx(ctx context.Context, fn func(Queries) error) error
-}
-
-var _ Store = (*db.DB[Queries])(nil)
-
-// Sources is this package's view of the datasource registry: the check that
-// the registry would accept a row, the reload that makes a change to the
-// table take effect, and the address an integration calls by default.
+// Sources is this package's view of the datasource registry: the address an
+// integration calls by default.
 type Sources interface {
-	Check(cfg market.Config) error
-	Reload(ctx context.Context) error
 	DefaultEndpoint(name string) string
 }
 
 var _ Sources = (*market.Registry)(nil)
 
-// Dropper is this package's view of the fetch cache: the drop of a
-// datasource's entries once its settings change.
-type Dropper interface {
-	Drop(ctx context.Context, datasource string) error
+// Updater is this package's view of the datasource service.
+type Updater interface {
+	Update(ctx context.Context, arg gen.UpdateDatasourceParams) (gen.Datasource, error)
+	Reorder(ctx context.Context, names []string) error
 }
 
-var _ Dropper = market.Cache(nil)
+var _ Updater = (*datasource.Service)(nil)
 
 //go:generate go tool mockgen -source=datasource.go -destination=datasource_mock_test.go -package=datasource
 
 // Server implements DatasourceService.
 type Server struct {
-	store   Store
+	queries Queries
 	sources Sources
-	cache   Dropper
+	updater Updater
 }
 
 var _ admindatasourcev1connect.DatasourceServiceHandler = (*Server)(nil)
 
 // New returns a Server.
-func New(store Store, sources Sources, cache Dropper) *Server {
-	return &Server{store: store, sources: sources, cache: cache}
+func New(queries Queries, sources Sources, updater Updater) *Server {
+	return &Server{queries: queries, sources: sources, updater: updater}
 }
 
 // ListDatasources lists the registered datasources in precedence order.
 func (s *Server) ListDatasources(ctx context.Context, _ *connect.Request[admindatasourcev1.ListDatasourcesRequest]) (*connect.Response[admindatasourcev1.ListDatasourcesResponse], error) {
-	rows, err := s.store.ListDatasources(ctx)
+	rows, err := s.queries.ListDatasources(ctx)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
@@ -88,10 +75,8 @@ func (s *Server) ListDatasources(ctx context.Context, _ *connect.Request[adminda
 	return connect.NewResponse(out), nil
 }
 
-// UpdateDatasource writes a datasource's state and settings as given,
-// reloads the registry so the change takes effect, and drops the
-// datasource's cached answers. If the registry would refuse the row, the
-// row stays as it was.
+// UpdateDatasource writes a datasource's state and settings as given; see
+// [datasource.go](../../../datasource/datasource.go).
 func (s *Server) UpdateDatasource(ctx context.Context, req *connect.Request[admindatasourcev1.UpdateDatasourceRequest]) (*connect.Response[admindatasourcev1.UpdateDatasourceResponse], error) {
 	m := req.Msg
 	cfg, err := json.Marshal(m.GetConfig().AsMap())
@@ -99,31 +84,14 @@ func (s *Server) UpdateDatasource(ctx context.Context, req *connect.Request[admi
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("config: %w", err))
 	}
 	arg := gen.UpdateDatasourceParams{Name: m.GetName(), Enabled: m.GetEnabled(), Endpoint: m.GetEndpoint(), Credential: m.GetCredential(), Config: cfg}
-	var row gen.Datasource
-	var refused error
-	err = s.store.Tx(ctx, func(q Queries) error {
-		var err error
-		if row, err = q.UpdateDatasource(ctx, arg); err != nil {
-			return err
-		}
-		if row.Enabled {
-			refused = s.sources.Check(market.ConfigOf(row))
-		}
-		return refused
-	})
+	row, err := s.updater.Update(ctx, arg)
 	switch {
-	case refused != nil:
-		return nil, connect.NewError(connect.CodeFailedPrecondition, refused)
+	case errors.Is(err, datasource.ErrRefused):
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 	case errors.Is(err, db.ErrNotFound):
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("no datasource named %s", m.GetName()))
 	case err != nil:
 		return nil, connect.NewError(connect.CodeInternal, err)
-	}
-	if err := s.reload(ctx); err != nil {
-		return nil, err
-	}
-	if err := s.cache.Drop(context.WithoutCancel(ctx), row.Name); err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("drop cached answers: %w", err))
 	}
 	d, err := s.datasource(row)
 	if err != nil {
@@ -132,64 +100,18 @@ func (s *Server) UpdateDatasource(ctx context.Context, req *connect.Request[admi
 	return connect.NewResponse(&admindatasourcev1.UpdateDatasourceResponse{Datasource: d}), nil
 }
 
-// reload rebuilds the registry once the table has changed. It runs to the
-// end whether or not the caller has gone, so the table and the registry stay
-// in step.
-func (s *Server) reload(ctx context.Context) error {
-	if err := s.sources.Reload(context.WithoutCancel(ctx)); err != nil {
-		return connect.NewError(connect.CodeInternal, fmt.Errorf("reload datasources: %w", err))
-	}
-	return nil
-}
-
 // ReorderDatasources gives each datasource the precedence of its position in
-// the list, and reloads the registry. The cache keeps its entries, because
-// precedence orders answers after they are served. A list that does not
-// name every datasource exactly once is refused.
+// the list. A list that does not name every datasource exactly once is
+// refused.
 func (s *Server) ReorderDatasources(ctx context.Context, req *connect.Request[admindatasourcev1.ReorderDatasourcesRequest]) (*connect.Response[admindatasourcev1.ReorderDatasourcesResponse], error) {
-	names := req.Msg.GetNames()
-	var invalid error
-	err := s.store.Tx(ctx, func(q Queries) error {
-		rows, err := q.ListDatasources(ctx)
-		if err != nil {
-			return err
-		}
-		if invalid = everyOnce(names, rows); invalid != nil {
-			return invalid
-		}
-		return q.SetDatasourcePrecedence(ctx, names)
-	})
+	err := s.updater.Reorder(ctx, req.Msg.GetNames())
 	switch {
-	case invalid != nil:
-		return nil, connect.NewError(connect.CodeInvalidArgument, invalid)
+	case errors.Is(err, datasource.ErrOrder):
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	case err != nil:
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	if err := s.reload(ctx); err != nil {
-		return nil, err
-	}
 	return connect.NewResponse(&admindatasourcev1.ReorderDatasourcesResponse{}), nil
-}
-
-// everyOnce reports why names does not name every datasource of rows exactly
-// once, if it does not.
-func everyOnce(names []string, rows []gen.Datasource) error {
-	seen := make(map[string]bool, len(names))
-	for _, n := range names {
-		if seen[n] {
-			return fmt.Errorf("%s is named twice", n)
-		}
-		seen[n] = true
-	}
-	for _, r := range rows {
-		if !seen[r.Name] {
-			return fmt.Errorf("%s is not named", r.Name)
-		}
-	}
-	if len(names) != len(rows) {
-		return errors.New("a name is no datasource")
-	}
-	return nil
 }
 
 // datasource writes a row as its proto message, with the address its
