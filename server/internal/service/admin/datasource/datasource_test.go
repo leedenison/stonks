@@ -19,13 +19,14 @@ import (
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/ptr"
+	"github.com/leedenison/stonks/server/internal/service/admin/datasource/mock"
 	"github.com/leedenison/stonks/server/internal/service/servicetest"
 )
 
 type fixture struct {
-	queries *MockQueries
-	sources *MockSources
-	updater *MockUpdater
+	queries *mock.MockQueries
+	sources *mock.MockSources
+	updater *mock.MockUpdater
 	client  admindatasourcev1connect.DatasourceServiceClient
 }
 
@@ -36,7 +37,7 @@ func newFixture(t *testing.T) *fixture {
 	ctrl := gomock.NewController(t)
 	t.Cleanup(ctrl.Finish)
 	authn := servicetest.AsAdmin(ctrl)
-	f := &fixture{queries: NewMockQueries(ctrl), sources: NewMockSources(ctrl), updater: NewMockUpdater(ctrl)}
+	f := &fixture{queries: mock.NewMockQueries(ctrl), sources: mock.NewMockSources(ctrl), updater: mock.NewMockUpdater(ctrl)}
 	opts := servicetest.Options(t, authn)
 	srv := servicetest.Serve(t, func(mux *http.ServeMux) {
 		mux.Handle(admindatasourcev1connect.NewDatasourceServiceHandler(New(f.queries, f.sources, f.updater), opts...))

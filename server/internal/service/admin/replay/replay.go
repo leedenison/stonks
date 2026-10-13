@@ -31,7 +31,7 @@ type Replayer interface {
 
 var _ Replayer = (*replayer.Service)(nil)
 
-//go:generate go tool mockgen -source=replay.go -destination=replay_mock_test.go -package=replay
+//go:generate go tool mockgen -source=replay.go -destination=mock/replay_mock.go -package=mock
 
 // Server implements ReplayService.
 type Server struct {

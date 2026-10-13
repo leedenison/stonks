@@ -17,6 +17,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	replayer "github.com/leedenison/stonks/server/internal/replay"
+	"github.com/leedenison/stonks/server/internal/service/admin/replay/mock"
 	"github.com/leedenison/stonks/server/internal/service/servicetest"
 )
 
@@ -29,8 +30,8 @@ var (
 )
 
 type fixture struct {
-	queries *MockQueries
-	replays *MockReplayer
+	queries *mock.MockQueries
+	replays *mock.MockReplayer
 	client  adminreplayv1connect.ReplayServiceClient
 }
 
@@ -41,7 +42,7 @@ func newFixture(t *testing.T) *fixture {
 	ctrl := gomock.NewController(t)
 	t.Cleanup(ctrl.Finish)
 	authn := servicetest.AsAdmin(ctrl)
-	f := &fixture{queries: NewMockQueries(ctrl), replays: NewMockReplayer(ctrl)}
+	f := &fixture{queries: mock.NewMockQueries(ctrl), replays: mock.NewMockReplayer(ctrl)}
 	opts := servicetest.Options(t, authn)
 	srv := servicetest.Serve(t, func(mux *http.ServeMux) {
 		mux.Handle(adminreplayv1connect.NewReplayServiceHandler(New(f.queries, f.replays), opts...))

@@ -31,7 +31,7 @@ type Queries interface {
 
 var _ Queries = (*gen.Queries)(nil)
 
-//go:generate go tool mockgen -source=instrument.go -destination=instrument_mock_test.go -package=instrument
+//go:generate go tool mockgen -source=instrument.go -destination=mock/instrument_mock.go -package=mock
 
 // Server implements InstrumentService.
 type Server struct {

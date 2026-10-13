@@ -25,6 +25,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/db/types"
 	"github.com/leedenison/stonks/server/internal/ptr"
 	"github.com/leedenison/stonks/server/internal/service/admin/page"
+	"github.com/leedenison/stonks/server/internal/service/admin/run/mock"
 	"github.com/leedenison/stonks/server/internal/service/servicetest"
 )
 
@@ -49,7 +50,7 @@ var (
 )
 
 type fixture struct {
-	store  *MockQueries
+	store  *mock.MockQueries
 	client adminrunv1connect.RunServiceClient
 }
 
@@ -60,7 +61,7 @@ func newFixture(t *testing.T) *fixture {
 	ctrl := gomock.NewController(t)
 	t.Cleanup(ctrl.Finish)
 	authn := servicetest.AsAdmin(ctrl)
-	f := &fixture{store: NewMockQueries(ctrl)}
+	f := &fixture{store: mock.NewMockQueries(ctrl)}
 	opts := servicetest.Options(t, authn)
 	srv := servicetest.Serve(t, func(mux *http.ServeMux) {
 		mux.Handle(adminrunv1connect.NewRunServiceHandler(New(f.store), opts...))
@@ -210,19 +211,19 @@ func TestGetRun(t *testing.T) {
 	tests := []struct {
 		name   string
 		kind   gen.RunKind
-		expect func(r *MockQueriesMockRecorder)
+		expect func(r *mock.MockQueriesMockRecorder)
 		want   func(out *adminrunv1.GetRunResponse)
 	}{
 		{
 			name:   "statement",
 			kind:   gen.RunKindStatement,
-			expect: func(*MockQueriesMockRecorder) {},
+			expect: func(*mock.MockQueriesMockRecorder) {},
 			want:   func(*adminrunv1.GetRunResponse) {},
 		},
 		{
 			name: "replay",
 			kind: gen.RunKindReplay,
-			expect: func(r *MockQueriesMockRecorder) {
+			expect: func(r *mock.MockQueriesMockRecorder) {
 				r.GetReplay(gomock.Any(), runID).Return(gen.GetReplayRow{
 					Replay: gen.Replay{ID: runID, UserID: userID, SourceID: parentID, Datasource: ptr.To("openfigi"), StartedBy: adminID}, StartedByEmail: "admin@example.com",
 				}, nil)
@@ -234,7 +235,7 @@ func TestGetRun(t *testing.T) {
 		{
 			name: "a replay whose prepare step failed",
 			kind: gen.RunKindReplay,
-			expect: func(r *MockQueriesMockRecorder) {
+			expect: func(r *mock.MockQueriesMockRecorder) {
 				r.GetReplay(gomock.Any(), runID).Return(gen.GetReplayRow{}, db.ErrNotFound)
 			},
 			want: func(*adminrunv1.GetRunResponse) {},
@@ -348,7 +349,7 @@ func TestListRunItems(t *testing.T) {
 		name     string
 		kind     gen.RunKind
 		req      *adminrunv1.ListRunItemsRequest
-		expect   func(r *MockQueriesMockRecorder)
+		expect   func(r *mock.MockQueriesMockRecorder)
 		want     *adminrunv1.ListRunItemsResponse
 		wantCode connect.Code
 	}{
@@ -356,7 +357,7 @@ func TestListRunItems(t *testing.T) {
 			name: "a statement's first page",
 			kind: gen.RunKindStatement,
 			req:  &adminrunv1.ListRunItemsRequest{PageSize: 2},
-			expect: func(r *MockQueriesMockRecorder) {
+			expect: func(r *mock.MockQueriesMockRecorder) {
 				r.ListStatementItems(gomock.Any(), gen.ListStatementItemsParams{StatementID: runID, UserID: userID, Lim: &three}).
 					Return([]gen.StatementItem{statementItem(1), statementItem(2), statementItem(3)}, nil)
 			},
@@ -366,7 +367,7 @@ func TestListRunItems(t *testing.T) {
 			name: "a statement's last page",
 			kind: gen.RunKindStatement,
 			req:  &adminrunv1.ListRunItemsRequest{PageSize: 2, PageToken: "2"},
-			expect: func(r *MockQueriesMockRecorder) {
+			expect: func(r *mock.MockQueriesMockRecorder) {
 				r.ListStatementItems(gomock.Any(), gen.ListStatementItemsParams{StatementID: runID, UserID: userID, After: ptr.To(int32(2)), Lim: &three}).
 					Return([]gen.StatementItem{statementItem(3)}, nil)
 			},
@@ -376,7 +377,7 @@ func TestListRunItems(t *testing.T) {
 			name: "a resolution",
 			kind: gen.RunKindResolution,
 			req:  &adminrunv1.ListRunItemsRequest{},
-			expect: func(r *MockQueriesMockRecorder) {
+			expect: func(r *mock.MockQueriesMockRecorder) {
 				r.ListResolutionItems(gomock.Any(), gen.ListResolutionItemsParams{RunID: runID, Lim: &fifty}).Return([]gen.ListResolutionItemsRow{{
 					ResolutionKey: gen.ResolutionKey{StatedKeyID: keyID, Outcome: gen.ResolutionOutcomeUnrecognised}, StatedKey: itemKey,
 				}}, nil)
@@ -389,7 +390,7 @@ func TestListRunItems(t *testing.T) {
 			name: "a fetch's page after a key",
 			kind: gen.RunKindFetch,
 			req:  &adminrunv1.ListRunItemsRequest{PageToken: childID.String()},
-			expect: func(r *MockQueriesMockRecorder) {
+			expect: func(r *mock.MockQueriesMockRecorder) {
 				r.ListFetchItems(gomock.Any(), gen.ListFetchItemsParams{FetchID: runID, After: &childID, Lim: &fifty}).Return([]gen.ListFetchItemsRow{{
 					FetchKey: gen.FetchKey{
 						StatedKeyID: keyID, Outcome: gen.FetchOutcomeFailedPermanent, Attempts: 1,
@@ -404,9 +405,9 @@ func TestListRunItems(t *testing.T) {
 				Reason: ptr.To("unknown identifier"),
 			}}}}},
 		},
-		{name: "a replay has none", kind: gen.RunKindReplay, req: &adminrunv1.ListRunItemsRequest{}, expect: func(*MockQueriesMockRecorder) {}, want: &adminrunv1.ListRunItemsResponse{}},
-		{name: "a statement's malformed token", kind: gen.RunKindStatement, req: &adminrunv1.ListRunItemsRequest{PageToken: "next"}, expect: func(*MockQueriesMockRecorder) {}, wantCode: connect.CodeInvalidArgument},
-		{name: "a resolution's malformed token", kind: gen.RunKindResolution, req: &adminrunv1.ListRunItemsRequest{PageToken: "2"}, expect: func(*MockQueriesMockRecorder) {}, wantCode: connect.CodeInvalidArgument},
+		{name: "a replay has none", kind: gen.RunKindReplay, req: &adminrunv1.ListRunItemsRequest{}, expect: func(*mock.MockQueriesMockRecorder) {}, want: &adminrunv1.ListRunItemsResponse{}},
+		{name: "a statement's malformed token", kind: gen.RunKindStatement, req: &adminrunv1.ListRunItemsRequest{PageToken: "next"}, expect: func(*mock.MockQueriesMockRecorder) {}, wantCode: connect.CodeInvalidArgument},
+		{name: "a resolution's malformed token", kind: gen.RunKindResolution, req: &adminrunv1.ListRunItemsRequest{PageToken: "2"}, expect: func(*mock.MockQueriesMockRecorder) {}, wantCode: connect.CodeInvalidArgument},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
