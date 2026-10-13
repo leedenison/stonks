@@ -28,7 +28,7 @@ type claim struct {
 
 // named reports whether the identifier sent identifies c.
 func (c *claim) named() bool {
-	return c.query != nil && c.query.Sent != nil && c.IdentifiedBy(*c.query.Sent)
+	return c.query != nil && c.query.SentID != nil && c.IdentifiedBy(*c.query.SentID)
 }
 
 // choice is the outcome of choosing among the claims of every response.
@@ -36,7 +36,7 @@ type choice struct {
 	// winner is nil where no claim survived.
 	winner *claim
 	// picked reports a confirmation, whose pick replaces the naming check
-	// for a key sent under an identifier that is not a GUID.
+	// for a key sent under a bare ticker or an issuer's identifier.
 	picked bool
 	// refused says why the pick of a confirmation fails a check, and is
 	// empty where there is no pick or it passes.
@@ -440,31 +440,31 @@ type alternatives struct {
 	findings []gen.CreateFindingParams
 }
 
-// filterAlternatives sorts the claims of r into survivors, offers and
-// findings for res. Under a GUID, a claim survives if it names the GUID and
-// agrees with the statement. If the provider filtered a venue ticker bare
-// and no claim names the venue, every claim that agrees with the statement
-// survives. Under a bare ticker no claim can name the identifier sent, so
-// the claims that agree with the statement are offered instead. A
+// filterAlternatives sorts the claims of r into survivors, offers and findings
+// for res. Under a global identifier, a claim survives if it names that
+// identifier and agrees with the statement. If the provider filtered a venue
+// ticker bare and no claim names the venue, every claim that agrees with the
+// statement survives. Under a bare ticker no claim can name the identifier
+// sent, so the claims that agree with the statement are offered instead. A
 // confirmation, which picked reports, replaces the naming check for a bare
 // ticker, so every claim that agrees with the statement survives.
 func filterAlternatives(r *result, res *resolution, picked bool) alternatives {
-	sent := *r.Sent
+	sent := *r.SentID
 	gs := claims(r)
 	alts := alternatives{count: len(gs)}
-	guid := mirror.IsGUID(sent)
+	global := mirror.IsGlobal(sent)
 	named := slices.ContainsFunc(gs, (*claim).named)
 	ticker := types.Identifier{Type: types.IdentifierTypeMicTicker, Value: sent.Value}
-	alts.fallback = guid && !named && sent.Type == types.IdentifierTypeMicTicker && slices.Contains(r.Response.Filtered, ticker)
+	alts.fallback = global && !named && sent.Type == types.IdentifierTypeMicTicker && slices.Contains(r.Response.Filtered, ticker)
 	for _, c := range gs {
 		switch {
-		case !guid && !picked:
+		case !global && !picked:
 			alts.notNaming++
 			if _, bad := c.against(res); !bad {
 				alts.offered = append(alts.offered, c)
 			}
 			continue
-		case guid && !c.named() && !alts.fallback:
+		case global && !c.named() && !alts.fallback:
 			alts.notNaming++
 			continue
 		}
@@ -519,7 +519,7 @@ func rank(res *resolution) func(a, b *claim) int {
 // fallback with nothing chosen above r, several survivors are offered rather
 // than chosen among.
 func (ch *choice) best(r *result, res *resolution, chosen []*claim) (*claim, []*claim) {
-	if r.Sent == nil {
+	if r.SentID == nil {
 		return nil, nil
 	}
 	alts := filterAlternatives(r, res, ch.picked)

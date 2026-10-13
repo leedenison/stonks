@@ -24,9 +24,9 @@ type Result[Q, P any] struct {
 	// ID is the fetch_keys row, where the consumer attaches its response.
 	ID      uuid.UUID
 	Outcome gen.FetchOutcome
-	// Sent is the identifier the request went out under, nil where the
+	// SentID is the identifier the request went out under, nil where the
 	// datasource does not serve the request.
-	Sent     *types.Identifier
+	SentID   *types.Identifier
 	Reason   string
 	Response P
 
@@ -121,7 +121,7 @@ func fetchRun[Q, P any](ctx context.Context, f *Fetcher, row gen.Run, e *Entry, 
 			results[i].Outcome, results[i].Reason = gen.FetchOutcomeNotServed, err.Error()
 			continue
 		}
-		results[i].Sent = &sent
+		results[i].SentID = &sent
 		keys[i] = cacheKey(e.Name, kind.name, sent, params(s, q))
 		served = append(served, i)
 	}
@@ -133,7 +133,7 @@ func fetchRun[Q, P any](ctx context.Context, f *Fetcher, row gen.Run, e *Entry, 
 		if results[i].cached {
 			continue
 		}
-		if reason, ok := blocked.covers(*results[i].Sent); ok {
+		if reason, ok := blocked.covers(*results[i].SentID); ok {
 			results[i].Outcome, results[i].Reason = gen.FetchOutcomeBlocked, reason
 			continue
 		}
@@ -146,7 +146,7 @@ func fetchRun[Q, P any](ctx context.Context, f *Fetcher, row gen.Run, e *Entry, 
 	for _, chunk := range chunks(batch, e.Integration.Batch()) {
 		var send []int
 		for _, i := range chunk {
-			if reason, ok := blocked.covers(*results[i].Sent); ok {
+			if reason, ok := blocked.covers(*results[i].SentID); ok {
 				results[i].Outcome, results[i].Reason = gen.FetchOutcomeBlocked, reason
 				continue
 			}
@@ -253,7 +253,7 @@ func writeCache[Q, P any](ctx context.Context, f *Fetcher, results []Result[Q, P
 func fetchChunk[Q, P any](ctx context.Context, f *Fetcher, e *Entry, s Server[Q, P], results []Result[Q, P], batch []int) []gen.CreateDatasourceBlockParams {
 	reqs := make([]Request[Q], len(batch))
 	for n, i := range batch {
-		reqs[n] = Request[Q]{Value: results[i].Request, Sent: *results[i].Sent}
+		reqs[n] = Request[Q]{Value: results[i].Request, Sent: *results[i].SentID}
 	}
 	resps, attempts, err := request(ctx, f, e, s, reqs)
 	var paused pausedError
@@ -317,7 +317,7 @@ func requestFailed[Q, P any](fail Failure, err error, results []Result[Q, P], ba
 func identifierBlock[Q, P any](r Result[Q, P]) gen.CreateDatasourceBlockParams {
 	return gen.CreateDatasourceBlockParams{
 		Scope: gen.BlockScopeIdentifier, Reason: r.Reason, FetchKeyID: r.ID,
-		SentType: &r.Sent.Type, SentDomain: r.Sent.Domain, SentValue: &r.Sent.Value,
+		SentType: &r.SentID.Type, SentDomain: r.SentID.Domain, SentValue: &r.SentID.Value,
 	}
 }
 
@@ -326,8 +326,8 @@ func record[Q, P any](ctx context.Context, q Queries, run gen.Run, kind Kind[Q, 
 		ID: r.ID, FetchID: run.ID, UserID: run.UserID, StatedKeyID: kind.subject(r.Request),
 		Outcome: r.Outcome, Attempts: int16(r.attempts),
 	}
-	if r.Sent != nil {
-		arg.SentType, arg.SentDomain, arg.SentValue = &r.Sent.Type, r.Sent.Domain, &r.Sent.Value
+	if r.SentID != nil {
+		arg.SentType, arg.SentDomain, arg.SentValue = &r.SentID.Type, r.SentID.Domain, &r.SentID.Value
 	}
 	if r.Outcome == gen.FetchOutcomeServed {
 		arg.Candidates = int16(kind.count(r.Response))

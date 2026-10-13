@@ -55,8 +55,8 @@ func (r *Resolver) resolveKey(ctx context.Context, q Queries, run gen.Run, res *
 	if res.outcome != "" {
 		return record(ctx, q, run, res, res.outcome, reasons(res.reason), res.findings, 0)
 	}
-	if res.inherit != nil {
-		return inheritKey(ctx, q, run, res)
+	if res.arbitrated != nil {
+		return copyArbitratedAssociation(ctx, q, run, res)
 	}
 	if err := lock(ctx, q, lockSet(res)); err != nil {
 		return gen.ResolutionKey{}, nil, err
@@ -205,7 +205,7 @@ func find(ctx context.Context, q Queries, res *resolution, ch choice) (target, e
 			ids = appendUnique(ids, id)
 		}
 	}
-	hits, err := reread(ctx, q, ids)
+	hits, err := findInstrumentsByIdentifier(ctx, q, ids)
 	if err != nil {
 		return target{}, err
 	}
@@ -260,9 +260,9 @@ func lock(ctx context.Context, q Queries, ids []types.Identifier) error {
 	return nil
 }
 
-// reread finds the instruments any of ids identifies, each with the
-// identifiers that matched it, the earliest created first.
-func reread(ctx context.Context, q Queries, ids []types.Identifier) ([]hit, error) {
+// findInstrumentsByIdentifier finds the instruments any of ids identifies,
+// each with the identifiers that matched it, the earliest created first.
+func findInstrumentsByIdentifier(ctx context.Context, q Queries, ids []types.Identifier) ([]hit, error) {
 	if len(ids) == 0 {
 		return nil, nil
 	}
@@ -381,7 +381,7 @@ func summary(res *resolution, ch choice) []string {
 			s += " in " + sets(n)
 		}
 		if n := ch.notNaming[rs.Source]; n > 0 {
-			s += fmt.Sprintf(", %s not naming %s", sets(n), name(*rs.Sent))
+			s += fmt.Sprintf(", %s not naming %s", sets(n), name(*rs.SentID))
 		}
 		dropped := 0
 		for _, f := range ch.findings {
@@ -552,8 +552,8 @@ func (w *writer) associate(ctx context.Context, res *resolution, arbiter gen.Arb
 
 // via returns the identifier that carries res's association. That is the
 // strongest trusted identifier of the instrument, with a description ranking
-// below every GUID. Failing that, it is a venue ticker of the chosen listing,
-// then a venue ticker of the instrument.
+// below every global identifier. Failing that, it is a venue ticker of the
+// chosen listing, then a venue ticker of the instrument.
 func (w *writer) via(res *resolution, listing *uuid.UUID) (gen.Identifier, bool) {
 	for _, id := range res.trusted {
 		if row, ok := w.identifiers[id]; ok {

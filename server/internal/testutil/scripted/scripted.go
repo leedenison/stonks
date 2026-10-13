@@ -47,10 +47,11 @@ func (s *Identity) Batch() int { return 10 }
 // Endpoint is the address of a provider that is never called.
 func (s *Identity) Endpoint() string { return "https://scripted.test" }
 
-// Serves sends the first GUID the key states, or a ticker without its venue.
+// Serves sends the first global identifier the key states, or a ticker without
+// its venue.
 func (s *Identity) Serves(k gen.StatedKey) (types.Identifier, error) {
 	for _, id := range k.Identifiers {
-		if mirror.IsGUID(id) || id.Type == types.IdentifierTypeMicTicker {
+		if mirror.IsGlobal(id) || id.Type == types.IdentifierTypeMicTicker {
 			return id, nil
 		}
 	}

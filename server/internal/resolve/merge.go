@@ -16,8 +16,8 @@ import (
 	"github.com/leedenison/stonks/server/internal/ptr"
 )
 
-// hit is an instrument the re-read found, with the identifiers that matched
-// it.
+// hit is an instrument findInstrumentsByIdentifier found, with the
+// identifiers that matched it.
 type hit struct {
 	found   *found
 	matched []types.Identifier

@@ -98,7 +98,7 @@ func (r *Resolver) Candidates(ctx context.Context, run gen.Run, key gen.StatedKe
 	switch {
 	case res.outcome != "":
 		o.Reasons = reasons(res.reason)
-	case res.inherit != nil:
+	case res.arbitrated != nil:
 		o.Reasons = []string{"the key takes the association of a key the user confirmed"}
 	}
 	cs, dropped, unserved := offers(res)
@@ -162,7 +162,7 @@ func (r *Resolver) Confirm(ctx context.Context, run gen.Run, key gen.StatedKey, 
 	switch {
 	case res.outcome != "":
 		return gen.ResolutionKey{}, fmt.Errorf("%w: %s", ErrNoCandidate, res.reason)
-	case res.inherit != nil:
+	case res.arbitrated != nil:
 		return gen.ResolutionKey{}, fmt.Errorf("%w: the key takes the association of a key the user confirmed", ErrNoCandidate)
 	}
 	a, err := pickAgreement(res, p)

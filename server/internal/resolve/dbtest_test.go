@@ -1055,8 +1055,8 @@ func TestConfirmRows(t *testing.T) {
 	}
 
 	// A later resolution of the key, under a run of its own, finds nothing
-	// through its description, inherits from its mate, and the write leaves
-	// the association as it is.
+	// through its description and takes the association of its arbitrated
+	// key. The write leaves that association unchanged.
 	s.resolution, err = s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: s.user.ID, Kind: gen.RunKindResolution, Trigger: gen.RunTriggerRun, ParentID: &s.statement.ID})
 	require.NoError(t, err)
 	fetches := len(s.fetches(t))
@@ -1068,10 +1068,10 @@ func TestConfirmRows(t *testing.T) {
 		t.Errorf("key after a later resolution = %+v, want the user's association", k)
 	}
 	if n := len(s.fetches(t)); n != fetches {
-		t.Errorf("%d fetches after a later resolution, want %d: an inheriting key is not sent", n, fetches)
+		t.Errorf("%d fetches after a later resolution, want %d: a key that takes an arbitrated association is not sent", n, fetches)
 	}
 
-	// A new key stating the description inherits the association.
+	// A new key stating the description takes the association.
 	next := s.stateUnder(t, s.newStatement(t, gen.BrokerIbkr), types.AssetClassStock, "GBP", ticker, descr)
 	got = s.resolve(t, next)
 	k := s.key(t, next.ID)

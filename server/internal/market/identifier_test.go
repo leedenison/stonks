@@ -54,7 +54,7 @@ func TestPreference(t *testing.T) {
 		{name: "a complete integration skips a venue that is not a MIC", p: complete, key: gen.StatedKey{Identifiers: []types.Identifier{ticker("NASDAQ", "AAPL"), ticker("XNGS", "AAPL")}}, want: ticker("XNAS", "AAPL")},
 		{name: "a venue that is not a MIC alone", p: complete, key: gen.StatedKey{Identifiers: []types.Identifier{ticker("NASDAQ", "AAPL")}}, fails: true},
 		{name: "a bare ticker last", p: limited, key: gen.StatedKey{Identifiers: []types.Identifier{ticker("", "AAPL")}}, want: ticker("", "AAPL")},
-		{name: "a bare ticker beside a GUID the integration does not take", p: limited, key: gen.StatedKey{Identifiers: []types.Identifier{ticker("", "AAPL"), isin}}, fails: true},
+		{name: "a bare ticker beside a global identifier the integration does not take", p: limited, key: gen.StatedKey{Identifiers: []types.Identifier{ticker("", "AAPL"), isin}}, fails: true},
 		{name: "a class outside those served", p: limited, key: gen.StatedKey{AssetClass: &option, Identifiers: []types.Identifier{cusip}}, fails: true},
 		{name: "nothing it accepts", p: limited, key: gen.StatedKey{Identifiers: []types.Identifier{isin}}, fails: true},
 	}

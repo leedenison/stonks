@@ -10,7 +10,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/ptr"
 )
 
-func TestGUIDs(t *testing.T) {
+func TestGlobalIDs(t *testing.T) {
 	isin := id(types.IdentifierTypeIsin, "", "GB00BH4HKS39")
 	sedol := id(types.IdentifierTypeSedol, "", "BH4HKS3")
 	occ := id(types.IdentifierTypeOcc, "", "VOD   260116C00010000")
@@ -40,8 +40,8 @@ func TestGUIDs(t *testing.T) {
 	}
 }
 
-// TestTrusted checks that trustedIDs returns every GUID and every broker
-// description, strongest first, and nothing else.
+// TestTrusted checks that trustedIDs returns every global identifier and every
+// broker description, strongest first, and nothing else.
 func TestTrusted(t *testing.T) {
 	isin := id(types.IdentifierTypeIsin, "", "GB00BH4HKS39")
 	venue := id(types.IdentifierTypeMicTicker, "XLON", "VOD")

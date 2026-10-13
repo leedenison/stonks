@@ -12,12 +12,12 @@ import (
 	"github.com/leedenison/stonks/server/internal/mic"
 )
 
-// sendBare returns the ticker bare to send for key, or an error when key
-// states a GUID. A provider given only the ticker answers for whichever
-// instrument matches it, which need not be the one the GUID names.
+// sendBare returns the ticker bare to send for key, or an error when key states
+// a global identifier. A provider given only the ticker answers for whichever
+// instrument matches it, which need not be the one that identifier names.
 func sendBare(key gen.StatedKey, bare types.Identifier) (types.Identifier, error) {
 	for _, id := range key.Identifiers {
-		if mirror.IsGUID(id) {
+		if mirror.IsGlobal(id) {
 			return types.Identifier{}, fmt.Errorf("ticker '%s' without a venue declined: the key states %s '%s'", bare.Value, id.Type, id.Value)
 		}
 	}
@@ -69,10 +69,10 @@ type Preference struct {
 	Mics  mic.Table
 }
 
-// Serves returns the identifier of key to send, or why none is sent. A
-// ticker without its venue is sent last, and only for a key without a
-// GUID. An integration that lists some venues declines a key that states a
-// ticker at a venue outside them, whatever else the key states, since it
+// Serves returns the identifier of key to send, or why none is sent. A ticker
+// without its venue is sent last, and only for a key without a global
+// identifier. An integration that lists some venues declines a key that states
+// a ticker at a venue outside them, whatever else the key states, since it
 // would answer with listings elsewhere. One that lists every venue skips a
 // ticker whose venue is not a MIC, and declines the key only when nothing is
 // left.
