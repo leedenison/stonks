@@ -101,9 +101,9 @@ func (r *Resolver) Candidates(ctx context.Context, run gen.Run, key gen.StatedKe
 	case res.arbitrated != nil:
 		o.Reasons = []string{"the key takes the association of a key the user confirmed"}
 	}
-	cs, dropped, unserved := offers(res)
+	cs, dropped, unserved := offeredClaims(res)
 	o.Reasons = append(o.Reasons, unserved...)
-	for _, a := range gather(res, cs) {
+	for _, a := range gatherAgreements(res, cs) {
 		if c, ok := candidateOf(a); ok {
 			o.Candidates = append(o.Candidates, c)
 		}
@@ -126,20 +126,20 @@ func (r *Resolver) Candidates(ctx context.Context, run gen.Run, key gen.StatedKe
 	return o, nil
 }
 
-// offers returns the claims the served results offer for res,
+// offeredClaims returns the claims the served fetch keys offer for res,
 // in precedence order and then each datasource's order. It also returns the
 // findings of the claims that disagree with the statement. Last, it returns
-// the reason for each result that served nothing.
-func offers(res *resolution) ([]*claim, []gen.CreateFindingParams, []string) {
+// the reason for each fetch key that served nothing.
+func offeredClaims(res *resolution) ([]*claim, []gen.CreateFindingParams, []string) {
 	var cs []*claim
 	var findings []gen.CreateFindingParams
 	var unserved []string
-	for _, rr := range res.results {
-		if rr.Outcome != gen.FetchOutcomeServed {
-			unserved = append(unserved, unservedReason(rr))
+	for _, fk := range res.fetchKeys {
+		if fk.Outcome != gen.FetchOutcomeServed {
+			unserved = append(unserved, unservedReason(fk))
 			continue
 		}
-		alts := filterAlternatives(rr, res, false)
+		alts := filterAlternatives(fk, res, false)
 		findings = append(findings, alts.findings...)
 		cs = append(cs, alts.offered...)
 		cs = append(cs, alts.survivors...)
@@ -176,16 +176,16 @@ func (r *Resolver) Confirm(ctx context.Context, run gen.Run, key gen.StatedKey, 
 // lists for res. It is the first whose head came from p's datasource and
 // carries p's identifier.
 func pickAgreement(res *resolution, p Pick) (agreement, error) {
-	i := slices.IndexFunc(res.results, func(rr *result) bool { return rr.Source == p.Datasource })
+	i := slices.IndexFunc(res.fetchKeys, func(fk *fetchKey) bool { return fk.Source == p.Datasource })
 	if i < 0 {
 		return nil, fmt.Errorf("%w: %s was not asked", ErrNoCandidate, p.Datasource)
 	}
-	if rr := res.results[i]; rr.Outcome != gen.FetchOutcomeServed {
-		return nil, fmt.Errorf("%w: %s", ErrNoCandidate, unservedReason(rr))
+	if fk := res.fetchKeys[i]; fk.Outcome != gen.FetchOutcomeServed {
+		return nil, fmt.Errorf("%w: %s", ErrNoCandidate, unservedReason(fk))
 	}
-	cs, _, _ := offers(res)
-	for _, a := range gather(res, cs) {
-		if h := a.head(); h.query.Source == p.Datasource && h.IdentifiedBy(p.Identifier) {
+	cs, _, _ := offeredClaims(res)
+	for _, a := range gatherAgreements(res, cs) {
+		if h := a.head(); h.fetchKey.Source == p.Datasource && h.IdentifiedBy(p.Identifier) {
 			return a, nil
 		}
 	}
@@ -201,13 +201,13 @@ func candidateOf(a agreement) (Candidate, bool) {
 	if !ok {
 		return Candidate{}, false
 	}
-	out := Candidate{Datasource: head.query.Source, Strongest: strongest, Instrument: types.Instrument{Class: head.Class, Listings: map[string]types.Listing{}}}
+	out := Candidate{Datasource: head.fetchKey.Source, Strongest: strongest, Instrument: types.Instrument{Class: head.Class, Listings: map[string]types.Listing{}}}
 	if out.Class == "" {
 		out.Class = types.AssetClassUnknown
 	}
 	for _, c := range a {
 		if c != head {
-			out.Attached = append(out.Attached, c.query.Source)
+			out.Attached = append(out.Attached, c.fetchKey.Source)
 		}
 		for _, id := range c.Identifiers {
 			out.Identifiers = appendUnique(out.Identifiers, id)

@@ -45,8 +45,8 @@ func strength(id types.Identifier) int {
 	return n
 }
 
-// bare reports whether k states a ticker without its venue.
-func bare(k gen.StatedKey) bool {
+// statesBareTicker reports whether k states a ticker without its venue.
+func statesBareTicker(k gen.StatedKey) bool {
 	for _, id := range k.Identifiers {
 		if id.Type == types.IdentifierTypeMicTicker && id.Domain == "" {
 			return true
