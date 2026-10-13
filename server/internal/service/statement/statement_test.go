@@ -282,9 +282,8 @@ func TestFindCandidates(t *testing.T) {
 	usd := "USD"
 	offer := resolve.Offer{
 		Candidates: []resolve.Candidate{{
-			Datasource: "openfigi", Attached: []string{"massive", "eodhd"}, Strongest: types.Identifier{Type: types.IdentifierTypeIsin, Value: "US4581401001"}, AssetClass: types.AssetClassStock,
-			Identifiers: []types.Identifier{{Type: types.IdentifierTypeIsin, Value: "US4581401001"}},
-			Listings:    []resolve.CandidateListing{{Currency: &usd, Identifiers: []types.Identifier{{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "INTC"}}}, {Identifiers: []types.Identifier{{Type: types.IdentifierTypeMicTicker, Domain: "XLON", Value: "INTC"}}}},
+			Datasource: "openfigi", Attached: []string{"massive", "eodhd"}, Strongest: types.Identifier{Type: types.IdentifierTypeIsin, Value: "US4581401001"},
+			Instrument: types.Instrument{Class: types.AssetClassStock, Identifiers: []types.Identifier{{Type: types.IdentifierTypeIsin, Value: "US4581401001"}}, Listings: map[string]types.Listing{"USD": {Identifiers: []types.Identifier{{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "INTC"}}}, "": {Identifiers: []types.Identifier{{Type: types.IdentifierTypeMicTicker, Domain: "XLON", Value: "INTC"}}}}},
 		}},
 		Reasons: []string{"eodhd: failed: paused"},
 	}
@@ -293,8 +292,8 @@ func TestFindCandidates(t *testing.T) {
 		Candidates: []*statementv1.Candidate{{
 			Datasource: "openfigi", Attached: []string{"massive", "eodhd"}, Strongest: isinMsg, AssetClass: typev1.AssetClass_ASSET_CLASS_STOCK, Identifiers: []*typev1.Identifier{isinMsg},
 			Listings: []*statementv1.CandidateListing{
-				{Currency: &usd, Identifiers: []*typev1.Identifier{{Type: typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, Domain: "XNAS", Value: "INTC"}}},
 				{Identifiers: []*typev1.Identifier{{Type: typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, Domain: "XLON", Value: "INTC"}}},
+				{Currency: &usd, Identifiers: []*typev1.Identifier{{Type: typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, Domain: "XNAS", Value: "INTC"}}},
 			},
 		}},
 		Reasons: []string{"eodhd: failed: paused"},

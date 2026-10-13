@@ -1008,10 +1008,9 @@ func TestConfirmRows(t *testing.T) {
 
 	offer, err := s.resolver.Candidates(ctx, s.resolution, key)
 	require.NoError(t, err)
-	gbp := "GBP"
 	wantOffer := Offer{Candidates: []Candidate{{
-		Datasource: s.alphaName, Strongest: figi, AssetClass: types.AssetClassStock, Identifiers: []types.Identifier{figi, isin},
-		Listings: []CandidateListing{{Currency: &gbp, Identifiers: []types.Identifier{comp, xlon}}},
+		Datasource: s.alphaName, Strongest: figi,
+		Instrument: types.Instrument{Class: types.AssetClassStock, Identifiers: []types.Identifier{figi, isin}, Listings: map[string]types.Listing{"GBP": {Identifiers: []types.Identifier{comp, xlon}}}},
 	}}}
 	if diff := cmp.Diff(wantOffer, offer); diff != "" {
 		t.Errorf("Candidates() mismatch (-want +got):\n%s", diff)
@@ -1147,10 +1146,9 @@ func TestConfirmMerged(t *testing.T) {
 
 	offer, err := s.resolver.Candidates(ctx, s.resolution, key)
 	require.NoError(t, err)
-	gbp := "GBP"
 	wantOffer := Offer{Candidates: []Candidate{{
-		Datasource: s.alphaName, Attached: []string{s.betaName}, Strongest: figi, AssetClass: types.AssetClassStock, Identifiers: []types.Identifier{figi, isin},
-		Listings: []CandidateListing{{Currency: &gbp, Identifiers: []types.Identifier{xlon}}},
+		Datasource: s.alphaName, Attached: []string{s.betaName}, Strongest: figi,
+		Instrument: types.Instrument{Class: types.AssetClassStock, Identifiers: []types.Identifier{figi, isin}, Listings: map[string]types.Listing{"GBP": {Identifiers: []types.Identifier{xlon}}}},
 	}}}
 	if diff := cmp.Diff(wantOffer, offer); diff != "" {
 		t.Errorf("Candidates() mismatch (-want +got):\n%s", diff)

@@ -1,8 +1,9 @@
 // Package types holds the Go types of columns sqlc does not map itself,
 // named in the overrides in sqlc.yaml, each type's conversion to its proto
 // message, and the conversions between a database enum and its proto
-// counterpart. It imports nothing of the server, so generated code may
-// depend on it without a cycle.
+// counterpart. It also holds the hand-written types that code builds and
+// compares outside a row or a message. It imports nothing of the server,
+// so generated code may depend on it without a cycle.
 package types
 
 import (

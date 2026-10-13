@@ -15,53 +15,42 @@ import (
 )
 
 // Candidate is one security that one or more datasources describe, as the
-// sets of identifiers of one agreement, offered for the user to confirm
-// before the instrument is written. It differs from a market.Candidate, which is one listing of an
-// answer.
+// claims of one agreement combined, offered for the user to confirm before
+// the instrument is written. It differs from a market.Candidate, which is one
+// listing of an answer.
 type Candidate struct {
-	// Datasource served the head set, which a confirmation writes as the
+	// Datasource made the head claim, which a confirmation writes as the
 	// winner.
 	Datasource string
 	// Attached names the datasources of the members other than the head, in
 	// precedence order.
 	Attached []string
 	// Strongest is the identifier that names the head most firmly, as
-	// idSet.strongest picks it. The client names the candidate by it, and a
+	// claim.strongest picks it. The client names the candidate by it, and a
 	// confirmation sends it.
 	Strongest types.Identifier
-	// AssetClass is the head's class, which the instrument takes.
-	AssetClass types.AssetClass
-	// Identifiers name the instrument itself, not one of its listings.
-	Identifiers []types.Identifier
-	// Listings is one per currency family, sorted by family.
-	Listings []CandidateListing
+	// Instrument takes the head's class and the identifiers of every member.
+	// A confirmation does not write the listing identifiers that have no
+	// currency family.
+	types.Instrument
 }
 
-// ToProto writes c as its proto message.
+// ToProto writes c as its proto message, the listings sorted by family. A
+// listing of no family has no currency.
 func (c Candidate) ToProto() *statementv1.Candidate {
-	out := &statementv1.Candidate{Datasource: c.Datasource, Attached: c.Attached, Strongest: c.Strongest.ToProto(), AssetClass: types.ToProto[typev1.AssetClass](c.AssetClass)}
+	out := &statementv1.Candidate{Datasource: c.Datasource, Attached: c.Attached, Strongest: c.Strongest.ToProto(), AssetClass: types.ToProto[typev1.AssetClass](c.Class)}
 	for _, id := range c.Identifiers {
 		out.Identifiers = append(out.Identifiers, id.ToProto())
 	}
-	for _, l := range c.Listings {
-		out.Listings = append(out.Listings, l.ToProto())
-	}
-	return out
-}
-
-// CandidateListing is one listing of a candidate.
-type CandidateListing struct {
-	// Currency is the family code, nil where the datasource stated none; a
-	// confirmation does not write that listing's identifiers.
-	Currency    *string
-	Identifiers []types.Identifier
-}
-
-// ToProto writes l as its proto message.
-func (l CandidateListing) ToProto() *statementv1.CandidateListing {
-	out := &statementv1.CandidateListing{Currency: l.Currency}
-	for _, id := range l.Identifiers {
-		out.Identifiers = append(out.Identifiers, id.ToProto())
+	for _, fam := range slices.Sorted(maps.Keys(c.Listings)) {
+		l := &statementv1.CandidateListing{}
+		if fam != noFamily {
+			l.Currency = &fam
+		}
+		for _, id := range c.Listings[fam].Identifiers {
+			l.Identifiers = append(l.Identifiers, id.ToProto())
+		}
+		out.Listings = append(out.Listings, l)
 	}
 	return out
 }
@@ -90,12 +79,12 @@ var ErrNoCandidate = errors.New("the answers no longer offer the candidate")
 // candidates the datasources offer for key. Each candidate is one
 // agreement, so one security that several datasources describe is offered
 // once. The candidates are in the precedence order of their heads, then the
-// head datasource's own order. A set is offered if it survives the stated
+// head datasource's own order. A claim is offered if it survives the stated
 // checks and, for a bare ticker, if it agrees with the statement. Candidates
 // writes the findings against run and stops before choosing. The key's
 // resolution is left as it was.
 //
-// Sets agree only through a stable identifier they share, so one security
+// Claims agree only through a stable identifier they share, so one security
 // can still be offered twice. EODHD states an ISIN without a FIGI, so for a
 // US stock its candidate stands apart from OpenFIGI's. The datasource of the
 // candidate the user confirms supplies the instrument.
@@ -112,9 +101,9 @@ func (r *Resolver) Candidates(ctx context.Context, run gen.Run, key gen.StatedKe
 	case res.inherit != nil:
 		o.Reasons = []string{"the key takes the association of a key the user confirmed"}
 	}
-	sets, dropped, unserved := offers(res)
+	cs, dropped, unserved := offers(res)
 	o.Reasons = append(o.Reasons, unserved...)
-	for _, a := range gather(res, sets) {
+	for _, a := range gather(res, cs) {
 		if c, ok := candidateOf(a); ok {
 			o.Candidates = append(o.Candidates, c)
 		}
@@ -137,12 +126,12 @@ func (r *Resolver) Candidates(ctx context.Context, run gen.Run, key gen.StatedKe
 	return o, nil
 }
 
-// offers returns the sets of identifiers the served results offer for res,
+// offers returns the claims the served results offer for res,
 // in precedence order and then each datasource's order. It also returns the
-// findings of the sets that disagree with the statement. Last, it returns
+// findings of the claims that disagree with the statement. Last, it returns
 // the reason for each result that served nothing.
-func offers(res *resolution) ([]*idSet, []gen.CreateFindingParams, []string) {
-	var sets []*idSet
+func offers(res *resolution) ([]*claim, []gen.CreateFindingParams, []string) {
+	var cs []*claim
 	var findings []gen.CreateFindingParams
 	var unserved []string
 	for _, rr := range res.results {
@@ -152,15 +141,15 @@ func offers(res *resolution) ([]*idSet, []gen.CreateFindingParams, []string) {
 		}
 		alts := filterAlternatives(rr, res, false)
 		findings = append(findings, alts.findings...)
-		sets = append(sets, alts.offered...)
-		sets = append(sets, alts.survivors...)
+		cs = append(cs, alts.offered...)
+		cs = append(cs, alts.survivors...)
 	}
-	return sets, findings, unserved
+	return cs, findings, unserved
 }
 
 // Confirm is the body of a synchronous resolution that takes the candidate p
 // names for key. It writes the candidate as a run writes a winner and the
-// sets attached to it, with the user as arbiter. Confirm gathers the
+// claims attached to it, with the user as arbiter. Confirm gathers the
 // candidates again, so answers that changed since Candidates decide what it
 // writes. Every key of key's group takes the same instrument. It also takes
 // the listing when it states the same currency family as key.
@@ -194,9 +183,9 @@ func pickAgreement(res *resolution, p Pick) (agreement, error) {
 	if rr := res.results[i]; rr.Outcome != gen.FetchOutcomeServed {
 		return nil, fmt.Errorf("%w: %s", ErrNoCandidate, unservedReason(rr))
 	}
-	sets, _, _ := offers(res)
-	for _, a := range gather(res, sets) {
-		if h := a.head(); h.r.Source == p.Datasource && h.identifiedBy(p.Identifier) {
+	cs, _, _ := offers(res)
+	for _, a := range gather(res, cs) {
+		if h := a.head(); h.query.Source == p.Datasource && h.IdentifiedBy(p.Identifier) {
 			return a, nil
 		}
 	}
@@ -212,31 +201,27 @@ func candidateOf(a agreement) (Candidate, bool) {
 	if !ok {
 		return Candidate{}, false
 	}
-	c := Candidate{Datasource: head.r.Source, Strongest: strongest, AssetClass: head.class}
-	if c.AssetClass == "" {
-		c.AssetClass = types.AssetClassUnknown
+	out := Candidate{Datasource: head.query.Source, Strongest: strongest, Instrument: types.Instrument{Class: head.Class, Listings: map[string]types.Listing{}}}
+	if out.Class == "" {
+		out.Class = types.AssetClassUnknown
 	}
-	listings := map[string][]types.Identifier{}
-	for _, g := range a {
-		if g != head {
-			c.Attached = append(c.Attached, g.r.Source)
+	for _, c := range a {
+		if c != head {
+			out.Attached = append(out.Attached, c.query.Source)
 		}
-		for _, id := range g.instrument {
-			c.Identifiers = appendUnique(c.Identifiers, id)
+		for _, id := range c.Identifiers {
+			out.Identifiers = appendUnique(out.Identifiers, id)
 		}
-		for fam, ids := range g.listings {
-			for _, id := range ids {
-				listings[fam] = appendUnique(listings[fam], id)
+		for fam, gl := range c.Listings {
+			l := out.Listings[fam]
+			for _, id := range gl.Identifiers {
+				l.Identifiers = appendUnique(l.Identifiers, id)
 			}
+			if l.Primary == "" {
+				l.Primary = gl.Primary
+			}
+			out.Listings[fam] = l
 		}
 	}
-	for _, fam := range slices.Sorted(maps.Keys(listings)) {
-		l := CandidateListing{Identifiers: listings[fam]}
-		if fam != noFamily {
-			f := fam
-			l.Currency = &f
-		}
-		c.Listings = append(c.Listings, l)
-	}
-	return c, true
+	return out, true
 }

@@ -101,11 +101,11 @@ func TestExclusive(t *testing.T) {
 	other := id(types.IdentifierTypeIsin, "", "US0378331005")
 	descr := id(types.IdentifierTypeBrokerDescription, "ibkr", "VODAFONE GROUP PLC")
 	renamed := id(types.IdentifierTypeBrokerDescription, "ibkr", "VODAFONE GRP")
-	g := &idSet{instrument: []types.Identifier{isin, descr}, listings: map[string][]types.Identifier{}}
-	if got, ok := g.contradicts(other, noFamily); !ok || got != isin {
+	c := &claim{Instrument: types.Instrument{Identifiers: []types.Identifier{isin, descr}}}
+	if got, ok := c.contradicts(other, noFamily); !ok || got != isin {
 		t.Errorf("contradicts(%s) = %v, %v, want the isin", name(other), got, ok)
 	}
-	if got, ok := g.contradicts(renamed, noFamily); ok {
+	if got, ok := c.contradicts(renamed, noFamily); ok {
 		t.Errorf("contradicts(%s) = %v, want no contradiction between two descriptions", name(renamed), got)
 	}
 }

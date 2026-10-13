@@ -49,24 +49,9 @@ func (f *found) covered(datasource string) bool {
 	return f.instrument.FetchKeyID == nil || f.coverage[datasource]
 }
 
-// idSet returns f as a set of identifiers.
-func (f *found) idSet() *idSet {
-	g := &idSet{class: f.instrument.AssetClass, listings: map[string][]types.Identifier{}}
-	famOf := map[uuid.UUID]string{}
-	for _, l := range f.listings {
-		famOf[l.ID] = l.Currency
-		g.listings[l.Currency] = nil
-	}
-	for _, id := range f.identifiers {
-		v := to.Identifier(id)
-		if id.ListingID == nil {
-			g.instrument = append(g.instrument, v)
-			continue
-		}
-		fam := famOf[*id.ListingID]
-		g.listings[fam] = append(g.listings[fam], v)
-	}
-	return g
+// claim returns f as the database's claim.
+func (f *found) claim() *claim {
+	return &claim{Instrument: to.Instrument(f.instrument, f.identifiers, f.listings)}
 }
 
 // trustedIDs returns every GUID and every broker description the key
