@@ -72,3 +72,29 @@ func TestID(t *testing.T) {
 		})
 	}
 }
+
+func TestOrdinal(t *testing.T) {
+	seven := int32(7)
+	tests := []struct {
+		name    string
+		token   string
+		want    *int32
+		wantErr bool
+	}{
+		{name: "first page", token: ""},
+		{name: "a token", token: "7", want: &seven},
+		{name: "malformed", token: "seven", wantErr: true},
+		{name: "out of range", token: "4294967296", wantErr: true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := Ordinal(tc.token)
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("Ordinal(%q) error = %v, wantErr %v", tc.token, err, tc.wantErr)
+			}
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("Ordinal(%q) mismatch (-want +got):\n%s", tc.token, diff)
+			}
+		})
+	}
+}

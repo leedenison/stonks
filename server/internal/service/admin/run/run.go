@@ -44,14 +44,14 @@ var _ Queries = (*gen.Queries)(nil)
 
 // Server implements RunService.
 type Server struct {
-	store Queries
+	queries Queries
 }
 
 var _ adminrunv1connect.RunServiceHandler = (*Server)(nil)
 
 // New returns a Server.
-func New(store Queries) *Server {
-	return &Server{store: store}
+func New(queries Queries) *Server {
+	return &Server{queries: queries}
 }
 
 // ListRuns lists every user's runs matching the filters, newest first,
@@ -103,9 +103,9 @@ func (s *Server) ListRuns(ctx context.Context, req *connect.Request[adminrunv1.L
 // page from its top-level runs down and spares the walk up from every run.
 func (s *Server) listRuns(ctx context.Context, arg gen.ListUserRunsParams) ([]gen.ListUserRunsRow, error) {
 	if arg.Kind != nil || arg.Trigger != nil || arg.State != nil || arg.UserID != nil {
-		return s.store.ListUserRuns(ctx, arg)
+		return s.queries.ListUserRuns(ctx, arg)
 	}
-	rows, err := s.store.ListRootRuns(ctx, gen.ListRootRunsParams{Before: arg.Before, Lim: arg.Lim})
+	rows, err := s.queries.ListRootRuns(ctx, gen.ListRootRunsParams{Before: arg.Before, Lim: arg.Lim})
 	if err != nil {
 		return nil, err
 	}
@@ -163,7 +163,7 @@ func (s *Server) userRun(ctx context.Context, id string) (gen.GetUserRunRow, err
 	if err != nil {
 		return gen.GetUserRunRow{}, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	row, err := s.store.GetUserRun(ctx, runID)
+	row, err := s.queries.GetUserRun(ctx, runID)
 	if errors.Is(err, db.ErrNotFound) {
 		return gen.GetUserRunRow{}, connect.NewError(connect.CodeNotFound, errors.New("no such run"))
 	}
@@ -176,14 +176,14 @@ func (s *Server) userRun(ctx context.Context, id string) (gen.GetUserRunRow, err
 // tree adds the runs above and below run to out, and returns the ids of run
 // and of every run below it.
 func (s *Server) tree(ctx context.Context, run gen.Run, out *adminrunv1.GetRunResponse) ([]uuid.UUID, error) {
-	ancestors, err := s.store.ListRunAncestors(ctx, run.ID)
+	ancestors, err := s.queries.ListRunAncestors(ctx, run.ID)
 	if err != nil {
 		return nil, err
 	}
 	for _, a := range ancestors {
 		out.Ancestors = append(out.Ancestors, userRun(a.Run, a.Email, a.OpenFindings, a.Datasource, a.Endpoint))
 	}
-	descendants, err := s.store.ListRunDescendants(ctx, &run.ID)
+	descendants, err := s.queries.ListRunDescendants(ctx, &run.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -202,7 +202,7 @@ func (s *Server) tree(ctx context.Context, run gen.Run, out *adminrunv1.GetRunRe
 
 // findings adds the findings of the runs ids names to out, in tree order.
 func (s *Server) findings(ctx context.Context, ids []uuid.UUID, out *adminrunv1.GetRunResponse) error {
-	rows, err := s.store.ListRunFindings(ctx, ids)
+	rows, err := s.queries.ListRunFindings(ctx, ids)
 	if err != nil {
 		return err
 	}
@@ -219,7 +219,7 @@ func (s *Server) findings(ctx context.Context, ids []uuid.UUID, out *adminrunv1.
 // replay reads what the replay run id re-resolves. A replay whose prepare
 // step failed has no replays row, and reads as nil.
 func (s *Server) replay(ctx context.Context, id uuid.UUID) (*adminreplayv1.Replay, error) {
-	r, err := s.store.GetReplay(ctx, id)
+	r, err := s.queries.GetReplay(ctx, id)
 	if errors.Is(err, db.ErrNotFound) {
 		return nil, nil
 	}
@@ -249,11 +249,11 @@ func (s *Server) ListRunItems(ctx context.Context, req *connect.Request[adminrun
 	out := &adminrunv1.ListRunItemsResponse{}
 	switch run.Kind {
 	case gen.RunKindStatement:
-		after, err := ordinalCursor(m.GetPageToken())
+		after, err := page.Ordinal(m.GetPageToken())
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInvalidArgument, err)
 		}
-		rows, err := s.store.ListStatementItems(ctx, gen.ListStatementItemsParams{StatementID: run.ID, UserID: run.UserID, After: after, Lim: &lim})
+		rows, err := s.queries.ListStatementItems(ctx, gen.ListStatementItemsParams{StatementID: run.ID, UserID: run.UserID, After: after, Lim: &lim})
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInternal, err)
 		}
@@ -273,7 +273,7 @@ func (s *Server) ListRunItems(ctx context.Context, req *connect.Request[adminrun
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInvalidArgument, err)
 		}
-		rows, err := s.store.ListResolutionItems(ctx, gen.ListResolutionItemsParams{RunID: run.ID, After: after, Lim: &lim})
+		rows, err := s.queries.ListResolutionItems(ctx, gen.ListResolutionItemsParams{RunID: run.ID, After: after, Lim: &lim})
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInternal, err)
 		}
@@ -290,7 +290,7 @@ func (s *Server) ListRunItems(ctx context.Context, req *connect.Request[adminrun
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInvalidArgument, err)
 		}
-		rows, err := s.store.ListFetchItems(ctx, gen.ListFetchItemsParams{FetchID: run.ID, After: after, Lim: &lim})
+		rows, err := s.queries.ListFetchItems(ctx, gen.ListFetchItemsParams{FetchID: run.ID, After: after, Lim: &lim})
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInternal, err)
 		}
@@ -320,27 +320,13 @@ func fetchItem(it gen.ListFetchItemsRow) *adminrunv1.FetchItem {
 	return item
 }
 
-// ordinalCursor reads a statement run's page token, the ordinal of the last
-// item served.
-func ordinalCursor(token string) (*int32, error) {
-	if token == "" {
-		return nil, nil
-	}
-	n, err := strconv.ParseInt(token, 10, 32)
-	if err != nil {
-		return nil, fmt.Errorf("page token %q: %w", token, err)
-	}
-	ordinal := int32(n)
-	return &ordinal, nil
-}
-
 // ClearFinding clears a finding that reports no block.
 func (s *Server) ClearFinding(ctx context.Context, req *connect.Request[adminrunv1.ClearFindingRequest]) (*connect.Response[adminrunv1.ClearFindingResponse], error) {
 	id, err := uuid.Parse(req.Msg.GetFindingId())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	block, err := s.store.ClearFinding(ctx, id)
+	block, err := s.queries.ClearFinding(ctx, id)
 	if errors.Is(err, db.ErrNotFound) {
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("no such finding"))
 	}

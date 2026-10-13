@@ -4,6 +4,7 @@ package page
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/google/uuid"
 )
@@ -47,4 +48,18 @@ func ID(token string) (*uuid.UUID, error) {
 		return nil, fmt.Errorf("page token %q: %w", token, err)
 	}
 	return &id, nil
+}
+
+// Ordinal reads a page token that is the ordinal of the last row served; ""
+// is the first page.
+func Ordinal(token string) (*int32, error) {
+	if token == "" {
+		return nil, nil
+	}
+	n, err := strconv.ParseInt(token, 10, 32)
+	if err != nil {
+		return nil, fmt.Errorf("page token %q: %w", token, err)
+	}
+	ordinal := int32(n)
+	return &ordinal, nil
 }
