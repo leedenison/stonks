@@ -34,11 +34,11 @@ func Trait(t types.IdentifierType) gen.IdentifierTypeTrait {
 	return tr
 }
 
-// IsGUID reports whether id is recognised by every party: its domain is
-// global, or venue with the venue stated. An issuer's identifier is known
-// only to the broker or datasource that minted it, and a ticker without its
-// venue is ambiguous.
-func IsGUID(id types.Identifier) bool {
+// IsGlobal reports whether id is a global identifier, one every party
+// recognises. Its domain is the global domain, or a venue domain with the
+// venue stated. An issuer's identifier is known only to the broker or
+// datasource that minted it, and a ticker without its venue is ambiguous.
+func IsGlobal(id types.Identifier) bool {
 	switch traits[id.Type].Domain {
 	case gen.IdentifierDomainGlobal:
 		return true

@@ -10,12 +10,13 @@ import (
 	"github.com/leedenison/stonks/server/internal/ptr"
 )
 
-// inherit gives a key the association of the user's arbitrated keys when
-// the lookup left the key unassociated and the key shares a joining
-// identifier with them. Those keys must agree on one instrument. If two of
-// them name different instruments, the key does not inherit: a contradiction
-// finding names the two, and the key goes to the datasources.
-func (r *Resolver) inherit(ctx context.Context, run gen.Run, rs []*resolution) error {
+// findResolutionArbitratedKey finds, for each key the lookup left
+// unassociated, the user's arbitrated key that shares a joining identifier
+// with it. The write later copies the arbitrated key's association onto the
+// key. The arbitrated keys must agree on one instrument. If two of them name
+// different instruments, the key takes neither: a contradiction finding names
+// the two, and the key goes to the datasources.
+func (r *Resolver) findResolutionArbitratedKey(ctx context.Context, run gen.Run, rs []*resolution) error {
 	var open []*resolution
 	for _, res := range rs {
 		if res.outcome == "" && res.found == nil {
@@ -60,7 +61,7 @@ func (r *Resolver) inherit(ctx context.Context, run gen.Run, rs []*resolution) e
 			detail := fmt.Sprintf("confirmed keys name different instruments: %s names %s and %s names %s", shared(res.row, *first), *first.InstrumentID, shared(res.row, *other), *other.InstrumentID)
 			res.findings = append(res.findings, gen.CreateFindingParams{Kind: gen.FindingKindContradiction, Detail: ptr.To(detail)})
 		default:
-			res.inherit = first
+			res.arbitrated = first
 		}
 	}
 	return nil
@@ -88,11 +89,11 @@ func carry(a gen.SetStatedKeyAssociationParams, fam string, k gen.StatedKey, cur
 	return a
 }
 
-// inheritKey writes the association res inherits, and a matched resolution
-// key. The write only updates existing rows, so it skips the identifier
-// lock.
-func inheritKey(ctx context.Context, q Queries, run gen.Run, res *resolution) (gen.ResolutionKey, []gen.FindingKind, error) {
-	src := res.inherit
+// copyArbitratedAssociation gives a key the association of its arbitrated
+// key and records the resolution as matched. The write only updates existing
+// rows, so it skips the identifier lock.
+func copyArbitratedAssociation(ctx context.Context, q Queries, run gen.Run, res *resolution) (gen.ResolutionKey, []gen.FindingKind, error) {
+	src := res.arbitrated
 	a := gen.SetStatedKeyAssociationParams{UserID: run.UserID, InstrumentID: src.InstrumentID, ListingID: src.ListingID, ViaID: src.ViaID, Validity: src.Validity, Arbiter: gen.ArbiterUser}
 	arg := carry(a, res.cur.family(*src), res.row, res.cur)
 	if _, err := q.SetStatedKeyAssociation(ctx, arg); err != nil {

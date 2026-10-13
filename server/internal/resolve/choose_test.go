@@ -40,7 +40,7 @@ var (
 
 // served returns a result served under sent, filtered on filtered.
 func served(source string, sent types.Identifier, filtered []types.Identifier, cs ...market.Candidate) *result {
-	return &result{Source: source, Outcome: gen.FetchOutcomeServed, Sent: &sent, Response: market.IdentityResult{Filtered: filtered, Candidates: cs}}
+	return &result{Source: source, Outcome: gen.FetchOutcomeServed, SentID: &sent, Response: market.IdentityResult{Filtered: filtered, Candidates: cs}}
 }
 
 // limited marks r as an answer from a provider that lists only some of an

@@ -10,16 +10,16 @@
 // a stated description as an identifier row.
 //
 // The database is consulted before any datasource, then the user's own
-// confirmed keys, and only the keys both leave undecided are sent out. A
-// key sharing a joining identifier with the user's confirmed keys takes
-// their association before any datasource is asked; see inherit.go. Two
+// arbitrated keys, and only the keys both leave undecided are sent out. A
+// key sharing a joining identifier with the user's arbitrated keys takes
+// their association before any datasource is asked; see arbitrated.go. Two
 // runs stating one key produce one instrument, however they interleave; see
 // write.go. The first run to learn a listing's primary venue sets it for
 // good; see attach in write.go.
 //
 // A synchronous resolution runs in the caller for one key the user is
-// confirming. It shares its lookups, inheritance and fetches with a
-// resolution run; see Candidates and Confirm.
+// confirming. It shares its lookups, its search for arbitrated keys and its
+// fetches with a resolution run; see Candidates and Confirm.
 //
 // A datasource that lists only some of an instrument's listings never
 // contradicts a stated currency.
@@ -68,8 +68,8 @@ func (r *Resolver) Resolve(ctx context.Context, run gen.Run, rows []gen.StatedKe
 	return out, nil
 }
 
-// prepare runs the lookups, the inheritance and the fetches for rows, which
-// a resolution run and a synchronous resolution share.
+// prepare runs the lookups, the search for arbitrated keys and the fetches
+// for rows, which a resolution run and a synchronous resolution share.
 func (r *Resolver) prepare(ctx context.Context, run gen.Run, rows []gen.StatedKey) ([]*resolution, error) {
 	cur, err := r.currencies(ctx)
 	if err != nil {
@@ -81,13 +81,13 @@ func (r *Resolver) prepare(ctx context.Context, run gen.Run, rows []gen.StatedKe
 		res.trusted = res.trustedIDs()
 		resolutions[i] = res
 	}
-	if err := r.lookup(ctx, resolutions); err != nil {
+	if err := r.findResolutionInstrument(ctx, resolutions); err != nil {
 		return nil, err
 	}
-	if err := r.inherit(ctx, run, resolutions); err != nil {
+	if err := r.findResolutionArbitratedKey(ctx, run, resolutions); err != nil {
 		return nil, err
 	}
-	if err := r.request(ctx, run, resolutions, cur); err != nil {
+	if err := r.fetchResolutionIdentities(ctx, run, resolutions, cur); err != nil {
 		return nil, err
 	}
 	return resolutions, nil

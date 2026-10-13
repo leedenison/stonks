@@ -262,7 +262,7 @@ func TestReplace(t *testing.T) {
 }
 
 // TestConfirmCandidate checks a confirmation across statements: both keys
-// of a group take the user's pick, and a later statement's key inherits it.
+// of a group take the user's pick, and a later statement's key takes it too.
 func TestConfirmCandidate(t *testing.T) {
 	s := newStack(t)
 	ctx := context.Background()
@@ -368,14 +368,14 @@ func TestConfirmCandidate(t *testing.T) {
 	k, err := s.q.GetStatedKey(ctx, gen.GetStatedKeyParams{ID: keyOf(third).ID, UserID: s.user.ID})
 	require.NoError(t, err)
 	if k.InstrumentID == nil || *k.InstrumentID != instruments[0].InstrumentID || k.Arbiter == nil || *k.Arbiter != gen.ArbiterUser {
-		t.Errorf("the third statement's key = %+v, want the confirmed association inherited", k)
+		t.Errorf("the third statement's key = %+v, want the confirmed association", k)
 	}
 	resolution, err := s.q.ListChildRuns(ctx, gen.ListChildRunsParams{ParentID: &third.ID, UserID: s.user.ID})
 	require.NoError(t, err)
 	fetches, err := s.q.ListChildRuns(ctx, gen.ListChildRunsParams{ParentID: &resolution[0].ID, UserID: s.user.ID})
 	require.NoError(t, err)
 	if len(fetches) != 0 {
-		t.Errorf("the third statement's resolution started %d fetches, want none: an inheriting key is not sent", len(fetches))
+		t.Errorf("the third statement's resolution started %d fetches, want none: a key that takes an arbitrated association is not sent", len(fetches))
 	}
 	instruments, err = s.q.ListInstrumentHoldings(ctx, s.user.ID)
 	require.NoError(t, err)

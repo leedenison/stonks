@@ -25,13 +25,13 @@ type resolution struct {
 	fam   string
 	cur   currencies
 	found *found
-	// inherit is the user-arbitrated key whose association the key takes,
-	// nil where it takes none.
-	inherit  *gen.StatedKey
-	results  []*result
-	findings []gen.CreateFindingParams
-	outcome  gen.ResolutionOutcome
-	reason   string
+	// arbitrated is the user-arbitrated key whose association this key
+	// copies, nil where no such key shares a joining identifier with it.
+	arbitrated *gen.StatedKey
+	results    []*result
+	findings   []gen.CreateFindingParams
+	outcome    gen.ResolutionOutcome
+	reason     string
 }
 
 // found is the instrument the database names for a key.
@@ -54,12 +54,13 @@ func (f *found) claim() *claim {
 	return &claim{Instrument: to.Instrument(f.instrument, f.identifiers, f.listings)}
 }
 
-// trustedIDs returns every GUID and every broker description the key
-// states, strongest first. A lookup hit on one of them names the instrument.
+// trustedIDs returns every global identifier and every broker description the
+// key states, strongest first. A lookup hit on one of them names the
+// instrument.
 func (res *resolution) trustedIDs() []types.Identifier {
 	var out []types.Identifier
 	for _, id := range res.row.Identifiers {
-		if mirror.IsGUID(id) || id.Type == types.IdentifierTypeBrokerDescription {
+		if mirror.IsGlobal(id) || id.Type == types.IdentifierTypeBrokerDescription {
 			out = append(out, id)
 		}
 	}
@@ -71,17 +72,17 @@ func (res *resolution) decide(outcome gen.ResolutionOutcome, format string, args
 	res.outcome, res.reason = outcome, fmt.Sprintf(format, args...)
 }
 
-// lookup finds the instrument the database names for each of rs and decides
-// the resolutions that never reach a datasource. Every key's identifiers are
-// read in one query.
-func (r *Resolver) lookup(ctx context.Context, rs []*resolution) error {
+// findResolutionInstrument finds the instrument the database names for each
+// of rs and decides the resolutions that never reach a datasource. Every
+// key's identifiers are read in one query.
+func (r *Resolver) findResolutionInstrument(ctx context.Context, rs []*resolution) error {
 	var ids []types.Identifier
 	for _, res := range rs {
 		if !currency(res.row) {
 			ids = append(ids, res.trusted...)
 		}
 	}
-	hits, err := reread(ctx, r.store, ids)
+	hits, err := findInstrumentsByIdentifier(ctx, r.store, ids)
 	if err != nil {
 		return err
 	}
@@ -93,7 +94,7 @@ func (r *Resolver) lookup(ctx context.Context, rs []*resolution) error {
 	}
 	for _, res := range rs {
 		if currency(res.row) {
-			if err := r.lookupCurrency(ctx, res); err != nil {
+			if err := r.findResolutionCurrency(ctx, res); err != nil {
 				return err
 			}
 			continue
@@ -129,7 +130,7 @@ func (res *resolution) match(byID map[types.Identifier]*found) {
 		}
 	}
 	if f == nil {
-		if !slices.ContainsFunc(res.trusted, mirror.IsGUID) && !bare(res.row) {
+		if !slices.ContainsFunc(res.trusted, mirror.IsGlobal) && !bare(res.row) {
 			res.decide(gen.ResolutionOutcomeUnrecognised, "%s", unnamed(res.trusted))
 		}
 		return
@@ -150,9 +151,9 @@ func unnamed(ids []types.Identifier) string {
 	return "failed to match broker description"
 }
 
-// lookupCurrency resolves a currency key against the seed; a currency key
-// never reaches a datasource.
-func (r *Resolver) lookupCurrency(ctx context.Context, res *resolution) error {
+// findResolutionCurrency resolves a currency key against the seed; a
+// currency key never reaches a datasource.
+func (r *Resolver) findResolutionCurrency(ctx context.Context, res *resolution) error {
 	var code string
 	for _, id := range res.row.Identifiers {
 		if id.Type == types.IdentifierTypeCurrency {

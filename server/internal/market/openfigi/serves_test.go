@@ -46,7 +46,7 @@ func TestServes(t *testing.T) {
 		},
 		{name: "option", stated: []types.Identifier{{Type: types.IdentifierTypeOcc, Value: "AAPL  250117C00150000"}}, wantErr: true},
 		{name: "bare ticker beside an option", stated: []types.Identifier{bare, {Type: types.IdentifierTypeOcc, Value: "AAPL  250117C00150000"}}, wantErr: true},
-		{name: "bare ticker beside a broker id, which is not a GUID", stated: []types.Identifier{bare, {Type: types.IdentifierTypeBrokerID, Domain: "ibkr", Value: "265598"}}, want: bare},
+		{name: "bare ticker beside a broker id, which is not a global identifier", stated: []types.Identifier{bare, {Type: types.IdentifierTypeBrokerID, Domain: "ibkr", Value: "265598"}}, want: bare},
 		{name: "broker id", stated: []types.Identifier{{Type: types.IdentifierTypeBrokerID, Domain: "ibkr", Value: "265598"}}, wantErr: true},
 		{name: "nothing", wantErr: true},
 	}

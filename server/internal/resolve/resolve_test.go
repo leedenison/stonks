@@ -204,7 +204,7 @@ func keyOf(class types.AssetClass, currency string, ids ...types.Identifier) gen
 }
 
 func servedResult(sent types.Identifier, filtered []types.Identifier, cs ...market.Candidate) result {
-	return result{ID: db.NewID(), Outcome: gen.FetchOutcomeServed, Sent: &sent, Response: market.IdentityResult{Filtered: filtered, Candidates: cs}}
+	return result{ID: db.NewID(), Outcome: gen.FetchOutcomeServed, SentID: &sent, Response: market.IdentityResult{Filtered: filtered, Candidates: cs}}
 }
 
 // limitedResult marks r as an answer from a provider that lists only some of
@@ -554,9 +554,9 @@ func TestArbiter(t *testing.T) {
 	})
 }
 
-// TestInherit checks that a key sharing a joining identifier with a key the
-// user arbitrated takes its association before any datasource is asked.
-func TestInherit(t *testing.T) {
+// TestArbitratedKey checks that a key sharing a joining identifier with a key
+// the user arbitrated takes its association before any datasource is asked.
+func TestArbitratedKey(t *testing.T) {
 	descr2 := id(types.IdentifierTypeBrokerDescription, "ibkr", "ACME CORP 2")
 	instX, instY := db.NewID(), db.NewID()
 	listing, via := db.NewID(), db.NewID()
@@ -566,7 +566,7 @@ func TestInherit(t *testing.T) {
 		k.Validity, k.Arbiter = ptr.To(gen.ValidityProvisional), ptr.To(gen.ArbiterUser)
 		return k
 	}
-	t.Run("a key stating a confirmed key's description inherits", func(t *testing.T) {
+	t.Run("a key stating a confirmed key's description takes its association", func(t *testing.T) {
 		f := newFixture(t, entryA)
 		f.records()
 		f.finds()

@@ -9,18 +9,18 @@ import (
 	"github.com/leedenison/stonks/server/internal/db/gen"
 )
 
-// request fetches the identity of every undecided key except one that
-// inherits an association, with one concurrent fetch per datasource. A
-// datasource that already covers the instrument the lookup found is not
-// asked. Each key takes its results in precedence
-// order, and whether a datasource serves a key is the datasource's to say.
-// It replaces the currency of every candidate it returns with the
-// currency's family.
-func (r *Resolver) request(ctx context.Context, run gen.Run, resolutions []*resolution, cur currencies) error {
+// fetchResolutionIdentities fetches the identity of every undecided key, with
+// one concurrent fetch per datasource. A key that takes an arbitrated key's
+// association is not sent. A datasource that already covers the instrument
+// the lookup found is not asked. Each key takes its results in precedence
+// order, and whether a datasource serves a key is the datasource's to say. It
+// replaces the currency of every candidate it returns with the currency's
+// family.
+func (r *Resolver) fetchResolutionIdentities(ctx context.Context, run gen.Run, resolutions []*resolution, cur currencies) error {
 	entries := r.sources.Enabled()
 	batches := make([][]*resolution, len(entries))
 	for _, res := range resolutions {
-		if res.outcome != "" || res.inherit != nil {
+		if res.outcome != "" || res.arbitrated != nil {
 			continue
 		}
 		for i, e := range entries {

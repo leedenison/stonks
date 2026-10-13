@@ -6,7 +6,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/db/types"
 )
 
-func TestIsGUID(t *testing.T) {
+func TestIsGlobal(t *testing.T) {
 	tests := []struct {
 		id   types.Identifier
 		want bool
@@ -19,8 +19,8 @@ func TestIsGUID(t *testing.T) {
 		{types.Identifier{Type: types.IdentifierTypeDatasourceTicker, Domain: "eodhd", Value: "VOD.LSE"}, false},
 	}
 	for _, tc := range tests {
-		if got := IsGUID(tc.id); got != tc.want {
-			t.Errorf("IsGUID(%+v) = %v, want %v", tc.id, got, tc.want)
+		if got := IsGlobal(tc.id); got != tc.want {
+			t.Errorf("IsGlobal(%+v) = %v, want %v", tc.id, got, tc.want)
 		}
 	}
 }
