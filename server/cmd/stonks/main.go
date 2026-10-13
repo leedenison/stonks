@@ -38,6 +38,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/market/massive"
 	"github.com/leedenison/stonks/server/internal/market/openfigi"
 	"github.com/leedenison/stonks/server/internal/mic"
+	"github.com/leedenison/stonks/server/internal/rdb"
 	"github.com/leedenison/stonks/server/internal/replay"
 	"github.com/leedenison/stonks/server/internal/resolve"
 	runner "github.com/leedenison/stonks/server/internal/run"
@@ -143,12 +144,12 @@ func run() (err error) {
 		return err
 	}
 	log.Info("datasources", "enabled", sources.Names())
-	rdb, err := session.Open(ctx, cfg.RedisURL, session.WithTracing())
+	rc, err := rdb.Open(ctx, cfg.RedisURL, rdb.WithTracing())
 	if err != nil {
 		return err
 	}
 	defer func() {
-		if cerr := rdb.Close(); cerr != nil && err == nil {
+		if cerr := rc.Close(); cerr != nil && err == nil {
 			err = fmt.Errorf("close redis: %w", cerr)
 		}
 	}()
@@ -156,10 +157,10 @@ func run() (err error) {
 	authn := auth.New(auth.Options{
 		Verifier: google.New(cfg.GoogleClientID, google.WithHTTPClient(tracedClient(httpTimeout))),
 		Users:    queries,
-		Sessions: session.New(rdb, time.Now),
+		Sessions: session.New(rc, time.Now),
 		Allowed:  cfg.AllowedEmails,
 	})
-	cache := market.NewCache(rdb, cfg.FetchCacheTTL)
+	cache := market.NewCache(rc, cfg.FetchCacheTTL)
 	fetcher := market.NewFetcher(db.New[market.Queries](pool), runs, logger.WithCategory(log, "internal/market"), market.WithCache(cache))
 	resolver := resolve.New(db.New[resolve.Queries](pool), fetcher, sources, logger.WithCategory(log, "internal/resolve"))
 	ingester := stmt.New(db.New[stmt.Queries](pool), runs, resolver, time.Now)

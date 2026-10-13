@@ -21,7 +21,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/redis/go-redis/extra/redisotel/v9"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -44,38 +43,6 @@ type Session struct {
 	UserID    uuid.UUID `json:"user_id"`
 	CreatedAt time.Time `json:"created_at"`
 	ExpiresAt time.Time `json:"expires_at"`
-}
-
-// Option configures a client.
-type Option func(*options)
-
-type options struct{ tracing bool }
-
-// WithTracing traces every command and reports the connection pool's
-// statistics through the process's OpenTelemetry providers. It is off by
-// default, so a client opened by a test emits nothing.
-func WithTracing() Option { return func(o *options) { o.tracing = true } }
-
-// Open connects a client to url and verifies it with a ping.
-func Open(ctx context.Context, url string, opts ...Option) (*redis.Client, error) {
-	var o options
-	for _, opt := range opts {
-		opt(&o)
-	}
-	redisOpts, err := redis.ParseURL(url)
-	if err != nil {
-		return nil, fmt.Errorf("parse redis url: %w", err)
-	}
-	rdb := redis.NewClient(redisOpts)
-	if o.tracing {
-		if err := errors.Join(redisotel.InstrumentTracing(rdb), redisotel.InstrumentMetrics(rdb)); err != nil {
-			return nil, errors.Join(fmt.Errorf("instrument redis: %w", err), rdb.Close())
-		}
-	}
-	if err := rdb.Ping(ctx).Err(); err != nil {
-		return nil, errors.Join(fmt.Errorf("ping: %w", err), rdb.Close())
-	}
-	return rdb, nil
 }
 
 // Store creates, reads and deletes sessions.

@@ -14,9 +14,11 @@ import (
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
+
+	"github.com/leedenison/stonks/server/internal/rdb"
 )
 
-var rdb *redis.Client
+var rc *redis.Client
 
 func TestMain(m *testing.M) {
 	url := os.Getenv("STONKS_TEST_REDIS_URL")
@@ -24,12 +26,12 @@ func TestMain(m *testing.M) {
 		log.Fatal("STONKS_TEST_REDIS_URL is not set")
 	}
 	var err error
-	rdb, err = Open(context.Background(), url)
+	rc, err = rdb.Open(context.Background(), url)
 	if err != nil {
 		log.Fatalf("open: %v", err)
 	}
 	code := m.Run()
-	if err := rdb.Close(); err != nil {
+	if err := rc.Close(); err != nil {
 		log.Fatalf("close: %v", err)
 	}
 	os.Exit(code)
@@ -41,14 +43,14 @@ var start = time.Date(2026, 9, 9, 12, 0, 0, 0, time.UTC)
 func newStore(t *testing.T) (*Store, *time.Time) {
 	t.Helper()
 	now := start
-	return New(rdb, func() time.Time { return now }), &now
+	return New(rc, func() time.Time { return now }), &now
 }
 
 // wantTTL asserts the key's TTL is want, allowing for the seconds Redis
 // counts down between the write and the read.
 func wantTTL(t *testing.T, id string, want time.Duration) {
 	t.Helper()
-	got, err := rdb.TTL(context.Background(), prefix+id).Result()
+	got, err := rc.TTL(context.Background(), prefix+id).Result()
 	require.NoError(t, err)
 	if got > want || want-got > 2*time.Second {
 		t.Errorf("TTL of %s = %v, want %v", id, got, want)
@@ -115,7 +117,7 @@ func TestGetClampsToMax(t *testing.T) {
 	if _, err := s.Get(ctx, created.ID); !errors.Is(err, ErrNotFound) {
 		t.Errorf("Get() at max: err = %v, want ErrNotFound", err)
 	}
-	if got, err := rdb.TTL(ctx, prefix+created.ID).Result(); err != nil || got != -2 {
+	if got, err := rc.TTL(ctx, prefix+created.ID).Result(); err != nil || got != -2 {
 		t.Errorf("key survives past max: TTL = %v (err %v), want -2 (no key)", got, err)
 	}
 }

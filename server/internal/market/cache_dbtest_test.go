@@ -13,22 +13,24 @@ import (
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
+
+	"github.com/leedenison/stonks/server/internal/rdb"
 )
 
-var rdb *redis.Client
+var rc *redis.Client
 
 func TestMain(m *testing.M) {
 	url := os.Getenv("STONKS_TEST_REDIS_URL")
 	if url == "" {
 		log.Fatal("STONKS_TEST_REDIS_URL is not set")
 	}
-	opts, err := redis.ParseURL(url)
+	var err error
+	rc, err = rdb.Open(context.Background(), url)
 	if err != nil {
-		log.Fatalf("parse redis url: %v", err)
+		log.Fatalf("open: %v", err)
 	}
-	rdb = redis.NewClient(opts)
 	code := m.Run()
-	if err := rdb.Close(); err != nil {
+	if err := rc.Close(); err != nil {
 		log.Fatalf("close: %v", err)
 	}
 	os.Exit(code)
@@ -52,7 +54,7 @@ func keysOf(datasource string, n int) []string {
 
 func TestCacheRoundTrip(t *testing.T) {
 	ctx := context.Background()
-	c := NewCache(rdb, lifetime)
+	c := NewCache(rc, lifetime)
 	keys := keysOf(datasourceOf(), 2)
 
 	require.NoError(t, c.Set(ctx, keys[0], []byte(`{"a":1}`)))
@@ -61,7 +63,7 @@ func TestCacheRoundTrip(t *testing.T) {
 	if string(got[0]) != `{"a":1}` || got[1] != nil {
 		t.Errorf("Get() = %q, %q, want the entry and nil for the miss", got[0], got[1])
 	}
-	ttl, err := rdb.TTL(ctx, keys[0]).Result()
+	ttl, err := rc.TTL(ctx, keys[0]).Result()
 	require.NoError(t, err)
 	if ttl > lifetime || lifetime-ttl > 2*time.Second {
 		t.Errorf("TTL = %v, want %v", ttl, lifetime)
@@ -77,7 +79,7 @@ func TestCacheRoundTrip(t *testing.T) {
 // across more than one SCAN page, and leaves another datasource's keys.
 func TestCacheDrop(t *testing.T) {
 	ctx := context.Background()
-	c := NewCache(rdb, lifetime)
+	c := NewCache(rc, lifetime)
 	dropped, kept := datasourceOf(), datasourceOf()
 	droppedKeys, keptKeys := keysOf(dropped, 250), keysOf(kept, 3)
 	for _, k := range append(droppedKeys, keptKeys...) {
