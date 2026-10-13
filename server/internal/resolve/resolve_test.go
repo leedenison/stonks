@@ -263,8 +263,8 @@ func TestResolveBatches(t *testing.T) {
 	}
 }
 
-// TestResolveUnresolved checks each outcome of a key no set of identifiers won,
-// with its reason and findings.
+// TestResolveUnresolved checks each outcome of a key no claim won, with its
+// reason and findings.
 func TestResolveUnresolved(t *testing.T) {
 	type finding struct {
 		kind   gen.FindingKind
@@ -354,7 +354,7 @@ func TestResolveUnresolved(t *testing.T) {
 			offered: 1,
 		},
 		{
-			name:     "every set of identifiers dropped",
+			name:     "every claim dropped",
 			key:      keyOf(types.AssetClassStock, "GBP", isin),
 			results:  []result{servedResult(isin, []types.Identifier{isin}, cand(types.AssetClassStock, "USD", figi, xnas))},
 			fetched:  true,
@@ -620,7 +620,6 @@ func TestInherit(t *testing.T) {
 
 // TestCandidates checks what a synchronous resolution offers for a key.
 func TestCandidates(t *testing.T) {
-	gbp, usd := "GBP", "USD"
 	cusip2 := id(types.IdentifierTypeCusip, "", "92857W309")
 	tests := []struct {
 		name     string
@@ -642,9 +641,9 @@ func TestCandidates(t *testing.T) {
 				entryB: servedResult(ticker, []types.Identifier{ticker}, cand(types.AssetClassStock, "GBX", isin, xlon)),
 			},
 			want: Offer{Candidates: []Candidate{
-				{Datasource: "a", Strongest: figi, AssetClass: types.AssetClassStock, Identifiers: []types.Identifier{figi}, Listings: []CandidateListing{{Currency: &gbp, Identifiers: []types.Identifier{xlon}}}},
-				{Datasource: "a", Strongest: figi2, AssetClass: types.AssetClassStock, Identifiers: []types.Identifier{figi2}, Listings: []CandidateListing{{Currency: &gbp, Identifiers: []types.Identifier{xetr}}}},
-				{Datasource: "b", Strongest: isin, AssetClass: types.AssetClassStock, Identifiers: []types.Identifier{isin}, Listings: []CandidateListing{{Currency: &gbp, Identifiers: []types.Identifier{xlon}}}},
+				{Datasource: "a", Strongest: figi, Instrument: types.Instrument{Class: types.AssetClassStock, Identifiers: []types.Identifier{figi}, Listings: map[string]types.Listing{"GBP": {Identifiers: []types.Identifier{xlon}}}}},
+				{Datasource: "a", Strongest: figi2, Instrument: types.Instrument{Class: types.AssetClassStock, Identifiers: []types.Identifier{figi2}, Listings: map[string]types.Listing{"GBP": {Identifiers: []types.Identifier{xetr}}}}},
+				{Datasource: "b", Strongest: isin, Instrument: types.Instrument{Class: types.AssetClassStock, Identifiers: []types.Identifier{isin}, Listings: map[string]types.Listing{"GBP": {Identifiers: []types.Identifier{xlon}}}}},
 			}},
 		},
 		{
@@ -655,7 +654,7 @@ func TestCandidates(t *testing.T) {
 				entryA: servedResult(isin, nil, cand(types.AssetClassStock, "GBP", figi2, xetr), cand(types.AssetClassStock, "GBP", figi, isin, xlon)),
 			},
 			want: Offer{Candidates: []Candidate{
-				{Datasource: "a", Strongest: figi, AssetClass: types.AssetClassStock, Identifiers: []types.Identifier{figi, isin}, Listings: []CandidateListing{{Currency: &gbp, Identifiers: []types.Identifier{xlon}}}},
+				{Datasource: "a", Strongest: figi, Instrument: types.Instrument{Class: types.AssetClassStock, Identifiers: []types.Identifier{figi, isin}, Listings: map[string]types.Listing{"GBP": {Identifiers: []types.Identifier{xlon}}}}},
 			}},
 			won: true,
 		},
@@ -686,8 +685,8 @@ func TestCandidates(t *testing.T) {
 				entryA: servedResult(xlon, []types.Identifier{ticker}, cand(types.AssetClassStock, "GBP", figi, xetr), cand(types.AssetClassStock, "GBP", figi2, xnas)),
 			},
 			want: Offer{Candidates: []Candidate{
-				{Datasource: "a", Strongest: figi, AssetClass: types.AssetClassStock, Identifiers: []types.Identifier{figi}, Listings: []CandidateListing{{Currency: &gbp, Identifiers: []types.Identifier{xetr}}}},
-				{Datasource: "a", Strongest: figi2, AssetClass: types.AssetClassStock, Identifiers: []types.Identifier{figi2}, Listings: []CandidateListing{{Currency: &gbp, Identifiers: []types.Identifier{xnas}}}},
+				{Datasource: "a", Strongest: figi, Instrument: types.Instrument{Class: types.AssetClassStock, Identifiers: []types.Identifier{figi}, Listings: map[string]types.Listing{"GBP": {Identifiers: []types.Identifier{xetr}}}}},
+				{Datasource: "a", Strongest: figi2, Instrument: types.Instrument{Class: types.AssetClassStock, Identifiers: []types.Identifier{figi2}, Listings: map[string]types.Listing{"GBP": {Identifiers: []types.Identifier{xnas}}}}},
 			}},
 		},
 		{
@@ -698,8 +697,8 @@ func TestCandidates(t *testing.T) {
 				entryA: servedResult(ticker, []types.Identifier{ticker}, cand(types.AssetClassStock, "", xlon), cand(types.AssetClassStock, "USD", figi, xnas)),
 			},
 			want: Offer{Candidates: []Candidate{
-				{Datasource: "a", Strongest: xlon, AssetClass: types.AssetClassStock, Listings: []CandidateListing{{Identifiers: []types.Identifier{xlon}}}},
-				{Datasource: "a", Strongest: figi, AssetClass: types.AssetClassStock, Identifiers: []types.Identifier{figi}, Listings: []CandidateListing{{Currency: &usd, Identifiers: []types.Identifier{xnas}}}},
+				{Datasource: "a", Strongest: xlon, Instrument: types.Instrument{Class: types.AssetClassStock, Listings: map[string]types.Listing{"": {Identifiers: []types.Identifier{xlon}}}}},
+				{Datasource: "a", Strongest: figi, Instrument: types.Instrument{Class: types.AssetClassStock, Identifiers: []types.Identifier{figi}, Listings: map[string]types.Listing{"USD": {Identifiers: []types.Identifier{xnas}}}}},
 			}},
 		},
 		{
@@ -711,7 +710,7 @@ func TestCandidates(t *testing.T) {
 				entryB: servedResult(ticker, []types.Identifier{ticker}, cand(types.AssetClassStock, "GBX", figi, isin, xetr)),
 			},
 			want: Offer{Candidates: []Candidate{
-				{Datasource: "a", Attached: []string{"b"}, Strongest: figi, AssetClass: types.AssetClassUnknown, Identifiers: []types.Identifier{figi, isin}, Listings: []CandidateListing{{Currency: &gbp, Identifiers: []types.Identifier{xlon, xetr}}}},
+				{Datasource: "a", Attached: []string{"b"}, Strongest: figi, Instrument: types.Instrument{Class: types.AssetClassUnknown, Identifiers: []types.Identifier{figi, isin}, Listings: map[string]types.Listing{"GBP": {Identifiers: []types.Identifier{xlon, xetr}}}}},
 			}},
 		},
 		{
@@ -724,8 +723,8 @@ func TestCandidates(t *testing.T) {
 				entryC: servedResult(ticker, []types.Identifier{ticker}, cand(types.AssetClassStock, "GBP", figi, isin, xlon)),
 			},
 			want: Offer{Candidates: []Candidate{
-				{Datasource: "a", Attached: []string{"c"}, Strongest: figi, AssetClass: types.AssetClassStock, Identifiers: []types.Identifier{figi, cusip, isin}, Listings: []CandidateListing{{Currency: &gbp, Identifiers: []types.Identifier{xlon}}}},
-				{Datasource: "b", Attached: []string{"c"}, Strongest: figi, AssetClass: types.AssetClassStock, Identifiers: []types.Identifier{figi, cusip2, isin}, Listings: []CandidateListing{{Currency: &gbp, Identifiers: []types.Identifier{xlon}}}},
+				{Datasource: "a", Attached: []string{"c"}, Strongest: figi, Instrument: types.Instrument{Class: types.AssetClassStock, Identifiers: []types.Identifier{figi, cusip, isin}, Listings: map[string]types.Listing{"GBP": {Identifiers: []types.Identifier{xlon}}}}},
+				{Datasource: "b", Attached: []string{"c"}, Strongest: figi, Instrument: types.Instrument{Class: types.AssetClassStock, Identifiers: []types.Identifier{figi, cusip2, isin}, Listings: map[string]types.Listing{"GBP": {Identifiers: []types.Identifier{xlon}}}}},
 			}},
 		},
 		{
@@ -736,8 +735,8 @@ func TestCandidates(t *testing.T) {
 				entryA: servedResult(ticker, []types.Identifier{ticker}, cand(types.AssetClassStock, "GBP", xlon), cand(types.AssetClassStock, "USD", xlon)),
 			},
 			want: Offer{Candidates: []Candidate{
-				{Datasource: "a", Strongest: xlon, AssetClass: types.AssetClassStock, Listings: []CandidateListing{{Currency: &gbp, Identifiers: []types.Identifier{xlon}}}},
-				{Datasource: "a", Strongest: xlon, AssetClass: types.AssetClassStock, Listings: []CandidateListing{{Currency: &usd, Identifiers: []types.Identifier{xlon}}}},
+				{Datasource: "a", Strongest: xlon, Instrument: types.Instrument{Class: types.AssetClassStock, Listings: map[string]types.Listing{"GBP": {Identifiers: []types.Identifier{xlon}}}}},
+				{Datasource: "a", Strongest: xlon, Instrument: types.Instrument{Class: types.AssetClassStock, Listings: map[string]types.Listing{"USD": {Identifiers: []types.Identifier{xlon}}}}},
 			}},
 		},
 		{

@@ -202,7 +202,7 @@ func TestIdentifierTypes(t *testing.T) {
 	}
 }
 
-// TestAssetClasses holds the hand written enum equal to the database, in
+// TestAssetClasses holds the hand-written enum equal to the database, in
 // value and in order.
 func TestAssetClasses(t *testing.T) {
 	if diff := cmp.Diff(labels[types.AssetClass](t, "asset_class"), types.AssetClasses); diff != "" {

@@ -5,6 +5,7 @@
 package to
 
 import (
+	"github.com/google/uuid"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	adminblockv1 "github.com/leedenison/stonks/proto/admin/block/v1"
@@ -17,11 +18,34 @@ import (
 	typev1 "github.com/leedenison/stonks/proto/type/v1"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/types"
+	"github.com/leedenison/stonks/server/internal/ptr"
 )
 
 // Identifier returns the triple an identifier row names.
 func Identifier(row gen.Identifier) types.Identifier {
 	return types.Identifier{Type: row.Type, Domain: row.Domain, Value: row.Value}
+}
+
+// Instrument returns the instrument that a row, its identifier rows and its
+// listing rows describe.
+func Instrument(row gen.Instrument, identifiers []gen.Identifier, listings []gen.Listing) types.Instrument {
+	out := types.Instrument{Class: row.AssetClass, Listings: map[string]types.Listing{}}
+	famOf := map[uuid.UUID]string{}
+	for _, l := range listings {
+		famOf[l.ID] = l.Currency
+		out.Listings[l.Currency] = types.Listing{Primary: ptr.Deref(l.PrimaryMic, "")}
+	}
+	for _, id := range identifiers {
+		if id.ListingID == nil {
+			out.Identifiers = append(out.Identifiers, Identifier(id))
+			continue
+		}
+		fam := famOf[*id.ListingID]
+		l := out.Listings[fam]
+		l.Identifiers = append(l.Identifiers, Identifier(id))
+		out.Listings[fam] = l
+	}
+	return out
 }
 
 // Sent returns the identifier under which a fetch key was sent, false where

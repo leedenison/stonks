@@ -31,6 +31,25 @@ func TestIdentifier(t *testing.T) {
 	}
 }
 
+func TestInstrument(t *testing.T) {
+	inst := gen.Instrument{ID: uuid.New(), AssetClass: types.AssetClassStock}
+	gbp := gen.Listing{ID: uuid.New(), InstrumentID: inst.ID, Currency: "GBP", PrimaryMic: ptr.To("XLON")}
+	usd := gen.Listing{ID: uuid.New(), InstrumentID: inst.ID, Currency: "USD"}
+	isin := gen.Identifier{InstrumentID: inst.ID, Type: types.IdentifierTypeIsin, Value: "GB00BH4HKS39"}
+	xlon := gen.Identifier{InstrumentID: inst.ID, ListingID: &gbp.ID, Type: types.IdentifierTypeMicTicker, Domain: "XLON", Value: "VOD"}
+	want := types.Instrument{
+		Class:       types.AssetClassStock,
+		Identifiers: []types.Identifier{Identifier(isin)},
+		Listings: map[string]types.Listing{
+			"GBP": {Identifiers: []types.Identifier{Identifier(xlon)}, Primary: "XLON"},
+			"USD": {},
+		},
+	}
+	if diff := cmp.Diff(want, Instrument(inst, []gen.Identifier{isin, xlon}, []gen.Listing{gbp, usd})); diff != "" {
+		t.Errorf("Instrument mismatch (-want +got):\n%s", diff)
+	}
+}
+
 func TestSent(t *testing.T) {
 	typ, value := types.IdentifierTypeIsin, "GB00BH4HKS39"
 	if got, ok := Sent(gen.FetchKey{SentType: &typ, SentValue: &value}); !ok || got != (types.Identifier{Type: typ, Value: value}) {

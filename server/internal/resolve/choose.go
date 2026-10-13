@@ -16,81 +16,72 @@ import (
 // result is what one datasource served for a key.
 type result = market.Result[gen.StatedKey, market.IdentityResult]
 
-// idSet is one instrument a response describes: the candidates sharing an
-// instrument grain identifier, transitively, collapsed to the listing grain
-// identifiers of one listing per currency family.
-type idSet struct {
-	// r is the result that built the set, nil for the set of the instrument the
-	// database names.
-	r *result
-	// order is the position of the set's first candidate in the response.
+// claim is an Instrument together with the result that made it. A
+// response's claim gathers the candidates sharing an instrument grain
+// identifier, transitively, into one listing per currency family. The
+// database's claim is the instrument it names for the key.
+type claim struct {
+	// query is the result that made the claim, nil for the database's.
+	query *result
+	// order is the position of the claim's first candidate in the response.
 	order int
-	// class is the class of the first candidate stating one.
-	class      types.AssetClass
-	instrument []types.Identifier
-	// listings is keyed by currency family, noFamily where the candidates
-	// carry no known currency.
-	listings map[string][]types.Identifier
-	// primary is the primary venue of each family's listing, from the
-	// first candidate of the family stating one.
-	primary map[string]string
-	// named reports whether the identifier sent identifies the set.
+	types.Instrument
+	// named reports whether the identifier sent identifies the claim.
 	named bool
 }
 
-// choice is the outcome of choosing among the sets of identifiers of every
-// response.
+// choice is the outcome of choosing among the claims of every response.
 type choice struct {
-	// winner is nil where no set survived.
-	winner *idSet
+	// winner is nil where no claim survived.
+	winner *claim
 	// picked reports a confirmation, whose pick replaces the naming check
 	// for a key sent under an identifier that is not a GUID.
 	picked bool
 	// refused says why the pick of a confirmation fails a check, and is
 	// empty where there is no pick or it passes.
 	refused string
-	// attached is the best set of each datasource in precedence order, the
+	// attached is the best claim of each datasource in precedence order, the
 	// winner among them where the database named no instrument.
-	attached []*idSet
+	attached []*claim
 	findings []gen.CreateFindingParams
-	// setCounts counts the sets of each datasource's response, and notNaming
-	// those dropped for not naming the identifier sent. The reason of a key no
-	// set won summarises both.
-	setCounts map[string]int
+	// counts counts the claims of each datasource's response, and notNaming
+	// those dropped for not naming the identifier sent. The reason of a key
+	// no claim won summarises both.
+	counts    map[string]int
 	notNaming map[string]int
 	// offered holds the agreements from which the user may choose. They are
-	// gathered from the sets that the resolution dropped only because the key
-	// was sent under a bare ticker. Where the key was sent under a venue ticker
-	// that the provider filtered bare and no set names the venue, they are
-	// gathered from the survivors.
+	// gathered from the claims that the resolution dropped only because the
+	// key was sent under a bare ticker. Where the key was sent under a venue
+	// ticker that the provider filtered bare and no claim names the venue,
+	// they are gathered from the survivors.
 	offered []agreement
 }
 
-// agreement is a head set and its members. For each datasource below the
-// head, the member is the best ranked set that is consistent with every
+// agreement is a head claim and its members. For each datasource below the
+// head, the member is the best ranked claim that is consistent with every
 // member above it and shares a stable identifier with the head. That is the
-// set a run would attach to the head as the winner. The sets are in
-// precedence order, and one set may belong to several agreements.
-type agreement []*idSet
+// claim a run would attach to the head as the winner. The claims are in
+// precedence order, and one claim may belong to several agreements.
+type agreement []*claim
 
-// head is the set of the highest precedence datasource, which a
+// head is the claim of the highest precedence datasource, which a
 // confirmation writes as the winner.
-func (a agreement) head() *idSet { return a[0] }
+func (a agreement) head() *claim { return a[0] }
 
-// member returns the set of a that r served, nil where it has none.
-func (a agreement) member(r *result) *idSet {
-	for _, g := range a {
-		if g.r == r {
-			return g
+// member returns the claim of a that r made, nil where it has none.
+func (a agreement) member(r *result) *claim {
+	for _, c := range a {
+		if c.query == r {
+			return c
 		}
 	}
 	return nil
 }
 
-// idSets builds the sets of identifiers of r. The candidates of r carry
-// currency families, not currency codes. Every set carries the instrument
-// grain identifiers the call filtered on.
-func idSets(r *result) []*idSet {
+// claims builds the claims of r. The candidates of r carry currency
+// families, not currency codes. Every claim carries the instrument grain
+// identifiers the call filtered on.
+func claims(r *result) []*claim {
 	var strict []types.Identifier
 	for _, id := range r.Response.Filtered {
 		if grain(id) == gen.IdentifierGrainInstrument {
@@ -99,29 +90,29 @@ func idSets(r *result) []*idSet {
 	}
 	cs := r.Response.Candidates
 	roots := partition(cs, len(strict) > 0)
-	byRoot := map[int]*idSet{}
-	var out []*idSet
-	for i, c := range cs {
-		g := byRoot[roots[i]]
-		if g == nil {
-			g = &idSet{r: r, order: i, listings: map[string][]types.Identifier{}}
-			g.instrument = append(g.instrument, strict...)
-			byRoot[roots[i]] = g
-			out = append(out, g)
+	byRoot := map[int]*claim{}
+	var out []*claim
+	for i, cand := range cs {
+		c := byRoot[roots[i]]
+		if c == nil {
+			c = &claim{query: r, order: i, Instrument: types.Instrument{Listings: map[string]types.Listing{}}}
+			c.Identifiers = append(c.Identifiers, strict...)
+			byRoot[roots[i]] = c
+			out = append(out, c)
 		}
-		g.add(c, c.Currency)
+		c.add(cand, cand.Currency)
 	}
 	if r.Sent != nil {
-		for _, g := range out {
-			g.named = g.identifiedBy(*r.Sent)
+		for _, c := range out {
+			c.named = c.IdentifiedBy(*r.Sent)
 		}
 	}
 	return out
 }
 
 // partition returns, for each candidate, the index of the candidate
-// representing its set: a union over the instrument grain identifiers
-// candidates share, transitively, or one set where the call was strict.
+// representing its claim: a union over the instrument grain identifiers
+// candidates share, transitively, or one claim where the call was strict.
 func partition(cs []market.Candidate, strict bool) []int {
 	parent := make([]int, len(cs))
 	owner := map[types.Identifier]int{}
@@ -163,26 +154,25 @@ func union(parent []int, a, b int) {
 	}
 }
 
-// add folds c into g as a candidate of the listing of fam.
-func (g *idSet) add(c market.Candidate, fam string) {
-	if g.class == "" || g.class == types.AssetClassUnknown {
-		g.class = c.Class
+// add folds cand into c as a candidate of the listing of fam. The first
+// candidate to state a class sets the claim's, and the first of the family
+// to state a primary venue sets the listing's.
+func (c *claim) add(cand market.Candidate, fam string) {
+	if c.Class == "" || c.Class == types.AssetClassUnknown {
+		c.Class = cand.Class
 	}
-	l := g.listings[fam]
-	for _, id := range c.Identifiers {
+	l := c.Listings[fam]
+	for _, id := range cand.Identifiers {
 		if grain(id) == gen.IdentifierGrainInstrument {
-			g.instrument = appendUnique(g.instrument, id)
+			c.Identifiers = appendUnique(c.Identifiers, id)
 		} else {
-			l = appendUnique(l, id)
+			l.Identifiers = appendUnique(l.Identifiers, id)
 		}
 	}
-	g.listings[fam] = l
-	if c.Primary != "" && g.primary[fam] == "" {
-		if g.primary == nil {
-			g.primary = map[string]string{}
-		}
-		g.primary[fam] = c.Primary
+	if l.Primary == "" {
+		l.Primary = cand.Primary
 	}
+	c.Listings[fam] = l
 }
 
 func appendUnique(ids []types.Identifier, id types.Identifier) []types.Identifier {
@@ -192,37 +182,11 @@ func appendUnique(ids []types.Identifier, id types.Identifier) []types.Identifie
 	return append(ids, id)
 }
 
-// all yields every identifier of g at either grain.
-func (g *idSet) all(yield func(types.Identifier) bool) {
-	for _, id := range g.instrument {
-		if !yield(id) {
-			return
-		}
-	}
-	for _, f := range slices.Sorted(maps.Keys(g.listings)) {
-		for _, id := range g.listings[f] {
-			if !yield(id) {
-				return
-			}
-		}
-	}
-}
-
-// identifiedBy reports whether id is among g's identifiers at either grain.
-func (g *idSet) identifiedBy(id types.Identifier) bool {
-	for h := range g.all {
-		if h == id {
-			return true
-		}
-	}
-	return false
-}
-
-// listed returns the families where g has a listing, sorted, leaving out
+// listed returns the families where c has a listing, sorted, leaving out
 // the listing of no family.
-func (g *idSet) listed() []string {
+func (c *claim) listed() []string {
 	var out []string
-	for f := range g.listings {
+	for f := range c.Listings {
 		if f != noFamily {
 			out = append(out, f)
 		}
@@ -231,21 +195,21 @@ func (g *idSet) listed() []string {
 	return out
 }
 
-// contradicts reports whether g names id's subject by another value,
+// contradicts reports whether c names id's subject by another value,
 // returning the value that differs. Only the identifiers that may name what
 // id names are compared: the instrument's for an instrument grain id; for a
 // listing grain id, those of the listing in family fam and of the listing
 // of no family, or of every listing where fam is noFamily.
-func (g *idSet) contradicts(id types.Identifier, fam string) (types.Identifier, bool) {
+func (c *claim) contradicts(id types.Identifier, fam string) (types.Identifier, bool) {
 	if !exclusive(id) {
 		return types.Identifier{}, false
 	}
-	pool := g.instrument
+	pool := c.Identifiers
 	if grain(id) == gen.IdentifierGrainListing {
 		pool = nil
-		for _, f := range slices.Sorted(maps.Keys(g.listings)) {
+		for _, f := range slices.Sorted(maps.Keys(c.Listings)) {
 			if fam == noFamily || f == fam || f == noFamily {
-				pool = append(pool, g.listings[f]...)
+				pool = append(pool, c.Listings[f].Identifiers...)
 			}
 		}
 	}
@@ -263,21 +227,21 @@ func (g *idSet) contradicts(id types.Identifier, fam string) (types.Identifier, 
 	return other, found
 }
 
-// from names where g came from: the database for the instrument the key
+// from names where c came from: the database for the instrument the key
 // names, else the datasource that served it.
-func (g *idSet) from() string {
-	if g.r == nil {
+func (c *claim) from() string {
+	if c.query == nil {
 		return "database"
 	}
-	return g.r.Source
+	return c.query.Source
 }
 
-// strongest returns the identifier of g that names it most firmly, the
-// first of equal strength, and false where g carries none.
-func (g *idSet) strongest() (types.Identifier, bool) {
+// strongest returns the identifier of c that names it most firmly, the
+// first of equal strength, and false where c carries none.
+func (c *claim) strongest() (types.Identifier, bool) {
 	var best types.Identifier
 	found := false
-	for id := range g.all {
+	for id := range c.AllIDs() {
 		if !found || strength(id) < strength(best) {
 			best, found = id, true
 		}
@@ -285,72 +249,72 @@ func (g *idSet) strongest() (types.Identifier, bool) {
 	return best, found
 }
 
-// label leads a detail about g with its strongest identifier.
-func (g *idSet) label(detail string) string {
-	if id, ok := g.strongest(); ok {
+// label leads a detail about c with its strongest identifier.
+func (c *claim) label(detail string) string {
+	if id, ok := c.strongest(); ok {
 		return name(id) + ": " + detail
 	}
 	return detail
 }
 
-// ref names g as the other side of a comparison: the instrument or the
+// ref names c as the other side of a comparison: the instrument or the
 // candidate, its strongest identifier where it has one, and its source.
-func (g *idSet) ref() string {
+func (c *claim) ref() string {
 	what := "the instrument"
-	if g.r != nil {
+	if c.query != nil {
 		what = "the candidate"
 	}
-	if id, ok := g.strongest(); ok {
+	if id, ok := c.strongest(); ok {
 		what += " identified by " + name(id)
 	}
-	return fmt.Sprintf("%s (%s)", what, g.from())
+	return fmt.Sprintf("%s (%s)", what, c.from())
 }
 
-// against returns why what res states contradicts g, if it does. The stated
-// side leads the detail, and the datasource that served g closes it.
-func (g *idSet) against(res *resolution) (string, bool) {
-	detail, ok := g.contradicted(res)
+// against returns why what res states contradicts c, if it does. The stated
+// side leads the detail, and the datasource that served c closes it.
+func (c *claim) against(res *resolution) (string, bool) {
+	detail, ok := c.contradicted(res)
 	if !ok {
 		return "", false
 	}
-	return fmt.Sprintf("%s (%s)", detail, g.r.Source), true
+	return fmt.Sprintf("%s (%s)", detail, c.query.Source), true
 }
 
-// contradicted returns why what res states contradicts g. A limited answer
+// contradicted returns why what res states contradicts c. A limited answer
 // is silent about the listings it lacks, so it never contradicts the stated
 // currency family.
-func (g *idSet) contradicted(res *resolution) (string, bool) {
+func (c *claim) contradicted(res *resolution) (string, bool) {
 	k, fam := res.row, res.fam
-	if listed := g.listed(); !g.r.Response.Limited && fam != noFamily && len(listed) > 0 && !slices.Contains(listed, fam) {
-		if _, unknown := g.listings[noFamily]; !unknown {
+	if listed := c.listed(); !c.query.Response.Limited && fam != noFamily && len(listed) > 0 && !slices.Contains(listed, fam) {
+		if _, unknown := c.Listings[noFamily]; !unknown {
 			return fmt.Sprintf("stated %s has no listing among %s", fam, strings.Join(listed, ", ")), true
 		}
 	}
-	if k.AssetClass != nil && mirror.Disjoint(g.class, *k.AssetClass) {
-		return fmt.Sprintf("stated %s contradicts the class %s", *k.AssetClass, g.class), true
+	if k.AssetClass != nil && mirror.Disjoint(c.Class, *k.AssetClass) {
+		return fmt.Sprintf("stated %s contradicts the class %s", *k.AssetClass, c.Class), true
 	}
 	for _, id := range k.Identifiers {
-		if other, ok := g.contradicts(id, fam); ok {
+		if other, ok := c.contradicts(id, fam); ok {
 			return fmt.Sprintf("stated %s contradicts %s", name(id), name(other)), true
 		}
 	}
 	return "", false
 }
 
-// inconsistent returns why g contradicts a, a set of identifiers chosen above
-// it, if it does. The detail closes with a's source.
-func (g *idSet) inconsistent(a *idSet) (string, bool) {
-	if mirror.Disjoint(g.class, a.class) {
-		return fmt.Sprintf("class %s contradicts the class %s (%s)", g.class, a.class, a.from()), true
+// inconsistent returns why c contradicts a, a claim chosen above it, if it
+// does. The detail closes with a's source.
+func (c *claim) inconsistent(a *claim) (string, bool) {
+	if mirror.Disjoint(c.Class, a.Class) {
+		return fmt.Sprintf("class %s contradicts the class %s (%s)", c.Class, a.Class, a.from()), true
 	}
-	for _, id := range a.instrument {
-		if other, ok := g.contradicts(id, noFamily); ok {
+	for _, id := range a.Identifiers {
+		if other, ok := c.contradicts(id, noFamily); ok {
 			return fmt.Sprintf("%s contradicts %s (%s)", name(other), name(id), a.from()), true
 		}
 	}
-	for _, f := range slices.Sorted(maps.Keys(a.listings)) {
-		for _, id := range a.listings[f] {
-			if other, ok := g.contradicts(id, f); ok {
+	for _, f := range slices.Sorted(maps.Keys(a.Listings)) {
+		for _, id := range a.Listings[f].Identifiers {
+			if other, ok := c.contradicts(id, f); ok {
 				return fmt.Sprintf("%s contradicts %s (%s)", name(other), name(id), a.from()), true
 			}
 		}
@@ -358,90 +322,91 @@ func (g *idSet) inconsistent(a *idSet) (string, bool) {
 	return "", false
 }
 
-// corroborates reports whether g shares a stable identifier with a.
-func (g *idSet) corroborates(a *idSet) bool {
-	for id := range g.all {
-		if stable(id) && a.identifiedBy(id) {
+// corroborates reports whether c shares a stable identifier with a.
+func (c *claim) corroborates(a *claim) bool {
+	for id := range c.AllIDs() {
+		if stable(id) && a.IdentifiedBy(id) {
 			return true
 		}
 	}
 	return false
 }
 
-// confirms counts the stated identifiers identifying g, and the stated family
+// confirms counts the stated identifiers identifying c, and the stated family
 // where it has that listing.
-func (g *idSet) confirms(res *resolution) int {
+func (c *claim) confirms(res *resolution) int {
 	n := 0
 	for _, id := range res.row.Identifiers {
-		if g.identifiedBy(id) {
+		if c.IdentifiedBy(id) {
 			n++
 		}
 	}
-	if _, ok := g.listings[res.fam]; ok && res.fam != noFamily {
+	if _, ok := c.Listings[res.fam]; ok && res.fam != noFamily {
 		n++
 	}
 	return n
 }
 
-// choose picks the winner for res. The database's set, db, wins where it is
-// not nil. Otherwise the head of the user's confirmed agreement, pick, wins
-// where pick is not nil. Otherwise the best set of the highest precedence
-// datasource wins. The head must pass the stated checks and agree with db.
-// Each other member of pick takes the place of its datasource's answer. It
-// attaches where it agrees with the sets that choose has already chosen. A
-// confirmation writes only the sets of pick. The answer of a datasource with
-// no member is checked for its findings, and none of its sets attach.
-func choose(res *resolution, db *idSet, pick agreement) choice {
-	c := choice{winner: db, picked: pick != nil, setCounts: map[string]int{}, notNaming: map[string]int{}}
-	var chosen []*idSet
+// choose picks the winner for res. The database's claim, db, wins where it
+// is not nil. Otherwise the head of the user's confirmed agreement, pick,
+// wins where pick is not nil. Otherwise the best claim of the highest
+// precedence datasource wins. The head must pass the stated checks and agree
+// with db. Each other member of pick takes the place of its datasource's
+// answer. It attaches where it agrees with the claims that choose has
+// already chosen. A confirmation writes only the claims of pick. The answer
+// of a datasource with no member is checked for its findings, and none of
+// its claims attach.
+func choose(res *resolution, db *claim, pick agreement) choice {
+	ch := choice{winner: db, picked: pick != nil, counts: map[string]int{}, notNaming: map[string]int{}}
+	var chosen []*claim
 	if db != nil {
 		chosen = append(chosen, db)
 	}
 	if pick != nil {
 		head := pick.head()
 		if detail, ok := head.against(res); ok {
-			c.refused = head.label(detail)
-			return c
+			ch.refused = head.label(detail)
+			return ch
 		}
 		if db != nil {
 			if detail, ok := head.inconsistent(db); ok {
-				c.refused = head.label(detail)
-				return c
+				ch.refused = head.label(detail)
+				return ch
 			}
 		}
-		c.attached = append(c.attached, head)
+		ch.attached = append(ch.attached, head)
 		chosen = append(chosen, head)
-		if c.winner == nil {
-			c.winner = head
+		if ch.winner == nil {
+			ch.winner = head
 		}
 	}
-	var offered []*idSet
+	var offered []*claim
 	for _, r := range res.results {
 		if m := pick.member(r); m != nil {
 			if m == pick.head() {
 				continue
 			}
 			if f, ok := m.rejects(chosen); ok {
-				c.findings = append(c.findings, f)
+				ch.findings = append(ch.findings, f)
 				continue
 			}
-			c.attached = append(c.attached, m)
+			ch.attached = append(ch.attached, m)
 			chosen = append(chosen, m)
 			continue
 		}
-		best, more := c.bestSet(r, res, chosen)
+		best, more := ch.best(r, res, chosen)
 		offered = append(offered, more...)
 		if best == nil || pick != nil {
 			continue
 		}
-		c.attached = append(c.attached, best)
+		ch.attached = append(ch.attached, best)
 		chosen = append(chosen, best)
-		if c.winner == nil {
-			c.winner = best
+		if ch.winner == nil {
+			ch.winner = best
 		}
 	}
-	c.offered = gather(res, offered)
-	return c
+	ch.offered = gather(res, offered)
+	return ch
 }
 
 // finding returns a finding of kind against r's fetch key, with a step only
@@ -461,86 +426,86 @@ func dropped(r *result, step gen.DropStep, detail string) gen.CreateFindingParam
 
 // alternatives is what one served result offers a key.
 type alternatives struct {
-	// setCount counts the sets of the result.
-	setCount int
+	// count is the number of claims in the result, before any are dropped.
+	count int
 	// survivors name the identifier sent and agree with the statement.
-	survivors []*idSet
-	// offered holds the sets that agree with the statement but were dropped
-	// only because the key was sent under a bare ticker. The user may choose
-	// among them.
-	offered []*idSet
+	survivors []*claim
+	// offered holds the claims that agree with the statement but were
+	// dropped only because the key was sent under a bare ticker. The user may
+	// choose among them.
+	offered []*claim
 	// fallback reports that the key was sent under a venue ticker the provider
-	// filtered bare, and no set names the venue, so every set survives the
-	// naming check.
+	// filtered bare, and no claim names the venue, so every claim survives
+	// the naming check.
 	fallback bool
-	// notNaming counts the sets dropped for not naming the identifier sent.
+	// notNaming counts the claims dropped for not naming the identifier sent.
 	notNaming int
-	// findings records the sets dropped for disagreeing with the statement.
+	// findings records the claims dropped for disagreeing with the statement.
 	findings []gen.CreateFindingParams
 }
 
-// filterAlternatives sorts the sets of identifiers of r into survivors,
-// offers and findings for res. Under a GUID, a set survives if it names the
-// GUID and agrees with the statement. If the provider filtered a venue
-// ticker bare and no set names the venue, every set that agrees with the
-// statement survives. Under a bare ticker no set can name the identifier
-// sent, so the sets that agree with the statement are offered instead. A
+// filterAlternatives sorts the claims of r into survivors, offers and
+// findings for res. Under a GUID, a claim survives if it names the GUID and
+// agrees with the statement. If the provider filtered a venue ticker bare
+// and no claim names the venue, every claim that agrees with the statement
+// survives. Under a bare ticker no claim can name the identifier sent, so
+// the claims that agree with the statement are offered instead. A
 // confirmation, which picked reports, replaces the naming check for a bare
-// ticker, so every set that agrees with the statement survives.
+// ticker, so every claim that agrees with the statement survives.
 func filterAlternatives(r *result, res *resolution, picked bool) alternatives {
 	sent := *r.Sent
-	gs := idSets(r)
-	alts := alternatives{setCount: len(gs)}
+	gs := claims(r)
+	alts := alternatives{count: len(gs)}
 	guid := mirror.IsGUID(sent)
-	named := slices.ContainsFunc(gs, func(g *idSet) bool { return g.named })
+	named := slices.ContainsFunc(gs, func(c *claim) bool { return c.named })
 	ticker := types.Identifier{Type: types.IdentifierTypeMicTicker, Value: sent.Value}
 	alts.fallback = guid && !named && sent.Type == types.IdentifierTypeMicTicker && slices.Contains(r.Response.Filtered, ticker)
-	for _, g := range gs {
+	for _, c := range gs {
 		switch {
 		case !guid && !picked:
 			alts.notNaming++
-			if _, bad := g.against(res); !bad {
-				alts.offered = append(alts.offered, g)
+			if _, bad := c.against(res); !bad {
+				alts.offered = append(alts.offered, c)
 			}
 			continue
-		case guid && !g.named && !alts.fallback:
+		case guid && !c.named && !alts.fallback:
 			alts.notNaming++
 			continue
 		}
-		if detail, bad := g.against(res); bad {
-			alts.findings = append(alts.findings, dropped(r, gen.DropStepStated, g.label(detail)))
+		if detail, bad := c.against(res); bad {
+			alts.findings = append(alts.findings, dropped(r, gen.DropStepStated, c.label(detail)))
 			continue
 		}
-		alts.survivors = append(alts.survivors, g)
+		alts.survivors = append(alts.survivors, c)
 	}
 	return alts
 }
 
-// rejects returns the finding that drops g below chosen, which lists the
-// winner first. It drops g when g contradicts a set in chosen, or when g
+// rejects returns the finding that drops c below chosen, which lists the
+// winner first. It drops c when c contradicts a claim in chosen, or when c
 // shares no stable identifier with the winner. A contradiction of the
-// database's set is recorded as a contradiction rather than a drop.
-func (g *idSet) rejects(chosen []*idSet) (gen.CreateFindingParams, bool) {
+// database's claim is recorded as a contradiction rather than a drop.
+func (c *claim) rejects(chosen []*claim) (gen.CreateFindingParams, bool) {
 	for _, o := range chosen {
-		if detail, ok := g.inconsistent(o); ok {
+		if detail, ok := c.inconsistent(o); ok {
 			kind := gen.FindingKindDropped
-			if o.r == nil {
+			if o.query == nil {
 				kind = gen.FindingKindContradiction
 			}
-			return finding(g.r, kind, gen.DropStepPrecedence, g.label(detail)), true
+			return finding(c.query, kind, gen.DropStepPrecedence, c.label(detail)), true
 		}
 	}
-	if len(chosen) > 0 && !g.corroborates(chosen[0]) {
-		return dropped(g.r, gen.DropStepCorroboration, g.label("shares no stable identifier with "+chosen[0].ref())), true
+	if len(chosen) > 0 && !c.corroborates(chosen[0]) {
+		return dropped(c.query, gen.DropStepCorroboration, c.label("shares no stable identifier with "+chosen[0].ref())), true
 	}
 	return gen.CreateFindingParams{}, false
 }
 
-// rank orders the sets of one response for res, the best first: a set
+// rank orders the claims of one response for res, the best first: a claim
 // naming the identifier sent, then one confirming more of the stated data,
 // then the response's order.
-func rank(res *resolution) func(a, b *idSet) int {
-	return func(a, b *idSet) int {
+func rank(res *resolution) func(a, b *claim) int {
+	return func(a, b *claim) int {
 		if a.named != b.named {
 			if a.named {
 				return -1
@@ -554,25 +519,26 @@ func rank(res *resolution) func(a, b *idSet) int {
 	}
 }
 
-// bestSet returns the best surviving set of r for res, nil where none
-// survives, and the sets r offers the user. chosen holds the sets already
-// chosen for the datasources above r, the winner first. Under fallback with nothing chosen above r, several
-// survivors are offered rather than chosen among.
-func (c *choice) bestSet(r *result, res *resolution, chosen []*idSet) (*idSet, []*idSet) {
+// best returns the best surviving claim of r for res, nil where none
+// survives, and the claims r offers the user. chosen holds the claims
+// already chosen for the datasources above r, the winner first. Under
+// fallback with nothing chosen above r, several survivors are offered rather
+// than chosen among.
+func (ch *choice) best(r *result, res *resolution, chosen []*claim) (*claim, []*claim) {
 	if r.Sent == nil {
 		return nil, nil
 	}
-	alts := filterAlternatives(r, res, c.picked)
-	c.setCounts[r.Source] = alts.setCount
+	alts := filterAlternatives(r, res, ch.picked)
+	ch.counts[r.Source] = alts.count
 	if alts.notNaming > 0 {
-		c.notNaming[r.Source] += alts.notNaming
+		ch.notNaming[r.Source] += alts.notNaming
 	}
-	c.findings = append(c.findings, alts.findings...)
+	ch.findings = append(ch.findings, alts.findings...)
 	offered := alts.offered
-	survivors := slices.DeleteFunc(alts.survivors, func(g *idSet) bool {
-		f, ok := g.rejects(chosen)
+	survivors := slices.DeleteFunc(alts.survivors, func(c *claim) bool {
+		f, ok := c.rejects(chosen)
 		if ok {
-			c.findings = append(c.findings, f)
+			ch.findings = append(ch.findings, f)
 		}
 		return ok
 	})
@@ -586,29 +552,29 @@ func (c *choice) bestSet(r *result, res *resolution, chosen []*idSet) (*idSet, [
 	return survivors[0], offered
 }
 
-// gather returns the agreements among sets, which arrive in precedence order
-// and then each datasource's order. Each agreement formed so far takes its
-// member from the next datasource. A set that joins no agreement heads a new
-// one. Agreement between sets is not transitive, so precedence settles which
-// sets an agreement holds, as it does in a run.
-func gather(res *resolution, sets []*idSet) []agreement {
+// gather returns the agreements among claims, which arrive in precedence
+// order and then each datasource's order. Each agreement formed so far takes
+// its member from the next datasource. A claim that joins no agreement heads
+// a new one. Agreement between claims is not transitive, so precedence
+// settles which claims an agreement holds, as it does in a run.
+func gather(res *resolution, cs []*claim) []agreement {
 	var out []agreement
-	for len(sets) > 0 {
+	for len(cs) > 0 {
 		n := 1
-		for n < len(sets) && sets[n].r == sets[0].r {
+		for n < len(cs) && cs[n].query == cs[0].query {
 			n++
 		}
-		group := sets[:n]
-		sets = sets[n:]
-		joined := map[*idSet]bool{}
+		group := cs[:n]
+		cs = cs[n:]
+		joined := map[*claim]bool{}
 		for i, a := range out {
-			var best *idSet
-			for _, g := range group {
-				if _, ok := g.rejects(a); ok {
+			var best *claim
+			for _, c := range group {
+				if _, ok := c.rejects(a); ok {
 					continue
 				}
-				if best == nil || rank(res)(g, best) < 0 {
-					best = g
+				if best == nil || rank(res)(c, best) < 0 {
+					best = c
 				}
 			}
 			if best != nil {
@@ -616,9 +582,9 @@ func gather(res *resolution, sets []*idSet) []agreement {
 				joined[best] = true
 			}
 		}
-		for _, g := range group {
-			if !joined[g] {
-				out = append(out, agreement{g})
+		for _, c := range group {
+			if !joined[c] {
+				out = append(out, agreement{c})
 			}
 		}
 	}
