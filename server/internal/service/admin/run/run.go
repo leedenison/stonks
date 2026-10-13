@@ -40,7 +40,7 @@ type Queries interface {
 
 var _ Queries = (*gen.Queries)(nil)
 
-//go:generate go tool mockgen -source=run.go -destination=run_mock_test.go -package=run
+//go:generate go tool mockgen -source=run.go -destination=mock/run_mock.go -package=mock
 
 // Server implements RunService.
 type Server struct {

@@ -21,6 +21,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/types"
 	"github.com/leedenison/stonks/server/internal/ptr"
+	"github.com/leedenison/stonks/server/internal/service/admin/block/mock"
 	"github.com/leedenison/stonks/server/internal/service/admin/page"
 	"github.com/leedenison/stonks/server/internal/service/servicetest"
 )
@@ -33,7 +34,7 @@ var (
 )
 
 type fixture struct {
-	queries *MockQueries
+	queries *mock.MockQueries
 	client  adminblockv1connect.BlockServiceClient
 }
 
@@ -44,7 +45,7 @@ func newFixture(t *testing.T) *fixture {
 	ctrl := gomock.NewController(t)
 	t.Cleanup(ctrl.Finish)
 	authn := servicetest.AsAdmin(ctrl)
-	f := &fixture{queries: NewMockQueries(ctrl)}
+	f := &fixture{queries: mock.NewMockQueries(ctrl)}
 	opts := servicetest.Options(t, authn)
 	srv := servicetest.Serve(t, func(mux *http.ServeMux) {
 		mux.Handle(adminblockv1connect.NewBlockServiceHandler(New(f.queries), opts...))

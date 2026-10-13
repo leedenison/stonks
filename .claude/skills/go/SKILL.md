@@ -87,6 +87,15 @@ in the file that declares the interface, and the mock is generated beside it:
 
 There is no central mock package; a mock belongs to the package whose interface it implements.
 
+An interface may name a type of its own package, as a `Store` whose `Tx` takes the
+package's `Queries`. Its mock then imports that package, which imports the mock in its
+tests, and Go refuses the cycle. Generate such a mock into the package itself, as a
+test file:
+
+```go
+//go:generate go tool mockgen -source=store.go -destination=store_mock_test.go -package=market -self_package=github.com/leedenison/stonks/server/internal/market
+```
+
 ```go
 ctrl := gomock.NewController(t)
 t.Cleanup(ctrl.Finish)

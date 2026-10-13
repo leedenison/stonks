@@ -24,7 +24,7 @@ type Queries interface {
 
 var _ Queries = (*gen.Queries)(nil)
 
-//go:generate go tool mockgen -source=block.go -destination=block_mock_test.go -package=block
+//go:generate go tool mockgen -source=block.go -destination=mock/block_mock.go -package=mock
 
 // Server implements BlockService.
 type Server struct {

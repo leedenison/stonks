@@ -42,7 +42,7 @@ type Updater interface {
 
 var _ Updater = (*datasource.Service)(nil)
 
-//go:generate go tool mockgen -source=datasource.go -destination=datasource_mock_test.go -package=datasource
+//go:generate go tool mockgen -source=datasource.go -destination=mock/datasource_mock.go -package=mock
 
 // Server implements DatasourceService.
 type Server struct {
