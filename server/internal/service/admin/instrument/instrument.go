@@ -13,7 +13,6 @@ import (
 
 	admininstrumentv1 "github.com/leedenison/stonks/proto/admin/instrument/v1"
 	"github.com/leedenison/stonks/proto/admin/instrument/v1/admininstrumentv1connect"
-	typev1 "github.com/leedenison/stonks/proto/type/v1"
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/to"
@@ -118,10 +117,7 @@ func (s *Server) instruments(ctx context.Context, rows []gen.ListInstrumentsRow)
 	instruments := make(map[uuid.UUID]*admininstrumentv1.Instrument, len(rows))
 	out := make([]*admininstrumentv1.Instrument, 0, len(rows))
 	for _, r := range rows {
-		msg := &admininstrumentv1.Instrument{Id: r.ID.String(), AssetClass: types.ToProto[typev1.AssetClass](r.AssetClass)}
-		if r.NameType != "" {
-			msg.Name = types.Identifier{Type: types.IdentifierType(r.NameType), Domain: r.NameDomain, Value: r.Name}.ToProto()
-		}
+		msg := to.ProtoInstrument(r)
 		ids = append(ids, r.ID)
 		instruments[r.ID] = msg
 		out = append(out, msg)
@@ -132,10 +128,7 @@ func (s *Server) instruments(ctx context.Context, rows []gen.ListInstrumentsRow)
 	}
 	byListing := make(map[uuid.UUID]*admininstrumentv1.Listing, len(listings))
 	for _, l := range listings {
-		msg := &admininstrumentv1.Listing{Id: l.ID.String(), Currency: l.Currency}
-		if l.PrimaryMic != nil {
-			msg.PrimaryMic = *l.PrimaryMic
-		}
+		msg := to.ProtoListing(l)
 		byListing[l.ID] = msg
 		instruments[l.InstrumentID].Listings = append(instruments[l.InstrumentID].Listings, msg)
 	}

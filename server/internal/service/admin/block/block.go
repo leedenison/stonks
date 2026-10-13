@@ -7,14 +7,12 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	adminblockv1 "github.com/leedenison/stonks/proto/admin/block/v1"
 	"github.com/leedenison/stonks/proto/admin/block/v1/adminblockv1connect"
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/to"
-	"github.com/leedenison/stonks/server/internal/db/types"
 	"github.com/leedenison/stonks/server/internal/service/admin/page"
 )
 
@@ -56,7 +54,7 @@ func (s *Server) ListBlocks(ctx context.Context, req *connect.Request[adminblock
 	out := &adminblockv1.ListBlocksResponse{}
 	rows, more := page.Cut(p, rows)
 	for _, r := range rows {
-		out.Blocks = append(out.Blocks, block(r.DatasourceBlock, r.FetchID))
+		out.Blocks = append(out.Blocks, to.ProtoBlock(r))
 	}
 	if more {
 		out.NextPageToken = rows[len(rows)-1].DatasourceBlock.ID.String()
@@ -76,23 +74,4 @@ func (s *Server) ClearBlock(ctx context.Context, req *connect.Request[adminblock
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	return connect.NewResponse(&adminblockv1.ClearBlockResponse{}), nil
-}
-
-func block(b gen.DatasourceBlock, runID uuid.UUID) *adminblockv1.Block {
-	out := &adminblockv1.Block{
-		Id:         b.ID.String(),
-		Datasource: b.Datasource,
-		Kind:       types.ToProto[adminblockv1.FetchKind](b.Kind),
-		Scope:      types.ToProto[adminblockv1.BlockScope](b.Scope),
-		Reason:     b.Reason,
-		RunId:      runID.String(),
-		CreatedAt:  timestamppb.New(b.CreatedAt),
-	}
-	if sent, ok := to.BlockSent(b); ok {
-		out.Sent = sent.ToProto()
-	}
-	if b.ClearedAt != nil {
-		out.ClearedAt = timestamppb.New(*b.ClearedAt)
-	}
-	return out
 }

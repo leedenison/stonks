@@ -7,8 +7,13 @@ package to
 import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	adminblockv1 "github.com/leedenison/stonks/proto/admin/block/v1"
+	admininstrumentv1 "github.com/leedenison/stonks/proto/admin/instrument/v1"
+	adminrunv1 "github.com/leedenison/stonks/proto/admin/run/v1"
 	authv1 "github.com/leedenison/stonks/proto/auth/v1"
+	holdingv1 "github.com/leedenison/stonks/proto/holding/v1"
 	runv1 "github.com/leedenison/stonks/proto/run/v1"
+	statementv1 "github.com/leedenison/stonks/proto/statement/v1"
 	typev1 "github.com/leedenison/stonks/proto/type/v1"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/types"
@@ -89,6 +94,99 @@ func ProtoResolutionItem(k gen.StatedKey, r *gen.ResolutionKey) *typev1.Resoluti
 	}
 	if k.Arbiter != nil {
 		out.Arbiter = types.ToProto[typev1.Arbiter](*k.Arbiter)
+	}
+	return out
+}
+
+// InstrumentName returns the identifier that names an instrument.
+func InstrumentName(n gen.InstrumentName) types.Identifier {
+	return types.Identifier{Type: n.Type, Domain: n.Domain, Value: n.Value}
+}
+
+// ProtoHoldingListing writes l as a named listing.
+func ProtoHoldingListing(l gen.ListListingNamesRow) *holdingv1.HoldingListing {
+	out := &holdingv1.HoldingListing{Id: l.ListingID.String(), Currency: l.Currency, Venue: l.Venue}
+	if l.TickerDomain != nil && l.TickerValue != nil {
+		out.Ticker = types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: *l.TickerDomain, Value: *l.TickerValue}.ToProto()
+	}
+	return out
+}
+
+// ProtoHoldingKey writes k as a key of a holding.
+func ProtoHoldingKey(k gen.ListHoldingKeysRow) *holdingv1.HoldingKey {
+	out := &holdingv1.HoldingKey{StatedKey: ProtoStatedKey(k.StatedKey), Quantity: k.Quantity.String()}
+	if k.StatedKey.ListingID != nil {
+		out.ListingId = k.StatedKey.ListingID.String()
+	}
+	return out
+}
+
+// ProtoStatementSummary writes a statement, its run and its count of
+// rejected rows as a summary.
+func ProtoStatementSummary(st gen.Statement, run gen.Run, rejected int32) *statementv1.StatementSummary {
+	return &statementv1.StatementSummary{
+		Run:         ProtoRun(run),
+		Broker:      types.ToProto[typev1.Broker](st.Broker),
+		OrderFrom:   st.OrderFrom.Format("2006-01-02"),
+		OrderBefore: st.OrderBefore.Format("2006-01-02"),
+		Rows:        st.RowCount,
+		Rejected:    rejected,
+	}
+}
+
+// ProtoBlock writes a block as its message. Its run is the fetch that
+// raised it.
+func ProtoBlock(r gen.ListBlocksRow) *adminblockv1.Block {
+	b := r.DatasourceBlock
+	out := &adminblockv1.Block{
+		Id:         b.ID.String(),
+		Datasource: b.Datasource,
+		Kind:       types.ToProto[adminblockv1.FetchKind](b.Kind),
+		Scope:      types.ToProto[adminblockv1.BlockScope](b.Scope),
+		Reason:     b.Reason,
+		RunId:      r.FetchID.String(),
+		CreatedAt:  timestamppb.New(b.CreatedAt),
+	}
+	if sent, ok := BlockSent(b); ok {
+		out.Sent = sent.ToProto()
+	}
+	if b.ClearedAt != nil {
+		out.ClearedAt = timestamppb.New(*b.ClearedAt)
+	}
+	return out
+}
+
+// ProtoFetchItem writes a fetch key with the stated key it concerns.
+func ProtoFetchItem(it gen.ListFetchItemsRow) *adminrunv1.FetchItem {
+	k := it.FetchKey
+	out := &adminrunv1.FetchItem{
+		StatedKey:   ProtoStatedKey(it.StatedKey),
+		StatedKeyId: k.StatedKeyID.String(),
+		Outcome:     types.ToProto[adminrunv1.FetchOutcome](k.Outcome),
+		Attempts:    int32(k.Attempts),
+		Reason:      k.Reason,
+	}
+	if sent, ok := Sent(k); ok {
+		out.Sent = sent.ToProto()
+	}
+	return out
+}
+
+// ProtoInstrument writes an instrument with the identifier that names it,
+// and leaves its listings and identifiers to the caller.
+func ProtoInstrument(r gen.ListInstrumentsRow) *admininstrumentv1.Instrument {
+	out := &admininstrumentv1.Instrument{Id: r.ID.String(), AssetClass: types.ToProto[typev1.AssetClass](r.AssetClass)}
+	if r.NameType != "" {
+		out.Name = types.Identifier{Type: types.IdentifierType(r.NameType), Domain: r.NameDomain, Value: r.Name}.ToProto()
+	}
+	return out
+}
+
+// ProtoListing writes a listing, and leaves its identifiers to the caller.
+func ProtoListing(l gen.Listing) *admininstrumentv1.Listing {
+	out := &admininstrumentv1.Listing{Id: l.ID.String(), Currency: l.Currency}
+	if l.PrimaryMic != nil {
+		out.PrimaryMic = *l.PrimaryMic
 	}
 	return out
 }

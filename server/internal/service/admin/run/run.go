@@ -296,28 +296,13 @@ func (s *Server) ListRunItems(ctx context.Context, req *connect.Request[adminrun
 		}
 		rows, more := page.Cut(p, rows)
 		for _, it := range rows {
-			out.Items = append(out.Items, &adminrunv1.RunItem{Item: &adminrunv1.RunItem_Fetch{Fetch: fetchItem(it)}})
+			out.Items = append(out.Items, &adminrunv1.RunItem{Item: &adminrunv1.RunItem_Fetch{Fetch: to.ProtoFetchItem(it)}})
 		}
 		if more {
 			out.NextPageToken = rows[len(rows)-1].StatedKey.ID.String()
 		}
 	}
 	return connect.NewResponse(out), nil
-}
-
-func fetchItem(it gen.ListFetchItemsRow) *adminrunv1.FetchItem {
-	k := it.FetchKey
-	item := &adminrunv1.FetchItem{
-		StatedKey:   to.ProtoStatedKey(it.StatedKey),
-		StatedKeyId: k.StatedKeyID.String(),
-		Outcome:     types.ToProto[adminrunv1.FetchOutcome](k.Outcome),
-		Attempts:    int32(k.Attempts),
-		Reason:      k.Reason,
-	}
-	if sent, ok := to.Sent(k); ok {
-		item.Sent = sent.ToProto()
-	}
-	return item
 }
 
 // ClearFinding clears a finding that reports no block.

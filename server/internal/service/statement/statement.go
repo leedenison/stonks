@@ -94,7 +94,7 @@ func (s *Server) ListStatements(ctx context.Context, _ *connect.Request[statemen
 	}
 	out := &statementv1.ListStatementsResponse{}
 	for _, r := range rows {
-		out.Statements = append(out.Statements, summary(r.Statement, r.Run, r.Rejected))
+		out.Statements = append(out.Statements, to.ProtoStatementSummary(r.Statement, r.Run, r.Rejected))
 	}
 	return connect.NewResponse(out), nil
 }
@@ -122,7 +122,7 @@ func (s *Server) GetStatement(ctx context.Context, req *connect.Request[statemen
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	out := &statementv1.GetStatementResponse{Statement: summary(row.Statement, row.Run, row.Rejected)}
+	out := &statementv1.GetStatementResponse{Statement: to.ProtoStatementSummary(row.Statement, row.Run, row.Rejected)}
 	for _, it := range items {
 		item, err := statement.ItemToProto(it)
 		if err != nil {
@@ -228,15 +228,4 @@ func (s *Server) keys(ctx context.Context, statement, user uuid.UUID) ([]*typev1
 		out = append(out, to.ProtoResolutionItem(k, latest))
 	}
 	return out, nil
-}
-
-func summary(st gen.Statement, run gen.Run, rejected int32) *statementv1.StatementSummary {
-	return &statementv1.StatementSummary{
-		Run:         to.ProtoRun(run),
-		Broker:      types.ToProto[typev1.Broker](st.Broker),
-		OrderFrom:   st.OrderFrom.Format("2006-01-02"),
-		OrderBefore: st.OrderBefore.Format("2006-01-02"),
-		Rows:        st.RowCount,
-		Rejected:    rejected,
-	}
 }
