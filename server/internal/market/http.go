@@ -45,7 +45,7 @@ const bodyLimit = 512
 func Do(c *http.Client, req *http.Request, provider string, v any) (err error) {
 	resp, err := c.Do(req)
 	if err != nil {
-		return fmt.Errorf("%s: %w", provider, WithoutURL(err))
+		return fmt.Errorf("%s: %w", provider, withoutURL(err))
 	}
 	defer func() { err = errors.Join(err, resp.Body.Close()) }()
 	if resp.StatusCode != http.StatusOK {
@@ -64,7 +64,7 @@ func Do(c *http.Client, req *http.Request, provider string, v any) (err error) {
 func Get(ctx context.Context, c *http.Client, provider, rawURL string, v any) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
-		return fmt.Errorf("build request: %w", WithoutURL(err))
+		return fmt.Errorf("build request: %w", withoutURL(err))
 	}
 	return Do(c, req, provider, v)
 }
@@ -80,8 +80,8 @@ func Seconds(h http.Header, name string) time.Duration {
 	return time.Duration(n) * time.Second
 }
 
-// WithoutURL drops the URL from an error so that API keys are redacted.
-func WithoutURL(err error) error {
+// withoutURL drops the URL from an error so that API keys are redacted.
+func withoutURL(err error) error {
 	var u *url.Error
 	if errors.As(err, &u) {
 		return u.Err

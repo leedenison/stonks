@@ -32,6 +32,7 @@ type Client struct {
 	http     *http.Client
 	endpoint string
 	key      string
+	now      func() time.Time
 }
 
 // New returns a Client for cfg that sends its requests through h. It fails
@@ -44,7 +45,7 @@ func New(cfg market.Config, mics mic.Table, h *http.Client) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	c := &Client{mics: mics, exchange: exchanges(mics), http: h, endpoint: ep, key: cfg.Credential}
+	c := &Client{mics: mics, exchange: exchanges(mics), http: h, endpoint: ep, key: cfg.Credential, now: time.Now}
 	c.prefer = market.Preference{
 		Served: market.Equities,
 		Order:  []types.IdentifierType{types.IdentifierTypeIsin, types.IdentifierTypeCusip, types.IdentifierTypeOpenfigiComposite, types.IdentifierTypeMicTicker},
@@ -88,7 +89,7 @@ func (c *Client) Classify(err error) market.Failure {
 	case status.Code == http.StatusUnauthorized:
 		return market.Failure{Scope: gen.BlockScopeDatasource}
 	case status.Code == http.StatusPaymentRequired:
-		return market.Failure{Temporary: true, Scope: gen.BlockScopeDatasource, RetryAfter: untilMidnight(time.Now())}
+		return market.Failure{Temporary: true, Scope: gen.BlockScopeDatasource, RetryAfter: untilMidnight(c.now())}
 	case status.Code == http.StatusTooManyRequests:
 		return market.Failure{Temporary: true, Scope: gen.BlockScopeIdentifier, RetryAfter: market.Seconds(status.Header, "Retry-After")}
 	case status.Code >= http.StatusInternalServerError:

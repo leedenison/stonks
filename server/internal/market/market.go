@@ -6,7 +6,7 @@
 //
 // Each kind of data is a Kind, which names the request an integration
 // receives and the response it gives.  An integration serves a kind by
-// implementing its Server.
+// implementing its Server. Identity is the only kind.
 //
 // An integration reads a provider's venue codes through a table generated
 // from the provider's own list. Every venue a table names normalises to an
@@ -15,7 +15,7 @@
 // An integration declines a key before asking when the provider does not
 // cover the key's class or venue. Its conversion keeps only the classes and
 // markets it serves. A ticker without its venue is declined for a key that
-// states a GUID; see Bare.
+// states a GUID; see Preference.
 //
 // When a provider refuses every call for a while, as when a daily quota is
 // spent, the framework pauses the datasource for the whole delay the provider

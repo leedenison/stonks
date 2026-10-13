@@ -79,13 +79,13 @@ func NewFetcher(store Store, runs Runner, log *slog.Logger, opts ...Option) *Fet
 	return f
 }
 
-// Fetch requests kind about reqs from e, as a child run of parent. It returns
+// fetch requests kind about reqs from e, as a child run of parent. It returns
 // one result per request, in the order they were given.
-func Fetch[Q, P any](ctx context.Context, f *Fetcher, parent gen.Run, e *Entry, kind Kind[Q, P], reqs []Q) ([]Result[Q, P], error) {
+func fetch[Q, P any](ctx context.Context, f *Fetcher, parent gen.Run, e *Entry, kind Kind[Q, P], reqs []Q) ([]Result[Q, P], error) {
 	var results []Result[Q, P]
 	_, err := f.runs.Child(ctx, parent, gen.RunKindFetch, func(ctx context.Context, run gen.Run) error {
 		var werr error
-		results, werr = fetch(ctx, f, run, e, kind, reqs)
+		results, werr = fetchRun(ctx, f, run, e, kind, reqs)
 		return werr
 	})
 	if err != nil {
@@ -94,7 +94,7 @@ func Fetch[Q, P any](ctx context.Context, f *Fetcher, parent gen.Run, e *Entry, 
 	return results, nil
 }
 
-func fetch[Q, P any](ctx context.Context, f *Fetcher, row gen.Run, e *Entry, kind Kind[Q, P], reqs []Q) ([]Result[Q, P], error) {
+func fetchRun[Q, P any](ctx context.Context, f *Fetcher, row gen.Run, e *Entry, kind Kind[Q, P], reqs []Q) ([]Result[Q, P], error) {
 	if _, err := f.store.CreateFetch(ctx, gen.CreateFetchParams{
 		ID: row.ID, UserID: row.UserID, Datasource: e.Name, Endpoint: e.Integration.Endpoint(), Kind: kind.name,
 	}); err != nil {

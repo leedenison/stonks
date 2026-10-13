@@ -158,9 +158,9 @@ func unservedKey() gen.StatedKey { return gen.StatedKey{ID: db.NewID()} }
 
 func (h *harness) run(t *testing.T, keys ...gen.StatedKey) []Result[gen.StatedKey, IdentityResult] {
 	t.Helper()
-	results, err := Fetch(context.Background(), h.fetcher, h.parent, h.entry, IdentityKind, keys)
+	results, err := fetch(context.Background(), h.fetcher, h.parent, h.entry, identityKind, keys)
 	if err != nil {
-		t.Fatalf("Fetch() error = %v", err)
+		t.Fatalf("fetch() error = %v", err)
 	}
 	for i, r := range results {
 		if r.Source != h.entry.Name {
@@ -623,9 +623,9 @@ func TestFetchCancelled(t *testing.T) {
 	defer cancel()
 	h.onSleep = cancel
 
-	results, err := Fetch(ctx, h.fetcher, h.parent, h.entry, IdentityKind, []gen.StatedKey{k})
+	results, err := fetch(ctx, h.fetcher, h.parent, h.entry, identityKind, []gen.StatedKey{k})
 	if err != nil {
-		t.Fatalf("Fetch() error = %v", err)
+		t.Fatalf("fetch() error = %v", err)
 	}
 	if f.calls != 1 || len(h.sleeps) != 1 {
 		t.Errorf("calls = %d, sleeps = %v, want one call and one sleep", f.calls, h.sleeps)
@@ -710,9 +710,9 @@ func TestFetchWriteFails(t *testing.T) {
 	boom := errors.New("boom")
 	h.keyErr = boom
 
-	results, err := Fetch(context.Background(), h.fetcher, h.parent, h.entry, IdentityKind, []gen.StatedKey{keyOf(f, "GB00B03MLX29")})
+	results, err := fetch(context.Background(), h.fetcher, h.parent, h.entry, identityKind, []gen.StatedKey{keyOf(f, "GB00B03MLX29")})
 	if !errors.Is(err, boom) || results != nil {
-		t.Errorf("Fetch() = %v, %v, want no results and %v", results, err, boom)
+		t.Errorf("fetch() = %v, %v, want no results and %v", results, err, boom)
 	}
 }
 
@@ -838,9 +838,9 @@ func TestFetchCacheErrors(t *testing.T) {
 			f := &fake{}
 			h := newHarness(t, f, nil)
 			tc.set(h.cache)
-			results, err := Fetch(context.Background(), h.fetcher, h.parent, h.entry, IdentityKind, []gen.StatedKey{keyOf(f, "GB00B03MLX29")})
+			results, err := fetch(context.Background(), h.fetcher, h.parent, h.entry, identityKind, []gen.StatedKey{keyOf(f, "GB00B03MLX29")})
 			if !errors.Is(err, boom) || results != nil {
-				t.Errorf("Fetch() = %v, %v, want no results and %v", results, err, boom)
+				t.Errorf("fetch() = %v, %v, want no results and %v", results, err, boom)
 			}
 			if len(h.keys) != 0 {
 				t.Errorf("fetch keys = %d, want none recorded", len(h.keys))

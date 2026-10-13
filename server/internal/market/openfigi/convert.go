@@ -33,7 +33,7 @@ func candidate(r result, mics mic.Table) market.Candidate {
 		return c
 	}
 	c.Identifiers = append(c.Identifiers, types.Identifier{Type: types.IdentifierTypeOpenfigiTicker, Domain: r.ExchCode, Value: r.Ticker})
-	m, ok := market.OpenFIGIVenue(r.ExchCode, mics)
+	m, ok := venue(r.ExchCode, mics)
 	if !ok {
 		return c
 	}
@@ -41,4 +41,15 @@ func candidate(r result, mics mic.Table) market.Candidate {
 		c.Identifiers = append(c.Identifiers, types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: m, Value: t})
 	}
 	return c
+}
+
+// venue returns the operating MIC an OpenFIGI exchange code names. It
+// reports false for a code spanning several venues, such as a country's
+// composite, and for a MIC that mics does not list.
+func venue(code string, mics mic.Table) (string, bool) {
+	m := codes[code]
+	if len(m) != 1 {
+		return "", false
+	}
+	return mics.Operating(m[0])
 }
