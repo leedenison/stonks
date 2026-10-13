@@ -10,9 +10,9 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/db/mirror"
 	"github.com/leedenison/stonks/server/internal/db/to"
 	"github.com/leedenison/stonks/server/internal/db/types"
-	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/ptr"
 )
 
@@ -74,7 +74,7 @@ func (f *found) idSet() *idSet {
 func (res *resolution) trustedIDs() []types.Identifier {
 	var out []types.Identifier
 	for _, id := range res.row.Identifiers {
-		if market.IsGUID(id) || id.Type == types.IdentifierTypeBrokerDescription {
+		if mirror.IsGUID(id) || id.Type == types.IdentifierTypeBrokerDescription {
 			out = append(out, id)
 		}
 	}
@@ -144,7 +144,7 @@ func (res *resolution) match(byID map[types.Identifier]*found) {
 		}
 	}
 	if f == nil {
-		if !slices.ContainsFunc(res.trusted, market.IsGUID) && !bare(res.row) {
+		if !slices.ContainsFunc(res.trusted, mirror.IsGUID) && !bare(res.row) {
 			res.decide(gen.ResolutionOutcomeUnrecognised, "%s", unnamed(res.trusted))
 		}
 		return

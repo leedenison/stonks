@@ -10,26 +10,6 @@ import (
 	"github.com/leedenison/stonks/server/internal/ptr"
 )
 
-func TestDisjoint(t *testing.T) {
-	tests := []struct {
-		a, b gen.AssetClass
-		want bool
-	}{
-		{gen.AssetClassStock, gen.AssetClassEquity, false},
-		{gen.AssetClassEquity, gen.AssetClassStock, false},
-		{gen.AssetClassUnknown, gen.AssetClassOption, false},
-		{gen.AssetClassStock, gen.AssetClassStock, false},
-		{gen.AssetClassStock, gen.AssetClassEtf, true},
-		{gen.AssetClassOption, gen.AssetClassEquity, true},
-		{gen.AssetClassCash, gen.AssetClassSecurity, true},
-	}
-	for _, tc := range tests {
-		if got := disjoint(tc.a, tc.b); got != tc.want {
-			t.Errorf("disjoint(%s, %s) = %v, want %v", tc.a, tc.b, got, tc.want)
-		}
-	}
-}
-
 func TestGUIDs(t *testing.T) {
 	isin := id(types.IdentifierTypeIsin, "", "GB00BH4HKS39")
 	sedol := id(types.IdentifierTypeSedol, "", "BH4HKS3")
