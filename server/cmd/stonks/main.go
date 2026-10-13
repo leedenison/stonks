@@ -29,6 +29,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/auth/google"
 	"github.com/leedenison/stonks/server/internal/auth/session"
 	"github.com/leedenison/stonks/server/internal/config"
+	"github.com/leedenison/stonks/server/internal/datasource"
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/logger"
@@ -163,7 +164,7 @@ func run() (err error) {
 	resolver := resolve.New(db.New[resolve.Queries](pool), fetcher, sources, logger.WithCategory(log, "internal/resolve"))
 	ingester := stmt.New(db.New[stmt.Queries](pool), runs, resolver, time.Now)
 	replays := replay.New(db.New[replay.Queries](pool), runs, resolver, sources)
-	datasources := admindatasource.New(db.New[admindatasource.Queries](pool), sources, cache)
+	datasources := admindatasource.New(queries, sources, datasource.New(db.New[datasource.Queries](pool), sources, cache))
 	srv, err := newServer(cfg.ListenAddr, log, authn, queries, adminrun.New(queries), adminblock.New(queries), datasources, admininstrument.New(queries), adminreplay.New(queries, replays), ingester, cfg.CookieSecure)
 	if err != nil {
 		return err
