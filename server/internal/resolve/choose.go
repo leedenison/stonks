@@ -23,11 +23,12 @@ type result = market.Result[gen.StatedKey, market.IdentityResult]
 type claim struct {
 	// query is the result that made the claim, nil for the database's.
 	query *result
-	// order is the position of the claim's first candidate in the response.
-	order int
 	types.Instrument
-	// named reports whether the identifier sent identifies the claim.
-	named bool
+}
+
+// named reports whether the identifier sent identifies c.
+func (c *claim) named() bool {
+	return c.query != nil && c.query.Sent != nil && c.IdentifiedBy(*c.query.Sent)
 }
 
 // choice is the outcome of choosing among the claims of every response.
@@ -78,9 +79,9 @@ func (a agreement) member(r *result) *claim {
 	return nil
 }
 
-// claims builds the claims of r. The candidates of r carry currency
-// families, not currency codes. Every claim carries the instrument grain
-// identifiers the call filtered on.
+// claims builds the claims of r in the order of their first candidates. The
+// candidates of r carry currency families, not currency codes. Every claim
+// carries the instrument grain identifiers the call filtered on.
 func claims(r *result) []*claim {
 	var strict []types.Identifier
 	for _, id := range r.Response.Filtered {
@@ -95,17 +96,12 @@ func claims(r *result) []*claim {
 	for i, cand := range cs {
 		c := byRoot[roots[i]]
 		if c == nil {
-			c = &claim{query: r, order: i, Instrument: types.Instrument{Listings: map[string]types.Listing{}}}
+			c = &claim{query: r, Instrument: types.Instrument{Listings: map[string]types.Listing{}}}
 			c.Identifiers = append(c.Identifiers, strict...)
 			byRoot[roots[i]] = c
 			out = append(out, c)
 		}
 		c.add(cand, cand.Currency)
-	}
-	if r.Sent != nil {
-		for _, c := range out {
-			c.named = c.IdentifiedBy(*r.Sent)
-		}
 	}
 	return out
 }
@@ -457,7 +453,7 @@ func filterAlternatives(r *result, res *resolution, picked bool) alternatives {
 	gs := claims(r)
 	alts := alternatives{count: len(gs)}
 	guid := mirror.IsGUID(sent)
-	named := slices.ContainsFunc(gs, func(c *claim) bool { return c.named })
+	named := slices.ContainsFunc(gs, (*claim).named)
 	ticker := types.Identifier{Type: types.IdentifierTypeMicTicker, Value: sent.Value}
 	alts.fallback = guid && !named && sent.Type == types.IdentifierTypeMicTicker && slices.Contains(r.Response.Filtered, ticker)
 	for _, c := range gs {
@@ -468,7 +464,7 @@ func filterAlternatives(r *result, res *resolution, picked bool) alternatives {
 				alts.offered = append(alts.offered, c)
 			}
 			continue
-		case guid && !c.named && !alts.fallback:
+		case guid && !c.named() && !alts.fallback:
 			alts.notNaming++
 			continue
 		}
@@ -502,20 +498,18 @@ func (c *claim) rejects(chosen []*claim) (gen.CreateFindingParams, bool) {
 }
 
 // rank orders the claims of one response for res, the best first: a claim
-// naming the identifier sent, then one confirming more of the stated data,
-// then the response's order.
+// naming the identifier sent, then one confirming more of the stated data.
+// Callers keep the earlier of two claims that tie, so ties keep the
+// response's order.
 func rank(res *resolution) func(a, b *claim) int {
 	return func(a, b *claim) int {
-		if a.named != b.named {
-			if a.named {
+		if an, bn := a.named(), b.named(); an != bn {
+			if an {
 				return -1
 			}
 			return 1
 		}
-		if d := b.confirms(res) - a.confirms(res); d != 0 {
-			return d
-		}
-		return a.order - b.order
+		return b.confirms(res) - a.confirms(res)
 	}
 }
 
