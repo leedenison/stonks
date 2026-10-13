@@ -442,7 +442,7 @@ func (w *writer) reuse(f *found) {
 func (w *writer) create(ctx context.Context, winner *idSet) (gen.Instrument, error) {
 	class := winner.class
 	if class == "" {
-		class = gen.AssetClassUnknown
+		class = types.AssetClassUnknown
 	}
 	inst, err := w.q.CreateInstrument(ctx, gen.CreateInstrumentParams{ID: db.NewID(), AssetClass: class, FetchKeyID: &winner.r.ID})
 	if err != nil {

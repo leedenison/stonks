@@ -13,7 +13,7 @@ import (
 // listings of one instrument rather than competing responses.
 type Candidate struct {
 	Identifiers []types.Identifier
-	Class       gen.AssetClass
+	Class       types.AssetClass
 	Currency    string
 	// Primary is the operating MIC of the venue the datasource states as
 	// the listing's primary; empty where it states none.

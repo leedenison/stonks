@@ -36,7 +36,7 @@ func newUser(t *testing.T, q *gen.Queries, email string) gen.User {
 	return u
 }
 
-func newInstrument(t *testing.T, q *gen.Queries, class gen.AssetClass) gen.Instrument {
+func newInstrument(t *testing.T, q *gen.Queries, class types.AssetClass) gen.Instrument {
 	t.Helper()
 	row, err := q.CreateInstrument(context.Background(), gen.CreateInstrumentParams{ID: db.NewID(), AssetClass: class})
 	require.NoError(t, err)
@@ -79,7 +79,7 @@ func TestCurrencySeed(t *testing.T) {
 
 	usd, err := q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: types.IdentifierTypeCurrency, Value: "USD"})
 	require.NoError(t, err)
-	if usd.Instrument.AssetClass != gen.AssetClassCash {
+	if usd.Instrument.AssetClass != types.AssetClassCash {
 		t.Errorf("FindIdentifier(currency USD) = %+v, want an instrument of class cash", usd.Instrument)
 	}
 	line, via := cashListing(t, q, "USD")
@@ -137,7 +137,7 @@ func TestMICSeed(t *testing.T) {
 func TestSetListingPrimary(t *testing.T) {
 	ctx := context.Background()
 	q := newTx(t)
-	listing := newListing(t, q, newInstrument(t, q, gen.AssetClassStock), "USD")
+	listing := newListing(t, q, newInstrument(t, q, types.AssetClassStock), "USD")
 	if listing.PrimaryMic != nil {
 		t.Fatalf("new listing primary venue = %q, want none", *listing.PrimaryMic)
 	}
@@ -165,7 +165,7 @@ func TestIdentifierGrain(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			q := newTx(t)
-			instrument := newInstrument(t, q, gen.AssetClassSecurity)
+			instrument := newInstrument(t, q, types.AssetClassSecurity)
 			arg := gen.CreateIdentifierParams{ID: db.NewID(), InstrumentID: instrument.ID, Type: tc.typ, Value: "v"}
 			if tc.listing {
 				listing := newListing(t, q, instrument, "USD")
@@ -183,8 +183,8 @@ func TestIdentifierGrain(t *testing.T) {
 func TestIdentifierUniqueness(t *testing.T) {
 	q := newTx(t)
 	ctx := context.Background()
-	one := newInstrument(t, q, gen.AssetClassSecurity)
-	two := newInstrument(t, q, gen.AssetClassSecurity)
+	one := newInstrument(t, q, types.AssetClassSecurity)
+	two := newInstrument(t, q, types.AssetClassSecurity)
 	newIdentifier(t, q, one, "US0378331005")
 
 	// The unique violation aborts the transaction, so it is the last statement.
@@ -197,24 +197,37 @@ func TestIdentifierUniqueness(t *testing.T) {
 // TestIdentifierTypes holds the hand written enum equal to the database, in
 // value and in order.
 func TestIdentifierTypes(t *testing.T) {
-	tx := begin(t)
-	rows, err := tx.Query(context.Background(),
-		`SELECT enumlabel FROM pg_enum
-		 JOIN pg_type ON pg_type.oid = pg_enum.enumtypid
-		 WHERE pg_type.typname = 'identifier_type'
-		 ORDER BY enumsortorder`)
-	require.NoError(t, err)
-	defer rows.Close()
-	var want []types.IdentifierType
-	for rows.Next() {
-		var label types.IdentifierType
-		require.NoError(t, rows.Scan(&label))
-		want = append(want, label)
-	}
-	require.NoError(t, rows.Err())
-	if diff := cmp.Diff(want, types.IdentifierTypes); diff != "" {
+	if diff := cmp.Diff(labels[types.IdentifierType](t, "identifier_type"), types.IdentifierTypes); diff != "" {
 		t.Errorf("IdentifierTypes mismatch (-database +code):\n%s", diff)
 	}
+}
+
+// TestAssetClasses holds the hand written enum equal to the database, in
+// value and in order.
+func TestAssetClasses(t *testing.T) {
+	if diff := cmp.Diff(labels[types.AssetClass](t, "asset_class"), types.AssetClasses); diff != "" {
+		t.Errorf("AssetClasses mismatch (-database +code):\n%s", diff)
+	}
+}
+
+// labels reads the values of the database enum typ in declared order.
+func labels[T ~string](t *testing.T, typ string) []T {
+	t.Helper()
+	rows, err := begin(t).Query(context.Background(),
+		`SELECT enumlabel FROM pg_enum
+		 JOIN pg_type ON pg_type.oid = pg_enum.enumtypid
+		 WHERE pg_type.typname = $1
+		 ORDER BY enumsortorder`, typ)
+	require.NoError(t, err)
+	defer rows.Close()
+	var out []T
+	for rows.Next() {
+		var label string
+		require.NoError(t, rows.Scan(&label))
+		out = append(out, T(label))
+	}
+	require.NoError(t, rows.Err())
+	return out
 }
 
 // TestListInstrumentsByIdentifiers checks the lookup over several identifiers
@@ -222,8 +235,8 @@ func TestIdentifierTypes(t *testing.T) {
 func TestListInstrumentsByIdentifiers(t *testing.T) {
 	ctx := context.Background()
 	q := newTx(t)
-	one := newInstrument(t, q, gen.AssetClassStock)
-	two := newInstrument(t, q, gen.AssetClassStock)
+	one := newInstrument(t, q, types.AssetClassStock)
+	two := newInstrument(t, q, types.AssetClassStock)
 	newIdentifier(t, q, one, "GB00B03MLX29")
 	listing := newListing(t, q, two, "USD")
 	_, err := q.CreateIdentifier(ctx, gen.CreateIdentifierParams{ID: db.NewID(), InstrumentID: two.ID, ListingID: &listing.ID, Type: types.IdentifierTypeMicTicker, Domain: "XNYS", Value: "ACME"})
@@ -321,7 +334,7 @@ func TestListInstruments(t *testing.T) {
 
 	// A stock with an ISIN and tickers at two venues, whose primary venue
 	// ranks after the other in venue_names and sorts after it by MIC.
-	stock := newInstrument(t, q, gen.AssetClassStock)
+	stock := newInstrument(t, q, types.AssetClassStock)
 	stockLine := newListing(t, q, stock, "USD")
 	require.NoError(t, q.SetListingPrimary(ctx, gen.SetListingPrimaryParams{ID: stockLine.ID, PrimaryMic: ptr.To("XSWX")}))
 	ident(stock, nil, types.IdentifierTypeIsin, "", "ZZ0000000001")
@@ -329,18 +342,18 @@ func TestListInstruments(t *testing.T) {
 	ident(stock, &stockLine, types.IdentifierTypeMicTicker, "XSWX", "ZZSTOCKP")
 	// A stock with no primary venue, whose tickers differ at a venue ranked
 	// first in venue_names and at one sorting first by MIC.
-	two := newInstrument(t, q, gen.AssetClassStock)
+	two := newInstrument(t, q, types.AssetClassStock)
 	twoLine := newListing(t, q, two, "USD")
 	ident(two, &twoLine, types.IdentifierTypeMicTicker, "XNAS", "ZZTWO")
 	ident(two, &twoLine, types.IdentifierTypeMicTicker, "XNYS", "ZZTWON")
 	// An option with an OCC symbol, a built symbol and a ticker.
-	option := newInstrument(t, q, gen.AssetClassOption)
+	option := newInstrument(t, q, types.AssetClassOption)
 	optionLine := newListing(t, q, option, "USD")
 	ident(option, nil, types.IdentifierTypeOcc, "", "ZZOPT260116C00150000")
 	ident(option, nil, types.IdentifierTypeOption, "", "ZZOPTBUILT")
 	ident(option, &optionLine, types.IdentifierTypeMicTicker, "XCBO", "ZZOPTTICK")
 	// An instrument nothing names.
-	bare := newInstrument(t, q, gen.AssetClassSecurity)
+	bare := newInstrument(t, q, types.AssetClassSecurity)
 
 	all, err := q.ListInstruments(ctx, gen.ListInstrumentsParams{Lim: 1000})
 	require.NoError(t, err)
@@ -376,7 +389,7 @@ func TestListInstruments(t *testing.T) {
 	if tail[0].ID != option.ID || tail[1].ID != stock.ID || tail[2].ID != two.ID {
 		t.Errorf("last three = %v, want the option, the stock, then the second stock", tail)
 	}
-	if all[0].ID != bare.ID || all[0].AssetClass != gen.AssetClassSecurity {
+	if all[0].ID != bare.ID || all[0].AssetClass != types.AssetClassSecurity {
 		t.Errorf("first = %+v, want the unnamed instrument", all[0])
 	}
 
@@ -411,7 +424,7 @@ func TestListInstruments(t *testing.T) {
 	if len(found) != 1 || found[0].ID != stock.ID {
 		t.Errorf("ListInstruments(q=zz0000) = %v, want the stock alone", found)
 	}
-	equities, err := q.ListInstruments(ctx, gen.ListInstrumentsParams{Q: ptr.To("ZZ"), AssetClass: ptr.To(gen.AssetClassEquity), Lim: 10})
+	equities, err := q.ListInstruments(ctx, gen.ListInstrumentsParams{Q: ptr.To("ZZ"), AssetClass: ptr.To(types.AssetClassEquity), Lim: 10})
 	require.NoError(t, err)
 	if len(equities) != 2 || equities[0].ID != stock.ID || equities[1].ID != two.ID {
 		t.Errorf("ListInstruments(q=ZZ, equity) = %v, want the two stocks", equities)

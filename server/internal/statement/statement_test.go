@@ -263,7 +263,7 @@ func TestKeyForm(t *testing.T) {
 	if diff := cmp.Diff(want, got.key.identifiers); diff != "" {
 		t.Errorf("identifiers order mismatch (-want +got):\n%s", diff)
 	}
-	if got.key.class == nil || *got.key.class != gen.AssetClassStock {
+	if got.key.class == nil || *got.key.class != types.AssetClassStock {
 		t.Errorf("class = %v, want stock", got.key.class)
 	}
 }

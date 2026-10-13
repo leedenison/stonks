@@ -5,7 +5,6 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
-	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/types"
 	"github.com/leedenison/stonks/server/internal/market"
 )
@@ -29,33 +28,33 @@ func TestCandidate(t *testing.T) {
 	}{
 		{
 			name: "a US common stock with its mapping", row: us, mapping: mapped, venue: "NASDAQ", ok: true,
-			want: market.Candidate{Class: gen.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{symbol("AAPL.US"), isin, cusip, ticker("XNAS", "AAPL")}},
+			want: market.Candidate{Class: types.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{symbol("AAPL.US"), isin, cusip, ticker("XNAS", "AAPL")}},
 		},
 		{
 			name: "the primary row states its venue", row: row{Code: "AAPL", Exchange: "US", Type: "Common Stock", Currency: "USD", ISIN: "US0378331005", IsPrimary: true}, mapping: mapped, venue: "NASDAQ", ok: true,
-			want: market.Candidate{Class: gen.AssetClassStock, Currency: "USD", Primary: "XNAS", Identifiers: []types.Identifier{symbol("AAPL.US"), isin, cusip, ticker("XNAS", "AAPL")}},
+			want: market.Candidate{Class: types.AssetClassStock, Currency: "USD", Primary: "XNAS", Identifiers: []types.Identifier{symbol("AAPL.US"), isin, cusip, ticker("XNAS", "AAPL")}},
 		},
 		{
 			name: "a class share at a segment", row: row{Code: "BRK-B", Exchange: "US", Type: "Common Stock", Currency: "USD"}, venue: "NYSE ARCA", ok: true,
-			want: market.Candidate{Class: gen.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{symbol("BRK-B.US"), ticker("XNYS", "BRK.B")}},
+			want: market.Candidate{Class: types.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{symbol("BRK-B.US"), ticker("XNYS", "BRK.B")}},
 		},
 		{
 			name: "a listing outside the US", row: row{Code: "VOD", Exchange: "LSE", Type: "Common Stock", Currency: "GBX", ISIN: "GB00BH4HKS39"}, ok: true,
-			want: market.Candidate{Class: gen.AssetClassStock, Currency: "GBX", Identifiers: []types.Identifier{
+			want: market.Candidate{Class: types.AssetClassStock, Currency: "GBX", Identifiers: []types.Identifier{
 				symbol("VOD.LSE"), {Type: types.IdentifierTypeIsin, Value: "GB00BH4HKS39"}, ticker("XLON", "VOD"),
 			}},
 		},
 		{
 			name: "a preferred share has no ticker", row: row{Code: "BAC-PL", Exchange: "US", Type: "Preferred Stock", Currency: "USD"}, venue: "NYSE", ok: true,
-			want: market.Candidate{Class: gen.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{symbol("BAC-PL.US")}},
+			want: market.Candidate{Class: types.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{symbol("BAC-PL.US")}},
 		},
 		{
 			name: "an ETF", row: row{Code: "AAAU", Exchange: "US", Type: "ETF", Currency: "USD"}, venue: "BATS", ok: true,
-			want: market.Candidate{Class: gen.AssetClassEtf, Currency: "USD", Identifiers: []types.Identifier{symbol("AAAU.US"), ticker("BATS", "AAAU")}},
+			want: market.Candidate{Class: types.AssetClassEtf, Currency: "USD", Identifiers: []types.Identifier{symbol("AAAU.US"), ticker("BATS", "AAAU")}},
 		},
 		{
 			name: "a fund", row: row{Code: "VUSA", Exchange: "LSE", Type: "FUND", Currency: "GBP"}, ok: true,
-			want: market.Candidate{Class: gen.AssetClassMutualFund, Currency: "GBP", Identifiers: []types.Identifier{symbol("VUSA.LSE"), ticker("XLON", "VUSA")}},
+			want: market.Candidate{Class: types.AssetClassMutualFund, Currency: "GBP", Identifiers: []types.Identifier{symbol("VUSA.LSE"), ticker("XLON", "VUSA")}},
 		},
 		{name: "a US row on an OTC market", row: us, venue: "PINK"},
 		{name: "a US row the symbol list leaves out", row: us},

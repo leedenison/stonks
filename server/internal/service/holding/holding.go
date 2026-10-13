@@ -140,7 +140,7 @@ func (s *Server) groups(ctx context.Context, user uuid.UUID, keys []gen.ListHold
 		}
 		st, ok := stated[*k.StatedKey.GroupID]
 		if !ok {
-			st = &stating{h: &holdingv1.GroupHolding{}, classes: map[gen.AssetClass]bool{}, ids: map[types.Identifier]bool{}}
+			st = &stating{h: &holdingv1.GroupHolding{}, classes: map[types.AssetClass]bool{}, ids: map[types.Identifier]bool{}}
 			stated[*k.StatedKey.GroupID] = st
 		}
 		st.fold(k.StatedKey)
@@ -164,7 +164,7 @@ func (s *Server) groups(ctx context.Context, user uuid.UUID, keys []gen.ListHold
 // once.
 type stating struct {
 	h       *holdingv1.GroupHolding
-	classes map[gen.AssetClass]bool
+	classes map[types.AssetClass]bool
 	ids     map[types.Identifier]bool
 }
 

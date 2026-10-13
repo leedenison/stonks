@@ -29,7 +29,7 @@ func TestStatedKeys(t *testing.T) {
 	ctx := context.Background()
 	user := newUser(t, q, "keys@example.com")
 	statement, other := newStatement(t, q, user), newStatement(t, q, user)
-	cash := gen.AssetClassCash
+	cash := types.AssetClassCash
 	key := func(statement gen.Statement) gen.CreateStatedKeyParams {
 		return gen.CreateStatedKeyParams{
 			ID: db.NewID(), StatementID: statement.ID, UserID: user.ID, AssetClass: &cash, Currency: ptr.To("USD"),
@@ -39,7 +39,7 @@ func TestStatedKeys(t *testing.T) {
 
 	created, err := q.CreateStatedKey(ctx, key(statement))
 	require.NoError(t, err)
-	if created.AssetClass == nil || *created.AssetClass != gen.AssetClassCash {
+	if created.AssetClass == nil || *created.AssetClass != types.AssetClassCash {
 		t.Errorf("CreateStatedKey = %+v, want asset class cash", created)
 	}
 	listed, err := q.ListStatedKeys(ctx, gen.ListStatedKeysParams{StatementID: statement.ID, UserID: user.ID})
@@ -141,7 +141,7 @@ func TestStatedKeyAssociation(t *testing.T) {
 
 	base := newTx(t)
 	usd, via := cashListing(t, base, "USD")
-	other := newInstrument(t, base, gen.AssetClassEquity)
+	other := newInstrument(t, base, types.AssetClassEquity)
 	otherLine := newListing(t, base, other, "USD")
 
 	tests := []struct {
@@ -182,7 +182,7 @@ func TestStatedKeyAssociation(t *testing.T) {
 		if n != 1 {
 			t.Fatalf("the user's association changed %d rows, want 1", n)
 		}
-		other := newInstrument(t, q, gen.AssetClassEquity)
+		other := newInstrument(t, q, types.AssetClassEquity)
 		otherVia := newIdentifier(t, q, other, "US0000000009")
 		byDatasource := gen.SetStatedKeyAssociationParams{ID: chosen.ID, UserID: user.ID, InstrumentID: &other.ID, ViaID: &otherVia.ID, Validity: ptr.To(gen.ValidityConfirmed), Arbiter: gen.ArbiterDatasource}
 		n, err = q.SetStatedKeyAssociation(ctx, byDatasource)

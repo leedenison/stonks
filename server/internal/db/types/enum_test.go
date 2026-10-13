@@ -16,17 +16,17 @@ func TestFromProto(t *testing.T) {
 	tests := []struct {
 		name string
 		in   typev1.AssetClass
-		want gen.AssetClass
+		want types.AssetClass
 		ok   bool
 	}{
-		{name: "one word", in: typev1.AssetClass_ASSET_CLASS_CASH, want: gen.AssetClassCash, ok: true},
-		{name: "two words", in: typev1.AssetClass_ASSET_CLASS_MUTUAL_FUND, want: gen.AssetClassMutualFund, ok: true},
+		{name: "one word", in: typev1.AssetClass_ASSET_CLASS_CASH, want: types.AssetClassCash, ok: true},
+		{name: "two words", in: typev1.AssetClass_ASSET_CLASS_MUTUAL_FUND, want: types.AssetClassMutualFund, ok: true},
 		{name: "unspecified", in: typev1.AssetClass_ASSET_CLASS_UNSPECIFIED, want: "", ok: true},
 		{name: "undefined", in: 99, want: "", ok: false},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got, ok := types.FromProto[gen.AssetClass](tc.in)
+			got, ok := types.FromProto[types.AssetClass](tc.in)
 			if got != tc.want || ok != tc.ok {
 				t.Errorf("FromProto(%v) = %q, %v, want %q, %v", tc.in, got, ok, tc.want, tc.ok)
 			}
@@ -87,7 +87,7 @@ func TestEnumsCross(t *testing.T) {
 	for _, v := range gen.AllIdentifierTypeValues() {
 		identifierTypes = append(identifierTypes, types.IdentifierType(v))
 	}
-	t.Run("asset class", func(t *testing.T) { crosses[gen.AssetClass, typev1.AssetClass](t, gen.AllAssetClassValues()) })
+	t.Run("asset class", func(t *testing.T) { crosses[types.AssetClass, typev1.AssetClass](t, types.AssetClasses) })
 	t.Run("broker", func(t *testing.T) { crosses[gen.Broker, typev1.Broker](t, gen.AllBrokerValues()) })
 	t.Run("identifier type", func(t *testing.T) { crosses[types.IdentifierType, typev1.IdentifierType](t, identifierTypes) })
 	t.Run("resolution outcome", func(t *testing.T) {

@@ -268,7 +268,7 @@ func TestGetRun(t *testing.T) {
 						{Type: types.IdentifierTypeBrokerID, Domain: "ibkr", Value: "100000001"},
 						{Type: types.IdentifierTypeIsin, Value: "GB00B03MLX29"},
 					},
-					KeyAssetClass: ptr.To(gen.AssetClassEquity),
+					KeyAssetClass: ptr.To(types.AssetClassEquity),
 					KeyCurrency:   ptr.To("GBP"),
 				},
 				{

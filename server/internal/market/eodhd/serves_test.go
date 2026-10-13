@@ -18,7 +18,7 @@ func TestServes(t *testing.T) {
 	shareClass := types.Identifier{Type: types.IdentifierTypeOpenfigiShareClass, Value: "BBG001S5N8V8"}
 	tests := []struct {
 		name  string
-		class *gen.AssetClass
+		class *types.AssetClass
 		ids   []types.Identifier
 		want  types.Identifier
 		fails bool
@@ -34,8 +34,8 @@ func TestServes(t *testing.T) {
 		{name: "an ISIN beside a ticker at a venue EODHD does not list", ids: []types.Identifier{isin, ticker("XXXX", "AAPL")}, fails: true},
 		{name: "a share class FIGI alone", ids: []types.Identifier{shareClass}, fails: true},
 		{name: "a bare ticker beside a share class FIGI", ids: []types.Identifier{ticker("", "AAPL"), shareClass}, fails: true},
-		{name: "a class above those served", class: ptr.To(gen.AssetClassEquity), ids: []types.Identifier{isin}, want: isin},
-		{name: "a class EODHD does not serve", class: ptr.To(gen.AssetClassOption), ids: []types.Identifier{isin}, fails: true},
+		{name: "a class above those served", class: ptr.To(types.AssetClassEquity), ids: []types.Identifier{isin}, want: isin},
+		{name: "a class EODHD does not serve", class: ptr.To(types.AssetClassOption), ids: []types.Identifier{isin}, fails: true},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

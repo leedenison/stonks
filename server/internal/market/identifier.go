@@ -47,13 +47,13 @@ func WithClassSep(ticker string, sep rune) (string, bool) {
 
 // Equities is the set of stated classes a provider of listed equities
 // answers: the classes it converts and the classes above them.
-var Equities = map[gen.AssetClass]bool{
-	gen.AssetClassUnknown:    true,
-	gen.AssetClassSecurity:   true,
-	gen.AssetClassEquity:     true,
-	gen.AssetClassStock:      true,
-	gen.AssetClassEtf:        true,
-	gen.AssetClassMutualFund: true,
+var Equities = map[types.AssetClass]bool{
+	types.AssetClassUnknown:    true,
+	types.AssetClassSecurity:   true,
+	types.AssetClassEquity:     true,
+	types.AssetClassStock:      true,
+	types.AssetClassEtf:        true,
+	types.AssetClassMutualFund: true,
 }
 
 // Preference states which identifier of a key an integration sends: the
@@ -61,7 +61,7 @@ var Equities = map[gen.AssetClass]bool{
 // operating MIC.
 type Preference struct {
 	// Served limits the asset classes; nil serves every class.
-	Served map[gen.AssetClass]bool
+	Served map[types.AssetClass]bool
 	Order  []types.IdentifierType
 	// Lists reports whether the integration lists an operating MIC; nil
 	// means every venue.

@@ -26,7 +26,7 @@ type idSet struct {
 	// order is the position of the set's first candidate in the response.
 	order int
 	// class is the class of the first candidate stating one.
-	class      gen.AssetClass
+	class      types.AssetClass
 	instrument []types.Identifier
 	// listings is keyed by currency family, noFamily where the candidates
 	// carry no known currency.
@@ -165,7 +165,7 @@ func union(parent []int, a, b int) {
 
 // add folds c into g as a candidate of the listing of fam.
 func (g *idSet) add(c market.Candidate, fam string) {
-	if g.class == "" || g.class == gen.AssetClassUnknown {
+	if g.class == "" || g.class == types.AssetClassUnknown {
 		g.class = c.Class
 	}
 	l := g.listings[fam]

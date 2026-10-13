@@ -30,7 +30,7 @@ type Candidate struct {
 	// confirmation sends it.
 	Strongest types.Identifier
 	// AssetClass is the head's class, which the instrument takes.
-	AssetClass gen.AssetClass
+	AssetClass types.AssetClass
 	// Identifiers name the instrument itself, not one of its listings.
 	Identifiers []types.Identifier
 	// Listings is one per currency family, sorted by family.
@@ -214,7 +214,7 @@ func candidateOf(a agreement) (Candidate, bool) {
 	}
 	c := Candidate{Datasource: head.r.Source, Strongest: strongest, AssetClass: head.class}
 	if c.AssetClass == "" {
-		c.AssetClass = gen.AssetClassUnknown
+		c.AssetClass = types.AssetClassUnknown
 	}
 	listings := map[string][]types.Identifier{}
 	for _, g := range a {

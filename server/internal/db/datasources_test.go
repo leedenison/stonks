@@ -457,7 +457,7 @@ func TestIdentityCoverage(t *testing.T) {
 	first := servedKey(t, q, f.fetch, f.key, "GB00B03MLX29")
 	second := servedKey(t, q, newFetch(t, q, f.user, f.run, ds), f.key, "GB00B03MLX29")
 
-	instrument, err := q.CreateInstrument(ctx, gen.CreateInstrumentParams{ID: db.NewID(), AssetClass: gen.AssetClassStock, FetchKeyID: &first})
+	instrument, err := q.CreateInstrument(ctx, gen.CreateInstrumentParams{ID: db.NewID(), AssetClass: types.AssetClassStock, FetchKeyID: &first})
 	require.NoError(t, err)
 	if instrument.FetchKeyID == nil || *instrument.FetchKeyID != first {
 		t.Errorf("instrument provenance = %v, want fetch key %s", instrument.FetchKeyID, first)

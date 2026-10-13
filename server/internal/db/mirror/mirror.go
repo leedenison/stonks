@@ -56,22 +56,22 @@ func Joining(id types.Identifier) bool {
 }
 
 // parents is the asset class tree, the root mapping to "".
-var parents = map[gen.AssetClass]gen.AssetClass{
-	gen.AssetClassUnknown:     "",
-	gen.AssetClassCash:        gen.AssetClassUnknown,
-	gen.AssetClassSecurity:    gen.AssetClassUnknown,
-	gen.AssetClassEquity:      gen.AssetClassSecurity,
-	gen.AssetClassStock:       gen.AssetClassEquity,
-	gen.AssetClassEtf:         gen.AssetClassEquity,
-	gen.AssetClassMutualFund:  gen.AssetClassEquity,
-	gen.AssetClassFixedIncome: gen.AssetClassSecurity,
-	gen.AssetClassDerivative:  gen.AssetClassSecurity,
-	gen.AssetClassOption:      gen.AssetClassDerivative,
-	gen.AssetClassFuture:      gen.AssetClassDerivative,
+var parents = map[types.AssetClass]types.AssetClass{
+	types.AssetClassUnknown:     "",
+	types.AssetClassCash:        types.AssetClassUnknown,
+	types.AssetClassSecurity:    types.AssetClassUnknown,
+	types.AssetClassEquity:      types.AssetClassSecurity,
+	types.AssetClassStock:       types.AssetClassEquity,
+	types.AssetClassEtf:         types.AssetClassEquity,
+	types.AssetClassMutualFund:  types.AssetClassEquity,
+	types.AssetClassFixedIncome: types.AssetClassSecurity,
+	types.AssetClassDerivative:  types.AssetClassSecurity,
+	types.AssetClassOption:      types.AssetClassDerivative,
+	types.AssetClassFuture:      types.AssetClassDerivative,
 }
 
 // under reports whether a is b or lies below it.
-func under(a, b gen.AssetClass) bool {
+func under(a, b types.AssetClass) bool {
 	for c := a; c != ""; c = parents[c] {
 		if c == b {
 			return true
@@ -82,4 +82,4 @@ func under(a, b gen.AssetClass) bool {
 
 // Disjoint reports whether no instrument can be of both classes. An unknown
 // class overlaps every class.
-func Disjoint(a, b gen.AssetClass) bool { return !under(a, b) && !under(b, a) }
+func Disjoint(a, b types.AssetClass) bool { return !under(a, b) && !under(b, a) }

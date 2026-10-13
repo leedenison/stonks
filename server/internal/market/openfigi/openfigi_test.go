@@ -79,21 +79,21 @@ func TestFetchListings(t *testing.T) {
 		some  []types.Identifier
 		n     int
 		// class is every candidate's, where the call names one instrument.
-		class gen.AssetClass
+		class types.AssetClass
 	}{
 		{
 			cassette: "isin",
 			sent:     types.Identifier{Type: types.IdentifierTypeIsin, Value: "US0378331005"},
 			some:     []types.Identifier{appleShareClass, appleNasdaq, appleNYSE},
 			n:        277,
-			class:    gen.AssetClassStock,
+			class:    types.AssetClassStock,
 		},
 		{
 			cassette: "cusip",
 			sent:     types.Identifier{Type: types.IdentifierTypeCusip, Value: "037833100"},
 			some:     []types.Identifier{appleShareClass, appleNasdaq, appleNYSE},
 			n:        277,
-			class:    gen.AssetClassStock,
+			class:    types.AssetClassStock,
 		},
 		{
 			cassette: "bare_ticker",

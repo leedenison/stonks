@@ -61,7 +61,7 @@ func (s *Server) ListInstruments(ctx context.Context, req *connect.Request[admin
 		arg.Q = ptr.To(db.LikeEscape(q))
 	}
 	if m.AssetClass != nil {
-		class, ok := types.FromProto[gen.AssetClass](m.GetAssetClass())
+		class, ok := types.FromProto[types.AssetClass](m.GetAssetClass())
 		if !ok {
 			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("unknown asset class"))
 		}

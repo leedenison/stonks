@@ -10,7 +10,7 @@ import (
 
 // classConflict returns why the class k states contradicts an instrument of
 // class, if it does.
-func classConflict(k gen.StatedKey, class gen.AssetClass) (string, bool) {
+func classConflict(k gen.StatedKey, class types.AssetClass) (string, bool) {
 	if k.AssetClass == nil || !mirror.Disjoint(*k.AssetClass, class) {
 		return "", false
 	}

@@ -5,7 +5,6 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
-	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/types"
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/mic"
@@ -110,7 +109,7 @@ func TestIdentity(t *testing.T) {
 			var exchs []string
 			for _, c := range got.Candidates {
 				exchs = append(exchs, exchOf(c))
-				if c.Class != gen.AssetClassStock || c.Currency != tc.currency {
+				if c.Class != types.AssetClassStock || c.Currency != tc.currency {
 					t.Errorf("identity(%v) candidate class %s, currency %q, want stock and %q", tc.sent, c.Class, c.Currency, tc.currency)
 				}
 			}

@@ -60,8 +60,8 @@ func TestListInstruments(t *testing.T) {
 		return &typev1.Identifier{Type: typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, Domain: domain, Value: "ACME"}
 	}
 	rows := []gen.ListInstrumentsRow{
-		{ID: acmeID, AssetClass: gen.AssetClassStock, Name: "ACME", NameType: string(types.IdentifierTypeMicTicker), NameDomain: "XNYS"},
-		{ID: gbpID, AssetClass: gen.AssetClassCash, Name: "GBP", NameType: string(types.IdentifierTypeCurrency)},
+		{ID: acmeID, AssetClass: types.AssetClassStock, Name: "ACME", NameType: string(types.IdentifierTypeMicTicker), NameDomain: "XNYS"},
+		{ID: gbpID, AssetClass: types.AssetClassCash, Name: "GBP", NameType: string(types.IdentifierTypeCurrency)},
 	}
 	// The dollar listing has a primary venue, so it precedes the pound's.
 	listings := []gen.Listing{
@@ -126,7 +126,7 @@ func TestListInstruments(t *testing.T) {
 		{
 			name:    "a query and a class, the query escaped",
 			req:     &admininstrumentv1.ListInstrumentsRequest{Query: "50%_", AssetClass: typev1.AssetClass_ASSET_CLASS_EQUITY.Enum()},
-			wantArg: &gen.ListInstrumentsParams{Lim: page.DefaultSize + 1, Q: ptr.To(`50\%\_`), AssetClass: ptr.To(gen.AssetClassEquity)},
+			wantArg: &gen.ListInstrumentsParams{Lim: page.DefaultSize + 1, Q: ptr.To(`50\%\_`), AssetClass: ptr.To(types.AssetClassEquity)},
 			want:    &admininstrumentv1.ListInstrumentsResponse{},
 		},
 		{name: "oversized page", req: &admininstrumentv1.ListInstrumentsRequest{PageSize: 201}, wantCode: connect.CodeInvalidArgument},
@@ -193,7 +193,7 @@ func TestCursor(t *testing.T) {
 // that the token of the next page names the last instrument served.
 func TestListInstrumentsPages(t *testing.T) {
 	f := newFixture(t)
-	rows := []gen.ListInstrumentsRow{{ID: acmeID, AssetClass: gen.AssetClassStock, Name: "ACME"}, {ID: gbpID, AssetClass: gen.AssetClassCash, Name: "GBP"}}
+	rows := []gen.ListInstrumentsRow{{ID: acmeID, AssetClass: types.AssetClassStock, Name: "ACME"}, {ID: gbpID, AssetClass: types.AssetClassCash, Name: "GBP"}}
 	f.queries.EXPECT().ListInstruments(gomock.Any(), gen.ListInstrumentsParams{Lim: 2}).Return(rows, nil)
 	f.queries.EXPECT().ListListingsOf(gomock.Any(), []uuid.UUID{acmeID}).Return(nil, nil)
 	f.queries.EXPECT().ListIdentifiersOf(gomock.Any(), []uuid.UUID{acmeID}).Return(nil, nil)
