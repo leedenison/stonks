@@ -2,6 +2,7 @@ package resolve
 
 import (
 	"fmt"
+	"slices"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -54,6 +55,8 @@ func TestClaims(t *testing.T) {
 		name string
 		r    *result
 		want []*claim
+		// named holds, for each claim, whether it names the identifier sent.
+		named []bool
 	}{
 		{
 			name: "a shared instrument identifier joins candidates",
@@ -63,13 +66,14 @@ func TestClaims(t *testing.T) {
 				cand(types.AssetClassStock, "USD", figi2, xnas),
 			),
 			want: []*claim{
-				{order: 0, named: true, Instrument: types.Instrument{Class: types.AssetClassStock, Identifiers: []types.Identifier{figi, isin}, Listings: map[string]types.Listing{
+				{Instrument: types.Instrument{Class: types.AssetClassStock, Identifiers: []types.Identifier{figi, isin}, Listings: map[string]types.Listing{
 					"GBP": {Identifiers: []types.Identifier{comp, xlon, xetr}},
 				}}},
-				{order: 2, Instrument: types.Instrument{Class: types.AssetClassStock, Identifiers: []types.Identifier{figi2}, Listings: map[string]types.Listing{
+				{Instrument: types.Instrument{Class: types.AssetClassStock, Identifiers: []types.Identifier{figi2}, Listings: map[string]types.Listing{
 					"USD": {Identifiers: []types.Identifier{xnas}},
 				}}},
 			},
+			named: []bool{true, false},
 		},
 		{
 			name: "a strict filter is one claim identified by the identifier",
@@ -78,11 +82,12 @@ func TestClaims(t *testing.T) {
 				cand(types.AssetClassStock, "USD", figi, xnas),
 			),
 			want: []*claim{
-				{order: 0, named: true, Instrument: types.Instrument{Class: types.AssetClassStock, Identifiers: []types.Identifier{isin, figi}, Listings: map[string]types.Listing{
+				{Instrument: types.Instrument{Class: types.AssetClassStock, Identifiers: []types.Identifier{isin, figi}, Listings: map[string]types.Listing{
 					"GBP": {Identifiers: []types.Identifier{xlon}},
 					"USD": {Identifiers: []types.Identifier{xnas}},
 				}}},
 			},
+			named: []bool{true},
 		},
 		{
 			name: "no currency is a listing of no family, and the venue sent names the claim",
@@ -91,10 +96,11 @@ func TestClaims(t *testing.T) {
 				cand(types.AssetClassStock, "", figi, xnas),
 			),
 			want: []*claim{
-				{order: 0, named: true, Instrument: types.Instrument{Class: types.AssetClassStock, Identifiers: []types.Identifier{figi}, Listings: map[string]types.Listing{
+				{Instrument: types.Instrument{Class: types.AssetClassStock, Identifiers: []types.Identifier{figi}, Listings: map[string]types.Listing{
 					"": {Identifiers: []types.Identifier{xlon, xnas}},
 				}}},
 			},
+			named: []bool{true},
 		},
 		{
 			name: "a listing takes the primary venue of the first candidate stating one",
@@ -104,10 +110,11 @@ func TestClaims(t *testing.T) {
 				market.Candidate{Class: types.AssetClassStock, Currency: "GBP", Primary: "XETR", Identifiers: []types.Identifier{comp}},
 			),
 			want: []*claim{
-				{order: 0, named: true, Instrument: types.Instrument{Class: types.AssetClassStock, Identifiers: []types.Identifier{isin}, Listings: map[string]types.Listing{
+				{Instrument: types.Instrument{Class: types.AssetClassStock, Identifiers: []types.Identifier{isin}, Listings: map[string]types.Listing{
 					"GBP": {Identifiers: []types.Identifier{xetr, xlon, comp}, Primary: "XLON"},
 				}}},
 			},
+			named: []bool{true},
 		},
 		{
 			name: "no candidates",
@@ -117,11 +124,16 @@ func TestClaims(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			got := claims(tc.r)
-			for _, c := range got {
+			var named []bool
+			for i, c := range got {
 				if c.query != tc.r {
-					t.Errorf("claim %d names result %p, want %p", c.order, c.query, tc.r)
+					t.Errorf("claim %d names result %p, want %p", i, c.query, tc.r)
 				}
+				named = append(named, c.named())
 				c.query = nil
+			}
+			if diff := cmp.Diff(tc.named, named); diff != "" {
+				t.Errorf("named mismatch (-want +got):\n%s", diff)
 			}
 			if diff := cmp.Diff(tc.want, got, cmp.AllowUnexported(claim{})); diff != "" {
 				t.Errorf("claims mismatch (-want +got):\n%s", diff)
@@ -131,7 +143,7 @@ func TestClaims(t *testing.T) {
 }
 
 // outcome renders a choice for comparison, each claim named by its source
-// and order.
+// and its position among the claims of its response.
 type outcome struct {
 	winner    string
 	refused   string
@@ -148,7 +160,8 @@ func label(c *claim) string {
 	case c.query == nil:
 		return "database"
 	}
-	return fmt.Sprintf("%s#%d", c.query.Source, c.order)
+	i := slices.IndexFunc(claims(c.query), func(o *claim) bool { return cmp.Equal(o.Instrument, c.Instrument) })
+	return fmt.Sprintf("%s#%d", c.query.Source, i)
 }
 
 // describe writes ch, naming each finding's fetch key by its source.
