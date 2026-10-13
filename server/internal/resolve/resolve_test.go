@@ -192,7 +192,7 @@ func (f *fixture) resolve(keys ...gen.StatedKey) []gen.ResolutionKey {
 	return out
 }
 
-func keyOf(class gen.AssetClass, currency string, ids ...types.Identifier) gen.StatedKey {
+func keyOf(class types.AssetClass, currency string, ids ...types.Identifier) gen.StatedKey {
 	k := gen.StatedKey{ID: db.NewID(), UserID: userID, Identifiers: ids}
 	if class != "" {
 		k.AssetClass = &class
@@ -222,8 +222,8 @@ func TestResolveLocks(t *testing.T) {
 	f.records()
 	f.finds()
 	f.creates()
-	k := keyOf(gen.AssetClassStock, "GBX", isin, xlon)
-	f.serves(entryA, servedResult(isin, []types.Identifier{isin}, cand(gen.AssetClassStock, "GBX", figi, isin, comp, xlon), cand(gen.AssetClassStock, "GBX", figi, xetr)))
+	k := keyOf(types.AssetClassStock, "GBX", isin, xlon)
+	f.serves(entryA, servedResult(isin, []types.Identifier{isin}, cand(types.AssetClassStock, "GBX", figi, isin, comp, xlon), cand(types.AssetClassStock, "GBX", figi, xetr)))
 
 	got := f.resolve(k)
 	if got[0].Outcome != gen.ResolutionOutcomeMatched {
@@ -247,7 +247,7 @@ func TestResolveLocks(t *testing.T) {
 func TestResolveBatches(t *testing.T) {
 	f := newFixture(t, entryA, entryB)
 	f.records()
-	one, two := keyOf(gen.AssetClassStock, "USD", isin), keyOf(gen.AssetClassStock, "USD", cusip)
+	one, two := keyOf(types.AssetClassStock, "USD", isin), keyOf(types.AssetClassStock, "USD", cusip)
 	var reads [][]string
 	f.store.EXPECT().ListInstrumentsByIdentifiers(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.ListInstrumentsByIdentifiersParams) ([]gen.ListInstrumentsByIdentifiersRow, error) {
 		reads = append(reads, arg.Values)
@@ -286,13 +286,13 @@ func TestResolveUnresolved(t *testing.T) {
 	}{
 		{
 			name:    "nothing recognised",
-			key:     keyOf(gen.AssetClassStock, "USD", id(types.IdentifierTypeBrokerID, "ibkr", "1")),
+			key:     keyOf(types.AssetClassStock, "USD", id(types.IdentifierTypeBrokerID, "ibkr", "1")),
 			outcome: gen.ResolutionOutcomeUnrecognised,
 			reasons: []string{"no global identifier"},
 		},
 		{
 			name:    "no datasource served it",
-			key:     keyOf(gen.AssetClassStock, "USD", isin),
+			key:     keyOf(types.AssetClassStock, "USD", isin),
 			results: []result{{ID: db.NewID(), Outcome: gen.FetchOutcomeNotServed, Reason: "no recognised identifier type"}},
 			fetched: true,
 			outcome: gen.ResolutionOutcomeUnrecognised,
@@ -300,7 +300,7 @@ func TestResolveUnresolved(t *testing.T) {
 		},
 		{
 			name:    "a datasource failed",
-			key:     keyOf(gen.AssetClassStock, "USD", isin),
+			key:     keyOf(types.AssetClassStock, "USD", isin),
 			results: []result{{ID: db.NewID(), Outcome: gen.FetchOutcomeFailedTemporary, Reason: "503"}},
 			fetched: true,
 			outcome: gen.ResolutionOutcomeUnavailable,
@@ -308,8 +308,8 @@ func TestResolveUnresolved(t *testing.T) {
 		},
 		{
 			name:    "a bare ticker is sent and never associates",
-			key:     keyOf(gen.AssetClassStock, "GBP", ticker),
-			results: []result{servedResult(ticker, []types.Identifier{ticker}, cand(gen.AssetClassStock, "GBP", figi, xlon))},
+			key:     keyOf(types.AssetClassStock, "GBP", ticker),
+			results: []result{servedResult(ticker, []types.Identifier{ticker}, cand(types.AssetClassStock, "GBP", figi, xlon))},
 			fetched: true,
 			outcome: gen.ResolutionOutcomeUnrecognised,
 			reasons: []string{"a: 1 candidate in 1 set of identifiers, 1 set of identifiers not naming mic_ticker VOD"},
@@ -317,9 +317,9 @@ func TestResolveUnresolved(t *testing.T) {
 		},
 		{
 			name:    "two datasources describing one security under a bare ticker offer one candidate",
-			key:     keyOf(gen.AssetClassStock, "GBP", ticker),
-			results: []result{servedResult(ticker, []types.Identifier{ticker}, cand(gen.AssetClassStock, "GBP", figi, xlon))},
-			b:       []result{servedResult(ticker, []types.Identifier{ticker}, cand(gen.AssetClassStock, "GBP", figi, isin, xlon))},
+			key:     keyOf(types.AssetClassStock, "GBP", ticker),
+			results: []result{servedResult(ticker, []types.Identifier{ticker}, cand(types.AssetClassStock, "GBP", figi, xlon))},
+			b:       []result{servedResult(ticker, []types.Identifier{ticker}, cand(types.AssetClassStock, "GBP", figi, isin, xlon))},
 			fetched: true,
 			outcome: gen.ResolutionOutcomeUnrecognised,
 			reasons: []string{
@@ -330,9 +330,9 @@ func TestResolveUnresolved(t *testing.T) {
 		},
 		{
 			name:    "two datasources offering the survivors of a mis-stated venue count each security once",
-			key:     keyOf(gen.AssetClassStock, "GBP", xlon),
-			results: []result{servedResult(xlon, []types.Identifier{ticker}, cand(gen.AssetClassStock, "GBP", figi, xetr), cand(gen.AssetClassStock, "GBP", figi2, xnas))},
-			b:       []result{servedResult(xlon, []types.Identifier{ticker}, cand(gen.AssetClassStock, "GBP", figi, xetr), cand(gen.AssetClassStock, "GBP", figi2, xnas))},
+			key:     keyOf(types.AssetClassStock, "GBP", xlon),
+			results: []result{servedResult(xlon, []types.Identifier{ticker}, cand(types.AssetClassStock, "GBP", figi, xetr), cand(types.AssetClassStock, "GBP", figi2, xnas))},
+			b:       []result{servedResult(xlon, []types.Identifier{ticker}, cand(types.AssetClassStock, "GBP", figi, xetr), cand(types.AssetClassStock, "GBP", figi2, xnas))},
 			fetched: true,
 			outcome: gen.ResolutionOutcomeUnrecognised,
 			reasons: []string{"a: 2 candidates in 2 sets of identifiers", "b: 2 candidates in 2 sets of identifiers"},
@@ -340,14 +340,14 @@ func TestResolveUnresolved(t *testing.T) {
 		},
 		{
 			name:    "a description that matches no instrument",
-			key:     keyOf(gen.AssetClassStock, "USD", descr),
+			key:     keyOf(types.AssetClassStock, "USD", descr),
 			outcome: gen.ResolutionOutcomeUnrecognised,
 			reasons: []string{"failed to match broker description"},
 		},
 		{
 			name:    "a bare ticker beside an unknown description",
-			key:     keyOf(gen.AssetClassStock, "GBP", ticker, descr),
-			results: []result{servedResult(ticker, []types.Identifier{ticker}, cand(gen.AssetClassStock, "GBP", figi, xlon))},
+			key:     keyOf(types.AssetClassStock, "GBP", ticker, descr),
+			results: []result{servedResult(ticker, []types.Identifier{ticker}, cand(types.AssetClassStock, "GBP", figi, xlon))},
 			fetched: true,
 			outcome: gen.ResolutionOutcomeUnrecognised,
 			reasons: []string{"a: 1 candidate in 1 set of identifiers, 1 set of identifiers not naming mic_ticker VOD"},
@@ -355,8 +355,8 @@ func TestResolveUnresolved(t *testing.T) {
 		},
 		{
 			name:     "every set of identifiers dropped",
-			key:      keyOf(gen.AssetClassStock, "GBP", isin),
-			results:  []result{servedResult(isin, []types.Identifier{isin}, cand(gen.AssetClassStock, "USD", figi, xnas))},
+			key:      keyOf(types.AssetClassStock, "GBP", isin),
+			results:  []result{servedResult(isin, []types.Identifier{isin}, cand(types.AssetClassStock, "USD", figi, xnas))},
 			fetched:  true,
 			outcome:  gen.ResolutionOutcomeUnrecognised,
 			reasons:  []string{"a: 1 candidate in 1 set of identifiers, 1 set of identifiers dropped"},
@@ -419,15 +419,15 @@ func TestPrimaryVenue(t *testing.T) {
 	}{
 		{
 			name:    "a lower datasource fills the venue a higher left blank",
-			a:       servedResult(isin, nil, cand(gen.AssetClassStock, "USD", figi, isin, xnas)),
-			b:       servedResult(isin, nil, primary(cand(gen.AssetClassStock, "USD", figi, isin, xnas), nasdaq)),
+			a:       servedResult(isin, nil, cand(types.AssetClassStock, "USD", figi, isin, xnas)),
+			b:       servedResult(isin, nil, primary(cand(types.AssetClassStock, "USD", figi, isin, xnas), nasdaq)),
 			created: nil,
 			set:     []string{nasdaq},
 		},
 		{
 			name:    "the higher datasource's venue stands",
-			a:       servedResult(isin, nil, primary(cand(gen.AssetClassStock, "USD", figi, isin, xnas), nyse)),
-			b:       servedResult(isin, nil, primary(cand(gen.AssetClassStock, "USD", figi, isin, xnas), nasdaq)),
+			a:       servedResult(isin, nil, primary(cand(types.AssetClassStock, "USD", figi, isin, xnas), nyse)),
+			b:       servedResult(isin, nil, primary(cand(types.AssetClassStock, "USD", figi, isin, xnas), nasdaq)),
 			created: &nyse,
 		},
 	}
@@ -439,7 +439,7 @@ func TestPrimaryVenue(t *testing.T) {
 			f.creates()
 			f.serves(entryA, tc.a)
 			f.serves(entryB, tc.b)
-			got := f.resolve(keyOf(gen.AssetClassStock, "USD", isin))
+			got := f.resolve(keyOf(types.AssetClassStock, "USD", isin))
 			if len(got) != 1 || got[0].Outcome != gen.ResolutionOutcomeMatched {
 				t.Fatalf("Resolve() = %+v, want one matched key", got)
 			}
@@ -482,7 +482,7 @@ func TestResolveRetry(t *testing.T) {
 				calls++
 				return err
 			}).Times(tc.calls)
-			_, err := f.resolver.Resolve(context.Background(), res, []gen.StatedKey{keyOf(gen.AssetClassStock, "USD", descr)})
+			_, err := f.resolver.Resolve(context.Background(), res, []gen.StatedKey{keyOf(types.AssetClassStock, "USD", descr)})
 			if (err != nil) != tc.wantErr {
 				t.Errorf("Resolve() error = %v, wantErr %v", err, tc.wantErr)
 			}
@@ -514,15 +514,15 @@ func TestResolveErrors(t *testing.T) {
 // the user arbitrates during the run keeps that association and is
 // recorded matched.
 func TestArbiter(t *testing.T) {
-	inst := gen.Instrument{ID: db.NewID(), AssetClass: gen.AssetClassStock}
+	inst := gen.Instrument{ID: db.NewID(), AssetClass: types.AssetClassStock}
 	isinRow := gen.Identifier{ID: db.NewID(), InstrumentID: inst.ID, Type: isin.Type, Value: isin.Value}
 	t.Run("a fetched winner is the datasource's", func(t *testing.T) {
 		f := newFixture(t, entryA)
 		f.records()
 		f.finds()
 		f.creates()
-		f.serves(entryA, servedResult(isin, []types.Identifier{isin}, cand(gen.AssetClassStock, "GBX", figi, isin, xlon)))
-		got := f.resolve(keyOf(gen.AssetClassStock, "GBX", isin))
+		f.serves(entryA, servedResult(isin, []types.Identifier{isin}, cand(types.AssetClassStock, "GBX", figi, isin, xlon)))
+		got := f.resolve(keyOf(types.AssetClassStock, "GBX", isin))
 		if got[0].Outcome != gen.ResolutionOutcomeMatched || len(f.associations) != 1 || f.associations[0].Arbiter != gen.ArbiterDatasource {
 			t.Errorf("Resolve = %+v with associations %+v, want matched with the datasource as arbiter", got, f.associations)
 		}
@@ -535,7 +535,7 @@ func TestArbiter(t *testing.T) {
 		f.store.EXPECT().ListIdentifiersOf(gomock.Any(), gomock.Any()).Return([]gen.Identifier{isinRow}, nil).AnyTimes()
 		f.store.EXPECT().ListListingsOf(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
 		f.store.EXPECT().ListIdentityCoverage(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
-		got := f.resolve(keyOf(gen.AssetClassStock, "", isin))
+		got := f.resolve(keyOf(types.AssetClassStock, "", isin))
 		if got[0].Outcome != gen.ResolutionOutcomeMatched || len(f.associations) != 1 || f.associations[0].Arbiter != gen.ArbiterStated {
 			t.Errorf("Resolve = %+v with associations %+v, want matched with the stated data as arbiter", got, f.associations)
 		}
@@ -546,8 +546,8 @@ func TestArbiter(t *testing.T) {
 		f.finds()
 		f.creates()
 		f.rows = 0
-		f.serves(entryA, servedResult(isin, []types.Identifier{isin}, cand(gen.AssetClassStock, "GBX", figi, isin, xlon)))
-		got := f.resolve(keyOf(gen.AssetClassStock, "GBX", isin))
+		f.serves(entryA, servedResult(isin, []types.Identifier{isin}, cand(types.AssetClassStock, "GBX", figi, isin, xlon)))
+		got := f.resolve(keyOf(types.AssetClassStock, "GBX", isin))
 		if got[0].Outcome != gen.ResolutionOutcomeMatched || len(f.instruments) != 1 || len(f.attached) != 1 {
 			t.Errorf("Resolve = %+v, instruments %d, attached %d: want matched with the instrument data written", got, len(f.instruments), len(f.attached))
 		}
@@ -561,7 +561,7 @@ func TestInherit(t *testing.T) {
 	instX, instY := db.NewID(), db.NewID()
 	listing, via := db.NewID(), db.NewID()
 	confirmed := func(instrument uuid.UUID, ids ...types.Identifier) gen.StatedKey {
-		k := keyOf(gen.AssetClassStock, "GBP", ids...)
+		k := keyOf(types.AssetClassStock, "GBP", ids...)
 		k.InstrumentID, k.ListingID, k.ViaID = &instrument, &listing, &via
 		k.Validity, k.Arbiter = ptr.To(gen.ValidityProvisional), ptr.To(gen.ArbiterUser)
 		return k
@@ -571,7 +571,7 @@ func TestInherit(t *testing.T) {
 		f.records()
 		f.finds()
 		f.arbitrated = []gen.StatedKey{confirmed(instX, ticker, descr)}
-		got := f.resolve(keyOf(gen.AssetClassStock, "GBP", ticker, descr))
+		got := f.resolve(keyOf(types.AssetClassStock, "GBP", ticker, descr))
 		want := gen.SetStatedKeyAssociationParams{ID: got[0].StatedKeyID, UserID: userID, InstrumentID: &instX, ListingID: &listing, ViaID: &via, Validity: ptr.To(gen.ValidityProvisional), Arbiter: gen.ArbiterUser}
 		if got[0].Outcome != gen.ResolutionOutcomeMatched || len(f.associations) != 1 {
 			t.Fatalf("Resolve = %+v with associations %+v, want matched with one association", got, f.associations)
@@ -585,7 +585,7 @@ func TestInherit(t *testing.T) {
 		f.records()
 		f.finds()
 		f.arbitrated = []gen.StatedKey{confirmed(instX, ticker, descr)}
-		got := f.resolve(keyOf(gen.AssetClassStock, "USD", ticker, descr))
+		got := f.resolve(keyOf(types.AssetClassStock, "USD", ticker, descr))
 		if got[0].Outcome != gen.ResolutionOutcomeMatched || len(f.associations) != 1 || f.associations[0].ListingID != nil {
 			t.Errorf("Resolve = %+v with associations %+v, want matched on the instrument with no listing", got, f.associations)
 		}
@@ -596,7 +596,7 @@ func TestInherit(t *testing.T) {
 		f.finds()
 		f.arbitrated = []gen.StatedKey{confirmed(instX, ticker, descr)}
 		f.serves(entryA, result{ID: db.NewID(), Outcome: gen.FetchOutcomeNotServed, Reason: "no"})
-		got := f.resolve(keyOf(gen.AssetClassStock, "GBP", ticker))
+		got := f.resolve(keyOf(types.AssetClassStock, "GBP", ticker))
 		if got[0].Outcome != gen.ResolutionOutcomeUnrecognised || len(f.associations) != 0 {
 			t.Errorf("Resolve = %+v with associations %+v, want unrecognised after asking the datasource", got, f.associations)
 		}
@@ -607,7 +607,7 @@ func TestInherit(t *testing.T) {
 		f.finds()
 		f.arbitrated = []gen.StatedKey{confirmed(instX, ticker, descr), confirmed(instY, ticker, descr2)}
 		f.serves(entryA, result{ID: db.NewID(), Outcome: gen.FetchOutcomeNotServed, Reason: "no"})
-		got := f.resolve(keyOf(gen.AssetClassStock, "GBP", ticker, descr, descr2))
+		got := f.resolve(keyOf(types.AssetClassStock, "GBP", ticker, descr, descr2))
 		if got[0].Outcome != gen.ResolutionOutcomeUnrecognised || len(f.associations) != 0 {
 			t.Errorf("Resolve = %+v with associations %+v, want unrecognised after asking the datasource", got, f.associations)
 		}
@@ -636,44 +636,44 @@ func TestCandidates(t *testing.T) {
 		{
 			name:    "a bare ticker lists every set of identifiers, in precedence then order",
 			entries: []*market.Entry{entryA, entryB},
-			key:     keyOf(gen.AssetClassStock, "GBP", ticker),
+			key:     keyOf(types.AssetClassStock, "GBP", ticker),
 			results: map[*market.Entry]result{
-				entryA: servedResult(ticker, []types.Identifier{ticker}, cand(gen.AssetClassStock, "GBP", figi, xlon), cand(gen.AssetClassStock, "GBP", figi2, xetr)),
-				entryB: servedResult(ticker, []types.Identifier{ticker}, cand(gen.AssetClassStock, "GBX", isin, xlon)),
+				entryA: servedResult(ticker, []types.Identifier{ticker}, cand(types.AssetClassStock, "GBP", figi, xlon), cand(types.AssetClassStock, "GBP", figi2, xetr)),
+				entryB: servedResult(ticker, []types.Identifier{ticker}, cand(types.AssetClassStock, "GBX", isin, xlon)),
 			},
 			want: Offer{Candidates: []Candidate{
-				{Datasource: "a", Strongest: figi, AssetClass: gen.AssetClassStock, Identifiers: []types.Identifier{figi}, Listings: []CandidateListing{{Currency: &gbp, Identifiers: []types.Identifier{xlon}}}},
-				{Datasource: "a", Strongest: figi2, AssetClass: gen.AssetClassStock, Identifiers: []types.Identifier{figi2}, Listings: []CandidateListing{{Currency: &gbp, Identifiers: []types.Identifier{xetr}}}},
-				{Datasource: "b", Strongest: isin, AssetClass: gen.AssetClassStock, Identifiers: []types.Identifier{isin}, Listings: []CandidateListing{{Currency: &gbp, Identifiers: []types.Identifier{xlon}}}},
+				{Datasource: "a", Strongest: figi, AssetClass: types.AssetClassStock, Identifiers: []types.Identifier{figi}, Listings: []CandidateListing{{Currency: &gbp, Identifiers: []types.Identifier{xlon}}}},
+				{Datasource: "a", Strongest: figi2, AssetClass: types.AssetClassStock, Identifiers: []types.Identifier{figi2}, Listings: []CandidateListing{{Currency: &gbp, Identifiers: []types.Identifier{xetr}}}},
+				{Datasource: "b", Strongest: isin, AssetClass: types.AssetClassStock, Identifiers: []types.Identifier{isin}, Listings: []CandidateListing{{Currency: &gbp, Identifiers: []types.Identifier{xlon}}}},
 			}},
 		},
 		{
 			name:    "an ISIN lists only the sets of identifiers naming it",
 			entries: []*market.Entry{entryA},
-			key:     keyOf(gen.AssetClassStock, "", isin),
+			key:     keyOf(types.AssetClassStock, "", isin),
 			results: map[*market.Entry]result{
-				entryA: servedResult(isin, nil, cand(gen.AssetClassStock, "GBP", figi2, xetr), cand(gen.AssetClassStock, "GBP", figi, isin, xlon)),
+				entryA: servedResult(isin, nil, cand(types.AssetClassStock, "GBP", figi2, xetr), cand(types.AssetClassStock, "GBP", figi, isin, xlon)),
 			},
 			want: Offer{Candidates: []Candidate{
-				{Datasource: "a", Strongest: figi, AssetClass: gen.AssetClassStock, Identifiers: []types.Identifier{figi, isin}, Listings: []CandidateListing{{Currency: &gbp, Identifiers: []types.Identifier{xlon}}}},
+				{Datasource: "a", Strongest: figi, AssetClass: types.AssetClassStock, Identifiers: []types.Identifier{figi, isin}, Listings: []CandidateListing{{Currency: &gbp, Identifiers: []types.Identifier{xlon}}}},
 			}},
 			won: true,
 		},
 		{
 			name:    "a set of identifiers contradicting the stated currency under a bare ticker is not offered",
 			entries: []*market.Entry{entryA},
-			key:     keyOf(gen.AssetClassStock, "GBP", ticker),
+			key:     keyOf(types.AssetClassStock, "GBP", ticker),
 			results: map[*market.Entry]result{
-				entryA: servedResult(ticker, []types.Identifier{ticker}, cand(gen.AssetClassStock, "USD", figi, xnas)),
+				entryA: servedResult(ticker, []types.Identifier{ticker}, cand(types.AssetClassStock, "USD", figi, xnas)),
 			},
 			want: Offer{},
 		},
 		{
 			name:    "a set of identifiers contradicting the stated currency under an ISIN is dropped with a finding",
 			entries: []*market.Entry{entryA},
-			key:     keyOf(gen.AssetClassStock, "GBP", isin),
+			key:     keyOf(types.AssetClassStock, "GBP", isin),
 			results: map[*market.Entry]result{
-				entryA: servedResult(isin, nil, cand(gen.AssetClassStock, "USD", figi, isin, xnas)),
+				entryA: servedResult(isin, nil, cand(types.AssetClassStock, "USD", figi, isin, xnas)),
 			},
 			want:     Offer{},
 			findings: []string{"dropped stated: openfigi_share_class BBG001S5XDT5: stated GBP has no listing among USD (a)"},
@@ -681,69 +681,69 @@ func TestCandidates(t *testing.T) {
 		{
 			name:    "a venue ticker no set of identifiers names lists the sets of identifiers at other venues",
 			entries: []*market.Entry{entryA},
-			key:     keyOf(gen.AssetClassStock, "GBP", xlon),
+			key:     keyOf(types.AssetClassStock, "GBP", xlon),
 			results: map[*market.Entry]result{
-				entryA: servedResult(xlon, []types.Identifier{ticker}, cand(gen.AssetClassStock, "GBP", figi, xetr), cand(gen.AssetClassStock, "GBP", figi2, xnas)),
+				entryA: servedResult(xlon, []types.Identifier{ticker}, cand(types.AssetClassStock, "GBP", figi, xetr), cand(types.AssetClassStock, "GBP", figi2, xnas)),
 			},
 			want: Offer{Candidates: []Candidate{
-				{Datasource: "a", Strongest: figi, AssetClass: gen.AssetClassStock, Identifiers: []types.Identifier{figi}, Listings: []CandidateListing{{Currency: &gbp, Identifiers: []types.Identifier{xetr}}}},
-				{Datasource: "a", Strongest: figi2, AssetClass: gen.AssetClassStock, Identifiers: []types.Identifier{figi2}, Listings: []CandidateListing{{Currency: &gbp, Identifiers: []types.Identifier{xnas}}}},
+				{Datasource: "a", Strongest: figi, AssetClass: types.AssetClassStock, Identifiers: []types.Identifier{figi}, Listings: []CandidateListing{{Currency: &gbp, Identifiers: []types.Identifier{xetr}}}},
+				{Datasource: "a", Strongest: figi2, AssetClass: types.AssetClassStock, Identifiers: []types.Identifier{figi2}, Listings: []CandidateListing{{Currency: &gbp, Identifiers: []types.Identifier{xnas}}}},
 			}},
 		},
 		{
 			name:    "a venue ticker alone names its set of identifiers, and no family is no currency",
 			entries: []*market.Entry{entryA},
-			key:     keyOf(gen.AssetClassStock, "", ticker),
+			key:     keyOf(types.AssetClassStock, "", ticker),
 			results: map[*market.Entry]result{
-				entryA: servedResult(ticker, []types.Identifier{ticker}, cand(gen.AssetClassStock, "", xlon), cand(gen.AssetClassStock, "USD", figi, xnas)),
+				entryA: servedResult(ticker, []types.Identifier{ticker}, cand(types.AssetClassStock, "", xlon), cand(types.AssetClassStock, "USD", figi, xnas)),
 			},
 			want: Offer{Candidates: []Candidate{
-				{Datasource: "a", Strongest: xlon, AssetClass: gen.AssetClassStock, Listings: []CandidateListing{{Identifiers: []types.Identifier{xlon}}}},
-				{Datasource: "a", Strongest: figi, AssetClass: gen.AssetClassStock, Identifiers: []types.Identifier{figi}, Listings: []CandidateListing{{Currency: &usd, Identifiers: []types.Identifier{xnas}}}},
+				{Datasource: "a", Strongest: xlon, AssetClass: types.AssetClassStock, Listings: []CandidateListing{{Identifiers: []types.Identifier{xlon}}}},
+				{Datasource: "a", Strongest: figi, AssetClass: types.AssetClassStock, Identifiers: []types.Identifier{figi}, Listings: []CandidateListing{{Currency: &usd, Identifiers: []types.Identifier{xnas}}}},
 			}},
 		},
 		{
 			name:    "two datasources describing one security give one candidate, with the head's class",
 			entries: []*market.Entry{entryA, entryB},
-			key:     keyOf(gen.AssetClassStock, "GBP", ticker),
+			key:     keyOf(types.AssetClassStock, "GBP", ticker),
 			results: map[*market.Entry]result{
-				entryA: servedResult(ticker, []types.Identifier{ticker}, cand(gen.AssetClassUnknown, "GBP", figi, xlon)),
-				entryB: servedResult(ticker, []types.Identifier{ticker}, cand(gen.AssetClassStock, "GBX", figi, isin, xetr)),
+				entryA: servedResult(ticker, []types.Identifier{ticker}, cand(types.AssetClassUnknown, "GBP", figi, xlon)),
+				entryB: servedResult(ticker, []types.Identifier{ticker}, cand(types.AssetClassStock, "GBX", figi, isin, xetr)),
 			},
 			want: Offer{Candidates: []Candidate{
-				{Datasource: "a", Attached: []string{"b"}, Strongest: figi, AssetClass: gen.AssetClassUnknown, Identifiers: []types.Identifier{figi, isin}, Listings: []CandidateListing{{Currency: &gbp, Identifiers: []types.Identifier{xlon, xetr}}}},
+				{Datasource: "a", Attached: []string{"b"}, Strongest: figi, AssetClass: types.AssetClassUnknown, Identifiers: []types.Identifier{figi, isin}, Listings: []CandidateListing{{Currency: &gbp, Identifiers: []types.Identifier{xlon, xetr}}}},
 			}},
 		},
 		{
 			name:    "a set agreeing with two candidates that contradict each other joins both",
 			entries: []*market.Entry{entryA, entryB, entryC},
-			key:     keyOf(gen.AssetClassStock, "GBP", ticker),
+			key:     keyOf(types.AssetClassStock, "GBP", ticker),
 			results: map[*market.Entry]result{
-				entryA: servedResult(ticker, []types.Identifier{ticker}, cand(gen.AssetClassStock, "GBP", figi, cusip, xlon)),
-				entryB: servedResult(ticker, []types.Identifier{ticker}, cand(gen.AssetClassStock, "GBP", figi, cusip2, xlon)),
-				entryC: servedResult(ticker, []types.Identifier{ticker}, cand(gen.AssetClassStock, "GBP", figi, isin, xlon)),
+				entryA: servedResult(ticker, []types.Identifier{ticker}, cand(types.AssetClassStock, "GBP", figi, cusip, xlon)),
+				entryB: servedResult(ticker, []types.Identifier{ticker}, cand(types.AssetClassStock, "GBP", figi, cusip2, xlon)),
+				entryC: servedResult(ticker, []types.Identifier{ticker}, cand(types.AssetClassStock, "GBP", figi, isin, xlon)),
 			},
 			want: Offer{Candidates: []Candidate{
-				{Datasource: "a", Attached: []string{"c"}, Strongest: figi, AssetClass: gen.AssetClassStock, Identifiers: []types.Identifier{figi, cusip, isin}, Listings: []CandidateListing{{Currency: &gbp, Identifiers: []types.Identifier{xlon}}}},
-				{Datasource: "b", Attached: []string{"c"}, Strongest: figi, AssetClass: gen.AssetClassStock, Identifiers: []types.Identifier{figi, cusip2, isin}, Listings: []CandidateListing{{Currency: &gbp, Identifiers: []types.Identifier{xlon}}}},
+				{Datasource: "a", Attached: []string{"c"}, Strongest: figi, AssetClass: types.AssetClassStock, Identifiers: []types.Identifier{figi, cusip, isin}, Listings: []CandidateListing{{Currency: &gbp, Identifiers: []types.Identifier{xlon}}}},
+				{Datasource: "b", Attached: []string{"c"}, Strongest: figi, AssetClass: types.AssetClassStock, Identifiers: []types.Identifier{figi, cusip2, isin}, Listings: []CandidateListing{{Currency: &gbp, Identifiers: []types.Identifier{xlon}}}},
 			}},
 		},
 		{
 			name:    "two candidates of one datasource naming only one venue ticker are both offered",
 			entries: []*market.Entry{entryA},
-			key:     keyOf(gen.AssetClassStock, "", ticker),
+			key:     keyOf(types.AssetClassStock, "", ticker),
 			results: map[*market.Entry]result{
-				entryA: servedResult(ticker, []types.Identifier{ticker}, cand(gen.AssetClassStock, "GBP", xlon), cand(gen.AssetClassStock, "USD", xlon)),
+				entryA: servedResult(ticker, []types.Identifier{ticker}, cand(types.AssetClassStock, "GBP", xlon), cand(types.AssetClassStock, "USD", xlon)),
 			},
 			want: Offer{Candidates: []Candidate{
-				{Datasource: "a", Strongest: xlon, AssetClass: gen.AssetClassStock, Listings: []CandidateListing{{Currency: &gbp, Identifiers: []types.Identifier{xlon}}}},
-				{Datasource: "a", Strongest: xlon, AssetClass: gen.AssetClassStock, Listings: []CandidateListing{{Currency: &usd, Identifiers: []types.Identifier{xlon}}}},
+				{Datasource: "a", Strongest: xlon, AssetClass: types.AssetClassStock, Listings: []CandidateListing{{Currency: &gbp, Identifiers: []types.Identifier{xlon}}}},
+				{Datasource: "a", Strongest: xlon, AssetClass: types.AssetClassStock, Listings: []CandidateListing{{Currency: &usd, Identifiers: []types.Identifier{xlon}}}},
 			}},
 		},
 		{
 			name:    "a datasource that served nothing gives a reason",
 			entries: []*market.Entry{entryA, entryB},
-			key:     keyOf(gen.AssetClassStock, "GBP", ticker),
+			key:     keyOf(types.AssetClassStock, "GBP", ticker),
 			results: map[*market.Entry]result{
 				entryA: {ID: db.NewID(), Outcome: gen.FetchOutcomeFailedTemporary, Reason: "paused until tomorrow"},
 				entryB: servedResult(ticker, []types.Identifier{ticker}),
@@ -753,7 +753,7 @@ func TestCandidates(t *testing.T) {
 		{
 			name:    "a key no datasource is asked for",
 			entries: []*market.Entry{entryA},
-			key:     keyOf(gen.AssetClassStock, "USD", id(types.IdentifierTypeBrokerID, "ibkr", "1")),
+			key:     keyOf(types.AssetClassStock, "USD", id(types.IdentifierTypeBrokerID, "ibkr", "1")),
 			want:    Offer{Reasons: []string{"no global identifier"}},
 		},
 	}
@@ -813,8 +813,8 @@ func TestCandidates(t *testing.T) {
 // identifies, and fails where the answers no longer offer the candidate or
 // it fails a check.
 func TestConfirm(t *testing.T) {
-	gbpMate, usdMate := keyOf(gen.AssetClassStock, "GBP", descr), keyOf(gen.AssetClassStock, "USD", descr)
-	other := gen.Instrument{ID: db.NewID(), AssetClass: gen.AssetClassStock}
+	gbpMate, usdMate := keyOf(types.AssetClassStock, "GBP", descr), keyOf(types.AssetClassStock, "USD", descr)
+	other := gen.Instrument{ID: db.NewID(), AssetClass: types.AssetClassStock}
 	cusip2 := id(types.IdentifierTypeCusip, "", "92857W309")
 	tests := []struct {
 		name string
@@ -836,14 +836,14 @@ func TestConfirm(t *testing.T) {
 		wantFinding  string
 		// wantClass is the class of the instrument created, and wantFamily
 		// the family of its first listing, where they are set.
-		wantClass  gen.AssetClass
+		wantClass  types.AssetClass
 		wantFamily string
 	}{
 		{
 			name:         "a mate takes the listing where it states its currency",
-			key:          keyOf(gen.AssetClassStock, "GBP", ticker, descr),
-			a:            servedResult(ticker, []types.Identifier{ticker}, cand(gen.AssetClassStock, "GBP", figi, xlon)),
-			b:            servedResult(ticker, []types.Identifier{ticker}, cand(gen.AssetClassStock, "GBP", figi, isin, xlon)),
+			key:          keyOf(types.AssetClassStock, "GBP", ticker, descr),
+			a:            servedResult(ticker, []types.Identifier{ticker}, cand(types.AssetClassStock, "GBP", figi, xlon)),
+			b:            servedResult(ticker, []types.Identifier{ticker}, cand(types.AssetClassStock, "GBP", figi, isin, xlon)),
 			pick:         Pick{Datasource: "a", Identifier: figi},
 			mates:        []gen.StatedKey{gbpMate, usdMate},
 			wantListed:   []bool{true, false},
@@ -851,107 +851,107 @@ func TestConfirm(t *testing.T) {
 		},
 		{
 			name:         "a member identifies an instrument, and the confirmation lands on it",
-			key:          keyOf(gen.AssetClassStock, "GBP", ticker),
-			a:            servedResult(ticker, []types.Identifier{ticker}, cand(gen.AssetClassStock, "GBP", isin, xlon)),
-			b:            servedResult(ticker, []types.Identifier{ticker}, cand(gen.AssetClassStock, "GBP", figi, isin, xlon)),
+			key:          keyOf(types.AssetClassStock, "GBP", ticker),
+			a:            servedResult(ticker, []types.Identifier{ticker}, cand(types.AssetClassStock, "GBP", isin, xlon)),
+			b:            servedResult(ticker, []types.Identifier{ticker}, cand(types.AssetClassStock, "GBP", figi, isin, xlon)),
 			pick:         Pick{Datasource: "a", Identifier: isin},
 			found:        []gen.ListInstrumentsByIdentifiersRow{{Instrument: other, Identifier: gen.Identifier{ID: db.NewID(), InstrumentID: other.ID, Type: figi.Type, Value: figi.Value}}},
 			wantAttached: []string{"a", "b"},
 		},
 		{
 			name:         "the head wins and the members attach",
-			key:          keyOf(gen.AssetClassStock, "GBP", ticker),
-			a:            servedResult(ticker, []types.Identifier{ticker}, cand(gen.AssetClassStock, "GBP", figi, xlon)),
-			b:            servedResult(ticker, []types.Identifier{ticker}, cand(gen.AssetClassStock, "GBP", figi, isin, xlon)),
+			key:          keyOf(types.AssetClassStock, "GBP", ticker),
+			a:            servedResult(ticker, []types.Identifier{ticker}, cand(types.AssetClassStock, "GBP", figi, xlon)),
+			b:            servedResult(ticker, []types.Identifier{ticker}, cand(types.AssetClassStock, "GBP", figi, isin, xlon)),
 			pick:         Pick{Datasource: "a", Identifier: figi},
 			wantAttached: []string{"a", "b"},
 		},
 		{
 			name:         "a head of class unknown creates an instrument of class unknown",
-			key:          keyOf(gen.AssetClassStock, "GBP", ticker),
-			a:            servedResult(ticker, []types.Identifier{ticker}, cand(gen.AssetClassUnknown, "GBP", figi, xlon)),
-			b:            servedResult(ticker, []types.Identifier{ticker}, cand(gen.AssetClassStock, "GBP", figi, isin, xlon)),
+			key:          keyOf(types.AssetClassStock, "GBP", ticker),
+			a:            servedResult(ticker, []types.Identifier{ticker}, cand(types.AssetClassUnknown, "GBP", figi, xlon)),
+			b:            servedResult(ticker, []types.Identifier{ticker}, cand(types.AssetClassStock, "GBP", figi, isin, xlon)),
 			pick:         Pick{Datasource: "a", Identifier: figi},
 			wantAttached: []string{"a", "b"},
-			wantClass:    gen.AssetClassUnknown,
+			wantClass:    types.AssetClassUnknown,
 		},
 		{
 			name: "a pick naming a member that is not the head",
-			key:  keyOf(gen.AssetClassStock, "GBP", ticker),
-			a:    servedResult(ticker, []types.Identifier{ticker}, cand(gen.AssetClassStock, "GBP", figi, xlon)),
-			b:    servedResult(ticker, []types.Identifier{ticker}, cand(gen.AssetClassStock, "GBP", figi, isin, xlon)),
+			key:  keyOf(types.AssetClassStock, "GBP", ticker),
+			a:    servedResult(ticker, []types.Identifier{ticker}, cand(types.AssetClassStock, "GBP", figi, xlon)),
+			b:    servedResult(ticker, []types.Identifier{ticker}, cand(types.AssetClassStock, "GBP", figi, isin, xlon)),
 			pick: Pick{Datasource: "b", Identifier: isin},
 		},
 		{
 			name:         "of two candidates that contradict each other, the second takes the set both gather and drops the first",
-			key:          keyOf(gen.AssetClassStock, "GBP", ticker),
-			a:            servedResult(ticker, []types.Identifier{ticker}, cand(gen.AssetClassStock, "GBP", figi, cusip, xlon)),
-			b:            servedResult(ticker, []types.Identifier{ticker}, cand(gen.AssetClassStock, "GBP", figi, cusip2, xlon)),
-			c:            ptr.To(servedResult(ticker, []types.Identifier{ticker}, cand(gen.AssetClassStock, "GBP", figi, isin, xlon))),
+			key:          keyOf(types.AssetClassStock, "GBP", ticker),
+			a:            servedResult(ticker, []types.Identifier{ticker}, cand(types.AssetClassStock, "GBP", figi, cusip, xlon)),
+			b:            servedResult(ticker, []types.Identifier{ticker}, cand(types.AssetClassStock, "GBP", figi, cusip2, xlon)),
+			c:            ptr.To(servedResult(ticker, []types.Identifier{ticker}, cand(types.AssetClassStock, "GBP", figi, isin, xlon))),
 			pick:         Pick{Datasource: "b", Identifier: figi},
 			wantAttached: []string{"b", "c"},
 			wantFinding:  "dropped precedence: openfigi_share_class BBG001S5XDT5: cusip 92857W308 contradicts cusip 92857W309 (b)",
 		},
 		{
 			name:         "a set that a better ranked set of its datasource displaced is written alone",
-			key:          keyOf(gen.AssetClassStock, "GBP", ticker),
-			a:            servedResult(ticker, []types.Identifier{ticker}, cand(gen.AssetClassStock, "GBP", figi, isin, xlon)),
-			b:            servedResult(ticker, []types.Identifier{ticker}, cand(gen.AssetClassStock, "GBP", figi, xetr), cand(gen.AssetClassStock, "GBP", isin, xlon)),
+			key:          keyOf(types.AssetClassStock, "GBP", ticker),
+			a:            servedResult(ticker, []types.Identifier{ticker}, cand(types.AssetClassStock, "GBP", figi, isin, xlon)),
+			b:            servedResult(ticker, []types.Identifier{ticker}, cand(types.AssetClassStock, "GBP", figi, xetr), cand(types.AssetClassStock, "GBP", isin, xlon)),
 			pick:         Pick{Datasource: "b", Identifier: isin},
 			wantAttached: []string{"b"},
 		},
 		{
 			name:         "of two heads that one venue ticker identifies, the first is written",
-			key:          keyOf(gen.AssetClassStock, "GBP", ticker),
+			key:          keyOf(types.AssetClassStock, "GBP", ticker),
 			a:            servedResult(ticker, []types.Identifier{ticker}),
-			b:            limitedResult(servedResult(ticker, []types.Identifier{ticker}, cand(gen.AssetClassStock, "GBP", xlon), cand(gen.AssetClassStock, "USD", xlon))),
+			b:            limitedResult(servedResult(ticker, []types.Identifier{ticker}, cand(types.AssetClassStock, "GBP", xlon), cand(types.AssetClassStock, "USD", xlon))),
 			pick:         Pick{Datasource: "b", Identifier: xlon},
 			wantAttached: []string{"b"},
 			wantFamily:   "GBP",
 		},
 		{
 			name:         "a higher datasource sharing no stable identifier is dropped",
-			key:          keyOf(gen.AssetClassStock, "GBP", ticker),
-			a:            servedResult(ticker, []types.Identifier{ticker}, cand(gen.AssetClassStock, "GBP", figi2, xetr)),
-			b:            servedResult(ticker, []types.Identifier{ticker}, cand(gen.AssetClassStock, "GBP", isin, xlon)),
+			key:          keyOf(types.AssetClassStock, "GBP", ticker),
+			a:            servedResult(ticker, []types.Identifier{ticker}, cand(types.AssetClassStock, "GBP", figi2, xetr)),
+			b:            servedResult(ticker, []types.Identifier{ticker}, cand(types.AssetClassStock, "GBP", isin, xlon)),
 			pick:         Pick{Datasource: "b", Identifier: isin},
 			wantAttached: []string{"b"},
 			wantFinding:  "dropped corroboration: openfigi_share_class BBG001S5XDT6: shares no stable identifier with the candidate identified by isin GB00BH4HKS39 (b)",
 		},
 		{
 			name:         "a pick named by a listing identifier is found",
-			key:          keyOf(gen.AssetClassStock, "GBP", ticker),
+			key:          keyOf(types.AssetClassStock, "GBP", ticker),
 			a:            servedResult(ticker, []types.Identifier{ticker}),
-			b:            servedResult(ticker, []types.Identifier{ticker}, cand(gen.AssetClassStock, "GBP", isin, xlon)),
+			b:            servedResult(ticker, []types.Identifier{ticker}, cand(types.AssetClassStock, "GBP", isin, xlon)),
 			pick:         Pick{Datasource: "b", Identifier: xlon},
 			wantAttached: []string{"b"},
 		},
 		{
 			name: "an identifier no set of identifiers carries",
-			key:  keyOf(gen.AssetClassStock, "GBP", ticker),
+			key:  keyOf(types.AssetClassStock, "GBP", ticker),
 			a:    servedResult(ticker, []types.Identifier{ticker}),
-			b:    servedResult(ticker, []types.Identifier{ticker}, cand(gen.AssetClassStock, "GBP", isin, xlon)),
+			b:    servedResult(ticker, []types.Identifier{ticker}, cand(types.AssetClassStock, "GBP", isin, xlon)),
 			pick: Pick{Datasource: "b", Identifier: cusip},
 		},
 		{
 			name: "a datasource that served nothing",
-			key:  keyOf(gen.AssetClassStock, "GBP", ticker),
+			key:  keyOf(types.AssetClassStock, "GBP", ticker),
 			a:    servedResult(ticker, []types.Identifier{ticker}),
 			b:    result{ID: db.NewID(), Outcome: gen.FetchOutcomeFailedTemporary, Reason: "503"},
 			pick: Pick{Datasource: "b", Identifier: isin},
 		},
 		{
 			name: "a datasource that was not asked",
-			key:  keyOf(gen.AssetClassStock, "GBP", ticker),
+			key:  keyOf(types.AssetClassStock, "GBP", ticker),
 			a:    servedResult(ticker, []types.Identifier{ticker}),
 			b:    servedResult(ticker, []types.Identifier{ticker}),
 			pick: Pick{Datasource: "c", Identifier: isin},
 		},
 		{
 			name: "a pick whose listing is in no stated family",
-			key:  keyOf(gen.AssetClassStock, "GBP", ticker),
+			key:  keyOf(types.AssetClassStock, "GBP", ticker),
 			a:    servedResult(ticker, []types.Identifier{ticker}),
-			b:    servedResult(ticker, []types.Identifier{ticker}, cand(gen.AssetClassStock, "USD", isin, xnas)),
+			b:    servedResult(ticker, []types.Identifier{ticker}, cand(types.AssetClassStock, "USD", isin, xnas)),
 			pick: Pick{Datasource: "b", Identifier: isin},
 		},
 	}

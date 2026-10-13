@@ -282,7 +282,7 @@ func TestFindCandidates(t *testing.T) {
 	usd := "USD"
 	offer := resolve.Offer{
 		Candidates: []resolve.Candidate{{
-			Datasource: "openfigi", Attached: []string{"massive", "eodhd"}, Strongest: types.Identifier{Type: types.IdentifierTypeIsin, Value: "US4581401001"}, AssetClass: gen.AssetClassStock,
+			Datasource: "openfigi", Attached: []string{"massive", "eodhd"}, Strongest: types.Identifier{Type: types.IdentifierTypeIsin, Value: "US4581401001"}, AssetClass: types.AssetClassStock,
 			Identifiers: []types.Identifier{{Type: types.IdentifierTypeIsin, Value: "US4581401001"}},
 			Listings:    []resolve.CandidateListing{{Currency: &usd, Identifiers: []types.Identifier{{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "INTC"}}}, {Identifiers: []types.Identifier{{Type: types.IdentifierTypeMicTicker, Domain: "XLON", Value: "INTC"}}}},
 		}},

@@ -39,7 +39,7 @@ func TestPreference(t *testing.T) {
 	us := func(op string) bool { return op == "XNYS" || op == "XNAS" }
 	limited := Preference{Served: Equities, Order: []types.IdentifierType{types.IdentifierTypeCusip, types.IdentifierTypeMicTicker}, Lists: us, Mics: mics}
 	complete := Preference{Order: []types.IdentifierType{types.IdentifierTypeIsin, types.IdentifierTypeCusip, types.IdentifierTypeMicTicker}, Mics: mics}
-	option := gen.AssetClassOption
+	option := types.AssetClassOption
 	tests := []struct {
 		name  string
 		p     Preference

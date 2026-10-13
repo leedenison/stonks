@@ -4,7 +4,6 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/types"
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/mic"
@@ -23,21 +22,21 @@ type record struct {
 
 // classes maps each stock type code this integration converts to the class
 // of its candidate.
-var classes = map[string]gen.AssetClass{
-	"CS":     gen.AssetClassStock,
-	"PFD":    gen.AssetClassStock,
-	"OS":     gen.AssetClassStock,
-	"ADRC":   gen.AssetClassStock,
-	"ADRP":   gen.AssetClassStock,
-	"ADRR":   gen.AssetClassStock,
-	"GDR":    gen.AssetClassStock,
-	"NYRS":   gen.AssetClassStock,
-	"ETF":    gen.AssetClassEtf,
-	"ETN":    gen.AssetClassEtf,
-	"ETV":    gen.AssetClassEtf,
-	"ETS":    gen.AssetClassEtf,
-	"FUND":   gen.AssetClassMutualFund,
-	"BASKET": gen.AssetClassMutualFund,
+var classes = map[string]types.AssetClass{
+	"CS":     types.AssetClassStock,
+	"PFD":    types.AssetClassStock,
+	"OS":     types.AssetClassStock,
+	"ADRC":   types.AssetClassStock,
+	"ADRP":   types.AssetClassStock,
+	"ADRR":   types.AssetClassStock,
+	"GDR":    types.AssetClassStock,
+	"NYRS":   types.AssetClassStock,
+	"ETF":    types.AssetClassEtf,
+	"ETN":    types.AssetClassEtf,
+	"ETV":    types.AssetClassEtf,
+	"ETS":    types.AssetClassEtf,
+	"FUND":   types.AssetClassMutualFund,
+	"BASKET": types.AssetClassMutualFund,
 }
 
 // identity converts the records Massive returned for the identifier sent.

@@ -272,7 +272,7 @@ func TestConfirmCandidate(t *testing.T) {
 	figi := types.Identifier{Type: types.IdentifierTypeOpenfigiShareClass, Value: "BBG001S5SM32"}
 	xnas := types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "INTC"}
 	s.alpha.Responses[intc] = market.IdentityResult{Filtered: []types.Identifier{intc}, Candidates: []market.Candidate{
-		{Class: gen.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{figi, isin, xnas}},
+		{Class: types.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{figi, isin, xnas}},
 	}}
 	key := &typev1.StatedKey{
 		Identifiers: []*typev1.Identifier{

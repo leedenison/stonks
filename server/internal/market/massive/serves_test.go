@@ -20,7 +20,7 @@ func TestServes(t *testing.T) {
 	isin := types.Identifier{Type: types.IdentifierTypeIsin, Value: "US0378331005"}
 	tests := []struct {
 		name  string
-		class *gen.AssetClass
+		class *types.AssetClass
 		ids   []types.Identifier
 		want  types.Identifier
 		fails bool
@@ -32,8 +32,8 @@ func TestServes(t *testing.T) {
 		{name: "a CUSIP beside a ticker at a venue Massive does not list", ids: []types.Identifier{cusip, ticker("XLON", "AAPL")}, fails: true},
 		{name: "an ISIN alone", ids: []types.Identifier{isin}, fails: true},
 		{name: "a bare ticker beside an ISIN", ids: []types.Identifier{ticker("", "AAPL"), isin}, fails: true},
-		{name: "a class above those served", class: ptr.To(gen.AssetClassEquity), ids: []types.Identifier{cusip}, want: cusip},
-		{name: "a class Massive does not serve", class: ptr.To(gen.AssetClassOption), ids: []types.Identifier{cusip}, fails: true},
+		{name: "a class above those served", class: ptr.To(types.AssetClassEquity), ids: []types.Identifier{cusip}, want: cusip},
+		{name: "a class Massive does not serve", class: ptr.To(types.AssetClassOption), ids: []types.Identifier{cusip}, fails: true},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

@@ -3,7 +3,6 @@ package mirror
 import (
 	"testing"
 
-	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/types"
 )
 
@@ -28,16 +27,16 @@ func TestIsGUID(t *testing.T) {
 
 func TestDisjoint(t *testing.T) {
 	tests := []struct {
-		a, b gen.AssetClass
+		a, b types.AssetClass
 		want bool
 	}{
-		{gen.AssetClassStock, gen.AssetClassEquity, false},
-		{gen.AssetClassEquity, gen.AssetClassStock, false},
-		{gen.AssetClassUnknown, gen.AssetClassOption, false},
-		{gen.AssetClassStock, gen.AssetClassStock, false},
-		{gen.AssetClassStock, gen.AssetClassEtf, true},
-		{gen.AssetClassOption, gen.AssetClassEquity, true},
-		{gen.AssetClassCash, gen.AssetClassSecurity, true},
+		{types.AssetClassStock, types.AssetClassEquity, false},
+		{types.AssetClassEquity, types.AssetClassStock, false},
+		{types.AssetClassUnknown, types.AssetClassOption, false},
+		{types.AssetClassStock, types.AssetClassStock, false},
+		{types.AssetClassStock, types.AssetClassEtf, true},
+		{types.AssetClassOption, types.AssetClassEquity, true},
+		{types.AssetClassCash, types.AssetClassSecurity, true},
 	}
 	for _, tc := range tests {
 		if got := Disjoint(tc.a, tc.b); got != tc.want {

@@ -13,6 +13,7 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/db/types"
 	"github.com/leedenison/stonks/server/internal/ptr"
 )
 
@@ -121,7 +122,7 @@ func TestListKeysUncoveredBy(t *testing.T) {
 	fetched := func(isin string) (gen.Listing, gen.Identifier, uuid.UUID) {
 		t.Helper()
 		key := servedKey(t, q, fetch, newStatedKey(t, q, user, statement), isin)
-		instrument, err := q.CreateInstrument(ctx, gen.CreateInstrumentParams{ID: db.NewID(), AssetClass: gen.AssetClassStock, FetchKeyID: &key})
+		instrument, err := q.CreateInstrument(ctx, gen.CreateInstrumentParams{ID: db.NewID(), AssetClass: types.AssetClassStock, FetchKeyID: &key})
 		require.NoError(t, err)
 		listing, err := q.CreateListing(ctx, gen.CreateListingParams{ID: db.NewID(), InstrumentID: instrument.ID, Currency: "USD", FetchKeyID: &key})
 		require.NoError(t, err)

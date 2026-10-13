@@ -109,7 +109,7 @@ func (g *ingestion) keyFor(sk *typev1.StatedKey, currencies map[string]bool) (*k
 // exclusive type in one domain contradict each other and are refused. A
 // statement states an issuer's identifier only in its own broker's domain.
 func keyOf(sk *typev1.StatedKey, broker gen.Broker) (*key, error) {
-	class, ok := types.FromProto[gen.AssetClass](sk.GetAssetClass())
+	class, ok := types.FromProto[types.AssetClass](sk.GetAssetClass())
 	if !ok {
 		return nil, fmt.Errorf("asset class %d outside the vocabulary", sk.GetAssetClass())
 	}

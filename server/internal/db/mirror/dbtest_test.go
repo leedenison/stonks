@@ -40,9 +40,9 @@ func TestTraits(t *testing.T) {
 func TestTree(t *testing.T) {
 	rows, err := gen.New(pool).ListAssetClassTree(context.Background())
 	require.NoError(t, err)
-	got := map[gen.AssetClass]gen.AssetClass{}
+	got := map[types.AssetClass]types.AssetClass{}
 	for _, r := range rows {
-		var parent gen.AssetClass
+		var parent types.AssetClass
 		if r.Parent != nil {
 			parent = *r.Parent
 		}

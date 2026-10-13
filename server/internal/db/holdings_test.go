@@ -78,7 +78,7 @@ func venueTicker(t *testing.T, q *gen.Queries, listing gen.Listing, venue, value
 func TestListListingNames(t *testing.T) {
 	ctx := context.Background()
 	q := newTx(t)
-	instrument := newInstrument(t, q, gen.AssetClassEquity)
+	instrument := newInstrument(t, q, types.AssetClassEquity)
 	primary := newListing(t, q, instrument, "GBP")
 	require.NoError(t, q.SetListingPrimary(ctx, gen.SetListingPrimaryParams{ID: primary.ID, PrimaryMic: ptr.To("XLON")}))
 	venueTicker(t, q, primary, "XNYS", "ACME")
@@ -111,7 +111,7 @@ func TestListHoldingKeys(t *testing.T) {
 	ctx := context.Background()
 	q := newTx(t)
 	h := newHolder(t, q, "keys@example.com")
-	instrument := newInstrument(t, q, gen.AssetClassEquity)
+	instrument := newInstrument(t, q, types.AssetClassEquity)
 	via := newIdentifier(t, q, instrument, "US0378331005")
 	usd := newListing(t, q, instrument, "USD")
 	resolved := h.key(t, q, "ACME CORP", &usd, &via)
@@ -157,7 +157,7 @@ func TestListInstrumentHoldings(t *testing.T) {
 	t.Run("sums the keys resolved to one instrument", func(t *testing.T) {
 		q := newTx(t)
 		h := newHolder(t, q, "sum@example.com")
-		instrument := newInstrument(t, q, gen.AssetClassEquity)
+		instrument := newInstrument(t, q, types.AssetClassEquity)
 		via := newIdentifier(t, q, instrument, "US0378331005")
 		usd := newListing(t, q, instrument, "USD")
 		gbp := newListing(t, q, instrument, "GBP")
@@ -181,7 +181,7 @@ func TestListInstrumentHoldings(t *testing.T) {
 
 		got, err := q.ListInstrumentHoldings(ctx, h.user.ID)
 		require.NoError(t, err)
-		want := []gen.ListInstrumentHoldingsRow{{InstrumentID: gbp.InstrumentID, AssetClass: gen.AssetClassCash, Quantity: decimal.RequireFromString("74.5")}}
+		want := []gen.ListInstrumentHoldingsRow{{InstrumentID: gbp.InstrumentID, AssetClass: types.AssetClassCash, Quantity: decimal.RequireFromString("74.5")}}
 		if diff := cmp.Diff(want, got, decimalEqual); diff != "" {
 			t.Errorf("ListInstrumentHoldings mismatch (-want +got):\n%s", diff)
 		}
@@ -221,7 +221,7 @@ func TestListInstrumentHoldings(t *testing.T) {
 
 		got, err := q.ListInstrumentHoldings(ctx, h.user.ID)
 		require.NoError(t, err)
-		want := []gen.ListInstrumentHoldingsRow{{InstrumentID: usd.InstrumentID, AssetClass: gen.AssetClassCash, Quantity: decimal.RequireFromString("5")}}
+		want := []gen.ListInstrumentHoldingsRow{{InstrumentID: usd.InstrumentID, AssetClass: types.AssetClassCash, Quantity: decimal.RequireFromString("5")}}
 		if diff := cmp.Diff(want, got, decimalEqual); diff != "" {
 			t.Errorf("ListInstrumentHoldings mismatch (-want +got):\n%s", diff)
 		}
@@ -231,7 +231,7 @@ func TestListInstrumentHoldings(t *testing.T) {
 		q := newTx(t)
 		a := newHolder(t, q, "a@example.com")
 		b := newHolder(t, q, "b@example.com")
-		shared := newInstrument(t, q, gen.AssetClassSecurity)
+		shared := newInstrument(t, q, types.AssetClassSecurity)
 		via := newIdentifier(t, q, shared, "US0378331005")
 		aLine := newListing(t, q, shared, "USD")
 		bLine := newListing(t, q, shared, "GBP")
@@ -251,8 +251,8 @@ func TestListInstrumentHoldings(t *testing.T) {
 	t.Run("exact decimal", func(t *testing.T) {
 		q := newTx(t)
 		h := newHolder(t, q, "exact@example.com")
-		tenths := newInstrument(t, q, gen.AssetClassSecurity)
-		halves := newInstrument(t, q, gen.AssetClassSecurity)
+		tenths := newInstrument(t, q, types.AssetClassSecurity)
+		halves := newInstrument(t, q, types.AssetClassSecurity)
 		tenthsVia := newIdentifier(t, q, tenths, "US0378331005")
 		halvesVia := newIdentifier(t, q, halves, "US5949181045")
 		tenthsLine := newListing(t, q, tenths, "USD")

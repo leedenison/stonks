@@ -67,6 +67,16 @@ sql:
               import: github.com/leedenison/stonks/server/internal/db/types
               type: IdentifierType
               pointer: true
+          - db_type: asset_class
+            go_type:
+              import: github.com/leedenison/stonks/server/internal/db/types
+              type: AssetClass
+          - db_type: asset_class
+            nullable: true
+            go_type:
+              import: github.com/leedenison/stonks/server/internal/db/types
+              type: AssetClass
+              pointer: true
           - column: stated_keys.identifiers
             go_type:
               import: github.com/leedenison/stonks/server/internal/db/types

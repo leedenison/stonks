@@ -51,7 +51,7 @@ func TestDeleteUserCascades(t *testing.T) {
 			fetch := newFetch(t, q, user, run, ds)
 			key := servedKey(t, q, fetch, one, "GB00B03MLX29")
 			require.NoError(t, q.CreateFetchIdentifier(ctx, gen.CreateFetchIdentifierParams{FetchKeyID: key, Type: types.IdentifierTypeIsin, Value: "GB00B03MLX29"}))
-			instrument, err := q.CreateInstrument(ctx, gen.CreateInstrumentParams{ID: db.NewID(), AssetClass: gen.AssetClassStock, FetchKeyID: &key})
+			instrument, err := q.CreateInstrument(ctx, gen.CreateInstrumentParams{ID: db.NewID(), AssetClass: types.AssetClassStock, FetchKeyID: &key})
 			require.NoError(t, err)
 			require.NoError(t, q.UpsertIdentityCoverage(ctx, gen.UpsertIdentityCoverageParams{InstrumentID: instrument.ID, Datasource: ds.Name, FetchKeyID: key}))
 			_, err = q.CreateDatasourceBlock(ctx, gen.CreateDatasourceBlockParams{

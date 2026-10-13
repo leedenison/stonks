@@ -3,13 +3,13 @@ package openfigi
 import (
 	"strings"
 
-	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/db/types"
 )
 
 // rule matches a result whose fields each lie in the rule's set, where a nil
 // set matches anything.
 type rule struct {
-	class          gen.AssetClass
+	class          types.AssetClass
 	securityTypes  map[string]bool
 	securityType2s map[string]bool
 	marketSectors  map[string]bool
@@ -32,16 +32,16 @@ func set(vals ...string) map[string]bool {
 // forward is not a currency held.
 var rules = []rule{
 	{
-		class: gen.AssetClassOption,
+		class: types.AssetClassOption,
 		securityTypes: set(
 			"Equity Option", "Index Option", "Currency Option",
 			"Physical index option", "Option on Equity Future",
 			"OPTION", "OPTION VOLATILITY",
 		),
 	},
-	{class: gen.AssetClassOption, securityType2s: set("Option")},
+	{class: types.AssetClassOption, securityType2s: set("Option")},
 	{
-		class: gen.AssetClassFuture,
+		class: types.AssetClassFuture,
 		securityTypes: set(
 			"SINGLE STOCK FUTURE", "SINGLE STOCK DIVIDEND FUTURE",
 			"SINGLE STOCK FUTURE SPREAD", "DIVIDEND NEUTRAL STOCK FUTURE",
@@ -50,10 +50,10 @@ var rules = []rule{
 			"NON-DELIVERABLE FORWARD", "ONSHORE FORWARD",
 		),
 	},
-	{class: gen.AssetClassFuture, securityType2s: set("Future")},
-	{class: gen.AssetClassEtf, securityTypes: set("ETP")},
+	{class: types.AssetClassFuture, securityType2s: set("Future")},
+	{class: types.AssetClassEtf, securityTypes: set("ETP")},
 	{
-		class: gen.AssetClassFixedIncome,
+		class: types.AssetClassFixedIncome,
 		securityTypes: set(
 			"Bond", "MED TERM NOTE", "EURO MTN", "MEDIUM TERM CD",
 			"COMMERCIAL PAPER", "EURO CP",
@@ -62,19 +62,19 @@ var rules = []rule{
 			"REPO", "FED FUNDS", "T-BILL", "PROV T-BILL", "MONETARY BILLS",
 		),
 	},
-	{class: gen.AssetClassFixedIncome, securityType2s: set("Corp", "Pool")},
-	{class: gen.AssetClassFixedIncome, marketSectors: set("Corp", "Govt", "Muni", "Mtge", "M-Mkt")},
+	{class: types.AssetClassFixedIncome, securityType2s: set("Corp", "Pool")},
+	{class: types.AssetClassFixedIncome, marketSectors: set("Corp", "Govt", "Muni", "Mtge", "M-Mkt")},
 	{
-		class: gen.AssetClassMutualFund,
+		class: types.AssetClassMutualFund,
 		securityTypes: set(
 			"Open-End Fund", "Mutual Fund", "Closed-End Fund",
 			"Unit Trust", "Savings Plan", "Savings Share",
 			"Managed Account", "Pvt Eqty Fund", "MLP", "Ltd Part",
 		),
 	},
-	{class: gen.AssetClassMutualFund, securityType2s: set("Fund")},
+	{class: types.AssetClassMutualFund, securityType2s: set("Fund")},
 	{
-		class: gen.AssetClassStock,
+		class: types.AssetClassStock,
 		securityTypes: set(
 			"Common Stock", "Preference", "Preferred", "Pfd WRT",
 			"ADR", "GDR", "BDR", "EDR", "NVDR", "SDR",
@@ -85,16 +85,16 @@ var rules = []rule{
 			"Contract For Difference",
 		),
 	},
-	{class: gen.AssetClassStock, securityType2s: set("Common Stock")},
+	{class: types.AssetClassStock, securityType2s: set("Common Stock")},
 	// The Equity sector holds options, futures, warrants and rights as readily
 	// as shares, so on its own it rules out only debt, currency and
 	// commodity.
-	{class: gen.AssetClassSecurity, marketSectors: set("Equity")},
-	{class: gen.AssetClassCash, securityTypes: set("CASH")},
+	{class: types.AssetClassSecurity, marketSectors: set("Equity")},
+	{class: types.AssetClassCash, securityTypes: set("CASH")},
 }
 
 // classify reads the asset class of a result.
-func classify(securityType, securityType2, marketSector string) gen.AssetClass {
+func classify(securityType, securityType2, marketSector string) types.AssetClass {
 	st := strings.ToLower(strings.TrimSpace(securityType))
 	st2 := strings.ToLower(strings.TrimSpace(securityType2))
 	ms := strings.ToLower(strings.TrimSpace(marketSector))
@@ -110,5 +110,5 @@ func classify(securityType, securityType2, marketSector string) gen.AssetClass {
 		}
 		return r.class
 	}
-	return gen.AssetClassUnknown
+	return types.AssetClassUnknown
 }

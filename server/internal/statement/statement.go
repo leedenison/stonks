@@ -131,7 +131,7 @@ type split struct {
 // its outcome and the reason it names no instrument.
 type key struct {
 	id          uuid.UUID
-	class       *gen.AssetClass
+	class       *types.AssetClass
 	currency    *string
 	identifiers []types.Identifier
 

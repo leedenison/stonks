@@ -68,7 +68,7 @@ func TestProtoUser(t *testing.T) {
 }
 
 func TestProtoStatedKey(t *testing.T) {
-	row := gen.StatedKey{AssetClass: ptr.To(gen.AssetClassStock), Currency: ptr.To("GBP"), Identifiers: []types.Identifier{{Type: types.IdentifierTypeIsin, Value: "GB00BH4HKS39"}}}
+	row := gen.StatedKey{AssetClass: ptr.To(types.AssetClassStock), Currency: ptr.To("GBP"), Identifiers: []types.Identifier{{Type: types.IdentifierTypeIsin, Value: "GB00BH4HKS39"}}}
 	want := &typev1.StatedKey{
 		AssetClass: typev1.AssetClass_ASSET_CLASS_STOCK, Currency: ptr.To("GBP"),
 		Identifiers: []*typev1.Identifier{{Type: typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, Value: "GB00BH4HKS39"}},
@@ -179,7 +179,7 @@ func TestProtoInstrument(t *testing.T) {
 	}{
 		{
 			name: "named",
-			row:  gen.ListInstrumentsRow{ID: id, AssetClass: gen.AssetClassStock, Name: "VOD", NameType: "MIC_TICKER", NameDomain: "XLON"},
+			row:  gen.ListInstrumentsRow{ID: id, AssetClass: types.AssetClassStock, Name: "VOD", NameType: "MIC_TICKER", NameDomain: "XLON"},
 			want: &admininstrumentv1.Instrument{
 				Id: id.String(), AssetClass: typev1.AssetClass_ASSET_CLASS_STOCK,
 				Name: &typev1.Identifier{Type: typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, Domain: "XLON", Value: "VOD"},
@@ -187,7 +187,7 @@ func TestProtoInstrument(t *testing.T) {
 		},
 		{
 			name: "without a name",
-			row:  gen.ListInstrumentsRow{ID: id, AssetClass: gen.AssetClassStock},
+			row:  gen.ListInstrumentsRow{ID: id, AssetClass: types.AssetClassStock},
 			want: &admininstrumentv1.Instrument{Id: id.String(), AssetClass: typev1.AssetClass_ASSET_CLASS_STOCK},
 		},
 	}

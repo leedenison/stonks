@@ -114,13 +114,13 @@ func (s *stack) enableBeta(t *testing.T) {
 }
 
 // state records a stated key under the stack's statement.
-func (s *stack) state(t *testing.T, class gen.AssetClass, currency string, ids ...types.Identifier) gen.StatedKey {
+func (s *stack) state(t *testing.T, class types.AssetClass, currency string, ids ...types.Identifier) gen.StatedKey {
 	t.Helper()
 	return s.stateUnder(t, s.statement, class, currency, ids...)
 }
 
 // stateUnder records a stated key under statement.
-func (s *stack) stateUnder(t *testing.T, statement gen.Run, class gen.AssetClass, currency string, ids ...types.Identifier) gen.StatedKey {
+func (s *stack) stateUnder(t *testing.T, statement gen.Run, class types.AssetClass, currency string, ids ...types.Identifier) gen.StatedKey {
 	t.Helper()
 	arg := gen.CreateStatedKeyParams{ID: db.NewID(), StatementID: statement.ID, UserID: s.user.ID, Identifiers: ids}
 	if class != "" {
@@ -224,14 +224,14 @@ func TestResolveWrites(t *testing.T) {
 	s := newStack(t)
 	ctx := context.Background()
 	s.script.Responses[isin] = market.IdentityResult{Filtered: []types.Identifier{isin}, Candidates: []market.Candidate{
-		{Class: gen.AssetClassStock, Currency: "GBX", Identifiers: []types.Identifier{figi, isin, comp, xlon}},
+		{Class: types.AssetClassStock, Currency: "GBX", Identifiers: []types.Identifier{figi, isin, comp, xlon}},
 	}}
-	trade := s.state(t, gen.AssetClassStock, "GBX", isin, xlon)
-	transfer := s.state(t, gen.AssetClassEquity, "", isin)
-	cash := s.state(t, gen.AssetClassCash, "GBX", id(types.IdentifierTypeCurrency, "", "GBX"))
-	wrong := s.state(t, gen.AssetClassStock, "USD", cusip)
+	trade := s.state(t, types.AssetClassStock, "GBX", isin, xlon)
+	transfer := s.state(t, types.AssetClassEquity, "", isin)
+	cash := s.state(t, types.AssetClassCash, "GBX", id(types.IdentifierTypeCurrency, "", "GBX"))
+	wrong := s.state(t, types.AssetClassStock, "USD", cusip)
 	s.script.Responses[cusip] = market.IdentityResult{Filtered: []types.Identifier{cusip}, Candidates: []market.Candidate{
-		{Class: gen.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{figi2, cusip, xetr}},
+		{Class: types.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{figi2, cusip, xetr}},
 	}}
 
 	got := s.resolve(t, trade, transfer, cash, wrong)
@@ -247,7 +247,7 @@ func TestResolveWrites(t *testing.T) {
 	found, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: types.IdentifierTypeIsin, Value: isin.Value})
 	require.NoError(t, err)
 	inst := found.Instrument
-	if inst.AssetClass != gen.AssetClassStock || inst.FetchKeyID == nil {
+	if inst.AssetClass != types.AssetClassStock || inst.FetchKeyID == nil {
 		t.Errorf("instrument = %+v, want a stock with provenance", inst)
 	}
 	listings, err := s.q.ListListings(ctx, inst.ID)
@@ -337,14 +337,14 @@ func TestPrimaryVenueRows(t *testing.T) {
 	s := newStack(t)
 	ctx := context.Background()
 	s.script.Responses[isin] = market.IdentityResult{Filtered: []types.Identifier{isin}, Candidates: []market.Candidate{
-		{Class: gen.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{figi, isin, xnas}},
+		{Class: types.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{figi, isin, xnas}},
 	}}
 	s.script.Responses[cusip] = market.IdentityResult{Filtered: []types.Identifier{cusip}, Candidates: []market.Candidate{
-		{Class: gen.AssetClassStock, Currency: "USD", Primary: "XNAS", Identifiers: []types.Identifier{figi, isin, cusip, xnas}},
+		{Class: types.AssetClassStock, Currency: "USD", Primary: "XNAS", Identifiers: []types.Identifier{figi, isin, cusip, xnas}},
 	}}
 	cusip2 := id(types.IdentifierTypeCusip, "", "594918104")
 	s.script.Responses[cusip2] = market.IdentityResult{Filtered: []types.Identifier{cusip2}, Candidates: []market.Candidate{
-		{Class: gen.AssetClassStock, Currency: "USD", Primary: "XNYS", Identifiers: []types.Identifier{figi, isin, cusip2, xnas}},
+		{Class: types.AssetClassStock, Currency: "USD", Primary: "XNYS", Identifiers: []types.Identifier{figi, isin, cusip2, xnas}},
 	}}
 	found := func(t *testing.T) gen.Listing {
 		t.Helper()
@@ -355,15 +355,15 @@ func TestPrimaryVenueRows(t *testing.T) {
 		require.Len(t, listings, 1)
 		return listings[0]
 	}
-	s.resolve(t, s.state(t, gen.AssetClassStock, "USD", isin))
+	s.resolve(t, s.state(t, types.AssetClassStock, "USD", isin))
 	if l := found(t); l.PrimaryMic != nil {
 		t.Errorf("listing after an answer stating no primary venue = %+v, want none", l)
 	}
-	s.resolve(t, s.state(t, gen.AssetClassStock, "USD", cusip))
+	s.resolve(t, s.state(t, types.AssetClassStock, "USD", cusip))
 	if l := found(t); l.PrimaryMic == nil || *l.PrimaryMic != "XNAS" {
 		t.Errorf("listing after an answer stating XNAS = %+v, want XNAS", l)
 	}
-	s.resolve(t, s.state(t, gen.AssetClassStock, "USD", cusip2))
+	s.resolve(t, s.state(t, types.AssetClassStock, "USD", cusip2))
 	if l := found(t); l.PrimaryMic == nil || *l.PrimaryMic != "XNAS" {
 		t.Errorf("listing after a later answer stating XNYS = %+v, want XNAS kept", l)
 	}
@@ -376,13 +376,13 @@ func TestMergeRows(t *testing.T) {
 	s := newStack(t)
 	ctx := context.Background()
 	s.script.Responses[isin] = market.IdentityResult{Filtered: []types.Identifier{isin}, Candidates: []market.Candidate{
-		{Class: gen.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{figi, isin, xlon}},
+		{Class: types.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{figi, isin, xlon}},
 	}}
 	s.script.Responses[cusip] = market.IdentityResult{Filtered: []types.Identifier{cusip}, Candidates: []market.Candidate{
-		{Class: gen.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{cusip, xnas}},
+		{Class: types.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{cusip, xnas}},
 	}}
-	first := s.state(t, gen.AssetClassStock, "GBP", isin)
-	second := s.state(t, gen.AssetClassStock, "USD", cusip)
+	first := s.state(t, types.AssetClassStock, "GBP", isin)
+	second := s.state(t, types.AssetClassStock, "USD", cusip)
 	s.resolve(t, first, second)
 	a, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: isin.Type, Value: isin.Value})
 	require.NoError(t, err)
@@ -396,9 +396,9 @@ func TestMergeRows(t *testing.T) {
 	// them together.
 	sedol := id(types.IdentifierTypeSedol, "", "BH4HKS3")
 	s.script.Responses[sedol] = market.IdentityResult{Filtered: []types.Identifier{sedol}, Candidates: []market.Candidate{
-		{Class: gen.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{figi, cusip, sedol, xnas}},
+		{Class: types.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{figi, cusip, sedol, xnas}},
 	}}
-	third := s.state(t, gen.AssetClassStock, "USD", sedol)
+	third := s.state(t, types.AssetClassStock, "USD", sedol)
 	got := s.resolve(t, third)
 	if got[0].Outcome != gen.ResolutionOutcomeMatched {
 		reason := strings.Join(got[0].Reasons, "; ")
@@ -481,12 +481,12 @@ func TestDescribedRows(t *testing.T) {
 	// alpha creates the instrument the description names, and a second
 	// instrument that the description must not match.
 	s.script.Responses[isin] = market.IdentityResult{Filtered: []types.Identifier{isin}, Candidates: []market.Candidate{
-		{Class: gen.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{figi, isin, xlon}},
+		{Class: types.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{figi, isin, xlon}},
 	}}
 	s.script.Responses[cusip] = market.IdentityResult{Filtered: []types.Identifier{cusip}, Candidates: []market.Candidate{
-		{Class: gen.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{figi2, cusip, xnas}},
+		{Class: types.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{figi2, cusip, xnas}},
 	}}
-	s.resolve(t, s.state(t, gen.AssetClassStock, "GBP", isin), s.state(t, gen.AssetClassStock, "USD", cusip))
+	s.resolve(t, s.state(t, types.AssetClassStock, "GBP", isin), s.state(t, types.AssetClassStock, "USD", cusip))
 	found, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: isin.Type, Value: isin.Value})
 	require.NoError(t, err)
 	inst := found.Instrument
@@ -508,7 +508,7 @@ func TestDescribedRows(t *testing.T) {
 
 	t.Run("a description alone matches, and beta is asked and serves nothing", func(t *testing.T) {
 		before := len(s.fetches(t))
-		k := s.state(t, gen.AssetClassStock, "GBP", descr)
+		k := s.state(t, types.AssetClassStock, "GBP", descr)
 		got := s.resolve(t, k)
 		if written(got[0]) != "matched" {
 			t.Fatalf("outcome = %s, want matched", written(got[0]))
@@ -536,9 +536,9 @@ func TestDescribedRows(t *testing.T) {
 	t.Run("a datasource answering an unknown ISIN with another instrument is a contradiction", func(t *testing.T) {
 		other := id(types.IdentifierTypeIsin, "", "GB00B03MLX29")
 		s.beta.Responses[other] = market.IdentityResult{Filtered: []types.Identifier{other}, Candidates: []market.Candidate{
-			{Class: gen.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{id(types.IdentifierTypeOpenfigiShareClass, "", "BBG001S5XDT7"), other, id(types.IdentifierTypeMicTicker, "XLON", "SHEL")}},
+			{Class: types.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{id(types.IdentifierTypeOpenfigiShareClass, "", "BBG001S5XDT7"), other, id(types.IdentifierTypeMicTicker, "XLON", "SHEL")}},
 		}}
-		k := s.state(t, gen.AssetClassStock, "GBP", other, descr)
+		k := s.state(t, types.AssetClassStock, "GBP", other, descr)
 		got := s.resolve(t, k)
 		if written(got[0]) != "matched" {
 			t.Fatalf("outcome = %s, want matched", written(got[0]))
@@ -550,7 +550,7 @@ func TestDescribedRows(t *testing.T) {
 	})
 
 	t.Run("a description and an identifier naming different instruments", func(t *testing.T) {
-		k := s.state(t, gen.AssetClassStock, "USD", cusip, descr)
+		k := s.state(t, types.AssetClassStock, "USD", cusip, descr)
 		got := s.resolve(t, k)
 		want := "unrecognised: cusip 92857W308 and broker_description ibkr:ACME CORP name different instruments"
 		if written(got[0]) != want {
@@ -571,9 +571,9 @@ func TestDescribedRows(t *testing.T) {
 		_, err := s.tx.Exec(ctx, "DELETE FROM identity_coverage WHERE instrument_id = $1 AND datasource = 'beta'", inst.ID)
 		require.NoError(t, err)
 		s.beta.Responses[ticker] = market.IdentityResult{Filtered: []types.Identifier{ticker}, Candidates: []market.Candidate{
-			{Class: gen.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{figi, xlon}},
+			{Class: types.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{figi, xlon}},
 		}}
-		k := s.state(t, gen.AssetClassStock, "GBP", ticker, descr)
+		k := s.state(t, types.AssetClassStock, "GBP", ticker, descr)
 		got := s.resolve(t, k)
 		if written(got[0]) != "matched" {
 			t.Fatalf("outcome = %s, want matched", written(got[0]))
@@ -586,7 +586,7 @@ func TestDescribedRows(t *testing.T) {
 
 	t.Run("another broker's description of the same text names nothing", func(t *testing.T) {
 		schwab := s.newStatement(t, gen.BrokerSchwab)
-		k := s.stateUnder(t, schwab, gen.AssetClassStock, "USD", id(types.IdentifierTypeBrokerDescription, "schwab", "ACME CORP"))
+		k := s.stateUnder(t, schwab, types.AssetClassStock, "USD", id(types.IdentifierTypeBrokerDescription, "schwab", "ACME CORP"))
 		got := s.resolve(t, k)
 		want := "unrecognised: failed to match broker description"
 		if written(got[0]) != want {
@@ -595,7 +595,7 @@ func TestDescribedRows(t *testing.T) {
 	})
 
 	t.Run("two descriptions, one known", func(t *testing.T) {
-		k := s.state(t, gen.AssetClassStock, "GBP", descr, id(types.IdentifierTypeBrokerDescription, "ibkr", "ACME CORPORATION"))
+		k := s.state(t, types.AssetClassStock, "GBP", descr, id(types.IdentifierTypeBrokerDescription, "ibkr", "ACME CORPORATION"))
 		got := s.resolve(t, k)
 		if written(got[0]) != "matched" {
 			t.Fatalf("outcome = %s, want matched", written(got[0]))
@@ -606,7 +606,7 @@ func TestDescribedRows(t *testing.T) {
 	// beta serves the ISIN, so it covers the instrument. The subtests above
 	// need it uncovered, so this runs last.
 	t.Run("an identifier the instrument carries is stronger than the description", func(t *testing.T) {
-		k := s.state(t, gen.AssetClassStock, "GBP", isin, descr)
+		k := s.state(t, types.AssetClassStock, "GBP", isin, descr)
 		got := s.resolve(t, k)
 		if written(got[0]) != "matched" {
 			t.Fatalf("outcome = %s, want matched", written(got[0]))
@@ -618,7 +618,7 @@ func TestDescribedRows(t *testing.T) {
 	})
 
 	t.Run("reference data is asked of no datasource", func(t *testing.T) {
-		ref, err := s.q.CreateInstrument(ctx, gen.CreateInstrumentParams{ID: db.NewID(), AssetClass: gen.AssetClassEquity})
+		ref, err := s.q.CreateInstrument(ctx, gen.CreateInstrumentParams{ID: db.NewID(), AssetClass: types.AssetClassEquity})
 		require.NoError(t, err)
 		listing, err := s.q.CreateListing(ctx, gen.CreateListingParams{ID: db.NewID(), InstrumentID: ref.ID, Currency: "GBP"})
 		require.NoError(t, err)
@@ -627,7 +627,7 @@ func TestDescribedRows(t *testing.T) {
 		require.NoError(t, err)
 		fidelity := s.newStatement(t, gen.BrokerFidelityUk)
 		before := len(s.fetches(t))
-		k := s.stateUnder(t, fidelity, gen.AssetClassSecurity, "GBP", fund)
+		k := s.stateUnder(t, fidelity, types.AssetClassSecurity, "GBP", fund)
 		got := s.resolve(t, k)
 		if written(got[0]) != "matched" {
 			t.Fatalf("outcome = %s, want matched", written(got[0]))
@@ -648,14 +648,14 @@ func TestCurrencyRows(t *testing.T) {
 	usd := id(types.IdentifierTypeCurrency, "", "USD")
 	tests := []struct {
 		name  string
-		class gen.AssetClass
+		class types.AssetClass
 		code  string
 		id    types.Identifier
 		want  string
 	}{
-		{name: "no such currency", class: gen.AssetClassCash, code: "ZZZ", id: id(types.IdentifierTypeCurrency, "", "ZZZ"), want: "rejected: no currency ZZZ"},
-		{name: "a class the seed contradicts", class: gen.AssetClassEquity, code: "USD", id: usd, want: "rejected: asset class equity contradicts the instrument's cash"},
-		{name: "no listing in the stated family", class: gen.AssetClassCash, code: "EUR", id: usd, want: "rejected: no listing of USD in EUR"},
+		{name: "no such currency", class: types.AssetClassCash, code: "ZZZ", id: id(types.IdentifierTypeCurrency, "", "ZZZ"), want: "rejected: no currency ZZZ"},
+		{name: "a class the seed contradicts", class: types.AssetClassEquity, code: "USD", id: usd, want: "rejected: asset class equity contradicts the instrument's cash"},
+		{name: "no listing in the stated family", class: types.AssetClassCash, code: "EUR", id: usd, want: "rejected: no listing of USD in EUR"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -681,15 +681,15 @@ func TestLimitedDatasource(t *testing.T) {
 			s := newStack(t)
 			ctx := context.Background()
 			s.script.Responses[isin] = market.IdentityResult{Filtered: []types.Identifier{isin}, Candidates: []market.Candidate{
-				{Class: gen.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{figi, isin, xlon}},
+				{Class: types.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{figi, isin, xlon}},
 			}}
-			s.resolve(t, s.state(t, gen.AssetClassStock, "GBP", isin))
+			s.resolve(t, s.state(t, types.AssetClassStock, "GBP", isin))
 			s.enableBeta(t)
 			s.beta.Limited = limited
 			s.beta.Responses[isin] = market.IdentityResult{Filtered: []types.Identifier{isin}, Candidates: []market.Candidate{
-				{Class: gen.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{figi, xnas}},
+				{Class: types.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{figi, xnas}},
 			}}
-			k := s.stateUnder(t, s.newStatement(t, gen.BrokerIbkr), gen.AssetClassStock, "GBP", isin)
+			k := s.stateUnder(t, s.newStatement(t, gen.BrokerIbkr), types.AssetClassStock, "GBP", isin)
 			if got := s.resolve(t, k); written(got[0]) != "matched" {
 				t.Fatalf("outcome = %s, want matched", written(got[0]))
 			}
@@ -724,19 +724,19 @@ func TestCoveredRows(t *testing.T) {
 	s := newStack(t)
 	ctx := context.Background()
 	s.script.Responses[isin] = market.IdentityResult{Filtered: []types.Identifier{isin}, Candidates: []market.Candidate{
-		{Class: gen.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{figi, isin, xlon}},
+		{Class: types.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{figi, isin, xlon}},
 	}}
-	s.resolve(t, s.state(t, gen.AssetClassStock, "GBP", isin))
+	s.resolve(t, s.state(t, types.AssetClassStock, "GBP", isin))
 	before, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: isin.Type, Value: isin.Value})
 	require.NoError(t, err)
 	inst := before.Instrument
 	s.enableBeta(t)
 	s.beta.Responses[isin] = market.IdentityResult{Filtered: []types.Identifier{isin}, Candidates: []market.Candidate{
-		{Class: gen.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{figi, isin, xnas}},
+		{Class: types.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{figi, isin, xnas}},
 	}}
 	fetched := len(s.fetches(t))
 
-	k := s.state(t, gen.AssetClassStock, "USD", isin)
+	k := s.state(t, types.AssetClassStock, "USD", isin)
 	got := s.resolve(t, k)
 	if written(got[0]) != "matched" {
 		t.Fatalf("outcome = %s, want matched", written(got[0]))
@@ -791,9 +791,9 @@ func TestDroppedUncovered(t *testing.T) {
 	s := newStack(t)
 	ctx := context.Background()
 	s.script.Responses[isin] = market.IdentityResult{Filtered: []types.Identifier{isin}, Candidates: []market.Candidate{
-		{Class: gen.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{figi, isin, xlon}},
+		{Class: types.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{figi, isin, xlon}},
 	}}
-	s.resolve(t, s.state(t, gen.AssetClassStock, "GBP", isin))
+	s.resolve(t, s.state(t, types.AssetClassStock, "GBP", isin))
 	found, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: isin.Type, Value: isin.Value})
 	require.NoError(t, err)
 	inst := found.Instrument.ID
@@ -809,13 +809,13 @@ func TestDroppedUncovered(t *testing.T) {
 	s.enableBeta(t)
 	// Each key needs a new statement, because a statement states a key once.
 	state := func() gen.StatedKey {
-		return s.stateUnder(t, s.newStatement(t, gen.BrokerIbkr), gen.AssetClassStock, "GBP", isin)
+		return s.stateUnder(t, s.newStatement(t, gen.BrokerIbkr), types.AssetClassStock, "GBP", isin)
 	}
 
 	// beta's share class contradicts the instrument's, so its set of
 	// identifiers is dropped and it is asked again for each key.
 	s.beta.Responses[isin] = market.IdentityResult{Filtered: []types.Identifier{isin}, Candidates: []market.Candidate{
-		{Class: gen.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{figi2, isin, xlon}},
+		{Class: types.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{figi2, isin, xlon}},
 	}}
 	for n := range 2 {
 		fetched := len(s.fetches(t))
@@ -858,16 +858,16 @@ func TestDroppedUncovered(t *testing.T) {
 func TestLookupRows(t *testing.T) {
 	s := newStack(t)
 	s.script.Responses[isin] = market.IdentityResult{Filtered: []types.Identifier{isin}, Candidates: []market.Candidate{
-		{Class: gen.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{figi, isin, xlon}},
+		{Class: types.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{figi, isin, xlon}},
 	}}
 	s.script.Responses[cusip] = market.IdentityResult{Filtered: []types.Identifier{cusip}, Candidates: []market.Candidate{
-		{Class: gen.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{figi2, cusip, xnas}},
+		{Class: types.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{figi2, cusip, xnas}},
 	}}
-	s.resolve(t, s.state(t, gen.AssetClassStock, "GBP", isin), s.state(t, gen.AssetClassStock, "USD", cusip))
+	s.resolve(t, s.state(t, types.AssetClassStock, "GBP", isin), s.state(t, types.AssetClassStock, "USD", cusip))
 	fetched := len(s.fetches(t))
 
-	contradicted := s.state(t, gen.AssetClassStock, "USD", isin, cusip)
-	disjoint := s.state(t, gen.AssetClassEtf, "GBP", isin)
+	contradicted := s.state(t, types.AssetClassStock, "USD", isin, cusip)
+	disjoint := s.state(t, types.AssetClassEtf, "GBP", isin)
 	got := s.resolve(t, contradicted, disjoint)
 	want := []string{
 		"unrecognised: isin GB00BH4HKS39 and cusip 92857W308 name different instruments",
@@ -892,12 +892,12 @@ func TestMergeAcrossCurrencies(t *testing.T) {
 	ctx := context.Background()
 	usdLine := id(types.IdentifierTypeMicTicker, "XLON", "VODUSD")
 	s.script.Responses[isin] = market.IdentityResult{Filtered: []types.Identifier{isin}, Candidates: []market.Candidate{
-		{Class: gen.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{figi, isin, xlon}},
+		{Class: types.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{figi, isin, xlon}},
 	}}
 	s.script.Responses[cusip] = market.IdentityResult{Filtered: []types.Identifier{cusip}, Candidates: []market.Candidate{
-		{Class: gen.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{cusip, usdLine}},
+		{Class: types.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{cusip, usdLine}},
 	}}
-	s.resolve(t, s.state(t, gen.AssetClassStock, "GBP", isin), s.state(t, gen.AssetClassStock, "USD", cusip))
+	s.resolve(t, s.state(t, types.AssetClassStock, "GBP", isin), s.state(t, types.AssetClassStock, "USD", cusip))
 	a, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: isin.Type, Value: isin.Value})
 	require.NoError(t, err)
 	b, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: cusip.Type, Value: cusip.Value})
@@ -905,9 +905,9 @@ func TestMergeAcrossCurrencies(t *testing.T) {
 
 	sedol := id(types.IdentifierTypeSedol, "", "BH4HKS3")
 	s.script.Responses[sedol] = market.IdentityResult{Filtered: []types.Identifier{sedol}, Candidates: []market.Candidate{
-		{Class: gen.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{figi, cusip, sedol}},
+		{Class: types.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{figi, cusip, sedol}},
 	}}
-	k := s.state(t, gen.AssetClassStock, "USD", sedol)
+	k := s.state(t, types.AssetClassStock, "USD", sedol)
 	got := s.resolve(t, k)
 	if written(got[0]) != "matched" {
 		t.Fatalf("outcome = %s, want matched", written(got[0]))
@@ -939,12 +939,12 @@ func TestMergeRefused(t *testing.T) {
 	ctx := context.Background()
 	other := id(types.IdentifierTypeIsin, "", "GB00BH4HKS40")
 	s.script.Responses[isin] = market.IdentityResult{Filtered: []types.Identifier{isin}, Candidates: []market.Candidate{
-		{Class: gen.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{figi, isin, xlon}},
+		{Class: types.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{figi, isin, xlon}},
 	}}
 	s.script.Responses[cusip] = market.IdentityResult{Filtered: []types.Identifier{cusip}, Candidates: []market.Candidate{
-		{Class: gen.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{cusip, other, xnas}},
+		{Class: types.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{cusip, other, xnas}},
 	}}
-	s.resolve(t, s.state(t, gen.AssetClassStock, "GBP", isin), s.state(t, gen.AssetClassStock, "USD", cusip))
+	s.resolve(t, s.state(t, types.AssetClassStock, "GBP", isin), s.state(t, types.AssetClassStock, "USD", cusip))
 	a, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: isin.Type, Value: isin.Value})
 	require.NoError(t, err)
 	b, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: cusip.Type, Value: cusip.Value})
@@ -954,9 +954,9 @@ func TestMergeRefused(t *testing.T) {
 	// both.
 	s.enableBeta(t)
 	s.beta.Responses[cusip] = market.IdentityResult{Filtered: []types.Identifier{cusip}, Candidates: []market.Candidate{
-		{Class: gen.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{figi, cusip, xnas}},
+		{Class: types.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{figi, cusip, xnas}},
 	}}
-	k := s.stateUnder(t, s.newStatement(t, gen.BrokerIbkr), gen.AssetClassStock, "USD", cusip)
+	k := s.stateUnder(t, s.newStatement(t, gen.BrokerIbkr), types.AssetClassStock, "USD", cusip)
 	got := s.resolve(t, k)
 	if written(got[0]) != "matched" {
 		t.Fatalf("outcome = %s, want matched", written(got[0]))
@@ -998,19 +998,19 @@ func TestConfirmRows(t *testing.T) {
 	s := newStack(t)
 	ctx := context.Background()
 	s.script.Responses[ticker] = market.IdentityResult{Filtered: []types.Identifier{ticker}, Candidates: []market.Candidate{
-		{Class: gen.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{figi, isin, comp, xlon}},
-		{Class: gen.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{figi2, xnas}},
+		{Class: types.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{figi, isin, comp, xlon}},
+		{Class: types.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{figi2, xnas}},
 	}}
-	key := s.state(t, gen.AssetClassStock, "GBP", ticker, descr)
+	key := s.state(t, types.AssetClassStock, "GBP", ticker, descr)
 	later := s.newStatement(t, gen.BrokerIbkr)
-	mate := s.stateUnder(t, later, gen.AssetClassStock, "GBP", descr)
+	mate := s.stateUnder(t, later, types.AssetClassStock, "GBP", descr)
 	require.NoError(t, s.q.SetStatedKeyGroups(ctx, gen.SetStatedKeyGroupsParams{UserID: s.user.ID, Ids: []uuid.UUID{key.ID, mate.ID}, GroupIds: []uuid.UUID{key.ID, key.ID}}))
 
 	offer, err := s.resolver.Candidates(ctx, s.resolution, key)
 	require.NoError(t, err)
 	gbp := "GBP"
 	wantOffer := Offer{Candidates: []Candidate{{
-		Datasource: s.alphaName, Strongest: figi, AssetClass: gen.AssetClassStock, Identifiers: []types.Identifier{figi, isin},
+		Datasource: s.alphaName, Strongest: figi, AssetClass: types.AssetClassStock, Identifiers: []types.Identifier{figi, isin},
 		Listings: []CandidateListing{{Currency: &gbp, Identifiers: []types.Identifier{comp, xlon}}},
 	}}}
 	if diff := cmp.Diff(wantOffer, offer); diff != "" {
@@ -1031,7 +1031,7 @@ func TestConfirmRows(t *testing.T) {
 	found, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: types.IdentifierTypeIsin, Value: isin.Value})
 	require.NoError(t, err)
 	inst := found.Instrument
-	if inst.AssetClass != gen.AssetClassStock || inst.FetchKeyID == nil {
+	if inst.AssetClass != types.AssetClassStock || inst.FetchKeyID == nil {
 		t.Errorf("instrument = %+v, want a stock with provenance", inst)
 	}
 	ids, err := s.q.ListIdentifiers(ctx, inst.ID)
@@ -1073,7 +1073,7 @@ func TestConfirmRows(t *testing.T) {
 	}
 
 	// A new key stating the description inherits the association.
-	next := s.stateUnder(t, s.newStatement(t, gen.BrokerIbkr), gen.AssetClassStock, "GBP", ticker, descr)
+	next := s.stateUnder(t, s.newStatement(t, gen.BrokerIbkr), types.AssetClassStock, "GBP", ticker, descr)
 	got = s.resolve(t, next)
 	k := s.key(t, next.ID)
 	if written(got[0]) != "matched" || k.InstrumentID == nil || *k.InstrumentID != inst.ID || *k.Arbiter != gen.ArbiterUser || via[*k.ViaID] != "mic_ticker XLON:VOD" || *k.ListingID != *s.key(t, key.ID).ListingID {
@@ -1082,7 +1082,7 @@ func TestConfirmRows(t *testing.T) {
 
 	// A pick the database already holds reuses the instrument.
 	other := id(types.IdentifierTypeBrokerDescription, "ibkr", "OTHER CORP")
-	apart := s.stateUnder(t, s.newStatement(t, gen.BrokerIbkr), gen.AssetClassStock, "GBP", ticker, other)
+	apart := s.stateUnder(t, s.newStatement(t, gen.BrokerIbkr), types.AssetClassStock, "GBP", ticker, other)
 	rk, err = s.resolver.Confirm(ctx, s.resolution, apart, Pick{Datasource: s.alphaName, Identifier: isin})
 	require.NoError(t, err)
 	if k := s.key(t, apart.ID); rk.Outcome != gen.ResolutionOutcomeMatched || k.InstrumentID == nil || *k.InstrumentID != inst.ID || *k.Arbiter != gen.ArbiterUser {
@@ -1098,18 +1098,18 @@ func TestConfirmRows(t *testing.T) {
 func TestConfirmJoins(t *testing.T) {
 	s := newStack(t)
 	ctx := context.Background()
-	other, err := s.q.CreateInstrument(ctx, gen.CreateInstrumentParams{ID: db.NewID(), AssetClass: gen.AssetClassStock})
+	other, err := s.q.CreateInstrument(ctx, gen.CreateInstrumentParams{ID: db.NewID(), AssetClass: types.AssetClassStock})
 	require.NoError(t, err)
 	_, err = s.q.CreateIdentifier(ctx, gen.CreateIdentifierParams{ID: db.NewID(), InstrumentID: other.ID, Type: figi.Type, Domain: figi.Domain, Value: figi.Value})
 	require.NoError(t, err)
 	s.enableBeta(t)
 	s.script.Responses[ticker] = market.IdentityResult{Filtered: []types.Identifier{ticker}, Candidates: []market.Candidate{
-		{Class: gen.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{isin, xlon}},
+		{Class: types.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{isin, xlon}},
 	}}
 	s.beta.Responses[ticker] = market.IdentityResult{Filtered: []types.Identifier{ticker}, Candidates: []market.Candidate{
-		{Class: gen.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{figi, isin, xlon}},
+		{Class: types.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{figi, isin, xlon}},
 	}}
-	key := s.state(t, gen.AssetClassStock, "GBP", ticker)
+	key := s.state(t, types.AssetClassStock, "GBP", ticker)
 	rk, err := s.resolver.Confirm(ctx, s.resolution, key, Pick{Datasource: s.alphaName, Identifier: isin})
 	require.NoError(t, err)
 	k := s.key(t, key.ID)
@@ -1138,18 +1138,18 @@ func TestConfirmMerged(t *testing.T) {
 	ctx := context.Background()
 	s.enableBeta(t)
 	s.script.Responses[ticker] = market.IdentityResult{Filtered: []types.Identifier{ticker}, Candidates: []market.Candidate{
-		{Class: gen.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{figi, xlon}},
+		{Class: types.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{figi, xlon}},
 	}}
 	s.beta.Responses[ticker] = market.IdentityResult{Filtered: []types.Identifier{ticker}, Candidates: []market.Candidate{
-		{Class: gen.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{figi, isin, xlon}},
+		{Class: types.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{figi, isin, xlon}},
 	}}
-	key := s.state(t, gen.AssetClassStock, "GBP", ticker)
+	key := s.state(t, types.AssetClassStock, "GBP", ticker)
 
 	offer, err := s.resolver.Candidates(ctx, s.resolution, key)
 	require.NoError(t, err)
 	gbp := "GBP"
 	wantOffer := Offer{Candidates: []Candidate{{
-		Datasource: s.alphaName, Attached: []string{s.betaName}, Strongest: figi, AssetClass: gen.AssetClassStock, Identifiers: []types.Identifier{figi, isin},
+		Datasource: s.alphaName, Attached: []string{s.betaName}, Strongest: figi, AssetClass: types.AssetClassStock, Identifiers: []types.Identifier{figi, isin},
 		Listings: []CandidateListing{{Currency: &gbp, Identifiers: []types.Identifier{xlon}}},
 	}}}
 	if diff := cmp.Diff(wantOffer, offer); diff != "" {

@@ -1,7 +1,6 @@
 package eodhd
 
 import (
-	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/types"
 	"github.com/leedenison/stonks/server/internal/market"
 )
@@ -15,12 +14,12 @@ const preferred = "Preferred Stock"
 
 // classes maps each type this integration converts to the class of its
 // candidate.
-var classes = map[string]gen.AssetClass{
-	"Common Stock": gen.AssetClassStock,
-	preferred:      gen.AssetClassStock,
-	"ETF":          gen.AssetClassEtf,
-	"FUND":         gen.AssetClassMutualFund,
-	"Mutual Fund":  gen.AssetClassMutualFund,
+var classes = map[string]types.AssetClass{
+	"Common Stock": types.AssetClassStock,
+	preferred:      types.AssetClassStock,
+	"ETF":          types.AssetClassEtf,
+	"FUND":         types.AssetClassMutualFund,
+	"Mutual Fund":  types.AssetClassMutualFund,
 }
 
 // identity converts what EODHD returned for the identifier sent. EODHD's
