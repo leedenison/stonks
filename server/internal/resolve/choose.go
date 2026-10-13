@@ -14,7 +14,7 @@ import (
 )
 
 // result is what one datasource served for a key.
-type result = market.Result[gen.StatedKey, market.IdentityResult]
+type result = market.FetchKey[gen.StatedKey, market.IdentityResult]
 
 // claim is an Instrument together with the result that made it. A
 // response's claim gathers the candidates sharing an instrument grain

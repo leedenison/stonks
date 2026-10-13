@@ -156,18 +156,18 @@ func keyOf(f *fake, value string) gen.StatedKey {
 // unservedKey returns a key that the fake leaves unserved.
 func unservedKey() gen.StatedKey { return gen.StatedKey{ID: db.NewID()} }
 
-func (h *harness) run(t *testing.T, keys ...gen.StatedKey) []Result[gen.StatedKey, IdentityResult] {
+func (h *harness) run(t *testing.T, keys ...gen.StatedKey) []FetchKey[gen.StatedKey, IdentityResult] {
 	t.Helper()
-	results, err := fetch(context.Background(), h.fetcher, h.parent, h.entry, identityKind, keys)
+	fetchKeys, err := fetch(context.Background(), h.fetcher, h.parent, h.entry, identityKind, keys)
 	if err != nil {
 		t.Fatalf("fetch() error = %v", err)
 	}
-	for i, r := range results {
+	for i, r := range fetchKeys {
 		if r.Source != h.entry.Name {
-			t.Errorf("result %d names source %q, want %q", i, r.Source, h.entry.Name)
+			t.Errorf("fetch key %d names source %q, want %q", i, r.Source, h.entry.Name)
 		}
 	}
-	return results
+	return fetchKeys
 }
 
 func (h *harness) key(t *testing.T, id uuid.UUID) gen.CreateFetchKeyParams {
@@ -188,9 +188,9 @@ func TestFetchNotServed(t *testing.T) {
 	h := newHarness(t, f, nil)
 	k := unservedKey()
 
-	results := h.run(t, k)
-	if results[0].Outcome != gen.FetchOutcomeNotServed {
-		t.Errorf("outcome = %s, want not_served", results[0].Outcome)
+	fetchKeys := h.run(t, k)
+	if fetchKeys[0].Outcome != gen.FetchOutcomeNotServed {
+		t.Errorf("outcome = %s, want not_served", fetchKeys[0].Outcome)
 	}
 	if f.calls != 0 {
 		t.Errorf("calls = %d, want 0: a key the integration declines spends no quota", f.calls)
@@ -207,19 +207,19 @@ func TestFetchServed(t *testing.T) {
 	h := newHarness(t, f, nil)
 	one, two := keyOf(f, "GB00B03MLX29"), keyOf(f, "US0378331005")
 
-	results := h.run(t, one, two)
+	fetchKeys := h.run(t, one, two)
 	if f.calls != 1 {
 		t.Errorf("calls = %d, want 1: the batch is one request", f.calls)
 	}
 	if len(f.sent[0]) != 2 {
 		t.Errorf("sent %d identifiers, want 2", len(f.sent[0]))
 	}
-	for i, r := range results {
+	for i, r := range fetchKeys {
 		if r.Outcome != gen.FetchOutcomeServed {
-			t.Errorf("result %d outcome = %s, want served", i, r.Outcome)
+			t.Errorf("fetch key %d outcome = %s, want served", i, r.Outcome)
 		}
 		if len(r.Response.Candidates) != 1 {
-			t.Errorf("result %d candidates = %d, want 1", i, len(r.Response.Candidates))
+			t.Errorf("fetch key %d candidates = %d, want 1", i, len(r.Response.Candidates))
 		}
 	}
 	if row := h.key(t, one.ID); row.Attempts != 1 || row.Reason != nil || row.Candidates != 1 {
@@ -237,9 +237,9 @@ func TestFetchRetries(t *testing.T) {
 	h := newHarness(t, f, nil)
 	k := keyOf(f, "GB00B03MLX29")
 
-	results := h.run(t, k)
-	if results[0].Outcome != gen.FetchOutcomeServed {
-		t.Errorf("outcome = %s, want served on the third attempt", results[0].Outcome)
+	fetchKeys := h.run(t, k)
+	if fetchKeys[0].Outcome != gen.FetchOutcomeServed {
+		t.Errorf("outcome = %s, want served on the third attempt", fetchKeys[0].Outcome)
 	}
 	if f.calls != 3 {
 		t.Errorf("calls = %d, want 3", f.calls)
@@ -256,9 +256,9 @@ func TestFetchRetriesExhausted(t *testing.T) {
 	h := newHarness(t, f, nil)
 	k := keyOf(f, "GB00B03MLX29")
 
-	results := h.run(t, k)
-	if results[0].Outcome != gen.FetchOutcomeFailedTemporary {
-		t.Errorf("outcome = %s, want failed_temporary", results[0].Outcome)
+	fetchKeys := h.run(t, k)
+	if fetchKeys[0].Outcome != gen.FetchOutcomeFailedTemporary {
+		t.Errorf("outcome = %s, want failed_temporary", fetchKeys[0].Outcome)
 	}
 	if f.calls != 3 {
 		t.Errorf("calls = %d, want the cap of 3", f.calls)
@@ -278,13 +278,13 @@ func TestFetchQuotaIsNotRetried(t *testing.T) {
 	h := newHarness(t, f, nil)
 	one, two := keyOf(f, "GB00B03MLX29"), keyOf(f, "US0378331005")
 
-	results := h.run(t, one, two)
+	fetchKeys := h.run(t, one, two)
 	if f.calls != 1 {
 		t.Errorf("calls = %d, want 1: repeating a spent quota cannot help", f.calls)
 	}
-	for i, r := range results {
+	for i, r := range fetchKeys {
 		if r.Outcome != gen.FetchOutcomeFailedTemporary {
-			t.Errorf("result %d outcome = %s, want failed_temporary", i, r.Outcome)
+			t.Errorf("fetch key %d outcome = %s, want failed_temporary", i, r.Outcome)
 		}
 	}
 	if len(h.blocks) != 0 {
@@ -304,7 +304,7 @@ func TestFetchPause(t *testing.T) {
 	one, two := keyOf(f, "GB00B03MLX29"), keyOf(f, "US0378331005")
 	const reason = "paused until 2026-10-01T06:00:00Z after: quota spent"
 
-	results := h.run(t, one, two)
+	fetchKeys := h.run(t, one, two)
 	if f.calls != 1 {
 		t.Errorf("calls = %d, want 1: the second key falls in the pause", f.calls)
 	}
@@ -313,9 +313,9 @@ func TestFetchPause(t *testing.T) {
 		attempts int16
 	}{{"quota spent", 1}, {reason, 0}}
 	for i, w := range want {
-		row := h.key(t, results[i].Request.ID)
-		if results[i].Outcome != gen.FetchOutcomeFailedTemporary || row.Reason == nil || *row.Reason != w.reason || row.Attempts != w.attempts {
-			t.Errorf("key %d = %s, %+v, want failed_temporary with %q after %d attempts", i, results[i].Outcome, row, w.reason, w.attempts)
+		row := h.key(t, fetchKeys[i].Request.ID)
+		if fetchKeys[i].Outcome != gen.FetchOutcomeFailedTemporary || row.Reason == nil || *row.Reason != w.reason || row.Attempts != w.attempts {
+			t.Errorf("key %d = %s, %+v, want failed_temporary with %q after %d attempts", i, fetchKeys[i].Outcome, row, w.reason, w.attempts)
 		}
 	}
 
@@ -342,12 +342,12 @@ func TestFetchPauseDuringBackoff(t *testing.T) {
 	k := keyOf(f, "GB00B03MLX29")
 	h.onSleep = func() { h.entry.limiter.pause(h.now.Add(time.Hour), "quota spent") }
 
-	results := h.run(t, k)
+	fetchKeys := h.run(t, k)
 	if f.calls != 1 {
 		t.Errorf("calls = %d, want 1", f.calls)
 	}
-	if r := results[0]; r.Outcome != gen.FetchOutcomeFailedTemporary || !strings.HasPrefix(r.Reason, "paused until ") {
-		t.Errorf("result = %s %q, want failed_temporary for the pause", r.Outcome, r.Reason)
+	if r := fetchKeys[0]; r.Outcome != gen.FetchOutcomeFailedTemporary || !strings.HasPrefix(r.Reason, "paused until ") {
+		t.Errorf("fetch key = %s %q, want failed_temporary for the pause", r.Outcome, r.Reason)
 	}
 	if len(h.blocks) != 0 {
 		t.Errorf("blocks = %+v, want none", h.blocks)
@@ -361,9 +361,9 @@ func TestFetchCredentialBlocksDatasource(t *testing.T) {
 	h := newHarness(t, f, nil)
 	k := keyOf(f, "GB00B03MLX29")
 
-	results := h.run(t, k)
-	if results[0].Outcome != gen.FetchOutcomeFailedPermanent {
-		t.Errorf("outcome = %s, want failed_permanent", results[0].Outcome)
+	fetchKeys := h.run(t, k)
+	if fetchKeys[0].Outcome != gen.FetchOutcomeFailedPermanent {
+		t.Errorf("outcome = %s, want failed_permanent", fetchKeys[0].Outcome)
 	}
 	if f.calls != 1 {
 		t.Errorf("calls = %d, want 1", f.calls)
@@ -380,12 +380,12 @@ func TestFetchPerKeyError(t *testing.T) {
 	h := newHarness(t, f, nil)
 	good, bad := keyOf(f, "GB00B03MLX29"), keyOf(f, "US0378331005")
 
-	results := h.run(t, good, bad)
-	if results[0].Outcome != gen.FetchOutcomeServed {
-		t.Errorf("good key outcome = %s, want served", results[0].Outcome)
+	fetchKeys := h.run(t, good, bad)
+	if fetchKeys[0].Outcome != gen.FetchOutcomeServed {
+		t.Errorf("good key outcome = %s, want served", fetchKeys[0].Outcome)
 	}
-	if results[1].Outcome != gen.FetchOutcomeFailedPermanent {
-		t.Errorf("bad key outcome = %s, want failed_permanent", results[1].Outcome)
+	if fetchKeys[1].Outcome != gen.FetchOutcomeFailedPermanent {
+		t.Errorf("bad key outcome = %s, want failed_permanent", fetchKeys[1].Outcome)
 	}
 	if len(h.blocks) != 1 || *h.blocks[0].SentValue != "US0378331005" {
 		t.Fatalf("blocks = %+v, want one on the refused identifier", h.blocks)
@@ -423,13 +423,13 @@ func TestFetchOpenBlocks(t *testing.T) {
 			h := newHarness(t, f, tc.open)
 			one, two := keyOf(f, "GB00B03MLX29"), keyOf(f, "US0378331005")
 
-			results := h.run(t, one, two)
+			fetchKeys := h.run(t, one, two)
 			if f.calls != tc.calls {
 				t.Errorf("calls = %d, want %d", f.calls, tc.calls)
 			}
 			for i, want := range tc.want {
-				if results[i].Outcome != want {
-					t.Errorf("result %d outcome = %s, want %s", i, results[i].Outcome, want)
+				if fetchKeys[i].Outcome != want {
+					t.Errorf("fetch key %d outcome = %s, want %s", i, fetchKeys[i].Outcome, want)
 				}
 			}
 			for _, k := range h.keys {
@@ -473,7 +473,7 @@ func TestFetchChunks(t *testing.T) {
 		keys[i] = keyOf(f, v)
 	}
 
-	results := h.run(t, keys...)
+	fetchKeys := h.run(t, keys...)
 	if f.calls != 3 {
 		t.Errorf("calls = %d, want 3 requests of at most 2", f.calls)
 	}
@@ -482,13 +482,13 @@ func TestFetchChunks(t *testing.T) {
 			t.Errorf("request %d sent %d identifiers, want at most 2", n, len(sent))
 		}
 	}
-	for i, r := range results {
+	for i, r := range fetchKeys {
 		if r.Outcome != gen.FetchOutcomeServed {
-			t.Errorf("result %d outcome = %s, want served", i, r.Outcome)
+			t.Errorf("fetch key %d outcome = %s, want served", i, r.Outcome)
 			continue
 		}
 		if got := r.Response.Candidates[0].Identifiers[0].Value; got != values[i] {
-			t.Errorf("result %d returned %s, want %s", i, got, values[i])
+			t.Errorf("fetch key %d returned %s, want %s", i, got, values[i])
 		}
 	}
 }
@@ -500,11 +500,11 @@ func TestFetchChunkFails(t *testing.T) {
 	h := newHarness(t, f, nil)
 	one, two, three := keyOf(f, "GB00B03MLX29"), keyOf(f, "US0378331005"), keyOf(f, "US5949181045")
 
-	results := h.run(t, one, two, three)
+	fetchKeys := h.run(t, one, two, three)
 	want := []gen.FetchOutcome{gen.FetchOutcomeServed, gen.FetchOutcomeFailedPermanent, gen.FetchOutcomeServed}
 	for i, w := range want {
-		if results[i].Outcome != w {
-			t.Errorf("result %d outcome = %s, want %s", i, results[i].Outcome, w)
+		if fetchKeys[i].Outcome != w {
+			t.Errorf("fetch key %d outcome = %s, want %s", i, fetchKeys[i].Outcome, w)
 		}
 	}
 	if len(h.blocks) != 1 || *h.blocks[0].SentValue != "US0378331005" {
@@ -520,14 +520,14 @@ func TestFetchChunkBlocksDatasource(t *testing.T) {
 	h := newHarness(t, f, nil)
 	one, two, three := keyOf(f, "GB00B03MLX29"), keyOf(f, "US0378331005"), keyOf(f, "US5949181045")
 
-	results := h.run(t, one, two, three)
+	fetchKeys := h.run(t, one, two, three)
 	if f.calls != 2 {
 		t.Errorf("calls = %d, want 2: nothing is sent once the datasource is blocked", f.calls)
 	}
 	want := []gen.FetchOutcome{gen.FetchOutcomeServed, gen.FetchOutcomeFailedPermanent, gen.FetchOutcomeBlocked}
 	for i, w := range want {
-		if results[i].Outcome != w {
-			t.Errorf("result %d outcome = %s, want %s", i, results[i].Outcome, w)
+		if fetchKeys[i].Outcome != w {
+			t.Errorf("fetch key %d outcome = %s, want %s", i, fetchKeys[i].Outcome, w)
 		}
 	}
 	if row := h.key(t, three.ID); row.Attempts != 0 || row.Reason == nil || *row.Reason != "401" {
@@ -553,9 +553,9 @@ func TestFetchKindNotServed(t *testing.T) {
 	h := newHarness(t, plain{f}, nil)
 	k := keyOf(f, "GB00B03MLX29")
 
-	results := h.run(t, k)
-	if results[0].Outcome != gen.FetchOutcomeNotServed {
-		t.Errorf("outcome = %s, want not_served", results[0].Outcome)
+	fetchKeys := h.run(t, k)
+	if fetchKeys[0].Outcome != gen.FetchOutcomeNotServed {
+		t.Errorf("outcome = %s, want not_served", fetchKeys[0].Outcome)
 	}
 	if f.calls != 0 {
 		t.Errorf("calls = %d, want 0", f.calls)
@@ -582,9 +582,9 @@ func TestFetchRetryAfter(t *testing.T) {
 			h := newHarness(t, f, nil)
 			k := keyOf(f, "GB00B03MLX29")
 
-			results := h.run(t, k)
-			if results[0].Outcome != gen.FetchOutcomeServed || f.calls != 2 {
-				t.Errorf("outcome = %s after %d calls, want served after 2", results[0].Outcome, f.calls)
+			fetchKeys := h.run(t, k)
+			if fetchKeys[0].Outcome != gen.FetchOutcomeServed || f.calls != 2 {
+				t.Errorf("outcome = %s after %d calls, want served after 2", fetchKeys[0].Outcome, f.calls)
 			}
 			if diff := cmp.Diff([]time.Duration{tc.want}, h.sleeps); diff != "" {
 				t.Errorf("sleeps mismatch (-want +got):\n%s", diff)
@@ -623,15 +623,15 @@ func TestFetchCancelled(t *testing.T) {
 	defer cancel()
 	h.onSleep = cancel
 
-	results, err := fetch(ctx, h.fetcher, h.parent, h.entry, identityKind, []gen.StatedKey{k})
+	fetchKeys, err := fetch(ctx, h.fetcher, h.parent, h.entry, identityKind, []gen.StatedKey{k})
 	if err != nil {
 		t.Fatalf("fetch() error = %v", err)
 	}
 	if f.calls != 1 || len(h.sleeps) != 1 {
 		t.Errorf("calls = %d, sleeps = %v, want one call and one sleep", f.calls, h.sleeps)
 	}
-	if results[0].Outcome != gen.FetchOutcomeFailedTemporary {
-		t.Errorf("outcome = %s, want failed_temporary", results[0].Outcome)
+	if fetchKeys[0].Outcome != gen.FetchOutcomeFailedTemporary {
+		t.Errorf("outcome = %s, want failed_temporary", fetchKeys[0].Outcome)
 	}
 }
 
@@ -642,11 +642,11 @@ func TestFetchShortResponse(t *testing.T) {
 	h := newHarness(t, f, nil)
 	one, two := keyOf(f, "GB00B03MLX29"), keyOf(f, "US0378331005")
 
-	results := h.run(t, one, two)
+	fetchKeys := h.run(t, one, two)
 	want := []gen.FetchOutcome{gen.FetchOutcomeServed, gen.FetchOutcomeFailedTemporary}
 	for i, w := range want {
-		if results[i].Outcome != w {
-			t.Errorf("result %d outcome = %s, want %s", i, results[i].Outcome, w)
+		if fetchKeys[i].Outcome != w {
+			t.Errorf("fetch key %d outcome = %s, want %s", i, fetchKeys[i].Outcome, w)
 		}
 	}
 }
@@ -658,14 +658,14 @@ func TestFetchBlockSuppressesLaterRequests(t *testing.T) {
 	h := newHarness(t, f, nil)
 	one, two := keyOf(f, "US0378331005"), keyOf(f, "US0378331005")
 
-	results := h.run(t, one, two)
+	fetchKeys := h.run(t, one, two)
 	if f.calls != 1 {
 		t.Errorf("calls = %d, want 1: the block from the first request suppresses the second", f.calls)
 	}
 	want := []gen.FetchOutcome{gen.FetchOutcomeFailedPermanent, gen.FetchOutcomeBlocked}
 	for i, w := range want {
-		if results[i].Outcome != w {
-			t.Errorf("result %d outcome = %s, want %s", i, results[i].Outcome, w)
+		if fetchKeys[i].Outcome != w {
+			t.Errorf("fetch key %d outcome = %s, want %s", i, fetchKeys[i].Outcome, w)
 		}
 	}
 }
@@ -703,16 +703,16 @@ func TestFetchFindings(t *testing.T) {
 }
 
 // TestFetchWriteFails checks that a fetch whose rows cannot be written fails
-// with no results.
+// with no fetch keys.
 func TestFetchWriteFails(t *testing.T) {
 	f := &fake{}
 	h := newHarness(t, f, nil)
 	boom := errors.New("boom")
 	h.keyErr = boom
 
-	results, err := fetch(context.Background(), h.fetcher, h.parent, h.entry, identityKind, []gen.StatedKey{keyOf(f, "GB00B03MLX29")})
-	if !errors.Is(err, boom) || results != nil {
-		t.Errorf("fetch() = %v, %v, want no results and %v", results, err, boom)
+	fetchKeys, err := fetch(context.Background(), h.fetcher, h.parent, h.entry, identityKind, []gen.StatedKey{keyOf(f, "GB00B03MLX29")})
+	if !errors.Is(err, boom) || fetchKeys != nil {
+		t.Errorf("fetch() = %v, %v, want no fetch keys and %v", fetchKeys, err, boom)
 	}
 }
 
@@ -810,20 +810,20 @@ func TestFetchCachePaused(t *testing.T) {
 	h.run(t, cached)
 	h.entry.limiter.pause(h.now.Add(time.Hour), "quota spent")
 
-	results := h.run(t, keyOf(f, "GB00B03MLX29"), fresh)
+	fetchKeys := h.run(t, keyOf(f, "GB00B03MLX29"), fresh)
 	if f.calls != 1 {
 		t.Errorf("calls = %d, want 1: a paused datasource gets no call", f.calls)
 	}
-	if results[0].Outcome != gen.FetchOutcomeServed || !results[0].cached {
-		t.Errorf("cached key outcome = %s, want served from the cache", results[0].Outcome)
+	if fetchKeys[0].Outcome != gen.FetchOutcomeServed || !fetchKeys[0].cached {
+		t.Errorf("cached key outcome = %s, want served from the cache", fetchKeys[0].Outcome)
 	}
-	if results[1].Outcome != gen.FetchOutcomeFailedTemporary {
-		t.Errorf("fresh key outcome = %s, want failed_temporary", results[1].Outcome)
+	if fetchKeys[1].Outcome != gen.FetchOutcomeFailedTemporary {
+		t.Errorf("fresh key outcome = %s, want failed_temporary", fetchKeys[1].Outcome)
 	}
 }
 
 // TestFetchCacheErrors checks that a cache that cannot be read or written
-// fails the fetch with no results.
+// fails the fetch with no fetch keys.
 func TestFetchCacheErrors(t *testing.T) {
 	boom := errors.New("boom")
 	tests := []struct {
@@ -838,9 +838,9 @@ func TestFetchCacheErrors(t *testing.T) {
 			f := &fake{}
 			h := newHarness(t, f, nil)
 			tc.set(h.cache)
-			results, err := fetch(context.Background(), h.fetcher, h.parent, h.entry, identityKind, []gen.StatedKey{keyOf(f, "GB00B03MLX29")})
-			if !errors.Is(err, boom) || results != nil {
-				t.Errorf("fetch() = %v, %v, want no results and %v", results, err, boom)
+			fetchKeys, err := fetch(context.Background(), h.fetcher, h.parent, h.entry, identityKind, []gen.StatedKey{keyOf(f, "GB00B03MLX29")})
+			if !errors.Is(err, boom) || fetchKeys != nil {
+				t.Errorf("fetch() = %v, %v, want no fetch keys and %v", fetchKeys, err, boom)
 			}
 			if len(h.keys) != 0 {
 				t.Errorf("fetch keys = %d, want none recorded", len(h.keys))

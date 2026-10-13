@@ -65,6 +65,6 @@ var identityKind = Kind[gen.StatedKey, IdentityResult]{
 }
 
 // Identity fetches the identity of keys from e, as a child run of parent.
-func (f *Fetcher) Identity(ctx context.Context, parent gen.Run, e *Entry, keys []gen.StatedKey) ([]Result[gen.StatedKey, IdentityResult], error) {
+func (f *Fetcher) Identity(ctx context.Context, parent gen.Run, e *Entry, keys []gen.StatedKey) ([]FetchKey[gen.StatedKey, IdentityResult], error) {
 	return fetch(ctx, f, parent, e, identityKind, keys)
 }

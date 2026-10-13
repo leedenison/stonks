@@ -16,8 +16,9 @@ import (
 	"github.com/leedenison/stonks/server/internal/run"
 )
 
-// Result is what one request of a fetch got.
-type Result[Q, P any] struct {
+// FetchKey is one request of a fetch and what it got. It is recorded as a
+// fetch_keys row.
+type FetchKey[Q, P any] struct {
 	Request Q
 	// Source is the datasource that served the request.
 	Source string
@@ -80,21 +81,21 @@ func NewFetcher(store Store, runs Runner, log *slog.Logger, opts ...Option) *Fet
 }
 
 // fetch requests kind about reqs from e, as a child run of parent. It returns
-// one result per request, in the order they were given.
-func fetch[Q, P any](ctx context.Context, f *Fetcher, parent gen.Run, e *Entry, kind Kind[Q, P], reqs []Q) ([]Result[Q, P], error) {
-	var results []Result[Q, P]
+// one fetch key per request, in the order they were given.
+func fetch[Q, P any](ctx context.Context, f *Fetcher, parent gen.Run, e *Entry, kind Kind[Q, P], reqs []Q) ([]FetchKey[Q, P], error) {
+	var fetchKeys []FetchKey[Q, P]
 	_, err := f.runs.Child(ctx, parent, gen.RunKindFetch, func(ctx context.Context, run gen.Run) error {
 		var werr error
-		results, werr = fetchRun(ctx, f, run, e, kind, reqs)
+		fetchKeys, werr = fetchRun(ctx, f, run, e, kind, reqs)
 		return werr
 	})
 	if err != nil {
 		return nil, err
 	}
-	return results, nil
+	return fetchKeys, nil
 }
 
-func fetchRun[Q, P any](ctx context.Context, f *Fetcher, row gen.Run, e *Entry, kind Kind[Q, P], reqs []Q) ([]Result[Q, P], error) {
+func fetchRun[Q, P any](ctx context.Context, f *Fetcher, row gen.Run, e *Entry, kind Kind[Q, P], reqs []Q) ([]FetchKey[Q, P], error) {
 	if _, err := f.store.CreateFetch(ctx, gen.CreateFetchParams{
 		ID: row.ID, UserID: row.UserID, Datasource: e.Name, Endpoint: e.Integration.Endpoint(), Kind: kind.name,
 	}); err != nil {
@@ -107,34 +108,34 @@ func fetchRun[Q, P any](ctx context.Context, f *Fetcher, row gen.Run, e *Entry, 
 	blocked := newBlockSet(open)
 
 	s := kind.server(e)
-	results := make([]Result[Q, P], len(reqs))
+	fetchKeys := make([]FetchKey[Q, P], len(reqs))
 	var served []int
-	keys := map[int]string{}
+	cacheKeys := map[int]string{}
 	for i, q := range reqs {
-		results[i] = Result[Q, P]{Request: q, Source: e.Name, ID: db.NewID()}
+		fetchKeys[i] = FetchKey[Q, P]{Request: q, Source: e.Name, ID: db.NewID()}
 		if s == nil {
-			results[i].Outcome, results[i].Reason = gen.FetchOutcomeNotServed, fmt.Sprintf("the datasource serves no %s", kind.name)
+			fetchKeys[i].Outcome, fetchKeys[i].Reason = gen.FetchOutcomeNotServed, fmt.Sprintf("the datasource serves no %s", kind.name)
 			continue
 		}
 		sent, err := s.Serves(q)
 		if err != nil {
-			results[i].Outcome, results[i].Reason = gen.FetchOutcomeNotServed, err.Error()
+			fetchKeys[i].Outcome, fetchKeys[i].Reason = gen.FetchOutcomeNotServed, err.Error()
 			continue
 		}
-		results[i].SentID = &sent
-		keys[i] = cacheKey(e.Name, kind.name, sent, params(s, q))
+		fetchKeys[i].SentID = &sent
+		cacheKeys[i] = cacheKey(e.Name, kind.name, sent, params(s, q))
 		served = append(served, i)
 	}
-	if err := readCache(ctx, f, results, served, keys); err != nil {
+	if err := readCache(ctx, f, fetchKeys, served, cacheKeys); err != nil {
 		return nil, err
 	}
 	var batch []int
 	for _, i := range served {
-		if results[i].cached {
+		if fetchKeys[i].cached {
 			continue
 		}
-		if reason, ok := blocked.covers(*results[i].SentID); ok {
-			results[i].Outcome, results[i].Reason = gen.FetchOutcomeBlocked, reason
+		if reason, ok := blocked.covers(*fetchKeys[i].SentID); ok {
+			fetchKeys[i].Outcome, fetchKeys[i].Reason = gen.FetchOutcomeBlocked, reason
 			continue
 		}
 		batch = append(batch, i)
@@ -146,8 +147,8 @@ func fetchRun[Q, P any](ctx context.Context, f *Fetcher, row gen.Run, e *Entry, 
 	for _, chunk := range chunks(batch, e.Integration.Batch()) {
 		var send []int
 		for _, i := range chunk {
-			if reason, ok := blocked.covers(*results[i].SentID); ok {
-				results[i].Outcome, results[i].Reason = gen.FetchOutcomeBlocked, reason
+			if reason, ok := blocked.covers(*fetchKeys[i].SentID); ok {
+				fetchKeys[i].Outcome, fetchKeys[i].Reason = gen.FetchOutcomeBlocked, reason
 				continue
 			}
 			send = append(send, i)
@@ -155,17 +156,17 @@ func fetchRun[Q, P any](ctx context.Context, f *Fetcher, row gen.Run, e *Entry, 
 		if len(send) == 0 {
 			continue
 		}
-		blocks := fetchChunk(ctx, f, e, s, results, send)
+		blocks := fetchChunk(ctx, f, e, s, fetchKeys, send)
 		blocked.add(blocks)
 		pending = append(pending, blocks...)
 	}
-	if err := writeCache(ctx, f, results, batch, keys); err != nil {
+	if err := writeCache(ctx, f, fetchKeys, batch, cacheKeys); err != nil {
 		return nil, err
 	}
 	found := 0
 	err = f.store.Tx(ctx, func(q Queries) error {
-		for i := range results {
-			if err := record(ctx, q, row, kind, results[i]); err != nil {
+		for i := range fetchKeys {
+			if err := record(ctx, q, row, kind, fetchKeys[i]); err != nil {
 				return err
 			}
 		}
@@ -183,13 +184,13 @@ func fetchRun[Q, P any](ctx context.Context, f *Fetcher, row gen.Run, e *Entry, 
 	if err != nil {
 		return nil, err
 	}
-	for _, r := range results {
+	for _, r := range fetchKeys {
 		instr.key(ctx, e.Name, r.Outcome, r.cached)
 	}
 	for range found {
 		run.Found(ctx, gen.FindingKindBlock)
 	}
-	return results, nil
+	return fetchKeys, nil
 }
 
 // params returns the parameters s derives from q, nil where s derives none.
@@ -200,15 +201,15 @@ func params[Q, P any](s Server[Q, P], q Q) []string {
 	return nil
 }
 
-// readCache fills the results of the requests in served that the cache
-// holds. Each is a served result with zero attempts.
-func readCache[Q, P any](ctx context.Context, f *Fetcher, results []Result[Q, P], served []int, keys map[int]string) error {
+// readCache fills the fetch keys of the requests in served that the cache
+// holds. Each is served with zero attempts.
+func readCache[Q, P any](ctx context.Context, f *Fetcher, fetchKeys []FetchKey[Q, P], served []int, cacheKeys map[int]string) error {
 	if f.cache == nil || len(served) == 0 {
 		return nil
 	}
 	ks := make([]string, len(served))
 	for n, i := range served {
-		ks[n] = keys[i]
+		ks[n] = cacheKeys[i]
 	}
 	entries, err := f.cache.Get(ctx, ks)
 	if err != nil {
@@ -218,7 +219,7 @@ func readCache[Q, P any](ctx context.Context, f *Fetcher, results []Result[Q, P]
 		if entries[n] == nil {
 			continue
 		}
-		r := &results[i]
+		r := &fetchKeys[i]
 		if err := json.Unmarshal(entries[n], &r.Response); err != nil {
 			return fmt.Errorf("decode cached answer: %w", err)
 		}
@@ -228,12 +229,12 @@ func readCache[Q, P any](ctx context.Context, f *Fetcher, results []Result[Q, P]
 }
 
 // writeCache stores the answer of each request in batch that a call served.
-func writeCache[Q, P any](ctx context.Context, f *Fetcher, results []Result[Q, P], batch []int, keys map[int]string) error {
+func writeCache[Q, P any](ctx context.Context, f *Fetcher, fetchKeys []FetchKey[Q, P], batch []int, cacheKeys map[int]string) error {
 	if f.cache == nil {
 		return nil
 	}
 	for _, i := range batch {
-		r := &results[i]
+		r := &fetchKeys[i]
 		if r.Outcome != gen.FetchOutcomeServed {
 			continue
 		}
@@ -241,32 +242,33 @@ func writeCache[Q, P any](ctx context.Context, f *Fetcher, results []Result[Q, P
 		if err != nil {
 			return fmt.Errorf("encode answer: %w", err)
 		}
-		if err := f.cache.Set(ctx, keys[i], b); err != nil {
+		if err := f.cache.Set(ctx, cacheKeys[i], b); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-// fetchChunk sends the requests of batch and fills their results. It returns the
-// blocks its failures require, which are written once their fetch keys exist.
-func fetchChunk[Q, P any](ctx context.Context, f *Fetcher, e *Entry, s Server[Q, P], results []Result[Q, P], batch []int) []gen.CreateDatasourceBlockParams {
+// fetchChunk sends the requests of batch and fills their fetch keys. It
+// returns the blocks its failures require, which are written once their fetch
+// keys exist.
+func fetchChunk[Q, P any](ctx context.Context, f *Fetcher, e *Entry, s Server[Q, P], fetchKeys []FetchKey[Q, P], batch []int) []gen.CreateDatasourceBlockParams {
 	reqs := make([]Request[Q], len(batch))
 	for n, i := range batch {
-		reqs[n] = Request[Q]{Value: results[i].Request, Sent: *results[i].SentID}
+		reqs[n] = Request[Q]{Value: fetchKeys[i].Request, Sent: *fetchKeys[i].SentID}
 	}
 	resps, attempts, err := request(ctx, f, e, s, reqs)
 	var paused pausedError
 	if errors.As(err, &paused) {
-		return requestFailed(Failure{Temporary: true, Scope: gen.BlockScopeDatasource, Reason: string(paused)}, err, results, batch, attempts)
+		return requestFailed(Failure{Temporary: true, Scope: gen.BlockScopeDatasource, Reason: string(paused)}, err, fetchKeys, batch, attempts)
 	}
 	if err != nil {
-		return requestFailed(e.Integration.Classify(err), err, results, batch, attempts)
+		return requestFailed(e.Integration.Classify(err), err, fetchKeys, batch, attempts)
 	}
 
 	var blocks []gen.CreateDatasourceBlockParams
 	for n, i := range batch {
-		r := &results[i]
+		r := &fetchKeys[i]
 		r.attempts = attempts
 		if n >= len(resps) {
 			r.Outcome, r.Reason = gen.FetchOutcomeFailedTemporary, "the datasource returned fewer results than it was sent"
@@ -290,14 +292,14 @@ func fetchChunk[Q, P any](ctx context.Context, f *Fetcher, e *Entry, s Server[Q,
 // requestFailed records a failure of the request itself against every key it
 // carried. A temporary failure leaves no block; a permanent one blocks at the
 // scope the integration gives it.
-func requestFailed[Q, P any](fail Failure, err error, results []Result[Q, P], batch []int, attempts int) []gen.CreateDatasourceBlockParams {
+func requestFailed[Q, P any](fail Failure, err error, fetchKeys []FetchKey[Q, P], batch []int, attempts int) []gen.CreateDatasourceBlockParams {
 	outcome := gen.FetchOutcomeFailedPermanent
 	if fail.Temporary {
 		outcome = gen.FetchOutcomeFailedTemporary
 	}
 	for _, i := range batch {
-		results[i].Outcome, results[i].Reason = outcome, reasonOf(fail, err)
-		results[i].attempts = attempts
+		fetchKeys[i].Outcome, fetchKeys[i].Reason = outcome, reasonOf(fail, err)
+		fetchKeys[i].attempts = attempts
 	}
 	if fail.Temporary {
 		return nil
@@ -305,23 +307,23 @@ func requestFailed[Q, P any](fail Failure, err error, results []Result[Q, P], ba
 	var blocks []gen.CreateDatasourceBlockParams
 	if fail.Scope == gen.BlockScopeDatasource {
 		return append(blocks, gen.CreateDatasourceBlockParams{
-			Scope: gen.BlockScopeDatasource, Reason: reasonOf(fail, err), FetchKeyID: results[batch[0]].ID,
+			Scope: gen.BlockScopeDatasource, Reason: reasonOf(fail, err), FetchKeyID: fetchKeys[batch[0]].ID,
 		})
 	}
 	for _, i := range batch {
-		blocks = append(blocks, identifierBlock(results[i]))
+		blocks = append(blocks, identifierBlock(fetchKeys[i]))
 	}
 	return blocks
 }
 
-func identifierBlock[Q, P any](r Result[Q, P]) gen.CreateDatasourceBlockParams {
+func identifierBlock[Q, P any](r FetchKey[Q, P]) gen.CreateDatasourceBlockParams {
 	return gen.CreateDatasourceBlockParams{
 		Scope: gen.BlockScopeIdentifier, Reason: r.Reason, FetchKeyID: r.ID,
 		SentType: &r.SentID.Type, SentDomain: r.SentID.Domain, SentValue: &r.SentID.Value,
 	}
 }
 
-func record[Q, P any](ctx context.Context, q Queries, run gen.Run, kind Kind[Q, P], r Result[Q, P]) error {
+func record[Q, P any](ctx context.Context, q Queries, run gen.Run, kind Kind[Q, P], r FetchKey[Q, P]) error {
 	arg := gen.CreateFetchKeyParams{
 		ID: r.ID, FetchID: run.ID, UserID: run.UserID, StatedKeyID: kind.subject(r.Request),
 		Outcome: r.Outcome, Attempts: int16(r.attempts),
