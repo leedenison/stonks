@@ -22,20 +22,20 @@ type resolution struct {
 	// trusted caches trustedIDs.
 	trusted []types.Identifier
 	// fam is the family of the currency the key states.
-	fam   string
-	cur   currencies
-	found *found
+	fam    string
+	cur    currencies
+	stored *stored
 	// arbitrated is the user-arbitrated key whose association this key
 	// copies, nil where no such key shares a joining identifier with it.
 	arbitrated *gen.StatedKey
-	results    []*result
+	fetchKeys  []*fetchKey
 	findings   []gen.CreateFindingParams
 	outcome    gen.ResolutionOutcome
 	reason     string
 }
 
-// found is the instrument the database names for a key.
-type found struct {
+// stored is the instrument the database holds for a key, with its rows.
+type stored struct {
 	instrument  gen.Instrument
 	identifiers []gen.Identifier
 	listings    []gen.Listing
@@ -45,12 +45,12 @@ type found struct {
 // covered reports whether datasource has answered for the instrument.
 // Reference data, the instruments with no provenance, is covered by every
 // datasource.
-func (f *found) covered(datasource string) bool {
+func (f *stored) covered(datasource string) bool {
 	return f.instrument.FetchKeyID == nil || f.coverage[datasource]
 }
 
 // claim returns f as the database's claim.
-func (f *found) claim() *claim {
+func (f *stored) claim() *claim {
 	return &claim{Instrument: to.Instrument(f.instrument, f.identifiers, f.listings)}
 }
 
@@ -78,7 +78,7 @@ func (res *resolution) decide(outcome gen.ResolutionOutcome, format string, args
 func (r *Resolver) findResolutionInstrument(ctx context.Context, rs []*resolution) error {
 	var ids []types.Identifier
 	for _, res := range rs {
-		if !currency(res.row) {
+		if !statesCurrency(res.row) {
 			ids = append(ids, res.trusted...)
 		}
 	}
@@ -86,14 +86,14 @@ func (r *Resolver) findResolutionInstrument(ctx context.Context, rs []*resolutio
 	if err != nil {
 		return err
 	}
-	byID := map[types.Identifier]*found{}
+	byID := map[types.Identifier]*stored{}
 	for _, h := range hits {
 		for _, id := range h.matched {
-			byID[id] = h.found
+			byID[id] = h.stored
 		}
 	}
 	for _, res := range rs {
-		if currency(res.row) {
+		if statesCurrency(res.row) {
 			if err := r.findResolutionCurrency(ctx, res); err != nil {
 				return err
 			}
@@ -104,17 +104,17 @@ func (r *Resolver) findResolutionInstrument(ctx context.Context, rs []*resolutio
 	return nil
 }
 
-// currency reports whether k states a currency, which names money in it.
-func currency(k gen.StatedKey) bool {
+// statesCurrency reports whether k states a currency, which names money in it.
+func statesCurrency(k gen.StatedKey) bool {
 	return slices.ContainsFunc(k.Identifiers, func(id types.Identifier) bool { return id.Type == types.IdentifierTypeCurrency })
 }
 
 // match attaches to res the instrument byID names for it. It decides res
 // when its identifiers name different instruments, when the class
 // conflicts, or when the key names nothing a datasource could be asked.
-func (res *resolution) match(byID map[types.Identifier]*found) {
+func (res *resolution) match(byID map[types.Identifier]*stored) {
 	var first types.Identifier
-	var f *found
+	var f *stored
 	for _, id := range res.trusted {
 		hit, ok := byID[id]
 		switch {
@@ -130,12 +130,12 @@ func (res *resolution) match(byID map[types.Identifier]*found) {
 		}
 	}
 	if f == nil {
-		if !slices.ContainsFunc(res.trusted, mirror.IsGlobal) && !bare(res.row) {
+		if !slices.ContainsFunc(res.trusted, mirror.IsGlobal) && !statesBareTicker(res.row) {
 			res.decide(gen.ResolutionOutcomeUnrecognised, "%s", unnamed(res.trusted))
 		}
 		return
 	}
-	res.found = f
+	res.stored = f
 	if reason, ok := classConflict(res.row, f.instrument.AssetClass); ok {
 		res.decide(gen.ResolutionOutcomeUnrecognised, "%s", reason)
 	}
@@ -173,7 +173,7 @@ func (r *Resolver) findResolutionCurrency(ctx context.Context, res *resolution) 
 		res.decide(gen.ResolutionOutcomeRejected, "%s", reason)
 		return nil
 	}
-	loaded, err := load(ctx, r.store, []gen.Instrument{hit.Instrument})
+	loaded, err := loadInstruments(ctx, r.store, []gen.Instrument{hit.Instrument})
 	if err != nil {
 		return err
 	}
@@ -182,16 +182,16 @@ func (r *Resolver) findResolutionCurrency(ctx context.Context, res *resolution) 
 		res.decide(gen.ResolutionOutcomeRejected, "no listing of %s in %s", code, *res.row.Currency)
 		return nil
 	}
-	res.found = f
+	res.stored = f
 	return nil
 }
 
-// load reads the identifiers, listings and coverage of instruments.
-func load(ctx context.Context, q Queries, instruments []gen.Instrument) (map[uuid.UUID]*found, error) {
-	out := make(map[uuid.UUID]*found, len(instruments))
+// loadInstruments reads the identifiers, listings and coverage of instruments.
+func loadInstruments(ctx context.Context, q Queries, instruments []gen.Instrument) (map[uuid.UUID]*stored, error) {
+	out := make(map[uuid.UUID]*stored, len(instruments))
 	ids := make([]uuid.UUID, len(instruments))
 	for i, inst := range instruments {
-		out[inst.ID] = &found{instrument: inst, coverage: map[string]bool{}}
+		out[inst.ID] = &stored{instrument: inst, coverage: map[string]bool{}}
 		ids[i] = inst.ID
 	}
 	if len(ids) == 0 {
@@ -224,7 +224,7 @@ func load(ctx context.Context, q Queries, instruments []gen.Instrument) (map[uui
 }
 
 // listing returns the listing of fam, nil where the instrument has none.
-func (f *found) listing(fam string) *gen.Listing {
+func (f *stored) listing(fam string) *gen.Listing {
 	for i := range f.listings {
 		if f.listings[i].Currency == fam {
 			return &f.listings[i]

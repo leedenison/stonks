@@ -19,7 +19,7 @@ import (
 func (r *Resolver) findResolutionArbitratedKey(ctx context.Context, run gen.Run, rs []*resolution) error {
 	var open []*resolution
 	for _, res := range rs {
-		if res.outcome == "" && res.found == nil {
+		if res.outcome == "" && res.stored == nil {
 			open = append(open, res)
 		}
 	}
@@ -99,5 +99,5 @@ func copyArbitratedAssociation(ctx context.Context, q Queries, run gen.Run, res 
 	if _, err := q.SetStatedKeyAssociation(ctx, arg); err != nil {
 		return gen.ResolutionKey{}, nil, fmt.Errorf("associate key: %w", err)
 	}
-	return record(ctx, q, run, res, gen.ResolutionOutcomeMatched, nil, res.findings, 0)
+	return recordResolution(ctx, q, run, res, gen.ResolutionOutcomeMatched, nil, res.findings, 0)
 }

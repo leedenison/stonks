@@ -33,7 +33,7 @@ func TestGlobalIDs(t *testing.T) {
 			if diff := cmp.Diff(tc.want, (&resolution{row: k}).trustedIDs()); diff != "" {
 				t.Errorf("trusted mismatch (-want +got):\n%s", diff)
 			}
-			if got := bare(k); got != tc.bare {
+			if got := statesBareTicker(k); got != tc.bare {
 				t.Errorf("bare = %v, want %v", got, tc.bare)
 			}
 		})

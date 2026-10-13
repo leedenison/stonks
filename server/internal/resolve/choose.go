@@ -13,22 +13,23 @@ import (
 	"github.com/leedenison/stonks/server/internal/ptr"
 )
 
-// result is what one datasource served for a key.
-type result = market.FetchKey[gen.StatedKey, market.IdentityResult]
+// fetchKey is one datasource asked about one stated key, and what it served.
+type fetchKey = market.FetchKey[gen.StatedKey, market.IdentityResult]
 
-// claim is an Instrument together with the result that made it. A
+// claim is an Instrument together with the fetch key that made it. A
 // response's claim gathers the candidates sharing an instrument grain
 // identifier, transitively, into one listing per currency family. The
 // database's claim is the instrument it names for the key.
 type claim struct {
-	// query is the result that made the claim, nil for the database's.
-	query *result
+	// fetchKey is the fetch key whose response made the claim, nil for the
+	// database's.
+	fetchKey *fetchKey
 	types.Instrument
 }
 
 // named reports whether the identifier sent identifies c.
 func (c *claim) named() bool {
-	return c.query != nil && c.query.SentID != nil && c.IdentifiedBy(*c.query.SentID)
+	return c.fetchKey != nil && c.fetchKey.SentID != nil && c.IdentifiedBy(*c.fetchKey.SentID)
 }
 
 // choice is the outcome of choosing among the claims of every response.
@@ -69,34 +70,34 @@ type agreement []*claim
 // confirmation writes as the winner.
 func (a agreement) head() *claim { return a[0] }
 
-// member returns the claim of a that r made, nil where it has none.
-func (a agreement) member(r *result) *claim {
+// member returns the claim of a that fk made, nil where it has none.
+func (a agreement) member(fk *fetchKey) *claim {
 	for _, c := range a {
-		if c.query == r {
+		if c.fetchKey == fk {
 			return c
 		}
 	}
 	return nil
 }
 
-// claims builds the claims of r in the order of their first candidates. The
-// candidates of r carry currency families, not currency codes. Every claim
+// claims builds the claims of fk in the order of their first candidates. The
+// candidates of fk carry currency families, not currency codes. Every claim
 // carries the instrument grain identifiers the call filtered on.
-func claims(r *result) []*claim {
+func claims(fk *fetchKey) []*claim {
 	var strict []types.Identifier
-	for _, id := range r.Response.Filtered {
+	for _, id := range fk.Response.Filtered {
 		if grain(id) == gen.IdentifierGrainInstrument {
 			strict = append(strict, id)
 		}
 	}
-	cs := r.Response.Candidates
+	cs := fk.Response.Candidates
 	roots := partition(cs, len(strict) > 0)
 	byRoot := map[int]*claim{}
 	var out []*claim
 	for i, cand := range cs {
 		c := byRoot[roots[i]]
 		if c == nil {
-			c = &claim{query: r, Instrument: types.Instrument{Listings: map[string]types.Listing{}}}
+			c = &claim{fetchKey: fk, Instrument: types.Instrument{Listings: map[string]types.Listing{}}}
 			c.Identifiers = append(c.Identifiers, strict...)
 			byRoot[roots[i]] = c
 			out = append(out, c)
@@ -226,10 +227,10 @@ func (c *claim) contradicts(id types.Identifier, fam string) (types.Identifier, 
 // from names where c came from: the database for the instrument the key
 // names, else the datasource that served it.
 func (c *claim) from() string {
-	if c.query == nil {
+	if c.fetchKey == nil {
 		return "database"
 	}
-	return c.query.Source
+	return c.fetchKey.Source
 }
 
 // strongest returns the identifier of c that names it most firmly, the
@@ -257,7 +258,7 @@ func (c *claim) label(detail string) string {
 // candidate, its strongest identifier where it has one, and its source.
 func (c *claim) ref() string {
 	what := "the instrument"
-	if c.query != nil {
+	if c.fetchKey != nil {
 		what = "the candidate"
 	}
 	if id, ok := c.strongest(); ok {
@@ -273,7 +274,7 @@ func (c *claim) against(res *resolution) (string, bool) {
 	if !ok {
 		return "", false
 	}
-	return fmt.Sprintf("%s (%s)", detail, c.query.Source), true
+	return fmt.Sprintf("%s (%s)", detail, c.fetchKey.Source), true
 }
 
 // contradicted returns why what res states contradicts c. A limited answer
@@ -281,7 +282,7 @@ func (c *claim) against(res *resolution) (string, bool) {
 // currency family.
 func (c *claim) contradicted(res *resolution) (string, bool) {
 	k, fam := res.row, res.fam
-	if listed := c.listed(); !c.query.Response.Limited && fam != noFamily && len(listed) > 0 && !slices.Contains(listed, fam) {
+	if listed := c.listed(); !c.fetchKey.Response.Limited && fam != noFamily && len(listed) > 0 && !slices.Contains(listed, fam) {
 		if _, unknown := c.Listings[noFamily]; !unknown {
 			return fmt.Sprintf("stated %s has no listing among %s", fam, strings.Join(listed, ", ")), true
 		}
@@ -377,8 +378,8 @@ func choose(res *resolution, db *claim, pick agreement) choice {
 		}
 	}
 	var offered []*claim
-	for _, r := range res.results {
-		if m := pick.member(r); m != nil {
+	for _, fk := range res.fetchKeys {
+		if m := pick.member(fk); m != nil {
 			if m == pick.head() {
 				continue
 			}
@@ -390,7 +391,7 @@ func choose(res *resolution, db *claim, pick agreement) choice {
 			chosen = append(chosen, m)
 			continue
 		}
-		best, more := ch.best(r, res, chosen)
+		best, more := ch.bestClaim(fk, res, chosen)
 		offered = append(offered, more...)
 		if best == nil || pick != nil {
 			continue
@@ -401,28 +402,28 @@ func choose(res *resolution, db *claim, pick agreement) choice {
 			ch.winner = best
 		}
 	}
-	ch.offered = gather(res, offered)
+	ch.offered = gatherAgreements(res, offered)
 	return ch
 }
 
-// finding returns a finding of kind against r's fetch key, with a step only
+// finding returns a finding of kind against fk's fetch key, with a step only
 // when the kind is dropped.
-func finding(r *result, kind gen.FindingKind, step gen.DropStep, detail string) gen.CreateFindingParams {
-	f := gen.CreateFindingParams{Kind: kind, FetchKeyID: ptr.To(r.ID), Detail: ptr.To(detail)}
+func finding(fk *fetchKey, kind gen.FindingKind, step gen.DropStep, detail string) gen.CreateFindingParams {
+	f := gen.CreateFindingParams{Kind: kind, FetchKeyID: ptr.To(fk.ID), Detail: ptr.To(detail)}
 	if kind == gen.FindingKindDropped {
 		f.Step = ptr.To(step)
 	}
 	return f
 }
 
-// dropped is a dropped finding against r's fetch key at step.
-func dropped(r *result, step gen.DropStep, detail string) gen.CreateFindingParams {
-	return finding(r, gen.FindingKindDropped, step, detail)
+// dropped is a dropped finding against fk's fetch key at step.
+func dropped(fk *fetchKey, step gen.DropStep, detail string) gen.CreateFindingParams {
+	return finding(fk, gen.FindingKindDropped, step, detail)
 }
 
-// alternatives is what one served result offers a key.
+// alternatives is what one served fetch key offers a key.
 type alternatives struct {
-	// count is the number of claims in the result, before any are dropped.
+	// count is the number of claims in the response, before any are dropped.
 	count int
 	// survivors name the identifier sent and agree with the statement.
 	survivors []*claim
@@ -440,22 +441,22 @@ type alternatives struct {
 	findings []gen.CreateFindingParams
 }
 
-// filterAlternatives sorts the claims of r into survivors, offers and findings
-// for res. Under a global identifier, a claim survives if it names that
-// identifier and agrees with the statement. If the provider filtered a venue
-// ticker bare and no claim names the venue, every claim that agrees with the
-// statement survives. Under a bare ticker no claim can name the identifier
+// filterAlternatives sorts the claims of fk into survivors, offered claims and
+// findings for res. Under a global identifier, a claim survives if it names
+// that identifier and agrees with the statement. If the provider filtered a
+// venue ticker bare and no claim names the venue, every claim that agrees with
+// the statement survives. Under a bare ticker no claim can name the identifier
 // sent, so the claims that agree with the statement are offered instead. A
 // confirmation, which picked reports, replaces the naming check for a bare
 // ticker, so every claim that agrees with the statement survives.
-func filterAlternatives(r *result, res *resolution, picked bool) alternatives {
-	sent := *r.SentID
-	gs := claims(r)
+func filterAlternatives(fk *fetchKey, res *resolution, picked bool) alternatives {
+	sent := *fk.SentID
+	gs := claims(fk)
 	alts := alternatives{count: len(gs)}
 	global := mirror.IsGlobal(sent)
 	named := slices.ContainsFunc(gs, (*claim).named)
 	ticker := types.Identifier{Type: types.IdentifierTypeMicTicker, Value: sent.Value}
-	alts.fallback = global && !named && sent.Type == types.IdentifierTypeMicTicker && slices.Contains(r.Response.Filtered, ticker)
+	alts.fallback = global && !named && sent.Type == types.IdentifierTypeMicTicker && slices.Contains(fk.Response.Filtered, ticker)
 	for _, c := range gs {
 		switch {
 		case !global && !picked:
@@ -469,7 +470,7 @@ func filterAlternatives(r *result, res *resolution, picked bool) alternatives {
 			continue
 		}
 		if detail, bad := c.against(res); bad {
-			alts.findings = append(alts.findings, dropped(r, gen.DropStepStated, c.label(detail)))
+			alts.findings = append(alts.findings, dropped(fk, gen.DropStepStated, c.label(detail)))
 			continue
 		}
 		alts.survivors = append(alts.survivors, c)
@@ -485,14 +486,14 @@ func (c *claim) rejects(chosen []*claim) (gen.CreateFindingParams, bool) {
 	for _, o := range chosen {
 		if detail, ok := c.inconsistent(o); ok {
 			kind := gen.FindingKindDropped
-			if o.query == nil {
+			if o.fetchKey == nil {
 				kind = gen.FindingKindContradiction
 			}
-			return finding(c.query, kind, gen.DropStepPrecedence, c.label(detail)), true
+			return finding(c.fetchKey, kind, gen.DropStepPrecedence, c.label(detail)), true
 		}
 	}
 	if len(chosen) > 0 && !c.corroborates(chosen[0]) {
-		return dropped(c.query, gen.DropStepCorroboration, c.label("shares no stable identifier with "+chosen[0].ref())), true
+		return dropped(c.fetchKey, gen.DropStepCorroboration, c.label("shares no stable identifier with "+chosen[0].ref())), true
 	}
 	return gen.CreateFindingParams{}, false
 }
@@ -513,19 +514,19 @@ func rank(res *resolution) func(a, b *claim) int {
 	}
 }
 
-// best returns the best surviving claim of r for res, nil where none
-// survives, and the claims r offers the user. chosen holds the claims
-// already chosen for the datasources above r, the winner first. Under
-// fallback with nothing chosen above r, several survivors are offered rather
+// bestClaim returns the best surviving claim of fk for res, nil where none
+// survives, and the claims fk offers the user. chosen holds the claims
+// already chosen for the datasources above fk, the winner first. Under
+// fallback with nothing chosen above fk, several survivors are offered rather
 // than chosen among.
-func (ch *choice) best(r *result, res *resolution, chosen []*claim) (*claim, []*claim) {
-	if r.SentID == nil {
+func (ch *choice) bestClaim(fk *fetchKey, res *resolution, chosen []*claim) (*claim, []*claim) {
+	if fk.SentID == nil {
 		return nil, nil
 	}
-	alts := filterAlternatives(r, res, ch.picked)
-	ch.counts[r.Source] = alts.count
+	alts := filterAlternatives(fk, res, ch.picked)
+	ch.counts[fk.Source] = alts.count
 	if alts.notNaming > 0 {
-		ch.notNaming[r.Source] += alts.notNaming
+		ch.notNaming[fk.Source] += alts.notNaming
 	}
 	ch.findings = append(ch.findings, alts.findings...)
 	offered := alts.offered
@@ -546,16 +547,16 @@ func (ch *choice) best(r *result, res *resolution, chosen []*claim) (*claim, []*
 	return survivors[0], offered
 }
 
-// gather returns the agreements among claims, which arrive in precedence
-// order and then each datasource's order. Each agreement formed so far takes
-// its member from the next datasource. A claim that joins no agreement heads
-// a new one. Agreement between claims is not transitive, so precedence
-// settles which claims an agreement holds, as it does in a run.
-func gather(res *resolution, cs []*claim) []agreement {
+// gatherAgreements returns the agreements among claims, which arrive in
+// precedence order and then each datasource's order. Each agreement formed so
+// far takes its member from the next datasource. A claim that joins no
+// agreement heads a new one. Agreement between claims is not transitive, so
+// precedence settles which claims an agreement holds, as it does in a run.
+func gatherAgreements(res *resolution, cs []*claim) []agreement {
 	var out []agreement
 	for len(cs) > 0 {
 		n := 1
-		for n < len(cs) && cs[n].query == cs[0].query {
+		for n < len(cs) && cs[n].fetchKey == cs[0].fetchKey {
 			n++
 		}
 		group := cs[:n]

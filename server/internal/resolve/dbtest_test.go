@@ -86,7 +86,7 @@ type serial struct {
 	mu sync.Mutex
 }
 
-func (s *serial) Identity(ctx context.Context, parent gen.Run, e *market.Entry, keys []gen.StatedKey) ([]result, error) {
+func (s *serial) Identity(ctx context.Context, parent gen.Run, e *market.Entry, keys []gen.StatedKey) ([]fetchKey, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.Fetcher.Identity(ctx, parent, e, keys)

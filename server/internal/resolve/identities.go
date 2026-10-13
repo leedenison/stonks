@@ -12,7 +12,7 @@ import (
 // fetchResolutionIdentities fetches the identity of every undecided key, with
 // one concurrent fetch per datasource. A key that takes an arbitrated key's
 // association is not sent. A datasource that already covers the instrument
-// the lookup found is not asked. Each key takes its results in precedence
+// the lookup found is not asked. Each key takes its fetch keys in precedence
 // order, and whether a datasource serves a key is the datasource's to say. It
 // replaces the currency of every candidate it returns with the currency's
 // family.
@@ -24,12 +24,12 @@ func (r *Resolver) fetchResolutionIdentities(ctx context.Context, run gen.Run, r
 			continue
 		}
 		for i, e := range entries {
-			if res.found == nil || !res.found.covered(e.Name) {
+			if res.stored == nil || !res.stored.covered(e.Name) {
 				batches[i] = append(batches[i], res)
 			}
 		}
 	}
-	results := make([][]result, len(entries))
+	fetchKeys := make([][]fetchKey, len(entries))
 	g, gctx := errgroup.WithContext(ctx)
 	for i, e := range entries {
 		if len(batches[i]) == 0 {
@@ -40,27 +40,27 @@ func (r *Resolver) fetchResolutionIdentities(ctx context.Context, run gen.Run, r
 			reqs[j] = res.row
 		}
 		g.Go(func() error {
-			rs, err := r.fetcher.Identity(gctx, run, e, reqs)
+			fks, err := r.fetcher.Identity(gctx, run, e, reqs)
 			if err != nil {
 				return fmt.Errorf("fetch from %s: %w", e.Name, err)
 			}
-			results[i] = rs
+			fetchKeys[i] = fks
 			return nil
 		})
 	}
 	if err := g.Wait(); err != nil {
 		return err
 	}
-	for _, rs := range results {
-		for j := range rs {
-			for k, c := range rs[j].Response.Candidates {
-				rs[j].Response.Candidates[k].Currency = cur[c.Currency]
+	for _, fks := range fetchKeys {
+		for j := range fks {
+			for k, c := range fks[j].Response.Candidates {
+				fks[j].Response.Candidates[k].Currency = cur[c.Currency]
 			}
 		}
 	}
 	for i := range entries {
 		for j, res := range batches[i] {
-			res.results = append(res.results, &results[i][j])
+			res.fetchKeys = append(res.fetchKeys, &fetchKeys[i][j])
 		}
 	}
 	return nil
