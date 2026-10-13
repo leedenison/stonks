@@ -1,5 +1,4 @@
-// Package config is the service's whole environment surface.
-// Nothing outside this package reads the environment.
+// Package config is the only place where the service reads its environment.
 package config
 
 import (

@@ -15,7 +15,7 @@ import (
 
 // Runner records each run over Q and executes its work before returning.
 type Runner struct {
-	Q *gen.Queries
+	Q run.Store
 }
 
 // Start runs work to completion before it returns. An error from the prepare
@@ -42,7 +42,8 @@ func (r Runner) Child(ctx context.Context, parent gen.Run, kind gen.RunKind, wor
 	return row, r.execute(ctx, row, work)
 }
 
-// Sync runs work to completion before it returns, as a run user started.
+// Sync runs work to completion, as a run of user with trigger, before it
+// returns.
 func (r Runner) Sync(ctx context.Context, user uuid.UUID, kind gen.RunKind, trigger gen.RunTrigger, work run.Work) (gen.Run, error) {
 	row, err := r.Q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: user, Kind: kind, Trigger: trigger})
 	if err != nil {

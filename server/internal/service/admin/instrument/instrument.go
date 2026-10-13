@@ -14,16 +14,13 @@ import (
 	admininstrumentv1 "github.com/leedenison/stonks/proto/admin/instrument/v1"
 	"github.com/leedenison/stonks/proto/admin/instrument/v1/admininstrumentv1connect"
 	typev1 "github.com/leedenison/stonks/proto/type/v1"
+	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/to"
 	"github.com/leedenison/stonks/server/internal/db/types"
 	"github.com/leedenison/stonks/server/internal/ptr"
 	"github.com/leedenison/stonks/server/internal/service/admin/page"
 )
-
-// likeEscape escapes the characters LIKE treats as patterns, so a query
-// matches them as text.
-var likeEscape = strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
 
 // Queries is this package's view of the generated queries.
 type Queries interface {
@@ -62,7 +59,7 @@ func (s *Server) ListInstruments(ctx context.Context, req *connect.Request[admin
 	p := page.New(m.GetPageSize())
 	arg := gen.ListInstrumentsParams{AfterID: afterID, AfterName: afterName, Lim: p.Lim()}
 	if q := m.GetQuery(); q != "" {
-		arg.Q = ptr.To(likeEscape.Replace(q))
+		arg.Q = ptr.To(db.LikeEscape(q))
 	}
 	if m.AssetClass != nil {
 		class, ok := types.FromProto[gen.AssetClass](m.GetAssetClass())
@@ -163,7 +160,7 @@ func (s *Server) instruments(ctx context.Context, rows []gen.ListInstrumentsRow)
 		msg := to.Identifier(i).ToProto()
 		if via[i.ID] {
 			in := instruments[i.InstrumentID]
-			in.Via = append(in.Via, to.Identifier(i).ToProto())
+			in.Via = append(in.Via, msg)
 		}
 		if i.ListingID != nil {
 			l := byListing[*i.ListingID]

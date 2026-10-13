@@ -24,6 +24,8 @@ type Signer interface {
 	SignOut(ctx context.Context, sessionID string) error
 }
 
+var _ Signer = (*auth.Authenticator)(nil)
+
 //go:generate go tool mockgen -source=auth.go -destination=mock/auth_mock.go -package=mock
 
 // Server implements AuthService.
