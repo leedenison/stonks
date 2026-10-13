@@ -12,8 +12,8 @@ import (
 	statementv1 "github.com/leedenison/stonks/proto/statement/v1"
 	typev1 "github.com/leedenison/stonks/proto/type/v1"
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/db/mirror"
 	"github.com/leedenison/stonks/server/internal/db/types"
-	"github.com/leedenison/stonks/server/internal/market"
 )
 
 // parseDate reads an ISO 8601 date as midnight UTC.
@@ -133,7 +133,7 @@ func keyOf(sk *typev1.StatedKey, broker gen.Broker) (*key, error) {
 			continue
 		}
 		for _, held := range k.identifiers {
-			if held.Type == t && held.Domain == id.Domain && market.Trait(t).Exclusive {
+			if held.Type == t && held.Domain == id.Domain && mirror.Trait(t).Exclusive {
 				return nil, fmt.Errorf("two %s identifiers, %s and %s", t, held.Value, id.Value)
 			}
 		}

@@ -9,6 +9,7 @@ import (
 	"golang.org/x/time/rate"
 
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/db/mirror"
 	"github.com/leedenison/stonks/server/internal/db/types"
 	"github.com/leedenison/stonks/server/internal/market"
 )
@@ -50,7 +51,7 @@ func (s *Identity) Endpoint() string { return "https://scripted.test" }
 // as the OpenFIGI integration does.
 func (s *Identity) Serves(k gen.StatedKey) (types.Identifier, error) {
 	for _, id := range k.Identifiers {
-		if market.IsGUID(id) || id.Type == types.IdentifierTypeMicTicker {
+		if mirror.IsGUID(id) || id.Type == types.IdentifierTypeMicTicker {
 			return id, nil
 		}
 	}

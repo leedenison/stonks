@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/db/mirror"
 	"github.com/leedenison/stonks/server/internal/db/types"
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/ptr"
@@ -325,7 +326,7 @@ func (g *idSet) contradicted(res *resolution) (string, bool) {
 			return fmt.Sprintf("stated %s has no listing among %s", fam, strings.Join(listed, ", ")), true
 		}
 	}
-	if k.AssetClass != nil && disjoint(g.class, *k.AssetClass) {
+	if k.AssetClass != nil && mirror.Disjoint(g.class, *k.AssetClass) {
 		return fmt.Sprintf("stated %s contradicts the class %s", *k.AssetClass, g.class), true
 	}
 	for _, id := range k.Identifiers {
@@ -339,7 +340,7 @@ func (g *idSet) contradicted(res *resolution) (string, bool) {
 // inconsistent returns why g contradicts a, a set of identifiers chosen above
 // it, if it does. The detail closes with a's source.
 func (g *idSet) inconsistent(a *idSet) (string, bool) {
-	if disjoint(g.class, a.class) {
+	if mirror.Disjoint(g.class, a.class) {
 		return fmt.Sprintf("class %s contradicts the class %s (%s)", g.class, a.class, a.from()), true
 	}
 	for _, id := range a.instrument {
@@ -490,7 +491,7 @@ func filterAlternatives(r *result, res *resolution, picked bool) alternatives {
 	sent := *r.Sent
 	gs := idSets(r)
 	alts := alternatives{setCount: len(gs)}
-	guid := market.IsGUID(sent)
+	guid := mirror.IsGUID(sent)
 	named := slices.ContainsFunc(gs, func(g *idSet) bool { return g.named })
 	ticker := types.Identifier{Type: types.IdentifierTypeMicTicker, Value: sent.Value}
 	alts.fallback = guid && !named && sent.Type == types.IdentifierTypeMicTicker && slices.Contains(r.Response.Filtered, ticker)

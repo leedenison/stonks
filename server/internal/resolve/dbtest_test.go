@@ -33,23 +33,6 @@ var pool *pgxpool.Pool
 
 func TestMain(m *testing.M) { dbtest.Main(m, &pool) }
 
-// TestTree holds the class tree equal to the asset_class_tree table.
-func TestTree(t *testing.T) {
-	rows, err := gen.New(pool).ListAssetClassTree(context.Background())
-	require.NoError(t, err)
-	got := map[gen.AssetClass]gen.AssetClass{}
-	for _, r := range rows {
-		var parent gen.AssetClass
-		if r.Parent != nil {
-			parent = *r.Parent
-		}
-		got[r.Class] = parent
-	}
-	if diff := cmp.Diff(parents, got); diff != "" {
-		t.Errorf("asset class tree mismatch (-code +table):\n%s", diff)
-	}
-}
-
 // stack is a resolver over a rolled-back transaction. It scripts two
 // datasources: alpha, which is enabled, and beta, which a test enables with
 // enableBeta.

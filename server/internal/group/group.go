@@ -1,6 +1,6 @@
 // Package group gathers a user's unresolved keys into the holdings that sum
-// them. Where two keys a transaction names share an identifier, they are one
-// holding, transitively, named by the earliest key.
+// them. Where two keys a transaction names share a joining identifier, they
+// are one holding, transitively, named by the earliest key.
 package group
 
 import (
@@ -11,8 +11,8 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/db/mirror"
 	"github.com/leedenison/stonks/server/internal/db/types"
-	"github.com/leedenison/stonks/server/internal/market"
 )
 
 // Queries is this package's view of the generated queries.
@@ -56,17 +56,10 @@ func union(parent map[uuid.UUID]uuid.UUID, a, b uuid.UUID) {
 	parent[rb] = ra
 }
 
-// Joining reports whether id joins the keys that state it. An identifier of
-// a type read with a domain names nothing when its domain is empty, so a
-// bare ticker joins nothing.
-func Joining(id types.Identifier) bool {
-	return market.Trait(id.Type).Domain == gen.IdentifierDomainGlobal || id.Domain != ""
-}
-
-// Of partitions keys into groups and returns the group of each: the id
-// of the earliest key sharing an identifier with it, however many keys the
-// chain runs through.
-func Of(keys []gen.StatedKey) map[uuid.UUID]uuid.UUID {
+// of partitions keys into groups and returns the group of each: the id
+// of the earliest key that shares a joining identifier with it, however long
+// the chain.
+func of(keys []gen.StatedKey) map[uuid.UUID]uuid.UUID {
 	parent := make(map[uuid.UUID]uuid.UUID, len(keys))
 	for _, k := range keys {
 		parent[k.ID] = k.ID
@@ -75,7 +68,7 @@ func Of(keys []gen.StatedKey) map[uuid.UUID]uuid.UUID {
 	first := map[types.Identifier]uuid.UUID{}
 	for _, k := range keys {
 		for _, i := range k.Identifiers {
-			if Joining(i) {
+			if mirror.Joining(i) {
 				join(first, parent, i, k.ID)
 			}
 		}
@@ -101,11 +94,11 @@ func Regroup(ctx context.Context, q Queries, user uuid.UUID) error {
 	if len(keys) == 0 {
 		return nil
 	}
-	of := Of(keys)
-	ids, group := make([]uuid.UUID, 0, len(of)), make([]uuid.UUID, 0, len(of))
+	groups := of(keys)
+	ids, group := make([]uuid.UUID, 0, len(groups)), make([]uuid.UUID, 0, len(groups))
 	for _, k := range keys {
 		ids = append(ids, k.ID)
-		group = append(group, of[k.ID])
+		group = append(group, groups[k.ID])
 	}
 	if err := q.SetStatedKeyGroups(ctx, gen.SetStatedKeyGroupsParams{UserID: user, Ids: ids, GroupIds: group}); err != nil {
 		return fmt.Errorf("set groups: %w", err)

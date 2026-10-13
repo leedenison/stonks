@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/db/mirror"
 	"github.com/leedenison/stonks/server/internal/db/types"
-	keygroup "github.com/leedenison/stonks/server/internal/group"
 	"github.com/leedenison/stonks/server/internal/ptr"
 )
 
@@ -36,7 +36,7 @@ func (r *Resolver) inherit(ctx context.Context, run gen.Run, rs []*resolution) e
 	for i := range arbitrated {
 		k := &arbitrated[i]
 		for _, id := range k.Identifiers {
-			if keygroup.Joining(id) {
+			if mirror.Joining(id) {
 				byID[id] = append(byID[id], k)
 			}
 		}
@@ -70,7 +70,7 @@ func (r *Resolver) inherit(ctx context.Context, run gen.Run, rs []*resolution) e
 func shared(k, arbitrated gen.StatedKey) string {
 	for _, id := range k.Identifiers {
 		for _, other := range arbitrated.Identifiers {
-			if id == other && keygroup.Joining(id) {
+			if id == other && mirror.Joining(id) {
 				return name(id)
 			}
 		}

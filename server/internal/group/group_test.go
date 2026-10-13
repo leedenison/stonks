@@ -133,7 +133,7 @@ func TestOf(t *testing.T) {
 			for k, v := range tc.want {
 				want[id(k)] = id(v)
 			}
-			if diff := cmp.Diff(want, Of(tc.keys)); diff != "" {
+			if diff := cmp.Diff(want, of(tc.keys)); diff != "" {
 				t.Errorf("Of mismatch (-want +got):\n%s", diff)
 			}
 		})
