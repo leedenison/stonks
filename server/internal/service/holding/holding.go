@@ -95,7 +95,7 @@ func (s *Server) instruments(ctx context.Context, user uuid.UUID, keys []gen.Lis
 	}
 	listed := make(map[uuid.UUID][]*holdingv1.HoldingListing, len(rows))
 	for _, l := range listings {
-		listed[l.InstrumentID] = append(listed[l.InstrumentID], listing(l))
+		listed[l.InstrumentID] = append(listed[l.InstrumentID], to.ProtoHoldingListing(l))
 	}
 	names, err := s.reader.ListInstrumentNames(ctx, ids)
 	if err != nil {
@@ -103,12 +103,12 @@ func (s *Server) instruments(ctx context.Context, user uuid.UUID, keys []gen.Lis
 	}
 	nameOf := make(map[uuid.UUID]*typev1.Identifier, len(names))
 	for _, n := range names {
-		nameOf[n.InstrumentID] = types.Identifier{Type: n.Type, Domain: n.Domain, Value: n.Value}.ToProto()
+		nameOf[n.InstrumentID] = to.InstrumentName(n).ToProto()
 	}
 	held := map[uuid.UUID][]*holdingv1.HoldingKey{}
 	for _, k := range keys {
 		if k.StatedKey.InstrumentID != nil {
-			held[*k.StatedKey.InstrumentID] = append(held[*k.StatedKey.InstrumentID], key(k))
+			held[*k.StatedKey.InstrumentID] = append(held[*k.StatedKey.InstrumentID], to.ProtoHoldingKey(k))
 		}
 	}
 	out := make([]*holdingv1.InstrumentHolding, 0, len(rows))
@@ -124,24 +124,6 @@ func (s *Server) instruments(ctx context.Context, user uuid.UUID, keys []gen.Lis
 		})
 	}
 	return out, nil
-}
-
-// listing writes l as a named listing.
-func listing(l gen.ListListingNamesRow) *holdingv1.HoldingListing {
-	out := &holdingv1.HoldingListing{Id: l.ListingID.String(), Currency: l.Currency, Venue: l.Venue}
-	if l.TickerDomain != nil && l.TickerValue != nil {
-		out.Ticker = types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: *l.TickerDomain, Value: *l.TickerValue}.ToProto()
-	}
-	return out
-}
-
-// key writes k as a key of a holding.
-func key(k gen.ListHoldingKeysRow) *holdingv1.HoldingKey {
-	out := &holdingv1.HoldingKey{StatedKey: to.ProtoStatedKey(k.StatedKey), Quantity: k.Quantity.String()}
-	if k.StatedKey.ListingID != nil {
-		out.ListingId = k.StatedKey.ListingID.String()
-	}
-	return out
 }
 
 // groups answers the user's holdings of unresolved groups, each with the
@@ -162,7 +144,7 @@ func (s *Server) groups(ctx context.Context, user uuid.UUID, keys []gen.ListHold
 			stated[*k.StatedKey.GroupID] = st
 		}
 		st.fold(k.StatedKey)
-		st.h.Keys = append(st.h.Keys, key(k))
+		st.h.Keys = append(st.h.Keys, to.ProtoHoldingKey(k))
 	}
 	out := make([]*holdingv1.GroupHolding, 0, len(rows))
 	for _, r := range rows {
