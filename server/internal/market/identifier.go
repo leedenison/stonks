@@ -12,10 +12,10 @@ import (
 	"github.com/leedenison/stonks/server/internal/mic"
 )
 
-// Bare returns the ticker bare to send for key, or an error when key
+// sendBare returns the ticker bare to send for key, or an error when key
 // states a GUID. A provider given only the ticker answers for whichever
 // instrument matches it, which need not be the one the GUID names.
-func Bare(key gen.StatedKey, bare types.Identifier) (types.Identifier, error) {
+func sendBare(key gen.StatedKey, bare types.Identifier) (types.Identifier, error) {
 	for _, id := range key.Identifiers {
 		if mirror.IsGUID(id) {
 			return types.Identifier{}, fmt.Errorf("ticker '%s' without a venue declined: the key states %s '%s'", bare.Value, id.Type, id.Value)
@@ -45,17 +45,6 @@ func WithClassSep(ticker string, sep rune) (string, bool) {
 	return out, true
 }
 
-// OpenFIGIVenue returns the operating MIC an OpenFIGI exchange code names. It
-// reports false for a code spanning several venues, such as a country's
-// composite, and for a MIC that mics does not list.
-func OpenFIGIVenue(code string, mics mic.Table) (string, bool) {
-	m := openfigiCodes[code]
-	if len(m) != 1 {
-		return "", false
-	}
-	return mics.Operating(m[0])
-}
-
 // Equities is the set of stated classes a provider of listed equities
 // answers: the classes it converts and the classes above them.
 var Equities = map[gen.AssetClass]bool{
@@ -81,11 +70,12 @@ type Preference struct {
 }
 
 // Serves returns the identifier of key to send, or why none is sent. A
-// ticker without its venue is sent last, through Bare. An integration that
-// lists some venues declines a key that states a ticker at a venue outside
-// them, whatever else the key states, since it would answer with listings
-// elsewhere. One that lists every venue skips a ticker whose venue is not a
-// MIC, and declines the key only when nothing is left.
+// ticker without its venue is sent last, and only for a key without a
+// GUID. An integration that lists some venues declines a key that states a
+// ticker at a venue outside them, whatever else the key states, since it
+// would answer with listings elsewhere. One that lists every venue skips a
+// ticker whose venue is not a MIC, and declines the key only when nothing is
+// left.
 func (p Preference) Serves(key gen.StatedKey) (types.Identifier, error) {
 	if key.AssetClass != nil && p.Served != nil && !p.Served[*key.AssetClass] {
 		return types.Identifier{}, fmt.Errorf("asset class '%s' rejected", *key.AssetClass)
@@ -121,7 +111,7 @@ func (p Preference) Serves(key gen.StatedKey) (types.Identifier, error) {
 		}
 	}
 	if bare != nil && slices.Contains(p.Order, types.IdentifierTypeMicTicker) {
-		return Bare(key, *bare)
+		return sendBare(key, *bare)
 	}
 	if unknown != nil {
 		return types.Identifier{}, unknown

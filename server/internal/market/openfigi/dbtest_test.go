@@ -1,6 +1,6 @@
 //go:build dbtest
 
-package market
+package openfigi
 
 import (
 	"context"
@@ -22,7 +22,7 @@ func TestOpenFIGICodesAreMICs(t *testing.T) {
 	tbl, err := mic.Load(ctx, gen.New(pool))
 	require.NoError(t, err)
 
-	for code, ms := range openfigiCodes {
+	for code, ms := range codes {
 		for _, m := range ms {
 			if op, ok := tbl.Operating(m); !ok || op != m {
 				t.Errorf("code %s names %s, want an operating MIC of the reference table, got %q, %v", code, m, op, ok)

@@ -53,8 +53,8 @@ type Identity interface {
 	Server[gen.StatedKey, IdentityResult]
 }
 
-// IdentityKind is the identity of the instruments stated keys name.
-var IdentityKind = Kind[gen.StatedKey, IdentityResult]{
+// identityKind is the identity of the instruments stated keys name.
+var identityKind = Kind[gen.StatedKey, IdentityResult]{
 	name: gen.FetchKindIdentity,
 	server: func(e *Entry) Server[gen.StatedKey, IdentityResult] {
 		s, _ := e.Integration.(Identity)
@@ -66,5 +66,5 @@ var IdentityKind = Kind[gen.StatedKey, IdentityResult]{
 
 // Identity fetches the identity of keys from e, as a child run of parent.
 func (f *Fetcher) Identity(ctx context.Context, parent gen.Run, e *Entry, keys []gen.StatedKey) ([]Result[gen.StatedKey, IdentityResult], error) {
-	return Fetch(ctx, f, parent, e, IdentityKind, keys)
+	return fetch(ctx, f, parent, e, identityKind, keys)
 }

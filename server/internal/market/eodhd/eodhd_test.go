@@ -90,9 +90,12 @@ func TestClassify(t *testing.T) {
 // TestClassifyQuota checks that a spent daily quota pauses the datasource
 // until EODHD resets it.
 func TestClassifyQuota(t *testing.T) {
-	got := client(t).Classify(market.StatusError{Provider: "eodhd", Code: http.StatusPaymentRequired})
-	if !got.Temporary || got.Scope != gen.BlockScopeDatasource || got.RetryAfter <= 0 || got.RetryAfter > 24*time.Hour {
-		t.Errorf("Classify(402) = %+v, want temporary for the datasource, until midnight UTC", got)
+	c := client(t)
+	c.now = func() time.Time { return time.Date(2026, time.October, 8, 18, 0, 0, 0, time.UTC) }
+	got := c.Classify(market.StatusError{Provider: "eodhd", Code: http.StatusPaymentRequired})
+	want := market.Failure{Temporary: true, Scope: gen.BlockScopeDatasource, RetryAfter: 6 * time.Hour}
+	if got != want {
+		t.Errorf("Classify(402) = %+v, want %+v", got, want)
 	}
 }
 
