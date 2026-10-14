@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/db/join"
 	"github.com/leedenison/stonks/server/internal/db/to"
 	"github.com/leedenison/stonks/server/internal/ptr"
 	"github.com/leedenison/stonks/server/internal/types"
@@ -18,7 +19,7 @@ import (
 // hit is an instrument findInstrumentsByIdentifier found, with the
 // identifiers that matched it.
 type hit struct {
-	stored  *stored
+	stored  *join.InstrumentWithCoverage
 	matched []types.Identifier
 }
 
@@ -43,7 +44,7 @@ func merge(ctx context.Context, q Queries, res *resolution, fetchKeyID *uuid.UUI
 		return target{}, fmt.Errorf("defer constraints: %w", err)
 	}
 	present := map[string]bool{}
-	for _, l := range survivor.listings {
+	for _, l := range survivor.Listings {
 		present[l.Currency] = true
 	}
 	var findings []gen.CreateFindingParams
@@ -54,11 +55,11 @@ func merge(ctx context.Context, q Queries, res *resolution, fetchKeyID *uuid.UUI
 		}
 		findings = append(findings, finding)
 	}
-	loaded, err := loadInstruments(ctx, q, []gen.Instrument{survivor.instrument})
+	loaded, err := join.InstrumentsWithCoverage(ctx, q, []gen.Instrument{survivor.Row})
 	if err != nil {
 		return target{}, err
 	}
-	return target{stored: loaded[survivor.instrument.ID], findings: findings}, nil
+	return target{stored: loaded[survivor.Row.ID], findings: findings}, nil
 }
 
 // refuse targets the instrument of hits the strongest stated identifier of
@@ -75,7 +76,7 @@ func refuse(res *resolution, fetchKeyID *uuid.UUID, hits []hit, detail string) t
 	taken := map[types.Identifier]bool{}
 	for _, h := range hits {
 		if h.stored != pick.stored {
-			for _, id := range h.stored.identifiers {
+			for _, id := range h.stored.Identifiers {
 				taken[to.Identifier(id)] = true
 			}
 		}
@@ -89,13 +90,13 @@ func refuse(res *resolution, fetchKeyID *uuid.UUID, hits []hit, detail string) t
 // listing of the loser in a currency family the survivor lacks moves across
 // whole; one in a family the survivor has is relinked onto the survivor's
 // listing and deleted.
-func fold(ctx context.Context, q Queries, survivor *stored, matched []types.Identifier, h hit, present map[string]bool, fetchKeyID *uuid.UUID) (gen.CreateFindingParams, error) {
+func fold(ctx context.Context, q Queries, survivor *join.InstrumentWithCoverage, matched []types.Identifier, h hit, present map[string]bool, fetchKeyID *uuid.UUID) (gen.CreateFindingParams, error) {
 	loser := h.stored
-	for _, l := range loser.listings {
+	for _, l := range loser.Listings {
 		if present[l.Currency] {
 			continue
 		}
-		if err := q.MoveListing(ctx, gen.MoveListingParams{ID: l.ID, InstrumentID: survivor.instrument.ID}); err != nil {
+		if err := q.MoveListing(ctx, gen.MoveListingParams{ID: l.ID, InstrumentID: survivor.Row.ID}); err != nil {
 			return gen.CreateFindingParams{}, fmt.Errorf("move listing: %w", err)
 		}
 		present[l.Currency] = true
@@ -105,20 +106,20 @@ func fold(ctx context.Context, q Queries, survivor *stored, matched []types.Iden
 		run  func() error
 	}{
 		{"relink identifiers", func() error {
-			return q.RelinkIdentifiers(ctx, gen.RelinkIdentifiersParams{Survivor: survivor.instrument.ID, Loser: loser.instrument.ID})
+			return q.RelinkIdentifiers(ctx, gen.RelinkIdentifiersParams{Survivor: survivor.Row.ID, Loser: loser.Row.ID})
 		}},
 		{"relink stated keys", func() error {
-			return q.RelinkStatedKeys(ctx, gen.RelinkStatedKeysParams{Survivor: survivor.instrument.ID, Loser: loser.instrument.ID})
+			return q.RelinkStatedKeys(ctx, gen.RelinkStatedKeysParams{Survivor: survivor.Row.ID, Loser: loser.Row.ID})
 		}},
 		{"relink fetch keys", func() error {
-			return q.RelinkFetchKeys(ctx, gen.RelinkFetchKeysParams{Survivor: survivor.instrument.ID, Loser: loser.instrument.ID})
+			return q.RelinkFetchKeys(ctx, gen.RelinkFetchKeysParams{Survivor: survivor.Row.ID, Loser: loser.Row.ID})
 		}},
 		{"move coverage", func() error {
-			return q.MoveIdentityCoverage(ctx, gen.MoveIdentityCoverageParams{Survivor: survivor.instrument.ID, Loser: loser.instrument.ID})
+			return q.MoveIdentityCoverage(ctx, gen.MoveIdentityCoverageParams{Survivor: survivor.Row.ID, Loser: loser.Row.ID})
 		}},
-		{"delete coverage", func() error { return q.DeleteIdentityCoverage(ctx, loser.instrument.ID) }},
-		{"delete listings", func() error { return q.DeleteListings(ctx, loser.instrument.ID) }},
-		{"delete instrument", func() error { return q.DeleteInstrument(ctx, loser.instrument.ID) }},
+		{"delete coverage", func() error { return q.DeleteIdentityCoverage(ctx, loser.Row.ID) }},
+		{"delete listings", func() error { return q.DeleteListings(ctx, loser.Row.ID) }},
+		{"delete instrument", func() error { return q.DeleteInstrument(ctx, loser.Row.ID) }},
 	}
 	for _, s := range steps {
 		if err := s.run(); err != nil {
@@ -126,7 +127,7 @@ func fold(ctx context.Context, q Queries, survivor *stored, matched []types.Iden
 		}
 	}
 	detail := fmt.Sprintf("merged the instrument created %s into the instrument created %s; the response identified the first by %s and the second by %s",
-		stamp(loser.instrument.CreatedAt), stamp(survivor.instrument.CreatedAt), names(h.matched), names(matched))
+		stamp(loser.Row.CreatedAt), stamp(survivor.Row.CreatedAt), names(h.matched), names(matched))
 	return gen.CreateFindingParams{Kind: gen.FindingKindMerged, FetchKeyID: fetchKeyID, Detail: ptr.To(detail)}, nil
 }
 
@@ -158,10 +159,10 @@ func mergeConflict(hits []hit) (string, bool) {
 	first := map[key]seen{}
 	for _, h := range hits {
 		famOf := map[uuid.UUID]string{}
-		for _, l := range h.stored.listings {
+		for _, l := range h.stored.Listings {
 			famOf[l.ID] = l.Currency
 		}
-		for _, row := range h.stored.identifiers {
+		for _, row := range h.stored.Identifiers {
 			id := to.Identifier(row)
 			if !id.Exclusive() {
 				continue
@@ -180,8 +181,8 @@ func mergeConflict(hits []hit) (string, bool) {
 	}
 	for i, a := range hits {
 		for _, b := range hits[i+1:] {
-			if a.stored.instrument.AssetClass.Disjoint(b.stored.instrument.AssetClass) {
-				return fmt.Sprintf("class %s of instrument %s contradicts class %s of %s", a.stored.instrument.AssetClass, a.stored.instrument.ID, b.stored.instrument.AssetClass, b.stored.instrument.ID), true
+			if a.stored.Row.AssetClass.Disjoint(b.stored.Row.AssetClass) {
+				return fmt.Sprintf("class %s of instrument %s contradicts class %s of %s", a.stored.Row.AssetClass, a.stored.Row.ID, b.stored.Row.AssetClass, b.stored.Row.ID), true
 			}
 		}
 	}

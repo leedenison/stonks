@@ -11,6 +11,7 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/db/join"
 	"github.com/leedenison/stonks/server/internal/db/to"
 	runs "github.com/leedenison/stonks/server/internal/run"
 	"github.com/leedenison/stonks/server/internal/types"
@@ -70,10 +71,10 @@ func (r *Resolver) resolveKey(ctx context.Context, q Queries, run gen.Run, res *
 		return gen.ResolutionKey{}, nil, err
 	}
 	if t.stored != nil {
-		if reason, ok := classConflict(res.row, t.stored.instrument.AssetClass); ok {
+		if reason, ok := classConflict(res.row, t.stored.Row.AssetClass); ok {
 			return recordResolution(ctx, q, run, res, gen.ResolutionOutcomeUnrecognised, []string{reason}, t.findings, len(ch.offered))
 		}
-		ch = choose(res, t.stored.claim(), pick)
+		ch = choose(res, &claim{Instrument: t.stored.Instrument.Instrument()}, pick)
 		if ch.refused != "" {
 			return gen.ResolutionKey{}, nil, fmt.Errorf("%w: %s", ErrNoCandidate, ch.refused)
 		}
@@ -187,7 +188,7 @@ func identifiersToLock(res *resolution) []types.Identifier {
 // target is where a key's write lands.
 type target struct {
 	// stored is nil where the write creates an instrument.
-	stored *stored
+	stored *join.InstrumentWithCoverage
 	// taken is the identifiers of the instruments the write leaves apart
 	// from stored.
 	taken    map[types.Identifier]bool
@@ -282,7 +283,7 @@ func findInstrumentsByIdentifier(ctx context.Context, q Queries, ids []types.Ide
 		}
 		matched[row.Instrument.ID] = append(matched[row.Instrument.ID], to.Identifier(row.Identifier))
 	}
-	loaded, err := loadInstruments(ctx, q, instruments)
+	loaded, err := join.InstrumentsWithCoverage(ctx, q, instruments)
 	if err != nil {
 		return nil, err
 	}
@@ -291,7 +292,7 @@ func findInstrumentsByIdentifier(ctx context.Context, q Queries, ids []types.Ide
 		hits[i] = hit{stored: loaded[inst.ID], matched: matched[inst.ID]}
 	}
 	slices.SortFunc(hits, func(a, b hit) int {
-		return a.stored.instrument.CreatedAt.Compare(b.stored.instrument.CreatedAt)
+		return a.stored.Row.CreatedAt.Compare(b.stored.Row.CreatedAt)
 	})
 	return hits, nil
 }
@@ -428,12 +429,12 @@ type writer struct {
 }
 
 // reuse takes f as the writer's instrument, with its rows.
-func (w *writer) reuse(f *stored) {
-	w.instrument = f.instrument
-	for _, id := range f.identifiers {
+func (w *writer) reuse(f *join.InstrumentWithCoverage) {
+	w.instrument = f.Row
+	for _, id := range f.Identifiers {
 		w.identifiers[to.Identifier(id)] = id
 	}
-	for _, l := range f.listings {
+	for _, l := range f.Listings {
 		w.listings[l.Currency] = l
 	}
 }

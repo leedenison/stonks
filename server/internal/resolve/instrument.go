@@ -6,11 +6,9 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/google/uuid"
-
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
-	"github.com/leedenison/stonks/server/internal/db/to"
+	"github.com/leedenison/stonks/server/internal/db/join"
 	"github.com/leedenison/stonks/server/internal/ptr"
 	"github.com/leedenison/stonks/server/internal/types"
 )
@@ -23,7 +21,7 @@ type resolution struct {
 	// fam is the family of the currency the key states.
 	fam    string
 	cur    currencies
-	stored *stored
+	stored *join.InstrumentWithCoverage
 	// arbitrated is the user-arbitrated key whose association this key
 	// copies, nil where no such key shares a joining identifier with it.
 	arbitrated *gen.StatedKey
@@ -31,26 +29,6 @@ type resolution struct {
 	findings   []gen.CreateFindingParams
 	outcome    gen.ResolutionOutcome
 	reason     string
-}
-
-// stored is the instrument the database holds for a key, with its rows.
-type stored struct {
-	instrument  gen.Instrument
-	identifiers []gen.Identifier
-	listings    []gen.Listing
-	coverage    map[string]bool
-}
-
-// covered reports whether datasource has answered for the instrument.
-// Reference data, the instruments with no provenance, is covered by every
-// datasource.
-func (f *stored) covered(datasource string) bool {
-	return f.instrument.FetchKeyID == nil || f.coverage[datasource]
-}
-
-// claim returns f as the database's claim.
-func (f *stored) claim() *claim {
-	return &claim{Instrument: to.Instrument(f.instrument, f.identifiers, f.listings)}
 }
 
 // trustedIDs returns every global identifier and every broker description the
@@ -104,7 +82,7 @@ func (r *Resolver) findResolutionInstrument(ctx context.Context, rs []*resolutio
 	if err != nil {
 		return err
 	}
-	byID := map[types.Identifier]*stored{}
+	byID := map[types.Identifier]*join.InstrumentWithCoverage{}
 	for _, h := range hits {
 		for _, id := range h.matched {
 			byID[id] = h.stored
@@ -130,9 +108,9 @@ func statesCurrency(k gen.StatedKey) bool {
 // match attaches to res the instrument byID names for it. It decides res
 // when its identifiers name different instruments, when the class
 // conflicts, or when the key names nothing a datasource could be asked.
-func (res *resolution) match(byID map[types.Identifier]*stored) {
+func (res *resolution) match(byID map[types.Identifier]*join.InstrumentWithCoverage) {
 	var first types.Identifier
-	var f *stored
+	var f *join.InstrumentWithCoverage
 	for _, id := range res.trusted {
 		hit, ok := byID[id]
 		switch {
@@ -140,7 +118,7 @@ func (res *resolution) match(byID map[types.Identifier]*stored) {
 			continue
 		case f == nil:
 			first, f = id, hit
-		case hit.instrument.ID != f.instrument.ID:
+		case hit.Row.ID != f.Row.ID:
 			detail := fmt.Sprintf("%s and %s name different instruments", first.Name(), id.Name())
 			res.findings = append(res.findings, gen.CreateFindingParams{Kind: gen.FindingKindContradiction, Detail: ptr.To(detail)})
 			res.decide(gen.ResolutionOutcomeUnrecognised, "%s", detail)
@@ -154,7 +132,7 @@ func (res *resolution) match(byID map[types.Identifier]*stored) {
 		return
 	}
 	res.stored = f
-	if reason, ok := classConflict(res.row, f.instrument.AssetClass); ok {
+	if reason, ok := classConflict(res.row, f.Row.AssetClass); ok {
 		res.decide(gen.ResolutionOutcomeUnrecognised, "%s", reason)
 	}
 }
@@ -191,62 +169,15 @@ func (r *Resolver) findResolutionCurrency(ctx context.Context, res *resolution) 
 		res.decide(gen.ResolutionOutcomeRejected, "%s", reason)
 		return nil
 	}
-	loaded, err := loadInstruments(ctx, r.store, []gen.Instrument{hit.Instrument})
+	loaded, err := join.InstrumentsWithCoverage(ctx, r.store, []gen.Instrument{hit.Instrument})
 	if err != nil {
 		return err
 	}
 	f := loaded[hit.Instrument.ID]
-	if res.fam != noFamily && f.listing(res.fam) == nil {
+	if res.fam != noFamily && f.Listing(res.fam) == nil {
 		res.decide(gen.ResolutionOutcomeRejected, "no listing of %s in %s", code, *res.row.Currency)
 		return nil
 	}
 	res.stored = f
-	return nil
-}
-
-// loadInstruments reads the identifiers, listings and coverage of instruments.
-func loadInstruments(ctx context.Context, q Queries, instruments []gen.Instrument) (map[uuid.UUID]*stored, error) {
-	out := make(map[uuid.UUID]*stored, len(instruments))
-	ids := make([]uuid.UUID, len(instruments))
-	for i, inst := range instruments {
-		out[inst.ID] = &stored{instrument: inst, coverage: map[string]bool{}}
-		ids[i] = inst.ID
-	}
-	if len(ids) == 0 {
-		return out, nil
-	}
-	identifiers, err := q.ListIdentifiersOf(ctx, ids)
-	if err != nil {
-		return nil, fmt.Errorf("list identifiers: %w", err)
-	}
-	for _, row := range identifiers {
-		f := out[row.InstrumentID]
-		f.identifiers = append(f.identifiers, row)
-	}
-	listings, err := q.ListListingsOf(ctx, ids)
-	if err != nil {
-		return nil, fmt.Errorf("list listings: %w", err)
-	}
-	for _, l := range listings {
-		f := out[l.InstrumentID]
-		f.listings = append(f.listings, l)
-	}
-	coverage, err := q.ListIdentityCoverage(ctx, ids)
-	if err != nil {
-		return nil, fmt.Errorf("list coverage: %w", err)
-	}
-	for _, c := range coverage {
-		out[c.InstrumentID].coverage[c.Datasource] = true
-	}
-	return out, nil
-}
-
-// listing returns the listing of fam, nil where the instrument has none.
-func (f *stored) listing(fam string) *gen.Listing {
-	for i := range f.listings {
-		if f.listings[i].Currency == fam {
-			return &f.listings[i]
-		}
-	}
 	return nil
 }
