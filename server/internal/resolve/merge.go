@@ -16,15 +16,15 @@ import (
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
-// hit is an instrument findInstrumentsByIdentifier found, with the
+// instrumentMatch is an instrument findInstrumentsByIdentifier found, with the
 // identifiers that matched it.
-type hit struct {
-	stored  *join.InstrumentWithCoverage
-	matched []types.Identifier
+type instrumentMatch struct {
+	instrument *join.InstrumentWithCoverage
+	matched    []types.Identifier
 }
 
-// merge folds every later created instrument of hits into the earliest,
-// which is returned reloaded, with a merged finding per instrument. hits is
+// merge folds every later created instrument of matches into the earliest,
+// which is returned reloaded, with a merged finding per instrument. matches is
 // sorted earliest created first. fetchKeyID names the fetch key whose
 // response brought the instruments together.
 //
@@ -35,54 +35,54 @@ type hit struct {
 // The merge relinks another user's keys without holding that user's key
 // lock. That user's concurrent write may therefore see an instrument the
 // merge has since folded.
-func merge(ctx context.Context, q Queries, res *resolution, fetchKeyID *uuid.UUID, hits []hit) (target, error) {
-	if detail, ok := mergeConflict(hits); ok {
-		return refuse(res, fetchKeyID, hits, detail), nil
+func merge(ctx context.Context, q Queries, res *resolution, fetchKeyID *uuid.UUID, matches []instrumentMatch) (writeTarget, error) {
+	if detail, ok := mergeConflict(matches); ok {
+		return refuse(res, fetchKeyID, matches, detail), nil
 	}
-	survivor := hits[0].stored
+	survivor := matches[0].instrument
 	if err := q.DeferConstraints(ctx); err != nil {
-		return target{}, fmt.Errorf("defer constraints: %w", err)
+		return writeTarget{}, fmt.Errorf("defer constraints: %w", err)
 	}
 	present := map[string]bool{}
 	for _, l := range survivor.Listings {
 		present[l.Currency] = true
 	}
 	var findings []gen.CreateFindingParams
-	for _, h := range hits[1:] {
-		finding, err := fold(ctx, q, survivor, hits[0].matched, h, present, fetchKeyID)
+	for _, h := range matches[1:] {
+		finding, err := fold(ctx, q, survivor, matches[0].matched, h, present, fetchKeyID)
 		if err != nil {
-			return target{}, err
+			return writeTarget{}, err
 		}
 		findings = append(findings, finding)
 	}
 	loaded, err := join.InstrumentsWithCoverage(ctx, q, []gen.Instrument{survivor.Row})
 	if err != nil {
-		return target{}, err
+		return writeTarget{}, err
 	}
-	return target{stored: loaded[survivor.Row.ID], findings: findings}, nil
+	return writeTarget{instrument: loaded[survivor.Row.ID], findings: findings}, nil
 }
 
-// refuse targets the instrument of hits the strongest stated identifier of
-// res identifies, the earliest where none does, leaving the others apart
-// with a contradiction finding carrying detail.
-func refuse(res *resolution, fetchKeyID *uuid.UUID, hits []hit, detail string) target {
-	pick := hits[0]
+// refuse keeps the instrument, among matches, that the strongest stated
+// identifier of res identifies, or the earliest where none does. It leaves
+// the others apart with a contradiction finding that carries detail.
+func refuse(res *resolution, fetchKeyID *uuid.UUID, matches []instrumentMatch, detail string) writeTarget {
+	kept := matches[0]
 	for _, id := range res.trusted {
-		if i := slices.IndexFunc(hits, func(h hit) bool { return slices.Contains(h.matched, id) }); i >= 0 {
-			pick = hits[i]
+		if i := slices.IndexFunc(matches, func(h instrumentMatch) bool { return slices.Contains(h.matched, id) }); i >= 0 {
+			kept = matches[i]
 			break
 		}
 	}
 	taken := map[types.Identifier]bool{}
-	for _, h := range hits {
-		if h.stored != pick.stored {
-			for _, id := range h.stored.Identifiers {
+	for _, h := range matches {
+		if h.instrument != kept.instrument {
+			for _, id := range h.instrument.Identifiers {
 				taken[to.Identifier(id)] = true
 			}
 		}
 	}
 	finding := gen.CreateFindingParams{Kind: gen.FindingKindContradiction, FetchKeyID: fetchKeyID, Detail: ptr.To(detail + "; not merged")}
-	return target{stored: pick.stored, taken: taken, findings: []gen.CreateFindingParams{finding}}
+	return writeTarget{instrument: kept.instrument, taken: taken, findings: []gen.CreateFindingParams{finding}}
 }
 
 // fold moves the loser h into survivor under deferred constraints and
@@ -90,8 +90,8 @@ func refuse(res *resolution, fetchKeyID *uuid.UUID, hits []hit, detail string) t
 // listing of the loser in a currency family the survivor lacks moves across
 // whole; one in a family the survivor has is relinked onto the survivor's
 // listing and deleted.
-func fold(ctx context.Context, q Queries, survivor *join.InstrumentWithCoverage, matched []types.Identifier, h hit, present map[string]bool, fetchKeyID *uuid.UUID) (gen.CreateFindingParams, error) {
-	loser := h.stored
+func fold(ctx context.Context, q Queries, survivor *join.InstrumentWithCoverage, matched []types.Identifier, h instrumentMatch, present map[string]bool, fetchKeyID *uuid.UUID) (gen.CreateFindingParams, error) {
+	loser := h.instrument
 	for _, l := range loser.Listings {
 		if present[l.Currency] {
 			continue
@@ -142,11 +142,11 @@ func names(ids []types.Identifier) string {
 	return strings.Join(out, ", ")
 }
 
-// mergeConflict returns why the instruments of hits cannot be one, if they
+// mergeConflict returns why the instruments of matches cannot be one, if they
 // cannot: two carry identifiers of one type and domain with different
 // values naming one subject, the instrument or a listing of one currency
 // family, or disjoint classes.
-func mergeConflict(hits []hit) (string, bool) {
+func mergeConflict(matches []instrumentMatch) (string, bool) {
 	type key struct {
 		typ    types.IdentifierType
 		domain string
@@ -157,12 +157,12 @@ func mergeConflict(hits []hit) (string, bool) {
 		instrument uuid.UUID
 	}
 	first := map[key]seen{}
-	for _, h := range hits {
+	for _, h := range matches {
 		famOf := map[uuid.UUID]string{}
-		for _, l := range h.stored.Listings {
+		for _, l := range h.instrument.Listings {
 			famOf[l.ID] = l.Currency
 		}
-		for _, row := range h.stored.Identifiers {
+		for _, row := range h.instrument.Identifiers {
 			id := to.Identifier(row)
 			if !id.Exclusive() {
 				continue
@@ -179,10 +179,10 @@ func mergeConflict(hits []hit) (string, bool) {
 			}
 		}
 	}
-	for i, a := range hits {
-		for _, b := range hits[i+1:] {
-			if a.stored.Row.AssetClass.Disjoint(b.stored.Row.AssetClass) {
-				return fmt.Sprintf("class %s of instrument %s contradicts class %s of %s", a.stored.Row.AssetClass, a.stored.Row.ID, b.stored.Row.AssetClass, b.stored.Row.ID), true
+	for i, a := range matches {
+		for _, b := range matches[i+1:] {
+			if a.instrument.Row.AssetClass.Disjoint(b.instrument.Row.AssetClass) {
+				return fmt.Sprintf("class %s of instrument %s contradicts class %s of %s", a.instrument.Row.AssetClass, a.instrument.Row.ID, b.instrument.Row.AssetClass, b.instrument.Row.ID), true
 			}
 		}
 	}

@@ -15,11 +15,12 @@ import (
 // fetchKey is one datasource asked about one stated key, and what it served.
 type fetchKey = market.FetchKey[gen.StatedKey, market.IdentityResult]
 
-// claim is an Instrument together with the fetch key that made it. A
-// response's claim gathers the candidates sharing an instrument grain
-// identifier, transitively, into one listing per currency family. The
-// database's claim is the instrument it names for the key.
-type claim struct {
+// identityClaim is one source's account of which instrument a stated key
+// names. In this package a claim is an identity claim. A response's claim
+// gathers the candidates sharing an instrument grain identifier,
+// transitively, into one listing per currency family. The database's claim
+// is the instrument it names for the key.
+type identityClaim struct {
 	// fetchKey is the fetch key whose response made the claim, nil for the
 	// database's.
 	fetchKey *fetchKey
@@ -27,50 +28,50 @@ type claim struct {
 }
 
 // named reports whether the identifier sent identifies c.
-func (c *claim) named() bool {
+func (c *identityClaim) named() bool {
 	return c.fetchKey != nil && c.fetchKey.SentID != nil && c.IdentifiedBy(*c.fetchKey.SentID)
 }
 
-// choice is the outcome of choosing among the claims of every response.
-type choice struct {
+// claimVerdict is what choose decides about the claims of every response.
+type claimVerdict struct {
 	// winner is nil where no claim survived.
-	winner *claim
-	// picked reports a confirmation, whose pick replaces the naming check
-	// for a key sent under a bare ticker or an issuer's identifier.
-	picked bool
-	// refused says why the pick of a confirmation fails a check, and is
-	// empty where there is no pick or it passes.
+	winner *identityClaim
+	// confirmed reports a confirmation, whose user choice replaces the naming
+	// check for a key sent under a bare ticker or an issuer's identifier.
+	confirmed bool
+	// refused says why the user choice of a confirmation fails a check, and
+	// is empty where there is no user choice or it passes.
 	refused string
 	// attached is the best claim of each datasource in precedence order, the
 	// winner among them where the database named no instrument.
-	attached []*claim
+	attached []*identityClaim
 	findings []gen.CreateFindingParams
 	// counts counts the claims of each datasource's response, and notNaming
 	// those dropped for not naming the identifier sent. The reason of a key
 	// no claim won summarises both.
 	counts    map[string]int
 	notNaming map[string]int
-	// offered holds the agreements from which the user may choose. They are
+	// offered holds the sets of consistent claims put to the user. They are
 	// gathered from the claims that the resolution dropped only because the
 	// key was sent under a bare ticker. Where the key was sent under a venue
 	// ticker that the provider filtered bare and no claim names the venue,
 	// they are gathered from the survivors.
-	offered []agreement
+	offered []consistentClaims
 }
 
-// agreement is a head claim and its members. For each datasource below the
-// head, the member is the best ranked claim that is consistent with every
-// member above it and shares a stable identifier with the head. That is the
-// claim a run would attach to the head as the winner. The claims are in
-// precedence order, and one claim may belong to several agreements.
-type agreement []*claim
+// consistentClaims is a head claim and its members. For each datasource
+// below the head, the member is the best ranked claim that is consistent
+// with every member above it and shares a stable identifier with the head.
+// That is the claim a run would attach to the head as the winner. The claims
+// are in precedence order, and one claim may belong to several sets.
+type consistentClaims []*identityClaim
 
 // head is the claim of the highest precedence datasource, which a
 // confirmation writes as the winner.
-func (a agreement) head() *claim { return a[0] }
+func (a consistentClaims) head() *identityClaim { return a[0] }
 
 // member returns the claim of a that fk made, nil where it has none.
-func (a agreement) member(fk *fetchKey) *claim {
+func (a consistentClaims) member(fk *fetchKey) *identityClaim {
 	for _, c := range a {
 		if c.fetchKey == fk {
 			return c
@@ -82,7 +83,7 @@ func (a agreement) member(fk *fetchKey) *claim {
 // claims builds the claims of fk in the order of their first candidates. The
 // candidates of fk carry currency families, not currency codes. Every claim
 // carries the instrument grain identifiers the call filtered on.
-func claims(fk *fetchKey) []*claim {
+func claims(fk *fetchKey) []*identityClaim {
 	var strict []types.Identifier
 	for _, id := range fk.Response.Filtered {
 		if id.Grain() == types.IdentifierGrainInstrument {
@@ -91,12 +92,12 @@ func claims(fk *fetchKey) []*claim {
 	}
 	cs := fk.Response.Candidates
 	roots := partition(cs, len(strict) > 0)
-	byRoot := map[int]*claim{}
-	var out []*claim
+	byRoot := map[int]*identityClaim{}
+	var out []*identityClaim
 	for i, cand := range cs {
 		c := byRoot[roots[i]]
 		if c == nil {
-			c = &claim{fetchKey: fk, Instrument: types.Instrument{Listings: map[string]types.Listing{}}}
+			c = &identityClaim{fetchKey: fk, Instrument: types.Instrument{Listings: map[string]types.Listing{}}}
 			c.Identifiers = append(c.Identifiers, strict...)
 			byRoot[roots[i]] = c
 			out = append(out, c)
@@ -153,7 +154,7 @@ func union(parent []int, a, b int) {
 // add folds cand into c as a candidate of the listing of fam. The first
 // candidate to state a class sets the claim's, and the first of the family
 // to state a primary venue sets the listing's.
-func (c *claim) add(cand market.Candidate, fam string) {
+func (c *identityClaim) add(cand market.Candidate, fam string) {
 	if c.Class == "" || c.Class == types.AssetClassUnknown {
 		c.Class = cand.Class
 	}
@@ -180,7 +181,7 @@ func appendUnique(ids []types.Identifier, id types.Identifier) []types.Identifie
 
 // listed returns the families where c has a listing, sorted, leaving out
 // the listing of no family.
-func (c *claim) listed() []string {
+func (c *identityClaim) listed() []string {
 	var out []string
 	for f := range c.Listings {
 		if f != noFamily {
@@ -196,7 +197,7 @@ func (c *claim) listed() []string {
 // id names are compared: the instrument's for an instrument grain id; for a
 // listing grain id, those of the listing in family fam and of the listing
 // of no family, or of every listing where fam is noFamily.
-func (c *claim) contradicts(id types.Identifier, fam string) (types.Identifier, bool) {
+func (c *identityClaim) contradicts(id types.Identifier, fam string) (types.Identifier, bool) {
 	if !id.Exclusive() {
 		return types.Identifier{}, false
 	}
@@ -225,7 +226,7 @@ func (c *claim) contradicts(id types.Identifier, fam string) (types.Identifier, 
 
 // from names where c came from: the database for the instrument the key
 // names, else the datasource that served it.
-func (c *claim) from() string {
+func (c *identityClaim) from() string {
 	if c.fetchKey == nil {
 		return "database"
 	}
@@ -234,7 +235,7 @@ func (c *claim) from() string {
 
 // strongest returns the identifier of c that names it most firmly, the
 // first of equal strength, and false where c carries none.
-func (c *claim) strongest() (types.Identifier, bool) {
+func (c *identityClaim) strongest() (types.Identifier, bool) {
 	var best types.Identifier
 	found := false
 	for id := range c.AllIDs() {
@@ -246,7 +247,7 @@ func (c *claim) strongest() (types.Identifier, bool) {
 }
 
 // label leads a detail about c with its strongest identifier.
-func (c *claim) label(detail string) string {
+func (c *identityClaim) label(detail string) string {
 	if id, ok := c.strongest(); ok {
 		return id.Name() + ": " + detail
 	}
@@ -255,7 +256,7 @@ func (c *claim) label(detail string) string {
 
 // ref names c as the other side of a comparison: the instrument or the
 // candidate, its strongest identifier where it has one, and its source.
-func (c *claim) ref() string {
+func (c *identityClaim) ref() string {
 	what := "the instrument"
 	if c.fetchKey != nil {
 		what = "the candidate"
@@ -268,7 +269,7 @@ func (c *claim) ref() string {
 
 // against returns why what res states contradicts c, if it does. The stated
 // side leads the detail, and the datasource that served c closes it.
-func (c *claim) against(res *resolution) (string, bool) {
+func (c *identityClaim) against(res *resolution) (string, bool) {
 	detail, ok := c.contradicted(res)
 	if !ok {
 		return "", false
@@ -279,7 +280,7 @@ func (c *claim) against(res *resolution) (string, bool) {
 // contradicted returns why what res states contradicts c. A limited answer
 // is silent about the listings it lacks, so it never contradicts the stated
 // currency family.
-func (c *claim) contradicted(res *resolution) (string, bool) {
+func (c *identityClaim) contradicted(res *resolution) (string, bool) {
 	k, fam := res.row, res.fam
 	if listed := c.listed(); !c.fetchKey.Response.Limited && fam != noFamily && len(listed) > 0 && !slices.Contains(listed, fam) {
 		if _, unknown := c.Listings[noFamily]; !unknown {
@@ -299,7 +300,7 @@ func (c *claim) contradicted(res *resolution) (string, bool) {
 
 // inconsistent returns why c contradicts a, a claim chosen above it, if it
 // does. The detail closes with a's source.
-func (c *claim) inconsistent(a *claim) (string, bool) {
+func (c *identityClaim) inconsistent(a *identityClaim) (string, bool) {
 	if c.Class.Disjoint(a.Class) {
 		return fmt.Sprintf("class %s contradicts the class %s (%s)", c.Class, a.Class, a.from()), true
 	}
@@ -319,7 +320,7 @@ func (c *claim) inconsistent(a *claim) (string, bool) {
 }
 
 // corroborates reports whether c shares a stable identifier with a.
-func (c *claim) corroborates(a *claim) bool {
+func (c *identityClaim) corroborates(a *identityClaim) bool {
 	for id := range c.AllIDs() {
 		if id.Stable() && a.IdentifiedBy(id) {
 			return true
@@ -330,7 +331,7 @@ func (c *claim) corroborates(a *claim) bool {
 
 // confirms counts the stated identifiers identifying c, and the stated family
 // where it has that listing.
-func (c *claim) confirms(res *resolution) int {
+func (c *identityClaim) confirms(res *resolution) int {
 	n := 0
 	for _, id := range res.row.Identifiers {
 		if c.IdentifiedBy(id) {
@@ -343,66 +344,65 @@ func (c *claim) confirms(res *resolution) int {
 	return n
 }
 
-// choose picks the winner for res. The database's claim, db, wins where it
-// is not nil. Otherwise the head of the user's confirmed agreement, pick,
-// wins where pick is not nil. Otherwise the best claim of the highest
-// precedence datasource wins. The head must pass the stated checks and agree
-// with db. Each other member of pick takes the place of its datasource's
-// answer. It attaches where it agrees with the claims that choose has
-// already chosen. A confirmation writes only the claims of pick. The answer
-// of a datasource with no member is checked for its findings, and none of
-// its claims attach.
-func choose(res *resolution, db *claim, pick agreement) choice {
-	ch := choice{winner: db, picked: pick != nil, counts: map[string]int{}, notNaming: map[string]int{}}
-	var chosen []*claim
-	if db != nil {
-		chosen = append(chosen, db)
+// choose picks the winner for res. The database's claim, known, wins where
+// it is not nil. Otherwise the head of userChoice wins where userChoice is
+// not nil. Otherwise the best claim of the highest precedence datasource
+// wins. The head must pass the stated checks and agree with known. Each
+// other member of userChoice takes the place of its datasource's answer and
+// attaches where it agrees with the claims already chosen. A confirmation
+// writes only the claims of userChoice. The answer of a datasource with no
+// member is checked for its findings, and none of its claims attach.
+func choose(res *resolution, known *identityClaim, userChoice consistentClaims) claimVerdict {
+	verdict := claimVerdict{winner: known, confirmed: userChoice != nil, counts: map[string]int{}, notNaming: map[string]int{}}
+	var chosen []*identityClaim
+	if known != nil {
+		chosen = append(chosen, known)
 	}
-	if pick != nil {
-		head := pick.head()
+	if userChoice != nil {
+		head := userChoice.head()
 		if detail, ok := head.against(res); ok {
-			ch.refused = head.label(detail)
-			return ch
+			verdict.refused = head.label(detail)
+			return verdict
 		}
-		if db != nil {
-			if detail, ok := head.inconsistent(db); ok {
-				ch.refused = head.label(detail)
-				return ch
+		if known != nil {
+			if detail, ok := head.inconsistent(known); ok {
+				verdict.refused = head.label(detail)
+				return verdict
 			}
 		}
-		ch.attached = append(ch.attached, head)
+		verdict.attached = append(verdict.attached, head)
 		chosen = append(chosen, head)
-		if ch.winner == nil {
-			ch.winner = head
+		if verdict.winner == nil {
+			verdict.winner = head
 		}
 	}
-	var offered []*claim
+	var offered []*identityClaim
 	for _, fk := range res.fetchKeys {
-		if m := pick.member(fk); m != nil {
-			if m == pick.head() {
+		if m := userChoice.member(fk); m != nil {
+			if m == userChoice.head() {
 				continue
 			}
 			if f, ok := m.rejects(chosen); ok {
-				ch.findings = append(ch.findings, f)
+				verdict.findings = append(verdict.findings, f)
 				continue
 			}
-			ch.attached = append(ch.attached, m)
+			verdict.attached = append(verdict.attached, m)
 			chosen = append(chosen, m)
 			continue
 		}
-		best, more := ch.bestClaim(fk, res, chosen)
+		best, more := verdict.bestClaim(fk, res, chosen)
 		offered = append(offered, more...)
-		if best == nil || pick != nil {
+		if best == nil || userChoice != nil {
 			continue
 		}
-		ch.attached = append(ch.attached, best)
+		verdict.attached = append(verdict.attached, best)
 		chosen = append(chosen, best)
-		if ch.winner == nil {
-			ch.winner = best
+		if verdict.winner == nil {
+			verdict.winner = best
 		}
 	}
-	ch.offered = gatherAgreements(res, offered)
-	return ch
+	verdict.offered = gatherConsistentClaims(res, offered)
+	return verdict
 }
 
 // finding returns a finding of kind against fk's fetch key, with a step only
@@ -425,11 +425,11 @@ type alternatives struct {
 	// count is the number of claims in the response, before any are dropped.
 	count int
 	// survivors name the identifier sent and agree with the statement.
-	survivors []*claim
+	survivors []*identityClaim
 	// offered holds the claims that agree with the statement but were
 	// dropped only because the key was sent under a bare ticker. The user may
 	// choose among them.
-	offered []*claim
+	offered []*identityClaim
 	// fallback reports that the key was sent under a venue ticker the provider
 	// filtered bare, and no claim names the venue, so every claim survives
 	// the naming check.
@@ -446,19 +446,19 @@ type alternatives struct {
 // venue ticker bare and no claim names the venue, every claim that agrees with
 // the statement survives. Under a bare ticker no claim can name the identifier
 // sent, so the claims that agree with the statement are offered instead. A
-// confirmation, which picked reports, replaces the naming check for a bare
+// confirmation, which confirmed reports, replaces the naming check for a bare
 // ticker, so every claim that agrees with the statement survives.
-func filterAlternatives(fk *fetchKey, res *resolution, picked bool) alternatives {
+func filterAlternatives(fk *fetchKey, res *resolution, confirmed bool) alternatives {
 	sent := *fk.SentID
 	gs := claims(fk)
 	alts := alternatives{count: len(gs)}
 	global := sent.IsGlobal()
-	named := slices.ContainsFunc(gs, (*claim).named)
+	named := slices.ContainsFunc(gs, (*identityClaim).named)
 	ticker := types.Identifier{Type: types.IdentifierTypeMicTicker, Value: sent.Value}
 	alts.fallback = global && !named && sent.Type == types.IdentifierTypeMicTicker && slices.Contains(fk.Response.Filtered, ticker)
 	for _, c := range gs {
 		switch {
-		case !global && !picked:
+		case !global && !confirmed:
 			alts.notNaming++
 			if _, bad := c.against(res); !bad {
 				alts.offered = append(alts.offered, c)
@@ -481,7 +481,7 @@ func filterAlternatives(fk *fetchKey, res *resolution, picked bool) alternatives
 // winner first. It drops c when c contradicts a claim in chosen, or when c
 // shares no stable identifier with the winner. A contradiction of the
 // database's claim is recorded as a contradiction rather than a drop.
-func (c *claim) rejects(chosen []*claim) (gen.CreateFindingParams, bool) {
+func (c *identityClaim) rejects(chosen []*identityClaim) (gen.CreateFindingParams, bool) {
 	for _, o := range chosen {
 		if detail, ok := c.inconsistent(o); ok {
 			kind := gen.FindingKindDropped
@@ -501,8 +501,8 @@ func (c *claim) rejects(chosen []*claim) (gen.CreateFindingParams, bool) {
 // naming the identifier sent, then one confirming more of the stated data.
 // Callers keep the earlier of two claims that tie, so ties keep the
 // response's order.
-func rank(res *resolution) func(a, b *claim) int {
-	return func(a, b *claim) int {
+func rank(res *resolution) func(a, b *identityClaim) int {
+	return func(a, b *identityClaim) int {
 		if an, bn := a.named(), b.named(); an != bn {
 			if an {
 				return -1
@@ -518,21 +518,21 @@ func rank(res *resolution) func(a, b *claim) int {
 // already chosen for the datasources above fk, the winner first. Under
 // fallback with nothing chosen above fk, several survivors are offered rather
 // than chosen among.
-func (ch *choice) bestClaim(fk *fetchKey, res *resolution, chosen []*claim) (*claim, []*claim) {
+func (verdict *claimVerdict) bestClaim(fk *fetchKey, res *resolution, chosen []*identityClaim) (*identityClaim, []*identityClaim) {
 	if fk.SentID == nil {
 		return nil, nil
 	}
-	alts := filterAlternatives(fk, res, ch.picked)
-	ch.counts[fk.Source] = alts.count
+	alts := filterAlternatives(fk, res, verdict.confirmed)
+	verdict.counts[fk.Source] = alts.count
 	if alts.notNaming > 0 {
-		ch.notNaming[fk.Source] += alts.notNaming
+		verdict.notNaming[fk.Source] += alts.notNaming
 	}
-	ch.findings = append(ch.findings, alts.findings...)
+	verdict.findings = append(verdict.findings, alts.findings...)
 	offered := alts.offered
-	survivors := slices.DeleteFunc(alts.survivors, func(c *claim) bool {
+	survivors := slices.DeleteFunc(alts.survivors, func(c *identityClaim) bool {
 		f, ok := c.rejects(chosen)
 		if ok {
-			ch.findings = append(ch.findings, f)
+			verdict.findings = append(verdict.findings, f)
 		}
 		return ok
 	})
@@ -546,13 +546,13 @@ func (ch *choice) bestClaim(fk *fetchKey, res *resolution, chosen []*claim) (*cl
 	return survivors[0], offered
 }
 
-// gatherAgreements returns the agreements among claims, which arrive in
-// precedence order and then each datasource's order. Each agreement formed so
-// far takes its member from the next datasource. A claim that joins no
-// agreement heads a new one. Agreement between claims is not transitive, so
-// precedence settles which claims an agreement holds, as it does in a run.
-func gatherAgreements(res *resolution, cs []*claim) []agreement {
-	var out []agreement
+// gatherConsistentClaims returns the sets of consistent claims among cs,
+// which arrive in precedence order and then each datasource's order. Each
+// set formed so far takes its member from the next datasource. A claim that
+// joins no set heads a new one. Consistency between claims is not transitive,
+// so precedence settles which claims a set holds, as it does in a run.
+func gatherConsistentClaims(res *resolution, cs []*identityClaim) []consistentClaims {
+	var out []consistentClaims
 	for len(cs) > 0 {
 		n := 1
 		for n < len(cs) && cs[n].fetchKey == cs[0].fetchKey {
@@ -560,9 +560,9 @@ func gatherAgreements(res *resolution, cs []*claim) []agreement {
 		}
 		group := cs[:n]
 		cs = cs[n:]
-		joined := map[*claim]bool{}
+		joined := map[*identityClaim]bool{}
 		for i, a := range out {
-			var best *claim
+			var best *identityClaim
 			for _, c := range group {
 				if _, ok := c.rejects(a); ok {
 					continue
@@ -578,7 +578,7 @@ func gatherAgreements(res *resolution, cs []*claim) []agreement {
 		}
 		for _, c := range group {
 			if !joined[c] {
-				out = append(out, agreement{c})
+				out = append(out, consistentClaims{c})
 			}
 		}
 	}
