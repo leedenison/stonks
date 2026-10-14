@@ -37,12 +37,12 @@ func newFetch(t *testing.T, q *gen.Queries, user gen.User, parent gen.Run, ds ge
 	t.Helper()
 	ctx := context.Background()
 	run, err := q.CreateRun(ctx, gen.CreateRunParams{
-		ID: db.NewID(), UserID: user.ID, Kind: gen.RunKindFetch,
+		ID: db.NewID(), UserID: &user.ID, Kind: gen.RunKindFetch,
 		Trigger: gen.RunTriggerRun, ParentID: &parent.ID,
 	})
 	require.NoError(t, err)
 	row, err := q.CreateFetch(ctx, gen.CreateFetchParams{
-		ID: run.ID, UserID: user.ID, Datasource: ds.Name, Endpoint: "https://" + ds.Name + ".test", Kind: gen.FetchKindIdentity,
+		ID: run.ID, UserID: &user.ID, Datasource: ds.Name, Endpoint: "https://" + ds.Name + ".test", Kind: gen.FetchKindIdentity,
 	})
 	require.NoError(t, err)
 	return row
@@ -85,7 +85,7 @@ func newFetching(t *testing.T, q *gen.Queries) fetching {
 	f := fetching{user: newUser(t, q, "fetching-"+uuid.NewString()+"@example.com")}
 	f.statement = newStatement(t, q, f.user)
 	var err error
-	f.run, err = q.GetRun(context.Background(), gen.GetRunParams{ID: f.statement.ID, UserID: f.user.ID})
+	f.run, err = q.GetRun(context.Background(), gen.GetRunParams{ID: f.statement.ID, UserID: &f.user.ID})
 	require.NoError(t, err)
 	f.ds = newDatasource(t, q, "fetching", 10)
 	f.fetch = newFetch(t, q, f.user, f.run, f.ds)
@@ -180,16 +180,16 @@ func TestFetches(t *testing.T) {
 	other := newUser(t, q, "fetches-other@example.com")
 	statement := newStatement(t, q, user)
 	ds := newDatasource(t, q, "fetches", 10)
-	run, err := q.GetRun(ctx, gen.GetRunParams{ID: statement.ID, UserID: user.ID})
+	run, err := q.GetRun(ctx, gen.GetRunParams{ID: statement.ID, UserID: &user.ID})
 	require.NoError(t, err)
 
 	fetch := newFetch(t, q, user, run, ds)
-	got, err := q.GetFetch(ctx, gen.GetFetchParams{ID: fetch.ID, UserID: user.ID})
+	got, err := q.GetFetch(ctx, gen.GetFetchParams{ID: fetch.ID, UserID: &user.ID})
 	require.NoError(t, err)
 	if got.Datasource != ds.Name || got.Kind != gen.FetchKindIdentity {
 		t.Errorf("GetFetch = %+v, want the identity fetch of %s", got, ds.Name)
 	}
-	if _, err := q.GetFetch(ctx, gen.GetFetchParams{ID: fetch.ID, UserID: other.ID}); !errors.Is(err, db.ErrNotFound) {
+	if _, err := q.GetFetch(ctx, gen.GetFetchParams{ID: fetch.ID, UserID: &other.ID}); !errors.Is(err, db.ErrNotFound) {
 		t.Errorf("GetFetch as another user: err = %v, want ErrNotFound", err)
 	}
 
@@ -201,20 +201,20 @@ func TestFetches(t *testing.T) {
 	}{
 		{name: "fetch on an id that is no run", want: pgerrcode.ForeignKeyViolation, do: func(q *gen.Queries, user, _ gen.User) error {
 			ds := newDatasource(t, q, "no-run", 10)
-			_, err := q.CreateFetch(ctx, gen.CreateFetchParams{ID: db.NewID(), UserID: user.ID, Datasource: ds.Name, Kind: gen.FetchKindIdentity})
+			_, err := q.CreateFetch(ctx, gen.CreateFetchParams{ID: db.NewID(), UserID: &user.ID, Datasource: ds.Name, Kind: gen.FetchKindIdentity})
 			return err
 		}},
 		{name: "fetch on another user's run", want: pgerrcode.ForeignKeyViolation, do: func(q *gen.Queries, user, other gen.User) error {
 			ds := newDatasource(t, q, "cross-user", 10)
-			run, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: user.ID, Kind: gen.RunKindFetch, Trigger: gen.RunTriggerUser})
+			run, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &user.ID, Kind: gen.RunKindFetch, Trigger: gen.RunTriggerUser})
 			require.NoError(t, err)
-			_, err = q.CreateFetch(ctx, gen.CreateFetchParams{ID: run.ID, UserID: other.ID, Datasource: ds.Name, Kind: gen.FetchKindIdentity})
+			_, err = q.CreateFetch(ctx, gen.CreateFetchParams{ID: run.ID, UserID: &other.ID, Datasource: ds.Name, Kind: gen.FetchKindIdentity})
 			return err
 		}},
 		{name: "fetch of an unknown datasource", want: pgerrcode.ForeignKeyViolation, do: func(q *gen.Queries, user, _ gen.User) error {
-			run, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: user.ID, Kind: gen.RunKindFetch, Trigger: gen.RunTriggerUser})
+			run, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &user.ID, Kind: gen.RunKindFetch, Trigger: gen.RunTriggerUser})
 			require.NoError(t, err)
-			_, err = q.CreateFetch(ctx, gen.CreateFetchParams{ID: run.ID, UserID: user.ID, Datasource: "absent", Kind: gen.FetchKindIdentity})
+			_, err = q.CreateFetch(ctx, gen.CreateFetchParams{ID: run.ID, UserID: &user.ID, Datasource: "absent", Kind: gen.FetchKindIdentity})
 			return err
 		}},
 	}
@@ -262,7 +262,7 @@ func TestFetchKeys(t *testing.T) {
 			// Each violation aborts the transaction, so each case takes its own.
 			q := newTx(t)
 			f := newFetching(t, q)
-			tc.arg.ID, tc.arg.FetchID, tc.arg.UserID, tc.arg.StatedKeyID = db.NewID(), f.fetch.ID, f.user.ID, f.key.ID
+			tc.arg.ID, tc.arg.FetchID, tc.arg.UserID, tc.arg.StatedKeyID = db.NewID(), f.fetch.ID, &f.user.ID, f.key.ID
 			if err := q.CreateFetchKey(ctx, tc.arg); !sqlstate(err, tc.want) {
 				t.Errorf("CreateFetchKey(%s): err = %v, want sqlstate %s", tc.name, err, tc.want)
 			}
@@ -273,7 +273,7 @@ func TestFetchKeys(t *testing.T) {
 		q := newTx(t)
 		f := newFetching(t, q)
 		require.NoError(t, q.CreateFetchKey(ctx, gen.CreateFetchKeyParams{
-			ID: db.NewID(), FetchID: f.fetch.ID, UserID: f.user.ID, StatedKeyID: f.key.ID,
+			ID: db.NewID(), FetchID: f.fetch.ID, UserID: &f.user.ID, StatedKeyID: f.key.ID,
 			Outcome: gen.FetchOutcomeServed, Attempts: 0, SentType: isin, SentValue: ptr.To("v"), Candidates: 1,
 		}))
 	})
@@ -282,7 +282,7 @@ func TestFetchKeys(t *testing.T) {
 		q := newTx(t)
 		f := newFetching(t, q)
 		require.NoError(t, q.CreateFetchKey(ctx, gen.CreateFetchKeyParams{
-			ID: db.NewID(), FetchID: f.fetch.ID, UserID: f.user.ID, StatedKeyID: f.key.ID,
+			ID: db.NewID(), FetchID: f.fetch.ID, UserID: &f.user.ID, StatedKeyID: f.key.ID,
 			Outcome: gen.FetchOutcomeFailedTemporary, Attempts: 0, SentType: isin, SentValue: ptr.To("v"), Reason: ptr.To("paused"),
 		}))
 	})
@@ -295,10 +295,10 @@ func TestFetchKeys(t *testing.T) {
 
 		id := db.NewID()
 		require.NoError(t, q.CreateFetchKey(ctx, gen.CreateFetchKeyParams{
-			ID: id, FetchID: f.fetch.ID, UserID: f.user.ID, StatedKeyID: f.key.ID,
+			ID: id, FetchID: f.fetch.ID, UserID: &f.user.ID, StatedKeyID: f.key.ID,
 			Outcome: gen.FetchOutcomeNotServed, Reason: ptr.To("serves no isin"),
 		}))
-		err = q.SetFetchKeyInstrument(ctx, gen.SetFetchKeyInstrumentParams{ID: id, UserID: f.user.ID, InstrumentID: &found.Instrument.ID})
+		err = q.SetFetchKeyInstrument(ctx, gen.SetFetchKeyInstrumentParams{ID: id, UserID: &f.user.ID, InstrumentID: &found.Instrument.ID})
 		if !sqlstate(err, pgerrcode.CheckViolation) {
 			t.Errorf("SetFetchKeyInstrument on a not_served key: err = %v, want a check violation", err)
 		}
@@ -310,7 +310,7 @@ func TestFetchKeys(t *testing.T) {
 
 		servedKey(t, q, f.fetch, f.key, "GB00B03MLX29")
 		err := q.CreateFetchKey(ctx, gen.CreateFetchKeyParams{
-			ID: db.NewID(), FetchID: f.fetch.ID, UserID: f.user.ID, StatedKeyID: f.key.ID,
+			ID: db.NewID(), FetchID: f.fetch.ID, UserID: &f.user.ID, StatedKeyID: f.key.ID,
 			Outcome: gen.FetchOutcomeNotServed, Reason: ptr.To("r"),
 		})
 		if !sqlstate(err, pgerrcode.UniqueViolation) {

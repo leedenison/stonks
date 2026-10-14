@@ -38,7 +38,7 @@ func TestDeleteUserCascades(t *testing.T) {
 			user := newUser(t, q, "cascade-"+uuid.NewString()+"@example.com")
 			admin := newUser(t, q, "cascade-admin-"+uuid.NewString()+"@example.com")
 			statement := newStatement(t, q, user)
-			run, err := q.GetRun(ctx, gen.GetRunParams{ID: statement.ID, UserID: user.ID})
+			run, err := q.GetRun(ctx, gen.GetRunParams{ID: statement.ID, UserID: &user.ID})
 			require.NoError(t, err)
 			one, two := newStatedKey(t, q, user, statement), newStatedKey(t, q, user, statement)
 			require.NoError(t, q.SetStatedKeyGroups(ctx, gen.SetStatedKeyGroupsParams{UserID: user.ID, Ids: []uuid.UUID{one.ID, two.ID}, GroupIds: []uuid.UUID{one.ID, one.ID}}))
@@ -60,7 +60,7 @@ func TestDeleteUserCascades(t *testing.T) {
 				FetchKeyID: key, FindingID: db.NewID(), RunID: fetch.ID,
 			})
 			require.NoError(t, err)
-			replay, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: user.ID, Kind: gen.RunKindReplay, Trigger: gen.RunTriggerAdministrator})
+			replay, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &user.ID, Kind: gen.RunKindReplay, Trigger: gen.RunTriggerAdministrator})
 			require.NoError(t, err)
 			require.NoError(t, q.CreateReplay(ctx, gen.CreateReplayParams{ID: replay.ID, UserID: user.ID, SourceID: run.ID, StartedBy: admin.ID}))
 

@@ -71,7 +71,7 @@ func newFixture(t *testing.T) *fixture {
 }
 
 func runRow(id uuid.UUID, kind gen.RunKind) gen.Run {
-	return gen.Run{ID: id, UserID: userID, Kind: kind, Trigger: gen.RunTriggerUser, State: gen.RunStateCompleted, CreatedAt: created}
+	return gen.Run{ID: id, UserID: &userID, Kind: kind, Trigger: gen.RunTriggerUser, State: gen.RunStateCompleted, CreatedAt: created}
 }
 
 func runMsg(id uuid.UUID, kind runv1.RunKind) *adminrunv1.UserRun {
@@ -80,7 +80,7 @@ func runMsg(id uuid.UUID, kind runv1.RunKind) *adminrunv1.UserRun {
 			Id: id.String(), Kind: kind, Trigger: runv1.RunTrigger_RUN_TRIGGER_USER,
 			State: runv1.RunState_RUN_STATE_COMPLETED, CreatedAt: timestamppb.New(created),
 		},
-		UserId: userID.String(), UserEmail: "one@example.com", OpenFindings: 1, Matched: true,
+		UserId: ptr.To(userID.String()), UserEmail: ptr.To("one@example.com"), OpenFindings: 1, Matched: true,
 	}
 }
 
@@ -91,7 +91,7 @@ func TestListRuns(t *testing.T) {
 	rows := func(ids ...uuid.UUID) []gen.ListUserRunsRow {
 		var out []gen.ListUserRunsRow
 		for _, id := range ids {
-			out = append(out, gen.ListUserRunsRow{Run: runRow(id, gen.RunKindStatement), Email: "one@example.com", OpenFindings: 1, RootID: id, Matched: true})
+			out = append(out, gen.ListUserRunsRow{Run: runRow(id, gen.RunKindStatement), Email: ptr.To("one@example.com"), OpenFindings: 1, RootID: id, Matched: true})
 		}
 		return out
 	}
@@ -101,8 +101,8 @@ func TestListRuns(t *testing.T) {
 	childRow := runRow(child, gen.RunKindResolution)
 	childRow.ParentID = &first
 	nested := []gen.ListUserRunsRow{
-		{Run: runRow(first, gen.RunKindStatement), Email: "one@example.com", OpenFindings: 1, RootID: first, Matched: false},
-		{Run: childRow, Email: "one@example.com", OpenFindings: 1, RootID: first, Matched: true},
+		{Run: runRow(first, gen.RunKindStatement), Email: ptr.To("one@example.com"), OpenFindings: 1, RootID: first, Matched: false},
+		{Run: childRow, Email: ptr.To("one@example.com"), OpenFindings: 1, RootID: first, Matched: true},
 	}
 	nestedMsg := runMsg(first, runv1.RunKind_RUN_KIND_STATEMENT)
 	nestedMsg.Matched = false
@@ -245,13 +245,13 @@ func TestGetRun(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newFixture(t)
 			r := f.store.EXPECT()
-			r.GetUserRun(gomock.Any(), runID).Return(gen.GetUserRunRow{Run: runRow(runID, tc.kind), Email: "one@example.com", OpenFindings: 1}, nil)
+			r.GetUserRun(gomock.Any(), runID).Return(gen.GetUserRunRow{Run: runRow(runID, tc.kind), Email: ptr.To("one@example.com"), OpenFindings: 1}, nil)
 			parent := runRow(parentID, gen.RunKindStatement)
-			r.ListRunAncestors(gomock.Any(), runID).Return([]gen.ListRunAncestorsRow{{Run: parent, Email: "one@example.com", OpenFindings: 1}}, nil)
+			r.ListRunAncestors(gomock.Any(), runID).Return([]gen.ListRunAncestorsRow{{Run: parent, Email: ptr.To("one@example.com"), OpenFindings: 1}}, nil)
 			below := func(id, parent uuid.UUID) gen.ListRunDescendantsRow {
 				row := runRow(id, gen.RunKindFetch)
 				row.Trigger, row.ParentID = gen.RunTriggerRun, &parent
-				return gen.ListRunDescendantsRow{Run: row, Email: "one@example.com", OpenFindings: 1, Datasource: ptr.To("openfigi"), Endpoint: ptr.To("https://api.openfigi.com")}
+				return gen.ListRunDescendantsRow{Run: row, Email: ptr.To("one@example.com"), OpenFindings: 1, Datasource: ptr.To("openfigi"), Endpoint: ptr.To("https://api.openfigi.com")}
 			}
 			r.ListRunDescendants(gomock.Any(), &runID).Return([]gen.ListRunDescendantsRow{
 				below(childID, runID), below(siblingID, runID), below(grandchildID, childID),
@@ -413,7 +413,7 @@ func TestListRunItems(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newFixture(t)
 			r := f.store.EXPECT()
-			r.GetUserRun(gomock.Any(), runID).Return(gen.GetUserRunRow{Run: runRow(runID, tc.kind), Email: "one@example.com"}, nil)
+			r.GetUserRun(gomock.Any(), runID).Return(gen.GetUserRunRow{Run: runRow(runID, tc.kind), Email: ptr.To("one@example.com")}, nil)
 			tc.expect(r)
 			tc.req.RunId = runID.String()
 			res, err := f.client.ListRunItems(context.Background(), connect.NewRequest(tc.req))
@@ -476,5 +476,37 @@ func TestClearFinding(t *testing.T) {
 				t.Errorf("ClearFinding() code = %v (err %v), want %v", servicetest.CodeOf(err), err, tc.wantCode)
 			}
 		})
+	}
+}
+
+// TestGetSystemRun checks that a system run comes back with no user, above
+// the user run it started.
+func TestGetSystemRun(t *testing.T) {
+	f := newFixture(t)
+	r := f.store.EXPECT()
+	system := gen.Run{ID: runID, Kind: gen.RunKindFetch, Trigger: gen.RunTriggerAdministrator, State: gen.RunStateCompleted, CreatedAt: created}
+	replay := runRow(childID, gen.RunKindReplay)
+	replay.Trigger, replay.ParentID = gen.RunTriggerRun, &system.ID
+	r.GetUserRun(gomock.Any(), runID).Return(gen.GetUserRunRow{Run: system}, nil)
+	r.ListRunAncestors(gomock.Any(), runID).Return(nil, nil)
+	r.ListRunDescendants(gomock.Any(), &runID).Return([]gen.ListRunDescendantsRow{{Run: replay, Email: ptr.To("one@example.com")}}, nil)
+	r.ListRunFindings(gomock.Any(), []uuid.UUID{runID, childID}).Return(nil, nil)
+
+	res, err := f.client.GetRun(context.Background(), connect.NewRequest(&adminrunv1.GetRunRequest{RunId: runID.String()}))
+	if err != nil {
+		t.Fatalf("GetRun() error = %v", err)
+	}
+	child := runMsg(childID, runv1.RunKind_RUN_KIND_REPLAY)
+	child.Run.Trigger, child.Run.ParentId, child.OpenFindings = runv1.RunTrigger_RUN_TRIGGER_RUN, ptr.To(runID.String()), 0
+	want := &adminrunv1.GetRunResponse{Run: &adminrunv1.UserRun{
+		Run: &runv1.Run{
+			Id: runID.String(), Kind: runv1.RunKind_RUN_KIND_FETCH, Trigger: runv1.RunTrigger_RUN_TRIGGER_ADMINISTRATOR,
+			State: runv1.RunState_RUN_STATE_COMPLETED, CreatedAt: timestamppb.New(created),
+		},
+		Matched:  true,
+		Children: []*adminrunv1.UserRun{child},
+	}}
+	if diff := cmp.Diff(want, res.Msg, protocmp.Transform()); diff != "" {
+		t.Errorf("GetRun(system) mismatch (-want +got):\n%s", diff)
 	}
 }

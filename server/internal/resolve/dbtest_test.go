@@ -62,7 +62,7 @@ func newStack(t *testing.T) *stack {
 	s.user, err = q.CreateUser(ctx, gen.CreateUserParams{ID: db.NewID(), Email: uuid.NewString() + "@example.com", Role: gen.UserRoleUser})
 	require.NoError(t, err)
 	s.statement = s.newStatement(t, gen.BrokerIbkr)
-	s.resolution, err = q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: s.user.ID, Kind: gen.RunKindResolution, Trigger: gen.RunTriggerRun, ParentID: &s.statement.ID})
+	s.resolution, err = q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &s.user.ID, Kind: gen.RunKindResolution, Trigger: gen.RunTriggerRun, ParentID: &s.statement.ID})
 	require.NoError(t, err)
 	_, err = q.CreateDatasource(ctx, gen.CreateDatasourceParams{Name: s.alphaName, Enabled: true, Precedence: 10})
 	require.NoError(t, err)
@@ -96,7 +96,7 @@ func (s *serial) Identity(ctx context.Context, parent gen.Run, e *market.Entry, 
 func (s *stack) newStatement(t *testing.T, broker gen.Broker) gen.Run {
 	t.Helper()
 	ctx := context.Background()
-	run, err := s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: s.user.ID, Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser})
+	run, err := s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &s.user.ID, Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser})
 	require.NoError(t, err)
 	_, err = s.q.CreateStatement(ctx, gen.CreateStatementParams{ID: run.ID, UserID: s.user.ID, Broker: broker, OrderFrom: time.Date(2026, time.March, 1, 0, 0, 0, 0, time.UTC), OrderBefore: time.Date(2026, time.April, 1, 0, 0, 0, 0, time.UTC)})
 	require.NoError(t, err)
@@ -159,7 +159,7 @@ func (s *stack) key(t *testing.T, id uuid.UUID) gen.StatedKey {
 // fetches returns the fetch runs of the stack's resolution.
 func (s *stack) fetches(t *testing.T) []gen.Run {
 	t.Helper()
-	children, err := s.q.ListChildRuns(context.Background(), gen.ListChildRunsParams{ParentID: &s.resolution.ID, UserID: s.user.ID})
+	children, err := s.q.ListChildRuns(context.Background(), gen.ListChildRunsParams{ParentID: &s.resolution.ID, UserID: &s.user.ID})
 	require.NoError(t, err)
 	return children
 }
@@ -169,7 +169,7 @@ func (s *stack) fetchKey(t *testing.T, key uuid.UUID, datasource string) gen.Fet
 	t.Helper()
 	ctx := context.Background()
 	for _, child := range s.fetches(t) {
-		fetch, err := s.q.GetFetch(ctx, gen.GetFetchParams{ID: child.ID, UserID: s.user.ID})
+		fetch, err := s.q.GetFetch(ctx, gen.GetFetchParams{ID: child.ID, UserID: &s.user.ID})
 		require.NoError(t, err)
 		if fetch.Datasource != datasource {
 			continue
@@ -300,7 +300,7 @@ func TestResolveWrites(t *testing.T) {
 	// One fetch served every key but cash, since every lookup precedes the
 	// writes: the transfer's response attached to the instrument the trade
 	// created, and the coverage row carries its fetch key, the later.
-	children, err := s.q.ListChildRuns(ctx, gen.ListChildRunsParams{ParentID: &s.resolution.ID, UserID: s.user.ID})
+	children, err := s.q.ListChildRuns(ctx, gen.ListChildRunsParams{ParentID: &s.resolution.ID, UserID: &s.user.ID})
 	require.NoError(t, err)
 	if len(children) != 1 || children[0].Kind != gen.RunKindFetch || children[0].State != gen.RunStateCompleted {
 		t.Fatalf("ListChildRuns = %+v, want one completed fetch", children)
@@ -1057,7 +1057,7 @@ func TestConfirmRows(t *testing.T) {
 	// A later resolution of the key, under a run of its own, finds nothing
 	// through its description and takes the association of its arbitrated
 	// key. The write leaves that association unchanged.
-	s.resolution, err = s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: s.user.ID, Kind: gen.RunKindResolution, Trigger: gen.RunTriggerRun, ParentID: &s.statement.ID})
+	s.resolution, err = s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &s.user.ID, Kind: gen.RunKindResolution, Trigger: gen.RunTriggerRun, ParentID: &s.statement.ID})
 	require.NoError(t, err)
 	fetches := len(s.fetches(t))
 	got := s.resolve(t, key)
@@ -1156,7 +1156,7 @@ func TestConfirmMerged(t *testing.T) {
 
 	// The confirmation runs under a run of its own, so its fetch keys are
 	// the only ones the run holds.
-	s.resolution, err = s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: s.user.ID, Kind: gen.RunKindResolution, Trigger: gen.RunTriggerUser})
+	s.resolution, err = s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &s.user.ID, Kind: gen.RunKindResolution, Trigger: gen.RunTriggerUser})
 	require.NoError(t, err)
 	_, err = s.resolver.Confirm(ctx, s.resolution, key, Pick{Datasource: s.alphaName, Identifier: figi})
 	require.NoError(t, err)

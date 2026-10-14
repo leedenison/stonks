@@ -249,11 +249,14 @@ func (s *Server) ListRunItems(ctx context.Context, req *connect.Request[adminrun
 	out := &adminrunv1.ListRunItemsResponse{}
 	switch run.Kind {
 	case gen.RunKindStatement:
+		if run.UserID == nil {
+			return nil, connect.NewError(connect.CodeInternal, errors.New("statement run has no user"))
+		}
 		after, err := page.Ordinal(m.GetPageToken())
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInvalidArgument, err)
 		}
-		rows, err := s.queries.ListStatementItems(ctx, gen.ListStatementItemsParams{StatementID: run.ID, UserID: run.UserID, After: after, Lim: &lim})
+		rows, err := s.queries.ListStatementItems(ctx, gen.ListStatementItemsParams{StatementID: run.ID, UserID: *run.UserID, After: after, Lim: &lim})
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInternal, err)
 		}
@@ -375,12 +378,18 @@ func treeOrder(root *adminrunv1.UserRun) map[string]int {
 	return order
 }
 
-// userRun builds a run as the admin listings return it.
-func userRun(r gen.Run, email string, open int32, datasource, endpoint *string) *adminrunv1.UserRun {
-	return &adminrunv1.UserRun{
-		Run: to.ProtoRun(r), UserId: r.UserID.String(), UserEmail: email, OpenFindings: open, Matched: true,
+// userRun builds a run as the admin listings return it. A system run has
+// neither a user nor an email.
+func userRun(r gen.Run, email *string, open int32, datasource, endpoint *string) *adminrunv1.UserRun {
+	out := &adminrunv1.UserRun{
+		Run: to.ProtoRun(r), UserEmail: email, OpenFindings: open, Matched: true,
 		Datasource: datasource, Endpoint: endpoint,
 	}
+	if r.UserID != nil {
+		id := r.UserID.String()
+		out.UserId = &id
+	}
+	return out
 }
 
 // filter converts an optional enum field to the database value it matches.

@@ -13,6 +13,7 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/types"
 )
 
 // TestRuns covers the transitions that depend on a row's state, and
@@ -27,7 +28,7 @@ func TestRuns(t *testing.T) {
 	require.NoError(t, err)
 	create := func(kind gen.RunKind, parent *gen.Run) gen.Run {
 		t.Helper()
-		arg := gen.CreateRunParams{ID: db.NewID(), UserID: owner.ID, Kind: kind, Trigger: gen.RunTriggerUser}
+		arg := gen.CreateRunParams{ID: db.NewID(), UserID: &owner.ID, Kind: kind, Trigger: gen.RunTriggerUser}
 		if parent != nil {
 			arg.Trigger = gen.RunTriggerRun
 			arg.ParentID = &parent.ID
@@ -38,7 +39,7 @@ func TestRuns(t *testing.T) {
 	}
 	state := func(id uuid.UUID) gen.Run {
 		t.Helper()
-		row, err := q.GetRun(ctx, gen.GetRunParams{ID: id, UserID: owner.ID})
+		row, err := q.GetRun(ctx, gen.GetRunParams{ID: id, UserID: &owner.ID})
 		require.NoError(t, err)
 		return row
 	}
@@ -47,7 +48,7 @@ func TestRuns(t *testing.T) {
 	if pending.State != gen.RunStatePending || pending.StartedAt != nil || pending.FinishedAt != nil {
 		t.Errorf("CreateRun = %+v, want pending with no started_at or finished_at", pending)
 	}
-	if _, err := q.GetRun(ctx, gen.GetRunParams{ID: pending.ID, UserID: other.ID}); !errors.Is(err, db.ErrNotFound) {
+	if _, err := q.GetRun(ctx, gen.GetRunParams{ID: pending.ID, UserID: &other.ID}); !errors.Is(err, db.ErrNotFound) {
 		t.Errorf("GetRun as another user: err = %v, want ErrNotFound", err)
 	}
 
@@ -102,7 +103,7 @@ func TestRuns(t *testing.T) {
 
 	// The check constraint refuses a parent on a user's run, and aborts the
 	// transaction, so it is the last statement.
-	_, err = q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: owner.ID, Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser, ParentID: &completed.ID})
+	_, err = q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &owner.ID, Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser, ParentID: &completed.ID})
 	if err == nil {
 		t.Error("CreateRun with trigger user and a parent succeeded, want a check violation")
 	}
@@ -116,8 +117,59 @@ func TestRunParent(t *testing.T) {
 	other := newUser(t, q, "parent-other@example.com")
 	parent := newRun(t, q, owner)
 	// The violation aborts the transaction, so it is the last statement.
-	_, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: other.ID, Kind: gen.RunKindResolution, Trigger: gen.RunTriggerRun, ParentID: &parent.ID})
+	_, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &other.ID, Kind: gen.RunKindResolution, Trigger: gen.RunTriggerRun, ParentID: &parent.ID})
 	if !sqlstate(err, pgerrcode.ForeignKeyViolation) {
 		t.Errorf("CreateRun under another user's run: err = %v, want a foreign key violation", err)
+	}
+}
+
+// TestSystemRuns checks that a system run may be the parent or the child of
+// any run.
+func TestSystemRuns(t *testing.T) {
+	q := newTx(t)
+	ctx := context.Background()
+	owner := newUser(t, q, "system-owner@example.com")
+	userRun := newRun(t, q, owner)
+
+	create := func(user *uuid.UUID, kind gen.RunKind, parent *gen.Run) gen.Run {
+		t.Helper()
+		arg := gen.CreateRunParams{ID: db.NewID(), UserID: user, Kind: kind, Trigger: gen.RunTriggerAdministrator}
+		if parent != nil {
+			arg.Trigger, arg.ParentID = gen.RunTriggerRun, &parent.ID
+		}
+		row, err := q.CreateRun(ctx, arg)
+		require.NoError(t, err)
+		return row
+	}
+	system := create(nil, gen.RunKindAttestation, nil)
+	if system.UserID != nil {
+		t.Errorf("CreateRun with no user: UserID = %v, want nil", system.UserID)
+	}
+	create(nil, gen.RunKindFetch, &system)
+	create(nil, gen.RunKindFetch, &userRun)
+	create(&owner.ID, gen.RunKindReplay, &system)
+}
+
+// TestSystemFetch checks that a fetch and its keys may belong to a system run,
+// and that a fetch still needs a run.
+func TestSystemFetch(t *testing.T) {
+	q := newTx(t)
+	ctx := context.Background()
+	f := newFetching(t, q)
+	system, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), Kind: gen.RunKindFetch, Trigger: gen.RunTriggerAdministrator})
+	require.NoError(t, err)
+	fetch, err := q.CreateFetch(ctx, gen.CreateFetchParams{ID: system.ID, Datasource: f.fetch.Datasource, Endpoint: "https://example.com", Kind: gen.FetchKindIdentity})
+	require.NoError(t, err)
+	value := "US0378331005"
+	isin := types.IdentifierTypeIsin
+	err = q.CreateFetchKey(ctx, gen.CreateFetchKeyParams{
+		ID: db.NewID(), FetchID: fetch.ID, StatedKeyID: f.key.ID, Outcome: gen.FetchOutcomeServed, Attempts: 1,
+		SentType: &isin, SentValue: &value,
+	})
+	require.NoError(t, err)
+	// The violation aborts the transaction, so it is the last statement.
+	_, err = q.CreateFetch(ctx, gen.CreateFetchParams{ID: db.NewID(), Datasource: f.fetch.Datasource, Endpoint: "https://example.com", Kind: gen.FetchKindIdentity})
+	if !sqlstate(err, pgerrcode.ForeignKeyViolation) {
+		t.Errorf("CreateFetch with no run: err = %v, want a foreign key violation", err)
 	}
 }

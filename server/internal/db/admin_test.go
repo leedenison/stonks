@@ -29,11 +29,11 @@ func TestListUserRuns(t *testing.T) {
 	admin := newUser(t, q, "admin-runs-admin@example.com")
 	statement := newRun(t, q, owner)
 	child, err := q.CreateRun(ctx, gen.CreateRunParams{
-		ID: db.NewID(), UserID: owner.ID, Kind: gen.RunKindResolution, Trigger: gen.RunTriggerRun, ParentID: &statement.ID,
+		ID: db.NewID(), UserID: &owner.ID, Kind: gen.RunKindResolution, Trigger: gen.RunTriggerRun, ParentID: &statement.ID,
 	})
 	require.NoError(t, err)
 	started, err := q.CreateRun(ctx, gen.CreateRunParams{
-		ID: db.NewID(), UserID: admin.ID, Kind: gen.RunKindStatement, Trigger: gen.RunTriggerAdministrator,
+		ID: db.NewID(), UserID: &admin.ID, Kind: gen.RunKindStatement, Trigger: gen.RunTriggerAdministrator,
 	})
 	require.NoError(t, err)
 
@@ -83,7 +83,7 @@ func TestListUserRuns(t *testing.T) {
 
 	ancestors, err := q.ListRunAncestors(ctx, child.ID)
 	require.NoError(t, err)
-	if len(ancestors) != 1 || ancestors[0].Run.ID != statement.ID || ancestors[0].Email != owner.Email {
+	if len(ancestors) != 1 || ancestors[0].Run.ID != statement.ID || ancestors[0].Email == nil || *ancestors[0].Email != owner.Email {
 		t.Errorf("ListRunAncestors(child) = %+v, want the statement with its user", ancestors)
 	}
 	if top, err := q.ListRunAncestors(ctx, statement.ID); err != nil || len(top) != 0 {
@@ -91,7 +91,7 @@ func TestListUserRuns(t *testing.T) {
 	}
 	descendants, err := q.ListRunDescendants(ctx, &statement.ID)
 	require.NoError(t, err)
-	if len(descendants) != 1 || descendants[0].Run.ID != child.ID || descendants[0].Email != owner.Email {
+	if len(descendants) != 1 || descendants[0].Run.ID != child.ID || descendants[0].Email == nil || *descendants[0].Email != owner.Email {
 		t.Errorf("ListRunDescendants(statement) = %+v, want the child with its user", descendants)
 	}
 
@@ -104,7 +104,7 @@ func TestListUserRuns(t *testing.T) {
 
 	got, err := q.GetUserRun(ctx, started.ID)
 	require.NoError(t, err)
-	if got.Email != admin.Email || got.Run.Trigger != gen.RunTriggerAdministrator {
+	if got.Email == nil || *got.Email != admin.Email || got.Run.Trigger != gen.RunTriggerAdministrator {
 		t.Errorf("GetUserRun = %+v, want the administrator's run and email", got)
 	}
 }
@@ -118,7 +118,7 @@ func TestListRootRuns(t *testing.T) {
 	owner := newUser(t, q, "root-runs@example.com")
 	child := func(parent gen.Run, kind gen.RunKind) gen.Run {
 		t.Helper()
-		row, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: owner.ID, Kind: kind, Trigger: gen.RunTriggerRun, ParentID: &parent.ID})
+		row, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &owner.ID, Kind: kind, Trigger: gen.RunTriggerRun, ParentID: &parent.ID})
 		require.NoError(t, err)
 		return row
 	}
@@ -230,7 +230,7 @@ func TestRunItems(t *testing.T) {
 	q := newTx(t)
 	user := newUser(t, q, "admin-items@example.com")
 	statement := newStatement(t, q, user)
-	parent, err := q.GetRun(ctx, gen.GetRunParams{ID: statement.ID, UserID: user.ID})
+	parent, err := q.GetRun(ctx, gen.GetRunParams{ID: statement.ID, UserID: &user.ID})
 	require.NoError(t, err)
 	one, two := newStatedKey(t, q, user, statement), newStatedKey(t, q, user, statement)
 	one32 := int32(1)
@@ -289,7 +289,7 @@ func TestFindingsAndBlocks(t *testing.T) {
 	q := newTx(t)
 	user := newUser(t, q, "admin-findings@example.com")
 	statement := newStatement(t, q, user)
-	parent, err := q.GetRun(ctx, gen.GetRunParams{ID: statement.ID, UserID: user.ID})
+	parent, err := q.GetRun(ctx, gen.GetRunParams{ID: statement.ID, UserID: &user.ID})
 	require.NoError(t, err)
 	ds, err := q.CreateDatasource(ctx, gen.CreateDatasourceParams{
 		Name: "admin-findings", Enabled: true, Precedence: 10, Credential: ptr.To("secret"), Endpoint: ptr.To("http://stub"),
@@ -371,4 +371,65 @@ func TestFindingsAndBlocks(t *testing.T) {
 		}
 	}
 
+}
+
+// TestListSystemRuns checks that the listings hold a system run, with no
+// email, and the user run beneath it.
+func TestListSystemRuns(t *testing.T) {
+	ctx := context.Background()
+	q := newTx(t)
+	owner := newUser(t, q, "system-runs@example.com")
+	system, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), Kind: gen.RunKindFetch, Trigger: gen.RunTriggerAdministrator})
+	require.NoError(t, err)
+	replay, err := q.CreateRun(ctx, gen.CreateRunParams{
+		ID: db.NewID(), UserID: &owner.ID, Kind: gen.RunKindReplay, Trigger: gen.RunTriggerRun, ParentID: &system.ID,
+	})
+	require.NoError(t, err)
+
+	type row struct {
+		ID    uuid.UUID
+		Email *string
+	}
+	want := []row{{ID: system.ID}, {ID: replay.ID, Email: &owner.Email}}
+	for _, arg := range []gen.ListUserRunsParams{{Lim: 10}, {Lim: 10, UserID: &owner.ID}} {
+		rows, err := q.ListUserRuns(ctx, arg)
+		require.NoError(t, err)
+		var got []row
+		for _, r := range rows {
+			if r.RootID == system.ID {
+				got = append(got, row{ID: r.Run.ID, Email: r.Email})
+			}
+		}
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Errorf("ListUserRuns(%+v) mismatch (-want +got):\n%s", arg, diff)
+		}
+	}
+
+	roots, err := q.ListRootRuns(ctx, gen.ListRootRunsParams{Lim: 10})
+	require.NoError(t, err)
+	var got []row
+	for _, r := range roots {
+		if r.RootID == system.ID {
+			got = append(got, row{ID: r.Run.ID, Email: r.Email})
+		}
+	}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("ListRootRuns mismatch (-want +got):\n%s", diff)
+	}
+
+	top, err := q.GetUserRun(ctx, system.ID)
+	require.NoError(t, err)
+	if top.Email != nil || top.Run.UserID != nil {
+		t.Errorf("GetUserRun(system) = %+v, want no user and no email", top)
+	}
+	ancestors, err := q.ListRunAncestors(ctx, replay.ID)
+	require.NoError(t, err)
+	if len(ancestors) != 1 || ancestors[0].Run.ID != system.ID || ancestors[0].Email != nil {
+		t.Errorf("ListRunAncestors(replay) = %+v, want the system run with no email", ancestors)
+	}
+	descendants, err := q.ListRunDescendants(ctx, &system.ID)
+	require.NoError(t, err)
+	if len(descendants) != 1 || descendants[0].Run.ID != replay.ID || descendants[0].Email == nil || *descendants[0].Email != owner.Email {
+		t.Errorf("ListRunDescendants(system) = %+v, want the replay with its user", descendants)
+	}
 }

@@ -31,7 +31,7 @@ func statedKey(n int, ids ...types.Identifier) gen.StatedKey {
 }
 
 func source(kind gen.RunKind) gen.Run {
-	return gen.Run{ID: sourceID, UserID: userID, Kind: kind, Trigger: gen.RunTriggerUser, State: gen.RunStateCompleted}
+	return gen.Run{ID: sourceID, UserID: &userID, Kind: kind, Trigger: gen.RunTriggerUser, State: gen.RunStateCompleted}
 }
 
 // identity is an identity integration serving the keys stating an ISIN.
@@ -131,7 +131,7 @@ func TestStartUnavailable(t *testing.T) {
 	if row.Kind != gen.RunKindReplay || row.State != gen.RunStatePending {
 		t.Errorf("Start() = %+v, want the pending replay run", row)
 	}
-	if f.spec.Kind != gen.RunKindReplay || f.spec.Trigger != gen.RunTriggerAdministrator || f.spec.UserID != userID || f.spec.Lane != lane || f.spec.Prepare == nil {
+	if f.spec.Kind != gen.RunKindReplay || f.spec.Trigger != gen.RunTriggerAdministrator || f.spec.UserID == nil || *f.spec.UserID != userID || f.spec.Lane != lane || f.spec.Prepare == nil {
 		t.Errorf("spec = %+v, want a replay of the source's user in the replay lane with a prepare step", f.spec)
 	}
 	wantReplays := []gen.CreateReplayParams{{ID: row.ID, UserID: userID, SourceID: sourceID, StartedBy: adminID}}

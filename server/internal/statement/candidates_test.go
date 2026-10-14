@@ -20,7 +20,7 @@ import (
 func (f *fixture) syncs() *gen.Run {
 	var row gen.Run
 	f.runs.EXPECT().Sync(gomock.Any(), userID, gen.RunKindResolution, gen.RunTriggerUser, gomock.Any()).DoAndReturn(func(ctx context.Context, user uuid.UUID, kind gen.RunKind, trigger gen.RunTrigger, work run.Work) (gen.Run, error) {
-		row = gen.Run{ID: db.NewID(), UserID: user, Kind: kind, Trigger: trigger}
+		row = gen.Run{ID: db.NewID(), UserID: &user, Kind: kind, Trigger: trigger}
 		return row, work(ctx, row)
 	}).AnyTimes()
 	return &row

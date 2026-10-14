@@ -165,7 +165,7 @@ func TestCreateInvalid(t *testing.T) {
 			if !errors.Is(err, ErrInvalid) {
 				t.Errorf("Create(%s) error = %v, want ErrInvalid", tc.name, err)
 			}
-			if f.spec.UserID != uuid.Nil {
+			if f.spec.UserID != nil {
 				t.Errorf("Create(%s) started a run", tc.name)
 			}
 		})
@@ -351,7 +351,7 @@ func TestCreateSpec(t *testing.T) {
 	if _, err := f.svc.Create(context.Background(), userID, msg); err != nil || f.workErr != nil {
 		t.Fatalf("Create() error = %v, work error = %v", err, f.workErr)
 	}
-	if f.spec.Kind != gen.RunKindStatement || f.spec.Lane != "ibkr" || f.spec.UserID != userID {
+	if f.spec.Kind != gen.RunKindStatement || f.spec.Lane != "ibkr" || f.spec.UserID == nil || *f.spec.UserID != userID {
 		t.Errorf("Start(%+v), want a statement run of the user in lane ibkr", f.spec)
 	}
 }

@@ -13,11 +13,11 @@ import "type/v1/type.proto";
 
 option go_package = "github.com/leedenison/stonks/proto/admin/run/v1;adminrunv1";
 
-// A run and its user.
+// A run and its user. A system run has no user.
 message UserRun {
   stonks.run.v1.Run run = 1;
-  string user_id = 2;
-  string user_email = 3;
+  optional string user_id = 2;
+  optional string user_email = 3;
   // The findings of the run no administrator has cleared.
   int32 open_findings = 4;
   // Whether the run matches the listing's filters. Where it does not, the

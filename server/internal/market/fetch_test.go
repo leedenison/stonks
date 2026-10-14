@@ -50,7 +50,7 @@ func newHarness(t *testing.T, integration Integration, open []gen.DatasourceBloc
 	t.Cleanup(ctrl.Finish)
 	h := &harness{
 		store:   NewMockStore(ctrl),
-		parent:  gen.Run{ID: db.NewID(), UserID: db.NewID(), Kind: gen.RunKindResolution},
+		parent:  gen.Run{ID: db.NewID(), UserID: ptr.To(db.NewID()), Kind: gen.RunKindResolution},
 		cache:   &memCache{entries: map[string][]byte{}},
 		now:     start,
 		created: 1,

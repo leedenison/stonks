@@ -38,13 +38,15 @@ CREATE TYPE block_scope AS ENUM ('identifier', 'datasource');
 -- A fetch represents requests for one set of keys to one datasource.
 CREATE TABLE fetches (
     id         uuid        PRIMARY KEY,
-    user_id    uuid        NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    -- user_id is NULL for a fetch of a system run.
+    user_id    uuid        REFERENCES users (id) ON DELETE CASCADE,
     datasource text        NOT NULL REFERENCES datasources (name),
     -- endpoint is the address the integration called. It is the provider's
     -- default unless the datasource set one.
     endpoint   text        NOT NULL,
     kind       fetch_kind  NOT NULL,
     created_at timestamptz NOT NULL DEFAULT now(),
+    FOREIGN KEY (id) REFERENCES runs (id) ON DELETE CASCADE,
     FOREIGN KEY (id, user_id) REFERENCES runs (id, user_id) ON DELETE CASCADE,
     UNIQUE (user_id, id)
 );
@@ -54,7 +56,7 @@ CREATE TABLE fetches (
 CREATE TABLE fetch_keys (
     id            uuid            PRIMARY KEY,
     fetch_id      uuid            NOT NULL,
-    user_id       uuid            NOT NULL,
+    user_id       uuid,
     stated_key_id uuid            NOT NULL REFERENCES stated_keys (id) ON DELETE CASCADE,
     outcome       fetch_outcome   NOT NULL,
     -- attempts is how many calls carried the key. It is zero when the
@@ -69,6 +71,7 @@ CREATE TABLE fetch_keys (
     -- candidates is how many results the datasource offered; zero unless served.
     candidates    smallint        NOT NULL DEFAULT 0,
     created_at    timestamptz     NOT NULL DEFAULT now(),
+    FOREIGN KEY (fetch_id) REFERENCES fetches (id) ON DELETE CASCADE,
     FOREIGN KEY (fetch_id, user_id) REFERENCES fetches (id, user_id) ON DELETE CASCADE,
     UNIQUE (fetch_id, stated_key_id),
     CHECK ((outcome = 'not_served') = (sent_type IS NULL)),

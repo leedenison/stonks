@@ -73,7 +73,7 @@ func (s stack) ingest(t *testing.T, msg *statementv1.Statement) gen.Run {
 	ctx := context.Background()
 	row, err := s.svc.Create(ctx, s.user.ID, msg)
 	require.NoError(t, err)
-	got, err := s.q.GetRun(ctx, gen.GetRunParams{ID: row.ID, UserID: s.user.ID})
+	got, err := s.q.GetRun(ctx, gen.GetRunParams{ID: row.ID, UserID: &s.user.ID})
 	require.NoError(t, err)
 	if got.State != gen.RunStateCompleted {
 		t.Fatalf("statement run = %+v, want completed", got)
@@ -193,7 +193,7 @@ func TestIngest(t *testing.T) {
 		t.Errorf("%d instruments, want the %d the migration seeds", instruments, families)
 	}
 
-	children, err := s.q.ListChildRuns(ctx, gen.ListChildRunsParams{ParentID: &parent.ID, UserID: s.user.ID})
+	children, err := s.q.ListChildRuns(ctx, gen.ListChildRunsParams{ParentID: &parent.ID, UserID: &s.user.ID})
 	require.NoError(t, err)
 	if len(children) != 1 || children[0].Kind != gen.RunKindResolution || children[0].State != gen.RunStateCompleted {
 		t.Fatalf("ListChildRuns = %+v, want one completed resolution", children)
@@ -328,9 +328,9 @@ func TestConfirmCandidate(t *testing.T) {
 	if len(runs) != 1 {
 		t.Fatalf("%d synchronous runs after listing, want 1", len(runs))
 	}
-	listing, err := s.q.GetRun(ctx, gen.GetRunParams{ID: runs[0], UserID: s.user.ID})
+	listing, err := s.q.GetRun(ctx, gen.GetRunParams{ID: runs[0], UserID: &s.user.ID})
 	require.NoError(t, err)
-	children, err := s.q.ListChildRuns(ctx, gen.ListChildRunsParams{ParentID: &listing.ID, UserID: s.user.ID})
+	children, err := s.q.ListChildRuns(ctx, gen.ListChildRunsParams{ParentID: &listing.ID, UserID: &s.user.ID})
 	require.NoError(t, err)
 	if listing.State != gen.RunStateCompleted || len(children) != 1 || children[0].Kind != gen.RunKindFetch || children[0].State != gen.RunStateCompleted {
 		t.Fatalf("listing run = %+v with children %+v, want completed with one completed fetch", listing, children)
@@ -370,9 +370,9 @@ func TestConfirmCandidate(t *testing.T) {
 	if k.InstrumentID == nil || *k.InstrumentID != instruments[0].InstrumentID || k.Arbiter == nil || *k.Arbiter != gen.ArbiterUser {
 		t.Errorf("the third statement's key = %+v, want the confirmed association", k)
 	}
-	resolution, err := s.q.ListChildRuns(ctx, gen.ListChildRunsParams{ParentID: &third.ID, UserID: s.user.ID})
+	resolution, err := s.q.ListChildRuns(ctx, gen.ListChildRunsParams{ParentID: &third.ID, UserID: &s.user.ID})
 	require.NoError(t, err)
-	fetches, err := s.q.ListChildRuns(ctx, gen.ListChildRunsParams{ParentID: &resolution[0].ID, UserID: s.user.ID})
+	fetches, err := s.q.ListChildRuns(ctx, gen.ListChildRunsParams{ParentID: &resolution[0].ID, UserID: &s.user.ID})
 	require.NoError(t, err)
 	if len(fetches) != 0 {
 		t.Errorf("the third statement's resolution started %d fetches, want none: a key that takes an arbitrated association is not sent", len(fetches))

@@ -85,7 +85,7 @@ func (r *Resolver) resolveKey(ctx context.Context, q Queries, run gen.Run, res *
 	if verdict.winner == nil {
 		return recordResolution(ctx, q, run, res, unresolved(res), summary(res, verdict), verdict.findings, len(verdict.offered))
 	}
-	w := writer{q: q, user: run.UserID, taken: t.taken}
+	w := writer{q: q, user: *run.UserID, taken: t.taken}
 	if t.instrument != nil {
 		w.instr = t.instrument.Instrument
 	} else if w.instr.Row, err = w.create(ctx, verdict.winner); err != nil {
@@ -131,17 +131,17 @@ func (r *Resolver) resolveKey(ctx context.Context, q Queries, run gen.Run, res *
 // read before the association clears the key's group. An upload or a
 // replay recomputes the groups under that lock.
 func lockGroupMates(ctx context.Context, q Queries, run gen.Run, res *resolution) ([]gen.StatedKey, error) {
-	if err := q.LockUserKeys(ctx, run.UserID); err != nil {
+	if err := q.LockUserKeys(ctx, *run.UserID); err != nil {
 		return nil, fmt.Errorf("lock keys: %w", err)
 	}
-	fresh, err := q.GetStatedKey(ctx, gen.GetStatedKeyParams{ID: res.row.ID, UserID: run.UserID})
+	fresh, err := q.GetStatedKey(ctx, gen.GetStatedKeyParams{ID: res.row.ID, UserID: *run.UserID})
 	if err != nil {
 		return nil, fmt.Errorf("read key: %w", err)
 	}
 	if fresh.GroupID == nil {
 		return nil, nil
 	}
-	mates, err := q.ListStatedKeysOfGroups(ctx, gen.ListStatedKeysOfGroupsParams{UserID: run.UserID, GroupIds: []uuid.UUID{*fresh.GroupID}})
+	mates, err := q.ListStatedKeysOfGroups(ctx, gen.ListStatedKeysOfGroupsParams{UserID: *run.UserID, GroupIds: []uuid.UUID{*fresh.GroupID}})
 	if err != nil {
 		return nil, fmt.Errorf("list group: %w", err)
 	}
@@ -158,7 +158,7 @@ func copyGroupAssociation(ctx context.Context, q Queries, run gen.Run, res *reso
 		if _, err := q.SetStatedKeyAssociation(ctx, carry(a, res.family, k, res.currencies)); err != nil {
 			return fmt.Errorf("associate key %s: %w", k.ID, err)
 		}
-		arg := gen.CreateResolutionKeyParams{RunID: run.ID, UserID: run.UserID, StatedKeyID: k.ID, Outcome: gen.ResolutionOutcomeMatched}
+		arg := gen.CreateResolutionKeyParams{RunID: run.ID, UserID: *run.UserID, StatedKeyID: k.ID, Outcome: gen.ResolutionOutcomeMatched}
 		if _, err := q.CreateResolutionKey(ctx, arg); err != nil {
 			return fmt.Errorf("record resolution of key %s: %w", k.ID, err)
 		}
@@ -319,7 +319,7 @@ func recordResolution(ctx context.Context, q Queries, run gen.Run, res *resoluti
 	if err != nil {
 		return gen.ResolutionKey{}, nil, err
 	}
-	arg := gen.CreateResolutionKeyParams{RunID: run.ID, UserID: run.UserID, StatedKeyID: res.row.ID, Outcome: outcome, Reasons: reasons, Offered: int32(offered)}
+	arg := gen.CreateResolutionKeyParams{RunID: run.ID, UserID: *run.UserID, StatedKeyID: res.row.ID, Outcome: outcome, Reasons: reasons, Offered: int32(offered)}
 	rk, err := q.CreateResolutionKey(ctx, arg)
 	if err != nil {
 		return gen.ResolutionKey{}, nil, fmt.Errorf("record resolution: %w", err)
@@ -481,7 +481,7 @@ func (w *writer) attach(ctx context.Context, c *identityClaim) error {
 			}
 		}
 	}
-	arg := gen.SetFetchKeyInstrumentParams{ID: fetchKeyID, UserID: w.user, InstrumentID: &w.instr.Row.ID}
+	arg := gen.SetFetchKeyInstrumentParams{ID: fetchKeyID, UserID: &w.user, InstrumentID: &w.instr.Row.ID}
 	if err := w.q.SetFetchKeyInstrument(ctx, arg); err != nil {
 		return fmt.Errorf("attach fetch key: %w", err)
 	}

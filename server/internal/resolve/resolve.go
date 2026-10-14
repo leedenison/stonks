@@ -34,6 +34,7 @@ import (
 	"log/slog"
 
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	runs "github.com/leedenison/stonks/server/internal/run"
 )
 
 // Resolver resolves stated keys against the database and the datasources.
@@ -70,7 +71,12 @@ func (r *Resolver) Resolve(ctx context.Context, run gen.Run, rows []gen.StatedKe
 
 // prepare runs the lookups, the search for arbitrated keys and the fetches
 // for rows, which a resolution run and a synchronous resolution share.
+//
+// A resolution acts for its run's user, so prepare refuses a system run.
 func (r *Resolver) prepare(ctx context.Context, run gen.Run, rows []gen.StatedKey) ([]*resolution, error) {
+	if _, err := runs.Owner(run); err != nil {
+		return nil, err
+	}
 	cur, err := r.currencies(ctx)
 	if err != nil {
 		return nil, err

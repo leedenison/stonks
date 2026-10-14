@@ -63,8 +63,12 @@ func New(store Store, runs Runner, resolver Resolver, sources Sources) *Service 
 }
 
 // Start starts a replay of source's keys as a run of source's user, started
-// by admin, and returns the pending row.
+// by admin, and returns the pending row. A replay belongs to the source's
+// user, so Start refuses a system run.
 func (s *Service) Start(ctx context.Context, admin uuid.UUID, source gen.Run, scope Scope) (gen.Run, error) {
+	if _, err := run.Owner(source); err != nil {
+		return gen.Run{}, err
+	}
 	keys, err := s.selectKeys(ctx, source, scope)
 	if err != nil {
 		return gen.Run{}, err
@@ -84,7 +88,7 @@ func (s *Service) selectKeys(ctx context.Context, source gen.Run, scope Scope) (
 	}
 	var out []gen.StatedKey
 	if scope.Datasource == "" {
-		rows, err := s.store.ListUnavailableKeys(ctx, gen.ListUnavailableKeysParams{UserID: source.UserID, SourceID: source.ID})
+		rows, err := s.store.ListUnavailableKeys(ctx, gen.ListUnavailableKeysParams{UserID: *source.UserID, SourceID: source.ID})
 		if err != nil {
 			return nil, fmt.Errorf("list unavailable keys: %w", err)
 		}
@@ -100,7 +104,7 @@ func (s *Service) selectKeys(ctx context.Context, source gen.Run, scope Scope) (
 		if !ok {
 			return nil, ErrNoIdentity
 		}
-		rows, err := s.store.ListKeysUncoveredBy(ctx, gen.ListKeysUncoveredByParams{UserID: source.UserID, SourceID: source.ID, Datasource: scope.Datasource})
+		rows, err := s.store.ListKeysUncoveredBy(ctx, gen.ListKeysUncoveredByParams{UserID: *source.UserID, SourceID: source.ID, Datasource: scope.Datasource})
 		if err != nil {
 			return nil, fmt.Errorf("list uncovered keys: %w", err)
 		}
@@ -138,7 +142,7 @@ type replay struct {
 
 // prepare writes the replays row.
 func (r *replay) prepare(ctx context.Context, run gen.Run) error {
-	arg := gen.CreateReplayParams{ID: run.ID, UserID: run.UserID, SourceID: r.source.ID, StartedBy: r.admin}
+	arg := gen.CreateReplayParams{ID: run.ID, UserID: *run.UserID, SourceID: r.source.ID, StartedBy: r.admin}
 	if r.scope.Datasource != "" {
 		arg.Datasource = &r.scope.Datasource
 	}
@@ -156,10 +160,10 @@ func (r *replay) work(ctx context.Context, run gen.Run) error {
 		return fmt.Errorf("resolution: %w", err)
 	}
 	return r.store.Tx(ctx, func(q Queries) error {
-		if err := q.LockUserKeys(ctx, run.UserID); err != nil {
+		if err := q.LockUserKeys(ctx, *run.UserID); err != nil {
 			return fmt.Errorf("lock keys: %w", err)
 		}
-		return group.Regroup(ctx, q, run.UserID)
+		return group.Regroup(ctx, q, *run.UserID)
 	})
 }
 

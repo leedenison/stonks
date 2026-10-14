@@ -48,7 +48,7 @@ func (s *Server) GetRun(ctx context.Context, req *connect.Request[runv1.GetRunRe
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	row, err := s.reader.GetRun(ctx, gen.GetRunParams{ID: id, UserID: p.User.ID})
+	row, err := s.reader.GetRun(ctx, gen.GetRunParams{ID: id, UserID: &p.User.ID})
 	if errors.Is(err, db.ErrNotFound) {
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("no such run"))
 	}

@@ -31,7 +31,7 @@ func names(t *testing.T, q *gen.Queries, statement gen.Statement, key gen.Stated
 // newResolution records a resolution run under statement.
 func newResolution(t *testing.T, q *gen.Queries, user gen.User, statement gen.Statement) gen.Run {
 	t.Helper()
-	row, err := q.CreateRun(context.Background(), gen.CreateRunParams{ID: db.NewID(), UserID: user.ID, Kind: gen.RunKindResolution, Trigger: gen.RunTriggerRun, ParentID: &statement.ID})
+	row, err := q.CreateRun(context.Background(), gen.CreateRunParams{ID: db.NewID(), UserID: &user.ID, Kind: gen.RunKindResolution, Trigger: gen.RunTriggerRun, ParentID: &statement.ID})
 	require.NoError(t, err)
 	return row
 }
@@ -39,7 +39,7 @@ func newResolution(t *testing.T, q *gen.Queries, user gen.User, statement gen.St
 // resolved records key's outcome under run.
 func resolved(t *testing.T, q *gen.Queries, run gen.Run, key gen.StatedKey, outcome gen.ResolutionOutcome) {
 	t.Helper()
-	arg := gen.CreateResolutionKeyParams{RunID: run.ID, UserID: run.UserID, StatedKeyID: key.ID, Outcome: outcome}
+	arg := gen.CreateResolutionKeyParams{RunID: run.ID, UserID: *run.UserID, StatedKeyID: key.ID, Outcome: outcome}
 	if outcome != gen.ResolutionOutcomeMatched {
 		arg.Reasons = []string{string(outcome)}
 	}
@@ -109,7 +109,7 @@ func TestListKeysUncoveredBy(t *testing.T) {
 	q := newTx(t)
 	user := newUser(t, q, "uncovered@example.com")
 	statement := newStatement(t, q, user)
-	run, err := q.GetRun(ctx, gen.GetRunParams{ID: statement.ID, UserID: user.ID})
+	run, err := q.GetRun(ctx, gen.GetRunParams{ID: statement.ID, UserID: &user.ID})
 	require.NoError(t, err)
 	alpha, beta := newDatasource(t, q, "alpha", 10), newDatasource(t, q, "beta", 20)
 	fetch := newFetch(t, q, user, run, alpha)
@@ -180,7 +180,7 @@ func TestReplays(t *testing.T) {
 	admin := newUser(t, q, "replayer@example.com")
 	statement := newStatement(t, q, user)
 	ds := newDatasource(t, q, "alpha", 10)
-	run, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: user.ID, Kind: gen.RunKindReplay, Trigger: gen.RunTriggerAdministrator})
+	run, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &user.ID, Kind: gen.RunKindReplay, Trigger: gen.RunTriggerAdministrator})
 	require.NoError(t, err)
 	require.NoError(t, q.CreateReplay(ctx, gen.CreateReplayParams{ID: run.ID, UserID: user.ID, SourceID: statement.ID, Datasource: &ds.Name, StartedBy: admin.ID}))
 	got, err := q.GetReplay(ctx, run.ID)
@@ -191,7 +191,7 @@ func TestReplays(t *testing.T) {
 
 	other := newUser(t, q, "other@example.com")
 	foreign := newStatement(t, q, other)
-	run, err = q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: user.ID, Kind: gen.RunKindReplay, Trigger: gen.RunTriggerAdministrator})
+	run, err = q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &user.ID, Kind: gen.RunKindReplay, Trigger: gen.RunTriggerAdministrator})
 	require.NoError(t, err)
 	if err := q.CreateReplay(ctx, gen.CreateReplayParams{ID: run.ID, UserID: user.ID, SourceID: foreign.ID, StartedBy: admin.ID}); err == nil {
 		t.Error("CreateReplay over another user's run: err = nil, want a constraint violation")
