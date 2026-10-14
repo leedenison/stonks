@@ -25,7 +25,7 @@ func TestFindings(t *testing.T) {
 	q := newTx(t)
 	user := newUser(t, q, "findings@example.com")
 	statement := newStatement(t, q, user)
-	run, err := q.GetRun(ctx, gen.GetRunParams{ID: statement.ID, UserID: user.ID})
+	run, err := q.GetRun(ctx, gen.GetRunParams{ID: statement.ID, UserID: &user.ID})
 	require.NoError(t, err)
 	fetch := newFetch(t, q, user, run, newDatasource(t, q, "findings", 10))
 	key := newStatedKey(t, q, user, statement)
@@ -76,7 +76,7 @@ func TestFindings(t *testing.T) {
 			q := newTx(t)
 			user := newUser(t, q, "findings-"+uuid.NewString()+"@example.com")
 			statement := newStatement(t, q, user)
-			run, err := q.GetRun(ctx, gen.GetRunParams{ID: statement.ID, UserID: user.ID})
+			run, err := q.GetRun(ctx, gen.GetRunParams{ID: statement.ID, UserID: &user.ID})
 			require.NoError(t, err)
 			key := newStatedKey(t, q, user, statement)
 			tc.arg.ID, tc.arg.RunID = db.NewID(), run.ID

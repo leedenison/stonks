@@ -110,6 +110,33 @@ describe("RunsPage", () => {
     );
   });
 
+  it("shows a system run with no user to filter by", async () => {
+    const system = create(ListRunsResponseSchema, {
+      runs: [
+        userRun(
+          {
+            id: "s1",
+            kind: RunKind.FETCH,
+            trigger: RunTrigger.ADMINISTRATOR,
+            createdAt: instant("2026-09-24T10:00:00Z"),
+          },
+          { userId: undefined, userEmail: undefined },
+        ),
+      ],
+    });
+    renderWithAuth(
+      <RunsPage />,
+      serving(() => system),
+    );
+    await waitFor(() => expect(screen.getByTestId("run-row-s1")).toBeTruthy());
+    const row = screen.getByTestId("run-row-s1");
+    expect(row.textContent).toContain("System");
+    const links = [...row.querySelectorAll("a")].map((a) =>
+      a.getAttribute("href"),
+    );
+    expect(links).toEqual(["/admin/runs/s1"]);
+  });
+
   it("opens the path to a match that a filter reached", async () => {
     params = new URLSearchParams("kind=resolution");
     const reached = create(ListRunsResponseSchema, {

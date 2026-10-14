@@ -16,6 +16,7 @@ import (
 	runv1 "github.com/leedenison/stonks/proto/run/v1"
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/ptr"
 	replayer "github.com/leedenison/stonks/server/internal/replay"
 	"github.com/leedenison/stonks/server/internal/service/admin/replay/mock"
 	"github.com/leedenison/stonks/server/internal/service/servicetest"
@@ -52,12 +53,12 @@ func newFixture(t *testing.T) *fixture {
 }
 
 func runRow(id uuid.UUID, kind gen.RunKind) gen.Run {
-	return gen.Run{ID: id, UserID: userID, Kind: kind, Trigger: gen.RunTriggerUser, State: gen.RunStateCompleted, CreatedAt: created}
+	return gen.Run{ID: id, UserID: &userID, Kind: kind, Trigger: gen.RunTriggerUser, State: gen.RunStateCompleted, CreatedAt: created}
 }
 
 func TestStartReplay(t *testing.T) {
 	source := runRow(runID, gen.RunKindStatement)
-	started := gen.Run{ID: childID, UserID: userID, Kind: gen.RunKindReplay, Trigger: gen.RunTriggerAdministrator, State: gen.RunStatePending, CreatedAt: created}
+	started := gen.Run{ID: childID, UserID: &userID, Kind: gen.RunKindReplay, Trigger: gen.RunTriggerAdministrator, State: gen.RunStatePending, CreatedAt: created}
 	unavailable := &adminreplayv1.StartReplayRequest{RunId: runID.String(), Scope: &adminreplayv1.StartReplayRequest_Unavailable{Unavailable: true}}
 	datasource := &adminreplayv1.StartReplayRequest{RunId: runID.String(), Scope: &adminreplayv1.StartReplayRequest_Datasource{Datasource: "openfigi"}}
 	tests := []struct {
@@ -85,7 +86,7 @@ func TestStartReplay(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newFixture(t)
 			if tc.wantCode != connect.CodeInvalidArgument {
-				f.queries.EXPECT().GetUserRun(gomock.Any(), runID).Return(gen.GetUserRunRow{Run: source, Email: "one@example.com"}, tc.readErr)
+				f.queries.EXPECT().GetUserRun(gomock.Any(), runID).Return(gen.GetUserRunRow{Run: source, Email: ptr.To("one@example.com")}, tc.readErr)
 			}
 			if tc.wantScope != nil {
 				f.replays.EXPECT().Start(gomock.Any(), adminID, source, *tc.wantScope).Return(started, tc.startErr)

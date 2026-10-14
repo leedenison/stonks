@@ -77,14 +77,14 @@ func TestStart(t *testing.T) {
 			f.store.EXPECT().CompleteRun(gomock.Any(), gomock.Any()).DoAndReturn(func(context.Context, uuid.UUID) error { done(); return nil })
 
 			ran := make(chan struct{})
-			row, err := f.runner.Start(context.Background(), Spec{Kind: gen.RunKindStatement, Trigger: trigger, UserID: userA, Lane: "ibkr"}, func(context.Context, gen.Run) error {
+			row, err := f.runner.Start(context.Background(), Spec{Kind: gen.RunKindStatement, Trigger: trigger, UserID: &userA, Lane: "ibkr"}, func(context.Context, gen.Run) error {
 				close(ran)
 				return nil
 			})
 			if err != nil {
 				t.Fatalf("Start() error = %v", err)
 			}
-			want := gen.Run{ID: row.ID, UserID: userA, Kind: gen.RunKindStatement, Trigger: trigger, State: gen.RunStatePending}
+			want := gen.Run{ID: row.ID, UserID: &userA, Kind: gen.RunKindStatement, Trigger: trigger, State: gen.RunStatePending}
 			if diff := cmp.Diff(want, row); diff != "" {
 				t.Errorf("Start() row mismatch (-want +got):\n%s", diff)
 			}
@@ -113,7 +113,7 @@ func TestStartRecordsFailure(t *testing.T) {
 				done()
 				return nil
 			})
-			row, err := f.runner.Start(context.Background(), Spec{Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser, UserID: userA}, tc.work)
+			row, err := f.runner.Start(context.Background(), Spec{Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser, UserID: &userA}, tc.work)
 			if err != nil {
 				t.Fatalf("Start() error = %v", err)
 			}
@@ -144,7 +144,7 @@ func TestStartCreateFails(t *testing.T) {
 	r := New(store, slog.New(slog.DiscardHandler))
 	t.Cleanup(r.Close)
 
-	spec := Spec{Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser, UserID: userA, Lane: "ibkr", Prepare: func(context.Context, gen.Run) error {
+	spec := Spec{Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser, UserID: &userA, Lane: "ibkr", Prepare: func(context.Context, gen.Run) error {
 		t.Error("Prepare ran for a run that was not inserted")
 		return nil
 	}}
@@ -155,7 +155,7 @@ func TestStartCreateFails(t *testing.T) {
 	if !errors.Is(err, boom) {
 		t.Errorf("Start() error = %v, want %v", err, boom)
 	}
-	next := Spec{Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser, UserID: userA, Lane: "ibkr"}
+	next := Spec{Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser, UserID: &userA, Lane: "ibkr"}
 	if _, err := r.Start(context.Background(), next, func(context.Context, gen.Run) error { return nil }); err != nil {
 		t.Fatalf("Start() after the failed insert error = %v", err)
 	}
@@ -163,8 +163,16 @@ func TestStartCreateFails(t *testing.T) {
 }
 
 // TestStartOrdersLane checks that a run of one user and lane does not start
-// until the earlier one has stopped, while other lanes are unaffected.
+// until the earlier one has stopped, while other lanes are unaffected. Each
+// spec of a user carries its own pointer. System runs, which have no user,
+// share one lane.
 func TestStartOrdersLane(t *testing.T) {
+	a, b, c := userA, userA, userA
+	t.Run("user", func(t *testing.T) { ordersLane(t, [3]*uuid.UUID{&a, &b, &c}) })
+	t.Run("system", func(t *testing.T) { ordersLane(t, [3]*uuid.UUID{}) })
+}
+
+func ordersLane(t *testing.T, users [3]*uuid.UUID) {
 	f := newFixture(t)
 	f.store.EXPECT().CompleteRun(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 
@@ -200,9 +208,9 @@ func TestStartOrdersLane(t *testing.T) {
 		spec Spec
 		work Work
 	}{
-		{Spec{Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser, UserID: userA, Lane: "ibkr"}, first},
-		{Spec{Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser, UserID: userA, Lane: "ibkr"}, second},
-		{Spec{Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser, UserID: userA, Lane: "schwab"}, other},
+		{Spec{Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser, UserID: users[0], Lane: "ibkr"}, first},
+		{Spec{Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser, UserID: users[1], Lane: "ibkr"}, second},
+		{Spec{Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser, UserID: users[2], Lane: "schwab"}, other},
 	} {
 		if _, err := f.runner.Start(ctx, s.spec, s.work); err != nil {
 			t.Fatalf("Start(%+v) error = %v", s.spec, err)
@@ -245,7 +253,7 @@ func TestParallelUsers(t *testing.T) {
 		}
 	}
 	for _, u := range []uuid.UUID{userA, userB} {
-		if _, err := f.runner.Start(context.Background(), Spec{Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser, UserID: u, Lane: "ibkr"}, work); err != nil {
+		if _, err := f.runner.Start(context.Background(), Spec{Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser, UserID: &u, Lane: "ibkr"}, work); err != nil {
 			t.Fatalf("Start() error = %v", err)
 		}
 	}
@@ -268,7 +276,7 @@ func TestClose(t *testing.T) {
 		return nil
 	}
 	ctx := context.Background()
-	spec := Spec{Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser, UserID: userA, Lane: "ibkr"}
+	spec := Spec{Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser, UserID: &userA, Lane: "ibkr"}
 	if _, err := f.runner.Start(ctx, spec, blocking); err != nil {
 		t.Fatalf("Start() error = %v", err)
 	}
@@ -280,13 +288,13 @@ func TestClose(t *testing.T) {
 	if _, err := f.runner.Start(ctx, spec, pending); !errors.Is(err, ErrClosed) {
 		t.Errorf("Start() after Close: err = %v, want ErrClosed", err)
 	}
-	if _, err := f.runner.Child(ctx, gen.Run{UserID: userA}, gen.RunKindResolution, pending); !errors.Is(err, ErrClosed) {
+	if _, err := f.runner.Child(ctx, gen.Run{UserID: &userA}, gen.RunKindResolution, pending); !errors.Is(err, ErrClosed) {
 		t.Errorf("Child() after Close: err = %v, want ErrClosed", err)
 	}
 }
 
 func TestChild(t *testing.T) {
-	parent := gen.Run{ID: uuid.MustParse("00000000-0000-0000-0000-000000000010"), UserID: userA, Kind: gen.RunKindStatement}
+	parent := gen.Run{ID: uuid.MustParse("00000000-0000-0000-0000-000000000010"), UserID: &userA, Kind: gen.RunKindStatement}
 	tests := []struct {
 		name    string
 		work    Work
@@ -325,7 +333,7 @@ func TestChild(t *testing.T) {
 			if (err == nil) != (tc.wantErr == "") || (err != nil && err.Error() != tc.wantErr) {
 				t.Errorf("Child() error = %v, want %q", err, tc.wantErr)
 			}
-			want := gen.Run{ID: row.ID, UserID: userA, Kind: gen.RunKindResolution, Trigger: gen.RunTriggerRun, ParentID: &parent.ID, State: gen.RunStatePending}
+			want := gen.Run{ID: row.ID, UserID: &userA, Kind: gen.RunKindResolution, Trigger: gen.RunTriggerRun, ParentID: &parent.ID, State: gen.RunStatePending}
 			if diff := cmp.Diff(want, row); diff != "" {
 				t.Errorf("Child() row mismatch (-want +got):\n%s", diff)
 			}
@@ -373,7 +381,7 @@ func TestSync(t *testing.T) {
 			if (err == nil) != (tc.wantErr == "") || (err != nil && err.Error() != tc.wantErr) {
 				t.Errorf("Sync() error = %v, want %q", err, tc.wantErr)
 			}
-			want := gen.Run{ID: row.ID, UserID: userA, Kind: gen.RunKindResolution, Trigger: gen.RunTriggerUser, State: gen.RunStatePending}
+			want := gen.Run{ID: row.ID, UserID: &userA, Kind: gen.RunKindResolution, Trigger: gen.RunTriggerUser, State: gen.RunStatePending}
 			if diff := cmp.Diff(want, row); diff != "" {
 				t.Errorf("Sync() row mismatch (-want +got):\n%s", diff)
 			}
@@ -400,7 +408,7 @@ func TestPrepare(t *testing.T) {
 		f.store.EXPECT().CompleteRun(gomock.Any(), gomock.Any()).DoAndReturn(func(context.Context, uuid.UUID) error { done(); return nil })
 		prepared := false
 		var preparedFor gen.Run
-		spec := Spec{Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser, UserID: userA, Lane: "ibkr", Prepare: func(_ context.Context, run gen.Run) error {
+		spec := Spec{Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser, UserID: &userA, Lane: "ibkr", Prepare: func(_ context.Context, run gen.Run) error {
 			prepared = true
 			preparedFor = run
 			return nil
@@ -429,7 +437,7 @@ func TestPrepare(t *testing.T) {
 			return nil
 		})
 		boom := errors.New("boom")
-		spec := Spec{Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser, UserID: userA, Prepare: func(context.Context, gen.Run) error { return boom }}
+		spec := Spec{Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser, UserID: &userA, Prepare: func(context.Context, gen.Run) error { return boom }}
 		row, err := f.runner.Start(context.Background(), spec, func(context.Context, gen.Run) error {
 			t.Error("work ran after Prepare failed")
 			return nil
@@ -448,7 +456,7 @@ func TestPrepare(t *testing.T) {
 		f.store.EXPECT().FailRun(gomock.Any(), gomock.Any()).DoAndReturn(func(context.Context, gen.FailRunParams) error { failedDone(); return nil })
 		completed, completedDone := signal()
 		f.store.EXPECT().CompleteRun(gomock.Any(), gomock.Any()).DoAndReturn(func(context.Context, uuid.UUID) error { completedDone(); return nil })
-		spec := Spec{Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser, UserID: userA, Lane: "ibkr", Prepare: func(context.Context, gen.Run) error { panic("boom") }}
+		spec := Spec{Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser, UserID: &userA, Lane: "ibkr", Prepare: func(context.Context, gen.Run) error { panic("boom") }}
 		_, err := f.runner.Start(context.Background(), spec, func(context.Context, gen.Run) error {
 			t.Error("work ran after Prepare panicked")
 			return nil
@@ -457,7 +465,7 @@ func TestPrepare(t *testing.T) {
 			t.Errorf("Start() error = %v, want the panic", err)
 		}
 		await(t, failed, "FailRun")
-		next := Spec{Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser, UserID: userA, Lane: "ibkr"}
+		next := Spec{Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser, UserID: &userA, Lane: "ibkr"}
 		if _, err := f.runner.Start(context.Background(), next, func(context.Context, gen.Run) error { return nil }); err != nil {
 			t.Fatalf("Start() after the panic error = %v", err)
 		}
@@ -497,5 +505,16 @@ func TestSweep(t *testing.T) {
 				t.Errorf("Sweep() counts mismatch (-want +got):\n%s", diff)
 			}
 		})
+	}
+}
+
+// TestOwner checks that a run's user reads back, and that a system run has
+// none.
+func TestOwner(t *testing.T) {
+	if got, err := Owner(gen.Run{UserID: &userA}); err != nil || got != userA {
+		t.Errorf("Owner(user run) = %v, %v, want %v", got, err, userA)
+	}
+	if _, err := Owner(gen.Run{}); !errors.Is(err, ErrSystem) {
+		t.Errorf("Owner(system run) error = %v, want ErrSystem", err)
 	}
 }

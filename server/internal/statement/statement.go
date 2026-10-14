@@ -83,7 +83,7 @@ func (s *Service) Create(ctx context.Context, userID uuid.UUID, msg *statementv1
 		}
 		g.splits = append(g.splits, split)
 	}
-	spec := run.Spec{Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser, UserID: userID, Lane: string(broker), Prepare: g.prepare}
+	spec := run.Spec{Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser, UserID: &userID, Lane: string(broker), Prepare: g.prepare}
 	return s.runs.Start(ctx, spec, g.work)
 }
 

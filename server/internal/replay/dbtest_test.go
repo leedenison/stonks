@@ -115,14 +115,14 @@ func (s *stack) ingest(t *testing.T) gen.Run {
 
 func (s *stack) run(t *testing.T, id uuid.UUID) gen.Run {
 	t.Helper()
-	got, err := s.q.GetRun(context.Background(), gen.GetRunParams{ID: id, UserID: s.user.ID})
+	got, err := s.q.GetRun(context.Background(), gen.GetRunParams{ID: id, UserID: &s.user.ID})
 	require.NoError(t, err)
 	return got
 }
 
 func (s *stack) children(t *testing.T, parent gen.Run) []gen.Run {
 	t.Helper()
-	rows, err := s.q.ListChildRuns(context.Background(), gen.ListChildRunsParams{ParentID: &parent.ID, UserID: s.user.ID})
+	rows, err := s.q.ListChildRuns(context.Background(), gen.ListChildRunsParams{ParentID: &parent.ID, UserID: &s.user.ID})
 	require.NoError(t, err)
 	return rows
 }

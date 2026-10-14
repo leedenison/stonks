@@ -100,12 +100,16 @@ export function RunRow({
       </Td>
       <Td>{enumLabel(runEnums.trigger, r.run?.trigger ?? 0)}</Td>
       <Td>
-        <Link
-          href={filterQuery({ ...filters, before: "", user: r.userId })}
-          className="text-action underline-offset-4 hover:underline"
-        >
-          {r.userEmail}
-        </Link>
+        {r.userId === undefined ? (
+          <span className="text-text-muted">System</span>
+        ) : (
+          <Link
+            href={filterQuery({ ...filters, before: "", user: r.userId })}
+            className="text-action underline-offset-4 hover:underline"
+          >
+            {r.userEmail}
+          </Link>
+        )}
       </Td>
       <Td>
         <RunChip run={r.run} />

@@ -3,8 +3,11 @@
 // A run is a row created before its work starts. The call starting it responds
 // with the row, and progress and the outcome are read against it.
 //
-// A run is started by a user, by an administrator, or by another run. An
-// administrator's run belongs to the user whose keys it re-resolves. When a
+// A run is started by a user, by an administrator, or by another run. A run
+// acts for its user. A system run acts for the system and has no user. An
+// administrator's replay belongs to the user whose keys it re-resolves, and
+// any other run an administrator starts is a system run. A child shares its
+// parent's user, unless the child or the parent is a system run. When a
 // user or an administrator starts a run, it executes in a goroutine of its
 // own once the call starting it has responded, after carrying out its prepare
 // step in the caller. When a run starts another run, the child executes
@@ -27,7 +30,7 @@
 // A run records what an administrator may need to see as findings, which
 // belong to the run and are written by the work that met them; see
 // [006_findings.sql](../migrations/006_findings.sql). The items a run writes
-// are addressed to its user.
+// are addressed to its user, or to nobody for a system run.
 package run
 
 //go:generate go tool mockgen -source=run.go -destination=mock/run_mock.go -package=mock
@@ -47,6 +50,17 @@ import (
 
 // ErrClosed is returned by Start and Child once Close has been called.
 var ErrClosed = errors.New("runner closed")
+
+// ErrSystem is returned by Owner for a system run.
+var ErrSystem = errors.New("system run has no user")
+
+// Owner returns the user a run acts for.
+func Owner(r gen.Run) (uuid.UUID, error) {
+	if r.UserID == nil {
+		return uuid.Nil, fmt.Errorf("run %s: %w", r.ID, ErrSystem)
+	}
+	return *r.UserID, nil
+}
 
 // Store is this package's view of the run queries.
 type Store interface {
@@ -72,7 +86,8 @@ type Spec struct {
 	Kind gen.RunKind
 	// Trigger is user or administrator.
 	Trigger gen.RunTrigger
-	UserID  uuid.UUID
+	// UserID is nil for a system run.
+	UserID *uuid.UUID
 	// Lane serialises a user's runs that share it.
 	Lane string
 	// Prepare runs in the caller once the run has been created but
@@ -80,6 +95,8 @@ type Spec struct {
 	Prepare Work
 }
 
+// laneKey identifies one lane of one user. Specs that point at the same user
+// share a lane, and a system run's user is the nil UUID.
 type laneKey struct {
 	user uuid.UUID
 	lane string
@@ -127,7 +144,10 @@ func (r *Runner) Start(ctx context.Context, spec Spec, work Work) (gen.Run, erro
 		return gen.Run{}, ErrClosed
 	}
 	id := db.NewID()
-	key := laneKey{user: spec.UserID, lane: spec.Lane}
+	key := laneKey{lane: spec.Lane}
+	if spec.UserID != nil {
+		key.user = *spec.UserID
+	}
 	prev := r.lanes[key]
 	done := make(chan struct{})
 	r.lanes[key] = done
@@ -169,7 +189,7 @@ func (r *Runner) Sync(ctx context.Context, user uuid.UUID, kind gen.RunKind, tri
 	if r.ctx.Err() != nil {
 		return gen.Run{}, ErrClosed
 	}
-	row, err := r.store.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: user, Kind: kind, Trigger: trigger})
+	row, err := r.store.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &user, Kind: kind, Trigger: trigger})
 	if err != nil {
 		return gen.Run{}, fmt.Errorf("create run: %w", err)
 	}

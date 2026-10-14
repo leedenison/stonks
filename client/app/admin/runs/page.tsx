@@ -63,7 +63,7 @@ function Runs() {
         ))}
         {f.user && (
           <Chip tone="primary" data-testid="runs-filter-user">
-            {runs[0]?.userEmail ?? f.user}
+            {runs.find((r) => r.userId === f.user)?.userEmail ?? f.user}
             <button
               type="button"
               aria-label="Show every user"

@@ -37,7 +37,7 @@ SELECT sqlc.embed(runs), users.email,
        fetches.datasource, fetches.endpoint
 FROM up
 JOIN runs ON runs.id = up.id
-JOIN users ON users.id = runs.user_id
+LEFT JOIN users ON users.id = runs.user_id
 LEFT JOIN fetches ON fetches.id = runs.id
 ORDER BY up.depth DESC;
 
@@ -54,7 +54,7 @@ SELECT sqlc.embed(runs), users.email,
        fetches.datasource, fetches.endpoint
 FROM down
 JOIN runs ON runs.id = down.id
-JOIN users ON users.id = runs.user_id
+LEFT JOIN users ON users.id = runs.user_id
 LEFT JOIN fetches ON fetches.id = runs.id
 ORDER BY down.depth, runs.id;
 
@@ -83,7 +83,7 @@ SELECT sqlc.embed(runs), users.email,
        fetches.datasource, fetches.endpoint, tree.root_id, true::bool AS matched
 FROM tree
 JOIN runs ON runs.id = tree.id
-JOIN users ON users.id = runs.user_id
+LEFT JOIN users ON users.id = runs.user_id
 LEFT JOIN fetches ON fetches.id = runs.id
 ORDER BY tree.root_id DESC, runs.id;
 
@@ -118,7 +118,7 @@ SELECT sqlc.embed(runs), users.email,
        fetches.datasource, fetches.endpoint, tree.root_id, (runs.id IN (SELECT id FROM matched))::bool AS matched
 FROM tree
 JOIN runs ON runs.id = tree.id
-JOIN users ON users.id = runs.user_id
+LEFT JOIN users ON users.id = runs.user_id
 LEFT JOIN fetches ON fetches.id = runs.id
 WHERE runs.id IN (SELECT id FROM lineage)
 ORDER BY tree.root_id DESC, runs.id;
@@ -129,6 +129,6 @@ SELECT sqlc.embed(runs), users.email,
         WHERE findings.run_id = runs.id AND findings.cleared_at IS NULL)::int AS open_findings,
        fetches.datasource, fetches.endpoint
 FROM runs
-JOIN users ON users.id = runs.user_id
+LEFT JOIN users ON users.id = runs.user_id
 LEFT JOIN fetches ON fetches.id = runs.id
 WHERE runs.id = $1;

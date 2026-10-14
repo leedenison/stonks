@@ -25,7 +25,7 @@ func (r *Resolver) findResolutionArbitratedKey(ctx context.Context, run gen.Run,
 	if len(open) == 0 {
 		return nil
 	}
-	arbitrated, err := r.store.ListUserArbitratedKeys(ctx, run.UserID)
+	arbitrated, err := r.store.ListUserArbitratedKeys(ctx, *run.UserID)
 	if err != nil {
 		return fmt.Errorf("list arbitrated keys: %w", err)
 	}
@@ -93,7 +93,7 @@ func carry(a gen.SetStatedKeyAssociationParams, fam string, k gen.StatedKey, cur
 // rows, so it skips the identifier lock.
 func copyArbitratedAssociation(ctx context.Context, q Queries, run gen.Run, res *resolution) (gen.ResolutionKey, []gen.FindingKind, error) {
 	src := res.arbitrated
-	a := gen.SetStatedKeyAssociationParams{UserID: run.UserID, InstrumentID: src.InstrumentID, ListingID: src.ListingID, ViaID: src.ViaID, Validity: src.Validity, Arbiter: gen.ArbiterUser}
+	a := gen.SetStatedKeyAssociationParams{UserID: *run.UserID, InstrumentID: src.InstrumentID, ListingID: src.ListingID, ViaID: src.ViaID, Validity: src.Validity, Arbiter: gen.ArbiterUser}
 	arg := carry(a, res.currencies.family(*src), res.row, res.currencies)
 	if _, err := q.SetStatedKeyAssociation(ctx, arg); err != nil {
 		return gen.ResolutionKey{}, nil, fmt.Errorf("associate key: %w", err)

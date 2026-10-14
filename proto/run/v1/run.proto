@@ -21,6 +21,8 @@ enum RunKind {
   RUN_KIND_FETCH = 3;
   // Re-resolves the keys of one run.
   RUN_KIND_REPLAY = 4;
+  // Records an administrator's assertion.
+  RUN_KIND_ATTESTATION = 5;
 }
 
 // What started a run.
@@ -30,7 +32,8 @@ enum RunTrigger {
   RUN_TRIGGER_USER = 1;
   // Another run, named as the parent.
   RUN_TRIGGER_RUN = 2;
-  // An administrator. The run belongs to the user whose keys it re-resolves.
+  // An administrator. A replay belongs to the user whose keys it re-resolves.
+  // Any other run an administrator starts is a system run.
   RUN_TRIGGER_ADMINISTRATOR = 3;
 }
 
