@@ -12,16 +12,24 @@ CREATE TABLE datasources (
     endpoint   text,
     -- config holds settings that are specific to one integration.
     config     jsonb       NOT NULL DEFAULT '{}',
+    -- lag_days is how many days a datasource that serves identifier events
+    -- for a whole domain may take to publish one. A domain fetch starts that
+    -- many days before the end of the previous one. NULL takes the
+    -- integration's default.
+    lag_days   integer,
     created_at timestamptz NOT NULL DEFAULT now(),
     CHECK (name <> ''),
     CHECK (jsonb_typeof(config) = 'object'),
+    CHECK (lag_days >= 0),
     -- Deferred, so a reorder that swaps two precedences passes. A deferrable
     -- constraint cannot arbitrate ON CONFLICT, so no upsert may name it.
     UNIQUE (precedence) DEFERRABLE INITIALLY DEFERRED
 );
 
--- The kind of data a fetch requests.
-CREATE TYPE fetch_kind AS ENUM ('identity');
+-- The kind of data a fetch requests: 'identity' is the identifiers and
+-- listings of an instrument, and 'identifier_events' is the identifier events
+-- of a value or a domain over a period.
+CREATE TYPE fetch_kind AS ENUM ('identity', 'identifier_events');
 
 -- The result of a fetch:
 -- 'served' means the datasource returned a, possibly empty, result set.

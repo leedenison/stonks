@@ -1,5 +1,5 @@
-// Package scripted is an identity integration whose every answer a test
-// scripts.
+// Package scripted holds integrations whose every answer a test scripts: one
+// for identity and one for identifier events.
 package scripted
 
 import (
@@ -68,6 +68,57 @@ func (s *Identity) Fetch(_ context.Context, reqs []market.Request[gen.StatedKey]
 		v := s.Responses[r.Sent]
 		v.Limited = s.Limited
 		out[i] = market.Response[market.IdentityResult]{Value: v}
+	}
+	return out, nil
+}
+
+// IdentifierEvents is a market.IdentifierEvents whose answers a test scripts.
+type IdentifierEvents struct {
+	// Down fails every request.
+	Down bool
+	// Responses maps each subject sent to its answer. A subject it lacks is
+	// answered with an empty result.
+	Responses map[types.Identifier]market.IdentifierEventResult
+	// Sent is every request the server received, in order.
+	Sent []market.IdentifierEventRequest
+}
+
+var _ market.IdentifierEvents = (*IdentifierEvents)(nil)
+
+// NewIdentifierEvents returns an IdentifierEvents with no responses scripted.
+func NewIdentifierEvents() *IdentifierEvents {
+	return &IdentifierEvents{Responses: map[types.Identifier]market.IdentifierEventResult{}}
+}
+
+// Classify reads every failure as temporary and about the subject.
+func (s *IdentifierEvents) Classify(error) market.Failure {
+	return market.Failure{Temporary: true, Scope: gen.BlockScopeIdentifier}
+}
+
+// Limit leaves calls unpaced.
+func (s *IdentifierEvents) Limit() (rate.Limit, int) { return rate.Inf, 1 }
+
+// Batch is the most requests one call carries.
+func (s *IdentifierEvents) Batch() int { return 10 }
+
+// Endpoint is the address of a provider that is never called.
+func (s *IdentifierEvents) Endpoint() string { return "https://scripted.test" }
+
+// Serves sends the request's subject.
+func (s *IdentifierEvents) Serves(r market.IdentifierEventRequest) (types.Identifier, error) {
+	return r.Subject, nil
+}
+
+// Fetch answers each request from Responses.
+func (s *IdentifierEvents) Fetch(_ context.Context, reqs []market.Request[market.IdentifierEventRequest]) ([]market.Response[market.IdentifierEventResult], error) {
+	out := make([]market.Response[market.IdentifierEventResult], len(reqs))
+	for i, r := range reqs {
+		s.Sent = append(s.Sent, r.Value)
+		if s.Down {
+			out[i] = market.Response[market.IdentifierEventResult]{Err: errors.New("the provider is down")}
+			continue
+		}
+		out[i] = market.Response[market.IdentifierEventResult]{Value: s.Responses[r.Sent]}
 	}
 	return out, nil
 }

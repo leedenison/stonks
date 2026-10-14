@@ -54,3 +54,15 @@ WHERE stated.id->>'type' = 'mic_ticker'
   AND coalesce(mics.operating_mic, stated.id->>'domain') = @domain::text
 ORDER BY transactions.order_date
 LIMIT 1;
+
+-- name: CreateIdentifierEvent :execrows
+-- An event is written only from a served fetch key.
+INSERT INTO identifier_events (id, fetch_key_id, domain, value, action, to_value, effective_on)
+SELECT @id, fetch_keys.id, @domain, @value, @action, sqlc.narg(to_value), @effective_on
+FROM fetch_keys WHERE fetch_keys.id = @fetch_key_id AND fetch_keys.outcome = 'served';
+
+-- name: CreateIdentifierEventCoverage :execrows
+-- Coverage is written only from a served fetch key.
+INSERT INTO identifier_event_coverage (id, fetch_key_id, domain, value, covered_from, covered_before)
+SELECT @id, fetch_keys.id, @domain, sqlc.narg(value), @covered_from, @covered_before
+FROM fetch_keys WHERE fetch_keys.id = @fetch_key_id AND fetch_keys.outcome = 'served';

@@ -5,8 +5,8 @@
 // of the work that needed the data; see [run.go](../run/run.go).
 //
 // Each kind of data is a Kind, which names the request an integration
-// receives and the response it gives.  An integration serves a kind by
-// implementing its Server. Identity is the only kind.
+// receives and the response it gives. An integration serves a kind by
+// implementing its Server. The kinds are identity and identifier events.
 //
 // An integration reads a provider's venue codes through a table generated
 // from the provider's own list. Every venue a table names normalises to an
@@ -142,4 +142,7 @@ type Kind[Q, P any] struct {
 	// count is how many results a served response offered, which the
 	// fetch_keys row records.
 	count func(P) int
+	// params is what the kind adds to the cache key from the request beyond
+	// the identifier sent, nil where it adds nothing.
+	params func(Q) []string
 }
