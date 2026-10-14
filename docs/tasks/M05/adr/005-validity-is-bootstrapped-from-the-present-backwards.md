@@ -5,16 +5,17 @@ needs validity from its earliest transaction to the present.
 
 Resolution builds it in three bands:
 
-1. The present. The identity fetch asserts the value at the moment of the fetch.
+1. The present. The identity fetch asserts the value on the day of the answer.
 2. The provider's history window. Massive's ticker events give value coverage of the
    current holder's chain. A point in time lookup asserts the value on the later of the
    earliest transaction and the start of the window. That assertion and the present one
    bracket the window, so validity across it is confirmed.
 3. Before the window. No provider answers for this period. Validity is provisional, and
-   resolution proceeds on it. The period is recorded as a coverage gap of the value, or
+   resolution proceeds on it. The period is derived as a coverage gap of the value, or
    of its domain where a domain fetch would serve it.
 
-An administrator closes a coverage gap by attestation. See
+An administrator closes a coverage gap with an assertion on the gap's first day. That
+assertion brackets the provider's first assertion. See
 [006](006-an-administrator-attests-what-no-datasource-covers.md). A gap shrinks when a
 subscription with a longer window is enabled and the key is replayed.
 

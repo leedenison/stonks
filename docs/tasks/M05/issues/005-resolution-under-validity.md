@@ -14,12 +14,14 @@ In:
   inside its validity. An association is provisional when it rests on provisional
   validity.
 - `stated_keys.validity` is a cache of the validity of the key's transactions. New
-  coverage, an assertion or an attestation recomputes it. See
+  coverage, an event or an assertion recomputes it. See
   [007](../adr/007-an-event-finds-what-it-affects-from-the-association.md).
-- An event finds the keys whose transactions now fall outside the validity of their
-  association. It replays them at once, beneath the run that recorded it. See
+- When a run writes an assertion, coverage or an event, it finds the keys whose
+  transactions now fall outside the validity of their association. It derives validity
+  before and after the write to find them, and replays them at once. See
   [008](../adr/008-an-event-replays-its-keys-beneath-a-system-run.md).
-- Where two providers assert different instruments for one value at one moment,
-  precedence decides. See [002](../adr/002-precedence-decides-between-providers-that-disagree-and-a-finding-records-it.md).
+- Where two providers assert different instruments for one value on one day, the run
+  that met the disagreement records a finding. See
+  [002](../adr/002-precedence-decides-between-providers-that-disagree-and-a-finding-records-it.md).
 - A witnessed event inside a bracket of same-instrument assertions is recorded as a
   finding of the run that met it.

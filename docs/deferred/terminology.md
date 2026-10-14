@@ -24,9 +24,9 @@ scales. GBP and GBp/GBX are one family.
 **Confirmed** where coverage or assertions establish it, **provisional** where it rests
 on the assumption that the identifier has not moved.
 
-**Assertion** -- a datasource's claim, made by a fetch, that an identifier names the
-instrument its answer describes, holding at the moment of the fetch or over the interval
-the answer states.
+**Assertion** -- a claim that an identifier names an instrument, or names nothing, on one
+day. A datasource makes one through a fetch, and it holds on the day of the answer. An
+administrator makes one by attestation.
 
 **Coverage** -- the periods over which one datasource has answered for one key, or for
 every key in one domain.

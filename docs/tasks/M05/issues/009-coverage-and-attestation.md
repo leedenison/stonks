@@ -12,9 +12,11 @@ An administrator sees where coverage is missing and attests it. See
 In:
 
 - A coverage page in the admin area, by domain. A timeline shows datasource coverage,
-  attestations and gaps. Gaps are ordered by the held keys and transactions they affect.
-- From a gap, one action attests the domain or a value over the gap's period. The action
-  is prefilled, and the administrator adds a note.
-- An action to attest an assertion over an interval, and one to record an event.
+  attested assertions and gaps. Gaps are ordered by the held keys and transactions they
+  affect.
+- From a gap of a value, one action attests the value on the gap's first day. The action
+  is prefilled.
+- An action to attest that a value names an instrument, or names nothing, on a day. It
+  may take a range and write an assertion on each end.
 - The same attest action beside a provisional key on the statement details page.
 - Withdrawing an attestation, which recomputes validity and replays the keys it affects.

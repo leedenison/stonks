@@ -7,7 +7,7 @@ Retirements are recorded from two kinds of evidence:
 - Massive's ticker listing with `active=false` states `delisted_utc`. This is a witnessed
   retirement on that date.
 - A provider answers that it does not know a value it has asserted before. The answer is
-  a negative assertion: at the moment of the fetch, the value names nothing at that
+  a negative assertion: on the day of the answer, the value names nothing at that
   provider. Any endpoint can make one. An identity lookup makes one in this milestone,
   and a price fetch will make one later.
 

@@ -35,11 +35,11 @@ An event is witnessed, implied or inferred:
   date.
 - An implied event is written from a corporate event that retires a listing.  It takes
   effect on one date and counts as no coverage.
-- An inferred event is written when two assertions of one value name different
-  instruments.  It takes effect somewhere between the two assertions, and that interval
-  is what is recorded.
+- An inferred event is derived when two assertions of one value name different
+  instruments.  It takes effect somewhere between the two assertions.  It is never
+  stored, since the assertions imply it.
 
-Every event references the run that gave rise to it.
+Every stored event references the run that gave rise to it.
 
 Events are stated against MIC_TICKER, with the operating MIC as domain.  Every
 MIC-derived identifier moves when its MIC_TICKER does, so events and coverage for the
@@ -49,13 +49,14 @@ MIC_TICKER serve them all.
 
 A fetch whose answer returns an identifier asserts that the identifier names the instrument
 the answer described.  An identity lookup asserts, and so does a price or corporate event
-fetch whose answer echoes the identifier it served.  An assertion holds at the moment of
-the fetch unless the answer states an interval: a point in time lookup asserts on the
-date requested, and an entity's ticker history asserts each ticker over the interval
-the ticker named the entity.
+fetch whose answer echoes the identifier it served.  An assertion holds on one day: the
+day of the answer, or the date a point in time lookup requested.  An entity's ticker
+history asserts each ticker on the day the ticker began naming the entity.  It covers the
+ticker until the next event.
 
-Assertions are rows of the fetch key that made them, never fields on the identifier.  A
-user statement is not an assertion.
+Assertions are rows of the fetch key that made them, never fields on the identifier.  An
+administrator asserts in the same way where no datasource answers.  A user statement is
+not an assertion.
 
 ### Coverage
 
@@ -84,9 +85,9 @@ every value the missing part touched.
 ### Validity
 
 Validity of a value to one instrument is derived from assertions, coverage and events.
-It is cached, never recorded as a fact of its own.
+It is derived when read.
 
-The confirmed interval is the union of the asserted intervals, extended through covered
+The confirmed interval is the union of the asserted days, extended through covered
 periods to the nearest event either side.  Two assertions naming the same instrument
 bracket a confirmed interval between them.
 
@@ -94,10 +95,10 @@ Beyond the confirmed interval, validity extends provisionally until the nearest 
 Where a transaction's date lies in the provisional interval, it is associated on the
 assumption that the value did not move.
 
-Two assertions naming different instruments bound an inferred event.  The earlier
-instrument's validity ends at its last assertion, the later instrument's begins at its
-first, and between them the value names nothing.  When a transaction is dated in that
-gap, its key resolves through its broker description, where the system holds one.
+Two assertions naming different instruments bound an inferred event.  The later
+instrument's validity begins at its first assertion.  The earlier instrument stays
+provisionally valid up to the later assertion.  A key dated between the two therefore
+resolves the same way whenever it is ingested.
 
 ### Assumptions
 
@@ -151,7 +152,6 @@ supplies the venue.
 ### Identifier Validities are Current
 
 Validity intervals are consistent with every known event, assertion and coverage row.
-When a new row affects a cached validity, the validity is invalidated and recomputed.
 
 ### Symbols are Normalised Before Comparison
 

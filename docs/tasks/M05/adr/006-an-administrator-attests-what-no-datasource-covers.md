@@ -3,32 +3,42 @@
 Some periods and venues have no datasource. An administrator may know the association
 from their own checks, or may accept the risk of being wrong. They need a way to say so.
 
-An administrator records one of three attestations:
+An attestation is an assertion whose source is an administrator rather than a fetch key.
+It states that a value names an instrument, or names nothing, on one day. The day is
+today by default, and may be any earlier day.
 
-| Basis | Record | Scope |
-|---|---|---|
-| Verified that a value named an instrument over an interval | An assertion over the interval | One value and one instrument |
-| Accepts that no event occurred over a period | Coverage of the period | One value, or a domain |
-| Knows of an event | A witnessed event | One value |
+An administrator attests in three situations, and each writes the same row:
 
-An attestation is a row of the same kind a datasource writes. Its source is the
-administrator rather than a fetch key. It records the administrator, the basis, the time
-it was made and a note. Validity treats it as it treats a datasource row, so an attested
-period is confirmed.
+- They verified that a value names an instrument. The assertion names it.
+- They accept that no event occurred since the value last named the instrument. The
+  assertion names that instrument and brackets the last assertion, as
+  [005](005-validity-is-bootstrapped-from-the-present-backwards.md) states.
+- They know of an event. The assertion names the new instrument, or names nothing. With
+  the previous assertion it bounds an inferred event.
 
-An attestation cannot reach past the day it is made. Ongoing coverage of a venue with no
-datasource is extended by attesting again.
+Every situation writes the same row, so the row omits the situation. The row records the
+administrator and the attestation run, a system run. Validity treats an attested
+assertion as it treats a datasource's. An attested negative assertion bounds a retirement
+after the latest positive assertion, whatever its source. On one day an attested
+assertion outranks every datasource, since the administrator checked it.
 
-An administrator may withdraw an attestation. Validity is then recomputed, and the keys
-it affects are replayed.
+Coverage and witnessed events come only from datasources. A venue with no datasource is
+attested value by value, and extended by attesting again.
 
-Where a datasource later witnesses an event inside an attested period, the event wins.
-The run that met it records a finding. The same holds for an administrator's verified
-assertion, so one rule covers every conflict between an event and a claim that none
-occurred.
+An administrator may withdraw an attestation. Its assertion is deleted, and the keys it
+affects are replayed.
 
-An attestation makes validity confirmed, and adds no state of its own. The source stays
-on the row, so the statement details page could later show it as attested.
+Where a datasource later witnesses an event inside the bracket of an attested assertion,
+the event wins. The run that met it records a finding, as it does for a datasource's
+bracket.
+
+## Considered options
+
+- Attested coverage and attested events, each with the administrator's basis and a note.
+  An assertion already expresses what each would write, through the bracket rule. An
+  administrator would leave the note empty.
+- An attested assertion over an interval. Two assertions on the interval's ends give the
+  same validity, so the admin area can offer a range and write both.
 
 ## Consequences
 

@@ -9,13 +9,18 @@ run whose user is null. Domain fetches, re-assertions of held values and attesta
 are system runs. Beneath a system run, each affected user has one replay as a child. The
 replay belongs to that user.
 
-A per-user fetch run that records an event, such as a Massive fetch during a user's
-resolution, starts its replays as children in the same way.
+A per-user fetch run can record an event too, such as a Massive fetch during a user's
+resolution. The replay of that user's keys is a child of the fetch run. Where the event
+affects other users, the fetch run starts a system run as a child. Each other user's
+replay is a child of that system run.
+
+A child therefore shares its parent's user, or the child or the parent is a system run.
 
 ## Considered options
 
 - A child that belongs to a different user from its parent. It loosens the constraint
-  for every run to serve one case.
+  for every run to serve one case. A user would also see a run of their own beneath
+  another user's run.
 - A top-level replay for each user, with a trigger that names the event. It loses the
   tree that the runs page shows.
 

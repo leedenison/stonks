@@ -19,8 +19,6 @@ In:
   transaction and the start of the history window. See
   [005](../adr/005-validity-is-bootstrapped-from-the-present-backwards.md).
 - `delisted_utc` from the ticker listing with `active=false`, as a witnessed retirement.
-- A 404 from the ticker overview, for a value Massive asserted before, as a negative
-  assertion. See [004](../adr/004-a-not-found-answer-is-evidence-of-retirement.md).
 - `Classify` tells an entitlement 403 apart from a 403 for dates outside the history
   window. Only the first blocks the datasource.
 - The rate limit of the reference bucket, in place of the stocks rate.
