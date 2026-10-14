@@ -127,7 +127,11 @@ func fetchRun[Q, P any](ctx context.Context, f *Fetcher, row gen.Run, e *Entry, 
 			continue
 		}
 		fetchKeys[i].SentID = &sent
-		cacheKeys[i] = cacheKey(e.Name, kind.name, sent, params(s, q))
+		p := params(s, q)
+		if kind.params != nil {
+			p = append(kind.params(q), p...)
+		}
+		cacheKeys[i] = cacheKey(e.Name, kind.name, sent, p)
 		served = append(served, i)
 	}
 	if err := readCache(ctx, f, fetchKeys, served, cacheKeys); err != nil {

@@ -15,6 +15,8 @@ enum FetchKind {
   FETCH_KIND_UNSPECIFIED = 0;
   // The identifiers that name an instrument and its listings.
   FETCH_KIND_IDENTITY = 1;
+  // The identifier events of a value or a domain over a period.
+  FETCH_KIND_IDENTIFIER_EVENTS = 2;
 }
 
 // What a block suppresses.

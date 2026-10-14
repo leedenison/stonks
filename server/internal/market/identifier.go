@@ -44,6 +44,14 @@ func WithClassSep(ticker string, sep rune) (string, bool) {
 	return out, true
 }
 
+// Canonical reports whether ticker is written as the system writes a
+// MIC_TICKER: at most one share class separator, written as a dot, with its
+// case kept.
+func Canonical(ticker string) bool {
+	out, ok := WithClassSep(ticker, '.')
+	return ok && out == ticker
+}
+
 // Equities is the set of stated classes a provider of listed equities
 // answers: the classes it converts and the classes above them.
 var Equities = map[types.AssetClass]bool{

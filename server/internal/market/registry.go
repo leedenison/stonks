@@ -23,6 +23,10 @@ type Entry struct {
 	Name        string
 	Precedence  int32
 	Integration Integration
+	// Lag is how long the datasource may take to publish an identifier
+	// event: the row's setting, or the default of a Ranged integration. It is
+	// zero for an integration that is not Ranged and has no setting.
+	Lag time.Duration
 
 	limiter *limiter
 }
@@ -137,7 +141,7 @@ func (r *Registry) Reload(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("datasource %s: %w", row.Name, err)
 		}
-		entries = append(entries, &Entry{Name: row.Name, Precedence: row.Precedence, Integration: integration})
+		entries = append(entries, &Entry{Name: row.Name, Precedence: row.Precedence, Integration: integration, Lag: lagOf(row, integration)})
 	}
 	for name := range r.factories {
 		if !named[name] {
@@ -216,4 +220,16 @@ func ConfigOf(row gen.Datasource) Config {
 		c.Endpoint = *row.Endpoint
 	}
 	return c
+}
+
+// lagOf is the lag the row sets, or the integration's default where it is
+// Ranged.
+func lagOf(row gen.Datasource, i Integration) time.Duration {
+	if row.LagDays != nil {
+		return time.Duration(*row.LagDays) * 24 * time.Hour
+	}
+	if r, ok := i.(Ranged); ok {
+		return r.Lag()
+	}
+	return 0
 }

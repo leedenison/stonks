@@ -46,7 +46,7 @@ func newFixture(t *testing.T) *fixture {
 	tx := dbtest.Begin(t, pool)
 	q := gen.New(tx)
 	f := &fixture{tx: tx, q: q, fetches: map[string]uuid.UUID{}, alpha: "alpha-" + uuid.NewString(), beta: "beta-" + uuid.NewString()}
-	f.foo = types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XNYS", Value: "FOO-" + uuid.NewString()[:8]}
+	f.foo = types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XNYS", Value: "FOO" + uuid.NewString()[:8]}
 	var err error
 	f.user, err = q.CreateUser(ctx, gen.CreateUserParams{ID: db.NewID(), Email: uuid.NewString() + "@example.com", Role: gen.UserRoleUser})
 	require.NoError(t, err)
