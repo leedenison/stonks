@@ -611,3 +611,19 @@ func TestGather(t *testing.T) {
 		})
 	}
 }
+
+// TestExclusive checks that a second value of an exclusive type contradicts
+// the first, and a second description of one broker does not.
+func TestExclusive(t *testing.T) {
+	isin := id(types.IdentifierTypeIsin, "", "GB00BH4HKS39")
+	other := id(types.IdentifierTypeIsin, "", "US0378331005")
+	descr := id(types.IdentifierTypeBrokerDescription, "ibkr", "VODAFONE GROUP PLC")
+	renamed := id(types.IdentifierTypeBrokerDescription, "ibkr", "VODAFONE GRP")
+	c := &claim{Instrument: types.Instrument{Identifiers: []types.Identifier{isin, descr}}}
+	if got, ok := c.contradicts(other, noFamily); !ok || got != isin {
+		t.Errorf("contradicts(%s) = %v, %v, want the isin", other.Name(), got, ok)
+	}
+	if got, ok := c.contradicts(renamed, noFamily); ok {
+		t.Errorf("contradicts(%s) = %v, want no contradiction between two descriptions", renamed.Name(), got)
+	}
+}

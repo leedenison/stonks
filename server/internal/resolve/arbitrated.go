@@ -71,7 +71,7 @@ func shared(k, arbitrated gen.StatedKey) string {
 	for _, id := range k.Identifiers {
 		for _, other := range arbitrated.Identifiers {
 			if id == other && id.Joining() {
-				return name(id)
+				return id.Name()
 			}
 		}
 	}

@@ -136,7 +136,7 @@ func stamp(t time.Time) string { return t.UTC().Format("2006-01-02 15:04:05 UTC"
 func names(ids []types.Identifier) string {
 	out := make([]string, len(ids))
 	for i, id := range ids {
-		out[i] = name(id)
+		out[i] = id.Name()
 	}
 	return strings.Join(out, ", ")
 }
@@ -163,7 +163,7 @@ func mergeConflict(hits []hit) (string, bool) {
 		}
 		for _, row := range h.stored.identifiers {
 			id := to.Identifier(row)
-			if !exclusive(id) {
+			if !id.Exclusive() {
 				continue
 			}
 			k := key{typ: id.Type, domain: id.Domain}
@@ -171,7 +171,7 @@ func mergeConflict(hits []hit) (string, bool) {
 				k.family = famOf[*row.ListingID]
 			}
 			if prior, ok := first[k]; ok && prior.id.Value != id.Value && prior.instrument != row.InstrumentID {
-				return fmt.Sprintf("%s identifies instrument %s and %s identifies %s", name(prior.id), prior.instrument, name(id), row.InstrumentID), true
+				return fmt.Sprintf("%s identifies instrument %s and %s identifies %s", prior.id.Name(), prior.instrument, id.Name(), row.InstrumentID), true
 			}
 			if _, ok := first[k]; !ok {
 				first[k] = seen{id, row.InstrumentID}

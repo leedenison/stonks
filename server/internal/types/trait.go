@@ -120,3 +120,33 @@ func (i Identifier) IsGlobal() bool {
 func (i Identifier) Joining() bool {
 	return i.Type.Trait().Domain == IdentifierDomainGlobal || i.Domain != ""
 }
+
+// Grain returns the level i names, an instrument or one of its listings.
+func (i Identifier) Grain() IdentifierGrain { return i.Type.Trait().Grain }
+
+// Exclusive reports whether a second value of i's type for one subject in
+// one domain contradicts i.
+func (i Identifier) Exclusive() bool { return i.Type.Trait().Exclusive }
+
+// Stable reports whether i is assumed never to be reassigned.
+func (i Identifier) Stable() bool {
+	return i.Type.Trait().Reassignment == IdentifierReassignmentStable
+}
+
+// Strength ranks i by how firmly it names its subject, the strongest first:
+// an identifier every party reads before an issuer's own, a stable
+// identifier before a reassignable one, and within each an instrument's
+// before a listing's.
+func (i Identifier) Strength() int {
+	n := 0
+	if i.Type.Trait().Domain == IdentifierDomainIssuer {
+		n += 4
+	}
+	if !i.Stable() {
+		n += 2
+	}
+	if i.Grain() == IdentifierGrainListing {
+		n++
+	}
+	return n
+}
