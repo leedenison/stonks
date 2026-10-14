@@ -34,9 +34,16 @@ func newHolder(t *testing.T, q *gen.Queries, email string) holder {
 // key makes a stated key, resolved where a listing is given.
 func (h holder) key(t *testing.T, q *gen.Queries, description string, listing *gen.Listing, via *gen.Identifier) gen.StatedKey {
 	t.Helper()
+	return h.keyIn(t, q, description, nil, listing, via)
+}
+
+// keyIn makes a stated key that states currency, or none where currency is
+// nil, resolved where a listing is given.
+func (h holder) keyIn(t *testing.T, q *gen.Queries, description string, currency *string, listing *gen.Listing, via *gen.Identifier) gen.StatedKey {
+	t.Helper()
 	ctx := context.Background()
 	described := types.Identifier{Type: types.IdentifierTypeBrokerDescription, Domain: "ibkr", Value: description}
-	k, err := q.CreateStatedKey(ctx, gen.CreateStatedKeyParams{ID: db.NewID(), StatementID: h.statement.ID, UserID: h.user.ID, Identifiers: []types.Identifier{described}})
+	k, err := q.CreateStatedKey(ctx, gen.CreateStatedKeyParams{ID: db.NewID(), StatementID: h.statement.ID, UserID: h.user.ID, Currency: currency, Identifiers: []types.Identifier{described}})
 	require.NoError(t, err)
 	if listing == nil {
 		return k
@@ -143,13 +150,22 @@ func TestListHoldingKeys(t *testing.T) {
 	}
 }
 
+// pence returns the seed identifier naming the pound instrument by GBX.
+func pence(t *testing.T, q *gen.Queries) gen.Identifier {
+	t.Helper()
+	found, err := q.FindIdentifier(context.Background(), gen.FindIdentifierParams{Type: types.IdentifierTypeCurrency, Value: "GBX"})
+	require.NoError(t, err)
+	return found.Identifier
+}
+
 func holding(instrument gen.Instrument, quantity string) gen.ListInstrumentHoldingsRow {
 	return gen.ListInstrumentHoldingsRow{InstrumentID: instrument.ID, AssetClass: instrument.AssetClass, Quantity: decimal.RequireFromString(quantity)}
 }
 
 // TestListInstrumentHoldings checks that a holding sums every key resolved
-// to one instrument for one user, that a zero sum is not a holding, and that
-// an unresolved key is no instrument holding.
+// to one instrument for one user, that cash sums in its family's unit, that a
+// zero sum is not a holding, and that an unresolved key is no instrument
+// holding.
 func TestListInstrumentHoldings(t *testing.T) {
 	ctx := context.Background()
 	ignoreRowIDs := cmpopts.IgnoreFields(gen.Identifier{}, "ID", "CreatedAt")
@@ -194,6 +210,61 @@ func TestListInstrumentHoldings(t *testing.T) {
 		}
 		if diff := cmp.Diff(wantIdents, idents, ignoreRowIDs); diff != "" {
 			t.Errorf("ListIdentifiersOf mismatch (-want +got):\n%s", diff)
+		}
+	})
+
+	t.Run("cash sums its family in the family's unit", func(t *testing.T) {
+		q := newTx(t)
+		h := newHolder(t, q, "family@example.com")
+		gbp, gbpVia := cashListing(t, q, "GBP")
+		gbxVia := pence(t, q)
+		h.record(t, q, h.keyIn(t, q, "GBP", ptr.To("GBP"), &gbp, &gbpVia), "5")
+		penceKey := h.keyIn(t, q, "GBX", ptr.To("GBX"), &gbp, &gbxVia)
+		h.record(t, q, penceKey, "1000")
+
+		got, err := q.ListInstrumentHoldings(ctx, h.user.ID)
+		require.NoError(t, err)
+		want := []gen.ListInstrumentHoldingsRow{{InstrumentID: gbp.InstrumentID, AssetClass: types.AssetClassCash, Quantity: decimal.RequireFromString("15")}}
+		if diff := cmp.Diff(want, got, decimalEqual); diff != "" {
+			t.Errorf("ListInstrumentHoldings mismatch (-want +got):\n%s", diff)
+		}
+		// A key's own sum stays in the currency it states.
+		keys, err := q.ListHoldingKeys(ctx, h.user.ID)
+		require.NoError(t, err)
+		i := slices.IndexFunc(keys, func(k gen.ListHoldingKeysRow) bool { return k.StatedKey.ID == penceKey.ID })
+		require.GreaterOrEqual(t, i, 0)
+		if got := keys[i].Quantity.String(); got != "1000" {
+			t.Errorf("pence key quantity = %s, want 1000", got)
+		}
+	})
+
+	t.Run("pence and pounds that cancel are no holding", func(t *testing.T) {
+		q := newTx(t)
+		h := newHolder(t, q, "cancel@example.com")
+		gbp, gbpVia := cashListing(t, q, "GBP")
+		gbxVia := pence(t, q)
+		h.record(t, q, h.keyIn(t, q, "GBP", ptr.To("GBP"), &gbp, &gbpVia), "-5")
+		h.record(t, q, h.keyIn(t, q, "GBX", ptr.To("GBX"), &gbp, &gbxVia), "500")
+
+		got, err := q.ListInstrumentHoldings(ctx, h.user.ID)
+		require.NoError(t, err)
+		if len(got) != 0 {
+			t.Errorf("ListInstrumentHoldings = %+v, want none", got)
+		}
+	})
+
+	t.Run("a security quoted in pence counts shares", func(t *testing.T) {
+		q := newTx(t)
+		h := newHolder(t, q, "shares@example.com")
+		instrument := newInstrument(t, q, types.AssetClassStock)
+		via := newIdentifier(t, q, instrument, "GB00BH4HKS39")
+		gbp := newListing(t, q, instrument, "GBP")
+		h.record(t, q, h.keyIn(t, q, "VODAFONE GRP", ptr.To("GBX"), &gbp, &via), "100")
+
+		got, err := q.ListInstrumentHoldings(ctx, h.user.ID)
+		require.NoError(t, err)
+		if diff := cmp.Diff([]gen.ListInstrumentHoldingsRow{holding(instrument, "100")}, got, decimalEqual); diff != "" {
+			t.Errorf("ListInstrumentHoldings mismatch (-want +got):\n%s", diff)
 		}
 	})
 

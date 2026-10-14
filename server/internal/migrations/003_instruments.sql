@@ -110,13 +110,17 @@ INSERT INTO identifier_type_traits (type, domain, grain, reassignment, exclusive
 -- by one of them, and is the key of a listing: GBP and GBX are one family,
 -- GBP.
 CREATE TABLE currencies (
-    code   text PRIMARY KEY,
-    family text NOT NULL REFERENCES currencies (code),
+    code   text    PRIMARY KEY,
+    family text    NOT NULL REFERENCES currencies (code),
+    -- scale is the number of family units in one unit of this currency: 0.01
+    -- for GBX.
+    scale  numeric NOT NULL DEFAULT 1 CHECK (scale > 0),
     UNIQUE (code, family)
 );
 
-INSERT INTO currencies (code, family)
-SELECT code, CASE WHEN code = 'GBX' THEN 'GBP' ELSE code END
+INSERT INTO currencies (code, family, scale)
+SELECT code, CASE WHEN code = 'GBX' THEN 'GBP' ELSE code END,
+       CASE WHEN code = 'GBX' THEN 0.01 ELSE 1 END
 FROM (VALUES
     ('USD'), ('EUR'), ('JPY'), ('GBP'), ('GBX'), ('CHF'), ('CNY'), ('AUD'), ('CAD'),
     ('NZD'), ('SEK'), ('NOK'), ('DKK'), ('HKD'), ('SGD'), ('KRW'), ('INR'), ('TWD'),
