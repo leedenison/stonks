@@ -27,14 +27,6 @@ SELECT * FROM fetch_keys WHERE fetch_id = $1 AND user_id = $2 ORDER BY id;
 -- name: SetFetchKeyInstrument :exec
 UPDATE fetch_keys SET instrument_id = $3 WHERE id = $1 AND user_id = $2;
 
--- name: CreateFetchIdentifier :exec
-INSERT INTO fetch_identifiers (fetch_key_id, type, domain, value)
-VALUES ($1, $2, $3, $4);
-
--- name: ListFetchIdentifiers :many
-SELECT * FROM fetch_identifiers WHERE fetch_key_id = $1
-ORDER BY type, domain, value;
-
 -- name: ListIdentityCoverage :many
 SELECT * FROM identity_coverage
 WHERE instrument_id = ANY(@instrument_ids::uuid[])

@@ -20,7 +20,8 @@ import (
 // owned is every table whose rows a user's runs write.
 var owned = []string{
 	"runs", "statements", "stated_keys", "statement_items", "statement_splits", "transactions",
-	"resolution_keys", "fetches", "fetch_keys", "fetch_identifiers", "identity_coverage",
+	"resolution_keys", "fetches", "fetch_keys", "identifier_assertions", "identifier_events",
+	"identifier_event_coverage", "identity_coverage",
 	"datasource_blocks", "findings", "replays",
 }
 
@@ -50,7 +51,13 @@ func TestDeleteUserCascades(t *testing.T) {
 			ds := newDatasource(t, q, "cascade", 10)
 			fetch := newFetch(t, q, user, run, ds)
 			key := servedKey(t, q, fetch, one, "GB00B03MLX29")
-			require.NoError(t, q.CreateFetchIdentifier(ctx, gen.CreateFetchIdentifierParams{FetchKeyID: key, Type: types.IdentifierTypeIsin, Value: "GB00B03MLX29"}))
+			require.NoError(t, q.CreateIdentifierAssertion(ctx, gen.CreateIdentifierAssertionParams{
+				ID: db.NewID(), FetchKeyID: &key, Type: types.IdentifierTypeIsin, Value: "GB00B03MLX29", AssertedOn: date(2026, 3, 2),
+			}))
+			_, err = tx.Exec(ctx, "INSERT INTO identifier_events (id, fetch_key_id, domain, value, action, effective_on) VALUES ($1, $2, 'XLON', 'SHEL', 'retired', '2026-03-02')", db.NewID(), key)
+			require.NoError(t, err)
+			_, err = tx.Exec(ctx, "INSERT INTO identifier_event_coverage (id, fetch_key_id, domain, covered_from, covered_before) VALUES ($1, $2, 'XLON', '2026-01-01', '2026-03-02')", db.NewID(), key)
+			require.NoError(t, err)
 			instrument, err := q.CreateInstrument(ctx, gen.CreateInstrumentParams{ID: db.NewID(), AssetClass: types.AssetClassStock, FetchKeyID: &key})
 			require.NoError(t, err)
 			require.NoError(t, q.UpsertIdentityCoverage(ctx, gen.UpsertIdentityCoverageParams{InstrumentID: instrument.ID, Datasource: ds.Name, FetchKeyID: key}))

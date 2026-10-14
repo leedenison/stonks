@@ -6,6 +6,7 @@ import (
 	"maps"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -60,71 +61,125 @@ func (r *Resolver) resolveKey(ctx context.Context, q Queries, run gen.Run, res *
 	if res.arbitrated != nil {
 		return copyArbitratedAssociation(ctx, q, run, res)
 	}
-	if err := lockIdentifiers(ctx, q, identifiersToLock(res)); err != nil {
-		return gen.ResolutionKey{}, nil, err
-	}
-	verdict := choose(res, nil, userChoice)
-	if verdict.refused != "" {
-		return gen.ResolutionKey{}, nil, fmt.Errorf("%w: %s", ErrNoCandidate, verdict.refused)
-	}
-	t, err := findWriteTarget(ctx, q, res, verdict)
+	d, err := decide(ctx, q, res, userChoice)
 	if err != nil {
 		return gen.ResolutionKey{}, nil, err
 	}
-	if t.instrument != nil {
-		if reason, ok := classConflict(res.row, t.instrument.Row.AssetClass); ok {
-			return recordResolution(ctx, q, run, res, gen.ResolutionOutcomeUnrecognised, []string{reason}, t.findings, len(verdict.offered))
-		}
-		verdict = choose(res, &identityClaim{Instrument: t.instrument.Instrument.Instrument()}, userChoice)
-		if verdict.refused != "" {
-			return gen.ResolutionKey{}, nil, fmt.Errorf("%w: %s", ErrNoCandidate, verdict.refused)
-		}
+	v := d.verdict
+	if d.conflict != "" {
+		return recordResolution(ctx, q, run, res, gen.ResolutionOutcomeUnrecognised, []string{d.conflict}, d.target.findings, len(v.offered))
 	}
-	verdict.findings = append(verdict.findings, t.findings...)
-	verdict.findings = append(verdict.findings, res.findings...)
-	if verdict.winner == nil {
-		return recordResolution(ctx, q, run, res, unresolved(res), summary(res, verdict), verdict.findings, len(verdict.offered))
+	if v.winner == nil {
+		return recordResolution(ctx, q, run, res, unresolved(res), summary(res, v), v.findings, len(v.offered))
 	}
-	w := writer{q: q, user: *run.UserID, taken: t.taken}
-	if t.instrument != nil {
-		w.instr = t.instrument.Instrument
-	} else if w.instr.Row, err = w.create(ctx, verdict.winner); err != nil {
+	w, err := writeInstrument(ctx, q, *run.UserID, res, d)
+	if err != nil {
 		return gen.ResolutionKey{}, nil, err
 	}
-	for _, c := range verdict.attached {
-		if err := w.attach(ctx, c); err != nil {
-			return gen.ResolutionKey{}, nil, err
-		}
-	}
-	if err := recordIdentityCoverage(ctx, q, w.instr.Row.ID, verdict, res.fetchKeys); err != nil {
-		return gen.ResolutionKey{}, nil, err
-	}
-	arbiter := gen.ArbiterStated
-	switch {
-	case userChoice != nil:
-		arbiter = gen.ArbiterUser
-	case verdict.winner.fetchKey != nil:
-		arbiter = gen.ArbiterDatasource
-	}
-	var mates []gen.StatedKey
-	if userChoice != nil {
-		if mates, err = lockGroupMates(ctx, q, run, res); err != nil {
-			return gen.ResolutionKey{}, nil, err
-		}
-	}
-	a, ok, err := w.associate(ctx, res, arbiter)
+	ok, err := associateKey(ctx, q, run, res, w, v, userChoice)
 	if err != nil {
 		return gen.ResolutionKey{}, nil, err
 	}
 	if !ok {
-		return recordResolution(ctx, q, run, res, gen.ResolutionOutcomeUnrecognised, []string{"no identifier to associate through"}, verdict.findings, len(verdict.offered))
+		return recordResolution(ctx, q, run, res, gen.ResolutionOutcomeUnrecognised, []string{"no identifier to associate through"}, v.findings, len(v.offered))
+	}
+	return recordResolution(ctx, q, run, res, gen.ResolutionOutcomeMatched, nil, v.findings, 0)
+}
+
+// decision is what a key's write will do.
+type decision struct {
+	verdict claimVerdict
+	target  writeTarget
+	// conflict is set when the instrument's class contradicts the key's. The
+	// key then ends unrecognised.
+	conflict string
+}
+
+// decide chooses the winner among res's claims, with the identifiers it may
+// write locked. It returns ErrNoCandidate when the user's choice fails a
+// check. Unless the decision has a conflict, its verdict carries every
+// finding the write records.
+func decide(ctx context.Context, q Queries, res *resolution, userChoice consistentClaims) (decision, error) {
+	if err := lockIdentifiers(ctx, q, identifiersToLock(res)); err != nil {
+		return decision{}, err
+	}
+	if err := recordUnknown(ctx, q, res.fetchKeys); err != nil {
+		return decision{}, err
+	}
+	verdict := choose(res, nil, userChoice)
+	if verdict.refused != "" {
+		return decision{}, fmt.Errorf("%w: %s", ErrNoCandidate, verdict.refused)
+	}
+	t, err := findWriteTarget(ctx, q, res, verdict)
+	if err != nil {
+		return decision{}, err
+	}
+	if t.instrument != nil {
+		if reason, ok := classConflict(res.row, t.instrument.Row.AssetClass); ok {
+			return decision{verdict: verdict, target: t, conflict: reason}, nil
+		}
+		verdict = choose(res, &identityClaim{Instrument: t.instrument.Instrument.Instrument()}, userChoice)
+		if verdict.refused != "" {
+			return decision{}, fmt.Errorf("%w: %s", ErrNoCandidate, verdict.refused)
+		}
+	}
+	verdict.findings = append(verdict.findings, t.findings...)
+	verdict.findings = append(verdict.findings, res.findings...)
+	return decision{verdict: verdict, target: t}, nil
+}
+
+// writeInstrument writes d's winner to the instrument d targets, creating that
+// instrument when d has none. It returns the writer for it.
+func writeInstrument(ctx context.Context, q Queries, user uuid.UUID, res *resolution, d decision) (*writer, error) {
+	w := &writer{q: q, user: user, taken: d.target.taken}
+	if d.target.instrument != nil {
+		w.instr = d.target.instrument.Instrument
+	} else {
+		row, err := w.create(ctx, d.verdict.winner)
+		if err != nil {
+			return nil, err
+		}
+		w.instr.Row = row
+	}
+	for _, c := range d.verdict.attached {
+		if err := w.attach(ctx, c); err != nil {
+			return nil, err
+		}
+	}
+	if err := recordIdentityCoverage(ctx, q, w.instr.Row.ID, d.verdict, res.fetchKeys); err != nil {
+		return nil, err
+	}
+	return w, nil
+}
+
+// associateKey associates res with the instrument w wrote. When the user
+// chose, it also gives the key's group the same association. It reports false
+// when no identifier of the key leads to the instrument.
+func associateKey(ctx context.Context, q Queries, run gen.Run, res *resolution, w *writer, v claimVerdict, userChoice consistentClaims) (bool, error) {
+	arbiter := gen.ArbiterStated
+	switch {
+	case userChoice != nil:
+		arbiter = gen.ArbiterUser
+	case v.winner.fetchKey != nil:
+		arbiter = gen.ArbiterDatasource
+	}
+	var mates []gen.StatedKey
+	if userChoice != nil {
+		var err error
+		if mates, err = lockGroupMates(ctx, q, run, res); err != nil {
+			return false, err
+		}
+	}
+	a, ok, err := w.associate(ctx, res, arbiter)
+	if err != nil || !ok {
+		return ok, err
 	}
 	if a != nil {
 		if err := copyGroupAssociation(ctx, q, run, res, *a, mates); err != nil {
-			return gen.ResolutionKey{}, nil, err
+			return false, err
 		}
 	}
-	return recordResolution(ctx, q, run, res, gen.ResolutionOutcomeMatched, nil, verdict.findings, 0)
+	return true, nil
 }
 
 // lockGroupMates takes the user's key lock and returns the keys of res's group,
@@ -243,6 +298,30 @@ func recordIdentityCoverage(ctx context.Context, q Queries, instrument uuid.UUID
 		}
 	}
 	return nil
+}
+
+// recordUnknown writes a negative assertion of the identifier sent for each
+// fetch key whose datasource stated that it knows nothing under it. The
+// assertion stands whatever the resolution makes of the other answers.
+func recordUnknown(ctx context.Context, q Queries, fetchKeys []*fetchKey) error {
+	for _, fk := range fetchKeys {
+		if fk.Outcome != gen.FetchOutcomeServed || !fk.Response.Unknown || fk.SentID == nil {
+			continue
+		}
+		id := *fk.SentID
+		arg := gen.CreateIdentifierAssertionParams{
+			ID: db.NewID(), FetchKeyID: &fk.ID, Type: id.Type, Domain: id.Domain, Value: id.Value, AssertedOn: day(fk.AnsweredAt),
+		}
+		if err := q.CreateIdentifierAssertion(ctx, arg); err != nil {
+			return fmt.Errorf("record negative assertion: %w", err)
+		}
+	}
+	return nil
+}
+
+// day is the UTC day of t, on which an assertion made at t holds.
+func day(t time.Time) time.Time {
+	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.UTC)
 }
 
 // lockIdentifiers takes the transaction's advisory lock on each of ids, in one
@@ -441,9 +520,10 @@ func (w *writer) create(ctx context.Context, winner *identityClaim) (gen.Instrum
 }
 
 // attach writes the listings and identifiers of c the instrument lacks, each
-// with c's fetch key as provenance, and records the fetch key's response
-// against the instrument. A listing takes the primary venue c states only
-// while it has none, whichever run or claim created it.
+// with c's fetch key as provenance, records the fetch key's response against
+// the instrument, and asserts each of c's identifiers on the UTC day of the
+// answer. A listing takes the primary venue c states only while it has none,
+// whichever run or claim created it.
 func (w *writer) attach(ctx context.Context, c *identityClaim) error {
 	fetchKeyID := c.fetchKey.ID
 	for _, id := range c.Identifiers {
@@ -485,10 +565,14 @@ func (w *writer) attach(ctx context.Context, c *identityClaim) error {
 	if err := w.q.SetFetchKeyInstrument(ctx, arg); err != nil {
 		return fmt.Errorf("attach fetch key: %w", err)
 	}
+	on := day(c.fetchKey.AnsweredAt)
 	for id := range c.AllIDs() {
-		arg := gen.CreateFetchIdentifierParams{FetchKeyID: fetchKeyID, Type: id.Type, Domain: id.Domain, Value: id.Value}
-		if err := w.q.CreateFetchIdentifier(ctx, arg); err != nil {
-			return fmt.Errorf("record fetch identifier: %w", err)
+		arg := gen.CreateIdentifierAssertionParams{
+			ID: db.NewID(), FetchKeyID: &fetchKeyID, Type: id.Type, Domain: id.Domain, Value: id.Value,
+			InstrumentID: &w.instr.Row.ID, AssertedOn: on,
+		}
+		if err := w.q.CreateIdentifierAssertion(ctx, arg); err != nil {
+			return fmt.Errorf("record assertion: %w", err)
 		}
 	}
 	return nil
