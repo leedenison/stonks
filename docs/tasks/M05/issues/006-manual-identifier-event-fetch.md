@@ -15,4 +15,4 @@ An administrator starts either fetch from the admin area, beside the runs it cre
 - a re-assertion of every held value, which extends each bracket to the present. See
   [005](../adr/005-validity-is-bootstrapped-from-the-present-backwards.md).
 
-The run that either creates shows its events and the coverage it wrote.
+Each fetch runs as a system run. The run shows its events and the coverage it wrote.
