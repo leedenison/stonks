@@ -1,7 +1,6 @@
 ---
 title: An administrator starts an identifier event fetch
 type: task
-dependencies: [002]
 ---
 
 ## Scope
