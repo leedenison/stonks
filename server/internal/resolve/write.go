@@ -85,10 +85,10 @@ func (r *Resolver) resolveKey(ctx context.Context, q Queries, run gen.Run, res *
 	if verdict.winner == nil {
 		return recordResolution(ctx, q, run, res, unresolved(res), summary(res, verdict), verdict.findings, len(verdict.offered))
 	}
-	w := writer{q: q, user: run.UserID, identifiers: map[types.Identifier]gen.Identifier{}, listings: map[string]gen.Listing{}, taken: t.taken}
+	w := writer{q: q, user: run.UserID, taken: t.taken}
 	if t.instrument != nil {
-		w.reuse(t.instrument)
-	} else if w.instrument, err = w.create(ctx, verdict.winner); err != nil {
+		w.instr = t.instrument.Instrument
+	} else if w.instr.Row, err = w.create(ctx, verdict.winner); err != nil {
 		return gen.ResolutionKey{}, nil, err
 	}
 	for _, c := range verdict.attached {
@@ -96,7 +96,7 @@ func (r *Resolver) resolveKey(ctx context.Context, q Queries, run gen.Run, res *
 			return gen.ResolutionKey{}, nil, err
 		}
 	}
-	if err := recordIdentityCoverage(ctx, q, w.instrument.ID, verdict, res.fetchKeys); err != nil {
+	if err := recordIdentityCoverage(ctx, q, w.instr.Row.ID, verdict, res.fetchKeys); err != nil {
 		return gen.ResolutionKey{}, nil, err
 	}
 	arbiter := gen.ArbiterStated
@@ -418,26 +418,13 @@ func sets(n int) string {
 
 // writer writes the listings and identifiers of the attached claims onto one
 // instrument. It skips each the instrument already has and each another
-// instrument has, which taken names. identifiers and listings start as the
-// instrument's rows and take each row written.
+// instrument has, which taken names. instr starts as the instrument's rows and
+// takes each row written.
 type writer struct {
-	q           Queries
-	user        uuid.UUID
-	instrument  gen.Instrument
-	identifiers map[types.Identifier]gen.Identifier
-	listings    map[string]gen.Listing
-	taken       map[types.Identifier]bool
-}
-
-// reuse takes f as the writer's instrument, with its rows.
-func (w *writer) reuse(f *join.InstrumentWithCoverage) {
-	w.instrument = f.Row
-	for _, id := range f.Identifiers {
-		w.identifiers[to.Identifier(id)] = id
-	}
-	for _, l := range f.Listings {
-		w.listings[l.Currency] = l
-	}
+	q     Queries
+	user  uuid.UUID
+	instr join.Instrument
+	taken map[types.Identifier]bool
 }
 
 // create writes the instrument of the winner, with its class and provenance.
@@ -468,33 +455,33 @@ func (w *writer) attach(ctx context.Context, c *identityClaim) error {
 		if fam == noFamily {
 			continue
 		}
-		l, ok := w.listings[fam]
+		l := w.instr.Listing(fam)
 		var primary *string
 		if p := c.Listings[fam].Primary; p != "" {
 			primary = &p
 		}
 		switch {
-		case !ok:
-			var err error
-			l, err = w.q.CreateListing(ctx, gen.CreateListingParams{ID: db.NewID(), InstrumentID: w.instrument.ID, Currency: fam, FetchKeyID: &fetchKeyID, PrimaryMic: primary})
+		case l == nil:
+			row, err := w.q.CreateListing(ctx, gen.CreateListingParams{ID: db.NewID(), InstrumentID: w.instr.Row.ID, Currency: fam, FetchKeyID: &fetchKeyID, PrimaryMic: primary})
 			if err != nil {
 				return fmt.Errorf("create listing in %s: %w", fam, err)
 			}
-			w.listings[fam] = l
+			w.instr.Listings = append(w.instr.Listings, row)
+			l = &row
 		case l.PrimaryMic == nil && primary != nil:
 			if err := w.q.SetListingPrimary(ctx, gen.SetListingPrimaryParams{ID: l.ID, PrimaryMic: primary}); err != nil {
 				return fmt.Errorf("set primary venue of listing in %s: %w", fam, err)
 			}
 			l.PrimaryMic = primary
-			w.listings[fam] = l
 		}
+		listing := l.ID
 		for _, id := range c.Listings[fam].Identifiers {
-			if err := w.identify(ctx, id, &l.ID, fetchKeyID); err != nil {
+			if err := w.identify(ctx, id, &listing, fetchKeyID); err != nil {
 				return err
 			}
 		}
 	}
-	arg := gen.SetFetchKeyInstrumentParams{ID: fetchKeyID, UserID: w.user, InstrumentID: &w.instrument.ID}
+	arg := gen.SetFetchKeyInstrumentParams{ID: fetchKeyID, UserID: w.user, InstrumentID: &w.instr.Row.ID}
 	if err := w.q.SetFetchKeyInstrument(ctx, arg); err != nil {
 		return fmt.Errorf("attach fetch key: %w", err)
 	}
@@ -510,15 +497,15 @@ func (w *writer) attach(ctx context.Context, c *identityClaim) error {
 // identify writes id on the instrument, or on listing where set, unless it
 // already identifies the instrument.
 func (w *writer) identify(ctx context.Context, id types.Identifier, listing *uuid.UUID, fetchKeyID uuid.UUID) error {
-	if _, ok := w.identifiers[id]; ok || w.taken[id] {
+	if w.instr.Identifier(id) != nil || w.taken[id] {
 		return nil
 	}
-	arg := gen.CreateIdentifierParams{ID: db.NewID(), InstrumentID: w.instrument.ID, ListingID: listing, Type: id.Type, Domain: id.Domain, Value: id.Value, FetchKeyID: &fetchKeyID}
+	arg := gen.CreateIdentifierParams{ID: db.NewID(), InstrumentID: w.instr.Row.ID, ListingID: listing, Type: id.Type, Domain: id.Domain, Value: id.Value, FetchKeyID: &fetchKeyID}
 	row, err := w.q.CreateIdentifier(ctx, arg)
 	if err != nil {
 		return fmt.Errorf("create %s: %w", id.Name(), err)
 	}
-	w.identifiers[id] = row
+	w.instr.Identifiers = append(w.instr.Identifiers, row)
 	return nil
 }
 
@@ -530,7 +517,7 @@ func (w *writer) identify(ctx context.Context, id types.Identifier, listing *uui
 // place.
 func (w *writer) associate(ctx context.Context, res *resolution, arbiter gen.Arbiter) (*gen.SetStatedKeyAssociationParams, bool, error) {
 	var listingID *uuid.UUID
-	if l, ok := w.listings[res.fam]; ok {
+	if l := w.instr.Listing(res.fam); l != nil {
 		listingID = &l.ID
 	}
 	via, ok := w.via(res, listingID)
@@ -541,7 +528,7 @@ func (w *writer) associate(ctx context.Context, res *resolution, arbiter gen.Arb
 	if to.Identifier(via).Stable() {
 		validity = gen.ValidityConfirmed
 	}
-	arg := gen.SetStatedKeyAssociationParams{ID: res.row.ID, UserID: w.user, InstrumentID: &w.instrument.ID, ListingID: listingID, ViaID: &via.ID, Validity: &validity, Arbiter: arbiter}
+	arg := gen.SetStatedKeyAssociationParams{ID: res.row.ID, UserID: w.user, InstrumentID: &w.instr.Row.ID, ListingID: listingID, ViaID: &via.ID, Validity: &validity, Arbiter: arbiter}
 	n, err := w.q.SetStatedKeyAssociation(ctx, arg)
 	if err != nil {
 		return nil, false, fmt.Errorf("associate key: %w", err)
@@ -558,13 +545,13 @@ func (w *writer) associate(ctx context.Context, res *resolution, arbiter gen.Arb
 // chosen listing, then a venue ticker of the instrument.
 func (w *writer) via(res *resolution, listing *uuid.UUID) (gen.Identifier, bool) {
 	for _, id := range res.trusted {
-		if row, ok := w.identifiers[id]; ok {
-			return row, true
+		if row := w.instr.Identifier(id); row != nil {
+			return *row, true
 		}
 	}
 	var tickers []gen.Identifier
-	for id, row := range w.identifiers {
-		if id.Type == types.IdentifierTypeMicTicker {
+	for _, row := range w.instr.Identifiers {
+		if row.Type == types.IdentifierTypeMicTicker {
 			tickers = append(tickers, row)
 		}
 	}
