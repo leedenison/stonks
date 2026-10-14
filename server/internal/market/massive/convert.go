@@ -21,7 +21,7 @@ type record struct {
 }
 
 // classes maps each stock type code this integration converts to the class
-// of its candidate.
+// of its listing.
 var classes = map[string]types.AssetClass{
 	"CS":     types.AssetClassStock,
 	"PFD":    types.AssetClassStock,
@@ -47,21 +47,21 @@ var classes = map[string]types.AssetClass{
 func identity(sent types.Identifier, recs []record, mics mic.Table) market.IdentityResult {
 	out := market.Answer(sent, true)
 	for _, r := range recs {
-		if c, ok := candidate(r, mics); ok {
-			out.Candidates = append(out.Candidates, c)
+		if c, ok := toListing(r, mics); ok {
+			out.Listings = append(out.Listings, c)
 		}
 	}
 	return out
 }
 
-// candidate converts one record, reporting false for a record of a market
+// toListing converts one record, reporting false for a record of a market
 // or type this integration does not serve.
-func candidate(r record, mics mic.Table) (market.Candidate, bool) {
+func toListing(r record, mics mic.Table) (market.Listing, bool) {
 	class, ok := classes[r.Type]
 	if !ok || r.Market != "stocks" {
-		return market.Candidate{}, false
+		return market.Listing{}, false
 	}
-	c := market.Candidate{Class: class, Currency: strings.ToUpper(r.CurrencyName)}
+	c := market.Listing{Class: class, Currency: strings.ToUpper(r.CurrencyName)}
 	if r.ShareClassFIGI != "" {
 		c.Identifiers = append(c.Identifiers, types.Identifier{Type: types.IdentifierTypeOpenfigiShareClass, Value: r.ShareClassFIGI})
 	}

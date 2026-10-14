@@ -143,27 +143,27 @@ func fetch(c *Client, sent types.Identifier) ([]market.Response[market.IdentityR
 	return c.Fetch(context.Background(), []market.Request[gen.StatedKey]{{Sent: sent}})
 }
 
-// bySymbol returns the candidate whose DATASOURCE_TICKER is symbol.
-func bySymbol(r market.IdentityResult, symbol string) (market.Candidate, bool) {
-	for _, c := range r.Candidates {
+// bySymbol returns the listing whose DATASOURCE_TICKER is symbol.
+func bySymbol(r market.IdentityResult, symbol string) (market.Listing, bool) {
+	for _, c := range r.Listings {
 		for _, id := range c.Identifiers {
 			if id.Type == types.IdentifierTypeDatasourceTicker && id.Value == symbol {
 				return c, true
 			}
 		}
 	}
-	return market.Candidate{}, false
+	return market.Listing{}, false
 }
 
 var (
 	appleISIN = types.Identifier{Type: types.IdentifierTypeIsin, Value: "US0378331005"}
-	apple     = market.Candidate{Class: types.AssetClassStock, Currency: "USD", Primary: "XNAS", Identifiers: []types.Identifier{
+	apple     = market.Listing{Class: types.AssetClassStock, Currency: "USD", Primary: "XNAS", Identifiers: []types.Identifier{
 		{Type: types.IdentifierTypeDatasourceTicker, Domain: domain, Value: "AAPL.US"},
 		appleISIN,
 		{Type: types.IdentifierTypeCusip, Value: "037833100"},
 		ticker("XNAS", "AAPL"),
 	}}
-	vodafone = market.Candidate{Class: types.AssetClassStock, Currency: "GBX", Primary: "XLON", Identifiers: []types.Identifier{
+	vodafone = market.Listing{Class: types.AssetClassStock, Currency: "GBX", Primary: "XLON", Identifiers: []types.Identifier{
 		{Type: types.IdentifierTypeDatasourceTicker, Domain: domain, Value: "VOD.LSE"},
 		{Type: types.IdentifierTypeIsin, Value: "GB00BH4HKS39"},
 		ticker("XLON", "VOD"),
@@ -178,23 +178,23 @@ func TestFetch(t *testing.T) {
 		// filtered is the identifier that the call filters by. It defaults
 		// to sent.
 		filtered types.Identifier
-		// want holds candidates the answer must carry, by symbol.
-		want map[string]market.Candidate
-		// count is the number of candidates. The test MIC table holds a few
-		// venues, so a candidate elsewhere does not convert.
+		// want holds listings the answer must carry, by symbol.
+		want map[string]market.Listing
+		// count is the number of listings. The test MIC table holds a few
+		// venues, so a listing elsewhere does not convert.
 		count int
 	}{
 		{
 			// Apple, listed on several of EODHD's exchanges.
 			cassette: "eodhd_isin",
 			sent:     appleISIN,
-			want:     map[string]market.Candidate{"AAPL.US": apple},
+			want:     map[string]market.Listing{"AAPL.US": apple},
 			count:    3,
 		},
 		{
 			cassette: "eodhd_cusip",
 			sent:     types.Identifier{Type: types.IdentifierTypeCusip, Value: "037833100"},
-			want:     map[string]market.Candidate{"AAPL.US": apple},
+			want:     map[string]market.Listing{"AAPL.US": apple},
 			count:    3,
 		},
 		{
@@ -202,14 +202,14 @@ func TestFetch(t *testing.T) {
 			// over the counter and does not convert.
 			cassette: "eodhd_isin_foreign",
 			sent:     types.Identifier{Type: types.IdentifierTypeIsin, Value: "GB00BH4HKS39"},
-			want:     map[string]market.Candidate{"VOD.LSE": vodafone},
+			want:     map[string]market.Listing{"VOD.LSE": vodafone},
 			count:    2,
 		},
 		{
 			cassette: "eodhd_ticker_venue",
 			sent:     ticker("XLON", "VOD"),
 			filtered: ticker("", "VOD"),
-			want:     map[string]market.Candidate{"VOD.LSE": vodafone},
+			want:     map[string]market.Listing{"VOD.LSE": vodafone},
 			count:    1,
 		},
 		{
@@ -217,7 +217,7 @@ func TestFetch(t *testing.T) {
 			cassette: "eodhd_class_share",
 			sent:     ticker("XNYS", "BRK.B"),
 			filtered: ticker("", "BRK.B"),
-			want: map[string]market.Candidate{"BRK-B.US": {Class: types.AssetClassStock, Currency: "USD", Primary: "XNYS", Identifiers: []types.Identifier{
+			want: map[string]market.Listing{"BRK-B.US": {Class: types.AssetClassStock, Currency: "USD", Primary: "XNYS", Identifiers: []types.Identifier{
 				{Type: types.IdentifierTypeDatasourceTicker, Domain: domain, Value: "BRK-B.US"},
 				{Type: types.IdentifierTypeIsin, Value: "US0846707026"},
 				ticker("XNYS", "BRK.B"),
@@ -230,7 +230,7 @@ func TestFetch(t *testing.T) {
 			// id-mapping is not asked.
 			cassette: "eodhd_ticker",
 			sent:     ticker("", "AAPL"),
-			want: map[string]market.Candidate{"AAPL.US": {Class: types.AssetClassStock, Currency: "USD", Primary: "XNAS", Identifiers: []types.Identifier{
+			want: map[string]market.Listing{"AAPL.US": {Class: types.AssetClassStock, Currency: "USD", Primary: "XNAS", Identifiers: []types.Identifier{
 				{Type: types.IdentifierTypeDatasourceTicker, Domain: domain, Value: "AAPL.US"},
 				appleISIN,
 				ticker("XNAS", "AAPL"),
@@ -249,7 +249,7 @@ func TestFetch(t *testing.T) {
 			// counter in the US.
 			cassette: "eodhd_isin_canada",
 			sent:     types.Identifier{Type: types.IdentifierTypeIsin, Value: "CA21037X1006"},
-			want: map[string]market.Candidate{"CSU.TO": {Class: types.AssetClassStock, Currency: "CAD", Primary: "XTSE", Identifiers: []types.Identifier{
+			want: map[string]market.Listing{"CSU.TO": {Class: types.AssetClassStock, Currency: "CAD", Primary: "XTSE", Identifiers: []types.Identifier{
 				{Type: types.IdentifierTypeDatasourceTicker, Domain: domain, Value: "CSU.TO"},
 				{Type: types.IdentifierTypeIsin, Value: "CA21037X1006"},
 				{Type: types.IdentifierTypeCusip, Value: "21037X100"},
@@ -285,17 +285,17 @@ func TestFetch(t *testing.T) {
 			if diff := cmp.Diff([]types.Identifier{tc.filtered}, res.Filtered); diff != "" || !res.Limited {
 				t.Errorf("Fetch(%v) filtered mismatch (-want +got):\n%s, limited %v", tc.sent, diff, res.Limited)
 			}
-			if len(res.Candidates) != tc.count {
-				t.Errorf("Fetch(%v) gave %d candidates, want %d: %+v", tc.sent, len(res.Candidates), tc.count, res.Candidates)
+			if len(res.Listings) != tc.count {
+				t.Errorf("Fetch(%v) gave %d listings, want %d: %+v", tc.sent, len(res.Listings), tc.count, res.Listings)
 			}
 			for symbol, want := range tc.want {
 				got, ok := bySymbol(res, symbol)
 				if !ok {
-					t.Errorf("Fetch(%v) gave no candidate %s: %+v", tc.sent, symbol, res.Candidates)
+					t.Errorf("Fetch(%v) gave no listing %s: %+v", tc.sent, symbol, res.Listings)
 					continue
 				}
 				if diff := cmp.Diff(want, got); diff != "" {
-					t.Errorf("Fetch(%v) candidate %s mismatch (-want +got):\n%s", tc.sent, symbol, diff)
+					t.Errorf("Fetch(%v) listing %s mismatch (-want +got):\n%s", tc.sent, symbol, diff)
 				}
 			}
 		})

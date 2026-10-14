@@ -61,7 +61,7 @@ func (c *Client) Params(key gen.StatedKey) []string {
 
 // jobOf returns the mapping job for an identifier Serves returned, filtered
 // on currency. OpenFIGI returns no currency, so a stated currency filters
-// the job strictly and every candidate is in it.
+// the job strictly and every listing is in it.
 func jobOf(id types.Identifier, currency string) job {
 	for _, t := range idTypes {
 		if t.typ != id.Type {

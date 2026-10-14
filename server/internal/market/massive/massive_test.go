@@ -61,18 +61,18 @@ func TestFetch(t *testing.T) {
 		// filtered is the identifier the call filters on. It defaults to
 		// sent.
 		filtered types.Identifier
-		want     []market.Candidate
+		want     []market.Listing
 	}{
 		{
 			cassette: "massive_ticker",
 			sent:     ticker("XNAS", "AAPL"),
 			filtered: ticker("", "AAPL"),
-			want:     []market.Candidate{{Class: types.AssetClassStock, Currency: "USD", Primary: "XNAS", Identifiers: apple}},
+			want:     []market.Listing{{Class: types.AssetClassStock, Currency: "USD", Primary: "XNAS", Identifiers: apple}},
 		},
 		{
 			cassette: "massive_class_share",
 			sent:     ticker("", "BRK/B"),
-			want: []market.Candidate{{Class: types.AssetClassStock, Currency: "USD", Primary: "XNYS", Identifiers: []types.Identifier{
+			want: []market.Listing{{Class: types.AssetClassStock, Currency: "USD", Primary: "XNYS", Identifiers: []types.Identifier{
 				{Type: types.IdentifierTypeOpenfigiShareClass, Value: "BBG001S90346"},
 				{Type: types.IdentifierTypeOpenfigiComposite, Value: "BBG000DWG505"},
 				ticker("XNYS", "BRK.B"),
@@ -81,14 +81,14 @@ func TestFetch(t *testing.T) {
 		{
 			cassette: "massive_cusip",
 			sent:     cusip,
-			want:     []market.Candidate{{Class: types.AssetClassStock, Currency: "USD", Primary: "XNAS", Identifiers: apple}},
+			want:     []market.Listing{{Class: types.AssetClassStock, Currency: "USD", Primary: "XNAS", Identifiers: apple}},
 		},
 		{
 			// Bank of America's Series L preferred, which Massive spells BACpL
 			// and records without FIGIs.
 			cassette: "massive_preferred",
 			sent:     types.Identifier{Type: types.IdentifierTypeCusip, Value: "060505682"},
-			want:     []market.Candidate{{Class: types.AssetClassStock, Currency: "USD", Primary: "XNYS"}},
+			want:     []market.Listing{{Class: types.AssetClassStock, Currency: "USD", Primary: "XNYS"}},
 		},
 		{
 			cassette: "massive_unknown_ticker",
@@ -114,7 +114,7 @@ func TestFetch(t *testing.T) {
 				tc.filtered = tc.sent
 			}
 			want := []market.Response[market.IdentityResult]{{Value: market.IdentityResult{
-				Filtered: []types.Identifier{tc.filtered}, Candidates: tc.want, Limited: true,
+				Filtered: []types.Identifier{tc.filtered}, Listings: tc.want, Limited: true,
 			}}}
 			if diff := cmp.Diff(want, got); diff != "" {
 				t.Errorf("Fetch(%v) mismatch (-want +got):\n%s", tc.sent, diff)
@@ -225,7 +225,7 @@ func TestNotFound(t *testing.T) {
 				return
 			}
 			require.NoError(t, err)
-			if len(got) != 1 || len(got[0].Value.Candidates) != 0 {
+			if len(got) != 1 || len(got[0].Value.Listings) != 0 {
 				t.Errorf("Fetch() = %+v, want one empty answer", got)
 			}
 		})

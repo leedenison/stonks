@@ -9,9 +9,9 @@ import (
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
-// Candidate results of one fetch. Candidates are unranked, and several may be
-// listings of one instrument rather than competing responses.
-type Candidate struct {
+// Listing is one listing of an instrument, as a datasource returned it for a
+// fetch. Listings are unranked. Several may belong to one instrument.
+type Listing struct {
 	Identifiers []types.Identifier
 	Class       types.AssetClass
 	Currency    string
@@ -20,7 +20,7 @@ type Candidate struct {
 	Primary string
 }
 
-// Answer returns the IdentityResult for sent with no candidates yet; the
+// Answer returns the IdentityResult for sent with no listings yet; the
 // caller adds them. A MIC_TICKER is filtered on its ticker alone, so the
 // listings at every venue come back and resolution chooses among them by the
 // stated venue. limited marks a provider that lists only some of an
@@ -35,10 +35,10 @@ func Answer(sent types.Identifier, limited bool) IdentityResult {
 // IdentityResult is what was returned for one identifier of a batch.
 type IdentityResult struct {
 	// Filtered is the identifiers the datasource filtered on strictly, so
-	// every candidate is consistent with them. Empty means an unconstrained
+	// every listing is consistent with them. Empty means an unconstrained
 	// search.
-	Filtered   []types.Identifier
-	Candidates []Candidate
+	Filtered []types.Identifier
+	Listings []Listing
 	// Limited reports that the provider lists only some of an instrument's
 	// listings. Otherwise an answer without a listing in a currency means
 	// the instrument has none in it.
@@ -61,7 +61,7 @@ var identityKind = Kind[gen.StatedKey, IdentityResult]{
 		return s
 	},
 	subject: func(k gen.StatedKey) uuid.UUID { return k.ID },
-	count:   func(r IdentityResult) int { return len(r.Candidates) },
+	count:   func(r IdentityResult) int { return len(r.Listings) },
 }
 
 // Identity fetches the identity of keys from e, as a child run of parent.

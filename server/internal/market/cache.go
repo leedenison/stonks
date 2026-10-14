@@ -13,7 +13,7 @@ import (
 )
 
 // keyPrefix begins every cached answer's key. Its version names the shape
-// of IdentityResult and Candidate. A change to either bumps it, so that a
+// of IdentityResult and Listing. A change to either bumps it, so that a
 // build never reads an answer an older build wrote.
 const keyPrefix = "stonks:fetch:v1:"
 

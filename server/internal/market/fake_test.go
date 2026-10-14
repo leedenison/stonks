@@ -95,7 +95,7 @@ func (f *fake) Fetch(_ context.Context, reqs []Request[gen.StatedKey]) ([]Respon
 		}
 		out[i] = Response[IdentityResult]{Value: IdentityResult{Filtered: []types.Identifier{id}}}
 		if !f.empty {
-			out[i].Value.Candidates = []Candidate{{Identifiers: []types.Identifier{id}, Class: types.AssetClassStock, Currency: "USD"}}
+			out[i].Value.Listings = []Listing{{Identifiers: []types.Identifier{id}, Class: types.AssetClassStock, Currency: "USD"}}
 		}
 	}
 	return out[:len(out)-f.drop], nil

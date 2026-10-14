@@ -18,8 +18,8 @@ func id(t types.IdentifierType, domain, value string) types.Identifier {
 	return types.Identifier{Type: t, Domain: domain, Value: value}
 }
 
-func cand(class types.AssetClass, currency string, ids ...types.Identifier) market.Candidate {
-	return market.Candidate{Class: class, Currency: currency, Identifiers: ids}
+func listing(class types.AssetClass, currency string, ids ...types.Identifier) market.Listing {
+	return market.Listing{Class: class, Currency: currency, Identifiers: ids}
 }
 
 // cur maps GBX to GBP and every other code to itself.
@@ -39,8 +39,8 @@ var (
 )
 
 // served returns a fetch key served under sent, filtered on filtered.
-func served(source string, sent types.Identifier, filtered []types.Identifier, cs ...market.Candidate) *fetchKey {
-	return &fetchKey{Source: source, Outcome: gen.FetchOutcomeServed, SentID: &sent, Response: market.IdentityResult{Filtered: filtered, Candidates: cs}}
+func served(source string, sent types.Identifier, filtered []types.Identifier, cs ...market.Listing) *fetchKey {
+	return &fetchKey{Source: source, Outcome: gen.FetchOutcomeServed, SentID: &sent, Response: market.IdentityResult{Filtered: filtered, Listings: cs}}
 }
 
 // limited marks fk as an answer from a provider that lists only some of an
@@ -59,11 +59,11 @@ func TestClaims(t *testing.T) {
 		named []bool
 	}{
 		{
-			name: "a shared instrument identifier joins candidates",
+			name: "a shared instrument identifier joins listings",
 			r: served("a", isin, nil,
-				cand(types.AssetClassStock, "GBP", figi, isin, comp, xlon),
-				cand(types.AssetClassStock, "GBP", figi, xetr),
-				cand(types.AssetClassStock, "USD", figi2, xnas),
+				listing(types.AssetClassStock, "GBP", figi, isin, comp, xlon),
+				listing(types.AssetClassStock, "GBP", figi, xetr),
+				listing(types.AssetClassStock, "USD", figi2, xnas),
 			),
 			want: []*identityClaim{
 				{Instrument: types.Instrument{Class: types.AssetClassStock, Identifiers: []types.Identifier{figi, isin}, Listings: map[string]types.Listing{
@@ -78,8 +78,8 @@ func TestClaims(t *testing.T) {
 		{
 			name: "a strict filter is one claim identified by the identifier",
 			r: served("a", isin, []types.Identifier{isin},
-				cand(types.AssetClassUnknown, "GBP", xlon),
-				cand(types.AssetClassStock, "USD", figi, xnas),
+				listing(types.AssetClassUnknown, "GBP", xlon),
+				listing(types.AssetClassStock, "USD", figi, xnas),
 			),
 			want: []*identityClaim{
 				{Instrument: types.Instrument{Class: types.AssetClassStock, Identifiers: []types.Identifier{isin, figi}, Listings: map[string]types.Listing{
@@ -92,8 +92,8 @@ func TestClaims(t *testing.T) {
 		{
 			name: "no currency is a listing of no family, and the venue sent names the claim",
 			r: served("a", xlon, []types.Identifier{ticker},
-				cand(types.AssetClassStock, "", figi, xlon),
-				cand(types.AssetClassStock, "", figi, xnas),
+				listing(types.AssetClassStock, "", figi, xlon),
+				listing(types.AssetClassStock, "", figi, xnas),
 			),
 			want: []*identityClaim{
 				{Instrument: types.Instrument{Class: types.AssetClassStock, Identifiers: []types.Identifier{figi}, Listings: map[string]types.Listing{
@@ -103,11 +103,11 @@ func TestClaims(t *testing.T) {
 			named: []bool{true},
 		},
 		{
-			name: "a listing takes the primary venue of the first candidate stating one",
+			name: "a listing takes the primary venue of the first listing stating one",
 			r: served("a", isin, []types.Identifier{isin},
-				cand(types.AssetClassStock, "GBP", xetr),
-				market.Candidate{Class: types.AssetClassStock, Currency: "GBP", Primary: "XLON", Identifiers: []types.Identifier{xlon}},
-				market.Candidate{Class: types.AssetClassStock, Currency: "GBP", Primary: "XETR", Identifiers: []types.Identifier{comp}},
+				listing(types.AssetClassStock, "GBP", xetr),
+				market.Listing{Class: types.AssetClassStock, Currency: "GBP", Primary: "XLON", Identifiers: []types.Identifier{xlon}},
+				market.Listing{Class: types.AssetClassStock, Currency: "GBP", Primary: "XETR", Identifiers: []types.Identifier{comp}},
 			),
 			want: []*identityClaim{
 				{Instrument: types.Instrument{Class: types.AssetClassStock, Identifiers: []types.Identifier{isin}, Listings: map[string]types.Listing{
@@ -117,7 +117,7 @@ func TestClaims(t *testing.T) {
 			named: []bool{true},
 		},
 		{
-			name: "no candidates",
+			name: "no listings",
 			r:    served("a", isin, nil),
 		},
 	}
@@ -186,10 +186,10 @@ func describe(verdict claimVerdict, source map[uuid.UUID]string) outcome {
 func TestChoose(t *testing.T) {
 	stock := ptr.To(types.AssetClassStock)
 	other := id(types.IdentifierTypeCusip, "", "92857W309")
-	strict := func(source string, sent types.Identifier, cs ...market.Candidate) *fetchKey {
+	strict := func(source string, sent types.Identifier, cs ...market.Listing) *fetchKey {
 		return served(source, sent, []types.Identifier{sent}, cs...)
 	}
-	search := func(source string, sent types.Identifier, cs ...market.Candidate) *fetchKey {
+	search := func(source string, sent types.Identifier, cs ...market.Listing) *fetchKey {
 		return served(source, sent, []types.Identifier{ticker}, cs...)
 	}
 	existing := &identityClaim{Instrument: types.Instrument{Class: types.AssetClassStock, Identifiers: []types.Identifier{isin, cusip}, Listings: map[string]types.Listing{
@@ -205,35 +205,35 @@ func TestChoose(t *testing.T) {
 		{
 			name: "a claim not naming the identifier sent is dropped",
 			fetchKeys: []*fetchKey{served("a", isin, nil,
-				cand(types.AssetClassStock, "GBP", figi2, xnas),
-				cand(types.AssetClassStock, "GBP", figi, isin, xlon),
+				listing(types.AssetClassStock, "GBP", figi2, xnas),
+				listing(types.AssetClassStock, "GBP", figi, isin, xlon),
 			)},
 			k:    gen.StatedKey{Identifiers: []types.Identifier{isin}},
 			want: outcome{winner: "a#1", attached: []string{"a#1"}, notNaming: map[string]int{"a": 1}},
 		},
 		{
 			name:      "a listing in no stated family contradicts the statement",
-			fetchKeys: []*fetchKey{strict("a", isin, cand(types.AssetClassStock, "USD", figi, xnas))},
+			fetchKeys: []*fetchKey{strict("a", isin, listing(types.AssetClassStock, "USD", figi, xnas))},
 			k:         gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{isin}},
 			want:      outcome{findings: []string{"a dropped stated: isin GB00BH4HKS39: stated GBP has no listing among USD (a)"}},
 		},
 		{
 			name:      "a listing of no family does not",
-			fetchKeys: []*fetchKey{strict("a", isin, cand(types.AssetClassStock, "", figi, xnas))},
+			fetchKeys: []*fetchKey{strict("a", isin, listing(types.AssetClassStock, "", figi, xnas))},
 			k:         gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{isin}},
 			want:      outcome{winner: "a#0", attached: []string{"a#0"}},
 		},
 		{
 			name:      "a limited datasource's listing in no stated family contradicts nothing",
-			fetchKeys: []*fetchKey{limited(strict("m", isin, cand(types.AssetClassStock, "USD", figi, xnas)))},
+			fetchKeys: []*fetchKey{limited(strict("m", isin, listing(types.AssetClassStock, "USD", figi, xnas)))},
 			k:         gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{isin}},
 			want:      outcome{winner: "m#0", attached: []string{"m#0"}},
 		},
 		{
 			name: "below the winner a limited claim in no stated family attaches through a stable identifier",
 			fetchKeys: []*fetchKey{
-				strict("a", isin, cand(types.AssetClassStock, "GBP", figi, xlon)),
-				limited(strict("m", isin, cand(types.AssetClassStock, "USD", figi, xnas))),
+				strict("a", isin, listing(types.AssetClassStock, "GBP", figi, xlon)),
+				limited(strict("m", isin, listing(types.AssetClassStock, "USD", figi, xnas))),
 			},
 			k:    gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{isin}},
 			want: outcome{winner: "a#0", attached: []string{"a#0", "m#0"}},
@@ -241,35 +241,35 @@ func TestChoose(t *testing.T) {
 		{
 			name: "below the winner a limited claim sharing no stable identifier is dropped",
 			fetchKeys: []*fetchKey{
-				strict("a", isin, cand(types.AssetClassStock, "GBP", figi, xlon)),
-				limited(search("m", xlon, cand(types.AssetClassStock, "USD", xlon))),
+				strict("a", isin, listing(types.AssetClassStock, "GBP", figi, xlon)),
+				limited(search("m", xlon, listing(types.AssetClassStock, "USD", xlon))),
 			},
 			k:    gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{isin, xlon}},
 			want: outcome{winner: "a#0", attached: []string{"a#0"}, findings: []string{"m dropped corroboration: mic_ticker XLON:VOD: shares no stable identifier with the candidate identified by isin GB00BH4HKS39 (a)"}},
 		},
 		{
 			name:      "a disjoint class contradicts the statement",
-			fetchKeys: []*fetchKey{strict("a", isin, cand(types.AssetClassEtf, "GBP", figi, xlon))},
+			fetchKeys: []*fetchKey{strict("a", isin, listing(types.AssetClassEtf, "GBP", figi, xlon))},
 			k:         gen.StatedKey{AssetClass: stock, Identifiers: []types.Identifier{isin}},
 			want:      outcome{findings: []string{"a dropped stated: isin GB00BH4HKS39: stated stock contradicts the class etf (a)"}},
 		},
 		{
 			name:      "an unknown class does not",
-			fetchKeys: []*fetchKey{strict("a", isin, cand(types.AssetClassUnknown, "GBP", figi, xlon))},
+			fetchKeys: []*fetchKey{strict("a", isin, listing(types.AssetClassUnknown, "GBP", figi, xlon))},
 			k:         gen.StatedKey{AssetClass: stock, Identifiers: []types.Identifier{isin}},
 			want:      outcome{winner: "a#0", attached: []string{"a#0"}},
 		},
 		{
 			name:      "an identifier of a stated type with another value contradicts the statement",
-			fetchKeys: []*fetchKey{strict("a", isin, cand(types.AssetClassStock, "GBP", figi, other, xlon))},
+			fetchKeys: []*fetchKey{strict("a", isin, listing(types.AssetClassStock, "GBP", figi, other, xlon))},
 			k:         gen.StatedKey{Identifiers: []types.Identifier{cusip, isin}},
 			want:      outcome{findings: []string{"a dropped stated: isin GB00BH4HKS39: stated cusip 92857W308 contradicts cusip 92857W309 (a)"}},
 		},
 		{
 			name: "the winner is the highest precedence datasource with a survivor, and the rest attach",
 			fetchKeys: []*fetchKey{
-				strict("a", isin, cand(types.AssetClassStock, "GBP", figi, xlon)),
-				strict("b", isin, cand(types.AssetClassStock, "GBP", isin, cusip, comp)),
+				strict("a", isin, listing(types.AssetClassStock, "GBP", figi, xlon)),
+				strict("b", isin, listing(types.AssetClassStock, "GBP", isin, cusip, comp)),
 			},
 			k:    gen.StatedKey{Identifiers: []types.Identifier{isin}},
 			want: outcome{winner: "a#0", attached: []string{"a#0", "b#0"}},
@@ -277,9 +277,9 @@ func TestChoose(t *testing.T) {
 		{
 			name: "a claim inconsistent with one chosen above is dropped",
 			fetchKeys: []*fetchKey{
-				strict("a", isin, cand(types.AssetClassStock, "GBP", figi, cusip, xlon)),
-				strict("b", isin, cand(types.AssetClassStock, "GBP", figi, other)),
-				strict("c", isin, cand(types.AssetClassEtf, "GBP", figi)),
+				strict("a", isin, listing(types.AssetClassStock, "GBP", figi, cusip, xlon)),
+				strict("b", isin, listing(types.AssetClassStock, "GBP", figi, other)),
+				strict("c", isin, listing(types.AssetClassEtf, "GBP", figi)),
 			},
 			k: gen.StatedKey{Identifiers: []types.Identifier{isin}},
 			want: outcome{winner: "a#0", attached: []string{"a#0"}, findings: []string{
@@ -290,8 +290,8 @@ func TestChoose(t *testing.T) {
 		{
 			name: "the database names the key and a contradicting response is a contradiction",
 			fetchKeys: []*fetchKey{
-				strict("a", isin, cand(types.AssetClassStock, "GBP", figi, other, xlon)),
-				strict("b", isin, cand(types.AssetClassStock, "GBP", figi, id(types.IdentifierTypeMicTicker, "XLON", "VODL"))),
+				strict("a", isin, listing(types.AssetClassStock, "GBP", figi, other, xlon)),
+				strict("b", isin, listing(types.AssetClassStock, "GBP", figi, id(types.IdentifierTypeMicTicker, "XLON", "VODL"))),
 			},
 			k:     gen.StatedKey{Identifiers: []types.Identifier{isin}},
 			known: existing,
@@ -302,21 +302,21 @@ func TestChoose(t *testing.T) {
 		},
 		{
 			name:      "a ticker of another currency line at the venue contradicts nothing",
-			fetchKeys: []*fetchKey{strict("a", isin, cand(types.AssetClassStock, "USD", figi, id(types.IdentifierTypeMicTicker, "XLON", "VODUSD")))},
+			fetchKeys: []*fetchKey{strict("a", isin, listing(types.AssetClassStock, "USD", figi, id(types.IdentifierTypeMicTicker, "XLON", "VODUSD")))},
 			k:         gen.StatedKey{Identifiers: []types.Identifier{isin}},
 			known:     existing,
 			want:      outcome{winner: "database", attached: []string{"a#0"}},
 		},
 		{
 			name:      "a second composite in a listing contradicts nothing",
-			fetchKeys: []*fetchKey{strict("a", isin, cand(types.AssetClassStock, "GBP", figi, id(types.IdentifierTypeOpenfigiComposite, "", "BBG000C6K6H0")))},
+			fetchKeys: []*fetchKey{strict("a", isin, listing(types.AssetClassStock, "GBP", figi, id(types.IdentifierTypeOpenfigiComposite, "", "BBG000C6K6H0")))},
 			k:         gen.StatedKey{Identifiers: []types.Identifier{isin}},
 			known:     existing,
 			want:      outcome{winner: "database", attached: []string{"a#0"}},
 		},
 		{
 			name:      "a claim sharing no stable identifier with the winner is dropped",
-			fetchKeys: []*fetchKey{search("a", xlon, cand(types.AssetClassStock, "GBP", figi, xlon))},
+			fetchKeys: []*fetchKey{search("a", xlon, listing(types.AssetClassStock, "GBP", figi, xlon))},
 			k:         gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{xlon}},
 			known:     existing,
 			want:      outcome{winner: "database", findings: []string{"a dropped corroboration: openfigi_share_class BBG001S5XDT5: shares no stable identifier with the instrument identified by isin GB00BH4HKS39 (database)"}},
@@ -324,8 +324,8 @@ func TestChoose(t *testing.T) {
 		{
 			name: "a lower datasource corroborates the winner through a stable identifier",
 			fetchKeys: []*fetchKey{
-				strict("a", isin, cand(types.AssetClassStock, "GBP", figi, xlon)),
-				search("b", xlon, cand(types.AssetClassStock, "GBP", figi, xlon), cand(types.AssetClassStock, "GBP", figi2, xnas)),
+				strict("a", isin, listing(types.AssetClassStock, "GBP", figi, xlon)),
+				search("b", xlon, listing(types.AssetClassStock, "GBP", figi, xlon), listing(types.AssetClassStock, "GBP", figi2, xnas)),
 			},
 			k:    gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{isin, xlon}},
 			want: outcome{winner: "a#0", attached: []string{"a#0", "b#0"}, notNaming: map[string]int{"b": 1}},
@@ -333,56 +333,56 @@ func TestChoose(t *testing.T) {
 		{
 			name: "survivors rank by the stated data they confirm, then the datasource's order",
 			fetchKeys: []*fetchKey{search("a", xlon,
-				cand(types.AssetClassStock, "GBP", figi, xlon),
-				cand(types.AssetClassStock, "GBP", figi2, cusip, xlon),
-				cand(types.AssetClassStock, "GBP", id(types.IdentifierTypeOpenfigiShareClass, "", "BBG001S5XDT7"), xlon),
+				listing(types.AssetClassStock, "GBP", figi, xlon),
+				listing(types.AssetClassStock, "GBP", figi2, cusip, xlon),
+				listing(types.AssetClassStock, "GBP", id(types.IdentifierTypeOpenfigiShareClass, "", "BBG001S5XDT7"), xlon),
 			)},
 			k:    gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{cusip, xlon}},
 			want: outcome{winner: "a#1", attached: []string{"a#1"}},
 		},
 		{
 			name:      "the claim at the stated venue names the key",
-			fetchKeys: []*fetchKey{search("a", xlon, cand(types.AssetClassStock, "GBP", figi2, xnas), cand(types.AssetClassStock, "GBP", figi, xlon))},
+			fetchKeys: []*fetchKey{search("a", xlon, listing(types.AssetClassStock, "GBP", figi2, xnas), listing(types.AssetClassStock, "GBP", figi, xlon))},
 			k:         gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{xlon}},
 			want:      outcome{winner: "a#1", attached: []string{"a#1"}, notNaming: map[string]int{"a": 1}},
 		},
 		{
 			name:      "a mis-stated venue associates with the one claim that survives",
-			fetchKeys: []*fetchKey{search("a", xlon, cand(types.AssetClassStock, "GBP", figi, xetr), cand(types.AssetClassStock, "USD", figi2, xnas))},
+			fetchKeys: []*fetchKey{search("a", xlon, listing(types.AssetClassStock, "GBP", figi, xetr), listing(types.AssetClassStock, "USD", figi2, xnas))},
 			k:         gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{xlon}},
 			want:      outcome{winner: "a#0", attached: []string{"a#0"}, findings: []string{"a dropped stated: openfigi_share_class BBG001S5XDT6: stated GBP has no listing among USD (a)"}},
 		},
 		{
 			name:      "a mis-stated venue with several survivors offers them",
-			fetchKeys: []*fetchKey{search("a", xlon, cand(types.AssetClassStock, "GBP", figi, xetr), cand(types.AssetClassStock, "GBP", figi2, xnas))},
+			fetchKeys: []*fetchKey{search("a", xlon, listing(types.AssetClassStock, "GBP", figi, xetr), listing(types.AssetClassStock, "GBP", figi2, xnas))},
 			k:         gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{xlon}},
 			want:      outcome{offered: 2},
 		},
 		{
 			name:      "a mis-stated venue with the key found narrows to the claim corroborating the instrument",
-			fetchKeys: []*fetchKey{search("a", xlon, cand(types.AssetClassStock, "GBP", figi2, xnas), cand(types.AssetClassStock, "GBP", isin, xetr))},
+			fetchKeys: []*fetchKey{search("a", xlon, listing(types.AssetClassStock, "GBP", figi2, xnas), listing(types.AssetClassStock, "GBP", isin, xetr))},
 			k:         gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{xlon}},
 			known:     existing,
 			want:      outcome{winner: "database", attached: []string{"a#1"}, findings: []string{"a dropped corroboration: openfigi_share_class BBG001S5XDT6: shares no stable identifier with the instrument identified by isin GB00BH4HKS39 (database)"}},
 		},
 		{
 			name:      "a bare ticker is never chosen, and its claims are offered",
-			fetchKeys: []*fetchKey{search("a", ticker, cand(types.AssetClassStock, "GBP", figi, xlon))},
+			fetchKeys: []*fetchKey{search("a", ticker, listing(types.AssetClassStock, "GBP", figi, xlon))},
 			k:         gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{ticker}},
 			want:      outcome{notNaming: map[string]int{"a": 1}, offered: 1},
 		},
 		{
 			name: "two datasources describing one security under a bare ticker offer one candidate",
 			fetchKeys: []*fetchKey{
-				search("a", ticker, cand(types.AssetClassStock, "GBP", figi, xlon)),
-				search("b", ticker, cand(types.AssetClassStock, "GBP", figi, isin, xlon)),
+				search("a", ticker, listing(types.AssetClassStock, "GBP", figi, xlon)),
+				search("b", ticker, listing(types.AssetClassStock, "GBP", figi, isin, xlon)),
 			},
 			k:    gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{ticker}},
 			want: outcome{notNaming: map[string]int{"a": 1, "b": 1}, offered: 1},
 		},
 		{
 			name:      "a claim contradicting the statement is not offered",
-			fetchKeys: []*fetchKey{search("a", ticker, cand(types.AssetClassStock, "GBP", figi, xlon), cand(types.AssetClassStock, "USD", figi2, xnas))},
+			fetchKeys: []*fetchKey{search("a", ticker, listing(types.AssetClassStock, "GBP", figi, xlon), listing(types.AssetClassStock, "USD", figi2, xnas))},
 			k:         gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{ticker}},
 			want:      outcome{notNaming: map[string]int{"a": 2}, offered: 1},
 		},
@@ -417,7 +417,7 @@ func TestChoose(t *testing.T) {
 // the other datasources attach nothing, and a head that fails a check is
 // refused.
 func TestChooseUserChoice(t *testing.T) {
-	strict := func(source string, sent types.Identifier, cs ...market.Candidate) *fetchKey {
+	strict := func(source string, sent types.Identifier, cs ...market.Listing) *fetchKey {
 		return served(source, sent, []types.Identifier{sent}, cs...)
 	}
 	existing := &identityClaim{Instrument: types.Instrument{Class: types.AssetClassStock, Identifiers: []types.Identifier{isin, cusip}, Listings: map[string]types.Listing{
@@ -437,8 +437,8 @@ func TestChooseUserChoice(t *testing.T) {
 		{
 			name: "the head wins and the members attach",
 			fetchKeys: []*fetchKey{
-				strict("a", ticker, cand(types.AssetClassStock, "GBP", figi, xlon)),
-				strict("b", ticker, cand(types.AssetClassStock, "GBP", figi, isin, xlon)),
+				strict("a", ticker, listing(types.AssetClassStock, "GBP", figi, xlon)),
+				strict("b", ticker, listing(types.AssetClassStock, "GBP", figi, isin, xlon)),
 			},
 			userChoice: [][2]int{{0, 0}, {1, 0}},
 			k:          gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{ticker}},
@@ -447,7 +447,7 @@ func TestChooseUserChoice(t *testing.T) {
 		{
 			name: "the user choice's datasource's other claims are passed over",
 			fetchKeys: []*fetchKey{
-				strict("a", ticker, cand(types.AssetClassStock, "GBP", figi, xlon), cand(types.AssetClassStock, "GBP", figi2, xetr)),
+				strict("a", ticker, listing(types.AssetClassStock, "GBP", figi, xlon), listing(types.AssetClassStock, "GBP", figi2, xetr)),
 			},
 			userChoice: [][2]int{{0, 0}},
 			k:          gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{ticker}},
@@ -456,8 +456,8 @@ func TestChooseUserChoice(t *testing.T) {
 		{
 			name: "a datasource with no member attaches nothing, even where it agrees",
 			fetchKeys: []*fetchKey{
-				strict("a", ticker, cand(types.AssetClassStock, "GBP", figi, isin, xlon)),
-				strict("b", ticker, cand(types.AssetClassStock, "GBP", isin, xlon)),
+				strict("a", ticker, listing(types.AssetClassStock, "GBP", figi, isin, xlon)),
+				strict("b", ticker, listing(types.AssetClassStock, "GBP", isin, xlon)),
 			},
 			userChoice: [][2]int{{1, 0}},
 			k:          gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{ticker}},
@@ -465,14 +465,14 @@ func TestChooseUserChoice(t *testing.T) {
 		},
 		{
 			name:       "a user choice whose listing is in no stated family is refused",
-			fetchKeys:  []*fetchKey{strict("a", ticker, cand(types.AssetClassStock, "USD", figi, xnas))},
+			fetchKeys:  []*fetchKey{strict("a", ticker, listing(types.AssetClassStock, "USD", figi, xnas))},
 			userChoice: [][2]int{{0, 0}},
 			k:          gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{ticker}},
 			want:       outcome{refused: "openfigi_share_class BBG001S5XDT5: stated GBP has no listing among USD (a)"},
 		},
 		{
 			name:       "a user choice contradicting the instrument the database names is refused",
-			fetchKeys:  []*fetchKey{strict("a", ticker, cand(types.AssetClassStock, "GBP", figi, other, xlon))},
+			fetchKeys:  []*fetchKey{strict("a", ticker, listing(types.AssetClassStock, "GBP", figi, other, xlon))},
 			userChoice: [][2]int{{0, 0}},
 			k:          gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{ticker}},
 			known:      existing,
@@ -480,7 +480,7 @@ func TestChooseUserChoice(t *testing.T) {
 		},
 		{
 			name:       "a user choice attaches to the instrument the database names",
-			fetchKeys:  []*fetchKey{strict("a", ticker, cand(types.AssetClassStock, "GBP", figi, isin, xlon))},
+			fetchKeys:  []*fetchKey{strict("a", ticker, listing(types.AssetClassStock, "GBP", figi, isin, xlon))},
 			userChoice: [][2]int{{0, 0}},
 			k:          gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{ticker}},
 			known:      existing,
@@ -489,9 +489,9 @@ func TestChooseUserChoice(t *testing.T) {
 		{
 			name: "a member contradicting the instrument the database names is a contradiction, and the others attach",
 			fetchKeys: []*fetchKey{
-				strict("a", ticker, cand(types.AssetClassStock, "GBP", isin, xlon)),
-				strict("b", ticker, cand(types.AssetClassStock, "GBP", isin, other, xlon)),
-				strict("c", ticker, cand(types.AssetClassStock, "GBP", isin, comp)),
+				strict("a", ticker, listing(types.AssetClassStock, "GBP", isin, xlon)),
+				strict("b", ticker, listing(types.AssetClassStock, "GBP", isin, other, xlon)),
+				strict("c", ticker, listing(types.AssetClassStock, "GBP", isin, comp)),
 			},
 			userChoice: [][2]int{{0, 0}, {1, 0}, {2, 0}},
 			k:          gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{ticker}},
@@ -503,8 +503,8 @@ func TestChooseUserChoice(t *testing.T) {
 		{
 			name: "a member sharing no stable identifier with the instrument the database names is dropped",
 			fetchKeys: []*fetchKey{
-				strict("a", ticker, cand(types.AssetClassStock, "GBP", isin, xlon)),
-				strict("b", ticker, cand(types.AssetClassStock, "GBP", figi, xlon)),
+				strict("a", ticker, listing(types.AssetClassStock, "GBP", isin, xlon)),
+				strict("b", ticker, listing(types.AssetClassStock, "GBP", figi, xlon)),
 			},
 			userChoice: [][2]int{{0, 0}, {1, 0}},
 			k:          gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{ticker}},
@@ -542,7 +542,7 @@ func TestChooseUserChoice(t *testing.T) {
 // member and corroborates the head.
 func TestGather(t *testing.T) {
 	other := id(types.IdentifierTypeCusip, "", "92857W309")
-	search := func(source string, cs ...market.Candidate) *fetchKey {
+	search := func(source string, cs ...market.Listing) *fetchKey {
 		return served(source, ticker, []types.Identifier{ticker}, cs...)
 	}
 	bare := gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{ticker}}
@@ -555,8 +555,8 @@ func TestGather(t *testing.T) {
 		{
 			name: "two datasources sharing a stable identifier form one candidate",
 			fetchKeys: []*fetchKey{
-				search("a", cand(types.AssetClassStock, "GBP", figi, xlon)),
-				search("b", cand(types.AssetClassStock, "GBP", figi, isin, xlon)),
+				search("a", listing(types.AssetClassStock, "GBP", figi, xlon)),
+				search("b", listing(types.AssetClassStock, "GBP", figi, isin, xlon)),
 			},
 			k:    bare,
 			want: [][]string{{"a#0", "b#0"}},
@@ -564,9 +564,9 @@ func TestGather(t *testing.T) {
 		{
 			name: "a claim corroborating a member but not the head heads its own candidate",
 			fetchKeys: []*fetchKey{
-				search("a", cand(types.AssetClassStock, "GBP", figi, xlon)),
-				search("b", cand(types.AssetClassStock, "GBP", figi, isin, xlon)),
-				search("c", cand(types.AssetClassStock, "GBP", isin, xlon)),
+				search("a", listing(types.AssetClassStock, "GBP", figi, xlon)),
+				search("b", listing(types.AssetClassStock, "GBP", figi, isin, xlon)),
+				search("c", listing(types.AssetClassStock, "GBP", isin, xlon)),
 			},
 			k:    bare,
 			want: [][]string{{"a#0", "b#0"}, {"c#0"}},
@@ -574,9 +574,9 @@ func TestGather(t *testing.T) {
 		{
 			name: "a claim agreeing with two heads that contradict each other joins both",
 			fetchKeys: []*fetchKey{
-				search("a", cand(types.AssetClassStock, "GBP", figi, cusip, xlon)),
-				search("b", cand(types.AssetClassStock, "GBP", figi, other, xlon)),
-				search("c", cand(types.AssetClassStock, "GBP", figi, xlon)),
+				search("a", listing(types.AssetClassStock, "GBP", figi, cusip, xlon)),
+				search("b", listing(types.AssetClassStock, "GBP", figi, other, xlon)),
+				search("c", listing(types.AssetClassStock, "GBP", figi, xlon)),
 			},
 			k:    bare,
 			want: [][]string{{"a#0", "c#0"}, {"b#0", "c#0"}},
@@ -584,8 +584,8 @@ func TestGather(t *testing.T) {
 		{
 			name: "of two claims of one datasource agreeing with a head, the better ranked joins and the other heads its own candidate",
 			fetchKeys: []*fetchKey{
-				search("a", cand(types.AssetClassStock, "GBP", figi, isin, xlon)),
-				search("b", cand(types.AssetClassStock, "GBP", figi, xetr), cand(types.AssetClassStock, "GBP", isin, xlon)),
+				search("a", listing(types.AssetClassStock, "GBP", figi, isin, xlon)),
+				search("b", listing(types.AssetClassStock, "GBP", figi, xetr), listing(types.AssetClassStock, "GBP", isin, xlon)),
 			},
 			k:    gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{ticker, isin}},
 			want: [][]string{{"a#0", "b#1"}, {"b#0"}},

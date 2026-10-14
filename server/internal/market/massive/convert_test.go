@@ -9,7 +9,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
-func TestCandidate(t *testing.T) {
+func TestToListing(t *testing.T) {
 	figis := []types.Identifier{
 		{Type: types.IdentifierTypeOpenfigiShareClass, Value: "BBG001S5N8V8"},
 		{Type: types.IdentifierTypeOpenfigiComposite, Value: "BBG000B9XRY4"},
@@ -18,14 +18,14 @@ func TestCandidate(t *testing.T) {
 	tests := []struct {
 		name string
 		edit func(*record)
-		want market.Candidate
+		want market.Listing
 		ok   bool
 	}{
-		{name: "a common stock at a segment", want: market.Candidate{Class: types.AssetClassStock, Currency: "USD", Primary: "XNAS", Identifiers: append(figis, ticker("XNAS", "AAPL"))}, ok: true},
-		{name: "an ETF", edit: func(r *record) { r.Type = "ETF" }, want: market.Candidate{Class: types.AssetClassEtf, Currency: "USD", Primary: "XNAS", Identifiers: append(figis, ticker("XNAS", "AAPL"))}, ok: true},
-		{name: "a fund", edit: func(r *record) { r.Type = "FUND" }, want: market.Candidate{Class: types.AssetClassMutualFund, Currency: "USD", Primary: "XNAS", Identifiers: append(figis, ticker("XNAS", "AAPL"))}, ok: true},
-		{name: "a preferred share has no ticker but states its primary venue", edit: func(r *record) { r.Type, r.Ticker = "PFD", "BACpL" }, want: market.Candidate{Class: types.AssetClassStock, Currency: "USD", Primary: "XNAS", Identifiers: figis}, ok: true},
-		{name: "an exchange outside the table has neither a ticker nor a primary venue", edit: func(r *record) { r.PrimaryExchange = "XXXX" }, want: market.Candidate{Class: types.AssetClassStock, Currency: "USD", Identifiers: figis}, ok: true},
+		{name: "a common stock at a segment", want: market.Listing{Class: types.AssetClassStock, Currency: "USD", Primary: "XNAS", Identifiers: append(figis, ticker("XNAS", "AAPL"))}, ok: true},
+		{name: "an ETF", edit: func(r *record) { r.Type = "ETF" }, want: market.Listing{Class: types.AssetClassEtf, Currency: "USD", Primary: "XNAS", Identifiers: append(figis, ticker("XNAS", "AAPL"))}, ok: true},
+		{name: "a fund", edit: func(r *record) { r.Type = "FUND" }, want: market.Listing{Class: types.AssetClassMutualFund, Currency: "USD", Primary: "XNAS", Identifiers: append(figis, ticker("XNAS", "AAPL"))}, ok: true},
+		{name: "a preferred share has no ticker but states its primary venue", edit: func(r *record) { r.Type, r.Ticker = "PFD", "BACpL" }, want: market.Listing{Class: types.AssetClassStock, Currency: "USD", Primary: "XNAS", Identifiers: figis}, ok: true},
+		{name: "an exchange outside the table has neither a ticker nor a primary venue", edit: func(r *record) { r.PrimaryExchange = "XXXX" }, want: market.Listing{Class: types.AssetClassStock, Currency: "USD", Identifiers: figis}, ok: true},
 		{name: "a warrant", edit: func(r *record) { r.Type = "WARRANT" }},
 		{name: "an unknown type", edit: func(r *record) { r.Type = "NEW" }},
 		{name: "an OTC listing", edit: func(r *record) { r.Market = "otc" }},
@@ -36,12 +36,12 @@ func TestCandidate(t *testing.T) {
 			if tc.edit != nil {
 				tc.edit(&r)
 			}
-			got, ok := candidate(r, mics)
+			got, ok := toListing(r, mics)
 			if ok != tc.ok {
-				t.Fatalf("candidate() ok = %v, want %v", ok, tc.ok)
+				t.Fatalf("toListing() ok = %v, want %v", ok, tc.ok)
 			}
 			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("candidate() mismatch (-want +got):\n%s", diff)
+				t.Errorf("toListing() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}

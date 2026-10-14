@@ -223,14 +223,14 @@ func written(rk gen.ResolutionKey) string {
 func TestResolveWrites(t *testing.T) {
 	s := newStack(t)
 	ctx := context.Background()
-	s.script.Responses[isin] = market.IdentityResult{Filtered: []types.Identifier{isin}, Candidates: []market.Candidate{
+	s.script.Responses[isin] = market.IdentityResult{Filtered: []types.Identifier{isin}, Listings: []market.Listing{
 		{Class: types.AssetClassStock, Currency: "GBX", Identifiers: []types.Identifier{figi, isin, comp, xlon}},
 	}}
 	trade := s.state(t, types.AssetClassStock, "GBX", isin, xlon)
 	transfer := s.state(t, types.AssetClassEquity, "", isin)
 	cash := s.state(t, types.AssetClassCash, "GBX", id(types.IdentifierTypeCurrency, "", "GBX"))
 	wrong := s.state(t, types.AssetClassStock, "USD", cusip)
-	s.script.Responses[cusip] = market.IdentityResult{Filtered: []types.Identifier{cusip}, Candidates: []market.Candidate{
+	s.script.Responses[cusip] = market.IdentityResult{Filtered: []types.Identifier{cusip}, Listings: []market.Listing{
 		{Class: types.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{figi2, cusip, xetr}},
 	}}
 
@@ -239,7 +239,7 @@ func TestResolveWrites(t *testing.T) {
 	for i, r := range got {
 		outcomes[i] = written(r)
 	}
-	want := []string{"matched", "matched", "matched", "unrecognised: " + s.alphaName + ": 1 candidate in 1 set of identifiers, 1 set of identifiers dropped"}
+	want := []string{"matched", "matched", "matched", "unrecognised: " + s.alphaName + ": 1 listing in 1 set of identifiers, 1 set of identifiers dropped"}
 	if diff := cmp.Diff(want, outcomes); diff != "" {
 		t.Errorf("outcomes mismatch (-want +got):\n%s", diff)
 	}
@@ -336,14 +336,14 @@ func TestResolveWrites(t *testing.T) {
 func TestPrimaryVenueRows(t *testing.T) {
 	s := newStack(t)
 	ctx := context.Background()
-	s.script.Responses[isin] = market.IdentityResult{Filtered: []types.Identifier{isin}, Candidates: []market.Candidate{
+	s.script.Responses[isin] = market.IdentityResult{Filtered: []types.Identifier{isin}, Listings: []market.Listing{
 		{Class: types.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{figi, isin, xnas}},
 	}}
-	s.script.Responses[cusip] = market.IdentityResult{Filtered: []types.Identifier{cusip}, Candidates: []market.Candidate{
+	s.script.Responses[cusip] = market.IdentityResult{Filtered: []types.Identifier{cusip}, Listings: []market.Listing{
 		{Class: types.AssetClassStock, Currency: "USD", Primary: "XNAS", Identifiers: []types.Identifier{figi, isin, cusip, xnas}},
 	}}
 	cusip2 := id(types.IdentifierTypeCusip, "", "594918104")
-	s.script.Responses[cusip2] = market.IdentityResult{Filtered: []types.Identifier{cusip2}, Candidates: []market.Candidate{
+	s.script.Responses[cusip2] = market.IdentityResult{Filtered: []types.Identifier{cusip2}, Listings: []market.Listing{
 		{Class: types.AssetClassStock, Currency: "USD", Primary: "XNYS", Identifiers: []types.Identifier{figi, isin, cusip2, xnas}},
 	}}
 	found := func(t *testing.T) gen.Listing {
@@ -375,10 +375,10 @@ func TestPrimaryVenueRows(t *testing.T) {
 func TestMergeRows(t *testing.T) {
 	s := newStack(t)
 	ctx := context.Background()
-	s.script.Responses[isin] = market.IdentityResult{Filtered: []types.Identifier{isin}, Candidates: []market.Candidate{
+	s.script.Responses[isin] = market.IdentityResult{Filtered: []types.Identifier{isin}, Listings: []market.Listing{
 		{Class: types.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{figi, isin, xlon}},
 	}}
-	s.script.Responses[cusip] = market.IdentityResult{Filtered: []types.Identifier{cusip}, Candidates: []market.Candidate{
+	s.script.Responses[cusip] = market.IdentityResult{Filtered: []types.Identifier{cusip}, Listings: []market.Listing{
 		{Class: types.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{cusip, xnas}},
 	}}
 	first := s.state(t, types.AssetClassStock, "GBP", isin)
@@ -395,7 +395,7 @@ func TestMergeRows(t *testing.T) {
 	// The third key's response names both instruments, which is what brings
 	// them together.
 	sedol := id(types.IdentifierTypeSedol, "", "BH4HKS3")
-	s.script.Responses[sedol] = market.IdentityResult{Filtered: []types.Identifier{sedol}, Candidates: []market.Candidate{
+	s.script.Responses[sedol] = market.IdentityResult{Filtered: []types.Identifier{sedol}, Listings: []market.Listing{
 		{Class: types.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{figi, cusip, sedol, xnas}},
 	}}
 	third := s.state(t, types.AssetClassStock, "USD", sedol)
@@ -480,10 +480,10 @@ func TestDescribedRows(t *testing.T) {
 	descr := id(types.IdentifierTypeBrokerDescription, "ibkr", "ACME CORP")
 	// alpha creates the instrument the description names, and a second
 	// instrument that the description must not match.
-	s.script.Responses[isin] = market.IdentityResult{Filtered: []types.Identifier{isin}, Candidates: []market.Candidate{
+	s.script.Responses[isin] = market.IdentityResult{Filtered: []types.Identifier{isin}, Listings: []market.Listing{
 		{Class: types.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{figi, isin, xlon}},
 	}}
-	s.script.Responses[cusip] = market.IdentityResult{Filtered: []types.Identifier{cusip}, Candidates: []market.Candidate{
+	s.script.Responses[cusip] = market.IdentityResult{Filtered: []types.Identifier{cusip}, Listings: []market.Listing{
 		{Class: types.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{figi2, cusip, xnas}},
 	}}
 	s.resolve(t, s.state(t, types.AssetClassStock, "GBP", isin), s.state(t, types.AssetClassStock, "USD", cusip))
@@ -535,7 +535,7 @@ func TestDescribedRows(t *testing.T) {
 
 	t.Run("a datasource answering an unknown ISIN with another instrument is a contradiction", func(t *testing.T) {
 		other := id(types.IdentifierTypeIsin, "", "GB00B03MLX29")
-		s.beta.Responses[other] = market.IdentityResult{Filtered: []types.Identifier{other}, Candidates: []market.Candidate{
+		s.beta.Responses[other] = market.IdentityResult{Filtered: []types.Identifier{other}, Listings: []market.Listing{
 			{Class: types.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{id(types.IdentifierTypeOpenfigiShareClass, "", "BBG001S5XDT7"), other, id(types.IdentifierTypeMicTicker, "XLON", "SHEL")}},
 		}}
 		k := s.state(t, types.AssetClassStock, "GBP", other, descr)
@@ -570,7 +570,7 @@ func TestDescribedRows(t *testing.T) {
 		// stack's one connection cannot carry two fetches at once.
 		_, err := s.tx.Exec(ctx, "DELETE FROM identity_coverage WHERE instrument_id = $1 AND datasource = 'beta'", inst.ID)
 		require.NoError(t, err)
-		s.beta.Responses[ticker] = market.IdentityResult{Filtered: []types.Identifier{ticker}, Candidates: []market.Candidate{
+		s.beta.Responses[ticker] = market.IdentityResult{Filtered: []types.Identifier{ticker}, Listings: []market.Listing{
 			{Class: types.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{figi, xlon}},
 		}}
 		k := s.state(t, types.AssetClassStock, "GBP", ticker, descr)
@@ -680,13 +680,13 @@ func TestLimitedDatasource(t *testing.T) {
 		t.Run(fmt.Sprintf("limited %t", limited), func(t *testing.T) {
 			s := newStack(t)
 			ctx := context.Background()
-			s.script.Responses[isin] = market.IdentityResult{Filtered: []types.Identifier{isin}, Candidates: []market.Candidate{
+			s.script.Responses[isin] = market.IdentityResult{Filtered: []types.Identifier{isin}, Listings: []market.Listing{
 				{Class: types.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{figi, isin, xlon}},
 			}}
 			s.resolve(t, s.state(t, types.AssetClassStock, "GBP", isin))
 			s.enableBeta(t)
 			s.beta.Limited = limited
-			s.beta.Responses[isin] = market.IdentityResult{Filtered: []types.Identifier{isin}, Candidates: []market.Candidate{
+			s.beta.Responses[isin] = market.IdentityResult{Filtered: []types.Identifier{isin}, Listings: []market.Listing{
 				{Class: types.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{figi, xnas}},
 			}}
 			k := s.stateUnder(t, s.newStatement(t, gen.BrokerIbkr), types.AssetClassStock, "GBP", isin)
@@ -723,7 +723,7 @@ func btoi(b bool) int {
 func TestCoveredRows(t *testing.T) {
 	s := newStack(t)
 	ctx := context.Background()
-	s.script.Responses[isin] = market.IdentityResult{Filtered: []types.Identifier{isin}, Candidates: []market.Candidate{
+	s.script.Responses[isin] = market.IdentityResult{Filtered: []types.Identifier{isin}, Listings: []market.Listing{
 		{Class: types.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{figi, isin, xlon}},
 	}}
 	s.resolve(t, s.state(t, types.AssetClassStock, "GBP", isin))
@@ -731,7 +731,7 @@ func TestCoveredRows(t *testing.T) {
 	require.NoError(t, err)
 	inst := before.Instrument
 	s.enableBeta(t)
-	s.beta.Responses[isin] = market.IdentityResult{Filtered: []types.Identifier{isin}, Candidates: []market.Candidate{
+	s.beta.Responses[isin] = market.IdentityResult{Filtered: []types.Identifier{isin}, Listings: []market.Listing{
 		{Class: types.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{figi, isin, xnas}},
 	}}
 	fetched := len(s.fetches(t))
@@ -786,11 +786,11 @@ func TestCoveredRows(t *testing.T) {
 
 // TestDroppedUncovered checks that when the resolver drops a datasource's
 // answer, the datasource does not cover the instrument and is asked again,
-// and that an answer with no candidate covers it.
+// and that an answer with no listing covers it.
 func TestDroppedUncovered(t *testing.T) {
 	s := newStack(t)
 	ctx := context.Background()
-	s.script.Responses[isin] = market.IdentityResult{Filtered: []types.Identifier{isin}, Candidates: []market.Candidate{
+	s.script.Responses[isin] = market.IdentityResult{Filtered: []types.Identifier{isin}, Listings: []market.Listing{
 		{Class: types.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{figi, isin, xlon}},
 	}}
 	s.resolve(t, s.state(t, types.AssetClassStock, "GBP", isin))
@@ -814,7 +814,7 @@ func TestDroppedUncovered(t *testing.T) {
 
 	// beta's share class contradicts the instrument's, so its set of
 	// identifiers is dropped and it is asked again for each key.
-	s.beta.Responses[isin] = market.IdentityResult{Filtered: []types.Identifier{isin}, Candidates: []market.Candidate{
+	s.beta.Responses[isin] = market.IdentityResult{Filtered: []types.Identifier{isin}, Listings: []market.Listing{
 		{Class: types.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{figi2, isin, xlon}},
 	}}
 	for n := range 2 {
@@ -835,7 +835,7 @@ func TestDroppedUncovered(t *testing.T) {
 		}
 	}
 
-	// An answer with no candidate covers the instrument.
+	// An answer with no listing covers the instrument.
 	s.beta.Responses[isin] = market.IdentityResult{Filtered: []types.Identifier{isin}}
 	fetched := len(s.fetches(t))
 	s.resolve(t, state())
@@ -857,10 +857,10 @@ func TestDroppedUncovered(t *testing.T) {
 // a stated class disjoint from the instrument's.
 func TestLookupRows(t *testing.T) {
 	s := newStack(t)
-	s.script.Responses[isin] = market.IdentityResult{Filtered: []types.Identifier{isin}, Candidates: []market.Candidate{
+	s.script.Responses[isin] = market.IdentityResult{Filtered: []types.Identifier{isin}, Listings: []market.Listing{
 		{Class: types.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{figi, isin, xlon}},
 	}}
-	s.script.Responses[cusip] = market.IdentityResult{Filtered: []types.Identifier{cusip}, Candidates: []market.Candidate{
+	s.script.Responses[cusip] = market.IdentityResult{Filtered: []types.Identifier{cusip}, Listings: []market.Listing{
 		{Class: types.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{figi2, cusip, xnas}},
 	}}
 	s.resolve(t, s.state(t, types.AssetClassStock, "GBP", isin), s.state(t, types.AssetClassStock, "USD", cusip))
@@ -891,10 +891,10 @@ func TestMergeAcrossCurrencies(t *testing.T) {
 	s := newStack(t)
 	ctx := context.Background()
 	usdLine := id(types.IdentifierTypeMicTicker, "XLON", "VODUSD")
-	s.script.Responses[isin] = market.IdentityResult{Filtered: []types.Identifier{isin}, Candidates: []market.Candidate{
+	s.script.Responses[isin] = market.IdentityResult{Filtered: []types.Identifier{isin}, Listings: []market.Listing{
 		{Class: types.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{figi, isin, xlon}},
 	}}
-	s.script.Responses[cusip] = market.IdentityResult{Filtered: []types.Identifier{cusip}, Candidates: []market.Candidate{
+	s.script.Responses[cusip] = market.IdentityResult{Filtered: []types.Identifier{cusip}, Listings: []market.Listing{
 		{Class: types.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{cusip, usdLine}},
 	}}
 	s.resolve(t, s.state(t, types.AssetClassStock, "GBP", isin), s.state(t, types.AssetClassStock, "USD", cusip))
@@ -904,7 +904,7 @@ func TestMergeAcrossCurrencies(t *testing.T) {
 	require.NoError(t, err)
 
 	sedol := id(types.IdentifierTypeSedol, "", "BH4HKS3")
-	s.script.Responses[sedol] = market.IdentityResult{Filtered: []types.Identifier{sedol}, Candidates: []market.Candidate{
+	s.script.Responses[sedol] = market.IdentityResult{Filtered: []types.Identifier{sedol}, Listings: []market.Listing{
 		{Class: types.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{figi, cusip, sedol}},
 	}}
 	k := s.state(t, types.AssetClassStock, "USD", sedol)
@@ -938,10 +938,10 @@ func TestMergeRefused(t *testing.T) {
 	s := newStack(t)
 	ctx := context.Background()
 	other := id(types.IdentifierTypeIsin, "", "GB00BH4HKS40")
-	s.script.Responses[isin] = market.IdentityResult{Filtered: []types.Identifier{isin}, Candidates: []market.Candidate{
+	s.script.Responses[isin] = market.IdentityResult{Filtered: []types.Identifier{isin}, Listings: []market.Listing{
 		{Class: types.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{figi, isin, xlon}},
 	}}
-	s.script.Responses[cusip] = market.IdentityResult{Filtered: []types.Identifier{cusip}, Candidates: []market.Candidate{
+	s.script.Responses[cusip] = market.IdentityResult{Filtered: []types.Identifier{cusip}, Listings: []market.Listing{
 		{Class: types.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{cusip, other, xnas}},
 	}}
 	s.resolve(t, s.state(t, types.AssetClassStock, "GBP", isin), s.state(t, types.AssetClassStock, "USD", cusip))
@@ -953,7 +953,7 @@ func TestMergeRefused(t *testing.T) {
 	// alpha covers both instruments, so beta carries the response that names
 	// both.
 	s.enableBeta(t)
-	s.beta.Responses[cusip] = market.IdentityResult{Filtered: []types.Identifier{cusip}, Candidates: []market.Candidate{
+	s.beta.Responses[cusip] = market.IdentityResult{Filtered: []types.Identifier{cusip}, Listings: []market.Listing{
 		{Class: types.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{figi, cusip, xnas}},
 	}}
 	k := s.stateUnder(t, s.newStatement(t, gen.BrokerIbkr), types.AssetClassStock, "USD", cusip)
@@ -997,7 +997,7 @@ func TestMergeRefused(t *testing.T) {
 func TestConfirmRows(t *testing.T) {
 	s := newStack(t)
 	ctx := context.Background()
-	s.script.Responses[ticker] = market.IdentityResult{Filtered: []types.Identifier{ticker}, Candidates: []market.Candidate{
+	s.script.Responses[ticker] = market.IdentityResult{Filtered: []types.Identifier{ticker}, Listings: []market.Listing{
 		{Class: types.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{figi, isin, comp, xlon}},
 		{Class: types.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{figi2, xnas}},
 	}}
@@ -1102,10 +1102,10 @@ func TestConfirmJoins(t *testing.T) {
 	_, err = s.q.CreateIdentifier(ctx, gen.CreateIdentifierParams{ID: db.NewID(), InstrumentID: other.ID, Type: figi.Type, Domain: figi.Domain, Value: figi.Value})
 	require.NoError(t, err)
 	s.enableBeta(t)
-	s.script.Responses[ticker] = market.IdentityResult{Filtered: []types.Identifier{ticker}, Candidates: []market.Candidate{
+	s.script.Responses[ticker] = market.IdentityResult{Filtered: []types.Identifier{ticker}, Listings: []market.Listing{
 		{Class: types.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{isin, xlon}},
 	}}
-	s.beta.Responses[ticker] = market.IdentityResult{Filtered: []types.Identifier{ticker}, Candidates: []market.Candidate{
+	s.beta.Responses[ticker] = market.IdentityResult{Filtered: []types.Identifier{ticker}, Listings: []market.Listing{
 		{Class: types.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{figi, isin, xlon}},
 	}}
 	key := s.state(t, types.AssetClassStock, "GBP", ticker)
@@ -1136,10 +1136,10 @@ func TestConfirmMerged(t *testing.T) {
 	s := newStack(t)
 	ctx := context.Background()
 	s.enableBeta(t)
-	s.script.Responses[ticker] = market.IdentityResult{Filtered: []types.Identifier{ticker}, Candidates: []market.Candidate{
+	s.script.Responses[ticker] = market.IdentityResult{Filtered: []types.Identifier{ticker}, Listings: []market.Listing{
 		{Class: types.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{figi, xlon}},
 	}}
-	s.beta.Responses[ticker] = market.IdentityResult{Filtered: []types.Identifier{ticker}, Candidates: []market.Candidate{
+	s.beta.Responses[ticker] = market.IdentityResult{Filtered: []types.Identifier{ticker}, Listings: []market.Listing{
 		{Class: types.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{figi, isin, xlon}},
 	}}
 	key := s.state(t, types.AssetClassStock, "GBP", ticker)
