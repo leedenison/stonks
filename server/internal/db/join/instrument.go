@@ -136,3 +136,13 @@ func (j *Instrument) Listing(fam string) *gen.Listing {
 	}
 	return nil
 }
+
+// Identifier returns the row of id, nil where the instrument has none.
+func (j *Instrument) Identifier(id types.Identifier) *gen.Identifier {
+	for i := range j.Identifiers {
+		if to.Identifier(j.Identifiers[i]) == id {
+			return &j.Identifiers[i]
+		}
+	}
+	return nil
+}
