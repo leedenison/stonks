@@ -177,8 +177,8 @@ func identifiersToLock(res *resolution) []types.Identifier {
 		for _, id := range fk.Response.Filtered {
 			ids = appendUnique(ids, id)
 		}
-		for _, cand := range fk.Response.Candidates {
-			for _, id := range cand.Identifiers {
+		for _, listing := range fk.Response.Listings {
+			for _, id := range listing.Identifiers {
 				ids = appendUnique(ids, id)
 			}
 		}
@@ -226,15 +226,15 @@ func findWriteTarget(ctx context.Context, q Queries, res *resolution, verdict cl
 
 // recordIdentityCoverage records instrument as covered by every datasource
 // whose claims the verdict attached, and by every datasource that served no
-// candidate. When verdict drops every candidate of a datasource, the next
-// key that names the instrument asks that datasource again.
+// listing. When the verdict drops every claim of a datasource, the next key
+// that names the instrument asks that datasource again.
 func recordIdentityCoverage(ctx context.Context, q Queries, instrument uuid.UUID, verdict claimVerdict, fetchKeys []*fetchKey) error {
 	for _, fk := range fetchKeys {
 		if fk.Outcome != gen.FetchOutcomeServed {
 			continue
 		}
 		attached := slices.ContainsFunc(verdict.attached, func(c *identityClaim) bool { return c.fetchKey == fk })
-		if !attached && len(fk.Response.Candidates) > 0 {
+		if !attached && len(fk.Response.Listings) > 0 {
 			continue
 		}
 		arg := gen.UpsertIdentityCoverageParams{InstrumentID: instrument, Datasource: fk.Source, FetchKeyID: fk.ID}
@@ -378,7 +378,7 @@ func summary(res *resolution, verdict claimVerdict) []string {
 			parts = append(parts, unservedReason(fk))
 			continue
 		}
-		s := fk.Source + ": " + plural(len(fk.Response.Candidates), "candidate")
+		s := fk.Source + ": " + plural(len(fk.Response.Listings), "listing")
 		if n := verdict.counts[fk.Source]; n > 0 {
 			s += " in " + sets(n)
 		}
@@ -399,7 +399,7 @@ func summary(res *resolution, verdict claimVerdict) []string {
 	return parts
 }
 
-// plural counts n of noun: "1 candidate", "2 candidates".
+// plural counts n of noun: "1 listing", "2 listings".
 func plural(n int, noun string) string {
 	if n == 1 {
 		return "1 " + noun

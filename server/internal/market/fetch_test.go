@@ -218,12 +218,12 @@ func TestFetchServed(t *testing.T) {
 		if r.Outcome != gen.FetchOutcomeServed {
 			t.Errorf("fetch key %d outcome = %s, want served", i, r.Outcome)
 		}
-		if len(r.Response.Candidates) != 1 {
-			t.Errorf("fetch key %d candidates = %d, want 1", i, len(r.Response.Candidates))
+		if len(r.Response.Listings) != 1 {
+			t.Errorf("fetch key %d listings = %d, want 1", i, len(r.Response.Listings))
 		}
 	}
 	if row := h.key(t, one.ID); row.Attempts != 1 || row.Reason != nil || row.Candidates != 1 {
-		t.Errorf("row = %+v, want one attempt, no reason and one candidate", row)
+		t.Errorf("row = %+v, want one attempt, no reason and one listing", row)
 	}
 	if len(h.blocks) != 0 {
 		t.Errorf("blocks = %+v, want none", h.blocks)
@@ -487,7 +487,7 @@ func TestFetchChunks(t *testing.T) {
 			t.Errorf("fetch key %d outcome = %s, want served", i, r.Outcome)
 			continue
 		}
-		if got := r.Response.Candidates[0].Identifiers[0].Value; got != values[i] {
+		if got := r.Response.Listings[0].Identifiers[0].Value; got != values[i] {
 			t.Errorf("fetch key %d returned %s, want %s", i, got, values[i])
 		}
 	}
@@ -744,7 +744,7 @@ func TestFetchCacheHit(t *testing.T) {
 		t.Errorf("the cached answer differs from the one the call produced (-call +cache):\n%s", diff)
 	}
 	if row := h.key(t, second.ID); row.Outcome != gen.FetchOutcomeServed || row.Attempts != 0 || row.Candidates != 1 {
-		t.Errorf("row = %+v, want served with zero attempts and one candidate", row)
+		t.Errorf("row = %+v, want served with zero attempts and one listing", row)
 	}
 	got := counts(t)
 	for name := range got {
@@ -761,7 +761,7 @@ func TestFetchCacheHit(t *testing.T) {
 	}
 }
 
-// TestFetchCacheEmptyAnswer checks that an answer with no candidate is
+// TestFetchCacheEmptyAnswer checks that an answer with no listing is
 // cached as any other.
 func TestFetchCacheEmptyAnswer(t *testing.T) {
 	f := &fake{empty: true}
@@ -770,8 +770,8 @@ func TestFetchCacheEmptyAnswer(t *testing.T) {
 
 	h.run(t, first)
 	hit := h.run(t, second)[0]
-	if f.calls != 1 || !hit.cached || len(hit.Response.Candidates) != 0 {
-		t.Errorf("calls = %d, cached = %v, candidates = %d, want one call and an empty hit", f.calls, hit.cached, len(hit.Response.Candidates))
+	if f.calls != 1 || !hit.cached || len(hit.Response.Listings) != 0 {
+		t.Errorf("calls = %d, cached = %v, listings = %d, want one call and an empty hit", f.calls, hit.cached, len(hit.Response.Listings))
 	}
 }
 

@@ -9,7 +9,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
-func TestCandidate(t *testing.T) {
+func TestToListing(t *testing.T) {
 	c := client(t)
 	isin := types.Identifier{Type: types.IdentifierTypeIsin, Value: "US0378331005"}
 	symbol := func(v string) types.Identifier {
@@ -23,38 +23,38 @@ func TestCandidate(t *testing.T) {
 		row     row
 		mapping mapping
 		venue   string
-		want    market.Candidate
+		want    market.Listing
 		ok      bool
 	}{
 		{
 			name: "a US common stock with its mapping", row: us, mapping: mapped, venue: "NASDAQ", ok: true,
-			want: market.Candidate{Class: types.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{symbol("AAPL.US"), isin, cusip, ticker("XNAS", "AAPL")}},
+			want: market.Listing{Class: types.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{symbol("AAPL.US"), isin, cusip, ticker("XNAS", "AAPL")}},
 		},
 		{
 			name: "the primary row states its venue", row: row{Code: "AAPL", Exchange: "US", Type: "Common Stock", Currency: "USD", ISIN: "US0378331005", IsPrimary: true}, mapping: mapped, venue: "NASDAQ", ok: true,
-			want: market.Candidate{Class: types.AssetClassStock, Currency: "USD", Primary: "XNAS", Identifiers: []types.Identifier{symbol("AAPL.US"), isin, cusip, ticker("XNAS", "AAPL")}},
+			want: market.Listing{Class: types.AssetClassStock, Currency: "USD", Primary: "XNAS", Identifiers: []types.Identifier{symbol("AAPL.US"), isin, cusip, ticker("XNAS", "AAPL")}},
 		},
 		{
 			name: "a class share at a segment", row: row{Code: "BRK-B", Exchange: "US", Type: "Common Stock", Currency: "USD"}, venue: "NYSE ARCA", ok: true,
-			want: market.Candidate{Class: types.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{symbol("BRK-B.US"), ticker("XNYS", "BRK.B")}},
+			want: market.Listing{Class: types.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{symbol("BRK-B.US"), ticker("XNYS", "BRK.B")}},
 		},
 		{
 			name: "a listing outside the US", row: row{Code: "VOD", Exchange: "LSE", Type: "Common Stock", Currency: "GBX", ISIN: "GB00BH4HKS39"}, ok: true,
-			want: market.Candidate{Class: types.AssetClassStock, Currency: "GBX", Identifiers: []types.Identifier{
+			want: market.Listing{Class: types.AssetClassStock, Currency: "GBX", Identifiers: []types.Identifier{
 				symbol("VOD.LSE"), {Type: types.IdentifierTypeIsin, Value: "GB00BH4HKS39"}, ticker("XLON", "VOD"),
 			}},
 		},
 		{
 			name: "a preferred share has no ticker", row: row{Code: "BAC-PL", Exchange: "US", Type: "Preferred Stock", Currency: "USD"}, venue: "NYSE", ok: true,
-			want: market.Candidate{Class: types.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{symbol("BAC-PL.US")}},
+			want: market.Listing{Class: types.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{symbol("BAC-PL.US")}},
 		},
 		{
 			name: "an ETF", row: row{Code: "AAAU", Exchange: "US", Type: "ETF", Currency: "USD"}, venue: "BATS", ok: true,
-			want: market.Candidate{Class: types.AssetClassEtf, Currency: "USD", Identifiers: []types.Identifier{symbol("AAAU.US"), ticker("BATS", "AAAU")}},
+			want: market.Listing{Class: types.AssetClassEtf, Currency: "USD", Identifiers: []types.Identifier{symbol("AAAU.US"), ticker("BATS", "AAAU")}},
 		},
 		{
 			name: "a fund", row: row{Code: "VUSA", Exchange: "LSE", Type: "FUND", Currency: "GBP"}, ok: true,
-			want: market.Candidate{Class: types.AssetClassMutualFund, Currency: "GBP", Identifiers: []types.Identifier{symbol("VUSA.LSE"), ticker("XLON", "VUSA")}},
+			want: market.Listing{Class: types.AssetClassMutualFund, Currency: "GBP", Identifiers: []types.Identifier{symbol("VUSA.LSE"), ticker("XLON", "VUSA")}},
 		},
 		{name: "a US row on an OTC market", row: us, venue: "PINK"},
 		{name: "a US row the symbol list leaves out", row: us},
@@ -64,12 +64,12 @@ func TestCandidate(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got, ok := c.candidate(tc.row, tc.mapping, tc.venue)
+			got, ok := c.toListing(tc.row, tc.mapping, tc.venue)
 			if ok != tc.ok {
-				t.Fatalf("candidate(%+v) ok = %v, want %v", tc.row, ok, tc.ok)
+				t.Fatalf("toListing(%+v) ok = %v, want %v", tc.row, ok, tc.ok)
 			}
 			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("candidate(%+v) mismatch (-want +got):\n%s", tc.row, diff)
+				t.Errorf("toListing(%+v) mismatch (-want +got):\n%s", tc.row, diff)
 			}
 		})
 	}

@@ -59,9 +59,9 @@ func fetch(c *Client, sent types.Identifier, currency string) ([]market.Response
 	return c.Fetch(context.Background(), []market.Request[gen.StatedKey]{req})
 }
 
-// names reports whether some candidate returns id.
+// names reports whether some listing returns id.
 func names(r market.IdentityResult, id types.Identifier) bool {
-	return slices.ContainsFunc(r.Candidates, func(c market.Candidate) bool {
+	return slices.ContainsFunc(r.Listings, func(c market.Listing) bool {
 		return slices.Contains(c.Identifiers, id)
 	})
 }
@@ -74,11 +74,11 @@ func TestFetchListings(t *testing.T) {
 		currency string
 		// filtered is the call's filter, sent where empty.
 		filtered types.Identifier
-		// every is named by every candidate; some by at least one.
+		// every is named by every listing; some by at least one.
 		every []types.Identifier
 		some  []types.Identifier
 		n     int
-		// class is every candidate's, where the call names one instrument.
+		// class is every listing's, where the call names one instrument.
 		class types.AssetClass
 	}{
 		{
@@ -145,25 +145,25 @@ func TestFetchListings(t *testing.T) {
 			if diff := cmp.Diff([]types.Identifier{tc.filtered}, r.Filtered); diff != "" {
 				t.Errorf("Fetch(%v) filtered (-want +got):\n%s", tc.sent, diff)
 			}
-			if len(r.Candidates) != tc.n {
-				t.Errorf("Fetch(%v) returned %d candidates, want %d", tc.sent, len(r.Candidates), tc.n)
+			if len(r.Listings) != tc.n {
+				t.Errorf("Fetch(%v) returned %d listings, want %d", tc.sent, len(r.Listings), tc.n)
 			}
-			for _, c := range r.Candidates {
+			for _, c := range r.Listings {
 				if c.Currency != tc.currency {
-					t.Errorf("Fetch(%v) candidate %v currency = %q, want %q", tc.sent, c.Identifiers, c.Currency, tc.currency)
+					t.Errorf("Fetch(%v) listing %v currency = %q, want %q", tc.sent, c.Identifiers, c.Currency, tc.currency)
 				}
 				if tc.class != "" && c.Class != tc.class {
-					t.Errorf("Fetch(%v) candidate %v class = %s, want %s", tc.sent, c.Identifiers, c.Class, tc.class)
+					t.Errorf("Fetch(%v) listing %v class = %s, want %s", tc.sent, c.Identifiers, c.Class, tc.class)
 				}
 				for _, id := range tc.every {
 					if !slices.Contains(c.Identifiers, id) {
-						t.Errorf("Fetch(%v) candidate %v does not name %v", tc.sent, c.Identifiers, id)
+						t.Errorf("Fetch(%v) listing %v does not name %v", tc.sent, c.Identifiers, id)
 					}
 				}
 			}
 			for _, id := range tc.some {
 				if !names(r, id) {
-					t.Errorf("Fetch(%v) no candidate names %v", tc.sent, id)
+					t.Errorf("Fetch(%v) no listing names %v", tc.sent, id)
 				}
 			}
 		})

@@ -7,22 +7,22 @@ import (
 )
 
 // identity converts the listings OpenFIGI returned for the identifier sent,
-// each listing one candidate. A MIC_TICKER is filtered on its ticker alone,
+// each one a Listing. A MIC_TICKER is filtered on its ticker alone,
 // so the listings at every venue are returned and resolution chooses among
 // them by the stated venue.
 func identity(sent types.Identifier, currency string, data []result, mics mic.Table) market.IdentityResult {
 	out := market.Answer(sent, false)
 	for _, r := range data {
-		c := candidate(r, mics)
+		c := toListing(r, mics)
 		c.Currency = currency
-		out.Candidates = append(out.Candidates, c)
+		out.Listings = append(out.Listings, c)
 	}
 	return out
 }
 
-// candidate converts one listing, skipping the fields OpenFIGI left null.
-func candidate(r result, mics mic.Table) market.Candidate {
-	c := market.Candidate{Class: classify(r.SecurityType, r.SecurityType2, r.MarketSector)}
+// toListing converts one listing, skipping the fields OpenFIGI left null.
+func toListing(r result, mics mic.Table) market.Listing {
+	c := market.Listing{Class: classify(r.SecurityType, r.SecurityType2, r.MarketSector)}
 	if r.ShareClassFIGI != nil && *r.ShareClassFIGI != "" {
 		c.Identifiers = append(c.Identifiers, types.Identifier{Type: types.IdentifierTypeOpenfigiShareClass, Value: *r.ShareClassFIGI})
 	}

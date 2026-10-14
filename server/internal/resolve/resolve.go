@@ -6,8 +6,8 @@
 // holds one. A key that states only a bare ticker associates only when the
 // user confirms a candidate for it, or when an earlier key of the user's
 // sharing a joining identifier was confirmed. The same holds for a venue
-// ticker whose venue its candidates do not name. The resolver never writes
-// a stated description as an identifier row.
+// ticker whose venue none of the returned listings names. The resolver never
+// writes a stated description as an identifier row.
 //
 // The database is consulted before any datasource, then the user's own
 // arbitrated keys, and only the keys both leave undecided are sent out. A

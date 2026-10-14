@@ -19,7 +19,7 @@ func listing(ticker, exch string) result {
 	}
 }
 
-func TestCandidate(t *testing.T) {
+func TestToListing(t *testing.T) {
 	tests := []struct {
 		name string
 		in   result
@@ -56,9 +56,9 @@ func TestCandidate(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got := candidate(tc.in, mics)
+			got := toListing(tc.in, mics)
 			if diff := cmp.Diff(tc.want, got.Identifiers); diff != "" {
-				t.Errorf("candidate(%+v) identifiers (-want +got):\n%s", tc.in, diff)
+				t.Errorf("toListing(%+v) identifiers (-want +got):\n%s", tc.in, diff)
 			}
 		})
 	}
@@ -107,10 +107,10 @@ func TestIdentity(t *testing.T) {
 				t.Errorf("identity(%v) filtered (-want +got):\n%s", tc.sent, diff)
 			}
 			var exchs []string
-			for _, c := range got.Candidates {
+			for _, c := range got.Listings {
 				exchs = append(exchs, exchOf(c))
 				if c.Class != types.AssetClassStock || c.Currency != tc.currency {
-					t.Errorf("identity(%v) candidate class %s, currency %q, want stock and %q", tc.sent, c.Class, c.Currency, tc.currency)
+					t.Errorf("identity(%v) listing class %s, currency %q, want stock and %q", tc.sent, c.Class, c.Currency, tc.currency)
 				}
 			}
 			if diff := cmp.Diff(tc.exchs, exchs); diff != "" {
@@ -120,7 +120,7 @@ func TestIdentity(t *testing.T) {
 	}
 }
 
-func exchOf(c market.Candidate) string {
+func exchOf(c market.Listing) string {
 	for _, id := range c.Identifiers {
 		if id.Type == types.IdentifierTypeOpenfigiTicker {
 			return id.Domain

@@ -17,8 +17,8 @@ type fetchKey = market.FetchKey[gen.StatedKey, market.IdentityResult]
 
 // identityClaim is one source's account of which instrument a stated key
 // names. In this package a claim is an identity claim. A response's claim
-// gathers the candidates sharing an instrument grain identifier,
-// transitively, into one listing per currency family. The database's claim
+// gathers the returned listings sharing an instrument grain identifier,
+// transitively, into one claim listing per currency family. The database's claim
 // is the instrument it names for the key.
 type identityClaim struct {
 	// fetchKey is the fetch key whose response made the claim, nil for the
@@ -80,8 +80,8 @@ func (a consistentClaims) member(fk *fetchKey) *identityClaim {
 	return nil
 }
 
-// claims builds the claims of fk in the order of their first candidates. The
-// candidates of fk carry currency families, not currency codes. Every claim
+// claims builds the claims of fk in the order of their first returned
+// listings. The listings of fk carry currency families, not currency codes. Every claim
 // carries the instrument grain identifiers the call filtered on.
 func claims(fk *fetchKey) []*identityClaim {
 	var strict []types.Identifier
@@ -90,11 +90,11 @@ func claims(fk *fetchKey) []*identityClaim {
 			strict = append(strict, id)
 		}
 	}
-	cs := fk.Response.Candidates
-	roots := partition(cs, len(strict) > 0)
+	ls := fk.Response.Listings
+	roots := partition(ls, len(strict) > 0)
 	byRoot := map[int]*identityClaim{}
 	var out []*identityClaim
-	for i, cand := range cs {
+	for i, listing := range ls {
 		c := byRoot[roots[i]]
 		if c == nil {
 			c = &identityClaim{fetchKey: fk, Instrument: types.Instrument{Listings: map[string]types.Listing{}}}
@@ -102,18 +102,18 @@ func claims(fk *fetchKey) []*identityClaim {
 			byRoot[roots[i]] = c
 			out = append(out, c)
 		}
-		c.add(cand, cand.Currency)
+		c.add(listing, listing.Currency)
 	}
 	return out
 }
 
-// partition returns, for each candidate, the index of the candidate
+// partition returns, for each returned listing, the index of the listing
 // representing its claim: a union over the instrument grain identifiers
-// candidates share, transitively, or one claim where the call was strict.
-func partition(cs []market.Candidate, strict bool) []int {
-	parent := make([]int, len(cs))
+// the listings share, transitively, or one claim where the call was strict.
+func partition(ls []market.Listing, strict bool) []int {
+	parent := make([]int, len(ls))
 	owner := map[types.Identifier]int{}
-	for i, c := range cs {
+	for i, c := range ls {
 		parent[i] = i
 		if strict {
 			union(parent, 0, i)
@@ -129,8 +129,8 @@ func partition(cs []market.Candidate, strict bool) []int {
 			}
 		}
 	}
-	roots := make([]int, len(cs))
-	for i := range cs {
+	roots := make([]int, len(ls))
+	for i := range ls {
 		roots[i] = root(parent, i)
 	}
 	return roots
@@ -151,15 +151,16 @@ func union(parent []int, a, b int) {
 	}
 }
 
-// add folds cand into c as a candidate of the listing of fam. The first
-// candidate to state a class sets the claim's, and the first of the family
-// to state a primary venue sets the listing's.
-func (c *identityClaim) add(cand market.Candidate, fam string) {
+// add folds a returned listing into the claim's listing of fam. The first
+// returned listing to state a class sets the claim's class. The first of the
+// family to state a primary venue sets the primary venue of the claim's
+// listing.
+func (c *identityClaim) add(listing market.Listing, fam string) {
 	if c.Class == "" || c.Class == types.AssetClassUnknown {
-		c.Class = cand.Class
+		c.Class = listing.Class
 	}
 	l := c.Listings[fam]
-	for _, id := range cand.Identifiers {
+	for _, id := range listing.Identifiers {
 		if id.Grain() == types.IdentifierGrainInstrument {
 			c.Identifiers = appendUnique(c.Identifiers, id)
 		} else {
@@ -167,7 +168,7 @@ func (c *identityClaim) add(cand market.Candidate, fam string) {
 		}
 	}
 	if l.Primary == "" {
-		l.Primary = cand.Primary
+		l.Primary = listing.Primary
 	}
 	c.Listings[fam] = l
 }

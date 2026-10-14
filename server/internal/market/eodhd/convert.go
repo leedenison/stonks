@@ -13,7 +13,7 @@ const domain = "eodhd"
 const preferred = "Preferred Stock"
 
 // classes maps each type this integration converts to the class of its
-// candidate.
+// listing.
 var classes = map[string]types.AssetClass{
 	"Common Stock": types.AssetClassStock,
 	preferred:      types.AssetClassStock,
@@ -29,46 +29,46 @@ var classes = map[string]types.AssetClass{
 func (c *Client) identity(sent types.Identifier, a answer) market.IdentityResult {
 	out := market.Answer(sent, true)
 	for _, r := range a.rows {
-		if cand, ok := c.candidate(r, a.mappings[r.symbol()], a.venues[r.Code]); ok {
-			out.Candidates = append(out.Candidates, cand)
+		if l, ok := c.toListing(r, a.mappings[r.symbol()], a.venues[r.Code]); ok {
+			out.Listings = append(out.Listings, l)
 		}
 	}
 	return out
 }
 
-// candidate converts one row. It reports false when the row's type or venue
+// toListing converts one row. It reports false when the row's type or venue
 // is not one this integration serves. m and usVenue carry what id-mapping
 // and the exchange symbol list say about the row.
-func (c *Client) candidate(r row, m mapping, usVenue string) (market.Candidate, bool) {
+func (c *Client) toListing(r row, m mapping, usVenue string) (market.Listing, bool) {
 	class, ok := classes[r.Type]
 	if !ok {
-		return market.Candidate{}, false
+		return market.Listing{}, false
 	}
 	venue, ok := venueOf(r, usVenue)
 	if !ok {
-		return market.Candidate{}, false
+		return market.Listing{}, false
 	}
 	op, ok := c.mics.Operating(venue)
 	if !ok {
-		return market.Candidate{}, false
+		return market.Listing{}, false
 	}
-	cand := market.Candidate{Class: class, Currency: r.Currency, Identifiers: []types.Identifier{
+	l := market.Listing{Class: class, Currency: r.Currency, Identifiers: []types.Identifier{
 		{Type: types.IdentifierTypeDatasourceTicker, Domain: domain, Value: r.symbol()},
 	}}
 	if r.IsPrimary {
-		cand.Primary = op
+		l.Primary = op
 	}
 	add := func(t types.IdentifierType, v string) {
 		if v != "" {
-			cand.Identifiers = append(cand.Identifiers, types.Identifier{Type: t, Value: v})
+			l.Identifiers = append(l.Identifiers, types.Identifier{Type: t, Value: v})
 		}
 	}
 	add(types.IdentifierTypeIsin, r.ISIN)
 	add(types.IdentifierTypeCusip, m.CUSIP)
 	if ticker, ok := market.WithClassSep(r.Code, '.'); ok && r.Type != preferred {
-		cand.Identifiers = append(cand.Identifiers, types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: op, Value: ticker})
+		l.Identifiers = append(l.Identifiers, types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: op, Value: ticker})
 	}
-	return cand, true
+	return l, true
 }
 
 // venueOf returns the MIC of the venue a row trades on. EODHD's code US

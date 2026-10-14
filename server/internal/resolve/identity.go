@@ -14,7 +14,7 @@ import (
 // association is not sent. A datasource that already covers the instrument
 // the lookup found is not asked. Each key takes its fetch keys in precedence
 // order, and whether a datasource serves a key is the datasource's to say. It
-// replaces the currency of every candidate it returns with the currency's
+// replaces the currency of every listing it returns with the currency's
 // family.
 func (r *Resolver) fetchResolutionIdentities(ctx context.Context, run gen.Run, resolutions []*resolution, cur currencies) error {
 	entries := r.sources.Enabled()
@@ -53,8 +53,8 @@ func (r *Resolver) fetchResolutionIdentities(ctx context.Context, run gen.Run, r
 	}
 	for _, fks := range fetchKeys {
 		for j := range fks {
-			for k, c := range fks[j].Response.Candidates {
-				fks[j].Response.Candidates[k].Currency = cur[c.Currency]
+			for k, c := range fks[j].Response.Listings {
+				fks[j].Response.Listings[k].Currency = cur[c.Currency]
 			}
 		}
 	}

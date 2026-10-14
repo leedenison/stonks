@@ -80,7 +80,7 @@ func newStack(t *testing.T) *stack {
 }
 
 // answer is a response naming the ISIN's instrument: a stock in USD.
-var answer = market.IdentityResult{Filtered: []types.Identifier{isin}, Candidates: []market.Candidate{
+var answer = market.IdentityResult{Filtered: []types.Identifier{isin}, Listings: []market.Listing{
 	{Class: types.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{isin}},
 }}
 

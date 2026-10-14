@@ -16,8 +16,8 @@ import (
 
 // Candidate is one security that one or more datasources describe, offered
 // for the user to confirm before the instrument is written. It combines the
-// claims of one set of consistent claims. It differs from a market.Candidate, which is one
-// listing of an answer.
+// claims of one set of consistent claims. It differs from a market.Listing,
+// which is one listing of an answer.
 type Candidate struct {
 	// Datasource made the head claim, which a confirmation writes as the
 	// winner.
