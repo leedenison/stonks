@@ -18,9 +18,9 @@ type resolution struct {
 	row gen.StatedKey
 	// trusted caches trustedIDs.
 	trusted []types.Identifier
-	// fam is the family of the currency the key states.
-	fam             string
-	cur             currencies
+	// family is the family of the currency the key states.
+	family          string
+	currencies      currencies
 	knownInstrument *join.InstrumentWithCoverage
 	// arbitrated is the user-arbitrated key whose association this key
 	// copies, nil where no such key shares a joining identifier with it.
@@ -174,7 +174,7 @@ func (r *Resolver) findResolutionCurrency(ctx context.Context, res *resolution) 
 		return err
 	}
 	f := loaded[hit.Instrument.ID]
-	if res.fam != noFamily && f.Listing(res.fam) == nil {
+	if res.family != noFamily && f.Listing(res.family) == nil {
 		res.decide(gen.ResolutionOutcomeRejected, "no listing of %s in %s", code, *res.row.Currency)
 		return nil
 	}

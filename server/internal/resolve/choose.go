@@ -282,7 +282,7 @@ func (c *identityClaim) against(res *resolution) (string, bool) {
 // is silent about the listings it lacks, so it never contradicts the stated
 // currency family.
 func (c *identityClaim) contradicted(res *resolution) (string, bool) {
-	k, fam := res.row, res.fam
+	k, fam := res.row, res.family
 	if listed := c.listed(); !c.fetchKey.Response.Limited && fam != noFamily && len(listed) > 0 && !slices.Contains(listed, fam) {
 		if _, unknown := c.Listings[noFamily]; !unknown {
 			return fmt.Sprintf("stated %s has no listing among %s", fam, strings.Join(listed, ", ")), true
@@ -339,7 +339,7 @@ func (c *identityClaim) confirms(res *resolution) int {
 			n++
 		}
 	}
-	if _, ok := c.Listings[res.fam]; ok && res.fam != noFamily {
+	if _, ok := c.Listings[res.family]; ok && res.family != noFamily {
 		n++
 	}
 	return n
