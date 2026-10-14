@@ -210,6 +210,68 @@ func TestAssetClasses(t *testing.T) {
 	}
 }
 
+// TestIdentifierDomains holds the hand-written enum equal to the database, in
+// value and in order.
+func TestIdentifierDomains(t *testing.T) {
+	if diff := cmp.Diff(labels[types.IdentifierDomain](t, "identifier_domain"), types.IdentifierDomains); diff != "" {
+		t.Errorf("IdentifierDomains mismatch (-database +code):\n%s", diff)
+	}
+}
+
+// TestIdentifierGrains holds the hand-written enum equal to the database, in
+// value and in order.
+func TestIdentifierGrains(t *testing.T) {
+	if diff := cmp.Diff(labels[types.IdentifierGrain](t, "identifier_grain"), types.IdentifierGrains); diff != "" {
+		t.Errorf("IdentifierGrains mismatch (-database +code):\n%s", diff)
+	}
+}
+
+// TestIdentifierReassignments holds the hand-written enum equal to the
+// database, in value and in order.
+func TestIdentifierReassignments(t *testing.T) {
+	if diff := cmp.Diff(labels[types.IdentifierReassignment](t, "identifier_reassignment"), types.IdentifierReassignments); diff != "" {
+		t.Errorf("IdentifierReassignments mismatch (-database +code):\n%s", diff)
+	}
+}
+
+// TestTraits holds the traits equal to the identifier_type_traits table.
+func TestTraits(t *testing.T) {
+	rows, err := newTx(t).ListIdentifierTypeTraits(context.Background())
+	require.NoError(t, err)
+	got := map[types.IdentifierType]types.Trait{}
+	for _, r := range rows {
+		got[r.Type] = types.Trait{Domain: r.Domain, Grain: r.Grain, Reassignment: r.Reassignment, Exclusive: r.Exclusive, NameRank: r.NameRank}
+	}
+	want := map[types.IdentifierType]types.Trait{}
+	for _, typ := range types.IdentifierTypes {
+		want[typ] = typ.Trait()
+	}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("traits mismatch (-code +table):\n%s", diff)
+	}
+}
+
+// TestTree holds the class tree equal to the asset_class_tree table.
+func TestTree(t *testing.T) {
+	rows, err := newTx(t).ListAssetClassTree(context.Background())
+	require.NoError(t, err)
+	got := map[types.AssetClass]types.AssetClass{}
+	for _, r := range rows {
+		var parent types.AssetClass
+		if r.Parent != nil {
+			parent = *r.Parent
+		}
+		got[r.Class] = parent
+	}
+	want := map[types.AssetClass]types.AssetClass{}
+	for _, c := range types.AssetClasses {
+		want[c] = c.Parent()
+	}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("asset class tree mismatch (-code +table):\n%s", diff)
+	}
+}
+
 // labels reads the values of the database enum typ in declared order.
 func labels[T ~string](t *testing.T, typ string) []T {
 	t.Helper()

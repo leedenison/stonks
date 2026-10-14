@@ -12,7 +12,6 @@ import (
 	statementv1 "github.com/leedenison/stonks/proto/statement/v1"
 	typev1 "github.com/leedenison/stonks/proto/type/v1"
 	"github.com/leedenison/stonks/server/internal/db/gen"
-	"github.com/leedenison/stonks/server/internal/db/mirror"
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
@@ -133,7 +132,7 @@ func keyOf(sk *typev1.StatedKey, broker gen.Broker) (*key, error) {
 			continue
 		}
 		for _, held := range k.identifiers {
-			if held.Type == t && held.Domain == id.Domain && mirror.Trait(t).Exclusive {
+			if held.Type == t && held.Domain == id.Domain && t.Trait().Exclusive {
 				return nil, fmt.Errorf("two %s identifiers, %s and %s", t, held.Value, id.Value)
 			}
 		}

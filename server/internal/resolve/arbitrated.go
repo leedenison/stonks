@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/leedenison/stonks/server/internal/db/gen"
-	"github.com/leedenison/stonks/server/internal/db/mirror"
 	"github.com/leedenison/stonks/server/internal/ptr"
 	"github.com/leedenison/stonks/server/internal/types"
 )
@@ -37,7 +36,7 @@ func (r *Resolver) findResolutionArbitratedKey(ctx context.Context, run gen.Run,
 	for i := range arbitrated {
 		k := &arbitrated[i]
 		for _, id := range k.Identifiers {
-			if mirror.Joining(id) {
+			if id.Joining() {
 				byID[id] = append(byID[id], k)
 			}
 		}
@@ -71,7 +70,7 @@ func (r *Resolver) findResolutionArbitratedKey(ctx context.Context, run gen.Run,
 func shared(k, arbitrated gen.StatedKey) string {
 	for _, id := range k.Identifiers {
 		for _, other := range arbitrated.Identifiers {
-			if id == other && mirror.Joining(id) {
+			if id == other && id.Joining() {
 				return name(id)
 			}
 		}

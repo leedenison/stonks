@@ -46,6 +46,8 @@ linters:
         # The enum and its constants, leaving the identifier_type_traits row.
         - pattern: ^gen\.IdentifierType($|[^T]|T[^r])
           msg: sqlc still emits this enum, but the columns take types.IdentifierType
+        - pattern: ^gen\.Identifier(Domain|Grain|Reassignment)
+          msg: sqlc still emits this enum, but the columns take the one in types
     depguard:
       rules:
         service-boundary:

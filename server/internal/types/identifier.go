@@ -5,7 +5,6 @@
 package types
 
 import (
-	"fmt"
 	"slices"
 
 	typev1 "github.com/leedenison/stonks/proto/type/v1"
@@ -57,17 +56,7 @@ const (
 )
 
 // Scan reads the enum from a text or bytea column.
-func (e *IdentifierType) Scan(src any) error {
-	switch s := src.(type) {
-	case []byte:
-		*e = IdentifierType(s)
-	case string:
-		*e = IdentifierType(s)
-	default:
-		return fmt.Errorf("unsupported scan type for IdentifierType: %T", src)
-	}
-	return nil
-}
+func (e *IdentifierType) Scan(src any) error { return scan(e, src) }
 
 // Valid reports whether e is one of the enum's values.
 func (e IdentifierType) Valid() bool { return slices.Contains(IdentifierTypes, e) }

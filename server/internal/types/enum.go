@@ -1,6 +1,7 @@
 package types
 
 import (
+	"fmt"
 	"strings"
 	"unicode"
 
@@ -66,4 +67,17 @@ func prefix(desc protoreflect.EnumDescriptor) string {
 	}
 	b.WriteByte('_')
 	return b.String()
+}
+
+// scan reads a database enum from a text or bytea column.
+func scan[T ~string](e *T, src any) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = T(s)
+	case string:
+		*e = T(s)
+	default:
+		return fmt.Errorf("unsupported scan type for %T: %T", *e, src)
+	}
+	return nil
 }

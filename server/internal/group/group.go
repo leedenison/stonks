@@ -11,7 +11,6 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/leedenison/stonks/server/internal/db/gen"
-	"github.com/leedenison/stonks/server/internal/db/mirror"
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
@@ -68,7 +67,7 @@ func of(keys []gen.StatedKey) map[uuid.UUID]uuid.UUID {
 	first := map[types.Identifier]uuid.UUID{}
 	for _, k := range keys {
 		for _, i := range k.Identifiers {
-			if mirror.Joining(i) {
+			if i.Joining() {
 				join(first, parent, i, k.ID)
 			}
 		}

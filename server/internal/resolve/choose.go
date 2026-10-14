@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/leedenison/stonks/server/internal/db/gen"
-	"github.com/leedenison/stonks/server/internal/db/mirror"
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/ptr"
 	"github.com/leedenison/stonks/server/internal/types"
@@ -86,7 +85,7 @@ func (a agreement) member(fk *fetchKey) *claim {
 func claims(fk *fetchKey) []*claim {
 	var strict []types.Identifier
 	for _, id := range fk.Response.Filtered {
-		if grain(id) == gen.IdentifierGrainInstrument {
+		if grain(id) == types.IdentifierGrainInstrument {
 			strict = append(strict, id)
 		}
 	}
@@ -119,7 +118,7 @@ func partition(cs []market.Candidate, strict bool) []int {
 			union(parent, 0, i)
 		}
 		for _, id := range c.Identifiers {
-			if grain(id) != gen.IdentifierGrainInstrument {
+			if grain(id) != types.IdentifierGrainInstrument {
 				continue
 			}
 			if j, ok := owner[id]; ok {
@@ -160,7 +159,7 @@ func (c *claim) add(cand market.Candidate, fam string) {
 	}
 	l := c.Listings[fam]
 	for _, id := range cand.Identifiers {
-		if grain(id) == gen.IdentifierGrainInstrument {
+		if grain(id) == types.IdentifierGrainInstrument {
 			c.Identifiers = appendUnique(c.Identifiers, id)
 		} else {
 			l.Identifiers = appendUnique(l.Identifiers, id)
@@ -202,7 +201,7 @@ func (c *claim) contradicts(id types.Identifier, fam string) (types.Identifier, 
 		return types.Identifier{}, false
 	}
 	pool := c.Identifiers
-	if grain(id) == gen.IdentifierGrainListing {
+	if grain(id) == types.IdentifierGrainListing {
 		pool = nil
 		for _, f := range slices.Sorted(maps.Keys(c.Listings)) {
 			if fam == noFamily || f == fam || f == noFamily {
@@ -287,7 +286,7 @@ func (c *claim) contradicted(res *resolution) (string, bool) {
 			return fmt.Sprintf("stated %s has no listing among %s", fam, strings.Join(listed, ", ")), true
 		}
 	}
-	if k.AssetClass != nil && mirror.Disjoint(c.Class, *k.AssetClass) {
+	if k.AssetClass != nil && c.Class.Disjoint(*k.AssetClass) {
 		return fmt.Sprintf("stated %s contradicts the class %s", *k.AssetClass, c.Class), true
 	}
 	for _, id := range k.Identifiers {
@@ -301,7 +300,7 @@ func (c *claim) contradicted(res *resolution) (string, bool) {
 // inconsistent returns why c contradicts a, a claim chosen above it, if it
 // does. The detail closes with a's source.
 func (c *claim) inconsistent(a *claim) (string, bool) {
-	if mirror.Disjoint(c.Class, a.Class) {
+	if c.Class.Disjoint(a.Class) {
 		return fmt.Sprintf("class %s contradicts the class %s (%s)", c.Class, a.Class, a.from()), true
 	}
 	for _, id := range a.Identifiers {
@@ -453,7 +452,7 @@ func filterAlternatives(fk *fetchKey, res *resolution, picked bool) alternatives
 	sent := *fk.SentID
 	gs := claims(fk)
 	alts := alternatives{count: len(gs)}
-	global := mirror.IsGlobal(sent)
+	global := sent.IsGlobal()
 	named := slices.ContainsFunc(gs, (*claim).named)
 	ticker := types.Identifier{Type: types.IdentifierTypeMicTicker, Value: sent.Value}
 	alts.fallback = global && !named && sent.Type == types.IdentifierTypeMicTicker && slices.Contains(fk.Response.Filtered, ticker)
