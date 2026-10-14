@@ -54,7 +54,7 @@ func TestClaims(t *testing.T) {
 	tests := []struct {
 		name string
 		r    *fetchKey
-		want []*claim
+		want []*identityClaim
 		// named holds, for each claim, whether it names the identifier sent.
 		named []bool
 	}{
@@ -65,7 +65,7 @@ func TestClaims(t *testing.T) {
 				cand(types.AssetClassStock, "GBP", figi, xetr),
 				cand(types.AssetClassStock, "USD", figi2, xnas),
 			),
-			want: []*claim{
+			want: []*identityClaim{
 				{Instrument: types.Instrument{Class: types.AssetClassStock, Identifiers: []types.Identifier{figi, isin}, Listings: map[string]types.Listing{
 					"GBP": {Identifiers: []types.Identifier{comp, xlon, xetr}},
 				}}},
@@ -81,7 +81,7 @@ func TestClaims(t *testing.T) {
 				cand(types.AssetClassUnknown, "GBP", xlon),
 				cand(types.AssetClassStock, "USD", figi, xnas),
 			),
-			want: []*claim{
+			want: []*identityClaim{
 				{Instrument: types.Instrument{Class: types.AssetClassStock, Identifiers: []types.Identifier{isin, figi}, Listings: map[string]types.Listing{
 					"GBP": {Identifiers: []types.Identifier{xlon}},
 					"USD": {Identifiers: []types.Identifier{xnas}},
@@ -95,7 +95,7 @@ func TestClaims(t *testing.T) {
 				cand(types.AssetClassStock, "", figi, xlon),
 				cand(types.AssetClassStock, "", figi, xnas),
 			),
-			want: []*claim{
+			want: []*identityClaim{
 				{Instrument: types.Instrument{Class: types.AssetClassStock, Identifiers: []types.Identifier{figi}, Listings: map[string]types.Listing{
 					"": {Identifiers: []types.Identifier{xlon, xnas}},
 				}}},
@@ -109,7 +109,7 @@ func TestClaims(t *testing.T) {
 				market.Candidate{Class: types.AssetClassStock, Currency: "GBP", Primary: "XLON", Identifiers: []types.Identifier{xlon}},
 				market.Candidate{Class: types.AssetClassStock, Currency: "GBP", Primary: "XETR", Identifiers: []types.Identifier{comp}},
 			),
-			want: []*claim{
+			want: []*identityClaim{
 				{Instrument: types.Instrument{Class: types.AssetClassStock, Identifiers: []types.Identifier{isin}, Listings: map[string]types.Listing{
 					"GBP": {Identifiers: []types.Identifier{xetr, xlon, comp}, Primary: "XLON"},
 				}}},
@@ -135,14 +135,14 @@ func TestClaims(t *testing.T) {
 			if diff := cmp.Diff(tc.named, named); diff != "" {
 				t.Errorf("named mismatch (-want +got):\n%s", diff)
 			}
-			if diff := cmp.Diff(tc.want, got, cmp.AllowUnexported(claim{})); diff != "" {
+			if diff := cmp.Diff(tc.want, got, cmp.AllowUnexported(identityClaim{})); diff != "" {
 				t.Errorf("claims mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
 }
 
-// outcome renders a choice for comparison, each claim named by its source
+// outcome renders a verdict for comparison, each claim named by its source
 // and its position among the claims of its response.
 type outcome struct {
 	winner    string
@@ -153,24 +153,24 @@ type outcome struct {
 	offered   int
 }
 
-func label(c *claim) string {
+func label(c *identityClaim) string {
 	switch {
 	case c == nil:
 		return ""
 	case c.fetchKey == nil:
 		return "database"
 	}
-	i := slices.IndexFunc(claims(c.fetchKey), func(o *claim) bool { return cmp.Equal(o.Instrument, c.Instrument) })
+	i := slices.IndexFunc(claims(c.fetchKey), func(o *identityClaim) bool { return cmp.Equal(o.Instrument, c.Instrument) })
 	return fmt.Sprintf("%s#%d", c.fetchKey.Source, i)
 }
 
-// describe writes ch, naming each finding's fetch key by its source.
-func describe(ch choice, source map[uuid.UUID]string) outcome {
-	o := outcome{winner: label(ch.winner), refused: ch.refused, notNaming: ch.notNaming, offered: len(ch.offered)}
-	for _, c := range ch.attached {
+// describe writes verdict, naming each finding's fetch key by its source.
+func describe(verdict claimVerdict, source map[uuid.UUID]string) outcome {
+	o := outcome{winner: label(verdict.winner), refused: verdict.refused, notNaming: verdict.notNaming, offered: len(verdict.offered)}
+	for _, c := range verdict.attached {
 		o.attached = append(o.attached, label(c))
 	}
-	for _, f := range ch.findings {
+	for _, f := range verdict.findings {
 		if f.RunID != uuid.Nil || f.StatedKeyID != nil || f.FetchKeyID == nil || f.Detail == nil || (f.Step != nil) != (f.Kind == gen.FindingKindDropped) {
 			panic(fmt.Sprintf("finding %+v, want the fetch key and detail, a step only when dropped, and nothing else", f))
 		}
@@ -192,14 +192,14 @@ func TestChoose(t *testing.T) {
 	search := func(source string, sent types.Identifier, cs ...market.Candidate) *fetchKey {
 		return served(source, sent, []types.Identifier{ticker}, cs...)
 	}
-	existing := &claim{Instrument: types.Instrument{Class: types.AssetClassStock, Identifiers: []types.Identifier{isin, cusip}, Listings: map[string]types.Listing{
+	existing := &identityClaim{Instrument: types.Instrument{Class: types.AssetClassStock, Identifiers: []types.Identifier{isin, cusip}, Listings: map[string]types.Listing{
 		"GBP": {Identifiers: []types.Identifier{comp, xlon}},
 	}}}
 	tests := []struct {
 		name      string
 		fetchKeys []*fetchKey
 		k         gen.StatedKey
-		db        *claim
+		known     *identityClaim
 		want      outcome
 	}{
 		{
@@ -293,8 +293,8 @@ func TestChoose(t *testing.T) {
 				strict("a", isin, cand(types.AssetClassStock, "GBP", figi, other, xlon)),
 				strict("b", isin, cand(types.AssetClassStock, "GBP", figi, id(types.IdentifierTypeMicTicker, "XLON", "VODL"))),
 			},
-			k:  gen.StatedKey{Identifiers: []types.Identifier{isin}},
-			db: existing,
+			k:     gen.StatedKey{Identifiers: []types.Identifier{isin}},
+			known: existing,
 			want: outcome{winner: "database", findings: []string{
 				"a contradiction: isin GB00BH4HKS39: cusip 92857W309 contradicts cusip 92857W308 (database)",
 				"b contradiction: isin GB00BH4HKS39: mic_ticker XLON:VODL contradicts mic_ticker XLON:VOD (database)",
@@ -304,21 +304,21 @@ func TestChoose(t *testing.T) {
 			name:      "a ticker of another currency line at the venue contradicts nothing",
 			fetchKeys: []*fetchKey{strict("a", isin, cand(types.AssetClassStock, "USD", figi, id(types.IdentifierTypeMicTicker, "XLON", "VODUSD")))},
 			k:         gen.StatedKey{Identifiers: []types.Identifier{isin}},
-			db:        existing,
+			known:     existing,
 			want:      outcome{winner: "database", attached: []string{"a#0"}},
 		},
 		{
 			name:      "a second composite in a listing contradicts nothing",
 			fetchKeys: []*fetchKey{strict("a", isin, cand(types.AssetClassStock, "GBP", figi, id(types.IdentifierTypeOpenfigiComposite, "", "BBG000C6K6H0")))},
 			k:         gen.StatedKey{Identifiers: []types.Identifier{isin}},
-			db:        existing,
+			known:     existing,
 			want:      outcome{winner: "database", attached: []string{"a#0"}},
 		},
 		{
 			name:      "a claim sharing no stable identifier with the winner is dropped",
 			fetchKeys: []*fetchKey{search("a", xlon, cand(types.AssetClassStock, "GBP", figi, xlon))},
 			k:         gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{xlon}},
-			db:        existing,
+			known:     existing,
 			want:      outcome{winner: "database", findings: []string{"a dropped corroboration: openfigi_share_class BBG001S5XDT5: shares no stable identifier with the instrument identified by isin GB00BH4HKS39 (database)"}},
 		},
 		{
@@ -362,7 +362,7 @@ func TestChoose(t *testing.T) {
 			name:      "a mis-stated venue with the key found narrows to the claim corroborating the instrument",
 			fetchKeys: []*fetchKey{search("a", xlon, cand(types.AssetClassStock, "GBP", figi2, xnas), cand(types.AssetClassStock, "GBP", isin, xetr))},
 			k:         gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{xlon}},
-			db:        existing,
+			known:     existing,
 			want:      outcome{winner: "database", attached: []string{"a#1"}, findings: []string{"a dropped corroboration: openfigi_share_class BBG001S5XDT6: shares no stable identifier with the instrument identified by isin GB00BH4HKS39 (database)"}},
 		},
 		{
@@ -403,7 +403,7 @@ func TestChoose(t *testing.T) {
 			if tc.want.notNaming == nil {
 				tc.want.notNaming = map[string]int{}
 			}
-			got := describe(choose(&resolution{row: tc.k, fetchKeys: tc.fetchKeys, fam: cur.family(tc.k)}, tc.db, nil), source)
+			got := describe(choose(&resolution{row: tc.k, fetchKeys: tc.fetchKeys, fam: cur.family(tc.k)}, tc.known, nil), source)
 			if diff := cmp.Diff(tc.want, got, cmp.AllowUnexported(outcome{})); diff != "" {
 				t.Errorf("choose mismatch (-want +got):\n%s", diff)
 			}
@@ -411,27 +411,28 @@ func TestChoose(t *testing.T) {
 	}
 }
 
-// TestChoosePick checks the choice of a confirmation: the head of the pick
-// wins unless the database names the instrument, the other members attach
-// where they agree with the claims that outrank them, the other datasources
-// attach nothing, and a head that fails a check is refused.
-func TestChoosePick(t *testing.T) {
+// TestChooseUserChoice checks the verdict of a confirmation: the head of
+// the user's choice wins unless the database names the instrument, the
+// other members attach where they agree with the claims that outrank them,
+// the other datasources attach nothing, and a head that fails a check is
+// refused.
+func TestChooseUserChoice(t *testing.T) {
 	strict := func(source string, sent types.Identifier, cs ...market.Candidate) *fetchKey {
 		return served(source, sent, []types.Identifier{sent}, cs...)
 	}
-	existing := &claim{Instrument: types.Instrument{Class: types.AssetClassStock, Identifiers: []types.Identifier{isin, cusip}, Listings: map[string]types.Listing{
+	existing := &identityClaim{Instrument: types.Instrument{Class: types.AssetClassStock, Identifiers: []types.Identifier{isin, cusip}, Listings: map[string]types.Listing{
 		"GBP": {Identifiers: []types.Identifier{comp, xlon}},
 	}}}
 	other := id(types.IdentifierTypeCusip, "", "92857W309")
 	tests := []struct {
 		name      string
 		fetchKeys []*fetchKey
-		// pick names, for each member, the fetch key and the claim within
-		// it, the head first.
-		pick [][2]int
-		k    gen.StatedKey
-		db   *claim
-		want outcome
+		// userChoice names, for each member, the fetch key and the claim
+		// within it, the head first.
+		userChoice [][2]int
+		k          gen.StatedKey
+		known      *identityClaim
+		want       outcome
 	}{
 		{
 			name: "the head wins and the members attach",
@@ -439,18 +440,18 @@ func TestChoosePick(t *testing.T) {
 				strict("a", ticker, cand(types.AssetClassStock, "GBP", figi, xlon)),
 				strict("b", ticker, cand(types.AssetClassStock, "GBP", figi, isin, xlon)),
 			},
-			pick: [][2]int{{0, 0}, {1, 0}},
-			k:    gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{ticker}},
-			want: outcome{winner: "a#0", attached: []string{"a#0", "b#0"}},
+			userChoice: [][2]int{{0, 0}, {1, 0}},
+			k:          gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{ticker}},
+			want:       outcome{winner: "a#0", attached: []string{"a#0", "b#0"}},
 		},
 		{
-			name: "the pick's datasource's other claims are passed over",
+			name: "the user choice's datasource's other claims are passed over",
 			fetchKeys: []*fetchKey{
 				strict("a", ticker, cand(types.AssetClassStock, "GBP", figi, xlon), cand(types.AssetClassStock, "GBP", figi2, xetr)),
 			},
-			pick: [][2]int{{0, 0}},
-			k:    gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{ticker}},
-			want: outcome{winner: "a#0", attached: []string{"a#0"}},
+			userChoice: [][2]int{{0, 0}},
+			k:          gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{ticker}},
+			want:       outcome{winner: "a#0", attached: []string{"a#0"}},
 		},
 		{
 			name: "a datasource with no member attaches nothing, even where it agrees",
@@ -458,32 +459,32 @@ func TestChoosePick(t *testing.T) {
 				strict("a", ticker, cand(types.AssetClassStock, "GBP", figi, isin, xlon)),
 				strict("b", ticker, cand(types.AssetClassStock, "GBP", isin, xlon)),
 			},
-			pick: [][2]int{{1, 0}},
-			k:    gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{ticker}},
-			want: outcome{winner: "b#0", attached: []string{"b#0"}},
+			userChoice: [][2]int{{1, 0}},
+			k:          gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{ticker}},
+			want:       outcome{winner: "b#0", attached: []string{"b#0"}},
 		},
 		{
-			name:      "a pick whose listing is in no stated family is refused",
-			fetchKeys: []*fetchKey{strict("a", ticker, cand(types.AssetClassStock, "USD", figi, xnas))},
-			pick:      [][2]int{{0, 0}},
-			k:         gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{ticker}},
-			want:      outcome{refused: "openfigi_share_class BBG001S5XDT5: stated GBP has no listing among USD (a)"},
+			name:       "a user choice whose listing is in no stated family is refused",
+			fetchKeys:  []*fetchKey{strict("a", ticker, cand(types.AssetClassStock, "USD", figi, xnas))},
+			userChoice: [][2]int{{0, 0}},
+			k:          gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{ticker}},
+			want:       outcome{refused: "openfigi_share_class BBG001S5XDT5: stated GBP has no listing among USD (a)"},
 		},
 		{
-			name:      "a pick contradicting the instrument the database names is refused",
-			fetchKeys: []*fetchKey{strict("a", ticker, cand(types.AssetClassStock, "GBP", figi, other, xlon))},
-			pick:      [][2]int{{0, 0}},
-			k:         gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{ticker}},
-			db:        existing,
-			want:      outcome{winner: "database", refused: "openfigi_share_class BBG001S5XDT5: cusip 92857W309 contradicts cusip 92857W308 (database)"},
+			name:       "a user choice contradicting the instrument the database names is refused",
+			fetchKeys:  []*fetchKey{strict("a", ticker, cand(types.AssetClassStock, "GBP", figi, other, xlon))},
+			userChoice: [][2]int{{0, 0}},
+			k:          gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{ticker}},
+			known:      existing,
+			want:       outcome{winner: "database", refused: "openfigi_share_class BBG001S5XDT5: cusip 92857W309 contradicts cusip 92857W308 (database)"},
 		},
 		{
-			name:      "a pick attaches to the instrument the database names",
-			fetchKeys: []*fetchKey{strict("a", ticker, cand(types.AssetClassStock, "GBP", figi, isin, xlon))},
-			pick:      [][2]int{{0, 0}},
-			k:         gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{ticker}},
-			db:        existing,
-			want:      outcome{winner: "database", attached: []string{"a#0"}},
+			name:       "a user choice attaches to the instrument the database names",
+			fetchKeys:  []*fetchKey{strict("a", ticker, cand(types.AssetClassStock, "GBP", figi, isin, xlon))},
+			userChoice: [][2]int{{0, 0}},
+			k:          gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{ticker}},
+			known:      existing,
+			want:       outcome{winner: "database", attached: []string{"a#0"}},
 		},
 		{
 			name: "a member contradicting the instrument the database names is a contradiction, and the others attach",
@@ -492,9 +493,9 @@ func TestChoosePick(t *testing.T) {
 				strict("b", ticker, cand(types.AssetClassStock, "GBP", isin, other, xlon)),
 				strict("c", ticker, cand(types.AssetClassStock, "GBP", isin, comp)),
 			},
-			pick: [][2]int{{0, 0}, {1, 0}, {2, 0}},
-			k:    gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{ticker}},
-			db:   existing,
+			userChoice: [][2]int{{0, 0}, {1, 0}, {2, 0}},
+			k:          gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{ticker}},
+			known:      existing,
 			want: outcome{winner: "database", attached: []string{"a#0", "c#0"}, findings: []string{
 				"b contradiction: isin GB00BH4HKS39: cusip 92857W309 contradicts cusip 92857W308 (database)",
 			}},
@@ -505,9 +506,9 @@ func TestChoosePick(t *testing.T) {
 				strict("a", ticker, cand(types.AssetClassStock, "GBP", isin, xlon)),
 				strict("b", ticker, cand(types.AssetClassStock, "GBP", figi, xlon)),
 			},
-			pick: [][2]int{{0, 0}, {1, 0}},
-			k:    gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{ticker}},
-			db:   existing,
+			userChoice: [][2]int{{0, 0}, {1, 0}},
+			k:          gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{ticker}},
+			known:      existing,
 			want: outcome{winner: "database", attached: []string{"a#0"}, findings: []string{
 				"b dropped corroboration: openfigi_share_class BBG001S5XDT5: shares no stable identifier with the instrument identified by isin GB00BH4HKS39 (database)",
 			}},
@@ -524,11 +525,11 @@ func TestChoosePick(t *testing.T) {
 				tc.want.notNaming = map[string]int{}
 			}
 			res := &resolution{row: tc.k, fetchKeys: tc.fetchKeys, fam: cur.family(tc.k)}
-			var pick agreement
-			for _, p := range tc.pick {
-				pick = append(pick, claims(tc.fetchKeys[p[0]])[p[1]])
+			var userChoice consistentClaims
+			for _, p := range tc.userChoice {
+				userChoice = append(userChoice, claims(tc.fetchKeys[p[0]])[p[1]])
 			}
-			got := describe(choose(res, tc.db, pick), source)
+			got := describe(choose(res, tc.known, userChoice), source)
 			if diff := cmp.Diff(tc.want, got, cmp.AllowUnexported(outcome{})); diff != "" {
 				t.Errorf("choose mismatch (-want +got):\n%s", diff)
 			}
@@ -598,7 +599,7 @@ func TestGather(t *testing.T) {
 			res := &resolution{row: tc.k, fetchKeys: tc.fetchKeys, fam: cur.family(tc.k)}
 			cs, _, _ := offeredClaims(res)
 			var got [][]string
-			for _, a := range gatherAgreements(res, cs) {
+			for _, a := range gatherConsistentClaims(res, cs) {
 				var labels []string
 				for _, c := range a {
 					labels = append(labels, label(c))
@@ -619,7 +620,7 @@ func TestExclusive(t *testing.T) {
 	other := id(types.IdentifierTypeIsin, "", "US0378331005")
 	descr := id(types.IdentifierTypeBrokerDescription, "ibkr", "VODAFONE GROUP PLC")
 	renamed := id(types.IdentifierTypeBrokerDescription, "ibkr", "VODAFONE GRP")
-	c := &claim{Instrument: types.Instrument{Identifiers: []types.Identifier{isin, descr}}}
+	c := &identityClaim{Instrument: types.Instrument{Identifiers: []types.Identifier{isin, descr}}}
 	if got, ok := c.contradicts(other, noFamily); !ok || got != isin {
 		t.Errorf("contradicts(%s) = %v, %v, want the isin", other.Name(), got, ok)
 	}

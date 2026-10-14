@@ -18,7 +18,7 @@ import (
 func (r *Resolver) findResolutionArbitratedKey(ctx context.Context, run gen.Run, rs []*resolution) error {
 	var open []*resolution
 	for _, res := range rs {
-		if res.outcome == "" && res.stored == nil {
+		if res.outcome == "" && res.knownInstrument == nil {
 			open = append(open, res)
 		}
 	}

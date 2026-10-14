@@ -14,9 +14,9 @@ import (
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
-// Candidate is one security that one or more datasources describe, as the
-// claims of one agreement combined, offered for the user to confirm before
-// the instrument is written. It differs from a market.Candidate, which is one
+// Candidate is one security that one or more datasources describe, offered
+// for the user to confirm before the instrument is written. It combines the
+// claims of one set of consistent claims. It differs from a market.Candidate, which is one
 // listing of an answer.
 type Candidate struct {
 	// Datasource made the head claim, which a confirmation writes as the
@@ -76,10 +76,10 @@ type Pick struct {
 var ErrNoCandidate = errors.New("the answers no longer offer the candidate")
 
 // Candidates is the body of a synchronous resolution that lists the
-// candidates the datasources offer for key. Each candidate is one
-// agreement, so one security that several datasources describe is offered
-// once. The candidates are in the precedence order of their heads, then the
-// head datasource's own order. A claim is offered if it survives the stated
+// candidates the datasources offer for key. Each candidate is one set of
+// consistent claims, so one security that several datasources describe is
+// offered once. The candidates are in the precedence order of their heads,
+// then the head datasource's own order. A claim is offered if it survives the stated
 // checks and, for a bare ticker, if it agrees with the statement. Candidates
 // writes the findings against run and stops before choosing. The key's
 // resolution is left as it was.
@@ -103,7 +103,7 @@ func (r *Resolver) Candidates(ctx context.Context, run gen.Run, key gen.StatedKe
 	}
 	cs, dropped, unserved := offeredClaims(res)
 	o.Reasons = append(o.Reasons, unserved...)
-	for _, a := range gatherAgreements(res, cs) {
+	for _, a := range gatherConsistentClaims(res, cs) {
 		if c, ok := candidateOf(a); ok {
 			o.Candidates = append(o.Candidates, c)
 		}
@@ -130,8 +130,8 @@ func (r *Resolver) Candidates(ctx context.Context, run gen.Run, key gen.StatedKe
 // in precedence order and then each datasource's order. It also returns the
 // findings of the claims that disagree with the statement. Last, it returns
 // the reason for each fetch key that served nothing.
-func offeredClaims(res *resolution) ([]*claim, []gen.CreateFindingParams, []string) {
-	var cs []*claim
+func offeredClaims(res *resolution) ([]*identityClaim, []gen.CreateFindingParams, []string) {
+	var cs []*identityClaim
 	var findings []gen.CreateFindingParams
 	var unserved []string
 	for _, fk := range res.fetchKeys {
@@ -165,17 +165,17 @@ func (r *Resolver) Confirm(ctx context.Context, run gen.Run, key gen.StatedKey, 
 	case res.arbitrated != nil:
 		return gen.ResolutionKey{}, fmt.Errorf("%w: the key takes the association of a key the user confirmed", ErrNoCandidate)
 	}
-	a, err := pickAgreement(res, p)
+	a, err := findUserChoice(res, p)
 	if err != nil {
 		return gen.ResolutionKey{}, err
 	}
 	return r.write(ctx, run, res, a)
 }
 
-// pickAgreement returns the agreement that p names among those Candidates
-// lists for res. It is the first whose head came from p's datasource and
-// carries p's identifier.
-func pickAgreement(res *resolution, p Pick) (agreement, error) {
+// findUserChoice returns the first set of consistent claims, among those
+// Candidates lists for res, whose head came from p's datasource and carries
+// p's identifier.
+func findUserChoice(res *resolution, p Pick) (consistentClaims, error) {
 	i := slices.IndexFunc(res.fetchKeys, func(fk *fetchKey) bool { return fk.Source == p.Datasource })
 	if i < 0 {
 		return nil, fmt.Errorf("%w: %s was not asked", ErrNoCandidate, p.Datasource)
@@ -184,7 +184,7 @@ func pickAgreement(res *resolution, p Pick) (agreement, error) {
 		return nil, fmt.Errorf("%w: %s", ErrNoCandidate, unservedReason(fk))
 	}
 	cs, _, _ := offeredClaims(res)
-	for _, a := range gatherAgreements(res, cs) {
+	for _, a := range gatherConsistentClaims(res, cs) {
 		if h := a.head(); h.fetchKey.Source == p.Datasource && h.IdentifiedBy(p.Identifier) {
 			return a, nil
 		}
@@ -195,7 +195,7 @@ func pickAgreement(res *resolution, p Pick) (agreement, error) {
 // candidateOf returns a as a Candidate, and false where its head carries no
 // identifier to name it by. The listings of the members combine per
 // currency family.
-func candidateOf(a agreement) (Candidate, bool) {
+func candidateOf(a consistentClaims) (Candidate, bool) {
 	head := a.head()
 	strongest, ok := head.strongest()
 	if !ok {

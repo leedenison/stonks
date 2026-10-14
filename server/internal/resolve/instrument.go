@@ -19,9 +19,9 @@ type resolution struct {
 	// trusted caches trustedIDs.
 	trusted []types.Identifier
 	// fam is the family of the currency the key states.
-	fam    string
-	cur    currencies
-	stored *join.InstrumentWithCoverage
+	fam             string
+	cur             currencies
+	knownInstrument *join.InstrumentWithCoverage
 	// arbitrated is the user-arbitrated key whose association this key
 	// copies, nil where no such key shares a joining identifier with it.
 	arbitrated *gen.StatedKey
@@ -78,14 +78,14 @@ func (r *Resolver) findResolutionInstrument(ctx context.Context, rs []*resolutio
 			ids = append(ids, res.trusted...)
 		}
 	}
-	hits, err := findInstrumentsByIdentifier(ctx, r.store, ids)
+	matches, err := findInstrumentsByIdentifier(ctx, r.store, ids)
 	if err != nil {
 		return err
 	}
 	byID := map[types.Identifier]*join.InstrumentWithCoverage{}
-	for _, h := range hits {
+	for _, h := range matches {
 		for _, id := range h.matched {
-			byID[id] = h.stored
+			byID[id] = h.instrument
 		}
 	}
 	for _, res := range rs {
@@ -131,7 +131,7 @@ func (res *resolution) match(byID map[types.Identifier]*join.InstrumentWithCover
 		}
 		return
 	}
-	res.stored = f
+	res.knownInstrument = f
 	if reason, ok := classConflict(res.row, f.Row.AssetClass); ok {
 		res.decide(gen.ResolutionOutcomeUnrecognised, "%s", reason)
 	}
@@ -178,6 +178,6 @@ func (r *Resolver) findResolutionCurrency(ctx context.Context, res *resolution) 
 		res.decide(gen.ResolutionOutcomeRejected, "no listing of %s in %s", code, *res.row.Currency)
 		return nil
 	}
-	res.stored = f
+	res.knownInstrument = f
 	return nil
 }
