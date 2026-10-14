@@ -27,6 +27,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/testutil/runtest"
 	"github.com/leedenison/stonks/server/internal/testutil/scripted"
 	"github.com/leedenison/stonks/server/internal/types"
+	"github.com/leedenison/stonks/server/internal/validity"
 )
 
 var pool *pgxpool.Pool
@@ -76,6 +77,17 @@ func newStack(t *testing.T) *stack {
 	fetcher := market.NewFetcher(db.New[market.Queries](tx), runtest.Runner{Q: q}, log, market.WithClock(func() time.Time { return answered }, sleep))
 	s.resolver = New(db.New[Queries](tx), &serial{Fetcher: fetcher}, s.sources, log)
 	return s
+}
+
+// confirmedOn reports whether ivs confirm instrument on day d.
+func confirmedOn(ivs []validity.Interval, instrument uuid.UUID, d time.Time) bool {
+	for _, iv := range ivs {
+		if iv.Instrument == instrument && iv.Validity == gen.ValidityConfirmed &&
+			iv.From != nil && !d.Before(*iv.From) && iv.Before != nil && d.Before(*iv.Before) {
+			return true
+		}
+	}
+	return false
 }
 
 // answered is the moment every datasource of the stack answers, so the day an
@@ -298,6 +310,12 @@ func TestResolveWrites(t *testing.T) {
 		if a.InstrumentID == nil || *a.InstrumentID != inst.ID || !a.AssertedOn.Equal(day) {
 			t.Errorf("assertion = %+v, want the instrument on %s, the day of the answer", a, day.Format(time.DateOnly))
 		}
+	}
+	vod := types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XLON", Value: "VOD"}
+	ivs, err := validity.Of(ctx, s.q, vod)
+	require.NoError(t, err)
+	if !confirmedOn(ivs, inst.ID, day) {
+		t.Errorf("validity of %s = %+v, want the instrument confirmed on %s", vod.Name(), ivs, day.Format(time.DateOnly))
 	}
 
 	tradeKey, transferKey := s.key(t, trade.ID), s.key(t, transfer.ID)
@@ -522,6 +540,18 @@ func TestMergeRows(t *testing.T) {
 	require.NoError(t, rows.Err())
 	if naming[false] != 0 || naming[true] == 0 {
 		t.Errorf("assertions naming the survivor %d, the merged instrument %d, want every one on the survivor", naming[true], naming[false])
+	}
+	nasdaq := types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "VOD"}
+	ivs, err := validity.Of(ctx, s.q, nasdaq)
+	require.NoError(t, err)
+	for _, iv := range ivs {
+		if iv.Instrument != survivor {
+			t.Errorf("validity of %s = %+v, want only the survivor", nasdaq.Name(), ivs)
+			break
+		}
+	}
+	if len(ivs) == 0 {
+		t.Errorf("validity of %s is empty, want the survivor", nasdaq.Name())
 	}
 	coverage, err := s.q.ListIdentityCoverage(ctx, []uuid.UUID{survivor, b.Instrument.ID})
 	require.NoError(t, err)
