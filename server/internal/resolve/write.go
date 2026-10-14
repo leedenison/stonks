@@ -381,7 +381,7 @@ func summary(res *resolution, ch choice) []string {
 			s += " in " + sets(n)
 		}
 		if n := ch.notNaming[fk.Source]; n > 0 {
-			s += fmt.Sprintf(", %s not naming %s", sets(n), name(*fk.SentID))
+			s += fmt.Sprintf(", %s not naming %s", sets(n), fk.SentID.Name())
 		}
 		dropped := 0
 		for _, f := range ch.findings {
@@ -514,7 +514,7 @@ func (w *writer) identify(ctx context.Context, id types.Identifier, listing *uui
 	arg := gen.CreateIdentifierParams{ID: db.NewID(), InstrumentID: w.instrument.ID, ListingID: listing, Type: id.Type, Domain: id.Domain, Value: id.Value, FetchKeyID: &fetchKeyID}
 	row, err := w.q.CreateIdentifier(ctx, arg)
 	if err != nil {
-		return fmt.Errorf("create %s: %w", name(id), err)
+		return fmt.Errorf("create %s: %w", id.Name(), err)
 	}
 	w.identifiers[id] = row
 	return nil
@@ -536,7 +536,7 @@ func (w *writer) associate(ctx context.Context, res *resolution, arbiter gen.Arb
 		return nil, false, nil
 	}
 	validity := gen.ValidityProvisional
-	if stable(to.Identifier(via)) {
+	if to.Identifier(via).Stable() {
 		validity = gen.ValidityConfirmed
 	}
 	arg := gen.SetStatedKeyAssociationParams{ID: res.row.ID, UserID: w.user, InstrumentID: &w.instrument.ID, ListingID: listingID, ViaID: &via.ID, Validity: &validity, Arbiter: arbiter}

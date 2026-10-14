@@ -74,3 +74,11 @@ type Identifier struct {
 func (i Identifier) ToProto() *typev1.Identifier {
 	return &typev1.Identifier{Type: ToProto[typev1.IdentifierType](i.Type), Domain: i.Domain, Value: i.Value}
 }
+
+// Name writes i as its type and value, the venue leading the value.
+func (i Identifier) Name() string {
+	if i.Domain == "" {
+		return string(i.Type) + " " + i.Value
+	}
+	return string(i.Type) + " " + i.Domain + ":" + i.Value
+}

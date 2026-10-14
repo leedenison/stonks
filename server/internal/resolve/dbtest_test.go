@@ -263,7 +263,7 @@ func TestResolveWrites(t *testing.T) {
 		if row.ListingID != nil {
 			where = "listing"
 		}
-		identifiers = append(identifiers, where+" "+name(to.Identifier(row)))
+		identifiers = append(identifiers, where+" "+to.Identifier(row).Name())
 		if row.FetchKeyID == nil || *row.FetchKeyID != *inst.FetchKeyID {
 			t.Errorf("identifier %s from fetch key %v, want the instrument's %s", row.Value, row.FetchKeyID, *inst.FetchKeyID)
 		}
@@ -281,7 +281,7 @@ func TestResolveWrites(t *testing.T) {
 	tradeKey, transferKey := s.key(t, trade.ID), s.key(t, transfer.ID)
 	via := map[uuid.UUID]string{}
 	for _, row := range ids {
-		via[row.ID] = name(to.Identifier(row))
+		via[row.ID] = to.Identifier(row).Name()
 	}
 	if tradeKey.InstrumentID == nil || *tradeKey.InstrumentID != inst.ID || tradeKey.ListingID == nil || *tradeKey.ListingID != listings[0].ID || via[*tradeKey.ViaID] != "isin GB00BH4HKS39" || *tradeKey.Validity != gen.ValidityConfirmed {
 		t.Errorf("trade = %+v, want the instrument's GBP listing via its ISIN, confirmed", tradeKey)
@@ -439,7 +439,7 @@ func TestMergeRows(t *testing.T) {
 				}
 			}
 		}
-		where[name(to.Identifier(row))] = listing
+		where[to.Identifier(row).Name()] = listing
 	}
 	wantWhere := map[string]string{
 		"isin GB00BH4HKS39": "instrument", "openfigi_share_class BBG001S5XDT5": "instrument",
@@ -759,7 +759,7 @@ func TestCoveredRows(t *testing.T) {
 	require.NoError(t, err)
 	var names []string
 	for _, row := range ids {
-		names = append(names, name(to.Identifier(row)))
+		names = append(names, to.Identifier(row).Name())
 		if row.Type == isin.Type && row.ID != before.Identifier.ID {
 			t.Errorf("the ISIN row is %s, want the one alpha wrote, %s", row.ID, before.Identifier.ID)
 		}
@@ -920,7 +920,7 @@ func TestMergeAcrossCurrencies(t *testing.T) {
 	var tickers []string
 	for _, row := range ids {
 		if row.Type == types.IdentifierTypeMicTicker {
-			tickers = append(tickers, name(to.Identifier(row)))
+			tickers = append(tickers, to.Identifier(row).Name())
 		}
 	}
 	if diff := cmp.Diff([]string{"mic_ticker XLON:VOD", "mic_ticker XLON:VODUSD"}, tickers); diff != "" {
@@ -1037,7 +1037,7 @@ func TestConfirmRows(t *testing.T) {
 	require.NoError(t, err)
 	via := map[uuid.UUID]string{}
 	for _, row := range ids {
-		via[row.ID] = name(to.Identifier(row))
+		via[row.ID] = to.Identifier(row).Name()
 	}
 	for _, id := range []uuid.UUID{key.ID, mate.ID} {
 		k := s.key(t, id)
@@ -1119,10 +1119,10 @@ func TestConfirmJoins(t *testing.T) {
 	require.NoError(t, err)
 	var got []string
 	for _, row := range ids {
-		got = append(got, name(to.Identifier(row)))
+		got = append(got, to.Identifier(row).Name())
 	}
 	slices.Sort(got)
-	want := []string{"isin GB00BH4HKS39", "mic_ticker XLON:VOD", name(figi)}
+	want := []string{"isin GB00BH4HKS39", "mic_ticker XLON:VOD", figi.Name()}
 	slices.Sort(want)
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("identifiers mismatch (-want +got):\n%s", diff)

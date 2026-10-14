@@ -63,8 +63,27 @@ func (res *resolution) trustedIDs() []types.Identifier {
 			out = append(out, id)
 		}
 	}
-	slices.SortStableFunc(out, func(a, b types.Identifier) int { return strength(a) - strength(b) })
+	slices.SortStableFunc(out, func(a, b types.Identifier) int { return a.Strength() - b.Strength() })
 	return out
+}
+
+// statesBareTicker reports whether k states a ticker without its venue.
+func statesBareTicker(k gen.StatedKey) bool {
+	for _, id := range k.Identifiers {
+		if id.Type == types.IdentifierTypeMicTicker && id.Domain == "" {
+			return true
+		}
+	}
+	return false
+}
+
+// classConflict returns why the class k states contradicts an instrument of
+// class, if it does.
+func classConflict(k gen.StatedKey, class types.AssetClass) (string, bool) {
+	if k.AssetClass == nil || !k.AssetClass.Disjoint(class) {
+		return "", false
+	}
+	return fmt.Sprintf("asset class %s contradicts the instrument's %s", *k.AssetClass, class), true
 }
 
 func (res *resolution) decide(outcome gen.ResolutionOutcome, format string, args ...any) {
@@ -122,7 +141,7 @@ func (res *resolution) match(byID map[types.Identifier]*stored) {
 		case f == nil:
 			first, f = id, hit
 		case hit.instrument.ID != f.instrument.ID:
-			detail := fmt.Sprintf("%s and %s name different instruments", name(first), name(id))
+			detail := fmt.Sprintf("%s and %s name different instruments", first.Name(), id.Name())
 			res.findings = append(res.findings, gen.CreateFindingParams{Kind: gen.FindingKindContradiction, Detail: ptr.To(detail)})
 			res.decide(gen.ResolutionOutcomeUnrecognised, "%s", detail)
 			return

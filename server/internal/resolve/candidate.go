@@ -189,7 +189,7 @@ func pickAgreement(res *resolution, p Pick) (agreement, error) {
 			return a, nil
 		}
 	}
-	return nil, fmt.Errorf("%w: %s names no candidate of %s", ErrNoCandidate, name(p.Identifier), p.Datasource)
+	return nil, fmt.Errorf("%w: %s names no candidate of %s", ErrNoCandidate, p.Identifier.Name(), p.Datasource)
 }
 
 // candidateOf returns a as a Candidate, and false where its head carries no

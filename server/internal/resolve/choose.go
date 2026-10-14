@@ -85,7 +85,7 @@ func (a agreement) member(fk *fetchKey) *claim {
 func claims(fk *fetchKey) []*claim {
 	var strict []types.Identifier
 	for _, id := range fk.Response.Filtered {
-		if grain(id) == types.IdentifierGrainInstrument {
+		if id.Grain() == types.IdentifierGrainInstrument {
 			strict = append(strict, id)
 		}
 	}
@@ -118,7 +118,7 @@ func partition(cs []market.Candidate, strict bool) []int {
 			union(parent, 0, i)
 		}
 		for _, id := range c.Identifiers {
-			if grain(id) != types.IdentifierGrainInstrument {
+			if id.Grain() != types.IdentifierGrainInstrument {
 				continue
 			}
 			if j, ok := owner[id]; ok {
@@ -159,7 +159,7 @@ func (c *claim) add(cand market.Candidate, fam string) {
 	}
 	l := c.Listings[fam]
 	for _, id := range cand.Identifiers {
-		if grain(id) == types.IdentifierGrainInstrument {
+		if id.Grain() == types.IdentifierGrainInstrument {
 			c.Identifiers = appendUnique(c.Identifiers, id)
 		} else {
 			l.Identifiers = appendUnique(l.Identifiers, id)
@@ -197,11 +197,11 @@ func (c *claim) listed() []string {
 // listing grain id, those of the listing in family fam and of the listing
 // of no family, or of every listing where fam is noFamily.
 func (c *claim) contradicts(id types.Identifier, fam string) (types.Identifier, bool) {
-	if !exclusive(id) {
+	if !id.Exclusive() {
 		return types.Identifier{}, false
 	}
 	pool := c.Identifiers
-	if grain(id) == types.IdentifierGrainListing {
+	if id.Grain() == types.IdentifierGrainListing {
 		pool = nil
 		for _, f := range slices.Sorted(maps.Keys(c.Listings)) {
 			if fam == noFamily || f == fam || f == noFamily {
@@ -238,7 +238,7 @@ func (c *claim) strongest() (types.Identifier, bool) {
 	var best types.Identifier
 	found := false
 	for id := range c.AllIDs() {
-		if !found || strength(id) < strength(best) {
+		if !found || id.Strength() < best.Strength() {
 			best, found = id, true
 		}
 	}
@@ -248,7 +248,7 @@ func (c *claim) strongest() (types.Identifier, bool) {
 // label leads a detail about c with its strongest identifier.
 func (c *claim) label(detail string) string {
 	if id, ok := c.strongest(); ok {
-		return name(id) + ": " + detail
+		return id.Name() + ": " + detail
 	}
 	return detail
 }
@@ -261,7 +261,7 @@ func (c *claim) ref() string {
 		what = "the candidate"
 	}
 	if id, ok := c.strongest(); ok {
-		what += " identified by " + name(id)
+		what += " identified by " + id.Name()
 	}
 	return fmt.Sprintf("%s (%s)", what, c.from())
 }
@@ -291,7 +291,7 @@ func (c *claim) contradicted(res *resolution) (string, bool) {
 	}
 	for _, id := range k.Identifiers {
 		if other, ok := c.contradicts(id, fam); ok {
-			return fmt.Sprintf("stated %s contradicts %s", name(id), name(other)), true
+			return fmt.Sprintf("stated %s contradicts %s", id.Name(), other.Name()), true
 		}
 	}
 	return "", false
@@ -305,13 +305,13 @@ func (c *claim) inconsistent(a *claim) (string, bool) {
 	}
 	for _, id := range a.Identifiers {
 		if other, ok := c.contradicts(id, noFamily); ok {
-			return fmt.Sprintf("%s contradicts %s (%s)", name(other), name(id), a.from()), true
+			return fmt.Sprintf("%s contradicts %s (%s)", other.Name(), id.Name(), a.from()), true
 		}
 	}
 	for _, f := range slices.Sorted(maps.Keys(a.Listings)) {
 		for _, id := range a.Listings[f].Identifiers {
 			if other, ok := c.contradicts(id, f); ok {
-				return fmt.Sprintf("%s contradicts %s (%s)", name(other), name(id), a.from()), true
+				return fmt.Sprintf("%s contradicts %s (%s)", other.Name(), id.Name(), a.from()), true
 			}
 		}
 	}
@@ -321,7 +321,7 @@ func (c *claim) inconsistent(a *claim) (string, bool) {
 // corroborates reports whether c shares a stable identifier with a.
 func (c *claim) corroborates(a *claim) bool {
 	for id := range c.AllIDs() {
-		if stable(id) && a.IdentifiedBy(id) {
+		if id.Stable() && a.IdentifiedBy(id) {
 			return true
 		}
 	}
