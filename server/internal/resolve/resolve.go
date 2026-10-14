@@ -77,7 +77,7 @@ func (r *Resolver) prepare(ctx context.Context, run gen.Run, rows []gen.StatedKe
 	}
 	resolutions := make([]*resolution, len(rows))
 	for i, row := range rows {
-		res := &resolution{row: row, fam: cur.family(row), cur: cur}
+		res := &resolution{row: row, family: cur.family(row), currencies: cur}
 		res.trusted = res.trustedIDs()
 		resolutions[i] = res
 	}

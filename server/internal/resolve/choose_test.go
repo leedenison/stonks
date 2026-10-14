@@ -403,7 +403,7 @@ func TestChoose(t *testing.T) {
 			if tc.want.notNaming == nil {
 				tc.want.notNaming = map[string]int{}
 			}
-			got := describe(choose(&resolution{row: tc.k, fetchKeys: tc.fetchKeys, fam: cur.family(tc.k)}, tc.known, nil), source)
+			got := describe(choose(&resolution{row: tc.k, fetchKeys: tc.fetchKeys, family: cur.family(tc.k)}, tc.known, nil), source)
 			if diff := cmp.Diff(tc.want, got, cmp.AllowUnexported(outcome{})); diff != "" {
 				t.Errorf("choose mismatch (-want +got):\n%s", diff)
 			}
@@ -524,7 +524,7 @@ func TestChooseUserChoice(t *testing.T) {
 			if tc.want.notNaming == nil {
 				tc.want.notNaming = map[string]int{}
 			}
-			res := &resolution{row: tc.k, fetchKeys: tc.fetchKeys, fam: cur.family(tc.k)}
+			res := &resolution{row: tc.k, fetchKeys: tc.fetchKeys, family: cur.family(tc.k)}
 			var userChoice consistentClaims
 			for _, p := range tc.userChoice {
 				userChoice = append(userChoice, claims(tc.fetchKeys[p[0]])[p[1]])
@@ -596,7 +596,7 @@ func TestGather(t *testing.T) {
 			for i, fk := range tc.fetchKeys {
 				fk.ID = uuid.UUID{byte(i + 1)}
 			}
-			res := &resolution{row: tc.k, fetchKeys: tc.fetchKeys, fam: cur.family(tc.k)}
+			res := &resolution{row: tc.k, fetchKeys: tc.fetchKeys, family: cur.family(tc.k)}
 			cs, _, _ := offeredClaims(res)
 			var got [][]string
 			for _, a := range gatherConsistentClaims(res, cs) {

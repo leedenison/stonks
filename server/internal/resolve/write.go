@@ -155,7 +155,7 @@ func copyGroupAssociation(ctx context.Context, q Queries, run gen.Run, res *reso
 		if k.ID == res.row.ID {
 			continue
 		}
-		if _, err := q.SetStatedKeyAssociation(ctx, carry(a, res.fam, k, res.cur)); err != nil {
+		if _, err := q.SetStatedKeyAssociation(ctx, carry(a, res.family, k, res.currencies)); err != nil {
 			return fmt.Errorf("associate key %s: %w", k.ID, err)
 		}
 		arg := gen.CreateResolutionKeyParams{RunID: run.ID, UserID: run.UserID, StatedKeyID: k.ID, Outcome: gen.ResolutionOutcomeMatched}
@@ -517,7 +517,7 @@ func (w *writer) identify(ctx context.Context, id types.Identifier, listing *uui
 // place.
 func (w *writer) associate(ctx context.Context, res *resolution, arbiter gen.Arbiter) (*gen.SetStatedKeyAssociationParams, bool, error) {
 	var listingID *uuid.UUID
-	if l := w.instr.Listing(res.fam); l != nil {
+	if l := w.instr.Listing(res.family); l != nil {
 		listingID = &l.ID
 	}
 	via, ok := w.via(res, listingID)
