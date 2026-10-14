@@ -10,7 +10,6 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
-	"github.com/leedenison/stonks/server/internal/db/mirror"
 	"github.com/leedenison/stonks/server/internal/db/to"
 	"github.com/leedenison/stonks/server/internal/ptr"
 	"github.com/leedenison/stonks/server/internal/types"
@@ -60,7 +59,7 @@ func (f *stored) claim() *claim {
 func (res *resolution) trustedIDs() []types.Identifier {
 	var out []types.Identifier
 	for _, id := range res.row.Identifiers {
-		if mirror.IsGlobal(id) || id.Type == types.IdentifierTypeBrokerDescription {
+		if id.IsGlobal() || id.Type == types.IdentifierTypeBrokerDescription {
 			out = append(out, id)
 		}
 	}
@@ -130,7 +129,7 @@ func (res *resolution) match(byID map[types.Identifier]*stored) {
 		}
 	}
 	if f == nil {
-		if !slices.ContainsFunc(res.trusted, mirror.IsGlobal) && !statesBareTicker(res.row) {
+		if !slices.ContainsFunc(res.trusted, types.Identifier.IsGlobal) && !statesBareTicker(res.row) {
 			res.decide(gen.ResolutionOutcomeUnrecognised, "%s", unnamed(res.trusted))
 		}
 		return

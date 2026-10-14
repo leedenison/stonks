@@ -6,9 +6,10 @@
 # a primary key. The overrides keep pgtype out of the signatures consumers see
 # and mock; numeric is named pg_catalog.numeric because the parser qualifies
 # it, and an override naming a type the parser does not is silently unmatched.
-# The identifier_type override points at a hand written enum, so that it and the
-# identifiers it types sit where generated code and its consumers can both name
-# them. sqlc emits its own copy regardless, which a lint rule forbids.
+# The identifier_type override and the overrides of the enums that type its
+# traits point at hand-written enums. They and the identifiers they type then
+# sit where generated code and its consumers can both name them. sqlc emits its
+# own copies regardless, which a lint rule forbids.
 version: "2"
 sql:
   - engine: postgresql
@@ -77,6 +78,18 @@ sql:
               import: github.com/leedenison/stonks/server/internal/types
               type: AssetClass
               pointer: true
+          - db_type: identifier_domain
+            go_type:
+              import: github.com/leedenison/stonks/server/internal/types
+              type: IdentifierDomain
+          - db_type: identifier_grain
+            go_type:
+              import: github.com/leedenison/stonks/server/internal/types
+              type: IdentifierGrain
+          - db_type: identifier_reassignment
+            go_type:
+              import: github.com/leedenison/stonks/server/internal/types
+              type: IdentifierReassignment
           - column: stated_keys.identifiers
             go_type:
               import: github.com/leedenison/stonks/server/internal/types

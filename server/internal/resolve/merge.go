@@ -10,7 +10,6 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/leedenison/stonks/server/internal/db/gen"
-	"github.com/leedenison/stonks/server/internal/db/mirror"
 	"github.com/leedenison/stonks/server/internal/db/to"
 	"github.com/leedenison/stonks/server/internal/ptr"
 	"github.com/leedenison/stonks/server/internal/types"
@@ -181,7 +180,7 @@ func mergeConflict(hits []hit) (string, bool) {
 	}
 	for i, a := range hits {
 		for _, b := range hits[i+1:] {
-			if mirror.Disjoint(a.stored.instrument.AssetClass, b.stored.instrument.AssetClass) {
+			if a.stored.instrument.AssetClass.Disjoint(b.stored.instrument.AssetClass) {
 				return fmt.Sprintf("class %s of instrument %s contradicts class %s of %s", a.stored.instrument.AssetClass, a.stored.instrument.ID, b.stored.instrument.AssetClass, b.stored.instrument.ID), true
 			}
 		}

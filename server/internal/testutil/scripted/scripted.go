@@ -9,7 +9,6 @@ import (
 	"golang.org/x/time/rate"
 
 	"github.com/leedenison/stonks/server/internal/db/gen"
-	"github.com/leedenison/stonks/server/internal/db/mirror"
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/types"
 )
@@ -51,7 +50,7 @@ func (s *Identity) Endpoint() string { return "https://scripted.test" }
 // its venue.
 func (s *Identity) Serves(k gen.StatedKey) (types.Identifier, error) {
 	for _, id := range k.Identifiers {
-		if mirror.IsGlobal(id) || id.Type == types.IdentifierTypeMicTicker {
+		if id.IsGlobal() || id.Type == types.IdentifierTypeMicTicker {
 			return id, nil
 		}
 	}

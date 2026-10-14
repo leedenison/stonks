@@ -4,27 +4,26 @@ import (
 	"fmt"
 
 	"github.com/leedenison/stonks/server/internal/db/gen"
-	"github.com/leedenison/stonks/server/internal/db/mirror"
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
 // classConflict returns why the class k states contradicts an instrument of
 // class, if it does.
 func classConflict(k gen.StatedKey, class types.AssetClass) (string, bool) {
-	if k.AssetClass == nil || !mirror.Disjoint(*k.AssetClass, class) {
+	if k.AssetClass == nil || !k.AssetClass.Disjoint(class) {
 		return "", false
 	}
 	return fmt.Sprintf("asset class %s contradicts the instrument's %s", *k.AssetClass, class), true
 }
 
-func grain(id types.Identifier) gen.IdentifierGrain { return mirror.Trait(id.Type).Grain }
+func grain(id types.Identifier) types.IdentifierGrain { return id.Type.Trait().Grain }
 
 // exclusive reports whether a second value of id's type for one subject in
 // one domain contradicts id.
-func exclusive(id types.Identifier) bool { return mirror.Trait(id.Type).Exclusive }
+func exclusive(id types.Identifier) bool { return id.Type.Trait().Exclusive }
 
 func stable(id types.Identifier) bool {
-	return mirror.Trait(id.Type).Reassignment == gen.IdentifierReassignmentStable
+	return id.Type.Trait().Reassignment == types.IdentifierReassignmentStable
 }
 
 // strength ranks id by how firmly it names its subject, the strongest
@@ -33,13 +32,13 @@ func stable(id types.Identifier) bool {
 // before a listing's.
 func strength(id types.Identifier) int {
 	n := 0
-	if mirror.Trait(id.Type).Domain == gen.IdentifierDomainIssuer {
+	if id.Type.Trait().Domain == types.IdentifierDomainIssuer {
 		n += 4
 	}
 	if !stable(id) {
 		n += 2
 	}
-	if grain(id) == gen.IdentifierGrainListing {
+	if grain(id) == types.IdentifierGrainListing {
 		n++
 	}
 	return n

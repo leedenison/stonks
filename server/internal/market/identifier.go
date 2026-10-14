@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/leedenison/stonks/server/internal/db/gen"
-	"github.com/leedenison/stonks/server/internal/db/mirror"
 	"github.com/leedenison/stonks/server/internal/mic"
 	"github.com/leedenison/stonks/server/internal/types"
 )
@@ -17,7 +16,7 @@ import (
 // instrument matches it, which need not be the one that identifier names.
 func sendBare(key gen.StatedKey, bare types.Identifier) (types.Identifier, error) {
 	for _, id := range key.Identifiers {
-		if mirror.IsGlobal(id) {
+		if id.IsGlobal() {
 			return types.Identifier{}, fmt.Errorf("ticker '%s' without a venue declined: the key states %s '%s'", bare.Value, id.Type, id.Value)
 		}
 	}
