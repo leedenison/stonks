@@ -12,6 +12,7 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/db/to"
 	"github.com/leedenison/stonks/server/internal/run"
 	"github.com/leedenison/stonks/server/internal/types"
 )
@@ -30,6 +31,9 @@ type FetchKey[Q, P any] struct {
 	SentID   *types.Identifier
 	Reason   string
 	Response P
+	// AnsweredAt is when the datasource gave Response, zero unless served. An
+	// answer from the cache keeps the moment of the call that filled it.
+	AnsweredAt time.Time
 
 	// attempts is the number of calls that carried the request.
 	attempts int
@@ -220,9 +224,11 @@ func readCache[Q, P any](ctx context.Context, f *Fetcher, fetchKeys []FetchKey[Q
 			continue
 		}
 		r := &fetchKeys[i]
-		if err := json.Unmarshal(entries[n], &r.Response); err != nil {
+		var entry cacheEntry[P]
+		if err := json.Unmarshal(entries[n], &entry); err != nil {
 			return fmt.Errorf("decode cached answer: %w", err)
 		}
+		r.Response, r.AnsweredAt = entry.Answer, entry.At
 		r.Outcome, r.cached = gen.FetchOutcomeServed, true
 	}
 	return nil
@@ -238,7 +244,7 @@ func writeCache[Q, P any](ctx context.Context, f *Fetcher, fetchKeys []FetchKey[
 		if r.Outcome != gen.FetchOutcomeServed {
 			continue
 		}
-		b, err := json.Marshal(r.Response)
+		b, err := json.Marshal(cacheEntry[P]{At: r.AnsweredAt, Answer: r.Response})
 		if err != nil {
 			return fmt.Errorf("encode answer: %w", err)
 		}
@@ -276,7 +282,7 @@ func fetchChunk[Q, P any](ctx context.Context, f *Fetcher, e *Entry, s Server[Q,
 		}
 		resp := resps[n]
 		if resp.Err == nil {
-			r.Outcome, r.Response = gen.FetchOutcomeServed, resp.Value
+			r.Outcome, r.Response, r.AnsweredAt = gen.FetchOutcomeServed, resp.Value, f.now()
 			continue
 		}
 		fail := e.Integration.Classify(resp.Err)
@@ -316,11 +322,22 @@ func requestFailed[Q, P any](fail Failure, err error, fetchKeys []FetchKey[Q, P]
 	return blocks
 }
 
+// identifierBlock blocks what r was sent as: an identifier, or a domain.
 func identifierBlock[Q, P any](r FetchKey[Q, P]) gen.CreateDatasourceBlockParams {
-	return gen.CreateDatasourceBlockParams{
-		Scope: gen.BlockScopeIdentifier, Reason: r.Reason, FetchKeyID: r.ID,
-		SentType: &r.SentID.Type, SentDomain: r.SentID.Domain, SentValue: &r.SentID.Value,
+	b := gen.CreateDatasourceBlockParams{Scope: gen.BlockScopeIdentifier, Reason: r.Reason, FetchKeyID: r.ID}
+	if r.SentID.IsDomain() {
+		b.Scope = gen.BlockScopeDomain
 	}
+	b.SentType, b.SentDomain, b.SentValue = sentColumns(*r.SentID)
+	return b
+}
+
+// sentColumns writes id as the sent columns of a row. A domain has no value.
+func sentColumns(id types.Identifier) (*types.IdentifierType, string, *string) {
+	if id.IsDomain() {
+		return &id.Type, id.Domain, nil
+	}
+	return &id.Type, id.Domain, &id.Value
 }
 
 func record[Q, P any](ctx context.Context, q Queries, run gen.Run, kind Kind[Q, P], r FetchKey[Q, P]) error {
@@ -329,10 +346,12 @@ func record[Q, P any](ctx context.Context, q Queries, run gen.Run, kind Kind[Q, 
 		Outcome: r.Outcome, Attempts: int16(r.attempts),
 	}
 	if r.SentID != nil {
-		arg.SentType, arg.SentDomain, arg.SentValue = &r.SentID.Type, r.SentID.Domain, &r.SentID.Value
+		arg.SentType, arg.SentDomain, arg.SentValue = sentColumns(*r.SentID)
 	}
 	if r.Outcome == gen.FetchOutcomeServed {
 		arg.Candidates = int16(kind.count(r.Response))
+		at := r.AnsweredAt
+		arg.AnsweredAt = &at
 	} else {
 		reason := r.Reason
 		arg.Reason = &reason
@@ -351,7 +370,8 @@ func reasonOf(fail Failure, err error) string {
 }
 
 // blockSet is the open blocks of one datasource and kind, read as the fetch
-// starts.
+// starts. A domain block is held as the domain's identifier. It suppresses a
+// send of the domain and leaves a send of one value alone.
 type blockSet struct {
 	datasource string
 	all        bool
@@ -365,8 +385,7 @@ func newBlockSet(rows []gen.DatasourceBlock) *blockSet {
 			b.all, b.datasource = true, row.Reason
 			continue
 		}
-		if row.SentType != nil && row.SentValue != nil {
-			id := types.Identifier{Type: *row.SentType, Domain: row.SentDomain, Value: *row.SentValue}
+		if id, ok := to.BlockSent(row); ok {
 			b.identifier[id] = row.Reason
 		}
 	}
@@ -381,7 +400,11 @@ func (b *blockSet) add(blocks []gen.CreateDatasourceBlockParams) {
 			b.all, b.datasource = true, bl.Reason
 			continue
 		}
-		b.identifier[types.Identifier{Type: *bl.SentType, Domain: bl.SentDomain, Value: *bl.SentValue}] = bl.Reason
+		id := types.Identifier{Type: *bl.SentType, Domain: bl.SentDomain}
+		if bl.SentValue != nil {
+			id.Value = *bl.SentValue
+		}
+		b.identifier[id] = bl.Reason
 	}
 }
 

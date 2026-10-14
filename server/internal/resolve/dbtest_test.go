@@ -177,7 +177,7 @@ func (s *stack) fetchKey(t *testing.T, key uuid.UUID, datasource string) gen.Fet
 		items, err := s.q.ListFetchItems(ctx, gen.ListFetchItemsParams{FetchID: child.ID})
 		require.NoError(t, err)
 		for _, it := range items {
-			if it.StatedKey.ID == key {
+			if it.FetchKey.StatedKeyID != nil && *it.FetchKey.StatedKeyID == key {
 				return it.FetchKey
 			}
 		}
@@ -309,7 +309,7 @@ func TestResolveWrites(t *testing.T) {
 	require.NoError(t, err)
 	sent := map[uuid.UUID]gen.FetchKey{}
 	for _, it := range items {
-		sent[it.StatedKey.ID] = it.FetchKey
+		sent[*it.FetchKey.StatedKeyID] = it.FetchKey
 	}
 	attached := func(id uuid.UUID) bool { return sent[id].InstrumentID != nil && *sent[id].InstrumentID == inst.ID }
 	if len(sent) != 3 || !attached(trade.ID) || !attached(transfer.ID) || sent[wrong.ID].InstrumentID != nil {

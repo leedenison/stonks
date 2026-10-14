@@ -13,12 +13,19 @@ import (
 )
 
 // keyPrefix begins every cached answer's key. Its version names the shape
-// of IdentityResult and Listing. A change to either bumps it, so that a
-// build never reads an answer an older build wrote.
+// of cacheEntry, IdentityResult and Listing. It is bumped whenever that shape
+// changes between released versions, so that a release never reads an answer
+// an older release wrote.
 const keyPrefix = "stonks:fetch:v1:"
 
 // scanCount is how many keys one SCAN page asks for.
 const scanCount = 100
+
+// cacheEntry is a cached answer and the moment the datasource gave it.
+type cacheEntry[P any] struct {
+	At     time.Time `json:"at"`
+	Answer P         `json:"answer"`
+}
 
 // cacheKey is the key of one request: "stonks:fetch:v1:" then the datasource,
 // the kind, the type, domain and value of the identifier sent, and each

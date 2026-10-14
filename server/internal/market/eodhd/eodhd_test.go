@@ -282,6 +282,11 @@ func TestFetch(t *testing.T) {
 			if tc.filtered == (types.Identifier{}) {
 				tc.filtered = tc.sent
 			}
+			// EODHD's search never says an identifier is unknown, so Unknown
+			// stays false.
+			if res.Unknown {
+				t.Errorf("Fetch(%v) unknown = true, want false", tc.sent)
+			}
 			if diff := cmp.Diff([]types.Identifier{tc.filtered}, res.Filtered); diff != "" || !res.Limited {
 				t.Errorf("Fetch(%v) filtered mismatch (-want +got):\n%s, limited %v", tc.sent, diff, res.Limited)
 			}

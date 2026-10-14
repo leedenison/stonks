@@ -32,8 +32,9 @@ CREATE TYPE fetch_kind AS ENUM ('identity');
 CREATE TYPE fetch_outcome AS ENUM ('served', 'not_served', 'blocked',
     'failed_temporary', 'failed_permanent');
 
--- The scope of a block.
-CREATE TYPE block_scope AS ENUM ('identifier', 'datasource');
+-- The scope of a block: one identifier sent, one domain sent, or every call
+-- to the datasource.
+CREATE TYPE block_scope AS ENUM ('identifier', 'domain', 'datasource');
 
 -- A fetch represents requests for one set of keys to one datasource.
 CREATE TABLE fetches (
@@ -51,13 +52,14 @@ CREATE TABLE fetches (
     UNIQUE (user_id, id)
 );
 
--- A fetch key is one fetched identifier within a fetch covering
--- several identifiers.
+-- A fetch key is one request within a fetch of several. It is sent as an
+-- identifier, or as a domain: a type and a domain with no value. It names the
+-- stated key that asked for it, where one did.
 CREATE TABLE fetch_keys (
     id            uuid            PRIMARY KEY,
     fetch_id      uuid            NOT NULL,
     user_id       uuid,
-    stated_key_id uuid            NOT NULL REFERENCES stated_keys (id) ON DELETE CASCADE,
+    stated_key_id uuid            REFERENCES stated_keys (id) ON DELETE CASCADE,
     outcome       fetch_outcome   NOT NULL,
     -- attempts is how many calls carried the key. It is zero when the
     -- datasource was paused or the answer came from the cache.
@@ -70,14 +72,19 @@ CREATE TABLE fetch_keys (
     reason        text,
     -- candidates is how many results the datasource offered; zero unless served.
     candidates    smallint        NOT NULL DEFAULT 0,
+    -- answered_at is when the datasource gave the answer, set when served. An answer from the cache keeps the moment of the call that
+    -- filled it.
+    answered_at   timestamptz,
     created_at    timestamptz     NOT NULL DEFAULT now(),
     FOREIGN KEY (fetch_id) REFERENCES fetches (id) ON DELETE CASCADE,
     FOREIGN KEY (fetch_id, user_id) REFERENCES fetches (id, user_id) ON DELETE CASCADE,
     UNIQUE (fetch_id, stated_key_id),
     CHECK ((outcome = 'not_served') = (sent_type IS NULL)),
-    CHECK ((sent_type IS NULL) = (sent_value IS NULL)),
+    CHECK (sent_value IS NULL OR sent_type IS NOT NULL),
+    CHECK (sent_type IS NULL OR sent_value IS NOT NULL OR sent_domain <> ''),
     CHECK (sent_type IS NOT NULL OR sent_domain = ''),
     CHECK ((outcome = 'served') = (reason IS NULL)),
+    CHECK ((outcome = 'served') = (answered_at IS NOT NULL)),
     CHECK (outcome NOT IN ('not_served', 'blocked') OR attempts = 0),
     CHECK (instrument_id IS NULL OR outcome = 'served'),
     CHECK (outcome = 'served' OR candidates = 0)
@@ -96,15 +103,13 @@ ALTER TABLE identifiers ADD COLUMN fetch_key_id uuid REFERENCES fetch_keys (id);
 -- Identity coverage: the datasource has answered for the instrument. Either
 -- its answer attached to the instrument, or it served no candidate for a key
 -- the instrument names. It is not requested again for a key that resolves
--- to the instrument. An identity response
--- holds at the moment of the fetch, so the row carries that moment and the
--- fetch key. Reference data, the instruments with no provenance, is covered
--- by every datasource without a row. A row goes with its fetch key.
+-- to the instrument. The row carries the fetch key, which states the moment
+-- of the answer. Reference data, the instruments with no provenance, is
+-- covered by every datasource without a row. A row goes with its fetch key.
 CREATE TABLE identity_coverage (
     instrument_id uuid        NOT NULL REFERENCES instruments (id),
     datasource    text        NOT NULL REFERENCES datasources (name),
     fetch_key_id  uuid        NOT NULL REFERENCES fetch_keys (id) ON DELETE CASCADE,
-    covered_at    timestamptz NOT NULL DEFAULT now(),
     PRIMARY KEY (instrument_id, datasource)
 );
 
@@ -138,14 +143,19 @@ CREATE TABLE datasource_blocks (
     fetch_key_id uuid        NOT NULL REFERENCES fetch_keys (id) ON DELETE CASCADE,
     created_at   timestamptz NOT NULL DEFAULT now(),
     cleared_at   timestamptz,
-    CHECK ((scope = 'identifier') = (sent_type IS NOT NULL)),
-    CHECK ((sent_type IS NULL) = (sent_value IS NULL)),
+    CHECK ((scope = 'datasource') = (sent_type IS NULL)),
+    CHECK ((scope = 'identifier') = (sent_value IS NOT NULL)),
+    CHECK (scope <> 'domain' OR sent_domain <> ''),
     CHECK (sent_type IS NOT NULL OR sent_domain = '')
 );
 
 CREATE UNIQUE INDEX datasource_blocks_identifier_idx
     ON datasource_blocks (datasource, kind, sent_type, sent_domain, sent_value)
     WHERE cleared_at IS NULL AND scope = 'identifier';
+
+CREATE UNIQUE INDEX datasource_blocks_domain_idx
+    ON datasource_blocks (datasource, kind, sent_type, sent_domain)
+    WHERE cleared_at IS NULL AND scope = 'domain';
 
 CREATE UNIQUE INDEX datasource_blocks_datasource_idx
     ON datasource_blocks (datasource, kind)

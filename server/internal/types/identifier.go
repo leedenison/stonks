@@ -70,6 +70,10 @@ type Identifier struct {
 	Value  string         `json:"value"`
 }
 
+// IsDomain reports whether i names every value of a domain of its type. Such
+// an identifier has a type, a domain and an empty value.
+func (i Identifier) IsDomain() bool { return i.Value == "" && i.Domain != "" }
+
 // ToProto writes i as its proto message.
 func (i Identifier) ToProto() *typev1.Identifier {
 	return &typev1.Identifier{Type: ToProto[typev1.IdentifierType](i.Type), Domain: i.Domain, Value: i.Value}

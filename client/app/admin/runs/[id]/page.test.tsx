@@ -184,6 +184,19 @@ const fetchItems = create(ListRunItemsResponseSchema, {
         }),
       },
     }),
+    create(RunItemSchema, {
+      item: {
+        case: "fetch",
+        value: create(FetchItemSchema, {
+          sent: create(IdentifierSchema, {
+            type: IdentifierType.MIC_TICKER,
+            domain: "XNYS",
+          }),
+          outcome: FetchOutcome.SERVED,
+          attempts: 1,
+        }),
+      },
+    }),
   ],
 });
 
@@ -276,6 +289,10 @@ describe("AdminRunPage", () => {
     expect(item.textContent).toContain("SHELL PLC");
     expect(item.textContent).toContain("failed permanent");
     expect(item.textContent).toContain("unknown identifier");
+    const domain = screen.getByTestId("item-row-1");
+    expect(
+      domain.querySelector("[data-identifier-type='MIC_TICKER']")?.textContent,
+    ).toContain("XNYS");
   });
 
   it("clears a finding, and a block's finding through its block", async () => {

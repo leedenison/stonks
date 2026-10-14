@@ -49,6 +49,19 @@ const listed = create(ListBlocksResponseSchema, {
       createdAt: at,
       clearedAt: at,
     }),
+    create(BlockSchema, {
+      id: "b3",
+      datasource: "eodhd",
+      kind: FetchKind.IDENTITY,
+      scope: BlockScope.DOMAIN,
+      sent: create(IdentifierSchema, {
+        type: IdentifierType.MIC_TICKER,
+        domain: "XNYS",
+      }),
+      reason: "plan lacks the endpoint",
+      runId: "f3",
+      createdAt: at,
+    }),
   ],
 });
 
@@ -74,6 +87,11 @@ describe("BlocksPage", () => {
     expect(screen.getByTestId("block-row-b2").textContent).toContain(
       "every call",
     );
+    expect(
+      screen
+        .getByTestId("block-row-b3")
+        .querySelector("[data-identifier-type='MIC_TICKER']")?.textContent,
+    ).toContain("XNYS");
     expect(screen.queryByTestId("block-clear-b2")).toBeNull();
     fireEvent.click(screen.getByTestId("block-clear-b1"));
     await waitFor(() =>

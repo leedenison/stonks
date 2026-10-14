@@ -108,7 +108,10 @@ func (c *Client) Classify(err error) market.Failure {
 }
 
 // openfigiResponse is OpenFIGI's response to one job: data, a warning that
-// nothing was found, or an error.
+// nothing was found, or an error. OpenFIGI documents the warning as the answer
+// when no FIGI is found. Its documentation's sample shows an error for that
+// case. An error also reports a failed job, so only the warning counts as
+// nothing found.
 type openfigiResponse struct {
 	Data    []result `json:"data"`
 	Warning string   `json:"warning"`
@@ -136,6 +139,9 @@ func (c *Client) Fetch(ctx context.Context, reqs []market.Request[gen.StatedKey]
 			continue
 		}
 		out[i].Value = identity(reqs[i].Sent, currency(reqs[i].Value), responses[i].Data, c.mics) //nolint:gosec // out is no longer than reqs
+		// When the job filters on currency, a warning says only that nothing
+		// is listed in that currency.
+		out[i].Value.Unknown = responses[i].Warning != "" && jobs[i].Currency == ""
 	}
 	return out, nil
 }

@@ -255,14 +255,15 @@ func TestRunItems(t *testing.T) {
 	fetch := newFetch(t, q, user, parent, newDatasource(t, q, "admin-items", 10))
 	servedKey(t, q, fetch, two, "US0378331005")
 	servedKey(t, q, fetch, one, "GB00B03MLX29")
+	// Items list in the order the fetch made them.
 	fetched, err := q.ListFetchItems(ctx, gen.ListFetchItemsParams{FetchID: fetch.ID, Lim: &one32})
 	require.NoError(t, err)
-	if len(fetched) != 1 || fetched[0].StatedKey.ID != one.ID || fetched[0].FetchKey.Outcome != gen.FetchOutcomeServed {
-		t.Errorf("ListFetchItems first page = %+v, want the first key, served", fetched)
+	if len(fetched) != 1 || *fetched[0].FetchKey.StatedKeyID != two.ID || fetched[0].FetchKey.Outcome != gen.FetchOutcomeServed {
+		t.Errorf("ListFetchItems first page = %+v, want the first key made, served", fetched)
 	}
-	fetched, err = q.ListFetchItems(ctx, gen.ListFetchItemsParams{FetchID: fetch.ID, After: &one.ID})
+	fetched, err = q.ListFetchItems(ctx, gen.ListFetchItemsParams{FetchID: fetch.ID, After: &fetched[0].FetchKey.ID})
 	require.NoError(t, err)
-	if len(fetched) != 1 || fetched[0].StatedKey.ID != two.ID {
+	if len(fetched) != 1 || *fetched[0].FetchKey.StatedKeyID != one.ID {
 		t.Errorf("ListFetchItems after the first key = %+v, want the second", fetched)
 	}
 

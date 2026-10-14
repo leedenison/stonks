@@ -62,6 +62,8 @@ type fake struct {
 	drop int
 	// empty answers every key with an empty result.
 	empty bool
+	// unknown answers every key as one the provider does not know.
+	unknown bool
 
 	calls int
 	sent  [][]types.Identifier
@@ -93,7 +95,7 @@ func (f *fake) Fetch(_ context.Context, reqs []Request[gen.StatedKey]) ([]Respon
 			out[i] = Response[IdentityResult]{Err: err}
 			continue
 		}
-		out[i] = Response[IdentityResult]{Value: IdentityResult{Filtered: []types.Identifier{id}}}
+		out[i] = Response[IdentityResult]{Value: IdentityResult{Filtered: []types.Identifier{id}, Unknown: f.unknown}}
 		if !f.empty {
 			out[i].Value.Listings = []Listing{{Identifiers: []types.Identifier{id}, Class: types.AssetClassStock, Currency: "USD"}}
 		}

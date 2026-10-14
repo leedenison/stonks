@@ -426,13 +426,13 @@ function RunItems({ id, live }: { id: string; live: boolean }) {
             </tr>
           </Thead>
           <tbody>
-            {fetched.map((it) => (
+            {fetched.map((it, i) => (
               <Tr
-                key={it.statedKeyId}
-                data-testid={`item-row-${it.statedKeyId}`}
+                key={it.statedKeyId ?? i}
+                data-testid={`item-row-${it.statedKeyId ?? i}`}
               >
                 <Td>
-                  <StatedKeyChips statedKey={it.statedKey} />
+                  {it.statedKey && <StatedKeyChips statedKey={it.statedKey} />}
                 </Td>
                 <Td>{it.sent && <IdentifierChip id={it.sent} />}</Td>
                 <Td>

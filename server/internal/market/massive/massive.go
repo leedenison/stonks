@@ -159,21 +159,24 @@ func (c *Client) Classify(err error) market.Failure {
 func (c *Client) Fetch(ctx context.Context, reqs []market.Request[gen.StatedKey]) ([]market.Response[market.IdentityResult], error) {
 	out := make([]market.Response[market.IdentityResult], len(reqs))
 	for i, r := range reqs {
-		recs, err := c.records(ctx, r.Sent)
+		recs, unknown, err := c.records(ctx, r.Sent)
 		if err != nil {
 			return nil, err
 		}
 		out[i].Value = identity(r.Sent, recs, c.mics)
+		out[i].Value.Unknown = unknown
 	}
 	return out, nil
 }
 
 // records returns what Massive holds for id: the record of a ticker, or the
-// records the cusip filter of the ticker list matches. An unknown ticker
-// returns an empty result. Massive marks an unknown ticker with the status
-// NOT_FOUND in the body, which distinguishes it from a 404 for a path that
-// Massive does not serve.
-func (c *Client) records(ctx context.Context, id types.Identifier) ([]record, error) {
+// records the cusip filter of the ticker list matches. The second result
+// reports whether Massive stated that it does not know the ticker. Massive
+// marks an unknown ticker with the status NOT_FOUND in the body, which a 404
+// for a path Massive does not serve lacks. Massive answers as at the latest
+// date, so an unknown ticker names nothing there on the day of the answer. A
+// cusip that matches nothing is not unknown, since no ticker was sent.
+func (c *Client) records(ctx context.Context, id types.Identifier) ([]record, bool, error) {
 	q := url.Values{"apiKey": {c.key}}
 	if id.Type == types.IdentifierTypeCusip {
 		q.Set("cusip", id.Value)
@@ -182,9 +185,9 @@ func (c *Client) records(ctx context.Context, id types.Identifier) ([]record, er
 			Results []record `json:"results"`
 		}
 		if err := c.get(ctx, "/v3/reference/tickers", q, &page); err != nil {
-			return nil, err
+			return nil, false, err
 		}
-		return page.Results, nil
+		return page.Results, false, nil
 	}
 	ticker, _ := market.WithClassSep(id.Value, '.')
 	var one struct {
@@ -194,13 +197,13 @@ func (c *Client) records(ctx context.Context, id types.Identifier) ([]record, er
 	var status market.StatusError
 	switch {
 	case errors.As(err, &status) && unknown(status):
-		return nil, nil
+		return nil, true, nil
 	case err != nil:
-		return nil, err
+		return nil, false, err
 	case one.Results == nil:
-		return nil, nil
+		return nil, false, nil
 	}
-	return []record{*one.Results}, nil
+	return []record{*one.Results}, false, nil
 }
 
 // get sends one request and decodes a 200's body into v.

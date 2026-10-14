@@ -36,11 +36,17 @@ func BlockSent(b gen.DatasourceBlock) (types.Identifier, bool) {
 	return sent(b.SentType, b.SentDomain, b.SentValue)
 }
 
+// sent reads the identifier columns of a row. A domain has a type and a
+// domain and no value.
 func sent(typ *types.IdentifierType, domain string, value *string) (types.Identifier, bool) {
-	if typ == nil || value == nil {
+	if typ == nil {
 		return types.Identifier{}, false
 	}
-	return types.Identifier{Type: *typ, Domain: domain, Value: *value}, true
+	out := types.Identifier{Type: *typ, Domain: domain}
+	if value != nil {
+		out.Value = *value
+	}
+	return out, true
 }
 
 // ProtoRun writes a run row as its proto message.
@@ -156,15 +162,21 @@ func ProtoBlock(r gen.ListBlocksRow) *adminblockv1.Block {
 	return out
 }
 
-// ProtoFetchItem writes a fetch key with the stated key it concerns.
+// ProtoFetchItem writes a fetch key with the stated key it concerns, where
+// one asked.
 func ProtoFetchItem(it gen.ListFetchItemsRow) *adminrunv1.FetchItem {
 	k := it.FetchKey
 	out := &adminrunv1.FetchItem{
-		StatedKey:   ProtoStatedKey(it.StatedKey),
-		StatedKeyId: k.StatedKeyID.String(),
-		Outcome:     types.ToProto[adminrunv1.FetchOutcome](k.Outcome),
-		Attempts:    int32(k.Attempts),
-		Reason:      k.Reason,
+		Outcome:  types.ToProto[adminrunv1.FetchOutcome](k.Outcome),
+		Attempts: int32(k.Attempts),
+		Reason:   k.Reason,
+	}
+	if k.StatedKeyID != nil {
+		id := k.StatedKeyID.String()
+		out.StatedKeyId = &id
+		out.StatedKey = ProtoStatedKey(gen.StatedKey{
+			Identifiers: it.KeyIdentifiers, AssetClass: it.KeyAssetClass, Currency: it.KeyCurrency,
+		})
 	}
 	if sent, ok := Sent(k); ok {
 		out.Sent = sent.ToProto()
