@@ -7,7 +7,12 @@ dependencies: [002]
 
 ## Scope
 
-An administrator starts a domain fetch from the admin area, beside the runs it creates.
-The fetch covers the period that
-[001](../adr/001-a-domain-fetch-covers-from-the-last-domain-fetch-to-the-present.md)
-states. The run it creates shows its events and the coverage it wrote.
+An administrator starts either fetch from the admin area, beside the runs it creates:
+
+- a domain fetch, over the period that
+  [001](../adr/001-a-domain-fetch-covers-from-the-last-domain-fetch-to-the-present.md)
+  states;
+- a re-assertion of every held value, which extends each bracket to the present. See
+  [005](../adr/005-validity-is-bootstrapped-from-the-present-backwards.md).
+
+The run that either creates shows its events and the coverage it wrote.

@@ -79,6 +79,11 @@ the candidates, and the same confirmation writes the user's pick.  A guessed key
 association, arbitrated by a guess, and the confirmation replaces it.  The confirmation
 API refuses an associated key, and the guesses work lifts that refusal for a guessed one.
 
+The review surface also lists a key that states only a ticker.  It lists the key when
+its transactions fall outside the ticker's validity.  Resolution leaves such a key
+unassociated.  The surface offers the instrument the ticker names as its candidate.  The
+user's confirmation overrides the validity, and writes the arbiter as user.
+
 A language model source is an integration like any other.  Its traffic is recorded and
 redacted as the recording proxy records every provider.
 

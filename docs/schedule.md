@@ -33,6 +33,8 @@ of open issues and ADRs at `docs/tasks/<label>/`.
   003 massive   004 eodhd   005 resolve   006 fetch
        |            |            |            |
        |            |      007 statement      |
+       |            |            |            |
+       |            |      009 coverage       |
           \          \          |           /
                         008 close
 ```
