@@ -2,7 +2,7 @@ package eodhd
 
 import (
 	"github.com/leedenison/stonks/server/internal/db/gen"
-	"github.com/leedenison/stonks/server/internal/db/types"
+	"github.com/leedenison/stonks/server/internal/types"
 )
 
 // Serves returns the one identifier of key to send to EODHD: an ISIN, a

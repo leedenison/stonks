@@ -7,9 +7,9 @@ import (
 	"testing"
 
 	"github.com/leedenison/stonks/server/internal/db/gen"
-	"github.com/leedenison/stonks/server/internal/db/types"
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/mic"
+	"github.com/leedenison/stonks/server/internal/types"
 )
 
 // Unauthorised asserts that fetching sent through c fails, and that c reads

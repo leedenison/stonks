@@ -3,7 +3,7 @@ package openfigi
 import (
 	"testing"
 
-	"github.com/leedenison/stonks/server/internal/db/types"
+	"github.com/leedenison/stonks/server/internal/types"
 )
 
 func TestClassify(t *testing.T) {

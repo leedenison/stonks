@@ -24,13 +24,13 @@ import (
 	"github.com/leedenison/stonks/server/internal/auth"
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
-	"github.com/leedenison/stonks/server/internal/db/types"
 	"github.com/leedenison/stonks/server/internal/ptr"
 	"github.com/leedenison/stonks/server/internal/resolve"
 	servicemock "github.com/leedenison/stonks/server/internal/service/mock"
 	"github.com/leedenison/stonks/server/internal/service/servicetest"
 	"github.com/leedenison/stonks/server/internal/service/statement/mock"
 	"github.com/leedenison/stonks/server/internal/statement"
+	"github.com/leedenison/stonks/server/internal/types"
 )
 
 var (

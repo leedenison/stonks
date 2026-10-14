@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/leedenison/stonks/server/internal/db/gen"
-	"github.com/leedenison/stonks/server/internal/db/types"
+	"github.com/leedenison/stonks/server/internal/types"
 )
 
 // TestCacheKey pins the key format, which the e2e suite holds as a contract.

@@ -4,9 +4,9 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/leedenison/stonks/server/internal/db/types"
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/mic"
+	"github.com/leedenison/stonks/server/internal/types"
 )
 
 // record is one ticker as Massive describes it.
