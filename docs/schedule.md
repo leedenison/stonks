@@ -22,11 +22,19 @@ run.
 The milestones that are scheduled, in the order they are implemented. Each has a directory
 of open issues and ADRs at `docs/tasks/<label>/`.
 
-- **M04** - Identity datasources for Massive and EODHD, and confirming a candidate that a
-  fetch served for a key it could not associate.
+- **M05** - Identifier events from Massive and EODHD, and resolution of MIC-derived
+  identifiers inside their validity.
 
 ```
-  005 close
+                       001 open
+                          |
+                     002 framework
+          /          /          \           \
+  003 massive   004 eodhd   005 resolve   006 fetch
+       |            |            |            |
+       |            |      007 statement      |
+          \          \          |           /
+                        008 close
 ```
 
 ## Completed
@@ -38,6 +46,8 @@ The record of what has been built. A milestone lands here when its issue directo
   from it.
 - **M03** - System owned instruments, the datasource framework, and resolution of stated
   keys against one identity datasource.
+- **M04** - Identity datasources for Massive and EODHD, and confirming a candidate that a
+  fetch served for a key it could not associate.
 
 ## Deferred
 
