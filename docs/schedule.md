@@ -27,8 +27,6 @@ of open issues and ADRs at `docs/tasks/<label>/`.
 
 ```
                             001 open
-                               |
-                          002 framework
         /          /          |          \           \
   003 massive  004 eodhd  005 resolve  006 fetch  010 descriptions
        |           |          |           |           |

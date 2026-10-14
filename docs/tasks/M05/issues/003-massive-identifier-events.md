@@ -1,7 +1,6 @@
 ---
 title: Massive identifier events
 type: task
-dependencies: [002]
 ---
 
 ## Scope

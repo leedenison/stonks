@@ -1,7 +1,6 @@
 ---
 title: Broker descriptions in the admin area
 type: task
-dependencies: [002]
 ---
 
 ## Scope
