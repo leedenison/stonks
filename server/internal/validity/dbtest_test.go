@@ -1,0 +1,210 @@
+//go:build dbtest
+
+package validity
+
+import (
+	"context"
+	"testing"
+	"time"
+
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/stretchr/testify/require"
+
+	"github.com/leedenison/stonks/server/internal/db"
+	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/ptr"
+	"github.com/leedenison/stonks/server/internal/testutil/dbtest"
+	"github.com/leedenison/stonks/server/internal/types"
+)
+
+var pool *pgxpool.Pool
+
+func TestMain(m *testing.M) { dbtest.Main(m, &pool) }
+
+// fixture holds a user, an administrator, two instruments and a fetch for each
+// of two datasources, alpha with the lower precedence number. Its helpers
+// assert the value XNYS:FOO.
+type fixture struct {
+	tx         pgx.Tx
+	q          *gen.Queries
+	user       gen.User
+	run        gen.Run
+	fetches    map[string]uuid.UUID
+	foo        types.Identifier
+	a, b       uuid.UUID
+	alpha      string
+	beta       string
+	attestedBy gen.User
+}
+
+func newFixture(t *testing.T) *fixture {
+	t.Helper()
+	ctx := context.Background()
+	tx := dbtest.Begin(t, pool)
+	q := gen.New(tx)
+	f := &fixture{tx: tx, q: q, fetches: map[string]uuid.UUID{}, alpha: "alpha-" + uuid.NewString(), beta: "beta-" + uuid.NewString()}
+	f.foo = types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XNYS", Value: "FOO-" + uuid.NewString()[:8]}
+	var err error
+	f.user, err = q.CreateUser(ctx, gen.CreateUserParams{ID: db.NewID(), Email: uuid.NewString() + "@example.com", Role: gen.UserRoleUser})
+	require.NoError(t, err)
+	f.attestedBy, err = q.CreateUser(ctx, gen.CreateUserParams{ID: db.NewID(), Email: uuid.NewString() + "@example.com", Role: gen.UserRoleAdmin})
+	require.NoError(t, err)
+	f.run, err = q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &f.user.ID, Kind: gen.RunKindResolution, Trigger: gen.RunTriggerUser})
+	require.NoError(t, err)
+	for i, name := range []string{f.alpha, f.beta} {
+		_, err := q.CreateDatasource(ctx, gen.CreateDatasourceParams{Name: name, Enabled: true, Precedence: int32(1000 + i)})
+		require.NoError(t, err)
+		fetch, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &f.user.ID, Kind: gen.RunKindFetch, Trigger: gen.RunTriggerRun, ParentID: &f.run.ID})
+		require.NoError(t, err)
+		_, err = q.CreateFetch(ctx, gen.CreateFetchParams{ID: fetch.ID, UserID: &f.user.ID, Datasource: name, Endpoint: "https://example.com", Kind: gen.FetchKindIdentity})
+		require.NoError(t, err)
+		f.fetches[name] = fetch.ID
+	}
+	for _, id := range []*uuid.UUID{&f.a, &f.b} {
+		inst, err := q.CreateInstrument(ctx, gen.CreateInstrumentParams{ID: db.NewID(), AssetClass: types.AssetClassStock})
+		require.NoError(t, err)
+		*id = inst.ID
+	}
+	return f
+}
+
+// day is the nth day of March 2026.
+func day(n int) time.Time { return time.Date(2026, time.March, n, 0, 0, 0, 0, time.UTC) }
+
+// asserts records datasource asserting that foo names instrument on day n,
+// through a fetch key of its own.
+func (f *fixture) asserts(t *testing.T, datasource string, n int, instrument *uuid.UUID) {
+	t.Helper()
+	ctx := context.Background()
+	key := db.NewID()
+	require.NoError(t, f.q.CreateFetchKey(ctx, gen.CreateFetchKeyParams{
+		ID: key, FetchID: f.fetches[datasource], UserID: &f.user.ID, Outcome: gen.FetchOutcomeServed, Attempts: 1,
+		SentType: &f.foo.Type, SentDomain: f.foo.Domain, SentValue: &f.foo.Value, AnsweredAt: ptr.To(day(n)),
+	}))
+	require.NoError(t, f.q.CreateIdentifierAssertion(ctx, gen.CreateIdentifierAssertionParams{
+		ID: db.NewID(), FetchKeyID: &key, Type: f.foo.Type, Domain: f.foo.Domain, Value: f.foo.Value, InstrumentID: instrument, AssertedOn: day(n),
+	}))
+}
+
+// exec runs sql with args in the fixture's transaction.
+func (f *fixture) exec(t *testing.T, sql string, args ...any) {
+	t.Helper()
+	_, err := f.tx.Exec(context.Background(), sql, args...)
+	require.NoError(t, err)
+}
+
+func (f *fixture) of(t *testing.T) []Interval {
+	t.Helper()
+	ivs, err := Of(context.Background(), f.q, f.foo)
+	require.NoError(t, err)
+	return ivs
+}
+
+func TestOfGreyZone(t *testing.T) {
+	f := newFixture(t)
+	f.asserts(t, f.alpha, 1, &f.a)
+	f.asserts(t, f.beta, 5, &f.b)
+	want := []Interval{
+		provisional(nil, at(1), f.a), confirmed(at(1), at(2), f.a), provisional(at(2), at(5), f.a),
+		confirmed(at(5), at(6), f.b), provisional(at(6), nil, f.b),
+	}
+	if diff := cmp.Diff(want, f.of(t)); diff != "" {
+		t.Errorf("Of mismatch (-want +got):\n%s", diff)
+	}
+}
+
+// TestOfNegativeOfAnotherDatasource checks that a datasource that never
+// asserted the value cannot retire it.
+func TestOfNegativeOfAnotherDatasource(t *testing.T) {
+	f := newFixture(t)
+	f.asserts(t, f.alpha, 1, &f.a)
+	f.asserts(t, f.beta, 5, nil)
+	want := []Interval{provisional(nil, at(1), f.a), confirmed(at(1), at(2), f.a), provisional(at(2), nil, f.a)}
+	if diff := cmp.Diff(want, f.of(t)); diff != "" {
+		t.Errorf("Of mismatch (-want +got):\n%s", diff)
+	}
+}
+
+// TestOfPrecedence checks that, on one day, alpha's assertion wins over
+// beta's.
+func TestOfPrecedence(t *testing.T) {
+	f := newFixture(t)
+	f.asserts(t, f.beta, 1, &f.b)
+	f.asserts(t, f.alpha, 1, &f.a)
+	want := []Interval{provisional(nil, at(1), f.a), confirmed(at(1), at(2), f.a), provisional(at(2), nil, f.a)}
+	if diff := cmp.Diff(want, f.of(t)); diff != "" {
+		t.Errorf("Of mismatch (-want +got):\n%s", diff)
+	}
+}
+
+// TestOfEventsAndCoverage checks that coverage of the domain confirms the
+// value, and that a rename to the value bounds it.
+func TestOfEventsAndCoverage(t *testing.T) {
+	f := newFixture(t)
+	f.asserts(t, f.alpha, 5, &f.a)
+	key := db.NewID()
+	require.NoError(t, f.q.CreateFetchKey(context.Background(), gen.CreateFetchKeyParams{
+		ID: key, FetchID: f.fetches[f.alpha], UserID: &f.user.ID, Outcome: gen.FetchOutcomeServed, Attempts: 1,
+		SentType: &f.foo.Type, SentDomain: "XNYS", AnsweredAt: ptr.To(day(20)),
+	}))
+	f.exec(t, "INSERT INTO identifier_event_coverage (id, fetch_key_id, domain, covered_from, covered_before) VALUES ($1, $2, 'XNYS', $3, $4)", db.NewID(), key, day(1), day(20))
+	f.exec(t, "INSERT INTO identifier_events (id, fetch_key_id, domain, value, action, to_value, effective_on) VALUES ($1, $2, 'XNYS', 'OLD', 'renamed', $3, $4)", db.NewID(), key, f.foo.Value, day(3))
+	want := []Interval{confirmed(at(3), at(20), f.a), provisional(at(20), nil, f.a)}
+	if diff := cmp.Diff(want, f.of(t)); diff != "" {
+		t.Errorf("Of mismatch (-want +got):\n%s", diff)
+	}
+}
+
+// TestOfAttested checks that an administrator's assertion on an earlier day
+// brackets a datasource's.
+func TestOfAttested(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	f.asserts(t, f.alpha, 20, &f.a)
+	run, err := f.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), Kind: gen.RunKindAttestation, Trigger: gen.RunTriggerAdministrator})
+	require.NoError(t, err)
+	require.NoError(t, f.q.CreateIdentifierAssertion(ctx, gen.CreateIdentifierAssertionParams{
+		ID: db.NewID(), RunID: &run.ID, AttestedBy: &f.attestedBy.ID, Type: f.foo.Type, Domain: f.foo.Domain, Value: f.foo.Value,
+		InstrumentID: &f.a, AssertedOn: day(2),
+	}))
+	want := []Interval{provisional(nil, at(2), f.a), confirmed(at(2), at(21), f.a), provisional(at(21), nil, f.a)}
+	if diff := cmp.Diff(want, f.of(t)); diff != "" {
+		t.Errorf("Of mismatch (-want +got):\n%s", diff)
+	}
+}
+
+// TestDomainGaps checks the days from the first transaction of the domain,
+// stated at one of its venues, that no coverage of the domain holds.
+func TestDomainGaps(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	domain := "XNAS"
+	gaps, err := DomainGaps(ctx, f.q, domain, day(30))
+	require.NoError(t, err)
+	if len(gaps) != 0 {
+		t.Fatalf("DomainGaps with no transaction = %v, want none", gaps)
+	}
+
+	statement, err := f.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &f.user.ID, Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser})
+	require.NoError(t, err)
+	f.exec(t, "INSERT INTO statements (id, user_id, broker, order_from, order_before, row_count) VALUES ($1, $2, 'ibkr', $3, $4, 1)", statement.ID, f.user.ID, day(1), day(31))
+	key := db.NewID()
+	f.exec(t, `INSERT INTO stated_keys (id, statement_id, user_id, identifiers) VALUES ($1, $2, $3, '[{"type":"mic_ticker","domain":"XNGS","value":"AAPL"}]')`, key, statement.ID, f.user.ID)
+	f.exec(t, "INSERT INTO transactions (id, user_id, broker, statement_id, stated_key_id, order_date, settlement_date, as_at, quantity) VALUES ($1, $2, 'ibkr', $3, $4, $5, $5, $5, 1)", db.NewID(), f.user.ID, statement.ID, key, day(4))
+	fetchKey := db.NewID()
+	require.NoError(t, f.q.CreateFetchKey(ctx, gen.CreateFetchKeyParams{
+		ID: fetchKey, FetchID: f.fetches[f.alpha], UserID: &f.user.ID, Outcome: gen.FetchOutcomeServed, Attempts: 1,
+		SentType: &f.foo.Type, SentDomain: domain, AnsweredAt: ptr.To(day(20)),
+	}))
+	f.exec(t, "INSERT INTO identifier_event_coverage (id, fetch_key_id, domain, covered_from, covered_before) VALUES ($1, $2, $3, $4, $5)", db.NewID(), fetchKey, domain, day(10), day(20))
+
+	gaps, err = DomainGaps(ctx, f.q, domain, day(25))
+	require.NoError(t, err)
+	want := []types.Period{{From: day(4), Before: day(10)}, {From: day(20), Before: day(26)}}
+	if diff := cmp.Diff(want, gaps); diff != "" {
+		t.Errorf("DomainGaps mismatch (-want +got):\n%s", diff)
+	}
+}
