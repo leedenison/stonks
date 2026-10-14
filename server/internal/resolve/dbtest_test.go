@@ -73,9 +73,25 @@ func newStack(t *testing.T) *stack {
 	}
 	s.sources, err = market.New(ctx, q, factories, log)
 	require.NoError(t, err)
-	fetcher := market.NewFetcher(db.New[market.Queries](tx), runtest.Runner{Q: q}, log)
+	fetcher := market.NewFetcher(db.New[market.Queries](tx), runtest.Runner{Q: q}, log, market.WithClock(func() time.Time { return answered }, sleep))
 	s.resolver = New(db.New[Queries](tx), &serial{Fetcher: fetcher}, s.sources, log)
 	return s
+}
+
+// answered is the moment every datasource of the stack answers, so the day an
+// assertion holds is known.
+var answered = time.Date(2026, time.March, 2, 15, 30, 0, 0, time.UTC)
+
+// sleep waits for d or until ctx is done.
+func sleep(ctx context.Context, d time.Duration) error {
+	timer := time.NewTimer(d)
+	defer timer.Stop()
+	select {
+	case <-timer.C:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 // serial runs the fetches of one request one at a time. The stack's queries
@@ -272,10 +288,16 @@ func TestResolveWrites(t *testing.T) {
 	if diff := cmp.Diff(wantIdentifiers, identifiers); diff != "" {
 		t.Errorf("identifiers mismatch (-want +got):\n%s", diff)
 	}
-	asserted, err := s.q.ListFetchIdentifiers(ctx, *inst.FetchKeyID)
+	asserted, err := s.q.ListFetchKeyAssertions(ctx, inst.FetchKeyID)
 	require.NoError(t, err)
 	if len(asserted) != 4 {
-		t.Errorf("%d fetch identifiers, want the 4 the response named", len(asserted))
+		t.Errorf("%d assertions, want the 4 the response named", len(asserted))
+	}
+	day := time.Date(2026, time.March, 2, 0, 0, 0, 0, time.UTC)
+	for _, a := range asserted {
+		if a.InstrumentID == nil || *a.InstrumentID != inst.ID || !a.AssertedOn.Equal(day) {
+			t.Errorf("assertion = %+v, want the instrument on %s, the day of the answer", a, day.Format(time.DateOnly))
+		}
 	}
 
 	tradeKey, transferKey := s.key(t, trade.ID), s.key(t, transfer.ID)
@@ -328,6 +350,34 @@ func TestResolveWrites(t *testing.T) {
 	}
 	if _, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: types.IdentifierTypeCusip, Value: cusip.Value}); !errors.Is(err, db.ErrNotFound) {
 		t.Errorf("FindIdentifier(cusip) error = %v, want not found: a dropped set of identifiers is not stored", err)
+	}
+	droppedKey := sent[wrong.ID].ID
+	dropped, err := s.q.ListFetchKeyAssertions(ctx, &droppedKey)
+	require.NoError(t, err)
+	if len(dropped) != 0 {
+		t.Errorf("assertions of the dropped answer = %+v, want none", dropped)
+	}
+}
+
+// TestUnknownRows checks that an answer stating the identifier sent is
+// unknown writes a negative assertion of it, on the day of the answer.
+func TestUnknownRows(t *testing.T) {
+	s := newStack(t)
+	ctx := context.Background()
+	ticker := types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XNYS", Value: "ZZZQ"}
+	s.script.Responses[ticker] = market.IdentityResult{Unknown: true}
+	key := s.state(t, types.AssetClassStock, "USD", ticker)
+	s.resolve(t, key)
+
+	fk := s.fetchKey(t, key.ID, s.alphaName)
+	asserted, err := s.q.ListFetchKeyAssertions(ctx, &fk.ID)
+	require.NoError(t, err)
+	want := []gen.IdentifierAssertion{{
+		ID: asserted[0].ID, FetchKeyID: &fk.ID, Type: ticker.Type, Domain: ticker.Domain, Value: ticker.Value,
+		AssertedOn: time.Date(2026, time.March, 2, 0, 0, 0, 0, time.UTC),
+	}}
+	if diff := cmp.Diff(want, asserted); diff != "" {
+		t.Errorf("assertions mismatch (-want +got):\n%s", diff)
 	}
 }
 
@@ -459,6 +509,19 @@ func TestMergeRows(t *testing.T) {
 	require.NoError(t, s.tx.QueryRow(ctx, "SELECT count(*) FROM fetch_keys WHERE stated_key_id = $1 AND instrument_id = $2", second.ID, survivor).Scan(&relinked))
 	if relinked != 1 {
 		t.Errorf("%d fetch keys of the second key name the survivor, want 1", relinked)
+	}
+	naming := map[bool]int{}
+	rows, err := s.tx.Query(ctx, "SELECT instrument_id = $1, count(*) FROM identifier_assertions WHERE instrument_id IN ($1, $2) GROUP BY 1", survivor, b.Instrument.ID)
+	require.NoError(t, err)
+	for rows.Next() {
+		var isSurvivor bool
+		var n int
+		require.NoError(t, rows.Scan(&isSurvivor, &n))
+		naming[isSurvivor] = n
+	}
+	require.NoError(t, rows.Err())
+	if naming[false] != 0 || naming[true] == 0 {
+		t.Errorf("assertions naming the survivor %d, the merged instrument %d, want every one on the survivor", naming[true], naming[false])
 	}
 	coverage, err := s.q.ListIdentityCoverage(ctx, []uuid.UUID{survivor, b.Instrument.ID})
 	require.NoError(t, err)

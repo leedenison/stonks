@@ -27,7 +27,8 @@ type Queries interface {
 	CreateIdentifier(ctx context.Context, arg gen.CreateIdentifierParams) (gen.Identifier, error)
 	UpsertIdentityCoverage(ctx context.Context, arg gen.UpsertIdentityCoverageParams) error
 	SetFetchKeyInstrument(ctx context.Context, arg gen.SetFetchKeyInstrumentParams) error
-	CreateFetchIdentifier(ctx context.Context, arg gen.CreateFetchIdentifierParams) error
+	CreateIdentifierAssertion(ctx context.Context, arg gen.CreateIdentifierAssertionParams) error
+	RelinkIdentifierAssertions(ctx context.Context, arg gen.RelinkIdentifierAssertionsParams) error
 	CreateFinding(ctx context.Context, arg gen.CreateFindingParams) error
 	SetStatedKeyAssociation(ctx context.Context, arg gen.SetStatedKeyAssociationParams) (int64, error)
 	GetStatedKey(ctx context.Context, arg gen.GetStatedKeyParams) (gen.StatedKey, error)

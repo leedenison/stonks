@@ -113,20 +113,6 @@ CREATE TABLE identity_coverage (
     PRIMARY KEY (instrument_id, datasource)
 );
 
--- The identifiers returned as part of a fetch result; an assertion by the
--- datasource that the identifiers refer to the same instrument at the time
--- of the fetch.
-CREATE TABLE fetch_identifiers (
-    fetch_key_id uuid            NOT NULL REFERENCES fetch_keys (id) ON DELETE CASCADE,
-    type         identifier_type NOT NULL,
-    domain       text            NOT NULL DEFAULT '',
-    value        text            NOT NULL,
-    created_at   timestamptz     NOT NULL DEFAULT now(),
-    UNIQUE (fetch_key_id, type, domain, value)
-);
-
-CREATE INDEX fetch_identifiers_value_idx ON fetch_identifiers (type, domain, value);
-
 -- A block records that a call failed unrecoverably, and suppresses further calls
 -- until an administrator clears it. A block goes with the fetch key whose call
 -- created it.

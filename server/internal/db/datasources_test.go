@@ -342,32 +342,6 @@ func TestFetchKeys(t *testing.T) {
 	})
 }
 
-// TestFetchIdentifiers checks one assertion per triple, counting empty domains
-// as equal.
-func TestFetchIdentifiers(t *testing.T) {
-	ctx := context.Background()
-	q := newTx(t)
-	f := newFetching(t, q)
-	key := servedKey(t, q, f.fetch, f.key, "GB00B03MLX29")
-
-	require.NoError(t, q.CreateFetchIdentifier(ctx, gen.CreateFetchIdentifierParams{
-		FetchKeyID: key, Type: types.IdentifierTypeIsin, Value: "GB00B03MLX29"}))
-	require.NoError(t, q.CreateFetchIdentifier(ctx, gen.CreateFetchIdentifierParams{
-		FetchKeyID: key, Type: types.IdentifierTypeMicTicker, Domain: "XLON", Value: "SHEL"}))
-
-	listed, err := q.ListFetchIdentifiers(ctx, key)
-	require.NoError(t, err)
-	if len(listed) != 2 {
-		t.Fatalf("ListFetchIdentifiers = %d rows, want 2", len(listed))
-	}
-
-	err = q.CreateFetchIdentifier(ctx, gen.CreateFetchIdentifierParams{
-		FetchKeyID: key, Type: types.IdentifierTypeIsin, Value: "GB00B03MLX29"})
-	if !sqlstate(err, pgerrcode.UniqueViolation) {
-		t.Errorf("CreateFetchIdentifier of a triple with no domain twice: err = %v, want a unique violation", err)
-	}
-}
-
 // TestDatasourceBlocks checks one open block per scope, each reported by a
 // finding of the fetch run, and that clearing one clears its finding and
 // admits the next.

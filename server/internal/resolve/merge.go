@@ -114,6 +114,9 @@ func fold(ctx context.Context, q Queries, survivor *join.InstrumentWithCoverage,
 		{"relink fetch keys", func() error {
 			return q.RelinkFetchKeys(ctx, gen.RelinkFetchKeysParams{Survivor: survivor.Row.ID, Loser: loser.Row.ID})
 		}},
+		{"relink assertions", func() error {
+			return q.RelinkIdentifierAssertions(ctx, gen.RelinkIdentifierAssertionsParams{Survivor: survivor.Row.ID, Loser: loser.Row.ID})
+		}},
 		{"move coverage", func() error {
 			return q.MoveIdentityCoverage(ctx, gen.MoveIdentityCoverageParams{Survivor: survivor.Row.ID, Loser: loser.Row.ID})
 		}},

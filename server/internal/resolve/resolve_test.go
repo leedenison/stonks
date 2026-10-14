@@ -165,7 +165,7 @@ func (f *fixture) creates() {
 		f.attached = append(f.attached, arg.ID)
 		return nil
 	}).AnyTimes()
-	f.store.EXPECT().CreateFetchIdentifier(gomock.Any(), gomock.Any()).AnyTimes()
+	f.store.EXPECT().CreateIdentifierAssertion(gomock.Any(), gomock.Any()).AnyTimes()
 }
 
 // serves has e serve one fetch key per key, in the order of the keys.
