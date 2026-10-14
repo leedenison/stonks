@@ -1,7 +1,6 @@
 ---
 title: A statement shows a provisional association
 type: task
-status: unreviewed
 dependencies: [005]
 ---
 

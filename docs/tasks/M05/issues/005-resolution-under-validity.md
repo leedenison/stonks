@@ -1,7 +1,6 @@
 ---
 title: Resolution under identifier validity
 type: task
-status: unreviewed
 dependencies: [002]
 ---
 

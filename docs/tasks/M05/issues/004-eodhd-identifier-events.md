@@ -1,7 +1,6 @@
 ---
 title: EODHD identifier events
 type: task
-status: unreviewed
 dependencies: [002]
 ---
 
