@@ -32,7 +32,8 @@ message HoldingKey {
   stonks.type.v1.StatedKey stated_key = 1;
   // The listing the key associates through; empty where it names none.
   string listing_id = 2;
-  // The sum of the key's transaction quantities.
+  // The sum of the key's transaction quantities, for cash in the currency the
+  // key states.
   string quantity = 3;
 }
 
@@ -48,7 +49,8 @@ message InstrumentHolding {
   repeated stonks.type.v1.Identifier identifiers = 3;
   // The sum of the caller's transaction quantities over every key resolved to
   // the instrument: shares, contracts, or money for cash, with no trailing
-  // zeros. Negative when more has been disposed of than acquired.
+  // zeros. Cash is summed in its family's unit, so pence count as hundredths
+  // of a pound. Negative when more has been disposed of than acquired.
   string quantity = 4;
   // Every listing of the instrument, by currency.
   repeated HoldingListing listings = 5;
