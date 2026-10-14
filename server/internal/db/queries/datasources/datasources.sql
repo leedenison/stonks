@@ -18,8 +18,8 @@ SELECT * FROM fetches WHERE id = $1 AND user_id = $2;
 
 -- name: CreateFetchKey :exec
 INSERT INTO fetch_keys (id, fetch_id, user_id, stated_key_id, outcome, attempts,
-    sent_type, sent_domain, sent_value, reason, candidates)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11);
+    sent_type, sent_domain, sent_value, reason, candidates, answered_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12);
 
 -- name: ListFetchKeys :many
 SELECT * FROM fetch_keys WHERE fetch_id = $1 AND user_id = $2 ORDER BY id;
@@ -44,14 +44,14 @@ ORDER BY instrument_id, datasource;
 INSERT INTO identity_coverage (instrument_id, datasource, fetch_key_id)
 VALUES ($1, $2, $3)
 ON CONFLICT (instrument_id, datasource) DO UPDATE
-SET fetch_key_id = EXCLUDED.fetch_key_id, covered_at = now();
+SET fetch_key_id = EXCLUDED.fetch_key_id;
 
 -- name: RelinkFetchKeys :exec
 UPDATE fetch_keys SET instrument_id = @survivor::uuid WHERE instrument_id = @loser::uuid;
 
 -- name: MoveIdentityCoverage :exec
-INSERT INTO identity_coverage (instrument_id, datasource, fetch_key_id, covered_at)
-SELECT @survivor::uuid, datasource, fetch_key_id, covered_at
+INSERT INTO identity_coverage (instrument_id, datasource, fetch_key_id)
+SELECT @survivor::uuid, datasource, fetch_key_id
 FROM identity_coverage WHERE instrument_id = @loser::uuid
 ON CONFLICT (instrument_id, datasource) DO NOTHING;
 
@@ -92,13 +92,16 @@ WITH block AS (
 SELECT id FROM block;
 
 -- name: ListFetchItems :many
--- A NULL after starts at the first item, and a NULL lim reads every item.
-SELECT sqlc.embed(fetch_keys), sqlc.embed(stated_keys)
+-- The keys of a fetch in the order it made them, each with what its stated
+-- key states. The key columns are null where no stated key asked. A NULL
+-- after starts at the first item, and a NULL lim reads every item.
+SELECT sqlc.embed(fetch_keys), stated_keys.identifiers AS key_identifiers,
+       stated_keys.asset_class AS key_asset_class, stated_keys.currency AS key_currency
 FROM fetch_keys
-JOIN stated_keys ON stated_keys.id = fetch_keys.stated_key_id
+LEFT JOIN stated_keys ON stated_keys.id = fetch_keys.stated_key_id
 WHERE fetch_keys.fetch_id = @fetch_id
-  AND (sqlc.narg(after)::uuid IS NULL OR fetch_keys.stated_key_id > sqlc.narg(after))
-ORDER BY fetch_keys.stated_key_id
+  AND (sqlc.narg(after)::uuid IS NULL OR fetch_keys.id > sqlc.narg(after))
+ORDER BY fetch_keys.id
 LIMIT sqlc.narg(lim)::int;
 
 -- name: UpdateDatasource :one

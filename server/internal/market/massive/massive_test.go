@@ -62,6 +62,8 @@ func TestFetch(t *testing.T) {
 		// sent.
 		filtered types.Identifier
 		want     []market.Listing
+		// unknown is whether Massive stated that it knows nothing under sent.
+		unknown bool
 	}{
 		{
 			cassette: "massive_ticker",
@@ -93,6 +95,7 @@ func TestFetch(t *testing.T) {
 		{
 			cassette: "massive_unknown_ticker",
 			sent:     ticker("", "ZZZZQQ"),
+			unknown:  true,
 		},
 		{
 			// An invented CUSIP, which no security holds.
@@ -114,7 +117,7 @@ func TestFetch(t *testing.T) {
 				tc.filtered = tc.sent
 			}
 			want := []market.Response[market.IdentityResult]{{Value: market.IdentityResult{
-				Filtered: []types.Identifier{tc.filtered}, Listings: tc.want, Limited: true,
+				Filtered: []types.Identifier{tc.filtered}, Listings: tc.want, Limited: true, Unknown: tc.unknown,
 			}}}
 			if diff := cmp.Diff(want, got); diff != "" {
 				t.Errorf("Fetch(%v) mismatch (-want +got):\n%s", tc.sent, diff)

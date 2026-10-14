@@ -26,11 +26,12 @@
 // configures. An answer is a system fact, so the cache is shared by every
 // user. A fetch reads the cache before it checks blocks, the pause and the
 // rate, and calls the datasource only for a key that misses. Only a served
-// answer is cached, an empty one included. A hit records a served fetch key
-// with zero attempts. A cache error fails the fetch: Redis is a hard
-// dependency of the request path already, and a failed run is replayed as
-// any other. Answers are cached by request, so a reorder of the datasources
-// leaves them in place.
+// answer is cached, an empty one included. Each cached answer carries the
+// moment the datasource gave it. A hit records a served fetch key with zero
+// attempts, answered at that moment. A cache error fails the fetch: Redis is
+// a hard dependency of the request path already, and a failed run is
+// replayed as any other. Answers are cached by request, so a reorder of the
+// datasources leaves them in place.
 //
 // The cache key is the request as the integration sends it. Its format is a
 // contract the e2e suite holds; see [cache.go](cache.go).
@@ -135,8 +136,9 @@ type Kind[Q, P any] struct {
 	name gen.FetchKind
 	// server returns nil where the entry does not serve the kind.
 	server func(*Entry) Server[Q, P]
-	// subject is what the fetch_keys row records a request as.
-	subject func(Q) uuid.UUID
+	// subject is the stated key the fetch_keys row records a request for, nil
+	// where none asked.
+	subject func(Q) *uuid.UUID
 	// count is how many results a served response offered, which the
 	// fetch_keys row records.
 	count func(P) int

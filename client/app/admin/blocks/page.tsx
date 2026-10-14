@@ -75,7 +75,7 @@ function Blocks() {
                     {b.datasource} <Chip>{enumLabel(FetchKind, b.kind)}</Chip>
                   </Td>
                   <Td>
-                    {b.scope === BlockScope.IDENTIFIER && b.sent ? (
+                    {b.scope !== BlockScope.DATASOURCE && b.sent ? (
                       <IdentifierChip id={b.sent} />
                     ) : (
                       "every call"

@@ -13,6 +13,7 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/ptr"
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
@@ -163,8 +164,8 @@ func TestSystemFetch(t *testing.T) {
 	value := "US0378331005"
 	isin := types.IdentifierTypeIsin
 	err = q.CreateFetchKey(ctx, gen.CreateFetchKeyParams{
-		ID: db.NewID(), FetchID: fetch.ID, StatedKeyID: f.key.ID, Outcome: gen.FetchOutcomeServed, Attempts: 1,
-		SentType: &isin, SentValue: &value,
+		ID: db.NewID(), FetchID: fetch.ID, StatedKeyID: &f.key.ID, Outcome: gen.FetchOutcomeServed, Attempts: 1,
+		SentType: &isin, SentValue: &value, AnsweredAt: ptr.To(answered),
 	})
 	require.NoError(t, err)
 	// The violation aborts the transaction, so it is the last statement.

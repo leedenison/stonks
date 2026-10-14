@@ -42,6 +42,11 @@ func TestSent(t *testing.T) {
 	if got, ok := BlockSent(gen.DatasourceBlock{SentType: &typ, SentDomain: "XLON", SentValue: &value}); !ok || got.Domain != "XLON" {
 		t.Errorf("BlockSent = %+v, %v, want the venue kept", got, ok)
 	}
+	ticker := types.IdentifierTypeMicTicker
+	domain := types.Identifier{Type: ticker, Domain: "XNYS"}
+	if got, ok := Sent(gen.FetchKey{SentType: &ticker, SentDomain: "XNYS"}); !ok || got != domain || !got.IsDomain() {
+		t.Errorf("Sent(domain) = %+v, %v, want %+v", got, ok, domain)
+	}
 }
 
 func TestProtoRun(t *testing.T) {
@@ -157,16 +162,38 @@ func TestProtoBlock(t *testing.T) {
 func TestProtoFetchItem(t *testing.T) {
 	key := uuid.New()
 	typ, value := types.IdentifierTypeIsin, "GB00BH4HKS39"
-	row := gen.ListFetchItemsRow{
-		FetchKey:  gen.FetchKey{StatedKeyID: key, Outcome: gen.FetchOutcomeServed, Attempts: 2, Reason: ptr.To("ok"), SentType: &typ, SentValue: &value},
-		StatedKey: gen.StatedKey{Currency: ptr.To("GBP")},
+	ticker := types.IdentifierTypeMicTicker
+	tests := []struct {
+		name string
+		row  gen.ListFetchItemsRow
+		want *adminrunv1.FetchItem
+	}{
+		{
+			name: "a stated key's identifier",
+			row: gen.ListFetchItemsRow{
+				FetchKey:    gen.FetchKey{StatedKeyID: &key, Outcome: gen.FetchOutcomeServed, Attempts: 2, Reason: ptr.To("ok"), SentType: &typ, SentValue: &value},
+				KeyCurrency: ptr.To("GBP"),
+			},
+			want: &adminrunv1.FetchItem{
+				StatedKey: &typev1.StatedKey{Currency: ptr.To("GBP")}, StatedKeyId: ptr.To(key.String()), Outcome: adminrunv1.FetchOutcome_FETCH_OUTCOME_SERVED,
+				Attempts: 2, Reason: ptr.To("ok"), Sent: &typev1.Identifier{Type: typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, Value: value},
+			},
+		},
+		{
+			name: "a domain no stated key asked for",
+			row:  gen.ListFetchItemsRow{FetchKey: gen.FetchKey{Outcome: gen.FetchOutcomeServed, Attempts: 1, SentType: &ticker, SentDomain: "XNYS"}},
+			want: &adminrunv1.FetchItem{
+				Outcome: adminrunv1.FetchOutcome_FETCH_OUTCOME_SERVED, Attempts: 1,
+				Sent: &typev1.Identifier{Type: typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, Domain: "XNYS"},
+			},
+		},
 	}
-	want := &adminrunv1.FetchItem{
-		StatedKey: &typev1.StatedKey{Currency: ptr.To("GBP")}, StatedKeyId: key.String(), Outcome: adminrunv1.FetchOutcome_FETCH_OUTCOME_SERVED,
-		Attempts: 2, Reason: ptr.To("ok"), Sent: &typev1.Identifier{Type: typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, Value: value},
-	}
-	if diff := cmp.Diff(want, ProtoFetchItem(row), protocmp.Transform()); diff != "" {
-		t.Errorf("ProtoFetchItem mismatch (-want +got):\n%s", diff)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if diff := cmp.Diff(tc.want, ProtoFetchItem(tc.row), protocmp.Transform()); diff != "" {
+				t.Errorf("ProtoFetchItem mismatch (-want +got):\n%s", diff)
+			}
+		})
 	}
 }
 

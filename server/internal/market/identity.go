@@ -43,6 +43,10 @@ type IdentityResult struct {
 	// listings. Otherwise an answer without a listing in a currency means
 	// the instrument has none in it.
 	Limited bool
+	// Unknown reports that the provider stated it knows nothing under the
+	// identifier sent. An answer whose listings the conversion dropped is
+	// empty and not unknown.
+	Unknown bool
 }
 
 // Identity looks up the set of identifiers that refer to the same instrument
@@ -60,7 +64,7 @@ var identityKind = Kind[gen.StatedKey, IdentityResult]{
 		s, _ := e.Integration.(Identity)
 		return s
 	},
-	subject: func(k gen.StatedKey) uuid.UUID { return k.ID },
+	subject: func(k gen.StatedKey) *uuid.UUID { return &k.ID },
 	count:   func(r IdentityResult) int { return len(r.Listings) },
 }
 

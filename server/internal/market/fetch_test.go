@@ -173,7 +173,7 @@ func (h *harness) run(t *testing.T, keys ...gen.StatedKey) []FetchKey[gen.Stated
 func (h *harness) key(t *testing.T, id uuid.UUID) gen.CreateFetchKeyParams {
 	t.Helper()
 	for _, k := range h.keys {
-		if k.StatedKeyID == id {
+		if k.StatedKeyID != nil && *k.StatedKeyID == id {
 			return k
 		}
 	}
@@ -732,7 +732,11 @@ func TestFetchCacheHit(t *testing.T) {
 	if len(h.cache.entries) != 1 {
 		t.Fatalf("entries = %d, want the served answer stored", len(h.cache.entries))
 	}
+	if !miss.AnsweredAt.Equal(start) {
+		t.Errorf("miss answered at %v, want the moment of the call %v", miss.AnsweredAt, start)
+	}
 
+	h.now = start.Add(time.Hour)
 	hit := h.run(t, second)[0]
 	if f.calls != 1 {
 		t.Errorf("calls = %d, want 1: the second fetch is answered from the cache", f.calls)
@@ -743,8 +747,11 @@ func TestFetchCacheHit(t *testing.T) {
 	if diff := cmp.Diff(miss.Response, hit.Response); diff != "" {
 		t.Errorf("the cached answer differs from the one the call produced (-call +cache):\n%s", diff)
 	}
-	if row := h.key(t, second.ID); row.Outcome != gen.FetchOutcomeServed || row.Attempts != 0 || row.Candidates != 1 {
-		t.Errorf("row = %+v, want served with zero attempts and one listing", row)
+	if !hit.AnsweredAt.Equal(start) {
+		t.Errorf("hit answered at %v, want the moment of the call that filled the cache %v", hit.AnsweredAt, start)
+	}
+	if row := h.key(t, second.ID); row.Outcome != gen.FetchOutcomeServed || row.Attempts != 0 || row.Candidates != 1 || row.AnsweredAt == nil || !row.AnsweredAt.Equal(start) {
+		t.Errorf("row = %+v, want served with zero attempts, one listing, answered at %v", row, start)
 	}
 	got := counts(t)
 	for name := range got {
@@ -762,16 +769,18 @@ func TestFetchCacheHit(t *testing.T) {
 }
 
 // TestFetchCacheEmptyAnswer checks that an answer with no listing is
-// cached as any other.
+// cached as any other, and keeps the provider's statement that it knows
+// nothing under the identifier.
 func TestFetchCacheEmptyAnswer(t *testing.T) {
-	f := &fake{empty: true}
+	f := &fake{empty: true, unknown: true}
 	h := newHarness(t, f, nil)
 	first, second := keyOf(f, "GB00B03MLX29"), keyOf(f, "GB00B03MLX29")
 
 	h.run(t, first)
 	hit := h.run(t, second)[0]
-	if f.calls != 1 || !hit.cached || len(hit.Response.Listings) != 0 {
-		t.Errorf("calls = %d, cached = %v, listings = %d, want one call and an empty hit", f.calls, hit.cached, len(hit.Response.Listings))
+	if f.calls != 1 || !hit.cached || len(hit.Response.Listings) != 0 || !hit.Response.Unknown {
+		t.Errorf("calls = %d, cached = %v, listings = %d, unknown = %v, want one call and an empty, unknown hit",
+			f.calls, hit.cached, len(hit.Response.Listings), hit.Response.Unknown)
 	}
 }
 
@@ -846,5 +855,42 @@ func TestFetchCacheErrors(t *testing.T) {
 				t.Errorf("fetch keys = %d, want none recorded", len(h.keys))
 			}
 		})
+	}
+}
+
+// TestFetchDomainBlock checks that a domain whose send fails permanently is
+// blocked as a domain: the block holds no value, it suppresses a later send
+// of the domain, and it leaves a value of the domain to be sent.
+func TestFetchDomainBlock(t *testing.T) {
+	nyse := types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XNYS"}
+	value := types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XNYS", Value: "AAPL"}
+	f := &fake{batch: 1, perKey: map[string]error{"": permanent("the plan lacks the endpoint")}}
+	h := newHarness(t, f, nil)
+	first, second, other := gen.StatedKey{ID: db.NewID()}, gen.StatedKey{ID: db.NewID()}, gen.StatedKey{ID: db.NewID()}
+	f.serves = map[string]types.Identifier{first.ID.String(): nyse, second.ID.String(): nyse, other.ID.String(): value}
+
+	got := h.run(t, first, second, other)
+	outcomes := []gen.FetchOutcome{got[0].Outcome, got[1].Outcome, got[2].Outcome}
+	want := []gen.FetchOutcome{gen.FetchOutcomeFailedPermanent, gen.FetchOutcomeBlocked, gen.FetchOutcomeServed}
+	if diff := cmp.Diff(want, outcomes); diff != "" {
+		t.Errorf("outcomes mismatch (-want +got):\n%s", diff)
+	}
+	if len(h.blocks) != 1 {
+		t.Fatalf("blocks = %+v, want one", h.blocks)
+	}
+	b := h.blocks[0]
+	if b.Scope != gen.BlockScopeDomain || b.SentType == nil || *b.SentType != types.IdentifierTypeMicTicker || b.SentDomain != "XNYS" || b.SentValue != nil {
+		t.Errorf("block = %+v, want the domain XNYS with no value", b)
+	}
+	if row := h.key(t, first.ID); row.SentValue != nil || row.SentDomain != "XNYS" {
+		t.Errorf("row = %+v, want the domain sent with no value", row)
+	}
+
+	open := []gen.DatasourceBlock{{Scope: gen.BlockScopeDomain, SentType: b.SentType, SentDomain: "XNYS", Reason: "the plan lacks the endpoint"}}
+	h = newHarness(t, f, open)
+	again := gen.StatedKey{ID: db.NewID()}
+	f.serves[again.ID.String()] = nyse
+	if got := h.run(t, again)[0]; got.Outcome != gen.FetchOutcomeBlocked {
+		t.Errorf("outcome under an open domain block = %s, want blocked", got.Outcome)
 	}
 }

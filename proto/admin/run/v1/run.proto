@@ -48,14 +48,16 @@ enum FetchOutcome {
 
 // One stated key a fetch asked a datasource about, with its outcome.
 message FetchItem {
+  // The stated key that asked for the request; unset where none did.
   stonks.type.v1.StatedKey stated_key = 1;
   // Identifies the key across runs.
-  string stated_key_id = 2;
+  optional string stated_key_id = 2;
   FetchOutcome outcome = 3;
   // The number of calls that carried the key; zero when the datasource was
   // paused or the answer came from the cache.
   int32 attempts = 4;
-  // The identifier that carried the key; unset when it was not served.
+  // The identifier that carried the request, or the domain: an identifier
+  // with no value. Unset when it was not served.
   stonks.type.v1.Identifier sent = 5;
   // The datasource's error; unset when the key was served.
   optional string reason = 6;
@@ -100,7 +102,7 @@ message Finding {
   // The finding's stated key; set for every kind but BLOCK.
   optional string stated_key_id = 5;
   // What the key concerned states: the finding's own key, or for a block
-  // the key whose call created it.
+  // the key whose call created it. Unset where no key is concerned.
   stonks.type.v1.StatedKey stated_key = 6;
   // The step that dropped the set of identifiers; present only when the kind
   // is DROPPED.

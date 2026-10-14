@@ -393,14 +393,14 @@ func TestListRunItems(t *testing.T) {
 			expect: func(r *mock.MockQueriesMockRecorder) {
 				r.ListFetchItems(gomock.Any(), gen.ListFetchItemsParams{FetchID: runID, After: &childID, Lim: &fifty}).Return([]gen.ListFetchItemsRow{{
 					FetchKey: gen.FetchKey{
-						StatedKeyID: keyID, Outcome: gen.FetchOutcomeFailedPermanent, Attempts: 1,
+						StatedKeyID: &keyID, Outcome: gen.FetchOutcomeFailedPermanent, Attempts: 1,
 						SentType: &itemISIN.Type, SentValue: &itemISIN.Value, Reason: ptr.To("unknown identifier"),
 					},
-					StatedKey: itemKey,
+					KeyIdentifiers: itemKey.Identifiers, KeyAssetClass: itemKey.AssetClass, KeyCurrency: itemKey.Currency,
 				}}, nil)
 			},
 			want: &adminrunv1.ListRunItemsResponse{Items: []*adminrunv1.RunItem{{Item: &adminrunv1.RunItem_Fetch{Fetch: &adminrunv1.FetchItem{
-				StatedKey: itemKeyMsg, StatedKeyId: keyID.String(), Outcome: adminrunv1.FetchOutcome_FETCH_OUTCOME_FAILED_PERMANENT, Attempts: 1,
+				StatedKey: itemKeyMsg, StatedKeyId: ptr.To(keyID.String()), Outcome: adminrunv1.FetchOutcome_FETCH_OUTCOME_FAILED_PERMANENT, Attempts: 1,
 				Sent:   &typev1.Identifier{Type: typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, Value: "GB00B03MLX29"},
 				Reason: ptr.To("unknown identifier"),
 			}}}}},

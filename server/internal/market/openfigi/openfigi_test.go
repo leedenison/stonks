@@ -80,6 +80,8 @@ func TestFetchListings(t *testing.T) {
 		n     int
 		// class is every listing's, where the call names one instrument.
 		class types.AssetClass
+		// unknown is whether OpenFIGI stated that it knows nothing under sent.
+		unknown bool
 	}{
 		{
 			cassette: "isin",
@@ -124,6 +126,7 @@ func TestFetchListings(t *testing.T) {
 		{
 			cassette: "not_found",
 			sent:     types.Identifier{Type: types.IdentifierTypeIsin, Value: "US0000000002"},
+			unknown:  true,
 		},
 	}
 	for _, tc := range tests {
@@ -144,6 +147,9 @@ func TestFetchListings(t *testing.T) {
 			}
 			if diff := cmp.Diff([]types.Identifier{tc.filtered}, r.Filtered); diff != "" {
 				t.Errorf("Fetch(%v) filtered (-want +got):\n%s", tc.sent, diff)
+			}
+			if r.Unknown != tc.unknown {
+				t.Errorf("Fetch(%v) unknown = %v, want %v", tc.sent, r.Unknown, tc.unknown)
 			}
 			if len(r.Listings) != tc.n {
 				t.Errorf("Fetch(%v) returned %d listings, want %d", tc.sent, len(r.Listings), tc.n)
@@ -205,6 +211,24 @@ func TestFetchRefused(t *testing.T) {
 				t.Errorf("Classify(%v) = %+v, want %+v", err, fail, tc.want)
 			}
 		})
+	}
+}
+
+// TestFetchFilteredWarning checks that a warning from a job that filters on
+// currency leaves the identifier known. The warning says only that nothing is
+// listed in the currency.
+func TestFetchFilteredWarning(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`[{"warning":"No identifier found."}]`))
+	}))
+	t.Cleanup(srv.Close)
+	c, err := New(market.Config{Endpoint: srv.URL}, mics, srv.Client())
+	require.NoError(t, err)
+	got, err := fetch(c, types.Identifier{Type: types.IdentifierTypeIsin, Value: "GB00BH4HKS39"}, "USD")
+	require.NoError(t, err)
+	if len(got) != 1 || got[0].Err != nil || got[0].Value.Unknown {
+		t.Errorf("Fetch(filtered on USD) = %+v, want one known, empty answer", got)
 	}
 }
 

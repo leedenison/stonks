@@ -302,7 +302,7 @@ func (s *Server) ListRunItems(ctx context.Context, req *connect.Request[adminrun
 			out.Items = append(out.Items, &adminrunv1.RunItem{Item: &adminrunv1.RunItem_Fetch{Fetch: to.ProtoFetchItem(it)}})
 		}
 		if more {
-			out.NextPageToken = rows[len(rows)-1].StatedKey.ID.String()
+			out.NextPageToken = rows[len(rows)-1].FetchKey.ID.String()
 		}
 	}
 	return connect.NewResponse(out), nil

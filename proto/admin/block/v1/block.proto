@@ -24,6 +24,8 @@ enum BlockScope {
   BLOCK_SCOPE_IDENTIFIER = 1;
   // Every call to the datasource for the kind of data.
   BLOCK_SCOPE_DATASOURCE = 2;
+  // Calls sent for one domain: an identifier with no value.
+  BLOCK_SCOPE_DOMAIN = 3;
 }
 
 // A call that failed unrecoverably, suppressing further calls until an
@@ -33,7 +35,8 @@ message Block {
   string datasource = 2;
   FetchKind kind = 3;
   BlockScope scope = 4;
-  // The identifier blocked; set only when the scope is IDENTIFIER.
+  // The identifier blocked, or the domain: an identifier with no value. Unset
+  // when the scope is DATASOURCE.
   stonks.type.v1.Identifier sent = 5;
   // The error of the failed call, in words.
   string reason = 6;

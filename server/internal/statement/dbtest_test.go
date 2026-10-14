@@ -337,7 +337,7 @@ func TestConfirmCandidate(t *testing.T) {
 	}
 	items, err := s.q.ListFetchItems(ctx, gen.ListFetchItemsParams{FetchID: children[0].ID})
 	require.NoError(t, err)
-	if len(items) != 1 || items[0].StatedKey.ID != first.ID || items[0].FetchKey.Outcome != gen.FetchOutcomeServed {
+	if len(items) != 1 || *items[0].FetchKey.StatedKeyID != first.ID || items[0].FetchKey.Outcome != gen.FetchOutcomeServed {
 		t.Errorf("fetch items = %+v, want the key served", items)
 	}
 

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"slices"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
@@ -63,12 +64,15 @@ func servedKey(t *testing.T, q *gen.Queries, fetch gen.Fetch, key gen.StatedKey,
 	t.Helper()
 	id := db.NewID()
 	require.NoError(t, q.CreateFetchKey(context.Background(), gen.CreateFetchKeyParams{
-		ID: id, FetchID: fetch.ID, UserID: fetch.UserID, StatedKeyID: key.ID,
-		Outcome: gen.FetchOutcomeServed, Attempts: 1,
+		ID: id, FetchID: fetch.ID, UserID: fetch.UserID, StatedKeyID: &key.ID,
+		Outcome: gen.FetchOutcomeServed, Attempts: 1, AnsweredAt: ptr.To(answered),
 		SentType: ptr.To(types.IdentifierTypeIsin), SentValue: ptr.To(value),
 	}))
 	return id
 }
+
+// answered is the moment a test's datasource gave its answer.
+var answered = time.Date(2026, time.March, 2, 10, 0, 0, 0, time.UTC)
 
 // fetching is a fetch on fresh rows, with the rows it needs.
 type fetching struct {
@@ -235,6 +239,7 @@ func TestFetchKeys(t *testing.T) {
 	ctx := context.Background()
 
 	isin := ptr.To(types.IdentifierTypeIsin)
+	at := ptr.To(answered)
 	tests := []struct {
 		name string
 		want string
@@ -243,11 +248,15 @@ func TestFetchKeys(t *testing.T) {
 		{name: "not served with an identifier sent", want: pgerrcode.CheckViolation, arg: gen.CreateFetchKeyParams{
 			Outcome: gen.FetchOutcomeNotServed, SentType: isin, SentValue: ptr.To("v"), Reason: ptr.To("r")}},
 		{name: "served without an identifier sent", want: pgerrcode.CheckViolation, arg: gen.CreateFetchKeyParams{
-			Outcome: gen.FetchOutcomeServed, Attempts: 1}},
-		{name: "a type sent with no value", want: pgerrcode.CheckViolation, arg: gen.CreateFetchKeyParams{
-			Outcome: gen.FetchOutcomeServed, Attempts: 1, SentType: isin}},
+			Outcome: gen.FetchOutcomeServed, Attempts: 1, AnsweredAt: at}},
+		{name: "a type sent with neither a value nor a domain", want: pgerrcode.CheckViolation, arg: gen.CreateFetchKeyParams{
+			Outcome: gen.FetchOutcomeServed, Attempts: 1, SentType: isin, AnsweredAt: at}},
 		{name: "served with a reason", want: pgerrcode.CheckViolation, arg: gen.CreateFetchKeyParams{
-			Outcome: gen.FetchOutcomeServed, Attempts: 1, SentType: isin, SentValue: ptr.To("v"), Reason: ptr.To("r")}},
+			Outcome: gen.FetchOutcomeServed, Attempts: 1, SentType: isin, SentValue: ptr.To("v"), Reason: ptr.To("r"), AnsweredAt: at}},
+		{name: "served with no moment of the answer", want: pgerrcode.CheckViolation, arg: gen.CreateFetchKeyParams{
+			Outcome: gen.FetchOutcomeServed, Attempts: 1, SentType: isin, SentValue: ptr.To("v")}},
+		{name: "a moment of the answer for a key not served", want: pgerrcode.CheckViolation, arg: gen.CreateFetchKeyParams{
+			Outcome: gen.FetchOutcomeFailedTemporary, Attempts: 1, SentType: isin, SentValue: ptr.To("v"), Reason: ptr.To("r"), AnsweredAt: at}},
 		{name: "failed without a reason", want: pgerrcode.CheckViolation, arg: gen.CreateFetchKeyParams{
 			Outcome: gen.FetchOutcomeFailedPermanent, Attempts: 1, SentType: isin, SentValue: ptr.To("v")}},
 		{name: "blocked having called", want: pgerrcode.CheckViolation, arg: gen.CreateFetchKeyParams{
@@ -262,7 +271,7 @@ func TestFetchKeys(t *testing.T) {
 			// Each violation aborts the transaction, so each case takes its own.
 			q := newTx(t)
 			f := newFetching(t, q)
-			tc.arg.ID, tc.arg.FetchID, tc.arg.UserID, tc.arg.StatedKeyID = db.NewID(), f.fetch.ID, &f.user.ID, f.key.ID
+			tc.arg.ID, tc.arg.FetchID, tc.arg.UserID, tc.arg.StatedKeyID = db.NewID(), f.fetch.ID, &f.user.ID, &f.key.ID
 			if err := q.CreateFetchKey(ctx, tc.arg); !sqlstate(err, tc.want) {
 				t.Errorf("CreateFetchKey(%s): err = %v, want sqlstate %s", tc.name, err, tc.want)
 			}
@@ -273,16 +282,30 @@ func TestFetchKeys(t *testing.T) {
 		q := newTx(t)
 		f := newFetching(t, q)
 		require.NoError(t, q.CreateFetchKey(ctx, gen.CreateFetchKeyParams{
-			ID: db.NewID(), FetchID: f.fetch.ID, UserID: &f.user.ID, StatedKeyID: f.key.ID,
-			Outcome: gen.FetchOutcomeServed, Attempts: 0, SentType: isin, SentValue: ptr.To("v"), Candidates: 1,
+			ID: db.NewID(), FetchID: f.fetch.ID, UserID: &f.user.ID, StatedKeyID: &f.key.ID,
+			Outcome: gen.FetchOutcomeServed, Attempts: 0, SentType: isin, SentValue: ptr.To("v"), Candidates: 1, AnsweredAt: at,
 		}))
+	})
+
+	t.Run("a domain no stated key asked for", func(t *testing.T) {
+		q := newTx(t)
+		f := newFetching(t, q)
+		require.NoError(t, q.CreateFetchKey(ctx, gen.CreateFetchKeyParams{
+			ID: db.NewID(), FetchID: f.fetch.ID, UserID: &f.user.ID,
+			Outcome: gen.FetchOutcomeServed, Attempts: 1, SentType: ptr.To(types.IdentifierTypeMicTicker), SentDomain: "XNYS", AnsweredAt: at,
+		}))
+		items, err := q.ListFetchItems(ctx, gen.ListFetchItemsParams{FetchID: f.fetch.ID})
+		require.NoError(t, err)
+		if len(items) != 1 || items[0].FetchKey.StatedKeyID != nil || items[0].KeyIdentifiers != nil || items[0].FetchKey.SentValue != nil {
+			t.Errorf("ListFetchItems = %+v, want the domain with no stated key", items)
+		}
 	})
 
 	t.Run("a key that failed while its datasource was paused", func(t *testing.T) {
 		q := newTx(t)
 		f := newFetching(t, q)
 		require.NoError(t, q.CreateFetchKey(ctx, gen.CreateFetchKeyParams{
-			ID: db.NewID(), FetchID: f.fetch.ID, UserID: &f.user.ID, StatedKeyID: f.key.ID,
+			ID: db.NewID(), FetchID: f.fetch.ID, UserID: &f.user.ID, StatedKeyID: &f.key.ID,
 			Outcome: gen.FetchOutcomeFailedTemporary, Attempts: 0, SentType: isin, SentValue: ptr.To("v"), Reason: ptr.To("paused"),
 		}))
 	})
@@ -295,7 +318,7 @@ func TestFetchKeys(t *testing.T) {
 
 		id := db.NewID()
 		require.NoError(t, q.CreateFetchKey(ctx, gen.CreateFetchKeyParams{
-			ID: id, FetchID: f.fetch.ID, UserID: &f.user.ID, StatedKeyID: f.key.ID,
+			ID: id, FetchID: f.fetch.ID, UserID: &f.user.ID, StatedKeyID: &f.key.ID,
 			Outcome: gen.FetchOutcomeNotServed, Reason: ptr.To("serves no isin"),
 		}))
 		err = q.SetFetchKeyInstrument(ctx, gen.SetFetchKeyInstrumentParams{ID: id, UserID: &f.user.ID, InstrumentID: &found.Instrument.ID})
@@ -310,7 +333,7 @@ func TestFetchKeys(t *testing.T) {
 
 		servedKey(t, q, f.fetch, f.key, "GB00B03MLX29")
 		err := q.CreateFetchKey(ctx, gen.CreateFetchKeyParams{
-			ID: db.NewID(), FetchID: f.fetch.ID, UserID: &f.user.ID, StatedKeyID: f.key.ID,
+			ID: db.NewID(), FetchID: f.fetch.ID, UserID: &f.user.ID, StatedKeyID: &f.key.ID,
 			Outcome: gen.FetchOutcomeNotServed, Reason: ptr.To("r"),
 		})
 		if !sqlstate(err, pgerrcode.UniqueViolation) {
@@ -381,15 +404,22 @@ func TestDatasourceBlocks(t *testing.T) {
 	create(block(gen.BlockScopeIdentifier, ptr.To("US0378331005")), 1)
 	create(block(gen.BlockScopeDatasource, nil), 1)
 	create(block(gen.BlockScopeDatasource, nil), 0)
+	domain := func(mic string) gen.CreateDatasourceBlockParams {
+		arg := block(gen.BlockScopeDomain, nil)
+		arg.SentType, arg.SentDomain = ptr.To(types.IdentifierTypeMicTicker), mic
+		return arg
+	}
+	create(domain("XNYS"), 1)
+	create(domain("XNYS"), 0)
 
 	open, err := q.ListOpenBlocks(ctx, gen.ListOpenBlocksParams{Datasource: ds.Name, Kind: gen.FetchKindIdentity})
 	require.NoError(t, err)
-	if len(open) != 3 {
-		t.Fatalf("ListOpenBlocks = %d rows, want 3: two identifiers and the datasource", len(open))
+	if len(open) != 4 {
+		t.Fatalf("ListOpenBlocks = %d rows, want 4: two identifiers, the domain and the datasource", len(open))
 	}
 	findings, err := q.ListRunFindings(ctx, []uuid.UUID{fetch.ID})
 	require.NoError(t, err)
-	if len(findings) != 3 {
+	if len(findings) != 4 {
 		t.Fatalf("ListRunFindings = %+v, want one per open block", findings)
 	}
 	for _, f := range findings {
@@ -416,8 +446,8 @@ func TestDatasourceBlocks(t *testing.T) {
 	create(block(gen.BlockScopeIdentifier, ptr.To("GB00B03MLX29")), 1)
 	open, err = q.ListOpenBlocks(ctx, gen.ListOpenBlocksParams{Datasource: ds.Name, Kind: gen.FetchKindIdentity})
 	require.NoError(t, err)
-	if len(open) != 3 {
-		t.Errorf("ListOpenBlocks after clearing one and opening it again = %d rows, want 3", len(open))
+	if len(open) != 4 {
+		t.Errorf("ListOpenBlocks after clearing one and opening it again = %d rows, want 4", len(open))
 	}
 
 	domained := block(gen.BlockScopeDatasource, nil)
@@ -429,6 +459,12 @@ func TestDatasourceBlocks(t *testing.T) {
 		{name: "an identifier block naming none", arg: block(gen.BlockScopeIdentifier, nil)},
 		{name: "a datasource block naming one", arg: block(gen.BlockScopeDatasource, ptr.To("GB00B03MLX29"))},
 		{name: "a datasource block naming a domain", arg: domained},
+		{name: "a domain block naming a value", arg: func() gen.CreateDatasourceBlockParams {
+			arg := domain("XNYS")
+			arg.SentValue = ptr.To("AAPL")
+			return arg
+		}()},
+		{name: "a domain block naming no domain", arg: domain("")},
 	}
 	for _, tc := range scopes {
 		t.Run(tc.name, func(t *testing.T) {
