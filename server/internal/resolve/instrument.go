@@ -16,8 +16,8 @@ import (
 // resolution is one stated key's progress from lookup to outcome.
 type resolution struct {
 	row gen.StatedKey
-	// trusted caches trustedIDs.
-	trusted []types.Identifier
+	// globalAndDescriptionIDs caches globalAndDescriptionIDs of row.
+	globalAndDescriptionIDs []types.Identifier
 	// family is the family of the currency the key states.
 	family          string
 	currencies      currencies
@@ -31,12 +31,12 @@ type resolution struct {
 	reason     string
 }
 
-// trustedIDs returns every global identifier and every broker description the
-// key states, strongest first. A lookup hit on one of them names the
+// globalAndDescriptionIDs returns every global identifier and every broker
+// description k states, strongest first. A lookup hit on one of them names the
 // instrument.
-func (res *resolution) trustedIDs() []types.Identifier {
+func globalAndDescriptionIDs(k gen.StatedKey) []types.Identifier {
 	var out []types.Identifier
-	for _, id := range res.row.Identifiers {
+	for _, id := range k.Identifiers {
 		if id.IsGlobal() || id.Type == types.IdentifierTypeBrokerDescription {
 			out = append(out, id)
 		}
@@ -75,7 +75,7 @@ func (r *Resolver) findResolutionInstrument(ctx context.Context, rs []*resolutio
 	var ids []types.Identifier
 	for _, res := range rs {
 		if !statesCurrency(res.row) {
-			ids = append(ids, res.trusted...)
+			ids = append(ids, res.globalAndDescriptionIDs...)
 		}
 	}
 	matches, err := findInstrumentsByIdentifier(ctx, r.store, ids)
@@ -111,7 +111,7 @@ func statesCurrency(k gen.StatedKey) bool {
 func (res *resolution) match(byID map[types.Identifier]*join.InstrumentWithCoverage) {
 	var first types.Identifier
 	var f *join.InstrumentWithCoverage
-	for _, id := range res.trusted {
+	for _, id := range res.globalAndDescriptionIDs {
 		hit, ok := byID[id]
 		switch {
 		case !ok:
@@ -126,8 +126,8 @@ func (res *resolution) match(byID map[types.Identifier]*join.InstrumentWithCover
 		}
 	}
 	if f == nil {
-		if !slices.ContainsFunc(res.trusted, types.Identifier.IsGlobal) && !statesBareTicker(res.row) {
-			res.decide(gen.ResolutionOutcomeUnrecognised, "%s", unnamed(res.trusted))
+		if !slices.ContainsFunc(res.globalAndDescriptionIDs, types.Identifier.IsGlobal) && !statesBareTicker(res.row) {
+			res.decide(gen.ResolutionOutcomeUnrecognised, "%s", unnamed(res.globalAndDescriptionIDs))
 		}
 		return
 	}
@@ -138,7 +138,7 @@ func (res *resolution) match(byID map[types.Identifier]*join.InstrumentWithCover
 }
 
 // unnamed returns the reason for a key that states no global identifier.
-// Such a key trusts only a broker description, so the reason names that. The
+// Such a key looks up only a broker description, so the reason names that. The
 // key shows the description's value beside the reason.
 func unnamed(ids []types.Identifier) string {
 	if len(ids) == 0 {

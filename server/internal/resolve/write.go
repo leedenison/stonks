@@ -166,10 +166,10 @@ func copyGroupAssociation(ctx context.Context, q Queries, run gen.Run, res *reso
 	return nil
 }
 
-// identifiersToLock returns the identifiers res trusts and every identifier a
-// response served for it names.
+// identifiersToLock returns the global identifiers and broker descriptions res
+// states and every identifier a response served for it names.
 func identifiersToLock(res *resolution) []types.Identifier {
-	ids := slices.Clone(res.trusted)
+	ids := slices.Clone(res.globalAndDescriptionIDs)
 	for _, fk := range res.fetchKeys {
 		if fk.Outcome != gen.FetchOutcomeServed {
 			continue
@@ -201,7 +201,7 @@ type writeTarget struct {
 // identifier datasources. When it finds none, the write creates one. If the
 // identifiers identify several instruments, findWriteTarget merges them.
 func findWriteTarget(ctx context.Context, q Queries, res *resolution, verdict claimVerdict) (writeTarget, error) {
-	ids := slices.Clone(res.trusted)
+	ids := slices.Clone(res.globalAndDescriptionIDs)
 	for _, c := range verdict.attached {
 		for id := range c.AllIDs() {
 			ids = appendUnique(ids, id)
@@ -540,11 +540,12 @@ func (w *writer) associate(ctx context.Context, res *resolution, arbiter gen.Arb
 }
 
 // via returns the identifier that carries res's association. That is the
-// strongest trusted identifier of the instrument, with a description ranking
-// below every global identifier. Failing that, it is a venue ticker of the
-// chosen listing, then a venue ticker of the instrument.
+// strongest global identifier or broker description of res that also
+// identifies the instrument, with a description ranking below every global
+// identifier. Failing that, it is a venue ticker of the chosen listing, then a
+// venue ticker of the instrument.
 func (w *writer) via(res *resolution, listing *uuid.UUID) (gen.Identifier, bool) {
-	for _, id := range res.trusted {
+	for _, id := range res.globalAndDescriptionIDs {
 		if row := w.instr.Identifier(id); row != nil {
 			return *row, true
 		}

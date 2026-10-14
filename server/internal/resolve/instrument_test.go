@@ -29,8 +29,8 @@ func TestGlobalIDs(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			k := gen.StatedKey{Identifiers: tc.stated}
-			if diff := cmp.Diff(tc.want, (&resolution{row: k}).trustedIDs()); diff != "" {
-				t.Errorf("trusted mismatch (-want +got):\n%s", diff)
+			if diff := cmp.Diff(tc.want, globalAndDescriptionIDs(k)); diff != "" {
+				t.Errorf("globalAndDescriptionIDs mismatch (-want +got):\n%s", diff)
 			}
 			if got := statesBareTicker(k); got != tc.bare {
 				t.Errorf("bare = %v, want %v", got, tc.bare)
@@ -39,9 +39,10 @@ func TestGlobalIDs(t *testing.T) {
 	}
 }
 
-// TestTrusted checks that trustedIDs returns every global identifier and every
-// broker description, strongest first, and nothing else.
-func TestTrusted(t *testing.T) {
+// TestGlobalAndDescriptionIDs checks that globalAndDescriptionIDs returns
+// every global identifier and every broker description, strongest first, and
+// nothing else.
+func TestGlobalAndDescriptionIDs(t *testing.T) {
 	isin := id(types.IdentifierTypeIsin, "", "GB00BH4HKS39")
 	venue := id(types.IdentifierTypeMicTicker, "XLON", "VOD")
 	ticker := id(types.IdentifierTypeMicTicker, "", "VOD")
@@ -50,7 +51,7 @@ func TestTrusted(t *testing.T) {
 	b := id(types.IdentifierTypeBrokerDescription, "ibkr", "VODAFONE GRP")
 	k := gen.StatedKey{Identifiers: []types.Identifier{a, venue, ticker, broker, b, isin}}
 	want := []types.Identifier{isin, venue, a, b}
-	if diff := cmp.Diff(want, (&resolution{row: k}).trustedIDs()); diff != "" {
-		t.Errorf("trusted mismatch (-want +got):\n%s", diff)
+	if diff := cmp.Diff(want, globalAndDescriptionIDs(k)); diff != "" {
+		t.Errorf("globalAndDescriptionIDs mismatch (-want +got):\n%s", diff)
 	}
 }
