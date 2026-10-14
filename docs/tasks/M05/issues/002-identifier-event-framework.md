@@ -1,7 +1,6 @@
 ---
 title: Identifier events, assertions and coverage
 type: task
-status: unreviewed
 ---
 
 ## Scope

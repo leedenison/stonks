@@ -1,7 +1,6 @@
 ---
 title: Coverage and attestation in the admin area
 type: task
-status: unreviewed
 dependencies: [002, 007]
 ---
 

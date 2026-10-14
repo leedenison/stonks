@@ -1,7 +1,6 @@
 ---
 title: Massive identifier events
 type: task
-status: unreviewed
 dependencies: [002]
 ---
 
