@@ -11,8 +11,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/leedenison/stonks/server/internal/db/gen"
-	"github.com/leedenison/stonks/server/internal/db/types"
 	"github.com/leedenison/stonks/server/internal/testutil/dbtest"
+	"github.com/leedenison/stonks/server/internal/types"
 )
 
 var pool *pgxpool.Pool

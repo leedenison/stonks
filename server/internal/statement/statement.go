@@ -25,8 +25,8 @@ import (
 	statementv1 "github.com/leedenison/stonks/proto/statement/v1"
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
-	"github.com/leedenison/stonks/server/internal/db/types"
 	"github.com/leedenison/stonks/server/internal/run"
+	"github.com/leedenison/stonks/server/internal/types"
 )
 
 // ErrInvalid is returned by Create for a statement it cannot read.

@@ -13,8 +13,8 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
-	"github.com/leedenison/stonks/server/internal/db/types"
 	"github.com/leedenison/stonks/server/internal/ptr"
+	"github.com/leedenison/stonks/server/internal/types"
 )
 
 // owned is every table whose rows a user's runs write.

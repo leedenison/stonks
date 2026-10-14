@@ -3,7 +3,7 @@ package openfigi
 import (
 	"strings"
 
-	"github.com/leedenison/stonks/server/internal/db/types"
+	"github.com/leedenison/stonks/server/internal/types"
 )
 
 // rule matches a result whose fields each lie in the rule's set, where a nil

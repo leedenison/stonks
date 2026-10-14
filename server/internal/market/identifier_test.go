@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"github.com/leedenison/stonks/server/internal/db/gen"
-	"github.com/leedenison/stonks/server/internal/db/types"
 	"github.com/leedenison/stonks/server/internal/mic"
+	"github.com/leedenison/stonks/server/internal/types"
 )
 
 func TestWithClassSep(t *testing.T) {

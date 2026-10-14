@@ -1,9 +1,9 @@
 package openfigi
 
 import (
-	"github.com/leedenison/stonks/server/internal/db/types"
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/mic"
+	"github.com/leedenison/stonks/server/internal/types"
 )
 
 // identity converts the listings OpenFIGI returned for the identifier sent,

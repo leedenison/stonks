@@ -59,26 +59,26 @@ sql:
               pointer: true
           - db_type: identifier_type
             go_type:
-              import: github.com/leedenison/stonks/server/internal/db/types
+              import: github.com/leedenison/stonks/server/internal/types
               type: IdentifierType
           - db_type: identifier_type
             nullable: true
             go_type:
-              import: github.com/leedenison/stonks/server/internal/db/types
+              import: github.com/leedenison/stonks/server/internal/types
               type: IdentifierType
               pointer: true
           - db_type: asset_class
             go_type:
-              import: github.com/leedenison/stonks/server/internal/db/types
+              import: github.com/leedenison/stonks/server/internal/types
               type: AssetClass
           - db_type: asset_class
             nullable: true
             go_type:
-              import: github.com/leedenison/stonks/server/internal/db/types
+              import: github.com/leedenison/stonks/server/internal/types
               type: AssetClass
               pointer: true
           - column: stated_keys.identifiers
             go_type:
-              import: github.com/leedenison/stonks/server/internal/db/types
+              import: github.com/leedenison/stonks/server/internal/types
               type: Identifier
               slice: true

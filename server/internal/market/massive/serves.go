@@ -2,7 +2,7 @@ package massive
 
 import (
 	"github.com/leedenison/stonks/server/internal/db/gen"
-	"github.com/leedenison/stonks/server/internal/db/types"
+	"github.com/leedenison/stonks/server/internal/types"
 )
 
 // Serves returns the one identifier of key that Massive accepts: a CUSIP,

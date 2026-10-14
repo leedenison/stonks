@@ -15,8 +15,8 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
-	"github.com/leedenison/stonks/server/internal/db/types"
 	"github.com/leedenison/stonks/server/internal/ptr"
+	"github.com/leedenison/stonks/server/internal/types"
 )
 
 // newDatasource creates an enabled datasource named prefix and a random

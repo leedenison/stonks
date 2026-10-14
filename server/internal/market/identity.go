@@ -6,7 +6,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/leedenison/stonks/server/internal/db/gen"
-	"github.com/leedenison/stonks/server/internal/db/types"
+	"github.com/leedenison/stonks/server/internal/types"
 )
 
 // Candidate results of one fetch. Candidates are unranked, and several may be

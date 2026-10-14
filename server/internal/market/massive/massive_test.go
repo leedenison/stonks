@@ -14,11 +14,11 @@ import (
 	"golang.org/x/time/rate"
 
 	"github.com/leedenison/stonks/server/internal/db/gen"
-	"github.com/leedenison/stonks/server/internal/db/types"
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/market/markettest"
 	"github.com/leedenison/stonks/server/internal/mic"
 	"github.com/leedenison/stonks/server/internal/testutil/vcr"
+	"github.com/leedenison/stonks/server/internal/types"
 )
 
 // conf is the config the dev seed writes.

@@ -1,8 +1,8 @@
 package eodhd
 
 import (
-	"github.com/leedenison/stonks/server/internal/db/types"
 	"github.com/leedenison/stonks/server/internal/market"
+	"github.com/leedenison/stonks/server/internal/types"
 )
 
 // domain is the namespace of EODHD's symbols as a DATASOURCE_TICKER.

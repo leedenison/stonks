@@ -18,9 +18,9 @@ import (
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/to"
-	"github.com/leedenison/stonks/server/internal/db/types"
 	"github.com/leedenison/stonks/server/internal/service/admin/page"
 	"github.com/leedenison/stonks/server/internal/statement"
+	"github.com/leedenison/stonks/server/internal/types"
 )
 
 // Queries is this package's view of the generated queries.

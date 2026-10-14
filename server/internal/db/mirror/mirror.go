@@ -5,7 +5,7 @@ package mirror
 
 import (
 	"github.com/leedenison/stonks/server/internal/db/gen"
-	"github.com/leedenison/stonks/server/internal/db/types"
+	"github.com/leedenison/stonks/server/internal/types"
 )
 
 // traits holds each identifier type's row of identifier_type_traits.

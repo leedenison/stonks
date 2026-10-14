@@ -14,9 +14,9 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
-	"github.com/leedenison/stonks/server/internal/db/types"
 	"github.com/leedenison/stonks/server/internal/ptr"
 	"github.com/leedenison/stonks/server/internal/run"
+	"github.com/leedenison/stonks/server/internal/types"
 )
 
 // start is the time the harness's clock reads before it sleeps.

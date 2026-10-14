@@ -11,9 +11,9 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
-	"github.com/leedenison/stonks/server/internal/db/types"
 	"github.com/leedenison/stonks/server/internal/resolve"
 	"github.com/leedenison/stonks/server/internal/run"
+	"github.com/leedenison/stonks/server/internal/types"
 )
 
 // syncs has the runner execute a synchronous run inline and record its row.

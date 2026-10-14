@@ -5,7 +5,7 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/mirror"
-	"github.com/leedenison/stonks/server/internal/db/types"
+	"github.com/leedenison/stonks/server/internal/types"
 )
 
 // classConflict returns why the class k states contradicts an instrument of

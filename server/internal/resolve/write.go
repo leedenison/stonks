@@ -12,8 +12,8 @@ import (
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/to"
-	"github.com/leedenison/stonks/server/internal/db/types"
 	runs "github.com/leedenison/stonks/server/internal/run"
+	"github.com/leedenison/stonks/server/internal/types"
 )
 
 // tries is the number of times a key's write is attempted when the database

@@ -10,8 +10,8 @@ import (
 	statementv1 "github.com/leedenison/stonks/proto/statement/v1"
 	typev1 "github.com/leedenison/stonks/proto/type/v1"
 	"github.com/leedenison/stonks/server/internal/db/gen"
-	"github.com/leedenison/stonks/server/internal/db/types"
 	runs "github.com/leedenison/stonks/server/internal/run"
+	"github.com/leedenison/stonks/server/internal/types"
 )
 
 // Candidate is one security that one or more datasources describe, as the
