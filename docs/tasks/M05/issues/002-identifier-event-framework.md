@@ -29,5 +29,7 @@ In:
   [005](../adr/005-validity-is-bootstrapped-from-the-present-backwards.md) states.
 - An administrator as the source of an assertion, coverage or an event. See
   [006](../adr/006-an-administrator-attests-what-no-datasource-covers.md).
+- System runs, which act for the system rather than for a user. See
+  [008](../adr/008-an-event-replays-its-keys-beneath-a-system-run.md).
 - Normalisation of a provider's spelling of a symbol before an event or an assertion is
   recorded.
