@@ -13,13 +13,13 @@
     "@connectrpc/connect-web": "2.2.0",
     "@eslint/js": "9.39.5",
     "@playwright/test": "1.64.0",
-    "@types/node": "26.6.4",
+    "@types/node": "26.6.5",
     "@types/pg": "8.23.1",
     "eslint": "9.39.5",
     "ioredis": "6.0.0",
     "pg": "8.23.1",
-    "prettier": "3.9.9",
+    "prettier": "3.9.10",
     "typescript": "6.0.3",
-    "typescript-eslint": "8.71.1"
+    "typescript-eslint": "8.71.2"
   }
 }
