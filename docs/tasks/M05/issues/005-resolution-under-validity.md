@@ -1,27 +1,50 @@
 ---
 title: Resolution under identifier validity
 type: task
+dependencies: [012]
 ---
 
 ## Scope
 
+A key the resolver associates through a MIC-derived identifier takes a dated
+association, and its transactions read the instrument the value names on their dates.
+See [013](../adr/013-an-association-is-fixed-or-dated.md) and
+[015](../adr/015-a-ticker-row-names-the-present-holder-and-resolution-reads-validity.md).
+
 In:
 
-- Before a batch is resolved, identifier events are fetched where a source serves the
-  domain or a stable identifier concerned. Resolution proceeds when they are absent.
-- A MIC-derived identifier associates a key only when the key's transactions are dated
-  inside its validity. An association is provisional when it rests on provisional
-  validity.
-- `stated_keys.validity` is a cache of the validity of the key's transactions. New
-  coverage, an event or an assertion recomputes it. See
-  [007](../adr/007-an-event-finds-what-it-affects-from-the-association.md).
-- When a run writes an assertion, coverage or an event, it finds the keys whose
-  transactions now fall outside the validity of their association. It derives validity
-  before and after the write to find them, and replays them at once. See
-  [008](../adr/008-an-event-replays-its-keys-beneath-a-system-run.md).
+- A dated association names a `MIC_TICKER` value instead of an instrument. A CHECK
+  allows exactly one of the two.
+- Resolution reads a venue ticker's validity before it asks a datasource. When the facts
+  already confirm a key's dates, the resolver associates the key without a fetch. When a
+  key's value has no facts, the resolver sends it through the identity fetch.
+- Before a batch is resolved, identifier events are fetched where a source serves a
+  stable identifier of an instrument concerned, over the history window. Resolution
+  proceeds when they are absent.
+- A statement that states a key with a dated association asserts the value at the
+  earliest of the key's dates that lacks confirmed validity. A past-dated answer that
+  names an instrument the system lacks creates it with its stable identifiers and
+  without a ticker row. A present-dated answer that names a holder other than the
+  row's moves the ticker row.
+- `validity.Record` maps an assertion to an instrument through stable identifiers only.
+- A run that writes a fact replays the unresolved keys that state the value, beneath the
+  run that wrote it. See
+  [008](../adr/008-a-new-fact-replays-the-unresolved-keys-that-state-its-value.md).
 - Where two providers assert different instruments for one value on one day, the run
-  that met the disagreement records a finding. See
+  that wrote the losing assertion records a finding. See
   [002](../adr/002-precedence-decides-between-providers-that-disagree-and-a-finding-records-it.md).
 - A witnessed event inside a bracket of same-instrument assertions is recorded as a
-  finding of the run that met it.
-- End to end coverage through vcrproxy of a key whose ticker changed.
+  finding of the run that wrote the event.
+- A user's choice is not checked against validity. See
+  [017](../adr/017-a-users-choice-pins-the-whole-key-for-now.md).
+- End to end coverage through vcrproxy of a key whose ticker changed. A statement states
+  META in 2024 and the user chooses Meta. A second statement states META on 2021-06-01.
+  The 2021 transaction reads as unresolved, since Massive's chain shows that META began
+  naming Meta on 2022-06-09 and a lookup on 2021-06-01 finds nothing.
+
+Out:
+
+- Reading a transaction's instrument on the holdings page, which is issue
+  [013](013-holdings-read-a-transactions-instrument.md).
+- The per-transaction mark on the statement page, which is issue
+  [007](007-provisional-association-on-a-statement.md).

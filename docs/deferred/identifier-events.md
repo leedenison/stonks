@@ -102,15 +102,15 @@ resolves the same way whenever it is ingested.
 
 ### Assumptions
 
-- A value outside coverage has not moved.  Where an association or a fetch is made under
-  this assumption, it is recorded against the run that made it, so the assumption can be
-  unwound.
+- A value outside coverage has not moved.  A dated association rests on this assumption
+  at each read, and the assumption is not stored.  A fetch made under it is recorded
+  against the run that made it, so the assumption can be unwound.
 - Where a value is asserted twice for one instrument, it was not reassigned away and back
   between the two assertions.  Should that happen unwitnessed, the system records
   incorrect information and accepts it.
-- A witnessed event inside a bracket of same-instrument assertions is a contradiction.
-  The event wins, and the contradiction is recorded as a finding of the run that met it.
-  See [006_findings.sql](../../server/internal/migrations/006_findings.sql).
+- A witnessed event inside a bracket of same-instrument assertions breaks the bracket.
+  The event wins, and the broken bracket is recorded as a finding of the run that wrote
+  the event.  See [006_findings.sql](../../server/internal/migrations/006_findings.sql).
 
 ## Constraints
 
@@ -119,8 +119,8 @@ resolves the same way whenever it is ingested.
 Identifier events are fetched before a batch is resolved, where a source serves the
 domain or a stable identifier concerned, covering the earliest transaction date to the
 present.  The fetch converts provisional validity to confirmed.  Its absence blocks
-nothing: resolution proceeds on provisional validity and is replayed when coverage or an
-event arrives.
+nothing: resolution proceeds on provisional validity, and a dated association reads
+coverage or an event when it arrives.
 
 A range provider is fetched once per domain and period.  An entity provider is fetched
 once per stable identifier.
@@ -144,8 +144,8 @@ the lag of each datasource and lets an administrator change it.
 An event on a value finds every fetch key that sent the value to a provider.  A data row
 produced by such a fetch key is invalidated when the event lies between the row's date
 and the fetch's assertion moment.  Invalidated rows and the coverage written from their
-fetch keys are dropped and refetched.  Where a transaction's date falls outside the
-validity of its association, it is replayed from its stated key.
+fetch keys are dropped and refetched.  A transaction of a dated association reads
+the instrument the value names on its date.
 
 No instrument is merged through a MIC-derived identifier, so no event unwinds a merge.
 See [instrument-resolution.md](instrument-resolution.md).
@@ -153,8 +153,9 @@ See [instrument-resolution.md](instrument-resolution.md).
 ### Datasources
 
 The datasource framework constraints apply.  An absence of events for an identifier is
-tolerated by provisional validity and by retaining the stated key with the transaction,
-so resolution is replayed when coverage or an event arrives.
+tolerated by provisional validity, and a dated association reads coverage or an event
+that arrives later.  An unresolved key that states
+the value is replayed when a fact for the value arrives.
 
 Where a ticker is stated without its venue, it has no natural key, so no fetch is made
 for it and no coverage arrives for it.  Where a transaction states nothing else, its key

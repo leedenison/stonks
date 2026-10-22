@@ -19,4 +19,6 @@ In:
 - An action to attest that a value names an instrument, or names nothing, on a day. It
   may take a range and write an assertion on each end.
 - The same attest action beside a provisional key on the statement details page.
-- Withdrawing an attestation, which recomputes validity and replays the keys it affects.
+- Withdrawing an attestation. Its assertion is deleted. The unresolved keys that state the
+  value are replayed beneath the attestation run. A dated key's transactions read the
+  change at the next read.
