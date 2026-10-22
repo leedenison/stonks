@@ -270,7 +270,7 @@ func fetchChunk[Q, P any](ctx context.Context, f *Fetcher, e *Entry, s Server[Q,
 	resps, attempts, err := request(ctx, f, e, s, reqs)
 	var paused pausedError
 	if errors.As(err, &paused) {
-		return requestFailed(Failure{Temporary: true, Scope: gen.BlockScopeDatasource, Reason: string(paused)}, err, fetchKeys, batch, attempts)
+		return requestFailed(Failure{Temporary: true, Scope: ScopeDatasource, Reason: string(paused)}, err, fetchKeys, batch, attempts)
 	}
 	if err != nil {
 		return requestFailed(e.Integration.Classify(err), err, fetchKeys, batch, attempts)
@@ -291,8 +291,11 @@ func fetchChunk[Q, P any](ctx context.Context, f *Fetcher, e *Entry, s Server[Q,
 		}
 		fail := e.Integration.Classify(resp.Err)
 		r.Outcome, r.Reason = gen.FetchOutcomeFailedTemporary, reasonOf(fail, resp.Err)
-		if !fail.Temporary {
-			r.Outcome = gen.FetchOutcomeFailedPermanent
+		if fail.Temporary {
+			continue
+		}
+		r.Outcome = gen.FetchOutcomeFailedPermanent
+		if fail.Scope != ScopeRequest {
 			blocks = append(blocks, identifierBlock(*r))
 		}
 	}
@@ -300,8 +303,8 @@ func fetchChunk[Q, P any](ctx context.Context, f *Fetcher, e *Entry, s Server[Q,
 }
 
 // requestFailed records a failure of the request itself against every key it
-// carried. A temporary failure leaves no block; a permanent one blocks at the
-// scope the integration gives it.
+// carried. Only a permanent failure outside ScopeRequest blocks, at the scope
+// the integration gives it.
 func requestFailed[Q, P any](fail Failure, err error, fetchKeys []FetchKey[Q, P], batch []int, attempts int) []gen.CreateDatasourceBlockParams {
 	outcome := gen.FetchOutcomeFailedPermanent
 	if fail.Temporary {
@@ -311,11 +314,11 @@ func requestFailed[Q, P any](fail Failure, err error, fetchKeys []FetchKey[Q, P]
 		fetchKeys[i].Outcome, fetchKeys[i].Reason = outcome, reasonOf(fail, err)
 		fetchKeys[i].attempts = attempts
 	}
-	if fail.Temporary {
+	if fail.Temporary || fail.Scope == ScopeRequest {
 		return nil
 	}
 	var blocks []gen.CreateDatasourceBlockParams
-	if fail.Scope == gen.BlockScopeDatasource {
+	if fail.Scope == ScopeDatasource {
 		return append(blocks, gen.CreateDatasourceBlockParams{
 			Scope: gen.BlockScopeDatasource, Reason: reasonOf(fail, err), FetchKeyID: fetchKeys[batch[0]].ID,
 		})

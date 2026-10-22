@@ -34,7 +34,7 @@ func New() *Identity {
 
 // Classify reads every failure as temporary and about the identifier.
 func (s *Identity) Classify(error) market.Failure {
-	return market.Failure{Temporary: true, Scope: gen.BlockScopeIdentifier}
+	return market.Failure{Temporary: true, Scope: market.ScopeKey}
 }
 
 // Limit leaves calls unpaced.
@@ -92,7 +92,7 @@ func NewIdentifierEvents() *IdentifierEvents {
 
 // Classify reads every failure as temporary and about the subject.
 func (s *IdentifierEvents) Classify(error) market.Failure {
-	return market.Failure{Temporary: true, Scope: gen.BlockScopeIdentifier}
+	return market.Failure{Temporary: true, Scope: market.ScopeKey}
 }
 
 // Limit leaves calls unpaced.
@@ -103,6 +103,11 @@ func (s *IdentifierEvents) Batch() int { return 10 }
 
 // Endpoint is the address of a provider that is never called.
 func (s *IdentifierEvents) Endpoint() string { return "https://scripted.test" }
+
+// Events is the server itself.
+func (s *IdentifierEvents) Events() market.Server[market.IdentifierEventRequest, market.IdentifierEventResult] {
+	return s
+}
 
 // Serves sends the request's subject.
 func (s *IdentifierEvents) Serves(r market.IdentifierEventRequest) (types.Identifier, error) {

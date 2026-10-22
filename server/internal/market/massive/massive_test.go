@@ -176,10 +176,10 @@ func TestClassifyStatus(t *testing.T) {
 		status int
 		want   market.Failure
 	}{
-		{status: http.StatusForbidden, want: market.Failure{Scope: gen.BlockScopeDatasource}},
-		{status: http.StatusTooManyRequests, want: market.Failure{Temporary: true, Scope: gen.BlockScopeIdentifier}},
-		{status: http.StatusBadGateway, want: market.Failure{Temporary: true, Scope: gen.BlockScopeIdentifier}},
-		{status: http.StatusBadRequest, want: market.Failure{Scope: gen.BlockScopeIdentifier}},
+		{status: http.StatusForbidden, want: market.Failure{Scope: market.ScopeDatasource}},
+		{status: http.StatusTooManyRequests, want: market.Failure{Temporary: true, Scope: market.ScopeKey}},
+		{status: http.StatusBadGateway, want: market.Failure{Temporary: true, Scope: market.ScopeKey}},
+		{status: http.StatusBadRequest, want: market.Failure{Scope: market.ScopeKey}},
 	}
 	for _, tc := range tests {
 		t.Run(http.StatusText(tc.status), func(t *testing.T) {

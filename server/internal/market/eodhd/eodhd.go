@@ -13,7 +13,6 @@ import (
 
 	"golang.org/x/time/rate"
 
-	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/mic"
 	"github.com/leedenison/stonks/server/internal/types"
@@ -83,19 +82,19 @@ func (c *Client) Batch() int { return 1 }
 func (c *Client) Classify(err error) market.Failure {
 	var status market.StatusError
 	if !errors.As(err, &status) {
-		return market.Failure{Temporary: true, Scope: gen.BlockScopeIdentifier}
+		return market.Failure{Temporary: true, Scope: market.ScopeKey}
 	}
 	switch {
 	case status.Code == http.StatusUnauthorized:
-		return market.Failure{Scope: gen.BlockScopeDatasource}
+		return market.Failure{Scope: market.ScopeDatasource}
 	case status.Code == http.StatusPaymentRequired:
-		return market.Failure{Temporary: true, Scope: gen.BlockScopeDatasource, RetryAfter: untilMidnight(c.now())}
+		return market.Failure{Temporary: true, Scope: market.ScopeDatasource, RetryAfter: untilMidnight(c.now())}
 	case status.Code == http.StatusTooManyRequests:
-		return market.Failure{Temporary: true, Scope: gen.BlockScopeIdentifier, RetryAfter: market.Seconds(status.Header, "Retry-After")}
+		return market.Failure{Temporary: true, Scope: market.ScopeKey, RetryAfter: market.Seconds(status.Header, "Retry-After")}
 	case status.Code >= http.StatusInternalServerError:
-		return market.Failure{Temporary: true, Scope: gen.BlockScopeIdentifier}
+		return market.Failure{Temporary: true, Scope: market.ScopeKey}
 	}
-	return market.Failure{Scope: gen.BlockScopeIdentifier}
+	return market.Failure{Scope: market.ScopeKey}
 }
 
 // untilMidnight returns the duration to the next midnight UTC.

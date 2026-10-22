@@ -21,29 +21,35 @@ type failure struct {
 func (f failure) Error() string { return f.text }
 
 func temporary(text string) error {
-	return failure{Failure: Failure{Temporary: true, Scope: gen.BlockScopeIdentifier, Reason: text}, text: text}
+	return failure{Failure: Failure{Temporary: true, Scope: ScopeKey, Reason: text}, text: text}
 }
 
 func permanent(text string) error {
-	return failure{Failure: Failure{Scope: gen.BlockScopeIdentifier, Reason: text}, text: text}
+	return failure{Failure: Failure{Scope: ScopeKey, Reason: text}, text: text}
 }
 
 func rateLimited(text string, after time.Duration) error {
-	return failure{Failure: Failure{Temporary: true, Scope: gen.BlockScopeIdentifier, Reason: text, RetryAfter: after}, text: text}
+	return failure{Failure: Failure{Temporary: true, Scope: ScopeKey, Reason: text, RetryAfter: after}, text: text}
 }
 
 func quota(text string) error {
-	return failure{Failure: Failure{Temporary: true, Scope: gen.BlockScopeDatasource, Reason: text}, text: text}
+	return failure{Failure: Failure{Temporary: true, Scope: ScopeDatasource, Reason: text}, text: text}
 }
 
 // spent is a temporary failure of the datasource that names when calls may
 // resume.
 func spent(text string, after time.Duration) error {
-	return failure{Failure: Failure{Temporary: true, Scope: gen.BlockScopeDatasource, Reason: text, RetryAfter: after}, text: text}
+	return failure{Failure: Failure{Temporary: true, Scope: ScopeDatasource, Reason: text, RetryAfter: after}, text: text}
+}
+
+// refusal is a permanent failure of what one request asked, such as dates
+// outside a history window.
+func refusal(text string) error {
+	return failure{Failure: Failure{Scope: ScopeRequest, Reason: text}, text: text}
 }
 
 func credential(text string) error {
-	return failure{Failure: Failure{Scope: gen.BlockScopeDatasource, Reason: text}, text: text}
+	return failure{Failure: Failure{Scope: ScopeDatasource, Reason: text}, text: text}
 }
 
 // fake is an integration whose every response is scripted. errs is consumed one
@@ -108,7 +114,7 @@ func (f *fake) Classify(err error) Failure {
 	if errors.As(err, &c) {
 		return c.Failure
 	}
-	return Failure{Temporary: true, Scope: gen.BlockScopeIdentifier, Reason: err.Error()}
+	return Failure{Temporary: true, Scope: ScopeKey, Reason: err.Error()}
 }
 
 func (*fake) Limit() (rate.Limit, int) { return rate.Inf, 1 }
