@@ -125,6 +125,20 @@ event arrives.
 A range provider is fetched once per domain and period.  An entity provider is fetched
 once per stable identifier.
 
+### Domain fetches
+
+The period of a domain fetch follows the rule on `NextPeriod` in
+[identifier_events.go](../../server/internal/market/identifier_events.go).  A range
+provider implements `market.Ranged`, and `datasources.lag_days` overrides its lag.
+
+The lag makes each fetch repeat the most recent part of the previous period.  An event
+that a provider publishes late is still recorded, and it unwinds what rested on the
+claim that no event occurred.  Coverage that ended a lag before the present would leave
+every recent transaction outside coverage.
+
+An administrator starts a domain fetch from the admin area.  The datasources page shows
+the lag of each datasource and lets an administrator change it.
+
 ### Unwinding
 
 An event on a value finds every fetch key that sent the value to a provider.  A data row
@@ -166,13 +180,39 @@ Two integrations of opposite shape prove the framework interface: Massive, which
 for the entity a symbol names and accepts a date to answer as at, and EODHD, which
 serves symbol changes by date range for the US composite.
 
+EODHD's range endpoint is `GET /api/symbol-change-history?from=&to=&fmt=json`:
+
+- One request costs one call.  `fmt` defaults to CSV.
+- Each row states `exchange`, `old_symbol`, `new_symbol`, `company_name` and
+  `effective`.  The rows are renames only, and `exchange` is always `US`.
+- Data starts on 2022-07-22.
+- Only the All World Extended and All-In-One plans include it.
+- The documentation says the data is updated daily.  A support reply on EODHD's forum
+  says a change usually appears within one to two weeks.  The default lag of two weeks
+  rests on that reply.
+- `GET /api/exchange-symbol-list/US?delisted=1` lists delisted symbols without dates.
+- Unverified: the share class spelling in `old_symbol` and `new_symbol`, the status a
+  plan without the endpoint receives, and whether a `from` before 2022-07-22 is
+  refused.  A plan without the endpoint can record the second.
+
+The endpoint adds what identity lookups cannot.  A witnessed rename places a change on
+one day.  Domain coverage confirms a present assertion back to the last rename without
+an attestation.
+
+The integration is tested as follows:
+
+- A refusal because the plan lacks the endpoint blocks the datasource for the
+  identifier events kind.
+- A refusal of a `from` before the first date fails only the request.
+- Tests run against recorded traffic.
+- End to end coverage runs through a range that holds a rename.
+
 Holdings and valuation read a per instrument summary of validity and coverage maintained
 at ingest rather than the fetch tables.  See [datasources.md](datasources.md).
 
 ## Undecided
 
-- What period a domain fetch requests, and how often domain coverage is extended to the
-  present.
+- How often domain coverage is extended to the present.
 
 - Whether two providers asserting different instruments for one value at the same moment
   is resolved by precedence or left as a gap.

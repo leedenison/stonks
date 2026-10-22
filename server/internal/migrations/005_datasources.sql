@@ -13,8 +13,7 @@ CREATE TABLE datasources (
     -- config holds settings that are specific to one integration.
     config     jsonb       NOT NULL DEFAULT '{}',
     -- lag_days is how many days a datasource that serves identifier events
-    -- for a whole domain may take to publish one. A domain fetch starts that
-    -- many days before the end of the previous one. NULL takes the
+    -- for a whole domain may take to publish one. NULL takes the
     -- integration's default.
     lag_days   integer,
     created_at timestamptz NOT NULL DEFAULT now(),

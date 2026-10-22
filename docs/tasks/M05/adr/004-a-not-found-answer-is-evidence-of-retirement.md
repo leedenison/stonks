@@ -1,6 +1,6 @@
 # A not found answer is evidence of retirement
 
-The identifier event endpoints of both providers report renames only.
+Massive's identifier event endpoint reports renames only.
 
 Retirements are recorded from two kinds of evidence:
 

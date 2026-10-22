@@ -5,9 +5,8 @@ one symbol is unique across the US consolidated tape. A listing that moves betwe
 and keeps its symbol does not appear as an event there.
 
 Massive's identifier facts are the events, assertions and coverage that its replies
-state. Each is written once for each operating MIC that Massive lists. EODHD's domain
-coverage takes the same form. A ticker goes out without its venue, so one cache key and
-one block serve every venue.
+state. Each is written once for each operating MIC that Massive lists. A ticker goes
+out without its venue, so one cache key and one block serve every venue.
 
 Identity is unchanged. It asserts a ticker at the primary exchange and at the MIC the
 request names.

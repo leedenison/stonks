@@ -22,19 +22,19 @@ run.
 The milestones that are scheduled, in the order they are implemented. Each has a directory
 of open issues and ADRs at `docs/tasks/<label>/`.
 
-- **M05** - Identifier events from Massive and EODHD, and resolution of MIC-derived
-  identifiers inside their validity.
+- **M05** - Identifier events from Massive, and resolution of MIC-derived identifiers
+  inside their validity.
 
 ```
-                            001 open
-        /          /          |           \
-  004 eodhd  005 resolve  006 fetch  010 descriptions
-       |          |           |           |
-       |    007 statement     |           |
-       |          |           |           |
-       |    009 coverage      |           |
-         \        |          /           /
-                            008 close
+                  001 open
+              /              \
+       005 resolve      010 descriptions
+        /        \             |
+  006 reassert  007 statement  |
+       |          |            |
+       |    009 coverage       |
+        \         |           /
+                 008 close
 ```
 
 ## Completed
