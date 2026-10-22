@@ -1,7 +1,6 @@
 ---
 title: Resolution under identifier validity
 type: task
-dependencies: [003]
 ---
 
 ## Scope
