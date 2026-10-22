@@ -26,17 +26,15 @@ of open issues and ADRs at `docs/tasks/<label>/`.
   identifiers inside their validity.
 
 ```
-                          001 open
-                /             |             \
-          003 massive     006 fetch    010 descriptions
-           /       \          |              |
-     004 eodhd  005 resolve   |              |
-         |          |         |              |
-         |    007 statement   |              |
-         |          |         |              |
-         |    009 coverage    |              |
-          \         |         |             /
-                          008 close
+                            001 open
+        /          /          |           \
+  004 eodhd  005 resolve  006 fetch  010 descriptions
+       |          |           |           |
+       |    007 statement     |           |
+       |          |           |           |
+       |    009 coverage      |           |
+         \        |          /           /
+                            008 close
 ```
 
 ## Completed
