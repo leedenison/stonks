@@ -20,7 +20,7 @@ func Unauthorised(t *testing.T, c market.Identity, sent types.Identifier) {
 	if err == nil {
 		t.Fatal("Fetch() with a refused key succeeded")
 	}
-	if got, want := c.Classify(err), (market.Failure{Scope: gen.BlockScopeDatasource}); got != want {
+	if got, want := c.Classify(err), (market.Failure{Scope: market.ScopeDatasource}); got != want {
 		t.Errorf("Classify(%v) = %+v, want %+v", err, got, want)
 	}
 }

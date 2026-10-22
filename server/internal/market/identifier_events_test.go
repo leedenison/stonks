@@ -12,13 +12,15 @@ import (
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
-// events is an IdentifierEvents server that answers every request with an
+// events is an IdentifierEvents integration that answers every request with an
 // empty result and counts its calls.
 type events struct {
 	fake
 	lag  time.Duration
 	sent []IdentifierEventRequest
 }
+
+func (e *events) Events() Server[IdentifierEventRequest, IdentifierEventResult] { return e }
 
 func (e *events) Serves(r IdentifierEventRequest) (types.Identifier, error) { return r.Subject, nil }
 
@@ -30,13 +32,17 @@ func (e *events) Fetch(_ context.Context, reqs []Request[IdentifierEventRequest]
 	return make([]Response[IdentifierEventResult], len(reqs)), nil
 }
 
-// rangedEvents is an events server that answers for whole domains.
+// rangedEvents is an events integration that answers for whole domains.
 type rangedEvents struct{ events }
 
 func (*rangedEvents) Domains() []string          { return []string{"XNYS"} }
-func (*rangedEvents) Since() time.Time           { return time.Time{} }
 func (*rangedEvents) Window(time.Time) time.Time { return time.Time{} }
 func (r *rangedEvents) Lag() time.Duration       { return r.lag }
+
+// window is a Windowed whose window starts on one fixed day.
+type window time.Time
+
+func (w window) Window(time.Time) time.Time { return time.Time(w) }
 
 func day(y int, m time.Month, d int) time.Time { return time.Date(y, m, d, 0, 0, 0, 0, time.UTC) }
 
@@ -45,24 +51,51 @@ func TestNextPeriod(t *testing.T) {
 	before := day(2026, time.March, 21)
 	lag := 14 * 24 * time.Hour
 	tests := []struct {
-		name                    string
-		last                    *time.Time
-		earliest, since, window time.Time
-		want                    types.Period
+		name     string
+		last     *time.Time
+		earliest time.Time
+		window   time.Time
+		want     types.Period
 	}{
-		{name: "the first fetch starts at the earliest transaction", earliest: day(2024, 1, 2), since: day(2022, 7, 22), want: types.Period{From: day(2024, 1, 2), Before: before}},
+		{name: "the first fetch starts at the earliest transaction", earliest: day(2024, 1, 2), window: day(2022, 7, 22), want: types.Period{From: day(2024, 1, 2), Before: before}},
 		{name: "a later fetch repeats the lag", last: ptr.To(day(2026, 3, 10)), earliest: day(2024, 1, 2), want: types.Period{From: day(2026, 2, 24), Before: before}},
-		{name: "the endpoint's first day bounds the start", earliest: day(2020, 1, 2), since: day(2022, 7, 22), want: types.Period{From: day(2022, 7, 22), Before: before}},
-		{name: "the subscription's window bounds the start", earliest: day(2020, 1, 2), since: day(2022, 7, 22), window: day(2025, 3, 20), want: types.Period{From: day(2025, 3, 20), Before: before}},
+		{name: "the window bounds the start", earliest: day(2020, 1, 2), window: day(2022, 7, 22), want: types.Period{From: day(2022, 7, 22), Before: before}},
 		{name: "a start after today is empty", earliest: day(2026, 6, 1), want: types.Period{From: before, Before: before}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got := NextPeriod(tc.last, tc.earliest, tc.since, tc.window, lag, now)
+			got := NextPeriod(tc.last, tc.earliest, window(tc.window), lag, now)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("NextPeriod mismatch (-want +got):\n%s", diff)
 			}
 		})
+	}
+}
+
+func TestLookupDay(t *testing.T) {
+	now := time.Date(2026, time.March, 20, 15, 0, 0, 0, time.UTC)
+	tests := []struct {
+		name             string
+		earliest, window time.Time
+		want             time.Time
+	}{
+		{name: "the earliest transaction inside the window", earliest: day(2025, 1, 2), window: day(2024, 3, 20), want: day(2025, 1, 2)},
+		{name: "the window's start after the earliest transaction", earliest: day(2020, 1, 2), window: day(2024, 3, 20), want: day(2024, 3, 20)},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := LookupDay(tc.earliest, window(tc.window), now); !got.Equal(tc.want) {
+				t.Errorf("LookupDay = %s, want %s", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestHistory(t *testing.T) {
+	now := time.Date(2026, time.March, 20, 15, 0, 0, 0, time.UTC)
+	want := types.Period{From: day(2024, 3, 20), Before: day(2026, 3, 21)}
+	if diff := cmp.Diff(want, History(window(day(2024, 3, 20)), now)); diff != "" {
+		t.Errorf("History mismatch (-want +got):\n%s", diff)
 	}
 }
 

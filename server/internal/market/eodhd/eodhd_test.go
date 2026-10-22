@@ -68,14 +68,14 @@ func TestClassify(t *testing.T) {
 		err  error
 		want market.Failure
 	}{
-		{name: "a refused key", err: status(http.StatusUnauthorized, nil), want: market.Failure{Scope: gen.BlockScopeDatasource}},
-		{name: "a symbol the plan does not cover", err: status(http.StatusForbidden, nil), want: market.Failure{Scope: gen.BlockScopeIdentifier}},
-		{name: "a rate limit with a delay", err: status(http.StatusTooManyRequests, http.Header{"Retry-After": {"30"}}), want: market.Failure{Temporary: true, Scope: gen.BlockScopeIdentifier, RetryAfter: 30 * time.Second}},
-		{name: "a rate limit without a delay", err: status(http.StatusTooManyRequests, nil), want: market.Failure{Temporary: true, Scope: gen.BlockScopeIdentifier}},
-		{name: "an outage", err: status(http.StatusBadGateway, nil), want: market.Failure{Temporary: true, Scope: gen.BlockScopeIdentifier}},
-		{name: "a bad request", err: status(http.StatusBadRequest, nil), want: market.Failure{Scope: gen.BlockScopeIdentifier}},
-		{name: "a path EODHD does not serve", err: status(http.StatusNotFound, nil), want: market.Failure{Scope: gen.BlockScopeIdentifier}},
-		{name: "a transport error", err: errors.New("eodhd: connection reset"), want: market.Failure{Temporary: true, Scope: gen.BlockScopeIdentifier}},
+		{name: "a refused key", err: status(http.StatusUnauthorized, nil), want: market.Failure{Scope: market.ScopeDatasource}},
+		{name: "a symbol the plan does not cover", err: status(http.StatusForbidden, nil), want: market.Failure{Scope: market.ScopeKey}},
+		{name: "a rate limit with a delay", err: status(http.StatusTooManyRequests, http.Header{"Retry-After": {"30"}}), want: market.Failure{Temporary: true, Scope: market.ScopeKey, RetryAfter: 30 * time.Second}},
+		{name: "a rate limit without a delay", err: status(http.StatusTooManyRequests, nil), want: market.Failure{Temporary: true, Scope: market.ScopeKey}},
+		{name: "an outage", err: status(http.StatusBadGateway, nil), want: market.Failure{Temporary: true, Scope: market.ScopeKey}},
+		{name: "a bad request", err: status(http.StatusBadRequest, nil), want: market.Failure{Scope: market.ScopeKey}},
+		{name: "a path EODHD does not serve", err: status(http.StatusNotFound, nil), want: market.Failure{Scope: market.ScopeKey}},
+		{name: "a transport error", err: errors.New("eodhd: connection reset"), want: market.Failure{Temporary: true, Scope: market.ScopeKey}},
 	}
 	c := client(t)
 	for _, tc := range tests {
@@ -93,7 +93,7 @@ func TestClassifyQuota(t *testing.T) {
 	c := client(t)
 	c.now = func() time.Time { return time.Date(2026, time.October, 8, 18, 0, 0, 0, time.UTC) }
 	got := c.Classify(market.StatusError{Provider: "eodhd", Code: http.StatusPaymentRequired})
-	want := market.Failure{Temporary: true, Scope: gen.BlockScopeDatasource, RetryAfter: 6 * time.Hour}
+	want := market.Failure{Temporary: true, Scope: market.ScopeDatasource, RetryAfter: 6 * time.Hour}
 	if got != want {
 		t.Errorf("Classify(402) = %+v, want %+v", got, want)
 	}

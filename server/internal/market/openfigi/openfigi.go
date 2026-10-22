@@ -92,19 +92,19 @@ func (e jobError) Error() string { return "openfigi rejected the identifier: " +
 func (c *Client) Classify(err error) market.Failure {
 	var job jobError
 	if errors.As(err, &job) {
-		return market.Failure{Scope: gen.BlockScopeIdentifier}
+		return market.Failure{Scope: market.ScopeKey}
 	}
 	var status market.StatusError
 	if !errors.As(err, &status) {
-		return market.Failure{Temporary: true, Scope: gen.BlockScopeIdentifier}
+		return market.Failure{Temporary: true, Scope: market.ScopeKey}
 	}
 	switch {
 	case status.Code == http.StatusTooManyRequests:
-		return market.Failure{Temporary: true, Scope: gen.BlockScopeIdentifier, RetryAfter: market.Seconds(status.Header, "ratelimit-reset")}
+		return market.Failure{Temporary: true, Scope: market.ScopeKey, RetryAfter: market.Seconds(status.Header, "ratelimit-reset")}
 	case status.Code >= http.StatusInternalServerError:
-		return market.Failure{Temporary: true, Scope: gen.BlockScopeIdentifier}
+		return market.Failure{Temporary: true, Scope: market.ScopeKey}
 	}
-	return market.Failure{Scope: gen.BlockScopeDatasource}
+	return market.Failure{Scope: market.ScopeDatasource}
 }
 
 // openfigiResponse is OpenFIGI's response to one job: data, a warning that

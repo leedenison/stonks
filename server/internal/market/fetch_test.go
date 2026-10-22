@@ -392,6 +392,34 @@ func TestFetchPerKeyError(t *testing.T) {
 	}
 }
 
+// TestFetchRefusalOfTheRequest checks that a permanent failure of what one
+// request asked fails its key and leaves every block as it was, whether the
+// whole request fails or one position of a good response.
+func TestFetchRefusalOfTheRequest(t *testing.T) {
+	tests := []struct {
+		name string
+		f    *fake
+	}{
+		{name: "the whole request", f: &fake{errs: []error{refusal("outside the window")}}},
+		{name: "one position", f: &fake{perKey: map[string]error{"GB00B03MLX29": refusal("outside the window")}}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			h := newHarness(t, tc.f, nil)
+			fetchKeys := h.run(t, keyOf(tc.f, "GB00B03MLX29"))
+			if got := fetchKeys[0]; got.Outcome != gen.FetchOutcomeFailedPermanent || got.Reason != "outside the window" {
+				t.Errorf("outcome = %s, reason = %q, want failed_permanent and the refusal", got.Outcome, got.Reason)
+			}
+			if tc.f.calls != 1 {
+				t.Errorf("calls = %d, want 1", tc.f.calls)
+			}
+			if len(h.blocks) != 0 {
+				t.Errorf("blocks = %+v, want none", h.blocks)
+			}
+		})
+	}
+}
+
 // TestFetchOpenBlocks checks that where a block is read as the fetch starts,
 // it suppresses its call, and that a datasource block suppresses every call.
 func TestFetchOpenBlocks(t *testing.T) {

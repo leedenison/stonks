@@ -6,8 +6,6 @@ import (
 	"math/rand/v2"
 	"slices"
 	"time"
-
-	"github.com/leedenison/stonks/server/internal/db/gen"
 )
 
 const (
@@ -49,11 +47,11 @@ func request[Q, P any](ctx context.Context, f *Fetcher, e *Entry, s Server[Q, P]
 		// Repeating a call cannot help a temporary failure about the
 		// datasource, such as a spent daily quota. Where the provider says
 		// when to try again, no call is made until then.
-		if fail.Temporary && fail.Scope == gen.BlockScopeDatasource && fail.RetryAfter > 0 {
+		if fail.Temporary && fail.Scope == ScopeDatasource && fail.RetryAfter > 0 {
 			e.limiter.pause(f.now().Add(fail.RetryAfter), reasonOf(fail, err))
 			f.log.Info("pausing a datasource", "datasource", e.Name, "for", fail.RetryAfter)
 		}
-		if !fail.Temporary || fail.Scope == gen.BlockScopeDatasource || attempt >= f.tries {
+		if !fail.Temporary || fail.Scope == ScopeDatasource || attempt >= f.tries {
 			return nil, attempt, err
 		}
 		if fail.RetryAfter > 0 {

@@ -144,15 +144,15 @@ func unknown(e market.StatusError) bool {
 func (c *Client) Classify(err error) market.Failure {
 	var status market.StatusError
 	if !errors.As(err, &status) {
-		return market.Failure{Temporary: true, Scope: gen.BlockScopeIdentifier}
+		return market.Failure{Temporary: true, Scope: market.ScopeKey}
 	}
 	switch {
 	case status.Code == http.StatusUnauthorized || status.Code == http.StatusForbidden:
-		return market.Failure{Scope: gen.BlockScopeDatasource}
+		return market.Failure{Scope: market.ScopeDatasource}
 	case status.Code == http.StatusTooManyRequests || status.Code >= http.StatusInternalServerError:
-		return market.Failure{Temporary: true, Scope: gen.BlockScopeIdentifier}
+		return market.Failure{Temporary: true, Scope: market.ScopeKey}
 	}
-	return market.Failure{Scope: gen.BlockScopeIdentifier}
+	return market.Failure{Scope: market.ScopeKey}
 }
 
 // Fetch asks Massive about each request in turn.

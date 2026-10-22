@@ -5,8 +5,8 @@
 // of the work that needed the data; see [run.go](../run/run.go).
 //
 // Each kind of data is a Kind, which names the request an integration
-// receives and the response it gives. An integration serves a kind by
-// implementing its Server. The kinds are identity and identifier events.
+// receives and the response it gives. The kinds are identity and identifier
+// events. One integration can serve both.
 //
 // An integration reads a provider's venue codes through a table generated
 // from the provider's own list. Every venue a table names normalises to an
@@ -53,10 +53,25 @@ import (
 // delay the provider requested, and zero uses the framework's own schedule.
 type Failure struct {
 	Temporary  bool
-	Scope      gen.BlockScope
+	Scope      Scope
 	Reason     string
 	RetryAfter time.Duration
 }
+
+// Scope is what a failure concerns. A permanent failure blocks its scope,
+// except ScopeRequest, which blocks nothing.
+type Scope int
+
+const (
+	// ScopeKey is the identifier or domain the key went out as.
+	ScopeKey Scope = iota
+	// ScopeDatasource is every call to the datasource.
+	ScopeDatasource
+	// ScopeRequest is what one request asked beyond its identifier, such as
+	// its dates. A request for other dates may succeed, so the failure blocks
+	// nothing.
+	ScopeRequest
+)
 
 // Integration adapts one datasource to the fetch framework. It serves the
 // kinds of data whose interfaces it implements.

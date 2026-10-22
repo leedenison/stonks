@@ -188,13 +188,13 @@ func TestFetchRefused(t *testing.T) {
 		{
 			cassette: "invalid_value",
 			sent:     types.Identifier{Type: types.IdentifierTypeCusip, Value: "!!!"},
-			want:     market.Failure{Scope: gen.BlockScopeIdentifier},
+			want:     market.Failure{Scope: market.ScopeKey},
 		},
 		{
 			cassette: "unauthorised",
 			key:      "not-a-key",
 			sent:     isin,
-			want:     market.Failure{Scope: gen.BlockScopeDatasource},
+			want:     market.Failure{Scope: market.ScopeDatasource},
 		},
 	}
 	for _, tc := range tests {
@@ -243,15 +243,15 @@ func TestClassifyStatus(t *testing.T) {
 	}{
 		{
 			name: "rate limited", status: http.StatusTooManyRequests, reset: "12",
-			want: market.Failure{Temporary: true, Scope: gen.BlockScopeIdentifier, RetryAfter: 12 * time.Second},
+			want: market.Failure{Temporary: true, Scope: market.ScopeKey, RetryAfter: 12 * time.Second},
 		},
 		{
 			name: "unavailable", status: http.StatusServiceUnavailable,
-			want: market.Failure{Temporary: true, Scope: gen.BlockScopeIdentifier},
+			want: market.Failure{Temporary: true, Scope: market.ScopeKey},
 		},
 		{
 			name: "malformed", status: http.StatusBadRequest,
-			want: market.Failure{Scope: gen.BlockScopeDatasource},
+			want: market.Failure{Scope: market.ScopeDatasource},
 		},
 	}
 	for _, tc := range tests {

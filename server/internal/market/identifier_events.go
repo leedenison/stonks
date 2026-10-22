@@ -51,21 +51,29 @@ type IdentifierEventResult struct {
 	Coverage   []Coverage
 }
 
-// IdentifierEvents reports the identifier events of values or domains.
+// IdentifierEvents is an integration that reports the identifier events of
+// values or domains. Its Events method returns the server, so one integration
+// can serve identity too.
 type IdentifierEvents interface {
 	Integration
-	Server[IdentifierEventRequest, IdentifierEventResult]
+	Events() Server[IdentifierEventRequest, IdentifierEventResult]
 }
 
-// Ranged is an IdentifierEvents server that answers for whole domains over a
+// Windowed is an IdentifierEvents integration whose answers reach back a
+// limited way.
+type Windowed interface {
+	// Window is the first day the provider answers for, as of now. It is the
+	// later of the endpoint's first day and the earliest day the subscription
+	// allows.
+	Window(now time.Time) time.Time
+}
+
+// Ranged is a Windowed integration that answers for whole domains over a
 // period.
 type Ranged interface {
+	Windowed
 	// Domains is the operating MICs it covers.
 	Domains() []string
-	// Since is the first day the endpoint holds data for.
-	Since() time.Time
-	// Window is the earliest day the subscription allows on the day now.
-	Window(now time.Time) time.Time
 	// Lag is how long the provider may take to publish an event, unless the
 	// datasource sets its own.
 	Lag() time.Duration
@@ -76,8 +84,10 @@ type Ranged interface {
 var identifierEventsKind = Kind[IdentifierEventRequest, IdentifierEventResult]{
 	name: gen.FetchKindIdentifierEvents,
 	server: func(e *Entry) Server[IdentifierEventRequest, IdentifierEventResult] {
-		s, _ := e.Integration.(IdentifierEvents)
-		return s
+		if s, ok := e.Integration.(IdentifierEvents); ok {
+			return s.Events()
+		}
+		return nil
 	},
 	subject: func(IdentifierEventRequest) *uuid.UUID { return nil },
 	count:   func(r IdentifierEventResult) int { return len(r.Events) + len(r.Assertions) },
@@ -93,25 +103,42 @@ func (f *Fetcher) IdentifierEvents(ctx context.Context, parent gen.Run, e *Entry
 }
 
 // NextPeriod returns the period of the next fetch of a domain. It ends with
-// today. Its start is the latest of three days. The first is the end of the
-// last fetch less the lag, or the earliest transaction when there was no last
-// fetch. The second is the first day the endpoint holds data for. The third is
-// the earliest day the subscription allows. The period is empty when that day
-// is after today.
-func NextPeriod(last *time.Time, earliest, since, window time.Time, lag time.Duration, now time.Time) types.Period {
+// today. It starts at the later of the start of w's window and the end of the
+// last fetch less the lag. Where there was no last fetch, the earliest
+// transaction stands in for the end. The period is empty when its start is
+// after today.
+func NextPeriod(last *time.Time, earliest time.Time, w Windowed, lag time.Duration, now time.Time) types.Period {
 	from := earliest
 	if last != nil {
 		from = last.Add(-lag)
 	}
-	for _, d := range []time.Time{since, window} {
-		if d.After(from) {
-			from = d
-		}
-	}
-	before := types.Day(now).AddDate(0, 0, 1)
-	from = types.Day(from)
+	before := tomorrow(now)
+	from = types.Day(later(from, w.Window(now)))
 	if from.After(before) {
 		from = before
 	}
 	return types.Period{From: from, Before: before}
 }
+
+// LookupDay is the day a point in time lookup asks about for a value whose
+// earliest transaction is on earliest: that day, or the start of w's window
+// where the window starts later.
+func LookupDay(earliest time.Time, w Windowed, now time.Time) time.Time {
+	return types.Day(later(earliest, w.Window(now)))
+}
+
+// History is the period of a request for an entity's ticker history: from
+// the start of w's window to today. Every such request asks for this period,
+// so requests made on one day for one entity share a cached answer.
+func History(w Windowed, now time.Time) types.Period {
+	return types.Period{From: types.Day(w.Window(now)), Before: tomorrow(now)}
+}
+
+func later(a, b time.Time) time.Time {
+	if b.After(a) {
+		return b
+	}
+	return a
+}
+
+func tomorrow(now time.Time) time.Time { return types.Day(now).AddDate(0, 0, 1) }
