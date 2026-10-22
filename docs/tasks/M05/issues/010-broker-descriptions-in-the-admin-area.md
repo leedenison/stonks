@@ -20,5 +20,5 @@ the keys a datasource serves, and the unavailable scope selects unavailable keys
 
 ## Design
 
-Nothing settled. Validity is a column of the stated key. See
-[007](../adr/007-an-event-finds-what-it-affects-from-the-association.md).
+Nothing settled. An association through a broker description is fixed and provisional.
+See [013](../adr/013-an-association-is-fixed-or-dated.md).

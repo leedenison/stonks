@@ -32,9 +32,10 @@ in the listing's currency.
 
 A MIC-derived identifier is trusted inside its validity interval, which is confirmed
 inside identifier event coverage and provisional outside it.  See
-[identifier-events.md](identifier-events.md).  It associates a key with an instrument
-when the key's transactions are dated inside its validity, but never decides between two
-instruments and never merges them.
+[identifier-events.md](identifier-events.md).  A key associated through one takes a
+dated association: it names the value, and each of its transactions takes the instrument
+the value names on the transaction's date.  A MIC-derived identifier never merges two
+instruments.
 
 The weakest link governs.  Where a key states only a ticker, it is associated through
 that ticker however many stable identifiers a datasource's answer names, so the

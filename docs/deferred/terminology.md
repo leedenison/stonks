@@ -24,6 +24,10 @@ scales. GBP and GBp/GBX are one family.
 **Confirmed** where coverage or assertions establish it, **provisional** where it rests
 on the assumption that the identifier has not moved.
 
+**Association** -- what a stated key resolved to. **Fixed** where it names one instrument
+for all time, **dated** where it names a MIC-derived value and each transaction takes the
+instrument the value names on its date.
+
 **Assertion** -- a claim that an identifier names an instrument, or names nothing, on one
 day. A datasource makes one through a fetch, and it holds on the day of the answer. A
 point in time lookup holds on the day its request names. An entity's ticker history
