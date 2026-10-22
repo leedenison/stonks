@@ -25,8 +25,10 @@ scales. GBP and GBp/GBX are one family.
 on the assumption that the identifier has not moved.
 
 **Assertion** -- a claim that an identifier names an instrument, or names nothing, on one
-day. A datasource makes one through a fetch, and it holds on the day of the answer. An
-administrator makes one by attestation.
+day. A datasource makes one through a fetch, and it holds on the day of the answer. A
+point in time lookup holds on the day its request names. An entity's ticker history
+asserts each ticker on the day the ticker began naming the entity. An administrator makes
+one by attestation.
 
 **Coverage** -- the periods over which one datasource has answered for one key, or for
 every key in one domain.

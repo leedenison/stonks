@@ -4,10 +4,11 @@ Transactions carry an order date, so validity is kept in days. Every interval of
 coverage and an event is a half-open range of dates.
 
 An assertion holds on one day, the UTC day the provider answered. An answer served from
-the fetch cache holds on the day of the original call. An administrator's assertion holds
-on the day it names. A range of validity comes only from
-the bracket rule of [005](005-validity-is-bootstrapped-from-the-present-backwards.md) and
-from coverage.
+the fetch cache holds on the day of the original call. A point in time lookup holds on the
+day its request names. An entity's ticker history asserts each ticker on the day the
+ticker began naming the entity. An administrator's assertion holds on the day it names.
+A range of validity comes only from the bracket rule of
+[005](005-validity-is-bootstrapped-from-the-present-backwards.md) and from coverage.
 
 A witnessed event takes effect at the start of its day, so it precedes an assertion on the
 same day. A rename between two answers on one day is settled by precedence, as
