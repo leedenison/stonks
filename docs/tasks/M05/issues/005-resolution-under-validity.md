@@ -1,6 +1,7 @@
 ---
 title: Resolution under identifier validity
 type: task
+dependencies: [003]
 ---
 
 ## Scope
@@ -24,3 +25,4 @@ In:
   [002](../adr/002-precedence-decides-between-providers-that-disagree-and-a-finding-records-it.md).
 - A witnessed event inside a bracket of same-instrument assertions is recorded as a
   finding of the run that met it.
+- End to end coverage through vcrproxy of a key whose ticker changed.

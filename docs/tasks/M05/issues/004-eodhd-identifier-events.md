@@ -1,6 +1,7 @@
 ---
 title: EODHD identifier events
 type: task
+dependencies: [003]
 ---
 
 ## Scope
@@ -19,6 +20,8 @@ In:
   states. The endpoint's first date is 2022-07-22, and the lag defaults to two weeks.
 - A refusal because the plan lacks the endpoint blocks the datasource for this fetch
   kind.
+- A refusal of a `from` before the endpoint's first date fails only the request. See
+  [010](../adr/010-a-refusal-of-the-requested-dates-fails-only-the-request.md).
 - Tests against recorded traffic redacted as it is saved. The recording settles the
   unverified facts in [001](001-open-m05.md).
 - End to end coverage through vcrproxy of a range that holds a symbol change.
