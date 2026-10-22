@@ -1,0 +1,41 @@
+---
+version: 2
+interactions:
+    - id: 0
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: api.massive.com
+        form:
+            apiKey:
+                - REDACTED
+            date:
+                - "2021-06-01"
+        url: https://api.massive.com/v3/reference/tickers/META?apiKey=REDACTED&date=2021-06-01
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 100
+        body: '{"status":"NOT_FOUND","request_id":"55d6c2ad8f16c52b31984ae782d11822","message":"Ticker not found."}'
+        headers:
+            Content-Length:
+                - "100"
+            Content-Type:
+                - application/json
+            Date:
+                - Thu, 22 Oct 2026 12:46:38 GMT
+            Strict-Transport-Security:
+                - max-age=15724800; includeSubDomains
+            Vary:
+                - Accept-Encoding
+            X-Polygon-Cluster-Name:
+                - polygon-ny5
+            X-Request-Id:
+                - 55d6c2ad8f16c52b31984ae782d11822
+        status: 404 Not Found
+        code: 404
+        duration: 799.695727ms
