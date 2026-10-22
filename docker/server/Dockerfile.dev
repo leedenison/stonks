@@ -1,7 +1,7 @@
 # The Go toolchain image, run over a bind mount of the repository. No tool is
 # installed here: go.mod pins every one as a tool directive, and `go tool <name>`
 # builds it from the module cache on first use.
-FROM golang:1.27.1-alpine3.24
+FROM golang:1.27.2-alpine3.24
 ENV GOTOOLCHAIN=local GOFLAGS=-modcacherw
 # sqlc's Postgres parser is cgo.
 RUN apk add --no-cache build-base

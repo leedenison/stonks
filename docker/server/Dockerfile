@@ -1,7 +1,7 @@
 # The service image. Configuration is environment only, so the image carries no
 # command line, and migrations are embedded in the binary, so it carries nothing
 # but the binary, the healthcheck binary and the certificate bundle.
-FROM golang:1.27.1-alpine3.24 AS build
+FROM golang:1.27.2-alpine3.24 AS build
 ENV GOTOOLCHAIN=local
 # sqlc's Postgres parser is cgo.
 RUN apk add --no-cache build-base
