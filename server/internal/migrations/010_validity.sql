@@ -7,7 +7,9 @@ CREATE TYPE identifier_event_action AS ENUM ('assigned', 'renamed', 'retired');
 
 -- An identifier assertion is a claim that an identifier names an instrument,
 -- or names nothing, on one day. A datasource asserts through a fetch key, on
--- the day of its answer. An administrator asserts through an attestation
+-- the day of its answer. A point in time lookup asserts on the day its request
+-- names. An entity's ticker history asserts each ticker on the day the ticker
+-- began naming the entity. An administrator asserts through an attestation
 -- run, on any day up to the day of the attestation. A row goes with its
 -- source.
 CREATE TABLE identifier_assertions (
