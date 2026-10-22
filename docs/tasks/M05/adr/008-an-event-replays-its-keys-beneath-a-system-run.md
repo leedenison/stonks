@@ -3,9 +3,9 @@
 An event that breaks an association replays the key at once. The replay is a child of
 the run that recorded the event.
 
-A child shares its parent's user. A domain fetch or an attestation acts for the system
-rather than for a user. One event can affect the keys of many users. A system run is a
-run whose user is null. Domain fetches, re-assertions of held values and attestations
+A child shares its parent's user. A re-assertion of held values or an attestation acts
+for the system rather than for a user. One event can affect the keys of many users. A
+system run is a run whose user is null. Re-assertions of held values and attestations
 are system runs. Beneath a system run, each affected user has one replay as a child. The
 replay belongs to that user.
 
@@ -28,5 +28,3 @@ A child therefore shares its parent's user, or the child or the parent is a syst
 
 The admin runs page lists system runs. A user sees only their own runs, so a user sees a
 replay without its parent.
-
-A fetch key of a domain fetch names a domain rather than a stated key.

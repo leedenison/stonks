@@ -12,7 +12,7 @@ Resolution builds it in three bands:
    bracket the window, so validity across it is confirmed.
 3. Before the window. No provider answers for this period. Validity is provisional, and
    resolution proceeds on it. The period is derived as a coverage gap of the value, or
-   of its domain where a domain fetch would serve it.
+   of its domain where a datasource covers the domain.
 
 An administrator closes a coverage gap with an assertion on the gap's first day. That
 assertion brackets the provider's first assertion. See
@@ -20,21 +20,22 @@ assertion brackets the provider's first assertion. See
 subscription with a longer window is enabled and the key is replayed.
 
 A value on a venue that no event provider covers has a gap from its earliest transaction
-to the present. Its keys still resolve, and the statement details page marks them
+to its first assertion. Its keys still resolve, and the statement details page marks them
 provisional.
 
 ## Maintenance
 
-Validity is confirmed only up to the latest assertion or coverage. Two fetches extend it
-to the present:
-
-- a domain fetch, as [001](001-a-domain-fetch-covers-from-the-last-domain-fetch-to-the-present.md)
-  states;
-- a re-assertion of each held value, with one identity or ticker events call each.
+Validity is confirmed only up to the latest assertion or coverage. A re-assertion of
+each held value extends it to the present. Each enabled datasource that serves the value
+receives one call. The call is an identifier events request for the instrument where the
+datasource serves one, as Massive's chain call does. Otherwise it is an identity lookup.
+Identity lookups alone maintain a value on a venue that no event provider covers, such
+as EODHD's answers for a non-US venue. A call costs one request at Massive and up to
+four at EODHD.
 
 Resolution reads the database before it asks a datasource, so it never re-asserts a held
-value of its own accord. In this milestone an administrator starts both fetches. A later
-milestone schedules them.
+value of its own accord. In this milestone an administrator starts the re-assertion. A
+later milestone schedules it.
 
 ## Consequences
 

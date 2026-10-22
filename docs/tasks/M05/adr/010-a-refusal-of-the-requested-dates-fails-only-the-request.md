@@ -2,8 +2,8 @@
 
 A provider may refuse a request because its dates lie outside what the subscription or
 the endpoint holds. Massive answers a 403 for a date outside the plan's history window.
-EODHD may refuse a `from` before its first date. The refusal does not concern the
-identifier. A request for other dates under the same identifier may succeed.
+The refusal does not concern the identifier. A request for other dates under the same
+identifier may succeed.
 
 Such a refusal fails the request permanently and does not write a block. An integration
 gives its failure one of three scopes:
