@@ -235,7 +235,8 @@ func TestNotFound(t *testing.T) {
 	}
 }
 
-// TestConfig checks the rate each plan gives and the configs New refuses.
+// TestConfig checks the rate and window each plan gives and the configs New
+// refuses.
 func TestConfig(t *testing.T) {
 	limit := func(t *testing.T, plan string) rate.Limit {
 		t.Helper()
@@ -254,6 +255,15 @@ func TestConfig(t *testing.T) {
 	}
 	if got := limit(t, "starter"); got != rate.Inf {
 		t.Errorf("Limit() on starter = %v, want unlimited", got)
+	}
+	for _, plan := range []string{"basic", "starter"} {
+		b, err := json.Marshal(map[string]string{"plan": plan})
+		require.NoError(t, err)
+		c, err := New(market.Config{Credential: "k", JSON: b}, mics, http.DefaultClient)
+		require.NoError(t, err)
+		if got := c.Window(time.Date(2026, time.March, 20, 0, 0, 0, 0, time.UTC)); !got.Equal(since) {
+			t.Errorf("Window() on %s = %s, want %s", plan, got, since)
+		}
 	}
 
 	refused := []struct {

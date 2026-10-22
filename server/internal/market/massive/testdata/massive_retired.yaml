@@ -1,0 +1,49 @@
+---
+version: 2
+interactions:
+    - id: 0
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: api.massive.com
+        form:
+            active:
+                - "false"
+            apiKey:
+                - REDACTED
+            limit:
+                - "1000"
+            market:
+                - stocks
+            ticker:
+                - TWTR
+        url: https://api.massive.com/v3/reference/tickers?active=false&apiKey=REDACTED&limit=1000&market=stocks&ticker=TWTR
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 405
+        uncompressed: true
+        body: '{"results":[{"ticker":"TWTR","name":"Twitter, Inc.","market":"stocks","locale":"us","primary_exchange":"XNYS","type":"CS","active":false,"currency_name":"usd","cik":"0001418091","composite_figi":"BBG000H6HNW3","share_class_figi":"BBG001T35PT7","last_updated_utc":"2024-12-03T22:29:45.588279Z","delisted_utc":"2022-10-31T04:00:00Z"}],"status":"OK","request_id":"2a570f812c3aa1a79c00c5f0cdb07e9c","count":1}'
+        headers:
+            Content-Type:
+                - application/json
+            Date:
+                - Thu, 22 Oct 2026 12:46:53 GMT
+            Strict-Transport-Security:
+                - max-age=15724800; includeSubDomains
+            Vary:
+                - Accept-Encoding
+                - Accept-Encoding
+            X-Item-Count:
+                - "1"
+            X-Polygon-Cluster-Name:
+                - polygon-ny5
+            X-Request-Id:
+                - 2a570f812c3aa1a79c00c5f0cdb07e9c
+        status: 200 OK
+        code: 200
+        duration: 925.008079ms

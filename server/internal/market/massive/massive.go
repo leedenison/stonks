@@ -1,5 +1,5 @@
-// Package massive is the identity integration with Massive's reference data
-// API, which covers listed US stock, ETFs and funds.
+// Package massive is the identity and identifier events integration with
+// Massive's reference data API, which covers listed US stock, ETFs and funds.
 package massive
 
 import (
@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"golang.org/x/time/rate"
@@ -117,10 +118,16 @@ func Factory(mics mic.Table, h *http.Client) market.Factory {
 	}
 }
 
-// Limit is the request rate of the account's plan. Massive rates stock
-// requests separately from other asset classes, and this integration sends
-// only stock requests.
+// Limit is the request rate of the account's plan. Massive counts the ticker
+// calls in a reference data bucket, separate from the asset class buckets.
+// Massive publishes the limit of neither that bucket nor the ticker events
+// call, so the plan's rate for stock stands in for both.
 func (c *Client) Limit() (rate.Limit, int) { return c.limit, 1 }
+
+// Window is the first day Massive answers for, on every day. Every plan
+// answers back to the first day of Massive's data, whatever the endpoint
+// pages state for Basic.
+func (c *Client) Window(time.Time) time.Time { return since }
 
 // Endpoint is the address the Client calls.
 func (c *Client) Endpoint() string { return c.endpoint }
@@ -137,7 +144,8 @@ func unknown(e market.StatusError) bool {
 	return e.Code == http.StatusNotFound && json.Unmarshal([]byte(e.Body), &body) == nil && body.Status == "NOT_FOUND"
 }
 
-// Classify scopes a failure by its status. A 401 or 403 blocks the
+// Classify scopes a failure by its status. A 403 for dates outside the plan's
+// history concerns only the request. Any other 401 or 403 blocks the
 // datasource, because the credential fails for every key. Any other status
 // concerns only the key requested. A 429 or 5xx is temporary. Massive's 429
 // omits Retry-After, so the market package's retry schedule applies.
@@ -147,12 +155,24 @@ func (c *Client) Classify(err error) market.Failure {
 		return market.Failure{Temporary: true, Scope: market.ScopeKey}
 	}
 	switch {
+	case status.Code == http.StatusForbidden && timeframe(status):
+		return market.Failure{Scope: market.ScopeRequest}
 	case status.Code == http.StatusUnauthorized || status.Code == http.StatusForbidden:
 		return market.Failure{Scope: market.ScopeDatasource}
 	case status.Code == http.StatusTooManyRequests || status.Code >= http.StatusInternalServerError:
 		return market.Failure{Temporary: true, Scope: market.ScopeKey}
 	}
 	return market.Failure{Scope: market.ScopeKey}
+}
+
+// timeframe reports whether a refusal is Massive's answer for dates outside
+// the plan's history.
+func timeframe(e market.StatusError) bool {
+	var body struct {
+		Status  string `json:"status"`
+		Message string `json:"message"`
+	}
+	return json.Unmarshal([]byte(e.Body), &body) == nil && body.Status == "NOT_AUTHORIZED" && strings.Contains(body.Message, "timeframe")
 }
 
 // Fetch asks Massive about each request in turn.

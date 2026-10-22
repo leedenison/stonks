@@ -1,0 +1,41 @@
+---
+version: 2
+interactions:
+    - id: 0
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: api.massive.com
+        form:
+            apiKey:
+                - REDACTED
+            date:
+                - "2021-06-01"
+        url: https://api.massive.com/v3/reference/tickers/FB?apiKey=REDACTED&date=2021-06-01
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 628
+        uncompressed: true
+        body: '{"request_id":"fb5c827b7b24ffcb52d6f7163154e20d","results":{"active":true,"address":"REDACTED","cik":"0001326801","composite_figi":"BBG000MM2P62","currency_name":"usd","list_date":"2012-05-18","locale":"us","market":"stocks","market_cap":9.1556050950108e+11,"name":"Facebook, Inc. Class A","phone_number":"REDACTED","primary_exchange":"XNAS","round_lot":100,"share_class_figi":"BBG001SQCQC5","share_class_shares_outstanding":2405450000,"sic_code":"7370","sic_description":"SERVICES-COMPUTER PROGRAMMING, DATA PROCESSING, ETC.","ticker":"FB","ticker_root":"FB","type":"CS","weighted_shares_outstanding":2781759516},"status":"OK"}'
+        headers:
+            Content-Type:
+                - application/json
+            Date:
+                - Thu, 22 Oct 2026 12:46:22 GMT
+            Strict-Transport-Security:
+                - max-age=15724800; includeSubDomains
+            Vary:
+                - Accept-Encoding
+                - Accept-Encoding
+            X-Polygon-Cluster-Name:
+                - polygon-ny5
+            X-Request-Id:
+                - fb5c827b7b24ffcb52d6f7163154e20d
+        status: 200 OK
+        code: 200
+        duration: 236.00866ms
