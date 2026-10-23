@@ -4,13 +4,13 @@ Some periods and venues have no datasource. An administrator may know the associ
 from their own checks, or may accept the risk of being wrong. They need a way to say so.
 
 An attestation is an assertion whose source is an administrator rather than a fetch key.
-It states that a value names an instrument, or names nothing, on one day. The day is
+It states that a ticker names an instrument, or names nothing, on one day. The day is
 today by default, and may be any earlier day.
 
 An administrator attests in three situations, and each writes the same row:
 
-- They verified that a value names an instrument. The assertion names it.
-- They accept that no event occurred since the value last named the instrument. The
+- They verified that a ticker names an instrument. The assertion names it.
+- They accept that no event occurred since the ticker last named the instrument. The
   assertion names that instrument and brackets the last assertion, as
   [005](005-validity-is-bootstrapped-from-the-present-backwards.md) states.
 - They know of an event. The assertion names the new instrument, or names nothing. With
@@ -23,7 +23,7 @@ after the latest positive assertion, whatever its source. On one day an attested
 assertion outranks every datasource, since the administrator checked it.
 
 Coverage and witnessed events come only from datasources. A venue with no datasource is
-attested value by value, and extended by attesting again.
+attested ticker by ticker, and extended by attesting again.
 
 An administrator may withdraw an attestation. Its assertion is deleted, and the keys it
 affects are replayed.

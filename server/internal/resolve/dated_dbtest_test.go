@@ -64,9 +64,9 @@ func datedThrough(k gen.StatedKey, v types.Identifier, arbiter gen.Arbiter) bool
 }
 
 // TestDated checks that a key stating only a venue ticker is dated through
-// its value, and that the identity answer's history and a lookup on the key's
+// its ticker, and that the identity answer's history and a lookup on the key's
 // earliest date are recorded. A lookup naming an entity the system lacks
-// creates it without a ticker row. A second key of the value is dated from the
+// creates it without a ticker row. A second key of the ticker is dated from the
 // facts without an identity fetch. Resolving the first key again with an
 // earlier date asks only for that day.
 func TestDated(t *testing.T) {
@@ -120,7 +120,7 @@ func TestDated(t *testing.T) {
 	created, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: other.Type, Value: other.Value})
 	require.NoError(t, err)
 	if created.Instrument.AssetClass != types.AssetClassEtf || !confirmedOn(ivs, created.Instrument.ID, on(2021, 7, 1)) {
-		t.Errorf("the lookup's entity = %+v under %+v, want an ETF the value names on 2021-07-01", created.Instrument, ivs)
+		t.Errorf("the lookup's entity = %+v under %+v, want an ETF the ticker names on 2021-07-01", created.Instrument, ivs)
 	}
 
 	s.rerun(t)
@@ -228,7 +228,7 @@ func TestDatedStable(t *testing.T) {
 }
 
 // runFindings returns the findings of the stack's resolution that concern a
-// value.
+// ticker.
 func (s *stack) runFindings(t *testing.T) []gen.Finding {
 	t.Helper()
 	rows, err := s.q.ListRunFindings(context.Background(), []uuid.UUID{s.resolution.ID})
@@ -266,7 +266,7 @@ func (s *stack) eventFetchKey(t *testing.T, datasource string, subject types.Ide
 }
 
 // TestDisagreement checks that two datasources whose histories name
-// different instruments for one value on one day leave one disagreement on
+// different instruments for one ticker on one day leave one disagreement on
 // the run that wrote them, naming the lower precedence datasource's fetch
 // key, and that a later run reading the same facts records none. The facts
 // each run wrote come back in order: the identity fetch, then alpha's events

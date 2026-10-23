@@ -62,7 +62,7 @@ func (f *fixture) identify(t *testing.T, instrument uuid.UUID, isin string) type
 }
 
 // TestRecord checks that a rename, the assertions of the entity's chain and
-// value coverage are recorded from a served key, and derive the chain's
+// ticker coverage are recorded from a served key, and derive the chain's
 // validity. A failed key and an assertion that states no stable identifier
 // write nothing.
 func TestRecord(t *testing.T) {
@@ -89,13 +89,13 @@ func TestRecord(t *testing.T) {
 
 	want := []Interval{confirmed(at(10), at(20), f.a), provisional(at(20), nil, f.a)}
 	if diff := cmp.Diff(want, f.of(t)); diff != "" {
-		t.Errorf("Of(new value) mismatch (-want +got):\n%s", diff)
+		t.Errorf("Of(new ticker) mismatch (-want +got):\n%s", diff)
 	}
 	oldOf, err := Of(ctx, f.q, old)
 	require.NoError(t, err)
 	want = []Interval{provisional(nil, at(1), f.a), confirmed(at(1), at(10), f.a)}
 	if diff := cmp.Diff(want, oldOf); diff != "" {
-		t.Errorf("Of(old value) mismatch (-want +got):\n%s", diff)
+		t.Errorf("Of(old ticker) mismatch (-want +got):\n%s", diff)
 	}
 	asserted, err := f.q.ListFetchKeyAssertions(ctx, &k.ID)
 	require.NoError(t, err)
@@ -105,7 +105,7 @@ func TestRecord(t *testing.T) {
 }
 
 // TestRecordThroughStable checks that an assertion names the instrument its
-// stable identifier names, not the one carrying the ticker row of its value.
+// stable identifier names, not the one carrying its ticker row.
 func TestRecordThroughStable(t *testing.T) {
 	f := newFixture(t)
 	ctx := context.Background()
@@ -170,7 +170,7 @@ func TestRecordCreates(t *testing.T) {
 	}
 }
 
-// TestRecordDomainCoverage checks that coverage of a domain confirms a value
+// TestRecordDomainCoverage checks that coverage of a domain confirms a ticker
 // of it that another fetch asserted.
 func TestRecordDomainCoverage(t *testing.T) {
 	f := newFixture(t)
@@ -184,23 +184,23 @@ func TestRecordDomainCoverage(t *testing.T) {
 	}
 }
 
-// TestRecordSpelling checks that a value or a domain an integration did not
+// TestRecordSpelling checks that a ticker or a domain an integration did not
 // normalise fails the call before anything is written.
 func TestRecordSpelling(t *testing.T) {
 	tests := []struct {
-		name  string
-		value types.Identifier
+		name   string
+		ticker types.Identifier
 	}{
-		{name: "a class separator other than a dot", value: types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XNYS", Value: "BRK-B"}},
-		{name: "a venue that is not an operating MIC", value: types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "ARCX", Value: "SPY"}},
-		{name: "a venue that is no MIC", value: types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "NYSE", Value: "IBM"}},
+		{name: "a class separator other than a dot", ticker: types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XNYS", Value: "BRK-B"}},
+		{name: "a venue that is not an operating MIC", ticker: types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "ARCX", Value: "SPY"}},
+		{name: "a venue that is no MIC", ticker: types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "NYSE", Value: "IBM"}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newFixture(t)
 			ctx := context.Background()
 			good := f.served(t, f.foo, market.IdentifierEventResult{Coverage: []market.Coverage{{Identifier: f.foo, Period: types.Period{From: day(1), Before: day(2)}}}})
-			bad := f.served(t, f.foo, market.IdentifierEventResult{Events: []market.IdentifierEvent{{Value: tc.value, Action: gen.IdentifierEventActionRetired, On: day(3)}}})
+			bad := f.served(t, f.foo, market.IdentifierEventResult{Events: []market.IdentifierEvent{{Value: tc.ticker, Action: gen.IdentifierEventActionRetired, On: day(3)}}})
 			if err := Record(ctx, f.q, f.mics(t), f.families(t), []eventKey{good, bad}); !errors.Is(err, ErrSpelling) {
 				t.Fatalf("Record() error = %v, want ErrSpelling", err)
 			}

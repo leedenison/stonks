@@ -10,7 +10,7 @@ ORDER BY type, domain, value;
 -- name: RelinkIdentifierAssertions :exec
 UPDATE identifier_assertions SET instrument_id = @survivor::uuid WHERE instrument_id = @loser::uuid;
 
--- name: ListValueAssertions :many
+-- name: ListIdentifierAssertions :many
 -- The assertions of one identifier, each with the fetch key that made it, the
 -- datasource of that fetch and the datasource's precedence. All three are
 -- NULL for an attestation.
@@ -25,15 +25,15 @@ WHERE identifier_assertions.type = @type
   AND identifier_assertions.value = @value
 ORDER BY identifier_assertions.asserted_on, identifier_assertions.id;
 
--- name: ListValueEvents :many
--- The events that name a value, or that renamed another value to it, each
+-- name: ListIdentifierEvents :many
+-- The events that name a ticker, or that renamed another ticker to it, each
 -- with the fetch key that wrote it.
 SELECT effective_on, fetch_key_id FROM identifier_events
 WHERE domain = @domain AND (value = @value OR to_value = @value)
 ORDER BY effective_on, id;
 
--- name: ListValueCoverage :many
--- The coverage of a value, and of its domain.
+-- name: ListIdentifierCoverage :many
+-- The coverage of a ticker, and of its domain.
 SELECT covered_from, covered_before FROM identifier_event_coverage
 WHERE domain = @domain AND (value = @value OR value IS NULL)
 ORDER BY covered_from;

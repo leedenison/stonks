@@ -33,8 +33,8 @@ in the listing's currency.
 A MIC-derived identifier is trusted inside its validity interval, which is confirmed
 inside identifier event coverage and provisional outside it.  See
 [identifier-events.md](identifier-events.md).  A key associated through one takes a
-dated association: it names the value, and each of its transactions takes the instrument
-the value names on the transaction's date.  A MIC-derived identifier never merges two
+dated association: it names the ticker, and each of its transactions takes the instrument
+the ticker names on the transaction's date.  A MIC-derived identifier never merges two
 instruments.
 
 The weakest link governs.  Where a key states only a ticker, it is associated through
@@ -107,7 +107,7 @@ Datasources gain coverage, integrations are enabled and quota tiers change.  A
 scheduled replay therefore re-attempts unresolved keys.
 
 An identifier event does not replay a key.  A dated key's transactions take the instrument
-the value names on their dates at each read, so they follow the event.  Event grouping
+the ticker names on their dates at each read, so they follow the event.  Event grouping
 and cached adjusted values derived from those transactions are recomputed when the
 event arrives.
 

@@ -6,10 +6,10 @@
 // key whose association the user arbitrated is never selected, so a replay
 // never changes it.
 //
-// A new identifier fact replays the unresolved keys that state its value,
+// A new identifier fact replays the unresolved keys that state its ticker,
 // beneath the run that wrote it; see ReplayNewIdentifierFacts. A key with an
 // association is never replayed for a fact. A dated key takes the
-// instrument its value names on each transaction's date when it is read, so
+// instrument its ticker names on each transaction's date when it is read, so
 // a new fact reaches its transactions without a replay.
 package replay
 
@@ -175,7 +175,7 @@ func (r *replay) prepare(ctx context.Context, run gen.Run) error {
 // wrote re-resolved and the groups as they were, less any key that became
 // associated. Afterwards it replays the keys that state an identifier of its
 // own new identifier facts. A point in time lookup asks only for a day with
-// no assertion of the value, so the chain of replays ends.
+// no assertion of the ticker, so the chain of replays ends.
 func (r *replay) work(ctx context.Context, run gen.Run) error {
 	res, err := r.runs.Child(ctx, run, gen.RunKindResolution, r.resolve)
 	if err != nil {

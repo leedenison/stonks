@@ -26,8 +26,8 @@ rests on the assumption, and unwinds those rows when an event shows it false.
 ### Events
 
 An event is keyed on the natural key of the identifier it touches: type, domain and value.
-It carries the period in which it took effect and what it did: retired the value,
-assigned it, or renamed it to another value.  An event names no instrument primary key.
+It carries the period in which it took effect and what it did: retired the ticker,
+assigned it, or renamed it to another ticker.  An event names no instrument primary key.
 
 An event is witnessed, implied or inferred:
 
@@ -35,7 +35,7 @@ An event is witnessed, implied or inferred:
   date.
 - An implied event is written from a corporate event that retires a listing.  It takes
   effect on one date and counts as no coverage.
-- An inferred event is derived when two assertions of one value name different
+- An inferred event is derived when two assertions of one ticker name different
   instruments.  It takes effect somewhere between the two assertions.  It is never
   stored, since the assertions imply it.
 
@@ -60,19 +60,19 @@ not an assertion.
 
 ### Coverage
 
-Coverage follows the datasource framework, keyed on a value or on a domain.  Coverage of
-a value over a period means every event touching that value in the period is known.
-Coverage of a domain over a period means the same for every value in the domain.  Inside
-coverage, the absence of an event for a value is a claim that none occurred.  Outside
+Coverage follows the datasource framework, keyed on a ticker or on a domain.  Coverage of
+a ticker over a period means every event touching that ticker in the period is known.
+Coverage of a domain over a period means the same for every ticker in the domain.  Inside
+coverage, the absence of an event for a ticker is a claim that none occurred.  Outside
 coverage it is silence.
 
-Where a provider answers for the entity a value names, it reports only that entity's
+Where a provider answers for the entity a ticker names, it reports only that entity's
 chain, so its answer covers each ticker in the chain over the interval the ticker named
-the entity.  An earlier entity's retirement of the value is invisible from this answer.
-The entity's acquisition of the value is an assigned event whichever entity came before.
+the entity.  An earlier entity's retirement of the ticker is invisible from this answer.
+The entity's acquisition of the ticker is an assigned event whichever entity came before.
 
 Where a provider serves changes by date range, it covers the domain over the range.
-Where the answer does not mention a value, the value gains a negative assertion through
+Where the answer does not mention a ticker, the ticker gains a negative assertion through
 the domain row and is never written individually.  A provider that names a US ticker at
 composite level, where one symbol is unique across the consolidated tape, witnesses no
 event when a listing moves between venues and keeps its symbol.  Its answer covers every
@@ -80,11 +80,11 @@ operating MIC in the composite, one row per MIC.
 
 Coverage is written only from a fetch key with a served outcome.  A failed or truncated
 fetch covers nothing, since a domain row from a partial answer would assert no event for
-every value the missing part touched.
+every ticker the missing part touched.
 
 ### Validity
 
-Validity of a value to one instrument is derived from assertions, coverage and events.
+Validity of a ticker to one instrument is derived from assertions, coverage and events.
 It is derived when read.
 
 The confirmed interval is the union of the asserted days, extended through covered
@@ -93,7 +93,7 @@ bracket a confirmed interval between them.
 
 Beyond the confirmed interval, validity extends provisionally until the nearest event.
 Where a transaction's date lies in the provisional interval, it is associated on the
-assumption that the value did not move.
+assumption that the ticker did not move.
 
 Two assertions naming different instruments bound an inferred event.  The later
 instrument's validity begins at its first assertion.  The earlier instrument stays
@@ -102,10 +102,10 @@ resolves the same way whenever it is ingested.
 
 ### Assumptions
 
-- A value outside coverage has not moved.  A dated association rests on this assumption
+- A ticker outside coverage has not moved.  A dated association rests on this assumption
   at each read, and the assumption is not stored.  A data row fetched under it, such as
   a price, is recorded against the fetch key that made it, so the row can be unwound.
-- Where a value is asserted twice for one instrument, it was not reassigned away and back
+- Where a ticker is asserted twice for one instrument, it was not reassigned away and back
   between the two assertions.  Should that happen unwitnessed, the system records
   incorrect information and accepts it.
 - A witnessed event inside a bracket of same-instrument assertions breaks the bracket.
@@ -141,11 +141,11 @@ the lag of each datasource and lets an administrator change it.
 
 ### Unwinding
 
-An event on a value finds every fetch key that sent the value to a provider.  A data row
+An event on a ticker finds every fetch key that sent the ticker to a provider.  A data row
 produced by such a fetch key is invalidated when the event lies between the row's date
 and the fetch's assertion moment.  Invalidated rows and the coverage written from their
 fetch keys are dropped and refetched.  A transaction of a dated association reads
-the instrument the value names on its date.
+the instrument the ticker names on its date.
 
 No instrument is merged through a MIC-derived identifier, so no event unwinds a merge.
 See [instrument-resolution.md](instrument-resolution.md).
@@ -155,7 +155,7 @@ See [instrument-resolution.md](instrument-resolution.md).
 The datasource framework constraints apply.  An absence of events for an identifier is
 tolerated by provisional validity, and a dated association reads coverage or an event
 that arrives later.  An unresolved key that states
-the value is replayed when a fact for the value arrives.
+the ticker is replayed when a fact for the ticker arrives.
 
 Where a ticker is stated without its venue, it has no natural key, so no fetch is made
 for it and no coverage arrives for it.  Where a transaction states nothing else, its key
@@ -172,7 +172,7 @@ Validity intervals are consistent with every known event, assertion and coverage
 
 An integration maps the provider's spelling of a symbol to the system's before an event
 or an assertion is recorded, so when an event is reported under one spelling, it touches
-the value stored under the other.  A missed match inside domain coverage turns a known
+the ticker stored under the other.  A missed match inside domain coverage turns a known
 event into a claim that none occurred.
 
 ## Sketch

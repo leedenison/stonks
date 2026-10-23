@@ -123,7 +123,7 @@ func TestDerive(t *testing.T) {
 			want:  []Interval{provisional(nil, at(1), a), confirmed(at(1), at(2), a), provisional(at(2), nil, a)},
 		},
 		{
-			name:              "a datasource that knew the value and names nothing disagrees with one that names it",
+			name:              "a datasource that knew the ticker and names nothing disagrees with one that names it",
 			facts:             Facts{Assertions: []Assertion{asserts(1, &a, beta), asserts(3, &a, alpha), asserts(3, nil, beta)}},
 			want:              []Interval{provisional(nil, at(1), a), confirmed(at(1), at(4), a), provisional(at(4), nil, a)},
 			wantDisagreements: []Disagreement{{On: d(3), Winner: asserts(3, &a, alpha), Loser: asserts(3, nil, beta)}},
@@ -134,13 +134,13 @@ func TestDerive(t *testing.T) {
 			want:  []Interval{provisional(nil, at(1), b), confirmed(at(1), at(2), b), provisional(at(2), nil, b)},
 		},
 		{
-			name:         "a datasource's negative assertion after its own positive one retires the value",
+			name:         "a datasource's negative assertion after its own positive one retires the ticker",
 			facts:        Facts{Assertions: []Assertion{asserts(1, &a, alpha), asserts(5, nil, alpha)}},
 			want:         []Interval{provisional(nil, at(1), a), confirmed(at(1), at(2), a), provisional(at(2), at(5), a)},
 			wantInferred: []Inferred{{Period: cover(2, 6), From: &a}},
 		},
 		{
-			name:  "a negative assertion from a datasource that never asserted the value counts for nothing",
+			name:  "a negative assertion from a datasource that never asserted the ticker counts for nothing",
 			facts: Facts{Assertions: []Assertion{asserts(1, &a, alpha), asserts(5, nil, beta)}},
 			want:  []Interval{provisional(nil, at(1), a), confirmed(at(1), at(2), a), provisional(at(2), nil, a)},
 		},
@@ -151,7 +151,7 @@ func TestDerive(t *testing.T) {
 			wantInferred: []Inferred{{Period: cover(2, 6), From: &a}},
 		},
 		{
-			name:  "a value reassigned after it retired names nothing between",
+			name:  "a ticker reassigned after it retired names nothing between",
 			facts: Facts{Assertions: []Assertion{asserts(1, &a, alpha), asserts(5, nil, alpha), asserts(9, &b, alpha)}},
 			want: []Interval{
 				provisional(nil, at(1), a), confirmed(at(1), at(2), a), provisional(at(2), at(5), a),

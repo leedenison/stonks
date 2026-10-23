@@ -1,6 +1,6 @@
 -- +goose Up
 
--- What an identifier event did to a MIC_TICKER value: 'assigned' gave it to
+-- What an identifier event did to a MIC_TICKER: 'assigned' gave it to
 -- an instrument, 'renamed' moved its instrument to to_value, and 'retired'
 -- left it naming nothing.
 CREATE TYPE identifier_event_action AS ENUM ('assigned', 'renamed', 'retired');
@@ -36,8 +36,8 @@ CREATE INDEX identifier_assertions_run_idx ON identifier_assertions (run_id);
 CREATE INDEX identifier_assertions_instrument_idx ON identifier_assertions (instrument_id);
 
 -- An identifier event is a change a datasource reported in what a MIC_TICKER
--- value names, taking effect at the start of effective_on. The domain is the
--- operating MIC. An event refers to a value rather than to an instrument. The
+-- names, taking effect at the start of effective_on. The domain is the
+-- operating MIC. An event refers to a ticker rather than to an instrument. The
 -- table holds only the events a datasource reported. Readers derive any event
 -- the assertions imply.
 CREATE TABLE identifier_events (
@@ -57,7 +57,7 @@ CREATE INDEX identifier_events_to_value_idx ON identifier_events (domain, to_val
 CREATE INDEX identifier_events_fetch_key_idx ON identifier_events (fetch_key_id);
 
 -- Identifier event coverage is a period over which a datasource reported
--- every identifier event of one MIC_TICKER value, or of every value in a
+-- every identifier event of one MIC_TICKER, or of every MIC_TICKER in a
 -- domain where value is NULL. Inside it, the absence of an event is a claim
 -- that none occurred. A row goes with its fetch key.
 CREATE TABLE identifier_event_coverage (

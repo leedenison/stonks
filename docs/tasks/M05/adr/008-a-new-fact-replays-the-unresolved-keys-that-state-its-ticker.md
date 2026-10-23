@@ -1,13 +1,13 @@
-# A new fact replays the unresolved keys that state its value
+# A new fact replays the unresolved keys that state its ticker
 
 A key stating a venue ticker that no datasource served stays unresolved. When a fact
-for that value arrives, through an attestation, coverage or an event, the key can take a
+for that ticker arrives, through an attestation, coverage or an event, the key can take a
 dated association, so the run that wrote the fact replays the unresolved keys that
-state the value. The replay is a child of that run.
+state the ticker. The replay is a child of that run.
 
 A child shares its parent's user. An attestation acts for the system rather than for a
 user. One fact can affect the keys of many users. A system run is a run whose user is
-null. Attestations and re-assertions of held values are system runs. Beneath a system
+null. Attestations and re-assertions of held tickers are system runs. Beneath a system
 run, each affected user has one replay as a child. The replay belongs to that user.
 
 A per-user fetch run can write a fact too, such as a Massive fetch during a user's

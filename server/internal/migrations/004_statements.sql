@@ -21,7 +21,7 @@ CREATE TABLE statements (
     CHECK (row_count >= 0)
 );
 
--- How firmly a value's facts establish what it names over a range of days.
+-- How firmly a ticker's facts establish what it names over a range of days.
 -- The validity package derives it when read, and nothing stores it.
 CREATE TYPE validity AS ENUM ('confirmed', 'provisional');
 
@@ -44,10 +44,10 @@ CREATE TYPE arbiter AS ENUM ('stated', 'datasource', 'guess', 'user');
 -- An association is fixed or dated. A fixed association names one instrument
 -- for all time, in instrument_id and listing_id, and via_id names the
 -- identifier row it was made through. The association stands when that row
--- moves to another instrument. A dated association names a MIC_TICKER value
--- in the via columns. Each of the key's transactions takes the instrument the
--- value names on its order date, and that is derived when read, so nothing on
--- the key changes when the value's facts do. The resolver dates a key when it
+-- moves to another instrument. A dated association names a MIC_TICKER in
+-- the via columns. Each of the key's transactions takes the instrument the
+-- ticker names on its order date, and that is derived when read, so nothing on
+-- the key changes when the ticker's facts do. The resolver dates a key when it
 -- associates the key of its own accord through a ticker. An OPENFIGI_TICKER
 -- or DATASOURCE_TICKER dates the key through the MIC_TICKER on its listing,
 -- and leaves it fixed where that listing has none. A user's choice is fixed.
@@ -90,7 +90,7 @@ CREATE TABLE stated_keys (
 
 CREATE INDEX stated_keys_instrument_idx ON stated_keys (user_id, instrument_id);
 CREATE INDEX stated_keys_group_idx ON stated_keys (user_id, group_id);
--- A new identifier fact finds every user's keys that state its value.
+-- A new identifier fact finds every user's keys that state its ticker.
 CREATE INDEX stated_keys_identifiers_idx ON stated_keys USING gin (identifiers jsonb_path_ops);
 
 -- A statement key links a statement to a key it states. A statement links

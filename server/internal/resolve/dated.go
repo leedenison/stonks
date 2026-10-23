@@ -23,11 +23,11 @@ import (
 // eventKey is a fetch key of an identifier events request.
 type eventKey = market.FetchKey[market.IdentifierEventRequest, market.IdentifierEventResult]
 
-// datedValue returns the MIC_TICKER value through which k may be dated: the
-// first venue ticker it states, at its operating MIC. A key that states a
-// stable global identifier is fixed through that identifier instead, and
-// datedValue reports false.
-func datedValue(k gen.StatedKey, mics mic.MICMap) (types.Identifier, bool) {
+// datedTicker returns the MIC_TICKER through which k may be dated: the first
+// venue ticker it states, at its operating MIC. A key that states a stable
+// global identifier is fixed through that identifier instead, and datedTicker
+// reports false.
+func datedTicker(k gen.StatedKey, mics mic.MICMap) (types.Identifier, bool) {
 	for _, id := range k.Identifiers {
 		if id.Stable() && id.IsGlobal() {
 			return types.Identifier{}, false
@@ -44,20 +44,20 @@ func datedValue(k gen.StatedKey, mics mic.MICMap) (types.Identifier, bool) {
 	return types.Identifier{}, false
 }
 
-// associatedValue returns the MIC_TICKER value k's dated association names,
-// and false where k has none.
-func associatedValue(k gen.StatedKey) (types.Identifier, bool) {
+// associatedTicker returns the MIC_TICKER k's dated association names, and
+// false where k has none.
+func associatedTicker(k gen.StatedKey) (types.Identifier, bool) {
 	if k.ViaType == nil || k.ViaDomain == nil || k.ViaValue == nil {
 		return types.Identifier{}, false
 	}
 	return types.Identifier{Type: *k.ViaType, Domain: *k.ViaDomain, Value: *k.ViaValue}, true
 }
 
-// findResolutionDated reads the validity of each key's dated value and the
-// order dates of its transactions. Keys dated through one value share one
+// findResolutionDated reads the validity of each key's dated ticker and the
+// order dates of its transactions. Keys dated through one ticker share one
 // read of its facts. A key that already has a dated association is matched as
-// it stands. A key without a known instrument, whose value has validity, is
-// dated through the value without an identity fetch.
+// it stands. A key without a known instrument, whose ticker has validity, is
+// dated through the ticker without an identity fetch.
 func (r *Resolver) findResolutionDated(ctx context.Context, user uuid.UUID, rs []*resolution, keys []KeyOrderDates) error {
 	var ids []uuid.UUID
 	read := map[types.Identifier]*validity.Ticker{}
@@ -65,9 +65,9 @@ func (r *Resolver) findResolutionDated(ctx context.Context, user uuid.UUID, rs [
 		if res.outcome != "" {
 			continue
 		}
-		v, ok := associatedValue(res.row)
+		v, ok := associatedTicker(res.row)
 		if !ok {
-			if v, ok = datedValue(res.row, r.mics); !ok {
+			if v, ok = datedTicker(res.row, r.mics); !ok {
 				continue
 			}
 		}
@@ -111,8 +111,8 @@ func (r *Resolver) findResolutionDated(ctx context.Context, user uuid.UUID, rs [
 // fetchResolutionEvents asks each enabled datasource that serves identifier
 // events, concurrently, for what dating the keys needs: the ticker history of
 // the instrument the identity fetch named, and a point in time lookup of the
-// value on the earliest date the facts do not confirm. A lookup of today is
-// left to the identity fetch. A day on which the value already has an
+// ticker on the earliest date the facts do not confirm. A lookup of today is
+// left to the identity fetch. A day on which the ticker already has an
 // assertion is not asked again. It returns the fetch keys in datasource
 // order.
 func (r *Resolver) fetchResolutionEvents(ctx context.Context, run gen.Run, rs []*resolution) ([]eventKey, error) {
@@ -204,7 +204,7 @@ func chainRequest(res *resolution, server market.Server[market.IdentifierEventRe
 // a history names the instrument the batch created for its key. A reply that
 // the system cannot spell is left out, and the resolution stands.
 //
-// It then reads the facts of every value the batch wrote a fact of, and
+// It then reads the facts of every ticker the batch wrote a fact of, and
 // writes each disagreement and broken bracket that one of the batch's facts
 // completes as a finding of run. It returns the identifiers each fetch run
 // wrote facts of: the identity fetches first, in precedence order, then the
@@ -258,7 +258,7 @@ func (r *Resolver) recordIdentifierFacts(ctx context.Context, run gen.Run, b *ba
 	err := r.store.Tx(ctx, func(q Queries) error {
 		kinds = nil
 		met := map[conflict]bool{}
-		for _, v := range written.values() {
+		for _, v := range written.tickers() {
 			fs, err := conflicts(ctx, q, v, mine, met)
 			if err != nil {
 				return err
@@ -282,9 +282,9 @@ func (r *Resolver) recordIdentifierFacts(ctx context.Context, run gen.Run, b *ba
 	return written.list(), nil
 }
 
-// factIdentifiers returns the identifiers r states facts of: the values of
-// its events, the value a rename moved to, the values of its assertions, and
-// the value or domain of its coverage.
+// factIdentifiers returns the identifiers r states facts of: the tickers of
+// its events, the ticker a rename moved to, the tickers of its assertions, and
+// the ticker or domain of its coverage.
 func factIdentifiers(r market.IdentifierEventResult) []types.Identifier {
 	var out []types.Identifier
 	for _, e := range r.Events {
@@ -334,9 +334,9 @@ func (w *writtenSet) list() []WrittenIdentifierFacts {
 	return out
 }
 
-// values returns each value the runs wrote a fact of, once, skipping domain
+// tickers returns each ticker the runs wrote a fact of, once, skipping domain
 // identifiers.
-func (w *writtenSet) values() []types.Identifier {
+func (w *writtenSet) tickers() []types.Identifier {
 	seen := map[types.Identifier]bool{}
 	var out []types.Identifier
 	for _, run := range w.order {
@@ -352,7 +352,7 @@ func (w *writtenSet) values() []types.Identifier {
 
 // conflict is one finding's kind, fetch key and day. A datasource that
 // states its facts at every venue of a market repeats a conflict for each
-// venue's value, and met keeps the first.
+// venue's ticker, and met keeps the first.
 type conflict struct {
 	kind gen.FindingKind
 	fk   uuid.UUID

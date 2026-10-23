@@ -27,7 +27,7 @@ CREATE TABLE datasources (
 
 -- The kind of data a fetch requests: 'identity' is the identifiers and
 -- listings of an instrument, and 'identifier_events' is the identifier events
--- of a value or a domain over a period.
+-- of a ticker or a domain over a period.
 CREATE TYPE fetch_kind AS ENUM ('identity', 'identifier_events');
 
 -- The result of a fetch:

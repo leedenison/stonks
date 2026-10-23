@@ -127,9 +127,9 @@ func (f *fixture) finds() {
 	}).AnyTimes()
 	f.store.EXPECT().ListListingsOf(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
 	f.store.EXPECT().ListIdentityCoverage(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
-	f.store.EXPECT().ListValueAssertions(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
-	f.store.EXPECT().ListValueEvents(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
-	f.store.EXPECT().ListValueCoverage(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
+	f.store.EXPECT().ListIdentifierAssertions(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
+	f.store.EXPECT().ListIdentifierEvents(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
+	f.store.EXPECT().ListIdentifierCoverage(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
 	f.store.EXPECT().ListKeyOrderDates(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
 }
 

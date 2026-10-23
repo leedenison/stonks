@@ -27,15 +27,15 @@ type resolution struct {
 	findings        []gen.CreateFindingParams
 	outcome         gen.ResolutionOutcome
 	reason          string
-	// dating is the validity of the MIC_TICKER value the key may be dated
-	// through: the value its dated association names, or the one datedValue
-	// finds. It is nil for a key that is fixed whatever it resolves to.
+	// dating is the validity of the MIC_TICKER the key may be dated through:
+	// the one its dated association names, or the one datedTicker finds. It
+	// is nil for a key that is fixed whatever it resolves to.
 	dating *validity.Ticker
 	// orderDates are the order dates of the key's transactions, stored and
 	// stated.
 	orderDates []time.Time
 	// datedFromFacts reports that prepare dated a key through the facts of
-	// its value, so the write gives it the dated association.
+	// its ticker, so the write gives it the dated association.
 	datedFromFacts bool
 	// written lists the MIC_TICKER assertions the key's write made, each with
 	// the fetch key that made it. Each attempt of the write resets it.
@@ -94,8 +94,8 @@ func (res *resolution) decide(outcome gen.ResolutionOutcome, format string, args
 }
 
 // lookupIDs returns the identifiers of ids that a lookup in the database may
-// match: every one but a ticker. A ticker row names the instrument its value
-// identifies today. What the value named on another day is read from its
+// match: every one but a ticker. A ticker row names the instrument its ticker
+// identifies today. What the ticker named on another day is read from its
 // validity, so resolution does not match through a ticker row. An option
 // symbol still matches through its row until corporate events are built.
 func lookupIDs(ids []types.Identifier) []types.Identifier {

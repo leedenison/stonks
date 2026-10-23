@@ -19,7 +19,7 @@ import (
 // TestFindings checks what each kind of finding carries: a block its block
 // alone, the kinds that concern a key their stated key and grounds, a
 // dropped candidate its fetch key and one of the steps that is a finding,
-// and the kinds that concern a value their fetch key and grounds without a
+// and the kinds that concern a ticker their fetch key and grounds without a
 // key. A finding is listed with what its key states.
 func TestFindings(t *testing.T) {
 	ctx := context.Background()
@@ -72,7 +72,7 @@ func TestFindings(t *testing.T) {
 
 	tests := []struct {
 		name string
-		// key gives a finding of a value a key; noKey takes the key from a
+		// key gives a finding of a ticker a key; noKey takes the key from a
 		// finding of a key.
 		key, noKey bool
 		arg        gen.CreateFindingParams

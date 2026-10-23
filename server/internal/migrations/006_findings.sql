@@ -13,8 +13,8 @@
 -- them.
 -- 'merged' means the response merged two instruments.
 -- 'disagreement' means two datasources asserted different things for one
--- value on one day. Precedence kept one. Unlike a contradiction, it concerns
--- a value rather than a key. The run whose write completed the pair records
+-- ticker on one day. Precedence kept one. Unlike a contradiction, it concerns
+-- a ticker rather than a key. The run whose write completed the pair records
 -- it, and the finding names the losing assertion's fetch key.
 -- 'broken_validity_bracket' means a witnessed event fell between two
 -- assertions that name one instrument. The event wins over the bracket. The

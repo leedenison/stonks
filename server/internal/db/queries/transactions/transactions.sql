@@ -63,7 +63,7 @@ SET instrument_id = $3, listing_id = $4, via_id = $5,
 WHERE id = $1 AND user_id = $2 AND arbiter IS DISTINCT FROM 'user';
 
 -- name: SetStatedKeyDatedAssociation :execrows
--- Writes a dated association through a MIC_TICKER value. The key keeps its
+-- Writes a dated association through a MIC_TICKER. The key keeps its
 -- group, which gathers the keys with no instrument that share an identifier.
 -- The update skips a key whose association the user arbitrated.
 UPDATE stated_keys

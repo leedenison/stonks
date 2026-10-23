@@ -26,7 +26,7 @@ func TestMain(m *testing.M) { dbtest.Main(m, &pool) }
 
 // fixture holds a user, an administrator, two instruments and a fetch for each
 // of two datasources, alpha with the lower precedence number. Its helpers
-// assert the value XNYS:FOO.
+// assert the ticker XNYS:FOO.
 type fixture struct {
 	tx         pgx.Tx
 	q          *gen.Queries
@@ -117,7 +117,7 @@ func TestOfGreyZone(t *testing.T) {
 }
 
 // TestOfNegativeOfAnotherDatasource checks that a datasource that never
-// asserted the value cannot retire it.
+// asserted the ticker cannot retire it.
 func TestOfNegativeOfAnotherDatasource(t *testing.T) {
 	f := newFixture(t)
 	f.asserts(t, f.alpha, 1, &f.a)
@@ -141,7 +141,7 @@ func TestOfPrecedence(t *testing.T) {
 }
 
 // TestOfEventsAndCoverage checks that coverage of the domain confirms the
-// value, and that a rename to the value bounds it.
+// ticker, and that a rename to the ticker bounds it.
 func TestOfEventsAndCoverage(t *testing.T) {
 	f := newFixture(t)
 	f.asserts(t, f.alpha, 5, &f.a)

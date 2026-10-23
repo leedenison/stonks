@@ -10,7 +10,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
-// Derive returns what the facts of one value imply: the intervals in order,
+// Derive returns what the facts of one ticker imply: the intervals in order,
 // the events they infer, and the conflicts among them.
 func Derive(f Facts) Derived {
 	ws, disagreements := winners(f.Assertions)
@@ -56,7 +56,7 @@ func broken(ws []winner, events []Event) []BrokenBracket {
 	return out
 }
 
-// winner is what a value names on one day, by the assertion that won it. A nil
+// winner is what a ticker names on one day, by the assertion that won it. A nil
 // instrument is nothing.
 type winner struct {
 	at         time.Time
@@ -65,7 +65,7 @@ type winner struct {
 
 // winners returns one winner per day that has an assertion that counts, in
 // order of day. A datasource's negative assertion counts only after the same
-// datasource asserted the value: a datasource that never knew a value cannot
+// datasource asserted the ticker: a datasource that never knew a ticker cannot
 // show that it retired. An administrator's negative assertion counts after
 // any positive one. Where assertions of one day disagree, better picks the
 // winner. winners also returns the datasources' assertions that name
@@ -177,7 +177,7 @@ func same(a, b *uuid.UUID) bool {
 }
 
 // segment derives the intervals of the spans between two events, start and
-// end. A nil start or end is an open end of the value.
+// end. A nil start or end is an open end of the ticker.
 func segment(ss []span, start, end *time.Time, cover []types.Period) ([]Interval, []Inferred) {
 	var out []Interval
 	var inferred []Inferred
