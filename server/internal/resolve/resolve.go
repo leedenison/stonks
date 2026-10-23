@@ -68,8 +68,9 @@ type KeyOrderDates struct {
 }
 
 // Resolve is the body of a resolution run. It returns one resolution key per
-// key, in the order of keys. A run that fails partway leaves the keys it has
-// already written resolved.
+// key, in the order of keys, and the identifiers of the identifier facts its
+// fetch runs wrote. A run that fails partway leaves the keys it has already
+// written resolved.
 func (r *Resolver) Resolve(ctx context.Context, run gen.Run, keys []KeyOrderDates) ([]gen.ResolutionKey, []WrittenIdentifierFacts, error) {
 	b, err := r.prepare(ctx, run, keys, true)
 	if err != nil {
@@ -83,10 +84,11 @@ func (r *Resolver) Resolve(ctx context.Context, run gen.Run, keys []KeyOrderDate
 		}
 		out = append(out, rk)
 	}
-	if err := r.recordIdentifierFacts(ctx, b); err != nil {
+	written, err := r.recordIdentifierFacts(ctx, run, b)
+	if err != nil {
 		return nil, nil, err
 	}
-	return out, nil, nil
+	return out, written, nil
 }
 
 // batch is the keys of one resolution and the identifier events fetched for

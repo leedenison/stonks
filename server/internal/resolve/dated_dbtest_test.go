@@ -5,10 +5,12 @@ package resolve
 import (
 	"context"
 	"errors"
+	"slices"
 	"testing"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
 	"github.com/leedenison/stonks/server/internal/db"
@@ -222,5 +224,123 @@ func TestDatedStable(t *testing.T) {
 	}
 	if _, err := s.q.FindIdentifier(context.Background(), gen.FindIdentifierParams{Type: isin.Type, Value: isin.Value}); errors.Is(err, db.ErrNotFound) {
 		t.Errorf("ISIN not written, want the instrument identified by it")
+	}
+}
+
+// runFindings returns the findings of the stack's resolution that concern a
+// value.
+func (s *stack) runFindings(t *testing.T) []gen.Finding {
+	t.Helper()
+	rows, err := s.q.ListRunFindings(context.Background(), []uuid.UUID{s.resolution.ID})
+	require.NoError(t, err)
+	var out []gen.Finding
+	for _, r := range rows {
+		if r.Finding.StatedKeyID == nil && r.Finding.Kind != gen.FindingKindBlock {
+			out = append(out, r.Finding)
+		}
+	}
+	return out
+}
+
+// eventFetchKey returns the fetch key of datasource's identifier events
+// request for subject under the stack's resolution.
+func (s *stack) eventFetchKey(t *testing.T, datasource string, subject types.Identifier) gen.FetchKey {
+	t.Helper()
+	ctx := context.Background()
+	for _, child := range s.fetches(t) {
+		fetch, err := s.q.GetFetch(ctx, gen.GetFetchParams{ID: child.ID, UserID: &s.user.ID})
+		require.NoError(t, err)
+		if fetch.Datasource != datasource || fetch.Kind != gen.FetchKindIdentifierEvents {
+			continue
+		}
+		items, err := s.q.ListFetchItems(ctx, gen.ListFetchItemsParams{FetchID: child.ID})
+		require.NoError(t, err)
+		for _, it := range items {
+			if it.FetchKey.SentType != nil && *it.FetchKey.SentType == subject.Type && it.FetchKey.SentValue != nil && *it.FetchKey.SentValue == subject.Value {
+				return it.FetchKey
+			}
+		}
+	}
+	t.Fatalf("no identifier events fetch key of %s for %s", datasource, subject.Name())
+	return gen.FetchKey{}
+}
+
+// TestDisagreement checks that two datasources whose histories name
+// different instruments for one value on one day leave one disagreement on
+// the run that wrote them, naming the lower precedence datasource's fetch
+// key, and that a later run reading the same facts records none. The facts
+// each run wrote come back in order: the identity fetch, then alpha's events
+// fetch, then beta's.
+func TestDisagreement(t *testing.T) {
+	s := newStack(t)
+	s.enableBeta(t)
+	v := id(types.IdentifierTypeMicTicker, "XNAS", "ZZG")
+	share := id(types.IdentifierTypeOpenfigiShareClass, "", "BBG00ZZGSHAR")
+	other := id(types.IdentifierTypeOpenfigiShareClass, "", "BBG00ZZGOTHR")
+	day := on(2024, 1, 16)
+	s.script.Responses[v] = market.IdentityResult{Filtered: []types.Identifier{{Type: v.Type, Value: v.Value}}, Listings: []market.Listing{
+		{Class: types.AssetClassStock, Currency: "USD", Primary: "XNAS", Identifiers: []types.Identifier{share, v}},
+	}}
+	s.alphaFacts.Responses[share] = market.IdentifierEventResult{Assertions: []market.Assertion{{Value: v, Of: market.Listing{Identifiers: []types.Identifier{share}}, At: day}}}
+	s.betaFacts.Responses[share] = market.IdentifierEventResult{Assertions: []market.Assertion{{Value: v, Of: market.Listing{Identifiers: []types.Identifier{other}, Class: types.AssetClassEtf, Currency: "USD"}, At: day}}}
+	key := s.state(t, types.AssetClassStock, "USD", v)
+	out, written, err := s.resolver.Resolve(context.Background(), s.resolution, []KeyOrderDates{{Row: key, Dates: []time.Time{day}}})
+	require.NoError(t, err)
+	require.Len(t, out, 1)
+
+	found := s.runFindings(t)
+	loser := s.eventFetchKey(t, s.betaName, share)
+	if len(found) != 1 || found[0].Kind != gen.FindingKindDisagreement || found[0].FetchKeyID == nil || *found[0].FetchKeyID != loser.ID {
+		t.Errorf("findings = %+v, want one disagreement naming beta's fetch key %s", found, loser.ID)
+	}
+	if len(written) != 3 {
+		t.Fatalf("written = %+v, want the identity fetch, then alpha's and beta's events fetches", written)
+	}
+	kinds := []gen.FetchKind{}
+	sources := []string{}
+	for _, w := range written {
+		fetch, err := s.q.GetFetch(context.Background(), gen.GetFetchParams{ID: w.Run.ID, UserID: &s.user.ID})
+		require.NoError(t, err)
+		kinds, sources = append(kinds, fetch.Kind), append(sources, fetch.Datasource)
+		if !slices.Contains(w.Identifiers, v) {
+			t.Errorf("written by %s %s = %v, want %s among them", fetch.Datasource, fetch.Kind, w.Identifiers, v.Name())
+		}
+	}
+	wantKinds := []gen.FetchKind{gen.FetchKindIdentity, gen.FetchKindIdentifierEvents, gen.FetchKindIdentifierEvents}
+	if diff := cmp.Diff(wantKinds, kinds); diff != "" || sources[1] != s.alphaName || sources[2] != s.betaName {
+		t.Errorf("written runs = %v from %v, want identity then alpha's then beta's events", kinds, sources)
+	}
+
+	s.rerun(t)
+	second := s.state(t, "", "USD", v)
+	s.resolveOn(t, []time.Time{day}, second)
+	if found := s.runFindings(t); len(found) != 0 {
+		t.Errorf("findings of a run that only read the facts = %+v, want none", found)
+	}
+}
+
+// TestBrokenBracket checks that a witnessed event between two assertions of
+// one instrument leaves a broken bracket finding on the run that wrote the
+// event, naming the event's fetch key.
+func TestBrokenBracket(t *testing.T) {
+	s := newStack(t)
+	v := id(types.IdentifierTypeMicTicker, "XNAS", "ZZB")
+	share := id(types.IdentifierTypeOpenfigiShareClass, "", "BBG00ZZBSHAR")
+	s.script.Responses[v] = market.IdentityResult{Filtered: []types.Identifier{{Type: v.Type, Value: v.Value}}, Listings: []market.Listing{
+		{Class: types.AssetClassStock, Currency: "USD", Primary: "XNAS", Identifiers: []types.Identifier{share, v}},
+	}}
+	s.alphaFacts.Responses[share] = market.IdentifierEventResult{
+		Events: []market.IdentifierEvent{{Value: v, Action: gen.IdentifierEventActionRenamed, ToValue: "ZZC", On: on(2023, 5, 1)}},
+		Assertions: []market.Assertion{
+			{Value: v, Of: market.Listing{Identifiers: []types.Identifier{share}}, At: on(2023, 1, 2)},
+			{Value: v, Of: market.Listing{Identifiers: []types.Identifier{share}}, At: on(2024, 1, 2)},
+		},
+	}
+	key := s.state(t, types.AssetClassStock, "USD", v)
+	s.resolveOn(t, []time.Time{on(2024, 1, 16)}, key)
+	found := s.runFindings(t)
+	event := s.eventFetchKey(t, s.alphaName, share)
+	if len(found) != 1 || found[0].Kind != gen.FindingKindBrokenValidityBracket || found[0].FetchKeyID == nil || *found[0].FetchKeyID != event.ID {
+		t.Errorf("findings = %+v, want one broken bracket naming the event's fetch key %s", found, event.ID)
 	}
 }

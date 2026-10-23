@@ -68,8 +68,10 @@ func newStack(t *testing.T) *stack {
 	require.NoError(t, err)
 	log := slog.New(slog.DiscardHandler)
 	factories := map[string]market.Factory{
-		s.alphaName: market.Factory{New: func(market.Config) (market.Integration, error) { return s.alpha, nil }},
-		s.betaName:  market.Factory{New: func(market.Config) (market.Integration, error) { return s.beta, nil }},
+		s.alphaName: market.Factory{New: func(market.Config) (market.Integration, error) {
+			return &scripted.Datasource{Identity: s.alpha, Facts: scripted.NewIdentifierEvents(), Since: time.Date(2003, time.September, 10, 0, 0, 0, 0, time.UTC)}, nil
+		}},
+		s.betaName: market.Factory{New: func(market.Config) (market.Integration, error) { return s.beta, nil }},
 	}
 	s.sources, err = market.New(ctx, q, factories, log)
 	require.NoError(t, err)
@@ -81,8 +83,8 @@ func newStack(t *testing.T) *stack {
 	families, err := currency.Load(ctx, q)
 	require.NoError(t, err)
 	resolver := resolve.New(db.New[resolve.Queries](tx), fetcher, s.sources, mics, families, clock, log)
-	s.statements = stmt.New(db.New[stmt.Queries](tx), runs, resolver, families, clock)
 	s.svc = New(db.New[Queries](tx), runs, resolver, s.sources, mics, log)
+	s.statements = stmt.New(db.New[stmt.Queries](tx), runs, resolver, s.svc, families, clock, log)
 	return s
 }
 
@@ -403,5 +405,59 @@ func TestReplayNewIdentifierFacts(t *testing.T) {
 	slices.SortFunc(want, func(a, b uuid.UUID) int { return strings.Compare(a.String(), b.String()) })
 	if !slices.Equal(got, want) {
 		t.Errorf("keys replayed for XNAS = %v, want %v: not %s of XNYS, nor %s the excepted run resolved", got, want, elsewhere.ID, mine.ID)
+	}
+}
+
+// TestReplayChain checks that a replay whose resolution writes new facts
+// replays in turn the keys that state their identifiers. The first user's replay asserts the
+// value through its identity fetch, which replays the second user's key
+// beneath that fetch. Both keys end dated, and the chain stops.
+func TestReplayChain(t *testing.T) {
+	s := newStack(t)
+	ctx := context.Background()
+	other, err := s.q.CreateUser(ctx, gen.CreateUserParams{ID: db.NewID(), Email: uuid.NewString() + "@example.com", Role: gen.UserRoleUser})
+	require.NoError(t, err)
+	value := types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "ZR" + uuid.NewString()[:6]}
+	_, mine := s.stateTicker(t, s.user, time.January, value)
+	_, theirs := s.stateTicker(t, other, time.January, value)
+	share := types.Identifier{Type: types.IdentifierTypeOpenfigiShareClass, Value: "BBG" + uuid.NewString()[:9]}
+	s.alpha.Responses[value] = market.IdentityResult{Filtered: []types.Identifier{{Type: value.Type, Value: value.Value}}, Listings: []market.Listing{
+		{Class: types.AssetClassStock, Currency: "USD", Primary: "XNAS", Identifiers: []types.Identifier{share, value}},
+	}}
+
+	parent, err := s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &s.user.ID, Kind: gen.RunKindResolution, Trigger: gen.RunTriggerUser})
+	require.NoError(t, err)
+	fetch, err := s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &s.user.ID, Kind: gen.RunKindFetch, Trigger: gen.RunTriggerRun, ParentID: &parent.ID})
+	require.NoError(t, err)
+	written := []resolve.WrittenIdentifierFacts{{Run: fetch, Identifiers: []types.Identifier{value}}}
+	require.NoError(t, s.svc.ReplayNewIdentifierFacts(ctx, gen.Run{ID: db.NewID()}, written))
+
+	for _, k := range []struct {
+		user gen.User
+		key  gen.StatedKey
+	}{{s.user, mine}, {other, theirs}} {
+		got, err := s.q.GetStatedKey(ctx, gen.GetStatedKeyParams{ID: k.key.ID, UserID: k.user.ID})
+		require.NoError(t, err)
+		if got.ViaValue == nil || *got.ViaValue != value.Value {
+			t.Errorf("key %s = %+v, want dated through %s", k.key.ID, got, value.Name())
+		}
+	}
+	tree, err := s.q.ListRunDescendants(ctx, &fetch.ID)
+	require.NoError(t, err)
+	var own *gen.Run
+	for _, r := range tree {
+		if r.Run.Kind == gen.RunKindReplay && r.Run.UserID != nil && *r.Run.UserID == s.user.ID {
+			own = &r.Run
+		}
+	}
+	require.NotNil(t, own, "the user's replay beneath the fetch")
+	below, err := s.q.ListRunDescendants(ctx, &own.ID)
+	require.NoError(t, err)
+	chained := false
+	for _, r := range below {
+		chained = chained || (r.Run.Kind == gen.RunKindReplay && r.Run.UserID != nil && *r.Run.UserID == other.ID)
+	}
+	if !chained {
+		t.Errorf("runs beneath the user's replay = %+v, want the other user's replay that its facts started", below)
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"slices"
 	"testing"
 	"time"
@@ -70,6 +71,7 @@ type fixture struct {
 	store    *MockStore
 	runs     *MockRunner
 	resolver *MockResolver
+	replays  *MockReplays
 	svc      *Service
 	spec     run.Spec
 	workErr  error
@@ -77,6 +79,12 @@ type fixture struct {
 	// unrecognised by default, and resolveErr is its error.
 	outcomes   func(keys []gen.StatedKey) []gen.ResolutionKey
 	resolveErr error
+	// written is what the mock resolver returns as the facts it wrote.
+	written []resolve.WrittenIdentifierFacts
+	// replayed records each call to replay new facts, and replayErr is what
+	// the calls return.
+	replayed  []replayCall
+	replayErr error
 	// dates holds every key the resolver was sent, with its order dates.
 	dates []resolve.KeyOrderDates
 	// calls names the regroup, the sweep and the completion in the order
@@ -87,11 +95,17 @@ type fixture struct {
 // newFixture returns a service whose store runs a transaction inline over
 // itself and whose runner runs Prepare and the work inline, so a case
 // observes every write in order.
+// replayCall is one call to replay new identifier facts.
+type replayCall struct {
+	except  gen.Run
+	written []resolve.WrittenIdentifierFacts
+}
+
 func newFixture(t *testing.T) *fixture {
 	t.Helper()
 	ctrl := gomock.NewController(t)
 	t.Cleanup(ctrl.Finish)
-	f := &fixture{store: NewMockStore(ctrl), runs: NewMockRunner(ctrl), resolver: NewMockResolver(ctrl)}
+	f := &fixture{store: NewMockStore(ctrl), runs: NewMockRunner(ctrl), resolver: NewMockResolver(ctrl), replays: NewMockReplays(ctrl)}
 	f.outcomes = func(keys []gen.StatedKey) []gen.ResolutionKey {
 		out := make([]gen.ResolutionKey, len(keys))
 		for i, k := range keys {
@@ -108,7 +122,7 @@ func newFixture(t *testing.T) *fixture {
 			rows[i] = k.Row
 		}
 		f.dates = append(f.dates, keys...)
-		return f.outcomes(rows), nil, nil
+		return f.outcomes(rows), f.written, nil
 	}).AnyTimes()
 	f.store.EXPECT().Tx(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, fn func(Queries) error) error { return fn(f.store) }).AnyTimes()
 	f.store.EXPECT().LockUserKeys(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
@@ -132,7 +146,11 @@ func newFixture(t *testing.T) *fixture {
 		row := gen.Run{ID: db.NewID(), UserID: parent.UserID, Kind: kind, Trigger: gen.RunTriggerRun, ParentID: &parent.ID}
 		return row, work(ctx, row)
 	}).AnyTimes()
-	f.svc = New(f.store, f.runs, f.resolver, families, clock)
+	f.replays.EXPECT().ReplayNewIdentifierFacts(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, except gen.Run, written []resolve.WrittenIdentifierFacts) error {
+		f.replayed = append(f.replayed, replayCall{except, written})
+		return f.replayErr
+	}).AnyTimes()
+	f.svc = New(f.store, f.runs, f.resolver, f.replays, families, clock, slog.New(slog.DiscardHandler))
 	return f
 }
 
@@ -468,6 +486,49 @@ func TestResolvesWithDates(t *testing.T) {
 	want := []time.Time{time.Date(2026, 3, 7, 0, 0, 0, 0, time.UTC), time.Date(2026, 3, 5, 0, 0, 0, 0, time.UTC)}
 	if diff := cmp.Diff(want, f.dates[0].Dates); diff != "" {
 		t.Errorf("order dates sent mismatch (-want +got):\n%s", diff)
+	}
+}
+
+// TestReplaysNewFacts checks that ingestion replays the keys that state an
+// identifier of its resolution's new identifier facts, once the write has
+// completed the statement run, and that a failed replay leaves the run
+// completed.
+func TestReplaysNewFacts(t *testing.T) {
+	for _, failing := range []bool{false, true} {
+		t.Run(fmt.Sprintf("the replay failing %t", failing), func(t *testing.T) {
+			f := newFixture(t)
+			if failing {
+				f.replayErr = errors.New("down")
+			}
+			usd := "USD"
+			stock := securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, "ACME", "XNAS"))
+			f.written = []resolve.WrittenIdentifierFacts{{Run: gen.Run{ID: db.NewID()}, Identifiers: []types.Identifier{{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "ACME"}}}}
+			f.store.EXPECT().CreateStatement(gomock.Any(), gomock.Any()).Return(gen.Statement{}, nil)
+			f.store.EXPECT().UpsertStatedKey(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.UpsertStatedKeyParams) (gen.StatedKey, error) {
+				return gen.StatedKey{ID: arg.ID, Identifiers: arg.Identifiers}, nil
+			})
+			f.store.EXPECT().CreateStatementKeys(gomock.Any(), gomock.Any()).Return(int64(1), nil)
+			f.store.EXPECT().DeleteTransactions(gomock.Any(), gomock.Any()).Return(int64(0), nil)
+			f.store.EXPECT().CreateTransactions(gomock.Any(), gomock.Any()).Return(int64(1), nil)
+			f.store.EXPECT().SweepStatedKeys(gomock.Any(), userID).Return(int64(0), nil)
+			f.store.EXPECT().CompleteRun(gomock.Any(), gomock.Any()).DoAndReturn(func(context.Context, uuid.UUID) error {
+				if len(f.replayed) != 0 {
+					t.Error("the replay ran before the statement run completed")
+				}
+				return nil
+			})
+			msg := &statementv1.Statement{Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01",
+				Rows: []*statementv1.Row{rowMsg(stock, "2026-03-05", "1")}}
+			if _, err := f.svc.Create(context.Background(), userID, msg); err != nil {
+				t.Fatalf("Create() error = %v", err)
+			}
+			if (f.workErr != nil) != failing {
+				t.Errorf("work error = %v, want an error %t", f.workErr, failing)
+			}
+			if len(f.replayed) != 1 || f.replayed[0].except.Kind != gen.RunKindResolution || !cmp.Equal(f.replayed[0].written, f.written) {
+				t.Errorf("replays = %+v, want one excepting the resolution, with its facts", f.replayed)
+			}
+		})
 	}
 }
 

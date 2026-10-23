@@ -37,6 +37,23 @@ type resolution struct {
 	// datedFromFacts reports that prepare dated a key through the facts of
 	// its value, so the write gives it the dated association.
 	datedFromFacts bool
+	// written lists the MIC_TICKER assertions the key's write made, each with
+	// the fetch key that made it. Each attempt of the write resets it.
+	written []writtenFact
+}
+
+// writtenFact is an identifier fact of id that the fetch key fk answered.
+type writtenFact struct {
+	fk *fetchKey
+	id types.Identifier
+}
+
+// wrote records that the write asserted id from fk, where id is a venue
+// ticker.
+func (res *resolution) wrote(fk *fetchKey, id types.Identifier) {
+	if id.Type == types.IdentifierTypeMicTicker && id.Domain != "" && id.Value != "" {
+		res.written = append(res.written, writtenFact{fk: fk, id: id})
+	}
 }
 
 // globalAndDescriptionIDs returns every global identifier and every broker

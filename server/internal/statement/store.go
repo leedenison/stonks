@@ -51,13 +51,20 @@ type Runner interface {
 var _ Runner = (*run.Runner)(nil)
 
 // Resolver is this package's view of the resolve package: the body of a
-// resolution run over the keys a statement states that have no association,
-// with an outcome per key in their order, and the two synchronous
-// resolutions of one key.
+// resolution run over the keys a statement states that lack a fixed
+// association, with an outcome per key in their order, and the two
+// synchronous resolutions of one key. A run and a confirmation also return
+// the identifiers of the identifier facts they wrote.
 type Resolver interface {
 	Resolve(ctx context.Context, res gen.Run, keys []resolve.KeyOrderDates) ([]gen.ResolutionKey, []resolve.WrittenIdentifierFacts, error)
 	Candidates(ctx context.Context, res gen.Run, key gen.StatedKey) (resolve.Offer, error)
-	Confirm(ctx context.Context, res gen.Run, key gen.StatedKey, p resolve.Pick) (gen.ResolutionKey, error)
+	Confirm(ctx context.Context, res gen.Run, key gen.StatedKey, p resolve.Pick) (gen.ResolutionKey, []resolve.WrittenIdentifierFacts, error)
 }
 
 var _ Resolver = (*resolve.Resolver)(nil)
+
+// Replays is this package's view of the replay service: the replays a new
+// identifier fact starts.
+type Replays interface {
+	ReplayNewIdentifierFacts(ctx context.Context, except gen.Run, written []resolve.WrittenIdentifierFacts) error
+}

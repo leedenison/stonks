@@ -10,9 +10,12 @@ import (
 	"github.com/google/uuid"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/mic"
+	"github.com/leedenison/stonks/server/internal/ptr"
+	runs "github.com/leedenison/stonks/server/internal/run"
 	"github.com/leedenison/stonks/server/internal/types"
 	"github.com/leedenison/stonks/server/internal/validity"
 )
@@ -200,19 +203,202 @@ func chainRequest(res *resolution, server market.Server[market.IdentifierEventRe
 // fetches served, in one transaction. It runs after the keys are written, so
 // a history names the instrument the batch created for its key. A reply that
 // the system cannot spell is left out, and the resolution stands.
-func (r *Resolver) recordIdentifierFacts(ctx context.Context, b *batch) error {
-	if len(b.events) == 0 {
-		return nil
+//
+// It then reads the facts of every value the batch wrote a fact of, and
+// writes each disagreement and broken bracket that one of the batch's facts
+// completes as a finding of run. It returns the identifiers each fetch run
+// wrote facts of: the identity fetches first, in precedence order, then the
+// events fetches.
+func (r *Resolver) recordIdentifierFacts(ctx context.Context, run gen.Run, b *batch) ([]WrittenIdentifierFacts, error) {
+	recorded := len(b.events) > 0
+	if recorded {
+		err := r.store.Tx(ctx, func(q Queries) error {
+			return validity.Record(ctx, q, r.mics, r.families, b.events)
+		})
+		switch {
+		case errors.Is(err, validity.ErrSpelling), errors.Is(err, validity.ErrNotTicker):
+			r.log.Warn("identifier facts left out", "err", err)
+			recorded = false
+		case err != nil:
+			return nil, fmt.Errorf("record identifier facts: %w", err)
+		}
 	}
+	written := newWritten()
+	for _, e := range r.sources.Enabled() {
+		for _, res := range b.resolutions {
+			for _, f := range res.written {
+				if f.fk.Source == e.Name {
+					written.add(f.fk.Run, f.id)
+				}
+			}
+		}
+	}
+	if recorded {
+		for _, k := range b.events {
+			if k.Outcome == gen.FetchOutcomeServed {
+				for _, id := range factIdentifiers(k.Response) {
+					written.add(k.Run, id)
+				}
+			}
+		}
+	}
+	if len(written.order) == 0 {
+		return nil, nil
+	}
+	mine := map[uuid.UUID]bool{}
+	for _, res := range b.resolutions {
+		for _, fk := range res.fetchKeys {
+			mine[fk.ID] = true
+		}
+	}
+	for _, k := range b.events {
+		mine[k.ID] = true
+	}
+	var kinds []gen.FindingKind
 	err := r.store.Tx(ctx, func(q Queries) error {
-		return validity.Record(ctx, q, r.mics, r.families, b.events)
-	})
-	switch {
-	case errors.Is(err, validity.ErrSpelling), errors.Is(err, validity.ErrNotTicker):
-		r.log.Warn("identifier facts left out", "err", err)
+		kinds = nil
+		met := map[conflict]bool{}
+		for _, v := range written.values() {
+			fs, err := conflicts(ctx, q, v, mine, met)
+			if err != nil {
+				return err
+			}
+			for _, f := range fs {
+				f.ID, f.RunID = db.NewID(), run.ID
+				if err := q.CreateFinding(ctx, f); err != nil {
+					return fmt.Errorf("create finding: %w", err)
+				}
+				kinds = append(kinds, f.Kind)
+			}
+		}
 		return nil
-	case err != nil:
-		return fmt.Errorf("record identifier facts: %w", err)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("record validity findings: %w", err)
 	}
-	return nil
+	for _, kind := range kinds {
+		runs.Found(ctx, kind)
+	}
+	return written.list(), nil
+}
+
+// factIdentifiers returns the identifiers r states facts of: the values of
+// its events, the value a rename moved to, the values of its assertions, and
+// the value or domain of its coverage.
+func factIdentifiers(r market.IdentifierEventResult) []types.Identifier {
+	var out []types.Identifier
+	for _, e := range r.Events {
+		out = append(out, e.Value)
+		if e.ToValue != "" {
+			out = append(out, types.Identifier{Type: e.Value.Type, Domain: e.Value.Domain, Value: e.ToValue})
+		}
+	}
+	for _, a := range r.Assertions {
+		out = append(out, a.Value)
+	}
+	for _, c := range r.Coverage {
+		out = append(out, c.Identifier)
+	}
+	return out
+}
+
+// writtenSet gathers the identifiers of the facts each run wrote, in the
+// order the runs first wrote one.
+type writtenSet struct {
+	order []uuid.UUID
+	byRun map[uuid.UUID]*WrittenIdentifierFacts
+	seen  map[uuid.UUID]map[types.Identifier]bool
+}
+
+func newWritten() *writtenSet {
+	return &writtenSet{byRun: map[uuid.UUID]*WrittenIdentifierFacts{}, seen: map[uuid.UUID]map[types.Identifier]bool{}}
+}
+
+func (w *writtenSet) add(run gen.Run, id types.Identifier) {
+	if _, ok := w.byRun[run.ID]; !ok {
+		w.order = append(w.order, run.ID)
+		w.byRun[run.ID] = &WrittenIdentifierFacts{Run: run}
+		w.seen[run.ID] = map[types.Identifier]bool{}
+	}
+	if !w.seen[run.ID][id] {
+		w.seen[run.ID][id] = true
+		w.byRun[run.ID].Identifiers = append(w.byRun[run.ID].Identifiers, id)
+	}
+}
+
+func (w *writtenSet) list() []WrittenIdentifierFacts {
+	out := make([]WrittenIdentifierFacts, len(w.order))
+	for i, id := range w.order {
+		out[i] = *w.byRun[id]
+	}
+	return out
+}
+
+// values returns each value the runs wrote a fact of, once, skipping domain
+// identifiers.
+func (w *writtenSet) values() []types.Identifier {
+	seen := map[types.Identifier]bool{}
+	var out []types.Identifier
+	for _, run := range w.order {
+		for _, id := range w.byRun[run].Identifiers {
+			if !id.IsDomain() && !seen[id] {
+				seen[id] = true
+				out = append(out, id)
+			}
+		}
+	}
+	return out
+}
+
+// conflict is one finding's kind, fetch key and day. A datasource that
+// states its facts at every venue of a market repeats a conflict for each
+// venue's value, and met keeps the first.
+type conflict struct {
+	kind gen.FindingKind
+	fk   uuid.UUID
+	on   time.Time
+}
+
+// conflicts returns the findings among the facts of v in which a fetch key
+// in mine took part. It skips each conflict already in met and adds the
+// others to it. A disagreement names the losing assertion's fetch key. A
+// broken bracket names the event's.
+func conflicts(ctx context.Context, q Queries, v types.Identifier, mine map[uuid.UUID]bool, met map[conflict]bool) ([]gen.CreateFindingParams, error) {
+	f, err := validity.Read(ctx, q, v)
+	if err != nil {
+		return nil, fmt.Errorf("read the facts of %s: %w", v.Name(), err)
+	}
+	d := validity.Derive(f)
+	var out []gen.CreateFindingParams
+	for _, dis := range d.Disagreements {
+		c := conflict{gen.FindingKindDisagreement, dis.Loser.Source.FetchKey, dis.On}
+		if (!mine[dis.Winner.Source.FetchKey] && !mine[dis.Loser.Source.FetchKey]) || met[c] {
+			continue
+		}
+		met[c] = true
+		detail := fmt.Sprintf("%s on %s: %s named %s and %s named %s; %s was kept",
+			v.Name(), dis.On.Format(time.DateOnly), dis.Winner.Source.Datasource, named(dis.Winner.Instrument),
+			dis.Loser.Source.Datasource, named(dis.Loser.Instrument), dis.Winner.Source.Datasource)
+		out = append(out, gen.CreateFindingParams{Kind: gen.FindingKindDisagreement, FetchKeyID: ptr.To(dis.Loser.Source.FetchKey), Detail: &detail})
+	}
+	for _, br := range d.Broken {
+		c := conflict{gen.FindingKindBrokenValidityBracket, br.Event.FetchKey, br.Event.On}
+		if !mine[br.Event.FetchKey] || met[c] {
+			continue
+		}
+		met[c] = true
+		detail := fmt.Sprintf("%s: an event on %s falls between assertions of %s on %s and %s",
+			v.Name(), br.Event.On.Format(time.DateOnly), br.Instrument, br.First.Format(time.DateOnly), br.Last.Format(time.DateOnly))
+		out = append(out, gen.CreateFindingParams{Kind: gen.FindingKindBrokenValidityBracket, FetchKeyID: ptr.To(br.Event.FetchKey), Detail: &detail})
+	}
+	return out, nil
+}
+
+// named returns the id of the instrument an assertion names, or "nothing"
+// where it names none.
+func named(id *uuid.UUID) string {
+	if id == nil {
+		return "nothing"
+	}
+	return id.String()
 }

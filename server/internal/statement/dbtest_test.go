@@ -23,6 +23,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/mic"
+	"github.com/leedenison/stonks/server/internal/replay"
 	"github.com/leedenison/stonks/server/internal/resolve"
 	"github.com/leedenison/stonks/server/internal/testutil/dbtest"
 	"github.com/leedenison/stonks/server/internal/testutil/runtest"
@@ -71,7 +72,8 @@ func newStack(t *testing.T) stack {
 	families, err := currency.Load(ctx, q)
 	require.NoError(t, err)
 	resolver := resolve.New(db.New[resolve.Queries](tx), market.NewFetcher(db.New[market.Queries](tx), runs, log), sources, mics, families, clock, log)
-	return stack{q: q, tx: tx, svc: New(db.New[Queries](tx), runs, resolver, families, clock), user: user, alpha: alpha, alphaName: name}
+	replays := replay.New(db.New[replay.Queries](tx), runs, resolver, sources, mics, log)
+	return stack{q: q, tx: tx, svc: New(db.New[Queries](tx), runs, resolver, replays, families, clock, log), user: user, alpha: alpha, alphaName: name}
 }
 
 func (s stack) ingest(t *testing.T, msg *statementv1.Statement) gen.Run {
