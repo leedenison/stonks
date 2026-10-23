@@ -7,7 +7,7 @@ state the ticker. The replay is a child of that run.
 
 A child shares its parent's user. An attestation acts for the system rather than for a
 user. One fact can affect the keys of many users. A system run is a run whose user is
-null. Attestations and re-assertions of held tickers are system runs. Beneath a system
+null. Attestations and extend validity runs are system runs. Beneath a system
 run, each affected user has one replay as a child. The replay belongs to that user.
 
 A per-user fetch run can write a fact too, such as a Massive fetch during a user's
