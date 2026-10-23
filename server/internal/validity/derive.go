@@ -10,10 +10,10 @@ import (
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
-// Derive returns the intervals the facts of one value imply, in order, and the
-// events they infer.
-func Derive(f Facts) ([]Interval, []Inferred) {
-	ws := winners(f.Assertions)
+// Derive returns what the facts of one value imply: the intervals in order,
+// the events they infer, and the conflicts among them.
+func Derive(f Facts) Derived {
+	ws, disagreements := winners(f.Assertions)
 	cover := union(f.Coverage)
 	bounds := days(f.Events)
 	var out []Interval
@@ -35,7 +35,25 @@ func Derive(f Facts) ([]Interval, []Inferred) {
 		inferred = append(inferred, inf...)
 		start = end
 	}
-	return join(out), inferred
+	return Derived{Intervals: join(out), Inferred: inferred, Disagreements: disagreements, Broken: broken(ws, f.Events)}
+}
+
+// broken returns each event that falls between two consecutive winners of one
+// instrument. An event on a winner's day precedes it, so that winner is the
+// later one.
+func broken(ws []winner, events []Event) []BrokenBracket {
+	var out []BrokenBracket
+	for _, e := range events {
+		i := slices.IndexFunc(ws, func(w winner) bool { return !w.at.Before(e.On) })
+		if i <= 0 {
+			continue
+		}
+		before, after := ws[i-1], ws[i]
+		if before.instrument != nil && same(before.instrument, after.instrument) {
+			out = append(out, BrokenBracket{Event: e, Instrument: *before.instrument, First: before.at, Last: after.at})
+		}
+	}
+	return out
 }
 
 // winner is what a value names on one day, by the assertion that won it. A nil
@@ -50,8 +68,9 @@ type winner struct {
 // datasource asserted the value: a datasource that never knew a value cannot
 // show that it retired. An administrator's negative assertion counts after
 // any positive one. Where assertions of one day disagree, better picks the
-// winner.
-func winners(as []Assertion) []winner {
+// winner. winners also returns the datasources' assertions that name
+// something other than the winner of their day.
+func winners(as []Assertion) ([]winner, []Disagreement) {
 	as = slices.Clone(as)
 	slices.SortStableFunc(as, func(a, b Assertion) int { return a.At.Compare(b.At) })
 	first := map[string]time.Time{}
@@ -82,24 +101,37 @@ func winners(as []Assertion) []winner {
 		return ok && on.Before(a.At)
 	}
 	var out []winner
+	var disagreements []Disagreement
 	var best *Assertion
+	var day []Assertion
 	flush := func() {
 		if best != nil {
 			out = append(out, winner{at: best.At, instrument: best.Instrument})
+			for _, a := range day {
+				if !best.Source.Attested && !same(a.Instrument, best.Instrument) {
+					disagreements = append(disagreements, Disagreement{On: best.At, Winner: *best, Loser: a})
+				}
+			}
 		}
-		best = nil
+		best, day = nil, nil
 	}
 	for i := range as {
 		a := &as[i]
 		if best != nil && !a.At.Equal(best.At) {
 			flush()
 		}
-		if counts(*a) && (best == nil || better(*a, *best)) {
+		if !counts(*a) {
+			continue
+		}
+		if !a.Source.Attested {
+			day = append(day, *a)
+		}
+		if best == nil || better(*a, *best) {
 			best = a
 		}
 	}
 	flush()
-	return out
+	return out, disagreements
 }
 
 // better reports whether a wins over b on their day: an administrator over a
@@ -233,9 +265,12 @@ func union(ps []types.Period) []types.Period {
 	return out
 }
 
-// days returns the distinct days in order.
-func days(ds []time.Time) []time.Time {
-	out := slices.Clone(ds)
+// days returns the distinct days of the events in order.
+func days(es []Event) []time.Time {
+	out := make([]time.Time, len(es))
+	for i, e := range es {
+		out[i] = e.On
+	}
 	slices.SortFunc(out, func(a, b time.Time) int { return a.Compare(b) })
 	return slices.CompactFunc(out, func(a, b time.Time) bool { return a.Equal(b) })
 }

@@ -101,9 +101,9 @@ func chainFacts(sent types.Identifier, evs []event, p types.Period, doms []strin
 			case l.from.After(p.From):
 				out.Events = append(out.Events, market.IdentifierEvent{Value: v, Action: gen.IdentifierEventActionAssigned, On: l.from})
 			}
-			out.Assertions = append(out.Assertions, market.Assertion{Value: v, Of: []types.Identifier{sent}, At: l.from})
+			out.Assertions = append(out.Assertions, market.Assertion{Value: v, Of: market.Listing{Identifiers: []types.Identifier{sent}}, At: l.from})
 			if i == len(links)-1 && today.After(l.from) {
-				out.Assertions = append(out.Assertions, market.Assertion{Value: v, Of: []types.Identifier{sent}, At: today})
+				out.Assertions = append(out.Assertions, market.Assertion{Value: v, Of: market.Listing{Identifiers: []types.Identifier{sent}}, At: today})
 			}
 			if c, ok := clip(types.Period{From: l.from, Before: before}, p); ok {
 				out.Coverage = append(out.Coverage, market.Coverage{Identifier: v, Period: c})
@@ -138,7 +138,7 @@ func lookupFacts(ticker string, rec *record, unknown bool, day time.Time, doms [
 		if !ok || len(l.Identifiers) == 0 {
 			return market.IdentifierEventResult{}
 		}
-		a.Of = l.Identifiers
+		a.Of = l
 	}
 	var out market.IdentifierEventResult
 	for _, d := range doms {

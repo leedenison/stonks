@@ -14,7 +14,7 @@ import (
 // Queries is this package's view of the validity queries.
 type Queries interface {
 	ListValueAssertions(ctx context.Context, arg gen.ListValueAssertionsParams) ([]gen.ListValueAssertionsRow, error)
-	ListValueEventDays(ctx context.Context, arg gen.ListValueEventDaysParams) ([]time.Time, error)
+	ListValueEvents(ctx context.Context, arg gen.ListValueEventsParams) ([]gen.ListValueEventsRow, error)
 	ListValueCoverage(ctx context.Context, arg gen.ListValueCoverageParams) ([]gen.ListValueCoverageRow, error)
 	ListDomainCoverage(ctx context.Context, domain string) ([]gen.ListDomainCoverageRow, error)
 	FirstDomainTransaction(ctx context.Context, domain string) (time.Time, error)
@@ -28,33 +28,49 @@ var ErrNotTicker = errors.New("validity is kept for a MIC_TICKER only")
 
 // Of reads the facts of v and derives its intervals.
 func Of(ctx context.Context, q Queries, v types.Identifier) ([]Interval, error) {
+	f, err := Read(ctx, q, v)
+	if err != nil {
+		return nil, err
+	}
+	return Derive(f).Intervals, nil
+}
+
+// Read reads the facts of v: its assertions, its events, and the coverage of
+// the value and of its domain.
+func Read(ctx context.Context, q Queries, v types.Identifier) (Facts, error) {
 	if v.Type != types.IdentifierTypeMicTicker {
-		return nil, fmt.Errorf("%s: %w", v.Name(), ErrNotTicker)
+		return Facts{}, fmt.Errorf("%s: %w", v.Name(), ErrNotTicker)
 	}
 	var f Facts
 	as, err := q.ListValueAssertions(ctx, gen.ListValueAssertionsParams{Type: v.Type, Domain: v.Domain, Value: v.Value})
 	if err != nil {
-		return nil, fmt.Errorf("list assertions: %w", err)
+		return Facts{}, fmt.Errorf("list assertions: %w", err)
 	}
 	for _, a := range as {
 		src := Source{Attested: a.Datasource == nil}
 		if a.Datasource != nil && a.Precedence != nil {
 			src.Datasource, src.Precedence = *a.Datasource, *a.Precedence
 		}
+		if a.FetchKeyID != nil {
+			src.FetchKey = *a.FetchKeyID
+		}
 		f.Assertions = append(f.Assertions, Assertion{At: a.AssertedOn, Instrument: a.InstrumentID, Source: src})
 	}
-	if f.Events, err = q.ListValueEventDays(ctx, gen.ListValueEventDaysParams{Domain: v.Domain, Value: v.Value}); err != nil {
-		return nil, fmt.Errorf("list events: %w", err)
+	evs, err := q.ListValueEvents(ctx, gen.ListValueEventsParams{Domain: v.Domain, Value: v.Value})
+	if err != nil {
+		return Facts{}, fmt.Errorf("list events: %w", err)
+	}
+	for _, e := range evs {
+		f.Events = append(f.Events, Event{On: e.EffectiveOn, FetchKey: e.FetchKeyID})
 	}
 	cover, err := q.ListValueCoverage(ctx, gen.ListValueCoverageParams{Domain: v.Domain, Value: &v.Value})
 	if err != nil {
-		return nil, fmt.Errorf("list coverage: %w", err)
+		return Facts{}, fmt.Errorf("list coverage: %w", err)
 	}
 	for _, c := range cover {
 		f.Coverage = append(f.Coverage, types.Period{From: c.CoveredFrom, Before: c.CoveredBefore})
 	}
-	ivs, _ := Derive(f)
-	return ivs, nil
+	return f, nil
 }
 
 // DomainGaps returns the parts of the days from the earliest transaction that

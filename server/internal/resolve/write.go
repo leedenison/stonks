@@ -97,7 +97,7 @@ type decision struct {
 // check. Unless the decision has a conflict, its verdict carries every
 // finding the write records.
 func decide(ctx context.Context, q Queries, res *resolution, userChoice consistentClaims) (decision, error) {
-	if err := lockIdentifiers(ctx, q, identifiersToLock(res)); err != nil {
+	if err := db.LockIdentifiers(ctx, q, identifiersToLock(res)); err != nil {
 		return decision{}, err
 	}
 	if err := recordUnknown(ctx, q, res.fetchKeys); err != nil {
@@ -264,23 +264,6 @@ func recordUnknown(ctx context.Context, q Queries, fetchKeys []*fetchKey) error 
 // day is the UTC day of t, on which an assertion made at t holds.
 func day(t time.Time) time.Time {
 	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.UTC)
-}
-
-// lockIdentifiers takes the transaction's advisory lock on each of ids, in one
-// order whatever the caller's.
-func lockIdentifiers(ctx context.Context, q Queries, ids []types.Identifier) error {
-	if len(ids) == 0 {
-		return nil
-	}
-	keys := make([]string, len(ids))
-	for i, id := range ids {
-		keys[i] = fmt.Sprintf("identifier:%s:%s:%s", id.Type, id.Domain, id.Value)
-	}
-	slices.Sort(keys)
-	if err := q.LockIdentifiers(ctx, keys); err != nil {
-		return fmt.Errorf("lock identifiers: %w", err)
-	}
-	return nil
 }
 
 // findInstrumentsByIdentifier finds the instruments any of ids identifies,

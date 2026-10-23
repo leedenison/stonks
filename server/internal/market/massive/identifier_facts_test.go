@@ -30,7 +30,7 @@ func TestChainFacts(t *testing.T) {
 	today := day(2026, 10, 22)
 	p := period(since, today.AddDate(0, 0, 1))
 	asserted := func(value string, on time.Time) market.Assertion {
-		return market.Assertion{Value: ticker("XNAS", value), Of: []types.Identifier{meta}, At: on}
+		return market.Assertion{Value: ticker("XNAS", value), Of: market.Listing{Identifiers: []types.Identifier{meta}}, At: on}
 	}
 	covered := func(value string, from, before time.Time) market.Coverage {
 		return market.Coverage{Identifier: ticker("XNAS", value), Period: period(from, before)}
@@ -178,10 +178,13 @@ func TestLookupFacts(t *testing.T) {
 			name: "a record of the day",
 			rec:  fb,
 			want: market.IdentifierEventResult{Assertions: []market.Assertion{{
-				Value: ticker("XNAS", "FB"), At: on, Of: []types.Identifier{
-					{Type: types.IdentifierTypeOpenfigiShareClass, Value: "BBG001SQCQC5"},
-					{Type: types.IdentifierTypeOpenfigiComposite, Value: "BBG000MM2P62"},
-					ticker("XNAS", "FB"),
+				Value: ticker("XNAS", "FB"), At: on, Of: market.Listing{
+					Identifiers: []types.Identifier{
+						{Type: types.IdentifierTypeOpenfigiShareClass, Value: "BBG001SQCQC5"},
+						{Type: types.IdentifierTypeOpenfigiComposite, Value: "BBG000MM2P62"},
+						ticker("XNAS", "FB"),
+					},
+					Class: types.AssetClassStock, Currency: "USD", Primary: "XNAS",
 				},
 			}}},
 		},
@@ -255,9 +258,9 @@ func TestEventsFetch(t *testing.T) {
 						{Value: ticker(d, "FB"), Action: gen.IdentifierEventActionRenamed, ToValue: "META", On: day(2022, 6, 9)},
 					},
 					Assertions: []market.Assertion{
-						{Value: ticker(d, "FB"), Of: figi(meta), At: day(2012, 5, 18)},
-						{Value: ticker(d, "META"), Of: figi(meta), At: day(2022, 6, 9)},
-						{Value: ticker(d, "META"), Of: figi(meta), At: day(2026, 10, 22)},
+						{Value: ticker(d, "FB"), Of: market.Listing{Identifiers: figi(meta)}, At: day(2012, 5, 18)},
+						{Value: ticker(d, "META"), Of: market.Listing{Identifiers: figi(meta)}, At: day(2022, 6, 9)},
+						{Value: ticker(d, "META"), Of: market.Listing{Identifiers: figi(meta)}, At: day(2026, 10, 22)},
 					},
 					Coverage: []market.Coverage{
 						{Identifier: ticker(d, "FB"), Period: period(day(2012, 5, 18), day(2022, 6, 9))},
@@ -273,8 +276,8 @@ func TestEventsFetch(t *testing.T) {
 			want: func(d string) market.IdentifierEventResult {
 				return market.IdentifierEventResult{
 					Assertions: []market.Assertion{
-						{Value: ticker(d, "AAPL"), Of: figi(apple[1]), At: since},
-						{Value: ticker(d, "AAPL"), Of: figi(apple[1]), At: day(2026, 10, 22)},
+						{Value: ticker(d, "AAPL"), Of: market.Listing{Identifiers: figi(apple[1])}, At: since},
+						{Value: ticker(d, "AAPL"), Of: market.Listing{Identifiers: figi(apple[1])}, At: day(2026, 10, 22)},
 					},
 					Coverage: []market.Coverage{{Identifier: ticker(d, "AAPL"), Period: history}},
 				}
@@ -291,11 +294,11 @@ func TestEventsFetch(t *testing.T) {
 			req:      market.IdentifierEventRequest{Identifier: ticker("XNAS", "FB"), Period: oneDay},
 			sent:     ticker("", "FB"),
 			want: func(d string) market.IdentifierEventResult {
-				return market.IdentifierEventResult{Assertions: []market.Assertion{{Value: ticker(d, "FB"), At: oneDay.From, Of: []types.Identifier{
+				return market.IdentifierEventResult{Assertions: []market.Assertion{{Value: ticker(d, "FB"), At: oneDay.From, Of: market.Listing{Identifiers: []types.Identifier{
 					{Type: types.IdentifierTypeOpenfigiShareClass, Value: "BBG001SQCQC5"},
 					{Type: types.IdentifierTypeOpenfigiComposite, Value: "BBG000MM2P62"},
 					ticker("XNAS", "FB"),
-				}}}}
+				}, Class: types.AssetClassStock, Currency: "USD", Primary: "XNAS"}}}}
 			},
 		},
 		{

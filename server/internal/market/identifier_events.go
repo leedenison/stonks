@@ -28,12 +28,13 @@ type IdentifierEvent struct {
 	On      time.Time
 }
 
-// Assertion is what a provider stated a value named on one day: the
-// identifiers of the entity, which the recorder looks up to find the
-// instrument. A negative assertion states that the value names nothing.
+// Assertion is what a provider stated a value named on one day: the listing
+// of the entity, as far as the provider described it. The recorder looks its
+// identifiers up to find the instrument. A negative assertion states that the
+// value names nothing, and leaves Of empty.
 type Assertion struct {
 	Value    types.Identifier
-	Of       []types.Identifier
+	Of       Listing
 	Negative bool
 	At       time.Time
 }

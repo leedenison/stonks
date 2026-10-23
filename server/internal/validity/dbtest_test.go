@@ -209,3 +209,32 @@ func TestDomainGaps(t *testing.T) {
 		t.Errorf("DomainGaps mismatch (-want +got):\n%s", diff)
 	}
 }
+
+// TestReadTicker checks that one read of a ticker's facts answers whether it
+// has validity, which days hold an assertion, and the earliest date its
+// validity leaves unconfirmed.
+func TestReadTicker(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	empty, err := ReadTicker(ctx, f.q, f.foo)
+	require.NoError(t, err)
+	if empty.HasValidity() {
+		t.Errorf("a ticker with no facts has validity %+v, want none", empty.Derived.Intervals)
+	}
+	f.asserts(t, f.alpha, 1, &f.a)
+	f.asserts(t, f.alpha, 5, &f.a)
+	tk, err := ReadTicker(ctx, f.q, f.foo)
+	require.NoError(t, err)
+	if !tk.HasValidity() || tk.Identifier != f.foo {
+		t.Errorf("ticker = %+v, want validity for %s", tk, f.foo.Name())
+	}
+	if !tk.Asserted(day(5)) || tk.Asserted(day(3)) {
+		t.Errorf("Asserted(5) = %v, Asserted(3) = %v, want only the asserted day", tk.Asserted(day(5)), tk.Asserted(day(3)))
+	}
+	if got, ok := tk.FirstUnconfirmed([]time.Time{day(3), day(9), day(7)}); !ok || !got.Equal(day(7)) {
+		t.Errorf("FirstUnconfirmed = %s, %v, want day 7: days 1 to 5 are bracketed", got, ok)
+	}
+	if _, ok := tk.FirstUnconfirmed([]time.Time{day(2), day(4)}); ok {
+		t.Errorf("FirstUnconfirmed of bracketed days reported one, want none")
+	}
+}
