@@ -31,10 +31,6 @@ type Queries interface {
 	RelinkIdentifierAssertions(ctx context.Context, arg gen.RelinkIdentifierAssertionsParams) error
 	CreateFinding(ctx context.Context, arg gen.CreateFindingParams) error
 	SetStatedKeyAssociation(ctx context.Context, arg gen.SetStatedKeyAssociationParams) (int64, error)
-	GetStatedKey(ctx context.Context, arg gen.GetStatedKeyParams) (gen.StatedKey, error)
-	ListUserArbitratedKeys(ctx context.Context, userID uuid.UUID) ([]gen.StatedKey, error)
-	ListStatedKeysOfGroups(ctx context.Context, arg gen.ListStatedKeysOfGroupsParams) ([]gen.StatedKey, error)
-	LockUserKeys(ctx context.Context, userID uuid.UUID) error
 	CreateResolutionKey(ctx context.Context, arg gen.CreateResolutionKeyParams) (gen.ResolutionKey, error)
 	DeferConstraints(ctx context.Context) error
 	MoveListing(ctx context.Context, arg gen.MoveListingParams) error

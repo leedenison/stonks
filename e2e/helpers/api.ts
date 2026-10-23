@@ -13,6 +13,7 @@ import {
 import type { IdentifierType } from "../gen/type/v1/type_pb";
 import { AuthService } from "../gen/auth/v1/auth_pb";
 import { HoldingService } from "../gen/holding/v1/holding_pb";
+import { RunService as UserRunService } from "../gen/run/v1/run_pb";
 import { StatementService } from "../gen/statement/v1/statement_pb";
 import { sessionCookie } from "./auth";
 import { baseURL } from "./config";
@@ -133,4 +134,8 @@ export function statementClient(sessionID: string) {
 
 export function holdingClient(sessionID: string) {
   return clientFor(HoldingService, sessionID);
+}
+
+export function runClient(sessionID: string) {
+  return clientFor(UserRunService, sessionID);
 }

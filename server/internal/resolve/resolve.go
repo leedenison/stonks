@@ -4,22 +4,18 @@
 // globally, such as an ISIN, a SEDOL or a ticker with its venue. It also
 // resolves through the broker's description of the line, when the system
 // holds one. A key that states only a bare ticker associates only when the
-// user confirms a candidate for it, or when an earlier key of the user's
-// sharing a joining identifier was confirmed. The same holds for a venue
-// ticker whose venue none of the returned listings names. The resolver never
-// writes a stated description as an identifier row.
+// user confirms a candidate for it. The same holds for a venue ticker whose
+// venue none of the returned listings names. The resolver never writes a
+// stated description as an identifier row.
 //
-// The database is consulted before any datasource, then the user's own
-// arbitrated keys, and only the keys both leave undecided are sent out. A
-// key sharing a joining identifier with the user's arbitrated keys takes
-// their association before any datasource is asked; see arbitrated.go. Two
-// runs stating one key produce one instrument, however they interleave; see
-// write.go. The first run to learn a listing's primary venue sets it for
-// good; see attach in write.go.
+// The database is consulted before any datasource, and only the keys it
+// leaves undecided are sent out. An association is never copied between a
+// user's keys: a confirmation associates the one key. Two runs stating one
+// key produce one instrument, however they interleave; see write.go.
 //
 // A synchronous resolution runs in the caller for one key the user is
-// confirming. It shares its lookups, its search for arbitrated keys and its
-// fetches with a resolution run; see Candidates and Confirm.
+// confirming. It shares its lookups and its fetches with a resolution run;
+// see Candidates and Confirm.
 //
 // A datasource that lists only some of an instrument's listings never
 // contradicts a stated currency.
@@ -69,8 +65,8 @@ func (r *Resolver) Resolve(ctx context.Context, run gen.Run, rows []gen.StatedKe
 	return out, nil
 }
 
-// prepare runs the lookups, the search for arbitrated keys and the fetches
-// for rows, which a resolution run and a synchronous resolution share.
+// prepare runs the lookups and the fetches for rows. A resolution run and a
+// synchronous resolution share it.
 //
 // A resolution acts for its run's user, so prepare refuses a system run.
 func (r *Resolver) prepare(ctx context.Context, run gen.Run, rows []gen.StatedKey) ([]*resolution, error) {
@@ -88,9 +84,6 @@ func (r *Resolver) prepare(ctx context.Context, run gen.Run, rows []gen.StatedKe
 		resolutions[i] = res
 	}
 	if err := r.findResolutionInstrument(ctx, resolutions); err != nil {
-		return nil, err
-	}
-	if err := r.findResolutionArbitratedKey(ctx, run, resolutions); err != nil {
 		return nil, err
 	}
 	if err := r.fetchResolutionIdentities(ctx, run, resolutions, cur); err != nil {

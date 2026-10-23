@@ -22,13 +22,10 @@ type resolution struct {
 	family          string
 	currencies      currencies
 	knownInstrument *join.InstrumentWithCoverage
-	// arbitrated is the user-arbitrated key whose association this key
-	// copies, nil where no such key shares a joining identifier with it.
-	arbitrated *gen.StatedKey
-	fetchKeys  []*fetchKey
-	findings   []gen.CreateFindingParams
-	outcome    gen.ResolutionOutcome
-	reason     string
+	fetchKeys       []*fetchKey
+	findings        []gen.CreateFindingParams
+	outcome         gen.ResolutionOutcome
+	reason          string
 }
 
 // globalAndDescriptionIDs returns every global identifier and every broker

@@ -261,9 +261,10 @@ func TestReplace(t *testing.T) {
 	}
 }
 
-// TestConfirmCandidate checks a confirmation across statements: both keys
-// of a group take the user's pick, and a later statement stating the key
-// links to it and resolves nothing for it.
+// TestConfirmCandidate checks a confirmation across statements: the
+// confirmed key takes the user's pick, its group mate stays unresolved in a
+// group of its own, and a later statement stating the confirmed key links to
+// it and resolves nothing for it.
 func TestConfirmCandidate(t *testing.T) {
 	s := newStack(t)
 	ctx := context.Background()
@@ -282,10 +283,13 @@ func TestConfirmCandidate(t *testing.T) {
 		},
 		AssetClass: typev1.AssetClass_ASSET_CLASS_STOCK, Currency: &usd,
 	}
-	month := func(from, before, order, quantity string) gen.Run {
+	// bare states the same line with no currency, so it is a key of its own
+	// that the description joins to key's group.
+	bare := &typev1.StatedKey{Identifiers: key.Identifiers, AssetClass: key.AssetClass}
+	month := func(k *typev1.StatedKey, from, before, order, quantity string) gen.Run {
 		return s.ingest(t, &statementv1.Statement{
 			Broker: typev1.Broker_BROKER_SCHWAB, OrderFrom: from, OrderBefore: before,
-			Rows: []*statementv1.Row{rowMsg(key, order, quantity)},
+			Rows: []*statementv1.Row{rowMsg(k, order, quantity)},
 		})
 	}
 	keyOf := func(statement gen.Run) gen.StatedKey {
@@ -312,8 +316,11 @@ func TestConfirmCandidate(t *testing.T) {
 		return ids
 	}
 
-	first := keyOf(month("2026-03-01", "2026-04-01", "2026-03-05", "10"))
-	second := keyOf(month("2026-04-01", "2026-05-01", "2026-04-05", "5"))
+	first := keyOf(month(key, "2026-03-01", "2026-04-01", "2026-03-05", "10"))
+	second := keyOf(month(bare, "2026-04-01", "2026-05-01", "2026-04-05", "5"))
+	if first.ID == second.ID {
+		t.Fatalf("the key with a currency and the key without are one row %s, want two", first.ID)
+	}
 	groups, err := s.q.ListGroupHoldings(ctx, s.user.ID)
 	require.NoError(t, err)
 	if len(groups) != 1 || groups[0].Quantity.String() != "15" {
@@ -347,29 +354,33 @@ func TestConfirmCandidate(t *testing.T) {
 	if rk.Outcome != gen.ResolutionOutcomeMatched {
 		t.Fatalf("Confirm() = %+v, want matched", rk)
 	}
-	for _, k := range []gen.StatedKey{first, second} {
-		got, err := s.q.GetStatedKey(ctx, gen.GetStatedKeyParams{ID: k.ID, UserID: s.user.ID})
-		require.NoError(t, err)
-		if got.InstrumentID == nil || got.Arbiter == nil || *got.Arbiter != gen.ArbiterUser || got.GroupID != nil {
-			t.Errorf("key %s = %+v, want associated by the user in no group", k.ID, got)
-		}
+	got, err := s.q.GetStatedKey(ctx, gen.GetStatedKeyParams{ID: first.ID, UserID: s.user.ID})
+	require.NoError(t, err)
+	if got.InstrumentID == nil || got.Arbiter == nil || *got.Arbiter != gen.ArbiterUser || got.GroupID != nil {
+		t.Errorf("the confirmed key = %+v, want associated by the user in no group", got)
+	}
+	mate, err := s.q.GetStatedKey(ctx, gen.GetStatedKeyParams{ID: second.ID, UserID: s.user.ID})
+	require.NoError(t, err)
+	if mate.InstrumentID != nil || mate.Arbiter != nil {
+		t.Errorf("the mate = %+v, want it unresolved: a choice associates the one key", mate)
 	}
 	groups, err = s.q.ListGroupHoldings(ctx, s.user.ID)
 	require.NoError(t, err)
 	instruments, err := s.q.ListInstrumentHoldings(ctx, s.user.ID)
 	require.NoError(t, err)
-	if len(groups) != 0 || len(instruments) != 1 || instruments[0].Quantity.String() != "15" {
-		t.Errorf("holdings = groups %+v, instruments %+v, want one instrument holding of 15", groups, instruments)
+	if len(groups) != 1 || groups[0].Quantity.String() != "5" || len(instruments) != 1 || instruments[0].Quantity.String() != "10" {
+		t.Errorf("holdings = groups %+v, instruments %+v, want the mate's group of 5 and one instrument holding of 10", groups, instruments)
 	}
 	if _, err := s.svc.Confirm(ctx, s.user.ID, first.ID, resolve.Pick{Datasource: s.alphaName, Identifier: isin}); !errors.Is(err, ErrAssociated) {
 		t.Errorf("a second Confirm() error = %v, want ErrAssociated", err)
 	}
 
-	third := month("2026-02-01", "2026-03-01", "2026-02-05", "1")
-	k, err := s.q.GetStatedKey(ctx, gen.GetStatedKeyParams{ID: keyOf(third).ID, UserID: s.user.ID})
-	require.NoError(t, err)
-	if k.InstrumentID == nil || *k.InstrumentID != instruments[0].InstrumentID || k.Arbiter == nil || *k.Arbiter != gen.ArbiterUser {
-		t.Errorf("the third statement's key = %+v, want the confirmed association", k)
+	// A third statement restates the confirmed key. It links to the row,
+	// resolves nothing for it, and its regroup leaves the mate in a group of
+	// its own.
+	third := month(key, "2026-02-01", "2026-03-01", "2026-02-05", "1")
+	if k := keyOf(third); k.ID != first.ID || k.InstrumentID == nil || *k.InstrumentID != instruments[0].InstrumentID || k.Arbiter == nil || *k.Arbiter != gen.ArbiterUser {
+		t.Errorf("the third statement's key = %+v, want the confirmed key %s", k, first.ID)
 	}
 	resolution, err := s.q.ListChildRuns(ctx, gen.ListChildRunsParams{ParentID: &third.ID, UserID: &s.user.ID})
 	require.NoError(t, err)
@@ -378,9 +389,87 @@ func TestConfirmCandidate(t *testing.T) {
 	if len(fetches) != 0 {
 		t.Errorf("the third statement's resolution started %d fetches, want none: a key the user associated is not resolved again", len(fetches))
 	}
+	resolved, err := s.q.ListResolutionKeys(ctx, gen.ListResolutionKeysParams{RunID: resolution[0].ID, UserID: s.user.ID})
+	require.NoError(t, err)
+	if len(resolved) != 0 {
+		t.Errorf("the third statement's resolution recorded %+v, want no outcome", resolved)
+	}
 	instruments, err = s.q.ListInstrumentHoldings(ctx, s.user.ID)
 	require.NoError(t, err)
-	if len(instruments) != 1 || instruments[0].Quantity.String() != "16" {
-		t.Errorf("instrument holdings = %+v, want one of 16", instruments)
+	if len(instruments) != 1 || instruments[0].Quantity.String() != "11" {
+		t.Errorf("instrument holdings = %+v, want one of 11", instruments)
+	}
+	mate, err = s.q.GetStatedKey(ctx, gen.GetStatedKeyParams{ID: second.ID, UserID: s.user.ID})
+	require.NoError(t, err)
+	if mate.GroupID == nil || *mate.GroupID != second.ID {
+		t.Errorf("the mate after the regroup = %+v, want a group of its own", mate)
+	}
+}
+
+// TestRestate checks that a statement restating a matched key reuses the
+// earlier match, without a fetch or an outcome of its own, and lists the key
+// with the outcome the earlier run recorded.
+func TestRestate(t *testing.T) {
+	s := newStack(t)
+	ctx := context.Background()
+	usd := "USD"
+	isin := types.Identifier{Type: types.IdentifierTypeIsin, Value: "US0000000002"}
+	figi := types.Identifier{Type: types.IdentifierTypeOpenfigiShareClass, Value: "BBG001S5SM33"}
+	xnas := types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "ACME"}
+	s.alpha.Responses[isin] = market.IdentityResult{Filtered: []types.Identifier{isin}, Listings: []market.Listing{
+		{Class: types.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{figi, isin, xnas}},
+	}}
+	acme := securityKey("ACME CORP", typev1.AssetClass_ASSET_CLASS_STOCK, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, "US0000000002", ""))
+	month := func(from, before, order, quantity string) gen.Run {
+		return s.ingest(t, &statementv1.Statement{
+			Broker: typev1.Broker_BROKER_IBKR, OrderFrom: from, OrderBefore: before,
+			Rows: []*statementv1.Row{rowMsg(acme, order, quantity)},
+		})
+	}
+	keyOf := func(statement gen.Run) gen.StatedKey {
+		t.Helper()
+		keys, err := s.q.ListStatedKeys(ctx, gen.ListStatedKeysParams{StatementID: statement.ID, UserID: s.user.ID})
+		require.NoError(t, err)
+		if len(keys) != 1 {
+			t.Fatalf("statement %s has %d keys, want 1", statement.ID, len(keys))
+		}
+		return keys[0]
+	}
+	resolutionOf := func(statement gen.Run) gen.Run {
+		t.Helper()
+		children, err := s.q.ListChildRuns(ctx, gen.ListChildRunsParams{ParentID: &statement.ID, UserID: &s.user.ID})
+		require.NoError(t, err)
+		if len(children) != 1 || children[0].Kind != gen.RunKindResolution {
+			t.Fatalf("statement %s has children %+v, want one resolution", statement.ID, children)
+		}
+		return children[0]
+	}
+
+	first := month("2026-03-01", "2026-04-01", "2026-03-05", "10")
+	second := month("2026-04-01", "2026-05-01", "2026-04-05", "5")
+	a, b := keyOf(first), keyOf(second)
+	if a.ID != b.ID || b.InstrumentID == nil || b.Arbiter == nil || *b.Arbiter != gen.ArbiterDatasource {
+		t.Errorf("the second statement's key = %+v, want the first's %s with the datasource's association", b, a.ID)
+	}
+	resolution := resolutionOf(second)
+	fetches, err := s.q.ListChildRuns(ctx, gen.ListChildRunsParams{ParentID: &resolution.ID, UserID: &s.user.ID})
+	require.NoError(t, err)
+	if len(fetches) != 0 {
+		t.Errorf("the second statement's resolution started %d fetches, want none", len(fetches))
+	}
+	resolved, err := s.q.ListResolutionKeys(ctx, gen.ListResolutionKeysParams{RunID: resolution.ID, UserID: s.user.ID})
+	require.NoError(t, err)
+	if len(resolved) != 0 {
+		t.Errorf("the second statement's resolution recorded %+v, want no outcome", resolved)
+	}
+	latest, err := s.q.ListLatestResolutions(ctx, gen.ListLatestResolutionsParams{Ids: []uuid.UUID{a.ID}, UserID: s.user.ID})
+	require.NoError(t, err)
+	if len(latest) != 1 || latest[0].RunID != resolutionOf(first).ID || latest[0].Outcome != gen.ResolutionOutcomeMatched {
+		t.Errorf("latest resolution = %+v, want the first statement's, matched", latest)
+	}
+	instruments, err := s.q.ListInstrumentHoldings(ctx, s.user.ID)
+	require.NoError(t, err)
+	if len(instruments) != 1 || instruments[0].Quantity.String() != "15" {
+		t.Errorf("instrument holdings = %+v, want one of 15", instruments)
 	}
 }

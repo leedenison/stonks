@@ -51,17 +51,11 @@ WHERE id = $1 AND user_id = $2 AND arbiter IS DISTINCT FROM 'user';
 -- name: GetStatedKey :one
 SELECT * FROM stated_keys WHERE id = $1 AND user_id = $2;
 
--- name: ListUserArbitratedKeys :many
--- The user's keys whose association the user arbitrated.
-SELECT * FROM stated_keys
-WHERE user_id = $1 AND arbiter = 'user'
-ORDER BY id;
-
 -- name: LockUserKeys :exec
 -- The user's key lock: an advisory lock, held for the transaction, that
--- serialises the writes to one user's groups. A regroup and a confirmation
--- that associates a whole group take it. A resolution run associates a single
--- key without it. Its seed keeps it apart from LockIdentifiers.
+-- serialises the writes to one user's groups. A regroup takes it. A
+-- resolution associates a single key without it. The lock's seed differs
+-- from the seed of LockIdentifiers, so the two never collide.
 SELECT pg_advisory_xact_lock(hashtextextended(CAST(@user_id::uuid AS text), 0));
 
 -- name: ListGroupableKeys :many

@@ -95,11 +95,8 @@ func (r *Resolver) Candidates(ctx context.Context, run gen.Run, key gen.StatedKe
 	}
 	res := rs[0]
 	var o Offer
-	switch {
-	case res.outcome != "":
+	if res.outcome != "" {
 		o.Reasons = reasons(res.reason)
-	case res.arbitrated != nil:
-		o.Reasons = []string{"the key takes the association of a key the user confirmed"}
 	}
 	cs, dropped, unserved := offeredClaims(res)
 	o.Reasons = append(o.Reasons, unserved...)
@@ -151,19 +148,15 @@ func offeredClaims(res *resolution) ([]*identityClaim, []gen.CreateFindingParams
 // names for key. It writes the candidate as a run writes a winner and the
 // claims attached to it, with the user as arbiter. Confirm gathers the
 // candidates again, so answers that changed since Candidates decide what it
-// writes. Every key of key's group takes the same instrument. It also takes
-// the listing when it states the same currency family as key.
+// writes. The choice associates key alone.
 func (r *Resolver) Confirm(ctx context.Context, run gen.Run, key gen.StatedKey, p Pick) (gen.ResolutionKey, error) {
 	rs, err := r.prepare(ctx, run, []gen.StatedKey{key})
 	if err != nil {
 		return gen.ResolutionKey{}, err
 	}
 	res := rs[0]
-	switch {
-	case res.outcome != "":
+	if res.outcome != "" {
 		return gen.ResolutionKey{}, fmt.Errorf("%w: %s", ErrNoCandidate, res.reason)
-	case res.arbitrated != nil:
-		return gen.ResolutionKey{}, fmt.Errorf("%w: the key takes the association of a key the user confirmed", ErrNoCandidate)
 	}
 	a, err := findUserChoice(res, p)
 	if err != nil {

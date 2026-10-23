@@ -45,8 +45,3 @@ LEFT JOIN listing_tickers ON listing_tickers.listing_id = listings.id AND listin
 LEFT JOIN venue_names ON venue_names.mic = listing_tickers.domain
 WHERE listings.instrument_id = ANY(@instrument_ids::uuid[])
 ORDER BY listings.instrument_id, listings.currency;
-
--- name: ListStatedKeysOfGroups :many
-SELECT * FROM stated_keys
-WHERE user_id = @user_id::uuid AND group_id = ANY(@group_ids::uuid[])
-ORDER BY group_id, id;
