@@ -1,7 +1,6 @@
 ---
 title: Holdings read a transaction's instrument
 type: task
-dependencies: [005]
 ---
 
 ## Scope

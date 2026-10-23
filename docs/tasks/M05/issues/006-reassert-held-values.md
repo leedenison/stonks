@@ -1,7 +1,6 @@
 ---
 title: An administrator re-asserts held values
 type: task
-dependencies: [005]
 ---
 
 ## Scope
@@ -18,7 +17,7 @@ In:
 - A re-assertion bypasses the fetch cache, since a cached answer holds on the day of the
   original call.
 - The fetch runs as a system run. The run shows the assertions it wrote. Replays and
-  findings follow as [005](005-resolution-under-validity.md) states.
+  findings follow as the `replay` and `resolve` package comments state.
 - A re-assertion runs as a system run. It asks again about an instrument that
   `identity_coverage` records, and writes an identity answer's assertion outside
   `attach`. The `resolve` package comment and the `identity_coverage` comment state

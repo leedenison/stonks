@@ -11,9 +11,8 @@ A range of validity comes only from the bracket rule of
 [005](005-validity-is-bootstrapped-from-the-present-backwards.md) and from coverage.
 
 A witnessed event takes effect at the start of its day, so it precedes an assertion on the
-same day. A rename between two answers on one day is settled by precedence, as
-[002](002-precedence-decides-between-providers-that-disagree-and-a-finding-records-it.md)
-states.
+same day. A rename between two answers on one day is settled by precedence, and recorded
+as a finding; see [006_findings.sql](../../../../server/internal/migrations/006_findings.sql).
 
 An inferred event is derived from its two assertions and never stored. The days between
 them are a grey zone. The earlier instrument stays provisionally valid through the grey

@@ -26,17 +26,13 @@ of open issues and ADRs at `docs/tasks/<label>/`.
   inside their validity.
 
 ```
-                    001 open
-                /              \
-         005 resolve       010 descriptions
-       /    |    \               |
-006 reassert | 013 holdings      |
-      |      |         |         |
-      | 007 statement  |         |
-      |      |         |         |
-      |  009 coverage  |         |
-       \     |        /         /
-                 008 close
+                         001 open
+          /           /            \             \
+006 reassert  007 statement  013 holdings  010 descriptions
+      |             |              |              |
+      |       009 coverage         |              |
+       \            |             /              /
+                       008 close
 ```
 
 ## Completed

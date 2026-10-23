@@ -271,3 +271,160 @@ interactions:
         status: 200 OK
         code: 200
         duration: 11.242579289s
+    - id: 7
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /v3/reference/tickers/META?apiKey=REDACTED
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://api.massive.com/v3/reference/tickers/META
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 981
+        uncompressed: true
+        body: '{"request_id":"6dbdad827a7b820d9620b60931354fbe","results":{"active":true,"address":"REDACTED","branding":{"icon_url":"https://api.massive.com/v1/reference/company-branding/YWJvdXQubWV0YS5jb20/images/2026-10-01_icon.png","logo_url":"https://api.massive.com/v1/reference/company-branding/YWJvdXQubWV0YS5jb20/images/2026-10-01_logo.svg"},"cik":"0001326801","composite_figi":"BBG000MM2P62","currency_name":"usd","description":"REDACTED","homepage_url":"https://about.meta.com","list_date":"2012-05-18","locale":"us","market":"stocks","market_cap":1.65294941409125e+12,"name":"Meta Platforms, Inc. Class A Common Stock","phone_number":"REDACTED","primary_exchange":"XNAS","round_lot":40,"share_class_figi":"BBG001SQCQC5","share_class_shares_outstanding":2205128509,"sic_code":"7370","sic_description":"SERVICES-COMPUTER PROGRAMMING, DATA PROCESSING, ETC.","ticker":"META","ticker_root":"META","total_employees":78865,"type":"CS","weighted_shares_outstanding":2547506225},"status":"OK"}'
+        headers:
+            Content-Type:
+                - application/json
+            Date:
+                - Fri, 23 Oct 2026 14:20:19 GMT
+            Strict-Transport-Security:
+                - max-age=15724800; includeSubDomains
+            Vary:
+                - Accept-Encoding
+            X-Polygon-Cluster-Name:
+                - polygon-ny5
+            X-Request-Id:
+                - 6dbdad827a7b820d9620b60931354fbe
+        status: 200 OK
+        code: 200
+        duration: 907.19484ms
+    - id: 8
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /vX/reference/tickers/BBG000MM2P62/events?apiKey=REDACTED&types=ticker_change
+        form:
+            types:
+                - ticker_change
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://api.massive.com/vX/reference/tickers/BBG000MM2P62/events?types=ticker_change
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 344
+        uncompressed: true
+        body: '{"results":{"name":"Meta Platforms, Inc. Class A Common Stock","composite_figi":"BBG000MM2P62","cik":"0001326801","events":[{"ticker_change":{"ticker":"META"},"type":"ticker_change","date":"2022-06-09"},{"ticker_change":{"ticker":"FB"},"type":"ticker_change","date":"2012-05-18"}]},"status":"OK","request_id":"4d36a9f0985adb43fa00780908b1ac7a"}'
+        headers:
+            Content-Type:
+                - application/json
+            Date:
+                - Fri, 23 Oct 2026 14:20:31 GMT
+            Strict-Transport-Security:
+                - max-age=15724800; includeSubDomains
+            Vary:
+                - Accept-Encoding
+                - Accept-Encoding
+            X-Item-Count:
+                - "2"
+            X-Polygon-Cluster-Name:
+                - polygon-ny5
+            X-Request-Id:
+                - 4d36a9f0985adb43fa00780908b1ac7a
+        status: 200 OK
+        code: 200
+        duration: 7.628259882s
+    - id: 9
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /v3/reference/tickers/META?apiKey=REDACTED&date=2024-01-16
+        form:
+            date:
+                - "2024-01-16"
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://api.massive.com/v3/reference/tickers/META?date=2024-01-16
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 989
+        uncompressed: true
+        body: '{"request_id":"353e91acab2be3103820ff8898dc4df0","results":{"active":true,"address":"REDACTED","branding":{"icon_url":"https://api.massive.com/v1/reference/company-branding/bWV0YWNhcmVlcnMuY29t/images/2024-01-01_icon.jpeg","logo_url":"https://api.massive.com/v1/reference/company-branding/bWV0YWNhcmVlcnMuY29t/images/2024-01-01_logo.png"},"cik":"0001326801","composite_figi":"BBG000MM2P62","currency_name":"usd","description":"REDACTED","homepage_url":"https://www.metacareers.com","list_date":"2012-05-18","locale":"us","market":"stocks","market_cap":9.4432175950072e+11,"name":"Meta Platforms, Inc. Class A Common Stock","phone_number":"REDACTED","primary_exchange":"XNAS","round_lot":100,"share_class_figi":"BBG001SQCQC5","share_class_shares_outstanding":2219610000,"sic_code":"7370","sic_description":"SERVICES-COMPUTER PROGRAMMING, DATA PROCESSING, ETC.","ticker":"META","ticker_root":"META","total_employees":66185,"type":"CS","weighted_shares_outstanding":2569862732},"status":"OK"}'
+        headers:
+            Content-Type:
+                - application/json
+            Date:
+                - Fri, 23 Oct 2026 14:20:43 GMT
+            Strict-Transport-Security:
+                - max-age=15724800; includeSubDomains
+            Vary:
+                - Accept-Encoding
+            X-Polygon-Cluster-Name:
+                - polygon-ny5
+            X-Request-Id:
+                - 353e91acab2be3103820ff8898dc4df0
+        status: 200 OK
+        code: 200
+        duration: 12.137256457s
+    - id: 10
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /v3/reference/tickers/META?apiKey=REDACTED&date=2021-06-01
+        form:
+            date:
+                - "2021-06-01"
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://api.massive.com/v3/reference/tickers/META?date=2021-06-01
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 100
+        body: '{"status":"NOT_FOUND","request_id":"5a7934875c79a6a4b736457088589d3e","message":"Ticker not found."}'
+        headers:
+            Content-Length:
+                - "100"
+            Content-Type:
+                - application/json
+            Date:
+                - Fri, 23 Oct 2026 14:20:55 GMT
+            Strict-Transport-Security:
+                - max-age=15724800; includeSubDomains
+            Vary:
+                - Accept-Encoding
+            X-Polygon-Cluster-Name:
+                - polygon-ny5
+            X-Request-Id:
+                - 5a7934875c79a6a4b736457088589d3e
+        status: 404 Not Found
+        code: 404
+        duration: 11.2255069s
