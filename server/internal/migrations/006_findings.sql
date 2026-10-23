@@ -12,7 +12,16 @@
 -- response. The database's precedence or the datasources decided between
 -- them.
 -- 'merged' means the response merged two instruments.
-CREATE TYPE finding_kind AS ENUM ('block', 'dropped', 'contradiction', 'merged');
+-- 'disagreement' means two datasources asserted different things for one
+-- value on one day. Precedence kept one. Unlike a contradiction, it concerns
+-- a value rather than a key. The run whose write completed the pair records
+-- it, and the finding names the losing assertion's fetch key.
+-- 'broken_validity_bracket' means a witnessed event fell between two
+-- assertions that name one instrument. The event wins over the bracket. The
+-- run that wrote the event records it, and the finding names the event's
+-- fetch key.
+CREATE TYPE finding_kind AS ENUM ('block', 'dropped', 'contradiction', 'merged',
+    'disagreement', 'broken_validity_bracket');
 
 -- The step of the choice that dropped a set of identifiers: it contradicted
 -- the stated data, was inconsistent with a higher precedence response, or
@@ -25,7 +34,7 @@ CREATE TABLE findings (
     run_id        uuid         NOT NULL REFERENCES runs (id) ON DELETE CASCADE,
     kind          finding_kind NOT NULL,
     block_id      uuid         UNIQUE REFERENCES datasource_blocks (id) ON DELETE CASCADE,
-    -- stated_key_id is the finding's key, for every kind but block.
+    -- stated_key_id is the finding's key, for the kinds that concern a key.
     stated_key_id uuid         REFERENCES stated_keys (id) ON DELETE CASCADE,
     -- fetch_key_id is the response involved, where one was.
     fetch_key_id  uuid         REFERENCES fetch_keys (id) ON DELETE CASCADE,
@@ -35,11 +44,10 @@ CREATE TABLE findings (
     created_at    timestamptz  NOT NULL DEFAULT now(),
     cleared_at    timestamptz,
     CHECK ((kind = 'block') = (block_id IS NOT NULL)),
-    CHECK ((kind = 'block') = (stated_key_id IS NULL)),
+    CHECK ((kind IN ('dropped', 'contradiction', 'merged')) = (stated_key_id IS NOT NULL)),
     CHECK ((kind = 'block') = (detail IS NULL)),
-    CHECK (fetch_key_id IS NULL OR stated_key_id IS NOT NULL),
     CHECK ((kind = 'dropped') = (step IS NOT NULL)),
-    CHECK (kind <> 'dropped' OR fetch_key_id IS NOT NULL)
+    CHECK (kind NOT IN ('dropped', 'disagreement', 'broken_validity_bracket') OR fetch_key_id IS NOT NULL)
 );
 
 CREATE INDEX findings_run_idx ON findings (run_id);

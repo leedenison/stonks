@@ -337,10 +337,10 @@ func TestResolveWrites(t *testing.T) {
 	for _, row := range ids {
 		via[row.ID] = to.Identifier(row).Name()
 	}
-	if tradeKey.InstrumentID == nil || *tradeKey.InstrumentID != inst.ID || tradeKey.ListingID == nil || *tradeKey.ListingID != listings[0].ID || via[*tradeKey.ViaID] != "isin GB00BH4HKS39" || *tradeKey.Validity != gen.ValidityConfirmed {
+	if tradeKey.InstrumentID == nil || *tradeKey.InstrumentID != inst.ID || tradeKey.ListingID == nil || *tradeKey.ListingID != listings[0].ID || via[*tradeKey.ViaID] != "isin GB00BH4HKS39" {
 		t.Errorf("trade = %+v, want the instrument's GBP listing via its ISIN, confirmed", tradeKey)
 	}
-	if transferKey.InstrumentID == nil || *transferKey.InstrumentID != inst.ID || transferKey.ListingID != nil || via[*transferKey.ViaID] != "isin GB00BH4HKS39" || *transferKey.Validity != gen.ValidityConfirmed {
+	if transferKey.InstrumentID == nil || *transferKey.InstrumentID != inst.ID || transferKey.ListingID != nil || via[*transferKey.ViaID] != "isin GB00BH4HKS39" {
 		t.Errorf("transfer = %+v, want the instrument via its ISIN, confirmed, with no listing", transferKey)
 	}
 
@@ -608,7 +608,7 @@ func TestDescribedRows(t *testing.T) {
 	// provisionally.
 	via := func(t *testing.T, key gen.StatedKey) {
 		t.Helper()
-		if key.InstrumentID == nil || *key.InstrumentID != inst.ID || key.ViaID == nil || *key.ViaID != row.ID || key.ListingID == nil || *key.ListingID != listings[0].ID || *key.Validity != gen.ValidityProvisional {
+		if key.InstrumentID == nil || *key.InstrumentID != inst.ID || key.ViaID == nil || *key.ViaID != row.ID || key.ListingID == nil || *key.ListingID != listings[0].ID {
 			t.Errorf("key = %+v, want the instrument's GBP listing via the description, provisional", key)
 		}
 	}
@@ -719,7 +719,7 @@ func TestDescribedRows(t *testing.T) {
 			t.Fatalf("outcome = %s, want matched", written(got[0]))
 		}
 		key := s.key(t, k.ID)
-		if key.ViaID == nil || *key.ViaID != found.Identifier.ID || *key.Validity != gen.ValidityConfirmed {
+		if key.ViaID == nil || *key.ViaID != found.Identifier.ID {
 			t.Errorf("key = %+v, want the instrument via its ISIN, confirmed", key)
 		}
 	})
@@ -740,7 +740,7 @@ func TestDescribedRows(t *testing.T) {
 			t.Fatalf("outcome = %s, want matched", written(got[0]))
 		}
 		key := s.key(t, k.ID)
-		if key.InstrumentID == nil || *key.InstrumentID != ref.ID || *key.ViaID != seeded.ID || *key.ListingID != listing.ID || *key.Validity != gen.ValidityProvisional {
+		if key.InstrumentID == nil || *key.InstrumentID != ref.ID || *key.ViaID != seeded.ID || *key.ListingID != listing.ID {
 			t.Errorf("key = %+v, want the reference instrument via its description, provisional", key)
 		}
 		if len(s.fetches(t)) != before {
@@ -878,7 +878,7 @@ func TestCoveredRows(t *testing.T) {
 		t.Errorf("identifiers mismatch (-want +got):\n%s", diff)
 	}
 	key := s.key(t, k.ID)
-	if key.ListingID == nil || *key.ListingID != usd.ID || *key.ViaID != before.Identifier.ID || *key.Validity != gen.ValidityConfirmed {
+	if key.ListingID == nil || *key.ListingID != usd.ID || *key.ViaID != before.Identifier.ID {
 		t.Errorf("key = %+v, want the USD listing via the ISIN, confirmed", key)
 	}
 	coverage, err := s.q.ListIdentityCoverage(ctx, []uuid.UUID{inst.ID})
@@ -1147,7 +1147,7 @@ func TestConfirmRows(t *testing.T) {
 	for _, row := range ids {
 		via[row.ID] = to.Identifier(row).Name()
 	}
-	if k := s.key(t, key.ID); k.InstrumentID == nil || *k.InstrumentID != inst.ID || k.ListingID == nil || via[*k.ViaID] != "mic_ticker XLON:VOD" || *k.Validity != gen.ValidityProvisional || *k.Arbiter != gen.ArbiterUser || k.GroupID != nil {
+	if k := s.key(t, key.ID); k.InstrumentID == nil || *k.InstrumentID != inst.ID || k.ListingID == nil || via[*k.ViaID] != "mic_ticker XLON:VOD" || *k.Arbiter != gen.ArbiterUser || k.GroupID != nil {
 		t.Errorf("key = %+v, want the instrument's GBP listing via its venue ticker, provisional, by the user, in no group", k)
 	}
 	if m := s.key(t, mate.ID); m.InstrumentID != nil || m.Arbiter != nil {

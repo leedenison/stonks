@@ -47,6 +47,17 @@ INSERT INTO identifiers (id, instrument_id, listing_id, type, domain, value, fet
 VALUES ($1, $2, $3, $4, $5, $6, $7)
 RETURNING *;
 
+-- name: PlaceTicker :one
+-- Writes a ticker onto a listing of its present holder. Where another
+-- instrument carries the ticker, the row moves to this one, with the fetch
+-- key that placed it.
+INSERT INTO identifiers (id, instrument_id, listing_id, type, domain, value, fetch_key_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+ON CONFLICT (type, domain, value) DO UPDATE
+SET instrument_id = EXCLUDED.instrument_id, listing_id = EXCLUDED.listing_id,
+    fetch_key_id = EXCLUDED.fetch_key_id
+RETURNING *;
+
 -- name: ListIdentifiers :many
 SELECT * FROM identifiers
 WHERE instrument_id = $1

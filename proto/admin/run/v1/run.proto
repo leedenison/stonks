@@ -79,6 +79,14 @@ enum FindingKind {
   FINDING_KIND_CONTRADICTION = 3;
   // The response merged two instruments.
   FINDING_KIND_MERGED = 4;
+  // Two datasources asserted different things for one value on one day, and
+  // precedence kept one. The detail names the value, the day and the
+  // datasources.
+  FINDING_KIND_DISAGREEMENT = 5;
+  // A witnessed event fell between two assertions that name one instrument,
+  // and the event wins over the bracket. The detail names the value, the
+  // event's day and the instrument.
+  FINDING_KIND_BROKEN_VALIDITY_BRACKET = 6;
 }
 
 // The step of the choice that dropped a set of identifiers.
@@ -100,7 +108,7 @@ message Finding {
   FindingKind kind = 3;
   // The block reported; set only when the kind is BLOCK.
   optional string block_id = 4;
-  // The finding's stated key; set for every kind but BLOCK.
+  // The finding's stated key; set for DROPPED, CONTRADICTION and MERGED.
   optional string stated_key_id = 5;
   // What the key concerned states: the finding's own key, or for a block
   // the key whose call created it. Unset where no key is concerned.

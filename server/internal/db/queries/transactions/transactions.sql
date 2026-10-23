@@ -53,12 +53,47 @@ WHERE user_id = $1
 ORDER BY order_date, id;
 
 -- name: SetStatedKeyAssociation :execrows
--- An associated key belongs to no group. The update skips a key whose
--- association the user arbitrated, and so changes zero rows.
+-- Writes a fixed association. A key with a fixed association belongs to no
+-- group. The update skips a key whose association the user arbitrated, and
+-- so changes zero rows.
 UPDATE stated_keys
-SET instrument_id = $3, listing_id = $4, via_id = $5, validity = $6,
+SET instrument_id = $3, listing_id = $4, via_id = $5,
+    via_type = NULL, via_domain = NULL, via_value = NULL,
     arbiter = @arbiter::arbiter, group_id = NULL
 WHERE id = $1 AND user_id = $2 AND arbiter IS DISTINCT FROM 'user';
+
+-- name: SetStatedKeyDatedAssociation :execrows
+-- Writes a dated association through a MIC_TICKER value. The key keeps its
+-- group, which gathers the keys with no instrument that share an identifier.
+-- The update skips a key whose association the user arbitrated.
+UPDATE stated_keys
+SET instrument_id = NULL, listing_id = NULL, via_id = NULL,
+    via_type = 'mic_ticker', via_domain = @via_domain::text, via_value = @via_value::text,
+    arbiter = @arbiter::arbiter
+WHERE id = @id AND user_id = @user_id AND arbiter IS DISTINCT FROM 'user';
+
+-- name: ListKeyOrderDates :many
+-- The distinct order dates of the transactions of each of the user's keys.
+SELECT DISTINCT stated_key_id, order_date FROM transactions
+WHERE user_id = @user_id AND stated_key_id = ANY(@ids::uuid[])
+ORDER BY stated_key_id, order_date;
+
+-- name: ListUnassociatedKeysStating :many
+-- Every user's keys that have no association and a transaction, and that
+-- state one of the probes. A probe is a JSON array of one identifier object,
+-- since containment matches an array against an array. A probe without a
+-- value matches every key stating a ticker of its domain. The keys the run
+-- resolved are left out.
+SELECT * FROM stated_keys
+WHERE stated_keys.instrument_id IS NULL AND stated_keys.via_type IS NULL
+  AND stated_keys.identifiers @> ANY(@probes::jsonb[])
+  AND NOT EXISTS (SELECT 1 FROM resolution_keys
+                  WHERE resolution_keys.run_id = @run_id::uuid
+                    AND resolution_keys.stated_key_id = stated_keys.id)
+  AND EXISTS (SELECT 1 FROM transactions
+              WHERE transactions.user_id = stated_keys.user_id
+                AND transactions.stated_key_id = stated_keys.id)
+ORDER BY stated_keys.user_id, stated_keys.id;
 
 -- name: GetStatedKey :one
 SELECT * FROM stated_keys WHERE id = $1 AND user_id = $2;

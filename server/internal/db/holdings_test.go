@@ -50,7 +50,7 @@ func (h holder) keyIn(t *testing.T, q *gen.Queries, description string, currency
 	arg := gen.SetStatedKeyAssociationParams{
 		ID: k.ID, UserID: h.user.ID,
 		InstrumentID: &listing.InstrumentID, ListingID: &listing.ID,
-		ViaID: &via.ID, Validity: ptr.To(gen.ValidityConfirmed), Arbiter: gen.ArbiterDatasource,
+		ViaID: &via.ID, Arbiter: gen.ArbiterDatasource,
 	}
 	_, err := q.SetStatedKeyAssociation(ctx, arg)
 	require.NoError(t, err)

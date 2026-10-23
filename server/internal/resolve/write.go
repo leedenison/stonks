@@ -549,11 +549,7 @@ func (w *writer) associate(ctx context.Context, res *resolution, arbiter gen.Arb
 	if !ok {
 		return false, nil
 	}
-	validity := gen.ValidityProvisional
-	if to.Identifier(via).Stable() {
-		validity = gen.ValidityConfirmed
-	}
-	arg := gen.SetStatedKeyAssociationParams{ID: res.row.ID, UserID: w.user, InstrumentID: &w.instr.Row.ID, ListingID: listingID, ViaID: &via.ID, Validity: &validity, Arbiter: arbiter}
+	arg := gen.SetStatedKeyAssociationParams{ID: res.row.ID, UserID: w.user, InstrumentID: &w.instr.Row.ID, ListingID: listingID, ViaID: &via.ID, Arbiter: arbiter}
 	if _, err := w.q.SetStatedKeyAssociation(ctx, arg); err != nil {
 		return false, fmt.Errorf("associate key: %w", err)
 	}

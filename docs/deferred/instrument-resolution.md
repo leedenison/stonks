@@ -106,9 +106,10 @@ identifiers, class and listings it restates.
 Datasources gain coverage, integrations are enabled and quota tiers change.  A
 scheduled replay therefore re-attempts unresolved keys.
 
-When an identifier event leaves a key's transactions dated outside the validity of the
-key's association, the event replays the key.  Holdings, event grouping and cached
-adjusted values derived from the key's transactions are recomputed.
+An identifier event does not replay a key.  A dated key's transactions take the instrument
+the value names on their dates at each read, so they follow the event.  Event grouping
+and cached adjusted values derived from those transactions are recomputed when the
+event arrives.
 
 ## Invariants
 

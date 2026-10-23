@@ -21,6 +21,8 @@ CREATE TABLE statements (
     CHECK (row_count >= 0)
 );
 
+-- How firmly a value's facts establish what it names over a range of days.
+-- The validity package derives it when read, and nothing stores it.
 CREATE TYPE validity AS ENUM ('confirmed', 'provisional');
 
 -- What settled an association among candidates: 'stated' where the
@@ -34,10 +36,20 @@ CREATE TYPE arbiter AS ENUM ('stated', 'datasource', 'guess', 'user');
 -- identifiers, asset class and currency. The user and those three identify
 -- it, and the unique index spans them, so every statement of the user that
 -- states the key links to one row through statement_keys. It is the unit at
--- which an association is reused: the transactions stating one key resolve
--- the same way. The row keeps a surrogate because six tables reference it
--- and its identifiers column is too wide to reference. The identifiers it
--- states become identifier rows only when confirmed by a datasource.
+-- which an association is reused. The row keeps a surrogate because six
+-- tables reference it and its identifiers column is too wide to reference.
+-- The identifiers it states become identifier rows only when confirmed by a
+-- datasource.
+--
+-- An association is fixed or dated. A fixed association names one instrument
+-- for all time, in instrument_id and listing_id, and via_id names the
+-- identifier row it was made through. The association stands when that row
+-- moves to another instrument. A dated association names a MIC_TICKER value
+-- in the via columns. Each of the key's transactions takes the instrument the
+-- value names on its order date, and that is derived when read, so nothing on
+-- the key changes when the value's facts do. The resolver dates a key when it
+-- associates the key of its own accord through a ticker. A user's choice is
+-- fixed.
 CREATE TABLE stated_keys (
     id            uuid        PRIMARY KEY,
     user_id       uuid        NOT NULL REFERENCES users (id) ON DELETE CASCADE,
@@ -51,15 +63,13 @@ CREATE TABLE stated_keys (
     identifiers   jsonb       NOT NULL DEFAULT '[]',
     instrument_id uuid        REFERENCES instruments (id),
     listing_id    uuid        REFERENCES listings (id),
-    -- via_id references the identifier used to make the instrument/listing
-    -- association.
     via_id        uuid        REFERENCES identifiers (id),
-    -- validity is 'confirmed' where the identifier via_id names is stable, and
-    -- 'provisional' otherwise.
-    validity      validity,
+    via_type      identifier_type,
+    via_domain    text,
+    via_value     text,
     arbiter       arbiter,
-    -- group_id gathers the unresolved keys which share an identifier,
-    -- transitively.
+    -- group_id gathers the keys with no instrument which share an identifier,
+    -- transitively: the unresolved keys and the dated ones.
     group_id      uuid        REFERENCES stated_keys (id) ON DELETE CASCADE,
     created_at    timestamptz NOT NULL DEFAULT now(),
     CHECK (jsonb_typeof(identifiers) = 'array'),
@@ -67,14 +77,18 @@ CREATE TABLE stated_keys (
         DEFERRABLE INITIALLY IMMEDIATE,
     UNIQUE NULLS NOT DISTINCT (user_id, asset_class, currency, identifiers),
     CHECK ((instrument_id IS NULL) = (via_id IS NULL)),
-    CHECK ((instrument_id IS NULL) = (validity IS NULL)),
-    CHECK ((instrument_id IS NULL) = (arbiter IS NULL)),
+    CHECK ((via_type IS NULL) = (via_domain IS NULL) AND (via_type IS NULL) = (via_value IS NULL)),
+    CHECK (via_type IS NULL OR (via_type = 'mic_ticker' AND via_domain <> '')),
+    CHECK (instrument_id IS NULL OR via_type IS NULL),
+    CHECK ((arbiter IS NULL) = (instrument_id IS NULL AND via_type IS NULL)),
     CHECK (listing_id IS NULL OR instrument_id IS NOT NULL),
     CHECK (group_id IS NULL OR instrument_id IS NULL)
 );
 
 CREATE INDEX stated_keys_instrument_idx ON stated_keys (user_id, instrument_id);
 CREATE INDEX stated_keys_group_idx ON stated_keys (user_id, group_id);
+-- A new identifier fact finds every user's keys that state its value.
+CREATE INDEX stated_keys_identifiers_idx ON stated_keys USING gin (identifiers jsonb_path_ops);
 
 -- A statement key links a statement to a key it states. A statement links
 -- every key it states, even when it rejected all of the key's rows, so it

@@ -17,9 +17,9 @@ In:
 - Resolution reads a venue ticker's validity before it asks a datasource. When the facts
   already confirm a key's dates, the resolver associates the key without a fetch. When a
   key's value has no facts, the resolver sends it through the identity fetch.
-- Before a batch is resolved, identifier events are fetched where a source serves a
-  stable identifier of an instrument concerned, over the history window. Resolution
-  proceeds when they are absent.
+- Identifier events are fetched over the history window for each instrument that the
+  identity fetch answered for a key, where a source serves one of its stable
+  identifiers. Resolution proceeds when they are absent.
 - A statement that states a key with a dated association asserts the value at the
   earliest of the key's dates that lacks confirmed validity. A past-dated answer that
   names an instrument the system lacks creates it with its stable identifiers and
@@ -30,17 +30,17 @@ In:
   run that wrote it. See
   [008](../adr/008-a-new-fact-replays-the-unresolved-keys-that-state-its-value.md).
 - Where two providers assert different instruments for one value on one day, the run
-  that wrote the losing assertion records a finding. See
+  whose write completes the pair records a finding. See
   [002](../adr/002-precedence-decides-between-providers-that-disagree-and-a-finding-records-it.md).
 - A witnessed event inside a bracket of same-instrument assertions is recorded as a
   finding of the run that wrote the event.
 - A dated key refuses a user's choice, as a fixed key does. The refusal reads the
   `via_*` columns as well as `instrument_id`. See
   [017](../adr/017-a-users-choice-pins-an-unassociated-key.md).
-- End to end coverage through vcrproxy of a key whose ticker changed. A statement states
-  META in 2024 and the key takes a dated association. A second statement states META on
-  2021-06-01. The 2021 transaction reads as unresolved, since Massive's chain shows that
-  META began naming Meta on 2022-06-09 and a lookup on 2021-06-01 finds nothing.
+- End to end coverage through vcrproxy of a key whose ticker changed, asserted through
+  the API. A statement states META in 2024 and the key takes a dated association. A
+  second statement states META on 2021-06-01. The first statement's resolution fetches
+  Meta's chain and a lookup, and the second's fetches one lookup and skips the identity fetch.
 
 Out:
 
