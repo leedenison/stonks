@@ -21,4 +21,5 @@ the keys a datasource serves, and the unavailable scope selects unavailable keys
 ## Design
 
 Nothing settled. An association through a broker description is fixed and provisional.
-See [013](../adr/013-an-association-is-fixed-or-dated.md).
+See the `stated_keys` comment in
+[004_statements.sql](../../../../server/internal/migrations/004_statements.sql).

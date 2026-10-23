@@ -48,8 +48,11 @@ CREATE TYPE arbiter AS ENUM ('stated', 'datasource', 'guess', 'user');
 -- in the via columns. Each of the key's transactions takes the instrument the
 -- value names on its order date, and that is derived when read, so nothing on
 -- the key changes when the value's facts do. The resolver dates a key when it
--- associates the key of its own accord through a ticker. A user's choice is
--- fixed.
+-- associates the key of its own accord through a ticker. An OPENFIGI_TICKER
+-- or DATASOURCE_TICKER dates the key through the MIC_TICKER on its listing,
+-- and leaves it fixed where that listing has none. A user's choice is fixed.
+-- A key associated through a broker description or an option symbol is
+-- fixed, and provisional, since neither identifier is stable.
 CREATE TABLE stated_keys (
     id            uuid        PRIMARY KEY,
     user_id       uuid        NOT NULL REFERENCES users (id) ON DELETE CASCADE,

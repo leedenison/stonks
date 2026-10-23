@@ -207,7 +207,9 @@ func (r *replay) resolve(ctx context.Context, res gen.Run) error {
 // identifier of written, as children of the run that wrote it. The keys that
 // except resolved are left out, and a key is replayed once. A user other than
 // the run's replays beneath one system child of the run, or directly beneath
-// a system run. A failed replay is logged and the rest go on.
+// a system run. A failed replay is logged and the rest go on. The parent has
+// completed by then, so the replays run in the goroutine of the run that
+// found the keys.
 func (s *Service) ReplayNewIdentifierFacts(ctx context.Context, except gen.Run, written []resolve.WrittenIdentifierFacts) error {
 	picked := map[uuid.UUID]bool{}
 	for _, w := range written {

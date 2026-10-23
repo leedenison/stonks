@@ -791,3 +791,82 @@ interactions:
         status: 200 OK
         code: 200
         duration: 91.229525ms
+    - id: 10
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 55
+        host: ""
+        request_uri: /v3/mapping
+        body: '[{"idType":"TICKER","idValue":"META","currency":"USD"}]'
+        headers:
+            Content-Type:
+                - application/json
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://api.openfigi.com/v3/mapping
+        method: POST
+      response:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        transfer_encoding:
+            - chunked
+        content_length: 6994
+        uncompressed: true
+        body: '[{"data":[{"figi":"BBG000MM2P62","name":"META PLATFORMS INC-CLASS A","ticker":"META","exchCode":"US","compositeFIGI":"BBG000MM2P62","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001SQCQC5","securityType2":"Common Stock","securityDescription":"META"},{"figi":"BBG002GPKKF9","name":"META PLATFORMS INC-CLASS A","ticker":"META","exchCode":"UA","compositeFIGI":"BBG000MM2P62","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001SQCQC5","securityType2":"Common Stock","securityDescription":"META"},{"figi":"BBG002GPKKG8","name":"META PLATFORMS INC-CLASS A","ticker":"META","exchCode":"UC","compositeFIGI":"BBG000MM2P62","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001SQCQC5","securityType2":"Common Stock","securityDescription":"META"},{"figi":"BBG002GPKKJ5","name":"META PLATFORMS INC-CLASS A","ticker":"META","exchCode":"UN","compositeFIGI":"BBG000MM2P62","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001SQCQC5","securityType2":"Common Stock","securityDescription":"META"},{"figi":"BBG002GPKKK3","name":"META PLATFORMS INC-CLASS A","ticker":"META","exchCode":"UP","compositeFIGI":"BBG000MM2P62","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001SQCQC5","securityType2":"Common Stock","securityDescription":"META"},{"figi":"BBG002GPKKM1","name":"META PLATFORMS INC-CLASS A","ticker":"META","exchCode":"UB","compositeFIGI":"BBG000MM2P62","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001SQCQC5","securityType2":"Common Stock","securityDescription":"META"},{"figi":"BBG002GPKKP8","name":"META PLATFORMS INC-CLASS A","ticker":"META","exchCode":"UM","compositeFIGI":"BBG000MM2P62","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001SQCQC5","securityType2":"Common Stock","securityDescription":"META"},{"figi":"BBG002GPKKQ7","name":"META PLATFORMS INC-CLASS A","ticker":"META","exchCode":"UX","compositeFIGI":"BBG000MM2P62","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001SQCQC5","securityType2":"Common Stock","securityDescription":"META"},{"figi":"BBG002GPKKX9","name":"META PLATFORMS INC-CLASS A","ticker":"META","exchCode":"UD","compositeFIGI":"BBG000MM2P62","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001SQCQC5","securityType2":"Common Stock","securityDescription":"META"},{"figi":"BBG002GPKKZ7","name":"META PLATFORMS INC-CLASS A","ticker":"META","exchCode":"UW","compositeFIGI":"BBG000MM2P62","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001SQCQC5","securityType2":"Common Stock","securityDescription":"META"},{"figi":"BBG002GPKL03","name":"META PLATFORMS INC-CLASS A","ticker":"META","exchCode":"UF","compositeFIGI":"BBG000MM2P62","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001SQCQC5","securityType2":"Common Stock","securityDescription":"META"},{"figi":"BBG002GPKL12","name":"META PLATFORMS INC-CLASS A","ticker":"META","exchCode":"VY","compositeFIGI":"BBG000MM2P62","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001SQCQC5","securityType2":"Common Stock","securityDescription":"META"},{"figi":"BBG002GPKL21","name":"META PLATFORMS INC-CLASS A","ticker":"META","exchCode":"VJ","compositeFIGI":"BBG000MM2P62","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001SQCQC5","securityType2":"Common Stock","securityDescription":"META"},{"figi":"BBG002GPKL30","name":"META PLATFORMS INC-CLASS A","ticker":"META","exchCode":"VK","compositeFIGI":"BBG000MM2P62","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001SQCQC5","securityType2":"Common Stock","securityDescription":"META"},{"figi":"BBG004BWFC96","name":"META PLATFORMS INC-CLASS A","ticker":"META","exchCode":"CI","compositeFIGI":"BBG004BWFC96","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001SQCQC5","securityType2":"Common Stock","securityDescription":"META"},{"figi":"BBG004BWFCB3","name":"META PLATFORMS INC-CLASS A","ticker":"META","exchCode":"CC","compositeFIGI":"BBG004BWFC96","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001SQCQC5","securityType2":"Common Stock","securityDescription":"META"},{"figi":"BBG009STMY16","name":"META PLATFORMS INC-CLASS A","ticker":"META","exchCode":"PE","compositeFIGI":"BBG009STMY07","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001SQCQC5","securityType2":"Common Stock","securityDescription":"META"},{"figi":"BBG00DJGF909","name":"META PLATFORMS INC-CLASS A","ticker":"META","exchCode":"VF","compositeFIGI":"BBG000MM2P62","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001SQCQC5","securityType2":"Common Stock","securityDescription":"META"},{"figi":"BBG00NDMTFV7","name":"WT INDUS METALS ENHANCED","ticker":"META","exchCode":"LN","compositeFIGI":"BBG00NDMTFT0","securityType":"ETP","marketSector":"Equity","shareClassFIGI":"BBG00NDMTFY4","securityType2":"Mutual Fund","securityDescription":"META"},{"figi":"BBG00THGLKL1","name":"META PLATFORMS INC-CLASS A","ticker":"META","exchCode":"VL","compositeFIGI":"BBG000MM2P62","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001SQCQC5","securityType2":"Common Stock","securityDescription":"META"},{"figi":"BBG00X1NQBC9","name":"META PLATFORMS INC-CLASS A","ticker":"META","exchCode":"VG","compositeFIGI":"BBG000MM2P62","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001SQCQC5","securityType2":"Common Stock","securityDescription":"META"},{"figi":"BBG00X1S4VD7","name":"META PLATFORMS INC-CLASS A","ticker":"META","exchCode":"VP","compositeFIGI":"BBG000MM2P62","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001SQCQC5","securityType2":"Common Stock","securityDescription":"META"},{"figi":"BBG01V7YJ007","name":"META PLATFORMS INC-CLASS A","ticker":"META","exchCode":"OC","compositeFIGI":"BBG000MM2P62","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001SQCQC5","securityType2":"Common Stock","securityDescription":"META"},{"figi":"BBG01X4LSZF1","name":"META PLATFORMS INC-CLASS A","ticker":"META","exchCode":"OD","compositeFIGI":"BBG000MM2P62","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001SQCQC5","securityType2":"Common Stock","securityDescription":"META"},{"figi":"BBG021C0QQ41","name":"META PLATFORMS INC-CLASS A","ticker":"META","exchCode":"VT","compositeFIGI":"BBG000MM2P62","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001SQCQC5","securityType2":"Common Stock","securityDescription":"META"},{"figi":"BBG02508X3J5","name":"META PLATFORMS INC-CLASS A","ticker":"META","exchCode":"ER","compositeFIGI":"BBG02508X3H7","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001SQCQC5","securityType2":"Common Stock","securityDescription":"META"}]}]'
+        headers:
+            Cache-Control:
+                - private, no-cache, no-store, must-revalidate
+            Content-Security-Policy:
+                - 'default-src ''self'';base-uri ''self'';font-src ''self'' https: data:;form-action ''self'';frame-ancestors ''self'';img-src ''self'' data:;object-src ''none'';script-src ''self'';script-src-attr ''none'';style-src ''self'' https: ''unsafe-inline'';upgrade-insecure-requests'
+            Content-Type:
+                - application/json; charset=utf-8
+            Cross-Origin-Opener-Policy:
+                - same-origin
+            Cross-Origin-Resource-Policy:
+                - same-origin
+            Date:
+                - Fri, 23 Oct 2026 14:20:20 GMT
+            Expires:
+                - "0"
+            Origin-Agent-Cluster:
+                - ?1
+            Pragma:
+                - no-cache
+            Ratelimit-Limit:
+                - "250"
+            Ratelimit-Policy:
+                - 250;w=60
+            Ratelimit-Remaining:
+                - "249"
+            Ratelimit-Reset:
+                - "60"
+            Referrer-Policy:
+                - no-referrer
+            Server:
+                - istio-envoy
+            Strict-Transport-Security:
+                - max-age=31536000; includeSubDomains
+            Vary:
+                - Origin, Accept-Encoding
+            X-Content-Type-Options:
+                - nosniff
+            X-Dns-Prefetch-Control:
+                - 'off'
+            X-Download-Options:
+                - noopen
+            X-Envoy-Upstream-Service-Time:
+                - "43"
+            X-Frame-Options:
+                - SAMEORIGIN
+            X-Permitted-Cross-Domain-Policies:
+                - none
+            X-Request-Id:
+                - 1d480ada-02d7-45af-944f-6f2465affef9
+            X-Xss-Protection:
+                - "0"
+        status: 200 OK
+        code: 200
+        duration: 1.088339629s

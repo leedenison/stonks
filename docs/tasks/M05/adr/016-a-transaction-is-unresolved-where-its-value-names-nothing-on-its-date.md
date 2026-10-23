@@ -19,5 +19,4 @@ A value names nothing on a day only after a retirement or a negative assertion w
 later holder, or before an `assigned` event inside coverage. Before a value's first
 assertion, validity extends back provisionally, so an old transaction is provisional
 rather than unresolved. An administrator resolves an unresolved transaction by attesting
-the value on that day. A dated key refuses a user's choice, as
-[017](017-a-users-choice-pins-an-unassociated-key.md) states.
+the value on that day. A dated key refuses a user's choice.

@@ -1,7 +1,6 @@
 ---
 title: A statement shows a provisional association
 type: task
-dependencies: [005]
 ---
 
 ## Scope
