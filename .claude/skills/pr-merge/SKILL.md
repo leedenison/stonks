@@ -1,6 +1,6 @@
 ---
 name: pr-merge
-description: How a pull request is squashed, opened, rerun and merged, alone or in a stack, and the pace at which CI runs start. Use when opening a pull request, merging one, rerunning its checks, or working through a stack of them.
+description: How a pull request is squashed, opened and merged, alone or in a stack, and when CI is run by hand. Use when opening a pull request, merging one, running CI, or working through a stack of them.
 ---
 
 # Pull Requests
@@ -12,9 +12,10 @@ the one before it. Each change is committed on its own branch and not pushed. Th
 reviews the stack locally. Review fixes follow the rules in One commit.
 
 After review, open the pull requests from the bottom of the stack. Push the lowest branch
-and open its pull request on main. Merge it when its checks are green. Then fetch, run
-`git rebase origin/main` on the next branch, and open its pull request. The rebase
-replays only that branch's own commits, because its parent's tip is an ancestor of main.
+and open its pull request on main. Merge it; CI says when a run must be green first. Then
+fetch, run `git rebase origin/main` on the next branch, and open its pull request. The
+rebase replays only that branch's own commits, because its parent's tip is an ancestor of
+main.
 
 ## One commit
 
@@ -56,6 +57,16 @@ deletes the branch as part of the merge, and that merge-linked deletion is what 
 a child pull request to main. Where a child pull request is open on its parent, merge
 the parent first and wait for the child to retarget before merging it.
 
-## Rate
+## CI
 
-Open a stack one pull request at a time, each after the previous one's run has finished.
+CI runs only when someone starts it by hand, and merging depends only on review. Before
+merging the last pull request of a stack, or one that stands alone, start a run on its
+branch:
+
+```
+gh workflow run CI --ref <branch>
+```
+
+Merge the pull request once that run is green. The other pull requests of a stack merge
+without a run, since the last one's run covers the tree they build up. `make check`, `make
+test` and `make e2e-test` pass locally on every branch before its pull request opens.
