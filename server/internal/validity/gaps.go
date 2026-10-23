@@ -1,6 +1,8 @@
 package validity
 
 import (
+	"time"
+
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/types"
 )
@@ -43,4 +45,28 @@ func gaps(cover []types.Period, p types.Period) []types.Period {
 		ivs[i] = Interval{From: &from, Before: &before, Validity: gen.ValidityConfirmed}
 	}
 	return Gaps(ivs, p)
+}
+
+// firstUnconfirmed returns the earliest of dates that no confirmed interval of
+// ivs holds. It reports false when every date is confirmed.
+func firstUnconfirmed(ivs []Interval, dates []time.Time) (time.Time, bool) {
+	var first time.Time
+	found := false
+	for _, d := range dates {
+		if confirmedOn(ivs, d) || (found && !d.Before(first)) {
+			continue
+		}
+		first, found = d, true
+	}
+	return first, found
+}
+
+// confirmedOn reports whether a confirmed interval of ivs holds day d.
+func confirmedOn(ivs []Interval, d time.Time) bool {
+	for _, iv := range ivs {
+		if iv.Validity == gen.ValidityConfirmed && (iv.From == nil || !d.Before(*iv.From)) && (iv.Before == nil || d.Before(*iv.Before)) {
+			return true
+		}
+	}
+	return false
 }

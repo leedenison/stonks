@@ -21,6 +21,8 @@ import (
 // fetch_keys row.
 type FetchKey[Q, P any] struct {
 	Request Q
+	// Run is the fetch run that made the request.
+	Run gen.Run
 	// Source is the datasource that served the request.
 	Source string
 	// ID is the fetch_keys row, where the consumer attaches its response.
@@ -116,7 +118,7 @@ func fetchRun[Q, P any](ctx context.Context, f *Fetcher, row gen.Run, e *Entry, 
 	var served []int
 	cacheKeys := map[int]string{}
 	for i, q := range reqs {
-		fetchKeys[i] = FetchKey[Q, P]{Request: q, Source: e.Name, ID: db.NewID()}
+		fetchKeys[i] = FetchKey[Q, P]{Request: q, Run: row, Source: e.Name, ID: db.NewID()}
 		if s == nil {
 			fetchKeys[i].Outcome, fetchKeys[i].Reason = gen.FetchOutcomeNotServed, fmt.Sprintf("the datasource serves no %s", kind.name)
 			continue

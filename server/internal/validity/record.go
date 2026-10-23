@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/leedenison/stonks/server/internal/currency"
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/market"
@@ -21,6 +22,10 @@ type RecordQueries interface {
 	CreateIdentifierEvent(ctx context.Context, arg gen.CreateIdentifierEventParams) (int64, error)
 	CreateIdentifierEventCoverage(ctx context.Context, arg gen.CreateIdentifierEventCoverageParams) (int64, error)
 	FindIdentifier(ctx context.Context, arg gen.FindIdentifierParams) (gen.FindIdentifierRow, error)
+	LockIdentifiers(ctx context.Context, keys []string) error
+	CreateInstrument(ctx context.Context, arg gen.CreateInstrumentParams) (gen.Instrument, error)
+	CreateListing(ctx context.Context, arg gen.CreateListingParams) (gen.Listing, error)
+	CreateIdentifier(ctx context.Context, arg gen.CreateIdentifierParams) (gen.Identifier, error)
 }
 
 var _ RecordQueries = (*gen.Queries)(nil)
@@ -35,10 +40,17 @@ var ErrFuture = errors.New("an attestation cannot reach past the day it is made"
 
 // Record writes the events, assertions and coverage of each served key. It
 // checks every key first, so a key in the wrong spelling fails the whole
-// call. A positive assertion names the instrument of the first identifier it
-// states that is stored. Record skips the assertion when none is stored. A
-// negative assertion is always written.
-func Record(ctx context.Context, q RecordQueries, mics mic.Table, keys []market.FetchKey[market.IdentifierEventRequest, market.IdentifierEventResult]) error {
+// call. A negative assertion is always written.
+//
+// A positive assertion names the instrument of the first stable identifier
+// it states that is stored. A ticker row names the instrument its value
+// identifies today, which is the wrong instrument for an assertion of a past
+// day, so Record never maps through one. Where no stable identifier of the
+// assertion is stored, Record creates the instrument with them, without a
+// ticker row, and with the fetch key as provenance. A later answer that
+// states one of them finds that instrument. Record skips an assertion that
+// leaves no identifier to create the instrument with.
+func Record(ctx context.Context, q RecordQueries, mics mic.Table, families currency.Families, keys []market.FetchKey[market.IdentifierEventRequest, market.IdentifierEventResult]) error {
 	for _, k := range keys {
 		if k.Outcome != gen.FetchOutcomeServed {
 			continue
@@ -51,7 +63,7 @@ func Record(ctx context.Context, q RecordQueries, mics mic.Table, keys []market.
 		if k.Outcome != gen.FetchOutcomeServed {
 			continue
 		}
-		if err := record(ctx, q, k.ID, k.Response); err != nil {
+		if err := record(ctx, q, families, k.ID, k.Response); err != nil {
 			return err
 		}
 	}
@@ -95,7 +107,7 @@ func spelled(mics mic.Table, id types.Identifier) error {
 	return nil
 }
 
-func record(ctx context.Context, q RecordQueries, key uuid.UUID, r market.IdentifierEventResult) error {
+func record(ctx context.Context, q RecordQueries, families currency.Families, key uuid.UUID, r market.IdentifierEventResult) error {
 	for _, e := range r.Events {
 		arg := gen.CreateIdentifierEventParams{
 			ID: db.NewID(), FetchKeyID: key, Domain: e.Value.Domain, Value: e.Value.Value,
@@ -114,7 +126,7 @@ func record(ctx context.Context, q RecordQueries, key uuid.UUID, r market.Identi
 			AssertedOn: types.Day(a.At),
 		}
 		if !a.Negative {
-			inst, err := instrumentOf(ctx, q, a.Of)
+			inst, err := instrumentOf(ctx, q, families, key, a)
 			if err != nil {
 				return err
 			}
@@ -142,10 +154,23 @@ func record(ctx context.Context, q RecordQueries, key uuid.UUID, r market.Identi
 	return nil
 }
 
-// instrumentOf returns the instrument the first stored identifier of ids
-// names, nil where none is stored.
-func instrumentOf(ctx context.Context, q RecordQueries, ids []types.Identifier) (*uuid.UUID, error) {
-	for _, id := range ids {
+// instrumentOf returns the instrument the first stored stable identifier of
+// a names, creating one where none is stored. It returns nil where a states
+// no stable identifier.
+func instrumentOf(ctx context.Context, q RecordQueries, families currency.Families, key uuid.UUID, a market.Assertion) (*uuid.UUID, error) {
+	var stable []types.Identifier
+	for _, id := range a.Of.Identifiers {
+		if id.Stable() {
+			stable = append(stable, id)
+		}
+	}
+	if len(stable) == 0 {
+		return nil, nil
+	}
+	if err := db.LockIdentifiers(ctx, q, stable); err != nil {
+		return nil, err
+	}
+	for _, id := range stable {
 		row, err := q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: id.Type, Domain: id.Domain, Value: id.Value})
 		if errors.Is(err, db.ErrNotFound) {
 			continue
@@ -155,7 +180,49 @@ func instrumentOf(ctx context.Context, q RecordQueries, ids []types.Identifier) 
 		}
 		return &row.Instrument.ID, nil
 	}
-	return nil, nil
+	return create(ctx, q, families.Family(a.Of.Currency), key, a, stable)
+}
+
+// create writes the instrument a names with its stable identifiers. A listing
+// identifier goes on the listing in family, the family of the currency that
+// a.Of states. Where family is empty, create leaves the listing identifiers
+// out, and returns nil where that leaves the instrument with no identifier.
+func create(ctx context.Context, q RecordQueries, family string, key uuid.UUID, a market.Assertion, stable []types.Identifier) (*uuid.UUID, error) {
+	var kept []types.Identifier
+	for _, id := range stable {
+		if id.Grain() == types.IdentifierGrainInstrument || family != "" {
+			kept = append(kept, id)
+		}
+	}
+	if len(kept) == 0 {
+		return nil, nil
+	}
+	class := a.Of.Class
+	if class == "" {
+		class = types.AssetClassUnknown
+	}
+	inst, err := q.CreateInstrument(ctx, gen.CreateInstrumentParams{ID: db.NewID(), AssetClass: class, FetchKeyID: &key})
+	if err != nil {
+		return nil, fmt.Errorf("create instrument: %w", err)
+	}
+	var listing *uuid.UUID
+	if family != "" {
+		row, err := q.CreateListing(ctx, gen.CreateListingParams{ID: db.NewID(), InstrumentID: inst.ID, Currency: family, FetchKeyID: &key})
+		if err != nil {
+			return nil, fmt.Errorf("create listing in %s: %w", family, err)
+		}
+		listing = &row.ID
+	}
+	for _, id := range kept {
+		arg := gen.CreateIdentifierParams{ID: db.NewID(), InstrumentID: inst.ID, Type: id.Type, Domain: id.Domain, Value: id.Value, FetchKeyID: &key}
+		if id.Grain() == types.IdentifierGrainListing {
+			arg.ListingID = listing
+		}
+		if _, err := q.CreateIdentifier(ctx, arg); err != nil {
+			return nil, fmt.Errorf("create %s: %w", id.Name(), err)
+		}
+	}
+	return &inst.ID, nil
 }
 
 // Attest writes an administrator's assertion that v names instrument on the

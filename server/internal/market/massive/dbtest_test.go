@@ -14,6 +14,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
+	"github.com/leedenison/stonks/server/internal/currency"
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/market"
@@ -77,7 +78,9 @@ func TestEventsRecord(t *testing.T) {
 	keys, err := fetcher.IdentifierEvents(ctx, parent, entry, []market.IdentifierEventRequest{{Identifier: meta, Period: market.History(c, answered)}})
 	require.NoError(t, err)
 	require.Equal(t, gen.FetchOutcomeServed, keys[0].Outcome)
-	require.NoError(t, validity.Record(ctx, q, tbl, keys))
+	families, err := currency.Load(ctx, q)
+	require.NoError(t, err)
+	require.NoError(t, validity.Record(ctx, q, tbl, families, keys))
 
 	tests := []struct {
 		ticker string
