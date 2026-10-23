@@ -412,6 +412,36 @@ function RunItems({ id, live }: { id: string; live: boolean }) {
   const fetched = items.flatMap((i) =>
     i.item.case === "fetch" ? [i.item.value] : [],
   );
+  const asserted = items.flatMap((i) =>
+    i.item.case === "assertion" ? [i.item.value] : [],
+  );
+  if (asserted.length > 0) {
+    return (
+      <Section title="Assertions">
+        <TableCard testId="admin-run-items">
+          <Thead>
+            <tr>
+              <Th>Ticker</Th>
+              <Th>Day</Th>
+              <Th>Instrument</Th>
+              <Th>Source</Th>
+            </tr>
+          </Thead>
+          <tbody>
+            {asserted.map((it, i) => (
+              <Tr key={i} data-testid={`assertion-row-${i}`}>
+                <Td>{it.ticker && <IdentifierChip id={it.ticker} />}</Td>
+                <Td className="font-mono tabular-nums">{it.assertedOn}</Td>
+                <Td className="font-mono">{it.instrumentId ?? "nothing"}</Td>
+                <Td>{it.source.value}</Td>
+              </Tr>
+            ))}
+          </tbody>
+        </TableCard>
+        {more}
+      </Section>
+    );
+  }
   if (fetched.length > 0) {
     return (
       <Section title="Keys">

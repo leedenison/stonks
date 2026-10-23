@@ -3,12 +3,16 @@ import type { ServiceImpl } from "@connectrpc/connect";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  ExtendValidityService,
+  StartExtendValidityResponseSchema,
+} from "@/gen/admin/extend_validity/v1/extend_validity_pb";
+import {
   RunService,
   ListRunsResponseSchema,
   UserRunSchema,
 } from "@/gen/admin/run/v1/run_pb";
 import { Role } from "@/gen/auth/v1/auth_pb";
-import { RunKind, RunTrigger } from "@/gen/run/v1/run_pb";
+import { RunKind, RunSchema, RunTrigger } from "@/gen/run/v1/run_pb";
 import {
   liveSession,
   renderWithAuth,
@@ -28,9 +32,13 @@ vi.mock("next/navigation", () => ({
 
 const admin = liveSession({ role: Role.ADMIN });
 
-function serving(listRuns: ServiceImpl<typeof RunService>["listRuns"]) {
+function serving(
+  listRuns: ServiceImpl<typeof RunService>["listRuns"],
+  extendValidity: Partial<ServiceImpl<typeof ExtendValidityService>> = {},
+) {
   return transportWith(admin, ({ service }) => {
     service(RunService, { listRuns });
+    service(ExtendValidityService, extendValidity);
   });
 }
 
@@ -172,5 +180,25 @@ describe("RunsPage", () => {
     expect(router.replace).toHaveBeenCalledWith(
       "/admin/runs?kind=statement&state=failed&user=u1",
     );
+  });
+
+  it("extends validity and opens its run", async () => {
+    router.push.mockClear();
+    const startExtendValidity = vi.fn(() =>
+      create(StartExtendValidityResponseSchema, {
+        run: create(RunSchema, { id: "x1", kind: RunKind.EXTEND_VALIDITY }),
+      }),
+    );
+    renderWithAuth(
+      <RunsPage />,
+      serving(() => page, { startExtendValidity }),
+    );
+    fireEvent.click(screen.getByTestId("runs-extend-validity"));
+    fireEvent.click(screen.getByTestId("extend-validity-start"));
+    await waitFor(() =>
+      expect(router.push).toHaveBeenCalledWith("/admin/runs/x1"),
+    );
+    expect(startExtendValidity).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId("extend-validity-dialog")).toBeNull();
   });
 });

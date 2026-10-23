@@ -405,6 +405,38 @@ func TestListRunItems(t *testing.T) {
 				Reason: ptr.To("unknown identifier"),
 			}}}}},
 		},
+		{
+			name: "an extend validity run's assertions",
+			kind: gen.RunKindExtendValidity,
+			req:  &adminrunv1.ListRunItemsRequest{PageSize: 1},
+			expect: func(r *mock.MockQueriesMockRecorder) {
+				two := int32(2)
+				r.ListRunAssertions(gomock.Any(), gen.ListRunAssertionsParams{RunID: &runID, Lim: &two}).Return([]gen.ListRunAssertionsRow{
+					{IdentifierAssertion: gen.IdentifierAssertion{ID: keyID, Type: types.IdentifierTypeMicTicker, Domain: "XLON", Value: "SHEL", InstrumentID: &childID, AssertedOn: created}, Datasource: ptr.To("eodhd")},
+					{IdentifierAssertion: gen.IdentifierAssertion{ID: childID, Type: types.IdentifierTypeMicTicker, Domain: "XLON", Value: "SHEL", AssertedOn: created}, Datasource: ptr.To("eodhd")},
+				}, nil)
+			},
+			want: &adminrunv1.ListRunItemsResponse{Items: []*adminrunv1.RunItem{{Item: &adminrunv1.RunItem_Assertion{Assertion: &adminrunv1.AssertionItem{
+				Ticker:     &typev1.Identifier{Type: typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, Domain: "XLON", Value: "SHEL"},
+				AssertedOn: created.Format(time.DateOnly), InstrumentId: ptr.To(childID.String()),
+				Source: &adminrunv1.AssertionItem_Datasource{Datasource: "eodhd"},
+			}}}}, NextPageToken: keyID.String()},
+		},
+		{
+			name: "an attestation's assertion",
+			kind: gen.RunKindAttestation,
+			req:  &adminrunv1.ListRunItemsRequest{},
+			expect: func(r *mock.MockQueriesMockRecorder) {
+				r.ListRunAssertions(gomock.Any(), gen.ListRunAssertionsParams{RunID: &runID, Lim: &fifty}).Return([]gen.ListRunAssertionsRow{
+					{IdentifierAssertion: gen.IdentifierAssertion{ID: keyID, Type: types.IdentifierTypeMicTicker, Domain: "XLON", Value: "SHEL", AssertedOn: created}, AttestedBy: ptr.To("admin@example.com")},
+				}, nil)
+			},
+			want: &adminrunv1.ListRunItemsResponse{Items: []*adminrunv1.RunItem{{Item: &adminrunv1.RunItem_Assertion{Assertion: &adminrunv1.AssertionItem{
+				Ticker:     &typev1.Identifier{Type: typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, Domain: "XLON", Value: "SHEL"},
+				AssertedOn: created.Format(time.DateOnly),
+				Source:     &adminrunv1.AssertionItem_AttestedBy{AttestedBy: "admin@example.com"},
+			}}}}},
+		},
 		{name: "a replay has none", kind: gen.RunKindReplay, req: &adminrunv1.ListRunItemsRequest{}, expect: func(*mock.MockQueriesMockRecorder) {}, want: &adminrunv1.ListRunItemsResponse{}},
 		{name: "a statement's malformed token", kind: gen.RunKindStatement, req: &adminrunv1.ListRunItemsRequest{PageToken: "next"}, expect: func(*mock.MockQueriesMockRecorder) {}, wantCode: connect.CodeInvalidArgument},
 		{name: "a resolution's malformed token", kind: gen.RunKindResolution, req: &adminrunv1.ListRunItemsRequest{PageToken: "2"}, expect: func(*mock.MockQueriesMockRecorder) {}, wantCode: connect.CodeInvalidArgument},

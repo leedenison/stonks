@@ -17,6 +17,7 @@ import {
   StartReplayResponseSchema,
 } from "@/gen/admin/replay/v1/replay_pb";
 import {
+  AssertionItemSchema,
   RunService,
   ClearFindingResponseSchema,
   FetchItemSchema,
@@ -494,5 +495,59 @@ describe("AdminRunPage", () => {
     await screen.findByTestId("item-row-k2");
     expect(screen.getByTestId("item-row-k1")).toBeTruthy();
     expect(screen.queryByTestId("admin-run-items-more")).toBeNull();
+  });
+});
+
+describe("AdminRunPage assertions", () => {
+  it("lists the assertions of an extend validity run with their source", async () => {
+    const extension = create(GetRunResponseSchema, {
+      run: userRun({
+        id: "f1",
+        kind: RunKind.EXTEND_VALIDITY,
+        trigger: RunTrigger.ADMINISTRATOR,
+        createdAt: instant("2026-10-23T10:00:00Z"),
+      }),
+    });
+    const items = create(ListRunItemsResponseSchema, {
+      items: [
+        create(RunItemSchema, {
+          item: {
+            case: "assertion",
+            value: create(AssertionItemSchema, {
+              ticker,
+              assertedOn: "2026-10-23",
+              instrumentId: "i1",
+              source: { case: "datasource", value: "eodhd" },
+            }),
+          },
+        }),
+        create(RunItemSchema, {
+          item: {
+            case: "assertion",
+            value: create(AssertionItemSchema, {
+              ticker,
+              assertedOn: "2026-10-23",
+              source: { case: "datasource", value: "openfigi" },
+            }),
+          },
+        }),
+      ],
+    });
+    renderWithAuth(
+      <AdminRunPage />,
+      serving(() => extension, { run: { listRunItems: () => items } }),
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId("assertion-row-0")).toBeTruthy(),
+    );
+    const named = screen.getByTestId("assertion-row-0").textContent;
+    expect(named).toContain("SHEL");
+    expect(named).toContain("2026-10-23");
+    expect(named).toContain("i1");
+    expect(named).toContain("eodhd");
+    const negative = screen.getByTestId("assertion-row-1").textContent;
+    expect(negative).toContain("nothing");
+    expect(negative).toContain("openfigi");
+    expect(screen.queryByTestId("run-replay")).toBeNull();
   });
 });

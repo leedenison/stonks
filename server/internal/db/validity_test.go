@@ -13,6 +13,7 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/ptr"
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
@@ -163,5 +164,58 @@ func TestListHeldTickers(t *testing.T) {
 	want := []gen.ListHeldTickersRow{{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: held, AssetClass: &stock, Currency: &usd}}
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("ListHeldTickers mismatch (-want +got):\n%s", diff)
+	}
+}
+
+// TestListRunAssertions checks that a run lists the assertions of its fetch
+// runs, each with its datasource. It also lists the assertions the run
+// attested, each with the administrator's email. The listing pages and
+// leaves out another run's assertions.
+func TestListRunAssertions(t *testing.T) {
+	ctx := context.Background()
+	q := newTx(t)
+	f := newFetching(t, q)
+	on := date(2026, 3, 2)
+	assert := func(arg gen.CreateIdentifierAssertionParams, value string) uuid.UUID {
+		t.Helper()
+		arg.ID, arg.Type, arg.Domain, arg.Value, arg.AssertedOn = db.NewID(), types.IdentifierTypeMicTicker, "XLON", value, on
+		require.NoError(t, q.CreateIdentifierAssertion(ctx, arg))
+		return arg.ID
+	}
+	extension, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), Kind: gen.RunKindExtendValidity, Trigger: gen.RunTriggerAdministrator})
+	require.NoError(t, err)
+	child, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), Kind: gen.RunKindFetch, Trigger: gen.RunTriggerRun, ParentID: &extension.ID})
+	require.NoError(t, err)
+	fetch, err := q.CreateFetch(ctx, gen.CreateFetchParams{ID: child.ID, Datasource: f.ds.Name, Endpoint: "https://" + f.ds.Name + ".test", Kind: gen.FetchKindIdentity})
+	require.NoError(t, err)
+	key := db.NewID()
+	require.NoError(t, q.CreateFetchKey(ctx, gen.CreateFetchKeyParams{
+		ID: key, FetchID: fetch.ID, Outcome: gen.FetchOutcomeServed, Attempts: 1, AnsweredAt: ptr.To(answered),
+		SentType: ptr.To(types.IdentifierTypeMicTicker), SentDomain: "XLON", SentValue: ptr.To("SHEL"),
+	}))
+	first := assert(gen.CreateIdentifierAssertionParams{FetchKeyID: &key}, "SHEL")
+	second := assert(gen.CreateIdentifierAssertionParams{FetchKeyID: &key}, "BP")
+	other := servedKey(t, q, f.fetch, f.key, "GB00B03MLX29")
+	assert(gen.CreateIdentifierAssertionParams{FetchKeyID: &other}, "HSBA")
+	admin := newUser(t, q, "listed-"+f.user.Email)
+	attestation, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), Kind: gen.RunKindAttestation, Trigger: gen.RunTriggerAdministrator})
+	require.NoError(t, err)
+	attested := assert(gen.CreateIdentifierAssertionParams{RunID: &attestation.ID, AttestedBy: &admin.ID}, "SHEL")
+
+	list := func(run uuid.UUID, after *uuid.UUID, lim *int32) []gen.ListRunAssertionsRow {
+		t.Helper()
+		rows, err := q.ListRunAssertions(ctx, gen.ListRunAssertionsParams{RunID: &run, After: after, Lim: lim})
+		require.NoError(t, err)
+		return rows
+	}
+	one := int32(1)
+	if got := list(extension.ID, nil, &one); len(got) != 1 || got[0].IdentifierAssertion.ID != first || got[0].Datasource == nil || *got[0].Datasource != f.ds.Name {
+		t.Errorf("first page = %+v, want the first assertion from %s", got, f.ds.Name)
+	}
+	if got := list(extension.ID, &first, nil); len(got) != 1 || got[0].IdentifierAssertion.ID != second {
+		t.Errorf("page after the first = %+v, want only the second assertion", got)
+	}
+	if got := list(attestation.ID, nil, nil); len(got) != 1 || got[0].IdentifierAssertion.ID != attested || got[0].AttestedBy == nil || *got[0].AttestedBy != admin.Email || got[0].Datasource != nil {
+		t.Errorf("attestation's assertions = %+v, want the attested one with %s", got, admin.Email)
 	}
 }

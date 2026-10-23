@@ -34,6 +34,7 @@ type Queries interface {
 	ListStatementItems(ctx context.Context, arg gen.ListStatementItemsParams) ([]gen.StatementItem, error)
 	ListResolutionItems(ctx context.Context, arg gen.ListResolutionItemsParams) ([]gen.ListResolutionItemsRow, error)
 	ListFetchItems(ctx context.Context, arg gen.ListFetchItemsParams) ([]gen.ListFetchItemsRow, error)
+	ListRunAssertions(ctx context.Context, arg gen.ListRunAssertionsParams) ([]gen.ListRunAssertionsRow, error)
 	GetReplay(ctx context.Context, id uuid.UUID) (gen.GetReplayRow, error)
 	ClearFinding(ctx context.Context, id uuid.UUID) (*uuid.UUID, error)
 }
@@ -235,9 +236,10 @@ func (s *Server) replay(ctx context.Context, id uuid.UUID) (*adminreplayv1.Repla
 	return out, nil
 }
 
-// ListRunItems lists the items a run wrote, in the order it wrote them, a
-// page at a time. The page token is the last item's ordinal for a statement
-// run and its stated key id for any other kind.
+// ListRunItems lists the items a run wrote, in the order it wrote them, a page
+// at a time. The page token is the last item's ordinal for a statement run, its
+// assertion id for an attestation or extend validity run, and its stated key id
+// for any other kind.
 func (s *Server) ListRunItems(ctx context.Context, req *connect.Request[adminrunv1.ListRunItemsRequest]) (*connect.Response[adminrunv1.ListRunItemsResponse], error) {
 	m := req.Msg
 	row, err := s.userRun(ctx, m.GetRunId())
@@ -303,6 +305,22 @@ func (s *Server) ListRunItems(ctx context.Context, req *connect.Request[adminrun
 		}
 		if more {
 			out.NextPageToken = rows[len(rows)-1].FetchKey.ID.String()
+		}
+	case gen.RunKindExtendValidity, gen.RunKindAttestation:
+		after, err := page.ID(m.GetPageToken())
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, err)
+		}
+		rows, err := s.queries.ListRunAssertions(ctx, gen.ListRunAssertionsParams{RunID: &run.ID, After: after, Lim: &lim})
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInternal, err)
+		}
+		rows, more := page.Cut(p, rows)
+		for _, it := range rows {
+			out.Items = append(out.Items, &adminrunv1.RunItem{Item: &adminrunv1.RunItem_Assertion{Assertion: to.ProtoAssertionItem(it)}})
+		}
+		if more {
+			out.NextPageToken = rows[len(rows)-1].IdentifierAssertion.ID.String()
 		}
 	}
 	return connect.NewResponse(out), nil

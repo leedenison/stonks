@@ -16,6 +16,8 @@ import (
 	"github.com/leedenison/stonks/proto/admin/block/v1/adminblockv1connect"
 	admindatasourcev1 "github.com/leedenison/stonks/proto/admin/datasource/v1"
 	"github.com/leedenison/stonks/proto/admin/datasource/v1/admindatasourcev1connect"
+	adminextendvalidityv1 "github.com/leedenison/stonks/proto/admin/extend_validity/v1"
+	"github.com/leedenison/stonks/proto/admin/extend_validity/v1/adminextendvalidityv1connect"
 	adminreplayv1 "github.com/leedenison/stonks/proto/admin/replay/v1"
 	"github.com/leedenison/stonks/proto/admin/replay/v1/adminreplayv1connect"
 	adminrunv1 "github.com/leedenison/stonks/proto/admin/run/v1"
@@ -38,6 +40,7 @@ import (
 type stub struct {
 	adminblockv1connect.UnimplementedBlockServiceHandler
 	admindatasourcev1connect.UnimplementedDatasourceServiceHandler
+	adminextendvalidityv1connect.UnimplementedExtendValidityServiceHandler
 	adminreplayv1connect.UnimplementedReplayServiceHandler
 	adminrunv1connect.UnimplementedRunServiceHandler
 	authv1connect.UnimplementedAuthServiceHandler
@@ -98,6 +101,7 @@ func newFixture(t *testing.T) *fixture {
 	f.srv = servicetest.Serve(t, func(mux *http.ServeMux) {
 		mux.Handle(adminblockv1connect.NewBlockServiceHandler(f.stub, opts...))
 		mux.Handle(admindatasourcev1connect.NewDatasourceServiceHandler(f.stub, opts...))
+		mux.Handle(adminextendvalidityv1connect.NewExtendValidityServiceHandler(f.stub, opts...))
 		mux.Handle(adminreplayv1connect.NewReplayServiceHandler(f.stub, opts...))
 		mux.Handle(adminrunv1connect.NewRunServiceHandler(f.stub, opts...))
 		mux.Handle(authv1connect.NewAuthServiceHandler(f.stub, opts...))
@@ -176,6 +180,7 @@ func TestAuthenticate(t *testing.T) {
 		{name: "block service with a user's session", cookie: "stonks_session=live", call: listBlocks, wantCode: connect.CodePermissionDenied},
 		{name: "datasource service with a user's session", cookie: "stonks_session=live", call: listDatasources, wantCode: connect.CodePermissionDenied},
 		{name: "replay service with a user's session", cookie: "stonks_session=live", call: startReplay, wantCode: connect.CodePermissionDenied},
+		{name: "extend validity service with a user's session", cookie: "stonks_session=live", call: startExtendValidity, wantCode: connect.CodePermissionDenied},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -243,6 +248,12 @@ func listDatasources(f *fixture) error {
 func startReplay(f *fixture) error {
 	client := adminreplayv1connect.NewReplayServiceClient(f.srv.Client, f.srv.URL)
 	_, err := client.StartReplay(context.Background(), connect.NewRequest(&adminreplayv1.StartReplayRequest{}))
+	return err
+}
+
+func startExtendValidity(f *fixture) error {
+	client := adminextendvalidityv1connect.NewExtendValidityServiceClient(f.srv.Client, f.srv.URL)
+	_, err := client.StartExtendValidity(context.Background(), connect.NewRequest(&adminextendvalidityv1.StartExtendValidityRequest{}))
 	return err
 }
 

@@ -1,8 +1,10 @@
 "use client";
 
+import { RefreshCw } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Fragment, Suspense, useState } from "react";
 import { Pager } from "@/app/components/admin-list";
+import { Button } from "@/app/components/button";
 import { Chip } from "@/app/components/chip";
 import { EmptyState } from "@/app/components/empty-state";
 import { Notice } from "@/app/components/notice";
@@ -17,11 +19,13 @@ import {
   runEnums,
 } from "@/lib/admin";
 import { enumLabel, enumParam, enumValues } from "@/lib/enum";
+import { ExtendValidityDialog } from "./extend-validity-dialog";
 import { RunRow, RunTreeTable } from "./run-tree";
 
 // Every user's runs, newest first, filtered by what the address names, each
 // top-level run a row that opens onto the runs below it. The filters live in
-// the address so a listing can be linked and paged.
+// the address so a listing can be linked and paged. The page carries the
+// action that extends the validity of every held ticker.
 export default function RunsPage() {
   return (
     <Suspense>
@@ -38,11 +42,26 @@ function Runs() {
   // toggled holds the rows an administrator opened or closed; a row not in
   // it is open when it is on the path to a match rather than a match.
   const [toggled, setToggled] = useState<Record<string, boolean>>({});
+  const [extending, setExtending] = useState(false);
   const go = (next: Partial<RunFilters>) =>
     router.replace(filterQuery({ ...f, before: "", ...next }));
 
   return (
-    <Page title="Runs" width="wide" testId="admin-runs-page">
+    <Page
+      title="Runs"
+      width="wide"
+      testId="admin-runs-page"
+      actions={
+        <Button
+          variant="text"
+          data-testid="runs-extend-validity"
+          onClick={() => setExtending(true)}
+        >
+          <RefreshCw aria-hidden className="h-4 w-4" />
+          Extend validity
+        </Button>
+      }
+    >
       <div className="flex flex-wrap items-center gap-3 text-sm">
         {(["kind", "trigger", "state"] as const).map((k) => (
           <label key={k} className="flex items-center gap-2">
@@ -102,6 +121,15 @@ function Runs() {
             : undefined
         }
       />
+      {extending && (
+        <ExtendValidityDialog
+          onClose={() => setExtending(false)}
+          onStarted={(started) => {
+            setExtending(false);
+            router.push(`/admin/runs/${started.id}`);
+          }}
+        />
+      )}
     </Page>
   );
 }

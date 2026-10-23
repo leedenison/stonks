@@ -64,6 +64,22 @@ message FetchItem {
   optional string reason = 6;
 }
 
+// An assertion a run wrote: that a ticker names an instrument, or names
+// nothing, on one day.
+message AssertionItem {
+  stonks.type.v1.Identifier ticker = 1;
+  // The day the assertion holds, as YYYY-MM-DD.
+  string asserted_on = 2;
+  // The instrument the ticker names; unset where the ticker names nothing.
+  optional string instrument_id = 3;
+  oneof source {
+    // The datasource whose answer made the assertion.
+    string datasource = 4;
+    // The email of the administrator who attested it.
+    string attested_by = 5;
+  }
+}
+
 enum FindingKind {
   FINDING_KIND_UNSPECIFIED = 0;
   // The run wrote a datasource block, which withholds calls until an
@@ -195,12 +211,16 @@ message RunItem {
     stonks.type.v1.ResolutionItem resolution = 2;
     // A key a FETCH run asked a datasource about.
     FetchItem fetch = 3;
+    // An assertion that an EXTEND_VALIDITY run's fetches wrote, or that an
+    // ATTESTATION run recorded.
+    AssertionItem assertion = 4;
   }
 }
 
 message ListRunItemsResponse {
-  // A statement run's rejected rows in payload order, or a resolution or
-  // fetch run's keys in key id order. A replay run has none.
+  // A statement run's rejected rows in payload order, a resolution or fetch
+  // run's keys in key id order, or an attestation or extend validity run's
+  // assertions in id order. A replay run has none.
   repeated RunItem items = 1;
   // Continues the listing; empty on the last page.
   string next_page_token = 2;
