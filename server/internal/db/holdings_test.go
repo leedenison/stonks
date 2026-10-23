@@ -43,8 +43,7 @@ func (h holder) keyIn(t *testing.T, q *gen.Queries, description string, currency
 	t.Helper()
 	ctx := context.Background()
 	described := types.Identifier{Type: types.IdentifierTypeBrokerDescription, Domain: "ibkr", Value: description}
-	k, err := q.CreateStatedKey(ctx, gen.CreateStatedKeyParams{ID: db.NewID(), StatementID: h.statement.ID, UserID: h.user.ID, Currency: currency, Identifiers: []types.Identifier{described}})
-	require.NoError(t, err)
+	k := upsertKey(t, q, h.statement, gen.UpsertStatedKeyParams{Currency: currency, Identifiers: []types.Identifier{described}})
 	if listing == nil {
 		return k
 	}
@@ -53,7 +52,7 @@ func (h holder) keyIn(t *testing.T, q *gen.Queries, description string, currency
 		InstrumentID: &listing.InstrumentID, ListingID: &listing.ID,
 		ViaID: &via.ID, Validity: ptr.To(gen.ValidityConfirmed), Arbiter: gen.ArbiterDatasource,
 	}
-	_, err = q.SetStatedKeyAssociation(ctx, arg)
+	_, err := q.SetStatedKeyAssociation(ctx, arg)
 	require.NoError(t, err)
 	return k
 }
@@ -112,8 +111,8 @@ func TestListListingNames(t *testing.T) {
 }
 
 // TestListHoldingKeys checks that the user's keys with a transaction are
-// listed with their transactions summed, resolved or grouped alike, newest
-// statement first, and that another user's keys are omitted.
+// listed with their transactions summed, resolved or grouped alike, earliest
+// key first, and that another user's keys are omitted.
 func TestListHoldingKeys(t *testing.T) {
 	ctx := context.Background()
 	q := newTx(t)
@@ -144,7 +143,7 @@ func TestListHoldingKeys(t *testing.T) {
 	for _, r := range got {
 		rows = append(rows, row{r.StatedKey.ID, r.Quantity.String()})
 	}
-	want := []row{{newer.ID, "1"}, {resolved.ID, "7.5"}, {grouped.ID, "3"}}
+	want := []row{{resolved.ID, "7.5"}, {grouped.ID, "3"}, {newer.ID, "1"}}
 	if diff := cmp.Diff(want, rows); diff != "" {
 		t.Errorf("ListHoldingKeys mismatch (-want +got):\n%s", diff)
 	}

@@ -31,14 +31,17 @@ CREATE TYPE validity AS ENUM ('confirmed', 'provisional');
 -- or for an earlier key sharing an identifier with it.
 CREATE TYPE arbiter AS ENUM ('stated', 'datasource', 'guess', 'user');
 
--- A stated key is what one source states about an instrument: its
--- identifiers, asset class and currency. It is stored with the statement that
--- carried it and is what parameterizes resolution requests. The identifiers it
+-- A stated key is what a user's statements state about an instrument: its
+-- identifiers, asset class and currency. The user and those three identify
+-- it, and the unique index spans them, so every statement of the user that
+-- states the key links to one row through statement_keys. It is the unit at
+-- which an association is reused: the transactions stating one key resolve
+-- the same way. The row keeps a surrogate because six tables reference it
+-- and its identifiers column is too wide to reference. The identifiers it
 -- states become identifier rows only when confirmed by a datasource.
 CREATE TABLE stated_keys (
     id            uuid        PRIMARY KEY,
-    statement_id  uuid        NOT NULL,
-    user_id       uuid        NOT NULL,
+    user_id       uuid        NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     asset_class   asset_class REFERENCES asset_class_tree (class),
     currency      text,
     -- identifiers is a JSON array of objects with type, value and, when
@@ -61,10 +64,9 @@ CREATE TABLE stated_keys (
     group_id      uuid        REFERENCES stated_keys (id) ON DELETE CASCADE,
     created_at    timestamptz NOT NULL DEFAULT now(),
     CHECK (jsonb_typeof(identifiers) = 'array'),
-    FOREIGN KEY (statement_id, user_id) REFERENCES statements (id, user_id) ON DELETE CASCADE,
     FOREIGN KEY (listing_id, instrument_id) REFERENCES listings (id, instrument_id)
         DEFERRABLE INITIALLY IMMEDIATE,
-    UNIQUE NULLS NOT DISTINCT (statement_id, asset_class, currency, identifiers),
+    UNIQUE NULLS NOT DISTINCT (user_id, asset_class, currency, identifiers),
     CHECK ((instrument_id IS NULL) = (via_id IS NULL)),
     CHECK ((instrument_id IS NULL) = (validity IS NULL)),
     CHECK ((instrument_id IS NULL) = (arbiter IS NULL)),
@@ -74,6 +76,19 @@ CREATE TABLE stated_keys (
 
 CREATE INDEX stated_keys_instrument_idx ON stated_keys (user_id, instrument_id);
 CREATE INDEX stated_keys_group_idx ON stated_keys (user_id, group_id);
+
+-- A statement key links a statement to a key it states. A statement links
+-- every key it states, even when it rejected all of the key's rows, so it
+-- lists the key with its outcome.
+CREATE TABLE statement_keys (
+    statement_id  uuid NOT NULL,
+    user_id       uuid NOT NULL,
+    stated_key_id uuid NOT NULL REFERENCES stated_keys (id) ON DELETE CASCADE,
+    PRIMARY KEY (statement_id, stated_key_id),
+    FOREIGN KEY (statement_id, user_id) REFERENCES statements (id, user_id) ON DELETE CASCADE
+);
+
+CREATE INDEX statement_keys_key_idx ON statement_keys (stated_key_id);
 
 -- A statement item is a row the statement rejected: its position in the
 -- payload, why, and the row as stated (as protobuf JSON).
@@ -110,7 +125,8 @@ CREATE TABLE statement_splits (
 -- A transaction is a change in the quantity of one instrument held by a user,
 -- with an order date and a settlement date, stated as at a date: the date on
 -- which its values were true, and so which corporate events they reflect. Its
--- instrument and listing are its key's.
+-- instrument and listing are its key's. statement_id records the statement
+-- that stated it.
 --
 -- Replacement is keyed on user, broker and order date, so those are columns of
 -- the row rather than reached through the statement.

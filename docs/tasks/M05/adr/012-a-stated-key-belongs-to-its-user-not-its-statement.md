@@ -14,6 +14,17 @@ A statement writes its keys in `prepare` by upserting on the key's natural key. 
 statements of one user at different brokers may run at once, so the upsert decides which
 run creates a row. A key with no transactions and no statement link left is swept.
 
+No association is copied between a user's keys by any route. The resolver's copy from a
+key the user confirmed, through a shared identifier, is gone, and so is the confirmation's
+copy onto the confirmed key's group. A key is the unit of reuse, and a key that differs in
+its natural key is a different thing, which the user decides on its own.
+
+A swept key leaves its fetch keys, and the assertions, events and coverage beneath them,
+in place: they are system facts, and the fetch key is the provenance of instrument rows.
+`fetch_keys.stated_key_id` is set null. The user's own records of the key, its splits,
+resolution rows and findings, go with it. A run row stays for as long as anything
+references it.
+
 ## What a statement does with a key it states
 
 - A key with a fixed association, through a stable identifier or the user's choice,
@@ -33,4 +44,5 @@ run creates a row. A key with no transactions and no statement link left is swep
   key every row of which was rejected still appears with its outcome.
 - The replay scope that selects a statement's keys joins through `statement_keys`.
 - Holdings order a group's keys by id, and a group is named by its earliest key.
-- The arbitrated copy of an association between a user's keys is gone.
+- A user confirms a candidate for each key on its own. A group mate of the confirmed key
+  stays unresolved until the user confirms for it or a datasource answers.

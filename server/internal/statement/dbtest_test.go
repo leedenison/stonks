@@ -262,7 +262,8 @@ func TestReplace(t *testing.T) {
 }
 
 // TestConfirmCandidate checks a confirmation across statements: both keys
-// of a group take the user's pick, and a later statement's key takes it too.
+// of a group take the user's pick, and a later statement stating the key
+// links to it and resolves nothing for it.
 func TestConfirmCandidate(t *testing.T) {
 	s := newStack(t)
 	ctx := context.Background()
@@ -375,7 +376,7 @@ func TestConfirmCandidate(t *testing.T) {
 	fetches, err := s.q.ListChildRuns(ctx, gen.ListChildRunsParams{ParentID: &resolution[0].ID, UserID: &s.user.ID})
 	require.NoError(t, err)
 	if len(fetches) != 0 {
-		t.Errorf("the third statement's resolution started %d fetches, want none: a key that takes an arbitrated association is not sent", len(fetches))
+		t.Errorf("the third statement's resolution started %d fetches, want none: a key the user associated is not resolved again", len(fetches))
 	}
 	instruments, err = s.q.ListInstrumentHoldings(ctx, s.user.ID)
 	require.NoError(t, err)

@@ -107,8 +107,9 @@ func TestStatements(t *testing.T) {
 			_, err := q.CreateStatement(ctx, gen.CreateStatementParams{ID: newRun(t, q, user).ID, UserID: user.ID, Broker: gen.BrokerIbkr, OrderFrom: date(2026, time.April, 1), OrderBefore: date(2026, time.April, 1), RowCount: 0})
 			return err
 		}},
-		{name: "key under a run with no statement", want: pgerrcode.ForeignKeyViolation, do: func(q *gen.Queries, user, _ gen.User) error {
-			_, err := q.CreateStatedKey(ctx, gen.CreateStatedKeyParams{ID: db.NewID(), StatementID: newRun(t, q, user).ID, UserID: user.ID, Identifiers: []types.Identifier{}})
+		{name: "link under a run with no statement", want: pgerrcode.ForeignKeyViolation, do: func(q *gen.Queries, user, _ gen.User) error {
+			key := upsertKey(t, q, newStatement(t, q, user), gen.UpsertStatedKeyParams{Identifiers: []types.Identifier{}})
+			_, err := q.CreateStatementKeys(ctx, []gen.CreateStatementKeysParams{{StatementID: newRun(t, q, user).ID, UserID: user.ID, StatedKeyID: key.ID}})
 			return err
 		}},
 		{name: "item under another user's statement", want: pgerrcode.ForeignKeyViolation, do: func(q *gen.Queries, user, other gen.User) error {
@@ -138,9 +139,7 @@ func TestResolutionKeys(t *testing.T) {
 	require.NoError(t, err)
 	newKey := func() gen.StatedKey {
 		t.Helper()
-		key, err := q.CreateStatedKey(ctx, gen.CreateStatedKeyParams{ID: db.NewID(), StatementID: statement.ID, UserID: user.ID, Identifiers: []types.Identifier{{Type: types.IdentifierTypeBrokerDescription, Domain: "ibkr", Value: uuid.NewString()}}})
-		require.NoError(t, err)
-		return key
+		return upsertKey(t, q, statement, gen.UpsertStatedKeyParams{Identifiers: []types.Identifier{{Type: types.IdentifierTypeBrokerDescription, Domain: "ibkr", Value: uuid.NewString()}}})
 	}
 	matched, rejected, unrecognised := newKey(), newKey(), newKey()
 
@@ -176,8 +175,7 @@ func TestResolutionKeys(t *testing.T) {
 			statement := newStatement(t, q, user)
 			run, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &user.ID, Kind: gen.RunKindResolution, Trigger: gen.RunTriggerRun, ParentID: &statement.ID})
 			require.NoError(t, err)
-			key, err := q.CreateStatedKey(ctx, gen.CreateStatedKeyParams{ID: db.NewID(), StatementID: statement.ID, UserID: user.ID, Identifiers: []types.Identifier{}})
-			require.NoError(t, err)
+			key := upsertKey(t, q, statement, gen.UpsertStatedKeyParams{Identifiers: []types.Identifier{}})
 			tc.arg.RunID, tc.arg.UserID, tc.arg.StatedKeyID = run.ID, user.ID, key.ID
 			if _, err := q.CreateResolutionKey(ctx, tc.arg); !sqlstate(err, pgerrcode.CheckViolation) {
 				t.Errorf("CreateResolutionKey(%s): err = %v, want a check violation", tc.name, err)
@@ -197,9 +195,7 @@ func TestLatestResolutions(t *testing.T) {
 	statement, theirs := newStatement(t, q, user), newStatement(t, q, other)
 	newKey := func(st gen.Statement) gen.StatedKey {
 		t.Helper()
-		key, err := q.CreateStatedKey(ctx, gen.CreateStatedKeyParams{ID: db.NewID(), StatementID: st.ID, UserID: st.UserID, Identifiers: []types.Identifier{{Type: types.IdentifierTypeBrokerDescription, Domain: "ibkr", Value: uuid.NewString()}}})
-		require.NoError(t, err)
-		return key
+		return upsertKey(t, q, st, gen.UpsertStatedKeyParams{Identifiers: []types.Identifier{{Type: types.IdentifierTypeBrokerDescription, Domain: "ibkr", Value: uuid.NewString()}}})
 	}
 	healed, unreached, foreign := newKey(statement), newKey(statement), newKey(theirs)
 	first, second := newResolution(t, q, user, statement), newResolution(t, q, user, statement)

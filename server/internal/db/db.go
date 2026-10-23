@@ -6,8 +6,10 @@
 // needs, which *gen.Queries satisfies structurally, and mocks that.
 //
 // An insert takes its surrogate key from the caller, minted with NewID, so a
-// set of related rows is written in one batch without reading keys back. The
-// convention for keys is in [migrations.go](../migrations/migrations.go).
+// set of related rows is written in one batch without reading keys back. An
+// upsert on a natural key returns the row's key, which may be an earlier
+// row's, and the caller takes it. The convention for keys is in
+// [migrations.go](../migrations/migrations.go).
 //
 // Every query over a user's own data takes the caller's user id and filters
 // on it, so access is decided by the query and never checked after the read;

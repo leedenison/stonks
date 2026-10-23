@@ -3,6 +3,7 @@ package statement
 import (
 	"context"
 	"errors"
+	"fmt"
 	"slices"
 	"testing"
 	"time"
@@ -302,9 +303,10 @@ func TestOutcomes(t *testing.T) {
 				return tc.answer(out)
 			}
 			f.store.EXPECT().CreateStatement(gomock.Any(), gomock.Any()).Return(gen.Statement{}, nil)
-			f.store.EXPECT().CreateStatedKey(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.CreateStatedKeyParams) (gen.StatedKey, error) {
+			f.store.EXPECT().UpsertStatedKey(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.UpsertStatedKeyParams) (gen.StatedKey, error) {
 				return gen.StatedKey{ID: arg.ID, Identifiers: arg.Identifiers}, nil
 			}).Times(2)
+			f.store.EXPECT().CreateStatementKeys(gomock.Any(), gomock.Any()).Return(int64(2), nil)
 			var items []gen.CreateStatementItemsParams
 			var transactions []gen.CreateTransactionsParams
 			if !tc.wantErr {
@@ -337,6 +339,116 @@ func TestOutcomes(t *testing.T) {
 				t.Errorf("transactions = %+v, want the unresolved key's row kept", transactions)
 			}
 		})
+	}
+}
+
+// TestResolvesUnassociated checks that when an earlier statement associated
+// a key, the resolver is not sent it, the statement keeps its rows and links
+// to it all the same, and that an answer leaving out a key the resolver was
+// sent still fails the work.
+func TestResolvesUnassociated(t *testing.T) {
+	for _, omit := range []bool{false, true} {
+		t.Run(fmt.Sprintf("answer omits the sent key %t", omit), func(t *testing.T) {
+			f := newFixture(t)
+			usd := "USD"
+			held := securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, "US0378331005", ""))
+			fresh := securityKey("BETA", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, "US0378331006", ""))
+			instrument := db.NewID()
+			var sent []gen.StatedKey
+			f.outcomes = func(keys []gen.StatedKey) []gen.ResolutionKey {
+				sent = keys
+				if omit {
+					return nil
+				}
+				out := make([]gen.ResolutionKey, len(keys))
+				for i, k := range keys {
+					out[i] = gen.ResolutionKey{StatedKeyID: k.ID, Outcome: gen.ResolutionOutcomeUnrecognised, Reasons: []string{"no datasource enabled"}}
+				}
+				return out
+			}
+			f.store.EXPECT().CreateStatement(gomock.Any(), gomock.Any()).Return(gen.Statement{}, nil)
+			f.store.EXPECT().UpsertStatedKey(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.UpsertStatedKeyParams) (gen.StatedKey, error) {
+				row := gen.StatedKey{ID: arg.ID, Identifiers: arg.Identifiers}
+				if described(row, "ACME") {
+					row.InstrumentID = &instrument
+				}
+				return row, nil
+			}).Times(2)
+			var links []gen.CreateStatementKeysParams
+			f.store.EXPECT().CreateStatementKeys(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg []gen.CreateStatementKeysParams) (int64, error) {
+				links = arg
+				return int64(len(arg)), nil
+			})
+			var transactions []gen.CreateTransactionsParams
+			if !omit {
+				f.store.EXPECT().DeleteTransactions(gomock.Any(), gomock.Any()).Return(int64(0), nil)
+				f.store.EXPECT().CreateTransactions(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg []gen.CreateTransactionsParams) (int64, error) {
+					transactions = arg
+					return int64(len(arg)), nil
+				})
+				f.store.EXPECT().CompleteRun(gomock.Any(), gomock.Any()).Return(nil)
+			}
+			msg := &statementv1.Statement{Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01",
+				Rows: []*statementv1.Row{rowMsg(held, "2026-03-05", "1"), rowMsg(fresh, "2026-03-06", "2")}}
+			if _, err := f.svc.Create(context.Background(), userID, msg); err != nil {
+				t.Fatalf("Create() error = %v", err)
+			}
+			if (f.workErr != nil) != omit {
+				t.Fatalf("work error = %v, want an error %t", f.workErr, omit)
+			}
+			if len(sent) != 1 || !described(sent[0], "BETA") {
+				t.Errorf("Resolve received %+v, want the unassociated key alone", sent)
+			}
+			if len(links) != 2 {
+				t.Errorf("links = %+v, want both keys linked", links)
+			}
+			if !omit && len(transactions) != 2 {
+				t.Errorf("transactions = %+v, want both rows kept", transactions)
+			}
+		})
+	}
+}
+
+// TestPrepareTakesRow checks that the links, the split and the transaction
+// name the key the upsert returned, whose id differs from the one minted for
+// it when another statement stated the key first.
+func TestPrepareTakesRow(t *testing.T) {
+	f := newFixture(t)
+	usd := "USD"
+	acme := securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, "US0378331005", ""))
+	held := db.NewID()
+	f.store.EXPECT().CreateStatement(gomock.Any(), gomock.Any()).Return(gen.Statement{}, nil)
+	f.store.EXPECT().UpsertStatedKey(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.UpsertStatedKeyParams) (gen.StatedKey, error) {
+		if arg.ID == held {
+			t.Errorf("UpsertStatedKey minted %s, the id of the row another statement holds", held)
+		}
+		return gen.StatedKey{ID: held, Identifiers: arg.Identifiers}, nil
+	})
+	var links []gen.CreateStatementKeysParams
+	f.store.EXPECT().CreateStatementKeys(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg []gen.CreateStatementKeysParams) (int64, error) {
+		links = arg
+		return int64(len(arg)), nil
+	})
+	var split gen.CreateStatementSplitParams
+	f.store.EXPECT().CreateStatementSplit(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.CreateStatementSplitParams) error {
+		split = arg
+		return nil
+	})
+	f.store.EXPECT().DeleteTransactions(gomock.Any(), gomock.Any()).Return(int64(0), nil)
+	var transactions []gen.CreateTransactionsParams
+	f.store.EXPECT().CreateTransactions(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg []gen.CreateTransactionsParams) (int64, error) {
+		transactions = arg
+		return int64(len(arg)), nil
+	})
+	f.store.EXPECT().CompleteRun(gomock.Any(), gomock.Any()).Return(nil)
+	msg := &statementv1.Statement{Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01",
+		Rows:   []*statementv1.Row{rowMsg(acme, "2026-03-05", "1")},
+		Splits: []*statementv1.StatedSplit{{Key: acme, EffectiveDate: "2026-03-02", Quantity: "9"}}}
+	if _, err := f.svc.Create(context.Background(), userID, msg); err != nil || f.workErr != nil {
+		t.Fatalf("Create() error = %v, work error = %v", err, f.workErr)
+	}
+	if len(links) != 1 || links[0].StatedKeyID != held || split.StatedKeyID != held || len(transactions) != 1 || transactions[0].StatedKeyID != held {
+		t.Errorf("links %+v, split %+v, transactions %+v: want each to name the key %s the upsert returned", links, split, transactions, held)
 	}
 }
 
@@ -374,7 +486,8 @@ func TestCreateFailures(t *testing.T) {
 	t.Run("resolution", func(t *testing.T) {
 		f := newFixture(t)
 		f.store.EXPECT().CreateStatement(gomock.Any(), gomock.Any()).Return(gen.Statement{}, nil)
-		f.store.EXPECT().CreateStatedKey(gomock.Any(), gomock.Any()).Return(gen.StatedKey{}, nil)
+		f.store.EXPECT().UpsertStatedKey(gomock.Any(), gomock.Any()).Return(gen.StatedKey{}, nil)
+		f.store.EXPECT().CreateStatementKeys(gomock.Any(), gomock.Any()).Return(int64(1), nil)
 		f.resolveErr = boom
 		if _, err := f.svc.Create(context.Background(), userID, msg()); err != nil {
 			t.Fatalf("Create() error = %v", err)

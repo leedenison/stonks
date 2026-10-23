@@ -61,12 +61,14 @@ CREATE TABLE fetches (
 
 -- A fetch key is one request within a fetch of several. It is sent as an
 -- identifier, or as a domain: a type and a domain with no value. It names the
--- stated key that asked for it, where one did.
+-- stated key that asked for it, where one did. The fetch key outlives that
+-- key: it is the provenance of what its answer asserted, so a swept key
+-- leaves it with no stated key.
 CREATE TABLE fetch_keys (
     id            uuid            PRIMARY KEY,
     fetch_id      uuid            NOT NULL,
     user_id       uuid,
-    stated_key_id uuid            REFERENCES stated_keys (id) ON DELETE CASCADE,
+    stated_key_id uuid            REFERENCES stated_keys (id) ON DELETE SET NULL,
     outcome       fetch_outcome   NOT NULL,
     -- attempts is how many calls carried the key. It is zero when the
     -- datasource was paused or the answer came from the cache.

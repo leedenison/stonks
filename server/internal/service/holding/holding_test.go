@@ -55,7 +55,7 @@ func newFixture(t *testing.T) *fixture {
 }
 
 func TestListHoldings(t *testing.T) {
-	stmtID, acmeListingID, acmeKeyID := uuid.MustParse("00000000-0000-0000-0000-000000000040"), uuid.MustParse("00000000-0000-0000-0000-000000000050"), uuid.MustParse("00000000-0000-0000-0000-000000000060")
+	acmeListingID, acmeKeyID := uuid.MustParse("00000000-0000-0000-0000-000000000050"), uuid.MustParse("00000000-0000-0000-0000-000000000060")
 	gbpListingID := uuid.MustParse("00000000-0000-0000-0000-000000000051")
 	rows := []gen.ListInstrumentHoldingsRow{
 		{InstrumentID: gbpID, AssetClass: types.AssetClassCash, Quantity: decimal.RequireFromString("12092.79")},
@@ -77,7 +77,7 @@ func TestListHoldings(t *testing.T) {
 	acmeISIN := types.Identifier{Type: types.IdentifierTypeIsin, Value: "GB0002634946"}
 	acmeDescribed := types.Identifier{Type: types.IdentifierTypeBrokerDescription, Domain: "ibkr", Value: "ACME PLC"}
 	instrumentKeys := []gen.ListHoldingKeysRow{{
-		StatedKey: gen.StatedKey{ID: acmeKeyID, StatementID: stmtID, InstrumentID: &acmeID, ListingID: &acmeListingID, Identifiers: []types.Identifier{acmeISIN, acmeDescribed}},
+		StatedKey: gen.StatedKey{ID: acmeKeyID, InstrumentID: &acmeID, ListingID: &acmeListingID, Identifiers: []types.Identifier{acmeISIN, acmeDescribed}},
 		Quantity:  decimal.RequireFromString("-141"),
 	}}
 	wantInstruments := []*holdingv1.InstrumentHolding{
@@ -116,8 +116,8 @@ func TestListHoldings(t *testing.T) {
 	schwab := types.Identifier{Type: types.IdentifierTypeBrokerDescription, Domain: "schwab", Value: "ACME CORPORATION"}
 	k1, k2 := uuid.MustParse("00000000-0000-0000-0000-000000000061"), uuid.MustParse("00000000-0000-0000-0000-000000000062")
 	groupKeys := []gen.ListHoldingKeysRow{
-		{StatedKey: gen.StatedKey{ID: k1, StatementID: stmtID, GroupID: &groupID, AssetClass: ptr.To(types.AssetClassEquity), Identifiers: []types.Identifier{ibkr, isin}}, Quantity: decimal.RequireFromString("10")},
-		{StatedKey: gen.StatedKey{ID: k2, StatementID: stmtID, GroupID: &groupID, AssetClass: ptr.To(types.AssetClassSecurity), Identifiers: []types.Identifier{schwab, isin, ticker}}, Quantity: decimal.RequireFromString("2.5")},
+		{StatedKey: gen.StatedKey{ID: k1, GroupID: &groupID, AssetClass: ptr.To(types.AssetClassEquity), Identifiers: []types.Identifier{ibkr, isin}}, Quantity: decimal.RequireFromString("10")},
+		{StatedKey: gen.StatedKey{ID: k2, GroupID: &groupID, AssetClass: ptr.To(types.AssetClassSecurity), Identifiers: []types.Identifier{schwab, isin, ticker}}, Quantity: decimal.RequireFromString("2.5")},
 	}
 	protoISIN := &typev1.Identifier{Type: typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, Value: "US0000000001"}
 	protoIbkr := &typev1.Identifier{Type: typev1.IdentifierType_IDENTIFIER_TYPE_BROKER_DESCRIPTION, Domain: "ibkr", Value: "ACME CORP"}

@@ -8,8 +8,10 @@
 // too, so it reveals no row count and cannot be enumerated. A version 7 UUID
 // is ordered by its creation time, so inserts append to the index rather
 // than scatter across it, and a key states when its row was made. A row with
-// a natural key, such as a link table or a time series keyed by a parent and
-// a time, uses it and carries no surrogate.
+// a narrow natural key that no other table references, such as a link table
+// or a time series keyed by a parent and a time, has only the natural key. A
+// row whose natural key is wide, or which other tables reference, keeps a
+// surrogate and declares the natural key as a unique constraint.
 //
 // Money and quantities are NUMERIC, never a float type. Every time is
 // timestamptz, stored and read as UTC, except the days of assertions,

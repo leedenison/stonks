@@ -1,8 +1,8 @@
 -- name: ListUnavailableKeys :many
--- The source run is a statement run, which supplies its statement's keys, or
--- a resolution run, which supplies the keys it resolved. Run ids order by
--- creation, so the latest resolution of a key is its row with the greatest
--- run id.
+-- The source run is a statement run, which supplies the keys its statement
+-- states, or a resolution run, which supplies the keys it resolved. Run ids
+-- order by creation, so the latest resolution of a key is its row with the
+-- greatest run id.
 SELECT sqlc.embed(stated_keys)
 FROM stated_keys
 JOIN LATERAL (
@@ -13,7 +13,10 @@ JOIN LATERAL (
     LIMIT 1
 ) latest ON true
 WHERE stated_keys.user_id = @user_id::uuid
-  AND (stated_keys.statement_id = @source_id::uuid
+  AND (EXISTS (SELECT 1 FROM statement_keys
+               WHERE statement_keys.statement_id = @source_id::uuid
+                 AND statement_keys.user_id = stated_keys.user_id
+                 AND statement_keys.stated_key_id = stated_keys.id)
        OR EXISTS (SELECT 1 FROM resolution_keys
                   WHERE resolution_keys.run_id = @source_id::uuid
                     AND resolution_keys.user_id = stated_keys.user_id
@@ -32,7 +35,10 @@ SELECT sqlc.embed(stated_keys)
 FROM stated_keys
 LEFT JOIN instruments ON instruments.id = stated_keys.instrument_id
 WHERE stated_keys.user_id = @user_id::uuid
-  AND (stated_keys.statement_id = @source_id::uuid
+  AND (EXISTS (SELECT 1 FROM statement_keys
+               WHERE statement_keys.statement_id = @source_id::uuid
+                 AND statement_keys.user_id = stated_keys.user_id
+                 AND statement_keys.stated_key_id = stated_keys.id)
        OR EXISTS (SELECT 1 FROM resolution_keys
                   WHERE resolution_keys.run_id = @source_id::uuid
                     AND resolution_keys.user_id = stated_keys.user_id

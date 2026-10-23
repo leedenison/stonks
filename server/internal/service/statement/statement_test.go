@@ -201,9 +201,9 @@ func TestGetStatement(t *testing.T) {
 	matchedID, unrecognisedID, unreachedID := uuid.MustParse("00000000-0000-0000-0000-000000000021"), uuid.MustParse("00000000-0000-0000-0000-000000000022"), uuid.MustParse("00000000-0000-0000-0000-000000000023")
 	isin := types.Identifier{Type: types.IdentifierTypeIsin, Value: "US0378331005"}
 	keys := []gen.StatedKey{
-		{ID: matchedID, StatementID: runID, UserID: userID, Identifiers: []types.Identifier{isin}, Arbiter: ptr.To(gen.ArbiterUser)},
-		{ID: unrecognisedID, StatementID: runID, UserID: userID, Identifiers: []types.Identifier{{Type: types.IdentifierTypeBrokerDescription, Domain: "ibkr", Value: "ACME"}}},
-		{ID: unreachedID, StatementID: runID, UserID: userID, Currency: ptr.To("GBP"), Identifiers: []types.Identifier{}},
+		{ID: matchedID, UserID: userID, Identifiers: []types.Identifier{isin}, Arbiter: ptr.To(gen.ArbiterUser)},
+		{ID: unrecognisedID, UserID: userID, Identifiers: []types.Identifier{{Type: types.IdentifierTypeBrokerDescription, Domain: "ibkr", Value: "ACME"}}},
+		{ID: unreachedID, UserID: userID, Currency: ptr.To("GBP"), Identifiers: []types.Identifier{}},
 	}
 	latest := []gen.ResolutionKey{
 		{StatedKeyID: matchedID, Outcome: gen.ResolutionOutcomeMatched},
@@ -341,7 +341,7 @@ func TestConfirmCandidate(t *testing.T) {
 	isin := types.Identifier{Type: types.IdentifierTypeIsin, Value: "US4581401001"}
 	isinMsg := &typev1.Identifier{Type: typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, Value: "US4581401001"}
 	pick := resolve.Pick{Datasource: "openfigi", Identifier: isin}
-	key := gen.StatedKey{ID: keyID, StatementID: runID, UserID: userID, Identifiers: []types.Identifier{{Type: types.IdentifierTypeMicTicker, Value: "INTC"}}, Arbiter: ptr.To(gen.ArbiterUser)}
+	key := gen.StatedKey{ID: keyID, UserID: userID, Identifiers: []types.Identifier{{Type: types.IdentifierTypeMicTicker, Value: "INTC"}}, Arbiter: ptr.To(gen.ArbiterUser)}
 	rk := gen.ResolutionKey{StatedKeyID: keyID, Outcome: gen.ResolutionOutcomeMatched}
 	good := &statementv1.ConfirmCandidateRequest{StatedKeyId: keyID.String(), Datasource: "openfigi", Identifier: isinMsg}
 	want := &statementv1.ConfirmCandidateResponse{Key: &typev1.ResolutionItem{
