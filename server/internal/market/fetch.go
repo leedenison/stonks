@@ -349,7 +349,7 @@ func sentColumns(id types.Identifier) (*types.IdentifierType, string, *string) {
 
 func record[Q, P any](ctx context.Context, q Queries, run gen.Run, kind Kind[Q, P], r FetchKey[Q, P]) error {
 	arg := gen.CreateFetchKeyParams{
-		ID: r.ID, FetchID: run.ID, UserID: run.UserID, StatedKeyID: kind.subject(r.Request),
+		ID: r.ID, FetchID: run.ID, UserID: run.UserID, StatedKeyID: kind.statedKey(r.Request),
 		Outcome: r.Outcome, Attempts: int16(r.attempts),
 	}
 	if r.SentID != nil {

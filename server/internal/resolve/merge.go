@@ -147,8 +147,8 @@ func names(ids []types.Identifier) string {
 
 // mergeConflict returns why the instruments of matches cannot be one, if they
 // cannot: two carry identifiers of one type and domain with different
-// values naming one subject, the instrument or a listing of one currency
-// family, or disjoint classes.
+// values on the instrument or on a listing of one currency family, or their
+// classes are disjoint.
 func mergeConflict(matches []instrumentMatch) (string, bool) {
 	type key struct {
 		typ    types.IdentifierType

@@ -10,12 +10,13 @@ import (
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
-// IdentifierEventRequest asks for the identifier events of one subject over
-// one period. A domain subject asks for every value of the domain. An
-// identifier subject over one day is a point in time lookup.
+// IdentifierEventRequest asks for the identifier events of one identifier
+// over one period. An identifier with no value stands for its domain, and asks
+// for every value of the domain. An identifier with a value over one day is a
+// point in time lookup.
 type IdentifierEventRequest struct {
-	Subject types.Identifier
-	Period  types.Period
+	Identifier types.Identifier
+	Period     types.Period
 }
 
 // IdentifierEvent is an event a provider reported for a MIC_TICKER value.
@@ -37,11 +38,11 @@ type Assertion struct {
 	At       time.Time
 }
 
-// Coverage is a period over which a provider reported every event of a
-// value, or of a domain where Subject is a domain.
+// Coverage is a period over which a provider reported every event of
+// Identifier. An identifier with no value stands for its domain.
 type Coverage struct {
-	Subject types.Identifier
-	Period  types.Period
+	Identifier types.Identifier
+	Period     types.Period
 }
 
 // IdentifierEventResult is what was returned for one request.
@@ -89,8 +90,8 @@ var identifierEventsKind = Kind[IdentifierEventRequest, IdentifierEventResult]{
 		}
 		return nil
 	},
-	subject: func(IdentifierEventRequest) *uuid.UUID { return nil },
-	count:   func(r IdentifierEventResult) int { return len(r.Events) + len(r.Assertions) },
+	statedKey: func(IdentifierEventRequest) *uuid.UUID { return nil },
+	count:     func(r IdentifierEventResult) int { return len(r.Events) + len(r.Assertions) },
 	params: func(r IdentifierEventRequest) []string {
 		return []string{r.Period.From.Format(time.DateOnly), r.Period.Before.Format(time.DateOnly)}
 	},

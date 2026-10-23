@@ -22,7 +22,7 @@ type events struct {
 
 func (e *events) Events() Server[IdentifierEventRequest, IdentifierEventResult] { return e }
 
-func (e *events) Serves(r IdentifierEventRequest) (types.Identifier, error) { return r.Subject, nil }
+func (e *events) Serves(r IdentifierEventRequest) (types.Identifier, error) { return r.Identifier, nil }
 
 func (e *events) Fetch(_ context.Context, reqs []Request[IdentifierEventRequest]) ([]Response[IdentifierEventResult], error) {
 	e.calls++
@@ -142,7 +142,7 @@ func TestFetchIdentifierEventsPeriod(t *testing.T) {
 	nyse := types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XNYS"}
 	fetch := func(from, before time.Time) FetchKey[IdentifierEventRequest, IdentifierEventResult] {
 		t.Helper()
-		got, err := h.fetcher.IdentifierEvents(context.Background(), h.parent, h.entry, []IdentifierEventRequest{{Subject: nyse, Period: types.Period{From: from, Before: before}}})
+		got, err := h.fetcher.IdentifierEvents(context.Background(), h.parent, h.entry, []IdentifierEventRequest{{Identifier: nyse, Period: types.Period{From: from, Before: before}}})
 		if err != nil {
 			t.Fatalf("IdentifierEvents() error = %v", err)
 		}

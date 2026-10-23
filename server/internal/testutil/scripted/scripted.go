@@ -76,8 +76,8 @@ func (s *Identity) Fetch(_ context.Context, reqs []market.Request[gen.StatedKey]
 type IdentifierEvents struct {
 	// Down fails every request.
 	Down bool
-	// Responses maps each subject sent to its answer. A subject it lacks is
-	// answered with an empty result.
+	// Responses maps each identifier sent to its answer. An identifier it
+	// lacks is answered with an empty result.
 	Responses map[types.Identifier]market.IdentifierEventResult
 	// Sent is every request the server received, in order.
 	Sent []market.IdentifierEventRequest
@@ -90,7 +90,7 @@ func NewIdentifierEvents() *IdentifierEvents {
 	return &IdentifierEvents{Responses: map[types.Identifier]market.IdentifierEventResult{}}
 }
 
-// Classify reads every failure as temporary and about the subject.
+// Classify reads every failure as temporary and about the identifier sent.
 func (s *IdentifierEvents) Classify(error) market.Failure {
 	return market.Failure{Temporary: true, Scope: market.ScopeKey}
 }
@@ -109,9 +109,9 @@ func (s *IdentifierEvents) Events() market.Server[market.IdentifierEventRequest,
 	return s
 }
 
-// Serves sends the request's subject.
+// Serves sends the identifier the request names.
 func (s *IdentifierEvents) Serves(r market.IdentifierEventRequest) (types.Identifier, error) {
-	return r.Subject, nil
+	return r.Identifier, nil
 }
 
 // Fetch answers each request from Responses.

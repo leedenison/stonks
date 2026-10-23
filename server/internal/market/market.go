@@ -151,9 +151,9 @@ type Kind[Q, P any] struct {
 	name gen.FetchKind
 	// server returns nil where the entry does not serve the kind.
 	server func(*Entry) Server[Q, P]
-	// subject is the stated key the fetch_keys row records a request for, nil
-	// where none asked.
-	subject func(Q) *uuid.UUID
+	// statedKey returns the id of the stated key that asked for the request,
+	// nil where none asked. The fetch_keys row records the id.
+	statedKey func(Q) *uuid.UUID
 	// count is how many results a served response offered, which the
 	// fetch_keys row records.
 	count func(P) int

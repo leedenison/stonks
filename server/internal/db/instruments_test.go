@@ -179,7 +179,8 @@ func TestIdentifierGrain(t *testing.T) {
 	}
 }
 
-// TestIdentifierUniqueness checks that one triple names one subject.
+// TestIdentifierUniqueness checks that one triple identifies one instrument or
+// listing.
 func TestIdentifierUniqueness(t *testing.T) {
 	q := newTx(t)
 	ctx := context.Background()

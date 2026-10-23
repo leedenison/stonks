@@ -64,8 +64,8 @@ var identityKind = Kind[gen.StatedKey, IdentityResult]{
 		s, _ := e.Integration.(Identity)
 		return s
 	},
-	subject: func(k gen.StatedKey) *uuid.UUID { return &k.ID },
-	count:   func(r IdentityResult) int { return len(r.Listings) },
+	statedKey: func(k gen.StatedKey) *uuid.UUID { return &k.ID },
+	count:     func(r IdentityResult) int { return len(r.Listings) },
 }
 
 // Identity fetches the identity of keys from e, as a child run of parent.
