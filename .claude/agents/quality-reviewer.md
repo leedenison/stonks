@@ -16,7 +16,8 @@ spans and the files it has modified.
 
 - **Code Duplication.** Types or functions that serve identical or near identical
   purposes while replicating non-trivial amounts of code.  Use 'make dupes' to help find
-  duplicates, but do not rely on it only since it only detects exact copies.
+  duplicates, but do not rely on it only since it only detects exact copies.  Check for
+  types that have the same name but mean different things.
 - **Poor design and abstractions.**
 - **Hand-rolled solutions.** Code that re-implements what a well known, well supported
   library already provides.
