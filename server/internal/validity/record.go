@@ -121,22 +121,8 @@ func record(ctx context.Context, q RecordQueries, families currency.Families, ke
 		}
 	}
 	for _, a := range r.Assertions {
-		arg := gen.CreateIdentifierAssertionParams{
-			ID: db.NewID(), FetchKeyID: &key, Type: a.Value.Type, Domain: a.Value.Domain, Value: a.Value.Value,
-			AssertedOn: types.Day(a.At),
-		}
-		if !a.Negative {
-			inst, err := instrumentOf(ctx, q, families, key, a)
-			if err != nil {
-				return err
-			}
-			if inst == nil {
-				continue
-			}
-			arg.InstrumentID = inst
-		}
-		if err := q.CreateIdentifierAssertion(ctx, arg); err != nil {
-			return fmt.Errorf("record assertion: %w", err)
+		if _, err := Assert(ctx, q, families, key, a); err != nil {
+			return err
 		}
 	}
 	for _, c := range r.Coverage {
@@ -152,6 +138,31 @@ func record(ctx context.Context, q RecordQueries, families currency.Families, ke
 		}
 	}
 	return nil
+}
+
+// Assert writes the assertion a under fetch key key, dated by a.At. A
+// positive assertion names the instrument of the first stored stable
+// identifier it states, as Record describes. Assert returns false without
+// writing where it can name no instrument.
+func Assert(ctx context.Context, q RecordQueries, families currency.Families, key uuid.UUID, a market.Assertion) (bool, error) {
+	arg := gen.CreateIdentifierAssertionParams{
+		ID: db.NewID(), FetchKeyID: &key, Type: a.Value.Type, Domain: a.Value.Domain, Value: a.Value.Value,
+		AssertedOn: types.Day(a.At),
+	}
+	if !a.Negative {
+		inst, err := instrumentOf(ctx, q, families, key, a)
+		if err != nil {
+			return false, err
+		}
+		if inst == nil {
+			return false, nil
+		}
+		arg.InstrumentID = inst
+	}
+	if err := q.CreateIdentifierAssertion(ctx, arg); err != nil {
+		return false, fmt.Errorf("record assertion: %w", err)
+	}
+	return true, nil
 }
 
 // instrumentOf returns the instrument the first stored stable identifier of

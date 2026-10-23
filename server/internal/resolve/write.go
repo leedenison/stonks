@@ -14,8 +14,10 @@ import (
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/join"
 	"github.com/leedenison/stonks/server/internal/db/to"
+	"github.com/leedenison/stonks/server/internal/market"
 	runs "github.com/leedenison/stonks/server/internal/run"
 	"github.com/leedenison/stonks/server/internal/types"
+	"github.com/leedenison/stonks/server/internal/validity"
 )
 
 // tries is the number of times a key's write is attempted when the database
@@ -259,10 +261,9 @@ func recordUnknown(ctx context.Context, q Queries, res *resolution) error {
 			continue
 		}
 		id := *fk.SentID
-		arg := gen.CreateIdentifierAssertionParams{
-			ID: db.NewID(), FetchKeyID: &fk.ID, Type: id.Type, Domain: id.Domain, Value: id.Value, AssertedOn: day(fk.AnsweredAt),
-		}
-		if err := q.CreateIdentifierAssertion(ctx, arg); err != nil {
+		// Only a positive assertion names an instrument, and only that needs
+		// the currency families.
+		if _, err := validity.Assert(ctx, q, nil, fk.ID, market.Assertion{Value: id, Negative: true, At: fk.AnsweredAt}); err != nil {
 			return fmt.Errorf("record negative assertion: %w", err)
 		}
 		res.wrote(fk, id)

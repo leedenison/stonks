@@ -6,6 +6,8 @@ import (
 	"context"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/uuid"
 	"github.com/jackc/pgerrcode"
 	"github.com/stretchr/testify/require"
 
@@ -114,5 +116,52 @@ func TestIdentifierEventChecks(t *testing.T) {
 				t.Errorf("%s: err = %v, want a check violation", tc.name, err)
 			}
 		})
+	}
+}
+
+// TestListHeldTickers checks that the query lists a ticker once, with the
+// class and currency of the oldest key dated through it. It also checks that
+// the query leaves out a key without a transaction and a fixed key.
+func TestListHeldTickers(t *testing.T) {
+	ctx := context.Background()
+	q := newTx(t)
+	user := newUser(t, q, "held@example.com")
+	statement := newStatement(t, q, user)
+	held := "HLD" + uuid.NewString()[:8]
+	idle := "IDL" + uuid.NewString()[:8]
+	stock, etf := types.AssetClassStock, types.AssetClassEtf
+	usd, gbp := "USD", "GBP"
+	dated := func(value string, class *types.AssetClass, currency *string, traded bool) gen.StatedKey {
+		t.Helper()
+		key := upsertKey(t, q, statement, gen.UpsertStatedKeyParams{AssetClass: class, Currency: currency, Identifiers: []types.Identifier{
+			{Type: types.IdentifierTypeBrokerDescription, Domain: "ibkr", Value: uuid.NewString()},
+		}})
+		if traded {
+			names(t, q, statement, key)
+		}
+		_, err := q.SetStatedKeyDatedAssociation(ctx, gen.SetStatedKeyDatedAssociationParams{ID: key.ID, UserID: user.ID, ViaDomain: "XNAS", ViaValue: value, Arbiter: gen.ArbiterDatasource})
+		require.NoError(t, err)
+		return key
+	}
+	dated(held, &stock, &usd, true)
+	dated(held, &etf, &gbp, true)
+	dated(idle, &stock, &usd, false)
+	fixed := newStatedKey(t, q, user, statement)
+	names(t, q, statement, fixed)
+	listing, via := cashListing(t, q, "USD")
+	_, err := q.SetStatedKeyAssociation(ctx, gen.SetStatedKeyAssociationParams{ID: fixed.ID, UserID: user.ID, InstrumentID: &listing.InstrumentID, ListingID: &listing.ID, ViaID: &via.ID, Arbiter: gen.ArbiterStated})
+	require.NoError(t, err)
+
+	rows, err := q.ListHeldTickers(ctx)
+	require.NoError(t, err)
+	var got []gen.ListHeldTickersRow
+	for _, r := range rows {
+		if r.Value == held || r.Value == idle {
+			got = append(got, r)
+		}
+	}
+	want := []gen.ListHeldTickersRow{{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: held, AssetClass: &stock, Currency: &usd}}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("ListHeldTickers mismatch (-want +got):\n%s", diff)
 	}
 }

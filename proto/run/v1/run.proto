@@ -23,6 +23,8 @@ enum RunKind {
   RUN_KIND_REPLAY = 4;
   // Records an administrator's assertion.
   RUN_KIND_ATTESTATION = 5;
+  // Asks the datasources again about every held ticker.
+  RUN_KIND_EXTEND_VALIDITY = 6;
 }
 
 // What started a run.
