@@ -26,6 +26,7 @@ type Queries interface {
 	DeleteTransactions(ctx context.Context, arg gen.DeleteTransactionsParams) (int64, error)
 	CreateTransactions(ctx context.Context, arg []gen.CreateTransactionsParams) (int64, error)
 	CreateStatementItems(ctx context.Context, arg []gen.CreateStatementItemsParams) (int64, error)
+	SweepStatedKeys(ctx context.Context, userID uuid.UUID) (int64, error)
 	CompleteRun(ctx context.Context, id uuid.UUID) error
 	GetStatedKey(ctx context.Context, arg gen.GetStatedKeyParams) (gen.StatedKey, error)
 }

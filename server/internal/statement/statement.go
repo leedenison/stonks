@@ -8,7 +8,8 @@
 // class, currency and set of identifiers, linked to each statement that
 // states it. A statement resolves only the keys it states that have no
 // association, each once, however many rows state it; see
-// [resolve.go](../resolve/resolve.go).
+// [resolve.go](../resolve/resolve.go). After a write, every key of the user
+// has a transaction or a link to a statement.
 //
 // The service also lists and confirms candidates for a key of the user's
 // that is not yet associated. Each call is a synchronous resolution run;

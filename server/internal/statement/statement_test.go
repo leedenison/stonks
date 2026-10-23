@@ -74,6 +74,9 @@ type fixture struct {
 	// unrecognised by default, and resolveErr is its error.
 	outcomes   func(keys []gen.StatedKey) []gen.ResolutionKey
 	resolveErr error
+	// calls names the regroup, the sweep and the completion in the order
+	// the write made them.
+	calls []string
 }
 
 // newFixture returns a service whose store runs a transaction inline over
@@ -101,7 +104,10 @@ func newFixture(t *testing.T) *fixture {
 	f.store.EXPECT().ListCurrencies(gomock.Any()).Return(currencies, nil).AnyTimes()
 	f.store.EXPECT().LockUserKeys(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 	f.store.EXPECT().ListGroupableKeys(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
-	f.store.EXPECT().ClearStatedKeyGroups(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+	f.store.EXPECT().ClearStatedKeyGroups(gomock.Any(), gomock.Any()).DoAndReturn(func(context.Context, uuid.UUID) error {
+		f.calls = append(f.calls, "regroup")
+		return nil
+	}).AnyTimes()
 	f.runs.EXPECT().Start(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, spec run.Spec, work run.Work) (gen.Run, error) {
 		f.spec = spec
 		row := gen.Run{ID: db.NewID(), UserID: spec.UserID, Kind: spec.Kind, Trigger: gen.RunTriggerUser, State: gen.RunStatePending}
@@ -319,6 +325,7 @@ func TestOutcomes(t *testing.T) {
 					transactions = append(transactions, arg...)
 					return int64(len(arg)), nil
 				})
+				f.store.EXPECT().SweepStatedKeys(gomock.Any(), userID).Return(int64(0), nil)
 				f.store.EXPECT().CompleteRun(gomock.Any(), gomock.Any()).Return(nil)
 			}
 			msg := &statementv1.Statement{Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01",
@@ -386,6 +393,7 @@ func TestResolvesUnassociated(t *testing.T) {
 					transactions = arg
 					return int64(len(arg)), nil
 				})
+				f.store.EXPECT().SweepStatedKeys(gomock.Any(), userID).Return(int64(0), nil)
 				f.store.EXPECT().CompleteRun(gomock.Any(), gomock.Any()).Return(nil)
 			}
 			msg := &statementv1.Statement{Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01",
@@ -440,6 +448,7 @@ func TestPrepareTakesRow(t *testing.T) {
 		transactions = arg
 		return int64(len(arg)), nil
 	})
+	f.store.EXPECT().SweepStatedKeys(gomock.Any(), userID).Return(int64(0), nil)
 	f.store.EXPECT().CompleteRun(gomock.Any(), gomock.Any()).Return(nil)
 	msg := &statementv1.Statement{Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01",
 		Rows:   []*statementv1.Row{rowMsg(acme, "2026-03-05", "1")},
@@ -453,18 +462,28 @@ func TestPrepareTakesRow(t *testing.T) {
 }
 
 // TestCreateSpec checks the run Create starts: a statement run of the user,
-// in the broker's lane.
+// in the broker's lane, whose write regroups, then sweeps, then completes.
 func TestCreateSpec(t *testing.T) {
 	f := newFixture(t)
 	f.store.EXPECT().CreateStatement(gomock.Any(), gomock.Any()).Return(gen.Statement{}, nil)
 	f.store.EXPECT().DeleteTransactions(gomock.Any(), gomock.Any()).Return(int64(0), nil)
-	f.store.EXPECT().CompleteRun(gomock.Any(), gomock.Any()).Return(nil)
+	f.store.EXPECT().SweepStatedKeys(gomock.Any(), userID).DoAndReturn(func(context.Context, uuid.UUID) (int64, error) {
+		f.calls = append(f.calls, "sweep")
+		return 0, nil
+	})
+	f.store.EXPECT().CompleteRun(gomock.Any(), gomock.Any()).DoAndReturn(func(context.Context, uuid.UUID) error {
+		f.calls = append(f.calls, "complete")
+		return nil
+	})
 	msg := &statementv1.Statement{Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01"}
 	if _, err := f.svc.Create(context.Background(), userID, msg); err != nil || f.workErr != nil {
 		t.Fatalf("Create() error = %v, work error = %v", err, f.workErr)
 	}
 	if f.spec.Kind != gen.RunKindStatement || f.spec.Lane != "ibkr" || f.spec.UserID == nil || *f.spec.UserID != userID {
 		t.Errorf("Start(%+v), want a statement run of the user in lane ibkr", f.spec)
+	}
+	if diff := cmp.Diff([]string{"regroup", "sweep", "complete"}, f.calls); diff != "" {
+		t.Errorf("write order mismatch (-want +got):\n%s", diff)
 	}
 }
 
