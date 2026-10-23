@@ -45,16 +45,16 @@ func TestEventsServes(t *testing.T) {
 		call    call
 		refused bool
 	}{
-		{name: "a composite FIGI", req: market.IdentifierEventRequest{Subject: meta, Period: history}, want: meta, call: chainCall},
-		{name: "a CUSIP", req: market.IdentifierEventRequest{Subject: cusip, Period: history}, want: cusip, call: chainCall},
-		{name: "a ticker on one day", req: market.IdentifierEventRequest{Subject: ticker("XNAS", "FB"), Period: oneDay}, want: ticker("", "FB"), call: lookupCall},
-		{name: "a ticker over a period", req: market.IdentifierEventRequest{Subject: ticker("XNYS", "TWTR"), Period: history}, want: ticker("", "TWTR"), call: retiredCall},
-		{name: "a class share", req: market.IdentifierEventRequest{Subject: ticker("XNYS", "BRK.B"), Period: history}, want: ticker("", "BRK.B"), call: retiredCall},
-		{name: "a domain", req: market.IdentifierEventRequest{Subject: ticker("XNYS", ""), Period: history}, refused: true},
-		{name: "a venue outside Massive's table", req: market.IdentifierEventRequest{Subject: ticker("XLON", "VOD"), Period: history}, refused: true},
-		{name: "a preferred share", req: market.IdentifierEventRequest{Subject: ticker("XNYS", "BACpL"), Period: history}, refused: true},
-		{name: "an ISIN", req: market.IdentifierEventRequest{Subject: types.Identifier{Type: types.IdentifierTypeIsin, Value: "US0378331005"}, Period: history}, refused: true},
-		{name: "a lookup before Massive's data starts", req: market.IdentifierEventRequest{Subject: ticker("XNAS", "AAPL"), Period: types.Period{From: day(2002, 6, 3), Before: day(2002, 6, 4)}}, refused: true},
+		{name: "a composite FIGI", req: market.IdentifierEventRequest{Identifier: meta, Period: history}, want: meta, call: chainCall},
+		{name: "a CUSIP", req: market.IdentifierEventRequest{Identifier: cusip, Period: history}, want: cusip, call: chainCall},
+		{name: "a ticker on one day", req: market.IdentifierEventRequest{Identifier: ticker("XNAS", "FB"), Period: oneDay}, want: ticker("", "FB"), call: lookupCall},
+		{name: "a ticker over a period", req: market.IdentifierEventRequest{Identifier: ticker("XNYS", "TWTR"), Period: history}, want: ticker("", "TWTR"), call: retiredCall},
+		{name: "a class share", req: market.IdentifierEventRequest{Identifier: ticker("XNYS", "BRK.B"), Period: history}, want: ticker("", "BRK.B"), call: retiredCall},
+		{name: "a domain", req: market.IdentifierEventRequest{Identifier: ticker("XNYS", ""), Period: history}, refused: true},
+		{name: "a venue outside Massive's table", req: market.IdentifierEventRequest{Identifier: ticker("XLON", "VOD"), Period: history}, refused: true},
+		{name: "a preferred share", req: market.IdentifierEventRequest{Identifier: ticker("XNYS", "BACpL"), Period: history}, refused: true},
+		{name: "an ISIN", req: market.IdentifierEventRequest{Identifier: types.Identifier{Type: types.IdentifierTypeIsin, Value: "US0378331005"}, Period: history}, refused: true},
+		{name: "a lookup before Massive's data starts", req: market.IdentifierEventRequest{Identifier: ticker("XNAS", "AAPL"), Period: types.Period{From: day(2002, 6, 3), Before: day(2002, 6, 4)}}, refused: true},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

@@ -34,7 +34,7 @@ const (
 // callOf is the Massive request that serves r.
 func callOf(r market.IdentifierEventRequest) call {
 	switch {
-	case r.Subject.Type != types.IdentifierTypeMicTicker:
+	case r.Identifier.Type != types.IdentifierTypeMicTicker:
 		return chainCall
 	case r.Period.Before.Sub(r.Period.From) <= 24*time.Hour:
 		return lookupCall
@@ -46,7 +46,7 @@ func callOf(r market.IdentifierEventRequest) call {
 // cannot answer r. A ticker goes out without its venue, since Massive answers
 // for the composite, and the composite's identifier facts hold at every venue.
 func (e events) Serves(r market.IdentifierEventRequest) (types.Identifier, error) {
-	s := r.Subject
+	s := r.Identifier
 	switch s.Type {
 	case types.IdentifierTypeCusip, types.IdentifierTypeOpenfigiComposite:
 		return s, nil

@@ -33,7 +33,7 @@ func TestChainFacts(t *testing.T) {
 		return market.Assertion{Value: ticker("XNAS", value), Of: []types.Identifier{meta}, At: on}
 	}
 	covered := func(value string, from, before time.Time) market.Coverage {
-		return market.Coverage{Subject: ticker("XNAS", value), Period: period(from, before)}
+		return market.Coverage{Identifier: ticker("XNAS", value), Period: period(from, before)}
 	}
 	tests := []struct {
 		name string
@@ -246,7 +246,7 @@ func TestEventsFetch(t *testing.T) {
 	}{
 		{
 			cassette: "massive_events_ticker_change",
-			req:      market.IdentifierEventRequest{Subject: meta, Period: history},
+			req:      market.IdentifierEventRequest{Identifier: meta, Period: history},
 			sent:     meta,
 			want: func(d string) market.IdentifierEventResult {
 				return market.IdentifierEventResult{
@@ -260,15 +260,15 @@ func TestEventsFetch(t *testing.T) {
 						{Value: ticker(d, "META"), Of: figi(meta), At: day(2026, 10, 22)},
 					},
 					Coverage: []market.Coverage{
-						{Subject: ticker(d, "FB"), Period: period(day(2012, 5, 18), day(2022, 6, 9))},
-						{Subject: ticker(d, "META"), Period: period(day(2022, 6, 9), history.Before)},
+						{Identifier: ticker(d, "FB"), Period: period(day(2012, 5, 18), day(2022, 6, 9))},
+						{Identifier: ticker(d, "META"), Period: period(day(2022, 6, 9), history.Before)},
 					},
 				}
 			},
 		},
 		{
 			cassette: "massive_events_unchanged",
-			req:      market.IdentifierEventRequest{Subject: apple[1], Period: history},
+			req:      market.IdentifierEventRequest{Identifier: apple[1], Period: history},
 			sent:     apple[1],
 			want: func(d string) market.IdentifierEventResult {
 				return market.IdentifierEventResult{
@@ -276,19 +276,19 @@ func TestEventsFetch(t *testing.T) {
 						{Value: ticker(d, "AAPL"), Of: figi(apple[1]), At: since},
 						{Value: ticker(d, "AAPL"), Of: figi(apple[1]), At: day(2026, 10, 22)},
 					},
-					Coverage: []market.Coverage{{Subject: ticker(d, "AAPL"), Period: history}},
+					Coverage: []market.Coverage{{Identifier: ticker(d, "AAPL"), Period: history}},
 				}
 			},
 		},
 		{
 			cassette: "massive_events_unknown",
-			req:      market.IdentifierEventRequest{Subject: twitter, Period: history},
+			req:      market.IdentifierEventRequest{Identifier: twitter, Period: history},
 			sent:     twitter,
 			want:     func(string) market.IdentifierEventResult { return market.IdentifierEventResult{} },
 		},
 		{
 			cassette: "massive_point_in_time",
-			req:      market.IdentifierEventRequest{Subject: ticker("XNAS", "FB"), Period: oneDay},
+			req:      market.IdentifierEventRequest{Identifier: ticker("XNAS", "FB"), Period: oneDay},
 			sent:     ticker("", "FB"),
 			want: func(d string) market.IdentifierEventResult {
 				return market.IdentifierEventResult{Assertions: []market.Assertion{{Value: ticker(d, "FB"), At: oneDay.From, Of: []types.Identifier{
@@ -300,7 +300,7 @@ func TestEventsFetch(t *testing.T) {
 		},
 		{
 			cassette: "massive_point_in_time_unknown",
-			req:      market.IdentifierEventRequest{Subject: ticker("XNAS", "META"), Period: oneDay},
+			req:      market.IdentifierEventRequest{Identifier: ticker("XNAS", "META"), Period: oneDay},
 			sent:     ticker("", "META"),
 			want: func(d string) market.IdentifierEventResult {
 				return market.IdentifierEventResult{Assertions: []market.Assertion{{Value: ticker(d, "META"), At: oneDay.From, Negative: true}}}
@@ -308,7 +308,7 @@ func TestEventsFetch(t *testing.T) {
 		},
 		{
 			cassette: "massive_retired",
-			req:      market.IdentifierEventRequest{Subject: ticker("XNYS", "TWTR"), Period: history},
+			req:      market.IdentifierEventRequest{Identifier: ticker("XNYS", "TWTR"), Period: history},
 			sent:     ticker("", "TWTR"),
 			want: func(d string) market.IdentifierEventResult {
 				return market.IdentifierEventResult{Events: []market.IdentifierEvent{{Value: ticker(d, "TWTR"), Action: gen.IdentifierEventActionRetired, On: day(2022, 10, 31)}}}

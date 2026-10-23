@@ -106,7 +106,7 @@ func chainFacts(sent types.Identifier, evs []event, p types.Period, doms []strin
 				out.Assertions = append(out.Assertions, market.Assertion{Value: v, Of: []types.Identifier{sent}, At: today})
 			}
 			if c, ok := clip(types.Period{From: l.from, Before: before}, p); ok {
-				out.Coverage = append(out.Coverage, market.Coverage{Subject: v, Period: c})
+				out.Coverage = append(out.Coverage, market.Coverage{Identifier: v, Period: c})
 			}
 		}
 	}

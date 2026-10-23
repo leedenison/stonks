@@ -71,10 +71,10 @@ CREATE TABLE identifier_type_traits (
     domain       identifier_domain       NOT NULL,
     grain        identifier_grain        NOT NULL,
     reassignment identifier_reassignment NOT NULL,
-    -- exclusive is whether a second value of the type for one subject in one
-    -- domain contradicts the first. A listing carries one composite per market
-    -- and a broker describes one line in several ways, so those types are
-    -- not exclusive.
+    -- exclusive is whether a second value of the type, on one instrument or
+    -- listing in one domain, contradicts the first. A listing carries one
+    -- composite per market and a broker describes one line in several ways,
+    -- so those types are not exclusive.
     exclusive    boolean                 NOT NULL,
     -- name_rank ranks the types for naming an instrument, lowest first. It
     -- is unique, so no two types tie.
@@ -173,8 +173,8 @@ CREATE TABLE listings (
 );
 
 -- An identifier names an instrument or one of its listings by a type, a
--- domain and a value, the domain empty where its type has none. An identifier
--- names one subject.
+-- domain and a value, the domain empty where its type has none. One triple
+-- identifies one instrument or listing.
 CREATE TABLE identifiers (
     id            uuid            PRIMARY KEY,
     instrument_id uuid            NOT NULL REFERENCES instruments (id),

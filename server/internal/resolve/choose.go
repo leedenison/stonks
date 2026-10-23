@@ -193,11 +193,12 @@ func (c *identityClaim) listed() []string {
 	return out
 }
 
-// contradicts reports whether c names id's subject by another value,
-// returning the value that differs. Only the identifiers that may name what
-// id names are compared: the instrument's for an instrument grain id; for a
-// listing grain id, those of the listing in family fam and of the listing
-// of no family, or of every listing where fam is noFamily.
+// contradicts reports whether c identifies what id identifies under a
+// different value of id's type, returning the value that differs. Only the
+// identifiers that may name what id names are compared: the instrument's for
+// an instrument grain id; for a listing grain id, those of the listing in
+// family fam and of the listing of no family, or of every listing where fam is
+// noFamily.
 func (c *identityClaim) contradicts(id types.Identifier, fam string) (types.Identifier, bool) {
 	if !id.Exclusive() {
 		return types.Identifier{}, false

@@ -70,7 +70,7 @@ func check(mics mic.Table, r market.IdentifierEventResult) error {
 		ids = append(ids, a.Value)
 	}
 	for _, c := range r.Coverage {
-		ids = append(ids, c.Subject)
+		ids = append(ids, c.Identifier)
 	}
 	for _, id := range ids {
 		if err := spelled(mics, id); err != nil {
@@ -129,11 +129,11 @@ func record(ctx context.Context, q RecordQueries, key uuid.UUID, r market.Identi
 	}
 	for _, c := range r.Coverage {
 		arg := gen.CreateIdentifierEventCoverageParams{
-			ID: db.NewID(), FetchKeyID: key, Domain: c.Subject.Domain,
+			ID: db.NewID(), FetchKeyID: key, Domain: c.Identifier.Domain,
 			CoveredFrom: c.Period.From, CoveredBefore: c.Period.Before,
 		}
-		if !c.Subject.IsDomain() {
-			arg.Value = &c.Subject.Value
+		if !c.Identifier.IsDomain() {
+			arg.Value = &c.Identifier.Value
 		}
 		if _, err := q.CreateIdentifierEventCoverage(ctx, arg); err != nil {
 			return fmt.Errorf("record coverage: %w", err)
