@@ -3,6 +3,7 @@ package replay
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"strings"
 	"testing"
 
@@ -115,7 +116,7 @@ func newFixture(t *testing.T) *fixture {
 		row := gen.Run{ID: db.NewID(), UserID: parent.UserID, Kind: kind, Trigger: gen.RunTriggerRun, ParentID: &parent.ID}
 		return row, work(ctx, row)
 	}).AnyTimes()
-	f.svc = New(f.store, f.runs, f.resolver, f.sources)
+	f.svc = New(f.store, f.runs, f.resolver, f.sources, nil, slog.New(slog.DiscardHandler))
 	return f
 }
 

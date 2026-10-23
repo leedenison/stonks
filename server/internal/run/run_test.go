@@ -348,6 +348,35 @@ func TestChild(t *testing.T) {
 	}
 }
 
+// TestChildAs checks that a child takes the user it is given: none for a
+// system run beneath a user's run, or another user beneath a system run.
+func TestChildAs(t *testing.T) {
+	userRun := gen.Run{ID: uuid.MustParse("00000000-0000-0000-0000-000000000011"), UserID: &userA, Kind: gen.RunKindFetch}
+	systemRun := gen.Run{ID: uuid.MustParse("00000000-0000-0000-0000-000000000012"), Kind: gen.RunKindReplay}
+	tests := []struct {
+		name   string
+		parent gen.Run
+		user   *uuid.UUID
+	}{
+		{name: "a system run beneath a user's run", parent: userRun},
+		{name: "a user's run beneath a system run", parent: systemRun, user: &userB},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFixture(t)
+			f.store.EXPECT().CompleteRun(gomock.Any(), gomock.Any()).Return(nil)
+			row, err := f.runner.ChildAs(context.Background(), tc.parent, tc.user, gen.RunKindReplay, func(context.Context, gen.Run) error { return nil })
+			if err != nil {
+				t.Fatalf("ChildAs() error = %v", err)
+			}
+			want := gen.Run{ID: row.ID, UserID: tc.user, Kind: gen.RunKindReplay, Trigger: gen.RunTriggerRun, ParentID: &tc.parent.ID, State: gen.RunStatePending}
+			if diff := cmp.Diff(want, row); diff != "" {
+				t.Errorf("ChildAs() row mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
 // TestSync checks that a synchronous run executes in the caller, records
 // its outcome, and is refused once the runner has closed.
 func TestSync(t *testing.T) {

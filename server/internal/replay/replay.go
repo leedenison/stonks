@@ -1,21 +1,34 @@
-// Package replay re-resolves the keys of one run, the source, as a run of
-// the source's user. Its order against that user's uploads does not matter;
-// see [resolve.go](../resolve/resolve.go) and [group.go](../group/group.go).
-// A key whose association the user arbitrated is never selected, so a
-// replay never changes it.
+// Package replay re-resolves stated keys as a run of their user.
+//
+// An administrator replays the keys of one run, the source, that a scope
+// selects. Its order against that user's uploads does not matter; see
+// [resolve.go](../resolve/resolve.go) and [group.go](../group/group.go). A
+// key whose association the user arbitrated is never selected, so a replay
+// never changes it.
+//
+// A new identifier fact replays the unresolved keys that state its value,
+// beneath the run that wrote it; see ReplayNewIdentifierFacts. A key with an
+// association is never replayed for a fact. A dated key takes the
+// instrument its value names on each transaction's date when it is read, so
+// a new fact reaches its transactions without a replay.
 package replay
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 
 	"github.com/google/uuid"
 
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/group"
 	"github.com/leedenison/stonks/server/internal/market"
+	"github.com/leedenison/stonks/server/internal/mic"
+	"github.com/leedenison/stonks/server/internal/resolve"
 	"github.com/leedenison/stonks/server/internal/run"
+	"github.com/leedenison/stonks/server/internal/types"
 )
 
 var (
@@ -55,11 +68,13 @@ type Service struct {
 	runs     Runner
 	resolver Resolver
 	sources  Sources
+	mics     mic.Table
+	log      *slog.Logger
 }
 
 // New returns a Service.
-func New(store Store, runs Runner, resolver Resolver, sources Sources) *Service {
-	return &Service{store: store, runs: runs, resolver: resolver, sources: sources}
+func New(store Store, runs Runner, resolver Resolver, sources Sources, mics mic.Table, log *slog.Logger) *Service {
+	return &Service{store: store, runs: runs, resolver: resolver, sources: sources, mics: mics, log: log}
 }
 
 // Start starts a replay of source's keys as a run of source's user, started
@@ -170,4 +185,106 @@ func (r *replay) work(ctx context.Context, run gen.Run) error {
 func (r *replay) resolve(ctx context.Context, res gen.Run) error {
 	_, err := r.resolver.Resolve(ctx, res, r.keys)
 	return err
+}
+
+// ReplayNewIdentifierFacts replays every user's unresolved keys that state an
+// identifier of written, as children of the run that wrote it. The keys that
+// except resolved are left out, and a key is replayed once. A user other than
+// the run's replays beneath one system child of the run, or directly beneath
+// a system run. A failed replay is logged and the rest go on.
+func (s *Service) ReplayNewIdentifierFacts(ctx context.Context, except gen.Run, written []resolve.WrittenIdentifierFacts) error {
+	picked := map[uuid.UUID]bool{}
+	for _, w := range written {
+		probes, err := s.probes(w.Identifiers)
+		if err != nil {
+			return err
+		}
+		if len(probes) == 0 {
+			continue
+		}
+		rows, err := s.store.ListUnassociatedKeysStating(ctx, gen.ListUnassociatedKeysStatingParams{Probes: probes, RunID: except.ID})
+		if err != nil {
+			return fmt.Errorf("list keys stating new identifier facts: %w", err)
+		}
+		var users []uuid.UUID
+		byUser := map[uuid.UUID][]gen.StatedKey{}
+		for _, k := range rows {
+			if picked[k.ID] {
+				continue
+			}
+			picked[k.ID] = true
+			if _, ok := byUser[k.UserID]; !ok {
+				users = append(users, k.UserID)
+			}
+			byUser[k.UserID] = append(byUser[k.UserID], k)
+		}
+		s.beneath(ctx, w.Run, users, byUser)
+	}
+	return nil
+}
+
+// beneath replays each user's keys beneath parent, the run that wrote the
+// facts.
+func (s *Service) beneath(ctx context.Context, parent gen.Run, users []uuid.UUID, byUser map[uuid.UUID][]gen.StatedKey) {
+	var others []uuid.UUID
+	for _, u := range users {
+		if parent.UserID != nil && *parent.UserID == u {
+			s.replayKeys(ctx, parent, u, byUser[u])
+			continue
+		}
+		others = append(others, u)
+	}
+	if len(others) == 0 {
+		return
+	}
+	if parent.UserID == nil {
+		for _, u := range others {
+			s.replayKeys(ctx, parent, u, byUser[u])
+		}
+		return
+	}
+	_, err := s.runs.ChildAs(ctx, parent, nil, gen.RunKindReplay, func(ctx context.Context, sys gen.Run) error {
+		for _, u := range others {
+			s.replayKeys(ctx, sys, u, byUser[u])
+		}
+		return nil
+	})
+	if err != nil {
+		s.log.Warn("replay of new identifier facts failed", "parent", parent.ID, "err", err)
+	}
+}
+
+// replayKeys replays user's keys as a child of parent.
+func (s *Service) replayKeys(ctx context.Context, parent gen.Run, user uuid.UUID, keys []gen.StatedKey) {
+	w := &replay{store: s.store, runs: s.runs, resolver: s.resolver, keys: keys}
+	if _, err := s.runs.ChildAs(ctx, parent, &user, gen.RunKindReplay, w.work); err != nil {
+		s.log.Warn("replay of new identifier facts failed", "parent", parent.ID, "user", user, "err", err)
+	}
+}
+
+// probes writes the probes that find a key stating each identifier: one per
+// venue of its operating MIC, since a statement may name a segment, or one
+// under the domain itself where the table lists no venue of it. A domain
+// identifier's probe leaves the value out, so it matches every ticker of the
+// domain.
+func (s *Service) probes(ids []types.Identifier) ([][]byte, error) {
+	var out [][]byte
+	for _, id := range ids {
+		venues := s.mics.Venues(id.Domain)
+		if len(venues) == 0 {
+			venues = []string{id.Domain}
+		}
+		for _, v := range venues {
+			obj := map[string]string{"type": string(id.Type), "domain": v}
+			if !id.IsDomain() {
+				obj["value"] = id.Value
+			}
+			b, err := json.Marshal([]map[string]string{obj})
+			if err != nil {
+				return nil, fmt.Errorf("probe %s: %w", id.Name(), err)
+			}
+			out = append(out, b)
+		}
+	}
+	return out, nil
 }
