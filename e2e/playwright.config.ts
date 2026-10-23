@@ -18,5 +18,19 @@ export default defineConfig({
     screenshot: "only-on-failure",
     trace: "retain-on-failure",
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  // Extending validity reaches every held ticker in the database, so its spec
+  // runs alone, once every other spec has removed its users.
+  projects: [
+    {
+      name: "chromium",
+      use: { ...devices["Desktop Chrome"] },
+      testIgnore: /extend-validity\.spec\.ts/,
+    },
+    {
+      name: "system",
+      use: { ...devices["Desktop Chrome"] },
+      testMatch: /extend-validity\.spec\.ts/,
+      dependencies: ["chromium"],
+    },
+  ],
 });

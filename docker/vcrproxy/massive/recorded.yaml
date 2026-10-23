@@ -428,3 +428,120 @@ interactions:
         status: 404 Not Found
         code: 404
         duration: 11.2255069s
+    - id: 11
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /v3/reference/tickers/PEP?apiKey=REDACTED
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://api.massive.com/v3/reference/tickers/PEP
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 906
+        uncompressed: true
+        body: '{"request_id":"215b4a468e6b6448c617401aa866eae5","results":{"active":true,"address":"REDACTED","branding":{"icon_url":"https://api.massive.com/v1/reference/company-branding/cGVwc2ljby5jb20/images/2026-10-01_icon.jpeg","logo_url":"https://api.massive.com/v1/reference/company-branding/cGVwc2ljby5jb20/images/2026-10-01_logo.png"},"cik":"0000077476","composite_figi":"BBG000DH7JK6","currency_name":"usd","description":"REDACTED","homepage_url":"https://www.pepsico.com","list_date":"1919-12-18","locale":"us","market":"stocks","market_cap":1.8918934580236002e+11,"name":"PepsiCo, Inc.","phone_number":"REDACTED","primary_exchange":"XNAS","round_lot":100,"share_class_figi":"BBG001S695T1","share_class_shares_outstanding":1362741092,"sic_code":"2080","sic_description":"BEVERAGES","ticker":"PEP","ticker_root":"PEP","total_employees":306000,"type":"CS","weighted_shares_outstanding":1362741092},"status":"OK"}'
+        headers:
+            Content-Type:
+                - application/json
+            Date:
+                - Fri, 23 Oct 2026 20:03:53 GMT
+            Strict-Transport-Security:
+                - max-age=15724800; includeSubDomains
+            Vary:
+                - Accept-Encoding
+            X-Polygon-Cluster-Name:
+                - polygon-ny5
+            X-Request-Id:
+                - 215b4a468e6b6448c617401aa866eae5
+        status: 200 OK
+        code: 200
+        duration: 834.620524ms
+    - id: 12
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /vX/reference/tickers/BBG000DH7JK6/events?apiKey=REDACTED&types=ticker_change
+        form:
+            types:
+                - ticker_change
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://api.massive.com/vX/reference/tickers/BBG000DH7JK6/events?types=ticker_change
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 238
+        body: '{"results":{"name":"PepsiCo, Inc.","composite_figi":"BBG000DH7JK6","cik":"0000077476","events":[{"ticker_change":{"ticker":"PEP"},"type":"ticker_change","date":"2003-09-10"}]},"status":"OK","request_id":"08a69c572319cfa03877c28b1230b517"}'
+        headers:
+            Content-Length:
+                - "238"
+            Content-Type:
+                - application/json
+            Date:
+                - Fri, 23 Oct 2026 20:04:04 GMT
+            Strict-Transport-Security:
+                - max-age=15724800; includeSubDomains
+            Vary:
+                - Accept-Encoding
+            X-Item-Count:
+                - "1"
+            X-Polygon-Cluster-Name:
+                - polygon-ny5
+            X-Request-Id:
+                - 08a69c572319cfa03877c28b1230b517
+        status: 200 OK
+        code: 200
+        duration: 9.993401608s
+    - id: 13
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /v3/reference/tickers/PEP?apiKey=REDACTED&date=2024-01-16
+        form:
+            date:
+                - "2024-01-16"
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://api.massive.com/v3/reference/tickers/PEP?date=2024-01-16
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 903
+        uncompressed: true
+        body: '{"request_id":"cc430b13ec2d405ff2691b689b772524","results":{"active":true,"address":"REDACTED","branding":{"icon_url":"https://api.massive.com/v1/reference/company-branding/cGVwc2ljby5jb20/images/2024-01-01_icon.jpeg","logo_url":"https://api.massive.com/v1/reference/company-branding/cGVwc2ljby5jb20/images/2024-01-01_logo.svg"},"cik":"0000077476","composite_figi":"BBG000DH7JK6","currency_name":"usd","description":"REDACTED","homepage_url":"https://www.pepsico.com","list_date":"1919-12-18","locale":"us","market":"stocks","market_cap":2.2846114439937e+11,"name":"PepsiCo, Inc.","phone_number":"REDACTED","primary_exchange":"XNAS","round_lot":100,"share_class_figi":"BBG001S695T1","share_class_shares_outstanding":1374860000,"sic_code":"2080","sic_description":"BEVERAGES","ticker":"PEP","ticker_root":"PEP","total_employees":315000,"type":"CS","weighted_shares_outstanding":1374863961},"status":"OK"}'
+        headers:
+            Content-Type:
+                - application/json
+            Date:
+                - Fri, 23 Oct 2026 20:04:16 GMT
+            Strict-Transport-Security:
+                - max-age=15724800; includeSubDomains
+            Vary:
+                - Accept-Encoding
+            X-Polygon-Cluster-Name:
+                - polygon-ny5
+            X-Request-Id:
+                - cc430b13ec2d405ff2691b689b772524
+        status: 200 OK
+        code: 200
+        duration: 12.031234675s
