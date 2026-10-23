@@ -28,9 +28,7 @@ of open issues and ADRs at `docs/tasks/<label>/`.
 ```
                     001 open
                 /              \
-        012 user keys      010 descriptions
-              |                  |
-         005 resolve             |
+         005 resolve       010 descriptions
        /    |    \               |
 006 reassert | 013 holdings      |
       |      |         |         |

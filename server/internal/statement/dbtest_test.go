@@ -406,6 +406,52 @@ func TestConfirmCandidate(t *testing.T) {
 	}
 }
 
+// TestSweep checks that a write sweeps a key of the user that lacks both a
+// transaction and a statement link, after the regroup, so the members of a
+// swept root survive it. Nothing deletes a statement today, so the test
+// deletes the first statement's row by SQL, which stands in for that
+// deletion.
+func TestSweep(t *testing.T) {
+	s := newStack(t)
+	ctx := context.Background()
+	usd := "USD"
+	// Both keys state the one description, which joins them, and differ in
+	// their currency. The key with the currency is interned first and is the
+	// group's root.
+	acme := securityKey("ACME CORP", typev1.AssetClass_ASSET_CLASS_SECURITY, &usd)
+	bare := &typev1.StatedKey{Identifiers: acme.Identifiers, AssetClass: acme.AssetClass}
+	first := s.ingest(t, &statementv1.Statement{Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01",
+		Rows: []*statementv1.Row{rowMsg(acme, "2026-03-05", "1"), rowMsg(bare, "2026-03-06", "2")}})
+	keys, err := s.q.ListStatedKeys(ctx, gen.ListStatedKeysParams{StatementID: first.ID, UserID: s.user.ID})
+	require.NoError(t, err)
+	require.Len(t, keys, 2)
+	root, member := keys[0], keys[1]
+	if member.GroupID == nil || *member.GroupID != root.ID {
+		t.Fatalf("member = %+v, want it in the root's group %s", member, root.ID)
+	}
+
+	_, err = s.tx.Exec(ctx, "DELETE FROM statements WHERE id = $1", first.ID)
+	require.NoError(t, err)
+	second := s.ingest(t, &statementv1.Statement{Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-04-01", OrderBefore: "2026-05-01",
+		Rows: []*statementv1.Row{rowMsg(bare, "2026-04-05", "3")}})
+	if _, err := s.q.GetStatedKey(ctx, gen.GetStatedKeyParams{ID: root.ID, UserID: s.user.ID}); !errors.Is(err, db.ErrNotFound) {
+		t.Errorf("the root after the write: err = %v, want ErrNotFound", err)
+	}
+	kept, err := s.q.GetStatedKey(ctx, gen.GetStatedKeyParams{ID: member.ID, UserID: s.user.ID})
+	require.NoError(t, err)
+	if kept.GroupID == nil || *kept.GroupID != member.ID {
+		t.Errorf("the member after the write = %+v, want it kept in a group of its own", kept)
+	}
+	keys, err = s.q.ListStatedKeys(ctx, gen.ListStatedKeysParams{StatementID: second.ID, UserID: s.user.ID})
+	require.NoError(t, err)
+	if len(keys) != 1 || keys[0].ID != member.ID {
+		t.Errorf("the second statement's keys = %+v, want the member alone", keys)
+	}
+	if diff := cmp.Diff([]string{"2026-04-05 ibkr 3 -"}, s.transactions(t)); diff != "" {
+		t.Errorf("transactions mismatch (-want +got):\n%s", diff)
+	}
+}
+
 // TestRestate checks that a statement restating a matched key reuses the
 // earlier match, without a fetch or an outcome of its own, and lists the key
 // with the outcome the earlier run recorded.

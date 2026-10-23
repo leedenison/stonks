@@ -35,6 +35,18 @@ DELETE FROM transactions
 WHERE user_id = $1 AND broker = $2
   AND order_date >= @order_from::date AND order_date < @order_before::date;
 
+-- name: SweepStatedKeys :execrows
+-- Deletes the user's keys that lack both a transaction and a link to a
+-- statement. The caller holds the user's key lock and has regrouped, so the
+-- sweep leaves every group with its root.
+DELETE FROM stated_keys
+WHERE stated_keys.user_id = @user_id::uuid
+  AND NOT EXISTS (SELECT 1 FROM transactions
+                  WHERE transactions.user_id = stated_keys.user_id
+                    AND transactions.stated_key_id = stated_keys.id)
+  AND NOT EXISTS (SELECT 1 FROM statement_keys
+                  WHERE statement_keys.stated_key_id = stated_keys.id);
+
 -- name: ListTransactions :many
 SELECT * FROM transactions
 WHERE user_id = $1

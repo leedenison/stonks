@@ -16,6 +16,7 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/group"
 	"github.com/leedenison/stonks/server/internal/ptr"
 	"github.com/leedenison/stonks/server/internal/types"
 )
@@ -91,6 +92,101 @@ func TestStatedKeys(t *testing.T) {
 	if restated.ID != created.ID || restated.InstrumentID == nil || *restated.InstrumentID != usd.InstrumentID || restated.Arbiter == nil || *restated.Arbiter != gen.ArbiterUser {
 		t.Errorf("an associated key upserted again = %+v, want its row with the association", restated)
 	}
+}
+
+// TestSweepStatedKeys checks that the sweep deletes a key that lacks both a
+// transaction and a statement link, and only such a key. The key's
+// resolution rows and findings go with it. The fetch key that asked for it,
+// its assertions and the instrument it sourced stay. A member survives the
+// sweep of its root after a regroup.
+func TestSweepStatedKeys(t *testing.T) {
+	ctx := context.Background()
+	t.Run("deletes only a key with no transaction and no link", func(t *testing.T) {
+		tx := begin(t)
+		q := gen.New(tx)
+		user := newUser(t, q, "sweep@example.com")
+		statement, other := newStatement(t, q, user), newStatement(t, q, user)
+		run, err := q.GetRun(ctx, gen.GetRunParams{ID: statement.ID, UserID: &user.ID})
+		require.NoError(t, err)
+		linked := newStatedKey(t, q, user, statement)
+		named := newStatedKey(t, q, user, statement)
+		names(t, q, statement, named)
+		orphan := newStatedKey(t, q, user, other)
+		resolution := newResolution(t, q, user, statement)
+		resolved(t, q, resolution, orphan, gen.ResolutionOutcomeUnavailable)
+		require.NoError(t, q.CreateFinding(ctx, gen.CreateFindingParams{ID: db.NewID(), RunID: resolution.ID, Kind: gen.FindingKindContradiction, StatedKeyID: &orphan.ID, Detail: ptr.To("two")}))
+		ds := newDatasource(t, q, "sweep", 10)
+		fetchKey := servedKey(t, q, newFetch(t, q, user, run, ds), orphan, "GB00B03MLX29")
+		require.NoError(t, q.CreateIdentifierAssertion(ctx, gen.CreateIdentifierAssertionParams{ID: db.NewID(), FetchKeyID: &fetchKey, Type: types.IdentifierTypeIsin, Value: "GB00B03MLX29", AssertedOn: date(2026, 3, 2)}))
+		instrument, err := q.CreateInstrument(ctx, gen.CreateInstrumentParams{ID: db.NewID(), AssetClass: types.AssetClassStock, FetchKeyID: &fetchKey})
+		require.NoError(t, err)
+
+		// Deleting the other statement cascades the orphan's only link.
+		_, err = tx.Exec(ctx, "DELETE FROM statements WHERE id = $1", other.ID)
+		require.NoError(t, err)
+		n, err := q.SweepStatedKeys(ctx, user.ID)
+		require.NoError(t, err)
+		if n != 1 {
+			t.Errorf("SweepStatedKeys = %d rows, want 1: the orphan", n)
+		}
+		for _, k := range []gen.StatedKey{linked, named} {
+			if _, err := q.GetStatedKey(ctx, gen.GetStatedKeyParams{ID: k.ID, UserID: user.ID}); err != nil {
+				t.Errorf("key %s after the sweep: err = %v, want it kept", k.ID, err)
+			}
+		}
+		if _, err := q.GetStatedKey(ctx, gen.GetStatedKeyParams{ID: orphan.ID, UserID: user.ID}); !errors.Is(err, db.ErrNotFound) {
+			t.Errorf("the orphan after the sweep: err = %v, want ErrNotFound", err)
+		}
+		rows, err := q.ListResolutionKeys(ctx, gen.ListResolutionKeysParams{RunID: resolution.ID, UserID: user.ID})
+		require.NoError(t, err)
+		findings, err := q.ListRunFindings(ctx, []uuid.UUID{resolution.ID})
+		require.NoError(t, err)
+		if len(rows) != 0 || len(findings) != 0 {
+			t.Errorf("resolution rows %+v and findings %+v after the sweep, want none", rows, findings)
+		}
+		var statedKey, provenance *uuid.UUID
+		var assertions int
+		require.NoError(t, tx.QueryRow(ctx, "SELECT stated_key_id FROM fetch_keys WHERE id = $1", fetchKey).Scan(&statedKey))
+		require.NoError(t, tx.QueryRow(ctx, "SELECT count(*) FROM identifier_assertions WHERE fetch_key_id = $1", fetchKey).Scan(&assertions))
+		require.NoError(t, tx.QueryRow(ctx, "SELECT fetch_key_id FROM instruments WHERE id = $1", instrument.ID).Scan(&provenance))
+		if statedKey != nil || assertions != 1 || provenance == nil || *provenance != fetchKey {
+			t.Errorf("fetch key after the sweep: stated key %v, %d assertions, instrument provenance %v; want no stated key, 1 assertion and the fetch key as provenance", statedKey, assertions, provenance)
+		}
+	})
+
+	t.Run("a member survives the sweep of its root after a regroup", func(t *testing.T) {
+		tx := begin(t)
+		q := gen.New(tx)
+		user := newUser(t, q, "sweep-group@example.com")
+		statement, other := newStatement(t, q, user), newStatement(t, q, user)
+		shared := types.Identifier{Type: types.IdentifierTypeIsin, Value: "US0000000001"}
+		root := upsertKey(t, q, other, gen.UpsertStatedKeyParams{Identifiers: []types.Identifier{shared}})
+		member := upsertKey(t, q, statement, gen.UpsertStatedKeyParams{Currency: ptr.To("USD"), Identifiers: []types.Identifier{shared}})
+		names(t, q, other, root)
+		names(t, q, statement, member)
+		require.NoError(t, q.LockUserKeys(ctx, user.ID))
+		require.NoError(t, group.Regroup(ctx, q, user.ID))
+		m, err := q.GetStatedKey(ctx, gen.GetStatedKeyParams{ID: member.ID, UserID: user.ID})
+		require.NoError(t, err)
+		if m.GroupID == nil || *m.GroupID != root.ID {
+			t.Fatalf("member = %+v, want it in the root's group %s", m, root.ID)
+		}
+
+		// The root's statement goes, with its transaction and link.
+		_, err = tx.Exec(ctx, "DELETE FROM statements WHERE id = $1", other.ID)
+		require.NoError(t, err)
+		require.NoError(t, group.Regroup(ctx, q, user.ID))
+		n, err := q.SweepStatedKeys(ctx, user.ID)
+		require.NoError(t, err)
+		if n != 1 {
+			t.Errorf("SweepStatedKeys = %d rows, want 1: the root", n)
+		}
+		m, err = q.GetStatedKey(ctx, gen.GetStatedKeyParams{ID: member.ID, UserID: user.ID})
+		require.NoError(t, err)
+		if m.GroupID == nil || *m.GroupID != member.ID {
+			t.Errorf("member after the sweep = %+v, want it kept in a group of its own", m)
+		}
+	})
 }
 
 // TestTransactions checks the decimal and date round trip, and the half-open

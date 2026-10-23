@@ -14,8 +14,11 @@ import (
 
 // write replaces the statement's period with the accepted rows and records
 // the rejected rows as items, in one transaction under the user's key lock.
-// In that transaction it also recomputes the user's groups and completes the
-// run. A row is rejected by validation or by its key's rejection.
+// In that transaction it also recomputes the user's groups, sweeps the keys
+// that lack both a transaction and a link to a statement, and completes the
+// run. The sweep follows the regroup. The regroup leaves a sweepable key
+// outside every group, so its deletion touches only its own row. A row is
+// rejected by validation or by its key's rejection.
 func (g *ingestion) write(ctx context.Context, run gen.Run) error {
 	var accepted, rejected int64
 	err := g.store.Tx(ctx, func(q Queries) error {
@@ -60,6 +63,9 @@ func (g *ingestion) write(ctx context.Context, run gen.Run) error {
 		}
 		if err := group.Regroup(ctx, q, g.user); err != nil {
 			return err
+		}
+		if _, err := q.SweepStatedKeys(ctx, g.user); err != nil {
+			return fmt.Errorf("sweep keys: %w", err)
 		}
 		if err := q.CompleteRun(ctx, run.ID); err != nil {
 			return fmt.Errorf("complete run: %w", err)
