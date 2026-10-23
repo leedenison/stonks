@@ -4,6 +4,7 @@ import { createConnectTransport } from "@connectrpc/connect-web";
 import { BlockService } from "../gen/admin/block/v1/block_pb";
 import { DatasourceService } from "../gen/admin/datasource/v1/datasource_pb";
 import { InstrumentService as AdminInstrumentService } from "../gen/admin/instrument/v1/instrument_pb";
+import { ExtendValidityService } from "../gen/admin/extend_validity/v1/extend_validity_pb";
 import { ReplayService } from "../gen/admin/replay/v1/replay_pb";
 import {
   FetchOutcome,
@@ -56,6 +57,10 @@ export function datasourceClient(sessionID: string) {
   return clientFor(DatasourceService, sessionID);
 }
 
+export function extendValidityClient(sessionID: string) {
+  return clientFor(ExtendValidityService, sessionID);
+}
+
 export function replayClient(sessionID: string) {
   return clientFor(ReplayService, sessionID);
 }
@@ -85,6 +90,15 @@ export async function resolutionItems(
 ) {
   return (await items(admin, runId)).flatMap((i) =>
     i.item.case === "resolution" ? [i.item.value] : [],
+  );
+}
+
+export async function assertionItems(
+  admin: Client<typeof RunService>,
+  runId: string,
+) {
+  return (await items(admin, runId)).flatMap((i) =>
+    i.item.case === "assertion" ? [i.item.value] : [],
   );
 }
 

@@ -1326,3 +1326,152 @@ interactions:
         status: 200 OK
         code: 200
         duration: 173.258583ms
+    - id: 27
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/search/PEP?api_token=REDACTED&exchange=US&fmt=json&limit=500
+        form:
+            exchange:
+                - US
+            fmt:
+                - json
+            limit:
+                - "500"
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/search/PEP?exchange=US&fmt=json&limit=500
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 2086
+        uncompressed: true
+        body: '[{"Code":"PEP","Exchange":"US","Name":"PepsiCo Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US7134481081","isPrimary":true,"previousClose":138.83,"previousCloseDate":"2026-10-22"},{"Code":"PEPG","Exchange":"US","Name":"PepGen Ltd","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US7133171055","isPrimary":true,"previousClose":2.7,"previousCloseDate":"2026-10-22"},{"Code":"PEPS","Exchange":"US","Name":"Parametric Equity Plus ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US61774R7750","isPrimary":false,"previousClose":33.0037,"previousCloseDate":"2026-10-22"},{"Code":"PEPSX","Exchange":"US","Name":"INTERNATIONAL EMERGING MARKETS FUND R-5","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US74251T5112","isPrimary":false,"previousClose":37.87,"previousCloseDate":"2026-10-22"},{"Code":"PEPFX","Exchange":"US","Name":"PIMCO RAE FUNDAMENTAL EMERGING MARKETS FUND CLASS P","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US72202L6526","isPrimary":false,"previousClose":13.47,"previousCloseDate":"2026-10-22"},{"Code":"PEPT","Exchange":"US","Name":"REX Peptide ETF","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":26.2,"previousCloseDate":"2026-10-22"},{"Code":"KDP","Exchange":"US","Name":"Keurig Dr Pepper Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US49271V1008","isPrimary":true,"previousClose":35.19,"previousCloseDate":"2026-10-22"},{"Code":"PEIMF","Exchange":"US","Name":"PepinNini Minerals Limited","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":0.09,"previousCloseDate":"2026-10-21"},{"Code":"PPKRF","Exchange":"US","Name":"Pepkor Holdings Limited","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":1.3,"previousCloseDate":"2026-10-21"},{"Code":"PPTDF","Exchange":"US","Name":"PeptiDream Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":6.8,"previousCloseDate":"2026-10-22"}]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Fri, 23 Oct 2026 20:03:54 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1199"
+        status: 200 OK
+        code: 200
+        duration: 1.66868691s
+    - id: 28
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/exchange-symbol-list/US?api_token=REDACTED&fmt=json&symbols=PEP
+        form:
+            fmt:
+                - json
+            symbols:
+                - PEP
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/exchange-symbol-list/US?fmt=json&symbols=PEP
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 134
+        uncompressed: true
+        body: '[{"Code":"PEP","Name":"PepsiCo Inc","Country":"USA","Exchange":"NASDAQ","Currency":"USD","Type":"Common Stock","Isin":"US7134481081"}]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Fri, 23 Oct 2026 20:03:54 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1198"
+        status: 200 OK
+        code: 200
+        duration: 301.063937ms
+    - id: 29
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/id-mapping?api_token=REDACTED&filter%5Bisin%5D=US7134481081&fmt=json
+        form:
+            filter[isin]:
+                - US7134481081
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/id-mapping?filter%5Bisin%5D=US7134481081&fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 876
+        uncompressed: true
+        body: '{"meta":{"limit":1000,"offset":0,"total":7},"data":[{"symbol":"0QOS.LSE","isin":"US7134481081","figi":"BBG00K9Q62D3","lei":"FJSUNZKFNQ5YPJ5OT455","cusip":null,"cik":null},{"symbol":"2953.TSE","isin":"US7134481081","figi":null,"lei":"FJSUNZKFNQ5YPJ5OT455","cusip":null,"cik":null},{"symbol":"PEP.US","isin":"US7134481081","figi":"BBG000DH7JK6","lei":"FJSUNZKFNQ5YPJ5OT455","cusip":"713448108","cik":"0000077476"},{"symbol":"PEP.SW","isin":"US7134481081","figi":"BBG000C9S9H8","lei":"FJSUNZKFNQ5YPJ5OT455","cusip":null,"cik":null},{"symbol":"PEP.XETRA","isin":"US7134481081","figi":null,"lei":"FJSUNZKFNQ5YPJ5OT455","cusip":null,"cik":null},{"symbol":"PEP.F","isin":"US7134481081","figi":null,"lei":"FJSUNZKFNQ5YPJ5OT455","cusip":null,"cik":null},{"symbol":"PEP.STU","isin":"US7134481081","figi":null,"lei":"FJSUNZKFNQ5YPJ5OT455","cusip":null,"cik":null}],"links":{"next":null}}'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Fri, 23 Oct 2026 20:03:54 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1197"
+        status: 200 OK
+        code: 200
+        duration: 168.123198ms

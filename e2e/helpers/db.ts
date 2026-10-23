@@ -72,7 +72,9 @@ export async function deleteDatasource(name: string): Promise<void> {
 // deleted by the suite; those the users' fetches created lose their
 // provenance and stand as reference data to later specs. An administrator's
 // replay of another user's run names both, so it goes before either user.
-// The API offers no way to delete a user.
+// An administrator's attestation run is a system run that names them, so it
+// goes with its assertions before the administrator. The API offers no way
+// to delete a user.
 export async function deleteUsers(ids: string[]): Promise<void> {
   const client = await db().connect();
   const keys = "SELECT id FROM fetch_keys WHERE user_id = ANY($1)";
@@ -85,8 +87,43 @@ export async function deleteUsers(ids: string[]): Promise<void> {
       );
     }
     await client.query("DELETE FROM replays WHERE started_by = ANY($1)", [ids]);
+    await client.query(
+      "DELETE FROM runs WHERE id IN (SELECT run_id FROM identifier_assertions WHERE attested_by = ANY($1))",
+      [ids],
+    );
     await client.query("DELETE FROM users WHERE id = ANY($1)", [ids]);
     await client.query("COMMIT");
+  } catch (e) {
+    await client.query("ROLLBACK");
+    throw e;
+  } finally {
+    client.release();
+  }
+}
+
+// seedAttestation writes an administrator's assertion that a ticker names an
+// instrument on a past day, under a system attestation run, and returns the
+// run's id. No RPC asserts a past day, so SQL is the only route.
+export async function seedAttestation(
+  admin: string,
+  ticker: { domain: string; value: string },
+  instrument: string,
+  day: string,
+): Promise<string> {
+  const client = await db().connect();
+  try {
+    await client.query("BEGIN");
+    const run = await client.query<{ id: string }>(
+      "INSERT INTO runs (id, kind, trigger, state) VALUES (uuid_v7(), 'attestation', 'administrator', 'completed') RETURNING id",
+    );
+    const id = run.rows[0].id;
+    await client.query(
+      `INSERT INTO identifier_assertions (id, run_id, attested_by, type, domain, value, instrument_id, asserted_on)
+       VALUES (uuid_v7(), $1, $2, 'mic_ticker', $3, $4, $5, $6)`,
+      [id, admin, ticker.domain, ticker.value, instrument, day],
+    );
+    await client.query("COMMIT");
+    return id;
   } catch (e) {
     await client.query("ROLLBACK");
     throw e;

@@ -870,3 +870,82 @@ interactions:
         status: 200 OK
         code: 200
         duration: 1.088339629s
+    - id: 11
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 54
+        host: ""
+        request_uri: /v3/mapping
+        body: '[{"idType":"TICKER","idValue":"PEP","currency":"USD"}]'
+        headers:
+            Content-Type:
+                - application/json
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://api.openfigi.com/v3/mapping
+        method: POST
+      response:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        transfer_encoding:
+            - chunked
+        content_length: 6968
+        uncompressed: true
+        body: '[{"data":[{"figi":"BBG000DH7JK6","name":"PEPSICO INC","ticker":"PEP","exchCode":"US","compositeFIGI":"BBG000DH7JK6","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S695T1","securityType2":"Common Stock","securityDescription":"PEP"},{"figi":"BBG000DH7KC2","name":"PEPSICO INC","ticker":"PEP","exchCode":"UA","compositeFIGI":"BBG000DH7JK6","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S695T1","securityType2":"Common Stock","securityDescription":"PEP"},{"figi":"BBG000DH7KV1","name":"PEPSICO INC","ticker":"PEP","exchCode":"UC","compositeFIGI":"BBG000DH7JK6","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S695T1","securityType2":"Common Stock","securityDescription":"PEP"},{"figi":"BBG000DH7LV9","name":"PEPSICO INC","ticker":"PEP","exchCode":"UN","compositeFIGI":"BBG000DH7JK6","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S695T1","securityType2":"Common Stock","securityDescription":"PEP"},{"figi":"BBG000DH7MB9","name":"PEPSICO INC","ticker":"PEP","exchCode":"UP","compositeFIGI":"BBG000DH7JK6","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S695T1","securityType2":"Common Stock","securityDescription":"PEP"},{"figi":"BBG000DH7NB7","name":"PEPSICO INC","ticker":"PEP","exchCode":"UB","compositeFIGI":"BBG000DH7JK6","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S695T1","securityType2":"Common Stock","securityDescription":"PEP"},{"figi":"BBG000DH7P22","name":"PEPSICO INC","ticker":"PEP","exchCode":"UM","compositeFIGI":"BBG000DH7JK6","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S695T1","securityType2":"Common Stock","securityDescription":"PEP"},{"figi":"BBG000DH7PM0","name":"PEPSICO INC","ticker":"PEP","exchCode":"UX","compositeFIGI":"BBG000DH7JK6","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S695T1","securityType2":"Common Stock","securityDescription":"PEP"},{"figi":"BBG000DH7RX4","name":"PEPSICO INC","ticker":"PEP","exchCode":"UD","compositeFIGI":"BBG000DH7JK6","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S695T1","securityType2":"Common Stock","securityDescription":"PEP"},{"figi":"BBG000DH7TN1","name":"PEPSICO INC","ticker":"PEP","exchCode":"UW","compositeFIGI":"BBG000DH7JK6","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S695T1","securityType2":"Common Stock","securityDescription":"PEP"},{"figi":"BBG000DH7V47","name":"PEPSICO INC","ticker":"PEP","exchCode":"UF","compositeFIGI":"BBG000DH7JK6","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S695T1","securityType2":"Common Stock","securityDescription":"PEP"},{"figi":"BBG000DH7W63","name":"PEPSICO INC","ticker":"PEP","exchCode":"VY","compositeFIGI":"BBG000DH7JK6","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S695T1","securityType2":"Common Stock","securityDescription":"PEP"},{"figi":"BBG000DH7WK7","name":"PEPSICO INC","ticker":"PEP","exchCode":"VJ","compositeFIGI":"BBG000DH7JK6","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S695T1","securityType2":"Common Stock","securityDescription":"PEP"},{"figi":"BBG000DH7X52","name":"PEPSICO INC","ticker":"PEP","exchCode":"VK","compositeFIGI":"BBG000DH7JK6","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S695T1","securityType2":"Common Stock","securityDescription":"PEP"},{"figi":"BBG0013RP391","name":"PEPSICO INC","ticker":"PEP","exchCode":null,"compositeFIGI":null,"securityType":"MED TERM NOTE","marketSector":"M-Mkt","shareClassFIGI":null,"securityType2":"MTN","securityDescription":"PEP MTN"},{"figi":"BBG0013RP3J0","name":"PEPSICO INC","ticker":"PEP","exchCode":null,"compositeFIGI":null,"securityType":"U.S. CP","marketSector":"M-Mkt","shareClassFIGI":null,"securityType2":"CP","securityDescription":"PEP CP"},{"figi":"BBG0013S9R58","name":"PEPSICO INC","ticker":"PEP","exchCode":null,"compositeFIGI":null,"securityType":"U.S. INT BEAR CP","marketSector":"M-Mkt","shareClassFIGI":null,"securityType2":"CP","securityDescription":"PEP CPIB"},{"figi":"BBG0013VDKT5","name":"PEPSICO INC","ticker":"PEP","exchCode":null,"compositeFIGI":null,"securityType":"EXTEND COMM NOTE","marketSector":"M-Mkt","shareClassFIGI":null,"securityType2":"M-Mkt","securityDescription":"PEP ECN"},{"figi":"BBG004BX2FF4","name":"PEPSICO INC","ticker":"PEP","exchCode":"CI","compositeFIGI":"BBG004BX2FF4","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S695T1","securityType2":"Common Stock","securityDescription":"PEP"},{"figi":"BBG004BX2FG3","name":"PEPSICO INC","ticker":"PEP","exchCode":"CC","compositeFIGI":"BBG004BX2FF4","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S695T1","securityType2":"Common Stock","securityDescription":"PEP"},{"figi":"BBG00DJDB9S0","name":"PEPSICO INC","ticker":"PEP","exchCode":"VF","compositeFIGI":"BBG000DH7JK6","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S695T1","securityType2":"Common Stock","securityDescription":"PEP"},{"figi":"BBG00THDK0C3","name":"PEPSICO INC","ticker":"PEP","exchCode":"VL","compositeFIGI":"BBG000DH7JK6","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S695T1","securityType2":"Common Stock","securityDescription":"PEP"},{"figi":"BBG00X1LNTF4","name":"PEPSICO INC","ticker":"PEP","exchCode":"VG","compositeFIGI":"BBG000DH7JK6","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S695T1","securityType2":"Common Stock","securityDescription":"PEP"},{"figi":"BBG00X1Q33D4","name":"PEPSICO INC","ticker":"PEP","exchCode":"VP","compositeFIGI":"BBG000DH7JK6","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S695T1","securityType2":"Common Stock","securityDescription":"PEP"},{"figi":"BBG00YFGCGQ6","name":"PEPSICO INC","ticker":"PEP","exchCode":"PE","compositeFIGI":"BBG00YFGCGP7","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S695T1","securityType2":"Common Stock","securityDescription":"PEP"},{"figi":"BBG01V7WGG45","name":"PEPSICO INC","ticker":"PEP","exchCode":"OC","compositeFIGI":"BBG000DH7JK6","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S695T1","securityType2":"Common Stock","securityDescription":"PEP"},{"figi":"BBG01X4JRFH9","name":"PEPSICO INC","ticker":"PEP","exchCode":"OD","compositeFIGI":"BBG000DH7JK6","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S695T1","securityType2":"Common Stock","securityDescription":"PEP"},{"figi":"BBG021BZKXR1","name":"PEPSICO INC","ticker":"PEP","exchCode":"VT","compositeFIGI":"BBG000DH7JK6","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S695T1","securityType2":"Common Stock","securityDescription":"PEP"}]}]'
+        headers:
+            Cache-Control:
+                - private, no-cache, no-store, must-revalidate
+            Content-Security-Policy:
+                - 'default-src ''self'';base-uri ''self'';font-src ''self'' https: data:;form-action ''self'';frame-ancestors ''self'';img-src ''self'' data:;object-src ''none'';script-src ''self'';script-src-attr ''none'';style-src ''self'' https: ''unsafe-inline'';upgrade-insecure-requests'
+            Content-Type:
+                - application/json; charset=utf-8
+            Cross-Origin-Opener-Policy:
+                - same-origin
+            Cross-Origin-Resource-Policy:
+                - same-origin
+            Date:
+                - Fri, 23 Oct 2026 20:03:53 GMT
+            Expires:
+                - "0"
+            Origin-Agent-Cluster:
+                - ?1
+            Pragma:
+                - no-cache
+            Ratelimit-Limit:
+                - "250"
+            Ratelimit-Policy:
+                - 250;w=60
+            Ratelimit-Remaining:
+                - "249"
+            Ratelimit-Reset:
+                - "60"
+            Referrer-Policy:
+                - no-referrer
+            Server:
+                - istio-envoy
+            Strict-Transport-Security:
+                - max-age=31536000; includeSubDomains
+            Vary:
+                - Origin, Accept-Encoding
+            X-Content-Type-Options:
+                - nosniff
+            X-Dns-Prefetch-Control:
+                - 'off'
+            X-Download-Options:
+                - noopen
+            X-Envoy-Upstream-Service-Time:
+                - "64"
+            X-Frame-Options:
+                - SAMEORIGIN
+            X-Permitted-Cross-Domain-Policies:
+                - none
+            X-Request-Id:
+                - b7563c76-8edb-444a-a141-73f1cef17b65
+            X-Xss-Protection:
+                - "0"
+        status: 200 OK
+        code: 200
+        duration: 1.097014846s
