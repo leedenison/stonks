@@ -73,7 +73,7 @@ type Preference struct {
 	// Lists reports whether the integration lists an operating MIC; nil
 	// means every venue.
 	Lists func(op string) bool
-	Mics  mic.Table
+	Mics  mic.MICMap
 }
 
 // Serves returns the identifier of key to send, or why none is sent. A ticker

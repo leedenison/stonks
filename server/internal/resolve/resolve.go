@@ -48,7 +48,7 @@ type Resolver struct {
 	store    Store
 	fetcher  Fetcher
 	sources  Sources
-	mics     mic.Table
+	mics     mic.MICMap
 	families currency.Families
 	clock    func() time.Time
 	log      *slog.Logger
@@ -56,7 +56,7 @@ type Resolver struct {
 
 // New returns a Resolver. clock supplies the present, against which a
 // request for identifier events picks its days.
-func New(store Store, fetcher Fetcher, sources Sources, mics mic.Table, families currency.Families, clock func() time.Time, log *slog.Logger) *Resolver {
+func New(store Store, fetcher Fetcher, sources Sources, mics mic.MICMap, families currency.Families, clock func() time.Time, log *slog.Logger) *Resolver {
 	return &Resolver{store: store, fetcher: fetcher, sources: sources, mics: mics, families: families, clock: clock, log: log}
 }
 

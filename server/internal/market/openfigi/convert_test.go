@@ -129,8 +129,8 @@ func exchOf(c market.Listing) string {
 	return ""
 }
 
-// venueMICs is a MIC table holding the venues TestVenue names.
-var venueMICs = mic.Table{
+// venueMICs is a MIC map holding the venues TestVenue names.
+var venueMICs = mic.MICMap{
 	"XNYS": "XNYS", "ARCX": "XNYS", "XNAS": "XNAS", "XNGS": "XNAS",
 	"XLON": "XLON", "XTAI": "XTAI", "ROCO": "ROCO",
 }

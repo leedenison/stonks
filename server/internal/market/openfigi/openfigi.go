@@ -27,7 +27,7 @@ var (
 
 // Client is the OpenFIGI integration.
 type Client struct {
-	mics     mic.Table
+	mics     mic.MICMap
 	prefer   market.Preference
 	http     *http.Client
 	endpoint string
@@ -36,7 +36,7 @@ type Client struct {
 
 // New returns a Client for cfg that sends its requests through h. The
 // credential is optional. It fails when cfg's endpoint is not a URL.
-func New(cfg market.Config, mics mic.Table, h *http.Client) (*Client, error) {
+func New(cfg market.Config, mics mic.MICMap, h *http.Client) (*Client, error) {
 	ep, err := market.Endpoint(cfg, endpoint)
 	if err != nil {
 		return nil, err
@@ -50,7 +50,7 @@ func New(cfg market.Config, mics mic.Table, h *http.Client) (*Client, error) {
 
 // Factory returns the factory of Clients normalising venues through mics
 // and sending through h.
-func Factory(mics mic.Table, h *http.Client) market.Factory {
+func Factory(mics mic.MICMap, h *http.Client) market.Factory {
 	return market.Factory{
 		Endpoint: endpoint,
 		New: func(cfg market.Config) (market.Integration, error) {

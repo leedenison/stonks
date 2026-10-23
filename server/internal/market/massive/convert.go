@@ -44,7 +44,7 @@ var classes = map[string]types.AssetClass{
 // limited. A ticker is filtered on without its venue, and resolution
 // compares the listing with the stated venue. Massive never returns the
 // CUSIP it was sent.
-func identity(sent types.Identifier, recs []record, mics mic.Table) market.IdentityResult {
+func identity(sent types.Identifier, recs []record, mics mic.MICMap) market.IdentityResult {
 	out := market.Answer(sent, true)
 	for _, r := range recs {
 		if c, ok := toListing(r, mics); ok {
@@ -56,7 +56,7 @@ func identity(sent types.Identifier, recs []record, mics mic.Table) market.Ident
 
 // toListing converts one record, reporting false for a record of a market
 // or type this integration does not serve.
-func toListing(r record, mics mic.Table) (market.Listing, bool) {
+func toListing(r record, mics mic.MICMap) (market.Listing, bool) {
 	class, ok := classes[r.Type]
 	if !ok || r.Market != "stocks" {
 		return market.Listing{}, false

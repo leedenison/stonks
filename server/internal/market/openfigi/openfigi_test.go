@@ -19,8 +19,8 @@ import (
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
-// mics is a MIC table holding the venues the tests name.
-var mics = mic.Table{
+// mics is a MIC map holding the venues the tests name.
+var mics = mic.MICMap{
 	"XNYS": "XNYS", "ARCX": "XNYS", "XNAS": "XNAS", "XNGS": "XNAS",
 	"XLON": "XLON", "XTAI": "XTAI", "ROCO": "ROCO",
 }

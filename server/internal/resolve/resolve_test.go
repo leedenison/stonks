@@ -69,7 +69,7 @@ func newFixture(t *testing.T, entries ...*market.Entry) *fixture {
 	ctrl := gomock.NewController(t)
 	f := &fixture{t: t, store: NewMockStore(ctrl), fetcher: NewMockFetcher(ctrl), sources: NewMockSources(ctrl), rows: 1}
 	f.sources.EXPECT().Enabled().Return(entries).AnyTimes()
-	f.resolver = New(f.store, f.fetcher, f.sources, mic.Table{"XNAS": "XNAS", "XLON": "XLON", "XETR": "XETR"}, cur, func() time.Time { return time.Date(2026, time.March, 2, 15, 30, 0, 0, time.UTC) }, slog.New(slog.DiscardHandler))
+	f.resolver = New(f.store, f.fetcher, f.sources, mic.MICMap{"XNAS": "XNAS", "XLON": "XLON", "XETR": "XETR"}, cur, func() time.Time { return time.Date(2026, time.March, 2, 15, 30, 0, 0, time.UTC) }, slog.New(slog.DiscardHandler))
 	return f
 }
 

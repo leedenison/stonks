@@ -6,7 +6,7 @@ import (
 )
 
 func TestOperating(t *testing.T) {
-	tbl := Table{"XNAS": "XNAS", "XNGS": "XNAS"}
+	tbl := MICMap{"XNAS": "XNAS", "XNGS": "XNAS"}
 	tests := []struct {
 		name string
 		mic  string
@@ -30,7 +30,7 @@ func TestOperating(t *testing.T) {
 }
 
 func TestVenues(t *testing.T) {
-	tbl := Table{"XNAS": "XNAS", "XNGS": "XNAS", "XNCM": "XNAS", "XLON": "XLON"}
+	tbl := MICMap{"XNAS": "XNAS", "XNGS": "XNAS", "XNCM": "XNAS", "XLON": "XLON"}
 	if got, want := tbl.Venues("XNAS"), []string{"XNAS", "XNCM", "XNGS"}; !slices.Equal(got, want) {
 		t.Errorf("Venues(XNAS) = %v, want %v", got, want)
 	}

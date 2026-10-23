@@ -19,16 +19,16 @@ type Queries interface {
 	ListMICs(ctx context.Context) ([]gen.Mic, error)
 }
 
-// Table maps each MIC to its operating MIC.
-type Table map[string]string
+// MICMap maps each MIC to its operating MIC.
+type MICMap map[string]string
 
 // Load reads the MIC reference table.
-func Load(ctx context.Context, q Queries) (Table, error) {
+func Load(ctx context.Context, q Queries) (MICMap, error) {
 	rows, err := q.ListMICs(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("list mics: %w", err)
 	}
-	t := make(Table, len(rows))
+	t := make(MICMap, len(rows))
 	for _, r := range rows {
 		t[r.Mic] = r.OperatingMic
 	}
@@ -37,14 +37,14 @@ func Load(ctx context.Context, q Queries) (Table, error) {
 
 // Operating returns the operating MIC of m, ignoring case and surrounding space. It
 // reports false when m is not a MIC.
-func (t Table) Operating(m string) (string, bool) {
+func (t MICMap) Operating(m string) (string, bool) {
 	op, ok := t[strings.ToUpper(strings.TrimSpace(m))]
 	return op, ok
 }
 
 // Venues returns the MICs that map to op, sorted, which include op itself.
 // The result is empty when op is not an operating MIC.
-func (t Table) Venues(op string) []string {
+func (t MICMap) Venues(op string) []string {
 	var out []string
 	for m, o := range t {
 		if o == op {

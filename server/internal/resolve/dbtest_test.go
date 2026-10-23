@@ -55,7 +55,7 @@ type stack struct {
 	alphaName string
 	betaName  string
 	sources   *market.Registry
-	mics      mic.Table
+	mics      mic.MICMap
 	resolver  *Resolver
 }
 

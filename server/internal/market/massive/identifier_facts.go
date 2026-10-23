@@ -128,7 +128,7 @@ func clip(a, b types.Period) (types.Period, bool) {
 // lookupFacts converts the record of ticker on day into an assertion of the
 // entity it names. A record the integration cannot convert, such as a
 // warrant or an OTC listing, yields an empty result.
-func lookupFacts(ticker string, rec *record, unknown bool, day time.Time, doms []string, mics mic.Table) market.IdentifierEventResult {
+func lookupFacts(ticker string, rec *record, unknown bool, day time.Time, doms []string, mics mic.MICMap) market.IdentifierEventResult {
 	a := market.Assertion{At: day, Negative: unknown}
 	if !unknown {
 		if rec == nil {

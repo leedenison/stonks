@@ -237,7 +237,7 @@ func TestDelistingFacts(t *testing.T) {
 var sorted = cmpopts.SortSlices(func(a, b any) bool { return fmt.Sprint(a) < fmt.Sprint(b) })
 
 // TestEventsFetch checks what the identifier events server makes of each
-// recorded reply, at every venue in the test's MIC table.
+// recorded reply, at every venue in the test's MIC map.
 func TestEventsFetch(t *testing.T) {
 	doms := []string{"BATS", "XNAS", "XNYS"}
 	figi := func(id types.Identifier) []types.Identifier { return []types.Identifier{id} }

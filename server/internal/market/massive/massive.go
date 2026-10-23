@@ -33,8 +33,8 @@ var _ market.Identity = (*Client)(nil)
 
 // Client is the Massive integration.
 type Client struct {
-	mics     mic.Table
-	venues   map[string]bool
+	mics     mic.MICMap
+	venues   OperatingMICSet
 	prefer   market.Preference
 	limit    rate.Limit
 	http     *http.Client
@@ -61,7 +61,7 @@ var plans = map[string]rate.Limit{
 // when cfg has no credential, when its endpoint is not a URL, when its
 // config has an unknown member, or when the config names a plan Massive does
 // not sell.
-func New(cfg market.Config, mics mic.Table, h *http.Client) (*Client, error) {
+func New(cfg market.Config, mics mic.MICMap, h *http.Client) (*Client, error) {
 	if cfg.Credential == "" {
 		return nil, errors.New("massive needs an API key")
 	}
@@ -96,9 +96,13 @@ func New(cfg market.Config, mics mic.Table, h *http.Client) (*Client, error) {
 	return c, nil
 }
 
+// OperatingMICSet is the operating MICs of the US venues where Massive lists
+// stock. A MIC is in the set where it maps to true.
+type OperatingMICSet map[string]bool
+
 // operating returns the operating MIC of every venue mics holds.
-func operating(mics mic.Table) map[string]bool {
-	out := map[string]bool{}
+func operating(mics mic.MICMap) OperatingMICSet {
+	out := OperatingMICSet{}
 	for v := range venues {
 		if op, ok := mics.Operating(v); ok {
 			out[op] = true
@@ -109,7 +113,7 @@ func operating(mics mic.Table) map[string]bool {
 
 // Factory returns a market.Factory that builds Clients which normalise
 // venues through mics and send through h.
-func Factory(mics mic.Table, h *http.Client) market.Factory {
+func Factory(mics mic.MICMap, h *http.Client) market.Factory {
 	return market.Factory{
 		Endpoint: endpoint,
 		New: func(cfg market.Config) (market.Integration, error) {

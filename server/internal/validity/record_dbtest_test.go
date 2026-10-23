@@ -45,7 +45,7 @@ func (f *fixture) families(t *testing.T) currency.Families {
 	return fams
 }
 
-func (f *fixture) mics(t *testing.T) mic.Table {
+func (f *fixture) mics(t *testing.T) mic.MICMap {
 	t.Helper()
 	m, err := mic.Load(context.Background(), f.q)
 	require.NoError(t, err)
