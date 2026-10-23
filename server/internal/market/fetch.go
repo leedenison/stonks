@@ -48,6 +48,8 @@ type Fetcher struct {
 	store Store
 	runs  Runner
 	cache Cache
+	// fresh skips the cache read; see Fresh.
+	fresh bool
 	log   *slog.Logger
 
 	base  time.Duration
@@ -84,6 +86,14 @@ func NewFetcher(store Store, runs Runner, log *slog.Logger, opts ...Option) *Fet
 		o(f)
 	}
 	return f
+}
+
+// Fresh returns a copy of f that skips the cache read. Each request it serves
+// is sent to the datasource, and the answer replaces any cached one.
+func (f *Fetcher) Fresh() *Fetcher {
+	c := *f
+	c.fresh = true
+	return &c
 }
 
 // fetch requests kind about reqs from e, as a child run of parent. It returns
@@ -212,9 +222,9 @@ func params[Q, P any](s Server[Q, P], q Q) []string {
 }
 
 // readCache fills the fetch keys of the requests in served that the cache
-// holds. Each is served with zero attempts.
+// holds, unless f is fresh. Each is served with zero attempts.
 func readCache[Q, P any](ctx context.Context, f *Fetcher, fetchKeys []FetchKey[Q, P], served []int, cacheKeys map[int]string) error {
-	if f.cache == nil || len(served) == 0 {
+	if f.cache == nil || f.fresh || len(served) == 0 {
 		return nil
 	}
 	ks := make([]string, len(served))

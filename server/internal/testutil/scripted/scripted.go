@@ -5,6 +5,8 @@ package scripted
 import (
 	"context"
 	"errors"
+	"fmt"
+	"slices"
 	"time"
 
 	"golang.org/x/time/rate"
@@ -21,6 +23,8 @@ type Identity struct {
 	// Limited marks every answer as from a provider that lists only some of
 	// an instrument's listings.
 	Limited bool
+	// Declines lists the venues whose tickers the server refuses to send.
+	Declines []string
 	// Responses maps each identifier sent to its answer. An identifier it
 	// lacks is answered with an empty result.
 	Responses map[types.Identifier]market.IdentityResult
@@ -48,9 +52,13 @@ func (s *Identity) Batch() int { return 10 }
 func (s *Identity) Endpoint() string { return "https://scripted.test" }
 
 // Serves sends the first global identifier the key states, or a ticker without
-// its venue.
+// its venue. It declines a key whose first usable identifier is a ticker on a
+// venue in Declines.
 func (s *Identity) Serves(k gen.StatedKey) (types.Identifier, error) {
 	for _, id := range k.Identifiers {
+		if id.Type == types.IdentifierTypeMicTicker && slices.Contains(s.Declines, id.Domain) {
+			return types.Identifier{}, declined(id.Domain)
+		}
 		if id.IsGlobal() || id.Type == types.IdentifierTypeMicTicker {
 			return id, nil
 		}
@@ -82,6 +90,8 @@ type IdentifierEvents struct {
 	Responses map[types.Identifier]market.IdentifierEventResult
 	// Sent is every request the server received, in order.
 	Sent []market.IdentifierEventRequest
+	// Declines lists the venues whose tickers the server refuses to send.
+	Declines []string
 }
 
 var _ market.IdentifierEvents = (*IdentifierEvents)(nil)
@@ -110,9 +120,18 @@ func (s *IdentifierEvents) Events() market.Server[market.IdentifierEventRequest,
 	return s
 }
 
-// Serves sends the identifier the request names.
+// Serves sends the identifier the request names, and declines a ticker on a
+// venue in Declines.
 func (s *IdentifierEvents) Serves(r market.IdentifierEventRequest) (types.Identifier, error) {
+	if r.Identifier.Type == types.IdentifierTypeMicTicker && slices.Contains(s.Declines, r.Identifier.Domain) {
+		return types.Identifier{}, declined(r.Identifier.Domain)
+	}
 	return r.Identifier, nil
+}
+
+// declined is the error a scripted server returns for a venue it declines.
+func declined(venue string) error {
+	return fmt.Errorf("venue '%s' rejected", venue)
 }
 
 // Fetch answers each request from Responses.
