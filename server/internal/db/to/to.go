@@ -5,6 +5,8 @@
 package to
 
 import (
+	"time"
+
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	adminblockv1 "github.com/leedenison/stonks/proto/admin/block/v1"
@@ -180,6 +182,26 @@ func ProtoFetchItem(it gen.ListFetchItemsRow) *adminrunv1.FetchItem {
 	}
 	if sent, ok := Sent(k); ok {
 		out.Sent = sent.ToProto()
+	}
+	return out
+}
+
+// ProtoAssertionItem converts an assertion a run wrote, with its source.
+func ProtoAssertionItem(r gen.ListRunAssertionsRow) *adminrunv1.AssertionItem {
+	a := r.IdentifierAssertion
+	out := &adminrunv1.AssertionItem{
+		Ticker:     types.Identifier{Type: a.Type, Domain: a.Domain, Value: a.Value}.ToProto(),
+		AssertedOn: a.AssertedOn.Format(time.DateOnly),
+	}
+	if a.InstrumentID != nil {
+		id := a.InstrumentID.String()
+		out.InstrumentId = &id
+	}
+	switch {
+	case r.Datasource != nil:
+		out.Source = &adminrunv1.AssertionItem_Datasource{Datasource: *r.Datasource}
+	case r.AttestedBy != nil:
+		out.Source = &adminrunv1.AssertionItem_AttestedBy{AttestedBy: *r.AttestedBy}
 	}
 	return out
 }

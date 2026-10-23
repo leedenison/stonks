@@ -18,6 +18,7 @@ import (
 
 	"github.com/leedenison/stonks/proto/admin/block/v1/adminblockv1connect"
 	"github.com/leedenison/stonks/proto/admin/datasource/v1/admindatasourcev1connect"
+	"github.com/leedenison/stonks/proto/admin/extend_validity/v1/adminextendvalidityv1connect"
 	"github.com/leedenison/stonks/proto/admin/instrument/v1/admininstrumentv1connect"
 	"github.com/leedenison/stonks/proto/admin/replay/v1/adminreplayv1connect"
 	"github.com/leedenison/stonks/proto/admin/run/v1/adminrunv1connect"
@@ -33,6 +34,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/datasource"
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/extendvalidity"
 	"github.com/leedenison/stonks/server/internal/logger"
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/market/eodhd"
@@ -46,6 +48,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/service"
 	adminblock "github.com/leedenison/stonks/server/internal/service/admin/block"
 	admindatasource "github.com/leedenison/stonks/server/internal/service/admin/datasource"
+	adminextendvalidity "github.com/leedenison/stonks/server/internal/service/admin/extendvalidity"
 	admininstrument "github.com/leedenison/stonks/server/internal/service/admin/instrument"
 	adminreplay "github.com/leedenison/stonks/server/internal/service/admin/replay"
 	adminrun "github.com/leedenison/stonks/server/internal/service/admin/run"
@@ -169,9 +172,11 @@ func run() (err error) {
 	fetcher := market.NewFetcher(db.New[market.Queries](pool), runs, logger.WithCategory(log, "internal/market"), market.WithCache(cache))
 	resolver := resolve.New(db.New[resolve.Queries](pool), fetcher, sources, mics, families, time.Now, logger.WithCategory(log, "internal/resolve"))
 	replays := replay.New(db.New[replay.Queries](pool), runs, resolver, sources, mics, logger.WithCategory(log, "internal/replay"))
+	extender := resolve.New(db.New[resolve.Queries](pool), fetcher.Fresh(), sources, mics, families, time.Now, logger.WithCategory(log, "internal/resolve"))
+	extensions := extendvalidity.New(queries, runs, extender, replays)
 	ingester := stmt.New(db.New[stmt.Queries](pool), runs, resolver, replays, families, time.Now, logger.WithCategory(log, "internal/statement"))
 	datasources := admindatasource.New(queries, sources, datasource.New(db.New[datasource.Queries](pool), sources, cache))
-	srv, err := newServer(cfg.ListenAddr, log, authn, queries, adminrun.New(queries), adminblock.New(queries), datasources, admininstrument.New(queries), adminreplay.New(queries, replays), ingester, cfg.CookieSecure)
+	srv, err := newServer(cfg.ListenAddr, log, authn, queries, adminrun.New(queries), adminblock.New(queries), datasources, admininstrument.New(queries), adminreplay.New(queries, replays), adminextendvalidity.New(extensions), ingester, cfg.CookieSecure)
 	if err != nil {
 		return err
 	}
@@ -201,7 +206,7 @@ func tracedClient(timeout time.Duration) *http.Client {
 // once the server listens, which is after the migrations have applied. It is
 // outside the Connect chain and the mux carries no HTTP instrumentation, so
 // the container probing it every two seconds produces no telemetry.
-func newServer(addr string, log *slog.Logger, authn *auth.Authenticator, queries *gen.Queries, runs *adminrun.Server, blocks *adminblock.Server, datasources *admindatasource.Server, instruments *admininstrument.Server, replays *adminreplay.Server, statements *stmt.Service, secure bool) (*http.Server, error) {
+func newServer(addr string, log *slog.Logger, authn *auth.Authenticator, queries *gen.Queries, runs *adminrun.Server, blocks *adminblock.Server, datasources *admindatasource.Server, instruments *admininstrument.Server, replays *adminreplay.Server, extensions *adminextendvalidity.Server, statements *stmt.Service, secure bool) (*http.Server, error) {
 	opts, err := service.HandlerOptions(logger.WithCategory(log, "internal/service"), authn)
 	if err != nil {
 		return nil, err
@@ -213,6 +218,7 @@ func newServer(addr string, log *slog.Logger, authn *auth.Authenticator, queries
 	mux.Handle(adminblockv1connect.NewBlockServiceHandler(blocks, opts...))
 	mux.Handle(admindatasourcev1connect.NewDatasourceServiceHandler(datasources, opts...))
 	mux.Handle(admininstrumentv1connect.NewInstrumentServiceHandler(instruments, opts...))
+	mux.Handle(adminextendvalidityv1connect.NewExtendValidityServiceHandler(extensions, opts...))
 	mux.Handle(adminreplayv1connect.NewReplayServiceHandler(replays, opts...))
 	mux.Handle(adminrunv1connect.NewRunServiceHandler(runs, opts...))
 	mux.Handle(authv1connect.NewAuthServiceHandler(authsvc.New(authn, secure), opts...))
@@ -220,7 +226,7 @@ func newServer(addr string, log *slog.Logger, authn *auth.Authenticator, queries
 	mux.Handle(runv1connect.NewRunServiceHandler(runsvc.New(queries), opts...))
 	mux.Handle(statementv1connect.NewStatementServiceHandler(stmtsvc.New(statements, statements, queries), opts...))
 	reflector := grpcreflect.NewStaticReflector(
-		adminblockv1connect.BlockServiceName, admindatasourcev1connect.DatasourceServiceName, admininstrumentv1connect.InstrumentServiceName, adminreplayv1connect.ReplayServiceName, adminrunv1connect.RunServiceName, authv1connect.AuthServiceName, holdingv1connect.HoldingServiceName,
+		adminblockv1connect.BlockServiceName, admindatasourcev1connect.DatasourceServiceName, admininstrumentv1connect.InstrumentServiceName, adminextendvalidityv1connect.ExtendValidityServiceName, adminreplayv1connect.ReplayServiceName, adminrunv1connect.RunServiceName, authv1connect.AuthServiceName, holdingv1connect.HoldingServiceName,
 		runv1connect.RunServiceName, statementv1connect.StatementServiceName,
 	)
 	mux.Handle(grpcreflect.NewHandlerV1(reflector, opts...))

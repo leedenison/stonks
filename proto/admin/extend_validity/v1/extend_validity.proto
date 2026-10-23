@@ -1,0 +1,26 @@
+// Extending validity: runs an administrator starts to ask the datasources
+// again about every held ticker.
+
+syntax = "proto3";
+
+package stonks.admin.extend_validity.v1;
+
+import "run/v1/run.proto";
+
+option go_package = "github.com/leedenison/stonks/proto/admin/extend_validity/v1;adminextendvalidityv1";
+
+message StartExtendValidityRequest {}
+
+message StartExtendValidityResponse {
+  // The extend validity run, pending.
+  stonks.run.v1.Run run = 1;
+}
+
+// Starts extend validity runs.
+service ExtendValidityService {
+  // Starts an extend validity run over every held ticker, as a system run. Each
+  // enabled datasource is asked once about each ticker, and spends its quota on
+  // the calls. Where no ticker is held, the call is refused as a failed
+  // precondition.
+  rpc StartExtendValidity(StartExtendValidityRequest) returns (StartExtendValidityResponse);
+}

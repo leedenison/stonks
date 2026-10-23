@@ -79,3 +79,19 @@ FROM stated_keys
 WHERE via_type IS NOT NULL
   AND EXISTS (SELECT 1 FROM transactions WHERE transactions.stated_key_id = stated_keys.id)
 ORDER BY via_domain, via_value, created_at, id;
+
+-- name: ListRunAssertions :many
+-- The assertions a run wrote: those of the fetch runs it started, and those
+-- it attested. Each comes with the datasource of its fetch, or the email of
+-- the administrator who attested it. A NULL after starts at the first, and a
+-- NULL lim reads every one.
+SELECT sqlc.embed(identifier_assertions), fetches.datasource, users.email AS attested_by
+FROM identifier_assertions
+LEFT JOIN fetch_keys ON fetch_keys.id = identifier_assertions.fetch_key_id
+LEFT JOIN fetches ON fetches.id = fetch_keys.fetch_id
+LEFT JOIN runs ON runs.id = fetches.id
+LEFT JOIN users ON users.id = identifier_assertions.attested_by
+WHERE (runs.parent_id = @run_id OR identifier_assertions.run_id = @run_id)
+  AND (sqlc.narg(after)::uuid IS NULL OR identifier_assertions.id > sqlc.narg(after))
+ORDER BY identifier_assertions.id
+LIMIT sqlc.narg(lim)::int;
