@@ -24,8 +24,8 @@ import (
 // conf is the config the dev seed writes.
 const conf = `{"plan": "basic"}`
 
-// mics is a MIC table holding the venues the tests name.
-var mics = mic.Table{
+// mics is a MIC map holding the venues the tests name.
+var mics = mic.MICMap{
 	"XNYS": "XNYS", "ARCX": "XNYS", "XASE": "XNYS", "XNAS": "XNAS", "XNGS": "XNAS",
 	"BATS": "BATS", "XLON": "XLON",
 }

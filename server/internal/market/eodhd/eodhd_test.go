@@ -20,8 +20,8 @@ import (
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
-// mics is a MIC table holding the venues the tests name.
-var mics = mic.Table{
+// mics is a MIC map holding the venues the tests name.
+var mics = mic.MICMap{
 	"XNYS": "XNYS", "ARCX": "XNYS", "XASE": "XNYS", "XNAS": "XNAS", "XNGS": "XNAS",
 	"BATS": "BATS", "XCBO": "XCBO", "XLON": "XLON", "XETR": "XETR", "OTCM": "OTCM", "XTSE": "XTSE",
 }
@@ -120,9 +120,9 @@ func TestUntilMidnight(t *testing.T) {
 // TestExchanges checks that every code listing an operating MIC is kept, as
 // where EODHD splits an exchange by segment.
 func TestExchanges(t *testing.T) {
-	tbl := mic.Table{"XKRX": "XKRX", "XKOS": "XKRX", "XNAS": "XNAS", "BATS": "BATS", "XLON": "XLON"}
+	tbl := mic.MICMap{"XKRX": "XKRX", "XKOS": "XKRX", "XNAS": "XNAS", "BATS": "BATS", "XLON": "XLON"}
 	got := exchanges(tbl)
-	want := map[string][]string{"XKRX": {"KO", "KQ"}, "XNAS": {"US"}, "BATS": {"US"}, "XLON": {"LSE"}}
+	want := ExchangeCodeMap{"XKRX": {"KO", "KQ"}, "XNAS": {"US"}, "BATS": {"US"}, "XLON": {"LSE"}}
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("exchanges() mismatch (-want +got):\n%s", diff)
 	}
@@ -180,7 +180,7 @@ func TestFetch(t *testing.T) {
 		filtered types.Identifier
 		// want holds listings the answer must carry, by symbol.
 		want map[string]market.Listing
-		// count is the number of listings. The test MIC table holds a few
+		// count is the number of listings. The test MIC map holds a few
 		// venues, so a listing elsewhere does not convert.
 		count int
 	}{

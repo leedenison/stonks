@@ -50,7 +50,7 @@ var ErrFuture = errors.New("an attestation cannot reach past the day it is made"
 // ticker row, and with the fetch key as provenance. A later answer that
 // states one of them finds that instrument. Record skips an assertion that
 // leaves no identifier to create the instrument with.
-func Record(ctx context.Context, q RecordQueries, mics mic.Table, families currency.Families, keys []market.FetchKey[market.IdentifierEventRequest, market.IdentifierEventResult]) error {
+func Record(ctx context.Context, q RecordQueries, mics mic.MICMap, families currency.Families, keys []market.FetchKey[market.IdentifierEventRequest, market.IdentifierEventResult]) error {
 	for _, k := range keys {
 		if k.Outcome != gen.FetchOutcomeServed {
 			continue
@@ -70,7 +70,7 @@ func Record(ctx context.Context, q RecordQueries, mics mic.Table, families curre
 	return nil
 }
 
-func check(mics mic.Table, r market.IdentifierEventResult) error {
+func check(mics mic.MICMap, r market.IdentifierEventResult) error {
 	var ids []types.Identifier
 	for _, e := range r.Events {
 		ids = append(ids, e.Value)
@@ -94,7 +94,7 @@ func check(mics mic.Table, r market.IdentifierEventResult) error {
 
 // spelled checks that id is a MIC_TICKER of an operating MIC, with its value
 // in the system's spelling or empty for a domain.
-func spelled(mics mic.Table, id types.Identifier) error {
+func spelled(mics mic.MICMap, id types.Identifier) error {
 	if id.Type != types.IdentifierTypeMicTicker {
 		return fmt.Errorf("%s: %w", id.Name(), ErrNotTicker)
 	}
@@ -230,7 +230,7 @@ func create(ctx context.Context, q RecordQueries, family string, key uuid.UUID, 
 // instrument asserts that v names nothing. Attest refuses a run that is not a
 // system attestation run, a value that is not a MIC_TICKER of an operating MIC
 // in the system's spelling, a domain, and a day after today.
-func Attest(ctx context.Context, q RecordQueries, mics mic.Table, run gen.Run, admin uuid.UUID, v types.Identifier, instrument *uuid.UUID, on, today time.Time) error {
+func Attest(ctx context.Context, q RecordQueries, mics mic.MICMap, run gen.Run, admin uuid.UUID, v types.Identifier, instrument *uuid.UUID, on, today time.Time) error {
 	if run.Kind != gen.RunKindAttestation || run.UserID != nil {
 		return fmt.Errorf("run %s is no system attestation run", run.ID)
 	}

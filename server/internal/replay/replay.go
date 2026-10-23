@@ -68,12 +68,12 @@ type Service struct {
 	runs     Runner
 	resolver Resolver
 	sources  Sources
-	mics     mic.Table
+	mics     mic.MICMap
 	log      *slog.Logger
 }
 
 // New returns a Service.
-func New(store Store, runs Runner, resolver Resolver, sources Sources, mics mic.Table, log *slog.Logger) *Service {
+func New(store Store, runs Runner, resolver Resolver, sources Sources, mics mic.MICMap, log *slog.Logger) *Service {
 	return &Service{store: store, runs: runs, resolver: resolver, sources: sources, mics: mics, log: log}
 }
 
@@ -282,7 +282,7 @@ func (s *Service) replayKeys(ctx context.Context, parent gen.Run, user uuid.UUID
 
 // probes writes the probes that find a key stating each identifier: one per
 // venue of its operating MIC, since a statement may name a segment, or one
-// under the domain itself where the table lists no venue of it. A domain
+// under the domain itself where the map lists no venue of it. A domain
 // identifier's probe leaves the value out, so it matches every ticker of the
 // domain.
 func (s *Service) probes(ids []types.Identifier) ([][]byte, error) {

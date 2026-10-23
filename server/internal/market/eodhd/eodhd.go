@@ -24,9 +24,8 @@ var _ market.Identity = (*Client)(nil)
 
 // Client is the EODHD integration.
 type Client struct {
-	mics mic.Table
-	// exchange maps an operating MIC to the EODHD codes that list it.
-	exchange map[string][]string
+	mics     mic.MICMap
+	exchange ExchangeCodeMap
 	prefer   market.Preference
 	http     *http.Client
 	endpoint string
@@ -36,7 +35,7 @@ type Client struct {
 
 // New returns a Client for cfg that sends its requests through h. It fails
 // when cfg lacks a credential or its endpoint is not a URL.
-func New(cfg market.Config, mics mic.Table, h *http.Client) (*Client, error) {
+func New(cfg market.Config, mics mic.MICMap, h *http.Client) (*Client, error) {
 	if cfg.Credential == "" {
 		return nil, errors.New("eodhd needs an API key")
 	}
@@ -56,7 +55,7 @@ func New(cfg market.Config, mics mic.Table, h *http.Client) (*Client, error) {
 
 // Factory returns a market.Factory that builds Clients which normalise
 // venues through mics and send through h.
-func Factory(mics mic.Table, h *http.Client) market.Factory {
+func Factory(mics mic.MICMap, h *http.Client) market.Factory {
 	return market.Factory{
 		Endpoint: endpoint,
 		New: func(cfg market.Config) (market.Integration, error) {

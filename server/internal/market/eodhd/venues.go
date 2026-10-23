@@ -21,12 +21,15 @@ var usVenues = map[string]string{
 	"BATS":      "BATS",
 }
 
-// exchanges maps the operating MIC of each venue EODHD lists to the exchange
-// codes that list it, sorted. Several codes reach one operating MIC where
-// EODHD splits an exchange by segment, as KO and KQ split XKRX. A MIC that
-// mics does not list is skipped.
-func exchanges(mics mic.Table) map[string][]string {
-	out := map[string][]string{}
+// ExchangeCodeMap maps an operating MIC to the EODHD exchange codes that
+// list it, sorted. Several codes reach one operating MIC where EODHD splits
+// an exchange by segment, as KO and KQ split XKRX.
+type ExchangeCodeMap map[string][]string
+
+// exchanges returns the exchange codes of each operating MIC EODHD lists. A
+// MIC that mics does not list is skipped.
+func exchanges(mics mic.MICMap) ExchangeCodeMap {
+	out := ExchangeCodeMap{}
 	add := func(m, code string) {
 		op, ok := mics.Operating(m)
 		if ok && !slices.Contains(out[op], code) {

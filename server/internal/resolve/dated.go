@@ -27,7 +27,7 @@ type eventKey = market.FetchKey[market.IdentifierEventRequest, market.Identifier
 // first venue ticker it states, at its operating MIC. A key that states a
 // stable global identifier is fixed through that identifier instead, and
 // datedValue reports false.
-func datedValue(k gen.StatedKey, mics mic.Table) (types.Identifier, bool) {
+func datedValue(k gen.StatedKey, mics mic.MICMap) (types.Identifier, bool) {
 	for _, id := range k.Identifiers {
 		if id.Stable() && id.IsGlobal() {
 			return types.Identifier{}, false
