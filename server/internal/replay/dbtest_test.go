@@ -7,6 +7,7 @@ import (
 	"errors"
 	"log/slog"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -20,6 +21,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/market"
+	"github.com/leedenison/stonks/server/internal/mic"
 	"github.com/leedenison/stonks/server/internal/resolve"
 	stmt "github.com/leedenison/stonks/server/internal/statement"
 	"github.com/leedenison/stonks/server/internal/testutil/dbtest"
@@ -75,7 +77,9 @@ func newStack(t *testing.T) *stack {
 	resolver := resolve.New(db.New[resolve.Queries](tx), fetcher, s.sources, log)
 	clock := func() time.Time { return time.Date(2026, time.April, 10, 0, 0, 0, 0, time.UTC) }
 	s.statements = stmt.New(db.New[stmt.Queries](tx), runs, resolver, clock)
-	s.svc = New(db.New[Queries](tx), runs, resolver, s.sources)
+	mics, err := mic.Load(ctx, q)
+	require.NoError(t, err)
+	s.svc = New(db.New[Queries](tx), runs, resolver, s.sources, mics, log)
 	return s
 }
 
@@ -266,5 +270,135 @@ func TestReplay(t *testing.T) {
 	}
 	if _, err := s.svc.Start(ctx, s.admin.ID, statement, Scope{Datasource: s.betaName}); !errors.Is(err, ErrEmpty) {
 		t.Errorf("second replay over beta: err = %v, want %v", err, ErrEmpty)
+	}
+}
+
+// stateTicker ingests a statement of user over month of 2026, with one stock
+// row whose key states ticker alone, and returns the statement run and the
+// key. A statement replaces the user's transactions over its period, so each
+// of a user's statements takes a month of its own.
+func (s *stack) stateTicker(t *testing.T, user gen.User, month time.Month, ticker types.Identifier) (gen.Run, gen.StatedKey) {
+	t.Helper()
+	ctx := context.Background()
+	usd := "USD"
+	key := &typev1.StatedKey{
+		Identifiers: []*typev1.Identifier{{Type: typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, Domain: ticker.Domain, Value: ticker.Value}},
+		AssetClass:  typev1.AssetClass_ASSET_CLASS_STOCK, Currency: &usd,
+	}
+	from := time.Date(2026, month, 1, 0, 0, 0, 0, time.UTC)
+	on := from.AddDate(0, 0, 4).Format(time.DateOnly)
+	msg := &statementv1.Statement{
+		Broker: typev1.Broker_BROKER_IBKR, OrderFrom: from.Format(time.DateOnly), OrderBefore: from.AddDate(0, 1, 0).Format(time.DateOnly),
+		Rows: []*statementv1.Row{{Key: key, OrderDate: on, SettlementDate: on, AsAt: on, Quantity: "10"}},
+	}
+	row, err := s.statements.Create(ctx, user.ID, msg)
+	require.NoError(t, err)
+	keys, err := s.q.ListStatedKeys(ctx, gen.ListStatedKeysParams{StatementID: row.ID, UserID: user.ID})
+	require.NoError(t, err)
+	require.Len(t, keys, 1)
+	return row, keys[0]
+}
+
+// replays returns the replay runs below parent, each with the keys its
+// resolution resolved.
+func (s *stack) replays(t *testing.T, parent gen.Run) map[uuid.UUID][]uuid.UUID {
+	t.Helper()
+	ctx := context.Background()
+	rows, err := s.q.ListRunDescendants(ctx, &parent.ID)
+	require.NoError(t, err)
+	out := map[uuid.UUID][]uuid.UUID{}
+	for _, r := range rows {
+		if r.Run.Kind != gen.RunKindResolution {
+			continue
+		}
+		items, err := s.q.ListResolutionItems(ctx, gen.ListResolutionItemsParams{RunID: r.Run.ID})
+		require.NoError(t, err)
+		for _, it := range items {
+			out[*r.Run.ParentID] = append(out[*r.Run.ParentID], it.StatedKey.ID)
+		}
+	}
+	return out
+}
+
+// TestReplayNewIdentifierFacts checks that a fact written beneath a user's
+// fetch run replays that user's unresolved key beneath the fetch run, and
+// another user's beneath one system child of it. A fact of a domain written
+// beneath a system run replays each user's keys stating a ticker of the
+// domain, at any of its venues, directly beneath that run. A key stating a
+// ticker of another domain and the keys the excepted run resolved are left
+// out.
+func TestReplayNewIdentifierFacts(t *testing.T) {
+	s := newStack(t)
+	ctx := context.Background()
+	other, err := s.q.CreateUser(ctx, gen.CreateUserParams{ID: db.NewID(), Email: uuid.NewString() + "@example.com", Role: gen.UserRoleUser})
+	require.NoError(t, err)
+	value := types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "ZZ" + uuid.NewString()[:6]}
+	stated, mine := s.stateTicker(t, s.user, time.January, value)
+	_, theirs := s.stateTicker(t, other, time.January, value)
+	_, segment := s.stateTicker(t, other, time.February, types.Identifier{Type: value.Type, Domain: "XNGS", Value: "ZY" + uuid.NewString()[:6]})
+	_, elsewhere := s.stateTicker(t, other, time.March, types.Identifier{Type: value.Type, Domain: "XNYS", Value: value.Value})
+
+	parent, err := s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &s.user.ID, Kind: gen.RunKindResolution, Trigger: gen.RunTriggerUser})
+	require.NoError(t, err)
+	fetch, err := s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &s.user.ID, Kind: gen.RunKindFetch, Trigger: gen.RunTriggerRun, ParentID: &parent.ID})
+	require.NoError(t, err)
+	written := []resolve.WrittenIdentifierFacts{{Run: fetch, Identifiers: []types.Identifier{value}}}
+	require.NoError(t, s.svc.ReplayNewIdentifierFacts(ctx, gen.Run{ID: db.NewID()}, written))
+
+	tree, err := s.q.ListRunDescendants(ctx, &fetch.ID)
+	require.NoError(t, err)
+	var own, system *gen.Run
+	for _, r := range tree {
+		switch {
+		case r.Run.Kind != gen.RunKindReplay || *r.Run.ParentID != fetch.ID:
+		case r.Run.UserID == nil:
+			system = &r.Run
+		case *r.Run.UserID == s.user.ID:
+			own = &r.Run
+		}
+	}
+	if own == nil || system == nil {
+		t.Fatalf("runs below the fetch = %+v, want the user's replay and a system run", tree)
+	}
+	replayed := s.replays(t, fetch)
+	if got := replayed[own.ID]; len(got) != 1 || got[0] != mine.ID {
+		t.Errorf("the user's replay resolved %v, want %s", got, mine.ID)
+	}
+	var theirsRun uuid.UUID
+	for id, keys := range replayed {
+		if id != own.ID {
+			theirsRun = id
+			if len(keys) != 1 || keys[0] != theirs.ID {
+				t.Errorf("the other user's replay resolved %v, want %s", keys, theirs.ID)
+			}
+		}
+	}
+	other2, err := s.q.GetRun(ctx, gen.GetRunParams{ID: theirsRun, UserID: &other.ID})
+	require.NoError(t, err)
+	if other2.ParentID == nil || *other2.ParentID != system.ID {
+		t.Errorf("the other user's replay = %+v, want it beneath the system run %s", other2, system.ID)
+	}
+
+	attestation, err := s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), Kind: gen.RunKindAttestation, Trigger: gen.RunTriggerAdministrator})
+	require.NoError(t, err)
+	except, _ := s.resolution(t, stated)
+	domain := types.Identifier{Type: value.Type, Domain: "XNAS"}
+	written = []resolve.WrittenIdentifierFacts{{Run: attestation, Identifiers: []types.Identifier{domain}}}
+	require.NoError(t, s.svc.ReplayNewIdentifierFacts(ctx, except, written))
+	replayed = s.replays(t, attestation)
+	var got []uuid.UUID
+	for parent, keys := range replayed {
+		run, err := s.q.GetRun(ctx, gen.GetRunParams{ID: parent, UserID: &other.ID})
+		require.NoError(t, err, "a replay beneath the system run belongs to the other user")
+		if run.ParentID == nil || *run.ParentID != attestation.ID {
+			t.Errorf("replay %+v, want it directly beneath the system run", run)
+		}
+		got = append(got, keys...)
+	}
+	slices.SortFunc(got, func(a, b uuid.UUID) int { return strings.Compare(a.String(), b.String()) })
+	want := []uuid.UUID{theirs.ID, segment.ID}
+	slices.SortFunc(want, func(a, b uuid.UUID) int { return strings.Compare(a.String(), b.String()) })
+	if !slices.Equal(got, want) {
+		t.Errorf("keys replayed for XNAS = %v, want %v: not %s of XNYS, nor %s the excepted run resolved", got, want, elsewhere.ID, mine.ID)
 	}
 }

@@ -35,7 +35,13 @@ func (r Runner) Start(ctx context.Context, spec run.Spec, work run.Work) (gen.Ru
 
 // Child runs work to completion, as a child of parent, before it returns.
 func (r Runner) Child(ctx context.Context, parent gen.Run, kind gen.RunKind, work run.Work) (gen.Run, error) {
-	row, err := r.Q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: parent.UserID, Kind: kind, Trigger: gen.RunTriggerRun, ParentID: &parent.ID})
+	return r.ChildAs(ctx, parent, parent.UserID, kind, work)
+}
+
+// ChildAs runs work to completion, as a child of parent for user, before it
+// returns.
+func (r Runner) ChildAs(ctx context.Context, parent gen.Run, user *uuid.UUID, kind gen.RunKind, work run.Work) (gen.Run, error) {
+	row, err := r.Q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: user, Kind: kind, Trigger: gen.RunTriggerRun, ParentID: &parent.ID})
 	if err != nil {
 		return row, err
 	}

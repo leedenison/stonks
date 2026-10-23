@@ -21,6 +21,7 @@ type Queries interface {
 	ListUnavailableKeys(ctx context.Context, arg gen.ListUnavailableKeysParams) ([]gen.ListUnavailableKeysRow, error)
 	ListKeysUncoveredBy(ctx context.Context, arg gen.ListKeysUncoveredByParams) ([]gen.ListKeysUncoveredByRow, error)
 	CreateReplay(ctx context.Context, arg gen.CreateReplayParams) error
+	ListUnassociatedKeysStating(ctx context.Context, arg gen.ListUnassociatedKeysStatingParams) ([]gen.StatedKey, error)
 	LockUserKeys(ctx context.Context, userID uuid.UUID) error
 }
 
@@ -39,6 +40,7 @@ var _ Store = (*db.DB[Queries])(nil)
 type Runner interface {
 	Start(ctx context.Context, spec run.Spec, work run.Work) (gen.Run, error)
 	Child(ctx context.Context, parent gen.Run, kind gen.RunKind, work run.Work) (gen.Run, error)
+	ChildAs(ctx context.Context, parent gen.Run, user *uuid.UUID, kind gen.RunKind, work run.Work) (gen.Run, error)
 }
 
 var _ Runner = (*run.Runner)(nil)

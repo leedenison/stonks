@@ -167,14 +167,21 @@ func (r *Runner) Start(ctx context.Context, spec Spec, work Work) (gen.Run, erro
 	return row, err
 }
 
-// Child records a run under parent and executes its work inline, returning
-// the work's error. It is safe to call concurrently; a child holds no place
-// in a lane and is not counted in the wait group.
+// Child records a run of parent's user under parent and executes its work
+// inline, returning the work's error. It is safe to call concurrently; a
+// child holds no place in a lane and is not counted in the wait group.
 func (r *Runner) Child(ctx context.Context, parent gen.Run, kind gen.RunKind, work Work) (gen.Run, error) {
+	return r.ChildAs(ctx, parent, parent.UserID, kind, work)
+}
+
+// ChildAs is Child for a run of user, or a system run when user is nil. When
+// user is not the parent's user, the child or the parent must be a system
+// run.
+func (r *Runner) ChildAs(ctx context.Context, parent gen.Run, user *uuid.UUID, kind gen.RunKind, work Work) (gen.Run, error) {
 	if r.ctx.Err() != nil {
 		return gen.Run{}, ErrClosed
 	}
-	row, err := r.store.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: parent.UserID, Kind: kind, Trigger: gen.RunTriggerRun, ParentID: &parent.ID})
+	row, err := r.store.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: user, Kind: kind, Trigger: gen.RunTriggerRun, ParentID: &parent.ID})
 	if err != nil {
 		return gen.Run{}, fmt.Errorf("create run: %w", err)
 	}
