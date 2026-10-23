@@ -1100,8 +1100,8 @@ func TestMergeRefused(t *testing.T) {
 }
 
 // TestConfirmRows checks what a confirmation writes against real rows: the
-// pick's instrument, the user's association on the key and its group, and
-// what later resolutions make of it.
+// pick's instrument, the user's association on the key alone, and what later
+// resolutions and statements make of it.
 func TestConfirmRows(t *testing.T) {
 	s := newStack(t)
 	ctx := context.Background()
@@ -1147,36 +1147,35 @@ func TestConfirmRows(t *testing.T) {
 	for _, row := range ids {
 		via[row.ID] = to.Identifier(row).Name()
 	}
-	for _, id := range []uuid.UUID{key.ID, mate.ID} {
-		k := s.key(t, id)
-		if k.InstrumentID == nil || *k.InstrumentID != inst.ID || k.ListingID == nil || via[*k.ViaID] != "mic_ticker XLON:VOD" || *k.Validity != gen.ValidityProvisional || *k.Arbiter != gen.ArbiterUser || k.GroupID != nil {
-			t.Errorf("key %s = %+v, want the instrument's GBP listing via its venue ticker, provisional, by the user, in no group", id, k)
-		}
+	if k := s.key(t, key.ID); k.InstrumentID == nil || *k.InstrumentID != inst.ID || k.ListingID == nil || via[*k.ViaID] != "mic_ticker XLON:VOD" || *k.Validity != gen.ValidityProvisional || *k.Arbiter != gen.ArbiterUser || k.GroupID != nil {
+		t.Errorf("key = %+v, want the instrument's GBP listing via its venue ticker, provisional, by the user, in no group", k)
+	}
+	if m := s.key(t, mate.ID); m.InstrumentID != nil || m.Arbiter != nil {
+		t.Errorf("the mate = %+v, want it untouched: a choice associates the one key", m)
 	}
 	resolved, err := s.q.ListResolutionKeys(ctx, gen.ListResolutionKeysParams{RunID: s.resolution.ID, UserID: s.user.ID})
 	require.NoError(t, err)
-	if len(resolved) != 2 || resolved[0].Outcome != gen.ResolutionOutcomeMatched || resolved[1].Outcome != gen.ResolutionOutcomeMatched {
-		t.Errorf("resolution keys = %+v, want the key and its mate matched", resolved)
+	if len(resolved) != 1 || resolved[0].StatedKeyID != key.ID || resolved[0].Outcome != gen.ResolutionOutcomeMatched {
+		t.Errorf("resolution keys = %+v, want the key matched alone", resolved)
 	}
 	if _, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: types.IdentifierTypeOpenfigiShareClass, Value: figi2.Value}); !errors.Is(err, db.ErrNotFound) {
 		t.Errorf("FindIdentifier(figi2) error = %v, want not found: the dropped set of identifiers is not stored", err)
 	}
 
-	// A later resolution of the key, under a run of its own, finds nothing
-	// through its description and takes the association of its arbitrated
-	// key. The write leaves that association unchanged.
-	s.resolution, err = s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &s.user.ID, Kind: gen.RunKindResolution, Trigger: gen.RunTriggerRun, ParentID: &s.statement.ID})
-	require.NoError(t, err)
-	fetches := len(s.fetches(t))
+	// A statement that read the key before the confirmation would run its
+	// own resolution of it. That resolution asks the datasource again. A
+	// bare ticker associates only through the user's choice. The run records
+	// the key unrecognised and leaves the user's association in place.
+	s.rerun(t)
 	got := s.resolve(t, key)
-	if written(got[0]) != "matched" {
-		t.Errorf("a later resolution = %s, want matched", written(got[0]))
+	if got[0].Outcome != gen.ResolutionOutcomeUnrecognised || got[0].Offered != 1 {
+		t.Errorf("a later resolution = %s offering %d, want unrecognised with the one candidate offered", written(got[0]), got[0].Offered)
 	}
 	if k := s.key(t, key.ID); *k.Arbiter != gen.ArbiterUser || *k.InstrumentID != inst.ID {
 		t.Errorf("key after a later resolution = %+v, want the user's association", k)
 	}
-	if n := len(s.fetches(t)); n != fetches {
-		t.Errorf("%d fetches after a later resolution, want %d: a key that takes an arbitrated association is not sent", n, fetches)
+	if n := len(s.fetches(t)); n != 1 {
+		t.Errorf("%d fetches in a later resolution, want 1: the key is sent again", n)
 	}
 
 	// A later statement stating the key links to its row, with the

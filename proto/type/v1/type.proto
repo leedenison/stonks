@@ -128,8 +128,7 @@ enum Arbiter {
   ARBITER_DATASOURCE = 2;
   // A guess's rank settled it.
   ARBITER_GUESS = 3;
-  // The user confirmed a candidate, for the key, for a key of its group, or
-  // for an earlier key sharing an identifier with it.
+  // The user confirmed a candidate for the key.
   ARBITER_USER = 4;
 }
 

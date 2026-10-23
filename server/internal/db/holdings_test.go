@@ -359,13 +359,12 @@ func (h holder) group(t *testing.T, q *gen.Queries, keys ...gen.StatedKey) uuid.
 	return keys[0].ID
 }
 
-// TestListGroupHoldings checks that a group sums its keys, that the keys read
-// back carry what they state, and that a zero sum and another user's group
-// are both excluded.
+// TestListGroupHoldings checks that a group sums its keys, and that a zero
+// sum and another user's group are both excluded.
 func TestListGroupHoldings(t *testing.T) {
 	ctx := context.Background()
 
-	t.Run("sums the keys of one group and carries what they state", func(t *testing.T) {
+	t.Run("sums the keys of one group", func(t *testing.T) {
 		q := newTx(t)
 		h := newHolder(t, q, "group@example.com")
 		one := h.key(t, q, "ACME CORP", nil, nil)
@@ -379,14 +378,6 @@ func TestListGroupHoldings(t *testing.T) {
 		want := []gen.ListGroupHoldingsRow{{GroupID: id, Quantity: decimal.RequireFromString("12.5")}}
 		if diff := cmp.Diff(want, got, decimalEqual); diff != "" {
 			t.Errorf("ListGroupHoldings mismatch (-want +got):\n%s", diff)
-		}
-		keys, err := q.ListStatedKeysOfGroups(ctx, gen.ListStatedKeysOfGroupsParams{UserID: h.user.ID, GroupIds: []uuid.UUID{id}})
-		require.NoError(t, err)
-		if len(keys) != 2 {
-			t.Fatalf("ListStatedKeysOfGroups = %d keys, want 2", len(keys))
-		}
-		if want := []types.Identifier{{Type: types.IdentifierTypeBrokerDescription, Domain: "ibkr", Value: "ACME CORP"}}; !slices.Equal(keys[0].Identifiers, want) {
-			t.Errorf("ListStatedKeysOfGroups[0] = %+v, want the ibkr key describing ACME CORP", keys[0])
 		}
 	})
 
@@ -412,7 +403,7 @@ func TestListGroupHoldings(t *testing.T) {
 		mine := a.key(t, q, "ACME CORP", nil, nil)
 		theirs := b.key(t, q, "ACME CORP", nil, nil)
 		id := a.group(t, q, mine)
-		other := b.group(t, q, theirs)
+		b.group(t, q, theirs)
 		a.record(t, q, mine, "10")
 		b.record(t, q, theirs, "7")
 
@@ -421,11 +412,6 @@ func TestListGroupHoldings(t *testing.T) {
 		want := []gen.ListGroupHoldingsRow{{GroupID: id, Quantity: decimal.RequireFromString("10")}}
 		if diff := cmp.Diff(want, got, decimalEqual); diff != "" {
 			t.Errorf("ListGroupHoldings for a mismatch (-want +got):\n%s", diff)
-		}
-		keys, err := q.ListStatedKeysOfGroups(ctx, gen.ListStatedKeysOfGroupsParams{UserID: a.user.ID, GroupIds: []uuid.UUID{other}})
-		require.NoError(t, err)
-		if len(keys) != 0 {
-			t.Errorf("ListStatedKeysOfGroups of another user's group = %+v, want none", keys)
 		}
 	})
 }

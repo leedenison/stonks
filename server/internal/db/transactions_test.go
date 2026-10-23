@@ -208,7 +208,7 @@ func TestStatedKeyAssociation(t *testing.T) {
 		q := newTx(t)
 		user := newUser(t, q, "arbitrated@example.com")
 		statement := newStatement(t, q, user)
-		chosen, plain := newStatedKey(t, q, user, statement), newStatedKey(t, q, user, statement)
+		chosen := newStatedKey(t, q, user, statement)
 		usd, via := cashListing(t, q, "USD")
 		byUser := gen.SetStatedKeyAssociationParams{ID: chosen.ID, UserID: user.ID, InstrumentID: &usd.InstrumentID, ListingID: &usd.ID, ViaID: &via.ID, Validity: ptr.To(gen.ValidityConfirmed), Arbiter: gen.ArbiterUser}
 		n, err := q.SetStatedKeyAssociation(ctx, byUser)
@@ -231,11 +231,6 @@ func TestStatedKeyAssociation(t *testing.T) {
 		}
 		if _, err := q.GetStatedKey(ctx, gen.GetStatedKeyParams{ID: chosen.ID, UserID: db.NewID()}); !errors.Is(err, db.ErrNotFound) {
 			t.Errorf("GetStatedKey as another user: err = %v, want ErrNotFound", err)
-		}
-		arbitrated, err := q.ListUserArbitratedKeys(ctx, user.ID)
-		require.NoError(t, err)
-		if len(arbitrated) != 1 || arbitrated[0].ID != chosen.ID {
-			t.Errorf("ListUserArbitratedKeys = %+v, want the chosen key alone, not %s", arbitrated, plain.ID)
 		}
 	})
 

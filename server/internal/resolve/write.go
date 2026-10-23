@@ -58,9 +58,6 @@ func (r *Resolver) resolveKey(ctx context.Context, q Queries, run gen.Run, res *
 	if res.outcome != "" {
 		return recordResolution(ctx, q, run, res, res.outcome, reasons(res.reason), res.findings, 0)
 	}
-	if res.arbitrated != nil {
-		return copyArbitratedAssociation(ctx, q, run, res)
-	}
 	d, err := decide(ctx, q, res, userChoice)
 	if err != nil {
 		return gen.ResolutionKey{}, nil, err
@@ -76,7 +73,7 @@ func (r *Resolver) resolveKey(ctx context.Context, q Queries, run gen.Run, res *
 	if err != nil {
 		return gen.ResolutionKey{}, nil, err
 	}
-	ok, err := associateKey(ctx, q, run, res, w, v, userChoice)
+	ok, err := associateKey(ctx, res, w, v, userChoice)
 	if err != nil {
 		return gen.ResolutionKey{}, nil, err
 	}
@@ -152,10 +149,10 @@ func writeInstrument(ctx context.Context, q Queries, user uuid.UUID, res *resolu
 	return w, nil
 }
 
-// associateKey associates res with the instrument w wrote. When the user
-// chose, it also gives the key's group the same association. It reports false
-// when no identifier of the key leads to the instrument.
-func associateKey(ctx context.Context, q Queries, run gen.Run, res *resolution, w *writer, v claimVerdict, userChoice consistentClaims) (bool, error) {
+// associateKey associates res with the instrument w wrote, with the arbiter
+// that settled it. It reports false when no identifier of the key leads to
+// the instrument.
+func associateKey(ctx context.Context, res *resolution, w *writer, v claimVerdict, userChoice consistentClaims) (bool, error) {
 	arbiter := gen.ArbiterStated
 	switch {
 	case userChoice != nil:
@@ -163,62 +160,7 @@ func associateKey(ctx context.Context, q Queries, run gen.Run, res *resolution, 
 	case v.winner.fetchKey != nil:
 		arbiter = gen.ArbiterDatasource
 	}
-	var mates []gen.StatedKey
-	if userChoice != nil {
-		var err error
-		if mates, err = lockGroupMates(ctx, q, run, res); err != nil {
-			return false, err
-		}
-	}
-	a, ok, err := w.associate(ctx, res, arbiter)
-	if err != nil || !ok {
-		return ok, err
-	}
-	if a != nil {
-		if err := copyGroupAssociation(ctx, q, run, res, *a, mates); err != nil {
-			return false, err
-		}
-	}
-	return true, nil
-}
-
-// lockGroupMates takes the user's key lock and returns the keys of res's group,
-// read before the association clears the key's group. An upload or a
-// replay recomputes the groups under that lock.
-func lockGroupMates(ctx context.Context, q Queries, run gen.Run, res *resolution) ([]gen.StatedKey, error) {
-	if err := q.LockUserKeys(ctx, *run.UserID); err != nil {
-		return nil, fmt.Errorf("lock keys: %w", err)
-	}
-	fresh, err := q.GetStatedKey(ctx, gen.GetStatedKeyParams{ID: res.row.ID, UserID: *run.UserID})
-	if err != nil {
-		return nil, fmt.Errorf("read key: %w", err)
-	}
-	if fresh.GroupID == nil {
-		return nil, nil
-	}
-	mates, err := q.ListStatedKeysOfGroups(ctx, gen.ListStatedKeysOfGroupsParams{UserID: *run.UserID, GroupIds: []uuid.UUID{*fresh.GroupID}})
-	if err != nil {
-		return nil, fmt.Errorf("list group: %w", err)
-	}
-	return mates, nil
-}
-
-// copyGroupAssociation gives every key of mates but res's own the association
-// a, carried to each, with a matched resolution key of run.
-func copyGroupAssociation(ctx context.Context, q Queries, run gen.Run, res *resolution, a gen.SetStatedKeyAssociationParams, mates []gen.StatedKey) error {
-	for _, k := range mates {
-		if k.ID == res.row.ID {
-			continue
-		}
-		if _, err := q.SetStatedKeyAssociation(ctx, carry(a, res.family, k, res.currencies)); err != nil {
-			return fmt.Errorf("associate key %s: %w", k.ID, err)
-		}
-		arg := gen.CreateResolutionKeyParams{RunID: run.ID, UserID: *run.UserID, StatedKeyID: k.ID, Outcome: gen.ResolutionOutcomeMatched}
-		if _, err := q.CreateResolutionKey(ctx, arg); err != nil {
-			return fmt.Errorf("record resolution of key %s: %w", k.ID, err)
-		}
-	}
-	return nil
+	return w.associate(ctx, res, arbiter)
 }
 
 // identifiersToLock returns the global identifiers and broker descriptions res
@@ -596,31 +538,26 @@ func (w *writer) identify(ctx context.Context, id types.Identifier, listing *uui
 // associate writes the association of res with the instrument, through the
 // identifier via returns and on the listing of the stated family, with
 // arbiter. It reports false when no identifier identifies the instrument.
-// It returns the association written. It returns nil when the user already
-// arbitrated the key's association; the write leaves that association in
-// place.
-func (w *writer) associate(ctx context.Context, res *resolution, arbiter gen.Arbiter) (*gen.SetStatedKeyAssociationParams, bool, error) {
+// When the user already arbitrated the key's association, the update matches
+// zero rows and that association stands.
+func (w *writer) associate(ctx context.Context, res *resolution, arbiter gen.Arbiter) (bool, error) {
 	var listingID *uuid.UUID
 	if l := w.instr.Listing(res.family); l != nil {
 		listingID = &l.ID
 	}
 	via, ok := w.via(res, listingID)
 	if !ok {
-		return nil, false, nil
+		return false, nil
 	}
 	validity := gen.ValidityProvisional
 	if to.Identifier(via).Stable() {
 		validity = gen.ValidityConfirmed
 	}
 	arg := gen.SetStatedKeyAssociationParams{ID: res.row.ID, UserID: w.user, InstrumentID: &w.instr.Row.ID, ListingID: listingID, ViaID: &via.ID, Validity: &validity, Arbiter: arbiter}
-	n, err := w.q.SetStatedKeyAssociation(ctx, arg)
-	if err != nil {
-		return nil, false, fmt.Errorf("associate key: %w", err)
+	if _, err := w.q.SetStatedKeyAssociation(ctx, arg); err != nil {
+		return false, fmt.Errorf("associate key: %w", err)
 	}
-	if n == 0 {
-		return nil, true, nil
-	}
-	return &arg, true, nil
+	return true, nil
 }
 
 // via returns the identifier that carries res's association. That is the

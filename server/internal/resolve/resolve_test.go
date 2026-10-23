@@ -46,10 +46,6 @@ type fixture struct {
 	// write reports it changed.
 	associations []gen.SetStatedKeyAssociationParams
 	rows         int64
-	// arbitrated is the user's keys the user arbitrated, and mates the keys of
-	// a confirmed key's group.
-	arbitrated []gen.StatedKey
-	mates      []gen.StatedKey
 	// stored is the rows that a read of the database by identifier returns.
 	stored []gen.ListInstrumentsByIdentifiersRow
 	// instruments is every instrument created, listings every listing
@@ -71,9 +67,6 @@ func newFixture(t *testing.T, entries ...*market.Entry) *fixture {
 	ctrl := gomock.NewController(t)
 	f := &fixture{t: t, store: NewMockStore(ctrl), fetcher: NewMockFetcher(ctrl), sources: NewMockSources(ctrl), rows: 1}
 	f.store.EXPECT().ListCurrencies(gomock.Any()).Return(currencyRows, nil).AnyTimes()
-	f.store.EXPECT().ListUserArbitratedKeys(gomock.Any(), userID).DoAndReturn(func(context.Context, uuid.UUID) ([]gen.StatedKey, error) {
-		return f.arbitrated, nil
-	}).AnyTimes()
 	f.sources.EXPECT().Enabled().Return(entries).AnyTimes()
 	f.resolver = New(f.store, f.fetcher, f.sources, slog.New(slog.DiscardHandler))
 	return f
@@ -97,17 +90,6 @@ func (f *fixture) records() {
 	f.store.EXPECT().SetStatedKeyAssociation(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.SetStatedKeyAssociationParams) (int64, error) {
 		f.associations = append(f.associations, arg)
 		return f.rows, nil
-	}).AnyTimes()
-	f.store.EXPECT().LockUserKeys(gomock.Any(), userID).Return(nil).AnyTimes()
-	f.store.EXPECT().GetStatedKey(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.GetStatedKeyParams) (gen.StatedKey, error) {
-		k := gen.StatedKey{ID: arg.ID, UserID: arg.UserID}
-		if len(f.mates) > 0 {
-			k.GroupID = &k.ID
-		}
-		return k, nil
-	}).AnyTimes()
-	f.store.EXPECT().ListStatedKeysOfGroups(gomock.Any(), gomock.Any()).DoAndReturn(func(context.Context, gen.ListStatedKeysOfGroupsParams) ([]gen.StatedKey, error) {
-		return f.mates, nil
 	}).AnyTimes()
 	f.store.EXPECT().CreateResolutionKey(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.CreateResolutionKeyParams) (gen.ResolutionKey, error) {
 		f.resolutions++
@@ -554,70 +536,6 @@ func TestArbiter(t *testing.T) {
 	})
 }
 
-// TestArbitratedKey checks that a key sharing a joining identifier with a key
-// the user arbitrated takes its association before any datasource is asked.
-func TestArbitratedKey(t *testing.T) {
-	descr2 := id(types.IdentifierTypeBrokerDescription, "ibkr", "ACME CORP 2")
-	instX, instY := db.NewID(), db.NewID()
-	listing, via := db.NewID(), db.NewID()
-	confirmed := func(instrument uuid.UUID, ids ...types.Identifier) gen.StatedKey {
-		k := keyOf(types.AssetClassStock, "GBP", ids...)
-		k.InstrumentID, k.ListingID, k.ViaID = &instrument, &listing, &via
-		k.Validity, k.Arbiter = ptr.To(gen.ValidityProvisional), ptr.To(gen.ArbiterUser)
-		return k
-	}
-	t.Run("a key stating a confirmed key's description takes its association", func(t *testing.T) {
-		f := newFixture(t, entryA)
-		f.records()
-		f.finds()
-		f.arbitrated = []gen.StatedKey{confirmed(instX, ticker, descr)}
-		got := f.resolve(keyOf(types.AssetClassStock, "GBP", ticker, descr))
-		want := gen.SetStatedKeyAssociationParams{ID: got[0].StatedKeyID, UserID: userID, InstrumentID: &instX, ListingID: &listing, ViaID: &via, Validity: ptr.To(gen.ValidityProvisional), Arbiter: gen.ArbiterUser}
-		if got[0].Outcome != gen.ResolutionOutcomeMatched || len(f.associations) != 1 {
-			t.Fatalf("Resolve = %+v with associations %+v, want matched with one association", got, f.associations)
-		}
-		if diff := cmp.Diff(want, f.associations[0]); diff != "" {
-			t.Errorf("association mismatch (-want +got):\n%s", diff)
-		}
-	})
-	t.Run("a different currency family takes no listing", func(t *testing.T) {
-		f := newFixture(t, entryA)
-		f.records()
-		f.finds()
-		f.arbitrated = []gen.StatedKey{confirmed(instX, ticker, descr)}
-		got := f.resolve(keyOf(types.AssetClassStock, "USD", ticker, descr))
-		if got[0].Outcome != gen.ResolutionOutcomeMatched || len(f.associations) != 1 || f.associations[0].ListingID != nil {
-			t.Errorf("Resolve = %+v with associations %+v, want matched on the instrument with no listing", got, f.associations)
-		}
-	})
-	t.Run("a bare ticker alone joins nothing", func(t *testing.T) {
-		f := newFixture(t, entryA)
-		f.records()
-		f.finds()
-		f.arbitrated = []gen.StatedKey{confirmed(instX, ticker, descr)}
-		f.serves(entryA, fetchKey{ID: db.NewID(), Outcome: gen.FetchOutcomeNotServed, Reason: "no"})
-		got := f.resolve(keyOf(types.AssetClassStock, "GBP", ticker))
-		if got[0].Outcome != gen.ResolutionOutcomeUnrecognised || len(f.associations) != 0 {
-			t.Errorf("Resolve = %+v with associations %+v, want unrecognised after asking the datasource", got, f.associations)
-		}
-	})
-	t.Run("confirmed keys naming different instruments leave the key to the datasources", func(t *testing.T) {
-		f := newFixture(t, entryA)
-		f.records()
-		f.finds()
-		f.arbitrated = []gen.StatedKey{confirmed(instX, ticker, descr), confirmed(instY, ticker, descr2)}
-		f.serves(entryA, fetchKey{ID: db.NewID(), Outcome: gen.FetchOutcomeNotServed, Reason: "no"})
-		got := f.resolve(keyOf(types.AssetClassStock, "GBP", ticker, descr, descr2))
-		if got[0].Outcome != gen.ResolutionOutcomeUnrecognised || len(f.associations) != 0 {
-			t.Errorf("Resolve = %+v with associations %+v, want unrecognised after asking the datasource", got, f.associations)
-		}
-		want := fmt.Sprintf("confirmed keys name different instruments: broker_description ibkr:ACME CORP names %s and broker_description ibkr:ACME CORP 2 names %s", instX, instY)
-		if len(f.findings) != 1 || f.findings[0].Kind != gen.FindingKindContradiction || *f.findings[0].Detail != want {
-			t.Errorf("findings = %+v, want one contradiction naming the two instruments", f.findings)
-		}
-	})
-}
-
 // TestCandidates checks what a synchronous resolution offers for a key.
 func TestCandidates(t *testing.T) {
 	cusip2 := id(types.IdentifierTypeCusip, "", "92857W309")
@@ -807,12 +725,10 @@ func TestCandidates(t *testing.T) {
 }
 
 // TestConfirm checks that a confirmation takes the head of the candidate
-// the pick names as the winner, attaches its members, carries the
-// association to the key's group, lands on an instrument a member
-// identifies, and fails where the answers no longer offer the candidate or
-// it fails a check.
+// the pick names as the winner, attaches its members, associates the one
+// key, lands on an instrument a member identifies, and fails where the
+// answers no longer offer the candidate or it fails a check.
 func TestConfirm(t *testing.T) {
-	gbpMate, usdMate := keyOf(types.AssetClassStock, "GBP", descr), keyOf(types.AssetClassStock, "USD", descr)
 	other := gen.Instrument{ID: db.NewID(), AssetClass: types.AssetClassStock}
 	cusip2 := id(types.IdentifierTypeCusip, "", "92857W309")
 	tests := []struct {
@@ -822,10 +738,6 @@ func TestConfirm(t *testing.T) {
 		// c is served by a third datasource where it is set.
 		c    *fetchKey
 		pick Pick
-		// mates is the key's group, and wantListed whether each mate takes
-		// the listing.
-		mates      []gen.StatedKey
-		wantListed []bool
 		// stored is what the database holds; the confirmation lands on it
 		// where it is set.
 		stored []gen.ListInstrumentsByIdentifiersRow
@@ -838,16 +750,6 @@ func TestConfirm(t *testing.T) {
 		wantClass  types.AssetClass
 		wantFamily string
 	}{
-		{
-			name:         "a mate takes the listing where it states its currency",
-			key:          keyOf(types.AssetClassStock, "GBP", ticker, descr),
-			a:            servedFetchKey(ticker, []types.Identifier{ticker}, listing(types.AssetClassStock, "GBP", figi, xlon)),
-			b:            servedFetchKey(ticker, []types.Identifier{ticker}, listing(types.AssetClassStock, "GBP", figi, isin, xlon)),
-			pick:         Pick{Datasource: "a", Identifier: figi},
-			mates:        []gen.StatedKey{gbpMate, usdMate},
-			wantListed:   []bool{true, false},
-			wantAttached: []string{"a", "b"},
-		},
 		{
 			name:         "a member identifies an instrument, and the confirmation lands on it",
 			key:          keyOf(types.AssetClassStock, "GBP", ticker),
@@ -961,7 +863,7 @@ func TestConfirm(t *testing.T) {
 				entries = append(entries, entryC)
 			}
 			f := newFixture(t, entries...)
-			f.mates, f.stored = tc.mates, tc.stored
+			f.stored = tc.stored
 			f.records()
 			f.finds()
 			f.creates()
@@ -1018,19 +920,11 @@ func TestConfirm(t *testing.T) {
 			if tc.wantFamily != "" && (len(f.listings) == 0 || f.listings[0].Currency != tc.wantFamily) {
 				t.Errorf("listings = %+v, want the first in %s", f.listings, tc.wantFamily)
 			}
-			if len(f.associations) != 1+len(tc.mates) || f.associations[0].ID != tc.key.ID || f.associations[0].Arbiter != gen.ArbiterUser || *f.associations[0].Validity != gen.ValidityProvisional || f.associations[0].ListingID == nil {
-				t.Errorf("associations = %+v, want the key's by the user, provisional through the venue ticker, on the listing, then one per mate", f.associations)
+			if len(f.associations) != 1 || f.associations[0].ID != tc.key.ID || f.associations[0].Arbiter != gen.ArbiterUser || *f.associations[0].Validity != gen.ValidityProvisional || f.associations[0].ListingID == nil {
+				t.Errorf("associations = %+v, want the key's alone, by the user, provisional through the venue ticker, on the listing", f.associations)
 			}
-			for i, m := range tc.mates {
-				if i+1 >= len(f.associations) {
-					break
-				}
-				if a := f.associations[i+1]; a.ID != m.ID || a.InstrumentID == nil || *a.InstrumentID != *f.associations[0].InstrumentID || (a.ListingID != nil) != tc.wantListed[i] || a.Arbiter != gen.ArbiterUser {
-					t.Errorf("mate %d association = %+v, want the key's instrument by the user, listed %t", i, a, tc.wantListed[i])
-				}
-			}
-			if f.resolutions != 1+len(tc.mates) {
-				t.Errorf("wrote %d resolution keys, want one for the key and one per mate", f.resolutions)
+			if f.resolutions != 1 {
+				t.Errorf("wrote %d resolution keys, want one for the key", f.resolutions)
 			}
 			var findings []string
 			for _, w := range f.findings {

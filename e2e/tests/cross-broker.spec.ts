@@ -92,6 +92,8 @@ test("shows a resolved holding and an unresolved one from two brokers", async ({
   expect(tickerKey?.outcome).toBe(ResolutionOutcome.UNRECOGNISED);
   const dollarKey = schwabKeys.find((k) => k !== tickerKey);
   expect(dollarKey?.outcome).toBe(ResolutionOutcome.MATCHED);
+  // The dollar key is the user's, so the IBKR statement lists the same row.
+  expect(ibkrKeys.map((k) => k.statedKeyId)).toContain(dollarKey?.statedKeyId);
 
   // The pages.
   await page.getByTestId("nav-holdings").click();

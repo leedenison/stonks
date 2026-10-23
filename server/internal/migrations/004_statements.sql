@@ -27,8 +27,7 @@ CREATE TYPE validity AS ENUM ('confirmed', 'provisional');
 -- identifiers the key states, read against the database, left one;
 -- 'datasource' where a datasource answered for an identifier the key states
 -- and left one; 'guess' where a guess's rank settled it; 'user' where the
--- user did, by confirming a candidate for the key, for a key of its group,
--- or for an earlier key sharing an identifier with it.
+-- user did, by confirming a candidate for the key.
 CREATE TYPE arbiter AS ENUM ('stated', 'datasource', 'guess', 'user');
 
 -- A stated key is what a user's statements state about an instrument: its
