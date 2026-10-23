@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"slices"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
@@ -17,17 +18,17 @@ import (
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/market"
+	"github.com/leedenison/stonks/server/internal/mic"
 	"github.com/leedenison/stonks/server/internal/ptr"
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
 var (
-	userID       = uuid.MustParse("00000000-0000-0000-0000-000000000001")
-	res          = gen.Run{ID: uuid.MustParse("00000000-0000-0000-0000-000000000002"), UserID: &userID, Kind: gen.RunKindResolution}
-	currencyRows = []gen.Currency{{Code: "EUR", Family: "EUR"}, {Code: "GBP", Family: "GBP"}, {Code: "GBX", Family: "GBP"}, {Code: "USD", Family: "USD"}}
-	entryA       = &market.Entry{Name: "a", Precedence: 10}
-	entryB       = &market.Entry{Name: "b", Precedence: 20}
-	entryC       = &market.Entry{Name: "c", Precedence: 30}
+	userID = uuid.MustParse("00000000-0000-0000-0000-000000000001")
+	res    = gen.Run{ID: uuid.MustParse("00000000-0000-0000-0000-000000000002"), UserID: &userID, Kind: gen.RunKindResolution}
+	entryA = &market.Entry{Name: "a", Precedence: 10}
+	entryB = &market.Entry{Name: "b", Precedence: 20}
+	entryC = &market.Entry{Name: "c", Precedence: 30}
 )
 
 // fixture is a resolver over a store that finds nothing and runs each
@@ -45,6 +46,7 @@ type fixture struct {
 	// associations is every association written, and rows is what each
 	// write reports it changed.
 	associations []gen.SetStatedKeyAssociationParams
+	dated        []gen.SetStatedKeyDatedAssociationParams
 	rows         int64
 	// stored is the rows that a read of the database by identifier returns.
 	stored []gen.ListInstrumentsByIdentifiersRow
@@ -66,9 +68,8 @@ func newFixture(t *testing.T, entries ...*market.Entry) *fixture {
 	t.Helper()
 	ctrl := gomock.NewController(t)
 	f := &fixture{t: t, store: NewMockStore(ctrl), fetcher: NewMockFetcher(ctrl), sources: NewMockSources(ctrl), rows: 1}
-	f.store.EXPECT().ListCurrencies(gomock.Any()).Return(currencyRows, nil).AnyTimes()
 	f.sources.EXPECT().Enabled().Return(entries).AnyTimes()
-	f.resolver = New(f.store, f.fetcher, f.sources, slog.New(slog.DiscardHandler))
+	f.resolver = New(f.store, f.fetcher, f.sources, mic.Table{"XNAS": "XNAS", "XLON": "XLON", "XETR": "XETR"}, cur, func() time.Time { return time.Date(2026, time.March, 2, 15, 30, 0, 0, time.UTC) }, slog.New(slog.DiscardHandler))
 	return f
 }
 
@@ -89,6 +90,10 @@ func (f *fixture) records() {
 	}).AnyTimes()
 	f.store.EXPECT().SetStatedKeyAssociation(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.SetStatedKeyAssociationParams) (int64, error) {
 		f.associations = append(f.associations, arg)
+		return f.rows, nil
+	}).AnyTimes()
+	f.store.EXPECT().SetStatedKeyDatedAssociation(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.SetStatedKeyDatedAssociationParams) (int64, error) {
+		f.dated = append(f.dated, arg)
 		return f.rows, nil
 	}).AnyTimes()
 	f.store.EXPECT().CreateResolutionKey(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.CreateResolutionKeyParams) (gen.ResolutionKey, error) {
@@ -122,6 +127,10 @@ func (f *fixture) finds() {
 	}).AnyTimes()
 	f.store.EXPECT().ListListingsOf(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
 	f.store.EXPECT().ListIdentityCoverage(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
+	f.store.EXPECT().ListValueAssertions(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
+	f.store.EXPECT().ListValueEvents(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
+	f.store.EXPECT().ListValueCoverage(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
+	f.store.EXPECT().ListKeyOrderDates(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
 }
 
 // creates accepts every write of a created instrument.
@@ -140,6 +149,10 @@ func (f *fixture) creates() {
 	}).AnyTimes()
 	f.store.EXPECT().CreateIdentifier(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.CreateIdentifierParams) (gen.Identifier, error) {
 		f.identifiers = append(f.identifiers, arg)
+		return gen.Identifier{ID: arg.ID, InstrumentID: arg.InstrumentID, ListingID: arg.ListingID, Type: arg.Type, Domain: arg.Domain, Value: arg.Value}, nil
+	}).AnyTimes()
+	f.store.EXPECT().PlaceTicker(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.PlaceTickerParams) (gen.Identifier, error) {
+		f.identifiers = append(f.identifiers, gen.CreateIdentifierParams(arg))
 		return gen.Identifier{ID: arg.ID, InstrumentID: arg.InstrumentID, ListingID: arg.ListingID, Type: arg.Type, Domain: arg.Domain, Value: arg.Value}, nil
 	}).AnyTimes()
 	f.store.EXPECT().UpsertIdentityCoverage(gomock.Any(), gomock.Any()).AnyTimes()
@@ -167,7 +180,7 @@ func (f *fixture) serves(e *market.Entry, fetchKeys ...fetchKey) {
 
 func (f *fixture) resolve(keys ...gen.StatedKey) []gen.ResolutionKey {
 	f.t.Helper()
-	out, err := f.resolver.Resolve(context.Background(), res, keys)
+	out, _, err := f.resolver.Resolve(context.Background(), res, undated(keys...))
 	if err != nil {
 		f.t.Fatalf("Resolve() error = %v", err)
 	}
@@ -464,7 +477,7 @@ func TestResolveRetry(t *testing.T) {
 				calls++
 				return err
 			}).Times(tc.calls)
-			_, err := f.resolver.Resolve(context.Background(), res, []gen.StatedKey{keyOf(types.AssetClassStock, "USD", descr)})
+			_, _, err := f.resolver.Resolve(context.Background(), res, undated(keyOf(types.AssetClassStock, "USD", descr)))
 			if (err != nil) != tc.wantErr {
 				t.Errorf("Resolve() error = %v, wantErr %v", err, tc.wantErr)
 			}
@@ -478,7 +491,7 @@ func TestResolveErrors(t *testing.T) {
 	t.Run("lookup", func(t *testing.T) {
 		f := newFixture(t, entryA)
 		f.store.EXPECT().ListInstrumentsByIdentifiers(gomock.Any(), gomock.Any()).Return(nil, boom)
-		if _, err := f.resolver.Resolve(context.Background(), res, []gen.StatedKey{keyOf("", "", isin)}); !errors.Is(err, boom) {
+		if _, _, err := f.resolver.Resolve(context.Background(), res, undated(keyOf("", "", isin))); !errors.Is(err, boom) {
 			t.Errorf("Resolve() error = %v, want %v", err, boom)
 		}
 	})
@@ -486,7 +499,7 @@ func TestResolveErrors(t *testing.T) {
 		f := newFixture(t, entryA)
 		f.store.EXPECT().ListInstrumentsByIdentifiers(gomock.Any(), gomock.Any()).Return(nil, nil)
 		f.fetcher.EXPECT().Identity(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, boom)
-		if _, err := f.resolver.Resolve(context.Background(), res, []gen.StatedKey{keyOf("", "", isin)}); !errors.Is(err, boom) {
+		if _, _, err := f.resolver.Resolve(context.Background(), res, undated(keyOf("", "", isin))); !errors.Is(err, boom) {
 			t.Errorf("Resolve() error = %v, want %v", err, boom)
 		}
 	})
@@ -939,4 +952,13 @@ func TestConfirm(t *testing.T) {
 			}
 		})
 	}
+}
+
+// undated gives each key no order dates beyond those its transactions store.
+func undated(keys ...gen.StatedKey) []KeyOrderDates {
+	out := make([]KeyOrderDates, len(keys))
+	for i, k := range keys {
+		out[i] = KeyOrderDates{Row: k}
+	}
+	return out
 }

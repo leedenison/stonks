@@ -19,10 +19,12 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/require"
 
+	"github.com/leedenison/stonks/server/internal/currency"
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/to"
 	"github.com/leedenison/stonks/server/internal/market"
+	"github.com/leedenison/stonks/server/internal/mic"
 	"github.com/leedenison/stonks/server/internal/testutil/dbtest"
 	"github.com/leedenison/stonks/server/internal/testutil/runtest"
 	"github.com/leedenison/stonks/server/internal/testutil/scripted"
@@ -46,10 +48,14 @@ type stack struct {
 	resolution gen.Run
 	script     *scripted.Identity
 	beta       *scripted.Identity
+	// alphaFacts and betaFacts serve each datasource's identifier events.
+	alphaFacts *scripted.IdentifierEvents
+	betaFacts  *scripted.IdentifierEvents
 	// alphaName and betaName are unique to the test.
 	alphaName string
 	betaName  string
 	sources   *market.Registry
+	mics      mic.Table
 	resolver  *Resolver
 }
 
@@ -59,7 +65,7 @@ func newStack(t *testing.T) *stack {
 	tx := dbtest.Begin(t, pool)
 	var err error
 	q := gen.New(tx)
-	s := &stack{q: q, tx: tx, script: scripted.New(), beta: scripted.New(), alphaName: "alpha-" + uuid.NewString(), betaName: "beta-" + uuid.NewString()}
+	s := &stack{q: q, tx: tx, script: scripted.New(), beta: scripted.New(), alphaFacts: scripted.NewIdentifierEvents(), betaFacts: scripted.NewIdentifierEvents(), alphaName: "alpha-" + uuid.NewString(), betaName: "beta-" + uuid.NewString()}
 	s.user, err = q.CreateUser(ctx, gen.CreateUserParams{ID: db.NewID(), Email: uuid.NewString() + "@example.com", Role: gen.UserRoleUser})
 	require.NoError(t, err)
 	s.statement = s.newStatement(t, gen.BrokerIbkr)
@@ -69,13 +75,21 @@ func newStack(t *testing.T) *stack {
 	require.NoError(t, err)
 	log := slog.New(slog.DiscardHandler)
 	factories := map[string]market.Factory{
-		s.alphaName: market.Factory{New: func(market.Config) (market.Integration, error) { return s.script, nil }},
-		s.betaName:  market.Factory{New: func(market.Config) (market.Integration, error) { return s.beta, nil }},
+		s.alphaName: market.Factory{New: func(market.Config) (market.Integration, error) {
+			return &scripted.Datasource{Identity: s.script, Facts: s.alphaFacts, Since: since}, nil
+		}},
+		s.betaName: market.Factory{New: func(market.Config) (market.Integration, error) {
+			return &scripted.Datasource{Identity: s.beta, Facts: s.betaFacts, Since: since}, nil
+		}},
 	}
 	s.sources, err = market.New(ctx, q, factories, log)
 	require.NoError(t, err)
 	fetcher := market.NewFetcher(db.New[market.Queries](tx), runtest.Runner{Q: q}, log, market.WithClock(func() time.Time { return answered }, sleep))
-	s.resolver = New(db.New[Queries](tx), &serial{Fetcher: fetcher}, s.sources, log)
+	s.mics, err = mic.Load(ctx, q)
+	require.NoError(t, err)
+	families, err := currency.Load(ctx, q)
+	require.NoError(t, err)
+	s.resolver = New(db.New[Queries](tx), &serial{Fetcher: fetcher}, s.sources, s.mics, families, func() time.Time { return answered }, log)
 	return s
 }
 
@@ -119,6 +133,16 @@ func (s *serial) Identity(ctx context.Context, parent gen.Run, e *market.Entry, 
 	defer s.mu.Unlock()
 	return s.Fetcher.Identity(ctx, parent, e, keys)
 }
+
+func (s *serial) IdentifierEvents(ctx context.Context, parent gen.Run, e *market.Entry, reqs []market.IdentifierEventRequest) ([]eventKey, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.Fetcher.IdentifierEvents(ctx, parent, e, reqs)
+}
+
+// since is the first day the stack's datasources answer identifier events
+// for.
+var since = time.Date(2003, time.September, 10, 0, 0, 0, 0, time.UTC)
 
 // newStatement records a statement run of broker and returns the run.
 func (s *stack) newStatement(t *testing.T, broker gen.Broker) gen.Run {
@@ -178,7 +202,7 @@ func (s *stack) stateUnder(t *testing.T, statement gen.Run, class types.AssetCla
 
 func (s *stack) resolve(t *testing.T, keys ...gen.StatedKey) []gen.ResolutionKey {
 	t.Helper()
-	out, err := s.resolver.Resolve(context.Background(), s.resolution, keys)
+	out, _, err := s.resolver.Resolve(context.Background(), s.resolution, undated(keys...))
 	require.NoError(t, err)
 	return out
 }

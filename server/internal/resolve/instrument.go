@@ -5,12 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"time"
 
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/join"
 	"github.com/leedenison/stonks/server/internal/ptr"
 	"github.com/leedenison/stonks/server/internal/types"
+	"github.com/leedenison/stonks/server/internal/validity"
 )
 
 // resolution is one stated key's progress from lookup to outcome.
@@ -20,12 +22,21 @@ type resolution struct {
 	globalAndDescriptionIDs []types.Identifier
 	// family is the family of the currency the key states.
 	family          string
-	currencies      currencies
 	knownInstrument *join.InstrumentWithCoverage
 	fetchKeys       []*fetchKey
 	findings        []gen.CreateFindingParams
 	outcome         gen.ResolutionOutcome
 	reason          string
+	// dating is the validity of the MIC_TICKER value the key may be dated
+	// through: the value its dated association names, or the one datedValue
+	// finds. It is nil for a key that is fixed whatever it resolves to.
+	dating *validity.Ticker
+	// orderDates are the order dates of the key's transactions, stored and
+	// stated.
+	orderDates []time.Time
+	// datedFromFacts reports that prepare dated a key through the facts of
+	// its value, so the write gives it the dated association.
+	datedFromFacts bool
 }
 
 // globalAndDescriptionIDs returns every global identifier and every broker
@@ -65,6 +76,21 @@ func (res *resolution) decide(outcome gen.ResolutionOutcome, format string, args
 	res.outcome, res.reason = outcome, fmt.Sprintf(format, args...)
 }
 
+// lookupIDs returns the identifiers of ids that a lookup in the database may
+// match: every one but a ticker. A ticker row names the instrument its value
+// identifies today. What the value named on another day is read from its
+// validity, so resolution does not match through a ticker row. An option
+// symbol still matches through its row until corporate events are built.
+func lookupIDs(ids []types.Identifier) []types.Identifier {
+	var out []types.Identifier
+	for _, id := range ids {
+		if !id.Ticker() {
+			out = append(out, id)
+		}
+	}
+	return out
+}
+
 // findResolutionInstrument finds the instrument the database names for each
 // of rs and decides the resolutions that never reach a datasource. Every
 // key's identifiers are read in one query.
@@ -72,7 +98,7 @@ func (r *Resolver) findResolutionInstrument(ctx context.Context, rs []*resolutio
 	var ids []types.Identifier
 	for _, res := range rs {
 		if !statesCurrency(res.row) {
-			ids = append(ids, res.globalAndDescriptionIDs...)
+			ids = append(ids, lookupIDs(res.globalAndDescriptionIDs)...)
 		}
 	}
 	matches, err := findInstrumentsByIdentifier(ctx, r.store, ids)
@@ -108,7 +134,7 @@ func statesCurrency(k gen.StatedKey) bool {
 func (res *resolution) match(byID map[types.Identifier]*join.InstrumentWithCoverage) {
 	var first types.Identifier
 	var f *join.InstrumentWithCoverage
-	for _, id := range res.globalAndDescriptionIDs {
+	for _, id := range lookupIDs(res.globalAndDescriptionIDs) {
 		hit, ok := byID[id]
 		switch {
 		case !ok:

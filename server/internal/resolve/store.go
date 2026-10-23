@@ -10,11 +10,16 @@ import (
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/market"
+	"github.com/leedenison/stonks/server/internal/validity"
 )
 
 // Queries is this package's view of the generated queries.
 type Queries interface {
-	ListCurrencies(ctx context.Context) ([]gen.Currency, error)
+	validity.Queries
+	validity.RecordQueries
+	PlaceTicker(ctx context.Context, arg gen.PlaceTickerParams) (gen.Identifier, error)
+	SetStatedKeyDatedAssociation(ctx context.Context, arg gen.SetStatedKeyDatedAssociationParams) (int64, error)
+	ListKeyOrderDates(ctx context.Context, arg gen.ListKeyOrderDatesParams) ([]gen.ListKeyOrderDatesRow, error)
 	FindIdentifier(ctx context.Context, arg gen.FindIdentifierParams) (gen.FindIdentifierRow, error)
 	ListInstrumentsByIdentifiers(ctx context.Context, arg gen.ListInstrumentsByIdentifiersParams) ([]gen.ListInstrumentsByIdentifiersRow, error)
 	ListIdentifiersOf(ctx context.Context, ids []uuid.UUID) ([]gen.Identifier, error)
@@ -64,6 +69,7 @@ var _ Sources = (*market.Registry)(nil)
 // Fetcher is this package's view of the fetch framework.
 type Fetcher interface {
 	Identity(ctx context.Context, parent gen.Run, e *market.Entry, keys []gen.StatedKey) ([]fetchKey, error)
+	IdentifierEvents(ctx context.Context, parent gen.Run, e *market.Entry, reqs []market.IdentifierEventRequest) ([]eventKey, error)
 }
 
 var _ Fetcher = (*market.Fetcher)(nil)

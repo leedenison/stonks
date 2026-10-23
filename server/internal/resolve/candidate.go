@@ -89,11 +89,11 @@ var ErrNoCandidate = errors.New("the answers no longer offer the candidate")
 // US stock its candidate stands apart from OpenFIGI's. The datasource of the
 // candidate the user confirms supplies the instrument.
 func (r *Resolver) Candidates(ctx context.Context, run gen.Run, key gen.StatedKey) (Offer, error) {
-	rs, err := r.prepare(ctx, run, []gen.StatedKey{key})
+	b, err := r.prepare(ctx, run, []KeyOrderDates{{Row: key}}, false)
 	if err != nil {
 		return Offer{}, err
 	}
-	res := rs[0]
+	res := b.resolutions[0]
 	var o Offer
 	if res.outcome != "" {
 		o.Reasons = reasons(res.reason)
@@ -150,11 +150,11 @@ func offeredClaims(res *resolution) ([]*identityClaim, []gen.CreateFindingParams
 // candidates again, so answers that changed since Candidates decide what it
 // writes. The choice associates key alone.
 func (r *Resolver) Confirm(ctx context.Context, run gen.Run, key gen.StatedKey, p Pick) (gen.ResolutionKey, error) {
-	rs, err := r.prepare(ctx, run, []gen.StatedKey{key})
+	b, err := r.prepare(ctx, run, []KeyOrderDates{{Row: key}}, false)
 	if err != nil {
 		return gen.ResolutionKey{}, err
 	}
-	res := rs[0]
+	res := b.resolutions[0]
 	if res.outcome != "" {
 		return gen.ResolutionKey{}, fmt.Errorf("%w: %s", ErrNoCandidate, res.reason)
 	}

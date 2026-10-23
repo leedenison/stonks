@@ -15,6 +15,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/market"
+	"github.com/leedenison/stonks/server/internal/resolve"
 	"github.com/leedenison/stonks/server/internal/run"
 	"github.com/leedenison/stonks/server/internal/types"
 )
@@ -97,9 +98,12 @@ func newFixture(t *testing.T) *fixture {
 	}).AnyTimes()
 	f.store.EXPECT().ListGroupableKeys(gomock.Any(), userID).Return(nil, nil).AnyTimes()
 	f.store.EXPECT().ClearStatedKeyGroups(gomock.Any(), userID).Return(nil).AnyTimes()
-	f.resolver.EXPECT().Resolve(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, res gen.Run, keys []gen.StatedKey) ([]gen.ResolutionKey, error) {
-		f.resolution, f.resolved = res, keys
-		return nil, f.resolveErr
+	f.resolver.EXPECT().Resolve(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, res gen.Run, keys []resolve.KeyOrderDates) ([]gen.ResolutionKey, []resolve.WrittenIdentifierFacts, error) {
+		f.resolution = res
+		for _, k := range keys {
+			f.resolved = append(f.resolved, k.Row)
+		}
+		return nil, nil, f.resolveErr
 	}).AnyTimes()
 	f.runs.EXPECT().Start(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, spec run.Spec, work run.Work) (gen.Run, error) {
 		f.spec, f.started = spec, true

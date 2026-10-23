@@ -18,6 +18,7 @@ import (
 
 	statementv1 "github.com/leedenison/stonks/proto/statement/v1"
 	typev1 "github.com/leedenison/stonks/proto/type/v1"
+	"github.com/leedenison/stonks/server/internal/currency"
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/market"
@@ -74,11 +75,13 @@ func newStack(t *testing.T) *stack {
 	require.NoError(t, err)
 	runs := runtest.Runner{Q: q}
 	fetcher := market.NewFetcher(db.New[market.Queries](tx), runs, log)
-	resolver := resolve.New(db.New[resolve.Queries](tx), fetcher, s.sources, log)
 	clock := func() time.Time { return time.Date(2026, time.April, 10, 0, 0, 0, 0, time.UTC) }
-	s.statements = stmt.New(db.New[stmt.Queries](tx), runs, resolver, clock)
 	mics, err := mic.Load(ctx, q)
 	require.NoError(t, err)
+	families, err := currency.Load(ctx, q)
+	require.NoError(t, err)
+	resolver := resolve.New(db.New[resolve.Queries](tx), fetcher, s.sources, mics, families, clock, log)
+	s.statements = stmt.New(db.New[stmt.Queries](tx), runs, resolver, families, clock)
 	s.svc = New(db.New[Queries](tx), runs, resolver, s.sources, mics, log)
 	return s
 }

@@ -15,7 +15,7 @@ import (
 // precedence order, and whether a datasource serves a key is the
 // datasource's to say. It replaces the currency of every listing it returns
 // with the currency's family.
-func (r *Resolver) fetchResolutionIdentities(ctx context.Context, run gen.Run, resolutions []*resolution, cur currencies) error {
+func (r *Resolver) fetchResolutionIdentities(ctx context.Context, run gen.Run, resolutions []*resolution) error {
 	entries := r.sources.Enabled()
 	batches := make([][]*resolution, len(entries))
 	for _, res := range resolutions {
@@ -53,7 +53,7 @@ func (r *Resolver) fetchResolutionIdentities(ctx context.Context, run gen.Run, r
 	for _, fks := range fetchKeys {
 		for j := range fks {
 			for k, c := range fks[j].Response.Listings {
-				fks[j].Response.Listings[k].Currency = cur[c.Currency]
+				fks[j].Response.Listings[k].Currency = r.families.Family(c.Currency)
 			}
 		}
 	}

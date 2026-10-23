@@ -6,7 +6,7 @@
 // statement is recorded, and resolution and the write follow; see
 // [run.go](../run/run.go). A stated key is the user's: one row per asset
 // class, currency and set of identifiers, linked to each statement that
-// states it. A statement resolves only the keys it states that have no
+// states it. A statement resolves only the keys it states that lack a fixed
 // association, each once, however many rows state it; see
 // [resolve.go](../resolve/resolve.go). After a write, every key of the user
 // has a transaction or a link to a statement.
@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -27,8 +28,10 @@ import (
 	"github.com/shopspring/decimal"
 
 	statementv1 "github.com/leedenison/stonks/proto/statement/v1"
+	"github.com/leedenison/stonks/server/internal/currency"
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/resolve"
 	"github.com/leedenison/stonks/server/internal/run"
 	"github.com/leedenison/stonks/server/internal/types"
 )
@@ -41,12 +44,14 @@ type Service struct {
 	store    Store
 	runs     Runner
 	resolver Resolver
+	families currency.Families
 	clock    func() time.Time
 }
 
-// New returns a Service. clock supplies today for the order date check.
-func New(store Store, runs Runner, resolver Resolver, clock func() time.Time) *Service {
-	return &Service{store: store, runs: runs, resolver: resolver, clock: clock}
+// New returns a Service. families holds the currencies a statement may
+// state, and clock supplies today for the order date check.
+func New(store Store, runs Runner, resolver Resolver, families currency.Families, clock func() time.Time) *Service {
+	return &Service{store: store, runs: runs, resolver: resolver, families: families, clock: clock}
 }
 
 // Create validates msg, starts its run and responds with the pending row.
@@ -66,22 +71,14 @@ func (s *Service) Create(ctx context.Context, userID uuid.UUID, msg *statementv1
 	if !from.Before(before) {
 		return gen.Run{}, fmt.Errorf("%w: period [%s, %s) is empty", ErrInvalid, msg.GetOrderFrom(), msg.GetOrderBefore())
 	}
-	rows, err := s.store.ListCurrencies(ctx)
-	if err != nil {
-		return gen.Run{}, fmt.Errorf("list currencies: %w", err)
-	}
-	currencies := make(map[string]bool, len(rows))
-	for _, c := range rows {
-		currencies[c.Code] = true
-	}
 	now := s.clock().UTC()
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
 	g := &ingestion{store: s.store, runs: s.runs, resolver: s.resolver, user: userID, broker: broker, from: from, before: before, keys: map[string]*key{}}
 	for i, r := range msg.GetRows() {
-		g.rows = append(g.rows, g.validate(int32(i), r, today, currencies))
+		g.rows = append(g.rows, g.validate(int32(i), r, today, s.families))
 	}
 	for i, sp := range msg.GetSplits() {
-		split, err := g.split(int32(i), sp, currencies)
+		split, err := g.split(int32(i), sp, s.families)
 		if err != nil {
 			return gen.Run{}, fmt.Errorf("%w: split %d: %w", ErrInvalid, i, err)
 		}
@@ -223,17 +220,25 @@ func (g *ingestion) work(ctx context.Context, run gen.Run) error {
 	return g.write(ctx, run)
 }
 
-// resolve resolves the keys that have no association as a child run and
-// takes each outcome onto its key. When an earlier statement of the user
-// associated a key, resolve leaves it as it is and accepts its rows.
+// resolve resolves the keys that have no instrument as a child run, each with
+// the order dates of its rows, and takes each outcome onto its key. A dated
+// key is resolved again, since its new dates may need facts the system lacks.
+// When an earlier statement of the user gave a key a fixed association,
+// resolve leaves it as it is and accepts its rows.
 func (g *ingestion) resolve(ctx context.Context, res gen.Run) error {
-	var rows []gen.StatedKey
-	for _, k := range g.order {
-		if k.row.InstrumentID == nil {
-			rows = append(rows, k.row)
+	dates := map[*key][]time.Time{}
+	for _, r := range g.rows {
+		if r.key != nil && !slices.ContainsFunc(dates[r.key], r.order.Equal) {
+			dates[r.key] = append(dates[r.key], r.order)
 		}
 	}
-	out, err := g.resolver.Resolve(ctx, res, rows)
+	var keys []resolve.KeyOrderDates
+	for _, k := range g.order {
+		if k.row.InstrumentID == nil {
+			keys = append(keys, resolve.KeyOrderDates{Row: k.row, Dates: dates[k]})
+		}
+	}
+	out, _, err := g.resolver.Resolve(ctx, res, keys)
 	if err != nil {
 		return err
 	}

@@ -67,7 +67,7 @@ func merge(ctx context.Context, q Queries, res *resolution, fetchKeyID *uuid.UUI
 // the others apart with a contradiction finding that carries detail.
 func refuse(res *resolution, fetchKeyID *uuid.UUID, matches []instrumentMatch, detail string) writeTarget {
 	kept := matches[0]
-	for _, id := range res.globalAndDescriptionIDs {
+	for _, id := range lookupIDs(res.globalAndDescriptionIDs) {
 		if i := slices.IndexFunc(matches, func(h instrumentMatch) bool { return slices.Contains(h.matched, id) }); i >= 0 {
 			kept = matches[i]
 			break

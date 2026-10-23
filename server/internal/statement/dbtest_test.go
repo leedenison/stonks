@@ -18,9 +18,11 @@ import (
 
 	statementv1 "github.com/leedenison/stonks/proto/statement/v1"
 	typev1 "github.com/leedenison/stonks/proto/type/v1"
+	"github.com/leedenison/stonks/server/internal/currency"
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/market"
+	"github.com/leedenison/stonks/server/internal/mic"
 	"github.com/leedenison/stonks/server/internal/resolve"
 	"github.com/leedenison/stonks/server/internal/testutil/dbtest"
 	"github.com/leedenison/stonks/server/internal/testutil/runtest"
@@ -64,8 +66,12 @@ func newStack(t *testing.T) stack {
 	sources, err := market.New(ctx, q, factories, log)
 	require.NoError(t, err)
 	runs := runtest.Runner{Q: q}
-	resolver := resolve.New(db.New[resolve.Queries](tx), market.NewFetcher(db.New[market.Queries](tx), runs, log), sources, log)
-	return stack{q: q, tx: tx, svc: New(db.New[Queries](tx), runs, resolver, clock), user: user, alpha: alpha, alphaName: name}
+	mics, err := mic.Load(ctx, q)
+	require.NoError(t, err)
+	families, err := currency.Load(ctx, q)
+	require.NoError(t, err)
+	resolver := resolve.New(db.New[resolve.Queries](tx), market.NewFetcher(db.New[market.Queries](tx), runs, log), sources, mics, families, clock, log)
+	return stack{q: q, tx: tx, svc: New(db.New[Queries](tx), runs, resolver, families, clock), user: user, alpha: alpha, alphaName: name}
 }
 
 func (s stack) ingest(t *testing.T, msg *statementv1.Statement) gen.Run {
