@@ -18,7 +18,6 @@ grouping is unchanged.
 A value names nothing on a day only after a retirement or a negative assertion with no
 later holder, or before an `assigned` event inside coverage. Before a value's first
 assertion, validity extends back provisionally, so an old transaction is provisional
-rather than unresolved. A user resolves an unresolved transaction by choosing an
-instrument for its key, which pins the key as
-[017](017-a-users-choice-pins-the-whole-key-for-now.md) states, or an administrator
-attests the value on that day.
+rather than unresolved. An administrator resolves an unresolved transaction by attesting
+the value on that day. A dated key refuses a user's choice, as
+[017](017-a-users-choice-pins-an-unassociated-key.md) states.

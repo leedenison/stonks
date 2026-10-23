@@ -31,13 +31,13 @@ of open issues and ADRs at `docs/tasks/<label>/`.
         012 user keys      010 descriptions
               |                  |
          005 resolve             |
-       /    |    \     \         |
-006 reassert | 013 holdings 011 choice
-      |      |         |      |  |
-      | 007 statement  |      |  |
-      |      |         |      |  |
-      |  009 coverage  |      |  |
-       \     |        /      /  /
+       /    |    \               |
+006 reassert | 013 holdings      |
+      |      |         |         |
+      | 007 statement  |         |
+      |      |         |         |
+      |  009 coverage  |         |
+       \     |        /         /
                  008 close
 ```
 
@@ -66,7 +66,7 @@ Each has a note in `docs/deferred` outlining how it might work.
 - **D-DATASRC** - [Datasources](deferred/datasources.md); identifier events, corporate events, prices and FX rates.
 - **D-RUNS** - [Runs](deferred/runs.md); replays that an event or new coverage causes, the schedule trigger, and running on more than one process.
 - **D-COMPANY** - [Companies](deferred/companies.md); issuers identified by CIK and LEI, and the instruments they issue.
-- **D-ANNOT** - [Annotations](deferred/annotations.md); what a user records against their own keys: pins, groupings, prices and keys made by hand.
+- **D-ANNOT** - [Annotations](deferred/annotations.md); what a user records against their own keys: choices of instrument, groupings, prices and keys made by hand, and working on that data alone where no datasource covers a holding.
 - **D-DEPLOY** - [Production deployment](deferred/production-deployment.md); TLS, cross-origin access and what each container publishes.
 
 ## Spike
