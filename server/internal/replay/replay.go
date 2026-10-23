@@ -183,7 +183,11 @@ func (r *replay) work(ctx context.Context, run gen.Run) error {
 }
 
 func (r *replay) resolve(ctx context.Context, res gen.Run) error {
-	_, err := r.resolver.Resolve(ctx, res, r.keys)
+	keys := make([]resolve.KeyOrderDates, len(r.keys))
+	for i, k := range r.keys {
+		keys[i] = resolve.KeyOrderDates{Row: k}
+	}
+	_, _, err := r.resolver.Resolve(ctx, res, keys)
 	return err
 }
 

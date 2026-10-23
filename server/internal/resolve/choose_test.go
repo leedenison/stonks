@@ -8,6 +8,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
 
+	"github.com/leedenison/stonks/server/internal/currency"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/ptr"
@@ -23,7 +24,7 @@ func listing(class types.AssetClass, currency string, ids ...types.Identifier) m
 }
 
 // cur maps GBX to GBP and every other code to itself.
-var cur = currencies{"EUR": "EUR", "GBP": "GBP", "GBX": "GBP", "USD": "USD"}
+var cur = currency.Families{"EUR": "EUR", "GBP": "GBP", "GBX": "GBP", "USD": "USD"}
 
 var (
 	isin   = id(types.IdentifierTypeIsin, "", "GB00BH4HKS39")
@@ -403,7 +404,7 @@ func TestChoose(t *testing.T) {
 			if tc.want.notNaming == nil {
 				tc.want.notNaming = map[string]int{}
 			}
-			got := describe(choose(&resolution{row: tc.k, fetchKeys: tc.fetchKeys, family: cur.family(tc.k)}, tc.known, nil), source)
+			got := describe(choose(&resolution{row: tc.k, fetchKeys: tc.fetchKeys, family: keyFamily(cur, tc.k)}, tc.known, nil), source)
 			if diff := cmp.Diff(tc.want, got, cmp.AllowUnexported(outcome{})); diff != "" {
 				t.Errorf("choose mismatch (-want +got):\n%s", diff)
 			}
@@ -524,7 +525,7 @@ func TestChooseUserChoice(t *testing.T) {
 			if tc.want.notNaming == nil {
 				tc.want.notNaming = map[string]int{}
 			}
-			res := &resolution{row: tc.k, fetchKeys: tc.fetchKeys, family: cur.family(tc.k)}
+			res := &resolution{row: tc.k, fetchKeys: tc.fetchKeys, family: keyFamily(cur, tc.k)}
 			var userChoice consistentClaims
 			for _, p := range tc.userChoice {
 				userChoice = append(userChoice, claims(tc.fetchKeys[p[0]])[p[1]])
@@ -596,7 +597,7 @@ func TestGather(t *testing.T) {
 			for i, fk := range tc.fetchKeys {
 				fk.ID = uuid.UUID{byte(i + 1)}
 			}
-			res := &resolution{row: tc.k, fetchKeys: tc.fetchKeys, family: cur.family(tc.k)}
+			res := &resolution{row: tc.k, fetchKeys: tc.fetchKeys, family: keyFamily(cur, tc.k)}
 			cs, _, _ := offeredClaims(res)
 			var got [][]string
 			for _, a := range gatherConsistentClaims(res, cs) {

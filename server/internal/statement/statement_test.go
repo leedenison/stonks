@@ -14,8 +14,11 @@ import (
 
 	statementv1 "github.com/leedenison/stonks/proto/statement/v1"
 	typev1 "github.com/leedenison/stonks/proto/type/v1"
+	"github.com/leedenison/stonks/server/internal/currency"
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/ptr"
+	"github.com/leedenison/stonks/server/internal/resolve"
 	"github.com/leedenison/stonks/server/internal/run"
 	"github.com/leedenison/stonks/server/internal/types"
 )
@@ -30,9 +33,9 @@ var (
 	until = time.Date(2026, time.April, 1, 0, 0, 0, 0, time.UTC)
 )
 
-// currencies is the vocabulary the fixture's store lists, with GBX in the GBP
-// family.
-var currencies = []gen.Currency{{Code: "EUR", Family: "EUR"}, {Code: "GBP", Family: "GBP"}, {Code: "GBX", Family: "GBP"}, {Code: "USD", Family: "USD"}}
+// families is the currency vocabulary the fixture passes in, with GBX in the
+// GBP family.
+var families = currency.Families{"EUR": "EUR", "GBP": "GBP", "GBX": "GBP", "USD": "USD"}
 
 func ident(t typev1.IdentifierType, value, domain string) *typev1.Identifier {
 	return &typev1.Identifier{Type: t, Value: value, Domain: domain}
@@ -74,6 +77,8 @@ type fixture struct {
 	// unrecognised by default, and resolveErr is its error.
 	outcomes   func(keys []gen.StatedKey) []gen.ResolutionKey
 	resolveErr error
+	// dates holds every key the resolver was sent, with its order dates.
+	dates []resolve.KeyOrderDates
 	// calls names the regroup, the sweep and the completion in the order
 	// the write made them.
 	calls []string
@@ -94,14 +99,18 @@ func newFixture(t *testing.T) *fixture {
 		}
 		return out
 	}
-	f.resolver.EXPECT().Resolve(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, _ gen.Run, keys []gen.StatedKey) ([]gen.ResolutionKey, error) {
+	f.resolver.EXPECT().Resolve(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, _ gen.Run, keys []resolve.KeyOrderDates) ([]gen.ResolutionKey, []resolve.WrittenIdentifierFacts, error) {
 		if f.resolveErr != nil {
-			return nil, f.resolveErr
+			return nil, nil, f.resolveErr
 		}
-		return f.outcomes(keys), nil
+		rows := make([]gen.StatedKey, len(keys))
+		for i, k := range keys {
+			rows[i] = k.Row
+		}
+		f.dates = append(f.dates, keys...)
+		return f.outcomes(rows), nil, nil
 	}).AnyTimes()
 	f.store.EXPECT().Tx(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, fn func(Queries) error) error { return fn(f.store) }).AnyTimes()
-	f.store.EXPECT().ListCurrencies(gomock.Any()).Return(currencies, nil).AnyTimes()
 	f.store.EXPECT().LockUserKeys(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 	f.store.EXPECT().ListGroupableKeys(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
 	f.store.EXPECT().ClearStatedKeyGroups(gomock.Any(), gomock.Any()).DoAndReturn(func(context.Context, uuid.UUID) error {
@@ -123,7 +132,7 @@ func newFixture(t *testing.T) *fixture {
 		row := gen.Run{ID: db.NewID(), UserID: parent.UserID, Kind: kind, Trigger: gen.RunTriggerRun, ParentID: &parent.ID}
 		return row, work(ctx, row)
 	}).AnyTimes()
-	f.svc = New(f.store, f.runs, f.resolver, clock)
+	f.svc = New(f.store, f.runs, f.resolver, families, clock)
 	return f
 }
 
@@ -219,7 +228,7 @@ func TestValidate(t *testing.T) {
 			_, g := newIngestion(t)
 			// The period runs past today so the after-today check is reached.
 			g.before = time.Date(2026, time.May, 1, 0, 0, 0, 0, time.UTC)
-			got := g.validate(3, tc.row, today, map[string]bool{"USD": true, "EUR": true})
+			got := g.validate(3, tc.row, today, currency.Families{"USD": "USD", "EUR": "EUR"})
 			if got.reason != tc.want {
 				t.Errorf("validate(%s) reason = %q, want %q", tc.name, got.reason, tc.want)
 			}
@@ -254,8 +263,8 @@ func TestKeyForm(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			_, g := newIngestion(t)
-			a := g.validate(0, rowMsg(tc.a, "2026-03-05", "1"), today, map[string]bool{"USD": true})
-			b := g.validate(1, rowMsg(tc.b, "2026-03-05", "1"), today, map[string]bool{"USD": true})
+			a := g.validate(0, rowMsg(tc.a, "2026-03-05", "1"), today, currency.Families{"USD": "USD"})
+			b := g.validate(1, rowMsg(tc.b, "2026-03-05", "1"), today, currency.Families{"USD": "USD"})
 			if a.reason != "" || b.reason != "" {
 				t.Fatalf("validate rejected %q / %q", a.reason, b.reason)
 			}
@@ -265,7 +274,7 @@ func TestKeyForm(t *testing.T) {
 		})
 	}
 	_, g := newIngestion(t)
-	got := g.validate(0, rowMsg(securityKey("A", typev1.AssetClass_ASSET_CLASS_STOCK, &usd, mic("Y", "XNYS"), ident(typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, "US1", ""), mic("X", "")), "2026-03-05", "1"), today, map[string]bool{"USD": true})
+	got := g.validate(0, rowMsg(securityKey("A", typev1.AssetClass_ASSET_CLASS_STOCK, &usd, mic("Y", "XNYS"), ident(typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, "US1", ""), mic("X", "")), "2026-03-05", "1"), today, currency.Families{"USD": "USD"})
 	want := []types.Identifier{{Type: "broker_description", Domain: "ibkr", Value: "A"}, {Type: "isin", Value: "US1"}, {Type: "mic_ticker", Value: "X"}, {Type: "mic_ticker", Domain: "XNYS", Value: "Y"}}
 	if diff := cmp.Diff(want, got.key.identifiers); diff != "" {
 		t.Errorf("identifiers order mismatch (-want +got):\n%s", diff)
@@ -414,6 +423,51 @@ func TestResolvesUnassociated(t *testing.T) {
 				t.Errorf("transactions = %+v, want both rows kept", transactions)
 			}
 		})
+	}
+}
+
+// TestResolvesWithDates checks that a dated key is sent again with the
+// distinct order dates of its rows, leaving out a row validation rejected,
+// and that a key with a fixed association is not sent.
+func TestResolvesWithDates(t *testing.T) {
+	f := newFixture(t)
+	usd := "USD"
+	dated := securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, "ACME", "XNAS"))
+	fixed := securityKey("BETA", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, "US0378331006", ""))
+	instrument := db.NewID()
+	f.store.EXPECT().CreateStatement(gomock.Any(), gomock.Any()).Return(gen.Statement{}, nil)
+	f.store.EXPECT().UpsertStatedKey(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.UpsertStatedKeyParams) (gen.StatedKey, error) {
+		row := gen.StatedKey{ID: arg.ID, Identifiers: arg.Identifiers}
+		if described(row, "ACME") {
+			row.ViaType, row.ViaDomain, row.ViaValue = ptr.To(types.IdentifierTypeMicTicker), ptr.To("XNAS"), ptr.To("ACME")
+		} else {
+			row.InstrumentID = &instrument
+		}
+		return row, nil
+	}).Times(2)
+	f.store.EXPECT().CreateStatementKeys(gomock.Any(), gomock.Any()).Return(int64(2), nil)
+	f.store.EXPECT().DeleteTransactions(gomock.Any(), gomock.Any()).Return(int64(0), nil)
+	f.store.EXPECT().CreateTransactions(gomock.Any(), gomock.Any()).Return(int64(3), nil)
+	f.store.EXPECT().CreateStatementItems(gomock.Any(), gomock.Any()).Return(int64(1), nil)
+	f.store.EXPECT().SweepStatedKeys(gomock.Any(), userID).Return(int64(0), nil)
+	f.store.EXPECT().CompleteRun(gomock.Any(), gomock.Any()).Return(nil)
+	msg := &statementv1.Statement{Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01",
+		Rows: []*statementv1.Row{
+			rowMsg(dated, "2026-03-07", "1"), rowMsg(dated, "2026-03-05", "2"), rowMsg(dated, "2026-03-07", "3"),
+			rowMsg(dated, "2026-03-09", "many"), rowMsg(fixed, "2026-03-06", "4"),
+		}}
+	if _, err := f.svc.Create(context.Background(), userID, msg); err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	if f.workErr != nil {
+		t.Fatalf("work error = %v", f.workErr)
+	}
+	if len(f.dates) != 1 || !described(f.dates[0].Row, "ACME") {
+		t.Fatalf("Resolve received %+v, want the dated key alone", f.dates)
+	}
+	want := []time.Time{time.Date(2026, 3, 7, 0, 0, 0, 0, time.UTC), time.Date(2026, 3, 5, 0, 0, 0, 0, time.UTC)}
+	if diff := cmp.Diff(want, f.dates[0].Dates); diff != "" {
+		t.Errorf("order dates sent mismatch (-want +got):\n%s", diff)
 	}
 }
 

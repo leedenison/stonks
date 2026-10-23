@@ -13,6 +13,14 @@
 // user's keys: a confirmation associates the one key. Two runs stating one
 // key produce one instrument, however they interleave; see write.go.
 //
+// A key that states a venue ticker without a stable identifier is dated: it
+// names the ticker's value, and each of its transactions takes the
+// instrument the value's validity names on its order date when it is read;
+// see [validity.go](../validity/validity.go). Where the value has facts, the
+// key is dated through them without an identity fetch. Identifier events are
+// fetched for the keys that may be dated, and recorded after the keys are
+// written.
+//
 // A synchronous resolution runs in the caller for one key the user is
 // confirming. It shares its lookups and its fetches with a resolution run;
 // see Candidates and Confirm.
@@ -26,81 +34,100 @@ package resolve
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
+	"time"
 
+	"github.com/leedenison/stonks/server/internal/currency"
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/mic"
 	runs "github.com/leedenison/stonks/server/internal/run"
 )
 
 // Resolver resolves stated keys against the database and the datasources.
 type Resolver struct {
-	store   Store
-	fetcher Fetcher
-	sources Sources
-	log     *slog.Logger
+	store    Store
+	fetcher  Fetcher
+	sources  Sources
+	mics     mic.Table
+	families currency.Families
+	clock    func() time.Time
+	log      *slog.Logger
 }
 
-// New returns a Resolver.
-func New(store Store, fetcher Fetcher, sources Sources, log *slog.Logger) *Resolver {
-	return &Resolver{store: store, fetcher: fetcher, sources: sources, log: log}
+// New returns a Resolver. clock supplies the present, against which a
+// request for identifier events picks its days.
+func New(store Store, fetcher Fetcher, sources Sources, mics mic.Table, families currency.Families, clock func() time.Time, log *slog.Logger) *Resolver {
+	return &Resolver{store: store, fetcher: fetcher, sources: sources, mics: mics, families: families, clock: clock, log: log}
+}
+
+// KeyOrderDates is a stated key and the order dates the caller adds to its
+// stored transactions' dates: the rows of the statement being ingested.
+type KeyOrderDates struct {
+	Row   gen.StatedKey
+	Dates []time.Time
 }
 
 // Resolve is the body of a resolution run. It returns one resolution key per
-// row, in the order of rows. A run that fails partway leaves the keys it has
+// key, in the order of keys. A run that fails partway leaves the keys it has
 // already written resolved.
-func (r *Resolver) Resolve(ctx context.Context, run gen.Run, rows []gen.StatedKey) ([]gen.ResolutionKey, error) {
-	resolutions, err := r.prepare(ctx, run, rows)
+func (r *Resolver) Resolve(ctx context.Context, run gen.Run, keys []KeyOrderDates) ([]gen.ResolutionKey, []WrittenIdentifierFacts, error) {
+	b, err := r.prepare(ctx, run, keys, true)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	out := make([]gen.ResolutionKey, 0, len(resolutions))
-	for _, res := range resolutions {
+	out := make([]gen.ResolutionKey, 0, len(b.resolutions))
+	for _, res := range b.resolutions {
 		rk, err := r.write(ctx, run, res, nil)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		out = append(out, rk)
 	}
-	return out, nil
+	if err := r.recordIdentifierFacts(ctx, b); err != nil {
+		return nil, nil, err
+	}
+	return out, nil, nil
 }
 
-// prepare runs the lookups and the fetches for rows. A resolution run and a
-// synchronous resolution share it.
+// batch is the keys of one resolution and the identifier events fetched for
+// them.
+type batch struct {
+	resolutions []*resolution
+	events      []eventKey
+}
+
+// prepare runs the lookups and the fetches for keys. A resolution run and a
+// synchronous resolution share it. A synchronous resolution passes dating
+// false: a user's choice is fixed, so it neither dates a key nor asks for
+// identifier events.
 //
 // A resolution acts for its run's user, so prepare refuses a system run.
-func (r *Resolver) prepare(ctx context.Context, run gen.Run, rows []gen.StatedKey) ([]*resolution, error) {
-	if _, err := runs.Owner(run); err != nil {
-		return nil, err
-	}
-	cur, err := r.currencies(ctx)
+func (r *Resolver) prepare(ctx context.Context, run gen.Run, keys []KeyOrderDates, dating bool) (*batch, error) {
+	user, err := runs.Owner(run)
 	if err != nil {
 		return nil, err
 	}
-	resolutions := make([]*resolution, len(rows))
-	for i, row := range rows {
-		res := &resolution{row: row, family: cur.family(row), currencies: cur}
-		res.globalAndDescriptionIDs = globalAndDescriptionIDs(row)
-		resolutions[i] = res
+	b := &batch{resolutions: make([]*resolution, len(keys))}
+	for i, k := range keys {
+		res := &resolution{row: k.Row, family: keyFamily(r.families, k.Row)}
+		res.globalAndDescriptionIDs = globalAndDescriptionIDs(k.Row)
+		b.resolutions[i] = res
 	}
-	if err := r.findResolutionInstrument(ctx, resolutions); err != nil {
+	if err := r.findResolutionInstrument(ctx, b.resolutions); err != nil {
 		return nil, err
 	}
-	if err := r.fetchResolutionIdentities(ctx, run, resolutions, cur); err != nil {
+	if dating {
+		if err := r.findResolutionDated(ctx, user, b.resolutions, keys); err != nil {
+			return nil, err
+		}
+	}
+	if err := r.fetchResolutionIdentities(ctx, run, b.resolutions); err != nil {
 		return nil, err
 	}
-	return resolutions, nil
-}
-
-// currencies reads the currency table.
-func (r *Resolver) currencies(ctx context.Context) (currencies, error) {
-	rows, err := r.store.ListCurrencies(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("list currencies: %w", err)
+	if dating {
+		if b.events, err = r.fetchResolutionEvents(ctx, run, b.resolutions); err != nil {
+			return nil, err
+		}
 	}
-	cur := make(currencies, len(rows))
-	for _, c := range rows {
-		cur[c.Code] = c.Family
-	}
-	return cur, nil
+	return b, nil
 }

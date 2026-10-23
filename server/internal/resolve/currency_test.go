@@ -8,10 +8,10 @@ import (
 )
 
 func TestFamily(t *testing.T) {
-	if got := cur.family(gen.StatedKey{Currency: ptr.To("GBX")}); got != "GBP" {
+	if got := keyFamily(cur, gen.StatedKey{Currency: ptr.To("GBX")}); got != "GBP" {
 		t.Errorf("family(GBX) = %q, want GBP", got)
 	}
-	if got := cur.family(gen.StatedKey{}); got != "" {
+	if got := keyFamily(cur, gen.StatedKey{}); got != "" {
 		t.Errorf("family(none) = %q, want none", got)
 	}
 }

@@ -56,6 +56,11 @@ func (r *Resolver) write(ctx context.Context, run gen.Run, res *resolution, user
 // key and the kinds of the findings written.
 func (r *Resolver) resolveKey(ctx context.Context, q Queries, run gen.Run, res *resolution, userChoice consistentClaims) (gen.ResolutionKey, []gen.FindingKind, error) {
 	if res.outcome != "" {
+		if res.datedFromFacts {
+			if err := writeDated(ctx, q, *run.UserID, res, res.dating.Identifier, gen.ArbiterStated); err != nil {
+				return gen.ResolutionKey{}, nil, err
+			}
+		}
 		return recordResolution(ctx, q, run, res, res.outcome, reasons(res.reason), res.findings, 0)
 	}
 	d, err := decide(ctx, q, res, userChoice)
@@ -198,10 +203,12 @@ type writeTarget struct {
 // identifier datasources. When it finds none, the write creates one. If the
 // identifiers identify several instruments, findWriteTarget merges them.
 func findWriteTarget(ctx context.Context, q Queries, res *resolution, verdict claimVerdict) (writeTarget, error) {
-	ids := slices.Clone(res.globalAndDescriptionIDs)
+	ids := lookupIDs(res.globalAndDescriptionIDs)
 	for _, c := range verdict.attached {
 		for id := range c.AllIDs() {
-			ids = appendUnique(ids, id)
+			if !id.Ticker() {
+				ids = appendUnique(ids, id)
+			}
 		}
 	}
 	matches, err := findInstrumentsByIdentifier(ctx, q, ids)
@@ -504,13 +511,20 @@ func (w *writer) attach(ctx context.Context, c *identityClaim) error {
 }
 
 // identify writes id on the instrument, or on listing where set, unless it
-// already identifies the instrument.
+// already identifies the instrument. An identity answer holds on the day it
+// was given, so a ticker it names moves to the instrument from whichever
+// instrument carried it.
 func (w *writer) identify(ctx context.Context, id types.Identifier, listing *uuid.UUID, fetchKeyID uuid.UUID) error {
 	if w.instr.Identifier(id) != nil || w.taken[id] {
 		return nil
 	}
-	arg := gen.CreateIdentifierParams{ID: db.NewID(), InstrumentID: w.instr.Row.ID, ListingID: listing, Type: id.Type, Domain: id.Domain, Value: id.Value, FetchKeyID: &fetchKeyID}
-	row, err := w.q.CreateIdentifier(ctx, arg)
+	var row gen.Identifier
+	var err error
+	if id.Ticker() {
+		row, err = w.q.PlaceTicker(ctx, gen.PlaceTickerParams{ID: db.NewID(), InstrumentID: w.instr.Row.ID, ListingID: listing, Type: id.Type, Domain: id.Domain, Value: id.Value, FetchKeyID: &fetchKeyID})
+	} else {
+		row, err = w.q.CreateIdentifier(ctx, gen.CreateIdentifierParams{ID: db.NewID(), InstrumentID: w.instr.Row.ID, ListingID: listing, Type: id.Type, Domain: id.Domain, Value: id.Value, FetchKeyID: &fetchKeyID})
+	}
 	if err != nil {
 		return fmt.Errorf("create %s: %w", id.Name(), err)
 	}
@@ -523,6 +537,10 @@ func (w *writer) identify(ctx context.Context, id types.Identifier, listing *uui
 // arbiter. It reports false when no identifier identifies the instrument.
 // When the user already arbitrated the key's association, the update matches
 // zero rows and that association stands.
+//
+// An association through a ticker is dated through the MIC_TICKER on the
+// ticker's listing, unless the user chose it. Where the listing has none, the
+// association is fixed.
 func (w *writer) associate(ctx context.Context, res *resolution, arbiter gen.Arbiter) (bool, error) {
 	var listingID *uuid.UUID
 	if l := w.instr.Listing(res.family); l != nil {
@@ -532,11 +550,49 @@ func (w *writer) associate(ctx context.Context, res *resolution, arbiter gen.Arb
 	if !ok {
 		return false, nil
 	}
+	if v, ok := w.datedThrough(via); ok && arbiter != gen.ArbiterUser {
+		return true, writeDated(ctx, w.q, w.user, res, v, arbiter)
+	}
 	arg := gen.SetStatedKeyAssociationParams{ID: res.row.ID, UserID: w.user, InstrumentID: &w.instr.Row.ID, ListingID: listingID, ViaID: &via.ID, Arbiter: arbiter}
 	if _, err := w.q.SetStatedKeyAssociation(ctx, arg); err != nil {
 		return false, fmt.Errorf("associate key: %w", err)
 	}
 	return true, nil
+}
+
+// datedThrough returns the MIC_TICKER value a key associated through via is
+// dated through: via itself, or the MIC_TICKER on via's listing for another
+// ticker. It reports false where via is no ticker or its listing has no
+// MIC_TICKER.
+func (w *writer) datedThrough(via gen.Identifier) (types.Identifier, bool) {
+	id := to.Identifier(via)
+	if !id.Ticker() {
+		return types.Identifier{}, false
+	}
+	if id.Type == types.IdentifierTypeMicTicker {
+		return id, true
+	}
+	var tickers []types.Identifier
+	for _, row := range w.instr.Identifiers {
+		if row.Type == types.IdentifierTypeMicTicker && row.ListingID != nil && via.ListingID != nil && *row.ListingID == *via.ListingID {
+			tickers = append(tickers, to.Identifier(row))
+		}
+	}
+	if len(tickers) == 0 {
+		return types.Identifier{}, false
+	}
+	slices.SortFunc(tickers, func(a, b types.Identifier) int { return strings.Compare(a.Domain+":"+a.Value, b.Domain+":"+b.Value) })
+	return tickers[0], true
+}
+
+// writeDated gives res a dated association through v, with arbiter. When the
+// user already arbitrated the key's association, it stands.
+func writeDated(ctx context.Context, q Queries, user uuid.UUID, res *resolution, v types.Identifier, arbiter gen.Arbiter) error {
+	arg := gen.SetStatedKeyDatedAssociationParams{ID: res.row.ID, UserID: user, ViaDomain: v.Domain, ViaValue: v.Value, Arbiter: arbiter}
+	if _, err := q.SetStatedKeyDatedAssociation(ctx, arg); err != nil {
+		return fmt.Errorf("date key: %w", err)
+	}
+	return nil
 }
 
 // via returns the identifier that carries res's association. That is the

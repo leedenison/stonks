@@ -1,10 +1,11 @@
 // Package scripted holds integrations whose every answer a test scripts: one
-// for identity and one for identifier events.
+// for identity, one for identifier events, and one serving both.
 package scripted
 
 import (
 	"context"
 	"errors"
+	"time"
 
 	"golang.org/x/time/rate"
 
@@ -127,3 +128,25 @@ func (s *IdentifierEvents) Fetch(_ context.Context, reqs []market.Request[market
 	}
 	return out, nil
 }
+
+// Datasource serves identity from Identity and identifier events from Facts,
+// with a window that starts at Since.
+type Datasource struct {
+	*Identity
+	Facts *IdentifierEvents
+	Since time.Time
+}
+
+var (
+	_ market.Identity         = (*Datasource)(nil)
+	_ market.IdentifierEvents = (*Datasource)(nil)
+	_ market.Windowed         = (*Datasource)(nil)
+)
+
+// Events serves the identifier events of Facts.
+func (d *Datasource) Events() market.Server[market.IdentifierEventRequest, market.IdentifierEventResult] {
+	return d.Facts
+}
+
+// Window starts at Since whatever the day.
+func (d *Datasource) Window(time.Time) time.Time { return d.Since }

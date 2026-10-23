@@ -11,6 +11,7 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/ptr"
 	"github.com/leedenison/stonks/server/internal/resolve"
 	"github.com/leedenison/stonks/server/internal/run"
 	"github.com/leedenison/stonks/server/internal/types"
@@ -60,6 +61,15 @@ func TestCandidates(t *testing.T) {
 		associated := key
 		associated.InstrumentID = &userID
 		f.store.EXPECT().GetStatedKey(gomock.Any(), gomock.Any()).Return(associated, nil)
+		if _, err := f.svc.Candidates(context.Background(), userID, key.ID); !errors.Is(err, ErrAssociated) {
+			t.Errorf("Candidates() error = %v, want ErrAssociated", err)
+		}
+	})
+	t.Run("a dated key is refused", func(t *testing.T) {
+		f := newFixture(t)
+		dated := key
+		dated.ViaType, dated.ViaDomain, dated.ViaValue = ptr.To(types.IdentifierTypeMicTicker), ptr.To("XNAS"), ptr.To("INTC")
+		f.store.EXPECT().GetStatedKey(gomock.Any(), gomock.Any()).Return(dated, nil)
 		if _, err := f.svc.Candidates(context.Background(), userID, key.ID); !errors.Is(err, ErrAssociated) {
 			t.Errorf("Candidates() error = %v, want ErrAssociated", err)
 		}

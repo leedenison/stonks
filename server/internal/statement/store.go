@@ -21,7 +21,6 @@ type Queries interface {
 	UpsertStatedKey(ctx context.Context, arg gen.UpsertStatedKeyParams) (gen.StatedKey, error)
 	CreateStatementKeys(ctx context.Context, arg []gen.CreateStatementKeysParams) (int64, error)
 	CreateStatementSplit(ctx context.Context, arg gen.CreateStatementSplitParams) error
-	ListCurrencies(ctx context.Context) ([]gen.Currency, error)
 	LockUserKeys(ctx context.Context, userID uuid.UUID) error
 	DeleteTransactions(ctx context.Context, arg gen.DeleteTransactionsParams) (int64, error)
 	CreateTransactions(ctx context.Context, arg []gen.CreateTransactionsParams) (int64, error)
@@ -56,7 +55,7 @@ var _ Runner = (*run.Runner)(nil)
 // with an outcome per key in their order, and the two synchronous
 // resolutions of one key.
 type Resolver interface {
-	Resolve(ctx context.Context, res gen.Run, keys []gen.StatedKey) ([]gen.ResolutionKey, error)
+	Resolve(ctx context.Context, res gen.Run, keys []resolve.KeyOrderDates) ([]gen.ResolutionKey, []resolve.WrittenIdentifierFacts, error)
 	Candidates(ctx context.Context, res gen.Run, key gen.StatedKey) (resolve.Offer, error)
 	Confirm(ctx context.Context, res gen.Run, key gen.StatedKey, p resolve.Pick) (gen.ResolutionKey, error)
 }

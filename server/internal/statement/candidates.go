@@ -47,13 +47,15 @@ func (s *Service) Confirm(ctx context.Context, user, key uuid.UUID, p resolve.Pi
 	return rk, err
 }
 
-// key reads one of user's keys that has no association.
+// key reads one of user's keys that has no association. A dated key refuses
+// a choice as a fixed one does: the facts decide what each of its
+// transactions names.
 func (s *Service) key(ctx context.Context, user, id uuid.UUID) (gen.StatedKey, error) {
 	row, err := s.store.GetStatedKey(ctx, gen.GetStatedKeyParams{ID: id, UserID: user})
 	if err != nil {
 		return gen.StatedKey{}, fmt.Errorf("read key %s: %w", id, err)
 	}
-	if row.InstrumentID != nil {
+	if row.InstrumentID != nil || row.ViaType != nil {
 		return gen.StatedKey{}, ErrAssociated
 	}
 	return row, nil
