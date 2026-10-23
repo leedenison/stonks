@@ -68,7 +68,24 @@ var identityKind = Kind[gen.StatedKey, IdentityResult]{
 	count:     func(r IdentityResult) int { return len(r.Listings) },
 }
 
+// tickerIdentityKind fetches identity for the instruments that held tickers
+// name. Its requests are stated keys that carry a ticker, and its fetch keys
+// leave the stated key empty.
+var tickerIdentityKind = Kind[gen.StatedKey, IdentityResult]{
+	name:      gen.FetchKindIdentity,
+	server:    identityKind.server,
+	statedKey: func(gen.StatedKey) *uuid.UUID { return nil },
+	count:     identityKind.count,
+}
+
 // Identity fetches the identity of keys from e, as a child run of parent.
 func (f *Fetcher) Identity(ctx context.Context, parent gen.Run, e *Entry, keys []gen.StatedKey) ([]FetchKey[gen.StatedKey, IdentityResult], error) {
 	return fetch(ctx, f, parent, e, identityKind, keys)
+}
+
+// TickerIdentity fetches identity from e for the instruments that held
+// tickers name, as a child run of parent. Each key states one ticker. The
+// fetch keys leave the stated key empty.
+func (f *Fetcher) TickerIdentity(ctx context.Context, parent gen.Run, e *Entry, keys []gen.StatedKey) ([]FetchKey[gen.StatedKey, IdentityResult], error) {
+	return fetch(ctx, f, parent, e, tickerIdentityKind, keys)
 }

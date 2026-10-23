@@ -31,7 +31,8 @@
 // attempts, answered at that moment. A cache error fails the fetch: Redis is
 // a hard dependency of the request path already, and a failed run is
 // replayed as any other. Answers are cached by request, so a reorder of the
-// datasources leaves them in place.
+// datasources leaves them in place. A fresh fetch skips the cache read and
+// still writes the cache; see Fetcher.Fresh.
 //
 // The cache key is the request as the integration sends it. Its format is a
 // contract the e2e suite holds; see [cache.go](cache.go).

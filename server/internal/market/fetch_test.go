@@ -859,6 +859,76 @@ func TestFetchCachePaused(t *testing.T) {
 	}
 }
 
+// TestFetchFreshSkipsCache checks that a fresh fetch calls the datasource
+// whatever the cache holds, and replaces the cached answer with its own. The
+// fetcher it was made from still reads the cache.
+func TestFetchFreshSkipsCache(t *testing.T) {
+	f := &fake{}
+	h := newHarness(t, f, nil)
+	h.run(t, keyOf(f, "GB00B03MLX29"))
+
+	later := start.Add(24 * time.Hour)
+	h.now = later
+	fetchKeys, err := fetch(context.Background(), h.fetcher.Fresh(), h.parent, h.entry, identityKind, []gen.StatedKey{keyOf(f, "GB00B03MLX29")})
+	if err != nil {
+		t.Fatalf("fetch() error = %v", err)
+	}
+	got := fetchKeys[0]
+	if f.calls != 2 || got.cached {
+		t.Errorf("calls = %d, cached = %v, want a second call that skipped the cache", f.calls, got.cached)
+	}
+	if !got.AnsweredAt.Equal(later) {
+		t.Errorf("answered at %v, want the moment of the fresh call %v", got.AnsweredAt, later)
+	}
+
+	h.now = later.Add(time.Hour)
+	hit := h.run(t, keyOf(f, "GB00B03MLX29"))[0]
+	if f.calls != 2 || !hit.cached {
+		t.Errorf("calls = %d, cached = %v, want the original fetcher served from the cache", f.calls, hit.cached)
+	}
+	if !hit.AnsweredAt.Equal(later) {
+		t.Errorf("hit answered at %v, want the fresh answer's moment %v", hit.AnsweredAt, later)
+	}
+}
+
+// TestFetchFreshPaused checks that a fresh fetch from a paused datasource
+// fails temporarily without a call, though the cache holds an answer.
+func TestFetchFreshPaused(t *testing.T) {
+	f := &fake{}
+	h := newHarness(t, f, nil)
+	h.run(t, keyOf(f, "GB00B03MLX29"))
+	h.entry.limiter.pause(h.now.Add(time.Hour), "quota spent")
+
+	fetchKeys, err := fetch(context.Background(), h.fetcher.Fresh(), h.parent, h.entry, identityKind, []gen.StatedKey{keyOf(f, "GB00B03MLX29")})
+	if err != nil {
+		t.Fatalf("fetch() error = %v", err)
+	}
+	if f.calls != 1 {
+		t.Errorf("calls = %d, want 1: a paused datasource gets no call", f.calls)
+	}
+	if got := fetchKeys[0]; got.Outcome != gen.FetchOutcomeFailedTemporary || got.cached {
+		t.Errorf("outcome = %s, cached = %v, want failed_temporary without the cache", got.Outcome, got.cached)
+	}
+}
+
+// TestFetchTickerIdentity checks that a ticker identity fetch is served as
+// an identity fetch, and that its fetch key leaves the stated key empty.
+func TestFetchTickerIdentity(t *testing.T) {
+	f := &fake{}
+	h := newHarness(t, f, nil)
+
+	fetchKeys, err := h.fetcher.TickerIdentity(context.Background(), h.parent, h.entry, []gen.StatedKey{keyOf(f, "GB00B03MLX29")})
+	if err != nil {
+		t.Fatalf("TickerIdentity() error = %v", err)
+	}
+	if fetchKeys[0].Outcome != gen.FetchOutcomeServed {
+		t.Errorf("outcome = %s, want served", fetchKeys[0].Outcome)
+	}
+	if len(h.keys) != 1 || h.keys[0].StatedKeyID != nil {
+		t.Errorf("fetch keys = %+v, want one that names no stated key", h.keys)
+	}
+}
+
 // TestFetchCacheErrors checks that a cache that cannot be read or written
 // fails the fetch with no fetch keys.
 func TestFetchCacheErrors(t *testing.T) {
