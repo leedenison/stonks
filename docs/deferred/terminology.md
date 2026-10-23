@@ -39,7 +39,7 @@ every key in one domain.
 
 **Provenance** -- the fetch key that produced a stored row.
 
-**Annotation** -- what a user records against their own stated keys: a pin to an
+**Annotation** -- what a user records against their own stated keys: a choice of
 instrument, a grouping, a price, or a key made by hand. User data, never an assertion.
 
 **Portfolio** -- a defined subset of the holdings of a user including the degenerate

@@ -35,12 +35,13 @@ In:
   [002](../adr/002-precedence-decides-between-providers-that-disagree-and-a-finding-records-it.md).
 - A witnessed event inside a bracket of same-instrument assertions is recorded as a
   finding of the run that wrote the event.
-- A user's choice is not checked against validity. See
-  [017](../adr/017-a-users-choice-pins-the-whole-key-for-now.md).
+- A dated key refuses a user's choice, as a fixed key does. The refusal reads the
+  `via_*` columns as well as `instrument_id`. See
+  [017](../adr/017-a-users-choice-pins-an-unassociated-key.md).
 - End to end coverage through vcrproxy of a key whose ticker changed. A statement states
-  META in 2024 and the user chooses Meta. A second statement states META on 2021-06-01.
-  The 2021 transaction reads as unresolved, since Massive's chain shows that META began
-  naming Meta on 2022-06-09 and a lookup on 2021-06-01 finds nothing.
+  META in 2024 and the key takes a dated association. A second statement states META on
+  2021-06-01. The 2021 transaction reads as unresolved, since Massive's chain shows that
+  META began naming Meta on 2022-06-09 and a lookup on 2021-06-01 finds nothing.
 
 Out:
 
