@@ -920,7 +920,7 @@ func TestConfirm(t *testing.T) {
 			if tc.wantFamily != "" && (len(f.listings) == 0 || f.listings[0].Currency != tc.wantFamily) {
 				t.Errorf("listings = %+v, want the first in %s", f.listings, tc.wantFamily)
 			}
-			if len(f.associations) != 1 || f.associations[0].ID != tc.key.ID || f.associations[0].Arbiter != gen.ArbiterUser || *f.associations[0].Validity != gen.ValidityProvisional || f.associations[0].ListingID == nil {
+			if len(f.associations) != 1 || f.associations[0].ID != tc.key.ID || f.associations[0].Arbiter != gen.ArbiterUser || f.associations[0].ListingID == nil {
 				t.Errorf("associations = %+v, want the key's alone, by the user, provisional through the venue ticker, on the listing", f.associations)
 			}
 			if f.resolutions != 1 {

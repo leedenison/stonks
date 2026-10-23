@@ -1,6 +1,9 @@
 package mic
 
-import "testing"
+import (
+	"slices"
+	"testing"
+)
 
 func TestOperating(t *testing.T) {
 	tbl := Table{"XNAS": "XNAS", "XNGS": "XNAS"}
@@ -23,5 +26,15 @@ func TestOperating(t *testing.T) {
 				t.Errorf("Operating(%q) = %q, %v, want %q, %v", tc.mic, got, ok, tc.want, tc.ok)
 			}
 		})
+	}
+}
+
+func TestVenues(t *testing.T) {
+	tbl := Table{"XNAS": "XNAS", "XNGS": "XNAS", "XNCM": "XNAS", "XLON": "XLON"}
+	if got, want := tbl.Venues("XNAS"), []string{"XNAS", "XNCM", "XNGS"}; !slices.Equal(got, want) {
+		t.Errorf("Venues(XNAS) = %v, want %v", got, want)
+	}
+	if got := tbl.Venues("XNGS"); len(got) != 0 {
+		t.Errorf("Venues(XNGS) = %v, want none, since a segment is no operating MIC", got)
 	}
 }

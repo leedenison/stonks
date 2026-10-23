@@ -8,6 +8,7 @@ package mic
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/leedenison/stonks/server/internal/db/gen"
@@ -39,4 +40,17 @@ func Load(ctx context.Context, q Queries) (Table, error) {
 func (t Table) Operating(m string) (string, bool) {
 	op, ok := t[strings.ToUpper(strings.TrimSpace(m))]
 	return op, ok
+}
+
+// Venues returns the MICs that map to op, sorted, which include op itself.
+// The result is empty when op is not an operating MIC.
+func (t Table) Venues(op string) []string {
+	var out []string
+	for m, o := range t {
+		if o == op {
+			out = append(out, m)
+		}
+	}
+	slices.Sort(out)
+	return out
 }

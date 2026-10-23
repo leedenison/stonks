@@ -103,8 +103,8 @@ resolves the same way whenever it is ingested.
 ### Assumptions
 
 - A value outside coverage has not moved.  A dated association rests on this assumption
-  at each read, and the assumption is not stored.  A fetch made under it is recorded
-  against the run that made it, so the assumption can be unwound.
+  at each read, and the assumption is not stored.  A data row fetched under it, such as
+  a price, is recorded against the fetch key that made it, so the row can be unwound.
 - Where a value is asserted twice for one instrument, it was not reassigned away and back
   between the two assertions.  Should that happen unwitnessed, the system records
   incorrect information and accepts it.
@@ -214,8 +214,5 @@ at ingest rather than the fetch tables.  See [datasources.md](datasources.md).
 ## Undecided
 
 - How often domain coverage is extended to the present.
-
-- Whether two providers asserting different instruments for one value at the same moment
-  is resolved by precedence or left as a gap.
 
 - Whether a holding whose identity rests on provisional validity is shown as such.

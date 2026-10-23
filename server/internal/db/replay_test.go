@@ -13,7 +13,6 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
-	"github.com/leedenison/stonks/server/internal/ptr"
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
@@ -107,8 +106,8 @@ func TestListUnavailableKeys(t *testing.T) {
 
 // TestListKeysUncoveredBy checks that an unresolved key and a key on an
 // instrument the datasource has not covered are selected, and that a key the
-// datasource covered, a key on reference data, and a key no transaction names
-// are left out.
+// datasource covered, a key on reference data, a dated key, and a key no
+// transaction names are left out.
 func TestListKeysUncoveredBy(t *testing.T) {
 	ctx := context.Background()
 	q := newTx(t)
@@ -120,7 +119,7 @@ func TestListKeysUncoveredBy(t *testing.T) {
 	fetch := newFetch(t, q, user, run, alpha)
 	associate := func(key gen.StatedKey, listing gen.Listing, via gen.Identifier, arbiter gen.Arbiter) {
 		t.Helper()
-		arg := gen.SetStatedKeyAssociationParams{ID: key.ID, UserID: user.ID, InstrumentID: &listing.InstrumentID, ListingID: &listing.ID, ViaID: &via.ID, Validity: ptr.To(gen.ValidityConfirmed), Arbiter: arbiter}
+		arg := gen.SetStatedKeyAssociationParams{ID: key.ID, UserID: user.ID, InstrumentID: &listing.InstrumentID, ListingID: &listing.ID, ViaID: &via.ID, Arbiter: arbiter}
 		_, err := q.SetStatedKeyAssociation(ctx, arg)
 		require.NoError(t, err)
 	}
@@ -140,8 +139,9 @@ func TestListKeysUncoveredBy(t *testing.T) {
 	uncovered := newStatedKey(t, q, user, statement)
 	cash := newStatedKey(t, q, user, statement)
 	arbitrated := newStatedKey(t, q, user, statement)
+	dated := newStatedKey(t, q, user, statement)
 	newStatedKey(t, q, user, statement)
-	for _, k := range []gen.StatedKey{unresolved, covered, uncovered, cash, arbitrated} {
+	for _, k := range []gen.StatedKey{unresolved, covered, uncovered, cash, arbitrated, dated} {
 		names(t, q, statement, k)
 	}
 	listing, via, key := fetched("US0000000001")
@@ -155,6 +155,8 @@ func TestListKeysUncoveredBy(t *testing.T) {
 	// key, though no datasource covers its instrument.
 	listing, via, _ = fetched("US0000000003")
 	associate(arbitrated, listing, via, gen.ArbiterUser)
+	_, err = q.SetStatedKeyDatedAssociation(ctx, gen.SetStatedKeyDatedAssociationParams{ID: dated.ID, UserID: user.ID, ViaDomain: "XNAS", ViaValue: "META", Arbiter: gen.ArbiterDatasource})
+	require.NoError(t, err)
 
 	source := gen.ListKeysUncoveredByParams{UserID: user.ID, SourceID: statement.ID, Datasource: alpha.Name}
 	rows, err := q.ListKeysUncoveredBy(ctx, source)

@@ -44,3 +44,18 @@ func TestStrength(t *testing.T) {
 		}
 	}
 }
+
+// TestTicker checks that the tickers are the listing identifiers that are not
+// stable, which a key is dated through.
+func TestTicker(t *testing.T) {
+	want := map[types.IdentifierType]bool{
+		types.IdentifierTypeMicTicker:        true,
+		types.IdentifierTypeOpenfigiTicker:   true,
+		types.IdentifierTypeDatasourceTicker: true,
+	}
+	for _, typ := range types.IdentifierTypes {
+		if got := (types.Identifier{Type: typ}).Ticker(); got != want[typ] {
+			t.Errorf("%s Ticker() = %v, want %v", typ, got, want[typ])
+		}
+	}
+}

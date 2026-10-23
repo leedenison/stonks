@@ -133,6 +133,14 @@ func (i Identifier) Stable() bool {
 	return i.Type.Trait().Reassignment == IdentifierReassignmentStable
 }
 
+// Ticker reports whether i is a ticker: an identifier of a listing that is
+// not stable. A ticker names different instruments on different days, so a
+// key that associates through one is dated. An option symbol is reassignable too, but it
+// names an instrument, and a key stays fixed through it.
+func (i Identifier) Ticker() bool {
+	return i.Grain() == IdentifierGrainListing && !i.Stable()
+}
+
 // Strength ranks i by how firmly it identifies its instrument or listing, the
 // strongest first:
 // an identifier every party reads before an issuer's own, a stable

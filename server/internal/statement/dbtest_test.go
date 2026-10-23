@@ -182,8 +182,8 @@ func TestIngest(t *testing.T) {
 	if *got.InstrumentID != found.Instrument.ID || got.ListingID == nil || *got.ListingID != line.ID {
 		t.Errorf("the cash key names instrument %s listing %v, want %s and %s", got.InstrumentID, got.ListingID, found.Instrument.ID, line.ID)
 	}
-	if got.ViaID == nil || *got.ViaID != found.Identifier.ID || got.Validity == nil || *got.Validity != gen.ValidityConfirmed {
-		t.Errorf("the cash key associates through %v held %v, want %s confirmed", got.ViaID, got.Validity, found.Identifier.ID)
+	if got.ViaID == nil || *got.ViaID != found.Identifier.ID {
+		t.Errorf("the cash key associates through %v, want %s", got.ViaID, found.Identifier.ID)
 	}
 
 	var instruments, families int
