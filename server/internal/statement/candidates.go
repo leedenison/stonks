@@ -33,18 +33,28 @@ func (s *Service) Candidates(ctx context.Context, user, key uuid.UUID) (resolve.
 
 // Confirm takes the candidate p names as the instrument of one of user's
 // keys, as a synchronous resolution run, and returns the key's resolution.
+// It then replays every user's unresolved keys that state an identifier of
+// the confirmation's new identifier facts. A failed replay is logged, and the
+// confirmation stands.
 func (s *Service) Confirm(ctx context.Context, user, key uuid.UUID, p resolve.Pick) (gen.ResolutionKey, error) {
 	row, err := s.key(ctx, user, key)
 	if err != nil {
 		return gen.ResolutionKey{}, err
 	}
 	var rk gen.ResolutionKey
-	_, err = s.runs.Sync(ctx, user, gen.RunKindResolution, gen.RunTriggerUser, func(ctx context.Context, run gen.Run) error {
+	var written []resolve.WrittenIdentifierFacts
+	run, err := s.runs.Sync(ctx, user, gen.RunKindResolution, gen.RunTriggerUser, func(ctx context.Context, run gen.Run) error {
 		var err error
-		rk, err = s.resolver.Confirm(ctx, run, row, p)
+		rk, written, err = s.resolver.Confirm(ctx, run, row, p)
 		return err
 	})
-	return rk, err
+	if err != nil {
+		return rk, err
+	}
+	if err := s.replays.ReplayNewIdentifierFacts(ctx, run, written); err != nil {
+		s.log.Warn("replay of new identifier facts failed", "run", run.ID, "err", err)
+	}
+	return rk, nil
 }
 
 // key reads one of user's keys that has no association. A dated key refuses

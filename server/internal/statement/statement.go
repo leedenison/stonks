@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"slices"
 	"strings"
 	"time"
@@ -44,14 +45,16 @@ type Service struct {
 	store    Store
 	runs     Runner
 	resolver Resolver
+	replays  Replays
 	families currency.Families
 	clock    func() time.Time
+	log      *slog.Logger
 }
 
 // New returns a Service. families holds the currencies a statement may
 // state, and clock supplies today for the order date check.
-func New(store Store, runs Runner, resolver Resolver, families currency.Families, clock func() time.Time) *Service {
-	return &Service{store: store, runs: runs, resolver: resolver, families: families, clock: clock}
+func New(store Store, runs Runner, resolver Resolver, replays Replays, families currency.Families, clock func() time.Time, log *slog.Logger) *Service {
+	return &Service{store: store, runs: runs, resolver: resolver, replays: replays, families: families, clock: clock, log: log}
 }
 
 // Create validates msg, starts its run and responds with the pending row.
@@ -73,7 +76,7 @@ func (s *Service) Create(ctx context.Context, userID uuid.UUID, msg *statementv1
 	}
 	now := s.clock().UTC()
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
-	g := &ingestion{store: s.store, runs: s.runs, resolver: s.resolver, user: userID, broker: broker, from: from, before: before, keys: map[string]*key{}}
+	g := &ingestion{store: s.store, runs: s.runs, resolver: s.resolver, replays: s.replays, user: userID, broker: broker, from: from, before: before, keys: map[string]*key{}}
 	for i, r := range msg.GetRows() {
 		g.rows = append(g.rows, g.validate(int32(i), r, today, s.families))
 	}
@@ -93,6 +96,7 @@ type ingestion struct {
 	store    Store
 	runs     Runner
 	resolver Resolver
+	replays  Replays
 	user     uuid.UUID
 	broker   gen.Broker
 	from     time.Time
@@ -103,6 +107,9 @@ type ingestion struct {
 	// order lists them by first appearance.
 	keys  map[string]*key
 	order []*key
+	// written lists the identifiers of the identifier facts the resolution
+	// wrote.
+	written []resolve.WrittenIdentifierFacts
 }
 
 // row is one row of the payload.
@@ -213,11 +220,22 @@ func (g *ingestion) prepare(ctx context.Context, run gen.Run) error {
 	})
 }
 
+// work resolves the keys, writes the statement, and then replays every
+// user's unresolved keys that state an identifier of the resolution's new
+// identifier facts. The write completes the statement run in its own
+// transaction, so a failed replay leaves the run completed.
 func (g *ingestion) work(ctx context.Context, run gen.Run) error {
-	if _, err := g.runs.Child(ctx, run, gen.RunKindResolution, g.resolve); err != nil {
+	res, err := g.runs.Child(ctx, run, gen.RunKindResolution, g.resolve)
+	if err != nil {
 		return fmt.Errorf("resolution: %w", err)
 	}
-	return g.write(ctx, run)
+	if err := g.write(ctx, run); err != nil {
+		return err
+	}
+	if err := g.replays.ReplayNewIdentifierFacts(ctx, res, g.written); err != nil {
+		return fmt.Errorf("replay new identifier facts: %w", err)
+	}
+	return nil
 }
 
 // resolve resolves the keys that have no instrument as a child run, each with
@@ -238,10 +256,11 @@ func (g *ingestion) resolve(ctx context.Context, res gen.Run) error {
 			keys = append(keys, resolve.KeyOrderDates{Row: k.row, Dates: dates[k]})
 		}
 	}
-	out, _, err := g.resolver.Resolve(ctx, res, keys)
+	out, written, err := g.resolver.Resolve(ctx, res, keys)
 	if err != nil {
 		return err
 	}
+	g.written = written
 	byKey := make(map[uuid.UUID]gen.ResolutionKey, len(out))
 	for _, rk := range out {
 		byKey[rk.StatedKeyID] = rk

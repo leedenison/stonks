@@ -168,8 +168,8 @@ func run() (err error) {
 	cache := market.NewCache(rc, cfg.FetchCacheTTL)
 	fetcher := market.NewFetcher(db.New[market.Queries](pool), runs, logger.WithCategory(log, "internal/market"), market.WithCache(cache))
 	resolver := resolve.New(db.New[resolve.Queries](pool), fetcher, sources, mics, families, time.Now, logger.WithCategory(log, "internal/resolve"))
-	ingester := stmt.New(db.New[stmt.Queries](pool), runs, resolver, families, time.Now)
 	replays := replay.New(db.New[replay.Queries](pool), runs, resolver, sources, mics, logger.WithCategory(log, "internal/replay"))
+	ingester := stmt.New(db.New[stmt.Queries](pool), runs, resolver, replays, families, time.Now, logger.WithCategory(log, "internal/statement"))
 	datasources := admindatasource.New(queries, sources, datasource.New(db.New[datasource.Queries](pool), sources, cache))
 	srv, err := newServer(cfg.ListenAddr, log, authn, queries, adminrun.New(queries), adminblock.New(queries), datasources, admininstrument.New(queries), adminreplay.New(queries, replays), ingester, cfg.CookieSecure)
 	if err != nil {

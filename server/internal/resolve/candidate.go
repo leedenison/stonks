@@ -148,21 +148,30 @@ func offeredClaims(res *resolution) ([]*identityClaim, []gen.CreateFindingParams
 // names for key. It writes the candidate as a run writes a winner and the
 // claims attached to it, with the user as arbiter. Confirm gathers the
 // candidates again, so answers that changed since Candidates decide what it
-// writes. The choice associates key alone.
-func (r *Resolver) Confirm(ctx context.Context, run gen.Run, key gen.StatedKey, p Pick) (gen.ResolutionKey, error) {
+// writes. The choice associates key alone. Confirm also returns the
+// identifiers of the identifier facts its fetch runs wrote.
+func (r *Resolver) Confirm(ctx context.Context, run gen.Run, key gen.StatedKey, p Pick) (gen.ResolutionKey, []WrittenIdentifierFacts, error) {
 	b, err := r.prepare(ctx, run, []KeyOrderDates{{Row: key}}, false)
 	if err != nil {
-		return gen.ResolutionKey{}, err
+		return gen.ResolutionKey{}, nil, err
 	}
 	res := b.resolutions[0]
 	if res.outcome != "" {
-		return gen.ResolutionKey{}, fmt.Errorf("%w: %s", ErrNoCandidate, res.reason)
+		return gen.ResolutionKey{}, nil, fmt.Errorf("%w: %s", ErrNoCandidate, res.reason)
 	}
 	a, err := findUserChoice(res, p)
 	if err != nil {
-		return gen.ResolutionKey{}, err
+		return gen.ResolutionKey{}, nil, err
 	}
-	return r.write(ctx, run, res, a)
+	rk, err := r.write(ctx, run, res, a)
+	if err != nil {
+		return gen.ResolutionKey{}, nil, err
+	}
+	written, err := r.recordIdentifierFacts(ctx, run, b)
+	if err != nil {
+		return gen.ResolutionKey{}, nil, err
+	}
+	return rk, written, nil
 }
 
 // findUserChoice returns the first set of consistent claims, among those

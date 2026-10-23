@@ -88,7 +88,7 @@ func (s *Service) Start(ctx context.Context, admin uuid.UUID, source gen.Run, sc
 	if err != nil {
 		return gen.Run{}, err
 	}
-	w := &replay{store: s.store, runs: s.runs, resolver: s.resolver, admin: admin, source: source, scope: scope, keys: keys}
+	w := &replay{svc: s, store: s.store, runs: s.runs, resolver: s.resolver, admin: admin, source: source, scope: scope, keys: keys}
 	spec := run.Spec{Kind: gen.RunKindReplay, Trigger: gen.RunTriggerAdministrator, UserID: source.UserID, Lane: lane, Prepare: w.prepare}
 	return s.runs.Start(ctx, spec, w.work)
 }
@@ -146,6 +146,7 @@ func (s *Service) entry(name string) *market.Entry {
 
 // replay is one replay's work.
 type replay struct {
+	svc      *Service
 	store    Store
 	runs     Runner
 	resolver Resolver
@@ -153,6 +154,9 @@ type replay struct {
 	source   gen.Run
 	scope    Scope
 	keys     []gen.StatedKey
+	// written lists the identifiers of the identifier facts the resolution
+	// wrote.
+	written []resolve.WrittenIdentifierFacts
 }
 
 // prepare writes the replays row.
@@ -169,17 +173,24 @@ func (r *replay) prepare(ctx context.Context, run gen.Run) error {
 
 // A partial replay, failed or interrupted, leaves each key the resolution
 // wrote re-resolved and the groups as they were, less any key that became
-// associated.
+// associated. Afterwards it replays the keys that state an identifier of its
+// own new identifier facts. A point in time lookup asks only for a day with
+// no assertion of the value, so the chain of replays ends.
 func (r *replay) work(ctx context.Context, run gen.Run) error {
-	if _, err := r.runs.Child(ctx, run, gen.RunKindResolution, r.resolve); err != nil {
+	res, err := r.runs.Child(ctx, run, gen.RunKindResolution, r.resolve)
+	if err != nil {
 		return fmt.Errorf("resolution: %w", err)
 	}
-	return r.store.Tx(ctx, func(q Queries) error {
+	err = r.store.Tx(ctx, func(q Queries) error {
 		if err := q.LockUserKeys(ctx, *run.UserID); err != nil {
 			return fmt.Errorf("lock keys: %w", err)
 		}
 		return group.Regroup(ctx, q, *run.UserID)
 	})
+	if err != nil {
+		return err
+	}
+	return r.svc.ReplayNewIdentifierFacts(ctx, res, r.written)
 }
 
 func (r *replay) resolve(ctx context.Context, res gen.Run) error {
@@ -187,7 +198,8 @@ func (r *replay) resolve(ctx context.Context, res gen.Run) error {
 	for i, k := range r.keys {
 		keys[i] = resolve.KeyOrderDates{Row: k}
 	}
-	_, _, err := r.resolver.Resolve(ctx, res, keys)
+	_, written, err := r.resolver.Resolve(ctx, res, keys)
+	r.written = written
 	return err
 }
 
@@ -260,7 +272,7 @@ func (s *Service) beneath(ctx context.Context, parent gen.Run, users []uuid.UUID
 
 // replayKeys replays user's keys as a child of parent.
 func (s *Service) replayKeys(ctx context.Context, parent gen.Run, user uuid.UUID, keys []gen.StatedKey) {
-	w := &replay{store: s.store, runs: s.runs, resolver: s.resolver, keys: keys}
+	w := &replay{svc: s, store: s.store, runs: s.runs, resolver: s.resolver, keys: keys}
 	if _, err := s.runs.ChildAs(ctx, parent, &user, gen.RunKindReplay, w.work); err != nil {
 		s.log.Warn("replay of new identifier facts failed", "parent", parent.ID, "user", user, "err", err)
 	}

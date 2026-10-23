@@ -885,7 +885,7 @@ func TestConfirm(t *testing.T) {
 			if tc.c != nil {
 				f.serves(entryC, *tc.c)
 			}
-			got, err := f.resolver.Confirm(context.Background(), res, tc.key, tc.pick)
+			got, _, err := f.resolver.Confirm(context.Background(), res, tc.key, tc.pick)
 			if len(tc.wantAttached) == 0 {
 				if !errors.Is(err, ErrNoCandidate) {
 					t.Fatalf("Confirm() = %+v, %v, want ErrNoCandidate", got, err)
@@ -901,8 +901,8 @@ func TestConfirm(t *testing.T) {
 			if got.Outcome != gen.ResolutionOutcomeMatched || got.StatedKeyID != tc.key.ID {
 				t.Errorf("Confirm() = %+v, want the key matched", got)
 			}
-			if f.txs != 1 {
-				t.Errorf("Confirm() ran %d transactions, want 1", f.txs)
+			if f.txs != 2 {
+				t.Errorf("Confirm() ran %d transactions, want 2: the key's write, then the check of the facts it wrote", f.txs)
 			}
 			byID := map[uuid.UUID]string{tc.a.ID: "a", tc.b.ID: "b"}
 			if tc.c != nil {

@@ -1154,7 +1154,7 @@ func TestConfirmRows(t *testing.T) {
 		t.Errorf("FindIdentifier(isin) error = %v, want not found: a listing writes no instrument", err)
 	}
 
-	rk, err := s.resolver.Confirm(ctx, s.resolution, key, Pick{Datasource: s.alphaName, Identifier: isin})
+	rk, _, err := s.resolver.Confirm(ctx, s.resolution, key, Pick{Datasource: s.alphaName, Identifier: isin})
 	require.NoError(t, err)
 	if rk.Outcome != gen.ResolutionOutcomeMatched || rk.StatedKeyID != key.ID {
 		t.Fatalf("Confirm() = %+v, want the key matched", rk)
@@ -1212,12 +1212,12 @@ func TestConfirmRows(t *testing.T) {
 	// A pick the database already holds reuses the instrument.
 	other := id(types.IdentifierTypeBrokerDescription, "ibkr", "OTHER CORP")
 	apart := s.stateUnder(t, s.newStatement(t, gen.BrokerIbkr), types.AssetClassStock, "GBP", ticker, other)
-	rk, err = s.resolver.Confirm(ctx, s.resolution, apart, Pick{Datasource: s.alphaName, Identifier: isin})
+	rk, _, err = s.resolver.Confirm(ctx, s.resolution, apart, Pick{Datasource: s.alphaName, Identifier: isin})
 	require.NoError(t, err)
 	if k := s.key(t, apart.ID); rk.Outcome != gen.ResolutionOutcomeMatched || k.InstrumentID == nil || *k.InstrumentID != inst.ID || *k.Arbiter != gen.ArbiterUser {
 		t.Errorf("a second confirmation = %+v, %+v, want the same instrument by the user", rk, k)
 	}
-	if _, err := s.resolver.Confirm(ctx, s.resolution, apart, Pick{Datasource: s.alphaName, Identifier: cusip}); !errors.Is(err, ErrNoCandidate) {
+	if _, _, err := s.resolver.Confirm(ctx, s.resolution, apart, Pick{Datasource: s.alphaName, Identifier: cusip}); !errors.Is(err, ErrNoCandidate) {
 		t.Errorf("Confirm() with an identifier no set of identifiers carries: error = %v, want ErrNoCandidate", err)
 	}
 }
@@ -1239,7 +1239,7 @@ func TestConfirmJoins(t *testing.T) {
 		{Class: types.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{figi, isin, xlon}},
 	}}
 	key := s.state(t, types.AssetClassStock, "GBP", ticker)
-	rk, err := s.resolver.Confirm(ctx, s.resolution, key, Pick{Datasource: s.alphaName, Identifier: isin})
+	rk, _, err := s.resolver.Confirm(ctx, s.resolution, key, Pick{Datasource: s.alphaName, Identifier: isin})
 	require.NoError(t, err)
 	k := s.key(t, key.ID)
 	if rk.Outcome != gen.ResolutionOutcomeMatched || k.InstrumentID == nil || *k.InstrumentID != other.ID || *k.Arbiter != gen.ArbiterUser {
@@ -1288,7 +1288,7 @@ func TestConfirmMerged(t *testing.T) {
 	// the only ones the run holds.
 	s.resolution, err = s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &s.user.ID, Kind: gen.RunKindResolution, Trigger: gen.RunTriggerUser})
 	require.NoError(t, err)
-	_, err = s.resolver.Confirm(ctx, s.resolution, key, Pick{Datasource: s.alphaName, Identifier: figi})
+	_, _, err = s.resolver.Confirm(ctx, s.resolution, key, Pick{Datasource: s.alphaName, Identifier: figi})
 	require.NoError(t, err)
 	alpha, beta := s.fetchKey(t, key.ID, s.alphaName), s.fetchKey(t, key.ID, s.betaName)
 	found, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: types.IdentifierTypeIsin, Value: isin.Value})

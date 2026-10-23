@@ -55,6 +55,7 @@ func (r *Resolver) write(ctx context.Context, run gen.Run, res *resolution, user
 // resolveKey writes res's outcome in one transaction, returning the resolution
 // key and the kinds of the findings written.
 func (r *Resolver) resolveKey(ctx context.Context, q Queries, run gen.Run, res *resolution, userChoice consistentClaims) (gen.ResolutionKey, []gen.FindingKind, error) {
+	res.written = nil
 	if res.outcome != "" {
 		if res.datedFromFacts {
 			if err := writeDated(ctx, q, *run.UserID, res, res.dating.Identifier, gen.ArbiterStated); err != nil {
@@ -105,7 +106,7 @@ func decide(ctx context.Context, q Queries, res *resolution, userChoice consiste
 	if err := db.LockIdentifiers(ctx, q, identifiersToLock(res)); err != nil {
 		return decision{}, err
 	}
-	if err := recordUnknown(ctx, q, res.fetchKeys); err != nil {
+	if err := recordUnknown(ctx, q, res); err != nil {
 		return decision{}, err
 	}
 	verdict := choose(res, nil, userChoice)
@@ -133,7 +134,7 @@ func decide(ctx context.Context, q Queries, res *resolution, userChoice consiste
 // writeInstrument writes d's winner to the instrument d targets, creating that
 // instrument when d has none. It returns the writer for it.
 func writeInstrument(ctx context.Context, q Queries, user uuid.UUID, res *resolution, d decision) (*writer, error) {
-	w := &writer{q: q, user: user, taken: d.target.taken}
+	w := &writer{q: q, user: user, taken: d.target.taken, res: res}
 	if d.target.instrument != nil {
 		w.instr = d.target.instrument.Instrument
 	} else {
@@ -250,10 +251,10 @@ func recordIdentityCoverage(ctx context.Context, q Queries, instrument uuid.UUID
 }
 
 // recordUnknown writes a negative assertion of the identifier sent for each
-// fetch key whose datasource stated that it knows nothing under it. The
-// assertion stands whatever the resolution makes of the other answers.
-func recordUnknown(ctx context.Context, q Queries, fetchKeys []*fetchKey) error {
-	for _, fk := range fetchKeys {
+// fetch key of res whose datasource stated that it knows nothing under it.
+// The assertion stands whatever the resolution makes of the other answers.
+func recordUnknown(ctx context.Context, q Queries, res *resolution) error {
+	for _, fk := range res.fetchKeys {
 		if fk.Outcome != gen.FetchOutcomeServed || !fk.Response.Unknown || fk.SentID == nil {
 			continue
 		}
@@ -264,6 +265,7 @@ func recordUnknown(ctx context.Context, q Queries, fetchKeys []*fetchKey) error 
 		if err := q.CreateIdentifierAssertion(ctx, arg); err != nil {
 			return fmt.Errorf("record negative assertion: %w", err)
 		}
+		res.wrote(fk, id)
 	}
 	return nil
 }
@@ -436,6 +438,9 @@ type writer struct {
 	user  uuid.UUID
 	instr join.Instrument
 	taken map[types.Identifier]bool
+	// res is the resolution of the key being written. The writer records
+	// there each fact it asserts.
+	res *resolution
 }
 
 // create writes the instrument of the winner, with its class and provenance.
@@ -506,6 +511,7 @@ func (w *writer) attach(ctx context.Context, c *identityClaim) error {
 		if err := w.q.CreateIdentifierAssertion(ctx, arg); err != nil {
 			return fmt.Errorf("record assertion: %w", err)
 		}
+		w.res.wrote(c.fetchKey, id)
 	}
 	return nil
 }
