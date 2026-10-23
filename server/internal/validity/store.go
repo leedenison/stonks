@@ -13,9 +13,9 @@ import (
 
 // Queries is this package's view of the validity queries.
 type Queries interface {
-	ListValueAssertions(ctx context.Context, arg gen.ListValueAssertionsParams) ([]gen.ListValueAssertionsRow, error)
-	ListValueEvents(ctx context.Context, arg gen.ListValueEventsParams) ([]gen.ListValueEventsRow, error)
-	ListValueCoverage(ctx context.Context, arg gen.ListValueCoverageParams) ([]gen.ListValueCoverageRow, error)
+	ListIdentifierAssertions(ctx context.Context, arg gen.ListIdentifierAssertionsParams) ([]gen.ListIdentifierAssertionsRow, error)
+	ListIdentifierEvents(ctx context.Context, arg gen.ListIdentifierEventsParams) ([]gen.ListIdentifierEventsRow, error)
+	ListIdentifierCoverage(ctx context.Context, arg gen.ListIdentifierCoverageParams) ([]gen.ListIdentifierCoverageRow, error)
 	ListDomainCoverage(ctx context.Context, domain string) ([]gen.ListDomainCoverageRow, error)
 	FirstDomainTransaction(ctx context.Context, domain string) (time.Time, error)
 }
@@ -36,13 +36,13 @@ func Of(ctx context.Context, q Queries, v types.Identifier) ([]Interval, error) 
 }
 
 // Read reads the facts of v: its assertions, its events, and the coverage of
-// the value and of its domain.
+// the ticker and of its domain.
 func Read(ctx context.Context, q Queries, v types.Identifier) (Facts, error) {
 	if v.Type != types.IdentifierTypeMicTicker {
 		return Facts{}, fmt.Errorf("%s: %w", v.Name(), ErrNotTicker)
 	}
 	var f Facts
-	as, err := q.ListValueAssertions(ctx, gen.ListValueAssertionsParams{Type: v.Type, Domain: v.Domain, Value: v.Value})
+	as, err := q.ListIdentifierAssertions(ctx, gen.ListIdentifierAssertionsParams{Type: v.Type, Domain: v.Domain, Value: v.Value})
 	if err != nil {
 		return Facts{}, fmt.Errorf("list assertions: %w", err)
 	}
@@ -56,14 +56,14 @@ func Read(ctx context.Context, q Queries, v types.Identifier) (Facts, error) {
 		}
 		f.Assertions = append(f.Assertions, Assertion{At: a.AssertedOn, Instrument: a.InstrumentID, Source: src})
 	}
-	evs, err := q.ListValueEvents(ctx, gen.ListValueEventsParams{Domain: v.Domain, Value: v.Value})
+	evs, err := q.ListIdentifierEvents(ctx, gen.ListIdentifierEventsParams{Domain: v.Domain, Value: v.Value})
 	if err != nil {
 		return Facts{}, fmt.Errorf("list events: %w", err)
 	}
 	for _, e := range evs {
 		f.Events = append(f.Events, Event{On: e.EffectiveOn, FetchKey: e.FetchKeyID})
 	}
-	cover, err := q.ListValueCoverage(ctx, gen.ListValueCoverageParams{Domain: v.Domain, Value: &v.Value})
+	cover, err := q.ListIdentifierCoverage(ctx, gen.ListIdentifierCoverageParams{Domain: v.Domain, Value: &v.Value})
 	if err != nil {
 		return Facts{}, fmt.Errorf("list coverage: %w", err)
 	}

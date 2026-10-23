@@ -66,7 +66,7 @@ type link struct {
 // identifier facts at every venue of doms. An oldest event on
 // or before p's first day marks where Massive's data begins, so it assigns
 // nothing. The newest ticker is also asserted on p's last day, so the chain
-// re-asserts a held value. If a chain holds a ticker the system cannot
+// re-asserts a held ticker. If a chain holds a ticker the system cannot
 // spell, chainFacts returns an empty result, since a partial chain would claim
 // coverage around the event it dropped.
 func chainFacts(sent types.Identifier, evs []event, p types.Period, doms []string) (market.IdentifierEventResult, error) {

@@ -31,7 +31,7 @@ for it, whether or not the answer held any data. Where a datasource is known not
 a key, it covers nothing for that key, and a failed fetch covers nothing.
 
 A range answer for identifier events is recorded against the domain rather than against
-each value it covers. Coverage of a value is then the union of rows for the value and rows
+each ticker it covers. Coverage of a ticker is then the union of rows for the ticker and rows
 for its domain.
 
 ### Provenance

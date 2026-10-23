@@ -888,7 +888,7 @@ func TestFetchCacheErrors(t *testing.T) {
 
 // TestFetchDomainBlock checks that a domain whose send fails permanently is
 // blocked as a domain: the block holds no value, it suppresses a later send
-// of the domain, and it leaves a value of the domain to be sent.
+// of the domain, and it leaves an identifier of the domain to be sent.
 func TestFetchDomainBlock(t *testing.T) {
 	nyse := types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XNYS"}
 	value := types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XNYS", Value: "AAPL"}

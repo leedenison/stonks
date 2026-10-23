@@ -1,13 +1,14 @@
-// Package validity derives the validity of a MIC_TICKER value: the days over
-// which it names one instrument. It derives validity from identifier
-// assertions, identifier events and their coverage each time it is read; see
+// Package validity derives the validity of a ticker, a MIC_TICKER identifier:
+// the days over which it names one instrument. It derives validity from
+// identifier assertions, identifier events and their coverage each time it is
+// read; see
 // [010_validity.sql](../migrations/010_validity.sql). An event takes effect
 // at the start of its day, so it precedes an assertion on the same day.
 //
 // On each day one assertion wins; see winners. Validity is confirmed on each
 // day the winning assertion names the instrument. Two consecutive winning
 // assertions of one instrument that an event does not separate confirm every
-// day between them, on the assumption that the value never moved away from
+// day between them, on the assumption that the ticker never moved away from
 // the instrument and back.
 //
 // A confirmed range extends through covered days, before and after it, up to
@@ -32,7 +33,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
-// Interval is a range of days over which a value names one instrument. A nil
+// Interval is a range of days over which a ticker names one instrument. A nil
 // bound is open.
 type Interval struct {
 	From, Before *time.Time
@@ -59,30 +60,30 @@ func (s Source) outranks(o Source) bool {
 	return s.Precedence < o.Precedence
 }
 
-// Assertion is one assertion of a value. A nil Instrument asserts that the
-// value names nothing.
+// Assertion is one assertion of a ticker. A nil Instrument asserts that the
+// ticker names nothing.
 type Assertion struct {
 	At         time.Time
 	Instrument *uuid.UUID
 	Source     Source
 }
 
-// Event is a witnessed event of a value, as the value or as the value a
+// Event is a witnessed event of a ticker, as the ticker or as the ticker a
 // rename moved to. It takes effect at the start of On.
 type Event struct {
 	On       time.Time
 	FetchKey uuid.UUID
 }
 
-// Facts are the rows of one value.
+// Facts are the rows of one ticker.
 type Facts struct {
 	Assertions []Assertion
 	Events     []Event
-	// Coverage is the periods covered for the value or its domain.
+	// Coverage is the periods covered for the ticker or its domain.
 	Coverage []types.Period
 }
 
-// Derived is what the facts of one value imply: its intervals, the events
+// Derived is what the facts of one ticker imply: its intervals, the events
 // two assertions infer, and the conflicts among the facts.
 type Derived struct {
 	Intervals     []Interval
@@ -109,7 +110,7 @@ type BrokenBracket struct {
 }
 
 // Inferred is an event that two assertions imply. It took effect at the
-// start of a day in Period. A nil From or To is the value naming nothing.
+// start of a day in Period. A nil From or To is the ticker naming nothing.
 type Inferred struct {
 	Period   types.Period
 	From, To *uuid.UUID

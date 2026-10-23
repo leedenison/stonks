@@ -14,9 +14,9 @@
 // key produce one instrument, however they interleave; see write.go.
 //
 // A key that states a venue ticker without a stable identifier is dated: it
-// names the ticker's value, and each of its transactions takes the
-// instrument the value's validity names on its order date when it is read;
-// see [validity.go](../validity/validity.go). Where the value has facts, the
+// names the ticker, and each of its transactions takes the instrument the
+// ticker's validity names on its order date when it is read;
+// see [validity.go](../validity/validity.go). Where the ticker has facts, the
 // key is dated through them without an identity fetch. Identifier events are
 // fetched for the keys that may be dated, and recorded after the keys are
 // written.

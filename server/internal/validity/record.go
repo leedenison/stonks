@@ -30,8 +30,8 @@ type RecordQueries interface {
 
 var _ RecordQueries = (*gen.Queries)(nil)
 
-// ErrSpelling reports a value or a domain that is not in the system's
-// spelling, or a domain where a value is required. Nothing matches it, so it
+// ErrSpelling reports a ticker or a domain that is not in the system's
+// spelling, or a domain where a ticker is required. Nothing matches it, so it
 // is refused.
 var ErrSpelling = errors.New("not in the system's spelling")
 
@@ -43,7 +43,7 @@ var ErrFuture = errors.New("an attestation cannot reach past the day it is made"
 // call. A negative assertion is always written.
 //
 // A positive assertion names the instrument of the first stable identifier
-// it states that is stored. A ticker row names the instrument its value
+// it states that is stored. A ticker row names the instrument its ticker
 // identifies today, which is the wrong instrument for an assertion of a past
 // day, so Record never maps through one. Where no stable identifier of the
 // assertion is stored, Record creates the instrument with them, without a
@@ -228,7 +228,7 @@ func create(ctx context.Context, q RecordQueries, family string, key uuid.UUID, 
 // Attest writes an administrator's assertion that v names instrument on the
 // day on, beneath run, which is a system run of kind attestation. A nil
 // instrument asserts that v names nothing. Attest refuses a run that is not a
-// system attestation run, a value that is not a MIC_TICKER of an operating MIC
+// system attestation run, an identifier that is not a MIC_TICKER of an operating MIC
 // in the system's spelling, a domain, and a day after today.
 func Attest(ctx context.Context, q RecordQueries, mics mic.MICMap, run gen.Run, admin uuid.UUID, v types.Identifier, instrument *uuid.UUID, on, today time.Time) error {
 	if run.Kind != gen.RunKindAttestation || run.UserID != nil {

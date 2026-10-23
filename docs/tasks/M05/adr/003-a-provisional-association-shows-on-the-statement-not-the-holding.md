@@ -1,7 +1,7 @@
 # A provisional association shows on the statement, not the holding
 
 A transaction of a dated key is confirmed, provisional or unresolved by where its date
-falls in its value's validity. A transaction of a fixed association through a broker
+falls in its ticker's validity. A transaction of a fixed association through a broker
 description or an option symbol is provisional.
 
 The statement details page marks each transaction. The holdings page shows a holding the

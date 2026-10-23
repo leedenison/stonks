@@ -20,7 +20,7 @@ zone. A key dated in the grey zone therefore resolves the same way whenever it i
 ingested. The later instrument is valid from the day of its own assertion.
 
 Validity is derived from assertions, coverage and witnessed events each time it is read.
-One value's facts are a handful of indexed rows. When an administrator reorders the
+One ticker's facts are a handful of indexed rows. When an administrator reorders the
 datasources, or a fetch key and its assertions are deleted, the change takes effect at
 the next read.
 

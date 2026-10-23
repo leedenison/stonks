@@ -174,12 +174,12 @@ CREATE TABLE listings (
 
 -- An identifier names an instrument or one of its listings by a type, a
 -- domain and a value, the domain empty where its type has none. One triple
--- identifies one instrument or listing. A ticker row names the instrument its
--- value identifies today, and moves when an identity answer names another. A
+-- identifies one instrument or listing. A ticker row names the instrument the
+-- ticker identifies today, and moves when an identity answer names another. A
 -- retirement leaves the row in place, so a delisted holding keeps its name. A
 -- holding is named by the current ticker, whatever the dates of its
 -- transactions.
--- What the value named on an earlier day is read from its validity, so
+-- What the ticker named on an earlier day is read from its validity, so
 -- resolution does not match through a ticker row. An option symbol still
 -- matches through its row until corporate events are built.
 CREATE TABLE identifiers (

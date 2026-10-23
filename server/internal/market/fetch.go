@@ -380,7 +380,7 @@ func reasonOf(fail Failure, err error) string {
 
 // blockSet is the open blocks of one datasource and kind, read as the fetch
 // starts. A domain block is held as the domain's identifier. It suppresses a
-// send of the domain and leaves a send of one value alone.
+// send of the domain and leaves a send of one identifier in it alone.
 type blockSet struct {
 	datasource string
 	all        bool

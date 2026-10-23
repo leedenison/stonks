@@ -566,7 +566,7 @@ func (w *writer) associate(ctx context.Context, res *resolution, arbiter gen.Arb
 	return true, nil
 }
 
-// datedThrough returns the MIC_TICKER value a key associated through via is
+// datedThrough returns the MIC_TICKER a key associated through via is
 // dated through: via itself, or the MIC_TICKER on via's listing for another
 // ticker. It reports false where via is no ticker or its listing has no
 // MIC_TICKER.

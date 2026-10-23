@@ -347,7 +347,7 @@ func TestStatedKeyAssociation(t *testing.T) {
 }
 
 // TestDatedAssociation checks that a dated association names a MIC_TICKER
-// value and no instrument, that it replaces a fixed one and keeps the key's
+// ticker and no instrument, that it replaces a fixed one and keeps the key's
 // group, that a fixed association replaces it, that a user's choice stands
 // against it, and that the checks refuse every half-written shape.
 func TestDatedAssociation(t *testing.T) {
@@ -466,7 +466,7 @@ func TestListKeyOrderDates(t *testing.T) {
 	}
 }
 
-// TestListUnassociatedKeysStating checks that a probe of a value finds every
+// TestListUnassociatedKeysStating checks that a probe of a ticker finds every
 // user's unassociated keys stating it, whatever else they state, that a probe
 // of a domain finds a key stating any ticker of the domain, and that an
 // associated key, a dated key, a key without a transaction and a key the run
@@ -500,7 +500,7 @@ func TestListUnassociatedKeysStating(t *testing.T) {
 	just := stating(statement, meta, types.Identifier{Type: types.IdentifierTypeBrokerDescription, Domain: "ibkr", Value: "just " + uuid.NewString()})
 	resolved(t, q, resolution, just, gen.ResolutionOutcomeUnrecognised)
 
-	// A domain probe leaves the value out, so it matches any value.
+	// A domain probe leaves the value out, so it matches any ticker.
 	probe := func(id types.Identifier) []byte {
 		t.Helper()
 		obj := map[string]string{"type": string(id.Type), "domain": id.Domain}

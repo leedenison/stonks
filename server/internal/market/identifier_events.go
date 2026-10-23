@@ -12,14 +12,14 @@ import (
 
 // IdentifierEventRequest asks for the identifier events of one identifier
 // over one period. An identifier with no value stands for its domain, and asks
-// for every value of the domain. An identifier with a value over one day is a
+// for every ticker of the domain. An identifier with a value over one day is a
 // point in time lookup.
 type IdentifierEventRequest struct {
 	Identifier types.Identifier
 	Period     types.Period
 }
 
-// IdentifierEvent is an event a provider reported for a MIC_TICKER value.
+// IdentifierEvent is an event a provider reported for a MIC_TICKER.
 // ToValue is set only for a rename.
 type IdentifierEvent struct {
 	Value   types.Identifier
@@ -28,10 +28,10 @@ type IdentifierEvent struct {
 	On      time.Time
 }
 
-// Assertion is what a provider stated a value named on one day: the listing
+// Assertion is what a provider stated a ticker named on one day: the listing
 // of the entity, as far as the provider described it. The recorder looks its
 // identifiers up to find the instrument. A negative assertion states that the
-// value names nothing, and leaves Of empty.
+// ticker names nothing, and leaves Of empty.
 type Assertion struct {
 	Value    types.Identifier
 	Of       Listing
@@ -54,7 +54,7 @@ type IdentifierEventResult struct {
 }
 
 // IdentifierEvents is an integration that reports the identifier events of
-// values or domains. Its Events method returns the server, so one integration
+// tickers or domains. Its Events method returns the server, so one integration
 // can serve identity too.
 type IdentifierEvents interface {
 	Integration
@@ -81,7 +81,7 @@ type Ranged interface {
 	Lag() time.Duration
 }
 
-// identifierEventsKind is the identifier events of values and domains. No
+// identifierEventsKind is the identifier events of tickers and domains. No
 // stated key asks for one, and the period is part of the request as cached.
 var identifierEventsKind = Kind[IdentifierEventRequest, IdentifierEventResult]{
 	name: gen.FetchKindIdentifierEvents,
@@ -122,7 +122,7 @@ func NextPeriod(last *time.Time, earliest time.Time, w Windowed, lag time.Durati
 	return types.Period{From: from, Before: before}
 }
 
-// LookupDay is the day a point in time lookup asks about for a value whose
+// LookupDay is the day a point in time lookup asks about for a ticker whose
 // earliest transaction is on earliest: that day, or the start of w's window
 // where the window starts later.
 func LookupDay(earliest time.Time, w Windowed, now time.Time) time.Time {

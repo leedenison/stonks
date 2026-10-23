@@ -10,7 +10,7 @@ provisional or unresolved, and each transaction of a provisional fixed associati
 provisional. See
 [003](../adr/003-a-provisional-association-shows-on-the-statement-not-the-holding.md)
 and
-[016](../adr/016-a-transaction-is-unresolved-where-its-value-names-nothing-on-its-date.md).
+[016](../adr/016-a-transaction-is-unresolved-where-its-ticker-names-nothing-on-its-date.md).
 
 In:
 

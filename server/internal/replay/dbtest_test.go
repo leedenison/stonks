@@ -337,17 +337,17 @@ func TestReplayNewIdentifierFacts(t *testing.T) {
 	ctx := context.Background()
 	other, err := s.q.CreateUser(ctx, gen.CreateUserParams{ID: db.NewID(), Email: uuid.NewString() + "@example.com", Role: gen.UserRoleUser})
 	require.NoError(t, err)
-	value := types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "ZZ" + uuid.NewString()[:6]}
-	stated, mine := s.stateTicker(t, s.user, time.January, value)
-	_, theirs := s.stateTicker(t, other, time.January, value)
-	_, segment := s.stateTicker(t, other, time.February, types.Identifier{Type: value.Type, Domain: "XNGS", Value: "ZY" + uuid.NewString()[:6]})
-	_, elsewhere := s.stateTicker(t, other, time.March, types.Identifier{Type: value.Type, Domain: "XNYS", Value: value.Value})
+	ticker := types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "ZZ" + uuid.NewString()[:6]}
+	stated, mine := s.stateTicker(t, s.user, time.January, ticker)
+	_, theirs := s.stateTicker(t, other, time.January, ticker)
+	_, segment := s.stateTicker(t, other, time.February, types.Identifier{Type: ticker.Type, Domain: "XNGS", Value: "ZY" + uuid.NewString()[:6]})
+	_, elsewhere := s.stateTicker(t, other, time.March, types.Identifier{Type: ticker.Type, Domain: "XNYS", Value: ticker.Value})
 
 	parent, err := s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &s.user.ID, Kind: gen.RunKindResolution, Trigger: gen.RunTriggerUser})
 	require.NoError(t, err)
 	fetch, err := s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &s.user.ID, Kind: gen.RunKindFetch, Trigger: gen.RunTriggerRun, ParentID: &parent.ID})
 	require.NoError(t, err)
-	written := []resolve.WrittenIdentifierFacts{{Run: fetch, Identifiers: []types.Identifier{value}}}
+	written := []resolve.WrittenIdentifierFacts{{Run: fetch, Identifiers: []types.Identifier{ticker}}}
 	require.NoError(t, s.svc.ReplayNewIdentifierFacts(ctx, gen.Run{ID: db.NewID()}, written))
 
 	tree, err := s.q.ListRunDescendants(ctx, &fetch.ID)
@@ -387,7 +387,7 @@ func TestReplayNewIdentifierFacts(t *testing.T) {
 	attestation, err := s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), Kind: gen.RunKindAttestation, Trigger: gen.RunTriggerAdministrator})
 	require.NoError(t, err)
 	except, _ := s.resolution(t, stated)
-	domain := types.Identifier{Type: value.Type, Domain: "XNAS"}
+	domain := types.Identifier{Type: ticker.Type, Domain: "XNAS"}
 	written = []resolve.WrittenIdentifierFacts{{Run: attestation, Identifiers: []types.Identifier{domain}}}
 	require.NoError(t, s.svc.ReplayNewIdentifierFacts(ctx, except, written))
 	replayed = s.replays(t, attestation)
@@ -410,26 +410,26 @@ func TestReplayNewIdentifierFacts(t *testing.T) {
 
 // TestReplayChain checks that a replay whose resolution writes new facts
 // replays in turn the keys that state their identifiers. The first user's replay asserts the
-// value through its identity fetch, which replays the second user's key
+// ticker through its identity fetch, which replays the second user's key
 // beneath that fetch. Both keys end dated, and the chain stops.
 func TestReplayChain(t *testing.T) {
 	s := newStack(t)
 	ctx := context.Background()
 	other, err := s.q.CreateUser(ctx, gen.CreateUserParams{ID: db.NewID(), Email: uuid.NewString() + "@example.com", Role: gen.UserRoleUser})
 	require.NoError(t, err)
-	value := types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "ZR" + uuid.NewString()[:6]}
-	_, mine := s.stateTicker(t, s.user, time.January, value)
-	_, theirs := s.stateTicker(t, other, time.January, value)
+	ticker := types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "ZR" + uuid.NewString()[:6]}
+	_, mine := s.stateTicker(t, s.user, time.January, ticker)
+	_, theirs := s.stateTicker(t, other, time.January, ticker)
 	share := types.Identifier{Type: types.IdentifierTypeOpenfigiShareClass, Value: "BBG" + uuid.NewString()[:9]}
-	s.alpha.Responses[value] = market.IdentityResult{Filtered: []types.Identifier{{Type: value.Type, Value: value.Value}}, Listings: []market.Listing{
-		{Class: types.AssetClassStock, Currency: "USD", Primary: "XNAS", Identifiers: []types.Identifier{share, value}},
+	s.alpha.Responses[ticker] = market.IdentityResult{Filtered: []types.Identifier{{Type: ticker.Type, Value: ticker.Value}}, Listings: []market.Listing{
+		{Class: types.AssetClassStock, Currency: "USD", Primary: "XNAS", Identifiers: []types.Identifier{share, ticker}},
 	}}
 
 	parent, err := s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &s.user.ID, Kind: gen.RunKindResolution, Trigger: gen.RunTriggerUser})
 	require.NoError(t, err)
 	fetch, err := s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &s.user.ID, Kind: gen.RunKindFetch, Trigger: gen.RunTriggerRun, ParentID: &parent.ID})
 	require.NoError(t, err)
-	written := []resolve.WrittenIdentifierFacts{{Run: fetch, Identifiers: []types.Identifier{value}}}
+	written := []resolve.WrittenIdentifierFacts{{Run: fetch, Identifiers: []types.Identifier{ticker}}}
 	require.NoError(t, s.svc.ReplayNewIdentifierFacts(ctx, gen.Run{ID: db.NewID()}, written))
 
 	for _, k := range []struct {
@@ -438,8 +438,8 @@ func TestReplayChain(t *testing.T) {
 	}{{s.user, mine}, {other, theirs}} {
 		got, err := s.q.GetStatedKey(ctx, gen.GetStatedKeyParams{ID: k.key.ID, UserID: k.user.ID})
 		require.NoError(t, err)
-		if got.ViaValue == nil || *got.ViaValue != value.Value {
-			t.Errorf("key %s = %+v, want dated through %s", k.key.ID, got, value.Name())
+		if got.ViaValue == nil || *got.ViaValue != ticker.Value {
+			t.Errorf("key %s = %+v, want dated through %s", k.key.ID, got, ticker.Name())
 		}
 	}
 	tree, err := s.q.ListRunDescendants(ctx, &fetch.ID)
