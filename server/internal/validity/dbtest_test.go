@@ -192,7 +192,8 @@ func TestDomainGaps(t *testing.T) {
 	require.NoError(t, err)
 	f.exec(t, "INSERT INTO statements (id, user_id, broker, order_from, order_before, row_count) VALUES ($1, $2, 'ibkr', $3, $4, 1)", statement.ID, f.user.ID, day(1), day(31))
 	key := db.NewID()
-	f.exec(t, `INSERT INTO stated_keys (id, statement_id, user_id, identifiers) VALUES ($1, $2, $3, '[{"type":"mic_ticker","domain":"XNGS","value":"AAPL"}]')`, key, statement.ID, f.user.ID)
+	f.exec(t, `INSERT INTO stated_keys (id, user_id, identifiers) VALUES ($1, $2, '[{"type":"mic_ticker","domain":"XNGS","value":"AAPL"}]')`, key, f.user.ID)
+	f.exec(t, "INSERT INTO statement_keys (statement_id, user_id, stated_key_id) VALUES ($1, $2, $3)", statement.ID, f.user.ID, key)
 	f.exec(t, "INSERT INTO transactions (id, user_id, broker, statement_id, stated_key_id, order_date, settlement_date, as_at, quantity) VALUES ($1, $2, 'ibkr', $3, $4, $5, $5, $5, 1)", db.NewID(), f.user.ID, statement.ID, key, day(4))
 	fetchKey := db.NewID()
 	require.NoError(t, f.q.CreateFetchKey(ctx, gen.CreateFetchKeyParams{

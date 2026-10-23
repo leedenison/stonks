@@ -22,25 +22,41 @@ import (
 
 func date(y int, m time.Month, d int) time.Time { return time.Date(y, m, d, 0, 0, 0, 0, time.UTC) }
 
-// TestStatedKeys checks that one statement holds one row per distinct key, and
-// that the identifiers column round-trips through its Go type.
+// upsertKey states a key in statement the way an ingestion does and returns
+// the row, which may be an earlier statement's.
+func upsertKey(t *testing.T, q *gen.Queries, statement gen.Statement, arg gen.UpsertStatedKeyParams) gen.StatedKey {
+	t.Helper()
+	arg.ID, arg.UserID = db.NewID(), statement.UserID
+	key, err := q.UpsertStatedKey(context.Background(), arg)
+	require.NoError(t, err)
+	link(t, q, statement, key)
+	return key
+}
+
+// link records that statement states key, as an ingestion does.
+func link(t *testing.T, q *gen.Queries, statement gen.Statement, key gen.StatedKey) {
+	t.Helper()
+	_, err := q.CreateStatementKeys(context.Background(), []gen.CreateStatementKeysParams{{StatementID: statement.ID, UserID: statement.UserID, StatedKeyID: key.ID}})
+	require.NoError(t, err)
+}
+
+// TestStatedKeys checks that a user holds one row per distinct key, whatever
+// statements state it, that each statement lists the keys it links to, that
+// an associated key upserts to its own row, and that the identifiers column
+// round-trips through its Go type.
 func TestStatedKeys(t *testing.T) {
 	q := newTx(t)
 	ctx := context.Background()
-	user := newUser(t, q, "keys@example.com")
-	statement, other := newStatement(t, q, user), newStatement(t, q, user)
+	user, other := newUser(t, q, "keys@example.com"), newUser(t, q, "keys-other@example.com")
+	statement, later := newStatement(t, q, user), newStatement(t, q, user)
 	cash := types.AssetClassCash
-	key := func(statement gen.Statement) gen.CreateStatedKeyParams {
-		return gen.CreateStatedKeyParams{
-			ID: db.NewID(), StatementID: statement.ID, UserID: user.ID, AssetClass: &cash, Currency: ptr.To("USD"),
-			Identifiers: []types.Identifier{{Type: "system", Value: "cash"}},
-		}
+	key := func(currency *string) gen.UpsertStatedKeyParams {
+		return gen.UpsertStatedKeyParams{AssetClass: &cash, Currency: currency, Identifiers: []types.Identifier{{Type: "system", Value: "cash"}}}
 	}
 
-	created, err := q.CreateStatedKey(ctx, key(statement))
-	require.NoError(t, err)
+	created := upsertKey(t, q, statement, key(ptr.To("USD")))
 	if created.AssetClass == nil || *created.AssetClass != types.AssetClassCash {
-		t.Errorf("CreateStatedKey = %+v, want asset class cash", created)
+		t.Errorf("UpsertStatedKey = %+v, want asset class cash", created)
 	}
 	listed, err := q.ListStatedKeys(ctx, gen.ListStatedKeysParams{StatementID: statement.ID, UserID: user.ID})
 	require.NoError(t, err)
@@ -48,12 +64,32 @@ func TestStatedKeys(t *testing.T) {
 		t.Errorf("ListStatedKeys mismatch (-want +got):\n%s", diff)
 	}
 
-	if _, err := q.CreateStatedKey(ctx, key(other)); err != nil {
-		t.Errorf("CreateStatedKey of the same key in another statement: err = %v, want nil", err)
+	if again := upsertKey(t, q, later, key(ptr.To("USD"))); again.ID != created.ID {
+		t.Errorf("the same key under another statement = %s, want the row %s", again.ID, created.ID)
 	}
-	// The unique violation aborts the transaction, so it is the last statement.
-	if _, err := q.CreateStatedKey(ctx, key(statement)); !db.IsConflict(err) {
-		t.Errorf("CreateStatedKey of a key the statement already holds: err = %v, want a conflict", err)
+	for _, st := range []gen.Statement{statement, later} {
+		listed, err := q.ListStatedKeys(ctx, gen.ListStatedKeysParams{StatementID: st.ID, UserID: user.ID})
+		require.NoError(t, err)
+		if len(listed) != 1 || listed[0].ID != created.ID {
+			t.Errorf("ListStatedKeys(%s) = %+v, want the one key", st.ID, listed)
+		}
+	}
+	if theirs := upsertKey(t, q, newStatement(t, q, other), key(ptr.To("USD"))); theirs.ID == created.ID {
+		t.Errorf("the same key of another user = %s, want a row of their own", theirs.ID)
+	}
+	// A null currency is one value, so a restatement shares the row.
+	bare := upsertKey(t, q, statement, key(nil))
+	if bare.ID == created.ID || upsertKey(t, q, later, key(nil)).ID != bare.ID {
+		t.Errorf("a key with no currency = %s, want a row apart from %s that a restatement shares", bare.ID, created.ID)
+	}
+
+	usd, via := cashListing(t, q, "USD")
+	arg := gen.SetStatedKeyAssociationParams{ID: created.ID, UserID: user.ID, InstrumentID: &usd.InstrumentID, ListingID: &usd.ID, ViaID: &via.ID, Validity: ptr.To(gen.ValidityConfirmed), Arbiter: gen.ArbiterUser}
+	_, err = q.SetStatedKeyAssociation(ctx, arg)
+	require.NoError(t, err)
+	restated := upsertKey(t, q, newStatement(t, q, user), key(ptr.To("USD")))
+	if restated.ID != created.ID || restated.InstrumentID == nil || *restated.InstrumentID != usd.InstrumentID || restated.Arbiter == nil || *restated.Arbiter != gen.ArbiterUser {
+		t.Errorf("an associated key upserted again = %+v, want its row with the association", restated)
 	}
 }
 
@@ -64,8 +100,7 @@ func TestTransactions(t *testing.T) {
 	ctx := context.Background()
 	user := newUser(t, q, "txs@example.com")
 	statement := newStatement(t, q, user)
-	key, err := q.CreateStatedKey(ctx, gen.CreateStatedKeyParams{ID: db.NewID(), StatementID: statement.ID, UserID: user.ID, Identifiers: []types.Identifier{{Type: "system", Value: "cash"}}})
-	require.NoError(t, err)
+	key := upsertKey(t, q, statement, gen.UpsertStatedKeyParams{Identifiers: []types.Identifier{{Type: "system", Value: "cash"}}})
 	create := func(broker gen.Broker, order time.Time, quantity string) gen.Transaction {
 		t.Helper()
 		row, err := q.CreateTransaction(ctx, gen.CreateTransactionParams{
@@ -160,8 +195,7 @@ func TestStatedKeyAssociation(t *testing.T) {
 			q := newTx(t)
 			user := newUser(t, q, "assoc-"+uuid.NewString()+"@example.com")
 			statement := newStatement(t, q, user)
-			key, err := q.CreateStatedKey(ctx, gen.CreateStatedKeyParams{ID: db.NewID(), StatementID: statement.ID, UserID: user.ID, Identifiers: []types.Identifier{}})
-			require.NoError(t, err)
+			key := upsertKey(t, q, statement, gen.UpsertStatedKeyParams{Identifiers: []types.Identifier{}})
 			arg := tc.arg
 			arg.ID, arg.UserID = key.ID, user.ID
 			if _, err := q.SetStatedKeyAssociation(ctx, arg); err == nil {

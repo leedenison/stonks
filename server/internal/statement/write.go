@@ -43,7 +43,7 @@ func (g *ingestion) write(ctx context.Context, run gen.Run) error {
 				continue
 			}
 			txs = append(txs, gen.CreateTransactionsParams{
-				ID: db.NewID(), UserID: g.user, Broker: g.broker, StatementID: run.ID, StatedKeyID: r.key.id,
+				ID: db.NewID(), UserID: g.user, Broker: g.broker, StatementID: run.ID, StatedKeyID: r.key.row.ID,
 				OrderDate: r.order, SettlementDate: r.settlement, AsAt: r.asAt, Quantity: r.quantity,
 			})
 		}

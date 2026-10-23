@@ -132,6 +132,16 @@ func (s *stack) newStatement(t *testing.T, broker gen.Broker) gen.Run {
 	return run
 }
 
+// rerun starts a new resolution run under the stack's statement and makes
+// it the stack's, so a key the stack resolved resolves again, as a replay
+// resolves it.
+func (s *stack) rerun(t *testing.T) {
+	t.Helper()
+	var err error
+	s.resolution, err = s.q.CreateRun(context.Background(), gen.CreateRunParams{ID: db.NewID(), UserID: &s.user.ID, Kind: gen.RunKindResolution, Trigger: gen.RunTriggerRun, ParentID: &s.statement.ID})
+	require.NoError(t, err)
+}
+
 // enableBeta enables beta with a lower precedence than alpha.
 func (s *stack) enableBeta(t *testing.T) {
 	t.Helper()
@@ -147,17 +157,21 @@ func (s *stack) state(t *testing.T, class types.AssetClass, currency string, ids
 	return s.stateUnder(t, s.statement, class, currency, ids...)
 }
 
-// stateUnder records a stated key under statement.
+// stateUnder records a stated key of the user, linked to statement. If the
+// user already has the key, it returns that row.
 func (s *stack) stateUnder(t *testing.T, statement gen.Run, class types.AssetClass, currency string, ids ...types.Identifier) gen.StatedKey {
 	t.Helper()
-	arg := gen.CreateStatedKeyParams{ID: db.NewID(), StatementID: statement.ID, UserID: s.user.ID, Identifiers: ids}
+	ctx := context.Background()
+	arg := gen.UpsertStatedKeyParams{ID: db.NewID(), UserID: s.user.ID, Identifiers: ids}
 	if class != "" {
 		arg.AssetClass = &class
 	}
 	if currency != "" {
 		arg.Currency = &currency
 	}
-	row, err := s.q.CreateStatedKey(context.Background(), arg)
+	row, err := s.q.UpsertStatedKey(ctx, arg)
+	require.NoError(t, err)
+	_, err = s.q.CreateStatementKeys(ctx, []gen.CreateStatementKeysParams{{StatementID: statement.ID, UserID: s.user.ID, StatedKeyID: row.ID}})
 	require.NoError(t, err)
 	return row
 }
@@ -776,13 +790,15 @@ func TestLimitedDatasource(t *testing.T) {
 			s.script.Responses[isin] = market.IdentityResult{Filtered: []types.Identifier{isin}, Listings: []market.Listing{
 				{Class: types.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{figi, isin, xlon}},
 			}}
-			s.resolve(t, s.state(t, types.AssetClassStock, "GBP", isin))
+			k := s.state(t, types.AssetClassStock, "GBP", isin)
+			s.resolve(t, k)
 			s.enableBeta(t)
 			s.beta.Limited = limited
 			s.beta.Responses[isin] = market.IdentityResult{Filtered: []types.Identifier{isin}, Listings: []market.Listing{
 				{Class: types.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{figi, xnas}},
 			}}
-			k := s.stateUnder(t, s.newStatement(t, gen.BrokerIbkr), types.AssetClassStock, "GBP", isin)
+			// The key resolves again under a new run, which asks beta.
+			s.rerun(t)
 			if got := s.resolve(t, k); written(got[0]) != "matched" {
 				t.Fatalf("outcome = %s, want matched", written(got[0]))
 			}
@@ -886,7 +902,8 @@ func TestDroppedUncovered(t *testing.T) {
 	s.script.Responses[isin] = market.IdentityResult{Filtered: []types.Identifier{isin}, Listings: []market.Listing{
 		{Class: types.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{figi, isin, xlon}},
 	}}
-	s.resolve(t, s.state(t, types.AssetClassStock, "GBP", isin))
+	k := s.state(t, types.AssetClassStock, "GBP", isin)
+	s.resolve(t, k)
 	found, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: isin.Type, Value: isin.Value})
 	require.NoError(t, err)
 	inst := found.Instrument.ID
@@ -900,48 +917,45 @@ func TestDroppedUncovered(t *testing.T) {
 		return out
 	}
 	s.enableBeta(t)
-	// Each key needs a new statement, because a statement states a key once.
-	state := func() gen.StatedKey {
-		return s.stateUnder(t, s.newStatement(t, gen.BrokerIbkr), types.AssetClassStock, "GBP", isin)
-	}
+	// The key resolves again under a new run each time, as a replay resolves
+	// it, and each run's fetches are counted on their own.
 
 	// beta's share class contradicts the instrument's, so its set of
-	// identifiers is dropped and it is asked again for each key.
+	// identifiers is dropped and it is asked again on each resolution.
 	s.beta.Responses[isin] = market.IdentityResult{Filtered: []types.Identifier{isin}, Listings: []market.Listing{
 		{Class: types.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{figi2, isin, xlon}},
 	}}
 	for n := range 2 {
-		fetched := len(s.fetches(t))
-		k := state()
+		s.rerun(t)
 		got := s.resolve(t, k)
 		if written(got[0]) != "matched" {
 			t.Fatalf("outcome = %s, want matched", written(got[0]))
 		}
-		if d := len(s.fetches(t)) - fetched; d != 1 {
-			t.Errorf("key %d: %d new fetches, want 1: a dropped answer does not cover the instrument", n, d)
+		if d := len(s.fetches(t)); d != 1 {
+			t.Errorf("resolution %d: %d fetches, want 1: a dropped answer does not cover the instrument", n, d)
 		}
 		if diff := cmp.Diff([]gen.FindingKind{gen.FindingKindContradiction}, s.findings(t, k.ID)); diff != "" {
-			t.Errorf("key %d: findings mismatch (-want +got):\n%s", n, diff)
+			t.Errorf("resolution %d: findings mismatch (-want +got):\n%s", n, diff)
 		}
 		if diff := cmp.Diff([]string{s.alphaName}, covered()); diff != "" {
-			t.Errorf("key %d: coverage mismatch (-want +got):\n%s", n, diff)
+			t.Errorf("resolution %d: coverage mismatch (-want +got):\n%s", n, diff)
 		}
 	}
 
 	// An answer with no listing covers the instrument.
 	s.beta.Responses[isin] = market.IdentityResult{Filtered: []types.Identifier{isin}}
-	fetched := len(s.fetches(t))
-	s.resolve(t, state())
-	if d := len(s.fetches(t)) - fetched; d != 1 {
-		t.Errorf("%d new fetches, want 1: beta is asked once more", d)
+	s.rerun(t)
+	s.resolve(t, k)
+	if d := len(s.fetches(t)); d != 1 {
+		t.Errorf("%d fetches, want 1: beta is asked once more", d)
 	}
 	if diff := cmp.Diff([]string{s.alphaName, s.betaName}, covered()); diff != "" {
 		t.Errorf("coverage mismatch (-want +got):\n%s", diff)
 	}
-	fetched = len(s.fetches(t))
-	s.resolve(t, state())
-	if d := len(s.fetches(t)) - fetched; d != 0 {
-		t.Errorf("%d new fetches, want none: an empty answer covers the instrument", d)
+	s.rerun(t)
+	s.resolve(t, k)
+	if d := len(s.fetches(t)); d != 0 {
+		t.Errorf("%d fetches, want none: an empty answer covers the instrument", d)
 	}
 }
 
@@ -1037,19 +1051,20 @@ func TestMergeRefused(t *testing.T) {
 	s.script.Responses[cusip] = market.IdentityResult{Filtered: []types.Identifier{cusip}, Listings: []market.Listing{
 		{Class: types.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{cusip, other, xnas}},
 	}}
-	s.resolve(t, s.state(t, types.AssetClassStock, "GBP", isin), s.state(t, types.AssetClassStock, "USD", cusip))
+	k := s.state(t, types.AssetClassStock, "USD", cusip)
+	s.resolve(t, s.state(t, types.AssetClassStock, "GBP", isin), k)
 	a, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: isin.Type, Value: isin.Value})
 	require.NoError(t, err)
 	b, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: cusip.Type, Value: cusip.Value})
 	require.NoError(t, err)
 
 	// alpha covers both instruments, so beta carries the response that names
-	// both.
+	// both when the key stating the CUSIP resolves again under a new run.
 	s.enableBeta(t)
 	s.beta.Responses[cusip] = market.IdentityResult{Filtered: []types.Identifier{cusip}, Listings: []market.Listing{
 		{Class: types.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{figi, cusip, xnas}},
 	}}
-	k := s.stateUnder(t, s.newStatement(t, gen.BrokerIbkr), types.AssetClassStock, "USD", cusip)
+	s.rerun(t)
 	got := s.resolve(t, k)
 	if written(got[0]) != "matched" {
 		t.Fatalf("outcome = %s, want matched", written(got[0]))
@@ -1164,12 +1179,11 @@ func TestConfirmRows(t *testing.T) {
 		t.Errorf("%d fetches after a later resolution, want %d: a key that takes an arbitrated association is not sent", n, fetches)
 	}
 
-	// A new key stating the description takes the association.
+	// A later statement stating the key links to its row, with the
+	// association.
 	next := s.stateUnder(t, s.newStatement(t, gen.BrokerIbkr), types.AssetClassStock, "GBP", ticker, descr)
-	got = s.resolve(t, next)
-	k := s.key(t, next.ID)
-	if written(got[0]) != "matched" || k.InstrumentID == nil || *k.InstrumentID != inst.ID || *k.Arbiter != gen.ArbiterUser || via[*k.ViaID] != "mic_ticker XLON:VOD" || *k.ListingID != *s.key(t, key.ID).ListingID {
-		t.Errorf("a new key = %s, %+v, want matched with the confirmed key's association", written(got[0]), k)
+	if next.ID != key.ID || next.Arbiter == nil || *next.Arbiter != gen.ArbiterUser {
+		t.Errorf("a later statement's key = %+v, want the confirmed key %s", next, key.ID)
 	}
 
 	// A pick the database already holds reuses the instrument.

@@ -48,7 +48,8 @@ enum FetchOutcome {
 
 // One stated key a fetch asked a datasource about, with its outcome.
 message FetchItem {
-  // The stated key that asked for the request; unset where none did.
+  // The stated key that asked for the request; unset where none did, or
+  // where the key was swept.
   stonks.type.v1.StatedKey stated_key = 1;
   // Identifies the key across runs.
   optional string stated_key_id = 2;

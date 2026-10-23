@@ -4,8 +4,11 @@
 //
 // Ingestion is a run: the call responds with the pending row once the
 // statement is recorded, and resolution and the write follow; see
-// [run.go](../run/run.go). Each distinct key is resolved once, however many
-// rows state it; see [resolve.go](../resolve/resolve.go).
+// [run.go](../run/run.go). A stated key is the user's: one row per asset
+// class, currency and set of identifiers, linked to each statement that
+// states it. A statement resolves only the keys it states that have no
+// association, each once, however many rows state it; see
+// [resolve.go](../resolve/resolve.go).
 //
 // The service also lists and confirms candidates for a key of the user's
 // that is not yet associated. Each call is a synchronous resolution run;
@@ -130,7 +133,6 @@ type split struct {
 // key is one distinct stated key: once prepared, its row, and once resolved,
 // its outcome and the reason it names no instrument.
 type key struct {
-	id          uuid.UUID
 	class       *types.AssetClass
 	currency    *string
 	identifiers []types.Identifier
@@ -167,36 +169,44 @@ func (k *key) canon() string {
 	return b.String()
 }
 
-// intern returns the key equal to k the statement already has, or k with an
-// id minted for it.
+// intern returns the key equal to k the statement already has, or k, now one
+// of its keys.
 func (g *ingestion) intern(k *key) *key {
 	c := k.canon()
 	if held, ok := g.keys[c]; ok {
 		return held
 	}
-	k.id = db.NewID()
 	g.keys[c] = k
 	g.order = append(g.order, k)
 	return k
 }
 
-// prepare writes the statement row, its stated keys and its splits.
+// prepare writes the statement row, its stated keys, the links from the
+// statement to them, and its splits. When another statement of the user
+// stated a key, the upsert returns the row that statement wrote.
 func (g *ingestion) prepare(ctx context.Context, run gen.Run) error {
 	return g.store.Tx(ctx, func(q Queries) error {
 		arg := gen.CreateStatementParams{ID: run.ID, UserID: g.user, Broker: g.broker, OrderFrom: g.from, OrderBefore: g.before, RowCount: int32(len(g.rows))}
 		if _, err := q.CreateStatement(ctx, arg); err != nil {
 			return fmt.Errorf("create statement: %w", err)
 		}
+		links := make([]gen.CreateStatementKeysParams, 0, len(g.order))
 		for _, k := range g.order {
-			arg := gen.CreateStatedKeyParams{ID: k.id, StatementID: run.ID, UserID: g.user, AssetClass: k.class, Currency: k.currency, Identifiers: k.identifiers}
-			row, err := q.CreateStatedKey(ctx, arg)
+			arg := gen.UpsertStatedKeyParams{ID: db.NewID(), UserID: g.user, AssetClass: k.class, Currency: k.currency, Identifiers: k.identifiers}
+			row, err := q.UpsertStatedKey(ctx, arg)
 			if err != nil {
-				return fmt.Errorf("create stated key: %w", err)
+				return fmt.Errorf("upsert stated key: %w", err)
 			}
 			k.row = row
+			links = append(links, gen.CreateStatementKeysParams{StatementID: run.ID, UserID: g.user, StatedKeyID: row.ID})
+		}
+		if len(links) > 0 {
+			if _, err := q.CreateStatementKeys(ctx, links); err != nil {
+				return fmt.Errorf("link stated keys: %w", err)
+			}
 		}
 		for _, sp := range g.splits {
-			arg := gen.CreateStatementSplitParams{StatementID: run.ID, UserID: g.user, Ordinal: sp.ordinal, StatedKeyID: sp.key.id, EffectiveDate: sp.effective, Quantity: sp.quantity, RatioFrom: sp.from, RatioTo: sp.to}
+			arg := gen.CreateStatementSplitParams{StatementID: run.ID, UserID: g.user, Ordinal: sp.ordinal, StatedKeyID: sp.key.row.ID, EffectiveDate: sp.effective, Quantity: sp.quantity, RatioFrom: sp.from, RatioTo: sp.to}
 			if err := q.CreateStatementSplit(ctx, arg); err != nil {
 				return fmt.Errorf("create split: %w", err)
 			}
@@ -212,12 +222,15 @@ func (g *ingestion) work(ctx context.Context, run gen.Run) error {
 	return g.write(ctx, run)
 }
 
-// resolve resolves the keys as a child run and takes each outcome onto its
-// key.
+// resolve resolves the keys that have no association as a child run and
+// takes each outcome onto its key. When an earlier statement of the user
+// associated a key, resolve leaves it as it is and accepts its rows.
 func (g *ingestion) resolve(ctx context.Context, res gen.Run) error {
-	rows := make([]gen.StatedKey, len(g.order))
-	for i, k := range g.order {
-		rows[i] = k.row
+	var rows []gen.StatedKey
+	for _, k := range g.order {
+		if k.row.InstrumentID == nil {
+			rows = append(rows, k.row)
+		}
 	}
 	out, err := g.resolver.Resolve(ctx, res, rows)
 	if err != nil {
@@ -228,9 +241,12 @@ func (g *ingestion) resolve(ctx context.Context, res gen.Run) error {
 		byKey[rk.StatedKeyID] = rk
 	}
 	for _, k := range g.order {
-		rk, ok := byKey[k.id]
+		if k.row.InstrumentID != nil {
+			continue
+		}
+		rk, ok := byKey[k.row.ID]
 		if !ok {
-			return fmt.Errorf("the resolution recorded no outcome for key %s", k.id)
+			return fmt.Errorf("the resolution recorded no outcome for key %s", k.row.ID)
 		}
 		k.outcome = rk.Outcome
 		k.reason = strings.Join(rk.Reasons, "; ")

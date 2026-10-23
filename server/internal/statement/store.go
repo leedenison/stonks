@@ -18,7 +18,8 @@ import (
 type Queries interface {
 	group.Queries
 	CreateStatement(ctx context.Context, arg gen.CreateStatementParams) (gen.Statement, error)
-	CreateStatedKey(ctx context.Context, arg gen.CreateStatedKeyParams) (gen.StatedKey, error)
+	UpsertStatedKey(ctx context.Context, arg gen.UpsertStatedKeyParams) (gen.StatedKey, error)
+	CreateStatementKeys(ctx context.Context, arg []gen.CreateStatementKeysParams) (int64, error)
 	CreateStatementSplit(ctx context.Context, arg gen.CreateStatementSplitParams) error
 	ListCurrencies(ctx context.Context) ([]gen.Currency, error)
 	LockUserKeys(ctx context.Context, userID uuid.UUID) error
@@ -50,8 +51,9 @@ type Runner interface {
 var _ Runner = (*run.Runner)(nil)
 
 // Resolver is this package's view of the resolve package: the body of a
-// resolution run over the stated keys of a statement, with an outcome per
-// key in their order, and the two synchronous resolutions of one key.
+// resolution run over the keys a statement states that have no association,
+// with an outcome per key in their order, and the two synchronous
+// resolutions of one key.
 type Resolver interface {
 	Resolve(ctx context.Context, res gen.Run, keys []gen.StatedKey) ([]gen.ResolutionKey, error)
 	Candidates(ctx context.Context, res gen.Run, key gen.StatedKey) (resolve.Offer, error)

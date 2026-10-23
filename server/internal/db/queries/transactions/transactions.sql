@@ -1,12 +1,23 @@
--- name: CreateStatedKey :one
-INSERT INTO stated_keys (id, statement_id, user_id, asset_class, currency, identifiers)
-VALUES ($1, $2, $3, $4, $5, $6)
+-- name: UpsertStatedKey :one
+-- When the user's statements already state the key, the query returns the
+-- existing row. The update changes nothing, so RETURNING yields that row and
+-- the conflict path takes its lock. When two statements of one user state a new key at once, the
+-- second waits on the first's uncommitted row and then takes it.
+INSERT INTO stated_keys (id, user_id, asset_class, currency, identifiers)
+VALUES ($1, $2, $3, $4, $5)
+ON CONFLICT (user_id, asset_class, currency, identifiers)
+DO UPDATE SET user_id = EXCLUDED.user_id
 RETURNING *;
 
+-- name: CreateStatementKeys :copyfrom
+INSERT INTO statement_keys (statement_id, user_id, stated_key_id)
+VALUES ($1, $2, $3);
+
 -- name: ListStatedKeys :many
-SELECT * FROM stated_keys
-WHERE statement_id = $1 AND user_id = $2
-ORDER BY id;
+SELECT stated_keys.* FROM stated_keys
+JOIN statement_keys ON statement_keys.stated_key_id = stated_keys.id
+WHERE statement_keys.statement_id = $1 AND statement_keys.user_id = $2
+ORDER BY stated_keys.id;
 
 -- name: CreateTransaction :one
 INSERT INTO transactions (id, user_id, broker, statement_id, stated_key_id,

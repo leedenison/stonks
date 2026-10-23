@@ -25,13 +25,13 @@ ORDER BY stated_keys.group_id;
 
 -- name: ListHoldingKeys :many
 -- The user's keys that have a transaction, each with the sum of its
--- transactions, newest statement first.
+-- transactions, earliest key first.
 SELECT sqlc.embed(stated_keys), SUM(transactions.quantity)::numeric AS quantity
 FROM stated_keys
 JOIN transactions ON transactions.stated_key_id = stated_keys.id
 WHERE stated_keys.user_id = @user_id::uuid
 GROUP BY stated_keys.id
-ORDER BY stated_keys.statement_id DESC, stated_keys.id;
+ORDER BY stated_keys.id;
 
 -- name: ListListingNames :many
 -- Each listing of the instruments, with the ticker that names it and its

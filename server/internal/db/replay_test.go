@@ -48,9 +48,10 @@ func resolved(t *testing.T, q *gen.Queries, run gen.Run, key gen.StatedKey, outc
 }
 
 // TestListUnavailableKeys checks that a key is selected on its latest
-// outcome alone, from the keys of the source run: its statement's keys, or
-// the keys it resolved. A key no transaction names or no run resolved is left
-// out, and so is every key of another user.
+// outcome alone, from the keys of the source run: the keys its statement
+// states, whichever run resolved them, or the keys it resolved. A key no
+// transaction names or no run resolved is left out, and so is every key of
+// another user.
 func TestListUnavailableKeys(t *testing.T) {
 	ctx := context.Background()
 	q := newTx(t)
@@ -63,7 +64,9 @@ func TestListUnavailableKeys(t *testing.T) {
 	idle := newStatedKey(t, q, user, statement)
 	fresh := newStatedKey(t, q, user, statement)
 	outside := newStatedKey(t, q, user, later)
-	for _, k := range []gen.StatedKey{healed, broken, fresh} {
+	shared := newStatedKey(t, q, user, statement)
+	link(t, q, later, shared)
+	for _, k := range []gen.StatedKey{healed, broken, fresh, shared} {
 		names(t, q, statement, k)
 	}
 	names(t, q, later, outside)
@@ -72,6 +75,7 @@ func TestListUnavailableKeys(t *testing.T) {
 	resolved(t, q, first, broken, gen.ResolutionOutcomeMatched)
 	resolved(t, q, second, broken, gen.ResolutionOutcomeUnavailable)
 	resolved(t, q, first, idle, gen.ResolutionOutcomeUnavailable)
+	resolved(t, q, first, shared, gen.ResolutionOutcomeUnavailable)
 	resolved(t, q, third, outside, gen.ResolutionOutcomeUnavailable)
 
 	tests := []struct {
@@ -80,8 +84,9 @@ func TestListUnavailableKeys(t *testing.T) {
 		user   uuid.UUID
 		want   []uuid.UUID
 	}{
-		{name: "a statement", source: statement.ID, user: user.ID, want: []uuid.UUID{broken.ID}},
+		{name: "a statement", source: statement.ID, user: user.ID, want: []uuid.UUID{broken.ID, shared.ID}},
 		{name: "a resolution", source: second.ID, user: user.ID, want: []uuid.UUID{broken.ID}},
+		{name: "a later statement stating a key it did not resolve", source: later.ID, user: user.ID, want: []uuid.UUID{outside.ID, shared.ID}},
 		{name: "a sibling resolution", source: third.ID, user: user.ID, want: []uuid.UUID{outside.ID}},
 		{name: "another user", source: statement.ID, user: db.NewID(), want: nil},
 	}

@@ -54,7 +54,7 @@ message InstrumentHolding {
   string quantity = 4;
   // Every listing of the instrument, by currency.
   repeated HoldingListing listings = 5;
-  // The keys this holding sums, newest statement first.
+  // The keys this holding sums, earliest key first.
   repeated HoldingKey keys = 6;
   // The identifier that names the instrument: the best-ranked type, and
   // among tickers the primary venue first. Unset where nothing names it.
@@ -77,7 +77,7 @@ message GroupHolding {
   // The sum of the caller's transaction quantities over the group's keys,
   // with no trailing zeros.
   string quantity = 4;
-  // The keys this holding sums, newest statement first.
+  // The keys this holding sums, earliest key first.
   repeated HoldingKey keys = 5;
 }
 

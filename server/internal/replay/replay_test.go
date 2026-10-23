@@ -27,7 +27,7 @@ var (
 
 func statedKey(n int, ids ...types.Identifier) gen.StatedKey {
 	id := uuid.MustParse("00000000-0000-7000-8000-" + strings.Repeat("0", 11) + string(rune('0'+n)))
-	return gen.StatedKey{ID: id, UserID: userID, StatementID: sourceID, Identifiers: ids}
+	return gen.StatedKey{ID: id, UserID: userID, Identifiers: ids}
 }
 
 func source(kind gen.RunKind) gen.Run {

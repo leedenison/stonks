@@ -49,14 +49,16 @@ func newFetch(t *testing.T, q *gen.Queries, user gen.User, parent gen.Run, ds ge
 	return row
 }
 
+// newStatedKey records a key of user stating a description of its own,
+// linked to statement.
 func newStatedKey(t *testing.T, q *gen.Queries, user gen.User, statement gen.Statement) gen.StatedKey {
 	t.Helper()
-	key, err := q.CreateStatedKey(context.Background(), gen.CreateStatedKeyParams{
-		ID: db.NewID(), StatementID: statement.ID, UserID: user.ID,
+	if statement.UserID != user.ID {
+		t.Fatalf("statement %s is not %s's", statement.ID, user.ID)
+	}
+	return upsertKey(t, q, statement, gen.UpsertStatedKeyParams{
 		Identifiers: []types.Identifier{{Type: types.IdentifierTypeBrokerDescription, Domain: "ibkr", Value: uuid.NewString()}},
 	})
-	require.NoError(t, err)
-	return key
 }
 
 // servedKey records a served fetch key, which is what a block references.
