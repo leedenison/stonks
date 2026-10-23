@@ -25,17 +25,17 @@ provisional.
 
 ## Maintenance
 
-Validity is confirmed only up to the latest assertion or coverage. A re-assertion of
-each held ticker extends it to the present. Each enabled datasource that serves the ticker
-receives one call. The call is an identifier events request for the instrument where the
-datasource serves one, as Massive's chain call does. Otherwise it is an identity lookup.
-Identity lookups alone maintain a ticker on a venue that no event provider covers, such
-as EODHD's answers for a non-US venue. A call costs one request at Massive and up to
+Validity is confirmed only up to the latest assertion or coverage. An extend validity run
+over each held ticker carries it to the present. Each enabled datasource that serves the
+ticker receives one call. The call is an identifier events request for the instrument
+where the datasource serves one, as Massive's chain call does. Otherwise it is an identity
+lookup. Identity lookups alone maintain a ticker on a venue that no event provider covers,
+such as EODHD's answers for a non-US venue. A call costs one request at Massive and up to
 four at EODHD.
 
-Resolution reads the database before it asks a datasource, so it never re-asserts a held
-ticker of its own accord. In this milestone an administrator starts the re-assertion. A
-later milestone schedules it.
+Resolution reads the database before it asks a datasource, so it never extends the
+validity of a held ticker of its own accord. In this milestone an administrator starts the
+extend validity run. A later milestone schedules it.
 
 ## Consequences
 
