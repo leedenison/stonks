@@ -67,3 +67,15 @@ FROM fetch_keys WHERE fetch_keys.id = @fetch_key_id AND fetch_keys.outcome = 'se
 INSERT INTO identifier_event_coverage (id, fetch_key_id, domain, value, covered_from, covered_before)
 SELECT @id, fetch_keys.id, @domain, sqlc.narg(value), @covered_from, @covered_before
 FROM fetch_keys WHERE fetch_keys.id = @fetch_key_id AND fetch_keys.outcome = 'served';
+
+-- name: ListHeldTickers :many
+-- The held tickers: each MIC_TICKER through which a key is dated, where a
+-- transaction names the key. Each comes with the asset class and currency of
+-- the oldest such key.
+SELECT DISTINCT ON (via_domain, via_value)
+       via_type::identifier_type AS type, via_domain::text AS domain, via_value::text AS value,
+       asset_class, currency
+FROM stated_keys
+WHERE via_type IS NOT NULL
+  AND EXISTS (SELECT 1 FROM transactions WHERE transactions.stated_key_id = stated_keys.id)
+ORDER BY via_domain, via_value, created_at, id;

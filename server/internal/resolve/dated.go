@@ -204,24 +204,14 @@ func chainRequest(res *resolution, server market.Server[market.IdentifierEventRe
 // a history names the instrument the batch created for its key. A reply that
 // the system cannot spell is left out, and the resolution stands.
 //
-// It then reads the facts of every ticker the batch wrote a fact of, and
-// writes each disagreement and broken bracket that one of the batch's facts
-// completes as a finding of run. It returns the identifiers each fetch run
-// wrote facts of: the identity fetches first, in precedence order, then the
-// events fetches.
+// It then writes the conflicts that one of the batch's facts completes as
+// findings of run; see recordConflicts. It returns, for each fetch run, the
+// identifiers it wrote facts for: the identity fetches first, in precedence
+// order, then the events fetches.
 func (r *Resolver) recordIdentifierFacts(ctx context.Context, run gen.Run, b *batch) ([]WrittenIdentifierFacts, error) {
-	recorded := len(b.events) > 0
-	if recorded {
-		err := r.store.Tx(ctx, func(q Queries) error {
-			return validity.Record(ctx, q, r.mics, r.families, b.events)
-		})
-		switch {
-		case errors.Is(err, validity.ErrSpelling), errors.Is(err, validity.ErrNotTicker):
-			r.log.Warn("identifier facts left out", "err", err)
-			recorded = false
-		case err != nil:
-			return nil, fmt.Errorf("record identifier facts: %w", err)
-		}
+	recorded, err := r.recordEvents(ctx, b.events)
+	if err != nil {
+		return nil, err
 	}
 	written := newWritten()
 	for _, e := range r.sources.Enabled() {
@@ -254,6 +244,36 @@ func (r *Resolver) recordIdentifierFacts(ctx context.Context, run gen.Run, b *ba
 	for _, k := range b.events {
 		mine[k.ID] = true
 	}
+	if err := r.recordConflicts(ctx, run, written, mine); err != nil {
+		return nil, err
+	}
+	return written.list(), nil
+}
+
+// recordEvents writes the identifier facts that the served keys hold, in one
+// transaction. Where the system cannot spell a reply, it leaves the facts
+// out, logs a warning and returns false without an error.
+func (r *Resolver) recordEvents(ctx context.Context, keys []eventKey) (bool, error) {
+	if len(keys) == 0 {
+		return false, nil
+	}
+	err := r.store.Tx(ctx, func(q Queries) error {
+		return validity.Record(ctx, q, r.mics, r.families, keys)
+	})
+	switch {
+	case errors.Is(err, validity.ErrSpelling), errors.Is(err, validity.ErrNotTicker):
+		r.log.Warn("identifier facts left out", "err", err)
+		return false, nil
+	case err != nil:
+		return false, fmt.Errorf("record identifier facts: %w", err)
+	}
+	return true, nil
+}
+
+// recordConflicts reads the facts of every ticker in written. It writes each
+// disagreement and broken bracket that involves a fetch key in mine as a
+// finding of run.
+func (r *Resolver) recordConflicts(ctx context.Context, run gen.Run, written *writtenSet, mine map[uuid.UUID]bool) error {
 	var kinds []gen.FindingKind
 	err := r.store.Tx(ctx, func(q Queries) error {
 		kinds = nil
@@ -274,12 +294,12 @@ func (r *Resolver) recordIdentifierFacts(ctx context.Context, run gen.Run, b *ba
 		return nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("record validity findings: %w", err)
+		return fmt.Errorf("record validity findings: %w", err)
 	}
 	for _, kind := range kinds {
 		runs.Found(ctx, kind)
 	}
-	return written.list(), nil
+	return nil
 }
 
 // factIdentifiers returns the identifiers r states facts of: the tickers of

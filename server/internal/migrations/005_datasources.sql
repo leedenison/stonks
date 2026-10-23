@@ -109,12 +109,14 @@ ALTER TABLE instruments ADD COLUMN fetch_key_id uuid REFERENCES fetch_keys (id);
 ALTER TABLE listings ADD COLUMN fetch_key_id uuid REFERENCES fetch_keys (id);
 ALTER TABLE identifiers ADD COLUMN fetch_key_id uuid REFERENCES fetch_keys (id);
 
--- Identity coverage: the datasource has answered for the instrument. Either
--- its answer attached to the instrument, or it served no candidate for a key
--- the instrument names. It is not requested again for a key that resolves
--- to the instrument. The row carries the fetch key, which states the moment
--- of the answer. Reference data, the instruments with no provenance, is
--- covered by every datasource without a row. A row goes with its fetch key.
+-- Identity coverage: the datasource has answered for the instrument. Either its
+-- answer attached to the instrument, or it served no candidate for a key the
+-- instrument names. It is not requested again for a key that resolves to the
+-- instrument. An extend validity run asks the datasource again about a held
+-- ticker whatever coverage the instrument has. The row carries the fetch key,
+-- which states the moment of the answer. Reference data, the instruments with
+-- no provenance, is covered by every datasource without a row. A row goes with
+-- its fetch key.
 CREATE TABLE identity_coverage (
     instrument_id uuid        NOT NULL REFERENCES instruments (id),
     datasource    text        NOT NULL REFERENCES datasources (name),

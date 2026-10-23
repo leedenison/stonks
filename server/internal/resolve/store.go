@@ -69,6 +69,7 @@ var _ Sources = (*market.Registry)(nil)
 // Fetcher is this package's view of the fetch framework.
 type Fetcher interface {
 	Identity(ctx context.Context, parent gen.Run, e *market.Entry, keys []gen.StatedKey) ([]fetchKey, error)
+	TickerIdentity(ctx context.Context, parent gen.Run, e *market.Entry, keys []gen.StatedKey) ([]fetchKey, error)
 	IdentifierEvents(ctx context.Context, parent gen.Run, e *market.Entry, reqs []market.IdentifierEventRequest) ([]eventKey, error)
 }
 

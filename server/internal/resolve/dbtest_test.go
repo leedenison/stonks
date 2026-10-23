@@ -57,6 +57,15 @@ type stack struct {
 	sources   *market.Registry
 	mics      mic.MICMap
 	resolver  *Resolver
+	// extender is a resolver whose fetches skip the cache, as an extend
+	// validity run's do.
+	extender *Resolver
+	// now is the moment every datasource of the stack answers. It starts at
+	// answered.
+	now time.Time
+	// identityOnly names the datasources built without identifier events,
+	// as of the next reload.
+	identityOnly map[string]bool
 }
 
 func newStack(t *testing.T) *stack {
@@ -65,7 +74,7 @@ func newStack(t *testing.T) *stack {
 	tx := dbtest.Begin(t, pool)
 	var err error
 	q := gen.New(tx)
-	s := &stack{q: q, tx: tx, script: scripted.New(), beta: scripted.New(), alphaFacts: scripted.NewIdentifierEvents(), betaFacts: scripted.NewIdentifierEvents(), alphaName: "alpha-" + uuid.NewString(), betaName: "beta-" + uuid.NewString()}
+	s := &stack{q: q, tx: tx, script: scripted.New(), beta: scripted.New(), alphaFacts: scripted.NewIdentifierEvents(), betaFacts: scripted.NewIdentifierEvents(), alphaName: "alpha-" + uuid.NewString(), betaName: "beta-" + uuid.NewString(), now: answered, identityOnly: map[string]bool{}}
 	s.user, err = q.CreateUser(ctx, gen.CreateUserParams{ID: db.NewID(), Email: uuid.NewString() + "@example.com", Role: gen.UserRoleUser})
 	require.NoError(t, err)
 	s.statement = s.newStatement(t, gen.BrokerIbkr)
@@ -76,20 +85,28 @@ func newStack(t *testing.T) *stack {
 	log := slog.New(slog.DiscardHandler)
 	factories := map[string]market.Factory{
 		s.alphaName: market.Factory{New: func(market.Config) (market.Integration, error) {
+			if s.identityOnly[s.alphaName] {
+				return s.script, nil
+			}
 			return &scripted.Datasource{Identity: s.script, Facts: s.alphaFacts, Since: since}, nil
 		}},
 		s.betaName: market.Factory{New: func(market.Config) (market.Integration, error) {
+			if s.identityOnly[s.betaName] {
+				return s.beta, nil
+			}
 			return &scripted.Datasource{Identity: s.beta, Facts: s.betaFacts, Since: since}, nil
 		}},
 	}
 	s.sources, err = market.New(ctx, q, factories, log)
 	require.NoError(t, err)
-	fetcher := market.NewFetcher(db.New[market.Queries](tx), runtest.Runner{Q: q}, log, market.WithClock(func() time.Time { return answered }, sleep))
+	clock := func() time.Time { return s.now }
+	fetcher := market.NewFetcher(db.New[market.Queries](tx), runtest.Runner{Q: q}, log, market.WithClock(clock, sleep))
 	s.mics, err = mic.Load(ctx, q)
 	require.NoError(t, err)
 	families, err := currency.Load(ctx, q)
 	require.NoError(t, err)
-	s.resolver = New(db.New[Queries](tx), &serial{Fetcher: fetcher}, s.sources, s.mics, families, func() time.Time { return answered }, log)
+	s.resolver = New(db.New[Queries](tx), &serial{Fetcher: fetcher}, s.sources, s.mics, families, clock, log)
+	s.extender = New(db.New[Queries](tx), &serial{Fetcher: fetcher.Fresh()}, s.sources, s.mics, families, clock, log)
 	return s
 }
 
@@ -104,7 +121,7 @@ func confirmedOn(ivs []validity.Interval, instrument uuid.UUID, d time.Time) boo
 	return false
 }
 
-// answered is the moment every datasource of the stack answers, so the day an
+// answered is the moment the stack's datasources first answer, so the day an
 // assertion holds is known.
 var answered = time.Date(2026, time.March, 2, 15, 30, 0, 0, time.UTC)
 
@@ -132,6 +149,12 @@ func (s *serial) Identity(ctx context.Context, parent gen.Run, e *market.Entry, 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.Fetcher.Identity(ctx, parent, e, keys)
+}
+
+func (s *serial) TickerIdentity(ctx context.Context, parent gen.Run, e *market.Entry, keys []gen.StatedKey) ([]fetchKey, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.Fetcher.TickerIdentity(ctx, parent, e, keys)
 }
 
 func (s *serial) IdentifierEvents(ctx context.Context, parent gen.Run, e *market.Entry, reqs []market.IdentifierEventRequest) ([]eventKey, error) {
