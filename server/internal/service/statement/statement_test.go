@@ -12,6 +12,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 	"go.uber.org/mock/gomock"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/testing/protocmp"
@@ -214,21 +215,50 @@ func TestGetStatement(t *testing.T) {
 		{StatedKey: &typev1.StatedKey{Identifiers: []*typev1.Identifier{acme}}, StatedKeyId: unrecognisedID.String(), Outcome: typev1.ResolutionOutcome_RESOLUTION_OUTCOME_UNRECOGNISED, Reasons: []string{"no global identifier"}, Offered: 2},
 		{StatedKey: &typev1.StatedKey{Currency: ptr.To("GBP")}, StatedKeyId: unreachedID.String()},
 	}
+	// Three transactions: two of a key dated through META, one before the
+	// rename and one on the asserted day, and one of a key fixed through a
+	// broker description.
+	datedID, fixedID := uuid.MustParse("00000000-0000-0000-0000-000000000024"), uuid.MustParse("00000000-0000-0000-0000-000000000025")
+	dated := gen.StatedKey{ID: datedID, UserID: userID, Identifiers: []types.Identifier{meta}, ViaType: ptr.To(types.IdentifierTypeMicTicker), ViaDomain: ptr.To("XNAS"), ViaValue: ptr.To("META"), Arbiter: ptr.To(gen.ArbiterDatasource)}
+	fixed := gen.StatedKey{ID: fixedID, UserID: userID, Identifiers: []types.Identifier{{Type: types.IdentifierTypeBrokerDescription, Domain: "ibkr", Value: "ACME"}}, InstrumentID: ptr.To(uuid.New()), Arbiter: ptr.To(gen.ArbiterDatasource)}
+	tx := func(n int, key gen.StatedKey, on time.Time) gen.Transaction {
+		return gen.Transaction{ID: uuid.MustParse(fmt.Sprintf("00000000-0000-0000-0000-00000000003%d", n)), UserID: userID, StatementID: runID, StatedKeyID: key.ID, OrderDate: on, Quantity: decimal.NewFromInt(10)}
+	}
+	transactions := []gen.ListStatementTransactionsRow{
+		{Transaction: tx(1, dated, notFoundOn), StatedKey: dated},
+		{Transaction: tx(2, dated, assertedOn), StatedKey: dated},
+		{Transaction: tx(3, fixed, assertedOn), StatedKey: fixed, FixedViaType: ptr.To(types.IdentifierTypeBrokerDescription)},
+	}
+	facts := metaFacts()
+	assertions := []gen.ListIdentifierAssertionsRow{
+		{AssertedOn: assertedOn, InstrumentID: &metaInst, FetchKeyID: ptr.To(uuid.New()), Datasource: ptr.To("massive"), Precedence: ptr.To(int32(2))},
+		{AssertedOn: notFoundOn, FetchKeyID: ptr.To(uuid.New()), Datasource: ptr.To("massive"), Precedence: ptr.To(int32(2))},
+	}
+	events := []gen.ListIdentifierEventsRow{{EffectiveOn: renamed, FetchKeyID: uuid.New()}}
+	coverage := []gen.ListIdentifierCoverageRow{{CoveredFrom: facts.Coverage[0].From, CoveredBefore: facts.Coverage[0].Before}}
+	txMsgs := []*statementv1.Transaction{
+		{Id: transactions[0].Transaction.ID.String(), StatedKeyId: datedID.String(), OrderDate: "2021-06-01", Quantity: "10", Mark: statementv1.TransactionMark_TRANSACTION_MARK_UNRESOLVED},
+		{Id: transactions[1].Transaction.ID.String(), StatedKeyId: datedID.String(), OrderDate: "2024-01-16", Quantity: "10", Mark: statementv1.TransactionMark_TRANSACTION_MARK_CONFIRMED},
+		{Id: transactions[2].Transaction.ID.String(), StatedKeyId: fixedID.String(), OrderDate: "2024-01-16", Quantity: "10", Mark: statementv1.TransactionMark_TRANSACTION_MARK_PROVISIONAL},
+	}
 	tests := []struct {
-		name      string
-		id        string
-		authErr   error
-		row       gen.GetStatementRow
-		err       error
-		items     []gen.StatementItem
-		itemsErr  error
-		readsKeys bool
-		keys      []gen.StatedKey
-		keysErr   error
-		latest    []gen.ResolutionKey
-		latestErr error
-		want      *statementv1.GetStatementResponse
-		wantCode  connect.Code
+		name            string
+		id              string
+		authErr         error
+		row             gen.GetStatementRow
+		err             error
+		items           []gen.StatementItem
+		itemsErr        error
+		readsKeys       bool
+		keys            []gen.StatedKey
+		keysErr         error
+		latest          []gen.ResolutionKey
+		latestErr       error
+		transactions    []gen.ListStatementTransactionsRow
+		transactionsErr error
+		assertionsErr   error
+		want            *statementv1.GetStatementResponse
+		wantCode        connect.Code
 	}{
 		{
 			name: "with items", id: runID.String(), row: gen.GetStatementRow{Statement: stmt, Run: run, Rejected: 1}, items: items, readsKeys: true,
@@ -238,6 +268,12 @@ func TestGetStatement(t *testing.T) {
 			name: "with keys", id: runID.String(), row: gen.GetStatementRow{Statement: stmt, Run: run, Rejected: 1}, readsKeys: true, keys: keys, latest: latest,
 			want: &statementv1.GetStatementResponse{Statement: summ, Keys: keyMsgs},
 		},
+		{
+			name: "with transactions", id: runID.String(), row: gen.GetStatementRow{Statement: stmt, Run: run, Rejected: 1}, readsKeys: true, transactions: transactions,
+			want: &statementv1.GetStatementResponse{Statement: summ, Transactions: txMsgs},
+		},
+		{name: "transactions failure", id: runID.String(), row: gen.GetStatementRow{Statement: stmt, Run: run}, readsKeys: true, transactionsErr: errors.New("boom"), wantCode: connect.CodeInternal},
+		{name: "validity failure", id: runID.String(), row: gen.GetStatementRow{Statement: stmt, Run: run}, readsKeys: true, transactions: transactions, assertionsErr: errors.New("boom"), wantCode: connect.CodeInternal},
 		{name: "not found", id: runID.String(), err: db.ErrNotFound, wantCode: connect.CodeNotFound},
 		{name: "failure", id: runID.String(), err: errors.New("boom"), wantCode: connect.CodeInternal},
 		{name: "items failure", id: runID.String(), row: gen.GetStatementRow{Statement: stmt, Run: run}, itemsErr: errors.New("boom"), wantCode: connect.CodeInternal},
@@ -261,6 +297,16 @@ func TestGetStatement(t *testing.T) {
 				}
 				if tc.readsKeys && tc.keysErr == nil && len(tc.keys) > 0 {
 					f.reader.EXPECT().ListLatestResolutions(gomock.Any(), gen.ListLatestResolutionsParams{Ids: []uuid.UUID{matchedID, unrecognisedID, unreachedID}, UserID: userID}).Return(tc.latest, tc.latestErr)
+				}
+				if tc.readsKeys && tc.keysErr == nil && tc.latestErr == nil {
+					f.reader.EXPECT().ListStatementTransactions(gomock.Any(), gen.ListStatementTransactionsParams{StatementID: runID, UserID: userID}).Return(tc.transactions, tc.transactionsErr)
+				}
+				if len(tc.transactions) > 0 {
+					f.reader.EXPECT().ListIdentifierAssertions(gomock.Any(), gen.ListIdentifierAssertionsParams{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "META"}).Return(assertions, tc.assertionsErr)
+					if tc.assertionsErr == nil {
+						f.reader.EXPECT().ListIdentifierEvents(gomock.Any(), gen.ListIdentifierEventsParams{Domain: "XNAS", Value: "META"}).Return(events, nil)
+						f.reader.EXPECT().ListIdentifierCoverage(gomock.Any(), gen.ListIdentifierCoverageParams{Domain: "XNAS", Value: ptr.To("META")}).Return(coverage, nil)
+					}
 				}
 			}
 			res, err := f.client.GetStatement(context.Background(), connect.NewRequest(&statementv1.GetStatementRequest{RunId: tc.id}))

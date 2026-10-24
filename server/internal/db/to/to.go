@@ -38,6 +38,15 @@ func BlockSent(b gen.DatasourceBlock) (types.Identifier, bool) {
 	return sent(b.SentType, b.SentDomain, b.SentValue)
 }
 
+// AssociatedTicker returns the MIC_TICKER of k's dated association, and
+// false where k has none.
+func AssociatedTicker(k gen.StatedKey) (types.Identifier, bool) {
+	if k.ViaType == nil || k.ViaDomain == nil || k.ViaValue == nil {
+		return types.Identifier{}, false
+	}
+	return types.Identifier{Type: *k.ViaType, Domain: *k.ViaDomain, Value: *k.ViaValue}, true
+}
+
 // sent reads the identifier columns of a row. A domain has a type and a
 // domain and no value.
 func sent(typ *types.IdentifierType, domain string, value *string) (types.Identifier, bool) {
@@ -127,6 +136,17 @@ func ProtoHoldingKey(k gen.ListHoldingKeysRow) *holdingv1.HoldingKey {
 		out.ListingId = k.StatedKey.ListingID.String()
 	}
 	return out
+}
+
+// ProtoTransaction writes a transaction row with its mark.
+func ProtoTransaction(tx gen.Transaction, m statementv1.TransactionMark) *statementv1.Transaction {
+	return &statementv1.Transaction{
+		Id:          tx.ID.String(),
+		StatedKeyId: tx.StatedKeyID.String(),
+		OrderDate:   tx.OrderDate.Format(time.DateOnly),
+		Quantity:    tx.Quantity.String(),
+		Mark:        m,
+	}
 }
 
 // ProtoStatementSummary writes a statement, its run and its count of

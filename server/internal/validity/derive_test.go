@@ -206,6 +206,31 @@ func TestGaps(t *testing.T) {
 	}
 }
 
+func TestOn(t *testing.T) {
+	ivs := []Interval{provisional(nil, at(1), a), confirmed(at(1), at(3), a), provisional(at(3), at(5), a), confirmed(at(7), nil, b)}
+	tests := []struct {
+		name   string
+		day    time.Time
+		want   Interval
+		wantOK bool
+	}{
+		{name: "before every bound", day: d(0), want: ivs[0], wantOK: true},
+		{name: "a confirmed day", day: d(2), want: ivs[1], wantOK: true},
+		{name: "a provisional day", day: d(4), want: ivs[2], wantOK: true},
+		{name: "the day an interval ends", day: d(5)},
+		{name: "a day no interval holds", day: d(6)},
+		{name: "after every bound", day: d(30), want: ivs[3], wantOK: true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, ok := on(ivs, tc.day)
+			if ok != tc.wantOK || !cmp.Equal(got, tc.want) {
+				t.Errorf("on(%s) = %+v, %v, want %+v, %v", tc.day.Format(time.DateOnly), got, ok, tc.want, tc.wantOK)
+			}
+		})
+	}
+}
+
 func TestFirstUnconfirmed(t *testing.T) {
 	ivs := []Interval{provisional(nil, at(1), a), confirmed(at(1), at(3), a), provisional(at(3), at(5), a), confirmed(at(5), at(8), b)}
 	tests := []struct {
