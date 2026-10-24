@@ -121,6 +121,29 @@ message ListStatementsResponse {
   repeated StatementSummary statements = 1;
 }
 
+// How firmly a transaction's key names an instrument on the transaction's
+// date.
+enum TransactionMark {
+  TRANSACTION_MARK_UNSPECIFIED = 0;
+  // Inside the ticker's confirmed validity, a fixed association through a
+  // stable identifier, or the user's choice.
+  TRANSACTION_MARK_CONFIRMED = 1;
+  // Inside the ticker's provisional validity, or a fixed association
+  // through an identifier that is not stable.
+  TRANSACTION_MARK_PROVISIONAL = 2;
+  // The ticker names nothing on the date, or the key is unassociated.
+  TRANSACTION_MARK_UNRESOLVED = 3;
+}
+
+// One transaction the statement wrote.
+message Transaction {
+  string id = 1;
+  string stated_key_id = 2;
+  string order_date = 3;
+  string quantity = 4;
+  TransactionMark mark = 5;
+}
+
 message GetStatementRequest {
   // The run that ingested the statement.
   string run_id = 1 [(buf.validate.field).string.uuid = true];
@@ -134,6 +157,8 @@ message GetStatementResponse {
   // resolution over any run. The outcome is unset while no resolution has
   // recorded one for the key.
   repeated stonks.type.v1.ResolutionItem keys = 3;
+  // Ordered by order date. Empty until the ingestion has written rows.
+  repeated Transaction transactions = 4;
 }
 
 // One security that one or more datasources describe, offered for the user

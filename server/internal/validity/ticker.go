@@ -35,6 +35,10 @@ func (t *Ticker) HasValidity() bool { return len(t.Derived.Intervals) > 0 }
 // Asserted reports whether any source asserted the ticker on day d.
 func (t *Ticker) Asserted(d time.Time) bool { return t.asserted[types.Day(d)] }
 
+// On returns the interval of the ticker's validity that holds day d. It
+// reports false where the ticker names nothing on d.
+func (t *Ticker) On(d time.Time) (Interval, bool) { return on(t.Derived.Intervals, d) }
+
 // FirstUnconfirmed returns the earliest of dates that the ticker's validity
 // does not confirm. It reports false when every date is confirmed.
 func (t *Ticker) FirstUnconfirmed(dates []time.Time) (time.Time, bool) {

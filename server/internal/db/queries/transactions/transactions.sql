@@ -72,6 +72,17 @@ SET instrument_id = NULL, listing_id = NULL, via_id = NULL,
     arbiter = @arbiter::arbiter
 WHERE id = @id AND user_id = @user_id AND arbiter IS DISTINCT FROM 'user';
 
+-- name: ListStatementTransactions :many
+-- The statement's transactions, ordered by order date. Each carries its key
+-- and the type of the identifier that a fixed association used.
+SELECT sqlc.embed(transactions), sqlc.embed(stated_keys),
+       identifiers.type AS fixed_via_type
+FROM transactions
+JOIN stated_keys ON stated_keys.id = transactions.stated_key_id
+LEFT JOIN identifiers ON identifiers.id = stated_keys.via_id
+WHERE transactions.statement_id = @statement_id AND transactions.user_id = @user_id
+ORDER BY transactions.order_date, transactions.id;
+
 -- name: ListKeyOrderDates :many
 -- The distinct order dates of the transactions of each of the user's keys.
 SELECT DISTINCT stated_key_id, order_date FROM transactions

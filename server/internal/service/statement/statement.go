@@ -19,6 +19,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/resolve"
 	"github.com/leedenison/stonks/server/internal/statement"
 	"github.com/leedenison/stonks/server/internal/types"
+	"github.com/leedenison/stonks/server/internal/validity"
 )
 
 // Ingester starts the ingestion of a statement.
@@ -32,14 +33,17 @@ type Confirmer interface {
 	Confirm(ctx context.Context, user, key uuid.UUID, p resolve.Pick) (gen.ResolutionKey, error)
 }
 
-// Reader is this package's view of the statement queries.
+// Reader is this package's view of the statement queries. It embeds the
+// validity queries, which mark reads for dated keys.
 type Reader interface {
+	validity.Queries
 	ListStatements(ctx context.Context, userID uuid.UUID) ([]gen.ListStatementsRow, error)
 	GetStatement(ctx context.Context, arg gen.GetStatementParams) (gen.GetStatementRow, error)
 	ListStatementItems(ctx context.Context, arg gen.ListStatementItemsParams) ([]gen.StatementItem, error)
 	ListStatedKeys(ctx context.Context, arg gen.ListStatedKeysParams) ([]gen.StatedKey, error)
 	ListLatestResolutions(ctx context.Context, arg gen.ListLatestResolutionsParams) ([]gen.ResolutionKey, error)
 	GetStatedKey(ctx context.Context, arg gen.GetStatedKeyParams) (gen.StatedKey, error)
+	ListStatementTransactions(ctx context.Context, arg gen.ListStatementTransactionsParams) ([]gen.ListStatementTransactionsRow, error)
 }
 
 var (
@@ -99,9 +103,9 @@ func (s *Server) ListStatements(ctx context.Context, _ *connect.Request[statemen
 	return connect.NewResponse(out), nil
 }
 
-// GetStatement reads one of the caller's statements with its items and its
-// keys. The query carries the caller's user id, so another user's statement
-// is not found rather than forbidden.
+// GetStatement reads one of the caller's statements with its items, its keys
+// and its transactions. The query carries the caller's user id, so another
+// user's statement is not found rather than forbidden.
 func (s *Server) GetStatement(ctx context.Context, req *connect.Request[statementv1.GetStatementRequest]) (*connect.Response[statementv1.GetStatementResponse], error) {
 	p, err := auth.User(ctx)
 	if err != nil {
@@ -131,6 +135,9 @@ func (s *Server) GetStatement(ctx context.Context, req *connect.Request[statemen
 		out.Items = append(out.Items, item)
 	}
 	if out.Keys, err = s.keys(ctx, id, p.User.ID); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	if out.Transactions, err = s.transactions(ctx, id, p.User.ID); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	return connect.NewResponse(out), nil
@@ -226,6 +233,30 @@ func (s *Server) keys(ctx context.Context, statement, user uuid.UUID) ([]*typev1
 			latest = &r
 		}
 		out = append(out, to.ProtoResolutionItem(k, latest))
+	}
+	return out, nil
+}
+
+// transactions answers the statement's transactions, each with its mark. The
+// facts of a ticker are read once however many keys are dated through it.
+func (s *Server) transactions(ctx context.Context, statement, user uuid.UUID) ([]*statementv1.Transaction, error) {
+	rows, err := s.reader.ListStatementTransactions(ctx, gen.ListStatementTransactionsParams{StatementID: statement, UserID: user})
+	if err != nil {
+		return nil, err
+	}
+	read := map[types.Identifier]*validity.Ticker{}
+	out := make([]*statementv1.Transaction, 0, len(rows))
+	for _, r := range rows {
+		var t *validity.Ticker
+		if v, ok := to.AssociatedTicker(r.StatedKey); ok {
+			if read[v] == nil {
+				if read[v], err = validity.ReadTicker(ctx, s.reader, v); err != nil {
+					return nil, fmt.Errorf("read the facts of %s: %w", v.Name(), err)
+				}
+			}
+			t = read[v]
+		}
+		out = append(out, to.ProtoTransaction(r.Transaction, mark(r.StatedKey.Arbiter, r.FixedViaType, t, r.Transaction.OrderDate)))
 	}
 	return out, nil
 }

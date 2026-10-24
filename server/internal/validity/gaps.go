@@ -63,10 +63,17 @@ func firstUnconfirmed(ivs []Interval, dates []time.Time) (time.Time, bool) {
 
 // confirmedOn reports whether a confirmed interval of ivs holds day d.
 func confirmedOn(ivs []Interval, d time.Time) bool {
+	iv, ok := on(ivs, d)
+	return ok && iv.Validity == gen.ValidityConfirmed
+}
+
+// on returns the interval of ivs that holds day d. It reports false where
+// none does.
+func on(ivs []Interval, d time.Time) (Interval, bool) {
 	for _, iv := range ivs {
-		if iv.Validity == gen.ValidityConfirmed && (iv.From == nil || !d.Before(*iv.From)) && (iv.Before == nil || d.Before(*iv.Before)) {
-			return true
+		if (iv.From == nil || !d.Before(*iv.From)) && (iv.Before == nil || d.Before(*iv.Before)) {
+			return iv, true
 		}
 	}
-	return false
+	return Interval{}, false
 }

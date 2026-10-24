@@ -12,6 +12,7 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/db/to"
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/mic"
 	"github.com/leedenison/stonks/server/internal/ptr"
@@ -44,15 +45,6 @@ func datedTicker(k gen.StatedKey, mics mic.MICMap) (types.Identifier, bool) {
 	return types.Identifier{}, false
 }
 
-// associatedTicker returns the MIC_TICKER k's dated association names, and
-// false where k has none.
-func associatedTicker(k gen.StatedKey) (types.Identifier, bool) {
-	if k.ViaType == nil || k.ViaDomain == nil || k.ViaValue == nil {
-		return types.Identifier{}, false
-	}
-	return types.Identifier{Type: *k.ViaType, Domain: *k.ViaDomain, Value: *k.ViaValue}, true
-}
-
 // findResolutionDated reads the validity of each key's dated ticker and the
 // order dates of its transactions. Keys dated through one ticker share one
 // read of its facts. A key that already has a dated association is matched as
@@ -65,7 +57,7 @@ func (r *Resolver) findResolutionDated(ctx context.Context, user uuid.UUID, rs [
 		if res.outcome != "" {
 			continue
 		}
-		v, ok := associatedTicker(res.row)
+		v, ok := to.AssociatedTicker(res.row)
 		if !ok {
 			if v, ok = datedTicker(res.row, r.mics); !ok {
 				continue

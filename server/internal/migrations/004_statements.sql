@@ -51,8 +51,9 @@ CREATE TYPE arbiter AS ENUM ('stated', 'datasource', 'guess', 'user');
 -- associates the key of its own accord through a ticker. An OPENFIGI_TICKER
 -- or DATASOURCE_TICKER dates the key through the MIC_TICKER on its listing,
 -- and leaves it fixed where that listing has none. A user's choice is fixed.
--- A key associated through a broker description or an option symbol is
--- fixed, and provisional, since neither identifier is stable.
+-- A fixed association is provisional when it used an unstable identifier,
+-- such as a broker description or an option symbol. A key the user chose is
+-- confirmed.
 CREATE TABLE stated_keys (
     id            uuid        PRIMARY KEY,
     user_id       uuid        NOT NULL REFERENCES users (id) ON DELETE CASCADE,
@@ -165,6 +166,7 @@ CREATE TABLE transactions (
 
 CREATE INDEX transactions_period_idx ON transactions (user_id, broker, order_date);
 CREATE INDEX transactions_key_idx ON transactions (user_id, stated_key_id);
+CREATE INDEX transactions_statement_idx ON transactions (statement_id);
 
 CREATE TYPE resolution_outcome AS ENUM ('matched', 'rejected', 'unrecognised', 'unavailable');
 

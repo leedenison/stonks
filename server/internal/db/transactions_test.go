@@ -466,6 +466,49 @@ func TestListKeyOrderDates(t *testing.T) {
 	}
 }
 
+// TestListStatementTransactions checks the order of a statement's
+// transactions, the via type of a fixed key and of a dated key, and that
+// another statement's transactions and another user's are left out.
+func TestListStatementTransactions(t *testing.T) {
+	ctx := context.Background()
+	q := newTx(t)
+	user := newUser(t, q, "statement-transactions@example.com")
+	statement, later := newStatement(t, q, user), newStatement(t, q, user)
+	fixed, dated, bare := newStatedKey(t, q, user, statement), newStatedKey(t, q, user, statement), newStatedKey(t, q, user, later)
+	usd, via := cashListing(t, q, "USD")
+	_, err := q.SetStatedKeyAssociation(ctx, gen.SetStatedKeyAssociationParams{ID: fixed.ID, UserID: user.ID, InstrumentID: &usd.InstrumentID, ListingID: &usd.ID, ViaID: &via.ID, Arbiter: gen.ArbiterStated})
+	require.NoError(t, err)
+	_, err = q.SetStatedKeyDatedAssociation(ctx, gen.SetStatedKeyDatedAssociationParams{ID: dated.ID, UserID: user.ID, ViaDomain: "XNAS", ViaValue: "META", Arbiter: gen.ArbiterDatasource})
+	require.NoError(t, err)
+	trade := func(st gen.Statement, key gen.StatedKey, on time.Time) gen.Transaction {
+		t.Helper()
+		row, err := q.CreateTransaction(ctx, gen.CreateTransactionParams{
+			ID: db.NewID(), UserID: user.ID, Broker: gen.BrokerIbkr, StatementID: st.ID, StatedKeyID: key.ID,
+			OrderDate: on, SettlementDate: on, AsAt: on, Quantity: decimal.NewFromInt(1),
+		})
+		require.NoError(t, err)
+		return row
+	}
+	second := trade(statement, dated, date(2024, 1, 16))
+	first := trade(statement, fixed, date(2021, 6, 1))
+	trade(later, bare, date(2020, 1, 2))
+
+	rows, err := q.ListStatementTransactions(ctx, gen.ListStatementTransactionsParams{StatementID: statement.ID, UserID: user.ID})
+	require.NoError(t, err)
+	if len(rows) != 2 || rows[0].Transaction.ID != first.ID || rows[1].Transaction.ID != second.ID {
+		t.Fatalf("ListStatementTransactions = %+v, want the fixed key's trade then the dated key's", rows)
+	}
+	if rows[0].StatedKey.ID != fixed.ID || rows[0].FixedViaType == nil || *rows[0].FixedViaType != types.IdentifierTypeCurrency {
+		t.Errorf("fixed row = key %s via %v, want key %s via currency", rows[0].StatedKey.ID, rows[0].FixedViaType, fixed.ID)
+	}
+	if rows[1].StatedKey.ID != dated.ID || rows[1].FixedViaType != nil || rows[1].StatedKey.ViaValue == nil || *rows[1].StatedKey.ViaValue != "META" {
+		t.Errorf("dated row = key %s via %v, want key %s dated through META with no fixed via type", rows[1].StatedKey.ID, rows[1].FixedViaType, dated.ID)
+	}
+	if rows, err := q.ListStatementTransactions(ctx, gen.ListStatementTransactionsParams{StatementID: statement.ID, UserID: db.NewID()}); err != nil || len(rows) != 0 {
+		t.Errorf("ListStatementTransactions as another user = %+v, %v, want none", rows, err)
+	}
+}
+
 // TestListUnassociatedKeysStating checks that a probe of a ticker finds every
 // user's unassociated keys stating it, whatever else they state, that a probe
 // of a domain finds a key stating any ticker of the domain, and that an
