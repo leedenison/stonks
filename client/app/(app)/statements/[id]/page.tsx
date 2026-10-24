@@ -12,6 +12,7 @@ import { ResolutionKeys } from "@/app/components/resolution-keys";
 import { Section } from "@/app/components/section";
 import { Skeleton } from "@/app/components/skeleton";
 import { StateChip } from "@/app/components/state-chip";
+import { StatementTransactions } from "@/app/components/statement-transactions";
 import { Arbiter, type ResolutionItem } from "@/gen/type/v1/type_pb";
 import { useStatement } from "@/hooks/use-statement";
 import { brokerLabel } from "@/lib/broker";
@@ -20,9 +21,9 @@ import { prevDay } from "@/lib/marshal/date";
 import { isTerminal, outcome } from "@/lib/run";
 import { CandidatesDialog } from "./candidates-dialog";
 
-// One statement, with its run, its rejected rows and the resolution of every
-// key it stated. The title names the upload by its broker and the moment it
-// started.
+// One statement, with its run, its rejected rows, the resolution of every
+// key it stated and its transactions. The title names the upload by its
+// broker and the moment it started.
 export default function StatementPage() {
   const { id } = useParams<{ id: string }>();
   const { data, isPending, error, refetch } = useStatement(id);
@@ -89,6 +90,13 @@ export default function StatementPage() {
           </Body>
           {data.keys.length > 0 && (
             <Keys
+              keys={data.keys}
+              live={!isTerminal(data.statement.run?.state)}
+            />
+          )}
+          {data.transactions.length > 0 && (
+            <StatementTransactions
+              transactions={data.transactions}
               keys={data.keys}
               live={!isTerminal(data.statement.run?.state)}
             />

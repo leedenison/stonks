@@ -20,6 +20,8 @@ import {
   StatementItemSchema,
   StatementService,
   StatementSummarySchema,
+  TransactionMark,
+  TransactionSchema,
 } from "@/gen/statement/v1/statement_pb";
 import {
   Arbiter,
@@ -113,11 +115,40 @@ function keys(resolved: boolean) {
   ];
 }
 
+// transactions returns transactions marked confirmed, unresolved and
+// provisional, the last under a key the statement does not list.
+function transactions() {
+  return [
+    create(TransactionSchema, {
+      id: "t1",
+      statedKeyId: "k-isin",
+      orderDate: "2025-02-03",
+      quantity: "-5.4",
+      mark: TransactionMark.CONFIRMED,
+    }),
+    create(TransactionSchema, {
+      id: "t2",
+      statedKeyId: "k-isin",
+      orderDate: "2025-02-10",
+      quantity: "100",
+      mark: TransactionMark.UNRESOLVED,
+    }),
+    create(TransactionSchema, {
+      id: "t3",
+      statedKeyId: "k-gone",
+      orderDate: "2025-02-11",
+      quantity: "1",
+      mark: TransactionMark.PROVISIONAL,
+    }),
+  ];
+}
+
 function response(
   state: RunState,
   rejected: number,
   error?: string,
   withKeys = false,
+  withTransactions = false,
 ) {
   const gbp = create(StatedKeySchema, {
     assetClass: AssetClass.CASH,
@@ -125,6 +156,7 @@ function response(
   });
   return create(GetStatementResponseSchema, {
     keys: withKeys ? keys(state === RunState.COMPLETED) : [],
+    transactions: withTransactions ? transactions() : [],
     statement: create(StatementSummarySchema, {
       run: create(RunSchema, {
         id: "r1",
@@ -319,6 +351,44 @@ describe("StatementPage", () => {
       ...screen.getByTestId("statement-keys").querySelectorAll("h3"),
     ].map((h) => h.textContent);
     expect(headings).toEqual(["Cash", "Unknown class"]);
+  });
+
+  it("hides the transactions section when the statement has no transactions", async () => {
+    renderWithAuth(
+      <StatementPage />,
+      serving(() => response(RunState.COMPLETED, 0, undefined, true)),
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId("statement-keys")).toBeTruthy(),
+    );
+    expect(screen.queryByTestId("statement-transactions")).toBeNull();
+  });
+
+  it("marks each transaction and names its key", async () => {
+    renderWithAuth(
+      <StatementPage />,
+      serving(() => response(RunState.COMPLETED, 0, undefined, true, true)),
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId("statement-transactions")).toBeTruthy(),
+    );
+    const row = (id: string) =>
+      within(screen.getByTestId(`transaction-row-${id}`));
+    expect(row("t1").getByTestId("mark-chip").getAttribute("data-state")).toBe(
+      "confirmed",
+    );
+    expect(row("t1").getByText("US0378331005")).toBeTruthy();
+    expect(screen.getByTestId("transaction-row-t1").textContent).toContain(
+      "-5.40",
+    );
+    expect(row("t2").getByTestId("mark-chip").getAttribute("data-state")).toBe(
+      "unresolved",
+    );
+    const gone = screen.getByTestId("transaction-row-t3");
+    expect(gone.querySelectorAll("td")[1].textContent).toBe("");
+    expect(
+      within(gone).getByTestId("mark-chip").getAttribute("data-state"),
+    ).toBe("provisional");
   });
 
   it("shows a key as resolving while the run is live", async () => {
