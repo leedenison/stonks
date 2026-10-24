@@ -1,5 +1,6 @@
 import { FetchOutcome, FindingKind } from "../gen/admin/run/v1/run_pb";
 import { RunState } from "../gen/run/v1/run_pb";
+import { TransactionMark } from "../gen/statement/v1/statement_pb";
 import {
   AssetClass,
   Broker,
@@ -23,7 +24,8 @@ import { expect, test } from "../helpers/test";
 // second, dated 2021-06-01, reads the facts the first wrote, skips the
 // identity fetch, and asks Massive for the value on that day alone. The day
 // sits before 2021-06-30, when a fund took the ticker, so Massive answers
-// that META was not in use.
+// that META was not in use. The statement details page marks the 2024
+// transaction confirmed and the 2021 one unresolved.
 const meta = { type: IdentifierType.MIC_TICKER, domain: "XNAS", value: "META" };
 const composite = "BBG000MM2P62";
 
@@ -48,10 +50,12 @@ function statement(orderFrom: string, orderBefore: string, on: string) {
   };
 }
 
-test("dates a key through its ticker and asks only for the days it lacks", async ({
+test("dates a key through its ticker and marks each transaction by its day", async ({
+  signIn,
   seed,
+  page,
 }) => {
-  const { session } = await seed();
+  const { session } = await signIn();
   const { session: adminSession } = await seed("admin");
   const statements = statementClient(session);
   const runs = runClient(session);
@@ -71,16 +75,31 @@ test("dates a key through its ticker and asks only for the days it lacks", async
     statement("2021-06-01", "2021-07-01", "2021-06-01"),
   );
 
-  const keys = await Promise.all(
-    [first, second].map(
-      async (runId) => (await statements.getStatement({ runId })).keys,
-    ),
+  const read = await Promise.all(
+    [first, second].map((runId) => statements.getStatement({ runId })),
   );
+  const keys = read.map((r) => r.keys);
   for (const k of keys) {
     expect(k).toHaveLength(1);
     expect(k[0].outcome).toBe(ResolutionOutcome.MATCHED);
   }
   expect(keys[1][0].statedKeyId).toBe(keys[0][0].statedKeyId);
+
+  const marks = read.map((r) => r.transactions.map((t) => t.mark));
+  expect(marks).toEqual([
+    [TransactionMark.CONFIRMED],
+    [TransactionMark.UNRESOLVED],
+  ]);
+  for (const [i, state] of ["confirmed", "unresolved"].entries()) {
+    await page.goto(`/statements/${[first, second][i]}`);
+    const row = page.getByTestId(
+      `transaction-row-${read[i].transactions[0].id}`,
+    );
+    await expect(row.getByTestId("mark-chip")).toHaveAttribute(
+      "data-state",
+      state,
+    );
+  }
 
   // The identifier events fetch is the Massive run whose items name no key.
   const eventsOf = async (runId: string) => {

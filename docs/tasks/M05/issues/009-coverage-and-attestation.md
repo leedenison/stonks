@@ -1,7 +1,6 @@
 ---
 title: Coverage and attestation in the admin area
 type: task
-dependencies: [007]
 ---
 
 ## Scope

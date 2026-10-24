@@ -28,9 +28,7 @@ of open issues and ADRs at `docs/tasks/<label>/`.
 ```
                   001 open
           /           |            \
-007 statement  013 holdings  010 descriptions
-      |               |              |
-009 coverage          |              |
+009 coverage   013 holdings  010 descriptions
        \              |             /
                   008 close
 ```
