@@ -11,10 +11,10 @@ Resolution builds it in three bands:
    earliest transaction and the start of the window. That assertion and the present one
    bracket the window, so validity across it is confirmed.
 3. Before the window. No provider answers for this period. Validity is provisional, and
-   resolution proceeds on it. The period is derived as a coverage gap of the ticker, or
-   of its domain where a datasource covers the domain.
+   resolution proceeds on it. The period is derived as a gap of the ticker's confirmed
+   validity.
 
-An administrator closes a coverage gap with an assertion on the gap's first day. That
+An administrator closes a gap with an assertion on the gap's first day. That
 assertion brackets the provider's first assertion. See
 [006](006-an-administrator-attests-what-no-datasource-covers.md). A gap shrinks when a
 subscription with a longer window is enabled and the key is replayed.

@@ -11,15 +11,16 @@ ORDER BY type, domain, value;
 UPDATE identifier_assertions SET instrument_id = @survivor::uuid WHERE instrument_id = @loser::uuid;
 
 -- name: ListIdentifierAssertions :many
--- The assertions of one identifier, each with the fetch key that made it, the
--- datasource of that fetch and the datasource's precedence. All three are
--- NULL for an attestation.
-SELECT identifier_assertions.asserted_on, identifier_assertions.instrument_id,
-       identifier_assertions.fetch_key_id, fetches.datasource, datasources.precedence
+-- The assertions of one identifier, each with the datasource of the fetch
+-- that made it and that datasource's precedence, or the email of the
+-- administrator who attested it.
+SELECT sqlc.embed(identifier_assertions), fetches.datasource, datasources.precedence,
+       users.email AS attested_by
 FROM identifier_assertions
 LEFT JOIN fetch_keys ON fetch_keys.id = identifier_assertions.fetch_key_id
 LEFT JOIN fetches ON fetches.id = fetch_keys.fetch_id
 LEFT JOIN datasources ON datasources.name = fetches.datasource
+LEFT JOIN users ON users.id = identifier_assertions.attested_by
 WHERE identifier_assertions.type = @type
   AND identifier_assertions.domain = @domain
   AND identifier_assertions.value = @value
@@ -28,15 +29,22 @@ ORDER BY identifier_assertions.asserted_on, identifier_assertions.id;
 -- name: ListIdentifierEvents :many
 -- The events that name a ticker, or that renamed another ticker to it, each
 -- with the fetch key that wrote it.
-SELECT effective_on, fetch_key_id FROM identifier_events
+SELECT value, action, to_value, effective_on, fetch_key_id FROM identifier_events
 WHERE domain = @domain AND (value = @value OR to_value = @value)
 ORDER BY effective_on, id;
 
 -- name: ListIdentifierCoverage :many
--- The coverage of a ticker, and of its domain.
-SELECT covered_from, covered_before FROM identifier_event_coverage
-WHERE domain = @domain AND (value = @value OR value IS NULL)
-ORDER BY covered_from;
+-- The coverage of a ticker, and of its domain, each with the datasource whose
+-- fetch wrote it. value is NULL for a domain row.
+SELECT identifier_event_coverage.domain, identifier_event_coverage.value,
+       identifier_event_coverage.covered_from, identifier_event_coverage.covered_before,
+       fetches.datasource
+FROM identifier_event_coverage
+JOIN fetch_keys ON fetch_keys.id = identifier_event_coverage.fetch_key_id
+JOIN fetches ON fetches.id = fetch_keys.fetch_id
+WHERE identifier_event_coverage.domain = @domain
+  AND (identifier_event_coverage.value = @value OR identifier_event_coverage.value IS NULL)
+ORDER BY fetches.datasource, identifier_event_coverage.covered_from, identifier_event_coverage.id;
 
 -- name: ListDomainCoverage :many
 SELECT covered_from, covered_before FROM identifier_event_coverage
@@ -95,3 +103,45 @@ WHERE (runs.parent_id = @run_id OR identifier_assertions.run_id = @run_id)
   AND (sqlc.narg(after)::uuid IS NULL OR identifier_assertions.id > sqlc.narg(after))
 ORDER BY identifier_assertions.id
 LIMIT sqlc.narg(lim)::int;
+
+-- name: ListTickerDomains :many
+-- The operating MICs on which keys with a transaction state tickers, each
+-- with its count of distinct tickers. A venue counts under its operating MIC,
+-- and a ticker stated without a venue counts nowhere.
+SELECT coalesce(mics.operating_mic, stated.id->>'domain')::text AS domain,
+       count(DISTINCT stated.id->>'value')::int AS tickers
+FROM stated_keys
+CROSS JOIN LATERAL jsonb_array_elements(stated_keys.identifiers) AS stated(id)
+LEFT JOIN mics ON mics.mic = stated.id->>'domain'
+WHERE stated.id->>'type' = 'mic_ticker'
+  AND coalesce(stated.id->>'domain', '') <> ''
+  AND EXISTS (SELECT 1 FROM transactions WHERE transactions.stated_key_id = stated_keys.id)
+GROUP BY coalesce(mics.operating_mic, stated.id->>'domain')
+ORDER BY domain;
+
+-- name: ListDomainTickers :many
+-- The distinct tickers that keys with a transaction state on the domain, or
+-- on a venue operated under it.
+SELECT DISTINCT (stated.id->>'value')::text AS value
+FROM stated_keys
+CROSS JOIN LATERAL jsonb_array_elements(stated_keys.identifiers) AS stated(id)
+LEFT JOIN mics ON mics.mic = stated.id->>'domain'
+WHERE stated.id->>'type' = 'mic_ticker'
+  AND coalesce(stated.id->>'domain', '') <> ''
+  AND coalesce(mics.operating_mic, stated.id->>'domain') = @domain::text
+  AND EXISTS (SELECT 1 FROM transactions WHERE transactions.stated_key_id = stated_keys.id)
+ORDER BY value;
+
+-- name: ListTickerTransactions :many
+-- The transactions of every key that states the ticker on the domain, or on
+-- a venue operated under it.
+SELECT transactions.stated_key_id, transactions.order_date
+FROM transactions
+JOIN stated_keys ON stated_keys.id = transactions.stated_key_id
+WHERE EXISTS (
+    SELECT 1 FROM jsonb_array_elements(stated_keys.identifiers) AS stated(id)
+    LEFT JOIN mics ON mics.mic = stated.id->>'domain'
+    WHERE stated.id->>'type' = 'mic_ticker'
+      AND coalesce(mics.operating_mic, stated.id->>'domain') = @domain::text
+      AND stated.id->>'value' = @value::text)
+ORDER BY transactions.order_date, transactions.stated_key_id, transactions.id;

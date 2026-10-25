@@ -67,16 +67,17 @@ message FetchItem {
 // An assertion a run wrote: that a ticker names an instrument, or names
 // nothing, on one day.
 message AssertionItem {
-  stonks.type.v1.Identifier ticker = 1;
+  string id = 1;
+  stonks.type.v1.Identifier ticker = 2;
   // The day the assertion holds, as YYYY-MM-DD.
-  string asserted_on = 2;
+  string asserted_on = 3;
   // The instrument the ticker names; unset where the ticker names nothing.
-  optional string instrument_id = 3;
+  optional string instrument_id = 4;
   oneof source {
     // The datasource whose answer made the assertion.
-    string datasource = 4;
+    string datasource = 5;
     // The email of the administrator who attested it.
-    string attested_by = 5;
+    string attested_by = 6;
   }
 }
 

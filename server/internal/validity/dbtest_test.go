@@ -176,6 +176,30 @@ func TestOfAttested(t *testing.T) {
 	}
 }
 
+// TestReadRowsCoverage checks that a ticker's coverage rows name the
+// datasource that wrote them, and that a row of the whole domain has no
+// value.
+func TestReadRowsCoverage(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	key := db.NewID()
+	require.NoError(t, f.q.CreateFetchKey(ctx, gen.CreateFetchKeyParams{
+		ID: key, FetchID: f.fetches[f.alpha], UserID: &f.user.ID, Outcome: gen.FetchOutcomeServed, Attempts: 1,
+		SentType: &f.foo.Type, SentDomain: f.foo.Domain, AnsweredAt: ptr.To(day(20)),
+	}))
+	f.exec(t, "INSERT INTO identifier_event_coverage (id, fetch_key_id, domain, value, covered_from, covered_before) VALUES ($1, $2, $3, $4, $5, $6)", db.NewID(), key, f.foo.Domain, f.foo.Value, day(5), day(20))
+	f.exec(t, "INSERT INTO identifier_event_coverage (id, fetch_key_id, domain, covered_from, covered_before) VALUES ($1, $2, $3, $4, $5)", db.NewID(), key, f.foo.Domain, day(1), day(10))
+	rows, err := ReadRows(ctx, f.q, f.foo)
+	require.NoError(t, err)
+	want := []gen.ListIdentifierCoverageRow{
+		{Domain: f.foo.Domain, CoveredFrom: day(1), CoveredBefore: day(10), Datasource: f.alpha},
+		{Domain: f.foo.Domain, Value: &f.foo.Value, CoveredFrom: day(5), CoveredBefore: day(20), Datasource: f.alpha},
+	}
+	if diff := cmp.Diff(want, rows.Coverage); diff != "" {
+		t.Errorf("ReadRows coverage mismatch (-want +got):\n%s", diff)
+	}
+}
+
 // TestDomainGaps checks the days from the first transaction of the domain,
 // stated at one of its venues, that no coverage of the domain holds.
 func TestDomainGaps(t *testing.T) {
