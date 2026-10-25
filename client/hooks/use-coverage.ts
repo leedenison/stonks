@@ -1,14 +1,20 @@
 "use client";
 
-import type { UseQueryResult } from "@tanstack/react-query";
+import type { MessageInitShape } from "@bufbuild/protobuf";
+import {
+  useMutation,
+  useQueryClient,
+  type UseQueryResult,
+} from "@tanstack/react-query";
 import { useClients } from "@/contexts/clients-context";
 import type {
+  AttestRequestSchema,
   GetTickerResponse,
   ListDomainsResponse,
   ListGapsResponse,
 } from "@/gen/admin/coverage/v1/coverage_pb";
 import { IdentifierType } from "@/gen/type/v1/type_pb";
-import { qk } from "@/lib/query-keys";
+import { invalidateResolved, qk } from "@/lib/query-keys";
 import { useAuthedQuery } from "./use-authed-query";
 
 // useCoverageDomains lists the operating MICs that have tickers with
@@ -46,5 +52,37 @@ export function useCoverageTicker(
         ticker: { type: IdentifierType.MIC_TICKER, domain, value },
       }),
     enabled: domain !== "" && value !== "",
+  });
+}
+
+// invalidateAttested refreshes every query an attestation or a withdrawal
+// can change.
+function invalidateAttested(queryClient: ReturnType<typeof useQueryClient>) {
+  return Promise.all([
+    queryClient.invalidateQueries({ queryKey: qk.coverageAll() }),
+    queryClient.invalidateQueries({ queryKey: qk.adminRunsAll() }),
+    invalidateResolved(queryClient),
+  ]);
+}
+
+// useAttest writes an attestation, as a system run.
+export function useAttest() {
+  const { coverage } = useClients();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (req: MessageInitShape<typeof AttestRequestSchema>) =>
+      coverage.attest(req),
+    onSuccess: () => invalidateAttested(queryClient),
+  });
+}
+
+// useWithdrawAttestation deletes an attested assertion.
+export function useWithdrawAttestation() {
+  const { coverage } = useClients();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (assertionId: string) =>
+      coverage.withdrawAttestation({ assertionId }),
+    onSuccess: () => invalidateAttested(queryClient),
   });
 }

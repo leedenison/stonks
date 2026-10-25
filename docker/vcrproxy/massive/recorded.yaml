@@ -545,3 +545,121 @@ interactions:
         status: 200 OK
         code: 200
         duration: 12.031234675s
+    - id: 14
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /v3/reference/tickers/WMT?apiKey=REDACTED
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://api.massive.com/v3/reference/tickers/WMT
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 946
+        uncompressed: true
+        body: '{"request_id":"c1ed5aceab27f42b747832abf1f4c3b8","results":{"active":true,"address":"REDACTED","branding":{"icon_url":"https://api.massive.com/v1/reference/company-branding/c3RvY2sud2FsbWFydC5jb20/images/2026-10-01_icon.jpeg","logo_url":"https://api.massive.com/v1/reference/company-branding/c3RvY2sud2FsbWFydC5jb20/images/2026-10-01_logo.svg"},"cik":"0000104169","composite_figi":"BBG000BWXBC2","currency_name":"usd","description":"REDACTED","homepage_url":"https://stock.walmart.com","list_date":"1970-10-01","locale":"us","market":"stocks","market_cap":9.5117683683349e+11,"name":"Walmart Inc. Common Stock","phone_number":"REDACTED","primary_exchange":"XNAS","round_lot":100,"share_class_figi":"BBG001S5XH92","share_class_shares_outstanding":7933746241,"sic_code":"5331","sic_description":"RETAIL-VARIETY STORES","ticker":"WMT","ticker_root":"WMT","total_employees":2100000,"type":"CS","weighted_shares_outstanding":7933746241},"status":"OK"}'
+        headers:
+            Content-Type:
+                - application/json
+            Date:
+                - Sun, 25 Oct 2026 09:24:31 GMT
+            Strict-Transport-Security:
+                - max-age=15724800; includeSubDomains
+            Vary:
+                - Accept-Encoding
+            X-Polygon-Cluster-Name:
+                - polygon-ny5
+            X-Request-Id:
+                - c1ed5aceab27f42b747832abf1f4c3b8
+        status: 200 OK
+        code: 200
+        duration: 785.889484ms
+    - id: 15
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /vX/reference/tickers/BBG000BWXBC2/events?apiKey=REDACTED&types=ticker_change
+        form:
+            types:
+                - ticker_change
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://api.massive.com/vX/reference/tickers/BBG000BWXBC2/events?types=ticker_change
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 250
+        body: '{"results":{"name":"Walmart Inc. Common Stock","composite_figi":"BBG000BWXBC2","cik":"0000104169","events":[{"ticker_change":{"ticker":"WMT"},"type":"ticker_change","date":"2003-09-10"}]},"status":"OK","request_id":"6d1946f3eba3242a356c052f98cd2560"}'
+        headers:
+            Content-Length:
+                - "250"
+            Content-Type:
+                - application/json
+            Date:
+                - Sun, 25 Oct 2026 09:24:42 GMT
+            Strict-Transport-Security:
+                - max-age=15724800; includeSubDomains
+            Vary:
+                - Accept-Encoding
+            X-Item-Count:
+                - "1"
+            X-Polygon-Cluster-Name:
+                - polygon-ny5
+            X-Request-Id:
+                - 6d1946f3eba3242a356c052f98cd2560
+        status: 200 OK
+        code: 200
+        duration: 10.171922436s
+    - id: 16
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /v3/reference/tickers/WMT?apiKey=REDACTED&date=2003-09-10
+        form:
+            date:
+                - "2003-09-10"
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://api.massive.com/v3/reference/tickers/WMT?date=2003-09-10
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 315
+        uncompressed: true
+        body: '{"request_id":"2b526cc64a664d5a2004cb4bfad1f0db","results":{"ticker":"WMT","name":"WAL-MART STORES INC","market":"stocks","locale":"us","primary_exchange":"XNYS","active":true,"currency_name":"usd","composite_figi":"BBG000BWXBC2","share_class_figi":"BBG001S5XH92","ticker_root":"WMT","round_lot":100},"status":"OK"}'
+        headers:
+            Content-Type:
+                - application/json
+            Date:
+                - Sun, 25 Oct 2026 09:24:54 GMT
+            Strict-Transport-Security:
+                - max-age=15724800; includeSubDomains
+            Vary:
+                - Accept-Encoding
+                - Accept-Encoding
+            X-Polygon-Cluster-Name:
+                - polygon-ny5
+            X-Request-Id:
+                - 2b526cc64a664d5a2004cb4bfad1f0db
+        status: 200 OK
+        code: 200
+        duration: 12.033882391s

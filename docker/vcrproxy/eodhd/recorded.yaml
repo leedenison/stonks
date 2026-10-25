@@ -1475,3 +1475,152 @@ interactions:
         status: 200 OK
         code: 200
         duration: 168.123198ms
+    - id: 30
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/search/WMT?api_token=REDACTED&exchange=US&fmt=json&limit=500
+        form:
+            exchange:
+                - US
+            fmt:
+                - json
+            limit:
+                - "500"
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/search/WMT?exchange=US&fmt=json&limit=500
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 856
+        uncompressed: true
+        body: '[{"Code":"WMT","Exchange":"US","Name":"Walmart Inc.","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US9311421039","isPrimary":true,"previousClose":119.89,"previousCloseDate":"2026-10-23"},{"Code":"WMTI","Exchange":"US","Name":"REX ETF Trust REX WMT Growth \u0026","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US7615628754","isPrimary":false,"previousClose":20.73,"previousCloseDate":"2026-10-23"},{"Code":"WMTN","Exchange":"US","Name":"WestMountain Gold Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US96111A2006","isPrimary":true,"previousClose":0.6757,"previousCloseDate":"2026-10-23"},{"Code":"WMTIX","Exchange":"US","Name":"Wells Fargo Minnesota Tax-Free Fund-I","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US94990B8037","isPrimary":false,"previousClose":9.74,"previousCloseDate":"2026-10-23"}]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Sun, 25 Oct 2026 09:24:31 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1199"
+        status: 200 OK
+        code: 200
+        duration: 1.470189533s
+    - id: 31
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/exchange-symbol-list/US?api_token=REDACTED&fmt=json&symbols=WMT
+        form:
+            fmt:
+                - json
+            symbols:
+                - WMT
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/exchange-symbol-list/US?fmt=json&symbols=WMT
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 135
+        uncompressed: true
+        body: '[{"Code":"WMT","Name":"Walmart Inc.","Country":"USA","Exchange":"NASDAQ","Currency":"USD","Type":"Common Stock","Isin":"US9311421039"}]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Sun, 25 Oct 2026 09:24:31 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1198"
+        status: 200 OK
+        code: 200
+        duration: 279.167436ms
+    - id: 32
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/id-mapping?api_token=REDACTED&filter%5Bisin%5D=US9311421039&fmt=json
+        form:
+            filter[isin]:
+                - US9311421039
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/id-mapping?filter%5Bisin%5D=US9311421039&fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 746
+        uncompressed: true
+        body: '{"meta":{"limit":1000,"offset":0,"total":6},"data":[{"symbol":"1WMT.MI","isin":"US9311421039","figi":null,"lei":"Y87794H0US1R65VBXU25","cusip":null,"cik":null},{"symbol":"WMT.US","isin":"US9311421039","figi":"BBG000BWXBC2","lei":"Y87794H0US1R65VBXU25","cusip":"931142103","cik":"0000104169"},{"symbol":"WMT.F","isin":"US9311421039","figi":null,"lei":"Y87794H0US1R65VBXU25","cusip":null,"cik":null},{"symbol":"WMT.XETRA","isin":"US9311421039","figi":null,"lei":"Y87794H0US1R65VBXU25","cusip":null,"cik":null},{"symbol":"WMT.SN","isin":"US9311421039","figi":null,"lei":"Y87794H0US1R65VBXU25","cusip":null,"cik":null},{"symbol":"WMT.STU","isin":"US9311421039","figi":null,"lei":"Y87794H0US1R65VBXU25","cusip":null,"cik":null}],"links":{"next":null}}'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Sun, 25 Oct 2026 09:24:32 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1197"
+        status: 200 OK
+        code: 200
+        duration: 168.477044ms

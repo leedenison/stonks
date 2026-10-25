@@ -1,8 +1,11 @@
 "use client";
 
+import { create } from "@bufbuild/protobuf";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
+import { AttestDialog } from "@/app/components/attest-dialog";
+import { Button } from "@/app/components/button";
 import { Chip } from "@/app/components/chip";
 import { EmptyState } from "@/app/components/empty-state";
 import { Select } from "@/app/components/input";
@@ -10,8 +13,10 @@ import { Notice } from "@/app/components/notice";
 import { Page } from "@/app/components/page-frame";
 import { SkeletonRows } from "@/app/components/skeleton-rows";
 import { TableCard, Td, Th, Thead, Tr } from "@/app/components/table";
+import { IdentifierSchema, IdentifierType } from "@/gen/type/v1/type_pb";
 import { useCoverageDomains, useCoverageGaps } from "@/hooks/use-coverage";
 import { type CoverageParams, coverageQuery, readCoverage } from "@/lib/admin";
+import { today } from "@/lib/marshal/date";
 import { TickerPane } from "./ticker-pane";
 
 // CoveragePage lists the gaps of one operating MIC's tickers, by what they
@@ -35,9 +40,37 @@ function Coverage() {
   const listed = gaps.data?.gaps ?? [];
   const failed = domains.isError || gaps.isError;
   const loading = domains.isPending || (domain !== "" && gaps.isPending);
+  const [attesting, setAttesting] = useState(false);
 
   return (
-    <Page title="Coverage" width="wide" testId="admin-coverage-page">
+    <Page
+      title="Coverage"
+      width="wide"
+      testId="admin-coverage-page"
+      actions={
+        p.value !== "" && (
+          <Button
+            variant="text"
+            data-testid="coverage-attest"
+            onClick={() => setAttesting(true)}
+          >
+            Attest {p.value} today
+          </Button>
+        )
+      }
+    >
+      {attesting && p.value !== "" && (
+        <AttestDialog
+          ticker={create(IdentifierSchema, {
+            type: IdentifierType.MIC_TICKER,
+            domain,
+            value: p.value,
+          })}
+          from={today()}
+          onClose={() => setAttesting(false)}
+          onDone={() => setAttesting(false)}
+        />
+      )}
       <div className="flex flex-wrap items-center gap-3 text-sm">
         <label className="flex items-center gap-2">
           <span className="text-text-muted">Domain</span>

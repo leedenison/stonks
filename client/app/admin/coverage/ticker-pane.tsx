@@ -1,6 +1,11 @@
 "use client";
 
+import { create } from "@bufbuild/protobuf";
+import { useState } from "react";
+import { AttestDialog } from "@/app/components/attest-dialog";
+import { Button } from "@/app/components/button";
 import { Chip } from "@/app/components/chip";
+import { Dialog } from "@/app/components/dialog";
 import { IdentifierChip } from "@/app/components/identifier-chip";
 import { Notice } from "@/app/components/notice";
 import { Section } from "@/app/components/section";
@@ -10,12 +15,20 @@ import {
   IdentifierEventAction,
   type Ticker,
 } from "@/gen/admin/coverage/v1/coverage_pb";
-import { useCoverageTicker } from "@/hooks/use-coverage";
+import type { AssertionItem } from "@/gen/admin/run/v1/run_pb";
+import { IdentifierSchema, IdentifierType } from "@/gen/type/v1/type_pb";
+import {
+  useCoverageTicker,
+  useWithdrawAttestation,
+} from "@/hooks/use-coverage";
 import { instrumentName, intervalAt } from "@/lib/coverage";
 import { enumLabel } from "@/lib/enum";
+import { refusal } from "@/lib/refusal";
 import { Timeline } from "./timeline";
 
-// TickerPane shows everything the coverage page knows about one ticker.
+// TickerPane shows everything the coverage page knows about one ticker, and
+// offers an attestation from each gap and the withdrawal of each attested
+// assertion.
 export function TickerPane({
   domain,
   value,
@@ -27,6 +40,13 @@ export function TickerPane({
     domain,
     value,
   );
+  const [attesting, setAttesting] = useState<string | null>(null);
+  const [withdrawing, setWithdrawing] = useState<AssertionItem | null>(null);
+  const ticker = create(IdentifierSchema, {
+    type: IdentifierType.MIC_TICKER,
+    domain,
+    value,
+  });
   return (
     <div
       data-testid="ticker-pane"
@@ -44,8 +64,79 @@ export function TickerPane({
         </Notice>
       )}
       {!isError && isPending && <Skeleton lines={4} />}
-      {data?.ticker && <Facts ticker={data.ticker} />}
+      {data?.ticker && (
+        <Facts
+          ticker={data.ticker}
+          onAttest={setAttesting}
+          onWithdraw={setWithdrawing}
+        />
+      )}
+      {attesting !== null && (
+        <AttestDialog
+          ticker={ticker}
+          from={attesting}
+          onClose={() => setAttesting(null)}
+          onDone={() => setAttesting(null)}
+        />
+      )}
+      {withdrawing && (
+        <WithdrawDialog
+          assertion={withdrawing}
+          onClose={() => setWithdrawing(null)}
+        />
+      )}
     </div>
+  );
+}
+
+// WithdrawDialog confirms the withdrawal of an attested assertion. A refusal
+// stays in the dialog.
+function WithdrawDialog({
+  assertion,
+  onClose,
+}: {
+  assertion: AssertionItem;
+  onClose: () => void;
+}) {
+  const withdraw = useWithdrawAttestation();
+  return (
+    <Dialog
+      open
+      onClose={onClose}
+      title="Withdraw attestation"
+      testId="withdraw-dialog"
+      footer={
+        <>
+          <Button
+            variant="secondary"
+            onClick={onClose}
+            disabled={withdraw.isPending}
+          >
+            Cancel
+          </Button>
+          <Button
+            data-testid="withdraw-confirm"
+            disabled={withdraw.isPending}
+            onClick={() =>
+              withdraw.mutate(assertion.id, { onSuccess: onClose })
+            }
+          >
+            Withdraw
+          </Button>
+        </>
+      }
+    >
+      <p className="text-sm">
+        Deletes the assertion of {assertion.assertedOn} and replays the
+        unresolved keys that state the ticker. A dated key picks up the change
+        the next time it is read.
+      </p>
+      {withdraw.isError && (
+        <Notice tone="error" testId="withdraw-error">
+          {refusal(withdraw.error, "The attestation could not be withdrawn.")}
+        </Notice>
+      )}
+    </Dialog>
   );
 }
 
@@ -63,7 +154,15 @@ function Instrument({ ticker, id }: { ticker: Ticker; id?: string }) {
   );
 }
 
-function Facts({ ticker }: { ticker: Ticker }) {
+function Facts({
+  ticker,
+  onAttest,
+  onWithdraw,
+}: {
+  ticker: Ticker;
+  onAttest: (from: string) => void;
+  onWithdraw: (a: AssertionItem) => void;
+}) {
   return (
     <>
       <Timeline ticker={ticker} />
@@ -83,6 +182,7 @@ function Facts({ ticker }: { ticker: Ticker }) {
                 <Th dense numeric>
                   Transactions
                 </Th>
+                <Th dense> </Th>
               </tr>
             </thead>
             <tbody>
@@ -112,6 +212,15 @@ function Facts({ ticker }: { ticker: Ticker }) {
                   <Td dense numeric>
                     {g.transactions}
                   </Td>
+                  <Td dense>
+                    <Button
+                      variant="secondary"
+                      data-testid={`gap-attest-${g.unconfirmedFrom}`}
+                      onClick={() => onAttest(g.unconfirmedFrom)}
+                    >
+                      Attest
+                    </Button>
+                  </Td>
                 </tr>
               ))}
             </tbody>
@@ -128,6 +237,7 @@ function Facts({ ticker }: { ticker: Ticker }) {
                 <Th dense>Day</Th>
                 <Th dense>Instrument</Th>
                 <Th dense>Source</Th>
+                <Th dense> </Th>
               </tr>
             </thead>
             <tbody>
@@ -151,6 +261,17 @@ function Facts({ ticker }: { ticker: Ticker }) {
                     >
                       {a.source.value}
                     </Chip>
+                  </Td>
+                  <Td dense>
+                    {a.source.case === "attestedBy" && (
+                      <Button
+                        variant="secondary"
+                        data-testid={`assertion-withdraw-${a.id}`}
+                        onClick={() => onWithdraw(a)}
+                      >
+                        Withdraw
+                      </Button>
+                    )}
                   </Td>
                 </tr>
               ))}
