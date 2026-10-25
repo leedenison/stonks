@@ -1,12 +1,8 @@
+import path from "node:path";
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { FetchOutcome } from "../gen/admin/run/v1/run_pb";
 import { RunState } from "../gen/run/v1/run_pb";
-import {
-  AssetClass,
-  Broker,
-  IdentifierType,
-  ResolutionOutcome,
-} from "../gen/type/v1/type_pb";
+import { IdentifierType, ResolutionOutcome } from "../gen/type/v1/type_pb";
 import {
   adminInstrumentClient,
   adminRunClient,
@@ -14,55 +10,30 @@ import {
   coverageClient,
   extendValidityClient,
   fetchItems,
-  runClient,
   statementClient,
 } from "../helpers/api";
 import { expect, test } from "../helpers/test";
+import { uploadStatement } from "../helpers/upload";
 
-// The ticker the spec states. No other spec states PEP, so no other user
-// holds it.
+// No other spec states PEP, so no other user holds it.
+const fixture = path.resolve(__dirname, "..", "fixtures", "standard-pep.json");
 const pep = { type: IdentifierType.MIC_TICKER, domain: "XNAS", value: "PEP" };
 
 // utcDay is the UTC day of a moment, as YYYY-MM-DD.
 const utcDay = (d: Date) => d.toISOString().slice(0, 10);
 
 test("extends the validity of a held ticker on the day it runs", async ({
+  signIn,
   seed,
+  page,
 }) => {
-  const { session } = await seed();
+  const { session } = await signIn();
   const { session: adminSession } = await seed("admin");
   const statements = statementClient(session);
-  const runs = runClient(session);
   const adminRuns = adminRunClient(adminSession);
 
-  const on = "2024-01-16";
-  // Built through the API, since no broker export states a ticker with its
-  // venue.
-  const runId = (
-    await statements.createStatement({
-      statement: {
-        broker: Broker.IBKR,
-        orderFrom: "2024-01-01",
-        orderBefore: "2024-02-01",
-        rows: [
-          {
-            key: {
-              assetClass: AssetClass.STOCK,
-              currency: "USD",
-              identifiers: [pep],
-            },
-            orderDate: on,
-            settlementDate: on,
-            asAt: on,
-            quantity: "10",
-          },
-        ],
-      },
-    })
-  ).run!.id;
-  await expect
-    .poll(async () => (await runs.getRun({ runId })).run?.state)
-    .toBe(RunState.COMPLETED);
+  await page.goto("/transactions");
+  const runId = await uploadStatement(page, fixture, { state: "completed" });
   const keys = (await statements.getStatement({ runId })).keys;
   expect(keys.map((k) => k.outcome)).toEqual([ResolutionOutcome.MATCHED]);
 

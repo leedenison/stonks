@@ -1,0 +1,24 @@
+{
+  "broker": "BROKER_IBKR",
+  "orderFrom": "2021-06-01",
+  "orderBefore": "2021-07-01",
+  "rows": [
+    {
+      "key": {
+        "identifiers": [
+          {
+            "type": "IDENTIFIER_TYPE_MIC_TICKER",
+            "domain": "XNAS",
+            "value": "META"
+          }
+        ],
+        "assetClass": "ASSET_CLASS_STOCK",
+        "currency": "USD"
+      },
+      "orderDate": "2021-06-01",
+      "settlementDate": "2021-06-01",
+      "asAt": "2021-06-01",
+      "quantity": "10"
+    }
+  ]
+}

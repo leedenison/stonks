@@ -1,56 +1,32 @@
+import path from "node:path";
 import { FetchOutcome, FindingKind } from "../gen/admin/run/v1/run_pb";
-import { RunState } from "../gen/run/v1/run_pb";
 import { TransactionMark } from "../gen/statement/v1/statement_pb";
-import {
-  AssetClass,
-  Broker,
-  IdentifierType,
-  ResolutionOutcome,
-} from "../gen/type/v1/type_pb";
+import { IdentifierType, ResolutionOutcome } from "../gen/type/v1/type_pb";
 import {
   adminInstrumentClient,
   adminRunClient,
   fetchItems,
   holdingClient,
-  runClient,
   statementClient,
 } from "../helpers/api";
 import { expect, test } from "../helpers/test";
+import { uploadStatement } from "../helpers/upload";
 
-// One stock row stating META at Nasdaq, in two statements built through the
-// API, since no broker export states a ticker with its venue. META began
-// naming Meta on 2022-06-09, which Massive's ticker history states. The first
-// statement, dated 2024, dates the key through the value and asks Massive for
-// Meta's history under its composite FIGI and for the value on its date. The
-// second, dated 2021-06-01, reads the facts the first wrote, skips the
-// identity fetch, and asks Massive for the value on that day alone. The day
-// sits before 2021-06-30, when a fund took the ticker, so Massive answers
-// that META was not in use. The statement details page marks the 2024
-// transaction confirmed and the 2021 one unresolved. Holdings sum the 2024
-// transaction into Meta and the 2021 one into the key's group.
+// Two statements, dated 2024 then 2021, each stating META at Nasdaq. META
+// began naming Meta on 2022-06-09, which Massive's ticker history states. The
+// first statement, dated 2024-01-16, dates the key through the value and asks
+// Massive for Meta's history under its composite FIGI and for the value on
+// its date. The second, dated 2021-06-01, reads the facts the first wrote,
+// skips the identity fetch, and asks Massive for the value on that day alone.
+// The day sits before 2021-06-30, when a fund took the ticker, so Massive
+// answers that META was not in use. The statement details page marks the
+// 2024 transaction confirmed and the 2021 one unresolved. Holdings sum the
+// 2024 transaction into Meta and the 2021 one into the key's group.
+const fixtures = ["standard-meta-2024.json", "standard-meta-2021.json"].map(
+  (f) => path.resolve(__dirname, "..", "fixtures", f),
+);
 const meta = { type: IdentifierType.MIC_TICKER, domain: "XNAS", value: "META" };
 const composite = "BBG000MM2P62";
-
-function statement(orderFrom: string, orderBefore: string, on: string) {
-  return {
-    broker: Broker.IBKR,
-    orderFrom,
-    orderBefore,
-    rows: [
-      {
-        key: {
-          assetClass: AssetClass.STOCK,
-          currency: "USD",
-          identifiers: [meta],
-        },
-        orderDate: on,
-        settlementDate: on,
-        asAt: on,
-        quantity: "10",
-      },
-    ],
-  };
-}
 
 test("dates a key through its ticker and marks each transaction by its day", async ({
   signIn,
@@ -60,22 +36,17 @@ test("dates a key through its ticker and marks each transaction by its day", asy
   const { session } = await signIn();
   const { session: adminSession } = await seed("admin");
   const statements = statementClient(session);
-  const runs = runClient(session);
   const admin = adminRunClient(adminSession);
 
-  const ingest = async (s: ReturnType<typeof statement>) => {
-    const runId = (await statements.createStatement({ statement: s })).run!.id;
-    await expect
-      .poll(async () => (await runs.getRun({ runId })).run?.state)
-      .toBe(RunState.COMPLETED);
-    return runId;
-  };
-  const first = await ingest(
-    statement("2024-01-01", "2024-02-01", "2024-01-16"),
-  );
-  const second = await ingest(
-    statement("2021-06-01", "2021-07-01", "2021-06-01"),
-  );
+  await page.goto("/transactions");
+  const runs: string[] = [];
+  for (const [n, fixture] of fixtures.entries()) {
+    runs.push(
+      await uploadStatement(page, fixture, { state: "completed", earlier: n }),
+    );
+    await page.getByTestId("activity-sheet-close").click();
+  }
+  const [first, second] = runs;
 
   const read = await Promise.all(
     [first, second].map((runId) => statements.getStatement({ runId })),
