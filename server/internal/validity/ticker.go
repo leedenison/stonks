@@ -16,7 +16,7 @@ type Ticker struct {
 }
 
 // ReadTicker reads the facts of v and derives its validity.
-func ReadTicker(ctx context.Context, q Queries, v types.Identifier) (*Ticker, error) {
+func ReadTicker(ctx context.Context, q FactQueries, v types.Identifier) (*Ticker, error) {
 	f, err := Read(ctx, q, v)
 	if err != nil {
 		return nil, err

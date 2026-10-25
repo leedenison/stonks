@@ -106,8 +106,8 @@ func (s *stack) assertedOn(t *testing.T, v types.Identifier, d time.Time) []*uui
 	require.NoError(t, err)
 	var out []*uuid.UUID
 	for _, r := range rows {
-		if r.AssertedOn.Equal(d) {
-			out = append(out, r.InstrumentID)
+		if r.IdentifierAssertion.AssertedOn.Equal(d) {
+			out = append(out, r.IdentifierAssertion.InstrumentID)
 		}
 	}
 	return out

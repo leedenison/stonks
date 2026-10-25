@@ -231,8 +231,8 @@ func TestGetStatement(t *testing.T) {
 	}
 	facts := metaFacts()
 	assertions := []gen.ListIdentifierAssertionsRow{
-		{AssertedOn: assertedOn, InstrumentID: &metaInst, FetchKeyID: ptr.To(uuid.New()), Datasource: ptr.To("massive"), Precedence: ptr.To(int32(2))},
-		{AssertedOn: notFoundOn, FetchKeyID: ptr.To(uuid.New()), Datasource: ptr.To("massive"), Precedence: ptr.To(int32(2))},
+		{IdentifierAssertion: gen.IdentifierAssertion{AssertedOn: assertedOn, InstrumentID: &metaInst, FetchKeyID: ptr.To(uuid.New())}, Datasource: ptr.To("massive"), Precedence: ptr.To(int32(2))},
+		{IdentifierAssertion: gen.IdentifierAssertion{AssertedOn: notFoundOn, FetchKeyID: ptr.To(uuid.New())}, Datasource: ptr.To("massive"), Precedence: ptr.To(int32(2))},
 	}
 	events := []gen.ListIdentifierEventsRow{{EffectiveOn: renamed, FetchKeyID: uuid.New()}}
 	coverage := []gen.ListIdentifierCoverageRow{{CoveredFrom: facts.Coverage[0].From, CoveredBefore: facts.Coverage[0].Before}}

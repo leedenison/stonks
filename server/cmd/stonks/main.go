@@ -17,6 +17,7 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
 	"github.com/leedenison/stonks/proto/admin/block/v1/adminblockv1connect"
+	"github.com/leedenison/stonks/proto/admin/coverage/v1/admincoveragev1connect"
 	"github.com/leedenison/stonks/proto/admin/datasource/v1/admindatasourcev1connect"
 	"github.com/leedenison/stonks/proto/admin/extend_validity/v1/adminextendvalidityv1connect"
 	"github.com/leedenison/stonks/proto/admin/instrument/v1/admininstrumentv1connect"
@@ -30,6 +31,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/auth/google"
 	"github.com/leedenison/stonks/server/internal/auth/session"
 	"github.com/leedenison/stonks/server/internal/config"
+	"github.com/leedenison/stonks/server/internal/coverage"
 	"github.com/leedenison/stonks/server/internal/currency"
 	"github.com/leedenison/stonks/server/internal/datasource"
 	"github.com/leedenison/stonks/server/internal/db"
@@ -47,6 +49,7 @@ import (
 	runner "github.com/leedenison/stonks/server/internal/run"
 	"github.com/leedenison/stonks/server/internal/service"
 	adminblock "github.com/leedenison/stonks/server/internal/service/admin/block"
+	admincoverage "github.com/leedenison/stonks/server/internal/service/admin/coverage"
 	admindatasource "github.com/leedenison/stonks/server/internal/service/admin/datasource"
 	adminextendvalidity "github.com/leedenison/stonks/server/internal/service/admin/extendvalidity"
 	admininstrument "github.com/leedenison/stonks/server/internal/service/admin/instrument"
@@ -176,7 +179,7 @@ func run() (err error) {
 	extensions := extendvalidity.New(queries, runs, extender, replays)
 	ingester := stmt.New(db.New[stmt.Queries](pool), runs, resolver, replays, families, time.Now, logger.WithCategory(log, "internal/statement"))
 	datasources := admindatasource.New(queries, sources, datasource.New(db.New[datasource.Queries](pool), sources, cache))
-	srv, err := newServer(cfg.ListenAddr, log, authn, queries, adminrun.New(queries), adminblock.New(queries), datasources, admininstrument.New(queries), adminreplay.New(queries, replays), adminextendvalidity.New(extensions), ingester, cfg.CookieSecure)
+	srv, err := newServer(cfg.ListenAddr, log, authn, queries, adminrun.New(queries), adminblock.New(queries), datasources, admininstrument.New(queries), adminreplay.New(queries, replays), adminextendvalidity.New(extensions), admincoverage.New(coverage.New(queries, mics), time.Now), ingester, cfg.CookieSecure)
 	if err != nil {
 		return err
 	}
@@ -206,7 +209,7 @@ func tracedClient(timeout time.Duration) *http.Client {
 // once the server listens, which is after the migrations have applied. It is
 // outside the Connect chain and the mux carries no HTTP instrumentation, so
 // the container probing it every two seconds produces no telemetry.
-func newServer(addr string, log *slog.Logger, authn *auth.Authenticator, queries *gen.Queries, runs *adminrun.Server, blocks *adminblock.Server, datasources *admindatasource.Server, instruments *admininstrument.Server, replays *adminreplay.Server, extensions *adminextendvalidity.Server, statements *stmt.Service, secure bool) (*http.Server, error) {
+func newServer(addr string, log *slog.Logger, authn *auth.Authenticator, queries *gen.Queries, runs *adminrun.Server, blocks *adminblock.Server, datasources *admindatasource.Server, instruments *admininstrument.Server, replays *adminreplay.Server, extensions *adminextendvalidity.Server, coverages *admincoverage.Server, statements *stmt.Service, secure bool) (*http.Server, error) {
 	opts, err := service.HandlerOptions(logger.WithCategory(log, "internal/service"), authn)
 	if err != nil {
 		return nil, err
@@ -216,6 +219,7 @@ func newServer(addr string, log *slog.Logger, authn *auth.Authenticator, queries
 		w.WriteHeader(http.StatusOK)
 	})
 	mux.Handle(adminblockv1connect.NewBlockServiceHandler(blocks, opts...))
+	mux.Handle(admincoveragev1connect.NewCoverageServiceHandler(coverages, opts...))
 	mux.Handle(admindatasourcev1connect.NewDatasourceServiceHandler(datasources, opts...))
 	mux.Handle(admininstrumentv1connect.NewInstrumentServiceHandler(instruments, opts...))
 	mux.Handle(adminextendvalidityv1connect.NewExtendValidityServiceHandler(extensions, opts...))
@@ -226,7 +230,7 @@ func newServer(addr string, log *slog.Logger, authn *auth.Authenticator, queries
 	mux.Handle(runv1connect.NewRunServiceHandler(runsvc.New(queries), opts...))
 	mux.Handle(statementv1connect.NewStatementServiceHandler(stmtsvc.New(statements, statements, queries), opts...))
 	reflector := grpcreflect.NewStaticReflector(
-		adminblockv1connect.BlockServiceName, admindatasourcev1connect.DatasourceServiceName, admininstrumentv1connect.InstrumentServiceName, adminextendvalidityv1connect.ExtendValidityServiceName, adminreplayv1connect.ReplayServiceName, adminrunv1connect.RunServiceName, authv1connect.AuthServiceName, holdingv1connect.HoldingServiceName,
+		adminblockv1connect.BlockServiceName, admincoveragev1connect.CoverageServiceName, admindatasourcev1connect.DatasourceServiceName, admininstrumentv1connect.InstrumentServiceName, adminextendvalidityv1connect.ExtendValidityServiceName, adminreplayv1connect.ReplayServiceName, adminrunv1connect.RunServiceName, authv1connect.AuthServiceName, holdingv1connect.HoldingServiceName,
 		runv1connect.RunServiceName, statementv1connect.StatementServiceName,
 	)
 	mux.Handle(grpcreflect.NewHandlerV1(reflector, opts...))

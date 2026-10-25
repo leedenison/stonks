@@ -317,7 +317,7 @@ func (s *Server) ListRunItems(ctx context.Context, req *connect.Request[adminrun
 		}
 		rows, more := page.Cut(p, rows)
 		for _, it := range rows {
-			out.Items = append(out.Items, &adminrunv1.RunItem{Item: &adminrunv1.RunItem_Assertion{Assertion: to.ProtoAssertionItem(it)}})
+			out.Items = append(out.Items, &adminrunv1.RunItem{Item: &adminrunv1.RunItem_Assertion{Assertion: to.ProtoAssertionItem(it.IdentifierAssertion, it.Datasource, it.AttestedBy)}})
 		}
 		if more {
 			out.NextPageToken = rows[len(rows)-1].IdentifierAssertion.ID.String()

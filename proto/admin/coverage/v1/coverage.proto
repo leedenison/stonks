@@ -1,0 +1,140 @@
+// Where each ticker's validity is confirmed and where it is not, with the
+// assertions, events and coverage it rests on.
+
+syntax = "proto3";
+
+package stonks.admin.coverage.v1;
+
+import "admin/run/v1/run.proto";
+import "buf/validate/validate.proto";
+import "type/v1/type.proto";
+
+option go_package = "github.com/leedenison/stonks/proto/admin/coverage/v1;admincoveragev1";
+
+// An operating MIC on which a key with a transaction states a ticker.
+message Domain {
+  string mic = 1;
+  // The distinct tickers stated on it.
+  int32 tickers = 2;
+}
+
+message ListDomainsRequest {}
+
+message ListDomainsResponse {
+  // By MIC.
+  repeated Domain domains = 1;
+}
+
+// A part of a ticker's transaction period that no confirmed validity holds.
+// The period runs from the earliest transaction whose key states the ticker
+// up to and including today. The bounds are half open, as YYYY-MM-DD.
+message Gap {
+  stonks.type.v1.Identifier ticker = 1;
+  string unconfirmed_from = 2;
+  string unconfirmed_before = 3;
+  // The keys that state the ticker and have a transaction dated inside the
+  // gap, whether or not they resolved.
+  int32 keys = 4;
+  // Their transactions dated inside the gap.
+  int32 transactions = 5;
+}
+
+message ListGapsRequest {
+  // An operating MIC.
+  string domain = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message ListGapsResponse {
+  // By affected transactions, then affected keys, then ticker and first day.
+  repeated Gap gaps = 1;
+}
+
+// A period over which one datasource answered for a ticker, or for every
+// ticker of its domain. The bounds are half open, as YYYY-MM-DD.
+message Coverage {
+  string datasource = 1;
+  // The ticker, or its domain as an identifier with no value.
+  stonks.type.v1.Identifier covers = 2;
+  string covered_from = 3;
+  string covered_before = 4;
+}
+
+enum IdentifierEventAction {
+  IDENTIFIER_EVENT_ACTION_UNSPECIFIED = 0;
+  IDENTIFIER_EVENT_ACTION_ASSIGNED = 1;
+  IDENTIFIER_EVENT_ACTION_RENAMED = 2;
+  IDENTIFIER_EVENT_ACTION_RETIRED = 3;
+}
+
+// A change a datasource reported in what a ticker names, taking effect at
+// the start of its day.
+message IdentifierEvent {
+  string effective_on = 1;
+  IdentifierEventAction action = 2;
+  // The ticker the event names; the old ticker of a rename.
+  string value = 3;
+  // The new ticker of a rename; empty otherwise.
+  string to_value = 4;
+}
+
+enum Validity {
+  VALIDITY_UNSPECIFIED = 0;
+  VALIDITY_CONFIRMED = 1;
+  VALIDITY_PROVISIONAL = 2;
+}
+
+// The days over which a ticker names one instrument. The bounds are half
+// open, as YYYY-MM-DD, and an unset bound is open.
+message Interval {
+  optional string valid_from = 1;
+  optional string valid_before = 2;
+  string instrument_id = 3;
+  Validity validity = 4;
+}
+
+// An instrument and the identifier that names it.
+message InstrumentName {
+  string id = 1;
+  stonks.type.v1.Identifier name = 2;
+}
+
+// One ticker's facts and the validity they derive.
+message Ticker {
+  // Its domain is the operating MIC.
+  stonks.type.v1.Identifier ticker = 1;
+  // The distinct order dates of the transactions whose keys state the
+  // ticker, as YYYY-MM-DD, in order.
+  repeated string transaction_days = 2;
+  // By datasource, then first day.
+  repeated Coverage coverage = 3;
+  // By day.
+  repeated stonks.admin.run.v1.AssertionItem assertions = 4;
+  // By day.
+  repeated IdentifierEvent events = 5;
+  // In order, without overlap.
+  repeated Interval intervals = 6;
+  // By first day.
+  repeated Gap gaps = 7;
+  // Every instrument the assertions and intervals name.
+  repeated InstrumentName instruments = 8;
+}
+
+message GetTickerRequest {
+  // A MIC_TICKER at any venue; its domain is read as the operating MIC.
+  stonks.type.v1.Identifier ticker = 1 [(buf.validate.field).required = true];
+}
+
+message GetTickerResponse {
+  Ticker ticker = 1;
+}
+
+// Reads where each ticker's validity is confirmed and where it is not.
+service CoverageService {
+  // Lists the operating MICs on which keys with transactions state tickers.
+  rpc ListDomains(ListDomainsRequest) returns (ListDomainsResponse);
+  // Lists the gaps of every ticker stated on the domain.
+  rpc ListGaps(ListGapsRequest) returns (ListGapsResponse);
+  // Reads one ticker's facts and validity. An identifier that is not a
+  // MIC_TICKER, or that names a domain, is refused as an invalid argument.
+  rpc GetTicker(GetTickerRequest) returns (GetTickerResponse);
+}

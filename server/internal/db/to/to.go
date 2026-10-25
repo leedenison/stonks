@@ -10,6 +10,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	adminblockv1 "github.com/leedenison/stonks/proto/admin/block/v1"
+	admincoveragev1 "github.com/leedenison/stonks/proto/admin/coverage/v1"
 	admininstrumentv1 "github.com/leedenison/stonks/proto/admin/instrument/v1"
 	adminrunv1 "github.com/leedenison/stonks/proto/admin/run/v1"
 	authv1 "github.com/leedenison/stonks/proto/auth/v1"
@@ -206,10 +207,11 @@ func ProtoFetchItem(it gen.ListFetchItemsRow) *adminrunv1.FetchItem {
 	return out
 }
 
-// ProtoAssertionItem converts an assertion a run wrote, with its source.
-func ProtoAssertionItem(r gen.ListRunAssertionsRow) *adminrunv1.AssertionItem {
-	a := r.IdentifierAssertion
+// ProtoAssertionItem converts an assertion with its source: the datasource
+// of the fetch that made it, or the administrator who attested it.
+func ProtoAssertionItem(a gen.IdentifierAssertion, datasource, attestedBy *string) *adminrunv1.AssertionItem {
 	out := &adminrunv1.AssertionItem{
+		Id:         a.ID.String(),
 		Ticker:     types.Identifier{Type: a.Type, Domain: a.Domain, Value: a.Value}.ToProto(),
 		AssertedOn: a.AssertedOn.Format(time.DateOnly),
 	}
@@ -218,12 +220,42 @@ func ProtoAssertionItem(r gen.ListRunAssertionsRow) *adminrunv1.AssertionItem {
 		out.InstrumentId = &id
 	}
 	switch {
-	case r.Datasource != nil:
-		out.Source = &adminrunv1.AssertionItem_Datasource{Datasource: *r.Datasource}
-	case r.AttestedBy != nil:
-		out.Source = &adminrunv1.AssertionItem_AttestedBy{AttestedBy: *r.AttestedBy}
+	case datasource != nil:
+		out.Source = &adminrunv1.AssertionItem_Datasource{Datasource: *datasource}
+	case attestedBy != nil:
+		out.Source = &adminrunv1.AssertionItem_AttestedBy{AttestedBy: *attestedBy}
 	}
 	return out
+}
+
+// ProtoCoverage converts a coverage row of a ticker or of its domain.
+func ProtoCoverage(c gen.ListIdentifierCoverageRow) *admincoveragev1.Coverage {
+	covers := types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: c.Domain}
+	if c.Value != nil {
+		covers.Value = *c.Value
+	}
+	return &admincoveragev1.Coverage{
+		Datasource: c.Datasource, Covers: covers.ToProto(),
+		CoveredFrom: c.CoveredFrom.Format(time.DateOnly), CoveredBefore: c.CoveredBefore.Format(time.DateOnly),
+	}
+}
+
+// ProtoIdentifierEvent converts an event of a ticker.
+func ProtoIdentifierEvent(e gen.ListIdentifierEventsRow) *admincoveragev1.IdentifierEvent {
+	out := &admincoveragev1.IdentifierEvent{
+		EffectiveOn: e.EffectiveOn.Format(time.DateOnly),
+		Action:      types.ToProto[admincoveragev1.IdentifierEventAction](e.Action),
+		Value:       e.Value,
+	}
+	if e.ToValue != nil {
+		out.ToValue = *e.ToValue
+	}
+	return out
+}
+
+// ProtoDomain converts a domain with its count of tickers.
+func ProtoDomain(d gen.ListTickerDomainsRow) *admincoveragev1.Domain {
+	return &admincoveragev1.Domain{Mic: d.Domain, Tickers: d.Tickers}
 }
 
 // ProtoInstrument writes an instrument with the identifier that names it,

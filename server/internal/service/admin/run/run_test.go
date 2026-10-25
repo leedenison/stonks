@@ -417,6 +417,7 @@ func TestListRunItems(t *testing.T) {
 				}, nil)
 			},
 			want: &adminrunv1.ListRunItemsResponse{Items: []*adminrunv1.RunItem{{Item: &adminrunv1.RunItem_Assertion{Assertion: &adminrunv1.AssertionItem{
+				Id:         keyID.String(),
 				Ticker:     &typev1.Identifier{Type: typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, Domain: "XLON", Value: "SHEL"},
 				AssertedOn: created.Format(time.DateOnly), InstrumentId: ptr.To(childID.String()),
 				Source: &adminrunv1.AssertionItem_Datasource{Datasource: "eodhd"},
@@ -432,6 +433,7 @@ func TestListRunItems(t *testing.T) {
 				}, nil)
 			},
 			want: &adminrunv1.ListRunItemsResponse{Items: []*adminrunv1.RunItem{{Item: &adminrunv1.RunItem_Assertion{Assertion: &adminrunv1.AssertionItem{
+				Id:         keyID.String(),
 				Ticker:     &typev1.Identifier{Type: typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, Domain: "XLON", Value: "SHEL"},
 				AssertedOn: created.Format(time.DateOnly),
 				Source:     &adminrunv1.AssertionItem_AttestedBy{AttestedBy: "admin@example.com"},
