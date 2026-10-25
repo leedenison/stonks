@@ -208,11 +208,10 @@ The integration is tested as follows:
 - Tests run against recorded traffic.
 - End to end coverage runs through a range that holds a rename.
 
-Holdings and valuation read a per instrument summary of validity and coverage maintained
-at ingest rather than the fetch tables.  See [datasources.md](datasources.md).
+Holdings derive validity from the fact tables at each read. See
+[datasources.md](datasources.md) for the summary that would replace this once the
+derivation costs too much.
 
 ## Undecided
 
 - How often domain coverage is extended to the present.
-
-- Whether a holding whose identity rests on provisional validity is shown as such.
