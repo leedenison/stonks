@@ -1,23 +1,20 @@
-import { RunKind, RunState } from "../gen/run/v1/run_pb";
+import path from "node:path";
+import { RunKind } from "../gen/run/v1/run_pb";
 import { TransactionMark } from "../gen/statement/v1/statement_pb";
-import {
-  AssetClass,
-  Broker,
-  IdentifierType,
-  ResolutionOutcome,
-} from "../gen/type/v1/type_pb";
+import { IdentifierType, ResolutionOutcome } from "../gen/type/v1/type_pb";
 import {
   adminRunClient,
   assertionItems,
-  runClient,
   statementClient,
 } from "../helpers/api";
 import { deleteRuns } from "../helpers/db";
 import { expect, test } from "../helpers/test";
+import { uploadStatement } from "../helpers/upload";
 
 // WMT has named one instrument since before Massive's history begins on
 // 2003-09-10. No other spec states WMT, because an attestation is a system
 // fact that every user reads.
+const fixture = path.resolve(__dirname, "..", "fixtures", "standard-wmt.json");
 const wmt = { type: IdentifierType.MIC_TICKER, domain: "XNYS", value: "WMT" };
 // The transaction's day falls before the history window, so the ticker's
 // validity on it is provisional and the day lies in a gap.
@@ -35,36 +32,10 @@ test("attests a gap from the coverage page and withdraws it", async ({
 }) => {
   const { session } = await signIn("admin");
   const statements = statementClient(session);
-  const runs = runClient(session);
   const adminRuns = adminRunClient(session);
 
-  // Built through the API, since no broker export states a ticker with its
-  // venue.
-  const runId = (
-    await statements.createStatement({
-      statement: {
-        broker: Broker.IBKR,
-        orderFrom: "2003-01-01",
-        orderBefore: "2003-02-01",
-        rows: [
-          {
-            key: {
-              assetClass: AssetClass.STOCK,
-              currency: "USD",
-              identifiers: [wmt],
-            },
-            orderDate: on,
-            settlementDate: on,
-            asAt: on,
-            quantity: "10",
-          },
-        ],
-      },
-    })
-  ).run!.id;
-  await expect
-    .poll(async () => (await runs.getRun({ runId })).run?.state)
-    .toBe(RunState.COMPLETED);
+  await page.goto("/transactions");
+  const runId = await uploadStatement(page, fixture, { state: "completed" });
   const read = await statements.getStatement({ runId });
   expect(read.keys.map((k) => k.outcome)).toEqual([ResolutionOutcome.MATCHED]);
   expect(read.keys[0].ticker).toMatchObject(wmt);
