@@ -58,8 +58,12 @@ test("chooses an instrument for a bare ticker", async ({ signIn, page }) => {
   const offered = dialog.getByTestId(/^candidate-row-openfigi-/).first();
   await expect(offered).toContainText(ticker);
   // OpenFIGI and Massive name one share class FIGI, so Massive's answer is
-  // gathered into OpenFIGI's candidate.
+  // gathered into OpenFIGI's candidate. EODHD's answer carries the same
+  // Nasdaq ticker on the same day, so it is gathered too.
   await expect(offered.getByTestId("candidate-datasource-massive")).toHaveCount(
+    1,
+  );
+  await expect(offered.getByTestId("candidate-datasource-eodhd")).toHaveCount(
     1,
   );
   await dropFetchCache(cacheKey);

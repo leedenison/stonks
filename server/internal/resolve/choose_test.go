@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"slices"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
@@ -39,9 +40,19 @@ var (
 	descr  = id(types.IdentifierTypeBrokerDescription, "ibkr", "ACME CORP")
 )
 
+// answeredAt is the moment every served fetch key of these tests was
+// answered, unless nextDay moves it.
+var answeredAt = time.Date(2026, time.January, 2, 10, 0, 0, 0, time.UTC)
+
 // served returns a fetch key served under sent, filtered on filtered.
 func served(source string, sent types.Identifier, filtered []types.Identifier, cs ...market.Listing) *fetchKey {
-	return &fetchKey{Source: source, Outcome: gen.FetchOutcomeServed, SentID: &sent, Response: market.IdentityResult{Filtered: filtered, Listings: cs}}
+	return &fetchKey{Source: source, Outcome: gen.FetchOutcomeServed, SentID: &sent, Response: market.IdentityResult{Filtered: filtered, Listings: cs}, AnsweredAt: answeredAt}
+}
+
+// nextDay moves fk's answer to the day after answeredAt.
+func nextDay(fk *fetchKey) *fetchKey {
+	fk.AnsweredAt = answeredAt.AddDate(0, 0, 1)
+	return fk
 }
 
 // limited marks fk as an answer from a provider that lists only some of an
@@ -240,13 +251,13 @@ func TestChoose(t *testing.T) {
 			want: outcome{winner: "a#0", attached: []string{"a#0", "m#0"}},
 		},
 		{
-			name: "below the winner a limited claim sharing no stable identifier is dropped",
+			name: "below the winner a limited claim sharing no stable identifier, answered on another day, is dropped",
 			fetchKeys: []*fetchKey{
 				strict("a", isin, listing(types.AssetClassStock, "GBP", figi, xlon)),
-				limited(search("m", xlon, listing(types.AssetClassStock, "USD", xlon))),
+				nextDay(limited(search("m", xlon, listing(types.AssetClassStock, "USD", xlon)))),
 			},
 			k:    gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{isin, xlon}},
-			want: outcome{winner: "a#0", attached: []string{"a#0"}, findings: []string{"m dropped corroboration: mic_ticker XLON:VOD: shares no stable identifier with the candidate identified by isin GB00BH4HKS39 (a)"}},
+			want: outcome{winner: "a#0", attached: []string{"a#0"}, findings: []string{"m dropped corroboration: mic_ticker XLON:VOD: shares neither a stable identifier nor a same-day venue ticker with the candidate identified by isin GB00BH4HKS39 (a)"}},
 		},
 		{
 			name:      "a disjoint class contradicts the statement",
@@ -316,11 +327,11 @@ func TestChoose(t *testing.T) {
 			want:      outcome{winner: "database", attached: []string{"a#0"}},
 		},
 		{
-			name:      "a claim sharing no stable identifier with the winner is dropped",
+			name:      "a claim does not join the database's instrument through a ticker",
 			fetchKeys: []*fetchKey{search("a", xlon, listing(types.AssetClassStock, "GBP", figi, xlon))},
 			k:         gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{xlon}},
 			known:     existing,
-			want:      outcome{winner: "database", findings: []string{"a dropped corroboration: openfigi_share_class BBG001S5XDT5: shares no stable identifier with the instrument identified by isin GB00BH4HKS39 (database)"}},
+			want:      outcome{winner: "database", findings: []string{"a dropped corroboration: openfigi_share_class BBG001S5XDT5: shares neither a stable identifier nor a same-day venue ticker with the instrument identified by isin GB00BH4HKS39 (database)"}},
 		},
 		{
 			name: "a lower datasource corroborates the winner through a stable identifier",
@@ -330,6 +341,33 @@ func TestChoose(t *testing.T) {
 			},
 			k:    gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{isin, xlon}},
 			want: outcome{winner: "a#0", attached: []string{"a#0", "b#0"}, notNaming: map[string]int{"b": 1}},
+		},
+		{
+			name: "two answers on one day sharing a venue ticker attach",
+			fetchKeys: []*fetchKey{
+				strict("a", isin, listing(types.AssetClassStock, "GBP", figi, xlon)),
+				search("b", xlon, listing(types.AssetClassStock, "GBP", cusip, xlon)),
+			},
+			k:    gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{isin, xlon}},
+			want: outcome{winner: "a#0", attached: []string{"a#0", "b#0"}},
+		},
+		{
+			name: "two answers on different days do not",
+			fetchKeys: []*fetchKey{
+				strict("a", isin, listing(types.AssetClassStock, "GBP", figi, xlon)),
+				nextDay(search("b", xlon, listing(types.AssetClassStock, "GBP", cusip, xlon))),
+			},
+			k:    gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{isin, xlon}},
+			want: outcome{winner: "a#0", attached: []string{"a#0"}, findings: []string{"b dropped corroboration: cusip 92857W308: shares neither a stable identifier nor a same-day venue ticker with the candidate identified by isin GB00BH4HKS39 (a)"}},
+		},
+		{
+			name: "the precedence step drops a contradicting claim that shares a venue ticker",
+			fetchKeys: []*fetchKey{
+				strict("a", isin, listing(types.AssetClassStock, "GBP", figi, cusip, xlon)),
+				search("b", xlon, listing(types.AssetClassStock, "GBP", other, xlon)),
+			},
+			k:    gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{isin, xlon}},
+			want: outcome{winner: "a#0", attached: []string{"a#0"}, findings: []string{"b dropped precedence: cusip 92857W309: cusip 92857W309 contradicts cusip 92857W308 (a)"}},
 		},
 		{
 			name: "survivors rank by the stated data they confirm, then the datasource's order",
@@ -364,7 +402,7 @@ func TestChoose(t *testing.T) {
 			fetchKeys: []*fetchKey{search("a", xlon, listing(types.AssetClassStock, "GBP", figi2, xnas), listing(types.AssetClassStock, "GBP", isin, xetr))},
 			k:         gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{xlon}},
 			known:     existing,
-			want:      outcome{winner: "database", attached: []string{"a#1"}, findings: []string{"a dropped corroboration: openfigi_share_class BBG001S5XDT6: shares no stable identifier with the instrument identified by isin GB00BH4HKS39 (database)"}},
+			want:      outcome{winner: "database", attached: []string{"a#1"}, findings: []string{"a dropped corroboration: openfigi_share_class BBG001S5XDT6: shares neither a stable identifier nor a same-day venue ticker with the instrument identified by isin GB00BH4HKS39 (database)"}},
 		},
 		{
 			name:      "a bare ticker is never chosen, and its claims are offered",
@@ -511,7 +549,7 @@ func TestChooseUserChoice(t *testing.T) {
 			k:          gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{ticker}},
 			known:      existing,
 			want: outcome{winner: "database", attached: []string{"a#0"}, findings: []string{
-				"b dropped corroboration: openfigi_share_class BBG001S5XDT5: shares no stable identifier with the instrument identified by isin GB00BH4HKS39 (database)",
+				"b dropped corroboration: openfigi_share_class BBG001S5XDT5: shares neither a stable identifier nor a same-day venue ticker with the instrument identified by isin GB00BH4HKS39 (database)",
 			}},
 		},
 	}
@@ -567,10 +605,28 @@ func TestGather(t *testing.T) {
 			fetchKeys: []*fetchKey{
 				search("a", listing(types.AssetClassStock, "GBP", figi, xlon)),
 				search("b", listing(types.AssetClassStock, "GBP", figi, isin, xlon)),
-				search("c", listing(types.AssetClassStock, "GBP", isin, xlon)),
+				search("c", listing(types.AssetClassStock, "GBP", isin, xetr)),
 			},
 			k:    bare,
 			want: [][]string{{"a#0", "b#0"}, {"c#0"}},
+		},
+		{
+			name: "two datasources sharing a venue ticker on one day form one candidate",
+			fetchKeys: []*fetchKey{
+				search("a", listing(types.AssetClassStock, "GBP", figi, xlon)),
+				search("b", listing(types.AssetClassStock, "GBP", isin, xlon)),
+			},
+			k:    bare,
+			want: [][]string{{"a#0", "b#0"}},
+		},
+		{
+			name: "two datasources sharing a venue ticker on different days head their own candidates",
+			fetchKeys: []*fetchKey{
+				search("a", listing(types.AssetClassStock, "GBP", figi, xlon)),
+				nextDay(search("b", listing(types.AssetClassStock, "GBP", isin, xlon))),
+			},
+			k:    bare,
+			want: [][]string{{"a#0"}, {"b#0"}},
 		},
 		{
 			name: "a claim agreeing with two heads that contradict each other joins both",

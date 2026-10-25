@@ -199,7 +199,13 @@ func keyOf(class types.AssetClass, currency string, ids ...types.Identifier) gen
 }
 
 func servedFetchKey(sent types.Identifier, filtered []types.Identifier, cs ...market.Listing) fetchKey {
-	return fetchKey{ID: db.NewID(), Outcome: gen.FetchOutcomeServed, SentID: &sent, Response: market.IdentityResult{Filtered: filtered, Listings: cs}}
+	return fetchKey{ID: db.NewID(), Outcome: gen.FetchOutcomeServed, SentID: &sent, Response: market.IdentityResult{Filtered: filtered, Listings: cs}, AnsweredAt: answeredAt}
+}
+
+// onNextDay moves fk's answer to the day after answeredAt.
+func onNextDay(fk fetchKey) fetchKey {
+	fk.AnsweredAt = answeredAt.AddDate(0, 0, 1)
+	return fk
 }
 
 // limitedFetchKey marks fk as an answer from a provider that lists only some of
@@ -569,12 +575,25 @@ func TestCandidates(t *testing.T) {
 			key:     keyOf(types.AssetClassStock, "GBP", ticker),
 			fetchKeys: map[*market.Entry]fetchKey{
 				entryA: servedFetchKey(ticker, []types.Identifier{ticker}, listing(types.AssetClassStock, "GBP", figi, xlon), listing(types.AssetClassStock, "GBP", figi2, xetr)),
-				entryB: servedFetchKey(ticker, []types.Identifier{ticker}, listing(types.AssetClassStock, "GBX", isin, xlon)),
+				entryB: onNextDay(servedFetchKey(ticker, []types.Identifier{ticker}, listing(types.AssetClassStock, "GBX", isin, xlon))),
 			},
 			want: Offer{Candidates: []Candidate{
 				{Datasource: "a", Strongest: figi, Instrument: types.Instrument{Class: types.AssetClassStock, Identifiers: []types.Identifier{figi}, Listings: map[string]types.Listing{"GBP": {Identifiers: []types.Identifier{xlon}}}}},
 				{Datasource: "a", Strongest: figi2, Instrument: types.Instrument{Class: types.AssetClassStock, Identifiers: []types.Identifier{figi2}, Listings: map[string]types.Listing{"GBP": {Identifiers: []types.Identifier{xetr}}}}},
 				{Datasource: "b", Strongest: isin, Instrument: types.Instrument{Class: types.AssetClassStock, Identifiers: []types.Identifier{isin}, Listings: map[string]types.Listing{"GBP": {Identifiers: []types.Identifier{xlon}}}}},
+			}},
+		},
+		{
+			name:    "two answers sharing a venue ticker on one day give one candidate",
+			entries: []*market.Entry{entryA, entryB},
+			key:     keyOf(types.AssetClassStock, "GBP", ticker),
+			fetchKeys: map[*market.Entry]fetchKey{
+				entryA: servedFetchKey(ticker, []types.Identifier{ticker}, listing(types.AssetClassStock, "GBP", figi, xlon), listing(types.AssetClassStock, "GBP", figi2, xetr)),
+				entryB: servedFetchKey(ticker, []types.Identifier{ticker}, listing(types.AssetClassStock, "GBX", isin, xlon)),
+			},
+			want: Offer{Candidates: []Candidate{
+				{Datasource: "a", Attached: []string{"b"}, Strongest: figi, Instrument: types.Instrument{Class: types.AssetClassStock, Identifiers: []types.Identifier{figi, isin}, Listings: map[string]types.Listing{"GBP": {Identifiers: []types.Identifier{xlon}}}}},
+				{Datasource: "a", Strongest: figi2, Instrument: types.Instrument{Class: types.AssetClassStock, Identifiers: []types.Identifier{figi2}, Listings: map[string]types.Listing{"GBP": {Identifiers: []types.Identifier{xetr}}}}},
 			}},
 		},
 		{
@@ -830,7 +849,7 @@ func TestConfirm(t *testing.T) {
 			b:            servedFetchKey(ticker, []types.Identifier{ticker}, listing(types.AssetClassStock, "GBP", isin, xlon)),
 			pick:         Pick{Datasource: "b", Identifier: isin},
 			wantAttached: []string{"b"},
-			wantFinding:  "dropped corroboration: openfigi_share_class BBG001S5XDT6: shares no stable identifier with the candidate identified by isin GB00BH4HKS39 (b)",
+			wantFinding:  "dropped corroboration: openfigi_share_class BBG001S5XDT6: shares neither a stable identifier nor a same-day venue ticker with the candidate identified by isin GB00BH4HKS39 (b)",
 		},
 		{
 			name:         "a pick named by a listing identifier is found",

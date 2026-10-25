@@ -26,11 +26,11 @@ of open issues and ADRs at `docs/tasks/<label>/`.
   inside their validity.
 
 ```
-            001 open
-          /          \
-010 descriptions  015 ticker join
-          \          /
-            008 close
+001 open
+    |
+010 descriptions
+    |
+008 close
 ```
 
 ## Completed
