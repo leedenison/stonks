@@ -28,6 +28,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/auth/session"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/service"
+	holdingsvc "github.com/leedenison/stonks/server/internal/service/holding"
 	"github.com/leedenison/stonks/server/internal/service/servicetest"
 )
 
@@ -62,7 +63,7 @@ func TestServer(t *testing.T) {
 	authn := auth.New(auth.Options{Users: users, Sessions: sessions})
 
 	srv := httptest.NewUnstartedServer(nil)
-	cfg, err := newServer("", slog.New(slog.DiscardHandler), authn, nil, nil, nil, nil, nil, nil, nil, nil, nil, true)
+	cfg, err := newServer("", slog.New(slog.DiscardHandler), authn, nil, holdingsvc.New(nil, nil), nil, nil, nil, nil, nil, nil, nil, nil, true)
 	if err != nil {
 		t.Fatalf("newServer() error = %v", err)
 	}

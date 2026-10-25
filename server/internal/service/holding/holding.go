@@ -1,32 +1,47 @@
 // Package holding serves stonks.holding.v1.
 //
-// Holdings are summed by the queries from the caller's own transactions
-// through the caller's own keys, so another user's never contribute, and a
-// caller with none is answered with empty lists rather than not found. A
-// resolved key is summed into its instrument, and an unresolved one into the
-// group sharing its stated data. A sum of zero is no holding. A holding
-// carries the keys it sums. An instrument holding also carries every listing
-// of the instrument.
+// Holdings are summed from the caller's own transactions through the
+// caller's own keys, so another user's never contribute, and a caller with
+// none is answered with empty lists rather than not found. A holding carries
+// the keys it sums. An instrument holding also carries every listing of the
+// instrument. A holding whose total is zero is left out.
+//
+// A dated key's transactions take the instrument its ticker names on their
+// order dates, derived from the ticker's facts at each read; see package
+// validity. A transaction dated when its ticker names nothing is summed into
+// its key's group, beside the unresolved keys. One key may therefore sit
+// under several holdings, with the sum of its transactions under each.
+//
+// Whether an association is confirmed or provisional shows on the statement,
+// per transaction. A holding shows the same whichever its transactions are,
+// because most associations would be provisional until coverage grows.
 package holding
 
 import (
+	"bytes"
 	"context"
+	"fmt"
 	"slices"
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 
 	holdingv1 "github.com/leedenison/stonks/proto/holding/v1"
 	"github.com/leedenison/stonks/proto/holding/v1/holdingv1connect"
 	typev1 "github.com/leedenison/stonks/proto/type/v1"
 	"github.com/leedenison/stonks/server/internal/auth"
+	"github.com/leedenison/stonks/server/internal/currency"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/to"
 	"github.com/leedenison/stonks/server/internal/types"
+	"github.com/leedenison/stonks/server/internal/validity"
 )
 
-// Reader is this package's view of the holdings queries.
+// Reader is this package's view of the holdings queries. It embeds the fact
+// queries, which give a dated key's transactions their instruments.
 type Reader interface {
+	validity.FactQueries
 	ListInstrumentHoldings(ctx context.Context, userID uuid.UUID) ([]gen.ListInstrumentHoldingsRow, error)
 	ListInstrumentsByID(ctx context.Context, ids []uuid.UUID) ([]gen.Instrument, error)
 	ListIdentifiersOf(ctx context.Context, ids []uuid.UUID) ([]gen.Identifier, error)
@@ -34,6 +49,7 @@ type Reader interface {
 	ListInstrumentNames(ctx context.Context, ids []uuid.UUID) ([]gen.InstrumentName, error)
 	ListGroupHoldings(ctx context.Context, userID uuid.UUID) ([]gen.ListGroupHoldingsRow, error)
 	ListHoldingKeys(ctx context.Context, userID uuid.UUID) ([]gen.ListHoldingKeysRow, error)
+	ListDatedTransactions(ctx context.Context, userID uuid.UUID) ([]gen.ListDatedTransactionsRow, error)
 }
 
 var _ Reader = (*gen.Queries)(nil)
@@ -42,14 +58,15 @@ var _ Reader = (*gen.Queries)(nil)
 
 // Server implements HoldingService.
 type Server struct {
-	reader Reader
+	reader   Reader
+	families currency.Families
 }
 
 var _ holdingv1connect.HoldingServiceHandler = (*Server)(nil)
 
 // New returns a Server.
-func New(reader Reader) *Server {
-	return &Server{reader: reader}
+func New(reader Reader, families currency.Families) *Server {
+	return &Server{reader: reader, families: families}
 }
 
 // ListHoldings lists the caller's holdings of both kinds.
@@ -62,30 +79,39 @@ func (s *Server) ListHoldings(ctx context.Context, _ *connect.Request[holdingv1.
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	res := &holdingv1.ListHoldingsResponse{}
-	if res.Instruments, err = s.instruments(ctx, p.User.ID, keys); err != nil {
+	d, err := s.dated(ctx, p.User.ID, keys)
+	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	if res.Groups, err = s.groups(ctx, p.User.ID, keys); err != nil {
+	res := &holdingv1.ListHoldingsResponse{}
+	if res.Instruments, err = s.instruments(ctx, p.User.ID, keys, d); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	if res.Groups, err = s.groups(ctx, p.User.ID, keys, d); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	return connect.NewResponse(res), nil
 }
 
-// instruments answers the user's holdings of resolved instruments, each
-// with its name, identifiers, listings and keys.
-func (s *Server) instruments(ctx context.Context, user uuid.UUID, keys []gen.ListHoldingKeysRow) ([]*holdingv1.InstrumentHolding, error) {
+// instruments answers the user's holdings of instruments, each with its
+// name, identifiers, listings and keys, by instrument id.
+func (s *Server) instruments(ctx context.Context, user uuid.UUID, keys []gen.ListHoldingKeysRow, d dated) ([]*holdingv1.InstrumentHolding, error) {
 	rows, err := s.reader.ListInstrumentHoldings(ctx, user)
 	if err != nil {
 		return nil, err
 	}
-	rows = slices.DeleteFunc(rows, func(r gen.ListInstrumentHoldingsRow) bool { return r.Quantity.IsZero() })
-	if len(rows) == 0 {
-		return nil, nil
+	total := make(map[uuid.UUID]decimal.Decimal, len(rows))
+	for _, r := range rows {
+		total[r.InstrumentID] = r.Quantity
 	}
-	ids := make([]uuid.UUID, len(rows))
-	for i, r := range rows {
-		ids[i] = r.InstrumentID
+	for _, on := range d.onInstrument {
+		for id, q := range on {
+			total[id] = total[id].Add(q)
+		}
+	}
+	ids := held(total)
+	if len(ids) == 0 {
+		return nil, nil
 	}
 	instruments, err := s.reader.ListInstrumentsByID(ctx, ids)
 	if err != nil {
@@ -99,17 +125,17 @@ func (s *Server) instruments(ctx context.Context, user uuid.UUID, keys []gen.Lis
 	if err != nil {
 		return nil, err
 	}
-	named := make(map[uuid.UUID][]*typev1.Identifier, len(rows))
+	identified := make(map[uuid.UUID][]gen.Identifier, len(ids))
 	for _, i := range idents {
-		named[i.InstrumentID] = append(named[i.InstrumentID], to.Identifier(i).ToProto())
+		identified[i.InstrumentID] = append(identified[i.InstrumentID], i)
 	}
 	listings, err := s.reader.ListListingNames(ctx, ids)
 	if err != nil {
 		return nil, err
 	}
-	listed := make(map[uuid.UUID][]*holdingv1.HoldingListing, len(rows))
+	listed := make(map[uuid.UUID][]gen.ListListingNamesRow, len(ids))
 	for _, l := range listings {
-		listed[l.InstrumentID] = append(listed[l.InstrumentID], to.ProtoHoldingListing(l))
+		listed[l.InstrumentID] = append(listed[l.InstrumentID], l)
 	}
 	names, err := s.reader.ListInstrumentNames(ctx, ids)
 	if err != nil {
@@ -119,63 +145,137 @@ func (s *Server) instruments(ctx context.Context, user uuid.UUID, keys []gen.Lis
 	for _, n := range names {
 		nameOf[n.InstrumentID] = to.InstrumentName(n).ToProto()
 	}
-	held := map[uuid.UUID][]*holdingv1.HoldingKey{}
+	keysOf := map[uuid.UUID][]*holdingv1.HoldingKey{}
 	for _, k := range keys {
-		if k.StatedKey.InstrumentID != nil {
-			held[*k.StatedKey.InstrumentID] = append(held[*k.StatedKey.InstrumentID], to.ProtoHoldingKey(k))
+		if id := k.StatedKey.InstrumentID; id != nil {
+			keysOf[*id] = append(keysOf[*id], to.ProtoHoldingKey(k))
+			continue
+		}
+		for id, q := range d.onInstrument[k.StatedKey.ID] {
+			hk := &holdingv1.HoldingKey{StatedKey: to.ProtoStatedKey(k.StatedKey), Quantity: q.String()}
+			if l := listing(s.families, k.StatedKey, identified[id], listed[id]); l != uuid.Nil {
+				hk.ListingId = l.String()
+			}
+			keysOf[id] = append(keysOf[id], hk)
 		}
 	}
-	out := make([]*holdingv1.InstrumentHolding, 0, len(rows))
-	for _, r := range rows {
-		out = append(out, &holdingv1.InstrumentHolding{
-			InstrumentId: r.InstrumentID.String(),
-			AssetClass:   types.ToProto[typev1.AssetClass](classOf[r.InstrumentID]),
-			Name:         nameOf[r.InstrumentID],
-			Identifiers:  named[r.InstrumentID],
-			Quantity:     r.Quantity.String(),
-			Listings:     listed[r.InstrumentID],
-			Keys:         held[r.InstrumentID],
-		})
+	out := make([]*holdingv1.InstrumentHolding, 0, len(ids))
+	for _, id := range ids {
+		h := &holdingv1.InstrumentHolding{
+			InstrumentId: id.String(),
+			AssetClass:   types.ToProto[typev1.AssetClass](classOf[id]),
+			Name:         nameOf[id],
+			Quantity:     total[id].String(),
+			Keys:         keysOf[id],
+		}
+		for _, i := range identified[id] {
+			h.Identifiers = append(h.Identifiers, to.Identifier(i).ToProto())
+		}
+		for _, l := range listed[id] {
+			h.Listings = append(h.Listings, to.ProtoHoldingListing(l))
+		}
+		out = append(out, h)
 	}
 	return out, nil
 }
 
-// groups answers the user's holdings of unresolved groups, each with the
-// classes and identifiers its keys state, once each, and the keys.
-func (s *Server) groups(ctx context.Context, user uuid.UUID, keys []gen.ListHoldingKeysRow) ([]*holdingv1.GroupHolding, error) {
+// listing returns the listing a dated key's transactions sit under on one
+// instrument. That is the instrument's listing in the family of the key's
+// stated currency, as a fixed association takes. Where the key states no
+// currency, or the instrument has no listing in that family, it is the
+// listing that carries the key's ticker. It returns uuid.Nil where neither
+// exists.
+func listing(families currency.Families, k gen.StatedKey, idents []gen.Identifier, listings []gen.ListListingNamesRow) uuid.UUID {
+	ticker, _ := to.AssociatedTicker(k)
+	carrier, family := uuid.Nil, ""
+	for _, i := range idents {
+		if i.ListingID != nil && to.Identifier(i) == ticker {
+			carrier = *i.ListingID
+		}
+	}
+	for _, l := range listings {
+		if l.ListingID == carrier {
+			family = l.Currency
+		}
+	}
+	if k.Currency != nil {
+		if fam := families.Family(*k.Currency); fam != "" && fam != family {
+			for _, l := range listings {
+				if l.Currency == fam {
+					return l.ListingID
+				}
+			}
+		}
+	}
+	return carrier
+}
+
+// groups answers the user's holdings of groups, each with the classes and
+// identifiers its keys state, once each, and the keys, by group id. An
+// unresolved key is in its group whole. A dated key is in its group only for
+// the transactions dated when its ticker names nothing.
+func (s *Server) groups(ctx context.Context, user uuid.UUID, keys []gen.ListHoldingKeysRow, d dated) ([]*holdingv1.GroupHolding, error) {
 	rows, err := s.reader.ListGroupHoldings(ctx, user)
 	if err != nil {
 		return nil, err
 	}
-	rows = slices.DeleteFunc(rows, func(r gen.ListGroupHoldingsRow) bool { return r.Quantity.IsZero() })
-	if len(rows) == 0 {
-		return nil, nil
+	total := make(map[uuid.UUID]decimal.Decimal, len(rows))
+	for _, r := range rows {
+		total[r.GroupID] = r.Quantity
 	}
-	stated := make(map[uuid.UUID]*stating, len(rows))
+	stated := map[uuid.UUID]*stating{}
 	for _, k := range keys {
-		if k.StatedKey.GroupID == nil {
+		unresolved, isDated := d.unresolved[k.StatedKey.ID]
+		g := k.StatedKey.GroupID
+		switch {
+		case g == nil && isDated:
+			// Regroup gives every key without an instrument a group in the
+			// transaction that writes its rows, so this is a defect.
+			return nil, fmt.Errorf("dated key %s has unresolved transactions and no group", k.StatedKey.ID)
+		case g == nil:
 			continue
 		}
-		st, ok := stated[*k.StatedKey.GroupID]
+		hk := to.ProtoHoldingKey(k)
+		if _, ok := to.AssociatedTicker(k.StatedKey); ok {
+			if !isDated {
+				continue
+			}
+			hk = &holdingv1.HoldingKey{StatedKey: to.ProtoStatedKey(k.StatedKey), Quantity: unresolved.String()}
+			total[*g] = total[*g].Add(unresolved)
+		}
+		st, ok := stated[*g]
 		if !ok {
 			st = &stating{h: &holdingv1.GroupHolding{}, classes: map[types.AssetClass]bool{}, ids: map[types.Identifier]bool{}}
-			stated[*k.StatedKey.GroupID] = st
+			stated[*g] = st
 		}
 		st.fold(k.StatedKey)
-		st.h.Keys = append(st.h.Keys, to.ProtoHoldingKey(k))
+		st.h.Keys = append(st.h.Keys, hk)
 	}
-	out := make([]*holdingv1.GroupHolding, 0, len(rows))
-	for _, r := range rows {
+	ids := held(total)
+	out := make([]*holdingv1.GroupHolding, 0, len(ids))
+	for _, id := range ids {
 		h := &holdingv1.GroupHolding{}
-		if st := stated[r.GroupID]; st != nil {
+		if st := stated[id]; st != nil {
 			h = st.h
 		}
-		h.GroupId = r.GroupID.String()
-		h.Quantity = r.Quantity.String()
+		h.GroupId = id.String()
+		h.Quantity = total[id].String()
 		slices.Sort(h.AssetClasses)
 		out = append(out, h)
 	}
 	return out, nil
+}
+
+// held returns the ids whose total is not zero, in id order.
+func held(total map[uuid.UUID]decimal.Decimal) []uuid.UUID {
+	ids := make([]uuid.UUID, 0, len(total))
+	for id, q := range total {
+		if !q.IsZero() {
+			ids = append(ids, id)
+		}
+	}
+	slices.SortFunc(ids, func(a, b uuid.UUID) int { return bytes.Compare(a[:], b[:]) })
+	return ids
 }
 
 // stating is what the keys of one group state, each class and identifier
