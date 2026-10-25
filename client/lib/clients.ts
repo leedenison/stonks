@@ -1,5 +1,6 @@
 import { createClient, type Transport } from "@connectrpc/connect";
 import { BlockService } from "@/gen/admin/block/v1/block_pb";
+import { CoverageService } from "@/gen/admin/coverage/v1/coverage_pb";
 import { DatasourceService } from "@/gen/admin/datasource/v1/datasource_pb";
 import { InstrumentService as AdminInstrumentService } from "@/gen/admin/instrument/v1/instrument_pb";
 import { ExtendValidityService } from "@/gen/admin/extend_validity/v1/extend_validity_pb";
@@ -17,6 +18,7 @@ export function newClients(transport: Transport) {
     adminRun: createClient(AdminRunService, transport),
     auth: createClient(AuthService, transport),
     block: createClient(BlockService, transport),
+    coverage: createClient(CoverageService, transport),
     datasource: createClient(DatasourceService, transport),
     holding: createClient(HoldingService, transport),
     extendValidity: createClient(ExtendValidityService, transport),

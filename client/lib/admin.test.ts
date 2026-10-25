@@ -4,10 +4,12 @@ import { UserRunSchema } from "@/gen/admin/run/v1/run_pb";
 import { timestampFromDate } from "@bufbuild/protobuf/wkt";
 import { RunKind, RunSchema } from "@/gen/run/v1/run_pb";
 import {
+  coverageQuery,
   filterQuery,
   flattenRuns,
   openFindingsBelow,
   queryHref,
+  readCoverage,
   readFilters,
   runLabel,
   runTitle,
@@ -33,6 +35,13 @@ describe("admin", () => {
     );
     expect(queryHref("/admin/blocks", { cleared: "" })).toBe("/admin/blocks");
     expect(filterQuery({ user: "u1" })).toBe("/admin/runs?user=u1");
+  });
+
+  it("round trips the coverage address", () => {
+    const p = readCoverage(new URLSearchParams("domain=XNAS&value=ACME"));
+    expect(p).toEqual({ domain: "XNAS", value: "ACME" });
+    expect(coverageQuery(p)).toBe("/admin/coverage?domain=XNAS&value=ACME");
+    expect(coverageQuery({ domain: "", value: "" })).toBe("/admin/coverage");
   });
 
   it("names a run by its kind and when it started", () => {

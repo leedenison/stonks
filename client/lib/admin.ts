@@ -126,6 +126,26 @@ export function instrumentQuery(p: InstrumentParams): string {
   return queryHref("/admin/instruments", p);
 }
 
+// CoverageParams is the coverage page's address.
+export type CoverageParams = {
+  // The operating MIC whose gaps are listed; empty for the first domain.
+  domain: string;
+  // The value of the selected ticker on that domain; empty for none.
+  value: string;
+};
+
+export function readCoverage(params: URLSearchParams): CoverageParams {
+  return {
+    domain: params.get("domain") ?? "",
+    value: params.get("value") ?? "",
+  };
+}
+
+// coverageQuery is the address of the coverage page with p applied.
+export function coverageQuery(p: CoverageParams): string {
+  return queryHref("/admin/coverage", p);
+}
+
 // flattenRuns lists every run of the trees, each parent before its children.
 export function flattenRuns(runs: UserRun[]): UserRun[] {
   return runs.flatMap((r) => [r, ...flattenRuns(r.children)]);
