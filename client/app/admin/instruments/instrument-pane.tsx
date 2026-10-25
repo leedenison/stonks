@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { ReactNode } from "react";
 import { Chip } from "@/app/components/chip";
 import { identifierLabel } from "@/app/components/identifier-chip";
@@ -5,6 +6,7 @@ import { Section } from "@/app/components/section";
 import { Td, Th } from "@/app/components/table";
 import type { Instrument } from "@/gen/admin/instrument/v1/instrument_pb";
 import { type Identifier, IdentifierType } from "@/gen/type/v1/type_pb";
+import { coverageQuery } from "@/lib/admin";
 import { assetClassLabel } from "@/lib/asset-class";
 import { groupIdentifiers, identifierKey } from "@/lib/identifiers";
 
@@ -12,7 +14,8 @@ type Marks = Parameters<typeof groupIdentifiers>[1];
 
 // InstrumentPane shows one instrument in full, in sections. The identifier
 // naming the instrument and each listing's primary venue are marked in the
-// accent tone.
+// accent tone. A ticker's venue chip links to the ticker on the coverage
+// page.
 export function InstrumentPane({ instrument }: { instrument: Instrument }) {
   const marks: Marks = {
     via: new Set(instrument.via.map(identifierKey)),
@@ -169,16 +172,28 @@ function Rows({
       </Td>
       <Td dense>
         <span className="flex flex-wrap gap-1">
-          {r.domains.map((d) => (
-            <Chip
-              key={d}
-              tone={d === primary ? "accent" : "muted"}
-              data-primary={d === primary ? "true" : undefined}
-              className="font-mono"
-            >
-              {d}
-            </Chip>
-          ))}
+          {r.domains.map((d) => {
+            const chip = (
+              <Chip
+                tone={d === primary ? "accent" : "muted"}
+                data-primary={d === primary ? "true" : undefined}
+                className="font-mono"
+              >
+                {d}
+              </Chip>
+            );
+            return r.type === IdentifierType.MIC_TICKER ? (
+              <Link
+                key={d}
+                href={coverageQuery({ domain: d, value: r.value })}
+                data-testid={`ticker-coverage-${d}-${r.value}`}
+              >
+                {chip}
+              </Link>
+            ) : (
+              <span key={d}>{chip}</span>
+            );
+          })}
         </span>
       </Td>
     </tr>

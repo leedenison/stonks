@@ -41,5 +41,8 @@ describe("AdminLayout", () => {
     expect(
       screen.getByRole("link", { name: "Blocks" }).getAttribute("href"),
     ).toBe("/admin/blocks");
+    expect(
+      screen.getByRole("link", { name: "Coverage" }).getAttribute("href"),
+    ).toBe("/admin/coverage");
   });
 });

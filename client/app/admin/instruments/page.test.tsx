@@ -177,6 +177,9 @@ describe("InstrumentsPage", () => {
         .querySelectorAll("[data-name='true']"),
     ).toHaveLength(1);
     expect(screen.getByTestId("listing-l-gbp").textContent).toContain("XLON");
+    expect(
+      screen.getByTestId("ticker-coverage-XLON-ACM").getAttribute("href"),
+    ).toBe("/admin/coverage?domain=XLON&value=ACM");
     expect(screen.getByTestId("list-first").getAttribute("href")).toBe(
       "/admin/instruments",
     );

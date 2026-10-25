@@ -1,0 +1,245 @@
+import type { Ticker } from "@/gen/admin/coverage/v1/coverage_pb";
+import { Validity } from "@/gen/admin/coverage/v1/coverage_pb";
+import { bounds, dayNumber } from "@/lib/coverage";
+
+// The drawing's coordinates, in viewBox units; the gutter is the left margin
+// the lane labels take.
+const width = 1000;
+const gutter = 120;
+const laneHeight = 18;
+const laneGap = 8;
+const axisHeight = 28;
+
+type Lane = { key: string; label: string; children: React.ReactNode };
+
+// Timeline draws a ticker's facts and validity as lanes on one date axis. It
+// draws SVG directly, since lanes are rectangles rather than series data;
+// Recharts stays the library for charts of series.
+export function Timeline({ ticker }: { ticker: Ticker }) {
+  const b = bounds(ticker);
+  if (!b) {
+    return (
+      <p data-testid="coverage-timeline" className="text-sm text-text-muted">
+        Nothing to show.
+      </p>
+    );
+  }
+  const from = dayNumber(b.from);
+  const span = Math.max(dayNumber(b.before) - from, 1);
+  const x = (day: string) =>
+    gutter + ((dayNumber(day) - from) / span) * (width - gutter);
+  // An open bound runs to the drawing's edge.
+  const bar = (start: string | undefined, end: string | undefined) => {
+    const x0 = start === undefined ? gutter : x(start);
+    const x1 = end === undefined ? width : x(end);
+    return { x: x0, width: Math.max(x1 - x0, 1) };
+  };
+
+  const datasources = [...new Set(ticker.coverage.map((c) => c.datasource))];
+  const lanes: Lane[] = [
+    {
+      key: "transactions",
+      label: "Transactions",
+      children: ticker.transactionDays.map((d) => (
+        <rect
+          key={d}
+          x={x(d) - 0.5}
+          y={3}
+          width={1.5}
+          height={laneHeight - 6}
+          className="fill-text-muted"
+        >
+          <title>{`Transaction on ${d}`}</title>
+        </rect>
+      )),
+    },
+    {
+      key: "validity",
+      label: "Validity",
+      children: ticker.intervals.map((iv, i) => (
+        <rect
+          key={i}
+          {...bar(iv.validFrom, iv.validBefore)}
+          y={2}
+          height={laneHeight - 4}
+          rx={2}
+          data-validity={
+            iv.validity === Validity.CONFIRMED ? "confirmed" : "provisional"
+          }
+          className={
+            iv.validity === Validity.CONFIRMED
+              ? "fill-primary"
+              : "fill-primary/35"
+          }
+        >
+          <title>{`${iv.validity === Validity.CONFIRMED ? "Confirmed" : "Provisional"} ${iv.validFrom ?? ""} to ${iv.validBefore ?? ""}`}</title>
+        </rect>
+      )),
+    },
+    {
+      key: "gaps",
+      label: "Gaps",
+      children: ticker.gaps.map((g) => (
+        <rect
+          key={g.unconfirmedFrom}
+          {...bar(g.unconfirmedFrom, g.unconfirmedBefore)}
+          y={2}
+          height={laneHeight - 4}
+          rx={2}
+          className="fill-accent/70"
+        >
+          <title>{`Gap ${g.unconfirmedFrom} to ${g.unconfirmedBefore}: ${g.transactions} transactions of ${g.keys} keys`}</title>
+        </rect>
+      )),
+    },
+    {
+      key: "assertions",
+      label: "Assertions",
+      children: ticker.assertions.map((a) => {
+        const attested = a.source.case === "attestedBy";
+        const tone = attested ? "accent" : "primary";
+        return (
+          <circle
+            key={a.id}
+            cx={x(a.assertedOn)}
+            cy={laneHeight / 2}
+            r={5}
+            data-attested={attested ? "true" : undefined}
+            data-negative={a.instrumentId === undefined ? "true" : undefined}
+            className={
+              a.instrumentId === undefined
+                ? `fill-surface stroke-${tone} stroke-2`
+                : `fill-${tone}`
+            }
+          >
+            <title>{`${a.source.value ?? ""} asserted ${a.instrumentId ?? "nothing"} on ${a.assertedOn}`}</title>
+          </circle>
+        );
+      }),
+    },
+    {
+      key: "events",
+      label: "Events",
+      children: ticker.events.map((e, i) => {
+        const cx = x(e.effectiveOn);
+        return (
+          <polygon
+            key={i}
+            points={`${cx},2 ${cx + 6},${laneHeight - 2} ${cx - 6},${laneHeight - 2}`}
+            className="fill-text-muted"
+          >
+            <title>{`${e.value}${e.toValue ? ` to ${e.toValue}` : ""} on ${e.effectiveOn}`}</title>
+          </polygon>
+        );
+      }),
+    },
+    ...datasources.map((ds) => ({
+      key: `coverage-${ds}`,
+      label: ds,
+      children: ticker.coverage
+        .filter((c) => c.datasource === ds)
+        .map((c, i) => (
+          <rect
+            key={i}
+            {...bar(c.coveredFrom, c.coveredBefore)}
+            y={4}
+            height={laneHeight - 8}
+            rx={2}
+            data-domain={c.covers?.value === "" ? "true" : undefined}
+            className={
+              c.covers?.value === "" ? "fill-primary/25" : "fill-primary/55"
+            }
+          >
+            <title>{`${ds} covers ${c.covers?.value || c.covers?.domain} ${c.coveredFrom} to ${c.coveredBefore}`}</title>
+          </rect>
+        )),
+    })),
+  ];
+  const height = lanes.length * (laneHeight + laneGap) + axisHeight;
+
+  return (
+    <svg
+      data-testid="coverage-timeline"
+      viewBox={`0 0 ${width} ${height}`}
+      className="w-full text-xs"
+      role="img"
+      aria-label={`Timeline of ${ticker.ticker?.value ?? ""}`}
+    >
+      {lanes.map((lane, i) => {
+        const y = i * (laneHeight + laneGap);
+        return (
+          <g
+            key={lane.key}
+            data-lane={lane.key}
+            transform={`translate(0 ${y})`}
+          >
+            <text
+              x={0}
+              y={laneHeight / 2}
+              dominantBaseline="middle"
+              className="fill-text-muted font-sans"
+            >
+              {lane.label}
+            </text>
+            <line
+              x1={gutter}
+              x2={width}
+              y1={laneHeight / 2}
+              y2={laneHeight / 2}
+              className="stroke-border"
+            />
+            {lane.children}
+          </g>
+        );
+      })}
+      <g
+        data-lane="axis"
+        transform={`translate(0 ${lanes.length * (laneHeight + laneGap)})`}
+      >
+        <line x1={gutter} x2={width} y1={0} y2={0} className="stroke-border" />
+        {ticks(b.from, b.before).map((t) => (
+          <g key={t.day} transform={`translate(${x(t.day)} 0)`}>
+            <line y1={0} y2={5} className="stroke-text-muted" />
+            <text
+              y={18}
+              textAnchor="middle"
+              className="fill-text-muted font-mono tabular-nums"
+            >
+              {t.label}
+            </text>
+          </g>
+        ))}
+      </g>
+    </svg>
+  );
+}
+
+// ticks returns the axis labels of a range: by year from two years up, and
+// by month below.
+export function ticks(
+  from: string,
+  before: string,
+): { day: string; label: string }[] {
+  const [y0, m0] = from.split("-").map(Number);
+  const [y1, m1] = before.split("-").map(Number);
+  const months = (y1 - y0) * 12 + (m1 - m0);
+  const out: { day: string; label: string }[] = [];
+  if (months >= 24) {
+    for (let y = y0 + 1; y <= y1; y++) {
+      out.push({ day: `${y}-01-01`, label: String(y) });
+    }
+    return out;
+  }
+  let y = y0;
+  let m = m0 + 1;
+  while (y * 12 + m <= y1 * 12 + m1) {
+    if (m > 12) {
+      y += 1;
+      m = 1;
+    }
+    const mm = String(m).padStart(2, "0");
+    out.push({ day: `${y}-${mm}-01`, label: `${y}-${mm}` });
+    m += 1;
+  }
+  return out;
+}

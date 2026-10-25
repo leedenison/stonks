@@ -27,6 +27,11 @@ export const qk = {
   blocks: (cleared: boolean, before: string) =>
     ["blocks", cleared, before] as const,
   blocksAll: () => ["blocks"] as const,
+  coverageDomains: () => ["coverage", "domains"] as const,
+  coverageGaps: (domain: string) => ["coverage", "gaps", domain] as const,
+  coverageTicker: (domain: string, value: string) =>
+    ["coverage", "ticker", domain, value] as const,
+  coverageAll: () => ["coverage"] as const,
 };
 
 // invalidateResolved refreshes the holdings, the transactions and the
