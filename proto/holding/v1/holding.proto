@@ -1,8 +1,13 @@
 // Holdings: what a user holds, of two kinds, one per instrument and one per
-// group of unresolved keys. A sum of zero is no holding. Quantities are raw: no
-// corporate event restates them. Every RPC requires a session and reads the
-// caller's own transactions, keys and statements. A holding carries the keys
-// it sums. An instrument holding also carries its listings.
+// group of unresolved keys. A holding whose total is zero is left out.
+// Quantities are raw: no corporate event restates them. Every RPC requires a
+// session and reads the caller's own transactions, keys and statements. A
+// holding carries the keys it sums. An instrument holding also carries its
+// listings.
+//
+// A dated key's transactions are summed into the instrument its ticker names
+// on their dates. Transactions dated when the ticker names nothing are summed
+// into the key's group. One key may therefore appear under several holdings.
 
 syntax = "proto3";
 
@@ -30,10 +35,11 @@ message HoldingListing {
 // One of the caller's keys contributing to a holding.
 message HoldingKey {
   stonks.type.v1.StatedKey stated_key = 1;
-  // The listing the key associates through; empty where it names none.
+  // The listing the key associates through, or for a dated key the listing
+  // its ticker names on this holding's dates; empty where there is none.
   string listing_id = 2;
-  // The sum of the key's transaction quantities, for cash in the currency the
-  // key states.
+  // The sum of the key's transaction quantities that this holding sums, for
+  // cash in the currency the key states.
   string quantity = 3;
 }
 
@@ -47,9 +53,9 @@ message InstrumentHolding {
   // rank of its type as a name, then by domain and value. Empty when nothing
   // names it.
   repeated stonks.type.v1.Identifier identifiers = 3;
-  // The sum of the caller's transaction quantities over every key resolved to
-  // the instrument: shares, contracts, or money for cash, with no trailing
-  // zeros. Cash is summed in its family's unit, so pence count as hundredths
+  // The sum of the caller's transaction quantities over every transaction
+  // that resolves to the instrument: shares, contracts, or money for cash,
+  // with no trailing zeros. Cash is summed in its family's unit, so pence count as hundredths
   // of a pound. Negative when more has been disposed of than acquired.
   string quantity = 4;
   // Every listing of the instrument, by currency.
@@ -62,8 +68,9 @@ message InstrumentHolding {
 }
 
 // A holding of the caller's unresolved keys that state one holding between
-// them, gathered by what they state in common. It rests on the caller's
-// statements alone.
+// them, gathered by what they state in common. It also holds the transactions
+// of dated keys dated when their ticker names nothing. It rests on the
+// caller's statements alone.
 message GroupHolding {
   // Identifies the group; a UUID. It is the id of the group's earliest key,
   // so it changes as keys join and leave.

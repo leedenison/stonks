@@ -17,6 +17,7 @@ import (
 	"github.com/leedenison/stonks/proto/holding/v1/holdingv1connect"
 	typev1 "github.com/leedenison/stonks/proto/type/v1"
 	"github.com/leedenison/stonks/server/internal/auth"
+	"github.com/leedenison/stonks/server/internal/currency"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/ptr"
 	"github.com/leedenison/stonks/server/internal/service/holding/mock"
@@ -31,6 +32,7 @@ var (
 	acmeID    = uuid.MustParse("00000000-0000-0000-0000-000000000021")
 	groupID   = uuid.MustParse("00000000-0000-0000-0000-000000000030")
 	principal = auth.Principal{User: gen.User{ID: userID, Email: "one@example.com"}, SessionID: servicetest.Session}
+	families  = currency.Families{"GBP": "GBP", "GBX": "GBP", "USD": "USD"}
 )
 
 type fixture struct {
@@ -48,7 +50,7 @@ func newFixture(t *testing.T) *fixture {
 	f := &fixture{reader: mock.NewMockReader(ctrl), authn: servicemock.NewMockAuthenticator(ctrl)}
 	opts := servicetest.Options(t, f.authn)
 	srv := servicetest.Serve(t, func(mux *http.ServeMux) {
-		mux.Handle(holdingv1connect.NewHoldingServiceHandler(New(f.reader), opts...))
+		mux.Handle(holdingv1connect.NewHoldingServiceHandler(New(f.reader, families), opts...))
 	})
 	f.client = holdingv1connect.NewHoldingServiceClient(srv.Client, srv.URL)
 	return f
@@ -184,6 +186,7 @@ func TestListHoldings(t *testing.T) {
 			// Each read is offered once, and what the handler reads after a
 			// failure does not matter to the response.
 			f.reader.EXPECT().ListHoldingKeys(gomock.Any(), userID).Return(tc.keys, tc.keysErr).MaxTimes(1)
+			f.reader.EXPECT().ListDatedTransactions(gomock.Any(), userID).Return(nil, nil).MaxTimes(1)
 			f.reader.EXPECT().ListInstrumentHoldings(gomock.Any(), userID).Return(tc.rows, tc.rowsErr).MaxTimes(1)
 			f.reader.EXPECT().ListInstrumentsByID(gomock.Any(), []uuid.UUID{gbpID, acmeID}).Return(tc.instruments, tc.instrErr).MaxTimes(1)
 			f.reader.EXPECT().ListIdentifiersOf(gomock.Any(), []uuid.UUID{gbpID, acmeID}).Return(tc.idents, tc.identsErr).MaxTimes(1)
