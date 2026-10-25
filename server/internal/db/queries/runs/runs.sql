@@ -6,6 +6,9 @@ RETURNING *;
 -- name: GetRun :one
 SELECT * FROM runs WHERE id = $1 AND user_id = $2;
 
+-- name: GetRunByID :one
+SELECT * FROM runs WHERE id = $1;
+
 -- name: StartRun :one
 UPDATE runs SET state = 'running', started_at = now()
 WHERE id = $1 AND state = 'pending'

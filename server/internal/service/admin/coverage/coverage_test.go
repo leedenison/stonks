@@ -16,8 +16,11 @@ import (
 	admincoveragev1 "github.com/leedenison/stonks/proto/admin/coverage/v1"
 	"github.com/leedenison/stonks/proto/admin/coverage/v1/admincoveragev1connect"
 	adminrunv1 "github.com/leedenison/stonks/proto/admin/run/v1"
+	runv1 "github.com/leedenison/stonks/proto/run/v1"
 	typev1 "github.com/leedenison/stonks/proto/type/v1"
+	"github.com/leedenison/stonks/server/internal/attest"
 	reader "github.com/leedenison/stonks/server/internal/coverage"
+	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/ptr"
 	"github.com/leedenison/stonks/server/internal/service/admin/coverage/mock"
@@ -37,8 +40,9 @@ var (
 func day(n int) time.Time { return time.Date(2026, time.March, n, 0, 0, 0, 0, time.UTC) }
 
 type fixture struct {
-	reader *mock.MockReader
-	client admincoveragev1connect.CoverageServiceClient
+	reader   *mock.MockReader
+	attester *mock.MockAttester
+	client   admincoveragev1connect.CoverageServiceClient
 }
 
 // newFixture mounts a Server with the real handler chain, and a client whose
@@ -46,10 +50,10 @@ type fixture struct {
 func newFixture(t *testing.T) *fixture {
 	t.Helper()
 	ctrl := gomock.NewController(t)
-	f := &fixture{reader: mock.NewMockReader(ctrl)}
+	f := &fixture{reader: mock.NewMockReader(ctrl), attester: mock.NewMockAttester(ctrl)}
 	opts := servicetest.Options(t, servicetest.AsAdmin(ctrl))
 	srv := servicetest.Serve(t, func(mux *http.ServeMux) {
-		mux.Handle(admincoveragev1connect.NewCoverageServiceHandler(New(f.reader, func() time.Time { return today }), opts...))
+		mux.Handle(admincoveragev1connect.NewCoverageServiceHandler(New(f.reader, f.attester, func() time.Time { return today }), opts...))
 	})
 	f.client = admincoveragev1connect.NewCoverageServiceClient(srv.Client, srv.URL)
 	return f
@@ -178,6 +182,78 @@ func TestGetTicker(t *testing.T) {
 			}
 			if diff := cmp.Diff(want, res.Msg.GetTicker(), protocmp.Transform()); diff != "" {
 				t.Errorf("GetTicker mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestAttest(t *testing.T) {
+	runID := uuid.MustParse("00000000-0000-0000-0000-000000000010")
+	started := gen.Run{ID: runID, Kind: gen.RunKindAttestation, Trigger: gen.RunTriggerAdministrator, State: gen.RunStatePending, CreatedAt: today}
+	names := &admincoveragev1.AttestRequest_InstrumentId{InstrumentId: acme.String()}
+	tests := []struct {
+		name           string
+		req            *admincoveragev1.AttestRequest
+		wantInstrument *uuid.UUID
+		wantTo         *time.Time
+		err            error
+		wantCode       connect.Code
+	}{
+		{name: "an instrument over a range", req: &admincoveragev1.AttestRequest{Ticker: acmeProto, Names: names, From: "2026-03-10", To: ptr.To("2026-03-20")}, wantInstrument: &acme, wantTo: ptr.To(day(20))},
+		{name: "nothing on a day", req: &admincoveragev1.AttestRequest{Ticker: acmeProto, Names: &admincoveragev1.AttestRequest_Nothing{Nothing: true}, From: "2026-03-10"}},
+		{name: "no names", req: &admincoveragev1.AttestRequest{Ticker: acmeProto, From: "2026-03-10"}, wantCode: connect.CodeInvalidArgument},
+		{name: "no ticker", req: &admincoveragev1.AttestRequest{Names: names, From: "2026-03-10"}, wantCode: connect.CodeInvalidArgument},
+		{name: "malformed day", req: &admincoveragev1.AttestRequest{Ticker: acmeProto, Names: names, From: "10/03/2026"}, wantCode: connect.CodeInvalidArgument},
+		{name: "malformed end", req: &admincoveragev1.AttestRequest{Ticker: acmeProto, Names: names, From: "2026-03-10", To: ptr.To("soon")}, wantCode: connect.CodeInvalidArgument},
+		{name: "future", req: &admincoveragev1.AttestRequest{Ticker: acmeProto, Names: names, From: "2026-03-10"}, wantInstrument: &acme, err: validity.ErrFuture, wantCode: connect.CodeFailedPrecondition},
+		{name: "range reversed", req: &admincoveragev1.AttestRequest{Ticker: acmeProto, Names: names, From: "2026-03-10"}, wantInstrument: &acme, err: attest.ErrRange, wantCode: connect.CodeFailedPrecondition},
+		{name: "misspelled", req: &admincoveragev1.AttestRequest{Ticker: acmeProto, Names: names, From: "2026-03-10"}, wantInstrument: &acme, err: validity.ErrSpelling, wantCode: connect.CodeInvalidArgument},
+		{name: "unknown instrument", req: &admincoveragev1.AttestRequest{Ticker: acmeProto, Names: names, From: "2026-03-10"}, wantInstrument: &acme, err: db.ErrNotFound, wantCode: connect.CodeNotFound},
+		{name: "failure", req: &admincoveragev1.AttestRequest{Ticker: acmeProto, Names: names, From: "2026-03-10"}, wantInstrument: &acme, err: errors.New("boom"), wantCode: connect.CodeInternal},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFixture(t)
+			if tc.wantCode == 0 || tc.err != nil {
+				f.attester.EXPECT().Start(gomock.Any(), servicetest.Admin.User.ID, acmeTicker, tc.wantInstrument, day(10), tc.wantTo).Return(started, tc.err)
+			}
+			res, err := f.client.Attest(context.Background(), connect.NewRequest(tc.req))
+			if servicetest.CodeOf(err) != tc.wantCode {
+				t.Fatalf("Attest code = %v (err %v), want %v", servicetest.CodeOf(err), err, tc.wantCode)
+			}
+			if err != nil {
+				return
+			}
+			got := res.Msg.GetRun()
+			if got.GetId() != runID.String() || got.GetKind() != runv1.RunKind_RUN_KIND_ATTESTATION || got.GetState() != runv1.RunState_RUN_STATE_PENDING {
+				t.Errorf("Attest = %v, want the pending attestation run", got)
+			}
+		})
+	}
+}
+
+func TestWithdrawAttestation(t *testing.T) {
+	tests := []struct {
+		name     string
+		id       string
+		err      error
+		wantCode connect.Code
+	}{
+		{name: "withdrawn", id: assertionID.String()},
+		{name: "malformed id", id: "first", wantCode: connect.CodeInvalidArgument},
+		{name: "a datasource's", id: assertionID.String(), err: attest.ErrNotAttested, wantCode: connect.CodeFailedPrecondition},
+		{name: "missing", id: assertionID.String(), err: db.ErrNotFound, wantCode: connect.CodeNotFound},
+		{name: "failure", id: assertionID.String(), err: errors.New("boom"), wantCode: connect.CodeInternal},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFixture(t)
+			if tc.wantCode == 0 || tc.err != nil {
+				f.attester.EXPECT().Withdraw(gomock.Any(), assertionID).Return(tc.err)
+			}
+			_, err := f.client.WithdrawAttestation(context.Background(), connect.NewRequest(&admincoveragev1.WithdrawAttestationRequest{AssertionId: tc.id}))
+			if servicetest.CodeOf(err) != tc.wantCode {
+				t.Errorf("WithdrawAttestation code = %v (err %v), want %v", servicetest.CodeOf(err), err, tc.wantCode)
 			}
 		})
 	}

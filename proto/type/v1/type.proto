@@ -150,4 +150,7 @@ message ResolutionItem {
   // names that venue. Zero means there is nothing to choose. See
   // FindCandidates.
   int32 offered = 6;
+  // The MIC_TICKER of a dated association; unset for a fixed association or
+  // none.
+  Identifier ticker = 7;
 }

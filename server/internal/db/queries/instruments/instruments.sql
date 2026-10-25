@@ -25,6 +25,9 @@ JOIN identifier_type_traits ON identifier_type_traits.type = identifiers.type
 WHERE identifiers.instrument_id = ANY(@ids::uuid[])
 ORDER BY identifiers.instrument_id, identifier_type_traits.name_rank, identifiers.domain, identifiers.value;
 
+-- name: GetInstrument :one
+SELECT * FROM instruments WHERE id = $1;
+
 -- name: ListInstrumentNames :many
 SELECT * FROM instrument_names
 WHERE instrument_id = ANY(@ids::uuid[])

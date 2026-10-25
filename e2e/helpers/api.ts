@@ -2,6 +2,7 @@ import type { DescService } from "@bufbuild/protobuf";
 import { type Client, createClient } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
 import { BlockService } from "../gen/admin/block/v1/block_pb";
+import { CoverageService } from "../gen/admin/coverage/v1/coverage_pb";
 import { DatasourceService } from "../gen/admin/datasource/v1/datasource_pb";
 import { InstrumentService as AdminInstrumentService } from "../gen/admin/instrument/v1/instrument_pb";
 import { ExtendValidityService } from "../gen/admin/extend_validity/v1/extend_validity_pb";
@@ -51,6 +52,10 @@ export function adminInstrumentClient(sessionID: string) {
 
 export function blockClient(sessionID: string) {
   return clientFor(BlockService, sessionID);
+}
+
+export function coverageClient(sessionID: string) {
+  return clientFor(CoverageService, sessionID);
 }
 
 export function datasourceClient(sessionID: string) {

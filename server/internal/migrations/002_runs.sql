@@ -10,7 +10,7 @@ CREATE TYPE run_state AS ENUM ('pending', 'running', 'completed', 'failed', 'int
 -- A run is one unit of work: a statement, ingesting one batch of transactions a
 -- user submitted, a resolution resolving stated keys, a replay re-resolving the
 -- keys of one run, a fetch requesting one kind of data from one datasource, an
--- attestation recording an administrator's assertion, or an extend validity run
+-- attestation recording an administrator's assertions, or an extend validity run
 -- asking the datasources again about every held ticker. Most run in the
 -- background. A resolution a user starts runs in the call that starts it. The
 -- row exists before the work starts and carries its outcome.

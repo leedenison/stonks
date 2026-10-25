@@ -83,6 +83,27 @@ func TestProtoStatedKey(t *testing.T) {
 	}
 }
 
+// TestProtoResolutionItem checks that only a dated key carries a ticker.
+func TestProtoResolutionItem(t *testing.T) {
+	instrument := uuid.New()
+	tests := []struct {
+		name string
+		key  gen.StatedKey
+		want *typev1.Identifier
+	}{
+		{name: "dated", key: gen.StatedKey{ViaType: ptr.To(types.IdentifierTypeMicTicker), ViaDomain: ptr.To("XNAS"), ViaValue: ptr.To("ACME")}, want: &typev1.Identifier{Type: typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, Domain: "XNAS", Value: "ACME"}},
+		{name: "fixed", key: gen.StatedKey{InstrumentID: &instrument}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := ProtoResolutionItem(tc.key, nil)
+			if diff := cmp.Diff(tc.want, got.GetTicker(), protocmp.Transform()); diff != "" {
+				t.Errorf("ProtoResolutionItem ticker mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
 func TestInstrumentName(t *testing.T) {
 	row := gen.InstrumentName{InstrumentID: uuid.New(), Type: types.IdentifierTypeMicTicker, Domain: "XLON", Value: "VOD"}
 	want := types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XLON", Value: "VOD"}
