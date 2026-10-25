@@ -28,6 +28,9 @@ ORDER BY identifiers.instrument_id, identifier_type_traits.name_rank, identifier
 -- name: GetInstrument :one
 SELECT * FROM instruments WHERE id = $1;
 
+-- name: ListInstrumentsByID :many
+SELECT * FROM instruments WHERE id = ANY(@ids::uuid[]) ORDER BY id;
+
 -- name: ListInstrumentNames :many
 SELECT * FROM instrument_names
 WHERE instrument_id = ANY(@ids::uuid[])
