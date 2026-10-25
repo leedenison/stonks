@@ -6,6 +6,7 @@ import (
 	"context"
 	"slices"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -57,10 +58,27 @@ func (h holder) keyIn(t *testing.T, q *gen.Queries, description string, currency
 	return k
 }
 
-// record writes one transaction of quantity against key.
+// datedKey makes a stated key that states a ticker at venue and currency,
+// dated through the ticker.
+func (h holder) datedKey(t *testing.T, q *gen.Queries, venue, ticker, currency string) gen.StatedKey {
+	t.Helper()
+	stated := types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: venue, Value: ticker}
+	k := upsertKey(t, q, h.statement, gen.UpsertStatedKeyParams{Currency: &currency, Identifiers: []types.Identifier{stated}})
+	arg := gen.SetStatedKeyDatedAssociationParams{ID: k.ID, UserID: h.user.ID, ViaDomain: venue, ViaValue: ticker, Arbiter: gen.ArbiterDatasource}
+	_, err := q.SetStatedKeyDatedAssociation(context.Background(), arg)
+	require.NoError(t, err)
+	return k
+}
+
+// record writes one transaction of quantity against key on 2026-03-01.
 func (h holder) record(t *testing.T, q *gen.Queries, key gen.StatedKey, quantity string) {
 	t.Helper()
-	day := date(2026, 3, 1)
+	h.recordOn(t, q, key, date(2026, 3, 1), quantity)
+}
+
+// recordOn writes one transaction of quantity against key on day.
+func (h holder) recordOn(t *testing.T, q *gen.Queries, key gen.StatedKey, day time.Time, quantity string) {
+	t.Helper()
 	_, err := q.CreateTransaction(context.Background(), gen.CreateTransactionParams{
 		ID: db.NewID(), UserID: h.user.ID, Broker: gen.BrokerIbkr, StatementID: h.statement.ID, StatedKeyID: key.ID,
 		OrderDate: day, SettlementDate: day, AsAt: day,
@@ -158,13 +176,12 @@ func pence(t *testing.T, q *gen.Queries) gen.Identifier {
 }
 
 func holding(instrument gen.Instrument, quantity string) gen.ListInstrumentHoldingsRow {
-	return gen.ListInstrumentHoldingsRow{InstrumentID: instrument.ID, AssetClass: instrument.AssetClass, Quantity: decimal.RequireFromString(quantity)}
+	return gen.ListInstrumentHoldingsRow{InstrumentID: instrument.ID, Quantity: decimal.RequireFromString(quantity)}
 }
 
 // TestListInstrumentHoldings checks that a holding sums every key resolved
 // to one instrument for one user, that cash sums in its family's unit, that a
-// zero sum is not a holding, and that an unresolved key is no instrument
-// holding.
+// zero sum is returned, and that an unresolved key is no instrument holding.
 func TestListInstrumentHoldings(t *testing.T) {
 	ctx := context.Background()
 	ignoreRowIDs := cmpopts.IgnoreFields(gen.Identifier{}, "ID", "CreatedAt")
@@ -196,7 +213,7 @@ func TestListInstrumentHoldings(t *testing.T) {
 
 		got, err := q.ListInstrumentHoldings(ctx, h.user.ID)
 		require.NoError(t, err)
-		want := []gen.ListInstrumentHoldingsRow{{InstrumentID: gbp.InstrumentID, AssetClass: types.AssetClassCash, Quantity: decimal.RequireFromString("74.5")}}
+		want := []gen.ListInstrumentHoldingsRow{{InstrumentID: gbp.InstrumentID, Quantity: decimal.RequireFromString("74.5")}}
 		if diff := cmp.Diff(want, got, decimalEqual); diff != "" {
 			t.Errorf("ListInstrumentHoldings mismatch (-want +got):\n%s", diff)
 		}
@@ -223,7 +240,7 @@ func TestListInstrumentHoldings(t *testing.T) {
 
 		got, err := q.ListInstrumentHoldings(ctx, h.user.ID)
 		require.NoError(t, err)
-		want := []gen.ListInstrumentHoldingsRow{{InstrumentID: gbp.InstrumentID, AssetClass: types.AssetClassCash, Quantity: decimal.RequireFromString("15")}}
+		want := []gen.ListInstrumentHoldingsRow{{InstrumentID: gbp.InstrumentID, Quantity: decimal.RequireFromString("15")}}
 		if diff := cmp.Diff(want, got, decimalEqual); diff != "" {
 			t.Errorf("ListInstrumentHoldings mismatch (-want +got):\n%s", diff)
 		}
@@ -237,7 +254,7 @@ func TestListInstrumentHoldings(t *testing.T) {
 		}
 	})
 
-	t.Run("pence and pounds that cancel are no holding", func(t *testing.T) {
+	t.Run("pence and pounds that cancel sum to zero", func(t *testing.T) {
 		q := newTx(t)
 		h := newHolder(t, q, "cancel@example.com")
 		gbp, gbpVia := cashListing(t, q, "GBP")
@@ -247,8 +264,9 @@ func TestListInstrumentHoldings(t *testing.T) {
 
 		got, err := q.ListInstrumentHoldings(ctx, h.user.ID)
 		require.NoError(t, err)
-		if len(got) != 0 {
-			t.Errorf("ListInstrumentHoldings = %+v, want none", got)
+		want := []gen.ListInstrumentHoldingsRow{{InstrumentID: gbp.InstrumentID, Quantity: decimal.Zero}}
+		if diff := cmp.Diff(want, got, decimalEqual); diff != "" {
+			t.Errorf("ListInstrumentHoldings mismatch (-want +got):\n%s", diff)
 		}
 	})
 
@@ -267,21 +285,6 @@ func TestListInstrumentHoldings(t *testing.T) {
 		}
 	})
 
-	t.Run("a zero sum is not a holding", func(t *testing.T) {
-		q := newTx(t)
-		h := newHolder(t, q, "zero@example.com")
-		usd, via := cashListing(t, q, "USD")
-		key := h.key(t, q, "USD", &usd, &via)
-		h.record(t, q, key, "10")
-		h.record(t, q, key, "-10")
-
-		got, err := q.ListInstrumentHoldings(ctx, h.user.ID)
-		require.NoError(t, err)
-		if len(got) != 0 {
-			t.Errorf("ListInstrumentHoldings = %+v, want none", got)
-		}
-	})
-
 	t.Run("an unresolved key is no instrument holding", func(t *testing.T) {
 		q := newTx(t)
 		h := newHolder(t, q, "unresolved@example.com")
@@ -291,7 +294,7 @@ func TestListInstrumentHoldings(t *testing.T) {
 
 		got, err := q.ListInstrumentHoldings(ctx, h.user.ID)
 		require.NoError(t, err)
-		want := []gen.ListInstrumentHoldingsRow{{InstrumentID: usd.InstrumentID, AssetClass: types.AssetClassCash, Quantity: decimal.RequireFromString("5")}}
+		want := []gen.ListInstrumentHoldingsRow{{InstrumentID: usd.InstrumentID, Quantity: decimal.RequireFromString("5")}}
 		if diff := cmp.Diff(want, got, decimalEqual); diff != "" {
 			t.Errorf("ListInstrumentHoldings mismatch (-want +got):\n%s", diff)
 		}
@@ -359,8 +362,9 @@ func (h holder) group(t *testing.T, q *gen.Queries, keys ...gen.StatedKey) uuid.
 	return keys[0].ID
 }
 
-// TestListGroupHoldings checks that a group sums its keys, and that a zero
-// sum and another user's group are both excluded.
+// TestListGroupHoldings checks that a group sums its unresolved keys and
+// none of a dated key's transactions, that a zero sum is returned, and that
+// another user's group is excluded.
 func TestListGroupHoldings(t *testing.T) {
 	ctx := context.Background()
 
@@ -381,18 +385,36 @@ func TestListGroupHoldings(t *testing.T) {
 		}
 	})
 
-	t.Run("a zero sum is not a holding", func(t *testing.T) {
+	t.Run("a zero sum is returned", func(t *testing.T) {
 		q := newTx(t)
 		h := newHolder(t, q, "groupzero@example.com")
 		one := h.key(t, q, "ACME CORP", nil, nil)
-		h.group(t, q, one)
+		id := h.group(t, q, one)
 		h.record(t, q, one, "10")
 		h.record(t, q, one, "-10")
 
 		got, err := q.ListGroupHoldings(ctx, h.user.ID)
 		require.NoError(t, err)
-		if len(got) != 0 {
-			t.Errorf("ListGroupHoldings = %+v, want none", got)
+		want := []gen.ListGroupHoldingsRow{{GroupID: id, Quantity: decimal.Zero}}
+		if diff := cmp.Diff(want, got, decimalEqual); diff != "" {
+			t.Errorf("ListGroupHoldings mismatch (-want +got):\n%s", diff)
+		}
+	})
+
+	t.Run("a dated key's transactions are left out", func(t *testing.T) {
+		q := newTx(t)
+		h := newHolder(t, q, "groupdated@example.com")
+		one := h.key(t, q, "ACME CORP", nil, nil)
+		dated := h.datedKey(t, q, "XNAS", "ACME", "USD")
+		id := h.group(t, q, one, dated)
+		h.record(t, q, one, "10")
+		h.record(t, q, dated, "4")
+
+		got, err := q.ListGroupHoldings(ctx, h.user.ID)
+		require.NoError(t, err)
+		want := []gen.ListGroupHoldingsRow{{GroupID: id, Quantity: decimal.RequireFromString("10")}}
+		if diff := cmp.Diff(want, got, decimalEqual); diff != "" {
+			t.Errorf("ListGroupHoldings mismatch (-want +got):\n%s", diff)
 		}
 	})
 
@@ -414,4 +436,36 @@ func TestListGroupHoldings(t *testing.T) {
 			t.Errorf("ListGroupHoldings for a mismatch (-want +got):\n%s", diff)
 		}
 	})
+}
+
+// TestListDatedTransactions checks that the transactions of the user's dated
+// keys are listed by key then date, and that fixed keys, unresolved keys and
+// another user's are left out.
+func TestListDatedTransactions(t *testing.T) {
+	ctx := context.Background()
+	q := newTx(t)
+	h := newHolder(t, q, "dated@example.com")
+	instrument := newInstrument(t, q, types.AssetClassEquity)
+	via := newIdentifier(t, q, instrument, "US0378331005")
+	usd := newListing(t, q, instrument, "USD")
+	h.record(t, q, h.key(t, q, "ACME CORP", &usd, &via), "10")
+	h.record(t, q, h.key(t, q, "MYSTERY FUND", nil, nil), "3")
+	acme := h.datedKey(t, q, "XNAS", "ACME", "USD")
+	h.recordOn(t, q, acme, date(2026, 3, 2), "4")
+	h.recordOn(t, q, acme, date(2026, 3, 1), "-1.5")
+	zeta := h.datedKey(t, q, "XNAS", "ZETA", "USD")
+	h.record(t, q, zeta, "7")
+	other := newHolder(t, q, "otherdated@example.com")
+	other.record(t, q, other.datedKey(t, q, "XNAS", "ACME", "USD"), "9")
+
+	got, err := q.ListDatedTransactions(ctx, h.user.ID)
+	require.NoError(t, err)
+	want := []gen.ListDatedTransactionsRow{
+		{StatedKeyID: acme.ID, OrderDate: date(2026, 3, 1), Quantity: decimal.RequireFromString("-1.5")},
+		{StatedKeyID: acme.ID, OrderDate: date(2026, 3, 2), Quantity: decimal.RequireFromString("4")},
+		{StatedKeyID: zeta.ID, OrderDate: date(2026, 3, 1), Quantity: decimal.RequireFromString("7")},
+	}
+	if diff := cmp.Diff(want, got, decimalEqual); diff != "" {
+		t.Errorf("ListDatedTransactions mismatch (-want +got):\n%s", diff)
+	}
 }

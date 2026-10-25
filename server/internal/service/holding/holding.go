@@ -4,8 +4,9 @@
 // through the caller's own keys, so another user's never contribute, and a
 // caller with none is answered with empty lists rather than not found. A
 // resolved key is summed into its instrument, and an unresolved one into the
-// group sharing its stated data. A holding carries the keys it sums. An
-// instrument holding also carries every listing of the instrument.
+// group sharing its stated data. A sum of zero is no holding. A holding
+// carries the keys it sums. An instrument holding also carries every listing
+// of the instrument.
 package holding
 
 import (
@@ -27,6 +28,7 @@ import (
 // Reader is this package's view of the holdings queries.
 type Reader interface {
 	ListInstrumentHoldings(ctx context.Context, userID uuid.UUID) ([]gen.ListInstrumentHoldingsRow, error)
+	ListInstrumentsByID(ctx context.Context, ids []uuid.UUID) ([]gen.Instrument, error)
 	ListIdentifiersOf(ctx context.Context, ids []uuid.UUID) ([]gen.Identifier, error)
 	ListListingNames(ctx context.Context, instrumentIds []uuid.UUID) ([]gen.ListListingNamesRow, error)
 	ListInstrumentNames(ctx context.Context, ids []uuid.UUID) ([]gen.InstrumentName, error)
@@ -74,12 +76,24 @@ func (s *Server) ListHoldings(ctx context.Context, _ *connect.Request[holdingv1.
 // with its name, identifiers, listings and keys.
 func (s *Server) instruments(ctx context.Context, user uuid.UUID, keys []gen.ListHoldingKeysRow) ([]*holdingv1.InstrumentHolding, error) {
 	rows, err := s.reader.ListInstrumentHoldings(ctx, user)
-	if err != nil || len(rows) == 0 {
+	if err != nil {
 		return nil, err
+	}
+	rows = slices.DeleteFunc(rows, func(r gen.ListInstrumentHoldingsRow) bool { return r.Quantity.IsZero() })
+	if len(rows) == 0 {
+		return nil, nil
 	}
 	ids := make([]uuid.UUID, len(rows))
 	for i, r := range rows {
 		ids[i] = r.InstrumentID
+	}
+	instruments, err := s.reader.ListInstrumentsByID(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	classOf := make(map[uuid.UUID]types.AssetClass, len(instruments))
+	for _, i := range instruments {
+		classOf[i.ID] = i.AssetClass
 	}
 	idents, err := s.reader.ListIdentifiersOf(ctx, ids)
 	if err != nil {
@@ -115,7 +129,7 @@ func (s *Server) instruments(ctx context.Context, user uuid.UUID, keys []gen.Lis
 	for _, r := range rows {
 		out = append(out, &holdingv1.InstrumentHolding{
 			InstrumentId: r.InstrumentID.String(),
-			AssetClass:   types.ToProto[typev1.AssetClass](r.AssetClass),
+			AssetClass:   types.ToProto[typev1.AssetClass](classOf[r.InstrumentID]),
 			Name:         nameOf[r.InstrumentID],
 			Identifiers:  named[r.InstrumentID],
 			Quantity:     r.Quantity.String(),
@@ -130,8 +144,12 @@ func (s *Server) instruments(ctx context.Context, user uuid.UUID, keys []gen.Lis
 // classes and identifiers its keys state, once each, and the keys.
 func (s *Server) groups(ctx context.Context, user uuid.UUID, keys []gen.ListHoldingKeysRow) ([]*holdingv1.GroupHolding, error) {
 	rows, err := s.reader.ListGroupHoldings(ctx, user)
-	if err != nil || len(rows) == 0 {
+	if err != nil {
 		return nil, err
+	}
+	rows = slices.DeleteFunc(rows, func(r gen.ListGroupHoldingsRow) bool { return r.Quantity.IsZero() })
+	if len(rows) == 0 {
+		return nil, nil
 	}
 	stated := make(map[uuid.UUID]*stating, len(rows))
 	for _, k := range keys {
