@@ -6,9 +6,10 @@
 // key whose association the user arbitrated is never selected, so a replay
 // never changes it.
 //
-// A new identifier fact replays the unresolved keys that state its ticker,
-// beneath the run that wrote it; see ReplayNewIdentifierFacts. A key with an
-// association is never replayed for a fact. A dated key takes the
+// A new identifier fact, or a withdrawn attestation, replays the unresolved
+// keys that state its ticker beneath the run that wrote it; see
+// ReplayNewIdentifierFacts. A key with an association is never replayed for a
+// fact. A dated key takes the
 // instrument its ticker names on each transaction's date when it is read, so
 // a new fact reaches its transactions without a replay.
 package replay

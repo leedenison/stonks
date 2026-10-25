@@ -113,6 +113,9 @@ func ProtoResolutionItem(k gen.StatedKey, r *gen.ResolutionKey) *typev1.Resoluti
 	if k.Arbiter != nil {
 		out.Arbiter = types.ToProto[typev1.Arbiter](*k.Arbiter)
 	}
+	if v, ok := AssociatedTicker(k); ok {
+		out.Ticker = v.ToProto()
+	}
 	return out
 }
 

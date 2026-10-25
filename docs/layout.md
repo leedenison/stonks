@@ -16,7 +16,7 @@
 ```
 proto/
   admin/block/v1/block.proto                      stonks.admin.block.v1           -- datasource blocks, across every user
-  admin/coverage/v1/coverage.proto                stonks.admin.coverage.v1        -- where each ticker's validity is confirmed and where it is not
+  admin/coverage/v1/coverage.proto                stonks.admin.coverage.v1        -- where each ticker's validity is confirmed, and attestations of what no datasource covers
   admin/datasource/v1/datasource.proto            stonks.admin.datasource.v1      -- the external providers and their settings
   admin/extend_validity/v1/extend_validity.proto  stonks.admin.extend_validity.v1 -- runs that extend the validity of held tickers, started by an administrator
   admin/instrument/v1/instrument.proto            stonks.admin.instrument.v1      -- every instrument, with its identifiers and listings

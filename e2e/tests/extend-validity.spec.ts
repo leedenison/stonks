@@ -11,12 +11,12 @@ import {
   adminInstrumentClient,
   adminRunClient,
   assertionItems,
+  coverageClient,
   extendValidityClient,
   fetchItems,
   runClient,
   statementClient,
 } from "../helpers/api";
-import { seedAttestation } from "../helpers/db";
 import { expect, test } from "../helpers/test";
 
 // The ticker the spec states. No other spec states PEP, so no other user
@@ -30,7 +30,7 @@ test("extends the validity of a held ticker on the day it runs", async ({
   seed,
 }) => {
   const { session } = await seed();
-  const { user: admin, session: adminSession } = await seed("admin");
+  const { session: adminSession } = await seed("admin");
   const statements = statementClient(session);
   const runs = runClient(session);
   const adminRuns = adminRunClient(adminSession);
@@ -80,9 +80,13 @@ test("extends the validity of a held ticker on the day it runs", async ({
     ),
   );
   expect(named).toHaveLength(1);
-  // A past assertion gives the run a bracket to extend. No surface
-  // shows validity, so the resolve dbtest asserts the bracket.
-  await seedAttestation(admin.id, pep, named[0].id, "2025-01-02");
+  // A past attestation gives the run a bracket to extend. No surface shows
+  // validity, so the resolve dbtest asserts the bracket.
+  await coverageClient(adminSession).attest({
+    ticker: pep,
+    names: { case: "instrumentId", value: named[0].id },
+    from: "2025-01-02",
+  });
 
   const started = (
     await extendValidityClient(adminSession).startExtendValidity({})

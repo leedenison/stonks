@@ -7,10 +7,15 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/google/uuid"
 
 	admincoveragev1 "github.com/leedenison/stonks/proto/admin/coverage/v1"
 	"github.com/leedenison/stonks/proto/admin/coverage/v1/admincoveragev1connect"
+	typev1 "github.com/leedenison/stonks/proto/type/v1"
+	"github.com/leedenison/stonks/server/internal/attest"
+	"github.com/leedenison/stonks/server/internal/auth"
 	reader "github.com/leedenison/stonks/server/internal/coverage"
+	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/to"
 	"github.com/leedenison/stonks/server/internal/types"
@@ -26,19 +31,28 @@ type Reader interface {
 
 var _ Reader = (*reader.Reader)(nil)
 
+// Attester is this package's view of the attest package.
+type Attester interface {
+	Start(ctx context.Context, admin uuid.UUID, v types.Identifier, instrument *uuid.UUID, from time.Time, to *time.Time) (gen.Run, error)
+	Withdraw(ctx context.Context, id uuid.UUID) error
+}
+
+var _ Attester = (*attest.Service)(nil)
+
 //go:generate go tool mockgen -source=coverage.go -destination=mock/coverage_mock.go -package=mock
 
 // Server implements CoverageService.
 type Server struct {
-	reader Reader
-	clock  func() time.Time
+	reader   Reader
+	attester Attester
+	clock    func() time.Time
 }
 
 var _ admincoveragev1connect.CoverageServiceHandler = (*Server)(nil)
 
 // New returns a Server.
-func New(reader Reader, clock func() time.Time) *Server {
-	return &Server{reader: reader, clock: clock}
+func New(reader Reader, attester Attester, clock func() time.Time) *Server {
+	return &Server{reader: reader, attester: attester, clock: clock}
 }
 
 // ListDomains lists the operating MICs on which keys with transactions state
@@ -70,12 +84,11 @@ func (s *Server) ListGaps(ctx context.Context, req *connect.Request[admincoverag
 
 // GetTicker reads one ticker's facts and validity.
 func (s *Server) GetTicker(ctx context.Context, req *connect.Request[admincoveragev1.GetTickerRequest]) (*connect.Response[admincoveragev1.GetTickerResponse], error) {
-	m := req.Msg.GetTicker()
-	typ, ok := types.FromProto[types.IdentifierType](m.GetType())
-	if !ok || typ == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("unknown identifier type"))
+	v, err := identifier(req.Msg.GetTicker())
+	if err != nil {
+		return nil, err
 	}
-	t, err := s.reader.Ticker(ctx, types.Identifier{Type: typ, Domain: m.GetDomain(), Value: m.GetValue()}, s.clock())
+	t, err := s.reader.Ticker(ctx, v, s.clock())
 	switch {
 	case errors.Is(err, validity.ErrNotTicker), errors.Is(err, validity.ErrSpelling):
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
@@ -83,4 +96,77 @@ func (s *Server) GetTicker(ctx context.Context, req *connect.Request[admincovera
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	return connect.NewResponse(&admincoveragev1.GetTickerResponse{Ticker: t.ToProto()}), nil
+}
+
+// Attest starts an attestation run, as the administrator calling.
+func (s *Server) Attest(ctx context.Context, req *connect.Request[admincoveragev1.AttestRequest]) (*connect.Response[admincoveragev1.AttestResponse], error) {
+	p, err := auth.Admin(ctx)
+	if err != nil {
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
+	}
+	m := req.Msg
+	v, err := identifier(m.GetTicker())
+	if err != nil {
+		return nil, err
+	}
+	var instrument *uuid.UUID
+	if id := m.GetInstrumentId(); id != "" {
+		parsed, err := uuid.Parse(id)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, err)
+		}
+		instrument = &parsed
+	}
+	from, err := time.Parse(time.DateOnly, m.GetFrom())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	var until *time.Time
+	if m.To != nil {
+		parsed, err := time.Parse(time.DateOnly, m.GetTo())
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, err)
+		}
+		until = &parsed
+	}
+	started, err := s.attester.Start(ctx, p.User.ID, v, instrument, from, until)
+	switch {
+	case errors.Is(err, validity.ErrFuture), errors.Is(err, attest.ErrRange):
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+	case errors.Is(err, validity.ErrNotTicker), errors.Is(err, validity.ErrSpelling):
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	case errors.Is(err, db.ErrNotFound):
+		return nil, connect.NewError(connect.CodeNotFound, err)
+	case err != nil:
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(&admincoveragev1.AttestResponse{Run: to.ProtoRun(started)}), nil
+}
+
+// WithdrawAttestation deletes an attested assertion.
+func (s *Server) WithdrawAttestation(ctx context.Context, req *connect.Request[admincoveragev1.WithdrawAttestationRequest]) (*connect.Response[admincoveragev1.WithdrawAttestationResponse], error) {
+	id, err := uuid.Parse(req.Msg.GetAssertionId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	err = s.attester.Withdraw(ctx, id)
+	switch {
+	case errors.Is(err, attest.ErrNotAttested):
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+	case errors.Is(err, db.ErrNotFound):
+		return nil, connect.NewError(connect.CodeNotFound, err)
+	case err != nil:
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(&admincoveragev1.WithdrawAttestationResponse{}), nil
+}
+
+// identifier reads a proto identifier; an unknown type is an invalid
+// argument.
+func identifier(m *typev1.Identifier) (types.Identifier, error) {
+	typ, ok := types.FromProto[types.IdentifierType](m.GetType())
+	if !ok || typ == "" {
+		return types.Identifier{}, connect.NewError(connect.CodeInvalidArgument, errors.New("unknown identifier type"))
+	}
+	return types.Identifier{Type: typ, Domain: m.GetDomain(), Value: m.GetValue()}, nil
 }

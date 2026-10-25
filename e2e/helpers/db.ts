@@ -101,37 +101,6 @@ export async function deleteUsers(ids: string[]): Promise<void> {
   }
 }
 
-// seedAttestation writes an administrator's assertion that a ticker names an
-// instrument on a past day, under a system attestation run, and returns the
-// run's id. No RPC asserts a past day, so SQL is the only route.
-export async function seedAttestation(
-  admin: string,
-  ticker: { domain: string; value: string },
-  instrument: string,
-  day: string,
-): Promise<string> {
-  const client = await db().connect();
-  try {
-    await client.query("BEGIN");
-    const run = await client.query<{ id: string }>(
-      "INSERT INTO runs (id, kind, trigger, state) VALUES (uuid_v7(), 'attestation', 'administrator', 'completed') RETURNING id",
-    );
-    const id = run.rows[0].id;
-    await client.query(
-      `INSERT INTO identifier_assertions (id, run_id, attested_by, type, domain, value, instrument_id, asserted_on)
-       VALUES (uuid_v7(), $1, $2, 'mic_ticker', $3, $4, $5, $6)`,
-      [id, admin, ticker.domain, ticker.value, instrument, day],
-    );
-    await client.query("COMMIT");
-    return id;
-  } catch (e) {
-    await client.query("ROLLBACK");
-    throw e;
-  } finally {
-    client.release();
-  }
-}
-
 export async function closeDB(): Promise<void> {
   await pool?.end();
   pool = null;

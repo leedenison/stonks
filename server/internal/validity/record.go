@@ -16,7 +16,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
-// RecordQueries is what Record and Attest query.
+// RecordQueries is what Record queries.
 type RecordQueries interface {
 	CreateIdentifierAssertion(ctx context.Context, arg gen.CreateIdentifierAssertionParams) error
 	CreateIdentifierEvent(ctx context.Context, arg gen.CreateIdentifierEventParams) (int64, error)
@@ -236,15 +236,17 @@ func create(ctx context.Context, q RecordQueries, family string, key uuid.UUID, 
 	return &inst.ID, nil
 }
 
-// Attest writes an administrator's assertion that v names instrument on the
-// day on, beneath run, which is a system run of kind attestation. A nil
-// instrument asserts that v names nothing. Attest refuses a run that is not a
-// system attestation run, an identifier that is not a MIC_TICKER of an operating MIC
-// in the system's spelling, a domain, and a day after today.
-func Attest(ctx context.Context, q RecordQueries, mics mic.MICMap, run gen.Run, admin uuid.UUID, v types.Identifier, instrument *uuid.UUID, on, today time.Time) error {
-	if run.Kind != gen.RunKindAttestation || run.UserID != nil {
-		return fmt.Errorf("run %s is no system attestation run", run.ID)
-	}
+// AttestQueries is what Attest queries.
+type AttestQueries interface {
+	CreateIdentifierAssertion(ctx context.Context, arg gen.CreateIdentifierAssertionParams) error
+}
+
+var _ AttestQueries = (*gen.Queries)(nil)
+
+// CheckAttest reports why an attestation of v on day on cannot be written:
+// ErrSpelling when v is not a ticker in the system's spelling, and ErrFuture
+// when on is after today.
+func CheckAttest(mics mic.MICMap, v types.Identifier, on, today time.Time) error {
 	if err := spelled(mics, v); err != nil {
 		return err
 	}
@@ -253,6 +255,19 @@ func Attest(ctx context.Context, q RecordQueries, mics mic.MICMap, run gen.Run, 
 	}
 	if types.Day(on).After(types.Day(today)) {
 		return fmt.Errorf("%s: %w", types.Day(on).Format(time.DateOnly), ErrFuture)
+	}
+	return nil
+}
+
+// Attest writes an administrator's assertion that v names instrument on the
+// day on, beneath run, which must be a system run of kind attestation. A nil
+// instrument asserts that v names nothing.
+func Attest(ctx context.Context, q AttestQueries, mics mic.MICMap, run gen.Run, admin uuid.UUID, v types.Identifier, instrument *uuid.UUID, on, today time.Time) error {
+	if run.Kind != gen.RunKindAttestation || run.UserID != nil {
+		return fmt.Errorf("run %s is not a system attestation run", run.ID)
+	}
+	if err := CheckAttest(mics, v, on, today); err != nil {
+		return err
 	}
 	arg := gen.CreateIdentifierAssertionParams{
 		ID: db.NewID(), RunID: &run.ID, AttestedBy: &admin, Type: v.Type, Domain: v.Domain, Value: v.Value,

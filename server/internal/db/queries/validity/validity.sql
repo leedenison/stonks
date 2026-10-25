@@ -145,3 +145,9 @@ WHERE EXISTS (
       AND coalesce(mics.operating_mic, stated.id->>'domain') = @domain::text
       AND stated.id->>'value' = @value::text)
 ORDER BY transactions.order_date, transactions.stated_key_id, transactions.id;
+
+-- name: GetIdentifierAssertion :one
+SELECT * FROM identifier_assertions WHERE id = $1;
+
+-- name: DeleteAttestedAssertion :execrows
+DELETE FROM identifier_assertions WHERE id = $1 AND run_id IS NOT NULL;

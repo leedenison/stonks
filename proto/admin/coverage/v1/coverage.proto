@@ -1,5 +1,5 @@
-// Where each ticker's validity is confirmed and where it is not, with the
-// assertions, events and coverage it rests on.
+// Where each ticker's validity is confirmed and where it is not, and
+// attestation of what no datasource covers.
 
 syntax = "proto3";
 
@@ -7,6 +7,7 @@ package stonks.admin.coverage.v1;
 
 import "admin/run/v1/run.proto";
 import "buf/validate/validate.proto";
+import "run/v1/run.proto";
 import "type/v1/type.proto";
 
 option go_package = "github.com/leedenison/stonks/proto/admin/coverage/v1;admincoveragev1";
@@ -128,7 +129,35 @@ message GetTickerResponse {
   Ticker ticker = 1;
 }
 
-// Reads where each ticker's validity is confirmed and where it is not.
+message AttestRequest {
+  // A MIC_TICKER at any venue; its domain is read as the operating MIC.
+  stonks.type.v1.Identifier ticker = 1 [(buf.validate.field).required = true];
+  // What the ticker names on each day.
+  oneof names {
+    option (buf.validate.oneof).required = true;
+    string instrument_id = 2 [(buf.validate.field).string.uuid = true];
+    // The ticker names nothing.
+    bool nothing = 3 [(buf.validate.field).bool.const = true];
+  }
+  // The day the assertion holds, as YYYY-MM-DD.
+  string from = 4 [(buf.validate.field).string.min_len = 1];
+  // A later day that takes an assertion of its own, as YYYY-MM-DD.
+  optional string to = 5;
+}
+
+message AttestResponse {
+  // The attestation run, pending.
+  stonks.run.v1.Run run = 1;
+}
+
+message WithdrawAttestationRequest {
+  string assertion_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message WithdrawAttestationResponse {}
+
+// Reads where each ticker's validity is confirmed, and attests what no
+// datasource covers.
 service CoverageService {
   // Lists the operating MICs on which keys with transactions state tickers.
   rpc ListDomains(ListDomainsRequest) returns (ListDomainsResponse);
@@ -137,4 +166,14 @@ service CoverageService {
   // Reads one ticker's facts and validity. An identifier that is not a
   // MIC_TICKER, or that names a domain, is refused as an invalid argument.
   rpc GetTicker(GetTickerRequest) returns (GetTickerResponse);
+  // Attests, as a system run, that the ticker names the instrument or names
+  // nothing on from, and on to where it is given. The assertions are written
+  // before the call returns, and the run replays the unresolved keys that
+  // state the ticker. A day after today, or a to before from, is a failed
+  // precondition.
+  rpc Attest(AttestRequest) returns (AttestResponse);
+  // Deletes an attested assertion and replays the unresolved keys that state
+  // its ticker beneath the run that wrote it, before it returns. A
+  // datasource's assertion is a failed precondition.
+  rpc WithdrawAttestation(WithdrawAttestationRequest) returns (WithdrawAttestationResponse);
 }
