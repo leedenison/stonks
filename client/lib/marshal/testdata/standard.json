@@ -1,0 +1,47 @@
+{
+  "broker": "BROKER_IBKR",
+  "orderFrom": "2024-01-01",
+  "orderBefore": "2025-01-01",
+  "rows": [
+    {
+      "key": {
+        "identifiers": [
+          {"type": "IDENTIFIER_TYPE_MIC_TICKER", "domain": "XNAS", "value": "META"}
+        ],
+        "assetClass": "ASSET_CLASS_STOCK",
+        "currency": "USD"
+      },
+      "orderDate": "2024-03-01",
+      "settlementDate": "2024-03-04",
+      "asAt": "2024-03-01",
+      "quantity": "10"
+    },
+    {
+      "key": {
+        "identifiers": [
+          {"type": "IDENTIFIER_TYPE_CURRENCY", "value": "USD"}
+        ],
+        "assetClass": "ASSET_CLASS_CASH",
+        "currency": "USD"
+      },
+      "orderDate": "2024-03-01",
+      "settlementDate": "2024-03-04",
+      "asAt": "2024-03-01",
+      "quantity": "-4950.25"
+    }
+  ],
+  "splits": [
+    {
+      "key": {
+        "identifiers": [
+          {"type": "IDENTIFIER_TYPE_MIC_TICKER", "domain": "XNAS", "value": "META"}
+        ],
+        "assetClass": "ASSET_CLASS_STOCK",
+        "currency": "USD"
+      },
+      "effectiveDate": "2024-06-10",
+      "quantity": "90",
+      "ratio": {"from": "1", "to": "10"}
+    }
+  ]
+}

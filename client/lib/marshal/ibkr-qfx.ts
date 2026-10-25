@@ -302,4 +302,4 @@ function recognise(input: string, type: string): boolean {
 }
 
 // The export date is not needed: every row is as at its order date.
-export const ibkrQfx = { marshal, recognise };
+export const ibkrQfx = { marshal, recognise, needsExportDate: false };

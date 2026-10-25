@@ -1,5 +1,5 @@
-// Builders for the messages of the neutral format, shared by every
-// marshaller. See proto/statement/v1/statement.proto for the format.
+// Builders for the messages of the neutral format, shared by the broker
+// marshallers. See proto/statement/v1/statement.proto for the format.
 
 import { create } from "@bufbuild/protobuf";
 import {

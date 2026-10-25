@@ -4,15 +4,19 @@ import { FileUp, LoaderCircle } from "lucide-react";
 import { type ChangeEvent, useEffect, useMemo, useState } from "react";
 import type { Run } from "@/gen/run/v1/run_pb";
 import type { Statement } from "@/gen/statement/v1/statement_pb";
-import { Broker } from "@/gen/type/v1/type_pb";
 import { useCreateStatement } from "@/hooks/use-create-statement";
 import { useDropTarget } from "@/hooks/use-drop-target";
-import { brokerLabel, brokers } from "@/lib/broker";
+import { brokerLabel, formatLabel } from "@/lib/broker";
 import { formatQuantity } from "@/lib/format";
 import { today } from "@/lib/marshal/date";
-import { recognisedBy } from "@/lib/marshal/marshal";
+import {
+  type Format,
+  formats,
+  marshallerFor,
+  recognisedBy,
+} from "@/lib/marshal/marshal";
 import { keyLabel } from "@/lib/rejections";
-import { needsExportDate, parseExport } from "@/lib/upload/parse";
+import { parseExport } from "@/lib/upload/parse";
 import { claim, type Period, period } from "@/lib/upload/period";
 import { refusal } from "@/lib/upload/refusal";
 import { Button } from "./button";
@@ -21,8 +25,7 @@ import { Input, Select } from "./input";
 import { Notice } from "./notice";
 import { Td, Th } from "./table";
 
-// The largest file taken, in bytes. A broker export is kilobytes; anything
-// larger is not one.
+// The largest file taken, in bytes. A year of trading fits in kilobytes.
 const maxBytes = 5 * 1024 * 1024;
 
 type Loaded = { name: string; type: string; text: string };
@@ -31,7 +34,8 @@ const oversize = (file: File) => file.size > maxBytes;
 const tooLarge = (file: File) => `${file.name} is too large.`;
 const unreadable = (file: File) => `${file.name} could not be read.`;
 
-// UploadDialog takes a broker's export from file to submitted statement.
+// UploadDialog takes a broker's export or a standard statement to a submitted
+// statement.
 // The dialog closes once the run is created and hands it to onCreated.
 export function UploadDialog({
   open,
@@ -51,8 +55,8 @@ export function UploadDialog({
   const [fileError, setFileError] = useState(() =>
     initial && oversize(initial) ? tooLarge(initial) : undefined,
   );
-  const [broker, setBroker] = useState<Broker>();
-  const [guesses, setGuesses] = useState<Broker[]>([]);
+  const [format, setFormat] = useState<Format>();
+  const [guesses, setGuesses] = useState<Format[]>([]);
   const [exportedOn, setExportedOn] = useState(today);
   const [chosen, setChosen] = useState<Period>();
   const created = useCreateStatement();
@@ -61,7 +65,7 @@ export function UploadDialog({
     const found = recognisedBy(text, file.type);
     setLoaded({ name: file.name, type: file.type, text });
     setGuesses(found);
-    setBroker(found.length === 1 ? found[0] : undefined);
+    setFormat(found.length === 1 ? found[0] : undefined);
     setChosen(undefined);
     setReading(false);
   };
@@ -112,10 +116,10 @@ export function UploadDialog({
 
   const parsed = useMemo(
     () =>
-      loaded && broker !== undefined
-        ? parseExport(loaded.text, broker, exportedOn)
+      loaded && format !== undefined
+        ? parseExport(loaded.text, format, exportedOn)
         : undefined,
-    [loaded, broker, exportedOn],
+    [loaded, format, exportedOn],
   );
   const statement = parsed?.statement;
   const span = statement ? period(statement, chosen) : undefined;
@@ -136,7 +140,7 @@ export function UploadDialog({
 
   const back = () => {
     setLoaded(undefined);
-    setBroker(undefined);
+    setFormat(undefined);
     setGuesses([]);
     setChosen(undefined);
     created.reset();
@@ -185,31 +189,33 @@ export function UploadDialog({
             <span className="font-medium text-text-primary">{loaded.name}</span>
             {" - "}
             {guesses.length === 0
-              ? "Not recognised: choose a broker"
-              : `Recognised as: ${guesses.map(brokerLabel).join(" or ")} export`}
+              ? "Not recognised: choose a format"
+              : `Recognised as: ${guesses.map(formatLabel).join(" or ")}`}
           </p>
           <label className="flex flex-col gap-1 text-sm">
-            <span className="text-text-muted">Broker</span>
+            <span className="text-text-muted">Format</span>
             <Select
-              data-testid="upload-broker"
-              value={broker ?? ""}
+              data-testid="upload-format"
+              value={format ?? ""}
               onChange={(e) => {
-                setBroker(
-                  e.target.value === "" ? undefined : Number(e.target.value),
+                setFormat(
+                  e.target.value === ""
+                    ? undefined
+                    : (e.target.value as Format),
                 );
                 setChosen(undefined);
                 created.reset();
               }}
             >
-              <option value="">Choose a broker</option>
-              {brokers.map((b) => (
-                <option key={b} value={b}>
-                  {brokerLabel(b)}
+              <option value="">Choose a format</option>
+              {formats.map((f) => (
+                <option key={f} value={f}>
+                  {formatLabel(f)}
                 </option>
               ))}
             </Select>
           </label>
-          {broker !== undefined && needsExportDate(broker) && (
+          {format !== undefined && marshallerFor(format).needsExportDate && (
             <label className="flex flex-col gap-1 text-sm">
               <span className="text-text-muted">
                 Date the data was exported
@@ -229,6 +235,12 @@ export function UploadDialog({
           )}
           {statement && span && (
             <>
+              {format === "standard" && (
+                <p data-testid="upload-stated-broker" className="text-sm">
+                  <span className="text-text-muted">Broker </span>
+                  {brokerLabel(statement.broker)}
+                </p>
+              )}
               <p data-testid="upload-rows" className="text-sm">
                 <span className="font-mono tabular-nums">
                   {statement.rows.length}
@@ -308,7 +320,10 @@ function Choose({
         className="flex cursor-pointer flex-col items-center gap-2 rounded-md border border-dashed border-border px-6 py-10 text-center text-sm text-text-muted transition-colors hover:bg-primary-light/15 data-over:bg-primary-light/15"
       >
         <FileUp aria-hidden className="h-6 w-6" />
-        <span>Drop the broker&apos;s export here, or choose a file.</span>
+        <span>
+          Drop a broker&apos;s export or a standard statement here, or choose a
+          file.
+        </span>
         <input
           type="file"
           data-testid="upload-file"

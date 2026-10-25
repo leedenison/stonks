@@ -57,7 +57,9 @@ message StatedSplit {
   SplitRatio ratio = 4;
 }
 
-// A statement in the neutral format, as a client submits it.
+// A statement in the neutral format, as a client submits it. In the standard
+// statement format a client holds this message as one JSON document in its
+// protojson encoding.
 message Statement {
   option (buf.validate.message).cel = {
     id: "statement.period"
