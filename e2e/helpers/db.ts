@@ -101,6 +101,13 @@ export async function deleteUsers(ids: string[]): Promise<void> {
   }
 }
 
+// deleteRuns removes system runs and everything beneath them. Withdrawing an
+// attestation removes the only assertion that names the administrator, so
+// deleteUsers cannot find the run. No RPC deletes a run.
+export async function deleteRuns(ids: string[]): Promise<void> {
+  await db().query("DELETE FROM runs WHERE id = ANY($1)", [ids]);
+}
+
 export async function closeDB(): Promise<void> {
   await pool?.end();
   pool = null;

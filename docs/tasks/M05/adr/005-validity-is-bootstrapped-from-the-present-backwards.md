@@ -15,9 +15,8 @@ Resolution builds it in three bands:
    validity.
 
 An administrator closes a gap with an assertion on the gap's first day. That
-assertion brackets the provider's first assertion. See
-[006](006-an-administrator-attests-what-no-datasource-covers.md). A gap shrinks when a
-subscription with a longer window is enabled and the key is replayed.
+assertion brackets the provider's first assertion. A gap shrinks when a subscription
+with a longer window is enabled and the key is replayed.
 
 A ticker on a venue that no event provider covers has a gap from its earliest transaction
 to its first assertion. Its keys still resolve, and the statement details page marks them

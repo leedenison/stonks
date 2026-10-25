@@ -3,6 +3,7 @@
 import { Code, ConnectError } from "@connectrpc/connect";
 import { useParams } from "next/navigation";
 import { useState } from "react";
+import { AttestDialog } from "@/app/components/attest-dialog";
 import { Button } from "@/app/components/button";
 import { Chip } from "@/app/components/chip";
 import { Notice } from "@/app/components/notice";
@@ -13,7 +14,17 @@ import { Section } from "@/app/components/section";
 import { Skeleton } from "@/app/components/skeleton";
 import { StateChip } from "@/app/components/state-chip";
 import { StatementTransactions } from "@/app/components/statement-transactions";
-import { Arbiter, type ResolutionItem } from "@/gen/type/v1/type_pb";
+import { Role } from "@/gen/auth/v1/auth_pb";
+import {
+  type Transaction,
+  TransactionMark,
+} from "@/gen/statement/v1/statement_pb";
+import {
+  Arbiter,
+  type Identifier,
+  type ResolutionItem,
+} from "@/gen/type/v1/type_pb";
+import { useAuth } from "@/contexts/auth-context";
 import { useStatement } from "@/hooks/use-statement";
 import { brokerLabel } from "@/lib/broker";
 import { formatInstant } from "@/lib/format";
@@ -27,6 +38,13 @@ import { CandidatesDialog } from "./candidates-dialog";
 export default function StatementPage() {
   const { id } = useParams<{ id: string }>();
   const { data, isPending, error, refetch } = useStatement(id);
+  const { state } = useAuth();
+  const admin =
+    state.status === "authenticated" && state.user.role === Role.ADMIN;
+  const [attesting, setAttesting] = useState<{
+    ticker: Identifier;
+    from: string;
+  } | null>(null);
   const s = data?.statement;
   const title = s?.run?.createdAt
     ? `${brokerLabel(s.broker)} upload @ ${formatInstant(s.run.createdAt)}`
@@ -99,6 +117,34 @@ export default function StatementPage() {
               transactions={data.transactions}
               keys={data.keys}
               live={!isTerminal(data.statement.run?.state)}
+              action={
+                admin
+                  ? (t, key) =>
+                      key?.ticker && attestable(t) ? (
+                        <Button
+                          variant="secondary"
+                          data-testid={`transaction-attest-${t.id}`}
+                          onClick={() =>
+                            key.ticker &&
+                            setAttesting({
+                              ticker: key.ticker,
+                              from: t.orderDate,
+                            })
+                          }
+                        >
+                          Attest
+                        </Button>
+                      ) : null
+                  : undefined
+              }
+            />
+          )}
+          {attesting && (
+            <AttestDialog
+              ticker={attesting.ticker}
+              from={attesting.from}
+              onClose={() => setAttesting(null)}
+              onDone={() => setAttesting(null)}
             />
           )}
         </>
@@ -129,6 +175,15 @@ function Body({
         <Section title={`Rejected rows (${rejected})`}>{children}</Section>
       );
   }
+}
+
+// Only a provisional or unresolved mark leaves a day an administrator can
+// settle.
+function attestable(t: Transaction): boolean {
+  return (
+    t.mark === TransactionMark.PROVISIONAL ||
+    t.mark === TransactionMark.UNRESOLVED
+  );
 }
 
 // choosable reports whether the user may choose an instrument for k. That

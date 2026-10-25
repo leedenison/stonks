@@ -5,11 +5,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   CoverageService,
   GetTickerResponseSchema,
+  WithdrawAttestationResponseSchema,
   ListDomainsResponseSchema,
   ListGapsResponseSchema,
   TickerSchema,
   Validity,
 } from "@/gen/admin/coverage/v1/coverage_pb";
+import {
+  InstrumentService,
+  ListInstrumentsResponseSchema,
+} from "@/gen/admin/instrument/v1/instrument_pb";
 import { AssertionItemSchema } from "@/gen/admin/run/v1/run_pb";
 import { Role } from "@/gen/auth/v1/auth_pb";
 import { IdentifierType } from "@/gen/type/v1/type_pb";
@@ -116,6 +121,9 @@ function serving(impl: Impl) {
       getTicker: () => read,
       ...impl,
     });
+    service(InstrumentService, {
+      listInstruments: () => create(ListInstrumentsResponseSchema, {}),
+    });
   });
 }
 
@@ -218,6 +226,43 @@ describe("CoveragePage", () => {
       "every ticker of XNAS",
     );
     expect(screen.queryByTestId("ticker-events")).toBeNull();
+  });
+
+  it("attests from a gap, from the action bar, and withdraws an attestation", async () => {
+    params = new URLSearchParams("domain=XNAS&value=ACME");
+    const withdrawn: string[] = [];
+    const withdrawAttestation: ServiceImpl<
+      typeof CoverageService
+    >["withdrawAttestation"] = (req) => {
+      withdrawn.push(req.assertionId);
+      return create(WithdrawAttestationResponseSchema, {});
+    };
+    renderWithAuth(<CoveragePage />, serving({ withdrawAttestation }));
+    await waitFor(() =>
+      expect(screen.getByTestId("pane-gap-2024-02-01")).toBeTruthy(),
+    );
+    fireEvent.click(screen.getByTestId("gap-attest-2024-02-01"));
+    expect((screen.getByTestId("attest-from") as HTMLInputElement).value).toBe(
+      "2024-02-01",
+    );
+    fireEvent.click(screen.getByTestId("attest-dialog-close"));
+    expect(screen.queryByTestId("attest-dialog")).toBeNull();
+
+    fireEvent.click(screen.getByTestId("coverage-attest"));
+    const from = screen.getByTestId("attest-from") as HTMLInputElement;
+    expect(from.value).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    fireEvent.click(screen.getByTestId("attest-dialog-close"));
+
+    expect(screen.queryByTestId("assertion-withdraw-a1")).toBeNull();
+    fireEvent.click(screen.getByTestId("assertion-withdraw-a2"));
+    expect(screen.getByTestId("withdraw-dialog").textContent).toContain(
+      "2026-01-01",
+    );
+    fireEvent.click(screen.getByTestId("withdraw-confirm"));
+    await waitFor(() =>
+      expect(screen.queryByTestId("withdraw-dialog")).toBeNull(),
+    );
+    expect(withdrawn).toEqual(["a2"]);
   });
 
   it("retries after a failure", async () => {

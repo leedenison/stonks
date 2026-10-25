@@ -949,3 +949,82 @@ interactions:
         status: 200 OK
         code: 200
         duration: 1.097014846s
+    - id: 12
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 54
+        host: ""
+        request_uri: /v3/mapping
+        body: '[{"idType":"TICKER","idValue":"WMT","currency":"USD"}]'
+        headers:
+            Content-Type:
+                - application/json
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://api.openfigi.com/v3/mapping
+        method: POST
+      response:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        transfer_encoding:
+            - chunked
+        content_length: 6783
+        uncompressed: true
+        body: '[{"data":[{"figi":"BBG000BWXBC2","name":"WALMART INC","ticker":"WMT","exchCode":"US","compositeFIGI":"BBG000BWXBC2","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5XH92","securityType2":"Common Stock","securityDescription":"WMT"},{"figi":"BBG000BWXBV1","name":"WALMART INC","ticker":"WMT","exchCode":"UA","compositeFIGI":"BBG000BWXBC2","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5XH92","securityType2":"Common Stock","securityDescription":"WMT"},{"figi":"BBG000BWXC03","name":"WALMART INC","ticker":"WMT","exchCode":"UC","compositeFIGI":"BBG000BWXBC2","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5XH92","securityType2":"Common Stock","securityDescription":"WMT"},{"figi":"BBG000BWXCP6","name":"WALMART INC","ticker":"WMT","exchCode":"UN","compositeFIGI":"BBG000BWXBC2","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5XH92","securityType2":"Common Stock","securityDescription":"WMT"},{"figi":"BBG000BWXDG4","name":"WALMART INC","ticker":"WMT","exchCode":"UP","compositeFIGI":"BBG000BWXBC2","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5XH92","securityType2":"Common Stock","securityDescription":"WMT"},{"figi":"BBG000BWXF24","name":"WALMART INC","ticker":"WMT","exchCode":"UB","compositeFIGI":"BBG000BWXBC2","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5XH92","securityType2":"Common Stock","securityDescription":"WMT"},{"figi":"BBG000BWXGJ4","name":"WALMART INC","ticker":"WMT","exchCode":"UM","compositeFIGI":"BBG000BWXBC2","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5XH92","securityType2":"Common Stock","securityDescription":"WMT"},{"figi":"BBG000BWXGW9","name":"WALMART INC","ticker":"WMT","exchCode":"UX","compositeFIGI":"BBG000BWXBC2","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5XH92","securityType2":"Common Stock","securityDescription":"WMT"},{"figi":"BBG000BWXKJ5","name":"WALMART INC","ticker":"WMT","exchCode":"UD","compositeFIGI":"BBG000BWXBC2","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5XH92","securityType2":"Common Stock","securityDescription":"WMT"},{"figi":"BBG000BWXLK1","name":"WALMART INC","ticker":"WMT","exchCode":"UW","compositeFIGI":"BBG000BWXBC2","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5XH92","securityType2":"Common Stock","securityDescription":"WMT"},{"figi":"BBG000BWXM29","name":"WALMART INC","ticker":"WMT","exchCode":"UF","compositeFIGI":"BBG000BWXBC2","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5XH92","securityType2":"Common Stock","securityDescription":"WMT"},{"figi":"BBG000BWXM74","name":"WALMART INC","ticker":"WMT","exchCode":"VY","compositeFIGI":"BBG000BWXBC2","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5XH92","securityType2":"Common Stock","securityDescription":"WMT"},{"figi":"BBG000BWXMF5","name":"WALMART INC","ticker":"WMT","exchCode":"VJ","compositeFIGI":"BBG000BWXBC2","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5XH92","securityType2":"Common Stock","securityDescription":"WMT"},{"figi":"BBG000BWXMN6","name":"WALMART INC","ticker":"WMT","exchCode":"VK","compositeFIGI":"BBG000BWXBC2","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5XH92","securityType2":"Common Stock","securityDescription":"WMT"},{"figi":"BBG000J5NSR1","name":"WALMART INC","ticker":"WMT","exchCode":"PE","compositeFIGI":"BBG000J5MQZ7","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5XH92","securityType2":"Common Stock","securityDescription":"WMT"},{"figi":"BBG0013RVLY6","name":"WALMART INC","ticker":"WMT","exchCode":null,"compositeFIGI":null,"securityType":"U.S. CP","marketSector":"M-Mkt","shareClassFIGI":null,"securityType2":"CP","securityDescription":"WMT CP"},{"figi":"BBG0032FLPT7","name":"WALMART INC","ticker":"WMT","exchCode":"CI","compositeFIGI":"BBG0032FLPT7","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5XH92","securityType2":"Common Stock","securityDescription":"WMT"},{"figi":"BBG0032FLPV4","name":"WALMART INC","ticker":"WMT","exchCode":"CC","compositeFIGI":"BBG0032FLPT7","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5XH92","securityType2":"Common Stock","securityDescription":"WMT"},{"figi":"BBG0032FLPW3","name":"WALMART INC","ticker":"WMT","exchCode":"CE","compositeFIGI":"BBG0032FLPT7","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5XH92","securityType2":"Common Stock","securityDescription":"WMT"},{"figi":"BBG00DJCZ6C9","name":"WALMART INC","ticker":"WMT","exchCode":"VF","compositeFIGI":"BBG000BWXBC2","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5XH92","securityType2":"Common Stock","securityDescription":"WMT"},{"figi":"BBG00THD5XN6","name":"WALMART INC","ticker":"WMT","exchCode":"VL","compositeFIGI":"BBG000BWXBC2","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5XH92","securityType2":"Common Stock","securityDescription":"WMT"},{"figi":"BBG00X1L9QN7","name":"WALMART INC","ticker":"WMT","exchCode":"VG","compositeFIGI":"BBG000BWXBC2","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5XH92","securityType2":"Common Stock","securityDescription":"WMT"},{"figi":"BBG00X1PR0P3","name":"WALMART INC","ticker":"WMT","exchCode":"VP","compositeFIGI":"BBG000BWXBC2","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5XH92","securityType2":"Common Stock","securityDescription":"WMT"},{"figi":"BBG01V7W3CF6","name":"WALMART INC","ticker":"WMT","exchCode":"OC","compositeFIGI":"BBG000BWXBC2","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5XH92","securityType2":"Common Stock","securityDescription":"WMT"},{"figi":"BBG01X4JDBP4","name":"WALMART INC","ticker":"WMT","exchCode":"OD","compositeFIGI":"BBG000BWXBC2","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5XH92","securityType2":"Common Stock","securityDescription":"WMT"},{"figi":"BBG021C06HH9","name":"WALMART INC","ticker":"WMT","exchCode":"VT","compositeFIGI":"BBG000BWXBC2","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5XH92","securityType2":"Common Stock","securityDescription":"WMT"},{"figi":"BBG024Y074P8","name":"WALMART INC","ticker":"WMT","exchCode":"ER","compositeFIGI":"BBG024Y074N0","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5XH92","securityType2":"Common Stock","securityDescription":"WMT"}]}]'
+        headers:
+            Cache-Control:
+                - private, no-cache, no-store, must-revalidate
+            Content-Security-Policy:
+                - 'default-src ''self'';base-uri ''self'';font-src ''self'' https: data:;form-action ''self'';frame-ancestors ''self'';img-src ''self'' data:;object-src ''none'';script-src ''self'';script-src-attr ''none'';style-src ''self'' https: ''unsafe-inline'';upgrade-insecure-requests'
+            Content-Type:
+                - application/json; charset=utf-8
+            Cross-Origin-Opener-Policy:
+                - same-origin
+            Cross-Origin-Resource-Policy:
+                - same-origin
+            Date:
+                - Sun, 25 Oct 2026 09:24:30 GMT
+            Expires:
+                - "0"
+            Origin-Agent-Cluster:
+                - ?1
+            Pragma:
+                - no-cache
+            Ratelimit-Limit:
+                - "250"
+            Ratelimit-Policy:
+                - 250;w=60
+            Ratelimit-Remaining:
+                - "249"
+            Ratelimit-Reset:
+                - "60"
+            Referrer-Policy:
+                - no-referrer
+            Server:
+                - istio-envoy
+            Strict-Transport-Security:
+                - max-age=31536000; includeSubDomains
+            Vary:
+                - Origin, Accept-Encoding
+            X-Content-Type-Options:
+                - nosniff
+            X-Dns-Prefetch-Control:
+                - 'off'
+            X-Download-Options:
+                - noopen
+            X-Envoy-Upstream-Service-Time:
+                - "72"
+            X-Frame-Options:
+                - SAMEORIGIN
+            X-Permitted-Cross-Domain-Policies:
+                - none
+            X-Request-Id:
+                - e33d61a8-e499-42dd-a564-0661cf3a30dd
+            X-Xss-Protection:
+                - "0"
+        status: 200 OK
+        code: 200
+        duration: 494.059766ms
