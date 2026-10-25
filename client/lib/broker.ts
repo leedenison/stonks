@@ -1,6 +1,8 @@
-import { Broker } from "@/gen/type/v1/type_pb";
+// Labels for brokers and formats as they are shown to the user.
 
-// brokerLabel names a broker as it is shown to the user.
+import { Broker } from "@/gen/type/v1/type_pb";
+import type { Format } from "@/lib/marshal/marshal";
+
 export function brokerLabel(broker: Broker): string {
   switch (broker) {
     case Broker.IBKR:
@@ -14,5 +16,15 @@ export function brokerLabel(broker: Broker): string {
   }
 }
 
-// The brokers whose statements a user can upload, in the order offered.
-export const brokers = [Broker.IBKR, Broker.SCHWAB, Broker.FIDELITY_UK];
+export function formatLabel(format: Format): string {
+  switch (format) {
+    case "ibkr":
+      return "IBKR export";
+    case "schwab":
+      return "Schwab export";
+    case "fidelity_uk":
+      return "Fidelity UK export";
+    case "standard":
+      return "Standard format";
+  }
+}

@@ -234,4 +234,4 @@ function recognise(text: string, type: string): boolean {
   return header === COLUMNS.map((c) => `"${c}"`).join(",");
 }
 
-export const schwab: Marshaller = { marshal, recognise };
+export const schwab: Marshaller = { marshal, recognise, needsExportDate: true };

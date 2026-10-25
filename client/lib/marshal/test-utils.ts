@@ -11,8 +11,8 @@ import {
 } from "@/gen/type/v1/type_pb";
 import { type Row, RowSchema } from "@/gen/statement/v1/statement_pb";
 
-// Test support. Every fixture under testdata/ is modelled on a real export
-// with its account, reference and free-text identifiers replaced.
+// Test support. Every broker export under testdata/ is modelled on a real
+// export with its account, reference and free-text identifiers replaced.
 
 // fixture reads a file under testdata/. The path is taken from the working
 // directory, the client root under vitest, because import.meta.url of a

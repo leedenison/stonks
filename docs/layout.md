@@ -60,8 +60,8 @@ client/
   contexts/             React context providers, one file per concern
   hooks/                shared hooks
   lib/                  the transport, the typed clients, and pure utilities
-    marshal/            the marshallers translating broker exports into the neutral format
-    upload/             parsing an export chosen in the browser
+    marshal/            the marshallers reading broker exports and the standard format into the neutral format
+    upload/             parsing a file chosen in the browser
   public/               static files served at /
   gen/                  protobuf-es output (generated, gitignored)
 ```

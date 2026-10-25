@@ -8,7 +8,6 @@ import {
   CreateStatementResponseSchema,
   StatementService,
 } from "@/gen/statement/v1/statement_pb";
-import { Broker } from "@/gen/type/v1/type_pb";
 import { fixture } from "@/lib/marshal/test-utils";
 import { liveSession, renderWithAuth, transportWith } from "@/lib/test-utils";
 import { UploadDialog } from "./upload-dialog";
@@ -34,7 +33,7 @@ function choose(name: string, type: string, text: string) {
   });
 }
 
-const select = () => screen.getByTestId("upload-broker") as HTMLSelectElement;
+const select = () => screen.getByTestId("upload-format") as HTMLSelectElement;
 const input = (id: string) => screen.getByTestId(id) as HTMLInputElement;
 
 describe("UploadDialog", () => {
@@ -44,9 +43,7 @@ describe("UploadDialog", () => {
       serving(() => pending),
     );
     choose("activity.csv", "text/csv", fixture("fidelity-uk.csv"));
-    await waitFor(() =>
-      expect(select().value).toBe(String(Broker.FIDELITY_UK)),
-    );
+    await waitFor(() => expect(select().value).toBe("fidelity_uk"));
     expect(screen.getByTestId("upload-rows").textContent).toContain("11 rows");
     expect(screen.getByTestId("upload-recognised").textContent).toBe(
       "activity.csv - Recognised as: Fidelity UK export",
@@ -69,7 +66,7 @@ describe("UploadDialog", () => {
       serving(createStatement),
     );
     choose("history.csv", "text/csv", fixture("schwab.csv"));
-    await waitFor(() => expect(select().value).toBe(String(Broker.SCHWAB)));
+    await waitFor(() => expect(select().value).toBe("schwab"));
     fireEvent.change(input("upload-exported-on"), {
       target: { value: "2025-01-15" },
     });
@@ -113,12 +110,12 @@ describe("UploadDialog", () => {
     await waitFor(() => expect(select()).toBeTruthy());
     expect(select().value).toBe("");
     expect(screen.getByTestId("upload-recognised").textContent).toBe(
-      "notes.txt - Not recognised: choose a broker",
+      "notes.txt - Not recognised: choose a format",
     );
     expect(
       screen.queryByTestId("upload-submit")?.hasAttribute("disabled"),
     ).toBe(true);
-    fireEvent.change(select(), { target: { value: String(Broker.IBKR) } });
+    fireEvent.change(select(), { target: { value: "ibkr" } });
     await waitFor(() =>
       expect(screen.getByTestId("upload-error")).toBeTruthy(),
     );
@@ -216,6 +213,60 @@ describe("UploadDialog", () => {
       />,
       serving(() => pending),
     );
-    await waitFor(() => expect(select().value).toBe(String(Broker.SCHWAB)));
+    await waitFor(() => expect(select().value).toBe("schwab"));
+  });
+
+  it("recognises a standard statement and shows the broker it states", async () => {
+    const createStatement = vi.fn<
+      (req: CreateStatementRequest) => typeof pending
+    >(() => pending);
+    renderWithAuth(
+      <UploadDialog open onClose={() => {}} />,
+      serving(createStatement),
+    );
+    choose("mine.json", "application/json", fixture("standard.json"));
+    await waitFor(() => expect(select().value).toBe("standard"));
+    expect(screen.getByTestId("upload-recognised").textContent).toBe(
+      "mine.json - Recognised as: Standard format",
+    );
+    expect(screen.getByTestId("upload-stated-broker").textContent).toBe(
+      "Broker IBKR",
+    );
+    expect(screen.queryByTestId("upload-exported-on")).toBeNull();
+    expect(screen.getByTestId("upload-rows").textContent).toBe(
+      "2 rows and 1 stated splits",
+    );
+    expect(input("upload-from").value).toBe("2024-01-01");
+    expect(input("upload-to").value).toBe("2024-12-31");
+    fireEvent.click(screen.getByTestId("upload-submit"));
+    await waitFor(() => expect(createStatement).toHaveBeenCalledTimes(1));
+    const sent = createStatement.mock.calls[0]?.[0].statement;
+    expect(sent?.rows[0]?.asAt).toBe("2024-03-01");
+    expect(sent?.orderBefore).toBe("2025-01-01");
+  });
+
+  it("shows the parser's message for a standard statement it cannot read", async () => {
+    renderWithAuth(
+      <UploadDialog open onClose={() => {}} />,
+      serving(() => pending),
+    );
+    choose(
+      "mine.json",
+      "application/json",
+      JSON.stringify({ broker: "BROKER_IBKR", foo: 1 }),
+    );
+    await waitFor(() => expect(select()).toBeTruthy());
+    expect(screen.getByTestId("upload-recognised").textContent).toBe(
+      "mine.json - Not recognised: choose a format",
+    );
+    fireEvent.change(select(), { target: { value: "standard" } });
+    await waitFor(() =>
+      expect(screen.getByTestId("upload-error").textContent).toContain(
+        'key "foo" is unknown',
+      ),
+    );
+    expect(
+      screen.queryByTestId("upload-submit")?.hasAttribute("disabled"),
+    ).toBe(true);
   });
 });
