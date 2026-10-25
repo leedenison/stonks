@@ -65,8 +65,9 @@ states how it tolerates a temporary or permanent absence of its data.
 
 ## Sketch
 
-Holdings and valuation read a per instrument summary of coverage and validity maintained
-at ingest, not the fetch tables. The summary is rebuilt from the fetch tables.
+Holdings derive validity from the fact tables at each read. A per instrument summary of
+coverage and validity, maintained at ingest and rebuilt from the fetch tables, would serve
+holdings and valuation once the derivation costs too much.
 
 ## Undecided
 

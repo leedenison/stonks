@@ -1,6 +1,9 @@
-// Package group gathers a user's unresolved keys into the holdings that sum
-// them. Where two keys a transaction names share a joining identifier, they
-// are one holding, transitively, named by the earliest key.
+// Package group gathers a user's keys without an instrument into the
+// holdings that sum them. Where two keys a transaction names share a joining
+// identifier, they are one holding, transitively, named by the earliest key.
+// A dated key joins a group on its stated identifiers, as an unresolved key
+// does. The group sums only the transactions made on days when the key's
+// ticker names nothing.
 package group
 
 import (

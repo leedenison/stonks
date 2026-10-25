@@ -87,8 +87,8 @@ but when a corporate event affects cached, adjusted values, the system also inva
 and recomputes them.
 
 An adjusted quantity is shown only where coverage spans the period an instrument was
-held, and the raw quantity elsewhere.  Holdings read a per instrument summary of coverage
-maintained at ingest.
+held, and the raw quantity elsewhere.  Holdings read coverage from the fact tables, or
+from a per instrument summary maintained at ingest once that costs too much.
 
 ## Sketch
 

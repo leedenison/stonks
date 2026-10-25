@@ -11,6 +11,7 @@ import {
   adminInstrumentClient,
   adminRunClient,
   fetchItems,
+  holdingClient,
   runClient,
   statementClient,
 } from "../helpers/api";
@@ -25,7 +26,8 @@ import { expect, test } from "../helpers/test";
 // identity fetch, and asks Massive for the value on that day alone. The day
 // sits before 2021-06-30, when a fund took the ticker, so Massive answers
 // that META was not in use. The statement details page marks the 2024
-// transaction confirmed and the 2021 one unresolved.
+// transaction confirmed and the 2021 one unresolved. Holdings sum the 2024
+// transaction into Meta and the 2021 one into the key's group.
 const meta = { type: IdentifierType.MIC_TICKER, domain: "XNAS", value: "META" };
 const composite = "BBG000MM2P62";
 
@@ -100,6 +102,39 @@ test("dates a key through its ticker and marks each transaction by its day", asy
       state,
     );
   }
+
+  // Holdings give each transaction the instrument META named on its day.
+  const held = await holdingClient(session).listHoldings({});
+  expect(held.instruments).toHaveLength(1);
+  const [metaHolding] = held.instruments;
+  expect(metaHolding.name).toMatchObject(meta);
+  expect(metaHolding.quantity).toBe("10");
+  const usd = metaHolding.listings.find((l) => l.currency === "USD");
+  expect(usd).toBeDefined();
+  expect(metaHolding.keys.map((k) => [k.quantity, k.listingId])).toEqual([
+    ["10", usd!.id],
+  ]);
+  expect(held.groups).toHaveLength(1);
+  const [metaGroup] = held.groups;
+  expect(metaGroup.quantity).toBe("10");
+  expect(metaGroup.identifiers).toEqual([expect.objectContaining(meta)]);
+  expect(metaGroup.keys.map((k) => k.quantity)).toEqual(["10"]);
+
+  await page.goto("/holdings");
+  const table = page.getByTestId("holdings-table");
+  const metaRow = table.getByTestId(`holding-row-${metaHolding.instrumentId}`);
+  await expect(metaRow).toHaveAttribute("data-kind", "instrument");
+  await expect(metaRow).toContainText("META");
+  await expect(
+    metaRow.getByTestId(`holding-venue-${metaHolding.instrumentId}`),
+  ).toHaveText("Nasdaq");
+  const groupRow = table.getByTestId(`holding-row-${metaGroup.groupId}`);
+  await expect(groupRow).toHaveAttribute("data-kind", "group");
+  await expect(groupRow).toContainText("META");
+  await expect(groupRow.getByTestId("holding-basis")).toHaveAttribute(
+    "data-state",
+    "unidentified",
+  );
 
   // The identifier events fetch is the Massive run whose items name no key.
   const eventsOf = async (runId: string) => {
