@@ -34,7 +34,7 @@ func metaFacts() validity.Facts {
 			{At: notFoundOn, Source: massive},
 		},
 		Events:   []validity.Event{{On: renamed}},
-		Coverage: []types.Period{{From: renamed, Before: coveredTo}},
+		Coverage: []validity.Coverage{{Period: types.Period{From: renamed, Before: coveredTo}, Datasource: "massive"}},
 	}
 }
 

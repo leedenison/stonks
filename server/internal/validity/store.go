@@ -140,7 +140,7 @@ func (r Rows) Facts() Facts {
 		f.Events = append(f.Events, Event{On: e.EffectiveOn, FetchKey: e.FetchKeyID})
 	}
 	for _, c := range r.Coverage {
-		f.Coverage = append(f.Coverage, types.Period{From: c.CoveredFrom, Before: c.CoveredBefore})
+		f.Coverage = append(f.Coverage, Coverage{Period: types.Period{From: c.CoveredFrom, Before: c.CoveredBefore}, Datasource: c.Datasource, FetchKey: c.FetchKeyID})
 	}
 	return f
 }

@@ -41,6 +41,13 @@ func provisional(from, before *time.Time, inst uuid.UUID) Interval {
 
 func cover(from, before int) types.Period { return types.Period{From: d(from), Before: d(before)} }
 
+// coverageFetchKey is the fetch key of every coverage row a test states.
+var coverageFetchKey = uuid.MustParse("00000000-0000-0000-0000-0000000000c0")
+
+func covered(from, before int) Coverage {
+	return Coverage{Period: cover(from, before), Datasource: "alpha", FetchKey: coverageFetchKey}
+}
+
 // eventFetchKey is the fetch key of every event a test states.
 var eventFetchKey = uuid.MustParse("00000000-0000-0000-0000-0000000000e0")
 
@@ -54,6 +61,7 @@ func TestDerive(t *testing.T) {
 		wantInferred      []Inferred
 		wantDisagreements []Disagreement
 		wantBroken        []BrokenBracket
+		wantMissed        []MissedEvent
 	}{
 		{
 			name:  "an assertion confirms its own day and nothing either side",
@@ -67,7 +75,7 @@ func TestDerive(t *testing.T) {
 		},
 		{
 			name:  "coverage extends confirmation up to the nearest event",
-			facts: Facts{Assertions: []Assertion{asserts(5, &a, alpha)}, Events: []Event{event(10)}, Coverage: []types.Period{cover(1, 20)}},
+			facts: Facts{Assertions: []Assertion{asserts(5, &a, alpha)}, Events: []Event{event(10)}, Coverage: []Coverage{covered(1, 20)}},
 			want:  []Interval{provisional(nil, at(1), a), confirmed(at(1), at(10), a)},
 		},
 		{
@@ -99,16 +107,20 @@ func TestDerive(t *testing.T) {
 				provisional(nil, at(1), a), confirmed(at(1), at(2), a), provisional(at(2), at(5), a),
 				confirmed(at(5), at(6), b), provisional(at(6), nil, b),
 			},
-			wantInferred: []Inferred{{Period: cover(2, 6), From: &a, To: &b}},
+			wantInferred: []Inferred{{Period: cover(2, 6), From: &a, To: &b, Earlier: asserts(1, &a, alpha), Later: asserts(5, &b, alpha)}},
 		},
 		{
 			name:  "coverage of the grey zone confirms the earlier instrument",
-			facts: Facts{Assertions: []Assertion{asserts(1, &a, alpha), asserts(9, &b, alpha)}, Coverage: []types.Period{cover(1, 20)}},
+			facts: Facts{Assertions: []Assertion{asserts(1, &a, alpha), asserts(9, &b, alpha)}, Coverage: []Coverage{covered(1, 20)}},
 			want: []Interval{
 				provisional(nil, at(1), a), confirmed(at(1), at(9), a),
 				confirmed(at(9), at(20), b), provisional(at(20), nil, b),
 			},
-			wantInferred: []Inferred{{Period: cover(9, 10), From: &a, To: &b}},
+			wantInferred: []Inferred{{Period: cover(9, 10), From: &a, To: &b, Earlier: asserts(1, &a, alpha), Later: asserts(9, &b, alpha)}},
+			wantMissed: []MissedEvent{{
+				Inferred: Inferred{Period: cover(9, 10), From: &a, To: &b, Earlier: asserts(1, &a, alpha), Later: asserts(9, &b, alpha)},
+				Coverage: covered(1, 20),
+			}},
 		},
 		{
 			name:              "on one day the higher precedence wins, and the loser disagrees",
@@ -136,7 +148,7 @@ func TestDerive(t *testing.T) {
 			name:         "a datasource's negative assertion after its own positive one retires the ticker",
 			facts:        Facts{Assertions: []Assertion{asserts(1, &a, alpha), asserts(5, nil, alpha)}},
 			want:         []Interval{provisional(nil, at(1), a), confirmed(at(1), at(2), a), provisional(at(2), at(5), a)},
-			wantInferred: []Inferred{{Period: cover(2, 6), From: &a}},
+			wantInferred: []Inferred{{Period: cover(2, 6), From: &a, Earlier: asserts(1, &a, alpha), Later: asserts(5, nil, alpha)}},
 		},
 		{
 			name:  "a negative assertion from a datasource that never asserted the ticker counts for nothing",
@@ -147,7 +159,7 @@ func TestDerive(t *testing.T) {
 			name:         "an administrator's negative assertion counts after any positive one",
 			facts:        Facts{Assertions: []Assertion{asserts(1, &a, alpha), asserts(5, nil, admin)}},
 			want:         []Interval{provisional(nil, at(1), a), confirmed(at(1), at(2), a), provisional(at(2), at(5), a)},
-			wantInferred: []Inferred{{Period: cover(2, 6), From: &a}},
+			wantInferred: []Inferred{{Period: cover(2, 6), From: &a, Earlier: asserts(1, &a, alpha), Later: asserts(5, nil, admin)}},
 		},
 		{
 			name:  "a ticker reassigned after it retired names nothing between",
@@ -156,11 +168,14 @@ func TestDerive(t *testing.T) {
 				provisional(nil, at(1), a), confirmed(at(1), at(2), a), provisional(at(2), at(5), a),
 				confirmed(at(9), at(10), b), provisional(at(10), nil, b),
 			},
-			wantInferred: []Inferred{{Period: cover(2, 6), From: &a}, {Period: cover(6, 10), To: &b}},
+			wantInferred: []Inferred{
+				{Period: cover(2, 6), From: &a, Earlier: asserts(1, &a, alpha), Later: asserts(5, nil, alpha)},
+				{Period: cover(6, 10), To: &b, Earlier: asserts(5, nil, alpha), Later: asserts(9, &b, alpha)},
+			},
 		},
 		{
 			name:  "events and coverage with no assertion name nothing",
-			facts: Facts{Events: []Event{event(5)}, Coverage: []types.Period{cover(1, 20)}},
+			facts: Facts{Events: []Event{event(5)}, Coverage: []Coverage{covered(1, 20)}},
 		},
 	}
 	for _, tc := range tests {
@@ -177,6 +192,9 @@ func TestDerive(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.wantBroken, got.Broken); diff != "" {
 				t.Errorf("Derive(%+v) broken brackets mismatch (-want +got):\n%s", tc.facts, diff)
+			}
+			if diff := cmp.Diff(tc.wantMissed, got.Missed); diff != "" {
+				t.Errorf("Derive(%+v) missed events mismatch (-want +got):\n%s", tc.facts, diff)
 			}
 		})
 	}

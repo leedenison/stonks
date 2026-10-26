@@ -20,8 +20,13 @@
 -- assertions that name one instrument. The event wins over the bracket. The
 -- run that wrote the event records it, and the finding names the event's
 -- fetch key.
+-- 'missed_event' means two assertions imply an event on one of a run of
+-- days, and a datasource's coverage holds every one of those days. The
+-- datasource reported no event there. The coverage wins. The run that wrote
+-- the coverage or either assertion records it, and the finding names the
+-- coverage's fetch key.
 CREATE TYPE finding_kind AS ENUM ('block', 'dropped', 'contradiction', 'merged',
-    'disagreement', 'broken_validity_bracket');
+    'disagreement', 'broken_validity_bracket', 'missed_event');
 
 -- The step of the choice that dropped a set of identifiers: it contradicted
 -- the stated data, was inconsistent with a higher precedence response, or
@@ -48,7 +53,7 @@ CREATE TABLE findings (
     CHECK ((kind IN ('dropped', 'contradiction', 'merged')) = (stated_key_id IS NOT NULL)),
     CHECK ((kind = 'block') = (detail IS NULL)),
     CHECK ((kind = 'dropped') = (step IS NOT NULL)),
-    CHECK (kind NOT IN ('dropped', 'disagreement', 'broken_validity_bracket') OR fetch_key_id IS NOT NULL)
+    CHECK (kind NOT IN ('dropped', 'disagreement', 'broken_validity_bracket', 'missed_event') OR fetch_key_id IS NOT NULL)
 );
 
 CREATE INDEX findings_run_idx ON findings (run_id);
