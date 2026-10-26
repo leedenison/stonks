@@ -398,9 +398,6 @@ func TestResolveUnresolved(t *testing.T) {
 	}
 }
 
-// TestResolveRetry checks that a write the database refuses for its
-// interleaving with another transaction is retried, up to tries attempts,
-// and that any other failure is not.
 // primary returns c stating mic as its listing's primary venue.
 func primary(c market.Listing, mic string) market.Listing {
 	c.Primary = mic
@@ -458,6 +455,9 @@ func TestPrimaryVenue(t *testing.T) {
 	}
 }
 
+// TestResolveRetry checks that a write the database refuses for its
+// interleaving with another transaction is retried, up to tries attempts,
+// and that any other failure is not.
 func TestResolveRetry(t *testing.T) {
 	refused := func(code string) error { return &pgconn.PgError{Code: code} }
 	boom := errors.New("boom")

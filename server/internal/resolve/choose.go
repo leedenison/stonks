@@ -340,7 +340,7 @@ func (c *identityClaim) sharesStable(a *identityClaim) bool {
 // sameDayVenueTicker reports whether c and a are answers made on one UTC day
 // that carry one MIC_TICKER.
 func (c *identityClaim) sameDayVenueTicker(a *identityClaim) bool {
-	if c.fetchKey == nil || a.fetchKey == nil || !day(c.fetchKey.AnsweredAt).Equal(day(a.fetchKey.AnsweredAt)) {
+	if c.fetchKey == nil || a.fetchKey == nil || !types.Day(c.fetchKey.AnsweredAt).Equal(types.Day(a.fetchKey.AnsweredAt)) {
 		return false
 	}
 	for id := range c.AllIDs() {

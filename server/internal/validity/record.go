@@ -145,24 +145,60 @@ func record(ctx context.Context, q RecordQueries, families currency.Families, ke
 // identifier it states, as Record describes. Assert returns false without
 // writing where it can name no instrument.
 func Assert(ctx context.Context, q RecordQueries, families currency.Families, key uuid.UUID, a market.Assertion) (bool, error) {
-	arg := gen.CreateIdentifierAssertionParams{
-		ID: db.NewID(), FetchKeyID: &key, Type: a.Value.Type, Domain: a.Value.Domain, Value: a.Value.Value,
-		AssertedOn: types.Day(a.At),
-	}
+	var inst *uuid.UUID
 	if !a.Negative {
-		inst, err := instrumentOf(ctx, q, families, key, a)
-		if err != nil {
+		var err error
+		if inst, err = instrumentOf(ctx, q, families, key, a); err != nil {
 			return false, err
 		}
 		if inst == nil {
 			return false, nil
 		}
-		arg.InstrumentID = inst
+	}
+	return true, AssertInstrument(ctx, q, key, a.Value, inst, a.At)
+}
+
+// Asserter writes an assertion.
+type Asserter interface {
+	CreateIdentifierAssertion(ctx context.Context, arg gen.CreateIdentifierAssertionParams) error
+}
+
+// AssertInstrument writes, under fetch key key, the assertion that v names
+// instrument on the day of at. A nil instrument asserts that v names
+// nothing.
+func AssertInstrument(ctx context.Context, q Asserter, key uuid.UUID, v types.Identifier, instrument *uuid.UUID, at time.Time) error {
+	arg := gen.CreateIdentifierAssertionParams{
+		ID: db.NewID(), FetchKeyID: &key, Type: v.Type, Domain: v.Domain, Value: v.Value,
+		InstrumentID: instrument, AssertedOn: types.Day(at),
 	}
 	if err := q.CreateIdentifierAssertion(ctx, arg); err != nil {
-		return false, fmt.Errorf("record assertion: %w", err)
+		return fmt.Errorf("record assertion: %w", err)
 	}
-	return true, nil
+	return nil
+}
+
+// Finder finds a stored identifier.
+type Finder interface {
+	FindIdentifier(ctx context.Context, arg gen.FindIdentifierParams) (gen.FindIdentifierRow, error)
+}
+
+// StoredInstrument returns the instrument of the first stable identifier of
+// ids that is stored, nil where none is.
+func StoredInstrument(ctx context.Context, q Finder, ids []types.Identifier) (*uuid.UUID, error) {
+	for _, id := range ids {
+		if !id.Stable() {
+			continue
+		}
+		row, err := q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: id.Type, Domain: id.Domain, Value: id.Value})
+		if errors.Is(err, db.ErrNotFound) {
+			continue
+		}
+		if err != nil {
+			return nil, fmt.Errorf("find %s: %w", id.Name(), err)
+		}
+		return &row.Instrument.ID, nil
+	}
+	return nil, nil
 }
 
 // instrumentOf returns the instrument the first stored stable identifier of
@@ -181,15 +217,9 @@ func instrumentOf(ctx context.Context, q RecordQueries, families currency.Famili
 	if err := db.LockIdentifiers(ctx, q, stable); err != nil {
 		return nil, err
 	}
-	for _, id := range stable {
-		row, err := q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: id.Type, Domain: id.Domain, Value: id.Value})
-		if errors.Is(err, db.ErrNotFound) {
-			continue
-		}
-		if err != nil {
-			return nil, fmt.Errorf("find %s: %w", id.Name(), err)
-		}
-		return &row.Instrument.ID, nil
+	inst, err := StoredInstrument(ctx, q, stable)
+	if err != nil || inst != nil {
+		return inst, err
 	}
 	return create(ctx, q, families.Family(a.Of.Currency), key, a, stable)
 }
