@@ -32,9 +32,18 @@ search would let an administrator find an instrument that the system has yet to 
 hit is a datasource answer. It creates the instrument with the stable identifiers it
 carries, as a user's choice of instrument does in [annotations.md](annotations.md).
 
+### Statements navigation
+
+The statements page is reached from the sidebar and from the user menu. Its sidebar entry
+clutters the sidebar. Without the entry, the page needs another way to show its place in
+the navigation.
+
 ## Undecided
 
 What each area becomes.
+
+How the statements page shows where the user is once the sidebar drops its entry: a
+highlighted user menu, a breadcrumb, or a place under another page.
 
 Do the attest dialog and a user's choice of instrument share one OpenFIGI search? If they
 do, the search lands with whichever of the two is built first.
