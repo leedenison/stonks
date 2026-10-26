@@ -28,8 +28,6 @@ of open issues and ADRs at `docs/tasks/<label>/`.
 ```
 001 open
     |
-010 descriptions
-    |
 008 close
 ```
 
