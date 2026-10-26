@@ -23,7 +23,6 @@ var (
 	alpha = ptr.To("alpha")
 	k1    = uuid.MustParse("00000000-0000-0000-0000-000000000011")
 	k2    = uuid.MustParse("00000000-0000-0000-0000-000000000012")
-	k3    = uuid.MustParse("00000000-0000-0000-0000-000000000013")
 	mics  = mic.MICMap{"XNAS": "XNAS", "XNGS": "XNAS"}
 )
 
@@ -50,36 +49,6 @@ func facts(q *mock.MockQueries, v types.Identifier, assertions []gen.ListIdentif
 	q.EXPECT().ListIdentifierAssertions(gomock.Any(), gen.ListIdentifierAssertionsParams{Type: v.Type, Domain: v.Domain, Value: v.Value}).Return(assertions, nil)
 	q.EXPECT().ListIdentifierEvents(gomock.Any(), gen.ListIdentifierEventsParams{Domain: v.Domain, Value: v.Value}).Return(nil, nil)
 	q.EXPECT().ListIdentifierCoverage(gomock.Any(), gen.ListIdentifierCoverageParams{Domain: v.Domain, Value: &v.Value}).Return(nil, nil)
-}
-
-// TestGaps checks that the gaps of a domain's tickers are the days no
-// confirmed interval holds, counted by the keys and transactions dated inside
-// them, and ordered by what they affect.
-func TestGaps(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	q := mock.NewMockQueries(ctrl)
-	q.EXPECT().ListDomainTickers(gomock.Any(), "XNAS").Return([]string{"ACME", "BETA"}, nil)
-	// ACME is bracketed from day 10 to day 20, with two keys dated before the
-	// bracket and one inside it. BETA has no facts and one transaction.
-	facts(q, ticker("ACME"), []gen.ListIdentifierAssertionsRow{asserted(10, &acme), asserted(20, &acme)})
-	q.EXPECT().ListTickerTransactions(gomock.Any(), gen.ListTickerTransactionsParams{Domain: "XNAS", Value: "ACME"}).
-		Return([]gen.ListTickerTransactionsRow{tx(k1, 2), tx(k1, 5), tx(k2, 5), tx(k2, 15)}, nil)
-	facts(q, ticker("BETA"), nil)
-	q.EXPECT().ListTickerTransactions(gomock.Any(), gen.ListTickerTransactionsParams{Domain: "XNAS", Value: "BETA"}).
-		Return([]gen.ListTickerTransactionsRow{tx(k3, 3)}, nil)
-
-	got, err := New(q, mics).Gaps(context.Background(), "XNGS", day(30))
-	if err != nil {
-		t.Fatalf("Gaps: %v", err)
-	}
-	want := []Gap{
-		{Ticker: ticker("ACME"), Period: types.Period{From: day(2), Before: day(10)}, Keys: 2, Transactions: 3},
-		{Ticker: ticker("BETA"), Period: types.Period{From: day(3), Before: day(31)}, Keys: 1, Transactions: 1},
-		{Ticker: ticker("ACME"), Period: types.Period{From: day(21), Before: day(31)}},
-	}
-	if diff := cmp.Diff(want, got); diff != "" {
-		t.Errorf("Gaps mismatch (-want +got):\n%s", diff)
-	}
 }
 
 // TestTicker checks that a ticker named at a venue is read at its operating

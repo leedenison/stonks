@@ -10,32 +10,22 @@ import { useClients } from "@/contexts/clients-context";
 import type {
   AttestRequestSchema,
   GetTickerResponse,
-  ListDomainsResponse,
-  ListGapsResponse,
+  ListInstrumentTickersResponse,
 } from "@/gen/admin/coverage/v1/coverage_pb";
 import { IdentifierType } from "@/gen/type/v1/type_pb";
 import { invalidateResolved, qk } from "@/lib/query-keys";
 import { useAuthedQuery } from "./use-authed-query";
 
-// useCoverageDomains lists the operating MICs that have tickers with
-// transactions.
-export function useCoverageDomains(): UseQueryResult<ListDomainsResponse> {
+// useInstrumentTickers lists the tickers that name an instrument, now or in
+// an assertion.
+export function useInstrumentTickers(
+  instrumentId: string,
+): UseQueryResult<ListInstrumentTickersResponse> {
   const { coverage } = useClients();
   return useAuthedQuery({
-    queryKey: qk.coverageDomains(),
-    queryFn: () => coverage.listDomains({}),
-  });
-}
-
-// useCoverageGaps lists the gaps of the tickers stated on domain.
-export function useCoverageGaps(
-  domain: string,
-): UseQueryResult<ListGapsResponse> {
-  const { coverage } = useClients();
-  return useAuthedQuery({
-    queryKey: qk.coverageGaps(domain),
-    queryFn: () => coverage.listGaps({ domain }),
-    enabled: domain !== "",
+    queryKey: qk.instrumentTickers(instrumentId),
+    queryFn: () => coverage.listInstrumentTickers({ instrumentId }),
+    enabled: instrumentId !== "",
   });
 }
 

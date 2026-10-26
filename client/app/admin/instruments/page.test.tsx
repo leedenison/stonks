@@ -3,11 +3,20 @@ import { Code, ConnectError, type ServiceImpl } from "@connectrpc/connect";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  CoverageService,
+  GetTickerResponseSchema,
+  ListInstrumentTickersResponseSchema,
+  TickerSchema,
+  Validity,
+  WithdrawAttestationResponseSchema,
+} from "@/gen/admin/coverage/v1/coverage_pb";
+import {
   InstrumentSchema,
   InstrumentService,
   ListingSchema,
   ListInstrumentsResponseSchema,
 } from "@/gen/admin/instrument/v1/instrument_pb";
+import { AssertionItemSchema } from "@/gen/admin/run/v1/run_pb";
 import { Role } from "@/gen/auth/v1/auth_pb";
 import {
   AssetClass,
@@ -27,12 +36,87 @@ vi.mock("next/navigation", () => ({
 }));
 
 const admin = liveSession({ role: Role.ADMIN });
+type Coverage = Partial<ServiceImpl<typeof CoverageService>>;
+
+const acme = { type: IdentifierType.MIC_TICKER, domain: "XNAS", value: "ACME" };
+// ACME's tickers: the one on its listing, then one that named it before.
+const tickers = create(ListInstrumentTickersResponseSchema, {
+  tickers: [
+    { ticker: acme, current: true, transactions: 3 },
+    { ticker: { ...acme, value: "OLD" }, current: false },
+  ],
+});
+// ACME's facts: a gap before a confirmed bracket, a datasource's assertion
+// and an attestation, and one datasource covering the whole domain.
+const read = create(GetTickerResponseSchema, {
+  ticker: create(TickerSchema, {
+    ticker: acme,
+    transactionDays: ["2024-02-01"],
+    coverage: [
+      {
+        datasource: "alpha",
+        covers: { ...acme, value: "" },
+        coveredFrom: "2024-06-01",
+        coveredBefore: "2026-01-01",
+      },
+    ],
+    assertions: [
+      create(AssertionItemSchema, {
+        id: "a1",
+        ticker: acme,
+        assertedOn: "2024-06-01",
+        instrumentId: "i-acme",
+        source: { case: "datasource", value: "alpha" },
+      }),
+      create(AssertionItemSchema, {
+        id: "a2",
+        ticker: acme,
+        assertedOn: "2026-01-01",
+        source: { case: "attestedBy", value: "admin@example.com" },
+      }),
+    ],
+    intervals: [
+      {
+        validBefore: "2024-06-01",
+        instrumentId: "i-acme",
+        validity: Validity.PROVISIONAL,
+      },
+      {
+        validFrom: "2024-06-01",
+        validBefore: "2026-01-01",
+        instrumentId: "i-acme",
+        validity: Validity.CONFIRMED,
+      },
+    ],
+    gaps: [
+      {
+        ticker: acme,
+        unconfirmedFrom: "2024-02-01",
+        unconfirmedBefore: "2024-06-01",
+        keys: 2,
+        transactions: 3,
+      },
+    ],
+    instruments: [
+      {
+        id: "i-acme",
+        name: { type: IdentifierType.ISIN, value: "US0000000001" },
+      },
+    ],
+  }),
+});
 
 function serving(
   listInstruments: ServiceImpl<typeof InstrumentService>["listInstruments"],
+  coverage: Coverage = {},
 ) {
   return transportWith(admin, ({ service }) => {
     service(InstrumentService, { listInstruments });
+    service(CoverageService, {
+      listInstrumentTickers: () => tickers,
+      getTicker: () => read,
+      ...coverage,
+    });
   });
 }
 
@@ -178,11 +262,136 @@ describe("InstrumentsPage", () => {
     ).toHaveLength(1);
     expect(screen.getByTestId("listing-l-gbp").textContent).toContain("XLON");
     expect(
-      screen.getByTestId("ticker-coverage-XLON-ACM").getAttribute("href"),
-    ).toBe("/admin/coverage?domain=XLON&value=ACM");
+      screen.getByTestId("ticker-validity-XLON-ACM").getAttribute("href"),
+    ).toBe(
+      "/admin/instruments?after=i-prev&id=i-acme&tab=tickers&ticker=XLON%3AACM",
+    );
+    const overview = screen.getByTestId("instrument-tab-overview");
+    expect(overview.getAttribute("aria-selected")).toBe("true");
+    expect(
+      screen.getByTestId("instrument-tab-tickers").getAttribute("href"),
+    ).toBe("/admin/instruments?after=i-prev&id=i-acme&tab=tickers");
+    expect(screen.queryByTestId("tickers-tab")).toBeNull();
     expect(screen.getByTestId("list-first").getAttribute("href")).toBe(
       "/admin/instruments",
     );
+  });
+
+  it("shows the first ticker's validity on the tickers tab and follows the choice", async () => {
+    params = new URLSearchParams("id=i-acme&tab=tickers");
+    renderWithAuth(
+      <InstrumentsPage />,
+      serving(() => listed),
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId("ticker-assertions")).toBeTruthy(),
+    );
+    expect(
+      screen
+        .getByTestId("instrument-tab-tickers")
+        .getAttribute("aria-selected"),
+    ).toBe("true");
+    expect(screen.queryByTestId("instrument-identifiers")).toBeNull();
+    const select = screen.getByTestId("ticker-select") as HTMLSelectElement;
+    expect(select.value).toBe("XNAS:ACME");
+    expect([...select.options].map((o) => o.textContent)).toEqual([
+      "ACME at XNAS",
+      "OLD at XNAS (former)",
+    ]);
+    expect(screen.getByTestId("coverage-timeline")).toBeTruthy();
+    const gap = screen.getByTestId("pane-gap-2024-02-01");
+    expect(gap.textContent).toContain("US0000000001");
+    expect(gap.textContent).toContain("3");
+    const a1 = screen.getByTestId("assertion-row-a1");
+    expect(a1.textContent).toContain("US0000000001");
+    expect(a1.textContent).toContain("alpha");
+    expect(a1.getAttribute("data-attested")).toBeNull();
+    const a2 = screen.getByTestId("assertion-row-a2");
+    expect(a2.textContent).toContain("nothing");
+    expect(a2.textContent).toContain("admin@example.com");
+    expect(a2.getAttribute("data-attested")).toBe("true");
+    expect(screen.getByTestId("ticker-coverage").textContent).toContain(
+      "every ticker of XNAS",
+    );
+    expect(screen.queryByTestId("ticker-events")).toBeNull();
+    fireEvent.change(select, { target: { value: "XNAS:OLD" } });
+    expect(router.replace).toHaveBeenCalledWith(
+      "/admin/instruments?id=i-acme&tab=tickers&ticker=XNAS%3AOLD",
+    );
+  });
+
+  it("shows the ticker the address names, and says when it has no facts", async () => {
+    params = new URLSearchParams("id=i-acme&tab=tickers&ticker=XNAS:OLD");
+    const asked: string[] = [];
+    renderWithAuth(
+      <InstrumentsPage />,
+      serving(() => listed, {
+        getTicker: (req) => {
+          asked.push(req.ticker?.value ?? "");
+          return create(GetTickerResponseSchema, {
+            ticker: create(TickerSchema, { ticker: req.ticker }),
+          });
+        },
+      }),
+    );
+    await waitFor(() => expect(screen.getByTestId("no-facts")).toBeTruthy());
+    expect(asked).toEqual(["OLD"]);
+    expect(
+      (screen.getByTestId("ticker-select") as HTMLSelectElement).value,
+    ).toBe("XNAS:OLD");
+    expect(screen.queryByTestId("coverage-timeline")).toBeNull();
+  });
+
+  it("says when no ticker names the instrument", async () => {
+    params = new URLSearchParams("id=i-usd&tab=tickers");
+    renderWithAuth(
+      <InstrumentsPage />,
+      serving(() => listed, {
+        listInstrumentTickers: () =>
+          create(ListInstrumentTickersResponseSchema, {}),
+      }),
+    );
+    await waitFor(() => expect(screen.getByTestId("no-tickers")).toBeTruthy());
+    expect(screen.queryByTestId("ticker-select")).toBeNull();
+  });
+
+  it("attests from a gap and from today, and withdraws an attestation", async () => {
+    params = new URLSearchParams("id=i-acme&tab=tickers");
+    const withdrawn: string[] = [];
+    renderWithAuth(
+      <InstrumentsPage />,
+      serving(() => listed, {
+        withdrawAttestation: (req) => {
+          withdrawn.push(req.assertionId);
+          return create(WithdrawAttestationResponseSchema, {});
+        },
+      }),
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId("pane-gap-2024-02-01")).toBeTruthy(),
+    );
+    fireEvent.click(screen.getByTestId("gap-attest-2024-02-01"));
+    expect((screen.getByTestId("attest-from") as HTMLInputElement).value).toBe(
+      "2024-02-01",
+    );
+    fireEvent.click(screen.getByTestId("attest-dialog-close"));
+    expect(screen.queryByTestId("attest-dialog")).toBeNull();
+
+    fireEvent.click(screen.getByTestId("ticker-attest-today"));
+    const from = screen.getByTestId("attest-from") as HTMLInputElement;
+    expect(from.value).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    fireEvent.click(screen.getByTestId("attest-dialog-close"));
+
+    expect(screen.queryByTestId("assertion-withdraw-a1")).toBeNull();
+    fireEvent.click(screen.getByTestId("assertion-withdraw-a2"));
+    expect(screen.getByTestId("withdraw-dialog").textContent).toContain(
+      "2026-01-01",
+    );
+    fireEvent.click(screen.getByTestId("withdraw-confirm"));
+    await waitFor(() =>
+      expect(screen.queryByTestId("withdraw-dialog")).toBeNull(),
+    );
+    expect(withdrawn).toEqual(["a2"]);
   });
 
   it("follows the search box and the class filter in the address", async () => {

@@ -28,7 +28,7 @@ const searchDelay = 300;
 
 // The instruments by name, a page at a time, with the selected one in a
 // pane beside the table. The address carries the search, the class and the
-// page, and the selected row of that page.
+// page, the selected row of that page, and the pane's tab and ticker.
 export default function InstrumentsPage() {
   return (
     <Suspense>
@@ -44,7 +44,9 @@ function Instruments() {
   const instruments = data?.instruments ?? [];
   const selected = instruments.find((i) => i.id === p.id);
   const go = (next: Partial<InstrumentParams>) =>
-    router.replace(instrumentQuery({ ...p, after: "", id: "", ...next }));
+    router.replace(
+      instrumentQuery({ ...p, after: "", id: "", ticker: "", ...next }),
+    );
   const [text, setText] = useState(p.q);
   useEffect(() => {
     if (text === p.q) {
@@ -105,7 +107,11 @@ function Instruments() {
               ) : (
                 <tbody>
                   {instruments.map((i) => {
-                    const href = instrumentQuery({ ...p, id: i.id });
+                    const href = instrumentQuery({
+                      ...p,
+                      id: i.id,
+                      ticker: "",
+                    });
                     const open = i.id === p.id;
                     return (
                       <Tr
@@ -137,7 +143,7 @@ function Instruments() {
             <Pager
               first={
                 p.after
-                  ? instrumentQuery({ ...p, after: "", id: "" })
+                  ? instrumentQuery({ ...p, after: "", id: "", ticker: "" })
                   : undefined
               }
               next={
@@ -146,6 +152,7 @@ function Instruments() {
                       ...p,
                       after: data.nextPageToken,
                       id: "",
+                      ticker: "",
                     })
                   : undefined
               }
@@ -153,7 +160,7 @@ function Instruments() {
             />
           </div>
           {selected ? (
-            <InstrumentPane instrument={selected} />
+            <InstrumentPane instrument={selected} params={p} />
           ) : (
             <p className="flex-1 text-text-muted">Select an instrument.</p>
           )}

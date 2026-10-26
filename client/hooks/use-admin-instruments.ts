@@ -12,7 +12,7 @@ import { useAuthedQuery } from "./use-authed-query";
 // useAdminInstruments lists the instruments the search and the class keep,
 // by name. The page token selects the page.
 export function useAdminInstruments(
-  p: InstrumentParams,
+  p: Pick<InstrumentParams, "after" | "q" | "class">,
 ): UseQueryResult<ListInstrumentsResponse> {
   const { adminInstrument } = useClients();
   return useAuthedQuery({

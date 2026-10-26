@@ -110,6 +110,11 @@ export type InstrumentParams = {
   q: string;
   // The asset class as enumParam writes it; empty for any.
   class: string;
+  // The pane's tab: "tickers", or empty for the overview.
+  tab: string;
+  // The ticker the tickers tab shows, as tickerParam writes it; empty for
+  // the first listed.
+  ticker: string;
 };
 
 export function readInstrumentList(params: URLSearchParams): InstrumentParams {
@@ -118,32 +123,31 @@ export function readInstrumentList(params: URLSearchParams): InstrumentParams {
     id: params.get("id") ?? "",
     q: params.get("q") ?? "",
     class: params.get("class") ?? "",
+    tab: params.get("tab") ?? "",
+    ticker: params.get("ticker") ?? "",
   };
+}
+
+// tickerParam writes a MIC_TICKER for the instruments page's address.
+export function tickerParam(domain: string, value: string): string {
+  return `${domain}:${value}`;
+}
+
+// readTickerParam reads what tickerParam wrote, or undefined when the text
+// is not one.
+export function readTickerParam(
+  s: string,
+): { domain: string; value: string } | undefined {
+  const i = s.indexOf(":");
+  if (i <= 0 || i === s.length - 1) {
+    return undefined;
+  }
+  return { domain: s.slice(0, i), value: s.slice(i + 1) };
 }
 
 // instrumentQuery is the address of the instruments page with p applied.
 export function instrumentQuery(p: InstrumentParams): string {
   return queryHref("/admin/instruments", p);
-}
-
-// CoverageParams is the coverage page's address.
-export type CoverageParams = {
-  // The operating MIC whose gaps are listed; empty for the first domain.
-  domain: string;
-  // The value of the selected ticker on that domain; empty for none.
-  value: string;
-};
-
-export function readCoverage(params: URLSearchParams): CoverageParams {
-  return {
-    domain: params.get("domain") ?? "",
-    value: params.get("value") ?? "",
-  };
-}
-
-// coverageQuery is the address of the coverage page with p applied.
-export function coverageQuery(p: CoverageParams): string {
-  return queryHref("/admin/coverage", p);
 }
 
 // flattenRuns lists every run of the trees, each parent before its children.
