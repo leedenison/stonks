@@ -5,8 +5,8 @@ recorded: 2026-09-20
 
 # Instrument resolution
 
-How resolution handles the life of a listing, options and the validity of a MIC-derived
-identifier, and the replays that keep an association current.
+How resolution handles the life of a listing and options, and the replays that keep an
+association current.
 
 ## Why
 
@@ -27,19 +27,6 @@ is made when a rate is first fetched.
 
 An option or a future references the listing of its underlying, a strike being quoted
 in the listing's currency.
-
-### Validity and the Weakest Link
-
-A MIC-derived identifier is trusted inside its validity interval, which is confirmed
-inside identifier event coverage and provisional outside it.  See
-[identifier-events.md](identifier-events.md).  A key associated through one takes a
-dated association: it names the ticker, and each of its transactions takes the instrument
-the ticker names on the transaction's date.  A MIC-derived identifier never merges two
-instruments.
-
-The weakest link governs.  Where a key states only a ticker, it is associated through
-that ticker however many stable identifiers a datasource's answer names, so the
-association is provisional until the ticker is covered.
 
 ### Options
 
@@ -82,20 +69,6 @@ See [guesses.md](guesses.md).
 
 ## Constraints
 
-### Merger of Instruments
-
-Two datasource answers combine into one instrument when they share a stable identifier,
-or when both were made on one UTC day and carry one MIC_TICKER.  An answer and the
-database, and two stored instruments, combine only through a stable identifier.  Answers
-that overlap only on a ticker at another venue, on different days, or against the
-database stay apart: precedence picks the instrument kept, the identifiers of the other
-are dropped, and the outcome is recorded as a finding of the run.
-
-When a datasource's answer overlaps an instrument only on a MIC-derived identifier,
-resolution asks that datasource again in later runs. Another route may add to the
-instrument a stable identifier that the datasource's answer carries, and the answer then
-merges through it.
-
 ### Corroboration
 
 An answer corroborates only the claims it states itself. Where the ranking raised a
@@ -107,28 +80,11 @@ identifiers, class and listings it restates.
 Datasources gain coverage, integrations are enabled and quota tiers change.  A
 scheduled replay therefore re-attempts unresolved keys.
 
-An identifier event does not replay a key.  A dated key's transactions take the instrument
-the ticker names on their dates at each read, so they follow the event.  Event grouping
-and cached adjusted values derived from those transactions are recomputed when the
-event arrives.
-
-## Invariants
-
-### An Identifier Names One Instrument At A Time
-
-No two instruments are identified by one identifier triple over overlapping validity
-intervals.
-
-### No Merge Through a MIC-derived Identifier
-
-Instruments merge only through a stable identifier, so no identifier event unwinds a
-merge.
+Event grouping and cached adjusted values derived from transactions dated through a
+ticker are recomputed when an identifier event on the ticker arrives.
 
 ## Sketch
 
-Identifier events for the MIC-derived identifiers a batch states are fetched first, where
-a source serves their domain or a stable identifier already stored.  Where they are absent,
-resolution proceeds on provisional validity.  The order is then the database,
-the batch cache, and datasources.  A guess is produced where they leave the instrument
-or its listing open.  See [guesses.md](guesses.md).  Corporate events are fetched for the
-batch's resolved instruments once resolution completes.
+A guess is produced where the database, the batch cache and the datasources leave the
+instrument or its listing open.  See [guesses.md](guesses.md).  Corporate events are
+fetched for the batch's resolved instruments once resolution completes.

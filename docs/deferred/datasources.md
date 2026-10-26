@@ -18,9 +18,8 @@ records.
 
 ### Keys
 
-A fetch is made for a key: the primary key of an instrument for prices and corporate
-events, and the natural key of an identifier or a domain of one for identifier events.
-Where a fetch is keyed on an instrument, it is sent under one of the instrument's
+A fetch of prices or corporate events is made for the primary key of an instrument.
+It is sent under one of the instrument's
 identifiers, a stable one where the provider accepts it and a MIC-derived one otherwise.
 
 ### Coverage
@@ -30,16 +29,12 @@ against the key for which it answers. A period is covered when the datasource an
 for it, whether or not the answer held any data. Where a datasource is known not to serve
 a key, it covers nothing for that key, and a failed fetch covers nothing.
 
-A range answer for identifier events is recorded against the domain rather than against
-each ticker it covers. Coverage of a ticker is then the union of rows for the ticker and rows
-for its domain.
-
 ### Provenance
 
-A price, a corporate event and an identifier event each reference the fetch key that
-produced them. The series a provider serves under a ticker is its own history for the
-symbol, and no provider promises that history follows the instrument across a
-reassignment, so provenance is recorded whichever identifier keyed the fetch.
+A price and a corporate event each reference the fetch key that produced them. The
+series a provider serves under a ticker is its own history for the symbol, and no
+provider promises that history follows the instrument across a reassignment, so
+provenance is recorded whichever identifier keyed the fetch.
 
 A merge rewrites the instrument on the merged instrument's fetch keys, so provenance
 follows the data.
