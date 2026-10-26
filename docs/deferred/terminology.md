@@ -20,20 +20,6 @@ scales. GBP and GBp/GBX are one family.
 
 **Venue** -- the exchange or trading system where a listing trades.
 
-**Validity** -- the interval over which an identifier names one instrument.
-**Confirmed** where coverage or assertions establish it, **provisional** where it rests
-on the assumption that the identifier has not moved.
-
-**Association** -- what a stated key resolved to. **Fixed** where it names one instrument
-for all time, **dated** where it names a MIC_TICKER and each transaction takes the
-instrument the ticker names on its date.
-
-**Assertion** -- a claim that an identifier names an instrument, or names nothing, on one
-day. A datasource makes one through a fetch, and it holds on the day of the answer. A
-point in time lookup holds on the day its request names. An entity's ticker history
-asserts each ticker on the day the ticker began naming the entity. An administrator makes
-one by attestation.
-
 **Coverage** -- the periods over which one datasource has answered for one key, or for
 every key in one domain.
 

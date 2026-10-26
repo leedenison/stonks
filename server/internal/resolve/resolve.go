@@ -37,7 +37,8 @@
 // see ExtendValidity. It asks the datasources again whatever identity coverage
 // the instrument has. An identity answer to it writes only the ticker's
 // assertion, and leaves the identifiers, the listings and the coverage to a
-// resolution.
+// resolution. A resolution never extends validity, because the database
+// decides a key whose ticker it knows before any identity fetch.
 //
 // A synchronous resolution runs in the caller for one key the user is
 // confirming. It shares its lookups and its fetches with a resolution run;

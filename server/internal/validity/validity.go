@@ -2,8 +2,10 @@
 // the days over which it names one instrument. It derives validity from
 // identifier assertions, identifier events and their coverage each time it is
 // read; see
-// [010_validity.sql](../migrations/010_validity.sql). An event takes effect
-// at the start of its day, so it precedes an assertion on the same day.
+// [010_validity.sql](../migrations/010_validity.sql). Validity is never
+// stored, so a change to its inputs, such as a reorder of the datasources,
+// takes effect at the next read. An event takes effect at the start of its
+// day, so it precedes an assertion on the same day.
 //
 // On each day one assertion wins; see winners. Validity is confirmed on each
 // day the winning assertion names the instrument. Two consecutive winning
@@ -21,7 +23,8 @@
 // inferred event. It took effect at the start of a day after the earlier
 // assertion, and no later than the later one. Where the earlier assertion
 // names an instrument, that instrument keeps the days between: confirmed
-// where they are covered, and provisional elsewhere.
+// where they are covered, and provisional elsewhere. The days between
+// therefore name one instrument before and after the later assertion arrives.
 package validity
 
 import (

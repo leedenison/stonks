@@ -32,8 +32,8 @@ administrator's work: an attestation, a mapping of a broker description, or an i
 added to an instrument. A choice is offered only where the facts leave a transaction's
 instrument open.
 
-The shape of a choice follows the strongest identifier the key states, as the weakest link
-rule of [instrument-resolution.md](instrument-resolution.md) does.
+The shape of a choice follows the strongest identifier the key states, as resolution
+does: a stable identifier fixes a key, and a venue ticker alone dates it.
 
 - A stable identifier that no datasource answered. The choice is fixed: one instrument
   for every transaction of the key. The user picks an instrument the system has, or
