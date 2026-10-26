@@ -32,6 +32,10 @@ CREATE TABLE identifier_assertions (
 );
 
 CREATE INDEX identifier_assertions_value_idx ON identifier_assertions (type, domain, value);
+-- An administrator attests a day once: a later attestation replaces the
+-- earlier one.
+CREATE UNIQUE INDEX identifier_attestations_day_idx ON identifier_assertions (type, domain, value, asserted_on)
+    WHERE run_id IS NOT NULL;
 CREATE INDEX identifier_assertions_run_idx ON identifier_assertions (run_id);
 CREATE INDEX identifier_assertions_instrument_idx ON identifier_assertions (instrument_id);
 

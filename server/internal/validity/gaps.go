@@ -3,7 +3,6 @@ package validity
 import (
 	"time"
 
-	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
@@ -13,7 +12,7 @@ func Gaps(ivs []Interval, p types.Period) []types.Period {
 	var out []types.Period
 	d := p.From
 	for _, iv := range ivs {
-		if iv.Validity != gen.ValidityConfirmed {
+		if iv.Validity != Confirmed {
 			continue
 		}
 		if iv.Before != nil && !d.Before(*iv.Before) {
@@ -36,17 +35,6 @@ func Gaps(ivs []Interval, p types.Period) []types.Period {
 	return out
 }
 
-// gaps returns the parts of p that no period of cover holds. cover is a
-// union, as union returns it.
-func gaps(cover []types.Period, p types.Period) []types.Period {
-	ivs := make([]Interval, len(cover))
-	for i, c := range cover {
-		from, before := c.From, c.Before
-		ivs[i] = Interval{From: &from, Before: &before, Validity: gen.ValidityConfirmed}
-	}
-	return Gaps(ivs, p)
-}
-
 // firstUnconfirmed returns the earliest of dates that no confirmed interval of
 // ivs holds. It reports false when every date is confirmed.
 func firstUnconfirmed(ivs []Interval, dates []time.Time) (time.Time, bool) {
@@ -64,7 +52,7 @@ func firstUnconfirmed(ivs []Interval, dates []time.Time) (time.Time, bool) {
 // confirmedOn reports whether a confirmed interval of ivs holds day d.
 func confirmedOn(ivs []Interval, d time.Time) bool {
 	iv, ok := on(ivs, d)
-	return ok && iv.Validity == gen.ValidityConfirmed
+	return ok && iv.Validity == Confirmed
 }
 
 // on returns the interval of ivs that holds day d. It reports false where

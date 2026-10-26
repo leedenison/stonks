@@ -27,7 +27,7 @@ func mark(arbiter *gen.Arbiter, fixedVia *types.IdentifierType, t *validity.Tick
 		switch {
 		case !ok:
 			return statementv1.TransactionMark_TRANSACTION_MARK_UNRESOLVED
-		case iv.Validity == gen.ValidityConfirmed:
+		case iv.Validity == validity.Confirmed:
 			return statementv1.TransactionMark_TRANSACTION_MARK_CONFIRMED
 		}
 		return statementv1.TransactionMark_TRANSACTION_MARK_PROVISIONAL

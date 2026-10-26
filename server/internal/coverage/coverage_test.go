@@ -74,9 +74,9 @@ func TestTicker(t *testing.T) {
 		Days:       []time.Time{day(5), day(15)},
 		Rows:       validity.Rows{Assertions: assertions},
 		Intervals: []validity.Interval{
-			{Before: &from, Instrument: acme, Validity: gen.ValidityProvisional},
-			{From: &from, Before: &mid, Instrument: acme, Validity: gen.ValidityConfirmed},
-			{From: &mid, Instrument: acme, Validity: gen.ValidityProvisional},
+			{Before: &from, Instrument: acme, Validity: validity.Provisional},
+			{From: &from, Before: &mid, Instrument: acme, Validity: validity.Confirmed},
+			{From: &mid, Instrument: acme, Validity: validity.Provisional},
 		},
 		Gaps: []Gap{
 			{Ticker: v, Period: types.Period{From: day(5), Before: from}, Keys: 2, Transactions: 2},

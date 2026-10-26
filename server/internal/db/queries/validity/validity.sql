@@ -3,7 +3,16 @@ INSERT INTO identifier_assertions (id, fetch_key_id, run_id, attested_by, type, 
     instrument_id, asserted_on)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9);
 
+-- name: CreateIdentifierAttestation :exec
+-- A later attestation of a day replaces the earlier one.
+INSERT INTO identifier_assertions (id, run_id, attested_by, type, domain, value, instrument_id, asserted_on)
+VALUES (@id, @run_id::uuid, @attested_by::uuid, @type, @domain, @value, @instrument_id, @asserted_on)
+ON CONFLICT (type, domain, value, asserted_on) WHERE run_id IS NOT NULL
+DO UPDATE SET run_id = EXCLUDED.run_id, attested_by = EXCLUDED.attested_by,
+    instrument_id = EXCLUDED.instrument_id;
+
 -- name: ListFetchKeyAssertions :many
+-- Only tests read a fetch key's assertions.
 SELECT * FROM identifier_assertions WHERE fetch_key_id = $1
 ORDER BY type, domain, value;
 
@@ -46,35 +55,13 @@ WHERE identifier_event_coverage.domain = @domain
   AND (identifier_event_coverage.value = @value OR identifier_event_coverage.value IS NULL)
 ORDER BY fetches.datasource, identifier_event_coverage.covered_from, identifier_event_coverage.id;
 
--- name: ListDomainCoverage :many
-SELECT covered_from, covered_before FROM identifier_event_coverage
-WHERE domain = @domain AND value IS NULL
-ORDER BY covered_from;
-
--- name: FirstDomainTransaction :one
--- The earliest order date of a transaction whose key states a MIC_TICKER on
--- the domain, or on a venue operated under it.
-SELECT transactions.order_date
-FROM transactions
-JOIN stated_keys ON stated_keys.id = transactions.stated_key_id
-CROSS JOIN LATERAL jsonb_array_elements(stated_keys.identifiers) AS stated(id)
-LEFT JOIN mics ON mics.mic = stated.id->>'domain'
-WHERE stated.id->>'type' = 'mic_ticker'
-  AND coalesce(mics.operating_mic, stated.id->>'domain') = @domain::text
-ORDER BY transactions.order_date
-LIMIT 1;
-
--- name: CreateIdentifierEvent :execrows
--- An event is written only from a served fetch key.
+-- name: CreateIdentifierEvent :exec
 INSERT INTO identifier_events (id, fetch_key_id, domain, value, action, to_value, effective_on)
-SELECT @id, fetch_keys.id, @domain, @value, @action, sqlc.narg(to_value), @effective_on
-FROM fetch_keys WHERE fetch_keys.id = @fetch_key_id AND fetch_keys.outcome = 'served';
+VALUES (@id, @fetch_key_id, @domain, @value, @action, sqlc.narg(to_value), @effective_on);
 
--- name: CreateIdentifierEventCoverage :execrows
--- Coverage is written only from a served fetch key.
+-- name: CreateIdentifierEventCoverage :exec
 INSERT INTO identifier_event_coverage (id, fetch_key_id, domain, value, covered_from, covered_before)
-SELECT @id, fetch_keys.id, @domain, sqlc.narg(value), @covered_from, @covered_before
-FROM fetch_keys WHERE fetch_keys.id = @fetch_key_id AND fetch_keys.outcome = 'served';
+VALUES (@id, @fetch_key_id, @domain, sqlc.narg(value), @covered_from, @covered_before);
 
 -- name: ListHeldTickers :many
 -- The held tickers: each MIC_TICKER through which a key is dated, where a

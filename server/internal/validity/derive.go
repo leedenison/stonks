@@ -6,7 +6,6 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
@@ -197,11 +196,11 @@ func segment(ss []span, start, end *time.Time, cover []types.Period) ([]Interval
 			from := back(r.first, floor, cover)
 			to := forward(next(r.last), ceil, cover)
 			if k == 0 && (floor == nil || floor.Before(from)) {
-				out = append(out, Interval{From: floor, Before: &from, Instrument: *r.instrument, Validity: gen.ValidityProvisional})
+				out = append(out, Interval{From: floor, Before: &from, Instrument: *r.instrument, Validity: Provisional})
 			}
-			out = append(out, Interval{From: &from, Before: &to, Instrument: *r.instrument, Validity: gen.ValidityConfirmed})
+			out = append(out, Interval{From: &from, Before: &to, Instrument: *r.instrument, Validity: Confirmed})
 			if ceil == nil || to.Before(*ceil) {
-				out = append(out, Interval{From: &to, Before: ceil, Instrument: *r.instrument, Validity: gen.ValidityProvisional})
+				out = append(out, Interval{From: &to, Before: ceil, Instrument: *r.instrument, Validity: Provisional})
 			}
 			floor = ceil
 		}

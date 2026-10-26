@@ -7,7 +7,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
 
-	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
@@ -33,11 +32,11 @@ func asserts(n int, inst *uuid.UUID, src Source) Assertion {
 }
 
 func confirmed(from, before *time.Time, inst uuid.UUID) Interval {
-	return Interval{From: from, Before: before, Instrument: inst, Validity: gen.ValidityConfirmed}
+	return Interval{From: from, Before: before, Instrument: inst, Validity: Confirmed}
 }
 
 func provisional(from, before *time.Time, inst uuid.UUID) Interval {
-	return Interval{From: from, Before: before, Instrument: inst, Validity: gen.ValidityProvisional}
+	return Interval{From: from, Before: before, Instrument: inst, Validity: Provisional}
 }
 
 func cover(from, before int) types.Period { return types.Period{From: d(from), Before: d(before)} }

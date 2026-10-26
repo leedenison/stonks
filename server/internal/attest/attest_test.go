@@ -65,9 +65,9 @@ func (f *fixture) starts(t *testing.T, row gen.Run) {
 	})
 }
 
-func assertion(row gen.Run, instrument *uuid.UUID, on time.Time) gen.CreateIdentifierAssertionParams {
-	return gen.CreateIdentifierAssertionParams{
-		RunID: &row.ID, AttestedBy: &admin, Type: nasdaq.Type, Domain: nasdaq.Domain, Value: nasdaq.Value,
+func assertion(row gen.Run, instrument *uuid.UUID, on time.Time) gen.CreateIdentifierAttestationParams {
+	return gen.CreateIdentifierAttestationParams{
+		RunID: row.ID, AttestedBy: admin, Type: nasdaq.Type, Domain: nasdaq.Domain, Value: nasdaq.Value,
 		InstrumentID: instrument, AssertedOn: on,
 	}
 }
@@ -79,8 +79,8 @@ func TestStart(t *testing.T) {
 	row := gen.Run{ID: db.NewID(), Kind: gen.RunKindAttestation, Trigger: gen.RunTriggerAdministrator}
 	f.store.EXPECT().GetInstrument(gomock.Any(), acme).Return(gen.Instrument{ID: acme}, nil)
 	f.starts(t, row)
-	var written []gen.CreateIdentifierAssertionParams
-	f.store.EXPECT().CreateIdentifierAssertion(gomock.Any(), gomock.Any()).Times(2).DoAndReturn(func(_ context.Context, arg gen.CreateIdentifierAssertionParams) error {
+	var written []gen.CreateIdentifierAttestationParams
+	f.store.EXPECT().CreateIdentifierAttestation(gomock.Any(), gomock.Any()).Times(2).DoAndReturn(func(_ context.Context, arg gen.CreateIdentifierAttestationParams) error {
 		arg.ID = uuid.Nil
 		written = append(written, arg)
 		return nil
@@ -93,7 +93,7 @@ func TestStart(t *testing.T) {
 	if err != nil || got.ID != row.ID {
 		t.Fatalf("Start() = %+v, %v, want the run %s", got, err, row.ID)
 	}
-	want := []gen.CreateIdentifierAssertionParams{assertion(row, &acme, day(10)), assertion(row, &acme, day(20))}
+	want := []gen.CreateIdentifierAttestationParams{assertion(row, &acme, day(10)), assertion(row, &acme, day(20))}
 	if diff := cmp.Diff(want, written); diff != "" {
 		t.Errorf("assertions mismatch (-want +got):\n%s", diff)
 	}
@@ -105,7 +105,7 @@ func TestStartNothing(t *testing.T) {
 	f := newFixture(t)
 	row := gen.Run{ID: db.NewID(), Kind: gen.RunKindAttestation}
 	f.starts(t, row)
-	f.store.EXPECT().CreateIdentifierAssertion(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.CreateIdentifierAssertionParams) error {
+	f.store.EXPECT().CreateIdentifierAttestation(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.CreateIdentifierAttestationParams) error {
 		arg.ID = uuid.Nil
 		if diff := cmp.Diff(assertion(row, nil, day(10)), arg); diff != "" {
 			t.Errorf("assertion mismatch (-want +got):\n%s", diff)

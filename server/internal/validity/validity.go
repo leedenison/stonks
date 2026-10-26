@@ -32,8 +32,18 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/types"
+)
+
+// Validity is how firmly a ticker's facts establish what it names over a
+// range of days.
+type Validity string
+
+// The validities: confirmed where the facts name the instrument, and
+// provisional where validity extends on an assumption.
+const (
+	Confirmed   Validity = "confirmed"
+	Provisional Validity = "provisional"
 )
 
 // Interval is a range of days over which a ticker names one instrument. A nil
@@ -41,7 +51,7 @@ import (
 type Interval struct {
 	From, Before *time.Time
 	Instrument   uuid.UUID
-	Validity     gen.Validity
+	Validity     Validity
 }
 
 // Source is where an assertion came from: a datasource's fetch key with the
