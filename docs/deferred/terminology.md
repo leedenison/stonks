@@ -33,10 +33,6 @@ instrument, a grouping, a price, or a key made by hand. User data, never an asse
 
 **End of Day Price** -- the closing price of an instrument on a date.
 
-**Corporate Event** -- a change to the terms of an instrument that restates the quantity
-held (eg. a split, a reverse split, a stock dividend), or exchanges it for another (eg. a
-merger, a spinoff).
-
 **Identifier Event** -- a change to which instrument an identifier names (eg. a ticker
 change, a retirement, a reassignment), witnessed by a source, implied by a corporate
 event, or inferred from two assertions.

@@ -397,7 +397,7 @@ func conflicts(ctx context.Context, q Queries, v types.MarketTicker, mine map[uu
 		detail := fmt.Sprintf("%s on %s: %s named %s and %s named %s; %s was kept",
 			v.Name(), dis.On.Format(time.DateOnly), dis.Winner.Source.Datasource, named(dis.Winner.Instrument),
 			dis.Loser.Source.Datasource, named(dis.Loser.Instrument), dis.Winner.Source.Datasource)
-		out = append(out, gen.CreateFindingParams{Kind: gen.FindingKindDisagreement, FetchKeyID: ptr.To(dis.Loser.Source.FetchKey), Detail: &detail})
+		out = append(out, gen.CreateFindingParams{Kind: gen.FindingKindIdentifierDisagreement, FetchKeyID: ptr.To(dis.Loser.Source.FetchKey), Detail: &detail})
 	}
 	for _, br := range d.Broken {
 		if !mine[br.Event.FetchKey] {

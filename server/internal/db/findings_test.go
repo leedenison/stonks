@@ -45,7 +45,7 @@ func TestFindings(t *testing.T) {
 	if len(findings) != 2 {
 		t.Fatalf("ListRunFindings = %d rows, want 2", len(findings))
 	}
-	for _, kind := range []gen.FindingKind{gen.FindingKindDisagreement, gen.FindingKindBrokenValidityBracket} {
+	for _, kind := range []gen.FindingKind{gen.FindingKindIdentifierDisagreement, gen.FindingKindBrokenValidityBracket} {
 		value := newRun(t, q, user)
 		require.NoError(t, q.CreateFinding(ctx, gen.CreateFindingParams{ID: db.NewID(), RunID: value.ID, Kind: kind, FetchKeyID: &fetchKey, Detail: ptr.To("XNAS:META on 2026-03-02")}))
 		listed, err := q.ListRunFindings(ctx, []uuid.UUID{value.ID})
@@ -75,17 +75,22 @@ func TestFindings(t *testing.T) {
 		// key gives a finding of a ticker a key; noKey takes the key from a
 		// finding of a key.
 		key, noKey bool
-		arg        gen.CreateFindingParams
+		// event names a corporate event.
+		event bool
+		arg   gen.CreateFindingParams
 	}{
 		{name: "dropped without a step", arg: gen.CreateFindingParams{Kind: gen.FindingKindDropped, FetchKeyID: &fetchKey, Detail: ptr.To("d")}},
 		{name: "dropped without a fetch key", arg: gen.CreateFindingParams{Kind: gen.FindingKindDropped, Step: ptr.To(gen.DropStepStated), Detail: ptr.To("d")}},
 		{name: "a block with detail", arg: gen.CreateFindingParams{Kind: gen.FindingKindBlock, Detail: ptr.To("d")}},
 		{name: "a contradiction without detail", arg: gen.CreateFindingParams{Kind: gen.FindingKindContradiction}},
 		{name: "a merge with a step", arg: gen.CreateFindingParams{Kind: gen.FindingKindMerged, Step: ptr.To(gen.DropStepStated), Detail: ptr.To("d")}},
-		{name: "a disagreement without a fetch key", arg: gen.CreateFindingParams{Kind: gen.FindingKindDisagreement, Detail: ptr.To("d")}},
-		{name: "a disagreement with a key", key: true, arg: gen.CreateFindingParams{Kind: gen.FindingKindDisagreement, FetchKeyID: &fetchKey, Detail: ptr.To("d")}},
+		{name: "a disagreement without a fetch key", arg: gen.CreateFindingParams{Kind: gen.FindingKindIdentifierDisagreement, Detail: ptr.To("d")}},
+		{name: "a disagreement with a key", key: true, arg: gen.CreateFindingParams{Kind: gen.FindingKindIdentifierDisagreement, FetchKeyID: &fetchKey, Detail: ptr.To("d")}},
 		{name: "a broken bracket without detail", arg: gen.CreateFindingParams{Kind: gen.FindingKindBrokenValidityBracket, FetchKeyID: &fetchKey}},
 		{name: "a contradiction without a key", noKey: true, arg: gen.CreateFindingParams{Kind: gen.FindingKindContradiction, Detail: ptr.To("d")}},
+		{name: "an unhandled corporate event without the event", arg: gen.CreateFindingParams{Kind: gen.FindingKindUnhandledCorporateEvent, Detail: ptr.To("d")}},
+		{name: "a corporate event disagreement without the event", arg: gen.CreateFindingParams{Kind: gen.FindingKindCorporateEventDisagreement, Detail: ptr.To("d")}},
+		{name: "a missed event naming a corporate event", event: true, arg: gen.CreateFindingParams{Kind: gen.FindingKindMissedEvent, FetchKeyID: &fetchKey, Detail: ptr.To("d")}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -110,6 +115,10 @@ func TestFindings(t *testing.T) {
 			if tc.arg.FetchKeyID != nil {
 				fetch := newFetch(t, q, user, run, newDatasource(t, q, "findings", 10))
 				tc.arg.FetchKeyID = ptr.To(servedKey(t, q, fetch, key, "GB00B03MLX29"))
+			}
+			if tc.event {
+				_, event := newCorporateEvent(t, q, newFetching(t, q))
+				tc.arg.CorporateEventID = &event
 			}
 			if err := q.CreateFinding(ctx, tc.arg); !sqlstate(err, pgerrcode.CheckViolation) {
 				t.Errorf("CreateFinding(%s): err = %v, want a check violation", tc.name, err)

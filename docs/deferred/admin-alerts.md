@@ -36,9 +36,9 @@ Candidate kinds:
 * An unresolved ticker. Keys with transactions state the ticker, and it names nothing on
   every day. Settled by an attestation that names an instrument, or by a datasource
   that learns the ticker.
-* A run finding. The findings of the kinds dropped, contradiction, merged, disagreement
-  and broken validity bracket. Each records a choice the system made between sources that
-  an administrator may want to check.
+* A run finding. The findings of the kinds dropped, contradiction, merged, identifier
+  disagreement and broken validity bracket. Each records a choice the system made between
+  sources that an administrator may want to check.
 * A block. A call failed unrecoverably and the datasource is not asked again under that
   key or at all until an administrator clears the block.
 * A failed or interrupted run.

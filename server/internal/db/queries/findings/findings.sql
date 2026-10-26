@@ -1,6 +1,6 @@
 -- name: CreateFinding :exec
-INSERT INTO findings (id, run_id, kind, stated_key_id, fetch_key_id, step, detail)
-VALUES ($1, $2, $3, $4, $5, $6, $7);
+INSERT INTO findings (id, run_id, kind, stated_key_id, fetch_key_id, step, detail, corporate_event_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8);
 
 -- name: ListRunFindings :many
 -- The findings of the runs, oldest first, each with what the key concerned

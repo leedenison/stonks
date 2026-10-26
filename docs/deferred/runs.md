@@ -27,8 +27,7 @@ recorded the event.
 ### Findings
 
 A stated split the calendar lacks and an event the system cannot handle are findings of
-the runs that meet them.  An unhandled corporate event is a row of its own, reported by a
-finding that references it.
+the runs that meet them.
 
 ## Constraints
 

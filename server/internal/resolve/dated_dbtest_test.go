@@ -288,7 +288,7 @@ func TestDisagreement(t *testing.T) {
 
 	found := s.runFindings(t)
 	loser := s.eventFetchKey(t, s.betaName, share)
-	if len(found) != 1 || found[0].Kind != gen.FindingKindDisagreement || found[0].FetchKeyID == nil || *found[0].FetchKeyID != loser.ID {
+	if len(found) != 1 || found[0].Kind != gen.FindingKindIdentifierDisagreement || found[0].FetchKeyID == nil || *found[0].FetchKeyID != loser.ID {
 		t.Errorf("findings = %+v, want one disagreement naming beta's fetch key %s", found, loser.ID)
 	}
 	if len(written) != 3 {

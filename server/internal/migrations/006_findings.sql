@@ -12,10 +12,11 @@
 -- response. The database's precedence or the datasources decided between
 -- them.
 -- 'merged' means the response merged two instruments.
--- 'disagreement' means two datasources asserted different things for one
--- ticker on one day. Precedence kept one. Unlike a contradiction, it concerns
--- a ticker rather than a key. The run whose write completed the pair records
--- it, and the finding names the losing assertion's fetch key.
+-- 'identifier_disagreement' means two datasources asserted different
+-- identifier facts for one ticker on one day. Precedence kept one. Unlike a
+-- contradiction, it concerns a ticker rather than a key. The run whose write
+-- completed the pair records it, and the finding names the losing assertion's
+-- fetch key.
 -- 'broken_validity_bracket' means a witnessed event fell between two
 -- assertions that name one instrument. The event wins over the bracket. The
 -- run that wrote the event records it, and the finding names the event's
@@ -25,8 +26,17 @@
 -- datasource reported no event there. The coverage wins. The run that wrote
 -- the coverage or either assertion records it, and the finding names the
 -- coverage's fetch key.
+-- 'unhandled_corporate_event' means a datasource reported a corporate event of
+-- a type the system does not restate a quantity by. The fetch that wrote the
+-- event records it, and the finding names the event.
+-- 'corporate_event_disagreement' means a corporate event of one datasource
+-- lacks a corporate event of equal ratio, within 7 days either side, from
+-- another datasource that covers the same ticker on its ex-date. The fetch
+-- that completed the pair records it, and the finding names the unmatched
+-- event.
 CREATE TYPE finding_kind AS ENUM ('block', 'dropped', 'contradiction', 'merged',
-    'disagreement', 'broken_validity_bracket', 'missed_event');
+    'identifier_disagreement', 'broken_validity_bracket', 'missed_event',
+    'unhandled_corporate_event', 'corporate_event_disagreement');
 
 -- The step of the choice that dropped a set of identifiers: it contradicted
 -- the stated data, was inconsistent with a higher precedence response, or
@@ -35,6 +45,8 @@ CREATE TYPE finding_kind AS ENUM ('block', 'dropped', 'contradiction', 'merged',
 CREATE TYPE drop_step AS ENUM ('stated', 'precedence', 'corroboration');
 
 -- A finding highlights abnormal run outcomes to administrators.
+-- 011_corporate_events.sql adds corporate_event_id, the corporate event a
+-- finding names.
 CREATE TABLE findings (
     id            uuid         PRIMARY KEY,
     run_id        uuid         NOT NULL REFERENCES runs (id) ON DELETE CASCADE,
@@ -53,7 +65,7 @@ CREATE TABLE findings (
     CHECK ((kind IN ('dropped', 'contradiction', 'merged')) = (stated_key_id IS NOT NULL)),
     CHECK ((kind = 'block') = (detail IS NULL)),
     CHECK ((kind = 'dropped') = (step IS NOT NULL)),
-    CHECK (kind NOT IN ('dropped', 'disagreement', 'broken_validity_bracket', 'missed_event') OR fetch_key_id IS NOT NULL)
+    CHECK (kind NOT IN ('dropped', 'identifier_disagreement', 'broken_validity_bracket', 'missed_event') OR fetch_key_id IS NOT NULL)
 );
 
 CREATE INDEX findings_run_idx ON findings (run_id);
