@@ -65,8 +65,9 @@ func Read(ctx context.Context, q ReadQueries, ts []types.MarketTicker, p types.P
 			if len(cov) == 0 && len(a.Events) == 0 {
 				continue
 			}
-			a.Coverage = cov
-			out[t] = append(out[t], a)
+			answer := a.Answer
+			answer.Coverage = cov
+			out[t] = append(out[t], answer)
 		}
 	}
 	return out, nil
@@ -75,10 +76,16 @@ func Read(ctx context.Context, q ReadQueries, ts []types.MarketTicker, p types.P
 // always is a period that holds every day an answer may cover.
 var always = types.Period{From: time.Date(1, 1, 1, 0, 0, 0, 0, time.UTC), Before: time.Date(9999, 1, 1, 0, 0, 0, 0, time.UTC)}
 
+// storedAnswer is an answer with the fetch key that wrote it.
+type storedAnswer struct {
+	Answer
+	fetchKey uuid.UUID
+}
+
 // readStored reads the answers of each of ts, in precedence order, with
 // their events whose ex-date p holds and their stored coverage, whole. A
 // ticker without an answer is absent.
-func readStored(ctx context.Context, q ReadQueries, ts []types.MarketTicker, p types.Period) (map[types.MarketTicker][]Answer, error) {
+func readStored(ctx context.Context, q ReadQueries, ts []types.MarketTicker, p types.Period) (map[types.MarketTicker][]storedAnswer, error) {
 	want := map[types.MarketTicker]bool{}
 	var markets, values []string
 	for _, t := range ts {
@@ -87,7 +94,7 @@ func readStored(ctx context.Context, q ReadQueries, ts []types.MarketTicker, p t
 			markets, values = append(markets, t.Market), append(values, t.Value)
 		}
 	}
-	out := map[types.MarketTicker][]Answer{}
+	out := map[types.MarketTicker][]storedAnswer{}
 	if len(want) == 0 {
 		return out, nil
 	}
@@ -106,7 +113,7 @@ func readStored(ctx context.Context, q ReadQueries, ts []types.MarketTicker, p t
 		if !want[t] {
 			continue
 		}
-		s := Answer{Datasource: a.Datasource, Precedence: row.Precedence}
+		s := storedAnswer{Answer: Answer{Datasource: a.Datasource, Precedence: row.Precedence}, fetchKey: a.FetchKeyID}
 		if a.CoveredFrom != nil && a.CoveredBefore != nil {
 			s.Coverage = []types.Period{{From: *a.CoveredFrom, Before: *a.CoveredBefore}}
 		}

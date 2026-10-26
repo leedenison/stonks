@@ -147,6 +147,13 @@ func (s *stack) only(t *testing.T, name string) {
 	require.NoError(t, s.sources.Reload(context.Background()))
 }
 
+// both enables corporate events for both datasources.
+func (s *stack) both(t *testing.T) {
+	t.Helper()
+	s.identityOnly = map[string]bool{}
+	require.NoError(t, s.sources.Reload(context.Background()))
+}
+
 func (s *stack) fetch(t *testing.T, tickers ...types.Identifier) {
 	t.Helper()
 	reqs := make([]market.CorporateEventRequest, len(tickers))
@@ -341,7 +348,7 @@ func TestUnhandledEvent(t *testing.T) {
 	for _, f := range fs {
 		kinds[f.kind] = f.datasource
 	}
-	wantKinds := map[gen.FindingKind]string{gen.FindingKindUnhandledCorporateEvent: s.alphaName}
+	wantKinds := map[gen.FindingKind]string{gen.FindingKindUnhandledCorporateEvent: s.alphaName, gen.FindingKindCorporateEventDisagreement: s.alphaName}
 	if diff := cmp.Diff(wantKinds, kinds); diff != "" {
 		t.Errorf("findings mismatch (-want +got):\n%s", diff)
 	}
@@ -359,8 +366,8 @@ func TestUnhandledEvent(t *testing.T) {
 	s.now = answered.AddDate(0, 0, 1)
 	s.fetch(t, nvda)
 	again := s.findings(t, us("NVDA"))
-	if len(again) != 1 || !again[0].cleared {
-		t.Errorf("findings after a repeat = %+v, want the one, still cleared", again)
+	if len(again) != 2 || !again[0].cleared || !again[1].cleared {
+		t.Errorf("findings after a repeat = %+v, want the two, still cleared", again)
 	}
 
 	s.alpha.Responses[nvda] = covering()
@@ -373,6 +380,52 @@ func TestUnhandledEvent(t *testing.T) {
 		if diff := cmp.Diff(whole, a.Coverage); diff != "" {
 			t.Errorf("%s coverage after the event is dropped mismatch (-want +got):\n%s", a.Datasource, diff)
 		}
+	}
+}
+
+// TestRecordDisagreements checks which event pairs raise a disagreement.
+func TestRecordDisagreements(t *testing.T) {
+	s := newStack(t)
+	june := day(2024, 6, 10)
+	s.alpha.Responses[ticker("XNAS", "NVDA")] = covering(reported(june, ratio(1, 10)))
+	s.beta.Responses[ticker("XNAS", "NVDA")] = covering(reported(june.AddDate(0, 0, 1), ratio(1, 10)))
+	s.alpha.Responses[ticker("XNAS", "AMD")] = covering(reported(june, ratio(1, 2)))
+	s.beta.Responses[ticker("XNAS", "AMD")] = covering(reported(june.AddDate(0, 0, 10), ratio(1, 2)))
+	s.alpha.Responses[ticker("XNAS", "INTC")] = covering(reported(june, ratio(1, 2)))
+	s.beta.Responses[ticker("XNAS", "INTC")] = covering(reported(june, ratio(1, 3)))
+	late := types.Period{From: day(2025, 1, 1), Before: asked.Before}
+	s.alpha.Responses[ticker("XNAS", "MU")] = covering(reported(day(2022, 3, 1), ratio(1, 2)))
+	s.beta.Responses[ticker("XNAS", "MU")] = market.CorporateEventResult{Coverage: &late}
+	s.fetch(t, ticker("XNAS", "NVDA"), ticker("XNAS", "AMD"), ticker("XNAS", "INTC"), ticker("XNAS", "MU"))
+
+	for value, want := range map[string]int{"NVDA": 0, "AMD": 2, "INTC": 2, "MU": 0} {
+		if got := len(s.findings(t, us(value))); got != want {
+			t.Errorf("%s: %d disagreements, want %d", value, got, want)
+		}
+	}
+}
+
+// TestDisagreementRuns checks that a disagreement with an earlier answer goes
+// on the run of the answer that completed the pair, and that an event is
+// reported once.
+func TestDisagreementRuns(t *testing.T) {
+	s := newStack(t)
+	nvda := ticker("XNAS", "NVDA")
+	s.alpha.Responses[nvda] = covering(reported(day(2024, 6, 10), ratio(1, 10)))
+	s.beta.Responses[nvda] = covering()
+	s.only(t, s.alphaName)
+	s.fetch(t, nvda)
+	if got := s.findings(t, us("NVDA")); len(got) != 0 {
+		t.Fatalf("findings with one datasource = %+v, want none", got)
+	}
+	s.only(t, s.betaName)
+	s.fetch(t, nvda)
+	s.fetch(t, nvda)
+	s.both(t)
+	s.fetch(t, ticker("XNAS", "AMD"))
+	got := s.findings(t, us("NVDA"))
+	if len(got) != 1 || got[0].kind != gen.FindingKindCorporateEventDisagreement || got[0].datasource != s.betaName {
+		t.Errorf("findings = %+v, want one disagreement on beta's run", got)
 	}
 }
 

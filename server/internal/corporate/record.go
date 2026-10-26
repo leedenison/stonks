@@ -16,14 +16,20 @@ import (
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
+// recordedKey pairs a served fetch key with the ticker of its answer.
+type recordedKey struct {
+	key    answerKey
+	ticker types.MarketTicker
+}
+
 // record writes the answer of k, in one transaction, and an unhandled event
 // finding for each unhandled event it adds. Where the system cannot spell the
-// ticker, it leaves the answer out with a warning.
-func (r *Recorder) record(ctx context.Context, k answerKey) error {
+// ticker, it leaves the answer out with a warning and reports false.
+func (r *Recorder) record(ctx context.Context, k answerKey) (recordedKey, bool, error) {
 	t, ok := r.marketTicker(k.Request)
 	if !ok {
 		r.log.Warn("corporate events left out", "ticker", k.Request.Ticker.Name(), "datasource", k.Source)
-		return nil
+		return recordedKey{}, false, nil
 	}
 	var found int
 	err := r.store.Tx(ctx, func(q Queries) error {
@@ -32,12 +38,12 @@ func (r *Recorder) record(ctx context.Context, k answerKey) error {
 		return err
 	})
 	if err != nil {
-		return fmt.Errorf("record the corporate events of %s from %s: %w", t.Name(), k.Source, err)
+		return recordedKey{}, false, fmt.Errorf("record the corporate events of %s from %s: %w", t.Name(), k.Source, err)
 	}
 	for range found {
 		runs.Found(ctx, gen.FindingKindUnhandledCorporateEvent)
 	}
-	return nil
+	return recordedKey{key: k, ticker: t}, true, nil
 }
 
 // writeAnswer replaces the stored answer of k's datasource for t with k's,

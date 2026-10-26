@@ -8,6 +8,9 @@
 // The latest answer of a datasource for a ticker, by the moment the
 // datasource gave it, replaces its earlier one. A cached answer keeps the
 // moment of the call that filled the cache.
+//
+// Two datasources disagree when an event of one, on a day both cover, lacks
+// an event of equal ratio from the other within 7 calendar days either side.
 package corporate
 
 import (
@@ -44,7 +47,7 @@ func New(store Store, fetcher Fetcher, sources Sources, mics mic.MICMap, log *sl
 
 // Fetch asks each enabled datasource that serves corporate events,
 // concurrently, for reqs, as child runs of parent. It then records each
-// served answer.
+// served answer and writes the disagreements the answers raise.
 func (r *Recorder) Fetch(ctx context.Context, parent gen.Run, reqs []market.CorporateEventRequest) error {
 	reqs = r.distinct(reqs)
 	if len(reqs) == 0 {
@@ -69,15 +72,20 @@ func (r *Recorder) Fetch(ctx context.Context, parent gen.Run, reqs []market.Corp
 	if err := g.Wait(); err != nil {
 		return err
 	}
+	var recorded []recordedKey
 	for _, k := range slices.Concat(keys...) {
 		if k.Outcome != gen.FetchOutcomeServed {
 			continue
 		}
-		if err := r.record(ctx, k); err != nil {
+		rec, ok, err := r.record(ctx, k)
+		if err != nil {
 			return err
 		}
+		if ok {
+			recorded = append(recorded, rec)
+		}
 	}
-	return nil
+	return r.compare(ctx, recorded)
 }
 
 // distinct keeps the first request of each ticker at its market, so a ticker

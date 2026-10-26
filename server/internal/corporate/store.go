@@ -28,6 +28,7 @@ type Queries interface {
 	ListAnswerEvents(ctx context.Context, answerID uuid.UUID) ([]gen.CorporateEvent, error)
 	CreateCorporateEvent(ctx context.Context, arg gen.CreateCorporateEventParams) error
 	DeleteCorporateEvents(ctx context.Context, ids []uuid.UUID) error
+	ListDisagreedEvents(ctx context.Context, ids []uuid.UUID) ([]uuid.UUID, error)
 	CreateFinding(ctx context.Context, arg gen.CreateFindingParams) error
 }
 
