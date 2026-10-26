@@ -3,6 +3,10 @@
 An answer covers its period whether or not it holds a corporate event. Most tickers never
 split, so most answers are empty.
 
+EODHD answers a symbol it does not know with a distinct refusal. That answer carries no
+coverage, as for any key a datasource does not serve. See
+[datasources.md](../../../deferred/datasources.md).
+
 Massive returns the same empty answer for a ticker that has never split, a ticker it does not
 know and a ticker it has dropped. It has dropped mutual funds from its splits endpoint. An
 open-end fund lacks an exchange listing, so the fetch never asks Massive about one. Massive's

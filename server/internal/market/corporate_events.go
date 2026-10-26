@@ -35,7 +35,8 @@ type CorporateEventResult struct {
 	Events []CorporateEvent
 	// Coverage is the period the provider answered for. Over it, the provider
 	// reported every corporate event it holds for the ticker. It is nil where
-	// the provider omits a period.
+	// the provider omits a period, or states that it does not know the
+	// ticker.
 	Coverage *types.Period
 }
 

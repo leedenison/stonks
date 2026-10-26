@@ -24,6 +24,7 @@ import (
 var mics = mic.Of(map[string]string{
 	"XNYS": "XNYS", "ARCX": "XNYS", "XASE": "XNYS", "XNAS": "XNAS", "XNGS": "XNAS",
 	"BATS": "BATS", "XCBO": "XCBO", "XLON": "XLON", "XETR": "XETR", "OTCM": "OTCM", "XTSE": "XTSE",
+	"XKRX": "XKRX", "XKOS": "XKRX",
 })
 
 func ticker(venue, value string) types.Identifier {

@@ -1,0 +1,48 @@
+---
+version: 2
+interactions:
+    - id: 0
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: eodhd.com
+        form:
+            api_token:
+                - REDACTED
+            fmt:
+                - json
+        url: https://eodhd.com/api/splits/BT-A.LSE?api_token=REDACTED&fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 114
+        uncompressed: true
+        body: '[{"date":"2001-05-21","split":"431.000000\/387.000000"},{"date":"2001-11-09","split":"12411.000000\/9622.000000"}]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Mon, 26 Oct 2026 21:03:56 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1196"
+        status: 200 OK
+        code: 200
+        duration: 466.187876ms
