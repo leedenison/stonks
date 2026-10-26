@@ -61,6 +61,7 @@ Each has a note in `docs/deferred` outlining how it might work.
 - **D-ANNOT** - [Annotations](deferred/annotations.md); what a user records against their own keys: choices of instrument, groupings, prices and keys made by hand, and working on that data alone where no datasource covers a holding.
 - **D-DEPLOY** - [Production deployment](deferred/production-deployment.md); TLS, cross-origin access and what each container publishes.
 - **D-ALERTS** - [Admin alerts](deferred/admin-alerts.md); one triage list of what needs an administrator: validity gaps, unresolved tickers, run findings, blocks and unhandled corporate events.
+- **D-UI** - [UI refinement](deferred/ui-refinement.md); a pass before production over the surfaces that real use shows could serve their task better, starting with the attest dialog.
 
 ## Spike
 
