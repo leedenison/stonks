@@ -3,8 +3,8 @@
 //
 // Gaps are measured against confirmed validity, not against coverage. An
 // attestation closes a gap by bracketing it and writes no coverage row. A
-// ticker's domain is its operating MIC, and a caller may name any venue of
-// it.
+// ticker is read at its market, and its transactions are those of the keys
+// that state it at any venue of the market.
 package coverage
 
 import (
@@ -75,7 +75,7 @@ func (g Gap) ToProto() *admincoveragev1.Gap {
 // Page is one ticker as the admin area shows it: its facts, the validity
 // they derive, and its gaps.
 type Page struct {
-	Identifier types.Identifier
+	Ticker types.MarketTicker
 	// Days are the distinct as-at dates of the transactions whose keys state
 	// the ticker, in order.
 	Days      []time.Time
@@ -89,7 +89,7 @@ type Page struct {
 
 // ToProto converts the page.
 func (t *Page) ToProto() *admincoveragev1.Ticker {
-	out := &admincoveragev1.Ticker{Ticker: t.Identifier.ToProto()}
+	out := &admincoveragev1.Ticker{Ticker: t.Ticker.ToProto()}
 	for _, d := range t.Days {
 		out.TransactionDays = append(out.TransactionDays, ymd(d))
 	}
@@ -119,18 +119,20 @@ func (t *Page) ToProto() *admincoveragev1.Ticker {
 	return out
 }
 
-// InstrumentTicker is a ticker that names an instrument, now or in an
-// assertion, with the count of transactions whose keys state it at any venue
-// of its domain.
+// InstrumentTicker is a ticker at its market that names an instrument, now
+// or in an assertion, with the count of transactions whose keys state it at
+// any venue of the market.
 type InstrumentTicker struct {
-	Identifier   types.Identifier
+	Ticker       types.MarketTicker
 	Current      bool
 	Transactions int
+	// Venues are the operating MICs of the listings that carry the ticker.
+	Venues []string
 }
 
 // ToProto converts the ticker.
 func (t InstrumentTicker) ToProto() *admincoveragev1.InstrumentTicker {
-	return &admincoveragev1.InstrumentTicker{Ticker: t.Identifier.ToProto(), Current: t.Current, Transactions: int32(t.Transactions)}
+	return &admincoveragev1.InstrumentTicker{Ticker: t.Ticker.ToProto(), Current: t.Current, Transactions: int32(t.Transactions), Venues: t.Venues}
 }
 
 // InstrumentTickers lists the tickers that name the instrument, now or in an
@@ -142,8 +144,8 @@ func (r *Reader) InstrumentTickers(ctx context.Context, instrument uuid.UUID) ([
 	}
 	var out []InstrumentTicker
 	for _, row := range rows {
-		v := types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: row.Domain, Value: row.Value}
-		probes, err := r.mics.Probes([]types.Identifier{v})
+		v := types.MarketTicker{Market: row.Market, Value: row.Value}
+		probes, err := r.mics.TickerProbes([]types.MarketTicker{v})
 		if err != nil {
 			return nil, err
 		}
@@ -151,7 +153,7 @@ func (r *Reader) InstrumentTickers(ctx context.Context, instrument uuid.UUID) ([
 		if err != nil {
 			return nil, fmt.Errorf("count transactions of %s: %w", v.Name(), err)
 		}
-		out = append(out, InstrumentTicker{Identifier: v, Current: row.Current, Transactions: int(n)})
+		out = append(out, InstrumentTicker{Ticker: v, Current: row.Current, Transactions: int(n), Venues: row.Venues})
 	}
 	slices.SortStableFunc(out, func(a, b InstrumentTicker) int {
 		if a.Transactions != b.Transactions {
@@ -163,22 +165,17 @@ func (r *Reader) InstrumentTickers(ctx context.Context, instrument uuid.UUID) ([
 			}
 			return 1
 		}
-		return strings.Compare(a.Identifier.Name(), b.Identifier.Name())
+		return strings.Compare(a.Ticker.Name(), b.Ticker.Name())
 	})
 	return out, nil
 }
 
-// Ticker reads the facts and validity of v. It refuses an identifier that is
-// not a MIC_TICKER with validity.ErrNotTicker, and a domain with
-// validity.ErrSpelling.
-func (r *Reader) Ticker(ctx context.Context, v types.Identifier, today time.Time) (*Page, error) {
-	if v.Type != types.IdentifierTypeMicTicker {
-		return nil, fmt.Errorf("%s: %w", v.Name(), validity.ErrNotTicker)
+// Ticker reads the facts and validity of v. It refuses an unknown market
+// with validity.ErrSpelling.
+func (r *Reader) Ticker(ctx context.Context, v types.MarketTicker, today time.Time) (*Page, error) {
+	if !r.mics.IsMarket(v.Market) {
+		return nil, fmt.Errorf("market %q: %w", v.Market, validity.ErrSpelling)
 	}
-	if v.Value == "" {
-		return nil, fmt.Errorf("%s names a domain: %w", v.Name(), validity.ErrSpelling)
-	}
-	v.Domain = r.operating(v.Domain)
 	t, err := r.read(ctx, v, today)
 	if err != nil {
 		return nil, err
@@ -189,22 +186,13 @@ func (r *Reader) Ticker(ctx context.Context, v types.Identifier, today time.Time
 	return t, nil
 }
 
-// operating returns the operating MIC of domain, or domain itself where the
-// map does not list it.
-func (r *Reader) operating(domain string) string {
-	if op, ok := r.mics.Operating(domain); ok {
-		return op
-	}
-	return domain
-}
-
 // read derives v's validity and its gaps over its transaction period.
-func (r *Reader) read(ctx context.Context, v types.Identifier, today time.Time) (*Page, error) {
+func (r *Reader) read(ctx context.Context, v types.MarketTicker, today time.Time) (*Page, error) {
 	rows, err := validity.ReadRows(ctx, r.q, v)
 	if err != nil {
 		return nil, err
 	}
-	probes, err := r.mics.Probes([]types.Identifier{v})
+	probes, err := r.mics.TickerProbes([]types.MarketTicker{v})
 	if err != nil {
 		return nil, err
 	}
@@ -212,7 +200,7 @@ func (r *Reader) read(ctx context.Context, v types.Identifier, today time.Time) 
 	if err != nil {
 		return nil, fmt.Errorf("list transactions of %s: %w", v.Name(), err)
 	}
-	t := &Page{Identifier: v, Rows: rows, Intervals: validity.Derive(rows.Facts()).Intervals}
+	t := &Page{Ticker: v, Rows: rows, Intervals: validity.Derive(rows.Facts()).Intervals}
 	for _, tx := range txs {
 		if n := len(t.Days); n == 0 || !t.Days[n-1].Equal(tx.AsAt) {
 			t.Days = append(t.Days, tx.AsAt)

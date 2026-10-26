@@ -24,19 +24,24 @@ var (
 	alpha = ptr.To("alpha")
 	k1    = uuid.MustParse("00000000-0000-0000-0000-000000000011")
 	k2    = uuid.MustParse("00000000-0000-0000-0000-000000000012")
-	mics  = mic.Of(map[string]string{"XNAS": "XNAS", "XNGS": "XNAS"})
+	// mics puts XNAS and XNYS in the market US.
+	mics = mic.MICMap{
+		"XNAS": {Operating: "XNAS", Market: "US"},
+		"XNGS": {Operating: "XNAS", Market: "US"},
+		"XNYS": {Operating: "XNYS", Market: "US"},
+	}
 )
 
 // day is the nth day of March 2026.
 func day(n int) time.Time { return time.Date(2026, time.March, n, 0, 0, 0, 0, time.UTC) }
 
-func ticker(value string) types.Identifier {
-	return types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: value}
+func ticker(value string) types.MarketTicker {
+	return types.MarketTicker{Market: "US", Value: value}
 }
 
 func asserted(n int, instrument *uuid.UUID) gen.ListIdentifierAssertionsRow {
 	return gen.ListIdentifierAssertionsRow{
-		IdentifierAssertion: gen.IdentifierAssertion{ID: uuid.New(), Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "ACME", AssertedOn: day(n), InstrumentID: instrument, FetchKeyID: ptr.To(uuid.New())},
+		IdentifierAssertion: gen.IdentifierAssertion{ID: uuid.New(), Type: types.IdentifierTypeMicTicker, Domain: "US", Value: "ACME", AssertedOn: day(n), InstrumentID: instrument, FetchKeyID: ptr.To(uuid.New())},
 		Datasource:          alpha, Precedence: ptr.To(int32(1)),
 	}
 }
@@ -46,36 +51,40 @@ func tx(key uuid.UUID, n int) gen.ListTickerTransactionsRow {
 }
 
 // facts serves the facts of v: assertions and nothing else.
-func facts(q *mock.MockQueries, v types.Identifier, assertions []gen.ListIdentifierAssertionsRow) {
-	q.EXPECT().ListIdentifierAssertions(gomock.Any(), gen.ListIdentifierAssertionsParams{Type: v.Type, Domains: []string{v.Domain}, Values: []string{v.Value}}).Return(assertions, nil)
-	q.EXPECT().ListIdentifierEvents(gomock.Any(), gen.ListIdentifierEventsParams{Domains: []string{v.Domain}, Values: []string{v.Value}}).Return(nil, nil)
-	q.EXPECT().ListIdentifierCoverage(gomock.Any(), gen.ListIdentifierCoverageParams{Domains: []string{v.Domain}, Values: []string{v.Value}}).Return(nil, nil)
+func facts(q *mock.MockQueries, v types.MarketTicker, assertions []gen.ListIdentifierAssertionsRow) {
+	q.EXPECT().ListIdentifierAssertions(gomock.Any(), gen.ListIdentifierAssertionsParams{Markets: []string{v.Market}, Values: []string{v.Value}}).Return(assertions, nil)
+	q.EXPECT().ListIdentifierEvents(gomock.Any(), gen.ListIdentifierEventsParams{Markets: []string{v.Market}, Values: []string{v.Value}}).Return(nil, nil)
+	q.EXPECT().ListIdentifierCoverage(gomock.Any(), gen.ListIdentifierCoverageParams{Markets: []string{v.Market}, Values: []string{v.Value}}).Return(nil, nil)
 }
 
-// TestTicker checks that a ticker named at a venue is read at its operating
-// MIC, with its days, intervals, gaps and the names of its instruments.
+// TestTicker checks that a ticker is read at its market, with the
+// transactions of keys at every venue of it, its days, intervals, gaps and
+// the names of its instruments.
 func TestTicker(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	q := mock.NewMockQueries(ctrl)
 	v := ticker("ACME")
 	assertions := []gen.ListIdentifierAssertionsRow{asserted(10, &acme), asserted(20, &acme)}
 	facts(q, v, assertions)
-	probes, err := mics.Probes([]types.Identifier{v})
+	probes, err := mics.TickerProbes([]types.MarketTicker{v})
 	require.NoError(t, err)
+	if len(probes) != 3 {
+		t.Fatalf("probes = %d, want one per venue of the market", len(probes))
+	}
 	q.EXPECT().ListTickerTransactions(gomock.Any(), probes).
 		Return([]gen.ListTickerTransactionsRow{tx(k1, 5), tx(k2, 5), tx(k2, 15)}, nil)
 	name := gen.InstrumentName{InstrumentID: acme, Type: types.IdentifierTypeIsin, Value: "US0000000001"}
 	q.EXPECT().ListInstrumentNames(gomock.Any(), []uuid.UUID{acme}).Return([]gen.InstrumentName{name}, nil)
 
-	got, err := New(q, mics).Ticker(context.Background(), types.Identifier{Type: v.Type, Domain: "XNGS", Value: "ACME"}, day(30))
+	got, err := New(q, mics).Ticker(context.Background(), v, day(30))
 	if err != nil {
 		t.Fatalf("Ticker: %v", err)
 	}
 	from, mid, before := day(10), day(21), day(31)
 	want := &Page{
-		Identifier: v,
-		Days:       []time.Time{day(5), day(15)},
-		Rows:       validity.Rows{Assertions: assertions},
+		Ticker: v,
+		Days:   []time.Time{day(5), day(15)},
+		Rows:   validity.Rows{Assertions: assertions},
 		Intervals: []validity.Interval{
 			{Before: &from, Instrument: acme, Validity: validity.Provisional},
 			{From: &from, Before: &mid, Instrument: acme, Validity: validity.Confirmed},
@@ -113,11 +122,11 @@ func TestTickerNoTransactions(t *testing.T) {
 func TestTickerRefused(t *testing.T) {
 	tests := []struct {
 		name    string
-		v       types.Identifier
+		v       types.MarketTicker
 		wantErr error
 	}{
-		{name: "isin", v: types.Identifier{Type: types.IdentifierTypeIsin, Value: "US0000000001"}, wantErr: validity.ErrNotTicker},
-		{name: "domain", v: types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XNAS"}, wantErr: validity.ErrSpelling},
+		{name: "venue for market", v: types.MarketTicker{Market: "XNAS", Value: "ACME"}, wantErr: validity.ErrSpelling},
+		{name: "unknown market", v: types.MarketTicker{Market: "ZZ", Value: "ACME"}, wantErr: validity.ErrSpelling},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

@@ -14,7 +14,7 @@ import (
 )
 
 var (
-	meta       = types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "META"}
+	meta       = types.MarketTicker{Market: "US", Value: "META"}
 	metaInst   = uuid.MustParse("00000000-0000-0000-0000-00000000000a")
 	renamed    = time.Date(2022, time.June, 9, 0, 0, 0, 0, time.UTC)
 	coveredTo  = time.Date(2024, time.February, 1, 0, 0, 0, 0, time.UTC)
@@ -39,7 +39,7 @@ func metaFacts() validity.Facts {
 }
 
 func metaTicker() *validity.Ticker {
-	return &validity.Ticker{Identifier: meta, Derived: validity.Derive(metaFacts())}
+	return &validity.Ticker{Ticker: meta, Derived: validity.Derive(metaFacts())}
 }
 
 func TestMark(t *testing.T) {

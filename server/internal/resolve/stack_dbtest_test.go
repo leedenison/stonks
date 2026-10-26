@@ -5,6 +5,7 @@ package resolve
 import (
 	"context"
 	"log/slog"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -145,6 +146,16 @@ func newStack(t *testing.T) *stack {
 }
 
 // confirmedOn reports whether ivs confirm instrument on day d.
+// mt is the market ticker of v: a ticker at a US venue is in the market
+// US, and one at any other venue tested is in the market of its venue.
+func mt(v types.Identifier) types.MarketTicker {
+	m := v.Domain
+	if slices.Contains([]string{"XNAS", "XNGS", "XNYS", "ARCX", "BATS"}, m) {
+		m = "US"
+	}
+	return types.MarketTicker{Market: m, Value: v.Value}
+}
+
 func confirmedOn(ivs []validity.Interval, instrument uuid.UUID, d time.Time) bool {
 	for _, iv := range ivs {
 		if iv.Instrument == instrument && iv.Validity == validity.Confirmed &&

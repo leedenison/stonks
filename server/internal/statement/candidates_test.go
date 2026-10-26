@@ -91,7 +91,7 @@ func TestConfirm(t *testing.T) {
 	t.Run("confirms as a synchronous run and replays its new facts", func(t *testing.T) {
 		f := newFixture(t)
 		row := f.syncs()
-		written := []resolve.WrittenIdentifierFacts{{Run: gen.Run{ID: db.NewID()}, Identifiers: []types.Identifier{{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "INTC"}}}}
+		written := []resolve.WrittenIdentifierFacts{{Run: gen.Run{ID: db.NewID()}, Tickers: []types.MarketTicker{{Market: "US", Value: "INTC"}}}}
 		f.store.EXPECT().GetStatedKey(gomock.Any(), gen.GetStatedKeyParams{ID: key.ID, UserID: userID}).Return(key, nil)
 		f.resolver.EXPECT().Confirm(gomock.Any(), gomock.Any(), key, pick).DoAndReturn(func(_ context.Context, res gen.Run, _ gen.StatedKey, _ resolve.Pick) (gen.ResolutionKey, []resolve.WrittenIdentifierFacts, error) {
 			return gen.ResolutionKey{RunID: res.ID, StatedKeyID: key.ID, Outcome: gen.ResolutionOutcomeMatched}, written, nil

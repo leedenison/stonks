@@ -17,16 +17,16 @@ import {
 } from "@/gen/admin/instrument/v1/instrument_pb";
 import { Role } from "@/gen/auth/v1/auth_pb";
 import { RunSchema } from "@/gen/run/v1/run_pb";
-import { IdentifierSchema, IdentifierType } from "@/gen/type/v1/type_pb";
+import {
+  IdentifierSchema,
+  IdentifierType,
+  MarketTickerSchema,
+} from "@/gen/type/v1/type_pb";
 import { liveSession, renderWithAuth, transportWith } from "@/lib/test-utils";
 import { AttestDialog } from "./attest-dialog";
 
 const admin = liveSession({ role: Role.ADMIN });
-const acme = create(IdentifierSchema, {
-  type: IdentifierType.MIC_TICKER,
-  domain: "XNAS",
-  value: "ACME",
-});
+const acme = create(MarketTickerSchema, { market: "US", value: "ACME" });
 const isin = create(IdentifierSchema, {
   type: IdentifierType.ISIN,
   value: "US0000000001",

@@ -7,30 +7,26 @@ import {
   Validity,
 } from "@/gen/admin/coverage/v1/coverage_pb";
 import { AssertionItemSchema } from "@/gen/admin/run/v1/run_pb";
-import { IdentifierType } from "@/gen/type/v1/type_pb";
 import { Timeline, ticks } from "./timeline";
 
-const ticker = {
-  type: IdentifierType.MIC_TICKER,
-  domain: "XNAS",
-  value: "ACME",
-};
+const ticker = { market: "US", value: "ACME" };
 
 // A ticker with every kind of fact, so each lane has a mark. One datasource
-// covers the whole domain.
+// covers the whole market.
 const acme = create(TickerSchema, {
   ticker,
   transactionDays: ["2024-02-01", "2025-06-01"],
   coverage: [
     {
       datasource: "alpha",
-      covers: ticker,
+      market: "US",
+      value: "ACME",
       coveredFrom: "2024-06-01",
       coveredBefore: "2026-03-01",
     },
     {
       datasource: "beta",
-      covers: { ...ticker, value: "" },
+      market: "US",
       coveredFrom: "2025-01-01",
       coveredBefore: "2026-03-01",
     },
@@ -95,7 +91,7 @@ describe("Timeline", () => {
     expect(lane("events")?.querySelectorAll("polygon")).toHaveLength(1);
     expect(lane("coverage-alpha")?.querySelectorAll("rect")).toHaveLength(1);
     expect(
-      lane("coverage-beta")?.querySelector("rect")?.getAttribute("data-domain"),
+      lane("coverage-beta")?.querySelector("rect")?.getAttribute("data-market"),
     ).toBe("true");
     // The range spans more than two years, so the axis is labelled by year.
     expect(lane("axis")?.textContent).toBe("20252026");

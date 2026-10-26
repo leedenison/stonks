@@ -46,13 +46,13 @@ func datedTicker(k gen.StatedKey, mics mic.MICMap) (types.Identifier, bool) {
 }
 
 // findResolutionDated reads the validity of each key's dated ticker and the
-// as-at dates of its transactions. Keys dated through one ticker share one
-// read of its facts. A key that already has a dated association is matched as
+// as-at dates of its transactions. Keys dated through the same market ticker
+// share one read of its facts. A key that already has a dated association is matched as
 // it stands. A key without a known instrument, whose ticker has validity, is
 // dated through the ticker without an identity fetch.
 func (r *Resolver) findResolutionDated(ctx context.Context, user uuid.UUID, rs []*resolution, keys []KeyDates) error {
 	var ids []uuid.UUID
-	read := map[types.Identifier]*validity.Ticker{}
+	read := map[types.MarketTicker]*validity.Ticker{}
 	for i, res := range rs {
 		if res.outcome != "" {
 			continue
@@ -63,14 +63,18 @@ func (r *Resolver) findResolutionDated(ctx context.Context, user uuid.UUID, rs [
 				continue
 			}
 		}
-		if read[v] == nil {
-			t, err := validity.ReadTicker(ctx, r.store, v)
-			if err != nil {
-				return fmt.Errorf("read the facts of %s: %w", v.Name(), err)
-			}
-			read[v] = t
+		mt, ok := r.mics.MarketTicker(v)
+		if !ok {
+			continue
 		}
-		res.dating = read[v]
+		if read[mt] == nil {
+			t, err := validity.ReadTicker(ctx, r.store, mt)
+			if err != nil {
+				return fmt.Errorf("read the facts of %s: %w", mt.Name(), err)
+			}
+			read[mt] = t
+		}
+		res.via, res.dating = v, read[mt]
 		res.dates = slices.Clone(keys[i].Dates)
 		ids = append(ids, res.row.ID)
 		switch {
@@ -144,7 +148,7 @@ func (r *Resolver) fetchResolutionEvents(ctx context.Context, run gen.Run, rs []
 			if !day.Before(today) || res.dating.Asserted(day) {
 				continue
 			}
-			add(market.IdentifierEventRequest{Identifier: res.dating.Identifier, Period: types.Period{From: day, Before: day.AddDate(0, 0, 1)}})
+			add(market.IdentifierEventRequest{Identifier: res.via, Period: types.Period{From: day, Before: day.AddDate(0, 0, 1)}})
 		}
 	}
 	keys := make([][]eventKey, len(entries))
@@ -205,7 +209,7 @@ func (r *Resolver) recordIdentifierFacts(ctx context.Context, run gen.Run, b *ba
 	if err != nil {
 		return nil, err
 	}
-	written := newWritten()
+	written := newWritten(r.mics)
 	for _, e := range r.sources.Enabled() {
 		for _, res := range b.resolutions {
 			for _, f := range res.written {
@@ -218,9 +222,7 @@ func (r *Resolver) recordIdentifierFacts(ctx context.Context, run gen.Run, b *ba
 	if recorded {
 		for _, k := range b.events {
 			if k.Outcome == gen.FetchOutcomeServed {
-				for _, id := range factIdentifiers(k.Response) {
-					written.add(k.Run, id)
-				}
+				written.addFacts(k.Run, k.Response)
 			}
 		}
 	}
@@ -253,7 +255,7 @@ func (r *Resolver) recordEvents(ctx context.Context, keys []eventKey) (bool, err
 		return validity.Record(ctx, q, r.mics, r.families, keys)
 	})
 	switch {
-	case errors.Is(err, validity.ErrSpelling), errors.Is(err, validity.ErrNotTicker):
+	case errors.Is(err, validity.ErrSpelling):
 		r.log.Warn("identifier facts left out", "err", err)
 		return false, nil
 	case err != nil:
@@ -269,9 +271,8 @@ func (r *Resolver) recordConflicts(ctx context.Context, run gen.Run, written *wr
 	var kinds []gen.FindingKind
 	err := r.store.Tx(ctx, func(q Queries) error {
 		kinds = nil
-		met := map[conflict]bool{}
-		for _, v := range written.tickers() {
-			fs, err := conflicts(ctx, q, v, mine, met)
+		for _, t := range written.tickers() {
+			fs, err := conflicts(ctx, q, t, mine)
 			if err != nil {
 				return err
 			}
@@ -294,47 +295,65 @@ func (r *Resolver) recordConflicts(ctx context.Context, run gen.Run, written *wr
 	return nil
 }
 
-// factIdentifiers returns the identifiers r states facts of: the tickers of
-// its events, the ticker a rename moved to, the tickers of its assertions, and
-// the ticker or domain of its coverage.
-func factIdentifiers(r market.IdentifierEventResult) []types.Identifier {
-	var out []types.Identifier
-	for _, e := range r.Events {
-		out = append(out, e.Value)
-		if e.ToValue != "" {
-			out = append(out, types.Identifier{Type: e.Value.Type, Domain: e.Value.Domain, Value: e.ToValue})
-		}
-	}
-	for _, a := range r.Assertions {
-		out = append(out, a.Value)
-	}
-	for _, c := range r.Coverage {
-		out = append(out, c.Identifier)
-	}
-	return out
-}
-
-// writtenSet gathers the identifiers of the facts each run wrote, in the
-// order the runs first wrote one.
+// writtenSet gathers the facts each run wrote, in the order the runs first
+// wrote one. A ticker at a venue is gathered at its market.
 type writtenSet struct {
+	mics  mic.MICMap
 	order []uuid.UUID
 	byRun map[uuid.UUID]*WrittenIdentifierFacts
-	seen  map[uuid.UUID]map[types.Identifier]bool
+	seen  map[uuid.UUID]map[any]bool
 }
 
-func newWritten() *writtenSet {
-	return &writtenSet{byRun: map[uuid.UUID]*WrittenIdentifierFacts{}, seen: map[uuid.UUID]map[types.Identifier]bool{}}
+func newWritten(mics mic.MICMap) *writtenSet {
+	return &writtenSet{mics: mics, byRun: map[uuid.UUID]*WrittenIdentifierFacts{}, seen: map[uuid.UUID]map[any]bool{}}
 }
 
-func (w *writtenSet) add(run gen.Run, id types.Identifier) {
+// run returns the facts of run, and whether k is new to them.
+func (w *writtenSet) run(run gen.Run, k any) (*WrittenIdentifierFacts, bool) {
 	if _, ok := w.byRun[run.ID]; !ok {
 		w.order = append(w.order, run.ID)
 		w.byRun[run.ID] = &WrittenIdentifierFacts{Run: run}
-		w.seen[run.ID] = map[types.Identifier]bool{}
+		w.seen[run.ID] = map[any]bool{}
 	}
-	if !w.seen[run.ID][id] {
-		w.seen[run.ID][id] = true
-		w.byRun[run.ID].Identifiers = append(w.byRun[run.ID].Identifiers, id)
+	if w.seen[run.ID][k] {
+		return nil, false
+	}
+	w.seen[run.ID][k] = true
+	return w.byRun[run.ID], true
+}
+
+// add gathers the assertion of id, a ticker at a venue, that run wrote.
+func (w *writtenSet) add(run gen.Run, id types.Identifier) {
+	if t, ok := w.mics.MarketTicker(id); ok {
+		w.addTicker(run, t)
+	}
+}
+
+func (w *writtenSet) addTicker(run gen.Run, t types.MarketTicker) {
+	if f, ok := w.run(run, t); ok {
+		f.Tickers = append(f.Tickers, t)
+	}
+}
+
+// addFacts gathers the tickers whose facts r states: the tickers of its events,
+// the ticker a rename moved to, the tickers of its assertions, and the ticker
+// or market of its coverage.
+func (w *writtenSet) addFacts(run gen.Run, r market.IdentifierEventResult) {
+	for _, e := range r.Events {
+		w.addTicker(run, e.Ticker)
+		if e.ToValue != "" {
+			w.addTicker(run, types.MarketTicker{Market: e.Ticker.Market, Value: e.ToValue})
+		}
+	}
+	for _, a := range r.Assertions {
+		w.addTicker(run, a.Ticker)
+	}
+	for _, c := range r.Coverage {
+		if c.Ticker != nil {
+			w.addTicker(run, *c.Ticker)
+		} else if f, ok := w.run(run, "market:"+c.Market); ok {
+			f.Markets = append(f.Markets, c.Market)
+		}
 	}
 }
 
@@ -346,36 +365,25 @@ func (w *writtenSet) list() []WrittenIdentifierFacts {
 	return out
 }
 
-// tickers returns each ticker the runs wrote a fact of, once, skipping domain
-// identifiers.
-func (w *writtenSet) tickers() []types.Identifier {
-	seen := map[types.Identifier]bool{}
-	var out []types.Identifier
+// tickers returns each ticker the runs wrote a fact of, once.
+func (w *writtenSet) tickers() []types.MarketTicker {
+	seen := map[types.MarketTicker]bool{}
+	var out []types.MarketTicker
 	for _, run := range w.order {
-		for _, id := range w.byRun[run].Identifiers {
-			if !id.IsDomain() && !seen[id] {
-				seen[id] = true
-				out = append(out, id)
+		for _, t := range w.byRun[run].Tickers {
+			if !seen[t] {
+				seen[t] = true
+				out = append(out, t)
 			}
 		}
 	}
 	return out
 }
 
-// conflict is one finding's kind, fetch key and day. A datasource that
-// states its facts at every venue of a market repeats a conflict for each
-// venue's ticker, and met keeps the first.
-type conflict struct {
-	kind gen.FindingKind
-	fk   uuid.UUID
-	on   time.Time
-}
-
-// conflicts returns the findings among the facts of v in which a fetch key
-// in mine took part. It skips each conflict already in met and adds the
-// others to it. A disagreement names the losing assertion's fetch key. A
+// conflicts returns the findings among the facts of v that involve a fetch
+// key in mine. A disagreement names the losing assertion's fetch key. A
 // broken bracket names the event's. A missed event names the coverage's.
-func conflicts(ctx context.Context, q Queries, v types.Identifier, mine map[uuid.UUID]bool, met map[conflict]bool) ([]gen.CreateFindingParams, error) {
+func conflicts(ctx context.Context, q Queries, v types.MarketTicker, mine map[uuid.UUID]bool) ([]gen.CreateFindingParams, error) {
 	f, err := validity.Read(ctx, q, v)
 	if err != nil {
 		return nil, fmt.Errorf("read the facts of %s: %w", v.Name(), err)
@@ -383,32 +391,26 @@ func conflicts(ctx context.Context, q Queries, v types.Identifier, mine map[uuid
 	d := validity.Derive(f)
 	var out []gen.CreateFindingParams
 	for _, dis := range d.Disagreements {
-		c := conflict{gen.FindingKindDisagreement, dis.Loser.Source.FetchKey, dis.On}
-		if (!mine[dis.Winner.Source.FetchKey] && !mine[dis.Loser.Source.FetchKey]) || met[c] {
+		if !mine[dis.Winner.Source.FetchKey] && !mine[dis.Loser.Source.FetchKey] {
 			continue
 		}
-		met[c] = true
 		detail := fmt.Sprintf("%s on %s: %s named %s and %s named %s; %s was kept",
 			v.Name(), dis.On.Format(time.DateOnly), dis.Winner.Source.Datasource, named(dis.Winner.Instrument),
 			dis.Loser.Source.Datasource, named(dis.Loser.Instrument), dis.Winner.Source.Datasource)
 		out = append(out, gen.CreateFindingParams{Kind: gen.FindingKindDisagreement, FetchKeyID: ptr.To(dis.Loser.Source.FetchKey), Detail: &detail})
 	}
 	for _, br := range d.Broken {
-		c := conflict{gen.FindingKindBrokenValidityBracket, br.Event.FetchKey, br.Event.On}
-		if !mine[br.Event.FetchKey] || met[c] {
+		if !mine[br.Event.FetchKey] {
 			continue
 		}
-		met[c] = true
 		detail := fmt.Sprintf("%s: an event on %s falls between assertions of %s on %s and %s",
 			v.Name(), br.Event.On.Format(time.DateOnly), br.Instrument, br.First.Format(time.DateOnly), br.Last.Format(time.DateOnly))
 		out = append(out, gen.CreateFindingParams{Kind: gen.FindingKindBrokenValidityBracket, FetchKeyID: ptr.To(br.Event.FetchKey), Detail: &detail})
 	}
 	for _, m := range d.Missed {
-		c := conflict{gen.FindingKindMissedEvent, m.Coverage.FetchKey, m.Inferred.Period.From}
-		if (!mine[m.Coverage.FetchKey] && !mine[m.Inferred.Earlier.Source.FetchKey] && !mine[m.Inferred.Later.Source.FetchKey]) || met[c] {
+		if !mine[m.Coverage.FetchKey] && !mine[m.Inferred.Earlier.Source.FetchKey] && !mine[m.Inferred.Later.Source.FetchKey] {
 			continue
 		}
-		met[c] = true
 		detail := fmt.Sprintf("%s: assertions on %s and %s imply an event between them, and %s reported no event from %s to %s",
 			v.Name(), m.Inferred.Earlier.At.Format(time.DateOnly), m.Inferred.Later.At.Format(time.DateOnly),
 			m.Coverage.Datasource, m.Coverage.Period.From.Format(time.DateOnly), m.Coverage.Period.Before.Format(time.DateOnly))

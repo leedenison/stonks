@@ -15,6 +15,7 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/mic"
 	"github.com/leedenison/stonks/server/internal/ptr"
 	"github.com/leedenison/stonks/server/internal/testutil/dbtest"
 	"github.com/leedenison/stonks/server/internal/types"
@@ -26,14 +27,15 @@ func TestMain(m *testing.M) { dbtest.Main(m, &pool) }
 
 // fixture holds a user, an administrator, two instruments and a fetch for each
 // of two datasources, alpha with the lower precedence number. Its helpers
-// assert the ticker XNYS:FOO.
+// assert the ticker FOO at the market US, which a key states at XNYS.
 type fixture struct {
 	tx         pgx.Tx
 	q          *gen.Queries
 	user       gen.User
 	run        gen.Run
 	fetches    map[string]uuid.UUID
-	foo        types.Identifier
+	foo        types.MarketTicker
+	at         types.Identifier
 	a, b       uuid.UUID
 	alpha      string
 	beta       string
@@ -46,7 +48,8 @@ func newFixture(t *testing.T) *fixture {
 	tx := dbtest.Begin(t, pool)
 	q := gen.New(tx)
 	f := &fixture{tx: tx, q: q, fetches: map[string]uuid.UUID{}, alpha: "alpha-" + uuid.NewString(), beta: "beta-" + uuid.NewString()}
-	f.foo = types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XNYS", Value: "FOO" + uuid.NewString()[:8]}
+	f.foo = types.MarketTicker{Market: "US", Value: "FOO" + uuid.NewString()[:8]}
+	f.at = types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XNYS", Value: f.foo.Value}
 	var err error
 	f.user, err = q.CreateUser(ctx, gen.CreateUserParams{ID: db.NewID(), Email: uuid.NewString() + "@example.com", Role: gen.UserRoleUser})
 	require.NoError(t, err)
@@ -82,10 +85,10 @@ func (f *fixture) asserts(t *testing.T, datasource string, n int, instrument *uu
 	key := db.NewID()
 	require.NoError(t, f.q.CreateFetchKey(ctx, gen.CreateFetchKeyParams{
 		ID: key, FetchID: f.fetches[datasource], UserID: &f.user.ID, Outcome: gen.FetchOutcomeServed, Attempts: 1,
-		SentType: &f.foo.Type, SentDomain: f.foo.Domain, SentValue: &f.foo.Value, AnsweredAt: ptr.To(day(n)),
+		SentType: &f.at.Type, SentDomain: f.at.Domain, SentValue: &f.at.Value, AnsweredAt: ptr.To(day(n)),
 	}))
 	require.NoError(t, f.q.CreateIdentifierAssertion(ctx, gen.CreateIdentifierAssertionParams{
-		ID: db.NewID(), FetchKeyID: &key, Type: f.foo.Type, Domain: f.foo.Domain, Value: f.foo.Value, InstrumentID: instrument, AssertedOn: day(n),
+		ID: db.NewID(), FetchKeyID: &key, Type: types.IdentifierTypeMicTicker, Domain: f.foo.Market, Value: f.foo.Value, InstrumentID: instrument, AssertedOn: day(n),
 	}))
 }
 
@@ -140,7 +143,7 @@ func TestOfPrecedence(t *testing.T) {
 	}
 }
 
-// TestOfEventsAndCoverage checks that coverage of the domain confirms the
+// TestOfEventsAndCoverage checks that coverage of the market confirms the
 // ticker, and that a rename to the ticker bounds it.
 func TestOfEventsAndCoverage(t *testing.T) {
 	f := newFixture(t)
@@ -148,10 +151,10 @@ func TestOfEventsAndCoverage(t *testing.T) {
 	key := db.NewID()
 	require.NoError(t, f.q.CreateFetchKey(context.Background(), gen.CreateFetchKeyParams{
 		ID: key, FetchID: f.fetches[f.alpha], UserID: &f.user.ID, Outcome: gen.FetchOutcomeServed, Attempts: 1,
-		SentType: &f.foo.Type, SentDomain: "XNYS", AnsweredAt: ptr.To(day(20)),
+		SentType: &f.at.Type, SentDomain: "XNYS", AnsweredAt: ptr.To(day(20)),
 	}))
-	f.exec(t, "INSERT INTO identifier_event_coverage (id, fetch_key_id, domain, covered_from, covered_before) VALUES ($1, $2, 'XNYS', $3, $4)", db.NewID(), key, day(1), day(20))
-	f.exec(t, "INSERT INTO identifier_events (id, fetch_key_id, domain, value, action, to_value, effective_on) VALUES ($1, $2, 'XNYS', 'OLD', 'renamed', $3, $4)", db.NewID(), key, f.foo.Value, day(3))
+	f.exec(t, "INSERT INTO identifier_event_coverage (id, fetch_key_id, market, covered_from, covered_before) VALUES ($1, $2, 'US', $3, $4)", db.NewID(), key, day(1), day(20))
+	f.exec(t, "INSERT INTO identifier_events (id, fetch_key_id, market, value, action, to_value, effective_on) VALUES ($1, $2, 'US', 'OLD', 'renamed', $3, $4)", db.NewID(), key, f.foo.Value, day(3))
 	want := []Interval{confirmed(at(3), at(20), f.a), provisional(at(20), nil, f.a)}
 	if diff := cmp.Diff(want, f.of(t)); diff != "" {
 		t.Errorf("Of mismatch (-want +got):\n%s", diff)
@@ -167,7 +170,7 @@ func TestOfAttested(t *testing.T) {
 	run, err := f.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), Kind: gen.RunKindAttestation, Trigger: gen.RunTriggerAdministrator})
 	require.NoError(t, err)
 	require.NoError(t, f.q.CreateIdentifierAssertion(ctx, gen.CreateIdentifierAssertionParams{
-		ID: db.NewID(), RunID: &run.ID, AttestedBy: &f.attestedBy.ID, Type: f.foo.Type, Domain: f.foo.Domain, Value: f.foo.Value,
+		ID: db.NewID(), RunID: &run.ID, AttestedBy: &f.attestedBy.ID, Type: types.IdentifierTypeMicTicker, Domain: f.foo.Market, Value: f.foo.Value,
 		InstrumentID: &f.a, AssertedOn: day(2),
 	}))
 	want := []Interval{provisional(nil, at(2), f.a), confirmed(at(2), at(21), f.a), provisional(at(21), nil, f.a)}
@@ -177,7 +180,7 @@ func TestOfAttested(t *testing.T) {
 }
 
 // TestReadRowsCoverage checks that a ticker's coverage rows name the
-// datasource that wrote them, and that a row of the whole domain has no
+// datasource that wrote them, and that a row of the whole market has no
 // value.
 func TestReadRowsCoverage(t *testing.T) {
 	f := newFixture(t)
@@ -185,15 +188,15 @@ func TestReadRowsCoverage(t *testing.T) {
 	key := db.NewID()
 	require.NoError(t, f.q.CreateFetchKey(ctx, gen.CreateFetchKeyParams{
 		ID: key, FetchID: f.fetches[f.alpha], UserID: &f.user.ID, Outcome: gen.FetchOutcomeServed, Attempts: 1,
-		SentType: &f.foo.Type, SentDomain: f.foo.Domain, AnsweredAt: ptr.To(day(20)),
+		SentType: &f.at.Type, SentDomain: f.at.Domain, AnsweredAt: ptr.To(day(20)),
 	}))
-	f.exec(t, "INSERT INTO identifier_event_coverage (id, fetch_key_id, domain, value, covered_from, covered_before) VALUES ($1, $2, $3, $4, $5, $6)", db.NewID(), key, f.foo.Domain, f.foo.Value, day(5), day(20))
-	f.exec(t, "INSERT INTO identifier_event_coverage (id, fetch_key_id, domain, covered_from, covered_before) VALUES ($1, $2, $3, $4, $5)", db.NewID(), key, f.foo.Domain, day(1), day(10))
+	f.exec(t, "INSERT INTO identifier_event_coverage (id, fetch_key_id, market, value, covered_from, covered_before) VALUES ($1, $2, $3, $4, $5, $6)", db.NewID(), key, f.foo.Market, f.foo.Value, day(5), day(20))
+	f.exec(t, "INSERT INTO identifier_event_coverage (id, fetch_key_id, market, covered_from, covered_before) VALUES ($1, $2, $3, $4, $5)", db.NewID(), key, f.foo.Market, day(1), day(10))
 	rows, err := ReadRows(ctx, f.q, f.foo)
 	require.NoError(t, err)
 	want := []gen.ListIdentifierCoverageRow{
-		{Domain: f.foo.Domain, CoveredFrom: day(1), CoveredBefore: day(10), FetchKeyID: key, Datasource: f.alpha},
-		{Domain: f.foo.Domain, Value: &f.foo.Value, CoveredFrom: day(5), CoveredBefore: day(20), FetchKeyID: key, Datasource: f.alpha},
+		{Market: f.foo.Market, CoveredFrom: day(1), CoveredBefore: day(10), FetchKeyID: key, Datasource: f.alpha},
+		{Market: f.foo.Market, Value: &f.foo.Value, CoveredFrom: day(5), CoveredBefore: day(20), FetchKeyID: key, Datasource: f.alpha},
 	}
 	if diff := cmp.Diff(want, rows.Coverage); diff != "" {
 		t.Errorf("ReadRows coverage mismatch (-want +got):\n%s", diff)
@@ -215,7 +218,7 @@ func TestReadTicker(t *testing.T) {
 	f.asserts(t, f.alpha, 5, &f.a)
 	tk, err := ReadTicker(ctx, f.q, f.foo)
 	require.NoError(t, err)
-	if !tk.HasValidity() || tk.Identifier != f.foo {
+	if !tk.HasValidity() || tk.Ticker != f.foo {
 		t.Errorf("ticker = %+v, want validity for %s", tk, f.foo.Name())
 	}
 	if !tk.Asserted(day(5)) || tk.Asserted(day(3)) {
@@ -226,5 +229,39 @@ func TestReadTicker(t *testing.T) {
 	}
 	if _, ok := tk.FirstUnconfirmed([]time.Time{day(2), day(4)}); ok {
 		t.Errorf("FirstUnconfirmed of bracketed days reported one, want none")
+	}
+}
+
+// TestReadTickersAcrossVenues checks that a ticker stated at two venues of
+// one market reads one set of facts: the assertion, the event and the
+// coverage of the market.
+func TestReadTickersAcrossVenues(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	f.asserts(t, f.alpha, 5, &f.a)
+	key := db.NewID()
+	require.NoError(t, f.q.CreateFetchKey(ctx, gen.CreateFetchKeyParams{
+		ID: key, FetchID: f.fetches[f.alpha], UserID: &f.user.ID, Outcome: gen.FetchOutcomeServed, Attempts: 1,
+		SentType: &f.at.Type, SentDomain: f.at.Domain, AnsweredAt: ptr.To(day(20)),
+	}))
+	f.exec(t, "INSERT INTO identifier_event_coverage (id, fetch_key_id, market, covered_from, covered_before) VALUES ($1, $2, 'US', $3, $4)", db.NewID(), key, day(1), day(20))
+	f.exec(t, "INSERT INTO identifier_events (id, fetch_key_id, market, value, action, effective_on) VALUES ($1, $2, 'US', $3, 'assigned', $4)", db.NewID(), key, f.foo.Value, day(3))
+	mics, err := mic.Load(ctx, f.q)
+	require.NoError(t, err)
+	var keys []types.MarketTicker
+	for _, venue := range []string{"XNYS", "XNAS"} {
+		mt, ok := mics.MarketTicker(types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: venue, Value: f.foo.Value})
+		require.True(t, ok)
+		keys = append(keys, mt)
+	}
+	read, err := ReadTickers(ctx, f.q, keys)
+	require.NoError(t, err)
+	if len(read) != 1 || read[f.foo] == nil {
+		t.Fatalf("ReadTickers = %v, want one ticker, %s", read, f.foo.Name())
+	}
+	rows, err := ReadRows(ctx, f.q, f.foo)
+	require.NoError(t, err)
+	if len(rows.Assertions) != 1 || len(rows.Events) != 1 || len(rows.Coverage) != 1 {
+		t.Errorf("rows = %d assertions, %d events, %d coverage, want one of each", len(rows.Assertions), len(rows.Events), len(rows.Coverage))
 	}
 }

@@ -108,23 +108,20 @@ func TestVenues(t *testing.T) {
 	}
 }
 
-func TestProbes(t *testing.T) {
-	got, err := us.Probes([]types.Identifier{
-		{Type: types.IdentifierTypeMicTicker, Domain: "XNYS", Value: "FOO"},
-		{Type: types.IdentifierTypeMicTicker, Domain: "XLON"},
-		{Type: types.IdentifierTypeIsin, Value: "US0000000000"},
-	})
+func TestMarketProbes(t *testing.T) {
+	got, err := us.MarketProbes([]string{"US"})
 	require.NoError(t, err)
 	want := []string{
-		`[{"domain":"ARCX","type":"mic_ticker","value":"FOO"}]`,
-		`[{"domain":"XNAS","type":"mic_ticker","value":"FOO"}]`,
-		`[{"domain":"XNGS","type":"mic_ticker","value":"FOO"}]`,
-		`[{"domain":"XNYS","type":"mic_ticker","value":"FOO"}]`,
-		`[{"domain":"XLON","type":"mic_ticker"}]`,
-		`[{"domain":"","type":"isin","value":"US0000000000"}]`,
+		`[{"domain":"ARCX","type":"mic_ticker"}]`,
+		`[{"domain":"XNAS","type":"mic_ticker"}]`,
+		`[{"domain":"XNGS","type":"mic_ticker"}]`,
+		`[{"domain":"XNYS","type":"mic_ticker"}]`,
 	}
 	if diff := cmp.Diff(want, strs(got)); diff != "" {
-		t.Errorf("Probes mismatch (-want +got):\n%s", diff)
+		t.Errorf("MarketProbes mismatch (-want +got):\n%s", diff)
+	}
+	if _, err := us.MarketProbes([]string{"XNAS"}); err == nil {
+		t.Error("MarketProbes(XNAS) succeeded, want an error, since XNAS is no market")
 	}
 }
 

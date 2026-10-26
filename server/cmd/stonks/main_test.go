@@ -63,7 +63,7 @@ func TestServer(t *testing.T) {
 	authn := auth.New(auth.Options{Users: users, Sessions: sessions})
 
 	srv := httptest.NewUnstartedServer(nil)
-	cfg, err := newServer("", slog.New(slog.DiscardHandler), authn, nil, holdingsvc.New(nil, nil, nil), nil, nil, nil, nil, nil, nil, nil, nil, true)
+	cfg, err := newServer("", slog.New(slog.DiscardHandler), authn, nil, holdingsvc.New(nil, nil, nil, nil), nil, nil, nil, nil, nil, nil, nil, nil, nil, true)
 	if err != nil {
 		t.Fatalf("newServer() error = %v", err)
 	}

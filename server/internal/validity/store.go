@@ -2,7 +2,6 @@ package validity
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/leedenison/stonks/server/internal/db/gen"
@@ -18,13 +17,9 @@ type FactQueries interface {
 
 var _ FactQueries = (*gen.Queries)(nil)
 
-// ErrNotTicker is returned for an identifier other than a MIC_TICKER, the only
-// type that has events and coverage.
-var ErrNotTicker = errors.New("validity is kept for a MIC_TICKER only")
-
-// Of reads the facts of v and derives its intervals.
-func Of(ctx context.Context, q FactQueries, v types.Identifier) ([]Interval, error) {
-	f, err := Read(ctx, q, v)
+// Of reads the facts of t and derives its intervals.
+func Of(ctx context.Context, q FactQueries, t types.MarketTicker) ([]Interval, error) {
+	f, err := Read(ctx, q, t)
 	if err != nil {
 		return nil, err
 	}
@@ -39,60 +34,52 @@ type Rows struct {
 	Coverage   []gen.ListIdentifierCoverageRow
 }
 
-// Read reads the facts of v: its assertions, its events, and the coverage of
-// the ticker and of its domain.
-func Read(ctx context.Context, q FactQueries, v types.Identifier) (Facts, error) {
-	rows, err := ReadRows(ctx, q, v)
+// Read reads the facts of t: its assertions, its events, and the coverage of
+// the ticker and of its market.
+func Read(ctx context.Context, q FactQueries, t types.MarketTicker) (Facts, error) {
+	rows, err := ReadRows(ctx, q, t)
 	if err != nil {
 		return Facts{}, err
 	}
 	return rows.Facts(), nil
 }
 
-// ReadRows reads the assertion, event and coverage rows of v. It returns
-// ErrNotTicker when v is not a MIC_TICKER.
-func ReadRows(ctx context.Context, q FactQueries, v types.Identifier) (Rows, error) {
-	rows, err := ReadRowsOf(ctx, q, []types.Identifier{v})
+// ReadRows reads the assertion, event and coverage rows of t.
+func ReadRows(ctx context.Context, q FactQueries, t types.MarketTicker) (Rows, error) {
+	rows, err := ReadRowsOf(ctx, q, []types.MarketTicker{t})
 	if err != nil {
 		return Rows{}, err
 	}
-	return rows[v], nil
+	return rows[t], nil
 }
 
-// ReadRowsOf reads the assertion, event and coverage rows of each of vs,
-// with three queries however many tickers there are. It returns ErrNotTicker
-// when one of vs is not a MIC_TICKER.
-func ReadRowsOf(ctx context.Context, q FactQueries, vs []types.Identifier) (map[types.Identifier]Rows, error) {
-	out := make(map[types.Identifier]Rows, len(vs))
-	var domains, values []string
-	for _, v := range vs {
-		if v.Type != types.IdentifierTypeMicTicker {
-			return nil, fmt.Errorf("%s: %w", v.Name(), ErrNotTicker)
-		}
-		if _, seen := out[v]; seen {
+// ReadRowsOf reads the assertion, event and coverage rows of each of ts,
+// with three queries however many tickers there are.
+func ReadRowsOf(ctx context.Context, q FactQueries, ts []types.MarketTicker) (map[types.MarketTicker]Rows, error) {
+	out := make(map[types.MarketTicker]Rows, len(ts))
+	var markets, values []string
+	for _, t := range ts {
+		if _, seen := out[t]; seen {
 			continue
 		}
-		out[v] = Rows{}
-		domains, values = append(domains, v.Domain), append(values, v.Value)
+		out[t] = Rows{}
+		markets, values = append(markets, t.Market), append(values, t.Value)
 	}
 	if len(out) == 0 {
 		return out, nil
 	}
-	ticker := func(domain, value string) types.Identifier {
-		return types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: domain, Value: value}
-	}
-	as, err := q.ListIdentifierAssertions(ctx, gen.ListIdentifierAssertionsParams{Type: types.IdentifierTypeMicTicker, Domains: domains, Values: values})
+	as, err := q.ListIdentifierAssertions(ctx, gen.ListIdentifierAssertionsParams{Markets: markets, Values: values})
 	if err != nil {
 		return nil, fmt.Errorf("list assertions: %w", err)
 	}
 	for _, a := range as {
-		v := ticker(a.IdentifierAssertion.Domain, a.IdentifierAssertion.Value)
-		if r, ok := out[v]; ok {
+		t := types.MarketTicker{Market: a.IdentifierAssertion.Domain, Value: a.IdentifierAssertion.Value}
+		if r, ok := out[t]; ok {
 			r.Assertions = append(r.Assertions, a)
-			out[v] = r
+			out[t] = r
 		}
 	}
-	es, err := q.ListIdentifierEvents(ctx, gen.ListIdentifierEventsParams{Domains: domains, Values: values})
+	es, err := q.ListIdentifierEvents(ctx, gen.ListIdentifierEventsParams{Markets: markets, Values: values})
 	if err != nil {
 		return nil, fmt.Errorf("list events: %w", err)
 	}
@@ -102,21 +89,22 @@ func ReadRowsOf(ctx context.Context, q FactQueries, vs []types.Identifier) (map[
 			named = append(named, *e.ToValue)
 		}
 		for _, value := range named {
-			if r, ok := out[ticker(e.Domain, value)]; ok {
+			t := types.MarketTicker{Market: e.Market, Value: value}
+			if r, ok := out[t]; ok {
 				r.Events = append(r.Events, e)
-				out[ticker(e.Domain, value)] = r
+				out[t] = r
 			}
 		}
 	}
-	cs, err := q.ListIdentifierCoverage(ctx, gen.ListIdentifierCoverageParams{Domains: domains, Values: values})
+	cs, err := q.ListIdentifierCoverage(ctx, gen.ListIdentifierCoverageParams{Markets: markets, Values: values})
 	if err != nil {
 		return nil, fmt.Errorf("list coverage: %w", err)
 	}
 	for _, c := range cs {
-		for v, r := range out {
-			if v.Domain == c.Domain && (c.Value == nil || *c.Value == v.Value) {
+		for t, r := range out {
+			if t.Market == c.Market && (c.Value == nil || *c.Value == t.Value) {
 				r.Coverage = append(r.Coverage, c)
-				out[v] = r
+				out[t] = r
 			}
 		}
 	}

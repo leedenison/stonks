@@ -68,7 +68,7 @@ message FetchItem {
 // nothing, on one day.
 message AssertionItem {
   string id = 1;
-  stonks.type.v1.Identifier ticker = 2;
+  stonks.type.v1.MarketTicker ticker = 2;
   // The day the assertion holds, as YYYY-MM-DD.
   string asserted_on = 3;
   // The instrument the ticker names; unset where the ticker names nothing.

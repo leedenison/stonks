@@ -33,8 +33,8 @@ var (
 	acme        = uuid.MustParse("00000000-0000-0000-0000-000000000001")
 	assertionID = uuid.MustParse("00000000-0000-0000-0000-000000000002")
 	today       = time.Date(2026, time.March, 30, 12, 0, 0, 0, time.UTC)
-	acmeTicker  = types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "ACME"}
-	acmeProto   = &typev1.Identifier{Type: typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, Domain: "XNAS", Value: "ACME"}
+	acmeTicker  = types.MarketTicker{Market: "US", Value: "ACME"}
+	acmeProto   = &typev1.MarketTicker{Market: "US", Value: "ACME"}
 )
 
 func day(n int) time.Time { return time.Date(2026, time.March, n, 0, 0, 0, 0, time.UTC) }
@@ -74,7 +74,7 @@ func TestListInstrumentTickers(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newFixture(t)
 			if tc.id == acme.String() {
-				f.reader.EXPECT().InstrumentTickers(gomock.Any(), acme).Return([]reader.InstrumentTicker{{Identifier: acmeTicker, Current: true, Transactions: 2}}, tc.err)
+				f.reader.EXPECT().InstrumentTickers(gomock.Any(), acme).Return([]reader.InstrumentTicker{{Ticker: acmeTicker, Current: true, Transactions: 2, Venues: []string{"XNAS"}}}, tc.err)
 			}
 			res, err := f.client.ListInstrumentTickers(context.Background(), connect.NewRequest(&admincoveragev1.ListInstrumentTickersRequest{InstrumentId: tc.id}))
 			if servicetest.CodeOf(err) != tc.wantCode {
@@ -83,7 +83,7 @@ func TestListInstrumentTickers(t *testing.T) {
 			if err != nil {
 				return
 			}
-			want := []*admincoveragev1.InstrumentTicker{{Ticker: acmeProto, Current: true, Transactions: 2}}
+			want := []*admincoveragev1.InstrumentTicker{{Ticker: acmeProto, Current: true, Transactions: 2, Venues: []string{"XNAS"}}}
 			if diff := cmp.Diff(want, res.Msg.GetTickers(), protocmp.Transform()); diff != "" {
 				t.Errorf("ListInstrumentTickers mismatch (-want +got):\n%s", diff)
 			}
@@ -94,15 +94,15 @@ func TestListInstrumentTickers(t *testing.T) {
 func TestGetTicker(t *testing.T) {
 	from, before := day(10), day(21)
 	ticker := &reader.Page{
-		Identifier: acmeTicker,
-		Days:       []time.Time{day(5)},
+		Ticker: acmeTicker,
+		Days:   []time.Time{day(5)},
 		Rows: validity.Rows{
 			Assertions: []gen.ListIdentifierAssertionsRow{{
-				IdentifierAssertion: gen.IdentifierAssertion{ID: assertionID, Type: acmeTicker.Type, Domain: "XNAS", Value: "ACME", InstrumentID: &acme, AssertedOn: day(10)},
+				IdentifierAssertion: gen.IdentifierAssertion{ID: assertionID, Type: types.IdentifierTypeMicTicker, Domain: "US", Value: "ACME", InstrumentID: &acme, AssertedOn: day(10)},
 				AttestedBy:          ptr.To("admin@example.com"),
 			}},
 			Events:   []gen.ListIdentifierEventsRow{{Value: "OLD", Action: gen.IdentifierEventActionRenamed, ToValue: ptr.To("ACME"), EffectiveOn: day(3)}},
-			Coverage: []gen.ListIdentifierCoverageRow{{Domain: "XNAS", CoveredFrom: day(1), CoveredBefore: day(20), Datasource: "alpha"}},
+			Coverage: []gen.ListIdentifierCoverageRow{{Market: "US", CoveredFrom: day(1), CoveredBefore: day(20), Datasource: "alpha"}},
 		},
 		Intervals: []validity.Interval{{From: &from, Before: &before, Instrument: acme, Validity: validity.Confirmed}},
 		Gaps:      []reader.Gap{{Period: types.Period{From: day(5), Before: day(10)}, Keys: 1, Transactions: 1}},
@@ -112,7 +112,7 @@ func TestGetTicker(t *testing.T) {
 		Ticker:          acmeProto,
 		TransactionDays: []string{"2026-03-05"},
 		Coverage: []*admincoveragev1.Coverage{{
-			Datasource: "alpha", Covers: &typev1.Identifier{Type: typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, Domain: "XNAS"},
+			Datasource: "alpha", Market: "US",
 			CoveredFrom: "2026-03-01", CoveredBefore: "2026-03-20",
 		}},
 		Assertions: []*adminrunv1.AssertionItem{{
@@ -128,20 +128,19 @@ func TestGetTicker(t *testing.T) {
 	}
 	tests := []struct {
 		name     string
-		req      *typev1.Identifier
+		req      *typev1.MarketTicker
 		err      error
 		wantCode connect.Code
 	}{
 		{name: "read", req: acmeProto},
 		{name: "missing", wantCode: connect.CodeInvalidArgument},
-		{name: "not a ticker", req: acmeProto, err: validity.ErrNotTicker, wantCode: connect.CodeInvalidArgument},
-		{name: "domain", req: acmeProto, err: validity.ErrSpelling, wantCode: connect.CodeInvalidArgument},
+		{name: "unknown market", req: acmeProto, err: validity.ErrSpelling, wantCode: connect.CodeInvalidArgument},
 		{name: "failure", req: acmeProto, err: errors.New("boom"), wantCode: connect.CodeInternal},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newFixture(t)
-			if tc.req != nil {
+			if tc.req != nil && tc.req.GetValue() != "" {
 				f.reader.EXPECT().Ticker(gomock.Any(), acmeTicker, today).Return(ticker, tc.err)
 			}
 			res, err := f.client.GetTicker(context.Background(), connect.NewRequest(&admincoveragev1.GetTickerRequest{Ticker: tc.req}))

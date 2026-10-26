@@ -18,6 +18,8 @@ import { uploadStatement } from "../helpers/upload";
 // No other spec states PEP, so no other user holds it.
 const fixture = path.resolve(__dirname, "..", "fixtures", "standard-pep.json");
 const pep = { type: IdentifierType.MIC_TICKER, domain: "XNAS", value: "PEP" };
+// The facts of PEP are keyed by its market.
+const pepUS = { market: "US", value: pep.value };
 
 // utcDay is the UTC day of a moment, as YYYY-MM-DD.
 const utcDay = (d: Date) => d.toISOString().slice(0, 10);
@@ -41,7 +43,7 @@ test("extends the validity of a held ticker on the day it runs", async ({
   const instrument = await instrumentListedAs(adminSession, pep);
   // A past attestation gives the run a bracket to extend.
   await coverageClient(adminSession).attest({
-    ticker: pep,
+    ticker: pepUS,
     names: { case: "instrumentId", value: instrument.id },
     from: "2025-01-02",
   });
@@ -61,7 +63,7 @@ test("extends the validity of a held ticker on the day it runs", async ({
 
   // Validity runs from the attested day through the run day.
   await page.goto(`/admin/instruments?q=PEP&id=${instrument.id}&tab=tickers`);
-  await expect(page.getByTestId("ticker-select")).toHaveValue("XNAS:PEP");
+  await expect(page.getByTestId("ticker-select")).toHaveValue("US:PEP");
   const confirmed = page.locator(
     '[data-lane="validity"] rect[data-validity="confirmed"] title',
   );
@@ -78,8 +80,8 @@ test("extends the validity of a held ticker on the day it runs", async ({
   // instrument, so the present assertions are those dated while the run ran.
   const present = (await assertionItems(adminRuns, started.id)).filter(
     (a) =>
-      a.ticker?.domain === pep.domain &&
-      a.ticker?.value === pep.value &&
+      a.ticker?.market === pepUS.market &&
+      a.ticker?.value === pepUS.value &&
       a.assertedOn >= from &&
       a.assertedOn <= to,
   );

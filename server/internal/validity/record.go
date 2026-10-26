@@ -30,9 +30,8 @@ type RecordQueries interface {
 
 var _ RecordQueries = (*gen.Queries)(nil)
 
-// ErrSpelling reports a ticker or a domain that is not in the system's
-// spelling, or a domain where a ticker is required. Nothing matches it, so it
-// is refused.
+// ErrSpelling reports a ticker or a market that is not in the system's
+// spelling. Nothing matches it, so it is refused.
 var ErrSpelling = errors.New("not in the system's spelling")
 
 // ErrFuture reports an attestation of a day after the day it is made.
@@ -71,38 +70,39 @@ func Record(ctx context.Context, q RecordQueries, mics mic.MICMap, families curr
 }
 
 func check(mics mic.MICMap, r market.IdentifierEventResult) error {
-	var ids []types.Identifier
+	var ts []types.MarketTicker
 	for _, e := range r.Events {
-		ids = append(ids, e.Value)
+		ts = append(ts, e.Ticker)
 		if e.ToValue != "" {
-			ids = append(ids, types.Identifier{Type: e.Value.Type, Domain: e.Value.Domain, Value: e.ToValue})
+			ts = append(ts, types.MarketTicker{Market: e.Ticker.Market, Value: e.ToValue})
 		}
 	}
 	for _, a := range r.Assertions {
-		ids = append(ids, a.Value)
+		ts = append(ts, a.Ticker)
 	}
 	for _, c := range r.Coverage {
-		ids = append(ids, c.Identifier)
+		if c.Ticker != nil {
+			ts = append(ts, *c.Ticker)
+		} else if !mics.IsMarket(c.Market) {
+			return fmt.Errorf("market %q: %w", c.Market, ErrSpelling)
+		}
 	}
-	for _, id := range ids {
-		if err := spelled(mics, id); err != nil {
+	for _, t := range ts {
+		if err := spelled(mics, t); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-// spelled checks that id is a MIC_TICKER of an operating MIC, with its value
-// in the system's spelling or empty for a domain.
-func spelled(mics mic.MICMap, id types.Identifier) error {
-	if id.Type != types.IdentifierTypeMicTicker {
-		return fmt.Errorf("%s: %w", id.Name(), ErrNotTicker)
+// spelled checks that t is at a market, with its value in the system's
+// spelling.
+func spelled(mics mic.MICMap, t types.MarketTicker) error {
+	if !mics.IsMarket(t.Market) {
+		return fmt.Errorf("market %q: %w", t.Market, ErrSpelling)
 	}
-	if op, ok := mics.Operating(id.Domain); !ok || op != id.Domain {
-		return fmt.Errorf("domain %q is no operating MIC: %w", id.Domain, ErrSpelling)
-	}
-	if id.Value != "" && !market.Canonical(id.Value) {
-		return fmt.Errorf("value %q: %w", id.Value, ErrSpelling)
+	if !market.Canonical(t.Value) {
+		return fmt.Errorf("value %q: %w", t.Value, ErrSpelling)
 	}
 	return nil
 }
@@ -110,7 +110,7 @@ func spelled(mics mic.MICMap, id types.Identifier) error {
 func record(ctx context.Context, q RecordQueries, families currency.Families, key uuid.UUID, r market.IdentifierEventResult) error {
 	for _, e := range r.Events {
 		arg := gen.CreateIdentifierEventParams{
-			ID: db.NewID(), FetchKeyID: key, Domain: e.Value.Domain, Value: e.Value.Value,
+			ID: db.NewID(), FetchKeyID: key, Market: e.Ticker.Market, Value: e.Ticker.Value,
 			Action: e.Action, EffectiveOn: types.Day(e.On),
 		}
 		if e.ToValue != "" {
@@ -127,11 +127,11 @@ func record(ctx context.Context, q RecordQueries, families currency.Families, ke
 	}
 	for _, c := range r.Coverage {
 		arg := gen.CreateIdentifierEventCoverageParams{
-			ID: db.NewID(), FetchKeyID: key, Domain: c.Identifier.Domain,
+			ID: db.NewID(), FetchKeyID: key, Market: c.Market,
 			CoveredFrom: c.Period.From, CoveredBefore: c.Period.Before,
 		}
-		if !c.Identifier.IsDomain() {
-			arg.Value = &c.Identifier.Value
+		if c.Ticker != nil {
+			arg.Value = &c.Ticker.Value
 		}
 		if err := q.CreateIdentifierEventCoverage(ctx, arg); err != nil {
 			return fmt.Errorf("record coverage: %w", err)
@@ -155,7 +155,7 @@ func Assert(ctx context.Context, q RecordQueries, families currency.Families, ke
 			return false, nil
 		}
 	}
-	return true, AssertInstrument(ctx, q, key, a.Value, inst, a.At)
+	return true, AssertInstrument(ctx, q, key, a.Ticker, inst, a.At)
 }
 
 // Asserter writes an assertion.
@@ -163,12 +163,26 @@ type Asserter interface {
 	CreateIdentifierAssertion(ctx context.Context, arg gen.CreateIdentifierAssertionParams) error
 }
 
-// AssertInstrument writes, under fetch key key, the assertion that v names
-// instrument on the day of at. A nil instrument asserts that v names
+// AssertInstrument writes, under fetch key key, the assertion that t names
+// instrument on the day of at. A nil instrument asserts that t names
 // nothing.
-func AssertInstrument(ctx context.Context, q Asserter, key uuid.UUID, v types.Identifier, instrument *uuid.UUID, at time.Time) error {
+func AssertInstrument(ctx context.Context, q Asserter, key uuid.UUID, t types.MarketTicker, instrument *uuid.UUID, at time.Time) error {
+	return assert(ctx, q, key, types.IdentifierTypeMicTicker, t.Market, t.Value, instrument, at)
+}
+
+// AssertIdentifier writes, under fetch key key, the assertion that v names
+// instrument on the day of at. A MIC_TICKER at a venue is asserted at its
+// market. Any other identifier, a bare ticker included, is written as stated.
+func AssertIdentifier(ctx context.Context, q Asserter, mics mic.MICMap, key uuid.UUID, v types.Identifier, instrument *uuid.UUID, at time.Time) error {
+	if t, ok := mics.MarketTicker(v); ok {
+		return AssertInstrument(ctx, q, key, t, instrument, at)
+	}
+	return assert(ctx, q, key, v.Type, v.Domain, v.Value, instrument, at)
+}
+
+func assert(ctx context.Context, q Asserter, key uuid.UUID, typ types.IdentifierType, domain, value string, instrument *uuid.UUID, at time.Time) error {
 	arg := gen.CreateIdentifierAssertionParams{
-		ID: db.NewID(), FetchKeyID: &key, Type: v.Type, Domain: v.Domain, Value: v.Value,
+		ID: db.NewID(), FetchKeyID: &key, Type: typ, Domain: domain, Value: value,
 		InstrumentID: instrument, AssertedOn: types.Day(at),
 	}
 	if err := q.CreateIdentifierAssertion(ctx, arg); err != nil {
@@ -273,15 +287,12 @@ type AttestQueries interface {
 
 var _ AttestQueries = (*gen.Queries)(nil)
 
-// CheckAttest reports why an attestation of v on day on cannot be written:
-// ErrSpelling when v is not a ticker in the system's spelling, and ErrFuture
+// CheckAttest reports why an attestation of t on day on cannot be written:
+// ErrSpelling when t is not a ticker in the system's spelling, and ErrFuture
 // when on is after today.
-func CheckAttest(mics mic.MICMap, v types.Identifier, on, today time.Time) error {
-	if err := spelled(mics, v); err != nil {
+func CheckAttest(mics mic.MICMap, t types.MarketTicker, on, today time.Time) error {
+	if err := spelled(mics, t); err != nil {
 		return err
-	}
-	if v.IsDomain() {
-		return fmt.Errorf("%s names a domain: %w", v.Name(), ErrSpelling)
 	}
 	if types.Day(on).After(types.Day(today)) {
 		return fmt.Errorf("%s: %w", types.Day(on).Format(time.DateOnly), ErrFuture)
@@ -289,19 +300,19 @@ func CheckAttest(mics mic.MICMap, v types.Identifier, on, today time.Time) error
 	return nil
 }
 
-// Attest writes an administrator's assertion that v names instrument on the
+// Attest writes an administrator's assertion that t names instrument on the
 // day on, beneath run, which must be a system run of kind attestation. A nil
-// instrument asserts that v names nothing. A later attestation of a day
+// instrument asserts that t names nothing. A later attestation of a day
 // replaces the earlier one.
-func Attest(ctx context.Context, q AttestQueries, mics mic.MICMap, run gen.Run, admin uuid.UUID, v types.Identifier, instrument *uuid.UUID, on, today time.Time) error {
+func Attest(ctx context.Context, q AttestQueries, mics mic.MICMap, run gen.Run, admin uuid.UUID, t types.MarketTicker, instrument *uuid.UUID, on, today time.Time) error {
 	if run.Kind != gen.RunKindAttestation || run.UserID != nil {
 		return fmt.Errorf("run %s is not a system attestation run", run.ID)
 	}
-	if err := CheckAttest(mics, v, on, today); err != nil {
+	if err := CheckAttest(mics, t, on, today); err != nil {
 		return err
 	}
 	arg := gen.CreateIdentifierAttestationParams{
-		ID: db.NewID(), RunID: run.ID, AttestedBy: admin, Type: v.Type, Domain: v.Domain, Value: v.Value,
+		ID: db.NewID(), RunID: run.ID, AttestedBy: admin, Type: types.IdentifierTypeMicTicker, Domain: t.Market, Value: t.Value,
 		InstrumentID: instrument, AssertedOn: types.Day(on),
 	}
 	if err := q.CreateIdentifierAttestation(ctx, arg); err != nil {

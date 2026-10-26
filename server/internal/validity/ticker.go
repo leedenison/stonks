@@ -10,35 +10,35 @@ import (
 // Ticker is one ticker's validity, as one read of its facts found it. A
 // reader that asks many questions of one ticker reads its facts once.
 type Ticker struct {
-	Identifier types.Identifier
-	Derived    Derived
-	asserted   map[time.Time]bool
+	Ticker   types.MarketTicker
+	Derived  Derived
+	asserted map[time.Time]bool
 }
 
-// ReadTicker reads the facts of v and derives its validity.
-func ReadTicker(ctx context.Context, q FactQueries, v types.Identifier) (*Ticker, error) {
-	tickers, err := ReadTickers(ctx, q, []types.Identifier{v})
+// ReadTicker reads the facts of t and derives its validity.
+func ReadTicker(ctx context.Context, q FactQueries, t types.MarketTicker) (*Ticker, error) {
+	tickers, err := ReadTickers(ctx, q, []types.MarketTicker{t})
 	if err != nil {
 		return nil, err
 	}
-	return tickers[v], nil
+	return tickers[t], nil
 }
 
-// ReadTickers reads the facts of each of vs and derives its validity, with
+// ReadTickers reads the facts of each of ts and derives its validity, with
 // three queries however many tickers there are.
-func ReadTickers(ctx context.Context, q FactQueries, vs []types.Identifier) (map[types.Identifier]*Ticker, error) {
-	rows, err := ReadRowsOf(ctx, q, vs)
+func ReadTickers(ctx context.Context, q FactQueries, ts []types.MarketTicker) (map[types.MarketTicker]*Ticker, error) {
+	rows, err := ReadRowsOf(ctx, q, ts)
 	if err != nil {
 		return nil, err
 	}
-	out := make(map[types.Identifier]*Ticker, len(rows))
+	out := make(map[types.MarketTicker]*Ticker, len(rows))
 	for v, r := range rows {
 		f := r.Facts()
 		asserted := map[time.Time]bool{}
 		for _, a := range f.Assertions {
 			asserted[types.Day(a.At)] = true
 		}
-		out[v] = &Ticker{Identifier: v, Derived: Derive(f), asserted: asserted}
+		out[v] = &Ticker{Ticker: v, Derived: Derive(f), asserted: asserted}
 	}
 	return out, nil
 }

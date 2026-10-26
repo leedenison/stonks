@@ -90,9 +90,19 @@ func (w *writer) attach(ctx context.Context, c *identityClaim) error {
 	if err := w.q.SetFetchKeyInstrument(ctx, arg); err != nil {
 		return fmt.Errorf("attach fetch key: %w", err)
 	}
+	// A claim names one instrument, so the tickers it carries at venues of
+	// one market make one assertion.
+	asserted := map[any]bool{}
 	for id := range c.AllIDs() {
-		if err := validity.AssertInstrument(ctx, w.q, fetchKeyID, id, &w.instr.Row.ID, c.fetchKey.AnsweredAt); err != nil {
-			return err
+		var k any = id
+		if t, ok := w.res.mics.MarketTicker(id); ok {
+			k = t
+		}
+		if !asserted[k] {
+			asserted[k] = true
+			if err := validity.AssertIdentifier(ctx, w.q, w.res.mics, fetchKeyID, id, &w.instr.Row.ID, c.fetchKey.AnsweredAt); err != nil {
+				return err
+			}
 		}
 		w.res.wrote(c.fetchKey, id)
 	}

@@ -26,13 +26,15 @@ message Gap {
 }
 
 // A period over which one datasource answered for a ticker, or for every
-// ticker of its domain. The bounds are half open, as YYYY-MM-DD.
+// ticker of its market. The bounds are half open, as YYYY-MM-DD.
 message Coverage {
   string datasource = 1;
-  // The ticker, or its domain as an identifier with no value.
-  stonks.type.v1.Identifier covers = 2;
-  string covered_from = 3;
-  string covered_before = 4;
+  string market = 2;
+  // The ticker's value; unset where the row covers every ticker of the
+  // market.
+  optional string value = 3;
+  string covered_from = 4;
+  string covered_before = 5;
 }
 
 enum IdentifierEventAction {
@@ -76,8 +78,7 @@ message InstrumentName {
 
 // One ticker's facts and the validity they derive.
 message Ticker {
-  // Its domain is the operating MIC.
-  stonks.type.v1.Identifier ticker = 1;
+  stonks.type.v1.MarketTicker ticker = 1;
   // The distinct as-at dates of the transactions whose keys state the
   // ticker, as YYYY-MM-DD, in order.
   repeated string transaction_days = 2;
@@ -95,15 +96,17 @@ message Ticker {
   repeated InstrumentName instruments = 8;
 }
 
-// A MIC_TICKER on a listing of the instrument, or one that an assertion
-// gives as the instrument's name.
+// A ticker at its market that a listing of the instrument carries, or that
+// an assertion gives as the instrument's name.
 message InstrumentTicker {
-  // Its domain is the operating MIC.
-  stonks.type.v1.Identifier ticker = 1;
+  stonks.type.v1.MarketTicker ticker = 1;
   // A listing of the instrument carries the ticker.
   bool current = 2;
-  // The transactions whose keys state the ticker, under any instrument.
+  // The transactions whose keys state the ticker at any venue of its market,
+  // under any instrument.
   int32 transactions = 3;
+  // The operating MICs of the listings that carry the ticker, sorted.
+  repeated string venues = 4;
 }
 
 message ListInstrumentTickersRequest {
@@ -111,14 +114,13 @@ message ListInstrumentTickersRequest {
 }
 
 message ListInstrumentTickersResponse {
-  // By transactions, most first, then current before former, then domain
+  // By transactions, most first, then current before former, then market
   // and value.
   repeated InstrumentTicker tickers = 1;
 }
 
 message GetTickerRequest {
-  // A MIC_TICKER at any venue; its domain is read as the operating MIC.
-  stonks.type.v1.Identifier ticker = 1 [(buf.validate.field).required = true];
+  stonks.type.v1.MarketTicker ticker = 1 [(buf.validate.field).required = true];
 }
 
 message GetTickerResponse {
@@ -126,8 +128,7 @@ message GetTickerResponse {
 }
 
 message AttestRequest {
-  // A MIC_TICKER at any venue; its domain is read as the operating MIC.
-  stonks.type.v1.Identifier ticker = 1 [(buf.validate.field).required = true];
+  stonks.type.v1.MarketTicker ticker = 1 [(buf.validate.field).required = true];
   // What the ticker names on each day.
   oneof names {
     option (buf.validate.oneof).required = true;
@@ -157,8 +158,8 @@ message WithdrawAttestationResponse {}
 service CoverageService {
   // Lists the tickers that name the instrument, now or in an assertion.
   rpc ListInstrumentTickers(ListInstrumentTickersRequest) returns (ListInstrumentTickersResponse);
-  // Reads one ticker's facts and validity. An identifier that is not a
-  // MIC_TICKER, or that names a domain, is refused as an invalid argument.
+  // Reads one ticker's facts and validity. An unknown market is refused as an
+  // invalid argument.
   rpc GetTicker(GetTickerRequest) returns (GetTickerResponse);
   // Attests, as a system run, that the ticker names the instrument or names
   // nothing on from, and on to where it is given. The assertions are written

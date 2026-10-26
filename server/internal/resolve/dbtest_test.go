@@ -90,7 +90,7 @@ func TestResolveWrites(t *testing.T) {
 		}
 	}
 	vod := types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XLON", Value: "VOD"}
-	ivs, err := validity.Of(ctx, s.q, vod)
+	ivs, err := validity.Of(ctx, s.q, mt(vod))
 	require.NoError(t, err)
 	if !confirmedOn(ivs, inst.ID, day) {
 		t.Errorf("validity of %s = %+v, want the instrument confirmed on %s", vod.Name(), ivs, day.Format(time.DateOnly))
@@ -169,11 +169,39 @@ func TestUnknownRows(t *testing.T) {
 	asserted, err := s.q.ListFetchKeyAssertions(ctx, &fk.ID)
 	require.NoError(t, err)
 	want := []gen.IdentifierAssertion{{
-		ID: asserted[0].ID, FetchKeyID: &fk.ID, Type: ticker.Type, Domain: ticker.Domain, Value: ticker.Value,
+		ID: asserted[0].ID, FetchKeyID: &fk.ID, Type: ticker.Type, Domain: "US", Value: ticker.Value,
 		AssertedOn: time.Date(2026, time.March, 2, 0, 0, 0, 0, time.UTC),
 	}}
 	if diff := cmp.Diff(want, asserted); diff != "" {
 		t.Errorf("assertions mismatch (-want +got):\n%s", diff)
+	}
+}
+
+// TestAssertsOnceAtMarket checks that a winning listing carrying one ticker
+// at two venues of a market writes one assertion of it, at the market.
+func TestAssertsOnceAtMarket(t *testing.T) {
+	s := newStack(t)
+	ctx := context.Background()
+	nyse := types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XNYS", Value: "ZZM"}
+	bats := types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "BATS", Value: "ZZM"}
+	share := types.Identifier{Type: types.IdentifierTypeOpenfigiShareClass, Value: "BBG00ZZMSHAR"}
+	s.script.Responses[nyse] = market.IdentityResult{Filtered: []types.Identifier{{Type: nyse.Type, Value: nyse.Value}}, Listings: []market.Listing{
+		{Class: types.AssetClassStock, Currency: "USD", Primary: "XNYS", Identifiers: []types.Identifier{share, nyse, bats}},
+	}}
+	key := s.state(t, types.AssetClassStock, "USD", nyse)
+	s.resolve(t, key)
+
+	fk := s.fetchKey(t, key.ID, s.alphaName)
+	asserted, err := s.q.ListFetchKeyAssertions(ctx, &fk.ID)
+	require.NoError(t, err)
+	var tickers []string
+	for _, a := range asserted {
+		if a.Type == types.IdentifierTypeMicTicker {
+			tickers = append(tickers, a.Domain+":"+a.Value)
+		}
+	}
+	if diff := cmp.Diff([]string{"US:ZZM"}, tickers); diff != "" {
+		t.Errorf("ticker assertions mismatch (-want +got):\n%s", diff)
 	}
 }
 
@@ -360,7 +388,7 @@ func TestMergeRows(t *testing.T) {
 		t.Errorf("assertions naming the survivor %d, the merged instrument %d, want every one on the survivor", naming[true], naming[false])
 	}
 	nasdaq := types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "VOD"}
-	ivs, err := validity.Of(ctx, s.q, nasdaq)
+	ivs, err := validity.Of(ctx, s.q, mt(nasdaq))
 	require.NoError(t, err)
 	for _, iv := range ivs {
 		if iv.Instrument != survivor {

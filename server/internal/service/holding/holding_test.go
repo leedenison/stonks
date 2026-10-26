@@ -20,6 +20,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/auth"
 	"github.com/leedenison/stonks/server/internal/currency"
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/mic"
 	"github.com/leedenison/stonks/server/internal/ptr"
 	"github.com/leedenison/stonks/server/internal/service/holding/mock"
 	servicemock "github.com/leedenison/stonks/server/internal/service/mock"
@@ -45,6 +46,10 @@ type fixture struct {
 
 // newFixture mounts a Server with the real handler chain and a client that
 // carries a session cookie.
+// mics puts XNAS and XNYS in the market US, so a key dated through a ticker
+// at XNAS reads its facts at US.
+var mics = mic.MICMap{"XNAS": {Operating: "XNAS", Market: "US"}, "XNYS": {Operating: "XNYS", Market: "US"}}
+
 func newFixture(t *testing.T) *fixture {
 	t.Helper()
 	ctrl := gomock.NewController(t)
@@ -52,7 +57,7 @@ func newFixture(t *testing.T) *fixture {
 	f := &fixture{reader: mock.NewMockReader(ctrl), authn: servicemock.NewMockAuthenticator(ctrl)}
 	opts := servicetest.Options(t, f.authn)
 	srv := servicetest.Serve(t, func(mux *http.ServeMux) {
-		mux.Handle(holdingv1connect.NewHoldingServiceHandler(New(f.reader, families, scales), opts...))
+		mux.Handle(holdingv1connect.NewHoldingServiceHandler(New(f.reader, families, scales, mics), opts...))
 	})
 	f.client = holdingv1connect.NewHoldingServiceClient(srv.Client, srv.URL)
 	return f

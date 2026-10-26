@@ -54,9 +54,9 @@ func TestDeleteUserCascades(t *testing.T) {
 			require.NoError(t, q.CreateIdentifierAssertion(ctx, gen.CreateIdentifierAssertionParams{
 				ID: db.NewID(), FetchKeyID: &key, Type: types.IdentifierTypeIsin, Value: "GB00B03MLX29", AssertedOn: date(2026, 3, 2),
 			}))
-			_, err = tx.Exec(ctx, "INSERT INTO identifier_events (id, fetch_key_id, domain, value, action, effective_on) VALUES ($1, $2, 'XLON', 'SHEL', 'retired', '2026-03-02')", db.NewID(), key)
+			_, err = tx.Exec(ctx, "INSERT INTO identifier_events (id, fetch_key_id, market, value, action, effective_on) VALUES ($1, $2, 'XLON', 'SHEL', 'retired', '2026-03-02')", db.NewID(), key)
 			require.NoError(t, err)
-			_, err = tx.Exec(ctx, "INSERT INTO identifier_event_coverage (id, fetch_key_id, domain, covered_from, covered_before) VALUES ($1, $2, 'XLON', '2026-01-01', '2026-03-02')", db.NewID(), key)
+			_, err = tx.Exec(ctx, "INSERT INTO identifier_event_coverage (id, fetch_key_id, market, covered_from, covered_before) VALUES ($1, $2, 'XLON', '2026-01-01', '2026-03-02')", db.NewID(), key)
 			require.NoError(t, err)
 			instrument, err := q.CreateInstrument(ctx, gen.CreateInstrumentParams{ID: db.NewID(), AssetClass: types.AssetClassStock, FetchKeyID: &key})
 			require.NoError(t, err)

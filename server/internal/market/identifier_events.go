@@ -11,18 +11,18 @@ import (
 )
 
 // IdentifierEventRequest asks for the identifier events of one identifier
-// over one period. An identifier with no value stands for its domain, and asks
-// for every ticker of the domain. An identifier with a value over one day is a
-// point in time lookup.
+// over one period. An identifier with no value stands for the market of its
+// domain, and asks for every ticker of the market. An identifier with a value
+// over one day is a point in time lookup.
 type IdentifierEventRequest struct {
 	Identifier types.Identifier
 	Period     types.Period
 }
 
-// IdentifierEvent is an event a provider reported for a MIC_TICKER.
-// ToValue is set only for a rename.
+// IdentifierEvent is an event a provider reported for a ticker at its
+// market. ToValue is set only for a rename.
 type IdentifierEvent struct {
-	Value   types.Identifier
+	Ticker  types.MarketTicker
 	Action  gen.IdentifierEventAction
 	ToValue string
 	On      time.Time
@@ -33,17 +33,18 @@ type IdentifierEvent struct {
 // identifiers up to find the instrument. A negative assertion states that the
 // ticker names nothing, and leaves Of empty.
 type Assertion struct {
-	Value    types.Identifier
+	Ticker   types.MarketTicker
 	Of       Listing
 	Negative bool
 	At       time.Time
 }
 
 // Coverage is a period over which a provider reported every event of
-// Identifier. An identifier with no value stands for its domain.
+// Ticker, or of every ticker of Market where Ticker is nil.
 type Coverage struct {
-	Identifier types.Identifier
-	Period     types.Period
+	Market string
+	Ticker *types.MarketTicker
+	Period types.Period
 }
 
 // IdentifierEventResult is what was returned for one request.
@@ -54,7 +55,7 @@ type IdentifierEventResult struct {
 }
 
 // IdentifierEvents is an integration that reports the identifier events of
-// tickers or domains. Its Events method returns the server, so one integration
+// tickers or markets. Its Events method returns the server, so one integration
 // can serve identity too.
 type IdentifierEvents interface {
 	Integration
@@ -70,18 +71,18 @@ type Windowed interface {
 	Window(now time.Time) time.Time
 }
 
-// Ranged is a Windowed integration that answers for whole domains over a
+// Ranged is a Windowed integration that answers for whole markets over a
 // period.
 type Ranged interface {
 	Windowed
-	// Domains is the operating MICs it covers.
-	Domains() []string
+	// Markets are the markets it covers.
+	Markets() []string
 	// Lag is how long the provider may take to publish an event, unless the
 	// datasource sets its own.
 	Lag() time.Duration
 }
 
-// identifierEventsKind is the identifier events of tickers and domains. No
+// identifierEventsKind is the identifier events of tickers and markets. No
 // stated key asks for one, and the period is part of the request as cached.
 var identifierEventsKind = Kind[IdentifierEventRequest, IdentifierEventResult]{
 	name: gen.FetchKindIdentifierEvents,
@@ -104,7 +105,7 @@ func (f *Fetcher) IdentifierEvents(ctx context.Context, parent gen.Run, e *Entry
 	return fetch(ctx, f, parent, e, identifierEventsKind, reqs)
 }
 
-// NextPeriod returns the period of the next fetch of a domain. It ends with
+// NextPeriod returns the period of the next fetch of a market. It ends with
 // today. It starts at the later of the start of w's window and the end of the
 // last fetch less the lag. Where there was no last fetch, the earliest
 // transaction stands in for the end. The period is empty when its start is

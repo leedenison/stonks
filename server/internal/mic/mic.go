@@ -107,27 +107,6 @@ func (t MICMap) Venues(market string) []string {
 	return out
 }
 
-// Probes returns the probes that find the keys stating ids. A MIC_TICKER
-// probes every venue of its market. The probe of a domain identifier of one
-// omits the value, so it matches every ticker of the market.
-func (t MICMap) Probes(ids []types.Identifier) ([][]byte, error) {
-	var out [][]byte
-	for _, id := range ids {
-		venues := []string{id.Domain}
-		if m, ok := t.Market(id.Domain); ok && id.Type == types.IdentifierTypeMicTicker {
-			venues = t.Venues(m)
-		}
-		for _, v := range venues {
-			b, err := probe(types.Identifier{Type: id.Type, Domain: v, Value: id.Value})
-			if err != nil {
-				return nil, err
-			}
-			out = append(out, b)
-		}
-	}
-	return out, nil
-}
-
 // TickerProbes returns one probe per venue of each ticker's market. It fails
 // when a ticker's market has no MIC.
 func (t MICMap) TickerProbes(ts []types.MarketTicker) ([][]byte, error) {
@@ -139,6 +118,26 @@ func (t MICMap) TickerProbes(ts []types.MarketTicker) ([][]byte, error) {
 		}
 		for _, v := range venues {
 			b, err := probe(types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: v, Value: mt.Value})
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, b)
+		}
+	}
+	return out, nil
+}
+
+// MarketProbes returns one probe per venue of each market, which finds the
+// keys stating any ticker of the market.
+func (t MICMap) MarketProbes(markets []string) ([][]byte, error) {
+	var out [][]byte
+	for _, m := range markets {
+		venues := t.Venues(m)
+		if len(venues) == 0 {
+			return nil, fmt.Errorf("probe %s: unknown market", m)
+		}
+		for _, v := range venues {
+			b, err := probe(types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: v})
 			if err != nil {
 				return nil, err
 			}

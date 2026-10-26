@@ -210,12 +210,13 @@ func ProtoFetchItem(it gen.ListFetchItemsRow) *adminrunv1.FetchItem {
 	return out
 }
 
-// ProtoAssertionItem converts an assertion with its source: the datasource
-// of the fetch that made it, or the administrator who attested it.
+// ProtoAssertionItem converts a ticker's assertion with its source: the
+// datasource of the fetch that made it, or the administrator who attested it.
+// A mic_ticker row holds the ticker's market in its domain.
 func ProtoAssertionItem(a gen.IdentifierAssertion, datasource, attestedBy *string) *adminrunv1.AssertionItem {
 	out := &adminrunv1.AssertionItem{
 		Id:         a.ID.String(),
-		Ticker:     types.Identifier{Type: a.Type, Domain: a.Domain, Value: a.Value}.ToProto(),
+		Ticker:     types.MarketTicker{Market: a.Domain, Value: a.Value}.ToProto(),
 		AssertedOn: a.AssertedOn.Format(time.DateOnly),
 	}
 	if a.InstrumentID != nil {
@@ -231,14 +232,10 @@ func ProtoAssertionItem(a gen.IdentifierAssertion, datasource, attestedBy *strin
 	return out
 }
 
-// ProtoCoverage converts a coverage row of a ticker or of its domain.
+// ProtoCoverage converts a coverage row of a ticker or of its market.
 func ProtoCoverage(c gen.ListIdentifierCoverageRow) *admincoveragev1.Coverage {
-	covers := types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: c.Domain}
-	if c.Value != nil {
-		covers.Value = *c.Value
-	}
 	return &admincoveragev1.Coverage{
-		Datasource: c.Datasource, Covers: covers.ToProto(),
+		Datasource: c.Datasource, Market: c.Market, Value: c.Value,
 		CoveredFrom: c.CoveredFrom.Format(time.DateOnly), CoveredBefore: c.CoveredBefore.Format(time.DateOnly),
 	}
 }

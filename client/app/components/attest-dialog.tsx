@@ -3,11 +3,14 @@
 import { useState } from "react";
 import { Button } from "@/app/components/button";
 import { Dialog } from "@/app/components/dialog";
-import { IdentifierChip } from "@/app/components/identifier-chip";
+import {
+  IdentifierChip,
+  MarketTickerChip,
+} from "@/app/components/identifier-chip";
 import { Input, Select } from "@/app/components/input";
 import { Notice } from "@/app/components/notice";
 import { Skeleton } from "@/app/components/skeleton";
-import type { Identifier } from "@/gen/type/v1/type_pb";
+import type { Identifier, MarketTicker } from "@/gen/type/v1/type_pb";
 import { useAdminInstruments } from "@/hooks/use-admin-instruments";
 import { useAttest, useCoverageTicker } from "@/hooks/use-coverage";
 import { useDebounced } from "@/hooks/use-debounced";
@@ -27,13 +30,13 @@ export function AttestDialog({
   onClose,
   onDone,
 }: {
-  ticker: Identifier;
+  ticker: MarketTicker;
   // The first day, as YYYY-MM-DD.
   from: string;
   onClose: () => void;
   onDone: () => void;
 }) {
-  const read = useCoverageTicker(ticker.domain, ticker.value);
+  const read = useCoverageTicker(ticker.market, ticker.value);
   const attest = useAttest();
   const [day, setDay] = useState(from);
   const [to, setTo] = useState("");
@@ -102,7 +105,7 @@ export function AttestDialog({
     >
       <div className="flex items-center gap-2 text-sm">
         <span className="text-text-muted">Ticker</span>
-        <IdentifierChip id={ticker} />
+        <MarketTickerChip ticker={ticker} />
       </div>
       <div className="flex flex-wrap gap-4 text-sm">
         <label className="flex flex-col gap-1">

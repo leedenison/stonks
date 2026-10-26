@@ -10,6 +10,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/join"
+	"github.com/leedenison/stonks/server/internal/mic"
 	"github.com/leedenison/stonks/server/internal/ptr"
 	"github.com/leedenison/stonks/server/internal/types"
 	"github.com/leedenison/stonks/server/internal/validity"
@@ -23,13 +24,17 @@ type resolution struct {
 	// family is the family of the currency the key states.
 	family          string
 	knownInstrument *join.InstrumentWithCoverage
-	fetchKeys       []*fetchKey
-	findings        []gen.CreateFindingParams
-	outcome         gen.ResolutionOutcome
-	reason          string
-	// dating is the validity of the MIC_TICKER the key may be dated through:
-	// the one its dated association names, or the one datedTicker finds. It
-	// is nil for a key that is fixed whatever it resolves to.
+	// mics maps the venue of each ticker to its market.
+	mics      mic.MICMap
+	fetchKeys []*fetchKey
+	findings  []gen.CreateFindingParams
+	outcome   gen.ResolutionOutcome
+	reason    string
+	// via is the MIC_TICKER the key may be dated through: the one its dated
+	// association names, or the one datedTicker finds. dating is the validity
+	// of its market ticker. It is nil for a key that is fixed whatever it
+	// resolves to.
+	via    types.Identifier
 	dating *validity.Ticker
 	// dates are the as-at dates of the key's transactions, stored and
 	// stated.

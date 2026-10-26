@@ -12,7 +12,6 @@ import type {
   GetTickerResponse,
   ListInstrumentTickersResponse,
 } from "@/gen/admin/coverage/v1/coverage_pb";
-import { IdentifierType } from "@/gen/type/v1/type_pb";
 import { invalidateAttested, qk } from "@/lib/query-keys";
 import { useAuthedQuery } from "./use-authed-query";
 
@@ -29,19 +28,16 @@ export function useInstrumentTickers(
   });
 }
 
-// useCoverageTicker reads one ticker's facts and validity.
+// useCoverageTicker reads the facts and validity of a ticker at its market.
 export function useCoverageTicker(
-  domain: string,
+  market: string,
   value: string,
 ): UseQueryResult<GetTickerResponse> {
   const { coverage } = useClients();
   return useAuthedQuery({
-    queryKey: qk.coverageTicker(domain, value),
-    queryFn: () =>
-      coverage.getTicker({
-        ticker: { type: IdentifierType.MIC_TICKER, domain, value },
-      }),
-    enabled: domain !== "" && value !== "",
+    queryKey: qk.coverageTicker(market, value),
+    queryFn: () => coverage.getTicker({ ticker: { market, value } }),
+    enabled: market !== "" && value !== "",
   });
 }
 

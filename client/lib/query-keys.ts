@@ -29,8 +29,8 @@ export const qk = {
   blocksAll: () => ["blocks"] as const,
   instrumentTickers: (instrumentId: string) =>
     ["coverage", "instrument", instrumentId] as const,
-  coverageTicker: (domain: string, value: string) =>
-    ["coverage", "ticker", domain, value] as const,
+  coverageTicker: (market: string, value: string) =>
+    ["coverage", "ticker", market, value] as const,
   coverageAll: () => ["coverage"] as const,
 };
 

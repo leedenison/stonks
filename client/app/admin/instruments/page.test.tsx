@@ -38,16 +38,17 @@ vi.mock("next/navigation", () => ({
 const admin = liveSession({ role: Role.ADMIN });
 type Coverage = Partial<ServiceImpl<typeof CoverageService>>;
 
-const acme = { type: IdentifierType.MIC_TICKER, domain: "XNAS", value: "ACME" };
-// ACME's tickers: the one on its listing, then one that named it before.
+const acme = { market: "US", value: "ACME" };
+// ACME's tickers: the one on its listing at XNAS, then one that named it
+// before.
 const tickers = create(ListInstrumentTickersResponseSchema, {
   tickers: [
-    { ticker: acme, current: true, transactions: 3 },
+    { ticker: acme, current: true, transactions: 3, venues: ["XNAS"] },
     { ticker: { ...acme, value: "OLD" }, current: false },
   ],
 });
 // ACME's facts: a gap before a confirmed bracket, a datasource's assertion
-// and an attestation, and one datasource covering the whole domain.
+// and an attestation, and one datasource covering the whole market.
 const read = create(GetTickerResponseSchema, {
   ticker: create(TickerSchema, {
     ticker: acme,
@@ -55,7 +56,7 @@ const read = create(GetTickerResponseSchema, {
     coverage: [
       {
         datasource: "alpha",
-        covers: { ...acme, value: "" },
+        market: "US",
         coveredFrom: "2024-06-01",
         coveredBefore: "2026-01-01",
       },
@@ -292,10 +293,10 @@ describe("InstrumentsPage", () => {
     ).toBe("true");
     expect(screen.queryByTestId("instrument-identifiers")).toBeNull();
     const select = screen.getByTestId("ticker-select") as HTMLSelectElement;
-    expect(select.value).toBe("XNAS:ACME");
+    expect(select.value).toBe("US:ACME");
     expect([...select.options].map((o) => o.textContent)).toEqual([
-      "ACME at XNAS",
-      "OLD at XNAS (former)",
+      "ACME in US",
+      "OLD in US (former)",
     ]);
     expect(screen.getByTestId("coverage-timeline")).toBeTruthy();
     const gap = screen.getByTestId("pane-gap-2024-02-01");
@@ -310,17 +311,17 @@ describe("InstrumentsPage", () => {
     expect(a2.textContent).toContain("admin@example.com");
     expect(a2.getAttribute("data-attested")).toBe("true");
     expect(screen.getByTestId("ticker-coverage").textContent).toContain(
-      "every ticker of XNAS",
+      "every ticker of US",
     );
     expect(screen.queryByTestId("ticker-events")).toBeNull();
-    fireEvent.change(select, { target: { value: "XNAS:OLD" } });
+    fireEvent.change(select, { target: { value: "US:OLD" } });
     expect(router.replace).toHaveBeenCalledWith(
-      "/admin/instruments?id=i-acme&tab=tickers&ticker=XNAS%3AOLD",
+      "/admin/instruments?id=i-acme&tab=tickers&ticker=US%3AOLD",
     );
   });
 
   it("shows the ticker the address names, and says when it has no facts", async () => {
-    params = new URLSearchParams("id=i-acme&tab=tickers&ticker=XNAS:OLD");
+    params = new URLSearchParams("id=i-acme&tab=tickers&ticker=US:OLD");
     const asked: string[] = [];
     renderWithAuth(
       <InstrumentsPage />,
@@ -337,8 +338,34 @@ describe("InstrumentsPage", () => {
     expect(asked).toEqual(["OLD"]);
     expect(
       (screen.getByTestId("ticker-select") as HTMLSelectElement).value,
-    ).toBe("XNAS:OLD");
+    ).toBe("US:OLD");
     expect(screen.queryByTestId("coverage-timeline")).toBeNull();
+  });
+
+  it("shows the market's ticker for an address that names a venue of it", async () => {
+    params = new URLSearchParams("id=i-acme&tab=tickers&ticker=XNYS:OLD");
+    renderWithAuth(
+      <InstrumentsPage />,
+      serving(() => listed, {
+        listInstrumentTickers: () =>
+          create(ListInstrumentTickersResponseSchema, {
+            tickers: [
+              { ticker: acme, current: true, venues: ["XNAS"] },
+              {
+                ticker: { ...acme, value: "OLD" },
+                current: true,
+                venues: ["XNYS"],
+              },
+            ],
+          }),
+      }),
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId("ticker-select")).toBeTruthy(),
+    );
+    expect(
+      (screen.getByTestId("ticker-select") as HTMLSelectElement).value,
+    ).toBe("US:OLD");
   });
 
   it("says when no ticker names the instrument", async () => {

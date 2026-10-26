@@ -37,9 +37,9 @@ var _ market.Identity = (*Client)(nil)
 type Client struct {
 	mics   mic.MICMap
 	venues OperatingMICSet
-	// doms holds the domains of venues in order. Each identifier fact is
-	// stated at every one.
-	doms     []string
+	// home is the market of every venue, where each identifier fact is
+	// stated.
+	home     string
 	prefer   market.Preference
 	limit    rate.Limit
 	http     *http.Client
@@ -65,7 +65,8 @@ var plans = map[string]rate.Limit{
 // New returns a Client for cfg that sends its requests through h. It fails
 // when cfg has no credential, when its endpoint is not a URL, when its
 // config has an unknown member, or when the config names a plan Massive does
-// not sell.
+// not sell. It also fails unless Massive's venues cover one market whole,
+// since Massive states each fact for the market.
 func New(cfg market.Config, mics mic.MICMap, h *http.Client) (*Client, error) {
 	if cfg.Credential == "" {
 		return nil, errors.New("massive needs an API key")
@@ -84,15 +85,20 @@ func New(cfg market.Config, mics mic.MICMap, h *http.Client) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
+	venues := operating(mics)
+	home, err := homeOf(venues, mics)
+	if err != nil {
+		return nil, err
+	}
 	c := &Client{
 		mics:     mics,
-		venues:   operating(mics),
+		venues:   venues,
+		home:     home,
 		limit:    limit,
 		http:     h,
 		endpoint: ep,
 		key:      cfg.Credential,
 	}
-	c.doms = slices.Sorted(maps.Keys(c.venues))
 	c.prefer = market.Preference{
 		Served: market.Equities,
 		Order:  []types.IdentifierType{types.IdentifierTypeCusip, types.IdentifierTypeMicTicker},
@@ -115,6 +121,25 @@ func operating(mics mic.MICMap) OperatingMICSet {
 		}
 	}
 	return out
+}
+
+// homeOf returns the one market of venues. It fails where venues span two
+// markets, or where the market holds an operating MIC outside venues.
+func homeOf(venues OperatingMICSet, mics mic.MICMap) (string, error) {
+	var home string
+	for _, op := range slices.Sorted(maps.Keys(venues)) {
+		m, _ := mics.Market(op)
+		if home != "" && m != home {
+			return "", fmt.Errorf("massive venues span the markets %s and %s", home, m)
+		}
+		home = m
+	}
+	for _, v := range mics.Venues(home) {
+		if op, _ := mics.Operating(v); !venues[op] {
+			return "", fmt.Errorf("massive does not list %s of the market %s", op, home)
+		}
+	}
+	return home, nil
 }
 
 // Factory returns a market.Factory that builds Clients which normalise

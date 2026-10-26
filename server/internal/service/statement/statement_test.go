@@ -25,6 +25,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/auth"
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/mic"
 	"github.com/leedenison/stonks/server/internal/ptr"
 	"github.com/leedenison/stonks/server/internal/resolve"
 	servicemock "github.com/leedenison/stonks/server/internal/service/mock"
@@ -64,7 +65,7 @@ func newFixture(t *testing.T) *fixture {
 	f := &fixture{ingester: mock.NewMockIngester(ctrl), confirmer: mock.NewMockConfirmer(ctrl), reader: mock.NewMockReader(ctrl), authn: servicemock.NewMockAuthenticator(ctrl)}
 	opts := servicetest.Options(t, f.authn)
 	srv := servicetest.Serve(t, func(mux *http.ServeMux) {
-		mux.Handle(statementv1connect.NewStatementServiceHandler(New(f.ingester, f.confirmer, f.reader), opts...))
+		mux.Handle(statementv1connect.NewStatementServiceHandler(New(f.ingester, f.confirmer, f.reader, mic.MICMap{"XNAS": {Operating: "XNAS", Market: "US"}}), opts...))
 	})
 	f.client = statementv1connect.NewStatementServiceClient(srv.Client, srv.URL)
 	return f
@@ -219,7 +220,7 @@ func TestGetStatement(t *testing.T) {
 	// rename and one on the asserted day, and one of a key fixed through a
 	// broker description.
 	datedID, fixedID := uuid.MustParse("00000000-0000-0000-0000-000000000024"), uuid.MustParse("00000000-0000-0000-0000-000000000025")
-	dated := gen.StatedKey{ID: datedID, UserID: userID, Identifiers: []types.Identifier{meta}, ViaType: ptr.To(types.IdentifierTypeMicTicker), ViaDomain: ptr.To("XNAS"), ViaValue: ptr.To("META"), Arbiter: ptr.To(gen.ArbiterDatasource)}
+	dated := gen.StatedKey{ID: datedID, UserID: userID, Identifiers: []types.Identifier{{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "META"}}, ViaType: ptr.To(types.IdentifierTypeMicTicker), ViaDomain: ptr.To("XNAS"), ViaValue: ptr.To("META"), Arbiter: ptr.To(gen.ArbiterDatasource)}
 	fixed := gen.StatedKey{ID: fixedID, UserID: userID, Identifiers: []types.Identifier{{Type: types.IdentifierTypeBrokerDescription, Domain: "ibkr", Value: "ACME"}}, InstrumentID: ptr.To(uuid.New()), Arbiter: ptr.To(gen.ArbiterDatasource)}
 	tx := func(n int, key gen.StatedKey, on time.Time) gen.Transaction {
 		return gen.Transaction{ID: uuid.MustParse(fmt.Sprintf("00000000-0000-0000-0000-00000000003%d", n)), UserID: userID, StatementID: runID, StatedKeyID: key.ID, OrderDate: on, AsAt: on, Quantity: decimal.NewFromInt(10)}
@@ -231,11 +232,11 @@ func TestGetStatement(t *testing.T) {
 	}
 	facts := metaFacts()
 	assertions := []gen.ListIdentifierAssertionsRow{
-		{IdentifierAssertion: gen.IdentifierAssertion{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "META", AssertedOn: assertedOn, InstrumentID: &metaInst, FetchKeyID: ptr.To(uuid.New())}, Datasource: ptr.To("massive"), Precedence: ptr.To(int32(2))},
-		{IdentifierAssertion: gen.IdentifierAssertion{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "META", AssertedOn: notFoundOn, FetchKeyID: ptr.To(uuid.New())}, Datasource: ptr.To("massive"), Precedence: ptr.To(int32(2))},
+		{IdentifierAssertion: gen.IdentifierAssertion{Type: types.IdentifierTypeMicTicker, Domain: "US", Value: "META", AssertedOn: assertedOn, InstrumentID: &metaInst, FetchKeyID: ptr.To(uuid.New())}, Datasource: ptr.To("massive"), Precedence: ptr.To(int32(2))},
+		{IdentifierAssertion: gen.IdentifierAssertion{Type: types.IdentifierTypeMicTicker, Domain: "US", Value: "META", AssertedOn: notFoundOn, FetchKeyID: ptr.To(uuid.New())}, Datasource: ptr.To("massive"), Precedence: ptr.To(int32(2))},
 	}
-	events := []gen.ListIdentifierEventsRow{{Domain: "XNAS", Value: "META", EffectiveOn: renamed, FetchKeyID: uuid.New()}}
-	coverage := []gen.ListIdentifierCoverageRow{{Domain: "XNAS", Value: ptr.To("META"), CoveredFrom: facts.Coverage[0].Period.From, CoveredBefore: facts.Coverage[0].Period.Before}}
+	events := []gen.ListIdentifierEventsRow{{Market: "US", Value: "META", EffectiveOn: renamed, FetchKeyID: uuid.New()}}
+	coverage := []gen.ListIdentifierCoverageRow{{Market: "US", Value: ptr.To("META"), CoveredFrom: facts.Coverage[0].Period.From, CoveredBefore: facts.Coverage[0].Period.Before}}
 	txMsgs := []*statementv1.Transaction{
 		{Id: transactions[0].Transaction.ID.String(), StatedKeyId: datedID.String(), OrderDate: "2021-06-01", Quantity: "10", Mark: statementv1.TransactionMark_TRANSACTION_MARK_UNRESOLVED},
 		{Id: transactions[1].Transaction.ID.String(), StatedKeyId: datedID.String(), OrderDate: "2024-01-16", Quantity: "10", Mark: statementv1.TransactionMark_TRANSACTION_MARK_CONFIRMED},
@@ -302,10 +303,10 @@ func TestGetStatement(t *testing.T) {
 					f.reader.EXPECT().ListStatementTransactions(gomock.Any(), gen.ListStatementTransactionsParams{StatementID: runID, UserID: userID}).Return(tc.transactions, tc.transactionsErr)
 				}
 				if len(tc.transactions) > 0 {
-					f.reader.EXPECT().ListIdentifierAssertions(gomock.Any(), gen.ListIdentifierAssertionsParams{Type: types.IdentifierTypeMicTicker, Domains: []string{"XNAS"}, Values: []string{"META"}}).Return(assertions, tc.assertionsErr)
+					f.reader.EXPECT().ListIdentifierAssertions(gomock.Any(), gen.ListIdentifierAssertionsParams{Markets: []string{"US"}, Values: []string{"META"}}).Return(assertions, tc.assertionsErr)
 					if tc.assertionsErr == nil {
-						f.reader.EXPECT().ListIdentifierEvents(gomock.Any(), gen.ListIdentifierEventsParams{Domains: []string{"XNAS"}, Values: []string{"META"}}).Return(events, nil)
-						f.reader.EXPECT().ListIdentifierCoverage(gomock.Any(), gen.ListIdentifierCoverageParams{Domains: []string{"XNAS"}, Values: []string{"META"}}).Return(coverage, nil)
+						f.reader.EXPECT().ListIdentifierEvents(gomock.Any(), gen.ListIdentifierEventsParams{Markets: []string{"US"}, Values: []string{"META"}}).Return(events, nil)
+						f.reader.EXPECT().ListIdentifierCoverage(gomock.Any(), gen.ListIdentifierCoverageParams{Markets: []string{"US"}, Values: []string{"META"}}).Return(coverage, nil)
 					}
 				}
 			}

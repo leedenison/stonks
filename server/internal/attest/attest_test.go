@@ -22,11 +22,14 @@ import (
 var (
 	admin = uuid.MustParse("00000000-0000-0000-0000-000000000002")
 	acme  = uuid.MustParse("00000000-0000-0000-0000-000000000003")
-	mics  = mic.Of(map[string]string{"XNAS": "XNAS", "XNGS": "XNAS"})
-	today = time.Date(2026, time.March, 30, 12, 0, 0, 0, time.UTC)
-	// nasdaq is the ticker at its operating MIC, the venue every assertion
-	// names.
-	nasdaq = types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "ACME"}
+	// mics puts XNAS and XNYS in the market US.
+	mics = mic.MICMap{
+		"XNAS": {Operating: "XNAS", Market: "US"},
+		"XNGS": {Operating: "XNAS", Market: "US"},
+		"XNYS": {Operating: "XNYS", Market: "US"},
+	}
+	today  = time.Date(2026, time.March, 30, 12, 0, 0, 0, time.UTC)
+	acmeUS = types.MarketTicker{Market: "US", Value: "ACME"}
 )
 
 // day is the nth day of March 2026.
@@ -67,13 +70,13 @@ func (f *fixture) starts(t *testing.T, row gen.Run) {
 
 func assertion(row gen.Run, instrument *uuid.UUID, on time.Time) gen.CreateIdentifierAttestationParams {
 	return gen.CreateIdentifierAttestationParams{
-		RunID: row.ID, AttestedBy: admin, Type: nasdaq.Type, Domain: nasdaq.Domain, Value: nasdaq.Value,
+		RunID: row.ID, AttestedBy: admin, Type: types.IdentifierTypeMicTicker, Domain: "US", Value: "ACME",
 		InstrumentID: instrument, AssertedOn: on,
 	}
 }
 
-// TestStart checks that a range attested at a venue asserts at the operating
-// MIC on both ends.
+// TestStart checks that a range asserts at the market on both ends, and
+// replays the market ticker.
 func TestStart(t *testing.T) {
 	f := newFixture(t)
 	row := gen.Run{ID: db.NewID(), Kind: gen.RunKindAttestation, Trigger: gen.RunTriggerAdministrator}
@@ -85,11 +88,10 @@ func TestStart(t *testing.T) {
 		written = append(written, arg)
 		return nil
 	})
-	f.replays.EXPECT().ReplayNewIdentifierFacts(gomock.Any(), row, []resolve.WrittenIdentifierFacts{{Run: row, Identifiers: []types.Identifier{nasdaq}}})
+	f.replays.EXPECT().ReplayNewIdentifierFacts(gomock.Any(), row, []resolve.WrittenIdentifierFacts{{Run: row, Tickers: []types.MarketTicker{acmeUS}}})
 
-	segment := types.Identifier{Type: nasdaq.Type, Domain: "XNGS", Value: "ACME"}
 	to := day(20)
-	got, err := f.svc.Start(context.Background(), admin, segment, &acme, day(10), &to)
+	got, err := f.svc.Start(context.Background(), admin, acmeUS, &acme, day(10), &to)
 	if err != nil || got.ID != row.ID {
 		t.Fatalf("Start() = %+v, %v, want the run %s", got, err, row.ID)
 	}
@@ -115,7 +117,7 @@ func TestStartNothing(t *testing.T) {
 	f.replays.EXPECT().ReplayNewIdentifierFacts(gomock.Any(), row, gomock.Any())
 
 	to := day(10)
-	if _, err := f.svc.Start(context.Background(), admin, nasdaq, nil, day(10), &to); err != nil {
+	if _, err := f.svc.Start(context.Background(), admin, acmeUS, nil, day(10), &to); err != nil {
 		t.Fatalf("Start() error = %v", err)
 	}
 }
@@ -125,18 +127,17 @@ func TestStartRefused(t *testing.T) {
 	missing := uuid.MustParse("00000000-0000-0000-0000-000000000009")
 	tests := []struct {
 		name       string
-		v          types.Identifier
+		v          types.MarketTicker
 		instrument *uuid.UUID
 		from, to   time.Time
 		wantErr    error
 	}{
-		{name: "future", v: nasdaq, from: day(31), wantErr: validity.ErrFuture},
-		{name: "future end", v: nasdaq, from: day(10), to: day(31), wantErr: validity.ErrFuture},
-		{name: "ends before it starts", v: nasdaq, from: day(10), to: day(9), wantErr: ErrRange},
-		{name: "domain", v: types.Identifier{Type: nasdaq.Type, Domain: "XNAS"}, from: day(10), wantErr: validity.ErrSpelling},
-		{name: "unknown MIC", v: types.Identifier{Type: nasdaq.Type, Domain: "ZZZZ", Value: "ACME"}, from: day(10), wantErr: validity.ErrSpelling},
-		{name: "isin", v: types.Identifier{Type: types.IdentifierTypeIsin, Value: "US0000000001"}, from: day(10), wantErr: validity.ErrNotTicker},
-		{name: "unknown instrument", v: nasdaq, instrument: &missing, from: day(10), wantErr: db.ErrNotFound},
+		{name: "future", v: acmeUS, from: day(31), wantErr: validity.ErrFuture},
+		{name: "future end", v: acmeUS, from: day(10), to: day(31), wantErr: validity.ErrFuture},
+		{name: "ends before it starts", v: acmeUS, from: day(10), to: day(9), wantErr: ErrRange},
+		{name: "venue for market", v: types.MarketTicker{Market: "XNAS", Value: "ACME"}, from: day(10), wantErr: validity.ErrSpelling},
+		{name: "unknown market", v: types.MarketTicker{Market: "ZZ", Value: "ACME"}, from: day(10), wantErr: validity.ErrSpelling},
+		{name: "unknown instrument", v: acmeUS, instrument: &missing, from: day(10), wantErr: db.ErrNotFound},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

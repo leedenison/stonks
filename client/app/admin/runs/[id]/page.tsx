@@ -11,6 +11,7 @@ import { EmptyState } from "@/app/components/empty-state";
 import {
   IdentifierChip,
   IdentifierChips,
+  MarketTickerChip,
   StatedKeyChips,
 } from "@/app/components/identifier-chip";
 import { Notice } from "@/app/components/notice";
@@ -430,7 +431,7 @@ function RunItems({ id, live }: { id: string; live: boolean }) {
           <tbody>
             {asserted.map((it) => (
               <Tr key={it.id} data-testid={`assertion-row-${it.id}`}>
-                <Td>{it.ticker && <IdentifierChip id={it.ticker} />}</Td>
+                <Td>{it.ticker && <MarketTickerChip ticker={it.ticker} />}</Td>
                 <Td className="font-mono tabular-nums">{it.assertedOn}</Td>
                 <Td className="font-mono">{it.instrumentId ?? "nothing"}</Td>
                 <Td>{it.source.value}</Td>

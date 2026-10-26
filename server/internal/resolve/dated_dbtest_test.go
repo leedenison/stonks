@@ -16,6 +16,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/market"
+	"github.com/leedenison/stonks/server/internal/ptr"
 	"github.com/leedenison/stonks/server/internal/types"
 	"github.com/leedenison/stonks/server/internal/validity"
 )
@@ -78,15 +79,15 @@ func TestDated(t *testing.T) {
 		{Class: types.AssetClassStock, Currency: "USD", Primary: "XNAS", Identifiers: []types.Identifier{share, composite, v}},
 	}}
 	s.alphaFacts.Responses[share] = market.IdentifierEventResult{
-		Events: []market.IdentifierEvent{{Value: v, Action: gen.IdentifierEventActionAssigned, On: renamed}},
+		Events: []market.IdentifierEvent{{Ticker: mt(v), Action: gen.IdentifierEventActionAssigned, On: renamed}},
 		Assertions: []market.Assertion{
-			{Value: v, Of: market.Listing{Identifiers: []types.Identifier{share}}, At: renamed},
-			{Value: v, Of: market.Listing{Identifiers: []types.Identifier{share}}, At: on(2026, 3, 2)},
+			{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{share}}, At: renamed},
+			{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{share}}, At: on(2026, 3, 2)},
 		},
-		Coverage: []market.Coverage{{Identifier: v, Period: types.Period{From: renamed, Before: on(2026, 3, 3)}}},
+		Coverage: []market.Coverage{{Market: mt(v).Market, Ticker: ptr.To(mt(v)), Period: types.Period{From: renamed, Before: on(2026, 3, 3)}}},
 	}
 	s.alphaFacts.Responses[v] = market.IdentifierEventResult{Assertions: []market.Assertion{
-		{Value: v, Of: market.Listing{Identifiers: []types.Identifier{other}, Class: types.AssetClassEtf, Currency: "USD"}, At: on(2021, 7, 1)},
+		{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{other}, Class: types.AssetClassEtf, Currency: "USD"}, At: on(2021, 7, 1)},
 	}}
 
 	key := s.state(t, types.AssetClassStock, "USD", v)
@@ -109,7 +110,7 @@ func TestDated(t *testing.T) {
 	if ticker.Instrument.ID != held.Instrument.ID {
 		t.Errorf("%s names %s, want the identity answer's instrument %s", v.Name(), ticker.Instrument.ID, held.Instrument.ID)
 	}
-	ivs, err := validity.Of(ctx, s.q, v)
+	ivs, err := validity.Of(ctx, s.q, mt(v))
 	require.NoError(t, err)
 	if !confirmedOn(ivs, held.Instrument.ID, on(2024, 1, 16)) {
 		t.Errorf("validity of %s = %+v, want the history to confirm %s on 2024-01-16", v.Name(), ivs, held.Instrument.ID)
@@ -278,8 +279,8 @@ func TestDisagreement(t *testing.T) {
 	s.script.Responses[v] = market.IdentityResult{Filtered: []types.Identifier{{Type: v.Type, Value: v.Value}}, Listings: []market.Listing{
 		{Class: types.AssetClassStock, Currency: "USD", Primary: "XNAS", Identifiers: []types.Identifier{share, v}},
 	}}
-	s.alphaFacts.Responses[share] = market.IdentifierEventResult{Assertions: []market.Assertion{{Value: v, Of: market.Listing{Identifiers: []types.Identifier{share}}, At: day}}}
-	s.betaFacts.Responses[share] = market.IdentifierEventResult{Assertions: []market.Assertion{{Value: v, Of: market.Listing{Identifiers: []types.Identifier{other}, Class: types.AssetClassEtf, Currency: "USD"}, At: day}}}
+	s.alphaFacts.Responses[share] = market.IdentifierEventResult{Assertions: []market.Assertion{{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{share}}, At: day}}}
+	s.betaFacts.Responses[share] = market.IdentifierEventResult{Assertions: []market.Assertion{{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{other}, Class: types.AssetClassEtf, Currency: "USD"}, At: day}}}
 	key := s.state(t, types.AssetClassStock, "USD", v)
 	out, written, err := s.resolver.Resolve(context.Background(), s.resolution, []KeyDates{{Row: key, Dates: []time.Time{day}}})
 	require.NoError(t, err)
@@ -299,8 +300,8 @@ func TestDisagreement(t *testing.T) {
 		fetch, err := s.q.GetFetch(context.Background(), gen.GetFetchParams{ID: w.Run.ID, UserID: &s.user.ID})
 		require.NoError(t, err)
 		kinds, sources = append(kinds, fetch.Kind), append(sources, fetch.Datasource)
-		if !slices.Contains(w.Identifiers, v) {
-			t.Errorf("written by %s %s = %v, want %s among them", fetch.Datasource, fetch.Kind, w.Identifiers, v.Name())
+		if !slices.Contains(w.Tickers, mt(v)) {
+			t.Errorf("written by %s %s = %v, want %s among them", fetch.Datasource, fetch.Kind, w.Tickers, mt(v).Name())
 		}
 	}
 	wantKinds := []gen.FetchKind{gen.FetchKindIdentity, gen.FetchKindIdentifierEvents, gen.FetchKindIdentifierEvents}
@@ -330,10 +331,10 @@ func TestMissedEvent(t *testing.T) {
 	}}
 	s.alphaFacts.Responses[share] = market.IdentifierEventResult{
 		Assertions: []market.Assertion{
-			{Value: v, Of: market.Listing{Identifiers: []types.Identifier{share}}, At: on(2023, 1, 2)},
-			{Value: v, Of: market.Listing{Identifiers: []types.Identifier{other}, Class: types.AssetClassStock, Currency: "USD"}, At: on(2023, 6, 1)},
+			{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{share}}, At: on(2023, 1, 2)},
+			{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{other}, Class: types.AssetClassStock, Currency: "USD"}, At: on(2023, 6, 1)},
 		},
-		Coverage: []market.Coverage{{Identifier: v, Period: types.Period{From: on(2023, 1, 1), Before: on(2024, 2, 1)}}},
+		Coverage: []market.Coverage{{Market: mt(v).Market, Ticker: ptr.To(mt(v)), Period: types.Period{From: on(2023, 1, 1), Before: on(2024, 2, 1)}}},
 	}
 	key := s.state(t, types.AssetClassStock, "USD", v)
 	s.resolveOn(t, []time.Time{on(2024, 1, 16)}, key)
@@ -362,10 +363,10 @@ func TestBrokenBracket(t *testing.T) {
 		{Class: types.AssetClassStock, Currency: "USD", Primary: "XNAS", Identifiers: []types.Identifier{share, v}},
 	}}
 	s.alphaFacts.Responses[share] = market.IdentifierEventResult{
-		Events: []market.IdentifierEvent{{Value: v, Action: gen.IdentifierEventActionRenamed, ToValue: "ZZC", On: on(2023, 5, 1)}},
+		Events: []market.IdentifierEvent{{Ticker: mt(v), Action: gen.IdentifierEventActionRenamed, ToValue: "ZZC", On: on(2023, 5, 1)}},
 		Assertions: []market.Assertion{
-			{Value: v, Of: market.Listing{Identifiers: []types.Identifier{share}}, At: on(2023, 1, 2)},
-			{Value: v, Of: market.Listing{Identifiers: []types.Identifier{share}}, At: on(2024, 1, 2)},
+			{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{share}}, At: on(2023, 1, 2)},
+			{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{share}}, At: on(2024, 1, 2)},
 		},
 	}
 	key := s.state(t, types.AssetClassStock, "USD", v)
