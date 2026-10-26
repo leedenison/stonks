@@ -24,9 +24,9 @@ When no datasource and market span the period, the transaction is uncovered.
 
 Every fetch asks for the whole period that the held transactions need. Each provider
 returns the whole history of a ticker in one request, so a shorter period saves no
-calls. The latest fetch of a datasource for a ticker replaces its earlier answers. A
-provider that deletes or re-dates a corporate event is therefore followed at the next
-fetch.
+calls. The latest answer of a datasource for a ticker, by the moment the datasource gave
+it, replaces its earlier answers. A provider that deletes or re-dates a corporate event is
+therefore followed at the next fetch.
 
 A fetch compares its corporate events with those of every other datasource that covers
 the same ticker and period. It records a `corporate_event_disagreement` finding when a

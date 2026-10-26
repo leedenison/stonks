@@ -1,5 +1,6 @@
 // Package scripted holds integrations whose every answer a test scripts: one
-// for identity, one for identifier events, and one serving both.
+// each for identity, identifier events and corporate events, and one serving
+// identity and identifier events.
 package scripted
 
 import (
@@ -144,6 +145,68 @@ func (s *IdentifierEvents) Fetch(_ context.Context, reqs []market.Request[market
 			continue
 		}
 		out[i] = market.Response[market.IdentifierEventResult]{Value: s.Responses[r.Sent]}
+	}
+	return out, nil
+}
+
+// CorporateEvents is a market.CorporateEvents whose answers a test scripts.
+type CorporateEvents struct {
+	// Down fails every request.
+	Down bool
+	// Responses maps each identifier sent to its answer. An identifier it
+	// lacks is answered with an empty result.
+	Responses map[types.Identifier]market.CorporateEventResult
+	// Sent is every request the server received, in order.
+	Sent []market.CorporateEventRequest
+	// Declines lists the venues whose tickers the server refuses to send.
+	Declines []string
+}
+
+var _ market.CorporateEvents = (*CorporateEvents)(nil)
+
+// NewCorporateEvents returns a CorporateEvents with no responses scripted.
+func NewCorporateEvents() *CorporateEvents {
+	return &CorporateEvents{Responses: map[types.Identifier]market.CorporateEventResult{}}
+}
+
+// Classify reads every failure as temporary and about the identifier sent.
+func (s *CorporateEvents) Classify(error) market.Failure {
+	return market.Failure{Temporary: true, Scope: market.ScopeKey}
+}
+
+// Limit leaves calls unpaced.
+func (s *CorporateEvents) Limit() (rate.Limit, int) { return rate.Inf, 1 }
+
+// Batch is the most requests one call carries.
+func (s *CorporateEvents) Batch() int { return 10 }
+
+// Endpoint is the address of a provider that is never called.
+func (s *CorporateEvents) Endpoint() string { return "https://scripted.test" }
+
+// CorporateEvents is the server itself.
+func (s *CorporateEvents) CorporateEvents() market.Server[market.CorporateEventRequest, market.CorporateEventResult] {
+	return s
+}
+
+// Serves sends the ticker the request names, and declines one on a venue in
+// Declines.
+func (s *CorporateEvents) Serves(r market.CorporateEventRequest) (types.Identifier, error) {
+	if slices.Contains(s.Declines, r.Ticker.Domain) {
+		return types.Identifier{}, declined(r.Ticker.Domain)
+	}
+	return r.Ticker, nil
+}
+
+// Fetch answers each request from Responses.
+func (s *CorporateEvents) Fetch(_ context.Context, reqs []market.Request[market.CorporateEventRequest]) ([]market.Response[market.CorporateEventResult], error) {
+	out := make([]market.Response[market.CorporateEventResult], len(reqs))
+	for i, r := range reqs {
+		s.Sent = append(s.Sent, r.Value)
+		if s.Down {
+			out[i] = market.Response[market.CorporateEventResult]{Err: errors.New("the provider is down")}
+			continue
+		}
+		out[i] = market.Response[market.CorporateEventResult]{Value: s.Responses[r.Sent]}
 	}
 	return out, nil
 }

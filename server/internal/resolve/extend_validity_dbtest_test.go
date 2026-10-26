@@ -259,7 +259,7 @@ func TestExtendValidityDisagreement(t *testing.T) {
 	for _, r := range rows {
 		kinds = append(kinds, r.Finding.Kind)
 	}
-	if diff := cmp.Diff([]gen.FindingKind{gen.FindingKindDisagreement}, kinds); diff != "" {
+	if diff := cmp.Diff([]gen.FindingKind{gen.FindingKindIdentifierDisagreement}, kinds); diff != "" {
 		t.Errorf("findings of the extend validity run mismatch (-want +got):\n%s", diff)
 	}
 }

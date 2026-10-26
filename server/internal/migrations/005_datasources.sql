@@ -26,9 +26,10 @@ CREATE TABLE datasources (
 );
 
 -- The kind of data a fetch requests: 'identity' is the identifiers and
--- listings of an instrument, and 'identifier_events' is the identifier events
--- of a ticker or a domain over a period.
-CREATE TYPE fetch_kind AS ENUM ('identity', 'identifier_events');
+-- listings of an instrument, 'identifier_events' is the identifier events of
+-- a ticker or a domain over a period, and 'corporate_events' is the corporate
+-- events of a ticker over a period.
+CREATE TYPE fetch_kind AS ENUM ('identity', 'identifier_events', 'corporate_events');
 
 -- The result of a fetch:
 -- 'served' means the datasource returned a, possibly empty, result set.

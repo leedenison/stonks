@@ -18,7 +18,7 @@ records.
 
 ### Keys
 
-A fetch of prices or corporate events is made for the primary key of an instrument.
+A fetch of prices is made for the primary key of an instrument.
 It is sent under one of the instrument's
 identifiers, a stable one where the provider accepts it and a MIC-derived one otherwise.
 

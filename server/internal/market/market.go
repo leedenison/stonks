@@ -5,8 +5,8 @@
 // of the work that needed the data; see [run.go](../run/run.go).
 //
 // Each kind of data is a Kind, which names the request an integration
-// receives and the response it gives. The kinds are identity and identifier
-// events. One integration can serve both.
+// receives and the response it gives. The kinds are identity, identifier
+// events and corporate events. One integration can serve several.
 //
 // An integration reads a provider's venue codes through a table generated
 // from the provider's own list. Every venue a table names normalises to an

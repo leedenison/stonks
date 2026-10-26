@@ -17,6 +17,8 @@ enum FetchKind {
   FETCH_KIND_IDENTITY = 1;
   // The identifier events of a value or a domain over a period.
   FETCH_KIND_IDENTIFIER_EVENTS = 2;
+  // The corporate events of a ticker over a period.
+  FETCH_KIND_CORPORATE_EVENTS = 3;
 }
 
 // What a block suppresses.

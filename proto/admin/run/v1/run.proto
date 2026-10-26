@@ -96,10 +96,10 @@ enum FindingKind {
   FINDING_KIND_CONTRADICTION = 3;
   // The response merged two instruments.
   FINDING_KIND_MERGED = 4;
-  // Two datasources asserted different things for one value on one day, and
-  // precedence kept one. The detail names the value, the day and the
+  // Two datasources asserted different identifier facts for one value on one
+  // day, and precedence kept one. The detail names the value, the day and the
   // datasources.
-  FINDING_KIND_DISAGREEMENT = 5;
+  FINDING_KIND_IDENTIFIER_DISAGREEMENT = 5;
   // A witnessed event fell between two assertions that name one instrument,
   // and the event wins over the bracket. The detail names the value, the
   // event's day and the instrument.
@@ -109,6 +109,15 @@ enum FindingKind {
   // reported no event there. The coverage wins. The detail names the value,
   // the days of the assertions, the datasource and its coverage.
   FINDING_KIND_MISSED_EVENT = 7;
+  // A datasource reported a corporate event of a type the system does not
+  // restate a quantity by. The detail names the ticker, the ex-date, the type
+  // and the ratio.
+  FINDING_KIND_UNHANDLED_CORPORATE_EVENT = 8;
+  // A corporate event of one datasource lacks a corporate event of equal ratio,
+  // within 7 days either side, from another datasource that covers the same
+  // ticker on its ex-date. The detail names the ticker, the ex-date, the ratio
+  // and both datasources.
+  FINDING_KIND_CORPORATE_EVENT_DISAGREEMENT = 9;
 }
 
 // The step of the choice that dropped a set of identifiers.

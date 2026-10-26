@@ -22,19 +22,11 @@ events calendar to be able to identify OCC identified options.
 
 ## Model
 
-An event names its instrument by primary key, so events are fetched only once the
-instrument is resolved, covering the period it was held.
-
-An event references the fetch key that fetched it.  Where the fetch was sent under a
-MIC-derived identifier, an identifier event on that identifier invalidates every event
-whose ex-date lies on the far side of it from the fetch, and those events are refetched.
-See [datasources.md](datasources.md).
-
 When an event retires a listing, it writes an identifier event closing the validity of
 the listing's MIC_TICKER on the ex-date.  It counts as no identifier event coverage.
 
-Events on an underlying decide how an OCC symbol is normalised, so invalidating a
-corporate event fetch replays every OCC stated key normalised through it.  See
+Events on an underlying decide how an OCC symbol is normalised, so an answer that changes
+them replays every OCC stated key normalised through them.  See
 [instrument-resolution.md](instrument-resolution.md).
 
 ### Identifier succession
@@ -66,11 +58,9 @@ will implement the option to simply store an event as unhandled so that the admi
 is informed and can decide what to do about it, without the need to implement the most
 complex handling up front.
 
-An unhandled event is a row, reported by a finding of the fetch that met it.
-
 ### Datasources
 
-The datasource framework constraints apply, keyed on the instrument primary key.  An
+The datasource framework constraints apply.  An
 absence of corporate event data for an instrument is tolerated by:
 
 - Making assumptions where the retroactive addition of an unknown corporate event can be
@@ -104,14 +94,11 @@ from a per instrument summary maintained at ingest once that costs too much.
 
 Corporate events are system owned data and can only be modified by an admin.
 
-An event per instrument, with an event type and ex-date, carrying the ratio as a
-from and a to rather than as a single factor so that an exact rational survives. Restating a
-value multiplies by the product of the ratios of the events between the date it is stated as
-at and the target date, computed exactly and rounded once for display.
+Restating a value multiplies by the product of the ratios of the events between the date
+it is stated as at and the target date, computed exactly and rounded once for display.
 
 ## Undecided
 
-- Is there a primary key given that many events could occur on the same day?
 - Events that change which instrument is held (eg. mergers and spinoffs). How do we
   represent these?  What information is needed to allow these to be applied
   retroactively?
