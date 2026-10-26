@@ -48,8 +48,8 @@ func TestEventsServes(t *testing.T) {
 		{name: "a composite FIGI", req: market.IdentifierEventRequest{Identifier: meta, Period: history}, want: meta, call: chainCall},
 		{name: "a CUSIP", req: market.IdentifierEventRequest{Identifier: cusip, Period: history}, want: cusip, call: chainCall},
 		{name: "a ticker on one day", req: market.IdentifierEventRequest{Identifier: ticker("XNAS", "FB"), Period: oneDay}, want: ticker("", "FB"), call: lookupCall},
-		{name: "a ticker over a period", req: market.IdentifierEventRequest{Identifier: ticker("XNYS", "TWTR"), Period: history}, want: ticker("", "TWTR"), call: retiredCall},
-		{name: "a class share", req: market.IdentifierEventRequest{Identifier: ticker("XNYS", "BRK.B"), Period: history}, want: ticker("", "BRK.B"), call: retiredCall},
+		{name: "a class share", req: market.IdentifierEventRequest{Identifier: ticker("XNYS", "BRK.B"), Period: oneDay}, want: ticker("", "BRK.B"), call: lookupCall},
+		{name: "a ticker over a period", req: market.IdentifierEventRequest{Identifier: ticker("XNYS", "TWTR"), Period: history}, refused: true},
 		{name: "a domain", req: market.IdentifierEventRequest{Identifier: ticker("XNYS", ""), Period: history}, refused: true},
 		{name: "a venue outside Massive's table", req: market.IdentifierEventRequest{Identifier: ticker("XLON", "VOD"), Period: history}, refused: true},
 		{name: "a preferred share", req: market.IdentifierEventRequest{Identifier: ticker("XNYS", "BACpL"), Period: history}, refused: true},
@@ -128,22 +128,6 @@ func TestTickerOnDay(t *testing.T) {
 				t.Errorf("ticker(%s) unknown %v, want %v (-want +got):\n%s", tc.ticker, unknown, tc.unknown, diff)
 			}
 		})
-	}
-}
-
-// TestDelisted checks the body of the delistings call.
-func TestDelisted(t *testing.T) {
-	const cassette = "massive_retired"
-	c := replay(t, cassette, vcr.Credential(t, "MASSIVE_API_KEY", "testdata/"+cassette))
-	got, err := c.delisted(context.Background(), "TWTR")
-	require.NoError(t, err)
-	on := time.Date(2022, time.October, 31, 4, 0, 0, 0, time.UTC)
-	want := []delisting{{record: record{
-		Ticker: "TWTR", Market: "stocks", PrimaryExchange: "XNYS", Type: "CS", CurrencyName: "usd",
-		CompositeFIGI: "BBG000H6HNW3", ShareClassFIGI: "BBG001T35PT7",
-	}, Delisted: &on}}
-	if diff := cmp.Diff(want, got, cmp.AllowUnexported(delisting{})); diff != "" {
-		t.Errorf("delisted(TWTR) mismatch (-want +got):\n%s", diff)
 	}
 }
 

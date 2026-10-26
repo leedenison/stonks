@@ -206,32 +206,6 @@ func TestLookupFacts(t *testing.T) {
 	}
 }
 
-// TestDelistingFacts checks that a delisting inside the period retires the
-// ticker on its UTC day.
-func TestDelistingFacts(t *testing.T) {
-	on := time.Date(2022, time.October, 31, 4, 0, 0, 0, time.UTC)
-	ds := []delisting{{Delisted: &on}, {}}
-	retired := market.IdentifierEventResult{Events: []market.IdentifierEvent{
-		{Value: ticker("XNYS", "TWTR"), Action: gen.IdentifierEventActionRetired, On: day(2022, 10, 31)},
-	}}
-	tests := []struct {
-		name string
-		p    types.Period
-		want market.IdentifierEventResult
-	}{
-		{name: "inside the period", p: history, want: retired},
-		{name: "after the period", p: period(since, day(2022, 10, 31))},
-		{name: "before the period", p: period(day(2022, 11, 1), day(2026, 10, 23))},
-	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			if diff := cmp.Diff(tc.want, delistingFacts("TWTR", ds, tc.p, []string{"XNYS"})); diff != "" {
-				t.Errorf("delistingFacts mismatch (-want +got):\n%s", diff)
-			}
-		})
-	}
-}
-
 // sorted compares identifier facts in any order, because Fetch emits them
 // venue by venue.
 var sorted = cmpopts.SortSlices(func(a, b any) bool { return fmt.Sprint(a) < fmt.Sprint(b) })
@@ -307,14 +281,6 @@ func TestEventsFetch(t *testing.T) {
 			sent:     ticker("", "META"),
 			want: func(d string) market.IdentifierEventResult {
 				return market.IdentifierEventResult{Assertions: []market.Assertion{{Value: ticker(d, "META"), At: oneDay.From, Negative: true}}}
-			},
-		},
-		{
-			cassette: "massive_retired",
-			req:      market.IdentifierEventRequest{Identifier: ticker("XNYS", "TWTR"), Period: history},
-			sent:     ticker("", "TWTR"),
-			want: func(d string) market.IdentifierEventResult {
-				return market.IdentifierEventResult{Events: []market.IdentifierEvent{{Value: ticker(d, "TWTR"), Action: gen.IdentifierEventActionRetired, On: day(2022, 10, 31)}}}
 			},
 		},
 	}

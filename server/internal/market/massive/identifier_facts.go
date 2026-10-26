@@ -42,11 +42,6 @@ func (e events) Fetch(ctx context.Context, reqs []market.Request[market.Identifi
 			if rec, unknown, err = e.c.ticker(ctx, r.Sent.Value, p.From); err == nil {
 				out[i].Value = lookupFacts(r.Sent.Value, rec, unknown, p.From, doms, e.c.mics)
 			}
-		case retiredCall:
-			var ds []delisting
-			if ds, err = e.c.delisted(ctx, r.Sent.Value); err == nil {
-				out[i].Value = delistingFacts(r.Sent.Value, ds, p, doms)
-			}
 		}
 		if err != nil {
 			return nil, err
@@ -66,9 +61,10 @@ type link struct {
 // identifier facts at every venue of doms. An oldest event on or before p's
 // first day marks where Massive's data begins, so it assigns nothing. The
 // newest ticker is also asserted on p's last day, so the chain asserts a held
-// ticker on the present day. If a chain holds a ticker the system cannot spell,
-// chainFacts returns an empty result, since a partial chain would claim
-// coverage around the event it dropped.
+// ticker on the present day. That holds because Massive answers not found
+// for the chain of a delisted entity. If a chain holds a ticker the system
+// cannot spell, chainFacts returns an empty result, since a partial chain
+// would claim coverage around the event it dropped.
 func chainFacts(sent types.Identifier, evs []event, p types.Period, doms []string) (market.IdentifierEventResult, error) {
 	var links []link
 	for _, e := range slices.Backward(evs) {
@@ -154,22 +150,6 @@ func lookupFacts(ticker string, rec *record, unknown bool, day time.Time, doms [
 	for v := range atVenues(doms, ticker) {
 		a.Value = v
 		out.Assertions = append(out.Assertions, a)
-	}
-	return out
-}
-
-// delistingFacts converts the delistings of ticker into retirements, each on
-// the UTC day of its delisted_utc. It ignores a delisting that falls outside
-// p.
-func delistingFacts(ticker string, ds []delisting, p types.Period, doms []string) market.IdentifierEventResult {
-	var out market.IdentifierEventResult
-	for _, dl := range ds {
-		if dl.Delisted == nil || !p.Contains(types.Day(*dl.Delisted)) {
-			continue
-		}
-		for v := range atVenues(doms, ticker) {
-			out.Events = append(out.Events, market.IdentifierEvent{Value: v, Action: gen.IdentifierEventActionRetired, On: types.Day(*dl.Delisted)})
-		}
 	}
 	return out
 }
