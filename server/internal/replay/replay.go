@@ -7,11 +7,11 @@
 // never changes it.
 //
 // A new identifier fact, or a withdrawn attestation, replays the unresolved
-// keys that state its ticker beneath the run that wrote it; see
-// ReplayNewIdentifierFacts. A key with an association is never replayed for a
-// fact. A dated key takes the
-// instrument its ticker names on each transaction's date when it is read, so
-// a new fact reaches its transactions without a replay.
+// keys that state its ticker at any venue of its market beneath the run that
+// wrote it; see ReplayNewIdentifierFacts. A key with an association is never
+// replayed for a fact. A dated key takes the instrument its ticker names on
+// each transaction's date when it is read, so a new fact reaches its
+// transactions without a replay.
 package replay
 
 import (
@@ -203,8 +203,9 @@ func (r *replay) resolve(ctx context.Context, res gen.Run) error {
 	return err
 }
 
-// ReplayNewIdentifierFacts replays every user's unresolved keys that state an
-// identifier of written, as children of the run that wrote it. The keys that
+// ReplayNewIdentifierFacts replays every user's unresolved keys that state a
+// ticker in written, at any venue of its market, as children of the run that
+// wrote it. The keys that
 // except resolved are left out, and a key is replayed once. A user other than
 // the run's replays beneath one system child of the run, or directly beneath
 // a system run. A failure is logged and the rest go on, since the run that
@@ -213,7 +214,12 @@ func (r *replay) resolve(ctx context.Context, res gen.Run) error {
 func (s *Service) ReplayNewIdentifierFacts(ctx context.Context, except gen.Run, written []resolve.WrittenIdentifierFacts) {
 	picked := map[uuid.UUID]bool{}
 	for _, w := range written {
-		probes, err := s.mics.Probes(w.Identifiers)
+		probes, err := s.mics.TickerProbes(w.Tickers)
+		if err == nil {
+			var more [][]byte
+			more, err = s.mics.MarketProbes(w.Markets)
+			probes = append(probes, more...)
+		}
 		if err != nil {
 			s.log.Warn("probe of new identifier facts failed", "run", w.Run.ID, "err", err)
 			continue

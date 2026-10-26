@@ -11,7 +11,6 @@ import (
 
 	admincoveragev1 "github.com/leedenison/stonks/proto/admin/coverage/v1"
 	"github.com/leedenison/stonks/proto/admin/coverage/v1/admincoveragev1connect"
-	typev1 "github.com/leedenison/stonks/proto/type/v1"
 	"github.com/leedenison/stonks/server/internal/attest"
 	"github.com/leedenison/stonks/server/internal/auth"
 	reader "github.com/leedenison/stonks/server/internal/coverage"
@@ -25,14 +24,14 @@ import (
 // Reader is this package's view of the coverage package.
 type Reader interface {
 	InstrumentTickers(ctx context.Context, instrument uuid.UUID) ([]reader.InstrumentTicker, error)
-	Ticker(ctx context.Context, v types.Identifier, today time.Time) (*reader.Page, error)
+	Ticker(ctx context.Context, v types.MarketTicker, today time.Time) (*reader.Page, error)
 }
 
 var _ Reader = (*reader.Reader)(nil)
 
 // Attester is this package's view of the attest package.
 type Attester interface {
-	Start(ctx context.Context, admin uuid.UUID, v types.Identifier, instrument *uuid.UUID, from time.Time, to *time.Time) (gen.Run, error)
+	Start(ctx context.Context, admin uuid.UUID, v types.MarketTicker, instrument *uuid.UUID, from time.Time, to *time.Time) (gen.Run, error)
 	Withdraw(ctx context.Context, id uuid.UUID) error
 }
 
@@ -73,13 +72,9 @@ func (s *Server) ListInstrumentTickers(ctx context.Context, req *connect.Request
 
 // GetTicker reads one ticker's facts and validity.
 func (s *Server) GetTicker(ctx context.Context, req *connect.Request[admincoveragev1.GetTickerRequest]) (*connect.Response[admincoveragev1.GetTickerResponse], error) {
-	v, err := identifier(req.Msg.GetTicker())
-	if err != nil {
-		return nil, err
-	}
-	t, err := s.reader.Ticker(ctx, v, s.clock())
+	t, err := s.reader.Ticker(ctx, types.MarketTickerOf(req.Msg.GetTicker()), s.clock())
 	switch {
-	case errors.Is(err, validity.ErrNotTicker), errors.Is(err, validity.ErrSpelling):
+	case errors.Is(err, validity.ErrSpelling):
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	case err != nil:
 		return nil, connect.NewError(connect.CodeInternal, err)
@@ -94,10 +89,7 @@ func (s *Server) Attest(ctx context.Context, req *connect.Request[admincoveragev
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 	m := req.Msg
-	v, err := identifier(m.GetTicker())
-	if err != nil {
-		return nil, err
-	}
+	v := types.MarketTickerOf(m.GetTicker())
 	var instrument *uuid.UUID
 	if id := m.GetInstrumentId(); id != "" {
 		parsed, err := uuid.Parse(id)
@@ -122,7 +114,7 @@ func (s *Server) Attest(ctx context.Context, req *connect.Request[admincoveragev
 	switch {
 	case errors.Is(err, validity.ErrFuture), errors.Is(err, attest.ErrRange):
 		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
-	case errors.Is(err, validity.ErrNotTicker), errors.Is(err, validity.ErrSpelling):
+	case errors.Is(err, validity.ErrSpelling):
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	case errors.Is(err, db.ErrNotFound):
 		return nil, connect.NewError(connect.CodeNotFound, err)
@@ -148,14 +140,4 @@ func (s *Server) WithdrawAttestation(ctx context.Context, req *connect.Request[a
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	return connect.NewResponse(&admincoveragev1.WithdrawAttestationResponse{}), nil
-}
-
-// identifier reads a proto identifier; an unknown type is an invalid
-// argument.
-func identifier(m *typev1.Identifier) (types.Identifier, error) {
-	typ, ok := types.FromProto[types.IdentifierType](m.GetType())
-	if !ok || typ == "" {
-		return types.Identifier{}, connect.NewError(connect.CodeInvalidArgument, errors.New("unknown identifier type"))
-	}
-	return types.Identifier{Type: typ, Domain: m.GetDomain(), Value: m.GetValue()}, nil
 }

@@ -19,7 +19,7 @@ import {
   type Ticker,
 } from "@/gen/admin/coverage/v1/coverage_pb";
 import type { AssertionItem } from "@/gen/admin/run/v1/run_pb";
-import { IdentifierSchema, IdentifierType } from "@/gen/type/v1/type_pb";
+import { MarketTickerSchema } from "@/gen/type/v1/type_pb";
 import {
   useCoverageTicker,
   useInstrumentTickers,
@@ -38,8 +38,9 @@ import { refusal } from "@/lib/refusal";
 import { Timeline } from "./timeline";
 
 // TickersTab lists the tickers that name an instrument, now or in an
-// assertion, and shows the validity of the one chosen. The choice is held in
-// the address, and the first listed ticker stands in while it is unset.
+// assertion, one per market, and shows the validity of the one chosen. The
+// choice is held in the address, at the market or at a venue of it, and the
+// first listed ticker stands in while it is unset.
 export function TickersTab({
   instrumentId,
   params,
@@ -55,11 +56,12 @@ export function TickersTab({
   const chosen =
     listed.find(
       (t) =>
-        t.ticker?.domain === wanted?.domain &&
-        t.ticker?.value === wanted?.value,
+        t.ticker?.value === wanted?.value &&
+        (t.ticker?.market === wanted?.at ||
+          t.venues.includes(wanted?.at ?? "")),
     ) ?? listed[0];
   const param = (t: InstrumentTicker) =>
-    tickerParam(t.ticker?.domain ?? "", t.ticker?.value ?? "");
+    tickerParam(t.ticker?.market ?? "", t.ticker?.value ?? "");
   return (
     <div data-testid="tickers-tab" className="flex flex-col gap-6">
       {isError && (
@@ -88,14 +90,14 @@ export function TickersTab({
             >
               {listed.map((t) => (
                 <option key={param(t)} value={param(t)}>
-                  {t.ticker?.value} at {t.ticker?.domain}
+                  {t.ticker?.value} in {t.ticker?.market}
                   {t.current ? "" : " (former)"}
                 </option>
               ))}
             </Select>
           </label>
           <Validity
-            domain={chosen.ticker?.domain ?? ""}
+            market={chosen.ticker?.market ?? ""}
             value={chosen.ticker?.value ?? ""}
           />
         </>
@@ -106,18 +108,14 @@ export function TickersTab({
 
 // Validity shows everything known about one ticker and the actions that
 // settle it.
-function Validity({ domain, value }: { domain: string; value: string }) {
+function Validity({ market, value }: { market: string; value: string }) {
   const { data, isPending, isError, refetch } = useCoverageTicker(
-    domain,
+    market,
     value,
   );
   const [attesting, setAttesting] = useState<string | null>(null);
   const [withdrawing, setWithdrawing] = useState<AssertionItem | null>(null);
-  const ticker = create(IdentifierSchema, {
-    type: IdentifierType.MIC_TICKER,
-    domain,
-    value,
-  });
+  const ticker = create(MarketTickerSchema, { market, value });
   return (
     <Section
       title={
@@ -413,7 +411,7 @@ function Facts({
                     <Chip>{c.datasource}</Chip>
                   </Td>
                   <Td dense className="font-mono">
-                    {c.covers?.value || `every ticker of ${c.covers?.domain}`}
+                    {c.value ?? `every ticker of ${c.market}`}
                   </Td>
                   <Td dense className="font-mono tabular-nums">
                     {c.coveredFrom}

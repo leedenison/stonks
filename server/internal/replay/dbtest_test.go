@@ -344,7 +344,7 @@ func TestReplayNewIdentifierFacts(t *testing.T) {
 	require.NoError(t, err)
 	fetch, err := s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &s.user.ID, Kind: gen.RunKindFetch, Trigger: gen.RunTriggerRun, ParentID: &parent.ID})
 	require.NoError(t, err)
-	written := []resolve.WrittenIdentifierFacts{{Run: fetch, Identifiers: []types.Identifier{ticker}}}
+	written := []resolve.WrittenIdentifierFacts{{Run: fetch, Tickers: []types.MarketTicker{{Market: "US", Value: ticker.Value}}}}
 	s.svc.ReplayNewIdentifierFacts(ctx, gen.Run{ID: db.NewID()}, written)
 
 	tree, err := s.q.ListRunDescendants(ctx, &fetch.ID)
@@ -384,8 +384,7 @@ func TestReplayNewIdentifierFacts(t *testing.T) {
 	attestation, err := s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), Kind: gen.RunKindAttestation, Trigger: gen.RunTriggerAdministrator})
 	require.NoError(t, err)
 	except, _ := s.resolution(t, stated)
-	domain := types.Identifier{Type: ticker.Type, Domain: "XNAS"}
-	written = []resolve.WrittenIdentifierFacts{{Run: attestation, Identifiers: []types.Identifier{domain}}}
+	written = []resolve.WrittenIdentifierFacts{{Run: attestation, Markets: []string{"US"}}}
 	s.svc.ReplayNewIdentifierFacts(ctx, except, written)
 	replayed = s.replays(t, attestation)
 	var got []uuid.UUID
@@ -433,7 +432,7 @@ func TestReplayChain(t *testing.T) {
 	require.NoError(t, err)
 	fetch, err := s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &s.user.ID, Kind: gen.RunKindFetch, Trigger: gen.RunTriggerRun, ParentID: &parent.ID})
 	require.NoError(t, err)
-	written := []resolve.WrittenIdentifierFacts{{Run: fetch, Identifiers: []types.Identifier{ticker}}}
+	written := []resolve.WrittenIdentifierFacts{{Run: fetch, Tickers: []types.MarketTicker{{Market: "US", Value: ticker.Value}}}}
 	s.svc.ReplayNewIdentifierFacts(ctx, gen.Run{ID: db.NewID()}, written)
 
 	for _, k := range []struct {

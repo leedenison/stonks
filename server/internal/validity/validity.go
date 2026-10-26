@@ -1,11 +1,13 @@
 // Package validity derives the validity of a ticker, a MIC_TICKER identifier:
 // the days over which it names one instrument. It derives validity from
 // identifier assertions, identifier events and their coverage each time it is
-// read; see
-// [010_validity.sql](../migrations/010_validity.sql). Validity is never
-// stored, so a change to its inputs, such as a reorder of the datasources,
-// takes effect at the next read. An event takes effect at the start of its
-// day, so it precedes an assertion on the same day.
+// read; see [010_validity.sql](../migrations/010_validity.sql). A ticker's
+// facts are read and written at its market, so a ticker stated at any venue of
+// a market shares one validity, and a listing that moves between those venues
+// keeps its history. Validity is never stored, so a change to its inputs, such
+// as a reorder of the datasources, takes effect at the next read. An event
+// takes effect at the start of its day, so it precedes an assertion on the same
+// day.
 //
 // On each day one assertion wins; see winners. Validity is confirmed on each
 // day the winning assertion names the instrument. Two consecutive winning
@@ -107,7 +109,7 @@ type Event struct {
 }
 
 // Coverage is one period over which a datasource reported every event of
-// the ticker or of its domain.
+// the ticker or of its market.
 type Coverage struct {
 	Period     types.Period
 	Datasource string

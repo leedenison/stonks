@@ -30,12 +30,14 @@ func (s *Server) dated(ctx context.Context, user uuid.UUID, keys []gen.ListHoldi
 	if err != nil {
 		return d, err
 	}
-	tickerOf := map[uuid.UUID]types.Identifier{}
-	var tickers []types.Identifier
+	tickerOf := map[uuid.UUID]types.MarketTicker{}
+	var tickers []types.MarketTicker
 	for _, k := range keys {
 		if v, ok := to.AssociatedTicker(k.StatedKey); ok {
-			tickerOf[k.StatedKey.ID] = v
-			tickers = append(tickers, v)
+			if t, ok := s.mics.MarketTicker(v); ok {
+				tickerOf[k.StatedKey.ID] = t
+				tickers = append(tickers, t)
+			}
 		}
 	}
 	read, err := validity.ReadTickers(ctx, s.reader, tickers)

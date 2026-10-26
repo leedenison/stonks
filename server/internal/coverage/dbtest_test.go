@@ -72,36 +72,39 @@ func (f *fixture) bareKey(t *testing.T, value string) {
 	f.exec(t, "INSERT INTO transactions (id, user_id, broker, statement_id, stated_key_id, order_date, settlement_date, as_at, quantity) VALUES ($1, $2, 'ibkr', $3, $4, $5, $5, $5, 1)", db.NewID(), f.user.ID, f.statement, id, day(9))
 }
 
-// instrument returns an instrument whose listing carries the MIC_TICKER
-// domain:value.
-func (f *fixture) instrument(t *testing.T, domain, value string) uuid.UUID {
+// instrument returns an instrument whose listing carries value as a
+// MIC_TICKER at each of domains.
+func (f *fixture) instrument(t *testing.T, value string, domains ...string) uuid.UUID {
 	t.Helper()
 	ctx := context.Background()
 	inst, err := f.q.CreateInstrument(ctx, gen.CreateInstrumentParams{ID: db.NewID(), AssetClass: types.AssetClassStock})
 	require.NoError(t, err)
 	listing, err := f.q.CreateListing(ctx, gen.CreateListingParams{ID: db.NewID(), InstrumentID: inst.ID, Currency: "USD"})
 	require.NoError(t, err)
-	_, err = f.q.CreateIdentifier(ctx, gen.CreateIdentifierParams{ID: db.NewID(), InstrumentID: inst.ID, ListingID: &listing.ID, Type: types.IdentifierTypeMicTicker, Domain: domain, Value: value})
-	require.NoError(t, err)
+	for _, domain := range domains {
+		_, err = f.q.CreateIdentifier(ctx, gen.CreateIdentifierParams{ID: db.NewID(), InstrumentID: inst.ID, ListingID: &listing.ID, Type: types.IdentifierTypeMicTicker, Domain: domain, Value: value})
+		require.NoError(t, err)
+	}
 	return inst.ID
 }
 
-// attest asserts that ticker names instrument on a day, as an administrator.
-func (f *fixture) attest(t *testing.T, instrument uuid.UUID, domain, value string) {
+// attest asserts that the ticker value at market names instrument on a day,
+// as an administrator.
+func (f *fixture) attest(t *testing.T, instrument uuid.UUID, market, value string) {
 	t.Helper()
 	ctx := context.Background()
 	run, err := f.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), Kind: gen.RunKindAttestation, Trigger: gen.RunTriggerUser})
 	require.NoError(t, err)
 	err = f.q.CreateIdentifierAssertion(ctx, gen.CreateIdentifierAssertionParams{
 		ID: db.NewID(), RunID: &run.ID, AttestedBy: &f.user.ID,
-		Type: types.IdentifierTypeMicTicker, Domain: domain, Value: value, InstrumentID: &instrument, AssertedOn: day(1),
+		Type: types.IdentifierTypeMicTicker, Domain: market, Value: value, InstrumentID: &instrument, AssertedOn: day(1),
 	})
 	require.NoError(t, err)
 }
 
 // TestQueries checks that an instrument's tickers are those on its listings
-// and those named in its assertions, and that each ticker's transactions
-// come from every venue of its domain.
+// and those named in its assertions, one per market, and that each ticker's
+// transactions come from every venue of its market.
 func TestQueries(t *testing.T) {
 	f := newFixture(t)
 	ctx := context.Background()
@@ -109,26 +112,27 @@ func TestQueries(t *testing.T) {
 	former := "OLD" + uuid.NewString()[:8]
 	segment := f.key(t, "XNGS", value, 4)
 	nasdaq := f.key(t, "XNAS", value, 6, 6)
+	nyse := f.key(t, "XNYS", value, 7)
 	f.key(t, "XLON", value, 8)
 	f.key(t, "XNAS", "BETA"+uuid.NewString()[:8])
 	f.bareKey(t, value)
-	inst := f.instrument(t, "XNAS", value)
-	f.attest(t, inst, "XNAS", value)
-	f.attest(t, inst, "XNAS", former)
+	inst := f.instrument(t, value, "XNAS", "XNYS")
+	f.attest(t, inst, "US", value)
+	f.attest(t, inst, "US", former)
 
 	mics, err := mic.Load(ctx, f.q)
 	require.NoError(t, err)
 	tickers, err := New(f.q, mics).InstrumentTickers(ctx, inst)
 	require.NoError(t, err)
 	wantTickers := []InstrumentTicker{
-		{Identifier: types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: value}, Current: true, Transactions: 3},
-		{Identifier: types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: former}, Current: false, Transactions: 0},
+		{Ticker: types.MarketTicker{Market: "US", Value: value}, Current: true, Transactions: 4, Venues: []string{"XNAS", "XNYS"}},
+		{Ticker: types.MarketTicker{Market: "US", Value: former}, Current: false, Transactions: 0, Venues: []string{}},
 	}
 	if diff := cmp.Diff(wantTickers, tickers); diff != "" {
 		t.Errorf("InstrumentTickers mismatch (-want +got):\n%s", diff)
 	}
 
-	probes, err := mics.Probes([]types.Identifier{{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: value}})
+	probes, err := mics.TickerProbes([]types.MarketTicker{{Market: "US", Value: value}})
 	require.NoError(t, err)
 	txs, err := f.q.ListTickerTransactions(ctx, probes)
 	require.NoError(t, err)
@@ -136,6 +140,7 @@ func TestQueries(t *testing.T) {
 		{StatedKeyID: segment, AsAt: day(4)},
 		{StatedKeyID: nasdaq, AsAt: day(6)},
 		{StatedKeyID: nasdaq, AsAt: day(6)},
+		{StatedKeyID: nyse, AsAt: day(7)},
 	}
 	if diff := cmp.Diff(wantTxs, txs); diff != "" {
 		t.Errorf("ListTickerTransactions mismatch (-want +got):\n%s", diff)

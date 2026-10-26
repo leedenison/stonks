@@ -31,13 +31,14 @@ SELECT mics.mic, mics.operating_mic,
 FROM mics
 LEFT JOIN market_members ON market_members.operating_mic = mics.operating_mic;
 
--- An identifier assertion is a claim that an identifier names an instrument,
--- or names nothing, on one day. A datasource asserts through a fetch key, on
--- the day of its answer. A point in time lookup asserts on the day its request
--- names. An entity's ticker history asserts each ticker on the day the ticker
--- began naming the entity. An administrator asserts through an attestation
--- run, on any day up to the day of the attestation. A row goes with its
--- source.
+-- An identifier assertion is a claim that an identifier names an instrument, or
+-- names nothing, on one day. A MIC_TICKER is asserted at its market, so the
+-- domain of a mic_ticker row is a market. A datasource asserts through a fetch
+-- key, on the day of its answer. A point in time lookup asserts on the day its
+-- request names. An entity's ticker history asserts each ticker on the day the
+-- ticker began naming the entity. An administrator asserts through an
+-- attestation run, on any day up to the day of the attestation. A row goes with
+-- its source.
 CREATE TABLE identifier_assertions (
     id              uuid            PRIMARY KEY,
     fetch_key_id    uuid            REFERENCES fetch_keys (id) ON DELETE CASCADE,
@@ -66,40 +67,39 @@ CREATE INDEX identifier_assertions_run_idx ON identifier_assertions (run_id);
 CREATE INDEX identifier_assertions_instrument_idx ON identifier_assertions (instrument_id);
 
 -- An identifier event is a change a datasource reported in what a MIC_TICKER
--- names, taking effect at the start of effective_on. The domain is the
--- operating MIC. An event refers to a ticker rather than to an instrument. The
--- table holds only the events a datasource reported. Readers derive any event
--- the assertions imply.
+-- names, taking effect at the start of effective_on. An event refers to a
+-- ticker at its market rather than to an instrument. The table holds only the
+-- events a datasource reported. Readers derive any event the assertions imply.
 CREATE TABLE identifier_events (
     id           uuid                    PRIMARY KEY,
     fetch_key_id uuid                    NOT NULL REFERENCES fetch_keys (id) ON DELETE CASCADE,
-    domain       text                    NOT NULL,
+    market       text                    NOT NULL,
     value        text                    NOT NULL,
     action       identifier_event_action NOT NULL,
     to_value     text,
     effective_on date                    NOT NULL,
-    CHECK (domain <> ''),
+    CHECK (market <> ''),
     CHECK ((action = 'renamed') = (to_value IS NOT NULL))
 );
 
-CREATE INDEX identifier_events_value_idx ON identifier_events (domain, value);
-CREATE INDEX identifier_events_to_value_idx ON identifier_events (domain, to_value);
+CREATE INDEX identifier_events_value_idx ON identifier_events (market, value);
+CREATE INDEX identifier_events_to_value_idx ON identifier_events (market, to_value);
 CREATE INDEX identifier_events_fetch_key_idx ON identifier_events (fetch_key_id);
 
 -- Identifier event coverage is a period over which a datasource reported
 -- every identifier event of one MIC_TICKER, or of every MIC_TICKER in a
--- domain where value is NULL. Inside it, the absence of an event is a claim
+-- market where value is NULL. Inside it, the absence of an event is a claim
 -- that none occurred. A row goes with its fetch key.
 CREATE TABLE identifier_event_coverage (
     id             uuid PRIMARY KEY,
     fetch_key_id   uuid NOT NULL REFERENCES fetch_keys (id) ON DELETE CASCADE,
-    domain         text NOT NULL,
+    market         text NOT NULL,
     value          text,
     covered_from   date NOT NULL,
     covered_before date NOT NULL,
-    CHECK (domain <> ''),
+    CHECK (market <> ''),
     CHECK (covered_from < covered_before)
 );
 
-CREATE INDEX identifier_event_coverage_value_idx ON identifier_event_coverage (domain, value);
+CREATE INDEX identifier_event_coverage_value_idx ON identifier_event_coverage (market, value);
 CREATE INDEX identifier_event_coverage_fetch_key_idx ON identifier_event_coverage (fetch_key_id);

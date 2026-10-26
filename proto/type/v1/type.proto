@@ -14,6 +14,8 @@ syntax = "proto3";
 
 package stonks.type.v1;
 
+import "buf/validate/validate.proto";
+
 option go_package = "github.com/leedenison/stonks/proto/type/v1;typev1";
 
 // A broker whose exports the system accepts.
@@ -96,6 +98,14 @@ message Identifier {
   // Qualifies the value for a type that has a domain; empty otherwise.
   string domain = 2;
   string value = 3;
+}
+
+// A ticker at its market, the key of a ticker's identifier facts. A market
+// is a set of operating MICs across which one ticker names one instrument on
+// a day.
+message MarketTicker {
+  string market = 1 [(buf.validate.field).string.min_len = 1];
+  string value = 2 [(buf.validate.field).string.min_len = 1];
 }
 
 // What one source states about an instrument.

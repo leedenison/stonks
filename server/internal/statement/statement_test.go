@@ -493,7 +493,7 @@ func TestReplaysNewFacts(t *testing.T) {
 	f := newFixture(t)
 	usd := "USD"
 	stock := securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, "ACME", "XNAS"))
-	f.written = []resolve.WrittenIdentifierFacts{{Run: gen.Run{ID: db.NewID()}, Identifiers: []types.Identifier{{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "ACME"}}}}
+	f.written = []resolve.WrittenIdentifierFacts{{Run: gen.Run{ID: db.NewID()}, Tickers: []types.MarketTicker{{Market: "US", Value: "ACME"}}}}
 	f.store.EXPECT().CreateStatement(gomock.Any(), gomock.Any()).Return(gen.Statement{}, nil)
 	f.store.EXPECT().UpsertStatedKey(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.UpsertStatedKeyParams) (gen.StatedKey, error) {
 		return gen.StatedKey{ID: arg.ID, Identifiers: arg.Identifiers}, nil

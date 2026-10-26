@@ -3,7 +3,6 @@ package massive
 import (
 	"context"
 	"fmt"
-	"iter"
 	"slices"
 	"time"
 
@@ -23,10 +22,9 @@ func (c *Client) Events() market.Server[market.IdentifierEventRequest, market.Id
 	return events{c: c}
 }
 
-// Fetch states each identifier fact once for each venue in Massive's table,
-// since the fact holds at every venue.
+// Fetch states each identifier fact once, at the market of Massive's venues.
 func (e events) Fetch(ctx context.Context, reqs []market.Request[market.IdentifierEventRequest]) ([]market.Response[market.IdentifierEventResult], error) {
-	doms := e.c.doms
+	home := e.c.home
 	out := make([]market.Response[market.IdentifierEventResult], len(reqs))
 	for i, r := range reqs {
 		var err error
@@ -34,13 +32,13 @@ func (e events) Fetch(ctx context.Context, reqs []market.Request[market.Identifi
 		case chainCall:
 			var evs []event
 			if evs, err = e.c.chain(ctx, r.Sent); err == nil {
-				out[i].Value, err = chainFacts(r.Sent, evs, p, doms)
+				out[i].Value, err = chainFacts(r.Sent, evs, p, home)
 			}
 		case lookupCall:
 			var rec *record
 			var unknown bool
 			if rec, unknown, err = e.c.ticker(ctx, r.Sent.Value, p.From); err == nil {
-				out[i].Value = lookupFacts(r.Sent.Value, rec, unknown, p.From, doms, e.c.mics)
+				out[i].Value = lookupFacts(r.Sent.Value, rec, unknown, p.From, home, e.c.mics)
 			}
 		}
 		if err != nil {
@@ -58,14 +56,14 @@ type link struct {
 }
 
 // chainFacts converts the ticker events of the entity sent names into
-// identifier facts at every venue of doms. An oldest event on or before p's
+// identifier facts at the market home. An oldest event on or before p's
 // first day marks where Massive's data begins, so it assigns nothing. The
 // newest ticker is also asserted on p's last day, so the chain asserts a held
 // ticker on the present day. That holds because Massive answers not found
 // for the chain of a delisted entity. If a chain holds a ticker the system
 // cannot spell, chainFacts returns an empty result, since a partial chain
 // would claim coverage around the event it dropped.
-func chainFacts(sent types.Identifier, evs []event, p types.Period, doms []string) (market.IdentifierEventResult, error) {
+func chainFacts(sent types.Identifier, evs []event, p types.Period, home string) (market.IdentifierEventResult, error) {
 	var links []link
 	for _, e := range slices.Backward(evs) {
 		if e.Type != "ticker_change" {
@@ -88,35 +86,23 @@ func chainFacts(sent types.Identifier, evs []event, p types.Period, doms []strin
 		if i+1 < len(links) {
 			before = links[i+1].from
 		}
-		for v := range atVenues(doms, l.ticker) {
-			switch {
-			case i > 0:
-				prev := types.Identifier{Type: v.Type, Domain: v.Domain, Value: links[i-1].ticker}
-				out.Events = append(out.Events, market.IdentifierEvent{Value: prev, Action: gen.IdentifierEventActionRenamed, ToValue: l.ticker, On: l.from})
-			case l.from.After(p.From):
-				out.Events = append(out.Events, market.IdentifierEvent{Value: v, Action: gen.IdentifierEventActionAssigned, On: l.from})
-			}
-			out.Assertions = append(out.Assertions, market.Assertion{Value: v, Of: market.Listing{Identifiers: []types.Identifier{sent}}, At: l.from})
-			if i == len(links)-1 && today.After(l.from) {
-				out.Assertions = append(out.Assertions, market.Assertion{Value: v, Of: market.Listing{Identifiers: []types.Identifier{sent}}, At: today})
-			}
-			if c, ok := clip(types.Period{From: l.from, Before: before}, p); ok {
-				out.Coverage = append(out.Coverage, market.Coverage{Identifier: v, Period: c})
-			}
+		t := types.MarketTicker{Market: home, Value: l.ticker}
+		switch {
+		case i > 0:
+			prev := types.MarketTicker{Market: home, Value: links[i-1].ticker}
+			out.Events = append(out.Events, market.IdentifierEvent{Ticker: prev, Action: gen.IdentifierEventActionRenamed, ToValue: l.ticker, On: l.from})
+		case l.from.After(p.From):
+			out.Events = append(out.Events, market.IdentifierEvent{Ticker: t, Action: gen.IdentifierEventActionAssigned, On: l.from})
+		}
+		out.Assertions = append(out.Assertions, market.Assertion{Ticker: t, Of: market.Listing{Identifiers: []types.Identifier{sent}}, At: l.from})
+		if i == len(links)-1 && today.After(l.from) {
+			out.Assertions = append(out.Assertions, market.Assertion{Ticker: t, Of: market.Listing{Identifiers: []types.Identifier{sent}}, At: today})
+		}
+		if c, ok := clip(types.Period{From: l.from, Before: before}, p); ok {
+			out.Coverage = append(out.Coverage, market.Coverage{Market: home, Ticker: &t, Period: c})
 		}
 	}
 	return out, nil
-}
-
-// atVenues yields ticker as a MIC_TICKER at each domain of doms, in order.
-func atVenues(doms []string, ticker string) iter.Seq[types.Identifier] {
-	return func(yield func(types.Identifier) bool) {
-		for _, d := range doms {
-			if !yield(types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: d, Value: ticker}) {
-				return
-			}
-		}
-	}
 }
 
 // clip returns the overlap of a and b, and false when they do not overlap.
@@ -132,10 +118,10 @@ func clip(a, b types.Period) (types.Period, bool) {
 }
 
 // lookupFacts converts the record of ticker on day into an assertion of the
-// entity it names. A record the integration cannot convert, such as a
-// warrant or an OTC listing, yields an empty result.
-func lookupFacts(ticker string, rec *record, unknown bool, day time.Time, doms []string, mics mic.MICMap) market.IdentifierEventResult {
-	a := market.Assertion{At: day, Negative: unknown}
+// entity it names, at the market home. A record the integration cannot
+// convert, such as a warrant or an OTC listing, yields an empty result.
+func lookupFacts(ticker string, rec *record, unknown bool, day time.Time, home string, mics mic.MICMap) market.IdentifierEventResult {
+	a := market.Assertion{Ticker: types.MarketTicker{Market: home, Value: ticker}, At: day, Negative: unknown}
 	if !unknown {
 		if rec == nil {
 			return market.IdentifierEventResult{}
@@ -146,10 +132,5 @@ func lookupFacts(ticker string, rec *record, unknown bool, day time.Time, doms [
 		}
 		a.Of = l
 	}
-	var out market.IdentifierEventResult
-	for v := range atVenues(doms, ticker) {
-		a.Value = v
-		out.Assertions = append(out.Assertions, a)
-	}
-	return out
+	return market.IdentifierEventResult{Assertions: []market.Assertion{a}}
 }

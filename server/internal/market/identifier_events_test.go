@@ -32,10 +32,10 @@ func (e *events) Fetch(_ context.Context, reqs []Request[IdentifierEventRequest]
 	return make([]Response[IdentifierEventResult], len(reqs)), nil
 }
 
-// rangedEvents is an events integration that answers for whole domains.
+// rangedEvents is an events integration that answers for whole markets.
 type rangedEvents struct{ events }
 
-func (*rangedEvents) Domains() []string          { return []string{"XNYS"} }
+func (*rangedEvents) Markets() []string          { return []string{"US"} }
 func (*rangedEvents) Window(time.Time) time.Time { return time.Time{} }
 func (r *rangedEvents) Lag() time.Duration       { return r.lag }
 

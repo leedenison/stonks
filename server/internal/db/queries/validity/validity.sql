@@ -20,11 +20,10 @@ ORDER BY type, domain, value;
 UPDATE identifier_assertions SET instrument_id = @survivor::uuid WHERE instrument_id = @loser::uuid;
 
 -- name: ListIdentifierAssertions :many
--- The assertions of the identifiers of one type whose domain is among
--- domains and whose value is among values. The caller keeps the pairs it
--- asked for. Each assertion comes with the datasource of the fetch that made
--- it and that datasource's precedence, or with the email of the
--- administrator who attested it.
+-- The assertions of the tickers whose market is among markets and whose value
+-- is among values. The caller keeps the pairs it asked for. Each assertion
+-- comes with the datasource of the fetch that made it and that datasource's
+-- precedence, or with the email of the administrator who attested it.
 SELECT sqlc.embed(identifier_assertions), fetches.datasource, datasources.precedence,
        users.email AS attested_by
 FROM identifier_assertions
@@ -32,42 +31,42 @@ LEFT JOIN fetch_keys ON fetch_keys.id = identifier_assertions.fetch_key_id
 LEFT JOIN fetches ON fetches.id = fetch_keys.fetch_id
 LEFT JOIN datasources ON datasources.name = fetches.datasource
 LEFT JOIN users ON users.id = identifier_assertions.attested_by
-WHERE identifier_assertions.type = @type
-  AND identifier_assertions.domain = ANY(@domains::text[])
+WHERE identifier_assertions.type = 'mic_ticker'
+  AND identifier_assertions.domain = ANY(@markets::text[])
   AND identifier_assertions.value = ANY(@values::text[])
 ORDER BY identifier_assertions.asserted_on, identifier_assertions.id;
 
 -- name: ListIdentifierEvents :many
--- The events in a domain among domains that name a ticker whose value is
+-- The events in a market among markets that name a ticker whose value is
 -- among values, or that renamed another ticker to it. The caller keeps the
 -- pairs it asked for. Each event comes with the fetch key that wrote it.
-SELECT domain, value, action, to_value, effective_on, fetch_key_id FROM identifier_events
-WHERE domain = ANY(@domains::text[])
+SELECT market, value, action, to_value, effective_on, fetch_key_id FROM identifier_events
+WHERE market = ANY(@markets::text[])
   AND (value = ANY(@values::text[]) OR to_value = ANY(@values::text[]))
 ORDER BY effective_on, id;
 
 -- name: ListIdentifierCoverage :many
--- The coverage in a domain among domains of a ticker whose value is among
--- values, and of the domain itself. The caller keeps the pairs it asked for.
+-- The coverage in a market among markets of a ticker whose value is among
+-- values, and of the market itself. The caller keeps the pairs it asked for.
 -- Each row comes with the datasource whose fetch wrote it. value is NULL for
--- a domain row.
-SELECT identifier_event_coverage.domain, identifier_event_coverage.value,
+-- a market row.
+SELECT identifier_event_coverage.market, identifier_event_coverage.value,
        identifier_event_coverage.covered_from, identifier_event_coverage.covered_before,
        identifier_event_coverage.fetch_key_id, fetches.datasource
 FROM identifier_event_coverage
 JOIN fetch_keys ON fetch_keys.id = identifier_event_coverage.fetch_key_id
 JOIN fetches ON fetches.id = fetch_keys.fetch_id
-WHERE identifier_event_coverage.domain = ANY(@domains::text[])
+WHERE identifier_event_coverage.market = ANY(@markets::text[])
   AND (identifier_event_coverage.value = ANY(@values::text[]) OR identifier_event_coverage.value IS NULL)
 ORDER BY fetches.datasource, identifier_event_coverage.covered_from, identifier_event_coverage.id;
 
 -- name: CreateIdentifierEvent :exec
-INSERT INTO identifier_events (id, fetch_key_id, domain, value, action, to_value, effective_on)
-VALUES (@id, @fetch_key_id, @domain, @value, @action, sqlc.narg(to_value), @effective_on);
+INSERT INTO identifier_events (id, fetch_key_id, market, value, action, to_value, effective_on)
+VALUES (@id, @fetch_key_id, @market, @value, @action, sqlc.narg(to_value), @effective_on);
 
 -- name: CreateIdentifierEventCoverage :exec
-INSERT INTO identifier_event_coverage (id, fetch_key_id, domain, value, covered_from, covered_before)
-VALUES (@id, @fetch_key_id, @domain, sqlc.narg(value), @covered_from, @covered_before);
+INSERT INTO identifier_event_coverage (id, fetch_key_id, market, value, covered_from, covered_before)
+VALUES (@id, @fetch_key_id, @market, sqlc.narg(value), @covered_from, @covered_before);
 
 -- name: ListHeldTickers :many
 -- The held tickers: each MIC_TICKER through which a key is dated, where a
@@ -104,18 +103,22 @@ ORDER BY identifier_assertions.id
 LIMIT sqlc.narg(lim)::int;
 
 -- name: ListInstrumentTickers :many
--- The MIC_TICKERs on the instrument's listings, and the MIC_TICKERs its
--- assertions name, each with whether a listing carries it.
-SELECT named.domain::text AS domain, named.value::text AS value, bool_or(named.current)::bool AS current
+-- The tickers of the instrument at their markets: those on its listings, and
+-- those its assertions name. Each comes with whether a listing carries it,
+-- and the operating MICs of the listings that do.
+SELECT named.market::text AS market, named.value::text AS value, bool_or(named.current)::bool AS current,
+       COALESCE(array_agg(DISTINCT named.venue ORDER BY named.venue) FILTER (WHERE named.venue IS NOT NULL), '{}')::text[] AS venues
 FROM (
-    SELECT domain, value, true AS current FROM identifiers
-    WHERE identifiers.instrument_id = @instrument AND type = 'mic_ticker'
+    SELECT mic_markets.market, identifiers.value, true AS current, mic_markets.operating_mic AS venue
+    FROM identifiers
+    JOIN mic_markets ON mic_markets.mic = identifiers.domain
+    WHERE identifiers.instrument_id = @instrument AND identifiers.type = 'mic_ticker'
     UNION ALL
-    SELECT domain, value, false FROM identifier_assertions
+    SELECT domain, value, false, NULL FROM identifier_assertions
     WHERE identifier_assertions.instrument_id = @instrument AND type = 'mic_ticker'
 ) AS named
-GROUP BY named.domain, named.value
-ORDER BY named.domain, named.value;
+GROUP BY named.market, named.value
+ORDER BY named.market, named.value;
 
 -- name: CountTickerTransactions :one
 -- The count of transactions of every key that states one of the probes; see

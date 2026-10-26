@@ -16,6 +16,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/to"
+	"github.com/leedenison/stonks/server/internal/mic"
 	"github.com/leedenison/stonks/server/internal/resolve"
 	"github.com/leedenison/stonks/server/internal/statement"
 	"github.com/leedenison/stonks/server/internal/types"
@@ -59,13 +60,14 @@ type Server struct {
 	ingester  Ingester
 	confirmer Confirmer
 	reader    Reader
+	mics      mic.MICMap
 }
 
 var _ statementv1connect.StatementServiceHandler = (*Server)(nil)
 
 // New returns a Server.
-func New(ingester Ingester, confirmer Confirmer, reader Reader) *Server {
-	return &Server{ingester: ingester, confirmer: confirmer, reader: reader}
+func New(ingester Ingester, confirmer Confirmer, reader Reader, mics mic.MICMap) *Server {
+	return &Server{ingester: ingester, confirmer: confirmer, reader: reader, mics: mics}
 }
 
 // CreateStatement starts ingesting the statement and answers with its run. A
@@ -244,10 +246,10 @@ func (s *Server) transactions(ctx context.Context, statement, user uuid.UUID) ([
 	if err != nil {
 		return nil, err
 	}
-	var tickers []types.Identifier
+	var tickers []types.MarketTicker
 	for _, r := range rows {
-		if v, ok := to.AssociatedTicker(r.StatedKey); ok {
-			tickers = append(tickers, v)
+		if t, ok := s.datedTicker(r.StatedKey); ok {
+			tickers = append(tickers, t)
 		}
 	}
 	read, err := validity.ReadTickers(ctx, s.reader, tickers)
@@ -257,10 +259,19 @@ func (s *Server) transactions(ctx context.Context, statement, user uuid.UUID) ([
 	out := make([]*statementv1.Transaction, 0, len(rows))
 	for _, r := range rows {
 		var t *validity.Ticker
-		if v, ok := to.AssociatedTicker(r.StatedKey); ok {
+		if v, ok := s.datedTicker(r.StatedKey); ok {
 			t = read[v]
 		}
 		out = append(out, to.ProtoTransaction(r.Transaction, mark(r.StatedKey.Arbiter, r.FixedViaType, t, r.Transaction.AsAt)))
 	}
 	return out, nil
+}
+
+// datedTicker returns the market ticker of k's dated association.
+func (s *Server) datedTicker(k gen.StatedKey) (types.MarketTicker, bool) {
+	v, ok := to.AssociatedTicker(k)
+	if !ok {
+		return types.MarketTicker{}, false
+	}
+	return s.mics.MarketTicker(v)
 }

@@ -2,7 +2,7 @@
 // ticker names.
 //
 // An attestation is an assertion whose source is an administrator rather than
-// a fetch key. Datasources supply coverage, so a venue no datasource covers
+// a fetch key. Datasources supply coverage, so a market no datasource covers
 // is attested ticker by ticker. How an attested assertion ranks against a
 // datasource's is in [validity.go](../validity/validity.go). Writing or
 // withdrawing an attestation replays the unresolved keys that state the
@@ -57,12 +57,9 @@ func New(store Store, runs Runner, replays Replays, mics mic.MICMap, clock func(
 // verified the ticker, accepts that no event occurred since its last
 // assertion, or knows of an event, the row is the same. A day is today or
 // any earlier day, and a range is an assertion on each end, since the
-// bracket rule confirms the days between. v may name any venue of its
-// domain. A to before from is refused with ErrRange.
-func (s *Service) Start(ctx context.Context, admin uuid.UUID, v types.Identifier, instrument *uuid.UUID, from time.Time, to *time.Time) (gen.Run, error) {
-	if op, ok := s.mics.Operating(v.Domain); ok {
-		v.Domain = op
-	}
+// bracket rule confirms the days between. A to before from is refused with
+// ErrRange.
+func (s *Service) Start(ctx context.Context, admin uuid.UUID, v types.MarketTicker, instrument *uuid.UUID, from time.Time, to *time.Time) (gen.Run, error) {
 	today := s.clock()
 	days := []time.Time{types.Day(from)}
 	if to != nil && !types.Day(*to).Equal(days[0]) {
@@ -97,7 +94,7 @@ func (s *Service) Start(ctx context.Context, admin uuid.UUID, v types.Identifier
 		},
 	}
 	return s.runs.Start(ctx, spec, func(ctx context.Context, row gen.Run) error {
-		s.replays.ReplayNewIdentifierFacts(ctx, row, []resolve.WrittenIdentifierFacts{{Run: row, Identifiers: []types.Identifier{v}}})
+		s.replays.ReplayNewIdentifierFacts(ctx, row, []resolve.WrittenIdentifierFacts{{Run: row, Tickers: []types.MarketTicker{v}}})
 		return nil
 	})
 }
@@ -124,7 +121,7 @@ func (s *Service) Withdraw(ctx context.Context, id uuid.UUID) error {
 	if n == 0 {
 		return fmt.Errorf("assertion %s: %w", id, db.ErrNotFound)
 	}
-	v := types.Identifier{Type: a.Type, Domain: a.Domain, Value: a.Value}
-	s.replays.ReplayNewIdentifierFacts(ctx, row, []resolve.WrittenIdentifierFacts{{Run: row, Identifiers: []types.Identifier{v}}})
+	v := types.MarketTicker{Market: a.Domain, Value: a.Value}
+	s.replays.ReplayNewIdentifierFacts(ctx, row, []resolve.WrittenIdentifierFacts{{Run: row, Tickers: []types.MarketTicker{v}}})
 	return nil
 }

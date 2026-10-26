@@ -59,7 +59,7 @@ test("attests a gap from the instrument's tickers tab and withdraws it", async (
   // id alone.
   const instrument = await instrumentListedAs(session, wmt);
   await page.goto(`/admin/instruments?q=WMT&id=${instrument.id}&tab=tickers`);
-  await expect(page.getByTestId("ticker-select")).toHaveValue("XNYS:WMT");
+  await expect(page.getByTestId("ticker-select")).toHaveValue("US:WMT");
   const gap = page.getByTestId(`pane-gap-${on}`);
   await expect(gap).toContainText("2003-09-10");
   await page.getByTestId(`gap-attest-${on}`).click();

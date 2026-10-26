@@ -9,7 +9,6 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
-	"github.com/leedenison/stonks/server/internal/market"
 	runs "github.com/leedenison/stonks/server/internal/run"
 	"github.com/leedenison/stonks/server/internal/types"
 	"github.com/leedenison/stonks/server/internal/validity"
@@ -55,7 +54,7 @@ func (r *Resolver) resolveKey(ctx context.Context, q Queries, run gen.Run, res *
 	res.written = nil
 	if res.outcome != "" {
 		if res.datedFromFacts {
-			if err := writeDated(ctx, q, *run.UserID, res, res.dating.Identifier, gen.ArbiterStated); err != nil {
+			if err := writeDated(ctx, q, *run.UserID, res, res.via, gen.ArbiterStated); err != nil {
 				return gen.ResolutionKey{}, nil, err
 			}
 		}
@@ -222,9 +221,7 @@ func recordUnknown(ctx context.Context, q Queries, res *resolution) error {
 			continue
 		}
 		id := *fk.SentID
-		// Only a positive assertion names an instrument, and only that needs
-		// the currency families.
-		if _, err := validity.Assert(ctx, q, nil, fk.ID, market.Assertion{Value: id, Negative: true, At: fk.AnsweredAt}); err != nil {
+		if err := validity.AssertIdentifier(ctx, q, res.mics, fk.ID, id, nil, fk.AnsweredAt); err != nil {
 			return fmt.Errorf("record negative assertion: %w", err)
 		}
 		res.wrote(fk, id)

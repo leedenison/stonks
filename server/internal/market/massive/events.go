@@ -38,7 +38,7 @@ func callOf(r market.IdentifierEventRequest) call {
 
 // Serves returns the identifier to send for r, or an error when Massive
 // cannot answer r. A ticker goes out without its venue, since Massive answers
-// for the composite, and the composite's identifier facts hold at every venue.
+// for the composite, and the composite's identifier facts hold at the market.
 func (e events) Serves(r market.IdentifierEventRequest) (types.Identifier, error) {
 	s := r.Identifier
 	switch s.Type {

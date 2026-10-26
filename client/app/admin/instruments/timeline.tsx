@@ -147,12 +147,12 @@ export function Timeline({ ticker }: { ticker: Ticker }) {
             y={4}
             height={laneHeight - 8}
             rx={2}
-            data-domain={c.covers?.value === "" ? "true" : undefined}
+            data-market={c.value === undefined ? "true" : undefined}
             className={
-              c.covers?.value === "" ? "fill-primary/25" : "fill-primary/55"
+              c.value === undefined ? "fill-primary/25" : "fill-primary/55"
             }
           >
-            <title>{`${ds} covers ${c.covers?.value || c.covers?.domain} ${c.coveredFrom} to ${c.coveredBefore}`}</title>
+            <title>{`${ds} covers ${c.value ?? c.market} ${c.coveredFrom} to ${c.coveredBefore}`}</title>
           </rect>
         )),
     })),

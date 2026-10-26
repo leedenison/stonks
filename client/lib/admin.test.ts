@@ -55,7 +55,7 @@ describe("admin", () => {
       "/admin/instruments?id=i1&tab=tickers&ticker=XNAS%3ABRK.B",
     );
     expect(readTickerParam(p.ticker)).toEqual({
-      domain: "XNAS",
+      at: "XNAS",
       value: "BRK.B",
     });
     expect(tickerParam("XNAS", "BRK.B")).toBe("XNAS:BRK.B");

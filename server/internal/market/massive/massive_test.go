@@ -24,11 +24,12 @@ import (
 // conf is the config the dev seed writes.
 const conf = `{"plan": "basic"}`
 
-// mics is a MIC map holding the venues the tests name.
-var mics = mic.Of(map[string]string{
-	"XNYS": "XNYS", "ARCX": "XNYS", "XASE": "XNYS", "XNAS": "XNAS", "XNGS": "XNAS",
-	"BATS": "BATS", "XLON": "XLON",
-})
+// mics puts the US venues of the test in the market US.
+var mics = mic.MICMap{
+	"XNYS": {Operating: "XNYS", Market: "US"}, "ARCX": {Operating: "XNYS", Market: "US"}, "XASE": {Operating: "XNYS", Market: "US"},
+	"XNAS": {Operating: "XNAS", Market: "US"}, "XNGS": {Operating: "XNAS", Market: "US"}, "BATS": {Operating: "BATS", Market: "US"},
+	"XLON": {Operating: "XLON", Market: "XLON"},
+}
 
 // scrub removes the API key from every URL and the Redacted fields from
 // every record.
@@ -280,5 +281,40 @@ func TestConfig(t *testing.T) {
 		if _, err := New(tc.cfg, mics, http.DefaultClient); err == nil {
 			t.Errorf("New() with %s succeeded, want an error", tc.name)
 		}
+	}
+}
+
+// TestHome checks that Massive builds only where its venues cover one market
+// whole.
+func TestHome(t *testing.T) {
+	tests := []struct {
+		name string
+		mics mic.MICMap
+		want string
+	}{
+		{name: "the US market", mics: mics, want: "US"},
+		{
+			name: "venues in two markets",
+			mics: mic.MICMap{"XNYS": {Operating: "XNYS", Market: "US"}, "XNAS": {Operating: "XNAS", Market: "XNAS"}},
+		},
+		{
+			name: "a market member Massive does not list",
+			mics: mic.MICMap{"XNYS": {Operating: "XNYS", Market: "US"}, "OTCM": {Operating: "OTCM", Market: "US"}},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			c, err := New(market.Config{Credential: "k", JSON: json.RawMessage(conf)}, tc.mics, http.DefaultClient)
+			if tc.want == "" {
+				if err == nil {
+					t.Errorf("New() succeeded, want an error")
+				}
+				return
+			}
+			require.NoError(t, err)
+			if c.home != tc.want {
+				t.Errorf("home = %q, want %q", c.home, tc.want)
+			}
+		})
 	}
 }

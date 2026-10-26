@@ -102,7 +102,7 @@ func (s *stack) extended(t *testing.T, run gen.Run) map[string][]extendedKey {
 // nil for each negative one.
 func (s *stack) assertedOn(t *testing.T, v types.Identifier, d time.Time) []*uuid.UUID {
 	t.Helper()
-	rows, err := s.q.ListIdentifierAssertions(context.Background(), gen.ListIdentifierAssertionsParams{Type: v.Type, Domains: []string{v.Domain}, Values: []string{v.Value}})
+	rows, err := s.q.ListIdentifierAssertions(context.Background(), gen.ListIdentifierAssertionsParams{Markets: []string{mt(v).Market}, Values: []string{v.Value}})
 	require.NoError(t, err)
 	var out []*uuid.UUID
 	for _, r := range rows {
@@ -154,7 +154,7 @@ func TestExtendValidity(t *testing.T) {
 	if got := s.assertedOn(t, v, later); len(got) != 1 || got[0] == nil || *got[0] != inst {
 		t.Errorf("assertions of %s on %s = %v, want one naming %s", v.Name(), later.Format(time.DateOnly), got, inst)
 	}
-	ivs, err := validity.Of(ctx, s.q, v)
+	ivs, err := validity.Of(ctx, s.q, mt(v))
 	require.NoError(t, err)
 	if !confirmedOn(ivs, inst, on(2026, 3, 20)) {
 		t.Errorf("validity of %s = %+v, want %s confirmed between the two assertions", v.Name(), ivs, inst)
@@ -168,7 +168,7 @@ func TestExtendValidity(t *testing.T) {
 	if n := s.count(t, `SELECT count(*) FROM identifiers WHERE value = $1`, extra.Value); n != 0 {
 		t.Errorf("rows of %s = %d, want none", extra.Name(), n)
 	}
-	if len(written) != 1 || written[0].Run.ID != b[0].fetch || !slices.Equal(written[0].Identifiers, []types.Identifier{v}) {
+	if len(written) != 1 || written[0].Run.ID != b[0].fetch || !slices.Equal(written[0].Tickers, []types.MarketTicker{mt(v)}) {
 		t.Errorf("written = %+v, want %s under beta's fetch run %s", written, v.Name(), b[0].fetch)
 	}
 }
@@ -296,5 +296,62 @@ func TestExtendValidityRefusesRun(t *testing.T) {
 	s := newStack(t)
 	if _, err := s.extender.ExtendValidity(context.Background(), s.resolution, nil); err == nil {
 		t.Error("ExtendValidity under a user's resolution run succeeded, want an error")
+	}
+}
+
+// heldAtTwoVenues holds one ticker through two keys, one stated at XNYS and
+// one at XNAS, both dated to the instrument of isin. Beta answers the first
+// key, and the second is dated from the facts of the market.
+func (s *stack) heldAtTwoVenues(t *testing.T, value string, isin types.Identifier) (nyse, nasdaq types.Identifier) {
+	t.Helper()
+	nyse = id(types.IdentifierTypeMicTicker, "XNYS", value)
+	nasdaq = id(types.IdentifierTypeMicTicker, "XNAS", value)
+	s.enableBeta(t)
+	s.withoutEvents(t, s.alphaName, s.betaName)
+	s.script.Declines = []string{"XNYS", "XNAS"}
+	s.beta.Responses[nyse] = market.IdentityResult{Listings: []market.Listing{listing(types.AssetClassStock, "USD", isin, nyse)}}
+	for _, v := range []types.Identifier{nyse, nasdaq} {
+		key := s.state(t, types.AssetClassStock, "USD", v)
+		s.trade(t, key, on(2026, 1, 5))
+		got := s.resolveOn(t, []time.Time{on(2026, 1, 5)}, key)
+		require.Equal(t, gen.ResolutionOutcomeMatched, got[0].Outcome)
+	}
+	return nyse, nasdaq
+}
+
+// TestExtendValidityAcrossVenues checks that keys held at two venues of one
+// market make one identity fetch, and that an answer listing the ticker at
+// another venue of the market asserts the held instrument once, at the
+// market.
+func TestExtendValidityAcrossVenues(t *testing.T) {
+	s := newStack(t)
+	isin := id(types.IdentifierTypeIsin, "", "US00ZZV"+uuid.NewString()[:5])
+	nyse, nasdaq := s.heldAtTwoVenues(t, "ZZV"+uuid.NewString()[:4], isin)
+	inst := s.instrumentOf(t, isin)
+	moved := market.IdentityResult{Listings: []market.Listing{listing(types.AssetClassStock, "USD", isin, nasdaq)}}
+	s.beta.Responses[nyse], s.beta.Responses[nasdaq] = moved, moved
+
+	run, _ := s.extendValidity(t, nyse, nasdaq)
+	if keys := s.extended(t, run)[s.betaName]; len(keys) != 1 {
+		t.Errorf("beta's fetch keys = %+v, want one for the market ticker", keys)
+	}
+	if got := s.assertedOn(t, nyse, later); len(got) != 1 || got[0] == nil || *got[0] != inst {
+		t.Errorf("assertions of %s on %s = %v, want one naming %s", mt(nyse).Name(), later.Format(time.DateOnly), got, inst)
+	}
+}
+
+// TestExtendValidityOtherMarket checks that an answer listing the held
+// ticker only in another market asserts nothing.
+func TestExtendValidityOtherMarket(t *testing.T) {
+	s := newStack(t)
+	isin := id(types.IdentifierTypeIsin, "", "US00ZZW"+uuid.NewString()[:5])
+	value := "ZZW" + uuid.NewString()[:4]
+	nyse, nasdaq := s.heldAtTwoVenues(t, value, isin)
+	elsewhere := market.IdentityResult{Listings: []market.Listing{listing(types.AssetClassStock, "GBP", isin, id(types.IdentifierTypeMicTicker, "XLON", value))}}
+	s.beta.Responses[nyse], s.beta.Responses[nasdaq] = elsewhere, elsewhere
+
+	s.extendValidity(t, nyse, nasdaq)
+	if got := s.assertedOn(t, nyse, later); len(got) != 0 {
+		t.Errorf("assertions of %s on %s = %v, want none", mt(nyse).Name(), later.Format(time.DateOnly), got)
 	}
 }

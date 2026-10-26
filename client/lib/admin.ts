@@ -128,21 +128,22 @@ export function readInstrumentList(params: URLSearchParams): InstrumentParams {
   };
 }
 
-// tickerParam writes a MIC_TICKER for the instruments page's address.
-export function tickerParam(domain: string, value: string): string {
-  return `${domain}:${value}`;
+// tickerParam writes a ticker for the instruments page's address, at its
+// market or at one of the market's venues.
+export function tickerParam(at: string, value: string): string {
+  return `${at}:${value}`;
 }
 
 // readTickerParam reads what tickerParam wrote, or undefined when the text
 // is not one.
 export function readTickerParam(
   s: string,
-): { domain: string; value: string } | undefined {
+): { at: string; value: string } | undefined {
   const i = s.indexOf(":");
   if (i <= 0 || i === s.length - 1) {
     return undefined;
   }
-  return { domain: s.slice(0, i), value: s.slice(i + 1) };
+  return { at: s.slice(0, i), value: s.slice(i + 1) };
 }
 
 // instrumentQuery is the address of the instruments page with p applied.

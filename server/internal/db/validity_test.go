@@ -102,10 +102,10 @@ func TestIdentifierEventChecks(t *testing.T) {
 		name string
 		sql  string
 	}{
-		{name: "a rename with no new value", sql: "INSERT INTO identifier_events (id, fetch_key_id, domain, value, action, effective_on) VALUES ($1, $2, 'XNYS', 'FB', 'renamed', '2022-06-09')"},
-		{name: "a retirement with a new value", sql: "INSERT INTO identifier_events (id, fetch_key_id, domain, value, action, to_value, effective_on) VALUES ($1, $2, 'XNYS', 'FB', 'retired', 'META', '2022-06-09')"},
-		{name: "an event with no domain", sql: "INSERT INTO identifier_events (id, fetch_key_id, domain, value, action, effective_on) VALUES ($1, $2, '', 'FB', 'retired', '2022-06-09')"},
-		{name: "coverage that ends as it starts", sql: "INSERT INTO identifier_event_coverage (id, fetch_key_id, domain, covered_from, covered_before) VALUES ($1, $2, 'XNYS', '2022-06-09', '2022-06-09')"},
+		{name: "a rename with no new value", sql: "INSERT INTO identifier_events (id, fetch_key_id, market, value, action, effective_on) VALUES ($1, $2, 'US', 'FB', 'renamed', '2022-06-09')"},
+		{name: "a retirement with a new value", sql: "INSERT INTO identifier_events (id, fetch_key_id, market, value, action, to_value, effective_on) VALUES ($1, $2, 'US', 'FB', 'retired', 'META', '2022-06-09')"},
+		{name: "an event with no market", sql: "INSERT INTO identifier_events (id, fetch_key_id, market, value, action, effective_on) VALUES ($1, $2, '', 'FB', 'retired', '2022-06-09')"},
+		{name: "coverage that ends as it starts", sql: "INSERT INTO identifier_event_coverage (id, fetch_key_id, market, covered_from, covered_before) VALUES ($1, $2, 'US', '2022-06-09', '2022-06-09')"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

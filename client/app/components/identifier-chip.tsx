@@ -1,6 +1,7 @@
 import {
   type Identifier,
   IdentifierType,
+  type MarketTicker,
   type StatedKey,
 } from "@/gen/type/v1/type_pb";
 import { enumLabel } from "@/lib/enum";
@@ -42,6 +43,17 @@ export function IdentifierChip({ id }: { id: Identifier }) {
       <span className="font-semibold">{identifierLabel(id.type)}</span>
       <span>{id.value}</span>
       {id.domain && <span className="opacity-70">({id.domain})</span>}
+    </Chip>
+  );
+}
+
+// MarketTickerChip is a ticker at its market, the key of the ticker's facts.
+export function MarketTickerChip({ ticker }: { ticker: MarketTicker }) {
+  return (
+    <Chip tone="primary" className="font-mono" data-market={ticker.market}>
+      <span className="font-semibold">Ticker</span>
+      <span>{ticker.value}</span>
+      <span className="opacity-70">({ticker.market})</span>
     </Chip>
   );
 }

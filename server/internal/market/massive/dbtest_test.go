@@ -38,8 +38,9 @@ func TestVenuesAreMICs(t *testing.T) {
 	markettest.VenuesAreMICs(t, tbl, slices.Collect(maps.Keys(venues))...)
 }
 
-// TestEventsRecord checks that recording Meta's ticker history confirms FB
-// for Meta until the rename and META after it, at every venue.
+// TestEventsRecord checks that recording Meta's ticker history writes each
+// fact once, at the US market, and confirms FB for Meta until the rename and
+// META after it, read through a ticker at any US venue.
 func TestEventsRecord(t *testing.T) {
 	ctx := context.Background()
 	pool := dbtest.Open()
@@ -81,6 +82,13 @@ func TestEventsRecord(t *testing.T) {
 	families, _, err := currency.Load(ctx, q)
 	require.NoError(t, err)
 	require.NoError(t, validity.Record(ctx, q, tbl, families, keys))
+	for table, want := range map[string]int{"identifier_assertions": 3, "identifier_events": 2, "identifier_event_coverage": 2} {
+		var n int
+		require.NoError(t, tx.QueryRow(ctx, "SELECT count(*) FROM "+table+" WHERE fetch_key_id = $1", keys[0].ID).Scan(&n))
+		if n != want {
+			t.Errorf("%s rows = %d, want %d", table, n, want)
+		}
+	}
 
 	tests := []struct {
 		ticker string
@@ -92,9 +100,11 @@ func TestEventsRecord(t *testing.T) {
 		{ticker: "META", on: day(2024, 1, 2), want: true},
 		{ticker: "META", on: day(2015, 1, 2)},
 	}
-	for _, dom := range []string{"XNAS", "XNYS"} {
+	for _, dom := range []string{"XNAS", "XNYS", "BATS"} {
 		for _, tc := range tests {
-			ivs, err := validity.Of(ctx, q, ticker(dom, tc.ticker))
+			mt, ok := tbl.MarketTicker(ticker(dom, tc.ticker))
+			require.True(t, ok)
+			ivs, err := validity.Of(ctx, q, mt)
 			require.NoError(t, err)
 			if got := confirmed(ivs, inst.ID, tc.on); got != tc.want {
 				t.Errorf("%s:%s confirmed for Meta on %s = %v, want %v", dom, tc.ticker, tc.on.Format(time.DateOnly), got, tc.want)
