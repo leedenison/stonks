@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/big"
 	"time"
 
 	"github.com/google/uuid"
@@ -77,7 +78,7 @@ func writeAnswer(ctx context.Context, q Queries, k answerKey, t types.MarketTick
 			return 0, fmt.Errorf("list answer events: %w", err)
 		}
 	}
-	gone, added := merge(old, k.Response.Events)
+	gone, added := merge(old, judged(k.Response.Events))
 	if len(gone) > 0 {
 		if err := q.DeleteCorporateEvents(ctx, gone); err != nil {
 			return 0, fmt.Errorf("delete events: %w", err)
@@ -108,6 +109,41 @@ func writeAnswer(ctx context.Context, q Queries, k answerKey, t types.MarketTick
 		found++
 	}
 	return found, nil
+}
+
+// maxShareTerm is the largest that the smaller side of a share count ratio
+// can be in lowest terms. Providers state a spin-off as a ratio such as 1281
+// for 1000, which is the fall in the parent's price.
+const maxShareTerm = 100
+
+// restatesShares reports whether r states a change in share count rather
+// than a price factor. Both sides are whole, and in lowest terms the smaller
+// is at most maxShareTerm.
+func restatesShares(r types.Ratio) bool {
+	if !r.From.IsInteger() || !r.To.IsInteger() {
+		return false
+	}
+	from, to := r.From.BigInt(), r.To.BigInt()
+	if from.Sign() <= 0 || to.Sign() <= 0 {
+		return false
+	}
+	gcd := new(big.Int).GCD(nil, nil, from, to)
+	smaller := from
+	if to.Cmp(from) < 0 {
+		smaller = to
+	}
+	return new(big.Int).Quo(smaller, gcd).Cmp(big.NewInt(maxShareTerm)) <= 0
+}
+
+// judged returns es with Handled cleared on each event whose ratio is a price
+// factor.
+func judged(es []market.CorporateEvent) []market.CorporateEvent {
+	out := make([]market.CorporateEvent, len(es))
+	for i, e := range es {
+		e.Handled = e.Handled && restatesShares(e.Ratio)
+		out[i] = e
+	}
+	return out
 }
 
 // covered returns the bounds of c, cut to end on the day of at at the latest.

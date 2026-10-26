@@ -22,4 +22,8 @@ Settle each by recording before the plan is written.
 - The ratio is a string stated new over old. A ten for one split reads
   `"10.000000/1.000000"`.
 - An answer applies only when it names the ticker the request asked for.
-- EODHD sends only a ratio, so every corporate event applies.
+- EODHD sends only a ratio, so the ratio test alone decides which corporate events apply.
+- A recorded request must replay on any later day, even when its query states the day of
+  the recording. The recording proxy and `testutil/vcr` match a request on its method, URL
+  and body. Each gains a match that normalises the dates in the query. Their package
+  comments describe it.

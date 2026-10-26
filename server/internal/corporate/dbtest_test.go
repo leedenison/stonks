@@ -383,6 +383,25 @@ func TestUnhandledEvent(t *testing.T) {
 	}
 }
 
+// TestPriceFactor checks that an event with a price factor ratio is stored
+// unhandled and raises a finding, although its datasource handles the type.
+func TestPriceFactor(t *testing.T) {
+	s := newStack(t)
+	s.only(t, s.alphaName)
+	ge := ticker("XNYS", "GE")
+	s.alpha.Responses[ge] = covering(reported(day(2023, 1, 4), ratio(1000, 1281)))
+	s.fetch(t, ge)
+
+	as := s.read(t, us("GE"))
+	if len(as) != 1 || len(as[0].Events) != 1 || as[0].Events[0].Handled {
+		t.Errorf("answers = %+v, want one unhandled event", as)
+	}
+	fs := s.findings(t, us("GE"))
+	if len(fs) != 1 || fs[0].kind != gen.FindingKindUnhandledCorporateEvent {
+		t.Errorf("findings = %+v, want one unhandled event finding", fs)
+	}
+}
+
 // TestRecordDisagreements checks which event pairs raise a disagreement.
 func TestRecordDisagreements(t *testing.T) {
 	s := newStack(t)

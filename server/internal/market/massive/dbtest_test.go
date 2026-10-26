@@ -11,9 +11,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
+	"github.com/leedenison/stonks/server/internal/corporate"
 	"github.com/leedenison/stonks/server/internal/currency"
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
@@ -122,4 +124,83 @@ func confirmed(ivs []validity.Interval, instrument uuid.UUID, d time.Time) bool 
 		}
 	}
 	return false
+}
+
+// TestCorporateRecord checks the corporate events recorded from Massive's
+// answers. A spin-off factor is stored unhandled, coverage starts on since,
+// and a split with a future ex-date is stored.
+func TestCorporateRecord(t *testing.T) {
+	answered := time.Date(2026, time.October, 26, 15, 0, 0, 0, time.UTC)
+	always := types.Period{From: day(1970, 1, 1), Before: day(2100, 1, 1)}
+	// before is the day after the answer, where every coverage ends.
+	before := day(2026, 10, 27)
+	tests := []struct {
+		cassette string
+		ticker   types.Identifier
+		// events states each stored event as "ex-date from:to", with
+		// "unhandled" appended for an unhandled event.
+		events []string
+	}{
+		{
+			cassette: "massive_splits_spinoff",
+			ticker:   ticker("XNYS", "GE"),
+			events:   []string{"2021-08-02 8:1", "2023-01-04 1000:1281 unhandled", "2024-04-02 1000:1253 unhandled"},
+		},
+		{
+			cassette: "massive_splits_announced",
+			ticker:   ticker("XNAS", "SOXX"),
+			events:   []string{"2024-03-07 1:3", "2026-11-05 1:3"},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.cassette, func(t *testing.T) {
+			ctx := context.Background()
+			pool := dbtest.Open()
+			t.Cleanup(pool.Close)
+			tx := dbtest.Begin(t, pool)
+			q := gen.New(tx)
+			tbl, err := mic.Load(ctx, q)
+			require.NoError(t, err)
+			key := vcr.Credential(t, "MASSIVE_API_KEY", "testdata/"+tc.cassette)
+			c, err := New(market.Config{Credential: key, JSON: json.RawMessage(conf)}, tbl, vcr.New(t, "testdata/"+tc.cassette, scrub))
+			require.NoError(t, err)
+
+			user, err := q.CreateUser(ctx, gen.CreateUserParams{ID: db.NewID(), Email: uuid.NewString() + "@example.com", Role: gen.UserRoleUser})
+			require.NoError(t, err)
+			parent, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &user.ID, Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser})
+			require.NoError(t, err)
+			name := "massive-" + uuid.NewString()
+			_, err = q.CreateDatasource(ctx, gen.CreateDatasourceParams{Name: name, Enabled: true, Precedence: 1000})
+			require.NoError(t, err)
+			log := slog.New(slog.DiscardHandler)
+			sources, err := market.New(ctx, q, map[string]market.Factory{name: {New: func(market.Config) (market.Integration, error) { return c, nil }}}, log)
+			require.NoError(t, err)
+			fetcher := market.NewFetcher(db.New[market.Queries](tx), runtest.Runner{Q: q}, log, market.WithClock(func() time.Time { return answered }, func(context.Context, time.Duration) error { return nil }))
+			r := corporate.New(db.New[corporate.Queries](tx), fetcher, sources, tbl, log)
+			require.NoError(t, r.Fetch(ctx, parent, []market.CorporateEventRequest{{Ticker: tc.ticker, Period: asked}}))
+
+			mt, ok := tbl.MarketTicker(tc.ticker)
+			require.True(t, ok)
+			got, err := corporate.Read(ctx, q, []types.MarketTicker{mt}, always)
+			require.NoError(t, err)
+			i := slices.IndexFunc(got[mt], func(a corporate.Answer) bool { return a.Datasource == name })
+			require.GreaterOrEqual(t, i, 0, "no answer from %s", name)
+			a := got[mt][i]
+			var evs []string
+			for _, e := range a.Events {
+				d := e.ExDate.Format(time.DateOnly) + " " + e.Ratio.From.String() + ":" + e.Ratio.To.String()
+				if !e.Handled {
+					d += " unhandled"
+				}
+				evs = append(evs, d)
+			}
+			slices.Sort(evs)
+			if diff := cmp.Diff(tc.events, evs); diff != "" {
+				t.Errorf("events of %s mismatch (-want +got):\n%s", tc.ticker.Value, diff)
+			}
+			if len(a.Coverage) == 0 || !a.Coverage[0].From.Equal(since) || !a.Coverage[len(a.Coverage)-1].Before.Equal(before) {
+				t.Errorf("coverage of %s = %v, want from %s before %s", tc.ticker.Value, a.Coverage, since.Format(time.DateOnly), before.Format(time.DateOnly))
+			}
+		})
+	}
 }

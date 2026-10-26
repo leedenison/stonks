@@ -11,7 +11,10 @@ import (
 )
 
 // since is the first day Massive's reference data covers. A point in time
-// lookup of an earlier day answers that the ticker is unknown.
+// lookup of an earlier day answers that the ticker is unknown. The coverage of
+// corporate events starts here too. Massive's splits reach back to 1978, but
+// many splits before 2003 are missing. Massive documents two years of splits
+// for its Basic plan. That plan answers the whole history.
 var since = time.Date(2003, time.September, 10, 0, 0, 0, 0, time.UTC)
 
 // events is Massive's side of the identifier events kind.
@@ -49,16 +52,24 @@ func (e events) Serves(r market.IdentifierEventRequest) (types.Identifier, error
 		return types.Identifier{}, fmt.Errorf("identifier type '%s' rejected", s.Type)
 	}
 	switch {
-	case s.IsDomain():
-		return types.Identifier{}, fmt.Errorf("domain '%s' rejected: the datasource answers for one entity", s.Domain)
-	case !e.c.prefer.Lists(s.Domain):
-		return types.Identifier{}, fmt.Errorf("venue '%s' rejected", s.Domain)
-	case preferred(s.Value):
-		return types.Identifier{}, fmt.Errorf("preferred share '%s' rejected", s.Value)
 	case !r.Period.Before.Equal(r.Period.From.AddDate(0, 0, 1)):
 		return types.Identifier{}, fmt.Errorf("ticker over %d days rejected: a ticker is answered on one day", int(r.Period.Before.Sub(r.Period.From).Hours()/24))
 	case r.Period.From.Before(since):
 		return types.Identifier{}, fmt.Errorf("day %s rejected: the data starts on %s", r.Period.From.Format(time.DateOnly), since.Format(time.DateOnly))
+	}
+	return e.c.sent(s)
+}
+
+// sent returns the ticker s as Massive spells it, without its venue, or an
+// error when Massive cannot answer for s.
+func (c *Client) sent(s types.Identifier) (types.Identifier, error) {
+	switch {
+	case s.IsDomain():
+		return types.Identifier{}, fmt.Errorf("domain '%s' rejected: the datasource answers for one entity", s.Domain)
+	case !c.prefer.Lists(s.Domain):
+		return types.Identifier{}, fmt.Errorf("venue '%s' rejected", s.Domain)
+	case preferred(s.Value):
+		return types.Identifier{}, fmt.Errorf("preferred share '%s' rejected", s.Value)
 	}
 	ticker, ok := market.WithClassSep(s.Value, '.')
 	if !ok {

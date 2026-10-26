@@ -1,0 +1,47 @@
+---
+version: 2
+interactions:
+    - id: 0
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: api.massive.com
+        form:
+            apiKey:
+                - REDACTED
+            limit:
+                - "5000"
+            ticker:
+                - AAPL
+        url: https://api.massive.com/stocks/v1/splits?apiKey=REDACTED&limit=5000&ticker=AAPL
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 92
+        body: '{"error":"Unknown API Key","request_id":"8f9c9bacb66050b9d81facf73e148d42","status":"ERROR"}'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - DNT,X-CustomHeader,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization
+            Access-Control-Allow-Methods:
+                - GET, PUT, POST, DELETE, PATCH, OPTIONS
+            Access-Control-Allow-Origin:
+                - '*'
+            Access-Control-Max-Age:
+                - "1728000"
+            Content-Length:
+                - "92"
+            Content-Type:
+                - text/plain
+            Date:
+                - Mon, 26 Oct 2026 20:24:40 GMT
+            Strict-Transport-Security:
+                - max-age=15724800; includeSubDomains
+        status: 404 Not Found
+        code: 404
+        duration: 241.886309ms

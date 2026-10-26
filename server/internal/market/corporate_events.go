@@ -25,23 +25,24 @@ type CorporateEvent struct {
 	// Type is the provider's own word for the event, empty where it states
 	// none.
 	Type string
-	// Handled is whether the system restates a quantity by the event.
+	// Handled is whether the provider's type of event restates a quantity.
+	// The corporate package then tests the ratio.
 	Handled bool
 }
 
 // CorporateEventResult is what was returned for one request.
 type CorporateEventResult struct {
 	Events []CorporateEvent
-	// Coverage is the period over which the provider reported every corporate
-	// event of the ticker, nil where it reported none.
+	// Coverage is the period the provider answered for. Over it, the provider
+	// reported every corporate event it holds for the ticker. It is nil where
+	// the provider omits a period.
 	Coverage *types.Period
 }
 
 // CorporateEvents is an integration that reports the corporate events of
 // tickers. An integration answers for the market of the ticker, across every
-// operating MIC of that market. It decides which events are handled, since
-// only it knows the provider's types, and states each ratio as units before
-// and after.
+// operating MIC of that market. It sets Handled from the provider's types,
+// since only it knows them. It states each ratio as units before and after.
 type CorporateEvents interface {
 	Integration
 	CorporateEvents() Server[CorporateEventRequest, CorporateEventResult]
