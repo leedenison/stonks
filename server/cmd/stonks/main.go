@@ -141,7 +141,7 @@ func run() (err error) {
 	if err != nil {
 		return err
 	}
-	families, err := currency.Load(ctx, queries)
+	families, scales, err := currency.Load(ctx, queries)
 	if err != nil {
 		return err
 	}
@@ -180,7 +180,7 @@ func run() (err error) {
 	extensions := extendvalidity.New(queries, runs, extender, replays)
 	ingester := stmt.New(db.New[stmt.Queries](pool), runs, resolver, replays, families, time.Now, logger.WithCategory(log, "internal/statement"))
 	datasources := admindatasource.New(queries, sources, datasource.New(db.New[datasource.Queries](pool), sources, cache))
-	srv, err := newServer(cfg.ListenAddr, log, authn, queries, holdingsvc.New(queries, families), adminrun.New(queries), adminblock.New(queries), datasources, admininstrument.New(queries), adminreplay.New(queries, replays), adminextendvalidity.New(extensions), admincoverage.New(coverage.New(queries, mics), attest.New(db.New[attest.Queries](pool), runs, replays, mics, time.Now), time.Now), ingester, cfg.CookieSecure)
+	srv, err := newServer(cfg.ListenAddr, log, authn, queries, holdingsvc.New(queries, families, scales), adminrun.New(queries), adminblock.New(queries), datasources, admininstrument.New(queries), adminreplay.New(queries, replays), adminextendvalidity.New(extensions), admincoverage.New(coverage.New(queries, mics), attest.New(db.New[attest.Queries](pool), runs, replays, mics, time.Now), time.Now), ingester, cfg.CookieSecure)
 	if err != nil {
 		return err
 	}

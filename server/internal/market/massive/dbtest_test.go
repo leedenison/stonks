@@ -78,7 +78,7 @@ func TestEventsRecord(t *testing.T) {
 	keys, err := fetcher.IdentifierEvents(ctx, parent, entry, []market.IdentifierEventRequest{{Identifier: meta, Period: market.History(c, answered)}})
 	require.NoError(t, err)
 	require.Equal(t, gen.FetchOutcomeServed, keys[0].Outcome)
-	families, err := currency.Load(ctx, q)
+	families, _, err := currency.Load(ctx, q)
 	require.NoError(t, err)
 	require.NoError(t, validity.Record(ctx, q, tbl, families, keys))
 

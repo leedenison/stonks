@@ -40,7 +40,7 @@ func (f *fixture) served(t *testing.T, sent types.Identifier, r market.Identifie
 
 func (f *fixture) families(t *testing.T) currency.Families {
 	t.Helper()
-	fams, err := currency.Load(context.Background(), f.q)
+	fams, _, err := currency.Load(context.Background(), f.q)
 	require.NoError(t, err)
 	return fams
 }

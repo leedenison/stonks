@@ -7,6 +7,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/shopspring/decimal"
+
 	"github.com/leedenison/stonks/server/internal/db/gen"
 )
 
@@ -18,17 +20,31 @@ type Queries interface {
 // Families maps each currency code the system has to its family code.
 type Families map[string]string
 
+// Scales maps each currency code the system has to the number of family
+// units in one of its units: 0.01 for GBX.
+type Scales map[string]decimal.Decimal
+
 // Load reads the currency reference table.
-func Load(ctx context.Context, q Queries) (Families, error) {
+func Load(ctx context.Context, q Queries) (Families, Scales, error) {
 	rows, err := q.ListCurrencies(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("list currencies: %w", err)
+		return nil, nil, fmt.Errorf("list currencies: %w", err)
 	}
 	f := make(Families, len(rows))
+	s := make(Scales, len(rows))
 	for _, r := range rows {
-		f[r.Code] = r.Family
+		f[r.Code], s[r.Code] = r.Family, r.Scale
 	}
-	return f, nil
+	return f, s, nil
+}
+
+// Scale returns the scale of code, one where the system has no such
+// currency.
+func (s Scales) Scale(code string) decimal.Decimal {
+	if v, ok := s[code]; ok {
+		return v
+	}
+	return decimal.NewFromInt(1)
 }
 
 // Family returns the family of code. It returns the empty family when the
