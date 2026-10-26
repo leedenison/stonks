@@ -12,11 +12,10 @@ system already received and discarded.
 
 The system already trusts a datasource's answer on a day. Attaching a claim writes an
 assertion of each identifier it carries, on the UTC day of the answer. Validity takes one
-datasource's assertion as what the ticker names that day, and
-[002](002-precedence-decides-between-providers-that-disagree-and-a-finding-records-it.md)
-lets precedence decide where two datasources disagree. A MIC_TICKER names one instrument on
-one day. Two answers made on one day that both carry one MIC_TICKER therefore describe one
-instrument, and the ticker joins them as a stable identifier would.
+datasource's assertion as what the ticker names that day, and precedence decides where two
+datasources disagree. A MIC_TICKER names one instrument on one day. Two answers made on
+one day that both carry one MIC_TICKER therefore describe one instrument, and the ticker
+joins them as a stable identifier would.
 
 A claim corroborates the winner where it shares a stable identifier with the winner, or
 where both are datasource answers made on the same UTC day and both carry the same
@@ -27,12 +26,20 @@ precedence step drops a claim that contradicts a chosen claim, whatever the clai
 with the winner. The corroboration finding states both tests: the claim and the winner
 share neither a stable identifier nor a venue ticker answered on one day.
 
+A claim joined through the ticker alone does not choose the instrument the write takes.
+The key's identifiers and the identifiers of the claims that share a stable identifier
+with the winner find the stored instrument. Where a stable identifier of a claim joined
+through the ticker alone identifies another stored instrument, the claim is dropped with a
+contradiction finding, whether the write creates the instrument or takes a stored one. Two
+stored instruments therefore never merge through a ticker, so an identifier event never
+unwinds a merge.
+
 The rule uses evidence the system already accepts rather than discarding it. The risk is a
-datasource whose data is stale across a reassignment. Its answer would write the old
-instrument's stable identifiers onto the new one, and an identifier row is undated, so the
-mistake is not bounded by a day as an assertion is. Validity takes the same risk on the
-same answers. Each identifier row records the fetch key that wrote it, so a stale answer
-can be traced and its rows removed.
+datasource whose data is stale across a reassignment. Where the system does not hold the
+old instrument, its answer writes the old instrument's stable identifiers onto the new
+one, and an identifier row is undated, so the mistake is not bounded by a day as an
+assertion is. Validity takes the same risk on the same answers. Each identifier row
+records the fetch key that wrote it, so a stale answer can be traced and its rows removed.
 
 ## Considered options
 
@@ -40,6 +47,14 @@ can be traced and its rows removed.
   EODHD serves a composite FIGI, which OpenFIGI and Massive both return. The second answer
   would name the identifier sent and corroborate through it. It costs a call against
   EODHD's quota of twenty a day and serialises the fetch by precedence.
+- Let a claim joined through the ticker alone choose the write target, as a claim that
+  shares a stable identifier does. Where its stable identifier identifies another stored
+  instrument, the write would merge that instrument into the target through the ticker. A
+  merge relinks keys and deletes listings, and an identifier event never unwinds one.
+- Attach the claim and leave out the identifiers another instrument holds, as a refused
+  merge leaves them out. The write would still assert the left-out identifier on the
+  target, and a partial attachment states that the answer describes the target while one
+  of its identifiers says otherwise.
 
 ## Consequences
 
@@ -47,7 +62,8 @@ can be traced and its rows removed.
   that later states the ISIN matches the instrument in the database without a fetch.
 - A claim is still dropped at corroboration when it carries the ticker at another venue,
   when its answer fell on another UTC day, or when the winner is the database's instrument.
-  The held instrument can therefore still lack an answer's identifiers.
-  [019](019-extending-validity-writes-only-the-held-tickers-assertions.md) relies on that.
+  A claim joined through the ticker alone is also dropped at the write where a stable
+  identifier it carries identifies another stored instrument. The held instrument can
+  therefore still lack an answer's identifiers. Extending validity relies on that.
 - Only a MIC_TICKER joins. The other MIC-derived identifier types lack validity, and one
   datasource returns each of them, so two answers never share one.
