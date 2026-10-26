@@ -16,7 +16,6 @@ package replay
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -29,7 +28,6 @@ import (
 	"github.com/leedenison/stonks/server/internal/mic"
 	"github.com/leedenison/stonks/server/internal/resolve"
 	"github.com/leedenison/stonks/server/internal/run"
-	"github.com/leedenison/stonks/server/internal/types"
 )
 
 var (
@@ -214,7 +212,7 @@ func (r *replay) resolve(ctx context.Context, res gen.Run) error {
 func (s *Service) ReplayNewIdentifierFacts(ctx context.Context, except gen.Run, written []resolve.WrittenIdentifierFacts) error {
 	picked := map[uuid.UUID]bool{}
 	for _, w := range written {
-		probes, err := s.probes(w.Identifiers)
+		probes, err := s.mics.Probes(w.Identifiers)
 		if err != nil {
 			return err
 		}
@@ -279,31 +277,4 @@ func (s *Service) replayKeys(ctx context.Context, parent gen.Run, user uuid.UUID
 	if _, err := s.runs.ChildAs(ctx, parent, &user, gen.RunKindReplay, w.work); err != nil {
 		s.log.Warn("replay of new identifier facts failed", "parent", parent.ID, "user", user, "err", err)
 	}
-}
-
-// probes writes the probes that find a key stating each identifier: one per
-// venue of its operating MIC, since a statement may name a segment, or one
-// under the domain itself where the map lists no venue of it. A domain
-// identifier's probe leaves the value out, so it matches every ticker of the
-// domain.
-func (s *Service) probes(ids []types.Identifier) ([][]byte, error) {
-	var out [][]byte
-	for _, id := range ids {
-		venues := s.mics.Venues(id.Domain)
-		if len(venues) == 0 {
-			venues = []string{id.Domain}
-		}
-		for _, v := range venues {
-			obj := map[string]string{"type": string(id.Type), "domain": v}
-			if !id.IsDomain() {
-				obj["value"] = id.Value
-			}
-			b, err := json.Marshal([]map[string]string{obj})
-			if err != nil {
-				return nil, fmt.Errorf("probe %s: %w", id.Name(), err)
-			}
-			out = append(out, b)
-		}
-	}
-	return out, nil
 }

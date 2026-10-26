@@ -74,7 +74,7 @@ func TestListInstrumentTickers(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newFixture(t)
 			if tc.id == acme.String() {
-				f.reader.EXPECT().InstrumentTickers(gomock.Any(), acme).Return([]gen.ListInstrumentTickersRow{{Domain: "XNAS", Value: "ACME", Current: true, Transactions: 2}}, tc.err)
+				f.reader.EXPECT().InstrumentTickers(gomock.Any(), acme).Return([]reader.InstrumentTicker{{Identifier: acmeTicker, Current: true, Transactions: 2}}, tc.err)
 			}
 			res, err := f.client.ListInstrumentTickers(context.Background(), connect.NewRequest(&admincoveragev1.ListInstrumentTickersRequest{InstrumentId: tc.id}))
 			if servicetest.CodeOf(err) != tc.wantCode {

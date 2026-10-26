@@ -85,55 +85,53 @@ ORDER BY via_domain, via_value, created_at, id;
 -- The assertions a run wrote: those of the fetch runs it started, and those
 -- it attested. Each comes with the datasource of its fetch, or the email of
 -- the administrator who attested it. A NULL after starts at the first, and a
--- NULL lim reads every one.
+-- NULL lim reads every one. The two sources are gathered apart so that each
+-- reads through its own index.
 SELECT sqlc.embed(identifier_assertions), fetches.datasource, users.email AS attested_by
 FROM identifier_assertions
 LEFT JOIN fetch_keys ON fetch_keys.id = identifier_assertions.fetch_key_id
 LEFT JOIN fetches ON fetches.id = fetch_keys.fetch_id
-LEFT JOIN runs ON runs.id = fetches.id
 LEFT JOIN users ON users.id = identifier_assertions.attested_by
-WHERE (runs.parent_id = @run_id OR identifier_assertions.run_id = @run_id)
+WHERE identifier_assertions.id IN (
+        SELECT attested.id FROM identifier_assertions AS attested WHERE attested.run_id = @run_id
+        UNION ALL
+        SELECT fetched.id FROM identifier_assertions AS fetched
+        JOIN fetch_keys AS keys ON keys.id = fetched.fetch_key_id
+        JOIN runs ON runs.id = keys.fetch_id
+        WHERE runs.parent_id = @run_id)
   AND (sqlc.narg(after)::uuid IS NULL OR identifier_assertions.id > sqlc.narg(after))
 ORDER BY identifier_assertions.id
 LIMIT sqlc.narg(lim)::int;
 
 -- name: ListInstrumentTickers :many
--- The MIC_TICKERs on the instrument's listings and those its assertions name
--- it by, each with whether a listing carries it and the count of transactions
--- whose keys state it on its domain or on a venue operated under it.
-WITH named AS (
+-- The MIC_TICKERs on the instrument's listings, and the MIC_TICKERs its
+-- assertions name, each with whether a listing carries it.
+SELECT named.domain::text AS domain, named.value::text AS value, bool_or(named.current)::bool AS current
+FROM (
     SELECT domain, value, true AS current FROM identifiers
     WHERE identifiers.instrument_id = @instrument AND type = 'mic_ticker'
-    UNION
+    UNION ALL
     SELECT domain, value, false FROM identifier_assertions
     WHERE identifier_assertions.instrument_id = @instrument AND type = 'mic_ticker'
-)
-SELECT named.domain::text AS domain, named.value::text AS value,
-       bool_or(named.current)::bool AS current,
-       (SELECT count(*) FROM transactions
-        JOIN stated_keys ON stated_keys.id = transactions.stated_key_id
-        WHERE EXISTS (
-            SELECT 1 FROM jsonb_array_elements(stated_keys.identifiers) AS stated(id)
-            LEFT JOIN mics ON mics.mic = stated.id->>'domain'
-            WHERE stated.id->>'type' = 'mic_ticker'
-              AND coalesce(mics.operating_mic, stated.id->>'domain') = named.domain
-              AND stated.id->>'value' = named.value))::int AS transactions
-FROM named
+) AS named
 GROUP BY named.domain, named.value
-ORDER BY transactions DESC, current DESC, domain, value;
+ORDER BY named.domain, named.value;
+
+-- name: CountTickerTransactions :one
+-- The count of transactions of every key that states one of the probes; see
+-- ListUnassociatedKeysStating.
+SELECT count(*)::int
+FROM transactions
+JOIN stated_keys ON stated_keys.id = transactions.stated_key_id
+WHERE stated_keys.identifiers @> ANY(@probes::jsonb[]);
 
 -- name: ListTickerTransactions :many
--- The transactions of every key that states the ticker on the domain, or on
--- a venue operated under it.
+-- The transactions of every key that states one of the probes; see
+-- ListUnassociatedKeysStating.
 SELECT transactions.stated_key_id, transactions.order_date
 FROM transactions
 JOIN stated_keys ON stated_keys.id = transactions.stated_key_id
-WHERE EXISTS (
-    SELECT 1 FROM jsonb_array_elements(stated_keys.identifiers) AS stated(id)
-    LEFT JOIN mics ON mics.mic = stated.id->>'domain'
-    WHERE stated.id->>'type' = 'mic_ticker'
-      AND coalesce(mics.operating_mic, stated.id->>'domain') = @domain::text
-      AND stated.id->>'value' = @value::text)
+WHERE stated_keys.identifiers @> ANY(@probes::jsonb[])
 ORDER BY transactions.order_date, transactions.stated_key_id, transactions.id;
 
 -- name: GetIdentifierAssertion :one

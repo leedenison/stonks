@@ -7,11 +7,13 @@ package mic
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"slices"
 	"strings"
 
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/types"
 )
 
 // Queries is the database access Load needs.
@@ -53,4 +55,31 @@ func (t MICMap) Venues(op string) []string {
 	}
 	slices.Sort(out)
 	return out
+}
+
+// Probes writes the probes that find a key stating each of ids: one per
+// venue of its operating MIC, since a statement may name a segment, or one
+// under the domain itself where the map lists no venue of it. A domain
+// identifier's probe leaves the value out, so it matches every ticker of the
+// domain. A probe is a JSON array of one identifier object.
+func (t MICMap) Probes(ids []types.Identifier) ([][]byte, error) {
+	var out [][]byte
+	for _, id := range ids {
+		venues := t.Venues(id.Domain)
+		if len(venues) == 0 {
+			venues = []string{id.Domain}
+		}
+		for _, v := range venues {
+			obj := map[string]string{"type": string(id.Type), "domain": v}
+			if !id.IsDomain() {
+				obj["value"] = id.Value
+			}
+			b, err := json.Marshal([]map[string]string{obj})
+			if err != nil {
+				return nil, fmt.Errorf("probe %s: %w", id.Name(), err)
+			}
+			out = append(out, b)
+		}
+	}
+	return out, nil
 }

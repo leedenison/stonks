@@ -30,7 +30,8 @@ type Queries interface {
 	ListIdentifierEvents(ctx context.Context, arg gen.ListIdentifierEventsParams) ([]gen.ListIdentifierEventsRow, error)
 	ListIdentifierCoverage(ctx context.Context, arg gen.ListIdentifierCoverageParams) ([]gen.ListIdentifierCoverageRow, error)
 	ListInstrumentTickers(ctx context.Context, instrumentID uuid.UUID) ([]gen.ListInstrumentTickersRow, error)
-	ListTickerTransactions(ctx context.Context, arg gen.ListTickerTransactionsParams) ([]gen.ListTickerTransactionsRow, error)
+	CountTickerTransactions(ctx context.Context, probes [][]byte) (int32, error)
+	ListTickerTransactions(ctx context.Context, probes [][]byte) ([]gen.ListTickerTransactionsRow, error)
 	ListInstrumentNames(ctx context.Context, ids []uuid.UUID) ([]gen.InstrumentName, error)
 }
 
@@ -118,14 +119,53 @@ func (t *Page) ToProto() *admincoveragev1.Ticker {
 	return out
 }
 
+// InstrumentTicker is a ticker that names an instrument, now or in an
+// assertion, with the count of transactions whose keys state it at any venue
+// of its domain.
+type InstrumentTicker struct {
+	Identifier   types.Identifier
+	Current      bool
+	Transactions int
+}
+
+// ToProto converts the ticker.
+func (t InstrumentTicker) ToProto() *admincoveragev1.InstrumentTicker {
+	return &admincoveragev1.InstrumentTicker{Ticker: t.Identifier.ToProto(), Current: t.Current, Transactions: int32(t.Transactions)}
+}
+
 // InstrumentTickers lists the tickers that name the instrument, now or in an
-// assertion, by the transactions stated under each.
-func (r *Reader) InstrumentTickers(ctx context.Context, instrument uuid.UUID) ([]gen.ListInstrumentTickersRow, error) {
+// assertion, the most transacted first.
+func (r *Reader) InstrumentTickers(ctx context.Context, instrument uuid.UUID) ([]InstrumentTicker, error) {
 	rows, err := r.q.ListInstrumentTickers(ctx, instrument)
 	if err != nil {
 		return nil, fmt.Errorf("list tickers of %s: %w", instrument, err)
 	}
-	return rows, nil
+	var out []InstrumentTicker
+	for _, row := range rows {
+		v := types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: row.Domain, Value: row.Value}
+		probes, err := r.mics.Probes([]types.Identifier{v})
+		if err != nil {
+			return nil, err
+		}
+		n, err := r.q.CountTickerTransactions(ctx, probes)
+		if err != nil {
+			return nil, fmt.Errorf("count transactions of %s: %w", v.Name(), err)
+		}
+		out = append(out, InstrumentTicker{Identifier: v, Current: row.Current, Transactions: int(n)})
+	}
+	slices.SortStableFunc(out, func(a, b InstrumentTicker) int {
+		if a.Transactions != b.Transactions {
+			return b.Transactions - a.Transactions
+		}
+		if a.Current != b.Current {
+			if a.Current {
+				return -1
+			}
+			return 1
+		}
+		return strings.Compare(a.Identifier.Name(), b.Identifier.Name())
+	})
+	return out, nil
 }
 
 // Ticker reads the facts and validity of v. It refuses an identifier that is
@@ -164,7 +204,11 @@ func (r *Reader) read(ctx context.Context, v types.Identifier, today time.Time) 
 	if err != nil {
 		return nil, err
 	}
-	txs, err := r.q.ListTickerTransactions(ctx, gen.ListTickerTransactionsParams{Domain: v.Domain, Value: v.Value})
+	probes, err := r.mics.Probes([]types.Identifier{v})
+	if err != nil {
+		return nil, err
+	}
+	txs, err := r.q.ListTickerTransactions(ctx, probes)
 	if err != nil {
 		return nil, fmt.Errorf("list transactions of %s: %w", v.Name(), err)
 	}

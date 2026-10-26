@@ -14,6 +14,7 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/mic"
 	"github.com/leedenison/stonks/server/internal/testutil/dbtest"
 	"github.com/leedenison/stonks/server/internal/types"
 )
@@ -115,17 +116,21 @@ func TestQueries(t *testing.T) {
 	f.attest(t, inst, "XNAS", value)
 	f.attest(t, inst, "XNAS", former)
 
-	tickers, err := f.q.ListInstrumentTickers(ctx, inst)
+	mics, err := mic.Load(ctx, f.q)
 	require.NoError(t, err)
-	wantTickers := []gen.ListInstrumentTickersRow{
-		{Domain: "XNAS", Value: value, Current: true, Transactions: 3},
-		{Domain: "XNAS", Value: former, Current: false, Transactions: 0},
+	tickers, err := New(f.q, mics).InstrumentTickers(ctx, inst)
+	require.NoError(t, err)
+	wantTickers := []InstrumentTicker{
+		{Identifier: types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: value}, Current: true, Transactions: 3},
+		{Identifier: types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: former}, Current: false, Transactions: 0},
 	}
 	if diff := cmp.Diff(wantTickers, tickers); diff != "" {
-		t.Errorf("ListInstrumentTickers mismatch (-want +got):\n%s", diff)
+		t.Errorf("InstrumentTickers mismatch (-want +got):\n%s", diff)
 	}
 
-	txs, err := f.q.ListTickerTransactions(ctx, gen.ListTickerTransactionsParams{Domain: "XNAS", Value: value})
+	probes, err := mics.Probes([]types.Identifier{{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: value}})
+	require.NoError(t, err)
+	txs, err := f.q.ListTickerTransactions(ctx, probes)
 	require.NoError(t, err)
 	wantTxs := []gen.ListTickerTransactionsRow{
 		{StatedKeyID: segment, OrderDate: day(4)},
