@@ -16,14 +16,13 @@ option go_package = "github.com/leedenison/stonks/proto/admin/coverage/v1;adminc
 // The period runs from the earliest transaction whose key states the ticker
 // up to and including today. The bounds are half open, as YYYY-MM-DD.
 message Gap {
-  stonks.type.v1.Identifier ticker = 1;
-  string unconfirmed_from = 2;
-  string unconfirmed_before = 3;
+  string unconfirmed_from = 1;
+  string unconfirmed_before = 2;
   // The keys that state the ticker and have a transaction dated inside the
   // gap, whether or not they resolved.
-  int32 keys = 4;
+  int32 keys = 3;
   // Their transactions dated inside the gap.
-  int32 transactions = 5;
+  int32 transactions = 4;
 }
 
 // A period over which one datasource answered for a ticker, or for every

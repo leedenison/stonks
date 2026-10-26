@@ -90,7 +90,6 @@ const read = create(GetTickerResponseSchema, {
     ],
     gaps: [
       {
-        ticker: acme,
         unconfirmedFrom: "2024-02-01",
         unconfirmedBefore: "2024-06-01",
         keys: 2,

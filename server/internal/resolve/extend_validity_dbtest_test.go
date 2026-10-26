@@ -102,7 +102,7 @@ func (s *stack) extended(t *testing.T, run gen.Run) map[string][]extendedKey {
 // nil for each negative one.
 func (s *stack) assertedOn(t *testing.T, v types.Identifier, d time.Time) []*uuid.UUID {
 	t.Helper()
-	rows, err := s.q.ListIdentifierAssertions(context.Background(), gen.ListIdentifierAssertionsParams{Type: v.Type, Domain: v.Domain, Value: v.Value})
+	rows, err := s.q.ListIdentifierAssertions(context.Background(), gen.ListIdentifierAssertionsParams{Type: v.Type, Domains: []string{v.Domain}, Values: []string{v.Value}})
 	require.NoError(t, err)
 	var out []*uuid.UUID
 	for _, r := range rows {

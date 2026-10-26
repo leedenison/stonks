@@ -68,7 +68,6 @@ const acme = create(TickerSchema, {
   ],
   gaps: [
     {
-      ticker,
       unconfirmedFrom: "2024-02-01",
       unconfirmedBefore: "2024-06-01",
       keys: 1,
