@@ -110,10 +110,39 @@ func TestTickerJoins(t *testing.T) {
 
 // TestTickerJoinKeepsInstrumentsApart checks that a claim joined through the
 // ticker alone never merges with a stored instrument. The claim is dropped
-// with a contradiction finding, whether the write creates the instrument or
-// takes a stored one.
+// with a contradiction finding. That holds whether the write creates the
+// instrument or takes a stored one. It also holds whether the claim joined
+// the datasource winner on its day, or joined the stored instrument through
+// a stable identifier on a later day.
 func TestTickerJoinKeepsInstrumentsApart(t *testing.T) {
 	ctx := context.Background()
+	// takesStored checks that the key is dated through v on target, that
+	// the other claim is dropped with a contradiction, and that target and
+	// other keep their own identifiers.
+	takesStored := func(t *testing.T, s *stack, key gen.StatedKey, v types.Identifier, target, other uuid.UUID) {
+		t.Helper()
+		got := s.resolveOn(t, []time.Time{on(2026, 2, 2)}, key)
+		if len(got) != 1 || got[0].Outcome != gen.ResolutionOutcomeMatched {
+			t.Fatalf("resolution = %+v, want the key matched", got)
+		}
+		if diff := cmp.Diff([]gen.FindingKind{gen.FindingKindContradiction}, s.findings(t, key.ID)); diff != "" {
+			t.Errorf("findings mismatch (-want +got):\n%s", diff)
+		}
+		if k := s.key(t, key.ID); !datedThrough(k, v, gen.ArbiterStated) {
+			t.Errorf("key = %+v, want dated through %s on the stored instrument", k, v.Name())
+		}
+		ticker, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: v.Type, Domain: v.Domain, Value: v.Value})
+		require.NoError(t, err)
+		if ticker.Instrument.ID != target {
+			t.Errorf("%s names %s, want the stored instrument %s", v.Name(), ticker.Instrument.ID, target)
+		}
+		if diff := cmp.Diff([]string{"isin GB00BH4HKS39", "mic_ticker " + v.Domain + ":" + v.Value, "openfigi_share_class BBG001S5XDT5"}, s.identifierNames(t, target)); diff != "" {
+			t.Errorf("target's identifiers mismatch (-want +got):\n%s", diff)
+		}
+		if diff := cmp.Diff([]string{"cusip 92857W308"}, s.identifierNames(t, other)); diff != "" {
+			t.Errorf("other instrument's identifiers mismatch (-want +got):\n%s", diff)
+		}
+	}
 	t.Run("the write creates the instrument", func(t *testing.T) {
 		s := newStack(t)
 		s.enableBeta(t)
@@ -148,26 +177,29 @@ func TestTickerJoinKeepsInstrumentsApart(t *testing.T) {
 		v := id(types.IdentifierTypeMicTicker, "XLON", "ZZL")
 		s.tickerAnswers(v, []types.Identifier{figi}, []types.Identifier{isin, cusip})
 		key := s.state(t, types.AssetClassStock, "GBP", v)
-		got := s.resolveOn(t, []time.Time{on(2026, 2, 2)}, key)
-		if len(got) != 1 || got[0].Outcome != gen.ResolutionOutcomeMatched {
-			t.Fatalf("resolution = %+v, want the key matched", got)
+		takesStored(t, s, key, v, target, other)
+	})
+	t.Run("a claim joining the stored instrument on a later day", func(t *testing.T) {
+		s := newStack(t)
+		s.cache.on = true
+		target := s.stored(t, figi, isin)
+		other := s.stored(t, cusip)
+		v := id(types.IdentifierTypeMicTicker, "XLON", "ZZN")
+		s.tickerAnswers(v, []types.Identifier{figi}, []types.Identifier{isin, cusip})
+		// Alpha answers on the first day for a key whose stated currency its
+		// listing contradicts. The answer is cached and the write leaves the
+		// database unchanged.
+		usd := s.state(t, types.AssetClassStock, "USD", v)
+		if got := s.resolveOn(t, []time.Time{on(2026, 2, 2)}, usd); len(got) != 1 || got[0].Outcome != gen.ResolutionOutcomeUnrecognised {
+			t.Fatalf("resolution of the USD key = %+v, want unrecognised", got)
 		}
-		if diff := cmp.Diff([]gen.FindingKind{gen.FindingKindContradiction}, s.findings(t, key.ID)); diff != "" {
-			t.Errorf("findings mismatch (-want +got):\n%s", diff)
-		}
-		if k := s.key(t, key.ID); !datedThrough(k, v, gen.ArbiterStated) {
-			t.Errorf("key = %+v, want dated through %s on the stored instrument", k, v.Name())
-		}
-		ticker, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: v.Type, Domain: v.Domain, Value: v.Value})
-		require.NoError(t, err)
-		if ticker.Instrument.ID != target {
-			t.Errorf("%s names %s, want the stored instrument %s", v.Name(), ticker.Instrument.ID, target)
-		}
-		if diff := cmp.Diff([]string{"isin GB00BH4HKS39", "mic_ticker XLON:ZZL", "openfigi_share_class BBG001S5XDT5"}, s.identifierNames(t, target)); diff != "" {
-			t.Errorf("target's identifiers mismatch (-want +got):\n%s", diff)
-		}
-		if diff := cmp.Diff([]string{"cusip 92857W308"}, s.identifierNames(t, other)); diff != "" {
-			t.Errorf("other instrument's identifiers mismatch (-want +got):\n%s", diff)
-		}
+		// On the next day beta answers live and alpha replays from the cache.
+		// Beta's answer has no identifier in common with alpha's, so it joins
+		// the stored instrument through the ISIN.
+		s.now = s.now.Add(24 * time.Hour)
+		s.rerun(t)
+		s.enableBeta(t)
+		key := s.state(t, types.AssetClassStock, "GBP", v)
+		takesStored(t, s, key, v, target, other)
 	})
 }

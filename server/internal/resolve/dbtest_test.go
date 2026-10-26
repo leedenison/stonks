@@ -66,6 +66,41 @@ type stack struct {
 	// identityOnly names the datasources built without identifier events,
 	// as of the next reload.
 	identityOnly map[string]bool
+	cache        *memCache
+}
+
+// memCache is a fetch cache in memory. It passes every read through to a
+// live fetch until on is set, so a test that changes a datasource's answers
+// between runs keeps live answers.
+type memCache struct {
+	on      bool
+	entries map[string][]byte
+}
+
+func (c *memCache) Get(_ context.Context, keys []string) ([][]byte, error) {
+	out := make([][]byte, len(keys))
+	if c.on {
+		for i, k := range keys {
+			out[i] = c.entries[k]
+		}
+	}
+	return out, nil
+}
+
+func (c *memCache) Set(_ context.Context, key string, value []byte) error {
+	if c.on {
+		c.entries[key] = value
+	}
+	return nil
+}
+
+func (c *memCache) Drop(_ context.Context, datasource string) error {
+	for k := range c.entries {
+		if strings.Contains(k, datasource) {
+			delete(c.entries, k)
+		}
+	}
+	return nil
 }
 
 func newStack(t *testing.T) *stack {
@@ -74,7 +109,11 @@ func newStack(t *testing.T) *stack {
 	tx := dbtest.Begin(t, pool)
 	var err error
 	q := gen.New(tx)
-	s := &stack{q: q, tx: tx, script: scripted.New(), beta: scripted.New(), alphaFacts: scripted.NewIdentifierEvents(), betaFacts: scripted.NewIdentifierEvents(), alphaName: "alpha-" + uuid.NewString(), betaName: "beta-" + uuid.NewString(), now: answered, identityOnly: map[string]bool{}}
+	s := &stack{
+		q: q, tx: tx, script: scripted.New(), beta: scripted.New(), alphaFacts: scripted.NewIdentifierEvents(), betaFacts: scripted.NewIdentifierEvents(),
+		alphaName: "alpha-" + uuid.NewString(), betaName: "beta-" + uuid.NewString(), now: answered, identityOnly: map[string]bool{},
+		cache: &memCache{entries: map[string][]byte{}},
+	}
 	s.user, err = q.CreateUser(ctx, gen.CreateUserParams{ID: db.NewID(), Email: uuid.NewString() + "@example.com", Role: gen.UserRoleUser})
 	require.NoError(t, err)
 	s.statement = s.newStatement(t, gen.BrokerIbkr)
@@ -100,7 +139,7 @@ func newStack(t *testing.T) *stack {
 	s.sources, err = market.New(ctx, q, factories, log)
 	require.NoError(t, err)
 	clock := func() time.Time { return s.now }
-	fetcher := market.NewFetcher(db.New[market.Queries](tx), runtest.Runner{Q: q}, log, market.WithClock(clock, sleep))
+	fetcher := market.NewFetcher(db.New[market.Queries](tx), runtest.Runner{Q: q}, log, market.WithClock(clock, sleep), market.WithCache(s.cache))
 	s.mics, err = mic.Load(ctx, q)
 	require.NoError(t, err)
 	families, err := currency.Load(ctx, q)

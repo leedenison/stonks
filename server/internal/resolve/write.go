@@ -118,6 +118,7 @@ func decide(ctx context.Context, q Queries, res *resolution, userChoice consiste
 	if err != nil {
 		return decision{}, err
 	}
+	chooser := verdict.winner
 	if t.instrument != nil {
 		if reason, ok := classConflict(res.row, t.instrument.Row.AssetClass); ok {
 			return decision{verdict: verdict, target: t, conflict: reason}, nil
@@ -127,7 +128,11 @@ func decide(ctx context.Context, q Queries, res *resolution, userChoice consiste
 			return decision{}, fmt.Errorf("%w: %s", ErrNoCandidate, verdict.refused)
 		}
 	}
-	verdict.attached = slices.DeleteFunc(verdict.attached, func(c *identityClaim) bool { return t.apart[c.fetchKey] })
+	dropped, err := dropHeld(ctx, q, &verdict, chooser, t.instrument)
+	if err != nil {
+		return decision{}, err
+	}
+	verdict.findings = append(verdict.findings, dropped...)
 	verdict.findings = append(verdict.findings, t.findings...)
 	verdict.findings = append(verdict.findings, res.findings...)
 	return decision{verdict: verdict, target: t}, nil
@@ -197,10 +202,7 @@ type writeTarget struct {
 	instrument *join.InstrumentWithCoverage
 	// taken is the identifiers of the instruments the write leaves apart
 	// from instrument.
-	taken map[types.Identifier]bool
-	// apart names the fetch keys of the claims the write drops: those joined
-	// through the ticker alone with an identifier another instrument holds.
-	apart    map[*fetchKey]bool
+	taken    map[types.Identifier]bool
 	findings []gen.CreateFindingParams
 }
 
@@ -209,66 +211,73 @@ type writeTarget struct {
 // a stable identifier with the winner. When it finds none, the write creates
 // one. If the identifiers identify several instruments, findWriteTarget
 // merges them. A claim joined through the ticker alone does not choose the
-// instrument. Where one of its identifiers identifies another instrument, the
-// claim is dropped with a contradiction finding.
+// instrument; see dropHeld.
 func findWriteTarget(ctx context.Context, q Queries, res *resolution, verdict claimVerdict) (writeTarget, error) {
 	ids := lookupIDs(res.globalAndDescriptionIDs)
-	choosing := map[types.Identifier]bool{}
-	for _, id := range ids {
-		choosing[id] = true
-	}
-	var joined []*identityClaim
 	for _, c := range verdict.attached {
-		chooses := c == verdict.winner || c.sharesStable(verdict.winner)
-		if !chooses {
-			joined = append(joined, c)
+		if c != verdict.winner && !c.sharesStable(verdict.winner) {
+			continue
 		}
 		for id := range c.AllIDs() {
-			if id.Ticker() {
-				continue
-			}
-			ids = appendUnique(ids, id)
-			if chooses {
-				choosing[id] = true
+			if !id.Ticker() {
+				ids = appendUnique(ids, id)
 			}
 		}
 	}
-	found, err := findInstrumentsByIdentifier(ctx, q, ids)
+	matches, err := findInstrumentsByIdentifier(ctx, q, ids)
 	if err != nil {
 		return writeTarget{}, err
 	}
-	var matches, others []instrumentMatch
-	for _, m := range found {
-		if slices.ContainsFunc(m.matched, func(id types.Identifier) bool { return choosing[id] }) {
-			matches = append(matches, m)
-		} else {
-			others = append(others, m)
-		}
-	}
-	var t writeTarget
 	switch len(matches) {
 	case 0:
+		return writeTarget{}, nil
 	case 1:
-		t.instrument = matches[0].instrument
-	default:
-		var fetchKeyID *uuid.UUID
-		if verdict.winner != nil && verdict.winner.fetchKey != nil {
-			fetchKeyID = &verdict.winner.fetchKey.ID
+		return writeTarget{instrument: matches[0].instrument}, nil
+	}
+	var fetchKeyID *uuid.UUID
+	if verdict.winner != nil && verdict.winner.fetchKey != nil {
+		fetchKeyID = &verdict.winner.fetchKey.ID
+	}
+	return merge(ctx, q, res, fetchKeyID, matches)
+}
+
+// dropHeld keeps the write from merging two instruments through a ticker.
+// A claim that shares no stable identifier with chooser joined the verdict
+// through the ticker alone, whichever choice attached it. Where such a claim
+// holds an identifier of a stored instrument other than target, dropHeld
+// drops it from verdict and returns a contradiction finding for it.
+func dropHeld(ctx context.Context, q Queries, verdict *claimVerdict, chooser *identityClaim, target *join.InstrumentWithCoverage) ([]gen.CreateFindingParams, error) {
+	var joined []*identityClaim
+	var ids []types.Identifier
+	for _, c := range verdict.attached {
+		if c == chooser || (chooser != nil && c.sharesStable(chooser)) {
+			continue
 		}
-		if t, err = merge(ctx, q, res, fetchKeyID, matches); err != nil {
-			return writeTarget{}, err
+		joined = append(joined, c)
+		for id := range c.AllIDs() {
+			if !id.Ticker() {
+				ids = appendUnique(ids, id)
+			}
 		}
 	}
+	if len(joined) == 0 {
+		return nil, nil
+	}
+	found, err := findInstrumentsByIdentifier(ctx, q, ids)
+	if err != nil {
+		return nil, err
+	}
+	others := slices.DeleteFunc(found, func(m instrumentMatch) bool {
+		return target != nil && m.instrument.Row.ID == target.Row.ID
+	})
+	var out []gen.CreateFindingParams
 	for _, c := range joined {
 		if id, ok := heldBy(c, others); ok {
-			if t.apart == nil {
-				t.apart = map[*fetchKey]bool{}
-			}
-			t.apart[c.fetchKey] = true
-			t.findings = append(t.findings, finding(c.fetchKey, gen.FindingKindContradiction, "", c.label(id.Name()+" identifies another instrument (database)")))
+			verdict.attached = slices.DeleteFunc(verdict.attached, func(a *identityClaim) bool { return a == c })
+			out = append(out, finding(c.fetchKey, gen.FindingKindContradiction, "", c.label(id.Name()+" identifies another instrument (database)")))
 		}
 	}
-	return t, nil
+	return out, nil
 }
 
 // heldBy returns the first identifier of c that identifies an instrument of
