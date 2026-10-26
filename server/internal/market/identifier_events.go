@@ -56,7 +56,10 @@ type IdentifierEventResult struct {
 
 // IdentifierEvents is an integration that reports the identifier events of
 // tickers or markets. Its Events method returns the server, so one integration
-// can serve identity too.
+// can serve identity too. An integration reports each event, assertion and
+// coverage row once, for a market, across every operating MIC of that market.
+// A negative assertion or a coverage row is therefore a claim about the whole
+// market.
 type IdentifierEvents interface {
 	Integration
 	Events() Server[IdentifierEventRequest, IdentifierEventResult]

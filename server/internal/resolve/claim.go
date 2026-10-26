@@ -8,6 +8,7 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/market"
+	"github.com/leedenison/stonks/server/internal/mic"
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
@@ -272,10 +273,10 @@ func (c *identityClaim) inconsistent(a *identityClaim) (string, bool) {
 	return "", false
 }
 
-// corroborates reports whether c shares a stable identifier with a, or a
-// venue ticker both answered on one day.
-func (c *identityClaim) corroborates(a *identityClaim) bool {
-	return c.sharesStable(a) || c.sameDayVenueTicker(a)
+// corroborates reports whether c shares a stable identifier with a, or both
+// are answers made on one UTC day that carry one ticker in one market.
+func (c *identityClaim) corroborates(a *identityClaim, mics mic.MICMap) bool {
+	return c.sharesStable(a) || c.sameDayTicker(a, mics)
 }
 
 // sharesStable reports whether c shares a stable identifier with a.
@@ -288,14 +289,20 @@ func (c *identityClaim) sharesStable(a *identityClaim) bool {
 	return false
 }
 
-// sameDayVenueTicker reports whether c and a are answers made on one UTC day
-// that carry one MIC_TICKER.
-func (c *identityClaim) sameDayVenueTicker(a *identityClaim) bool {
+// sameDayTicker reports whether c and a are answers made on one UTC day that
+// carry one ticker in one market, at the same venue or at two venues of it.
+func (c *identityClaim) sameDayTicker(a *identityClaim, mics mic.MICMap) bool {
 	if c.fetchKey == nil || a.fetchKey == nil || !types.Day(c.fetchKey.AnsweredAt).Equal(types.Day(a.fetchKey.AnsweredAt)) {
 		return false
 	}
+	theirs := map[types.MarketTicker]bool{}
+	for id := range a.AllIDs() {
+		if t, ok := mics.MarketTicker(id); ok {
+			theirs[t] = true
+		}
+	}
 	for id := range c.AllIDs() {
-		if id.Type == types.IdentifierTypeMicTicker && a.IdentifiedBy(id) {
+		if t, ok := mics.MarketTicker(id); ok && theirs[t] {
 			return true
 		}
 	}

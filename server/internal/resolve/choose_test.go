@@ -12,6 +12,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/currency"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/market"
+	"github.com/leedenison/stonks/server/internal/mic"
 	"github.com/leedenison/stonks/server/internal/ptr"
 	"github.com/leedenison/stonks/server/internal/types"
 )
@@ -35,10 +36,20 @@ var (
 	comp   = id(types.IdentifierTypeOpenfigiComposite, "", "BBG000C6K6G9")
 	xlon   = id(types.IdentifierTypeMicTicker, "XLON", "VOD")
 	xnas   = id(types.IdentifierTypeMicTicker, "XNAS", "VOD")
+	bats   = id(types.IdentifierTypeMicTicker, "BATS", "VOD")
 	xetr   = id(types.IdentifierTypeMicTicker, "XETR", "VODI")
 	ticker = id(types.IdentifierTypeMicTicker, "", "VOD")
 	descr  = id(types.IdentifierTypeBrokerDescription, "ibkr", "ACME CORP")
 )
+
+// joinMICs puts XNAS and BATS in the market US, and XLON and XETR each in a
+// market of its own.
+var joinMICs = mic.MICMap{
+	"XNAS": {Operating: "XNAS", Market: "US"},
+	"BATS": {Operating: "BATS", Market: "US"},
+	"XLON": {Operating: "XLON", Market: "XLON"},
+	"XETR": {Operating: "XETR", Market: "XETR"},
+}
 
 // answeredAt is the moment every served fetch key of these tests was
 // answered, unless nextDay moves it.
@@ -257,7 +268,7 @@ func TestChoose(t *testing.T) {
 				nextDay(limited(search("m", xlon, listing(types.AssetClassStock, "USD", xlon)))),
 			},
 			k:    gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{isin, xlon}},
-			want: outcome{winner: "a#0", attached: []string{"a#0"}, findings: []string{"m dropped corroboration: mic_ticker XLON:VOD: shares neither a stable identifier nor a same-day venue ticker with the candidate identified by isin GB00BH4HKS39 (a)"}},
+			want: outcome{winner: "a#0", attached: []string{"a#0"}, findings: []string{"m dropped corroboration: mic_ticker XLON:VOD: shares neither a stable identifier nor a same-day ticker in one market with the candidate identified by isin GB00BH4HKS39 (a)"}},
 		},
 		{
 			name:      "a disjoint class contradicts the statement",
@@ -331,7 +342,7 @@ func TestChoose(t *testing.T) {
 			fetchKeys: []*fetchKey{search("a", xlon, listing(types.AssetClassStock, "GBP", figi, xlon))},
 			k:         gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{xlon}},
 			known:     existing,
-			want:      outcome{winner: "database", findings: []string{"a dropped corroboration: openfigi_share_class BBG001S5XDT5: shares neither a stable identifier nor a same-day venue ticker with the instrument identified by isin GB00BH4HKS39 (database)"}},
+			want:      outcome{winner: "database", findings: []string{"a dropped corroboration: openfigi_share_class BBG001S5XDT5: shares neither a stable identifier nor a same-day ticker in one market with the instrument identified by isin GB00BH4HKS39 (database)"}},
 		},
 		{
 			name: "a lower datasource corroborates the winner through a stable identifier",
@@ -352,13 +363,31 @@ func TestChoose(t *testing.T) {
 			want: outcome{winner: "a#0", attached: []string{"a#0", "b#0"}},
 		},
 		{
+			name: "two answers on one day sharing a ticker at two venues of a market attach",
+			fetchKeys: []*fetchKey{
+				strict("a", isin, listing(types.AssetClassStock, "USD", figi, xnas)),
+				search("b", bats, listing(types.AssetClassStock, "USD", cusip, bats)),
+			},
+			k:    gen.StatedKey{Currency: ptr.To("USD"), Identifiers: []types.Identifier{isin, xnas}},
+			want: outcome{winner: "a#0", attached: []string{"a#0", "b#0"}},
+		},
+		{
+			name: "two answers on one day sharing a value in two markets do not",
+			fetchKeys: []*fetchKey{
+				strict("a", isin, listing(types.AssetClassStock, "USD", figi, xnas)),
+				search("b", xlon, listing(types.AssetClassStock, "USD", cusip, xlon)),
+			},
+			k:    gen.StatedKey{Currency: ptr.To("USD"), Identifiers: []types.Identifier{isin, xnas}},
+			want: outcome{winner: "a#0", attached: []string{"a#0"}, findings: []string{"b dropped corroboration: cusip 92857W308: shares neither a stable identifier nor a same-day ticker in one market with the candidate identified by isin GB00BH4HKS39 (a)"}},
+		},
+		{
 			name: "two answers on different days do not",
 			fetchKeys: []*fetchKey{
 				strict("a", isin, listing(types.AssetClassStock, "GBP", figi, xlon)),
 				nextDay(search("b", xlon, listing(types.AssetClassStock, "GBP", cusip, xlon))),
 			},
 			k:    gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{isin, xlon}},
-			want: outcome{winner: "a#0", attached: []string{"a#0"}, findings: []string{"b dropped corroboration: cusip 92857W308: shares neither a stable identifier nor a same-day venue ticker with the candidate identified by isin GB00BH4HKS39 (a)"}},
+			want: outcome{winner: "a#0", attached: []string{"a#0"}, findings: []string{"b dropped corroboration: cusip 92857W308: shares neither a stable identifier nor a same-day ticker in one market with the candidate identified by isin GB00BH4HKS39 (a)"}},
 		},
 		{
 			name: "the precedence step drops a contradicting claim that shares a venue ticker",
@@ -402,7 +431,7 @@ func TestChoose(t *testing.T) {
 			fetchKeys: []*fetchKey{search("a", xlon, listing(types.AssetClassStock, "GBP", figi2, xnas), listing(types.AssetClassStock, "GBP", isin, xetr))},
 			k:         gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{xlon}},
 			known:     existing,
-			want:      outcome{winner: "database", attached: []string{"a#1"}, findings: []string{"a dropped corroboration: openfigi_share_class BBG001S5XDT6: shares neither a stable identifier nor a same-day venue ticker with the instrument identified by isin GB00BH4HKS39 (database)"}},
+			want:      outcome{winner: "database", attached: []string{"a#1"}, findings: []string{"a dropped corroboration: openfigi_share_class BBG001S5XDT6: shares neither a stable identifier nor a same-day ticker in one market with the instrument identified by isin GB00BH4HKS39 (database)"}},
 		},
 		{
 			name:      "a bare ticker is never chosen, and its claims are offered",
@@ -442,7 +471,7 @@ func TestChoose(t *testing.T) {
 			if tc.want.notNaming == nil {
 				tc.want.notNaming = map[string]int{}
 			}
-			got := describe(choose(&resolution{row: tc.k, fetchKeys: tc.fetchKeys, family: keyFamily(cur, tc.k)}, tc.known, nil), source)
+			got := describe(choose(&resolution{row: tc.k, fetchKeys: tc.fetchKeys, family: keyFamily(cur, tc.k), mics: joinMICs}, tc.known, nil), source)
 			if diff := cmp.Diff(tc.want, got, cmp.AllowUnexported(outcome{})); diff != "" {
 				t.Errorf("choose mismatch (-want +got):\n%s", diff)
 			}
@@ -549,7 +578,7 @@ func TestChooseUserChoice(t *testing.T) {
 			k:          gen.StatedKey{Currency: ptr.To("GBP"), Identifiers: []types.Identifier{ticker}},
 			known:      existing,
 			want: outcome{winner: "database", attached: []string{"a#0"}, findings: []string{
-				"b dropped corroboration: openfigi_share_class BBG001S5XDT5: shares neither a stable identifier nor a same-day venue ticker with the instrument identified by isin GB00BH4HKS39 (database)",
+				"b dropped corroboration: openfigi_share_class BBG001S5XDT5: shares neither a stable identifier nor a same-day ticker in one market with the instrument identified by isin GB00BH4HKS39 (database)",
 			}},
 		},
 	}
@@ -563,7 +592,7 @@ func TestChooseUserChoice(t *testing.T) {
 			if tc.want.notNaming == nil {
 				tc.want.notNaming = map[string]int{}
 			}
-			res := &resolution{row: tc.k, fetchKeys: tc.fetchKeys, family: keyFamily(cur, tc.k)}
+			res := &resolution{row: tc.k, fetchKeys: tc.fetchKeys, family: keyFamily(cur, tc.k), mics: joinMICs}
 			var userChoice consistentClaims
 			for _, p := range tc.userChoice {
 				userChoice = append(userChoice, claims(tc.fetchKeys[p[0]])[p[1]])
@@ -653,7 +682,7 @@ func TestGather(t *testing.T) {
 			for i, fk := range tc.fetchKeys {
 				fk.ID = uuid.UUID{byte(i + 1)}
 			}
-			res := &resolution{row: tc.k, fetchKeys: tc.fetchKeys, family: keyFamily(cur, tc.k)}
+			res := &resolution{row: tc.k, fetchKeys: tc.fetchKeys, family: keyFamily(cur, tc.k), mics: joinMICs}
 			cs, _, _ := offeredClaims(res)
 			var got [][]string
 			for _, a := range gatherConsistentClaims(res, cs) {

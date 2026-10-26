@@ -743,7 +743,7 @@ func TestConfirm(t *testing.T) {
 			b:            servedFetchKey(ticker, []types.Identifier{ticker}, listing(types.AssetClassStock, "GBP", isin, xlon)),
 			pick:         Pick{Datasource: "b", Identifier: isin},
 			wantAttached: []string{"b"},
-			wantFinding:  "dropped corroboration: openfigi_share_class BBG001S5XDT6: shares neither a stable identifier nor a same-day venue ticker with the candidate identified by isin GB00BH4HKS39 (b)",
+			wantFinding:  "dropped corroboration: openfigi_share_class BBG001S5XDT6: shares neither a stable identifier nor a same-day ticker in one market with the candidate identified by isin GB00BH4HKS39 (b)",
 		},
 		{
 			name:         "a pick named by a listing identifier is found",

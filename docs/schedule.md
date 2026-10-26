@@ -28,8 +28,6 @@ of open issues and ADRs at `docs/tasks/<label>/`.
 ```
 001 open
     |
-016 key a ticker's facts by its market
-    |
 008 close
 ```
 

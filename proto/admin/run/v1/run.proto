@@ -118,8 +118,8 @@ enum DropStep {
   DROP_STEP_STATED = 1;
   // The set was inconsistent with a higher precedence response.
   DROP_STEP_PRECEDENCE = 2;
-  // The set shared neither a stable identifier nor a same-day venue ticker
-  // with the winner.
+  // The set shared neither a stable identifier nor a same-day ticker in one
+  // market with the winner.
   DROP_STEP_CORROBORATION = 3;
 }
 
