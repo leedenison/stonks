@@ -37,6 +37,16 @@ Events on an underlying decide how an OCC symbol is normalised, so invalidating 
 corporate event fetch replays every OCC stated key normalised through it.  See
 [instrument-resolution.md](instrument-resolution.md).
 
+### Identifier succession
+
+A corporate event can issue an instrument a new stable identifier. A US reverse split
+issues a new CUSIP, and so a new ISIN. A UK reorganisation issues a new SEDOL and ISIN.
+The successor names the same instrument, which makes it a succession rather than a
+reassignment. An instrument carries each of its stable identifiers with the day it took
+effect, and the event that issues one joins the old identifier and the new under one
+instrument. Without the event, a datasource that answers with the successor names what
+reads as a second instrument.
+
 ## Constraints
 
 ### Statements Are Not a Source
@@ -108,3 +118,5 @@ at and the target date, computed exactly and rounded once for display.
 - How do we get a (mostly) complete list of event types?  Even for unhandled events we
   would like to store the information we _would_ need to handle the event correctly in
   future.
+- Whether an identifier is exclusive on an instrument for all time or on each day, once
+  an instrument carries a succession of them.
