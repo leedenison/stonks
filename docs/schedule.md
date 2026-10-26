@@ -54,7 +54,7 @@ Each has a note in `docs/deferred` outlining how it might work.
 - **D-GUESS** - [Guesses](deferred/guesses.md); the sources that rank candidates where the stated data leaves an association open, and the arbiter an association records.
 - **D-PRICES** - [Price ingestion](deferred/price-ingestion.md) from external providers.
 - **D-CORP** - [Corporate events](deferred/corporate-events.md); splits and the restatement of recorded quantities.
-- **D-IDENT** - [Identifier events](deferred/identifier-events.md); renames served by date range for a whole domain, and unwinding the data fetched under a ticker that moves.
+- **D-IDENT** - [Identifier events](deferred/identifier-events.md); renames served by date range for a whole market, and unwinding the data fetched under a ticker that moves.
 - **D-DATASRC** - [Datasources](deferred/datasources.md); identifier events, corporate events, prices and FX rates.
 - **D-RUNS** - [Runs](deferred/runs.md); replays that an event or new coverage causes, the schedule trigger, and running on more than one process.
 - **D-COMPANY** - [Companies](deferred/companies.md); issuers identified by CIK and LEI, and the instruments they issue.

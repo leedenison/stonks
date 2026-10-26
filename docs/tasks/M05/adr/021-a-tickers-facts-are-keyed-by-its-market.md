@@ -16,6 +16,31 @@ operating MIC, because a listing trades at a venue and a broker states a venue. 
 is read at the ticker's market. A datasource that answers for a market writes each fact
 once.
 
+A fact is keyed by a market ticker: a market and a ticker's value. It is a type of its
+own, and a MIC_TICKER never carries a market. In `identifier_assertions` a `mic_ticker`
+row holds its market in `domain`. The same column holds the domain of the ISIN, FIGI and
+datasource ticker rows. The event and coverage tables hold tickers only, and name the
+column `market`.
+
+Market membership is reference data. A table assigns an operating MIC to a shared market.
+An operating MIC the table omits is a market of its own. A shared market has a code of its
+own, such as `US`. A market of one operating MIC is named by that MIC.
+
+A datasource answers for a market whole or not at all. An identifier events integration
+states facts for one market. It covers every operating MIC of that market, and refuses to
+build otherwise. A negative assertion or a coverage row is then a claim about the whole
+market. The identity integrations meet this for the US. Massive and EODHD look a ticker up
+nationally. OpenFIGI searches every exchange.
+
+OTC symbols share the US namespace, and EODHD's `US` code reaches them. The OTC operating
+MICs are outside the US market. Massive's venue table leaves them out, and Massive must
+cover its market whole.
+
+When two answers state one ticker in one market on one UTC day, they corroborate. So
+`BATS:FB` and `XNAS:FB` join. Extending validity matches a held ticker to a listing at any
+venue of its market. For example, a key at `XNYS:FOO` takes an answer that lists
+`XNAS:FOO`.
+
 ## Considered options
 
 - Keep facts per operating MIC. Rejected: it multiplies the rows and the attestations
@@ -23,3 +48,5 @@ once.
   venue and appeared at another.
 - Make the market the domain of a MIC_TICKER. Rejected: listings, their names and the
   keys a broker states all carry the venue, and the venue picks a listing's primary.
+- Key facts by operating MIC and read the union of a market's MICs. Rejected: it still
+  needs the market to read, and a listing transfer still splits the history.
