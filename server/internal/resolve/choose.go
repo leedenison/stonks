@@ -61,7 +61,7 @@ type claimVerdict struct {
 
 // consistentClaims is a head claim and its members. For each datasource
 // below the head, the member is the best ranked claim that is consistent
-// with every member above it and shares a stable identifier with the head.
+// with every member above it and corroborates the head.
 // That is the claim a run would attach to the head as the winner. The claims
 // are in precedence order, and one claim may belong to several sets.
 type consistentClaims []*identityClaim
@@ -321,10 +321,30 @@ func (c *identityClaim) inconsistent(a *identityClaim) (string, bool) {
 	return "", false
 }
 
-// corroborates reports whether c shares a stable identifier with a.
+// corroborates reports whether c shares a stable identifier with a, or a
+// venue ticker both answered on one day.
 func (c *identityClaim) corroborates(a *identityClaim) bool {
+	return c.sharesStable(a) || c.sameDayVenueTicker(a)
+}
+
+// sharesStable reports whether c shares a stable identifier with a.
+func (c *identityClaim) sharesStable(a *identityClaim) bool {
 	for id := range c.AllIDs() {
 		if id.Stable() && a.IdentifiedBy(id) {
+			return true
+		}
+	}
+	return false
+}
+
+// sameDayVenueTicker reports whether c and a are answers made on one UTC day
+// that carry one MIC_TICKER.
+func (c *identityClaim) sameDayVenueTicker(a *identityClaim) bool {
+	if c.fetchKey == nil || a.fetchKey == nil || !day(c.fetchKey.AnsweredAt).Equal(day(a.fetchKey.AnsweredAt)) {
+		return false
+	}
+	for id := range c.AllIDs() {
+		if id.Type == types.IdentifierTypeMicTicker && a.IdentifiedBy(id) {
 			return true
 		}
 	}
@@ -481,8 +501,8 @@ func filterAlternatives(fk *fetchKey, res *resolution, confirmed bool) alternati
 
 // rejects returns the finding that drops c below chosen, which lists the
 // winner first. It drops c when c contradicts a claim in chosen, or when c
-// shares no stable identifier with the winner. A contradiction of the
-// database's claim is recorded as a contradiction rather than a drop.
+// does not corroborate the winner. A contradiction of the database's claim is
+// recorded as a contradiction rather than a drop.
 func (c *identityClaim) rejects(chosen []*identityClaim) (gen.CreateFindingParams, bool) {
 	for _, o := range chosen {
 		if detail, ok := c.inconsistent(o); ok {
@@ -494,7 +514,7 @@ func (c *identityClaim) rejects(chosen []*identityClaim) (gen.CreateFindingParam
 		}
 	}
 	if len(chosen) > 0 && !c.corroborates(chosen[0]) {
-		return dropped(c.fetchKey, gen.DropStepCorroboration, c.label("shares no stable identifier with "+chosen[0].ref())), true
+		return dropped(c.fetchKey, gen.DropStepCorroboration, c.label("shares neither a stable identifier nor a same-day venue ticker with "+chosen[0].ref())), true
 	}
 	return gen.CreateFindingParams{}, false
 }

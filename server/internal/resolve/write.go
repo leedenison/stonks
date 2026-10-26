@@ -128,6 +128,7 @@ func decide(ctx context.Context, q Queries, res *resolution, userChoice consiste
 			return decision{}, fmt.Errorf("%w: %s", ErrNoCandidate, verdict.refused)
 		}
 	}
+	verdict.attached = slices.DeleteFunc(verdict.attached, func(c *identityClaim) bool { return t.apart[c.fetchKey] })
 	verdict.findings = append(verdict.findings, t.findings...)
 	verdict.findings = append(verdict.findings, res.findings...)
 	return decision{verdict: verdict, target: t}, nil
@@ -197,38 +198,91 @@ type writeTarget struct {
 	instrument *join.InstrumentWithCoverage
 	// taken is the identifiers of the instruments the write leaves apart
 	// from instrument.
-	taken    map[types.Identifier]bool
+	taken map[types.Identifier]bool
+	// apart names the fetch keys of the claims the write drops: those joined
+	// through the ticker alone with an identifier another instrument holds.
+	apart    map[*fetchKey]bool
 	findings []gen.CreateFindingParams
 }
 
 // findWriteTarget decides which instrument in the database a key takes: the
-// instrument identified by the key's identifiers and the claims chosen from the
-// identifier datasources. When it finds none, the write creates one. If the
-// identifiers identify several instruments, findWriteTarget merges them.
+// instrument identified by the key's identifiers and by the claims that share
+// a stable identifier with the winner. When it finds none, the write creates
+// one. If the identifiers identify several instruments, findWriteTarget
+// merges them. A claim joined through the ticker alone does not choose the
+// instrument. Where one of its identifiers identifies another instrument, the
+// claim is dropped with a contradiction finding.
 func findWriteTarget(ctx context.Context, q Queries, res *resolution, verdict claimVerdict) (writeTarget, error) {
 	ids := lookupIDs(res.globalAndDescriptionIDs)
+	choosing := map[types.Identifier]bool{}
+	for _, id := range ids {
+		choosing[id] = true
+	}
+	var joined []*identityClaim
 	for _, c := range verdict.attached {
+		chooses := c == verdict.winner || c.sharesStable(verdict.winner)
+		if !chooses {
+			joined = append(joined, c)
+		}
 		for id := range c.AllIDs() {
-			if !id.Ticker() {
-				ids = appendUnique(ids, id)
+			if id.Ticker() {
+				continue
+			}
+			ids = appendUnique(ids, id)
+			if chooses {
+				choosing[id] = true
 			}
 		}
 	}
-	matches, err := findInstrumentsByIdentifier(ctx, q, ids)
+	found, err := findInstrumentsByIdentifier(ctx, q, ids)
 	if err != nil {
 		return writeTarget{}, err
 	}
+	var matches, others []instrumentMatch
+	for _, m := range found {
+		if slices.ContainsFunc(m.matched, func(id types.Identifier) bool { return choosing[id] }) {
+			matches = append(matches, m)
+		} else {
+			others = append(others, m)
+		}
+	}
+	var t writeTarget
 	switch len(matches) {
 	case 0:
-		return writeTarget{}, nil
 	case 1:
-		return writeTarget{instrument: matches[0].instrument}, nil
+		t.instrument = matches[0].instrument
+	default:
+		var fetchKeyID *uuid.UUID
+		if verdict.winner != nil && verdict.winner.fetchKey != nil {
+			fetchKeyID = &verdict.winner.fetchKey.ID
+		}
+		if t, err = merge(ctx, q, res, fetchKeyID, matches); err != nil {
+			return writeTarget{}, err
+		}
 	}
-	var fetchKeyID *uuid.UUID
-	if verdict.winner != nil && verdict.winner.fetchKey != nil {
-		fetchKeyID = &verdict.winner.fetchKey.ID
+	for _, c := range joined {
+		if id, ok := heldBy(c, others); ok {
+			if t.apart == nil {
+				t.apart = map[*fetchKey]bool{}
+			}
+			t.apart[c.fetchKey] = true
+			t.findings = append(t.findings, finding(c.fetchKey, gen.FindingKindContradiction, "", c.label(id.Name()+" identifies another instrument (database)")))
+		}
 	}
-	return merge(ctx, q, res, fetchKeyID, matches)
+	return t, nil
+}
+
+// heldBy returns the first identifier of c that identifies an instrument of
+// matches, and false where none does.
+func heldBy(c *identityClaim, matches []instrumentMatch) (types.Identifier, bool) {
+	for _, m := range matches {
+		for _, id := range m.matched {
+			if c.IdentifiedBy(id) {
+				return id, true
+			}
+		}
+	}
+	return types.Identifier{}, false
 }
 
 // recordIdentityCoverage records instrument as covered by every datasource

@@ -110,10 +110,13 @@ test("dates a key through its ticker and marks each transaction by its day", asy
   // The identifier events fetch is the Massive run whose items name no key.
   const eventsOf = async (runId: string) => {
     const got = await admin.getRun({ runId });
-    // EODHD's answer shares no stable identifier with OpenFIGI's, which is a
-    // finding of the key. The facts of the value conflict nowhere.
+    // EODHD's answer joins OpenFIGI's through XNAS:META on the day of the
+    // run, so no answer is dropped. The day semantics are pinned in the unit
+    // and dbtest tiers; this spec checks that the real answer shapes join.
+    // The facts of the value conflict nowhere.
     const conflicts = got.findings.filter(
       (f) =>
+        f.kind === FindingKind.DROPPED ||
         f.kind === FindingKind.DISAGREEMENT ||
         f.kind === FindingKind.BROKEN_VALIDITY_BRACKET,
     );
@@ -174,4 +177,11 @@ test("dates a key through its ticker and marks each transaction by its day", asy
     ),
   );
   expect(named).toHaveLength(1);
+  // EODHD's answer, attached through the ticker, wrote Meta's ISIN.
+  expect(named[0].identifiers).toContainEqual(
+    expect.objectContaining({
+      type: IdentifierType.ISIN,
+      value: "US30303M1027",
+    }),
+  );
 });

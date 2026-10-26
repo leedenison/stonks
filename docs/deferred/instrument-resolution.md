@@ -84,11 +84,12 @@ See [guesses.md](guesses.md).
 
 ### Merger of Instruments
 
-Two datasource answers, or an answer and the database, may describe one instrument.  They
-merge only when they share a stable identifier.  Where answers overlap only on a
-MIC-derived identifier, they are not merged: precedence picks the instrument kept, the
-identifiers of the other are dropped, and the outcome is recorded as a finding of the
-run.
+Two datasource answers combine into one instrument when they share a stable identifier,
+or when both were made on one UTC day and carry one MIC_TICKER.  An answer and the
+database, and two stored instruments, combine only through a stable identifier.  Answers
+that overlap only on a ticker at another venue, on different days, or against the
+database stay apart: precedence picks the instrument kept, the identifiers of the other
+are dropped, and the outcome is recorded as a finding of the run.
 
 When a datasource's answer overlaps an instrument only on a MIC-derived identifier,
 resolution asks that datasource again in later runs. Another route may add to the

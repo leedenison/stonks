@@ -84,10 +84,10 @@ var ErrNoCandidate = errors.New("the answers no longer offer the candidate")
 // writes the findings against run and stops before choosing. The key's
 // resolution is left as it was.
 //
-// Claims agree only through a stable identifier they share, so one security
-// can still be offered twice. EODHD states an ISIN without a FIGI, so for a
-// US stock its candidate stands apart from OpenFIGI's. The datasource of the
-// candidate the user confirms supplies the instrument.
+// Claims agree through a stable identifier they share, or through a venue
+// ticker both answers carry on one day, so one security is still offered
+// twice where the answers fell on different days or at different venues. The
+// datasource of the candidate the user confirms supplies the instrument.
 func (r *Resolver) Candidates(ctx context.Context, run gen.Run, key gen.StatedKey) (Offer, error) {
 	b, err := r.prepare(ctx, run, []KeyOrderDates{{Row: key}}, false)
 	if err != nil {

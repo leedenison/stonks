@@ -222,10 +222,9 @@ func historyRequest(e *market.Entry, t *heldTicker, now time.Time) (market.Ident
 // The shared identifier is tried first because a datasource may answer
 // without a stable identifier the instrument carries. EODHD does this for
 // some non-US rows, which come back without an ISIN. Extending validity never
-// creates an instrument. A resolution may have dropped the answer because it
-// matched none of the winner's stable identifiers. The held instrument then
-// lacks the answer's identifiers. A new instrument made from them would
-// contradict every later extend validity run.
+// creates an instrument. A resolution may have dropped the answer. The held
+// instrument then lacks the answer's identifiers. A new instrument made from
+// them would contradict every later extend validity run.
 func (r *Resolver) assertHeld(ctx context.Context, q Queries, t *heldTicker, fk fetchKey, written *writtenSet) error {
 	if fk.Outcome != gen.FetchOutcomeServed {
 		return nil
