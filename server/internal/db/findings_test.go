@@ -6,6 +6,7 @@ import (
 	"context"
 	"slices"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgerrcode"
@@ -20,7 +21,8 @@ import (
 // alone, the kinds that concern a key their stated key and grounds, a
 // dropped candidate its fetch key and one of the steps that is a finding,
 // and the kinds that concern a ticker their fetch key and grounds without a
-// key. A finding is listed with what its key states.
+// key. An unmatched split carries its key and day. A finding is listed with
+// what its key states.
 func TestFindings(t *testing.T) {
 	ctx := context.Background()
 	q := newTx(t)
@@ -40,6 +42,13 @@ func TestFindings(t *testing.T) {
 	require.NoError(t, q.CreateFinding(ctx, gen.CreateFindingParams{
 		ID: db.NewID(), RunID: run.ID, Kind: gen.FindingKindContradiction, StatedKeyID: &key.ID, Detail: ptr.To("ISIN and CUSIP name different instruments"),
 	}))
+	split := newRun(t, q, user)
+	require.NoError(t, q.CreateFinding(ctx, gen.CreateFindingParams{
+		ID: db.NewID(), RunID: split.ID, Kind: gen.FindingKindUnmatchedSplit, StatedKeyID: &key.ID, EffectiveDate: ptr.To(time.Date(2024, time.June, 7, 0, 0, 0, 0, time.UTC)), Detail: ptr.To("a split on 2024-06-07"),
+	}))
+	if listed, err := q.ListRunFindings(ctx, []uuid.UUID{split.ID}); err != nil || len(listed) != 1 || listed[0].KeyID == nil || listed[0].Finding.EffectiveDate == nil {
+		t.Errorf("an unmatched split finding = %+v, %v, want its key and day", listed, err)
+	}
 	findings, err := q.ListRunFindings(ctx, []uuid.UUID{run.ID})
 	require.NoError(t, err)
 	if len(findings) != 2 {
@@ -90,6 +99,9 @@ func TestFindings(t *testing.T) {
 		{name: "a contradiction without a key", noKey: true, arg: gen.CreateFindingParams{Kind: gen.FindingKindContradiction, Detail: ptr.To("d")}},
 		{name: "an unhandled corporate event without the event", arg: gen.CreateFindingParams{Kind: gen.FindingKindUnhandledCorporateEvent, Detail: ptr.To("d")}},
 		{name: "a corporate event disagreement without the event", arg: gen.CreateFindingParams{Kind: gen.FindingKindCorporateEventDisagreement, Detail: ptr.To("d")}},
+		{name: "an unmatched split without its day", arg: gen.CreateFindingParams{Kind: gen.FindingKindUnmatchedSplit, Detail: ptr.To("d")}},
+		{name: "an unmatched split without a key", noKey: true, arg: gen.CreateFindingParams{Kind: gen.FindingKindUnmatchedSplit, EffectiveDate: ptr.To(time.Date(2024, time.June, 7, 0, 0, 0, 0, time.UTC)), Detail: ptr.To("d")}},
+		{name: "a contradiction with a day", arg: gen.CreateFindingParams{Kind: gen.FindingKindContradiction, EffectiveDate: ptr.To(time.Date(2024, time.June, 7, 0, 0, 0, 0, time.UTC)), Detail: ptr.To("d")}},
 		{name: "a missed event naming a corporate event", event: true, arg: gen.CreateFindingParams{Kind: gen.FindingKindMissedEvent, FetchKeyID: &fetchKey, Detail: ptr.To("d")}},
 	}
 	for _, tc := range tests {
@@ -103,7 +115,7 @@ func TestFindings(t *testing.T) {
 			key := newStatedKey(t, q, user, statement)
 			tc.arg.ID, tc.arg.RunID = db.NewID(), run.ID
 			switch tc.arg.Kind {
-			case gen.FindingKindDropped, gen.FindingKindContradiction, gen.FindingKindMerged:
+			case gen.FindingKindDropped, gen.FindingKindContradiction, gen.FindingKindMerged, gen.FindingKindUnmatchedSplit:
 				if !tc.noKey {
 					tc.arg.StatedKeyID = &key.ID
 				}

@@ -8,6 +8,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/market"
+	"github.com/leedenison/stonks/server/internal/validity"
 )
 
 // ReadQueries read the stored answers of tickers.
@@ -30,6 +31,11 @@ type Queries interface {
 	DeleteCorporateEvents(ctx context.Context, ids []uuid.UUID) error
 	ListDisagreedEvents(ctx context.Context, ids []uuid.UUID) ([]uuid.UUID, error)
 	CreateFinding(ctx context.Context, arg gen.CreateFindingParams) error
+	validity.FactQueries
+	ListStatedSplits(ctx context.Context, arg gen.ListStatedSplitsParams) ([]gen.ListStatedSplitsRow, error)
+	ListTickersNaming(ctx context.Context, instruments []uuid.UUID) ([]gen.ListTickersNamingRow, error)
+	ListUnmatchedSplits(ctx context.Context, keys []uuid.UUID) ([]gen.ListUnmatchedSplitsRow, error)
+	ListInstrumentsByID(ctx context.Context, ids []uuid.UUID) ([]gen.Instrument, error)
 }
 
 var _ Queries = (*gen.Queries)(nil)

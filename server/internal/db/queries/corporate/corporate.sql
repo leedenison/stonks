@@ -56,3 +56,29 @@ WHERE corporate_event_answers.market = ANY(@markets::text[])
   AND corporate_event_answers.value = ANY(@values::text[])
   AND corporate_events.ex_date >= @from_day AND corporate_events.ex_date < @before_day
 ORDER BY corporate_events.ex_date, corporate_events.id;
+
+-- name: ListStatedSplits :many
+-- The stated splits of the keys that name one of instruments or are dated
+-- through a ticker in values. A user_id limits them to that user, and NULL
+-- reads every user's. Values carry no market, so the caller keeps only the
+-- keys dated through a ticker at a market it asked for.
+SELECT sqlc.embed(statement_splits), sqlc.embed(stated_keys)
+FROM statement_splits
+JOIN stated_keys ON stated_keys.id = statement_splits.stated_key_id
+WHERE (stated_keys.instrument_id = ANY(@instruments::uuid[]) OR stated_keys.via_value = ANY(@values::text[]))
+  AND (sqlc.narg(user_id)::uuid IS NULL OR statement_splits.user_id = sqlc.narg(user_id))
+ORDER BY statement_splits.stated_key_id, statement_splits.effective_date, statement_splits.statement_id, statement_splits.ordinal;
+
+-- name: ListTickersNaming :many
+-- The tickers, with their markets, that an assertion pairs with one of
+-- instruments.
+SELECT DISTINCT instrument_id::uuid AS instrument_id, domain AS market, value
+FROM identifier_assertions
+WHERE type = 'mic_ticker' AND instrument_id = ANY(@instruments::uuid[])
+ORDER BY instrument_id, market, value;
+
+-- name: ListUnmatchedSplits :many
+-- The key and day of each unmatched split finding on one of keys.
+SELECT DISTINCT stated_key_id::uuid AS stated_key_id, effective_date::date AS effective_date
+FROM findings
+WHERE kind = 'unmatched_split' AND stated_key_id = ANY(@keys::uuid[]);

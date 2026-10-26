@@ -11,6 +11,10 @@
 //
 // Two datasources disagree when an event of one, on a day both cover, lacks
 // an event of equal ratio from the other within 7 calendar days either side.
+//
+// A fetch checks the splits that statements state against the calendar. The
+// calendar holds the events of every datasource, so a split matches when any
+// datasource knows it; see split.go.
 package corporate
 
 import (
@@ -47,7 +51,8 @@ func New(store Store, fetcher Fetcher, sources Sources, mics mic.MICMap, log *sl
 
 // Fetch asks each enabled datasource that serves corporate events,
 // concurrently, for reqs, as child runs of parent. It then records each
-// served answer and writes the disagreements the answers raise.
+// served answer, and writes the disagreements and unmatched splits the
+// answers raise.
 func (r *Recorder) Fetch(ctx context.Context, parent gen.Run, reqs []market.CorporateEventRequest) error {
 	reqs = r.distinct(reqs)
 	if len(reqs) == 0 {
@@ -85,7 +90,10 @@ func (r *Recorder) Fetch(ctx context.Context, parent gen.Run, reqs []market.Corp
 			recorded = append(recorded, rec)
 		}
 	}
-	return r.compare(ctx, recorded)
+	if err := r.compare(ctx, recorded); err != nil {
+		return err
+	}
+	return r.checkSplits(ctx, parent, recorded)
 }
 
 // distinct keeps the first request of each ticker at its market, so a ticker

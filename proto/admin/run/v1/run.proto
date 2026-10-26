@@ -118,6 +118,10 @@ enum FindingKind {
   // ticker on its ex-date. The detail names the ticker, the ex-date, the ratio
   // and both datasources.
   FINDING_KIND_CORPORATE_EVENT_DISAGREEMENT = 9;
+  // A statement states a split, and the calendar holds no matching event
+  // within 7 days either side of it. The detail names the split's effective
+  // date and its ratio, where the statement states one.
+  FINDING_KIND_UNMATCHED_SPLIT = 10;
 }
 
 // The step of the choice that dropped a set of identifiers.
@@ -140,7 +144,8 @@ message Finding {
   FindingKind kind = 3;
   // The block reported; set only when the kind is BLOCK.
   optional string block_id = 4;
-  // The finding's stated key; set for DROPPED, CONTRADICTION and MERGED.
+  // The finding's stated key; set for DROPPED, CONTRADICTION, MERGED
+  // and UNMATCHED_SPLIT.
   optional string stated_key_id = 5;
   // What the key concerned states: the finding's own key, or for a block
   // the key whose call created it. Unset where no key is concerned.
