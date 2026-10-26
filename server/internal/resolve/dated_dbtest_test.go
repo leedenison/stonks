@@ -20,9 +20,6 @@ import (
 	"github.com/leedenison/stonks/server/internal/validity"
 )
 
-// on is the UTC midnight of a day.
-func on(y int, m time.Month, d int) time.Time { return time.Date(y, m, d, 0, 0, 0, 0, time.UTC) }
-
 // resolveOn resolves keys under the stack's resolution, each stating rows on
 // dates.
 func (s *stack) resolveOn(t *testing.T, dates []time.Time, keys ...gen.StatedKey) []gen.ResolutionKey {
