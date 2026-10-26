@@ -23,12 +23,18 @@ The milestones that are scheduled, in the order they are implemented. Each has a
 of open issues and ADRs at `docs/tasks/<label>/`.
 
 - **M06** - Corporate events that restate the quantity of an instrument held, from
-  Massive, and the stable identifiers they reissue.
+  Massive and EODHD.
 
 ```
-001 open
-    |
-002 close
+                    003 framework
+            /                |            \
+    004 massive          005 eodhd    007 stated
+         |                   |            |
+    008 triggers             |            |
+         |                   |            |
+    006 holdings             |            |
+            \                |            /
+                    002 close
 ```
 
 ## Completed
