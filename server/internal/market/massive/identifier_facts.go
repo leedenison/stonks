@@ -3,7 +3,7 @@ package massive
 import (
 	"context"
 	"fmt"
-	"maps"
+	"iter"
 	"slices"
 	"time"
 
@@ -26,20 +26,20 @@ func (c *Client) Events() market.Server[market.IdentifierEventRequest, market.Id
 // Fetch states each identifier fact once for each venue in Massive's table,
 // since the fact holds at every venue.
 func (e events) Fetch(ctx context.Context, reqs []market.Request[market.IdentifierEventRequest]) ([]market.Response[market.IdentifierEventResult], error) {
-	doms := slices.Sorted(maps.Keys(e.c.venues))
+	doms := e.c.doms
 	out := make([]market.Response[market.IdentifierEventResult], len(reqs))
 	for i, r := range reqs {
 		var err error
 		switch p := r.Value.Period; callOf(r.Value) {
 		case chainCall:
 			var evs []event
-			if evs, _, err = e.c.chain(ctx, r.Sent); err == nil {
+			if evs, err = e.c.chain(ctx, r.Sent); err == nil {
 				out[i].Value, err = chainFacts(r.Sent, evs, p, doms)
 			}
 		case lookupCall:
 			var rec *record
 			var unknown bool
-			if rec, unknown, err = e.c.at(ctx, r.Sent.Value, p.From); err == nil {
+			if rec, unknown, err = e.c.ticker(ctx, r.Sent.Value, p.From); err == nil {
 				out[i].Value = lookupFacts(r.Sent.Value, rec, unknown, p.From, doms, e.c.mics)
 			}
 		case retiredCall:
@@ -92,11 +92,10 @@ func chainFacts(sent types.Identifier, evs []event, p types.Period, doms []strin
 		if i+1 < len(links) {
 			before = links[i+1].from
 		}
-		for _, d := range doms {
-			v := types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: d, Value: l.ticker}
+		for v := range atVenues(doms, l.ticker) {
 			switch {
 			case i > 0:
-				prev := types.Identifier{Type: v.Type, Domain: d, Value: links[i-1].ticker}
+				prev := types.Identifier{Type: v.Type, Domain: v.Domain, Value: links[i-1].ticker}
 				out.Events = append(out.Events, market.IdentifierEvent{Value: prev, Action: gen.IdentifierEventActionRenamed, ToValue: l.ticker, On: l.from})
 			case l.from.After(p.From):
 				out.Events = append(out.Events, market.IdentifierEvent{Value: v, Action: gen.IdentifierEventActionAssigned, On: l.from})
@@ -111,6 +110,17 @@ func chainFacts(sent types.Identifier, evs []event, p types.Period, doms []strin
 		}
 	}
 	return out, nil
+}
+
+// atVenues yields ticker as a MIC_TICKER at each domain of doms, in order.
+func atVenues(doms []string, ticker string) iter.Seq[types.Identifier] {
+	return func(yield func(types.Identifier) bool) {
+		for _, d := range doms {
+			if !yield(types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: d, Value: ticker}) {
+				return
+			}
+		}
+	}
 }
 
 // clip returns the overlap of a and b, and false when they do not overlap.
@@ -141,8 +151,8 @@ func lookupFacts(ticker string, rec *record, unknown bool, day time.Time, doms [
 		a.Of = l
 	}
 	var out market.IdentifierEventResult
-	for _, d := range doms {
-		a.Value = types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: d, Value: ticker}
+	for v := range atVenues(doms, ticker) {
+		a.Value = v
 		out.Assertions = append(out.Assertions, a)
 	}
 	return out
@@ -157,8 +167,7 @@ func delistingFacts(ticker string, ds []delisting, p types.Period, doms []string
 		if dl.Delisted == nil || !p.Contains(types.Day(*dl.Delisted)) {
 			continue
 		}
-		for _, d := range doms {
-			v := types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: d, Value: ticker}
+		for v := range atVenues(doms, ticker) {
 			out.Events = append(out.Events, market.IdentifierEvent{Value: v, Action: gen.IdentifierEventActionRetired, On: types.Day(*dl.Delisted)})
 		}
 	}

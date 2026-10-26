@@ -13,9 +13,9 @@ import (
 )
 
 // keyPrefix begins every cached answer's key. Its version names the shape
-// of cacheEntry, IdentityResult and Listing. It is bumped whenever that shape
-// changes between released versions, so that a release never reads an answer
-// an older release wrote.
+// of cacheEntry and of every kind's response type. It is bumped whenever
+// that shape changes between released versions, so that a release never
+// reads an answer an older release wrote.
 const keyPrefix = "stonks:fetch:v1:"
 
 // scanCount is how many keys one SCAN page asks for.

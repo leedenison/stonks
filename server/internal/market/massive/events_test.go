@@ -87,27 +87,26 @@ func TestChain(t *testing.T) {
 		cassette string
 		id       types.Identifier
 		want     []event
-		unknown  bool
 	}{
 		{cassette: "massive_events_ticker_change", id: meta, want: []event{change("META", "2022-06-09"), change("FB", "2012-05-18")}},
 		{cassette: "massive_events_unchanged", id: apple[1], want: []event{change("AAPL", "2003-09-10")}},
-		{cassette: "massive_events_unknown", id: twitter, unknown: true},
+		{cassette: "massive_events_unknown", id: twitter},
 	}
 	for _, tc := range tests {
 		t.Run(tc.cassette, func(t *testing.T) {
 			c := replay(t, tc.cassette, vcr.Credential(t, "MASSIVE_API_KEY", "testdata/"+tc.cassette))
-			got, unknown, err := c.chain(context.Background(), tc.id)
+			got, err := c.chain(context.Background(), tc.id)
 			require.NoError(t, err)
-			if diff := cmp.Diff(tc.want, got); diff != "" || unknown != tc.unknown {
-				t.Errorf("chain(%v) = %v, unknown %v, want unknown %v (-want +got):\n%s", tc.id, got, unknown, tc.unknown, diff)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("chain(%v) mismatch (-want +got):\n%s", tc.id, diff)
 			}
 		})
 	}
 }
 
-// TestAt checks the body of the point in time lookup. On 2021-06-01 FB was
+// TestTickerOnDay checks the body of the point in time lookup. On 2021-06-01 FB was
 // Facebook's ticker and META was not yet in use.
-func TestAt(t *testing.T) {
+func TestTickerOnDay(t *testing.T) {
 	tests := []struct {
 		cassette string
 		ticker   string
@@ -123,10 +122,10 @@ func TestAt(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.cassette, func(t *testing.T) {
 			c := replay(t, tc.cassette, vcr.Credential(t, "MASSIVE_API_KEY", "testdata/"+tc.cassette))
-			got, unknown, err := c.at(context.Background(), tc.ticker, oneDay.From)
+			got, unknown, err := c.ticker(context.Background(), tc.ticker, oneDay.From)
 			require.NoError(t, err)
 			if diff := cmp.Diff(tc.want, got); diff != "" || unknown != tc.unknown {
-				t.Errorf("at(%s) unknown %v, want %v (-want +got):\n%s", tc.ticker, unknown, tc.unknown, diff)
+				t.Errorf("ticker(%s) unknown %v, want %v (-want +got):\n%s", tc.ticker, unknown, tc.unknown, diff)
 			}
 		})
 	}
@@ -167,7 +166,12 @@ func TestClassifyBody(t *testing.T) {
 			body: `{"status":"NOT_AUTHORIZED","message":"You are not entitled to this data. Please upgrade your plan at https://massive.com/pricing"}`,
 			want: market.Failure{Scope: market.ScopeDatasource},
 		},
-		{name: "a body that is not JSON", body: "forbidden", want: market.Failure{Scope: market.ScopeDatasource}},
+		{
+			name: "a refusal worded in a way the integration does not recognise",
+			body: `{"status":"NOT_AUTHORIZED","message":"Access to this resource is restricted."}`,
+			want: market.Failure{Scope: market.ScopeKey},
+		},
+		{name: "a body that is not JSON", body: "forbidden", want: market.Failure{Scope: market.ScopeKey}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
