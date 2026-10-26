@@ -25,8 +25,10 @@ CREATE INDEX corporate_event_answers_fetch_key_idx ON corporate_event_answers (f
 
 -- A corporate event is an event that a datasource reported for a ticker with a
 -- ratio. It may restate the quantity held, as a split, a reverse split or a
--- stock dividend does, or be of a type the system does not handle, such as an
--- exchange for another instrument. It applies to whatever the ticker named on
+-- stock dividend does. It may instead be of a type the system does not
+-- handle, such as an exchange for another instrument. A provider may also
+-- state a price factor as a ratio, such as the fall in a parent's price at a
+-- spin-off. It applies to whatever the ticker named on
 -- ex_date, which validity decides on read. Several rows may share a ticker and
 -- a day.
 CREATE TABLE corporate_events (
@@ -39,7 +41,10 @@ CREATE TABLE corporate_events (
     -- type is the datasource's own word for the event, NULL where it states
     -- none.
     type       text,
-    -- handled is whether the system restates a quantity by the event.
+    -- handled is whether the system restates a quantity by the event. The
+    -- datasource must handle its type. Its ratio must state a change in
+    -- share count: both sides are whole, and in lowest terms the smaller is
+    -- at most 100.
     handled    boolean NOT NULL,
     CHECK (ratio_from > 0),
     CHECK (ratio_to > 0)

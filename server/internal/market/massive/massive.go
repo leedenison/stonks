@@ -1,5 +1,6 @@
-// Package massive is the identity and identifier events integration with
-// Massive's reference data API, which covers listed US stock, ETFs and funds.
+// Package massive is the identity, identifier events and corporate events
+// integration with Massive's API, which covers listed US stock, ETFs and
+// funds.
 package massive
 
 import (
@@ -185,17 +186,33 @@ func notFound(err error) (bool, error) {
 	return false, err
 }
 
-// Classify scopes a failure by its status, and a 403 by its body as well;
-// see forbidden. A 401 blocks the datasource, because the credential fails
-// for every key. A 429 or 5xx is temporary. Massive's 429 omits Retry-After,
-// so the market package's retry schedule applies.
+// unknownKey reports whether e is the splits endpoint's refusal of the
+// credential. The endpoint answers 404 where the reference endpoints answer
+// 401. Massive does not document this.
+func unknownKey(e market.StatusError) bool {
+	var body struct {
+		Status string `json:"status"`
+		Error  string `json:"error"`
+	}
+	return e.Code == http.StatusNotFound && json.Unmarshal([]byte(e.Body), &body) == nil &&
+		body.Status == "ERROR" && body.Error == "Unknown API Key"
+}
+
+// Classify scopes a failure by its status, and a 403 or 404 by its body as
+// well; see forbidden and unknownKey. A refused credential blocks the
+// datasource, because the credential serves every key. An answer that runs
+// past one page fails its key. A 429 or 5xx is temporary. Massive's 429 omits
+// Retry-After, so the market package's retry schedule applies.
 func (c *Client) Classify(err error) market.Failure {
+	if errors.Is(err, errPaged) {
+		return market.Failure{Scope: market.ScopeKey}
+	}
 	var status market.StatusError
 	if !errors.As(err, &status) {
 		return market.Failure{Temporary: true, Scope: market.ScopeKey}
 	}
 	switch {
-	case status.Code == http.StatusUnauthorized:
+	case status.Code == http.StatusUnauthorized, unknownKey(status):
 		return market.Failure{Scope: market.ScopeDatasource}
 	case status.Code == http.StatusForbidden:
 		return market.Failure{Scope: forbidden(status)}

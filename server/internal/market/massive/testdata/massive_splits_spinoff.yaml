@@ -1,0 +1,56 @@
+---
+version: 2
+interactions:
+    - id: 0
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: api.massive.com
+        form:
+            apiKey:
+                - REDACTED
+            limit:
+                - "5000"
+            ticker:
+                - GE
+        url: https://api.massive.com/stocks/v1/splits?apiKey=REDACTED&limit=5000&ticker=GE
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 762
+        uncompressed: true
+        body: '{"status":"OK","request_id":"9d3e4f8b66344c84a15b6384aed2a263","results":[{"id":"P114cf76fa9b0f164f2d4632243fc990f5cb7dece1b125f8178e15241ace607d5","execution_date":"2024-04-02","split_from":1000.0,"split_to":1253.0,"ticker":"GE","adjustment_type":"forward_split","historical_adjustment_factor":0.798085},{"id":"P2ae501c6c2f786bd6bc7505f6aeb7837d643c9564cb259554fde79dba217f077","execution_date":"2023-01-04","split_from":1000.0,"split_to":1281.0,"ticker":"GE","adjustment_type":"forward_split","historical_adjustment_factor":0.623017},{"id":"E576dc9e9a73b7dbcbc4dbce0d77103e8aa25ad5c8149d3480c81ba8cc4dc7658","execution_date":"2021-08-02","split_from":8.0,"split_to":1.0,"ticker":"GE","adjustment_type":"reverse_split","historical_adjustment_factor":4.984135}]}'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - DNT,X-CustomHeader,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization
+            Access-Control-Allow-Methods:
+                - GET, PUT, POST, DELETE, PATCH, OPTIONS
+            Access-Control-Allow-Origin:
+                - '*'
+            Access-Control-Max-Age:
+                - "1728000"
+            Content-Type:
+                - application/json
+            Date:
+                - Mon, 26 Oct 2026 20:23:28 GMT
+            Strict-Transport-Security:
+                - max-age=15724800; includeSubDomains
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - 100000000, 100000000;w=60
+            X-Ratelimit-Remaining:
+                - "60000000"
+            X-Ratelimit-Reset:
+                - "32"
+            X-Request-Id:
+                - 9d3e4f8b66344c84a15b6384aed2a263
+        status: 200 OK
+        code: 200
+        duration: 244.491474ms

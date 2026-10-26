@@ -1,0 +1,56 @@
+---
+version: 2
+interactions:
+    - id: 0
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: api.massive.com
+        form:
+            apiKey:
+                - REDACTED
+            limit:
+                - "5000"
+            ticker:
+                - SOXX
+        url: https://api.massive.com/stocks/v1/splits?apiKey=REDACTED&limit=5000&ticker=SOXX
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 489
+        uncompressed: true
+        body: '{"status":"OK","request_id":"356d01799b9347138458311c905b44c8","results":[{"id":"E75e42c53b07756b6ddede7c472e7a5a1ad5ea0adae3e6d1c48119ff2186303b0","execution_date":"2026-11-05","split_from":1.0,"split_to":3.0,"ticker":"SOXX","adjustment_type":"forward_split"},{"id":"Eb1fbf913723be4f9dca95b3914789207df652ddf61e5a76663c1ba984fe132ae","execution_date":"2024-03-07","split_from":1.0,"split_to":3.0,"ticker":"SOXX","adjustment_type":"forward_split","historical_adjustment_factor":0.333333}]}'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - DNT,X-CustomHeader,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization
+            Access-Control-Allow-Methods:
+                - GET, PUT, POST, DELETE, PATCH, OPTIONS
+            Access-Control-Allow-Origin:
+                - '*'
+            Access-Control-Max-Age:
+                - "1728000"
+            Content-Type:
+                - application/json
+            Date:
+                - Mon, 26 Oct 2026 20:23:57 GMT
+            Strict-Transport-Security:
+                - max-age=15724800; includeSubDomains
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - 100000000, 100000000;w=60
+            X-Ratelimit-Remaining:
+                - "20000000"
+            X-Ratelimit-Reset:
+                - "3"
+            X-Request-Id:
+                - 356d01799b9347138458311c905b44c8
+        status: 200 OK
+        code: 200
+        duration: 246.700413ms

@@ -131,12 +131,14 @@ func TestTickerOnDay(t *testing.T) {
 	}
 }
 
-// TestClassifyBody checks the 403 bodies Massive cannot be made to send on
-// demand.
+// TestClassifyBody checks the 403 and 404 bodies Massive cannot be made to
+// send on demand.
 func TestClassifyBody(t *testing.T) {
 	c := newClient(t)
 	tests := []struct {
 		name string
+		// code is the status of the answer, 403 when zero.
+		code int
 		body string
 		want market.Failure
 	}{
@@ -156,10 +158,17 @@ func TestClassifyBody(t *testing.T) {
 			want: market.Failure{Scope: market.ScopeKey},
 		},
 		{name: "a body that is not JSON", body: "forbidden", want: market.Failure{Scope: market.ScopeKey}},
+		{name: "an unknown ticker", code: http.StatusNotFound, body: `{"status":"NOT_FOUND","message":"Ticker not found."}`, want: market.Failure{Scope: market.ScopeKey}},
+		{name: "a path Massive does not serve", code: http.StatusNotFound, body: "404 page not found", want: market.Failure{Scope: market.ScopeKey}},
+		{name: "another error", code: http.StatusNotFound, body: `{"status":"ERROR","error":"Something else"}`, want: market.Failure{Scope: market.ScopeKey}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			err := market.StatusError{Provider: "massive", Code: http.StatusForbidden, Body: tc.body}
+			code := tc.code
+			if code == 0 {
+				code = http.StatusForbidden
+			}
+			err := market.StatusError{Provider: "massive", Code: code, Body: tc.body}
 			if got := c.Classify(err); got != tc.want {
 				t.Errorf("Classify() = %+v, want %+v", got, tc.want)
 			}

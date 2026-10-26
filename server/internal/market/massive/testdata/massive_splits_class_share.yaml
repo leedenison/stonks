@@ -1,0 +1,56 @@
+---
+version: 2
+interactions:
+    - id: 0
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: api.massive.com
+        form:
+            apiKey:
+                - REDACTED
+            limit:
+                - "5000"
+            ticker:
+                - BRK.B
+        url: https://api.massive.com/stocks/v1/splits?apiKey=REDACTED&limit=5000&ticker=BRK.B
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 300
+        uncompressed: true
+        body: '{"status":"OK","request_id":"ae9ecf76d0ab4731bf127e4cf8456cd8","results":[{"id":"P150abf064d16533aae6829b7160385360862c22e12905d18835f4044e4920b0b","execution_date":"2010-01-21","split_from":1.0,"split_to":50.0,"ticker":"BRK.B","adjustment_type":"forward_split","historical_adjustment_factor":0.02}]}'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - DNT,X-CustomHeader,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization
+            Access-Control-Allow-Methods:
+                - GET, PUT, POST, DELETE, PATCH, OPTIONS
+            Access-Control-Allow-Origin:
+                - '*'
+            Access-Control-Max-Age:
+                - "1728000"
+            Content-Type:
+                - application/json
+            Date:
+                - Mon, 26 Oct 2026 20:23:42 GMT
+            Strict-Transport-Security:
+                - max-age=15724800; includeSubDomains
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - 100000000, 100000000;w=60
+            X-Ratelimit-Remaining:
+                - "40000000"
+            X-Ratelimit-Reset:
+                - "18"
+            X-Request-Id:
+                - ae9ecf76d0ab4731bf127e4cf8456cd8
+        status: 200 OK
+        code: 200
+        duration: 241.188462ms
