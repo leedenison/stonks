@@ -263,8 +263,8 @@ func (r *Resolver) recordEvents(ctx context.Context, keys []eventKey) (bool, err
 }
 
 // recordConflicts reads the facts of every ticker in written. It writes each
-// disagreement and broken bracket that involves a fetch key in mine as a
-// finding of run.
+// disagreement, broken bracket and missed event that involves a fetch key in
+// mine as a finding of run.
 func (r *Resolver) recordConflicts(ctx context.Context, run gen.Run, written *writtenSet, mine map[uuid.UUID]bool) error {
 	var kinds []gen.FindingKind
 	err := r.store.Tx(ctx, func(q Queries) error {
@@ -374,7 +374,7 @@ type conflict struct {
 // conflicts returns the findings among the facts of v in which a fetch key
 // in mine took part. It skips each conflict already in met and adds the
 // others to it. A disagreement names the losing assertion's fetch key. A
-// broken bracket names the event's.
+// broken bracket names the event's. A missed event names the coverage's.
 func conflicts(ctx context.Context, q Queries, v types.Identifier, mine map[uuid.UUID]bool, met map[conflict]bool) ([]gen.CreateFindingParams, error) {
 	f, err := validity.Read(ctx, q, v)
 	if err != nil {
@@ -402,6 +402,17 @@ func conflicts(ctx context.Context, q Queries, v types.Identifier, mine map[uuid
 		detail := fmt.Sprintf("%s: an event on %s falls between assertions of %s on %s and %s",
 			v.Name(), br.Event.On.Format(time.DateOnly), br.Instrument, br.First.Format(time.DateOnly), br.Last.Format(time.DateOnly))
 		out = append(out, gen.CreateFindingParams{Kind: gen.FindingKindBrokenValidityBracket, FetchKeyID: ptr.To(br.Event.FetchKey), Detail: &detail})
+	}
+	for _, m := range d.Missed {
+		c := conflict{gen.FindingKindMissedEvent, m.Coverage.FetchKey, m.Inferred.Period.From}
+		if (!mine[m.Coverage.FetchKey] && !mine[m.Inferred.Earlier.Source.FetchKey] && !mine[m.Inferred.Later.Source.FetchKey]) || met[c] {
+			continue
+		}
+		met[c] = true
+		detail := fmt.Sprintf("%s: assertions on %s and %s imply an event between them, and %s reported no event from %s to %s",
+			v.Name(), m.Inferred.Earlier.At.Format(time.DateOnly), m.Inferred.Later.At.Format(time.DateOnly),
+			m.Coverage.Datasource, m.Coverage.Period.From.Format(time.DateOnly), m.Coverage.Period.Before.Format(time.DateOnly))
+		out = append(out, gen.CreateFindingParams{Kind: gen.FindingKindMissedEvent, FetchKeyID: ptr.To(m.Coverage.FetchKey), Detail: &detail})
 	}
 	return out, nil
 }

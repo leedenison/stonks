@@ -192,8 +192,8 @@ func TestReadRowsCoverage(t *testing.T) {
 	rows, err := ReadRows(ctx, f.q, f.foo)
 	require.NoError(t, err)
 	want := []gen.ListIdentifierCoverageRow{
-		{Domain: f.foo.Domain, CoveredFrom: day(1), CoveredBefore: day(10), Datasource: f.alpha},
-		{Domain: f.foo.Domain, Value: &f.foo.Value, CoveredFrom: day(5), CoveredBefore: day(20), Datasource: f.alpha},
+		{Domain: f.foo.Domain, CoveredFrom: day(1), CoveredBefore: day(10), FetchKeyID: key, Datasource: f.alpha},
+		{Domain: f.foo.Domain, Value: &f.foo.Value, CoveredFrom: day(5), CoveredBefore: day(20), FetchKeyID: key, Datasource: f.alpha},
 	}
 	if diff := cmp.Diff(want, rows.Coverage); diff != "" {
 		t.Errorf("ReadRows coverage mismatch (-want +got):\n%s", diff)

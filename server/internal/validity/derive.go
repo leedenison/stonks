@@ -13,7 +13,7 @@ import (
 // the events they infer, and the conflicts among them.
 func Derive(f Facts) Derived {
 	ws, disagreements := winners(f.Assertions)
-	cover := union(f.Coverage)
+	cover := union(periods(f.Coverage))
 	bounds := days(f.Events)
 	var out []Interval
 	var inferred []Inferred
@@ -34,7 +34,36 @@ func Derive(f Facts) Derived {
 		inferred = append(inferred, inf...)
 		start = end
 	}
-	return Derived{Intervals: join(out), Inferred: inferred, Disagreements: disagreements, Broken: broken(ws, f.Events)}
+	return Derived{
+		Intervals: join(out), Inferred: inferred, Disagreements: disagreements,
+		Broken: broken(ws, f.Events), Missed: missed(inferred, f.Coverage, cover),
+	}
+}
+
+// missed returns each inferred event whose period one period of cover holds
+// in full. Each comes with the first coverage row that holds the first day of
+// the period.
+func missed(inferred []Inferred, rows []Coverage, cover []types.Period) []MissedEvent {
+	var out []MissedEvent
+	for _, inf := range inferred {
+		held := slices.ContainsFunc(cover, func(p types.Period) bool {
+			return !inf.Period.From.Before(p.From) && !p.Before.Before(inf.Period.Before)
+		})
+		i := slices.IndexFunc(rows, func(c Coverage) bool { return c.Period.Contains(inf.Period.From) })
+		if held && i >= 0 {
+			out = append(out, MissedEvent{Inferred: inf, Coverage: rows[i]})
+		}
+	}
+	return out
+}
+
+// periods returns the period of each coverage row.
+func periods(rows []Coverage) []types.Period {
+	out := make([]types.Period, len(rows))
+	for i, c := range rows {
+		out[i] = c.Period
+	}
+	return out
 }
 
 // broken returns each event that falls between two consecutive winners of one
@@ -60,6 +89,7 @@ func broken(ws []winner, events []Event) []BrokenBracket {
 type winner struct {
 	at         time.Time
 	instrument *uuid.UUID
+	assertion  Assertion
 }
 
 // winners returns one winner per day that has an assertion that counts, in
@@ -105,7 +135,7 @@ func winners(as []Assertion) ([]winner, []Disagreement) {
 	var day []Assertion
 	flush := func() {
 		if best != nil {
-			out = append(out, winner{at: best.At, instrument: best.Instrument})
+			out = append(out, winner{at: best.At, instrument: best.Instrument, assertion: *best})
 			for _, a := range day {
 				if !best.Source.Attested && !same(a.Instrument, best.Instrument) {
 					disagreements = append(disagreements, Disagreement{On: best.At, Winner: *best, Loser: a})
@@ -150,20 +180,22 @@ func better(a, b Assertion) bool {
 	return a.Instrument.String() < b.Instrument.String()
 }
 
-// span is consecutive winners that name one thing.
+// span is consecutive winners that name one thing, from the assertion that
+// won the first day to the one that won the last.
 type span struct {
 	instrument  *uuid.UUID
 	first, last time.Time
+	head, tail  Assertion
 }
 
 func spans(ws []winner) []span {
 	var out []span
 	for _, w := range ws {
 		if n := len(out); n > 0 && same(out[n-1].instrument, w.instrument) {
-			out[n-1].last = w.at
+			out[n-1].last, out[n-1].tail = w.at, w.assertion
 			continue
 		}
-		out = append(out, span{instrument: w.instrument, first: w.at, last: w.at})
+		out = append(out, span{instrument: w.instrument, first: w.at, last: w.at, head: w.assertion, tail: w.assertion})
 	}
 	return out
 }
@@ -212,6 +244,7 @@ func segment(ss []span, start, end *time.Time, cover []types.Period) ([]Interval
 			inferred = append(inferred, Inferred{
 				Period: types.Period{From: took, Before: next(ss[k+1].first)},
 				From:   r.instrument, To: ss[k+1].instrument,
+				Earlier: r.tail, Later: ss[k+1].head,
 			})
 		}
 	}

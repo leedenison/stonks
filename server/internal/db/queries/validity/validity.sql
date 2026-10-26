@@ -53,7 +53,7 @@ ORDER BY effective_on, id;
 -- a domain row.
 SELECT identifier_event_coverage.domain, identifier_event_coverage.value,
        identifier_event_coverage.covered_from, identifier_event_coverage.covered_before,
-       fetches.datasource
+       identifier_event_coverage.fetch_key_id, fetches.datasource
 FROM identifier_event_coverage
 JOIN fetch_keys ON fetch_keys.id = identifier_event_coverage.fetch_key_id
 JOIN fetches ON fetches.id = fetch_keys.fetch_id

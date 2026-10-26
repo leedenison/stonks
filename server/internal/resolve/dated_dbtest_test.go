@@ -319,6 +319,41 @@ func TestDisagreement(t *testing.T) {
 	}
 }
 
+// TestMissedEvent checks the finding when one datasource asserts two
+// instruments inside its own coverage. The run that wrote the facts records a
+// missed event naming the coverage's fetch key. A run that only reads the
+// facts records none.
+func TestMissedEvent(t *testing.T) {
+	s := newStack(t)
+	v := id(types.IdentifierTypeMicTicker, "XNAS", "ZZM")
+	share := id(types.IdentifierTypeOpenfigiShareClass, "", "BBG00ZZMSHAR")
+	other := id(types.IdentifierTypeOpenfigiShareClass, "", "BBG00ZZMOTHR")
+	s.script.Responses[v] = market.IdentityResult{Filtered: []types.Identifier{{Type: v.Type, Value: v.Value}}, Listings: []market.Listing{
+		{Class: types.AssetClassStock, Currency: "USD", Primary: "XNAS", Identifiers: []types.Identifier{share, v}},
+	}}
+	s.alphaFacts.Responses[share] = market.IdentifierEventResult{
+		Assertions: []market.Assertion{
+			{Value: v, Of: market.Listing{Identifiers: []types.Identifier{share}}, At: on(2023, 1, 2)},
+			{Value: v, Of: market.Listing{Identifiers: []types.Identifier{other}, Class: types.AssetClassStock, Currency: "USD"}, At: on(2023, 6, 1)},
+		},
+		Coverage: []market.Coverage{{Identifier: v, Period: types.Period{From: on(2023, 1, 1), Before: on(2024, 2, 1)}}},
+	}
+	key := s.state(t, types.AssetClassStock, "USD", v)
+	s.resolveOn(t, []time.Time{on(2024, 1, 16)}, key)
+	found := s.runFindings(t)
+	coverage := s.eventFetchKey(t, s.alphaName, share)
+	if len(found) != 1 || found[0].Kind != gen.FindingKindMissedEvent || found[0].FetchKeyID == nil || *found[0].FetchKeyID != coverage.ID {
+		t.Errorf("findings = %+v, want one missed event naming the coverage's fetch key %s", found, coverage.ID)
+	}
+
+	s.rerun(t)
+	second := s.state(t, "", "USD", v)
+	s.resolveOn(t, []time.Time{on(2024, 1, 16)}, second)
+	if found := s.runFindings(t); len(found) != 0 {
+		t.Errorf("findings of a run that only read the facts = %+v, want none", found)
+	}
+}
+
 // TestBrokenBracket checks that a witnessed event between two assertions of
 // one instrument leaves a broken bracket finding on the run that wrote the
 // event, naming the event's fetch key.

@@ -106,12 +106,19 @@ type Event struct {
 	FetchKey uuid.UUID
 }
 
+// Coverage is one period over which a datasource reported every event of
+// the ticker or of its domain.
+type Coverage struct {
+	Period     types.Period
+	Datasource string
+	FetchKey   uuid.UUID
+}
+
 // Facts are the rows of one ticker.
 type Facts struct {
 	Assertions []Assertion
 	Events     []Event
-	// Coverage is the periods covered for the ticker or its domain.
-	Coverage []types.Period
+	Coverage   []Coverage
 }
 
 // Derived is what the facts of one ticker imply: its intervals, the events
@@ -121,6 +128,7 @@ type Derived struct {
 	Inferred      []Inferred
 	Disagreements []Disagreement
 	Broken        []BrokenBracket
+	Missed        []MissedEvent
 }
 
 // Disagreement is two datasources' assertions on one day that name different
@@ -140,9 +148,20 @@ type BrokenBracket struct {
 	First, Last time.Time
 }
 
-// Inferred is an event that two assertions imply. It took effect at the
-// start of a day in Period. A nil From or To is the ticker naming nothing.
+// Inferred is an event that two winning assertions, Earlier and Later,
+// imply. It took effect at the start of a day in Period. A nil From or To is
+// the ticker naming nothing.
 type Inferred struct {
-	Period   types.Period
-	From, To *uuid.UUID
+	Period         types.Period
+	From, To       *uuid.UUID
+	Earlier, Later Assertion
+}
+
+// MissedEvent is an inferred event whose possible days one covered period
+// holds in full. The datasource that reported the coverage reported no event
+// on those days, and two assertions imply one. Coverage is the row that holds
+// the first of the days.
+type MissedEvent struct {
+	Inferred Inferred
+	Coverage Coverage
 }
