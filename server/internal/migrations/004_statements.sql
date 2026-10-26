@@ -21,10 +21,6 @@ CREATE TABLE statements (
     CHECK (row_count >= 0)
 );
 
--- How firmly a ticker's facts establish what it names over a range of days.
--- The validity package derives it when read, and nothing stores it.
-CREATE TYPE validity AS ENUM ('confirmed', 'provisional');
-
 -- What settled an association among candidates: 'stated' where the
 -- identifiers the key states, read against the database, left one;
 -- 'datasource' where a datasource answered for an identifier the key states

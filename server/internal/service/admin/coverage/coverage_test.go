@@ -104,7 +104,7 @@ func TestGetTicker(t *testing.T) {
 			Events:   []gen.ListIdentifierEventsRow{{Value: "OLD", Action: gen.IdentifierEventActionRenamed, ToValue: ptr.To("ACME"), EffectiveOn: day(3)}},
 			Coverage: []gen.ListIdentifierCoverageRow{{Domain: "XNAS", CoveredFrom: day(1), CoveredBefore: day(20), Datasource: "alpha"}},
 		},
-		Intervals: []validity.Interval{{From: &from, Before: &before, Instrument: acme, Validity: gen.ValidityConfirmed}},
+		Intervals: []validity.Interval{{From: &from, Before: &before, Instrument: acme, Validity: validity.Confirmed}},
 		Gaps:      []reader.Gap{{Ticker: acmeTicker, Period: types.Period{From: day(5), Before: day(10)}, Keys: 1, Transactions: 1}},
 		Names:     map[uuid.UUID]types.Identifier{acme: {Type: types.IdentifierTypeIsin, Value: "US0000000001"}},
 	}

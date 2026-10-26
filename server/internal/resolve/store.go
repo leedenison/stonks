@@ -15,7 +15,7 @@ import (
 
 // Queries is this package's view of the generated queries.
 type Queries interface {
-	validity.Queries
+	validity.FactQueries
 	validity.RecordQueries
 	PlaceTicker(ctx context.Context, arg gen.PlaceTickerParams) (gen.Identifier, error)
 	SetStatedKeyDatedAssociation(ctx context.Context, arg gen.SetStatedKeyDatedAssociationParams) (int64, error)

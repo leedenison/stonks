@@ -4,9 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
-	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/types"
 )
@@ -18,14 +16,7 @@ type FactQueries interface {
 	ListIdentifierCoverage(ctx context.Context, arg gen.ListIdentifierCoverageParams) ([]gen.ListIdentifierCoverageRow, error)
 }
 
-// Queries is this package's view of the validity queries.
-type Queries interface {
-	FactQueries
-	ListDomainCoverage(ctx context.Context, domain string) ([]gen.ListDomainCoverageRow, error)
-	FirstDomainTransaction(ctx context.Context, domain string) (time.Time, error)
-}
-
-var _ Queries = (*gen.Queries)(nil)
+var _ FactQueries = (*gen.Queries)(nil)
 
 // ErrNotTicker is returned for an identifier other than a MIC_TICKER, the only
 // type that has events and coverage.
@@ -98,27 +89,4 @@ func (r Rows) Facts() Facts {
 		f.Coverage = append(f.Coverage, types.Period{From: c.CoveredFrom, Before: c.CoveredBefore})
 	}
 	return f
-}
-
-// DomainGaps returns the parts of the days from the earliest transaction that
-// states a MIC_TICKER of domain up to today that no coverage of the domain
-// holds. It returns none where no transaction states one. The domain must be
-// one that a datasource serving whole domains covers.
-func DomainGaps(ctx context.Context, q Queries, domain string, today time.Time) ([]types.Period, error) {
-	first, err := q.FirstDomainTransaction(ctx, domain)
-	if errors.Is(err, db.ErrNotFound) {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, fmt.Errorf("first transaction: %w", err)
-	}
-	rows, err := q.ListDomainCoverage(ctx, domain)
-	if err != nil {
-		return nil, fmt.Errorf("list coverage: %w", err)
-	}
-	cover := make([]types.Period, len(rows))
-	for i, r := range rows {
-		cover[i] = types.Period{From: r.CoveredFrom, Before: r.CoveredBefore}
-	}
-	return gaps(union(cover), types.Period{From: first, Before: next(types.Day(today))}), nil
 }

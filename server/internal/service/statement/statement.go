@@ -36,7 +36,7 @@ type Confirmer interface {
 // Reader is this package's view of the statement queries. It embeds the
 // validity queries, which mark reads for dated keys.
 type Reader interface {
-	validity.Queries
+	validity.FactQueries
 	ListStatements(ctx context.Context, userID uuid.UUID) ([]gen.ListStatementsRow, error)
 	GetStatement(ctx context.Context, arg gen.GetStatementParams) (gen.GetStatementRow, error)
 	ListStatementItems(ctx context.Context, arg gen.ListStatementItemsParams) ([]gen.StatementItem, error)

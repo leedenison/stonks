@@ -113,7 +113,7 @@ func newStack(t *testing.T) *stack {
 // confirmedOn reports whether ivs confirm instrument on day d.
 func confirmedOn(ivs []validity.Interval, instrument uuid.UUID, d time.Time) bool {
 	for _, iv := range ivs {
-		if iv.Instrument == instrument && iv.Validity == gen.ValidityConfirmed &&
+		if iv.Instrument == instrument && iv.Validity == validity.Confirmed &&
 			iv.From != nil && !d.Before(*iv.From) && iv.Before != nil && d.Before(*iv.Before) {
 			return true
 		}

@@ -19,8 +19,8 @@ import (
 // RecordQueries is what Record queries.
 type RecordQueries interface {
 	CreateIdentifierAssertion(ctx context.Context, arg gen.CreateIdentifierAssertionParams) error
-	CreateIdentifierEvent(ctx context.Context, arg gen.CreateIdentifierEventParams) (int64, error)
-	CreateIdentifierEventCoverage(ctx context.Context, arg gen.CreateIdentifierEventCoverageParams) (int64, error)
+	CreateIdentifierEvent(ctx context.Context, arg gen.CreateIdentifierEventParams) error
+	CreateIdentifierEventCoverage(ctx context.Context, arg gen.CreateIdentifierEventCoverageParams) error
 	FindIdentifier(ctx context.Context, arg gen.FindIdentifierParams) (gen.FindIdentifierRow, error)
 	LockIdentifiers(ctx context.Context, keys []string) error
 	CreateInstrument(ctx context.Context, arg gen.CreateInstrumentParams) (gen.Instrument, error)
@@ -116,7 +116,7 @@ func record(ctx context.Context, q RecordQueries, families currency.Families, ke
 		if e.ToValue != "" {
 			arg.ToValue = &e.ToValue
 		}
-		if _, err := q.CreateIdentifierEvent(ctx, arg); err != nil {
+		if err := q.CreateIdentifierEvent(ctx, arg); err != nil {
 			return fmt.Errorf("record event: %w", err)
 		}
 	}
@@ -133,7 +133,7 @@ func record(ctx context.Context, q RecordQueries, families currency.Families, ke
 		if !c.Identifier.IsDomain() {
 			arg.Value = &c.Identifier.Value
 		}
-		if _, err := q.CreateIdentifierEventCoverage(ctx, arg); err != nil {
+		if err := q.CreateIdentifierEventCoverage(ctx, arg); err != nil {
 			return fmt.Errorf("record coverage: %w", err)
 		}
 	}
@@ -238,7 +238,7 @@ func create(ctx context.Context, q RecordQueries, family string, key uuid.UUID, 
 
 // AttestQueries is what Attest queries.
 type AttestQueries interface {
-	CreateIdentifierAssertion(ctx context.Context, arg gen.CreateIdentifierAssertionParams) error
+	CreateIdentifierAttestation(ctx context.Context, arg gen.CreateIdentifierAttestationParams) error
 }
 
 var _ AttestQueries = (*gen.Queries)(nil)
@@ -261,7 +261,8 @@ func CheckAttest(mics mic.MICMap, v types.Identifier, on, today time.Time) error
 
 // Attest writes an administrator's assertion that v names instrument on the
 // day on, beneath run, which must be a system run of kind attestation. A nil
-// instrument asserts that v names nothing.
+// instrument asserts that v names nothing. A later attestation of a day
+// replaces the earlier one.
 func Attest(ctx context.Context, q AttestQueries, mics mic.MICMap, run gen.Run, admin uuid.UUID, v types.Identifier, instrument *uuid.UUID, on, today time.Time) error {
 	if run.Kind != gen.RunKindAttestation || run.UserID != nil {
 		return fmt.Errorf("run %s is not a system attestation run", run.ID)
@@ -269,11 +270,11 @@ func Attest(ctx context.Context, q AttestQueries, mics mic.MICMap, run gen.Run, 
 	if err := CheckAttest(mics, v, on, today); err != nil {
 		return err
 	}
-	arg := gen.CreateIdentifierAssertionParams{
-		ID: db.NewID(), RunID: &run.ID, AttestedBy: &admin, Type: v.Type, Domain: v.Domain, Value: v.Value,
+	arg := gen.CreateIdentifierAttestationParams{
+		ID: db.NewID(), RunID: run.ID, AttestedBy: admin, Type: v.Type, Domain: v.Domain, Value: v.Value,
 		InstrumentID: instrument, AssertedOn: types.Day(on),
 	}
-	if err := q.CreateIdentifierAssertion(ctx, arg); err != nil {
+	if err := q.CreateIdentifierAttestation(ctx, arg); err != nil {
 		return fmt.Errorf("record attestation: %w", err)
 	}
 	return nil

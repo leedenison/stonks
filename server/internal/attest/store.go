@@ -15,7 +15,7 @@ import (
 
 // Queries is this package's view of the generated queries.
 type Queries interface {
-	CreateIdentifierAssertion(ctx context.Context, arg gen.CreateIdentifierAssertionParams) error
+	CreateIdentifierAttestation(ctx context.Context, arg gen.CreateIdentifierAttestationParams) error
 	GetIdentifierAssertion(ctx context.Context, id uuid.UUID) (gen.IdentifierAssertion, error)
 	DeleteAttestedAssertion(ctx context.Context, id uuid.UUID) (int64, error)
 	GetRunByID(ctx context.Context, id uuid.UUID) (gen.Run, error)

@@ -200,40 +200,6 @@ func TestReadRowsCoverage(t *testing.T) {
 	}
 }
 
-// TestDomainGaps checks the days from the first transaction of the domain,
-// stated at one of its venues, that no coverage of the domain holds.
-func TestDomainGaps(t *testing.T) {
-	f := newFixture(t)
-	ctx := context.Background()
-	domain := "XNAS"
-	gaps, err := DomainGaps(ctx, f.q, domain, day(30))
-	require.NoError(t, err)
-	if len(gaps) != 0 {
-		t.Fatalf("DomainGaps with no transaction = %v, want none", gaps)
-	}
-
-	statement, err := f.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &f.user.ID, Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser})
-	require.NoError(t, err)
-	f.exec(t, "INSERT INTO statements (id, user_id, broker, order_from, order_before, row_count) VALUES ($1, $2, 'ibkr', $3, $4, 1)", statement.ID, f.user.ID, day(1), day(31))
-	key := db.NewID()
-	f.exec(t, `INSERT INTO stated_keys (id, user_id, identifiers) VALUES ($1, $2, '[{"type":"mic_ticker","domain":"XNGS","value":"AAPL"}]')`, key, f.user.ID)
-	f.exec(t, "INSERT INTO statement_keys (statement_id, user_id, stated_key_id) VALUES ($1, $2, $3)", statement.ID, f.user.ID, key)
-	f.exec(t, "INSERT INTO transactions (id, user_id, broker, statement_id, stated_key_id, order_date, settlement_date, as_at, quantity) VALUES ($1, $2, 'ibkr', $3, $4, $5, $5, $5, 1)", db.NewID(), f.user.ID, statement.ID, key, day(4))
-	fetchKey := db.NewID()
-	require.NoError(t, f.q.CreateFetchKey(ctx, gen.CreateFetchKeyParams{
-		ID: fetchKey, FetchID: f.fetches[f.alpha], UserID: &f.user.ID, Outcome: gen.FetchOutcomeServed, Attempts: 1,
-		SentType: &f.foo.Type, SentDomain: domain, AnsweredAt: ptr.To(day(20)),
-	}))
-	f.exec(t, "INSERT INTO identifier_event_coverage (id, fetch_key_id, domain, covered_from, covered_before) VALUES ($1, $2, $3, $4, $5)", db.NewID(), fetchKey, domain, day(10), day(20))
-
-	gaps, err = DomainGaps(ctx, f.q, domain, day(25))
-	require.NoError(t, err)
-	want := []types.Period{{From: day(4), Before: day(10)}, {From: day(20), Before: day(26)}}
-	if diff := cmp.Diff(want, gaps); diff != "" {
-		t.Errorf("DomainGaps mismatch (-want +got):\n%s", diff)
-	}
-}
-
 // TestReadTicker checks that one read of a ticker's facts answers whether it
 // has validity, which days hold an assertion, and the earliest date its
 // validity leaves unconfirmed.

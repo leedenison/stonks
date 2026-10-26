@@ -237,6 +237,14 @@ func TestAttest(t *testing.T) {
 		t.Errorf("Of after attesting that it names nothing mismatch (-want +got):\n%s", diff)
 	}
 
+	later, err := f.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), Kind: gen.RunKindAttestation, Trigger: gen.RunTriggerAdministrator})
+	require.NoError(t, err)
+	require.NoError(t, Attest(ctx, f.q, mics, later, f.attestedBy.ID, f.foo, &f.b, day(2), today))
+	want = []Interval{provisional(nil, at(2), f.b), confirmed(at(2), at(3), f.b), provisional(at(3), at(20), f.b), confirmed(at(20), at(21), f.a), provisional(at(21), at(25), f.a)}
+	if diff := cmp.Diff(want, f.of(t)); diff != "" {
+		t.Errorf("Of after a later attestation of day 2 mismatch (-want +got):\n%s", diff)
+	}
+
 	if err := Attest(ctx, f.q, mics, run, f.attestedBy.ID, f.foo, &f.a, day(26), today); !errors.Is(err, ErrFuture) {
 		t.Errorf("Attest(tomorrow) error = %v, want ErrFuture", err)
 	}
