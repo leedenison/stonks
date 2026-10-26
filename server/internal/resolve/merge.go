@@ -16,13 +16,6 @@ import (
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
-// instrumentMatch is an instrument findInstrumentsByIdentifier found, with the
-// identifiers that matched it.
-type instrumentMatch struct {
-	instrument *join.InstrumentWithCoverage
-	matched    []types.Identifier
-}
-
 // merge folds every later created instrument of matches into the earliest,
 // which is returned reloaded, with a merged finding per instrument. matches is
 // sorted earliest created first. fetchKeyID names the fetch key whose
