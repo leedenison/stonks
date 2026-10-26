@@ -1,12 +1,12 @@
 -- name: ListDatedTransactions :many
--- The transactions of the user's dated keys, by key then order date. The
+-- The transactions of the user's dated keys, by key then as-at date. The
 -- key's ticker, currency and group are on the key, which ListHoldingKeys
 -- carries.
-SELECT transactions.stated_key_id, transactions.order_date, transactions.quantity
+SELECT transactions.stated_key_id, transactions.as_at, transactions.quantity
 FROM transactions
 JOIN stated_keys ON stated_keys.id = transactions.stated_key_id
 WHERE transactions.user_id = @user_id::uuid AND stated_keys.via_type IS NOT NULL
-ORDER BY transactions.stated_key_id, transactions.order_date, transactions.id;
+ORDER BY transactions.stated_key_id, transactions.as_at, transactions.id;
 
 -- name: ListHoldingKeys :many
 -- The user's keys that have a transaction, each with the sum of its

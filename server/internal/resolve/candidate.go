@@ -89,7 +89,7 @@ var ErrNoCandidate = errors.New("the answers no longer offer the candidate")
 // twice where the answers fell on different days or at different venues. The
 // datasource of the candidate the user confirms supplies the instrument.
 func (r *Resolver) Candidates(ctx context.Context, run gen.Run, key gen.StatedKey) (Offer, error) {
-	b, err := r.prepare(ctx, run, []KeyOrderDates{{Row: key}}, false)
+	b, err := r.prepare(ctx, run, []KeyDates{{Row: key}}, false)
 	if err != nil {
 		return Offer{}, err
 	}
@@ -151,7 +151,7 @@ func offeredClaims(res *resolution) ([]*identityClaim, []gen.CreateFindingParams
 // writes. The choice associates key alone. Confirm also returns the
 // identifiers of the identifier facts its fetch runs wrote.
 func (r *Resolver) Confirm(ctx context.Context, run gen.Run, key gen.StatedKey, p Pick) (gen.ResolutionKey, []WrittenIdentifierFacts, error) {
-	b, err := r.prepare(ctx, run, []KeyOrderDates{{Row: key}}, false)
+	b, err := r.prepare(ctx, run, []KeyDates{{Row: key}}, false)
 	if err != nil {
 		return gen.ResolutionKey{}, nil, err
 	}

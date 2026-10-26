@@ -80,7 +80,7 @@ func datedKey(currency *string, group *uuid.UUID, quantity string) gen.ListHoldi
 }
 
 func tx(n int, quantity string) gen.ListDatedTransactionsRow {
-	return gen.ListDatedTransactionsRow{StatedKeyID: datedKeyID, OrderDate: day(n), Quantity: decimal.RequireFromString(quantity)}
+	return gen.ListDatedTransactionsRow{StatedKeyID: datedKeyID, AsAt: day(n), Quantity: decimal.RequireFromString(quantity)}
 }
 
 // datedHoldingKey is the dated key as a holding carries it: with the sum of

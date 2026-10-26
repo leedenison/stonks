@@ -83,11 +83,11 @@ LEFT JOIN identifiers ON identifiers.id = stated_keys.via_id
 WHERE transactions.statement_id = @statement_id AND transactions.user_id = @user_id
 ORDER BY transactions.order_date, transactions.id;
 
--- name: ListKeyOrderDates :many
--- The distinct order dates of the transactions of each of the user's keys.
-SELECT DISTINCT stated_key_id, order_date FROM transactions
+-- name: ListKeyDates :many
+-- The distinct as-at dates of the transactions of each of the user's keys.
+SELECT DISTINCT stated_key_id, as_at FROM transactions
 WHERE user_id = @user_id AND stated_key_id = ANY(@ids::uuid[])
-ORDER BY stated_key_id, order_date;
+ORDER BY stated_key_id, as_at;
 
 -- name: ListUnassociatedKeysStating :many
 -- Every user's keys that have no association and a transaction, and that

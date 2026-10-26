@@ -78,7 +78,7 @@ message InstrumentName {
 message Ticker {
   // Its domain is the operating MIC.
   stonks.type.v1.Identifier ticker = 1;
-  // The distinct order dates of the transactions whose keys state the
+  // The distinct as-at dates of the transactions whose keys state the
   // ticker, as YYYY-MM-DD, in order.
   repeated string transaction_days = 2;
   // By datasource, then first day.

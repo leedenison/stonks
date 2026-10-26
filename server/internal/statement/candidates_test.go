@@ -3,7 +3,6 @@ package statement
 import (
 	"context"
 	"errors"
-	"fmt"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -89,30 +88,25 @@ func TestCandidates(t *testing.T) {
 func TestConfirm(t *testing.T) {
 	key := gen.StatedKey{ID: db.NewID(), UserID: userID, Identifiers: []types.Identifier{{Type: types.IdentifierTypeMicTicker, Value: "INTC"}}}
 	pick := resolve.Pick{Datasource: "alpha", Identifier: isinID("US0000000001")}
-	for _, failing := range []bool{false, true} {
-		t.Run(fmt.Sprintf("confirms as a synchronous run and replays its new facts, the replay failing %t", failing), func(t *testing.T) {
-			f := newFixture(t)
-			row := f.syncs()
-			if failing {
-				f.replayErr = errors.New("down")
-			}
-			written := []resolve.WrittenIdentifierFacts{{Run: gen.Run{ID: db.NewID()}, Identifiers: []types.Identifier{{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "INTC"}}}}
-			f.store.EXPECT().GetStatedKey(gomock.Any(), gen.GetStatedKeyParams{ID: key.ID, UserID: userID}).Return(key, nil)
-			f.resolver.EXPECT().Confirm(gomock.Any(), gomock.Any(), key, pick).DoAndReturn(func(_ context.Context, res gen.Run, _ gen.StatedKey, _ resolve.Pick) (gen.ResolutionKey, []resolve.WrittenIdentifierFacts, error) {
-				return gen.ResolutionKey{RunID: res.ID, StatedKeyID: key.ID, Outcome: gen.ResolutionOutcomeMatched}, written, nil
-			})
-			got, err := f.svc.Confirm(context.Background(), userID, key.ID, pick)
-			if err != nil {
-				t.Fatalf("Confirm() error = %v, want the confirmation to stand", err)
-			}
-			if got.RunID != row.ID || got.Outcome != gen.ResolutionOutcomeMatched {
-				t.Errorf("Confirm() = %+v, want matched under the synchronous run %s", got, row.ID)
-			}
-			if len(f.replayed) != 1 || f.replayed[0].except.ID != row.ID || !cmp.Equal(f.replayed[0].written, written) {
-				t.Errorf("replays = %+v, want one beneath the confirmation's run with its facts", f.replayed)
-			}
+	t.Run("confirms as a synchronous run and replays its new facts", func(t *testing.T) {
+		f := newFixture(t)
+		row := f.syncs()
+		written := []resolve.WrittenIdentifierFacts{{Run: gen.Run{ID: db.NewID()}, Identifiers: []types.Identifier{{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "INTC"}}}}
+		f.store.EXPECT().GetStatedKey(gomock.Any(), gen.GetStatedKeyParams{ID: key.ID, UserID: userID}).Return(key, nil)
+		f.resolver.EXPECT().Confirm(gomock.Any(), gomock.Any(), key, pick).DoAndReturn(func(_ context.Context, res gen.Run, _ gen.StatedKey, _ resolve.Pick) (gen.ResolutionKey, []resolve.WrittenIdentifierFacts, error) {
+			return gen.ResolutionKey{RunID: res.ID, StatedKeyID: key.ID, Outcome: gen.ResolutionOutcomeMatched}, written, nil
 		})
-	}
+		got, err := f.svc.Confirm(context.Background(), userID, key.ID, pick)
+		if err != nil {
+			t.Fatalf("Confirm() error = %v, want the confirmation to stand", err)
+		}
+		if got.RunID != row.ID || got.Outcome != gen.ResolutionOutcomeMatched {
+			t.Errorf("Confirm() = %+v, want matched under the synchronous run %s", got, row.ID)
+		}
+		if len(f.replayed) != 1 || f.replayed[0].except.ID != row.ID || !cmp.Equal(f.replayed[0].written, written) {
+			t.Errorf("replays = %+v, want one beneath the confirmation's run with its facts", f.replayed)
+		}
+	})
 	t.Run("a key with an association is refused", func(t *testing.T) {
 		f := newFixture(t)
 		associated := key

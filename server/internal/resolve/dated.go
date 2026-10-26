@@ -46,11 +46,11 @@ func datedTicker(k gen.StatedKey, mics mic.MICMap) (types.Identifier, bool) {
 }
 
 // findResolutionDated reads the validity of each key's dated ticker and the
-// order dates of its transactions. Keys dated through one ticker share one
+// as-at dates of its transactions. Keys dated through one ticker share one
 // read of its facts. A key that already has a dated association is matched as
 // it stands. A key without a known instrument, whose ticker has validity, is
 // dated through the ticker without an identity fetch.
-func (r *Resolver) findResolutionDated(ctx context.Context, user uuid.UUID, rs []*resolution, keys []KeyOrderDates) error {
+func (r *Resolver) findResolutionDated(ctx context.Context, user uuid.UUID, rs []*resolution, keys []KeyDates) error {
 	var ids []uuid.UUID
 	read := map[types.Identifier]*validity.Ticker{}
 	for i, res := range rs {
@@ -71,7 +71,7 @@ func (r *Resolver) findResolutionDated(ctx context.Context, user uuid.UUID, rs [
 			read[v] = t
 		}
 		res.dating = read[v]
-		res.orderDates = slices.Clone(keys[i].Dates)
+		res.dates = slices.Clone(keys[i].Dates)
 		ids = append(ids, res.row.ID)
 		switch {
 		case res.row.ViaType != nil:
@@ -84,17 +84,17 @@ func (r *Resolver) findResolutionDated(ctx context.Context, user uuid.UUID, rs [
 	if len(ids) == 0 {
 		return nil
 	}
-	rows, err := r.store.ListKeyOrderDates(ctx, gen.ListKeyOrderDatesParams{UserID: user, Ids: ids})
+	rows, err := r.store.ListKeyDates(ctx, gen.ListKeyDatesParams{UserID: user, Ids: ids})
 	if err != nil {
-		return fmt.Errorf("list order dates: %w", err)
+		return fmt.Errorf("list as-at dates: %w", err)
 	}
 	byKey := map[uuid.UUID][]time.Time{}
 	for _, row := range rows {
-		byKey[row.StatedKeyID] = append(byKey[row.StatedKeyID], row.OrderDate)
+		byKey[row.StatedKeyID] = append(byKey[row.StatedKeyID], row.AsAt)
 	}
 	for _, res := range rs {
 		if res.dating != nil {
-			res.orderDates = append(res.orderDates, byKey[res.row.ID]...)
+			res.dates = append(res.dates, byKey[res.row.ID]...)
 		}
 	}
 	return nil
@@ -136,7 +136,7 @@ func (r *Resolver) fetchResolutionEvents(ctx context.Context, run gen.Run, rs []
 			if q, ok := chainRequest(res, server, market.History(w, now)); ok {
 				add(q)
 			}
-			d, ok := res.dating.FirstUnconfirmed(res.orderDates)
+			d, ok := res.dating.FirstUnconfirmed(res.dates)
 			if !ok {
 				continue
 			}

@@ -42,5 +42,5 @@ var _ Runner = (*run.Runner)(nil)
 
 // Replays is this package's view of the replay package.
 type Replays interface {
-	ReplayNewIdentifierFacts(ctx context.Context, except gen.Run, written []resolve.WrittenIdentifierFacts) error
+	ReplayNewIdentifierFacts(ctx context.Context, except gen.Run, written []resolve.WrittenIdentifierFacts)
 }

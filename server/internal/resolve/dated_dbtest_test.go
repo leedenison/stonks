@@ -24,9 +24,9 @@ import (
 // dates.
 func (s *stack) resolveOn(t *testing.T, dates []time.Time, keys ...gen.StatedKey) []gen.ResolutionKey {
 	t.Helper()
-	ks := make([]KeyOrderDates, len(keys))
+	ks := make([]KeyDates, len(keys))
 	for i, k := range keys {
-		ks[i] = KeyOrderDates{Row: k, Dates: dates}
+		ks[i] = KeyDates{Row: k, Dates: dates}
 	}
 	out, _, err := s.resolver.Resolve(context.Background(), s.resolution, ks)
 	require.NoError(t, err)
@@ -281,7 +281,7 @@ func TestDisagreement(t *testing.T) {
 	s.alphaFacts.Responses[share] = market.IdentifierEventResult{Assertions: []market.Assertion{{Value: v, Of: market.Listing{Identifiers: []types.Identifier{share}}, At: day}}}
 	s.betaFacts.Responses[share] = market.IdentifierEventResult{Assertions: []market.Assertion{{Value: v, Of: market.Listing{Identifiers: []types.Identifier{other}, Class: types.AssetClassEtf, Currency: "USD"}, At: day}}}
 	key := s.state(t, types.AssetClassStock, "USD", v)
-	out, written, err := s.resolver.Resolve(context.Background(), s.resolution, []KeyOrderDates{{Row: key, Dates: []time.Time{day}}})
+	out, written, err := s.resolver.Resolve(context.Background(), s.resolution, []KeyDates{{Row: key, Dates: []time.Time{day}}})
 	require.NoError(t, err)
 	require.Len(t, out, 1)
 

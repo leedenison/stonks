@@ -47,7 +47,7 @@ var _ Extender = (*resolve.Resolver)(nil)
 
 // Replays is this package's view of the replay package.
 type Replays interface {
-	ReplayNewIdentifierFacts(ctx context.Context, except gen.Run, written []resolve.WrittenIdentifierFacts) error
+	ReplayNewIdentifierFacts(ctx context.Context, except gen.Run, written []resolve.WrittenIdentifierFacts)
 }
 
 var _ Replays = (*replay.Service)(nil)
@@ -83,6 +83,7 @@ func (s *Service) Start(ctx context.Context) (gen.Run, error) {
 		if err != nil {
 			return err
 		}
-		return s.replays.ReplayNewIdentifierFacts(ctx, row, written)
+		s.replays.ReplayNewIdentifierFacts(ctx, row, written)
+		return nil
 	})
 }

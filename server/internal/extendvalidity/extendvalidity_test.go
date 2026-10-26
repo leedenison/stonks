@@ -46,7 +46,7 @@ func TestStart(t *testing.T) {
 		return row, work(ctx, row)
 	})
 	f.extender.EXPECT().ExtendValidity(gomock.Any(), row, held).Return(written, nil)
-	f.replays.EXPECT().ReplayNewIdentifierFacts(gomock.Any(), row, written).Return(nil)
+	f.replays.EXPECT().ReplayNewIdentifierFacts(gomock.Any(), row, written)
 
 	got, err := f.svc.Start(ctx)
 	if err != nil || got.ID != row.ID {

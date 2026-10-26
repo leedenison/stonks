@@ -301,15 +301,6 @@ func TestConfirmCandidate(t *testing.T) {
 			Rows: []*statementv1.Row{rowMsg(k, order, quantity)},
 		})
 	}
-	keyOf := func(statement gen.Run) gen.StatedKey {
-		t.Helper()
-		keys, err := s.q.ListStatedKeys(ctx, gen.ListStatedKeysParams{StatementID: statement.ID, UserID: s.user.ID})
-		require.NoError(t, err)
-		if len(keys) != 1 {
-			t.Fatalf("statement %s has %d keys, want 1", statement.ID, len(keys))
-		}
-		return keys[0]
-	}
 	// syncRuns returns the user's synchronous resolution runs, oldest first.
 	syncRuns := func() []uuid.UUID {
 		t.Helper()
@@ -325,8 +316,8 @@ func TestConfirmCandidate(t *testing.T) {
 		return ids
 	}
 
-	first := keyOf(month(key, "2026-03-01", "2026-04-01", "2026-03-05", "10"))
-	second := keyOf(month(bare, "2026-04-01", "2026-05-01", "2026-04-05", "5"))
+	first := s.keyOf(t, month(key, "2026-03-01", "2026-04-01", "2026-03-05", "10"))
+	second := s.keyOf(t, month(bare, "2026-04-01", "2026-05-01", "2026-04-05", "5"))
 	if first.ID == second.ID {
 		t.Fatalf("the key with a currency and the key without are one row %s, want two", first.ID)
 	}
@@ -384,7 +375,7 @@ func TestConfirmCandidate(t *testing.T) {
 	// resolves nothing for it, and its regroup leaves the mate in a group of
 	// its own.
 	third := month(key, "2026-02-01", "2026-03-01", "2026-02-05", "1")
-	if k := keyOf(third); k.ID != first.ID || k.InstrumentID == nil || *k.InstrumentID != instruments[0].InstrumentID || k.Arbiter == nil || *k.Arbiter != gen.ArbiterUser {
+	if k := s.keyOf(t, third); k.ID != first.ID || k.InstrumentID == nil || *k.InstrumentID != instruments[0].InstrumentID || k.Arbiter == nil || *k.Arbiter != gen.ArbiterUser {
 		t.Errorf("the third statement's key = %+v, want the confirmed key %s", k, first.ID)
 	}
 	resolution, err := s.q.ListChildRuns(ctx, gen.ListChildRunsParams{ParentID: &third.ID, UserID: &s.user.ID})
@@ -476,15 +467,6 @@ func TestRestate(t *testing.T) {
 			Rows: []*statementv1.Row{rowMsg(acme, order, quantity)},
 		})
 	}
-	keyOf := func(statement gen.Run) gen.StatedKey {
-		t.Helper()
-		keys, err := s.q.ListStatedKeys(ctx, gen.ListStatedKeysParams{StatementID: statement.ID, UserID: s.user.ID})
-		require.NoError(t, err)
-		if len(keys) != 1 {
-			t.Fatalf("statement %s has %d keys, want 1", statement.ID, len(keys))
-		}
-		return keys[0]
-	}
 	resolutionOf := func(statement gen.Run) gen.Run {
 		t.Helper()
 		children, err := s.q.ListChildRuns(ctx, gen.ListChildRunsParams{ParentID: &statement.ID, UserID: &s.user.ID})
@@ -497,7 +479,7 @@ func TestRestate(t *testing.T) {
 
 	first := month("2026-03-01", "2026-04-01", "2026-03-05", "10")
 	second := month("2026-04-01", "2026-05-01", "2026-04-05", "5")
-	a, b := keyOf(first), keyOf(second)
+	a, b := s.keyOf(t, first), s.keyOf(t, second)
 	if a.ID != b.ID || b.InstrumentID == nil || b.Arbiter == nil || *b.Arbiter != gen.ArbiterDatasource {
 		t.Errorf("the second statement's key = %+v, want the first's %s with the datasource's association", b, a.ID)
 	}
@@ -556,4 +538,15 @@ func (s *stack) holdings(t *testing.T) (instruments, groups []holding) {
 		}
 	}
 	return instruments, groups
+}
+
+// keyOf returns the one key statement states.
+func (s *stack) keyOf(t *testing.T, statement gen.Run) gen.StatedKey {
+	t.Helper()
+	keys, err := s.q.ListStatedKeys(context.Background(), gen.ListStatedKeysParams{StatementID: statement.ID, UserID: s.user.ID})
+	require.NoError(t, err)
+	if len(keys) != 1 {
+		t.Fatalf("statement %s has %d keys, want 1", statement.ID, len(keys))
+	}
+	return keys[0]
 }

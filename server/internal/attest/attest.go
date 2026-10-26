@@ -97,7 +97,8 @@ func (s *Service) Start(ctx context.Context, admin uuid.UUID, v types.Identifier
 		},
 	}
 	return s.runs.Start(ctx, spec, func(ctx context.Context, row gen.Run) error {
-		return s.replays.ReplayNewIdentifierFacts(ctx, row, []resolve.WrittenIdentifierFacts{{Run: row, Identifiers: []types.Identifier{v}}})
+		s.replays.ReplayNewIdentifierFacts(ctx, row, []resolve.WrittenIdentifierFacts{{Run: row, Identifiers: []types.Identifier{v}}})
+		return nil
 	})
 }
 
@@ -124,5 +125,6 @@ func (s *Service) Withdraw(ctx context.Context, id uuid.UUID) error {
 		return fmt.Errorf("assertion %s: %w", id, db.ErrNotFound)
 	}
 	v := types.Identifier{Type: a.Type, Domain: a.Domain, Value: a.Value}
-	return s.replays.ReplayNewIdentifierFacts(ctx, row, []resolve.WrittenIdentifierFacts{{Run: row, Identifiers: []types.Identifier{v}}})
+	s.replays.ReplayNewIdentifierFacts(ctx, row, []resolve.WrittenIdentifierFacts{{Run: row, Identifiers: []types.Identifier{v}}})
+	return nil
 }

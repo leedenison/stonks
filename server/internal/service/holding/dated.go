@@ -47,7 +47,7 @@ func (s *Server) dated(ctx context.Context, user uuid.UUID, keys []gen.ListHoldi
 		if !ok {
 			return d, fmt.Errorf("transaction of key %s: the key is not dated", r.StatedKeyID)
 		}
-		iv, ok := read[v].On(r.OrderDate)
+		iv, ok := read[v].On(r.AsAt)
 		if !ok {
 			d.unresolved[r.StatedKeyID] = d.unresolved[r.StatedKeyID].Add(r.Quantity)
 			continue

@@ -42,7 +42,7 @@ CREATE TYPE arbiter AS ENUM ('stated', 'datasource', 'guess', 'user');
 -- identifier row it was made through. The association stands when that row
 -- moves to another instrument. A dated association names a MIC_TICKER in
 -- the via columns. Each of the key's transactions takes the instrument the
--- ticker names on its order date, and that is derived when read, so nothing on
+-- ticker names on its as-at date, and that is derived when read, so nothing on
 -- the key changes when the ticker's facts do. The resolver dates a key when it
 -- associates the key of its own accord through a ticker. An OPENFIGI_TICKER
 -- or DATASOURCE_TICKER dates the key through the MIC_TICKER on its listing,
@@ -91,8 +91,8 @@ CREATE INDEX stated_keys_group_idx ON stated_keys (user_id, group_id);
 CREATE INDEX stated_keys_identifiers_idx ON stated_keys USING gin (identifiers jsonb_path_ops);
 
 -- A statement key links a statement to a key it states. A statement links
--- every key it states, even when it rejected all of the key's rows, so it
--- lists the key with its outcome.
+-- every key whose rows pass validation, even when the resolution rejected
+-- all of the key's rows, so it lists the key with its outcome.
 CREATE TABLE statement_keys (
     statement_id  uuid NOT NULL,
     user_id       uuid NOT NULL,

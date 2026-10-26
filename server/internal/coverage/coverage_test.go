@@ -42,7 +42,7 @@ func asserted(n int, instrument *uuid.UUID) gen.ListIdentifierAssertionsRow {
 }
 
 func tx(key uuid.UUID, n int) gen.ListTickerTransactionsRow {
-	return gen.ListTickerTransactionsRow{StatedKeyID: key, OrderDate: day(n)}
+	return gen.ListTickerTransactionsRow{StatedKeyID: key, AsAt: day(n)}
 }
 
 // facts serves the facts of v: assertions and nothing else.

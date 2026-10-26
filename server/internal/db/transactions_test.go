@@ -430,9 +430,10 @@ func TestDatedAssociation(t *testing.T) {
 	})
 }
 
-// TestListKeyOrderDates checks that each key lists the distinct order dates of
-// its transactions, and only for the keys and user asked.
-func TestListKeyOrderDates(t *testing.T) {
+// TestListKeyDates checks that each key lists the distinct as-at dates of
+// its transactions, which may follow their order dates, and only for the
+// keys and user asked.
+func TestListKeyDates(t *testing.T) {
 	ctx := context.Background()
 	q := newTx(t)
 	user := newUser(t, q, "dates@example.com")
@@ -442,7 +443,7 @@ func TestListKeyOrderDates(t *testing.T) {
 		t.Helper()
 		_, err := q.CreateTransaction(ctx, gen.CreateTransactionParams{
 			ID: db.NewID(), UserID: user.ID, Broker: gen.BrokerIbkr, StatementID: statement.ID, StatedKeyID: key.ID,
-			OrderDate: on, SettlementDate: on, AsAt: on, Quantity: decimal.NewFromInt(1),
+			OrderDate: on.AddDate(0, 0, -7), SettlementDate: on, AsAt: on, Quantity: decimal.NewFromInt(1),
 		})
 		require.NoError(t, err)
 	}
@@ -451,18 +452,18 @@ func TestListKeyOrderDates(t *testing.T) {
 	trade(one, date(2024, 1, 16))
 	trade(two, date(2023, 3, 1))
 	trade(other, date(2020, 1, 2))
-	rows, err := q.ListKeyOrderDates(ctx, gen.ListKeyOrderDatesParams{UserID: user.ID, Ids: []uuid.UUID{one.ID, two.ID}})
+	rows, err := q.ListKeyDates(ctx, gen.ListKeyDatesParams{UserID: user.ID, Ids: []uuid.UUID{one.ID, two.ID}})
 	require.NoError(t, err)
 	got := map[uuid.UUID][]time.Time{}
 	for _, r := range rows {
-		got[r.StatedKeyID] = append(got[r.StatedKeyID], r.OrderDate)
+		got[r.StatedKeyID] = append(got[r.StatedKeyID], r.AsAt)
 	}
 	want := map[uuid.UUID][]time.Time{one.ID: {date(2021, 6, 1), date(2024, 1, 16)}, two.ID: {date(2023, 3, 1)}}
 	if diff := cmp.Diff(want, got); diff != "" {
-		t.Errorf("ListKeyOrderDates mismatch (-want +got):\n%s", diff)
+		t.Errorf("ListKeyDates mismatch (-want +got):\n%s", diff)
 	}
-	if rows, err := q.ListKeyOrderDates(ctx, gen.ListKeyOrderDatesParams{UserID: db.NewID(), Ids: []uuid.UUID{one.ID}}); err != nil || len(rows) != 0 {
-		t.Errorf("ListKeyOrderDates as another user = %+v, %v, want none", rows, err)
+	if rows, err := q.ListKeyDates(ctx, gen.ListKeyDatesParams{UserID: db.NewID(), Ids: []uuid.UUID{one.ID}}); err != nil || len(rows) != 0 {
+		t.Errorf("ListKeyDates as another user = %+v, %v, want none", rows, err)
 	}
 }
 

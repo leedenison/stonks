@@ -31,9 +31,9 @@ type resolution struct {
 	// the one its dated association names, or the one datedTicker finds. It
 	// is nil for a key that is fixed whatever it resolves to.
 	dating *validity.Ticker
-	// orderDates are the order dates of the key's transactions, stored and
+	// dates are the as-at dates of the key's transactions, stored and
 	// stated.
-	orderDates []time.Time
+	dates []time.Time
 	// datedFromFacts reports that prepare dated a key through the facts of
 	// its ticker, so the write gives it the dated association.
 	datedFromFacts bool

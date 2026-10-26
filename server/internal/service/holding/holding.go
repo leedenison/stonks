@@ -7,7 +7,7 @@
 // instrument. A holding whose total is zero is left out.
 //
 // A dated key's transactions take the instrument its ticker names on their
-// order dates, derived from the ticker's facts at each read; see package
+// as-at dates, derived from the ticker's facts at each read; see package
 // validity. A transaction dated when its ticker names nothing is summed into
 // its key's group, beside the unresolved keys. One key may therefore sit
 // under several holdings, with the sum of its transactions under each.

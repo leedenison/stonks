@@ -222,7 +222,7 @@ func TestGetStatement(t *testing.T) {
 	dated := gen.StatedKey{ID: datedID, UserID: userID, Identifiers: []types.Identifier{meta}, ViaType: ptr.To(types.IdentifierTypeMicTicker), ViaDomain: ptr.To("XNAS"), ViaValue: ptr.To("META"), Arbiter: ptr.To(gen.ArbiterDatasource)}
 	fixed := gen.StatedKey{ID: fixedID, UserID: userID, Identifiers: []types.Identifier{{Type: types.IdentifierTypeBrokerDescription, Domain: "ibkr", Value: "ACME"}}, InstrumentID: ptr.To(uuid.New()), Arbiter: ptr.To(gen.ArbiterDatasource)}
 	tx := func(n int, key gen.StatedKey, on time.Time) gen.Transaction {
-		return gen.Transaction{ID: uuid.MustParse(fmt.Sprintf("00000000-0000-0000-0000-00000000003%d", n)), UserID: userID, StatementID: runID, StatedKeyID: key.ID, OrderDate: on, Quantity: decimal.NewFromInt(10)}
+		return gen.Transaction{ID: uuid.MustParse(fmt.Sprintf("00000000-0000-0000-0000-00000000003%d", n)), UserID: userID, StatementID: runID, StatedKeyID: key.ID, OrderDate: on, AsAt: on, Quantity: decimal.NewFromInt(10)}
 	}
 	transactions := []gen.ListStatementTransactionsRow{
 		{Transaction: tx(1, dated, notFoundOn), StatedKey: dated},

@@ -107,7 +107,7 @@ func (f *fixture) finds() {
 	f.store.EXPECT().ListIdentifierAssertions(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
 	f.store.EXPECT().ListIdentifierEvents(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
 	f.store.EXPECT().ListIdentifierCoverage(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
-	f.store.EXPECT().ListKeyOrderDates(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
+	f.store.EXPECT().ListKeyDates(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
 }
 
 // creates accepts every write of a created instrument.
@@ -857,11 +857,11 @@ func TestConfirm(t *testing.T) {
 	}
 }
 
-// undated gives each key no order dates beyond those its transactions store.
-func undated(keys ...gen.StatedKey) []KeyOrderDates {
-	out := make([]KeyOrderDates, len(keys))
+// undated gives each key only the dates its stored transactions have.
+func undated(keys ...gen.StatedKey) []KeyDates {
+	out := make([]KeyDates, len(keys))
 	for i, k := range keys {
-		out[i] = KeyOrderDates{Row: k}
+		out[i] = KeyDates{Row: k}
 	}
 	return out
 }

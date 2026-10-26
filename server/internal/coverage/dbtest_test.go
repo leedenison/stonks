@@ -133,9 +133,9 @@ func TestQueries(t *testing.T) {
 	txs, err := f.q.ListTickerTransactions(ctx, probes)
 	require.NoError(t, err)
 	wantTxs := []gen.ListTickerTransactionsRow{
-		{StatedKeyID: segment, OrderDate: day(4)},
-		{StatedKeyID: nasdaq, OrderDate: day(6)},
-		{StatedKeyID: nasdaq, OrderDate: day(6)},
+		{StatedKeyID: segment, AsAt: day(4)},
+		{StatedKeyID: nasdaq, AsAt: day(6)},
+		{StatedKeyID: nasdaq, AsAt: day(6)},
 	}
 	if diff := cmp.Diff(wantTxs, txs); diff != "" {
 		t.Errorf("ListTickerTransactions mismatch (-want +got):\n%s", diff)
