@@ -17,15 +17,30 @@ type Ticker struct {
 
 // ReadTicker reads the facts of v and derives its validity.
 func ReadTicker(ctx context.Context, q FactQueries, v types.Identifier) (*Ticker, error) {
-	f, err := Read(ctx, q, v)
+	tickers, err := ReadTickers(ctx, q, []types.Identifier{v})
 	if err != nil {
 		return nil, err
 	}
-	asserted := map[time.Time]bool{}
-	for _, a := range f.Assertions {
-		asserted[types.Day(a.At)] = true
+	return tickers[v], nil
+}
+
+// ReadTickers reads the facts of each of vs and derives its validity, with
+// three queries however many tickers there are.
+func ReadTickers(ctx context.Context, q FactQueries, vs []types.Identifier) (map[types.Identifier]*Ticker, error) {
+	rows, err := ReadRowsOf(ctx, q, vs)
+	if err != nil {
+		return nil, err
 	}
-	return &Ticker{Identifier: v, Derived: Derive(f), asserted: asserted}, nil
+	out := make(map[types.Identifier]*Ticker, len(rows))
+	for v, r := range rows {
+		f := r.Facts()
+		asserted := map[time.Time]bool{}
+		for _, a := range f.Assertions {
+			asserted[types.Day(a.At)] = true
+		}
+		out[v] = &Ticker{Identifier: v, Derived: Derive(f), asserted: asserted}
+	}
+	return out, nil
 }
 
 // HasValidity reports whether the facts give the ticker an instrument on any

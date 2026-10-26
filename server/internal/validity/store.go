@@ -52,21 +52,75 @@ func Read(ctx context.Context, q FactQueries, v types.Identifier) (Facts, error)
 // ReadRows reads the assertion, event and coverage rows of v. It returns
 // ErrNotTicker when v is not a MIC_TICKER.
 func ReadRows(ctx context.Context, q FactQueries, v types.Identifier) (Rows, error) {
-	if v.Type != types.IdentifierTypeMicTicker {
-		return Rows{}, fmt.Errorf("%s: %w", v.Name(), ErrNotTicker)
+	rows, err := ReadRowsOf(ctx, q, []types.Identifier{v})
+	if err != nil {
+		return Rows{}, err
 	}
-	var r Rows
-	var err error
-	if r.Assertions, err = q.ListIdentifierAssertions(ctx, gen.ListIdentifierAssertionsParams{Type: v.Type, Domain: v.Domain, Value: v.Value}); err != nil {
-		return Rows{}, fmt.Errorf("list assertions: %w", err)
+	return rows[v], nil
+}
+
+// ReadRowsOf reads the assertion, event and coverage rows of each of vs,
+// with three queries however many tickers there are. It returns ErrNotTicker
+// when one of vs is not a MIC_TICKER.
+func ReadRowsOf(ctx context.Context, q FactQueries, vs []types.Identifier) (map[types.Identifier]Rows, error) {
+	out := make(map[types.Identifier]Rows, len(vs))
+	var domains, values []string
+	for _, v := range vs {
+		if v.Type != types.IdentifierTypeMicTicker {
+			return nil, fmt.Errorf("%s: %w", v.Name(), ErrNotTicker)
+		}
+		if _, seen := out[v]; seen {
+			continue
+		}
+		out[v] = Rows{}
+		domains, values = append(domains, v.Domain), append(values, v.Value)
 	}
-	if r.Events, err = q.ListIdentifierEvents(ctx, gen.ListIdentifierEventsParams{Domain: v.Domain, Value: v.Value}); err != nil {
-		return Rows{}, fmt.Errorf("list events: %w", err)
+	if len(out) == 0 {
+		return out, nil
 	}
-	if r.Coverage, err = q.ListIdentifierCoverage(ctx, gen.ListIdentifierCoverageParams{Domain: v.Domain, Value: &v.Value}); err != nil {
-		return Rows{}, fmt.Errorf("list coverage: %w", err)
+	ticker := func(domain, value string) types.Identifier {
+		return types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: domain, Value: value}
 	}
-	return r, nil
+	as, err := q.ListIdentifierAssertions(ctx, gen.ListIdentifierAssertionsParams{Type: types.IdentifierTypeMicTicker, Domains: domains, Values: values})
+	if err != nil {
+		return nil, fmt.Errorf("list assertions: %w", err)
+	}
+	for _, a := range as {
+		v := ticker(a.IdentifierAssertion.Domain, a.IdentifierAssertion.Value)
+		if r, ok := out[v]; ok {
+			r.Assertions = append(r.Assertions, a)
+			out[v] = r
+		}
+	}
+	es, err := q.ListIdentifierEvents(ctx, gen.ListIdentifierEventsParams{Domains: domains, Values: values})
+	if err != nil {
+		return nil, fmt.Errorf("list events: %w", err)
+	}
+	for _, e := range es {
+		named := []string{e.Value}
+		if e.ToValue != nil && *e.ToValue != e.Value {
+			named = append(named, *e.ToValue)
+		}
+		for _, value := range named {
+			if r, ok := out[ticker(e.Domain, value)]; ok {
+				r.Events = append(r.Events, e)
+				out[ticker(e.Domain, value)] = r
+			}
+		}
+	}
+	cs, err := q.ListIdentifierCoverage(ctx, gen.ListIdentifierCoverageParams{Domains: domains, Values: values})
+	if err != nil {
+		return nil, fmt.Errorf("list coverage: %w", err)
+	}
+	for _, c := range cs {
+		for v, r := range out {
+			if v.Domain == c.Domain && (c.Value == nil || *c.Value == v.Value) {
+				r.Coverage = append(r.Coverage, c)
+				out[v] = r
+			}
+		}
+	}
+	return out, nil
 }
 
 // Facts converts the rows to the facts Derive reads.

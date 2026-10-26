@@ -22,8 +22,8 @@ type dated struct {
 }
 
 // dated gives each of the user's dated transactions the instrument its key's
-// ticker names on its date. The facts of a ticker are read once however many
-// keys are dated through it.
+// ticker names on its date. The facts of every dated key's ticker are read
+// at once.
 func (s *Server) dated(ctx context.Context, user uuid.UUID, keys []gen.ListHoldingKeysRow) (dated, error) {
 	d := dated{onInstrument: map[uuid.UUID]map[uuid.UUID]decimal.Decimal{}, unresolved: map[uuid.UUID]decimal.Decimal{}}
 	rows, err := s.reader.ListDatedTransactions(ctx, user)
@@ -31,25 +31,23 @@ func (s *Server) dated(ctx context.Context, user uuid.UUID, keys []gen.ListHoldi
 		return d, err
 	}
 	tickerOf := map[uuid.UUID]types.Identifier{}
+	var tickers []types.Identifier
 	for _, k := range keys {
 		if v, ok := to.AssociatedTicker(k.StatedKey); ok {
 			tickerOf[k.StatedKey.ID] = v
+			tickers = append(tickers, v)
 		}
 	}
-	read := map[types.Identifier]*validity.Ticker{}
+	read, err := validity.ReadTickers(ctx, s.reader, tickers)
+	if err != nil {
+		return d, fmt.Errorf("read the facts of the dated keys' tickers: %w", err)
+	}
 	for _, r := range rows {
 		v, ok := tickerOf[r.StatedKeyID]
 		if !ok {
 			return d, fmt.Errorf("transaction of key %s: the key is not dated", r.StatedKeyID)
 		}
-		t := read[v]
-		if t == nil {
-			if t, err = validity.ReadTicker(ctx, s.reader, v); err != nil {
-				return d, fmt.Errorf("read the facts of %s: %w", v.Name(), err)
-			}
-			read[v] = t
-		}
-		iv, ok := t.On(r.OrderDate)
+		iv, ok := read[v].On(r.OrderDate)
 		if !ok {
 			d.unresolved[r.StatedKeyID] = d.unresolved[r.StatedKeyID].Add(r.Quantity)
 			continue

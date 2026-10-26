@@ -93,7 +93,7 @@ func TestListInstrumentTickers(t *testing.T) {
 
 func TestGetTicker(t *testing.T) {
 	from, before := day(10), day(21)
-	ticker := &reader.Ticker{
+	ticker := &reader.Page{
 		Identifier: acmeTicker,
 		Days:       []time.Time{day(5)},
 		Rows: validity.Rows{
@@ -105,7 +105,7 @@ func TestGetTicker(t *testing.T) {
 			Coverage: []gen.ListIdentifierCoverageRow{{Domain: "XNAS", CoveredFrom: day(1), CoveredBefore: day(20), Datasource: "alpha"}},
 		},
 		Intervals: []validity.Interval{{From: &from, Before: &before, Instrument: acme, Validity: validity.Confirmed}},
-		Gaps:      []reader.Gap{{Ticker: acmeTicker, Period: types.Period{From: day(5), Before: day(10)}, Keys: 1, Transactions: 1}},
+		Gaps:      []reader.Gap{{Period: types.Period{From: day(5), Before: day(10)}, Keys: 1, Transactions: 1}},
 		Names:     map[uuid.UUID]types.Identifier{acme: {Type: types.IdentifierTypeIsin, Value: "US0000000001"}},
 	}
 	want := &admincoveragev1.Ticker{
@@ -121,7 +121,7 @@ func TestGetTicker(t *testing.T) {
 		}},
 		Events:    []*admincoveragev1.IdentifierEvent{{EffectiveOn: "2026-03-03", Action: admincoveragev1.IdentifierEventAction_IDENTIFIER_EVENT_ACTION_RENAMED, Value: "OLD", ToValue: "ACME"}},
 		Intervals: []*admincoveragev1.Interval{{ValidFrom: ptr.To("2026-03-10"), ValidBefore: ptr.To("2026-03-21"), InstrumentId: acme.String(), Validity: admincoveragev1.Validity_VALIDITY_CONFIRMED}},
-		Gaps:      []*admincoveragev1.Gap{{Ticker: acmeProto, UnconfirmedFrom: "2026-03-05", UnconfirmedBefore: "2026-03-10", Keys: 1, Transactions: 1}},
+		Gaps:      []*admincoveragev1.Gap{{UnconfirmedFrom: "2026-03-05", UnconfirmedBefore: "2026-03-10", Keys: 1, Transactions: 1}},
 		Instruments: []*admincoveragev1.InstrumentName{{
 			Id: acme.String(), Name: &typev1.Identifier{Type: typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, Value: "US0000000001"},
 		}},

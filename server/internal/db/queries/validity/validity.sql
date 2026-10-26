@@ -20,8 +20,10 @@ ORDER BY type, domain, value;
 UPDATE identifier_assertions SET instrument_id = @survivor::uuid WHERE instrument_id = @loser::uuid;
 
 -- name: ListIdentifierAssertions :many
--- The assertions of one identifier, each with the datasource of the fetch
--- that made it and that datasource's precedence, or the email of the
+-- The assertions of the identifiers of one type whose domain is among
+-- domains and whose value is among values. The caller keeps the pairs it
+-- asked for. Each assertion comes with the datasource of the fetch that made
+-- it and that datasource's precedence, or with the email of the
 -- administrator who attested it.
 SELECT sqlc.embed(identifier_assertions), fetches.datasource, datasources.precedence,
        users.email AS attested_by
@@ -31,28 +33,32 @@ LEFT JOIN fetches ON fetches.id = fetch_keys.fetch_id
 LEFT JOIN datasources ON datasources.name = fetches.datasource
 LEFT JOIN users ON users.id = identifier_assertions.attested_by
 WHERE identifier_assertions.type = @type
-  AND identifier_assertions.domain = @domain
-  AND identifier_assertions.value = @value
+  AND identifier_assertions.domain = ANY(@domains::text[])
+  AND identifier_assertions.value = ANY(@values::text[])
 ORDER BY identifier_assertions.asserted_on, identifier_assertions.id;
 
 -- name: ListIdentifierEvents :many
--- The events that name a ticker, or that renamed another ticker to it, each
--- with the fetch key that wrote it.
-SELECT value, action, to_value, effective_on, fetch_key_id FROM identifier_events
-WHERE domain = @domain AND (value = @value OR to_value = @value)
+-- The events in a domain among domains that name a ticker whose value is
+-- among values, or that renamed another ticker to it. The caller keeps the
+-- pairs it asked for. Each event comes with the fetch key that wrote it.
+SELECT domain, value, action, to_value, effective_on, fetch_key_id FROM identifier_events
+WHERE domain = ANY(@domains::text[])
+  AND (value = ANY(@values::text[]) OR to_value = ANY(@values::text[]))
 ORDER BY effective_on, id;
 
 -- name: ListIdentifierCoverage :many
--- The coverage of a ticker, and of its domain, each with the datasource whose
--- fetch wrote it. value is NULL for a domain row.
+-- The coverage in a domain among domains of a ticker whose value is among
+-- values, and of the domain itself. The caller keeps the pairs it asked for.
+-- Each row comes with the datasource whose fetch wrote it. value is NULL for
+-- a domain row.
 SELECT identifier_event_coverage.domain, identifier_event_coverage.value,
        identifier_event_coverage.covered_from, identifier_event_coverage.covered_before,
        fetches.datasource
 FROM identifier_event_coverage
 JOIN fetch_keys ON fetch_keys.id = identifier_event_coverage.fetch_key_id
 JOIN fetches ON fetches.id = fetch_keys.fetch_id
-WHERE identifier_event_coverage.domain = @domain
-  AND (identifier_event_coverage.value = @value OR identifier_event_coverage.value IS NULL)
+WHERE identifier_event_coverage.domain = ANY(@domains::text[])
+  AND (identifier_event_coverage.value = ANY(@values::text[]) OR identifier_event_coverage.value IS NULL)
 ORDER BY fetches.datasource, identifier_event_coverage.covered_from, identifier_event_coverage.id;
 
 -- name: CreateIdentifierEvent :exec

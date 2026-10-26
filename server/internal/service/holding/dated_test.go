@@ -33,9 +33,9 @@ var (
 	aISIN           = types.Identifier{Type: types.IdentifierTypeIsin, Value: "US0000000071"}
 	protoFoo        = foo.ToProto()
 	protoAISIN      = aISIN.ToProto()
-	fooAssertions   = gen.ListIdentifierAssertionsParams{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "FOO"}
-	fooEvents       = gen.ListIdentifierEventsParams{Domain: "XNAS", Value: "FOO"}
-	fooCoverage     = gen.ListIdentifierCoverageParams{Domain: "XNAS", Value: ptr.To("FOO")}
+	fooAssertions   = gen.ListIdentifierAssertionsParams{Type: types.IdentifierTypeMicTicker, Domains: []string{"XNAS"}, Values: []string{"FOO"}}
+	fooEvents       = gen.ListIdentifierEventsParams{Domains: []string{"XNAS"}, Values: []string{"FOO"}}
+	fooCoverage     = gen.ListIdentifierCoverageParams{Domains: []string{"XNAS"}, Values: []string{"FOO"}}
 	coverage        = []gen.ListIdentifierCoverageRow{{Domain: "XNAS", Value: ptr.To("FOO"), CoveredFrom: day(1), CoveredBefore: day(20), Datasource: "massive"}}
 	straddle        = []gen.ListIdentifierAssertionsRow{assertion(2, &aID), assertion(10, &bID)}
 	retired         = []gen.ListIdentifierAssertionsRow{assertion(2, &aID), assertion(12, nil)}
@@ -61,7 +61,7 @@ func day(n int) time.Time { return time.Date(2026, time.March, n, 0, 0, 0, 0, ti
 // where inst is nil.
 func assertion(n int, inst *uuid.UUID) gen.ListIdentifierAssertionsRow {
 	return gen.ListIdentifierAssertionsRow{
-		IdentifierAssertion: gen.IdentifierAssertion{AssertedOn: day(n), InstrumentID: inst, FetchKeyID: ptr.To(uuid.New())},
+		IdentifierAssertion: gen.IdentifierAssertion{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "FOO", AssertedOn: day(n), InstrumentID: inst, FetchKeyID: ptr.To(uuid.New())},
 		Datasource:          ptr.To("massive"), Precedence: ptr.To(int32(2)),
 	}
 }

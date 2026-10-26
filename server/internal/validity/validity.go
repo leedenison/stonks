@@ -54,6 +54,24 @@ type Interval struct {
 	Validity     Validity
 }
 
+// Contains reports whether i holds the day d.
+func (i Interval) Contains(d time.Time) bool {
+	return (i.From == nil || !d.Before(*i.From)) && (i.Before == nil || d.Before(*i.Before))
+}
+
+// Clip returns the days of i that p holds. It reports false when the clip
+// is empty.
+func (i Interval) Clip(p types.Period) (types.Period, bool) {
+	out := p
+	if i.From != nil && i.From.After(out.From) {
+		out.From = *i.From
+	}
+	if i.Before != nil && i.Before.Before(out.Before) {
+		out.Before = *i.Before
+	}
+	return out, out.From.Before(out.Before)
+}
+
 // Source is where an assertion came from: a datasource's fetch key with the
 // datasource's precedence, or an administrator.
 type Source struct {

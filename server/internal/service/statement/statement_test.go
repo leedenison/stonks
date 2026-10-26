@@ -231,11 +231,11 @@ func TestGetStatement(t *testing.T) {
 	}
 	facts := metaFacts()
 	assertions := []gen.ListIdentifierAssertionsRow{
-		{IdentifierAssertion: gen.IdentifierAssertion{AssertedOn: assertedOn, InstrumentID: &metaInst, FetchKeyID: ptr.To(uuid.New())}, Datasource: ptr.To("massive"), Precedence: ptr.To(int32(2))},
-		{IdentifierAssertion: gen.IdentifierAssertion{AssertedOn: notFoundOn, FetchKeyID: ptr.To(uuid.New())}, Datasource: ptr.To("massive"), Precedence: ptr.To(int32(2))},
+		{IdentifierAssertion: gen.IdentifierAssertion{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "META", AssertedOn: assertedOn, InstrumentID: &metaInst, FetchKeyID: ptr.To(uuid.New())}, Datasource: ptr.To("massive"), Precedence: ptr.To(int32(2))},
+		{IdentifierAssertion: gen.IdentifierAssertion{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "META", AssertedOn: notFoundOn, FetchKeyID: ptr.To(uuid.New())}, Datasource: ptr.To("massive"), Precedence: ptr.To(int32(2))},
 	}
-	events := []gen.ListIdentifierEventsRow{{EffectiveOn: renamed, FetchKeyID: uuid.New()}}
-	coverage := []gen.ListIdentifierCoverageRow{{CoveredFrom: facts.Coverage[0].From, CoveredBefore: facts.Coverage[0].Before}}
+	events := []gen.ListIdentifierEventsRow{{Domain: "XNAS", Value: "META", EffectiveOn: renamed, FetchKeyID: uuid.New()}}
+	coverage := []gen.ListIdentifierCoverageRow{{Domain: "XNAS", Value: ptr.To("META"), CoveredFrom: facts.Coverage[0].From, CoveredBefore: facts.Coverage[0].Before}}
 	txMsgs := []*statementv1.Transaction{
 		{Id: transactions[0].Transaction.ID.String(), StatedKeyId: datedID.String(), OrderDate: "2021-06-01", Quantity: "10", Mark: statementv1.TransactionMark_TRANSACTION_MARK_UNRESOLVED},
 		{Id: transactions[1].Transaction.ID.String(), StatedKeyId: datedID.String(), OrderDate: "2024-01-16", Quantity: "10", Mark: statementv1.TransactionMark_TRANSACTION_MARK_CONFIRMED},
@@ -302,10 +302,10 @@ func TestGetStatement(t *testing.T) {
 					f.reader.EXPECT().ListStatementTransactions(gomock.Any(), gen.ListStatementTransactionsParams{StatementID: runID, UserID: userID}).Return(tc.transactions, tc.transactionsErr)
 				}
 				if len(tc.transactions) > 0 {
-					f.reader.EXPECT().ListIdentifierAssertions(gomock.Any(), gen.ListIdentifierAssertionsParams{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "META"}).Return(assertions, tc.assertionsErr)
+					f.reader.EXPECT().ListIdentifierAssertions(gomock.Any(), gen.ListIdentifierAssertionsParams{Type: types.IdentifierTypeMicTicker, Domains: []string{"XNAS"}, Values: []string{"META"}}).Return(assertions, tc.assertionsErr)
 					if tc.assertionsErr == nil {
-						f.reader.EXPECT().ListIdentifierEvents(gomock.Any(), gen.ListIdentifierEventsParams{Domain: "XNAS", Value: "META"}).Return(events, nil)
-						f.reader.EXPECT().ListIdentifierCoverage(gomock.Any(), gen.ListIdentifierCoverageParams{Domain: "XNAS", Value: ptr.To("META")}).Return(coverage, nil)
+						f.reader.EXPECT().ListIdentifierEvents(gomock.Any(), gen.ListIdentifierEventsParams{Domains: []string{"XNAS"}, Values: []string{"META"}}).Return(events, nil)
+						f.reader.EXPECT().ListIdentifierCoverage(gomock.Any(), gen.ListIdentifierCoverageParams{Domains: []string{"XNAS"}, Values: []string{"META"}}).Return(coverage, nil)
 					}
 				}
 			}

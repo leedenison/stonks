@@ -54,7 +54,6 @@ func New(q Queries, mics mic.MICMap) *Reader {
 // holds. The period runs from the earliest transaction whose key states the
 // ticker up to and including today.
 type Gap struct {
-	Ticker types.Identifier
 	Period types.Period
 	// Keys counts the keys that state the ticker and have a transaction
 	// dated inside the gap, whether or not they resolved, since a new fact
@@ -67,13 +66,14 @@ type Gap struct {
 // ToProto converts the gap.
 func (g Gap) ToProto() *admincoveragev1.Gap {
 	return &admincoveragev1.Gap{
-		Ticker: g.Ticker.ToProto(), UnconfirmedFrom: ymd(g.Period.From), UnconfirmedBefore: ymd(g.Period.Before),
+		UnconfirmedFrom: ymd(g.Period.From), UnconfirmedBefore: ymd(g.Period.Before),
 		Keys: int32(g.Keys), Transactions: int32(g.Transactions),
 	}
 }
 
-// Ticker is one ticker's facts and the validity they derive.
-type Ticker struct {
+// Page is one ticker as the admin area shows it: its facts, the validity
+// they derive, and its gaps.
+type Page struct {
 	Identifier types.Identifier
 	// Days are the distinct order dates of the transactions whose keys state
 	// the ticker, in order.
@@ -86,8 +86,8 @@ type Ticker struct {
 	Names map[uuid.UUID]types.Identifier
 }
 
-// ToProto converts the ticker.
-func (t *Ticker) ToProto() *admincoveragev1.Ticker {
+// ToProto converts the page.
+func (t *Page) ToProto() *admincoveragev1.Ticker {
 	out := &admincoveragev1.Ticker{Ticker: t.Identifier.ToProto()}
 	for _, d := range t.Days {
 		out.TransactionDays = append(out.TransactionDays, ymd(d))
@@ -131,7 +131,7 @@ func (r *Reader) InstrumentTickers(ctx context.Context, instrument uuid.UUID) ([
 // Ticker reads the facts and validity of v. It refuses an identifier that is
 // not a MIC_TICKER with validity.ErrNotTicker, and a domain with
 // validity.ErrSpelling.
-func (r *Reader) Ticker(ctx context.Context, v types.Identifier, today time.Time) (*Ticker, error) {
+func (r *Reader) Ticker(ctx context.Context, v types.Identifier, today time.Time) (*Page, error) {
 	if v.Type != types.IdentifierTypeMicTicker {
 		return nil, fmt.Errorf("%s: %w", v.Name(), validity.ErrNotTicker)
 	}
@@ -159,7 +159,7 @@ func (r *Reader) operating(domain string) string {
 }
 
 // read derives v's validity and its gaps over its transaction period.
-func (r *Reader) read(ctx context.Context, v types.Identifier, today time.Time) (*Ticker, error) {
+func (r *Reader) read(ctx context.Context, v types.Identifier, today time.Time) (*Page, error) {
 	rows, err := validity.ReadRows(ctx, r.q, v)
 	if err != nil {
 		return nil, err
@@ -168,7 +168,7 @@ func (r *Reader) read(ctx context.Context, v types.Identifier, today time.Time) 
 	if err != nil {
 		return nil, fmt.Errorf("list transactions of %s: %w", v.Name(), err)
 	}
-	t := &Ticker{Identifier: v, Rows: rows, Intervals: validity.Derive(rows.Facts()).Intervals}
+	t := &Page{Identifier: v, Rows: rows, Intervals: validity.Derive(rows.Facts()).Intervals}
 	for _, tx := range txs {
 		if n := len(t.Days); n == 0 || !t.Days[n-1].Equal(tx.OrderDate) {
 			t.Days = append(t.Days, tx.OrderDate)
@@ -182,7 +182,7 @@ func (r *Reader) read(ctx context.Context, v types.Identifier, today time.Time) 
 		return t, nil
 	}
 	for _, p := range validity.Gaps(t.Intervals, period) {
-		g := Gap{Ticker: v, Period: p}
+		g := Gap{Period: p}
 		keys := map[uuid.UUID]bool{}
 		for _, tx := range txs {
 			if p.Contains(tx.OrderDate) {
@@ -197,7 +197,7 @@ func (r *Reader) read(ctx context.Context, v types.Identifier, today time.Time) 
 }
 
 // name fills t.Names for every instrument its rows and intervals refer to.
-func (r *Reader) name(ctx context.Context, t *Ticker) error {
+func (r *Reader) name(ctx context.Context, t *Page) error {
 	var ids []uuid.UUID
 	seen := map[uuid.UUID]bool{}
 	add := func(id uuid.UUID) {

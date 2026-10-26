@@ -35,7 +35,7 @@ func ticker(value string) types.Identifier {
 
 func asserted(n int, instrument *uuid.UUID) gen.ListIdentifierAssertionsRow {
 	return gen.ListIdentifierAssertionsRow{
-		IdentifierAssertion: gen.IdentifierAssertion{ID: uuid.New(), AssertedOn: day(n), InstrumentID: instrument, FetchKeyID: ptr.To(uuid.New())},
+		IdentifierAssertion: gen.IdentifierAssertion{ID: uuid.New(), Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "ACME", AssertedOn: day(n), InstrumentID: instrument, FetchKeyID: ptr.To(uuid.New())},
 		Datasource:          alpha, Precedence: ptr.To(int32(1)),
 	}
 }
@@ -46,9 +46,9 @@ func tx(key uuid.UUID, n int) gen.ListTickerTransactionsRow {
 
 // facts serves the facts of v: assertions and nothing else.
 func facts(q *mock.MockQueries, v types.Identifier, assertions []gen.ListIdentifierAssertionsRow) {
-	q.EXPECT().ListIdentifierAssertions(gomock.Any(), gen.ListIdentifierAssertionsParams{Type: v.Type, Domain: v.Domain, Value: v.Value}).Return(assertions, nil)
-	q.EXPECT().ListIdentifierEvents(gomock.Any(), gen.ListIdentifierEventsParams{Domain: v.Domain, Value: v.Value}).Return(nil, nil)
-	q.EXPECT().ListIdentifierCoverage(gomock.Any(), gen.ListIdentifierCoverageParams{Domain: v.Domain, Value: &v.Value}).Return(nil, nil)
+	q.EXPECT().ListIdentifierAssertions(gomock.Any(), gen.ListIdentifierAssertionsParams{Type: v.Type, Domains: []string{v.Domain}, Values: []string{v.Value}}).Return(assertions, nil)
+	q.EXPECT().ListIdentifierEvents(gomock.Any(), gen.ListIdentifierEventsParams{Domains: []string{v.Domain}, Values: []string{v.Value}}).Return(nil, nil)
+	q.EXPECT().ListIdentifierCoverage(gomock.Any(), gen.ListIdentifierCoverageParams{Domains: []string{v.Domain}, Values: []string{v.Value}}).Return(nil, nil)
 }
 
 // TestTicker checks that a ticker named at a venue is read at its operating
@@ -69,7 +69,7 @@ func TestTicker(t *testing.T) {
 		t.Fatalf("Ticker: %v", err)
 	}
 	from, mid, before := day(10), day(21), day(31)
-	want := &Ticker{
+	want := &Page{
 		Identifier: v,
 		Days:       []time.Time{day(5), day(15)},
 		Rows:       validity.Rows{Assertions: assertions},
@@ -79,8 +79,8 @@ func TestTicker(t *testing.T) {
 			{From: &mid, Instrument: acme, Validity: validity.Provisional},
 		},
 		Gaps: []Gap{
-			{Ticker: v, Period: types.Period{From: day(5), Before: from}, Keys: 2, Transactions: 2},
-			{Ticker: v, Period: types.Period{From: mid, Before: before}},
+			{Period: types.Period{From: day(5), Before: from}, Keys: 2, Transactions: 2},
+			{Period: types.Period{From: mid, Before: before}},
 		},
 		Names: map[uuid.UUID]types.Identifier{acme: {Type: types.IdentifierTypeIsin, Value: "US0000000001"}},
 	}

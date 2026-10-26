@@ -25,7 +25,7 @@ import (
 // Reader is this package's view of the coverage package.
 type Reader interface {
 	InstrumentTickers(ctx context.Context, instrument uuid.UUID) ([]gen.ListInstrumentTickersRow, error)
-	Ticker(ctx context.Context, v types.Identifier, today time.Time) (*reader.Ticker, error)
+	Ticker(ctx context.Context, v types.Identifier, today time.Time) (*reader.Page, error)
 }
 
 var _ Reader = (*reader.Reader)(nil)

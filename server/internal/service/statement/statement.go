@@ -238,22 +238,26 @@ func (s *Server) keys(ctx context.Context, statement, user uuid.UUID) ([]*typev1
 }
 
 // transactions answers the statement's transactions, each with its mark. The
-// facts of a ticker are read once however many keys are dated through it.
+// facts of every dated key's ticker are read at once.
 func (s *Server) transactions(ctx context.Context, statement, user uuid.UUID) ([]*statementv1.Transaction, error) {
 	rows, err := s.reader.ListStatementTransactions(ctx, gen.ListStatementTransactionsParams{StatementID: statement, UserID: user})
 	if err != nil {
 		return nil, err
 	}
-	read := map[types.Identifier]*validity.Ticker{}
+	var tickers []types.Identifier
+	for _, r := range rows {
+		if v, ok := to.AssociatedTicker(r.StatedKey); ok {
+			tickers = append(tickers, v)
+		}
+	}
+	read, err := validity.ReadTickers(ctx, s.reader, tickers)
+	if err != nil {
+		return nil, fmt.Errorf("read the facts of the dated keys' tickers: %w", err)
+	}
 	out := make([]*statementv1.Transaction, 0, len(rows))
 	for _, r := range rows {
 		var t *validity.Ticker
 		if v, ok := to.AssociatedTicker(r.StatedKey); ok {
-			if read[v] == nil {
-				if read[v], err = validity.ReadTicker(ctx, s.reader, v); err != nil {
-					return nil, fmt.Errorf("read the facts of %s: %w", v.Name(), err)
-				}
-			}
 			t = read[v]
 		}
 		out = append(out, to.ProtoTransaction(r.Transaction, mark(r.StatedKey.Arbiter, r.FixedViaType, t, r.Transaction.OrderDate)))
