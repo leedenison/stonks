@@ -53,7 +53,8 @@ between the transaction date and the present to a canonical contract: underlying
 right, and strike and deliverable stated in current terms.  The symbol is admitted only
 when corporate event coverage of the underlying spans that interval.  Otherwise it stays
 in the stated key and is replayed when coverage arrives.  Corporate events on the
-underlying therefore create no assumption and nothing to unwind.
+underlying therefore create no assumption and nothing to unwind.  A corporate event never
+restates a contract that expired before its ex-date.
 
 Massive's options contracts endpoint states a contract's underlying ticker, expiry, right,
 strike and shares per contract, and is the source of the canonical contract.
