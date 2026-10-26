@@ -13,6 +13,11 @@ Massive types each corporate event as a forward split, a reverse split or a stoc
 A Massive event is handled when it has one of these types. It must also pass the test. EODHD
 sends only a ratio, so the test alone decides its events.
 
+A price factor with a small enough ratio passes the test and is handled. EODHD states the GE
+spin-off of 2019 as 104 for 100. In lowest terms that is 26 for 25, which reads as a split.
+This is accepted. When another datasource covers the ticker and lacks the event, the fetch
+raises a `corporate_event_disagreement` finding.
+
 Every other corporate event is unhandled. The fetch stores it with its raw type and ratio and
 marks it unhandled. Holdings skip it. The fetch records an `unhandled_corporate_event`
 finding, which references the stored row. The corporate event also removes the coverage of

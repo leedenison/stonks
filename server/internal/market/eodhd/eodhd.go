@@ -1,9 +1,10 @@
-// Package eodhd is the identity integration with EODHD's reference data API,
-// which covers listed stock, ETFs and funds on EODHD's exchanges worldwide.
+// Package eodhd is the identity and corporate events integration with
+// EODHD's API, which covers listed stock, ETFs and funds on EODHD's
+// exchanges worldwide.
 //
-// An answer costs up to four calls against EODHD's daily quota. Search
-// returns the listings an identifier names, and the other calls add what
-// search leaves out: the venue of a US listing, and a CUSIP.
+// An identity answer costs up to four calls against EODHD's daily quota.
+// Search returns the listings an identifier names, and the other calls add
+// what search leaves out: the venue of a US listing, and a CUSIP.
 package eodhd
 
 import (
