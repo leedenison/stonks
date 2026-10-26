@@ -40,6 +40,22 @@ type resolution struct {
 	// written lists the MIC_TICKER assertions the key's write made, each with
 	// the fetch key that made it. Each attempt of the write resets it.
 	written []writtenFact
+	// firstVerdict caches first for a resolution without a user's choice.
+	firstVerdict *claimVerdict
+}
+
+// first returns the verdict among res's claims without the database's
+// claim. Without a user's choice it is computed once, since the claims do
+// not change after the fetch.
+func (res *resolution) first(userChoice consistentClaims) claimVerdict {
+	if userChoice != nil {
+		return choose(res, nil, userChoice)
+	}
+	if res.firstVerdict == nil {
+		v := choose(res, nil, nil)
+		res.firstVerdict = &v
+	}
+	return *res.firstVerdict
 }
 
 // writtenFact is an identifier fact of id that the fetch key fk answered.

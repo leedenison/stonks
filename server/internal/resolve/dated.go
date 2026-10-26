@@ -175,7 +175,7 @@ func chainRequest(res *resolution, server market.Server[market.IdentifierEventRe
 	if len(res.fetchKeys) == 0 {
 		return market.IdentifierEventRequest{}, false
 	}
-	winner := choose(res, nil, nil).winner
+	winner := res.first(nil).winner
 	if winner == nil {
 		return market.IdentifierEventRequest{}, false
 	}

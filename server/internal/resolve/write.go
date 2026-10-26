@@ -6,7 +6,6 @@ import (
 	"maps"
 	"slices"
 	"strings"
-	"time"
 
 	"github.com/google/uuid"
 
@@ -111,7 +110,7 @@ func decide(ctx context.Context, q Queries, res *resolution, userChoice consiste
 	if err := recordUnknown(ctx, q, res); err != nil {
 		return decision{}, err
 	}
-	verdict := choose(res, nil, userChoice)
+	verdict := res.first(userChoice)
 	if verdict.refused != "" {
 		return decision{}, fmt.Errorf("%w: %s", ErrNoCandidate, verdict.refused)
 	}
@@ -323,11 +322,6 @@ func recordUnknown(ctx context.Context, q Queries, res *resolution) error {
 		res.wrote(fk, id)
 	}
 	return nil
-}
-
-// day is the UTC day of t, on which an assertion made at t holds.
-func day(t time.Time) time.Time {
-	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.UTC)
 }
 
 // findInstrumentsByIdentifier finds the instruments any of ids identifies,
@@ -557,14 +551,9 @@ func (w *writer) attach(ctx context.Context, c *identityClaim) error {
 	if err := w.q.SetFetchKeyInstrument(ctx, arg); err != nil {
 		return fmt.Errorf("attach fetch key: %w", err)
 	}
-	on := day(c.fetchKey.AnsweredAt)
 	for id := range c.AllIDs() {
-		arg := gen.CreateIdentifierAssertionParams{
-			ID: db.NewID(), FetchKeyID: &fetchKeyID, Type: id.Type, Domain: id.Domain, Value: id.Value,
-			InstrumentID: &w.instr.Row.ID, AssertedOn: on,
-		}
-		if err := w.q.CreateIdentifierAssertion(ctx, arg); err != nil {
-			return fmt.Errorf("record assertion: %w", err)
+		if err := validity.AssertInstrument(ctx, w.q, fetchKeyID, id, &w.instr.Row.ID, c.fetchKey.AnsweredAt); err != nil {
+			return err
 		}
 		w.res.wrote(c.fetchKey, id)
 	}

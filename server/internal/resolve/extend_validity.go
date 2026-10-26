@@ -2,7 +2,6 @@ package resolve
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"slices"
 	"time"
@@ -10,7 +9,6 @@ import (
 	"github.com/google/uuid"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/to"
 	"github.com/leedenison/stonks/server/internal/market"
@@ -39,10 +37,12 @@ type heldAnswer struct {
 
 // ExtendValidity is the body of an extend validity run. It asks each enabled
 // datasource once about each held ticker that ListHeldTickers lists, and the
-// fetcher it is given skips the cache. It writes the assertions the answers
-// make and the findings they complete. It returns, for each fetch run in
-// precedence order, the identifiers it wrote facts for. It returns an error for
-// a run other than a system extend validity run.
+// fetcher it is given skips the cache. It asks a datasource that serves
+// identifier events for the history of the instrument the ticker names, and
+// any other datasource for the ticker's identity. It writes the facts the
+// answers make and the findings they complete. It returns, for each fetch
+// run in precedence order, the identifiers whose facts it wrote. It returns
+// an error for a run other than a system extend validity run.
 func (r *Resolver) ExtendValidity(ctx context.Context, run gen.Run, held []gen.ListHeldTickersRow) ([]WrittenIdentifierFacts, error) {
 	if run.Kind != gen.RunKindExtendValidity || run.UserID != nil {
 		return nil, fmt.Errorf("run %s is not a system extend validity run", run.ID)
@@ -229,91 +229,47 @@ func (r *Resolver) assertHeld(ctx context.Context, q Queries, t *heldTicker, fk 
 	if fk.Outcome != gen.FetchOutcomeServed {
 		return nil
 	}
-	if fk.Response.Unknown {
-		a := market.Assertion{Value: t.ticker, Negative: true, At: fk.AnsweredAt}
-		if _, err := validity.Assert(ctx, q, r.families, fk.ID, a); err != nil {
-			return err
+	var inst *uuid.UUID
+	if !fk.Response.Unknown {
+		l, ok := listingOf(fk.Response, t.ticker)
+		if !ok {
+			return nil
 		}
-		written.add(fk.Run, t.ticker)
-		return nil
-	}
-	l, ok := r.listingOf(fk.Response, t.ticker)
-	if !ok {
-		return nil
-	}
-	inst := t.instrument
-	if inst == nil || !r.shares(l, t) {
-		found, err := storedInstrument(ctx, q, l)
-		if err != nil || found == nil {
-			return err
+		inst = t.instrument
+		if inst == nil || !shares(l, t) {
+			found, err := validity.StoredInstrument(ctx, q, l.Identifiers)
+			if err != nil || found == nil {
+				return err
+			}
+			inst = found
 		}
-		inst = found
 	}
-	arg := gen.CreateIdentifierAssertionParams{
-		ID: db.NewID(), FetchKeyID: &fk.ID, Type: t.ticker.Type, Domain: t.ticker.Domain, Value: t.ticker.Value,
-		InstrumentID: inst, AssertedOn: day(fk.AnsweredAt),
-	}
-	if err := q.CreateIdentifierAssertion(ctx, arg); err != nil {
-		return fmt.Errorf("record assertion: %w", err)
+	if err := validity.AssertInstrument(ctx, q, fk.ID, t.ticker, inst, fk.AnsweredAt); err != nil {
+		return err
 	}
 	written.add(fk.Run, t.ticker)
 	return nil
 }
 
-// storedInstrument returns the instrument of the first stable identifier of
-// l that is stored, nil where none is.
-func storedInstrument(ctx context.Context, q Queries, l market.Listing) (*uuid.UUID, error) {
-	for _, id := range l.Identifiers {
-		if !id.Stable() {
-			continue
-		}
-		row, err := q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: id.Type, Domain: id.Domain, Value: id.Value})
-		if errors.Is(err, db.ErrNotFound) {
-			continue
-		}
-		if err != nil {
-			return nil, fmt.Errorf("find %s: %w", id.Name(), err)
-		}
-		return &row.Instrument.ID, nil
-	}
-	return nil, nil
-}
-
-// listingOf returns the first listing of res that states v at a venue of
-// v's operating MIC.
-func (r *Resolver) listingOf(res market.IdentityResult, v types.Identifier) (market.Listing, bool) {
+// listingOf returns the first listing of res that states v. A ticker
+// compares as it is: every integration states it at its operating MIC, as
+// the database does; see [market.go](../market/market.go).
+func listingOf(res market.IdentityResult, v types.Identifier) (market.Listing, bool) {
 	for _, l := range res.Listings {
-		for _, id := range l.Identifiers {
-			if r.operating(id) == v {
-				return l, true
-			}
+		if slices.Contains(l.Identifiers, v) {
+			return l, true
 		}
 	}
 	return market.Listing{}, false
 }
 
 // shares reports whether l carries an identifier of t's instrument other
-// than t's ticker. A ticker is compared at its operating MIC.
-func (r *Resolver) shares(l market.Listing, t *heldTicker) bool {
-	held := make([]types.Identifier, len(t.ids))
-	for i, id := range t.ids {
-		held[i] = r.operating(id)
-	}
+// than t's ticker.
+func shares(l market.Listing, t *heldTicker) bool {
 	for _, id := range l.Identifiers {
-		id = r.operating(id)
-		if id != t.ticker && slices.Contains(held, id) {
+		if id != t.ticker && slices.Contains(t.ids, id) {
 			return true
 		}
 	}
 	return false
-}
-
-// operating returns id with a ticker's venue replaced by its operating MIC.
-func (r *Resolver) operating(id types.Identifier) types.Identifier {
-	if id.Type == types.IdentifierTypeMicTicker {
-		if op, ok := r.mics.Operating(id.Domain); ok {
-			id.Domain = op
-		}
-	}
-	return id
 }

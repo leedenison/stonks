@@ -16,9 +16,9 @@
 // A key that states a venue ticker without a stable identifier is dated: it
 // names the ticker, and each of its transactions takes the instrument the
 // ticker's validity names on its order date when it is read;
-// see [validity.go](../validity/validity.go). Where the ticker has facts, the
-// key is dated through them without an identity fetch. Identifier events are
-// fetched for the keys that may be dated, and recorded after the keys are
+// see [validity.go](../validity/validity.go). Where the ticker has validity,
+// the key is dated through it without an identity fetch. Identifier events
+// are fetched for the keys that may be dated, and recorded after the keys are
 // written.
 //
 // A claim below the winner attaches where it corroborates the winner: it
