@@ -22,7 +22,7 @@ import (
 var (
 	admin = uuid.MustParse("00000000-0000-0000-0000-000000000002")
 	acme  = uuid.MustParse("00000000-0000-0000-0000-000000000003")
-	mics  = mic.MICMap{"XNAS": "XNAS", "XNGS": "XNAS"}
+	mics  = mic.Of(map[string]string{"XNAS": "XNAS", "XNGS": "XNAS"})
 	today = time.Date(2026, time.March, 30, 12, 0, 0, 0, time.UTC)
 	// nasdaq is the ticker at its operating MIC, the venue every assertion
 	// names.

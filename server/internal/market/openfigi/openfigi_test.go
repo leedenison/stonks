@@ -20,10 +20,10 @@ import (
 )
 
 // mics is a MIC map holding the venues the tests name.
-var mics = mic.MICMap{
+var mics = mic.Of(map[string]string{
 	"XNYS": "XNYS", "ARCX": "XNYS", "XNAS": "XNAS", "XNGS": "XNAS",
 	"XLON": "XLON", "XTAI": "XTAI", "ROCO": "ROCO",
-}
+})
 
 // scrub declares that OpenFIGI's bodies carry only public security
 // identifiers, and that its requests differ only in their bodies.

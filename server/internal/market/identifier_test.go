@@ -35,7 +35,7 @@ func TestPreference(t *testing.T) {
 	ticker := func(venue, value string) types.Identifier {
 		return types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: venue, Value: value}
 	}
-	mics := mic.MICMap{"XNYS": "XNYS", "XNGS": "XNAS", "XNAS": "XNAS", "XLON": "XLON"}
+	mics := mic.Of(map[string]string{"XNYS": "XNYS", "XNGS": "XNAS", "XNAS": "XNAS", "XLON": "XLON"})
 	us := func(op string) bool { return op == "XNYS" || op == "XNAS" }
 	limited := Preference{Served: Equities, Order: []types.IdentifierType{types.IdentifierTypeCusip, types.IdentifierTypeMicTicker}, Lists: us, Mics: mics}
 	complete := Preference{Order: []types.IdentifierType{types.IdentifierTypeIsin, types.IdentifierTypeCusip, types.IdentifierTypeMicTicker}, Mics: mics}

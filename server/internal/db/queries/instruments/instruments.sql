@@ -73,7 +73,7 @@ ORDER BY type, domain, value;
 SELECT * FROM currencies ORDER BY code;
 
 -- name: ListMICs :many
-SELECT mic, operating_mic FROM mics ORDER BY mic;
+SELECT mic, operating_mic, market FROM mic_markets ORDER BY mic;
 
 -- name: ListAssetClassTree :many
 SELECT * FROM asset_class_tree ORDER BY class;

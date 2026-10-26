@@ -114,7 +114,8 @@ func TestCurrencySeed(t *testing.T) {
 	}
 }
 
-// TestMICSeed checks that every MIC normalises to an operating MIC that is its own.
+// TestMICSeed checks that every MIC normalises to an operating MIC that is its own,
+// and shares the market of its operating MIC.
 func TestMICSeed(t *testing.T) {
 	tbl, err := mic.Load(context.Background(), newTx(t))
 	require.NoError(t, err)
@@ -126,9 +127,14 @@ func TestMICSeed(t *testing.T) {
 			t.Errorf("Operating(%q) = %q, %v, want %q, true", m, got, ok, want)
 		}
 	}
-	for m, op := range tbl {
-		if tbl[op] != op {
-			t.Errorf("%s: operating MIC %s has operating MIC %q, want itself", m, op, tbl[op])
+	for m, want := range map[string]string{"XNGS": "US", "ARCX": "US", "BATY": "US", "EDGX": "US", "XLON": "XLON", "OTCM": "OTCM"} {
+		if got, ok := tbl.Market(m); got != want || !ok {
+			t.Errorf("Market(%q) = %q, %v, want %q, true", m, got, ok, want)
+		}
+	}
+	for m, e := range tbl {
+		if op := tbl[e.Operating]; op.Operating != e.Operating || op.Market != e.Market {
+			t.Errorf("%s: operating MIC %s maps to %+v, want itself in market %s", m, e.Operating, op, e.Market)
 		}
 	}
 }

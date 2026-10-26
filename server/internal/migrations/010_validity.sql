@@ -5,6 +5,32 @@
 -- left it naming nothing.
 CREATE TYPE identifier_event_action AS ENUM ('assigned', 'renamed', 'retired');
 
+-- A market is a set of operating MICs across which one ticker names one
+-- instrument on a day. A ticker's identifier facts are keyed by its market.
+-- A market_members row puts an operating MIC in a shared market. An
+-- operating MIC without a row is a market of its own, named by that MIC.
+CREATE TABLE market_members (
+    operating_mic text PRIMARY KEY REFERENCES mics (mic),
+    market        text NOT NULL
+);
+
+-- The US listing exchanges share the market US.
+INSERT INTO market_members (operating_mic, market) VALUES
+    ('BATS', 'US'),
+    ('EDGE', 'US'),
+    ('IEXG', 'US'),
+    ('XCHI', 'US'),
+    ('XCIS', 'US'),
+    ('XNAS', 'US'),
+    ('XNYS', 'US');
+
+-- mic_markets gives each MIC its operating MIC and its market.
+CREATE VIEW mic_markets AS
+SELECT mics.mic, mics.operating_mic,
+       COALESCE(market_members.market, mics.operating_mic) AS market
+FROM mics
+LEFT JOIN market_members ON market_members.operating_mic = mics.operating_mic;
+
 -- An identifier assertion is a claim that an identifier names an instrument,
 -- or names nothing, on one day. A datasource asserts through a fetch key, on
 -- the day of its answer. A point in time lookup asserts on the day its request
