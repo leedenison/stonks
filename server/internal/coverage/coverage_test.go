@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
 	"github.com/leedenison/stonks/server/internal/coverage/mock"
@@ -59,7 +60,9 @@ func TestTicker(t *testing.T) {
 	v := ticker("ACME")
 	assertions := []gen.ListIdentifierAssertionsRow{asserted(10, &acme), asserted(20, &acme)}
 	facts(q, v, assertions)
-	q.EXPECT().ListTickerTransactions(gomock.Any(), gen.ListTickerTransactionsParams{Domain: "XNAS", Value: "ACME"}).
+	probes, err := mics.Probes([]types.Identifier{v})
+	require.NoError(t, err)
+	q.EXPECT().ListTickerTransactions(gomock.Any(), probes).
 		Return([]gen.ListTickerTransactionsRow{tx(k1, 5), tx(k2, 5), tx(k2, 15)}, nil)
 	name := gen.InstrumentName{InstrumentID: acme, Type: types.IdentifierTypeIsin, Value: "US0000000001"}
 	q.EXPECT().ListInstrumentNames(gomock.Any(), []uuid.UUID{acme}).Return([]gen.InstrumentName{name}, nil)

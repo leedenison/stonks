@@ -256,12 +256,6 @@ func ProtoIdentifierEvent(e gen.ListIdentifierEventsRow) *admincoveragev1.Identi
 	return out
 }
 
-// ProtoInstrumentTicker converts a ticker of an instrument.
-func ProtoInstrumentTicker(r gen.ListInstrumentTickersRow) *admincoveragev1.InstrumentTicker {
-	v := types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: r.Domain, Value: r.Value}
-	return &admincoveragev1.InstrumentTicker{Ticker: v.ToProto(), Current: r.Current, Transactions: r.Transactions}
-}
-
 // ProtoInstrument writes an instrument with the identifier that names it,
 // and leaves its listings and identifiers to the caller.
 func ProtoInstrument(r gen.ListInstrumentsRow) *admininstrumentv1.Instrument {

@@ -24,7 +24,7 @@ import (
 
 // Reader is this package's view of the coverage package.
 type Reader interface {
-	InstrumentTickers(ctx context.Context, instrument uuid.UUID) ([]gen.ListInstrumentTickersRow, error)
+	InstrumentTickers(ctx context.Context, instrument uuid.UUID) ([]reader.InstrumentTicker, error)
 	Ticker(ctx context.Context, v types.Identifier, today time.Time) (*reader.Page, error)
 }
 
@@ -66,7 +66,7 @@ func (s *Server) ListInstrumentTickers(ctx context.Context, req *connect.Request
 	}
 	out := &admincoveragev1.ListInstrumentTickersResponse{}
 	for _, r := range rows {
-		out.Tickers = append(out.Tickers, to.ProtoInstrumentTicker(r))
+		out.Tickers = append(out.Tickers, r.ToProto())
 	}
 	return connect.NewResponse(out), nil
 }
