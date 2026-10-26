@@ -36,7 +36,7 @@ func callOf(r market.IdentifierEventRequest) call {
 	switch {
 	case r.Identifier.Type != types.IdentifierTypeMicTicker:
 		return chainCall
-	case r.Period.Before.Sub(r.Period.From) <= 24*time.Hour:
+	case r.Period.Before.Equal(r.Period.From.AddDate(0, 0, 1)):
 		return lookupCall
 	}
 	return retiredCall
@@ -80,9 +80,9 @@ type event struct {
 	} `json:"ticker_change"`
 }
 
-// chain returns the ticker events of the entity id names, newest first. The
-// second result reports whether Massive answered that it does not know id.
-func (c *Client) chain(ctx context.Context, id types.Identifier) ([]event, bool, error) {
+// chain returns the ticker events of the entity id names, newest first. It
+// returns an empty list when Massive does not know id.
+func (c *Client) chain(ctx context.Context, id types.Identifier) ([]event, error) {
 	q := url.Values{"apiKey": {c.key}, "types": {"ticker_change"}}
 	var body struct {
 		Results struct {
@@ -90,32 +90,10 @@ func (c *Client) chain(ctx context.Context, id types.Identifier) ([]event, bool,
 		} `json:"results"`
 	}
 	err := c.get(ctx, "/vX/reference/tickers/"+url.PathEscape(id.Value)+"/events", q, &body)
-	var status market.StatusError
-	switch {
-	case errors.As(err, &status) && unknown(status):
-		return nil, true, nil
-	case err != nil:
-		return nil, false, err
+	if _, err := notFound(err); err != nil {
+		return nil, err
 	}
-	return body.Results.Events, false, nil
-}
-
-// at returns the record of ticker on day. The second result reports whether
-// Massive answered that ticker was not in use on day.
-func (c *Client) at(ctx context.Context, ticker string, day time.Time) (*record, bool, error) {
-	q := url.Values{"apiKey": {c.key}, "date": {day.Format(time.DateOnly)}}
-	var body struct {
-		Results *record `json:"results"`
-	}
-	err := c.get(ctx, "/v3/reference/tickers/"+url.PathEscape(ticker), q, &body)
-	var status market.StatusError
-	switch {
-	case errors.As(err, &status) && unknown(status):
-		return nil, true, nil
-	case err != nil:
-		return nil, false, err
-	}
-	return body.Results, false, nil
+	return body.Results.Events, nil
 }
 
 // delisting is a record Massive lists as inactive. Delisted is nil where

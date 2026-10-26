@@ -176,7 +176,7 @@ func TestClassifyStatus(t *testing.T) {
 		status int
 		want   market.Failure
 	}{
-		{status: http.StatusForbidden, want: market.Failure{Scope: market.ScopeDatasource}},
+		{status: http.StatusForbidden, want: market.Failure{Scope: market.ScopeKey}},
 		{status: http.StatusTooManyRequests, want: market.Failure{Temporary: true, Scope: market.ScopeKey}},
 		{status: http.StatusBadGateway, want: market.Failure{Temporary: true, Scope: market.ScopeKey}},
 		{status: http.StatusBadRequest, want: market.Failure{Scope: market.ScopeKey}},

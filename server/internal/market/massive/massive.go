@@ -8,8 +8,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
@@ -33,8 +35,11 @@ var _ market.Identity = (*Client)(nil)
 
 // Client is the Massive integration.
 type Client struct {
-	mics     mic.MICMap
-	venues   OperatingMICSet
+	mics   mic.MICMap
+	venues OperatingMICSet
+	// doms holds the domains of venues in order. Each identifier fact is
+	// stated at every one.
+	doms     []string
 	prefer   market.Preference
 	limit    rate.Limit
 	http     *http.Client
@@ -87,6 +92,7 @@ func New(cfg market.Config, mics mic.MICMap, h *http.Client) (*Client, error) {
 		endpoint: ep,
 		key:      cfg.Credential,
 	}
+	c.doms = slices.Sorted(maps.Keys(c.venues))
 	c.prefer = market.Preference{
 		Served: market.Equities,
 		Order:  []types.IdentifierType{types.IdentifierTypeCusip, types.IdentifierTypeMicTicker},
@@ -139,44 +145,61 @@ func (c *Client) Endpoint() string { return c.endpoint }
 // Batch is one, since Massive answers one ticker or CUSIP per request.
 func (c *Client) Batch() int { return 1 }
 
-// unknown reports whether a refusal is Massive's answer for a ticker it does
-// not know.
-func unknown(e market.StatusError) bool {
+// notFound reports whether err is Massive's answer for an unknown ticker or
+// entity. Such a 404 carries the status NOT_FOUND in its body. A 404 for a
+// path Massive does not serve lacks it. It returns any other error
+// unchanged.
+func notFound(err error) (bool, error) {
+	var status market.StatusError
 	var body struct {
 		Status string `json:"status"`
 	}
-	return e.Code == http.StatusNotFound && json.Unmarshal([]byte(e.Body), &body) == nil && body.Status == "NOT_FOUND"
+	if errors.As(err, &status) && status.Code == http.StatusNotFound && json.Unmarshal([]byte(status.Body), &body) == nil && body.Status == "NOT_FOUND" {
+		return true, nil
+	}
+	return false, err
 }
 
-// Classify scopes a failure by its status. A 403 for dates outside the plan's
-// history concerns only the request. Any other 401 or 403 blocks the
-// datasource, because the credential fails for every key. Any other status
-// concerns only the key requested. A 429 or 5xx is temporary. Massive's 429
-// omits Retry-After, so the market package's retry schedule applies.
+// Classify scopes a failure by its status, and a 403 by its body as well;
+// see forbidden. A 401 blocks the datasource, because the credential fails
+// for every key. A 429 or 5xx is temporary. Massive's 429 omits Retry-After,
+// so the market package's retry schedule applies.
 func (c *Client) Classify(err error) market.Failure {
 	var status market.StatusError
 	if !errors.As(err, &status) {
 		return market.Failure{Temporary: true, Scope: market.ScopeKey}
 	}
 	switch {
-	case status.Code == http.StatusForbidden && timeframe(status):
-		return market.Failure{Scope: market.ScopeRequest}
-	case status.Code == http.StatusUnauthorized || status.Code == http.StatusForbidden:
+	case status.Code == http.StatusUnauthorized:
 		return market.Failure{Scope: market.ScopeDatasource}
+	case status.Code == http.StatusForbidden:
+		return market.Failure{Scope: forbidden(status)}
 	case status.Code == http.StatusTooManyRequests || status.Code >= http.StatusInternalServerError:
 		return market.Failure{Temporary: true, Scope: market.ScopeKey}
 	}
 	return market.Failure{Scope: market.ScopeKey}
 }
 
-// timeframe reports whether a refusal is Massive's answer for dates outside
-// the plan's history.
-func timeframe(e market.StatusError) bool {
+// forbidden reads the scope of a 403 from its body. Massive's two refusals
+// both carry the status NOT_AUTHORIZED, and only the message tells them
+// apart. A plan that lacks the data would refuse every key of the kind, so
+// that refusal blocks the datasource. A refusal for dates outside the plan's
+// history concerns only the request. When the integration does not
+// recognise the wording of a 403, only the key is lost.
+func forbidden(e market.StatusError) market.Scope {
 	var body struct {
 		Status  string `json:"status"`
 		Message string `json:"message"`
 	}
-	return json.Unmarshal([]byte(e.Body), &body) == nil && body.Status == "NOT_AUTHORIZED" && strings.Contains(body.Message, "timeframe")
+	switch {
+	case json.Unmarshal([]byte(e.Body), &body) != nil || body.Status != "NOT_AUTHORIZED":
+		return market.ScopeKey
+	case strings.Contains(body.Message, "timeframe"):
+		return market.ScopeRequest
+	case strings.Contains(body.Message, "not entitled"):
+		return market.ScopeDatasource
+	}
+	return market.ScopeKey
 }
 
 // Fetch asks Massive about each request in turn.
@@ -196,15 +219,12 @@ func (c *Client) Fetch(ctx context.Context, reqs []market.Request[gen.StatedKey]
 // records returns what Massive holds for id: the record of a ticker, or the
 // records the cusip filter of the ticker list matches. The second result
 // reports whether Massive stated that it does not know the ticker. Massive
-// marks an unknown ticker with the status NOT_FOUND in the body, which a 404
-// for a path Massive does not serve lacks. Massive answers as at the latest
-// date, so an unknown ticker names nothing there on the day of the answer. A
-// cusip that matches nothing is not unknown, since no ticker was sent.
+// answers as at the latest date, so an unknown ticker names nothing there on
+// the day of the answer. A cusip that matches nothing is not unknown, since
+// no ticker was sent.
 func (c *Client) records(ctx context.Context, id types.Identifier) ([]record, bool, error) {
-	q := url.Values{"apiKey": {c.key}}
 	if id.Type == types.IdentifierTypeCusip {
-		q.Set("cusip", id.Value)
-		q.Set("market", "stocks")
+		q := url.Values{"apiKey": {c.key}, "cusip": {id.Value}, "market": {"stocks"}}
 		var page struct {
 			Results []record `json:"results"`
 		}
@@ -214,20 +234,29 @@ func (c *Client) records(ctx context.Context, id types.Identifier) ([]record, bo
 		return page.Results, false, nil
 	}
 	ticker, _ := market.WithClassSep(id.Value, '.')
-	var one struct {
+	rec, unknown, err := c.ticker(ctx, ticker, time.Time{})
+	if err != nil || rec == nil {
+		return nil, unknown, err
+	}
+	return []record{*rec}, false, nil
+}
+
+// ticker returns the record of ticker as at day, or as at the latest date
+// when day is zero. The second result reports whether Massive answered that
+// it does not know the ticker, or that the ticker was not in use on day.
+func (c *Client) ticker(ctx context.Context, ticker string, day time.Time) (*record, bool, error) {
+	q := url.Values{"apiKey": {c.key}}
+	if !day.IsZero() {
+		q.Set("date", day.Format(time.DateOnly))
+	}
+	var body struct {
 		Results *record `json:"results"`
 	}
-	err := c.get(ctx, "/v3/reference/tickers/"+url.PathEscape(ticker), q, &one)
-	var status market.StatusError
-	switch {
-	case errors.As(err, &status) && unknown(status):
-		return nil, true, nil
-	case err != nil:
-		return nil, false, err
-	case one.Results == nil:
-		return nil, false, nil
+	err := c.get(ctx, "/v3/reference/tickers/"+url.PathEscape(ticker), q, &body)
+	if unknown, err := notFound(err); unknown || err != nil {
+		return nil, unknown, err
 	}
-	return []record{*one.Results}, false, nil
+	return body.Results, false, nil
 }
 
 // get sends one request and decodes a 200's body into v.
