@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { Chip } from "@/app/components/chip";
 import { identifierLabel } from "@/app/components/identifier-chip";
 import { Section } from "@/app/components/section";
-import { Td, Th } from "@/app/components/table";
+import { None, PaneTable, Td, Th } from "@/app/components/table";
 import type { Instrument } from "@/gen/admin/instrument/v1/instrument_pb";
 import { type Identifier, IdentifierType } from "@/gen/type/v1/type_pb";
 import {
@@ -98,7 +98,7 @@ function Overview({
         {instrument.identifiers.length === 0 ? (
           <None />
         ) : (
-          <Table valueHead="Value" testId="instrument-identifiers">
+          <IdentifierTable valueHead="Value" testId="instrument-identifiers">
             <tbody>
               <Rows
                 ids={instrument.identifiers}
@@ -106,14 +106,14 @@ function Overview({
                 params={params}
               />
             </tbody>
-          </Table>
+          </IdentifierTable>
         )}
       </Section>
       <Section title="Listings">
         {instrument.listings.length === 0 ? (
           <None />
         ) : (
-          <Table valueHead="Symbol">
+          <IdentifierTable valueHead="Symbol">
             {instrument.listings.map((l) => (
               <tbody key={l.id} data-testid={`listing-${l.id}`}>
                 <tr>
@@ -139,20 +139,16 @@ function Overview({
                 />
               </tbody>
             ))}
-          </Table>
+          </IdentifierTable>
         )}
       </Section>
     </>
   );
 }
 
-function None() {
-  return <p className="text-sm text-text-muted">None.</p>;
-}
-
-// Table is the header and frame for identifier rows, which the caller
-// supplies as tbody children.
-function Table({
+// IdentifierTable is the header and frame for identifier rows, which the
+// caller supplies as tbody children.
+function IdentifierTable({
   valueHead,
   testId,
   children,
@@ -162,10 +158,7 @@ function Table({
   children: ReactNode;
 }) {
   return (
-    <table
-      data-testid={testId}
-      className="w-full table-fixed border-collapse border-b border-border text-sm"
-    >
+    <PaneTable testId={testId} fixed>
       <colgroup>
         <col className="w-[16%]" />
         <col className="w-[16%]" />
@@ -179,7 +172,7 @@ function Table({
         </tr>
       </thead>
       {children}
-    </table>
+    </PaneTable>
   );
 }
 

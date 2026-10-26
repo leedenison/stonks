@@ -12,7 +12,7 @@ import { Select } from "@/app/components/input";
 import { Notice } from "@/app/components/notice";
 import { Section } from "@/app/components/section";
 import { Skeleton } from "@/app/components/skeleton";
-import { Td, Th } from "@/app/components/table";
+import { None, PaneTable, Td, Th } from "@/app/components/table";
 import {
   IdentifierEventAction,
   type InstrumentTicker,
@@ -252,7 +252,7 @@ function Facts({
         {ticker.gaps.length === 0 ? (
           <None />
         ) : (
-          <Table testId="ticker-gaps">
+          <PaneTable testId="ticker-gaps">
             <thead className="border-b border-border">
               <tr>
                 <Th dense>From</Th>
@@ -306,14 +306,14 @@ function Facts({
                 </tr>
               ))}
             </tbody>
-          </Table>
+          </PaneTable>
         )}
       </Section>
       <Section title="Assertions">
         {ticker.assertions.length === 0 ? (
           <None />
         ) : (
-          <Table testId="ticker-assertions">
+          <PaneTable testId="ticker-assertions">
             <thead className="border-b border-border">
               <tr>
                 <Th dense>Day</Th>
@@ -358,12 +358,12 @@ function Facts({
                 </tr>
               ))}
             </tbody>
-          </Table>
+          </PaneTable>
         )}
       </Section>
       {ticker.events.length > 0 && (
         <Section title="Events">
-          <Table testId="ticker-events">
+          <PaneTable testId="ticker-events">
             <thead className="border-b border-border">
               <tr>
                 <Th dense>Day</Th>
@@ -390,14 +390,14 @@ function Facts({
                 </tr>
               ))}
             </tbody>
-          </Table>
+          </PaneTable>
         </Section>
       )}
       <Section title="Coverage">
         {ticker.coverage.length === 0 ? (
           <None />
         ) : (
-          <Table testId="ticker-coverage">
+          <PaneTable testId="ticker-coverage">
             <thead className="border-b border-border">
               <tr>
                 <Th dense>Datasource</Th>
@@ -424,31 +424,9 @@ function Facts({
                 </tr>
               ))}
             </tbody>
-          </Table>
+          </PaneTable>
         )}
       </Section>
     </div>
-  );
-}
-
-function None() {
-  return <p className="text-sm text-text-muted">None.</p>;
-}
-
-// Table frames a pane table.
-function Table({
-  testId,
-  children,
-}: {
-  testId: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <table
-      data-testid={testId}
-      className="w-full border-collapse border-b border-border text-sm"
-    >
-      {children}
-    </table>
   );
 }

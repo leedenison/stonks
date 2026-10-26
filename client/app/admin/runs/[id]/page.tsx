@@ -428,8 +428,8 @@ function RunItems({ id, live }: { id: string; live: boolean }) {
             </tr>
           </Thead>
           <tbody>
-            {asserted.map((it, i) => (
-              <Tr key={i} data-testid={`assertion-row-${i}`}>
+            {asserted.map((it) => (
+              <Tr key={it.id} data-testid={`assertion-row-${it.id}`}>
                 <Td>{it.ticker && <IdentifierChip id={it.ticker} />}</Td>
                 <Td className="font-mono tabular-nums">{it.assertedOn}</Td>
                 <Td className="font-mono">{it.instrumentId ?? "nothing"}</Td>

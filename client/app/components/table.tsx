@@ -89,3 +89,29 @@ export function Tr({
     />
   );
 }
+
+// PaneTable frames a table set inside a pane section. A fixed table takes
+// its column widths from the colgroup the caller passes among its children.
+export function PaneTable({
+  testId,
+  fixed,
+  children,
+}: {
+  testId?: string;
+  fixed?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <table
+      data-testid={testId}
+      className={`w-full border-collapse border-b border-border text-sm${fixed ? " table-fixed" : ""}`}
+    >
+      {children}
+    </table>
+  );
+}
+
+// None is the placeholder shown in place of a pane table with no rows.
+export function None() {
+  return <p className="text-sm text-text-muted">None.</p>;
+}

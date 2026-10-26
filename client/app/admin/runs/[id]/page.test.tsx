@@ -514,6 +514,7 @@ describe("AdminRunPage assertions", () => {
           item: {
             case: "assertion",
             value: create(AssertionItemSchema, {
+              id: "a1",
               ticker,
               assertedOn: "2026-10-23",
               instrumentId: "i1",
@@ -525,6 +526,7 @@ describe("AdminRunPage assertions", () => {
           item: {
             case: "assertion",
             value: create(AssertionItemSchema, {
+              id: "a2",
               ticker,
               assertedOn: "2026-10-23",
               source: { case: "datasource", value: "openfigi" },
@@ -538,14 +540,14 @@ describe("AdminRunPage assertions", () => {
       serving(() => extension, { run: { listRunItems: () => items } }),
     );
     await waitFor(() =>
-      expect(screen.getByTestId("assertion-row-0")).toBeTruthy(),
+      expect(screen.getByTestId("assertion-row-a1")).toBeTruthy(),
     );
-    const named = screen.getByTestId("assertion-row-0").textContent;
+    const named = screen.getByTestId("assertion-row-a1").textContent;
     expect(named).toContain("SHEL");
     expect(named).toContain("2026-10-23");
     expect(named).toContain("i1");
     expect(named).toContain("eodhd");
-    const negative = screen.getByTestId("assertion-row-1").textContent;
+    const negative = screen.getByTestId("assertion-row-a2").textContent;
     expect(negative).toContain("nothing");
     expect(negative).toContain("openfigi");
     expect(screen.queryByTestId("run-replay")).toBeNull();

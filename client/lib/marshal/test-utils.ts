@@ -2,14 +2,15 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { create } from "@bufbuild/protobuf";
 import {
-  AssetClass,
+  type AssetClass,
+  Broker,
   type Identifier,
   IdentifierSchema,
   IdentifierType,
   type StatedKey,
-  StatedKeySchema,
 } from "@/gen/type/v1/type_pb";
 import { type Row, RowSchema } from "@/gen/statement/v1/statement_pb";
+import { securityKey } from "./build";
 
 // Test support. Every broker export under testdata/ is modelled on a real
 // export with its account, reference and free-text identifiers replaced.
@@ -24,38 +25,20 @@ export function fixture(name: string): string {
   );
 }
 
-export function cash(currency: string): StatedKey {
-  return create(StatedKeySchema, {
-    identifiers: [
-      create(IdentifierSchema, {
-        type: IdentifierType.CURRENCY,
-        value: currency,
-      }),
-    ],
-    assetClass: AssetClass.CASH,
-    currency,
-  });
-}
-
 // security is the stated key a marshaller builds for a broker's line.
 export function security(
   description: string,
   assetClass: AssetClass,
   identifiers: Identifier[],
   currency?: string,
-  broker = "ibkr",
+  broker: Broker = Broker.IBKR,
 ): StatedKey {
-  return create(StatedKeySchema, {
-    identifiers: [
-      ...identifiers,
-      create(IdentifierSchema, {
-        type: IdentifierType.BROKER_DESCRIPTION,
-        value: description,
-        domain: broker,
-      }),
-    ],
+  return securityKey({
+    broker,
+    description,
     assetClass,
     currency,
+    identifiers,
   });
 }
 

@@ -13,6 +13,7 @@ import { SkeletonRows } from "@/app/components/skeleton-rows";
 import { TableCard, Td, Th, Thead, Tr } from "@/app/components/table";
 import { AssetClass } from "@/gen/type/v1/type_pb";
 import { useAdminInstruments } from "@/hooks/use-admin-instruments";
+import { useDebounced } from "@/hooks/use-debounced";
 import {
   type InstrumentParams,
   instrumentQuery,
@@ -48,13 +49,19 @@ function Instruments() {
       instrumentQuery({ ...p, after: "", id: "", ticker: "", ...next }),
     );
   const [text, setText] = useState(p.q);
-  useEffect(() => {
-    if (text === p.q) {
-      return;
-    }
-    const t = setTimeout(() => go({ q: text }), searchDelay);
-    return () => clearTimeout(t);
+  const settled = useDebounced(text, searchDelay);
+  const searched = instrumentQuery({
+    ...p,
+    after: "",
+    id: "",
+    ticker: "",
+    q: settled,
   });
+  useEffect(() => {
+    if (settled !== p.q) {
+      router.replace(searched);
+    }
+  }, [settled, p.q, searched, router]);
 
   return (
     <Page title="Instruments" width="wide" testId="admin-instruments-page">

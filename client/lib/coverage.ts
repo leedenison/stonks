@@ -1,5 +1,6 @@
 import type { Interval, Ticker } from "@/gen/admin/coverage/v1/coverage_pb";
 import type { Identifier } from "@/gen/type/v1/type_pb";
+import { nextDay } from "@/lib/marshal/date";
 
 // dayNumber counts the days from 1970-01-01 to a YYYY-MM-DD date, so dates
 // subtract and compare as numbers.
@@ -44,9 +45,6 @@ export function bounds(
   if (days.length === 0) return undefined;
   days.sort();
   const last = days[days.length - 1];
-  const before =
-    last === days[0]
-      ? new Date((dayNumber(last) + 1) * 86_400_000).toISOString().slice(0, 10)
-      : last;
+  const before = last === days[0] ? nextDay(last) : last;
   return { from: days[0], before };
 }
