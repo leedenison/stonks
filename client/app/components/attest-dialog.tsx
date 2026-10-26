@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Button } from "@/app/components/button";
 import { Dialog } from "@/app/components/dialog";
 import { IdentifierChip } from "@/app/components/identifier-chip";
@@ -10,6 +10,7 @@ import { Skeleton } from "@/app/components/skeleton";
 import type { Identifier } from "@/gen/type/v1/type_pb";
 import { useAdminInstruments } from "@/hooks/use-admin-instruments";
 import { useAttest, useCoverageTicker } from "@/hooks/use-coverage";
+import { useDebounced } from "@/hooks/use-debounced";
 import { instrumentName, intervalAt } from "@/lib/coverage";
 import { refusal } from "@/lib/refusal";
 
@@ -44,7 +45,7 @@ export function AttestDialog({
     name?: Identifier;
   } | null>(null);
   const [search, setSearch] = useState("");
-  const [query, setQuery] = useState("");
+  const query = useDebounced(search, searchDelay);
   const found = useAdminInstruments({ after: "", q: query, class: "" });
 
   // Until the administrator chooses, the dialog follows the ticker's
@@ -59,13 +60,6 @@ export function AttestDialog({
     : read.data?.ticker && held
       ? instrumentName(read.data.ticker, held.instrumentId)
       : undefined;
-  useEffect(() => {
-    if (search === query) {
-      return;
-    }
-    const t = setTimeout(() => setQuery(search), searchDelay);
-    return () => clearTimeout(t);
-  });
 
   const submit = () =>
     attest.mutate(

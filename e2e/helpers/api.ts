@@ -12,7 +12,8 @@ import {
   RunService,
   type UserRun,
 } from "../gen/admin/run/v1/run_pb";
-import type { IdentifierType } from "../gen/type/v1/type_pb";
+import type { Identifier, IdentifierType } from "../gen/type/v1/type_pb";
+import type { Instrument } from "../gen/admin/instrument/v1/instrument_pb";
 import { AuthService } from "../gen/auth/v1/auth_pb";
 import { HoldingService } from "../gen/holding/v1/holding_pb";
 import { RunService as UserRunService } from "../gen/run/v1/run_pb";
@@ -157,4 +158,29 @@ export function holdingClient(sessionID: string) {
 
 export function runClient(sessionID: string) {
   return clientFor(UserRunService, sessionID);
+}
+
+// instrumentListedAs returns the one instrument that has a listing with
+// ticker, and fails the test unless exactly one has. The instruments search
+// matches any part of an identifier, so the hits are narrowed to those that
+// carry the ticker exactly.
+export async function instrumentListedAs(
+  sessionID: string,
+  ticker: Pick<Identifier, "type" | "domain" | "value">,
+): Promise<Instrument> {
+  const listed = await adminInstrumentClient(sessionID).listInstruments({
+    query: ticker.value,
+  });
+  const named = listed.instruments.filter((i) =>
+    i.listings.some((l) =>
+      l.identifiers.some(
+        (id) =>
+          id.type === ticker.type &&
+          id.domain === ticker.domain &&
+          id.value === ticker.value,
+      ),
+    ),
+  );
+  expect(named, `${ticker.domain}:${ticker.value}`).toHaveLength(1);
+  return named[0];
 }

@@ -5,7 +5,8 @@ import { describe, expect, it } from "vitest";
 import { AssetClass, Broker } from "@/gen/type/v1/type_pb";
 import { StatedSplitSchema } from "@/gen/statement/v1/statement_pb";
 import { MarshalError } from "./error";
-import { cash, fixture, hint, security } from "./test-utils";
+import { fixture, hint, security } from "./test-utils";
+import { cashKey } from "./build";
 import { create as make } from "@bufbuild/protobuf";
 import { RowSchema, type Row } from "@/gen/statement/v1/statement_pb";
 import type { StatedKey } from "@/gen/type/v1/type_pb";
@@ -32,9 +33,15 @@ const csv = fixture("schwab.csv");
 const EXPORTED = "2025-01-15";
 const statement = schwab.marshal(json, EXPORTED);
 
-const usd = cash("USD");
+const usd = cashKey("USD");
 const stock = (symbol: string, description: string) =>
-  security(description, AssetClass.SECURITY, [hint(symbol)], "USD", "schwab");
+  security(
+    description,
+    AssetClass.SECURITY,
+    [hint(symbol)],
+    "USD",
+    Broker.SCHWAB,
+  );
 
 describe("schwab", () => {
   it("takes the period from the JSON and states every row as at the export", () => {

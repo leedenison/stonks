@@ -97,7 +97,9 @@ export function Timeline({ ticker }: { ticker: Ticker }) {
       label: "Assertions",
       children: ticker.assertions.map((a) => {
         const attested = a.source.case === "attestedBy";
-        const tone = attested ? "accent" : "primary";
+        // Tailwind generates only class names spelled out in full.
+        const fill = attested ? "fill-accent" : "fill-primary";
+        const ring = attested ? "stroke-accent" : "stroke-primary";
         return (
           <circle
             key={a.id}
@@ -108,8 +110,8 @@ export function Timeline({ ticker }: { ticker: Ticker }) {
             data-negative={a.instrumentId === undefined ? "true" : undefined}
             className={
               a.instrumentId === undefined
-                ? `fill-surface stroke-${tone} stroke-2`
-                : `fill-${tone}`
+                ? `fill-surface ${ring} stroke-2`
+                : fill
             }
           >
             <title>{`${a.source.value ?? ""} asserted ${a.instrumentId ?? "nothing"} on ${a.assertedOn}`}</title>

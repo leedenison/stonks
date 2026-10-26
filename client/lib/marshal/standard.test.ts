@@ -16,8 +16,8 @@ import {
 } from "@/gen/statement/v1/statement_pb";
 import { MarshalError } from "./error";
 import { standard } from "./standard";
-import { cash, fixture } from "./test-utils";
-import { ident } from "./build";
+import { fixture } from "./test-utils";
+import { cashKey, ident } from "./build";
 
 const text = fixture("standard.json");
 
@@ -40,7 +40,7 @@ const expected = create(StatementSchema, {
       quantity: "10",
     }),
     create(RowSchema, {
-      key: cash("USD"),
+      key: cashKey("USD"),
       orderDate: "2024-03-01",
       settlementDate: "2024-03-04",
       asAt: "2024-03-01",

@@ -13,7 +13,7 @@ import type {
   ListInstrumentTickersResponse,
 } from "@/gen/admin/coverage/v1/coverage_pb";
 import { IdentifierType } from "@/gen/type/v1/type_pb";
-import { invalidateResolved, qk } from "@/lib/query-keys";
+import { invalidateAttested, qk } from "@/lib/query-keys";
 import { useAuthedQuery } from "./use-authed-query";
 
 // useInstrumentTickers lists the tickers that name an instrument, now or in
@@ -43,16 +43,6 @@ export function useCoverageTicker(
       }),
     enabled: domain !== "" && value !== "",
   });
-}
-
-// invalidateAttested refreshes every query an attestation or a withdrawal
-// can change.
-function invalidateAttested(queryClient: ReturnType<typeof useQueryClient>) {
-  return Promise.all([
-    queryClient.invalidateQueries({ queryKey: qk.coverageAll() }),
-    queryClient.invalidateQueries({ queryKey: qk.adminRunsAll() }),
-    invalidateResolved(queryClient),
-  ]);
 }
 
 // useAttest writes an attestation, as a system run.

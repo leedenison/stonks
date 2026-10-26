@@ -13,7 +13,8 @@ import {
   StatedSplitSchema,
 } from "@/gen/statement/v1/statement_pb";
 import { MarshalError } from "./error";
-import { cash, fixture, hint, row, security } from "./test-utils";
+import { fixture, hint, row, security } from "./test-utils";
+import { cashKey } from "./build";
 import { ibkrQfx } from "./ibkr-qfx";
 
 // The BUYSTOCK carries an invented nonzero TAXES; every real statement seen
@@ -52,9 +53,9 @@ describe("ibkrQfx", () => {
     );
     expect(statement.rows.slice(0, 4)).toEqual([
       row(amd, "2024-01-15", "2024-01-15", "200"),
-      row(cash("USD"), "2024-01-15", "2024-01-15", "-14846.5602968"),
-      row(cash("USD"), "2024-01-15", "2024-01-15", "-0.78710536"),
-      row(cash("USD"), "2024-01-15", "2024-01-15", "-1.5"),
+      row(cashKey("USD"), "2024-01-15", "2024-01-15", "-14846.5602968"),
+      row(cashKey("USD"), "2024-01-15", "2024-01-15", "-0.78710536"),
+      row(cashKey("USD"), "2024-01-15", "2024-01-15", "-1.5"),
     ]);
   });
 
@@ -67,8 +68,8 @@ describe("ibkrQfx", () => {
     );
     expect(statement.rows.slice(4, 7)).toEqual([
       row(rhm, "2024-01-23", "2024-01-23", "-10"),
-      row(cash("EUR"), "2024-01-23", "2024-01-23", "6094.72188"),
-      row(cash("EUR"), "2024-01-23", "2024-01-23", "-3.04736094"),
+      row(cashKey("EUR"), "2024-01-23", "2024-01-23", "6094.72188"),
+      row(cashKey("EUR"), "2024-01-23", "2024-01-23", "-3.04736094"),
     ]);
   });
 
@@ -90,17 +91,17 @@ describe("ibkrQfx", () => {
 
   it("keeps the stated date of an evening posting", () => {
     expect(statement.rows[13]).toEqual(
-      row(cash("USD"), "2024-01-11", "2024-01-11", "96.9378592"),
+      row(cashKey("USD"), "2024-01-11", "2024-01-11", "96.9378592"),
     );
   });
 
   it("emits every bank transaction as a cash leg, including one before the period", () => {
     expect(statement.rows.slice(14, 19)).toEqual([
-      row(cash("USD"), "2024-02-05", "2024-02-05", "12.34"),
-      row(cash("GBP"), "2024-01-10", "2024-01-10", "50000"),
-      row(cash("USD"), "2023-12-15", "2023-12-15", "-14.54"),
-      row(cash("USD"), "2024-01-03", "2024-01-03", "-22880.11960797"),
-      row(cash("GBP"), "2024-01-03", "2024-01-03", "18000"),
+      row(cashKey("USD"), "2024-02-05", "2024-02-05", "12.34"),
+      row(cashKey("GBP"), "2024-01-10", "2024-01-10", "50000"),
+      row(cashKey("USD"), "2023-12-15", "2023-12-15", "-14.54"),
+      row(cashKey("USD"), "2024-01-03", "2024-01-03", "-22880.11960797"),
+      row(cashKey("GBP"), "2024-01-03", "2024-01-03", "18000"),
     ]);
   });
 
@@ -154,9 +155,9 @@ describe("ibkrQfx", () => {
     const rows = ibkrQfx.marshal(bare).rows;
     expect(rows[0].key?.currency).toBe("GBP");
     expect(rows.slice(1, 4).map((r) => r.key)).toEqual([
-      cash("GBP"),
-      cash("GBP"),
-      cash("GBP"),
+      cashKey("GBP"),
+      cashKey("GBP"),
+      cashKey("GBP"),
     ]);
   });
 
