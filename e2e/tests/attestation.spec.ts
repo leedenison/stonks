@@ -3,6 +3,7 @@ import { RunKind } from "../gen/run/v1/run_pb";
 import { TransactionMark } from "../gen/statement/v1/statement_pb";
 import { IdentifierType, ResolutionOutcome } from "../gen/type/v1/type_pb";
 import {
+  adminInstrumentClient,
   adminRunClient,
   assertionItems,
   statementClient,
@@ -26,7 +27,7 @@ test.afterEach(async () => {
   await deleteRuns(started.splice(0));
 });
 
-test("attests a gap from the coverage page and withdraws it", async ({
+test("attests a gap from the instrument's tickers tab and withdraws it", async ({
   signIn,
   page,
 }) => {
@@ -44,22 +45,35 @@ test("attests a gap from the coverage page and withdraws it", async ({
   ]);
   const txId = read.transactions[0].id;
 
-  // The statement page offers the attestation beside the provisional
-  // transaction.
+  // The statement page marks the transaction provisional.
   await page.goto(`/statements/${runId}`);
   const row = page.getByTestId(`transaction-row-${txId}`);
   await expect(row.getByTestId("mark-chip")).toHaveAttribute(
     "data-state",
     "provisional",
   );
-  await expect(row.getByTestId(`transaction-attest-${txId}`)).toBeVisible();
 
-  // The coverage page lists the gap before the window, and attests from it
-  // with the day and the instrument preselected. Other gaps follow the
-  // clock, so the spec addresses rows by id alone.
-  await page.goto(`/admin/coverage?domain=XNYS&value=WMT`);
-  const gap = page.getByTestId(`gap-row-WMT-${on}`);
-  await expect(gap).toHaveAttribute("aria-selected", "true");
+  // The instrument's tickers tab opens on WMT, lists the gap before the
+  // window, and attests from it with the day and the instrument
+  // preselected. Other gaps follow the clock, so the spec addresses rows by
+  // id alone.
+  const instruments = await adminInstrumentClient(session).listInstruments({
+    query: "WMT",
+  });
+  const named = instruments.instruments.filter((i) =>
+    i.listings.some((l) =>
+      l.identifiers.some(
+        (id) =>
+          id.type === wmt.type &&
+          id.domain === wmt.domain &&
+          id.value === wmt.value,
+      ),
+    ),
+  );
+  expect(named).toHaveLength(1);
+  await page.goto(`/admin/instruments?q=WMT&id=${named[0].id}&tab=tickers`);
+  await expect(page.getByTestId("ticker-select")).toHaveValue("XNYS:WMT");
+  const gap = page.getByTestId(`pane-gap-${on}`);
   await expect(gap).toContainText("2003-09-10");
   await page.getByTestId(`gap-attest-${on}`).click();
   const dialog = page.getByTestId("attest-dialog");

@@ -1,41 +1,112 @@
 "use client";
 
 import { create } from "@bufbuild/protobuf";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { AttestDialog } from "@/app/components/attest-dialog";
 import { Button } from "@/app/components/button";
 import { Chip } from "@/app/components/chip";
 import { Dialog } from "@/app/components/dialog";
 import { IdentifierChip } from "@/app/components/identifier-chip";
+import { Select } from "@/app/components/input";
 import { Notice } from "@/app/components/notice";
 import { Section } from "@/app/components/section";
 import { Skeleton } from "@/app/components/skeleton";
 import { Td, Th } from "@/app/components/table";
 import {
   IdentifierEventAction,
+  type InstrumentTicker,
   type Ticker,
 } from "@/gen/admin/coverage/v1/coverage_pb";
 import type { AssertionItem } from "@/gen/admin/run/v1/run_pb";
 import { IdentifierSchema, IdentifierType } from "@/gen/type/v1/type_pb";
 import {
   useCoverageTicker,
+  useInstrumentTickers,
   useWithdrawAttestation,
 } from "@/hooks/use-coverage";
-import { instrumentName, intervalAt } from "@/lib/coverage";
+import {
+  type InstrumentParams,
+  instrumentQuery,
+  readTickerParam,
+  tickerParam,
+} from "@/lib/admin";
+import { bounds, instrumentName, intervalAt } from "@/lib/coverage";
 import { enumLabel } from "@/lib/enum";
+import { today } from "@/lib/marshal/date";
 import { refusal } from "@/lib/refusal";
 import { Timeline } from "./timeline";
 
-// TickerPane shows everything the coverage page knows about one ticker, and
-// offers an attestation from each gap and the withdrawal of each attested
-// assertion.
-export function TickerPane({
-  domain,
-  value,
+// TickersTab lists the tickers that name an instrument, now or in an
+// assertion, and shows the validity of the one chosen. The choice is held in
+// the address, and the first listed ticker stands in while it is unset.
+export function TickersTab({
+  instrumentId,
+  params,
 }: {
-  domain: string;
-  value: string;
+  instrumentId: string;
+  params: InstrumentParams;
 }) {
+  const router = useRouter();
+  const { data, isPending, isError, refetch } =
+    useInstrumentTickers(instrumentId);
+  const listed = data?.tickers ?? [];
+  const wanted = readTickerParam(params.ticker);
+  const chosen =
+    listed.find(
+      (t) =>
+        t.ticker?.domain === wanted?.domain &&
+        t.ticker?.value === wanted?.value,
+    ) ?? listed[0];
+  const param = (t: InstrumentTicker) =>
+    tickerParam(t.ticker?.domain ?? "", t.ticker?.value ?? "");
+  return (
+    <div data-testid="tickers-tab" className="flex flex-col gap-6">
+      {isError && (
+        <Notice tone="error" onRetry={() => refetch()}>
+          The tickers could not be loaded.
+        </Notice>
+      )}
+      {!isError && isPending && <Skeleton lines={2} />}
+      {data && listed.length === 0 && (
+        <p data-testid="no-tickers" className="text-sm text-text-muted">
+          No ticker names this instrument.
+        </p>
+      )}
+      {chosen && (
+        <>
+          <label className="flex items-center gap-2 text-sm">
+            <span className="text-text-muted">Ticker</span>
+            <Select
+              data-testid="ticker-select"
+              value={param(chosen)}
+              onChange={(e) =>
+                router.replace(
+                  instrumentQuery({ ...params, ticker: e.target.value }),
+                )
+              }
+            >
+              {listed.map((t) => (
+                <option key={param(t)} value={param(t)}>
+                  {t.ticker?.value} at {t.ticker?.domain}
+                  {t.current ? "" : " (former)"}
+                </option>
+              ))}
+            </Select>
+          </label>
+          <Validity
+            domain={chosen.ticker?.domain ?? ""}
+            value={chosen.ticker?.value ?? ""}
+          />
+        </>
+      )}
+    </div>
+  );
+}
+
+// Validity shows everything known about one ticker and the actions that
+// settle it.
+function Validity({ domain, value }: { domain: string; value: string }) {
   const { data, isPending, isError, refetch } = useCoverageTicker(
     domain,
     value,
@@ -48,29 +119,40 @@ export function TickerPane({
     value,
   });
   return (
-    <div
-      data-testid="ticker-pane"
-      className="flex min-w-0 flex-1 flex-col gap-6 rounded-md border border-border bg-surface px-5 py-4 shadow-xs"
+    <Section
+      title={
+        <span className="flex flex-wrap items-baseline gap-3">
+          Validity
+          {data?.ticker && (
+            <Button
+              variant="text"
+              data-testid="ticker-attest-today"
+              onClick={() => setAttesting(today())}
+            >
+              Attest {value} today
+            </Button>
+          )}
+        </span>
+      }
     >
-      <div className="flex flex-wrap items-baseline gap-3">
-        <h2 className="font-mono text-xl font-semibold tracking-tight">
-          {value}
-        </h2>
-        <Chip className="font-mono">{domain}</Chip>
-      </div>
       {isError && (
         <Notice tone="error" onRetry={() => refetch()}>
           The ticker could not be loaded.
         </Notice>
       )}
       {!isError && isPending && <Skeleton lines={4} />}
-      {data?.ticker && (
-        <Facts
-          ticker={data.ticker}
-          onAttest={setAttesting}
-          onWithdraw={setWithdrawing}
-        />
-      )}
+      {data?.ticker &&
+        (bounds(data.ticker) ? (
+          <Facts
+            ticker={data.ticker}
+            onAttest={setAttesting}
+            onWithdraw={setWithdrawing}
+          />
+        ) : (
+          <p data-testid="no-facts" className="text-sm text-text-muted">
+            No facts for this ticker.
+          </p>
+        ))}
       {attesting !== null && (
         <AttestDialog
           ticker={ticker}
@@ -85,7 +167,7 @@ export function TickerPane({
           onClose={() => setWithdrawing(null)}
         />
       )}
-    </div>
+    </Section>
   );
 }
 
@@ -140,8 +222,8 @@ function WithdrawDialog({
   );
 }
 
-// Instrument shows the identifier that names an instrument, or the id where
-// the ticker gives no name for it.
+// Instrument shows the identifier that names an instrument, or the id when
+// the ticker does not name it.
 function Instrument({ ticker, id }: { ticker: Ticker; id?: string }) {
   if (id === undefined) {
     return <span className="text-text-muted">nothing</span>;
@@ -164,7 +246,7 @@ function Facts({
   onWithdraw: (a: AssertionItem) => void;
 }) {
   return (
-    <>
+    <div className="flex flex-col gap-6">
       <Timeline ticker={ticker} />
       <Section title="Gaps">
         {ticker.gaps.length === 0 ? (
@@ -345,7 +427,7 @@ function Facts({
           </Table>
         )}
       </Section>
-    </>
+    </div>
   );
 }
 

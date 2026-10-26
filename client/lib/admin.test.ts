@@ -4,15 +4,17 @@ import { UserRunSchema } from "@/gen/admin/run/v1/run_pb";
 import { timestampFromDate } from "@bufbuild/protobuf/wkt";
 import { RunKind, RunSchema } from "@/gen/run/v1/run_pb";
 import {
-  coverageQuery,
   filterQuery,
   flattenRuns,
+  instrumentQuery,
   openFindingsBelow,
   queryHref,
-  readCoverage,
   readFilters,
+  readInstrumentList,
+  readTickerParam,
   runLabel,
   runTitle,
+  tickerParam,
 } from "./admin";
 
 describe("admin", () => {
@@ -37,11 +39,28 @@ describe("admin", () => {
     expect(filterQuery({ user: "u1" })).toBe("/admin/runs?user=u1");
   });
 
-  it("round trips the coverage address", () => {
-    const p = readCoverage(new URLSearchParams("domain=XNAS&value=ACME"));
-    expect(p).toEqual({ domain: "XNAS", value: "ACME" });
-    expect(coverageQuery(p)).toBe("/admin/coverage?domain=XNAS&value=ACME");
-    expect(coverageQuery({ domain: "", value: "" })).toBe("/admin/coverage");
+  it("round trips the instruments address", () => {
+    const p = readInstrumentList(
+      new URLSearchParams("id=i1&tab=tickers&ticker=XNAS:BRK.B"),
+    );
+    expect(p).toEqual({
+      after: "",
+      id: "i1",
+      q: "",
+      class: "",
+      tab: "tickers",
+      ticker: "XNAS:BRK.B",
+    });
+    expect(instrumentQuery(p)).toBe(
+      "/admin/instruments?id=i1&tab=tickers&ticker=XNAS%3ABRK.B",
+    );
+    expect(readTickerParam(p.ticker)).toEqual({
+      domain: "XNAS",
+      value: "BRK.B",
+    });
+    expect(tickerParam("XNAS", "BRK.B")).toBe("XNAS:BRK.B");
+    expect(readTickerParam("XNAS")).toBeUndefined();
+    expect(readTickerParam(":ACME")).toBeUndefined();
   });
 
   it("names a run by its kind and when it started", () => {

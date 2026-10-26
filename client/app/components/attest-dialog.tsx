@@ -45,7 +45,7 @@ export function AttestDialog({
   } | null>(null);
   const [search, setSearch] = useState("");
   const [query, setQuery] = useState("");
-  const found = useAdminInstruments({ after: "", id: "", q: query, class: "" });
+  const found = useAdminInstruments({ after: "", q: query, class: "" });
 
   // Until the administrator chooses, the dialog follows the ticker's
   // validity on the first day: the instrument it names, or nothing.

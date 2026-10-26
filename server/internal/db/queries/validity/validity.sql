@@ -104,33 +104,30 @@ WHERE (runs.parent_id = @run_id OR identifier_assertions.run_id = @run_id)
 ORDER BY identifier_assertions.id
 LIMIT sqlc.narg(lim)::int;
 
--- name: ListTickerDomains :many
--- The operating MICs on which keys with a transaction state tickers, each
--- with its count of distinct tickers. A venue counts under its operating MIC,
--- and a ticker stated without a venue counts nowhere.
-SELECT coalesce(mics.operating_mic, stated.id->>'domain')::text AS domain,
-       count(DISTINCT stated.id->>'value')::int AS tickers
-FROM stated_keys
-CROSS JOIN LATERAL jsonb_array_elements(stated_keys.identifiers) AS stated(id)
-LEFT JOIN mics ON mics.mic = stated.id->>'domain'
-WHERE stated.id->>'type' = 'mic_ticker'
-  AND coalesce(stated.id->>'domain', '') <> ''
-  AND EXISTS (SELECT 1 FROM transactions WHERE transactions.stated_key_id = stated_keys.id)
-GROUP BY coalesce(mics.operating_mic, stated.id->>'domain')
-ORDER BY domain;
-
--- name: ListDomainTickers :many
--- The distinct tickers that keys with a transaction state on the domain, or
--- on a venue operated under it.
-SELECT DISTINCT (stated.id->>'value')::text AS value
-FROM stated_keys
-CROSS JOIN LATERAL jsonb_array_elements(stated_keys.identifiers) AS stated(id)
-LEFT JOIN mics ON mics.mic = stated.id->>'domain'
-WHERE stated.id->>'type' = 'mic_ticker'
-  AND coalesce(stated.id->>'domain', '') <> ''
-  AND coalesce(mics.operating_mic, stated.id->>'domain') = @domain::text
-  AND EXISTS (SELECT 1 FROM transactions WHERE transactions.stated_key_id = stated_keys.id)
-ORDER BY value;
+-- name: ListInstrumentTickers :many
+-- The MIC_TICKERs on the instrument's listings and those its assertions name
+-- it by, each with whether a listing carries it and the count of transactions
+-- whose keys state it on its domain or on a venue operated under it.
+WITH named AS (
+    SELECT domain, value, true AS current FROM identifiers
+    WHERE identifiers.instrument_id = @instrument AND type = 'mic_ticker'
+    UNION
+    SELECT domain, value, false FROM identifier_assertions
+    WHERE identifier_assertions.instrument_id = @instrument AND type = 'mic_ticker'
+)
+SELECT named.domain::text AS domain, named.value::text AS value,
+       bool_or(named.current)::bool AS current,
+       (SELECT count(*) FROM transactions
+        JOIN stated_keys ON stated_keys.id = transactions.stated_key_id
+        WHERE EXISTS (
+            SELECT 1 FROM jsonb_array_elements(stated_keys.identifiers) AS stated(id)
+            LEFT JOIN mics ON mics.mic = stated.id->>'domain'
+            WHERE stated.id->>'type' = 'mic_ticker'
+              AND coalesce(mics.operating_mic, stated.id->>'domain') = named.domain
+              AND stated.id->>'value' = named.value))::int AS transactions
+FROM named
+GROUP BY named.domain, named.value
+ORDER BY transactions DESC, current DESC, domain, value;
 
 -- name: ListTickerTransactions :many
 -- The transactions of every key that states the ticker on the domain, or on

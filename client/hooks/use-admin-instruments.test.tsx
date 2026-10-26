@@ -33,8 +33,7 @@ const transport = transportWith(
 describe("useAdminInstruments", () => {
   it("lists the page after the token", async () => {
     const { result } = renderHook(
-      () =>
-        useAdminInstruments({ after: "t1", id: "", q: "us", class: "cash" }),
+      () => useAdminInstruments({ after: "t1", q: "us", class: "cash" }),
       { wrapper: authWrapper(transport) },
     );
     await waitFor(() => expect(result.current.data).toBeTruthy());

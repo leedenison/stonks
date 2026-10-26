@@ -8,7 +8,6 @@
 package coverage
 
 import (
-	"cmp"
 	"context"
 	"fmt"
 	"slices"
@@ -30,8 +29,7 @@ type Queries interface {
 	ListIdentifierAssertions(ctx context.Context, arg gen.ListIdentifierAssertionsParams) ([]gen.ListIdentifierAssertionsRow, error)
 	ListIdentifierEvents(ctx context.Context, arg gen.ListIdentifierEventsParams) ([]gen.ListIdentifierEventsRow, error)
 	ListIdentifierCoverage(ctx context.Context, arg gen.ListIdentifierCoverageParams) ([]gen.ListIdentifierCoverageRow, error)
-	ListTickerDomains(ctx context.Context) ([]gen.ListTickerDomainsRow, error)
-	ListDomainTickers(ctx context.Context, domain string) ([]string, error)
+	ListInstrumentTickers(ctx context.Context, instrumentID uuid.UUID) ([]gen.ListInstrumentTickersRow, error)
 	ListTickerTransactions(ctx context.Context, arg gen.ListTickerTransactionsParams) ([]gen.ListTickerTransactionsRow, error)
 	ListInstrumentNames(ctx context.Context, ids []uuid.UUID) ([]gen.InstrumentName, error)
 }
@@ -40,7 +38,8 @@ var _ Queries = (*gen.Queries)(nil)
 
 //go:generate go tool mockgen -source=coverage.go -destination=mock/coverage_mock.go -package=mock
 
-// Reader reads the domains, the gaps and the tickers the coverage page shows.
+// Reader reads the tickers of an instrument, and the facts and validity of
+// a ticker.
 type Reader struct {
 	q    Queries
 	mics mic.MICMap
@@ -119,41 +118,14 @@ func (t *Ticker) ToProto() *admincoveragev1.Ticker {
 	return out
 }
 
-// Domains lists the operating MICs on which keys with transactions state
-// tickers.
-func (r *Reader) Domains(ctx context.Context) ([]gen.ListTickerDomainsRow, error) {
-	rows, err := r.q.ListTickerDomains(ctx)
+// InstrumentTickers lists the tickers that name the instrument, now or in an
+// assertion, by the transactions stated under each.
+func (r *Reader) InstrumentTickers(ctx context.Context, instrument uuid.UUID) ([]gen.ListInstrumentTickersRow, error) {
+	rows, err := r.q.ListInstrumentTickers(ctx, instrument)
 	if err != nil {
-		return nil, fmt.Errorf("list domains: %w", err)
+		return nil, fmt.Errorf("list tickers of %s: %w", instrument, err)
 	}
 	return rows, nil
-}
-
-// Gaps lists the gaps of every ticker stated on domain, by affected
-// transactions, then affected keys, then ticker and first day.
-func (r *Reader) Gaps(ctx context.Context, domain string, today time.Time) ([]Gap, error) {
-	domain = r.operating(domain)
-	values, err := r.q.ListDomainTickers(ctx, domain)
-	if err != nil {
-		return nil, fmt.Errorf("list tickers of %s: %w", domain, err)
-	}
-	var out []Gap
-	for _, value := range values {
-		t, err := r.read(ctx, types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: domain, Value: value}, today)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, t.Gaps...)
-	}
-	slices.SortFunc(out, func(a, b Gap) int {
-		return cmp.Or(
-			cmp.Compare(b.Transactions, a.Transactions),
-			cmp.Compare(b.Keys, a.Keys),
-			strings.Compare(a.Ticker.Value, b.Ticker.Value),
-			a.Period.From.Compare(b.Period.From),
-		)
-	})
-	return out, nil
 }
 
 // Ticker reads the facts and validity of v. It refuses an identifier that is

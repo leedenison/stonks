@@ -15,6 +15,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/testutil/dbtest"
+	"github.com/leedenison/stonks/server/internal/types"
 )
 
 var pool *pgxpool.Pool
@@ -70,30 +71,58 @@ func (f *fixture) bareKey(t *testing.T, value string) {
 	f.exec(t, "INSERT INTO transactions (id, user_id, broker, statement_id, stated_key_id, order_date, settlement_date, as_at, quantity) VALUES ($1, $2, 'ibkr', $3, $4, $5, $5, $5, 1)", db.NewID(), f.user.ID, f.statement, id, day(9))
 }
 
-// TestQueries checks that a venue's tickers list under its operating MIC, that
-// a key without a transaction and a ticker without a venue are left out, and
-// that a ticker's transactions come from every venue of its domain.
+// instrument returns an instrument whose listing carries the MIC_TICKER
+// domain:value.
+func (f *fixture) instrument(t *testing.T, domain, value string) uuid.UUID {
+	t.Helper()
+	ctx := context.Background()
+	inst, err := f.q.CreateInstrument(ctx, gen.CreateInstrumentParams{ID: db.NewID(), AssetClass: types.AssetClassStock})
+	require.NoError(t, err)
+	listing, err := f.q.CreateListing(ctx, gen.CreateListingParams{ID: db.NewID(), InstrumentID: inst.ID, Currency: "USD"})
+	require.NoError(t, err)
+	_, err = f.q.CreateIdentifier(ctx, gen.CreateIdentifierParams{ID: db.NewID(), InstrumentID: inst.ID, ListingID: &listing.ID, Type: types.IdentifierTypeMicTicker, Domain: domain, Value: value})
+	require.NoError(t, err)
+	return inst.ID
+}
+
+// attest asserts that ticker names instrument on a day, as an administrator.
+func (f *fixture) attest(t *testing.T, instrument uuid.UUID, domain, value string) {
+	t.Helper()
+	ctx := context.Background()
+	run, err := f.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), Kind: gen.RunKindAttestation, Trigger: gen.RunTriggerUser})
+	require.NoError(t, err)
+	err = f.q.CreateIdentifierAssertion(ctx, gen.CreateIdentifierAssertionParams{
+		ID: db.NewID(), RunID: &run.ID, AttestedBy: &f.user.ID,
+		Type: types.IdentifierTypeMicTicker, Domain: domain, Value: value, InstrumentID: &instrument, AssertedOn: day(1),
+	})
+	require.NoError(t, err)
+}
+
+// TestQueries checks that an instrument's tickers are those on its listings
+// and those named in its assertions, and that each ticker's transactions
+// come from every venue of its domain.
 func TestQueries(t *testing.T) {
 	f := newFixture(t)
 	ctx := context.Background()
 	value := "ACME" + uuid.NewString()[:8]
+	former := "OLD" + uuid.NewString()[:8]
 	segment := f.key(t, "XNGS", value, 4)
 	nasdaq := f.key(t, "XNAS", value, 6, 6)
 	f.key(t, "XLON", value, 8)
 	f.key(t, "XNAS", "BETA"+uuid.NewString()[:8])
 	f.bareKey(t, value)
+	inst := f.instrument(t, "XNAS", value)
+	f.attest(t, inst, "XNAS", value)
+	f.attest(t, inst, "XNAS", former)
 
-	domains, err := f.q.ListTickerDomains(ctx)
+	tickers, err := f.q.ListInstrumentTickers(ctx, inst)
 	require.NoError(t, err)
-	wantDomains := []gen.ListTickerDomainsRow{{Domain: "XLON", Tickers: 1}, {Domain: "XNAS", Tickers: 1}}
-	if diff := cmp.Diff(wantDomains, domains); diff != "" {
-		t.Errorf("ListTickerDomains mismatch (-want +got):\n%s", diff)
+	wantTickers := []gen.ListInstrumentTickersRow{
+		{Domain: "XNAS", Value: value, Current: true, Transactions: 3},
+		{Domain: "XNAS", Value: former, Current: false, Transactions: 0},
 	}
-
-	values, err := f.q.ListDomainTickers(ctx, "XNAS")
-	require.NoError(t, err)
-	if diff := cmp.Diff([]string{value}, values); diff != "" {
-		t.Errorf("ListDomainTickers mismatch (-want +got):\n%s", diff)
+	if diff := cmp.Diff(wantTickers, tickers); diff != "" {
+		t.Errorf("ListInstrumentTickers mismatch (-want +got):\n%s", diff)
 	}
 
 	txs, err := f.q.ListTickerTransactions(ctx, gen.ListTickerTransactionsParams{Domain: "XNAS", Value: value})

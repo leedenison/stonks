@@ -6,21 +6,33 @@ import { Section } from "@/app/components/section";
 import { Td, Th } from "@/app/components/table";
 import type { Instrument } from "@/gen/admin/instrument/v1/instrument_pb";
 import { type Identifier, IdentifierType } from "@/gen/type/v1/type_pb";
-import { coverageQuery } from "@/lib/admin";
+import {
+  type InstrumentParams,
+  instrumentQuery,
+  tickerParam,
+} from "@/lib/admin";
 import { assetClassLabel } from "@/lib/asset-class";
 import { groupIdentifiers, identifierKey } from "@/lib/identifiers";
+import { TickersTab } from "./tickers-tab";
 
 type Marks = Parameters<typeof groupIdentifiers>[1];
 
-// InstrumentPane shows one instrument in full, in sections. The identifier
-// naming the instrument and each listing's primary venue are marked in the
-// accent tone. A ticker's venue chip links to the ticker on the coverage
-// page.
-export function InstrumentPane({ instrument }: { instrument: Instrument }) {
-  const marks: Marks = {
-    via: new Set(instrument.via.map(identifierKey)),
-    name: new Set(instrument.name ? [identifierKey(instrument.name)] : []),
-  };
+const tabs = [
+  { key: "", label: "Overview", testId: "overview" },
+  { key: "tickers", label: "Tickers", testId: "tickers" },
+] as const;
+
+// InstrumentPane shows one instrument under two tabs held in the address:
+// the overview, with its identifiers and listings in sections, and its
+// tickers, with the validity of each.
+export function InstrumentPane({
+  instrument,
+  params,
+}: {
+  instrument: Instrument;
+  params: InstrumentParams;
+}) {
+  const tab = params.tab === "tickers" ? "tickers" : "";
   return (
     <div
       data-testid="instrument-pane"
@@ -35,13 +47,64 @@ export function InstrumentPane({ instrument }: { instrument: Instrument }) {
           {instrument.id}
         </span>
       </div>
+      <nav role="tablist" className="flex gap-6 border-b border-border text-sm">
+        {tabs.map((t) => {
+          const active = t.key === tab;
+          return (
+            <Link
+              key={t.key}
+              role="tab"
+              aria-selected={active}
+              data-testid={`instrument-tab-${t.testId}`}
+              href={instrumentQuery({ ...params, tab: t.key, ticker: "" })}
+              className={`-mb-px border-b-2 pb-2 transition-colors ${
+                active
+                  ? "border-accent font-semibold text-primary-dark dark:text-primary"
+                  : "border-transparent text-text-muted hover:text-primary"
+              }`}
+            >
+              {t.label}
+            </Link>
+          );
+        })}
+      </nav>
+      {tab === "tickers" ? (
+        <TickersTab instrumentId={instrument.id} params={params} />
+      ) : (
+        <Overview instrument={instrument} params={params} />
+      )}
+    </div>
+  );
+}
+
+// Overview shows the instrument's identifiers and listings in sections. The
+// identifier naming the instrument and each listing's primary venue are
+// marked in the accent tone. A ticker's venue chip opens the tickers tab on
+// that ticker.
+function Overview({
+  instrument,
+  params,
+}: {
+  instrument: Instrument;
+  params: InstrumentParams;
+}) {
+  const marks: Marks = {
+    via: new Set(instrument.via.map(identifierKey)),
+    name: new Set(instrument.name ? [identifierKey(instrument.name)] : []),
+  };
+  return (
+    <>
       <Section title="Identifiers">
         {instrument.identifiers.length === 0 ? (
           <None />
         ) : (
           <Table valueHead="Value" testId="instrument-identifiers">
             <tbody>
-              <Rows ids={instrument.identifiers} marks={marks} />
+              <Rows
+                ids={instrument.identifiers}
+                marks={marks}
+                params={params}
+              />
             </tbody>
           </Table>
         )}
@@ -71,6 +134,7 @@ export function InstrumentPane({ instrument }: { instrument: Instrument }) {
                 <Rows
                   ids={l.identifiers}
                   marks={marks}
+                  params={params}
                   primary={l.primaryMic}
                 />
               </tbody>
@@ -78,7 +142,7 @@ export function InstrumentPane({ instrument }: { instrument: Instrument }) {
           </Table>
         )}
       </Section>
-    </div>
+    </>
   );
 }
 
@@ -124,10 +188,12 @@ function Table({
 function Rows({
   ids,
   marks,
+  params,
   primary = "",
 }: {
   ids: Identifier[];
   marks: Marks;
+  params: InstrumentParams;
   // The domain to mark as the primary venue; empty for none.
   primary?: string;
 }) {
@@ -185,8 +251,12 @@ function Rows({
             return r.type === IdentifierType.MIC_TICKER ? (
               <Link
                 key={d}
-                href={coverageQuery({ domain: d, value: r.value })}
-                data-testid={`ticker-coverage-${d}-${r.value}`}
+                href={instrumentQuery({
+                  ...params,
+                  tab: "tickers",
+                  ticker: tickerParam(d, r.value),
+                })}
+                data-testid={`ticker-validity-${d}-${r.value}`}
               >
                 {chip}
               </Link>

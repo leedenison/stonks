@@ -24,8 +24,7 @@ import (
 
 // Reader is this package's view of the coverage package.
 type Reader interface {
-	Domains(ctx context.Context) ([]gen.ListTickerDomainsRow, error)
-	Gaps(ctx context.Context, domain string, today time.Time) ([]reader.Gap, error)
+	InstrumentTickers(ctx context.Context, instrument uuid.UUID) ([]gen.ListInstrumentTickersRow, error)
 	Ticker(ctx context.Context, v types.Identifier, today time.Time) (*reader.Ticker, error)
 }
 
@@ -55,29 +54,19 @@ func New(reader Reader, attester Attester, clock func() time.Time) *Server {
 	return &Server{reader: reader, attester: attester, clock: clock}
 }
 
-// ListDomains lists the operating MICs on which keys with transactions state
-// tickers.
-func (s *Server) ListDomains(ctx context.Context, _ *connect.Request[admincoveragev1.ListDomainsRequest]) (*connect.Response[admincoveragev1.ListDomainsResponse], error) {
-	rows, err := s.reader.Domains(ctx)
+// ListInstrumentTickers lists the tickers that name the instrument.
+func (s *Server) ListInstrumentTickers(ctx context.Context, req *connect.Request[admincoveragev1.ListInstrumentTickersRequest]) (*connect.Response[admincoveragev1.ListInstrumentTickersResponse], error) {
+	id, err := uuid.Parse(req.Msg.GetInstrumentId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	rows, err := s.reader.InstrumentTickers(ctx, id)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	out := &admincoveragev1.ListDomainsResponse{}
-	for _, d := range rows {
-		out.Domains = append(out.Domains, to.ProtoDomain(d))
-	}
-	return connect.NewResponse(out), nil
-}
-
-// ListGaps lists the gaps of every ticker stated on the domain.
-func (s *Server) ListGaps(ctx context.Context, req *connect.Request[admincoveragev1.ListGapsRequest]) (*connect.Response[admincoveragev1.ListGapsResponse], error) {
-	gaps, err := s.reader.Gaps(ctx, req.Msg.GetDomain(), s.clock())
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
-	}
-	out := &admincoveragev1.ListGapsResponse{}
-	for _, g := range gaps {
-		out.Gaps = append(out.Gaps, g.ToProto())
+	out := &admincoveragev1.ListInstrumentTickersResponse{}
+	for _, r := range rows {
+		out.Tickers = append(out.Tickers, to.ProtoInstrumentTicker(r))
 	}
 	return connect.NewResponse(out), nil
 }

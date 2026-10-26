@@ -59,62 +59,33 @@ func newFixture(t *testing.T) *fixture {
 	return f
 }
 
-func TestListDomains(t *testing.T) {
+func TestListInstrumentTickers(t *testing.T) {
 	tests := []struct {
 		name     string
+		id       string
 		err      error
 		wantCode connect.Code
 	}{
-		{name: "listed"},
-		{name: "failure", err: errors.New("boom"), wantCode: connect.CodeInternal},
+		{name: "listed", id: acme.String()},
+		{name: "not a uuid", id: "acme", wantCode: connect.CodeInvalidArgument},
+		{name: "failure", id: acme.String(), err: errors.New("boom"), wantCode: connect.CodeInternal},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newFixture(t)
-			f.reader.EXPECT().Domains(gomock.Any()).Return([]gen.ListTickerDomainsRow{{Domain: "XNAS", Tickers: 2}}, tc.err)
-			res, err := f.client.ListDomains(context.Background(), connect.NewRequest(&admincoveragev1.ListDomainsRequest{}))
+			if tc.id == acme.String() {
+				f.reader.EXPECT().InstrumentTickers(gomock.Any(), acme).Return([]gen.ListInstrumentTickersRow{{Domain: "XNAS", Value: "ACME", Current: true, Transactions: 2}}, tc.err)
+			}
+			res, err := f.client.ListInstrumentTickers(context.Background(), connect.NewRequest(&admincoveragev1.ListInstrumentTickersRequest{InstrumentId: tc.id}))
 			if servicetest.CodeOf(err) != tc.wantCode {
-				t.Fatalf("ListDomains code = %v (err %v), want %v", servicetest.CodeOf(err), err, tc.wantCode)
+				t.Fatalf("ListInstrumentTickers code = %v (err %v), want %v", servicetest.CodeOf(err), err, tc.wantCode)
 			}
 			if err != nil {
 				return
 			}
-			want := []*admincoveragev1.Domain{{Mic: "XNAS", Tickers: 2}}
-			if diff := cmp.Diff(want, res.Msg.GetDomains(), protocmp.Transform()); diff != "" {
-				t.Errorf("ListDomains mismatch (-want +got):\n%s", diff)
-			}
-		})
-	}
-}
-
-func TestListGaps(t *testing.T) {
-	gap := reader.Gap{Ticker: acmeTicker, Period: types.Period{From: day(2), Before: day(10)}, Keys: 2, Transactions: 3}
-	tests := []struct {
-		name     string
-		domain   string
-		err      error
-		wantCode connect.Code
-	}{
-		{name: "listed", domain: "XNAS"},
-		{name: "no domain", wantCode: connect.CodeInvalidArgument},
-		{name: "failure", domain: "XNAS", err: errors.New("boom"), wantCode: connect.CodeInternal},
-	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			f := newFixture(t)
-			if tc.domain != "" {
-				f.reader.EXPECT().Gaps(gomock.Any(), tc.domain, today).Return([]reader.Gap{gap}, tc.err)
-			}
-			res, err := f.client.ListGaps(context.Background(), connect.NewRequest(&admincoveragev1.ListGapsRequest{Domain: tc.domain}))
-			if servicetest.CodeOf(err) != tc.wantCode {
-				t.Fatalf("ListGaps code = %v (err %v), want %v", servicetest.CodeOf(err), err, tc.wantCode)
-			}
-			if err != nil {
-				return
-			}
-			want := []*admincoveragev1.Gap{{Ticker: acmeProto, UnconfirmedFrom: "2026-03-02", UnconfirmedBefore: "2026-03-10", Keys: 2, Transactions: 3}}
-			if diff := cmp.Diff(want, res.Msg.GetGaps(), protocmp.Transform()); diff != "" {
-				t.Errorf("ListGaps mismatch (-want +got):\n%s", diff)
+			want := []*admincoveragev1.InstrumentTicker{{Ticker: acmeProto, Current: true, Transactions: 2}}
+			if diff := cmp.Diff(want, res.Msg.GetTickers(), protocmp.Transform()); diff != "" {
+				t.Errorf("ListInstrumentTickers mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}

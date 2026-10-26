@@ -2,6 +2,7 @@
 
 import {
   ArrowLeftRight,
+  FileText,
   PanelLeftClose,
   PanelLeftOpen,
   Wallet,
@@ -22,6 +23,12 @@ const items = [
     label: "Transactions",
     icon: ArrowLeftRight,
     testId: "nav-transactions",
+  },
+  {
+    href: "/statements",
+    label: "Statements",
+    icon: FileText,
+    testId: "nav-statements",
   },
 ];
 

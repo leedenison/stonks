@@ -33,12 +33,6 @@ import {
   ResolutionOutcome,
   StatedKeySchema,
 } from "@/gen/type/v1/type_pb";
-import {
-  CoverageService,
-  GetTickerResponseSchema,
-  TickerSchema,
-} from "@/gen/admin/coverage/v1/coverage_pb";
-import { Role } from "@/gen/auth/v1/auth_pb";
 import { pollInterval } from "@/lib/run";
 import { liveSession, renderWithAuth, transportWith } from "@/lib/test-utils";
 import StatementPage from "./page";
@@ -217,12 +211,6 @@ function serving(
 ) {
   return transportWith(session, ({ service }) => {
     service(StatementService, { getStatement, ...rest });
-    service(CoverageService, {
-      getTicker: () =>
-        create(GetTickerResponseSchema, {
-          ticker: create(TickerSchema, { ticker: aapl }),
-        }),
-    });
   });
 }
 
@@ -410,40 +398,6 @@ describe("StatementPage", () => {
     expect(
       within(gone).getByTestId("mark-chip").getAttribute("data-state"),
     ).toBe("provisional");
-  });
-
-  it("offers an administrator an attestation on a provisional or unresolved dated transaction", async () => {
-    renderWithAuth(
-      <StatementPage />,
-      serving(
-        () => response(RunState.COMPLETED, 0, undefined, true, true),
-        {},
-        liveSession({ role: Role.ADMIN }),
-      ),
-    );
-    await waitFor(() =>
-      expect(screen.getByTestId("statement-transactions")).toBeTruthy(),
-    );
-    // t1 is confirmed and t3's key is not listed, so t2 alone offers it.
-    expect(screen.queryByTestId("transaction-attest-t1")).toBeNull();
-    expect(screen.queryByTestId("transaction-attest-t3")).toBeNull();
-    fireEvent.click(screen.getByTestId("transaction-attest-t2"));
-    const dialog = screen.getByTestId("attest-dialog");
-    expect(dialog.textContent).toContain("AAPL");
-    expect((screen.getByTestId("attest-from") as HTMLInputElement).value).toBe(
-      "2025-02-10",
-    );
-  });
-
-  it("offers a user no attestation", async () => {
-    renderWithAuth(
-      <StatementPage />,
-      serving(() => response(RunState.COMPLETED, 0, undefined, true, true)),
-    );
-    await waitFor(() =>
-      expect(screen.getByTestId("statement-transactions")).toBeTruthy(),
-    );
-    expect(screen.queryByTestId("transaction-attest-t2")).toBeNull();
   });
 
   it("shows a key as resolving while the run is live", async () => {
