@@ -121,31 +121,6 @@ func (s *stack) instrumentOf(t *testing.T, id types.Identifier) uuid.UUID {
 	return row.Instrument.ID
 }
 
-// count runs a query that counts rows.
-func (s *stack) count(t *testing.T, sql string, args ...any) int {
-	t.Helper()
-	var n int
-	require.NoError(t, s.tx.QueryRow(context.Background(), sql, args...).Scan(&n))
-	return n
-}
-
-// heldOnXLON returns a key held through v, a ticker on XLON that alpha
-// declines and beta resolves to l, with both datasources serving identity
-// alone.
-func heldOnXLON(t *testing.T, s *stack, v types.Identifier, l market.Listing) gen.StatedKey {
-	t.Helper()
-	s.enableBeta(t)
-	s.withoutEvents(t, s.alphaName, s.betaName)
-	s.script.Declines = []string{"XLON"}
-	s.beta.Responses[v] = market.IdentityResult{Listings: []market.Listing{l}}
-	key := s.state(t, types.AssetClassStock, "GBP", v)
-	s.trade(t, key, on(2026, 1, 5))
-	got := s.resolveOn(t, []time.Time{on(2026, 1, 5)}, key)
-	require.Equal(t, gen.ResolutionOutcomeMatched, got[0].Outcome)
-	require.True(t, datedThrough(s.key(t, key.ID), v, gen.ArbiterDatasource))
-	return key
-}
-
 // TestExtendValidity covers a held ticker on XLON, which alpha declines and
 // beta answers. The run asks both again although the instrument has identity
 // coverage, and writes only an assertion dated on its own day.
@@ -154,7 +129,7 @@ func TestExtendValidity(t *testing.T) {
 	ctx := context.Background()
 	v := id(types.IdentifierTypeMicTicker, "XLON", "ZZR"+uuid.NewString()[:4])
 	isin := id(types.IdentifierTypeIsin, "", "GB00ZZR"+uuid.NewString()[:5])
-	heldOnXLON(t, s, v, listing(types.AssetClassStock, "GBP", isin, v))
+	s.heldOnXLON(t, v, listing(types.AssetClassStock, "GBP", isin, v))
 	inst := s.instrumentOf(t, isin)
 	coverage := `SELECT count(*) FROM identity_coverage WHERE instrument_id = $1`
 	shape := `SELECT (SELECT count(*) FROM identifiers WHERE instrument_id = $1) + (SELECT count(*) FROM listings WHERE instrument_id = $1)`
@@ -206,7 +181,7 @@ func TestExtendValiditySharedIdentifier(t *testing.T) {
 	v := id(types.IdentifierTypeMicTicker, "XLON", "ZZS"+uuid.NewString()[:4])
 	isin := id(types.IdentifierTypeIsin, "", "GB00ZZS"+uuid.NewString()[:5])
 	ds := id(types.IdentifierTypeDatasourceTicker, "eodhd", v.Value+".LSE")
-	heldOnXLON(t, s, v, listing(types.AssetClassStock, "GBP", isin, ds, v))
+	s.heldOnXLON(t, v, listing(types.AssetClassStock, "GBP", isin, ds, v))
 	inst := s.instrumentOf(t, isin)
 
 	s.beta.Responses[v] = market.IdentityResult{Listings: []market.Listing{listing(types.AssetClassStock, "GBP", ds, v)}}
@@ -250,7 +225,7 @@ func TestExtendValidityAnswers(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			s := newStack(t)
 			v := id(types.IdentifierTypeMicTicker, "XLON", "ZZA"+uuid.NewString()[:4])
-			heldOnXLON(t, s, v, listing(types.AssetClassStock, "GBP", id(types.IdentifierTypeIsin, "", "GB00ZZA"+uuid.NewString()[:5]), v))
+			s.heldOnXLON(t, v, listing(types.AssetClassStock, "GBP", id(types.IdentifierTypeIsin, "", "GB00ZZA"+uuid.NewString()[:5]), v))
 			s.beta.Responses[v] = tc.answer(v)
 			s.extendValidity(t, v)
 			if got := s.assertedOn(t, v, later); !tc.want(got) {
@@ -268,7 +243,7 @@ func TestExtendValidityDisagreement(t *testing.T) {
 	ctx := context.Background()
 	v := id(types.IdentifierTypeMicTicker, "XLON", "ZZD"+uuid.NewString()[:4])
 	isin := id(types.IdentifierTypeIsin, "", "GB00ZZD"+uuid.NewString()[:5])
-	heldOnXLON(t, s, v, listing(types.AssetClassStock, "GBP", isin, v))
+	s.heldOnXLON(t, v, listing(types.AssetClassStock, "GBP", isin, v))
 	other := id(types.IdentifierTypeIsin, "", "GB00ZZE"+uuid.NewString()[:5])
 	inst, err := s.q.CreateInstrument(ctx, gen.CreateInstrumentParams{ID: db.NewID(), AssetClass: types.AssetClassStock})
 	require.NoError(t, err)
