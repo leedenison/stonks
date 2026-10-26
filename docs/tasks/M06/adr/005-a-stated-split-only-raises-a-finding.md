@@ -17,3 +17,9 @@ same instrument within 7 calendar days either side, with an equal ratio where th
 statement states one. Otherwise the run records an `unmatched_split` finding that
 references the stated key. The window counts calendar days because the system does not
 hold a trading calendar. A stated split on an option is skipped.
+
+The calendar holds the corporate events of every datasource and market, under each ticker
+that named the instrument on the event's ex-date. The check asks whether any datasource
+knows the split. A gap in one datasource is a `corporate_event_disagreement`. An unhandled
+corporate event matches, because the calendar holds it and its own finding reports it. A
+fetch that acts for a user checks that user's splits. A system fetch checks every user's.

@@ -34,9 +34,15 @@
 -- another datasource that covers the same ticker on its ex-date. The fetch
 -- that completed the pair records it, and the finding names the unmatched
 -- event.
+-- 'unmatched_split' means a statement stated a split that the calendar lacks:
+-- no corporate event of the split's instrument falls within 7 days either
+-- side, with an equal ratio where the statement states one. A corporate event
+-- fetch that covers the instrument on the split's date records it. The
+-- finding names the stated key and the split's effective date. One finding
+-- stands for each key and day, so clearing the finding dismisses that split permanently.
 CREATE TYPE finding_kind AS ENUM ('block', 'dropped', 'contradiction', 'merged',
     'identifier_disagreement', 'broken_validity_bracket', 'missed_event',
-    'unhandled_corporate_event', 'corporate_event_disagreement');
+    'unhandled_corporate_event', 'corporate_event_disagreement', 'unmatched_split');
 
 -- The step of the choice that dropped a set of identifiers: it contradicted
 -- the stated data, was inconsistent with a higher precedence response, or
@@ -54,6 +60,9 @@ CREATE TABLE findings (
     block_id      uuid         UNIQUE REFERENCES datasource_blocks (id) ON DELETE CASCADE,
     -- stated_key_id is the finding's key, for the kinds that concern a key.
     stated_key_id uuid         REFERENCES stated_keys (id) ON DELETE CASCADE,
+    -- effective_date is the day of the stated split that an unmatched split
+    -- finding concerns.
+    effective_date date,
     -- fetch_key_id is the response involved, where one was.
     fetch_key_id  uuid         REFERENCES fetch_keys (id) ON DELETE CASCADE,
     step          drop_step,
@@ -62,7 +71,8 @@ CREATE TABLE findings (
     created_at    timestamptz  NOT NULL DEFAULT now(),
     cleared_at    timestamptz,
     CHECK ((kind = 'block') = (block_id IS NOT NULL)),
-    CHECK ((kind IN ('dropped', 'contradiction', 'merged')) = (stated_key_id IS NOT NULL)),
+    CHECK ((kind IN ('dropped', 'contradiction', 'merged', 'unmatched_split')) = (stated_key_id IS NOT NULL)),
+    CHECK ((kind = 'unmatched_split') = (effective_date IS NOT NULL)),
     CHECK ((kind = 'block') = (detail IS NULL)),
     CHECK ((kind = 'dropped') = (step IS NOT NULL)),
     CHECK (kind NOT IN ('dropped', 'identifier_disagreement', 'broken_validity_bracket', 'missed_event') OR fetch_key_id IS NOT NULL)

@@ -18,6 +18,8 @@ In:
 - The coverage of each transaction, and the adjusted or unadjusted state of each
   holding. See [003](../adr/003-a-holding-is-adjusted-only-when-covered-to-today.md).
 - The trait in `internal/types` that marks a class that corporate events restate.
+- The stated split check in `corporate` skips a split whose instrument's class lacks the
+  trait.
 - The restated quantity, the state and the uncovered period in the holdings API.
   Rewrite the comments in `holding.proto` and the `holding` package that state
   quantities are raw.

@@ -21,6 +21,8 @@ In:
   the whole period, from the earliest as-at date of the instrument's transactions to
   past today.
 - A fetch for the tickers of other users runs beneath a system run, as replays do.
+- An e2e spec that ingests a statement stating a split the replayed calendar lacks. The
+  runs page shows an `unmatched_split` finding.
 
 Out:
 
