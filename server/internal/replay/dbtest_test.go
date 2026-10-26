@@ -80,7 +80,7 @@ func newStack(t *testing.T) *stack {
 	clock := func() time.Time { return time.Date(2026, time.April, 10, 0, 0, 0, 0, time.UTC) }
 	mics, err := mic.Load(ctx, q)
 	require.NoError(t, err)
-	families, err := currency.Load(ctx, q)
+	families, _, err := currency.Load(ctx, q)
 	require.NoError(t, err)
 	resolver := resolve.New(db.New[resolve.Queries](tx), fetcher, s.sources, mics, families, clock, log)
 	s.svc = New(db.New[Queries](tx), runs, resolver, s.sources, mics, log)
@@ -193,8 +193,7 @@ func TestReplay(t *testing.T) {
 	if key.InstrumentID != nil || key.GroupID == nil {
 		t.Fatalf("key while down = %+v, want unresolved and grouped", key)
 	}
-	groups, err := s.q.ListGroupHoldings(ctx, s.user.ID)
-	require.NoError(t, err)
+	_, groups := s.holdings(t)
 	if len(groups) != 1 {
 		t.Fatalf("group holdings while down = %+v, want one", groups)
 	}
@@ -223,8 +222,7 @@ func TestReplay(t *testing.T) {
 	if key.InstrumentID == nil || key.GroupID != nil {
 		t.Fatalf("key after the replay = %+v, want associated and ungrouped", key)
 	}
-	holdings, err := s.q.ListInstrumentHoldings(ctx, s.user.ID)
-	require.NoError(t, err)
+	holdings, groups := s.holdings(t)
 	var held bool
 	for _, h := range holdings {
 		held = held || (h.InstrumentID == *key.InstrumentID && h.Quantity.Equal(decimal.NewFromInt(10)))
@@ -232,8 +230,6 @@ func TestReplay(t *testing.T) {
 	if !held {
 		t.Errorf("instrument holdings after the replay = %+v, want ten of the stock", holdings)
 	}
-	groups, err = s.q.ListGroupHoldings(ctx, s.user.ID)
-	require.NoError(t, err)
 	if len(groups) != 0 {
 		t.Errorf("group holdings after the replay = %+v, want none", groups)
 	}
@@ -460,4 +456,39 @@ func TestReplayChain(t *testing.T) {
 	if !chained {
 		t.Errorf("runs beneath the user's replay = %+v, want the other user's replay that its facts started", below)
 	}
+}
+
+// holding is one instrument's or one group's sum of the user's fixed and
+// unresolved keys.
+type holding struct {
+	InstrumentID, GroupID uuid.UUID
+	Quantity              decimal.Decimal
+}
+
+// holdings sums the user's keys by instrument and by group, as the holdings
+// service does for keys with no dated association, leaving out zero sums.
+func (s *stack) holdings(t *testing.T) (instruments, groups []holding) {
+	t.Helper()
+	keys, err := s.q.ListHoldingKeys(context.Background(), s.user.ID)
+	require.NoError(t, err)
+	byInstrument, byGroup := map[uuid.UUID]decimal.Decimal{}, map[uuid.UUID]decimal.Decimal{}
+	for _, k := range keys {
+		switch {
+		case k.StatedKey.InstrumentID != nil:
+			byInstrument[*k.StatedKey.InstrumentID] = byInstrument[*k.StatedKey.InstrumentID].Add(k.Quantity)
+		case k.StatedKey.GroupID != nil && k.StatedKey.ViaType == nil:
+			byGroup[*k.StatedKey.GroupID] = byGroup[*k.StatedKey.GroupID].Add(k.Quantity)
+		}
+	}
+	for id, q := range byInstrument {
+		if !q.IsZero() {
+			instruments = append(instruments, holding{InstrumentID: id, Quantity: q})
+		}
+	}
+	for id, q := range byGroup {
+		if !q.IsZero() {
+			groups = append(groups, holding{GroupID: id, Quantity: q})
+		}
+	}
+	return instruments, groups
 }

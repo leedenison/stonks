@@ -137,7 +137,7 @@ func newStack(t *testing.T) *stack {
 	fetcher := market.NewFetcher(db.New[market.Queries](tx), runtest.Runner{Q: q}, log, market.WithClock(clock, sleep), market.WithCache(s.cache))
 	s.mics, err = mic.Load(ctx, q)
 	require.NoError(t, err)
-	families, err := currency.Load(ctx, q)
+	families, _, err := currency.Load(ctx, q)
 	require.NoError(t, err)
 	s.resolver = New(db.New[Queries](tx), &serial{Fetcher: fetcher}, s.sources, s.mics, families, clock, log)
 	s.extender = New(db.New[Queries](tx), &serial{Fetcher: fetcher.Fresh()}, s.sources, s.mics, families, clock, log)

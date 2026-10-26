@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"slices"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -33,6 +34,7 @@ var (
 	groupID   = uuid.MustParse("00000000-0000-0000-0000-000000000030")
 	principal = auth.Principal{User: gen.User{ID: userID, Email: "one@example.com"}, SessionID: servicetest.Session}
 	families  = currency.Families{"GBP": "GBP", "GBX": "GBP", "USD": "USD"}
+	scales    = currency.Scales{"GBX": decimal.RequireFromString("0.01")}
 )
 
 type fixture struct {
@@ -50,7 +52,7 @@ func newFixture(t *testing.T) *fixture {
 	f := &fixture{reader: mock.NewMockReader(ctrl), authn: servicemock.NewMockAuthenticator(ctrl)}
 	opts := servicetest.Options(t, f.authn)
 	srv := servicetest.Serve(t, func(mux *http.ServeMux) {
-		mux.Handle(holdingv1connect.NewHoldingServiceHandler(New(f.reader, families), opts...))
+		mux.Handle(holdingv1connect.NewHoldingServiceHandler(New(f.reader, families, scales), opts...))
 	})
 	f.client = holdingv1connect.NewHoldingServiceClient(srv.Client, srv.URL)
 	return f
@@ -59,10 +61,6 @@ func newFixture(t *testing.T) *fixture {
 func TestListHoldings(t *testing.T) {
 	acmeListingID, acmeKeyID := uuid.MustParse("00000000-0000-0000-0000-000000000050"), uuid.MustParse("00000000-0000-0000-0000-000000000060")
 	gbpListingID := uuid.MustParse("00000000-0000-0000-0000-000000000051")
-	rows := []gen.ListInstrumentHoldingsRow{
-		{InstrumentID: gbpID, Quantity: decimal.RequireFromString("12092.79")},
-		{InstrumentID: acmeID, Quantity: decimal.RequireFromString("-141")},
-	}
 	instruments := []gen.Instrument{{ID: gbpID, AssetClass: types.AssetClassCash}, {ID: acmeID, AssetClass: types.AssetClassSecurity}}
 	idents := []gen.Identifier{
 		{InstrumentID: gbpID, Type: types.IdentifierTypeCurrency, Value: "GBP"},
@@ -79,15 +77,28 @@ func TestListHoldings(t *testing.T) {
 	names := []gen.InstrumentName{{InstrumentID: acmeID, Type: types.IdentifierTypeIsin, Value: "GB0002634946"}}
 	acmeISIN := types.Identifier{Type: types.IdentifierTypeIsin, Value: "GB0002634946"}
 	acmeDescribed := types.Identifier{Type: types.IdentifierTypeBrokerDescription, Domain: "ibkr", Value: "ACME PLC"}
-	instrumentKeys := []gen.ListHoldingKeysRow{{
-		StatedKey: gen.StatedKey{ID: acmeKeyID, InstrumentID: &acmeID, ListingID: &acmeListingID, Identifiers: []types.Identifier{acmeISIN, acmeDescribed}},
-		Quantity:  decimal.RequireFromString("-141"),
-	}}
+	// The pound holding is stated in pence, and sums in pounds.
+	gbxKeyID := uuid.MustParse("00000000-0000-0000-0000-000000000063")
+	gbx := types.Identifier{Type: types.IdentifierTypeCurrency, Value: "GBX"}
+	instrumentKeys := []gen.ListHoldingKeysRow{
+		{
+			StatedKey: gen.StatedKey{ID: acmeKeyID, InstrumentID: &acmeID, ListingID: &acmeListingID, Identifiers: []types.Identifier{acmeISIN, acmeDescribed}},
+			Quantity:  decimal.RequireFromString("-141"),
+		},
+		{
+			StatedKey: gen.StatedKey{ID: gbxKeyID, InstrumentID: &gbpID, ListingID: &gbpListingID, Currency: ptr.To("GBX"), Identifiers: []types.Identifier{gbx}},
+			Quantity:  decimal.RequireFromString("1209279"),
+		},
+	}
 	wantInstruments := []*holdingv1.InstrumentHolding{
 		{
 			InstrumentId: gbpID.String(), AssetClass: typev1.AssetClass_ASSET_CLASS_CASH, Quantity: "12092.79",
 			Identifiers: []*typev1.Identifier{{Type: typev1.IdentifierType_IDENTIFIER_TYPE_CURRENCY, Value: "GBP"}},
 			Listings:    []*holdingv1.HoldingListing{{Id: gbpListingID.String(), Currency: "GBP"}},
+			Keys: []*holdingv1.HoldingKey{{
+				ListingId: gbpListingID.String(), Quantity: "1209279",
+				StatedKey: &typev1.StatedKey{Currency: ptr.To("GBX"), Identifiers: []*typev1.Identifier{{Type: typev1.IdentifierType_IDENTIFIER_TYPE_CURRENCY, Value: "GBX"}}},
+			}},
 		},
 		{
 			InstrumentId: acmeID.String(), AssetClass: typev1.AssetClass_ASSET_CLASS_SECURITY, Quantity: "-141",
@@ -112,7 +123,6 @@ func TestListHoldings(t *testing.T) {
 
 	// Two keys of one group, sharing an ISIN and differing in every other
 	// thing they state.
-	groupRows := []gen.ListGroupHoldingsRow{{GroupID: groupID, Quantity: decimal.RequireFromString("12.5")}}
 	isin := types.Identifier{Type: types.IdentifierTypeIsin, Value: "US0000000001"}
 	ticker := types.Identifier{Type: types.IdentifierTypeMicTicker, Value: "ACME"}
 	ibkr := types.Identifier{Type: types.IdentifierTypeBrokerDescription, Domain: "ibkr", Value: "ACME CORP"}
@@ -139,8 +149,6 @@ func TestListHoldings(t *testing.T) {
 	tests := []struct {
 		name        string
 		authErr     error
-		rows        []gen.ListInstrumentHoldingsRow
-		rowsErr     error
 		instruments []gen.Instrument
 		instrErr    error
 		idents      []gen.Identifier
@@ -149,8 +157,6 @@ func TestListHoldings(t *testing.T) {
 		listingsErr error
 		names       []gen.InstrumentName
 		namesErr    error
-		groups      []gen.ListGroupHoldingsRow
-		groupsErr   error
 		keys        []gen.ListHoldingKeysRow
 		keysErr     error
 		want        []*holdingv1.InstrumentHolding
@@ -158,25 +164,22 @@ func TestListHoldings(t *testing.T) {
 		wantCode    connect.Code
 	}{
 		{name: "none"},
-		{name: "instruments only", rows: rows, instruments: instruments, idents: idents, listings: listings, names: names, keys: instrumentKeys, want: wantInstruments},
-		{name: "groups only", groups: groupRows, keys: groupKeys, wantGroups: wantGroups},
+		{name: "instruments only", instruments: instruments, idents: idents, listings: listings, names: names, keys: instrumentKeys, want: wantInstruments},
+		{name: "groups only", keys: groupKeys, wantGroups: wantGroups},
 		{
-			name: "both kinds", rows: rows, instruments: instruments, idents: idents, listings: listings, names: names, groups: groupRows, keys: append(instrumentKeys, groupKeys...),
+			name: "both kinds", instruments: instruments, idents: idents, listings: listings, names: names, keys: append(slices.Clone(instrumentKeys), groupKeys...),
 			want: wantInstruments, wantGroups: wantGroups,
 		},
 		{
-			name:   "zero sums are no holdings",
-			rows:   []gen.ListInstrumentHoldingsRow{{InstrumentID: gbpID, Quantity: decimal.Zero}},
-			groups: []gen.ListGroupHoldingsRow{{GroupID: groupID, Quantity: decimal.Zero}},
-			keys:   groupKeys,
+			name:        "zero sums are no holdings",
+			instruments: instruments,
+			keys:        []gen.ListHoldingKeysRow{withQuantity(instrumentKeys[1], "0"), withQuantity(groupKeys[0], "10"), withQuantity(groupKeys[1], "-10")},
 		},
 		{name: "keys failure", keysErr: errors.New("boom"), wantCode: connect.CodeInternal},
-		{name: "holdings failure", rowsErr: errors.New("boom"), wantCode: connect.CodeInternal},
-		{name: "instruments failure", rows: rows, instrErr: errors.New("boom"), wantCode: connect.CodeInternal},
-		{name: "identifiers failure", rows: rows, instruments: instruments, identsErr: errors.New("boom"), wantCode: connect.CodeInternal},
-		{name: "listings failure", rows: rows, instruments: instruments, idents: idents, listingsErr: errors.New("boom"), wantCode: connect.CodeInternal},
-		{name: "names failure", rows: rows, instruments: instruments, idents: idents, listings: listings, namesErr: errors.New("boom"), wantCode: connect.CodeInternal},
-		{name: "group holdings failure", groupsErr: errors.New("boom"), wantCode: connect.CodeInternal},
+		{name: "instruments failure", keys: instrumentKeys, instrErr: errors.New("boom"), wantCode: connect.CodeInternal},
+		{name: "identifiers failure", keys: instrumentKeys, instruments: instruments, identsErr: errors.New("boom"), wantCode: connect.CodeInternal},
+		{name: "listings failure", keys: instrumentKeys, instruments: instruments, idents: idents, listingsErr: errors.New("boom"), wantCode: connect.CodeInternal},
+		{name: "names failure", keys: instrumentKeys, instruments: instruments, idents: idents, listings: listings, namesErr: errors.New("boom"), wantCode: connect.CodeInternal},
 		{name: "unauthenticated", authErr: auth.ErrUnauthenticated, wantCode: connect.CodeUnauthenticated},
 	}
 	for _, tc := range tests {
@@ -187,12 +190,10 @@ func TestListHoldings(t *testing.T) {
 			// failure does not matter to the response.
 			f.reader.EXPECT().ListHoldingKeys(gomock.Any(), userID).Return(tc.keys, tc.keysErr).MaxTimes(1)
 			f.reader.EXPECT().ListDatedTransactions(gomock.Any(), userID).Return(nil, nil).MaxTimes(1)
-			f.reader.EXPECT().ListInstrumentHoldings(gomock.Any(), userID).Return(tc.rows, tc.rowsErr).MaxTimes(1)
-			f.reader.EXPECT().ListInstrumentsByID(gomock.Any(), []uuid.UUID{gbpID, acmeID}).Return(tc.instruments, tc.instrErr).MaxTimes(1)
+			f.reader.EXPECT().ListInstrumentsByID(gomock.Any(), gomock.Any()).Return(tc.instruments, tc.instrErr).MaxTimes(1)
 			f.reader.EXPECT().ListIdentifiersOf(gomock.Any(), []uuid.UUID{gbpID, acmeID}).Return(tc.idents, tc.identsErr).MaxTimes(1)
 			f.reader.EXPECT().ListListingNames(gomock.Any(), []uuid.UUID{gbpID, acmeID}).Return(tc.listings, tc.listingsErr).MaxTimes(1)
 			f.reader.EXPECT().ListInstrumentNames(gomock.Any(), []uuid.UUID{gbpID, acmeID}).Return(tc.names, tc.namesErr).MaxTimes(1)
-			f.reader.EXPECT().ListGroupHoldings(gomock.Any(), userID).Return(tc.groups, tc.groupsErr).MaxTimes(1)
 			res, err := f.client.ListHoldings(context.Background(), connect.NewRequest(&holdingv1.ListHoldingsRequest{}))
 			if servicetest.CodeOf(err) != tc.wantCode {
 				t.Fatalf("ListHoldings() code = %v (err %v), want %v", servicetest.CodeOf(err), err, tc.wantCode)
@@ -203,6 +204,66 @@ func TestListHoldings(t *testing.T) {
 			want := &holdingv1.ListHoldingsResponse{Instruments: tc.want, Groups: tc.wantGroups}
 			if diff := cmp.Diff(want, res.Msg, protocmp.Transform()); diff != "" {
 				t.Errorf("ListHoldings() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+// withQuantity returns k with its sum set to quantity.
+func withQuantity(k gen.ListHoldingKeysRow, quantity string) gen.ListHoldingKeysRow {
+	k.Quantity = decimal.RequireFromString(quantity)
+	return k
+}
+
+// TestListHoldingsScale checks that cash sums in its family's unit, so pence
+// count as hundredths of a pound, and that a security's quantity stays in
+// shares whatever its currency.
+func TestListHoldingsScale(t *testing.T) {
+	cash := func(id uuid.UUID, code, quantity string) gen.ListHoldingKeysRow {
+		return gen.ListHoldingKeysRow{
+			StatedKey: gen.StatedKey{ID: id, InstrumentID: &gbpID, Currency: ptr.To(code), Identifiers: []types.Identifier{{Type: types.IdentifierTypeCurrency, Value: code}}},
+			Quantity:  decimal.RequireFromString(quantity),
+		}
+	}
+	pounds, pence := uuid.MustParse("00000000-0000-0000-0000-000000000064"), uuid.MustParse("00000000-0000-0000-0000-000000000065")
+	shares := gen.ListHoldingKeysRow{
+		StatedKey: gen.StatedKey{ID: pence, InstrumentID: &acmeID, Currency: ptr.To("GBX"), Identifiers: []types.Identifier{{Type: types.IdentifierTypeIsin, Value: "GB0002634946"}}},
+		Quantity:  decimal.RequireFromString("100"),
+	}
+	instruments := []gen.Instrument{{ID: gbpID, AssetClass: types.AssetClassCash}, {ID: acmeID, AssetClass: types.AssetClassStock}}
+	tests := []struct {
+		name string
+		keys []gen.ListHoldingKeysRow
+		id   uuid.UUID
+		want string
+	}{
+		{name: "pounds and pence sum in pounds", keys: []gen.ListHoldingKeysRow{cash(pounds, "GBP", "5"), cash(pence, "GBX", "1000")}, id: gbpID, want: "15"},
+		{name: "pounds and pence that cancel are no holding", keys: []gen.ListHoldingKeysRow{cash(pounds, "GBP", "-5"), cash(pence, "GBX", "500")}},
+		{name: "a security quoted in pence counts shares", keys: []gen.ListHoldingKeysRow{shares}, id: acmeID, want: "100"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFixture(t)
+			f.authn.EXPECT().Authenticate(gomock.Any(), servicetest.Session).Return(principal, nil)
+			f.reader.EXPECT().ListHoldingKeys(gomock.Any(), userID).Return(tc.keys, nil)
+			f.reader.EXPECT().ListDatedTransactions(gomock.Any(), userID).Return(nil, nil)
+			f.reader.EXPECT().ListInstrumentsByID(gomock.Any(), gomock.Any()).Return(instruments, nil)
+			if tc.want != "" {
+				ids := []uuid.UUID{tc.id}
+				f.reader.EXPECT().ListIdentifiersOf(gomock.Any(), ids).Return(nil, nil)
+				f.reader.EXPECT().ListListingNames(gomock.Any(), ids).Return(nil, nil)
+				f.reader.EXPECT().ListInstrumentNames(gomock.Any(), ids).Return(nil, nil)
+			}
+			res, err := f.client.ListHoldings(context.Background(), connect.NewRequest(&holdingv1.ListHoldingsRequest{}))
+			if err != nil {
+				t.Fatalf("ListHoldings() error = %v", err)
+			}
+			got := res.Msg.GetInstruments()
+			switch {
+			case tc.want == "" && len(got) != 0:
+				t.Errorf("instruments = %v, want none", got)
+			case tc.want != "" && (len(got) != 1 || got[0].GetInstrumentId() != tc.id.String() || got[0].GetQuantity() != tc.want):
+				t.Errorf("instruments = %v, want %s of %s", got, tc.want, tc.id)
 			}
 		})
 	}

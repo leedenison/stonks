@@ -21,6 +21,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"maps"
 	"slices"
 
 	"connectrpc.com/connect"
@@ -42,12 +43,10 @@ import (
 // queries, which give a dated key's transactions their instruments.
 type Reader interface {
 	validity.FactQueries
-	ListInstrumentHoldings(ctx context.Context, userID uuid.UUID) ([]gen.ListInstrumentHoldingsRow, error)
 	ListInstrumentsByID(ctx context.Context, ids []uuid.UUID) ([]gen.Instrument, error)
 	ListIdentifiersOf(ctx context.Context, ids []uuid.UUID) ([]gen.Identifier, error)
 	ListListingNames(ctx context.Context, instrumentIds []uuid.UUID) ([]gen.ListListingNamesRow, error)
 	ListInstrumentNames(ctx context.Context, ids []uuid.UUID) ([]gen.InstrumentName, error)
-	ListGroupHoldings(ctx context.Context, userID uuid.UUID) ([]gen.ListGroupHoldingsRow, error)
 	ListHoldingKeys(ctx context.Context, userID uuid.UUID) ([]gen.ListHoldingKeysRow, error)
 	ListDatedTransactions(ctx context.Context, userID uuid.UUID) ([]gen.ListDatedTransactionsRow, error)
 }
@@ -60,13 +59,14 @@ var _ Reader = (*gen.Queries)(nil)
 type Server struct {
 	reader   Reader
 	families currency.Families
+	scales   currency.Scales
 }
 
 var _ holdingv1connect.HoldingServiceHandler = (*Server)(nil)
 
 // New returns a Server.
-func New(reader Reader, families currency.Families) *Server {
-	return &Server{reader: reader, families: families}
+func New(reader Reader, families currency.Families, scales currency.Scales) *Server {
+	return &Server{reader: reader, families: families, scales: scales}
 }
 
 // ListHoldings lists the caller's holdings of both kinds.
@@ -84,25 +84,54 @@ func (s *Server) ListHoldings(ctx context.Context, _ *connect.Request[holdingv1.
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	res := &holdingv1.ListHoldingsResponse{}
-	if res.Instruments, err = s.instruments(ctx, p.User.ID, keys, d); err != nil {
+	if res.Instruments, err = s.instruments(ctx, keys, d); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	if res.Groups, err = s.groups(ctx, p.User.ID, keys, d); err != nil {
+	if res.Groups, err = s.groups(keys, d); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	return connect.NewResponse(res), nil
 }
 
 // instruments answers the user's holdings of instruments, each with its
-// name, identifiers, listings and keys, by instrument id.
-func (s *Server) instruments(ctx context.Context, user uuid.UUID, keys []gen.ListHoldingKeysRow, d dated) ([]*holdingv1.InstrumentHolding, error) {
-	rows, err := s.reader.ListInstrumentHoldings(ctx, user)
+// name, identifiers, listings and keys, by instrument id. A fixed key adds
+// its sum to its instrument. Cash is summed in its family's unit, so pence
+// count as hundredths of a pound. A security's quantity stays in shares
+// whatever its currency.
+func (s *Server) instruments(ctx context.Context, keys []gen.ListHoldingKeysRow, d dated) ([]*holdingv1.InstrumentHolding, error) {
+	named := map[uuid.UUID]decimal.Decimal{}
+	for _, k := range keys {
+		if id := k.StatedKey.InstrumentID; id != nil {
+			named[*id] = decimal.Zero
+		}
+	}
+	for _, on := range d.onInstrument {
+		for id := range on {
+			named[id] = decimal.Zero
+		}
+	}
+	if len(named) == 0 {
+		return nil, nil
+	}
+	instruments, err := s.reader.ListInstrumentsByID(ctx, sorted(named))
 	if err != nil {
 		return nil, err
 	}
-	total := make(map[uuid.UUID]decimal.Decimal, len(rows))
-	for _, r := range rows {
-		total[r.InstrumentID] = r.Quantity
+	classOf := make(map[uuid.UUID]types.AssetClass, len(instruments))
+	for _, i := range instruments {
+		classOf[i.ID] = i.AssetClass
+	}
+	total := make(map[uuid.UUID]decimal.Decimal, len(named))
+	for _, k := range keys {
+		id := k.StatedKey.InstrumentID
+		if id == nil {
+			continue
+		}
+		q := k.Quantity
+		if classOf[*id] == types.AssetClassCash && k.StatedKey.Currency != nil {
+			q = q.Mul(s.scales.Scale(*k.StatedKey.Currency))
+		}
+		total[*id] = total[*id].Add(q)
 	}
 	for _, on := range d.onInstrument {
 		for id, q := range on {
@@ -112,14 +141,6 @@ func (s *Server) instruments(ctx context.Context, user uuid.UUID, keys []gen.Lis
 	ids := held(total)
 	if len(ids) == 0 {
 		return nil, nil
-	}
-	instruments, err := s.reader.ListInstrumentsByID(ctx, ids)
-	if err != nil {
-		return nil, err
-	}
-	classOf := make(map[uuid.UUID]types.AssetClass, len(instruments))
-	for _, i := range instruments {
-		classOf[i.ID] = i.AssetClass
 	}
 	idents, err := s.reader.ListIdentifiersOf(ctx, ids)
 	if err != nil {
@@ -214,15 +235,8 @@ func listing(families currency.Families, k gen.StatedKey, idents []gen.Identifie
 // identifiers its keys state, once each, and the keys, by group id. An
 // unresolved key is in its group whole. A dated key is in its group only for
 // the transactions dated when its ticker names nothing.
-func (s *Server) groups(ctx context.Context, user uuid.UUID, keys []gen.ListHoldingKeysRow, d dated) ([]*holdingv1.GroupHolding, error) {
-	rows, err := s.reader.ListGroupHoldings(ctx, user)
-	if err != nil {
-		return nil, err
-	}
-	total := make(map[uuid.UUID]decimal.Decimal, len(rows))
-	for _, r := range rows {
-		total[r.GroupID] = r.Quantity
-	}
+func (s *Server) groups(keys []gen.ListHoldingKeysRow, d dated) ([]*holdingv1.GroupHolding, error) {
+	total := map[uuid.UUID]decimal.Decimal{}
 	stated := map[uuid.UUID]*stating{}
 	for _, k := range keys {
 		unresolved, isDated := d.unresolved[k.StatedKey.ID]
@@ -242,6 +256,8 @@ func (s *Server) groups(ctx context.Context, user uuid.UUID, keys []gen.ListHold
 			}
 			hk = &holdingv1.HoldingKey{StatedKey: to.ProtoStatedKey(k.StatedKey), Quantity: unresolved.String()}
 			total[*g] = total[*g].Add(unresolved)
+		} else {
+			total[*g] = total[*g].Add(k.Quantity)
 		}
 		st, ok := stated[*g]
 		if !ok {
@@ -268,12 +284,12 @@ func (s *Server) groups(ctx context.Context, user uuid.UUID, keys []gen.ListHold
 
 // held returns the ids whose total is not zero, in id order.
 func held(total map[uuid.UUID]decimal.Decimal) []uuid.UUID {
-	ids := make([]uuid.UUID, 0, len(total))
-	for id, q := range total {
-		if !q.IsZero() {
-			ids = append(ids, id)
-		}
-	}
+	return slices.DeleteFunc(sorted(total), func(id uuid.UUID) bool { return total[id].IsZero() })
+}
+
+// sorted returns the ids of m in id order.
+func sorted(m map[uuid.UUID]decimal.Decimal) []uuid.UUID {
+	ids := slices.Collect(maps.Keys(m))
 	slices.SortFunc(ids, func(a, b uuid.UUID) int { return bytes.Compare(a[:], b[:]) })
 	return ids
 }

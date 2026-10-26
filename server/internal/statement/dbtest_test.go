@@ -14,6 +14,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 
 	statementv1 "github.com/leedenison/stonks/proto/statement/v1"
@@ -69,7 +70,7 @@ func newStack(t *testing.T) stack {
 	runs := runtest.Runner{Q: q}
 	mics, err := mic.Load(ctx, q)
 	require.NoError(t, err)
-	families, err := currency.Load(ctx, q)
+	families, _, err := currency.Load(ctx, q)
 	require.NoError(t, err)
 	resolver := resolve.New(db.New[resolve.Queries](tx), market.NewFetcher(db.New[market.Queries](tx), runs, log), sources, mics, families, clock, log)
 	replays := replay.New(db.New[replay.Queries](tx), runs, resolver, sources, mics, log)
@@ -329,8 +330,7 @@ func TestConfirmCandidate(t *testing.T) {
 	if first.ID == second.ID {
 		t.Fatalf("the key with a currency and the key without are one row %s, want two", first.ID)
 	}
-	groups, err := s.q.ListGroupHoldings(ctx, s.user.ID)
-	require.NoError(t, err)
+	_, groups := s.holdings(t)
 	if len(groups) != 1 || groups[0].Quantity.String() != "15" {
 		t.Fatalf("group holdings = %+v, want one of 15", groups)
 	}
@@ -372,10 +372,7 @@ func TestConfirmCandidate(t *testing.T) {
 	if mate.InstrumentID != nil || mate.Arbiter != nil {
 		t.Errorf("the mate = %+v, want it unresolved: a choice associates the one key", mate)
 	}
-	groups, err = s.q.ListGroupHoldings(ctx, s.user.ID)
-	require.NoError(t, err)
-	instruments, err := s.q.ListInstrumentHoldings(ctx, s.user.ID)
-	require.NoError(t, err)
+	instruments, groups := s.holdings(t)
 	if len(groups) != 1 || groups[0].Quantity.String() != "5" || len(instruments) != 1 || instruments[0].Quantity.String() != "10" {
 		t.Errorf("holdings = groups %+v, instruments %+v, want the mate's group of 5 and one instrument holding of 10", groups, instruments)
 	}
@@ -402,8 +399,7 @@ func TestConfirmCandidate(t *testing.T) {
 	if len(resolved) != 0 {
 		t.Errorf("the third statement's resolution recorded %+v, want no outcome", resolved)
 	}
-	instruments, err = s.q.ListInstrumentHoldings(ctx, s.user.ID)
-	require.NoError(t, err)
+	instruments, _ = s.holdings(t)
 	if len(instruments) != 1 || instruments[0].Quantity.String() != "11" {
 		t.Errorf("instrument holdings = %+v, want one of 11", instruments)
 	}
@@ -521,9 +517,43 @@ func TestRestate(t *testing.T) {
 	if len(latest) != 1 || latest[0].RunID != resolutionOf(first).ID || latest[0].Outcome != gen.ResolutionOutcomeMatched {
 		t.Errorf("latest resolution = %+v, want the first statement's, matched", latest)
 	}
-	instruments, err := s.q.ListInstrumentHoldings(ctx, s.user.ID)
-	require.NoError(t, err)
+	instruments, _ := s.holdings(t)
 	if len(instruments) != 1 || instruments[0].Quantity.String() != "15" {
 		t.Errorf("instrument holdings = %+v, want one of 15", instruments)
 	}
+}
+
+// holding is one instrument's or one group's sum of the user's fixed and
+// unresolved keys.
+type holding struct {
+	InstrumentID, GroupID uuid.UUID
+	Quantity              decimal.Decimal
+}
+
+// holdings sums the user's keys by instrument and by group, as the holdings
+// service does for keys with no dated association, leaving out zero sums.
+func (s *stack) holdings(t *testing.T) (instruments, groups []holding) {
+	t.Helper()
+	keys, err := s.q.ListHoldingKeys(context.Background(), s.user.ID)
+	require.NoError(t, err)
+	byInstrument, byGroup := map[uuid.UUID]decimal.Decimal{}, map[uuid.UUID]decimal.Decimal{}
+	for _, k := range keys {
+		switch {
+		case k.StatedKey.InstrumentID != nil:
+			byInstrument[*k.StatedKey.InstrumentID] = byInstrument[*k.StatedKey.InstrumentID].Add(k.Quantity)
+		case k.StatedKey.GroupID != nil && k.StatedKey.ViaType == nil:
+			byGroup[*k.StatedKey.GroupID] = byGroup[*k.StatedKey.GroupID].Add(k.Quantity)
+		}
+	}
+	for id, q := range byInstrument {
+		if !q.IsZero() {
+			instruments = append(instruments, holding{InstrumentID: id, Quantity: q})
+		}
+	}
+	for id, q := range byGroup {
+		if !q.IsZero() {
+			groups = append(groups, holding{GroupID: id, Quantity: q})
+		}
+	}
+	return instruments, groups
 }

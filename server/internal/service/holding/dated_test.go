@@ -119,8 +119,6 @@ func TestListHoldingsDated(t *testing.T) {
 		txsErr        error
 		assertions    []gen.ListIdentifierAssertionsRow
 		assertionsErr error
-		rows          []gen.ListInstrumentHoldingsRow
-		groups        []gen.ListGroupHoldingsRow
 		ids           []uuid.UUID
 		listings      []gen.ListListingNamesRow
 		want          []*holdingv1.InstrumentHolding
@@ -153,7 +151,6 @@ func TestListHoldingsDated(t *testing.T) {
 			name:       "a dated key beside a fixed key of the same instrument",
 			keys:       []gen.ListHoldingKeysRow{fixedKey, datedKey(usd, &datedKeyID, "2")},
 			txs:        []gen.ListDatedTransactionsRow{tx(5, "2")},
-			rows:       []gen.ListInstrumentHoldingsRow{{InstrumentID: aID, Quantity: decimal.RequireFromString("10")}},
 			assertions: straddle, ids: []uuid.UUID{aID}, listings: listings,
 			want: []*holdingv1.InstrumentHolding{holdingA("12", fixedHoldingKey, datedHoldingKey(usd, aUSD, "2"))},
 		},
@@ -161,7 +158,6 @@ func TestListHoldingsDated(t *testing.T) {
 			name:       "a total of zero is no holding",
 			keys:       []gen.ListHoldingKeysRow{fixedKey, datedKey(usd, &datedKeyID, "-10")},
 			txs:        []gen.ListDatedTransactionsRow{tx(5, "-10"), tx(15, "5"), tx(16, "-5")},
-			rows:       []gen.ListInstrumentHoldingsRow{{InstrumentID: aID, Quantity: decimal.RequireFromString("10")}},
 			assertions: retired,
 		},
 		{
@@ -214,14 +210,12 @@ func TestListHoldingsDated(t *testing.T) {
 			f.reader.EXPECT().ListIdentifierAssertions(gomock.Any(), fooAssertions).Return(tc.assertions, tc.assertionsErr).MaxTimes(1)
 			f.reader.EXPECT().ListIdentifierEvents(gomock.Any(), fooEvents).Return(nil, nil).MaxTimes(1)
 			f.reader.EXPECT().ListIdentifierCoverage(gomock.Any(), fooCoverage).Return(coverage, nil).MaxTimes(1)
-			f.reader.EXPECT().ListInstrumentHoldings(gomock.Any(), userID).Return(tc.rows, nil).MaxTimes(1)
+			f.reader.EXPECT().ListInstrumentsByID(gomock.Any(), gomock.Any()).Return(instruments, nil).MaxTimes(1)
 			if len(tc.ids) > 0 {
-				f.reader.EXPECT().ListInstrumentsByID(gomock.Any(), tc.ids).Return(instruments, nil)
 				f.reader.EXPECT().ListIdentifiersOf(gomock.Any(), tc.ids).Return(idents, nil)
 				f.reader.EXPECT().ListListingNames(gomock.Any(), tc.ids).Return(tc.listings, nil)
 				f.reader.EXPECT().ListInstrumentNames(gomock.Any(), tc.ids).Return(names, nil)
 			}
-			f.reader.EXPECT().ListGroupHoldings(gomock.Any(), userID).Return(tc.groups, nil).MaxTimes(1)
 			res, err := f.client.ListHoldings(context.Background(), connect.NewRequest(&holdingv1.ListHoldingsRequest{}))
 			if servicetest.CodeOf(err) != tc.wantCode {
 				t.Fatalf("ListHoldings() code = %v (err %v), want %v", servicetest.CodeOf(err), err, tc.wantCode)
