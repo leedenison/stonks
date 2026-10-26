@@ -22,13 +22,13 @@ run.
 The milestones that are scheduled, in the order they are implemented. Each has a directory
 of open issues and ADRs at `docs/tasks/<label>/`.
 
-- **M05** - Identifier events from Massive, and resolution of MIC-derived identifiers
-  inside their validity.
+- **M06** - Corporate events that restate the quantity of an instrument held, from
+  Massive, and the stable identifiers they reissue.
 
 ```
 001 open
     |
-008 close
+002 close
 ```
 
 ## Completed
@@ -42,6 +42,8 @@ The record of what has been built. A milestone lands here when its issue directo
   keys against one identity datasource.
 - **M04** - Identity datasources for Massive and EODHD, and confirming a candidate that a
   fetch served for a key it could not associate.
+- **M05** - Identifier events from Massive, and resolution of MIC-derived identifiers
+  inside their validity.
 
 ## Deferred
 
