@@ -85,7 +85,7 @@ func TestStart(t *testing.T) {
 		written = append(written, arg)
 		return nil
 	})
-	f.replays.EXPECT().ReplayNewIdentifierFacts(gomock.Any(), row, []resolve.WrittenIdentifierFacts{{Run: row, Identifiers: []types.Identifier{nasdaq}}}).Return(nil)
+	f.replays.EXPECT().ReplayNewIdentifierFacts(gomock.Any(), row, []resolve.WrittenIdentifierFacts{{Run: row, Identifiers: []types.Identifier{nasdaq}}})
 
 	segment := types.Identifier{Type: nasdaq.Type, Domain: "XNGS", Value: "ACME"}
 	to := day(20)
@@ -112,7 +112,7 @@ func TestStartNothing(t *testing.T) {
 		}
 		return nil
 	})
-	f.replays.EXPECT().ReplayNewIdentifierFacts(gomock.Any(), row, gomock.Any()).Return(nil)
+	f.replays.EXPECT().ReplayNewIdentifierFacts(gomock.Any(), row, gomock.Any())
 
 	to := day(10)
 	if _, err := f.svc.Start(context.Background(), admin, nasdaq, nil, day(10), &to); err != nil {
@@ -165,7 +165,7 @@ func TestWithdraw(t *testing.T) {
 	f.store.EXPECT().GetIdentifierAssertion(gomock.Any(), id).Return(gen.IdentifierAssertion{ID: id, RunID: &row.ID, AttestedBy: &admin, Type: nasdaq.Type, Domain: nasdaq.Domain, Value: nasdaq.Value}, nil)
 	f.store.EXPECT().GetRunByID(gomock.Any(), row.ID).Return(row, nil)
 	f.store.EXPECT().DeleteAttestedAssertion(gomock.Any(), id).Return(int64(1), nil)
-	f.replays.EXPECT().ReplayNewIdentifierFacts(gomock.Any(), row, []resolve.WrittenIdentifierFacts{{Run: row, Identifiers: []types.Identifier{nasdaq}}}).Return(nil)
+	f.replays.EXPECT().ReplayNewIdentifierFacts(gomock.Any(), row, []resolve.WrittenIdentifierFacts{{Run: row, Identifiers: []types.Identifier{nasdaq}}})
 	if err := f.svc.Withdraw(context.Background(), id); err != nil {
 		t.Errorf("Withdraw() error = %v", err)
 	}

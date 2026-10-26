@@ -260,7 +260,7 @@ func (s *Server) transactions(ctx context.Context, statement, user uuid.UUID) ([
 		if v, ok := to.AssociatedTicker(r.StatedKey); ok {
 			t = read[v]
 		}
-		out = append(out, to.ProtoTransaction(r.Transaction, mark(r.StatedKey.Arbiter, r.FixedViaType, t, r.Transaction.OrderDate)))
+		out = append(out, to.ProtoTransaction(r.Transaction, mark(r.StatedKey.Arbiter, r.FixedViaType, t, r.Transaction.AsAt)))
 	}
 	return out, nil
 }

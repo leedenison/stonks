@@ -128,11 +128,11 @@ WHERE stated_keys.identifiers @> ANY(@probes::jsonb[]);
 -- name: ListTickerTransactions :many
 -- The transactions of every key that states one of the probes; see
 -- ListUnassociatedKeysStating.
-SELECT transactions.stated_key_id, transactions.order_date
+SELECT transactions.stated_key_id, transactions.as_at
 FROM transactions
 JOIN stated_keys ON stated_keys.id = transactions.stated_key_id
 WHERE stated_keys.identifiers @> ANY(@probes::jsonb[])
-ORDER BY transactions.order_date, transactions.stated_key_id, transactions.id;
+ORDER BY transactions.as_at, transactions.stated_key_id, transactions.id;
 
 -- name: GetIdentifierAssertion :one
 SELECT * FROM identifier_assertions WHERE id = $1;

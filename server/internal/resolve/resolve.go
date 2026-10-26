@@ -15,11 +15,13 @@
 //
 // A key that states a venue ticker without a stable identifier is dated: it
 // names the ticker, and each of its transactions takes the instrument the
-// ticker's validity names on its order date when it is read;
-// see [validity.go](../validity/validity.go). Where the ticker has validity,
-// the key is dated through it without an identity fetch. Identifier events
-// are fetched for the keys that may be dated, and recorded after the keys are
-// written.
+// ticker's validity names on its as-at date when it is read;
+// see [validity.go](../validity/validity.go). The as-at date is the day on
+// which the source stated the ticker, so a source that restates its history
+// to the present names the instrument the ticker names today. Where the
+// ticker has validity, the key is dated through it without an identity
+// fetch. Identifier events are fetched for the keys that may be dated, and
+// recorded after the keys are written.
 //
 // A claim below the winner attaches where it corroborates the winner: it
 // shares a stable identifier with the winner, or both are answers made on one
@@ -79,9 +81,9 @@ func New(store Store, fetcher Fetcher, sources Sources, mics mic.MICMap, familie
 	return &Resolver{store: store, fetcher: fetcher, sources: sources, mics: mics, families: families, clock: clock, log: log}
 }
 
-// KeyOrderDates is a stated key and the order dates the caller adds to its
+// KeyDates is a stated key and the as-at dates the caller adds to its
 // stored transactions' dates: the rows of the statement being ingested.
-type KeyOrderDates struct {
+type KeyDates struct {
 	Row   gen.StatedKey
 	Dates []time.Time
 }
@@ -90,7 +92,7 @@ type KeyOrderDates struct {
 // key, in the order of keys, and the identifiers of the identifier facts its
 // fetch runs wrote. A run that fails partway leaves the keys it has already
 // written resolved.
-func (r *Resolver) Resolve(ctx context.Context, run gen.Run, keys []KeyOrderDates) ([]gen.ResolutionKey, []WrittenIdentifierFacts, error) {
+func (r *Resolver) Resolve(ctx context.Context, run gen.Run, keys []KeyDates) ([]gen.ResolutionKey, []WrittenIdentifierFacts, error) {
 	b, err := r.prepare(ctx, run, keys, true)
 	if err != nil {
 		return nil, nil, err
@@ -123,7 +125,7 @@ type batch struct {
 // identifier events.
 //
 // A resolution acts for its run's user, so prepare refuses a system run.
-func (r *Resolver) prepare(ctx context.Context, run gen.Run, keys []KeyOrderDates, dating bool) (*batch, error) {
+func (r *Resolver) prepare(ctx context.Context, run gen.Run, keys []KeyDates, dating bool) (*batch, error) {
 	user, err := runs.Owner(run)
 	if err != nil {
 		return nil, err

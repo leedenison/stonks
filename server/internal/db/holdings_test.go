@@ -68,18 +68,20 @@ func (h holder) datedKey(t *testing.T, q *gen.Queries, venue, ticker, currency s
 	return k
 }
 
-// record writes one transaction of quantity against key on 2026-03-01.
+// record writes one transaction of quantity against key, stated as at
+// 2026-03-01.
 func (h holder) record(t *testing.T, q *gen.Queries, key gen.StatedKey, quantity string) {
 	t.Helper()
 	h.recordOn(t, q, key, date(2026, 3, 1), quantity)
 }
 
-// recordOn writes one transaction of quantity against key on day.
+// recordOn writes one transaction of quantity against key, stated as at
+// day and ordered a week before it.
 func (h holder) recordOn(t *testing.T, q *gen.Queries, key gen.StatedKey, day time.Time, quantity string) {
 	t.Helper()
 	_, err := q.CreateTransaction(context.Background(), gen.CreateTransactionParams{
 		ID: db.NewID(), UserID: h.user.ID, Broker: gen.BrokerIbkr, StatementID: h.statement.ID, StatedKeyID: key.ID,
-		OrderDate: day, SettlementDate: day, AsAt: day,
+		OrderDate: day.AddDate(0, 0, -7), SettlementDate: day, AsAt: day,
 		Quantity: decimal.RequireFromString(quantity),
 	})
 	require.NoError(t, err)
@@ -192,9 +194,9 @@ func TestListDatedTransactions(t *testing.T) {
 	got, err := q.ListDatedTransactions(ctx, h.user.ID)
 	require.NoError(t, err)
 	want := []gen.ListDatedTransactionsRow{
-		{StatedKeyID: acme.ID, OrderDate: date(2026, 3, 1), Quantity: decimal.RequireFromString("-1.5")},
-		{StatedKeyID: acme.ID, OrderDate: date(2026, 3, 2), Quantity: decimal.RequireFromString("4")},
-		{StatedKeyID: zeta.ID, OrderDate: date(2026, 3, 1), Quantity: decimal.RequireFromString("7")},
+		{StatedKeyID: acme.ID, AsAt: date(2026, 3, 1), Quantity: decimal.RequireFromString("-1.5")},
+		{StatedKeyID: acme.ID, AsAt: date(2026, 3, 2), Quantity: decimal.RequireFromString("4")},
+		{StatedKeyID: zeta.ID, AsAt: date(2026, 3, 1), Quantity: decimal.RequireFromString("7")},
 	}
 	if diff := cmp.Diff(want, got, decimalEqual); diff != "" {
 		t.Errorf("ListDatedTransactions mismatch (-want +got):\n%s", diff)

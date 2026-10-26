@@ -74,8 +74,7 @@ func (s *Service) Create(ctx context.Context, userID uuid.UUID, msg *statementv1
 	if !from.Before(before) {
 		return gen.Run{}, fmt.Errorf("%w: period [%s, %s) is empty", ErrInvalid, msg.GetOrderFrom(), msg.GetOrderBefore())
 	}
-	now := s.clock().UTC()
-	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+	today := types.Day(s.clock())
 	g := &ingestion{store: s.store, runs: s.runs, resolver: s.resolver, replays: s.replays, user: userID, broker: broker, from: from, before: before, keys: map[string]*key{}}
 	for i, r := range msg.GetRows() {
 		g.rows = append(g.rows, g.validate(int32(i), r, today, s.families))
@@ -223,7 +222,7 @@ func (g *ingestion) prepare(ctx context.Context, run gen.Run) error {
 // work resolves the keys, writes the statement, and then replays every
 // user's unresolved keys that state an identifier of the resolution's new
 // identifier facts. The write completes the statement run in its own
-// transaction, so a failed replay leaves the run completed.
+// transaction, before the replays start.
 func (g *ingestion) work(ctx context.Context, run gen.Run) error {
 	res, err := g.runs.Child(ctx, run, gen.RunKindResolution, g.resolve)
 	if err != nil {
@@ -232,28 +231,26 @@ func (g *ingestion) work(ctx context.Context, run gen.Run) error {
 	if err := g.write(ctx, run); err != nil {
 		return err
 	}
-	if err := g.replays.ReplayNewIdentifierFacts(ctx, res, g.written); err != nil {
-		return fmt.Errorf("replay new identifier facts: %w", err)
-	}
+	g.replays.ReplayNewIdentifierFacts(ctx, res, g.written)
 	return nil
 }
 
 // resolve resolves the keys that have no instrument as a child run, each with
-// the order dates of its rows, and takes each outcome onto its key. A dated
+// the as-at dates of its rows, and takes each outcome onto its key. A dated
 // key is resolved again, since its new dates may need facts the system lacks.
 // When an earlier statement of the user gave a key a fixed association,
 // resolve leaves it as it is and accepts its rows.
 func (g *ingestion) resolve(ctx context.Context, res gen.Run) error {
 	dates := map[*key][]time.Time{}
 	for _, r := range g.rows {
-		if r.key != nil && !slices.ContainsFunc(dates[r.key], r.order.Equal) {
-			dates[r.key] = append(dates[r.key], r.order)
+		if r.key != nil && !slices.ContainsFunc(dates[r.key], r.asAt.Equal) {
+			dates[r.key] = append(dates[r.key], r.asAt)
 		}
 	}
-	var keys []resolve.KeyOrderDates
+	var keys []resolve.KeyDates
 	for _, k := range g.order {
 		if k.row.InstrumentID == nil {
-			keys = append(keys, resolve.KeyOrderDates{Row: k.row, Dates: dates[k]})
+			keys = append(keys, resolve.KeyDates{Row: k.row, Dates: dates[k]})
 		}
 	}
 	out, written, err := g.resolver.Resolve(ctx, res, keys)

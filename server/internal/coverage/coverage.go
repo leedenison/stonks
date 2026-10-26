@@ -76,7 +76,7 @@ func (g Gap) ToProto() *admincoveragev1.Gap {
 // they derive, and its gaps.
 type Page struct {
 	Identifier types.Identifier
-	// Days are the distinct order dates of the transactions whose keys state
+	// Days are the distinct as-at dates of the transactions whose keys state
 	// the ticker, in order.
 	Days      []time.Time
 	Rows      validity.Rows
@@ -214,14 +214,14 @@ func (r *Reader) read(ctx context.Context, v types.Identifier, today time.Time) 
 	}
 	t := &Page{Identifier: v, Rows: rows, Intervals: validity.Derive(rows.Facts()).Intervals}
 	for _, tx := range txs {
-		if n := len(t.Days); n == 0 || !t.Days[n-1].Equal(tx.OrderDate) {
-			t.Days = append(t.Days, tx.OrderDate)
+		if n := len(t.Days); n == 0 || !t.Days[n-1].Equal(tx.AsAt) {
+			t.Days = append(t.Days, tx.AsAt)
 		}
 	}
 	if len(txs) == 0 {
 		return t, nil
 	}
-	period := types.Period{From: txs[0].OrderDate, Before: types.Day(today).AddDate(0, 0, 1)}
+	period := types.Period{From: txs[0].AsAt, Before: types.Day(today).AddDate(0, 0, 1)}
 	if !period.From.Before(period.Before) {
 		return t, nil
 	}
@@ -229,7 +229,7 @@ func (r *Reader) read(ctx context.Context, v types.Identifier, today time.Time) 
 		g := Gap{Period: p}
 		keys := map[uuid.UUID]bool{}
 		for _, tx := range txs {
-			if p.Contains(tx.OrderDate) {
+			if p.Contains(tx.AsAt) {
 				g.Transactions++
 				keys[tx.StatedKeyID] = true
 			}

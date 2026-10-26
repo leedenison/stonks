@@ -19,7 +19,7 @@ type Queries interface {
 	validity.RecordQueries
 	PlaceTicker(ctx context.Context, arg gen.PlaceTickerParams) (gen.Identifier, error)
 	SetStatedKeyDatedAssociation(ctx context.Context, arg gen.SetStatedKeyDatedAssociationParams) (int64, error)
-	ListKeyOrderDates(ctx context.Context, arg gen.ListKeyOrderDatesParams) ([]gen.ListKeyOrderDatesRow, error)
+	ListKeyDates(ctx context.Context, arg gen.ListKeyDatesParams) ([]gen.ListKeyDatesRow, error)
 	FindIdentifier(ctx context.Context, arg gen.FindIdentifierParams) (gen.FindIdentifierRow, error)
 	ListInstrumentsByIdentifiers(ctx context.Context, arg gen.ListInstrumentsByIdentifiersParams) ([]gen.ListInstrumentsByIdentifiersRow, error)
 	ListIdentifiersOf(ctx context.Context, ids []uuid.UUID) ([]gen.Identifier, error)

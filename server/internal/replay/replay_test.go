@@ -98,7 +98,7 @@ func newFixture(t *testing.T) *fixture {
 	}).AnyTimes()
 	f.store.EXPECT().ListGroupableKeys(gomock.Any(), userID).Return(nil, nil).AnyTimes()
 	f.store.EXPECT().ClearStatedKeyGroups(gomock.Any(), userID).Return(nil).AnyTimes()
-	f.resolver.EXPECT().Resolve(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, res gen.Run, keys []resolve.KeyOrderDates) ([]gen.ResolutionKey, []resolve.WrittenIdentifierFacts, error) {
+	f.resolver.EXPECT().Resolve(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, res gen.Run, keys []resolve.KeyDates) ([]gen.ResolutionKey, []resolve.WrittenIdentifierFacts, error) {
 		f.resolution = res
 		for _, k := range keys {
 			f.resolved = append(f.resolved, k.Row)

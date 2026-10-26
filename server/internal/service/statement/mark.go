@@ -18,7 +18,7 @@ func mark(arbiter *gen.Arbiter, fixedVia *types.IdentifierType, t *validity.Tick
 	case arbiter != nil && *arbiter == gen.ArbiterUser:
 		return statementv1.TransactionMark_TRANSACTION_MARK_CONFIRMED
 	case fixedVia != nil:
-		if (types.Identifier{Type: *fixedVia}).Stable() {
+		if fixedVia.Trait().Reassignment == types.IdentifierReassignmentStable {
 			return statementv1.TransactionMark_TRANSACTION_MARK_CONFIRMED
 		}
 		return statementv1.TransactionMark_TRANSACTION_MARK_PROVISIONAL

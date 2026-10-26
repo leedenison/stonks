@@ -81,12 +81,10 @@ type fixture struct {
 	resolveErr error
 	// written is what the mock resolver returns as the facts it wrote.
 	written []resolve.WrittenIdentifierFacts
-	// replayed records each call to replay new facts, and replayErr is what
-	// the calls return.
-	replayed  []replayCall
-	replayErr error
-	// dates holds every key the resolver was sent, with its order dates.
-	dates []resolve.KeyOrderDates
+	// replayed records each call to replay new facts.
+	replayed []replayCall
+	// dates holds every key the resolver was sent, with its as-at dates.
+	dates []resolve.KeyDates
 	// calls names the regroup, the sweep and the completion in the order
 	// the write made them.
 	calls []string
@@ -113,7 +111,7 @@ func newFixture(t *testing.T) *fixture {
 		}
 		return out
 	}
-	f.resolver.EXPECT().Resolve(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, _ gen.Run, keys []resolve.KeyOrderDates) ([]gen.ResolutionKey, []resolve.WrittenIdentifierFacts, error) {
+	f.resolver.EXPECT().Resolve(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, _ gen.Run, keys []resolve.KeyDates) ([]gen.ResolutionKey, []resolve.WrittenIdentifierFacts, error) {
 		if f.resolveErr != nil {
 			return nil, nil, f.resolveErr
 		}
@@ -146,9 +144,8 @@ func newFixture(t *testing.T) *fixture {
 		row := gen.Run{ID: db.NewID(), UserID: parent.UserID, Kind: kind, Trigger: gen.RunTriggerRun, ParentID: &parent.ID}
 		return row, work(ctx, row)
 	}).AnyTimes()
-	f.replays.EXPECT().ReplayNewIdentifierFacts(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, except gen.Run, written []resolve.WrittenIdentifierFacts) error {
+	f.replays.EXPECT().ReplayNewIdentifierFacts(gomock.Any(), gomock.Any(), gomock.Any()).Do(func(_ context.Context, except gen.Run, written []resolve.WrittenIdentifierFacts) {
 		f.replayed = append(f.replayed, replayCall{except, written})
-		return f.replayErr
 	}).AnyTimes()
 	f.svc = New(f.store, f.runs, f.resolver, f.replays, families, clock, slog.New(slog.DiscardHandler))
 	return f
@@ -445,7 +442,7 @@ func TestResolvesUnassociated(t *testing.T) {
 }
 
 // TestResolvesWithDates checks that a dated key is sent again with the
-// distinct order dates of its rows, leaving out a row validation rejected,
+// distinct as-at dates of its rows, leaving out a row validation rejected,
 // and that a key with a fixed association is not sent.
 func TestResolvesWithDates(t *testing.T) {
 	f := newFixture(t)
@@ -491,44 +488,36 @@ func TestResolvesWithDates(t *testing.T) {
 
 // TestReplaysNewFacts checks that ingestion replays the keys that state an
 // identifier of its resolution's new identifier facts, once the write has
-// completed the statement run, and that a failed replay leaves the run
-// completed.
+// completed the statement run.
 func TestReplaysNewFacts(t *testing.T) {
-	for _, failing := range []bool{false, true} {
-		t.Run(fmt.Sprintf("the replay failing %t", failing), func(t *testing.T) {
-			f := newFixture(t)
-			if failing {
-				f.replayErr = errors.New("down")
-			}
-			usd := "USD"
-			stock := securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, "ACME", "XNAS"))
-			f.written = []resolve.WrittenIdentifierFacts{{Run: gen.Run{ID: db.NewID()}, Identifiers: []types.Identifier{{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "ACME"}}}}
-			f.store.EXPECT().CreateStatement(gomock.Any(), gomock.Any()).Return(gen.Statement{}, nil)
-			f.store.EXPECT().UpsertStatedKey(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.UpsertStatedKeyParams) (gen.StatedKey, error) {
-				return gen.StatedKey{ID: arg.ID, Identifiers: arg.Identifiers}, nil
-			})
-			f.store.EXPECT().CreateStatementKeys(gomock.Any(), gomock.Any()).Return(int64(1), nil)
-			f.store.EXPECT().DeleteTransactions(gomock.Any(), gomock.Any()).Return(int64(0), nil)
-			f.store.EXPECT().CreateTransactions(gomock.Any(), gomock.Any()).Return(int64(1), nil)
-			f.store.EXPECT().SweepStatedKeys(gomock.Any(), userID).Return(int64(0), nil)
-			f.store.EXPECT().CompleteRun(gomock.Any(), gomock.Any()).DoAndReturn(func(context.Context, uuid.UUID) error {
-				if len(f.replayed) != 0 {
-					t.Error("the replay ran before the statement run completed")
-				}
-				return nil
-			})
-			msg := &statementv1.Statement{Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01",
-				Rows: []*statementv1.Row{rowMsg(stock, "2026-03-05", "1")}}
-			if _, err := f.svc.Create(context.Background(), userID, msg); err != nil {
-				t.Fatalf("Create() error = %v", err)
-			}
-			if (f.workErr != nil) != failing {
-				t.Errorf("work error = %v, want an error %t", f.workErr, failing)
-			}
-			if len(f.replayed) != 1 || f.replayed[0].except.Kind != gen.RunKindResolution || !cmp.Equal(f.replayed[0].written, f.written) {
-				t.Errorf("replays = %+v, want one excepting the resolution, with its facts", f.replayed)
-			}
-		})
+	f := newFixture(t)
+	usd := "USD"
+	stock := securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, "ACME", "XNAS"))
+	f.written = []resolve.WrittenIdentifierFacts{{Run: gen.Run{ID: db.NewID()}, Identifiers: []types.Identifier{{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "ACME"}}}}
+	f.store.EXPECT().CreateStatement(gomock.Any(), gomock.Any()).Return(gen.Statement{}, nil)
+	f.store.EXPECT().UpsertStatedKey(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.UpsertStatedKeyParams) (gen.StatedKey, error) {
+		return gen.StatedKey{ID: arg.ID, Identifiers: arg.Identifiers}, nil
+	})
+	f.store.EXPECT().CreateStatementKeys(gomock.Any(), gomock.Any()).Return(int64(1), nil)
+	f.store.EXPECT().DeleteTransactions(gomock.Any(), gomock.Any()).Return(int64(0), nil)
+	f.store.EXPECT().CreateTransactions(gomock.Any(), gomock.Any()).Return(int64(1), nil)
+	f.store.EXPECT().SweepStatedKeys(gomock.Any(), userID).Return(int64(0), nil)
+	f.store.EXPECT().CompleteRun(gomock.Any(), gomock.Any()).DoAndReturn(func(context.Context, uuid.UUID) error {
+		if len(f.replayed) != 0 {
+			t.Error("the replay ran before the statement run completed")
+		}
+		return nil
+	})
+	msg := &statementv1.Statement{Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01",
+		Rows: []*statementv1.Row{rowMsg(stock, "2026-03-05", "1")}}
+	if _, err := f.svc.Create(context.Background(), userID, msg); err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	if f.workErr != nil {
+		t.Errorf("work error = %v, want none", f.workErr)
+	}
+	if len(f.replayed) != 1 || f.replayed[0].except.Kind != gen.RunKindResolution || !cmp.Equal(f.replayed[0].written, f.written) {
+		t.Errorf("replays = %+v, want one excepting the resolution, with its facts", f.replayed)
 	}
 }
 

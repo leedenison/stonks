@@ -189,13 +189,14 @@ func (r *replay) work(ctx context.Context, run gen.Run) error {
 	if err != nil {
 		return err
 	}
-	return r.svc.ReplayNewIdentifierFacts(ctx, res, r.written)
+	r.svc.ReplayNewIdentifierFacts(ctx, res, r.written)
+	return nil
 }
 
 func (r *replay) resolve(ctx context.Context, res gen.Run) error {
-	keys := make([]resolve.KeyOrderDates, len(r.keys))
+	keys := make([]resolve.KeyDates, len(r.keys))
 	for i, k := range r.keys {
-		keys[i] = resolve.KeyOrderDates{Row: k}
+		keys[i] = resolve.KeyDates{Row: k}
 	}
 	_, written, err := r.resolver.Resolve(ctx, res, keys)
 	r.written = written
@@ -206,22 +207,24 @@ func (r *replay) resolve(ctx context.Context, res gen.Run) error {
 // identifier of written, as children of the run that wrote it. The keys that
 // except resolved are left out, and a key is replayed once. A user other than
 // the run's replays beneath one system child of the run, or directly beneath
-// a system run. A failed replay is logged and the rest go on. The parent has
-// completed by then, so the replays run in the goroutine of the run that
-// found the keys.
-func (s *Service) ReplayNewIdentifierFacts(ctx context.Context, except gen.Run, written []resolve.WrittenIdentifierFacts) error {
+// a system run. A failure is logged and the rest go on, since the run that
+// wrote the facts has completed by then and its outcome stands. The replays
+// run in the goroutine of the run that found the keys.
+func (s *Service) ReplayNewIdentifierFacts(ctx context.Context, except gen.Run, written []resolve.WrittenIdentifierFacts) {
 	picked := map[uuid.UUID]bool{}
 	for _, w := range written {
 		probes, err := s.mics.Probes(w.Identifiers)
 		if err != nil {
-			return err
+			s.log.Warn("probe of new identifier facts failed", "run", w.Run.ID, "err", err)
+			continue
 		}
 		if len(probes) == 0 {
 			continue
 		}
 		rows, err := s.store.ListUnassociatedKeysStating(ctx, gen.ListUnassociatedKeysStatingParams{Probes: probes, RunID: except.ID})
 		if err != nil {
-			return fmt.Errorf("list keys stating new identifier facts: %w", err)
+			s.log.Warn("listing keys stating new identifier facts failed", "run", w.Run.ID, "err", err)
+			continue
 		}
 		var users []uuid.UUID
 		byUser := map[uuid.UUID][]gen.StatedKey{}
@@ -237,7 +240,6 @@ func (s *Service) ReplayNewIdentifierFacts(ctx context.Context, except gen.Run, 
 		}
 		s.beneath(ctx, w.Run, users, byUser)
 	}
-	return nil
 }
 
 // beneath replays each user's keys beneath parent, the run that wrote the

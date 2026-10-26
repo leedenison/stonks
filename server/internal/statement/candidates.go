@@ -51,9 +51,7 @@ func (s *Service) Confirm(ctx context.Context, user, key uuid.UUID, p resolve.Pi
 	if err != nil {
 		return rk, err
 	}
-	if err := s.replays.ReplayNewIdentifierFacts(ctx, run, written); err != nil {
-		s.log.Warn("replay of new identifier facts failed", "run", run.ID, "err", err)
-	}
+	s.replays.ReplayNewIdentifierFacts(ctx, run, written)
 	return rk, nil
 }
 
