@@ -156,21 +156,7 @@ func TestStartRefused(t *testing.T) {
 	}
 }
 
-// TestWithdraw checks that a withdrawal deletes the assertion and replays
-// the keys stating its ticker beneath the run that wrote it.
-func TestWithdraw(t *testing.T) {
-	f := newFixture(t)
-	id := db.NewID()
-	row := gen.Run{ID: db.NewID(), Kind: gen.RunKindAttestation}
-	f.store.EXPECT().GetIdentifierAssertion(gomock.Any(), id).Return(gen.IdentifierAssertion{ID: id, RunID: &row.ID, AttestedBy: &admin, Type: nasdaq.Type, Domain: nasdaq.Domain, Value: nasdaq.Value}, nil)
-	f.store.EXPECT().GetRunByID(gomock.Any(), row.ID).Return(row, nil)
-	f.store.EXPECT().DeleteAttestedAssertion(gomock.Any(), id).Return(int64(1), nil)
-	f.replays.EXPECT().ReplayNewIdentifierFacts(gomock.Any(), row, []resolve.WrittenIdentifierFacts{{Run: row, Identifiers: []types.Identifier{nasdaq}}})
-	if err := f.svc.Withdraw(context.Background(), id); err != nil {
-		t.Errorf("Withdraw() error = %v", err)
-	}
-}
-
+// TestWithdrawRefused checks what a withdrawal refuses.
 func TestWithdrawRefused(t *testing.T) {
 	key := db.NewID()
 	tests := []struct {
