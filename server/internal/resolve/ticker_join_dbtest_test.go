@@ -108,6 +108,38 @@ func TestTickerJoins(t *testing.T) {
 	}
 }
 
+// TestTickerJoinsAcrossVenues checks that two same-day answers carrying one
+// ticker at two venues of its market join into one instrument.
+func TestTickerJoinsAcrossVenues(t *testing.T) {
+	s := newStack(t)
+	ctx := context.Background()
+	s.enableBeta(t)
+	nasdaq := id(types.IdentifierTypeMicTicker, "XNAS", "ZZK")
+	bats := id(types.IdentifierTypeMicTicker, "BATS", "ZZK")
+	bare := types.Identifier{Type: nasdaq.Type, Value: nasdaq.Value}
+	s.script.Responses[nasdaq] = market.IdentityResult{Filtered: []types.Identifier{bare}, Listings: []market.Listing{
+		{Class: types.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{figi, nasdaq}},
+	}}
+	s.beta.Responses[nasdaq] = market.IdentityResult{Filtered: []types.Identifier{bare}, Listings: []market.Listing{
+		{Class: types.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{isin, bats}},
+	}}
+	key := s.state(t, types.AssetClassStock, "USD", nasdaq)
+	got := s.resolveOn(t, []time.Time{on(2026, 2, 2)}, key)
+	if len(got) != 1 || got[0].Outcome != gen.ResolutionOutcomeMatched {
+		t.Fatalf("resolution = %+v, want the key matched", got)
+	}
+	if kinds := s.findings(t, key.ID); len(kinds) != 0 {
+		t.Errorf("findings = %v, want none: the answers join through the market ticker %s", kinds, mt(nasdaq).Name())
+	}
+	byFIGI, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: figi.Type, Value: figi.Value})
+	require.NoError(t, err)
+	byISIN, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: isin.Type, Value: isin.Value})
+	require.NoError(t, err)
+	if byFIGI.Instrument.ID != byISIN.Instrument.ID {
+		t.Errorf("the FIGI names %s and the ISIN %s, want one instrument", byFIGI.Instrument.ID, byISIN.Instrument.ID)
+	}
+}
+
 // TestTickerJoinKeepsInstrumentsApart checks that a claim joined through the
 // ticker alone never merges with a stored instrument. The claim is dropped
 // with a contradiction finding. That holds whether the write creates the

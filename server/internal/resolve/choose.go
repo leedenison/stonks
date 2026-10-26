@@ -4,6 +4,7 @@ import (
 	"slices"
 
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/mic"
 	"github.com/leedenison/stonks/server/internal/ptr"
 	"github.com/leedenison/stonks/server/internal/types"
 )
@@ -94,7 +95,7 @@ func choose(res *resolution, known *identityClaim, userChoice consistentClaims) 
 			if m == userChoice.head() {
 				continue
 			}
-			if f, ok := m.rejects(chosen); ok {
+			if f, ok := m.rejects(chosen, res.mics); ok {
 				verdict.findings = append(verdict.findings, f)
 				continue
 			}
@@ -193,7 +194,7 @@ func filterAlternatives(fk *fetchKey, res *resolution, confirmed bool) alternati
 // winner first. It drops c when c contradicts a claim in chosen, or when c
 // does not corroborate the winner. A contradiction of the database's claim is
 // recorded as a contradiction rather than a drop.
-func (c *identityClaim) rejects(chosen []*identityClaim) (gen.CreateFindingParams, bool) {
+func (c *identityClaim) rejects(chosen []*identityClaim, mics mic.MICMap) (gen.CreateFindingParams, bool) {
 	for _, o := range chosen {
 		if detail, ok := c.inconsistent(o); ok {
 			kind := gen.FindingKindDropped
@@ -203,8 +204,8 @@ func (c *identityClaim) rejects(chosen []*identityClaim) (gen.CreateFindingParam
 			return finding(c.fetchKey, kind, gen.DropStepPrecedence, c.label(detail)), true
 		}
 	}
-	if len(chosen) > 0 && !c.corroborates(chosen[0]) {
-		return dropped(c.fetchKey, gen.DropStepCorroboration, c.label("shares neither a stable identifier nor a same-day venue ticker with "+chosen[0].ref())), true
+	if len(chosen) > 0 && !c.corroborates(chosen[0], mics) {
+		return dropped(c.fetchKey, gen.DropStepCorroboration, c.label("shares neither a stable identifier nor a same-day ticker in one market with "+chosen[0].ref())), true
 	}
 	return gen.CreateFindingParams{}, false
 }
@@ -242,7 +243,7 @@ func (verdict *claimVerdict) bestClaim(fk *fetchKey, res *resolution, chosen []*
 	verdict.findings = append(verdict.findings, alts.findings...)
 	offered := alts.offered
 	survivors := slices.DeleteFunc(alts.survivors, func(c *identityClaim) bool {
-		f, ok := c.rejects(chosen)
+		f, ok := c.rejects(chosen, res.mics)
 		if ok {
 			verdict.findings = append(verdict.findings, f)
 		}
@@ -276,7 +277,7 @@ func gatherConsistentClaims(res *resolution, cs []*identityClaim) []consistentCl
 		for i, a := range out {
 			var best *identityClaim
 			for _, c := range group {
-				if _, ok := c.rejects(a); ok {
+				if _, ok := c.rejects(a, res.mics); ok {
 					continue
 				}
 				if best == nil || rank(res)(c, best) < 0 {

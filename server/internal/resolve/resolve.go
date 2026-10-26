@@ -23,17 +23,18 @@
 // fetch. Identifier events are fetched for the keys that may be dated, and
 // recorded after the keys are written.
 //
-// A claim below the winner attaches where it corroborates the winner: it
-// shares a stable identifier with the winner, or both are answers made on one
-// UTC day that carry one MIC_TICKER. A MIC_TICKER names one instrument on one
-// trading day of its venue, and the UTC day of the answer stands for that
-// day. The database's instrument is not an answer made on a day, so a claim
-// joins it only through a stable identifier. Two instruments never merge
-// through a ticker: a claim joined through the ticker alone does not choose
-// the instrument the write takes. A datasource whose data is stale across a
-// reassignment writes the old instrument's stable identifiers onto the new
-// one where the system does not hold the old instrument. Each identifier row
-// carries its provenance, so the rows can be traced and removed.
+// A claim below the winner attaches where it corroborates the winner: it shares
+// a stable identifier with the winner, or both are answers made on one UTC day
+// that carry one ticker in one market; see [mic.go](../mic/mic.go). A ticker
+// names one instrument on one trading day across the venues of its market, and
+// the UTC day of the answer stands for that day. The database's instrument is
+// not an answer made on a day, so a claim joins it only through a stable
+// identifier. Two instruments never merge through a ticker: a claim joined
+// through the ticker alone does not choose the instrument the write takes. A
+// datasource whose data is stale across a reassignment writes the old
+// instrument's stable identifiers onto the new one where the system does not
+// hold the old instrument. Each identifier row carries its provenance, so the
+// rows can be traced and removed.
 //
 // Extending validity carries the validity of each held ticker to the present;
 // see ExtendValidity. It asks the datasources again whatever identity coverage

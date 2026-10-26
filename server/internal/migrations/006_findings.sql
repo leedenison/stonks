@@ -30,8 +30,8 @@ CREATE TYPE finding_kind AS ENUM ('block', 'dropped', 'contradiction', 'merged',
 
 -- The step of the choice that dropped a set of identifiers: it contradicted
 -- the stated data, was inconsistent with a higher precedence response, or
--- shared neither a stable identifier nor a same-day venue ticker with the
--- winner.
+-- shared neither a stable identifier nor a same-day ticker in one market
+-- with the winner.
 CREATE TYPE drop_step AS ENUM ('stated', 'precedence', 'corroboration');
 
 -- A finding highlights abnormal run outcomes to administrators.
