@@ -2,7 +2,6 @@ package massive
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/url"
 	"time"
@@ -27,19 +26,14 @@ const (
 	chainCall call = iota
 	// lookupCall is the record of a ticker on one day.
 	lookupCall
-	// retiredCall is the records of a ticker that Massive lists as delisted.
-	retiredCall
 )
 
 // callOf is the Massive request that serves r.
 func callOf(r market.IdentifierEventRequest) call {
-	switch {
-	case r.Identifier.Type != types.IdentifierTypeMicTicker:
+	if r.Identifier.Type != types.IdentifierTypeMicTicker {
 		return chainCall
-	case r.Period.Before.Equal(r.Period.From.AddDate(0, 0, 1)):
-		return lookupCall
 	}
-	return retiredCall
+	return lookupCall
 }
 
 // Serves returns the identifier to send for r, or an error when Massive
@@ -61,7 +55,9 @@ func (e events) Serves(r market.IdentifierEventRequest) (types.Identifier, error
 		return types.Identifier{}, fmt.Errorf("venue '%s' rejected", s.Domain)
 	case preferred(s.Value):
 		return types.Identifier{}, fmt.Errorf("preferred share '%s' rejected", s.Value)
-	case callOf(r) == lookupCall && r.Period.From.Before(since):
+	case !r.Period.Before.Equal(r.Period.From.AddDate(0, 0, 1)):
+		return types.Identifier{}, fmt.Errorf("ticker over %d days rejected: a ticker is answered on one day", int(r.Period.Before.Sub(r.Period.From).Hours()/24))
+	case r.Period.From.Before(since):
 		return types.Identifier{}, fmt.Errorf("day %s rejected: the data starts on %s", r.Period.From.Format(time.DateOnly), since.Format(time.DateOnly))
 	}
 	ticker, ok := market.WithClassSep(s.Value, '.')
@@ -94,32 +90,4 @@ func (c *Client) chain(ctx context.Context, id types.Identifier) ([]event, error
 		return nil, err
 	}
 	return body.Results.Events, nil
-}
-
-// delisting is a record Massive lists as inactive. Delisted is nil where
-// Massive omits the date.
-type delisting struct {
-	record
-	Delisted *time.Time `json:"delisted_utc"`
-}
-
-// errTruncated reports a list of delistings longer than one page.
-var errTruncated = errors.New("massive: the delistings run past one page")
-
-// delisted returns the records of ticker that Massive lists as inactive. It
-// fails on a list longer than one page, since a partial list would miss a
-// retirement.
-func (c *Client) delisted(ctx context.Context, ticker string) ([]delisting, error) {
-	q := url.Values{"apiKey": {c.key}, "ticker": {ticker}, "active": {"false"}, "market": {"stocks"}, "limit": {"1000"}}
-	var page struct {
-		Results []delisting `json:"results"`
-		Next    string      `json:"next_url"`
-	}
-	if err := c.get(ctx, "/v3/reference/tickers", q, &page); err != nil {
-		return nil, err
-	}
-	if page.Next != "" {
-		return nil, errTruncated
-	}
-	return page.Results, nil
 }
