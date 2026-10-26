@@ -323,11 +323,11 @@ func (s *stack) replays(t *testing.T, parent gen.Run) map[uuid.UUID][]uuid.UUID 
 
 // TestReplayNewIdentifierFacts checks that a fact written beneath a user's
 // fetch run replays that user's unresolved key beneath the fetch run, and
-// another user's beneath one system child of it. A fact of a domain written
-// beneath a system run replays each user's keys stating a ticker of the
-// domain, at any of its venues, directly beneath that run. A key stating a
-// ticker of another domain and the keys the excepted run resolved are left
-// out.
+// another user's beneath one system child of it, whatever venue of the
+// ticker's market the key states. A fact of a market written beneath a
+// system run replays each user's keys stating a ticker of the market, at any
+// of its venues, directly beneath that run. A key stating a ticker of
+// another market and the keys the excepted run resolved are left out.
 func TestReplayNewIdentifierFacts(t *testing.T) {
 	s := newStack(t)
 	ctx := context.Background()
@@ -337,7 +337,8 @@ func TestReplayNewIdentifierFacts(t *testing.T) {
 	stated, mine := s.stateTicker(t, s.user, time.January, ticker)
 	_, theirs := s.stateTicker(t, other, time.January, ticker)
 	_, segment := s.stateTicker(t, other, time.February, types.Identifier{Type: ticker.Type, Domain: "XNGS", Value: "ZY" + uuid.NewString()[:6]})
-	_, elsewhere := s.stateTicker(t, other, time.March, types.Identifier{Type: ticker.Type, Domain: "XNYS", Value: ticker.Value})
+	_, across := s.stateTicker(t, other, time.March, types.Identifier{Type: ticker.Type, Domain: "XNYS", Value: ticker.Value})
+	_, elsewhere := s.stateTicker(t, other, time.April, types.Identifier{Type: ticker.Type, Domain: "XLON", Value: ticker.Value})
 
 	parent, err := s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &s.user.ID, Kind: gen.RunKindResolution, Trigger: gen.RunTriggerUser})
 	require.NoError(t, err)
@@ -369,8 +370,8 @@ func TestReplayNewIdentifierFacts(t *testing.T) {
 	for id, keys := range replayed {
 		if id != own.ID {
 			theirsRun = id
-			if len(keys) != 1 || keys[0] != theirs.ID {
-				t.Errorf("the other user's replay resolved %v, want %s", keys, theirs.ID)
+			if !sameKeys(keys, []uuid.UUID{theirs.ID, across.ID}) {
+				t.Errorf("the other user's replay resolved %v, want %s and %s", keys, theirs.ID, across.ID)
 			}
 		}
 	}
@@ -396,12 +397,19 @@ func TestReplayNewIdentifierFacts(t *testing.T) {
 		}
 		got = append(got, keys...)
 	}
-	slices.SortFunc(got, func(a, b uuid.UUID) int { return strings.Compare(a.String(), b.String()) })
-	want := []uuid.UUID{theirs.ID, segment.ID}
-	slices.SortFunc(want, func(a, b uuid.UUID) int { return strings.Compare(a.String(), b.String()) })
-	if !slices.Equal(got, want) {
-		t.Errorf("keys replayed for XNAS = %v, want %v: not %s of XNYS, nor %s the excepted run resolved", got, want, elsewhere.ID, mine.ID)
+	want := []uuid.UUID{theirs.ID, segment.ID, across.ID}
+	if !sameKeys(got, want) {
+		t.Errorf("keys replayed for the US market = %v, want %v: not %s of XLON, nor %s the excepted run resolved", got, want, elsewhere.ID, mine.ID)
 	}
+}
+
+// sameKeys reports whether a and b hold the same keys in any order.
+func sameKeys(a, b []uuid.UUID) bool {
+	cmp := func(x, y uuid.UUID) int { return strings.Compare(x.String(), y.String()) }
+	a, b = slices.Clone(a), slices.Clone(b)
+	slices.SortFunc(a, cmp)
+	slices.SortFunc(b, cmp)
+	return slices.Equal(a, b)
 }
 
 // TestReplayChain checks that a replay whose resolution writes new facts

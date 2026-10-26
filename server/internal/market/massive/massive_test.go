@@ -25,10 +25,10 @@ import (
 const conf = `{"plan": "basic"}`
 
 // mics is a MIC map holding the venues the tests name.
-var mics = mic.MICMap{
+var mics = mic.Of(map[string]string{
 	"XNYS": "XNYS", "ARCX": "XNYS", "XASE": "XNYS", "XNAS": "XNAS", "XNGS": "XNAS",
 	"BATS": "BATS", "XLON": "XLON",
-}
+})
 
 // scrub removes the API key from every URL and the Redacted fields from
 // every record.

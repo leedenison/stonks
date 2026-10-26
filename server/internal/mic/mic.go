@@ -1,8 +1,13 @@
-// Package mic normalises a venue to its ISO 10383 operating MIC.
+// Package mic normalises a venue to its ISO 10383 operating MIC, and an
+// operating MIC to its market.
 //
 // A venue is named by a MIC, which is either an operating MIC or a segment of one. The
 // domain of a MIC_TICKER is always the operating MIC, so where one source names a
 // segment and another names its operating MIC, they state the same listing.
+//
+// A ticker's identifier facts are keyed by its market, so the package maps a MIC to its
+// market as well as to its operating MIC; see
+// [010_validity.sql](../migrations/010_validity.sql).
 package mic
 
 import (
@@ -18,11 +23,27 @@ import (
 
 // Queries is the database access Load needs.
 type Queries interface {
-	ListMICs(ctx context.Context) ([]gen.Mic, error)
+	ListMICs(ctx context.Context) ([]gen.MicMarket, error)
 }
 
-// MICMap maps each MIC to its operating MIC.
-type MICMap map[string]string
+// MIC is a MIC's operating MIC and market.
+type MIC struct {
+	Operating string
+	Market    string
+}
+
+// MICMap maps each MIC to its operating MIC and its market.
+type MICMap map[string]MIC
+
+// Of returns a MICMap in which each operating MIC of ops is a market of its
+// own.
+func Of(ops map[string]string) MICMap {
+	t := make(MICMap, len(ops))
+	for m, op := range ops {
+		t[m] = MIC{Operating: op, Market: op}
+	}
+	return t
+}
 
 // Load reads the MIC reference table.
 func Load(ctx context.Context, q Queries) (MICMap, error) {
@@ -32,7 +53,7 @@ func Load(ctx context.Context, q Queries) (MICMap, error) {
 	}
 	t := make(MICMap, len(rows))
 	for _, r := range rows {
-		t[r.Mic] = r.OperatingMic
+		t[r.Mic] = MIC{Operating: r.OperatingMic, Market: r.Market}
 	}
 	return t, nil
 }
@@ -40,16 +61,45 @@ func Load(ctx context.Context, q Queries) (MICMap, error) {
 // Operating returns the operating MIC of m, ignoring case and surrounding space. It
 // reports false when m is not a MIC.
 func (t MICMap) Operating(m string) (string, bool) {
-	op, ok := t[strings.ToUpper(strings.TrimSpace(m))]
-	return op, ok
+	e, ok := t[strings.ToUpper(strings.TrimSpace(m))]
+	return e.Operating, ok
 }
 
-// Venues returns the MICs that map to op, sorted, which include op itself.
-// The result is empty when op is not an operating MIC.
-func (t MICMap) Venues(op string) []string {
+// Market returns the market of m, ignoring case and surrounding space. It reports
+// false when m is not a MIC.
+func (t MICMap) Market(m string) (string, bool) {
+	e, ok := t[strings.ToUpper(strings.TrimSpace(m))]
+	return e.Market, ok
+}
+
+// IsMarket reports whether m is the market of a MIC.
+func (t MICMap) IsMarket(m string) bool {
+	for _, e := range t {
+		if e.Market == m {
+			return true
+		}
+	}
+	return false
+}
+
+// MarketTicker returns the market ticker of v. It reports false unless v is a
+// MIC_TICKER with a value at a MIC.
+func (t MICMap) MarketTicker(v types.Identifier) (types.MarketTicker, bool) {
+	if v.Type != types.IdentifierTypeMicTicker || v.Value == "" {
+		return types.MarketTicker{}, false
+	}
+	m, ok := t.Market(v.Domain)
+	if !ok {
+		return types.MarketTicker{}, false
+	}
+	return types.MarketTicker{Market: m, Value: v.Value}, true
+}
+
+// Venues returns the MICs of market, sorted.
+func (t MICMap) Venues(market string) []string {
 	var out []string
-	for m, o := range t {
-		if o == op {
+	for m, e := range t {
+		if e.Market == market {
 			out = append(out, m)
 		}
 	}
@@ -57,29 +107,56 @@ func (t MICMap) Venues(op string) []string {
 	return out
 }
 
-// Probes writes the probes that find a key stating each of ids: one per
-// venue of its operating MIC, since a statement may name a segment, or one
-// under the domain itself where the map lists no venue of it. A domain
-// identifier's probe leaves the value out, so it matches every ticker of the
-// domain. A probe is a JSON array of one identifier object.
+// Probes returns the probes that find the keys stating ids. A MIC_TICKER
+// probes every venue of its market. The probe of a domain identifier of one
+// omits the value, so it matches every ticker of the market.
 func (t MICMap) Probes(ids []types.Identifier) ([][]byte, error) {
 	var out [][]byte
 	for _, id := range ids {
-		venues := t.Venues(id.Domain)
-		if len(venues) == 0 {
-			venues = []string{id.Domain}
+		venues := []string{id.Domain}
+		if m, ok := t.Market(id.Domain); ok && id.Type == types.IdentifierTypeMicTicker {
+			venues = t.Venues(m)
 		}
 		for _, v := range venues {
-			obj := map[string]string{"type": string(id.Type), "domain": v}
-			if !id.IsDomain() {
-				obj["value"] = id.Value
-			}
-			b, err := json.Marshal([]map[string]string{obj})
+			b, err := probe(types.Identifier{Type: id.Type, Domain: v, Value: id.Value})
 			if err != nil {
-				return nil, fmt.Errorf("probe %s: %w", id.Name(), err)
+				return nil, err
 			}
 			out = append(out, b)
 		}
 	}
 	return out, nil
+}
+
+// TickerProbes returns one probe per venue of each ticker's market. It fails
+// when a ticker's market has no MIC.
+func (t MICMap) TickerProbes(ts []types.MarketTicker) ([][]byte, error) {
+	var out [][]byte
+	for _, mt := range ts {
+		venues := t.Venues(mt.Market)
+		if len(venues) == 0 {
+			return nil, fmt.Errorf("probe %s: unknown market", mt.Name())
+		}
+		for _, v := range venues {
+			b, err := probe(types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: v, Value: mt.Value})
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, b)
+		}
+	}
+	return out, nil
+}
+
+// probe writes id as a JSON array of one identifier object.
+func probe(id types.Identifier) ([]byte, error) {
+	obj := map[string]string{"type": string(id.Type), "domain": id.Domain}
+	if !id.IsDomain() {
+		obj["value"] = id.Value
+	}
+	b, err := json.Marshal([]map[string]string{obj})
+	if err != nil {
+		return nil, fmt.Errorf("probe %s: %w", id.Name(), err)
+	}
+	return b, nil
 }

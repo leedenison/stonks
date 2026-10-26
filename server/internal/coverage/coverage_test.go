@@ -24,7 +24,7 @@ var (
 	alpha = ptr.To("alpha")
 	k1    = uuid.MustParse("00000000-0000-0000-0000-000000000011")
 	k2    = uuid.MustParse("00000000-0000-0000-0000-000000000012")
-	mics  = mic.MICMap{"XNAS": "XNAS", "XNGS": "XNAS"}
+	mics  = mic.Of(map[string]string{"XNAS": "XNAS", "XNGS": "XNAS"})
 )
 
 // day is the nth day of March 2026.

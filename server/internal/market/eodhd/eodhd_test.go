@@ -21,10 +21,10 @@ import (
 )
 
 // mics is a MIC map holding the venues the tests name.
-var mics = mic.MICMap{
+var mics = mic.Of(map[string]string{
 	"XNYS": "XNYS", "ARCX": "XNYS", "XASE": "XNYS", "XNAS": "XNAS", "XNGS": "XNAS",
 	"BATS": "BATS", "XCBO": "XCBO", "XLON": "XLON", "XETR": "XETR", "OTCM": "OTCM", "XTSE": "XTSE",
-}
+})
 
 func ticker(venue, value string) types.Identifier {
 	return types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: venue, Value: value}
@@ -120,7 +120,7 @@ func TestUntilMidnight(t *testing.T) {
 // TestExchanges checks that every code listing an operating MIC is kept, as
 // where EODHD splits an exchange by segment.
 func TestExchanges(t *testing.T) {
-	tbl := mic.MICMap{"XKRX": "XKRX", "XKOS": "XKRX", "XNAS": "XNAS", "BATS": "BATS", "XLON": "XLON"}
+	tbl := mic.Of(map[string]string{"XKRX": "XKRX", "XKOS": "XKRX", "XNAS": "XNAS", "BATS": "BATS", "XLON": "XLON"})
 	got := exchanges(tbl)
 	want := ExchangeCodeMap{"XKRX": {"KO", "KQ"}, "XNAS": {"US"}, "BATS": {"US"}, "XLON": {"LSE"}}
 	if diff := cmp.Diff(want, got); diff != "" {

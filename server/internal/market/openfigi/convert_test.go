@@ -130,10 +130,10 @@ func exchOf(c market.Listing) string {
 }
 
 // venueMICs is a MIC map holding the venues TestVenue names.
-var venueMICs = mic.MICMap{
+var venueMICs = mic.Of(map[string]string{
 	"XNYS": "XNYS", "ARCX": "XNYS", "XNAS": "XNAS", "XNGS": "XNAS",
 	"XLON": "XLON", "XTAI": "XTAI", "ROCO": "ROCO",
-}
+})
 
 func TestVenue(t *testing.T) {
 	tests := []struct {
