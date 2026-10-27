@@ -17,15 +17,14 @@
 -- contradiction, it concerns a ticker rather than a key. The run whose write
 -- completed the pair records it, and the finding names the losing assertion's
 -- fetch key.
--- 'broken_ticker_validity_bracket' means a witnessed event fell between two
--- assertions that name one instrument. The event wins over the bracket. The
--- run that wrote the event records it, and the finding names the event's
--- fetch key.
--- 'missed_event' means two assertions imply an event on one of a run of
--- days, and a datasource's coverage holds every one of those days. The
--- datasource reported no event there. The coverage wins. The run that wrote
--- the coverage or either assertion records it, and the finding names the
--- coverage's fetch key.
+-- 'broken_ticker_validity_bracket' means an edge cut between two assertions
+-- that name one instrument. The edge wins over the bracket. The run that
+-- wrote the edge records it, and the finding names the edge's fetch key.
+-- 'missed_event' means two assertions imply a change on one of a run of
+-- days, and a datasource's period assertions hold every one of those days.
+-- The datasource did not report an edge there. The period assertion wins.
+-- The run that wrote the period assertion or either assertion records it,
+-- and the finding names the period assertion's fetch key.
 -- 'unhandled_corp_act' means a datasource reported a corporate action of
 -- a type the system does not restate a quantity by. The fetch that wrote the
 -- corporate action records it, and the finding names the corporate action.

@@ -13,8 +13,8 @@ corporate action fetches, and the unwinding of data fetched under a ticker that 
 An entity provider reports only the chain of the entity a ticker names today. A retired or
 reused ticker outside that chain stays invisible, and ticker validity before the first
 assertion stays provisional. A range provider reports every rename in a market, so its
-coverage confirms a present assertion back to the last rename without an identifier
-attestation.
+period assertions confirm a present assertion back to the last rename without an
+identifier attestation.
 
 A price or a corporate action fetched under a ticker rests on the assumption that the
 ticker named the same instrument on the row's date as at the fetch. When an edge shows
@@ -65,8 +65,8 @@ provider implements `market.Ranged`, and `datasources.lag_days` overrides its la
 
 The lag makes each fetch repeat the most recent part of the previous period. A provider
 may publish a change late. The next fetch still records it. The recording unwinds what
-rested on the claim that the ticker did not change. Coverage that ended a lag before the present would leave
-every recent transaction outside coverage.
+rested on the claim that the ticker did not change. A period assertion that ended a lag
+before the present would leave every recent transaction outside it.
 
 An administrator starts a market fetch from the admin area. The datasources page shows
 the lag of each datasource and lets an administrator change it.
@@ -109,4 +109,4 @@ The integration is tested as follows:
 
 ## Undecided
 
-- How often market coverage is extended to the present.
+- How often a market's period assertions are extended to the present.

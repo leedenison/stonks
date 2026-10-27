@@ -21,8 +21,8 @@ import (
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
-// The ticker FOO at Nasdaq named instrument a, then b. Coverage runs from
-// day 1 to day 20 of March 2026.
+// The ticker FOO at Nasdaq named instrument a, then b. A period assertion runs
+// from day 1 to day 20 of March 2026.
 var (
 	aID, bID        = uuid.MustParse("00000000-0000-0000-0000-000000000071"), uuid.MustParse("00000000-0000-0000-0000-000000000072")
 	aUSD, aGBP      = uuid.MustParse("00000000-0000-0000-0000-000000000081"), uuid.MustParse("00000000-0000-0000-0000-000000000082")
@@ -35,9 +35,8 @@ var (
 	protoFoo        = foo.ToProto()
 	protoAISIN      = aISIN.ToProto()
 	fooAssertions   = gen.ListIdentifierAssertionsParams{Markets: []string{"US"}, Values: []string{"FOO"}}
-	fooEvents       = gen.ListIdentifierEventsParams{Markets: []string{"US"}, Values: []string{"FOO"}}
-	fooCoverage     = gen.ListIdentifierCoverageParams{Markets: []string{"US"}, Values: []string{"FOO"}}
-	coverage        = []gen.ListIdentifierCoverageRow{{Market: "US", Value: ptr.To("FOO"), CoveredFrom: day(1), CoveredBefore: day(20), Datasource: "massive"}}
+	fooPeriods      = gen.ListIdentifierPeriodAssertionsParams{Markets: []string{"US"}, Values: []string{"FOO"}}
+	periods         = []gen.ListIdentifierPeriodAssertionsRow{{Market: "US", Value: ptr.To("FOO"), AssertedFrom: day(1), AssertedBefore: day(20), Datasource: "massive"}}
 	straddle        = []gen.ListIdentifierAssertionsRow{assertion(2, &aID), assertion(10, &bID)}
 	retired         = []gen.ListIdentifierAssertionsRow{assertion(2, &aID), assertion(12, nil)}
 	instrs          = []gen.Instr{{ID: aID, AssetClass: types.AssetClassStock}, {ID: bID, AssetClass: types.AssetClassStock}}
@@ -127,10 +126,10 @@ func TestListHoldingsDated(t *testing.T) {
 		wantCode      connect.Code
 	}{
 		{
-			// Days 0 and 25 lie outside coverage, where ticker validity is
-			// provisional, and still name an instrument. A has no ticker
-			// row, so the key's listing on A is A's listing in the stated
-			// family, and A keeps its own name.
+			// Days 0 and 25 lie outside the period assertion, where ticker
+			// validity is provisional, and still name an instrument. A has no
+			// ticker row, so the key's listing on A is A's listing in the
+			// stated family, and A keeps its own name.
 			name:       "a key whose transactions straddle a rename",
 			keys:       []gen.ListHoldingKeysRow{datedKey(usd, &datedKeyID, "15")},
 			txns:       []gen.ListDatedTxnsRow{txn(0, "1"), txn(5, "2"), txn(15, "4"), txn(25, "8")},
@@ -210,8 +209,7 @@ func TestListHoldingsDated(t *testing.T) {
 			// The facts of FOO are read once, however many transactions
 			// rest on it.
 			f.reader.EXPECT().ListIdentifierAssertions(gomock.Any(), fooAssertions).Return(tc.assertions, tc.assertionsErr).MaxTimes(1)
-			f.reader.EXPECT().ListIdentifierEvents(gomock.Any(), fooEvents).Return(nil, nil).MaxTimes(1)
-			f.reader.EXPECT().ListIdentifierCoverage(gomock.Any(), fooCoverage).Return(coverage, nil).MaxTimes(1)
+			f.reader.EXPECT().ListIdentifierPeriodAssertions(gomock.Any(), fooPeriods).Return(periods, nil).MaxTimes(1)
 			f.reader.EXPECT().ListInstrsByID(gomock.Any(), gomock.Any()).Return(instrs, nil).MaxTimes(1)
 			if len(tc.ids) > 0 {
 				f.reader.EXPECT().ListIdentifiersOf(gomock.Any(), tc.ids).Return(idents, nil)

@@ -23,8 +23,8 @@ var (
 	massive    = tickervalidity.Source{Datasource: "massive", Precedence: 2}
 )
 
-// metaFacts are the facts of META: a rename to META on 2022-06-09 with
-// coverage from that day, a lookup naming Meta on 2024-01-16, and a lookup on
+// metaFacts are the facts of META: a first edge on 2022-06-09 with a period
+// assertion from that day, a lookup naming Meta on 2024-01-16, and a lookup on
 // 2021-06-01 that found nothing. The negative assertion precedes the
 // datasource's first positive one, so it does not count.
 func metaFacts() tickervalidity.Facts {
@@ -32,9 +32,9 @@ func metaFacts() tickervalidity.Facts {
 		Assertions: []tickervalidity.Assertion{
 			{At: assertedOn, Instr: &metaInst, Source: massive},
 			{At: notFoundOn, Source: massive},
+			{At: renamed, Instr: &metaInst, Edge: gen.IdentifierEdgeFirst, Source: massive},
 		},
-		Events:   []tickervalidity.Event{{On: renamed}},
-		Coverage: []tickervalidity.Coverage{{Period: types.Period{From: renamed, Before: coveredTo}, Datasource: "massive"}},
+		PeriodAssertions: []tickervalidity.PeriodAssertion{{Period: types.Period{From: renamed, Before: coveredTo}, Source: massive}},
 	}
 }
 

@@ -2,33 +2,32 @@ import { create } from "@bufbuild/protobuf";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import {
-  IdentifierEventAction,
   TickerSchema,
   TickerValidity,
 } from "@/gen/admin/coverage/v1/coverage_pb";
-import { AssertionItemSchema } from "@/gen/admin/run/v1/run_pb";
+import { AssertionItemSchema, Edge } from "@/gen/admin/run/v1/run_pb";
 import { Timeline, ticks } from "./timeline";
 
 const ticker = { market: "US", value: "ACME" };
 
 // A ticker with every kind of fact, so each lane has a mark. One datasource
-// covers the whole market.
+// makes a period assertion of the whole market.
 const acme = create(TickerSchema, {
   ticker,
   txnDays: ["2024-02-01", "2025-06-01"],
-  coverage: [
+  periodAssertions: [
     {
       datasource: "alpha",
       market: "US",
       value: "ACME",
-      coveredFrom: "2024-06-01",
-      coveredBefore: "2026-03-01",
+      assertedFrom: "2024-06-01",
+      assertedBefore: "2026-03-01",
     },
     {
       datasource: "beta",
       market: "US",
-      coveredFrom: "2025-01-01",
-      coveredBefore: "2026-03-01",
+      assertedFrom: "2025-01-01",
+      assertedBefore: "2026-03-01",
     },
   ],
   assertions: [
@@ -37,6 +36,15 @@ const acme = create(TickerSchema, {
       ticker,
       assertedOn: "2024-06-01",
       instrId: "i1",
+      edge: Edge.FIRST,
+      source: { case: "datasource", value: "alpha" },
+    }),
+    create(AssertionItemSchema, {
+      id: "a3",
+      ticker,
+      assertedOn: "2025-05-31",
+      instrId: "i1",
+      edge: Edge.LAST,
       source: { case: "datasource", value: "alpha" },
     }),
     create(AssertionItemSchema, {
@@ -45,14 +53,6 @@ const acme = create(TickerSchema, {
       assertedOn: "2026-03-01",
       source: { case: "attestedBy", value: "admin@example.com" },
     }),
-  ],
-  events: [
-    {
-      effectiveOn: "2024-06-01",
-      action: IdentifierEventAction.RENAMED,
-      value: "OLD",
-      toValue: "ACME",
-    },
   ],
   intervals: [
     {
@@ -84,14 +84,18 @@ describe("Timeline", () => {
     ).toBe("confirmed");
     expect(lane("gaps")?.querySelectorAll("rect")).toHaveLength(1);
     const markers = lane("assertions")?.querySelectorAll("circle") ?? [];
-    expect(markers).toHaveLength(2);
+    expect(markers).toHaveLength(3);
     expect(markers[0].getAttribute("data-attested")).toBeNull();
-    expect(markers[1].getAttribute("data-attested")).toBe("true");
-    expect(markers[1].getAttribute("data-negative")).toBe("true");
-    expect(lane("events")?.querySelectorAll("polygon")).toHaveLength(1);
-    expect(lane("coverage-alpha")?.querySelectorAll("rect")).toHaveLength(1);
+    expect(markers[2].getAttribute("data-attested")).toBe("true");
+    expect(markers[2].getAttribute("data-negative")).toBe("true");
+    // A first cuts on its own day, and a last on the day after.
+    const cuts = [...(lane("edges")?.querySelectorAll("polygon") ?? [])].map(
+      (p) => p.getAttribute("data-cut"),
+    );
+    expect(cuts).toEqual(["2024-06-01", "2025-06-01"]);
+    expect(lane("period-alpha")?.querySelectorAll("rect")).toHaveLength(1);
     expect(
-      lane("coverage-beta")?.querySelector("rect")?.getAttribute("data-market"),
+      lane("period-beta")?.querySelector("rect")?.getAttribute("data-market"),
     ).toBe("true");
     // The range spans more than two years, so the axis is labelled by year.
     expect(lane("axis")?.textContent).toBe("20252026");

@@ -54,8 +54,7 @@ func txn(key uuid.UUID, n int) gen.ListTickerTxnsRow {
 // facts serves the facts of v: assertions and nothing else.
 func facts(q *mock.MockQueries, v types.MarketTicker, assertions []gen.ListIdentifierAssertionsRow) {
 	q.EXPECT().ListIdentifierAssertions(gomock.Any(), gen.ListIdentifierAssertionsParams{Markets: []string{v.Market}, Values: []string{v.Value}}).Return(assertions, nil)
-	q.EXPECT().ListIdentifierEvents(gomock.Any(), gen.ListIdentifierEventsParams{Markets: []string{v.Market}, Values: []string{v.Value}}).Return(nil, nil)
-	q.EXPECT().ListIdentifierCoverage(gomock.Any(), gen.ListIdentifierCoverageParams{Markets: []string{v.Market}, Values: []string{v.Value}}).Return(nil, nil)
+	q.EXPECT().ListIdentifierPeriodAssertions(gomock.Any(), gen.ListIdentifierPeriodAssertionsParams{Markets: []string{v.Market}, Values: []string{v.Value}}).Return(nil, nil)
 }
 
 // TestTicker checks that a ticker is read at its market, with the

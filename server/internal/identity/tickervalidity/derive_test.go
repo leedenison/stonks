@@ -7,6 +7,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
 
+	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
@@ -41,17 +42,24 @@ func provisional(from, before *time.Time, instr uuid.UUID) Interval {
 
 func cover(from, before int) types.Period { return types.Period{From: d(from), Before: d(before)} }
 
-// coverageFetchKey is the fetch key of every coverage row a test states.
-var coverageFetchKey = uuid.MustParse("00000000-0000-0000-0000-0000000000c0")
+// periodFetchKey is the fetch key of every period assertion a test states.
+var periodFetchKey = uuid.MustParse("00000000-0000-0000-0000-0000000000c0")
 
-func covered(from, before int) Coverage {
-	return Coverage{Period: cover(from, before), Datasource: "alpha", FetchKey: coverageFetchKey}
+func covered(from, before int) PeriodAssertion {
+	return PeriodAssertion{Period: cover(from, before), Source: Source{Datasource: "alpha", Precedence: 1, FetchKey: periodFetchKey}}
 }
 
-// eventFetchKey is the fetch key of every event a test states.
-var eventFetchKey = uuid.MustParse("00000000-0000-0000-0000-0000000000e0")
+func edge(n int, instr *uuid.UUID, e gen.IdentifierEdge, src Source) Assertion {
+	return Assertion{At: d(n), Instr: instr, Edge: e, Source: src}
+}
 
-func event(n int) Event { return Event{On: d(n), FetchKey: eventFetchKey} }
+func first(n int, instr *uuid.UUID, src Source) Assertion {
+	return edge(n, instr, gen.IdentifierEdgeFirst, src)
+}
+
+func last(n int, instr *uuid.UUID, src Source) Assertion {
+	return edge(n, instr, gen.IdentifierEdgeLast, src)
+}
 
 func TestDerive(t *testing.T) {
 	tests := []struct {
@@ -74,34 +82,39 @@ func TestDerive(t *testing.T) {
 			want:  []Interval{provisional(nil, at(1), a), confirmed(at(1), at(6), a), provisional(at(6), nil, a)},
 		},
 		{
-			name:  "coverage extends confirmation up to the nearest event",
-			facts: Facts{Assertions: []Assertion{asserts(5, &a, alpha)}, Events: []Event{event(10)}, Coverage: []Coverage{covered(1, 20)}},
+			name:  "a period assertion extends confirmation up to the nearest cut",
+			facts: Facts{Assertions: []Assertion{asserts(5, &a, alpha), last(9, &a, alpha)}, PeriodAssertions: []PeriodAssertion{covered(1, 20)}},
 			want:  []Interval{provisional(nil, at(1), a), confirmed(at(1), at(10), a)},
 		},
 		{
-			name:  "provisional ticker validity ends at the nearest event",
-			facts: Facts{Assertions: []Assertion{asserts(1, &a, alpha)}, Events: []Event{event(5)}},
-			want:  []Interval{provisional(nil, at(1), a), confirmed(at(1), at(2), a), provisional(at(2), at(5), a)},
-		},
-		{
-			name:  "an event inside a bracket breaks it",
-			facts: Facts{Assertions: []Assertion{asserts(1, &a, alpha), asserts(9, &a, alpha)}, Events: []Event{event(5)}},
-			want: []Interval{
-				provisional(nil, at(1), a), confirmed(at(1), at(2), a), provisional(at(2), at(9), a),
-				confirmed(at(9), at(10), a), provisional(at(10), nil, a),
-			},
-			wantBroken: []BrokenBracket{{Event: event(5), Instr: a, First: d(1), Last: d(9)}},
-		},
-		{
-			name:  "an event precedes an assertion on its day",
-			facts: Facts{Assertions: []Assertion{asserts(1, &a, alpha), asserts(5, &b, alpha)}, Events: []Event{event(5)}},
+			name:  "a first cuts at the start of its day",
+			facts: Facts{Assertions: []Assertion{asserts(1, &a, alpha), first(5, &b, alpha)}},
 			want: []Interval{
 				provisional(nil, at(1), a), confirmed(at(1), at(2), a), provisional(at(2), at(5), a),
 				confirmed(at(5), at(6), b), provisional(at(6), nil, b),
 			},
 		},
 		{
-			name:  "two instruments on different days imply an event, the earlier keeping the grey zone",
+			name:  "a last cuts at the start of the next day",
+			facts: Facts{Assertions: []Assertion{asserts(1, &a, alpha), last(4, &a, alpha)}},
+			want:  []Interval{provisional(nil, at(1), a), confirmed(at(1), at(5), a)},
+		},
+		{
+			name:  "a first and a last on one day hold the ticker for that day",
+			facts: Facts{Assertions: []Assertion{first(5, &a, alpha), last(5, &a, alpha)}},
+			want:  []Interval{confirmed(at(5), at(6), a)},
+		},
+		{
+			name:  "an edge across an equal bracket cuts it",
+			facts: Facts{Assertions: []Assertion{asserts(1, &a, alpha), first(5, &a, alpha), asserts(9, &a, alpha)}},
+			want: []Interval{
+				provisional(nil, at(1), a), confirmed(at(1), at(2), a), provisional(at(2), at(5), a),
+				confirmed(at(5), at(10), a), provisional(at(10), nil, a),
+			},
+			wantBroken: []BrokenBracket{{Edge: first(5, &a, alpha), Instr: a, First: d(1), Last: d(5)}},
+		},
+		{
+			name:  "two instruments on different days imply a change, the earlier keeping the grey zone",
 			facts: Facts{Assertions: []Assertion{asserts(1, &a, alpha), asserts(5, &b, alpha)}},
 			want: []Interval{
 				provisional(nil, at(1), a), confirmed(at(1), at(2), a), provisional(at(2), at(5), a),
@@ -110,8 +123,8 @@ func TestDerive(t *testing.T) {
 			wantInferred: []Inferred{{Period: cover(2, 6), From: &a, To: &b, Earlier: asserts(1, &a, alpha), Later: asserts(5, &b, alpha)}},
 		},
 		{
-			name:  "coverage of the grey zone confirms the earlier instrument",
-			facts: Facts{Assertions: []Assertion{asserts(1, &a, alpha), asserts(9, &b, alpha)}, Coverage: []Coverage{covered(1, 20)}},
+			name:  "a period assertion of the grey zone confirms the earlier instrument",
+			facts: Facts{Assertions: []Assertion{asserts(1, &a, alpha), asserts(9, &b, alpha)}, PeriodAssertions: []PeriodAssertion{covered(1, 20)}},
 			want: []Interval{
 				provisional(nil, at(1), a), confirmed(at(1), at(9), a),
 				confirmed(at(9), at(20), b), provisional(at(20), nil, b),
@@ -119,7 +132,7 @@ func TestDerive(t *testing.T) {
 			wantInferred: []Inferred{{Period: cover(9, 10), From: &a, To: &b, Earlier: asserts(1, &a, alpha), Later: asserts(9, &b, alpha)}},
 			wantMissed: []MissedEvent{{
 				Inferred: Inferred{Period: cover(9, 10), From: &a, To: &b, Earlier: asserts(1, &a, alpha), Later: asserts(9, &b, alpha)},
-				Coverage: covered(1, 20),
+				By:       covered(1, 20),
 			}},
 		},
 		{
@@ -174,8 +187,8 @@ func TestDerive(t *testing.T) {
 			},
 		},
 		{
-			name:  "events and coverage with no assertion name nothing",
-			facts: Facts{Events: []Event{event(5)}, Coverage: []Coverage{covered(1, 20)}},
+			name:  "a period assertion with no assertion names nothing",
+			facts: Facts{PeriodAssertions: []PeriodAssertion{covered(1, 20)}},
 		},
 	}
 	for _, tc := range tests {

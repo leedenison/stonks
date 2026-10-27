@@ -1,10 +1,10 @@
 // Package coverage reads, for the admin area, where each ticker's validity
 // is confirmed and where it is not.
 //
-// Gaps are measured against confirmed ticker validity, not against coverage. An
-// identifier attestation closes a gap by bracketing it and writes no coverage
-// row. A ticker is read at its market, and its transactions are those of the
-// keys that state it at any venue of the market.
+// Gaps are measured against confirmed ticker validity. An identifier
+// attestation closes a gap by bracketing it. A ticker is read at its market,
+// and its transactions are those of the keys that state it at any venue of
+// the market.
 package coverage
 
 import (
@@ -28,8 +28,7 @@ import (
 // Queries is this package's view of the generated queries.
 type Queries interface {
 	ListIdentifierAssertions(ctx context.Context, arg gen.ListIdentifierAssertionsParams) ([]gen.ListIdentifierAssertionsRow, error)
-	ListIdentifierEvents(ctx context.Context, arg gen.ListIdentifierEventsParams) ([]gen.ListIdentifierEventsRow, error)
-	ListIdentifierCoverage(ctx context.Context, arg gen.ListIdentifierCoverageParams) ([]gen.ListIdentifierCoverageRow, error)
+	ListIdentifierPeriodAssertions(ctx context.Context, arg gen.ListIdentifierPeriodAssertionsParams) ([]gen.ListIdentifierPeriodAssertionsRow, error)
 	ListInstrTickers(ctx context.Context, instrID uuid.UUID) ([]gen.ListInstrTickersRow, error)
 	CountTickerTxns(ctx context.Context, probes [][]byte) (int32, error)
 	ListTickerTxns(ctx context.Context, probes [][]byte) ([]gen.ListTickerTxnsRow, error)
@@ -94,14 +93,11 @@ func (t *Page) ToProto() *admincoveragev1.Ticker {
 	for _, d := range t.Days {
 		out.TxnDays = append(out.TxnDays, ymd(d))
 	}
-	for _, c := range t.Rows.Coverage {
-		out.Coverage = append(out.Coverage, to.ProtoCoverage(c))
+	for _, p := range t.Rows.PeriodAssertions {
+		out.PeriodAssertions = append(out.PeriodAssertions, to.ProtoPeriodAssertion(p))
 	}
 	for _, a := range t.Rows.Assertions {
 		out.Assertions = append(out.Assertions, to.ProtoAssertionItem(a.IdentifierAssertion, a.Value, a.Datasource, a.AttestedBy))
-	}
-	for _, e := range t.Rows.Events {
-		out.Events = append(out.Events, to.ProtoIdentifierEvent(e))
 	}
 	for _, iv := range t.Intervals {
 		out.Intervals = append(out.Intervals, interval(iv))

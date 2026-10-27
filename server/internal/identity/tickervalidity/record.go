@@ -20,8 +20,7 @@ import (
 // RecordQueries is what Record queries.
 type RecordQueries interface {
 	CreateIdentifierAssertion(ctx context.Context, arg gen.CreateIdentifierAssertionParams) error
-	CreateIdentifierEvent(ctx context.Context, arg gen.CreateIdentifierEventParams) error
-	CreateIdentifierEventCoverage(ctx context.Context, arg gen.CreateIdentifierEventCoverageParams) error
+	CreateIdentifierPeriodAssertion(ctx context.Context, arg gen.CreateIdentifierPeriodAssertionParams) error
 	FindIdentifier(ctx context.Context, arg gen.FindIdentifierParams) (gen.FindIdentifierRow, error)
 	LockIdentifiers(ctx context.Context, keys []string) error
 	CreateInstr(ctx context.Context, arg gen.CreateInstrParams) (gen.Instr, error)
@@ -46,9 +45,9 @@ func RecordTickers(ctx context.Context, q tickers.Queries, mics mic.MICMap, keys
 		if k.Outcome != gen.FetchOutcomeServed {
 			continue
 		}
-		for _, c := range k.Response.Coverage {
-			if c.Ticker == nil {
-				if err := tickers.SpelledMarket(mics, c.Market); err != nil {
+		for _, p := range k.Response.PeriodAssertions {
+			if p.Ticker == nil {
+				if err := tickers.SpelledMarket(mics, p.Market); err != nil {
 					return nil, err
 				}
 			}
@@ -58,7 +57,7 @@ func RecordTickers(ctx context.Context, q tickers.Queries, mics mic.MICMap, keys
 	return tickers.Get(ctx, q, mics, ts)
 }
 
-// Record writes the events, assertions and coverage of each served key. rows
+// Record writes the assertions and period assertions of each served key. rows
 // holds the row of each ticker the keys state, as RecordTickers returns them.
 // A negative assertion is always written.
 //
@@ -90,26 +89,6 @@ func record(ctx context.Context, q RecordQueries, families currency.Families, ro
 		}
 		return out, nil
 	}
-	for _, e := range r.Events {
-		named, err := row(e.Ticker)
-		if err != nil {
-			return err
-		}
-		arg := gen.CreateIdentifierEventParams{
-			ID: db.NewID(), FetchKeyID: key, Market: named.Market, TickerID: named.ID,
-			Action: e.Action, EffectiveOn: types.Day(e.On),
-		}
-		if e.ToValue != "" {
-			to, err := row(types.MarketTicker{Market: e.Ticker.Market, Value: e.ToValue})
-			if err != nil {
-				return err
-			}
-			arg.ToTickerID = &to.ID
-		}
-		if err := q.CreateIdentifierEvent(ctx, arg); err != nil {
-			return fmt.Errorf("record event: %w", err)
-		}
-	}
 	for _, a := range r.Assertions {
 		t, err := row(a.Ticker)
 		if err != nil {
@@ -119,20 +98,20 @@ func record(ctx context.Context, q RecordQueries, families currency.Families, ro
 			return err
 		}
 	}
-	for _, c := range r.Coverage {
-		arg := gen.CreateIdentifierEventCoverageParams{
-			ID: db.NewID(), FetchKeyID: key, Market: c.Market,
-			CoveredFrom: c.Period.From, CoveredBefore: c.Period.Before,
+	for _, p := range r.PeriodAssertions {
+		arg := gen.CreateIdentifierPeriodAssertionParams{
+			ID: db.NewID(), FetchKeyID: key, Market: p.Market,
+			AssertedFrom: p.Period.From, AssertedBefore: p.Period.Before,
 		}
-		if c.Ticker != nil {
-			t, err := row(*c.Ticker)
+		if p.Ticker != nil {
+			t, err := row(*p.Ticker)
 			if err != nil {
 				return err
 			}
 			arg.TickerID = &t.ID
 		}
-		if err := q.CreateIdentifierEventCoverage(ctx, arg); err != nil {
-			return fmt.Errorf("record coverage: %w", err)
+		if err := q.CreateIdentifierPeriodAssertion(ctx, arg); err != nil {
+			return fmt.Errorf("record period assertion: %w", err)
 		}
 	}
 	return nil
@@ -153,7 +132,7 @@ func Assert(ctx context.Context, q RecordQueries, families currency.Families, ke
 			return false, nil
 		}
 	}
-	return true, AssertInstr(ctx, q, key, t, instr, a.At)
+	return true, assert(ctx, q, key, t, instr, a.At, a.Edge)
 }
 
 // Asserter writes an assertion.
@@ -165,9 +144,18 @@ type Asserter interface {
 // instrument on the day of at. A nil instrument asserts that t names
 // nothing.
 func AssertInstr(ctx context.Context, q Asserter, key uuid.UUID, t gen.Ticker, instr *uuid.UUID, at time.Time) error {
+	return assert(ctx, q, key, t, instr, at, "")
+}
+
+// assert writes the assertion AssertInstr writes, with an edge. An empty
+// edge writes a point.
+func assert(ctx context.Context, q Asserter, key uuid.UUID, t gen.Ticker, instr *uuid.UUID, at time.Time, edge gen.IdentifierEdge) error {
 	arg := gen.CreateIdentifierAssertionParams{
 		ID: db.NewID(), FetchKeyID: &key, TickerID: t.ID, Market: t.Market,
 		InstrID: instr, AssertedOn: types.Day(at),
+	}
+	if edge != "" {
+		arg.Edge = &edge
 	}
 	if err := q.CreateIdentifierAssertion(ctx, arg); err != nil {
 		return fmt.Errorf("record assertion: %w", err)

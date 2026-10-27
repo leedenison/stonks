@@ -19,29 +19,22 @@ type IdentifierFactRequest struct {
 	Period     types.Period
 }
 
-// IdentifierEvent is an event a provider reported for a ticker at its
-// market. ToValue is set only for a rename.
-type IdentifierEvent struct {
-	Ticker  types.MarketTicker
-	Action  gen.IdentifierEventAction
-	ToValue string
-	On      time.Time
-}
-
 // Assertion is what a provider stated a ticker named on one day: the listing
 // of the entity, as far as the provider described it. The recorder looks its
 // identifiers up to find the instrument. A negative assertion states that the
-// ticker names nothing, and leaves Of empty.
+// ticker names nothing, and leaves Of empty. Edge marks At as the first or
+// last day of a span, and is empty for a point.
 type Assertion struct {
 	Ticker   types.MarketTicker
 	Of       Listing
 	Negative bool
 	At       time.Time
+	Edge     gen.IdentifierEdge
 }
 
-// Coverage is a period over which a provider reported every event of
+// PeriodAssertion is a period over which a provider reported every edge of
 // Ticker, or of every ticker of Market where Ticker is nil.
-type Coverage struct {
+type PeriodAssertion struct {
 	Market string
 	Ticker *types.MarketTicker
 	Period types.Period
@@ -49,39 +42,31 @@ type Coverage struct {
 
 // IdentifierFactResult is what was returned for one request.
 type IdentifierFactResult struct {
-	Events     []IdentifierEvent
-	Assertions []Assertion
-	Coverage   []Coverage
+	Assertions       []Assertion
+	PeriodAssertions []PeriodAssertion
 }
 
 // Tickers returns the tickers whose facts r states: the tickers of its
-// events, the new ticker of each rename, the tickers of its assertions, and
-// the ticker of each coverage row of one ticker.
+// assertions, and the ticker of each period assertion of one ticker.
 func (r IdentifierFactResult) Tickers() []types.MarketTicker {
 	var out []types.MarketTicker
-	for _, e := range r.Events {
-		out = append(out, e.Ticker)
-		if e.ToValue != "" {
-			out = append(out, types.MarketTicker{Market: e.Ticker.Market, Value: e.ToValue})
-		}
-	}
 	for _, a := range r.Assertions {
 		out = append(out, a.Ticker)
 	}
-	for _, c := range r.Coverage {
-		if c.Ticker != nil {
-			out = append(out, *c.Ticker)
+	for _, p := range r.PeriodAssertions {
+		if p.Ticker != nil {
+			out = append(out, *p.Ticker)
 		}
 	}
 	return out
 }
 
 // IdentifierFacts is an integration that reports the identifier facts of
-// tickers or markets. Its Events method returns the server, so one integration
-// can serve identity too. An integration reports each event, assertion and
-// coverage row once, for a market, across every operating MIC of that market.
-// A negative assertion or a coverage row is therefore a claim about the whole
-// market.
+// tickers or markets. Its Facts method returns the server, so one integration
+// can serve identity too. An integration reports each assertion and period
+// assertion once, for a market, across every operating MIC of that market. A
+// negative assertion or a period assertion is therefore a claim about the
+// whole market.
 type IdentifierFacts interface {
 	Integration
 	Facts() Server[IdentifierFactRequest, IdentifierFactResult]
@@ -102,7 +87,7 @@ type Ranged interface {
 	Windowed
 	// Markets are the markets it covers.
 	Markets() []string
-	// Lag is how long the provider may take to publish an event, unless the
+	// Lag is how long the provider may take to publish a change, unless the
 	// datasource sets its own.
 	Lag() time.Duration
 }
@@ -118,7 +103,7 @@ var identifierFactsKind = Kind[IdentifierFactRequest, IdentifierFactResult]{
 		return nil
 	},
 	statedKey: func(IdentifierFactRequest) *uuid.UUID { return nil },
-	count:     func(r IdentifierFactResult) int { return len(r.Events) + len(r.Assertions) },
+	count:     func(r IdentifierFactResult) int { return len(r.Assertions) },
 	params: func(r IdentifierFactRequest) []string {
 		return []string{r.Period.From.Format(time.DateOnly), r.Period.Before.Format(time.DateOnly)}
 	},

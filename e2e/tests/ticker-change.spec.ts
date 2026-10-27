@@ -116,7 +116,7 @@ test("dates a key through its ticker and marks each transaction by its day", asy
     "unidentified",
   );
 
-  const eventsOf = async (runId: string) => {
+  const factsOf = async (runId: string) => {
     const got = await admin.getRun({ runId });
     // EODHD's answer joins OpenFIGI's through XNAS:META on the day of the
     // run, so no answer is dropped. The day semantics are pinned in the unit
@@ -139,18 +139,18 @@ test("dates a key through its ticker and marks each transaction by its day", asy
     for (const run of massive) {
       out.push(await fetchItems(admin, run.run!.id));
     }
-    return { resolution, events: out };
+    return { resolution, facts: out };
   };
 
-  const one = await eventsOf(first);
+  const one = await factsOf(first);
   expect(identifying(one.resolution).sort()).toEqual([
     "eodhd",
     "massive",
     "massive",
     "openfigi",
   ]);
-  expect(one.events).toHaveLength(1);
-  const sent = one.events[0].map((i) => [
+  expect(one.facts).toHaveLength(1);
+  const sent = one.facts[0].map((i) => [
     i.outcome,
     i.sent?.type,
     i.sent?.value,
@@ -163,11 +163,11 @@ test("dates a key through its ticker and marks each transaction by its day", asy
   );
   expect(sent).toHaveLength(2);
 
-  const two = await eventsOf(second);
+  const two = await factsOf(second);
   expect(identifying(two.resolution)).toEqual(["massive"]);
-  expect(two.events).toHaveLength(1);
+  expect(two.facts).toHaveLength(1);
   expect(
-    two.events[0].map((i) => [i.outcome, i.sent?.type, i.sent?.value]),
+    two.facts[0].map((i) => [i.outcome, i.sent?.type, i.sent?.value]),
   ).toEqual([[FetchOutcome.SERVED, IdentifierType.MIC_TICKER, "META"]]);
 
   const instr = await instrListedAs(adminSession, {

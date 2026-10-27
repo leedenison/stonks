@@ -13,12 +13,8 @@ import { Notice } from "@/app/components/notice";
 import { Section } from "@/app/components/section";
 import { Skeleton } from "@/app/components/skeleton";
 import { None, PaneTable, Td, Th } from "@/app/components/table";
-import {
-  IdentifierEventAction,
-  type InstrTicker,
-  type Ticker,
-} from "@/gen/admin/coverage/v1/coverage_pb";
-import type { AssertionItem } from "@/gen/admin/run/v1/run_pb";
+import type { InstrTicker, Ticker } from "@/gen/admin/coverage/v1/coverage_pb";
+import { type AssertionItem, Edge } from "@/gen/admin/run/v1/run_pb";
 import { MarketTickerSchema } from "@/gen/type/v1/type_pb";
 import {
   useCoverageTicker,
@@ -317,6 +313,7 @@ function Facts({
               <tr>
                 <Th dense>Day</Th>
                 <Th dense>Instrument</Th>
+                <Th dense>Edge</Th>
                 <Th dense>Source</Th>
                 <Th dense> </Th>
               </tr>
@@ -335,6 +332,11 @@ function Facts({
                   </Td>
                   <Td dense>
                     <Instr ticker={ticker} id={a.instrId} />
+                  </Td>
+                  <Td dense>
+                    {a.edge !== undefined && (
+                      <Chip>{enumLabel(Edge, a.edge)}</Chip>
+                    )}
                   </Td>
                   <Td dense>
                     <Chip
@@ -360,65 +362,33 @@ function Facts({
           </PaneTable>
         )}
       </Section>
-      {ticker.events.length > 0 && (
-        <Section title="Events">
-          <PaneTable testId="ticker-events">
-            <thead className="border-b border-border">
-              <tr>
-                <Th dense>Day</Th>
-                <Th dense>Action</Th>
-                <Th dense>Ticker</Th>
-                <Th dense>To</Th>
-              </tr>
-            </thead>
-            <tbody>
-              {ticker.events.map((e, i) => (
-                <tr key={i}>
-                  <Td dense className="font-mono tabular-nums">
-                    {e.effectiveOn}
-                  </Td>
-                  <Td dense>
-                    <Chip>{enumLabel(IdentifierEventAction, e.action)}</Chip>
-                  </Td>
-                  <Td dense className="font-mono">
-                    {e.value}
-                  </Td>
-                  <Td dense className="font-mono">
-                    {e.toValue}
-                  </Td>
-                </tr>
-              ))}
-            </tbody>
-          </PaneTable>
-        </Section>
-      )}
-      <Section title="Coverage">
-        {ticker.coverage.length === 0 ? (
+      <Section title="Period assertions">
+        {ticker.periodAssertions.length === 0 ? (
           <None />
         ) : (
-          <PaneTable testId="ticker-coverage">
+          <PaneTable testId="ticker-period-assertions">
             <thead className="border-b border-border">
               <tr>
                 <Th dense>Datasource</Th>
-                <Th dense>Covers</Th>
+                <Th dense>Holds</Th>
                 <Th dense>From</Th>
                 <Th dense>Before</Th>
               </tr>
             </thead>
             <tbody>
-              {ticker.coverage.map((c, i) => (
+              {ticker.periodAssertions.map((p, i) => (
                 <tr key={i}>
                   <Td dense>
-                    <Chip>{c.datasource}</Chip>
+                    <Chip>{p.datasource}</Chip>
                   </Td>
                   <Td dense className="font-mono">
-                    {c.value ?? `every ticker of ${c.market}`}
+                    {p.value ?? `every ticker of ${p.market}`}
                   </Td>
                   <Td dense className="font-mono tabular-nums">
-                    {c.coveredFrom}
+                    {p.assertedFrom}
                   </Td>
                   <Td dense className="font-mono tabular-nums">
-                    {c.coveredBefore}
+                    {p.assertedBefore}
                   </Td>
                 </tr>
               ))}

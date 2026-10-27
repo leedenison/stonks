@@ -20,8 +20,8 @@ import (
 // owned is every table whose rows a user's runs write.
 var owned = []string{
 	"runs", "stmts", "stated_keys", "stmt_keys", "stmt_items", "stmt_splits", "txns",
-	"resolution_keys", "fetches", "fetch_keys", "identifier_assertions", "identifier_events",
-	"identifier_event_coverage", "identity_coverage",
+	"resolution_keys", "fetches", "fetch_keys", "identifier_assertions",
+	"identifier_period_assertions", "identity_coverage",
 	"datasource_blocks", "findings", "replays",
 }
 
@@ -55,9 +55,7 @@ func TestDeleteUserCascades(t *testing.T) {
 			require.NoError(t, q.CreateIdentifierAssertion(ctx, gen.CreateIdentifierAssertionParams{
 				ID: db.NewID(), FetchKeyID: &key, TickerID: shel.ID, Market: shel.Market, AssertedOn: date(2026, 3, 2),
 			}))
-			_, err = tx.Exec(ctx, "INSERT INTO identifier_events (id, fetch_key_id, market, ticker_id, action, effective_on) VALUES ($1, $2, 'XLON', $3, 'retired', '2026-03-02')", db.NewID(), key, shel.ID)
-			require.NoError(t, err)
-			_, err = tx.Exec(ctx, "INSERT INTO identifier_event_coverage (id, fetch_key_id, market, ticker_id, covered_from, covered_before) VALUES ($1, $2, 'XLON', $3, '2026-01-01', '2026-03-02')", db.NewID(), key, shel.ID)
+			_, err = tx.Exec(ctx, "INSERT INTO identifier_period_assertions (id, fetch_key_id, market, ticker_id, asserted_from, asserted_before) VALUES ($1, $2, 'XLON', $3, '2026-01-01', '2026-03-02')", db.NewID(), key, shel.ID)
 			require.NoError(t, err)
 			instr, err := q.CreateInstr(ctx, gen.CreateInstrParams{ID: db.NewID(), AssetClass: types.AssetClassStock, FetchKeyID: &key})
 			require.NoError(t, err)

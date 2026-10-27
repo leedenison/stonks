@@ -105,8 +105,7 @@ func (f *fixture) finds() {
 	f.store.EXPECT().ListListingsOf(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
 	f.store.EXPECT().ListIdentityCoverage(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
 	f.store.EXPECT().ListIdentifierAssertions(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
-	f.store.EXPECT().ListIdentifierEvents(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
-	f.store.EXPECT().ListIdentifierCoverage(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
+	f.store.EXPECT().ListIdentifierPeriodAssertions(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
 	f.store.EXPECT().ListKeyDates(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
 	// The store is empty of tickers, so a ticker's row is made up from its
 	// spelling.

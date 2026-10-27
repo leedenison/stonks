@@ -85,12 +85,11 @@ func TestDated(t *testing.T) {
 		{Class: types.AssetClassStock, Currency: "USD", Primary: "XNAS", Identifiers: []types.Identifier{share, composite, v}},
 	}}
 	s.alphaFacts.Responses[share] = market.IdentifierFactResult{
-		Events: []market.IdentifierEvent{{Ticker: mt(v), Action: gen.IdentifierEventActionAssigned, On: renamed}},
 		Assertions: []market.Assertion{
-			{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{share}}, At: renamed},
+			{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{share}}, At: renamed, Edge: gen.IdentifierEdgeFirst},
 			{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{share}}, At: on(2026, 3, 2)},
 		},
-		Coverage: []market.Coverage{{Market: mt(v).Market, Ticker: ptr.To(mt(v)), Period: types.Period{From: renamed, Before: on(2026, 3, 3)}}},
+		PeriodAssertions: []market.PeriodAssertion{{Market: mt(v).Market, Ticker: ptr.To(mt(v)), Period: types.Period{From: renamed, Before: on(2026, 3, 3)}}},
 	}
 	s.alphaFacts.Responses[v] = market.IdentifierFactResult{Assertions: []market.Assertion{
 		{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{other}, Class: types.AssetClassEtf, Currency: "USD"}, At: on(2021, 7, 1)},
@@ -324,9 +323,9 @@ func TestDisagreement(t *testing.T) {
 }
 
 // TestMissedEvent checks the finding when one datasource asserts two
-// instruments inside its own coverage. The run that wrote the facts records a
-// missed event naming the coverage's fetch key. A run that only reads the
-// facts records none.
+// instruments inside its own period assertion. The run that wrote the facts
+// records a missed event naming the period assertion's fetch key. A run that
+// only reads the facts records none.
 func TestMissedEvent(t *testing.T) {
 	s := newStack(t)
 	v := id(types.IdentifierTypeMicTicker, "XNAS", "ZZM")
@@ -340,14 +339,14 @@ func TestMissedEvent(t *testing.T) {
 			{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{share}}, At: on(2023, 1, 2)},
 			{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{other}, Class: types.AssetClassStock, Currency: "USD"}, At: on(2023, 6, 1)},
 		},
-		Coverage: []market.Coverage{{Market: mt(v).Market, Ticker: ptr.To(mt(v)), Period: types.Period{From: on(2023, 1, 1), Before: on(2024, 2, 1)}}},
+		PeriodAssertions: []market.PeriodAssertion{{Market: mt(v).Market, Ticker: ptr.To(mt(v)), Period: types.Period{From: on(2023, 1, 1), Before: on(2024, 2, 1)}}},
 	}
 	key := s.state(t, types.AssetClassStock, "USD", v)
 	s.resolveOn(t, []time.Time{on(2024, 1, 16)}, key)
 	found := s.runFindings(t)
-	coverage := s.factFetchKey(t, s.alphaName, share)
-	if len(found) != 1 || found[0].Kind != gen.FindingKindMissedEvent || found[0].FetchKeyID == nil || *found[0].FetchKeyID != coverage.ID {
-		t.Errorf("findings = %+v, want one missed event naming the coverage's fetch key %s", found, coverage.ID)
+	period := s.factFetchKey(t, s.alphaName, share)
+	if len(found) != 1 || found[0].Kind != gen.FindingKindMissedEvent || found[0].FetchKeyID == nil || *found[0].FetchKeyID != period.ID {
+		t.Errorf("findings = %+v, want one missed event naming the period assertion's fetch key %s", found, period.ID)
 	}
 
 	s.rerun(t)
@@ -358,9 +357,9 @@ func TestMissedEvent(t *testing.T) {
 	}
 }
 
-// TestBrokenBracket checks that a witnessed event between two assertions of
-// one instrument leaves a broken bracket finding on the run that wrote the
-// event, naming the event's fetch key.
+// TestBrokenBracket checks that an edge that cuts between two assertions of
+// one instrument from the same datasource leaves a broken bracket finding on
+// the run that wrote the edge, naming the edge's fetch key.
 func TestBrokenBracket(t *testing.T) {
 	s := newStack(t)
 	v := id(types.IdentifierTypeMicTicker, "XNAS", "ZZB")
@@ -369,18 +368,18 @@ func TestBrokenBracket(t *testing.T) {
 		{Class: types.AssetClassStock, Currency: "USD", Primary: "XNAS", Identifiers: []types.Identifier{share, v}},
 	}}
 	s.alphaFacts.Responses[share] = market.IdentifierFactResult{
-		Events: []market.IdentifierEvent{{Ticker: mt(v), Action: gen.IdentifierEventActionRenamed, ToValue: "ZZC", On: on(2023, 5, 1)}},
 		Assertions: []market.Assertion{
 			{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{share}}, At: on(2023, 1, 2)},
+			{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{share}}, At: on(2023, 4, 30), Edge: gen.IdentifierEdgeLast},
 			{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{share}}, At: on(2024, 1, 2)},
 		},
 	}
 	key := s.state(t, types.AssetClassStock, "USD", v)
 	s.resolveOn(t, []time.Time{on(2024, 1, 16)}, key)
 	found := s.runFindings(t)
-	event := s.factFetchKey(t, s.alphaName, share)
-	if len(found) != 1 || found[0].Kind != gen.FindingKindBrokenTickerValidityBracket || found[0].FetchKeyID == nil || *found[0].FetchKeyID != event.ID {
-		t.Errorf("findings = %+v, want one broken bracket naming the event's fetch key %s", found, event.ID)
+	edge := s.factFetchKey(t, s.alphaName, share)
+	if len(found) != 1 || found[0].Kind != gen.FindingKindBrokenTickerValidityBracket || found[0].FetchKeyID == nil || *found[0].FetchKeyID != edge.ID {
+		t.Errorf("findings = %+v, want one broken bracket naming the edge's fetch key %s", found, edge.ID)
 	}
 }
 

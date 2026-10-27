@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"maps"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -41,8 +42,9 @@ func TestVenuesAreMICs(t *testing.T) {
 }
 
 // TestFactsRecord checks that recording Meta's ticker history writes each
-// fact once, at the US market, and confirms FB for Meta until the rename and
-// META after it, read through a ticker at any US venue.
+// fact once, at the US market, with the edges of the rename. It confirms FB
+// for Meta until the rename and META after it, read through a ticker at any
+// US venue. Neither ticker extends across the rename, even provisionally.
 func TestFactsRecord(t *testing.T) {
 	ctx := context.Background()
 	pool := dbtest.Open()
@@ -86,12 +88,35 @@ func TestFactsRecord(t *testing.T) {
 	rows, err := tickervalidity.RecordTickers(ctx, q, tbl, keys)
 	require.NoError(t, err)
 	require.NoError(t, tickervalidity.Record(ctx, q, families, rows, keys))
-	for table, want := range map[string]int{"identifier_assertions": 3, "identifier_events": 2, "identifier_event_coverage": 2} {
-		var n int
-		require.NoError(t, tx.QueryRow(ctx, "SELECT count(*) FROM "+table+" WHERE fetch_key_id = $1", keys[0].ID).Scan(&n))
-		if n != want {
-			t.Errorf("%s rows = %d, want %d", table, n, want)
+	var n int
+	require.NoError(t, tx.QueryRow(ctx, "SELECT count(*) FROM identifier_period_assertions WHERE fetch_key_id = $1", keys[0].ID).Scan(&n))
+	if n != 2 {
+		t.Errorf("identifier_period_assertions rows = %d, want 2", n)
+	}
+	asserted, err := q.ListFetchKeyAssertions(ctx, &keys[0].ID)
+	require.NoError(t, err)
+	type edged struct {
+		Ticker string
+		On     string
+		Edge   gen.IdentifierEdge
+	}
+	var got []edged
+	for _, a := range asserted {
+		e := edged{Ticker: a.Value, On: a.IdentifierAssertion.AssertedOn.Format(time.DateOnly)}
+		if a.IdentifierAssertion.Edge != nil {
+			e.Edge = *a.IdentifierAssertion.Edge
 		}
+		got = append(got, e)
+	}
+	slices.SortFunc(got, func(a, b edged) int { return strings.Compare(a.Ticker+a.On, b.Ticker+b.On) })
+	want := []edged{
+		{Ticker: "FB", On: "2012-05-18", Edge: gen.IdentifierEdgeFirst},
+		{Ticker: "FB", On: "2022-06-08", Edge: gen.IdentifierEdgeLast},
+		{Ticker: "META", On: "2022-06-09", Edge: gen.IdentifierEdgeFirst},
+		{Ticker: "META", On: "2026-10-22"},
+	}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("assertions mismatch (-want +got):\n%s", diff)
 	}
 
 	tests := []struct {
@@ -113,8 +138,16 @@ func TestFactsRecord(t *testing.T) {
 			if got := confirmed(ivs, instr.ID, tc.on); got != tc.want {
 				t.Errorf("%s:%s confirmed for Meta on %s = %v, want %v", dom, tc.ticker, tc.on.Format(time.DateOnly), got, tc.want)
 			}
+			if !tc.want && held(ivs, tc.on) {
+				t.Errorf("%s:%s has an interval on %s, want none across the rename", dom, tc.ticker, tc.on.Format(time.DateOnly))
+			}
 		}
 	}
+}
+
+// held reports whether an interval of ivs, of any validity, holds day d.
+func held(ivs []tickervalidity.Interval, d time.Time) bool {
+	return slices.ContainsFunc(ivs, func(iv tickervalidity.Interval) bool { return iv.Contains(d) })
 }
 
 // confirmed reports whether ivs confirm instrument on day d.

@@ -347,17 +347,17 @@ func (w *writtenSet) addTicker(run gen.Run, t types.MarketTicker) {
 }
 
 // addFacts gathers the tickers whose facts r states, and the markets of its
-// coverage rows of a whole market.
+// period assertions of a whole market.
 func (w *writtenSet) addFacts(run gen.Run, r market.IdentifierFactResult) {
 	for _, t := range r.Tickers() {
 		w.addTicker(run, t)
 	}
-	for _, c := range r.Coverage {
-		if c.Ticker != nil {
+	for _, p := range r.PeriodAssertions {
+		if p.Ticker != nil {
 			continue
 		}
-		if f, ok := w.run(run, "market:"+c.Market); ok {
-			f.Markets = append(f.Markets, c.Market)
+		if f, ok := w.run(run, "market:"+p.Market); ok {
+			f.Markets = append(f.Markets, p.Market)
 		}
 	}
 }
@@ -387,7 +387,8 @@ func (w *writtenSet) tickers() []types.MarketTicker {
 
 // conflicts returns the findings among the facts of v that involve a fetch
 // key in mine. A disagreement names the losing assertion's fetch key. A
-// broken bracket names the event's. A missed event names the coverage's.
+// broken bracket names the edge's. A missed event names the period
+// assertion's.
 func conflicts(ctx context.Context, q Queries, v types.MarketTicker, mine map[uuid.UUID]bool) ([]gen.CreateFindingParams, error) {
 	f, err := tickervalidity.Read(ctx, q, v)
 	if err != nil {
@@ -405,21 +406,22 @@ func conflicts(ctx context.Context, q Queries, v types.MarketTicker, mine map[uu
 		out = append(out, gen.CreateFindingParams{Kind: gen.FindingKindIdentifierDisagreement, FetchKeyID: ptr.To(dis.Loser.Source.FetchKey), Detail: &detail})
 	}
 	for _, br := range d.Broken {
-		if !mine[br.Event.FetchKey] {
+		key := br.Edge.Source.FetchKey
+		if !mine[key] {
 			continue
 		}
-		detail := fmt.Sprintf("%s: an event on %s falls between assertions of %s on %s and %s",
-			v.Name(), br.Event.On.Format(time.DateOnly), br.Instr, br.First.Format(time.DateOnly), br.Last.Format(time.DateOnly))
-		out = append(out, gen.CreateFindingParams{Kind: gen.FindingKindBrokenTickerValidityBracket, FetchKeyID: ptr.To(br.Event.FetchKey), Detail: &detail})
+		detail := fmt.Sprintf("%s: a %s edge on %s cuts between assertions of %s on %s and %s",
+			v.Name(), br.Edge.Edge, br.Edge.At.Format(time.DateOnly), br.Instr, br.First.Format(time.DateOnly), br.Last.Format(time.DateOnly))
+		out = append(out, gen.CreateFindingParams{Kind: gen.FindingKindBrokenTickerValidityBracket, FetchKeyID: ptr.To(key), Detail: &detail})
 	}
 	for _, m := range d.Missed {
-		if !mine[m.Coverage.FetchKey] && !mine[m.Inferred.Earlier.Source.FetchKey] && !mine[m.Inferred.Later.Source.FetchKey] {
+		if !mine[m.By.Source.FetchKey] && !mine[m.Inferred.Earlier.Source.FetchKey] && !mine[m.Inferred.Later.Source.FetchKey] {
 			continue
 		}
-		detail := fmt.Sprintf("%s: assertions on %s and %s imply an event between them, and %s reported no event from %s to %s",
+		detail := fmt.Sprintf("%s: assertions on %s and %s imply a change between them, and %s reported no edge from %s to %s",
 			v.Name(), m.Inferred.Earlier.At.Format(time.DateOnly), m.Inferred.Later.At.Format(time.DateOnly),
-			m.Coverage.Datasource, m.Coverage.Period.From.Format(time.DateOnly), m.Coverage.Period.Before.Format(time.DateOnly))
-		out = append(out, gen.CreateFindingParams{Kind: gen.FindingKindMissedEvent, FetchKeyID: ptr.To(m.Coverage.FetchKey), Detail: &detail})
+			m.By.Source.Datasource, m.By.Period.From.Format(time.DateOnly), m.By.Period.Before.Format(time.DateOnly))
+		out = append(out, gen.CreateFindingParams{Kind: gen.FindingKindMissedEvent, FetchKeyID: ptr.To(m.By.Source.FetchKey), Detail: &detail})
 	}
 	return out, nil
 }

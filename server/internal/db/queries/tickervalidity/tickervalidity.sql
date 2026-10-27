@@ -1,7 +1,8 @@
 -- name: CreateIdentifierAssertion :exec
 INSERT INTO identifier_assertions (id, fetch_key_id, run_id, attested_by, ticker_id, market,
-    instr_id, asserted_on)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8);
+    instr_id, asserted_on, edge)
+VALUES (@id, @fetch_key_id, @run_id, @attested_by, @ticker_id, @market, @instr_id, @asserted_on,
+    sqlc.narg(edge));
 
 -- name: CreateIdentifierAttestation :exec
 -- A later identifier attestation of a day replaces the earlier one.
@@ -38,53 +39,32 @@ LEFT JOIN datasources ON datasources.name = fetches.datasource
 LEFT JOIN users ON users.id = identifier_assertions.attested_by
 ORDER BY identifier_assertions.asserted_on, identifier_assertions.id;
 
--- name: ListIdentifierEvents :many
--- The events that name one of the asked tickers, or that renamed another
--- ticker to one of them. A ticker is asked when its market and value are a
--- pair the arrays hold at one index. Each event comes with the fetch key that
--- wrote it.
+-- name: ListIdentifierPeriodAssertions :many
+-- The period assertions of the tickers whose market and value are a pair the
+-- arrays hold at one index, and of every market among markets. Each row comes
+-- with the datasource whose fetch wrote it and that datasource's precedence.
+-- value is NULL for a market row.
 WITH asked AS (
     SELECT tickers.id
     FROM (SELECT unnest(@markets::text[]) AS market, unnest(@values::text[]) AS value) AS k
     JOIN tickers ON tickers.market = k.market AND tickers.value = k.value
 )
-SELECT identifier_events.market, named.value, identifier_events.action, renamed.value AS to_value,
-       identifier_events.effective_on, identifier_events.fetch_key_id
-FROM identifier_events
-JOIN tickers AS named ON named.id = identifier_events.ticker_id
-LEFT JOIN tickers AS renamed ON renamed.id = identifier_events.to_ticker_id
-WHERE identifier_events.ticker_id IN (SELECT id FROM asked)
-   OR identifier_events.to_ticker_id IN (SELECT id FROM asked)
-ORDER BY identifier_events.effective_on, identifier_events.id;
-
--- name: ListIdentifierCoverage :many
--- The coverage of the asked tickers, as ListIdentifierEvents asks them, and of
--- every market among markets. Each row comes with the datasource whose fetch
--- wrote it. value is NULL for a market row.
-WITH asked AS (
-    SELECT tickers.id
-    FROM (SELECT unnest(@markets::text[]) AS market, unnest(@values::text[]) AS value) AS k
-    JOIN tickers ON tickers.market = k.market AND tickers.value = k.value
-)
-SELECT identifier_event_coverage.market, tickers.value,
-       identifier_event_coverage.covered_from, identifier_event_coverage.covered_before,
-       identifier_event_coverage.fetch_key_id, fetches.datasource
-FROM identifier_event_coverage
-LEFT JOIN tickers ON tickers.id = identifier_event_coverage.ticker_id
-JOIN fetch_keys ON fetch_keys.id = identifier_event_coverage.fetch_key_id
+SELECT identifier_period_assertions.market, tickers.value,
+       identifier_period_assertions.asserted_from, identifier_period_assertions.asserted_before,
+       identifier_period_assertions.fetch_key_id, fetches.datasource, datasources.precedence
+FROM identifier_period_assertions
+LEFT JOIN tickers ON tickers.id = identifier_period_assertions.ticker_id
+JOIN fetch_keys ON fetch_keys.id = identifier_period_assertions.fetch_key_id
 JOIN fetches ON fetches.id = fetch_keys.fetch_id
-WHERE identifier_event_coverage.ticker_id IN (SELECT id FROM asked)
-   OR (identifier_event_coverage.ticker_id IS NULL
-       AND identifier_event_coverage.market = ANY(@markets::text[]))
-ORDER BY fetches.datasource, identifier_event_coverage.covered_from, identifier_event_coverage.id;
+JOIN datasources ON datasources.name = fetches.datasource
+WHERE identifier_period_assertions.ticker_id IN (SELECT id FROM asked)
+   OR (identifier_period_assertions.ticker_id IS NULL
+       AND identifier_period_assertions.market = ANY(@markets::text[]))
+ORDER BY fetches.datasource, identifier_period_assertions.asserted_from, identifier_period_assertions.id;
 
--- name: CreateIdentifierEvent :exec
-INSERT INTO identifier_events (id, fetch_key_id, market, ticker_id, action, to_ticker_id, effective_on)
-VALUES (@id, @fetch_key_id, @market, @ticker_id, @action, sqlc.narg(to_ticker_id), @effective_on);
-
--- name: CreateIdentifierEventCoverage :exec
-INSERT INTO identifier_event_coverage (id, fetch_key_id, market, ticker_id, covered_from, covered_before)
-VALUES (@id, @fetch_key_id, @market, sqlc.narg(ticker_id), @covered_from, @covered_before);
+-- name: CreateIdentifierPeriodAssertion :exec
+INSERT INTO identifier_period_assertions (id, fetch_key_id, market, ticker_id, asserted_from, asserted_before)
+VALUES (@id, @fetch_key_id, @market, sqlc.narg(ticker_id), @asserted_from, @asserted_before);
 
 -- name: ListHeldTickers :many
 -- The held tickers: each ticker and venue through which a key is dated,

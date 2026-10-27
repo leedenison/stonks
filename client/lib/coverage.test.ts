@@ -5,7 +5,8 @@ import {
   TickerSchema,
   TickerValidity,
 } from "@/gen/admin/coverage/v1/coverage_pb";
-import { bounds, dayNumber, intervalAt } from "./coverage";
+import { AssertionItemSchema, Edge } from "@/gen/admin/run/v1/run_pb";
+import { bounds, cutDay, dayNumber, intervalAt } from "./coverage";
 
 describe("coverage", () => {
   it("counts days and finds the interval holding a day", () => {
@@ -52,5 +53,20 @@ describe("coverage", () => {
       from: "2026-03-05",
       before: "2026-03-06",
     });
+  });
+
+  it("cuts at a first's day and the day after a last, and bounds the cut", () => {
+    const first = { assertedOn: "2026-03-05", edge: Edge.FIRST };
+    const last = { assertedOn: "2026-03-09", edge: Edge.LAST };
+    expect(cutDay(create(AssertionItemSchema, first))).toBe("2026-03-05");
+    expect(cutDay(create(AssertionItemSchema, last))).toBe("2026-03-10");
+    expect(
+      cutDay(create(AssertionItemSchema, { assertedOn: "2026-03-05" })),
+    ).toBeUndefined();
+    const t = create(TickerSchema, {
+      txnDays: ["2026-03-01"],
+      assertions: [create(AssertionItemSchema, last)],
+    });
+    expect(bounds(t)).toEqual({ from: "2026-03-01", before: "2026-03-10" });
   });
 });
