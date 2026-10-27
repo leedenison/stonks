@@ -21,6 +21,7 @@ describe("enum", () => {
     expect(enumLabel(RunKind, RunKind.RESOLVE_STMT_KEYS)).toBe(
       "resolve statement keys",
     );
+    expect(enumLabel({ 1: "INSTR_TXNS" }, 1)).toBe("instrument transactions");
   });
 
   it("offers every value but UNSPECIFIED", () => {

@@ -1,7 +1,9 @@
 // abbreviations spells out in full each abbreviation that a label holds.
 const abbreviations: [RegExp, string][] = [
   [/\bcorp act(s?)\b/g, "corporate action$1"],
-  [/\bstmt\b/g, "statement"],
+  [/\binstr(s?)\b/g, "instrument$1"],
+  [/\bstmt(s?)\b/g, "statement$1"],
+  [/\btxn(s?)\b/g, "transaction$1"],
 ];
 
 // enumLabel renders v as lower case words, for example "failed permanent"

@@ -13,24 +13,24 @@ import (
 // A key has a fixed association or a dated one, so at most one of fixedVia
 // and t is set. A key the user arbitrated is confirmed whichever identifier
 // it used.
-func mark(arbiter *gen.Arbiter, fixedVia *types.IdentifierType, t *tickervalidity.Ticker, on time.Time) statementv1.TransactionMark {
+func mark(arbiter *gen.Arbiter, fixedVia *types.IdentifierType, t *tickervalidity.Ticker, on time.Time) statementv1.TxnMark {
 	switch {
 	case arbiter != nil && *arbiter == gen.ArbiterUser:
-		return statementv1.TransactionMark_TRANSACTION_MARK_CONFIRMED
+		return statementv1.TxnMark_TXN_MARK_CONFIRMED
 	case fixedVia != nil:
 		if fixedVia.Trait().Reassignment == types.IdentifierReassignmentStable {
-			return statementv1.TransactionMark_TRANSACTION_MARK_CONFIRMED
+			return statementv1.TxnMark_TXN_MARK_CONFIRMED
 		}
-		return statementv1.TransactionMark_TRANSACTION_MARK_PROVISIONAL
+		return statementv1.TxnMark_TXN_MARK_PROVISIONAL
 	case t != nil:
 		iv, ok := t.On(on)
 		switch {
 		case !ok:
-			return statementv1.TransactionMark_TRANSACTION_MARK_UNRESOLVED
+			return statementv1.TxnMark_TXN_MARK_UNRESOLVED
 		case iv.Validity == tickervalidity.Confirmed:
-			return statementv1.TransactionMark_TRANSACTION_MARK_CONFIRMED
+			return statementv1.TxnMark_TXN_MARK_CONFIRMED
 		}
-		return statementv1.TransactionMark_TRANSACTION_MARK_PROVISIONAL
+		return statementv1.TxnMark_TXN_MARK_PROVISIONAL
 	}
-	return statementv1.TransactionMark_TRANSACTION_MARK_UNRESOLVED
+	return statementv1.TxnMark_TXN_MARK_UNRESOLVED
 }

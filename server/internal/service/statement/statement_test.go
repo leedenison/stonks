@@ -222,13 +222,13 @@ func TestGetStatement(t *testing.T) {
 	datedID, fixedID := uuid.MustParse("00000000-0000-0000-0000-000000000024"), uuid.MustParse("00000000-0000-0000-0000-000000000025")
 	dated := gen.StatedKey{ID: datedID, UserID: userID, Identifiers: []types.Identifier{{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "META"}}, ViaType: ptr.To(types.IdentifierTypeMicTicker), ViaDomain: ptr.To("XNAS"), ViaValue: ptr.To("META"), Arbiter: ptr.To(gen.ArbiterDatasource)}
 	fixed := gen.StatedKey{ID: fixedID, UserID: userID, Identifiers: []types.Identifier{{Type: types.IdentifierTypeBrokerDescription, Domain: "ibkr", Value: "ACME"}}, InstrumentID: ptr.To(uuid.New()), Arbiter: ptr.To(gen.ArbiterDatasource)}
-	tx := func(n int, key gen.StatedKey, on time.Time) gen.Transaction {
-		return gen.Transaction{ID: uuid.MustParse(fmt.Sprintf("00000000-0000-0000-0000-00000000003%d", n)), UserID: userID, StatementID: runID, StatedKeyID: key.ID, OrderDate: on, AsAt: on, Quantity: decimal.NewFromInt(10)}
+	txn := func(n int, key gen.StatedKey, on time.Time) gen.Txn {
+		return gen.Txn{ID: uuid.MustParse(fmt.Sprintf("00000000-0000-0000-0000-00000000003%d", n)), UserID: userID, StatementID: runID, StatedKeyID: key.ID, OrderDate: on, AsAt: on, Quantity: decimal.NewFromInt(10)}
 	}
-	transactions := []gen.ListStatementTransactionsRow{
-		{Transaction: tx(1, dated, notFoundOn), StatedKey: dated},
-		{Transaction: tx(2, dated, assertedOn), StatedKey: dated},
-		{Transaction: tx(3, fixed, assertedOn), StatedKey: fixed, FixedViaType: ptr.To(types.IdentifierTypeBrokerDescription)},
+	txns := []gen.ListStatementTxnsRow{
+		{Txn: txn(1, dated, notFoundOn), StatedKey: dated},
+		{Txn: txn(2, dated, assertedOn), StatedKey: dated},
+		{Txn: txn(3, fixed, assertedOn), StatedKey: fixed, FixedViaType: ptr.To(types.IdentifierTypeBrokerDescription)},
 	}
 	facts := metaFacts()
 	assertions := []gen.ListIdentifierAssertionsRow{
@@ -237,29 +237,29 @@ func TestGetStatement(t *testing.T) {
 	}
 	events := []gen.ListIdentifierEventsRow{{Market: "US", Value: "META", EffectiveOn: renamed, FetchKeyID: uuid.New()}}
 	coverage := []gen.ListIdentifierCoverageRow{{Market: "US", Value: ptr.To("META"), CoveredFrom: facts.Coverage[0].Period.From, CoveredBefore: facts.Coverage[0].Period.Before}}
-	txMsgs := []*statementv1.Transaction{
-		{Id: transactions[0].Transaction.ID.String(), StatedKeyId: datedID.String(), OrderDate: "2021-06-01", Quantity: "10", Mark: statementv1.TransactionMark_TRANSACTION_MARK_UNRESOLVED},
-		{Id: transactions[1].Transaction.ID.String(), StatedKeyId: datedID.String(), OrderDate: "2024-01-16", Quantity: "10", Mark: statementv1.TransactionMark_TRANSACTION_MARK_CONFIRMED},
-		{Id: transactions[2].Transaction.ID.String(), StatedKeyId: fixedID.String(), OrderDate: "2024-01-16", Quantity: "10", Mark: statementv1.TransactionMark_TRANSACTION_MARK_PROVISIONAL},
+	txnMsgs := []*statementv1.Txn{
+		{Id: txns[0].Txn.ID.String(), StatedKeyId: datedID.String(), OrderDate: "2021-06-01", Quantity: "10", Mark: statementv1.TxnMark_TXN_MARK_UNRESOLVED},
+		{Id: txns[1].Txn.ID.String(), StatedKeyId: datedID.String(), OrderDate: "2024-01-16", Quantity: "10", Mark: statementv1.TxnMark_TXN_MARK_CONFIRMED},
+		{Id: txns[2].Txn.ID.String(), StatedKeyId: fixedID.String(), OrderDate: "2024-01-16", Quantity: "10", Mark: statementv1.TxnMark_TXN_MARK_PROVISIONAL},
 	}
 	tests := []struct {
-		name            string
-		id              string
-		authErr         error
-		row             gen.GetStatementRow
-		err             error
-		items           []gen.StatementItem
-		itemsErr        error
-		readsKeys       bool
-		keys            []gen.StatedKey
-		keysErr         error
-		latest          []gen.ResolutionKey
-		latestErr       error
-		transactions    []gen.ListStatementTransactionsRow
-		transactionsErr error
-		assertionsErr   error
-		want            *statementv1.GetStatementResponse
-		wantCode        connect.Code
+		name          string
+		id            string
+		authErr       error
+		row           gen.GetStatementRow
+		err           error
+		items         []gen.StatementItem
+		itemsErr      error
+		readsKeys     bool
+		keys          []gen.StatedKey
+		keysErr       error
+		latest        []gen.ResolutionKey
+		latestErr     error
+		txns          []gen.ListStatementTxnsRow
+		txnsErr       error
+		assertionsErr error
+		want          *statementv1.GetStatementResponse
+		wantCode      connect.Code
 	}{
 		{
 			name: "with items", id: runID.String(), row: gen.GetStatementRow{Statement: stmt, Run: run, Rejected: 1}, items: items, readsKeys: true,
@@ -270,11 +270,11 @@ func TestGetStatement(t *testing.T) {
 			want: &statementv1.GetStatementResponse{Statement: summ, Keys: keyMsgs},
 		},
 		{
-			name: "with transactions", id: runID.String(), row: gen.GetStatementRow{Statement: stmt, Run: run, Rejected: 1}, readsKeys: true, transactions: transactions,
-			want: &statementv1.GetStatementResponse{Statement: summ, Transactions: txMsgs},
+			name: "with transactions", id: runID.String(), row: gen.GetStatementRow{Statement: stmt, Run: run, Rejected: 1}, readsKeys: true, txns: txns,
+			want: &statementv1.GetStatementResponse{Statement: summ, Txns: txnMsgs},
 		},
-		{name: "transactions failure", id: runID.String(), row: gen.GetStatementRow{Statement: stmt, Run: run}, readsKeys: true, transactionsErr: errors.New("boom"), wantCode: connect.CodeInternal},
-		{name: "ticker validity failure", id: runID.String(), row: gen.GetStatementRow{Statement: stmt, Run: run}, readsKeys: true, transactions: transactions, assertionsErr: errors.New("boom"), wantCode: connect.CodeInternal},
+		{name: "transactions failure", id: runID.String(), row: gen.GetStatementRow{Statement: stmt, Run: run}, readsKeys: true, txnsErr: errors.New("boom"), wantCode: connect.CodeInternal},
+		{name: "ticker validity failure", id: runID.String(), row: gen.GetStatementRow{Statement: stmt, Run: run}, readsKeys: true, txns: txns, assertionsErr: errors.New("boom"), wantCode: connect.CodeInternal},
 		{name: "not found", id: runID.String(), err: db.ErrNotFound, wantCode: connect.CodeNotFound},
 		{name: "failure", id: runID.String(), err: errors.New("boom"), wantCode: connect.CodeInternal},
 		{name: "items failure", id: runID.String(), row: gen.GetStatementRow{Statement: stmt, Run: run}, itemsErr: errors.New("boom"), wantCode: connect.CodeInternal},
@@ -300,9 +300,9 @@ func TestGetStatement(t *testing.T) {
 					f.reader.EXPECT().ListLatestResolutions(gomock.Any(), gen.ListLatestResolutionsParams{Ids: []uuid.UUID{matchedID, unrecognisedID, unreachedID}, UserID: userID}).Return(tc.latest, tc.latestErr)
 				}
 				if tc.readsKeys && tc.keysErr == nil && tc.latestErr == nil {
-					f.reader.EXPECT().ListStatementTransactions(gomock.Any(), gen.ListStatementTransactionsParams{StatementID: runID, UserID: userID}).Return(tc.transactions, tc.transactionsErr)
+					f.reader.EXPECT().ListStatementTxns(gomock.Any(), gen.ListStatementTxnsParams{StatementID: runID, UserID: userID}).Return(tc.txns, tc.txnsErr)
 				}
-				if len(tc.transactions) > 0 {
+				if len(tc.txns) > 0 {
 					f.reader.EXPECT().ListIdentifierAssertions(gomock.Any(), gen.ListIdentifierAssertionsParams{Markets: []string{"US"}, Values: []string{"META"}}).Return(assertions, tc.assertionsErr)
 					if tc.assertionsErr == nil {
 						f.reader.EXPECT().ListIdentifierEvents(gomock.Any(), gen.ListIdentifierEventsParams{Markets: []string{"US"}, Values: []string{"META"}}).Return(events, nil)

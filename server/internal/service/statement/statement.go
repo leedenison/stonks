@@ -44,7 +44,7 @@ type Reader interface {
 	ListStatedKeys(ctx context.Context, arg gen.ListStatedKeysParams) ([]gen.StatedKey, error)
 	ListLatestResolutions(ctx context.Context, arg gen.ListLatestResolutionsParams) ([]gen.ResolutionKey, error)
 	GetStatedKey(ctx context.Context, arg gen.GetStatedKeyParams) (gen.StatedKey, error)
-	ListStatementTransactions(ctx context.Context, arg gen.ListStatementTransactionsParams) ([]gen.ListStatementTransactionsRow, error)
+	ListStatementTxns(ctx context.Context, arg gen.ListStatementTxnsParams) ([]gen.ListStatementTxnsRow, error)
 }
 
 var (
@@ -139,7 +139,7 @@ func (s *Server) GetStatement(ctx context.Context, req *connect.Request[statemen
 	if out.Keys, err = s.keys(ctx, id, p.User.ID); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	if out.Transactions, err = s.transactions(ctx, id, p.User.ID); err != nil {
+	if out.Txns, err = s.txns(ctx, id, p.User.ID); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	return connect.NewResponse(out), nil
@@ -239,10 +239,10 @@ func (s *Server) keys(ctx context.Context, statement, user uuid.UUID) ([]*typev1
 	return out, nil
 }
 
-// transactions answers the statement's transactions, each with its mark. The
+// txns answers the statement's transactions, each with its mark. The
 // facts of every dated key's ticker are read at once.
-func (s *Server) transactions(ctx context.Context, statement, user uuid.UUID) ([]*statementv1.Transaction, error) {
-	rows, err := s.reader.ListStatementTransactions(ctx, gen.ListStatementTransactionsParams{StatementID: statement, UserID: user})
+func (s *Server) txns(ctx context.Context, statement, user uuid.UUID) ([]*statementv1.Txn, error) {
+	rows, err := s.reader.ListStatementTxns(ctx, gen.ListStatementTxnsParams{StatementID: statement, UserID: user})
 	if err != nil {
 		return nil, err
 	}
@@ -256,13 +256,13 @@ func (s *Server) transactions(ctx context.Context, statement, user uuid.UUID) ([
 	if err != nil {
 		return nil, fmt.Errorf("read the facts of the dated keys' tickers: %w", err)
 	}
-	out := make([]*statementv1.Transaction, 0, len(rows))
+	out := make([]*statementv1.Txn, 0, len(rows))
 	for _, r := range rows {
 		var t *tickervalidity.Ticker
 		if v, ok := s.datedTicker(r.StatedKey); ok {
 			t = read[v]
 		}
-		out = append(out, to.ProtoTransaction(r.Transaction, mark(r.StatedKey.Arbiter, r.FixedViaType, t, r.Transaction.AsAt)))
+		out = append(out, to.ProtoTxn(r.Txn, mark(r.StatedKey.Arbiter, r.FixedViaType, t, r.Txn.AsAt)))
 	}
 	return out, nil
 }

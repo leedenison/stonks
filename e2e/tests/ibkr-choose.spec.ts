@@ -20,7 +20,7 @@ test("chooses an instrument for an IBKR security stated by ticker", async ({
   page,
 }) => {
   const { session } = await signIn();
-  await page.goto("/transactions");
+  await page.goto("/txns");
   const runId = await uploadStatement(page, fixture, {
     state: "completed",
     rows: "3 rows",

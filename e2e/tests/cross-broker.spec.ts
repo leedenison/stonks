@@ -27,7 +27,7 @@ test("shows a resolved holding and an unresolved one from two brokers", async ({
   page,
 }) => {
   const { session } = await signIn();
-  await page.goto("/transactions");
+  await page.goto("/txns");
 
   const runs: string[] = [];
   for (const [n, fixture] of [ibkr, schwab].entries()) {

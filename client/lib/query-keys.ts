@@ -14,7 +14,7 @@ export const qk = {
   // choice does not run the resolution again.
   candidates: (keyId: string) => ["candidates", keyId] as const,
   run: (id: string) => ["runs", id] as const,
-  transactions: () => ["transactions"] as const,
+  txns: () => ["txns"] as const,
   holdings: () => ["holdings"] as const,
   adminInstruments: (after: string, q: string, cls: string) =>
     ["admin-instruments", after, q, cls] as const,
@@ -46,7 +46,7 @@ export function invalidateResolved(
     qk.statements(),
   ];
   return Promise.all(
-    [qk.holdings(), qk.transactions(), ...statements].map((queryKey) =>
+    [qk.holdings(), qk.txns(), ...statements].map((queryKey) =>
       queryClient.invalidateQueries({ queryKey }),
     ),
   );

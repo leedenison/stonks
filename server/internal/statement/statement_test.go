@@ -349,15 +349,15 @@ func TestOutcomes(t *testing.T) {
 			}).Times(2)
 			f.store.EXPECT().CreateStatementKeys(gomock.Any(), gomock.Any()).Return(int64(2), nil)
 			var items []gen.CreateStatementItemsParams
-			var transactions []gen.CreateTransactionsParams
+			var txns []gen.CreateTxnsParams
 			if !tc.wantErr {
-				f.store.EXPECT().DeleteTransactions(gomock.Any(), gomock.Any()).Return(int64(0), nil)
+				f.store.EXPECT().DeleteTxns(gomock.Any(), gomock.Any()).Return(int64(0), nil)
 				f.store.EXPECT().CreateStatementItems(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg []gen.CreateStatementItemsParams) (int64, error) {
 					items = append(items, arg...)
 					return int64(len(arg)), nil
 				})
-				f.store.EXPECT().CreateTransactions(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg []gen.CreateTransactionsParams) (int64, error) {
-					transactions = append(transactions, arg...)
+				f.store.EXPECT().CreateTxns(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg []gen.CreateTxnsParams) (int64, error) {
+					txns = append(txns, arg...)
 					return int64(len(arg)), nil
 				})
 				f.store.EXPECT().SweepStatedKeys(gomock.Any(), userID).Return(int64(0), nil)
@@ -377,8 +377,8 @@ func TestOutcomes(t *testing.T) {
 			if len(items) != 1 || items[0].Ordinal != 0 || items[0].Reason != "asset class equity contradicts the instrument's cash" {
 				t.Errorf("items = %+v, want the rejected key's row with its reason", items)
 			}
-			if len(transactions) != 1 || transactions[0].OrderDate.Day() != 6 {
-				t.Errorf("transactions = %+v, want the unresolved key's row kept", transactions)
+			if len(txns) != 1 || txns[0].OrderDate.Day() != 6 {
+				t.Errorf("transactions = %+v, want the unresolved key's row kept", txns)
 			}
 		})
 	}
@@ -421,11 +421,11 @@ func TestResolvesUnassociated(t *testing.T) {
 				links = arg
 				return int64(len(arg)), nil
 			})
-			var transactions []gen.CreateTransactionsParams
+			var txns []gen.CreateTxnsParams
 			if !omit {
-				f.store.EXPECT().DeleteTransactions(gomock.Any(), gomock.Any()).Return(int64(0), nil)
-				f.store.EXPECT().CreateTransactions(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg []gen.CreateTransactionsParams) (int64, error) {
-					transactions = arg
+				f.store.EXPECT().DeleteTxns(gomock.Any(), gomock.Any()).Return(int64(0), nil)
+				f.store.EXPECT().CreateTxns(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg []gen.CreateTxnsParams) (int64, error) {
+					txns = arg
 					return int64(len(arg)), nil
 				})
 				f.store.EXPECT().SweepStatedKeys(gomock.Any(), userID).Return(int64(0), nil)
@@ -445,8 +445,8 @@ func TestResolvesUnassociated(t *testing.T) {
 			if len(links) != 2 {
 				t.Errorf("links = %+v, want both keys linked", links)
 			}
-			if !omit && len(transactions) != 2 {
-				t.Errorf("transactions = %+v, want both rows kept", transactions)
+			if !omit && len(txns) != 2 {
+				t.Errorf("transactions = %+v, want both rows kept", txns)
 			}
 		})
 	}
@@ -472,8 +472,8 @@ func TestResolvesWithDates(t *testing.T) {
 		return row, nil
 	}).Times(2)
 	f.store.EXPECT().CreateStatementKeys(gomock.Any(), gomock.Any()).Return(int64(2), nil)
-	f.store.EXPECT().DeleteTransactions(gomock.Any(), gomock.Any()).Return(int64(0), nil)
-	f.store.EXPECT().CreateTransactions(gomock.Any(), gomock.Any()).Return(int64(3), nil)
+	f.store.EXPECT().DeleteTxns(gomock.Any(), gomock.Any()).Return(int64(0), nil)
+	f.store.EXPECT().CreateTxns(gomock.Any(), gomock.Any()).Return(int64(3), nil)
 	f.store.EXPECT().CreateStatementItems(gomock.Any(), gomock.Any()).Return(int64(1), nil)
 	f.store.EXPECT().SweepStatedKeys(gomock.Any(), userID).Return(int64(0), nil)
 	f.store.EXPECT().CompleteRun(gomock.Any(), gomock.Any()).Return(nil)
@@ -510,8 +510,8 @@ func TestReplaysNewFacts(t *testing.T) {
 		return gen.StatedKey{ID: arg.ID, Identifiers: arg.Identifiers}, nil
 	})
 	f.store.EXPECT().CreateStatementKeys(gomock.Any(), gomock.Any()).Return(int64(1), nil)
-	f.store.EXPECT().DeleteTransactions(gomock.Any(), gomock.Any()).Return(int64(0), nil)
-	f.store.EXPECT().CreateTransactions(gomock.Any(), gomock.Any()).Return(int64(1), nil)
+	f.store.EXPECT().DeleteTxns(gomock.Any(), gomock.Any()).Return(int64(0), nil)
+	f.store.EXPECT().CreateTxns(gomock.Any(), gomock.Any()).Return(int64(1), nil)
 	f.store.EXPECT().SweepStatedKeys(gomock.Any(), userID).Return(int64(0), nil)
 	f.store.EXPECT().CompleteRun(gomock.Any(), gomock.Any()).DoAndReturn(func(context.Context, uuid.UUID) error {
 		if len(f.replayed) != 0 {
@@ -563,10 +563,10 @@ func TestPrepareTakesRow(t *testing.T) {
 		split = arg
 		return nil
 	})
-	f.store.EXPECT().DeleteTransactions(gomock.Any(), gomock.Any()).Return(int64(0), nil)
-	var transactions []gen.CreateTransactionsParams
-	f.store.EXPECT().CreateTransactions(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg []gen.CreateTransactionsParams) (int64, error) {
-		transactions = arg
+	f.store.EXPECT().DeleteTxns(gomock.Any(), gomock.Any()).Return(int64(0), nil)
+	var txns []gen.CreateTxnsParams
+	f.store.EXPECT().CreateTxns(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg []gen.CreateTxnsParams) (int64, error) {
+		txns = arg
 		return int64(len(arg)), nil
 	})
 	f.store.EXPECT().SweepStatedKeys(gomock.Any(), userID).Return(int64(0), nil)
@@ -577,8 +577,8 @@ func TestPrepareTakesRow(t *testing.T) {
 	if _, err := f.svc.Create(context.Background(), userID, msg); err != nil || f.workErr != nil {
 		t.Fatalf("Create() error = %v, work error = %v", err, f.workErr)
 	}
-	if len(links) != 1 || links[0].StatedKeyID != held || split.StatedKeyID != held || len(transactions) != 1 || transactions[0].StatedKeyID != held {
-		t.Errorf("links %+v, split %+v, transactions %+v: want each to name the key %s the upsert returned", links, split, transactions, held)
+	if len(links) != 1 || links[0].StatedKeyID != held || split.StatedKeyID != held || len(txns) != 1 || txns[0].StatedKeyID != held {
+		t.Errorf("links %+v, split %+v, transactions %+v: want each to name the key %s the upsert returned", links, split, txns, held)
 	}
 }
 
@@ -588,7 +588,7 @@ func TestPrepareTakesRow(t *testing.T) {
 func TestCreateSpec(t *testing.T) {
 	f := newFixture(t)
 	f.store.EXPECT().CreateStatement(gomock.Any(), gomock.Any()).Return(gen.Statement{}, nil)
-	f.store.EXPECT().DeleteTransactions(gomock.Any(), gomock.Any()).Return(int64(0), nil)
+	f.store.EXPECT().DeleteTxns(gomock.Any(), gomock.Any()).Return(int64(0), nil)
 	f.store.EXPECT().SweepStatedKeys(gomock.Any(), userID).DoAndReturn(func(context.Context, uuid.UUID) (int64, error) {
 		f.calls = append(f.calls, "sweep")
 		return 0, nil

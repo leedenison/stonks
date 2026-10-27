@@ -37,7 +37,7 @@ func (s *stack) withoutEvents(t *testing.T, names ...string) {
 // dates the key a held ticker.
 func (s *stack) trade(t *testing.T, key gen.StatedKey, d time.Time) {
 	t.Helper()
-	_, err := s.q.CreateTransaction(context.Background(), gen.CreateTransactionParams{
+	_, err := s.q.CreateTxn(context.Background(), gen.CreateTxnParams{
 		ID: db.NewID(), UserID: s.user.ID, Broker: gen.BrokerIbkr, StatementID: s.statement.ID, StatedKeyID: key.ID,
 		OrderDate: d, SettlementDate: d, AsAt: d, Quantity: decimal.NewFromInt(1),
 	})

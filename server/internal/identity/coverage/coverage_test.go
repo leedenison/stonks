@@ -46,8 +46,8 @@ func asserted(n int, instrument *uuid.UUID) gen.ListIdentifierAssertionsRow {
 	}
 }
 
-func tx(key uuid.UUID, n int) gen.ListTickerTransactionsRow {
-	return gen.ListTickerTransactionsRow{StatedKeyID: key, AsAt: day(n)}
+func txn(key uuid.UUID, n int) gen.ListTickerTxnsRow {
+	return gen.ListTickerTxnsRow{StatedKeyID: key, AsAt: day(n)}
 }
 
 // facts serves the facts of v: assertions and nothing else.
@@ -71,8 +71,8 @@ func TestTicker(t *testing.T) {
 	if len(probes) != 3 {
 		t.Fatalf("probes = %d, want one per venue of the market", len(probes))
 	}
-	q.EXPECT().ListTickerTransactions(gomock.Any(), probes).
-		Return([]gen.ListTickerTransactionsRow{tx(k1, 5), tx(k2, 5), tx(k2, 15)}, nil)
+	q.EXPECT().ListTickerTxns(gomock.Any(), probes).
+		Return([]gen.ListTickerTxnsRow{txn(k1, 5), txn(k2, 5), txn(k2, 15)}, nil)
 	name := gen.InstrumentName{InstrumentID: acme, Type: types.IdentifierTypeIsin, Value: "US0000000001"}
 	q.EXPECT().ListInstrumentNames(gomock.Any(), []uuid.UUID{acme}).Return([]gen.InstrumentName{name}, nil)
 
@@ -91,7 +91,7 @@ func TestTicker(t *testing.T) {
 			{From: &mid, Instrument: acme, Validity: tickervalidity.Provisional},
 		},
 		Gaps: []Gap{
-			{Period: types.Period{From: day(5), Before: from}, Keys: 2, Transactions: 2},
+			{Period: types.Period{From: day(5), Before: from}, Keys: 2, Txns: 2},
 			{Period: types.Period{From: mid, Before: before}},
 		},
 		Names: map[uuid.UUID]types.Identifier{acme: {Type: types.IdentifierTypeIsin, Value: "US0000000001"}},
@@ -101,14 +101,14 @@ func TestTicker(t *testing.T) {
 	}
 }
 
-// TestTickerNoTransactions checks that a ticker no key states has no days
+// TestTickerNoTxns checks that a ticker no key states has no days
 // and no gaps.
-func TestTickerNoTransactions(t *testing.T) {
+func TestTickerNoTxns(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	q := mock.NewMockQueries(ctrl)
 	v := ticker("ACME")
 	facts(q, v, nil)
-	q.EXPECT().ListTickerTransactions(gomock.Any(), gomock.Any()).Return(nil, nil)
+	q.EXPECT().ListTickerTxns(gomock.Any(), gomock.Any()).Return(nil, nil)
 
 	got, err := New(q, mics).Ticker(context.Background(), v, day(30))
 	if err != nil {

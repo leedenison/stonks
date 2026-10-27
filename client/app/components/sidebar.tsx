@@ -19,10 +19,10 @@ const items = [
     testId: "nav-holdings",
   },
   {
-    href: "/transactions",
+    href: "/txns",
     label: "Transactions",
     icon: ArrowLeftRight,
-    testId: "nav-transactions",
+    testId: "nav-txns",
   },
   {
     href: "/statements",

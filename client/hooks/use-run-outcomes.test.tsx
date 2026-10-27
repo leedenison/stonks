@@ -46,7 +46,7 @@ describe("useRunOutcomes", () => {
     );
     expect(keys).toEqual([
       JSON.stringify(["holdings"]),
-      JSON.stringify(["transactions"]),
+      JSON.stringify(["txns"]),
       JSON.stringify(["statements", "r1"]),
     ]);
 

@@ -22,9 +22,9 @@ WHERE stated_keys.user_id = @user_id::uuid
                     AND resolution_keys.user_id = stated_keys.user_id
                     AND resolution_keys.stated_key_id = stated_keys.id))
   AND latest.outcome = 'unavailable'
-  AND EXISTS (SELECT 1 FROM transactions
-              WHERE transactions.user_id = stated_keys.user_id
-                AND transactions.stated_key_id = stated_keys.id)
+  AND EXISTS (SELECT 1 FROM txns
+              WHERE txns.user_id = stated_keys.user_id
+                AND txns.stated_key_id = stated_keys.id)
 ORDER BY stated_keys.id;
 
 -- name: ListKeysUncoveredBy :many
@@ -44,9 +44,9 @@ WHERE stated_keys.user_id = @user_id::uuid
                   WHERE resolution_keys.run_id = @source_id::uuid
                     AND resolution_keys.user_id = stated_keys.user_id
                     AND resolution_keys.stated_key_id = stated_keys.id))
-  AND EXISTS (SELECT 1 FROM transactions
-              WHERE transactions.user_id = stated_keys.user_id
-                AND transactions.stated_key_id = stated_keys.id)
+  AND EXISTS (SELECT 1 FROM txns
+              WHERE txns.user_id = stated_keys.user_id
+                AND txns.stated_key_id = stated_keys.id)
   AND stated_keys.arbiter IS DISTINCT FROM 'user'
   AND stated_keys.via_type IS NULL
   AND (stated_keys.instrument_id IS NULL

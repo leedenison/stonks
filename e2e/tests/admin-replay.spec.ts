@@ -17,7 +17,7 @@ test("offers a replay on a statement's page and shows its refusal", async ({
   page,
 }) => {
   const { session: userSession } = await signIn();
-  await page.goto("/transactions");
+  await page.goto("/txns");
   const runId = await uploadStatement(page, fixture, {
     state: "completed",
     holds: false,

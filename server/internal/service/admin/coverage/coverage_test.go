@@ -74,7 +74,7 @@ func TestListInstrumentTickers(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newFixture(t)
 			if tc.id == acme.String() {
-				f.reader.EXPECT().InstrumentTickers(gomock.Any(), acme).Return([]reader.InstrumentTicker{{Ticker: acmeTicker, Current: true, Transactions: 2, Venues: []string{"XNAS"}}}, tc.err)
+				f.reader.EXPECT().InstrumentTickers(gomock.Any(), acme).Return([]reader.InstrumentTicker{{Ticker: acmeTicker, Current: true, Txns: 2, Venues: []string{"XNAS"}}}, tc.err)
 			}
 			res, err := f.client.ListInstrumentTickers(context.Background(), connect.NewRequest(&admincoveragev1.ListInstrumentTickersRequest{InstrumentId: tc.id}))
 			if servicetest.CodeOf(err) != tc.wantCode {
@@ -83,7 +83,7 @@ func TestListInstrumentTickers(t *testing.T) {
 			if err != nil {
 				return
 			}
-			want := []*admincoveragev1.InstrumentTicker{{Ticker: acmeProto, Current: true, Transactions: 2, Venues: []string{"XNAS"}}}
+			want := []*admincoveragev1.InstrumentTicker{{Ticker: acmeProto, Current: true, Txns: 2, Venues: []string{"XNAS"}}}
 			if diff := cmp.Diff(want, res.Msg.GetTickers(), protocmp.Transform()); diff != "" {
 				t.Errorf("ListInstrumentTickers mismatch (-want +got):\n%s", diff)
 			}
@@ -105,12 +105,12 @@ func TestGetTicker(t *testing.T) {
 			Coverage: []gen.ListIdentifierCoverageRow{{Market: "US", CoveredFrom: day(1), CoveredBefore: day(20), Datasource: "alpha"}},
 		},
 		Intervals: []tickervalidity.Interval{{From: &from, Before: &before, Instrument: acme, Validity: tickervalidity.Confirmed}},
-		Gaps:      []reader.Gap{{Period: types.Period{From: day(5), Before: day(10)}, Keys: 1, Transactions: 1}},
+		Gaps:      []reader.Gap{{Period: types.Period{From: day(5), Before: day(10)}, Keys: 1, Txns: 1}},
 		Names:     map[uuid.UUID]types.Identifier{acme: {Type: types.IdentifierTypeIsin, Value: "US0000000001"}},
 	}
 	want := &admincoveragev1.Ticker{
-		Ticker:          acmeProto,
-		TransactionDays: []string{"2026-03-05"},
+		Ticker:  acmeProto,
+		TxnDays: []string{"2026-03-05"},
 		Coverage: []*admincoveragev1.Coverage{{
 			Datasource: "alpha", Market: "US",
 			CoveredFrom: "2026-03-01", CoveredBefore: "2026-03-20",
@@ -121,7 +121,7 @@ func TestGetTicker(t *testing.T) {
 		}},
 		Events:    []*admincoveragev1.IdentifierEvent{{EffectiveOn: "2026-03-03", Action: admincoveragev1.IdentifierEventAction_IDENTIFIER_EVENT_ACTION_RENAMED, Value: "OLD", ToValue: "ACME"}},
 		Intervals: []*admincoveragev1.Interval{{ValidFrom: ptr.To("2026-03-10"), ValidBefore: ptr.To("2026-03-21"), InstrumentId: acme.String(), Validity: admincoveragev1.TickerValidity_TICKER_VALIDITY_CONFIRMED}},
-		Gaps:      []*admincoveragev1.Gap{{UnconfirmedFrom: "2026-03-05", UnconfirmedBefore: "2026-03-10", Keys: 1, Transactions: 1}},
+		Gaps:      []*admincoveragev1.Gap{{UnconfirmedFrom: "2026-03-05", UnconfirmedBefore: "2026-03-10", Keys: 1, Txns: 1}},
 		Instruments: []*admincoveragev1.InstrumentName{{
 			Id: acme.String(), Name: &typev1.Identifier{Type: typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, Value: "US0000000001"},
 		}},

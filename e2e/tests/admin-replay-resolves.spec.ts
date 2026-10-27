@@ -29,7 +29,7 @@ test("replays a statement's unavailable key from the runs page and resolves it",
   page,
 }) => {
   const { user, session: userSession } = await signIn();
-  await page.goto("/transactions");
+  await page.goto("/txns");
   // Each datasource spends its three tries, with backoff, before the run ends.
   const runId = await uploadStatement(page, fixture, {
     state: "completed",

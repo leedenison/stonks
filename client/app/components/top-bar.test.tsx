@@ -10,7 +10,7 @@ import { schemeKey } from "@/lib/scheme";
 import { liveSession, renderWithAuth, transportWith } from "@/lib/test-utils";
 import { TopBar } from "./top-bar";
 
-vi.mock("next/navigation", () => ({ usePathname: () => "/transactions" }));
+vi.mock("next/navigation", () => ({ usePathname: () => "/txns" }));
 
 async function openMenu() {
   await waitFor(() =>

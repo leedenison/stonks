@@ -12,7 +12,7 @@ import { ResolutionKeys } from "@/app/components/resolution-keys";
 import { Section } from "@/app/components/section";
 import { Skeleton } from "@/app/components/skeleton";
 import { StateChip } from "@/app/components/state-chip";
-import { StatementTransactions } from "@/app/components/statement-transactions";
+import { StatementTxns } from "@/app/components/statement-txns";
 import { Arbiter, type ResolutionItem } from "@/gen/type/v1/type_pb";
 import { useStatement } from "@/hooks/use-statement";
 import { brokerLabel } from "@/lib/broker";
@@ -94,9 +94,9 @@ export default function StatementPage() {
               live={!isTerminal(data.statement.run?.state)}
             />
           )}
-          {data.transactions.length > 0 && (
-            <StatementTransactions
-              transactions={data.transactions}
+          {data.txns.length > 0 && (
+            <StatementTxns
+              txns={data.txns}
               keys={data.keys}
               live={!isTerminal(data.statement.run?.state)}
             />

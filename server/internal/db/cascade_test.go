@@ -19,7 +19,7 @@ import (
 
 // owned is every table whose rows a user's runs write.
 var owned = []string{
-	"runs", "statements", "stated_keys", "statement_keys", "statement_items", "statement_splits", "transactions",
+	"runs", "statements", "stated_keys", "statement_keys", "statement_items", "statement_splits", "txns",
 	"resolution_keys", "fetches", "fetch_keys", "identifier_assertions", "identifier_events",
 	"identifier_event_coverage", "identity_coverage",
 	"datasource_blocks", "findings", "replays",

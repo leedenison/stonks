@@ -22,7 +22,7 @@ message Gap {
   // gap, whether or not they resolved.
   int32 keys = 3;
   // Their transactions dated inside the gap.
-  int32 transactions = 4;
+  int32 txns = 4;
 }
 
 // A period over which one datasource answered for a ticker, or for every
@@ -81,7 +81,7 @@ message Ticker {
   stonks.type.v1.MarketTicker ticker = 1;
   // The distinct as-at dates of the transactions whose keys state the
   // ticker, as YYYY-MM-DD, in order.
-  repeated string transaction_days = 2;
+  repeated string txn_days = 2;
   // By datasource, then first day.
   repeated Coverage coverage = 3;
   // By day.
@@ -104,7 +104,7 @@ message InstrumentTicker {
   bool current = 2;
   // The transactions whose keys state the ticker at any venue of its market,
   // under any instrument.
-  int32 transactions = 3;
+  int32 txns = 3;
   // The operating MICs of the listings that carry the ticker, sorted.
   repeated string venues = 4;
 }

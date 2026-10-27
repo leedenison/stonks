@@ -59,7 +59,7 @@ func (f *fixture) key(t *testing.T, domain, value string, days ...int) uuid.UUID
 	id := db.NewID()
 	f.exec(t, `INSERT INTO stated_keys (id, user_id, identifiers) VALUES ($1, $2, jsonb_build_array(jsonb_build_object('type', 'mic_ticker', 'domain', $3::text, 'value', $4::text)))`, id, f.user.ID, domain, value)
 	for _, n := range days {
-		f.exec(t, "INSERT INTO transactions (id, user_id, broker, statement_id, stated_key_id, order_date, settlement_date, as_at, quantity) VALUES ($1, $2, 'ibkr', $3, $4, $5, $5, $5, 1)", db.NewID(), f.user.ID, f.statement, id, day(n))
+		f.exec(t, "INSERT INTO txns (id, user_id, broker, statement_id, stated_key_id, order_date, settlement_date, as_at, quantity) VALUES ($1, $2, 'ibkr', $3, $4, $5, $5, $5, 1)", db.NewID(), f.user.ID, f.statement, id, day(n))
 	}
 	return id
 }
@@ -69,7 +69,7 @@ func (f *fixture) bareKey(t *testing.T, value string) {
 	t.Helper()
 	id := db.NewID()
 	f.exec(t, `INSERT INTO stated_keys (id, user_id, identifiers) VALUES ($1, $2, jsonb_build_array(jsonb_build_object('type', 'mic_ticker', 'value', $3::text)))`, id, f.user.ID, value)
-	f.exec(t, "INSERT INTO transactions (id, user_id, broker, statement_id, stated_key_id, order_date, settlement_date, as_at, quantity) VALUES ($1, $2, 'ibkr', $3, $4, $5, $5, $5, 1)", db.NewID(), f.user.ID, f.statement, id, day(9))
+	f.exec(t, "INSERT INTO txns (id, user_id, broker, statement_id, stated_key_id, order_date, settlement_date, as_at, quantity) VALUES ($1, $2, 'ibkr', $3, $4, $5, $5, $5, 1)", db.NewID(), f.user.ID, f.statement, id, day(9))
 }
 
 // instrument returns an instrument whose listing carries value as a
@@ -125,8 +125,8 @@ func TestQueries(t *testing.T) {
 	tickers, err := New(f.q, mics).InstrumentTickers(ctx, inst)
 	require.NoError(t, err)
 	wantTickers := []InstrumentTicker{
-		{Ticker: types.MarketTicker{Market: "US", Value: value}, Current: true, Transactions: 4, Venues: []string{"XNAS", "XNYS"}},
-		{Ticker: types.MarketTicker{Market: "US", Value: former}, Current: false, Transactions: 0, Venues: []string{}},
+		{Ticker: types.MarketTicker{Market: "US", Value: value}, Current: true, Txns: 4, Venues: []string{"XNAS", "XNYS"}},
+		{Ticker: types.MarketTicker{Market: "US", Value: former}, Current: false, Txns: 0, Venues: []string{}},
 	}
 	if diff := cmp.Diff(wantTickers, tickers); diff != "" {
 		t.Errorf("InstrumentTickers mismatch (-want +got):\n%s", diff)
@@ -134,15 +134,15 @@ func TestQueries(t *testing.T) {
 
 	probes, err := mics.TickerProbes([]types.MarketTicker{{Market: "US", Value: value}})
 	require.NoError(t, err)
-	txs, err := f.q.ListTickerTransactions(ctx, probes)
+	txns, err := f.q.ListTickerTxns(ctx, probes)
 	require.NoError(t, err)
-	wantTxs := []gen.ListTickerTransactionsRow{
+	wantTxns := []gen.ListTickerTxnsRow{
 		{StatedKeyID: segment, AsAt: day(4)},
 		{StatedKeyID: nasdaq, AsAt: day(6)},
 		{StatedKeyID: nasdaq, AsAt: day(6)},
 		{StatedKeyID: nyse, AsAt: day(7)},
 	}
-	if diff := cmp.Diff(wantTxs, txs); diff != "" {
-		t.Errorf("ListTickerTransactions mismatch (-want +got):\n%s", diff)
+	if diff := cmp.Diff(wantTxns, txns); diff != "" {
+		t.Errorf("ListTickerTxns mismatch (-want +got):\n%s", diff)
 	}
 }

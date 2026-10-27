@@ -30,8 +30,8 @@ type Queries interface {
 	ListIdentifierEvents(ctx context.Context, arg gen.ListIdentifierEventsParams) ([]gen.ListIdentifierEventsRow, error)
 	ListIdentifierCoverage(ctx context.Context, arg gen.ListIdentifierCoverageParams) ([]gen.ListIdentifierCoverageRow, error)
 	ListInstrumentTickers(ctx context.Context, instrumentID uuid.UUID) ([]gen.ListInstrumentTickersRow, error)
-	CountTickerTransactions(ctx context.Context, probes [][]byte) (int32, error)
-	ListTickerTransactions(ctx context.Context, probes [][]byte) ([]gen.ListTickerTransactionsRow, error)
+	CountTickerTxns(ctx context.Context, probes [][]byte) (int32, error)
+	ListTickerTxns(ctx context.Context, probes [][]byte) ([]gen.ListTickerTxnsRow, error)
 	ListInstrumentNames(ctx context.Context, ids []uuid.UUID) ([]gen.InstrumentName, error)
 }
 
@@ -61,14 +61,14 @@ type Gap struct {
 	// for the ticker replays an unresolved key that states it.
 	Keys int
 	// Transactions counts those keys' transactions dated inside the gap.
-	Transactions int
+	Txns int
 }
 
 // ToProto converts the gap.
 func (g Gap) ToProto() *admincoveragev1.Gap {
 	return &admincoveragev1.Gap{
 		UnconfirmedFrom: ymd(g.Period.From), UnconfirmedBefore: ymd(g.Period.Before),
-		Keys: int32(g.Keys), Transactions: int32(g.Transactions),
+		Keys: int32(g.Keys), Txns: int32(g.Txns),
 	}
 }
 
@@ -91,7 +91,7 @@ type Page struct {
 func (t *Page) ToProto() *admincoveragev1.Ticker {
 	out := &admincoveragev1.Ticker{Ticker: t.Ticker.ToProto()}
 	for _, d := range t.Days {
-		out.TransactionDays = append(out.TransactionDays, ymd(d))
+		out.TxnDays = append(out.TxnDays, ymd(d))
 	}
 	for _, c := range t.Rows.Coverage {
 		out.Coverage = append(out.Coverage, to.ProtoCoverage(c))
@@ -123,16 +123,16 @@ func (t *Page) ToProto() *admincoveragev1.Ticker {
 // or in an assertion, with the count of transactions whose keys state it at
 // any venue of the market.
 type InstrumentTicker struct {
-	Ticker       types.MarketTicker
-	Current      bool
-	Transactions int
+	Ticker  types.MarketTicker
+	Current bool
+	Txns    int
 	// Venues are the operating MICs of the listings that carry the ticker.
 	Venues []string
 }
 
 // ToProto converts the ticker.
 func (t InstrumentTicker) ToProto() *admincoveragev1.InstrumentTicker {
-	return &admincoveragev1.InstrumentTicker{Ticker: t.Ticker.ToProto(), Current: t.Current, Transactions: int32(t.Transactions), Venues: t.Venues}
+	return &admincoveragev1.InstrumentTicker{Ticker: t.Ticker.ToProto(), Current: t.Current, Txns: int32(t.Txns), Venues: t.Venues}
 }
 
 // InstrumentTickers lists the tickers that name the instrument, now or in an
@@ -149,15 +149,15 @@ func (r *Reader) InstrumentTickers(ctx context.Context, instrument uuid.UUID) ([
 		if err != nil {
 			return nil, err
 		}
-		n, err := r.q.CountTickerTransactions(ctx, probes)
+		n, err := r.q.CountTickerTxns(ctx, probes)
 		if err != nil {
 			return nil, fmt.Errorf("count transactions of %s: %w", v.Name(), err)
 		}
-		out = append(out, InstrumentTicker{Ticker: v, Current: row.Current, Transactions: int(n), Venues: row.Venues})
+		out = append(out, InstrumentTicker{Ticker: v, Current: row.Current, Txns: int(n), Venues: row.Venues})
 	}
 	slices.SortStableFunc(out, func(a, b InstrumentTicker) int {
-		if a.Transactions != b.Transactions {
-			return b.Transactions - a.Transactions
+		if a.Txns != b.Txns {
+			return b.Txns - a.Txns
 		}
 		if a.Current != b.Current {
 			if a.Current {
@@ -196,30 +196,30 @@ func (r *Reader) read(ctx context.Context, v types.MarketTicker, today time.Time
 	if err != nil {
 		return nil, err
 	}
-	txs, err := r.q.ListTickerTransactions(ctx, probes)
+	txns, err := r.q.ListTickerTxns(ctx, probes)
 	if err != nil {
 		return nil, fmt.Errorf("list transactions of %s: %w", v.Name(), err)
 	}
 	t := &Page{Ticker: v, Rows: rows, Intervals: tickervalidity.Derive(rows.Facts()).Intervals}
-	for _, tx := range txs {
-		if n := len(t.Days); n == 0 || !t.Days[n-1].Equal(tx.AsAt) {
-			t.Days = append(t.Days, tx.AsAt)
+	for _, txn := range txns {
+		if n := len(t.Days); n == 0 || !t.Days[n-1].Equal(txn.AsAt) {
+			t.Days = append(t.Days, txn.AsAt)
 		}
 	}
-	if len(txs) == 0 {
+	if len(txns) == 0 {
 		return t, nil
 	}
-	period := types.Period{From: txs[0].AsAt, Before: types.Day(today).AddDate(0, 0, 1)}
+	period := types.Period{From: txns[0].AsAt, Before: types.Day(today).AddDate(0, 0, 1)}
 	if !period.From.Before(period.Before) {
 		return t, nil
 	}
 	for _, p := range tickervalidity.Gaps(t.Intervals, period) {
 		g := Gap{Period: p}
 		keys := map[uuid.UUID]bool{}
-		for _, tx := range txs {
-			if p.Contains(tx.AsAt) {
-				g.Transactions++
-				keys[tx.StatedKeyID] = true
+		for _, txn := range txns {
+			if p.Contains(txn.AsAt) {
+				g.Txns++
+				keys[txn.StatedKeyID] = true
 			}
 		}
 		g.Keys = len(keys)

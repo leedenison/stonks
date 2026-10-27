@@ -44,9 +44,9 @@ func metaTicker() *tickervalidity.Ticker {
 
 func TestMark(t *testing.T) {
 	const (
-		confirmed   = statementv1.TransactionMark_TRANSACTION_MARK_CONFIRMED
-		provisional = statementv1.TransactionMark_TRANSACTION_MARK_PROVISIONAL
-		unresolved  = statementv1.TransactionMark_TRANSACTION_MARK_UNRESOLVED
+		confirmed   = statementv1.TxnMark_TXN_MARK_CONFIRMED
+		provisional = statementv1.TxnMark_TXN_MARK_PROVISIONAL
+		unresolved  = statementv1.TxnMark_TXN_MARK_UNRESOLVED
 	)
 	ticker := metaTicker()
 	tests := []struct {
@@ -55,7 +55,7 @@ func TestMark(t *testing.T) {
 		fixedVia *types.IdentifierType
 		ticker   *tickervalidity.Ticker
 		on       time.Time
-		want     statementv1.TransactionMark
+		want     statementv1.TxnMark
 	}{
 		{name: "the user's choice through a ticker", arbiter: ptr.To(gen.ArbiterUser), fixedVia: ptr.To(types.IdentifierTypeMicTicker), want: confirmed},
 		{name: "fixed through a stable identifier", arbiter: ptr.To(gen.ArbiterDatasource), fixedVia: ptr.To(types.IdentifierTypeIsin), want: confirmed},

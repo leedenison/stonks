@@ -12,8 +12,8 @@ test("navigates the sidebar and marks the current page", async ({
   page,
 }) => {
   await signIn();
-  await page.goto("/transactions");
-  await expect(page.getByTestId("nav-transactions")).toHaveAttribute(
+  await page.goto("/txns");
+  await expect(page.getByTestId("nav-txns")).toHaveAttribute(
     "aria-current",
     "page",
   );
@@ -24,7 +24,7 @@ test("navigates the sidebar and marks the current page", async ({
     "aria-current",
     "page",
   );
-  await expect(page.getByTestId("nav-transactions")).not.toHaveAttribute(
+  await expect(page.getByTestId("nav-txns")).not.toHaveAttribute(
     "aria-current",
     "page",
   );
@@ -35,7 +35,7 @@ test("reaches the statements and the profile from the menu", async ({
   page,
 }) => {
   await signIn();
-  await page.goto("/transactions");
+  await page.goto("/txns");
   await page.getByTestId("user-email").click();
   await page.getByTestId("menu-statements").click();
   await expect(page).toHaveURL("/statements");
@@ -55,7 +55,7 @@ test("denies a user the admin area", async ({ signIn, page }) => {
 
 test("shows an administrator the admin area", async ({ signIn, page }) => {
   await signIn("admin");
-  await page.goto("/transactions");
+  await page.goto("/txns");
   await page.getByTestId("user-email").click();
   await page.getByTestId("menu-admin").click();
   await expect(page).toHaveURL("/admin");
@@ -65,7 +65,7 @@ test("shows an administrator the admin area", async ({ signIn, page }) => {
 
 test("keeps the chosen scheme across a reload", async ({ signIn, page }) => {
   await signIn();
-  await page.goto("/transactions");
+  await page.goto("/txns");
   await expect(page.locator("html")).not.toHaveAttribute("data-theme");
   await page.getByTestId("user-email").click();
   await page.getByTestId("scheme-dark").click();
@@ -82,7 +82,7 @@ test("keeps the sidebar collapsed across a reload", async ({
   page,
 }) => {
   await signIn();
-  await page.goto("/transactions");
+  await page.goto("/txns");
   await expect(page.getByTestId("sidebar")).not.toHaveAttribute(
     "data-collapsed",
   );
@@ -94,7 +94,7 @@ test("keeps the sidebar collapsed across a reload", async ({
 
 test("toggles the activity sheet from its icon", async ({ signIn, page }) => {
   await signIn();
-  await page.goto("/transactions");
+  await page.goto("/txns");
   await page.getByTestId("activity-icon").click();
   await expect(page.getByTestId("activity-sheet")).toBeVisible();
   await page.getByTestId("activity-icon").click();

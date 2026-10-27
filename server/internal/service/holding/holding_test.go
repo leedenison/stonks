@@ -194,7 +194,7 @@ func TestListHoldings(t *testing.T) {
 			// Each read is offered once, and what the handler reads after a
 			// failure does not matter to the response.
 			f.reader.EXPECT().ListHoldingKeys(gomock.Any(), userID).Return(tc.keys, tc.keysErr).MaxTimes(1)
-			f.reader.EXPECT().ListDatedTransactions(gomock.Any(), userID).Return(nil, nil).MaxTimes(1)
+			f.reader.EXPECT().ListDatedTxns(gomock.Any(), userID).Return(nil, nil).MaxTimes(1)
 			f.reader.EXPECT().ListInstrumentsByID(gomock.Any(), gomock.Any()).Return(tc.instruments, tc.instrErr).MaxTimes(1)
 			f.reader.EXPECT().ListIdentifiersOf(gomock.Any(), []uuid.UUID{gbpID, acmeID}).Return(tc.idents, tc.identsErr).MaxTimes(1)
 			f.reader.EXPECT().ListListingNames(gomock.Any(), []uuid.UUID{gbpID, acmeID}).Return(tc.listings, tc.listingsErr).MaxTimes(1)
@@ -251,7 +251,7 @@ func TestListHoldingsScale(t *testing.T) {
 			f := newFixture(t)
 			f.authn.EXPECT().Authenticate(gomock.Any(), servicetest.Session).Return(principal, nil)
 			f.reader.EXPECT().ListHoldingKeys(gomock.Any(), userID).Return(tc.keys, nil)
-			f.reader.EXPECT().ListDatedTransactions(gomock.Any(), userID).Return(nil, nil)
+			f.reader.EXPECT().ListDatedTxns(gomock.Any(), userID).Return(nil, nil)
 			f.reader.EXPECT().ListInstrumentsByID(gomock.Any(), gomock.Any()).Return(instruments, nil)
 			if tc.want != "" {
 				ids := []uuid.UUID{tc.id}

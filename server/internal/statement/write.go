@@ -25,12 +25,12 @@ func (g *ingestion) write(ctx context.Context, run gen.Run) error {
 		if err := q.LockUserKeys(ctx, g.user); err != nil {
 			return fmt.Errorf("lock keys: %w", err)
 		}
-		period := gen.DeleteTransactionsParams{UserID: g.user, Broker: g.broker, OrderFrom: g.from, OrderBefore: g.before}
-		if _, err := q.DeleteTransactions(ctx, period); err != nil {
+		period := gen.DeleteTxnsParams{UserID: g.user, Broker: g.broker, OrderFrom: g.from, OrderBefore: g.before}
+		if _, err := q.DeleteTxns(ctx, period); err != nil {
 			return fmt.Errorf("delete period: %w", err)
 		}
 		var items []gen.CreateStatementItemsParams
-		var txs []gen.CreateTransactionsParams
+		var txns []gen.CreateTxnsParams
 		for i := range g.rows {
 			r := &g.rows[i]
 			reason := r.reason
@@ -45,7 +45,7 @@ func (g *ingestion) write(ctx context.Context, run gen.Run) error {
 				items = append(items, gen.CreateStatementItemsParams{StatementID: run.ID, UserID: g.user, Ordinal: r.ordinal, Reason: reason, Stated: stated})
 				continue
 			}
-			txs = append(txs, gen.CreateTransactionsParams{
+			txns = append(txns, gen.CreateTxnsParams{
 				ID: db.NewID(), UserID: g.user, Broker: g.broker, StatementID: run.ID, StatedKeyID: r.key.row.ID,
 				OrderDate: r.order, SettlementDate: r.settlement, AsAt: r.asAt, Quantity: r.quantity,
 			})
@@ -56,8 +56,8 @@ func (g *ingestion) write(ctx context.Context, run gen.Run) error {
 				return fmt.Errorf("create items: %w", err)
 			}
 		}
-		if len(txs) > 0 {
-			if accepted, err = q.CreateTransactions(ctx, txs); err != nil {
+		if len(txns) > 0 {
+			if accepted, err = q.CreateTxns(ctx, txns); err != nil {
 				return fmt.Errorf("create transactions: %w", err)
 			}
 		}

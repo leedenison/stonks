@@ -20,8 +20,8 @@ test("sends a visitor from the profile to the landing page", async ({
 test("lands a signed-in user on the transactions", async ({ signIn, page }) => {
   const { user } = await signIn();
   await page.goto("/");
-  await expect(page).toHaveURL("/transactions");
-  await expect(page.getByTestId("transactions-page")).toBeVisible();
+  await expect(page).toHaveURL("/txns");
+  await expect(page.getByTestId("txns-page")).toBeVisible();
   await expect(page.getByTestId("user-email")).toHaveText(user.email);
 });
 

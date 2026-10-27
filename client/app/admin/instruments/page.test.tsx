@@ -43,7 +43,7 @@ const acme = { market: "US", value: "ACME" };
 // before.
 const tickers = create(ListInstrumentTickersResponseSchema, {
   tickers: [
-    { ticker: acme, current: true, transactions: 3, venues: ["XNAS"] },
+    { ticker: acme, current: true, txns: 3, venues: ["XNAS"] },
     { ticker: { ...acme, value: "OLD" }, current: false },
   ],
 });
@@ -52,7 +52,7 @@ const tickers = create(ListInstrumentTickersResponseSchema, {
 const read = create(GetTickerResponseSchema, {
   ticker: create(TickerSchema, {
     ticker: acme,
-    transactionDays: ["2024-02-01"],
+    txnDays: ["2024-02-01"],
     coverage: [
       {
         datasource: "alpha",
@@ -94,7 +94,7 @@ const read = create(GetTickerResponseSchema, {
         unconfirmedFrom: "2024-02-01",
         unconfirmedBefore: "2024-06-01",
         keys: 2,
-        transactions: 3,
+        txns: 3,
       },
     ],
     instruments: [

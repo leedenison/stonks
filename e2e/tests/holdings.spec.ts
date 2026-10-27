@@ -78,7 +78,7 @@ test("uploads a statement and lists the holdings it produces", async ({
   page,
 }) => {
   const { session } = await signIn();
-  await page.goto("/transactions");
+  await page.goto("/txns");
   // The run completes in the transaction that writes the rows.
   await uploadStatement(page, fixture, {
     state: "completed",

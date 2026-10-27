@@ -22,8 +22,8 @@ type Queries interface {
 	CreateStatementKeys(ctx context.Context, arg []gen.CreateStatementKeysParams) (int64, error)
 	CreateStatementSplit(ctx context.Context, arg gen.CreateStatementSplitParams) error
 	LockUserKeys(ctx context.Context, userID uuid.UUID) error
-	DeleteTransactions(ctx context.Context, arg gen.DeleteTransactionsParams) (int64, error)
-	CreateTransactions(ctx context.Context, arg []gen.CreateTransactionsParams) (int64, error)
+	DeleteTxns(ctx context.Context, arg gen.DeleteTxnsParams) (int64, error)
+	CreateTxns(ctx context.Context, arg []gen.CreateTxnsParams) (int64, error)
 	CreateStatementItems(ctx context.Context, arg []gen.CreateStatementItemsParams) (int64, error)
 	SweepStatedKeys(ctx context.Context, userID uuid.UUID) (int64, error)
 	CompleteRun(ctx context.Context, id uuid.UUID) error

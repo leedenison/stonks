@@ -90,10 +90,10 @@ func (s stack) ingest(t *testing.T, msg *statementv1.Statement) gen.Run {
 	return got
 }
 
-func (s stack) transactions(t *testing.T) []string {
+func (s stack) txns(t *testing.T) []string {
 	t.Helper()
 	ctx := context.Background()
-	rows, err := s.q.ListTransactions(ctx, s.user.ID)
+	rows, err := s.q.ListTxns(ctx, s.user.ID)
 	require.NoError(t, err)
 	// A transaction is denominated in its key's currency.
 	currency := map[uuid.UUID]string{}
@@ -170,7 +170,7 @@ func TestIngest(t *testing.T) {
 		t.Errorf("items mismatch (-want +got):\n%s", diff)
 	}
 	want := []string{"2026-03-02 ibkr 3 -", "2026-03-05 ibkr 10 USD", "2026-03-05 ibkr -1000 USD"}
-	if diff := cmp.Diff(want, s.transactions(t)); diff != "" {
+	if diff := cmp.Diff(want, s.txns(t)); diff != "" {
 		t.Errorf("transactions mismatch (-want +got):\n%s", diff)
 	}
 
@@ -260,12 +260,12 @@ func TestReplace(t *testing.T) {
 	s.ingest(t, &statementv1.Statement{Broker: typev1.Broker_BROKER_SCHWAB, OrderFrom: "2026-03-15", OrderBefore: "2026-04-01",
 		Rows: []*statementv1.Row{rowMsg(schwab, "2026-03-20", "3")}})
 	want := []string{"2026-03-05 schwab 1 USD", "2026-03-20 ibkr 7 USD", "2026-03-20 schwab 3 USD"}
-	if diff := cmp.Diff(want, s.transactions(t)); diff != "" {
+	if diff := cmp.Diff(want, s.txns(t)); diff != "" {
 		t.Errorf("after the overlapping statement (-want +got):\n%s", diff)
 	}
 	s.ingest(t, &statementv1.Statement{Broker: typev1.Broker_BROKER_SCHWAB, OrderFrom: "2026-03-15", OrderBefore: "2026-04-01"})
 	want = []string{"2026-03-05 schwab 1 USD", "2026-03-20 ibkr 7 USD"}
-	if diff := cmp.Diff(want, s.transactions(t)); diff != "" {
+	if diff := cmp.Diff(want, s.txns(t)); diff != "" {
 		t.Errorf("after the empty statement (-want +got):\n%s", diff)
 	}
 }
@@ -443,7 +443,7 @@ func TestSweep(t *testing.T) {
 	if len(keys) != 1 || keys[0].ID != member.ID {
 		t.Errorf("the second statement's keys = %+v, want the member alone", keys)
 	}
-	if diff := cmp.Diff([]string{"2026-04-05 ibkr 3 -"}, s.transactions(t)); diff != "" {
+	if diff := cmp.Diff([]string{"2026-04-05 ibkr 3 -"}, s.txns(t)); diff != "" {
 		t.Errorf("transactions mismatch (-want +got):\n%s", diff)
 	}
 }
