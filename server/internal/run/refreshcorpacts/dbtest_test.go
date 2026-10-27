@@ -135,7 +135,7 @@ func (s *stack) fixedKey(t *testing.T, user, instr uuid.UUID) uuid.UUID {
 	isin := uuid.NewString()
 	_, err := s.tx.Exec(ctx, `INSERT INTO identifiers (id, instr_id, type, value) VALUES ($1, $2, 'isin', $3)`, via, instr, isin)
 	require.NoError(t, err)
-	_, err = s.tx.Exec(ctx, `INSERT INTO stated_keys (id, user_id, identifiers, instr_id, via_id, arbiter)
+	_, err = s.tx.Exec(ctx, `INSERT INTO stated_keys (id, user_id, identifiers, instr_id, via_identifier_id, arbiter)
 		VALUES ($1, $2, jsonb_build_array(jsonb_build_object('type', 'isin', 'value', $3::text)), $4, $5, 'stated')`, key, user, isin, instr, via)
 	require.NoError(t, err)
 	return key
@@ -145,9 +145,10 @@ func (s *stack) fixedKey(t *testing.T, user, instr uuid.UUID) uuid.UUID {
 func (s *stack) datedKey(t *testing.T, user uuid.UUID, v string) uuid.UUID {
 	t.Helper()
 	key := db.NewID()
-	_, err := s.tx.Exec(context.Background(), `INSERT INTO stated_keys (id, user_id, identifiers, via_type, via_domain, via_value, arbiter)
-		VALUES ($1, $2, jsonb_build_array(jsonb_build_object('type', 'mic_ticker', 'domain', 'XNAS', 'value', $3::text)), 'mic_ticker', 'XNAS', $3, 'datasource')`,
-		key, user, v)
+	row := dbtest.Ticker(t, s.q, types.MarketTicker{Market: "US", Value: v})
+	_, err := s.tx.Exec(context.Background(), `INSERT INTO stated_keys (id, user_id, identifiers, via_ticker_id, via_market, via_venue, arbiter)
+		VALUES ($1, $2, jsonb_build_array(jsonb_build_object('type', 'mic_ticker', 'domain', 'XNAS', 'value', $3::text)), $4, 'US', 'XNAS', 'datasource')`,
+		key, user, v, row.ID)
 	require.NoError(t, err)
 	return key
 }
@@ -324,10 +325,11 @@ func TestHeldQueries(t *testing.T) {
 	var gotDates []gen.ListHeldTickerDatesRow
 	for _, r := range dates {
 		if r.Value == tk {
+			r.TickerID = uuid.Nil
 			gotDates = append(gotDates, r)
 		}
 	}
-	wantDates := []gen.ListHeldTickerDatesRow{{Domain: "XNAS", Value: tk, UserID: u, AsAt: day(2022, 3, 1)}, {Domain: "XNAS", Value: tk, UserID: u, AsAt: day(2022, 4, 1)}}
+	wantDates := []gen.ListHeldTickerDatesRow{{Market: "US", Value: tk, UserID: u, AsAt: day(2022, 3, 1)}, {Market: "US", Value: tk, UserID: u, AsAt: day(2022, 4, 1)}}
 	if diff := cmp.Diff(wantDates, gotDates); diff != "" {
 		t.Errorf("ListHeldTickerDates mismatch (-want +got):\n%s", diff)
 	}

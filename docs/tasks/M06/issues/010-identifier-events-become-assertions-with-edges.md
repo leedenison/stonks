@@ -1,7 +1,7 @@
 ---
 title: Identifier events become assertions with edges
 type: task
-dependencies: [009]
+dependencies: []
 ---
 
 ## Scope

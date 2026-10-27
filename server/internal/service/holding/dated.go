@@ -8,7 +8,7 @@ import (
 	"github.com/shopspring/decimal"
 
 	"github.com/leedenison/stonks/server/internal/db/gen"
-	"github.com/leedenison/stonks/server/internal/db/to"
+	"github.com/leedenison/stonks/server/internal/identity/tickers"
 	"github.com/leedenison/stonks/server/internal/identity/tickervalidity"
 	"github.com/leedenison/stonks/server/internal/types"
 )
@@ -19,6 +19,7 @@ import (
 type dated struct {
 	onInstr    map[uuid.UUID]map[uuid.UUID]decimal.Decimal
 	unresolved map[uuid.UUID]decimal.Decimal
+	tickers    map[uuid.UUID]gen.Ticker
 }
 
 // dated gives each of the user's dated transactions the instrument its key's
@@ -30,17 +31,22 @@ func (s *Server) dated(ctx context.Context, user uuid.UUID, keys []gen.ListHoldi
 	if err != nil {
 		return d, err
 	}
+	stated := make([]gen.StatedKey, len(keys))
+	for i, k := range keys {
+		stated[i] = k.StatedKey
+	}
+	if d.tickers, err = tickers.OfKeys(ctx, s.reader, stated); err != nil {
+		return d, err
+	}
 	tickerOf := map[uuid.UUID]types.MarketTicker{}
-	var tickers []types.MarketTicker
-	for _, k := range keys {
-		if v, ok := to.AssociatedTicker(k.StatedKey); ok {
-			if t, ok := s.mics.MarketTicker(v); ok {
-				tickerOf[k.StatedKey.ID] = t
-				tickers = append(tickers, t)
-			}
+	var ts []types.MarketTicker
+	for _, k := range stated {
+		if t, _, ok := tickers.Dated(k, d.tickers); ok {
+			tickerOf[k.ID] = t
+			ts = append(ts, t)
 		}
 	}
-	read, err := tickervalidity.ReadTickers(ctx, s.reader, tickers)
+	read, err := tickervalidity.ReadTickers(ctx, s.reader, ts)
 	if err != nil {
 		return d, fmt.Errorf("read the facts of the dated keys' tickers: %w", err)
 	}

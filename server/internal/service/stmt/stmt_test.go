@@ -220,7 +220,8 @@ func TestGetStmt(t *testing.T) {
 	// rename and one on the asserted day, and one of a key fixed through a
 	// broker description.
 	datedID, fixedID := uuid.MustParse("00000000-0000-0000-0000-000000000024"), uuid.MustParse("00000000-0000-0000-0000-000000000025")
-	dated := gen.StatedKey{ID: datedID, UserID: userID, Identifiers: []types.Identifier{{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "META"}}, ViaType: ptr.To(types.IdentifierTypeMicTicker), ViaDomain: ptr.To("XNAS"), ViaValue: ptr.To("META"), Arbiter: ptr.To(gen.ArbiterDatasource)}
+	meta := gen.Ticker{ID: uuid.MustParse("00000000-0000-0000-0000-000000000026"), Market: "US", Value: "META"}
+	dated := gen.StatedKey{ID: datedID, UserID: userID, Identifiers: []types.Identifier{{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "META"}}, ViaTickerID: &meta.ID, ViaMarket: ptr.To("US"), ViaVenue: ptr.To("XNAS"), Arbiter: ptr.To(gen.ArbiterDatasource)}
 	fixed := gen.StatedKey{ID: fixedID, UserID: userID, Identifiers: []types.Identifier{{Type: types.IdentifierTypeBrokerDescription, Domain: "ibkr", Value: "ACME"}}, InstrID: ptr.To(uuid.New()), Arbiter: ptr.To(gen.ArbiterDatasource)}
 	txn := func(n int, key gen.StatedKey, on time.Time) gen.Txn {
 		return gen.Txn{ID: uuid.MustParse(fmt.Sprintf("00000000-0000-0000-0000-00000000003%d", n)), UserID: userID, StmtID: runID, StatedKeyID: key.ID, OrderDate: on, AsAt: on, Quantity: decimal.NewFromInt(10)}
@@ -303,6 +304,7 @@ func TestGetStmt(t *testing.T) {
 					f.reader.EXPECT().ListStmtTxns(gomock.Any(), gen.ListStmtTxnsParams{StmtID: runID, UserID: userID}).Return(tc.txns, tc.txnsErr)
 				}
 				if len(tc.txns) > 0 {
+					f.reader.EXPECT().ListTickersByID(gomock.Any(), []uuid.UUID{meta.ID}).Return([]gen.Ticker{meta}, nil)
 					f.reader.EXPECT().ListIdentifierAssertions(gomock.Any(), gen.ListIdentifierAssertionsParams{Markets: []string{"US"}, Values: []string{"META"}}).Return(assertions, tc.assertionsErr)
 					if tc.assertionsErr == nil {
 						f.reader.EXPECT().ListIdentifierEvents(gomock.Any(), gen.ListIdentifierEventsParams{Markets: []string{"US"}, Values: []string{"META"}}).Return(events, nil)

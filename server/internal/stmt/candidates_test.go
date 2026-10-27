@@ -68,7 +68,7 @@ func TestCandidates(t *testing.T) {
 	t.Run("a dated key is refused", func(t *testing.T) {
 		f := newFixture(t)
 		dated := key
-		dated.ViaType, dated.ViaDomain, dated.ViaValue = ptr.To(types.IdentifierTypeMicTicker), ptr.To("XNAS"), ptr.To("INTC")
+		dated.ViaTickerID, dated.ViaMarket, dated.ViaVenue = ptr.To(uuid.New()), ptr.To("US"), ptr.To("XNAS")
 		f.store.EXPECT().GetStatedKey(gomock.Any(), gomock.Any()).Return(dated, nil)
 		if _, err := f.svc.Candidates(context.Background(), userID, key.ID); !errors.Is(err, ErrAssociated) {
 			t.Errorf("Candidates() error = %v, want ErrAssociated", err)

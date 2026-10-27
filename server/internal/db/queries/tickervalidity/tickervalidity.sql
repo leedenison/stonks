@@ -87,16 +87,16 @@ INSERT INTO identifier_event_coverage (id, fetch_key_id, market, ticker_id, cove
 VALUES (@id, @fetch_key_id, @market, sqlc.narg(ticker_id), @covered_from, @covered_before);
 
 -- name: ListHeldTickers :many
--- The held tickers: each MIC_TICKER through which a key is dated, where a
--- transaction names the key. Each comes with the asset class and currency of
--- the oldest such key.
-SELECT DISTINCT ON (via_domain, via_value)
-       via_type::identifier_type AS type, via_domain::text AS domain, via_value::text AS value,
-       asset_class, currency
+-- The held tickers: each ticker and venue through which a key is dated,
+-- where a transaction names the key. Each comes with the asset class and
+-- currency of the oldest such key.
+SELECT DISTINCT ON (stated_keys.via_venue, stated_keys.via_ticker_id)
+       stated_keys.via_ticker_id::uuid AS ticker_id, stated_keys.via_venue::text AS venue,
+       tickers.market, tickers.value, stated_keys.asset_class, stated_keys.currency
 FROM stated_keys
-WHERE via_type IS NOT NULL
-  AND EXISTS (SELECT 1 FROM txns WHERE txns.stated_key_id = stated_keys.id)
-ORDER BY via_domain, via_value, created_at, id;
+JOIN tickers ON tickers.id = stated_keys.via_ticker_id
+WHERE EXISTS (SELECT 1 FROM txns WHERE txns.stated_key_id = stated_keys.id)
+ORDER BY stated_keys.via_venue, stated_keys.via_ticker_id, stated_keys.created_at, stated_keys.id;
 
 -- name: ListHeldInstrs :many
 -- Each instrument that a fixed key names, where a transaction names the key,
@@ -113,12 +113,12 @@ ORDER BY stated_keys.instr_id, txns.user_id;
 -- name: ListHeldTickerDates :many
 -- Each as-at date of a transaction of a dated key, with the ticker through
 -- which the key is dated and the user, once each.
-SELECT DISTINCT stated_keys.via_domain::text AS domain, stated_keys.via_value::text AS value,
+SELECT DISTINCT stated_keys.via_ticker_id::uuid AS ticker_id, tickers.market, tickers.value,
        txns.user_id, txns.as_at
 FROM txns
 JOIN stated_keys ON stated_keys.id = txns.stated_key_id
-WHERE stated_keys.via_type IS NOT NULL
-ORDER BY domain, value, txns.user_id, txns.as_at;
+JOIN tickers ON tickers.id = stated_keys.via_ticker_id
+ORDER BY tickers.market, tickers.value, txns.user_id, txns.as_at;
 
 -- name: ListRunAssertions :many
 -- The assertions a run wrote: those of the fetch runs it started, and those

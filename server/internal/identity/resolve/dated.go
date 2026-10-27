@@ -12,7 +12,6 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
-	"github.com/leedenison/stonks/server/internal/db/to"
 	"github.com/leedenison/stonks/server/internal/identity/tickers"
 	"github.com/leedenison/stonks/server/internal/identity/tickervalidity"
 	"github.com/leedenison/stonks/server/internal/market"
@@ -54,11 +53,19 @@ func datedTicker(k gen.StatedKey, mics mic.MICMap) (types.Identifier, bool) {
 func (r *Resolver) findResolutionDated(ctx context.Context, user uuid.UUID, rs []*resolution, keys []KeyDates) error {
 	var ids []uuid.UUID
 	read := map[types.MarketTicker]*tickervalidity.Ticker{}
+	stated := make([]gen.StatedKey, len(rs))
+	for i, res := range rs {
+		stated[i] = res.row
+	}
+	dated, err := tickers.OfKeys(ctx, r.store, stated)
+	if err != nil {
+		return fmt.Errorf("read the dated keys' tickers: %w", err)
+	}
 	for i, res := range rs {
 		if res.outcome != "" {
 			continue
 		}
-		v, ok := to.AssociatedTicker(res.row)
+		_, v, ok := tickers.Dated(res.row, dated)
 		if !ok {
 			if v, ok = datedTicker(res.row, r.mics); !ok {
 				continue
@@ -79,7 +86,7 @@ func (r *Resolver) findResolutionDated(ctx context.Context, user uuid.UUID, rs [
 		res.dates = slices.Clone(keys[i].Dates)
 		ids = append(ids, res.row.ID)
 		switch {
-		case res.row.ViaType != nil:
+		case res.row.ViaTickerID != nil:
 			res.decide(gen.ResolutionOutcomeMatched, "")
 		case res.knownInstr == nil && res.dating.HasTickerValidity():
 			res.datedFromFacts = true

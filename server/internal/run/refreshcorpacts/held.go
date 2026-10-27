@@ -61,10 +61,7 @@ func (b *base) heldInstrs(ctx context.Context) (map[uuid.UUID]*held, error) {
 	tickerOf := make([]types.MarketTicker, len(dated))
 	var ts []types.MarketTicker
 	for i, r := range dated {
-		t, ok := b.mics.MarketTicker(types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: r.Domain, Value: r.Value})
-		if !ok {
-			continue
-		}
+		t := types.MarketTicker{Market: r.Market, Value: r.Value}
 		tickerOf[i] = t
 		if !slices.Contains(ts, t) {
 			ts = append(ts, t)

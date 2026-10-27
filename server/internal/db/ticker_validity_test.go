@@ -212,7 +212,7 @@ func TestListHeldTickers(t *testing.T) {
 		if traded {
 			names(t, q, stmt, key)
 		}
-		_, err := q.SetStatedKeyDatedAssociation(ctx, gen.SetStatedKeyDatedAssociationParams{ID: key.ID, UserID: user.ID, ViaDomain: "XNAS", ViaValue: value, Arbiter: gen.ArbiterDatasource})
+		_, err := q.SetStatedKeyDatedAssociation(ctx, gen.SetStatedKeyDatedAssociationParams{ID: key.ID, UserID: user.ID, ViaTickerID: newTicker(t, q, "US", value).ID, ViaMarket: "US", ViaVenue: "XNAS", Arbiter: gen.ArbiterDatasource})
 		require.NoError(t, err)
 		return key
 	}
@@ -222,7 +222,7 @@ func TestListHeldTickers(t *testing.T) {
 	fixed := newStatedKey(t, q, user, stmt)
 	names(t, q, stmt, fixed)
 	listing, via := cashListing(t, q, "USD")
-	_, err := q.SetStatedKeyAssociation(ctx, gen.SetStatedKeyAssociationParams{ID: fixed.ID, UserID: user.ID, InstrID: &listing.InstrID, ListingID: &listing.ID, ViaID: &via.ID, Arbiter: gen.ArbiterStated})
+	_, err := q.SetStatedKeyAssociation(ctx, gen.SetStatedKeyAssociationParams{ID: fixed.ID, UserID: user.ID, InstrID: &listing.InstrID, ListingID: &listing.ID, ViaIdentifierID: &via.ID, Arbiter: gen.ArbiterStated})
 	require.NoError(t, err)
 
 	rows, err := q.ListHeldTickers(ctx)
@@ -233,7 +233,7 @@ func TestListHeldTickers(t *testing.T) {
 			got = append(got, r)
 		}
 	}
-	want := []gen.ListHeldTickersRow{{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: held, AssetClass: &stock, Currency: &usd}}
+	want := []gen.ListHeldTickersRow{{TickerID: newTicker(t, q, "US", held).ID, Venue: "XNAS", Market: "US", Value: held, AssetClass: &stock, Currency: &usd}}
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("ListHeldTickers mismatch (-want +got):\n%s", diff)
 	}

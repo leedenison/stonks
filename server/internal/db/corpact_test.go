@@ -24,7 +24,7 @@ func newCorpAct(t *testing.T, q *gen.Queries, f fetching) (answer, act uuid.UUID
 	ctx := context.Background()
 	answer, act = db.NewID(), db.NewID()
 	require.NoError(t, q.CreateCorpActAnswer(ctx, gen.CreateCorpActAnswerParams{
-		ID: answer, FetchKeyID: servedKey(t, q, f.fetch, f.key, "US67066G1040"), Datasource: f.ds.Name, Market: "US", Value: "NVDA",
+		ID: answer, FetchKeyID: servedKey(t, q, f.fetch, f.key, "US67066G1040"), Datasource: f.ds.Name, TickerID: newTicker(t, q, "US", "NVDA").ID,
 		CoveredFrom: ptr.To(time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)), CoveredBefore: ptr.To(time.Date(2026, 3, 3, 0, 0, 0, 0, time.UTC)),
 	}))
 	require.NoError(t, q.CreateCorpAct(ctx, gen.CreateCorpActParams{
@@ -44,7 +44,7 @@ func TestCorpActs(t *testing.T) {
 	f := newFetching(t, q)
 	answer, act := newCorpAct(t, q, f)
 
-	got, err := q.GetCorpActAnswer(ctx, gen.GetCorpActAnswerParams{Datasource: f.ds.Name, Market: "US", Value: "NVDA"})
+	got, err := q.GetCorpActAnswer(ctx, gen.GetCorpActAnswerParams{Datasource: f.ds.Name, TickerID: newTicker(t, q, "US", "NVDA").ID})
 	require.NoError(t, err)
 	if got.ID != answer || !got.AnsweredAt.Equal(answered) {
 		t.Errorf("GetCorpActAnswer = %+v, want %s answered at %s", got, answer, answered)
@@ -92,10 +92,9 @@ func TestCorpActChecks(t *testing.T) {
 		sql  string
 		code string
 	}{
-		{name: "an answer with no market", sql: "INSERT INTO corp_act_answers (id, fetch_key_id, datasource, market, value) SELECT $1, $2, datasource, '', 'AAPL' FROM corp_act_answers WHERE id = $3", code: pgerrcode.CheckViolation},
-		{name: "coverage with one bound", sql: "INSERT INTO corp_act_answers (id, fetch_key_id, datasource, market, value, covered_from) SELECT $1, $2, datasource, 'US', 'AAPL', '2024-01-01' FROM corp_act_answers WHERE id = $3", code: pgerrcode.CheckViolation},
-		{name: "coverage that ends as it starts", sql: "INSERT INTO corp_act_answers (id, fetch_key_id, datasource, market, value, covered_from, covered_before) SELECT $1, $2, datasource, 'US', 'AAPL', '2024-01-01', '2024-01-01' FROM corp_act_answers WHERE id = $3", code: pgerrcode.CheckViolation},
-		{name: "a second answer of a datasource for a ticker", sql: "INSERT INTO corp_act_answers (id, fetch_key_id, datasource, market, value) SELECT $1, $2, datasource, market, value FROM corp_act_answers WHERE id = $3", code: pgerrcode.UniqueViolation},
+		{name: "coverage with one bound", sql: "INSERT INTO corp_act_answers (id, fetch_key_id, datasource, ticker_id, covered_from) SELECT $1, $2, datasource, ticker_id, '2024-01-01' FROM corp_act_answers WHERE id = $3", code: pgerrcode.CheckViolation},
+		{name: "coverage that ends as it starts", sql: "INSERT INTO corp_act_answers (id, fetch_key_id, datasource, ticker_id, covered_from, covered_before) SELECT $1, $2, datasource, ticker_id, '2024-01-01', '2024-01-01' FROM corp_act_answers WHERE id = $3", code: pgerrcode.CheckViolation},
+		{name: "a second answer of a datasource for a ticker", sql: "INSERT INTO corp_act_answers (id, fetch_key_id, datasource, ticker_id) SELECT $1, $2, datasource, ticker_id FROM corp_act_answers WHERE id = $3", code: pgerrcode.UniqueViolation},
 		{name: "a ratio from zero", sql: "INSERT INTO corp_acts (id, answer_id, ex_date, ratio_from, ratio_to, handled) SELECT $1, $3, '2024-06-10', 0, 10, true WHERE $2::uuid IS NOT NULL", code: pgerrcode.CheckViolation},
 		{name: "a ratio to zero", sql: "INSERT INTO corp_acts (id, answer_id, ex_date, ratio_from, ratio_to, handled) SELECT $1, $3, '2024-06-10', 1, 0, true WHERE $2::uuid IS NOT NULL", code: pgerrcode.CheckViolation},
 	}

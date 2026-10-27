@@ -191,8 +191,8 @@ func TestIngest(t *testing.T) {
 	if *got.InstrID != found.Instr.ID || got.ListingID == nil || *got.ListingID != line.ID {
 		t.Errorf("the cash key names instrument %s listing %v, want %s and %s", got.InstrID, got.ListingID, found.Instr.ID, line.ID)
 	}
-	if got.ViaID == nil || *got.ViaID != found.Identifier.ID {
-		t.Errorf("the cash key associates through %v, want %s", got.ViaID, found.Identifier.ID)
+	if got.ViaIdentifierID == nil || *got.ViaIdentifierID != found.Identifier.ID {
+		t.Errorf("the cash key associates through %v, want %s", got.ViaIdentifierID, found.Identifier.ID)
 	}
 
 	var instrs, families int
@@ -524,7 +524,7 @@ func (s *stack) holdings(t *testing.T) (instrs, groups []holding) {
 		switch {
 		case k.StatedKey.InstrID != nil:
 			byInstr[*k.StatedKey.InstrID] = byInstr[*k.StatedKey.InstrID].Add(k.Quantity)
-		case k.StatedKey.GroupID != nil && k.StatedKey.ViaType == nil:
+		case k.StatedKey.GroupID != nil && k.StatedKey.ViaTickerID == nil:
 			byGroup[*k.StatedKey.GroupID] = byGroup[*k.StatedKey.GroupID].Add(k.Quantity)
 		}
 	}

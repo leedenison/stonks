@@ -128,6 +128,40 @@ func ByID(ctx context.Context, q Queries, ids []uuid.UUID) (map[uuid.UUID]gen.Ti
 	return out, nil
 }
 
+// OfKeys returns the row of the ticker of each dated association among keys.
+func OfKeys(ctx context.Context, q Queries, keys []gen.StatedKey) (map[uuid.UUID]gen.Ticker, error) {
+	var ids []uuid.UUID
+	for _, k := range keys {
+		if k.ViaTickerID != nil && !slices.Contains(ids, *k.ViaTickerID) {
+			ids = append(ids, *k.ViaTickerID)
+		}
+	}
+	return ByID(ctx, q, ids)
+}
+
+// Dated returns the market ticker of k's dated association and the
+// MIC_TICKER it names at k's venue. rows comes from OfKeys. It reports false
+// for a key without a dated association.
+func Dated(k gen.StatedKey, rows map[uuid.UUID]gen.Ticker) (types.MarketTicker, types.Identifier, bool) {
+	if k.ViaTickerID == nil || k.ViaVenue == nil {
+		return types.MarketTicker{}, types.Identifier{}, false
+	}
+	r, ok := rows[*k.ViaTickerID]
+	if !ok {
+		return types.MarketTicker{}, types.Identifier{}, false
+	}
+	return Of(r), types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: *k.ViaVenue, Value: r.Value}, true
+}
+
+// DatedAt returns the MIC_TICKER that Dated returns, nil where k has no
+// dated association.
+func DatedAt(k gen.StatedKey, rows map[uuid.UUID]gen.Ticker) *types.Identifier {
+	if _, at, ok := Dated(k, rows); ok {
+		return &at
+	}
+	return nil
+}
+
 // Of returns the market ticker that r spells.
 func Of(r gen.Ticker) types.MarketTicker {
 	return types.MarketTicker{Market: r.Market, Value: r.Value}

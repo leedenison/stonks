@@ -63,7 +63,7 @@ func (s *Service) key(ctx context.Context, user, id uuid.UUID) (gen.StatedKey, e
 	if err != nil {
 		return gen.StatedKey{}, fmt.Errorf("read key %s: %w", id, err)
 	}
-	if row.InstrID != nil || row.ViaType != nil {
+	if row.InstrID != nil || row.ViaTickerID != nil {
 		return gen.StatedKey{}, ErrAssociated
 	}
 	return row, nil

@@ -10,7 +10,7 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
-	"github.com/leedenison/stonks/server/internal/db/to"
+	"github.com/leedenison/stonks/server/internal/identity/tickers"
 	"github.com/leedenison/stonks/server/internal/identity/tickervalidity"
 	runs "github.com/leedenison/stonks/server/internal/run"
 	"github.com/leedenison/stonks/server/internal/types"
@@ -85,15 +85,15 @@ func (r *Recorder) splitFindings(ctx context.Context, q Queries, user *uuid.UUID
 	for i, rec := range recorded {
 		ts[i] = rec.ticker
 	}
-	tickers, err := tickervalidity.ReadTickers(ctx, q, ts)
+	read, err := tickervalidity.ReadTickers(ctx, q, ts)
 	if err != nil {
 		return nil, fmt.Errorf("read the ticker validity of the fetched tickers: %w", err)
 	}
-	covers, err := coverage(ctx, q, recorded, tickers)
+	covers, err := coverage(ctx, q, recorded, read)
 	if err != nil {
 		return nil, err
 	}
-	groups, err := r.coveredSplits(ctx, q, user, ts, tickers, covers)
+	groups, err := r.coveredSplits(ctx, q, user, ts, read, covers)
 	if err != nil || len(groups) == 0 {
 		return nil, err
 	}
@@ -142,7 +142,7 @@ func (r *Recorder) splitFindings(ctx context.Context, q Queries, user *uuid.UUID
 // keys' datasources cover each instrument. A stored answer stands in for the
 // recorded key's own answer, because it is that answer or a later one that
 // replaced it.
-func coverage(ctx context.Context, q Queries, recorded []recordedKey, tickers map[types.MarketTicker]*tickervalidity.Ticker) ([]cover, error) {
+func coverage(ctx context.Context, q Queries, recorded []recordedKey, read map[types.MarketTicker]*tickervalidity.Ticker) ([]cover, error) {
 	ts := make([]types.MarketTicker, len(recorded))
 	for i, rec := range recorded {
 		ts[i] = rec.ticker
@@ -153,7 +153,7 @@ func coverage(ctx context.Context, q Queries, recorded []recordedKey, tickers ma
 	}
 	var out []cover
 	for _, rec := range recorded {
-		t := tickers[rec.ticker]
+		t := read[rec.ticker]
 		if t == nil {
 			continue
 		}
@@ -176,7 +176,7 @@ func coverage(ctx context.Context, q Queries, recorded []recordedKey, tickers ma
 // coveredSplits returns the stated splits whose date falls inside one of
 // covers, grouped by key and day, with options removed. A dated key counts
 // only when its ticker is one of ts.
-func (r *Recorder) coveredSplits(ctx context.Context, q Queries, user *uuid.UUID, ts []types.MarketTicker, tickers map[types.MarketTicker]*tickervalidity.Ticker, covers []cover) ([]splitGroup, error) {
+func (r *Recorder) coveredSplits(ctx context.Context, q Queries, user *uuid.UUID, ts []types.MarketTicker, read map[types.MarketTicker]*tickervalidity.Ticker, covers []cover) ([]splitGroup, error) {
 	if len(covers) == 0 {
 		return nil, nil
 	}
@@ -186,18 +186,30 @@ func (r *Recorder) coveredSplits(ctx context.Context, q Queries, user *uuid.UUID
 			instrs = append(instrs, c.instr)
 		}
 	}
-	values := make([]string, len(ts))
-	for i, t := range ts {
-		values[i] = t.Value
+	found, err := tickers.Find(ctx, q, ts)
+	if err != nil {
+		return nil, err
 	}
-	rows, err := q.ListStatedSplits(ctx, gen.ListStatedSplitsParams{Instrs: instrs, Values: values, UserID: user})
+	ids := make([]uuid.UUID, 0, len(found))
+	for _, row := range found {
+		ids = append(ids, row.ID)
+	}
+	rows, err := q.ListStatedSplits(ctx, gen.ListStatedSplitsParams{Instrs: instrs, Tickers: ids, UserID: user})
 	if err != nil {
 		return nil, fmt.Errorf("list stated splits: %w", err)
+	}
+	keys := make([]gen.StatedKey, len(rows))
+	for i, row := range rows {
+		keys[i] = row.StatedKey
+	}
+	dated, err := tickers.OfKeys(ctx, q, keys)
+	if err != nil {
+		return nil, err
 	}
 	var groups []splitGroup
 	for _, row := range rows {
 		sp := row.StmtSplit
-		instr, ok := r.instrOn(row.StatedKey, sp.EffectiveDate, tickers)
+		instr, ok := instrOn(row.StatedKey, sp.EffectiveDate, dated, read)
 		if !ok {
 			continue
 		}
@@ -220,21 +232,17 @@ func (r *Recorder) coveredSplits(ctx context.Context, q Queries, user *uuid.UUID
 	return withoutOptions(ctx, q, groups)
 }
 
-// instrOn returns the instrument that k names on d. A dated key names
-// one only through one of tickers.
-func (r *Recorder) instrOn(k gen.StatedKey, d time.Time, tickers map[types.MarketTicker]*tickervalidity.Ticker) (uuid.UUID, bool) {
+// instrOn returns the instrument that k names on d. A dated key names an
+// instrument only through its ticker's validity.
+func instrOn(k gen.StatedKey, d time.Time, dated map[uuid.UUID]gen.Ticker, read map[types.MarketTicker]*tickervalidity.Ticker) (uuid.UUID, bool) {
 	if k.InstrID != nil {
 		return *k.InstrID, true
 	}
-	via, ok := to.AssociatedTicker(k)
-	if !ok {
+	mt, _, ok := tickers.Dated(k, dated)
+	if !ok || read[mt] == nil {
 		return uuid.UUID{}, false
 	}
-	mt, ok := r.mics.MarketTicker(via)
-	if !ok || tickers[mt] == nil {
-		return uuid.UUID{}, false
-	}
-	iv, ok := tickers[mt].On(d)
+	iv, ok := read[mt].On(d)
 	return iv.Instr, ok
 }
 
@@ -273,7 +281,7 @@ func calendar(ctx context.Context, q Queries, instrs []uuid.UUID) (map[uuid.UUID
 	for i, row := range rows {
 		ts[i] = types.MarketTicker{Market: row.Market, Value: row.Value}
 	}
-	tickers, err := tickervalidity.ReadTickers(ctx, q, ts)
+	read, err := tickervalidity.ReadTickers(ctx, q, ts)
 	if err != nil {
 		return nil, fmt.Errorf("read the ticker validity of the instruments' tickers: %w", err)
 	}
@@ -285,7 +293,7 @@ func calendar(ctx context.Context, q Queries, instrs []uuid.UUID) (map[uuid.UUID
 	for t, as := range answers {
 		for _, a := range as {
 			for _, e := range a.Acts {
-				iv, ok := tickers[t].On(e.ExDate)
+				iv, ok := read[t].On(e.ExDate)
 				if ok && slices.Contains(instrs, iv.Instr) {
 					out[iv.Instr] = append(out[iv.Instr], e)
 				}

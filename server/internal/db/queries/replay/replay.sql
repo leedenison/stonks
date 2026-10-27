@@ -48,7 +48,7 @@ WHERE stated_keys.user_id = @user_id::uuid
               WHERE txns.user_id = stated_keys.user_id
                 AND txns.stated_key_id = stated_keys.id)
   AND stated_keys.arbiter IS DISTINCT FROM 'user'
-  AND stated_keys.via_type IS NULL
+  AND stated_keys.via_ticker_id IS NULL
   AND (stated_keys.instr_id IS NULL
        OR (instrs.fetch_key_id IS NOT NULL
            AND NOT EXISTS (

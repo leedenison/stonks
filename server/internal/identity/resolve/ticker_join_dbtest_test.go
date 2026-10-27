@@ -160,7 +160,7 @@ func TestTickerJoinKeepsInstrsApart(t *testing.T) {
 		if diff := cmp.Diff([]gen.FindingKind{gen.FindingKindContradiction}, s.findings(t, key.ID)); diff != "" {
 			t.Errorf("findings mismatch (-want +got):\n%s", diff)
 		}
-		if k := s.key(t, key.ID); !datedThrough(k, v, gen.ArbiterStated) {
+		if k := s.key(t, key.ID); !s.datedThrough(t, k, v, gen.ArbiterStated) {
 			t.Errorf("key = %+v, want dated through %s on the stored instrument", k, v.Name())
 		}
 		ticker, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: v.Type, Domain: v.Domain, Value: v.Value})

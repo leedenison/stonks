@@ -11,7 +11,6 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/to"
-	"github.com/leedenison/stonks/server/internal/identity/tickers"
 	"github.com/leedenison/stonks/server/internal/identity/tickervalidity"
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/types"
@@ -21,12 +20,10 @@ import (
 // knows of it. ticker is the first venue ticker held at the market, the
 // one an identity request sends.
 type heldTicker struct {
-	row    gen.ListHeldTickersRow
-	key    types.MarketTicker
-	ticker types.Identifier
-	// tickerRow is the row of key, which ReassertTickers creates before its
-	// write. It is unset where key is not in the system's spelling.
-	tickerRow *gen.Ticker
+	row       gen.ListHeldTickersRow
+	key       types.MarketTicker
+	ticker    types.Identifier
+	tickerRow gen.Ticker
 	// instrument is the instrument the ticker's latest interval names, nil
 	// where the ticker's latest interval has ended or the ticker has no
 	// interval.
@@ -66,9 +63,6 @@ func (r *Resolver) ReassertTickers(ctx context.Context, run gen.Run, held []gen.
 	if err != nil {
 		return nil, err
 	}
-	if err := r.createHeldTickers(ctx, ts); err != nil {
-		return nil, err
-	}
 	written := newWritten(r.mics)
 	err = r.store.Tx(ctx, func(q Queries) error {
 		written = newWritten(r.mics)
@@ -101,27 +95,6 @@ func (r *Resolver) ReassertTickers(ctx context.Context, run gen.Run, held []gen.
 	return written.list(), nil
 }
 
-// createHeldTickers creates the row of each held ticker in the system's
-// spelling, before the write that asserts it.
-func (r *Resolver) createHeldTickers(ctx context.Context, ts []*heldTicker) error {
-	var keys []types.MarketTicker
-	for _, t := range ts {
-		if tickers.Spelled(r.mics, t.key) == nil {
-			keys = append(keys, t.key)
-		}
-	}
-	rows, err := tickers.Get(ctx, r.store, r.mics, keys)
-	if err != nil {
-		return fmt.Errorf("create the held tickers: %w", err)
-	}
-	for _, t := range ts {
-		if row, ok := rows[t.key]; ok {
-			t.tickerRow = &row
-		}
-	}
-	return nil
-}
-
 // readHeld reads the ticker validity of each held ticker at its market, and the
 // identifiers of the instrument its latest interval names. Tickers held at
 // venues of one market are read once.
@@ -130,13 +103,13 @@ func (r *Resolver) readHeld(ctx context.Context, held []gen.ListHeldTickersRow) 
 	seen := map[types.MarketTicker]bool{}
 	var instrs []uuid.UUID
 	for _, row := range held {
-		v := types.Identifier{Type: row.Type, Domain: row.Domain, Value: row.Value}
-		key, ok := r.mics.MarketTicker(v)
-		if !ok || seen[key] {
+		v := types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: row.Venue, Value: row.Value}
+		key := types.MarketTicker{Market: row.Market, Value: row.Value}
+		if seen[key] {
 			continue
 		}
 		seen[key] = true
-		t := &heldTicker{row: row, key: key, ticker: v}
+		t := &heldTicker{row: row, key: key, ticker: v, tickerRow: gen.Ticker{ID: row.TickerID, Market: row.Market, Value: row.Value}}
 		read, err := tickervalidity.ReadTicker(ctx, r.store, key)
 		if err != nil {
 			return nil, fmt.Errorf("read the facts of %s: %w", key.Name(), err)
@@ -263,7 +236,7 @@ func historyRequest(e *market.Entry, t *heldTicker, now time.Time) (market.Ident
 // instrument then lacks the answer's identifiers. A new instrument made from
 // them would contradict every later reassert tickers run.
 func (r *Resolver) assertHeld(ctx context.Context, q Queries, t *heldTicker, fk fetchKey, written *writtenSet) error {
-	if fk.Outcome != gen.FetchOutcomeServed || t.tickerRow == nil {
+	if fk.Outcome != gen.FetchOutcomeServed {
 		return nil
 	}
 	var instr *uuid.UUID
@@ -281,7 +254,7 @@ func (r *Resolver) assertHeld(ctx context.Context, q Queries, t *heldTicker, fk 
 			instr = found
 		}
 	}
-	if err := tickervalidity.AssertInstr(ctx, q, fk.ID, *t.tickerRow, instr, fk.AnsweredAt); err != nil {
+	if err := tickervalidity.AssertInstr(ctx, q, fk.ID, t.tickerRow, instr, fk.AnsweredAt); err != nil {
 		return err
 	}
 	written.addTicker(fk.Run, t.key)

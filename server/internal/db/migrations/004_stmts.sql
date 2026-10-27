@@ -38,12 +38,12 @@ CREATE TYPE arbiter AS ENUM ('stated', 'datasource', 'guess', 'user');
 -- datasource.
 --
 -- An association is fixed or dated. A fixed association names one instrument
--- for all time, in instr_id and listing_id, and via_id names the
+-- for all time, in instr_id and listing_id, and via_identifier_id names the
 -- identifier row it was made through. The association stands when that row
--- moves to another instrument. A dated association names a MIC_TICKER in
--- the via columns. Each of the key's transactions takes the instrument the
--- ticker names on its as-at date, and that is derived when read, so nothing on
--- the key changes when the ticker's facts do. The resolver dates a key when it
+-- moves to another instrument. A dated association names a ticker and its
+-- venue. Each of the key's transactions takes the instrument the ticker
+-- names on its as-at date, and that is derived when read, so nothing on the
+-- key changes when the ticker's facts do. The resolver dates a key when it
 -- associates the key of its own accord through a ticker. An OPENFIGI_TICKER
 -- or DATASOURCE_TICKER dates the key through the MIC_TICKER on its listing,
 -- and leaves it fixed where that listing has none. A user's choice is fixed.
@@ -63,10 +63,7 @@ CREATE TABLE stated_keys (
     identifiers   jsonb       NOT NULL DEFAULT '[]',
     instr_id uuid        REFERENCES instrs (id),
     listing_id    uuid        REFERENCES listings (id),
-    via_id        uuid        REFERENCES identifiers (id),
-    via_type      identifier_type,
-    via_domain    text,
-    via_value     text,
+    via_identifier_id uuid    REFERENCES identifiers (id),
     arbiter       arbiter,
     -- group_id gathers the keys with no instrument which share an identifier,
     -- transitively: the unresolved keys and the dated ones.
@@ -76,11 +73,7 @@ CREATE TABLE stated_keys (
     FOREIGN KEY (listing_id, instr_id) REFERENCES listings (id, instr_id)
         DEFERRABLE INITIALLY IMMEDIATE,
     UNIQUE NULLS NOT DISTINCT (user_id, asset_class, currency, identifiers),
-    CHECK ((instr_id IS NULL) = (via_id IS NULL)),
-    CHECK ((via_type IS NULL) = (via_domain IS NULL) AND (via_type IS NULL) = (via_value IS NULL)),
-    CHECK (via_type IS NULL OR (via_type = 'mic_ticker' AND via_domain <> '')),
-    CHECK (instr_id IS NULL OR via_type IS NULL),
-    CHECK ((arbiter IS NULL) = (instr_id IS NULL AND via_type IS NULL)),
+    CHECK ((instr_id IS NULL) = (via_identifier_id IS NULL)),
     CHECK (listing_id IS NULL OR instr_id IS NOT NULL),
     CHECK (group_id IS NULL OR instr_id IS NULL)
 );

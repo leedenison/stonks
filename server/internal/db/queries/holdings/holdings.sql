@@ -5,7 +5,7 @@
 SELECT txns.stated_key_id, txns.as_at, txns.quantity
 FROM txns
 JOIN stated_keys ON stated_keys.id = txns.stated_key_id
-WHERE txns.user_id = @user_id::uuid AND stated_keys.via_type IS NOT NULL
+WHERE txns.user_id = @user_id::uuid AND stated_keys.via_ticker_id IS NOT NULL
 ORDER BY txns.stated_key_id, txns.as_at, txns.id;
 
 -- name: ListHoldingKeys :many

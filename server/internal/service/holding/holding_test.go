@@ -273,3 +273,19 @@ func TestListHoldingsScale(t *testing.T) {
 		})
 	}
 }
+
+// TestListingSegment checks that a dated key whose listing carries its ticker
+// at a segment of the key's venue sits under that listing. The key states no
+// currency, so only the ticker can place it.
+func TestListingSegment(t *testing.T) {
+	segments := mic.MICMap{"XNAS": {Operating: "XNAS", Market: "US"}, "XNGS": {Operating: "XNAS", Market: "US"}}
+	row := gen.Ticker{ID: uuid.MustParse("00000000-0000-0000-0000-0000000000a1"), Market: "US", Value: "SEG"}
+	instr := uuid.MustParse("00000000-0000-0000-0000-0000000000a2")
+	usd, gbp := uuid.MustParse("00000000-0000-0000-0000-0000000000a3"), uuid.MustParse("00000000-0000-0000-0000-0000000000a4")
+	key := gen.StatedKey{ViaTickerID: &row.ID, ViaMarket: ptr.To("US"), ViaVenue: ptr.To("XNAS")}
+	idents := []gen.Identifier{{InstrID: instr, ListingID: &usd, Type: types.IdentifierTypeMicTicker, Domain: "XNGS", Value: "SEG"}}
+	listings := []gen.ListListingNamesRow{{ListingID: gbp, InstrID: instr, Currency: "GBP"}, {ListingID: usd, InstrID: instr, Currency: "USD"}}
+	if got := listing(families, segments, key, map[uuid.UUID]gen.Ticker{row.ID: row}, idents, listings); got != usd {
+		t.Errorf("listing() = %s, want the USD listing %s, which carries XNGS:SEG", got, usd)
+	}
+}

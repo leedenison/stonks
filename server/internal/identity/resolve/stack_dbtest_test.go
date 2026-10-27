@@ -373,6 +373,6 @@ func (s *stack) heldOnXLON(t *testing.T, v types.Identifier, l market.Listing) g
 	s.trade(t, key, on(2026, 1, 5))
 	got := s.resolveOn(t, []time.Time{on(2026, 1, 5)}, key)
 	require.Equal(t, gen.ResolutionOutcomeMatched, got[0].Outcome)
-	require.True(t, datedThrough(s.key(t, key.ID), v, gen.ArbiterDatasource))
+	require.True(t, s.datedThrough(t, s.key(t, key.ID), v, gen.ArbiterDatasource))
 	return key
 }

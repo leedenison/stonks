@@ -35,6 +35,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/currency"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/to"
+	"github.com/leedenison/stonks/server/internal/identity/tickers"
 	"github.com/leedenison/stonks/server/internal/identity/tickervalidity"
 	"github.com/leedenison/stonks/server/internal/mic"
 	"github.com/leedenison/stonks/server/internal/types"
@@ -44,6 +45,7 @@ import (
 // queries, which give a dated key's transactions their instruments.
 type Reader interface {
 	tickervalidity.FactQueries
+	tickers.Queries
 	ListInstrsByID(ctx context.Context, ids []uuid.UUID) ([]gen.Instr, error)
 	ListIdentifiersOf(ctx context.Context, ids []uuid.UUID) ([]gen.Identifier, error)
 	ListListingNames(ctx context.Context, instrIds []uuid.UUID) ([]gen.ListListingNamesRow, error)
@@ -176,7 +178,7 @@ func (s *Server) instrs(ctx context.Context, keys []gen.ListHoldingKeysRow, d da
 		}
 		for id, q := range d.onInstr[k.StatedKey.ID] {
 			hk := &holdingv1.HoldingKey{StatedKey: to.ProtoStatedKey(k.StatedKey), Quantity: q.String()}
-			if l := listing(s.families, k.StatedKey, identified[id], listed[id]); l != uuid.Nil {
+			if l := listing(s.families, s.mics, k.StatedKey, d.tickers, identified[id], listed[id]); l != uuid.Nil {
 				hk.ListingId = l.String()
 			}
 			keysOf[id] = append(keysOf[id], hk)
@@ -206,13 +208,19 @@ func (s *Server) instrs(ctx context.Context, keys []gen.ListHoldingKeysRow, d da
 // instrument. That is the instrument's listing in the family of the key's
 // stated currency, as a fixed association takes. Where the key states no
 // currency, or the instrument has no listing in that family, it is the
-// listing that carries the key's ticker. It returns uuid.Nil where neither
-// exists.
-func listing(families currency.Families, k gen.StatedKey, idents []gen.Identifier, listings []gen.ListListingNamesRow) uuid.UUID {
-	ticker, _ := to.AssociatedTicker(k)
+// listing that carries the key's ticker at the key's venue, or at a segment
+// of that venue. It returns uuid.Nil where neither exists.
+func listing(families currency.Families, mics mic.MICMap, k gen.StatedKey, dated map[uuid.UUID]gen.Ticker, idents []gen.Identifier, listings []gen.ListListingNamesRow) uuid.UUID {
+	ticker, at, _ := tickers.Dated(k, dated)
 	carrier, family := uuid.Nil, ""
 	for _, i := range idents {
-		if i.ListingID != nil && to.Identifier(i) == ticker {
+		if i.ListingID == nil {
+			continue
+		}
+		id := to.Identifier(i)
+		t, ok := mics.MarketTicker(id)
+		venue, _ := mics.Operating(id.Domain)
+		if ok && t == ticker && venue == at.Domain {
 			carrier = *i.ListingID
 		}
 	}
@@ -252,7 +260,7 @@ func (s *Server) groups(keys []gen.ListHoldingKeysRow, d dated) ([]*holdingv1.Gr
 			continue
 		}
 		hk := to.ProtoHoldingKey(k)
-		if _, ok := to.AssociatedTicker(k.StatedKey); ok {
+		if k.StatedKey.ViaTickerID != nil {
 			if !isDated {
 				continue
 			}

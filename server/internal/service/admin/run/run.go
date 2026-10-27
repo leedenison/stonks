@@ -19,6 +19,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/to"
+	"github.com/leedenison/stonks/server/internal/identity/tickers"
 	"github.com/leedenison/stonks/server/internal/service/admin/page"
 	"github.com/leedenison/stonks/server/internal/stmt"
 	"github.com/leedenison/stonks/server/internal/types"
@@ -26,6 +27,7 @@ import (
 
 // Queries is this package's view of the generated queries.
 type Queries interface {
+	tickers.Queries
 	ListUserRuns(ctx context.Context, arg gen.ListUserRunsParams) ([]gen.ListUserRunsRow, error)
 	ListRootRuns(ctx context.Context, arg gen.ListRootRunsParams) ([]gen.ListRootRunsRow, error)
 	GetUserRun(ctx context.Context, id uuid.UUID) (gen.GetUserRunRow, error)
@@ -284,8 +286,16 @@ func (s *Server) ListRunItems(ctx context.Context, req *connect.Request[adminrun
 			return nil, connect.NewError(connect.CodeInternal, err)
 		}
 		rows, more := page.Cut(p, rows)
+		keys := make([]gen.StatedKey, len(rows))
+		for i, it := range rows {
+			keys[i] = it.StatedKey
+		}
+		dated, err := tickers.OfKeys(ctx, s.queries, keys)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInternal, err)
+		}
 		for _, it := range rows {
-			item := to.ProtoResolutionItem(it.StatedKey, &it.ResolutionKey)
+			item := to.ProtoResolutionItem(it.StatedKey, &it.ResolutionKey, tickers.DatedAt(it.StatedKey, dated))
 			out.Items = append(out.Items, &adminrunv1.RunItem{Item: &adminrunv1.RunItem_Resolution{Resolution: item}})
 		}
 		if more {

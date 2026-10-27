@@ -465,7 +465,7 @@ func TestResolvesWithDates(t *testing.T) {
 	f.store.EXPECT().UpsertStatedKey(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.UpsertStatedKeyParams) (gen.StatedKey, error) {
 		row := gen.StatedKey{ID: arg.ID, Identifiers: arg.Identifiers}
 		if described(row, "ACME") {
-			row.ViaType, row.ViaDomain, row.ViaValue = ptr.To(types.IdentifierTypeMicTicker), ptr.To("XNAS"), ptr.To("ACME")
+			row.ViaTickerID, row.ViaMarket, row.ViaVenue = ptr.To(db.NewID()), ptr.To("US"), ptr.To("XNAS")
 		} else {
 			row.InstrID = &instr
 		}

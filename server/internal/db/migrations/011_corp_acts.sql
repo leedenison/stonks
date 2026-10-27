@@ -1,26 +1,24 @@
 -- +goose Up
 
 -- A corporate action answer is the latest answer of one datasource for one
--- ticker at its market. Its fetch key states the moment of the answer, and a
--- later answer replaces it. An empty answer is a row too.
+-- ticker. Its fetch key states the moment of the answer, and a later answer
+-- replaces it. An empty answer is a row too.
 CREATE TABLE corp_act_answers (
     id             uuid PRIMARY KEY,
     fetch_key_id   uuid NOT NULL REFERENCES fetch_keys (id) ON DELETE CASCADE,
     datasource     text NOT NULL REFERENCES datasources (name),
-    market         text NOT NULL,
-    value          text NOT NULL,
+    ticker_id      uuid NOT NULL REFERENCES tickers (id),
     -- covered_from and covered_before bound the days over which the datasource
     -- reported every corporate action of the ticker, ending on the day it
     -- answered. Both are NULL where it reported no coverage.
     covered_from   date,
     covered_before date,
-    CHECK (market <> ''),
     CHECK ((covered_from IS NULL) = (covered_before IS NULL)),
     CHECK (covered_from < covered_before),
-    UNIQUE (datasource, market, value)
+    UNIQUE (datasource, ticker_id)
 );
 
-CREATE INDEX corp_act_answers_value_idx ON corp_act_answers (market, value);
+CREATE INDEX corp_act_answers_ticker_idx ON corp_act_answers (ticker_id);
 CREATE INDEX corp_act_answers_fetch_key_idx ON corp_act_answers (fetch_key_id);
 
 -- A corporate action is a change to a company's shares that a datasource
