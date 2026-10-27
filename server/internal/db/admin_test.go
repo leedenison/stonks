@@ -164,8 +164,8 @@ func TestListRootRuns(t *testing.T) {
 	}
 }
 
-// TestRunFetchColumns checks that every listing of runs names the datasource
-// and endpoint of a fetch run, and leaves them unset for another run.
+// TestRunFetchColumns checks that every listing of runs names the datasource,
+// endpoint and kind of a fetch run, and leaves them unset for another run.
 func TestRunFetchColumns(t *testing.T) {
 	ctx := context.Background()
 	q := newTx(t)
@@ -173,26 +173,30 @@ func TestRunFetchColumns(t *testing.T) {
 	root := newRun(t, q, owner)
 	ds := newDatasource(t, q, "run-fetch", 100)
 	fetch := newFetch(t, q, owner, root, ds)
-	want := map[uuid.UUID][2]*string{
-		root.ID:  {nil, nil},
-		fetch.ID: {ptr.To(ds.Name), ptr.To("https://" + ds.Name + ".test")},
+	type columns struct {
+		Datasource, Endpoint *string
+		Kind                 *gen.FetchKind
 	}
-	check := func(query string, id uuid.UUID, datasource, endpoint *string) {
+	want := map[uuid.UUID]columns{
+		root.ID:  {},
+		fetch.ID: {ptr.To(ds.Name), ptr.To("https://" + ds.Name + ".test"), ptr.To(gen.FetchKindIdentity)},
+	}
+	check := func(query string, id uuid.UUID, datasource, endpoint *string, kind *gen.FetchKind) {
 		t.Helper()
-		if diff := cmp.Diff(want[id], [2]*string{datasource, endpoint}); diff != "" {
-			t.Errorf("%s: run %s datasource and endpoint mismatch (-want +got):\n%s", query, id, diff)
+		if diff := cmp.Diff(want[id], columns{datasource, endpoint, kind}); diff != "" {
+			t.Errorf("%s: run %s fetch columns mismatch (-want +got):\n%s", query, id, diff)
 		}
 	}
 
 	roots, err := q.ListRootRuns(ctx, gen.ListRootRunsParams{Lim: 1})
 	require.NoError(t, err)
 	for _, r := range roots {
-		check("ListRootRuns", r.Run.ID, r.Datasource, r.Endpoint)
+		check("ListRootRuns", r.Run.ID, r.Datasource, r.Endpoint, r.FetchKind)
 	}
 	users, err := q.ListUserRuns(ctx, gen.ListUserRunsParams{UserID: &owner.ID, Lim: 1})
 	require.NoError(t, err)
 	for _, r := range users {
-		check("ListUserRuns", r.Run.ID, r.Datasource, r.Endpoint)
+		check("ListUserRuns", r.Run.ID, r.Datasource, r.Endpoint, r.FetchKind)
 	}
 	if len(roots) != 2 || len(users) != 2 {
 		t.Errorf("ListRootRuns and ListUserRuns returned %d and %d runs, want 2 each", len(roots), len(users))
@@ -200,14 +204,14 @@ func TestRunFetchColumns(t *testing.T) {
 	below, err := q.ListRunDescendants(ctx, &root.ID)
 	require.NoError(t, err)
 	require.Len(t, below, 1)
-	check("ListRunDescendants", below[0].Run.ID, below[0].Datasource, below[0].Endpoint)
+	check("ListRunDescendants", below[0].Run.ID, below[0].Datasource, below[0].Endpoint, below[0].FetchKind)
 	above, err := q.ListRunAncestors(ctx, fetch.ID)
 	require.NoError(t, err)
 	require.Len(t, above, 1)
-	check("ListRunAncestors", above[0].Run.ID, above[0].Datasource, above[0].Endpoint)
+	check("ListRunAncestors", above[0].Run.ID, above[0].Datasource, above[0].Endpoint, above[0].FetchKind)
 	got, err := q.GetUserRun(ctx, fetch.ID)
 	require.NoError(t, err)
-	check("GetUserRun", got.Run.ID, got.Datasource, got.Endpoint)
+	check("GetUserRun", got.Run.ID, got.Datasource, got.Endpoint, got.FetchKind)
 }
 
 // TestListRootRunsIndex checks that the walk down from the top-level runs

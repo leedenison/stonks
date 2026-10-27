@@ -7,6 +7,7 @@ import { SkeletonRows } from "@/app/components/skeleton-rows";
 import { RunChip } from "@/app/components/state-chip";
 import { TableCard, Td, Th, Thead, Tr } from "@/app/components/table";
 import { Toggle } from "@/app/components/toggle";
+import { FetchKind } from "@/gen/admin/block/v1/block_pb";
 import type { UserRun } from "@/gen/admin/run/v1/run_pb";
 import {
   filterQuery,
@@ -97,6 +98,11 @@ export function RunRow({
       </Td>
       <Td>
         <Chip>{enumLabel(runEnums.kind, r.run?.kind ?? 0)}</Chip>
+        {r.fetch && (
+          <Chip data-testid={`run-fetch-kind-${id}`}>
+            {enumLabel(FetchKind, r.fetch.kind)}
+          </Chip>
+        )}
       </Td>
       <Td>{enumLabel(runEnums.trigger, r.run?.trigger ?? 0)}</Td>
       <Td>

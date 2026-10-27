@@ -6,6 +6,7 @@ package stonks.admin.run.v1;
 
 import "buf/validate/validate.proto";
 import "google/protobuf/timestamp.proto";
+import "admin/block/v1/block.proto";
 import "admin/replay/v1/replay.proto";
 import "run/v1/run.proto";
 import "statement/v1/statement.proto";
@@ -25,10 +26,16 @@ message UserRun {
   bool matched = 5;
   // The runs this one started that the listing holds, oldest first.
   repeated UserRun children = 6;
-  // The datasource a FETCH run asked; unset for any other kind.
-  optional string datasource = 7;
-  // The address a FETCH run called; unset for any other kind.
-  optional string endpoint = 8;
+  // What a FETCH run asked for; unset for any other kind.
+  RunFetch fetch = 7;
+}
+
+// What a fetch run asked for, and of whom.
+message RunFetch {
+  string datasource = 1;
+  // The address the run called.
+  string endpoint = 2;
+  stonks.admin.block.v1.FetchKind kind = 3;
 }
 
 // What one key of a fetch got.

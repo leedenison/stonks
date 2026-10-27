@@ -1,4 +1,5 @@
 import path from "node:path";
+import { FetchKind } from "../gen/admin/block/v1/block_pb";
 import { FetchOutcome, FindingKind } from "../gen/admin/run/v1/run_pb";
 import { TransactionMark } from "../gen/statement/v1/statement_pb";
 import { IdentifierType, ResolutionOutcome } from "../gen/type/v1/type_pb";
@@ -107,7 +108,6 @@ test("dates a key through its ticker and marks each transaction by its day", asy
     "unidentified",
   );
 
-  // The identifier events fetch is the Massive run whose items name no key.
   const eventsOf = async (runId: string) => {
     const got = await admin.getRun({ runId });
     // EODHD's answer joins OpenFIGI's through XNAS:META on the day of the
@@ -123,25 +123,21 @@ test("dates a key through its ticker and marks each transaction by its day", asy
     expect(conflicts).toHaveLength(0);
     const resolution = got.run!.children[0];
     const massive = resolution.children.filter(
-      (c) => c.datasource === "massive",
+      (c) =>
+        c.fetch?.datasource === "massive" &&
+        c.fetch.kind === FetchKind.IDENTIFIER_EVENTS,
     );
     const out = [];
     for (const run of massive) {
-      const items = await fetchItems(admin, run.run!.id);
-      if (items.every((i) => i.statedKey === undefined)) {
-        out.push(items);
-      }
+      out.push(await fetchItems(admin, run.run!.id));
     }
     return { resolution, events: out };
   };
 
   const one = await eventsOf(first);
-  expect(one.resolution.children.map((c) => c.datasource).sort()).toEqual([
-    "eodhd",
-    "massive",
-    "massive",
-    "openfigi",
-  ]);
+  expect(
+    one.resolution.children.map((c) => c.fetch?.datasource).sort(),
+  ).toEqual(["eodhd", "massive", "massive", "openfigi"]);
   expect(one.events).toHaveLength(1);
   const sent = one.events[0].map((i) => [
     i.outcome,
@@ -157,7 +153,9 @@ test("dates a key through its ticker and marks each transaction by its day", asy
   expect(sent).toHaveLength(2);
 
   const two = await eventsOf(second);
-  expect(two.resolution.children.map((c) => c.datasource)).toEqual(["massive"]);
+  expect(two.resolution.children.map((c) => c.fetch?.datasource)).toEqual([
+    "massive",
+  ]);
   expect(two.events).toHaveLength(1);
   expect(
     two.events[0].map((i) => [i.outcome, i.sent?.type, i.sent?.value]),

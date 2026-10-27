@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   BlockService,
   ClearBlockResponseSchema,
+  FetchKind,
 } from "@/gen/admin/block/v1/block_pb";
 import {
   DatasourceService,
@@ -27,6 +28,7 @@ import {
   FindingSchema,
   GetRunResponseSchema,
   ListRunItemsResponseSchema,
+  RunFetchSchema,
   RunItemSchema,
 } from "@/gen/admin/run/v1/run_pb";
 import { Role } from "@/gen/auth/v1/auth_pb";
@@ -111,8 +113,11 @@ const fetch = create(GetRunResponseSchema, {
       createdAt: instant("2026-09-24T10:00:00Z"),
     },
     {
-      datasource: "openfigi",
-      endpoint: "https://api.openfigi.com",
+      fetch: create(RunFetchSchema, {
+        datasource: "openfigi",
+        endpoint: "https://api.openfigi.com",
+        kind: FetchKind.IDENTITY,
+      }),
       children: [
         userRun(
           {
@@ -223,6 +228,9 @@ describe("AdminRunPage", () => {
     expect(self.getAttribute("aria-current")).toBe("page");
     expect(self.textContent).toContain("one@example.com");
     expect(self.textContent).toContain("api.openfigi.com");
+    expect(screen.getByTestId("run-fetch-kind-f1").textContent).toBe(
+      "identity",
+    );
     expect(screen.getByTestId("run-row-p1").textContent).toContain(
       "resolution run @ 2026-09-24 09:59 UTC",
     );

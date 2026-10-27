@@ -60,11 +60,11 @@ export function runLabel(run: Run | undefined): string {
 // runTitle names a listed run: a fetch run by the host it called, and any
 // other run as runLabel does.
 export function runTitle(r: UserRun): string {
-  if (r.endpoint) {
+  if (r.fetch) {
     try {
-      return new URL(r.endpoint).host;
+      return new URL(r.fetch.endpoint).host;
     } catch {
-      return r.endpoint;
+      return r.fetch.endpoint;
     }
   }
   return runLabel(r.run);

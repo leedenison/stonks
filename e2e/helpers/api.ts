@@ -1,7 +1,7 @@
 import type { DescService } from "@bufbuild/protobuf";
 import { type Client, createClient } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
-import { BlockService } from "../gen/admin/block/v1/block_pb";
+import { BlockService, FetchKind } from "../gen/admin/block/v1/block_pb";
 import { CoverageService } from "../gen/admin/coverage/v1/coverage_pb";
 import { DatasourceService } from "../gen/admin/datasource/v1/datasource_pb";
 import { InstrumentService as AdminInstrumentService } from "../gen/admin/instrument/v1/instrument_pb";
@@ -135,9 +135,15 @@ export async function expectServedOnce(
 }
 
 // fetchRun returns the fetch run below resolution that asked the named
-// datasource.
-export function fetchRun(resolution: UserRun, datasource: string): UserRun {
-  const run = resolution.children.find((c) => c.datasource === datasource);
+// datasource for data of kind.
+export function fetchRun(
+  resolution: UserRun,
+  datasource: string,
+  kind = FetchKind.IDENTITY,
+): UserRun {
+  const run = resolution.children.find(
+    (c) => c.fetch?.datasource === datasource && c.fetch.kind === kind,
+  );
   if (!run) {
     throw new Error(`no fetch run asked ${datasource}`);
   }
