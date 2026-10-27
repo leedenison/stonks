@@ -55,6 +55,8 @@ export function useReorderDatasources() {
     onError: (_error, _names, context) => {
       if (context?.previous) queryClient.setQueryData(key, context.previous);
     },
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: qk.adminRunsAll() }),
     onSettled: () => queryClient.invalidateQueries({ queryKey: key }),
   });
 }

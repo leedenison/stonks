@@ -153,11 +153,10 @@ CREATE TYPE ticker_relation AS ENUM ('current', 'defunct', 'former');
 --
 -- Each venue that an assertion of the ticker and instrument states gets a row.
 -- Its currency is that of the latest assertion at the venue that states one.
--- Where no assertion states a venue, one row has a NULL venue.
+-- Where every assertion omits the venue, one row has a NULL venue.
 --
--- The table holds names only. Holdings, dating and corporate actions read
--- ticker validity from the facts. Only a rebuild in package tickervalidity
--- writes the table, in the transaction that writes the facts.
+-- The table holds names only, and ticker validity stays in the facts. Only
+-- tickervalidity.Rebuild writes the table.
 CREATE TABLE resolved_tickers (
     ticker_id    uuid NOT NULL,
     market       text NOT NULL,

@@ -14,10 +14,11 @@ import (
 )
 
 type fixture struct {
-	store   *MockStore
-	sources *MockSources
-	cache   *MockDropper
-	svc     *Service
+	store    *MockStore
+	sources  *MockSources
+	cache    *MockDropper
+	rebuilds *MockRebuilder
+	svc      *Service
 	// txErrs is what each transaction returned, so a test sees one rolled
 	// back.
 	txErrs []error
@@ -27,13 +28,13 @@ func newFixture(t *testing.T) *fixture {
 	t.Helper()
 	ctrl := gomock.NewController(t)
 	t.Cleanup(ctrl.Finish)
-	f := &fixture{store: NewMockStore(ctrl), sources: NewMockSources(ctrl), cache: NewMockDropper(ctrl)}
+	f := &fixture{store: NewMockStore(ctrl), sources: NewMockSources(ctrl), cache: NewMockDropper(ctrl), rebuilds: NewMockRebuilder(ctrl)}
 	f.store.EXPECT().Tx(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, fn func(Queries) error) error {
 		err := fn(f.store)
 		f.txErrs = append(f.txErrs, err)
 		return err
 	}).AnyTimes()
-	f.svc = New(f.store, f.sources, f.cache)
+	f.svc = New(f.store, f.sources, f.cache, f.rebuilds)
 	return f
 }
 
@@ -101,8 +102,9 @@ func TestUpdate(t *testing.T) {
 	}
 }
 
-// TestReorder checks that the names are written in the order given and
-// that a list naming the datasources wrongly is refused.
+// TestReorder checks that the names are written in the order given, that the
+// write starts a rebuild of every ticker's names and returns its run, and that
+// a list naming the datasources wrongly is refused before a rebuild starts.
 func TestReorder(t *testing.T) {
 	rows := []gen.Datasource{{Name: "alpha", Precedence: 1}, {Name: "beta", Precedence: 2}}
 	tests := []struct {
@@ -123,8 +125,12 @@ func TestReorder(t *testing.T) {
 			if tc.writes {
 				f.store.EXPECT().SetDatasourcePrecedence(gomock.Any(), tc.names).Return(nil)
 				f.sources.EXPECT().Reload(gomock.Any()).Return(nil)
+				f.rebuilds.EXPECT().Start(gomock.Any()).Return(rebuild, nil)
 			}
-			err := f.svc.Reorder(context.Background(), tc.names)
+			got, err := f.svc.Reorder(context.Background(), tc.names)
+			if tc.writes && got.ID != rebuild.ID {
+				t.Errorf("Reorder(%v) = %+v, want the rebuild run", tc.names, got)
+			}
 			if got := errors.Is(err, ErrOrder); got != tc.refused {
 				t.Errorf("Reorder(%v) error = %v, want ErrOrder %v", tc.names, err, tc.refused)
 			}
@@ -143,8 +149,29 @@ func TestReorderReloadFails(t *testing.T) {
 	f.store.EXPECT().ListDatasources(gomock.Any()).Return([]gen.Datasource{{Name: "alpha"}}, nil)
 	f.store.EXPECT().SetDatasourcePrecedence(gomock.Any(), []string{"alpha"}).Return(nil)
 	f.sources.EXPECT().Reload(gomock.Any()).Return(boom)
-	err := f.svc.Reorder(context.Background(), []string{"alpha"})
+	_, err := f.svc.Reorder(context.Background(), []string{"alpha"})
 	if !errors.Is(err, boom) || errors.Is(err, ErrOrder) {
 		t.Errorf("Reorder() error = %v, want %v and no sentinel", err, boom)
 	}
 }
+
+// TestReorderRebuildFails checks that a rebuild that fails to start comes
+// back as itself, after the new precedence has committed.
+func TestReorderRebuildFails(t *testing.T) {
+	f := newFixture(t)
+	boom := errors.New("boom")
+	f.store.EXPECT().ListDatasources(gomock.Any()).Return([]gen.Datasource{{Name: "alpha"}}, nil)
+	f.store.EXPECT().SetDatasourcePrecedence(gomock.Any(), []string{"alpha"}).Return(nil)
+	f.sources.EXPECT().Reload(gomock.Any()).Return(nil)
+	f.rebuilds.EXPECT().Start(gomock.Any()).Return(gen.Run{}, boom)
+	_, err := f.svc.Reorder(context.Background(), []string{"alpha"})
+	if !errors.Is(err, boom) || errors.Is(err, ErrOrder) {
+		t.Errorf("Reorder() error = %v, want %v and no sentinel", err, boom)
+	}
+	if len(f.txErrs) != 1 || f.txErrs[0] != nil {
+		t.Errorf("transactions returned %v, want the precedence committed", f.txErrs)
+	}
+}
+
+// rebuild is the run a reorder starts.
+var rebuild = gen.Run{ID: db.NewID(), Kind: gen.RunKindRebuildResolvedTickers}

@@ -20,13 +20,14 @@ import {
 } from "@/lib/admin";
 import { enumLabel, enumParam, enumValues } from "@/lib/enum";
 import { ReassertTickersDialog } from "./reassert-tickers-dialog";
+import { RebuildResolvedTickersDialog } from "./rebuild-resolved-tickers-dialog";
 import { RefreshCorpActsDialog } from "./refresh-corp-acts-dialog";
 import { RunRow, RunTreeTable } from "./run-tree";
 
 // Every user's runs, newest first, filtered by what the address names, each
 // top-level run a row that opens onto the runs below it. The filters live in
 // the address so a listing can be linked and paged. The page carries the
-// action that reasserts every held ticker.
+// actions that start system runs.
 export default function RunsPage() {
   return (
     <Suspense>
@@ -45,6 +46,7 @@ function Runs() {
   const [toggled, setToggled] = useState<Record<string, boolean>>({});
   const [reasserting, setReasserting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [rebuilding, setRebuilding] = useState(false);
   const go = (next: Partial<RunFilters>) =>
     router.replace(filterQuery({ ...f, before: "", ...next }));
 
@@ -70,6 +72,14 @@ function Runs() {
           >
             <RefreshCw aria-hidden className="h-4 w-4" />
             Refresh corporate actions
+          </Button>
+          <Button
+            variant="text"
+            data-testid="runs-rebuild-resolved-tickers"
+            onClick={() => setRebuilding(true)}
+          >
+            <RefreshCw aria-hidden className="h-4 w-4" />
+            Rebuild ticker names
           </Button>
         </>
       }
@@ -147,6 +157,15 @@ function Runs() {
           onClose={() => setRefreshing(false)}
           onStarted={(started) => {
             setRefreshing(false);
+            router.push(`/admin/runs/${started.id}`);
+          }}
+        />
+      )}
+      {rebuilding && (
+        <RebuildResolvedTickersDialog
+          onClose={() => setRebuilding(false)}
+          onStarted={(started) => {
+            setRebuilding(false);
             router.push(`/admin/runs/${started.id}`);
           }}
         />

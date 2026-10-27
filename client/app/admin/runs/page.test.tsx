@@ -7,6 +7,10 @@ import {
   StartReassertTickersResponseSchema,
 } from "@/gen/admin/reassert_tickers/v1/reassert_tickers_pb";
 import {
+  RebuildResolvedTickersService,
+  StartRebuildResolvedTickersResponseSchema,
+} from "@/gen/admin/rebuild_resolved_tickers/v1/rebuild_resolved_tickers_pb";
+import {
   RefreshCorpActsService,
   StartRefreshCorpActsResponseSchema,
 } from "@/gen/admin/refresh_corp_acts/v1/refresh_corp_acts_pb";
@@ -40,11 +44,13 @@ function serving(
   listRuns: ServiceImpl<typeof RunService>["listRuns"],
   reassertTickers: Partial<ServiceImpl<typeof ReassertTickersService>> = {},
   refresh: Partial<ServiceImpl<typeof RefreshCorpActsService>> = {},
+  rebuild: Partial<ServiceImpl<typeof RebuildResolvedTickersService>> = {},
 ) {
   return transportWith(admin, ({ service }) => {
     service(RunService, { listRuns });
     service(ReassertTickersService, reassertTickers);
     service(RefreshCorpActsService, refresh);
+    service(RebuildResolvedTickersService, rebuild);
   });
 }
 
@@ -229,5 +235,28 @@ describe("RunsPage", () => {
     );
     expect(startRefreshCorpActs).toHaveBeenCalledTimes(1);
     expect(screen.queryByTestId("refresh-corp-acts-dialog")).toBeNull();
+  });
+
+  it("rebuilds ticker names and opens its run", async () => {
+    router.push.mockClear();
+    const startRebuildResolvedTickers = vi.fn(() =>
+      create(StartRebuildResolvedTickersResponseSchema, {
+        run: create(RunSchema, {
+          id: "x3",
+          kind: RunKind.REBUILD_RESOLVED_TICKERS,
+        }),
+      }),
+    );
+    renderWithAuth(
+      <RunsPage />,
+      serving(() => page, {}, {}, { startRebuildResolvedTickers }),
+    );
+    fireEvent.click(screen.getByTestId("runs-rebuild-resolved-tickers"));
+    fireEvent.click(screen.getByTestId("rebuild-resolved-tickers-start"));
+    await waitFor(() =>
+      expect(router.push).toHaveBeenCalledWith("/admin/runs/x3"),
+    );
+    expect(startRebuildResolvedTickers).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId("rebuild-resolved-tickers-dialog")).toBeNull();
   });
 });

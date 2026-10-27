@@ -6,6 +6,7 @@ package stonks.admin.datasource.v1;
 
 import "buf/validate/validate.proto";
 import "google/protobuf/struct.proto";
+import "run/v1/run.proto";
 
 option go_package = "github.com/leedenison/stonks/proto/admin/datasource/v1;admindatasourcev1";
 
@@ -57,7 +58,10 @@ message ReorderDatasourcesRequest {
   repeated string names = 1 [(buf.validate.field).repeated.min_items = 1];
 }
 
-message ReorderDatasourcesResponse {}
+message ReorderDatasourcesResponse {
+  // The rebuild resolved tickers run that the reorder started, pending.
+  stonks.run.v1.Run run = 1;
+}
 
 // Lists the datasources and sets their settings and precedence.
 service DatasourceService {
@@ -68,7 +72,9 @@ service DatasourceService {
   // change would enable a datasource that has no integration in this build
   // or whose integration refuses the config.
   rpc UpdateDatasource(UpdateDatasourceRequest) returns (UpdateDatasourceResponse);
-  // Orders the datasources by precedence, taking effect at once. Where the
-  // list does not name every datasource exactly once, the call is refused.
+  // Orders the datasources by precedence. Ticker validity takes the order at
+  // once. The names of tickers take it when the rebuild resolved tickers run
+  // that the call starts has finished. Where the list does not name every
+  // datasource exactly once, the call is refused before it starts a run.
   rpc ReorderDatasources(ReorderDatasourcesRequest) returns (ReorderDatasourcesResponse);
 }
