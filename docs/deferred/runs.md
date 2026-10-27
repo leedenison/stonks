@@ -5,29 +5,31 @@ recorded: 2026-09-20
 
 # Runs
 
-Runs that an event, new coverage or a schedule starts, and runs spread over several
-processes.
+Runs that an identifier event, a corporate action, new coverage or a schedule starts, and
+runs spread over several processes.
 
 ## Why
 
-An event or new coverage can leave an association stale while no user is present. The
-association stays stale until an administrator starts a replay.
+An identifier event, a corporate action or new coverage can leave an association stale
+while no user is present. The association stays stale until an administrator starts a
+replay.
 
 ## Model
 
 ### Kinds
 
-- A replay re-resolves the transactions that an event or new coverage has affected.
+- A replay re-resolves the transactions that an identifier event, a corporate action or
+  new coverage has affected.
 
 ### Triggers
 
-A schedule starts a run.  When an event causes a replay, the replay names the fetch that
-recorded the event.
+A schedule starts a run.  When an identifier event or a corporate action causes a replay,
+the replay names the fetch that recorded it.
 
 ### Findings
 
-A stated split the calendar lacks and an event the system cannot handle are findings of
-the runs that meet them.
+A stated split the calendar lacks and a corporate action the system cannot handle are
+findings of the runs that meet them.
 
 ## Constraints
 
@@ -51,6 +53,6 @@ where no earlier non-terminal run shares its user and lane.
 
 ## Undecided
 
-- Whether clearing the finding on an unhandled event is what clears the event.
+- Whether clearing the finding on an unhandled corporate action is what clears the action.
 
 - Whether a run can be cancelled.

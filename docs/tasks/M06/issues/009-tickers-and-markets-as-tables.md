@@ -23,8 +23,8 @@ In:
   - `identifier_events` gains `ticker_id` and `to_ticker_id`.
   - `identifier_event_coverage` gains a nullable `ticker_id`, behind a composite foreign
     key on `(ticker_id, market)`.
-  - `corporate_event_answers` gains `ticker_id`, with `UNIQUE (datasource, ticker_id)`.
-    `corporate_events` is unchanged. It reaches its ticker through `answer_id`.
+  - `corp_act_answers` gains `ticker_id`, with `UNIQUE (datasource, ticker_id)`.
+    `corp_acts` is unchanged. It reaches its ticker through `answer_id`.
   - `stated_keys` gains `via_ticker_id`, `via_market` and `via_venue`, with the
     composite foreign keys of
     [008](../adr/008-a-ticker-assertion-records-the-venue-and-currency-its-source-stated.md).
@@ -33,10 +33,10 @@ In:
 - The get-or-create function, which replaces `spelled` and `check` in
   `validity/record.go`.
 - `writer.go` and `recordUnknown` in `write.go` assert only venue tickers.
-- `validity/store.go`, `ListRunAssertions`, `ListTickersNaming` and the corporate
+- `validity/store.go`, `ListRunAssertions`, `ListTickersNaming` and the `corpact`
   queries read by ticker id.
-- Comments: the assertion, event, coverage and `market_members` comments in
-  `010_validity.sql`, the comments in `011_corporate_events.sql`, and the `via_*` text in
+- Comments: the assertion, identifier event, coverage and `market_members` comments in
+  `010_validity.sql`, the comments in `011_corp_acts.sql`, and the `via_*` text in
   `004_statements.sql`.
 
 Out:
@@ -45,7 +45,7 @@ Out:
 
 ## Tests
 
-- The validity, resolve, corporate and replay dbtests pass on the new schema.
+- The validity, resolve, corpact and replay dbtests pass on the new schema.
 - Get-or-create returns one id for one ticker, and refuses a market outside `markets`.
 - `cascade_test.go` shows that a ticker row outlives the fetch key of its facts.
 - A db dbtest shows that the composite foreign keys refuse a venue in another market.

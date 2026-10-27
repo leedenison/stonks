@@ -1,8 +1,8 @@
 # A stronger source overrules an edge
 
-`validity.go` and `006_findings.sql` say of an event between two assertions of one
+`validity.go` and `006_findings.sql` say of an identifier event between two assertions of one
 instrument that "the event wins over the bracket". Precedence decides only within a day.
-A weak source's event therefore cuts a strong source's bracket. Under
+A weak source's identifier event therefore cuts a strong source's bracket. Under
 [009](009-an-identifier-event-is-recorded-as-assertions-with-edges.md) the weak source's
 edge assertion can also win its own day. The winners then differ on either side of it. The
 change looks real, and the system raises no finding. An attestation cannot remove the edge

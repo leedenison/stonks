@@ -22,12 +22,10 @@ run.
 The milestones that are scheduled, in the order they are implemented. Each has a directory
 of open issues and ADRs at `docs/tasks/<label>/`.
 
-- **M06** - Corporate events that restate the quantity of an instrument held, from
+- **M06** - Corporate actions that restate the quantity of an instrument held, from
   Massive and EODHD, on a ticker model where tickers are facts.
 
 ```
-    014 corporate actions
-         |
     015 run kind names
          |
     016 ticker validity
@@ -69,14 +67,14 @@ Each has a note in `docs/deferred` outlining how it might work.
 - **D-INSTR** - [Instrument resolution](deferred/instrument-resolution.md); the life of a listing, options, and the replays that keep an association current.
 - **D-GUESS** - [Guesses](deferred/guesses.md); the sources that rank candidates where the stated data leaves an association open, and the arbiter an association records.
 - **D-PRICES** - [Price ingestion](deferred/price-ingestion.md) from external providers.
-- **D-CORP** - [Corporate events](deferred/corporate-events.md); splits and the restatement of recorded quantities.
+- **D-CORP** - [Corporate actions](deferred/corporate-actions.md); splits and the restatement of recorded quantities.
 - **D-IDENT** - [Identifier events](deferred/identifier-events.md); renames served by date range for a whole market, and unwinding the data fetched under a ticker that moves.
-- **D-DATASRC** - [Datasources](deferred/datasources.md); identifier events, corporate events, prices and FX rates.
-- **D-RUNS** - [Runs](deferred/runs.md); replays that an event or new coverage causes, the schedule trigger, and running on more than one process.
+- **D-DATASRC** - [Datasources](deferred/datasources.md); identifier events, corporate actions, prices and FX rates.
+- **D-RUNS** - [Runs](deferred/runs.md); replays that an identifier event, a corporate action or new coverage causes, the schedule trigger, and running on more than one process.
 - **D-COMPANY** - [Companies](deferred/companies.md); issuers identified by CIK and LEI, and the instruments they issue.
 - **D-ANNOT** - [Annotations](deferred/annotations.md); what a user records against their own keys: choices of instrument, groupings, prices and keys made by hand, and working on that data alone where no datasource covers a holding.
 - **D-DEPLOY** - [Production deployment](deferred/production-deployment.md); TLS, cross-origin access and what each container publishes.
-- **D-ALERTS** - [Admin alerts](deferred/admin-alerts.md); one triage list of what needs an administrator: validity gaps, unresolved tickers, run findings, blocks and unhandled corporate events.
+- **D-ALERTS** - [Admin alerts](deferred/admin-alerts.md); one triage list of what needs an administrator: validity gaps, unresolved tickers, run findings, blocks and unhandled corporate actions.
 - **D-UI** - [UI refinement](deferred/ui-refinement.md); a pass before production over the surfaces that real use shows could serve their task better, starting with the attest dialog.
 
 ## Spike

@@ -42,9 +42,9 @@ Candidate kinds:
 * A block. A call failed unrecoverably and the datasource is not asked again under that
   key or at all until an administrator clears the block.
 * A failed or interrupted run.
-* An unhandled corporate event. An event the system stores without applying it, reported
+* An unhandled corporate action. One that the system stores without applying it, reported
   by a finding of the fetch that met it; see
-  [corporate-events.md](corporate-events.md). A split a statement states that the
+  [corporate-actions.md](corporate-actions.md). A split a statement states that the
   calendar lacks is reported the same way.
 * A broker description awaiting verification. Stated keys imply a mapping from a broker's
   description to an instrument that an administrator has yet to confirm.

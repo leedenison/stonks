@@ -6,7 +6,7 @@ recorded: 2026-09-14
 # Datasources
 
 The kinds of data fetched from external providers beyond instrument identity: identifier
-events, corporate events, prices and FX rates.
+events, corporate actions, prices and FX rates.
 
 ## Why
 
@@ -31,7 +31,7 @@ a key, it covers nothing for that key, and a failed fetch covers nothing.
 
 ### Provenance
 
-A price and a corporate event each reference the fetch key that produced them. The
+A price and a corporate action each reference the fetch key that produced them. The
 series a provider serves under a ticker is its own history for the symbol, and no
 provider promises that history follows the instrument across a reassignment, so
 provenance is recorded whichever identifier keyed the fetch.

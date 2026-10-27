@@ -8,7 +8,7 @@ reference data, etc that can state a fact the system records.
 **Channel** -- the route data to enter the system with its own authentication,
 reliability and correctness properties.
 
-**Datasource** -- a source of market data: eg. prices, corporate events, instrument
+**Datasource** -- a source of market data: eg. prices, corporate actions, instrument
 identity.
 
 **Authority** -- the trust a source and channel combination carries. **System authority**

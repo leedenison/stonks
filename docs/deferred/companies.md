@@ -19,7 +19,7 @@ A company is a system owned record carrying its CIK and LEI, and an instrument r
 the company that issued it. A datasource answer that carries a CIK or an LEI creates or
 confirms the company as it creates the instrument. Two instruments with one issuer are
 then related, which groups a company's share classes and depositary receipts and gives
-corporate events and filings a subject.
+corporate actions and filings a subject.
 
 ## Open questions
 

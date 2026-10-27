@@ -20,7 +20,7 @@ proto/
   admin/datasource/v1/datasource.proto                              stonks.admin.datasource.v1               -- the external providers and their settings
   admin/extend_validity/v1/extend_validity.proto                    stonks.admin.extend_validity.v1          -- runs that extend the validity of held tickers, started by an administrator
   admin/instrument/v1/instrument.proto                              stonks.admin.instrument.v1               -- every instrument, with its identifiers and listings
-  admin/refresh_corporate_events/v1/refresh_corporate_events.proto  stonks.admin.refresh_corporate_events.v1 -- runs that fetch the corporate events of the tickers that named a held instrument, started by an administrator
+  admin/refresh_corp_acts/v1/refresh_corp_acts.proto                stonks.admin.refresh_corp_acts.v1        -- runs that fetch the corporate actions of the tickers that named a held instrument, started by an administrator
   admin/replay/v1/replay.proto                                      stonks.admin.replay.v1                   -- replays, started by an administrator
   admin/run/v1/run.proto                                            stonks.admin.run.v1                      -- what runs did, across every user
   auth/v1/auth.proto                                                stonks.auth.v1                           -- sign in, session, sign out
@@ -50,7 +50,7 @@ server/
     db/                  the database: queries, generated code, migrations
     identity/            how a stated key comes to name an instrument: resolution, validity,
                          attestation, coverage, the holdings of keys without an instrument
-    run/                 runs and the work they do: replay, validity extension, corporate event refresh
+    run/                 runs and the work they do: replay, validity extension, corporate action refresh
   pkg/                   packages with externally visible interfaces
 ```
 

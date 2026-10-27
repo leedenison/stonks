@@ -7,7 +7,7 @@ ask it. `Derive` runs in Go. A SQL view therefore cannot derive the answer on re
 
 `resolved_tickers` stores the answer. Its columns are `ticker_id`, `instrument_id`,
 `venue`, `since`, `until` and `currency`. Only the rebuild from the facts writes
-the rows. The projection holds names only. Holdings, dating and corporate events
+the rows. The projection holds names only. Holdings, dating and corporate actions
 still read validity from the facts.
 
 For each instrument and market:
