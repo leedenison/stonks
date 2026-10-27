@@ -99,8 +99,8 @@ func TestGetTicker(t *testing.T) {
 		Days:   []time.Time{day(5)},
 		Rows: tickervalidity.Rows{
 			Assertions: []gen.ListIdentifierAssertionsRow{{
-				IdentifierAssertion: gen.IdentifierAssertion{ID: assertionID, Type: types.IdentifierTypeMicTicker, Domain: "US", Value: "ACME", InstrID: &acme, AssertedOn: day(10)},
-				AttestedBy:          ptr.To("admin@example.com"),
+				IdentifierAssertion: gen.IdentifierAssertion{ID: assertionID, Market: "US", InstrID: &acme, AssertedOn: day(10)}, Value: "ACME",
+				AttestedBy: ptr.To("admin@example.com"),
 			}},
 			Events:   []gen.ListIdentifierEventsRow{{Value: "OLD", Action: gen.IdentifierEventActionRenamed, ToValue: ptr.To("ACME"), EffectiveOn: day(3)}},
 			Coverage: []gen.ListIdentifierCoverageRow{{Market: "US", CoveredFrom: day(1), CoveredBefore: day(20), Datasource: "alpha"}},

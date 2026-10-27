@@ -42,6 +42,9 @@ type resolution struct {
 	// datedFromFacts reports that prepare dated a key through the facts of
 	// its ticker, so the write gives it the dated association.
 	datedFromFacts bool
+	// tickers holds the row of each ticker the write may assert, as
+	// createTickers made them before the write.
+	tickers map[types.MarketTicker]gen.Ticker
 	// written lists the MIC_TICKER assertions the key's write made, each with
 	// the fetch key that made it. Each attempt of the write resets it.
 	written []writtenFact

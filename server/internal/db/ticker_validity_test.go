@@ -51,22 +51,23 @@ func TestMarkets(t *testing.T) {
 func TestIdentifierAssertions(t *testing.T) {
 	ctx := context.Background()
 	on := date(2026, 3, 2)
-	assertion := func() gen.CreateIdentifierAssertionParams {
+	assertion := func(q *gen.Queries) gen.CreateIdentifierAssertionParams {
+		shel := newTicker(t, q, "XLON", "SHEL")
 		return gen.CreateIdentifierAssertionParams{
-			ID: db.NewID(), Type: types.IdentifierTypeMicTicker, Domain: "XLON", Value: "SHEL", AssertedOn: on,
+			ID: db.NewID(), TickerID: shel.ID, Market: shel.Market, AssertedOn: on,
 		}
 	}
 
-	t.Run("one per fetch key, identifier and day", func(t *testing.T) {
+	t.Run("one per fetch key, ticker and day", func(t *testing.T) {
 		q := newTx(t)
 		f := newFetching(t, q)
 		key := servedKey(t, q, f.fetch, f.key, "GB00B03MLX29")
-		arg := assertion()
+		arg := assertion(q)
 		arg.FetchKeyID = &key
 		require.NoError(t, q.CreateIdentifierAssertion(ctx, arg))
 		listed, err := q.ListFetchKeyAssertions(ctx, &key)
 		require.NoError(t, err)
-		if len(listed) != 1 || listed[0].InstrID != nil || !listed[0].AssertedOn.Equal(on) {
+		if len(listed) != 1 || listed[0].IdentifierAssertion.InstrID != nil || !listed[0].IdentifierAssertion.AssertedOn.Equal(on) || listed[0].Value != "SHEL" {
 			t.Errorf("ListFetchKeyAssertions = %+v, want the negative assertion on %s", listed, on.Format("2006-01-02"))
 		}
 		arg.ID = db.NewID()
@@ -82,7 +83,7 @@ func TestIdentifierAssertions(t *testing.T) {
 		admin := newUser(t, q, "attest-"+f.user.Email)
 		run, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), Kind: gen.RunKindAttestIdentifier, Trigger: gen.RunTriggerAdministrator})
 		require.NoError(t, err)
-		arg := assertion()
+		arg := assertion(q)
 		arg.RunID, arg.AttestedBy = &run.ID, &admin.ID
 		require.NoError(t, q.CreateIdentifierAssertion(ctx, arg))
 		_, err = tx.Exec(ctx, "DELETE FROM runs WHERE id = $1", run.ID)
@@ -98,15 +99,15 @@ func TestIdentifierAssertions(t *testing.T) {
 		name string
 		arg  func(q *gen.Queries, f fetching) gen.CreateIdentifierAssertionParams
 	}{
-		{name: "no source", arg: func(*gen.Queries, fetching) gen.CreateIdentifierAssertionParams { return assertion() }},
+		{name: "no source", arg: func(q *gen.Queries, _ fetching) gen.CreateIdentifierAssertionParams { return assertion(q) }},
 		{name: "a fetch key and a run", arg: func(q *gen.Queries, f fetching) gen.CreateIdentifierAssertionParams {
 			key := servedKey(t, q, f.fetch, f.key, "GB00B03MLX29")
-			arg := assertion()
+			arg := assertion(q)
 			arg.FetchKeyID, arg.RunID, arg.AttestedBy = &key, &f.run.ID, &f.user.ID
 			return arg
 		}},
-		{name: "a run with no administrator", arg: func(_ *gen.Queries, f fetching) gen.CreateIdentifierAssertionParams {
-			arg := assertion()
+		{name: "a run with no administrator", arg: func(q *gen.Queries, f fetching) gen.CreateIdentifierAssertionParams {
+			arg := assertion(q)
 			arg.RunID = &f.run.ID
 			return arg
 		}},
@@ -121,20 +122,60 @@ func TestIdentifierAssertions(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("an assertion is at its ticker's market", func(t *testing.T) {
+		q := newTx(t)
+		f := newFetching(t, q)
+		key := servedKey(t, q, f.fetch, f.key, "GB00B03MLX29")
+		arg := assertion(q)
+		arg.FetchKeyID, arg.Market = &key, "US"
+		if err := q.CreateIdentifierAssertion(ctx, arg); !sqlstate(err, pgerrcode.ForeignKeyViolation) {
+			t.Errorf("CreateIdentifierAssertion at another market: err = %v, want a foreign key violation", err)
+		}
+	})
 }
 
 // TestIdentifierEventChecks checks the shape the schema demands of an event
 // and of coverage.
 func TestIdentifierEventChecks(t *testing.T) {
 	ctx := context.Background()
+	type tickers struct{ fb, meta, other uuid.UUID }
 	tests := []struct {
-		name string
-		sql  string
+		name  string
+		sql   string
+		args  func(tickers) []any
+		state string
 	}{
-		{name: "a rename with no new value", sql: "INSERT INTO identifier_events (id, fetch_key_id, market, value, action, effective_on) VALUES ($1, $2, 'US', 'FB', 'renamed', '2022-06-09')"},
-		{name: "a retirement with a new value", sql: "INSERT INTO identifier_events (id, fetch_key_id, market, value, action, to_value, effective_on) VALUES ($1, $2, 'US', 'FB', 'retired', 'META', '2022-06-09')"},
-		{name: "an event with no market", sql: "INSERT INTO identifier_events (id, fetch_key_id, market, value, action, effective_on) VALUES ($1, $2, '', 'FB', 'retired', '2022-06-09')"},
-		{name: "coverage that ends as it starts", sql: "INSERT INTO identifier_event_coverage (id, fetch_key_id, market, covered_from, covered_before) VALUES ($1, $2, 'US', '2022-06-09', '2022-06-09')"},
+		{
+			name:  "a rename with no new ticker",
+			sql:   "INSERT INTO identifier_events (id, fetch_key_id, market, ticker_id, action, effective_on) VALUES ($1, $2, 'US', $3, 'renamed', '2022-06-09')",
+			args:  func(ts tickers) []any { return []any{ts.fb} },
+			state: pgerrcode.CheckViolation,
+		},
+		{
+			name:  "a retirement with a new ticker",
+			sql:   "INSERT INTO identifier_events (id, fetch_key_id, market, ticker_id, action, to_ticker_id, effective_on) VALUES ($1, $2, 'US', $3, 'retired', $4, '2022-06-09')",
+			args:  func(ts tickers) []any { return []any{ts.fb, ts.meta} },
+			state: pgerrcode.CheckViolation,
+		},
+		{
+			name:  "a rename to another market",
+			sql:   "INSERT INTO identifier_events (id, fetch_key_id, market, ticker_id, action, to_ticker_id, effective_on) VALUES ($1, $2, 'US', $3, 'renamed', $4, '2022-06-09')",
+			args:  func(ts tickers) []any { return []any{ts.fb, ts.other} },
+			state: pgerrcode.ForeignKeyViolation,
+		},
+		{
+			name:  "coverage that ends as it starts",
+			sql:   "INSERT INTO identifier_event_coverage (id, fetch_key_id, market, covered_from, covered_before) VALUES ($1, $2, 'US', '2022-06-09', '2022-06-09')",
+			args:  func(tickers) []any { return nil },
+			state: pgerrcode.CheckViolation,
+		},
+		{
+			name:  "coverage of a venue in place of its market",
+			sql:   "INSERT INTO identifier_event_coverage (id, fetch_key_id, market, covered_from, covered_before) VALUES ($1, $2, 'XNAS', '2022-01-01', '2022-06-09')",
+			args:  func(tickers) []any { return nil },
+			state: pgerrcode.ForeignKeyViolation,
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -142,8 +183,10 @@ func TestIdentifierEventChecks(t *testing.T) {
 			q := gen.New(tx)
 			f := newFetching(t, q)
 			key := servedKey(t, q, f.fetch, f.key, "US30303M1027")
-			if _, err := tx.Exec(ctx, tc.sql, db.NewID(), key); !sqlstate(err, pgerrcode.CheckViolation) {
-				t.Errorf("%s: err = %v, want a check violation", tc.name, err)
+			ts := tickers{fb: newTicker(t, q, "US", "FB").ID, meta: newTicker(t, q, "US", "META").ID, other: newTicker(t, q, "XLON", "META").ID}
+			args := append([]any{db.NewID(), key}, tc.args(ts)...)
+			if _, err := tx.Exec(ctx, tc.sql, args...); !sqlstate(err, tc.state) {
+				t.Errorf("%s: err = %v, want SQLSTATE %s", tc.name, err, tc.state)
 			}
 		})
 	}
@@ -207,7 +250,8 @@ func TestListRunAssertions(t *testing.T) {
 	on := date(2026, 3, 2)
 	assert := func(arg gen.CreateIdentifierAssertionParams, value string) uuid.UUID {
 		t.Helper()
-		arg.ID, arg.Type, arg.Domain, arg.Value, arg.AssertedOn = db.NewID(), types.IdentifierTypeMicTicker, "XLON", value, on
+		ticker := newTicker(t, q, "XLON", value)
+		arg.ID, arg.TickerID, arg.Market, arg.AssertedOn = db.NewID(), ticker.ID, ticker.Market, on
 		require.NoError(t, q.CreateIdentifierAssertion(ctx, arg))
 		return arg.ID
 	}

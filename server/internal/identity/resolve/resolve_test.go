@@ -108,6 +108,16 @@ func (f *fixture) finds() {
 	f.store.EXPECT().ListIdentifierEvents(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
 	f.store.EXPECT().ListIdentifierCoverage(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
 	f.store.EXPECT().ListKeyDates(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
+	// The store is empty of tickers, so a ticker's row is made up from its
+	// spelling.
+	f.store.EXPECT().CreateTickers(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+	f.store.EXPECT().ListTickers(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.ListTickersParams) ([]gen.Ticker, error) {
+		out := make([]gen.Ticker, len(arg.Markets))
+		for i := range arg.Markets {
+			out[i] = gen.Ticker{ID: uuid.NewSHA1(uuid.Nil, []byte(arg.Markets[i]+":"+arg.Values[i])), Market: arg.Markets[i], Value: arg.Values[i]}
+		}
+		return out, nil
+	}).AnyTimes()
 }
 
 // creates accepts every write of a created instrument.

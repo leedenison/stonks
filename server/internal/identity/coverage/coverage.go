@@ -98,7 +98,7 @@ func (t *Page) ToProto() *admincoveragev1.Ticker {
 		out.Coverage = append(out.Coverage, to.ProtoCoverage(c))
 	}
 	for _, a := range t.Rows.Assertions {
-		out.Assertions = append(out.Assertions, to.ProtoAssertionItem(a.IdentifierAssertion, a.Datasource, a.AttestedBy))
+		out.Assertions = append(out.Assertions, to.ProtoAssertionItem(a.IdentifierAssertion, a.Value, a.Datasource, a.AttestedBy))
 	}
 	for _, e := range t.Rows.Events {
 		out.Events = append(out.Events, to.ProtoIdentifierEvent(e))

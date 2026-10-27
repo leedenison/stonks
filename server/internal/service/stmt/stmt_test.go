@@ -232,8 +232,8 @@ func TestGetStmt(t *testing.T) {
 	}
 	facts := metaFacts()
 	assertions := []gen.ListIdentifierAssertionsRow{
-		{IdentifierAssertion: gen.IdentifierAssertion{Type: types.IdentifierTypeMicTicker, Domain: "US", Value: "META", AssertedOn: assertedOn, InstrID: &metaInst, FetchKeyID: ptr.To(uuid.New())}, Datasource: ptr.To("massive"), Precedence: ptr.To(int32(2))},
-		{IdentifierAssertion: gen.IdentifierAssertion{Type: types.IdentifierTypeMicTicker, Domain: "US", Value: "META", AssertedOn: notFoundOn, FetchKeyID: ptr.To(uuid.New())}, Datasource: ptr.To("massive"), Precedence: ptr.To(int32(2))},
+		{IdentifierAssertion: gen.IdentifierAssertion{Market: "US", AssertedOn: assertedOn, InstrID: &metaInst, FetchKeyID: ptr.To(uuid.New())}, Value: "META", Datasource: ptr.To("massive"), Precedence: ptr.To(int32(2))},
+		{IdentifierAssertion: gen.IdentifierAssertion{Market: "US", AssertedOn: notFoundOn, FetchKeyID: ptr.To(uuid.New())}, Value: "META", Datasource: ptr.To("massive"), Precedence: ptr.To(int32(2))},
 	}
 	events := []gen.ListIdentifierEventsRow{{Market: "US", Value: "META", EffectiveOn: renamed, FetchKeyID: uuid.New()}}
 	coverage := []gen.ListIdentifierCoverageRow{{Market: "US", Value: ptr.To("META"), CoveredFrom: facts.Coverage[0].Period.From, CoveredBefore: facts.Coverage[0].Period.Before}}

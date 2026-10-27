@@ -18,6 +18,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/testutil/dbtest"
+	"github.com/leedenison/stonks/server/internal/types"
 )
 
 var pool *pgxpool.Pool
@@ -90,6 +91,12 @@ func explain(t *testing.T) (*gen.Queries, *explainer) {
 func newTx(t *testing.T) *gen.Queries {
 	t.Helper()
 	return gen.New(begin(t))
+}
+
+// newTicker returns the row of the ticker value at market, creating it.
+func newTicker(t *testing.T, q *gen.Queries, market, value string) gen.Ticker {
+	t.Helper()
+	return dbtest.Ticker(t, q, types.MarketTicker{Market: market, Value: value})
 }
 
 func TestUsers(t *testing.T) {

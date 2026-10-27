@@ -212,11 +212,11 @@ func ProtoFetchItem(it gen.ListFetchItemsRow) *adminrunv1.FetchItem {
 
 // ProtoAssertionItem converts a ticker's assertion with its source: the
 // datasource of the fetch that made it, or the administrator who attested it.
-// A mic_ticker row holds the ticker's market in its domain.
-func ProtoAssertionItem(a gen.IdentifierAssertion, datasource, attestedBy *string) *adminrunv1.AssertionItem {
+// value is the value of the assertion's ticker.
+func ProtoAssertionItem(a gen.IdentifierAssertion, value string, datasource, attestedBy *string) *adminrunv1.AssertionItem {
 	out := &adminrunv1.AssertionItem{
 		Id:         a.ID.String(),
-		Ticker:     types.MarketTicker{Market: a.Domain, Value: a.Value}.ToProto(),
+		Ticker:     types.MarketTicker{Market: a.Market, Value: value}.ToProto(),
 		AssertedOn: a.AssertedOn.Format(time.DateOnly),
 	}
 	if a.InstrID != nil {

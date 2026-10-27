@@ -17,6 +17,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/platform/ptr"
+	"github.com/leedenison/stonks/server/internal/testutil/dbtest"
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
@@ -46,7 +47,7 @@ func (s *stack) names(t *testing.T, mt types.MarketTicker, instr uuid.UUID, on t
 		SentType: ptr.To(types.IdentifierTypeMicTicker), SentDomain: mt.Market, SentValue: &mt.Value, AnsweredAt: &on,
 	}))
 	require.NoError(t, s.q.CreateIdentifierAssertion(ctx, gen.CreateIdentifierAssertionParams{
-		ID: db.NewID(), FetchKeyID: &key, Type: types.IdentifierTypeMicTicker, Domain: mt.Market, Value: mt.Value, InstrID: &instr, AssertedOn: on,
+		ID: db.NewID(), FetchKeyID: &key, TickerID: dbtest.Ticker(t, s.q, mt).ID, Market: mt.Market, InstrID: &instr, AssertedOn: on,
 	}))
 }
 

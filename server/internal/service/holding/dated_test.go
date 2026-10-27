@@ -61,8 +61,8 @@ func day(n int) time.Time { return time.Date(2026, time.March, n, 0, 0, 0, 0, ti
 // where instr is nil.
 func assertion(n int, instr *uuid.UUID) gen.ListIdentifierAssertionsRow {
 	return gen.ListIdentifierAssertionsRow{
-		IdentifierAssertion: gen.IdentifierAssertion{Type: types.IdentifierTypeMicTicker, Domain: "US", Value: "FOO", AssertedOn: day(n), InstrID: instr, FetchKeyID: ptr.To(uuid.New())},
-		Datasource:          ptr.To("massive"), Precedence: ptr.To(int32(2)),
+		IdentifierAssertion: gen.IdentifierAssertion{Market: "US", AssertedOn: day(n), InstrID: instr, FetchKeyID: ptr.To(uuid.New())}, Value: "FOO",
+		Datasource: ptr.To("massive"), Precedence: ptr.To(int32(2)),
 	}
 }
 

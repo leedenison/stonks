@@ -1,7 +1,7 @@
 -- +goose Up
 
--- What an identifier event did to a MIC_TICKER: 'assigned' gave it to
--- an instrument, 'renamed' moved its instrument to to_value, and 'retired'
+-- What an identifier event did to a ticker: 'assigned' gave it to an
+-- instrument, 'renamed' moved its instrument to to_ticker_id, and 'retired'
 -- left it naming nothing.
 CREATE TYPE identifier_event_action AS ENUM ('assigned', 'renamed', 'retired');
 
@@ -57,14 +57,13 @@ CREATE TABLE tickers (
     UNIQUE (id, market)
 );
 
--- An identifier assertion is a claim that an identifier names an instrument, or
--- names nothing, on one day. A MIC_TICKER is asserted at its market, so the
--- domain of a mic_ticker row is a market. A datasource asserts through a fetch
--- key, on the day of its answer. A point in time lookup asserts on the day its
--- request names. An entity's ticker history asserts each ticker on the day the
--- ticker began naming the entity. An administrator asserts through an attest
--- identifier run, on any day up to the day of the identifier attestation. A row
--- goes with its source.
+-- An identifier assertion is a claim that a ticker names an instrument, or
+-- names nothing, on one day. A datasource asserts through a fetch key, on the
+-- day of its answer. A point in time lookup asserts on the day its request
+-- names. An entity's ticker history asserts each ticker on the day the ticker
+-- began naming the entity. An administrator asserts through an attest
+-- identifier run, on any day up to the day of the identifier attestation. A
+-- row goes with its source.
 CREATE TABLE identifier_assertions (
     id              uuid            PRIMARY KEY,
     fetch_key_id    uuid            REFERENCES fetch_keys (id) ON DELETE CASCADE,
@@ -72,60 +71,62 @@ CREATE TABLE identifier_assertions (
     -- who started it.
     run_id          uuid            REFERENCES runs (id) ON DELETE CASCADE,
     attested_by     uuid            REFERENCES users (id),
-    type            identifier_type NOT NULL,
-    domain          text            NOT NULL DEFAULT '',
-    value           text            NOT NULL,
-    -- instr_id is NULL for a negative assertion: the identifier names
-    -- nothing at the source.
-    instr_id   uuid            REFERENCES instrs (id),
+    ticker_id       uuid            NOT NULL,
+    market          text            NOT NULL,
+    -- instr_id is NULL for a negative assertion: the ticker names nothing at
+    -- the source.
+    instr_id        uuid            REFERENCES instrs (id),
     asserted_on     date            NOT NULL,
     CHECK ((fetch_key_id IS NULL) <> (run_id IS NULL)),
     CHECK ((run_id IS NULL) = (attested_by IS NULL)),
-    UNIQUE (fetch_key_id, type, domain, value, asserted_on)
+    FOREIGN KEY (ticker_id, market) REFERENCES tickers (id, market),
+    UNIQUE (fetch_key_id, ticker_id, asserted_on)
 );
 
-CREATE INDEX identifier_assertions_value_idx ON identifier_assertions (type, domain, value);
+CREATE INDEX identifier_assertions_ticker_idx ON identifier_assertions (ticker_id);
 -- An administrator attests a day once: a later identifier attestation replaces
 -- the earlier one.
-CREATE UNIQUE INDEX identifier_attestations_day_idx ON identifier_assertions (type, domain, value, asserted_on)
+CREATE UNIQUE INDEX identifier_attestations_day_idx ON identifier_assertions (ticker_id, asserted_on)
     WHERE run_id IS NOT NULL;
 CREATE INDEX identifier_assertions_run_idx ON identifier_assertions (run_id);
 CREATE INDEX identifier_assertions_instr_idx ON identifier_assertions (instr_id);
 
--- An identifier event is a change a datasource reported in what a MIC_TICKER
+-- An identifier event is a change a datasource reported in what a ticker
 -- names, taking effect at the start of effective_on. An event refers to a
--- ticker at its market rather than to an instrument. The table holds only the
--- events a datasource reported. Readers derive any event the assertions imply.
+-- ticker rather than to an instrument. The table holds only the events a
+-- datasource reported. Readers derive any event the assertions imply.
 CREATE TABLE identifier_events (
     id           uuid                    PRIMARY KEY,
     fetch_key_id uuid                    NOT NULL REFERENCES fetch_keys (id) ON DELETE CASCADE,
     market       text                    NOT NULL,
-    value        text                    NOT NULL,
+    ticker_id    uuid                    NOT NULL,
     action       identifier_event_action NOT NULL,
-    to_value     text,
+    -- to_ticker_id is the new ticker of a rename, in the same market.
+    to_ticker_id uuid,
     effective_on date                    NOT NULL,
-    CHECK (market <> ''),
-    CHECK ((action = 'renamed') = (to_value IS NOT NULL))
+    CHECK ((action = 'renamed') = (to_ticker_id IS NOT NULL)),
+    FOREIGN KEY (ticker_id, market) REFERENCES tickers (id, market),
+    FOREIGN KEY (to_ticker_id, market) REFERENCES tickers (id, market)
 );
 
-CREATE INDEX identifier_events_value_idx ON identifier_events (market, value);
-CREATE INDEX identifier_events_to_value_idx ON identifier_events (market, to_value);
+CREATE INDEX identifier_events_ticker_idx ON identifier_events (ticker_id);
+CREATE INDEX identifier_events_to_ticker_idx ON identifier_events (to_ticker_id);
 CREATE INDEX identifier_events_fetch_key_idx ON identifier_events (fetch_key_id);
 
 -- Identifier event coverage is a period over which a datasource reported
--- every identifier event of one MIC_TICKER, or of every MIC_TICKER in a
--- market where value is NULL. Inside it, the absence of an event is a claim
--- that none occurred. A row goes with its fetch key.
+-- every identifier event of one ticker, or of every ticker in a market where
+-- ticker_id is NULL. Inside it, the absence of an event is a claim that none
+-- occurred. A row goes with its fetch key.
 CREATE TABLE identifier_event_coverage (
     id             uuid PRIMARY KEY,
     fetch_key_id   uuid NOT NULL REFERENCES fetch_keys (id) ON DELETE CASCADE,
-    market         text NOT NULL,
-    value          text,
+    market         text NOT NULL REFERENCES markets (code),
+    ticker_id      uuid,
     covered_from   date NOT NULL,
     covered_before date NOT NULL,
-    CHECK (market <> ''),
-    CHECK (covered_from < covered_before)
+    CHECK (covered_from < covered_before),
+    FOREIGN KEY (ticker_id, market) REFERENCES tickers (id, market)
 );
 
-CREATE INDEX identifier_event_coverage_value_idx ON identifier_event_coverage (market, value);
+CREATE INDEX identifier_event_coverage_ticker_idx ON identifier_event_coverage (market, ticker_id);
 CREATE INDEX identifier_event_coverage_fetch_key_idx ON identifier_event_coverage (fetch_key_id);

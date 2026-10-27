@@ -83,7 +83,9 @@ func TestEventsRecord(t *testing.T) {
 	require.Equal(t, gen.FetchOutcomeServed, keys[0].Outcome)
 	families, _, err := currency.Load(ctx, q)
 	require.NoError(t, err)
-	require.NoError(t, tickervalidity.Record(ctx, q, tbl, families, keys))
+	rows, err := tickervalidity.RecordTickers(ctx, q, tbl, keys)
+	require.NoError(t, err)
+	require.NoError(t, tickervalidity.Record(ctx, q, families, rows, keys))
 	for table, want := range map[string]int{"identifier_assertions": 3, "identifier_events": 2, "identifier_event_coverage": 2} {
 		var n int
 		require.NoError(t, tx.QueryRow(ctx, "SELECT count(*) FROM "+table+" WHERE fetch_key_id = $1", keys[0].ID).Scan(&n))

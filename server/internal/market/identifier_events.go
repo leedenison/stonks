@@ -54,6 +54,28 @@ type IdentifierEventResult struct {
 	Coverage   []Coverage
 }
 
+// Tickers returns the tickers whose facts r states: the tickers of its
+// events, the new ticker of each rename, the tickers of its assertions, and
+// the ticker of each coverage row of one ticker.
+func (r IdentifierEventResult) Tickers() []types.MarketTicker {
+	var out []types.MarketTicker
+	for _, e := range r.Events {
+		out = append(out, e.Ticker)
+		if e.ToValue != "" {
+			out = append(out, types.MarketTicker{Market: e.Ticker.Market, Value: e.ToValue})
+		}
+	}
+	for _, a := range r.Assertions {
+		out = append(out, a.Ticker)
+	}
+	for _, c := range r.Coverage {
+		if c.Ticker != nil {
+			out = append(out, *c.Ticker)
+		}
+	}
+	return out
+}
+
 // IdentifierEvents is an integration that reports the identifier events of
 // tickers or markets. Its Events method returns the server, so one integration
 // can serve identity too. An integration reports each event, assertion and
