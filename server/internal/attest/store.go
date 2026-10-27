@@ -40,7 +40,8 @@ type Runner interface {
 
 var _ Runner = (*run.Runner)(nil)
 
-// Replays is this package's view of the replay package.
-type Replays interface {
-	ReplayNewIdentifierFacts(ctx context.Context, except gen.Run, written []resolve.WrittenIdentifierFacts)
+// Facts is this package's view of the replay package: what new identifier
+// facts start.
+type Facts interface {
+	AfterIdentifierFacts(ctx context.Context, except gen.Run, written []resolve.WrittenIdentifierFacts)
 }

@@ -71,7 +71,8 @@ type fixture struct {
 	store    *MockStore
 	runs     *MockRunner
 	resolver *MockResolver
-	replays  *MockReplays
+	facts    *MockFacts
+	events   *MockCorporateEvents
 	svc      *Service
 	spec     run.Spec
 	workErr  error
@@ -81,8 +82,13 @@ type fixture struct {
 	resolveErr error
 	// written is what the mock resolver returns as the facts it wrote.
 	written []resolve.WrittenIdentifierFacts
-	// replayed records each call to replay new facts.
+	// replayed records each call to follow new facts.
 	replayed []replayCall
+	// fetched records the run of each corporate events fetch after a
+	// statement.
+	fetched []gen.Run
+	// followed names the calls after the write, in the order they came.
+	followed []string
 	// dates holds every key the resolver was sent, with its as-at dates.
 	dates []resolve.KeyDates
 	// calls names the regroup, the sweep and the completion in the order
@@ -103,7 +109,7 @@ func newFixture(t *testing.T) *fixture {
 	t.Helper()
 	ctrl := gomock.NewController(t)
 	t.Cleanup(ctrl.Finish)
-	f := &fixture{store: NewMockStore(ctrl), runs: NewMockRunner(ctrl), resolver: NewMockResolver(ctrl), replays: NewMockReplays(ctrl)}
+	f := &fixture{store: NewMockStore(ctrl), runs: NewMockRunner(ctrl), resolver: NewMockResolver(ctrl), facts: NewMockFacts(ctrl), events: NewMockCorporateEvents(ctrl)}
 	f.outcomes = func(keys []gen.StatedKey) []gen.ResolutionKey {
 		out := make([]gen.ResolutionKey, len(keys))
 		for i, k := range keys {
@@ -144,10 +150,15 @@ func newFixture(t *testing.T) *fixture {
 		row := gen.Run{ID: db.NewID(), UserID: parent.UserID, Kind: kind, Trigger: gen.RunTriggerRun, ParentID: &parent.ID}
 		return row, work(ctx, row)
 	}).AnyTimes()
-	f.replays.EXPECT().ReplayNewIdentifierFacts(gomock.Any(), gomock.Any(), gomock.Any()).Do(func(_ context.Context, except gen.Run, written []resolve.WrittenIdentifierFacts) {
+	f.facts.EXPECT().AfterIdentifierFacts(gomock.Any(), gomock.Any(), gomock.Any()).Do(func(_ context.Context, except gen.Run, written []resolve.WrittenIdentifierFacts) {
 		f.replayed = append(f.replayed, replayCall{except, written})
+		f.followed = append(f.followed, "facts")
 	}).AnyTimes()
-	f.svc = New(f.store, f.runs, f.resolver, f.replays, families, clock, slog.New(slog.DiscardHandler))
+	f.events.EXPECT().AfterStatement(gomock.Any(), gomock.Any()).Do(func(_ context.Context, statement gen.Run) {
+		f.fetched = append(f.fetched, statement)
+		f.followed = append(f.followed, "corporate events")
+	}).AnyTimes()
+	f.svc = New(f.store, f.runs, f.resolver, f.facts, f.events, families, clock, slog.New(slog.DiscardHandler))
 	return f
 }
 
@@ -518,6 +529,12 @@ func TestReplaysNewFacts(t *testing.T) {
 	}
 	if len(f.replayed) != 1 || f.replayed[0].except.Kind != gen.RunKindResolution || !cmp.Equal(f.replayed[0].written, f.written) {
 		t.Errorf("replays = %+v, want one excepting the resolution, with its facts", f.replayed)
+	}
+	if len(f.fetched) != 1 || f.fetched[0].Kind != gen.RunKindStatement {
+		t.Errorf("corporate events fetches = %+v, want one beneath the statement run", f.fetched)
+	}
+	if diff := cmp.Diff([]string{"facts", "corporate events"}, f.followed); diff != "" {
+		t.Errorf("calls after the write mismatch (-want +got):\n%s", diff)
 	}
 }
 

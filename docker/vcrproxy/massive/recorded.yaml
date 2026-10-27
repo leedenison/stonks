@@ -663,3 +663,540 @@ interactions:
         status: 200 OK
         code: 200
         duration: 12.033882391s
+    - id: 17
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /stocks/v1/splits?apiKey=REDACTED&limit=5000&ticker=WMT
+        form:
+            limit:
+                - "5000"
+            ticker:
+                - WMT
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://api.massive.com/stocks/v1/splits?limit=5000&ticker=WMT
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 301
+        uncompressed: true
+        body: '{"status":"OK","request_id":"12ad21a5b6bd4a31b253f2932ed63f59","results":[{"id":"E9b4b9da3db0212a01800208b2c4df300df1552d07bbdbf536bbeb6e95e560837","execution_date":"2024-02-26","split_from":1.0,"split_to":3.0,"ticker":"WMT","adjustment_type":"forward_split","historical_adjustment_factor":0.333333}]}'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - DNT,X-CustomHeader,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization
+            Access-Control-Allow-Methods:
+                - GET, PUT, POST, DELETE, PATCH, OPTIONS
+            Access-Control-Allow-Origin:
+                - '*'
+            Access-Control-Max-Age:
+                - "1728000"
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 07:57:55 GMT
+            Strict-Transport-Security:
+                - max-age=15724800; includeSubDomains
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - 100000000, 100000000;w=60
+            X-Ratelimit-Remaining:
+                - "80000000"
+            X-Ratelimit-Reset:
+                - "5"
+            X-Request-Id:
+                - 12ad21a5b6bd4a31b253f2932ed63f59
+        status: 200 OK
+        code: 200
+        duration: 843.435456ms
+    - id: 18
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /stocks/v1/splits?apiKey=REDACTED&limit=5000&ticker=MSFT
+        form:
+            limit:
+                - "5000"
+            ticker:
+                - MSFT
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://api.massive.com/stocks/v1/splits?limit=5000&ticker=MSFT
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 297
+        uncompressed: true
+        body: '{"status":"OK","request_id":"68ec8ea7e24742e880710e47bed14180","results":[{"id":"Ebeba591c56bd21cee30a1582667d5561369a15f58343b07f93992f5d569cf672","execution_date":"2003-02-18","split_from":1.0,"split_to":2.0,"ticker":"MSFT","adjustment_type":"forward_split","historical_adjustment_factor":0.5}]}'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - DNT,X-CustomHeader,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization
+            Access-Control-Allow-Methods:
+                - GET, PUT, POST, DELETE, PATCH, OPTIONS
+            Access-Control-Allow-Origin:
+                - '*'
+            Access-Control-Max-Age:
+                - "1728000"
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 07:58:06 GMT
+            Strict-Transport-Security:
+                - max-age=15724800; includeSubDomains
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - 100000000, 100000000;w=60
+            X-Ratelimit-Remaining:
+                - "80000000"
+            X-Ratelimit-Reset:
+                - "54"
+            X-Request-Id:
+                - 68ec8ea7e24742e880710e47bed14180
+        status: 200 OK
+        code: 200
+        duration: 11.239318276s
+    - id: 19
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /stocks/v1/splits?apiKey=REDACTED&limit=5000&ticker=PG
+        form:
+            limit:
+                - "5000"
+            ticker:
+                - PG
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://api.massive.com/stocks/v1/splits?limit=5000&ticker=PG
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 295
+        uncompressed: true
+        body: '{"status":"OK","request_id":"164e886824b04a0eb1b5ec2f22d5c229","results":[{"id":"E83c6dcee822fde4361ce158d3d37dba71d57b54bda51fc6239d0a24146cbc032","execution_date":"2004-06-21","split_from":1.0,"split_to":2.0,"ticker":"PG","adjustment_type":"forward_split","historical_adjustment_factor":0.5}]}'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - DNT,X-CustomHeader,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization
+            Access-Control-Allow-Methods:
+                - GET, PUT, POST, DELETE, PATCH, OPTIONS
+            Access-Control-Allow-Origin:
+                - '*'
+            Access-Control-Max-Age:
+                - "1728000"
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 07:58:18 GMT
+            Strict-Transport-Security:
+                - max-age=15724800; includeSubDomains
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - 100000000, 100000000;w=60
+            X-Ratelimit-Remaining:
+                - "60000000"
+            X-Ratelimit-Reset:
+                - "42"
+            X-Request-Id:
+                - 164e886824b04a0eb1b5ec2f22d5c229
+        status: 200 OK
+        code: 200
+        duration: 11.997512562s
+    - id: 20
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /stocks/v1/splits?apiKey=REDACTED&limit=5000&ticker=META
+        form:
+            limit:
+                - "5000"
+            ticker:
+                - META
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://api.massive.com/stocks/v1/splits?limit=5000&ticker=META
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 76
+        uncompressed: true
+        body: '{"status":"OK","request_id":"8a86ac95f3624694ae300851eb708c7e","results":[]}'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - DNT,X-CustomHeader,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization
+            Access-Control-Allow-Methods:
+                - GET, PUT, POST, DELETE, PATCH, OPTIONS
+            Access-Control-Allow-Origin:
+                - '*'
+            Access-Control-Max-Age:
+                - "1728000"
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 07:58:30 GMT
+            Strict-Transport-Security:
+                - max-age=15724800; includeSubDomains
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - 100000000, 100000000;w=60
+            X-Ratelimit-Remaining:
+                - "40000000"
+            X-Ratelimit-Reset:
+                - "30"
+            X-Request-Id:
+                - 8a86ac95f3624694ae300851eb708c7e
+        status: 200 OK
+        code: 200
+        duration: 1.890869587s
+    - id: 21
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /stocks/v1/splits?apiKey=REDACTED&limit=5000&ticker=JNJ
+        form:
+            limit:
+                - "5000"
+            ticker:
+                - JNJ
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://api.massive.com/stocks/v1/splits?limit=5000&ticker=JNJ
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 76
+        uncompressed: true
+        body: '{"status":"OK","request_id":"100dec37c3b84563ba02edca93dc7bd2","results":[]}'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - DNT,X-CustomHeader,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization
+            Access-Control-Allow-Methods:
+                - GET, PUT, POST, DELETE, PATCH, OPTIONS
+            Access-Control-Allow-Origin:
+                - '*'
+            Access-Control-Max-Age:
+                - "1728000"
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 07:58:42 GMT
+            Strict-Transport-Security:
+                - max-age=15724800; includeSubDomains
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - 100000000, 100000000;w=60
+            X-Ratelimit-Remaining:
+                - "20000000"
+            X-Ratelimit-Reset:
+                - "18"
+            X-Request-Id:
+                - 100dec37c3b84563ba02edca93dc7bd2
+        status: 200 OK
+        code: 200
+        duration: 12.000756684s
+    - id: 22
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /stocks/v1/splits?apiKey=REDACTED&limit=5000&ticker=INTC
+        form:
+            limit:
+                - "5000"
+            ticker:
+                - INTC
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://api.massive.com/stocks/v1/splits?limit=5000&ticker=INTC
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 1876
+        uncompressed: true
+        body: '{"status":"OK","request_id":"7681a9c74e7c4e5ea540f96c6572fdfe","results":[{"id":"Pa79ccb62f0636acbc3f27e24040059061963a0ac19fded2548f684b8a626c60a","execution_date":"2000-07-31","split_from":1.0,"split_to":2.0,"ticker":"INTC","adjustment_type":"forward_split","historical_adjustment_factor":0.5},{"id":"P14f41ff3e975bc6f21b958ac5c1f39f00741f73ca0a74966419a8acd18b4236c","execution_date":"1999-04-12","split_from":1.0,"split_to":2.0,"ticker":"INTC","adjustment_type":"forward_split","historical_adjustment_factor":0.25},{"id":"P7781dcc447d55a596ffef8c13b637efe4d07a329693251ae27c1fcee2f261e50","execution_date":"1997-07-14","split_from":1.0,"split_to":2.0,"ticker":"INTC","adjustment_type":"forward_split","historical_adjustment_factor":0.125},{"id":"Pd2e4201528440585e7ede0d4feb962952f27a4c9bedfad09039b5508f147b284","execution_date":"1995-06-19","split_from":1.0,"split_to":2.0,"ticker":"INTC","adjustment_type":"forward_split","historical_adjustment_factor":0.0625},{"id":"P7b3a09fd62a678738d9c453461e1bdaa7014e536c067ed1efc82802643d5374b","execution_date":"1993-06-07","split_from":1.0,"split_to":2.0,"ticker":"INTC","adjustment_type":"forward_split","historical_adjustment_factor":0.03125},{"id":"P547f6bcc838d78ced0d3a65c6f4688e0f9aad7eec0377e4f8bc18e4bf06810b5","execution_date":"1987-10-29","split_from":2.0,"split_to":3.0,"ticker":"INTC","adjustment_type":"forward_split","historical_adjustment_factor":0.020833},{"id":"P8db8b27748a8f45a7df94dca9ec089dcd320e784c59f1180932a0d9884a313f0","execution_date":"1983-07-01","split_from":1.0,"split_to":2.0,"ticker":"INTC","adjustment_type":"forward_split","historical_adjustment_factor":0.010417},{"id":"P36487df4d2d9c5d1431756a83cb149a48ae107da66f86e2fac3150b123a25f35","execution_date":"1980-10-09","split_from":1.0,"split_to":2.0,"ticker":"INTC","adjustment_type":"forward_split","historical_adjustment_factor":0.005208}]}'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - DNT,X-CustomHeader,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization
+            Access-Control-Allow-Methods:
+                - GET, PUT, POST, DELETE, PATCH, OPTIONS
+            Access-Control-Allow-Origin:
+                - '*'
+            Access-Control-Max-Age:
+                - "1728000"
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 08:11:55 GMT
+            Strict-Transport-Security:
+                - max-age=15724800; includeSubDomains
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - 100000000, 100000000;w=60
+            X-Ratelimit-Remaining:
+                - "80000000"
+            X-Ratelimit-Reset:
+                - "5"
+            X-Request-Id:
+                - 7681a9c74e7c4e5ea540f96c6572fdfe
+        status: 200 OK
+        code: 200
+        duration: 801.421571ms
+    - id: 23
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /stocks/v1/splits?apiKey=REDACTED&limit=5000&ticker=CSCO
+        form:
+            limit:
+                - "5000"
+            ticker:
+                - CSCO
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://api.massive.com/stocks/v1/splits?limit=5000&ticker=CSCO
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 76
+        uncompressed: true
+        body: '{"status":"OK","request_id":"f9563e484fda4794a1775709c5bc6380","results":[]}'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - DNT,X-CustomHeader,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization
+            Access-Control-Allow-Methods:
+                - GET, PUT, POST, DELETE, PATCH, OPTIONS
+            Access-Control-Allow-Origin:
+                - '*'
+            Access-Control-Max-Age:
+                - "1728000"
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 08:12:06 GMT
+            Strict-Transport-Security:
+                - max-age=15724800; includeSubDomains
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - 100000000, 100000000;w=60
+            X-Ratelimit-Remaining:
+                - "80000000"
+            X-Ratelimit-Reset:
+                - "54"
+            X-Request-Id:
+                - f9563e484fda4794a1775709c5bc6380
+        status: 200 OK
+        code: 200
+        duration: 11.285955687s
+    - id: 24
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /stocks/v1/splits?apiKey=REDACTED&limit=5000&ticker=AAPL
+        form:
+            limit:
+                - "5000"
+            ticker:
+                - AAPL
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://api.massive.com/stocks/v1/splits?limit=5000&ticker=AAPL
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 1206
+        uncompressed: true
+        body: '{"status":"OK","request_id":"7eb4373104cc45bf904cfded8f085f6f","results":[{"id":"E88b8b2b6bafd665a61276b4909bf17d919f09bb163b687bbca10e035c3c74a3a","execution_date":"2020-08-31","split_from":1.0,"split_to":4.0,"ticker":"AAPL","adjustment_type":"forward_split","historical_adjustment_factor":0.25},{"id":"E91a6b74ca1a9dcbce26a1f34e24ae26ba2c6359822ccf901ecd827f419137654","execution_date":"2014-06-09","split_from":1.0,"split_to":7.0,"ticker":"AAPL","adjustment_type":"forward_split","historical_adjustment_factor":0.035714},{"id":"E90a77bdf742661741ed7c8fc086415f0457c2816c45899d73aaa88bdc8ff6025","execution_date":"2005-02-28","split_from":1.0,"split_to":2.0,"ticker":"AAPL","adjustment_type":"forward_split","historical_adjustment_factor":0.017857},{"id":"P96524968f5fb924960fdf7c03dd1228a8efb15a452e8e7101f75672ebc25722a","execution_date":"2000-06-21","split_from":1.0,"split_to":2.0,"ticker":"AAPL","adjustment_type":"forward_split","historical_adjustment_factor":0.008929},{"id":"P5cb18bcd45fa2db3e00d67b3ef1b715b44ed4bf2a710935fd53abc869467f91e","execution_date":"1987-06-16","split_from":1.0,"split_to":2.0,"ticker":"AAPL","adjustment_type":"forward_split","historical_adjustment_factor":0.004464}]}'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - DNT,X-CustomHeader,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization
+            Access-Control-Allow-Methods:
+                - GET, PUT, POST, DELETE, PATCH, OPTIONS
+            Access-Control-Allow-Origin:
+                - '*'
+            Access-Control-Max-Age:
+                - "1728000"
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 08:12:18 GMT
+            Strict-Transport-Security:
+                - max-age=15724800; includeSubDomains
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - 100000000, 100000000;w=60
+            X-Ratelimit-Remaining:
+                - "60000000"
+            X-Ratelimit-Reset:
+                - "42"
+            X-Request-Id:
+                - 7eb4373104cc45bf904cfded8f085f6f
+        status: 200 OK
+        code: 200
+        duration: 11.996597199s
+    - id: 25
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /stocks/v1/splits?apiKey=REDACTED&limit=5000&ticker=PEP
+        form:
+            limit:
+                - "5000"
+            ticker:
+                - PEP
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://api.massive.com/stocks/v1/splits?limit=5000&ticker=PEP
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 76
+        uncompressed: true
+        body: '{"status":"OK","request_id":"4343644e9b49441ba959080ec3cb7a4e","results":[]}'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - DNT,X-CustomHeader,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization
+            Access-Control-Allow-Methods:
+                - GET, PUT, POST, DELETE, PATCH, OPTIONS
+            Access-Control-Allow-Origin:
+                - '*'
+            Access-Control-Max-Age:
+                - "1728000"
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 08:12:30 GMT
+            Strict-Transport-Security:
+                - max-age=15724800; includeSubDomains
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - 100000000, 100000000;w=60
+            X-Ratelimit-Remaining:
+                - "40000000"
+            X-Ratelimit-Reset:
+                - "30"
+            X-Request-Id:
+                - 4343644e9b49441ba959080ec3cb7a4e
+        status: 200 OK
+        code: 200
+        duration: 8.063567374s
+    - id: 26
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /vX/reference/tickers/713448108/events?apiKey=REDACTED&types=ticker_change
+        form:
+            types:
+                - ticker_change
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://api.massive.com/vX/reference/tickers/713448108/events?types=ticker_change
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 238
+        body: '{"results":{"name":"PepsiCo, Inc.","composite_figi":"BBG000DH7JK6","cik":"0000077476","events":[{"ticker_change":{"ticker":"PEP"},"type":"ticker_change","date":"2003-09-10"}]},"status":"OK","request_id":"43f628c6a6070137514f9e53cfa227ec"}'
+        headers:
+            Content-Length:
+                - "238"
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 08:12:42 GMT
+            Strict-Transport-Security:
+                - max-age=15724800; includeSubDomains
+            Vary:
+                - Accept-Encoding
+            X-Item-Count:
+                - "1"
+            X-Polygon-Cluster-Name:
+                - polygon-ny5
+            X-Request-Id:
+                - 43f628c6a6070137514f9e53cfa227ec
+        status: 200 OK
+        code: 200
+        duration: 11.127111206s

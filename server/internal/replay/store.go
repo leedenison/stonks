@@ -53,6 +53,12 @@ type Resolver interface {
 
 var _ Resolver = (*resolve.Resolver)(nil)
 
+// CorporateEvents is this package's view of the refreshcorporateevents
+// package.
+type CorporateEvents interface {
+	FetchAfterIdentifierFacts(ctx context.Context, parent gen.Run, written []resolve.WrittenIdentifierFacts)
+}
+
 // Sources is this package's view of the datasource registry.
 type Sources interface {
 	Enabled() []*market.Entry

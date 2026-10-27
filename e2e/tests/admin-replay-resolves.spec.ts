@@ -7,6 +7,7 @@ import {
   fetchItems,
   fetchRun,
   holdingClient,
+  resolutionFindings,
   resolutionItems,
   statementClient,
 } from "../helpers/api";
@@ -33,6 +34,7 @@ test("replays a statement's unavailable key from the runs page and resolves it",
   const runId = await uploadStatement(page, fixture, {
     state: "completed",
     timeout: 15_000,
+    holds: false,
   });
 
   // Unavailable, not unrecognised: the refusal is temporary.
@@ -55,7 +57,7 @@ test("replays a statement's unavailable key from the runs page and resolves it",
   const { session } = await signIn("admin");
   const admin = adminRunClient(session);
   const statement = await admin.getRun({ runId: runId });
-  expect(statement.findings).toHaveLength(0);
+  expect(resolutionFindings(statement.findings)).toHaveLength(0);
   const resolution = statement.run!.children[0];
   for (const name of ["openfigi", "eodhd"]) {
     const fetched = await fetchItems(admin, fetchRun(resolution, name).run!.id);
@@ -85,9 +87,11 @@ test("replays a statement's unavailable key from the runs page and resolves it",
 
   const lineage = page.getByTestId("admin-run-lineage");
   await expect(lineage).toContainText(user.email);
+  // The replay fetches the corporate events of the instrument before it
+  // completes.
   await expect(
     lineage.getByTestId(`run-row-${replayId}`).getByTestId("state-chip"),
-  ).toHaveAttribute("data-state", "completed");
+  ).toHaveAttribute("data-state", "completed", { timeout: 30_000 });
   const replay = await admin.getRun({ runId: replayId });
   expect(replay.run?.run?.kind).toBe(RunKind.REPLAY);
   expect(replay.run?.run?.trigger).toBe(RunTrigger.ADMINISTRATOR);

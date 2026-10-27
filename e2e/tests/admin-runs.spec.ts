@@ -3,6 +3,7 @@ import { Code } from "@connectrpc/connect";
 import { RunKind } from "../gen/run/v1/run_pb";
 import {
   adminRunClient,
+  resolutionFindings,
   resolutionItems,
   statementItems,
 } from "../helpers/api";
@@ -24,6 +25,7 @@ test("shows an administrator the runs a user's upload produced", async ({
   const runId = await uploadStatement(page, fixture, {
     state: "rejections",
     from: "2025-02-01",
+    holds: false,
   });
 
   // The admin RPCs refuse the user.
@@ -38,14 +40,16 @@ test("shows an administrator the runs a user's upload produced", async ({
   const statement = await admin.getRun({ runId: runId });
   expect(statement.run?.userEmail).toBe(user.email);
   expect(await statementItems(admin, runId)).toHaveLength(januaryRows);
-  expect(statement.run?.children).toHaveLength(1);
-  const child = statement.run!.children[0].run!;
-  expect(child.kind).toBe(RunKind.RESOLUTION);
+  const resolutions = statement.run!.children.filter(
+    (c) => c.run?.kind === RunKind.RESOLUTION,
+  );
+  expect(resolutions).toHaveLength(1);
+  const child = resolutions[0].run!;
   const resolution = await admin.getRun({ runId: child.id });
   const resolved = await resolutionItems(admin, child.id);
   expect(resolved.length).toBeGreaterThan(0);
-  expect(statement.findings).toHaveLength(0);
-  expect(resolution.findings).toHaveLength(0);
+  expect(resolutionFindings(statement.findings)).toHaveLength(0);
+  expect(resolutionFindings(resolution.findings)).toHaveLength(0);
 
   // The pages: the user's runs with the resolution under its statement,
   // the statement run, then its resolution.
@@ -67,8 +71,8 @@ test("shows an administrator the runs a user's upload produced", async ({
   await expect(run.getByTestId("rejection-count-0")).toHaveText(
     String(januaryRows),
   );
-  await expect(run.getByTestId("empty-state")).toHaveText(
-    "The run recorded no findings.",
+  await expect(run.locator('[data-testid^="finding-row-"]')).toHaveCount(
+    statement.findings.length,
   );
 
   await run.getByTestId(`run-toggle-${runId}`).click();

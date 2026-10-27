@@ -1624,3 +1624,2729 @@ interactions:
         status: 200 OK
         code: 200
         duration: 168.477044ms
+    - id: 33
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/WMT.US?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/WMT.US?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 511
+        uncompressed: true
+        body: '[{"date":"1975-08-25","split":"2.000000\/1.000000"},{"date":"1980-12-17","split":"2.000000\/1.000000"},{"date":"1982-07-12","split":"2.000000\/1.000000"},{"date":"1983-07-11","split":"2.000000\/1.000000"},{"date":"1985-10-07","split":"2.000000\/1.000000"},{"date":"1987-07-13","split":"2.000000\/1.000000"},{"date":"1990-07-09","split":"2.000000\/1.000000"},{"date":"1993-02-26","split":"2.000000\/1.000000"},{"date":"1999-04-20","split":"2.000000\/1.000000"},{"date":"2024-02-26","split":"3.000000\/1.000000"}]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 07:57:57 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1199"
+        status: 200 OK
+        code: 200
+        duration: 1.455034119s
+    - id: 34
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/MSFT.US?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/MSFT.US?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 460
+        uncompressed: true
+        body: '[{"date":"1987-09-21","split":"2.000000\/1.000000"},{"date":"1990-04-16","split":"2.000000\/1.000000"},{"date":"1991-06-27","split":"3.000000\/2.000000"},{"date":"1992-06-15","split":"3.000000\/2.000000"},{"date":"1994-05-23","split":"2.000000\/1.000000"},{"date":"1996-12-09","split":"2.000000\/1.000000"},{"date":"1998-02-23","split":"2.000000\/1.000000"},{"date":"1999-03-29","split":"2.000000\/1.000000"},{"date":"2003-02-18","split":"2.000000\/1.000000"}]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 07:57:57 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1198"
+        status: 200 OK
+        code: 200
+        duration: 149.59186ms
+    - id: 35
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/PG.US?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/PG.US?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 307
+        uncompressed: true
+        body: '[{"date":"1970-05-19","split":"2.000000\/1.000000"},{"date":"1983-02-22","split":"2.000000\/1.000000"},{"date":"1989-11-20","split":"2.000000\/1.000000"},{"date":"1992-06-15","split":"2.000000\/1.000000"},{"date":"1997-09-22","split":"2.000000\/1.000000"},{"date":"2004-06-21","split":"2.000000\/1.000000"}]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 07:57:57 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1197"
+        status: 200 OK
+        code: 200
+        duration: 187.994979ms
+    - id: 36
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/WMT.LIM?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/WMT.LIM?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 16
+        uncompressed: true
+        body: Symbol not found
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - text/html; charset=utf-8
+            Date:
+                - Tue, 27 Oct 2026 07:57:58 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1196"
+        status: 404 Not Found
+        code: 404
+        duration: 166.748648ms
+    - id: 37
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/MSFT.BA?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/MSFT.BA?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 2
+        uncompressed: true
+        body: '[]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 07:57:58 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1195"
+        status: 200 OK
+        code: 200
+        duration: 160.734358ms
+    - id: 38
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/PG.LIM?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/PG.LIM?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 16
+        uncompressed: true
+        body: Symbol not found
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - text/html; charset=utf-8
+            Date:
+                - Tue, 27 Oct 2026 07:57:58 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1194"
+        status: 404 Not Found
+        code: 404
+        duration: 158.026736ms
+    - id: 39
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/WMT.SN?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/WMT.SN?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 2
+        uncompressed: true
+        body: '[]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 07:57:58 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1193"
+        status: 200 OK
+        code: 200
+        duration: 161.504994ms
+    - id: 40
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/MSF.DU?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/MSF.DU?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 2
+        uncompressed: true
+        body: '[]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 07:57:58 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1192"
+        status: 200 OK
+        code: 200
+        duration: 162.621187ms
+    - id: 41
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/0NOF.LSE?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/0NOF.LSE?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 2
+        uncompressed: true
+        body: '[]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 07:57:58 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1191"
+        status: 200 OK
+        code: 200
+        duration: 156.552654ms
+    - id: 42
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/JNJ.US?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/JNJ.US?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 307
+        uncompressed: true
+        body: '[{"date":"1970-05-18","split":"3.000000\/1.000000"},{"date":"1981-05-19","split":"3.000000\/1.000000"},{"date":"1989-05-11","split":"2.000000\/1.000000"},{"date":"1992-06-10","split":"2.000000\/1.000000"},{"date":"1996-06-12","split":"2.000000\/1.000000"},{"date":"2001-06-13","split":"2.000000\/1.000000"}]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 07:57:59 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1190"
+        status: 200 OK
+        code: 200
+        duration: 151.997933ms
+    - id: 43
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/MSF.HM?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/MSF.HM?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 2
+        uncompressed: true
+        body: '[]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 07:57:59 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1189"
+        status: 200 OK
+        code: 200
+        duration: 164.808667ms
+    - id: 44
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/PG.SN?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/PG.SN?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 16
+        uncompressed: true
+        body: Symbol not found
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - text/html; charset=utf-8
+            Date:
+                - Tue, 27 Oct 2026 07:57:59 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1188"
+        status: 404 Not Found
+        code: 404
+        duration: 164.088319ms
+    - id: 45
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/JNJ.LIM?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/JNJ.LIM?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 16
+        uncompressed: true
+        body: Symbol not found
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - text/html; charset=utf-8
+            Date:
+                - Tue, 27 Oct 2026 07:57:59 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1187"
+        status: 404 Not Found
+        code: 404
+        duration: 160.06814ms
+    - id: 46
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/MSF.HA?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/MSF.HA?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 52
+        uncompressed: true
+        body: '[{"date":"2003-02-18","split":"2.000000\/1.000000"}]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 07:58:00 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1186"
+        status: 200 OK
+        code: 200
+        duration: 158.158183ms
+    - id: 47
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/PG.ST?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/PG.ST?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 16
+        uncompressed: true
+        body: Symbol not found
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - text/html; charset=utf-8
+            Date:
+                - Tue, 27 Oct 2026 07:58:00 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1185"
+        status: 404 Not Found
+        code: 404
+        duration: 159.198527ms
+    - id: 48
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/0R34.LSE?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/0R34.LSE?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 2
+        uncompressed: true
+        body: '[]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 07:58:00 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1184"
+        status: 200 OK
+        code: 200
+        duration: 193.507266ms
+    - id: 49
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/MSFT.LIM?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/MSFT.LIM?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 16
+        uncompressed: true
+        body: Symbol not found
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - text/html; charset=utf-8
+            Date:
+                - Tue, 27 Oct 2026 07:58:00 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1183"
+        status: 404 Not Found
+        code: 404
+        duration: 159.114679ms
+    - id: 50
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/PRG.STU?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/PRG.STU?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 2
+        uncompressed: true
+        body: '[]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 07:58:01 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1182"
+        status: 200 OK
+        code: 200
+        duration: 167.95389ms
+    - id: 51
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/JNJ.SN?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/JNJ.SN?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 2
+        uncompressed: true
+        body: '[]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 07:58:01 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1181"
+        status: 200 OK
+        code: 200
+        duration: 161.462396ms
+    - id: 52
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/0QYP.LSE?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/0QYP.LSE?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 2
+        uncompressed: true
+        body: '[]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 07:58:01 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1180"
+        status: 200 OK
+        code: 200
+        duration: 164.349116ms
+    - id: 53
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/PGUSD.SW?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/PGUSD.SW?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 16
+        uncompressed: true
+        body: Symbol not found
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - text/html; charset=utf-8
+            Date:
+                - Tue, 27 Oct 2026 07:58:02 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1179"
+        status: 404 Not Found
+        code: 404
+        duration: 171.519731ms
+    - id: 54
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/JNJUSD.ST?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/JNJUSD.ST?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 16
+        uncompressed: true
+        body: Symbol not found
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - text/html; charset=utf-8
+            Date:
+                - Tue, 27 Oct 2026 07:58:02 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1178"
+        status: 404 Not Found
+        code: 404
+        duration: 183.523301ms
+    - id: 55
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/MSF.MU?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/MSF.MU?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 2
+        uncompressed: true
+        body: '[]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 07:58:02 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1177"
+        status: 200 OK
+        code: 200
+        duration: 349.164683ms
+    - id: 56
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/JNJ.STU?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/JNJ.STU?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 2
+        uncompressed: true
+        body: '[]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 07:58:02 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1176"
+        status: 200 OK
+        code: 200
+        duration: 206.521435ms
+    - id: 57
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/MSFT.SN?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/MSFT.SN?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 2
+        uncompressed: true
+        body: '[]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 07:58:03 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1175"
+        status: 200 OK
+        code: 200
+        duration: 194.69625ms
+    - id: 58
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/JNJUSD.SW?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/JNJUSD.SW?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 16
+        uncompressed: true
+        body: Symbol not found
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - text/html; charset=utf-8
+            Date:
+                - Tue, 27 Oct 2026 07:58:03 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1174"
+        status: 404 Not Found
+        code: 404
+        duration: 203.459025ms
+    - id: 59
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/MSF.STU?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/MSF.STU?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 2
+        uncompressed: true
+        body: '[]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 07:58:03 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1173"
+        status: 200 OK
+        code: 200
+        duration: 175.768294ms
+    - id: 60
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/MSFTUSD.SW?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/MSFTUSD.SW?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 16
+        uncompressed: true
+        body: Symbol not found
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - text/html; charset=utf-8
+            Date:
+                - Tue, 27 Oct 2026 07:58:03 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1172"
+        status: 404 Not Found
+        code: 404
+        duration: 179.547618ms
+    - id: 61
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/META.US?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/META.US?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 2
+        uncompressed: true
+        body: '[]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 07:58:28 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1171"
+        status: 200 OK
+        code: 200
+        duration: 150.609104ms
+    - id: 62
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/META.LIM?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/META.LIM?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 16
+        uncompressed: true
+        body: Symbol not found
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - text/html; charset=utf-8
+            Date:
+                - Tue, 27 Oct 2026 07:58:29 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1170"
+        status: 404 Not Found
+        code: 404
+        duration: 161.777924ms
+    - id: 63
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/META.SN?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/META.SN?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 2
+        uncompressed: true
+        body: '[]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 07:58:29 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1169"
+        status: 200 OK
+        code: 200
+        duration: 189.626376ms
+    - id: 64
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/INTC.NEO?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/INTC.NEO?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 2
+        uncompressed: true
+        body: '[]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 08:11:57 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1199"
+        status: 200 OK
+        code: 200
+        duration: 1.461325296s
+    - id: 65
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/CSCO.US?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/CSCO.US?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 460
+        uncompressed: true
+        body: '[{"date":"1991-03-18","split":"2.000000\/1.000000"},{"date":"1992-03-23","split":"2.000000\/1.000000"},{"date":"1993-03-22","split":"2.000000\/1.000000"},{"date":"1994-03-21","split":"2.000000\/1.000000"},{"date":"1996-02-20","split":"2.000000\/1.000000"},{"date":"1997-12-17","split":"3.000000\/2.000000"},{"date":"1998-09-16","split":"3.000000\/2.000000"},{"date":"1999-06-22","split":"2.000000\/1.000000"},{"date":"2000-03-23","split":"2.000000\/1.000000"}]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 08:11:57 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1198"
+        status: 200 OK
+        code: 200
+        duration: 155.779817ms
+    - id: 66
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/INTC.US?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/INTC.US?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 256
+        uncompressed: true
+        body: '[{"date":"1993-06-07","split":"2.000000\/1.000000"},{"date":"1995-06-19","split":"2.000000\/1.000000"},{"date":"1997-07-14","split":"2.000000\/1.000000"},{"date":"1999-04-12","split":"2.000000\/1.000000"},{"date":"2000-07-31","split":"2.000000\/1.000000"}]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 08:11:57 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1197"
+        status: 200 OK
+        code: 200
+        duration: 168.955037ms
+    - id: 67
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/CSCO.LIM?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/CSCO.LIM?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 16
+        uncompressed: true
+        body: Symbol not found
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - text/html; charset=utf-8
+            Date:
+                - Tue, 27 Oct 2026 08:11:57 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1196"
+        status: 404 Not Found
+        code: 404
+        duration: 172.432883ms
+    - id: 68
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/INTC.BA?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/INTC.BA?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 2
+        uncompressed: true
+        body: '[]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 08:11:58 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1195"
+        status: 200 OK
+        code: 200
+        duration: 168.607783ms
+    - id: 69
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/CSCO.SN?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/CSCO.SN?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 16
+        uncompressed: true
+        body: Symbol not found
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - text/html; charset=utf-8
+            Date:
+                - Tue, 27 Oct 2026 08:11:59 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1194"
+        status: 404 Not Found
+        code: 404
+        duration: 174.448987ms
+    - id: 70
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/INTC.LIM?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/INTC.LIM?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 2
+        uncompressed: true
+        body: '[]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 08:12:00 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1193"
+        status: 200 OK
+        code: 200
+        duration: 172.691151ms
+    - id: 71
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/AAPL.NEO?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/AAPL.NEO?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 2
+        uncompressed: true
+        body: '[]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 08:12:00 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1192"
+        status: 200 OK
+        code: 200
+        duration: 238.218578ms
+    - id: 72
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/INTC.MX?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/INTC.MX?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 2
+        uncompressed: true
+        body: '[]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 08:12:01 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1191"
+        status: 200 OK
+        code: 200
+        duration: 183.417152ms
+    - id: 73
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/AAPL.US?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/AAPL.US?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 256
+        uncompressed: true
+        body: '[{"date":"1987-06-16","split":"2.000000\/1.000000"},{"date":"2000-06-21","split":"2.000000\/1.000000"},{"date":"2005-02-28","split":"2.000000\/1.000000"},{"date":"2014-06-09","split":"7.000000\/1.000000"},{"date":"2020-08-31","split":"4.000000\/1.000000"}]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 08:12:02 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1190"
+        status: 200 OK
+        code: 200
+        duration: 172.758167ms
+    - id: 74
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/INTC.SN?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/INTC.SN?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 2
+        uncompressed: true
+        body: '[]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 08:12:02 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1189"
+        status: 200 OK
+        code: 200
+        duration: 189.77264ms
+    - id: 75
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/AAPL.BA?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/AAPL.BA?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 105
+        uncompressed: true
+        body: '[{"date":"2014-06-09","split":"70.000000\/10.000000"},{"date":"2020-08-31","split":"4.000000\/1.000000"}]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 08:12:03 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1188"
+        status: 200 OK
+        code: 200
+        duration: 233.793521ms
+    - id: 76
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/INTC.ST?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/INTC.ST?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 16
+        uncompressed: true
+        body: Symbol not found
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - text/html; charset=utf-8
+            Date:
+                - Tue, 27 Oct 2026 08:12:03 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1187"
+        status: 404 Not Found
+        code: 404
+        duration: 242.918514ms
+    - id: 77
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/APC.DU?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/APC.DU?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 103
+        uncompressed: true
+        body: '[{"date":"2014-06-09","split":"7.000000\/1.000000"},{"date":"2020-08-31","split":"4.000000\/1.000000"}]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 08:12:03 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1186"
+        status: 200 OK
+        code: 200
+        duration: 193.270177ms
+    - id: 78
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/APC.HM?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/APC.HM?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 103
+        uncompressed: true
+        body: '[{"date":"2014-06-09","split":"7.000000\/1.000000"},{"date":"2020-08-31","split":"4.000000\/1.000000"}]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 08:12:04 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1185"
+        status: 200 OK
+        code: 200
+        duration: 386.817439ms
+    - id: 79
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/APC.HA?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/APC.HA?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 103
+        uncompressed: true
+        body: '[{"date":"2014-06-09","split":"7.000000\/1.000000"},{"date":"2020-08-31","split":"4.000000\/1.000000"}]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 08:12:04 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1184"
+        status: 200 OK
+        code: 200
+        duration: 176.01898ms
+    - id: 80
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/AAPL.LIM?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/AAPL.LIM?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 52
+        uncompressed: true
+        body: '[{"date":"2020-08-31","split":"4.000000\/1.000000"}]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 08:12:05 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1183"
+        status: 200 OK
+        code: 200
+        duration: 260.025553ms
+    - id: 81
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/0R2V.LSE?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/0R2V.LSE?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 52
+        uncompressed: true
+        body: '[{"date":"2020-09-01","split":"4.000000\/1.000000"}]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 08:12:06 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1182"
+        status: 200 OK
+        code: 200
+        duration: 719.719296ms
+    - id: 82
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/AAPL.MX?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/AAPL.MX?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 154
+        uncompressed: true
+        body: '[{"date":"2005-03-01","split":"2.000000\/1.000000"},{"date":"2014-06-09","split":"7.000000\/1.000000"},{"date":"2020-08-31","split":"4.000000\/1.000000"}]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 08:12:06 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1181"
+        status: 200 OK
+        code: 200
+        duration: 175.029962ms
+    - id: 83
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/APC.MU?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/APC.MU?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 154
+        uncompressed: true
+        body: '[{"date":"2005-02-28","split":"2.000000\/1.000000"},{"date":"2014-06-09","split":"7.000000\/1.000000"},{"date":"2020-08-31","split":"4.000000\/1.000000"}]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 08:12:06 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1180"
+        status: 200 OK
+        code: 200
+        duration: 171.000292ms
+    - id: 84
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/AAPL.SN?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/AAPL.SN?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 103
+        uncompressed: true
+        body: '[{"date":"2014-06-09","split":"7.000000\/1.000000"},{"date":"2020-08-31","split":"4.000000\/1.000000"}]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 08:12:06 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1179"
+        status: 200 OK
+        code: 200
+        duration: 198.647996ms
+    - id: 85
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/AAPL.ST?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/AAPL.ST?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 16
+        uncompressed: true
+        body: Symbol not found
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - text/html; charset=utf-8
+            Date:
+                - Tue, 27 Oct 2026 08:12:07 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1178"
+        status: 404 Not Found
+        code: 404
+        duration: 187.240537ms
+    - id: 86
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/APC.STU?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/APC.STU?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 103
+        uncompressed: true
+        body: '[{"date":"2014-06-09","split":"7.000000\/1.000000"},{"date":"2020-08-31","split":"4.000000\/1.000000"}]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 08:12:07 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1177"
+        status: 200 OK
+        code: 200
+        duration: 181.230863ms
+    - id: 87
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/AAPLUSD.SW?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/AAPLUSD.SW?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 16
+        uncompressed: true
+        body: Symbol not found
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - text/html; charset=utf-8
+            Date:
+                - Tue, 27 Oct 2026 08:12:07 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1176"
+        status: 404 Not Found
+        code: 404
+        duration: 179.829612ms
+    - id: 88
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/PEP.US?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/PEP.US?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 205
+        uncompressed: true
+        body: '[{"date":"1977-05-31","split":"3.000000\/1.000000"},{"date":"1986-05-29","split":"3.000000\/1.000000"},{"date":"1990-09-05","split":"3.000000\/1.000000"},{"date":"1996-05-29","split":"2.000000\/1.000000"}]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 08:12:22 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1175"
+        status: 200 OK
+        code: 200
+        duration: 152.616673ms
+    - id: 89
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/PEP.LIM?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/PEP.LIM?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 16
+        uncompressed: true
+        body: Symbol not found
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - text/html; charset=utf-8
+            Date:
+                - Tue, 27 Oct 2026 08:12:23 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1174"
+        status: 404 Not Found
+        code: 404
+        duration: 168.957547ms
+    - id: 90
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/PEP.SN?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/PEP.SN?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 16
+        uncompressed: true
+        body: Symbol not found
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - text/html; charset=utf-8
+            Date:
+                - Tue, 27 Oct 2026 08:12:23 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1173"
+        status: 404 Not Found
+        code: 404
+        duration: 166.91079ms

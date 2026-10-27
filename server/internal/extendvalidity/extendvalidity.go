@@ -45,30 +45,32 @@ type Extender interface {
 
 var _ Extender = (*resolve.Resolver)(nil)
 
-// Replays is this package's view of the replay package.
-type Replays interface {
-	ReplayNewIdentifierFacts(ctx context.Context, except gen.Run, written []resolve.WrittenIdentifierFacts)
+// Facts is this package's view of the replay package: what new identifier
+// facts start.
+type Facts interface {
+	AfterIdentifierFacts(ctx context.Context, except gen.Run, written []resolve.WrittenIdentifierFacts)
 }
 
-var _ Replays = (*replay.Service)(nil)
+var _ Facts = (*replay.Service)(nil)
 
 // Service starts extend validity runs.
 type Service struct {
 	queries  Queries
 	runs     Runner
 	extender Extender
-	replays  Replays
+	facts    Facts
 }
 
 // New returns a Service. extender's fetches must skip the cache.
-func New(queries Queries, runs Runner, extender Extender, replays Replays) *Service {
-	return &Service{queries: queries, runs: runs, extender: extender, replays: replays}
+func New(queries Queries, runs Runner, extender Extender, facts Facts) *Service {
+	return &Service{queries: queries, runs: runs, extender: extender, facts: facts}
 }
 
 // Start starts an extend validity run over every held ticker, as a system run,
 // and returns the pending row. A ticker that becomes held later waits for the
 // next run. Its identifier facts replay the unresolved keys that state each
-// ticker; see [replay.go](../replay/replay.go).
+// ticker, and fetch the corporate events of the held instruments that the
+// tickers name; see [replay.go](../replay/replay.go).
 func (s *Service) Start(ctx context.Context) (gen.Run, error) {
 	held, err := s.queries.ListHeldTickers(ctx)
 	if err != nil {
@@ -83,7 +85,7 @@ func (s *Service) Start(ctx context.Context) (gen.Run, error) {
 		if err != nil {
 			return err
 		}
-		s.replays.ReplayNewIdentifierFacts(ctx, row, written)
+		s.facts.AfterIdentifierFacts(ctx, row, written)
 		return nil
 	})
 }

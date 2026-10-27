@@ -6,7 +6,8 @@
 // is attested ticker by ticker. How an attested assertion ranks against a
 // datasource's is in [validity.go](../validity/validity.go). Writing or
 // withdrawing an attestation replays the unresolved keys that state the
-// ticker beneath the attestation run, and a dated key picks up the change
+// ticker beneath the attestation run, and fetches the corporate events of the
+// held instruments that the ticker names. A dated key picks up the change
 // when it is next read.
 package attest
 
@@ -39,16 +40,16 @@ const lane = "attestation"
 
 // Service writes and withdraws attestations.
 type Service struct {
-	store   Store
-	runs    Runner
-	replays Replays
-	mics    mic.MICMap
-	clock   func() time.Time
+	store Store
+	runs  Runner
+	facts Facts
+	mics  mic.MICMap
+	clock func() time.Time
 }
 
 // New returns a Service.
-func New(store Store, runs Runner, replays Replays, mics mic.MICMap, clock func() time.Time) *Service {
-	return &Service{store: store, runs: runs, replays: replays, mics: mics, clock: clock}
+func New(store Store, runs Runner, facts Facts, mics mic.MICMap, clock func() time.Time) *Service {
+	return &Service{store: store, runs: runs, facts: facts, mics: mics, clock: clock}
 }
 
 // Start asserts that v names instrument, or nothing where instrument is nil,
@@ -94,7 +95,7 @@ func (s *Service) Start(ctx context.Context, admin uuid.UUID, v types.MarketTick
 		},
 	}
 	return s.runs.Start(ctx, spec, func(ctx context.Context, row gen.Run) error {
-		s.replays.ReplayNewIdentifierFacts(ctx, row, []resolve.WrittenIdentifierFacts{{Run: row, Tickers: []types.MarketTicker{v}}})
+		s.facts.AfterIdentifierFacts(ctx, row, []resolve.WrittenIdentifierFacts{{Run: row, Tickers: []types.MarketTicker{v}}})
 		return nil
 	})
 }
@@ -122,6 +123,6 @@ func (s *Service) Withdraw(ctx context.Context, id uuid.UUID) error {
 		return fmt.Errorf("assertion %s: %w", id, db.ErrNotFound)
 	}
 	v := types.MarketTicker{Market: a.Domain, Value: a.Value}
-	s.replays.ReplayNewIdentifierFacts(ctx, row, []resolve.WrittenIdentifierFacts{{Run: row, Tickers: []types.MarketTicker{v}}})
+	s.facts.AfterIdentifierFacts(ctx, row, []resolve.WrittenIdentifierFacts{{Run: row, Tickers: []types.MarketTicker{v}}})
 	return nil
 }

@@ -12,15 +12,15 @@ type fixture struct {
 	queries  *MockQueries
 	runs     *MockRunner
 	extender *MockExtender
-	replays  *MockReplays
+	facts    *MockFacts
 	svc      *Service
 }
 
 func newFixture(t *testing.T) *fixture {
 	t.Helper()
 	ctrl := gomock.NewController(t)
-	f := &fixture{queries: NewMockQueries(ctrl), runs: NewMockRunner(ctrl), extender: NewMockExtender(ctrl), replays: NewMockReplays(ctrl)}
-	f.svc = New(f.queries, f.runs, f.extender, f.replays)
+	f := &fixture{queries: NewMockQueries(ctrl), runs: NewMockRunner(ctrl), extender: NewMockExtender(ctrl), facts: NewMockFacts(ctrl)}
+	f.svc = New(f.queries, f.runs, f.extender, f.facts)
 	return f
 }
 

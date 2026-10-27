@@ -2,12 +2,13 @@ import path from "node:path";
 import { FetchOutcome } from "../gen/admin/run/v1/run_pb";
 import { IdentifierType, ResolutionOutcome } from "../gen/type/v1/type_pb";
 import {
+  adminInstrumentClient,
   adminRunClient,
+  expectServedOnce,
   fetchItems,
   fetchRun,
   holdingClient,
-  adminInstrumentClient,
-  expectServedOnce,
+  resolutionFindings,
   resolutionItems,
 } from "../helpers/api";
 import { uploadStatement } from "../helpers/upload";
@@ -34,7 +35,7 @@ test("asks EODHD beside OpenFIGI and matches the key once", async ({
   const { session } = await signIn("admin");
   const admin = adminRunClient(session);
   const statement = await admin.getRun({ runId });
-  expect(statement.findings).toHaveLength(0);
+  expect(resolutionFindings(statement.findings)).toHaveLength(0);
   const resolution = statement.run!.children[0];
   await expectServedOnce(admin, resolution, ["openfigi", "eodhd"], {
     type: IdentifierType.ISIN,

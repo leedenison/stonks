@@ -14,7 +14,9 @@
 //
 // A fetch checks the splits that statements state against the calendar. The
 // calendar holds the events of every datasource, so a split matches when any
-// datasource knows it; see split.go.
+// datasource knows it; see split.go. What starts a fetch, and what it asks
+// for, is in
+// [refreshcorporateevents.go](../refreshcorporateevents/refreshcorporateevents.go).
 package corporate
 
 import (

@@ -2,14 +2,16 @@
 // submitted, claiming every account they hold at one broker over a
 // half-open range of order dates.
 //
-// Ingestion is a run: the call responds with the pending row once the
-// statement is recorded, and resolution and the write follow; see
-// [run.go](../run/run.go). A stated key is the user's: one row per asset
-// class, currency and set of identifiers, linked to each statement that
-// states it. A statement resolves only the keys it states that lack a fixed
-// association, each once, however many rows state it; see
-// [resolve.go](../resolve/resolve.go). After a write, every key of the user
-// has a transaction or a link to a statement.
+// Ingestion is a run: the call responds with the pending row once the statement
+// is recorded, and resolution and the write follow; see
+// [run.go](../run/run.go). The run ends with a fetch of the corporate events of
+// the user's held instruments; see
+// [refreshcorporateevents.go](../refreshcorporateevents/refreshcorporateevents.go).
+// A stated key is the user's: one row per asset class, currency and set of
+// identifiers, linked to each statement that states it. A statement resolves
+// only the keys it states that lack a fixed association, each once, however
+// many rows state it; see [resolve.go](../resolve/resolve.go). After a write,
+// every key of the user has a transaction or a link to a statement.
 //
 // The service also lists and confirms candidates for a key of the user's
 // that is not yet associated. Each call is a synchronous resolution run;
@@ -45,7 +47,8 @@ type Service struct {
 	store    Store
 	runs     Runner
 	resolver Resolver
-	replays  Replays
+	facts    Facts
+	events   CorporateEvents
 	families currency.Families
 	clock    func() time.Time
 	log      *slog.Logger
@@ -53,8 +56,8 @@ type Service struct {
 
 // New returns a Service. families holds the currencies a statement may
 // state, and clock supplies today for the order date check.
-func New(store Store, runs Runner, resolver Resolver, replays Replays, families currency.Families, clock func() time.Time, log *slog.Logger) *Service {
-	return &Service{store: store, runs: runs, resolver: resolver, replays: replays, families: families, clock: clock, log: log}
+func New(store Store, runs Runner, resolver Resolver, facts Facts, events CorporateEvents, families currency.Families, clock func() time.Time, log *slog.Logger) *Service {
+	return &Service{store: store, runs: runs, resolver: resolver, facts: facts, events: events, families: families, clock: clock, log: log}
 }
 
 // Create validates msg, starts its run and responds with the pending row.
@@ -75,7 +78,7 @@ func (s *Service) Create(ctx context.Context, userID uuid.UUID, msg *statementv1
 		return gen.Run{}, fmt.Errorf("%w: period [%s, %s) is empty", ErrInvalid, msg.GetOrderFrom(), msg.GetOrderBefore())
 	}
 	today := types.Day(s.clock())
-	g := &ingestion{store: s.store, runs: s.runs, resolver: s.resolver, replays: s.replays, user: userID, broker: broker, from: from, before: before, keys: map[string]*key{}}
+	g := &ingestion{store: s.store, runs: s.runs, resolver: s.resolver, facts: s.facts, events: s.events, user: userID, broker: broker, from: from, before: before, keys: map[string]*key{}}
 	for i, r := range msg.GetRows() {
 		g.rows = append(g.rows, g.validate(int32(i), r, today, s.families))
 	}
@@ -95,7 +98,8 @@ type ingestion struct {
 	store    Store
 	runs     Runner
 	resolver Resolver
-	replays  Replays
+	facts    Facts
+	events   CorporateEvents
 	user     uuid.UUID
 	broker   gen.Broker
 	from     time.Time
@@ -219,10 +223,10 @@ func (g *ingestion) prepare(ctx context.Context, run gen.Run) error {
 	})
 }
 
-// work resolves the keys, writes the statement, and then replays every
-// user's unresolved keys that state an identifier of the resolution's new
-// identifier facts. The write completes the statement run in its own
-// transaction, before the replays start.
+// work resolves the keys, writes the statement, and then follows the
+// resolution's new identifier facts and fetches the corporate events of the
+// user's held instruments. The write completes the statement run in its own
+// transaction, before either starts.
 func (g *ingestion) work(ctx context.Context, run gen.Run) error {
 	res, err := g.runs.Child(ctx, run, gen.RunKindResolution, g.resolve)
 	if err != nil {
@@ -231,7 +235,8 @@ func (g *ingestion) work(ctx context.Context, run gen.Run) error {
 	if err := g.write(ctx, run); err != nil {
 		return err
 	}
-	g.replays.ReplayNewIdentifierFacts(ctx, res, g.written)
+	g.facts.AfterIdentifierFacts(ctx, res, g.written)
+	g.events.AfterStatement(ctx, run)
 	return nil
 }
 

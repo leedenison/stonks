@@ -33,9 +33,9 @@ func (s *Service) Candidates(ctx context.Context, user, key uuid.UUID) (resolve.
 
 // Confirm takes the candidate p names as the instrument of one of user's
 // keys, as a synchronous resolution run, and returns the key's resolution.
-// It then replays every user's unresolved keys that state an identifier of
-// the confirmation's new identifier facts. A failed replay is logged, and the
-// confirmation stands.
+// It then follows the confirmation's new identifier facts, which replay
+// every user's unresolved keys that state one of their identifiers. A failed
+// replay is logged, and the confirmation stands.
 func (s *Service) Confirm(ctx context.Context, user, key uuid.UUID, p resolve.Pick) (gen.ResolutionKey, error) {
 	row, err := s.key(ctx, user, key)
 	if err != nil {
@@ -51,7 +51,7 @@ func (s *Service) Confirm(ctx context.Context, user, key uuid.UUID, p resolve.Pi
 	if err != nil {
 		return rk, err
 	}
-	s.replays.ReplayNewIdentifierFacts(ctx, run, written)
+	s.facts.AfterIdentifierFacts(ctx, run, written)
 	return rk, nil
 }
 

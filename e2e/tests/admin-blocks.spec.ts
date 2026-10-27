@@ -6,6 +6,7 @@ import {
   blockClient,
   fetchItems,
   fetchRun,
+  resolutionFindings,
   resolutionItems,
 } from "../helpers/api";
 import { uploadStatement } from "../helpers/upload";
@@ -24,14 +25,18 @@ test("clears a block from the blocks page, clearing the finding reporting it", a
 }) => {
   const { user } = await signIn();
   await page.goto("/transactions");
-  const runId = await uploadStatement(page, fixture, { state: "completed" });
+  const runId = await uploadStatement(page, fixture, {
+    state: "completed",
+    holds: false,
+  });
 
   // A permanent refusal blocks the identifier and reports it as a finding.
   const { session } = await signIn("admin");
   const admin = adminRunClient(session);
   const statement = await admin.getRun({ runId: runId });
-  expect(statement.findings).toHaveLength(1);
-  const finding = statement.findings[0];
+  const findings = resolutionFindings(statement.findings);
+  expect(findings).toHaveLength(1);
+  const finding = findings[0];
   expect(finding.kind).toBe(FindingKind.BLOCK);
   expect(finding.blockId).toBeTruthy();
   expect(finding.clearedAt).toBeUndefined();

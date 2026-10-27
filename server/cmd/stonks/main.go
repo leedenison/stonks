@@ -32,6 +32,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/auth/google"
 	"github.com/leedenison/stonks/server/internal/auth/session"
 	"github.com/leedenison/stonks/server/internal/config"
+	"github.com/leedenison/stonks/server/internal/corporate"
 	"github.com/leedenison/stonks/server/internal/coverage"
 	"github.com/leedenison/stonks/server/internal/currency"
 	"github.com/leedenison/stonks/server/internal/datasource"
@@ -45,6 +46,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/market/openfigi"
 	"github.com/leedenison/stonks/server/internal/mic"
 	"github.com/leedenison/stonks/server/internal/rdb"
+	"github.com/leedenison/stonks/server/internal/refreshcorporateevents"
 	"github.com/leedenison/stonks/server/internal/replay"
 	"github.com/leedenison/stonks/server/internal/resolve"
 	runner "github.com/leedenison/stonks/server/internal/run"
@@ -175,10 +177,12 @@ func run() (err error) {
 	cache := market.NewCache(rc, cfg.FetchCacheTTL)
 	fetcher := market.NewFetcher(db.New[market.Queries](pool), runs, logger.WithCategory(log, "internal/market"), market.WithCache(cache))
 	resolver := resolve.New(db.New[resolve.Queries](pool), fetcher, sources, mics, families, time.Now, logger.WithCategory(log, "internal/resolve"))
-	replays := replay.New(db.New[replay.Queries](pool), runs, resolver, sources, mics, logger.WithCategory(log, "internal/replay"))
+	recorder := corporate.New(db.New[corporate.Queries](pool), fetcher, sources, mics, logger.WithCategory(log, "internal/corporate"))
+	corporateEvents := refreshcorporateevents.New(queries, runs, recorder, mics, time.Now, logger.WithCategory(log, "internal/refreshcorporateevents"))
+	replays := replay.New(db.New[replay.Queries](pool), runs, resolver, corporateEvents, sources, mics, logger.WithCategory(log, "internal/replay"))
 	extender := resolve.New(db.New[resolve.Queries](pool), fetcher.Fresh(), sources, mics, families, time.Now, logger.WithCategory(log, "internal/resolve"))
 	extensions := extendvalidity.New(queries, runs, extender, replays)
-	ingester := stmt.New(db.New[stmt.Queries](pool), runs, resolver, replays, families, time.Now, logger.WithCategory(log, "internal/statement"))
+	ingester := stmt.New(db.New[stmt.Queries](pool), runs, resolver, replays, corporateEvents, families, time.Now, logger.WithCategory(log, "internal/statement"))
 	datasources := admindatasource.New(queries, sources, datasource.New(db.New[datasource.Queries](pool), sources, cache))
 	srv, err := newServer(cfg.ListenAddr, log, authn, queries, holdingsvc.New(queries, families, scales, mics), adminrun.New(queries), adminblock.New(queries), datasources, admininstrument.New(queries), adminreplay.New(queries, replays), adminextendvalidity.New(extensions), admincoverage.New(coverage.New(queries, mics), attest.New(db.New[attest.Queries](pool), runs, replays, mics, time.Now), time.Now), ingester, mics, cfg.CookieSecure)
 	if err != nil {
