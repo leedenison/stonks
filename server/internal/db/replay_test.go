@@ -119,16 +119,16 @@ func TestListKeysUncoveredBy(t *testing.T) {
 	fetch := newFetch(t, q, user, run, alpha)
 	associate := func(key gen.StatedKey, listing gen.Listing, via gen.Identifier, arbiter gen.Arbiter) {
 		t.Helper()
-		arg := gen.SetStatedKeyAssociationParams{ID: key.ID, UserID: user.ID, InstrumentID: &listing.InstrumentID, ListingID: &listing.ID, ViaID: &via.ID, Arbiter: arbiter}
+		arg := gen.SetStatedKeyAssociationParams{ID: key.ID, UserID: user.ID, InstrID: &listing.InstrID, ListingID: &listing.ID, ViaID: &via.ID, Arbiter: arbiter}
 		_, err := q.SetStatedKeyAssociation(ctx, arg)
 		require.NoError(t, err)
 	}
 	fetched := func(isin string) (gen.Listing, gen.Identifier, uuid.UUID) {
 		t.Helper()
 		key := servedKey(t, q, fetch, newStatedKey(t, q, user, stmt), isin)
-		instrument, err := q.CreateInstrument(ctx, gen.CreateInstrumentParams{ID: db.NewID(), AssetClass: types.AssetClassStock, FetchKeyID: &key})
+		instrument, err := q.CreateInstr(ctx, gen.CreateInstrParams{ID: db.NewID(), AssetClass: types.AssetClassStock, FetchKeyID: &key})
 		require.NoError(t, err)
-		listing, err := q.CreateListing(ctx, gen.CreateListingParams{ID: db.NewID(), InstrumentID: instrument.ID, Currency: "USD", FetchKeyID: &key})
+		listing, err := q.CreateListing(ctx, gen.CreateListingParams{ID: db.NewID(), InstrID: instrument.ID, Currency: "USD", FetchKeyID: &key})
 		require.NoError(t, err)
 		via := newIdentifier(t, q, instrument, isin)
 		return listing, via, key
@@ -146,7 +146,7 @@ func TestListKeysUncoveredBy(t *testing.T) {
 	}
 	listing, via, key := fetched("US0000000001")
 	associate(covered, listing, via, gen.ArbiterDatasource)
-	require.NoError(t, q.UpsertIdentityCoverage(ctx, gen.UpsertIdentityCoverageParams{InstrumentID: listing.InstrumentID, Datasource: alpha.Name, FetchKeyID: key}))
+	require.NoError(t, q.UpsertIdentityCoverage(ctx, gen.UpsertIdentityCoverageParams{InstrID: listing.InstrID, Datasource: alpha.Name, FetchKeyID: key}))
 	listing, via, _ = fetched("US0000000002")
 	associate(uncovered, listing, via, gen.ArbiterDatasource)
 	usd, usdVia := cashListing(t, q, "USD")

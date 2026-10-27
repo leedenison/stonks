@@ -1,15 +1,15 @@
 -- name: CreateIdentifierAssertion :exec
 INSERT INTO identifier_assertions (id, fetch_key_id, run_id, attested_by, type, domain, value,
-    instrument_id, asserted_on)
+    instr_id, asserted_on)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9);
 
 -- name: CreateIdentifierAttestation :exec
 -- A later identifier attestation of a day replaces the earlier one.
-INSERT INTO identifier_assertions (id, run_id, attested_by, type, domain, value, instrument_id, asserted_on)
-VALUES (@id, @run_id::uuid, @attested_by::uuid, @type, @domain, @value, @instrument_id, @asserted_on)
+INSERT INTO identifier_assertions (id, run_id, attested_by, type, domain, value, instr_id, asserted_on)
+VALUES (@id, @run_id::uuid, @attested_by::uuid, @type, @domain, @value, @instr_id, @asserted_on)
 ON CONFLICT (type, domain, value, asserted_on) WHERE run_id IS NOT NULL
 DO UPDATE SET run_id = EXCLUDED.run_id, attested_by = EXCLUDED.attested_by,
-    instrument_id = EXCLUDED.instrument_id;
+    instr_id = EXCLUDED.instr_id;
 
 -- name: ListFetchKeyAssertions :many
 -- Only tests read a fetch key's assertions.
@@ -17,7 +17,7 @@ SELECT * FROM identifier_assertions WHERE fetch_key_id = $1
 ORDER BY type, domain, value;
 
 -- name: RelinkIdentifierAssertions :exec
-UPDATE identifier_assertions SET instrument_id = @survivor::uuid WHERE instrument_id = @loser::uuid;
+UPDATE identifier_assertions SET instr_id = @survivor::uuid WHERE instr_id = @loser::uuid;
 
 -- name: ListIdentifierAssertions :many
 -- The assertions of the tickers whose market is among markets and whose value
@@ -80,17 +80,17 @@ WHERE via_type IS NOT NULL
   AND EXISTS (SELECT 1 FROM txns WHERE txns.stated_key_id = stated_keys.id)
 ORDER BY via_domain, via_value, created_at, id;
 
--- name: ListHeldInstruments :many
+-- name: ListHeldInstrs :many
 -- Each instrument that a fixed key names, where a transaction names the key,
 -- with each user of such a transaction and the earliest as-at date of that
 -- user's transactions.
-SELECT stated_keys.instrument_id::uuid AS instrument_id, txns.user_id,
+SELECT stated_keys.instr_id::uuid AS instr_id, txns.user_id,
        MIN(txns.as_at)::date AS first_as_at
 FROM txns
 JOIN stated_keys ON stated_keys.id = txns.stated_key_id
-WHERE stated_keys.instrument_id IS NOT NULL
-GROUP BY stated_keys.instrument_id, txns.user_id
-ORDER BY stated_keys.instrument_id, txns.user_id;
+WHERE stated_keys.instr_id IS NOT NULL
+GROUP BY stated_keys.instr_id, txns.user_id
+ORDER BY stated_keys.instr_id, txns.user_id;
 
 -- name: ListHeldTickerDates :many
 -- Each as-at date of a transaction of a dated key, with the ticker through
@@ -124,7 +124,7 @@ WHERE identifier_assertions.id IN (
 ORDER BY identifier_assertions.id
 LIMIT sqlc.narg(lim)::int;
 
--- name: ListInstrumentTickers :many
+-- name: ListInstrTickers :many
 -- The tickers of the instrument at their markets: those on its listings, and
 -- those its assertions name. Each comes with whether a listing carries it,
 -- and the operating MICs of the listings that do.
@@ -134,10 +134,10 @@ FROM (
     SELECT mic_markets.market, identifiers.value, true AS current, mic_markets.operating_mic AS venue
     FROM identifiers
     JOIN mic_markets ON mic_markets.mic = identifiers.domain
-    WHERE identifiers.instrument_id = @instrument AND identifiers.type = 'mic_ticker'
+    WHERE identifiers.instr_id = @instr AND identifiers.type = 'mic_ticker'
     UNION ALL
     SELECT domain, value, false, NULL FROM identifier_assertions
-    WHERE identifier_assertions.instrument_id = @instrument AND type = 'mic_ticker'
+    WHERE identifier_assertions.instr_id = @instr AND type = 'mic_ticker'
 ) AS named
 GROUP BY named.market, named.value
 ORDER BY named.market, named.value;

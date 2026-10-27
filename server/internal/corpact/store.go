@@ -35,7 +35,7 @@ type Queries interface {
 	ListStatedSplits(ctx context.Context, arg gen.ListStatedSplitsParams) ([]gen.ListStatedSplitsRow, error)
 	ListTickersNaming(ctx context.Context, instruments []uuid.UUID) ([]gen.ListTickersNamingRow, error)
 	ListUnmatchedSplits(ctx context.Context, keys []uuid.UUID) ([]gen.ListUnmatchedSplitsRow, error)
-	ListInstrumentsByID(ctx context.Context, ids []uuid.UUID) ([]gen.Instrument, error)
+	ListInstrsByID(ctx context.Context, ids []uuid.UUID) ([]gen.Instr, error)
 }
 
 var _ Queries = (*gen.Queries)(nil)

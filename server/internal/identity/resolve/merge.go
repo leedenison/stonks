@@ -48,7 +48,7 @@ func merge(ctx context.Context, q Queries, res *resolution, fetchKeyID *uuid.UUI
 		}
 		findings = append(findings, finding)
 	}
-	loaded, err := join.InstrumentsWithCoverage(ctx, q, []gen.Instrument{survivor.Row})
+	loaded, err := join.InstrumentsWithCoverage(ctx, q, []gen.Instr{survivor.Row})
 	if err != nil {
 		return writeTarget{}, err
 	}
@@ -89,7 +89,7 @@ func fold(ctx context.Context, q Queries, survivor *join.InstrumentWithCoverage,
 		if present[l.Currency] {
 			continue
 		}
-		if err := q.MoveListing(ctx, gen.MoveListingParams{ID: l.ID, InstrumentID: survivor.Row.ID}); err != nil {
+		if err := q.MoveListing(ctx, gen.MoveListingParams{ID: l.ID, InstrID: survivor.Row.ID}); err != nil {
 			return gen.CreateFindingParams{}, fmt.Errorf("move listing: %w", err)
 		}
 		present[l.Currency] = true
@@ -115,7 +115,7 @@ func fold(ctx context.Context, q Queries, survivor *join.InstrumentWithCoverage,
 		}},
 		{"delete coverage", func() error { return q.DeleteIdentityCoverage(ctx, loser.Row.ID) }},
 		{"delete listings", func() error { return q.DeleteListings(ctx, loser.Row.ID) }},
-		{"delete instrument", func() error { return q.DeleteInstrument(ctx, loser.Row.ID) }},
+		{"delete instrument", func() error { return q.DeleteInstr(ctx, loser.Row.ID) }},
 	}
 	for _, s := range steps {
 		if err := s.run(); err != nil {
@@ -167,11 +167,11 @@ func mergeConflict(matches []instrumentMatch) (string, bool) {
 			if row.ListingID != nil {
 				k.family = famOf[*row.ListingID]
 			}
-			if prior, ok := first[k]; ok && prior.id.Value != id.Value && prior.instrument != row.InstrumentID {
-				return fmt.Sprintf("%s identifies instrument %s and %s identifies %s", prior.id.Name(), prior.instrument, id.Name(), row.InstrumentID), true
+			if prior, ok := first[k]; ok && prior.id.Value != id.Value && prior.instrument != row.InstrID {
+				return fmt.Sprintf("%s identifies instrument %s and %s identifies %s", prior.id.Name(), prior.instrument, id.Name(), row.InstrID), true
 			}
 			if _, ok := first[k]; !ok {
-				first[k] = seen{id, row.InstrumentID}
+				first[k] = seen{id, row.InstrID}
 			}
 		}
 	}

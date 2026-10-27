@@ -14,7 +14,7 @@ func TestInstrumentAllIDs(t *testing.T) {
 	xlon := types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XLON", Value: "VOD"}
 	xnas := types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "VOD"}
 	bare := types.Identifier{Type: types.IdentifierTypeMicTicker, Value: "VOD"}
-	i := types.Instrument{
+	i := types.Instr{
 		Identifiers: []types.Identifier{isin},
 		Listings: map[string]types.Listing{
 			"USD": {Identifiers: []types.Identifier{xnas}},

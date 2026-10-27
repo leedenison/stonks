@@ -28,7 +28,7 @@ type instruments struct {
 	keys metric.Int64Counter
 }
 
-var instr = newInstruments(otel.Meter(meterName))
+var metrics = newInstruments(otel.Meter(meterName))
 
 func newInstruments(m metric.Meter) instruments {
 	c, err := m.Int64Counter("stonks.datasource.keys", metric.WithUnit("{key}"),

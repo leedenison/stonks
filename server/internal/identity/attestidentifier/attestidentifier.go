@@ -75,7 +75,7 @@ func (s *Service) Start(ctx context.Context, admin uuid.UUID, v types.MarketTick
 		}
 	}
 	if instrument != nil {
-		if _, err := s.store.GetInstrument(ctx, *instrument); errors.Is(err, db.ErrNotFound) {
+		if _, err := s.store.GetInstr(ctx, *instrument); errors.Is(err, db.ErrNotFound) {
 			return gen.Run{}, fmt.Errorf("instrument %s: %w", instrument, err)
 		} else if err != nil {
 			return gen.Run{}, fmt.Errorf("get instrument: %w", err)

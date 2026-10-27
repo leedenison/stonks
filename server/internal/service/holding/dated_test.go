@@ -39,13 +39,13 @@ var (
 	coverage        = []gen.ListIdentifierCoverageRow{{Market: "US", Value: ptr.To("FOO"), CoveredFrom: day(1), CoveredBefore: day(20), Datasource: "massive"}}
 	straddle        = []gen.ListIdentifierAssertionsRow{assertion(2, &aID), assertion(10, &bID)}
 	retired         = []gen.ListIdentifierAssertionsRow{assertion(2, &aID), assertion(12, nil)}
-	instruments     = []gen.Instrument{{ID: aID, AssetClass: types.AssetClassStock}, {ID: bID, AssetClass: types.AssetClassStock}}
-	fooOnB          = gen.Identifier{InstrumentID: bID, ListingID: &bUSD, Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "FOO"}
-	idents          = []gen.Identifier{{InstrumentID: aID, Type: types.IdentifierTypeIsin, Value: "US0000000071"}, fooOnB}
-	aListings       = []gen.ListListingNamesRow{{ListingID: aGBP, InstrumentID: aID, Currency: "GBP"}, {ListingID: aUSD, InstrumentID: aID, Currency: "USD"}}
-	bListing        = gen.ListListingNamesRow{ListingID: bUSD, InstrumentID: bID, Currency: "USD", TickerDomain: ptr.To("XNAS"), TickerValue: ptr.To("FOO"), Venue: "Nasdaq"}
+	instruments     = []gen.Instr{{ID: aID, AssetClass: types.AssetClassStock}, {ID: bID, AssetClass: types.AssetClassStock}}
+	fooOnB          = gen.Identifier{InstrID: bID, ListingID: &bUSD, Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "FOO"}
+	idents          = []gen.Identifier{{InstrID: aID, Type: types.IdentifierTypeIsin, Value: "US0000000071"}, fooOnB}
+	aListings       = []gen.ListListingNamesRow{{ListingID: aGBP, InstrID: aID, Currency: "GBP"}, {ListingID: aUSD, InstrID: aID, Currency: "USD"}}
+	bListing        = gen.ListListingNamesRow{ListingID: bUSD, InstrID: bID, Currency: "USD", TickerDomain: ptr.To("XNAS"), TickerValue: ptr.To("FOO"), Venue: "Nasdaq"}
 	listings        = append(append([]gen.ListListingNamesRow{}, aListings...), bListing)
-	names           = []gen.InstrumentName{{InstrumentID: aID, Type: types.IdentifierTypeIsin, Value: "US0000000071"}, {InstrumentID: bID, Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "FOO"}}
+	names           = []gen.InstrName{{InstrID: aID, Type: types.IdentifierTypeIsin, Value: "US0000000071"}, {InstrID: bID, Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "FOO"}}
 	protoAListings  = []*holdingv1.HoldingListing{{Id: aGBP.String(), Currency: "GBP"}, {Id: aUSD.String(), Currency: "USD"}}
 	protoBListings  = []*holdingv1.HoldingListing{{Id: bUSD.String(), Currency: "USD", Venue: "Nasdaq", Ticker: protoFoo}}
 	protoAName      = &typev1.Identifier{Type: typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, Value: "US0000000071"}
@@ -61,7 +61,7 @@ func day(n int) time.Time { return time.Date(2026, time.March, n, 0, 0, 0, 0, ti
 // where inst is nil.
 func assertion(n int, inst *uuid.UUID) gen.ListIdentifierAssertionsRow {
 	return gen.ListIdentifierAssertionsRow{
-		IdentifierAssertion: gen.IdentifierAssertion{Type: types.IdentifierTypeMicTicker, Domain: "US", Value: "FOO", AssertedOn: day(n), InstrumentID: inst, FetchKeyID: ptr.To(uuid.New())},
+		IdentifierAssertion: gen.IdentifierAssertion{Type: types.IdentifierTypeMicTicker, Domain: "US", Value: "FOO", AssertedOn: day(n), InstrID: inst, FetchKeyID: ptr.To(uuid.New())},
 		Datasource:          ptr.To("massive"), Precedence: ptr.To(int32(2)),
 	}
 }
@@ -96,7 +96,7 @@ func datedHoldingKey(currency *string, listing uuid.UUID, quantity string) *hold
 func TestListHoldingsDated(t *testing.T) {
 	usd, gbx := ptr.To("USD"), ptr.To("GBX")
 	fixedKey := gen.ListHoldingKeysRow{
-		StatedKey: gen.StatedKey{ID: fixedKeyID, Currency: usd, Identifiers: []types.Identifier{aISIN}, InstrumentID: &aID, ListingID: &aUSD, Arbiter: ptr.To(gen.ArbiterDatasource)},
+		StatedKey: gen.StatedKey{ID: fixedKeyID, Currency: usd, Identifiers: []types.Identifier{aISIN}, InstrID: &aID, ListingID: &aUSD, Arbiter: ptr.To(gen.ArbiterDatasource)},
 		Quantity:  decimal.RequireFromString("10"),
 	}
 	fixedHoldingKey := &holdingv1.HoldingKey{StatedKey: &typev1.StatedKey{Currency: usd, Identifiers: []*typev1.Identifier{protoAISIN}}, ListingId: aUSD.String(), Quantity: "10"}
@@ -109,7 +109,7 @@ func TestListHoldingsDated(t *testing.T) {
 	group := func(currency *string, quantity string) *holdingv1.GroupHolding {
 		return &holdingv1.GroupHolding{GroupId: datedKeyID.String(), Quantity: quantity, Identifiers: []*typev1.Identifier{protoFoo}, Keys: []*holdingv1.HoldingKey{datedHoldingKey(currency, uuid.Nil, quantity)}}
 	}
-	withBGBP := append(append([]gen.ListListingNamesRow{}, listings...), gen.ListListingNamesRow{ListingID: bGBP, InstrumentID: bID, Currency: "GBP"})
+	withBGBP := append(append([]gen.ListListingNamesRow{}, listings...), gen.ListListingNamesRow{ListingID: bGBP, InstrID: bID, Currency: "GBP"})
 	protoBListingsWithGBP := append(append([]*holdingv1.HoldingListing{}, protoBListings...), &holdingv1.HoldingListing{Id: bGBP.String(), Currency: "GBP"})
 
 	tests := []struct {
@@ -210,11 +210,11 @@ func TestListHoldingsDated(t *testing.T) {
 			f.reader.EXPECT().ListIdentifierAssertions(gomock.Any(), fooAssertions).Return(tc.assertions, tc.assertionsErr).MaxTimes(1)
 			f.reader.EXPECT().ListIdentifierEvents(gomock.Any(), fooEvents).Return(nil, nil).MaxTimes(1)
 			f.reader.EXPECT().ListIdentifierCoverage(gomock.Any(), fooCoverage).Return(coverage, nil).MaxTimes(1)
-			f.reader.EXPECT().ListInstrumentsByID(gomock.Any(), gomock.Any()).Return(instruments, nil).MaxTimes(1)
+			f.reader.EXPECT().ListInstrsByID(gomock.Any(), gomock.Any()).Return(instruments, nil).MaxTimes(1)
 			if len(tc.ids) > 0 {
 				f.reader.EXPECT().ListIdentifiersOf(gomock.Any(), tc.ids).Return(idents, nil)
 				f.reader.EXPECT().ListListingNames(gomock.Any(), tc.ids).Return(tc.listings, nil)
-				f.reader.EXPECT().ListInstrumentNames(gomock.Any(), tc.ids).Return(names, nil)
+				f.reader.EXPECT().ListInstrNames(gomock.Any(), tc.ids).Return(names, nil)
 			}
 			res, err := f.client.ListHoldings(context.Background(), connect.NewRequest(&holdingv1.ListHoldingsRequest{}))
 			if servicetest.CodeOf(err) != tc.wantCode {

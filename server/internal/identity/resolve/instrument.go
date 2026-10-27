@@ -226,15 +226,15 @@ func (r *Resolver) findResolutionCurrency(ctx context.Context, res *resolution) 
 	case err != nil:
 		return fmt.Errorf("look up currency %s: %w", code, err)
 	}
-	if reason, ok := classConflict(res.row, hit.Instrument.AssetClass); ok {
+	if reason, ok := classConflict(res.row, hit.Instr.AssetClass); ok {
 		res.decide(gen.ResolutionOutcomeRejected, "%s", reason)
 		return nil
 	}
-	loaded, err := join.InstrumentsWithCoverage(ctx, r.store, []gen.Instrument{hit.Instrument})
+	loaded, err := join.InstrumentsWithCoverage(ctx, r.store, []gen.Instr{hit.Instr})
 	if err != nil {
 		return err
 	}
-	f := loaded[hit.Instrument.ID]
+	f := loaded[hit.Instr.ID]
 	if res.family != noFamily && f.Listing(res.family) == nil {
 		res.decide(gen.ResolutionOutcomeRejected, "no listing of %s in %s", code, *res.row.Currency)
 		return nil

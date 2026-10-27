@@ -77,12 +77,12 @@ func (f *fixture) bareKey(t *testing.T, value string) {
 func (f *fixture) instrument(t *testing.T, value string, domains ...string) uuid.UUID {
 	t.Helper()
 	ctx := context.Background()
-	inst, err := f.q.CreateInstrument(ctx, gen.CreateInstrumentParams{ID: db.NewID(), AssetClass: types.AssetClassStock})
+	inst, err := f.q.CreateInstr(ctx, gen.CreateInstrParams{ID: db.NewID(), AssetClass: types.AssetClassStock})
 	require.NoError(t, err)
-	listing, err := f.q.CreateListing(ctx, gen.CreateListingParams{ID: db.NewID(), InstrumentID: inst.ID, Currency: "USD"})
+	listing, err := f.q.CreateListing(ctx, gen.CreateListingParams{ID: db.NewID(), InstrID: inst.ID, Currency: "USD"})
 	require.NoError(t, err)
 	for _, domain := range domains {
-		_, err = f.q.CreateIdentifier(ctx, gen.CreateIdentifierParams{ID: db.NewID(), InstrumentID: inst.ID, ListingID: &listing.ID, Type: types.IdentifierTypeMicTicker, Domain: domain, Value: value})
+		_, err = f.q.CreateIdentifier(ctx, gen.CreateIdentifierParams{ID: db.NewID(), InstrID: inst.ID, ListingID: &listing.ID, Type: types.IdentifierTypeMicTicker, Domain: domain, Value: value})
 		require.NoError(t, err)
 	}
 	return inst.ID
@@ -97,7 +97,7 @@ func (f *fixture) attest(t *testing.T, instrument uuid.UUID, market, value strin
 	require.NoError(t, err)
 	err = f.q.CreateIdentifierAssertion(ctx, gen.CreateIdentifierAssertionParams{
 		ID: db.NewID(), RunID: &run.ID, AttestedBy: &f.user.ID,
-		Type: types.IdentifierTypeMicTicker, Domain: market, Value: value, InstrumentID: &instrument, AssertedOn: day(1),
+		Type: types.IdentifierTypeMicTicker, Domain: market, Value: value, InstrID: &instrument, AssertedOn: day(1),
 	})
 	require.NoError(t, err)
 }

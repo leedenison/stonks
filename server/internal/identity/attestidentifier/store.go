@@ -19,7 +19,7 @@ type Queries interface {
 	GetIdentifierAssertion(ctx context.Context, id uuid.UUID) (gen.IdentifierAssertion, error)
 	DeleteAttestedAssertion(ctx context.Context, id uuid.UUID) (int64, error)
 	GetRunByID(ctx context.Context, id uuid.UUID) (gen.Run, error)
-	GetInstrument(ctx context.Context, id uuid.UUID) (gen.Instrument, error)
+	GetInstr(ctx context.Context, id uuid.UUID) (gen.Instr, error)
 }
 
 var _ Queries = (*gen.Queries)(nil)

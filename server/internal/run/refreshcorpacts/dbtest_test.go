@@ -103,7 +103,7 @@ func (s *stack) user(t *testing.T) uuid.UUID {
 
 func (s *stack) instrument(t *testing.T) uuid.UUID {
 	t.Helper()
-	inst, err := s.q.CreateInstrument(context.Background(), gen.CreateInstrumentParams{ID: db.NewID(), AssetClass: types.AssetClassStock})
+	inst, err := s.q.CreateInstr(context.Background(), gen.CreateInstrParams{ID: db.NewID(), AssetClass: types.AssetClassStock})
 	require.NoError(t, err)
 	return inst.ID
 }
@@ -123,7 +123,7 @@ func (s *stack) names(t *testing.T, v string, inst *uuid.UUID, on time.Time) {
 	run, err := s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), Kind: gen.RunKindAttestIdentifier, Trigger: gen.RunTriggerAdministrator})
 	require.NoError(t, err)
 	require.NoError(t, s.q.CreateIdentifierAssertion(ctx, gen.CreateIdentifierAssertionParams{
-		ID: db.NewID(), RunID: &run.ID, AttestedBy: &s.admin, Type: types.IdentifierTypeMicTicker, Domain: "US", Value: v, InstrumentID: inst, AssertedOn: on,
+		ID: db.NewID(), RunID: &run.ID, AttestedBy: &s.admin, Type: types.IdentifierTypeMicTicker, Domain: "US", Value: v, InstrID: inst, AssertedOn: on,
 	}))
 }
 
@@ -133,9 +133,9 @@ func (s *stack) fixedKey(t *testing.T, user, inst uuid.UUID) uuid.UUID {
 	ctx := context.Background()
 	via, key := db.NewID(), db.NewID()
 	isin := uuid.NewString()
-	_, err := s.tx.Exec(ctx, `INSERT INTO identifiers (id, instrument_id, type, value) VALUES ($1, $2, 'isin', $3)`, via, inst, isin)
+	_, err := s.tx.Exec(ctx, `INSERT INTO identifiers (id, instr_id, type, value) VALUES ($1, $2, 'isin', $3)`, via, inst, isin)
 	require.NoError(t, err)
-	_, err = s.tx.Exec(ctx, `INSERT INTO stated_keys (id, user_id, identifiers, instrument_id, via_id, arbiter)
+	_, err = s.tx.Exec(ctx, `INSERT INTO stated_keys (id, user_id, identifiers, instr_id, via_id, arbiter)
 		VALUES ($1, $2, jsonb_build_array(jsonb_build_object('type', 'isin', 'value', $3::text)), $4, $5, 'stated')`, key, user, isin, inst, via)
 	require.NoError(t, err)
 	return key
@@ -303,20 +303,20 @@ func TestHeldQueries(t *testing.T) {
 	tk := value(t, "D")
 	s.buys(t, u, s.datedKey(t, u, tk), day(2022, 3, 1), day(2022, 3, 1), day(2022, 4, 1))
 
-	instruments, err := s.q.ListHeldInstruments(ctx)
+	instruments, err := s.q.ListHeldInstrs(ctx)
 	require.NoError(t, err)
-	var gotInst []gen.ListHeldInstrumentsRow
+	var gotInst []gen.ListHeldInstrsRow
 	for _, r := range instruments {
-		if r.InstrumentID == inst {
+		if r.InstrID == inst {
 			gotInst = append(gotInst, r)
 		}
 	}
-	wantInst := []gen.ListHeldInstrumentsRow{{InstrumentID: inst, UserID: u, FirstAsAt: day(2019, 3, 1)}, {InstrumentID: inst, UserID: v, FirstAsAt: day(2021, 3, 1)}}
+	wantInst := []gen.ListHeldInstrsRow{{InstrID: inst, UserID: u, FirstAsAt: day(2019, 3, 1)}, {InstrID: inst, UserID: v, FirstAsAt: day(2021, 3, 1)}}
 	if u.String() > v.String() {
 		wantInst[0], wantInst[1] = wantInst[1], wantInst[0]
 	}
 	if diff := cmp.Diff(wantInst, gotInst); diff != "" {
-		t.Errorf("ListHeldInstruments mismatch (-want +got):\n%s", diff)
+		t.Errorf("ListHeldInstrs mismatch (-want +got):\n%s", diff)
 	}
 
 	dates, err := s.q.ListHeldTickerDates(ctx)

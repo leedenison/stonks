@@ -205,7 +205,7 @@ func fetchRun[Q, P any](ctx context.Context, f *Fetcher, row gen.Run, e *Entry, 
 		return nil, err
 	}
 	for _, r := range fetchKeys {
-		instr.key(ctx, e.Name, r.Outcome, r.cached)
+		metrics.key(ctx, e.Name, r.Outcome, r.cached)
 	}
 	for range found {
 		run.Found(ctx, gen.FindingKindBlock)

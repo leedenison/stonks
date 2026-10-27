@@ -118,7 +118,7 @@ func decide(ctx context.Context, q Queries, res *resolution, userChoice consiste
 		if reason, ok := classConflict(res.row, t.instrument.Row.AssetClass); ok {
 			return decision{verdict: verdict, target: t, conflict: reason}, nil
 		}
-		verdict = choose(res, &identityClaim{Instrument: t.instrument.Instrument.Instrument()}, userChoice)
+		verdict = choose(res, &identityClaim{Instr: t.instrument.Instr.Instr()}, userChoice)
 		if verdict.refused != "" {
 			return decision{}, fmt.Errorf("%w: %s", ErrNoCandidate, verdict.refused)
 		}
@@ -138,7 +138,7 @@ func decide(ctx context.Context, q Queries, res *resolution, userChoice consiste
 func writeInstrument(ctx context.Context, q Queries, user uuid.UUID, res *resolution, d decision) (*writer, error) {
 	w := &writer{q: q, user: user, taken: d.target.taken, res: res}
 	if d.target.instrument != nil {
-		w.instr = d.target.instrument.Instrument
+		w.instr = d.target.instrument.Instr
 	} else {
 		row, err := w.create(ctx, d.verdict.winner)
 		if err != nil {
@@ -204,7 +204,7 @@ func recordIdentityCoverage(ctx context.Context, q Queries, instrument uuid.UUID
 		if !attached && len(fk.Response.Listings) > 0 {
 			continue
 		}
-		arg := gen.UpsertIdentityCoverageParams{InstrumentID: instrument, Datasource: fk.Source, FetchKeyID: fk.ID}
+		arg := gen.UpsertIdentityCoverageParams{InstrID: instrument, Datasource: fk.Source, FetchKeyID: fk.ID}
 		if err := q.UpsertIdentityCoverage(ctx, arg); err != nil {
 			return fmt.Errorf("cover %s: %w", fk.Source, err)
 		}

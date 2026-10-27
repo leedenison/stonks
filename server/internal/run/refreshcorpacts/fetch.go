@@ -59,7 +59,7 @@ func (s *Service) FetchAfterIdentifierFacts(ctx context.Context, parent gen.Run,
 	named := map[uuid.UUID]bool{}
 	for _, t := range read {
 		for _, iv := range t.Derived.Intervals {
-			named[iv.Instrument] = true
+			named[iv.Instr] = true
 		}
 	}
 	if len(named) == 0 {

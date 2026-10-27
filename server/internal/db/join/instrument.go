@@ -26,9 +26,9 @@ type CoverageQueries interface {
 
 var _ CoverageQueries = (*gen.Queries)(nil)
 
-// Instrument is an instrument row with its identifier and listing rows.
-type Instrument struct {
-	Row         gen.Instrument
+// Instr is an instrument row with its identifier and listing rows.
+type Instr struct {
+	Row         gen.Instr
 	Identifiers []gen.Identifier
 	Listings    []gen.Listing
 }
@@ -36,18 +36,18 @@ type Instrument struct {
 // InstrumentWithCoverage is an Instrument with the datasources that have
 // answered for it.
 type InstrumentWithCoverage struct {
-	Instrument
+	Instr
 	// Coverage holds the name of each datasource that has answered.
 	Coverage map[string]bool
 }
 
-// Instruments reads the identifiers and listings of rows, keyed by
+// Instrs reads the identifiers and listings of rows, keyed by
 // instrument id.
-func Instruments(ctx context.Context, q InstrumentQueries, rows []gen.Instrument) (map[uuid.UUID]*Instrument, error) {
-	out := make(map[uuid.UUID]*Instrument, len(rows))
+func Instrs(ctx context.Context, q InstrumentQueries, rows []gen.Instr) (map[uuid.UUID]*Instr, error) {
+	out := make(map[uuid.UUID]*Instr, len(rows))
 	ids := make([]uuid.UUID, len(rows))
 	for i, row := range rows {
-		out[row.ID] = &Instrument{Row: row}
+		out[row.ID] = &Instr{Row: row}
 		ids[i] = row.ID
 	}
 	if len(ids) == 0 {
@@ -58,7 +58,7 @@ func Instruments(ctx context.Context, q InstrumentQueries, rows []gen.Instrument
 		return nil, fmt.Errorf("list identifiers: %w", err)
 	}
 	for _, row := range identifiers {
-		j := out[row.InstrumentID]
+		j := out[row.InstrID]
 		j.Identifiers = append(j.Identifiers, row)
 	}
 	listings, err := q.ListListingsOf(ctx, ids)
@@ -66,7 +66,7 @@ func Instruments(ctx context.Context, q InstrumentQueries, rows []gen.Instrument
 		return nil, fmt.Errorf("list listings: %w", err)
 	}
 	for _, l := range listings {
-		j := out[l.InstrumentID]
+		j := out[l.InstrID]
 		j.Listings = append(j.Listings, l)
 	}
 	return out, nil
@@ -74,15 +74,15 @@ func Instruments(ctx context.Context, q InstrumentQueries, rows []gen.Instrument
 
 // InstrumentsWithCoverage reads the identifiers, listings and coverage of
 // rows, keyed by instrument id.
-func InstrumentsWithCoverage(ctx context.Context, q CoverageQueries, rows []gen.Instrument) (map[uuid.UUID]*InstrumentWithCoverage, error) {
-	joined, err := Instruments(ctx, q, rows)
+func InstrumentsWithCoverage(ctx context.Context, q CoverageQueries, rows []gen.Instr) (map[uuid.UUID]*InstrumentWithCoverage, error) {
+	joined, err := Instrs(ctx, q, rows)
 	if err != nil {
 		return nil, err
 	}
 	out := make(map[uuid.UUID]*InstrumentWithCoverage, len(joined))
 	ids := make([]uuid.UUID, 0, len(joined))
 	for id, j := range joined {
-		out[id] = &InstrumentWithCoverage{Instrument: *j, Coverage: map[string]bool{}}
+		out[id] = &InstrumentWithCoverage{Instr: *j, Coverage: map[string]bool{}}
 		ids = append(ids, id)
 	}
 	if len(ids) == 0 {
@@ -93,7 +93,7 @@ func InstrumentsWithCoverage(ctx context.Context, q CoverageQueries, rows []gen.
 		return nil, fmt.Errorf("list coverage: %w", err)
 	}
 	for _, c := range coverage {
-		out[c.InstrumentID].Coverage[c.Datasource] = true
+		out[c.InstrID].Coverage[c.Datasource] = true
 	}
 	return out, nil
 }
@@ -105,9 +105,9 @@ func (j *InstrumentWithCoverage) Covered(datasource string) bool {
 	return j.Row.FetchKeyID == nil || j.Coverage[datasource]
 }
 
-// Instrument returns the instrument that j describes.
-func (j Instrument) Instrument() types.Instrument {
-	out := types.Instrument{Class: j.Row.AssetClass, Listings: map[string]types.Listing{}}
+// Instr returns the instrument that j describes.
+func (j Instr) Instr() types.Instr {
+	out := types.Instr{Class: j.Row.AssetClass, Listings: map[string]types.Listing{}}
 	famOf := map[uuid.UUID]string{}
 	for _, l := range j.Listings {
 		famOf[l.ID] = l.Currency
@@ -128,7 +128,7 @@ func (j Instrument) Instrument() types.Instrument {
 
 // Listing returns the listing of the currency family fam, nil where the
 // instrument has none.
-func (j *Instrument) Listing(fam string) *gen.Listing {
+func (j *Instr) Listing(fam string) *gen.Listing {
 	for i := range j.Listings {
 		if j.Listings[i].Currency == fam {
 			return &j.Listings[i]
@@ -138,7 +138,7 @@ func (j *Instrument) Listing(fam string) *gen.Listing {
 }
 
 // Identifier returns the row of id, nil where the instrument has none.
-func (j *Instrument) Identifier(id types.Identifier) *gen.Identifier {
+func (j *Instr) Identifier(id types.Identifier) *gen.Identifier {
 	for i := range j.Identifiers {
 		if to.Identifier(j.Identifiers[i]) == id {
 			return &j.Identifiers[i]

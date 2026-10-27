@@ -176,11 +176,11 @@ func TestIngest(t *testing.T) {
 
 	found, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: types.IdentifierTypeCurrency, Value: "USD"})
 	require.NoError(t, err)
-	line, err := s.q.GetListing(ctx, gen.GetListingParams{InstrumentID: found.Instrument.ID, Currency: "USD"})
+	line, err := s.q.GetListing(ctx, gen.GetListingParams{InstrID: found.Instr.ID, Currency: "USD"})
 	require.NoError(t, err)
 	var associated []gen.StatedKey
 	for _, k := range keys {
-		if k.InstrumentID != nil {
+		if k.InstrID != nil {
 			associated = append(associated, k)
 		}
 	}
@@ -188,15 +188,15 @@ func TestIngest(t *testing.T) {
 		t.Fatalf("%d keys carry an association, want only the cash key", len(associated))
 	}
 	got := associated[0]
-	if *got.InstrumentID != found.Instrument.ID || got.ListingID == nil || *got.ListingID != line.ID {
-		t.Errorf("the cash key names instrument %s listing %v, want %s and %s", got.InstrumentID, got.ListingID, found.Instrument.ID, line.ID)
+	if *got.InstrID != found.Instr.ID || got.ListingID == nil || *got.ListingID != line.ID {
+		t.Errorf("the cash key names instrument %s listing %v, want %s and %s", got.InstrID, got.ListingID, found.Instr.ID, line.ID)
 	}
 	if got.ViaID == nil || *got.ViaID != found.Identifier.ID {
 		t.Errorf("the cash key associates through %v, want %s", got.ViaID, found.Identifier.ID)
 	}
 
 	var instruments, families int
-	require.NoError(t, s.tx.QueryRow(ctx, "SELECT count(*) FROM instruments").Scan(&instruments))
+	require.NoError(t, s.tx.QueryRow(ctx, "SELECT count(*) FROM instrs").Scan(&instruments))
 	require.NoError(t, s.tx.QueryRow(ctx, "SELECT count(*) FROM currencies WHERE code = family").Scan(&families))
 	if instruments != families {
 		t.Errorf("%d instruments, want the %d the migration seeds", instruments, families)
@@ -232,11 +232,11 @@ func TestFamily(t *testing.T) {
 	require.Len(t, keys, 1)
 	gbp, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: types.IdentifierTypeCurrency, Value: "GBP"})
 	require.NoError(t, err)
-	line, err := s.q.GetListing(ctx, gen.GetListingParams{InstrumentID: gbp.Instrument.ID, Currency: "GBP"})
+	line, err := s.q.GetListing(ctx, gen.GetListingParams{InstrID: gbp.Instr.ID, Currency: "GBP"})
 	require.NoError(t, err)
 	k := keys[0]
-	if k.InstrumentID == nil || *k.InstrumentID != gbp.Instrument.ID || k.ListingID == nil || *k.ListingID != line.ID {
-		t.Errorf("the GBX key names instrument %v listing %v, want GBP's %s and %s", k.InstrumentID, k.ListingID, gbp.Instrument.ID, line.ID)
+	if k.InstrID == nil || *k.InstrID != gbp.Instr.ID || k.ListingID == nil || *k.ListingID != line.ID {
+		t.Errorf("the GBX key names instrument %v listing %v, want GBP's %s and %s", k.InstrID, k.ListingID, gbp.Instr.ID, line.ID)
 	}
 	if k.Currency == nil || *k.Currency != "GBX" {
 		t.Errorf("the key states currency %v, want GBX as stated", k.Currency)
@@ -356,12 +356,12 @@ func TestConfirmCandidate(t *testing.T) {
 	}
 	got, err := s.q.GetStatedKey(ctx, gen.GetStatedKeyParams{ID: first.ID, UserID: s.user.ID})
 	require.NoError(t, err)
-	if got.InstrumentID == nil || got.Arbiter == nil || *got.Arbiter != gen.ArbiterUser || got.GroupID != nil {
+	if got.InstrID == nil || got.Arbiter == nil || *got.Arbiter != gen.ArbiterUser || got.GroupID != nil {
 		t.Errorf("the confirmed key = %+v, want associated by the user in no group", got)
 	}
 	mate, err := s.q.GetStatedKey(ctx, gen.GetStatedKeyParams{ID: second.ID, UserID: s.user.ID})
 	require.NoError(t, err)
-	if mate.InstrumentID != nil || mate.Arbiter != nil {
+	if mate.InstrID != nil || mate.Arbiter != nil {
 		t.Errorf("the mate = %+v, want it unresolved: a choice associates the one key", mate)
 	}
 	instruments, groups := s.holdings(t)
@@ -376,7 +376,7 @@ func TestConfirmCandidate(t *testing.T) {
 	// resolves nothing for it, and its regroup leaves the mate in a group of
 	// its own.
 	third := month(key, "2026-02-01", "2026-03-01", "2026-02-05", "1")
-	if k := s.keyOf(t, third); k.ID != first.ID || k.InstrumentID == nil || *k.InstrumentID != instruments[0].InstrumentID || k.Arbiter == nil || *k.Arbiter != gen.ArbiterUser {
+	if k := s.keyOf(t, third); k.ID != first.ID || k.InstrID == nil || *k.InstrID != instruments[0].InstrID || k.Arbiter == nil || *k.Arbiter != gen.ArbiterUser {
 		t.Errorf("the third statement's key = %+v, want the confirmed key %s", k, first.ID)
 	}
 	resolution, err := s.q.ListChildRuns(ctx, gen.ListChildRunsParams{ParentID: &third.ID, UserID: &s.user.ID})
@@ -481,7 +481,7 @@ func TestRestate(t *testing.T) {
 	first := month("2026-03-01", "2026-04-01", "2026-03-05", "10")
 	second := month("2026-04-01", "2026-05-01", "2026-04-05", "5")
 	a, b := s.keyOf(t, first), s.keyOf(t, second)
-	if a.ID != b.ID || b.InstrumentID == nil || b.Arbiter == nil || *b.Arbiter != gen.ArbiterDatasource {
+	if a.ID != b.ID || b.InstrID == nil || b.Arbiter == nil || *b.Arbiter != gen.ArbiterDatasource {
 		t.Errorf("the second statement's key = %+v, want the first's %s with the datasource's association", b, a.ID)
 	}
 	resolution := resolutionOf(second)
@@ -509,8 +509,8 @@ func TestRestate(t *testing.T) {
 // holding is one instrument's or one group's sum of the user's fixed and
 // unresolved keys.
 type holding struct {
-	InstrumentID, GroupID uuid.UUID
-	Quantity              decimal.Decimal
+	InstrID, GroupID uuid.UUID
+	Quantity         decimal.Decimal
 }
 
 // holdings sums the user's keys by instrument and by group, as the holdings
@@ -522,15 +522,15 @@ func (s *stack) holdings(t *testing.T) (instruments, groups []holding) {
 	byInstrument, byGroup := map[uuid.UUID]decimal.Decimal{}, map[uuid.UUID]decimal.Decimal{}
 	for _, k := range keys {
 		switch {
-		case k.StatedKey.InstrumentID != nil:
-			byInstrument[*k.StatedKey.InstrumentID] = byInstrument[*k.StatedKey.InstrumentID].Add(k.Quantity)
+		case k.StatedKey.InstrID != nil:
+			byInstrument[*k.StatedKey.InstrID] = byInstrument[*k.StatedKey.InstrID].Add(k.Quantity)
 		case k.StatedKey.GroupID != nil && k.StatedKey.ViaType == nil:
 			byGroup[*k.StatedKey.GroupID] = byGroup[*k.StatedKey.GroupID].Add(k.Quantity)
 		}
 	}
 	for id, q := range byInstrument {
 		if !q.IsZero() {
-			instruments = append(instruments, holding{InstrumentID: id, Quantity: q})
+			instruments = append(instruments, holding{InstrID: id, Quantity: q})
 		}
 	}
 	for id, q := range byGroup {

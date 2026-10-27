@@ -89,10 +89,10 @@ func TestClaims(t *testing.T) {
 				listing(types.AssetClassStock, "USD", figi2, xnas),
 			),
 			want: []*identityClaim{
-				{Instrument: types.Instrument{Class: types.AssetClassStock, Identifiers: []types.Identifier{figi, isin}, Listings: map[string]types.Listing{
+				{Instr: types.Instr{Class: types.AssetClassStock, Identifiers: []types.Identifier{figi, isin}, Listings: map[string]types.Listing{
 					"GBP": {Identifiers: []types.Identifier{comp, xlon, xetr}},
 				}}},
-				{Instrument: types.Instrument{Class: types.AssetClassStock, Identifiers: []types.Identifier{figi2}, Listings: map[string]types.Listing{
+				{Instr: types.Instr{Class: types.AssetClassStock, Identifiers: []types.Identifier{figi2}, Listings: map[string]types.Listing{
 					"USD": {Identifiers: []types.Identifier{xnas}},
 				}}},
 			},
@@ -105,7 +105,7 @@ func TestClaims(t *testing.T) {
 				listing(types.AssetClassStock, "USD", figi, xnas),
 			),
 			want: []*identityClaim{
-				{Instrument: types.Instrument{Class: types.AssetClassStock, Identifiers: []types.Identifier{isin, figi}, Listings: map[string]types.Listing{
+				{Instr: types.Instr{Class: types.AssetClassStock, Identifiers: []types.Identifier{isin, figi}, Listings: map[string]types.Listing{
 					"GBP": {Identifiers: []types.Identifier{xlon}},
 					"USD": {Identifiers: []types.Identifier{xnas}},
 				}}},
@@ -119,7 +119,7 @@ func TestClaims(t *testing.T) {
 				listing(types.AssetClassStock, "", figi, xnas),
 			),
 			want: []*identityClaim{
-				{Instrument: types.Instrument{Class: types.AssetClassStock, Identifiers: []types.Identifier{figi}, Listings: map[string]types.Listing{
+				{Instr: types.Instr{Class: types.AssetClassStock, Identifiers: []types.Identifier{figi}, Listings: map[string]types.Listing{
 					"": {Identifiers: []types.Identifier{xlon, xnas}},
 				}}},
 			},
@@ -133,7 +133,7 @@ func TestClaims(t *testing.T) {
 				market.Listing{Class: types.AssetClassStock, Currency: "GBP", Primary: "XETR", Identifiers: []types.Identifier{comp}},
 			),
 			want: []*identityClaim{
-				{Instrument: types.Instrument{Class: types.AssetClassStock, Identifiers: []types.Identifier{isin}, Listings: map[string]types.Listing{
+				{Instr: types.Instr{Class: types.AssetClassStock, Identifiers: []types.Identifier{isin}, Listings: map[string]types.Listing{
 					"GBP": {Identifiers: []types.Identifier{xetr, xlon, comp}, Primary: "XLON"},
 				}}},
 			},
@@ -183,7 +183,7 @@ func label(c *identityClaim) string {
 	case c.fetchKey == nil:
 		return "database"
 	}
-	i := slices.IndexFunc(claims(c.fetchKey), func(o *identityClaim) bool { return cmp.Equal(o.Instrument, c.Instrument) })
+	i := slices.IndexFunc(claims(c.fetchKey), func(o *identityClaim) bool { return cmp.Equal(o.Instr, c.Instr) })
 	return fmt.Sprintf("%s#%d", c.fetchKey.Source, i)
 }
 
@@ -215,7 +215,7 @@ func TestChoose(t *testing.T) {
 	search := func(source string, sent types.Identifier, cs ...market.Listing) *fetchKey {
 		return served(source, sent, []types.Identifier{ticker}, cs...)
 	}
-	existing := &identityClaim{Instrument: types.Instrument{Class: types.AssetClassStock, Identifiers: []types.Identifier{isin, cusip}, Listings: map[string]types.Listing{
+	existing := &identityClaim{Instr: types.Instr{Class: types.AssetClassStock, Identifiers: []types.Identifier{isin, cusip}, Listings: map[string]types.Listing{
 		"GBP": {Identifiers: []types.Identifier{comp, xlon}},
 	}}}
 	tests := []struct {
@@ -488,7 +488,7 @@ func TestChooseUserChoice(t *testing.T) {
 	strict := func(source string, sent types.Identifier, cs ...market.Listing) *fetchKey {
 		return served(source, sent, []types.Identifier{sent}, cs...)
 	}
-	existing := &identityClaim{Instrument: types.Instrument{Class: types.AssetClassStock, Identifiers: []types.Identifier{isin, cusip}, Listings: map[string]types.Listing{
+	existing := &identityClaim{Instr: types.Instr{Class: types.AssetClassStock, Identifiers: []types.Identifier{isin, cusip}, Listings: map[string]types.Listing{
 		"GBP": {Identifiers: []types.Identifier{comp, xlon}},
 	}}}
 	other := id(types.IdentifierTypeCusip, "", "92857W309")
@@ -706,7 +706,7 @@ func TestExclusive(t *testing.T) {
 	other := id(types.IdentifierTypeIsin, "", "US0378331005")
 	descr := id(types.IdentifierTypeBrokerDescription, "ibkr", "VODAFONE GROUP PLC")
 	renamed := id(types.IdentifierTypeBrokerDescription, "ibkr", "VODAFONE GRP")
-	c := &identityClaim{Instrument: types.Instrument{Identifiers: []types.Identifier{isin, descr}}}
+	c := &identityClaim{Instr: types.Instr{Identifiers: []types.Identifier{isin, descr}}}
 	if got, ok := c.contradicts(other, noFamily); !ok || got != isin {
 		t.Errorf("contradicts(%s) = %v, %v, want the isin", other.Name(), got, ok)
 	}

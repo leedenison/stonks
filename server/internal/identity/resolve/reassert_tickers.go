@@ -114,7 +114,7 @@ func (r *Resolver) readHeld(ctx context.Context, held []gen.ListHeldTickersRow) 
 			return nil, fmt.Errorf("read the facts of %s: %w", key.Name(), err)
 		}
 		if ivs := read.Derived.Intervals; len(ivs) > 0 && ivs[len(ivs)-1].Before == nil {
-			t.instrument = &ivs[len(ivs)-1].Instrument
+			t.instrument = &ivs[len(ivs)-1].Instr
 			instruments = append(instruments, *t.instrument)
 		}
 		ts = append(ts, t)
@@ -128,7 +128,7 @@ func (r *Resolver) readHeld(ctx context.Context, held []gen.ListHeldTickersRow) 
 	}
 	ids := map[uuid.UUID][]types.Identifier{}
 	for _, row := range rows {
-		ids[row.InstrumentID] = append(ids[row.InstrumentID], to.Identifier(row))
+		ids[row.InstrID] = append(ids[row.InstrID], to.Identifier(row))
 	}
 	for _, t := range ts {
 		if t.instrument != nil {

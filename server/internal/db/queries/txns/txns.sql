@@ -57,7 +57,7 @@ ORDER BY order_date, id;
 -- group. The update skips a key whose association the user arbitrated, and
 -- so changes zero rows.
 UPDATE stated_keys
-SET instrument_id = $3, listing_id = $4, via_id = $5,
+SET instr_id = $3, listing_id = $4, via_id = $5,
     via_type = NULL, via_domain = NULL, via_value = NULL,
     arbiter = @arbiter::arbiter, group_id = NULL
 WHERE id = $1 AND user_id = $2 AND arbiter IS DISTINCT FROM 'user';
@@ -67,7 +67,7 @@ WHERE id = $1 AND user_id = $2 AND arbiter IS DISTINCT FROM 'user';
 -- group, which gathers the keys with no instrument that share an identifier.
 -- The update skips a key whose association the user arbitrated.
 UPDATE stated_keys
-SET instrument_id = NULL, listing_id = NULL, via_id = NULL,
+SET instr_id = NULL, listing_id = NULL, via_id = NULL,
     via_type = 'mic_ticker', via_domain = @via_domain::text, via_value = @via_value::text,
     arbiter = @arbiter::arbiter
 WHERE id = @id AND user_id = @user_id AND arbiter IS DISTINCT FROM 'user';
@@ -96,7 +96,7 @@ ORDER BY stated_key_id, as_at;
 -- value matches every key stating a ticker of its domain. The keys the run
 -- resolved are left out.
 SELECT * FROM stated_keys
-WHERE stated_keys.instrument_id IS NULL AND stated_keys.via_type IS NULL
+WHERE stated_keys.instr_id IS NULL AND stated_keys.via_type IS NULL
   AND stated_keys.identifiers @> ANY(@probes::jsonb[])
   AND NOT EXISTS (SELECT 1 FROM resolution_keys
                   WHERE resolution_keys.run_id = @run_id::uuid
@@ -119,7 +119,7 @@ SELECT pg_advisory_xact_lock(hashtextextended(CAST(@user_id::uuid AS text), 0));
 -- name: ListGroupableKeys :many
 SELECT * FROM stated_keys
 WHERE stated_keys.user_id = @user_id::uuid
-  AND stated_keys.instrument_id IS NULL
+  AND stated_keys.instr_id IS NULL
   AND EXISTS (
       SELECT 1 FROM txns
       WHERE txns.user_id = stated_keys.user_id
@@ -135,4 +135,4 @@ WHERE user_id = $1 AND group_id IS NOT NULL;
 UPDATE stated_keys SET group_id = v.group_id
 FROM (SELECT unnest(@ids::uuid[]) AS id, unnest(@group_ids::uuid[]) AS group_id) AS v
 WHERE stated_keys.user_id = @user_id::uuid AND stated_keys.id = v.id
-  AND stated_keys.instrument_id IS NULL;
+  AND stated_keys.instr_id IS NULL;

@@ -56,7 +56,7 @@ func lookup(v types.Identifier, d time.Time) market.IdentifierEventRequest {
 // datedThrough reports whether k has a dated association through v with
 // arbiter.
 func datedThrough(k gen.StatedKey, v types.Identifier, arbiter gen.Arbiter) bool {
-	return k.InstrumentID == nil && k.ViaID == nil && k.ViaType != nil && *k.ViaType == v.Type &&
+	return k.InstrID == nil && k.ViaID == nil && k.ViaType != nil && *k.ViaType == v.Type &&
 		k.ViaDomain != nil && *k.ViaDomain == v.Domain && k.ViaValue != nil && *k.ViaValue == v.Value &&
 		k.Arbiter != nil && *k.Arbiter == arbiter
 }
@@ -107,18 +107,18 @@ func TestDated(t *testing.T) {
 	require.NoError(t, err)
 	ticker, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: v.Type, Domain: v.Domain, Value: v.Value})
 	require.NoError(t, err)
-	if ticker.Instrument.ID != held.Instrument.ID {
-		t.Errorf("%s names %s, want the identity answer's instrument %s", v.Name(), ticker.Instrument.ID, held.Instrument.ID)
+	if ticker.Instr.ID != held.Instr.ID {
+		t.Errorf("%s names %s, want the identity answer's instrument %s", v.Name(), ticker.Instr.ID, held.Instr.ID)
 	}
 	ivs, err := tickervalidity.Of(ctx, s.q, mt(v))
 	require.NoError(t, err)
-	if !confirmedOn(ivs, held.Instrument.ID, on(2024, 1, 16)) {
-		t.Errorf("ticker validity of %s = %+v, want the history to confirm %s on 2024-01-16", v.Name(), ivs, held.Instrument.ID)
+	if !confirmedOn(ivs, held.Instr.ID, on(2024, 1, 16)) {
+		t.Errorf("ticker validity of %s = %+v, want the history to confirm %s on 2024-01-16", v.Name(), ivs, held.Instr.ID)
 	}
 	created, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: other.Type, Value: other.Value})
 	require.NoError(t, err)
-	if created.Instrument.AssetClass != types.AssetClassEtf || !confirmedOn(ivs, created.Instrument.ID, on(2021, 7, 1)) {
-		t.Errorf("the lookup's entity = %+v under %+v, want an ETF the ticker names on 2021-07-01", created.Instrument, ivs)
+	if created.Instr.AssetClass != types.AssetClassEtf || !confirmedOn(ivs, created.Instr.ID, on(2021, 7, 1)) {
+		t.Errorf("the lookup's entity = %+v under %+v, want an ETF the ticker names on 2021-07-01", created.Instr, ivs)
 	}
 
 	s.rerun(t)
@@ -164,14 +164,14 @@ func TestDatedTickerMoves(t *testing.T) {
 	s := newStack(t)
 	ctx := context.Background()
 	v := id(types.IdentifierTypeMicTicker, "XNAS", "ZZM")
-	old, err := s.q.CreateInstrument(ctx, gen.CreateInstrumentParams{ID: db.NewID(), AssetClass: types.AssetClassStock})
+	old, err := s.q.CreateInstr(ctx, gen.CreateInstrParams{ID: db.NewID(), AssetClass: types.AssetClassStock})
 	require.NoError(t, err)
-	line, err := s.q.CreateListing(ctx, gen.CreateListingParams{ID: db.NewID(), InstrumentID: old.ID, Currency: "USD"})
+	line, err := s.q.CreateListing(ctx, gen.CreateListingParams{ID: db.NewID(), InstrID: old.ID, Currency: "USD"})
 	require.NoError(t, err)
-	row, err := s.q.CreateIdentifier(ctx, gen.CreateIdentifierParams{ID: db.NewID(), InstrumentID: old.ID, ListingID: &line.ID, Type: v.Type, Domain: v.Domain, Value: v.Value})
+	row, err := s.q.CreateIdentifier(ctx, gen.CreateIdentifierParams{ID: db.NewID(), InstrID: old.ID, ListingID: &line.ID, Type: v.Type, Domain: v.Domain, Value: v.Value})
 	require.NoError(t, err)
 	chosen := s.state(t, types.AssetClassStock, "USD", v, descr)
-	_, err = s.q.SetStatedKeyAssociation(ctx, gen.SetStatedKeyAssociationParams{ID: chosen.ID, UserID: s.user.ID, InstrumentID: &old.ID, ListingID: &line.ID, ViaID: &row.ID, Arbiter: gen.ArbiterUser})
+	_, err = s.q.SetStatedKeyAssociation(ctx, gen.SetStatedKeyAssociationParams{ID: chosen.ID, UserID: s.user.ID, InstrID: &old.ID, ListingID: &line.ID, ViaID: &row.ID, Arbiter: gen.ArbiterUser})
 	require.NoError(t, err)
 
 	share := id(types.IdentifierTypeOpenfigiShareClass, "", "BBG00ZZMOVED")
@@ -187,13 +187,13 @@ func TestDatedTickerMoves(t *testing.T) {
 	require.NoError(t, err)
 	moved, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: v.Type, Domain: v.Domain, Value: v.Value})
 	require.NoError(t, err)
-	if present.Instrument.ID == old.ID || moved.Instrument.ID != present.Instrument.ID || moved.Identifier.ID != row.ID {
-		t.Errorf("%s row = %+v on %s, want the same row moved to the answer's instrument %s", v.Name(), moved.Identifier, moved.Instrument.ID, present.Instrument.ID)
+	if present.Instr.ID == old.ID || moved.Instr.ID != present.Instr.ID || moved.Identifier.ID != row.ID {
+		t.Errorf("%s row = %+v on %s, want the same row moved to the answer's instrument %s", v.Name(), moved.Identifier, moved.Instr.ID, present.Instr.ID)
 	}
 	if !s.exists(t, old.ID) {
 		t.Errorf("the old instrument is gone, want it kept: a ticker merges nothing")
 	}
-	if k := s.key(t, chosen.ID); k.InstrumentID == nil || *k.InstrumentID != old.ID || k.ViaID == nil || *k.ViaID != row.ID || k.Arbiter == nil || *k.Arbiter != gen.ArbiterUser {
+	if k := s.key(t, chosen.ID); k.InstrID == nil || *k.InstrID != old.ID || k.ViaID == nil || *k.ViaID != row.ID || k.Arbiter == nil || *k.Arbiter != gen.ArbiterUser {
 		t.Errorf("the user's key = %+v, want it fixed on %s through the row it was made through", k, old.ID)
 	}
 	if k := s.key(t, key.ID); !datedThrough(k, v, gen.ArbiterDatasource) {
@@ -214,7 +214,7 @@ func TestDatedStable(t *testing.T) {
 	if len(got) != 1 || got[0].Outcome != gen.ResolutionOutcomeMatched {
 		t.Fatalf("resolution = %+v, want the key matched", got)
 	}
-	if k := s.key(t, key.ID); k.InstrumentID == nil || k.ViaType != nil {
+	if k := s.key(t, key.ID); k.InstrID == nil || k.ViaType != nil {
 		t.Errorf("key = %+v, want a fixed association", k)
 	}
 	if len(s.alphaFacts.Sent) != 0 {

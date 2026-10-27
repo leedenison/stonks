@@ -158,7 +158,7 @@ func mt(v types.Identifier) types.MarketTicker {
 
 func confirmedOn(ivs []tickervalidity.Interval, instrument uuid.UUID, d time.Time) bool {
 	for _, iv := range ivs {
-		if iv.Instrument == instrument && iv.Validity == tickervalidity.Confirmed &&
+		if iv.Instr == instrument && iv.Validity == tickervalidity.Confirmed &&
 			iv.From != nil && !d.Before(*iv.From) && iv.Before != nil && d.Before(*iv.Before) {
 			return true
 		}
@@ -345,7 +345,7 @@ func (s *stack) count(t *testing.T, sql string, args ...any) int {
 // exists reports whether the instrument id exists.
 func (s *stack) exists(t *testing.T, id uuid.UUID) bool {
 	t.Helper()
-	return s.count(t, "SELECT count(*) FROM instruments WHERE id = $1", id) == 1
+	return s.count(t, "SELECT count(*) FROM instrs WHERE id = $1", id) == 1
 }
 
 // written writes a resolution key as its outcome and reason.

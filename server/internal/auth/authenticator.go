@@ -33,7 +33,7 @@ func New(o Options) *Authenticator {
 
 // SignIn verifies a Google ID token, provisions its user and starts a session.
 func (a *Authenticator) SignIn(ctx context.Context, token string) (p Principal, err error) {
-	defer func() { instr.signIn(ctx, signInOutcome(err)) }()
+	defer func() { metrics.signIn(ctx, signInOutcome(err)) }()
 
 	c, err := a.o.Verifier.Verify(ctx, token)
 	if err != nil {
@@ -47,7 +47,7 @@ func (a *Authenticator) SignIn(ctx context.Context, token string) (p Principal, 
 	if err != nil {
 		return Principal{}, fmt.Errorf("create session: %w", err)
 	}
-	instr.created(ctx)
+	metrics.created(ctx)
 	return Principal{User: u, SessionID: sess.ID, ExpiresAt: sess.ExpiresAt}, nil
 }
 
@@ -59,7 +59,7 @@ func (a *Authenticator) Authenticate(ctx context.Context, sessionID string) (Pri
 	// Both refusals wrap ErrUnauthenticated, so the result is tracked here
 	// rather than classified from the error the way a sign-in is.
 	result := resultError
-	defer func() { instr.lookup(ctx, result) }()
+	defer func() { metrics.lookup(ctx, result) }()
 
 	sess, err := a.o.Sessions.Get(ctx, sessionID)
 	if errors.Is(err, session.ErrNotFound) {
@@ -75,7 +75,7 @@ func (a *Authenticator) Authenticate(ctx context.Context, sessionID string) (Pri
 		if err := a.o.Sessions.Delete(ctx, sessionID); err != nil {
 			return Principal{}, fmt.Errorf("delete session of a missing user: %w", err)
 		}
-		instr.deleted(ctx, reasonUserGone)
+		metrics.deleted(ctx, reasonUserGone)
 		return Principal{}, fmt.Errorf("%w: user gone", ErrUnauthenticated)
 	}
 	if err != nil {
@@ -90,7 +90,7 @@ func (a *Authenticator) SignOut(ctx context.Context, sessionID string) error {
 	if err := a.o.Sessions.Delete(ctx, sessionID); err != nil {
 		return fmt.Errorf("sign out: %w", err)
 	}
-	instr.deleted(ctx, reasonSignOut)
+	metrics.deleted(ctx, reasonSignOut)
 	return nil
 }
 
@@ -121,7 +121,7 @@ func (a *Authenticator) provision(ctx context.Context, c google.Claims) (gen.Use
 	case err != nil:
 		return gen.User{}, fmt.Errorf("create user: %w", err)
 	}
-	instr.provision(ctx, reasonCreated)
+	metrics.provision(ctx, reasonCreated)
 	return u, nil
 }
 
@@ -132,7 +132,7 @@ func (a *Authenticator) lookup(ctx context.Context, c google.Claims) (gen.User, 
 	u, err := a.o.Users.GetUserByGoogleSubject(ctx, c.Subject)
 	switch {
 	case err == nil:
-		instr.provision(ctx, reasonSubject)
+		metrics.provision(ctx, reasonSubject)
 		return u, nil
 	case !errors.Is(err, db.ErrNotFound):
 		return gen.User{}, fmt.Errorf("get user by subject: %w", err)
@@ -148,6 +148,6 @@ func (a *Authenticator) lookup(ctx context.Context, c google.Claims) (gen.User, 
 	if err != nil {
 		return gen.User{}, fmt.Errorf("bind subject: %w", err)
 	}
-	instr.provision(ctx, reasonEmail)
+	metrics.provision(ctx, reasonEmail)
 	return u, nil
 }

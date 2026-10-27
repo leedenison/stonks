@@ -54,7 +54,7 @@ const (
 // bound is open.
 type Interval struct {
 	From, Before *time.Time
-	Instrument   uuid.UUID
+	Instr        uuid.UUID
 	Validity     Validity
 }
 
@@ -98,9 +98,9 @@ func (s Source) outranks(o Source) bool {
 // Assertion is one assertion of a ticker. A nil Instrument asserts that the
 // ticker names nothing.
 type Assertion struct {
-	At         time.Time
-	Instrument *uuid.UUID
-	Source     Source
+	At     time.Time
+	Instr  *uuid.UUID
+	Source Source
 }
 
 // Event is a witnessed event of a ticker, as the ticker or as the ticker a
@@ -148,7 +148,7 @@ type Disagreement struct {
 // it. The event wins over the bracket.
 type BrokenBracket struct {
 	Event       Event
-	Instrument  uuid.UUID
+	Instr       uuid.UUID
 	First, Last time.Time
 }
 

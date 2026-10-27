@@ -30,7 +30,7 @@ var (
 func metaFacts() tickervalidity.Facts {
 	return tickervalidity.Facts{
 		Assertions: []tickervalidity.Assertion{
-			{At: assertedOn, Instrument: &metaInst, Source: massive},
+			{At: assertedOn, Instr: &metaInst, Source: massive},
 			{At: notFoundOn, Source: massive},
 		},
 		Events:   []tickervalidity.Event{{On: renamed}},

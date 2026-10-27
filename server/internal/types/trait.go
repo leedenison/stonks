@@ -29,12 +29,12 @@ type IdentifierGrain string
 
 // IdentifierGrains are the values the enum names, in the order the database
 // declares them.
-var IdentifierGrains = []IdentifierGrain{IdentifierGrainInstrument, IdentifierGrainListing}
+var IdentifierGrains = []IdentifierGrain{IdentifierGrainInstr, IdentifierGrainListing}
 
 // The identifier grains, spelled as the identifier_grain enum spells them.
 const (
-	IdentifierGrainInstrument IdentifierGrain = "instrument"
-	IdentifierGrainListing    IdentifierGrain = "listing"
+	IdentifierGrainInstr   IdentifierGrain = "instr"
+	IdentifierGrainListing IdentifierGrain = "listing"
 )
 
 // Scan reads the enum from a text or bytea column.
@@ -80,21 +80,21 @@ type Trait struct {
 }
 
 var traits = map[IdentifierType]Trait{
-	IdentifierTypeIsin:               {Domain: IdentifierDomainGlobal, Grain: IdentifierGrainInstrument, Reassignment: IdentifierReassignmentStable, Exclusive: true, NameRank: 7},
-	IdentifierTypeCusip:              {Domain: IdentifierDomainGlobal, Grain: IdentifierGrainInstrument, Reassignment: IdentifierReassignmentStable, Exclusive: true, NameRank: 8},
-	IdentifierTypeCins:               {Domain: IdentifierDomainGlobal, Grain: IdentifierGrainInstrument, Reassignment: IdentifierReassignmentStable, Exclusive: true, NameRank: 10},
-	IdentifierTypeWertpapier:         {Domain: IdentifierDomainGlobal, Grain: IdentifierGrainInstrument, Reassignment: IdentifierReassignmentStable, Exclusive: true, NameRank: 11},
-	IdentifierTypeOpenfigiShareClass: {Domain: IdentifierDomainGlobal, Grain: IdentifierGrainInstrument, Reassignment: IdentifierReassignmentStable, Exclusive: true, NameRank: 14},
+	IdentifierTypeIsin:               {Domain: IdentifierDomainGlobal, Grain: IdentifierGrainInstr, Reassignment: IdentifierReassignmentStable, Exclusive: true, NameRank: 7},
+	IdentifierTypeCusip:              {Domain: IdentifierDomainGlobal, Grain: IdentifierGrainInstr, Reassignment: IdentifierReassignmentStable, Exclusive: true, NameRank: 8},
+	IdentifierTypeCins:               {Domain: IdentifierDomainGlobal, Grain: IdentifierGrainInstr, Reassignment: IdentifierReassignmentStable, Exclusive: true, NameRank: 10},
+	IdentifierTypeWertpapier:         {Domain: IdentifierDomainGlobal, Grain: IdentifierGrainInstr, Reassignment: IdentifierReassignmentStable, Exclusive: true, NameRank: 11},
+	IdentifierTypeOpenfigiShareClass: {Domain: IdentifierDomainGlobal, Grain: IdentifierGrainInstr, Reassignment: IdentifierReassignmentStable, Exclusive: true, NameRank: 14},
 	IdentifierTypeSedol:              {Domain: IdentifierDomainGlobal, Grain: IdentifierGrainListing, Reassignment: IdentifierReassignmentStable, Exclusive: true, NameRank: 9},
 	IdentifierTypeOpenfigiComposite:  {Domain: IdentifierDomainGlobal, Grain: IdentifierGrainListing, Reassignment: IdentifierReassignmentStable, Exclusive: false, NameRank: 12},
 	IdentifierTypeMicTicker:          {Domain: IdentifierDomainVenue, Grain: IdentifierGrainListing, Reassignment: IdentifierReassignmentMicDerived, Exclusive: true, NameRank: 4},
 	IdentifierTypeOpenfigiTicker:     {Domain: IdentifierDomainVenue, Grain: IdentifierGrainListing, Reassignment: IdentifierReassignmentMicDerived, Exclusive: true, NameRank: 13},
-	IdentifierTypeOcc:                {Domain: IdentifierDomainGlobal, Grain: IdentifierGrainInstrument, Reassignment: IdentifierReassignmentMicDerived, Exclusive: true, NameRank: 1},
-	IdentifierTypeCurrency:           {Domain: IdentifierDomainGlobal, Grain: IdentifierGrainInstrument, Reassignment: IdentifierReassignmentStable, Exclusive: true, NameRank: 3},
+	IdentifierTypeOcc:                {Domain: IdentifierDomainGlobal, Grain: IdentifierGrainInstr, Reassignment: IdentifierReassignmentMicDerived, Exclusive: true, NameRank: 1},
+	IdentifierTypeCurrency:           {Domain: IdentifierDomainGlobal, Grain: IdentifierGrainInstr, Reassignment: IdentifierReassignmentStable, Exclusive: true, NameRank: 3},
 	IdentifierTypeDatasourceTicker:   {Domain: IdentifierDomainIssuer, Grain: IdentifierGrainListing, Reassignment: IdentifierReassignmentMicDerived, Exclusive: true, NameRank: 6},
-	IdentifierTypeBrokerID:           {Domain: IdentifierDomainIssuer, Grain: IdentifierGrainInstrument, Reassignment: IdentifierReassignmentStable, Exclusive: true, NameRank: 15},
-	IdentifierTypeBrokerDescription:  {Domain: IdentifierDomainIssuer, Grain: IdentifierGrainInstrument, Reassignment: IdentifierReassignmentUnverifiable, Exclusive: false, NameRank: 5},
-	IdentifierTypeOption:             {Domain: IdentifierDomainGlobal, Grain: IdentifierGrainInstrument, Reassignment: IdentifierReassignmentMicDerived, Exclusive: true, NameRank: 2},
+	IdentifierTypeBrokerID:           {Domain: IdentifierDomainIssuer, Grain: IdentifierGrainInstr, Reassignment: IdentifierReassignmentStable, Exclusive: true, NameRank: 15},
+	IdentifierTypeBrokerDescription:  {Domain: IdentifierDomainIssuer, Grain: IdentifierGrainInstr, Reassignment: IdentifierReassignmentUnverifiable, Exclusive: false, NameRank: 5},
+	IdentifierTypeOption:             {Domain: IdentifierDomainGlobal, Grain: IdentifierGrainInstr, Reassignment: IdentifierReassignmentMicDerived, Exclusive: true, NameRank: 2},
 }
 
 // Trait returns the traits of e.

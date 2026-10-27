@@ -33,7 +33,7 @@ import (
 // Queries is this package's view of the generated queries.
 type Queries interface {
 	tickervalidity.FactQueries
-	ListHeldInstruments(ctx context.Context) ([]gen.ListHeldInstrumentsRow, error)
+	ListHeldInstrs(ctx context.Context) ([]gen.ListHeldInstrsRow, error)
 	ListHeldTickerDates(ctx context.Context) ([]gen.ListHeldTickerDatesRow, error)
 	ListTickersNaming(ctx context.Context, instruments []uuid.UUID) ([]gen.ListTickersNamingRow, error)
 }

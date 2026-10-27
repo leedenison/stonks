@@ -75,8 +75,8 @@ func (g *ingestion) write(ctx context.Context, run gen.Run) error {
 	if err != nil {
 		return err
 	}
-	instr.rows(ctx, outcomeAccepted, accepted)
-	instr.rows(ctx, outcomeRejected, rejected)
+	metrics.rows(ctx, outcomeAccepted, accepted)
+	metrics.rows(ctx, outcomeRejected, rejected)
 	return nil
 }
 

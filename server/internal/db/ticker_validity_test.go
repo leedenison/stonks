@@ -37,7 +37,7 @@ func TestIdentifierAssertions(t *testing.T) {
 		require.NoError(t, q.CreateIdentifierAssertion(ctx, arg))
 		listed, err := q.ListFetchKeyAssertions(ctx, &key)
 		require.NoError(t, err)
-		if len(listed) != 1 || listed[0].InstrumentID != nil || !listed[0].AssertedOn.Equal(on) {
+		if len(listed) != 1 || listed[0].InstrID != nil || !listed[0].AssertedOn.Equal(on) {
 			t.Errorf("ListFetchKeyAssertions = %+v, want the negative assertion on %s", listed, on.Format("2006-01-02"))
 		}
 		arg.ID = db.NewID()
@@ -150,7 +150,7 @@ func TestListHeldTickers(t *testing.T) {
 	fixed := newStatedKey(t, q, user, stmt)
 	names(t, q, stmt, fixed)
 	listing, via := cashListing(t, q, "USD")
-	_, err := q.SetStatedKeyAssociation(ctx, gen.SetStatedKeyAssociationParams{ID: fixed.ID, UserID: user.ID, InstrumentID: &listing.InstrumentID, ListingID: &listing.ID, ViaID: &via.ID, Arbiter: gen.ArbiterStated})
+	_, err := q.SetStatedKeyAssociation(ctx, gen.SetStatedKeyAssociationParams{ID: fixed.ID, UserID: user.ID, InstrID: &listing.InstrID, ListingID: &listing.ID, ViaID: &via.ID, Arbiter: gen.ArbiterStated})
 	require.NoError(t, err)
 
 	rows, err := q.ListHeldTickers(ctx)

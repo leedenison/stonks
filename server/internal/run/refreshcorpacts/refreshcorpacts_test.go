@@ -144,7 +144,7 @@ func TestFetchAfterNoTicker(t *testing.T) {
 // before a run is created.
 func TestStartEmpty(t *testing.T) {
 	f := newFixture(t)
-	f.queries.EXPECT().ListHeldInstruments(gomock.Any()).Return(nil, nil)
+	f.queries.EXPECT().ListHeldInstrs(gomock.Any()).Return(nil, nil)
 	f.queries.EXPECT().ListHeldTickerDates(gomock.Any()).Return(nil, nil)
 	if _, err := f.starter.Start(context.Background()); !errors.Is(err, ErrEmpty) {
 		t.Errorf("Start() error = %v, want %v", err, ErrEmpty)

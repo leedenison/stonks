@@ -23,7 +23,7 @@ import (
 
 // Queries is this package's view of the generated queries.
 type Queries interface {
-	ListInstruments(ctx context.Context, arg gen.ListInstrumentsParams) ([]gen.ListInstrumentsRow, error)
+	ListInstrs(ctx context.Context, arg gen.ListInstrsParams) ([]gen.ListInstrsRow, error)
 	ListListingsOf(ctx context.Context, ids []uuid.UUID) ([]gen.Listing, error)
 	ListIdentifiersOf(ctx context.Context, ids []uuid.UUID) ([]gen.Identifier, error)
 	ListViaOf(ctx context.Context, ids []uuid.UUID) ([]uuid.UUID, error)
@@ -56,7 +56,7 @@ func (s *Server) ListInstruments(ctx context.Context, req *connect.Request[admin
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	p := page.New(m.GetPageSize())
-	arg := gen.ListInstrumentsParams{AfterID: afterID, AfterName: afterName, Lim: p.Lim()}
+	arg := gen.ListInstrsParams{AfterID: afterID, AfterName: afterName, Lim: p.Lim()}
 	if q := m.GetQuery(); q != "" {
 		arg.Q = ptr.To(db.LikeEscape(q))
 	}
@@ -67,7 +67,7 @@ func (s *Server) ListInstruments(ctx context.Context, req *connect.Request[admin
 		}
 		arg.AssetClass = &class
 	}
-	rows, err := s.queries.ListInstruments(ctx, arg)
+	rows, err := s.queries.ListInstrs(ctx, arg)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
@@ -84,7 +84,7 @@ func (s *Server) ListInstruments(ctx context.Context, req *connect.Request[admin
 
 // cursor is the page token after row: its id, a colon, then its name. The
 // id holds no colon, so the first one ends it.
-func cursor(row gen.ListInstrumentsRow) string {
+func cursor(row gen.ListInstrsRow) string {
 	return row.ID.String() + ":" + row.Name
 }
 
@@ -109,7 +109,7 @@ func parseCursor(token string) (*uuid.UUID, *string, error) {
 // identifier on its listing. A listing with a primary venue precedes the
 // rest. An instrument's Via holds the via identifiers of the keys that
 // resolved to it.
-func (s *Server) instruments(ctx context.Context, rows []gen.ListInstrumentsRow) ([]*admininstrumentv1.Instrument, error) {
+func (s *Server) instruments(ctx context.Context, rows []gen.ListInstrsRow) ([]*admininstrumentv1.Instrument, error) {
 	if len(rows) == 0 {
 		return nil, nil
 	}
@@ -130,7 +130,7 @@ func (s *Server) instruments(ctx context.Context, rows []gen.ListInstrumentsRow)
 	for _, l := range listings {
 		msg := to.ProtoListing(l)
 		byListing[l.ID] = msg
-		instruments[l.InstrumentID].Listings = append(instruments[l.InstrumentID].Listings, msg)
+		instruments[l.InstrID].Listings = append(instruments[l.InstrID].Listings, msg)
 	}
 	for _, in := range out {
 		slices.SortStableFunc(in.Listings, func(a, b *admininstrumentv1.Listing) int {
@@ -152,7 +152,7 @@ func (s *Server) instruments(ctx context.Context, rows []gen.ListInstrumentsRow)
 	for _, i := range idents {
 		msg := to.Identifier(i).ToProto()
 		if via[i.ID] {
-			in := instruments[i.InstrumentID]
+			in := instruments[i.InstrID]
 			in.Via = append(in.Via, msg)
 		}
 		if i.ListingID != nil {
@@ -160,7 +160,7 @@ func (s *Server) instruments(ctx context.Context, rows []gen.ListInstrumentsRow)
 			l.Identifiers = append(l.Identifiers, msg)
 			continue
 		}
-		in := instruments[i.InstrumentID]
+		in := instruments[i.InstrID]
 		in.Identifiers = append(in.Identifiers, msg)
 	}
 	return out, nil

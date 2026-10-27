@@ -412,7 +412,7 @@ func TestResolvesUnassociated(t *testing.T) {
 			f.store.EXPECT().UpsertStatedKey(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.UpsertStatedKeyParams) (gen.StatedKey, error) {
 				row := gen.StatedKey{ID: arg.ID, Identifiers: arg.Identifiers}
 				if described(row, "ACME") {
-					row.InstrumentID = &instrument
+					row.InstrID = &instrument
 				}
 				return row, nil
 			}).Times(2)
@@ -467,7 +467,7 @@ func TestResolvesWithDates(t *testing.T) {
 		if described(row, "ACME") {
 			row.ViaType, row.ViaDomain, row.ViaValue = ptr.To(types.IdentifierTypeMicTicker), ptr.To("XNAS"), ptr.To("ACME")
 		} else {
-			row.InstrumentID = &instrument
+			row.InstrID = &instrument
 		}
 		return row, nil
 	}).Times(2)

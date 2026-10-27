@@ -43,7 +43,7 @@ INSERT INTO venue_names (mic, name, rank) VALUES
 -- venue_rank carry the order so a query over several listings can rank
 -- across them.
 CREATE VIEW listing_tickers AS
-SELECT listings.id AS listing_id, listings.instrument_id, listings.currency,
+SELECT listings.id AS listing_id, listings.instr_id, listings.currency,
        identifiers.domain, identifiers.value,
        (identifiers.domain = listings.primary_mic) AS is_primary,
        venue_names.rank AS venue_rank,
@@ -54,18 +54,18 @@ FROM listings
 JOIN identifiers ON identifiers.listing_id = listings.id AND identifiers.type = 'mic_ticker'
 LEFT JOIN venue_names ON venue_names.mic = identifiers.domain;
 
--- instrument_names gives each instrument the one identifier that names it,
+-- instr_names gives each instrument the one identifier that names it,
 -- chosen from its own identifiers and those of its listings. Types rank by
 -- name_rank. Among tickers the primary venue wins, then venue_names.rank,
 -- then domain and value. A row exists only for an instrument with an
 -- identifier.
-CREATE VIEW instrument_names AS
-SELECT DISTINCT ON (identifiers.instrument_id)
-       identifiers.instrument_id, identifiers.type, identifiers.domain, identifiers.value
+CREATE VIEW instr_names AS
+SELECT DISTINCT ON (identifiers.instr_id)
+       identifiers.instr_id, identifiers.type, identifiers.domain, identifiers.value
 FROM identifiers
 JOIN identifier_type_traits ON identifier_type_traits.type = identifiers.type
 LEFT JOIN listing_tickers ON listing_tickers.listing_id = identifiers.listing_id
     AND listing_tickers.domain = identifiers.domain AND listing_tickers.value = identifiers.value
-ORDER BY identifiers.instrument_id, identifier_type_traits.name_rank,
+ORDER BY identifiers.instr_id, identifier_type_traits.name_rank,
          listing_tickers.is_primary DESC NULLS LAST, listing_tickers.venue_rank NULLS LAST,
          identifiers.domain, identifiers.value;

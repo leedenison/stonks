@@ -79,7 +79,7 @@ export async function deleteUsers(ids: string[]): Promise<void> {
   const keys = "SELECT id FROM fetch_keys WHERE user_id = ANY($1)";
   try {
     await client.query("BEGIN");
-    for (const table of ["instruments", "listings", "identifiers"]) {
+    for (const table of ["instrs", "listings", "identifiers"]) {
       await client.query(
         `UPDATE ${table} SET fetch_key_id = NULL WHERE fetch_key_id IN (${keys})`,
         [ids],
@@ -127,32 +127,32 @@ export async function seedDescribedInstrument(
   try {
     await client.query("BEGIN");
     await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [isin]);
-    const found = await client.query<{ instrument_id: string }>(
-      "SELECT instrument_id FROM identifiers WHERE type = 'isin' AND domain = '' AND value = $1",
+    const found = await client.query<{ instr_id: string }>(
+      "SELECT instr_id FROM identifiers WHERE type = 'isin' AND domain = '' AND value = $1",
       [isin],
     );
     if (found.rows.length > 0) {
       await client.query("COMMIT");
-      return found.rows[0].instrument_id;
+      return found.rows[0].instr_id;
     }
     const instrument = await client.query<{ id: string }>(
-      "INSERT INTO instruments (id, asset_class) VALUES (uuid_v7(), 'equity') RETURNING id",
+      "INSERT INTO instrs (id, asset_class) VALUES (uuid_v7(), 'equity') RETURNING id",
     );
     const id = instrument.rows[0].id;
     const listing = await client.query<{ id: string }>(
-      "INSERT INTO listings (id, instrument_id, currency) VALUES (uuid_v7(), $1, 'GBP') RETURNING id",
+      "INSERT INTO listings (id, instr_id, currency) VALUES (uuid_v7(), $1, 'GBP') RETURNING id",
       [id],
     );
     await client.query(
-      "INSERT INTO identifiers (id, instrument_id, type, value) VALUES (uuid_v7(), $1, 'isin', $2)",
+      "INSERT INTO identifiers (id, instr_id, type, value) VALUES (uuid_v7(), $1, 'isin', $2)",
       [id, isin],
     );
     await client.query(
-      "INSERT INTO identifiers (id, instrument_id, listing_id, type, domain, value) VALUES (uuid_v7(), $1, $2, 'mic_ticker', 'XLON', $3)",
+      "INSERT INTO identifiers (id, instr_id, listing_id, type, domain, value) VALUES (uuid_v7(), $1, $2, 'mic_ticker', 'XLON', $3)",
       [id, listing.rows[0].id, ticker],
     );
     await client.query(
-      "INSERT INTO identifiers (id, instrument_id, type, domain, value) VALUES (uuid_v7(), $1, 'broker_description', $2, $3)",
+      "INSERT INTO identifiers (id, instr_id, type, domain, value) VALUES (uuid_v7(), $1, 'broker_description', $2, $3)",
       [id, broker, description],
     );
     await client.query("COMMIT");

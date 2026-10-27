@@ -269,14 +269,14 @@ func (r *Runner) execute(ctx context.Context, row gen.Run, work Work) error {
 			r.log.Error("complete run", "run", row.ID, "kind", row.Kind, "err", cerr)
 			break
 		}
-		instr.run(ctx, row, gen.RunStateCompleted)
+		metrics.run(ctx, row, gen.RunStateCompleted)
 	case ctx.Err() != nil:
 	default:
 		if ferr := r.store.FailRun(write, gen.FailRunParams{ID: row.ID, Error: err.Error()}); ferr != nil {
 			r.log.Error("fail run", "run", row.ID, "kind", row.Kind, "err", ferr)
 			break
 		}
-		instr.run(ctx, row, gen.RunStateFailed)
+		metrics.run(ctx, row, gen.RunStateFailed)
 	}
 	return err
 }
@@ -301,7 +301,7 @@ func Sweep(ctx context.Context, store Store, log *slog.Logger) error {
 		return fmt.Errorf("interrupt runs: %w", err)
 	}
 	for _, r := range rows {
-		instr.run(ctx, gen.Run{Kind: r.Kind, Trigger: r.Trigger}, gen.RunStateInterrupted)
+		metrics.run(ctx, gen.Run{Kind: r.Kind, Trigger: r.Trigger}, gen.RunStateInterrupted)
 	}
 	if len(rows) > 0 {
 		log.Info("interrupted runs", "count", len(rows))
