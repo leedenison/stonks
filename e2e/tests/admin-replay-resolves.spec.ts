@@ -87,7 +87,7 @@ test("replays a statement's unavailable key from the runs page and resolves it",
 
   const lineage = page.getByTestId("admin-run-lineage");
   await expect(lineage).toContainText(user.email);
-  // The replay fetches the corporate events of the instrument before it
+  // The replay fetches the corporate actions of the instrument before it
   // completes.
   await expect(
     lineage.getByTestId(`run-row-${replayId}`).getByTestId("state-chip"),

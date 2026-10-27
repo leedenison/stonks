@@ -15,7 +15,7 @@
 //
 // Money and quantities are NUMERIC, never a float type. Every time is
 // timestamptz, stored and read as UTC, except the days of assertions,
-// identifier events, corporate events and their coverage, which are dates and
+// identifier events, corporate actions and their coverage, which are dates and
 // half open ranges of dates. A validity interval is half open: a row covers an
 // instant at its valid_from and not one at its valid_before.
 package migrations

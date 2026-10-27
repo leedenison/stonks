@@ -60,7 +60,7 @@ type fixture struct {
 	runs     *MockRunner
 	resolver *MockResolver
 	sources  *MockSources
-	events   *MockCorporateEvents
+	events   *MockCorpActs
 	svc      *Service
 
 	entries    []*market.Entry
@@ -76,7 +76,7 @@ type fixture struct {
 	resolution gen.Run
 	resolved   []gen.StatedKey
 	regrouped  []uuid.UUID
-	// fetched records the parent of each corporate events fetch.
+	// fetched records the parent of each corporate actions fetch.
 	fetched []gen.Run
 }
 
@@ -85,7 +85,7 @@ func newFixture(t *testing.T) *fixture {
 	t.Helper()
 	ctrl := gomock.NewController(t)
 	t.Cleanup(ctrl.Finish)
-	f := &fixture{store: NewMockStore(ctrl), runs: NewMockRunner(ctrl), resolver: NewMockResolver(ctrl), sources: NewMockSources(ctrl), events: NewMockCorporateEvents(ctrl)}
+	f := &fixture{store: NewMockStore(ctrl), runs: NewMockRunner(ctrl), resolver: NewMockResolver(ctrl), sources: NewMockSources(ctrl), events: NewMockCorpActs(ctrl)}
 	f.sources.EXPECT().Enabled().DoAndReturn(func() []*market.Entry { return f.entries }).AnyTimes()
 	f.store.EXPECT().Tx(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, fn func(Queries) error) error { return fn(f.store) }).AnyTimes()
 	f.store.EXPECT().CreateReplay(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.CreateReplayParams) error {
@@ -272,7 +272,7 @@ func TestWorkFails(t *testing.T) {
 }
 
 // TestAfterIdentifierFactsFetches checks that new identifier facts fetch the
-// corporate events of the held instruments beneath the run named in except.
+// corporate actions of the held instruments beneath the run named in except.
 func TestAfterIdentifierFactsFetches(t *testing.T) {
 	f := newFixture(t)
 	except := gen.Run{ID: db.NewID(), UserID: &userID, Kind: gen.RunKindResolution}

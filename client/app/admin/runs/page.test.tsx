@@ -7,9 +7,9 @@ import {
   StartExtendValidityResponseSchema,
 } from "@/gen/admin/extend_validity/v1/extend_validity_pb";
 import {
-  RefreshCorporateEventsService,
-  StartRefreshCorporateEventsResponseSchema,
-} from "@/gen/admin/refresh_corporate_events/v1/refresh_corporate_events_pb";
+  RefreshCorpActsService,
+  StartRefreshCorpActsResponseSchema,
+} from "@/gen/admin/refresh_corp_acts/v1/refresh_corp_acts_pb";
 import {
   RunService,
   ListRunsResponseSchema,
@@ -39,12 +39,12 @@ const admin = liveSession({ role: Role.ADMIN });
 function serving(
   listRuns: ServiceImpl<typeof RunService>["listRuns"],
   extendValidity: Partial<ServiceImpl<typeof ExtendValidityService>> = {},
-  refresh: Partial<ServiceImpl<typeof RefreshCorporateEventsService>> = {},
+  refresh: Partial<ServiceImpl<typeof RefreshCorpActsService>> = {},
 ) {
   return transportWith(admin, ({ service }) => {
     service(RunService, { listRuns });
     service(ExtendValidityService, extendValidity);
-    service(RefreshCorporateEventsService, refresh);
+    service(RefreshCorpActsService, refresh);
   });
 }
 
@@ -208,10 +208,10 @@ describe("RunsPage", () => {
     expect(screen.queryByTestId("extend-validity-dialog")).toBeNull();
   });
 
-  it("refreshes corporate events and opens its run", async () => {
+  it("refreshes corporate actions and opens its run", async () => {
     router.push.mockClear();
-    const startRefreshCorporateEvents = vi.fn(() =>
-      create(StartRefreshCorporateEventsResponseSchema, {
+    const startRefreshCorpActs = vi.fn(() =>
+      create(StartRefreshCorpActsResponseSchema, {
         run: create(RunSchema, {
           id: "x2",
           kind: RunKind.REFRESH_CORPORATE_EVENTS,
@@ -220,14 +220,14 @@ describe("RunsPage", () => {
     );
     renderWithAuth(
       <RunsPage />,
-      serving(() => page, {}, { startRefreshCorporateEvents }),
+      serving(() => page, {}, { startRefreshCorpActs }),
     );
-    fireEvent.click(screen.getByTestId("runs-refresh-corporate-events"));
-    fireEvent.click(screen.getByTestId("refresh-corporate-events-start"));
+    fireEvent.click(screen.getByTestId("runs-refresh-corp-acts"));
+    fireEvent.click(screen.getByTestId("refresh-corp-acts-start"));
     await waitFor(() =>
       expect(router.push).toHaveBeenCalledWith("/admin/runs/x2"),
     );
-    expect(startRefreshCorporateEvents).toHaveBeenCalledTimes(1);
-    expect(screen.queryByTestId("refresh-corporate-events-dialog")).toBeNull();
+    expect(startRefreshCorpActs).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId("refresh-corp-acts-dialog")).toBeNull();
   });
 });

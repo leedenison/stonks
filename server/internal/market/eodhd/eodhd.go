@@ -1,4 +1,4 @@
-// Package eodhd is the identity and corporate events integration with
+// Package eodhd is the identity and corporate actions integration with
 // EODHD's API, which covers listed stock, ETFs and funds on EODHD's
 // exchanges worldwide.
 //

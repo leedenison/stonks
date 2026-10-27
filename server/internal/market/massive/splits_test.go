@@ -17,24 +17,24 @@ import (
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
-// asked is the period of every corporate events request in the tests. It
+// asked is the period of every corporate actions request in the tests. It
 // starts before since and ends after the day of the recording.
 var asked = types.Period{From: day(2000, 1, 3), Before: day(2027, 1, 4)}
 
-func splitsOf(c *Client, ticker types.Identifier) ([]market.Response[market.CorporateEventResult], error) {
-	s := c.CorporateEvents()
-	sent, err := s.Serves(market.CorporateEventRequest{Ticker: ticker, Period: asked})
+func splitsOf(c *Client, ticker types.Identifier) ([]market.Response[market.CorpActResult], error) {
+	s := c.CorpActs()
+	sent, err := s.Serves(market.CorpActRequest{Ticker: ticker, Period: asked})
 	if err != nil {
 		return nil, err
 	}
-	return s.Fetch(context.Background(), []market.Request[market.CorporateEventRequest]{{Value: market.CorporateEventRequest{Ticker: ticker, Period: asked}, Sent: sent}})
+	return s.Fetch(context.Background(), []market.Request[market.CorpActRequest]{{Value: market.CorpActRequest{Ticker: ticker, Period: asked}, Sent: sent}})
 }
 
-// described states each event as "ex-date from:to type", with "unhandled"
+// described states each action as "ex-date from:to type", with "unhandled"
 // appended where Massive's type does not restate a quantity.
-func described(evs []market.CorporateEvent) []string {
+func described(acts []market.CorpAct) []string {
 	out := []string{}
-	for _, e := range evs {
+	for _, e := range acts {
 		d := e.ExDate.Format(time.DateOnly) + " " + e.Ratio.From.String() + ":" + e.Ratio.To.String() + " " + e.Type
 		if !e.Handled {
 			d += " unhandled"
@@ -47,20 +47,20 @@ func described(evs []market.CorporateEvent) []string {
 // TestSplitsServes checks the ticker each request sends and the requests
 // Serves refuses.
 func TestSplitsServes(t *testing.T) {
-	s := newClient(t).CorporateEvents()
+	s := newClient(t).CorpActs()
 	tests := []struct {
 		name    string
-		req     market.CorporateEventRequest
+		req     market.CorpActRequest
 		want    types.Identifier
 		refused bool
 	}{
-		{name: "a ticker", req: market.CorporateEventRequest{Ticker: ticker("XNAS", "NVDA"), Period: asked}, want: ticker("", "NVDA")},
-		{name: "a class share", req: market.CorporateEventRequest{Ticker: ticker("XNYS", "BRK/B"), Period: asked}, want: ticker("", "BRK.B")},
-		{name: "a period that ends on Massive's first day", req: market.CorporateEventRequest{Ticker: ticker("XNAS", "NVDA"), Period: types.Period{From: day(2001, 1, 2), Before: since}}, refused: true},
-		{name: "a domain", req: market.CorporateEventRequest{Ticker: ticker("XNYS", ""), Period: asked}, refused: true},
-		{name: "a venue outside Massive's table", req: market.CorporateEventRequest{Ticker: ticker("XLON", "VOD"), Period: asked}, refused: true},
-		{name: "a preferred share", req: market.CorporateEventRequest{Ticker: ticker("XNYS", "BACpL"), Period: asked}, refused: true},
-		{name: "two share class separators", req: market.CorporateEventRequest{Ticker: ticker("XNYS", "A.B.C"), Period: asked}, refused: true},
+		{name: "a ticker", req: market.CorpActRequest{Ticker: ticker("XNAS", "NVDA"), Period: asked}, want: ticker("", "NVDA")},
+		{name: "a class share", req: market.CorpActRequest{Ticker: ticker("XNYS", "BRK/B"), Period: asked}, want: ticker("", "BRK.B")},
+		{name: "a period that ends on Massive's first day", req: market.CorpActRequest{Ticker: ticker("XNAS", "NVDA"), Period: types.Period{From: day(2001, 1, 2), Before: since}}, refused: true},
+		{name: "a domain", req: market.CorpActRequest{Ticker: ticker("XNYS", ""), Period: asked}, refused: true},
+		{name: "a venue outside Massive's table", req: market.CorpActRequest{Ticker: ticker("XLON", "VOD"), Period: asked}, refused: true},
+		{name: "a preferred share", req: market.CorpActRequest{Ticker: ticker("XNYS", "BACpL"), Period: asked}, refused: true},
+		{name: "two share class separators", req: market.CorpActRequest{Ticker: ticker("XNYS", "A.B.C"), Period: asked}, refused: true},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -79,7 +79,7 @@ func TestSplitsServes(t *testing.T) {
 	}
 }
 
-// TestSplits checks the corporate events Massive returned for each ticker.
+// TestSplits checks the corporate actions Massive returned for each ticker.
 // Every answer covers asked from since.
 func TestSplits(t *testing.T) {
 	tests := []struct {
@@ -127,7 +127,7 @@ func TestSplits(t *testing.T) {
 			require.NoError(t, err)
 			require.Len(t, got, 1)
 			require.NoError(t, got[0].Err)
-			if diff := cmp.Diff(tc.want, described(got[0].Value.Events)); diff != "" {
+			if diff := cmp.Diff(tc.want, described(got[0].Value.Acts)); diff != "" {
 				t.Errorf("events of %s mismatch (-want +got):\n%s", tc.ticker.Value, diff)
 			}
 			if want := (types.Period{From: since, Before: asked.Before}); got[0].Value.Coverage == nil || *got[0].Value.Coverage != want {
@@ -202,7 +202,7 @@ func TestSplitsBody(t *testing.T) {
 				return
 			}
 			require.NoError(t, got[0].Err)
-			if diff := cmp.Diff(tc.want, described(got[0].Value.Events)); diff != "" {
+			if diff := cmp.Diff(tc.want, described(got[0].Value.Acts)); diff != "" {
 				t.Errorf("events mismatch (-want +got):\n%s", diff)
 			}
 		})

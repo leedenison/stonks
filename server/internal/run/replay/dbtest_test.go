@@ -83,8 +83,8 @@ func newStack(t *testing.T) *stack {
 	families, _, err := currency.Load(ctx, q)
 	require.NoError(t, err)
 	resolver := resolve.New(db.New[resolve.Queries](tx), fetcher, s.sources, mics, families, clock, log)
-	s.svc = New(db.New[Queries](tx), runs, resolver, nopEvents{}, s.sources, mics, log)
-	s.statements = stmt.New(db.New[stmt.Queries](tx), runs, resolver, s.svc, nopEvents{}, families, clock, log)
+	s.svc = New(db.New[Queries](tx), runs, resolver, nopCorpActs{}, s.sources, mics, log)
+	s.statements = stmt.New(db.New[stmt.Queries](tx), runs, resolver, s.svc, nopCorpActs{}, families, clock, log)
 	return s
 }
 
@@ -500,11 +500,11 @@ func (s *stack) holdings(t *testing.T) (instruments, groups []holding) {
 	return instruments, groups
 }
 
-// nopEvents stands in for the corporate events fetch. The
-// refreshcorporateevents package tests that fetch.
-type nopEvents struct{}
+// nopCorpActs stands in for the corporate actions fetch. The
+// refreshcorpacts package tests that fetch.
+type nopCorpActs struct{}
 
-func (nopEvents) FetchAfterIdentifierFacts(context.Context, gen.Run, []resolve.WrittenIdentifierFacts) {
+func (nopCorpActs) FetchAfterIdentifierFacts(context.Context, gen.Run, []resolve.WrittenIdentifierFacts) {
 }
 
-func (nopEvents) AfterStatement(context.Context, gen.Run) {}
+func (nopCorpActs) AfterStatement(context.Context, gen.Run) {}

@@ -69,8 +69,8 @@ type Facts interface {
 	AfterIdentifierFacts(ctx context.Context, except gen.Run, written []resolve.WrittenIdentifierFacts)
 }
 
-// CorporateEvents is this package's view of the refreshcorporateevents
+// CorpActs is this package's view of the refreshcorpacts
 // package.
-type CorporateEvents interface {
+type CorpActs interface {
 	AfterStatement(ctx context.Context, statement gen.Run)
 }

@@ -84,9 +84,9 @@ func TestFindings(t *testing.T) {
 		// key gives a finding of a ticker a key; noKey takes the key from a
 		// finding of a key.
 		key, noKey bool
-		// event names a corporate event.
-		event bool
-		arg   gen.CreateFindingParams
+		// corpAct names a corporate action.
+		corpAct bool
+		arg     gen.CreateFindingParams
 	}{
 		{name: "dropped without a step", arg: gen.CreateFindingParams{Kind: gen.FindingKindDropped, FetchKeyID: &fetchKey, Detail: ptr.To("d")}},
 		{name: "dropped without a fetch key", arg: gen.CreateFindingParams{Kind: gen.FindingKindDropped, Step: ptr.To(gen.DropStepStated), Detail: ptr.To("d")}},
@@ -97,12 +97,12 @@ func TestFindings(t *testing.T) {
 		{name: "a disagreement with a key", key: true, arg: gen.CreateFindingParams{Kind: gen.FindingKindIdentifierDisagreement, FetchKeyID: &fetchKey, Detail: ptr.To("d")}},
 		{name: "a broken bracket without detail", arg: gen.CreateFindingParams{Kind: gen.FindingKindBrokenValidityBracket, FetchKeyID: &fetchKey}},
 		{name: "a contradiction without a key", noKey: true, arg: gen.CreateFindingParams{Kind: gen.FindingKindContradiction, Detail: ptr.To("d")}},
-		{name: "an unhandled corporate event without the event", arg: gen.CreateFindingParams{Kind: gen.FindingKindUnhandledCorporateEvent, Detail: ptr.To("d")}},
-		{name: "a corporate event disagreement without the event", arg: gen.CreateFindingParams{Kind: gen.FindingKindCorporateEventDisagreement, Detail: ptr.To("d")}},
+		{name: "an unhandled corporate action without the corporate action", arg: gen.CreateFindingParams{Kind: gen.FindingKindUnhandledCorpAct, Detail: ptr.To("d")}},
+		{name: "a corporate action disagreement without the corporate action", arg: gen.CreateFindingParams{Kind: gen.FindingKindCorpActDisagreement, Detail: ptr.To("d")}},
 		{name: "an unmatched split without its day", arg: gen.CreateFindingParams{Kind: gen.FindingKindUnmatchedSplit, Detail: ptr.To("d")}},
 		{name: "an unmatched split without a key", noKey: true, arg: gen.CreateFindingParams{Kind: gen.FindingKindUnmatchedSplit, EffectiveDate: ptr.To(time.Date(2024, time.June, 7, 0, 0, 0, 0, time.UTC)), Detail: ptr.To("d")}},
 		{name: "a contradiction with a day", arg: gen.CreateFindingParams{Kind: gen.FindingKindContradiction, EffectiveDate: ptr.To(time.Date(2024, time.June, 7, 0, 0, 0, 0, time.UTC)), Detail: ptr.To("d")}},
-		{name: "a missed event naming a corporate event", event: true, arg: gen.CreateFindingParams{Kind: gen.FindingKindMissedEvent, FetchKeyID: &fetchKey, Detail: ptr.To("d")}},
+		{name: "a missed event naming a corporate action", corpAct: true, arg: gen.CreateFindingParams{Kind: gen.FindingKindMissedEvent, FetchKeyID: &fetchKey, Detail: ptr.To("d")}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -128,9 +128,9 @@ func TestFindings(t *testing.T) {
 				fetch := newFetch(t, q, user, run, newDatasource(t, q, "findings", 10))
 				tc.arg.FetchKeyID = ptr.To(servedKey(t, q, fetch, key, "GB00B03MLX29"))
 			}
-			if tc.event {
-				_, event := newCorporateEvent(t, q, newFetching(t, q))
-				tc.arg.CorporateEventID = &event
+			if tc.corpAct {
+				_, event := newCorpAct(t, q, newFetching(t, q))
+				tc.arg.CorpActID = &event
 			}
 			if err := q.CreateFinding(ctx, tc.arg); !sqlstate(err, pgerrcode.CheckViolation) {
 				t.Errorf("CreateFinding(%s): err = %v, want a check violation", tc.name, err)

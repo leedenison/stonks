@@ -117,7 +117,7 @@ CREATE TABLE statement_items (
     CHECK (jsonb_typeof(stated) = 'object')
 );
 
--- A statement split is a split that a statement states. A corporate event
+-- A statement split is a split that a statement states. A corporate action
 -- fetch checks it against the calendar.
 CREATE TABLE statement_splits (
     statement_id   uuid        NOT NULL,
@@ -140,7 +140,7 @@ CREATE INDEX statement_splits_key_idx ON statement_splits (stated_key_id, effect
 
 -- A transaction is a change in the quantity of one instrument held by a user,
 -- with an order date and a settlement date, stated as at a date: the date on
--- which its values were true, and so which corporate events they reflect. Its
+-- which its values were true, and so which corporate actions they reflect. Its
 -- instrument and listing are its key's. statement_id records the statement
 -- that stated it.
 --

@@ -12,7 +12,7 @@ CREATE TYPE run_state AS ENUM ('pending', 'running', 'completed', 'failed', 'int
 -- keys of one run, a fetch requesting one kind of data from one datasource, an
 -- attestation recording an administrator's assertions, an extend validity run
 -- asking the datasources again about every held ticker, or a refresh corporate
--- events run asking for the corporate events of the tickers that named a held
+-- actions run asking for the corporate actions of the tickers that named a held
 -- instrument. Most run in the background. A resolution a user starts runs in
 -- the call that starts it. The row exists before the work starts and carries
 -- its outcome.

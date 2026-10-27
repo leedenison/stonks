@@ -72,7 +72,7 @@ type fixture struct {
 	runs     *MockRunner
 	resolver *MockResolver
 	facts    *MockFacts
-	events   *MockCorporateEvents
+	events   *MockCorpActs
 	svc      *Service
 	spec     run.Spec
 	workErr  error
@@ -84,7 +84,7 @@ type fixture struct {
 	written []resolve.WrittenIdentifierFacts
 	// replayed records each call to follow new facts.
 	replayed []replayCall
-	// fetched records the run of each corporate events fetch after a
+	// fetched records the run of each corporate actions fetch after a
 	// statement.
 	fetched []gen.Run
 	// followed names the calls after the write, in the order they came.
@@ -109,7 +109,7 @@ func newFixture(t *testing.T) *fixture {
 	t.Helper()
 	ctrl := gomock.NewController(t)
 	t.Cleanup(ctrl.Finish)
-	f := &fixture{store: NewMockStore(ctrl), runs: NewMockRunner(ctrl), resolver: NewMockResolver(ctrl), facts: NewMockFacts(ctrl), events: NewMockCorporateEvents(ctrl)}
+	f := &fixture{store: NewMockStore(ctrl), runs: NewMockRunner(ctrl), resolver: NewMockResolver(ctrl), facts: NewMockFacts(ctrl), events: NewMockCorpActs(ctrl)}
 	f.outcomes = func(keys []gen.StatedKey) []gen.ResolutionKey {
 		out := make([]gen.ResolutionKey, len(keys))
 		for i, k := range keys {
@@ -156,7 +156,7 @@ func newFixture(t *testing.T) *fixture {
 	}).AnyTimes()
 	f.events.EXPECT().AfterStatement(gomock.Any(), gomock.Any()).Do(func(_ context.Context, statement gen.Run) {
 		f.fetched = append(f.fetched, statement)
-		f.followed = append(f.followed, "corporate events")
+		f.followed = append(f.followed, "corporate actions")
 	}).AnyTimes()
 	f.svc = New(f.store, f.runs, f.resolver, f.facts, f.events, families, clock, slog.New(slog.DiscardHandler))
 	return f
@@ -531,9 +531,9 @@ func TestReplaysNewFacts(t *testing.T) {
 		t.Errorf("replays = %+v, want one excepting the resolution, with its facts", f.replayed)
 	}
 	if len(f.fetched) != 1 || f.fetched[0].Kind != gen.RunKindStatement {
-		t.Errorf("corporate events fetches = %+v, want one beneath the statement run", f.fetched)
+		t.Errorf("corporate actions fetches = %+v, want one beneath the statement run", f.fetched)
 	}
-	if diff := cmp.Diff([]string{"facts", "corporate events"}, f.followed); diff != "" {
+	if diff := cmp.Diff([]string{"facts", "corporate actions"}, f.followed); diff != "" {
 		t.Errorf("calls after the write mismatch (-want +got):\n%s", diff)
 	}
 }

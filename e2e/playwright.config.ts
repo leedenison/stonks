@@ -18,14 +18,14 @@ export default defineConfig({
     screenshot: "only-on-failure",
     trace: "retain-on-failure",
   },
-  // Extending validity and refreshing corporate events each reach every held
+  // Extending validity and refreshing corporate actions each reach every held
   // instrument in the database. Each spec runs alone, once every other spec
   // has removed its users.
   projects: [
     {
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
-      testIgnore: /(extend-validity|refresh-corporate-events)\.spec\.ts/,
+      testIgnore: /(extend-validity|refresh-corp-acts)\.spec\.ts/,
     },
     {
       name: "system",
@@ -34,9 +34,9 @@ export default defineConfig({
       dependencies: ["chromium"],
     },
     {
-      name: "corporate-events",
+      name: "corp-acts",
       use: { ...devices["Desktop Chrome"] },
-      testMatch: /refresh-corporate-events\.spec\.ts/,
+      testMatch: /refresh-corp-acts\.spec\.ts/,
       dependencies: ["system"],
     },
   ],

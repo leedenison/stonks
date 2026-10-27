@@ -20,7 +20,7 @@ import {
 } from "@/lib/admin";
 import { enumLabel, enumParam, enumValues } from "@/lib/enum";
 import { ExtendValidityDialog } from "./extend-validity-dialog";
-import { RefreshCorporateEventsDialog } from "./refresh-corporate-events-dialog";
+import { RefreshCorpActsDialog } from "./refresh-corp-acts-dialog";
 import { RunRow, RunTreeTable } from "./run-tree";
 
 // Every user's runs, newest first, filtered by what the address names, each
@@ -65,11 +65,11 @@ function Runs() {
           </Button>
           <Button
             variant="text"
-            data-testid="runs-refresh-corporate-events"
+            data-testid="runs-refresh-corp-acts"
             onClick={() => setRefreshing(true)}
           >
             <RefreshCw aria-hidden className="h-4 w-4" />
-            Refresh corporate events
+            Refresh corporate actions
           </Button>
         </>
       }
@@ -143,7 +143,7 @@ function Runs() {
         />
       )}
       {refreshing && (
-        <RefreshCorporateEventsDialog
+        <RefreshCorpActsDialog
           onClose={() => setRefreshing(false)}
           onStarted={(started) => {
             setRefreshing(false);

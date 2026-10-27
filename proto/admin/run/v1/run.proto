@@ -116,15 +116,15 @@ enum FindingKind {
   // reported no event there. The coverage wins. The detail names the value,
   // the days of the assertions, the datasource and its coverage.
   FINDING_KIND_MISSED_EVENT = 7;
-  // A datasource reported a corporate event of a type the system does not
+  // A datasource reported a corporate action of a type the system does not
   // restate a quantity by. The detail names the ticker, the ex-date, the type
   // and the ratio.
-  FINDING_KIND_UNHANDLED_CORPORATE_EVENT = 8;
-  // A corporate event of one datasource lacks a corporate event of equal ratio,
+  FINDING_KIND_UNHANDLED_CORP_ACT = 8;
+  // A corporate action of one datasource lacks a corporate action of equal ratio,
   // within 7 days either side, from another datasource that covers the same
   // ticker on its ex-date. The detail names the ticker, the ex-date, the ratio
   // and both datasources.
-  FINDING_KIND_CORPORATE_EVENT_DISAGREEMENT = 9;
+  FINDING_KIND_CORP_ACT_DISAGREEMENT = 9;
   // A statement states a split, and the calendar holds no matching event
   // within 7 days either side of it. The detail names the split's effective
   // date and its ratio, where the statement states one.

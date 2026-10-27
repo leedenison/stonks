@@ -26,7 +26,7 @@ export async function uploadStatement(
     // waits out its retries. A recording ignores it.
     timeout?: number;
     // holds is false when no ticker names an instrument the user holds.
-    // The statement then does not start a corporate events fetch.
+    // The statement then does not start a corporate actions fetch.
     holds?: boolean;
   },
 ): Promise<string> {
