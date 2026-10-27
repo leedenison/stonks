@@ -1,14 +1,14 @@
 // Package attest writes and withdraws an administrator's assertions of what a
 // ticker names.
 //
-// An attestation is an assertion whose source is an administrator rather than
-// a fetch key. Datasources supply coverage, so a market no datasource covers
-// is attested ticker by ticker. How an attested assertion ranks against a
+// An attestation is an assertion whose source is an administrator rather than a
+// fetch key. Datasources supply coverage, so a market no datasource covers is
+// attested ticker by ticker. How an attested assertion ranks against a
 // datasource's is in [validity.go](../validity/validity.go). Writing or
-// withdrawing an attestation replays the unresolved keys that state the
-// ticker beneath the attestation run, and fetches the corporate actions of the
-// held instruments that the ticker names. A dated key picks up the change
-// when it is next read.
+// withdrawing an attestation replays the unresolved keys that state the ticker
+// beneath the attest identifier run, and fetches the corporate actions of the
+// held instruments that the ticker names. A dated key picks up the change when
+// it is next read.
 package attest
 
 import (
@@ -35,8 +35,8 @@ var (
 	ErrNotAttested = errors.New("the assertion is a datasource's, not an attestation")
 )
 
-// lane serialises attestation runs.
-const lane = "attestation"
+// lane serialises attest identifier runs.
+const lane = "attest_identifier"
 
 // Service writes and withdraws attestations.
 type Service struct {
@@ -82,7 +82,7 @@ func (s *Service) Start(ctx context.Context, admin uuid.UUID, v types.MarketTick
 		}
 	}
 	spec := run.Spec{
-		Kind: gen.RunKindAttestation, Trigger: gen.RunTriggerAdministrator, Lane: lane,
+		Kind: gen.RunKindAttestIdentifier, Trigger: gen.RunTriggerAdministrator, Lane: lane,
 		Prepare: func(ctx context.Context, row gen.Run) error {
 			return s.store.Tx(ctx, func(q Queries) error {
 				for _, d := range days {

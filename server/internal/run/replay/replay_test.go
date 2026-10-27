@@ -135,21 +135,21 @@ func TestStartUnavailable(t *testing.T) {
 	two := statedKey(2)
 	f.store.EXPECT().ListUnavailableKeys(gomock.Any(), gen.ListUnavailableKeysParams{UserID: userID, SourceID: sourceID}).Return([]gen.ListUnavailableKeysRow{{StatedKey: two}}, nil)
 
-	row, err := f.svc.Start(context.Background(), adminID, source(gen.RunKindStatement), Scope{})
+	row, err := f.svc.Start(context.Background(), adminID, source(gen.RunKindIngestStmt), Scope{})
 	if err != nil || f.workErr != nil {
 		t.Fatalf("Start() error = %v, work error = %v", err, f.workErr)
 	}
-	if row.Kind != gen.RunKindReplay || row.State != gen.RunStatePending {
+	if row.Kind != gen.RunKindReplayRun || row.State != gen.RunStatePending {
 		t.Errorf("Start() = %+v, want the pending replay run", row)
 	}
-	if f.spec.Kind != gen.RunKindReplay || f.spec.Trigger != gen.RunTriggerAdministrator || f.spec.UserID == nil || *f.spec.UserID != userID || f.spec.Lane != lane || f.spec.Prepare == nil {
+	if f.spec.Kind != gen.RunKindReplayRun || f.spec.Trigger != gen.RunTriggerAdministrator || f.spec.UserID == nil || *f.spec.UserID != userID || f.spec.Lane != lane || f.spec.Prepare == nil {
 		t.Errorf("spec = %+v, want a replay of the source's user in the replay lane with a prepare step", f.spec)
 	}
 	wantReplays := []gen.CreateReplayParams{{ID: row.ID, UserID: userID, SourceID: sourceID, StartedBy: adminID}}
 	if diff := cmp.Diff(wantReplays, f.replays); diff != "" {
 		t.Errorf("replays row mismatch (-want +got):\n%s", diff)
 	}
-	if f.resolution.Kind != gen.RunKindResolution || f.resolution.ParentID == nil || *f.resolution.ParentID != row.ID {
+	if f.resolution.Kind != gen.RunKindResolveStmtKeys || f.resolution.ParentID == nil || *f.resolution.ParentID != row.ID {
 		t.Errorf("resolution = %+v, want a resolution child of the replay", f.resolution)
 	}
 	if diff := cmp.Diff([]gen.StatedKey{two}, f.resolved); diff != "" {
@@ -165,7 +165,7 @@ func TestStartResolution(t *testing.T) {
 	one := statedKey(1, isin)
 	f.store.EXPECT().ListUnavailableKeys(gomock.Any(), gen.ListUnavailableKeysParams{UserID: userID, SourceID: sourceID}).Return([]gen.ListUnavailableKeysRow{{StatedKey: one}}, nil)
 
-	if _, err := f.svc.Start(context.Background(), adminID, source(gen.RunKindResolution), Scope{}); err != nil || f.workErr != nil {
+	if _, err := f.svc.Start(context.Background(), adminID, source(gen.RunKindResolveStmtKeys), Scope{}); err != nil || f.workErr != nil {
 		t.Fatalf("Start() error = %v, work error = %v", err, f.workErr)
 	}
 	if diff := cmp.Diff([]gen.StatedKey{one}, f.resolved); diff != "" {
@@ -180,7 +180,7 @@ func TestStartDatasource(t *testing.T) {
 	f.store.EXPECT().ListKeysUncoveredBy(gomock.Any(), gen.ListKeysUncoveredByParams{UserID: userID, SourceID: sourceID, Datasource: "alpha"}).
 		Return([]gen.ListKeysUncoveredByRow{{StatedKey: served}, {StatedKey: unserved}}, nil)
 
-	row, err := f.svc.Start(context.Background(), adminID, source(gen.RunKindStatement), Scope{Datasource: "alpha"})
+	row, err := f.svc.Start(context.Background(), adminID, source(gen.RunKindIngestStmt), Scope{Datasource: "alpha"})
 	if err != nil || f.workErr != nil {
 		t.Fatalf("Start() error = %v, work error = %v", err, f.workErr)
 	}
@@ -204,11 +204,11 @@ func TestStartRefused(t *testing.T) {
 		unavailable []gen.StatedKey
 		want        error
 	}{
-		{name: "a fetch run", kind: gen.RunKindFetch, want: ErrKind},
-		{name: "no key left unavailable", kind: gen.RunKindStatement, want: ErrEmpty},
-		{name: "a datasource not enabled", kind: gen.RunKindStatement, scope: Scope{Datasource: "beta"}, entries: []*market.Entry{{Name: "alpha", Integration: identity{}}}, want: ErrDisabled},
-		{name: "a datasource serving no identity", kind: gen.RunKindStatement, scope: Scope{Datasource: "alpha"}, entries: []*market.Entry{{Name: "alpha"}}, want: ErrNoIdentity},
-		{name: "no key the datasource serves", kind: gen.RunKindStatement, scope: Scope{Datasource: "alpha"}, entries: []*market.Entry{{Name: "alpha", Integration: identity{}}}, uncovered: []gen.StatedKey{statedKey(2)}, want: ErrEmpty},
+		{name: "a datasource fetch run", kind: gen.RunKindDatasourceFetch, want: ErrKind},
+		{name: "no key left unavailable", kind: gen.RunKindIngestStmt, want: ErrEmpty},
+		{name: "a datasource not enabled", kind: gen.RunKindIngestStmt, scope: Scope{Datasource: "beta"}, entries: []*market.Entry{{Name: "alpha", Integration: identity{}}}, want: ErrDisabled},
+		{name: "a datasource serving no identity", kind: gen.RunKindIngestStmt, scope: Scope{Datasource: "alpha"}, entries: []*market.Entry{{Name: "alpha"}}, want: ErrNoIdentity},
+		{name: "no key the datasource serves", kind: gen.RunKindIngestStmt, scope: Scope{Datasource: "alpha"}, entries: []*market.Entry{{Name: "alpha", Integration: identity{}}}, uncovered: []gen.StatedKey{statedKey(2)}, want: ErrEmpty},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -258,7 +258,7 @@ func TestWorkFails(t *testing.T) {
 			key := statedKey(1, isin)
 			f.store.EXPECT().ListUnavailableKeys(gomock.Any(), gomock.Any()).Return([]gen.ListUnavailableKeysRow{{StatedKey: key}}, nil)
 
-			if _, err := f.svc.Start(context.Background(), adminID, source(gen.RunKindStatement), Scope{}); err != nil {
+			if _, err := f.svc.Start(context.Background(), adminID, source(gen.RunKindIngestStmt), Scope{}); err != nil {
 				t.Fatalf("Start() error = %v", err)
 			}
 			if f.workErr == nil || f.workErr.Error() != tc.want {
@@ -275,7 +275,7 @@ func TestWorkFails(t *testing.T) {
 // corporate actions of the held instruments beneath the run named in except.
 func TestAfterIdentifierFactsFetches(t *testing.T) {
 	f := newFixture(t)
-	except := gen.Run{ID: db.NewID(), UserID: &userID, Kind: gen.RunKindResolution}
+	except := gen.Run{ID: db.NewID(), UserID: &userID, Kind: gen.RunKindResolveStmtKeys}
 	f.svc.AfterIdentifierFacts(context.Background(), except, nil)
 	if diff := cmp.Diff([]gen.Run{except}, f.fetched); diff != "" {
 		t.Errorf("fetch parents mismatch (-want +got):\n%s", diff)

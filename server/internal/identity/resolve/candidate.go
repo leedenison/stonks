@@ -149,7 +149,7 @@ func offeredClaims(res *resolution) ([]*identityClaim, []gen.CreateFindingParams
 // claims attached to it, with the user as arbiter. Confirm gathers the
 // candidates again, so answers that changed since Candidates decide what it
 // writes. The choice associates key alone. Confirm also returns the
-// identifiers of the identifier facts its fetch runs wrote.
+// identifiers of the identifier facts its datasource fetch runs wrote.
 func (r *Resolver) Confirm(ctx context.Context, run gen.Run, key gen.StatedKey, p Pick) (gen.ResolutionKey, []WrittenIdentifierFacts, error) {
 	b, err := r.prepare(ctx, run, []KeyDates{{Row: key}}, false)
 	if err != nil {

@@ -55,8 +55,8 @@ func newFixture(t *testing.T) *fixture {
 func (f *fixture) starts(t *testing.T, row gen.Run) {
 	t.Helper()
 	f.runs.EXPECT().Start(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, spec run.Spec, work run.Work) (gen.Run, error) {
-		if spec.Kind != gen.RunKindAttestation || spec.Trigger != gen.RunTriggerAdministrator || spec.UserID != nil || spec.Lane != lane {
-			t.Errorf("spec = %+v, want a system attestation run an administrator started", spec)
+		if spec.Kind != gen.RunKindAttestIdentifier || spec.Trigger != gen.RunTriggerAdministrator || spec.UserID != nil || spec.Lane != lane {
+			t.Errorf("spec = %+v, want a system attest identifier run an administrator started", spec)
 		}
 		if err := spec.Prepare(ctx, row); err != nil {
 			return row, err
@@ -79,7 +79,7 @@ func assertion(row gen.Run, instrument *uuid.UUID, on time.Time) gen.CreateIdent
 // replays the market ticker.
 func TestStart(t *testing.T) {
 	f := newFixture(t)
-	row := gen.Run{ID: db.NewID(), Kind: gen.RunKindAttestation, Trigger: gen.RunTriggerAdministrator}
+	row := gen.Run{ID: db.NewID(), Kind: gen.RunKindAttestIdentifier, Trigger: gen.RunTriggerAdministrator}
 	f.store.EXPECT().GetInstrument(gomock.Any(), acme).Return(gen.Instrument{ID: acme}, nil)
 	f.starts(t, row)
 	var written []gen.CreateIdentifierAttestationParams
@@ -105,7 +105,7 @@ func TestStart(t *testing.T) {
 // day range, writes a single assertion that the ticker names nothing.
 func TestStartNothing(t *testing.T) {
 	f := newFixture(t)
-	row := gen.Run{ID: db.NewID(), Kind: gen.RunKindAttestation}
+	row := gen.Run{ID: db.NewID(), Kind: gen.RunKindAttestIdentifier}
 	f.starts(t, row)
 	f.store.EXPECT().CreateIdentifierAttestation(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.CreateIdentifierAttestationParams) error {
 		arg.ID = uuid.Nil

@@ -36,7 +36,7 @@ func (s *stack) instrument(t *testing.T, class types.AssetClass) uuid.UUID {
 func (s *stack) names(t *testing.T, mt types.MarketTicker, inst uuid.UUID, on time.Time) {
 	t.Helper()
 	ctx := context.Background()
-	run, err := s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: s.parent.UserID, Kind: gen.RunKindFetch, Trigger: gen.RunTriggerRun, ParentID: &s.parent.ID})
+	run, err := s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: s.parent.UserID, Kind: gen.RunKindDatasourceFetch, Trigger: gen.RunTriggerRun, ParentID: &s.parent.ID})
 	require.NoError(t, err)
 	_, err = s.q.CreateFetch(ctx, gen.CreateFetchParams{ID: run.ID, UserID: s.parent.UserID, Datasource: s.alphaName, Endpoint: "https://example.com", Kind: gen.FetchKindIdentity})
 	require.NoError(t, err)
@@ -90,7 +90,7 @@ func (s *stack) datedKey(t *testing.T, venue, value string) uuid.UUID {
 func (s *stack) states(t *testing.T, user, key uuid.UUID, r *types.Ratio) {
 	t.Helper()
 	ctx := context.Background()
-	run, err := s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &user, Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser})
+	run, err := s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &user, Kind: gen.RunKindIngestStmt, Trigger: gen.RunTriggerUser})
 	require.NoError(t, err)
 	_, err = s.q.CreateStatement(ctx, gen.CreateStatementParams{ID: run.ID, UserID: user, Broker: gen.BrokerIbkr, OrderFrom: day(2024, 1, 1), OrderBefore: day(2025, 1, 1)})
 	require.NoError(t, err)
@@ -355,7 +355,7 @@ func TestSplitUsers(t *testing.T) {
 		t.Fatalf("findings of the user's fetch = %+v, want one of key %s", got, mine)
 	}
 
-	system, err := s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), Kind: gen.RunKindReplay, Trigger: gen.RunTriggerAdministrator})
+	system, err := s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), Kind: gen.RunKindReplayRun, Trigger: gen.RunTriggerAdministrator})
 	require.NoError(t, err)
 	s.now = answered.AddDate(0, 0, 1)
 	require.NoError(t, s.recorder.Fetch(ctx, system, []market.CorpActRequest{{Ticker: ticker("XNAS", "NVDA"), Period: asked}}))

@@ -40,7 +40,7 @@ func newFixture(t *testing.T) *fixture {
 	var err error
 	f.user, err = q.CreateUser(ctx, gen.CreateUserParams{ID: db.NewID(), Email: uuid.NewString() + "@example.com", Role: gen.UserRoleUser})
 	require.NoError(t, err)
-	run, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &f.user.ID, Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser})
+	run, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &f.user.ID, Kind: gen.RunKindIngestStmt, Trigger: gen.RunTriggerUser})
 	require.NoError(t, err)
 	f.statement = run.ID
 	f.exec(t, "INSERT INTO statements (id, user_id, broker, order_from, order_before, row_count) VALUES ($1, $2, 'ibkr', $3, $4, 1)", run.ID, f.user.ID, day(1), day(31))
@@ -93,7 +93,7 @@ func (f *fixture) instrument(t *testing.T, value string, domains ...string) uuid
 func (f *fixture) attest(t *testing.T, instrument uuid.UUID, market, value string) {
 	t.Helper()
 	ctx := context.Background()
-	run, err := f.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), Kind: gen.RunKindAttestation, Trigger: gen.RunTriggerUser})
+	run, err := f.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), Kind: gen.RunKindAttestIdentifier, Trigger: gen.RunTriggerUser})
 	require.NoError(t, err)
 	err = f.q.CreateIdentifierAssertion(ctx, gen.CreateIdentifierAssertionParams{
 		ID: db.NewID(), RunID: &run.ID, AttestedBy: &f.user.ID,

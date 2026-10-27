@@ -13,7 +13,7 @@ import { RefreshCorpActsDialog } from "./refresh-corp-acts-dialog";
 
 const started = create(RunSchema, {
   id: "x1",
-  kind: RunKind.REFRESH_CORPORATE_EVENTS,
+  kind: RunKind.REFRESH_CORP_ACTS,
   trigger: RunTrigger.ADMINISTRATOR,
   state: RunState.PENDING,
 });

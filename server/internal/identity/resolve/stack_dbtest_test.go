@@ -113,7 +113,7 @@ func newStack(t *testing.T) *stack {
 	s.user, err = q.CreateUser(ctx, gen.CreateUserParams{ID: db.NewID(), Email: uuid.NewString() + "@example.com", Role: gen.UserRoleUser})
 	require.NoError(t, err)
 	s.statement = s.newStatement(t, gen.BrokerIbkr)
-	s.resolution, err = q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &s.user.ID, Kind: gen.RunKindResolution, Trigger: gen.RunTriggerRun, ParentID: &s.statement.ID})
+	s.resolution, err = q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &s.user.ID, Kind: gen.RunKindResolveStmtKeys, Trigger: gen.RunTriggerRun, ParentID: &s.statement.ID})
 	require.NoError(t, err)
 	_, err = q.CreateDatasource(ctx, gen.CreateDatasourceParams{Name: s.alphaName, Enabled: true, Precedence: 10})
 	require.NoError(t, err)
@@ -212,11 +212,11 @@ func (s *serial) IdentifierEvents(ctx context.Context, parent gen.Run, e *market
 // for.
 var since = time.Date(2003, time.September, 10, 0, 0, 0, 0, time.UTC)
 
-// newStatement records a statement run of broker and returns the run.
+// newStatement records an ingest statement run of broker and returns the run.
 func (s *stack) newStatement(t *testing.T, broker gen.Broker) gen.Run {
 	t.Helper()
 	ctx := context.Background()
-	run, err := s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &s.user.ID, Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser})
+	run, err := s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &s.user.ID, Kind: gen.RunKindIngestStmt, Trigger: gen.RunTriggerUser})
 	require.NoError(t, err)
 	_, err = s.q.CreateStatement(ctx, gen.CreateStatementParams{ID: run.ID, UserID: s.user.ID, Broker: broker, OrderFrom: time.Date(2026, time.March, 1, 0, 0, 0, 0, time.UTC), OrderBefore: time.Date(2026, time.April, 1, 0, 0, 0, 0, time.UTC)})
 	require.NoError(t, err)
@@ -224,13 +224,13 @@ func (s *stack) newStatement(t *testing.T, broker gen.Broker) gen.Run {
 	return run
 }
 
-// rerun starts a new resolution run under the stack's statement and makes
-// it the stack's, so a key the stack resolved resolves again, as a replay
+// rerun starts a new resolve statement keys run under the stack's statement and
+// makes it the stack's, so a key the stack resolved resolves again, as a replay
 // resolves it.
 func (s *stack) rerun(t *testing.T) {
 	t.Helper()
 	var err error
-	s.resolution, err = s.q.CreateRun(context.Background(), gen.CreateRunParams{ID: db.NewID(), UserID: &s.user.ID, Kind: gen.RunKindResolution, Trigger: gen.RunTriggerRun, ParentID: &s.statement.ID})
+	s.resolution, err = s.q.CreateRun(context.Background(), gen.CreateRunParams{ID: db.NewID(), UserID: &s.user.ID, Kind: gen.RunKindResolveStmtKeys, Trigger: gen.RunTriggerRun, ParentID: &s.statement.ID})
 	require.NoError(t, err)
 }
 
@@ -290,7 +290,7 @@ func (s *stack) key(t *testing.T, id uuid.UUID) gen.StatedKey {
 	return gen.StatedKey{}
 }
 
-// fetches returns the fetch runs of the stack's resolution.
+// fetches returns the datasource fetch runs of the stack's resolution.
 func (s *stack) fetches(t *testing.T) []gen.Run {
 	t.Helper()
 	children, err := s.q.ListChildRuns(context.Background(), gen.ListChildRunsParams{ParentID: &s.resolution.ID, UserID: &s.user.ID})

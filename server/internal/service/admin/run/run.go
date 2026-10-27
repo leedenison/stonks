@@ -150,7 +150,7 @@ func (s *Server) GetRun(ctx context.Context, req *connect.Request[adminrunv1.Get
 	if err := s.findings(ctx, ids, out); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	if row.Run.Kind == gen.RunKindReplay {
+	if row.Run.Kind == gen.RunKindReplayRun {
 		if out.Replay, err = s.replay(ctx, row.Run.ID); err != nil {
 			return nil, connect.NewError(connect.CodeInternal, err)
 		}
@@ -238,9 +238,9 @@ func (s *Server) replay(ctx context.Context, id uuid.UUID) (*adminreplayv1.Repla
 }
 
 // ListRunItems lists the items a run wrote, in the order it wrote them, a page
-// at a time. The page token is the last item's ordinal for a statement run, its
-// assertion id for an attestation or extend validity run, and its stated key id
-// for any other kind.
+// at a time. The page token is the last item's ordinal for an ingest statement
+// run, its assertion id for an attest identifier or reassert tickers run, and
+// its stated key id for any other kind.
 func (s *Server) ListRunItems(ctx context.Context, req *connect.Request[adminrunv1.ListRunItemsRequest]) (*connect.Response[adminrunv1.ListRunItemsResponse], error) {
 	m := req.Msg
 	row, err := s.userRun(ctx, m.GetRunId())
@@ -251,9 +251,9 @@ func (s *Server) ListRunItems(ctx context.Context, req *connect.Request[adminrun
 	run, lim := row.Run, p.Lim()
 	out := &adminrunv1.ListRunItemsResponse{}
 	switch run.Kind {
-	case gen.RunKindStatement:
+	case gen.RunKindIngestStmt:
 		if run.UserID == nil {
-			return nil, connect.NewError(connect.CodeInternal, errors.New("statement run has no user"))
+			return nil, connect.NewError(connect.CodeInternal, errors.New("ingest statement run has no user"))
 		}
 		after, err := page.Ordinal(m.GetPageToken())
 		if err != nil {
@@ -274,7 +274,7 @@ func (s *Server) ListRunItems(ctx context.Context, req *connect.Request[adminrun
 		if more {
 			out.NextPageToken = strconv.Itoa(int(rows[len(rows)-1].Ordinal))
 		}
-	case gen.RunKindResolution:
+	case gen.RunKindResolveStmtKeys:
 		after, err := page.ID(m.GetPageToken())
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInvalidArgument, err)
@@ -291,7 +291,7 @@ func (s *Server) ListRunItems(ctx context.Context, req *connect.Request[adminrun
 		if more {
 			out.NextPageToken = rows[len(rows)-1].StatedKey.ID.String()
 		}
-	case gen.RunKindFetch:
+	case gen.RunKindDatasourceFetch:
 		after, err := page.ID(m.GetPageToken())
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInvalidArgument, err)
@@ -307,7 +307,7 @@ func (s *Server) ListRunItems(ctx context.Context, req *connect.Request[adminrun
 		if more {
 			out.NextPageToken = rows[len(rows)-1].FetchKey.ID.String()
 		}
-	case gen.RunKindExtendValidity, gen.RunKindAttestation:
+	case gen.RunKindReassertTickers, gen.RunKindAttestIdentifier:
 		after, err := page.ID(m.GetPageToken())
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInvalidArgument, err)

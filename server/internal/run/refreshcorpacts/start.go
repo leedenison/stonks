@@ -38,7 +38,7 @@ func (s *Starter) Start(ctx context.Context) (gen.Run, error) {
 	for i, a := range asks {
 		reqs[i] = a.req
 	}
-	spec := run.Spec{Kind: gen.RunKindRefreshCorporateEvents, Trigger: gen.RunTriggerAdministrator, Lane: lane}
+	spec := run.Spec{Kind: gen.RunKindRefreshCorpActs, Trigger: gen.RunTriggerAdministrator, Lane: lane}
 	row, err := s.runs.Start(ctx, spec, func(ctx context.Context, row gen.Run) error {
 		return s.recorder.Fetch(ctx, row, reqs)
 	})

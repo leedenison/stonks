@@ -21,7 +21,7 @@ const wmt = { type: IdentifierType.MIC_TICKER, domain: "XNYS", value: "WMT" };
 // validity on it is provisional and the day lies in a gap.
 const on = "2003-01-15";
 
-// The attestation runs this test started.
+// The attest identifier runs this test started.
 const started: string[] = [];
 test.afterEach(async () => {
   await deleteRuns(started.splice(0));
@@ -77,9 +77,9 @@ test("attests a gap from the instrument's tickers tab and withdraws it", async (
   await expect(attested).toContainText(on);
   await expect(attested).toContainText("@example.com");
 
-  // The attestation run is the one whose assertion names WMT, which no other
-  // spec attests.
-  const listed = await adminRuns.listRuns({ kind: RunKind.ATTESTATION });
+  // The attest identifier run is the one whose assertion names WMT, which no
+  // other spec attests.
+  const listed = await adminRuns.listRuns({ kind: RunKind.ATTEST_IDENTIFIER });
   for (const r of listed.runs) {
     const items = await assertionItems(adminRuns, r.run!.id);
     if (items.some((a) => a.ticker?.value === wmt.value)) {

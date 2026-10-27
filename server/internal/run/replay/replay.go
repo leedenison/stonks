@@ -41,12 +41,12 @@ var (
 	// that serves no identity.
 	ErrNoIdentity = errors.New("the datasource serves no identity")
 	// ErrKind is returned by Start when the source is neither a statement
-	// nor a resolution run.
+	// nor a resolve statement keys run.
 	ErrKind = errors.New("the run has no keys to replay")
 )
 
 // lane serialises a user's replays, apart from the user's uploads.
-const lane = "replay"
+const lane = "replay_run"
 
 // Scope selects the keys of a replay, among the source's keys that a
 // transaction names. An empty Datasource selects the keys whose latest
@@ -90,7 +90,7 @@ func (s *Service) Start(ctx context.Context, admin uuid.UUID, source gen.Run, sc
 		return gen.Run{}, err
 	}
 	w := &replay{svc: s, store: s.store, runs: s.runs, resolver: s.resolver, admin: admin, source: source, scope: scope, keys: keys}
-	spec := run.Spec{Kind: gen.RunKindReplay, Trigger: gen.RunTriggerAdministrator, UserID: source.UserID, Lane: lane, Prepare: w.prepare}
+	spec := run.Spec{Kind: gen.RunKindReplayRun, Trigger: gen.RunTriggerAdministrator, UserID: source.UserID, Lane: lane, Prepare: w.prepare}
 	return s.runs.Start(ctx, spec, w.work)
 }
 
@@ -99,7 +99,7 @@ func (s *Service) Start(ctx context.Context, admin uuid.UUID, source gen.Run, sc
 // through its resolution child, so a source of any kind but statement or
 // resolution is refused.
 func (s *Service) selectKeys(ctx context.Context, source gen.Run, scope Scope) ([]gen.StatedKey, error) {
-	if source.Kind != gen.RunKindStatement && source.Kind != gen.RunKindResolution {
+	if source.Kind != gen.RunKindIngestStmt && source.Kind != gen.RunKindResolveStmtKeys {
 		return nil, ErrKind
 	}
 	var out []gen.StatedKey
@@ -178,7 +178,7 @@ func (r *replay) prepare(ctx context.Context, run gen.Run) error {
 // own new identifier facts. A point in time lookup asks only for a day with
 // no assertion of the ticker, so the chain of replays ends.
 func (r *replay) work(ctx context.Context, run gen.Run) error {
-	res, err := r.runs.Child(ctx, run, gen.RunKindResolution, r.resolve)
+	res, err := r.runs.Child(ctx, run, gen.RunKindResolveStmtKeys, r.resolve)
 	if err != nil {
 		return fmt.Errorf("resolution: %w", err)
 	}
@@ -277,7 +277,7 @@ func (s *Service) beneath(ctx context.Context, parent gen.Run, users []uuid.UUID
 		}
 		return
 	}
-	_, err := s.runs.ChildAs(ctx, parent, nil, gen.RunKindReplay, func(ctx context.Context, sys gen.Run) error {
+	_, err := s.runs.ChildAs(ctx, parent, nil, gen.RunKindReplayRun, func(ctx context.Context, sys gen.Run) error {
 		for _, u := range others {
 			s.replayKeys(ctx, sys, u, byUser[u])
 		}
@@ -291,7 +291,7 @@ func (s *Service) beneath(ctx context.Context, parent gen.Run, users []uuid.UUID
 // replayKeys replays user's keys as a child of parent.
 func (s *Service) replayKeys(ctx context.Context, parent gen.Run, user uuid.UUID, keys []gen.StatedKey) {
 	w := &replay{svc: s, store: s.store, runs: s.runs, resolver: s.resolver, keys: keys}
-	if _, err := s.runs.ChildAs(ctx, parent, &user, gen.RunKindReplay, w.work); err != nil {
+	if _, err := s.runs.ChildAs(ctx, parent, &user, gen.RunKindReplayRun, w.work); err != nil {
 		s.log.Warn("replay of new identifier facts failed", "parent", parent.ID, "user", user, "err", err)
 	}
 }

@@ -55,12 +55,12 @@ func newFixture(t *testing.T) *fixture {
 	require.NoError(t, err)
 	f.attestedBy, err = q.CreateUser(ctx, gen.CreateUserParams{ID: db.NewID(), Email: uuid.NewString() + "@example.com", Role: gen.UserRoleAdmin})
 	require.NoError(t, err)
-	f.run, err = q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &f.user.ID, Kind: gen.RunKindResolution, Trigger: gen.RunTriggerUser})
+	f.run, err = q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &f.user.ID, Kind: gen.RunKindResolveStmtKeys, Trigger: gen.RunTriggerUser})
 	require.NoError(t, err)
 	for i, name := range []string{f.alpha, f.beta} {
 		_, err := q.CreateDatasource(ctx, gen.CreateDatasourceParams{Name: name, Enabled: true, Precedence: int32(1000 + i)})
 		require.NoError(t, err)
-		fetch, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &f.user.ID, Kind: gen.RunKindFetch, Trigger: gen.RunTriggerRun, ParentID: &f.run.ID})
+		fetch, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &f.user.ID, Kind: gen.RunKindDatasourceFetch, Trigger: gen.RunTriggerRun, ParentID: &f.run.ID})
 		require.NoError(t, err)
 		_, err = q.CreateFetch(ctx, gen.CreateFetchParams{ID: fetch.ID, UserID: &f.user.ID, Datasource: name, Endpoint: "https://example.com", Kind: gen.FetchKindIdentity})
 		require.NoError(t, err)
@@ -167,7 +167,7 @@ func TestOfAttested(t *testing.T) {
 	f := newFixture(t)
 	ctx := context.Background()
 	f.asserts(t, f.alpha, 20, &f.a)
-	run, err := f.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), Kind: gen.RunKindAttestation, Trigger: gen.RunTriggerAdministrator})
+	run, err := f.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), Kind: gen.RunKindAttestIdentifier, Trigger: gen.RunTriggerAdministrator})
 	require.NoError(t, err)
 	require.NoError(t, f.q.CreateIdentifierAssertion(ctx, gen.CreateIdentifierAssertionParams{
 		ID: db.NewID(), RunID: &run.ID, AttestedBy: &f.attestedBy.ID, Type: types.IdentifierTypeMicTicker, Domain: f.foo.Market, Value: f.foo.Value,

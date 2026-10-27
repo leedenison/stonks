@@ -65,19 +65,22 @@ describe("admin", () => {
 
   it("names a run by its kind and when it started", () => {
     const run = create(RunSchema, {
-      kind: RunKind.FETCH,
+      kind: RunKind.DATASOURCE_FETCH,
       createdAt: timestampFromDate(new Date("2026-09-24T10:00:00Z")),
     });
-    expect(runLabel(run)).toBe("fetch run @ 2026-09-24 10:00 UTC");
-    expect(runLabel(create(RunSchema, { kind: RunKind.FETCH }))).toBe(
-      "fetch run",
-    );
+    expect(runLabel(run)).toBe("datasource fetch @ 2026-09-24 10:00 UTC");
+    expect(
+      runLabel(create(RunSchema, { kind: RunKind.DATASOURCE_FETCH })),
+    ).toBe("datasource fetch");
+    expect(
+      runLabel(create(RunSchema, { ...run, kind: RunKind.REPLAY_RUN })),
+    ).toBe("replay run @ 2026-09-24 10:00 UTC");
     expect(runLabel(undefined)).toBe("run");
   });
 
-  it("names a fetch run by the host it called", () => {
+  it("names a datasource fetch run by the host it called", () => {
     const run = create(RunSchema, {
-      kind: RunKind.FETCH,
+      kind: RunKind.DATASOURCE_FETCH,
       createdAt: timestampFromDate(new Date("2026-09-24T10:00:00Z")),
     });
     expect(
@@ -94,7 +97,7 @@ describe("admin", () => {
       ),
     ).toBe("not a url");
     expect(runTitle(create(UserRunSchema, { run }))).toBe(
-      "fetch run @ 2026-09-24 10:00 UTC",
+      "datasource fetch @ 2026-09-24 10:00 UTC",
     );
   });
 

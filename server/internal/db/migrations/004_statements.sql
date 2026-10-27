@@ -2,7 +2,7 @@
 
 CREATE TYPE broker AS ENUM ('ibkr', 'schwab', 'fidelity_uk');
 
--- A statement is a run of kind 'statement': one batch of transactions a user
+-- A statement is a run of kind 'ingest_stmt': one batch of transactions a user
 -- submitted in the neutral format, claiming every account they hold at one
 -- broker over a half-open range of order dates.
 --
@@ -169,8 +169,8 @@ CREATE INDEX transactions_statement_idx ON transactions (statement_id);
 
 CREATE TYPE resolution_outcome AS ENUM ('matched', 'rejected', 'unrecognised', 'unavailable');
 
--- A resolution key is the item row of a run of kind 'resolution': the outcome
--- for one stated key.
+-- A resolution key is the item row of a run of kind 'resolve_stmt_keys': the
+-- outcome for one stated key.
 CREATE TABLE resolution_keys (
     run_id        uuid               NOT NULL,
     user_id       uuid               NOT NULL,

@@ -21,7 +21,7 @@ import (
 // fetch_keys row.
 type FetchKey[Q, P any] struct {
 	Request Q
-	// Run is the fetch run that made the request.
+	// Run is the datasource fetch run that made the request.
 	Run gen.Run
 	// Source is the datasource that served the request.
 	Source string
@@ -100,7 +100,7 @@ func (f *Fetcher) Fresh() *Fetcher {
 // one fetch key per request, in the order they were given.
 func fetch[Q, P any](ctx context.Context, f *Fetcher, parent gen.Run, e *Entry, kind Kind[Q, P], reqs []Q) ([]FetchKey[Q, P], error) {
 	var fetchKeys []FetchKey[Q, P]
-	_, err := f.runs.Child(ctx, parent, gen.RunKindFetch, func(ctx context.Context, run gen.Run) error {
+	_, err := f.runs.Child(ctx, parent, gen.RunKindDatasourceFetch, func(ctx context.Context, run gen.Run) error {
 		var werr error
 		fetchKeys, werr = fetchRun(ctx, f, run, e, kind, reqs)
 		return werr

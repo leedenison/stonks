@@ -6,8 +6,8 @@ import { enumLabel, enumParam, enumValues, fromParam } from "./enum";
 
 describe("enum", () => {
   it("carries an enum value as its lower case name", () => {
-    expect(enumParam(RunKind, RunKind.STATEMENT)).toBe("statement");
-    expect(fromParam(RunKind, "statement")).toBe(RunKind.STATEMENT);
+    expect(enumParam(RunKind, RunKind.INGEST_STMT)).toBe("ingest_stmt");
+    expect(fromParam(RunKind, "ingest_stmt")).toBe(RunKind.INGEST_STMT);
     expect(fromParam(RunKind, "unspecified")).toBeUndefined();
     expect(fromParam(RunKind, "nonsense")).toBeUndefined();
     expect(enumLabel(RunState, RunState.INTERRUPTED)).toBe("interrupted");
@@ -17,6 +17,9 @@ describe("enum", () => {
     expect(enumLabel(FetchKind, FetchKind.CORP_ACTS)).toBe("corporate actions");
     expect(enumLabel(FindingKind, FindingKind.UNHANDLED_CORP_ACT)).toBe(
       "unhandled corporate action",
+    );
+    expect(enumLabel(RunKind, RunKind.RESOLVE_STMT_KEYS)).toBe(
+      "resolve statement keys",
     );
   });
 

@@ -55,7 +55,7 @@ const page = create(ListRunsResponseSchema, {
     userRun(
       {
         id: "r1",
-        kind: RunKind.STATEMENT,
+        kind: RunKind.INGEST_STMT,
         trigger: RunTrigger.USER,
         createdAt: instant("2026-09-24T10:00:00Z"),
       },
@@ -64,7 +64,7 @@ const page = create(ListRunsResponseSchema, {
           userRun(
             {
               id: "r2",
-              kind: RunKind.RESOLUTION,
+              kind: RunKind.RESOLVE_STMT_KEYS,
               trigger: RunTrigger.RUN,
               parentId: "r1",
               createdAt: instant("2026-09-24T10:00:01Z"),
@@ -76,7 +76,7 @@ const page = create(ListRunsResponseSchema, {
     ),
     userRun({
       id: "r0",
-      kind: RunKind.STATEMENT,
+      kind: RunKind.INGEST_STMT,
       trigger: RunTrigger.USER,
       createdAt: instant("2026-09-23T10:00:00Z"),
     }),
@@ -98,7 +98,7 @@ describe("RunsPage", () => {
     await waitFor(() => expect(screen.getByTestId("run-row-r1")).toBeTruthy());
     const row = screen.getByTestId("run-row-r1");
     expect(row.textContent).toContain("2026-09-24 10:00 UTC");
-    expect(row.textContent).toContain("statement");
+    expect(row.textContent).toContain("ingest statement");
     expect(row.textContent).toContain("one@example.com");
     expect(
       row
@@ -112,7 +112,7 @@ describe("RunsPage", () => {
 
     fireEvent.click(screen.getByTestId("run-toggle-r1"));
     expect(screen.getByTestId("run-row-r2").textContent).toContain(
-      "resolution",
+      "resolve statement keys",
     );
     expect(
       screen.getByTestId("run-toggle-r1").getAttribute("aria-expanded"),
@@ -130,7 +130,7 @@ describe("RunsPage", () => {
         userRun(
           {
             id: "s1",
-            kind: RunKind.FETCH,
+            kind: RunKind.DATASOURCE_FETCH,
             trigger: RunTrigger.ADMINISTRATOR,
             createdAt: instant("2026-09-24T10:00:00Z"),
           },
@@ -152,7 +152,7 @@ describe("RunsPage", () => {
   });
 
   it("opens the path to a match that a filter reached", async () => {
-    params = new URLSearchParams("kind=resolution");
+    params = new URLSearchParams("kind=resolve_stmt_keys");
     const reached = create(ListRunsResponseSchema, {
       runs: [
         create(UserRunSchema, {
@@ -172,19 +172,19 @@ describe("RunsPage", () => {
   });
 
   it("sends the filters in the address and replaces them on a change", async () => {
-    params = new URLSearchParams("kind=statement&user=u1");
+    params = new URLSearchParams("kind=ingest_stmt&user=u1");
     const listRuns = vi.fn(() => create(ListRunsResponseSchema, {}));
     renderWithAuth(<RunsPage />, serving(listRuns));
     await waitFor(() => expect(screen.getByTestId("empty-state")).toBeTruthy());
     expect(listRuns).toHaveBeenCalledWith(
-      expect.objectContaining({ kind: RunKind.STATEMENT, userId: "u1" }),
+      expect.objectContaining({ kind: RunKind.INGEST_STMT, userId: "u1" }),
       expect.anything(),
     );
     fireEvent.change(screen.getByTestId("runs-filter-state"), {
       target: { value: "failed" },
     });
     expect(router.replace).toHaveBeenCalledWith(
-      "/admin/runs?kind=statement&state=failed&user=u1",
+      "/admin/runs?kind=ingest_stmt&state=failed&user=u1",
     );
   });
 
@@ -192,7 +192,7 @@ describe("RunsPage", () => {
     router.push.mockClear();
     const startExtendValidity = vi.fn(() =>
       create(StartExtendValidityResponseSchema, {
-        run: create(RunSchema, { id: "x1", kind: RunKind.EXTEND_VALIDITY }),
+        run: create(RunSchema, { id: "x1", kind: RunKind.REASSERT_TICKERS }),
       }),
     );
     renderWithAuth(
@@ -214,7 +214,7 @@ describe("RunsPage", () => {
       create(StartRefreshCorpActsResponseSchema, {
         run: create(RunSchema, {
           id: "x2",
-          kind: RunKind.REFRESH_CORPORATE_EVENTS,
+          kind: RunKind.REFRESH_CORP_ACTS,
         }),
       }),
     );

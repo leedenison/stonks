@@ -82,7 +82,7 @@ func (s *Server) GetTicker(ctx context.Context, req *connect.Request[admincovera
 	return connect.NewResponse(&admincoveragev1.GetTickerResponse{Ticker: t.ToProto()}), nil
 }
 
-// Attest starts an attestation run, as the administrator calling.
+// Attest starts an attest identifier run, as the administrator calling.
 func (s *Server) Attest(ctx context.Context, req *connect.Request[admincoveragev1.AttestRequest]) (*connect.Response[admincoveragev1.AttestResponse], error) {
 	p, err := auth.Admin(ctx)
 	if err != nil {

@@ -113,7 +113,7 @@ ALTER TABLE identifiers ADD COLUMN fetch_key_id uuid REFERENCES fetch_keys (id);
 -- Identity coverage: the datasource has answered for the instrument. Either its
 -- answer attached to the instrument, or it served no candidate for a key the
 -- instrument names. It is not requested again for a key that resolves to the
--- instrument. An extend validity run asks the datasource again about a held
+-- instrument. A reassert tickers run asks the datasource again about a held
 -- ticker whatever coverage the instrument has. The row carries the fetch key,
 -- which states the moment of the answer. Reference data, the instruments with
 -- no provenance, is covered by every datasource without a row. A row goes with

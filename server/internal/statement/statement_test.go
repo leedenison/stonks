@@ -499,7 +499,7 @@ func TestResolvesWithDates(t *testing.T) {
 
 // TestReplaysNewFacts checks that ingestion replays the keys that state an
 // identifier of its resolution's new identifier facts, once the write has
-// completed the statement run.
+// completed the ingest statement run.
 func TestReplaysNewFacts(t *testing.T) {
 	f := newFixture(t)
 	usd := "USD"
@@ -515,7 +515,7 @@ func TestReplaysNewFacts(t *testing.T) {
 	f.store.EXPECT().SweepStatedKeys(gomock.Any(), userID).Return(int64(0), nil)
 	f.store.EXPECT().CompleteRun(gomock.Any(), gomock.Any()).DoAndReturn(func(context.Context, uuid.UUID) error {
 		if len(f.replayed) != 0 {
-			t.Error("the replay ran before the statement run completed")
+			t.Error("the replay ran before the ingest statement run completed")
 		}
 		return nil
 	})
@@ -527,11 +527,11 @@ func TestReplaysNewFacts(t *testing.T) {
 	if f.workErr != nil {
 		t.Errorf("work error = %v, want none", f.workErr)
 	}
-	if len(f.replayed) != 1 || f.replayed[0].except.Kind != gen.RunKindResolution || !cmp.Equal(f.replayed[0].written, f.written) {
+	if len(f.replayed) != 1 || f.replayed[0].except.Kind != gen.RunKindResolveStmtKeys || !cmp.Equal(f.replayed[0].written, f.written) {
 		t.Errorf("replays = %+v, want one excepting the resolution, with its facts", f.replayed)
 	}
-	if len(f.fetched) != 1 || f.fetched[0].Kind != gen.RunKindStatement {
-		t.Errorf("corporate actions fetches = %+v, want one beneath the statement run", f.fetched)
+	if len(f.fetched) != 1 || f.fetched[0].Kind != gen.RunKindIngestStmt {
+		t.Errorf("corporate actions fetches = %+v, want one beneath the ingest statement run", f.fetched)
 	}
 	if diff := cmp.Diff([]string{"facts", "corporate actions"}, f.followed); diff != "" {
 		t.Errorf("calls after the write mismatch (-want +got):\n%s", diff)
@@ -582,8 +582,9 @@ func TestPrepareTakesRow(t *testing.T) {
 	}
 }
 
-// TestCreateSpec checks the run Create starts: a statement run of the user,
-// in the broker's lane, whose write regroups, then sweeps, then completes.
+// TestCreateSpec checks the run Create starts: an ingest statement run of the
+// user, in the broker's lane, whose write regroups, then sweeps, then
+// completes.
 func TestCreateSpec(t *testing.T) {
 	f := newFixture(t)
 	f.store.EXPECT().CreateStatement(gomock.Any(), gomock.Any()).Return(gen.Statement{}, nil)
@@ -600,8 +601,8 @@ func TestCreateSpec(t *testing.T) {
 	if _, err := f.svc.Create(context.Background(), userID, msg); err != nil || f.workErr != nil {
 		t.Fatalf("Create() error = %v, work error = %v", err, f.workErr)
 	}
-	if f.spec.Kind != gen.RunKindStatement || f.spec.Lane != "ibkr" || f.spec.UserID == nil || *f.spec.UserID != userID {
-		t.Errorf("Start(%+v), want a statement run of the user in lane ibkr", f.spec)
+	if f.spec.Kind != gen.RunKindIngestStmt || f.spec.Lane != "ibkr" || f.spec.UserID == nil || *f.spec.UserID != userID {
+		t.Errorf("Start(%+v), want an ingest statement run of the user in lane ibkr", f.spec)
 	}
 	if diff := cmp.Diff([]string{"regroup", "sweep", "complete"}, f.calls); diff != "" {
 		t.Errorf("write order mismatch (-want +got):\n%s", diff)

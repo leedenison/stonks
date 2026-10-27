@@ -143,7 +143,7 @@ message AttestRequest {
 }
 
 message AttestResponse {
-  // The attestation run, pending.
+  // The attest identifier run, pending.
   stonks.run.v1.Run run = 1;
 }
 

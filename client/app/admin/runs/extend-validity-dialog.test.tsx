@@ -13,7 +13,7 @@ import { ExtendValidityDialog } from "./extend-validity-dialog";
 
 const started = create(RunSchema, {
   id: "x1",
-  kind: RunKind.EXTEND_VALIDITY,
+  kind: RunKind.REASSERT_TICKERS,
   trigger: RunTrigger.ADMINISTRATOR,
   state: RunState.PENDING,
 });

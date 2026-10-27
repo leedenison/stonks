@@ -1,21 +1,22 @@
 -- +goose Up
 
-CREATE TYPE run_kind AS ENUM ('statement', 'resolution', 'fetch', 'replay', 'attestation',
-    'extend_validity', 'refresh_corporate_events');
+CREATE TYPE run_kind AS ENUM ('ingest_stmt', 'resolve_stmt_keys', 'datasource_fetch',
+    'replay_run', 'attest_identifier', 'reassert_tickers', 'refresh_corp_acts');
 -- What started a run: 'user' and 'administrator' are a person's request, and
 -- 'run' is a parent run starting a child.
 CREATE TYPE run_trigger AS ENUM ('user', 'administrator', 'run');
 CREATE TYPE run_state AS ENUM ('pending', 'running', 'completed', 'failed', 'interrupted');
 
--- A run is one unit of work: a statement, ingesting one batch of transactions a
--- user submitted, a resolution resolving stated keys, a replay re-resolving the
--- keys of one run, a fetch requesting one kind of data from one datasource, an
--- attestation recording an administrator's assertions, an extend validity run
--- asking the datasources again about every held ticker, or a refresh corporate
--- actions run asking for the corporate actions of the tickers that named a held
--- instrument. Most run in the background. A resolution a user starts runs in
--- the call that starts it. The row exists before the work starts and carries
--- its outcome.
+-- A run is one unit of work, and its kind says what work. An ingest statement
+-- run ingests one batch of transactions a user submitted. A resolve statement
+-- keys run resolves stated keys. A replay run re-resolves the keys of one run.
+-- A datasource fetch run requests one kind of data from one datasource. An
+-- attest identifier run records an administrator's assertions. A reassert
+-- tickers run asks the datasources again about every held ticker. A refresh
+-- corporate actions run asks for the corporate actions of the tickers that
+-- named a held instrument. Most runs go in the background. A resolution a user
+-- starts runs in the call that starts it. The row exists before the work starts
+-- and carries its outcome.
 --
 -- A run acts for its user. A system run acts for the system and has no user.
 CREATE TABLE runs (

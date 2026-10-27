@@ -18,7 +18,7 @@ import (
 )
 
 // TestIdentifierAssertions checks that an assertion has one source, a fetch
-// key or an administrator's attestation run, and goes with that source.
+// key or an administrator's attest identifier run, and goes with that source.
 func TestIdentifierAssertions(t *testing.T) {
 	ctx := context.Background()
 	on := date(2026, 3, 2)
@@ -51,7 +51,7 @@ func TestIdentifierAssertions(t *testing.T) {
 		q := gen.New(tx)
 		f := newFetching(t, q)
 		admin := newUser(t, q, "attest-"+f.user.Email)
-		run, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), Kind: gen.RunKindAttestation, Trigger: gen.RunTriggerAdministrator})
+		run, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), Kind: gen.RunKindAttestIdentifier, Trigger: gen.RunTriggerAdministrator})
 		require.NoError(t, err)
 		arg := assertion()
 		arg.RunID, arg.AttestedBy = &run.ID, &admin.ID
@@ -61,7 +61,7 @@ func TestIdentifierAssertions(t *testing.T) {
 		var n int
 		require.NoError(t, tx.QueryRow(ctx, "SELECT count(*) FROM identifier_assertions WHERE id = $1", arg.ID).Scan(&n))
 		if n != 0 {
-			t.Errorf("assertion survived its attestation run")
+			t.Errorf("assertion survived its attest identifier run")
 		}
 	})
 
@@ -182,9 +182,9 @@ func TestListRunAssertions(t *testing.T) {
 		require.NoError(t, q.CreateIdentifierAssertion(ctx, arg))
 		return arg.ID
 	}
-	extension, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), Kind: gen.RunKindExtendValidity, Trigger: gen.RunTriggerAdministrator})
+	extension, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), Kind: gen.RunKindReassertTickers, Trigger: gen.RunTriggerAdministrator})
 	require.NoError(t, err)
-	child, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), Kind: gen.RunKindFetch, Trigger: gen.RunTriggerRun, ParentID: &extension.ID})
+	child, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), Kind: gen.RunKindDatasourceFetch, Trigger: gen.RunTriggerRun, ParentID: &extension.ID})
 	require.NoError(t, err)
 	fetch, err := q.CreateFetch(ctx, gen.CreateFetchParams{ID: child.ID, Datasource: f.ds.Name, Endpoint: "https://" + f.ds.Name + ".test", Kind: gen.FetchKindIdentity})
 	require.NoError(t, err)
@@ -198,7 +198,7 @@ func TestListRunAssertions(t *testing.T) {
 	other := servedKey(t, q, f.fetch, f.key, "GB00B03MLX29")
 	assert(gen.CreateIdentifierAssertionParams{FetchKeyID: &other}, "HSBA")
 	admin := newUser(t, q, "listed-"+f.user.Email)
-	attestation, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), Kind: gen.RunKindAttestation, Trigger: gen.RunTriggerAdministrator})
+	attestation, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), Kind: gen.RunKindAttestIdentifier, Trigger: gen.RunTriggerAdministrator})
 	require.NoError(t, err)
 	attested := assert(gen.CreateIdentifierAssertionParams{RunID: &attestation.ID, AttestedBy: &admin.ID}, "SHEL")
 

@@ -1,9 +1,9 @@
 -- +goose Up
 
--- A replay that an administrator starts is a run of kind 'replay' and this
--- row. source_id names a run of kind 'statement' or 'resolution' of the same
--- user. A replay that a new identifier fact starts is stored as a run only.
--- It is a child of the run that wrote the fact, and that is its reason.
+-- A replay that an administrator starts is a run of kind 'replay_run' and this
+-- row. source_id names a run of kind 'ingest_stmt' or 'resolve_stmt_keys' of
+-- the same user. A replay that a new identifier fact starts is stored as a run
+-- only. It is a child of the run that wrote the fact, and that is its reason.
 CREATE TABLE replays (
     id         uuid PRIMARY KEY,
     user_id    uuid NOT NULL REFERENCES users (id) ON DELETE CASCADE,

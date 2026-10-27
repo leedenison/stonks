@@ -51,7 +51,7 @@ type Runner interface {
 var _ Runner = (*run.Runner)(nil)
 
 // Resolver is this package's view of the resolve package: the body of a
-// resolution run over the keys a statement states that lack a fixed
+// resolve statement keys run over the keys a statement states that lack a fixed
 // association, with an outcome per key in their order, and the two
 // synchronous resolutions of one key. A run and a confirmation also return
 // the identifiers of the identifier facts they wrote.

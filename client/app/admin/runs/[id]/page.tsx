@@ -43,9 +43,9 @@ import { ReplayDialog } from "../replay-dialog";
 import { RunRow, RunTreeTable } from "../run-tree";
 
 // One run as an administrator reads it: its owner, how it ended, its place
-// among the runs above and below it, the findings it recorded and the
-// items of its kind. A statement or resolution run carries the action that
-// replays its keys.
+// among the runs above and below it, the findings it recorded and the items of
+// its kind. An ingest statement or resolve statement keys run carries the
+// action that replays its keys.
 export default function AdminRunPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
@@ -108,7 +108,7 @@ export default function AdminRunPage() {
 
 // replayable reports whether a run of kind has keys a replay re-resolves.
 function replayable(kind: RunKind): boolean {
-  return kind === RunKind.STATEMENT || kind === RunKind.RESOLUTION;
+  return kind === RunKind.INGEST_STMT || kind === RunKind.RESOLVE_STMT_KEYS;
 }
 
 // Lineage is the run's place in its tree: the runs above it and every run

@@ -18,10 +18,10 @@ import (
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
-// newRun records a pending statement run with no statements row.
+// newRun records a pending ingest statement run with no statements row.
 func newRun(t *testing.T, q *gen.Queries, user gen.User) gen.Run {
 	t.Helper()
-	row, err := q.CreateRun(context.Background(), gen.CreateRunParams{ID: db.NewID(), UserID: &user.ID, Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser})
+	row, err := q.CreateRun(context.Background(), gen.CreateRunParams{ID: db.NewID(), UserID: &user.ID, Kind: gen.RunKindIngestStmt, Trigger: gen.RunTriggerUser})
 	require.NoError(t, err)
 	return row
 }
@@ -135,7 +135,7 @@ func TestResolutionKeys(t *testing.T) {
 	q := newTx(t)
 	user := newUser(t, q, "resolution@example.com")
 	statement := newStatement(t, q, user)
-	resolution, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &user.ID, Kind: gen.RunKindResolution, Trigger: gen.RunTriggerRun, ParentID: &statement.ID})
+	resolution, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &user.ID, Kind: gen.RunKindResolveStmtKeys, Trigger: gen.RunTriggerRun, ParentID: &statement.ID})
 	require.NoError(t, err)
 	newKey := func() gen.StatedKey {
 		t.Helper()
@@ -173,7 +173,7 @@ func TestResolutionKeys(t *testing.T) {
 			q := newTx(t)
 			user := newUser(t, q, "resolution-"+uuid.NewString()+"@example.com")
 			statement := newStatement(t, q, user)
-			run, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &user.ID, Kind: gen.RunKindResolution, Trigger: gen.RunTriggerRun, ParentID: &statement.ID})
+			run, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &user.ID, Kind: gen.RunKindResolveStmtKeys, Trigger: gen.RunTriggerRun, ParentID: &statement.ID})
 			require.NoError(t, err)
 			key := upsertKey(t, q, statement, gen.UpsertStatedKeyParams{Identifiers: []types.Identifier{}})
 			tc.arg.RunID, tc.arg.UserID, tc.arg.StatedKeyID = run.ID, user.ID, key.ID

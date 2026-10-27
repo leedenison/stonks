@@ -120,7 +120,7 @@ func TestResolveWrites(t *testing.T) {
 	// created, and the coverage row carries its fetch key, the later.
 	children, err := s.q.ListChildRuns(ctx, gen.ListChildRunsParams{ParentID: &s.resolution.ID, UserID: &s.user.ID})
 	require.NoError(t, err)
-	if len(children) != 1 || children[0].Kind != gen.RunKindFetch || children[0].State != gen.RunStateCompleted {
+	if len(children) != 1 || children[0].Kind != gen.RunKindDatasourceFetch || children[0].State != gen.RunStateCompleted {
 		t.Fatalf("ListChildRuns = %+v, want one completed fetch", children)
 	}
 	items, err := s.q.ListFetchItems(ctx, gen.ListFetchItemsParams{FetchID: children[0].ID})
@@ -1094,7 +1094,7 @@ func TestConfirmMerged(t *testing.T) {
 
 	// The confirmation runs under a run of its own, so its fetch keys are
 	// the only ones the run holds.
-	s.resolution, err = s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &s.user.ID, Kind: gen.RunKindResolution, Trigger: gen.RunTriggerUser})
+	s.resolution, err = s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &s.user.ID, Kind: gen.RunKindResolveStmtKeys, Trigger: gen.RunTriggerUser})
 	require.NoError(t, err)
 	_, _, err = s.resolver.Confirm(ctx, s.resolution, key, Pick{Datasource: s.alphaName, Identifier: figi})
 	require.NoError(t, err)

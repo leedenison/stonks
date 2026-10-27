@@ -165,8 +165,8 @@ message GetStatementResponse {
 
 // One security that one or more datasources describe, offered for the user
 // to confirm: an instrument before it is written. A candidate is the head
-// set of one datasource and the sets that a resolution run would attach to
-// it as the winner.
+// set of one datasource and the sets that a resolve statement keys run would
+// attach to it as the winner.
 message Candidate {
   // The datasource whose set heads the candidate. A confirmation writes that
   // set as the winner.

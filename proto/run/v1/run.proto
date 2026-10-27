@@ -14,20 +14,20 @@ option go_package = "github.com/leedenison/stonks/proto/run/v1;runv1";
 enum RunKind {
   RUN_KIND_UNSPECIFIED = 0;
   // Ingests one batch of transactions.
-  RUN_KIND_STATEMENT = 1;
+  RUN_KIND_INGEST_STMT = 1;
   // Resolves stated keys for a statement or a replay.
-  RUN_KIND_RESOLUTION = 2;
+  RUN_KIND_RESOLVE_STMT_KEYS = 2;
   // Requests one kind of data from one datasource.
-  RUN_KIND_FETCH = 3;
+  RUN_KIND_DATASOURCE_FETCH = 3;
   // Re-resolves the keys of one run.
-  RUN_KIND_REPLAY = 4;
+  RUN_KIND_REPLAY_RUN = 4;
   // Records an administrator's assertion.
-  RUN_KIND_ATTESTATION = 5;
+  RUN_KIND_ATTEST_IDENTIFIER = 5;
   // Asks the datasources again about every held ticker.
-  RUN_KIND_EXTEND_VALIDITY = 6;
+  RUN_KIND_REASSERT_TICKERS = 6;
   // Asks the datasources for the corporate actions of the tickers that named a
   // held instrument.
-  RUN_KIND_REFRESH_CORPORATE_EVENTS = 7;
+  RUN_KIND_REFRESH_CORP_ACTS = 7;
 }
 
 // What started a run.

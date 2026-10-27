@@ -1,6 +1,7 @@
 // abbreviations spells out in full each abbreviation that a label holds.
 const abbreviations: [RegExp, string][] = [
   [/\bcorp act(s?)\b/g, "corporate action$1"],
+  [/\bstmt\b/g, "statement"],
 ];
 
 // enumLabel renders v as lower case words, for example "failed permanent"
@@ -21,7 +22,7 @@ export function enumValues(e: Record<number, string>): number[] {
 }
 
 // enumParam names v in an address as its lower case name, for example
-// "statement" for RunKind.STATEMENT.
+// "ingest_stmt" for RunKind.INGEST_STMT.
 export function enumParam(e: Record<number, string>, v: number): string {
   return (e[v] ?? "").toLowerCase();
 }

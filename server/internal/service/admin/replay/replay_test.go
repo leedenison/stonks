@@ -57,8 +57,8 @@ func runRow(id uuid.UUID, kind gen.RunKind) gen.Run {
 }
 
 func TestStartReplay(t *testing.T) {
-	source := runRow(runID, gen.RunKindStatement)
-	started := gen.Run{ID: childID, UserID: &userID, Kind: gen.RunKindReplay, Trigger: gen.RunTriggerAdministrator, State: gen.RunStatePending, CreatedAt: created}
+	source := runRow(runID, gen.RunKindIngestStmt)
+	started := gen.Run{ID: childID, UserID: &userID, Kind: gen.RunKindReplayRun, Trigger: gen.RunTriggerAdministrator, State: gen.RunStatePending, CreatedAt: created}
 	unavailable := &adminreplayv1.StartReplayRequest{RunId: runID.String(), Scope: &adminreplayv1.StartReplayRequest_Unavailable{Unavailable: true}}
 	datasource := &adminreplayv1.StartReplayRequest{RunId: runID.String(), Scope: &adminreplayv1.StartReplayRequest_Datasource{Datasource: "openfigi"}}
 	tests := []struct {
@@ -99,7 +99,7 @@ func TestStartReplay(t *testing.T) {
 				return
 			}
 			got := res.Msg.GetRun()
-			if got.GetId() != childID.String() || got.GetKind() != runv1.RunKind_RUN_KIND_REPLAY || got.GetTrigger() != runv1.RunTrigger_RUN_TRIGGER_ADMINISTRATOR || got.GetState() != runv1.RunState_RUN_STATE_PENDING {
+			if got.GetId() != childID.String() || got.GetKind() != runv1.RunKind_RUN_KIND_REPLAY_RUN || got.GetTrigger() != runv1.RunTrigger_RUN_TRIGGER_ADMINISTRATOR || got.GetState() != runv1.RunState_RUN_STATE_PENDING {
 				t.Errorf("StartReplay(%s) = %v, want the pending replay run", tc.name, got)
 			}
 		})

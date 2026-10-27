@@ -25,7 +25,7 @@ import (
 
 var (
 	userID = uuid.MustParse("00000000-0000-0000-0000-000000000001")
-	res    = gen.Run{ID: uuid.MustParse("00000000-0000-0000-0000-000000000002"), UserID: &userID, Kind: gen.RunKindResolution}
+	res    = gen.Run{ID: uuid.MustParse("00000000-0000-0000-0000-000000000002"), UserID: &userID, Kind: gen.RunKindResolveStmtKeys}
 	entryA = &market.Entry{Name: "a", Precedence: 10}
 	entryB = &market.Entry{Name: "b", Precedence: 20}
 	entryC = &market.Entry{Name: "c", Precedence: 30}

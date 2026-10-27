@@ -47,8 +47,8 @@
 // fetch.
 //
 // A synchronous resolution runs in the caller for one key the user is
-// confirming. It shares its lookups and its fetches with a resolution run;
-// see Candidates and Confirm.
+// confirming. It shares its lookups and its fetches with a resolve statement
+// keys run; see Candidates and Confirm.
 //
 // A datasource that lists only some of an instrument's listings never
 // contradicts a stated currency.
@@ -92,10 +92,10 @@ type KeyDates struct {
 	Dates []time.Time
 }
 
-// Resolve is the body of a resolution run. It returns one resolution key per
-// key, in the order of keys, and the identifiers of the identifier facts its
-// fetch runs wrote. A run that fails partway leaves the keys it has already
-// written resolved.
+// Resolve is the body of a resolve statement keys run. It returns one
+// resolution key per key, in the order of keys, and the identifiers of the
+// identifier facts its datasource fetch runs wrote. A run that fails partway
+// leaves the keys it has already written resolved.
 func (r *Resolver) Resolve(ctx context.Context, run gen.Run, keys []KeyDates) ([]gen.ResolutionKey, []WrittenIdentifierFacts, error) {
 	b, err := r.prepare(ctx, run, keys, true)
 	if err != nil {
@@ -123,10 +123,10 @@ type batch struct {
 	events      []eventKey
 }
 
-// prepare runs the lookups and the fetches for keys. A resolution run and a
-// synchronous resolution share it. A synchronous resolution passes dating
-// false: a user's choice is fixed, so it neither dates a key nor asks for
-// identifier events.
+// prepare runs the lookups and the fetches for keys. A resolve statement keys
+// run and a synchronous resolution share it. A synchronous resolution passes
+// dating false: a user's choice is fixed, so it neither dates a key nor asks
+// for identifier events.
 //
 // A resolution acts for its run's user, so prepare refuses a system run.
 func (r *Resolver) prepare(ctx context.Context, run gen.Run, keys []KeyDates, dating bool) (*batch, error) {

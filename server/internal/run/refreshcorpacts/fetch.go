@@ -99,7 +99,7 @@ func (s *Service) beneath(ctx context.Context, parent gen.Run, asks []ask) {
 	if len(others) == 0 {
 		return
 	}
-	_, err := s.runs.ChildAs(ctx, parent, nil, gen.RunKindRefreshCorporateEvents, func(ctx context.Context, sys gen.Run) error {
+	_, err := s.runs.ChildAs(ctx, parent, nil, gen.RunKindRefreshCorpActs, func(ctx context.Context, sys gen.Run) error {
 		return s.recorder.Fetch(ctx, sys, others)
 	})
 	if err != nil {

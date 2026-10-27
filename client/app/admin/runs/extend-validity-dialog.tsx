@@ -7,7 +7,7 @@ import type { Run } from "@/gen/run/v1/run_pb";
 import { useStartExtendValidity } from "@/hooks/use-extend-validity";
 import { refusal } from "@/lib/refusal";
 
-// ExtendValidityDialog confirms and starts an extend validity run over every
+// ExtendValidityDialog confirms and starts a reassert tickers run over every
 // held ticker. A refusal stays in the dialog.
 export function ExtendValidityDialog({
   onClose,

@@ -70,15 +70,15 @@ func TestGetRun(t *testing.T) {
 		{
 			name: "pending",
 			id:   runID.String(),
-			row:  gen.Run{ID: runID, UserID: &userID, Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser, State: gen.RunStatePending, CreatedAt: created},
-			want: &runv1.Run{Id: runID.String(), Kind: runv1.RunKind_RUN_KIND_STATEMENT, Trigger: runv1.RunTrigger_RUN_TRIGGER_USER, State: runv1.RunState_RUN_STATE_PENDING, CreatedAt: timestamppb.New(created)},
+			row:  gen.Run{ID: runID, UserID: &userID, Kind: gen.RunKindIngestStmt, Trigger: gen.RunTriggerUser, State: gen.RunStatePending, CreatedAt: created},
+			want: &runv1.Run{Id: runID.String(), Kind: runv1.RunKind_RUN_KIND_INGEST_STMT, Trigger: runv1.RunTrigger_RUN_TRIGGER_USER, State: runv1.RunState_RUN_STATE_PENDING, CreatedAt: timestamppb.New(created)},
 		},
 		{
 			name: "failed child",
 			id:   runID.String(),
-			row:  gen.Run{ID: runID, UserID: &userID, Kind: gen.RunKindResolution, Trigger: gen.RunTriggerRun, ParentID: &parentID, State: gen.RunStateFailed, Error: &failure, CreatedAt: created, StartedAt: &started, FinishedAt: &finished},
+			row:  gen.Run{ID: runID, UserID: &userID, Kind: gen.RunKindResolveStmtKeys, Trigger: gen.RunTriggerRun, ParentID: &parentID, State: gen.RunStateFailed, Error: &failure, CreatedAt: created, StartedAt: &started, FinishedAt: &finished},
 			want: &runv1.Run{
-				Id: runID.String(), Kind: runv1.RunKind_RUN_KIND_RESOLUTION, Trigger: runv1.RunTrigger_RUN_TRIGGER_RUN, ParentId: ptr.To(parentID.String()),
+				Id: runID.String(), Kind: runv1.RunKind_RUN_KIND_RESOLVE_STMT_KEYS, Trigger: runv1.RunTrigger_RUN_TRIGGER_RUN, ParentId: ptr.To(parentID.String()),
 				State: runv1.RunState_RUN_STATE_FAILED, Error: &failure, CreatedAt: timestamppb.New(created), StartedAt: timestamppb.New(started), FinishedAt: timestamppb.New(finished),
 			},
 		},

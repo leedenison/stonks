@@ -23,7 +23,7 @@ import (
 var runID = uuid.MustParse("00000000-0000-0000-0000-000000000010")
 
 func TestStartRefreshCorpActs(t *testing.T) {
-	started := gen.Run{ID: runID, Kind: gen.RunKindRefreshCorporateEvents, Trigger: gen.RunTriggerAdministrator, State: gen.RunStatePending, CreatedAt: time.Date(2026, 10, 23, 12, 0, 0, 0, time.UTC)}
+	started := gen.Run{ID: runID, Kind: gen.RunKindRefreshCorpActs, Trigger: gen.RunTriggerAdministrator, State: gen.RunStatePending, CreatedAt: time.Date(2026, 10, 23, 12, 0, 0, 0, time.UTC)}
 	tests := []struct {
 		name     string
 		startErr error
@@ -52,7 +52,7 @@ func TestStartRefreshCorpActs(t *testing.T) {
 				return
 			}
 			got := res.Msg.GetRun()
-			if got.GetId() != runID.String() || got.GetKind() != runv1.RunKind_RUN_KIND_REFRESH_CORPORATE_EVENTS || got.GetState() != runv1.RunState_RUN_STATE_PENDING {
+			if got.GetId() != runID.String() || got.GetKind() != runv1.RunKind_RUN_KIND_REFRESH_CORP_ACTS || got.GetState() != runv1.RunState_RUN_STATE_PENDING {
 				t.Errorf("StartRefreshCorpActs = %v, want the pending refresh corporate actions run", got)
 			}
 		})

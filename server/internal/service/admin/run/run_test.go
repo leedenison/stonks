@@ -92,26 +92,26 @@ func TestListRuns(t *testing.T) {
 	rows := func(ids ...uuid.UUID) []gen.ListUserRunsRow {
 		var out []gen.ListUserRunsRow
 		for _, id := range ids {
-			out = append(out, gen.ListUserRunsRow{Run: runRow(id, gen.RunKindStatement), Email: ptr.To("one@example.com"), OpenFindings: 1, RootID: id, Matched: true})
+			out = append(out, gen.ListUserRunsRow{Run: runRow(id, gen.RunKindIngestStmt), Email: ptr.To("one@example.com"), OpenFindings: 1, RootID: id, Matched: true})
 		}
 		return out
 	}
 	// A resolution matched under a statement that was not: the statement is
 	// the path to it.
 	child := uuid.MustParse("00000000-0000-0000-0000-000000000104")
-	childRow := runRow(child, gen.RunKindResolution)
+	childRow := runRow(child, gen.RunKindResolveStmtKeys)
 	childRow.ParentID = &first
 	nested := []gen.ListUserRunsRow{
-		{Run: runRow(first, gen.RunKindStatement), Email: ptr.To("one@example.com"), OpenFindings: 1, RootID: first, Matched: false},
+		{Run: runRow(first, gen.RunKindIngestStmt), Email: ptr.To("one@example.com"), OpenFindings: 1, RootID: first, Matched: false},
 		{Run: childRow, Email: ptr.To("one@example.com"), OpenFindings: 1, RootID: first, Matched: true},
 	}
-	nestedMsg := runMsg(first, runv1.RunKind_RUN_KIND_STATEMENT)
+	nestedMsg := runMsg(first, runv1.RunKind_RUN_KIND_INGEST_STMT)
 	nestedMsg.Matched = false
-	childMsg := runMsg(child, runv1.RunKind_RUN_KIND_RESOLUTION)
+	childMsg := runMsg(child, runv1.RunKind_RUN_KIND_RESOLVE_STMT_KEYS)
 	childMsg.Run.ParentId = ptr.To(first.String())
 	nestedMsg.Children = []*adminrunv1.UserRun{childMsg}
-	statement := gen.RunKindStatement
-	resolution := gen.RunKindResolution
+	statement := gen.RunKindIngestStmt
+	resolution := gen.RunKindResolveStmtKeys
 	administrator := gen.RunTriggerAdministrator
 	tests := []struct {
 		name string
@@ -131,24 +131,24 @@ func TestListRuns(t *testing.T) {
 			root:    true,
 			wantArg: gen.ListUserRunsParams{Lim: page.DefaultSize + 1},
 			rows:    rows(first),
-			want:    &adminrunv1.ListRunsResponse{Runs: []*adminrunv1.UserRun{runMsg(first, runv1.RunKind_RUN_KIND_STATEMENT)}},
+			want:    &adminrunv1.ListRunsResponse{Runs: []*adminrunv1.UserRun{runMsg(first, runv1.RunKind_RUN_KIND_INGEST_STMT)}},
 		},
 		{
 			name: "filters and a further page",
 			req: &adminrunv1.ListRunsRequest{
-				Kind: runv1.RunKind_RUN_KIND_STATEMENT.Enum(), Trigger: runv1.RunTrigger_RUN_TRIGGER_ADMINISTRATOR.Enum(),
+				Kind: runv1.RunKind_RUN_KIND_INGEST_STMT.Enum(), Trigger: runv1.RunTrigger_RUN_TRIGGER_ADMINISTRATOR.Enum(),
 				UserId: ptr.To(userID.String()), PageSize: 2, PageToken: runID.String(),
 			},
 			wantArg: gen.ListUserRunsParams{Kind: &statement, Trigger: &administrator, UserID: &userID, Before: &runID, Lim: 3},
 			rows:    rows(first, second, third),
 			want: &adminrunv1.ListRunsResponse{
-				Runs:          []*adminrunv1.UserRun{runMsg(first, runv1.RunKind_RUN_KIND_STATEMENT), runMsg(second, runv1.RunKind_RUN_KIND_STATEMENT)},
+				Runs:          []*adminrunv1.UserRun{runMsg(first, runv1.RunKind_RUN_KIND_INGEST_STMT), runMsg(second, runv1.RunKind_RUN_KIND_INGEST_STMT)},
 				NextPageToken: second.String(),
 			},
 		},
 		{
 			name:    "a match nested under its unmatched parent",
-			req:     &adminrunv1.ListRunsRequest{Kind: runv1.RunKind_RUN_KIND_RESOLUTION.Enum()},
+			req:     &adminrunv1.ListRunsRequest{Kind: runv1.RunKind_RUN_KIND_RESOLVE_STMT_KEYS.Enum()},
 			wantArg: gen.ListUserRunsParams{Kind: &resolution, Lim: page.DefaultSize + 1},
 			rows:    nested,
 			want:    &adminrunv1.ListRunsResponse{Runs: []*adminrunv1.UserRun{nestedMsg}},
@@ -217,13 +217,13 @@ func TestGetRun(t *testing.T) {
 	}{
 		{
 			name:   "statement",
-			kind:   gen.RunKindStatement,
+			kind:   gen.RunKindIngestStmt,
 			expect: func(*mock.MockQueriesMockRecorder) {},
 			want:   func(*adminrunv1.GetRunResponse) {},
 		},
 		{
 			name: "replay",
-			kind: gen.RunKindReplay,
+			kind: gen.RunKindReplayRun,
 			expect: func(r *mock.MockQueriesMockRecorder) {
 				r.GetReplay(gomock.Any(), runID).Return(gen.GetReplayRow{
 					Replay: gen.Replay{ID: runID, UserID: userID, SourceID: parentID, Datasource: ptr.To("openfigi"), StartedBy: adminID}, StartedByEmail: "admin@example.com",
@@ -235,7 +235,7 @@ func TestGetRun(t *testing.T) {
 		},
 		{
 			name: "a replay whose prepare step failed",
-			kind: gen.RunKindReplay,
+			kind: gen.RunKindReplayRun,
 			expect: func(r *mock.MockQueriesMockRecorder) {
 				r.GetReplay(gomock.Any(), runID).Return(gen.GetReplayRow{}, db.ErrNotFound)
 			},
@@ -247,10 +247,10 @@ func TestGetRun(t *testing.T) {
 			f := newFixture(t)
 			r := f.store.EXPECT()
 			r.GetUserRun(gomock.Any(), runID).Return(gen.GetUserRunRow{Run: runRow(runID, tc.kind), Email: ptr.To("one@example.com"), OpenFindings: 1}, nil)
-			parent := runRow(parentID, gen.RunKindStatement)
+			parent := runRow(parentID, gen.RunKindIngestStmt)
 			r.ListRunAncestors(gomock.Any(), runID).Return([]gen.ListRunAncestorsRow{{Run: parent, Email: ptr.To("one@example.com"), OpenFindings: 1}}, nil)
 			below := func(id, parent uuid.UUID) gen.ListRunDescendantsRow {
-				row := runRow(id, gen.RunKindFetch)
+				row := runRow(id, gen.RunKindDatasourceFetch)
 				row.Trigger, row.ParentID = gen.RunTriggerRun, &parent
 				return gen.ListRunDescendantsRow{Run: row, Email: ptr.To("one@example.com"), OpenFindings: 1, Datasource: ptr.To("openfigi"), Endpoint: ptr.To("https://api.openfigi.com"), FetchKind: ptr.To(gen.FetchKindIdentity)}
 			}
@@ -289,7 +289,7 @@ func TestGetRun(t *testing.T) {
 			}
 			self := runMsg(runID, types.ToProto[runv1.RunKind](tc.kind))
 			belowMsg := func(id, parent uuid.UUID) *adminrunv1.UserRun {
-				msg := runMsg(id, runv1.RunKind_RUN_KIND_FETCH)
+				msg := runMsg(id, runv1.RunKind_RUN_KIND_DATASOURCE_FETCH)
 				msg.Run.Trigger, msg.Run.ParentId = runv1.RunTrigger_RUN_TRIGGER_RUN, ptr.To(parent.String())
 				msg.Fetch = &adminrunv1.RunFetch{Datasource: "openfigi", Endpoint: "https://api.openfigi.com", Kind: adminblockv1.FetchKind_FETCH_KIND_IDENTITY}
 				return msg
@@ -299,7 +299,7 @@ func TestGetRun(t *testing.T) {
 			self.Children = []*adminrunv1.UserRun{childMsg, belowMsg(siblingID, runID)}
 			want := &adminrunv1.GetRunResponse{
 				Run:       self,
-				Ancestors: []*adminrunv1.UserRun{runMsg(parentID, runv1.RunKind_RUN_KIND_STATEMENT)},
+				Ancestors: []*adminrunv1.UserRun{runMsg(parentID, runv1.RunKind_RUN_KIND_INGEST_STMT)},
 				Findings: []*adminrunv1.Finding{
 					{
 						Id: findingID.String(), RunId: runID.String(), Kind: adminrunv1.FindingKind_FINDING_KIND_BLOCK,
@@ -356,7 +356,7 @@ func TestListRunItems(t *testing.T) {
 	}{
 		{
 			name: "a statement's first page",
-			kind: gen.RunKindStatement,
+			kind: gen.RunKindIngestStmt,
 			req:  &adminrunv1.ListRunItemsRequest{PageSize: 2},
 			expect: func(r *mock.MockQueriesMockRecorder) {
 				r.ListStatementItems(gomock.Any(), gen.ListStatementItemsParams{StatementID: runID, UserID: userID, Lim: &three}).
@@ -366,7 +366,7 @@ func TestListRunItems(t *testing.T) {
 		},
 		{
 			name: "a statement's last page",
-			kind: gen.RunKindStatement,
+			kind: gen.RunKindIngestStmt,
 			req:  &adminrunv1.ListRunItemsRequest{PageSize: 2, PageToken: "2"},
 			expect: func(r *mock.MockQueriesMockRecorder) {
 				r.ListStatementItems(gomock.Any(), gen.ListStatementItemsParams{StatementID: runID, UserID: userID, After: ptr.To(int32(2)), Lim: &three}).
@@ -376,7 +376,7 @@ func TestListRunItems(t *testing.T) {
 		},
 		{
 			name: "a resolution",
-			kind: gen.RunKindResolution,
+			kind: gen.RunKindResolveStmtKeys,
 			req:  &adminrunv1.ListRunItemsRequest{},
 			expect: func(r *mock.MockQueriesMockRecorder) {
 				r.ListResolutionItems(gomock.Any(), gen.ListResolutionItemsParams{RunID: runID, Lim: &fifty}).Return([]gen.ListResolutionItemsRow{{
@@ -389,7 +389,7 @@ func TestListRunItems(t *testing.T) {
 		},
 		{
 			name: "a fetch's page after a key",
-			kind: gen.RunKindFetch,
+			kind: gen.RunKindDatasourceFetch,
 			req:  &adminrunv1.ListRunItemsRequest{PageToken: childID.String()},
 			expect: func(r *mock.MockQueriesMockRecorder) {
 				r.ListFetchItems(gomock.Any(), gen.ListFetchItemsParams{FetchID: runID, After: &childID, Lim: &fifty}).Return([]gen.ListFetchItemsRow{{
@@ -407,8 +407,8 @@ func TestListRunItems(t *testing.T) {
 			}}}}},
 		},
 		{
-			name: "an extend validity run's assertions",
-			kind: gen.RunKindExtendValidity,
+			name: "a reassert tickers run's assertions",
+			kind: gen.RunKindReassertTickers,
 			req:  &adminrunv1.ListRunItemsRequest{PageSize: 1},
 			expect: func(r *mock.MockQueriesMockRecorder) {
 				two := int32(2)
@@ -426,7 +426,7 @@ func TestListRunItems(t *testing.T) {
 		},
 		{
 			name: "an attestation's assertion",
-			kind: gen.RunKindAttestation,
+			kind: gen.RunKindAttestIdentifier,
 			req:  &adminrunv1.ListRunItemsRequest{},
 			expect: func(r *mock.MockQueriesMockRecorder) {
 				r.ListRunAssertions(gomock.Any(), gen.ListRunAssertionsParams{RunID: &runID, Lim: &fifty}).Return([]gen.ListRunAssertionsRow{
@@ -440,9 +440,9 @@ func TestListRunItems(t *testing.T) {
 				Source:     &adminrunv1.AssertionItem_AttestedBy{AttestedBy: "admin@example.com"},
 			}}}}},
 		},
-		{name: "a replay has none", kind: gen.RunKindReplay, req: &adminrunv1.ListRunItemsRequest{}, expect: func(*mock.MockQueriesMockRecorder) {}, want: &adminrunv1.ListRunItemsResponse{}},
-		{name: "a statement's malformed token", kind: gen.RunKindStatement, req: &adminrunv1.ListRunItemsRequest{PageToken: "next"}, expect: func(*mock.MockQueriesMockRecorder) {}, wantCode: connect.CodeInvalidArgument},
-		{name: "a resolution's malformed token", kind: gen.RunKindResolution, req: &adminrunv1.ListRunItemsRequest{PageToken: "2"}, expect: func(*mock.MockQueriesMockRecorder) {}, wantCode: connect.CodeInvalidArgument},
+		{name: "a replay has none", kind: gen.RunKindReplayRun, req: &adminrunv1.ListRunItemsRequest{}, expect: func(*mock.MockQueriesMockRecorder) {}, want: &adminrunv1.ListRunItemsResponse{}},
+		{name: "a statement's malformed token", kind: gen.RunKindIngestStmt, req: &adminrunv1.ListRunItemsRequest{PageToken: "next"}, expect: func(*mock.MockQueriesMockRecorder) {}, wantCode: connect.CodeInvalidArgument},
+		{name: "a resolution's malformed token", kind: gen.RunKindResolveStmtKeys, req: &adminrunv1.ListRunItemsRequest{PageToken: "2"}, expect: func(*mock.MockQueriesMockRecorder) {}, wantCode: connect.CodeInvalidArgument},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -519,8 +519,8 @@ func TestClearFinding(t *testing.T) {
 func TestGetSystemRun(t *testing.T) {
 	f := newFixture(t)
 	r := f.store.EXPECT()
-	system := gen.Run{ID: runID, Kind: gen.RunKindFetch, Trigger: gen.RunTriggerAdministrator, State: gen.RunStateCompleted, CreatedAt: created}
-	replay := runRow(childID, gen.RunKindReplay)
+	system := gen.Run{ID: runID, Kind: gen.RunKindDatasourceFetch, Trigger: gen.RunTriggerAdministrator, State: gen.RunStateCompleted, CreatedAt: created}
+	replay := runRow(childID, gen.RunKindReplayRun)
 	replay.Trigger, replay.ParentID = gen.RunTriggerRun, &system.ID
 	r.GetUserRun(gomock.Any(), runID).Return(gen.GetUserRunRow{Run: system}, nil)
 	r.ListRunAncestors(gomock.Any(), runID).Return(nil, nil)
@@ -531,11 +531,11 @@ func TestGetSystemRun(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetRun() error = %v", err)
 	}
-	child := runMsg(childID, runv1.RunKind_RUN_KIND_REPLAY)
+	child := runMsg(childID, runv1.RunKind_RUN_KIND_REPLAY_RUN)
 	child.Run.Trigger, child.Run.ParentId, child.OpenFindings = runv1.RunTrigger_RUN_TRIGGER_RUN, ptr.To(runID.String()), 0
 	want := &adminrunv1.GetRunResponse{Run: &adminrunv1.UserRun{
 		Run: &runv1.Run{
-			Id: runID.String(), Kind: runv1.RunKind_RUN_KIND_FETCH, Trigger: runv1.RunTrigger_RUN_TRIGGER_ADMINISTRATOR,
+			Id: runID.String(), Kind: runv1.RunKind_RUN_KIND_DATASOURCE_FETCH, Trigger: runv1.RunTrigger_RUN_TRIGGER_ADMINISTRATOR,
 			State: runv1.RunState_RUN_STATE_COMPLETED, CreatedAt: timestamppb.New(created),
 		},
 		Matched:  true,

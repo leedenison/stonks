@@ -145,8 +145,8 @@ export async function expectServedOnce(
   }
 }
 
-// fetchRun returns the fetch run below resolution that asked the named
-// datasource for data of kind.
+// fetchRun returns the datasource fetch run below resolution that asked the
+// named datasource for data of kind.
 export function fetchRun(
   resolution: UserRun,
   datasource: string,
@@ -156,7 +156,7 @@ export function fetchRun(
     (c) => c.fetch?.datasource === datasource && c.fetch.kind === kind,
   );
   if (!run) {
-    throw new Error(`no fetch run asked ${datasource}`);
+    throw new Error(`no datasource fetch run asked ${datasource}`);
   }
   return run;
 }
@@ -202,12 +202,12 @@ export async function instrumentListedAs(
   return named[0];
 }
 
-// settled waits until statement run runId and every run beneath it have
-// stopped. The statement starts its last run, the corporate actions fetch of
-// the user's held instruments, only when a ticker names one of them; holds
-// says whether to wait for it. A fetch for another user's instruments can
-// start after the user's own fetch stops. The tree must therefore keep the
-// same size across two reads.
+// settled waits until the ingest statement run runId and every run beneath it
+// have stopped. The statement starts its last run, the corporate actions fetch
+// of the user's held instruments, only when a ticker names one of them; holds
+// says whether to wait for it. A fetch for another user's instruments can start
+// after the user's own fetch stops. The tree must therefore keep the same size
+// across two reads.
 export async function settled(
   admin: Client<typeof RunService>,
   runId: string,
@@ -230,7 +230,7 @@ export async function settled(
           !holds ||
           (got?.children ?? []).some(
             (c) =>
-              c.run?.kind === RunKind.REFRESH_CORPORATE_EVENTS ||
+              c.run?.kind === RunKind.REFRESH_CORP_ACTS ||
               c.fetch?.kind === FetchKind.CORP_ACTS,
           );
         const stopped = runs.every((r) => stoppedStates.has(r.run!.state));

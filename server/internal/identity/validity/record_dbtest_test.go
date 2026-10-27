@@ -219,7 +219,7 @@ func TestRecordSpelling(t *testing.T) {
 func TestAttest(t *testing.T) {
 	f := newFixture(t)
 	ctx := context.Background()
-	run, err := f.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), Kind: gen.RunKindAttestation, Trigger: gen.RunTriggerAdministrator})
+	run, err := f.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), Kind: gen.RunKindAttestIdentifier, Trigger: gen.RunTriggerAdministrator})
 	require.NoError(t, err)
 	mics := f.mics(t)
 	today := day(25)
@@ -237,7 +237,7 @@ func TestAttest(t *testing.T) {
 		t.Errorf("Of after attesting that it names nothing mismatch (-want +got):\n%s", diff)
 	}
 
-	later, err := f.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), Kind: gen.RunKindAttestation, Trigger: gen.RunTriggerAdministrator})
+	later, err := f.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), Kind: gen.RunKindAttestIdentifier, Trigger: gen.RunTriggerAdministrator})
 	require.NoError(t, err)
 	require.NoError(t, Attest(ctx, f.q, mics, later, f.attestedBy.ID, f.foo, &f.b, day(2), today))
 	want = []Interval{provisional(nil, at(2), f.b), confirmed(at(2), at(3), f.b), provisional(at(3), at(20), f.b), confirmed(at(20), at(21), f.a), provisional(at(21), at(25), f.a)}

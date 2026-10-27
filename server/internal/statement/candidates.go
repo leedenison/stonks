@@ -16,14 +16,14 @@ import (
 var ErrAssociated = errors.New("the key has an association")
 
 // Candidates lists the candidates for one of user's keys, as a synchronous
-// resolution run. A key of another user is not found.
+// resolve statement keys run. A key of another user is not found.
 func (s *Service) Candidates(ctx context.Context, user, key uuid.UUID) (resolve.Offer, error) {
 	row, err := s.key(ctx, user, key)
 	if err != nil {
 		return resolve.Offer{}, err
 	}
 	var offer resolve.Offer
-	_, err = s.runs.Sync(ctx, user, gen.RunKindResolution, gen.RunTriggerUser, func(ctx context.Context, run gen.Run) error {
+	_, err = s.runs.Sync(ctx, user, gen.RunKindResolveStmtKeys, gen.RunTriggerUser, func(ctx context.Context, run gen.Run) error {
 		var err error
 		offer, err = s.resolver.Candidates(ctx, run, row)
 		return err
@@ -31,11 +31,11 @@ func (s *Service) Candidates(ctx context.Context, user, key uuid.UUID) (resolve.
 	return offer, err
 }
 
-// Confirm takes the candidate p names as the instrument of one of user's
-// keys, as a synchronous resolution run, and returns the key's resolution.
-// It then follows the confirmation's new identifier facts, which replay
-// every user's unresolved keys that state one of their identifiers. A failed
-// replay is logged, and the confirmation stands.
+// Confirm takes the candidate p names as the instrument of one of user's keys,
+// as a synchronous resolve statement keys run, and returns the key's
+// resolution. It then follows the confirmation's new identifier facts, which
+// replay every user's unresolved keys that state one of their identifiers. A
+// failed replay is logged, and the confirmation stands.
 func (s *Service) Confirm(ctx context.Context, user, key uuid.UUID, p resolve.Pick) (gen.ResolutionKey, error) {
 	row, err := s.key(ctx, user, key)
 	if err != nil {
@@ -43,7 +43,7 @@ func (s *Service) Confirm(ctx context.Context, user, key uuid.UUID, p resolve.Pi
 	}
 	var rk gen.ResolutionKey
 	var written []resolve.WrittenIdentifierFacts
-	run, err := s.runs.Sync(ctx, user, gen.RunKindResolution, gen.RunTriggerUser, func(ctx context.Context, run gen.Run) error {
+	run, err := s.runs.Sync(ctx, user, gen.RunKindResolveStmtKeys, gen.RunTriggerUser, func(ctx context.Context, run gen.Run) error {
 		var err error
 		rk, written, err = s.resolver.Confirm(ctx, run, row, p)
 		return err
