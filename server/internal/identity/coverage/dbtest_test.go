@@ -5,6 +5,7 @@ package coverage
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
@@ -15,6 +16,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/mic"
+	"github.com/leedenison/stonks/server/internal/platform/ptr"
 	"github.com/leedenison/stonks/server/internal/testutil/dbtest"
 	"github.com/leedenison/stonks/server/internal/types"
 )
@@ -102,14 +104,28 @@ func (f *fixture) attest(t *testing.T, instr uuid.UUID, market, value string) {
 	require.NoError(t, err)
 }
 
-// TestQueries checks that an instrument's tickers are those on its listings
-// and those named in its assertions, one per market, and that each ticker's
-// transactions come from every venue of its market.
+// names writes a row of resolved_tickers that names instr by value at
+// market and venue, open where open is set.
+func (f *fixture) names(t *testing.T, instr uuid.UUID, market, value, venue string, open bool) {
+	t.Helper()
+	row := dbtest.Ticker(t, f.q, types.MarketTicker{Market: market, Value: value})
+	var before *time.Time
+	if !open {
+		before = ptr.To(day(5))
+	}
+	f.exec(t, `INSERT INTO resolved_tickers (ticker_id, market, instr_id, venue, valid_before, currency)
+		VALUES ($1, $2, $3, $4, $5, 'USD')`, row.ID, market, instr, venue, before)
+}
+
+// TestQueries checks that an instrument's tickers are those of its names and
+// those named in its assertions, each with its relation, and that each
+// ticker's transactions come from every venue of its market.
 func TestQueries(t *testing.T) {
 	f := newFixture(t)
 	ctx := context.Background()
 	value := "ACME" + uuid.NewString()[:8]
 	former := "OLD" + uuid.NewString()[:8]
+	defunct := "GONE" + uuid.NewString()[:8]
 	segment := f.key(t, "XNGS", value, 4)
 	nasdaq := f.key(t, "XNAS", value, 6, 6)
 	nyse := f.key(t, "XNYS", value, 7)
@@ -119,14 +135,19 @@ func TestQueries(t *testing.T) {
 	instr := f.instr(t, value, "XNAS", "XNYS")
 	f.attest(t, instr, "US", value)
 	f.attest(t, instr, "US", former)
+	f.names(t, instr, "US", value, "XNAS", true)
+	f.names(t, instr, "US", value, "XNYS", true)
+	f.names(t, instr, "XLON", defunct, "XLON", false)
+	f.names(t, f.instr(t, "OTHER"+uuid.NewString()[:8], "XNAS"), "XLON", defunct, "XLON", true)
 
 	mics, err := mic.Load(ctx, f.q)
 	require.NoError(t, err)
 	tickers, err := New(f.q, mics).InstrTickers(ctx, instr)
 	require.NoError(t, err)
 	wantTickers := []InstrTicker{
-		{Ticker: types.MarketTicker{Market: "US", Value: value}, Current: true, Txns: 4, Venues: []string{"XNAS", "XNYS"}},
-		{Ticker: types.MarketTicker{Market: "US", Value: former}, Current: false, Txns: 0, Venues: []string{}},
+		{Ticker: types.MarketTicker{Market: "US", Value: value}, Relation: gen.TickerRelationCurrent, Txns: 4, Venues: []string{"XNAS", "XNYS"}},
+		{Ticker: types.MarketTicker{Market: "XLON", Value: defunct}, Relation: gen.TickerRelationDefunct, Txns: 0, Venues: []string{"XLON"}},
+		{Ticker: types.MarketTicker{Market: "US", Value: former}, Relation: gen.TickerRelationFormer, Txns: 0, Venues: []string{}},
 	}
 	if diff := cmp.Diff(wantTickers, tickers); diff != "" {
 		t.Errorf("InstrTickers mismatch (-want +got):\n%s", diff)

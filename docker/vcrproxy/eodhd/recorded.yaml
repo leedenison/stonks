@@ -4640,3 +4640,1190 @@ interactions:
         status: 404 Not Found
         code: 404
         duration: 170.484031ms
+    - id: 97
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/search/US4592001014?api_token=REDACTED&fmt=json&limit=500
+        form:
+            fmt:
+                - json
+            limit:
+                - "500"
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/search/US4592001014?fmt=json&limit=500
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 2101
+        uncompressed: true
+        body: '[{"Code":"IBM","Exchange":"US","Name":"International Business Machines","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US4592001014","isPrimary":true,"previousClose":250.25,"previousCloseDate":"2026-10-27"},{"Code":"IBM","Exchange":"XETRA","Name":"International Business Machines","Type":"Common Stock","Country":"Germany","Currency":"EUR","ISIN":"US4592001014","isPrimary":false,"previousClose":224.6,"previousCloseDate":"2026-10-27"},{"Code":"IBM","Exchange":"F","Name":"International Business Machines","Type":"Common Stock","Country":"Germany","Currency":"EUR","ISIN":"US4592001014","isPrimary":false,"previousClose":225.9,"previousCloseDate":"2026-10-26"},{"Code":"IBM","Exchange":"MX","Name":"International Business Machines Corporation","Type":"Common Stock","Country":"Mexico","Currency":"MXN","ISIN":"US4592001014","isPrimary":false,"previousClose":4716,"previousCloseDate":"2026-10-26"},{"Code":"IBM","Exchange":"STU","Name":"International Business Machines Corporation","Type":"Common Stock","Country":"Germany","Currency":"EUR","ISIN":"US4592001014","isPrimary":false,"previousClose":226.55,"previousCloseDate":"2026-10-23"},{"Code":"IBM","Exchange":"HM","Name":"International Business Machines Corporation","Type":"Common Stock","Country":"Germany","Currency":"EUR","ISIN":"US4592001014","isPrimary":false,"previousClose":226,"previousCloseDate":"2026-10-26"},{"Code":"IBM","Exchange":"MU","Name":"International Business Machines Corporation","Type":"Common Stock","Country":"Germany","Currency":"EUR","ISIN":"US4592001014","isPrimary":false,"previousClose":226.5,"previousCloseDate":"2026-10-27"},{"Code":"IBM","Exchange":"DU","Name":"International Business Machines Corporation","Type":"Common Stock","Country":"Germany","Currency":"EUR","ISIN":"US4592001014","isPrimary":false,"previousClose":226.2,"previousCloseDate":"2026-10-26"},{"Code":"IBM","Exchange":"HA","Name":"International Business Machines Corporation","Type":"Common Stock","Country":"Germany","Currency":"EUR","ISIN":"US4592001014","isPrimary":false,"previousClose":226,"previousCloseDate":"2026-10-26"}]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 20:46:17 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1199"
+        status: 200 OK
+        code: 200
+        duration: 1.498484291s
+    - id: 98
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/ZZDESC.LSE?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/ZZDESC.LSE?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 16
+        uncompressed: true
+        body: Symbol not found
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - text/html; charset=utf-8
+            Date:
+                - Tue, 27 Oct 2026 20:46:17 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1198"
+        status: 404 Not Found
+        code: 404
+        duration: 184.014558ms
+    - id: 99
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/exchange-symbol-list/US?api_token=REDACTED&fmt=json&symbols=IBM
+        form:
+            fmt:
+                - json
+            symbols:
+                - IBM
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/exchange-symbol-list/US?fmt=json&symbols=IBM
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 152
+        uncompressed: true
+        body: '[{"Code":"IBM","Name":"International Business Machines","Country":"USA","Exchange":"NYSE","Currency":"USD","Type":"Common Stock","Isin":"US4592001014"}]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 20:46:17 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1197"
+        status: 200 OK
+        code: 200
+        duration: 367.814093ms
+    - id: 100
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/id-mapping?api_token=REDACTED&filter%5Bisin%5D=US4592001014&fmt=json
+        form:
+            filter[isin]:
+                - US4592001014
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/id-mapping?filter%5Bisin%5D=US4592001014&fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 1685
+        uncompressed: true
+        body: '{"meta":{"limit":1000,"offset":0,"total":14},"data":[{"symbol":"6680.TSE","isin":"US4592001014","figi":null,"lei":"VGRQXHF3J8VDLUA7XE92","cusip":null,"cik":null},{"symbol":"IBM.US","isin":"US4592001014","figi":"BBG000BLNNH6","lei":"VGRQXHF3J8VDLUA7XE92","cusip":"459200101","cik":"0000051143"},{"symbol":"IBM.TO","isin":"US4592001014","figi":null,"lei":"VGRQXHF3J8VDLUA7XE92","cusip":null,"cik":null},{"symbol":"IBM.F","isin":"US4592001014","figi":"BBG000K23JT6","lei":"VGRQXHF3J8VDLUA7XE92","cusip":null,"cik":null},{"symbol":"IBM.XETRA","isin":"US4592001014","figi":"BBG000K23L39","lei":"VGRQXHF3J8VDLUA7XE92","cusip":null,"cik":null},{"symbol":"IBM.LSE","isin":"US4592001014","figi":null,"lei":"VGRQXHF3J8VDLUA7XE92","cusip":null,"cik":null},{"symbol":"IBM.MX","isin":"US4592001014","figi":"BBG000HW8Q13","lei":"VGRQXHF3J8VDLUA7XE92","cusip":null,"cik":null},{"symbol":"IBM.STU","isin":"US4592001014","figi":"BBG000K23MC7","lei":"VGRQXHF3J8VDLUA7XE92","cusip":null,"cik":null},{"symbol":"IBM.MU","isin":"US4592001014","figi":"BBG000K23N53","lei":"VGRQXHF3J8VDLUA7XE92","cusip":null,"cik":null},{"symbol":"IBM.DU","isin":"US4592001014","figi":"BBG000K23KP7","lei":"VGRQXHF3J8VDLUA7XE92","cusip":null,"cik":null},{"symbol":"IBM.BE","isin":"US4592001014","figi":null,"lei":"VGRQXHF3J8VDLUA7XE92","cusip":null,"cik":null},{"symbol":"IBM.HA","isin":"US4592001014","figi":"BBG000K23RS9","lei":"VGRQXHF3J8VDLUA7XE92","cusip":null,"cik":null},{"symbol":"IBM.HM","isin":"US4592001014","figi":"BBG000K23S70","lei":"VGRQXHF3J8VDLUA7XE92","cusip":null,"cik":null},{"symbol":"IBM.SN","isin":"US4592001014","figi":null,"lei":"VGRQXHF3J8VDLUA7XE92","cusip":null,"cik":null}],"links":{"next":null}}'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 20:46:17 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1196"
+        status: 200 OK
+        code: 200
+        duration: 178.341444ms
+    - id: 101
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/search/US68389X1054?api_token=REDACTED&fmt=json&limit=500
+        form:
+            fmt:
+                - json
+            limit:
+                - "500"
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/search/US68389X1054?fmt=json&limit=500
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 855
+        uncompressed: true
+        body: '[{"Code":"ORCL","Exchange":"US","Name":"Oracle Corporation","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US68389X1054","isPrimary":true,"previousClose":130.53,"previousCloseDate":"2026-10-27"},{"Code":"ORC","Exchange":"XETRA","Name":"Oracle Corporation","Type":"Common Stock","Country":"Germany","Currency":"EUR","ISIN":"US68389X1054","isPrimary":false,"previousClose":118.44,"previousCloseDate":"2026-10-27"},{"Code":"ORC","Exchange":"F","Name":"Oracle Corporation","Type":"Common Stock","Country":"Germany","Currency":"EUR","ISIN":"US68389X1054","isPrimary":false,"previousClose":112.6,"previousCloseDate":"2026-10-26"},{"Code":"ORC","Exchange":"STU","Name":"Oracle Corporation","Type":"Common Stock","Country":"Germany","Currency":"EUR","ISIN":"US68389X1054","isPrimary":false,"previousClose":112.42,"previousCloseDate":"2026-10-23"}]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 20:46:18 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1195"
+        status: 200 OK
+        code: 200
+        duration: 302.109432ms
+    - id: 102
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/exchange-symbol-list/US?api_token=REDACTED&fmt=json&symbols=ORCL
+        form:
+            fmt:
+                - json
+            symbols:
+                - ORCL
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/exchange-symbol-list/US?fmt=json&symbols=ORCL
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 140
+        uncompressed: true
+        body: '[{"Code":"ORCL","Name":"Oracle Corporation","Country":"USA","Exchange":"NYSE","Currency":"USD","Type":"Common Stock","Isin":"US68389X1054"}]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 20:46:18 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1194"
+        status: 200 OK
+        code: 200
+        duration: 256.236021ms
+    - id: 103
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/id-mapping?api_token=REDACTED&filter%5Bisin%5D=US68389X1054&fmt=json
+        form:
+            filter[isin]:
+                - US68389X1054
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/id-mapping?filter%5Bisin%5D=US68389X1054&fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 671
+        uncompressed: true
+        body: '{"meta":{"limit":1000,"offset":0,"total":5},"data":[{"symbol":"0R1Z.LSE","isin":"US68389X1054","figi":null,"lei":"1Z4GXXU7ZHVWFCD8TV52","cusip":null,"cik":null},{"symbol":"ORC.F","isin":"US68389X1054","figi":"BBG000C0RX21","lei":"1Z4GXXU7ZHVWFCD8TV52","cusip":null,"cik":null},{"symbol":"ORC.XETRA","isin":"US68389X1054","figi":"BBG000C0RY38","lei":"1Z4GXXU7ZHVWFCD8TV52","cusip":null,"cik":null},{"symbol":"ORC.STU","isin":"US68389X1054","figi":"BBG000C0RY83","lei":"1Z4GXXU7ZHVWFCD8TV52","cusip":null,"cik":null},{"symbol":"ORCL.US","isin":"US68389X1054","figi":"BBG000BQLTW7","lei":"1Z4GXXU7ZHVWFCD8TV52","cusip":"68389X105","cik":"0001341439"}],"links":{"next":null}}'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 20:46:19 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1193"
+        status: 200 OK
+        code: 200
+        duration: 180.898265ms
+    - id: 104
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/IBM.US?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/IBM.US?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 103
+        uncompressed: true
+        body: '[{"date":"1997-05-28","split":"2.000000\/1.000000"},{"date":"1999-05-27","split":"2.000000\/1.000000"}]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 20:46:28 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1192"
+        status: 200 OK
+        code: 200
+        duration: 204.661116ms
+    - id: 105
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/IBM.DU?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/IBM.DU?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 2
+        uncompressed: true
+        body: '[]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 20:46:29 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1191"
+        status: 200 OK
+        code: 200
+        duration: 182.667821ms
+    - id: 106
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/IBM.HM?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/IBM.HM?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 2
+        uncompressed: true
+        body: '[]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 20:46:31 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1190"
+        status: 200 OK
+        code: 200
+        duration: 169.688927ms
+    - id: 107
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/IBM.HA?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/IBM.HA?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 2
+        uncompressed: true
+        body: '[]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 20:46:32 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1189"
+        status: 200 OK
+        code: 200
+        duration: 167.882785ms
+    - id: 108
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/IBM.LIM?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/IBM.LIM?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 2
+        uncompressed: true
+        body: '[]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 20:46:32 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1188"
+        status: 200 OK
+        code: 200
+        duration: 213.668107ms
+    - id: 109
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/IBM.MX?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/IBM.MX?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 2
+        uncompressed: true
+        body: '[]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 20:46:33 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1187"
+        status: 200 OK
+        code: 200
+        duration: 189.718891ms
+    - id: 110
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/IBM.MU?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/IBM.MU?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 2
+        uncompressed: true
+        body: '[]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 20:46:34 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1186"
+        status: 200 OK
+        code: 200
+        duration: 163.42689ms
+    - id: 111
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/IBM.SN?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/IBM.SN?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 2
+        uncompressed: true
+        body: '[]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 20:46:34 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1185"
+        status: 200 OK
+        code: 200
+        duration: 176.915828ms
+    - id: 112
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/IBM.ST?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/IBM.ST?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 16
+        uncompressed: true
+        body: Symbol not found
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - text/html; charset=utf-8
+            Date:
+                - Tue, 27 Oct 2026 20:46:35 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1184"
+        status: 404 Not Found
+        code: 404
+        duration: 178.528293ms
+    - id: 113
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/IBM.STU?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/IBM.STU?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 2
+        uncompressed: true
+        body: '[]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 20:46:35 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1183"
+        status: 200 OK
+        code: 200
+        duration: 170.234602ms
+    - id: 114
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/IBMUSD.SW?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/IBMUSD.SW?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 16
+        uncompressed: true
+        body: Symbol not found
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - text/html; charset=utf-8
+            Date:
+                - Tue, 27 Oct 2026 20:46:35 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1182"
+        status: 404 Not Found
+        code: 404
+        duration: 165.490661ms
+    - id: 115
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/ORCL.US?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/ORCL.US?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 511
+        uncompressed: true
+        body: '[{"date":"1987-03-25","split":"2.000000\/1.000000"},{"date":"1987-12-21","split":"2.000000\/1.000000"},{"date":"1989-07-03","split":"2.000000\/1.000000"},{"date":"1993-11-09","split":"2.000000\/1.000000"},{"date":"1995-02-23","split":"3.000000\/2.000000"},{"date":"1996-04-17","split":"3.000000\/2.000000"},{"date":"1997-08-18","split":"3.000000\/2.000000"},{"date":"1999-03-01","split":"3.000000\/2.000000"},{"date":"2000-01-19","split":"2.000000\/1.000000"},{"date":"2000-10-13","split":"2.000000\/1.000000"}]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 20:46:35 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1181"
+        status: 200 OK
+        code: 200
+        duration: 166.632174ms
+    - id: 116
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/ORCL.LIM?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/ORCL.LIM?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 16
+        uncompressed: true
+        body: Symbol not found
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - text/html; charset=utf-8
+            Date:
+                - Tue, 27 Oct 2026 20:46:36 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1180"
+        status: 404 Not Found
+        code: 404
+        duration: 227.119308ms
+    - id: 117
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/0R1Z.LSE?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/0R1Z.LSE?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 2
+        uncompressed: true
+        body: '[]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 20:46:36 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1179"
+        status: 200 OK
+        code: 200
+        duration: 175.520912ms
+    - id: 118
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/ORCL.SN?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/ORCL.SN?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 16
+        uncompressed: true
+        body: Symbol not found
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - text/html; charset=utf-8
+            Date:
+                - Tue, 27 Oct 2026 20:46:36 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1178"
+        status: 404 Not Found
+        code: 404
+        duration: 181.276581ms
+    - id: 119
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/ORCLUSD.ST?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/ORCLUSD.ST?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 16
+        uncompressed: true
+        body: Symbol not found
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - text/html; charset=utf-8
+            Date:
+                - Tue, 27 Oct 2026 20:46:36 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1177"
+        status: 404 Not Found
+        code: 404
+        duration: 169.89272ms
+    - id: 120
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/ORC.STU?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/ORC.STU?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 2
+        uncompressed: true
+        body: '[]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 20:46:37 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1176"
+        status: 200 OK
+        code: 200
+        duration: 236.130289ms
+    - id: 121
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/ORCLUSD.SW?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/ORCLUSD.SW?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 16
+        uncompressed: true
+        body: Symbol not found
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - text/html; charset=utf-8
+            Date:
+                - Tue, 27 Oct 2026 20:46:37 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1175"
+        status: 404 Not Found
+        code: 404
+        duration: 181.860856ms

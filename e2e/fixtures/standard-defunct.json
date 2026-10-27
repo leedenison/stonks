@@ -1,0 +1,43 @@
+{
+  "broker": "BROKER_IBKR",
+  "orderFrom": "2024-01-01",
+  "orderBefore": "2024-02-01",
+  "rows": [
+    {
+      "key": {
+        "identifiers": [
+          { "type": "IDENTIFIER_TYPE_ISIN", "value": "US4592001014" },
+          {
+            "type": "IDENTIFIER_TYPE_MIC_TICKER",
+            "domain": "XNYS",
+            "value": "IBM"
+          }
+        ],
+        "assetClass": "ASSET_CLASS_STOCK",
+        "currency": "USD"
+      },
+      "orderDate": "2024-01-10",
+      "settlementDate": "2024-01-10",
+      "asAt": "2024-01-10",
+      "quantity": "5"
+    },
+    {
+      "key": {
+        "identifiers": [
+          { "type": "IDENTIFIER_TYPE_ISIN", "value": "US68389X1054" },
+          {
+            "type": "IDENTIFIER_TYPE_MIC_TICKER",
+            "domain": "XNYS",
+            "value": "ORCL"
+          }
+        ],
+        "assetClass": "ASSET_CLASS_STOCK",
+        "currency": "USD"
+      },
+      "orderDate": "2024-01-11",
+      "settlementDate": "2024-01-11",
+      "asAt": "2024-01-11",
+      "quantity": "7"
+    }
+  ]
+}

@@ -115,21 +115,35 @@ func TestInstrName(t *testing.T) {
 
 func TestProtoHoldingListing(t *testing.T) {
 	id := uuid.New()
-	ticker := &typev1.Identifier{Type: typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, Domain: "XLON", Value: "VOD"}
+	ticker := &typev1.MarketTicker{Market: "XLON", Value: "VOD"}
+	named := func(venue, venueName *string, rel gen.TickerRelation) gen.ListListingNamesRow {
+		return gen.ListListingNamesRow{ListingID: id, Currency: "GBP", TickerID: ptr.To(uuid.New()), Market: ptr.To("XLON"), TickerValue: ptr.To("VOD"), Venue: venue, VenueName: venueName, Relation: &rel, Rank: ptr.To(int64(1))}
+	}
+	current, defunct := typev1.TickerRelation_TICKER_RELATION_CURRENT, typev1.TickerRelation_TICKER_RELATION_DEFUNCT
 	tests := []struct {
 		name string
 		row  gen.ListListingNamesRow
 		want *holdingv1.HoldingListing
 	}{
 		{
-			name: "named by a ticker",
-			row:  gen.ListListingNamesRow{ListingID: id, Currency: "GBP", Venue: "LSE", TickerDomain: ptr.To("XLON"), TickerValue: ptr.To("VOD")},
-			want: &holdingv1.HoldingListing{Id: id.String(), Currency: "GBP", Venue: "LSE", Ticker: ticker},
+			name: "named by a ticker at a venue with a common name",
+			row:  named(ptr.To("XLON"), ptr.To("LSE"), gen.TickerRelationCurrent),
+			want: &holdingv1.HoldingListing{Id: id.String(), Currency: "GBP", Venue: ptr.To("LSE"), Ticker: ticker, Relation: current},
+		},
+		{
+			name: "named by a ticker at a venue without a common name",
+			row:  named(ptr.To("XLON"), nil, gen.TickerRelationCurrent),
+			want: &holdingv1.HoldingListing{Id: id.String(), Currency: "GBP", Venue: ptr.To("XLON"), Ticker: ticker, Relation: current},
+		},
+		{
+			name: "named by a defunct ticker at its market",
+			row:  named(nil, nil, gen.TickerRelationDefunct),
+			want: &holdingv1.HoldingListing{Id: id.String(), Currency: "GBP", Ticker: ticker, Relation: defunct},
 		},
 		{
 			name: "without a ticker",
-			row:  gen.ListListingNamesRow{ListingID: id, Currency: "GBP", Venue: "XLON"},
-			want: &holdingv1.HoldingListing{Id: id.String(), Currency: "GBP", Venue: "XLON"},
+			row:  gen.ListListingNamesRow{ListingID: id, Currency: "GBP"},
+			want: &holdingv1.HoldingListing{Id: id.String(), Currency: "GBP"},
 		},
 	}
 	for _, tc := range tests {

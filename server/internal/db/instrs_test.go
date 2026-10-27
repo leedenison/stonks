@@ -384,9 +384,11 @@ func TestIsRetryable(t *testing.T) {
 }
 
 // TestListInstrs checks how the listing names and orders every
-// instrument, and the listings and identifiers read for one. The seed's cash
-// instruments are in every list, so the test's own rows carry names after
-// every currency code, and the assertions place rows rather than count them.
+// instrument, and the listings and identifiers read for one. The tickers that
+// name the instruments are rows of resolved_tickers alone, with no MIC_TICKER
+// identifier. The seed's cash instruments are in every list, so the test's
+// own rows carry names after every currency code, and the assertions place
+// rows rather than count them.
 func TestListInstrs(t *testing.T) {
 	ctx := context.Background()
 	q := newTx(t)
@@ -407,20 +409,21 @@ func TestListInstrs(t *testing.T) {
 	stockLine := newListing(t, q, stock, "USD")
 	require.NoError(t, q.SetListingPrimary(ctx, gen.SetListingPrimaryParams{ID: stockLine.ID, PrimaryMic: ptr.To("XSWX")}))
 	ident(stock, nil, types.IdentifierTypeIsin, "", "ZZ0000000001")
-	ident(stock, &stockLine, types.IdentifierTypeMicTicker, "XNYS", "ZZSTOCK")
-	ident(stock, &stockLine, types.IdentifierTypeMicTicker, "XSWX", "ZZSTOCKP")
+	ident(stock, &stockLine, types.IdentifierTypeSedol, "", "ZZSEDOL")
+	resolves(t, q, stock, "US", "ZZSTOCK", "XNYS", "USD", false)
+	resolves(t, q, stock, "XSWX", "ZZSTOCKP", "XSWX", "USD", false)
 	// A stock with no primary venue, whose tickers differ at a venue ranked
 	// first in venue_names and at one sorting first by MIC.
 	two := newInstr(t, q, types.AssetClassStock)
-	twoLine := newListing(t, q, two, "USD")
-	ident(two, &twoLine, types.IdentifierTypeMicTicker, "XNAS", "ZZTWO")
-	ident(two, &twoLine, types.IdentifierTypeMicTicker, "XNYS", "ZZTWON")
+	newListing(t, q, two, "USD")
+	resolves(t, q, two, "US", "ZZTWO", "XNAS", "USD", false)
+	resolves(t, q, two, "US", "ZZTWON", "XNYS", "USD", false)
 	// An option with an OCC symbol, a built symbol and a ticker.
 	option := newInstr(t, q, types.AssetClassOption)
-	optionLine := newListing(t, q, option, "USD")
+	newListing(t, q, option, "USD")
 	ident(option, nil, types.IdentifierTypeOcc, "", "ZZOPT260116C00150000")
 	ident(option, nil, types.IdentifierTypeOption, "", "ZZOPTBUILT")
-	ident(option, &optionLine, types.IdentifierTypeMicTicker, "XCBO", "ZZOPTTICK")
+	resolves(t, q, option, "XCBO", "ZZOPTTICK", "XCBO", "USD", false)
 	// An instrument nothing names.
 	bare := newInstr(t, q, types.AssetClassSecurity)
 
@@ -505,8 +508,8 @@ func TestListInstrs(t *testing.T) {
 	}
 	idents, err := q.ListIdentifiersOf(ctx, []uuid.UUID{stock.ID})
 	require.NoError(t, err)
-	if len(idents) != 3 || idents[0].ListingID == nil || idents[1].ListingID == nil || idents[2].ListingID != nil {
-		t.Errorf("ListIdentifiersOf = %+v, want the two tickers then the ISIN, by the rank of the type as a name", idents)
+	if len(idents) != 2 || idents[0].Type != types.IdentifierTypeIsin || idents[1].Type != types.IdentifierTypeSedol || idents[1].ListingID == nil {
+		t.Errorf("ListIdentifiersOf = %+v, want the ISIN then the SEDOL on the listing, by the rank of the type as a name", idents)
 	}
 
 	// Two keys share the ISIN as their via identifier, so it is returned

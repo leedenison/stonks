@@ -18,7 +18,7 @@ spelling. One get-or-create function writes the table. It decides the spelling t
 one predicate, and every other check of a spelling calls that predicate. A row may
 outlive its facts.
 
-Every fact, `corp_act_answers`, the projection of [011](011-an-instruments-ticker-is-a-projection-of-ticker-facts.md)
+Every fact, `corp_act_answers`, `resolved_tickers` (see [010_ticker_validity.sql](../../../../server/internal/db/migrations/010_ticker_validity.sql))
 and a dated association refer to a ticker by `ticker_id`. Statements and facts still meet
 by value. A stated key keeps its identifiers as the statement gave them. A new fact
 finds the keys that state its ticker through the GIN index.

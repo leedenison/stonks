@@ -116,11 +116,19 @@ func InstrName(n gen.InstrName) types.Identifier {
 	return types.Identifier{Type: n.Type, Domain: n.Domain, Value: n.Value}
 }
 
-// ProtoHoldingListing writes l as a named listing.
+// ProtoHoldingListing writes l, the row that ranks first as a listing's
+// name, as a named listing. The venue is its common name, or its MIC where it
+// has none.
 func ProtoHoldingListing(l gen.ListListingNamesRow) *holdingv1.HoldingListing {
-	out := &holdingv1.HoldingListing{Id: l.ListingID.String(), Currency: l.Currency, Venue: l.Venue}
-	if l.TickerDomain != nil && l.TickerValue != nil {
-		out.Ticker = types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: *l.TickerDomain, Value: *l.TickerValue}.ToProto()
+	out := &holdingv1.HoldingListing{Id: l.ListingID.String(), Currency: l.Currency}
+	if l.Market == nil || l.TickerValue == nil || l.Relation == nil {
+		return out
+	}
+	out.Ticker = types.MarketTicker{Market: *l.Market, Value: *l.TickerValue}.ToProto()
+	out.Relation = types.ToProto[typev1.TickerRelation](*l.Relation)
+	out.Venue = l.VenueName
+	if out.Venue == nil {
+		out.Venue = l.Venue
 	}
 	return out
 }

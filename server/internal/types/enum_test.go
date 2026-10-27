@@ -94,6 +94,9 @@ func TestEnumsCross(t *testing.T) {
 		crosses[gen.ResolutionOutcome, typev1.ResolutionOutcome](t, gen.AllResolutionOutcomeValues())
 	})
 	t.Run("run kind", func(t *testing.T) { crosses[gen.RunKind, runv1.RunKind](t, gen.AllRunKindValues()) })
+	t.Run("ticker relation", func(t *testing.T) {
+		crosses[gen.TickerRelation, typev1.TickerRelation](t, gen.AllTickerRelationValues())
+	})
 	t.Run("run trigger", func(t *testing.T) { crosses[gen.RunTrigger, runv1.RunTrigger](t, gen.AllRunTriggerValues()) })
 	t.Run("run state", func(t *testing.T) { crosses[gen.RunState, runv1.RunState](t, gen.AllRunStateValues()) })
 	t.Run("fetch outcome", func(t *testing.T) { crosses[gen.FetchOutcome, adminrunv1.FetchOutcome](t, gen.AllFetchOutcomeValues()) })

@@ -63,7 +63,6 @@ states how it tolerates a temporary or permanent absence of its data.
 Holdings derive ticker validity from the fact tables at each read. A per instrument
 summary of coverage and ticker validity, maintained at ingest and rebuilt from the fetch
 tables, would serve holdings and valuation once the derivation costs too much.
-`resolved_tickers` is the part of that summary that names instruments.
 
 ## Undecided
 

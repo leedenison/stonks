@@ -43,11 +43,11 @@ var (
 	fooOnB          = gen.Identifier{InstrID: bID, ListingID: &bUSD, Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "FOO"}
 	idents          = []gen.Identifier{{InstrID: aID, Type: types.IdentifierTypeIsin, Value: "US0000000071"}, fooOnB}
 	aListings       = []gen.ListListingNamesRow{{ListingID: aGBP, InstrID: aID, Currency: "GBP"}, {ListingID: aUSD, InstrID: aID, Currency: "USD"}}
-	bListing        = gen.ListListingNamesRow{ListingID: bUSD, InstrID: bID, Currency: "USD", TickerDomain: ptr.To("XNAS"), TickerValue: ptr.To("FOO"), Venue: "Nasdaq"}
+	bListing        = gen.ListListingNamesRow{ListingID: bUSD, InstrID: bID, Currency: "USD", TickerID: &fooRow.ID, Market: ptr.To("US"), TickerValue: ptr.To("FOO"), Venue: ptr.To("XNAS"), VenueName: ptr.To("Nasdaq"), Relation: ptr.To(gen.TickerRelationCurrent), Rank: ptr.To(int64(1))}
 	listings        = append(append([]gen.ListListingNamesRow{}, aListings...), bListing)
 	names           = []gen.InstrName{{InstrID: aID, Type: types.IdentifierTypeIsin, Value: "US0000000071"}, {InstrID: bID, Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "FOO"}}
 	protoAListings  = []*holdingv1.HoldingListing{{Id: aGBP.String(), Currency: "GBP"}, {Id: aUSD.String(), Currency: "USD"}}
-	protoBListings  = []*holdingv1.HoldingListing{{Id: bUSD.String(), Currency: "USD", Venue: "Nasdaq", Ticker: protoFoo}}
+	protoBListings  = []*holdingv1.HoldingListing{{Id: bUSD.String(), Currency: "USD", Venue: ptr.To("Nasdaq"), Ticker: &typev1.MarketTicker{Market: "US", Value: "FOO"}, Relation: typev1.TickerRelation_TICKER_RELATION_CURRENT}}
 	protoAName      = &typev1.Identifier{Type: typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, Value: "US0000000071"}
 	protoIdentsOfA  = []*typev1.Identifier{protoAISIN}
 	protoIdentsOfB  = []*typev1.Identifier{protoFoo}

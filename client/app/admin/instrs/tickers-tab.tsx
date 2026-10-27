@@ -15,7 +15,7 @@ import { Skeleton } from "@/app/components/skeleton";
 import { None, PaneTable, Td, Th } from "@/app/components/table";
 import type { InstrTicker, Ticker } from "@/gen/admin/coverage/v1/coverage_pb";
 import { type AssertionItem, Edge } from "@/gen/admin/run/v1/run_pb";
-import { MarketTickerSchema } from "@/gen/type/v1/type_pb";
+import { MarketTickerSchema, TickerRelation } from "@/gen/type/v1/type_pb";
 import {
   useCoverageTicker,
   useInstrTickers,
@@ -37,6 +37,14 @@ import { Timeline } from "./timeline";
 // one per market, and shows the ticker validity of the one chosen. The choice
 // is held in the address, at the market or at a venue of it, and the first
 // listed ticker stands in while it is unset.
+// relationSuffix marks each ticker that no longer names the instrument.
+const relationSuffix: Record<TickerRelation, string> = {
+  [TickerRelation.UNSPECIFIED]: "",
+  [TickerRelation.CURRENT]: "",
+  [TickerRelation.DEFUNCT]: " (defunct)",
+  [TickerRelation.FORMER]: " (former)",
+};
+
 export function TickersTab({
   instrId,
   params,
@@ -86,7 +94,7 @@ export function TickersTab({
               {listed.map((t) => (
                 <option key={param(t)} value={param(t)}>
                   {t.ticker?.value} in {t.ticker?.market}
-                  {t.current ? "" : " (former)"}
+                  {relationSuffix[t.relation]}
                 </option>
               ))}
             </Select>

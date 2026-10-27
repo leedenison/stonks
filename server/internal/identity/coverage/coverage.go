@@ -17,6 +17,7 @@ import (
 	"github.com/google/uuid"
 
 	admincoveragev1 "github.com/leedenison/stonks/proto/admin/coverage/v1"
+	typev1 "github.com/leedenison/stonks/proto/type/v1"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/to"
 	"github.com/leedenison/stonks/server/internal/identity/tickers"
@@ -120,17 +121,22 @@ func (t *Page) ToProto() *admincoveragev1.Ticker {
 // or in an assertion, with the count of transactions whose keys state it at
 // any venue of the market.
 type InstrTicker struct {
-	Ticker  types.MarketTicker
-	Current bool
-	Txns    int
-	// Venues are the operating MICs of the listings that carry the ticker.
+	Ticker   types.MarketTicker
+	Relation gen.TickerRelation
+	Txns     int
+	// Venues are the operating MICs at which the ticker names the
+	// instrument.
 	Venues []string
 }
 
 // ToProto converts the ticker.
 func (t InstrTicker) ToProto() *admincoveragev1.InstrTicker {
-	return &admincoveragev1.InstrTicker{Ticker: t.Ticker.ToProto(), Current: t.Current, Txns: int32(t.Txns), Venues: t.Venues}
+	return &admincoveragev1.InstrTicker{Ticker: t.Ticker.ToProto(), Relation: types.ToProto[typev1.TickerRelation](t.Relation), Txns: int32(t.Txns), Venues: t.Venues}
 }
+
+// relationOrder ranks the relations as the tickers of an instrument are
+// listed: current, then defunct, then former.
+var relationOrder = map[gen.TickerRelation]int{gen.TickerRelationCurrent: 0, gen.TickerRelationDefunct: 1, gen.TickerRelationFormer: 2}
 
 // InstrTickers lists the tickers that name the instrument, now or in an
 // assertion, the most transacted first.
@@ -150,17 +156,14 @@ func (r *Reader) InstrTickers(ctx context.Context, instr uuid.UUID) ([]InstrTick
 		if err != nil {
 			return nil, fmt.Errorf("count transactions of %s: %w", v.Name(), err)
 		}
-		out = append(out, InstrTicker{Ticker: v, Current: row.Current, Txns: int(n), Venues: row.Venues})
+		out = append(out, InstrTicker{Ticker: v, Relation: row.Relation, Txns: int(n), Venues: row.Venues})
 	}
 	slices.SortStableFunc(out, func(a, b InstrTicker) int {
 		if a.Txns != b.Txns {
 			return b.Txns - a.Txns
 		}
-		if a.Current != b.Current {
-			if a.Current {
-				return -1
-			}
-			return 1
+		if a.Relation != b.Relation {
+			return relationOrder[a.Relation] - relationOrder[b.Relation]
 		}
 		return strings.Compare(a.Ticker.Name(), b.Ticker.Name())
 	})

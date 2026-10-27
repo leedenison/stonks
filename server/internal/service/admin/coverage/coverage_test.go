@@ -76,7 +76,7 @@ func TestListInstrTickers(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newFixture(t)
 			if tc.id == acme.String() {
-				f.reader.EXPECT().InstrTickers(gomock.Any(), acme).Return([]reader.InstrTicker{{Ticker: acmeTicker, Current: true, Txns: 2, Venues: []string{"XNAS"}}}, tc.err)
+				f.reader.EXPECT().InstrTickers(gomock.Any(), acme).Return([]reader.InstrTicker{{Ticker: acmeTicker, Relation: gen.TickerRelationDefunct, Txns: 2, Venues: []string{"XNAS"}}}, tc.err)
 			}
 			res, err := f.client.ListInstrTickers(context.Background(), connect.NewRequest(&admincoveragev1.ListInstrTickersRequest{InstrId: tc.id}))
 			if servicetest.CodeOf(err) != tc.wantCode {
@@ -85,7 +85,7 @@ func TestListInstrTickers(t *testing.T) {
 			if err != nil {
 				return
 			}
-			want := []*admincoveragev1.InstrTicker{{Ticker: acmeProto, Current: true, Txns: 2, Venues: []string{"XNAS"}}}
+			want := []*admincoveragev1.InstrTicker{{Ticker: acmeProto, Relation: typev1.TickerRelation_TICKER_RELATION_DEFUNCT, Txns: 2, Venues: []string{"XNAS"}}}
 			if diff := cmp.Diff(want, res.Msg.GetTickers(), protocmp.Transform()); diff != "" {
 				t.Errorf("ListInstrTickers mismatch (-want +got):\n%s", diff)
 			}

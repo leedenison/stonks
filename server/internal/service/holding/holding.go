@@ -38,6 +38,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/identity/tickers"
 	"github.com/leedenison/stonks/server/internal/identity/tickervalidity"
 	"github.com/leedenison/stonks/server/internal/mic"
+	"github.com/leedenison/stonks/server/internal/platform/ptr"
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
@@ -178,7 +179,7 @@ func (s *Server) instrs(ctx context.Context, keys []gen.ListHoldingKeysRow, d da
 		}
 		for id, q := range d.onInstr[k.StatedKey.ID] {
 			hk := &holdingv1.HoldingKey{StatedKey: to.ProtoStatedKey(k.StatedKey), Quantity: q.String()}
-			if l := listing(s.families, s.mics, k.StatedKey, d.tickers, identified[id], listed[id]); l != uuid.Nil {
+			if l := listing(s.families, k.StatedKey, listed[id]); l != uuid.Nil {
 				hk.ListingId = l.String()
 			}
 			keysOf[id] = append(keysOf[id], hk)
@@ -197,7 +198,9 @@ func (s *Server) instrs(ctx context.Context, keys []gen.ListHoldingKeysRow, d da
 			h.Identifiers = append(h.Identifiers, to.Identifier(i).ToProto())
 		}
 		for _, l := range listed[id] {
-			h.Listings = append(h.Listings, to.ProtoHoldingListing(l))
+			if l.Rank == nil || *l.Rank == 1 {
+				h.Listings = append(h.Listings, to.ProtoHoldingListing(l))
+			}
 		}
 		out = append(out, h)
 	}
@@ -205,28 +208,18 @@ func (s *Server) instrs(ctx context.Context, keys []gen.ListHoldingKeysRow, d da
 }
 
 // listing returns the listing a dated key's transactions sit under on one
-// instrument. That is the instrument's listing in the family of the key's
-// stated currency, as a fixed association takes. Where the key states no
-// currency, or the instrument has no listing in that family, it is the
-// listing that carries the key's ticker at the key's venue, or at a segment
-// of that venue. It returns uuid.Nil where neither exists.
-func listing(families currency.Families, mics mic.MICMap, k gen.StatedKey, dated map[uuid.UUID]gen.Ticker, idents []gen.Identifier, listings []gen.ListListingNamesRow) uuid.UUID {
-	ticker, at, _ := tickers.Dated(k, dated)
+// instrument: the listing in the family of the key's stated currency, as a
+// fixed association takes, else the one that the key's ticker reaches at the
+// key's venue. listings holds every ticker that reaches each listing of the
+// instrument. It returns uuid.Nil when neither exists.
+func listing(families currency.Families, k gen.StatedKey, listings []gen.ListListingNamesRow) uuid.UUID {
 	carrier, family := uuid.Nil, ""
-	for _, i := range idents {
-		if i.ListingID == nil {
-			continue
-		}
-		id := to.Identifier(i)
-		t, ok := mics.MarketTicker(id)
-		venue, _ := mics.Operating(id.Domain)
-		if ok && t == ticker && venue == at.Domain {
-			carrier = *i.ListingID
-		}
-	}
-	for _, l := range listings {
-		if l.ListingID == carrier {
-			family = l.Currency
+	if k.ViaTickerID != nil && k.ViaVenue != nil {
+		for _, l := range listings {
+			if ptr.Equal(l.TickerID, k.ViaTickerID) && ptr.Equal(l.Venue, k.ViaVenue) {
+				carrier, family = l.ListingID, l.Currency
+				break
+			}
 		}
 	}
 	if k.Currency != nil {

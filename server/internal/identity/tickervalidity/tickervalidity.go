@@ -14,6 +14,15 @@
 // before it commits. A reorder of the datasources can change any name, so the
 // names wait for a rebuild of every ticker.
 //
+// A rebuild must see every fact of its tickers, so each write of facts takes
+// its locks in one order. It creates its ticker rows before its transaction;
+// see tickers.Get. In the transaction it takes the advisory locks of its
+// identifiers, then locks its ticker rows in id order, writes the facts, and
+// rebuilds. The rebuild locks each instrument it rewrites, in id order. A
+// second writer of one of the tickers, or of another ticker of one of the
+// instruments, waits until the first commits. Under Read Committed its next
+// statement then reads the first writer's facts.
+//
 // An edge cuts the timeline. A first cuts at the start of its day, and a last
 // at the start of the next day. Every range stops at a cut. An assertion
 // with an edge also competes for its day as a point does.

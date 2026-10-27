@@ -97,7 +97,11 @@ CREATE TABLE identifier_assertions (
     edge            identifier_edge,
     -- venue and currency are what the source stated beside the ticker: the
     -- operating MIC of the venue, and the currency of the line. Each is NULL
-    -- where the source stated none. Ticker validity ignores both, and
+    -- where the source stated none. EODHD states the venue and currency of
+    -- its row. OpenFIGI states the venue of its exchange code, and omits the
+    -- currency, so its integration stamps the currency of the request's
+    -- filter. A ticker history, a point in time lookup and an identifier
+    -- attestation state neither. Ticker validity ignores both, and
     -- resolved_tickers reads them.
     venue           text,
     currency        text            REFERENCES currencies (code),
@@ -194,3 +198,67 @@ FROM (
     SELECT ticker_id, instr_id, false FROM identifier_assertions WHERE instr_id IS NOT NULL
 ) AS named
 GROUP BY named.ticker_id, named.instr_id;
+
+-- listing_tickers gives each listing every row of resolved_tickers of its
+-- instrument whose currency is in the listing's family, ranked as the
+-- listing's name: the primary venue first, then by venue_names.rank, then by
+-- venue. A row without a currency stays apart from every listing. The join
+-- runs on read, so a listing that a later write creates is reached without a
+-- rebuild.
+-- is_primary and venue_rank carry the order so a query over several listings
+-- can rank across them.
+CREATE VIEW listing_tickers AS
+SELECT listings.id AS listing_id, listings.instr_id, listings.currency,
+       resolved_tickers.ticker_id, tickers.market, tickers.value, resolved_tickers.venue,
+       instr_tickers.relation,
+       (resolved_tickers.venue = listings.primary_mic) AS is_primary,
+       venue_names.rank AS venue_rank,
+       ROW_NUMBER() OVER (PARTITION BY listings.id
+           ORDER BY (resolved_tickers.venue = listings.primary_mic) DESC NULLS LAST,
+                    venue_names.rank NULLS LAST, resolved_tickers.venue NULLS LAST,
+                    tickers.market) AS rank
+FROM listings
+JOIN resolved_tickers ON resolved_tickers.instr_id = listings.instr_id
+JOIN currencies ON currencies.code = resolved_tickers.currency
+    AND currencies.family = listings.currency
+JOIN tickers ON tickers.id = resolved_tickers.ticker_id
+JOIN instr_tickers ON instr_tickers.ticker_id = resolved_tickers.ticker_id
+    AND instr_tickers.instr_id = resolved_tickers.instr_id
+LEFT JOIN venue_names ON venue_names.mic = resolved_tickers.venue;
+
+-- instr_names gives each instrument the one identifier that names it. It
+-- chooses from the instrument's identifiers other than its MIC_TICKERs, and
+-- from its rows of resolved_tickers that state a venue and are not defunct,
+-- each as a MIC_TICKER at that venue. A row without a venue is left out,
+-- since the domain of a MIC_TICKER is an operating MIC. A defunct ticker is
+-- left out too, since it names another instrument now. Types rank by
+-- name_rank. Among tickers a current one wins, then the primary venue of a
+-- listing, then venue_names.rank, then domain and value. A row exists only
+-- for an instrument with a name.
+CREATE VIEW instr_names AS
+SELECT DISTINCT ON (named.instr_id) named.instr_id, named.type, named.domain, named.value
+FROM (
+    SELECT identifiers.instr_id, identifiers.type, identifiers.domain, identifiers.value,
+           identifier_type_traits.name_rank, NULL::boolean AS is_current,
+           NULL::boolean AS is_primary, NULL::integer AS venue_rank
+    FROM identifiers
+    JOIN identifier_type_traits ON identifier_type_traits.type = identifiers.type
+    WHERE identifiers.type <> 'mic_ticker'
+    UNION ALL
+    SELECT resolved_tickers.instr_id, traits.type, resolved_tickers.venue, tickers.value,
+           traits.name_rank, instr_tickers.relation = 'current',
+           EXISTS (SELECT 1 FROM listings
+                   WHERE listings.instr_id = resolved_tickers.instr_id
+                     AND listings.primary_mic = resolved_tickers.venue),
+           venue_names.rank
+    FROM resolved_tickers
+    JOIN tickers ON tickers.id = resolved_tickers.ticker_id
+    JOIN instr_tickers ON instr_tickers.ticker_id = resolved_tickers.ticker_id
+        AND instr_tickers.instr_id = resolved_tickers.instr_id
+    JOIN identifier_type_traits AS traits ON traits.type = 'mic_ticker'
+    LEFT JOIN venue_names ON venue_names.mic = resolved_tickers.venue
+    WHERE resolved_tickers.venue IS NOT NULL AND instr_tickers.relation <> 'defunct'
+) AS named
+ORDER BY named.instr_id, named.name_rank, named.is_current DESC NULLS LAST,
+         named.is_primary DESC NULLS LAST, named.venue_rank NULLS LAST,
+         named.domain, named.value;

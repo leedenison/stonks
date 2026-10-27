@@ -76,16 +76,16 @@ message Ticker {
   repeated InstrName instrs = 7;
 }
 
-// A ticker at its market that a listing of the instrument carries, or that
-// an assertion gives as the instrument's name.
+// A ticker at its market that names the instrument, or that an assertion
+// gives as the instrument's name.
 message InstrTicker {
   stonks.type.v1.MarketTicker ticker = 1;
-  // A listing of the instrument carries the ticker.
-  bool current = 2;
+  stonks.type.v1.TickerRelation relation = 2;
   // The transactions whose keys state the ticker at any venue of its market,
   // under any instrument.
   int32 txns = 3;
-  // The operating MICs of the listings that carry the ticker, sorted.
+  // The operating MICs of the venues at which the ticker names the
+  // instrument, sorted.
   repeated string venues = 4;
 }
 
@@ -94,8 +94,8 @@ message ListInstrTickersRequest {
 }
 
 message ListInstrTickersResponse {
-  // By transactions, most first, then current before former, then market
-  // and value.
+  // By transactions, most first, then current, defunct and former, then
+  // market and value.
   repeated InstrTicker tickers = 1;
 }
 

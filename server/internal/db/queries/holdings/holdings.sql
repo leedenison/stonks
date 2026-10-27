@@ -19,14 +19,15 @@ GROUP BY stated_keys.id
 ORDER BY stated_keys.id;
 
 -- name: ListListingNames :many
--- Each listing of the instruments, with the ticker that names it and its
--- venue. The venue is the common name, or the MIC where it has none. The
--- ticker is null and the venue empty where the listing has no ticker.
+-- Each listing of the instruments with every ticker that reaches it, ranked
+-- as the listing's name, and the common name of the ticker's venue. A listing
+-- without a ticker comes once, with a null ticker.
 SELECT listings.id AS listing_id, listings.instr_id, listings.currency,
-       listing_tickers.domain AS ticker_domain, listing_tickers.value AS ticker_value,
-       COALESCE(venue_names.name, listing_tickers.domain, '')::text AS venue
+       listing_tickers.ticker_id, listing_tickers.market, listing_tickers.value AS ticker_value,
+       listing_tickers.venue, listing_tickers.relation, listing_tickers.rank,
+       venue_names.name AS venue_name
 FROM listings
-LEFT JOIN listing_tickers ON listing_tickers.listing_id = listings.id AND listing_tickers.rank = 1
-LEFT JOIN venue_names ON venue_names.mic = listing_tickers.domain
+LEFT JOIN listing_tickers ON listing_tickers.listing_id = listings.id
+LEFT JOIN venue_names ON venue_names.mic = listing_tickers.venue
 WHERE listings.instr_id = ANY(@instr_ids::uuid[])
-ORDER BY listings.instr_id, listings.currency;
+ORDER BY listings.instr_id, listings.currency, listing_tickers.rank;

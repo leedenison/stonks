@@ -9,6 +9,7 @@ import {
   AssetClass,
   type Identifier,
   IdentifierType,
+  TickerRelation,
 } from "@/gen/type/v1/type_pb";
 import { pick } from "./identifiers";
 
@@ -28,8 +29,9 @@ export type HoldingRow = {
   id: string;
   // The holding's name.
   label: string;
-  // The common name of the venue where the label is a ticker; empty where
-  // the label is not a ticker.
+  // The common name of the venue where the label is a ticker, or the
+  // ticker's market where its sources omitted the venue; empty where the label
+  // is not a ticker.
   venue: string;
   // The brokers' descriptions of the holding, other than the label.
   descriptions: string[];
@@ -85,7 +87,9 @@ function heldListing(h: InstrHolding): HoldingListing | undefined {
 }
 
 // instrRow names a holding by the ticker of the listing the user holds,
-// at its venue, falling back to the name the API gives the instrument.
+// at its venue, falling back to the name the API gives the instrument. A
+// ticker that now names another instrument is marked defunct. A former
+// ticker shows plainly, so a delisted holding keeps its name.
 function instrRow(h: InstrHolding): HoldingRow {
   const held = heldListing(h);
   const named = new Set(h.keys.map((k) => k.listingId).filter((id) => id));
@@ -96,8 +100,11 @@ function instrRow(h: InstrHolding): HoldingRow {
   return {
     kind: "instr",
     id: h.instrId,
-    label: ticker?.value ?? h.name?.value ?? h.instrId,
-    venue: ticker ? (held?.venue ?? "") : "",
+    label: ticker
+      ? ticker.value +
+        (held?.relation === TickerRelation.DEFUNCT ? " (defunct)" : "")
+      : (h.name?.value ?? h.instrId),
+    venue: ticker ? (held?.venue ?? ticker.market) : "",
     descriptions: descriptionsOf(h.keys),
     currencies,
     classes: [h.assetClass],

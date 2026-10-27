@@ -22,6 +22,7 @@ import {
   AssetClass,
   IdentifierSchema,
   IdentifierType,
+  TickerRelation,
 } from "@/gen/type/v1/type_pb";
 import { liveSession, renderWithAuth, transportWith } from "@/lib/test-utils";
 import InstrsPage from "./page";
@@ -39,12 +40,18 @@ const admin = liveSession({ role: Role.ADMIN });
 type Coverage = Partial<ServiceImpl<typeof CoverageService>>;
 
 const acme = { market: "US", value: "ACME" };
-// ACME's tickers: the one on its listing at XNAS, then one that named it
-// before.
+// ACME's tickers: the one that names it at XNAS, one that now names another
+// instrument, and one that names nothing now.
 const tickers = create(ListInstrTickersResponseSchema, {
   tickers: [
-    { ticker: acme, current: true, txns: 3, venues: ["XNAS"] },
-    { ticker: { ...acme, value: "OLD" }, current: false },
+    {
+      ticker: acme,
+      relation: TickerRelation.CURRENT,
+      txns: 3,
+      venues: ["XNAS"],
+    },
+    { ticker: { ...acme, value: "GONE" }, relation: TickerRelation.DEFUNCT },
+    { ticker: { ...acme, value: "OLD" }, relation: TickerRelation.FORMER },
   ],
 });
 // ACME's facts: a gap before a confirmed bracket, a datasource's first edge
@@ -292,6 +299,7 @@ describe("InstrsPage", () => {
     expect(select.value).toBe("US:ACME");
     expect([...select.options].map((o) => o.textContent)).toEqual([
       "ACME in US",
+      "GONE in US (defunct)",
       "OLD in US (former)",
     ]);
     expect(screen.getByTestId("coverage-timeline")).toBeTruthy();
@@ -347,10 +355,14 @@ describe("InstrsPage", () => {
         listInstrTickers: () =>
           create(ListInstrTickersResponseSchema, {
             tickers: [
-              { ticker: acme, current: true, venues: ["XNAS"] },
+              {
+                ticker: acme,
+                relation: TickerRelation.CURRENT,
+                venues: ["XNAS"],
+              },
               {
                 ticker: { ...acme, value: "OLD" },
-                current: true,
+                relation: TickerRelation.CURRENT,
                 venues: ["XNYS"],
               },
             ],
