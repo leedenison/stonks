@@ -9,11 +9,14 @@ import (
 // identity converts the listings OpenFIGI returned for the identifier sent,
 // each one a Listing. A MIC_TICKER is filtered on its ticker alone,
 // so the listings at every venue are returned and resolution chooses among
-// them by the stated venue.
+// them by the stated venue. It drops a listing that carries no identifier.
 func identity(sent types.Identifier, currency string, data []result, mics mic.MICMap) market.IdentityResult {
 	out := market.Answer(sent, false)
 	for _, r := range data {
 		c := toListing(r, mics)
+		if len(c.Identifiers) == 0 {
+			continue
+		}
 		c.Currency = currency
 		out.Listings = append(out.Listings, c)
 	}
@@ -21,6 +24,9 @@ func identity(sent types.Identifier, currency string, data []result, mics mic.MI
 }
 
 // toListing converts one listing, skipping the fields OpenFIGI left null.
+// OpenFIGI spells a ticker under its own exchange code. toListing converts
+// it to a MIC_TICKER only when the code names one venue and the ticker has at
+// most one share class separator.
 func toListing(r result, mics mic.MICMap) market.Listing {
 	c := market.Listing{Class: classify(r.SecurityType, r.SecurityType2, r.MarketSector)}
 	if r.ShareClassFIGI != nil && *r.ShareClassFIGI != "" {
@@ -32,7 +38,6 @@ func toListing(r result, mics mic.MICMap) market.Listing {
 	if r.Ticker == "" || r.ExchCode == "" {
 		return c
 	}
-	c.Identifiers = append(c.Identifiers, types.Identifier{Type: types.IdentifierTypeOpenfigiTicker, Domain: r.ExchCode, Value: r.Ticker})
 	m, ok := venue(r.ExchCode, mics)
 	if !ok {
 		return c

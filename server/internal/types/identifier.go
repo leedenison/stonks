@@ -27,7 +27,6 @@ var IdentifierTypes = []IdentifierType{
 	IdentifierTypeSedol,
 	IdentifierTypeOpenfigiComposite,
 	IdentifierTypeMicTicker,
-	IdentifierTypeOpenfigiTicker,
 	IdentifierTypeOcc,
 	IdentifierTypeCurrency,
 	IdentifierTypeDatasourceTicker,
@@ -46,7 +45,6 @@ const (
 	IdentifierTypeSedol              IdentifierType = "sedol"
 	IdentifierTypeOpenfigiComposite  IdentifierType = "openfigi_composite"
 	IdentifierTypeMicTicker          IdentifierType = "mic_ticker"
-	IdentifierTypeOpenfigiTicker     IdentifierType = "openfigi_ticker"
 	IdentifierTypeOcc                IdentifierType = "occ"
 	IdentifierTypeCurrency           IdentifierType = "currency"
 	IdentifierTypeDatasourceTicker   IdentifierType = "datasource_ticker"

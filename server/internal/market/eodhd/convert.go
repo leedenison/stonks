@@ -5,7 +5,8 @@ import (
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
-// domain is the namespace of EODHD's symbols as a DATASOURCE_TICKER.
+// domain is the namespace of the DATASOURCE_TICKER that a splits fetch sends,
+// EODHD's symbol for a ticker.
 const domain = "eodhd"
 
 // preferred is the type of a preferred share. Sources spell its ticker
@@ -37,8 +38,14 @@ func (c *Client) identity(sent types.Identifier, a answer) market.IdentityResult
 }
 
 // toListing converts one row. It reports false when the row's type or venue
-// is not one this integration serves. m and usVenue carry what id-mapping
-// and the exchange symbol list say about the row.
+// is not one this integration serves, and when no identifier is left. m and
+// usVenue carry what id-mapping and the exchange symbol list say about the
+// row.
+//
+// EODHD's code becomes a MIC_TICKER at the row's operating MIC. toListing
+// omits the ticker of a preferred share. It also omits the ticker of a row at
+// a venue that several EODHD codes list, because the code does not name the
+// segment where the security trades.
 func (c *Client) toListing(r row, m mapping, usVenue string) (market.Listing, bool) {
 	class, ok := classes[r.Type]
 	if !ok {
@@ -52,9 +59,7 @@ func (c *Client) toListing(r row, m mapping, usVenue string) (market.Listing, bo
 	if !ok {
 		return market.Listing{}, false
 	}
-	l := market.Listing{Class: class, Currency: r.Currency, Identifiers: []types.Identifier{
-		{Type: types.IdentifierTypeDatasourceTicker, Domain: domain, Value: r.symbol()},
-	}}
+	l := market.Listing{Class: class, Currency: r.Currency}
 	if r.IsPrimary {
 		l.Primary = op
 	}
@@ -65,8 +70,11 @@ func (c *Client) toListing(r row, m mapping, usVenue string) (market.Listing, bo
 	}
 	add(types.IdentifierTypeIsin, r.ISIN)
 	add(types.IdentifierTypeCusip, m.CUSIP)
-	if ticker, ok := market.WithClassSep(r.Code, '.'); ok && r.Type != preferred {
+	if ticker, ok := market.WithClassSep(r.Code, '.'); ok && r.Type != preferred && len(c.exchange[op]) == 1 {
 		l.Identifiers = append(l.Identifiers, types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: op, Value: ticker})
+	}
+	if len(l.Identifiers) == 0 {
+		return market.Listing{}, false
 	}
 	return l, true
 }

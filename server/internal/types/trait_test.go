@@ -50,7 +50,6 @@ func TestStrength(t *testing.T) {
 func TestTicker(t *testing.T) {
 	want := map[types.IdentifierType]bool{
 		types.IdentifierTypeMicTicker:        true,
-		types.IdentifierTypeOpenfigiTicker:   true,
 		types.IdentifierTypeDatasourceTicker: true,
 	}
 	for _, typ := range types.IdentifierTypes {

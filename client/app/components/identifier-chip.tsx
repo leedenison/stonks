@@ -18,7 +18,6 @@ const labels: Record<number, string> = {
   [IdentifierType.SEDOL]: "SEDOL",
   [IdentifierType.OPENFIGI_COMPOSITE]: "FIGI composite",
   [IdentifierType.MIC_TICKER]: "Ticker",
-  [IdentifierType.OPENFIGI_TICKER]: "FIGI ticker",
   [IdentifierType.OCC]: "OCC",
   [IdentifierType.CURRENCY]: "Currency",
   [IdentifierType.DATASOURCE_TICKER]: "Source ticker",

@@ -107,7 +107,9 @@ func (g *ingestion) keyFor(sk *typev1.StatedKey, families currency.Families) (*k
 // the same thing compare equal: the identifiers sorted by type, domain and
 // value with an absent domain first, and stated once each. Two values of an
 // exclusive type in one domain contradict each other and are refused. A
-// statement states an issuer's identifier only in its own broker's domain.
+// statement states an issuer's identifier only in its own broker's domain. A
+// DATASOURCE_TICKER is a datasource's spelling of a ticker, which a statement
+// never states.
 func keyOf(sk *typev1.StatedKey, broker gen.Broker) (*key, error) {
 	class, ok := types.FromProto[types.AssetClass](sk.GetAssetClass())
 	if !ok {
@@ -121,6 +123,9 @@ func keyOf(sk *typev1.StatedKey, broker gen.Broker) (*key, error) {
 		t, ok := types.FromProto[types.IdentifierType](msg.GetType())
 		if !ok || t == "" {
 			return nil, fmt.Errorf("identifier type %d outside the vocabulary", msg.GetType())
+		}
+		if t == types.IdentifierTypeDatasourceTicker {
+			return nil, fmt.Errorf("%s identifier in a statement", t)
 		}
 		id := types.Identifier{Type: t, Domain: msg.GetDomain(), Value: msg.GetValue()}
 		if id.Value == "" {

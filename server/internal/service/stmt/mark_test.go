@@ -61,7 +61,6 @@ func TestMark(t *testing.T) {
 		{name: "fixed through a stable identifier", arbiter: ptr.To(gen.ArbiterDatasource), fixedVia: ptr.To(types.IdentifierTypeIsin), want: confirmed},
 		{name: "fixed through a broker description", arbiter: ptr.To(gen.ArbiterDatasource), fixedVia: ptr.To(types.IdentifierTypeBrokerDescription), want: provisional},
 		{name: "fixed through an option symbol", arbiter: ptr.To(gen.ArbiterStated), fixedVia: ptr.To(types.IdentifierTypeOption), want: provisional},
-		{name: "fixed through a ticker whose listing has no MIC_TICKER", arbiter: ptr.To(gen.ArbiterDatasource), fixedVia: ptr.To(types.IdentifierTypeOpenfigiTicker), want: provisional},
 		{name: "dated, before the event", arbiter: ptr.To(gen.ArbiterDatasource), ticker: ticker, on: notFoundOn, want: unresolved},
 		{name: "dated, covered back to the event", arbiter: ptr.To(gen.ArbiterDatasource), ticker: ticker, on: time.Date(2023, time.January, 1, 0, 0, 0, 0, time.UTC), want: confirmed},
 		{name: "dated, on the asserted day", arbiter: ptr.To(gen.ArbiterDatasource), ticker: ticker, on: assertedOn, want: confirmed},

@@ -110,11 +110,11 @@ func TestFetchListings(t *testing.T) {
 			some: []types.Identifier{
 				{Type: types.IdentifierTypeOpenfigiShareClass, Value: "BBG001S6PJ31"},
 				{Type: types.IdentifierTypeOpenfigiComposite, Value: "BBG000C6K5W3"},
-				{Type: types.IdentifierTypeOpenfigiTicker, Domain: "LN", Value: "VOD"},
 				{Type: types.IdentifierTypeMicTicker, Domain: "XLON", Value: "VOD"},
 				{Type: types.IdentifierTypeMicTicker, Domain: "XNYS", Value: "VOD"},
 			},
-			n: 50,
+			// Four of the 50 results carry no FIGI and no venue ticker.
+			n: 46,
 		},
 		{
 			cassette: "currency",
