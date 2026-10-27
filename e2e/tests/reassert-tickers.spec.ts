@@ -92,7 +92,7 @@ test("extends the ticker validity of a held ticker on the day it runs", async ({
   }
 
   // The statement's fetches filled the cache. Each served key of the run's
-  // identity and identifier events fetches has attempts, so the run called
+  // identity and identifier facts fetches has attempts, so the run called
   // the datasource. The run's new identifier facts start corporate actions
   // fetches. Those fetches read the cache.
   const reasserting = got.children.filter(

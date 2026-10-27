@@ -20,7 +20,7 @@
 // the day on which the source stated the ticker, so a source that restates its
 // history to the present names the instrument the ticker names today. Where the
 // ticker has validity, the key is dated through it without an identity fetch.
-// Identifier events are fetched for the keys that may be dated, and recorded
+// Identifier facts are fetched for the keys that may be dated, and recorded
 // after the keys are written.
 //
 // A claim below the winner attaches where it corroborates the winner: it shares
@@ -80,7 +80,7 @@ type Resolver struct {
 }
 
 // New returns a Resolver. clock supplies the present, against which a
-// request for identifier events picks its days.
+// request for identifier facts picks its days.
 func New(store Store, fetcher Fetcher, sources Sources, mics mic.MICMap, families currency.Families, clock func() time.Time, log *slog.Logger) *Resolver {
 	return &Resolver{store: store, fetcher: fetcher, sources: sources, mics: mics, families: families, clock: clock, log: log}
 }
@@ -116,17 +116,17 @@ func (r *Resolver) Resolve(ctx context.Context, run gen.Run, keys []KeyDates) ([
 	return out, written, nil
 }
 
-// batch is the keys of one resolution and the identifier events fetched for
+// batch is the keys of one resolution and the identifier facts fetched for
 // them.
 type batch struct {
 	resolutions []*resolution
-	events      []eventKey
+	facts       []factKey
 }
 
 // prepare runs the lookups and the fetches for keys. A resolve statement keys
 // run and a synchronous resolution share it. A synchronous resolution passes
 // dating false: a user's choice is fixed, so it neither dates a key nor asks
-// for identifier events.
+// for identifier facts.
 //
 // A resolution acts for its run's user, so prepare refuses a system run.
 func (r *Resolver) prepare(ctx context.Context, run gen.Run, keys []KeyDates, dating bool) (*batch, error) {
@@ -152,7 +152,7 @@ func (r *Resolver) prepare(ctx context.Context, run gen.Run, keys []KeyDates, da
 		return nil, err
 	}
 	if dating {
-		if b.events, err = r.fetchResolutionEvents(ctx, run, b.resolutions); err != nil {
+		if b.facts, err = r.fetchResolutionFacts(ctx, run, b.resolutions); err != nil {
 			return nil, err
 		}
 	}

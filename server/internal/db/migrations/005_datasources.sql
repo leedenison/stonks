@@ -12,7 +12,7 @@ CREATE TABLE datasources (
     endpoint   text,
     -- config holds settings that are specific to one integration.
     config     jsonb       NOT NULL DEFAULT '{}',
-    -- lag_days is how many days a datasource that serves identifier events
+    -- lag_days is how many days a datasource that serves identifier facts
     -- for a whole domain may take to publish one. NULL takes the
     -- integration's default.
     lag_days   integer,
@@ -26,10 +26,10 @@ CREATE TABLE datasources (
 );
 
 -- The kind of data a fetch requests: 'identity' is the identifiers and
--- listings of an instrument, 'identifier_events' is the identifier events of
+-- listings of an instrument, 'identifier_facts' is the identifier facts of
 -- a ticker or a domain over a period, and 'corp_acts' is the corporate
 -- actions of a ticker over a period.
-CREATE TYPE fetch_kind AS ENUM ('identity', 'identifier_events', 'corp_acts');
+CREATE TYPE fetch_kind AS ENUM ('identity', 'identifier_facts', 'corp_acts');
 
 -- The result of a fetch:
 -- 'served' means the datasource returned a, possibly empty, result set.

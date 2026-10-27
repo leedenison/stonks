@@ -50,8 +50,8 @@ func (s *stack) identityFetches(t *testing.T) int {
 }
 
 // lookup is a point in time request for v on day d.
-func lookup(v types.Identifier, d time.Time) market.IdentifierEventRequest {
-	return market.IdentifierEventRequest{Identifier: v, Period: types.Period{From: d, Before: d.AddDate(0, 0, 1)}}
+func lookup(v types.Identifier, d time.Time) market.IdentifierFactRequest {
+	return market.IdentifierFactRequest{Identifier: v, Period: types.Period{From: d, Before: d.AddDate(0, 0, 1)}}
 }
 
 // datedThrough reports whether k has a dated association with arbiter
@@ -84,7 +84,7 @@ func TestDated(t *testing.T) {
 	s.script.Responses[v] = market.IdentityResult{Filtered: []types.Identifier{{Type: v.Type, Value: v.Value}}, Listings: []market.Listing{
 		{Class: types.AssetClassStock, Currency: "USD", Primary: "XNAS", Identifiers: []types.Identifier{share, composite, v}},
 	}}
-	s.alphaFacts.Responses[share] = market.IdentifierEventResult{
+	s.alphaFacts.Responses[share] = market.IdentifierFactResult{
 		Events: []market.IdentifierEvent{{Ticker: mt(v), Action: gen.IdentifierEventActionAssigned, On: renamed}},
 		Assertions: []market.Assertion{
 			{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{share}}, At: renamed},
@@ -92,7 +92,7 @@ func TestDated(t *testing.T) {
 		},
 		Coverage: []market.Coverage{{Market: mt(v).Market, Ticker: ptr.To(mt(v)), Period: types.Period{From: renamed, Before: on(2026, 3, 3)}}},
 	}
-	s.alphaFacts.Responses[v] = market.IdentifierEventResult{Assertions: []market.Assertion{
+	s.alphaFacts.Responses[v] = market.IdentifierFactResult{Assertions: []market.Assertion{
 		{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{other}, Class: types.AssetClassEtf, Currency: "USD"}, At: on(2021, 7, 1)},
 	}}
 
@@ -105,9 +105,9 @@ func TestDated(t *testing.T) {
 		t.Errorf("key = %+v, want dated through %s by the datasource", k, v.Name())
 	}
 	history := market.History(window{since}, answered)
-	want := []market.IdentifierEventRequest{{Identifier: share, Period: history}, lookup(v, on(2021, 7, 1))}
+	want := []market.IdentifierFactRequest{{Identifier: share, Period: history}, lookup(v, on(2021, 7, 1))}
 	if diff := cmp.Diff(want, s.alphaFacts.Sent); diff != "" {
-		t.Errorf("identifier events requests mismatch (-want +got):\n%s", diff)
+		t.Errorf("identifier facts requests mismatch (-want +got):\n%s", diff)
 	}
 	held, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: share.Type, Value: share.Value})
 	require.NoError(t, err)
@@ -140,7 +140,7 @@ func TestDated(t *testing.T) {
 	if n := s.identityFetches(t); n != 0 {
 		t.Errorf("identity fetches for the second key = %d, want none: the facts decide", n)
 	}
-	if diff := cmp.Diff([]market.IdentifierEventRequest{lookup(v, on(2020, 1, 2))}, s.alphaFacts.Sent); diff != "" {
+	if diff := cmp.Diff([]market.IdentifierFactRequest{lookup(v, on(2020, 1, 2))}, s.alphaFacts.Sent); diff != "" {
 		t.Errorf("second key's requests mismatch (-want +got):\n%s", diff)
 	}
 
@@ -153,7 +153,7 @@ func TestDated(t *testing.T) {
 	if k := s.key(t, key.ID); !s.datedThrough(t, k, v, gen.ArbiterDatasource) {
 		t.Errorf("key resolved again = %+v, want its association kept", k)
 	}
-	if diff := cmp.Diff([]market.IdentifierEventRequest{lookup(v, on(2019, 5, 1))}, s.alphaFacts.Sent); diff != "" {
+	if diff := cmp.Diff([]market.IdentifierFactRequest{lookup(v, on(2019, 5, 1))}, s.alphaFacts.Sent); diff != "" {
 		t.Errorf("third resolution's requests mismatch (-want +got):\n%s", diff)
 	}
 }
@@ -209,7 +209,7 @@ func TestDatedTickerMoves(t *testing.T) {
 
 // TestDatedStable checks that a key stating a stable identifier beside a
 // venue ticker is fixed through the stable one, and does not ask for
-// identifier events.
+// identifier facts.
 func TestDatedStable(t *testing.T) {
 	s := newStack(t)
 	s.script.Responses[isin] = market.IdentityResult{Filtered: []types.Identifier{isin}, Listings: []market.Listing{
@@ -224,7 +224,7 @@ func TestDatedStable(t *testing.T) {
 		t.Errorf("key = %+v, want a fixed association", k)
 	}
 	if len(s.alphaFacts.Sent) != 0 {
-		t.Errorf("identifier events requests = %+v, want none for a key fixed through a stable identifier", s.alphaFacts.Sent)
+		t.Errorf("identifier facts requests = %+v, want none for a key fixed through a stable identifier", s.alphaFacts.Sent)
 	}
 	if _, err := s.q.FindIdentifier(context.Background(), gen.FindIdentifierParams{Type: isin.Type, Value: isin.Value}); errors.Is(err, db.ErrNotFound) {
 		t.Errorf("ISIN not written, want the instrument identified by it")
@@ -246,15 +246,15 @@ func (s *stack) runFindings(t *testing.T) []gen.Finding {
 	return out
 }
 
-// eventFetchKey returns the fetch key of datasource's identifier events
+// factFetchKey returns the fetch key of datasource's identifier facts
 // request for subject under the stack's resolution.
-func (s *stack) eventFetchKey(t *testing.T, datasource string, subject types.Identifier) gen.FetchKey {
+func (s *stack) factFetchKey(t *testing.T, datasource string, subject types.Identifier) gen.FetchKey {
 	t.Helper()
 	ctx := context.Background()
 	for _, child := range s.fetches(t) {
 		fetch, err := s.q.GetFetch(ctx, gen.GetFetchParams{ID: child.ID, UserID: &s.user.ID})
 		require.NoError(t, err)
-		if fetch.Datasource != datasource || fetch.Kind != gen.FetchKindIdentifierEvents {
+		if fetch.Datasource != datasource || fetch.Kind != gen.FetchKindIdentifierFacts {
 			continue
 		}
 		items, err := s.q.ListFetchItems(ctx, gen.ListFetchItemsParams{FetchID: child.ID})
@@ -265,7 +265,7 @@ func (s *stack) eventFetchKey(t *testing.T, datasource string, subject types.Ide
 			}
 		}
 	}
-	t.Fatalf("no identifier events fetch key of %s for %s", datasource, subject.Name())
+	t.Fatalf("no identifier facts fetch key of %s for %s", datasource, subject.Name())
 	return gen.FetchKey{}
 }
 
@@ -273,7 +273,7 @@ func (s *stack) eventFetchKey(t *testing.T, datasource string, subject types.Ide
 // different instruments for one ticker on one day leave one disagreement on
 // the run that wrote them, naming the lower precedence datasource's fetch
 // key, and that a later run reading the same facts records none. The facts
-// each run wrote come back in order: the identity fetch, then alpha's events
+// each run wrote come back in order: the identity fetch, then alpha's facts
 // fetch, then beta's.
 func TestDisagreement(t *testing.T) {
 	s := newStack(t)
@@ -285,20 +285,20 @@ func TestDisagreement(t *testing.T) {
 	s.script.Responses[v] = market.IdentityResult{Filtered: []types.Identifier{{Type: v.Type, Value: v.Value}}, Listings: []market.Listing{
 		{Class: types.AssetClassStock, Currency: "USD", Primary: "XNAS", Identifiers: []types.Identifier{share, v}},
 	}}
-	s.alphaFacts.Responses[share] = market.IdentifierEventResult{Assertions: []market.Assertion{{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{share}}, At: day}}}
-	s.betaFacts.Responses[share] = market.IdentifierEventResult{Assertions: []market.Assertion{{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{other}, Class: types.AssetClassEtf, Currency: "USD"}, At: day}}}
+	s.alphaFacts.Responses[share] = market.IdentifierFactResult{Assertions: []market.Assertion{{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{share}}, At: day}}}
+	s.betaFacts.Responses[share] = market.IdentifierFactResult{Assertions: []market.Assertion{{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{other}, Class: types.AssetClassEtf, Currency: "USD"}, At: day}}}
 	key := s.state(t, types.AssetClassStock, "USD", v)
 	out, written, err := s.resolver.Resolve(context.Background(), s.resolution, []KeyDates{{Row: key, Dates: []time.Time{day}}})
 	require.NoError(t, err)
 	require.Len(t, out, 1)
 
 	found := s.runFindings(t)
-	loser := s.eventFetchKey(t, s.betaName, share)
+	loser := s.factFetchKey(t, s.betaName, share)
 	if len(found) != 1 || found[0].Kind != gen.FindingKindIdentifierDisagreement || found[0].FetchKeyID == nil || *found[0].FetchKeyID != loser.ID {
 		t.Errorf("findings = %+v, want one disagreement naming beta's fetch key %s", found, loser.ID)
 	}
 	if len(written) != 3 {
-		t.Fatalf("written = %+v, want the identity fetch, then alpha's and beta's events fetches", written)
+		t.Fatalf("written = %+v, want the identity fetch, then alpha's and beta's facts fetches", written)
 	}
 	kinds := []gen.FetchKind{}
 	sources := []string{}
@@ -310,7 +310,7 @@ func TestDisagreement(t *testing.T) {
 			t.Errorf("written by %s %s = %v, want %s among them", fetch.Datasource, fetch.Kind, w.Tickers, mt(v).Name())
 		}
 	}
-	wantKinds := []gen.FetchKind{gen.FetchKindIdentity, gen.FetchKindIdentifierEvents, gen.FetchKindIdentifierEvents}
+	wantKinds := []gen.FetchKind{gen.FetchKindIdentity, gen.FetchKindIdentifierFacts, gen.FetchKindIdentifierFacts}
 	if diff := cmp.Diff(wantKinds, kinds); diff != "" || sources[1] != s.alphaName || sources[2] != s.betaName {
 		t.Errorf("written runs = %v from %v, want identity then alpha's then beta's events", kinds, sources)
 	}
@@ -335,7 +335,7 @@ func TestMissedEvent(t *testing.T) {
 	s.script.Responses[v] = market.IdentityResult{Filtered: []types.Identifier{{Type: v.Type, Value: v.Value}}, Listings: []market.Listing{
 		{Class: types.AssetClassStock, Currency: "USD", Primary: "XNAS", Identifiers: []types.Identifier{share, v}},
 	}}
-	s.alphaFacts.Responses[share] = market.IdentifierEventResult{
+	s.alphaFacts.Responses[share] = market.IdentifierFactResult{
 		Assertions: []market.Assertion{
 			{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{share}}, At: on(2023, 1, 2)},
 			{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{other}, Class: types.AssetClassStock, Currency: "USD"}, At: on(2023, 6, 1)},
@@ -345,7 +345,7 @@ func TestMissedEvent(t *testing.T) {
 	key := s.state(t, types.AssetClassStock, "USD", v)
 	s.resolveOn(t, []time.Time{on(2024, 1, 16)}, key)
 	found := s.runFindings(t)
-	coverage := s.eventFetchKey(t, s.alphaName, share)
+	coverage := s.factFetchKey(t, s.alphaName, share)
 	if len(found) != 1 || found[0].Kind != gen.FindingKindMissedEvent || found[0].FetchKeyID == nil || *found[0].FetchKeyID != coverage.ID {
 		t.Errorf("findings = %+v, want one missed event naming the coverage's fetch key %s", found, coverage.ID)
 	}
@@ -368,7 +368,7 @@ func TestBrokenBracket(t *testing.T) {
 	s.script.Responses[v] = market.IdentityResult{Filtered: []types.Identifier{{Type: v.Type, Value: v.Value}}, Listings: []market.Listing{
 		{Class: types.AssetClassStock, Currency: "USD", Primary: "XNAS", Identifiers: []types.Identifier{share, v}},
 	}}
-	s.alphaFacts.Responses[share] = market.IdentifierEventResult{
+	s.alphaFacts.Responses[share] = market.IdentifierFactResult{
 		Events: []market.IdentifierEvent{{Ticker: mt(v), Action: gen.IdentifierEventActionRenamed, ToValue: "ZZC", On: on(2023, 5, 1)}},
 		Assertions: []market.Assertion{
 			{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{share}}, At: on(2023, 1, 2)},
@@ -378,7 +378,7 @@ func TestBrokenBracket(t *testing.T) {
 	key := s.state(t, types.AssetClassStock, "USD", v)
 	s.resolveOn(t, []time.Time{on(2024, 1, 16)}, key)
 	found := s.runFindings(t)
-	event := s.eventFetchKey(t, s.alphaName, share)
+	event := s.factFetchKey(t, s.alphaName, share)
 	if len(found) != 1 || found[0].Kind != gen.FindingKindBrokenTickerValidityBracket || found[0].FetchKeyID == nil || *found[0].FetchKeyID != event.ID {
 		t.Errorf("findings = %+v, want one broken bracket naming the event's fetch key %s", found, event.ID)
 	}

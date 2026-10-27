@@ -40,7 +40,7 @@ var ErrFuture = errors.New("an identifier attestation cannot reach past the day 
 // commits on its own, so the caller calls it before the transaction that runs
 // Record. It refuses every key with tickers.ErrSpelling when one key states a
 // ticker or a market in the wrong spelling.
-func RecordTickers(ctx context.Context, q tickers.Queries, mics mic.MICMap, keys []market.FetchKey[market.IdentifierEventRequest, market.IdentifierEventResult]) (map[types.MarketTicker]gen.Ticker, error) {
+func RecordTickers(ctx context.Context, q tickers.Queries, mics mic.MICMap, keys []market.FetchKey[market.IdentifierFactRequest, market.IdentifierFactResult]) (map[types.MarketTicker]gen.Ticker, error) {
 	var ts []types.MarketTicker
 	for _, k := range keys {
 		if k.Outcome != gen.FetchOutcomeServed {
@@ -70,7 +70,7 @@ func RecordTickers(ctx context.Context, q tickers.Queries, mics mic.MICMap, keys
 // them, without a MIC_TICKER row, and with the fetch key as provenance. A
 // later answer that states one of them finds that instrument. Record skips an
 // assertion that leaves no identifier to create the instrument with.
-func Record(ctx context.Context, q RecordQueries, families currency.Families, rows map[types.MarketTicker]gen.Ticker, keys []market.FetchKey[market.IdentifierEventRequest, market.IdentifierEventResult]) error {
+func Record(ctx context.Context, q RecordQueries, families currency.Families, rows map[types.MarketTicker]gen.Ticker, keys []market.FetchKey[market.IdentifierFactRequest, market.IdentifierFactResult]) error {
 	for _, k := range keys {
 		if k.Outcome != gen.FetchOutcomeServed {
 			continue
@@ -82,7 +82,7 @@ func Record(ctx context.Context, q RecordQueries, families currency.Families, ro
 	return nil
 }
 
-func record(ctx context.Context, q RecordQueries, families currency.Families, rows map[types.MarketTicker]gen.Ticker, key uuid.UUID, r market.IdentifierEventResult) error {
+func record(ctx context.Context, q RecordQueries, families currency.Families, rows map[types.MarketTicker]gen.Ticker, key uuid.UUID, r market.IdentifierFactResult) error {
 	row := func(t types.MarketTicker) (gen.Ticker, error) {
 		out, ok := rows[t]
 		if !ok {

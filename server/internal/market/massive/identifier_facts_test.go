@@ -45,13 +45,13 @@ func TestChainFacts(t *testing.T) {
 		name string
 		evs  []event
 		p    types.Period
-		want market.IdentifierEventResult
+		want market.IdentifierFactResult
 	}{
 		{
 			name: "a chain of three tickers",
 			evs:  []event{change("CCC", "2020-06-01"), change("BBB", "2015-03-02"), change("AAA", "2010-01-04")},
 			p:    p,
-			want: market.IdentifierEventResult{
+			want: market.IdentifierFactResult{
 				Events: []market.IdentifierEvent{
 					{Ticker: us("AAA"), Action: gen.IdentifierEventActionAssigned, On: day(2010, 1, 4)},
 					{Ticker: us("AAA"), Action: gen.IdentifierEventActionRenamed, ToValue: "BBB", On: day(2015, 3, 2)},
@@ -72,7 +72,7 @@ func TestChainFacts(t *testing.T) {
 			name: "a ticker already trading when Massive's data starts",
 			evs:  []event{change("AAPL", "2003-09-10")},
 			p:    p,
-			want: market.IdentifierEventResult{
+			want: market.IdentifierFactResult{
 				Assertions: []market.Assertion{asserted("AAPL", since), asserted("AAPL", today)},
 				Coverage:   []market.Coverage{covered("AAPL", since, p.Before)},
 			},
@@ -81,7 +81,7 @@ func TestChainFacts(t *testing.T) {
 			name: "a chain trimmed to the period",
 			evs:  []event{change("BBB", "2025-03-03"), change("AAA", "2024-10-22")},
 			p:    period(day(2024, 10, 22), p.Before),
-			want: market.IdentifierEventResult{
+			want: market.IdentifierFactResult{
 				Events: []market.IdentifierEvent{
 					{Ticker: us("AAA"), Action: gen.IdentifierEventActionRenamed, ToValue: "BBB", On: day(2025, 3, 3)},
 				},
@@ -96,7 +96,7 @@ func TestChainFacts(t *testing.T) {
 			name: "coverage clipped to the period",
 			evs:  []event{change("BBB", "2025-03-03"), change("AAA", "2010-01-04")},
 			p:    period(day(2024, 10, 22), day(2025, 6, 2)),
-			want: market.IdentifierEventResult{
+			want: market.IdentifierFactResult{
 				Events: []market.IdentifierEvent{
 					{Ticker: us("AAA"), Action: gen.IdentifierEventActionRenamed, ToValue: "BBB", On: day(2025, 3, 3)},
 				},
@@ -111,7 +111,7 @@ func TestChainFacts(t *testing.T) {
 			name: "a newest ticker that began today",
 			evs:  []event{change("AAA", "2026-10-22")},
 			p:    p,
-			want: market.IdentifierEventResult{
+			want: market.IdentifierFactResult{
 				Events:     []market.IdentifierEvent{{Ticker: us("AAA"), Action: gen.IdentifierEventActionAssigned, On: today}},
 				Assertions: []market.Assertion{asserted("AAA", today)},
 				Coverage:   []market.Coverage{covered("AAA", today, p.Before)},
@@ -131,7 +131,7 @@ func TestChainFacts(t *testing.T) {
 			name: "a class share in another spelling",
 			evs:  []event{change("BRK/B", "2003-09-10")},
 			p:    p,
-			want: market.IdentifierEventResult{
+			want: market.IdentifierFactResult{
 				Assertions: []market.Assertion{asserted("BRK.B", since), asserted("BRK.B", today)},
 				Coverage:   []market.Coverage{covered("BRK.B", since, p.Before)},
 			},
@@ -178,12 +178,12 @@ func TestLookupFacts(t *testing.T) {
 		name    string
 		rec     *record
 		unknown bool
-		want    market.IdentifierEventResult
+		want    market.IdentifierFactResult
 	}{
 		{
 			name: "a record of the day",
 			rec:  fb,
-			want: market.IdentifierEventResult{Assertions: []market.Assertion{{
+			want: market.IdentifierFactResult{Assertions: []market.Assertion{{
 				Ticker: us("FB"), At: on, Of: market.Listing{
 					Identifiers: []types.Identifier{
 						{Type: types.IdentifierTypeOpenfigiShareClass, Value: "BBG001SQCQC5"},
@@ -197,7 +197,7 @@ func TestLookupFacts(t *testing.T) {
 		{
 			name:    "a ticker not in use on the day",
 			unknown: true,
-			want:    market.IdentifierEventResult{Assertions: []market.Assertion{{Ticker: us("FB"), At: on, Negative: true}}},
+			want:    market.IdentifierFactResult{Assertions: []market.Assertion{{Ticker: us("FB"), At: on, Negative: true}}},
 		},
 		{name: "a record of a class the integration does not convert", rec: &record{Ticker: "FB", Market: "stocks", Type: "WARRANT"}},
 		{name: "a record of another market", rec: &record{Ticker: "FB", Market: "otc", Type: "CS"}},
@@ -212,21 +212,21 @@ func TestLookupFacts(t *testing.T) {
 	}
 }
 
-// TestEventsFetch checks what the identifier events server makes of each
+// TestFactsFetch checks what the identifier facts server makes of each
 // recorded reply, at the market of the test's MIC map.
-func TestEventsFetch(t *testing.T) {
+func TestFactsFetch(t *testing.T) {
 	figi := func(id types.Identifier) []types.Identifier { return []types.Identifier{id} }
 	tests := []struct {
 		cassette string
-		req      market.IdentifierEventRequest
+		req      market.IdentifierFactRequest
 		sent     types.Identifier
-		want     market.IdentifierEventResult
+		want     market.IdentifierFactResult
 	}{
 		{
 			cassette: "massive_events_ticker_change",
-			req:      market.IdentifierEventRequest{Identifier: meta, Period: history},
+			req:      market.IdentifierFactRequest{Identifier: meta, Period: history},
 			sent:     meta,
-			want: market.IdentifierEventResult{
+			want: market.IdentifierFactResult{
 				Events: []market.IdentifierEvent{
 					{Ticker: us("FB"), Action: gen.IdentifierEventActionAssigned, On: day(2012, 5, 18)},
 					{Ticker: us("FB"), Action: gen.IdentifierEventActionRenamed, ToValue: "META", On: day(2022, 6, 9)},
@@ -244,9 +244,9 @@ func TestEventsFetch(t *testing.T) {
 		},
 		{
 			cassette: "massive_events_unchanged",
-			req:      market.IdentifierEventRequest{Identifier: apple[1], Period: history},
+			req:      market.IdentifierFactRequest{Identifier: apple[1], Period: history},
 			sent:     apple[1],
-			want: market.IdentifierEventResult{
+			want: market.IdentifierFactResult{
 				Assertions: []market.Assertion{
 					{Ticker: us("AAPL"), Of: market.Listing{Identifiers: figi(apple[1])}, At: since},
 					{Ticker: us("AAPL"), Of: market.Listing{Identifiers: figi(apple[1])}, At: day(2026, 10, 22)},
@@ -256,15 +256,15 @@ func TestEventsFetch(t *testing.T) {
 		},
 		{
 			cassette: "massive_events_unknown",
-			req:      market.IdentifierEventRequest{Identifier: twitter, Period: history},
+			req:      market.IdentifierFactRequest{Identifier: twitter, Period: history},
 			sent:     twitter,
-			want:     market.IdentifierEventResult{},
+			want:     market.IdentifierFactResult{},
 		},
 		{
 			cassette: "massive_point_in_time",
-			req:      market.IdentifierEventRequest{Identifier: ticker("XNAS", "FB"), Period: oneDay},
+			req:      market.IdentifierFactRequest{Identifier: ticker("XNAS", "FB"), Period: oneDay},
 			sent:     ticker("", "FB"),
-			want: market.IdentifierEventResult{Assertions: []market.Assertion{{Ticker: us("FB"), At: oneDay.From, Of: market.Listing{Identifiers: []types.Identifier{
+			want: market.IdentifierFactResult{Assertions: []market.Assertion{{Ticker: us("FB"), At: oneDay.From, Of: market.Listing{Identifiers: []types.Identifier{
 				{Type: types.IdentifierTypeOpenfigiShareClass, Value: "BBG001SQCQC5"},
 				{Type: types.IdentifierTypeOpenfigiComposite, Value: "BBG000MM2P62"},
 				ticker("XNAS", "FB"),
@@ -272,23 +272,23 @@ func TestEventsFetch(t *testing.T) {
 		},
 		{
 			cassette: "massive_point_in_time_unknown",
-			req:      market.IdentifierEventRequest{Identifier: ticker("XNAS", "META"), Period: oneDay},
+			req:      market.IdentifierFactRequest{Identifier: ticker("XNAS", "META"), Period: oneDay},
 			sent:     ticker("", "META"),
-			want:     market.IdentifierEventResult{Assertions: []market.Assertion{{Ticker: us("META"), At: oneDay.From, Negative: true}}},
+			want:     market.IdentifierFactResult{Assertions: []market.Assertion{{Ticker: us("META"), At: oneDay.From, Negative: true}}},
 		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.cassette, func(t *testing.T) {
 			c := replay(t, tc.cassette, vcr.Credential(t, "MASSIVE_API_KEY", "testdata/"+tc.cassette))
-			s := c.Events()
+			s := c.Facts()
 			sent, err := s.Serves(tc.req)
 			require.NoError(t, err)
 			if sent != tc.sent {
 				t.Fatalf("Serves() = %v, want %v", sent, tc.sent)
 			}
-			got, err := s.Fetch(context.Background(), []market.Request[market.IdentifierEventRequest]{{Value: tc.req, Sent: sent}})
+			got, err := s.Fetch(context.Background(), []market.Request[market.IdentifierFactRequest]{{Value: tc.req, Sent: sent}})
 			require.NoError(t, err)
-			if diff := cmp.Diff([]market.Response[market.IdentifierEventResult]{{Value: tc.want}}, got); diff != "" {
+			if diff := cmp.Diff([]market.Response[market.IdentifierFactResult]{{Value: tc.want}}, got); diff != "" {
 				t.Errorf("Fetch mismatch (-want +got):\n%s", diff)
 			}
 		})

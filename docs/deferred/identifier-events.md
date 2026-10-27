@@ -60,7 +60,7 @@ proceeds on provisional ticker validity.
 ### Market fetches
 
 The period of a market fetch follows the rule on `NextPeriod` in
-[identifier_events.go](../../server/internal/market/identifier_events.go). A range
+[identifier_facts.go](../../server/internal/market/identifier_facts.go). A range
 provider implements `market.Ranged`, and `datasources.lag_days` overrides its lag.
 
 The lag makes each fetch repeat the most recent part of the previous period. A provider

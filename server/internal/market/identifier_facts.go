@@ -10,11 +10,11 @@ import (
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
-// IdentifierEventRequest asks for the identifier events of one identifier
+// IdentifierFactRequest asks for the identifier facts of one identifier
 // over one period. An identifier with no value stands for the market of its
 // domain, and asks for every ticker of the market. An identifier with a value
 // over one day is a point in time lookup.
-type IdentifierEventRequest struct {
+type IdentifierFactRequest struct {
 	Identifier types.Identifier
 	Period     types.Period
 }
@@ -47,8 +47,8 @@ type Coverage struct {
 	Period types.Period
 }
 
-// IdentifierEventResult is what was returned for one request.
-type IdentifierEventResult struct {
+// IdentifierFactResult is what was returned for one request.
+type IdentifierFactResult struct {
 	Events     []IdentifierEvent
 	Assertions []Assertion
 	Coverage   []Coverage
@@ -57,7 +57,7 @@ type IdentifierEventResult struct {
 // Tickers returns the tickers whose facts r states: the tickers of its
 // events, the new ticker of each rename, the tickers of its assertions, and
 // the ticker of each coverage row of one ticker.
-func (r IdentifierEventResult) Tickers() []types.MarketTicker {
+func (r IdentifierFactResult) Tickers() []types.MarketTicker {
 	var out []types.MarketTicker
 	for _, e := range r.Events {
 		out = append(out, e.Ticker)
@@ -76,18 +76,18 @@ func (r IdentifierEventResult) Tickers() []types.MarketTicker {
 	return out
 }
 
-// IdentifierEvents is an integration that reports the identifier events of
+// IdentifierFacts is an integration that reports the identifier facts of
 // tickers or markets. Its Events method returns the server, so one integration
 // can serve identity too. An integration reports each event, assertion and
 // coverage row once, for a market, across every operating MIC of that market.
 // A negative assertion or a coverage row is therefore a claim about the whole
 // market.
-type IdentifierEvents interface {
+type IdentifierFacts interface {
 	Integration
-	Events() Server[IdentifierEventRequest, IdentifierEventResult]
+	Facts() Server[IdentifierFactRequest, IdentifierFactResult]
 }
 
-// Windowed is an IdentifierEvents integration whose answers reach back a
+// Windowed is an IdentifierFacts integration whose answers reach back a
 // limited way.
 type Windowed interface {
 	// Window is the first day the provider answers for, as of now. It is the
@@ -107,27 +107,27 @@ type Ranged interface {
 	Lag() time.Duration
 }
 
-// identifierEventsKind is the identifier events of tickers and markets. No
+// identifierFactsKind is the identifier facts of tickers and markets. No
 // stated key asks for one, and the period is part of the request as cached.
-var identifierEventsKind = Kind[IdentifierEventRequest, IdentifierEventResult]{
-	name: gen.FetchKindIdentifierEvents,
-	server: func(e *Entry) Server[IdentifierEventRequest, IdentifierEventResult] {
-		if s, ok := e.Integration.(IdentifierEvents); ok {
-			return s.Events()
+var identifierFactsKind = Kind[IdentifierFactRequest, IdentifierFactResult]{
+	name: gen.FetchKindIdentifierFacts,
+	server: func(e *Entry) Server[IdentifierFactRequest, IdentifierFactResult] {
+		if s, ok := e.Integration.(IdentifierFacts); ok {
+			return s.Facts()
 		}
 		return nil
 	},
-	statedKey: func(IdentifierEventRequest) *uuid.UUID { return nil },
-	count:     func(r IdentifierEventResult) int { return len(r.Events) + len(r.Assertions) },
-	params: func(r IdentifierEventRequest) []string {
+	statedKey: func(IdentifierFactRequest) *uuid.UUID { return nil },
+	count:     func(r IdentifierFactResult) int { return len(r.Events) + len(r.Assertions) },
+	params: func(r IdentifierFactRequest) []string {
 		return []string{r.Period.From.Format(time.DateOnly), r.Period.Before.Format(time.DateOnly)}
 	},
 }
 
-// IdentifierEvents fetches the identifier events of reqs from e, as a child
+// IdentifierFacts fetches the identifier facts of reqs from e, as a child
 // run of parent.
-func (f *Fetcher) IdentifierEvents(ctx context.Context, parent gen.Run, e *Entry, reqs []IdentifierEventRequest) ([]FetchKey[IdentifierEventRequest, IdentifierEventResult], error) {
-	return fetch(ctx, f, parent, e, identifierEventsKind, reqs)
+func (f *Fetcher) IdentifierFacts(ctx context.Context, parent gen.Run, e *Entry, reqs []IdentifierFactRequest) ([]FetchKey[IdentifierFactRequest, IdentifierFactResult], error) {
+	return fetch(ctx, f, parent, e, identifierFactsKind, reqs)
 }
 
 // NextPeriod returns the period of the next fetch of a market. It ends with

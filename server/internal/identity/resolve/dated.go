@@ -21,8 +21,8 @@ import (
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
-// eventKey is a fetch key of an identifier events request.
-type eventKey = market.FetchKey[market.IdentifierEventRequest, market.IdentifierEventResult]
+// factKey is a fetch key of an identifier facts request.
+type factKey = market.FetchKey[market.IdentifierFactRequest, market.IdentifierFactResult]
 
 // datedTicker returns the MIC_TICKER through which k may be dated: the first
 // venue ticker it states, at its operating MIC. A key that states a stable
@@ -112,20 +112,20 @@ func (r *Resolver) findResolutionDated(ctx context.Context, user uuid.UUID, rs [
 	return nil
 }
 
-// fetchResolutionEvents asks each enabled datasource that serves identifier
-// events, concurrently, for what dating the keys needs: the ticker history of
+// fetchResolutionFacts asks each enabled datasource that serves identifier
+// facts, concurrently, for what dating the keys needs: the ticker history of
 // the instrument the identity fetch named, and a point in time lookup of the
 // ticker on the earliest date the facts do not confirm. A lookup of today is
 // left to the identity fetch. A day on which the ticker already has an
 // assertion is not asked again. It returns the fetch keys in datasource
 // order.
-func (r *Resolver) fetchResolutionEvents(ctx context.Context, run gen.Run, rs []*resolution) ([]eventKey, error) {
+func (r *Resolver) fetchResolutionFacts(ctx context.Context, run gen.Run, rs []*resolution) ([]factKey, error) {
 	now := r.clock()
 	today := types.Day(now)
 	entries := r.sources.Enabled()
-	reqs := make([][]market.IdentifierEventRequest, len(entries))
+	reqs := make([][]market.IdentifierFactRequest, len(entries))
 	for i, e := range entries {
-		ie, ok := e.Integration.(market.IdentifierEvents)
+		ie, ok := e.Integration.(market.IdentifierFacts)
 		if !ok {
 			continue
 		}
@@ -133,9 +133,9 @@ func (r *Resolver) fetchResolutionEvents(ctx context.Context, run gen.Run, rs []
 		if !ok {
 			continue
 		}
-		server := ie.Events()
-		seen := map[market.IdentifierEventRequest]bool{}
-		add := func(q market.IdentifierEventRequest) {
+		server := ie.Facts()
+		seen := map[market.IdentifierFactRequest]bool{}
+		add := func(q market.IdentifierFactRequest) {
 			if !seen[q] {
 				seen[q] = true
 				reqs[i] = append(reqs[i], q)
@@ -156,19 +156,19 @@ func (r *Resolver) fetchResolutionEvents(ctx context.Context, run gen.Run, rs []
 			if !day.Before(today) || res.dating.Asserted(day) {
 				continue
 			}
-			add(market.IdentifierEventRequest{Identifier: res.via, Period: types.Period{From: day, Before: day.AddDate(0, 0, 1)}})
+			add(market.IdentifierFactRequest{Identifier: res.via, Period: types.Period{From: day, Before: day.AddDate(0, 0, 1)}})
 		}
 	}
-	keys := make([][]eventKey, len(entries))
+	keys := make([][]factKey, len(entries))
 	g, gctx := errgroup.WithContext(ctx)
 	for i, e := range entries {
 		if len(reqs[i]) == 0 {
 			continue
 		}
 		g.Go(func() error {
-			fks, err := r.fetcher.IdentifierEvents(gctx, run, e, reqs[i])
+			fks, err := r.fetcher.IdentifierFacts(gctx, run, e, reqs[i])
 			if err != nil {
-				return fmt.Errorf("fetch identifier events from %s: %w", e.Name, err)
+				return fmt.Errorf("fetch identifier facts from %s: %w", e.Name, err)
 			}
 			keys[i] = fks
 			return nil
@@ -183,27 +183,27 @@ func (r *Resolver) fetchResolutionEvents(ctx context.Context, run gen.Run, rs []
 // chainRequest returns the request for the ticker history of the instrument
 // the identity fetch named for res, under the first of its stable identifiers
 // that server serves. It reports false where no claim won or none is served.
-func chainRequest(res *resolution, server market.Server[market.IdentifierEventRequest, market.IdentifierEventResult], period types.Period) (market.IdentifierEventRequest, bool) {
+func chainRequest(res *resolution, server market.Server[market.IdentifierFactRequest, market.IdentifierFactResult], period types.Period) (market.IdentifierFactRequest, bool) {
 	if len(res.fetchKeys) == 0 {
-		return market.IdentifierEventRequest{}, false
+		return market.IdentifierFactRequest{}, false
 	}
 	winner := res.first(nil).winner
 	if winner == nil {
-		return market.IdentifierEventRequest{}, false
+		return market.IdentifierFactRequest{}, false
 	}
 	for id := range winner.AllIDs() {
 		if !id.Stable() {
 			continue
 		}
-		q := market.IdentifierEventRequest{Identifier: id, Period: period}
+		q := market.IdentifierFactRequest{Identifier: id, Period: period}
 		if _, err := server.Serves(q); err == nil {
 			return q, true
 		}
 	}
-	return market.IdentifierEventRequest{}, false
+	return market.IdentifierFactRequest{}, false
 }
 
-// recordIdentifierFacts writes the identifier facts the batch's events
+// recordIdentifierFacts writes the identifier facts the batch's facts
 // fetches served, in one transaction. It runs after the keys are written, so
 // a history names the instrument the batch created for its key. A reply that
 // the system cannot spell is left out, and the resolution stands.
@@ -211,9 +211,9 @@ func chainRequest(res *resolution, server market.Server[market.IdentifierEventRe
 // It then writes the conflicts that one of the batch's facts completes as
 // findings of run; see recordConflicts. It returns, for each datasource fetch
 // run, the identifiers it wrote facts for: the identity fetches first, in
-// precedence order, then the events fetches.
+// precedence order, then the facts fetches.
 func (r *Resolver) recordIdentifierFacts(ctx context.Context, run gen.Run, b *batch) ([]WrittenIdentifierFacts, error) {
-	recorded, err := r.recordEvents(ctx, b.events)
+	recorded, err := r.recordFacts(ctx, b.facts)
 	if err != nil {
 		return nil, err
 	}
@@ -228,7 +228,7 @@ func (r *Resolver) recordIdentifierFacts(ctx context.Context, run gen.Run, b *ba
 		}
 	}
 	if recorded {
-		for _, k := range b.events {
+		for _, k := range b.facts {
 			if k.Outcome == gen.FetchOutcomeServed {
 				written.addFacts(k.Run, k.Response)
 			}
@@ -243,7 +243,7 @@ func (r *Resolver) recordIdentifierFacts(ctx context.Context, run gen.Run, b *ba
 			mine[fk.ID] = true
 		}
 	}
-	for _, k := range b.events {
+	for _, k := range b.facts {
 		mine[k.ID] = true
 	}
 	if err := r.recordConflicts(ctx, run, written, mine); err != nil {
@@ -252,10 +252,10 @@ func (r *Resolver) recordIdentifierFacts(ctx context.Context, run gen.Run, b *ba
 	return written.list(), nil
 }
 
-// recordEvents writes the identifier facts that the served keys hold, in one
+// recordFacts writes the identifier facts that the served keys hold, in one
 // transaction. Where the system cannot spell a reply, it leaves the facts
 // out, logs a warning and returns false without an error.
-func (r *Resolver) recordEvents(ctx context.Context, keys []eventKey) (bool, error) {
+func (r *Resolver) recordFacts(ctx context.Context, keys []factKey) (bool, error) {
 	if len(keys) == 0 {
 		return false, nil
 	}
@@ -348,7 +348,7 @@ func (w *writtenSet) addTicker(run gen.Run, t types.MarketTicker) {
 
 // addFacts gathers the tickers whose facts r states, and the markets of its
 // coverage rows of a whole market.
-func (w *writtenSet) addFacts(run gen.Run, r market.IdentifierEventResult) {
+func (w *writtenSet) addFacts(run gen.Run, r market.IdentifierFactResult) {
 	for _, t := range r.Tickers() {
 		w.addTicker(run, t)
 	}

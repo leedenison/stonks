@@ -13,19 +13,19 @@ import (
 )
 
 var (
-	_ market.IdentifierEvents = (*Client)(nil)
-	_ market.Windowed         = (*Client)(nil)
+	_ market.IdentifierFacts = (*Client)(nil)
+	_ market.Windowed        = (*Client)(nil)
 )
 
-// Events is Massive's server of identifier events.
-func (c *Client) Events() market.Server[market.IdentifierEventRequest, market.IdentifierEventResult] {
-	return events{c: c}
+// Facts is Massive's server of identifier facts.
+func (c *Client) Facts() market.Server[market.IdentifierFactRequest, market.IdentifierFactResult] {
+	return facts{c: c}
 }
 
 // Fetch states each identifier fact once, at the market of Massive's venues.
-func (e events) Fetch(ctx context.Context, reqs []market.Request[market.IdentifierEventRequest]) ([]market.Response[market.IdentifierEventResult], error) {
+func (e facts) Fetch(ctx context.Context, reqs []market.Request[market.IdentifierFactRequest]) ([]market.Response[market.IdentifierFactResult], error) {
 	home := e.c.home
-	out := make([]market.Response[market.IdentifierEventResult], len(reqs))
+	out := make([]market.Response[market.IdentifierFactResult], len(reqs))
 	for i, r := range reqs {
 		var err error
 		switch p := r.Value.Period; callOf(r.Value) {
@@ -63,7 +63,7 @@ type link struct {
 // for the chain of a delisted entity. If a chain holds a ticker the system
 // cannot spell, chainFacts returns an empty result, since a partial chain
 // would claim coverage around the event it dropped.
-func chainFacts(sent types.Identifier, evs []event, p types.Period, home string) (market.IdentifierEventResult, error) {
+func chainFacts(sent types.Identifier, evs []event, p types.Period, home string) (market.IdentifierFactResult, error) {
 	var links []link
 	for _, e := range slices.Backward(evs) {
 		if e.Type != "ticker_change" {
@@ -71,15 +71,15 @@ func chainFacts(sent types.Identifier, evs []event, p types.Period, home string)
 		}
 		on, err := time.Parse(time.DateOnly, e.Date)
 		if err != nil {
-			return market.IdentifierEventResult{}, fmt.Errorf("massive: event date: %w", err)
+			return market.IdentifierFactResult{}, fmt.Errorf("massive: event date: %w", err)
 		}
 		t, ok := market.WithClassSep(e.TickerChange.Ticker, '.')
 		if !ok || preferred(t) {
-			return market.IdentifierEventResult{}, nil
+			return market.IdentifierFactResult{}, nil
 		}
 		links = append(links, link{ticker: t, from: on})
 	}
-	var out market.IdentifierEventResult
+	var out market.IdentifierFactResult
 	today := p.Before.AddDate(0, 0, -1)
 	for i, l := range links {
 		before := p.Before
@@ -120,17 +120,17 @@ func clip(a, b types.Period) (types.Period, bool) {
 // lookupFacts converts the record of ticker on day into an assertion of the
 // entity it names, at the market home. A record the integration cannot
 // convert, such as a warrant or an OTC listing, yields an empty result.
-func lookupFacts(ticker string, rec *record, unknown bool, day time.Time, home string, mics mic.MICMap) market.IdentifierEventResult {
+func lookupFacts(ticker string, rec *record, unknown bool, day time.Time, home string, mics mic.MICMap) market.IdentifierFactResult {
 	a := market.Assertion{Ticker: types.MarketTicker{Market: home, Value: ticker}, At: day, Negative: unknown}
 	if !unknown {
 		if rec == nil {
-			return market.IdentifierEventResult{}
+			return market.IdentifierFactResult{}
 		}
 		l, ok := toListing(*rec, mics)
 		if !ok || len(l.Identifiers) == 0 {
-			return market.IdentifierEventResult{}
+			return market.IdentifierFactResult{}
 		}
 		a.Of = l
 	}
-	return market.IdentifierEventResult{Assertions: []market.Assertion{a}}
+	return market.IdentifierFactResult{Assertions: []market.Assertion{a}}
 }
