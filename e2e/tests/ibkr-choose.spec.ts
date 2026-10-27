@@ -65,9 +65,7 @@ test("chooses an instrument for an IBKR security stated by ticker", async ({
   const holdings = await holdingClient(session).listHoldings({});
   expect(holdings.groups).toHaveLength(0);
   const shares = holdings.instrs.find((h) =>
-    h.identifiers.some(
-      (i) => i.type === IdentifierType.MIC_TICKER && i.value === ticker,
-    ),
+    h.listings.some((l) => l.ticker?.value === ticker),
   );
   expect(shares?.quantity).toBe("10");
 });

@@ -51,11 +51,8 @@ test("shows a resolved holding and an unresolved one from two brokers", async ({
   expect(shares?.quantity).toBe("10");
   const types = shares!.identifiers.map((i) => i.type);
   expect(types).toContain(IdentifierType.OPENFIGI_SHARE_CLASS);
-  expect(
-    shares!.identifiers.some(
-      (i) => i.type === IdentifierType.MIC_TICKER && i.value === ticker,
-    ),
-  ).toBe(true);
+  // A ticker names a listing, so it is not among the identifiers.
+  expect(types).not.toContain(IdentifierType.MIC_TICKER);
   // Massive states Nasdaq as the primary venue, so the dollar listing is
   // named there, and the IBKR key holds it.
   const dollars = shares!.listings.find((l) => l.currency === "USD");

@@ -4,6 +4,7 @@ import {
   type UserRun,
 } from "@/gen/admin/run/v1/run_pb";
 import { type Run, RunKind, RunState, RunTrigger } from "@/gen/run/v1/run_pb";
+import { TickerRelation } from "@/gen/type/v1/type_pb";
 import { enumLabel } from "./enum";
 import { formatInstant } from "./format";
 
@@ -127,6 +128,14 @@ export function readInstrList(params: URLSearchParams): InstrParams {
     ticker: params.get("ticker") ?? "",
   };
 }
+
+// relationSuffix marks each ticker that no longer names the instrument.
+export const relationSuffix: Record<TickerRelation, string> = {
+  [TickerRelation.UNSPECIFIED]: "",
+  [TickerRelation.CURRENT]: "",
+  [TickerRelation.DEFUNCT]: " (defunct)",
+  [TickerRelation.FORMER]: " (former)",
+};
 
 // tickerParam writes a ticker for the instruments page's address, at its
 // market or at one of the market's venues.

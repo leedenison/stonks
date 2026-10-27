@@ -280,3 +280,29 @@ func TestProtoListing(t *testing.T) {
 		t.Errorf("ProtoListing mismatch (-want +got):\n%s", diff)
 	}
 }
+
+func TestProtoListingTicker(t *testing.T) {
+	tests := []struct {
+		name string
+		row  gen.ListListingNamesRow
+		want *admininstrv1.Listing_Ticker
+	}{
+		{
+			name: "at a venue",
+			row:  gen.ListListingNamesRow{Market: ptr.To("US"), TickerValue: ptr.To("META"), Venue: ptr.To("XNAS"), Relation: ptr.To(gen.TickerRelationDefunct)},
+			want: &admininstrv1.Listing_Ticker{Ticker: &typev1.MarketTicker{Market: "US", Value: "META"}, Mic: ptr.To("XNAS"), Relation: typev1.TickerRelation_TICKER_RELATION_DEFUNCT},
+		},
+		{
+			name: "at its market",
+			row:  gen.ListListingNamesRow{Market: ptr.To("US"), TickerValue: ptr.To("META"), Relation: ptr.To(gen.TickerRelationCurrent)},
+			want: &admininstrv1.Listing_Ticker{Ticker: &typev1.MarketTicker{Market: "US", Value: "META"}, Relation: typev1.TickerRelation_TICKER_RELATION_CURRENT},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if diff := cmp.Diff(tc.want, ProtoListingTicker(tc.row), protocmp.Transform()); diff != "" {
+				t.Errorf("ProtoListingTicker mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}

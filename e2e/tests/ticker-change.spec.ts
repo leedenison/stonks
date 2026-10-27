@@ -175,7 +175,6 @@ test("dates a key through its ticker and marks each transaction by its day", asy
   ).toEqual([[FetchOutcome.SERVED, IdentifierType.MIC_TICKER, "META"]]);
 
   const instr = await instrListedAs(adminSession, {
-    type: IdentifierType.MIC_TICKER,
     domain: "XNAS",
     value: "META",
   });

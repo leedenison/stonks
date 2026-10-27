@@ -17,11 +17,25 @@ message Listing {
   // is the GBP listing.
   string currency = 2;
   // The listing grain identifiers naming it, by the rank of the type as a
-  // name, then by domain and value.
+  // name, then by domain and value. A ticker is not among them.
   repeated stonks.type.v1.Identifier identifiers = 3;
   // The operating MIC of the venue a datasource stated as the listing's
   // primary; empty where none has.
   string primary_mic = 4;
+
+  // A ticker that ticker validity places on the instrument, in a currency of
+  // the listing's family.
+  message Ticker {
+    stonks.type.v1.MarketTicker ticker = 1;
+    // The operating MIC of the venue; unset where the sources omitted the
+    // venue, so the ticker names the listing at its market.
+    optional string mic = 2;
+    stonks.type.v1.TickerRelation relation = 3;
+  }
+
+  // The listing's tickers in its naming order: the primary venue, then the
+  // venue rank, then the MIC.
+  repeated Ticker tickers = 5;
 }
 
 message Instr {

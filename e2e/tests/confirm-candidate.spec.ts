@@ -88,7 +88,7 @@ test("chooses an instrument for a bare ticker", async ({ signIn, page }) => {
   const holdings = await holdingClient(session).listHoldings({});
   expect(holdings.groups).toHaveLength(0);
   const shares = holdings.instrs.find((h) =>
-    h.identifiers.some((i) => i.value === ticker),
+    h.listings.some((l) => l.ticker?.value === ticker),
   );
   expect(shares?.quantity).toBe("20");
   await page.getByTestId("nav-holdings").click();
