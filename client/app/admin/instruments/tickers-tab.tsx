@@ -37,10 +37,10 @@ import { today } from "@/lib/marshal/date";
 import { refusal } from "@/lib/refusal";
 import { Timeline } from "./timeline";
 
-// TickersTab lists the tickers that name an instrument, now or in an
-// assertion, one per market, and shows the validity of the one chosen. The
-// choice is held in the address, at the market or at a venue of it, and the
-// first listed ticker stands in while it is unset.
+// TickersTab lists the tickers that name an instrument, now or in an assertion,
+// one per market, and shows the ticker validity of the one chosen. The choice
+// is held in the address, at the market or at a venue of it, and the first
+// listed ticker stands in while it is unset.
 export function TickersTab({
   instrumentId,
   params,

@@ -1,10 +1,10 @@
 // Package coverage reads, for the admin area, where each ticker's validity
 // is confirmed and where it is not.
 //
-// Gaps are measured against confirmed validity, not against coverage. An
-// attestation closes a gap by bracketing it and writes no coverage row. A
-// ticker is read at its market, and its transactions are those of the keys
-// that state it at any venue of the market.
+// Gaps are measured against confirmed ticker validity, not against coverage. An
+// identifier attestation closes a gap by bracketing it and writes no coverage
+// row. A ticker is read at its market, and its transactions are those of the
+// keys that state it at any venue of the market.
 package coverage
 
 import (
@@ -39,8 +39,8 @@ var _ Queries = (*gen.Queries)(nil)
 
 //go:generate go tool mockgen -source=coverage.go -destination=mock/coverage_mock.go -package=mock
 
-// Reader reads the tickers of an instrument, and the facts and validity of
-// a ticker.
+// Reader reads the tickers of an instrument, and the facts and ticker validity
+// of a ticker.
 type Reader struct {
 	q    Queries
 	mics mic.MICMap
@@ -72,7 +72,7 @@ func (g Gap) ToProto() *admincoveragev1.Gap {
 	}
 }
 
-// Page is one ticker as the admin area shows it: its facts, the validity
+// Page is one ticker as the admin area shows it: its facts, the ticker validity
 // they derive, and its gaps.
 type Page struct {
 	Ticker types.MarketTicker
@@ -170,7 +170,7 @@ func (r *Reader) InstrumentTickers(ctx context.Context, instrument uuid.UUID) ([
 	return out, nil
 }
 
-// Ticker reads the facts and validity of v. It refuses an unknown market
+// Ticker reads the facts and ticker validity of v. It refuses an unknown market
 // with tickervalidity.ErrSpelling.
 func (r *Reader) Ticker(ctx context.Context, v types.MarketTicker, today time.Time) (*Page, error) {
 	if !r.mics.IsMarket(v.Market) {
@@ -186,7 +186,7 @@ func (r *Reader) Ticker(ctx context.Context, v types.MarketTicker, today time.Ti
 	return t, nil
 }
 
-// read derives v's validity and its gaps over its transaction period.
+// read derives v's ticker validity and its gaps over its transaction period.
 func (r *Reader) read(ctx context.Context, v types.MarketTicker, today time.Time) (*Page, error) {
 	rows, err := tickervalidity.ReadRows(ctx, r.q, v)
 	if err != nil {

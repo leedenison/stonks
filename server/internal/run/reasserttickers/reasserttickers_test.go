@@ -24,8 +24,8 @@ func newFixture(t *testing.T) *fixture {
 	return f
 }
 
-// TestStartEmpty checks that extending validity with no held ticker is refused
-// before a run is created.
+// TestStartEmpty checks that extending ticker validity with no held ticker is
+// refused before a run is created.
 func TestStartEmpty(t *testing.T) {
 	f := newFixture(t)
 	f.queries.EXPECT().ListHeldTickers(gomock.Any()).Return(nil, nil)

@@ -25,7 +25,7 @@ Nothing settled. Each area below waits on real use.
 
 The dialog asserts which instrument a ticker names, or that it names nothing, on a day or
 over a range. Its fit to the task is unproven. Its shape is settled after it has been used
-on real validity gaps and unresolved tickers.
+on real ticker validity gaps and unresolved tickers.
 
 Its instrument search finds only the instruments the system already has. An OpenFIGI
 search would let an administrator find an instrument that the system has yet to learn. A

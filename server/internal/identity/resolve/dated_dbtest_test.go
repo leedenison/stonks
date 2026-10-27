@@ -113,7 +113,7 @@ func TestDated(t *testing.T) {
 	ivs, err := tickervalidity.Of(ctx, s.q, mt(v))
 	require.NoError(t, err)
 	if !confirmedOn(ivs, held.Instrument.ID, on(2024, 1, 16)) {
-		t.Errorf("validity of %s = %+v, want the history to confirm %s on 2024-01-16", v.Name(), ivs, held.Instrument.ID)
+		t.Errorf("ticker validity of %s = %+v, want the history to confirm %s on 2024-01-16", v.Name(), ivs, held.Instrument.ID)
 	}
 	created, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: other.Type, Value: other.Value})
 	require.NoError(t, err)

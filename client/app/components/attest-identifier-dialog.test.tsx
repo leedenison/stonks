@@ -59,8 +59,8 @@ const found = create(ListInstrumentsResponseSchema, {
   ],
 });
 
-// serving returns a transport and the attestation requests it received. A
-// refuse makes every attestation fail with it.
+// serving returns a transport and the identifier attestation requests it
+// received. A refuse makes every identifier attestation fail with it.
 function serving(ticker = held, refuse?: ConnectError) {
   const requests: AttestIdentifierRequest[] = [];
   const attestIdentifier: ServiceImpl<

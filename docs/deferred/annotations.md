@@ -28,9 +28,9 @@ neither an identifier row nor an assertion.
 A choice names the instrument, and where the key leaves it open the listing, that the
 transactions of one key belong to, for that user alone. It fills in what the facts leave
 open. A user who thinks a datasource is wrong is correcting it, and correction is an
-administrator's work: an attestation, a mapping of a broker description, or an identifier
-added to an instrument. A choice is offered only where the facts leave a transaction's
-instrument open.
+administrator's work: an identifier attestation, a mapping of a broker description, or an
+identifier added to an instrument. A choice is offered only where the facts leave a
+transaction's instrument open.
 
 The shape of a choice follows the strongest identifier the key states, as resolution
 does: a stable identifier fixes a key, and a venue ticker alone dates it.
@@ -46,12 +46,12 @@ does: a stable identifier fixes a key, and a venue ticker alone dates it.
   is fetched and offered, which is the listing review of [guesses.md](guesses.md). Where
   none does, the key's stated currency is the holding's currency and the user's price
   series values it. The instrument stays without a listing.
-- A venue ticker. Inside confirmed validity the facts decide. Outside it, the user chooses
-  an instrument for a run of the key's transactions. The choice is a row on the key.
-  Deriving a transaction's instrument reads it before validity, so the system facts stay
-  the only source of validity. The user selects transactions, and the range follows from
-  their dates: every transaction for all time, or the provisional ones for the gap since
-  the last assertion.
+- A venue ticker. Inside confirmed ticker validity the facts decide. Outside it, the user
+  chooses an instrument for a run of the key's transactions. The choice is a row on the
+  key. Deriving a transaction's instrument reads it before ticker validity, so the system
+  facts stay the only source of ticker validity. The user selects transactions, and the
+  range follows from their dates: every transaction for all time, or the provisional ones
+  for the gap since the last assertion.
 - A bare ticker. The user supplies the venue, as an identifier added to the key, and the
   key becomes a venue ticker.
 - A key that states only a description or an option symbol. The choice is fixed.

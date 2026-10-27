@@ -126,7 +126,7 @@ func TestListHoldingsDated(t *testing.T) {
 		wantCode      connect.Code
 	}{
 		{
-			// Days 0 and 25 lie outside coverage, where validity is
+			// Days 0 and 25 lie outside coverage, where ticker validity is
 			// provisional, and still name an instrument. A has no ticker
 			// row, so the key's listing on A is A's listing in the stated
 			// family, and A keeps its own name.

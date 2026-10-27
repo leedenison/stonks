@@ -1,11 +1,12 @@
 # Identifiers hold identity and a ticker holds only its spelling
 
 A `mic_ticker` row in `identifiers` names the instrument its ticker identifies today.
-`PlaceTicker` moves the row when an identity answer names another instrument. Validity
-answers the same question with dates, from the identifier facts. Nothing reconciles the
-two. An attestation, a reorder of datasource precedence or an identifier facts fetch
-changes validity. The row stays where it is. Resolution never matches through a
-ticker row. The row only names a holding and carries a listing's venue.
+`PlaceTicker` moves the row when an identity answer names another instrument. Ticker
+validity answers the same question with dates, from the identifier facts. Nothing
+reconciles the two. An identifier attestation, a reorder of datasource precedence or an
+identifier facts fetch changes ticker validity. The row stays where it is. Resolution
+never matches through a ticker row. The row only names a holding and carries a listing's
+venue.
 
 `identifiers` holds identity only: the stable identifiers, option symbols and broker
 descriptions. Resolution may match through every row. A CHECK refuses `mic_ticker`.

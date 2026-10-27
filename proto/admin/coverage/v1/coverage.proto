@@ -1,5 +1,5 @@
 // Where each ticker's validity is confirmed and where it is not, and
-// attestation of what no datasource covers.
+// identifier attestation of what no datasource covers.
 
 syntax = "proto3";
 
@@ -12,9 +12,9 @@ import "type/v1/type.proto";
 
 option go_package = "github.com/leedenison/stonks/proto/admin/coverage/v1;admincoveragev1";
 
-// A part of a ticker's transaction period that no confirmed validity holds.
-// The period runs from the earliest transaction whose key states the ticker
-// up to and including today. The bounds are half open, as YYYY-MM-DD.
+// A part of a ticker's transaction period that no confirmed ticker validity
+// holds. The period runs from the earliest transaction whose key states the
+// ticker up to and including today. The bounds are half open, as YYYY-MM-DD.
 message Gap {
   string unconfirmed_from = 1;
   string unconfirmed_before = 2;
@@ -76,7 +76,7 @@ message InstrumentName {
   stonks.type.v1.Identifier name = 2;
 }
 
-// One ticker's facts and the validity they derive.
+// One ticker's facts and the ticker validity they derive.
 message Ticker {
   stonks.type.v1.MarketTicker ticker = 1;
   // The distinct as-at dates of the transactions whose keys state the

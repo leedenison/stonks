@@ -13,8 +13,8 @@ import { expect, test } from "../helpers/test";
 import { uploadStatement } from "../helpers/upload";
 
 // WMT has named one instrument since before Massive's history begins on
-// 2003-09-10. No other spec states WMT, because an attestation is a system
-// fact that every user reads.
+// 2003-09-10. No other spec states WMT, because an identifier attestation is a
+// system fact that every user reads.
 const fixture = path.resolve(__dirname, "..", "fixtures", "standard-wmt.json");
 const wmt = { type: IdentifierType.MIC_TICKER, domain: "XNYS", value: "WMT" };
 // The transaction's day falls before the history window, so the ticker's
@@ -88,7 +88,7 @@ test("attests a gap from the instrument's tickers tab and withdraws it", async (
   }
   expect(started).toHaveLength(1);
 
-  // The attestation brackets the provider's first assertion, so the
+  // The identifier attestation brackets the provider's first assertion, so the
   // transaction is confirmed.
   expect((await statements.getStatement({ runId })).transactions[0].mark).toBe(
     TransactionMark.CONFIRMED,

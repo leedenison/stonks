@@ -179,7 +179,7 @@ CREATE TABLE listings (
 -- retirement leaves the row in place, so a delisted holding keeps its name. A
 -- holding is named by the current ticker, whatever the dates of its
 -- transactions.
--- What the ticker named on an earlier day is read from its validity, so
+-- What the ticker named on an earlier day is read from its ticker validity, so
 -- resolution does not match through a ticker row. An option symbol matches
 -- through its row, because the system does not normalise option symbols
 -- through the corporate actions of their underlying.

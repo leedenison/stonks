@@ -1,6 +1,6 @@
 # An instrument's ticker is a projection of ticker facts
 
-Validity answers what a ticker named on a day. Naming a holding asks the reverse: what an
+Ticker validity answers what a ticker named on a day. Naming a holding asks the reverse: what an
 instrument is called today, at each venue. The views `instrument_names` and
 `listing_tickers`, the holdings, the admin search and a dated key's fallback listing all
 ask it. `Derive` runs in Go. A SQL view therefore cannot derive the answer on read.
@@ -8,7 +8,7 @@ ask it. `Derive` runs in Go. A SQL view therefore cannot derive the answer on re
 `resolved_tickers` stores the answer. Its columns are `ticker_id`, `instrument_id`,
 `venue`, `since`, `until` and `currency`. Only the rebuild from the facts writes
 the rows. The projection holds names only. Holdings, dating and corporate actions
-still read validity from the facts.
+still read ticker validity from the facts.
 
 For each instrument and market:
 
@@ -39,11 +39,11 @@ currency. Failing that, they sit under the listing that the `resolved_tickers` r
 key's ticker reaches at `via_venue`.
 
 The rebuild runs in the transaction that writes facts: the identity write, `Record`, an
-attestation or its withdrawal, and a merge. A rebuild of every ticker runs as a batched
-`rebuild_resolved_tickers` system run. A change of datasource precedence starts it. An
-administrator starts it after a deploy that changes this rule, or after a deletion. A
-deleted user or run cascades to its facts. The run repairs the projection. Names may
-lag while the run works.
+identifier attestation or its withdrawal, and a merge. A rebuild of every ticker runs as a
+batched `rebuild_resolved_tickers` system run. A change of datasource precedence starts
+it. An administrator starts it after a deploy that changes this rule, or after a deletion.
+A deleted user or run cascades to its facts. The run repairs the projection. Names may lag
+while the run works.
 
 ## Considered options
 

@@ -17,7 +17,7 @@ Each write holds its tickers from the fact write until commit:
 
 A second writer of the ticker waits on the row lock. Under Read Committed, its next
 statement sees the first writer's committed facts. The rule relies on that isolation
-level. Attestations and their withdrawals take the same locks. Each batch of a
+level. Identifier attestations and their withdrawals take the same locks. Each batch of a
 `rebuild_resolved_tickers` run locks its ticker rows in id order.
 
 ## Considered options

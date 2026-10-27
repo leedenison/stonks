@@ -79,7 +79,7 @@ func TestDerive(t *testing.T) {
 			want:  []Interval{provisional(nil, at(1), a), confirmed(at(1), at(10), a)},
 		},
 		{
-			name:  "provisional validity ends at the nearest event",
+			name:  "provisional ticker validity ends at the nearest event",
 			facts: Facts{Assertions: []Assertion{asserts(1, &a, alpha)}, Events: []Event{event(5)}},
 			want:  []Interval{provisional(nil, at(1), a), confirmed(at(1), at(2), a), provisional(at(2), at(5), a)},
 		},

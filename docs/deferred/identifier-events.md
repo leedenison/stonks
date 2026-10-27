@@ -10,10 +10,11 @@ corporate action fetches, and the unwinding of data fetched under a ticker that 
 
 ## Why
 
-An entity provider reports only the chain of the entity a ticker names today. A retired
-or reused ticker outside that chain stays invisible, and validity before the first
+An entity provider reports only the chain of the entity a ticker names today. A retired or
+reused ticker outside that chain stays invisible, and ticker validity before the first
 assertion stays provisional. A range provider reports every rename in a market, so its
-coverage confirms a present assertion back to the last rename without an attestation.
+coverage confirms a present assertion back to the last rename without an identifier
+attestation.
 
 A price or a corporate action fetched under a ticker rests on the assumption that the
 ticker named the same instrument on the row's date as at the fetch. When an edge shows
@@ -54,7 +55,7 @@ invalidated rows and the period assertions of their fetch keys. Then it refetche
 
 A range provider is fetched before a batch is resolved, once per market and period,
 covering the earliest transaction date to the present. Where the fetch fails, resolution
-proceeds on provisional validity.
+proceeds on provisional ticker validity.
 
 ### Market fetches
 

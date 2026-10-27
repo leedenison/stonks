@@ -204,7 +204,7 @@ func TestReadRowsCoverage(t *testing.T) {
 }
 
 // TestReadTicker checks that one read of a ticker's facts answers whether it
-// has validity, which days hold an assertion, and the earliest date its
+// has ticker validity, which days hold an assertion, and the earliest date its
 // validity leaves unconfirmed.
 func TestReadTicker(t *testing.T) {
 	f := newFixture(t)
@@ -212,14 +212,14 @@ func TestReadTicker(t *testing.T) {
 	empty, err := ReadTicker(ctx, f.q, f.foo)
 	require.NoError(t, err)
 	if empty.HasTickerValidity() {
-		t.Errorf("a ticker with no facts has validity %+v, want none", empty.Derived.Intervals)
+		t.Errorf("a ticker with no facts has ticker validity %+v, want none", empty.Derived.Intervals)
 	}
 	f.asserts(t, f.alpha, 1, &f.a)
 	f.asserts(t, f.alpha, 5, &f.a)
 	tk, err := ReadTicker(ctx, f.q, f.foo)
 	require.NoError(t, err)
 	if !tk.HasTickerValidity() || tk.Ticker != f.foo {
-		t.Errorf("ticker = %+v, want validity for %s", tk, f.foo.Name())
+		t.Errorf("ticker = %+v, want ticker validity for %s", tk, f.foo.Name())
 	}
 	if !tk.Asserted(day(5)) || tk.Asserted(day(3)) {
 		t.Errorf("Asserted(5) = %v, Asserted(3) = %v, want only the asserted day", tk.Asserted(day(5)), tk.Asserted(day(3)))

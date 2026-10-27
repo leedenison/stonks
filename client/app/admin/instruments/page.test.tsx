@@ -48,7 +48,7 @@ const tickers = create(ListInstrumentTickersResponseSchema, {
   ],
 });
 // ACME's facts: a gap before a confirmed bracket, a datasource's assertion
-// and an attestation, and one datasource covering the whole market.
+// and an identifier attestation, and one datasource covering the whole market.
 const read = create(GetTickerResponseSchema, {
   ticker: create(TickerSchema, {
     ticker: acme,
@@ -381,7 +381,7 @@ describe("InstrumentsPage", () => {
     expect(screen.queryByTestId("ticker-select")).toBeNull();
   });
 
-  it("attests from a gap and from today, and withdraws an attestation", async () => {
+  it("attests from a gap and from today, and withdraws an identifier attestation", async () => {
     params = new URLSearchParams("id=i-acme&tab=tickers");
     const withdrawn: string[] = [];
     renderWithAuth(

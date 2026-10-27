@@ -93,7 +93,7 @@ func TestResolveWrites(t *testing.T) {
 	ivs, err := tickervalidity.Of(ctx, s.q, mt(vod))
 	require.NoError(t, err)
 	if !confirmedOn(ivs, inst.ID, day) {
-		t.Errorf("validity of %s = %+v, want the instrument confirmed on %s", vod.Name(), ivs, day.Format(time.DateOnly))
+		t.Errorf("ticker validity of %s = %+v, want the instrument confirmed on %s", vod.Name(), ivs, day.Format(time.DateOnly))
 	}
 
 	tradeKey, transferKey := s.key(t, trade.ID), s.key(t, transfer.ID)
@@ -392,12 +392,12 @@ func TestMergeRows(t *testing.T) {
 	require.NoError(t, err)
 	for _, iv := range ivs {
 		if iv.Instrument != survivor {
-			t.Errorf("validity of %s = %+v, want only the survivor", nasdaq.Name(), ivs)
+			t.Errorf("ticker validity of %s = %+v, want only the survivor", nasdaq.Name(), ivs)
 			break
 		}
 	}
 	if len(ivs) == 0 {
-		t.Errorf("validity of %s is empty, want the survivor", nasdaq.Name())
+		t.Errorf("ticker validity of %s is empty, want the survivor", nasdaq.Name())
 	}
 	coverage, err := s.q.ListIdentityCoverage(ctx, []uuid.UUID{survivor, b.Instrument.ID})
 	require.NoError(t, err)

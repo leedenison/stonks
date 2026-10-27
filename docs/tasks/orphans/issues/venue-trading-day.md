@@ -22,10 +22,11 @@ The work covers each place that dates a ticker answer:
 * The same-day join between two answers.
 * The day on which a resolution asserts an identifier. See `attach` in
   [writer.go](../../../../server/internal/identity/resolve/writer.go).
-* The bounds of validity periods. `types.Period` bounds each period at a UTC midnight.
+* The bounds of ticker validity periods. `types.Period` bounds each period at a UTC
+  midnight.
 
 If a change covers one of these places and leaves out the others, the join and the
-validity disagree.
+ticker validity disagree.
 
 ## Open questions
 

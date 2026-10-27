@@ -46,7 +46,7 @@ func TestIdentifierAssertions(t *testing.T) {
 		}
 	})
 
-	t.Run("an attestation goes with its run", func(t *testing.T) {
+	t.Run("an identifier attestation goes with its run", func(t *testing.T) {
 		tx := begin(t)
 		q := gen.New(tx)
 		f := newFetching(t, q)
@@ -216,6 +216,6 @@ func TestListRunAssertions(t *testing.T) {
 		t.Errorf("page after the first = %+v, want only the second assertion", got)
 	}
 	if got := list(attestation.ID, nil, nil); len(got) != 1 || got[0].IdentifierAssertion.ID != attested || got[0].AttestedBy == nil || *got[0].AttestedBy != admin.Email || got[0].Datasource != nil {
-		t.Errorf("attestation's assertions = %+v, want the attested one with %s", got, admin.Email)
+		t.Errorf("identifier attestation's assertions = %+v, want the attested one with %s", got, admin.Email)
 	}
 }

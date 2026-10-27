@@ -158,13 +158,13 @@ func TestReassertTickers(t *testing.T) {
 	ivs, err := tickervalidity.Of(ctx, s.q, mt(v))
 	require.NoError(t, err)
 	if !confirmedOn(ivs, inst, on(2026, 3, 20)) {
-		t.Errorf("validity of %s = %+v, want %s confirmed between the two assertions", v.Name(), ivs, inst)
+		t.Errorf("ticker validity of %s = %+v, want %s confirmed between the two assertions", v.Name(), ivs, inst)
 	}
 	if got := s.count(t, coverage, inst); got != covered {
-		t.Errorf("coverage rows = %d, want %d: extending validity changes no coverage", got, covered)
+		t.Errorf("coverage rows = %d, want %d: extending ticker validity changes no coverage", got, covered)
 	}
 	if got := s.count(t, shape, inst); got != rows {
-		t.Errorf("identifier and listing rows = %d, want %d: extending validity writes only assertions", got, rows)
+		t.Errorf("identifier and listing rows = %d, want %d: extending ticker validity writes only assertions", got, rows)
 	}
 	if n := s.count(t, `SELECT count(*) FROM identifiers WHERE value = $1`, extra.Value); n != 0 {
 		t.Errorf("rows of %s = %d, want none", extra.Name(), n)

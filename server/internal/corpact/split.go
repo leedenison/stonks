@@ -87,7 +87,7 @@ func (r *Recorder) splitFindings(ctx context.Context, q Queries, user *uuid.UUID
 	}
 	tickers, err := tickervalidity.ReadTickers(ctx, q, ts)
 	if err != nil {
-		return nil, fmt.Errorf("read the validity of the fetched tickers: %w", err)
+		return nil, fmt.Errorf("read the ticker validity of the fetched tickers: %w", err)
 	}
 	covers, err := coverage(ctx, q, recorded, tickers)
 	if err != nil {
@@ -275,7 +275,7 @@ func calendar(ctx context.Context, q Queries, instruments []uuid.UUID) (map[uuid
 	}
 	tickers, err := tickervalidity.ReadTickers(ctx, q, ts)
 	if err != nil {
-		return nil, fmt.Errorf("read the validity of the instruments' tickers: %w", err)
+		return nil, fmt.Errorf("read the ticker validity of the instruments' tickers: %w", err)
 	}
 	answers, err := Read(ctx, q, ts, always)
 	if err != nil {

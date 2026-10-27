@@ -15,10 +15,10 @@ In:
 
 - `venue` and `currency` on `identifier_assertions`, written by the identity write and
   by OpenFIGI from its currency filter.
-- The `resolved_tickers` table and its rule, in `validity`, reusing `ReadTickers` and
-  `Derive`.
-- The rebuild in the identity write, `Record`, an attestation or its withdrawal, and a
-  merge, under the locks of
+- The `resolved_tickers` table and its rule, in `tickervalidity`, reusing `ReadTickers`
+  and `Derive`.
+- The rebuild in the identity write, `Record`, an identifier attestation or its
+  withdrawal, and a merge, under the locks of
   [012](../adr/012-a-fact-write-holds-its-ticker-rows-until-commit.md).
 - The `rebuild_resolved_tickers` run kind, in batches. A change of precedence starts it,
   and so does an admin action.
@@ -31,8 +31,8 @@ In:
   - `HoldingListing` carries a `MarketTicker` and an optional venue in place of a
     `mic_ticker` identifier.
 - The client shows `(defunct)`.
-- Comments: "Validity is never stored" in `validity.go` is narrowed. The projection
-  stores names.
+- Comments: "Ticker validity is never stored" in `tickervalidity.go` is narrowed. The
+  projection stores names.
 
 ## Tests
 
@@ -49,8 +49,8 @@ In:
 - Rebuild dbtests for each writer:
   - the identity write leaves a row with the answer's venue and currency;
   - the Massive record leaves a row;
-  - `TestAttest`: after B takes a ticker from A, an attestation that the ticker names A
-    ends B's row, and B becomes defunct;
+  - `TestAttest`: after B takes a ticker from A, an identifier attestation that the ticker
+    names A ends B's row, and B becomes defunct;
   - a merge rebuilds both instruments.
 - A dbtest of the run across more than one batch.
 - `datasource_test.go`: a change of precedence starts the run.

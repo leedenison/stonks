@@ -8,8 +8,8 @@
 //
 // A dated key's transactions take the instrument its ticker names on their
 // as-at dates, derived from the ticker's facts at each read; see package
-// validity. A transaction dated when its ticker names nothing is summed into
-// its key's group, beside the unresolved keys. One key may therefore sit
+// tickervalidity. A transaction dated when its ticker names nothing is summed
+// into its key's group, beside the unresolved keys. One key may therefore sit
 // under several holdings, with the sum of its transactions under each.
 //
 // Whether an association is confirmed or provisional shows on the statement,

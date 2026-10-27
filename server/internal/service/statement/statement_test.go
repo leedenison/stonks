@@ -274,7 +274,7 @@ func TestGetStatement(t *testing.T) {
 			want: &statementv1.GetStatementResponse{Statement: summ, Transactions: txMsgs},
 		},
 		{name: "transactions failure", id: runID.String(), row: gen.GetStatementRow{Statement: stmt, Run: run}, readsKeys: true, transactionsErr: errors.New("boom"), wantCode: connect.CodeInternal},
-		{name: "validity failure", id: runID.String(), row: gen.GetStatementRow{Statement: stmt, Run: run}, readsKeys: true, transactions: transactions, assertionsErr: errors.New("boom"), wantCode: connect.CodeInternal},
+		{name: "ticker validity failure", id: runID.String(), row: gen.GetStatementRow{Statement: stmt, Run: run}, readsKeys: true, transactions: transactions, assertionsErr: errors.New("boom"), wantCode: connect.CodeInternal},
 		{name: "not found", id: runID.String(), err: db.ErrNotFound, wantCode: connect.CodeNotFound},
 		{name: "failure", id: runID.String(), err: errors.New("boom"), wantCode: connect.CodeInternal},
 		{name: "items failure", id: runID.String(), row: gen.GetStatementRow{Statement: stmt, Run: run}, itemsErr: errors.New("boom"), wantCode: connect.CodeInternal},

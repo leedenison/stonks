@@ -6,13 +6,13 @@
 // [group.go](../../identity/group/group.go). A key whose association the user
 // arbitrated is never selected, so a replay never changes it.
 //
-// A new identifier fact, or a withdrawn attestation, replays the unresolved
-// keys that state its ticker at any venue of its market beneath the run that
-// wrote it. It also fetches the corporate actions of the held instruments that
-// its ticker names; see AfterIdentifierFacts. A key with an association is never
-// replayed for a fact. A dated key takes the instrument its ticker names on
-// each transaction's date when it is read, so a new fact reaches its
-// transactions without a replay.
+// A new identifier fact, or a withdrawn identifier attestation, replays the
+// unresolved keys that state its ticker at any venue of its market beneath the
+// run that wrote it. It also fetches the corporate actions of the held
+// instruments that its ticker names; see AfterIdentifierFacts. A key with an
+// association is never replayed for a fact. A dated key takes the instrument
+// its ticker names on each transaction's date when it is read, so a new fact
+// reaches its transactions without a replay.
 package replayrun
 
 import (

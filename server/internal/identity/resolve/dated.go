@@ -45,11 +45,11 @@ func datedTicker(k gen.StatedKey, mics mic.MICMap) (types.Identifier, bool) {
 	return types.Identifier{}, false
 }
 
-// findResolutionDated reads the validity of each key's dated ticker and the
-// as-at dates of its transactions. Keys dated through the same market ticker
-// share one read of its facts. A key that already has a dated association is matched as
-// it stands. A key without a known instrument, whose ticker has validity, is
-// dated through the ticker without an identity fetch.
+// findResolutionDated reads the ticker validity of each key's dated ticker and
+// the as-at dates of its transactions. Keys dated through the same market
+// ticker share one read of its facts. A key that already has a dated
+// association is matched as it stands. A key without a known instrument, whose
+// ticker has validity, is dated through the ticker without an identity fetch.
 func (r *Resolver) findResolutionDated(ctx context.Context, user uuid.UUID, rs []*resolution, keys []KeyDates) error {
 	var ids []uuid.UUID
 	read := map[types.MarketTicker]*tickervalidity.Ticker{}
@@ -287,7 +287,7 @@ func (r *Resolver) recordConflicts(ctx context.Context, run gen.Run, written *wr
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("record validity findings: %w", err)
+		return fmt.Errorf("record ticker validity findings: %w", err)
 	}
 	for _, kind := range kinds {
 		runs.Found(ctx, kind)

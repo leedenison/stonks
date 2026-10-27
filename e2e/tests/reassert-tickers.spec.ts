@@ -25,7 +25,7 @@ const pepUS = { market: "US", value: pep.value };
 // utcDay is the UTC day of a moment, as YYYY-MM-DD.
 const utcDay = (d: Date) => d.toISOString().slice(0, 10);
 
-test("extends the validity of a held ticker on the day it runs", async ({
+test("extends the ticker validity of a held ticker on the day it runs", async ({
   signIn,
   page,
 }) => {
@@ -42,7 +42,7 @@ test("extends the validity of a held ticker on the day it runs", async ({
   expect(keys.map((k) => k.outcome)).toEqual([ResolutionOutcome.MATCHED]);
 
   const instrument = await instrumentListedAs(adminSession, pep);
-  // A past attestation gives the run a bracket to extend.
+  // A past identifier attestation gives the run a bracket to extend.
   await coverageClient(adminSession).attestIdentifier({
     ticker: pepUS,
     names: { case: "instrumentId", value: instrument.id },
@@ -62,7 +62,7 @@ test("extends the validity of a held ticker on the day it runs", async ({
   const from = utcDay(timestampDate(got.run!.startedAt!));
   const to = utcDay(timestampDate(got.run!.finishedAt!));
 
-  // Validity runs from the attested day through the run day.
+  // Ticker validity runs from the attested day through the run day.
   await page.goto(`/admin/instruments?q=PEP&id=${instrument.id}&tab=tickers`);
   await expect(page.getByTestId("ticker-select")).toHaveValue("US:PEP");
   const confirmed = page.locator(

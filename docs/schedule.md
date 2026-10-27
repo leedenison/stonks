@@ -26,8 +26,6 @@ of open issues and ADRs at `docs/tasks/<label>/`.
   Massive and EODHD, on a ticker model where tickers are facts.
 
 ```
-    016 ticker validity
-         |
     017 abbreviations
          |
     009 tickers and markets
@@ -55,7 +53,7 @@ The record of what has been built. A milestone lands here when its issue directo
 - **M04** - Identity datasources for Massive and EODHD, and confirming a candidate that a
   fetch served for a key it could not associate.
 - **M05** - Identifier events from Massive, and resolution of MIC-derived identifiers
-  inside their validity.
+  inside their ticker validity.
 
 ## Deferred
 
@@ -72,7 +70,7 @@ Each has a note in `docs/deferred` outlining how it might work.
 - **D-COMPANY** - [Companies](deferred/companies.md); issuers identified by CIK and LEI, and the instruments they issue.
 - **D-ANNOT** - [Annotations](deferred/annotations.md); what a user records against their own keys: choices of instrument, groupings, prices and keys made by hand, and working on that data alone where no datasource covers a holding.
 - **D-DEPLOY** - [Production deployment](deferred/production-deployment.md); TLS, cross-origin access and what each container publishes.
-- **D-ALERTS** - [Admin alerts](deferred/admin-alerts.md); one triage list of what needs an administrator: validity gaps, unresolved tickers, run findings, blocks and unhandled corporate actions.
+- **D-ALERTS** - [Admin alerts](deferred/admin-alerts.md); one triage list of what needs an administrator: ticker validity gaps, unresolved tickers, run findings, blocks and unhandled corporate actions.
 - **D-UI** - [UI refinement](deferred/ui-refinement.md); a pass before production over the surfaces that real use shows could serve their task better, starting with the attest dialog.
 
 ## Spike

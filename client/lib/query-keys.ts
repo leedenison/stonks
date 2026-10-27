@@ -62,8 +62,8 @@ export function invalidateCleared(queryClient: QueryClient) {
   );
 }
 
-// invalidateAttested refreshes every query an attestation or a withdrawal
-// can change.
+// invalidateAttested refreshes every query an identifier attestation or a
+// withdrawal can change.
 export function invalidateAttested(queryClient: QueryClient) {
   return Promise.all([
     queryClient.invalidateQueries({ queryKey: qk.coverageAll() }),

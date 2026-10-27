@@ -307,7 +307,7 @@ func days(es []Event) []time.Time {
 	return slices.CompactFunc(out, func(a, b time.Time) bool { return a.Equal(b) })
 }
 
-// join merges intervals that meet and agree on instrument and validity.
+// join merges intervals that meet and agree on instrument and ticker validity.
 func join(ivs []Interval) []Interval {
 	var out []Interval
 	for _, iv := range ivs {

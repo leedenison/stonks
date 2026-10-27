@@ -29,8 +29,8 @@ CREATE INDEX corp_act_answers_fetch_key_idx ON corp_act_answers (fetch_key_id);
 -- the system does not handle, such as an exchange for another instrument. A
 -- provider may also state a price factor as a ratio, such as the fall in a
 -- parent's price at a spin-off. It applies to whatever the ticker named on
--- ex_date, which validity decides on read. Several rows may share a ticker and
--- a day.
+-- ex_date, which ticker validity decides on read. Several rows may share a
+-- ticker and a day.
 CREATE TABLE corp_acts (
     id         uuid    PRIMARY KEY,
     answer_id  uuid    NOT NULL REFERENCES corp_act_answers (id) ON DELETE CASCADE,

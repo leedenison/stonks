@@ -16,7 +16,7 @@
 ```
 proto/
   admin/block/v1/block.proto                                        stonks.admin.block.v1                    -- datasource blocks, across every user
-  admin/coverage/v1/coverage.proto                                  stonks.admin.coverage.v1                 -- where each ticker's validity is confirmed, and attestations of what no datasource covers
+  admin/coverage/v1/coverage.proto                                  stonks.admin.coverage.v1                 -- where each ticker's validity is confirmed, and identifier attestations of what no datasource covers
   admin/datasource/v1/datasource.proto                              stonks.admin.datasource.v1               -- the external providers and their settings
   admin/instrument/v1/instrument.proto                              stonks.admin.instrument.v1               -- every instrument, with its identifiers and listings
   admin/reassert_tickers/v1/reassert_tickers.proto                  stonks.admin.reassert_tickers.v1         -- runs that ask the datasources again about every held ticker, started by an administrator
@@ -48,8 +48,8 @@ server/
   internal/              private packages
     platform/            process plumbing: configuration, logging, telemetry, Redis, pointer helpers
     db/                  the database: queries, generated code, migrations
-    identity/            how a stated key comes to name an instrument: resolution, validity,
-                         attestation, coverage, the holdings of keys without an instrument
+    identity/            how a stated key comes to name an instrument: resolution, ticker validity,
+                         identifier attestation, coverage, the holdings of keys without an instrument
     run/                 runs and the work they do: replay, ticker reassertion, corporate action refresh
   pkg/                   packages with externally visible interfaces
 ```

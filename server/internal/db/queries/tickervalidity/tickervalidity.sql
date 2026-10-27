@@ -4,7 +4,7 @@ INSERT INTO identifier_assertions (id, fetch_key_id, run_id, attested_by, type, 
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9);
 
 -- name: CreateIdentifierAttestation :exec
--- A later attestation of a day replaces the earlier one.
+-- A later identifier attestation of a day replaces the earlier one.
 INSERT INTO identifier_assertions (id, run_id, attested_by, type, domain, value, instrument_id, asserted_on)
 VALUES (@id, @run_id::uuid, @attested_by::uuid, @type, @domain, @value, @instrument_id, @asserted_on)
 ON CONFLICT (type, domain, value, asserted_on) WHERE run_id IS NOT NULL

@@ -1,7 +1,6 @@
 ---
 title: Standard abbreviations
 type: task
-dependencies: [016]
 ---
 
 ## Scope
