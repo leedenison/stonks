@@ -80,6 +80,28 @@ WHERE via_type IS NOT NULL
   AND EXISTS (SELECT 1 FROM transactions WHERE transactions.stated_key_id = stated_keys.id)
 ORDER BY via_domain, via_value, created_at, id;
 
+-- name: ListHeldInstruments :many
+-- Each instrument that a fixed key names, where a transaction names the key,
+-- with each user of such a transaction and the earliest as-at date of that
+-- user's transactions.
+SELECT stated_keys.instrument_id::uuid AS instrument_id, transactions.user_id,
+       MIN(transactions.as_at)::date AS first_as_at
+FROM transactions
+JOIN stated_keys ON stated_keys.id = transactions.stated_key_id
+WHERE stated_keys.instrument_id IS NOT NULL
+GROUP BY stated_keys.instrument_id, transactions.user_id
+ORDER BY stated_keys.instrument_id, transactions.user_id;
+
+-- name: ListHeldTickerDates :many
+-- Each as-at date of a transaction of a dated key, with the ticker through
+-- which the key is dated and the user, once each.
+SELECT DISTINCT stated_keys.via_domain::text AS domain, stated_keys.via_value::text AS value,
+       transactions.user_id, transactions.as_at
+FROM transactions
+JOIN stated_keys ON stated_keys.id = transactions.stated_key_id
+WHERE stated_keys.via_type IS NOT NULL
+ORDER BY domain, value, transactions.user_id, transactions.as_at;
+
 -- name: ListRunAssertions :many
 -- The assertions a run wrote: those of the fetch runs it started, and those
 -- it attested. Each comes with the datasource of its fetch, or the email of
