@@ -11,16 +11,16 @@ Holdings show the quantity of an instrument restated to today.
 In:
 
 - Restating each transaction on read from one datasource and market. See
-  [001](../adr/001-a-corporate-event-is-stored-against-its-ticker-and-attributed-through-validity.md)
-  and [002](../adr/002-a-transaction-reflects-corporate-events-up-to-its-as-at-date.md).
+  [001](../adr/001-a-corporate-action-is-stored-against-its-ticker-and-attributed-through-validity.md)
+  and [002](../adr/002-a-transaction-reflects-corporate-actions-up-to-its-as-at-date.md).
 - Read the transactions of a fixed key one row at a time, with their as-at dates,
   instead of summing them in `ListHoldingKeys`.
 - Read the held instruments, the held ticker dates and the attribution of each
-  transaction through one set of queries, shared with `refreshcorporateevents`.
+  transaction through one set of queries, shared with `refreshcorpacts`.
 - The coverage of each transaction, and the adjusted or unadjusted state of each
   holding. See [003](../adr/003-a-holding-is-adjusted-only-when-covered-to-today.md).
-- The trait in `internal/types` that marks a class that corporate events restate.
-- The stated split check in `corporate` skips a split whose instrument's class lacks the
+- The trait in `internal/types` that marks a class that corporate actions restate.
+- The stated split check in `corpact` skips a split whose instrument's class lacks the
   trait.
 - The restated quantity, the state and the uncovered period in the holdings API.
   Rewrite the comments in `holding.proto` and the `holding` package that state

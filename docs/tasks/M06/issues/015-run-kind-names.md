@@ -1,7 +1,6 @@
 ---
 title: Name each run kind with a verb and a noun
 type: task
-dependencies: [014]
 ---
 
 ## Scope

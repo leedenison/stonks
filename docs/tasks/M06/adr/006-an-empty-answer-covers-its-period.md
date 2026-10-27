@@ -1,6 +1,6 @@
 # An empty answer covers its period
 
-An answer covers its period whether or not it holds a corporate event. Most tickers never
+An answer covers its period whether or not it holds a corporate action. Most tickers never
 split, so most answers are empty.
 
 EODHD answers a symbol it does not know with a distinct refusal. That answer carries no
@@ -13,7 +13,7 @@ open-end fund lacks an exchange listing, so the fetch never asks Massive about o
 answer for a listed ticker it has dropped matches its answer for a ticker that has never
 split. Where Massive has precedence, holdings of that ticker are restated without the splits
 Massive lacks. If another datasource reports such a split, the fetch raises a
-`corporate_event_disagreement` finding for the administrator.
+`corp_act_disagreement` finding for the administrator.
 
 ## Considered options
 

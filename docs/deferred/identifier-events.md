@@ -6,7 +6,7 @@ recorded: 2026-09-14
 # Identifier events
 
 Identifier events served by date range for a whole market, assertions made by price and
-corporate event fetches, and the unwinding of data fetched under a ticker that moves.
+corporate action fetches, and the unwinding of data fetched under a ticker that moves.
 
 ## Why
 
@@ -15,7 +15,7 @@ or reused ticker outside that chain stays invisible, and validity before the fir
 assertion stays provisional. A range provider reports every rename in a market, so its
 coverage confirms a present assertion back to the last rename without an attestation.
 
-A price or a corporate event fetched under a ticker rests on the assumption that the
+A price or a corporate action fetched under a ticker rests on the assumption that the
 ticker named the same instrument on the row's date as at the fetch. When an edge shows
 the assumption false, the row is wrong until it is refetched.
 
@@ -23,7 +23,7 @@ the assumption false, the row is wrong until it is refetched.
 
 ### Assertions
 
-A price or corporate event fetch whose answer echoes the identifier it served asserts
+A price or corporate action fetch whose answer echoes the identifier it served asserts
 that the identifier names the instrument on the day of the answer.
 
 ### Market period assertions

@@ -11,9 +11,9 @@ association current.
 ## Why
 
 Brokers name instruments in their own terms.  A key states what one broker called a
-line, so one security held at two brokers is two keys, and holdings, prices and events
-cannot be aggregated across them until a datasource answers for the identifiers those
-keys state.
+line, so one security held at two brokers is two keys, and holdings, prices and
+corporate actions cannot be aggregated across them until a datasource answers for the
+identifiers those keys state.
 
 ## Model
 
@@ -43,17 +43,17 @@ rebuilds the symbol to send from them.
 
 An OCC symbol embeds the underlying's ticker as its root and the strike in current terms.
 It is renamed when the underlying's ticker is, which is the MIC-derived path, and
-rewritten by corporate events on the underlying, which is separate.  A rewrite reassigns
+rewritten by corporate actions on the underlying, which is separate.  A rewrite reassigns
 a symbol between contracts: after a split the contract that held a strike moves to
 another symbol, and the symbol it left names a different contract.
 
 Resolution of an OCC symbol is two stages.  The root resolves the underlying as a
-MIC_TICKER.  The contract is then normalised through the underlying's corporate events
+MIC_TICKER.  The contract is then normalised through the underlying's corporate actions
 between the transaction date and the present to a canonical contract: underlying, expiry,
 right, and strike and deliverable stated in current terms.  The symbol is admitted only
-when corporate event coverage of the underlying spans that interval.  Otherwise it stays
-in the stated key and is replayed when coverage arrives.  Corporate events on the
-underlying therefore create no assumption and nothing to unwind.  A corporate event never
+when corporate action coverage of the underlying spans that interval.  Otherwise it stays
+in the stated key and is replayed when coverage arrives.  Corporate actions on the
+underlying therefore create no assumption and nothing to unwind.  A corporate action never
 restates a contract that expired before its ex-date.
 
 Massive's options contracts endpoint states a contract's underlying ticker, expiry, right,
@@ -87,5 +87,5 @@ ticker are recomputed when an identifier event on the ticker arrives.
 ## Sketch
 
 A guess is produced where the database, the batch cache and the datasources leave the
-instrument or its listing open.  See [guesses.md](guesses.md).  Corporate events are
+instrument or its listing open.  See [guesses.md](guesses.md).  Corporate actions are
 fetched for the batch's resolved instruments once resolution completes.

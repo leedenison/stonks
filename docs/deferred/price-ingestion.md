@@ -23,8 +23,8 @@ currency of USD.
 ### As At Convention
 
 A fetched price must carry an "as at" date which declares the date at which the value was
-true.  This tells the server the corporate events for which the price is adjusted.  Where a
-datasource restates its history as corporate events arise, it answers differently for the
+true.  This tells the server the corporate actions for which the price is adjusted.  Where a
+datasource restates its history as corporate actions arise, it answers differently for the
 same trading day either side of an ex. date. Where a price is stored without an "as at"
 date, it can neither be compared with nor accumulated alongside one fetched at another
 time.
@@ -35,7 +35,7 @@ is stated as at its own date.  However, only the client for a particular datasou
 know its conventions.  So the client must interpret the conventions and provide an explicit
 "as at" date to the server.
 
-An FX rate is not restated by corporate events, so it is stated as at its own date.
+An FX rate is not restated by corporate actions, so it is stated as at its own date.
 
 The "as at" date says nothing about the identifier sent to fetch the price.  That
 identifier and the moment it was asserted are carried by the fetch key the price

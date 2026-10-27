@@ -16,7 +16,7 @@ a composite foreign key that keeps a ticker in its market. The row holds only th
 spelling. One get-or-create function writes the table. It is the only place that checks
 the spelling. A row may outlive its facts.
 
-Every fact, `corporate_event_answers`, the projection of [011](011-an-instruments-ticker-is-a-projection-of-ticker-facts.md)
+Every fact, `corp_act_answers`, the projection of [011](011-an-instruments-ticker-is-a-projection-of-ticker-facts.md)
 and a dated association refer to a ticker by `ticker_id`. Statements and facts still meet
 by value. A stated key keeps its identifiers as the statement gave them. A new fact
 finds the keys that state its ticker through the GIN index.
