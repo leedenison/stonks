@@ -15,7 +15,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	adminblockv1 "github.com/leedenison/stonks/proto/admin/block/v1"
-	adminreplayv1 "github.com/leedenison/stonks/proto/admin/replay/v1"
+	adminreplayrunv1 "github.com/leedenison/stonks/proto/admin/replay_run/v1"
 	adminrunv1 "github.com/leedenison/stonks/proto/admin/run/v1"
 	"github.com/leedenison/stonks/proto/admin/run/v1/adminrunv1connect"
 	runv1 "github.com/leedenison/stonks/proto/run/v1"
@@ -230,7 +230,7 @@ func TestGetRun(t *testing.T) {
 				}, nil)
 			},
 			want: func(out *adminrunv1.GetRunResponse) {
-				out.Replay = &adminreplayv1.Replay{SourceRunId: parentID.String(), Scope: &adminreplayv1.Replay_Datasource{Datasource: "openfigi"}, StartedBy: "admin@example.com"}
+				out.Replay = &adminreplayrunv1.Replay{SourceRunId: parentID.String(), Scope: &adminreplayrunv1.Replay_Datasource{Datasource: "openfigi"}, StartedBy: "admin@example.com"}
 			},
 		},
 		{

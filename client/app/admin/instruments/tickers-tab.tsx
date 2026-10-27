@@ -3,7 +3,7 @@
 import { create } from "@bufbuild/protobuf";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { AttestDialog } from "@/app/components/attest-dialog";
+import { AttestIdentifierDialog } from "@/app/components/attest-identifier-dialog";
 import { Button } from "@/app/components/button";
 import { Chip } from "@/app/components/chip";
 import { Dialog } from "@/app/components/dialog";
@@ -23,7 +23,7 @@ import { MarketTickerSchema } from "@/gen/type/v1/type_pb";
 import {
   useCoverageTicker,
   useInstrumentTickers,
-  useWithdrawAttestation,
+  useWithdrawIdentifierAttestation,
 } from "@/hooks/use-coverage";
 import {
   type InstrumentParams,
@@ -152,7 +152,7 @@ function Validity({ market, value }: { market: string; value: string }) {
           </p>
         ))}
       {attesting !== null && (
-        <AttestDialog
+        <AttestIdentifierDialog
           ticker={ticker}
           from={attesting}
           onClose={() => setAttesting(null)}
@@ -178,7 +178,7 @@ function WithdrawDialog({
   assertion: AssertionItem;
   onClose: () => void;
 }) {
-  const withdraw = useWithdrawAttestation();
+  const withdraw = useWithdrawIdentifierAttestation();
   return (
     <Dialog
       open

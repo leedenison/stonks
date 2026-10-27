@@ -16,12 +16,12 @@ import (
 	"github.com/leedenison/stonks/proto/admin/block/v1/adminblockv1connect"
 	admindatasourcev1 "github.com/leedenison/stonks/proto/admin/datasource/v1"
 	"github.com/leedenison/stonks/proto/admin/datasource/v1/admindatasourcev1connect"
-	adminextendvalidityv1 "github.com/leedenison/stonks/proto/admin/extend_validity/v1"
-	"github.com/leedenison/stonks/proto/admin/extend_validity/v1/adminextendvalidityv1connect"
+	adminreasserttickersv1 "github.com/leedenison/stonks/proto/admin/reassert_tickers/v1"
+	"github.com/leedenison/stonks/proto/admin/reassert_tickers/v1/adminreasserttickersv1connect"
 	adminrefreshcorpactsv1 "github.com/leedenison/stonks/proto/admin/refresh_corp_acts/v1"
 	"github.com/leedenison/stonks/proto/admin/refresh_corp_acts/v1/adminrefreshcorpactsv1connect"
-	adminreplayv1 "github.com/leedenison/stonks/proto/admin/replay/v1"
-	"github.com/leedenison/stonks/proto/admin/replay/v1/adminreplayv1connect"
+	adminreplayrunv1 "github.com/leedenison/stonks/proto/admin/replay_run/v1"
+	"github.com/leedenison/stonks/proto/admin/replay_run/v1/adminreplayrunv1connect"
 	adminrunv1 "github.com/leedenison/stonks/proto/admin/run/v1"
 	"github.com/leedenison/stonks/proto/admin/run/v1/adminrunv1connect"
 	authv1 "github.com/leedenison/stonks/proto/auth/v1"
@@ -42,9 +42,9 @@ import (
 type stub struct {
 	adminblockv1connect.UnimplementedBlockServiceHandler
 	admindatasourcev1connect.UnimplementedDatasourceServiceHandler
-	adminextendvalidityv1connect.UnimplementedExtendValidityServiceHandler
+	adminreasserttickersv1connect.UnimplementedReassertTickersServiceHandler
 	adminrefreshcorpactsv1connect.UnimplementedRefreshCorpActsServiceHandler
-	adminreplayv1connect.UnimplementedReplayServiceHandler
+	adminreplayrunv1connect.UnimplementedReplayRunServiceHandler
 	adminrunv1connect.UnimplementedRunServiceHandler
 	authv1connect.UnimplementedAuthServiceHandler
 	holdingv1connect.UnimplementedHoldingServiceHandler
@@ -104,9 +104,9 @@ func newFixture(t *testing.T) *fixture {
 	f.srv = servicetest.Serve(t, func(mux *http.ServeMux) {
 		mux.Handle(adminblockv1connect.NewBlockServiceHandler(f.stub, opts...))
 		mux.Handle(admindatasourcev1connect.NewDatasourceServiceHandler(f.stub, opts...))
-		mux.Handle(adminextendvalidityv1connect.NewExtendValidityServiceHandler(f.stub, opts...))
+		mux.Handle(adminreasserttickersv1connect.NewReassertTickersServiceHandler(f.stub, opts...))
 		mux.Handle(adminrefreshcorpactsv1connect.NewRefreshCorpActsServiceHandler(f.stub, opts...))
-		mux.Handle(adminreplayv1connect.NewReplayServiceHandler(f.stub, opts...))
+		mux.Handle(adminreplayrunv1connect.NewReplayRunServiceHandler(f.stub, opts...))
 		mux.Handle(adminrunv1connect.NewRunServiceHandler(f.stub, opts...))
 		mux.Handle(authv1connect.NewAuthServiceHandler(f.stub, opts...))
 		mux.Handle(holdingv1connect.NewHoldingServiceHandler(f.stub, opts...))
@@ -183,8 +183,8 @@ func TestAuthenticate(t *testing.T) {
 		{name: "admin with an administrator's session", cookie: "stonks_session=admin", call: listRuns, wantSeen: &admin},
 		{name: "block service with a user's session", cookie: "stonks_session=live", call: listBlocks, wantCode: connect.CodePermissionDenied},
 		{name: "datasource service with a user's session", cookie: "stonks_session=live", call: listDatasources, wantCode: connect.CodePermissionDenied},
-		{name: "replay service with a user's session", cookie: "stonks_session=live", call: startReplay, wantCode: connect.CodePermissionDenied},
-		{name: "extend validity service with a user's session", cookie: "stonks_session=live", call: startExtendValidity, wantCode: connect.CodePermissionDenied},
+		{name: "replay run service with a user's session", cookie: "stonks_session=live", call: startReplayRun, wantCode: connect.CodePermissionDenied},
+		{name: "reassert tickers service with a user's session", cookie: "stonks_session=live", call: startReassertTickers, wantCode: connect.CodePermissionDenied},
 		{name: "refresh corporate actions service with a user's session", cookie: "stonks_session=live", call: startRefreshCorpActs, wantCode: connect.CodePermissionDenied},
 	}
 	for _, tc := range tests {
@@ -250,15 +250,15 @@ func listDatasources(f *fixture) error {
 	return err
 }
 
-func startReplay(f *fixture) error {
-	client := adminreplayv1connect.NewReplayServiceClient(f.srv.Client, f.srv.URL)
-	_, err := client.StartReplay(context.Background(), connect.NewRequest(&adminreplayv1.StartReplayRequest{}))
+func startReplayRun(f *fixture) error {
+	client := adminreplayrunv1connect.NewReplayRunServiceClient(f.srv.Client, f.srv.URL)
+	_, err := client.StartReplayRun(context.Background(), connect.NewRequest(&adminreplayrunv1.StartReplayRunRequest{}))
 	return err
 }
 
-func startExtendValidity(f *fixture) error {
-	client := adminextendvalidityv1connect.NewExtendValidityServiceClient(f.srv.Client, f.srv.URL)
-	_, err := client.StartExtendValidity(context.Background(), connect.NewRequest(&adminextendvalidityv1.StartExtendValidityRequest{}))
+func startReassertTickers(f *fixture) error {
+	client := adminreasserttickersv1connect.NewReassertTickersServiceClient(f.srv.Client, f.srv.URL)
+	_, err := client.StartReassertTickers(context.Background(), connect.NewRequest(&adminreasserttickersv1.StartReassertTickersRequest{}))
 	return err
 }
 

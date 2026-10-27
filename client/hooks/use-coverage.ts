@@ -8,7 +8,7 @@ import {
 } from "@tanstack/react-query";
 import { useClients } from "@/contexts/clients-context";
 import type {
-  AttestRequestSchema,
+  AttestIdentifierRequestSchema,
   GetTickerResponse,
   ListInstrumentTickersResponse,
 } from "@/gen/admin/coverage/v1/coverage_pb";
@@ -41,24 +41,24 @@ export function useCoverageTicker(
   });
 }
 
-// useAttest writes an attestation, as a system run.
-export function useAttest() {
+// useAttestIdentifier writes an attestation, as a system run.
+export function useAttestIdentifier() {
   const { coverage } = useClients();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (req: MessageInitShape<typeof AttestRequestSchema>) =>
-      coverage.attest(req),
+    mutationFn: (req: MessageInitShape<typeof AttestIdentifierRequestSchema>) =>
+      coverage.attestIdentifier(req),
     onSuccess: () => invalidateAttested(queryClient),
   });
 }
 
-// useWithdrawAttestation deletes an attested assertion.
-export function useWithdrawAttestation() {
+// useWithdrawIdentifierAttestation deletes an attested assertion.
+export function useWithdrawIdentifierAttestation() {
   const { coverage } = useClients();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (assertionId: string) =>
-      coverage.withdrawAttestation({ assertionId }),
+      coverage.withdrawIdentifierAttestation({ assertionId }),
     onSuccess: () => invalidateAttested(queryClient),
   });
 }

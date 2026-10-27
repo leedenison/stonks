@@ -3,9 +3,9 @@ import type { ServiceImpl } from "@connectrpc/connect";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  ExtendValidityService,
-  StartExtendValidityResponseSchema,
-} from "@/gen/admin/extend_validity/v1/extend_validity_pb";
+  ReassertTickersService,
+  StartReassertTickersResponseSchema,
+} from "@/gen/admin/reassert_tickers/v1/reassert_tickers_pb";
 import {
   RefreshCorpActsService,
   StartRefreshCorpActsResponseSchema,
@@ -38,12 +38,12 @@ const admin = liveSession({ role: Role.ADMIN });
 
 function serving(
   listRuns: ServiceImpl<typeof RunService>["listRuns"],
-  extendValidity: Partial<ServiceImpl<typeof ExtendValidityService>> = {},
+  reassertTickers: Partial<ServiceImpl<typeof ReassertTickersService>> = {},
   refresh: Partial<ServiceImpl<typeof RefreshCorpActsService>> = {},
 ) {
   return transportWith(admin, ({ service }) => {
     service(RunService, { listRuns });
-    service(ExtendValidityService, extendValidity);
+    service(ReassertTickersService, reassertTickers);
     service(RefreshCorpActsService, refresh);
   });
 }
@@ -188,24 +188,24 @@ describe("RunsPage", () => {
     );
   });
 
-  it("extends validity and opens its run", async () => {
+  it("reasserts tickers and opens its run", async () => {
     router.push.mockClear();
-    const startExtendValidity = vi.fn(() =>
-      create(StartExtendValidityResponseSchema, {
+    const startReassertTickers = vi.fn(() =>
+      create(StartReassertTickersResponseSchema, {
         run: create(RunSchema, { id: "x1", kind: RunKind.REASSERT_TICKERS }),
       }),
     );
     renderWithAuth(
       <RunsPage />,
-      serving(() => page, { startExtendValidity }),
+      serving(() => page, { startReassertTickers }),
     );
-    fireEvent.click(screen.getByTestId("runs-extend-validity"));
-    fireEvent.click(screen.getByTestId("extend-validity-start"));
+    fireEvent.click(screen.getByTestId("runs-reassert-tickers"));
+    fireEvent.click(screen.getByTestId("reassert-tickers-start"));
     await waitFor(() =>
       expect(router.push).toHaveBeenCalledWith("/admin/runs/x1"),
     );
-    expect(startExtendValidity).toHaveBeenCalledTimes(1);
-    expect(screen.queryByTestId("extend-validity-dialog")).toBeNull();
+    expect(startReassertTickers).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId("reassert-tickers-dialog")).toBeNull();
   });
 
   it("refreshes corporate actions and opens its run", async () => {

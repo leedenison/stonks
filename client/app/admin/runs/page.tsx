@@ -19,14 +19,14 @@ import {
   runEnums,
 } from "@/lib/admin";
 import { enumLabel, enumParam, enumValues } from "@/lib/enum";
-import { ExtendValidityDialog } from "./extend-validity-dialog";
+import { ReassertTickersDialog } from "./reassert-tickers-dialog";
 import { RefreshCorpActsDialog } from "./refresh-corp-acts-dialog";
 import { RunRow, RunTreeTable } from "./run-tree";
 
 // Every user's runs, newest first, filtered by what the address names, each
 // top-level run a row that opens onto the runs below it. The filters live in
 // the address so a listing can be linked and paged. The page carries the
-// action that extends the validity of every held ticker.
+// action that reasserts every held ticker.
 export default function RunsPage() {
   return (
     <Suspense>
@@ -43,7 +43,7 @@ function Runs() {
   // toggled holds the rows an administrator opened or closed; a row not in
   // it is open when it is on the path to a match rather than a match.
   const [toggled, setToggled] = useState<Record<string, boolean>>({});
-  const [extending, setExtending] = useState(false);
+  const [reasserting, setReasserting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const go = (next: Partial<RunFilters>) =>
     router.replace(filterQuery({ ...f, before: "", ...next }));
@@ -57,11 +57,11 @@ function Runs() {
         <>
           <Button
             variant="text"
-            data-testid="runs-extend-validity"
-            onClick={() => setExtending(true)}
+            data-testid="runs-reassert-tickers"
+            onClick={() => setReasserting(true)}
           >
             <RefreshCw aria-hidden className="h-4 w-4" />
-            Extend validity
+            Reassert tickers
           </Button>
           <Button
             variant="text"
@@ -133,11 +133,11 @@ function Runs() {
             : undefined
         }
       />
-      {extending && (
-        <ExtendValidityDialog
-          onClose={() => setExtending(false)}
+      {reasserting && (
+        <ReassertTickersDialog
+          onClose={() => setReasserting(false)}
           onStarted={(started) => {
-            setExtending(false);
+            setReasserting(false);
             router.push(`/admin/runs/${started.id}`);
           }}
         />

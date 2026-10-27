@@ -18,19 +18,19 @@ export default defineConfig({
     screenshot: "only-on-failure",
     trace: "retain-on-failure",
   },
-  // Extending validity and refreshing corporate actions each reach every held
+  // Reasserting tickers and refreshing corporate actions each reach every held
   // instrument in the database. Each spec runs alone, once every other spec
   // has removed its users.
   projects: [
     {
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
-      testIgnore: /(extend-validity|refresh-corp-acts)\.spec\.ts/,
+      testIgnore: /(reassert-tickers|refresh-corp-acts)\.spec\.ts/,
     },
     {
       name: "system",
       use: { ...devices["Desktop Chrome"] },
-      testMatch: /extend-validity\.spec\.ts/,
+      testMatch: /reassert-tickers\.spec\.ts/,
       dependencies: ["chromium"],
     },
     {

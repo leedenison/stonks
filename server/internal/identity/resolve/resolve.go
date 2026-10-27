@@ -37,7 +37,7 @@
 // rows can be traced and removed.
 //
 // Extending validity carries the validity of each held ticker to the present;
-// see ExtendValidity. It asks the datasources again whatever identity coverage
+// see ReassertTickers. It asks the datasources again whatever identity coverage
 // the instrument has. An identity answer to it writes only the ticker's
 // assertion, and leaves the identifiers, the listings and the coverage to a
 // resolution. A held ticker matches a listing at any venue of its market, and

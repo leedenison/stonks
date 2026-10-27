@@ -13,7 +13,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	adminblockv1 "github.com/leedenison/stonks/proto/admin/block/v1"
-	adminreplayv1 "github.com/leedenison/stonks/proto/admin/replay/v1"
+	adminreplayrunv1 "github.com/leedenison/stonks/proto/admin/replay_run/v1"
 	adminrunv1 "github.com/leedenison/stonks/proto/admin/run/v1"
 	"github.com/leedenison/stonks/proto/admin/run/v1/adminrunv1connect"
 	"github.com/leedenison/stonks/server/internal/db"
@@ -220,7 +220,7 @@ func (s *Server) findings(ctx context.Context, ids []uuid.UUID, out *adminrunv1.
 
 // replay reads what the replay run id re-resolves. A replay whose prepare
 // step failed has no replays row, and reads as nil.
-func (s *Server) replay(ctx context.Context, id uuid.UUID) (*adminreplayv1.Replay, error) {
+func (s *Server) replay(ctx context.Context, id uuid.UUID) (*adminreplayrunv1.Replay, error) {
 	r, err := s.queries.GetReplay(ctx, id)
 	if errors.Is(err, db.ErrNotFound) {
 		return nil, nil
@@ -228,11 +228,11 @@ func (s *Server) replay(ctx context.Context, id uuid.UUID) (*adminreplayv1.Repla
 	if err != nil {
 		return nil, err
 	}
-	out := &adminreplayv1.Replay{SourceRunId: r.Replay.SourceID.String(), StartedBy: r.StartedByEmail}
+	out := &adminreplayrunv1.Replay{SourceRunId: r.Replay.SourceID.String(), StartedBy: r.StartedByEmail}
 	if r.Replay.Datasource != nil {
-		out.Scope = &adminreplayv1.Replay_Datasource{Datasource: *r.Replay.Datasource}
+		out.Scope = &adminreplayrunv1.Replay_Datasource{Datasource: *r.Replay.Datasource}
 	} else {
-		out.Scope = &adminreplayv1.Replay_Unavailable{Unavailable: true}
+		out.Scope = &adminreplayrunv1.Replay_Unavailable{Unavailable: true}
 	}
 	return out, nil
 }

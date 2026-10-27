@@ -127,7 +127,7 @@ message GetTickerResponse {
   Ticker ticker = 1;
 }
 
-message AttestRequest {
+message AttestIdentifierRequest {
   stonks.type.v1.MarketTicker ticker = 1 [(buf.validate.field).required = true];
   // What the ticker names on each day.
   oneof names {
@@ -142,16 +142,16 @@ message AttestRequest {
   optional string to = 5;
 }
 
-message AttestResponse {
+message AttestIdentifierResponse {
   // The attest identifier run, pending.
   stonks.run.v1.Run run = 1;
 }
 
-message WithdrawAttestationRequest {
+message WithdrawIdentifierAttestationRequest {
   string assertion_id = 1 [(buf.validate.field).string.uuid = true];
 }
 
-message WithdrawAttestationResponse {}
+message WithdrawIdentifierAttestationResponse {}
 
 // Reads where each ticker's validity is confirmed, and attests what no
 // datasource covers.
@@ -166,9 +166,9 @@ service CoverageService {
   // before the call returns, and the run replays the unresolved keys that
   // state the ticker. A day after today, or a to before from, is a failed
   // precondition.
-  rpc Attest(AttestRequest) returns (AttestResponse);
+  rpc AttestIdentifier(AttestIdentifierRequest) returns (AttestIdentifierResponse);
   // Deletes an attested assertion and replays the unresolved keys that state
   // its ticker beneath the run that wrote it, before it returns. A
   // datasource's assertion is a failed precondition.
-  rpc WithdrawAttestation(WithdrawAttestationRequest) returns (WithdrawAttestationResponse);
+  rpc WithdrawIdentifierAttestation(WithdrawIdentifierAttestationRequest) returns (WithdrawIdentifierAttestationResponse);
 }

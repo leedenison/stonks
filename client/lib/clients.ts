@@ -3,9 +3,9 @@ import { BlockService } from "@/gen/admin/block/v1/block_pb";
 import { CoverageService } from "@/gen/admin/coverage/v1/coverage_pb";
 import { DatasourceService } from "@/gen/admin/datasource/v1/datasource_pb";
 import { InstrumentService as AdminInstrumentService } from "@/gen/admin/instrument/v1/instrument_pb";
-import { ExtendValidityService } from "@/gen/admin/extend_validity/v1/extend_validity_pb";
+import { ReassertTickersService } from "@/gen/admin/reassert_tickers/v1/reassert_tickers_pb";
 import { RefreshCorpActsService } from "@/gen/admin/refresh_corp_acts/v1/refresh_corp_acts_pb";
-import { ReplayService } from "@/gen/admin/replay/v1/replay_pb";
+import { ReplayRunService } from "@/gen/admin/replay_run/v1/replay_run_pb";
 import { RunService as AdminRunService } from "@/gen/admin/run/v1/run_pb";
 import { AuthService } from "@/gen/auth/v1/auth_pb";
 import { HoldingService } from "@/gen/holding/v1/holding_pb";
@@ -22,9 +22,9 @@ export function newClients(transport: Transport) {
     coverage: createClient(CoverageService, transport),
     datasource: createClient(DatasourceService, transport),
     holding: createClient(HoldingService, transport),
-    extendValidity: createClient(ExtendValidityService, transport),
+    reassertTickers: createClient(ReassertTickersService, transport),
     refreshCorpActs: createClient(RefreshCorpActsService, transport),
-    replay: createClient(ReplayService, transport),
+    replayRun: createClient(ReplayRunService, transport),
     run: createClient(RunService, transport),
     statement: createClient(StatementService, transport),
   };
