@@ -9,8 +9,8 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
-	"github.com/leedenison/stonks/server/internal/group"
-	"github.com/leedenison/stonks/server/internal/resolve"
+	"github.com/leedenison/stonks/server/internal/identity/group"
+	"github.com/leedenison/stonks/server/internal/identity/resolve"
 	"github.com/leedenison/stonks/server/internal/run"
 )
 

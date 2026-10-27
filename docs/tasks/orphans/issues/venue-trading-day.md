@@ -9,7 +9,7 @@ status: unreviewed
 A ticker names one instrument on one trading day across the venues of its market. A
 resolution joins two answers that carry one ticker in one market and share a UTC
 day. It uses the UTC day of each answer as the trading day. See
-`sameDayTicker` in [claim.go](../../../../server/internal/resolve/claim.go).
+`sameDayTicker` in [claim.go](../../../../server/internal/identity/resolve/claim.go).
 
 The UTC day and the trading day of a venue differ wherever the venue is far from UTC.
 For XNYS, answers at 00:30 UTC and 23:30 UTC on one date fall in two New York days. A
@@ -21,7 +21,7 @@ The work covers each place that dates a ticker answer:
 
 * The same-day join between two answers.
 * The day on which a resolution asserts an identifier. See `attach` in
-  [writer.go](../../../../server/internal/resolve/writer.go).
+  [writer.go](../../../../server/internal/identity/resolve/writer.go).
 * The bounds of validity periods. `types.Period` bounds each period at a UTC midnight.
 
 If a change covers one of these places and leaves out the others, the join and the

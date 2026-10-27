@@ -12,7 +12,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/auth"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/to"
-	refresher "github.com/leedenison/stonks/server/internal/refreshcorporateevents"
+	refresher "github.com/leedenison/stonks/server/internal/run/refreshcorporateevents"
 )
 
 // Starter is this package's view of the refresh corporate events starter.

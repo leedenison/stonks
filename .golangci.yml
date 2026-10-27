@@ -1,8 +1,8 @@
 # The standard set plus gosec, and the rules that carry the conventions a
-# linter can check: configuration is read only in server/internal/config,
-# connect is imported only at the service boundary, logging is log/slog,
-# context.TODO is confined to tests, and every nolint names its linter and
-# says why. govet is make vet.
+# linter can check: configuration is read only in
+# server/internal/platform/config, connect is imported only at the service
+# boundary, logging is log/slog, context.TODO is confined to tests, and every
+# nolint names its linter and says why. govet is make vet.
 version: "2"
 
 # A test that needs the test stack carries the dbtest build tag. Nothing is
@@ -40,7 +40,7 @@ linters:
       analyze-types: true
       forbid:
         - pattern: ^os\.(Getenv|LookupEnv|Environ|ExpandEnv)$
-          msg: configuration is read only in server/internal/config
+          msg: configuration is read only in server/internal/platform/config
         - pattern: ^context\.TODO$
           msg: take a context.Context from the caller, or context.Background at the root
         # The enum and its constants, leaving the identifier_type_traits row.
@@ -65,16 +65,16 @@ linters:
             - log/slog
           deny:
             - pkg: log
-              desc: logging is log/slog through server/internal/logger
+              desc: logging is log/slog through server/internal/platform/logger
             - pkg: github.com/sirupsen/logrus
-              desc: logging is log/slog through server/internal/logger
+              desc: logging is log/slog through server/internal/platform/logger
             - pkg: go.uber.org/zap
-              desc: logging is log/slog through server/internal/logger
+              desc: logging is log/slog through server/internal/platform/logger
             - pkg: github.com/rs/zerolog
-              desc: logging is log/slog through server/internal/logger
+              desc: logging is log/slog through server/internal/platform/logger
   exclusions:
     rules:
-      - path: server/internal/config/
+      - path: server/internal/platform/config/
         linters:
           - forbidigo
       # Tests read the STONKS_TEST_* variables that configure the test stack.

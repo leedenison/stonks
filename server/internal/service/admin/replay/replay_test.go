@@ -16,8 +16,8 @@ import (
 	runv1 "github.com/leedenison/stonks/proto/run/v1"
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
-	"github.com/leedenison/stonks/server/internal/ptr"
-	replayer "github.com/leedenison/stonks/server/internal/replay"
+	"github.com/leedenison/stonks/server/internal/platform/ptr"
+	replayer "github.com/leedenison/stonks/server/internal/run/replay"
 	"github.com/leedenison/stonks/server/internal/service/admin/replay/mock"
 	"github.com/leedenison/stonks/server/internal/service/servicetest"
 )

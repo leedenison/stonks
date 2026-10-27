@@ -12,7 +12,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/auth"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/to"
-	extender "github.com/leedenison/stonks/server/internal/extendvalidity"
+	extender "github.com/leedenison/stonks/server/internal/run/extendvalidity"
 )
 
 // Starter is this package's view of the extend validity service.

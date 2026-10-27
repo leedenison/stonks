@@ -9,7 +9,7 @@ import (
 	statementv1 "github.com/leedenison/stonks/proto/statement/v1"
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
-	"github.com/leedenison/stonks/server/internal/group"
+	"github.com/leedenison/stonks/server/internal/identity/group"
 )
 
 // write replaces the statement's period with the accepted rows and records

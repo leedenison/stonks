@@ -15,7 +15,7 @@ import (
 	"github.com/leedenison/stonks/proto/admin/refresh_corporate_events/v1/adminrefreshcorporateeventsv1connect"
 	runv1 "github.com/leedenison/stonks/proto/run/v1"
 	"github.com/leedenison/stonks/server/internal/db/gen"
-	refresher "github.com/leedenison/stonks/server/internal/refreshcorporateevents"
+	refresher "github.com/leedenison/stonks/server/internal/run/refreshcorporateevents"
 	"github.com/leedenison/stonks/server/internal/service/admin/refreshcorporateevents/mock"
 	"github.com/leedenison/stonks/server/internal/service/servicetest"
 )

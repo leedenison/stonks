@@ -13,7 +13,7 @@
 version: "2"
 sql:
   - engine: postgresql
-    schema: server/internal/migrations
+    schema: server/internal/db/migrations
     queries:
       - server/internal/db/queries/*
     gen:

@@ -14,7 +14,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/to"
-	replayer "github.com/leedenison/stonks/server/internal/replay"
+	replayer "github.com/leedenison/stonks/server/internal/run/replay"
 )
 
 // Queries is this package's view of the generated queries.

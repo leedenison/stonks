@@ -38,7 +38,7 @@ configuration is silent.
 
 An association records its validity and its arbiter separately.  The arbiter is stated,
 datasource, guess or user.  See
-[004_statements.sql](../../server/internal/migrations/004_statements.sql).
+[004_statements.sql](../../server/internal/db/migrations/004_statements.sql).
 
 ### Authority
 

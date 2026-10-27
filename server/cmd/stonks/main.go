@@ -28,29 +28,30 @@ import (
 	"github.com/leedenison/stonks/proto/holding/v1/holdingv1connect"
 	"github.com/leedenison/stonks/proto/run/v1/runv1connect"
 	"github.com/leedenison/stonks/proto/statement/v1/statementv1connect"
-	"github.com/leedenison/stonks/server/internal/attest"
 	"github.com/leedenison/stonks/server/internal/auth"
 	"github.com/leedenison/stonks/server/internal/auth/google"
 	"github.com/leedenison/stonks/server/internal/auth/session"
-	"github.com/leedenison/stonks/server/internal/config"
 	"github.com/leedenison/stonks/server/internal/corporate"
-	"github.com/leedenison/stonks/server/internal/coverage"
 	"github.com/leedenison/stonks/server/internal/currency"
 	"github.com/leedenison/stonks/server/internal/datasource"
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
-	"github.com/leedenison/stonks/server/internal/extendvalidity"
-	"github.com/leedenison/stonks/server/internal/logger"
+	"github.com/leedenison/stonks/server/internal/identity/attest"
+	"github.com/leedenison/stonks/server/internal/identity/coverage"
+	"github.com/leedenison/stonks/server/internal/identity/resolve"
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/market/eodhd"
 	"github.com/leedenison/stonks/server/internal/market/massive"
 	"github.com/leedenison/stonks/server/internal/market/openfigi"
 	"github.com/leedenison/stonks/server/internal/mic"
-	"github.com/leedenison/stonks/server/internal/rdb"
-	"github.com/leedenison/stonks/server/internal/refreshcorporateevents"
-	"github.com/leedenison/stonks/server/internal/replay"
-	"github.com/leedenison/stonks/server/internal/resolve"
+	"github.com/leedenison/stonks/server/internal/platform/config"
+	"github.com/leedenison/stonks/server/internal/platform/logger"
+	"github.com/leedenison/stonks/server/internal/platform/rdb"
+	"github.com/leedenison/stonks/server/internal/platform/telemetry"
 	runner "github.com/leedenison/stonks/server/internal/run"
+	"github.com/leedenison/stonks/server/internal/run/extendvalidity"
+	"github.com/leedenison/stonks/server/internal/run/refreshcorporateevents"
+	"github.com/leedenison/stonks/server/internal/run/replay"
 	"github.com/leedenison/stonks/server/internal/service"
 	adminblock "github.com/leedenison/stonks/server/internal/service/admin/block"
 	admincoverage "github.com/leedenison/stonks/server/internal/service/admin/coverage"
@@ -65,7 +66,6 @@ import (
 	runsvc "github.com/leedenison/stonks/server/internal/service/run"
 	stmtsvc "github.com/leedenison/stonks/server/internal/service/statement"
 	stmt "github.com/leedenison/stonks/server/internal/statement"
-	"github.com/leedenison/stonks/server/internal/telemetry"
 )
 
 var buildRevision = "unknown"
@@ -113,7 +113,7 @@ func run() (err error) {
 		Service:  serviceName,
 		Version:  buildRevision,
 		Env:      cfg.Environment,
-		Log:      logger.WithCategory(log, "internal/telemetry"),
+		Log:      logger.WithCategory(log, "internal/platform/telemetry"),
 	})
 	if err != nil {
 		return err
@@ -178,14 +178,14 @@ func run() (err error) {
 	})
 	cache := market.NewCache(rc, cfg.FetchCacheTTL)
 	fetcher := market.NewFetcher(db.New[market.Queries](pool), runs, logger.WithCategory(log, "internal/market"), market.WithCache(cache))
-	resolver := resolve.New(db.New[resolve.Queries](pool), fetcher, sources, mics, families, time.Now, logger.WithCategory(log, "internal/resolve"))
+	resolver := resolve.New(db.New[resolve.Queries](pool), fetcher, sources, mics, families, time.Now, logger.WithCategory(log, "internal/identity/resolve"))
 	recorder := corporate.New(db.New[corporate.Queries](pool), fetcher, sources, mics, logger.WithCategory(log, "internal/corporate"))
-	corporateEvents := refreshcorporateevents.New(queries, runs, recorder, mics, time.Now, logger.WithCategory(log, "internal/refreshcorporateevents"))
-	replays := replay.New(db.New[replay.Queries](pool), runs, resolver, corporateEvents, sources, mics, logger.WithCategory(log, "internal/replay"))
-	extender := resolve.New(db.New[resolve.Queries](pool), fetcher.Fresh(), sources, mics, families, time.Now, logger.WithCategory(log, "internal/resolve"))
+	corporateEvents := refreshcorporateevents.New(queries, runs, recorder, mics, time.Now, logger.WithCategory(log, "internal/run/refreshcorporateevents"))
+	replays := replay.New(db.New[replay.Queries](pool), runs, resolver, corporateEvents, sources, mics, logger.WithCategory(log, "internal/run/replay"))
+	extender := resolve.New(db.New[resolve.Queries](pool), fetcher.Fresh(), sources, mics, families, time.Now, logger.WithCategory(log, "internal/identity/resolve"))
 	extensions := extendvalidity.New(queries, runs, extender, replays)
 	freshRecorder := corporate.New(db.New[corporate.Queries](pool), fetcher.Fresh(), sources, mics, logger.WithCategory(log, "internal/corporate"))
-	refreshes := refreshcorporateevents.NewStarter(queries, runs, freshRecorder, mics, time.Now, logger.WithCategory(log, "internal/refreshcorporateevents"))
+	refreshes := refreshcorporateevents.NewStarter(queries, runs, freshRecorder, mics, time.Now, logger.WithCategory(log, "internal/run/refreshcorporateevents"))
 	ingester := stmt.New(db.New[stmt.Queries](pool), runs, resolver, replays, corporateEvents, families, time.Now, logger.WithCategory(log, "internal/statement"))
 	datasources := admindatasource.New(queries, sources, datasource.New(db.New[datasource.Queries](pool), sources, cache))
 	srv, err := newServer(cfg.ListenAddr, log, authn, queries, holdingsvc.New(queries, families, scales, mics), adminrun.New(queries), adminblock.New(queries), datasources, admininstrument.New(queries), adminreplay.New(queries, replays), adminextendvalidity.New(extensions), adminrefreshcorporateevents.New(refreshes), admincoverage.New(coverage.New(queries, mics), attest.New(db.New[attest.Queries](pool), runs, replays, mics, time.Now), time.Now), ingester, mics, cfg.CookieSecure)

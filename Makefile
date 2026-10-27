@@ -48,7 +48,7 @@ COMPOSE_TESTER       = $(COMPOSE_TEST) run --rm -T tester
 STAMP_DIR     := .stamps
 PROTO_FILES   := $(shell find proto -name '*.proto' 2>/dev/null)
 QUERY_SQL     := $(shell find server/internal/db/queries -name '*.sql' 2>/dev/null)
-MIGRATIONS    := $(shell find server/internal/migrations -name '*.sql' 2>/dev/null)
+MIGRATIONS    := $(shell find server/internal/db/migrations -name '*.sql' 2>/dev/null)
 GENERATE_GO   := $(shell grep -rl --include='*.go' '^//go:generate' server 2>/dev/null)
 GENERATE_DEPS := $(PROTO_FILES) $(QUERY_SQL) $(MIGRATIONS) $(GENERATE_GO) \
                  $(wildcard buf.gen.go.yaml buf.gen.ts.yaml buf.gen.e2e.yaml sqlc.yaml go.mod client/package-lock.json)
@@ -191,7 +191,7 @@ clean-db: stop ## Remove the dev database volume
 
 clean-generated: ## Remove generated code and the generate stamp
 	find proto \( -name '*.pb.go' -o -name '*.connect.go' \) -delete 2>/dev/null || true
-	find server -name '*_mock.go' -delete 2>/dev/null || true
+	find server \( -name '*_mock.go' -o -name '*_mock_test.go' \) -delete 2>/dev/null || true
 	rm -rf server/internal/db/gen client/gen e2e/gen
 	rm -f $(STAMP_DIR)/generate
 

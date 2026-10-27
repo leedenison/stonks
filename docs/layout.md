@@ -46,8 +46,15 @@ server/
   cmd/healthcheck/       exits 0 when the URL named by its argument answers 200; the container healthcheck
   cmd/vcrproxy/          the e2e stack's provider: a reverse proxy replaying recorded traffic
   internal/              private packages
+    platform/            process plumbing: configuration, logging, telemetry, Redis, pointer helpers
+    db/                  the database: queries, generated code, migrations
+    identity/            how a stated key comes to name an instrument: resolution, validity,
+                         attestation, coverage, the holdings of keys without an instrument
+    run/                 runs and the work they do: replay, validity extension, corporate event refresh
   pkg/                   packages with externally visible interfaces
 ```
+
+A package that belongs to none of these groups sits at the top of `internal/`.
 
 ## `client/`
 
