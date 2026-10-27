@@ -1,7 +1,7 @@
 ---
 title: Adjusted holdings
 type: task
-dependencies: [003, 004, 008]
+dependencies: [003, 004, 008, 012]
 ---
 
 ## Scope
