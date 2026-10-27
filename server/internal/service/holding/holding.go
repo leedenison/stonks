@@ -195,9 +195,7 @@ func (s *Server) instrs(ctx context.Context, keys []gen.ListHoldingKeysRow, d da
 			Keys:       keysOf[id],
 		}
 		for _, i := range identified[id] {
-			if !to.Identifier(i).Ticker() {
-				h.Identifiers = append(h.Identifiers, to.Identifier(i).ToProto())
-			}
+			h.Identifiers = append(h.Identifiers, to.Identifier(i).ToProto())
 		}
 		for _, l := range listed[id] {
 			if l.Rank == nil || *l.Rank == 1 {

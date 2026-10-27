@@ -5,14 +5,12 @@ import (
 	"fmt"
 	"maps"
 	"slices"
-	"strings"
 
 	"github.com/google/uuid"
 
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/join"
-	"github.com/leedenison/stonks/server/internal/db/to"
 	"github.com/leedenison/stonks/server/internal/identity/tickervalidity"
 	"github.com/leedenison/stonks/server/internal/types"
 )
@@ -44,14 +42,16 @@ func (w *writer) create(ctx context.Context, winner *identityClaim) (gen.Instr, 
 	return instr, nil
 }
 
-// attach writes the listings and identifiers of c the instrument lacks, each
-// with c's fetch key as provenance, records the fetch key's response against
-// the instrument, and asserts each of c's identifiers on the UTC day of the
-// answer. A listing takes the primary venue c states only while it has none,
-// whichever run or claim created it.
+// attach adds the listings and identity identifiers of c that the instrument
+// lacks, with c's fetch key as provenance, and asserts c's tickers on the UTC
+// day of the answer. A listing takes the primary venue c states only while it
+// has none, whichever run or claim created it.
 func (w *writer) attach(ctx context.Context, c *identityClaim) error {
 	fetchKeyID := c.fetchKey.ID
 	for _, id := range c.Identifiers {
+		if id.Ticker() {
+			continue
+		}
 		if err := w.identify(ctx, id, nil, fetchKeyID); err != nil {
 			return err
 		}
@@ -81,6 +81,9 @@ func (w *writer) attach(ctx context.Context, c *identityClaim) error {
 		}
 		listing := l.ID
 		for _, id := range c.Listings[fam].Identifiers {
+			if id.Ticker() {
+				continue
+			}
 			if err := w.identify(ctx, id, &listing, fetchKeyID); err != nil {
 				return err
 			}
@@ -127,21 +130,13 @@ func currencyOf(c *identityClaim, id types.Identifier) string {
 	return ""
 }
 
-// identify writes id on the instrument, or on listing where set, unless it
-// already identifies the instrument. An identity answer holds on the day it
-// was given, so a ticker it names moves to the instrument from whichever
-// instrument carried it.
+// identify writes the identity identifier id on the instrument, or on listing
+// where set, unless it already identifies the instrument.
 func (w *writer) identify(ctx context.Context, id types.Identifier, listing *uuid.UUID, fetchKeyID uuid.UUID) error {
 	if w.instr.Identifier(id) != nil || w.taken[id] {
 		return nil
 	}
-	var row gen.Identifier
-	var err error
-	if id.Ticker() {
-		row, err = w.q.PlaceTicker(ctx, gen.PlaceTickerParams{ID: db.NewID(), InstrID: w.instr.Row.ID, ListingID: listing, Type: id.Type, Domain: id.Domain, Value: id.Value, FetchKeyID: &fetchKeyID})
-	} else {
-		row, err = w.q.CreateIdentifier(ctx, gen.CreateIdentifierParams{ID: db.NewID(), InstrID: w.instr.Row.ID, ListingID: listing, Type: id.Type, Domain: id.Domain, Value: id.Value, FetchKeyID: &fetchKeyID})
-	}
+	row, err := w.q.CreateIdentifier(ctx, gen.CreateIdentifierParams{ID: db.NewID(), InstrID: w.instr.Row.ID, ListingID: listing, Type: id.Type, Domain: id.Domain, Value: id.Value, FetchKeyID: &fetchKeyID})
 	if err != nil {
 		return fmt.Errorf("create %s: %w", id.Name(), err)
 	}
@@ -149,67 +144,40 @@ func (w *writer) identify(ctx context.Context, id types.Identifier, listing *uui
 	return nil
 }
 
-// associate writes the association of res with the instrument, through the
-// identifier via returns and on the listing of the stated family, with
-// arbiter. It reports false when no identifier identifies the instrument.
-// When the user already arbitrated the key's association, the update matches
-// zero rows and that association stands.
+// associate writes the association of res with the instrument, on the
+// listing of the stated family, with arbiter. It reports false when the key
+// has nothing to associate through. When the user already arbitrated the
+// key's association, the update matches zero rows and that association
+// stands.
 //
-// An association through a ticker is dated through the MIC_TICKER on the
-// ticker's listing, unless the user chose it. Where the listing has none, the
-// association is fixed.
-func (w *writer) associate(ctx context.Context, res *resolution, arbiter gen.Arbiter) (bool, error) {
+// An identity row that the key states fixes the association first. A user's
+// choice is fixed through choice.via, and a key that the resolver dates is
+// dated through its venue ticker. The arbiter of a dated key is never the
+// user.
+func (w *writer) associate(ctx context.Context, res *resolution, arbiter gen.Arbiter, choice *userChoice) (bool, error) {
 	var listingID *uuid.UUID
 	if l := w.instr.Listing(res.family); l != nil {
 		listingID = &l.ID
 	}
-	via, ok := w.via(res, listingID)
-	if !ok {
+	via, ok := w.identityVia(res)
+	switch {
+	case ok:
+	case choice != nil:
+		row := w.instr.Identifier(choice.via)
+		if row == nil {
+			return false, fmt.Errorf("%w: another instrument carries %s", ErrNoCandidate, choice.via.Name())
+		}
+		via = *row
+	case res.dating != nil:
+		return true, writeDated(ctx, w.q, w.user, res, res.via, arbiter)
+	default:
 		return false, nil
-	}
-	if v, ok := w.datedThrough(via); ok && arbiter != gen.ArbiterUser {
-		return true, writeDated(ctx, w.q, w.user, res, v, arbiter)
 	}
 	arg := gen.SetStatedKeyAssociationParams{ID: res.row.ID, UserID: w.user, InstrID: &w.instr.Row.ID, ListingID: listingID, ViaIdentifierID: &via.ID, Arbiter: arbiter}
 	if _, err := w.q.SetStatedKeyAssociation(ctx, arg); err != nil {
 		return false, fmt.Errorf("associate key: %w", err)
 	}
 	return true, nil
-}
-
-// datedThrough returns the MIC_TICKER a key associated through via is
-// dated through: via itself, or the MIC_TICKER on via's listing for another
-// ticker. It reports false where via is no ticker or its listing has no
-// MIC_TICKER.
-func (w *writer) datedThrough(via gen.Identifier) (types.Identifier, bool) {
-	id := to.Identifier(via)
-	if !id.Ticker() {
-		return types.Identifier{}, false
-	}
-	if id.Type == types.IdentifierTypeMicTicker {
-		return id, true
-	}
-	for _, row := range w.tickers() {
-		if row.ListingID != nil && via.ListingID != nil && *row.ListingID == *via.ListingID {
-			return to.Identifier(row), true
-		}
-	}
-	return types.Identifier{}, false
-}
-
-// tickers returns the instrument's MIC_TICKER rows, in order of venue and
-// value.
-func (w *writer) tickers() []gen.Identifier {
-	var out []gen.Identifier
-	for _, row := range w.instr.Identifiers {
-		if row.Type == types.IdentifierTypeMicTicker {
-			out = append(out, row)
-		}
-	}
-	slices.SortFunc(out, func(a, b gen.Identifier) int {
-		return strings.Compare(a.Domain+":"+a.Value, b.Domain+":"+b.Value)
-	})
-	return out
 }
 
 // writeDated gives res a dated association through the MIC_TICKER v, with
@@ -232,25 +200,14 @@ func writeDated(ctx context.Context, q Queries, user uuid.UUID, res *resolution,
 	return nil
 }
 
-// via returns the identifier that carries res's association. That is the
-// strongest global identifier or broker description of res that also
-// identifies the instrument, with a description ranking below every global
-// identifier. Failing that, it is a venue ticker of the chosen listing, then a
-// venue ticker of the instrument.
-func (w *writer) via(res *resolution, listing *uuid.UUID) (gen.Identifier, bool) {
+// identityVia returns the identity row that carries res's association: the
+// strongest global identifier or broker description of res that identifies
+// the instrument, with a description ranking below every global identifier.
+func (w *writer) identityVia(res *resolution) (gen.Identifier, bool) {
 	for _, id := range res.globalAndDescriptionIDs {
 		if row := w.instr.Identifier(id); row != nil {
 			return *row, true
 		}
-	}
-	tickers := w.tickers()
-	for _, row := range tickers {
-		if listing != nil && row.ListingID != nil && *row.ListingID == *listing {
-			return row, true
-		}
-	}
-	if len(tickers) > 0 {
-		return tickers[0], true
 	}
 	return gen.Identifier{}, false
 }

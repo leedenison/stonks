@@ -5,6 +5,7 @@ package resolve
 import (
 	"context"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -79,7 +80,7 @@ func TestTickerJoins(t *testing.T) {
 	found, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: figi.Type, Value: figi.Value})
 	require.NoError(t, err)
 	instr := found.Instr.ID
-	want := []string{"cusip 92857W308", "isin GB00BH4HKS39", "mic_ticker XLON:ZZJ", "openfigi_share_class BBG001S5XDT5"}
+	want := []string{"cusip 92857W308", "isin GB00BH4HKS39", "openfigi_share_class BBG001S5XDT5"}
 	if diff := cmp.Diff(want, s.identifierNames(t, instr)); diff != "" {
 		t.Errorf("identifiers mismatch (-want +got):\n%s", diff)
 	}
@@ -163,12 +164,10 @@ func TestTickerJoinKeepsInstrsApart(t *testing.T) {
 		if k := s.key(t, key.ID); !s.datedThrough(t, k, v, gen.ArbiterStated) {
 			t.Errorf("key = %+v, want dated through %s on the stored instrument", k, v.Name())
 		}
-		ticker, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: v.Type, Domain: v.Domain, Value: v.Value})
-		require.NoError(t, err)
-		if ticker.Instr.ID != target {
-			t.Errorf("%s names %s, want the stored instrument %s", v.Name(), ticker.Instr.ID, target)
+		if names := s.names(t, target); !slices.ContainsFunc(names, func(n string) bool { return strings.HasPrefix(n, v.Value+" at ") }) {
+			t.Errorf("names of the stored instrument = %v, want %s among them", names, v.Name())
 		}
-		if diff := cmp.Diff([]string{"isin GB00BH4HKS39", "mic_ticker " + v.Domain + ":" + v.Value, "openfigi_share_class BBG001S5XDT5"}, s.identifierNames(t, target)); diff != "" {
+		if diff := cmp.Diff([]string{"isin GB00BH4HKS39", "openfigi_share_class BBG001S5XDT5"}, s.identifierNames(t, target)); diff != "" {
 			t.Errorf("target's identifiers mismatch (-want +got):\n%s", diff)
 		}
 		if diff := cmp.Diff([]string{"cusip 92857W308"}, s.identifierNames(t, other)); diff != "" {
@@ -194,7 +193,7 @@ func TestTickerJoinKeepsInstrsApart(t *testing.T) {
 		if found.Instr.ID == other {
 			t.Fatalf("the key took the stored instrument %s, want a new one: a ticker merges nothing", other)
 		}
-		if diff := cmp.Diff([]string{"mic_ticker XLON:ZZK", "openfigi_share_class BBG001S5XDT5"}, s.identifierNames(t, found.Instr.ID)); diff != "" {
+		if diff := cmp.Diff([]string{"openfigi_share_class BBG001S5XDT5"}, s.identifierNames(t, found.Instr.ID)); diff != "" {
 			t.Errorf("new instrument's identifiers mismatch (-want +got):\n%s", diff)
 		}
 		if diff := cmp.Diff([]string{"isin GB00BH4HKS39"}, s.identifierNames(t, other)); diff != "" {

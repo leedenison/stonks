@@ -59,8 +59,12 @@ CREATE TABLE tickers (
     UNIQUE (id, market)
 );
 
--- The composite foreign keys on via_market make the venue of a dated
--- association a member of its ticker's market.
+-- A key is unresolved, fixed or dated. A fixed key sets instr_id and
+-- via_identifier_id. A dated key sets the three via_ ticker columns to the
+-- venue ticker it states. Its arbiter is never the user, because a user's
+-- choice fixes the key through a stable identifier of the candidate. The
+-- composite foreign keys on via_market make the venue of a dated association
+-- a member of its ticker's market.
 ALTER TABLE stated_keys
     ADD COLUMN via_ticker_id uuid,
     ADD COLUMN via_market    text,
@@ -70,7 +74,8 @@ ALTER TABLE stated_keys
     ADD CHECK ((via_ticker_id IS NULL) = (via_market IS NULL)
                AND (via_ticker_id IS NULL) = (via_venue IS NULL)),
     ADD CHECK (instr_id IS NULL OR via_ticker_id IS NULL),
-    ADD CHECK ((arbiter IS NULL) = (instr_id IS NULL AND via_ticker_id IS NULL));
+    ADD CHECK ((arbiter IS NULL) = (instr_id IS NULL AND via_ticker_id IS NULL)),
+    ADD CHECK (via_ticker_id IS NULL OR arbiter <> 'user');
 
 -- An identifier assertion is a claim that a ticker names an instrument, or
 -- names nothing, on one day. A datasource asserts through a fetch key, on the
@@ -80,6 +85,11 @@ ALTER TABLE stated_keys
 -- a rename on the day before the rename, with the edge 'last'. An
 -- administrator asserts through an attest identifier run, on any day up to the
 -- day of the identifier attestation. A row goes with its source.
+--
+-- Only a ticker is asserted. A stable identifier needs no assertion, because
+-- its row of identifiers is the claim. An option symbol and a bare ticker get
+-- none. For each of them the fetch key records the identifier sent, the
+-- outcome and the count of candidates.
 CREATE TABLE identifier_assertions (
     id              uuid            PRIMARY KEY,
     fetch_key_id    uuid            REFERENCES fetch_keys (id) ON DELETE CASCADE,
@@ -227,11 +237,11 @@ JOIN instr_tickers ON instr_tickers.ticker_id = resolved_tickers.ticker_id
 LEFT JOIN venue_names ON venue_names.mic = resolved_tickers.venue;
 
 -- instr_names gives each instrument the one identifier that names it. It
--- chooses from the instrument's identifiers other than its MIC_TICKERs, and
--- from its rows of resolved_tickers that state a venue and are not defunct,
--- each as a MIC_TICKER at that venue. A row without a venue is left out,
--- since the domain of a MIC_TICKER is an operating MIC. A defunct ticker is
--- left out too, since it names another instrument now. Types rank by
+-- chooses from the instrument's identifiers, and from its rows of
+-- resolved_tickers that state a venue and are not defunct, each as a
+-- MIC_TICKER at that venue. A row without a venue is left out, since the
+-- domain of a MIC_TICKER is an operating MIC. A defunct ticker is left out
+-- too, since it names another instrument now. Types rank by
 -- name_rank. Among tickers a current one wins, then the primary venue of a
 -- listing, then venue_names.rank, then domain and value. A row exists only
 -- for an instrument with a name.
@@ -243,7 +253,6 @@ FROM (
            NULL::boolean AS is_primary, NULL::integer AS venue_rank
     FROM identifiers
     JOIN identifier_type_traits ON identifier_type_traits.type = identifiers.type
-    WHERE identifiers.type <> 'mic_ticker'
     UNION ALL
     SELECT resolved_tickers.instr_id, traits.type, resolved_tickers.venue, tickers.value,
            traits.name_rank, instr_tickers.relation = 'current',

@@ -132,12 +132,12 @@ func (i Identifier) Stable() bool {
 	return i.Type.Trait().Reassignment == IdentifierReassignmentStable
 }
 
-// Ticker reports whether i is a ticker: an identifier of a listing that is
-// not stable. A ticker names different instruments on different days, so a
-// key that associates through one is dated. An option symbol is reassignable too, but it
-// names an instrument, and a key stays fixed through it.
+// Ticker reports whether i is a ticker: a MIC_TICKER or a DATASOURCE_TICKER.
+// A ticker is a spelling that names different instruments on different days.
+// It is never a row of identifiers. A key that associates through a ticker is
+// dated.
 func (i Identifier) Ticker() bool {
-	return i.Grain() == IdentifierGrainListing && !i.Stable()
+	return i.Type == IdentifierTypeMicTicker || i.Type == IdentifierTypeDatasourceTicker
 }
 
 // Strength ranks i by how firmly it identifies its instrument or listing, the

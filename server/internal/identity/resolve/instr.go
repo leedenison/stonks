@@ -121,10 +121,8 @@ func (res *resolution) decide(outcome gen.ResolutionOutcome, format string, args
 }
 
 // lookupIDs returns the identifiers of ids that a lookup in the database may
-// match: every one but a ticker. A ticker row names the instrument its ticker
-// identifies today. What the ticker named on another day is read from its
-// ticker validity, so resolution does not match through a ticker row. An option
-// symbol still matches through its row until corporate actions are built.
+// match: every one but a ticker, which is never a row of identifiers. What a
+// ticker names is read from its ticker validity.
 func lookupIDs(ids []types.Identifier) []types.Identifier {
 	var out []types.Identifier
 	for _, id := range ids {

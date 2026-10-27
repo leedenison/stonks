@@ -74,19 +74,14 @@ func (f *fixture) bareKey(t *testing.T, value string) {
 	f.exec(t, "INSERT INTO txns (id, user_id, broker, stmt_id, stated_key_id, order_date, settlement_date, as_at, quantity) VALUES ($1, $2, 'ibkr', $3, $4, $5, $5, $5, 1)", db.NewID(), f.user.ID, f.stmt, id, day(9))
 }
 
-// instr returns an instrument whose listing carries value as a
-// MIC_TICKER at each of domains.
-func (f *fixture) instr(t *testing.T, value string, domains ...string) uuid.UUID {
+// instr returns an instrument with a USD listing.
+func (f *fixture) instr(t *testing.T) uuid.UUID {
 	t.Helper()
 	ctx := context.Background()
 	instr, err := f.q.CreateInstr(ctx, gen.CreateInstrParams{ID: db.NewID(), AssetClass: types.AssetClassStock})
 	require.NoError(t, err)
-	listing, err := f.q.CreateListing(ctx, gen.CreateListingParams{ID: db.NewID(), InstrID: instr.ID, Currency: "USD"})
+	_, err = f.q.CreateListing(ctx, gen.CreateListingParams{ID: db.NewID(), InstrID: instr.ID, Currency: "USD"})
 	require.NoError(t, err)
-	for _, domain := range domains {
-		_, err = f.q.CreateIdentifier(ctx, gen.CreateIdentifierParams{ID: db.NewID(), InstrID: instr.ID, ListingID: &listing.ID, Type: types.IdentifierTypeMicTicker, Domain: domain, Value: value})
-		require.NoError(t, err)
-	}
 	return instr.ID
 }
 
@@ -132,13 +127,13 @@ func TestQueries(t *testing.T) {
 	f.key(t, "XLON", value, 8)
 	f.key(t, "XNAS", "BETA"+uuid.NewString()[:8])
 	f.bareKey(t, value)
-	instr := f.instr(t, value, "XNAS", "XNYS")
+	instr := f.instr(t)
 	f.attest(t, instr, "US", value)
 	f.attest(t, instr, "US", former)
 	f.names(t, instr, "US", value, "XNAS", true)
 	f.names(t, instr, "US", value, "XNYS", true)
 	f.names(t, instr, "XLON", defunct, "XLON", false)
-	f.names(t, f.instr(t, "OTHER"+uuid.NewString()[:8], "XNAS"), "XLON", defunct, "XLON", true)
+	f.names(t, f.instr(t), "XLON", defunct, "XLON", true)
 
 	mics, err := mic.Load(ctx, f.q)
 	require.NoError(t, err)

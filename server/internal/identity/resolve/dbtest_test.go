@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 	"testing"
@@ -75,7 +76,7 @@ func TestResolveWrites(t *testing.T) {
 			t.Errorf("identifier %s from fetch key %v, want the instrument's %s", row.Value, row.FetchKeyID, *instr.FetchKeyID)
 		}
 	}
-	wantIdentifiers := []string{"instrument isin GB00BH4HKS39", "instrument openfigi_share_class BBG001S5XDT5", "listing openfigi_composite BBG000C6K6G9", "listing mic_ticker XLON:VOD"}
+	wantIdentifiers := []string{"instrument isin GB00BH4HKS39", "instrument openfigi_share_class BBG001S5XDT5", "listing openfigi_composite BBG000C6K6G9"}
 	if diff := cmp.Diff(wantIdentifiers, identifiers); diff != "" {
 		t.Errorf("identifiers mismatch (-want +got):\n%s", diff)
 	}
@@ -395,8 +396,8 @@ func TestMergeRows(t *testing.T) {
 	}
 	wantWhere := map[string]string{
 		"isin GB00BH4HKS39": "instrument", "openfigi_share_class BBG001S5XDT5": "instrument",
-		"cusip 92857W308":     "instrument",
-		"mic_ticker XLON:VOD": "GBP", "mic_ticker XNAS:VOD": "USD", "sedol BH4HKS3": "USD",
+		"cusip 92857W308": "instrument",
+		"sedol BH4HKS3":   "USD",
 	}
 	if diff := cmp.Diff(wantWhere, where); diff != "" {
 		t.Errorf("survivor identifiers mismatch (-want +got):\n%s", diff)
@@ -743,7 +744,7 @@ func TestCoveredRows(t *testing.T) {
 			t.Errorf("the ISIN row is %s, want the one alpha wrote, %s", row.ID, before.Identifier.ID)
 		}
 	}
-	want := []string{"isin GB00BH4HKS39", "openfigi_share_class BBG001S5XDT5", "mic_ticker XLON:VOD", "mic_ticker XNAS:VOD"}
+	want := []string{"isin GB00BH4HKS39", "openfigi_share_class BBG001S5XDT5"}
 	if diff := cmp.Diff(want, names); diff != "" {
 		t.Errorf("identifiers mismatch (-want +got):\n%s", diff)
 	}
@@ -892,16 +893,11 @@ func TestMergeAcrossCurrencies(t *testing.T) {
 	if s.exists(t, b.Instr.ID) {
 		t.Errorf("the later instrument %s still exists", b.Instr.ID)
 	}
-	ids, err := s.q.ListIdentifiers(ctx, a.Instr.ID)
-	require.NoError(t, err)
-	var tickers []string
-	for _, row := range ids {
-		if row.Type == types.IdentifierTypeMicTicker {
-			tickers = append(tickers, to.Identifier(row).Name())
+	// Both tickers' assertions move to the survivor.
+	for _, v := range []string{xlon.Value, usdLine.Value} {
+		if n := s.count(t, `SELECT count(*) FROM identifier_assertions JOIN tickers ON tickers.id = identifier_assertions.ticker_id WHERE instr_id = $1 AND tickers.value = $2`, a.Instr.ID, v); n != 1 {
+			t.Errorf("%d assertions that %s names the survivor, want 1", n, v)
 		}
-	}
-	if diff := cmp.Diff([]string{"mic_ticker XLON:VOD", "mic_ticker XLON:VODUSD"}, tickers); diff != "" {
-		t.Errorf("survivor tickers mismatch (-want +got):\n%s", diff)
 	}
 	if diff := cmp.Diff([]gen.FindingKind{gen.FindingKindMerged}, s.findings(t, k.ID)); diff != "" {
 		t.Errorf("findings mismatch (-want +got):\n%s", diff)
@@ -1052,8 +1048,13 @@ func TestConfirmRows(t *testing.T) {
 	for _, row := range ids {
 		via[row.ID] = to.Identifier(row).Name()
 	}
-	if k := s.key(t, key.ID); k.InstrID == nil || *k.InstrID != instr.ID || k.ListingID == nil || via[*k.ViaIdentifierID] != "mic_ticker XLON:VOD" || *k.Arbiter != gen.ArbiterUser || k.GroupID != nil {
-		t.Errorf("key = %+v, want the instrument's GBP listing via its venue ticker, provisional, by the user, in no group", k)
+	if k := s.key(t, key.ID); k.InstrID == nil || *k.InstrID != instr.ID || k.ListingID == nil || via[*k.ViaIdentifierID] != isin.Name() || *k.Arbiter != gen.ArbiterUser || k.GroupID != nil {
+		t.Errorf("key = %+v, want the instrument's GBP listing via the picked ISIN, by the user, in no group", k)
+	}
+	for name := range maps.Values(via) {
+		if strings.HasPrefix(name, string(types.IdentifierTypeMicTicker)) {
+			t.Errorf("identifiers hold %s, want no ticker", name)
+		}
 	}
 	if m := s.key(t, mate.ID); m.InstrID != nil || m.Arbiter != nil {
 		t.Errorf("the mate = %+v, want it untouched: a choice associates the one key", m)
@@ -1133,10 +1134,48 @@ func TestConfirmJoins(t *testing.T) {
 		got = append(got, to.Identifier(row).Name())
 	}
 	slices.Sort(got)
-	want := []string{"isin GB00BH4HKS39", "mic_ticker XLON:VOD", figi.Name()}
+	want := []string{"isin GB00BH4HKS39", figi.Name()}
 	slices.Sort(want)
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("identifiers mismatch (-want +got):\n%s", diff)
+	}
+}
+
+// TestConfirmFixesThroughStable checks that a confirmation of a key that
+// states only a venue ticker fixes it through a stable identifier of the
+// candidate: the pick when it is stable, and the candidate's strongest when
+// the pick is a ticker.
+func TestConfirmFixesThroughStable(t *testing.T) {
+	tests := []struct {
+		name string
+		ids  []types.Identifier
+		pick types.Identifier
+		want types.Identifier
+	}{
+		{name: "a ticker pick takes the strongest stable identifier", ids: []types.Identifier{isin, xlon}, pick: xlon, want: isin},
+		{name: "a stable pick is kept", ids: []types.Identifier{figi, isin, cusip, xlon}, pick: cusip, want: cusip},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			s := newStack(t)
+			ctx := context.Background()
+			s.script.Responses[xlon] = market.IdentityResult{Filtered: []types.Identifier{xlon}, Listings: []market.Listing{
+				{Class: types.AssetClassStock, Currency: "GBP", Identifiers: tc.ids},
+			}}
+			key := s.state(t, types.AssetClassStock, "GBP", xlon)
+			rk, _, err := s.resolver.Confirm(ctx, s.resolution, key, Pick{Datasource: s.alphaName, Identifier: tc.pick})
+			require.NoError(t, err)
+			require.Equal(t, gen.ResolutionOutcomeMatched, rk.Outcome)
+			k := s.key(t, key.ID)
+			want, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: tc.want.Type, Value: tc.want.Value})
+			require.NoError(t, err)
+			if k.ViaIdentifierID == nil || *k.ViaIdentifierID != want.Identifier.ID || k.ViaTickerID != nil || *k.Arbiter != gen.ArbiterUser {
+				t.Errorf("key = %+v, want it fixed through %s by the user", k, tc.want.Name())
+			}
+			if names := s.identifierNames(t, want.Instr.ID); slices.ContainsFunc(names, func(n string) bool { return strings.HasPrefix(n, string(types.IdentifierTypeMicTicker)) }) {
+				t.Errorf("identifiers = %v, want no ticker", names)
+			}
+		})
 	}
 }
 

@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -110,10 +111,8 @@ func TestDated(t *testing.T) {
 	}
 	held, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: share.Type, Value: share.Value})
 	require.NoError(t, err)
-	ticker, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: v.Type, Domain: v.Domain, Value: v.Value})
-	require.NoError(t, err)
-	if ticker.Instr.ID != held.Instr.ID {
-		t.Errorf("%s names %s, want the identity answer's instrument %s", v.Name(), ticker.Instr.ID, held.Instr.ID)
+	if names := s.names(t, held.Instr.ID); !slices.ContainsFunc(names, func(n string) bool { return strings.HasPrefix(n, v.Value+" at ") }) {
+		t.Errorf("names of the identity answer's instrument = %v, want %s among them", names, v.Name())
 	}
 	ivs, err := tickervalidity.Of(ctx, s.q, mt(v))
 	require.NoError(t, err)
@@ -161,47 +160,59 @@ type window struct{ since time.Time }
 
 func (w window) Window(time.Time) time.Time { return w.since }
 
-// TestDatedTickerMoves checks that an identity answer naming a ticker that
-// another instrument carries moves the ticker row to the answer's instrument,
-// found through its stable identifier, without a merge. A key the user fixed
-// through the row keeps its instrument, row and arbiter.
-func TestDatedTickerMoves(t *testing.T) {
+// TestReassignedTicker checks that when an answer names a ticker for a second
+// instrument, the ticker becomes defunct on the first holder. Neither holder
+// gets an identifier row for the ticker. A key the user fixed through the
+// first holder's stable identifier keeps its instrument.
+func TestReassignedTicker(t *testing.T) {
 	s := newStack(t)
 	ctx := context.Background()
 	v := id(types.IdentifierTypeMicTicker, "XNAS", "ZZM")
-	old, err := s.q.CreateInstr(ctx, gen.CreateInstrParams{ID: db.NewID(), AssetClass: types.AssetClassStock})
-	require.NoError(t, err)
-	line, err := s.q.CreateListing(ctx, gen.CreateListingParams{ID: db.NewID(), InstrID: old.ID, Currency: "USD"})
-	require.NoError(t, err)
-	row, err := s.q.CreateIdentifier(ctx, gen.CreateIdentifierParams{ID: db.NewID(), InstrID: old.ID, ListingID: &line.ID, Type: v.Type, Domain: v.Domain, Value: v.Value})
+	shareA := id(types.IdentifierTypeOpenfigiShareClass, "", "BBG00ZZMOLD1")
+	shareB := id(types.IdentifierTypeOpenfigiShareClass, "", "BBG00ZZMNEW1")
+	s.script.Responses[v] = market.IdentityResult{Filtered: []types.Identifier{{Type: v.Type, Value: v.Value}}, Listings: []market.Listing{
+		{Class: types.AssetClassStock, Currency: "USD", Primary: "XNAS", Identifiers: []types.Identifier{shareA, v}},
+	}}
+	first := s.state(t, types.AssetClassStock, "USD", v)
+	got := s.resolveOn(t, []time.Time{on(2026, 1, 5)}, first)
+	require.Equal(t, gen.ResolutionOutcomeMatched, got[0].Outcome)
+	a := s.instrOf(t, shareA)
+	row, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: shareA.Type, Value: shareA.Value})
 	require.NoError(t, err)
 	chosen := s.state(t, types.AssetClassStock, "USD", v, descr)
-	_, err = s.q.SetStatedKeyAssociation(ctx, gen.SetStatedKeyAssociationParams{ID: chosen.ID, UserID: s.user.ID, InstrID: &old.ID, ListingID: &line.ID, ViaIdentifierID: &row.ID, Arbiter: gen.ArbiterUser})
+	_, err = s.q.SetStatedKeyAssociation(ctx, gen.SetStatedKeyAssociationParams{ID: chosen.ID, UserID: s.user.ID, InstrID: &a, ViaIdentifierID: &row.Identifier.ID, Arbiter: gen.ArbiterUser})
 	require.NoError(t, err)
 
-	share := id(types.IdentifierTypeOpenfigiShareClass, "", "BBG00ZZMOVED")
-	s.script.Responses[v] = market.IdentityResult{Filtered: []types.Identifier{{Type: v.Type, Value: v.Value}}, Listings: []market.Listing{
-		{Class: types.AssetClassStock, Currency: "USD", Primary: "XNAS", Identifiers: []types.Identifier{share, v}},
+	// Two days on, an answer for the second instrument's share class names
+	// the ticker.
+	s.now = s.now.Add(48 * time.Hour)
+	s.rerun(t)
+	s.script.Responses[shareB] = market.IdentityResult{Filtered: []types.Identifier{shareB}, Listings: []market.Listing{
+		{Class: types.AssetClassStock, Currency: "USD", Primary: "XNAS", Identifiers: []types.Identifier{shareB, v}},
 	}}
-	key := s.state(t, types.AssetClassStock, "USD", v)
-	got := s.resolveOn(t, []time.Time{on(2026, 2, 2)}, key)
-	if len(got) != 1 || got[0].Outcome != gen.ResolutionOutcomeMatched {
-		t.Fatalf("resolution = %+v, want the key matched", got)
+	second := s.state(t, types.AssetClassStock, "USD", shareB, v)
+	got = s.resolveOn(t, []time.Time{on(2026, 1, 7)}, second)
+	require.Equal(t, gen.ResolutionOutcomeMatched, got[0].Outcome)
+	b := s.instrOf(t, shareB)
+	if a == b {
+		t.Fatalf("the second answer named %s, want a second instrument", a)
 	}
-	present, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: share.Type, Value: share.Value})
-	require.NoError(t, err)
-	moved, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: v.Type, Domain: v.Domain, Value: v.Value})
-	require.NoError(t, err)
-	if present.Instr.ID == old.ID || moved.Instr.ID != present.Instr.ID || moved.Identifier.ID != row.ID {
-		t.Errorf("%s row = %+v on %s, want the same row moved to the answer's instrument %s", v.Name(), moved.Identifier, moved.Instr.ID, present.Instr.ID)
+	if n := s.count(t, `SELECT count(*) FROM identifiers WHERE type = 'mic_ticker'`); n != 0 {
+		t.Errorf("%d ticker rows in identifiers, want none", n)
 	}
-	if !s.exists(t, old.ID) {
-		t.Errorf("the old instrument is gone, want it kept: a ticker merges nothing")
+	if n := s.count(t, `SELECT count(*) FROM resolved_tickers WHERE instr_id = $1 AND valid_before IS NOT NULL`, a); n != 1 {
+		t.Errorf("%d ended rows of resolved_tickers for the first holder, want 1", n)
 	}
-	if k := s.key(t, chosen.ID); k.InstrID == nil || *k.InstrID != old.ID || k.ViaIdentifierID == nil || *k.ViaIdentifierID != row.ID || k.Arbiter == nil || *k.Arbiter != gen.ArbiterUser {
-		t.Errorf("the user's key = %+v, want it fixed on %s through the row it was made through", k, old.ID)
+	if n := s.count(t, `SELECT count(*) FROM instr_tickers WHERE instr_id = $1 AND relation = 'defunct'`, a); n != 1 {
+		t.Errorf("%d defunct tickers of the first holder, want 1", n)
 	}
-	if k := s.key(t, key.ID); !s.datedThrough(t, k, v, gen.ArbiterDatasource) {
+	if n := s.count(t, `SELECT count(*) FROM instr_tickers WHERE instr_id = $1 AND relation = 'current'`, b); n != 1 {
+		t.Errorf("%d current tickers of the second holder, want 1", n)
+	}
+	if k := s.key(t, chosen.ID); k.InstrID == nil || *k.InstrID != a || *k.ViaIdentifierID != row.Identifier.ID || *k.Arbiter != gen.ArbiterUser {
+		t.Errorf("the user's key = %+v, want it fixed on %s through its share class", k, a)
+	}
+	if k := s.key(t, first.ID); !s.datedThrough(t, k, v, gen.ArbiterDatasource) {
 		t.Errorf("key = %+v, want dated through %s", k, v.Name())
 	}
 }

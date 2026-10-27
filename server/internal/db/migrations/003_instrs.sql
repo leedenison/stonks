@@ -30,13 +30,17 @@ INSERT INTO asset_class_tree (class, parent) VALUES
 -- international securities numbers;
 -- 'openfigi_share_class' and 'openfigi_composite' are the FIGIs OpenFIGI
 -- assigns to a share class and to a country-wide composite listing;
--- 'mic_ticker' is a ticker at an operating MIC;
+-- 'mic_ticker' is a ticker at an operating MIC, in the system's spelling. An
+-- integration converts its own spelling of a ticker to one, and drops a
+-- ticker that it cannot convert;
 -- 'occ' is an OCC option symbol;
 -- 'option' is an option symbol in the OCC format, built from the terms a
 -- broker states; a datasource names the same contract under 'occ';
 -- 'currency' is an ISO 4217 code, the identifier of money;
--- 'datasource_ticker' and 'broker_id' are identifiers in one datasource's or
--- one broker's own namespace;
+-- 'datasource_ticker' is a ticker in one datasource's own spelling. It
+-- records what a request sent, as EODHD's splits fetch sends BRK-B.US, and
+-- a statement never states one;
+-- 'broker_id' is an identifier in one broker's own namespace;
 -- 'broker_description' is a line's description as one broker states it, the
 -- domain being the broker.
 CREATE TYPE identifier_type AS ENUM ('isin', 'cusip', 'cins', 'wertpapier',
@@ -172,15 +176,13 @@ CREATE TABLE listings (
 
 -- An identifier names an instrument or one of its listings by a type, a
 -- domain and a value, the domain empty where its type has none. One triple
--- identifies one instrument or listing. A ticker row names the instrument the
--- ticker identifies today, and moves when an identity answer names another. A
--- retirement leaves the row in place, so a delisted holding keeps its name. A
--- holding is named by the current ticker, whatever the dates of its
--- transactions.
--- What the ticker named on an earlier day is read from its ticker validity, so
--- resolution does not match through a ticker row. An option symbol matches
--- through its row, because the system does not normalise option symbols
--- through the corporate actions of their underlying.
+-- identifies one instrument or listing. The table holds identity: the stable
+-- identifiers, the option symbols and the broker descriptions. Resolution may
+-- match through every row. A ticker names different instruments on different
+-- days, so the tickers table holds it, and its ticker validity names the
+-- instrument for each day; see 010_ticker_validity.sql. An
+-- option symbol matches through its row, because the system does not
+-- normalise option symbols through the corporate actions of their underlying.
 CREATE TABLE identifiers (
     id            uuid            PRIMARY KEY,
     instr_id uuid            NOT NULL REFERENCES instrs (id),
@@ -198,7 +200,8 @@ CREATE TABLE identifiers (
     -- instruments in separate statements of one transaction.
     FOREIGN KEY (listing_id, instr_id) REFERENCES listings (id, instr_id)
         DEFERRABLE INITIALLY IMMEDIATE,
-    UNIQUE (type, domain, value)
+    UNIQUE (type, domain, value),
+    CHECK (type NOT IN ('mic_ticker', 'datasource_ticker'))
 );
 
 CREATE INDEX identifiers_instr_idx ON identifiers (instr_id);

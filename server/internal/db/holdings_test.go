@@ -99,13 +99,6 @@ func (h holder) recordOn(t *testing.T, q *gen.Queries, key gen.StatedKey, day ti
 
 var decimalEqual = cmp.Comparer(func(a, b decimal.Decimal) bool { return a.Equal(b) })
 
-// venueTicker gives listing a ticker at venue.
-func venueTicker(t *testing.T, q *gen.Queries, listing gen.Listing, venue, value string) {
-	t.Helper()
-	_, err := q.CreateIdentifier(context.Background(), gen.CreateIdentifierParams{ID: db.NewID(), InstrID: listing.InstrID, ListingID: &listing.ID, Type: types.IdentifierTypeMicTicker, Domain: venue, Value: value})
-	require.NoError(t, err)
-}
-
 // resolves writes a row of resolved_tickers that names instr by value at
 // market, at venue and in currency. An empty venue or currency is NULL. The
 // row is open unless closed is set.

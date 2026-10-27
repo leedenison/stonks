@@ -140,10 +140,6 @@ func (f *fixture) creates() {
 		f.identifiers = append(f.identifiers, arg)
 		return gen.Identifier{ID: arg.ID, InstrID: arg.InstrID, ListingID: arg.ListingID, Type: arg.Type, Domain: arg.Domain, Value: arg.Value}, nil
 	}).AnyTimes()
-	f.store.EXPECT().PlaceTicker(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.PlaceTickerParams) (gen.Identifier, error) {
-		f.identifiers = append(f.identifiers, gen.CreateIdentifierParams(arg))
-		return gen.Identifier{ID: arg.ID, InstrID: arg.InstrID, ListingID: arg.ListingID, Type: arg.Type, Domain: arg.Domain, Value: arg.Value}, nil
-	}).AnyTimes()
 	f.store.EXPECT().UpsertIdentityCoverage(gomock.Any(), gomock.Any()).AnyTimes()
 	f.store.EXPECT().SetFetchKeyInstr(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.SetFetchKeyInstrParams) error {
 		f.attached = append(f.attached, arg.ID)
@@ -558,14 +554,14 @@ func TestCandidates(t *testing.T) {
 			}},
 		},
 		{
-			name:    "a venue ticker alone names its set of identifiers, and no family is no currency",
+			name:    "a listing of no family is of no currency",
 			entries: []*market.Entry{entryA},
 			key:     keyOf(types.AssetClassStock, "", ticker),
 			fetchKeys: map[*market.Entry]fetchKey{
-				entryA: servedFetchKey(ticker, []types.Identifier{ticker}, listing(types.AssetClassStock, "", xlon), listing(types.AssetClassStock, "USD", figi, xnas)),
+				entryA: servedFetchKey(ticker, []types.Identifier{ticker}, listing(types.AssetClassStock, "", isin, xlon), listing(types.AssetClassStock, "USD", figi, xnas)),
 			},
 			want: Offer{Candidates: []Candidate{
-				{Datasource: "a", Strongest: xlon, Instr: types.Instr{Class: types.AssetClassStock, Listings: map[string]types.Listing{"": {Identifiers: []types.Identifier{xlon}}}}},
+				{Datasource: "a", Strongest: isin, Instr: types.Instr{Class: types.AssetClassStock, Identifiers: []types.Identifier{isin}, Listings: map[string]types.Listing{"": {Identifiers: []types.Identifier{xlon}}}}},
 				{Datasource: "a", Strongest: figi, Instr: types.Instr{Class: types.AssetClassStock, Identifiers: []types.Identifier{figi}, Listings: map[string]types.Listing{"USD": {Identifiers: []types.Identifier{xnas}}}}},
 			}},
 		},
@@ -596,16 +592,13 @@ func TestCandidates(t *testing.T) {
 			}},
 		},
 		{
-			name:    "two candidates of one datasource naming only one venue ticker are both offered",
+			name:    "sets that carry only a venue ticker are not offered, each with its reason",
 			entries: []*market.Entry{entryA},
 			key:     keyOf(types.AssetClassStock, "", ticker),
 			fetchKeys: map[*market.Entry]fetchKey{
 				entryA: servedFetchKey(ticker, []types.Identifier{ticker}, listing(types.AssetClassStock, "GBP", xlon), listing(types.AssetClassStock, "USD", xlon)),
 			},
-			want: Offer{Candidates: []Candidate{
-				{Datasource: "a", Strongest: xlon, Instr: types.Instr{Class: types.AssetClassStock, Listings: map[string]types.Listing{"GBP": {Identifiers: []types.Identifier{xlon}}}}},
-				{Datasource: "a", Strongest: xlon, Instr: types.Instr{Class: types.AssetClassStock, Listings: map[string]types.Listing{"USD": {Identifiers: []types.Identifier{xlon}}}}},
-			}},
+			want: Offer{Reasons: []string{"a: mic_ticker XLON:VOD carries no stable identifier", "a: mic_ticker XLON:VOD carries no stable identifier"}},
 		},
 		{
 			name:    "a datasource that served nothing gives a reason",
@@ -740,13 +733,11 @@ func TestConfirm(t *testing.T) {
 			wantAttached: []string{"b"},
 		},
 		{
-			name:         "of two heads that one venue ticker identifies, the first is written",
-			key:          keyOf(types.AssetClassStock, "GBP", ticker),
-			a:            servedFetchKey(ticker, []types.Identifier{ticker}),
-			b:            limitedFetchKey(servedFetchKey(ticker, []types.Identifier{ticker}, listing(types.AssetClassStock, "GBP", xlon), listing(types.AssetClassStock, "USD", xlon))),
-			pick:         Pick{Datasource: "b", Identifier: xlon},
-			wantAttached: []string{"b"},
-			wantFamily:   "GBP",
+			name: "a head that carries only a venue ticker is refused",
+			key:  keyOf(types.AssetClassStock, "GBP", ticker),
+			a:    servedFetchKey(ticker, []types.Identifier{ticker}),
+			b:    limitedFetchKey(servedFetchKey(ticker, []types.Identifier{ticker}, listing(types.AssetClassStock, "GBP", xlon), listing(types.AssetClassStock, "USD", xlon))),
+			pick: Pick{Datasource: "b", Identifier: xlon},
 		},
 		{
 			name:         "a higher datasource sharing no stable identifier is dropped",
@@ -849,7 +840,7 @@ func TestConfirm(t *testing.T) {
 				t.Errorf("listings = %+v, want the first in %s", f.listings, tc.wantFamily)
 			}
 			if len(f.associations) != 1 || f.associations[0].ID != tc.key.ID || f.associations[0].Arbiter != gen.ArbiterUser || f.associations[0].ListingID == nil {
-				t.Errorf("associations = %+v, want the key's alone, by the user, provisional through the venue ticker, on the listing", f.associations)
+				t.Errorf("associations = %+v, want the key's alone, by the user, on the listing", f.associations)
 			}
 			if f.resolutions != 1 {
 				t.Errorf("wrote %d resolution keys, want one for the key", f.resolutions)

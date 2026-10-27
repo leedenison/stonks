@@ -258,7 +258,7 @@ func (r *Resolver) assertHeld(ctx context.Context, q Queries, t *heldTicker, fk 
 		}
 		s = r.stated(l, t.key)
 		instr = t.instr
-		if instr == nil || !r.shares(l, t) {
+		if instr == nil || !shares(l, t) {
 			found, err := tickervalidity.StoredInstr(ctx, q, l.Identifiers)
 			if err != nil || found == nil {
 				return err
@@ -300,16 +300,8 @@ func (r *Resolver) stated(l market.Listing, key types.MarketTicker) tickervalidi
 	return s
 }
 
-// shares reports whether l carries an identifier of t's instrument other
-// than a ticker at t's market.
-func (r *Resolver) shares(l market.Listing, t *heldTicker) bool {
-	for _, id := range l.Identifiers {
-		if mt, ok := r.mics.MarketTicker(id); ok && mt == t.key {
-			continue
-		}
-		if slices.Contains(t.ids, id) {
-			return true
-		}
-	}
-	return false
+// shares reports whether l carries an identity identifier of t's
+// instrument.
+func shares(l market.Listing, t *heldTicker) bool {
+	return slices.ContainsFunc(l.Identifiers, func(id types.Identifier) bool { return slices.Contains(t.ids, id) })
 }

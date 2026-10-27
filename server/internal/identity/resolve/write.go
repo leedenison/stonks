@@ -23,11 +23,11 @@ const tries = 3
 // write records the outcome of res against run in a transaction of its own.
 // A key with a winner is written under an advisory lock on the identifiers
 // it states and every identifier its responses name, which covers every
-// identifier the write may insert. userChoice is the set of consistent
-// claims that a confirmation writes, with its head as the winner. It is nil
-// in a run. The write leaves an association the user arbitrated in place and
-// records the key matched.
-func (r *Resolver) write(ctx context.Context, run gen.Run, res *resolution, userChoice consistentClaims) (gen.ResolutionKey, error) {
+// identifier the write may insert. choice is what a confirmation writes,
+// with the head of its claims as the winner. It is nil in a run. The write
+// leaves an association the user arbitrated in place and records the key
+// matched.
+func (r *Resolver) write(ctx context.Context, run gen.Run, res *resolution, choice *userChoice) (gen.ResolutionKey, error) {
 	var out gen.ResolutionKey
 	var written []gen.FindingKind
 	if err := r.createTickers(ctx, res); err != nil {
@@ -36,7 +36,7 @@ func (r *Resolver) write(ctx context.Context, run gen.Run, res *resolution, user
 	for attempt := 1; ; attempt++ {
 		err := r.store.Tx(ctx, func(q Queries) error {
 			var err error
-			out, written, err = r.resolveKey(ctx, q, run, res, userChoice)
+			out, written, err = r.resolveKey(ctx, q, run, res, choice)
 			return err
 		})
 		if err == nil {
@@ -55,7 +55,7 @@ func (r *Resolver) write(ctx context.Context, run gen.Run, res *resolution, user
 
 // resolveKey writes res's outcome in one transaction, returning the resolution
 // key and the kinds of the findings written.
-func (r *Resolver) resolveKey(ctx context.Context, q Queries, run gen.Run, res *resolution, userChoice consistentClaims) (gen.ResolutionKey, []gen.FindingKind, error) {
+func (r *Resolver) resolveKey(ctx context.Context, q Queries, run gen.Run, res *resolution, choice *userChoice) (gen.ResolutionKey, []gen.FindingKind, error) {
 	res.written = nil
 	if res.outcome != "" {
 		if res.datedFromFacts {
@@ -65,11 +65,11 @@ func (r *Resolver) resolveKey(ctx context.Context, q Queries, run gen.Run, res *
 		}
 		return recordResolution(ctx, q, run, res, res.outcome, reasons(res.reason), res.findings, 0)
 	}
-	d, err := decide(ctx, q, res, userChoice)
+	d, err := decide(ctx, q, res, choice)
 	if err != nil {
 		return gen.ResolutionKey{}, nil, err
 	}
-	key, kinds, err := writeDecision(ctx, q, run, res, d, userChoice)
+	key, kinds, err := writeDecision(ctx, q, run, res, d, choice)
 	if err != nil {
 		return gen.ResolutionKey{}, nil, err
 	}
@@ -80,7 +80,7 @@ func (r *Resolver) resolveKey(ctx context.Context, q Queries, run gen.Run, res *
 }
 
 // writeDecision writes the outcome that d decides for res.
-func writeDecision(ctx context.Context, q Queries, run gen.Run, res *resolution, d decision, userChoice consistentClaims) (gen.ResolutionKey, []gen.FindingKind, error) {
+func writeDecision(ctx context.Context, q Queries, run gen.Run, res *resolution, d decision, choice *userChoice) (gen.ResolutionKey, []gen.FindingKind, error) {
 	v := d.verdict
 	if d.conflict != "" {
 		return recordResolution(ctx, q, run, res, gen.ResolutionOutcomeUnrecognised, []string{d.conflict}, d.target.findings, len(v.offered))
@@ -92,7 +92,7 @@ func writeDecision(ctx context.Context, q Queries, run gen.Run, res *resolution,
 	if err != nil {
 		return gen.ResolutionKey{}, nil, err
 	}
-	ok, err := associateKey(ctx, res, w, v, userChoice)
+	ok, err := associateKey(ctx, res, w, v, choice)
 	if err != nil {
 		return gen.ResolutionKey{}, nil, err
 	}
@@ -121,11 +121,11 @@ type decision struct {
 //
 // decide locks the tickers of the write only once the target is known, so
 // the one lock also covers the tickers of the assertions that a merge moves.
-func decide(ctx context.Context, q Queries, res *resolution, userChoice consistentClaims) (decision, error) {
+func decide(ctx context.Context, q Queries, res *resolution, choice *userChoice) (decision, error) {
 	if err := db.LockIdentifiers(ctx, q, identifiersToLock(res)); err != nil {
 		return decision{}, err
 	}
-	verdict := res.first(userChoice)
+	verdict := res.first(choice.members())
 	if verdict.refused != "" {
 		return decision{}, fmt.Errorf("%w: %s", ErrNoCandidate, verdict.refused)
 	}
@@ -150,7 +150,7 @@ func decide(ctx context.Context, q Queries, res *resolution, userChoice consiste
 		if reason, ok := classConflict(res.row, t.instr.Row.AssetClass); ok {
 			return decision{verdict: verdict, target: t, conflict: reason, locked: locked}, nil
 		}
-		verdict = choose(res, &identityClaim{Instr: t.instr.Instr.Instr()}, userChoice)
+		verdict = choose(res, &identityClaim{Instr: t.instr.Instr.Instr()}, choice.members())
 		if verdict.refused != "" {
 			return decision{}, fmt.Errorf("%w: %s", ErrNoCandidate, verdict.refused)
 		}
@@ -219,15 +219,15 @@ func writeInstr(ctx context.Context, q Queries, user uuid.UUID, res *resolution,
 // associateKey associates res with the instrument w wrote, with the arbiter
 // that settled it. It reports false when no identifier of the key leads to
 // the instrument.
-func associateKey(ctx context.Context, res *resolution, w *writer, v claimVerdict, userChoice consistentClaims) (bool, error) {
+func associateKey(ctx context.Context, res *resolution, w *writer, v claimVerdict, choice *userChoice) (bool, error) {
 	arbiter := gen.ArbiterStated
 	switch {
-	case userChoice != nil:
+	case choice != nil:
 		arbiter = gen.ArbiterUser
 	case v.winner.fetchKey != nil:
 		arbiter = gen.ArbiterDatasource
 	}
-	return w.associate(ctx, res, arbiter)
+	return w.associate(ctx, res, arbiter, choice)
 }
 
 // identifiersToLock returns the global identifiers and broker descriptions res
