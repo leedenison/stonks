@@ -20,6 +20,7 @@ import {
 } from "@/lib/admin";
 import { enumLabel, enumParam, enumValues } from "@/lib/enum";
 import { ExtendValidityDialog } from "./extend-validity-dialog";
+import { RefreshCorporateEventsDialog } from "./refresh-corporate-events-dialog";
 import { RunRow, RunTreeTable } from "./run-tree";
 
 // Every user's runs, newest first, filtered by what the address names, each
@@ -43,6 +44,7 @@ function Runs() {
   // it is open when it is on the path to a match rather than a match.
   const [toggled, setToggled] = useState<Record<string, boolean>>({});
   const [extending, setExtending] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const go = (next: Partial<RunFilters>) =>
     router.replace(filterQuery({ ...f, before: "", ...next }));
 
@@ -52,14 +54,24 @@ function Runs() {
       width="wide"
       testId="admin-runs-page"
       actions={
-        <Button
-          variant="text"
-          data-testid="runs-extend-validity"
-          onClick={() => setExtending(true)}
-        >
-          <RefreshCw aria-hidden className="h-4 w-4" />
-          Extend validity
-        </Button>
+        <>
+          <Button
+            variant="text"
+            data-testid="runs-extend-validity"
+            onClick={() => setExtending(true)}
+          >
+            <RefreshCw aria-hidden className="h-4 w-4" />
+            Extend validity
+          </Button>
+          <Button
+            variant="text"
+            data-testid="runs-refresh-corporate-events"
+            onClick={() => setRefreshing(true)}
+          >
+            <RefreshCw aria-hidden className="h-4 w-4" />
+            Refresh corporate events
+          </Button>
+        </>
       }
     >
       <div className="flex flex-wrap items-center gap-3 text-sm">
@@ -126,6 +138,15 @@ function Runs() {
           onClose={() => setExtending(false)}
           onStarted={(started) => {
             setExtending(false);
+            router.push(`/admin/runs/${started.id}`);
+          }}
+        />
+      )}
+      {refreshing && (
+        <RefreshCorporateEventsDialog
+          onClose={() => setRefreshing(false)}
+          onStarted={(started) => {
+            setRefreshing(false);
             router.push(`/admin/runs/${started.id}`);
           }}
         />

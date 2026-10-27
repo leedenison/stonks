@@ -18,9 +18,9 @@ var ErrEmpty = errors.New("no instrument is held")
 // lane serialises refresh corporate events runs.
 const lane = "refresh_corporate_events"
 
-// Start starts a refresh corporate events run over the tickers of every held
-// instrument, as a system run, and returns the pending row. The requests are
-// chosen when the run starts. An instrument that becomes held later waits
+// Start starts a refresh corporate events run over the tickers that named a
+// held instrument, as a system run, and returns the pending row. The requests
+// are chosen when the run starts. An instrument that becomes held later waits
 // for the next run.
 func (s *Starter) Start(ctx context.Context) (gen.Run, error) {
 	hs, err := s.heldInstruments(ctx)

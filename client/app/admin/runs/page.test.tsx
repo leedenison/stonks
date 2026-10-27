@@ -7,6 +7,10 @@ import {
   StartExtendValidityResponseSchema,
 } from "@/gen/admin/extend_validity/v1/extend_validity_pb";
 import {
+  RefreshCorporateEventsService,
+  StartRefreshCorporateEventsResponseSchema,
+} from "@/gen/admin/refresh_corporate_events/v1/refresh_corporate_events_pb";
+import {
   RunService,
   ListRunsResponseSchema,
   UserRunSchema,
@@ -35,10 +39,12 @@ const admin = liveSession({ role: Role.ADMIN });
 function serving(
   listRuns: ServiceImpl<typeof RunService>["listRuns"],
   extendValidity: Partial<ServiceImpl<typeof ExtendValidityService>> = {},
+  refresh: Partial<ServiceImpl<typeof RefreshCorporateEventsService>> = {},
 ) {
   return transportWith(admin, ({ service }) => {
     service(RunService, { listRuns });
     service(ExtendValidityService, extendValidity);
+    service(RefreshCorporateEventsService, refresh);
   });
 }
 
@@ -200,5 +206,28 @@ describe("RunsPage", () => {
     );
     expect(startExtendValidity).toHaveBeenCalledTimes(1);
     expect(screen.queryByTestId("extend-validity-dialog")).toBeNull();
+  });
+
+  it("refreshes corporate events and opens its run", async () => {
+    router.push.mockClear();
+    const startRefreshCorporateEvents = vi.fn(() =>
+      create(StartRefreshCorporateEventsResponseSchema, {
+        run: create(RunSchema, {
+          id: "x2",
+          kind: RunKind.REFRESH_CORPORATE_EVENTS,
+        }),
+      }),
+    );
+    renderWithAuth(
+      <RunsPage />,
+      serving(() => page, {}, { startRefreshCorporateEvents }),
+    );
+    fireEvent.click(screen.getByTestId("runs-refresh-corporate-events"));
+    fireEvent.click(screen.getByTestId("refresh-corporate-events-start"));
+    await waitFor(() =>
+      expect(router.push).toHaveBeenCalledWith("/admin/runs/x2"),
+    );
+    expect(startRefreshCorporateEvents).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId("refresh-corporate-events-dialog")).toBeNull();
   });
 });
