@@ -20,6 +20,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/db/to"
 	"github.com/leedenison/stonks/server/internal/identity/tickervalidity"
 	"github.com/leedenison/stonks/server/internal/market"
+	"github.com/leedenison/stonks/server/internal/platform/ptr"
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
@@ -194,9 +195,10 @@ func TestUnknownRows(t *testing.T) {
 	}
 }
 
-// TestAssertsOnceAtMarket checks that a winning listing carrying one ticker
-// at two venues of a market writes one assertion of it, at the market.
-func TestAssertsOnceAtMarket(t *testing.T) {
+// TestAssertsOncePerVenue checks that a winning listing carrying one ticker
+// at two venues of a market writes one assertion of it per venue, each with
+// the listing's currency, and that the write gives each venue a name.
+func TestAssertsOncePerVenue(t *testing.T) {
 	s := newStack(t)
 	ctx := context.Background()
 	nyse := types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XNYS", Value: "ZZM"}
@@ -211,12 +213,33 @@ func TestAssertsOnceAtMarket(t *testing.T) {
 	fk := s.fetchKey(t, key.ID, s.alphaName)
 	asserted, err := s.q.ListFetchKeyAssertions(ctx, &fk.ID)
 	require.NoError(t, err)
-	var tickers []string
+	var got []string
 	for _, a := range asserted {
-		tickers = append(tickers, a.IdentifierAssertion.Market+":"+a.Value)
+		got = append(got, a.IdentifierAssertion.Market+":"+a.Value+" at "+ptr.Deref(a.IdentifierAssertion.Venue, "")+" in "+ptr.Deref(a.IdentifierAssertion.Currency, ""))
 	}
-	if diff := cmp.Diff([]string{"US:ZZM"}, tickers); diff != "" {
+	slices.Sort(got)
+	want := []string{"US:ZZM at BATS in USD", "US:ZZM at XNYS in USD"}
+	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("ticker assertions mismatch (-want +got):\n%s", diff)
+	}
+	if diff := cmp.Diff([]string{"ZZM at BATS in USD", "ZZM at XNYS in USD"}, s.names(t, s.instrOf(t, share))); diff != "" {
+		t.Errorf("names mismatch (-want +got):\n%s", diff)
+	}
+}
+
+// TestNamesInTheStatedCurrency checks that a name keeps the currency the
+// answer stated, GBX, rather than its family.
+func TestNamesInTheStatedCurrency(t *testing.T) {
+	s := newStack(t)
+	lse := types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XLON", Value: "ZZL"}
+	isin := types.Identifier{Type: types.IdentifierTypeIsin, Value: "GB00ZZL00001"}
+	s.script.Responses[lse] = market.IdentityResult{Filtered: []types.Identifier{{Type: lse.Type, Value: lse.Value}}, Listings: []market.Listing{
+		{Class: types.AssetClassStock, Currency: "GBX", Identifiers: []types.Identifier{isin, lse}},
+	}}
+	key := s.state(t, types.AssetClassStock, "GBX", lse)
+	s.resolve(t, key)
+	if diff := cmp.Diff([]string{"ZZL at XLON in GBX"}, s.names(t, s.instrOf(t, isin))); diff != "" {
+		t.Errorf("names mismatch (-want +got):\n%s", diff)
 	}
 }
 
@@ -882,6 +905,41 @@ func TestMergeAcrossCurrencies(t *testing.T) {
 	}
 	if diff := cmp.Diff([]gen.FindingKind{gen.FindingKindMerged}, s.findings(t, k.ID)); diff != "" {
 		t.Errorf("findings mismatch (-want +got):\n%s", diff)
+	}
+}
+
+// TestMergeRebuildsTheLoserTickers checks that a merge rebuilds the names
+// of the tickers whose assertions it moves. Only the later instrument's
+// assertions state its ticker at XNAS, so the survivor is named by it only if
+// the merge rebuilt it.
+func TestMergeRebuildsTheLoserTickers(t *testing.T) {
+	s := newStack(t)
+	ctx := context.Background()
+	s.script.Responses[isin] = market.IdentityResult{Filtered: []types.Identifier{isin}, Listings: []market.Listing{
+		{Class: types.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{figi, isin, xlon}},
+	}}
+	s.script.Responses[cusip] = market.IdentityResult{Filtered: []types.Identifier{cusip}, Listings: []market.Listing{
+		{Class: types.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{cusip, xnas}},
+	}}
+	s.resolve(t, s.state(t, types.AssetClassStock, "GBP", isin), s.state(t, types.AssetClassStock, "USD", cusip))
+	a, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: isin.Type, Value: isin.Value})
+	require.NoError(t, err)
+	b, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: cusip.Type, Value: cusip.Value})
+	require.NoError(t, err)
+
+	sedol := id(types.IdentifierTypeSedol, "", "BH4HKS3")
+	s.script.Responses[sedol] = market.IdentityResult{Filtered: []types.Identifier{sedol}, Listings: []market.Listing{
+		{Class: types.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{figi, cusip, sedol}},
+	}}
+	got := s.resolve(t, s.state(t, types.AssetClassStock, "USD", sedol))
+	if written(got[0]) != "matched" {
+		t.Fatalf("outcome = %s, want matched", written(got[0]))
+	}
+	if diff := cmp.Diff([]string{"VOD at XNAS in USD", "VOD at XLON in GBP"}, s.names(t, a.Instr.ID)); diff != "" {
+		t.Errorf("survivor names mismatch (-want +got):\n%s", diff)
+	}
+	if got := s.names(t, b.Instr.ID); len(got) != 0 {
+		t.Errorf("later instrument names = %v, want none", got)
 	}
 }
 

@@ -19,10 +19,10 @@ type Queries interface {
 	tickervalidity.FactQueries
 	tickervalidity.RecordQueries
 	tickers.Queries
+	ListTickersOfInstrs(ctx context.Context, instrIds []uuid.UUID) ([]uuid.UUID, error)
 	PlaceTicker(ctx context.Context, arg gen.PlaceTickerParams) (gen.Identifier, error)
 	SetStatedKeyDatedAssociation(ctx context.Context, arg gen.SetStatedKeyDatedAssociationParams) (int64, error)
 	ListKeyDates(ctx context.Context, arg gen.ListKeyDatesParams) ([]gen.ListKeyDatesRow, error)
-	FindIdentifier(ctx context.Context, arg gen.FindIdentifierParams) (gen.FindIdentifierRow, error)
 	ListInstrsByIdentifiers(ctx context.Context, arg gen.ListInstrsByIdentifiersParams) ([]gen.ListInstrsByIdentifiersRow, error)
 	ListIdentifiersOf(ctx context.Context, ids []uuid.UUID) ([]gen.Identifier, error)
 	ListListingsOf(ctx context.Context, ids []uuid.UUID) ([]gen.Listing, error)

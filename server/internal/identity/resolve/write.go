@@ -1,6 +1,7 @@
 package resolve
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"slices"
@@ -68,6 +69,18 @@ func (r *Resolver) resolveKey(ctx context.Context, q Queries, run gen.Run, res *
 	if err != nil {
 		return gen.ResolutionKey{}, nil, err
 	}
+	key, kinds, err := writeDecision(ctx, q, run, res, d, userChoice)
+	if err != nil {
+		return gen.ResolutionKey{}, nil, err
+	}
+	if err := tickervalidity.Rebuild(ctx, q, d.locked); err != nil {
+		return gen.ResolutionKey{}, nil, fmt.Errorf("rebuild names: %w", err)
+	}
+	return key, kinds, nil
+}
+
+// writeDecision writes the outcome that d decides for res.
+func writeDecision(ctx context.Context, q Queries, run gen.Run, res *resolution, d decision, userChoice consistentClaims) (gen.ResolutionKey, []gen.FindingKind, error) {
 	v := d.verdict
 	if d.conflict != "" {
 		return recordResolution(ctx, q, run, res, gen.ResolutionOutcomeUnrecognised, []string{d.conflict}, d.target.findings, len(v.offered))
@@ -96,31 +109,46 @@ type decision struct {
 	// conflict is set when the instrument's class contradicts the key's. The
 	// key then ends unrecognised.
 	conflict string
+	// locked is the ids of the tickers the write locked, whose names it
+	// rebuilds.
+	locked []uuid.UUID
 }
 
 // decide chooses the winner among res's claims, with the identifiers it may
 // write locked. It returns ErrNoCandidate when the user's choice fails a
 // check. Unless the decision has a conflict, its verdict carries every
 // finding the write records.
+//
+// decide locks the tickers of the write only once the target is known, so
+// the one lock also covers the tickers of the assertions that a merge moves.
 func decide(ctx context.Context, q Queries, res *resolution, userChoice consistentClaims) (decision, error) {
 	if err := db.LockIdentifiers(ctx, q, identifiersToLock(res)); err != nil {
-		return decision{}, err
-	}
-	if err := recordUnknown(ctx, q, res); err != nil {
 		return decision{}, err
 	}
 	verdict := res.first(userChoice)
 	if verdict.refused != "" {
 		return decision{}, fmt.Errorf("%w: %s", ErrNoCandidate, verdict.refused)
 	}
-	t, err := findWriteTarget(ctx, q, res, verdict)
+	t, merging, err := findWriteTarget(ctx, q, res, verdict)
 	if err != nil {
 		return decision{}, err
+	}
+	locked, err := lockTickers(ctx, q, res, merging)
+	if err != nil {
+		return decision{}, err
+	}
+	if err := recordUnknown(ctx, q, res); err != nil {
+		return decision{}, err
+	}
+	if len(merging) > 0 {
+		if t, err = merge(ctx, q, winnerKey(verdict), merging); err != nil {
+			return decision{}, err
+		}
 	}
 	chooser := verdict.winner
 	if t.instr != nil {
 		if reason, ok := classConflict(res.row, t.instr.Row.AssetClass); ok {
-			return decision{verdict: verdict, target: t, conflict: reason}, nil
+			return decision{verdict: verdict, target: t, conflict: reason, locked: locked}, nil
 		}
 		verdict = choose(res, &identityClaim{Instr: t.instr.Instr.Instr()}, userChoice)
 		if verdict.refused != "" {
@@ -134,7 +162,34 @@ func decide(ctx context.Context, q Queries, res *resolution, userChoice consiste
 	verdict.findings = append(verdict.findings, dropped...)
 	verdict.findings = append(verdict.findings, t.findings...)
 	verdict.findings = append(verdict.findings, res.findings...)
-	return decision{verdict: verdict, target: t}, nil
+	return decision{verdict: verdict, target: t, locked: locked}, nil
+}
+
+// lockTickers locks the tickers the write may assert, and the tickers of
+// every assertion that names an instrument of merging after the first, and
+// returns their ids.
+func lockTickers(ctx context.Context, q Queries, res *resolution, merging []instrMatch) ([]uuid.UUID, error) {
+	var ids []uuid.UUID
+	for _, t := range res.tickers {
+		ids = append(ids, t.ID)
+	}
+	if len(merging) > 1 {
+		losers := make([]uuid.UUID, len(merging)-1)
+		for i, m := range merging[1:] {
+			losers[i] = m.instr.Row.ID
+		}
+		folded, err := q.ListTickersOfInstrs(ctx, losers)
+		if err != nil {
+			return nil, fmt.Errorf("list tickers of merged instruments: %w", err)
+		}
+		ids = append(ids, folded...)
+	}
+	slices.SortFunc(ids, func(a, b uuid.UUID) int { return bytes.Compare(a[:], b[:]) })
+	ids = slices.Compact(ids)
+	if err := tickers.Lock(ctx, q, ids); err != nil {
+		return nil, err
+	}
+	return ids, nil
 }
 
 // writeInstr writes d's winner to the instrument d targets, creating that
@@ -280,7 +335,7 @@ func recordUnknown(ctx context.Context, q Queries, res *resolution) error {
 		if !ok {
 			continue
 		}
-		if err := tickervalidity.AssertInstr(ctx, q, fk.ID, t, nil, fk.AnsweredAt); err != nil {
+		if err := tickervalidity.AssertInstr(ctx, q, fk.ID, t, nil, fk.AnsweredAt, tickervalidity.Stated{}); err != nil {
 			return fmt.Errorf("record negative assertion: %w", err)
 		}
 		res.wrote(fk, id)

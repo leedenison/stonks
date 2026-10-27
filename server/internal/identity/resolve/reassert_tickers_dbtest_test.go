@@ -124,7 +124,9 @@ func (s *stack) instrOf(t *testing.T, id types.Identifier) uuid.UUID {
 
 // TestReassertTickers covers a held ticker on XLON, which alpha declines and
 // beta answers. The run asks both again although the instrument has identity
-// coverage, and writes only an assertion dated on its own day.
+// coverage, and writes only an assertion dated on its own day. The assertion
+// keeps the venue and the currency, GBX, that beta stated, and the run
+// rebuilds the ticker's name with them.
 func TestReassertTickers(t *testing.T) {
 	s := newStack(t)
 	ctx := context.Background()
@@ -139,7 +141,7 @@ func TestReassertTickers(t *testing.T) {
 
 	extra := id(types.IdentifierTypeIsin, "", "GB00ZZX"+uuid.NewString()[:5])
 	s.beta.Responses[v] = market.IdentityResult{Listings: []market.Listing{
-		listing(types.AssetClassStock, "GBP", isin, v, id(types.IdentifierTypeMicTicker, "XLON", "ZZO"+uuid.NewString()[:4])),
+		listing(types.AssetClassStock, "GBX", isin, v, id(types.IdentifierTypeMicTicker, "XLON", "ZZO"+uuid.NewString()[:4])),
 		listing(types.AssetClassStock, "USD", extra, id(types.IdentifierTypeMicTicker, "XNAS", "ZZU"+uuid.NewString()[:4])),
 	}}
 	run, written := s.reassertTickers(t, v)
@@ -171,6 +173,9 @@ func TestReassertTickers(t *testing.T) {
 	}
 	if len(written) != 1 || written[0].Run.ID != b[0].fetch || !slices.Equal(written[0].Tickers, []types.MarketTicker{mt(v)}) {
 		t.Errorf("written = %+v, want %s under beta's datasource fetch run %s", written, v.Name(), b[0].fetch)
+	}
+	if diff := cmp.Diff([]string{v.Value + " at XLON in GBX"}, s.names(t, instr)); diff != "" {
+		t.Errorf("names mismatch (-want +got):\n%s", diff)
 	}
 }
 

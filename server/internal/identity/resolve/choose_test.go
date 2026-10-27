@@ -146,7 +146,7 @@ func TestClaims(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got := claims(tc.r)
+			got := claims(tc.r, cur)
 			var named []bool
 			for i, c := range got {
 				if c.fetchKey != tc.r {
@@ -183,7 +183,7 @@ func label(c *identityClaim) string {
 	case c.fetchKey == nil:
 		return "database"
 	}
-	i := slices.IndexFunc(claims(c.fetchKey), func(o *identityClaim) bool { return cmp.Equal(o.Instr, c.Instr) })
+	i := slices.IndexFunc(claims(c.fetchKey, cur), func(o *identityClaim) bool { return cmp.Equal(o.Instr, c.Instr) })
 	return fmt.Sprintf("%s#%d", c.fetchKey.Source, i)
 }
 
@@ -471,7 +471,7 @@ func TestChoose(t *testing.T) {
 			if tc.want.notNaming == nil {
 				tc.want.notNaming = map[string]int{}
 			}
-			got := describe(choose(&resolution{row: tc.k, fetchKeys: tc.fetchKeys, family: keyFamily(cur, tc.k), mics: joinMICs}, tc.known, nil), source)
+			got := describe(choose(&resolution{row: tc.k, fetchKeys: tc.fetchKeys, family: keyFamily(cur, tc.k), families: cur, mics: joinMICs}, tc.known, nil), source)
 			if diff := cmp.Diff(tc.want, got, cmp.AllowUnexported(outcome{})); diff != "" {
 				t.Errorf("choose mismatch (-want +got):\n%s", diff)
 			}
@@ -592,10 +592,10 @@ func TestChooseUserChoice(t *testing.T) {
 			if tc.want.notNaming == nil {
 				tc.want.notNaming = map[string]int{}
 			}
-			res := &resolution{row: tc.k, fetchKeys: tc.fetchKeys, family: keyFamily(cur, tc.k), mics: joinMICs}
+			res := &resolution{row: tc.k, fetchKeys: tc.fetchKeys, family: keyFamily(cur, tc.k), families: cur, mics: joinMICs}
 			var userChoice consistentClaims
 			for _, p := range tc.userChoice {
-				userChoice = append(userChoice, claims(tc.fetchKeys[p[0]])[p[1]])
+				userChoice = append(userChoice, claims(tc.fetchKeys[p[0]], cur)[p[1]])
 			}
 			got := describe(choose(res, tc.known, userChoice), source)
 			if diff := cmp.Diff(tc.want, got, cmp.AllowUnexported(outcome{})); diff != "" {
@@ -682,7 +682,7 @@ func TestGather(t *testing.T) {
 			for i, fk := range tc.fetchKeys {
 				fk.ID = uuid.UUID{byte(i + 1)}
 			}
-			res := &resolution{row: tc.k, fetchKeys: tc.fetchKeys, family: keyFamily(cur, tc.k), mics: joinMICs}
+			res := &resolution{row: tc.k, fetchKeys: tc.fetchKeys, family: keyFamily(cur, tc.k), families: cur, mics: joinMICs}
 			cs, _, _ := offeredClaims(res)
 			var got [][]string
 			for _, a := range gatherConsistentClaims(res, cs) {

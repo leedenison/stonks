@@ -122,6 +122,10 @@ func TestRecord(t *testing.T) {
 	if len(asserted) != 3 || edges[day(9)] != gen.IdentifierEdgeLast || edges[day(10)] != gen.IdentifierEdgeFirst {
 		t.Errorf("assertions = %+v, want the three that state a stable identifier, with a last on day 9 and a first on day 10", asserted)
 	}
+	names := []resolved{{Value: f.foo.Value, Instr: f.a, From: ptr.To(day(10))}}
+	if diff := cmp.Diff(names, f.resolved(t, f.a)); diff != "" {
+		t.Errorf("names mismatch (-want +got):\n%s", diff)
+	}
 }
 
 // TestRecordThroughStable checks that an assertion names the instrument its

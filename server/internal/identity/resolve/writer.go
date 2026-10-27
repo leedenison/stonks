@@ -90,23 +90,41 @@ func (w *writer) attach(ctx context.Context, c *identityClaim) error {
 	if err := w.q.SetFetchKeyInstr(ctx, arg); err != nil {
 		return fmt.Errorf("attach fetch key: %w", err)
 	}
-	// A claim names one instrument, so the tickers it carries at venues of
-	// one market make one assertion. Only a ticker is asserted.
-	asserted := map[uuid.UUID]bool{}
+	// A claim names one instrument, so a ticker it carries makes one
+	// assertion per venue, with the currency of the first listing that
+	// states it there. Only a ticker is asserted.
+	type at struct {
+		ticker uuid.UUID
+		venue  string
+	}
+	asserted := map[at]bool{}
 	for id := range c.AllIDs() {
 		t, ok, err := w.res.tickerOf(ctx, w.q, id)
 		if err != nil {
 			return err
 		}
-		if ok && !asserted[t.ID] {
-			asserted[t.ID] = true
-			if err := tickervalidity.AssertInstr(ctx, w.q, fetchKeyID, t, &w.instr.Row.ID, c.fetchKey.AnsweredAt); err != nil {
+		venue, _ := w.res.mics.Operating(id.Domain)
+		if ok && !asserted[at{t.ID, venue}] {
+			asserted[at{t.ID, venue}] = true
+			s := tickervalidity.Stated{Venue: venue, Currency: currencyOf(c, id)}
+			if err := tickervalidity.AssertInstr(ctx, w.q, fetchKeyID, t, &w.instr.Row.ID, c.fetchKey.AnsweredAt, s); err != nil {
 				return err
 			}
 		}
 		w.res.wrote(c.fetchKey, id)
 	}
 	return nil
+}
+
+// currencyOf returns the currency of the first listing of c's answer that
+// states id, as the datasource stated it. It is empty where none does.
+func currencyOf(c *identityClaim, id types.Identifier) string {
+	for _, l := range c.fetchKey.Response.Listings {
+		if slices.Contains(l.Identifiers, id) {
+			return l.Currency
+		}
+	}
+	return ""
 }
 
 // identify writes id on the instrument, or on listing where set, unless it

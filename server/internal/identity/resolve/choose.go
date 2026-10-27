@@ -163,7 +163,7 @@ type alternatives struct {
 // ticker, so every claim that agrees with the statement survives.
 func filterAlternatives(fk *fetchKey, res *resolution, confirmed bool) alternatives {
 	sent := *fk.SentID
-	gs := claims(fk)
+	gs := claims(fk, res.families)
 	alts := alternatives{count: len(gs)}
 	global := sent.IsGlobal()
 	named := slices.ContainsFunc(gs, (*identityClaim).named)

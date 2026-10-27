@@ -22,6 +22,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/identity/tickervalidity"
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/mic"
+	"github.com/leedenison/stonks/server/internal/platform/ptr"
 	"github.com/leedenison/stonks/server/internal/testutil/dbtest"
 	"github.com/leedenison/stonks/server/internal/testutil/runtest"
 	"github.com/leedenison/stonks/server/internal/testutil/scripted"
@@ -288,6 +289,19 @@ func (s *stack) key(t *testing.T, id uuid.UUID) gen.StatedKey {
 	}
 	t.Fatalf("no stated key %s", id)
 	return gen.StatedKey{}
+}
+
+// names returns the rows of resolved_tickers of instr, each as its ticker's
+// value at its venue in its currency.
+func (s *stack) names(t *testing.T, instr uuid.UUID) []string {
+	t.Helper()
+	rows, err := s.q.ListResolvedTickers(context.Background(), []uuid.UUID{instr})
+	require.NoError(t, err)
+	var out []string
+	for _, r := range rows {
+		out = append(out, r.Value+" at "+ptr.Deref(r.Venue, "")+" in "+ptr.Deref(r.Currency, ""))
+	}
+	return out
 }
 
 // fetches returns the datasource fetch runs of the stack's resolution.

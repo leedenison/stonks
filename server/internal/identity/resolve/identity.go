@@ -50,13 +50,6 @@ func (r *Resolver) fetchResolutionIdentities(ctx context.Context, run gen.Run, r
 	if err := g.Wait(); err != nil {
 		return err
 	}
-	for _, fks := range fetchKeys {
-		for j := range fks {
-			for k, c := range fks[j].Response.Listings {
-				fks[j].Response.Listings[k].Currency = r.families.Family(c.Currency)
-			}
-		}
-	}
 	for i := range entries {
 		for j, res := range batches[i] {
 			res.fetchKeys = append(res.fetchKeys, &fetchKeys[i][j])
