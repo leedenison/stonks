@@ -46,13 +46,13 @@ adjusted series and differ for an as-traded one, and neither convention is refus
 
 Some price sources, such as GOOGLEFINANCE, take a ticker only together with its venue,
 since one symbol can name different securities on different venues. Such a source is
-asked through one of the MIC_TICKERs a listing carries.
+asked through a ticker that `resolved_tickers` places at a venue of the listing.
 
 ### Provenance
 
 When a price dated d is fetched at t under a MIC-derived identifier, it rests on the
-assumption that the identifier named the same instrument on d as at t.  An identifier
-event between d and t invalidates the price, whatever its "as at" date, and the price is
+assumption that the identifier named the same instrument on d as at t.  An edge on the
+identifier between d and t invalidates the price, whatever its "as at" date, and the price is
 refetched.  A fetch is keyed on a stable identifier where the provider accepts one, which
 yields a fresh assertion of the provider's ticker for it, and the fetch key records that
 ticker as the identifier sent.

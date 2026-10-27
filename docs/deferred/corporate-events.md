@@ -22,8 +22,9 @@ events calendar to be able to identify OCC identified options.
 
 ## Model
 
-When an event retires a listing, it writes an identifier event closing the validity of
-the listing's MIC_TICKER on the ex-date.  It counts as no identifier event coverage.
+When a corporate event retires a listing, it writes an assertion that the listing's ticker
+names nothing on the ex-date, with the edge `first`. The corporate event answer writes
+the assertion alone.
 
 Events on an underlying decide how an OCC symbol is normalised, so an answer that changes
 them replays every OCC stated key normalised through them.  See

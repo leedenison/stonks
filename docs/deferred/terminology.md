@@ -33,9 +33,15 @@ instrument, a grouping, a price, or a key made by hand. User data, never an asse
 
 **End of Day Price** -- the closing price of an instrument on a date.
 
-**Identifier Event** -- a change to which instrument an identifier names (eg. a ticker
-change, a retirement, a reassignment), witnessed by a source, implied by a corporate
-event, or inferred from two assertions.
+**Identifier Event** -- a change to which instrument a ticker names (eg. a ticker
+change, a retirement, a reassignment).
+
+**Span** -- the days on which a ticker names one thing without a break.
+
+**Edge** -- the mark on an assertion that its day is the first or last day of a span.
+
+**Period Assertion** -- a source's claim that it reported every edge of a ticker, or of
+every ticker in a market, over a period.
 
 **Event** -- a group of transactions that together form the components of a single
 economic event (eg. a stock purchase is an event with component transactions covering
