@@ -110,13 +110,7 @@ export function userRun(
   rest: Partial<
     Pick<
       UserRun,
-      | "userId"
-      | "userEmail"
-      | "openFindings"
-      | "matched"
-      | "children"
-      | "datasource"
-      | "endpoint"
+      "userId" | "userEmail" | "openFindings" | "matched" | "children" | "fetch"
     >
   > = {},
 ): UserRun {

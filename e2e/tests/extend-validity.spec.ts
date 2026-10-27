@@ -1,5 +1,6 @@
 import path from "node:path";
 import { timestampDate } from "@bufbuild/protobuf/wkt";
+import { FetchKind } from "../gen/admin/block/v1/block_pb";
 import { FetchOutcome } from "../gen/admin/run/v1/run_pb";
 import { RunState } from "../gen/run/v1/run_pb";
 import { IdentifierType, ResolutionOutcome } from "../gen/type/v1/type_pb";
@@ -90,16 +91,20 @@ test("extends the validity of a held ticker on the day it runs", async ({
     expect(a.instrumentId, a.source.value).toBe(instrument.id);
   }
 
-  // The statement's fetches filled the cache. Each served key here has
-  // attempts, so the run called the datasource instead of reading
-  // the cache.
-  expect(got.children.length).toBeGreaterThan(0);
-  for (const child of got.children) {
+  // The statement's fetches filled the cache. Each served key of the run's
+  // identity and identifier events fetches has attempts, so the run called
+  // the datasource. The run's new identifier facts start corporate events
+  // fetches. Those fetches read the cache.
+  const extending = got.children.filter(
+    (c) => c.fetch?.kind !== FetchKind.CORPORATE_EVENTS,
+  );
+  expect(extending.length).toBeGreaterThan(0);
+  for (const child of extending) {
     const served = (await fetchItems(adminRuns, child.run!.id)).filter(
       (i) => i.outcome === FetchOutcome.SERVED,
     );
     for (const item of served) {
-      expect(item.attempts, child.datasource).toBeGreaterThan(0);
+      expect(item.attempts, child.fetch?.datasource).toBeGreaterThan(0);
     }
   }
 });

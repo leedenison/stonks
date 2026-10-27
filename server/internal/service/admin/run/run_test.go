@@ -14,6 +14,7 @@ import (
 	"google.golang.org/protobuf/testing/protocmp"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	adminblockv1 "github.com/leedenison/stonks/proto/admin/block/v1"
 	adminreplayv1 "github.com/leedenison/stonks/proto/admin/replay/v1"
 	adminrunv1 "github.com/leedenison/stonks/proto/admin/run/v1"
 	"github.com/leedenison/stonks/proto/admin/run/v1/adminrunv1connect"
@@ -251,7 +252,7 @@ func TestGetRun(t *testing.T) {
 			below := func(id, parent uuid.UUID) gen.ListRunDescendantsRow {
 				row := runRow(id, gen.RunKindFetch)
 				row.Trigger, row.ParentID = gen.RunTriggerRun, &parent
-				return gen.ListRunDescendantsRow{Run: row, Email: ptr.To("one@example.com"), OpenFindings: 1, Datasource: ptr.To("openfigi"), Endpoint: ptr.To("https://api.openfigi.com")}
+				return gen.ListRunDescendantsRow{Run: row, Email: ptr.To("one@example.com"), OpenFindings: 1, Datasource: ptr.To("openfigi"), Endpoint: ptr.To("https://api.openfigi.com"), FetchKind: ptr.To(gen.FetchKindIdentity)}
 			}
 			r.ListRunDescendants(gomock.Any(), &runID).Return([]gen.ListRunDescendantsRow{
 				below(childID, runID), below(siblingID, runID), below(grandchildID, childID),
@@ -290,7 +291,7 @@ func TestGetRun(t *testing.T) {
 			belowMsg := func(id, parent uuid.UUID) *adminrunv1.UserRun {
 				msg := runMsg(id, runv1.RunKind_RUN_KIND_FETCH)
 				msg.Run.Trigger, msg.Run.ParentId = runv1.RunTrigger_RUN_TRIGGER_RUN, ptr.To(parent.String())
-				msg.Datasource, msg.Endpoint = ptr.To("openfigi"), ptr.To("https://api.openfigi.com")
+				msg.Fetch = &adminrunv1.RunFetch{Datasource: "openfigi", Endpoint: "https://api.openfigi.com", Kind: adminblockv1.FetchKind_FETCH_KIND_IDENTITY}
 				return msg
 			}
 			childMsg := belowMsg(childID, runID)

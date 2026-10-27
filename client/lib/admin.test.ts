@@ -82,11 +82,16 @@ describe("admin", () => {
     });
     expect(
       runTitle(
-        create(UserRunSchema, { run, endpoint: "http://massive.vcr:8080" }),
+        create(UserRunSchema, {
+          run,
+          fetch: { endpoint: "http://massive.vcr:8080" },
+        }),
       ),
     ).toBe("massive.vcr:8080");
     expect(
-      runTitle(create(UserRunSchema, { run, endpoint: "not a url" })),
+      runTitle(
+        create(UserRunSchema, { run, fetch: { endpoint: "not a url" } }),
+      ),
     ).toBe("not a url");
     expect(runTitle(create(UserRunSchema, { run }))).toBe(
       "fetch run @ 2026-09-24 10:00 UTC",
