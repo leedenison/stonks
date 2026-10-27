@@ -53,7 +53,7 @@ message InstrHolding {
   stonks.type.v1.AssetClass asset_class = 2;
   // Every identifier naming the instrument or one of its listings, by the
   // rank of its type as a name, then by domain and value. Empty when nothing
-  // names it.
+  // names it. A ticker is not among them; each listing carries its own.
   repeated stonks.type.v1.Identifier identifiers = 3;
   // The sum of the caller's transaction quantities over every transaction
   // that resolves to the instrument: shares, contracts, or money for cash,

@@ -139,17 +139,13 @@ export async function seedDescribedInstr(
       "INSERT INTO instrs (id, asset_class) VALUES (uuid_v7(), 'equity') RETURNING id",
     );
     const id = instr.rows[0].id;
-    const listing = await client.query<{ id: string }>(
-      "INSERT INTO listings (id, instr_id, currency) VALUES (uuid_v7(), $1, 'GBP') RETURNING id",
+    await client.query(
+      "INSERT INTO listings (id, instr_id, currency) VALUES (uuid_v7(), $1, 'GBP')",
       [id],
     );
     await client.query(
       "INSERT INTO identifiers (id, instr_id, type, value) VALUES (uuid_v7(), $1, 'isin', $2)",
       [id, isin],
-    );
-    await client.query(
-      "INSERT INTO identifiers (id, instr_id, listing_id, type, domain, value) VALUES (uuid_v7(), $1, $2, 'mic_ticker', 'XLON', $3)",
-      [id, listing.rows[0].id, ticker],
     );
     // A holding is named by the instrument's row of resolved_tickers. A
     // rebuild of every ticker, which a reorder of the datasources starts,

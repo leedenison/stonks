@@ -1,12 +1,23 @@
+import { create } from "@bufbuild/protobuf";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { Chip } from "@/app/components/chip";
 import { identifierLabel } from "@/app/components/identifier-chip";
 import { Section } from "@/app/components/section";
 import { None, PaneTable, Td, Th } from "@/app/components/table";
-import type { Instr } from "@/gen/admin/instr/v1/instr_pb";
-import { type Identifier, IdentifierType } from "@/gen/type/v1/type_pb";
-import { type InstrParams, instrQuery, tickerParam } from "@/lib/admin";
+import type { Instr, Listing_Ticker } from "@/gen/admin/instr/v1/instr_pb";
+import {
+  type Identifier,
+  IdentifierSchema,
+  IdentifierType,
+  TickerRelation,
+} from "@/gen/type/v1/type_pb";
+import {
+  type InstrParams,
+  instrQuery,
+  relationSuffix,
+  tickerParam,
+} from "@/lib/admin";
 import { assetClassLabel } from "@/lib/asset-class";
 import { groupIdentifiers, identifierKey } from "@/lib/identifiers";
 import { TickersTab } from "./tickers-tab";
@@ -116,10 +127,11 @@ function Overview({ instr, params }: { instr: Instr; params: InstrParams }) {
                   </td>
                 </tr>
                 <Rows
-                  ids={l.identifiers}
+                  ids={[...l.tickers.map(asIdentifier), ...l.identifiers]}
                   marks={marks}
                   params={params}
                   primary={l.primaryMic}
+                  relations={relations(l.tickers)}
                 />
               </tbody>
             ))}
@@ -160,6 +172,23 @@ function IdentifierTable({
   );
 }
 
+// asIdentifier writes a listing's ticker as a MIC_TICKER at its venue, or at
+// its market where the sources omitted the venue, so it groups with the
+// listing's identifiers.
+function asIdentifier(t: Listing_Ticker): Identifier {
+  return create(IdentifierSchema, {
+    type: IdentifierType.MIC_TICKER,
+    domain: t.mic ?? t.ticker?.market ?? "",
+    value: t.ticker?.value ?? "",
+  });
+}
+
+// relations gives each ticker value of a listing its relation to the
+// instrument.
+function relations(ts: Listing_Ticker[]): Map<string, TickerRelation> {
+  return new Map(ts.map((t) => [t.ticker?.value ?? "", t.relation]));
+}
+
 // Rows renders identifiers grouped by type. It returns bare rows, so the
 // caller places it inside a tbody.
 function Rows({
@@ -167,12 +196,15 @@ function Rows({
   marks,
   params,
   primary = "",
+  relations,
 }: {
   ids: Identifier[];
   marks: Marks;
   params: InstrParams;
   // The domain to mark as the primary venue; empty for none.
   primary?: string;
+  // The relation of each ticker value to the instrument.
+  relations?: Map<string, TickerRelation>;
 }) {
   if (ids.length === 0) {
     return (
@@ -212,6 +244,8 @@ function Rows({
         <Chip tone={r.name ? "accent" : "primary"} className="font-mono">
           {r.value}
         </Chip>
+        {r.type === IdentifierType.MIC_TICKER &&
+          relationSuffix[relations?.get(r.value) ?? TickerRelation.UNSPECIFIED]}
       </Td>
       <Td dense>
         <span className="flex flex-wrap gap-1">

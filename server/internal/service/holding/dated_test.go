@@ -40,8 +40,7 @@ var (
 	straddle        = []gen.ListIdentifierAssertionsRow{assertion(2, &aID), assertion(10, &bID)}
 	retired         = []gen.ListIdentifierAssertionsRow{assertion(2, &aID), assertion(12, nil)}
 	instrs          = []gen.Instr{{ID: aID, AssetClass: types.AssetClassStock}, {ID: bID, AssetClass: types.AssetClassStock}}
-	fooOnB          = gen.Identifier{InstrID: bID, ListingID: &bUSD, Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "FOO"}
-	idents          = []gen.Identifier{{InstrID: aID, Type: types.IdentifierTypeIsin, Value: "US0000000071"}, fooOnB}
+	idents          = []gen.Identifier{{InstrID: aID, Type: types.IdentifierTypeIsin, Value: "US0000000071"}, {InstrID: bID, Type: types.IdentifierTypeIsin, Value: "US0000000072"}}
 	aListings       = []gen.ListListingNamesRow{{ListingID: aGBP, InstrID: aID, Currency: "GBP"}, {ListingID: aUSD, InstrID: aID, Currency: "USD"}}
 	bListing        = gen.ListListingNamesRow{ListingID: bUSD, InstrID: bID, Currency: "USD", TickerID: &fooRow.ID, Market: ptr.To("US"), TickerValue: ptr.To("FOO"), Venue: ptr.To("XNAS"), VenueName: ptr.To("Nasdaq"), Relation: ptr.To(gen.TickerRelationCurrent), Rank: ptr.To(int64(1))}
 	listings        = append(append([]gen.ListListingNamesRow{}, aListings...), bListing)
@@ -50,7 +49,7 @@ var (
 	protoBListings  = []*holdingv1.HoldingListing{{Id: bUSD.String(), Currency: "USD", Venue: ptr.To("Nasdaq"), Ticker: &typev1.MarketTicker{Market: "US", Value: "FOO"}, Relation: typev1.TickerRelation_TICKER_RELATION_CURRENT}}
 	protoAName      = &typev1.Identifier{Type: typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, Value: "US0000000071"}
 	protoIdentsOfA  = []*typev1.Identifier{protoAISIN}
-	protoIdentsOfB  = []*typev1.Identifier{protoFoo}
+	protoIdentsOfB  = []*typev1.Identifier{{Type: typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, Value: "US0000000072"}}
 	assetClassStock = typev1.AssetClass_ASSET_CLASS_STOCK
 	errBoom         = errors.New("boom")
 )

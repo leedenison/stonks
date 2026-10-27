@@ -14,6 +14,7 @@ import {
   InstrSchema,
   InstrService,
   ListingSchema,
+  Listing_TickerSchema,
   ListInstrsResponseSchema,
 } from "@/gen/admin/instr/v1/instr_pb";
 import { AssertionItemSchema, Edge } from "@/gen/admin/run/v1/run_pb";
@@ -129,6 +130,19 @@ function serving(
   });
 }
 
+function tickerOn(
+  market: string,
+  value: string,
+  mic: string,
+  relation: TickerRelation,
+) {
+  return create(Listing_TickerSchema, {
+    ticker: { market, value },
+    mic,
+    relation,
+  });
+}
+
 function ident(type: IdentifierType, value: string, domain = "") {
   return create(IdentifierSchema, { type, value, domain });
 }
@@ -158,15 +172,17 @@ const listed = create(ListInstrsResponseSchema, {
           currency: "USD",
           primaryMic: "XNAS",
           identifiers: [
-            ident(IdentifierType.MIC_TICKER, "ACME", "XNAS"),
-            ident(IdentifierType.MIC_TICKER, "ACME", "XNYS"),
             ident(IdentifierType.OPENFIGI_COMPOSITE, "BBG000B9XRY4"),
+          ],
+          tickers: [
+            tickerOn("US", "ACME", "XNAS", TickerRelation.CURRENT),
+            tickerOn("US", "ACME", "XNYS", TickerRelation.CURRENT),
           ],
         }),
         create(ListingSchema, {
           id: "l-gbp",
           currency: "GBP",
-          identifiers: [ident(IdentifierType.MIC_TICKER, "ACM", "XLON")],
+          tickers: [tickerOn("XLON", "ACM", "XLON", TickerRelation.DEFUNCT)],
         }),
       ],
       via: [ident(IdentifierType.BROKER_ID, "77", "ibkr")],
@@ -265,7 +281,10 @@ describe("InstrsPage", () => {
     expect(
       screen.getByTestId("instr-pane").querySelectorAll("[data-name='true']"),
     ).toHaveLength(1);
-    expect(screen.getByTestId("listing-l-gbp").textContent).toContain("XLON");
+    const gbp = screen.getByTestId("listing-l-gbp");
+    expect(gbp.textContent).toContain("XLON");
+    expect(gbp.textContent).toContain("ACM (defunct)");
+    expect(usd.textContent).not.toContain("(defunct)");
     expect(
       screen.getByTestId("ticker-validity-XLON-ACM").getAttribute("href"),
     ).toBe(

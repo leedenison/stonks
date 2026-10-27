@@ -255,6 +255,18 @@ func ProtoInstr(r gen.ListInstrsRow) *admininstrv1.Instr {
 	return out
 }
 
+// ProtoListingTicker writes the ticker columns of l as a listing's ticker.
+func ProtoListingTicker(l gen.ListListingNamesRow) *admininstrv1.Listing_Ticker {
+	out := &admininstrv1.Listing_Ticker{Mic: l.Venue}
+	if l.Market != nil && l.TickerValue != nil {
+		out.Ticker = types.MarketTicker{Market: *l.Market, Value: *l.TickerValue}.ToProto()
+	}
+	if l.Relation != nil {
+		out.Relation = types.ToProto[typev1.TickerRelation](*l.Relation)
+	}
+	return out
+}
+
 // ProtoListing writes a listing, and leaves its identifiers to the caller.
 func ProtoListing(l gen.Listing) *admininstrv1.Listing {
 	out := &admininstrv1.Listing{Id: l.ID.String(), Currency: l.Currency}

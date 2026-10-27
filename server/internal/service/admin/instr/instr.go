@@ -25,6 +25,7 @@ import (
 type Queries interface {
 	ListInstrs(ctx context.Context, arg gen.ListInstrsParams) ([]gen.ListInstrsRow, error)
 	ListListingsOf(ctx context.Context, ids []uuid.UUID) ([]gen.Listing, error)
+	ListListingNames(ctx context.Context, instrIds []uuid.UUID) ([]gen.ListListingNamesRow, error)
 	ListIdentifiersOf(ctx context.Context, ids []uuid.UUID) ([]gen.Identifier, error)
 	ListViaOf(ctx context.Context, ids []uuid.UUID) ([]uuid.UUID, error)
 }
@@ -105,8 +106,8 @@ func parseCursor(token string) (*uuid.UUID, *string, error) {
 	return &id, &name, nil
 }
 
-// instrs assembles the page's instruments, each listing grain
-// identifier on its listing. A listing with a primary venue precedes the
+// instrs assembles the page's instruments, each listing grain identifier and
+// each ticker on its listing. A listing with a primary venue precedes the
 // rest. An instrument's Via holds the via identifiers of the keys that
 // resolved to it.
 func (s *Server) instrs(ctx context.Context, rows []gen.ListInstrsRow) ([]*admininstrv1.Instr, error) {
@@ -137,6 +138,16 @@ func (s *Server) instrs(ctx context.Context, rows []gen.ListInstrsRow) ([]*admin
 			return primary(b) - primary(a)
 		})
 	}
+	named, err := s.queries.ListListingNames(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	for _, n := range named {
+		if n.TickerID != nil {
+			l := byListing[n.ListingID]
+			l.Tickers = append(l.Tickers, to.ProtoListingTicker(n))
+		}
+	}
 	idents, err := s.queries.ListIdentifiersOf(ctx, ids)
 	if err != nil {
 		return nil, err
@@ -150,6 +161,9 @@ func (s *Server) instrs(ctx context.Context, rows []gen.ListInstrsRow) ([]*admin
 		via[id] = true
 	}
 	for _, i := range idents {
+		if to.Identifier(i).Ticker() {
+			continue
+		}
 		msg := to.Identifier(i).ToProto()
 		if via[i.ID] {
 			in := instrs[i.InstrID]

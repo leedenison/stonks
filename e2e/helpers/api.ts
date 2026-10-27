@@ -177,24 +177,21 @@ export function runClient(sessionID: string) {
   return clientFor(UserRunService, sessionID);
 }
 
-// instrListedAs returns the one instrument that has a listing with
-// ticker, and fails the test unless exactly one has. The instruments search
-// matches any part of an identifier, so the hits are narrowed to those that
-// carry the ticker exactly.
+// instrListedAs returns the one instrument that has a listing named by
+// ticker at its venue, and fails the test unless exactly one has. The
+// instruments search matches any part of a name, so the hits are narrowed to
+// those whose listings carry the ticker exactly.
 export async function instrListedAs(
   sessionID: string,
-  ticker: Pick<Identifier, "type" | "domain" | "value">,
+  ticker: Pick<Identifier, "domain" | "value">,
 ): Promise<Instr> {
   const listed = await adminInstrClient(sessionID).listInstrs({
     query: ticker.value,
   });
   const named = listed.instrs.filter((i) =>
     i.listings.some((l) =>
-      l.identifiers.some(
-        (id) =>
-          id.type === ticker.type &&
-          id.domain === ticker.domain &&
-          id.value === ticker.value,
+      l.tickers.some(
+        (t) => t.mic === ticker.domain && t.ticker?.value === ticker.value,
       ),
     ),
   );
