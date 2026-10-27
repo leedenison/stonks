@@ -15,7 +15,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/to"
-	"github.com/leedenison/stonks/server/internal/identity/attest"
+	"github.com/leedenison/stonks/server/internal/identity/attestidentifier"
 	reader "github.com/leedenison/stonks/server/internal/identity/coverage"
 	"github.com/leedenison/stonks/server/internal/identity/validity"
 	"github.com/leedenison/stonks/server/internal/types"
@@ -35,7 +35,7 @@ type Attester interface {
 	Withdraw(ctx context.Context, id uuid.UUID) error
 }
 
-var _ Attester = (*attest.Service)(nil)
+var _ Attester = (*attestidentifier.Service)(nil)
 
 //go:generate go tool mockgen -source=coverage.go -destination=mock/coverage_mock.go -package=mock
 
@@ -82,8 +82,8 @@ func (s *Server) GetTicker(ctx context.Context, req *connect.Request[admincovera
 	return connect.NewResponse(&admincoveragev1.GetTickerResponse{Ticker: t.ToProto()}), nil
 }
 
-// Attest starts an attest identifier run, as the administrator calling.
-func (s *Server) Attest(ctx context.Context, req *connect.Request[admincoveragev1.AttestRequest]) (*connect.Response[admincoveragev1.AttestResponse], error) {
+// AttestIdentifier starts an attest identifier run, as the administrator calling.
+func (s *Server) AttestIdentifier(ctx context.Context, req *connect.Request[admincoveragev1.AttestIdentifierRequest]) (*connect.Response[admincoveragev1.AttestIdentifierResponse], error) {
 	p, err := auth.Admin(ctx)
 	if err != nil {
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
@@ -112,7 +112,7 @@ func (s *Server) Attest(ctx context.Context, req *connect.Request[admincoveragev
 	}
 	started, err := s.attester.Start(ctx, p.User.ID, v, instrument, from, until)
 	switch {
-	case errors.Is(err, validity.ErrFuture), errors.Is(err, attest.ErrRange):
+	case errors.Is(err, validity.ErrFuture), errors.Is(err, attestidentifier.ErrRange):
 		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 	case errors.Is(err, validity.ErrSpelling):
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
@@ -121,23 +121,23 @@ func (s *Server) Attest(ctx context.Context, req *connect.Request[admincoveragev
 	case err != nil:
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	return connect.NewResponse(&admincoveragev1.AttestResponse{Run: to.ProtoRun(started)}), nil
+	return connect.NewResponse(&admincoveragev1.AttestIdentifierResponse{Run: to.ProtoRun(started)}), nil
 }
 
-// WithdrawAttestation deletes an attested assertion.
-func (s *Server) WithdrawAttestation(ctx context.Context, req *connect.Request[admincoveragev1.WithdrawAttestationRequest]) (*connect.Response[admincoveragev1.WithdrawAttestationResponse], error) {
+// WithdrawIdentifierAttestation deletes an attested assertion.
+func (s *Server) WithdrawIdentifierAttestation(ctx context.Context, req *connect.Request[admincoveragev1.WithdrawIdentifierAttestationRequest]) (*connect.Response[admincoveragev1.WithdrawIdentifierAttestationResponse], error) {
 	id, err := uuid.Parse(req.Msg.GetAssertionId())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	err = s.attester.Withdraw(ctx, id)
 	switch {
-	case errors.Is(err, attest.ErrNotAttested):
+	case errors.Is(err, attestidentifier.ErrNotAttested):
 		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 	case errors.Is(err, db.ErrNotFound):
 		return nil, connect.NewError(connect.CodeNotFound, err)
 	case err != nil:
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	return connect.NewResponse(&admincoveragev1.WithdrawAttestationResponse{}), nil
+	return connect.NewResponse(&admincoveragev1.WithdrawIdentifierAttestationResponse{}), nil
 }

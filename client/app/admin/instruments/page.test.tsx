@@ -8,7 +8,7 @@ import {
   ListInstrumentTickersResponseSchema,
   TickerSchema,
   Validity,
-  WithdrawAttestationResponseSchema,
+  WithdrawIdentifierAttestationResponseSchema,
 } from "@/gen/admin/coverage/v1/coverage_pb";
 import {
   InstrumentSchema,
@@ -387,9 +387,9 @@ describe("InstrumentsPage", () => {
     renderWithAuth(
       <InstrumentsPage />,
       serving(() => listed, {
-        withdrawAttestation: (req) => {
+        withdrawIdentifierAttestation: (req) => {
           withdrawn.push(req.assertionId);
-          return create(WithdrawAttestationResponseSchema, {});
+          return create(WithdrawIdentifierAttestationResponseSchema, {});
         },
       }),
     );

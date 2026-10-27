@@ -20,7 +20,7 @@ import (
 	typev1 "github.com/leedenison/stonks/proto/type/v1"
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
-	"github.com/leedenison/stonks/server/internal/identity/attest"
+	"github.com/leedenison/stonks/server/internal/identity/attestidentifier"
 	reader "github.com/leedenison/stonks/server/internal/identity/coverage"
 	"github.com/leedenison/stonks/server/internal/identity/validity"
 	"github.com/leedenison/stonks/server/internal/platform/ptr"
@@ -157,29 +157,29 @@ func TestGetTicker(t *testing.T) {
 	}
 }
 
-func TestAttest(t *testing.T) {
+func TestAttestIdentifier(t *testing.T) {
 	runID := uuid.MustParse("00000000-0000-0000-0000-000000000010")
 	started := gen.Run{ID: runID, Kind: gen.RunKindAttestIdentifier, Trigger: gen.RunTriggerAdministrator, State: gen.RunStatePending, CreatedAt: today}
-	names := &admincoveragev1.AttestRequest_InstrumentId{InstrumentId: acme.String()}
+	names := &admincoveragev1.AttestIdentifierRequest_InstrumentId{InstrumentId: acme.String()}
 	tests := []struct {
 		name           string
-		req            *admincoveragev1.AttestRequest
+		req            *admincoveragev1.AttestIdentifierRequest
 		wantInstrument *uuid.UUID
 		wantTo         *time.Time
 		err            error
 		wantCode       connect.Code
 	}{
-		{name: "an instrument over a range", req: &admincoveragev1.AttestRequest{Ticker: acmeProto, Names: names, From: "2026-03-10", To: ptr.To("2026-03-20")}, wantInstrument: &acme, wantTo: ptr.To(day(20))},
-		{name: "nothing on a day", req: &admincoveragev1.AttestRequest{Ticker: acmeProto, Names: &admincoveragev1.AttestRequest_Nothing{Nothing: true}, From: "2026-03-10"}},
-		{name: "no names", req: &admincoveragev1.AttestRequest{Ticker: acmeProto, From: "2026-03-10"}, wantCode: connect.CodeInvalidArgument},
-		{name: "no ticker", req: &admincoveragev1.AttestRequest{Names: names, From: "2026-03-10"}, wantCode: connect.CodeInvalidArgument},
-		{name: "malformed day", req: &admincoveragev1.AttestRequest{Ticker: acmeProto, Names: names, From: "10/03/2026"}, wantCode: connect.CodeInvalidArgument},
-		{name: "malformed end", req: &admincoveragev1.AttestRequest{Ticker: acmeProto, Names: names, From: "2026-03-10", To: ptr.To("soon")}, wantCode: connect.CodeInvalidArgument},
-		{name: "future", req: &admincoveragev1.AttestRequest{Ticker: acmeProto, Names: names, From: "2026-03-10"}, wantInstrument: &acme, err: validity.ErrFuture, wantCode: connect.CodeFailedPrecondition},
-		{name: "range reversed", req: &admincoveragev1.AttestRequest{Ticker: acmeProto, Names: names, From: "2026-03-10"}, wantInstrument: &acme, err: attest.ErrRange, wantCode: connect.CodeFailedPrecondition},
-		{name: "misspelled", req: &admincoveragev1.AttestRequest{Ticker: acmeProto, Names: names, From: "2026-03-10"}, wantInstrument: &acme, err: validity.ErrSpelling, wantCode: connect.CodeInvalidArgument},
-		{name: "unknown instrument", req: &admincoveragev1.AttestRequest{Ticker: acmeProto, Names: names, From: "2026-03-10"}, wantInstrument: &acme, err: db.ErrNotFound, wantCode: connect.CodeNotFound},
-		{name: "failure", req: &admincoveragev1.AttestRequest{Ticker: acmeProto, Names: names, From: "2026-03-10"}, wantInstrument: &acme, err: errors.New("boom"), wantCode: connect.CodeInternal},
+		{name: "an instrument over a range", req: &admincoveragev1.AttestIdentifierRequest{Ticker: acmeProto, Names: names, From: "2026-03-10", To: ptr.To("2026-03-20")}, wantInstrument: &acme, wantTo: ptr.To(day(20))},
+		{name: "nothing on a day", req: &admincoveragev1.AttestIdentifierRequest{Ticker: acmeProto, Names: &admincoveragev1.AttestIdentifierRequest_Nothing{Nothing: true}, From: "2026-03-10"}},
+		{name: "no names", req: &admincoveragev1.AttestIdentifierRequest{Ticker: acmeProto, From: "2026-03-10"}, wantCode: connect.CodeInvalidArgument},
+		{name: "no ticker", req: &admincoveragev1.AttestIdentifierRequest{Names: names, From: "2026-03-10"}, wantCode: connect.CodeInvalidArgument},
+		{name: "malformed day", req: &admincoveragev1.AttestIdentifierRequest{Ticker: acmeProto, Names: names, From: "10/03/2026"}, wantCode: connect.CodeInvalidArgument},
+		{name: "malformed end", req: &admincoveragev1.AttestIdentifierRequest{Ticker: acmeProto, Names: names, From: "2026-03-10", To: ptr.To("soon")}, wantCode: connect.CodeInvalidArgument},
+		{name: "future", req: &admincoveragev1.AttestIdentifierRequest{Ticker: acmeProto, Names: names, From: "2026-03-10"}, wantInstrument: &acme, err: validity.ErrFuture, wantCode: connect.CodeFailedPrecondition},
+		{name: "range reversed", req: &admincoveragev1.AttestIdentifierRequest{Ticker: acmeProto, Names: names, From: "2026-03-10"}, wantInstrument: &acme, err: attestidentifier.ErrRange, wantCode: connect.CodeFailedPrecondition},
+		{name: "misspelled", req: &admincoveragev1.AttestIdentifierRequest{Ticker: acmeProto, Names: names, From: "2026-03-10"}, wantInstrument: &acme, err: validity.ErrSpelling, wantCode: connect.CodeInvalidArgument},
+		{name: "unknown instrument", req: &admincoveragev1.AttestIdentifierRequest{Ticker: acmeProto, Names: names, From: "2026-03-10"}, wantInstrument: &acme, err: db.ErrNotFound, wantCode: connect.CodeNotFound},
+		{name: "failure", req: &admincoveragev1.AttestIdentifierRequest{Ticker: acmeProto, Names: names, From: "2026-03-10"}, wantInstrument: &acme, err: errors.New("boom"), wantCode: connect.CodeInternal},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -187,22 +187,22 @@ func TestAttest(t *testing.T) {
 			if tc.wantCode == 0 || tc.err != nil {
 				f.attester.EXPECT().Start(gomock.Any(), servicetest.Admin.User.ID, acmeTicker, tc.wantInstrument, day(10), tc.wantTo).Return(started, tc.err)
 			}
-			res, err := f.client.Attest(context.Background(), connect.NewRequest(tc.req))
+			res, err := f.client.AttestIdentifier(context.Background(), connect.NewRequest(tc.req))
 			if servicetest.CodeOf(err) != tc.wantCode {
-				t.Fatalf("Attest code = %v (err %v), want %v", servicetest.CodeOf(err), err, tc.wantCode)
+				t.Fatalf("AttestIdentifier code = %v (err %v), want %v", servicetest.CodeOf(err), err, tc.wantCode)
 			}
 			if err != nil {
 				return
 			}
 			got := res.Msg.GetRun()
 			if got.GetId() != runID.String() || got.GetKind() != runv1.RunKind_RUN_KIND_ATTEST_IDENTIFIER || got.GetState() != runv1.RunState_RUN_STATE_PENDING {
-				t.Errorf("Attest = %v, want the pending attest identifier run", got)
+				t.Errorf("AttestIdentifier = %v, want the pending attest identifier run", got)
 			}
 		})
 	}
 }
 
-func TestWithdrawAttestation(t *testing.T) {
+func TestWithdrawIdentifierAttestation(t *testing.T) {
 	tests := []struct {
 		name     string
 		id       string
@@ -211,7 +211,7 @@ func TestWithdrawAttestation(t *testing.T) {
 	}{
 		{name: "withdrawn", id: assertionID.String()},
 		{name: "malformed id", id: "first", wantCode: connect.CodeInvalidArgument},
-		{name: "a datasource's", id: assertionID.String(), err: attest.ErrNotAttested, wantCode: connect.CodeFailedPrecondition},
+		{name: "a datasource's", id: assertionID.String(), err: attestidentifier.ErrNotAttested, wantCode: connect.CodeFailedPrecondition},
 		{name: "missing", id: assertionID.String(), err: db.ErrNotFound, wantCode: connect.CodeNotFound},
 		{name: "failure", id: assertionID.String(), err: errors.New("boom"), wantCode: connect.CodeInternal},
 	}
@@ -221,9 +221,9 @@ func TestWithdrawAttestation(t *testing.T) {
 			if tc.wantCode == 0 || tc.err != nil {
 				f.attester.EXPECT().Withdraw(gomock.Any(), assertionID).Return(tc.err)
 			}
-			_, err := f.client.WithdrawAttestation(context.Background(), connect.NewRequest(&admincoveragev1.WithdrawAttestationRequest{AssertionId: tc.id}))
+			_, err := f.client.WithdrawIdentifierAttestation(context.Background(), connect.NewRequest(&admincoveragev1.WithdrawIdentifierAttestationRequest{AssertionId: tc.id}))
 			if servicetest.CodeOf(err) != tc.wantCode {
-				t.Errorf("WithdrawAttestation code = %v (err %v), want %v", servicetest.CodeOf(err), err, tc.wantCode)
+				t.Errorf("WithdrawIdentifierAttestation code = %v (err %v), want %v", servicetest.CodeOf(err), err, tc.wantCode)
 			}
 		})
 	}

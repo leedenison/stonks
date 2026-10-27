@@ -39,7 +39,7 @@ import { enumLabel } from "@/lib/enum";
 import { formatInstant } from "@/lib/format";
 import { anyLive } from "@/lib/run";
 import { assetClassLabel } from "@/lib/asset-class";
-import { ReplayDialog } from "../replay-dialog";
+import { ReplayRunDialog } from "../replay-run-dialog";
 import { RunRow, RunTreeTable } from "../run-tree";
 
 // One run as an administrator reads it: its owner, how it ended, its place
@@ -93,7 +93,7 @@ export default function AdminRunPage() {
         </>
       )}
       {replaying && data?.run && (
-        <ReplayDialog
+        <ReplayRunDialog
           run={data.run}
           onClose={() => setReplaying(false)}
           onStarted={(started) => {

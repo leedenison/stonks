@@ -53,9 +53,9 @@ type stack struct {
 	sources   *market.Registry
 	mics      mic.MICMap
 	resolver  *Resolver
-	// extender is a resolver whose fetches skip the cache, as an extend
-	// validity run's do.
-	extender *Resolver
+	// reasserter is a resolver whose fetches skip the cache, as a reassert
+	// tickers run's do.
+	reasserter *Resolver
 	// now is the moment every datasource of the stack answers. It starts at
 	// answered.
 	now time.Time
@@ -141,7 +141,7 @@ func newStack(t *testing.T) *stack {
 	families, _, err := currency.Load(ctx, q)
 	require.NoError(t, err)
 	s.resolver = New(db.New[Queries](tx), &serial{Fetcher: fetcher}, s.sources, s.mics, families, clock, log)
-	s.extender = New(db.New[Queries](tx), &serial{Fetcher: fetcher.Fresh()}, s.sources, s.mics, families, clock, log)
+	s.reasserter = New(db.New[Queries](tx), &serial{Fetcher: fetcher.Fresh()}, s.sources, s.mics, families, clock, log)
 	return s
 }
 

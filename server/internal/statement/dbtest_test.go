@@ -25,7 +25,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/identity/resolve"
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/mic"
-	"github.com/leedenison/stonks/server/internal/run/replay"
+	"github.com/leedenison/stonks/server/internal/run/replayrun"
 	"github.com/leedenison/stonks/server/internal/testutil/dbtest"
 	"github.com/leedenison/stonks/server/internal/testutil/runtest"
 	"github.com/leedenison/stonks/server/internal/testutil/scripted"
@@ -73,7 +73,7 @@ func newStack(t *testing.T) stack {
 	families, _, err := currency.Load(ctx, q)
 	require.NoError(t, err)
 	resolver := resolve.New(db.New[resolve.Queries](tx), market.NewFetcher(db.New[market.Queries](tx), runs, log), sources, mics, families, clock, log)
-	replays := replay.New(db.New[replay.Queries](tx), runs, resolver, nopCorpActs{}, sources, mics, log)
+	replays := replayrun.New(db.New[replayrun.Queries](tx), runs, resolver, nopCorpActs{}, sources, mics, log)
 	return stack{q: q, tx: tx, svc: New(db.New[Queries](tx), runs, resolver, replays, nopCorpActs{}, families, clock, log), user: user, alpha: alpha, alphaName: name}
 }
 

@@ -1,6 +1,6 @@
 import path from "node:path";
 import { Code } from "@connectrpc/connect";
-import { adminRunClient, replayClient } from "../helpers/api";
+import { adminRunClient, replayRunClient } from "../helpers/api";
 import { uploadStatement } from "../helpers/upload";
 import { expect, test } from "../helpers/test";
 
@@ -25,14 +25,14 @@ test("offers a replay on a statement's page and shows its refusal", async ({
 
   // The RPC refuses the user, and refuses a datasource that is not enabled.
   await expect(
-    replayClient(userSession).startReplay({
+    replayRunClient(userSession).startReplayRun({
       runId,
       scope: { case: "unavailable", value: true },
     }),
   ).rejects.toMatchObject({ code: Code.PermissionDenied });
   const { session } = await signIn("admin");
   await expect(
-    replayClient(session).startReplay({
+    replayRunClient(session).startReplayRun({
       runId,
       scope: { case: "datasource", value: "nothing" },
     }),

@@ -1,0 +1,53 @@
+// Replay runs: runs an administrator starts to re-resolve the keys of a run.
+
+syntax = "proto3";
+
+package stonks.admin.replay_run.v1;
+
+import "buf/validate/validate.proto";
+import "run/v1/run.proto";
+
+option go_package = "github.com/leedenison/stonks/proto/admin/replay_run/v1;adminreplayrunv1";
+
+// What a run of kind REPLAY_RUN re-resolves.
+message Replay {
+  // The run whose keys are replayed.
+  string source_run_id = 1;
+  // The keys the replay selected among the source's, as StartReplayRunRequest
+  // names them.
+  oneof scope {
+    bool unavailable = 2;
+    string datasource = 3;
+  }
+  // The email of the administrator who started the replay.
+  string started_by = 4;
+}
+
+// Re-resolves the keys of one run. Every scope is confined to the run's keys
+// that a transaction names.
+message StartReplayRunRequest {
+  // A run of kind INGEST_STMT or RESOLVE_STMT_KEYS.
+  string run_id = 1 [(buf.validate.field).string.uuid = true];
+  oneof scope {
+    option (buf.validate.oneof).required = true;
+    // Every key whose latest resolution left it unavailable.
+    bool unavailable = 2 [(buf.validate.field).bool.const = true];
+    // Every key the named datasource serves and has not yet answered: the
+    // unresolved keys, and those on an instrument without its identity
+    // coverage.
+    string datasource = 3 [(buf.validate.field).string.min_len = 1];
+  }
+}
+
+message StartReplayRunResponse {
+  // The replay run, pending.
+  stonks.run.v1.Run run = 1;
+}
+
+// Starts replays.
+service ReplayRunService {
+  // Starts a replay over the keys of a run, as a run of that run's user. A
+  // run of another kind, a scope selecting no key, or a datasource that is
+  // not enabled or serves no identity, is refused as a failed precondition.
+  rpc StartReplayRun(StartReplayRunRequest) returns (StartReplayRunResponse);
+}

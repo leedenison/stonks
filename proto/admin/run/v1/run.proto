@@ -7,7 +7,7 @@ package stonks.admin.run.v1;
 import "buf/validate/validate.proto";
 import "google/protobuf/timestamp.proto";
 import "admin/block/v1/block.proto";
-import "admin/replay/v1/replay.proto";
+import "admin/replay_run/v1/replay_run.proto";
 import "run/v1/run.proto";
 import "statement/v1/statement.proto";
 import "type/v1/type.proto";
@@ -215,7 +215,7 @@ message GetRunResponse {
   // run's findings oldest first, then those of each run below it in turn.
   repeated Finding findings = 3;
   // What this run re-resolves when its kind is REPLAY_RUN.
-  stonks.admin.replay.v1.Replay replay = 4;
+  stonks.admin.replay_run.v1.Replay replay = 4;
 }
 
 message ListRunItemsRequest {

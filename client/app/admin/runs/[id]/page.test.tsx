@@ -14,9 +14,9 @@ import {
 } from "@/gen/admin/datasource/v1/datasource_pb";
 import {
   ReplaySchema,
-  ReplayService,
-  StartReplayResponseSchema,
-} from "@/gen/admin/replay/v1/replay_pb";
+  ReplayRunService,
+  StartReplayRunResponseSchema,
+} from "@/gen/admin/replay_run/v1/replay_run_pb";
 import {
   AssertionItemSchema,
   RunService,
@@ -71,7 +71,7 @@ function serving(
     run?: Partial<ServiceImpl<typeof RunService>>;
     block?: Partial<ServiceImpl<typeof BlockService>>;
     datasource?: Partial<ServiceImpl<typeof DatasourceService>>;
-    replay?: Partial<ServiceImpl<typeof ReplayService>>;
+    replay?: Partial<ServiceImpl<typeof ReplayRunService>>;
   } = {},
 ) {
   return transportWith(admin, ({ service }) => {
@@ -82,7 +82,7 @@ function serving(
     });
     service(BlockService, block);
     service(DatasourceService, datasource);
-    service(ReplayService, replay);
+    service(ReplayRunService, replay);
   });
 }
 
@@ -436,8 +436,8 @@ describe("AdminRunPage", () => {
         createdAt: instant("2026-09-24T10:00:00Z"),
       }),
     });
-    const startReplay = vi.fn(() =>
-      create(StartReplayResponseSchema, {
+    const startReplayRun = vi.fn(() =>
+      create(StartReplayRunResponseSchema, {
         run: create(RunSchema, { id: "x1", kind: RunKind.REPLAY_RUN }),
       }),
     );
@@ -445,7 +445,7 @@ describe("AdminRunPage", () => {
     renderWithAuth(
       <AdminRunPage />,
       serving(() => statement, {
-        replay: { startReplay },
+        replay: { startReplayRun },
         datasource: {
           listDatasources: () => create(ListDatasourcesResponseSchema, {}),
         },
@@ -461,7 +461,7 @@ describe("AdminRunPage", () => {
     await waitFor(() =>
       expect(router.push).toHaveBeenCalledWith("/admin/runs/x1"),
     );
-    expect(startReplay).toHaveBeenCalledWith(
+    expect(startReplayRun).toHaveBeenCalledWith(
       expect.objectContaining({
         runId: "f1",
         scope: { case: "unavailable", value: true },

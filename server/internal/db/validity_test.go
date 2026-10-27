@@ -182,9 +182,9 @@ func TestListRunAssertions(t *testing.T) {
 		require.NoError(t, q.CreateIdentifierAssertion(ctx, arg))
 		return arg.ID
 	}
-	extension, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), Kind: gen.RunKindReassertTickers, Trigger: gen.RunTriggerAdministrator})
+	reassertion, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), Kind: gen.RunKindReassertTickers, Trigger: gen.RunTriggerAdministrator})
 	require.NoError(t, err)
-	child, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), Kind: gen.RunKindDatasourceFetch, Trigger: gen.RunTriggerRun, ParentID: &extension.ID})
+	child, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), Kind: gen.RunKindDatasourceFetch, Trigger: gen.RunTriggerRun, ParentID: &reassertion.ID})
 	require.NoError(t, err)
 	fetch, err := q.CreateFetch(ctx, gen.CreateFetchParams{ID: child.ID, Datasource: f.ds.Name, Endpoint: "https://" + f.ds.Name + ".test", Kind: gen.FetchKindIdentity})
 	require.NoError(t, err)
@@ -209,10 +209,10 @@ func TestListRunAssertions(t *testing.T) {
 		return rows
 	}
 	one := int32(1)
-	if got := list(extension.ID, nil, &one); len(got) != 1 || got[0].IdentifierAssertion.ID != first || got[0].Datasource == nil || *got[0].Datasource != f.ds.Name {
+	if got := list(reassertion.ID, nil, &one); len(got) != 1 || got[0].IdentifierAssertion.ID != first || got[0].Datasource == nil || *got[0].Datasource != f.ds.Name {
 		t.Errorf("first page = %+v, want the first assertion from %s", got, f.ds.Name)
 	}
-	if got := list(extension.ID, &first, nil); len(got) != 1 || got[0].IdentifierAssertion.ID != second {
+	if got := list(reassertion.ID, &first, nil); len(got) != 1 || got[0].IdentifierAssertion.ID != second {
 		t.Errorf("page after the first = %+v, want only the second assertion", got)
 	}
 	if got := list(attestation.ID, nil, nil); len(got) != 1 || got[0].IdentifierAssertion.ID != attested || got[0].AttestedBy == nil || *got[0].AttestedBy != admin.Email || got[0].Datasource != nil {
