@@ -18,7 +18,10 @@ test("offers a replay on a statement's page and shows its refusal", async ({
 }) => {
   const { session: userSession } = await signIn();
   await page.goto("/transactions");
-  const runId = await uploadStatement(page, fixture, { state: "completed" });
+  const runId = await uploadStatement(page, fixture, {
+    state: "completed",
+    holds: false,
+  });
 
   // The RPC refuses the user, and refuses a datasource that is not enabled.
   await expect(

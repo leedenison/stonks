@@ -63,8 +63,14 @@ type Resolver interface {
 
 var _ Resolver = (*resolve.Resolver)(nil)
 
-// Replays is this package's view of the replay service: the replays a new
-// identifier fact starts.
-type Replays interface {
-	ReplayNewIdentifierFacts(ctx context.Context, except gen.Run, written []resolve.WrittenIdentifierFacts)
+// Facts is this package's view of the replay service: what new identifier
+// facts start.
+type Facts interface {
+	AfterIdentifierFacts(ctx context.Context, except gen.Run, written []resolve.WrittenIdentifierFacts)
+}
+
+// CorporateEvents is this package's view of the refreshcorporateevents
+// package.
+type CorporateEvents interface {
+	AfterStatement(ctx context.Context, statement gen.Run)
 }

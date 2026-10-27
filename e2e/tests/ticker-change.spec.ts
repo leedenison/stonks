@@ -1,6 +1,10 @@
 import path from "node:path";
 import { FetchKind } from "../gen/admin/block/v1/block_pb";
-import { FetchOutcome, FindingKind } from "../gen/admin/run/v1/run_pb";
+import {
+  FetchOutcome,
+  FindingKind,
+  type UserRun,
+} from "../gen/admin/run/v1/run_pb";
 import { TransactionMark } from "../gen/statement/v1/statement_pb";
 import { IdentifierType, ResolutionOutcome } from "../gen/type/v1/type_pb";
 import {
@@ -27,6 +31,15 @@ const fixtures = ["standard-meta-2024.json", "standard-meta-2021.json"].map(
   (f) => path.resolve(__dirname, "..", "fixtures", f),
 );
 const meta = { type: IdentifierType.MIC_TICKER, domain: "XNAS", value: "META" };
+
+// identifying names the datasource of each identity and identifier events
+// fetch beneath resolution. New identifier facts also start corporate events
+// fetches there.
+function identifying(resolution: UserRun): (string | undefined)[] {
+  return resolution.children
+    .filter((c) => c.fetch?.kind !== FetchKind.CORPORATE_EVENTS)
+    .map((c) => c.fetch?.datasource);
+}
 const composite = "BBG000MM2P62";
 
 test("dates a key through its ticker and marks each transaction by its day", async ({
@@ -135,9 +148,12 @@ test("dates a key through its ticker and marks each transaction by its day", asy
   };
 
   const one = await eventsOf(first);
-  expect(
-    one.resolution.children.map((c) => c.fetch?.datasource).sort(),
-  ).toEqual(["eodhd", "massive", "massive", "openfigi"]);
+  expect(identifying(one.resolution).sort()).toEqual([
+    "eodhd",
+    "massive",
+    "massive",
+    "openfigi",
+  ]);
   expect(one.events).toHaveLength(1);
   const sent = one.events[0].map((i) => [
     i.outcome,
@@ -153,9 +169,7 @@ test("dates a key through its ticker and marks each transaction by its day", asy
   expect(sent).toHaveLength(2);
 
   const two = await eventsOf(second);
-  expect(two.resolution.children.map((c) => c.fetch?.datasource)).toEqual([
-    "massive",
-  ]);
+  expect(identifying(two.resolution)).toEqual(["massive"]);
   expect(two.events).toHaveLength(1);
   expect(
     two.events[0].map((i) => [i.outcome, i.sent?.type, i.sent?.value]),

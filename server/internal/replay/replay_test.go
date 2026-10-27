@@ -60,6 +60,7 @@ type fixture struct {
 	runs     *MockRunner
 	resolver *MockResolver
 	sources  *MockSources
+	events   *MockCorporateEvents
 	svc      *Service
 
 	entries    []*market.Entry
@@ -75,6 +76,8 @@ type fixture struct {
 	resolution gen.Run
 	resolved   []gen.StatedKey
 	regrouped  []uuid.UUID
+	// fetched records the parent of each corporate events fetch.
+	fetched []gen.Run
 }
 
 // newFixture returns a service whose writes run inline and in order.
@@ -82,7 +85,7 @@ func newFixture(t *testing.T) *fixture {
 	t.Helper()
 	ctrl := gomock.NewController(t)
 	t.Cleanup(ctrl.Finish)
-	f := &fixture{store: NewMockStore(ctrl), runs: NewMockRunner(ctrl), resolver: NewMockResolver(ctrl), sources: NewMockSources(ctrl)}
+	f := &fixture{store: NewMockStore(ctrl), runs: NewMockRunner(ctrl), resolver: NewMockResolver(ctrl), sources: NewMockSources(ctrl), events: NewMockCorporateEvents(ctrl)}
 	f.sources.EXPECT().Enabled().DoAndReturn(func() []*market.Entry { return f.entries }).AnyTimes()
 	f.store.EXPECT().Tx(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, fn func(Queries) error) error { return fn(f.store) }).AnyTimes()
 	f.store.EXPECT().CreateReplay(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.CreateReplayParams) error {
@@ -120,7 +123,10 @@ func newFixture(t *testing.T) *fixture {
 		row := gen.Run{ID: db.NewID(), UserID: parent.UserID, Kind: kind, Trigger: gen.RunTriggerRun, ParentID: &parent.ID}
 		return row, work(ctx, row)
 	}).AnyTimes()
-	f.svc = New(f.store, f.runs, f.resolver, f.sources, nil, slog.New(slog.DiscardHandler))
+	f.events.EXPECT().FetchAfterIdentifierFacts(gomock.Any(), gomock.Any(), gomock.Any()).Do(func(_ context.Context, parent gen.Run, _ []resolve.WrittenIdentifierFacts) {
+		f.fetched = append(f.fetched, parent)
+	}).AnyTimes()
+	f.svc = New(f.store, f.runs, f.resolver, f.events, f.sources, nil, slog.New(slog.DiscardHandler))
 	return f
 }
 
@@ -262,5 +268,16 @@ func TestWorkFails(t *testing.T) {
 				t.Errorf("regrouped %d users, want %d", len(f.regrouped), tc.regrouped)
 			}
 		})
+	}
+}
+
+// TestAfterIdentifierFactsFetches checks that new identifier facts fetch the
+// corporate events of the held instruments beneath the run named in except.
+func TestAfterIdentifierFactsFetches(t *testing.T) {
+	f := newFixture(t)
+	except := gen.Run{ID: db.NewID(), UserID: &userID, Kind: gen.RunKindResolution}
+	f.svc.AfterIdentifierFacts(context.Background(), except, nil)
+	if diff := cmp.Diff([]gen.Run{except}, f.fetched); diff != "" {
+		t.Errorf("fetch parents mismatch (-want +got):\n%s", diff)
 	}
 }

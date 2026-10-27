@@ -73,8 +73,8 @@ func newStack(t *testing.T) stack {
 	families, _, err := currency.Load(ctx, q)
 	require.NoError(t, err)
 	resolver := resolve.New(db.New[resolve.Queries](tx), market.NewFetcher(db.New[market.Queries](tx), runs, log), sources, mics, families, clock, log)
-	replays := replay.New(db.New[replay.Queries](tx), runs, resolver, sources, mics, log)
-	return stack{q: q, tx: tx, svc: New(db.New[Queries](tx), runs, resolver, replays, families, clock, log), user: user, alpha: alpha, alphaName: name}
+	replays := replay.New(db.New[replay.Queries](tx), runs, resolver, nopEvents{}, sources, mics, log)
+	return stack{q: q, tx: tx, svc: New(db.New[Queries](tx), runs, resolver, replays, nopEvents{}, families, clock, log), user: user, alpha: alpha, alphaName: name}
 }
 
 func (s stack) ingest(t *testing.T, msg *statementv1.Statement) gen.Run {
@@ -550,3 +550,12 @@ func (s *stack) keyOf(t *testing.T, statement gen.Run) gen.StatedKey {
 	}
 	return keys[0]
 }
+
+// nopEvents stands in for the corporate events fetch. The
+// refreshcorporateevents package tests that fetch.
+type nopEvents struct{}
+
+func (nopEvents) FetchAfterIdentifierFacts(context.Context, gen.Run, []resolve.WrittenIdentifierFacts) {
+}
+
+func (nopEvents) AfterStatement(context.Context, gen.Run) {}

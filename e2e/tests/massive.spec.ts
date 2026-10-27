@@ -1,10 +1,11 @@
 import path from "node:path";
 import { IdentifierType, ResolutionOutcome } from "../gen/type/v1/type_pb";
 import {
-  adminRunClient,
-  holdingClient,
   adminInstrumentClient,
+  adminRunClient,
   expectServedOnce,
+  holdingClient,
+  resolutionFindings,
   resolutionItems,
 } from "../helpers/api";
 import { uploadStatement } from "../helpers/upload";
@@ -32,7 +33,7 @@ test("asks Massive beside OpenFIGI and matches the key once", async ({
   const { session } = await signIn("admin");
   const admin = adminRunClient(session);
   const statement = await admin.getRun({ runId });
-  expect(statement.findings).toHaveLength(0);
+  expect(resolutionFindings(statement.findings)).toHaveLength(0);
   const resolution = statement.run!.children[0];
   await expectServedOnce(admin, resolution, ["openfigi", "massive"], {
     type: IdentifierType.CUSIP,

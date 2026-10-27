@@ -9,6 +9,8 @@ import { ExtendValidityService } from "../gen/admin/extend_validity/v1/extend_va
 import { ReplayService } from "../gen/admin/replay/v1/replay_pb";
 import {
   FetchOutcome,
+  type Finding,
+  FindingKind,
   RunService,
   type UserRun,
 } from "../gen/admin/run/v1/run_pb";
@@ -16,10 +18,14 @@ import type { Identifier, IdentifierType } from "../gen/type/v1/type_pb";
 import type { Instrument } from "../gen/admin/instrument/v1/instrument_pb";
 import { AuthService } from "../gen/auth/v1/auth_pb";
 import { HoldingService } from "../gen/holding/v1/holding_pb";
-import { RunService as UserRunService } from "../gen/run/v1/run_pb";
+import {
+  RunKind,
+  RunState,
+  RunService as UserRunService,
+} from "../gen/run/v1/run_pb";
 import { StatementService } from "../gen/statement/v1/statement_pb";
 import { sessionCookie } from "./auth";
-import { baseURL } from "./config";
+import { baseURL, recording } from "./config";
 import { expect } from "./test";
 
 // clientFor returns the generated client of service over the edge, carrying
@@ -189,4 +195,62 @@ export async function instrumentListedAs(
   );
   expect(named, `${ticker.domain}:${ticker.value}`).toHaveLength(1);
   return named[0];
+}
+
+// settled waits until statement run runId and every run beneath it have
+// stopped. The statement starts its last run, the corporate events fetch of
+// the user's held instruments, only when a ticker names one of them; holds
+// says whether to wait for it. A fetch for another user's instruments can
+// start after the user's own fetch stops. The tree must therefore keep the
+// same size across two reads.
+export async function settled(
+  admin: Client<typeof RunService>,
+  runId: string,
+  holds = true,
+): Promise<void> {
+  let size = -1;
+  await expect
+    .poll(
+      async () => {
+        const got = (await admin.getRun({ runId })).run;
+        const runs: UserRun[] = [];
+        const walk = (r: UserRun) => {
+          runs.push(r);
+          r.children.forEach(walk);
+        };
+        if (got) {
+          walk(got);
+        }
+        const fetched =
+          !holds ||
+          (got?.children ?? []).some(
+            (c) =>
+              c.run?.kind === RunKind.REFRESH_CORPORATE_EVENTS ||
+              c.fetch?.kind === FetchKind.CORPORATE_EVENTS,
+          );
+        const stopped = runs.every((r) => stoppedStates.has(r.run!.state));
+        const steady = runs.length === size;
+        size = runs.length;
+        return fetched && stopped && steady;
+      },
+      { intervals: [500], timeout: recording ? 0 : 30_000 },
+    )
+    .toBe(true);
+}
+
+const stoppedStates = new Set([
+  RunState.COMPLETED,
+  RunState.FAILED,
+  RunState.INTERRUPTED,
+]);
+
+// resolutionFindings leaves out the findings of corporate events fetches,
+// which follow a statement whatever its resolution found.
+export function resolutionFindings(findings: Finding[]): Finding[] {
+  return findings.filter(
+    (f) =>
+      f.kind !== FindingKind.UNMATCHED_SPLIT &&
+      f.kind !== FindingKind.CORPORATE_EVENT_DISAGREEMENT &&
+      f.kind !== FindingKind.UNHANDLED_CORPORATE_EVENT,
+  );
 }

@@ -36,17 +36,17 @@ var (
 func day(n int) time.Time { return time.Date(2026, time.March, n, 0, 0, 0, 0, time.UTC) }
 
 type fixture struct {
-	store   *MockStore
-	runs    *MockRunner
-	replays *MockReplays
-	svc     *Service
+	store *MockStore
+	runs  *MockRunner
+	facts *MockFacts
+	svc   *Service
 }
 
 func newFixture(t *testing.T) *fixture {
 	t.Helper()
 	ctrl := gomock.NewController(t)
-	f := &fixture{store: NewMockStore(ctrl), runs: NewMockRunner(ctrl), replays: NewMockReplays(ctrl)}
-	f.svc = New(f.store, f.runs, f.replays, mics, func() time.Time { return today })
+	f := &fixture{store: NewMockStore(ctrl), runs: NewMockRunner(ctrl), facts: NewMockFacts(ctrl)}
+	f.svc = New(f.store, f.runs, f.facts, mics, func() time.Time { return today })
 	return f
 }
 
@@ -88,7 +88,7 @@ func TestStart(t *testing.T) {
 		written = append(written, arg)
 		return nil
 	})
-	f.replays.EXPECT().ReplayNewIdentifierFacts(gomock.Any(), row, []resolve.WrittenIdentifierFacts{{Run: row, Tickers: []types.MarketTicker{acmeUS}}})
+	f.facts.EXPECT().AfterIdentifierFacts(gomock.Any(), row, []resolve.WrittenIdentifierFacts{{Run: row, Tickers: []types.MarketTicker{acmeUS}}})
 
 	to := day(20)
 	got, err := f.svc.Start(context.Background(), admin, acmeUS, &acme, day(10), &to)
@@ -114,7 +114,7 @@ func TestStartNothing(t *testing.T) {
 		}
 		return nil
 	})
-	f.replays.EXPECT().ReplayNewIdentifierFacts(gomock.Any(), row, gomock.Any())
+	f.facts.EXPECT().AfterIdentifierFacts(gomock.Any(), row, gomock.Any())
 
 	to := day(10)
 	if _, err := f.svc.Start(context.Background(), admin, acmeUS, nil, day(10), &to); err != nil {

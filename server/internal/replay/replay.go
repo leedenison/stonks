@@ -8,7 +8,8 @@
 //
 // A new identifier fact, or a withdrawn attestation, replays the unresolved
 // keys that state its ticker at any venue of its market beneath the run that
-// wrote it; see ReplayNewIdentifierFacts. A key with an association is never
+// wrote it. It also fetches the corporate events of the held instruments that
+// its ticker names; see AfterIdentifierFacts. A key with an association is never
 // replayed for a fact. A dated key takes the instrument its ticker names on
 // each transaction's date when it is read, so a new fact reaches its
 // transactions without a replay.
@@ -66,14 +67,15 @@ type Service struct {
 	store    Store
 	runs     Runner
 	resolver Resolver
+	events   CorporateEvents
 	sources  Sources
 	mics     mic.MICMap
 	log      *slog.Logger
 }
 
 // New returns a Service.
-func New(store Store, runs Runner, resolver Resolver, sources Sources, mics mic.MICMap, log *slog.Logger) *Service {
-	return &Service{store: store, runs: runs, resolver: resolver, sources: sources, mics: mics, log: log}
+func New(store Store, runs Runner, resolver Resolver, events CorporateEvents, sources Sources, mics mic.MICMap, log *slog.Logger) *Service {
+	return &Service{store: store, runs: runs, resolver: resolver, events: events, sources: sources, mics: mics, log: log}
 }
 
 // Start starts a replay of source's keys as a run of source's user, started
@@ -189,7 +191,7 @@ func (r *replay) work(ctx context.Context, run gen.Run) error {
 	if err != nil {
 		return err
 	}
-	r.svc.ReplayNewIdentifierFacts(ctx, res, r.written)
+	r.svc.AfterIdentifierFacts(ctx, res, r.written)
 	return nil
 }
 
@@ -203,15 +205,22 @@ func (r *replay) resolve(ctx context.Context, res gen.Run) error {
 	return err
 }
 
-// ReplayNewIdentifierFacts replays every user's unresolved keys that state a
-// ticker in written, at any venue of its market, as children of the run that
-// wrote it. The keys that
-// except resolved are left out, and a key is replayed once. A user other than
-// the run's replays beneath one system child of the run, or directly beneath
-// a system run. A failure is logged and the rest go on, since the run that
-// wrote the facts has completed by then and its outcome stands. The replays
-// run in the goroutine of the run that found the keys.
-func (s *Service) ReplayNewIdentifierFacts(ctx context.Context, except gen.Run, written []resolve.WrittenIdentifierFacts) {
+// AfterIdentifierFacts replays the keys that state a ticker in written, and
+// then fetches the corporate events of the held instruments that the tickers
+// name, beneath the run named in except. A failure is logged and the rest go
+// on, since the run that wrote the facts has completed by then and its outcome
+// stands. Both run in the goroutine of the run that found the facts.
+func (s *Service) AfterIdentifierFacts(ctx context.Context, except gen.Run, written []resolve.WrittenIdentifierFacts) {
+	s.replayFacts(ctx, except, written)
+	s.events.FetchAfterIdentifierFacts(ctx, except, written)
+}
+
+// replayFacts replays every user's unresolved keys that state a ticker in
+// written, at any venue of its market, as children of the run that wrote it.
+// The keys that except resolved are left out, and a key is replayed once. A
+// user other than the run's replays beneath one system child of the run, or
+// directly beneath a system run.
+func (s *Service) replayFacts(ctx context.Context, except gen.Run, written []resolve.WrittenIdentifierFacts) {
 	picked := map[uuid.UUID]bool{}
 	for _, w := range written {
 		probes, err := s.mics.TickerProbes(w.Tickers)

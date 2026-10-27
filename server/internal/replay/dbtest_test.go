@@ -83,8 +83,8 @@ func newStack(t *testing.T) *stack {
 	families, _, err := currency.Load(ctx, q)
 	require.NoError(t, err)
 	resolver := resolve.New(db.New[resolve.Queries](tx), fetcher, s.sources, mics, families, clock, log)
-	s.svc = New(db.New[Queries](tx), runs, resolver, s.sources, mics, log)
-	s.statements = stmt.New(db.New[stmt.Queries](tx), runs, resolver, s.svc, families, clock, log)
+	s.svc = New(db.New[Queries](tx), runs, resolver, nopEvents{}, s.sources, mics, log)
+	s.statements = stmt.New(db.New[stmt.Queries](tx), runs, resolver, s.svc, nopEvents{}, families, clock, log)
 	return s
 }
 
@@ -321,14 +321,14 @@ func (s *stack) replays(t *testing.T, parent gen.Run) map[uuid.UUID][]uuid.UUID 
 	return out
 }
 
-// TestReplayNewIdentifierFacts checks that a fact written beneath a user's
+// TestAfterIdentifierFacts checks that a fact written beneath a user's
 // fetch run replays that user's unresolved key beneath the fetch run, and
 // another user's beneath one system child of it, whatever venue of the
 // ticker's market the key states. A fact of a market written beneath a
 // system run replays each user's keys stating a ticker of the market, at any
 // of its venues, directly beneath that run. A key stating a ticker of
 // another market and the keys the excepted run resolved are left out.
-func TestReplayNewIdentifierFacts(t *testing.T) {
+func TestAfterIdentifierFacts(t *testing.T) {
 	s := newStack(t)
 	ctx := context.Background()
 	other, err := s.q.CreateUser(ctx, gen.CreateUserParams{ID: db.NewID(), Email: uuid.NewString() + "@example.com", Role: gen.UserRoleUser})
@@ -345,7 +345,7 @@ func TestReplayNewIdentifierFacts(t *testing.T) {
 	fetch, err := s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &s.user.ID, Kind: gen.RunKindFetch, Trigger: gen.RunTriggerRun, ParentID: &parent.ID})
 	require.NoError(t, err)
 	written := []resolve.WrittenIdentifierFacts{{Run: fetch, Tickers: []types.MarketTicker{{Market: "US", Value: ticker.Value}}}}
-	s.svc.ReplayNewIdentifierFacts(ctx, gen.Run{ID: db.NewID()}, written)
+	s.svc.AfterIdentifierFacts(ctx, gen.Run{ID: db.NewID()}, written)
 
 	tree, err := s.q.ListRunDescendants(ctx, &fetch.ID)
 	require.NoError(t, err)
@@ -385,7 +385,7 @@ func TestReplayNewIdentifierFacts(t *testing.T) {
 	require.NoError(t, err)
 	except, _ := s.resolution(t, stated)
 	written = []resolve.WrittenIdentifierFacts{{Run: attestation, Markets: []string{"US"}}}
-	s.svc.ReplayNewIdentifierFacts(ctx, except, written)
+	s.svc.AfterIdentifierFacts(ctx, except, written)
 	replayed = s.replays(t, attestation)
 	var got []uuid.UUID
 	for parent, keys := range replayed {
@@ -433,7 +433,7 @@ func TestReplayChain(t *testing.T) {
 	fetch, err := s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &s.user.ID, Kind: gen.RunKindFetch, Trigger: gen.RunTriggerRun, ParentID: &parent.ID})
 	require.NoError(t, err)
 	written := []resolve.WrittenIdentifierFacts{{Run: fetch, Tickers: []types.MarketTicker{{Market: "US", Value: ticker.Value}}}}
-	s.svc.ReplayNewIdentifierFacts(ctx, gen.Run{ID: db.NewID()}, written)
+	s.svc.AfterIdentifierFacts(ctx, gen.Run{ID: db.NewID()}, written)
 
 	for _, k := range []struct {
 		user gen.User
@@ -499,3 +499,12 @@ func (s *stack) holdings(t *testing.T) (instruments, groups []holding) {
 	}
 	return instruments, groups
 }
+
+// nopEvents stands in for the corporate events fetch. The
+// refreshcorporateevents package tests that fetch.
+type nopEvents struct{}
+
+func (nopEvents) FetchAfterIdentifierFacts(context.Context, gen.Run, []resolve.WrittenIdentifierFacts) {
+}
+
+func (nopEvents) AfterStatement(context.Context, gen.Run) {}

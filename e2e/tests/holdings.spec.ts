@@ -83,6 +83,7 @@ test("uploads a statement and lists the holdings it produces", async ({
   await uploadStatement(page, fixture, {
     state: "completed",
     rows: "11 rows",
+    holds: false,
   });
 
   // The data behind the page.
