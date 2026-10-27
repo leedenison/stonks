@@ -12,32 +12,32 @@ import (
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
-// events is an IdentifierEvents integration that answers every request with an
+// facts is an IdentifierFacts integration that answers every request with an
 // empty result and counts its calls.
-type events struct {
+type facts struct {
 	fake
 	lag  time.Duration
-	sent []IdentifierEventRequest
+	sent []IdentifierFactRequest
 }
 
-func (e *events) Events() Server[IdentifierEventRequest, IdentifierEventResult] { return e }
+func (e *facts) Facts() Server[IdentifierFactRequest, IdentifierFactResult] { return e }
 
-func (e *events) Serves(r IdentifierEventRequest) (types.Identifier, error) { return r.Identifier, nil }
+func (e *facts) Serves(r IdentifierFactRequest) (types.Identifier, error) { return r.Identifier, nil }
 
-func (e *events) Fetch(_ context.Context, reqs []Request[IdentifierEventRequest]) ([]Response[IdentifierEventResult], error) {
+func (e *facts) Fetch(_ context.Context, reqs []Request[IdentifierFactRequest]) ([]Response[IdentifierFactResult], error) {
 	e.calls++
 	for _, r := range reqs {
 		e.sent = append(e.sent, r.Value)
 	}
-	return make([]Response[IdentifierEventResult], len(reqs)), nil
+	return make([]Response[IdentifierFactResult], len(reqs)), nil
 }
 
-// rangedEvents is an events integration that answers for whole markets.
-type rangedEvents struct{ events }
+// rangedFacts is a facts integration that answers for whole markets.
+type rangedFacts struct{ facts }
 
-func (*rangedEvents) Markets() []string          { return []string{"US"} }
-func (*rangedEvents) Window(time.Time) time.Time { return time.Time{} }
-func (r *rangedEvents) Lag() time.Duration       { return r.lag }
+func (*rangedFacts) Markets() []string          { return []string{"US"} }
+func (*rangedFacts) Window(time.Time) time.Time { return time.Time{} }
+func (r *rangedFacts) Lag() time.Duration       { return r.lag }
 
 // window is a Windowed whose window starts on one fixed day.
 type window time.Time
@@ -112,7 +112,7 @@ func TestCanonical(t *testing.T) {
 // TestLagOf checks that a datasource's own lag wins over its integration's
 // default, which only a Ranged integration has.
 func TestLagOf(t *testing.T) {
-	ranged := &rangedEvents{events: events{lag: 14 * 24 * time.Hour}}
+	ranged := &rangedFacts{facts: facts{lag: 14 * 24 * time.Hour}}
 	tests := []struct {
 		name string
 		row  gen.Datasource
@@ -121,7 +121,7 @@ func TestLagOf(t *testing.T) {
 	}{
 		{name: "the integration's default", i: ranged, want: 14 * 24 * time.Hour},
 		{name: "the row's setting", row: gen.Datasource{LagDays: ptr.To(int32(3))}, i: ranged, want: 3 * 24 * time.Hour},
-		{name: "an integration that is not ranged", i: &events{}, want: 0},
+		{name: "an integration that is not ranged", i: &facts{}, want: 0},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -137,14 +137,14 @@ func TestLagOf(t *testing.T) {
 // and the same period is answered from the cache. No stated key asks for an
 // identifier event fetch. Each key carries its datasource fetch run.
 func TestFetchIdentifierEventsPeriod(t *testing.T) {
-	e := &events{}
+	e := &facts{}
 	h := newHarness(t, e, nil)
 	nyse := types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XNYS"}
-	fetch := func(from, before time.Time) FetchKey[IdentifierEventRequest, IdentifierEventResult] {
+	fetch := func(from, before time.Time) FetchKey[IdentifierFactRequest, IdentifierFactResult] {
 		t.Helper()
-		got, err := h.fetcher.IdentifierEvents(context.Background(), h.parent, h.entry, []IdentifierEventRequest{{Identifier: nyse, Period: types.Period{From: from, Before: before}}})
+		got, err := h.fetcher.IdentifierFacts(context.Background(), h.parent, h.entry, []IdentifierFactRequest{{Identifier: nyse, Period: types.Period{From: from, Before: before}}})
 		if err != nil {
-			t.Fatalf("IdentifierEvents() error = %v", err)
+			t.Fatalf("IdentifierFacts() error = %v", err)
 		}
 		return got[0]
 	}

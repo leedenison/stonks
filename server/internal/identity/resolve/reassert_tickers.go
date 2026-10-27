@@ -42,7 +42,7 @@ type heldAnswer struct {
 // ReassertTickers is the body of a reassert tickers run. It asks each enabled
 // datasource once about each held ticker that ListHeldTickers lists, and the
 // fetcher it is given skips the cache. It asks a datasource that serves
-// identifier events for the history of the instrument the ticker names, and
+// identifier facts for the history of the instrument the ticker names, and
 // any other datasource for the ticker's identity. It writes the facts the
 // answers make and the findings they complete. It returns, for each fetch
 // run in precedence order, the identifiers whose facts it wrote. It returns
@@ -55,11 +55,11 @@ func (r *Resolver) ReassertTickers(ctx context.Context, run gen.Run, held []gen.
 	if err != nil {
 		return nil, err
 	}
-	answers, evKeys, err := r.fetchHeld(ctx, run, ts)
+	answers, factKeys, err := r.fetchHeld(ctx, run, ts)
 	if err != nil {
 		return nil, err
 	}
-	recorded, err := r.recordEvents(ctx, evKeys)
+	recorded, err := r.recordFacts(ctx, factKeys)
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +80,7 @@ func (r *Resolver) ReassertTickers(ctx context.Context, run gen.Run, held []gen.
 	for _, a := range answers {
 		mine[a.fk.ID] = true
 	}
-	for _, k := range evKeys {
+	for _, k := range factKeys {
 		mine[k.ID] = true
 		if recorded && k.Outcome == gen.FetchOutcomeServed {
 			written.addFacts(k.Run, k.Response)
@@ -142,20 +142,20 @@ func (r *Resolver) readHeld(ctx context.Context, held []gen.ListHeldTickersRow) 
 // fetchHeld asks the enabled datasources concurrently. It asks for the
 // instrument's history where historyRequest allows it, once per instrument,
 // and for the ticker's identity otherwise. It returns the answers and the
-// events keys in datasource order.
-func (r *Resolver) fetchHeld(ctx context.Context, run gen.Run, ts []*heldTicker) ([]heldAnswer, []eventKey, error) {
+// facts keys in datasource order.
+func (r *Resolver) fetchHeld(ctx context.Context, run gen.Run, ts []*heldTicker) ([]heldAnswer, []factKey, error) {
 	now := r.clock()
 	entries := r.sources.Enabled()
 	idReqs := make([][]gen.StatedKey, len(entries))
 	idOf := make([][]*heldTicker, len(entries))
-	evReqs := make([][]market.IdentifierEventRequest, len(entries))
+	factReqs := make([][]market.IdentifierFactRequest, len(entries))
 	for i, e := range entries {
-		seen := map[market.IdentifierEventRequest]bool{}
+		seen := map[market.IdentifierFactRequest]bool{}
 		for _, t := range ts {
 			if q, ok := historyRequest(e, t, now); ok {
 				if !seen[q] {
 					seen[q] = true
-					evReqs[i] = append(evReqs[i], q)
+					factReqs[i] = append(factReqs[i], q)
 				}
 				continue
 			}
@@ -164,7 +164,7 @@ func (r *Resolver) fetchHeld(ctx context.Context, run gen.Run, ts []*heldTicker)
 		}
 	}
 	idKeys := make([][]fetchKey, len(entries))
-	evKeys := make([][]eventKey, len(entries))
+	factKeys := make([][]factKey, len(entries))
 	g, gctx := errgroup.WithContext(ctx)
 	for i, e := range entries {
 		g.Go(func() error {
@@ -175,12 +175,12 @@ func (r *Resolver) fetchHeld(ctx context.Context, run gen.Run, ts []*heldTicker)
 				}
 				idKeys[i] = fks
 			}
-			if len(evReqs[i]) > 0 {
-				fks, err := r.fetcher.IdentifierEvents(gctx, run, e, evReqs[i])
+			if len(factReqs[i]) > 0 {
+				fks, err := r.fetcher.IdentifierFacts(gctx, run, e, factReqs[i])
 				if err != nil {
-					return fmt.Errorf("fetch identifier events from %s: %w", e.Name, err)
+					return fmt.Errorf("fetch identifier facts from %s: %w", e.Name, err)
 				}
-				evKeys[i] = fks
+				factKeys[i] = fks
 			}
 			return nil
 		})
@@ -189,12 +189,12 @@ func (r *Resolver) fetchHeld(ctx context.Context, run gen.Run, ts []*heldTicker)
 		return nil, nil, err
 	}
 	var answers []heldAnswer
-	var events []eventKey
+	var events []factKey
 	for i := range entries {
 		for j, fk := range idKeys[i] {
 			answers = append(answers, heldAnswer{t: idOf[i][j], fk: fk})
 		}
-		events = append(events, evKeys[i]...)
+		events = append(events, factKeys[i]...)
 	}
 	return answers, events, nil
 }
@@ -202,25 +202,25 @@ func (r *Resolver) fetchHeld(ctx context.Context, run gen.Run, ts []*heldTicker)
 // historyRequest returns the request for t's instrument history from e, over
 // the history window, under the first stable identifier of the instrument
 // that e serves. It returns false where e cannot serve the history.
-func historyRequest(e *market.Entry, t *heldTicker, now time.Time) (market.IdentifierEventRequest, bool) {
-	ie, ok := e.Integration.(market.IdentifierEvents)
+func historyRequest(e *market.Entry, t *heldTicker, now time.Time) (market.IdentifierFactRequest, bool) {
+	ie, ok := e.Integration.(market.IdentifierFacts)
 	if !ok || t.instr == nil {
-		return market.IdentifierEventRequest{}, false
+		return market.IdentifierFactRequest{}, false
 	}
 	w, ok := e.Integration.(market.Windowed)
 	if !ok {
-		return market.IdentifierEventRequest{}, false
+		return market.IdentifierFactRequest{}, false
 	}
 	for _, id := range t.ids {
 		if !id.Stable() {
 			continue
 		}
-		q := market.IdentifierEventRequest{Identifier: id, Period: market.History(w, now)}
-		if _, err := ie.Events().Serves(q); err == nil {
+		q := market.IdentifierFactRequest{Identifier: id, Period: market.History(w, now)}
+		if _, err := ie.Facts().Serves(q); err == nil {
 			return q, true
 		}
 	}
-	return market.IdentifierEventRequest{}, false
+	return market.IdentifierFactRequest{}, false
 }
 
 // assertHeld writes the assertion of t that the identity answer fk makes,

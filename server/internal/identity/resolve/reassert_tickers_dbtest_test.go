@@ -24,8 +24,8 @@ import (
 // first answers.
 var later = on(2026, 4, 2)
 
-// withoutEvents rebuilds the named datasources without identifier events.
-func (s *stack) withoutEvents(t *testing.T, names ...string) {
+// withoutFacts rebuilds the named datasources without identifier facts.
+func (s *stack) withoutFacts(t *testing.T, names ...string) {
 	t.Helper()
 	for _, n := range names {
 		s.identityOnly[n] = true
@@ -266,7 +266,7 @@ func TestReassertTickersDisagreement(t *testing.T) {
 }
 
 // TestReassertTickersHistory checks that reasserting tickers asks a datasource
-// that serves identifier events for the history of the ticker's instrument
+// that serves identifier facts for the history of the ticker's instrument
 // under its stable identifier, and not for the ticker's identity.
 func TestReassertTickersHistory(t *testing.T) {
 	s := newStack(t)
@@ -280,9 +280,9 @@ func TestReassertTickersHistory(t *testing.T) {
 	s.alphaFacts.Sent = nil
 
 	run, _ := s.reassertTickers(t, v)
-	want := []market.IdentifierEventRequest{{Identifier: isin, Period: market.History(window{since}, s.now)}}
+	want := []market.IdentifierFactRequest{{Identifier: isin, Period: market.History(window{since}, s.now)}}
 	if diff := cmp.Diff(want, s.alphaFacts.Sent); diff != "" {
-		t.Errorf("identifier events requests mismatch (-want +got):\n%s", diff)
+		t.Errorf("identifier facts requests mismatch (-want +got):\n%s", diff)
 	}
 	for _, k := range s.reasserted(t, run)[s.alphaName] {
 		if k.kind == gen.FetchKindIdentity {
@@ -308,7 +308,7 @@ func (s *stack) heldAtTwoVenues(t *testing.T, value string, isin types.Identifie
 	nyse = id(types.IdentifierTypeMicTicker, "XNYS", value)
 	nasdaq = id(types.IdentifierTypeMicTicker, "XNAS", value)
 	s.enableBeta(t)
-	s.withoutEvents(t, s.alphaName, s.betaName)
+	s.withoutFacts(t, s.alphaName, s.betaName)
 	s.script.Declines = []string{"XNYS", "XNAS"}
 	s.beta.Responses[nyse] = market.IdentityResult{Listings: []market.Listing{listing(types.AssetClassStock, "USD", isin, nyse)}}
 	for _, v := range []types.Identifier{nyse, nasdaq} {

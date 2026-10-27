@@ -40,10 +40,10 @@ func TestVenuesAreMICs(t *testing.T) {
 	markettest.VenuesAreMICs(t, tbl, slices.Collect(maps.Keys(venues))...)
 }
 
-// TestEventsRecord checks that recording Meta's ticker history writes each
+// TestFactsRecord checks that recording Meta's ticker history writes each
 // fact once, at the US market, and confirms FB for Meta until the rename and
 // META after it, read through a ticker at any US venue.
-func TestEventsRecord(t *testing.T) {
+func TestFactsRecord(t *testing.T) {
 	ctx := context.Background()
 	pool := dbtest.Open()
 	t.Cleanup(pool.Close)
@@ -78,7 +78,7 @@ func TestEventsRecord(t *testing.T) {
 
 	answered := time.Date(2026, time.October, 22, 15, 0, 0, 0, time.UTC)
 	fetcher := market.NewFetcher(db.New[market.Queries](tx), runtest.Runner{Q: q}, log, market.WithClock(func() time.Time { return answered }, func(context.Context, time.Duration) error { return nil }))
-	keys, err := fetcher.IdentifierEvents(ctx, parent, entry, []market.IdentifierEventRequest{{Identifier: meta, Period: market.History(c, answered)}})
+	keys, err := fetcher.IdentifierFacts(ctx, parent, entry, []market.IdentifierFactRequest{{Identifier: meta, Period: market.History(c, answered)}})
 	require.NoError(t, err)
 	require.Equal(t, gen.FetchOutcomeServed, keys[0].Outcome)
 	families, _, err := currency.Load(ctx, q)

@@ -22,13 +22,13 @@ import (
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
-type eventKey = market.FetchKey[market.IdentifierEventRequest, market.IdentifierEventResult]
+type factKey = market.FetchKey[market.IdentifierFactRequest, market.IdentifierFactResult]
 
 // served writes a served fetch key of alpha under the identifier sent, and
 // returns it with the answer r.
-func (f *fixture) served(t *testing.T, sent types.Identifier, r market.IdentifierEventResult) eventKey {
+func (f *fixture) served(t *testing.T, sent types.Identifier, r market.IdentifierFactResult) factKey {
 	t.Helper()
-	k := eventKey{ID: db.NewID(), Source: f.alpha, Outcome: gen.FetchOutcomeServed, SentID: &sent, Response: r}
+	k := factKey{ID: db.NewID(), Source: f.alpha, Outcome: gen.FetchOutcomeServed, SentID: &sent, Response: r}
 	arg := gen.CreateFetchKeyParams{
 		ID: k.ID, FetchID: f.fetches[f.alpha], UserID: &f.user.ID, Outcome: k.Outcome, Attempts: 1,
 		SentType: &sent.Type, SentDomain: sent.Domain, AnsweredAt: ptr.To(day(20)),
@@ -41,7 +41,7 @@ func (f *fixture) served(t *testing.T, sent types.Identifier, r market.Identifie
 }
 
 // record writes the facts of keys as the resolver does.
-func (f *fixture) record(t *testing.T, keys []eventKey) error {
+func (f *fixture) record(t *testing.T, keys []factKey) error {
 	t.Helper()
 	ctx := context.Background()
 	rows, err := RecordTickers(ctx, f.q, f.mics(t), keys)
@@ -83,7 +83,7 @@ func TestRecord(t *testing.T) {
 	ctx := context.Background()
 	isin := f.identify(t, f.a, "US"+uuid.NewString()[:8])
 	old := types.MarketTicker{Market: "US", Value: "OLD" + uuid.NewString()[:4]}
-	k := f.served(t, isin, market.IdentifierEventResult{
+	k := f.served(t, isin, market.IdentifierFactResult{
 		Events: []market.IdentifierEvent{{Ticker: old, Action: gen.IdentifierEventActionRenamed, ToValue: f.foo.Value, On: day(10)}},
 		Assertions: []market.Assertion{
 			{Ticker: old, Of: market.Listing{Identifiers: []types.Identifier{isin}}, At: day(1)},
@@ -95,10 +95,10 @@ func TestRecord(t *testing.T) {
 			{Market: "US", Ticker: &f.foo, Period: types.Period{From: day(10), Before: day(20)}},
 		},
 	})
-	failed := eventKey{ID: db.NewID(), Outcome: gen.FetchOutcomeFailedTemporary, Response: market.IdentifierEventResult{
+	failed := factKey{ID: db.NewID(), Outcome: gen.FetchOutcomeFailedTemporary, Response: market.IdentifierFactResult{
 		Assertions: []market.Assertion{{Ticker: f.foo, Of: market.Listing{Identifiers: []types.Identifier{isin}}, At: day(15)}},
 	}}
-	require.NoError(t, f.record(t, []eventKey{k, failed}))
+	require.NoError(t, f.record(t, []factKey{k, failed}))
 
 	want := []Interval{confirmed(at(10), at(20), f.a), provisional(at(20), nil, f.a)}
 	if diff := cmp.Diff(want, f.of(t)); diff != "" {
@@ -127,8 +127,8 @@ func TestRecordThroughStable(t *testing.T) {
 	require.NoError(t, err)
 	_, err = f.q.CreateIdentifier(ctx, gen.CreateIdentifierParams{ID: db.NewID(), InstrID: f.b, ListingID: &listing.ID, Type: f.at.Type, Domain: f.at.Domain, Value: f.at.Value})
 	require.NoError(t, err)
-	k := f.served(t, f.at, market.IdentifierEventResult{Assertions: []market.Assertion{{Ticker: f.foo, Of: market.Listing{Identifiers: []types.Identifier{f.at, isin}}, At: day(3)}}})
-	require.NoError(t, f.record(t, []eventKey{k}))
+	k := f.served(t, f.at, market.IdentifierFactResult{Assertions: []market.Assertion{{Ticker: f.foo, Of: market.Listing{Identifiers: []types.Identifier{f.at, isin}}, At: day(3)}}})
+	require.NoError(t, f.record(t, []factKey{k}))
 	asserted, err := f.q.ListFetchKeyAssertions(ctx, &k.ID)
 	require.NoError(t, err)
 	if len(asserted) != 1 || asserted[0].IdentifierAssertion.InstrID == nil || *asserted[0].IdentifierAssertion.InstrID != f.a {
@@ -146,11 +146,11 @@ func TestRecordCreates(t *testing.T) {
 	share := types.Identifier{Type: types.IdentifierTypeOpenfigiShareClass, Value: "BBG" + uuid.NewString()[:9]}
 	composite := types.Identifier{Type: types.IdentifierTypeOpenfigiComposite, Value: "BBG" + uuid.NewString()[:9]}
 	of := []types.Identifier{share, composite, f.at}
-	k := f.served(t, f.at, market.IdentifierEventResult{Assertions: []market.Assertion{
+	k := f.served(t, f.at, market.IdentifierFactResult{Assertions: []market.Assertion{
 		{Ticker: f.foo, Of: market.Listing{Identifiers: of, Class: types.AssetClassEtf, Currency: "USD"}, At: day(3)},
 		{Ticker: f.foo, Of: market.Listing{Identifiers: of, Class: types.AssetClassEtf, Currency: "USD"}, At: day(4)},
 	}})
-	require.NoError(t, f.record(t, []eventKey{k}))
+	require.NoError(t, f.record(t, []factKey{k}))
 	found, err := f.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: composite.Type, Value: composite.Value})
 	require.NoError(t, err)
 	instr := found.Instr
@@ -171,8 +171,8 @@ func TestRecordCreates(t *testing.T) {
 
 	other := types.Identifier{Type: types.IdentifierTypeOpenfigiShareClass, Value: "BBG" + uuid.NewString()[:9]}
 	loose := types.Identifier{Type: types.IdentifierTypeOpenfigiComposite, Value: "BBG" + uuid.NewString()[:9]}
-	k = f.served(t, f.at, market.IdentifierEventResult{Assertions: []market.Assertion{{Ticker: f.foo, Of: market.Listing{Identifiers: []types.Identifier{other, loose}, Currency: "ZZZ"}, At: day(5)}}})
-	require.NoError(t, f.record(t, []eventKey{k}))
+	k = f.served(t, f.at, market.IdentifierFactResult{Assertions: []market.Assertion{{Ticker: f.foo, Of: market.Listing{Identifiers: []types.Identifier{other, loose}, Currency: "ZZZ"}, At: day(5)}}})
+	require.NoError(t, f.record(t, []factKey{k}))
 	if _, err := f.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: loose.Type, Value: loose.Value}); !errors.Is(err, db.ErrNotFound) {
 		t.Errorf("composite with an unknown currency: err = %v, want it left out", err)
 	}
@@ -189,8 +189,8 @@ func TestRecordMarketCoverage(t *testing.T) {
 	f := newFixture(t)
 	f.asserts(t, f.alpha, 5, &f.a)
 	nyse := types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XNYS"}
-	k := f.served(t, nyse, market.IdentifierEventResult{Coverage: []market.Coverage{{Market: "US", Period: types.Period{From: day(1), Before: day(20)}}}})
-	require.NoError(t, f.record(t, []eventKey{k}))
+	k := f.served(t, nyse, market.IdentifierFactResult{Coverage: []market.Coverage{{Market: "US", Period: types.Period{From: day(1), Before: day(20)}}}})
+	require.NoError(t, f.record(t, []factKey{k}))
 	want := []Interval{provisional(nil, at(1), f.a), confirmed(at(1), at(20), f.a), provisional(at(20), nil, f.a)}
 	if diff := cmp.Diff(want, f.of(t)); diff != "" {
 		t.Errorf("Of mismatch (-want +got):\n%s", diff)
@@ -216,13 +216,13 @@ func TestRecordSpelling(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newFixture(t)
 			ctx := context.Background()
-			good := f.served(t, f.at, market.IdentifierEventResult{Coverage: []market.Coverage{{Market: "US", Ticker: &f.foo, Period: types.Period{From: day(1), Before: day(2)}}}})
-			r := market.IdentifierEventResult{Events: []market.IdentifierEvent{{Ticker: tc.ticker, Action: gen.IdentifierEventActionRetired, On: day(3)}}}
+			good := f.served(t, f.at, market.IdentifierFactResult{Coverage: []market.Coverage{{Market: "US", Ticker: &f.foo, Period: types.Period{From: day(1), Before: day(2)}}}})
+			r := market.IdentifierFactResult{Events: []market.IdentifierEvent{{Ticker: tc.ticker, Action: gen.IdentifierEventActionRetired, On: day(3)}}}
 			if tc.market != "" {
-				r = market.IdentifierEventResult{Coverage: []market.Coverage{{Market: tc.market, Period: types.Period{From: day(1), Before: day(2)}}}}
+				r = market.IdentifierFactResult{Coverage: []market.Coverage{{Market: tc.market, Period: types.Period{From: day(1), Before: day(2)}}}}
 			}
 			bad := f.served(t, f.at, r)
-			if err := f.record(t, []eventKey{good, bad}); !errors.Is(err, tickers.ErrSpelling) {
+			if err := f.record(t, []factKey{good, bad}); !errors.Is(err, tickers.ErrSpelling) {
 				t.Fatalf("record() error = %v, want ErrSpelling", err)
 			}
 			var n int

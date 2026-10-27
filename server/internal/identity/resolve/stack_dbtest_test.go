@@ -44,9 +44,9 @@ type stack struct {
 	resolution gen.Run
 	script     *scripted.Identity
 	beta       *scripted.Identity
-	// alphaFacts and betaFacts serve each datasource's identifier events.
-	alphaFacts *scripted.IdentifierEvents
-	betaFacts  *scripted.IdentifierEvents
+	// alphaFacts and betaFacts serve each datasource's identifier facts.
+	alphaFacts *scripted.IdentifierFacts
+	betaFacts  *scripted.IdentifierFacts
 	// alphaName and betaName are unique to the test.
 	alphaName string
 	betaName  string
@@ -59,7 +59,7 @@ type stack struct {
 	// now is the moment every datasource of the stack answers. It starts at
 	// answered.
 	now time.Time
-	// identityOnly names the datasources built without identifier events,
+	// identityOnly names the datasources built without identifier facts,
 	// as of the next reload.
 	identityOnly map[string]bool
 	cache        *memCache
@@ -106,7 +106,7 @@ func newStack(t *testing.T) *stack {
 	var err error
 	q := gen.New(tx)
 	s := &stack{
-		q: q, tx: tx, script: scripted.New(), beta: scripted.New(), alphaFacts: scripted.NewIdentifierEvents(), betaFacts: scripted.NewIdentifierEvents(),
+		q: q, tx: tx, script: scripted.New(), beta: scripted.New(), alphaFacts: scripted.NewIdentifierFacts(), betaFacts: scripted.NewIdentifierFacts(),
 		alphaName: "alpha-" + uuid.NewString(), betaName: "beta-" + uuid.NewString(), now: answered, identityOnly: map[string]bool{},
 		cache: &memCache{entries: map[string][]byte{}},
 	}
@@ -123,13 +123,13 @@ func newStack(t *testing.T) *stack {
 			if s.identityOnly[s.alphaName] {
 				return s.script, nil
 			}
-			return &scripted.Datasource{Identity: s.script, Facts: s.alphaFacts, Since: since}, nil
+			return &scripted.Datasource{Identity: s.script, IdentifierFacts: s.alphaFacts, Since: since}, nil
 		}},
 		s.betaName: market.Factory{New: func(market.Config) (market.Integration, error) {
 			if s.identityOnly[s.betaName] {
 				return s.beta, nil
 			}
-			return &scripted.Datasource{Identity: s.beta, Facts: s.betaFacts, Since: since}, nil
+			return &scripted.Datasource{Identity: s.beta, IdentifierFacts: s.betaFacts, Since: since}, nil
 		}},
 	}
 	s.sources, err = market.New(ctx, q, factories, log)
@@ -202,13 +202,13 @@ func (s *serial) TickerIdentity(ctx context.Context, parent gen.Run, e *market.E
 	return s.Fetcher.TickerIdentity(ctx, parent, e, keys)
 }
 
-func (s *serial) IdentifierEvents(ctx context.Context, parent gen.Run, e *market.Entry, reqs []market.IdentifierEventRequest) ([]eventKey, error) {
+func (s *serial) IdentifierFacts(ctx context.Context, parent gen.Run, e *market.Entry, reqs []market.IdentifierFactRequest) ([]factKey, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.Fetcher.IdentifierEvents(ctx, parent, e, reqs)
+	return s.Fetcher.IdentifierFacts(ctx, parent, e, reqs)
 }
 
-// since is the first day the stack's datasources answer identifier events
+// since is the first day the stack's datasources answer identifier facts
 // for.
 var since = time.Date(2003, time.September, 10, 0, 0, 0, 0, time.UTC)
 
@@ -366,7 +366,7 @@ func on(y int, m time.Month, d int) time.Time { return time.Date(y, m, d, 0, 0, 
 func (s *stack) heldOnXLON(t *testing.T, v types.Identifier, l market.Listing) gen.StatedKey {
 	t.Helper()
 	s.enableBeta(t)
-	s.withoutEvents(t, s.alphaName, s.betaName)
+	s.withoutFacts(t, s.alphaName, s.betaName)
 	s.script.Declines = []string{"XLON"}
 	s.beta.Responses[v] = market.IdentityResult{Listings: []market.Listing{l}}
 	key := s.state(t, types.AssetClassStock, "GBP", v)

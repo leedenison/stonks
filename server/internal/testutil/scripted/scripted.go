@@ -1,6 +1,6 @@
 // Package scripted holds integrations whose every answer a test scripts: one
-// each for identity, identifier events and corporate actions, and one serving
-// identity and identifier events.
+// each for identity, identifier facts and corporate actions, and one serving
+// identity and identifier facts.
 package scripted
 
 import (
@@ -82,48 +82,48 @@ func (s *Identity) Fetch(_ context.Context, reqs []market.Request[gen.StatedKey]
 	return out, nil
 }
 
-// IdentifierEvents is a market.IdentifierEvents whose answers a test scripts.
-type IdentifierEvents struct {
+// IdentifierFacts is a market.IdentifierFacts whose answers a test scripts.
+type IdentifierFacts struct {
 	// Down fails every request.
 	Down bool
 	// Responses maps each identifier sent to its answer. An identifier it
 	// lacks is answered with an empty result.
-	Responses map[types.Identifier]market.IdentifierEventResult
+	Responses map[types.Identifier]market.IdentifierFactResult
 	// Sent is every request the server received, in order.
-	Sent []market.IdentifierEventRequest
+	Sent []market.IdentifierFactRequest
 	// Declines lists the venues whose tickers the server refuses to send.
 	Declines []string
 }
 
-var _ market.IdentifierEvents = (*IdentifierEvents)(nil)
+var _ market.IdentifierFacts = (*IdentifierFacts)(nil)
 
-// NewIdentifierEvents returns an IdentifierEvents with no responses scripted.
-func NewIdentifierEvents() *IdentifierEvents {
-	return &IdentifierEvents{Responses: map[types.Identifier]market.IdentifierEventResult{}}
+// NewIdentifierFacts returns an IdentifierFacts with no responses scripted.
+func NewIdentifierFacts() *IdentifierFacts {
+	return &IdentifierFacts{Responses: map[types.Identifier]market.IdentifierFactResult{}}
 }
 
 // Classify reads every failure as temporary and about the identifier sent.
-func (s *IdentifierEvents) Classify(error) market.Failure {
+func (s *IdentifierFacts) Classify(error) market.Failure {
 	return market.Failure{Temporary: true, Scope: market.ScopeKey}
 }
 
 // Limit leaves calls unpaced.
-func (s *IdentifierEvents) Limit() (rate.Limit, int) { return rate.Inf, 1 }
+func (s *IdentifierFacts) Limit() (rate.Limit, int) { return rate.Inf, 1 }
 
 // Batch is the most requests one call carries.
-func (s *IdentifierEvents) Batch() int { return 10 }
+func (s *IdentifierFacts) Batch() int { return 10 }
 
 // Endpoint is the address of a provider that is never called.
-func (s *IdentifierEvents) Endpoint() string { return "https://scripted.test" }
+func (s *IdentifierFacts) Endpoint() string { return "https://scripted.test" }
 
-// Events is the server itself.
-func (s *IdentifierEvents) Events() market.Server[market.IdentifierEventRequest, market.IdentifierEventResult] {
+// Facts is the server itself.
+func (s *IdentifierFacts) Facts() market.Server[market.IdentifierFactRequest, market.IdentifierFactResult] {
 	return s
 }
 
 // Serves sends the identifier the request names, and declines a ticker on a
 // venue in Declines.
-func (s *IdentifierEvents) Serves(r market.IdentifierEventRequest) (types.Identifier, error) {
+func (s *IdentifierFacts) Serves(r market.IdentifierFactRequest) (types.Identifier, error) {
 	if r.Identifier.Type == types.IdentifierTypeMicTicker && slices.Contains(s.Declines, r.Identifier.Domain) {
 		return types.Identifier{}, declined(r.Identifier.Domain)
 	}
@@ -136,15 +136,15 @@ func declined(venue string) error {
 }
 
 // Fetch answers each request from Responses.
-func (s *IdentifierEvents) Fetch(_ context.Context, reqs []market.Request[market.IdentifierEventRequest]) ([]market.Response[market.IdentifierEventResult], error) {
-	out := make([]market.Response[market.IdentifierEventResult], len(reqs))
+func (s *IdentifierFacts) Fetch(_ context.Context, reqs []market.Request[market.IdentifierFactRequest]) ([]market.Response[market.IdentifierFactResult], error) {
+	out := make([]market.Response[market.IdentifierFactResult], len(reqs))
 	for i, r := range reqs {
 		s.Sent = append(s.Sent, r.Value)
 		if s.Down {
-			out[i] = market.Response[market.IdentifierEventResult]{Err: errors.New("the provider is down")}
+			out[i] = market.Response[market.IdentifierFactResult]{Err: errors.New("the provider is down")}
 			continue
 		}
-		out[i] = market.Response[market.IdentifierEventResult]{Value: s.Responses[r.Sent]}
+		out[i] = market.Response[market.IdentifierFactResult]{Value: s.Responses[r.Sent]}
 	}
 	return out, nil
 }
@@ -211,23 +211,23 @@ func (s *CorpActs) Fetch(_ context.Context, reqs []market.Request[market.CorpAct
 	return out, nil
 }
 
-// Datasource serves identity from Identity and identifier events from Facts,
+// Datasource serves identity from Identity and identifier facts from IdentifierFacts,
 // with a window that starts at Since.
 type Datasource struct {
 	*Identity
-	Facts *IdentifierEvents
-	Since time.Time
+	IdentifierFacts *IdentifierFacts
+	Since           time.Time
 }
 
 var (
-	_ market.Identity         = (*Datasource)(nil)
-	_ market.IdentifierEvents = (*Datasource)(nil)
-	_ market.Windowed         = (*Datasource)(nil)
+	_ market.Identity        = (*Datasource)(nil)
+	_ market.IdentifierFacts = (*Datasource)(nil)
+	_ market.Windowed        = (*Datasource)(nil)
 )
 
-// Events serves the identifier events of Facts.
-func (d *Datasource) Events() market.Server[market.IdentifierEventRequest, market.IdentifierEventResult] {
-	return d.Facts
+// Facts serves the identifier facts of IdentifierFacts.
+func (d *Datasource) Facts() market.Server[market.IdentifierFactRequest, market.IdentifierFactResult] {
+	return d.IdentifierFacts
 }
 
 // Window starts at Since whatever the day.

@@ -17,10 +17,10 @@ import (
 // for its Basic plan. That plan answers the whole history.
 var since = time.Date(2003, time.September, 10, 0, 0, 0, 0, time.UTC)
 
-// events is Massive's side of the identifier events kind.
-type events struct{ c *Client }
+// facts is Massive's side of the identifier facts kind.
+type facts struct{ c *Client }
 
-// call is the Massive request that serves an identifier events request.
+// call is the Massive request that serves an identifier facts request.
 type call int
 
 const (
@@ -32,7 +32,7 @@ const (
 )
 
 // callOf is the Massive request that serves r.
-func callOf(r market.IdentifierEventRequest) call {
+func callOf(r market.IdentifierFactRequest) call {
 	if r.Identifier.Type != types.IdentifierTypeMicTicker {
 		return chainCall
 	}
@@ -42,7 +42,7 @@ func callOf(r market.IdentifierEventRequest) call {
 // Serves returns the identifier to send for r, or an error when Massive
 // cannot answer r. A ticker goes out without its venue, since Massive answers
 // for the composite, and the composite's identifier facts hold at the market.
-func (e events) Serves(r market.IdentifierEventRequest) (types.Identifier, error) {
+func (e facts) Serves(r market.IdentifierFactRequest) (types.Identifier, error) {
 	s := r.Identifier
 	switch s.Type {
 	case types.IdentifierTypeCusip, types.IdentifierTypeOpenfigiComposite:

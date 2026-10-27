@@ -70,7 +70,7 @@ func newStack(t *testing.T) *stack {
 	log := slog.New(slog.DiscardHandler)
 	factories := map[string]market.Factory{
 		s.alphaName: market.Factory{New: func(market.Config) (market.Integration, error) {
-			return &scripted.Datasource{Identity: s.alpha, Facts: scripted.NewIdentifierEvents(), Since: time.Date(2003, time.September, 10, 0, 0, 0, 0, time.UTC)}, nil
+			return &scripted.Datasource{Identity: s.alpha, IdentifierFacts: scripted.NewIdentifierFacts(), Since: time.Date(2003, time.September, 10, 0, 0, 0, 0, time.UTC)}, nil
 		}},
 		s.betaName: market.Factory{New: func(market.Config) (market.Integration, error) { return s.beta, nil }},
 	}

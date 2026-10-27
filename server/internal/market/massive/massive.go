@@ -1,4 +1,4 @@
-// Package massive is the identity, identifier events and corporate actions
+// Package massive is the identity, identifier facts and corporate actions
 // integration with Massive's API, which covers listed US stock, ETFs and
 // funds.
 package massive

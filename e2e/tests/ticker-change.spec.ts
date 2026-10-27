@@ -32,7 +32,7 @@ const fixtures = ["standard-meta-2024.json", "standard-meta-2021.json"].map(
 );
 const meta = { type: IdentifierType.MIC_TICKER, domain: "XNAS", value: "META" };
 
-// identifying lists the datasource of each identity fetch and identifier events
+// identifying lists the datasource of each identity fetch and identifier facts
 // fetch under a resolve statement keys run. It leaves out corporate actions
 // fetches, which new identifier facts also start there.
 function identifying(resolution: UserRun): (string | undefined)[] {
@@ -133,7 +133,7 @@ test("dates a key through its ticker and marks each transaction by its day", asy
     const massive = resolution.children.filter(
       (c) =>
         c.fetch?.datasource === "massive" &&
-        c.fetch.kind === FetchKind.IDENTIFIER_EVENTS,
+        c.fetch.kind === FetchKind.IDENTIFIER_FACTS,
     );
     const out = [];
     for (const run of massive) {

@@ -72,7 +72,7 @@ var _ Sources = (*market.Registry)(nil)
 type Fetcher interface {
 	Identity(ctx context.Context, parent gen.Run, e *market.Entry, keys []gen.StatedKey) ([]fetchKey, error)
 	TickerIdentity(ctx context.Context, parent gen.Run, e *market.Entry, keys []gen.StatedKey) ([]fetchKey, error)
-	IdentifierEvents(ctx context.Context, parent gen.Run, e *market.Entry, reqs []market.IdentifierEventRequest) ([]eventKey, error)
+	IdentifierFacts(ctx context.Context, parent gen.Run, e *market.Entry, reqs []market.IdentifierFactRequest) ([]factKey, error)
 }
 
 var _ Fetcher = (*market.Fetcher)(nil)

@@ -129,7 +129,7 @@ func TestFetchCorpActsCached(t *testing.T) {
 // TestFetchCorpActsNotServed checks that an integration without the
 // capability does not serve corporate actions.
 func TestFetchCorpActsNotServed(t *testing.T) {
-	h := newHarness(t, &events{}, nil)
+	h := newHarness(t, &facts{}, nil)
 	got, err := h.fetcher.CorpActs(context.Background(), h.parent, h.entry, []CorpActRequest{corpActRequest("NVDA", types.Period{From: day(2024, 1, 1), Before: day(2025, 1, 1)})})
 	if err != nil {
 		t.Fatalf("CorpActs() error = %v", err)
