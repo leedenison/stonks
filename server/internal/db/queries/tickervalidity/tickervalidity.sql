@@ -1,72 +1,90 @@
 -- name: CreateIdentifierAssertion :exec
-INSERT INTO identifier_assertions (id, fetch_key_id, run_id, attested_by, type, domain, value,
+INSERT INTO identifier_assertions (id, fetch_key_id, run_id, attested_by, ticker_id, market,
     instr_id, asserted_on)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9);
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8);
 
 -- name: CreateIdentifierAttestation :exec
 -- A later identifier attestation of a day replaces the earlier one.
-INSERT INTO identifier_assertions (id, run_id, attested_by, type, domain, value, instr_id, asserted_on)
-VALUES (@id, @run_id::uuid, @attested_by::uuid, @type, @domain, @value, @instr_id, @asserted_on)
-ON CONFLICT (type, domain, value, asserted_on) WHERE run_id IS NOT NULL
+INSERT INTO identifier_assertions (id, run_id, attested_by, ticker_id, market, instr_id, asserted_on)
+VALUES (@id, @run_id::uuid, @attested_by::uuid, @ticker_id, @market, @instr_id, @asserted_on)
+ON CONFLICT (ticker_id, asserted_on) WHERE run_id IS NOT NULL
 DO UPDATE SET run_id = EXCLUDED.run_id, attested_by = EXCLUDED.attested_by,
     instr_id = EXCLUDED.instr_id;
 
 -- name: ListFetchKeyAssertions :many
 -- Only tests read a fetch key's assertions.
-SELECT * FROM identifier_assertions WHERE fetch_key_id = $1
-ORDER BY type, domain, value;
+SELECT sqlc.embed(identifier_assertions), tickers.value
+FROM identifier_assertions
+JOIN tickers ON tickers.id = identifier_assertions.ticker_id
+WHERE identifier_assertions.fetch_key_id = $1
+ORDER BY tickers.market, tickers.value;
 
 -- name: RelinkIdentifierAssertions :exec
 UPDATE identifier_assertions SET instr_id = @survivor::uuid WHERE instr_id = @loser::uuid;
 
 -- name: ListIdentifierAssertions :many
--- The assertions of the tickers whose market is among markets and whose value
--- is among values. The caller keeps the pairs it asked for. Each assertion
--- comes with the datasource of the fetch that made it and that datasource's
--- precedence, or with the email of the administrator who attested it.
-SELECT sqlc.embed(identifier_assertions), fetches.datasource, datasources.precedence,
+-- The assertions of the tickers whose market and value are a pair the arrays
+-- hold at one index. Each assertion comes with its ticker's value, with the
+-- datasource of the fetch that made it and that datasource's precedence, or
+-- with the email of the administrator who attested it.
+SELECT sqlc.embed(identifier_assertions), tickers.value, fetches.datasource, datasources.precedence,
        users.email AS attested_by
-FROM identifier_assertions
+FROM (SELECT unnest(@markets::text[]) AS market, unnest(@values::text[]) AS value) AS asked
+JOIN tickers ON tickers.market = asked.market AND tickers.value = asked.value
+JOIN identifier_assertions ON identifier_assertions.ticker_id = tickers.id
 LEFT JOIN fetch_keys ON fetch_keys.id = identifier_assertions.fetch_key_id
 LEFT JOIN fetches ON fetches.id = fetch_keys.fetch_id
 LEFT JOIN datasources ON datasources.name = fetches.datasource
 LEFT JOIN users ON users.id = identifier_assertions.attested_by
-WHERE identifier_assertions.type = 'mic_ticker'
-  AND identifier_assertions.domain = ANY(@markets::text[])
-  AND identifier_assertions.value = ANY(@values::text[])
 ORDER BY identifier_assertions.asserted_on, identifier_assertions.id;
 
 -- name: ListIdentifierEvents :many
--- The events in a market among markets that name a ticker whose value is
--- among values, or that renamed another ticker to it. The caller keeps the
--- pairs it asked for. Each event comes with the fetch key that wrote it.
-SELECT market, value, action, to_value, effective_on, fetch_key_id FROM identifier_events
-WHERE market = ANY(@markets::text[])
-  AND (value = ANY(@values::text[]) OR to_value = ANY(@values::text[]))
-ORDER BY effective_on, id;
+-- The events that name one of the asked tickers, or that renamed another
+-- ticker to one of them. A ticker is asked when its market and value are a
+-- pair the arrays hold at one index. Each event comes with the fetch key that
+-- wrote it.
+WITH asked AS (
+    SELECT tickers.id
+    FROM (SELECT unnest(@markets::text[]) AS market, unnest(@values::text[]) AS value) AS k
+    JOIN tickers ON tickers.market = k.market AND tickers.value = k.value
+)
+SELECT identifier_events.market, named.value, identifier_events.action, renamed.value AS to_value,
+       identifier_events.effective_on, identifier_events.fetch_key_id
+FROM identifier_events
+JOIN tickers AS named ON named.id = identifier_events.ticker_id
+LEFT JOIN tickers AS renamed ON renamed.id = identifier_events.to_ticker_id
+WHERE identifier_events.ticker_id IN (SELECT id FROM asked)
+   OR identifier_events.to_ticker_id IN (SELECT id FROM asked)
+ORDER BY identifier_events.effective_on, identifier_events.id;
 
 -- name: ListIdentifierCoverage :many
--- The coverage in a market among markets of a ticker whose value is among
--- values, and of the market itself. The caller keeps the pairs it asked for.
--- Each row comes with the datasource whose fetch wrote it. value is NULL for
--- a market row.
-SELECT identifier_event_coverage.market, identifier_event_coverage.value,
+-- The coverage of the asked tickers, as ListIdentifierEvents asks them, and of
+-- every market among markets. Each row comes with the datasource whose fetch
+-- wrote it. value is NULL for a market row.
+WITH asked AS (
+    SELECT tickers.id
+    FROM (SELECT unnest(@markets::text[]) AS market, unnest(@values::text[]) AS value) AS k
+    JOIN tickers ON tickers.market = k.market AND tickers.value = k.value
+)
+SELECT identifier_event_coverage.market, tickers.value,
        identifier_event_coverage.covered_from, identifier_event_coverage.covered_before,
        identifier_event_coverage.fetch_key_id, fetches.datasource
 FROM identifier_event_coverage
+LEFT JOIN tickers ON tickers.id = identifier_event_coverage.ticker_id
 JOIN fetch_keys ON fetch_keys.id = identifier_event_coverage.fetch_key_id
 JOIN fetches ON fetches.id = fetch_keys.fetch_id
-WHERE identifier_event_coverage.market = ANY(@markets::text[])
-  AND (identifier_event_coverage.value = ANY(@values::text[]) OR identifier_event_coverage.value IS NULL)
+WHERE identifier_event_coverage.ticker_id IN (SELECT id FROM asked)
+   OR (identifier_event_coverage.ticker_id IS NULL
+       AND identifier_event_coverage.market = ANY(@markets::text[]))
 ORDER BY fetches.datasource, identifier_event_coverage.covered_from, identifier_event_coverage.id;
 
 -- name: CreateIdentifierEvent :exec
-INSERT INTO identifier_events (id, fetch_key_id, market, value, action, to_value, effective_on)
-VALUES (@id, @fetch_key_id, @market, @value, @action, sqlc.narg(to_value), @effective_on);
+INSERT INTO identifier_events (id, fetch_key_id, market, ticker_id, action, to_ticker_id, effective_on)
+VALUES (@id, @fetch_key_id, @market, @ticker_id, @action, sqlc.narg(to_ticker_id), @effective_on);
 
 -- name: CreateIdentifierEventCoverage :exec
-INSERT INTO identifier_event_coverage (id, fetch_key_id, market, value, covered_from, covered_before)
-VALUES (@id, @fetch_key_id, @market, sqlc.narg(value), @covered_from, @covered_before);
+INSERT INTO identifier_event_coverage (id, fetch_key_id, market, ticker_id, covered_from, covered_before)
+VALUES (@id, @fetch_key_id, @market, sqlc.narg(ticker_id), @covered_from, @covered_before);
 
 -- name: ListHeldTickers :many
 -- The held tickers: each MIC_TICKER through which a key is dated, where a
@@ -104,12 +122,13 @@ ORDER BY domain, value, txns.user_id, txns.as_at;
 
 -- name: ListRunAssertions :many
 -- The assertions a run wrote: those of the fetch runs it started, and those
--- it attested. Each comes with the datasource of its fetch, or the email of
--- the administrator who attested it. A NULL after starts at the first, and a
--- NULL lim reads every one. The two sources are gathered apart so that each
--- reads through its own index.
-SELECT sqlc.embed(identifier_assertions), fetches.datasource, users.email AS attested_by
+-- it attested. Each comes with its ticker's value, and with the datasource of
+-- its fetch or the email of the administrator who attested it. A NULL after
+-- starts at the first, and a NULL lim reads every one. The two sources are
+-- gathered apart so that each reads through its own index.
+SELECT sqlc.embed(identifier_assertions), tickers.value, fetches.datasource, users.email AS attested_by
 FROM identifier_assertions
+JOIN tickers ON tickers.id = identifier_assertions.ticker_id
 LEFT JOIN fetch_keys ON fetch_keys.id = identifier_assertions.fetch_key_id
 LEFT JOIN fetches ON fetches.id = fetch_keys.fetch_id
 LEFT JOIN users ON users.id = identifier_assertions.attested_by
@@ -136,8 +155,10 @@ FROM (
     JOIN mic_markets ON mic_markets.mic = identifiers.domain
     WHERE identifiers.instr_id = @instr AND identifiers.type = 'mic_ticker'
     UNION ALL
-    SELECT domain, value, false, NULL FROM identifier_assertions
-    WHERE identifier_assertions.instr_id = @instr AND type = 'mic_ticker'
+    SELECT tickers.market, tickers.value, false, NULL
+    FROM identifier_assertions
+    JOIN tickers ON tickers.id = identifier_assertions.ticker_id
+    WHERE identifier_assertions.instr_id = @instr
 ) AS named
 GROUP BY named.market, named.value
 ORDER BY named.market, named.value;
@@ -160,7 +181,10 @@ WHERE stated_keys.identifiers @> ANY(@probes::jsonb[])
 ORDER BY txns.as_at, txns.stated_key_id, txns.id;
 
 -- name: GetIdentifierAssertion :one
-SELECT * FROM identifier_assertions WHERE id = $1;
+SELECT sqlc.embed(identifier_assertions), tickers.value
+FROM identifier_assertions
+JOIN tickers ON tickers.id = identifier_assertions.ticker_id
+WHERE identifier_assertions.id = $1;
 
 -- name: DeleteAttestedAssertion :execrows
 DELETE FROM identifier_assertions WHERE id = $1 AND run_id IS NOT NULL;

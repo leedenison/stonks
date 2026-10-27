@@ -123,7 +123,7 @@ func (s *stack) names(t *testing.T, v string, instr *uuid.UUID, on time.Time) {
 	run, err := s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), Kind: gen.RunKindAttestIdentifier, Trigger: gen.RunTriggerAdministrator})
 	require.NoError(t, err)
 	require.NoError(t, s.q.CreateIdentifierAssertion(ctx, gen.CreateIdentifierAssertionParams{
-		ID: db.NewID(), RunID: &run.ID, AttestedBy: &s.admin, Type: types.IdentifierTypeMicTicker, Domain: "US", Value: v, InstrID: instr, AssertedOn: on,
+		ID: db.NewID(), RunID: &run.ID, AttestedBy: &s.admin, TickerID: dbtest.Ticker(t, s.q, types.MarketTicker{Market: "US", Value: v}).ID, Market: "US", InstrID: instr, AssertedOn: on,
 	}))
 }
 

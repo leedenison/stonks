@@ -9,6 +9,7 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/identity/tickers"
 	"github.com/leedenison/stonks/server/internal/identity/tickervalidity"
 	"github.com/leedenison/stonks/server/internal/market"
 )
@@ -17,6 +18,7 @@ import (
 type Queries interface {
 	tickervalidity.FactQueries
 	tickervalidity.RecordQueries
+	tickers.Queries
 	PlaceTicker(ctx context.Context, arg gen.PlaceTickerParams) (gen.Identifier, error)
 	SetStatedKeyDatedAssociation(ctx context.Context, arg gen.SetStatedKeyDatedAssociationParams) (int64, error)
 	ListKeyDates(ctx context.Context, arg gen.ListKeyDatesParams) ([]gen.ListKeyDatesRow, error)

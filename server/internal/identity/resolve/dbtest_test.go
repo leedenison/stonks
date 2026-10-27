@@ -80,14 +80,14 @@ func TestResolveWrites(t *testing.T) {
 	}
 	asserted, err := s.q.ListFetchKeyAssertions(ctx, instr.FetchKeyID)
 	require.NoError(t, err)
-	if len(asserted) != 4 {
-		t.Errorf("%d assertions, want the 4 the response named", len(asserted))
-	}
+	// Only the response's ticker is asserted. Its stable identifiers are the
+	// instrument's identifiers rows.
 	day := time.Date(2026, time.March, 2, 0, 0, 0, 0, time.UTC)
-	for _, a := range asserted {
-		if a.InstrID == nil || *a.InstrID != instr.ID || !a.AssertedOn.Equal(day) {
-			t.Errorf("assertion = %+v, want the instrument on %s, the day of the answer", a, day.Format(time.DateOnly))
-		}
+	if len(asserted) != 1 {
+		t.Fatalf("%d assertions, want 1 of the response's ticker", len(asserted))
+	}
+	if a := asserted[0]; a.IdentifierAssertion.Market != "XLON" || a.Value != "VOD" || a.IdentifierAssertion.InstrID == nil || *a.IdentifierAssertion.InstrID != instr.ID || !a.IdentifierAssertion.AssertedOn.Equal(day) {
+		t.Errorf("assertion = %+v, want XLON:VOD naming the instrument on %s, the day of the answer", a, day.Format(time.DateOnly))
 	}
 	vod := types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XLON", Value: "VOD"}
 	ivs, err := tickervalidity.Of(ctx, s.q, mt(vod))
@@ -156,24 +156,41 @@ func TestResolveWrites(t *testing.T) {
 }
 
 // TestUnknownRows checks that an answer stating the identifier sent is
-// unknown writes a negative assertion of it, on the day of the answer.
+// unknown writes a negative assertion of it, on the day of the answer, when
+// it is a ticker. Any other identifier sent writes none.
 func TestUnknownRows(t *testing.T) {
-	s := newStack(t)
-	ctx := context.Background()
-	ticker := types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XNYS", Value: "ZZZQ"}
-	s.script.Responses[ticker] = market.IdentityResult{Unknown: true}
-	key := s.state(t, types.AssetClassStock, "USD", ticker)
-	s.resolve(t, key)
+	for _, tc := range []struct {
+		name string
+		sent types.Identifier
+		want []string
+	}{
+		{name: "a ticker at a venue", sent: types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XNYS", Value: "ZZZQ"}, want: []string{"US:ZZZQ"}},
+		{name: "an ISIN", sent: types.Identifier{Type: types.IdentifierTypeIsin, Value: "US0000000Q99"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s := newStack(t)
+			ctx := context.Background()
+			s.script.Responses[tc.sent] = market.IdentityResult{Unknown: true}
+			key := s.state(t, types.AssetClassStock, "USD", tc.sent)
+			out := s.resolve(t, key)
+			if len(out) != 1 || out[0].Outcome != gen.ResolutionOutcomeUnrecognised {
+				t.Errorf("resolve = %+v, want the key unrecognised", out)
+			}
 
-	fk := s.fetchKey(t, key.ID, s.alphaName)
-	asserted, err := s.q.ListFetchKeyAssertions(ctx, &fk.ID)
-	require.NoError(t, err)
-	want := []gen.IdentifierAssertion{{
-		ID: asserted[0].ID, FetchKeyID: &fk.ID, Type: ticker.Type, Domain: "US", Value: ticker.Value,
-		AssertedOn: time.Date(2026, time.March, 2, 0, 0, 0, 0, time.UTC),
-	}}
-	if diff := cmp.Diff(want, asserted); diff != "" {
-		t.Errorf("assertions mismatch (-want +got):\n%s", diff)
+			fk := s.fetchKey(t, key.ID, s.alphaName)
+			asserted, err := s.q.ListFetchKeyAssertions(ctx, &fk.ID)
+			require.NoError(t, err)
+			var got []string
+			for _, a := range asserted {
+				if a.IdentifierAssertion.InstrID != nil || !a.IdentifierAssertion.AssertedOn.Equal(time.Date(2026, time.March, 2, 0, 0, 0, 0, time.UTC)) {
+					t.Errorf("assertion = %+v, want a negative assertion on the day of the answer", a)
+				}
+				got = append(got, a.IdentifierAssertion.Market+":"+a.Value)
+			}
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("assertions mismatch (-want +got):\n%s", diff)
+			}
+		})
 	}
 }
 
@@ -196,9 +213,7 @@ func TestAssertsOnceAtMarket(t *testing.T) {
 	require.NoError(t, err)
 	var tickers []string
 	for _, a := range asserted {
-		if a.Type == types.IdentifierTypeMicTicker {
-			tickers = append(tickers, a.Domain+":"+a.Value)
-		}
+		tickers = append(tickers, a.IdentifierAssertion.Market+":"+a.Value)
 	}
 	if diff := cmp.Diff([]string{"US:ZZM"}, tickers); diff != "" {
 		t.Errorf("ticker assertions mismatch (-want +got):\n%s", diff)

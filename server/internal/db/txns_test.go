@@ -120,7 +120,8 @@ func TestSweepStatedKeys(t *testing.T) {
 		require.NoError(t, q.CreateFinding(ctx, gen.CreateFindingParams{ID: db.NewID(), RunID: resolution.ID, Kind: gen.FindingKindContradiction, StatedKeyID: &orphan.ID, Detail: ptr.To("two")}))
 		ds := newDatasource(t, q, "sweep", 10)
 		fetchKey := servedKey(t, q, newFetch(t, q, user, run, ds), orphan, "GB00B03MLX29")
-		require.NoError(t, q.CreateIdentifierAssertion(ctx, gen.CreateIdentifierAssertionParams{ID: db.NewID(), FetchKeyID: &fetchKey, Type: types.IdentifierTypeIsin, Value: "GB00B03MLX29", AssertedOn: date(2026, 3, 2)}))
+		shel := newTicker(t, q, "XLON", "SHEL")
+		require.NoError(t, q.CreateIdentifierAssertion(ctx, gen.CreateIdentifierAssertionParams{ID: db.NewID(), FetchKeyID: &fetchKey, TickerID: shel.ID, Market: shel.Market, AssertedOn: date(2026, 3, 2)}))
 		instr, err := q.CreateInstr(ctx, gen.CreateInstrParams{ID: db.NewID(), AssetClass: types.AssetClassStock, FetchKeyID: &fetchKey})
 		require.NoError(t, err)
 

@@ -413,8 +413,8 @@ func TestListRunItems(t *testing.T) {
 			expect: func(r *mock.MockQueriesMockRecorder) {
 				two := int32(2)
 				r.ListRunAssertions(gomock.Any(), gen.ListRunAssertionsParams{RunID: &runID, Lim: &two}).Return([]gen.ListRunAssertionsRow{
-					{IdentifierAssertion: gen.IdentifierAssertion{ID: keyID, Type: types.IdentifierTypeMicTicker, Domain: "XLON", Value: "SHEL", InstrID: &childID, AssertedOn: created}, Datasource: ptr.To("eodhd")},
-					{IdentifierAssertion: gen.IdentifierAssertion{ID: childID, Type: types.IdentifierTypeMicTicker, Domain: "XLON", Value: "SHEL", AssertedOn: created}, Datasource: ptr.To("eodhd")},
+					{IdentifierAssertion: gen.IdentifierAssertion{ID: keyID, Market: "XLON", InstrID: &childID, AssertedOn: created}, Value: "SHEL", Datasource: ptr.To("eodhd")},
+					{IdentifierAssertion: gen.IdentifierAssertion{ID: childID, Market: "XLON", AssertedOn: created}, Value: "SHEL", Datasource: ptr.To("eodhd")},
 				}, nil)
 			},
 			want: &adminrunv1.ListRunItemsResponse{Items: []*adminrunv1.RunItem{{Item: &adminrunv1.RunItem_Assertion{Assertion: &adminrunv1.AssertionItem{
@@ -430,7 +430,7 @@ func TestListRunItems(t *testing.T) {
 			req:  &adminrunv1.ListRunItemsRequest{},
 			expect: func(r *mock.MockQueriesMockRecorder) {
 				r.ListRunAssertions(gomock.Any(), gen.ListRunAssertionsParams{RunID: &runID, Lim: &fifty}).Return([]gen.ListRunAssertionsRow{
-					{IdentifierAssertion: gen.IdentifierAssertion{ID: keyID, Type: types.IdentifierTypeMicTicker, Domain: "XLON", Value: "SHEL", AssertedOn: created}, AttestedBy: ptr.To("admin@example.com")},
+					{IdentifierAssertion: gen.IdentifierAssertion{ID: keyID, Market: "XLON", AssertedOn: created}, Value: "SHEL", AttestedBy: ptr.To("admin@example.com")},
 				}, nil)
 			},
 			want: &adminrunv1.ListRunItemsResponse{Items: []*adminrunv1.RunItem{{Item: &adminrunv1.RunItem_Assertion{Assertion: &adminrunv1.AssertionItem{

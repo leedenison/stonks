@@ -11,10 +11,13 @@ import (
 	"os"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/leedenison/stonks/server/internal/db"
+	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/types"
 )
 
 // Main opens the stack's database into pool, runs the package's tests and
@@ -61,4 +64,19 @@ func Begin(t *testing.T, pool *pgxpool.Pool) pgx.Tx {
 		}
 	})
 	return tx
+}
+
+// Ticker returns the row of t, creating it.
+func Ticker(tb testing.TB, q *gen.Queries, t types.MarketTicker) gen.Ticker {
+	tb.Helper()
+	ctx := context.Background()
+	arg := gen.CreateTickersParams{Ids: []uuid.UUID{db.NewID()}, Markets: []string{t.Market}, Values: []string{t.Value}}
+	if err := q.CreateTickers(ctx, arg); err != nil {
+		tb.Fatalf("create ticker %s: %v", t.Name(), err)
+	}
+	rows, err := q.ListTickers(ctx, gen.ListTickersParams{Markets: []string{t.Market}, Values: []string{t.Value}})
+	if err != nil || len(rows) != 1 {
+		tb.Fatalf("list ticker %s: %v, %v", t.Name(), rows, err)
+	}
+	return rows[0]
 }

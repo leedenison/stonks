@@ -91,16 +91,16 @@ func (w *writer) attach(ctx context.Context, c *identityClaim) error {
 		return fmt.Errorf("attach fetch key: %w", err)
 	}
 	// A claim names one instrument, so the tickers it carries at venues of
-	// one market make one assertion.
-	asserted := map[any]bool{}
+	// one market make one assertion. Only a ticker is asserted.
+	asserted := map[uuid.UUID]bool{}
 	for id := range c.AllIDs() {
-		var k any = id
-		if t, ok := w.res.mics.MarketTicker(id); ok {
-			k = t
+		t, ok, err := w.res.tickerOf(ctx, w.q, id)
+		if err != nil {
+			return err
 		}
-		if !asserted[k] {
-			asserted[k] = true
-			if err := tickervalidity.AssertIdentifier(ctx, w.q, w.res.mics, fetchKeyID, id, &w.instr.Row.ID, c.fetchKey.AnsweredAt); err != nil {
+		if ok && !asserted[t.ID] {
+			asserted[t.ID] = true
+			if err := tickervalidity.AssertInstr(ctx, w.q, fetchKeyID, t, &w.instr.Row.ID, c.fetchKey.AnsweredAt); err != nil {
 				return err
 			}
 		}

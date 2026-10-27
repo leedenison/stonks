@@ -73,11 +73,10 @@ func ReadRowsOf(ctx context.Context, q FactQueries, ts []types.MarketTicker) (ma
 		return nil, fmt.Errorf("list assertions: %w", err)
 	}
 	for _, a := range as {
-		t := types.MarketTicker{Market: a.IdentifierAssertion.Domain, Value: a.IdentifierAssertion.Value}
-		if r, ok := out[t]; ok {
-			r.Assertions = append(r.Assertions, a)
-			out[t] = r
-		}
+		t := types.MarketTicker{Market: a.IdentifierAssertion.Market, Value: a.Value}
+		r := out[t]
+		r.Assertions = append(r.Assertions, a)
+		out[t] = r
 	}
 	es, err := q.ListIdentifierEvents(ctx, gen.ListIdentifierEventsParams{Markets: markets, Values: values})
 	if err != nil {

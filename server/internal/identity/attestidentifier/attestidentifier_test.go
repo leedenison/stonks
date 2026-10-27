@@ -31,6 +31,8 @@ var (
 	}
 	today  = time.Date(2026, time.March, 30, 12, 0, 0, 0, time.UTC)
 	acmeUS = types.MarketTicker{Market: "US", Value: "ACME"}
+	// acmeRow is the row of acmeUS.
+	acmeRow = gen.Ticker{ID: uuid.MustParse("00000000-0000-0000-0000-000000000004"), Market: "US", Value: "ACME"}
 )
 
 // day is the nth day of March 2026.
@@ -64,6 +66,8 @@ func (f *fixture) starts(t *testing.T, row gen.Run) {
 		}
 		return row, work(ctx, row)
 	})
+	f.store.EXPECT().CreateTickers(gomock.Any(), gomock.Any())
+	f.store.EXPECT().ListTickers(gomock.Any(), gen.ListTickersParams{Markets: []string{"US"}, Values: []string{"ACME"}}).Return([]gen.Ticker{acmeRow}, nil)
 	f.store.EXPECT().Tx(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, fn func(Queries) error) error {
 		return fn(f.store)
 	})
@@ -71,7 +75,7 @@ func (f *fixture) starts(t *testing.T, row gen.Run) {
 
 func assertion(row gen.Run, instr *uuid.UUID, on time.Time) gen.CreateIdentifierAttestationParams {
 	return gen.CreateIdentifierAttestationParams{
-		RunID: row.ID, AttestedBy: admin, Type: types.IdentifierTypeMicTicker, Domain: "US", Value: "ACME",
+		RunID: row.ID, AttestedBy: admin, TickerID: acmeRow.ID, Market: "US",
 		InstrID: instr, AssertedOn: on,
 	}
 }
@@ -163,11 +167,11 @@ func TestWithdrawRefused(t *testing.T) {
 	key := db.NewID()
 	tests := []struct {
 		name    string
-		row     gen.IdentifierAssertion
+		row     gen.GetIdentifierAssertionRow
 		err     error
 		wantErr error
 	}{
-		{name: "a datasource's", row: gen.IdentifierAssertion{FetchKeyID: &key}, wantErr: ErrNotAttested},
+		{name: "a datasource's", row: gen.GetIdentifierAssertionRow{IdentifierAssertion: gen.IdentifierAssertion{FetchKeyID: &key}}, wantErr: ErrNotAttested},
 		{name: "missing", err: db.ErrNotFound, wantErr: db.ErrNotFound},
 	}
 	for _, tc := range tests {
@@ -179,5 +183,24 @@ func TestWithdrawRefused(t *testing.T) {
 				t.Errorf("Withdraw() error = %v, want %v", err, tc.wantErr)
 			}
 		})
+	}
+}
+
+// TestWithdraw checks that a withdrawal deletes the assertion and replays its
+// ticker at the market, beneath the run that wrote it.
+func TestWithdraw(t *testing.T) {
+	f := newFixture(t)
+	id := db.NewID()
+	row := gen.Run{ID: db.NewID(), Kind: gen.RunKindAttestIdentifier}
+	a := gen.GetIdentifierAssertionRow{
+		IdentifierAssertion: gen.IdentifierAssertion{ID: id, RunID: &row.ID, TickerID: acmeRow.ID, Market: "US"},
+		Value:               "ACME",
+	}
+	f.store.EXPECT().GetIdentifierAssertion(gomock.Any(), id).Return(a, nil)
+	f.store.EXPECT().GetRunByID(gomock.Any(), row.ID).Return(row, nil)
+	f.store.EXPECT().DeleteAttestedAssertion(gomock.Any(), id).Return(int64(1), nil)
+	f.facts.EXPECT().AfterIdentifierFacts(gomock.Any(), row, []resolve.WrittenIdentifierFacts{{Run: row, Tickers: []types.MarketTicker{acmeUS}}})
+	if err := f.svc.Withdraw(context.Background(), id); err != nil {
+		t.Fatalf("Withdraw() error = %v", err)
 	}
 }

@@ -252,9 +252,12 @@ func (r *Resolver) recordEvents(ctx context.Context, keys []eventKey) (bool, err
 	if len(keys) == 0 {
 		return false, nil
 	}
-	err := r.store.Tx(ctx, func(q Queries) error {
-		return tickervalidity.Record(ctx, q, r.mics, r.families, keys)
-	})
+	rows, err := tickervalidity.RecordTickers(ctx, r.store, r.mics, keys)
+	if err == nil {
+		err = r.store.Tx(ctx, func(q Queries) error {
+			return tickervalidity.Record(ctx, q, r.families, rows, keys)
+		})
+	}
 	switch {
 	case errors.Is(err, tickers.ErrSpelling):
 		r.log.Warn("identifier facts left out", "err", err)
@@ -336,23 +339,17 @@ func (w *writtenSet) addTicker(run gen.Run, t types.MarketTicker) {
 	}
 }
 
-// addFacts gathers the tickers whose facts r states: the tickers of its events,
-// the ticker a rename moved to, the tickers of its assertions, and the ticker
-// or market of its coverage.
+// addFacts gathers the tickers whose facts r states, and the markets of its
+// coverage rows of a whole market.
 func (w *writtenSet) addFacts(run gen.Run, r market.IdentifierEventResult) {
-	for _, e := range r.Events {
-		w.addTicker(run, e.Ticker)
-		if e.ToValue != "" {
-			w.addTicker(run, types.MarketTicker{Market: e.Ticker.Market, Value: e.ToValue})
-		}
-	}
-	for _, a := range r.Assertions {
-		w.addTicker(run, a.Ticker)
+	for _, t := range r.Tickers() {
+		w.addTicker(run, t)
 	}
 	for _, c := range r.Coverage {
 		if c.Ticker != nil {
-			w.addTicker(run, *c.Ticker)
-		} else if f, ok := w.run(run, "market:"+c.Market); ok {
+			continue
+		}
+		if f, ok := w.run(run, "market:"+c.Market); ok {
 			f.Markets = append(f.Markets, c.Market)
 		}
 	}

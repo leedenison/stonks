@@ -10,13 +10,15 @@ import (
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/identity/resolve"
+	"github.com/leedenison/stonks/server/internal/identity/tickers"
 	"github.com/leedenison/stonks/server/internal/run"
 )
 
 // Queries is this package's view of the generated queries.
 type Queries interface {
+	tickers.Queries
 	CreateIdentifierAttestation(ctx context.Context, arg gen.CreateIdentifierAttestationParams) error
-	GetIdentifierAssertion(ctx context.Context, id uuid.UUID) (gen.IdentifierAssertion, error)
+	GetIdentifierAssertion(ctx context.Context, id uuid.UUID) (gen.GetIdentifierAssertionRow, error)
 	DeleteAttestedAssertion(ctx context.Context, id uuid.UUID) (int64, error)
 	GetRunByID(ctx context.Context, id uuid.UUID) (gen.Run, error)
 	GetInstr(ctx context.Context, id uuid.UUID) (gen.Instr, error)

@@ -35,79 +35,87 @@ var _ RecordQueries = (*gen.Queries)(nil)
 // made.
 var ErrFuture = errors.New("an identifier attestation cannot reach past the day it is made")
 
-// Record writes the events, assertions and coverage of each served key. It
-// checks every key first, so a key in the wrong spelling fails the whole
-// call. A negative assertion is always written.
+// RecordTickers returns the row of every ticker whose facts a served key of
+// keys states, creating the rows that do not exist. Like tickers.Get, it
+// commits on its own, so the caller calls it before the transaction that runs
+// Record. It refuses every key with tickers.ErrSpelling when one key states a
+// ticker or a market in the wrong spelling.
+func RecordTickers(ctx context.Context, q tickers.Queries, mics mic.MICMap, keys []market.FetchKey[market.IdentifierEventRequest, market.IdentifierEventResult]) (map[types.MarketTicker]gen.Ticker, error) {
+	var ts []types.MarketTicker
+	for _, k := range keys {
+		if k.Outcome != gen.FetchOutcomeServed {
+			continue
+		}
+		for _, c := range k.Response.Coverage {
+			if c.Ticker == nil {
+				if err := tickers.SpelledMarket(mics, c.Market); err != nil {
+					return nil, err
+				}
+			}
+		}
+		ts = append(ts, k.Response.Tickers()...)
+	}
+	return tickers.Get(ctx, q, mics, ts)
+}
+
+// Record writes the events, assertions and coverage of each served key. rows
+// holds the row of each ticker the keys state, as RecordTickers returns them.
+// A negative assertion is always written.
 //
 // A positive assertion names the instrument of the first stable identifier
-// it states that is stored. A ticker row names the instrument its ticker
-// identifies today, which is the wrong instrument for an assertion of a past
-// day, so Record never maps through one. Where no stable identifier of the
-// assertion is stored, Record creates the instrument with them, without a
-// ticker row, and with the fetch key as provenance. A later answer that
-// states one of them finds that instrument. Record skips an assertion that
-// leaves no identifier to create the instrument with.
-func Record(ctx context.Context, q RecordQueries, mics mic.MICMap, families currency.Families, keys []market.FetchKey[market.IdentifierEventRequest, market.IdentifierEventResult]) error {
+// it states that is stored. A MIC_TICKER row of identifiers names the
+// instrument its ticker identifies today, which is the wrong instrument for an
+// assertion of a past day, so Record never maps through one. Where no stable
+// identifier of the assertion is stored, Record creates the instrument with
+// them, without a MIC_TICKER row, and with the fetch key as provenance. A
+// later answer that states one of them finds that instrument. Record skips an
+// assertion that leaves no identifier to create the instrument with.
+func Record(ctx context.Context, q RecordQueries, families currency.Families, rows map[types.MarketTicker]gen.Ticker, keys []market.FetchKey[market.IdentifierEventRequest, market.IdentifierEventResult]) error {
 	for _, k := range keys {
 		if k.Outcome != gen.FetchOutcomeServed {
 			continue
 		}
-		if err := check(mics, k.Response); err != nil {
-			return err
-		}
-	}
-	for _, k := range keys {
-		if k.Outcome != gen.FetchOutcomeServed {
-			continue
-		}
-		if err := record(ctx, q, families, k.ID, k.Response); err != nil {
+		if err := record(ctx, q, families, rows, k.ID, k.Response); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func check(mics mic.MICMap, r market.IdentifierEventResult) error {
-	var ts []types.MarketTicker
-	for _, e := range r.Events {
-		ts = append(ts, e.Ticker)
-		if e.ToValue != "" {
-			ts = append(ts, types.MarketTicker{Market: e.Ticker.Market, Value: e.ToValue})
+func record(ctx context.Context, q RecordQueries, families currency.Families, rows map[types.MarketTicker]gen.Ticker, key uuid.UUID, r market.IdentifierEventResult) error {
+	row := func(t types.MarketTicker) (gen.Ticker, error) {
+		out, ok := rows[t]
+		if !ok {
+			return gen.Ticker{}, fmt.Errorf("ticker %s has no row", t.Name())
 		}
+		return out, nil
 	}
-	for _, a := range r.Assertions {
-		ts = append(ts, a.Ticker)
-	}
-	for _, c := range r.Coverage {
-		if c.Ticker != nil {
-			ts = append(ts, *c.Ticker)
-		} else if err := tickers.SpelledMarket(mics, c.Market); err != nil {
+	for _, e := range r.Events {
+		named, err := row(e.Ticker)
+		if err != nil {
 			return err
 		}
-	}
-	for _, t := range ts {
-		if err := tickers.Spelled(mics, t); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func record(ctx context.Context, q RecordQueries, families currency.Families, key uuid.UUID, r market.IdentifierEventResult) error {
-	for _, e := range r.Events {
 		arg := gen.CreateIdentifierEventParams{
-			ID: db.NewID(), FetchKeyID: key, Market: e.Ticker.Market, Value: e.Ticker.Value,
+			ID: db.NewID(), FetchKeyID: key, Market: named.Market, TickerID: named.ID,
 			Action: e.Action, EffectiveOn: types.Day(e.On),
 		}
 		if e.ToValue != "" {
-			arg.ToValue = &e.ToValue
+			to, err := row(types.MarketTicker{Market: e.Ticker.Market, Value: e.ToValue})
+			if err != nil {
+				return err
+			}
+			arg.ToTickerID = &to.ID
 		}
 		if err := q.CreateIdentifierEvent(ctx, arg); err != nil {
 			return fmt.Errorf("record event: %w", err)
 		}
 	}
 	for _, a := range r.Assertions {
-		if _, err := Assert(ctx, q, families, key, a); err != nil {
+		t, err := row(a.Ticker)
+		if err != nil {
+			return err
+		}
+		if _, err := Assert(ctx, q, families, key, t, a); err != nil {
 			return err
 		}
 	}
@@ -117,7 +125,11 @@ func record(ctx context.Context, q RecordQueries, families currency.Families, ke
 			CoveredFrom: c.Period.From, CoveredBefore: c.Period.Before,
 		}
 		if c.Ticker != nil {
-			arg.Value = &c.Ticker.Value
+			t, err := row(*c.Ticker)
+			if err != nil {
+				return err
+			}
+			arg.TickerID = &t.ID
 		}
 		if err := q.CreateIdentifierEventCoverage(ctx, arg); err != nil {
 			return fmt.Errorf("record coverage: %w", err)
@@ -126,11 +138,11 @@ func record(ctx context.Context, q RecordQueries, families currency.Families, ke
 	return nil
 }
 
-// Assert writes the assertion a under fetch key key, dated by a.At. A
-// positive assertion names the instrument of the first stored stable
+// Assert writes the assertion a of ticker t under fetch key key, dated by
+// a.At. A positive assertion names the instrument of the first stored stable
 // identifier it states, as Record describes. Assert returns false without
 // writing where it can name no instrument.
-func Assert(ctx context.Context, q RecordQueries, families currency.Families, key uuid.UUID, a market.Assertion) (bool, error) {
+func Assert(ctx context.Context, q RecordQueries, families currency.Families, key uuid.UUID, t gen.Ticker, a market.Assertion) (bool, error) {
 	var instr *uuid.UUID
 	if !a.Negative {
 		var err error
@@ -141,7 +153,7 @@ func Assert(ctx context.Context, q RecordQueries, families currency.Families, ke
 			return false, nil
 		}
 	}
-	return true, AssertInstr(ctx, q, key, a.Ticker, instr, a.At)
+	return true, AssertInstr(ctx, q, key, t, instr, a.At)
 }
 
 // Asserter writes an assertion.
@@ -152,23 +164,9 @@ type Asserter interface {
 // AssertInstr writes, under fetch key key, the assertion that t names
 // instrument on the day of at. A nil instrument asserts that t names
 // nothing.
-func AssertInstr(ctx context.Context, q Asserter, key uuid.UUID, t types.MarketTicker, instr *uuid.UUID, at time.Time) error {
-	return assert(ctx, q, key, types.IdentifierTypeMicTicker, t.Market, t.Value, instr, at)
-}
-
-// AssertIdentifier writes, under fetch key key, the assertion that v names
-// instrument on the day of at. A MIC_TICKER at a venue is asserted at its
-// market. Any other identifier, a bare ticker included, is written as stated.
-func AssertIdentifier(ctx context.Context, q Asserter, mics mic.MICMap, key uuid.UUID, v types.Identifier, instr *uuid.UUID, at time.Time) error {
-	if t, ok := mics.MarketTicker(v); ok {
-		return AssertInstr(ctx, q, key, t, instr, at)
-	}
-	return assert(ctx, q, key, v.Type, v.Domain, v.Value, instr, at)
-}
-
-func assert(ctx context.Context, q Asserter, key uuid.UUID, typ types.IdentifierType, domain, value string, instr *uuid.UUID, at time.Time) error {
+func AssertInstr(ctx context.Context, q Asserter, key uuid.UUID, t gen.Ticker, instr *uuid.UUID, at time.Time) error {
 	arg := gen.CreateIdentifierAssertionParams{
-		ID: db.NewID(), FetchKeyID: &key, Type: typ, Domain: domain, Value: value,
+		ID: db.NewID(), FetchKeyID: &key, TickerID: t.ID, Market: t.Market,
 		InstrID: instr, AssertedOn: types.Day(at),
 	}
 	if err := q.CreateIdentifierAssertion(ctx, arg); err != nil {
@@ -274,8 +272,8 @@ type AttestQueries interface {
 var _ AttestQueries = (*gen.Queries)(nil)
 
 // CheckAttest reports why an identifier attestation of t on day on cannot be
-// written: tickers.ErrSpelling when t is not a ticker in the system's spelling, and
-// ErrFuture when on is after today.
+// written: tickers.ErrSpelling when t is not a ticker in the system's
+// spelling, and ErrFuture when on is after today.
 func CheckAttest(mics mic.MICMap, t types.MarketTicker, on, today time.Time) error {
 	if err := tickers.Spelled(mics, t); err != nil {
 		return err
@@ -290,15 +288,15 @@ func CheckAttest(mics mic.MICMap, t types.MarketTicker, on, today time.Time) err
 // on, beneath run, which must be a system run of kind attest identifier. A nil
 // instrument asserts that t names nothing. A later identifier attestation of a
 // day replaces the earlier one.
-func Attest(ctx context.Context, q AttestQueries, mics mic.MICMap, run gen.Run, admin uuid.UUID, t types.MarketTicker, instr *uuid.UUID, on, today time.Time) error {
+func Attest(ctx context.Context, q AttestQueries, mics mic.MICMap, run gen.Run, admin uuid.UUID, t gen.Ticker, instr *uuid.UUID, on, today time.Time) error {
 	if run.Kind != gen.RunKindAttestIdentifier || run.UserID != nil {
 		return fmt.Errorf("run %s is not a system attest identifier run", run.ID)
 	}
-	if err := CheckAttest(mics, t, on, today); err != nil {
+	if err := CheckAttest(mics, tickers.Of(t), on, today); err != nil {
 		return err
 	}
 	arg := gen.CreateIdentifierAttestationParams{
-		ID: db.NewID(), RunID: run.ID, AttestedBy: admin, Type: types.IdentifierTypeMicTicker, Domain: t.Market, Value: t.Value,
+		ID: db.NewID(), RunID: run.ID, AttestedBy: admin, TickerID: t.ID, Market: t.Market,
 		InstrID: instr, AssertedOn: types.Day(on),
 	}
 	if err := q.CreateIdentifierAttestation(ctx, arg); err != nil {

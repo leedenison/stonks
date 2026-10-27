@@ -23,6 +23,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/identity/resolve"
+	"github.com/leedenison/stonks/server/internal/identity/tickers"
 	"github.com/leedenison/stonks/server/internal/identity/tickervalidity"
 	"github.com/leedenison/stonks/server/internal/mic"
 	"github.com/leedenison/stonks/server/internal/run"
@@ -84,9 +85,13 @@ func (s *Service) Start(ctx context.Context, admin uuid.UUID, v types.MarketTick
 	spec := run.Spec{
 		Kind: gen.RunKindAttestIdentifier, Trigger: gen.RunTriggerAdministrator, Lane: lane,
 		Prepare: func(ctx context.Context, row gen.Run) error {
+			rows, err := tickers.Get(ctx, s.store, s.mics, []types.MarketTicker{v})
+			if err != nil {
+				return err
+			}
 			return s.store.Tx(ctx, func(q Queries) error {
 				for _, d := range days {
-					if err := tickervalidity.Attest(ctx, q, s.mics, row, admin, v, instr, d, today); err != nil {
+					if err := tickervalidity.Attest(ctx, q, s.mics, row, admin, rows[v], instr, d, today); err != nil {
 						return err
 					}
 				}
@@ -108,12 +113,12 @@ func (s *Service) Withdraw(ctx context.Context, id uuid.UUID) error {
 	if err != nil {
 		return fmt.Errorf("get assertion %s: %w", id, err)
 	}
-	if a.RunID == nil {
+	if a.IdentifierAssertion.RunID == nil {
 		return fmt.Errorf("assertion %s: %w", id, ErrNotAttested)
 	}
-	row, err := s.store.GetRunByID(ctx, *a.RunID)
+	row, err := s.store.GetRunByID(ctx, *a.IdentifierAssertion.RunID)
 	if err != nil {
-		return fmt.Errorf("get run %s: %w", a.RunID, err)
+		return fmt.Errorf("get run %s: %w", a.IdentifierAssertion.RunID, err)
 	}
 	n, err := s.store.DeleteAttestedAssertion(ctx, id)
 	if err != nil {
@@ -122,7 +127,7 @@ func (s *Service) Withdraw(ctx context.Context, id uuid.UUID) error {
 	if n == 0 {
 		return fmt.Errorf("assertion %s: %w", id, db.ErrNotFound)
 	}
-	v := types.MarketTicker{Market: a.Domain, Value: a.Value}
+	v := types.MarketTicker{Market: a.IdentifierAssertion.Market, Value: a.Value}
 	s.facts.AfterIdentifierFacts(ctx, row, []resolve.WrittenIdentifierFacts{{Run: row, Tickers: []types.MarketTicker{v}}})
 	return nil
 }

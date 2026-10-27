@@ -51,12 +51,13 @@ func TestDeleteUserCascades(t *testing.T) {
 			ds := newDatasource(t, q, "cascade", 10)
 			fetch := newFetch(t, q, user, run, ds)
 			key := servedKey(t, q, fetch, one, "GB00B03MLX29")
+			shel := newTicker(t, q, "XLON", "SHEL")
 			require.NoError(t, q.CreateIdentifierAssertion(ctx, gen.CreateIdentifierAssertionParams{
-				ID: db.NewID(), FetchKeyID: &key, Type: types.IdentifierTypeIsin, Value: "GB00B03MLX29", AssertedOn: date(2026, 3, 2),
+				ID: db.NewID(), FetchKeyID: &key, TickerID: shel.ID, Market: shel.Market, AssertedOn: date(2026, 3, 2),
 			}))
-			_, err = tx.Exec(ctx, "INSERT INTO identifier_events (id, fetch_key_id, market, value, action, effective_on) VALUES ($1, $2, 'XLON', 'SHEL', 'retired', '2026-03-02')", db.NewID(), key)
+			_, err = tx.Exec(ctx, "INSERT INTO identifier_events (id, fetch_key_id, market, ticker_id, action, effective_on) VALUES ($1, $2, 'XLON', $3, 'retired', '2026-03-02')", db.NewID(), key, shel.ID)
 			require.NoError(t, err)
-			_, err = tx.Exec(ctx, "INSERT INTO identifier_event_coverage (id, fetch_key_id, market, covered_from, covered_before) VALUES ($1, $2, 'XLON', '2026-01-01', '2026-03-02')", db.NewID(), key)
+			_, err = tx.Exec(ctx, "INSERT INTO identifier_event_coverage (id, fetch_key_id, market, ticker_id, covered_from, covered_before) VALUES ($1, $2, 'XLON', $3, '2026-01-01', '2026-03-02')", db.NewID(), key, shel.ID)
 			require.NoError(t, err)
 			instr, err := q.CreateInstr(ctx, gen.CreateInstrParams{ID: db.NewID(), AssetClass: types.AssetClassStock, FetchKeyID: &key})
 			require.NoError(t, err)
@@ -90,6 +91,9 @@ func TestDeleteUserCascades(t *testing.T) {
 				if n != 0 {
 					t.Errorf("%s has %d rows after the users were deleted, want none", table, n)
 				}
+			}
+			if rows, err := q.ListTickersByID(ctx, []uuid.UUID{shel.ID}); err != nil || len(rows) != 1 {
+				t.Errorf("ListTickersByID(SHEL) = %v, %v, want the row: a ticker outlives its facts", rows, err)
 			}
 			var provenance *uuid.UUID
 			require.NoError(t, tx.QueryRow(ctx, "SELECT fetch_key_id FROM instrs WHERE id = $1", instr.ID).Scan(&provenance))

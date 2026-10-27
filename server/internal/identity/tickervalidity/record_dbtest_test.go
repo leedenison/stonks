@@ -18,6 +18,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/mic"
 	"github.com/leedenison/stonks/server/internal/platform/ptr"
+	"github.com/leedenison/stonks/server/internal/testutil/dbtest"
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
@@ -37,6 +38,17 @@ func (f *fixture) served(t *testing.T, sent types.Identifier, r market.Identifie
 	}
 	require.NoError(t, f.q.CreateFetchKey(context.Background(), arg))
 	return k
+}
+
+// record writes the facts of keys as the resolver does.
+func (f *fixture) record(t *testing.T, keys []eventKey) error {
+	t.Helper()
+	ctx := context.Background()
+	rows, err := RecordTickers(ctx, f.q, f.mics(t), keys)
+	if err != nil {
+		return err
+	}
+	return Record(ctx, f.q, f.families(t), rows, keys)
 }
 
 func (f *fixture) families(t *testing.T) currency.Families {
@@ -86,7 +98,7 @@ func TestRecord(t *testing.T) {
 	failed := eventKey{ID: db.NewID(), Outcome: gen.FetchOutcomeFailedTemporary, Response: market.IdentifierEventResult{
 		Assertions: []market.Assertion{{Ticker: f.foo, Of: market.Listing{Identifiers: []types.Identifier{isin}}, At: day(15)}},
 	}}
-	require.NoError(t, Record(ctx, f.q, f.mics(t), f.families(t), []eventKey{k, failed}))
+	require.NoError(t, f.record(t, []eventKey{k, failed}))
 
 	want := []Interval{confirmed(at(10), at(20), f.a), provisional(at(20), nil, f.a)}
 	if diff := cmp.Diff(want, f.of(t)); diff != "" {
@@ -116,10 +128,10 @@ func TestRecordThroughStable(t *testing.T) {
 	_, err = f.q.CreateIdentifier(ctx, gen.CreateIdentifierParams{ID: db.NewID(), InstrID: f.b, ListingID: &listing.ID, Type: f.at.Type, Domain: f.at.Domain, Value: f.at.Value})
 	require.NoError(t, err)
 	k := f.served(t, f.at, market.IdentifierEventResult{Assertions: []market.Assertion{{Ticker: f.foo, Of: market.Listing{Identifiers: []types.Identifier{f.at, isin}}, At: day(3)}}})
-	require.NoError(t, Record(ctx, f.q, f.mics(t), f.families(t), []eventKey{k}))
+	require.NoError(t, f.record(t, []eventKey{k}))
 	asserted, err := f.q.ListFetchKeyAssertions(ctx, &k.ID)
 	require.NoError(t, err)
-	if len(asserted) != 1 || asserted[0].InstrID == nil || *asserted[0].InstrID != f.a {
+	if len(asserted) != 1 || asserted[0].IdentifierAssertion.InstrID == nil || *asserted[0].IdentifierAssertion.InstrID != f.a {
 		t.Errorf("assertions = %+v, want one naming %s through the ISIN, not %s through the ticker row", asserted, f.a, f.b)
 	}
 }
@@ -138,7 +150,7 @@ func TestRecordCreates(t *testing.T) {
 		{Ticker: f.foo, Of: market.Listing{Identifiers: of, Class: types.AssetClassEtf, Currency: "USD"}, At: day(3)},
 		{Ticker: f.foo, Of: market.Listing{Identifiers: of, Class: types.AssetClassEtf, Currency: "USD"}, At: day(4)},
 	}})
-	require.NoError(t, Record(ctx, f.q, f.mics(t), f.families(t), []eventKey{k}))
+	require.NoError(t, f.record(t, []eventKey{k}))
 	found, err := f.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: composite.Type, Value: composite.Value})
 	require.NoError(t, err)
 	instr := found.Instr
@@ -153,14 +165,14 @@ func TestRecordCreates(t *testing.T) {
 	}
 	asserted, err := f.q.ListFetchKeyAssertions(ctx, &k.ID)
 	require.NoError(t, err)
-	if len(asserted) != 2 || *asserted[0].InstrID != instr.ID || *asserted[1].InstrID != instr.ID {
+	if len(asserted) != 2 || *asserted[0].IdentifierAssertion.InstrID != instr.ID || *asserted[1].IdentifierAssertion.InstrID != instr.ID {
 		t.Errorf("assertions = %+v, want both naming the one created instrument", asserted)
 	}
 
 	other := types.Identifier{Type: types.IdentifierTypeOpenfigiShareClass, Value: "BBG" + uuid.NewString()[:9]}
 	loose := types.Identifier{Type: types.IdentifierTypeOpenfigiComposite, Value: "BBG" + uuid.NewString()[:9]}
 	k = f.served(t, f.at, market.IdentifierEventResult{Assertions: []market.Assertion{{Ticker: f.foo, Of: market.Listing{Identifiers: []types.Identifier{other, loose}, Currency: "ZZZ"}, At: day(5)}}})
-	require.NoError(t, Record(ctx, f.q, f.mics(t), f.families(t), []eventKey{k}))
+	require.NoError(t, f.record(t, []eventKey{k}))
 	if _, err := f.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: loose.Type, Value: loose.Value}); !errors.Is(err, db.ErrNotFound) {
 		t.Errorf("composite with an unknown currency: err = %v, want it left out", err)
 	}
@@ -178,7 +190,7 @@ func TestRecordMarketCoverage(t *testing.T) {
 	f.asserts(t, f.alpha, 5, &f.a)
 	nyse := types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XNYS"}
 	k := f.served(t, nyse, market.IdentifierEventResult{Coverage: []market.Coverage{{Market: "US", Period: types.Period{From: day(1), Before: day(20)}}}})
-	require.NoError(t, Record(context.Background(), f.q, f.mics(t), f.families(t), []eventKey{k}))
+	require.NoError(t, f.record(t, []eventKey{k}))
 	want := []Interval{provisional(nil, at(1), f.a), confirmed(at(1), at(20), f.a), provisional(at(20), nil, f.a)}
 	if diff := cmp.Diff(want, f.of(t)); diff != "" {
 		t.Errorf("Of mismatch (-want +got):\n%s", diff)
@@ -191,24 +203,35 @@ func TestRecordSpelling(t *testing.T) {
 	tests := []struct {
 		name   string
 		ticker types.MarketTicker
+		// market is the market of a coverage row of a whole market, in
+		// place of the event of ticker.
+		market string
 	}{
 		{name: "a class separator other than a dot", ticker: types.MarketTicker{Market: "US", Value: "BRK-B"}},
 		{name: "a venue in place of its market", ticker: types.MarketTicker{Market: "XNYS", Value: "SPY"}},
 		{name: "an unknown market", ticker: types.MarketTicker{Market: "NYSE", Value: "IBM"}},
+		{name: "coverage of an unknown market", market: "NYSE"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newFixture(t)
 			ctx := context.Background()
 			good := f.served(t, f.at, market.IdentifierEventResult{Coverage: []market.Coverage{{Market: "US", Ticker: &f.foo, Period: types.Period{From: day(1), Before: day(2)}}}})
-			bad := f.served(t, f.at, market.IdentifierEventResult{Events: []market.IdentifierEvent{{Ticker: tc.ticker, Action: gen.IdentifierEventActionRetired, On: day(3)}}})
-			if err := Record(ctx, f.q, f.mics(t), f.families(t), []eventKey{good, bad}); !errors.Is(err, tickers.ErrSpelling) {
-				t.Fatalf("Record() error = %v, want ErrSpelling", err)
+			r := market.IdentifierEventResult{Events: []market.IdentifierEvent{{Ticker: tc.ticker, Action: gen.IdentifierEventActionRetired, On: day(3)}}}
+			if tc.market != "" {
+				r = market.IdentifierEventResult{Coverage: []market.Coverage{{Market: tc.market, Period: types.Period{From: day(1), Before: day(2)}}}}
+			}
+			bad := f.served(t, f.at, r)
+			if err := f.record(t, []eventKey{good, bad}); !errors.Is(err, tickers.ErrSpelling) {
+				t.Fatalf("record() error = %v, want ErrSpelling", err)
 			}
 			var n int
 			require.NoError(t, f.tx.QueryRow(ctx, "SELECT count(*) FROM identifier_event_coverage WHERE fetch_key_id = $1", good.ID).Scan(&n))
 			if n != 0 {
 				t.Errorf("the good key wrote %d coverage rows, want none", n)
+			}
+			if found, err := tickers.Find(ctx, f.q, []types.MarketTicker{f.foo}); err != nil || len(found) != 0 {
+				t.Errorf("Find(%s) = %v, %v, want no row", f.foo.Name(), found, err)
 			}
 		})
 	}
@@ -226,14 +249,15 @@ func TestAttest(t *testing.T) {
 	mics := f.mics(t)
 	today := day(25)
 	f.asserts(t, f.alpha, 20, &f.a)
+	foo := dbtest.Ticker(t, f.q, f.foo)
 
-	require.NoError(t, Attest(ctx, f.q, mics, run, f.attestedBy.ID, f.foo, &f.a, day(2), today))
+	require.NoError(t, Attest(ctx, f.q, mics, run, f.attestedBy.ID, foo, &f.a, day(2), today))
 	want := []Interval{provisional(nil, at(2), f.a), confirmed(at(2), at(21), f.a), provisional(at(21), nil, f.a)}
 	if diff := cmp.Diff(want, f.of(t)); diff != "" {
 		t.Errorf("Of after attesting day 2 mismatch (-want +got):\n%s", diff)
 	}
 
-	require.NoError(t, Attest(ctx, f.q, mics, run, f.attestedBy.ID, f.foo, nil, today, today))
+	require.NoError(t, Attest(ctx, f.q, mics, run, f.attestedBy.ID, foo, nil, today, today))
 	want = []Interval{provisional(nil, at(2), f.a), confirmed(at(2), at(21), f.a), provisional(at(21), at(25), f.a)}
 	if diff := cmp.Diff(want, f.of(t)); diff != "" {
 		t.Errorf("Of after attesting that it names nothing mismatch (-want +got):\n%s", diff)
@@ -241,16 +265,16 @@ func TestAttest(t *testing.T) {
 
 	later, err := f.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), Kind: gen.RunKindAttestIdentifier, Trigger: gen.RunTriggerAdministrator})
 	require.NoError(t, err)
-	require.NoError(t, Attest(ctx, f.q, mics, later, f.attestedBy.ID, f.foo, &f.b, day(2), today))
+	require.NoError(t, Attest(ctx, f.q, mics, later, f.attestedBy.ID, foo, &f.b, day(2), today))
 	want = []Interval{provisional(nil, at(2), f.b), confirmed(at(2), at(3), f.b), provisional(at(3), at(20), f.b), confirmed(at(20), at(21), f.a), provisional(at(21), at(25), f.a)}
 	if diff := cmp.Diff(want, f.of(t)); diff != "" {
 		t.Errorf("Of after a later identifier attestation of day 2 mismatch (-want +got):\n%s", diff)
 	}
 
-	if err := Attest(ctx, f.q, mics, run, f.attestedBy.ID, f.foo, &f.a, day(26), today); !errors.Is(err, ErrFuture) {
+	if err := Attest(ctx, f.q, mics, run, f.attestedBy.ID, foo, &f.a, day(26), today); !errors.Is(err, ErrFuture) {
 		t.Errorf("Attest(tomorrow) error = %v, want ErrFuture", err)
 	}
-	if err := Attest(ctx, f.q, mics, f.run, f.attestedBy.ID, f.foo, &f.a, day(2), today); err == nil {
+	if err := Attest(ctx, f.q, mics, f.run, f.attestedBy.ID, foo, &f.a, day(2), today); err == nil {
 		t.Error("Attest beneath a user's run succeeded, want an error")
 	}
 }

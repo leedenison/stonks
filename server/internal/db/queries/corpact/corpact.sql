@@ -70,12 +70,13 @@ WHERE (stated_keys.instr_id = ANY(@instrs::uuid[]) OR stated_keys.via_value = AN
 ORDER BY stmt_splits.stated_key_id, stmt_splits.effective_date, stmt_splits.stmt_id, stmt_splits.ordinal;
 
 -- name: ListTickersNaming :many
--- The tickers, with their markets, that an assertion pairs with one of
--- instruments.
-SELECT DISTINCT instr_id::uuid AS instr_id, domain AS market, value
+-- The tickers that an assertion pairs with one of instrs.
+SELECT DISTINCT identifier_assertions.instr_id::uuid AS instr_id, tickers.id AS ticker_id,
+       tickers.market, tickers.value
 FROM identifier_assertions
-WHERE type = 'mic_ticker' AND instr_id = ANY(@instrs::uuid[])
-ORDER BY instr_id, market, value;
+JOIN tickers ON tickers.id = identifier_assertions.ticker_id
+WHERE identifier_assertions.instr_id = ANY(@instrs::uuid[])
+ORDER BY instr_id, tickers.market, tickers.value;
 
 -- name: ListUnmatchedSplits :many
 -- The key and day of each unmatched split finding on one of keys.

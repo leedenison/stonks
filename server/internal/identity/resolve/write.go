@@ -9,6 +9,7 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/identity/tickers"
 	"github.com/leedenison/stonks/server/internal/identity/tickervalidity"
 	runs "github.com/leedenison/stonks/server/internal/run"
 	"github.com/leedenison/stonks/server/internal/types"
@@ -28,6 +29,9 @@ const tries = 3
 func (r *Resolver) write(ctx context.Context, run gen.Run, res *resolution, userChoice consistentClaims) (gen.ResolutionKey, error) {
 	var out gen.ResolutionKey
 	var written []gen.FindingKind
+	if err := r.createTickers(ctx, res); err != nil {
+		return gen.ResolutionKey{}, fmt.Errorf("resolve key %s: %w", res.row.ID, err)
+	}
 	for attempt := 1; ; attempt++ {
 		err := r.store.Tx(ctx, func(q Queries) error {
 			var err error
@@ -191,6 +195,53 @@ func identifiersToLock(res *resolution) []types.Identifier {
 	return ids
 }
 
+// createTickers creates the row of each ticker in the system's spelling that
+// the write may assert. It runs before the write.
+func (r *Resolver) createTickers(ctx context.Context, res *resolution) error {
+	ids := identifiersToLock(res)
+	for _, fk := range res.fetchKeys {
+		if fk.SentID != nil {
+			ids = append(ids, *fk.SentID)
+		}
+	}
+	var ts []types.MarketTicker
+	for _, id := range ids {
+		if t, ok := res.mics.MarketTicker(id); ok && tickers.Spelled(res.mics, t) == nil {
+			ts = append(ts, t)
+		}
+	}
+	rows, err := tickers.Get(ctx, r.store, res.mics, ts)
+	if err != nil {
+		return err
+	}
+	res.tickers = rows
+	return nil
+}
+
+// tickerOf returns the row of the market ticker of id. It reports false
+// unless id is a MIC_TICKER at a venue in the system's spelling, since only
+// such a ticker has facts. It reads a row that
+// createTickers did not make, such as the ticker of an identifier the
+// instrument already carries.
+func (res *resolution) tickerOf(ctx context.Context, q Queries, id types.Identifier) (gen.Ticker, bool, error) {
+	t, ok := res.mics.MarketTicker(id)
+	if !ok || tickers.Spelled(res.mics, t) != nil {
+		return gen.Ticker{}, false, nil
+	}
+	if row, ok := res.tickers[t]; ok {
+		return row, true, nil
+	}
+	found, err := tickers.Find(ctx, q, []types.MarketTicker{t})
+	if err != nil {
+		return gen.Ticker{}, false, err
+	}
+	row, ok := found[t]
+	if !ok {
+		return gen.Ticker{}, false, fmt.Errorf("ticker %s has no row", t.Name())
+	}
+	return row, true, nil
+}
+
 // recordIdentityCoverage records instrument as covered by every datasource
 // whose claims the verdict attached, and by every datasource that served no
 // listing. When the verdict drops every claim of a datasource, the next key
@@ -212,16 +263,24 @@ func recordIdentityCoverage(ctx context.Context, q Queries, instr uuid.UUID, ver
 	return nil
 }
 
-// recordUnknown writes a negative assertion of the identifier sent for each
-// fetch key of res whose datasource stated that it knows nothing under it.
-// The assertion stands whatever the resolution makes of the other answers.
+// recordUnknown writes a negative assertion of the ticker sent for each fetch
+// key of res whose datasource stated that it knows nothing under it. Only a
+// MIC_TICKER at a venue is asserted. The assertion stands whatever the
+// resolution makes of the other answers.
 func recordUnknown(ctx context.Context, q Queries, res *resolution) error {
 	for _, fk := range res.fetchKeys {
 		if fk.Outcome != gen.FetchOutcomeServed || !fk.Response.Unknown || fk.SentID == nil {
 			continue
 		}
 		id := *fk.SentID
-		if err := tickervalidity.AssertIdentifier(ctx, q, res.mics, fk.ID, id, nil, fk.AnsweredAt); err != nil {
+		t, ok, err := res.tickerOf(ctx, q, id)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			continue
+		}
+		if err := tickervalidity.AssertInstr(ctx, q, fk.ID, t, nil, fk.AnsweredAt); err != nil {
 			return fmt.Errorf("record negative assertion: %w", err)
 		}
 		res.wrote(fk, id)
