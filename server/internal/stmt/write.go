@@ -1,4 +1,4 @@
-package statement
+package stmt
 
 import (
 	"context"
@@ -29,7 +29,7 @@ func (g *ingestion) write(ctx context.Context, run gen.Run) error {
 		if _, err := q.DeleteTxns(ctx, period); err != nil {
 			return fmt.Errorf("delete period: %w", err)
 		}
-		var items []gen.CreateStatementItemsParams
+		var items []gen.CreateStmtItemsParams
 		var txns []gen.CreateTxnsParams
 		for i := range g.rows {
 			r := &g.rows[i]
@@ -42,17 +42,17 @@ func (g *ingestion) write(ctx context.Context, run gen.Run) error {
 				if err != nil {
 					return fmt.Errorf("encode row %d: %w", r.ordinal, err)
 				}
-				items = append(items, gen.CreateStatementItemsParams{StatementID: run.ID, UserID: g.user, Ordinal: r.ordinal, Reason: reason, Stated: stated})
+				items = append(items, gen.CreateStmtItemsParams{StmtID: run.ID, UserID: g.user, Ordinal: r.ordinal, Reason: reason, Stated: stated})
 				continue
 			}
 			txns = append(txns, gen.CreateTxnsParams{
-				ID: db.NewID(), UserID: g.user, Broker: g.broker, StatementID: run.ID, StatedKeyID: r.key.row.ID,
+				ID: db.NewID(), UserID: g.user, Broker: g.broker, StmtID: run.ID, StatedKeyID: r.key.row.ID,
 				OrderDate: r.order, SettlementDate: r.settlement, AsAt: r.asAt, Quantity: r.quantity,
 			})
 		}
 		var err error
 		if len(items) > 0 {
-			if rejected, err = q.CreateStatementItems(ctx, items); err != nil {
+			if rejected, err = q.CreateStmtItems(ctx, items); err != nil {
 				return fmt.Errorf("create items: %w", err)
 			}
 		}
@@ -81,7 +81,7 @@ func (g *ingestion) write(ctx context.Context, run gen.Run) error {
 }
 
 // ItemToProto converts a rejected row to its message.
-func ItemToProto(it gen.StatementItem) (*statementv1.StatementItem, error) {
+func ItemToProto(it gen.StmtItem) (*statementv1.StatementItem, error) {
 	row := &statementv1.Row{}
 	if err := protojson.Unmarshal(it.Stated, row); err != nil {
 		return nil, fmt.Errorf("read item %d: %w", it.Ordinal, err)

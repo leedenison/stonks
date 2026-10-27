@@ -1,4 +1,4 @@
-// Package statement ingests a statement: one batch of transactions a user
+// Package stmt ingests a statement: one batch of transactions a user
 // submitted, claiming every account they hold at one broker over a
 // half-open range of order dates.
 //
@@ -16,7 +16,7 @@
 // The service also lists and confirms candidates for a key of the user's that
 // is not yet associated. Each call is a synchronous resolve statement keys run;
 // see [resolve.go](../identity/resolve/resolve.go).
-package statement
+package stmt
 
 import (
 	"context"
@@ -194,11 +194,11 @@ func (g *ingestion) intern(k *key) *key {
 // stated a key, the upsert returns the row that statement wrote.
 func (g *ingestion) prepare(ctx context.Context, run gen.Run) error {
 	return g.store.Tx(ctx, func(q Queries) error {
-		arg := gen.CreateStatementParams{ID: run.ID, UserID: g.user, Broker: g.broker, OrderFrom: g.from, OrderBefore: g.before, RowCount: int32(len(g.rows))}
-		if _, err := q.CreateStatement(ctx, arg); err != nil {
+		arg := gen.CreateStmtParams{ID: run.ID, UserID: g.user, Broker: g.broker, OrderFrom: g.from, OrderBefore: g.before, RowCount: int32(len(g.rows))}
+		if _, err := q.CreateStmt(ctx, arg); err != nil {
 			return fmt.Errorf("create statement: %w", err)
 		}
-		links := make([]gen.CreateStatementKeysParams, 0, len(g.order))
+		links := make([]gen.CreateStmtKeysParams, 0, len(g.order))
 		for _, k := range g.order {
 			arg := gen.UpsertStatedKeyParams{ID: db.NewID(), UserID: g.user, AssetClass: k.class, Currency: k.currency, Identifiers: k.identifiers}
 			row, err := q.UpsertStatedKey(ctx, arg)
@@ -206,16 +206,16 @@ func (g *ingestion) prepare(ctx context.Context, run gen.Run) error {
 				return fmt.Errorf("upsert stated key: %w", err)
 			}
 			k.row = row
-			links = append(links, gen.CreateStatementKeysParams{StatementID: run.ID, UserID: g.user, StatedKeyID: row.ID})
+			links = append(links, gen.CreateStmtKeysParams{StmtID: run.ID, UserID: g.user, StatedKeyID: row.ID})
 		}
 		if len(links) > 0 {
-			if _, err := q.CreateStatementKeys(ctx, links); err != nil {
+			if _, err := q.CreateStmtKeys(ctx, links); err != nil {
 				return fmt.Errorf("link stated keys: %w", err)
 			}
 		}
 		for _, sp := range g.splits {
-			arg := gen.CreateStatementSplitParams{StatementID: run.ID, UserID: g.user, Ordinal: sp.ordinal, StatedKeyID: sp.key.row.ID, EffectiveDate: sp.effective, Quantity: sp.quantity, RatioFrom: sp.from, RatioTo: sp.to}
-			if err := q.CreateStatementSplit(ctx, arg); err != nil {
+			arg := gen.CreateStmtSplitParams{StmtID: run.ID, UserID: g.user, Ordinal: sp.ordinal, StatedKeyID: sp.key.row.ID, EffectiveDate: sp.effective, Quantity: sp.quantity, RatioFrom: sp.from, RatioTo: sp.to}
+			if err := q.CreateStmtSplit(ctx, arg); err != nil {
 				return fmt.Errorf("create split: %w", err)
 			}
 		}
@@ -236,7 +236,7 @@ func (g *ingestion) work(ctx context.Context, run gen.Run) error {
 		return err
 	}
 	g.facts.AfterIdentifierFacts(ctx, res, g.written)
-	g.events.AfterStatement(ctx, run)
+	g.events.AfterStmt(ctx, run)
 	return nil
 }
 

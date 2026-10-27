@@ -158,16 +158,16 @@ func TestProtoTxn(t *testing.T) {
 	}
 }
 
-func TestProtoStatementSummary(t *testing.T) {
+func TestProtoStmtSummary(t *testing.T) {
 	id := uuid.New()
 	created := time.Date(2026, time.September, 24, 10, 0, 0, 0, time.UTC)
-	st := gen.Statement{Broker: gen.BrokerIbkr, OrderFrom: created, OrderBefore: created.AddDate(0, 1, 0), RowCount: 40}
+	stmt := gen.Stmt{Broker: gen.BrokerIbkr, OrderFrom: created, OrderBefore: created.AddDate(0, 1, 0), RowCount: 40}
 	run := gen.Run{ID: id, Kind: gen.RunKindIngestStmt, Trigger: gen.RunTriggerUser, State: gen.RunStateCompleted, CreatedAt: created}
 	want := &statementv1.StatementSummary{
 		Run: ProtoRun(run), Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-09-24", OrderBefore: "2026-10-24", Rows: 40, Rejected: 2,
 	}
-	if diff := cmp.Diff(want, ProtoStatementSummary(st, run, 2), protocmp.Transform()); diff != "" {
-		t.Errorf("ProtoStatementSummary mismatch (-want +got):\n%s", diff)
+	if diff := cmp.Diff(want, ProtoStmtSummary(stmt, run, 2), protocmp.Transform()); diff != "" {
+		t.Errorf("ProtoStmtSummary mismatch (-want +got):\n%s", diff)
 	}
 }
 

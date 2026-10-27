@@ -196,7 +196,7 @@ func (r *Recorder) coveredSplits(ctx context.Context, q Queries, user *uuid.UUID
 	}
 	var groups []splitGroup
 	for _, row := range rows {
-		sp := row.StatementSplit
+		sp := row.StmtSplit
 		inst, ok := r.instrumentOn(row.StatedKey, sp.EffectiveDate, tickers)
 		if !ok {
 			continue

@@ -20,7 +20,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/to"
 	"github.com/leedenison/stonks/server/internal/service/admin/page"
-	"github.com/leedenison/stonks/server/internal/statement"
+	"github.com/leedenison/stonks/server/internal/stmt"
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
@@ -32,7 +32,7 @@ type Queries interface {
 	ListRunAncestors(ctx context.Context, id uuid.UUID) ([]gen.ListRunAncestorsRow, error)
 	ListRunDescendants(ctx context.Context, parentID *uuid.UUID) ([]gen.ListRunDescendantsRow, error)
 	ListRunFindings(ctx context.Context, runIds []uuid.UUID) ([]gen.ListRunFindingsRow, error)
-	ListStatementItems(ctx context.Context, arg gen.ListStatementItemsParams) ([]gen.StatementItem, error)
+	ListStmtItems(ctx context.Context, arg gen.ListStmtItemsParams) ([]gen.StmtItem, error)
 	ListResolutionItems(ctx context.Context, arg gen.ListResolutionItemsParams) ([]gen.ListResolutionItemsRow, error)
 	ListFetchItems(ctx context.Context, arg gen.ListFetchItemsParams) ([]gen.ListFetchItemsRow, error)
 	ListRunAssertions(ctx context.Context, arg gen.ListRunAssertionsParams) ([]gen.ListRunAssertionsRow, error)
@@ -259,13 +259,13 @@ func (s *Server) ListRunItems(ctx context.Context, req *connect.Request[adminrun
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInvalidArgument, err)
 		}
-		rows, err := s.queries.ListStatementItems(ctx, gen.ListStatementItemsParams{StatementID: run.ID, UserID: *run.UserID, After: after, Lim: &lim})
+		rows, err := s.queries.ListStmtItems(ctx, gen.ListStmtItemsParams{StmtID: run.ID, UserID: *run.UserID, After: after, Lim: &lim})
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInternal, err)
 		}
 		rows, more := page.Cut(p, rows)
 		for _, it := range rows {
-			item, err := statement.ItemToProto(it)
+			item, err := stmt.ItemToProto(it)
 			if err != nil {
 				return nil, connect.NewError(connect.CodeInternal, err)
 			}

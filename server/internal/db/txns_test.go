@@ -28,19 +28,19 @@ func date(y int, m time.Month, d int) time.Time { return time.Date(y, m, d, 0, 0
 
 // upsertKey states a key in statement the way an ingestion does and returns
 // the row, which may be an earlier statement's.
-func upsertKey(t *testing.T, q *gen.Queries, statement gen.Statement, arg gen.UpsertStatedKeyParams) gen.StatedKey {
+func upsertKey(t *testing.T, q *gen.Queries, stmt gen.Stmt, arg gen.UpsertStatedKeyParams) gen.StatedKey {
 	t.Helper()
-	arg.ID, arg.UserID = db.NewID(), statement.UserID
+	arg.ID, arg.UserID = db.NewID(), stmt.UserID
 	key, err := q.UpsertStatedKey(context.Background(), arg)
 	require.NoError(t, err)
-	link(t, q, statement, key)
+	link(t, q, stmt, key)
 	return key
 }
 
 // link records that statement states key, as an ingestion does.
-func link(t *testing.T, q *gen.Queries, statement gen.Statement, key gen.StatedKey) {
+func link(t *testing.T, q *gen.Queries, stmt gen.Stmt, key gen.StatedKey) {
 	t.Helper()
-	_, err := q.CreateStatementKeys(context.Background(), []gen.CreateStatementKeysParams{{StatementID: statement.ID, UserID: statement.UserID, StatedKeyID: key.ID}})
+	_, err := q.CreateStmtKeys(context.Background(), []gen.CreateStmtKeysParams{{StmtID: stmt.ID, UserID: stmt.UserID, StatedKeyID: key.ID}})
 	require.NoError(t, err)
 }
 
@@ -52,17 +52,17 @@ func TestStatedKeys(t *testing.T) {
 	q := newTx(t)
 	ctx := context.Background()
 	user, other := newUser(t, q, "keys@example.com"), newUser(t, q, "keys-other@example.com")
-	statement, later := newStatement(t, q, user), newStatement(t, q, user)
+	stmt, later := newStmt(t, q, user), newStmt(t, q, user)
 	cash := types.AssetClassCash
 	key := func(currency *string) gen.UpsertStatedKeyParams {
 		return gen.UpsertStatedKeyParams{AssetClass: &cash, Currency: currency, Identifiers: []types.Identifier{{Type: "system", Value: "cash"}}}
 	}
 
-	created := upsertKey(t, q, statement, key(ptr.To("USD")))
+	created := upsertKey(t, q, stmt, key(ptr.To("USD")))
 	if created.AssetClass == nil || *created.AssetClass != types.AssetClassCash {
 		t.Errorf("UpsertStatedKey = %+v, want asset class cash", created)
 	}
-	listed, err := q.ListStatedKeys(ctx, gen.ListStatedKeysParams{StatementID: statement.ID, UserID: user.ID})
+	listed, err := q.ListStatedKeys(ctx, gen.ListStatedKeysParams{StmtID: stmt.ID, UserID: user.ID})
 	require.NoError(t, err)
 	if diff := cmp.Diff([]gen.StatedKey{created}, listed); diff != "" {
 		t.Errorf("ListStatedKeys mismatch (-want +got):\n%s", diff)
@@ -71,18 +71,18 @@ func TestStatedKeys(t *testing.T) {
 	if again := upsertKey(t, q, later, key(ptr.To("USD"))); again.ID != created.ID {
 		t.Errorf("the same key under another statement = %s, want the row %s", again.ID, created.ID)
 	}
-	for _, st := range []gen.Statement{statement, later} {
-		listed, err := q.ListStatedKeys(ctx, gen.ListStatedKeysParams{StatementID: st.ID, UserID: user.ID})
+	for _, s := range []gen.Stmt{stmt, later} {
+		listed, err := q.ListStatedKeys(ctx, gen.ListStatedKeysParams{StmtID: s.ID, UserID: user.ID})
 		require.NoError(t, err)
 		if len(listed) != 1 || listed[0].ID != created.ID {
-			t.Errorf("ListStatedKeys(%s) = %+v, want the one key", st.ID, listed)
+			t.Errorf("ListStatedKeys(%s) = %+v, want the one key", s.ID, listed)
 		}
 	}
-	if theirs := upsertKey(t, q, newStatement(t, q, other), key(ptr.To("USD"))); theirs.ID == created.ID {
+	if theirs := upsertKey(t, q, newStmt(t, q, other), key(ptr.To("USD"))); theirs.ID == created.ID {
 		t.Errorf("the same key of another user = %s, want a row of their own", theirs.ID)
 	}
 	// A null currency is one value, so a restatement shares the row.
-	bare := upsertKey(t, q, statement, key(nil))
+	bare := upsertKey(t, q, stmt, key(nil))
 	if bare.ID == created.ID || upsertKey(t, q, later, key(nil)).ID != bare.ID {
 		t.Errorf("a key with no currency = %s, want a row apart from %s that a restatement shares", bare.ID, created.ID)
 	}
@@ -91,7 +91,7 @@ func TestStatedKeys(t *testing.T) {
 	arg := gen.SetStatedKeyAssociationParams{ID: created.ID, UserID: user.ID, InstrumentID: &usd.InstrumentID, ListingID: &usd.ID, ViaID: &via.ID, Arbiter: gen.ArbiterUser}
 	_, err = q.SetStatedKeyAssociation(ctx, arg)
 	require.NoError(t, err)
-	restated := upsertKey(t, q, newStatement(t, q, user), key(ptr.To("USD")))
+	restated := upsertKey(t, q, newStmt(t, q, user), key(ptr.To("USD")))
 	if restated.ID != created.ID || restated.InstrumentID == nil || *restated.InstrumentID != usd.InstrumentID || restated.Arbiter == nil || *restated.Arbiter != gen.ArbiterUser {
 		t.Errorf("an associated key upserted again = %+v, want its row with the association", restated)
 	}
@@ -108,14 +108,14 @@ func TestSweepStatedKeys(t *testing.T) {
 		tx := begin(t)
 		q := gen.New(tx)
 		user := newUser(t, q, "sweep@example.com")
-		statement, other := newStatement(t, q, user), newStatement(t, q, user)
-		run, err := q.GetRun(ctx, gen.GetRunParams{ID: statement.ID, UserID: &user.ID})
+		stmt, other := newStmt(t, q, user), newStmt(t, q, user)
+		run, err := q.GetRun(ctx, gen.GetRunParams{ID: stmt.ID, UserID: &user.ID})
 		require.NoError(t, err)
-		linked := newStatedKey(t, q, user, statement)
-		named := newStatedKey(t, q, user, statement)
-		names(t, q, statement, named)
+		linked := newStatedKey(t, q, user, stmt)
+		named := newStatedKey(t, q, user, stmt)
+		names(t, q, stmt, named)
 		orphan := newStatedKey(t, q, user, other)
-		resolution := newResolution(t, q, user, statement)
+		resolution := newResolution(t, q, user, stmt)
 		resolved(t, q, resolution, orphan, gen.ResolutionOutcomeUnavailable)
 		require.NoError(t, q.CreateFinding(ctx, gen.CreateFindingParams{ID: db.NewID(), RunID: resolution.ID, Kind: gen.FindingKindContradiction, StatedKeyID: &orphan.ID, Detail: ptr.To("two")}))
 		ds := newDatasource(t, q, "sweep", 10)
@@ -125,7 +125,7 @@ func TestSweepStatedKeys(t *testing.T) {
 		require.NoError(t, err)
 
 		// Deleting the other statement cascades the orphan's only link.
-		_, err = tx.Exec(ctx, "DELETE FROM statements WHERE id = $1", other.ID)
+		_, err = tx.Exec(ctx, "DELETE FROM stmts WHERE id = $1", other.ID)
 		require.NoError(t, err)
 		n, err := q.SweepStatedKeys(ctx, user.ID)
 		require.NoError(t, err)
@@ -161,12 +161,12 @@ func TestSweepStatedKeys(t *testing.T) {
 		tx := begin(t)
 		q := gen.New(tx)
 		user := newUser(t, q, "sweep-group@example.com")
-		statement, other := newStatement(t, q, user), newStatement(t, q, user)
+		stmt, other := newStmt(t, q, user), newStmt(t, q, user)
 		shared := types.Identifier{Type: types.IdentifierTypeIsin, Value: "US0000000001"}
 		root := upsertKey(t, q, other, gen.UpsertStatedKeyParams{Identifiers: []types.Identifier{shared}})
-		member := upsertKey(t, q, statement, gen.UpsertStatedKeyParams{Currency: ptr.To("USD"), Identifiers: []types.Identifier{shared}})
+		member := upsertKey(t, q, stmt, gen.UpsertStatedKeyParams{Currency: ptr.To("USD"), Identifiers: []types.Identifier{shared}})
 		names(t, q, other, root)
-		names(t, q, statement, member)
+		names(t, q, stmt, member)
 		require.NoError(t, q.LockUserKeys(ctx, user.ID))
 		require.NoError(t, group.Regroup(ctx, q, user.ID))
 		m, err := q.GetStatedKey(ctx, gen.GetStatedKeyParams{ID: member.ID, UserID: user.ID})
@@ -176,7 +176,7 @@ func TestSweepStatedKeys(t *testing.T) {
 		}
 
 		// The root's statement goes, with its transaction and link.
-		_, err = tx.Exec(ctx, "DELETE FROM statements WHERE id = $1", other.ID)
+		_, err = tx.Exec(ctx, "DELETE FROM stmts WHERE id = $1", other.ID)
 		require.NoError(t, err)
 		require.NoError(t, group.Regroup(ctx, q, user.ID))
 		n, err := q.SweepStatedKeys(ctx, user.ID)
@@ -198,12 +198,12 @@ func TestTxns(t *testing.T) {
 	q := newTx(t)
 	ctx := context.Background()
 	user := newUser(t, q, "txs@example.com")
-	statement := newStatement(t, q, user)
-	key := upsertKey(t, q, statement, gen.UpsertStatedKeyParams{Identifiers: []types.Identifier{{Type: "system", Value: "cash"}}})
+	stmt := newStmt(t, q, user)
+	key := upsertKey(t, q, stmt, gen.UpsertStatedKeyParams{Identifiers: []types.Identifier{{Type: "system", Value: "cash"}}})
 	create := func(broker gen.Broker, order time.Time, quantity string) gen.Txn {
 		t.Helper()
 		row, err := q.CreateTxn(ctx, gen.CreateTxnParams{
-			ID: db.NewID(), UserID: user.ID, Broker: broker, StatementID: statement.ID, StatedKeyID: key.ID,
+			ID: db.NewID(), UserID: user.ID, Broker: broker, StmtID: stmt.ID, StatedKeyID: key.ID,
 			OrderDate: order, SettlementDate: order.AddDate(0, 0, 2), AsAt: order,
 			Quantity: decimal.RequireFromString(quantity),
 		})
@@ -239,8 +239,8 @@ func TestStatedKeyAssociation(t *testing.T) {
 	t.Run("clears the group of a key that becomes associated", func(t *testing.T) {
 		q := newTx(t)
 		user := newUser(t, q, "grouped@example.com")
-		statement := newStatement(t, q, user)
-		one, two := newStatedKey(t, q, user, statement), newStatedKey(t, q, user, statement)
+		stmt := newStmt(t, q, user)
+		one, two := newStatedKey(t, q, user, stmt), newStatedKey(t, q, user, stmt)
 		require.NoError(t, q.SetStatedKeyGroups(ctx, gen.SetStatedKeyGroupsParams{UserID: user.ID, Ids: []uuid.UUID{one.ID, two.ID}, GroupIds: []uuid.UUID{one.ID, one.ID}}))
 		usd, via := cashListing(t, q, "USD")
 		arg := gen.SetStatedKeyAssociationParams{ID: two.ID, UserID: user.ID, InstrumentID: &usd.InstrumentID, ListingID: &usd.ID, ViaID: &via.ID, Arbiter: gen.ArbiterDatasource}
@@ -249,7 +249,7 @@ func TestStatedKeyAssociation(t *testing.T) {
 		if n != 1 {
 			t.Errorf("SetStatedKeyAssociation changed %d rows, want 1", n)
 		}
-		keys, err := q.ListStatedKeys(ctx, gen.ListStatedKeysParams{StatementID: statement.ID, UserID: user.ID})
+		keys, err := q.ListStatedKeys(ctx, gen.ListStatedKeysParams{StmtID: stmt.ID, UserID: user.ID})
 		require.NoError(t, err)
 		if len(keys) != 2 || keys[0].GroupID == nil || keys[1].GroupID != nil || keys[1].InstrumentID == nil {
 			t.Errorf("keys after association = %+v, want the first still grouped and the second associated with no group", keys)
@@ -259,14 +259,14 @@ func TestStatedKeyAssociation(t *testing.T) {
 	t.Run("leaves an associated key out of a group", func(t *testing.T) {
 		q := newTx(t)
 		user := newUser(t, q, "regrouped@example.com")
-		statement := newStatement(t, q, user)
-		one, two := newStatedKey(t, q, user, statement), newStatedKey(t, q, user, statement)
+		stmt := newStmt(t, q, user)
+		one, two := newStatedKey(t, q, user, stmt), newStatedKey(t, q, user, stmt)
 		usd, via := cashListing(t, q, "USD")
 		arg := gen.SetStatedKeyAssociationParams{ID: two.ID, UserID: user.ID, InstrumentID: &usd.InstrumentID, ListingID: &usd.ID, ViaID: &via.ID, Arbiter: gen.ArbiterDatasource}
 		_, err := q.SetStatedKeyAssociation(ctx, arg)
 		require.NoError(t, err)
 		require.NoError(t, q.SetStatedKeyGroups(ctx, gen.SetStatedKeyGroupsParams{UserID: user.ID, Ids: []uuid.UUID{one.ID, two.ID}, GroupIds: []uuid.UUID{one.ID, one.ID}}))
-		keys, err := q.ListStatedKeys(ctx, gen.ListStatedKeysParams{StatementID: statement.ID, UserID: user.ID})
+		keys, err := q.ListStatedKeys(ctx, gen.ListStatedKeysParams{StmtID: stmt.ID, UserID: user.ID})
 		require.NoError(t, err)
 		if len(keys) != 2 || keys[0].GroupID == nil || keys[1].GroupID != nil || keys[1].InstrumentID == nil {
 			t.Errorf("keys after regrouping = %+v, want the first grouped and the second associated with no group", keys)
@@ -292,8 +292,8 @@ func TestStatedKeyAssociation(t *testing.T) {
 			// Each violation aborts the transaction, so each case takes its own.
 			q := newTx(t)
 			user := newUser(t, q, "assoc-"+uuid.NewString()+"@example.com")
-			statement := newStatement(t, q, user)
-			key := upsertKey(t, q, statement, gen.UpsertStatedKeyParams{Identifiers: []types.Identifier{}})
+			stmt := newStmt(t, q, user)
+			key := upsertKey(t, q, stmt, gen.UpsertStatedKeyParams{Identifiers: []types.Identifier{}})
 			arg := tc.arg
 			arg.ID, arg.UserID = key.ID, user.ID
 			if _, err := q.SetStatedKeyAssociation(ctx, arg); err == nil {
@@ -305,8 +305,8 @@ func TestStatedKeyAssociation(t *testing.T) {
 	t.Run("an association the user arbitrated stands", func(t *testing.T) {
 		q := newTx(t)
 		user := newUser(t, q, "arbitrated@example.com")
-		statement := newStatement(t, q, user)
-		chosen := newStatedKey(t, q, user, statement)
+		stmt := newStmt(t, q, user)
+		chosen := newStatedKey(t, q, user, stmt)
 		usd, via := cashListing(t, q, "USD")
 		byUser := gen.SetStatedKeyAssociationParams{ID: chosen.ID, UserID: user.ID, InstrumentID: &usd.InstrumentID, ListingID: &usd.ID, ViaID: &via.ID, Arbiter: gen.ArbiterUser}
 		n, err := q.SetStatedKeyAssociation(ctx, byUser)
@@ -336,8 +336,8 @@ func TestStatedKeyAssociation(t *testing.T) {
 		tx := begin(t)
 		q := gen.New(tx)
 		user := newUser(t, q, "no-arbiter@example.com")
-		statement := newStatement(t, q, user)
-		key := newStatedKey(t, q, user, statement)
+		stmt := newStmt(t, q, user)
+		key := newStatedKey(t, q, user, stmt)
 		usd, via := cashListing(t, q, "USD")
 		_, err := tx.Exec(ctx, "UPDATE stated_keys SET instrument_id = $1, via_id = $2 WHERE id = $3", usd.InstrumentID, via.ID, key.ID)
 		if !sqlstate(err, pgerrcode.CheckViolation) {
@@ -359,8 +359,8 @@ func TestDatedAssociation(t *testing.T) {
 		tx := begin(t)
 		q := gen.New(tx)
 		user := newUser(t, q, "dated@example.com")
-		statement := newStatement(t, q, user)
-		key := newStatedKey(t, q, user, statement)
+		stmt := newStmt(t, q, user)
+		key := newStatedKey(t, q, user, stmt)
 		usd, via := cashListing(t, q, "USD")
 		_, err := q.SetStatedKeyAssociation(ctx, gen.SetStatedKeyAssociationParams{ID: key.ID, UserID: user.ID, InstrumentID: &usd.InstrumentID, ListingID: &usd.ID, ViaID: &via.ID, Arbiter: gen.ArbiterStated})
 		require.NoError(t, err)
@@ -410,7 +410,7 @@ func TestDatedAssociation(t *testing.T) {
 			tx := begin(t)
 			q := gen.New(tx)
 			user := newUser(t, q, "dated-"+uuid.NewString()+"@example.com")
-			key := newStatedKey(t, q, user, newStatement(t, q, user))
+			key := newStatedKey(t, q, user, newStmt(t, q, user))
 			if _, err := tx.Exec(ctx, tc.sql, key.ID); !sqlstate(err, pgerrcode.CheckViolation) {
 				t.Errorf("%s: err = %v, want a check violation", tc.name, err)
 			}
@@ -421,7 +421,7 @@ func TestDatedAssociation(t *testing.T) {
 		tx := begin(t)
 		q := gen.New(tx)
 		user := newUser(t, q, "dated-fixed@example.com")
-		key := newStatedKey(t, q, user, newStatement(t, q, user))
+		key := newStatedKey(t, q, user, newStmt(t, q, user))
 		usd, via := cashListing(t, q, "USD")
 		_, err := tx.Exec(ctx, "UPDATE stated_keys SET instrument_id = $1, via_id = $2, via_type = 'mic_ticker', via_domain = 'XNAS', via_value = 'META', arbiter = 'stated' WHERE id = $3", usd.InstrumentID, via.ID, key.ID)
 		if !sqlstate(err, pgerrcode.CheckViolation) {
@@ -437,12 +437,12 @@ func TestListKeyDates(t *testing.T) {
 	ctx := context.Background()
 	q := newTx(t)
 	user := newUser(t, q, "dates@example.com")
-	statement := newStatement(t, q, user)
-	one, two, other := newStatedKey(t, q, user, statement), newStatedKey(t, q, user, statement), newStatedKey(t, q, user, statement)
+	stmt := newStmt(t, q, user)
+	one, two, other := newStatedKey(t, q, user, stmt), newStatedKey(t, q, user, stmt), newStatedKey(t, q, user, stmt)
 	trade := func(key gen.StatedKey, on time.Time) {
 		t.Helper()
 		_, err := q.CreateTxn(ctx, gen.CreateTxnParams{
-			ID: db.NewID(), UserID: user.ID, Broker: gen.BrokerIbkr, StatementID: statement.ID, StatedKeyID: key.ID,
+			ID: db.NewID(), UserID: user.ID, Broker: gen.BrokerIbkr, StmtID: stmt.ID, StatedKeyID: key.ID,
 			OrderDate: on.AddDate(0, 0, -7), SettlementDate: on, AsAt: on, Quantity: decimal.NewFromInt(1),
 		})
 		require.NoError(t, err)
@@ -467,37 +467,37 @@ func TestListKeyDates(t *testing.T) {
 	}
 }
 
-// TestListStatementTxns checks the order of a statement's
+// TestListStmtTxns checks the order of a statement's
 // transactions, the via type of a fixed key and of a dated key, and that
 // another statement's transactions and another user's are left out.
-func TestListStatementTxns(t *testing.T) {
+func TestListStmtTxns(t *testing.T) {
 	ctx := context.Background()
 	q := newTx(t)
 	user := newUser(t, q, "statement-txns@example.com")
-	statement, later := newStatement(t, q, user), newStatement(t, q, user)
-	fixed, dated, bare := newStatedKey(t, q, user, statement), newStatedKey(t, q, user, statement), newStatedKey(t, q, user, later)
+	stmt, later := newStmt(t, q, user), newStmt(t, q, user)
+	fixed, dated, bare := newStatedKey(t, q, user, stmt), newStatedKey(t, q, user, stmt), newStatedKey(t, q, user, later)
 	usd, via := cashListing(t, q, "USD")
 	_, err := q.SetStatedKeyAssociation(ctx, gen.SetStatedKeyAssociationParams{ID: fixed.ID, UserID: user.ID, InstrumentID: &usd.InstrumentID, ListingID: &usd.ID, ViaID: &via.ID, Arbiter: gen.ArbiterStated})
 	require.NoError(t, err)
 	_, err = q.SetStatedKeyDatedAssociation(ctx, gen.SetStatedKeyDatedAssociationParams{ID: dated.ID, UserID: user.ID, ViaDomain: "XNAS", ViaValue: "META", Arbiter: gen.ArbiterDatasource})
 	require.NoError(t, err)
-	trade := func(st gen.Statement, key gen.StatedKey, on time.Time) gen.Txn {
+	trade := func(s gen.Stmt, key gen.StatedKey, on time.Time) gen.Txn {
 		t.Helper()
 		row, err := q.CreateTxn(ctx, gen.CreateTxnParams{
-			ID: db.NewID(), UserID: user.ID, Broker: gen.BrokerIbkr, StatementID: st.ID, StatedKeyID: key.ID,
+			ID: db.NewID(), UserID: user.ID, Broker: gen.BrokerIbkr, StmtID: s.ID, StatedKeyID: key.ID,
 			OrderDate: on, SettlementDate: on, AsAt: on, Quantity: decimal.NewFromInt(1),
 		})
 		require.NoError(t, err)
 		return row
 	}
-	second := trade(statement, dated, date(2024, 1, 16))
-	first := trade(statement, fixed, date(2021, 6, 1))
+	second := trade(stmt, dated, date(2024, 1, 16))
+	first := trade(stmt, fixed, date(2021, 6, 1))
 	trade(later, bare, date(2020, 1, 2))
 
-	rows, err := q.ListStatementTxns(ctx, gen.ListStatementTxnsParams{StatementID: statement.ID, UserID: user.ID})
+	rows, err := q.ListStmtTxns(ctx, gen.ListStmtTxnsParams{StmtID: stmt.ID, UserID: user.ID})
 	require.NoError(t, err)
 	if len(rows) != 2 || rows[0].Txn.ID != first.ID || rows[1].Txn.ID != second.ID {
-		t.Fatalf("ListStatementTxns = %+v, want the fixed key's trade then the dated key's", rows)
+		t.Fatalf("ListStmtTxns = %+v, want the fixed key's trade then the dated key's", rows)
 	}
 	if rows[0].StatedKey.ID != fixed.ID || rows[0].FixedViaType == nil || *rows[0].FixedViaType != types.IdentifierTypeCurrency {
 		t.Errorf("fixed row = key %s via %v, want key %s via currency", rows[0].StatedKey.ID, rows[0].FixedViaType, fixed.ID)
@@ -505,8 +505,8 @@ func TestListStatementTxns(t *testing.T) {
 	if rows[1].StatedKey.ID != dated.ID || rows[1].FixedViaType != nil || rows[1].StatedKey.ViaValue == nil || *rows[1].StatedKey.ViaValue != "META" {
 		t.Errorf("dated row = key %s via %v, want key %s dated through META with no fixed via type", rows[1].StatedKey.ID, rows[1].FixedViaType, dated.ID)
 	}
-	if rows, err := q.ListStatementTxns(ctx, gen.ListStatementTxnsParams{StatementID: statement.ID, UserID: db.NewID()}); err != nil || len(rows) != 0 {
-		t.Errorf("ListStatementTxns as another user = %+v, %v, want none", rows, err)
+	if rows, err := q.ListStmtTxns(ctx, gen.ListStmtTxnsParams{StmtID: stmt.ID, UserID: db.NewID()}); err != nil || len(rows) != 0 {
+		t.Errorf("ListStmtTxns as another user = %+v, %v, want none", rows, err)
 	}
 }
 
@@ -519,29 +519,29 @@ func TestListUnassociatedKeysStating(t *testing.T) {
 	ctx := context.Background()
 	q := newTx(t)
 	user, other := newUser(t, q, "stating@example.com"), newUser(t, q, "stating-other@example.com")
-	statement, theirs := newStatement(t, q, user), newStatement(t, q, other)
-	stating := func(st gen.Statement, ids ...types.Identifier) gen.StatedKey {
+	stmt, theirs := newStmt(t, q, user), newStmt(t, q, other)
+	stating := func(s gen.Stmt, ids ...types.Identifier) gen.StatedKey {
 		t.Helper()
-		key := upsertKey(t, q, st, gen.UpsertStatedKeyParams{Identifiers: ids})
-		names(t, q, st, key)
+		key := upsertKey(t, q, s, gen.UpsertStatedKeyParams{Identifiers: ids})
+		names(t, q, s, key)
 		return key
 	}
 	meta := types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "META"}
 	descr := types.Identifier{Type: types.IdentifierTypeBrokerDescription, Domain: "ibkr", Value: "META PLATFORMS " + uuid.NewString()}
-	mine := stating(statement, descr, meta)
+	mine := stating(stmt, descr, meta)
 	theirsKey := stating(theirs, meta)
-	aapl := stating(statement, types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "AAPL"})
-	stating(statement, types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XNYS", Value: "IBM"})
-	upsertKey(t, q, statement, gen.UpsertStatedKeyParams{Identifiers: []types.Identifier{meta, {Type: types.IdentifierTypeMicTicker, Value: "META"}}})
+	aapl := stating(stmt, types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "AAPL"})
+	stating(stmt, types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XNYS", Value: "IBM"})
+	upsertKey(t, q, stmt, gen.UpsertStatedKeyParams{Identifiers: []types.Identifier{meta, {Type: types.IdentifierTypeMicTicker, Value: "META"}}})
 	usd, via := cashListing(t, q, "USD")
-	fixed := stating(statement, meta, types.Identifier{Type: types.IdentifierTypeBrokerDescription, Domain: "ibkr", Value: "fixed " + uuid.NewString()})
+	fixed := stating(stmt, meta, types.Identifier{Type: types.IdentifierTypeBrokerDescription, Domain: "ibkr", Value: "fixed " + uuid.NewString()})
 	_, err := q.SetStatedKeyAssociation(ctx, gen.SetStatedKeyAssociationParams{ID: fixed.ID, UserID: user.ID, InstrumentID: &usd.InstrumentID, ListingID: &usd.ID, ViaID: &via.ID, Arbiter: gen.ArbiterStated})
 	require.NoError(t, err)
-	datedKey := stating(statement, meta, types.Identifier{Type: types.IdentifierTypeBrokerDescription, Domain: "ibkr", Value: "dated " + uuid.NewString()})
+	datedKey := stating(stmt, meta, types.Identifier{Type: types.IdentifierTypeBrokerDescription, Domain: "ibkr", Value: "dated " + uuid.NewString()})
 	_, err = q.SetStatedKeyDatedAssociation(ctx, gen.SetStatedKeyDatedAssociationParams{ID: datedKey.ID, UserID: user.ID, ViaDomain: "XNAS", ViaValue: "META", Arbiter: gen.ArbiterStated})
 	require.NoError(t, err)
-	resolution := newResolution(t, q, user, statement)
-	just := stating(statement, meta, types.Identifier{Type: types.IdentifierTypeBrokerDescription, Domain: "ibkr", Value: "just " + uuid.NewString()})
+	resolution := newResolution(t, q, user, stmt)
+	just := stating(stmt, meta, types.Identifier{Type: types.IdentifierTypeBrokerDescription, Domain: "ibkr", Value: "just " + uuid.NewString()})
 	resolved(t, q, resolution, just, gen.ResolutionOutcomeUnrecognised)
 
 	// A domain probe leaves the value out, so it matches any ticker.

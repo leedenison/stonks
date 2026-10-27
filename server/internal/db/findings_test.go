@@ -27,11 +27,11 @@ func TestFindings(t *testing.T) {
 	ctx := context.Background()
 	q := newTx(t)
 	user := newUser(t, q, "findings@example.com")
-	statement := newStatement(t, q, user)
-	run, err := q.GetRun(ctx, gen.GetRunParams{ID: statement.ID, UserID: &user.ID})
+	stmt := newStmt(t, q, user)
+	run, err := q.GetRun(ctx, gen.GetRunParams{ID: stmt.ID, UserID: &user.ID})
 	require.NoError(t, err)
 	fetch := newFetch(t, q, user, run, newDatasource(t, q, "findings", 10))
-	key := newStatedKey(t, q, user, statement)
+	key := newStatedKey(t, q, user, stmt)
 	fetchKey := servedKey(t, q, fetch, key, "GB00B03MLX29")
 
 	dropped := gen.CreateFindingParams{
@@ -109,10 +109,10 @@ func TestFindings(t *testing.T) {
 			// Each violation aborts the transaction, so each case takes its own.
 			q := newTx(t)
 			user := newUser(t, q, "findings-"+uuid.NewString()+"@example.com")
-			statement := newStatement(t, q, user)
-			run, err := q.GetRun(ctx, gen.GetRunParams{ID: statement.ID, UserID: &user.ID})
+			stmt := newStmt(t, q, user)
+			run, err := q.GetRun(ctx, gen.GetRunParams{ID: stmt.ID, UserID: &user.ID})
 			require.NoError(t, err)
-			key := newStatedKey(t, q, user, statement)
+			key := newStatedKey(t, q, user, stmt)
 			tc.arg.ID, tc.arg.RunID = db.NewID(), run.ID
 			switch tc.arg.Kind {
 			case gen.FindingKindDropped, gen.FindingKindContradiction, gen.FindingKindMerged, gen.FindingKindUnmatchedSplit:

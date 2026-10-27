@@ -153,15 +153,15 @@ func ProtoTxn(txn gen.Txn, m statementv1.TxnMark) *statementv1.Txn {
 	}
 }
 
-// ProtoStatementSummary writes a statement, its run and its count of
+// ProtoStmtSummary writes a statement, its run and its count of
 // rejected rows as a summary.
-func ProtoStatementSummary(st gen.Statement, run gen.Run, rejected int32) *statementv1.StatementSummary {
+func ProtoStmtSummary(stmt gen.Stmt, run gen.Run, rejected int32) *statementv1.StatementSummary {
 	return &statementv1.StatementSummary{
 		Run:         ProtoRun(run),
-		Broker:      types.ToProto[typev1.Broker](st.Broker),
-		OrderFrom:   st.OrderFrom.Format("2006-01-02"),
-		OrderBefore: st.OrderBefore.Format("2006-01-02"),
-		Rows:        st.RowCount,
+		Broker:      types.ToProto[typev1.Broker](stmt.Broker),
+		OrderFrom:   stmt.OrderFrom.Format("2006-01-02"),
+		OrderBefore: stmt.OrderBefore.Format("2006-01-02"),
+		Rows:        stmt.RowCount,
 		Rejected:    rejected,
 	}
 }

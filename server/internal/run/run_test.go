@@ -503,7 +503,7 @@ func TestPrepare(t *testing.T) {
 }
 
 func TestSweep(t *testing.T) {
-	statement := gen.InterruptRunsRow{Kind: gen.RunKindIngestStmt, Trigger: gen.RunTriggerUser}
+	stmt := gen.InterruptRunsRow{Kind: gen.RunKindIngestStmt, Trigger: gen.RunTriggerUser}
 	fetch := gen.InterruptRunsRow{Kind: gen.RunKindDatasourceFetch, Trigger: gen.RunTriggerRun}
 	tests := []struct {
 		name    string
@@ -513,7 +513,7 @@ func TestSweep(t *testing.T) {
 		want    map[string]int64
 	}{
 		{name: "none", want: map[string]int64{}},
-		{name: "some", rows: []gen.InterruptRunsRow{statement, fetch, fetch}, want: map[string]int64{
+		{name: "some", rows: []gen.InterruptRunsRow{stmt, fetch, fetch}, want: map[string]int64{
 			"stonks.runs{kind=ingest_stmt,outcome=interrupted,trigger=user}":     1,
 			"stonks.runs{kind=datasource_fetch,outcome=interrupted,trigger=run}": 2,
 		}},

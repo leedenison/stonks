@@ -19,7 +19,7 @@ import (
 
 // owned is every table whose rows a user's runs write.
 var owned = []string{
-	"runs", "statements", "stated_keys", "statement_keys", "statement_items", "statement_splits", "txns",
+	"runs", "stmts", "stated_keys", "stmt_keys", "stmt_items", "stmt_splits", "txns",
 	"resolution_keys", "fetches", "fetch_keys", "identifier_assertions", "identifier_events",
 	"identifier_event_coverage", "identity_coverage",
 	"datasource_blocks", "findings", "replays",
@@ -38,15 +38,15 @@ func TestDeleteUserCascades(t *testing.T) {
 			q := gen.New(tx)
 			user := newUser(t, q, "cascade-"+uuid.NewString()+"@example.com")
 			admin := newUser(t, q, "cascade-admin-"+uuid.NewString()+"@example.com")
-			statement := newStatement(t, q, user)
-			run, err := q.GetRun(ctx, gen.GetRunParams{ID: statement.ID, UserID: &user.ID})
+			stmt := newStmt(t, q, user)
+			run, err := q.GetRun(ctx, gen.GetRunParams{ID: stmt.ID, UserID: &user.ID})
 			require.NoError(t, err)
-			one, two := newStatedKey(t, q, user, statement), newStatedKey(t, q, user, statement)
+			one, two := newStatedKey(t, q, user, stmt), newStatedKey(t, q, user, stmt)
 			require.NoError(t, q.SetStatedKeyGroups(ctx, gen.SetStatedKeyGroupsParams{UserID: user.ID, Ids: []uuid.UUID{one.ID, two.ID}, GroupIds: []uuid.UUID{one.ID, one.ID}}))
-			names(t, q, statement, one)
-			require.NoError(t, q.CreateStatementItem(ctx, gen.CreateStatementItemParams{StatementID: statement.ID, UserID: user.ID, Ordinal: 1, Reason: "r", Stated: []byte(`{}`)}))
-			require.NoError(t, q.CreateStatementSplit(ctx, gen.CreateStatementSplitParams{StatementID: statement.ID, UserID: user.ID, Ordinal: 0, StatedKeyID: one.ID, EffectiveDate: date(2026, 3, 1), Quantity: decimal.NewFromInt(1)}))
-			resolved(t, q, newResolution(t, q, user, statement), one, gen.ResolutionOutcomeUnavailable)
+			names(t, q, stmt, one)
+			require.NoError(t, q.CreateStmtItem(ctx, gen.CreateStmtItemParams{StmtID: stmt.ID, UserID: user.ID, Ordinal: 1, Reason: "r", Stated: []byte(`{}`)}))
+			require.NoError(t, q.CreateStmtSplit(ctx, gen.CreateStmtSplitParams{StmtID: stmt.ID, UserID: user.ID, Ordinal: 0, StatedKeyID: one.ID, EffectiveDate: date(2026, 3, 1), Quantity: decimal.NewFromInt(1)}))
+			resolved(t, q, newResolution(t, q, user, stmt), one, gen.ResolutionOutcomeUnavailable)
 
 			ds := newDatasource(t, q, "cascade", 10)
 			fetch := newFetch(t, q, user, run, ds)

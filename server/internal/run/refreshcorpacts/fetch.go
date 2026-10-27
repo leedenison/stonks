@@ -13,25 +13,25 @@ import (
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
-// AfterStatement fetches the corporate actions of the tickers of the held
+// AfterStmt fetches the corporate actions of the tickers of the held
 // instruments of statement's user, beneath statement. A failure is logged,
 // and the statement's outcome stands.
-func (s *Service) AfterStatement(ctx context.Context, statement gen.Run) {
-	if statement.UserID == nil {
+func (s *Service) AfterStmt(ctx context.Context, stmt gen.Run) {
+	if stmt.UserID == nil {
 		return
 	}
-	user := *statement.UserID
+	user := *stmt.UserID
 	hs, err := s.heldInstruments(ctx)
 	if err != nil {
-		s.log.Warn("corporate actions fetch after a statement failed", "run", statement.ID, "err", err)
+		s.log.Warn("corporate actions fetch after a statement failed", "run", stmt.ID, "err", err)
 		return
 	}
 	asks, err := s.requests(ctx, hs, func(_ uuid.UUID, h *held) bool { return slices.Contains(h.users, user) })
 	if err != nil {
-		s.log.Warn("corporate actions fetch after a statement failed", "run", statement.ID, "err", err)
+		s.log.Warn("corporate actions fetch after a statement failed", "run", stmt.ID, "err", err)
 		return
 	}
-	s.beneath(ctx, statement, asks)
+	s.beneath(ctx, stmt, asks)
 }
 
 // FetchAfterIdentifierFacts fetches the corporate actions of the tickers of

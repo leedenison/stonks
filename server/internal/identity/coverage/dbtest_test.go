@@ -25,10 +25,10 @@ func TestMain(m *testing.M) { dbtest.Main(m, &pool) }
 
 // fixture holds a user with one statement, so a key can take transactions.
 type fixture struct {
-	tx        pgx.Tx
-	q         *gen.Queries
-	user      gen.User
-	statement uuid.UUID
+	tx   pgx.Tx
+	q    *gen.Queries
+	user gen.User
+	stmt uuid.UUID
 }
 
 func newFixture(t *testing.T) *fixture {
@@ -42,8 +42,8 @@ func newFixture(t *testing.T) *fixture {
 	require.NoError(t, err)
 	run, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &f.user.ID, Kind: gen.RunKindIngestStmt, Trigger: gen.RunTriggerUser})
 	require.NoError(t, err)
-	f.statement = run.ID
-	f.exec(t, "INSERT INTO statements (id, user_id, broker, order_from, order_before, row_count) VALUES ($1, $2, 'ibkr', $3, $4, 1)", run.ID, f.user.ID, day(1), day(31))
+	f.stmt = run.ID
+	f.exec(t, "INSERT INTO stmts (id, user_id, broker, order_from, order_before, row_count) VALUES ($1, $2, 'ibkr', $3, $4, 1)", run.ID, f.user.ID, day(1), day(31))
 	return f
 }
 
@@ -59,7 +59,7 @@ func (f *fixture) key(t *testing.T, domain, value string, days ...int) uuid.UUID
 	id := db.NewID()
 	f.exec(t, `INSERT INTO stated_keys (id, user_id, identifiers) VALUES ($1, $2, jsonb_build_array(jsonb_build_object('type', 'mic_ticker', 'domain', $3::text, 'value', $4::text)))`, id, f.user.ID, domain, value)
 	for _, n := range days {
-		f.exec(t, "INSERT INTO txns (id, user_id, broker, statement_id, stated_key_id, order_date, settlement_date, as_at, quantity) VALUES ($1, $2, 'ibkr', $3, $4, $5, $5, $5, 1)", db.NewID(), f.user.ID, f.statement, id, day(n))
+		f.exec(t, "INSERT INTO txns (id, user_id, broker, stmt_id, stated_key_id, order_date, settlement_date, as_at, quantity) VALUES ($1, $2, 'ibkr', $3, $4, $5, $5, $5, 1)", db.NewID(), f.user.ID, f.stmt, id, day(n))
 	}
 	return id
 }
@@ -69,7 +69,7 @@ func (f *fixture) bareKey(t *testing.T, value string) {
 	t.Helper()
 	id := db.NewID()
 	f.exec(t, `INSERT INTO stated_keys (id, user_id, identifiers) VALUES ($1, $2, jsonb_build_array(jsonb_build_object('type', 'mic_ticker', 'value', $3::text)))`, id, f.user.ID, value)
-	f.exec(t, "INSERT INTO txns (id, user_id, broker, statement_id, stated_key_id, order_date, settlement_date, as_at, quantity) VALUES ($1, $2, 'ibkr', $3, $4, $5, $5, $5, 1)", db.NewID(), f.user.ID, f.statement, id, day(9))
+	f.exec(t, "INSERT INTO txns (id, user_id, broker, stmt_id, stated_key_id, order_date, settlement_date, as_at, quantity) VALUES ($1, $2, 'ibkr', $3, $4, $5, $5, $5, 1)", db.NewID(), f.user.ID, f.stmt, id, day(9))
 }
 
 // instrument returns an instrument whose listing carries value as a

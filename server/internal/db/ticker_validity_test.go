@@ -127,18 +127,18 @@ func TestListHeldTickers(t *testing.T) {
 	ctx := context.Background()
 	q := newTx(t)
 	user := newUser(t, q, "held@example.com")
-	statement := newStatement(t, q, user)
+	stmt := newStmt(t, q, user)
 	held := "HLD" + uuid.NewString()[:8]
 	idle := "IDL" + uuid.NewString()[:8]
 	stock, etf := types.AssetClassStock, types.AssetClassEtf
 	usd, gbp := "USD", "GBP"
 	dated := func(value string, class *types.AssetClass, currency *string, traded bool) gen.StatedKey {
 		t.Helper()
-		key := upsertKey(t, q, statement, gen.UpsertStatedKeyParams{AssetClass: class, Currency: currency, Identifiers: []types.Identifier{
+		key := upsertKey(t, q, stmt, gen.UpsertStatedKeyParams{AssetClass: class, Currency: currency, Identifiers: []types.Identifier{
 			{Type: types.IdentifierTypeBrokerDescription, Domain: "ibkr", Value: uuid.NewString()},
 		}})
 		if traded {
-			names(t, q, statement, key)
+			names(t, q, stmt, key)
 		}
 		_, err := q.SetStatedKeyDatedAssociation(ctx, gen.SetStatedKeyDatedAssociationParams{ID: key.ID, UserID: user.ID, ViaDomain: "XNAS", ViaValue: value, Arbiter: gen.ArbiterDatasource})
 		require.NoError(t, err)
@@ -147,8 +147,8 @@ func TestListHeldTickers(t *testing.T) {
 	dated(held, &stock, &usd, true)
 	dated(held, &etf, &gbp, true)
 	dated(idle, &stock, &usd, false)
-	fixed := newStatedKey(t, q, user, statement)
-	names(t, q, statement, fixed)
+	fixed := newStatedKey(t, q, user, stmt)
+	names(t, q, stmt, fixed)
 	listing, via := cashListing(t, q, "USD")
 	_, err := q.SetStatedKeyAssociation(ctx, gen.SetStatedKeyAssociationParams{ID: fixed.ID, UserID: user.ID, InstrumentID: &listing.InstrumentID, ListingID: &listing.ID, ViaID: &via.ID, Arbiter: gen.ArbiterStated})
 	require.NoError(t, err)

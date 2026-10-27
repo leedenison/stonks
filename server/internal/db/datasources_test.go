@@ -51,12 +51,12 @@ func newFetch(t *testing.T, q *gen.Queries, user gen.User, parent gen.Run, ds ge
 
 // newStatedKey records a key of user stating a description of its own,
 // linked to statement.
-func newStatedKey(t *testing.T, q *gen.Queries, user gen.User, statement gen.Statement) gen.StatedKey {
+func newStatedKey(t *testing.T, q *gen.Queries, user gen.User, stmt gen.Stmt) gen.StatedKey {
 	t.Helper()
-	if statement.UserID != user.ID {
-		t.Fatalf("statement %s is not %s's", statement.ID, user.ID)
+	if stmt.UserID != user.ID {
+		t.Fatalf("statement %s is not %s's", stmt.ID, user.ID)
 	}
-	return upsertKey(t, q, statement, gen.UpsertStatedKeyParams{
+	return upsertKey(t, q, stmt, gen.UpsertStatedKeyParams{
 		Identifiers: []types.Identifier{{Type: types.IdentifierTypeBrokerDescription, Domain: "ibkr", Value: uuid.NewString()}},
 	})
 }
@@ -78,24 +78,24 @@ var answered = time.Date(2026, time.March, 2, 10, 0, 0, 0, time.UTC)
 
 // fetching is a fetch on fresh rows, with the rows it needs.
 type fetching struct {
-	user      gen.User
-	statement gen.Statement
-	run       gen.Run
-	ds        gen.Datasource
-	fetch     gen.Fetch
-	key       gen.StatedKey
+	user  gen.User
+	stmt  gen.Stmt
+	run   gen.Run
+	ds    gen.Datasource
+	fetch gen.Fetch
+	key   gen.StatedKey
 }
 
 func newFetching(t *testing.T, q *gen.Queries) fetching {
 	t.Helper()
 	f := fetching{user: newUser(t, q, "fetching-"+uuid.NewString()+"@example.com")}
-	f.statement = newStatement(t, q, f.user)
+	f.stmt = newStmt(t, q, f.user)
 	var err error
-	f.run, err = q.GetRun(context.Background(), gen.GetRunParams{ID: f.statement.ID, UserID: &f.user.ID})
+	f.run, err = q.GetRun(context.Background(), gen.GetRunParams{ID: f.stmt.ID, UserID: &f.user.ID})
 	require.NoError(t, err)
 	f.ds = newDatasource(t, q, "fetching", 10)
 	f.fetch = newFetch(t, q, f.user, f.run, f.ds)
-	f.key = newStatedKey(t, q, f.user, f.statement)
+	f.key = newStatedKey(t, q, f.user, f.stmt)
 	return f
 }
 
@@ -184,9 +184,9 @@ func TestFetches(t *testing.T) {
 	q := newTx(t)
 	user := newUser(t, q, "fetches@example.com")
 	other := newUser(t, q, "fetches-other@example.com")
-	statement := newStatement(t, q, user)
+	stmt := newStmt(t, q, user)
 	ds := newDatasource(t, q, "fetches", 10)
-	run, err := q.GetRun(ctx, gen.GetRunParams{ID: statement.ID, UserID: &user.ID})
+	run, err := q.GetRun(ctx, gen.GetRunParams{ID: stmt.ID, UserID: &user.ID})
 	require.NoError(t, err)
 
 	fetch := newFetch(t, q, user, run, ds)

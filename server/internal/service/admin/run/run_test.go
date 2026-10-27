@@ -110,7 +110,7 @@ func TestListRuns(t *testing.T) {
 	childMsg := runMsg(child, runv1.RunKind_RUN_KIND_RESOLVE_STMT_KEYS)
 	childMsg.Run.ParentId = ptr.To(first.String())
 	nestedMsg.Children = []*adminrunv1.UserRun{childMsg}
-	statement := gen.RunKindIngestStmt
+	stmt := gen.RunKindIngestStmt
 	resolution := gen.RunKindResolveStmtKeys
 	administrator := gen.RunTriggerAdministrator
 	tests := []struct {
@@ -139,7 +139,7 @@ func TestListRuns(t *testing.T) {
 				Kind: runv1.RunKind_RUN_KIND_INGEST_STMT.Enum(), Trigger: runv1.RunTrigger_RUN_TRIGGER_ADMINISTRATOR.Enum(),
 				UserId: ptr.To(userID.String()), PageSize: 2, PageToken: runID.String(),
 			},
-			wantArg: gen.ListUserRunsParams{Kind: &statement, Trigger: &administrator, UserID: &userID, Before: &runID, Lim: 3},
+			wantArg: gen.ListUserRunsParams{Kind: &stmt, Trigger: &administrator, UserID: &userID, Before: &runID, Lim: 3},
 			rows:    rows(first, second, third),
 			want: &adminrunv1.ListRunsResponse{
 				Runs:          []*adminrunv1.UserRun{runMsg(first, runv1.RunKind_RUN_KIND_INGEST_STMT), runMsg(second, runv1.RunKind_RUN_KIND_INGEST_STMT)},
@@ -339,10 +339,10 @@ func TestGetRun(t *testing.T) {
 }
 
 func TestListRunItems(t *testing.T) {
-	statementItem := func(ordinal int32) gen.StatementItem {
-		return gen.StatementItem{Ordinal: ordinal, Reason: "no quantity", Stated: []byte(`{}`)}
+	stmtItem := func(ordinal int32) gen.StmtItem {
+		return gen.StmtItem{Ordinal: ordinal, Reason: "no quantity", Stated: []byte(`{}`)}
 	}
-	statementMsg := func(ordinal int32) *adminrunv1.RunItem {
+	stmtMsg := func(ordinal int32) *adminrunv1.RunItem {
 		return &adminrunv1.RunItem{Item: &adminrunv1.RunItem_Statement{Statement: &statementv1.StatementItem{Ordinal: ordinal, Reason: "no quantity", Row: &statementv1.Row{}}}}
 	}
 	three, fifty := int32(3), int32(page.DefaultSize+1)
@@ -359,20 +359,20 @@ func TestListRunItems(t *testing.T) {
 			kind: gen.RunKindIngestStmt,
 			req:  &adminrunv1.ListRunItemsRequest{PageSize: 2},
 			expect: func(r *mock.MockQueriesMockRecorder) {
-				r.ListStatementItems(gomock.Any(), gen.ListStatementItemsParams{StatementID: runID, UserID: userID, Lim: &three}).
-					Return([]gen.StatementItem{statementItem(1), statementItem(2), statementItem(3)}, nil)
+				r.ListStmtItems(gomock.Any(), gen.ListStmtItemsParams{StmtID: runID, UserID: userID, Lim: &three}).
+					Return([]gen.StmtItem{stmtItem(1), stmtItem(2), stmtItem(3)}, nil)
 			},
-			want: &adminrunv1.ListRunItemsResponse{Items: []*adminrunv1.RunItem{statementMsg(1), statementMsg(2)}, NextPageToken: "2"},
+			want: &adminrunv1.ListRunItemsResponse{Items: []*adminrunv1.RunItem{stmtMsg(1), stmtMsg(2)}, NextPageToken: "2"},
 		},
 		{
 			name: "a statement's last page",
 			kind: gen.RunKindIngestStmt,
 			req:  &adminrunv1.ListRunItemsRequest{PageSize: 2, PageToken: "2"},
 			expect: func(r *mock.MockQueriesMockRecorder) {
-				r.ListStatementItems(gomock.Any(), gen.ListStatementItemsParams{StatementID: runID, UserID: userID, After: ptr.To(int32(2)), Lim: &three}).
-					Return([]gen.StatementItem{statementItem(3)}, nil)
+				r.ListStmtItems(gomock.Any(), gen.ListStmtItemsParams{StmtID: runID, UserID: userID, After: ptr.To(int32(2)), Lim: &three}).
+					Return([]gen.StmtItem{stmtItem(3)}, nil)
 			},
-			want: &adminrunv1.ListRunItemsResponse{Items: []*adminrunv1.RunItem{statementMsg(3)}},
+			want: &adminrunv1.ListRunItemsResponse{Items: []*adminrunv1.RunItem{stmtMsg(3)}},
 		},
 		{
 			name: "a resolution",

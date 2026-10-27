@@ -24,7 +24,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/identity/resolve"
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/mic"
-	stmt "github.com/leedenison/stonks/server/internal/statement"
+	"github.com/leedenison/stonks/server/internal/stmt"
 	"github.com/leedenison/stonks/server/internal/testutil/dbtest"
 	"github.com/leedenison/stonks/server/internal/testutil/runtest"
 	"github.com/leedenison/stonks/server/internal/testutil/scripted"
@@ -44,11 +44,11 @@ type stack struct {
 	alpha *scripted.Identity
 	beta  *scripted.Identity
 	// alphaName and betaName are unique to the test.
-	alphaName  string
-	betaName   string
-	sources    *market.Registry
-	statements *stmt.Service
-	svc        *Service
+	alphaName string
+	betaName  string
+	sources   *market.Registry
+	stmts     *stmt.Service
+	svc       *Service
 }
 
 func newStack(t *testing.T) *stack {
@@ -84,7 +84,7 @@ func newStack(t *testing.T) *stack {
 	require.NoError(t, err)
 	resolver := resolve.New(db.New[resolve.Queries](tx), fetcher, s.sources, mics, families, clock, log)
 	s.svc = New(db.New[Queries](tx), runs, resolver, nopCorpActs{}, s.sources, mics, log)
-	s.statements = stmt.New(db.New[stmt.Queries](tx), runs, resolver, s.svc, nopCorpActs{}, families, clock, log)
+	s.stmts = stmt.New(db.New[stmt.Queries](tx), runs, resolver, s.svc, nopCorpActs{}, families, clock, log)
 	return s
 }
 
@@ -117,7 +117,7 @@ func (s *stack) ingest(t *testing.T) gen.Run {
 			{Key: cash, OrderDate: "2026-03-05", SettlementDate: "2026-03-05", AsAt: "2026-03-05", Quantity: "-1000"},
 		},
 	}
-	row, err := s.statements.Create(ctx, s.user.ID, msg)
+	row, err := s.stmts.Create(ctx, s.user.ID, msg)
 	require.NoError(t, err)
 	return s.run(t, row.ID)
 }
@@ -148,10 +148,10 @@ func (s *stack) resolution(t *testing.T, parent gen.Run) (gen.Run, []gen.ListRes
 	return children[0], items
 }
 
-// acme returns the stated key of the stock under statement.
-func (s *stack) acme(t *testing.T, statement gen.Run) gen.StatedKey {
+// acme returns the stated key of the stock that run ingested.
+func (s *stack) acme(t *testing.T, run gen.Run) gen.StatedKey {
 	t.Helper()
-	keys, err := s.q.ListStatedKeys(context.Background(), gen.ListStatedKeysParams{StatementID: statement.ID, UserID: s.user.ID})
+	keys, err := s.q.ListStatedKeys(context.Background(), gen.ListStatedKeysParams{StmtID: run.ID, UserID: s.user.ID})
 	require.NoError(t, err)
 	for _, k := range keys {
 		if slices.Contains(k.Identifiers, types.Identifier{Type: types.IdentifierTypeBrokerDescription, Domain: "ibkr", Value: "ACME CORP"}) {
@@ -183,10 +183,10 @@ func TestReplay(t *testing.T) {
 	s := newStack(t)
 	ctx := context.Background()
 	s.alpha.Down = true
-	statement := s.ingest(t)
-	require.Equal(t, gen.RunStateCompleted, statement.State)
-	_, items := s.resolution(t, statement)
-	key := s.acme(t, statement)
+	run := s.ingest(t)
+	require.Equal(t, gen.RunStateCompleted, run.State)
+	_, items := s.resolution(t, run)
+	key := s.acme(t, run)
 	if got := outcomeOf(items, key); got != gen.ResolutionOutcomeUnavailable {
 		t.Fatalf("outcome while down = %s, want unavailable", got)
 	}
@@ -200,7 +200,7 @@ func TestReplay(t *testing.T) {
 
 	s.alpha.Down = false
 	s.alpha.Responses[isin] = answer
-	row, err := s.svc.Start(ctx, s.admin.ID, statement, Scope{})
+	row, err := s.svc.Start(ctx, s.admin.ID, run, Scope{})
 	require.NoError(t, err)
 	replayed := s.run(t, row.ID)
 	if replayed.Kind != gen.RunKindReplayRun || replayed.Trigger != gen.RunTriggerAdministrator || replayed.State != gen.RunStateCompleted {
@@ -208,7 +208,7 @@ func TestReplay(t *testing.T) {
 	}
 	rep, err := s.q.GetReplay(ctx, row.ID)
 	require.NoError(t, err)
-	if rep.Replay.SourceID != statement.ID || rep.Replay.Datasource != nil || rep.StartedByEmail != s.admin.Email {
+	if rep.Replay.SourceID != run.ID || rep.Replay.Datasource != nil || rep.StartedByEmail != s.admin.Email {
 		t.Errorf("replays row = %+v, want the statement, no datasource and the administrator", rep)
 	}
 	resolution, items := s.resolution(t, replayed)
@@ -218,7 +218,7 @@ func TestReplay(t *testing.T) {
 	if fetches := s.children(t, resolution); len(fetches) != 1 || fetches[0].Kind != gen.RunKindDatasourceFetch {
 		t.Errorf("fetches of the replay = %+v, want one", fetches)
 	}
-	key = s.acme(t, statement)
+	key = s.acme(t, run)
 	if key.InstrumentID == nil || key.GroupID != nil {
 		t.Fatalf("key after the replay = %+v, want associated and ungrouped", key)
 	}
@@ -233,7 +233,7 @@ func TestReplay(t *testing.T) {
 	if len(groups) != 0 {
 		t.Errorf("group holdings after the replay = %+v, want none", groups)
 	}
-	if _, err := s.svc.Start(ctx, s.admin.ID, statement, Scope{}); !errors.Is(err, ErrEmpty) {
+	if _, err := s.svc.Start(ctx, s.admin.ID, run, Scope{}); !errors.Is(err, ErrEmpty) {
 		t.Errorf("second replay of the unavailable keys: err = %v, want %v", err, ErrEmpty)
 	}
 
@@ -245,7 +245,7 @@ func TestReplay(t *testing.T) {
 	if _, err := s.svc.Start(ctx, s.admin.ID, fetches[0], Scope{Datasource: s.betaName}); !errors.Is(err, ErrKind) {
 		t.Errorf("replay of a datasource fetch run: err = %v, want %v", err, ErrKind)
 	}
-	if _, err := s.svc.Start(ctx, s.admin.ID, statement, Scope{Datasource: "gamma"}); !errors.Is(err, ErrDisabled) {
+	if _, err := s.svc.Start(ctx, s.admin.ID, run, Scope{Datasource: "gamma"}); !errors.Is(err, ErrDisabled) {
 		t.Errorf("replay over gamma: err = %v, want %v", err, ErrDisabled)
 	}
 	row, err = s.svc.Start(ctx, s.admin.ID, resolution, Scope{Datasource: s.betaName})
@@ -269,7 +269,7 @@ func TestReplay(t *testing.T) {
 	if len(coverage) != 2 {
 		t.Errorf("coverage after the beta replay = %+v, want alpha and beta", coverage)
 	}
-	if _, err := s.svc.Start(ctx, s.admin.ID, statement, Scope{Datasource: s.betaName}); !errors.Is(err, ErrEmpty) {
+	if _, err := s.svc.Start(ctx, s.admin.ID, run, Scope{Datasource: s.betaName}); !errors.Is(err, ErrEmpty) {
 		t.Errorf("second replay over beta: err = %v, want %v", err, ErrEmpty)
 	}
 }
@@ -292,9 +292,9 @@ func (s *stack) stateTicker(t *testing.T, user gen.User, month time.Month, ticke
 		Broker: typev1.Broker_BROKER_IBKR, OrderFrom: from.Format(time.DateOnly), OrderBefore: from.AddDate(0, 1, 0).Format(time.DateOnly),
 		Rows: []*statementv1.Row{{Key: key, OrderDate: on, SettlementDate: on, AsAt: on, Quantity: "10"}},
 	}
-	row, err := s.statements.Create(ctx, user.ID, msg)
+	row, err := s.stmts.Create(ctx, user.ID, msg)
 	require.NoError(t, err)
-	keys, err := s.q.ListStatedKeys(ctx, gen.ListStatedKeysParams{StatementID: row.ID, UserID: user.ID})
+	keys, err := s.q.ListStatedKeys(ctx, gen.ListStatedKeysParams{StmtID: row.ID, UserID: user.ID})
 	require.NoError(t, err)
 	require.Len(t, keys, 1)
 	return row, keys[0]
@@ -507,4 +507,4 @@ type nopCorpActs struct{}
 func (nopCorpActs) FetchAfterIdentifierFacts(context.Context, gen.Run, []resolve.WrittenIdentifierFacts) {
 }
 
-func (nopCorpActs) AfterStatement(context.Context, gen.Run) {}
+func (nopCorpActs) AfterStmt(context.Context, gen.Run) {}

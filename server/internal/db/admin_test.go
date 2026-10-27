@@ -27,9 +27,9 @@ func TestListUserRuns(t *testing.T) {
 	q := newTx(t)
 	owner := newUser(t, q, "admin-runs-owner@example.com")
 	admin := newUser(t, q, "admin-runs-admin@example.com")
-	statement := newRun(t, q, owner)
+	stmt := newRun(t, q, owner)
 	child, err := q.CreateRun(ctx, gen.CreateRunParams{
-		ID: db.NewID(), UserID: &owner.ID, Kind: gen.RunKindResolveStmtKeys, Trigger: gen.RunTriggerRun, ParentID: &statement.ID,
+		ID: db.NewID(), UserID: &owner.ID, Kind: gen.RunKindResolveStmtKeys, Trigger: gen.RunTriggerRun, ParentID: &stmt.ID,
 	})
 	require.NoError(t, err)
 	started, err := q.CreateRun(ctx, gen.CreateRunParams{
@@ -61,12 +61,12 @@ func TestListUserRuns(t *testing.T) {
 		arg  gen.ListUserRunsParams
 		want []uuid.UUID
 	}{
-		{name: "user, the top-level run then its child", arg: gen.ListUserRunsParams{UserID: &owner.ID}, want: []uuid.UUID{statement.ID, child.ID}},
-		{name: "kind, the match under the path to it", arg: gen.ListUserRunsParams{UserID: &owner.ID, Kind: &resolution}, want: []uuid.UUID{statement.ID, child.ID}},
+		{name: "user, the top-level run then its child", arg: gen.ListUserRunsParams{UserID: &owner.ID}, want: []uuid.UUID{stmt.ID, child.ID}},
+		{name: "kind, the match under the path to it", arg: gen.ListUserRunsParams{UserID: &owner.ID, Kind: &resolution}, want: []uuid.UUID{stmt.ID, child.ID}},
 		{name: "trigger", arg: gen.ListUserRunsParams{Trigger: &administrator, UserID: &admin.ID}, want: []uuid.UUID{started.ID}},
-		{name: "state", arg: gen.ListUserRunsParams{UserID: &owner.ID, State: &pending}, want: []uuid.UUID{statement.ID, child.ID}},
-		{name: "first page holds a whole family", arg: gen.ListUserRunsParams{UserID: &owner.ID, Lim: 1}, want: []uuid.UUID{statement.ID, child.ID}},
-		{name: "next page", arg: gen.ListUserRunsParams{UserID: &owner.ID, Before: &statement.ID}, want: nil},
+		{name: "state", arg: gen.ListUserRunsParams{UserID: &owner.ID, State: &pending}, want: []uuid.UUID{stmt.ID, child.ID}},
+		{name: "first page holds a whole family", arg: gen.ListUserRunsParams{UserID: &owner.ID, Lim: 1}, want: []uuid.UUID{stmt.ID, child.ID}},
+		{name: "next page", arg: gen.ListUserRunsParams{UserID: &owner.ID, Before: &stmt.ID}, want: nil},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -77,26 +77,26 @@ func TestListUserRuns(t *testing.T) {
 	}
 
 	byKind := list(gen.ListUserRunsParams{UserID: &owner.ID, Kind: &resolution})
-	if byKind[0].Matched || !byKind[1].Matched || byKind[0].RootID != statement.ID || byKind[1].RootID != statement.ID {
+	if byKind[0].Matched || !byKind[1].Matched || byKind[0].RootID != stmt.ID || byKind[1].RootID != stmt.ID {
 		t.Errorf("ListUserRuns by kind = %+v, want the statement unmatched and the child matched, both under the statement", byKind)
 	}
 
 	ancestors, err := q.ListRunAncestors(ctx, child.ID)
 	require.NoError(t, err)
-	if len(ancestors) != 1 || ancestors[0].Run.ID != statement.ID || ancestors[0].Email == nil || *ancestors[0].Email != owner.Email {
+	if len(ancestors) != 1 || ancestors[0].Run.ID != stmt.ID || ancestors[0].Email == nil || *ancestors[0].Email != owner.Email {
 		t.Errorf("ListRunAncestors(child) = %+v, want the statement with its user", ancestors)
 	}
-	if top, err := q.ListRunAncestors(ctx, statement.ID); err != nil || len(top) != 0 {
+	if top, err := q.ListRunAncestors(ctx, stmt.ID); err != nil || len(top) != 0 {
 		t.Errorf("ListRunAncestors(top-level) = %v, %v, want none", top, err)
 	}
-	descendants, err := q.ListRunDescendants(ctx, &statement.ID)
+	descendants, err := q.ListRunDescendants(ctx, &stmt.ID)
 	require.NoError(t, err)
 	if len(descendants) != 1 || descendants[0].Run.ID != child.ID || descendants[0].Email == nil || *descendants[0].Email != owner.Email {
 		t.Errorf("ListRunDescendants(statement) = %+v, want the child with its user", descendants)
 	}
 
 	all := ids(list(gen.ListUserRunsParams{}))
-	for _, id := range []uuid.UUID{statement.ID, child.ID, started.ID} {
+	for _, id := range []uuid.UUID{stmt.ID, child.ID, started.ID} {
 		if !slices.Contains(all, id) {
 			t.Errorf("ListUserRuns with no filter = %v, want it to include %s", all, id)
 		}
@@ -234,10 +234,10 @@ func TestRunItems(t *testing.T) {
 	ctx := context.Background()
 	q := newTx(t)
 	user := newUser(t, q, "admin-items@example.com")
-	statement := newStatement(t, q, user)
-	parent, err := q.GetRun(ctx, gen.GetRunParams{ID: statement.ID, UserID: &user.ID})
+	stmt := newStmt(t, q, user)
+	parent, err := q.GetRun(ctx, gen.GetRunParams{ID: stmt.ID, UserID: &user.ID})
 	require.NoError(t, err)
-	one, two := newStatedKey(t, q, user, statement), newStatedKey(t, q, user, statement)
+	one, two := newStatedKey(t, q, user, stmt), newStatedKey(t, q, user, stmt)
 	one32 := int32(1)
 
 	for _, k := range []gen.StatedKey{two, one} {
@@ -273,17 +273,17 @@ func TestRunItems(t *testing.T) {
 	}
 
 	for _, ordinal := range []int32{2, 0, 1} {
-		require.NoError(t, q.CreateStatementItem(ctx, gen.CreateStatementItemParams{StatementID: statement.ID, UserID: user.ID, Ordinal: ordinal, Reason: "r", Stated: []byte(`{}`)}))
+		require.NoError(t, q.CreateStmtItem(ctx, gen.CreateStmtItemParams{StmtID: stmt.ID, UserID: user.ID, Ordinal: ordinal, Reason: "r", Stated: []byte(`{}`)}))
 	}
 	two32 := int32(2)
-	items, err := q.ListStatementItems(ctx, gen.ListStatementItemsParams{StatementID: statement.ID, UserID: user.ID, After: ptr.To(int32(0)), Lim: &two32})
+	items, err := q.ListStmtItems(ctx, gen.ListStmtItemsParams{StmtID: stmt.ID, UserID: user.ID, After: ptr.To(int32(0)), Lim: &two32})
 	require.NoError(t, err)
 	var ordinals []int32
 	for _, it := range items {
 		ordinals = append(ordinals, it.Ordinal)
 	}
 	if diff := cmp.Diff([]int32{1, 2}, ordinals); diff != "" {
-		t.Errorf("ListStatementItems after ordinal 0 mismatch (-want +got):\n%s", diff)
+		t.Errorf("ListStmtItems after ordinal 0 mismatch (-want +got):\n%s", diff)
 	}
 }
 
@@ -294,15 +294,15 @@ func TestFindingsAndBlocks(t *testing.T) {
 	ctx := context.Background()
 	q := newTx(t)
 	user := newUser(t, q, "admin-findings@example.com")
-	statement := newStatement(t, q, user)
-	parent, err := q.GetRun(ctx, gen.GetRunParams{ID: statement.ID, UserID: &user.ID})
+	stmt := newStmt(t, q, user)
+	parent, err := q.GetRun(ctx, gen.GetRunParams{ID: stmt.ID, UserID: &user.ID})
 	require.NoError(t, err)
 	ds, err := q.CreateDatasource(ctx, gen.CreateDatasourceParams{
 		Name: "admin-findings", Enabled: true, Precedence: 10, Credential: ptr.To("secret"), Endpoint: ptr.To("http://stub"),
 	})
 	require.NoError(t, err)
 	fetch := newFetch(t, q, user, parent, ds)
-	key := servedKey(t, q, fetch, newStatedKey(t, q, user, statement), "GB00B03MLX29")
+	key := servedKey(t, q, fetch, newStatedKey(t, q, user, stmt), "GB00B03MLX29")
 
 	open := func(value string) (block, finding uuid.UUID) {
 		t.Helper()
