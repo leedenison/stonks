@@ -25,7 +25,7 @@ type instruments struct {
 	rowsWritten metric.Int64Counter
 }
 
-var instr = newInstruments(otel.Meter(meterName))
+var metrics = newInstruments(otel.Meter(meterName))
 
 func newInstruments(m metric.Meter) instruments {
 	c, err := m.Int64Counter("stonks.stmt.rows", metric.WithUnit("{row}"), metric.WithDescription("Rows of completed statements, by outcome."))

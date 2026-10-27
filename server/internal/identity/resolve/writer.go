@@ -24,7 +24,7 @@ import (
 type writer struct {
 	q     Queries
 	user  uuid.UUID
-	instr join.Instrument
+	instr join.Instr
 	taken map[types.Identifier]bool
 	// res is the resolution of the key being written. The writer records
 	// there each fact it asserts.
@@ -32,14 +32,14 @@ type writer struct {
 }
 
 // create writes the instrument of the winner, with its class and provenance.
-func (w *writer) create(ctx context.Context, winner *identityClaim) (gen.Instrument, error) {
+func (w *writer) create(ctx context.Context, winner *identityClaim) (gen.Instr, error) {
 	class := winner.Class
 	if class == "" {
 		class = types.AssetClassUnknown
 	}
-	inst, err := w.q.CreateInstrument(ctx, gen.CreateInstrumentParams{ID: db.NewID(), AssetClass: class, FetchKeyID: &winner.fetchKey.ID})
+	inst, err := w.q.CreateInstr(ctx, gen.CreateInstrParams{ID: db.NewID(), AssetClass: class, FetchKeyID: &winner.fetchKey.ID})
 	if err != nil {
-		return gen.Instrument{}, fmt.Errorf("create instrument: %w", err)
+		return gen.Instr{}, fmt.Errorf("create instrument: %w", err)
 	}
 	return inst, nil
 }
@@ -67,7 +67,7 @@ func (w *writer) attach(ctx context.Context, c *identityClaim) error {
 		}
 		switch {
 		case l == nil:
-			row, err := w.q.CreateListing(ctx, gen.CreateListingParams{ID: db.NewID(), InstrumentID: w.instr.Row.ID, Currency: fam, FetchKeyID: &fetchKeyID, PrimaryMic: primary})
+			row, err := w.q.CreateListing(ctx, gen.CreateListingParams{ID: db.NewID(), InstrID: w.instr.Row.ID, Currency: fam, FetchKeyID: &fetchKeyID, PrimaryMic: primary})
 			if err != nil {
 				return fmt.Errorf("create listing in %s: %w", fam, err)
 			}
@@ -86,8 +86,8 @@ func (w *writer) attach(ctx context.Context, c *identityClaim) error {
 			}
 		}
 	}
-	arg := gen.SetFetchKeyInstrumentParams{ID: fetchKeyID, UserID: &w.user, InstrumentID: &w.instr.Row.ID}
-	if err := w.q.SetFetchKeyInstrument(ctx, arg); err != nil {
+	arg := gen.SetFetchKeyInstrParams{ID: fetchKeyID, UserID: &w.user, InstrID: &w.instr.Row.ID}
+	if err := w.q.SetFetchKeyInstr(ctx, arg); err != nil {
 		return fmt.Errorf("attach fetch key: %w", err)
 	}
 	// A claim names one instrument, so the tickers it carries at venues of
@@ -120,9 +120,9 @@ func (w *writer) identify(ctx context.Context, id types.Identifier, listing *uui
 	var row gen.Identifier
 	var err error
 	if id.Ticker() {
-		row, err = w.q.PlaceTicker(ctx, gen.PlaceTickerParams{ID: db.NewID(), InstrumentID: w.instr.Row.ID, ListingID: listing, Type: id.Type, Domain: id.Domain, Value: id.Value, FetchKeyID: &fetchKeyID})
+		row, err = w.q.PlaceTicker(ctx, gen.PlaceTickerParams{ID: db.NewID(), InstrID: w.instr.Row.ID, ListingID: listing, Type: id.Type, Domain: id.Domain, Value: id.Value, FetchKeyID: &fetchKeyID})
 	} else {
-		row, err = w.q.CreateIdentifier(ctx, gen.CreateIdentifierParams{ID: db.NewID(), InstrumentID: w.instr.Row.ID, ListingID: listing, Type: id.Type, Domain: id.Domain, Value: id.Value, FetchKeyID: &fetchKeyID})
+		row, err = w.q.CreateIdentifier(ctx, gen.CreateIdentifierParams{ID: db.NewID(), InstrID: w.instr.Row.ID, ListingID: listing, Type: id.Type, Domain: id.Domain, Value: id.Value, FetchKeyID: &fetchKeyID})
 	}
 	if err != nil {
 		return fmt.Errorf("create %s: %w", id.Name(), err)
@@ -152,7 +152,7 @@ func (w *writer) associate(ctx context.Context, res *resolution, arbiter gen.Arb
 	if v, ok := w.datedThrough(via); ok && arbiter != gen.ArbiterUser {
 		return true, writeDated(ctx, w.q, w.user, res, v, arbiter)
 	}
-	arg := gen.SetStatedKeyAssociationParams{ID: res.row.ID, UserID: w.user, InstrumentID: &w.instr.Row.ID, ListingID: listingID, ViaID: &via.ID, Arbiter: arbiter}
+	arg := gen.SetStatedKeyAssociationParams{ID: res.row.ID, UserID: w.user, InstrID: &w.instr.Row.ID, ListingID: listingID, ViaID: &via.ID, Arbiter: arbiter}
 	if _, err := w.q.SetStatedKeyAssociation(ctx, arg); err != nil {
 		return false, fmt.Errorf("associate key: %w", err)
 	}

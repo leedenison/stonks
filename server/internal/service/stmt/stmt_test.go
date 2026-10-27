@@ -221,7 +221,7 @@ func TestGetStmt(t *testing.T) {
 	// broker description.
 	datedID, fixedID := uuid.MustParse("00000000-0000-0000-0000-000000000024"), uuid.MustParse("00000000-0000-0000-0000-000000000025")
 	dated := gen.StatedKey{ID: datedID, UserID: userID, Identifiers: []types.Identifier{{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "META"}}, ViaType: ptr.To(types.IdentifierTypeMicTicker), ViaDomain: ptr.To("XNAS"), ViaValue: ptr.To("META"), Arbiter: ptr.To(gen.ArbiterDatasource)}
-	fixed := gen.StatedKey{ID: fixedID, UserID: userID, Identifiers: []types.Identifier{{Type: types.IdentifierTypeBrokerDescription, Domain: "ibkr", Value: "ACME"}}, InstrumentID: ptr.To(uuid.New()), Arbiter: ptr.To(gen.ArbiterDatasource)}
+	fixed := gen.StatedKey{ID: fixedID, UserID: userID, Identifiers: []types.Identifier{{Type: types.IdentifierTypeBrokerDescription, Domain: "ibkr", Value: "ACME"}}, InstrID: ptr.To(uuid.New()), Arbiter: ptr.To(gen.ArbiterDatasource)}
 	txn := func(n int, key gen.StatedKey, on time.Time) gen.Txn {
 		return gen.Txn{ID: uuid.MustParse(fmt.Sprintf("00000000-0000-0000-0000-00000000003%d", n)), UserID: userID, StmtID: runID, StatedKeyID: key.ID, OrderDate: on, AsAt: on, Quantity: decimal.NewFromInt(10)}
 	}
@@ -232,7 +232,7 @@ func TestGetStmt(t *testing.T) {
 	}
 	facts := metaFacts()
 	assertions := []gen.ListIdentifierAssertionsRow{
-		{IdentifierAssertion: gen.IdentifierAssertion{Type: types.IdentifierTypeMicTicker, Domain: "US", Value: "META", AssertedOn: assertedOn, InstrumentID: &metaInst, FetchKeyID: ptr.To(uuid.New())}, Datasource: ptr.To("massive"), Precedence: ptr.To(int32(2))},
+		{IdentifierAssertion: gen.IdentifierAssertion{Type: types.IdentifierTypeMicTicker, Domain: "US", Value: "META", AssertedOn: assertedOn, InstrID: &metaInst, FetchKeyID: ptr.To(uuid.New())}, Datasource: ptr.To("massive"), Precedence: ptr.To(int32(2))},
 		{IdentifierAssertion: gen.IdentifierAssertion{Type: types.IdentifierTypeMicTicker, Domain: "US", Value: "META", AssertedOn: notFoundOn, FetchKeyID: ptr.To(uuid.New())}, Datasource: ptr.To("massive"), Precedence: ptr.To(int32(2))},
 	}
 	events := []gen.ListIdentifierEventsRow{{Market: "US", Value: "META", EffectiveOn: renamed, FetchKeyID: uuid.New()}}
@@ -330,7 +330,7 @@ func TestFindCandidates(t *testing.T) {
 	offer := resolve.Offer{
 		Candidates: []resolve.Candidate{{
 			Datasource: "openfigi", Attached: []string{"massive", "eodhd"}, Strongest: types.Identifier{Type: types.IdentifierTypeIsin, Value: "US4581401001"},
-			Instrument: types.Instrument{Class: types.AssetClassStock, Identifiers: []types.Identifier{{Type: types.IdentifierTypeIsin, Value: "US4581401001"}}, Listings: map[string]types.Listing{"USD": {Identifiers: []types.Identifier{{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "INTC"}}}, "": {Identifiers: []types.Identifier{{Type: types.IdentifierTypeMicTicker, Domain: "XLON", Value: "INTC"}}}}},
+			Instr: types.Instr{Class: types.AssetClassStock, Identifiers: []types.Identifier{{Type: types.IdentifierTypeIsin, Value: "US4581401001"}}, Listings: map[string]types.Listing{"USD": {Identifiers: []types.Identifier{{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "INTC"}}}, "": {Identifiers: []types.Identifier{{Type: types.IdentifierTypeMicTicker, Domain: "XLON", Value: "INTC"}}}}},
 		}},
 		Reasons: []string{"eodhd: failed: paused"},
 	}

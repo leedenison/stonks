@@ -36,25 +36,25 @@ func newUser(t *testing.T, q *gen.Queries, email string) gen.User {
 	return u
 }
 
-func newInstrument(t *testing.T, q *gen.Queries, class types.AssetClass) gen.Instrument {
+func newInstrument(t *testing.T, q *gen.Queries, class types.AssetClass) gen.Instr {
 	t.Helper()
-	row, err := q.CreateInstrument(context.Background(), gen.CreateInstrumentParams{ID: db.NewID(), AssetClass: class})
+	row, err := q.CreateInstr(context.Background(), gen.CreateInstrParams{ID: db.NewID(), AssetClass: class})
 	require.NoError(t, err)
 	return row
 }
 
-func newListing(t *testing.T, q *gen.Queries, instrument gen.Instrument, currency string) gen.Listing {
+func newListing(t *testing.T, q *gen.Queries, instrument gen.Instr, currency string) gen.Listing {
 	t.Helper()
-	row, err := q.CreateListing(context.Background(), gen.CreateListingParams{ID: db.NewID(), InstrumentID: instrument.ID, Currency: currency})
+	row, err := q.CreateListing(context.Background(), gen.CreateListingParams{ID: db.NewID(), InstrID: instrument.ID, Currency: currency})
 	require.NoError(t, err)
 	return row
 }
 
 // newIdentifier names instrument by an ISIN, so a key can associate through
 // it.
-func newIdentifier(t *testing.T, q *gen.Queries, instrument gen.Instrument, isin string) gen.Identifier {
+func newIdentifier(t *testing.T, q *gen.Queries, instrument gen.Instr, isin string) gen.Identifier {
 	t.Helper()
-	row, err := q.CreateIdentifier(context.Background(), gen.CreateIdentifierParams{ID: db.NewID(), InstrumentID: instrument.ID, Type: types.IdentifierTypeIsin, Value: isin})
+	row, err := q.CreateIdentifier(context.Background(), gen.CreateIdentifierParams{ID: db.NewID(), InstrID: instrument.ID, Type: types.IdentifierTypeIsin, Value: isin})
 	require.NoError(t, err)
 	return row
 }
@@ -66,7 +66,7 @@ func cashListing(t *testing.T, q *gen.Queries, currency string) (gen.Listing, ge
 	ctx := context.Background()
 	found, err := q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: types.IdentifierTypeCurrency, Value: currency})
 	require.NoError(t, err)
-	l, err := q.GetListing(ctx, gen.GetListingParams{InstrumentID: found.Instrument.ID, Currency: currency})
+	l, err := q.GetListing(ctx, gen.GetListingParams{InstrID: found.Instr.ID, Currency: currency})
 	require.NoError(t, err)
 	return l, found.Identifier
 }
@@ -79,12 +79,12 @@ func TestCurrencySeed(t *testing.T) {
 
 	usd, err := q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: types.IdentifierTypeCurrency, Value: "USD"})
 	require.NoError(t, err)
-	if usd.Instrument.AssetClass != types.AssetClassCash {
-		t.Errorf("FindIdentifier(currency USD) = %+v, want an instrument of class cash", usd.Instrument)
+	if usd.Instr.AssetClass != types.AssetClassCash {
+		t.Errorf("FindIdentifier(currency USD) = %+v, want an instrument of class cash", usd.Instr)
 	}
 	line, via := cashListing(t, q, "USD")
-	if line.InstrumentID != usd.Instrument.ID {
-		t.Errorf("USD listing = %+v, want one of instrument %s", line, usd.Instrument.ID)
+	if line.InstrID != usd.Instr.ID {
+		t.Errorf("USD listing = %+v, want one of instrument %s", line, usd.Instr.ID)
 	}
 	if via.ID != usd.Identifier.ID {
 		t.Errorf("USD identifier = %s, want %s", via.ID, usd.Identifier.ID)
@@ -93,20 +93,20 @@ func TestCurrencySeed(t *testing.T) {
 	require.NoError(t, err)
 	gbx, err := q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: types.IdentifierTypeCurrency, Value: "GBX"})
 	require.NoError(t, err)
-	if gbx.Instrument.ID != gbp.Instrument.ID {
-		t.Errorf("GBX names instrument %s, want GBP's %s: one family is one instrument", gbx.Instrument.ID, gbp.Instrument.ID)
+	if gbx.Instr.ID != gbp.Instr.ID {
+		t.Errorf("GBX names instrument %s, want GBP's %s: one family is one instrument", gbx.Instr.ID, gbp.Instr.ID)
 	}
-	if _, err := q.GetListing(ctx, gen.GetListingParams{InstrumentID: gbp.Instrument.ID, Currency: "GBX"}); !errors.Is(err, db.ErrNotFound) {
+	if _, err := q.GetListing(ctx, gen.GetListingParams{InstrID: gbp.Instr.ID, Currency: "GBX"}); !errors.Is(err, db.ErrNotFound) {
 		t.Errorf("GetListing(GBP, GBX): err = %v, want ErrNotFound: a listing is keyed by the family", err)
 	}
-	if _, err := q.GetListing(ctx, gen.GetListingParams{InstrumentID: usd.Instrument.ID, Currency: "GBP"}); !errors.Is(err, db.ErrNotFound) {
+	if _, err := q.GetListing(ctx, gen.GetListingParams{InstrID: usd.Instr.ID, Currency: "GBP"}); !errors.Is(err, db.ErrNotFound) {
 		t.Errorf("GetListing(USD, GBP): err = %v, want ErrNotFound until a rate is fetched", err)
 	}
 
 	var currencies, families, instruments, listings, identifiers int
 	require.NoError(t, pool.QueryRow(ctx, "SELECT count(*) FROM currencies").Scan(&currencies))
 	require.NoError(t, pool.QueryRow(ctx, "SELECT count(*) FROM currencies WHERE code = family").Scan(&families))
-	require.NoError(t, pool.QueryRow(ctx, "SELECT count(*) FROM instruments WHERE asset_class = 'cash'").Scan(&instruments))
+	require.NoError(t, pool.QueryRow(ctx, "SELECT count(*) FROM instrs WHERE asset_class = 'cash'").Scan(&instruments))
 	require.NoError(t, pool.QueryRow(ctx, "SELECT count(*) FROM listings").Scan(&listings))
 	require.NoError(t, pool.QueryRow(ctx, "SELECT count(*) FROM identifiers WHERE type = 'currency' AND listing_id IS NULL").Scan(&identifiers))
 	if families != currencies-1 || instruments != families || listings != families || identifiers != currencies {
@@ -149,7 +149,7 @@ func TestSetListingPrimary(t *testing.T) {
 	}
 	for _, mic := range []string{"XNAS", "XNYS"} {
 		require.NoError(t, q.SetListingPrimary(ctx, gen.SetListingPrimaryParams{ID: listing.ID, PrimaryMic: ptr.To(mic)}))
-		rows, err := q.ListListings(ctx, listing.InstrumentID)
+		rows, err := q.ListListings(ctx, listing.InstrID)
 		require.NoError(t, err)
 		if len(rows) != 1 || rows[0].PrimaryMic == nil || *rows[0].PrimaryMic != "XNAS" {
 			t.Errorf("after setting %s: listings = %+v, want the primary venue XNAS", mic, rows)
@@ -172,7 +172,7 @@ func TestIdentifierGrain(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			q := newTx(t)
 			instrument := newInstrument(t, q, types.AssetClassSecurity)
-			arg := gen.CreateIdentifierParams{ID: db.NewID(), InstrumentID: instrument.ID, Type: tc.typ, Value: "v"}
+			arg := gen.CreateIdentifierParams{ID: db.NewID(), InstrID: instrument.ID, Type: tc.typ, Value: "v"}
 			if tc.listing {
 				listing := newListing(t, q, instrument, "USD")
 				arg.ListingID = &listing.ID
@@ -195,7 +195,7 @@ func TestIdentifierUniqueness(t *testing.T) {
 	newIdentifier(t, q, one, "US0378331005")
 
 	// The unique violation aborts the transaction, so it is the last statement.
-	_, err := q.CreateIdentifier(ctx, gen.CreateIdentifierParams{ID: db.NewID(), InstrumentID: two.ID, Type: types.IdentifierTypeIsin, Value: "US0378331005"})
+	_, err := q.CreateIdentifier(ctx, gen.CreateIdentifierParams{ID: db.NewID(), InstrID: two.ID, Type: types.IdentifierTypeIsin, Value: "US0378331005"})
 	if !db.IsConflict(err) {
 		t.Errorf("CreateIdentifier of a triple identifying another instrument: err = %v, want a conflict", err)
 	}
@@ -308,10 +308,10 @@ func TestListInstrumentsByIdentifiers(t *testing.T) {
 	two := newInstrument(t, q, types.AssetClassStock)
 	newIdentifier(t, q, one, "GB00B03MLX29")
 	listing := newListing(t, q, two, "USD")
-	_, err := q.CreateIdentifier(ctx, gen.CreateIdentifierParams{ID: db.NewID(), InstrumentID: two.ID, ListingID: &listing.ID, Type: types.IdentifierTypeMicTicker, Domain: "XNYS", Value: "ACME"})
+	_, err := q.CreateIdentifier(ctx, gen.CreateIdentifierParams{ID: db.NewID(), InstrID: two.ID, ListingID: &listing.ID, Type: types.IdentifierTypeMicTicker, Domain: "XNYS", Value: "ACME"})
 	require.NoError(t, err)
 
-	rows, err := q.ListInstrumentsByIdentifiers(ctx, gen.ListInstrumentsByIdentifiersParams{
+	rows, err := q.ListInstrsByIdentifiers(ctx, gen.ListInstrsByIdentifiersParams{
 		Types:   []string{"isin", "mic_ticker", "cusip"},
 		Domains: []string{"", "XNYS", ""},
 		Values:  []string{"GB00B03MLX29", "ACME", "037833100"},
@@ -319,14 +319,14 @@ func TestListInstrumentsByIdentifiers(t *testing.T) {
 	require.NoError(t, err)
 	var got []string
 	for _, r := range rows {
-		got = append(got, fmt.Sprintf("%s %s %s", r.Instrument.ID, r.Identifier.Type, r.Identifier.Value))
+		got = append(got, fmt.Sprintf("%s %s %s", r.Instr.ID, r.Identifier.Type, r.Identifier.Value))
 	}
 	want := []string{
 		fmt.Sprintf("%s isin GB00B03MLX29", one.ID),
 		fmt.Sprintf("%s mic_ticker ACME", two.ID),
 	}
 	if diff := cmp.Diff(want, got); diff != "" {
-		t.Errorf("ListInstrumentsByIdentifiers mismatch (-want +got):\n%s", diff)
+		t.Errorf("ListInstrsByIdentifiers mismatch (-want +got):\n%s", diff)
 	}
 }
 
@@ -334,7 +334,7 @@ func TestListInstrumentsByIdentifiers(t *testing.T) {
 // identifiers serves the lookup, which runs under the resolver's locks.
 func TestListInstrumentsByIdentifiersIndex(t *testing.T) {
 	q, e := explain(t)
-	_, err := q.ListInstrumentsByIdentifiers(context.Background(), gen.ListInstrumentsByIdentifiersParams{
+	_, err := q.ListInstrsByIdentifiers(context.Background(), gen.ListInstrsByIdentifiersParams{
 		Types: []string{"isin"}, Domains: []string{""}, Values: []string{"GB00B03MLX29"},
 	})
 	require.NoError(t, err)
@@ -391,13 +391,13 @@ func TestListInstruments(t *testing.T) {
 	ctx := context.Background()
 	q := newTx(t)
 	usd, _ := cashListing(t, q, "USD")
-	ident := func(in gen.Instrument, listing *gen.Listing, typ types.IdentifierType, domain, value string) {
+	ident := func(in gen.Instr, listing *gen.Listing, typ types.IdentifierType, domain, value string) {
 		t.Helper()
 		var listingID *uuid.UUID
 		if listing != nil {
 			listingID = &listing.ID
 		}
-		_, err := q.CreateIdentifier(ctx, gen.CreateIdentifierParams{ID: db.NewID(), InstrumentID: in.ID, ListingID: listingID, Type: typ, Domain: domain, Value: value})
+		_, err := q.CreateIdentifier(ctx, gen.CreateIdentifierParams{ID: db.NewID(), InstrID: in.ID, ListingID: listingID, Type: typ, Domain: domain, Value: value})
 		require.NoError(t, err)
 	}
 
@@ -424,7 +424,7 @@ func TestListInstruments(t *testing.T) {
 	// An instrument nothing names.
 	bare := newInstrument(t, q, types.AssetClassSecurity)
 
-	all, err := q.ListInstruments(ctx, gen.ListInstrumentsParams{Lim: 1000})
+	all, err := q.ListInstrs(ctx, gen.ListInstrsParams{Lim: 1000})
 	require.NoError(t, err)
 	names := map[uuid.UUID]string{}
 	for _, r := range all {
@@ -436,7 +436,7 @@ func TestListInstruments(t *testing.T) {
 			t.Errorf("unnamed instrument named by %q, want none", r.NameType)
 		}
 	}
-	want := map[uuid.UUID]string{usd.InstrumentID: "USD", stock.ID: "ZZSTOCKP", two.ID: "ZZTWON", option.ID: "ZZOPT260116C00150000", bare.ID: ""}
+	want := map[uuid.UUID]string{usd.InstrID: "USD", stock.ID: "ZZSTOCKP", two.ID: "ZZTWON", option.ID: "ZZOPT260116C00150000", bare.ID: ""}
 	for id, name := range want {
 		if names[id] != name {
 			t.Errorf("instrument %s named %q, want %q", id, names[id], name)
@@ -444,15 +444,15 @@ func TestListInstruments(t *testing.T) {
 	}
 	// instrument_names holds the same names, with a row only for each named
 	// instrument.
-	rows, err := q.ListInstrumentNames(ctx, []uuid.UUID{usd.InstrumentID, stock.ID, two.ID, option.ID, bare.ID})
+	rows, err := q.ListInstrNames(ctx, []uuid.UUID{usd.InstrID, stock.ID, two.ID, option.ID, bare.ID})
 	require.NoError(t, err)
 	viewed := map[uuid.UUID]string{}
 	for _, r := range rows {
-		viewed[r.InstrumentID] = r.Value
+		viewed[r.InstrID] = r.Value
 	}
 	delete(want, bare.ID)
 	if diff := cmp.Diff(want, viewed); diff != "" {
-		t.Errorf("ListInstrumentNames mismatch (-want +got):\n%s", diff)
+		t.Errorf("ListInstrNames mismatch (-want +got):\n%s", diff)
 	}
 	tail := all[len(all)-3:]
 	if tail[0].ID != option.ID || tail[1].ID != stock.ID || tail[2].ID != two.ID {
@@ -462,25 +462,25 @@ func TestListInstruments(t *testing.T) {
 		t.Errorf("first = %+v, want the unnamed instrument", all[0])
 	}
 
-	first, err := q.ListInstruments(ctx, gen.ListInstrumentsParams{Lim: 1})
+	first, err := q.ListInstrs(ctx, gen.ListInstrsParams{Lim: 1})
 	require.NoError(t, err)
 	if len(first) != 1 || first[0].ID != bare.ID {
 		t.Errorf("first page = %v, want the unnamed instrument alone", first)
 	}
-	next, err := q.ListInstruments(ctx, gen.ListInstrumentsParams{AfterID: &option.ID, AfterName: ptr.To("ZZOPT260116C00150000"), Lim: 1})
+	next, err := q.ListInstrs(ctx, gen.ListInstrsParams{AfterID: &option.ID, AfterName: ptr.To("ZZOPT260116C00150000"), Lim: 1})
 	require.NoError(t, err)
 	if len(next) != 1 || next[0].ID != stock.ID {
 		t.Errorf("page after the option = %v, want the stock alone", next)
 	}
 	// A page continues past a cursor whose row has gone, by its name.
-	gone, err := q.ListInstruments(ctx, gen.ListInstrumentsParams{AfterID: ptr.To(db.NewID()), AfterName: ptr.To("ZZOPTZ"), Lim: 1})
+	gone, err := q.ListInstrs(ctx, gen.ListInstrsParams{AfterID: ptr.To(db.NewID()), AfterName: ptr.To("ZZOPTZ"), Lim: 1})
 	require.NoError(t, err)
 	if len(gone) != 1 || gone[0].ID != stock.ID {
 		t.Errorf("page after a row that has gone = %v, want the stock alone", gone)
 	}
 	// The cursor applies after the filters, so a filtered page continues
 	// from the cursor too.
-	filtered, err := q.ListInstruments(ctx, gen.ListInstrumentsParams{AfterID: &option.ID, AfterName: ptr.To("ZZOPT260116C00150000"), Q: ptr.To("zztwo"), Lim: 10})
+	filtered, err := q.ListInstrs(ctx, gen.ListInstrsParams{AfterID: &option.ID, AfterName: ptr.To("ZZOPT260116C00150000"), Q: ptr.To("zztwo"), Lim: 10})
 	require.NoError(t, err)
 	if len(filtered) != 1 || filtered[0].ID != two.ID {
 		t.Errorf("filtered page after the option = %v, want the second stock alone", filtered)
@@ -488,15 +488,15 @@ func TestListInstruments(t *testing.T) {
 
 	// The query matches any identifier, ignoring case, and the class keeps
 	// the classes below it.
-	found, err := q.ListInstruments(ctx, gen.ListInstrumentsParams{Q: ptr.To("zz0000"), Lim: 10})
+	found, err := q.ListInstrs(ctx, gen.ListInstrsParams{Q: ptr.To("zz0000"), Lim: 10})
 	require.NoError(t, err)
 	if len(found) != 1 || found[0].ID != stock.ID {
-		t.Errorf("ListInstruments(q=zz0000) = %v, want the stock alone", found)
+		t.Errorf("ListInstrs(q=zz0000) = %v, want the stock alone", found)
 	}
-	equities, err := q.ListInstruments(ctx, gen.ListInstrumentsParams{Q: ptr.To("ZZ"), AssetClass: ptr.To(types.AssetClassEquity), Lim: 10})
+	equities, err := q.ListInstrs(ctx, gen.ListInstrsParams{Q: ptr.To("ZZ"), AssetClass: ptr.To(types.AssetClassEquity), Lim: 10})
 	require.NoError(t, err)
 	if len(equities) != 2 || equities[0].ID != stock.ID || equities[1].ID != two.ID {
-		t.Errorf("ListInstruments(q=ZZ, equity) = %v, want the two stocks", equities)
+		t.Errorf("ListInstrs(q=ZZ, equity) = %v, want the two stocks", equities)
 	}
 	listings, err := q.ListListingsOf(ctx, []uuid.UUID{stock.ID})
 	require.NoError(t, err)

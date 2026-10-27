@@ -56,7 +56,7 @@ func (f *fixture) mics(t *testing.T) mic.MICMap {
 func (f *fixture) identify(t *testing.T, instrument uuid.UUID, isin string) types.Identifier {
 	t.Helper()
 	id := types.Identifier{Type: types.IdentifierTypeIsin, Value: isin}
-	_, err := f.q.CreateIdentifier(context.Background(), gen.CreateIdentifierParams{ID: db.NewID(), InstrumentID: instrument, Type: id.Type, Value: id.Value})
+	_, err := f.q.CreateIdentifier(context.Background(), gen.CreateIdentifierParams{ID: db.NewID(), InstrID: instrument, Type: id.Type, Value: id.Value})
 	require.NoError(t, err)
 	return id
 }
@@ -110,15 +110,15 @@ func TestRecordThroughStable(t *testing.T) {
 	f := newFixture(t)
 	ctx := context.Background()
 	isin := f.identify(t, f.a, "US"+uuid.NewString()[:8])
-	listing, err := f.q.CreateListing(ctx, gen.CreateListingParams{ID: db.NewID(), InstrumentID: f.b, Currency: "USD"})
+	listing, err := f.q.CreateListing(ctx, gen.CreateListingParams{ID: db.NewID(), InstrID: f.b, Currency: "USD"})
 	require.NoError(t, err)
-	_, err = f.q.CreateIdentifier(ctx, gen.CreateIdentifierParams{ID: db.NewID(), InstrumentID: f.b, ListingID: &listing.ID, Type: f.at.Type, Domain: f.at.Domain, Value: f.at.Value})
+	_, err = f.q.CreateIdentifier(ctx, gen.CreateIdentifierParams{ID: db.NewID(), InstrID: f.b, ListingID: &listing.ID, Type: f.at.Type, Domain: f.at.Domain, Value: f.at.Value})
 	require.NoError(t, err)
 	k := f.served(t, f.at, market.IdentifierEventResult{Assertions: []market.Assertion{{Ticker: f.foo, Of: market.Listing{Identifiers: []types.Identifier{f.at, isin}}, At: day(3)}}})
 	require.NoError(t, Record(ctx, f.q, f.mics(t), f.families(t), []eventKey{k}))
 	asserted, err := f.q.ListFetchKeyAssertions(ctx, &k.ID)
 	require.NoError(t, err)
-	if len(asserted) != 1 || asserted[0].InstrumentID == nil || *asserted[0].InstrumentID != f.a {
+	if len(asserted) != 1 || asserted[0].InstrID == nil || *asserted[0].InstrID != f.a {
 		t.Errorf("assertions = %+v, want one naming %s through the ISIN, not %s through the ticker row", asserted, f.a, f.b)
 	}
 }
@@ -140,7 +140,7 @@ func TestRecordCreates(t *testing.T) {
 	require.NoError(t, Record(ctx, f.q, f.mics(t), f.families(t), []eventKey{k}))
 	found, err := f.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: composite.Type, Value: composite.Value})
 	require.NoError(t, err)
-	inst := found.Instrument
+	inst := found.Instr
 	if inst.AssetClass != types.AssetClassEtf || inst.FetchKeyID == nil || *inst.FetchKeyID != k.ID || found.Identifier.ListingID == nil {
 		t.Errorf("created %+v through %+v, want an ETF with the fetch key as provenance and the composite on a listing", inst, found.Identifier)
 	}
@@ -152,7 +152,7 @@ func TestRecordCreates(t *testing.T) {
 	}
 	asserted, err := f.q.ListFetchKeyAssertions(ctx, &k.ID)
 	require.NoError(t, err)
-	if len(asserted) != 2 || *asserted[0].InstrumentID != inst.ID || *asserted[1].InstrumentID != inst.ID {
+	if len(asserted) != 2 || *asserted[0].InstrID != inst.ID || *asserted[1].InstrID != inst.ID {
 		t.Errorf("assertions = %+v, want both naming the one created instrument", asserted)
 	}
 
@@ -165,8 +165,8 @@ func TestRecordCreates(t *testing.T) {
 	}
 	created, err := f.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: other.Type, Value: other.Value})
 	require.NoError(t, err)
-	if created.Instrument.AssetClass != types.AssetClassUnknown {
-		t.Errorf("class = %s, want unknown where the answer states none", created.Instrument.AssetClass)
+	if created.Instr.AssetClass != types.AssetClassUnknown {
+		t.Errorf("class = %s, want unknown where the answer states none", created.Instr.AssetClass)
 	}
 }
 

@@ -51,7 +51,7 @@ type fixture struct {
 	// every identifier created, attached every fetch key attached,
 	// resolutions how many resolution keys were written, and txs how many
 	// transactions were run.
-	instruments []gen.CreateInstrumentParams
+	instruments []gen.CreateInstrParams
 	listings    []gen.CreateListingParams
 	primaries   []gen.SetListingPrimaryParams
 	identifiers []gen.CreateIdentifierParams
@@ -100,7 +100,7 @@ func (f *fixture) records() {
 
 // finds has every read of the database find nothing.
 func (f *fixture) finds() {
-	f.store.EXPECT().ListInstrumentsByIdentifiers(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
+	f.store.EXPECT().ListInstrsByIdentifiers(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
 	f.store.EXPECT().ListIdentifiersOf(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
 	f.store.EXPECT().ListListingsOf(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
 	f.store.EXPECT().ListIdentityCoverage(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
@@ -112,13 +112,13 @@ func (f *fixture) finds() {
 
 // creates accepts every write of a created instrument.
 func (f *fixture) creates() {
-	f.store.EXPECT().CreateInstrument(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.CreateInstrumentParams) (gen.Instrument, error) {
+	f.store.EXPECT().CreateInstr(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.CreateInstrParams) (gen.Instr, error) {
 		f.instruments = append(f.instruments, arg)
-		return gen.Instrument{ID: arg.ID, AssetClass: arg.AssetClass, FetchKeyID: arg.FetchKeyID}, nil
+		return gen.Instr{ID: arg.ID, AssetClass: arg.AssetClass, FetchKeyID: arg.FetchKeyID}, nil
 	}).AnyTimes()
 	f.store.EXPECT().CreateListing(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.CreateListingParams) (gen.Listing, error) {
 		f.listings = append(f.listings, arg)
-		return gen.Listing{ID: arg.ID, InstrumentID: arg.InstrumentID, Currency: arg.Currency, PrimaryMic: arg.PrimaryMic}, nil
+		return gen.Listing{ID: arg.ID, InstrID: arg.InstrID, Currency: arg.Currency, PrimaryMic: arg.PrimaryMic}, nil
 	}).AnyTimes()
 	f.store.EXPECT().SetListingPrimary(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.SetListingPrimaryParams) error {
 		f.primaries = append(f.primaries, arg)
@@ -126,14 +126,14 @@ func (f *fixture) creates() {
 	}).AnyTimes()
 	f.store.EXPECT().CreateIdentifier(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.CreateIdentifierParams) (gen.Identifier, error) {
 		f.identifiers = append(f.identifiers, arg)
-		return gen.Identifier{ID: arg.ID, InstrumentID: arg.InstrumentID, ListingID: arg.ListingID, Type: arg.Type, Domain: arg.Domain, Value: arg.Value}, nil
+		return gen.Identifier{ID: arg.ID, InstrID: arg.InstrID, ListingID: arg.ListingID, Type: arg.Type, Domain: arg.Domain, Value: arg.Value}, nil
 	}).AnyTimes()
 	f.store.EXPECT().PlaceTicker(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.PlaceTickerParams) (gen.Identifier, error) {
 		f.identifiers = append(f.identifiers, gen.CreateIdentifierParams(arg))
-		return gen.Identifier{ID: arg.ID, InstrumentID: arg.InstrumentID, ListingID: arg.ListingID, Type: arg.Type, Domain: arg.Domain, Value: arg.Value}, nil
+		return gen.Identifier{ID: arg.ID, InstrID: arg.InstrID, ListingID: arg.ListingID, Type: arg.Type, Domain: arg.Domain, Value: arg.Value}, nil
 	}).AnyTimes()
 	f.store.EXPECT().UpsertIdentityCoverage(gomock.Any(), gomock.Any()).AnyTimes()
-	f.store.EXPECT().SetFetchKeyInstrument(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.SetFetchKeyInstrumentParams) error {
+	f.store.EXPECT().SetFetchKeyInstr(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.SetFetchKeyInstrParams) error {
 		f.attached = append(f.attached, arg.ID)
 		return nil
 	}).AnyTimes()
@@ -227,7 +227,7 @@ func TestResolveBatches(t *testing.T) {
 	f.records()
 	one, two := keyOf(types.AssetClassStock, "USD", isin), keyOf(types.AssetClassStock, "USD", cusip)
 	var reads [][]string
-	f.store.EXPECT().ListInstrumentsByIdentifiers(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.ListInstrumentsByIdentifiersParams) ([]gen.ListInstrumentsByIdentifiersRow, error) {
+	f.store.EXPECT().ListInstrsByIdentifiers(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.ListInstrsByIdentifiersParams) ([]gen.ListInstrsByIdentifiersRow, error) {
 		reads = append(reads, arg.Values)
 		return nil, nil
 	}).AnyTimes()
@@ -396,7 +396,7 @@ func TestResolveRetry(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newFixture(t, entryA)
-			f.store.EXPECT().ListInstrumentsByIdentifiers(gomock.Any(), gomock.Any()).Return(nil, nil)
+			f.store.EXPECT().ListInstrsByIdentifiers(gomock.Any(), gomock.Any()).Return(nil, nil)
 			calls := 0
 			f.store.EXPECT().Tx(gomock.Any(), gomock.Any()).DoAndReturn(func(context.Context, func(Queries) error) error {
 				err := tc.errs[calls]
@@ -416,14 +416,14 @@ func TestResolveErrors(t *testing.T) {
 	boom := errors.New("boom")
 	t.Run("lookup", func(t *testing.T) {
 		f := newFixture(t, entryA)
-		f.store.EXPECT().ListInstrumentsByIdentifiers(gomock.Any(), gomock.Any()).Return(nil, boom)
+		f.store.EXPECT().ListInstrsByIdentifiers(gomock.Any(), gomock.Any()).Return(nil, boom)
 		if _, _, err := f.resolver.Resolve(context.Background(), res, undated(keyOf("", "", isin))); !errors.Is(err, boom) {
 			t.Errorf("Resolve() error = %v, want %v", err, boom)
 		}
 	})
 	t.Run("fetch", func(t *testing.T) {
 		f := newFixture(t, entryA)
-		f.store.EXPECT().ListInstrumentsByIdentifiers(gomock.Any(), gomock.Any()).Return(nil, nil)
+		f.store.EXPECT().ListInstrsByIdentifiers(gomock.Any(), gomock.Any()).Return(nil, nil)
 		f.fetcher.EXPECT().Identity(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, boom)
 		if _, _, err := f.resolver.Resolve(context.Background(), res, undated(keyOf("", "", isin))); !errors.Is(err, boom) {
 			t.Errorf("Resolve() error = %v, want %v", err, boom)
@@ -433,8 +433,8 @@ func TestResolveErrors(t *testing.T) {
 
 // TestArbiter checks the arbiter each association records.
 func TestArbiter(t *testing.T) {
-	inst := gen.Instrument{ID: db.NewID(), AssetClass: types.AssetClassStock}
-	isinRow := gen.Identifier{ID: db.NewID(), InstrumentID: inst.ID, Type: isin.Type, Value: isin.Value}
+	inst := gen.Instr{ID: db.NewID(), AssetClass: types.AssetClassStock}
+	isinRow := gen.Identifier{ID: db.NewID(), InstrID: inst.ID, Type: isin.Type, Value: isin.Value}
 	t.Run("a fetched winner is the datasource's", func(t *testing.T) {
 		f := newFixture(t, entryA)
 		f.records()
@@ -450,7 +450,7 @@ func TestArbiter(t *testing.T) {
 		f := newFixture(t, entryA)
 		f.records()
 		f.creates()
-		f.store.EXPECT().ListInstrumentsByIdentifiers(gomock.Any(), gomock.Any()).Return([]gen.ListInstrumentsByIdentifiersRow{{Instrument: inst, Identifier: isinRow}}, nil).AnyTimes()
+		f.store.EXPECT().ListInstrsByIdentifiers(gomock.Any(), gomock.Any()).Return([]gen.ListInstrsByIdentifiersRow{{Instr: inst, Identifier: isinRow}}, nil).AnyTimes()
 		f.store.EXPECT().ListIdentifiersOf(gomock.Any(), gomock.Any()).Return([]gen.Identifier{isinRow}, nil).AnyTimes()
 		f.store.EXPECT().ListListingsOf(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
 		f.store.EXPECT().ListIdentityCoverage(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
@@ -484,9 +484,9 @@ func TestCandidates(t *testing.T) {
 				entryB: onNextDay(servedFetchKey(ticker, []types.Identifier{ticker}, listing(types.AssetClassStock, "GBX", isin, xlon))),
 			},
 			want: Offer{Candidates: []Candidate{
-				{Datasource: "a", Strongest: figi, Instrument: types.Instrument{Class: types.AssetClassStock, Identifiers: []types.Identifier{figi}, Listings: map[string]types.Listing{"GBP": {Identifiers: []types.Identifier{xlon}}}}},
-				{Datasource: "a", Strongest: figi2, Instrument: types.Instrument{Class: types.AssetClassStock, Identifiers: []types.Identifier{figi2}, Listings: map[string]types.Listing{"GBP": {Identifiers: []types.Identifier{xetr}}}}},
-				{Datasource: "b", Strongest: isin, Instrument: types.Instrument{Class: types.AssetClassStock, Identifiers: []types.Identifier{isin}, Listings: map[string]types.Listing{"GBP": {Identifiers: []types.Identifier{xlon}}}}},
+				{Datasource: "a", Strongest: figi, Instr: types.Instr{Class: types.AssetClassStock, Identifiers: []types.Identifier{figi}, Listings: map[string]types.Listing{"GBP": {Identifiers: []types.Identifier{xlon}}}}},
+				{Datasource: "a", Strongest: figi2, Instr: types.Instr{Class: types.AssetClassStock, Identifiers: []types.Identifier{figi2}, Listings: map[string]types.Listing{"GBP": {Identifiers: []types.Identifier{xetr}}}}},
+				{Datasource: "b", Strongest: isin, Instr: types.Instr{Class: types.AssetClassStock, Identifiers: []types.Identifier{isin}, Listings: map[string]types.Listing{"GBP": {Identifiers: []types.Identifier{xlon}}}}},
 			}},
 		},
 		{
@@ -498,8 +498,8 @@ func TestCandidates(t *testing.T) {
 				entryB: servedFetchKey(ticker, []types.Identifier{ticker}, listing(types.AssetClassStock, "GBX", isin, xlon)),
 			},
 			want: Offer{Candidates: []Candidate{
-				{Datasource: "a", Attached: []string{"b"}, Strongest: figi, Instrument: types.Instrument{Class: types.AssetClassStock, Identifiers: []types.Identifier{figi, isin}, Listings: map[string]types.Listing{"GBP": {Identifiers: []types.Identifier{xlon}}}}},
-				{Datasource: "a", Strongest: figi2, Instrument: types.Instrument{Class: types.AssetClassStock, Identifiers: []types.Identifier{figi2}, Listings: map[string]types.Listing{"GBP": {Identifiers: []types.Identifier{xetr}}}}},
+				{Datasource: "a", Attached: []string{"b"}, Strongest: figi, Instr: types.Instr{Class: types.AssetClassStock, Identifiers: []types.Identifier{figi, isin}, Listings: map[string]types.Listing{"GBP": {Identifiers: []types.Identifier{xlon}}}}},
+				{Datasource: "a", Strongest: figi2, Instr: types.Instr{Class: types.AssetClassStock, Identifiers: []types.Identifier{figi2}, Listings: map[string]types.Listing{"GBP": {Identifiers: []types.Identifier{xetr}}}}},
 			}},
 		},
 		{
@@ -510,7 +510,7 @@ func TestCandidates(t *testing.T) {
 				entryA: servedFetchKey(isin, nil, listing(types.AssetClassStock, "GBP", figi2, xetr), listing(types.AssetClassStock, "GBP", figi, isin, xlon)),
 			},
 			want: Offer{Candidates: []Candidate{
-				{Datasource: "a", Strongest: figi, Instrument: types.Instrument{Class: types.AssetClassStock, Identifiers: []types.Identifier{figi, isin}, Listings: map[string]types.Listing{"GBP": {Identifiers: []types.Identifier{xlon}}}}},
+				{Datasource: "a", Strongest: figi, Instr: types.Instr{Class: types.AssetClassStock, Identifiers: []types.Identifier{figi, isin}, Listings: map[string]types.Listing{"GBP": {Identifiers: []types.Identifier{xlon}}}}},
 			}},
 			won: true,
 		},
@@ -541,8 +541,8 @@ func TestCandidates(t *testing.T) {
 				entryA: servedFetchKey(xlon, []types.Identifier{ticker}, listing(types.AssetClassStock, "GBP", figi, xetr), listing(types.AssetClassStock, "GBP", figi2, xnas)),
 			},
 			want: Offer{Candidates: []Candidate{
-				{Datasource: "a", Strongest: figi, Instrument: types.Instrument{Class: types.AssetClassStock, Identifiers: []types.Identifier{figi}, Listings: map[string]types.Listing{"GBP": {Identifiers: []types.Identifier{xetr}}}}},
-				{Datasource: "a", Strongest: figi2, Instrument: types.Instrument{Class: types.AssetClassStock, Identifiers: []types.Identifier{figi2}, Listings: map[string]types.Listing{"GBP": {Identifiers: []types.Identifier{xnas}}}}},
+				{Datasource: "a", Strongest: figi, Instr: types.Instr{Class: types.AssetClassStock, Identifiers: []types.Identifier{figi}, Listings: map[string]types.Listing{"GBP": {Identifiers: []types.Identifier{xetr}}}}},
+				{Datasource: "a", Strongest: figi2, Instr: types.Instr{Class: types.AssetClassStock, Identifiers: []types.Identifier{figi2}, Listings: map[string]types.Listing{"GBP": {Identifiers: []types.Identifier{xnas}}}}},
 			}},
 		},
 		{
@@ -553,8 +553,8 @@ func TestCandidates(t *testing.T) {
 				entryA: servedFetchKey(ticker, []types.Identifier{ticker}, listing(types.AssetClassStock, "", xlon), listing(types.AssetClassStock, "USD", figi, xnas)),
 			},
 			want: Offer{Candidates: []Candidate{
-				{Datasource: "a", Strongest: xlon, Instrument: types.Instrument{Class: types.AssetClassStock, Listings: map[string]types.Listing{"": {Identifiers: []types.Identifier{xlon}}}}},
-				{Datasource: "a", Strongest: figi, Instrument: types.Instrument{Class: types.AssetClassStock, Identifiers: []types.Identifier{figi}, Listings: map[string]types.Listing{"USD": {Identifiers: []types.Identifier{xnas}}}}},
+				{Datasource: "a", Strongest: xlon, Instr: types.Instr{Class: types.AssetClassStock, Listings: map[string]types.Listing{"": {Identifiers: []types.Identifier{xlon}}}}},
+				{Datasource: "a", Strongest: figi, Instr: types.Instr{Class: types.AssetClassStock, Identifiers: []types.Identifier{figi}, Listings: map[string]types.Listing{"USD": {Identifiers: []types.Identifier{xnas}}}}},
 			}},
 		},
 		{
@@ -566,7 +566,7 @@ func TestCandidates(t *testing.T) {
 				entryB: servedFetchKey(ticker, []types.Identifier{ticker}, listing(types.AssetClassStock, "GBX", figi, isin, xetr)),
 			},
 			want: Offer{Candidates: []Candidate{
-				{Datasource: "a", Attached: []string{"b"}, Strongest: figi, Instrument: types.Instrument{Class: types.AssetClassUnknown, Identifiers: []types.Identifier{figi, isin}, Listings: map[string]types.Listing{"GBP": {Identifiers: []types.Identifier{xlon, xetr}}}}},
+				{Datasource: "a", Attached: []string{"b"}, Strongest: figi, Instr: types.Instr{Class: types.AssetClassUnknown, Identifiers: []types.Identifier{figi, isin}, Listings: map[string]types.Listing{"GBP": {Identifiers: []types.Identifier{xlon, xetr}}}}},
 			}},
 		},
 		{
@@ -579,8 +579,8 @@ func TestCandidates(t *testing.T) {
 				entryC: servedFetchKey(ticker, []types.Identifier{ticker}, listing(types.AssetClassStock, "GBP", figi, isin, xlon)),
 			},
 			want: Offer{Candidates: []Candidate{
-				{Datasource: "a", Attached: []string{"c"}, Strongest: figi, Instrument: types.Instrument{Class: types.AssetClassStock, Identifiers: []types.Identifier{figi, cusip, isin}, Listings: map[string]types.Listing{"GBP": {Identifiers: []types.Identifier{xlon}}}}},
-				{Datasource: "b", Attached: []string{"c"}, Strongest: figi, Instrument: types.Instrument{Class: types.AssetClassStock, Identifiers: []types.Identifier{figi, cusip2, isin}, Listings: map[string]types.Listing{"GBP": {Identifiers: []types.Identifier{xlon}}}}},
+				{Datasource: "a", Attached: []string{"c"}, Strongest: figi, Instr: types.Instr{Class: types.AssetClassStock, Identifiers: []types.Identifier{figi, cusip, isin}, Listings: map[string]types.Listing{"GBP": {Identifiers: []types.Identifier{xlon}}}}},
+				{Datasource: "b", Attached: []string{"c"}, Strongest: figi, Instr: types.Instr{Class: types.AssetClassStock, Identifiers: []types.Identifier{figi, cusip2, isin}, Listings: map[string]types.Listing{"GBP": {Identifiers: []types.Identifier{xlon}}}}},
 			}},
 		},
 		{
@@ -591,8 +591,8 @@ func TestCandidates(t *testing.T) {
 				entryA: servedFetchKey(ticker, []types.Identifier{ticker}, listing(types.AssetClassStock, "GBP", xlon), listing(types.AssetClassStock, "USD", xlon)),
 			},
 			want: Offer{Candidates: []Candidate{
-				{Datasource: "a", Strongest: xlon, Instrument: types.Instrument{Class: types.AssetClassStock, Listings: map[string]types.Listing{"GBP": {Identifiers: []types.Identifier{xlon}}}}},
-				{Datasource: "a", Strongest: xlon, Instrument: types.Instrument{Class: types.AssetClassStock, Listings: map[string]types.Listing{"USD": {Identifiers: []types.Identifier{xlon}}}}},
+				{Datasource: "a", Strongest: xlon, Instr: types.Instr{Class: types.AssetClassStock, Listings: map[string]types.Listing{"GBP": {Identifiers: []types.Identifier{xlon}}}}},
+				{Datasource: "a", Strongest: xlon, Instr: types.Instr{Class: types.AssetClassStock, Listings: map[string]types.Listing{"USD": {Identifiers: []types.Identifier{xlon}}}}},
 			}},
 		},
 		{

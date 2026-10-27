@@ -116,21 +116,21 @@ func findInstrumentsByIdentifier(ctx context.Context, q Queries, ids []types.Ide
 	if len(ids) == 0 {
 		return nil, nil
 	}
-	arg := gen.ListInstrumentsByIdentifiersParams{Types: make([]string, len(ids)), Domains: make([]string, len(ids)), Values: make([]string, len(ids))}
+	arg := gen.ListInstrsByIdentifiersParams{Types: make([]string, len(ids)), Domains: make([]string, len(ids)), Values: make([]string, len(ids))}
 	for i, id := range ids {
 		arg.Types[i], arg.Domains[i], arg.Values[i] = string(id.Type), id.Domain, id.Value
 	}
-	rows, err := q.ListInstrumentsByIdentifiers(ctx, arg)
+	rows, err := q.ListInstrsByIdentifiers(ctx, arg)
 	if err != nil {
 		return nil, fmt.Errorf("find instruments: %w", err)
 	}
-	var instruments []gen.Instrument
+	var instruments []gen.Instr
 	matched := map[uuid.UUID][]types.Identifier{}
 	for _, row := range rows {
-		if _, ok := matched[row.Instrument.ID]; !ok {
-			instruments = append(instruments, row.Instrument)
+		if _, ok := matched[row.Instr.ID]; !ok {
+			instruments = append(instruments, row.Instr)
 		}
-		matched[row.Instrument.ID] = append(matched[row.Instrument.ID], to.Identifier(row.Identifier))
+		matched[row.Instr.ID] = append(matched[row.Instr.ID], to.Identifier(row.Identifier))
 	}
 	loaded, err := join.InstrumentsWithCoverage(ctx, q, instruments)
 	if err != nil {

@@ -23,7 +23,7 @@ type RecordQueries interface {
 	CreateIdentifierEventCoverage(ctx context.Context, arg gen.CreateIdentifierEventCoverageParams) error
 	FindIdentifier(ctx context.Context, arg gen.FindIdentifierParams) (gen.FindIdentifierRow, error)
 	LockIdentifiers(ctx context.Context, keys []string) error
-	CreateInstrument(ctx context.Context, arg gen.CreateInstrumentParams) (gen.Instrument, error)
+	CreateInstr(ctx context.Context, arg gen.CreateInstrParams) (gen.Instr, error)
 	CreateListing(ctx context.Context, arg gen.CreateListingParams) (gen.Listing, error)
 	CreateIdentifier(ctx context.Context, arg gen.CreateIdentifierParams) (gen.Identifier, error)
 }
@@ -184,7 +184,7 @@ func AssertIdentifier(ctx context.Context, q Asserter, mics mic.MICMap, key uuid
 func assert(ctx context.Context, q Asserter, key uuid.UUID, typ types.IdentifierType, domain, value string, instrument *uuid.UUID, at time.Time) error {
 	arg := gen.CreateIdentifierAssertionParams{
 		ID: db.NewID(), FetchKeyID: &key, Type: typ, Domain: domain, Value: value,
-		InstrumentID: instrument, AssertedOn: types.Day(at),
+		InstrID: instrument, AssertedOn: types.Day(at),
 	}
 	if err := q.CreateIdentifierAssertion(ctx, arg); err != nil {
 		return fmt.Errorf("record assertion: %w", err)
@@ -211,7 +211,7 @@ func StoredInstrument(ctx context.Context, q Finder, ids []types.Identifier) (*u
 		if err != nil {
 			return nil, fmt.Errorf("find %s: %w", id.Name(), err)
 		}
-		return &row.Instrument.ID, nil
+		return &row.Instr.ID, nil
 	}
 	return nil, nil
 }
@@ -246,7 +246,7 @@ func instrumentOf(ctx context.Context, q RecordQueries, families currency.Famili
 func create(ctx context.Context, q RecordQueries, family string, key uuid.UUID, a market.Assertion, stable []types.Identifier) (*uuid.UUID, error) {
 	var kept []types.Identifier
 	for _, id := range stable {
-		if id.Grain() == types.IdentifierGrainInstrument || family != "" {
+		if id.Grain() == types.IdentifierGrainInstr || family != "" {
 			kept = append(kept, id)
 		}
 	}
@@ -257,20 +257,20 @@ func create(ctx context.Context, q RecordQueries, family string, key uuid.UUID, 
 	if class == "" {
 		class = types.AssetClassUnknown
 	}
-	inst, err := q.CreateInstrument(ctx, gen.CreateInstrumentParams{ID: db.NewID(), AssetClass: class, FetchKeyID: &key})
+	inst, err := q.CreateInstr(ctx, gen.CreateInstrParams{ID: db.NewID(), AssetClass: class, FetchKeyID: &key})
 	if err != nil {
 		return nil, fmt.Errorf("create instrument: %w", err)
 	}
 	var listing *uuid.UUID
 	if family != "" {
-		row, err := q.CreateListing(ctx, gen.CreateListingParams{ID: db.NewID(), InstrumentID: inst.ID, Currency: family, FetchKeyID: &key})
+		row, err := q.CreateListing(ctx, gen.CreateListingParams{ID: db.NewID(), InstrID: inst.ID, Currency: family, FetchKeyID: &key})
 		if err != nil {
 			return nil, fmt.Errorf("create listing in %s: %w", family, err)
 		}
 		listing = &row.ID
 	}
 	for _, id := range kept {
-		arg := gen.CreateIdentifierParams{ID: db.NewID(), InstrumentID: inst.ID, Type: id.Type, Domain: id.Domain, Value: id.Value, FetchKeyID: &key}
+		arg := gen.CreateIdentifierParams{ID: db.NewID(), InstrID: inst.ID, Type: id.Type, Domain: id.Domain, Value: id.Value, FetchKeyID: &key}
 		if id.Grain() == types.IdentifierGrainListing {
 			arg.ListingID = listing
 		}
@@ -314,7 +314,7 @@ func Attest(ctx context.Context, q AttestQueries, mics mic.MICMap, run gen.Run, 
 	}
 	arg := gen.CreateIdentifierAttestationParams{
 		ID: db.NewID(), RunID: run.ID, AttestedBy: admin, Type: types.IdentifierTypeMicTicker, Domain: t.Market, Value: t.Value,
-		InstrumentID: instrument, AssertedOn: types.Day(on),
+		InstrID: instrument, AssertedOn: types.Day(on),
 	}
 	if err := q.CreateIdentifierAttestation(ctx, arg); err != nil {
 		return fmt.Errorf("record identifier attestation: %w", err)

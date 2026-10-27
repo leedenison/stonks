@@ -254,7 +254,7 @@ func (g *ingestion) resolve(ctx context.Context, res gen.Run) error {
 	}
 	var keys []resolve.KeyDates
 	for _, k := range g.order {
-		if k.row.InstrumentID == nil {
+		if k.row.InstrID == nil {
 			keys = append(keys, resolve.KeyDates{Row: k.row, Dates: dates[k]})
 		}
 	}
@@ -268,7 +268,7 @@ func (g *ingestion) resolve(ctx context.Context, res gen.Run) error {
 		byKey[rk.StatedKeyID] = rk
 	}
 	for _, k := range g.order {
-		if k.row.InstrumentID != nil {
+		if k.row.InstrID != nil {
 			continue
 		}
 		rk, ok := byKey[k.row.ID]

@@ -41,7 +41,7 @@ func ticker(value string) types.MarketTicker {
 
 func asserted(n int, instrument *uuid.UUID) gen.ListIdentifierAssertionsRow {
 	return gen.ListIdentifierAssertionsRow{
-		IdentifierAssertion: gen.IdentifierAssertion{ID: uuid.New(), Type: types.IdentifierTypeMicTicker, Domain: "US", Value: "ACME", AssertedOn: day(n), InstrumentID: instrument, FetchKeyID: ptr.To(uuid.New())},
+		IdentifierAssertion: gen.IdentifierAssertion{ID: uuid.New(), Type: types.IdentifierTypeMicTicker, Domain: "US", Value: "ACME", AssertedOn: day(n), InstrID: instrument, FetchKeyID: ptr.To(uuid.New())},
 		Datasource:          alpha, Precedence: ptr.To(int32(1)),
 	}
 }
@@ -73,8 +73,8 @@ func TestTicker(t *testing.T) {
 	}
 	q.EXPECT().ListTickerTxns(gomock.Any(), probes).
 		Return([]gen.ListTickerTxnsRow{txn(k1, 5), txn(k2, 5), txn(k2, 15)}, nil)
-	name := gen.InstrumentName{InstrumentID: acme, Type: types.IdentifierTypeIsin, Value: "US0000000001"}
-	q.EXPECT().ListInstrumentNames(gomock.Any(), []uuid.UUID{acme}).Return([]gen.InstrumentName{name}, nil)
+	name := gen.InstrName{InstrID: acme, Type: types.IdentifierTypeIsin, Value: "US0000000001"}
+	q.EXPECT().ListInstrNames(gomock.Any(), []uuid.UUID{acme}).Return([]gen.InstrName{name}, nil)
 
 	got, err := New(q, mics).Ticker(context.Background(), v, day(30))
 	if err != nil {
@@ -86,9 +86,9 @@ func TestTicker(t *testing.T) {
 		Days:   []time.Time{day(5), day(15)},
 		Rows:   tickervalidity.Rows{Assertions: assertions},
 		Intervals: []tickervalidity.Interval{
-			{Before: &from, Instrument: acme, Validity: tickervalidity.Provisional},
-			{From: &from, Before: &mid, Instrument: acme, Validity: tickervalidity.Confirmed},
-			{From: &mid, Instrument: acme, Validity: tickervalidity.Provisional},
+			{Before: &from, Instr: acme, Validity: tickervalidity.Provisional},
+			{From: &from, Before: &mid, Instr: acme, Validity: tickervalidity.Confirmed},
+			{From: &mid, Instr: acme, Validity: tickervalidity.Provisional},
 		},
 		Gaps: []Gap{
 			{Period: types.Period{From: day(5), Before: from}, Keys: 2, Txns: 2},

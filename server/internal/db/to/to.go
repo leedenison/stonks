@@ -119,8 +119,8 @@ func ProtoResolutionItem(k gen.StatedKey, r *gen.ResolutionKey) *typev1.Resoluti
 	return out
 }
 
-// InstrumentName returns the identifier that names an instrument.
-func InstrumentName(n gen.InstrumentName) types.Identifier {
+// InstrName returns the identifier that names an instrument.
+func InstrName(n gen.InstrName) types.Identifier {
 	return types.Identifier{Type: n.Type, Domain: n.Domain, Value: n.Value}
 }
 
@@ -219,8 +219,8 @@ func ProtoAssertionItem(a gen.IdentifierAssertion, datasource, attestedBy *strin
 		Ticker:     types.MarketTicker{Market: a.Domain, Value: a.Value}.ToProto(),
 		AssertedOn: a.AssertedOn.Format(time.DateOnly),
 	}
-	if a.InstrumentID != nil {
-		id := a.InstrumentID.String()
+	if a.InstrID != nil {
+		id := a.InstrID.String()
 		out.InstrumentId = &id
 	}
 	switch {
@@ -255,7 +255,7 @@ func ProtoIdentifierEvent(e gen.ListIdentifierEventsRow) *admincoveragev1.Identi
 
 // ProtoInstrument writes an instrument with the identifier that names it,
 // and leaves its listings and identifiers to the caller.
-func ProtoInstrument(r gen.ListInstrumentsRow) *admininstrumentv1.Instrument {
+func ProtoInstrument(r gen.ListInstrsRow) *admininstrumentv1.Instrument {
 	out := &admininstrumentv1.Instrument{Id: r.ID.String(), AssetClass: types.ToProto[typev1.AssetClass](r.AssetClass)}
 	if r.NameType != "" {
 		out.Name = types.Identifier{Type: types.IdentifierType(r.NameType), Domain: r.NameDomain, Value: r.Name}.ToProto()

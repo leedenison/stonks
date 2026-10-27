@@ -78,7 +78,7 @@ func broken(ws []winner, events []Event) []BrokenBracket {
 		}
 		before, after := ws[i-1], ws[i]
 		if before.instrument != nil && same(before.instrument, after.instrument) {
-			out = append(out, BrokenBracket{Event: e, Instrument: *before.instrument, First: before.at, Last: after.at})
+			out = append(out, BrokenBracket{Event: e, Instr: *before.instrument, First: before.at, Last: after.at})
 		}
 	}
 	return out
@@ -105,7 +105,7 @@ func winners(as []Assertion) ([]winner, []Disagreement) {
 	first := map[string]time.Time{}
 	var earliest *time.Time
 	for _, a := range as {
-		if a.Instrument == nil {
+		if a.Instr == nil {
 			continue
 		}
 		if earliest == nil {
@@ -120,7 +120,7 @@ func winners(as []Assertion) ([]winner, []Disagreement) {
 		}
 	}
 	counts := func(a Assertion) bool {
-		if a.Instrument != nil {
+		if a.Instr != nil {
 			return true
 		}
 		if a.Source.Attested {
@@ -135,9 +135,9 @@ func winners(as []Assertion) ([]winner, []Disagreement) {
 	var day []Assertion
 	flush := func() {
 		if best != nil {
-			out = append(out, winner{at: best.At, instrument: best.Instrument, assertion: *best})
+			out = append(out, winner{at: best.At, instrument: best.Instr, assertion: *best})
 			for _, a := range day {
-				if !best.Source.Attested && !same(a.Instrument, best.Instrument) {
+				if !best.Source.Attested && !same(a.Instr, best.Instr) {
 					disagreements = append(disagreements, Disagreement{On: best.At, Winner: *best, Loser: a})
 				}
 			}
@@ -172,12 +172,12 @@ func better(a, b Assertion) bool {
 		return true
 	case b.Source.outranks(a.Source):
 		return false
-	case (a.Instrument == nil) != (b.Instrument == nil):
-		return a.Instrument != nil
-	case a.Instrument == nil:
+	case (a.Instr == nil) != (b.Instr == nil):
+		return a.Instr != nil
+	case a.Instr == nil:
 		return false
 	}
-	return a.Instrument.String() < b.Instrument.String()
+	return a.Instr.String() < b.Instr.String()
 }
 
 // span is consecutive winners that name one thing, from the assertion that
@@ -228,11 +228,11 @@ func segment(ss []span, start, end *time.Time, cover []types.Period) ([]Interval
 			from := back(r.first, floor, cover)
 			to := forward(next(r.last), ceil, cover)
 			if k == 0 && (floor == nil || floor.Before(from)) {
-				out = append(out, Interval{From: floor, Before: &from, Instrument: *r.instrument, Validity: Provisional})
+				out = append(out, Interval{From: floor, Before: &from, Instr: *r.instrument, Validity: Provisional})
 			}
-			out = append(out, Interval{From: &from, Before: &to, Instrument: *r.instrument, Validity: Confirmed})
+			out = append(out, Interval{From: &from, Before: &to, Instr: *r.instrument, Validity: Confirmed})
 			if ceil == nil || to.Before(*ceil) {
-				out = append(out, Interval{From: &to, Before: ceil, Instrument: *r.instrument, Validity: Provisional})
+				out = append(out, Interval{From: &to, Before: ceil, Instr: *r.instrument, Validity: Provisional})
 			}
 			floor = ceil
 		}
@@ -313,7 +313,7 @@ func join(ivs []Interval) []Interval {
 	for _, iv := range ivs {
 		if n := len(out); n > 0 {
 			prev := &out[n-1]
-			if prev.Instrument == iv.Instrument && prev.Validity == iv.Validity && prev.Before != nil && iv.From != nil && prev.Before.Equal(*iv.From) {
+			if prev.Instr == iv.Instr && prev.Validity == iv.Validity && prev.Before != nil && iv.From != nil && prev.Before.Equal(*iv.From) {
 				prev.Before = iv.Before
 				continue
 			}

@@ -71,7 +71,7 @@ func (f *fixture) starts(t *testing.T, row gen.Run) {
 func assertion(row gen.Run, instrument *uuid.UUID, on time.Time) gen.CreateIdentifierAttestationParams {
 	return gen.CreateIdentifierAttestationParams{
 		RunID: row.ID, AttestedBy: admin, Type: types.IdentifierTypeMicTicker, Domain: "US", Value: "ACME",
-		InstrumentID: instrument, AssertedOn: on,
+		InstrID: instrument, AssertedOn: on,
 	}
 }
 
@@ -80,7 +80,7 @@ func assertion(row gen.Run, instrument *uuid.UUID, on time.Time) gen.CreateIdent
 func TestStart(t *testing.T) {
 	f := newFixture(t)
 	row := gen.Run{ID: db.NewID(), Kind: gen.RunKindAttestIdentifier, Trigger: gen.RunTriggerAdministrator}
-	f.store.EXPECT().GetInstrument(gomock.Any(), acme).Return(gen.Instrument{ID: acme}, nil)
+	f.store.EXPECT().GetInstr(gomock.Any(), acme).Return(gen.Instr{ID: acme}, nil)
 	f.starts(t, row)
 	var written []gen.CreateIdentifierAttestationParams
 	f.store.EXPECT().CreateIdentifierAttestation(gomock.Any(), gomock.Any()).Times(2).DoAndReturn(func(_ context.Context, arg gen.CreateIdentifierAttestationParams) error {
@@ -143,7 +143,7 @@ func TestStartRefused(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newFixture(t)
 			if tc.instrument != nil {
-				f.store.EXPECT().GetInstrument(gomock.Any(), *tc.instrument).Return(gen.Instrument{}, db.ErrNotFound)
+				f.store.EXPECT().GetInstr(gomock.Any(), *tc.instrument).Return(gen.Instr{}, db.ErrNotFound)
 			}
 			var to *time.Time
 			if !tc.to.IsZero() {

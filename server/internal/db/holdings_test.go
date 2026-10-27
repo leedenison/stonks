@@ -48,7 +48,7 @@ func (h holder) keyIn(t *testing.T, q *gen.Queries, description string, currency
 	}
 	arg := gen.SetStatedKeyAssociationParams{
 		ID: k.ID, UserID: h.user.ID,
-		InstrumentID: &listing.InstrumentID, ListingID: &listing.ID,
+		InstrID: &listing.InstrID, ListingID: &listing.ID,
 		ViaID: &via.ID, Arbiter: gen.ArbiterDatasource,
 	}
 	_, err := q.SetStatedKeyAssociation(ctx, arg)
@@ -92,7 +92,7 @@ var decimalEqual = cmp.Comparer(func(a, b decimal.Decimal) bool { return a.Equal
 // venueTicker gives listing a ticker at venue.
 func venueTicker(t *testing.T, q *gen.Queries, listing gen.Listing, venue, value string) {
 	t.Helper()
-	_, err := q.CreateIdentifier(context.Background(), gen.CreateIdentifierParams{ID: db.NewID(), InstrumentID: listing.InstrumentID, ListingID: &listing.ID, Type: types.IdentifierTypeMicTicker, Domain: venue, Value: value})
+	_, err := q.CreateIdentifier(context.Background(), gen.CreateIdentifierParams{ID: db.NewID(), InstrID: listing.InstrID, ListingID: &listing.ID, Type: types.IdentifierTypeMicTicker, Domain: venue, Value: value})
 	require.NoError(t, err)
 }
 
@@ -118,10 +118,10 @@ func TestListListingNames(t *testing.T) {
 	got, err := q.ListListingNames(ctx, []uuid.UUID{instrument.ID})
 	require.NoError(t, err)
 	want := []gen.ListListingNamesRow{
-		{ListingID: bare.ID, InstrumentID: instrument.ID, Currency: "CHF"},
-		{ListingID: ranked.ID, InstrumentID: instrument.ID, Currency: "EUR", TickerDomain: ptr.To("XLON"), TickerValue: ptr.To("ACMX"), Venue: "LSE"},
-		{ListingID: primary.ID, InstrumentID: instrument.ID, Currency: "GBP", TickerDomain: ptr.To("XLON"), TickerValue: ptr.To("ACME"), Venue: "LSE"},
-		{ListingID: unranked.ID, InstrumentID: instrument.ID, Currency: "USD", TickerDomain: ptr.To("XXXA"), TickerValue: ptr.To("ACMU"), Venue: "XXXA"},
+		{ListingID: bare.ID, InstrID: instrument.ID, Currency: "CHF"},
+		{ListingID: ranked.ID, InstrID: instrument.ID, Currency: "EUR", TickerDomain: ptr.To("XLON"), TickerValue: ptr.To("ACMX"), Venue: "LSE"},
+		{ListingID: primary.ID, InstrID: instrument.ID, Currency: "GBP", TickerDomain: ptr.To("XLON"), TickerValue: ptr.To("ACME"), Venue: "LSE"},
+		{ListingID: unranked.ID, InstrID: instrument.ID, Currency: "USD", TickerDomain: ptr.To("XXXA"), TickerValue: ptr.To("ACMU"), Venue: "XXXA"},
 	}
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("ListListingNames mismatch (-want +got):\n%s", diff)

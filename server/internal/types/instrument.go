@@ -6,9 +6,9 @@ import (
 	"slices"
 )
 
-// Instrument is a security as one source describes it, whether a
+// Instr is a security as one source describes it, whether a
 // datasource or the database.
-type Instrument struct {
+type Instr struct {
 	// Class is empty where the source states none.
 	Class AssetClass
 	// Identifiers name the instrument itself, not one of its listings.
@@ -28,7 +28,7 @@ type Listing struct {
 
 // AllIDs yields every identifier of i, the instrument's first and then each
 // listing's in family order.
-func (i Instrument) AllIDs() iter.Seq[Identifier] {
+func (i Instr) AllIDs() iter.Seq[Identifier] {
 	return func(yield func(Identifier) bool) {
 		for _, id := range i.Identifiers {
 			if !yield(id) {
@@ -46,7 +46,7 @@ func (i Instrument) AllIDs() iter.Seq[Identifier] {
 }
 
 // IdentifiedBy reports whether id is among the identifiers of i.
-func (i Instrument) IdentifiedBy(id Identifier) bool {
+func (i Instr) IdentifiedBy(id Identifier) bool {
 	for h := range i.AllIDs() {
 		if h == id {
 			return true

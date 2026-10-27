@@ -413,7 +413,7 @@ func TestListRunItems(t *testing.T) {
 			expect: func(r *mock.MockQueriesMockRecorder) {
 				two := int32(2)
 				r.ListRunAssertions(gomock.Any(), gen.ListRunAssertionsParams{RunID: &runID, Lim: &two}).Return([]gen.ListRunAssertionsRow{
-					{IdentifierAssertion: gen.IdentifierAssertion{ID: keyID, Type: types.IdentifierTypeMicTicker, Domain: "XLON", Value: "SHEL", InstrumentID: &childID, AssertedOn: created}, Datasource: ptr.To("eodhd")},
+					{IdentifierAssertion: gen.IdentifierAssertion{ID: keyID, Type: types.IdentifierTypeMicTicker, Domain: "XLON", Value: "SHEL", InstrID: &childID, AssertedOn: created}, Datasource: ptr.To("eodhd")},
 					{IdentifierAssertion: gen.IdentifierAssertion{ID: childID, Type: types.IdentifierTypeMicTicker, Domain: "XLON", Value: "SHEL", AssertedOn: created}, Datasource: ptr.To("eodhd")},
 				}, nil)
 			},

@@ -28,15 +28,15 @@ func at(n int) *time.Time {
 }
 
 func asserts(n int, inst *uuid.UUID, src Source) Assertion {
-	return Assertion{At: d(n), Instrument: inst, Source: src}
+	return Assertion{At: d(n), Instr: inst, Source: src}
 }
 
 func confirmed(from, before *time.Time, inst uuid.UUID) Interval {
-	return Interval{From: from, Before: before, Instrument: inst, Validity: Confirmed}
+	return Interval{From: from, Before: before, Instr: inst, Validity: Confirmed}
 }
 
 func provisional(from, before *time.Time, inst uuid.UUID) Interval {
-	return Interval{From: from, Before: before, Instrument: inst, Validity: Provisional}
+	return Interval{From: from, Before: before, Instr: inst, Validity: Provisional}
 }
 
 func cover(from, before int) types.Period { return types.Period{From: d(from), Before: d(before)} }
@@ -90,7 +90,7 @@ func TestDerive(t *testing.T) {
 				provisional(nil, at(1), a), confirmed(at(1), at(2), a), provisional(at(2), at(9), a),
 				confirmed(at(9), at(10), a), provisional(at(10), nil, a),
 			},
-			wantBroken: []BrokenBracket{{Event: event(5), Instrument: a, First: d(1), Last: d(9)}},
+			wantBroken: []BrokenBracket{{Event: event(5), Instr: a, First: d(1), Last: d(9)}},
 		},
 		{
 			name:  "an event precedes an assertion on its day",

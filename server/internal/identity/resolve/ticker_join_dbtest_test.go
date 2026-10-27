@@ -36,12 +36,12 @@ func (s *stack) identifierNames(t *testing.T, instrument uuid.UUID) []string {
 func (s *stack) stored(t *testing.T, ids ...types.Identifier) uuid.UUID {
 	t.Helper()
 	ctx := context.Background()
-	inst, err := s.q.CreateInstrument(ctx, gen.CreateInstrumentParams{ID: db.NewID(), AssetClass: types.AssetClassStock})
+	inst, err := s.q.CreateInstr(ctx, gen.CreateInstrParams{ID: db.NewID(), AssetClass: types.AssetClassStock})
 	require.NoError(t, err)
-	_, err = s.q.CreateListing(ctx, gen.CreateListingParams{ID: db.NewID(), InstrumentID: inst.ID, Currency: "GBP"})
+	_, err = s.q.CreateListing(ctx, gen.CreateListingParams{ID: db.NewID(), InstrID: inst.ID, Currency: "GBP"})
 	require.NoError(t, err)
 	for _, id := range ids {
-		_, err = s.q.CreateIdentifier(ctx, gen.CreateIdentifierParams{ID: db.NewID(), InstrumentID: inst.ID, Type: id.Type, Domain: id.Domain, Value: id.Value})
+		_, err = s.q.CreateIdentifier(ctx, gen.CreateIdentifierParams{ID: db.NewID(), InstrID: inst.ID, Type: id.Type, Domain: id.Domain, Value: id.Value})
 		require.NoError(t, err)
 	}
 	return inst.ID
@@ -78,7 +78,7 @@ func TestTickerJoins(t *testing.T) {
 	}
 	found, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: figi.Type, Value: figi.Value})
 	require.NoError(t, err)
-	inst := found.Instrument.ID
+	inst := found.Instr.ID
 	want := []string{"cusip 92857W308", "isin GB00BH4HKS39", "mic_ticker XLON:ZZJ", "openfigi_share_class BBG001S5XDT5"}
 	if diff := cmp.Diff(want, s.identifierNames(t, inst)); diff != "" {
 		t.Errorf("identifiers mismatch (-want +got):\n%s", diff)
@@ -100,7 +100,7 @@ func TestTickerJoins(t *testing.T) {
 	if len(got) != 1 || got[0].Outcome != gen.ResolutionOutcomeMatched {
 		t.Fatalf("second resolution = %+v, want the key matched", got)
 	}
-	if k := s.key(t, second.ID); k.InstrumentID == nil || *k.InstrumentID != inst {
+	if k := s.key(t, second.ID); k.InstrID == nil || *k.InstrID != inst {
 		t.Errorf("second key = %+v, want it on %s", k, inst)
 	}
 	if n := len(s.fetches(t)); n != 0 {
@@ -135,8 +135,8 @@ func TestTickerJoinsAcrossVenues(t *testing.T) {
 	require.NoError(t, err)
 	byISIN, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: isin.Type, Value: isin.Value})
 	require.NoError(t, err)
-	if byFIGI.Instrument.ID != byISIN.Instrument.ID {
-		t.Errorf("the FIGI names %s and the ISIN %s, want one instrument", byFIGI.Instrument.ID, byISIN.Instrument.ID)
+	if byFIGI.Instr.ID != byISIN.Instr.ID {
+		t.Errorf("the FIGI names %s and the ISIN %s, want one instrument", byFIGI.Instr.ID, byISIN.Instr.ID)
 	}
 }
 
@@ -165,8 +165,8 @@ func TestTickerJoinKeepsInstrumentsApart(t *testing.T) {
 		}
 		ticker, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: v.Type, Domain: v.Domain, Value: v.Value})
 		require.NoError(t, err)
-		if ticker.Instrument.ID != target {
-			t.Errorf("%s names %s, want the stored instrument %s", v.Name(), ticker.Instrument.ID, target)
+		if ticker.Instr.ID != target {
+			t.Errorf("%s names %s, want the stored instrument %s", v.Name(), ticker.Instr.ID, target)
 		}
 		if diff := cmp.Diff([]string{"isin GB00BH4HKS39", "mic_ticker " + v.Domain + ":" + v.Value, "openfigi_share_class BBG001S5XDT5"}, s.identifierNames(t, target)); diff != "" {
 			t.Errorf("target's identifiers mismatch (-want +got):\n%s", diff)
@@ -191,10 +191,10 @@ func TestTickerJoinKeepsInstrumentsApart(t *testing.T) {
 		}
 		found, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: figi.Type, Value: figi.Value})
 		require.NoError(t, err)
-		if found.Instrument.ID == other {
+		if found.Instr.ID == other {
 			t.Fatalf("the key took the stored instrument %s, want a new one: a ticker merges nothing", other)
 		}
-		if diff := cmp.Diff([]string{"mic_ticker XLON:ZZK", "openfigi_share_class BBG001S5XDT5"}, s.identifierNames(t, found.Instrument.ID)); diff != "" {
+		if diff := cmp.Diff([]string{"mic_ticker XLON:ZZK", "openfigi_share_class BBG001S5XDT5"}, s.identifierNames(t, found.Instr.ID)); diff != "" {
 			t.Errorf("new instrument's identifiers mismatch (-want +got):\n%s", diff)
 		}
 		if diff := cmp.Diff([]string{"isin GB00BH4HKS39"}, s.identifierNames(t, other)); diff != "" {

@@ -122,7 +122,7 @@ func (r Rows) Facts() Facts {
 		if a.IdentifierAssertion.FetchKeyID != nil {
 			src.FetchKey = *a.IdentifierAssertion.FetchKeyID
 		}
-		f.Assertions = append(f.Assertions, Assertion{At: a.IdentifierAssertion.AssertedOn, Instrument: a.IdentifierAssertion.InstrumentID, Source: src})
+		f.Assertions = append(f.Assertions, Assertion{At: a.IdentifierAssertion.AssertedOn, Instr: a.IdentifierAssertion.InstrID, Source: src})
 	}
 	for _, e := range r.Events {
 		f.Events = append(f.Events, Event{On: e.EffectiveOn, FetchKey: e.FetchKeyID})

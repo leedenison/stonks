@@ -108,7 +108,7 @@ func (s *stack) assertedOn(t *testing.T, v types.Identifier, d time.Time) []*uui
 	var out []*uuid.UUID
 	for _, r := range rows {
 		if r.IdentifierAssertion.AssertedOn.Equal(d) {
-			out = append(out, r.IdentifierAssertion.InstrumentID)
+			out = append(out, r.IdentifierAssertion.InstrID)
 		}
 	}
 	return out
@@ -119,7 +119,7 @@ func (s *stack) instrumentOf(t *testing.T, id types.Identifier) uuid.UUID {
 	t.Helper()
 	row, err := s.q.FindIdentifier(context.Background(), gen.FindIdentifierParams{Type: id.Type, Domain: id.Domain, Value: id.Value})
 	require.NoError(t, err)
-	return row.Instrument.ID
+	return row.Instr.ID
 }
 
 // TestReassertTickers covers a held ticker on XLON, which alpha declines and
@@ -132,8 +132,8 @@ func TestReassertTickers(t *testing.T) {
 	isin := id(types.IdentifierTypeIsin, "", "GB00ZZR"+uuid.NewString()[:5])
 	s.heldOnXLON(t, v, listing(types.AssetClassStock, "GBP", isin, v))
 	inst := s.instrumentOf(t, isin)
-	coverage := `SELECT count(*) FROM identity_coverage WHERE instrument_id = $1`
-	shape := `SELECT (SELECT count(*) FROM identifiers WHERE instrument_id = $1) + (SELECT count(*) FROM listings WHERE instrument_id = $1)`
+	coverage := `SELECT count(*) FROM identity_coverage WHERE instr_id = $1`
+	shape := `SELECT (SELECT count(*) FROM identifiers WHERE instr_id = $1) + (SELECT count(*) FROM listings WHERE instr_id = $1)`
 	covered, rows := s.count(t, coverage, inst), s.count(t, shape, inst)
 	require.Positive(t, covered)
 
@@ -246,9 +246,9 @@ func TestReassertTickersDisagreement(t *testing.T) {
 	isin := id(types.IdentifierTypeIsin, "", "GB00ZZD"+uuid.NewString()[:5])
 	s.heldOnXLON(t, v, listing(types.AssetClassStock, "GBP", isin, v))
 	other := id(types.IdentifierTypeIsin, "", "GB00ZZE"+uuid.NewString()[:5])
-	inst, err := s.q.CreateInstrument(ctx, gen.CreateInstrumentParams{ID: db.NewID(), AssetClass: types.AssetClassStock})
+	inst, err := s.q.CreateInstr(ctx, gen.CreateInstrParams{ID: db.NewID(), AssetClass: types.AssetClassStock})
 	require.NoError(t, err)
-	_, err = s.q.CreateIdentifier(ctx, gen.CreateIdentifierParams{ID: db.NewID(), InstrumentID: inst.ID, Type: other.Type, Value: other.Value})
+	_, err = s.q.CreateIdentifier(ctx, gen.CreateIdentifierParams{ID: db.NewID(), InstrID: inst.ID, Type: other.Type, Value: other.Value})
 	require.NoError(t, err)
 
 	s.script.Declines = nil

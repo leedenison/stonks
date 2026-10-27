@@ -51,7 +51,7 @@ type instruments struct {
 	lookups     metric.Int64Counter
 }
 
-var instr = newInstruments(otel.Meter(meterName))
+var metrics = newInstruments(otel.Meter(meterName))
 
 func newInstruments(m metric.Meter) instruments {
 	var errs []error

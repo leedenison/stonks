@@ -190,7 +190,7 @@ func TestReplay(t *testing.T) {
 	if got := outcomeOf(items, key); got != gen.ResolutionOutcomeUnavailable {
 		t.Fatalf("outcome while down = %s, want unavailable", got)
 	}
-	if key.InstrumentID != nil || key.GroupID == nil {
+	if key.InstrID != nil || key.GroupID == nil {
 		t.Fatalf("key while down = %+v, want unresolved and grouped", key)
 	}
 	_, groups := s.holdings(t)
@@ -219,13 +219,13 @@ func TestReplay(t *testing.T) {
 		t.Errorf("fetches of the replay = %+v, want one", fetches)
 	}
 	key = s.acme(t, run)
-	if key.InstrumentID == nil || key.GroupID != nil {
+	if key.InstrID == nil || key.GroupID != nil {
 		t.Fatalf("key after the replay = %+v, want associated and ungrouped", key)
 	}
 	holdings, groups := s.holdings(t)
 	var held bool
 	for _, h := range holdings {
-		held = held || (h.InstrumentID == *key.InstrumentID && h.Quantity.Equal(decimal.NewFromInt(10)))
+		held = held || (h.InstrID == *key.InstrID && h.Quantity.Equal(decimal.NewFromInt(10)))
 	}
 	if !held {
 		t.Errorf("instrument holdings after the replay = %+v, want ten of the stock", holdings)
@@ -264,7 +264,7 @@ func TestReplay(t *testing.T) {
 	if fetches := s.children(t, resolution); len(fetches) != 1 {
 		t.Errorf("fetches of the beta replay = %+v, want one, alpha having covered the instrument", fetches)
 	}
-	coverage, err := s.q.ListIdentityCoverage(ctx, []uuid.UUID{*key.InstrumentID})
+	coverage, err := s.q.ListIdentityCoverage(ctx, []uuid.UUID{*key.InstrID})
 	require.NoError(t, err)
 	if len(coverage) != 2 {
 		t.Errorf("coverage after the beta replay = %+v, want alpha and beta", coverage)
@@ -468,8 +468,8 @@ func TestReplayChain(t *testing.T) {
 // holding is one instrument's or one group's sum of the user's fixed and
 // unresolved keys.
 type holding struct {
-	InstrumentID, GroupID uuid.UUID
-	Quantity              decimal.Decimal
+	InstrID, GroupID uuid.UUID
+	Quantity         decimal.Decimal
 }
 
 // holdings sums the user's keys by instrument and by group, as the holdings
@@ -481,15 +481,15 @@ func (s *stack) holdings(t *testing.T) (instruments, groups []holding) {
 	byInstrument, byGroup := map[uuid.UUID]decimal.Decimal{}, map[uuid.UUID]decimal.Decimal{}
 	for _, k := range keys {
 		switch {
-		case k.StatedKey.InstrumentID != nil:
-			byInstrument[*k.StatedKey.InstrumentID] = byInstrument[*k.StatedKey.InstrumentID].Add(k.Quantity)
+		case k.StatedKey.InstrID != nil:
+			byInstrument[*k.StatedKey.InstrID] = byInstrument[*k.StatedKey.InstrID].Add(k.Quantity)
 		case k.StatedKey.GroupID != nil && k.StatedKey.ViaType == nil:
 			byGroup[*k.StatedKey.GroupID] = byGroup[*k.StatedKey.GroupID].Add(k.Quantity)
 		}
 	}
 	for id, q := range byInstrument {
 		if !q.IsZero() {
-			instruments = append(instruments, holding{InstrumentID: id, Quantity: q})
+			instruments = append(instruments, holding{InstrID: id, Quantity: q})
 		}
 	}
 	for id, q := range byGroup {

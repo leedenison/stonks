@@ -59,7 +59,7 @@ func TestCandidates(t *testing.T) {
 	t.Run("a key with an association is refused", func(t *testing.T) {
 		f := newFixture(t)
 		associated := key
-		associated.InstrumentID = &userID
+		associated.InstrID = &userID
 		f.store.EXPECT().GetStatedKey(gomock.Any(), gomock.Any()).Return(associated, nil)
 		if _, err := f.svc.Candidates(context.Background(), userID, key.ID); !errors.Is(err, ErrAssociated) {
 			t.Errorf("Candidates() error = %v, want ErrAssociated", err)
@@ -110,7 +110,7 @@ func TestConfirm(t *testing.T) {
 	t.Run("a key with an association is refused", func(t *testing.T) {
 		f := newFixture(t)
 		associated := key
-		associated.InstrumentID = &userID
+		associated.InstrID = &userID
 		f.store.EXPECT().GetStatedKey(gomock.Any(), gomock.Any()).Return(associated, nil)
 		if _, err := f.svc.Confirm(context.Background(), userID, key.ID, pick); !errors.Is(err, ErrAssociated) {
 			t.Errorf("Confirm() error = %v, want ErrAssociated", err)

@@ -24,7 +24,7 @@ type identityClaim struct {
 	// fetchKey is the fetch key whose response made the claim, nil for the
 	// database's.
 	fetchKey *fetchKey
-	types.Instrument
+	types.Instr
 }
 
 // named reports whether the identifier sent identifies c.
@@ -38,7 +38,7 @@ func (c *identityClaim) named() bool {
 func claims(fk *fetchKey) []*identityClaim {
 	var strict []types.Identifier
 	for _, id := range fk.Response.Filtered {
-		if id.Grain() == types.IdentifierGrainInstrument {
+		if id.Grain() == types.IdentifierGrainInstr {
 			strict = append(strict, id)
 		}
 	}
@@ -49,7 +49,7 @@ func claims(fk *fetchKey) []*identityClaim {
 	for i, listing := range ls {
 		c := byRoot[roots[i]]
 		if c == nil {
-			c = &identityClaim{fetchKey: fk, Instrument: types.Instrument{Listings: map[string]types.Listing{}}}
+			c = &identityClaim{fetchKey: fk, Instr: types.Instr{Listings: map[string]types.Listing{}}}
 			c.Identifiers = append(c.Identifiers, strict...)
 			byRoot[roots[i]] = c
 			out = append(out, c)
@@ -71,7 +71,7 @@ func partition(ls []market.Listing, strict bool) []int {
 			union(parent, 0, i)
 		}
 		for _, id := range c.Identifiers {
-			if id.Grain() != types.IdentifierGrainInstrument {
+			if id.Grain() != types.IdentifierGrainInstr {
 				continue
 			}
 			if j, ok := owner[id]; ok {
@@ -113,7 +113,7 @@ func (c *identityClaim) add(listing market.Listing, fam string) {
 	}
 	l := c.Listings[fam]
 	for _, id := range listing.Identifiers {
-		if id.Grain() == types.IdentifierGrainInstrument {
+		if id.Grain() == types.IdentifierGrainInstr {
 			c.Identifiers = appendUnique(c.Identifiers, id)
 		} else {
 			l.Identifiers = appendUnique(l.Identifiers, id)

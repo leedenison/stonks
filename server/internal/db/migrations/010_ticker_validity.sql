@@ -49,9 +49,9 @@ CREATE TABLE identifier_assertions (
     type            identifier_type NOT NULL,
     domain          text            NOT NULL DEFAULT '',
     value           text            NOT NULL,
-    -- instrument_id is NULL for a negative assertion: the identifier names
+    -- instr_id is NULL for a negative assertion: the identifier names
     -- nothing at the source.
-    instrument_id   uuid            REFERENCES instruments (id),
+    instr_id   uuid            REFERENCES instrs (id),
     asserted_on     date            NOT NULL,
     CHECK ((fetch_key_id IS NULL) <> (run_id IS NULL)),
     CHECK ((run_id IS NULL) = (attested_by IS NULL)),
@@ -64,7 +64,7 @@ CREATE INDEX identifier_assertions_value_idx ON identifier_assertions (type, dom
 CREATE UNIQUE INDEX identifier_attestations_day_idx ON identifier_assertions (type, domain, value, asserted_on)
     WHERE run_id IS NOT NULL;
 CREATE INDEX identifier_assertions_run_idx ON identifier_assertions (run_id);
-CREATE INDEX identifier_assertions_instrument_idx ON identifier_assertions (instrument_id);
+CREATE INDEX identifier_assertions_instr_idx ON identifier_assertions (instr_id);
 
 -- An identifier event is a change a datasource reported in what a MIC_TICKER
 -- names, taking effect at the start of effective_on. An event refers to a

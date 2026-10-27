@@ -395,8 +395,8 @@ func conflicts(ctx context.Context, q Queries, v types.MarketTicker, mine map[uu
 			continue
 		}
 		detail := fmt.Sprintf("%s on %s: %s named %s and %s named %s; %s was kept",
-			v.Name(), dis.On.Format(time.DateOnly), dis.Winner.Source.Datasource, named(dis.Winner.Instrument),
-			dis.Loser.Source.Datasource, named(dis.Loser.Instrument), dis.Winner.Source.Datasource)
+			v.Name(), dis.On.Format(time.DateOnly), dis.Winner.Source.Datasource, named(dis.Winner.Instr),
+			dis.Loser.Source.Datasource, named(dis.Loser.Instr), dis.Winner.Source.Datasource)
 		out = append(out, gen.CreateFindingParams{Kind: gen.FindingKindIdentifierDisagreement, FetchKeyID: ptr.To(dis.Loser.Source.FetchKey), Detail: &detail})
 	}
 	for _, br := range d.Broken {
@@ -404,7 +404,7 @@ func conflicts(ctx context.Context, q Queries, v types.MarketTicker, mine map[uu
 			continue
 		}
 		detail := fmt.Sprintf("%s: an event on %s falls between assertions of %s on %s and %s",
-			v.Name(), br.Event.On.Format(time.DateOnly), br.Instrument, br.First.Format(time.DateOnly), br.Last.Format(time.DateOnly))
+			v.Name(), br.Event.On.Format(time.DateOnly), br.Instr, br.First.Format(time.DateOnly), br.Last.Format(time.DateOnly))
 		out = append(out, gen.CreateFindingParams{Kind: gen.FindingKindBrokenTickerValidityBracket, FetchKeyID: ptr.To(br.Event.FetchKey), Detail: &detail})
 	}
 	for _, m := range d.Missed {

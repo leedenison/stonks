@@ -44,10 +44,10 @@ import (
 // queries, which give a dated key's transactions their instruments.
 type Reader interface {
 	tickervalidity.FactQueries
-	ListInstrumentsByID(ctx context.Context, ids []uuid.UUID) ([]gen.Instrument, error)
+	ListInstrsByID(ctx context.Context, ids []uuid.UUID) ([]gen.Instr, error)
 	ListIdentifiersOf(ctx context.Context, ids []uuid.UUID) ([]gen.Identifier, error)
 	ListListingNames(ctx context.Context, instrumentIds []uuid.UUID) ([]gen.ListListingNamesRow, error)
-	ListInstrumentNames(ctx context.Context, ids []uuid.UUID) ([]gen.InstrumentName, error)
+	ListInstrNames(ctx context.Context, ids []uuid.UUID) ([]gen.InstrName, error)
 	ListHoldingKeys(ctx context.Context, userID uuid.UUID) ([]gen.ListHoldingKeysRow, error)
 	ListDatedTxns(ctx context.Context, userID uuid.UUID) ([]gen.ListDatedTxnsRow, error)
 }
@@ -103,7 +103,7 @@ func (s *Server) ListHoldings(ctx context.Context, _ *connect.Request[holdingv1.
 func (s *Server) instruments(ctx context.Context, keys []gen.ListHoldingKeysRow, d dated) ([]*holdingv1.InstrumentHolding, error) {
 	named := map[uuid.UUID]decimal.Decimal{}
 	for _, k := range keys {
-		if id := k.StatedKey.InstrumentID; id != nil {
+		if id := k.StatedKey.InstrID; id != nil {
 			named[*id] = decimal.Zero
 		}
 	}
@@ -115,7 +115,7 @@ func (s *Server) instruments(ctx context.Context, keys []gen.ListHoldingKeysRow,
 	if len(named) == 0 {
 		return nil, nil
 	}
-	instruments, err := s.reader.ListInstrumentsByID(ctx, sorted(named))
+	instruments, err := s.reader.ListInstrsByID(ctx, sorted(named))
 	if err != nil {
 		return nil, err
 	}
@@ -125,7 +125,7 @@ func (s *Server) instruments(ctx context.Context, keys []gen.ListHoldingKeysRow,
 	}
 	total := make(map[uuid.UUID]decimal.Decimal, len(named))
 	for _, k := range keys {
-		id := k.StatedKey.InstrumentID
+		id := k.StatedKey.InstrID
 		if id == nil {
 			continue
 		}
@@ -150,7 +150,7 @@ func (s *Server) instruments(ctx context.Context, keys []gen.ListHoldingKeysRow,
 	}
 	identified := make(map[uuid.UUID][]gen.Identifier, len(ids))
 	for _, i := range idents {
-		identified[i.InstrumentID] = append(identified[i.InstrumentID], i)
+		identified[i.InstrID] = append(identified[i.InstrID], i)
 	}
 	listings, err := s.reader.ListListingNames(ctx, ids)
 	if err != nil {
@@ -158,19 +158,19 @@ func (s *Server) instruments(ctx context.Context, keys []gen.ListHoldingKeysRow,
 	}
 	listed := make(map[uuid.UUID][]gen.ListListingNamesRow, len(ids))
 	for _, l := range listings {
-		listed[l.InstrumentID] = append(listed[l.InstrumentID], l)
+		listed[l.InstrID] = append(listed[l.InstrID], l)
 	}
-	names, err := s.reader.ListInstrumentNames(ctx, ids)
+	names, err := s.reader.ListInstrNames(ctx, ids)
 	if err != nil {
 		return nil, err
 	}
 	nameOf := make(map[uuid.UUID]*typev1.Identifier, len(names))
 	for _, n := range names {
-		nameOf[n.InstrumentID] = to.InstrumentName(n).ToProto()
+		nameOf[n.InstrID] = to.InstrName(n).ToProto()
 	}
 	keysOf := map[uuid.UUID][]*holdingv1.HoldingKey{}
 	for _, k := range keys {
-		if id := k.StatedKey.InstrumentID; id != nil {
+		if id := k.StatedKey.InstrID; id != nil {
 			keysOf[*id] = append(keysOf[*id], to.ProtoHoldingKey(k))
 			continue
 		}

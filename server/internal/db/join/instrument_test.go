@@ -32,22 +32,22 @@ func (f fakeQueries) ListIdentityCoverage(context.Context, []uuid.UUID) ([]gen.I
 }
 
 func TestInstrumentsWithCoverage(t *testing.T) {
-	a := gen.Instrument{ID: uuid.New(), FetchKeyID: ptr.To(uuid.New())}
-	b := gen.Instrument{ID: uuid.New()}
-	isin := gen.Identifier{ID: uuid.New(), InstrumentID: a.ID, Type: types.IdentifierTypeIsin, Value: "GB00BH4HKS39"}
-	gbp := gen.Listing{ID: uuid.New(), InstrumentID: b.ID, Currency: "GBP"}
+	a := gen.Instr{ID: uuid.New(), FetchKeyID: ptr.To(uuid.New())}
+	b := gen.Instr{ID: uuid.New()}
+	isin := gen.Identifier{ID: uuid.New(), InstrID: a.ID, Type: types.IdentifierTypeIsin, Value: "GB00BH4HKS39"}
+	gbp := gen.Listing{ID: uuid.New(), InstrID: b.ID, Currency: "GBP"}
 	q := fakeQueries{
 		identifiers: []gen.Identifier{isin},
 		listings:    []gen.Listing{gbp},
-		coverage:    []gen.IdentityCoverage{{InstrumentID: a.ID, Datasource: "openfigi"}},
+		coverage:    []gen.IdentityCoverage{{InstrID: a.ID, Datasource: "openfigi"}},
 	}
-	got, err := InstrumentsWithCoverage(context.Background(), q, []gen.Instrument{a, b})
+	got, err := InstrumentsWithCoverage(context.Background(), q, []gen.Instr{a, b})
 	if err != nil {
 		t.Fatalf("InstrumentsWithCoverage error = %v", err)
 	}
 	want := map[uuid.UUID]*InstrumentWithCoverage{
-		a.ID: {Instrument: Instrument{Row: a, Identifiers: []gen.Identifier{isin}}, Coverage: map[string]bool{"openfigi": true}},
-		b.ID: {Instrument: Instrument{Row: b, Listings: []gen.Listing{gbp}}, Coverage: map[string]bool{}},
+		a.ID: {Instr: Instr{Row: a, Identifiers: []gen.Identifier{isin}}, Coverage: map[string]bool{"openfigi": true}},
+		b.ID: {Instr: Instr{Row: b, Listings: []gen.Listing{gbp}}, Coverage: map[string]bool{}},
 	}
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("InstrumentsWithCoverage mismatch (-want +got):\n%s", diff)
@@ -55,8 +55,8 @@ func TestInstrumentsWithCoverage(t *testing.T) {
 }
 
 func TestCovered(t *testing.T) {
-	fetched := &InstrumentWithCoverage{Instrument: Instrument{Row: gen.Instrument{FetchKeyID: ptr.To(uuid.New())}}, Coverage: map[string]bool{"openfigi": true}}
-	reference := &InstrumentWithCoverage{Instrument: Instrument{Row: gen.Instrument{}}, Coverage: map[string]bool{}}
+	fetched := &InstrumentWithCoverage{Instr: Instr{Row: gen.Instr{FetchKeyID: ptr.To(uuid.New())}}, Coverage: map[string]bool{"openfigi": true}}
+	reference := &InstrumentWithCoverage{Instr: Instr{Row: gen.Instr{}}, Coverage: map[string]bool{}}
 	tests := []struct {
 		name       string
 		j          *InstrumentWithCoverage
@@ -77,12 +77,12 @@ func TestCovered(t *testing.T) {
 }
 
 func TestInstrument(t *testing.T) {
-	inst := gen.Instrument{ID: uuid.New(), AssetClass: types.AssetClassStock}
-	gbp := gen.Listing{ID: uuid.New(), InstrumentID: inst.ID, Currency: "GBP", PrimaryMic: ptr.To("XLON")}
-	usd := gen.Listing{ID: uuid.New(), InstrumentID: inst.ID, Currency: "USD"}
-	isin := gen.Identifier{InstrumentID: inst.ID, Type: types.IdentifierTypeIsin, Value: "GB00BH4HKS39"}
-	xlon := gen.Identifier{InstrumentID: inst.ID, ListingID: &gbp.ID, Type: types.IdentifierTypeMicTicker, Domain: "XLON", Value: "VOD"}
-	want := types.Instrument{
+	inst := gen.Instr{ID: uuid.New(), AssetClass: types.AssetClassStock}
+	gbp := gen.Listing{ID: uuid.New(), InstrID: inst.ID, Currency: "GBP", PrimaryMic: ptr.To("XLON")}
+	usd := gen.Listing{ID: uuid.New(), InstrID: inst.ID, Currency: "USD"}
+	isin := gen.Identifier{InstrID: inst.ID, Type: types.IdentifierTypeIsin, Value: "GB00BH4HKS39"}
+	xlon := gen.Identifier{InstrID: inst.ID, ListingID: &gbp.ID, Type: types.IdentifierTypeMicTicker, Domain: "XLON", Value: "VOD"}
+	want := types.Instr{
 		Class:       types.AssetClassStock,
 		Identifiers: []types.Identifier{to.Identifier(isin)},
 		Listings: map[string]types.Listing{
@@ -90,8 +90,8 @@ func TestInstrument(t *testing.T) {
 			"USD": {},
 		},
 	}
-	j := Instrument{Row: inst, Identifiers: []gen.Identifier{isin, xlon}, Listings: []gen.Listing{gbp, usd}}
-	if diff := cmp.Diff(want, j.Instrument()); diff != "" {
+	j := Instr{Row: inst, Identifiers: []gen.Identifier{isin, xlon}, Listings: []gen.Listing{gbp, usd}}
+	if diff := cmp.Diff(want, j.Instr()); diff != "" {
 		t.Errorf("Instrument mismatch (-want +got):\n%s", diff)
 	}
 }

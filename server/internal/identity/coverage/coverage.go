@@ -29,10 +29,10 @@ type Queries interface {
 	ListIdentifierAssertions(ctx context.Context, arg gen.ListIdentifierAssertionsParams) ([]gen.ListIdentifierAssertionsRow, error)
 	ListIdentifierEvents(ctx context.Context, arg gen.ListIdentifierEventsParams) ([]gen.ListIdentifierEventsRow, error)
 	ListIdentifierCoverage(ctx context.Context, arg gen.ListIdentifierCoverageParams) ([]gen.ListIdentifierCoverageRow, error)
-	ListInstrumentTickers(ctx context.Context, instrumentID uuid.UUID) ([]gen.ListInstrumentTickersRow, error)
+	ListInstrTickers(ctx context.Context, instrumentID uuid.UUID) ([]gen.ListInstrTickersRow, error)
 	CountTickerTxns(ctx context.Context, probes [][]byte) (int32, error)
 	ListTickerTxns(ctx context.Context, probes [][]byte) ([]gen.ListTickerTxnsRow, error)
-	ListInstrumentNames(ctx context.Context, ids []uuid.UUID) ([]gen.InstrumentName, error)
+	ListInstrNames(ctx context.Context, ids []uuid.UUID) ([]gen.InstrName, error)
 }
 
 var _ Queries = (*gen.Queries)(nil)
@@ -138,7 +138,7 @@ func (t InstrumentTicker) ToProto() *admincoveragev1.InstrumentTicker {
 // InstrumentTickers lists the tickers that name the instrument, now or in an
 // assertion, the most transacted first.
 func (r *Reader) InstrumentTickers(ctx context.Context, instrument uuid.UUID) ([]InstrumentTicker, error) {
-	rows, err := r.q.ListInstrumentTickers(ctx, instrument)
+	rows, err := r.q.ListInstrTickers(ctx, instrument)
 	if err != nil {
 		return nil, fmt.Errorf("list tickers of %s: %w", instrument, err)
 	}
@@ -239,29 +239,29 @@ func (r *Reader) name(ctx context.Context, t *Page) error {
 		}
 	}
 	for _, a := range t.Rows.Assertions {
-		if a.IdentifierAssertion.InstrumentID != nil {
-			add(*a.IdentifierAssertion.InstrumentID)
+		if a.IdentifierAssertion.InstrID != nil {
+			add(*a.IdentifierAssertion.InstrID)
 		}
 	}
 	for _, iv := range t.Intervals {
-		add(iv.Instrument)
+		add(iv.Instr)
 	}
 	if len(ids) == 0 {
 		return nil
 	}
-	names, err := r.q.ListInstrumentNames(ctx, ids)
+	names, err := r.q.ListInstrNames(ctx, ids)
 	if err != nil {
 		return fmt.Errorf("list instrument names: %w", err)
 	}
 	t.Names = make(map[uuid.UUID]types.Identifier, len(names))
 	for _, n := range names {
-		t.Names[n.InstrumentID] = to.InstrumentName(n)
+		t.Names[n.InstrID] = to.InstrName(n)
 	}
 	return nil
 }
 
 func interval(iv tickervalidity.Interval) *admincoveragev1.Interval {
-	out := &admincoveragev1.Interval{InstrumentId: iv.Instrument.String(), Validity: types.ToProto[admincoveragev1.TickerValidity](iv.Validity)}
+	out := &admincoveragev1.Interval{InstrumentId: iv.Instr.String(), Validity: types.ToProto[admincoveragev1.TickerValidity](iv.Validity)}
 	if iv.From != nil {
 		from := ymd(*iv.From)
 		out.ValidFrom = &from

@@ -24,7 +24,7 @@ import (
 )
 
 func TestIdentifier(t *testing.T) {
-	row := gen.Identifier{ID: uuid.New(), InstrumentID: uuid.New(), Type: types.IdentifierTypeMicTicker, Domain: "XLON", Value: "VOD"}
+	row := gen.Identifier{ID: uuid.New(), InstrID: uuid.New(), Type: types.IdentifierTypeMicTicker, Domain: "XLON", Value: "VOD"}
 	want := types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XLON", Value: "VOD"}
 	if got := Identifier(row); got != want {
 		t.Errorf("Identifier(%+v) = %+v, want %+v", row, got, want)
@@ -92,7 +92,7 @@ func TestProtoResolutionItem(t *testing.T) {
 		want *typev1.Identifier
 	}{
 		{name: "dated", key: gen.StatedKey{ViaType: ptr.To(types.IdentifierTypeMicTicker), ViaDomain: ptr.To("XNAS"), ViaValue: ptr.To("ACME")}, want: &typev1.Identifier{Type: typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, Domain: "XNAS", Value: "ACME"}},
-		{name: "fixed", key: gen.StatedKey{InstrumentID: &instrument}},
+		{name: "fixed", key: gen.StatedKey{InstrID: &instrument}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -105,9 +105,9 @@ func TestProtoResolutionItem(t *testing.T) {
 }
 
 func TestInstrumentName(t *testing.T) {
-	row := gen.InstrumentName{InstrumentID: uuid.New(), Type: types.IdentifierTypeMicTicker, Domain: "XLON", Value: "VOD"}
+	row := gen.InstrName{InstrID: uuid.New(), Type: types.IdentifierTypeMicTicker, Domain: "XLON", Value: "VOD"}
 	want := types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XLON", Value: "VOD"}
-	if got := InstrumentName(row); got != want {
+	if got := InstrName(row); got != want {
 		t.Errorf("InstrumentName(%+v) = %+v, want %+v", row, got, want)
 	}
 }
@@ -231,12 +231,12 @@ func TestProtoInstrument(t *testing.T) {
 	id := uuid.New()
 	tests := []struct {
 		name string
-		row  gen.ListInstrumentsRow
+		row  gen.ListInstrsRow
 		want *admininstrumentv1.Instrument
 	}{
 		{
 			name: "named",
-			row:  gen.ListInstrumentsRow{ID: id, AssetClass: types.AssetClassStock, Name: "VOD", NameType: "MIC_TICKER", NameDomain: "XLON"},
+			row:  gen.ListInstrsRow{ID: id, AssetClass: types.AssetClassStock, Name: "VOD", NameType: "MIC_TICKER", NameDomain: "XLON"},
 			want: &admininstrumentv1.Instrument{
 				Id: id.String(), AssetClass: typev1.AssetClass_ASSET_CLASS_STOCK,
 				Name: &typev1.Identifier{Type: typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, Domain: "XLON", Value: "VOD"},
@@ -244,7 +244,7 @@ func TestProtoInstrument(t *testing.T) {
 		},
 		{
 			name: "without a name",
-			row:  gen.ListInstrumentsRow{ID: id, AssetClass: types.AssetClassStock},
+			row:  gen.ListInstrsRow{ID: id, AssetClass: types.AssetClassStock},
 			want: &admininstrumentv1.Instrument{Id: id.String(), AssetClass: typev1.AssetClass_ASSET_CLASS_STOCK},
 		},
 	}

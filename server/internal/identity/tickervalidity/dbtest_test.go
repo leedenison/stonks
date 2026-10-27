@@ -67,7 +67,7 @@ func newFixture(t *testing.T) *fixture {
 		f.fetches[name] = fetch.ID
 	}
 	for _, id := range []*uuid.UUID{&f.a, &f.b} {
-		inst, err := q.CreateInstrument(ctx, gen.CreateInstrumentParams{ID: db.NewID(), AssetClass: types.AssetClassStock})
+		inst, err := q.CreateInstr(ctx, gen.CreateInstrParams{ID: db.NewID(), AssetClass: types.AssetClassStock})
 		require.NoError(t, err)
 		*id = inst.ID
 	}
@@ -88,7 +88,7 @@ func (f *fixture) asserts(t *testing.T, datasource string, n int, instrument *uu
 		SentType: &f.at.Type, SentDomain: f.at.Domain, SentValue: &f.at.Value, AnsweredAt: ptr.To(day(n)),
 	}))
 	require.NoError(t, f.q.CreateIdentifierAssertion(ctx, gen.CreateIdentifierAssertionParams{
-		ID: db.NewID(), FetchKeyID: &key, Type: types.IdentifierTypeMicTicker, Domain: f.foo.Market, Value: f.foo.Value, InstrumentID: instrument, AssertedOn: day(n),
+		ID: db.NewID(), FetchKeyID: &key, Type: types.IdentifierTypeMicTicker, Domain: f.foo.Market, Value: f.foo.Value, InstrID: instrument, AssertedOn: day(n),
 	}))
 }
 
@@ -171,7 +171,7 @@ func TestOfAttested(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, f.q.CreateIdentifierAssertion(ctx, gen.CreateIdentifierAssertionParams{
 		ID: db.NewID(), RunID: &run.ID, AttestedBy: &f.attestedBy.ID, Type: types.IdentifierTypeMicTicker, Domain: f.foo.Market, Value: f.foo.Value,
-		InstrumentID: &f.a, AssertedOn: day(2),
+		InstrID: &f.a, AssertedOn: day(2),
 	}))
 	want := []Interval{provisional(nil, at(2), f.a), confirmed(at(2), at(21), f.a), provisional(at(21), nil, f.a)}
 	if diff := cmp.Diff(want, f.of(t)); diff != "" {

@@ -21,17 +21,17 @@ type Queries interface {
 	SetStatedKeyDatedAssociation(ctx context.Context, arg gen.SetStatedKeyDatedAssociationParams) (int64, error)
 	ListKeyDates(ctx context.Context, arg gen.ListKeyDatesParams) ([]gen.ListKeyDatesRow, error)
 	FindIdentifier(ctx context.Context, arg gen.FindIdentifierParams) (gen.FindIdentifierRow, error)
-	ListInstrumentsByIdentifiers(ctx context.Context, arg gen.ListInstrumentsByIdentifiersParams) ([]gen.ListInstrumentsByIdentifiersRow, error)
+	ListInstrsByIdentifiers(ctx context.Context, arg gen.ListInstrsByIdentifiersParams) ([]gen.ListInstrsByIdentifiersRow, error)
 	ListIdentifiersOf(ctx context.Context, ids []uuid.UUID) ([]gen.Identifier, error)
 	ListListingsOf(ctx context.Context, ids []uuid.UUID) ([]gen.Listing, error)
 	ListIdentityCoverage(ctx context.Context, instrumentIds []uuid.UUID) ([]gen.IdentityCoverage, error)
 	LockIdentifiers(ctx context.Context, keys []string) error
-	CreateInstrument(ctx context.Context, arg gen.CreateInstrumentParams) (gen.Instrument, error)
+	CreateInstr(ctx context.Context, arg gen.CreateInstrParams) (gen.Instr, error)
 	CreateListing(ctx context.Context, arg gen.CreateListingParams) (gen.Listing, error)
 	SetListingPrimary(ctx context.Context, arg gen.SetListingPrimaryParams) error
 	CreateIdentifier(ctx context.Context, arg gen.CreateIdentifierParams) (gen.Identifier, error)
 	UpsertIdentityCoverage(ctx context.Context, arg gen.UpsertIdentityCoverageParams) error
-	SetFetchKeyInstrument(ctx context.Context, arg gen.SetFetchKeyInstrumentParams) error
+	SetFetchKeyInstr(ctx context.Context, arg gen.SetFetchKeyInstrParams) error
 	CreateIdentifierAssertion(ctx context.Context, arg gen.CreateIdentifierAssertionParams) error
 	RelinkIdentifierAssertions(ctx context.Context, arg gen.RelinkIdentifierAssertionsParams) error
 	CreateFinding(ctx context.Context, arg gen.CreateFindingParams) error
@@ -45,7 +45,7 @@ type Queries interface {
 	MoveIdentityCoverage(ctx context.Context, arg gen.MoveIdentityCoverageParams) error
 	DeleteIdentityCoverage(ctx context.Context, instrumentID uuid.UUID) error
 	DeleteListings(ctx context.Context, instrumentID uuid.UUID) error
-	DeleteInstrument(ctx context.Context, id uuid.UUID) error
+	DeleteInstr(ctx context.Context, id uuid.UUID) error
 }
 
 var _ Queries = (*gen.Queries)(nil)

@@ -47,12 +47,12 @@ func (b *base) heldInstruments(ctx context.Context) (map[uuid.UUID]*held, error)
 			h.users = append(h.users, user)
 		}
 	}
-	fixed, err := b.queries.ListHeldInstruments(ctx)
+	fixed, err := b.queries.ListHeldInstrs(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("list held instruments: %w", err)
 	}
 	for _, r := range fixed {
-		add(r.InstrumentID, r.UserID, r.FirstAsAt)
+		add(r.InstrID, r.UserID, r.FirstAsAt)
 	}
 	dated, err := b.queries.ListHeldTickerDates(ctx)
 	if err != nil {
@@ -80,7 +80,7 @@ func (b *base) heldInstruments(ctx context.Context) (map[uuid.UUID]*held, error)
 			continue
 		}
 		if iv, ok := t.On(r.AsAt); ok {
-			add(iv.Instrument, r.UserID, r.AsAt)
+			add(iv.Instr, r.UserID, r.AsAt)
 		}
 	}
 	return out, nil
@@ -124,11 +124,11 @@ func (b *base) requests(ctx context.Context, hs map[uuid.UUID]*held, keep func(u
 		var a ask
 		named, asked := false, false
 		for _, iv := range read[t].Derived.Intervals {
-			h := hs[iv.Instrument]
+			h := hs[iv.Instr]
 			if h == nil || !overlaps(iv, h.from, before) {
 				continue
 			}
-			asked = asked || slices.Contains(kept, iv.Instrument)
+			asked = asked || slices.Contains(kept, iv.Instr)
 			if !named || h.from.Before(a.req.Period.From) {
 				named = true
 				a.req.Period.From = h.from

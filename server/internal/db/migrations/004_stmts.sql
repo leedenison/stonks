@@ -38,7 +38,7 @@ CREATE TYPE arbiter AS ENUM ('stated', 'datasource', 'guess', 'user');
 -- datasource.
 --
 -- An association is fixed or dated. A fixed association names one instrument
--- for all time, in instrument_id and listing_id, and via_id names the
+-- for all time, in instr_id and listing_id, and via_id names the
 -- identifier row it was made through. The association stands when that row
 -- moves to another instrument. A dated association names a MIC_TICKER in
 -- the via columns. Each of the key's transactions takes the instrument the
@@ -61,7 +61,7 @@ CREATE TABLE stated_keys (
     -- whole key is the unique index, which bounds it at one btree entry
     -- (about 2.7KB).
     identifiers   jsonb       NOT NULL DEFAULT '[]',
-    instrument_id uuid        REFERENCES instruments (id),
+    instr_id uuid        REFERENCES instrs (id),
     listing_id    uuid        REFERENCES listings (id),
     via_id        uuid        REFERENCES identifiers (id),
     via_type      identifier_type,
@@ -73,19 +73,19 @@ CREATE TABLE stated_keys (
     group_id      uuid        REFERENCES stated_keys (id) ON DELETE CASCADE,
     created_at    timestamptz NOT NULL DEFAULT now(),
     CHECK (jsonb_typeof(identifiers) = 'array'),
-    FOREIGN KEY (listing_id, instrument_id) REFERENCES listings (id, instrument_id)
+    FOREIGN KEY (listing_id, instr_id) REFERENCES listings (id, instr_id)
         DEFERRABLE INITIALLY IMMEDIATE,
     UNIQUE NULLS NOT DISTINCT (user_id, asset_class, currency, identifiers),
-    CHECK ((instrument_id IS NULL) = (via_id IS NULL)),
+    CHECK ((instr_id IS NULL) = (via_id IS NULL)),
     CHECK ((via_type IS NULL) = (via_domain IS NULL) AND (via_type IS NULL) = (via_value IS NULL)),
     CHECK (via_type IS NULL OR (via_type = 'mic_ticker' AND via_domain <> '')),
-    CHECK (instrument_id IS NULL OR via_type IS NULL),
-    CHECK ((arbiter IS NULL) = (instrument_id IS NULL AND via_type IS NULL)),
-    CHECK (listing_id IS NULL OR instrument_id IS NOT NULL),
-    CHECK (group_id IS NULL OR instrument_id IS NULL)
+    CHECK (instr_id IS NULL OR via_type IS NULL),
+    CHECK ((arbiter IS NULL) = (instr_id IS NULL AND via_type IS NULL)),
+    CHECK (listing_id IS NULL OR instr_id IS NOT NULL),
+    CHECK (group_id IS NULL OR instr_id IS NULL)
 );
 
-CREATE INDEX stated_keys_instrument_idx ON stated_keys (user_id, instrument_id);
+CREATE INDEX stated_keys_instr_idx ON stated_keys (user_id, instr_id);
 CREATE INDEX stated_keys_group_idx ON stated_keys (user_id, group_id);
 -- A new identifier fact finds every user's keys that state its ticker.
 CREATE INDEX stated_keys_identifiers_idx ON stated_keys USING gin (identifiers jsonb_path_ops);

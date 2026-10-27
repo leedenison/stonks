@@ -164,7 +164,7 @@ func coverage(ctx context.Context, q Queries, recorded []recordedKey, tickers ma
 			for _, iv := range t.Derived.Intervals {
 				for _, c := range a.Coverage {
 					if p, ok := iv.Clip(c); ok {
-						out = append(out, cover{instrument: iv.Instrument, period: p, run: rec.key.Run})
+						out = append(out, cover{instrument: iv.Instr, period: p, run: rec.key.Run})
 					}
 				}
 			}
@@ -190,7 +190,7 @@ func (r *Recorder) coveredSplits(ctx context.Context, q Queries, user *uuid.UUID
 	for i, t := range ts {
 		values[i] = t.Value
 	}
-	rows, err := q.ListStatedSplits(ctx, gen.ListStatedSplitsParams{Instruments: instruments, Values: values, UserID: user})
+	rows, err := q.ListStatedSplits(ctx, gen.ListStatedSplitsParams{Instrs: instruments, Values: values, UserID: user})
 	if err != nil {
 		return nil, fmt.Errorf("list stated splits: %w", err)
 	}
@@ -223,8 +223,8 @@ func (r *Recorder) coveredSplits(ctx context.Context, q Queries, user *uuid.UUID
 // instrumentOn returns the instrument that k names on d. A dated key names
 // one only through one of tickers.
 func (r *Recorder) instrumentOn(k gen.StatedKey, d time.Time, tickers map[types.MarketTicker]*tickervalidity.Ticker) (uuid.UUID, bool) {
-	if k.InstrumentID != nil {
-		return *k.InstrumentID, true
+	if k.InstrID != nil {
+		return *k.InstrID, true
 	}
 	via, ok := to.AssociatedTicker(k)
 	if !ok {
@@ -235,7 +235,7 @@ func (r *Recorder) instrumentOn(k gen.StatedKey, d time.Time, tickers map[types.
 		return uuid.UUID{}, false
 	}
 	iv, ok := tickers[mt].On(d)
-	return iv.Instrument, ok
+	return iv.Instr, ok
 }
 
 // withoutOptions returns groups with those of options removed.
@@ -247,7 +247,7 @@ func withoutOptions(ctx context.Context, q Queries, groups []splitGroup) ([]spli
 	for i, g := range groups {
 		ids[i] = g.instrument
 	}
-	rows, err := q.ListInstrumentsByID(ctx, ids)
+	rows, err := q.ListInstrsByID(ctx, ids)
 	if err != nil {
 		return nil, fmt.Errorf("list instruments: %w", err)
 	}
@@ -286,8 +286,8 @@ func calendar(ctx context.Context, q Queries, instruments []uuid.UUID) (map[uuid
 		for _, a := range as {
 			for _, e := range a.Acts {
 				iv, ok := tickers[t].On(e.ExDate)
-				if ok && slices.Contains(instruments, iv.Instrument) {
-					out[iv.Instrument] = append(out[iv.Instrument], e)
+				if ok && slices.Contains(instruments, iv.Instr) {
+					out[iv.Instr] = append(out[iv.Instr], e)
 				}
 			}
 		}

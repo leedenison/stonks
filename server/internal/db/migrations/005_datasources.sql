@@ -77,7 +77,7 @@ CREATE TABLE fetch_keys (
     sent_type     identifier_type,
     sent_domain   text            NOT NULL DEFAULT '',
     sent_value    text,
-    instrument_id uuid            REFERENCES instruments (id),
+    instr_id uuid            REFERENCES instrs (id),
     -- reason records the datasource's error when results are not returned.
     reason        text,
     -- candidates is how many results the datasource offered; zero unless served.
@@ -96,17 +96,17 @@ CREATE TABLE fetch_keys (
     CHECK ((outcome = 'served') = (reason IS NULL)),
     CHECK ((outcome = 'served') = (answered_at IS NOT NULL)),
     CHECK (outcome NOT IN ('not_served', 'blocked') OR attempts = 0),
-    CHECK (instrument_id IS NULL OR outcome = 'served'),
+    CHECK (instr_id IS NULL OR outcome = 'served'),
     CHECK (outcome = 'served' OR candidates = 0)
 );
 
 CREATE INDEX fetch_keys_stated_key_idx ON fetch_keys (stated_key_id);
-CREATE INDEX fetch_keys_instrument_idx ON fetch_keys (instrument_id);
+CREATE INDEX fetch_keys_instr_idx ON fetch_keys (instr_id);
 
 -- Provenance: the fetch key whose response asserted the row, NULL for
 -- reference data. Deleting a fetch key does not delete what it asserted, so
 -- the caller first moves the provenance elsewhere or clears it.
-ALTER TABLE instruments ADD COLUMN fetch_key_id uuid REFERENCES fetch_keys (id);
+ALTER TABLE instrs ADD COLUMN fetch_key_id uuid REFERENCES fetch_keys (id);
 ALTER TABLE listings ADD COLUMN fetch_key_id uuid REFERENCES fetch_keys (id);
 ALTER TABLE identifiers ADD COLUMN fetch_key_id uuid REFERENCES fetch_keys (id);
 
@@ -119,10 +119,10 @@ ALTER TABLE identifiers ADD COLUMN fetch_key_id uuid REFERENCES fetch_keys (id);
 -- no provenance, is covered by every datasource without a row. A row goes with
 -- its fetch key.
 CREATE TABLE identity_coverage (
-    instrument_id uuid        NOT NULL REFERENCES instruments (id),
+    instr_id uuid        NOT NULL REFERENCES instrs (id),
     datasource    text        NOT NULL REFERENCES datasources (name),
     fetch_key_id  uuid        NOT NULL REFERENCES fetch_keys (id) ON DELETE CASCADE,
-    PRIMARY KEY (instrument_id, datasource)
+    PRIMARY KEY (instr_id, datasource)
 );
 
 -- A block records that a call failed unrecoverably, and suppresses further calls

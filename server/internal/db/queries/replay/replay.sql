@@ -34,7 +34,7 @@ ORDER BY stated_keys.id;
 -- key is left out: it is associated, and its transactions read the facts.
 SELECT sqlc.embed(stated_keys)
 FROM stated_keys
-LEFT JOIN instruments ON instruments.id = stated_keys.instrument_id
+LEFT JOIN instrs ON instrs.id = stated_keys.instr_id
 WHERE stated_keys.user_id = @user_id::uuid
   AND (EXISTS (SELECT 1 FROM stmt_keys
                WHERE stmt_keys.stmt_id = @source_id::uuid
@@ -49,11 +49,11 @@ WHERE stated_keys.user_id = @user_id::uuid
                 AND txns.stated_key_id = stated_keys.id)
   AND stated_keys.arbiter IS DISTINCT FROM 'user'
   AND stated_keys.via_type IS NULL
-  AND (stated_keys.instrument_id IS NULL
-       OR (instruments.fetch_key_id IS NOT NULL
+  AND (stated_keys.instr_id IS NULL
+       OR (instrs.fetch_key_id IS NOT NULL
            AND NOT EXISTS (
                SELECT 1 FROM identity_coverage
-               WHERE identity_coverage.instrument_id = stated_keys.instrument_id
+               WHERE identity_coverage.instr_id = stated_keys.instr_id
                  AND identity_coverage.datasource = @datasource::text)))
 ORDER BY stated_keys.id;
 

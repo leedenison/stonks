@@ -24,31 +24,31 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12);
 -- name: ListFetchKeys :many
 SELECT * FROM fetch_keys WHERE fetch_id = $1 AND user_id = $2 ORDER BY id;
 
--- name: SetFetchKeyInstrument :exec
-UPDATE fetch_keys SET instrument_id = $3 WHERE id = $1 AND user_id = $2;
+-- name: SetFetchKeyInstr :exec
+UPDATE fetch_keys SET instr_id = $3 WHERE id = $1 AND user_id = $2;
 
 -- name: ListIdentityCoverage :many
 SELECT * FROM identity_coverage
-WHERE instrument_id = ANY(@instrument_ids::uuid[])
-ORDER BY instrument_id, datasource;
+WHERE instr_id = ANY(@instr_ids::uuid[])
+ORDER BY instr_id, datasource;
 
 -- name: UpsertIdentityCoverage :exec
-INSERT INTO identity_coverage (instrument_id, datasource, fetch_key_id)
+INSERT INTO identity_coverage (instr_id, datasource, fetch_key_id)
 VALUES ($1, $2, $3)
-ON CONFLICT (instrument_id, datasource) DO UPDATE
+ON CONFLICT (instr_id, datasource) DO UPDATE
 SET fetch_key_id = EXCLUDED.fetch_key_id;
 
 -- name: RelinkFetchKeys :exec
-UPDATE fetch_keys SET instrument_id = @survivor::uuid WHERE instrument_id = @loser::uuid;
+UPDATE fetch_keys SET instr_id = @survivor::uuid WHERE instr_id = @loser::uuid;
 
 -- name: MoveIdentityCoverage :exec
-INSERT INTO identity_coverage (instrument_id, datasource, fetch_key_id)
+INSERT INTO identity_coverage (instr_id, datasource, fetch_key_id)
 SELECT @survivor::uuid, datasource, fetch_key_id
-FROM identity_coverage WHERE instrument_id = @loser::uuid
-ON CONFLICT (instrument_id, datasource) DO NOTHING;
+FROM identity_coverage WHERE instr_id = @loser::uuid
+ON CONFLICT (instr_id, datasource) DO NOTHING;
 
 -- name: DeleteIdentityCoverage :exec
-DELETE FROM identity_coverage WHERE instrument_id = $1;
+DELETE FROM identity_coverage WHERE instr_id = $1;
 
 -- name: ListOpenBlocks :many
 SELECT * FROM datasource_blocks

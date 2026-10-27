@@ -32,7 +32,7 @@ type Candidate struct {
 	// Instrument takes the head's class and the identifiers of every member.
 	// A confirmation does not write the listing identifiers that have no
 	// currency family.
-	types.Instrument
+	types.Instr
 }
 
 // ToProto writes c as its proto message, the listings sorted by family. A
@@ -203,7 +203,7 @@ func candidateOf(a consistentClaims) (Candidate, bool) {
 	if !ok {
 		return Candidate{}, false
 	}
-	out := Candidate{Datasource: head.fetchKey.Source, Strongest: strongest, Instrument: types.Instrument{Class: head.Class, Listings: map[string]types.Listing{}}}
+	out := Candidate{Datasource: head.fetchKey.Source, Strongest: strongest, Instr: types.Instr{Class: head.Class, Listings: map[string]types.Listing{}}}
 	if out.Class == "" {
 		out.Class = types.AssetClassUnknown
 	}

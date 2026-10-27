@@ -52,7 +52,7 @@ CREATE TYPE identifier_type AS ENUM ('isin', 'cusip', 'cins', 'wertpapier',
 -- 'issuer' identifier values are partitioned by their issuer (ie. datasource
 -- or broker).  'issuer' identifier values are recognised only by the issuer.
 CREATE TYPE identifier_domain AS ENUM ('global', 'venue', 'issuer');
-CREATE TYPE identifier_grain AS ENUM ('instrument', 'listing');
+CREATE TYPE identifier_grain AS ENUM ('instr', 'listing');
 
 -- How readily an identifier is reassigned.
 -- 'stable' identifiers are assumed to never be reassigned.
@@ -86,24 +86,24 @@ CREATE TABLE identifier_type_traits (
 -- the lowest ranks, so they name the instrument before any type a stock
 -- carries.
 INSERT INTO identifier_type_traits (type, domain, grain, reassignment, exclusive, name_rank) VALUES
-    ('isin',                 'global', 'instrument', 'stable',       true,  7),
-    ('cusip',                'global', 'instrument', 'stable',       true,  8),
-    ('cins',                 'global', 'instrument', 'stable',       true, 10),
-    ('wertpapier',           'global', 'instrument', 'stable',       true, 11),
-    ('openfigi_share_class', 'global', 'instrument', 'stable',       true, 14),
+    ('isin',                 'global', 'instr',      'stable',       true,  7),
+    ('cusip',                'global', 'instr',      'stable',       true,  8),
+    ('cins',                 'global', 'instr',      'stable',       true, 10),
+    ('wertpapier',           'global', 'instr',      'stable',       true, 11),
+    ('openfigi_share_class', 'global', 'instr',      'stable',       true, 14),
     ('sedol',                'global', 'listing',    'stable',       true,  9),
     ('openfigi_composite',   'global', 'listing',    'stable',       false, 12),
     ('mic_ticker',           'venue',  'listing',    'mic_derived',  true,  4),
     ('openfigi_ticker',      'venue',  'listing',    'mic_derived',  true, 13),
-    ('occ',                  'global', 'instrument', 'mic_derived',  true,  1),
+    ('occ',                  'global', 'instr',      'mic_derived',  true,  1),
     -- The seed names a cash instrument by every code of its family, which is
     -- one currency at different unit scales. A key states one code, so
     -- currency is exclusive.
-    ('currency',             'global', 'instrument', 'stable',       true,  3),
+    ('currency',             'global', 'instr',      'stable',       true,  3),
     ('datasource_ticker',    'issuer', 'listing',    'mic_derived',  true,  6),
-    ('broker_id',            'issuer', 'instrument', 'stable',       true, 15),
-    ('broker_description',   'issuer', 'instrument', 'unverifiable', false,  5),
-    ('option',               'global', 'instrument', 'mic_derived',  true,  2);
+    ('broker_id',            'issuer', 'instr',      'stable',       true, 15),
+    ('broker_description',   'issuer', 'instr',      'unverifiable', false,  5),
+    ('option',               'global', 'instr',      'mic_derived',  true,  2);
 
 -- The currency codes a source may state: ISO 4217, plus GBX for sterling in
 -- pence. A family is the codes of one currency at different unit scales, named
@@ -146,7 +146,7 @@ FROM (VALUES
 --
 -- FX rates are represented as listings on a currency instrument in another
 -- currency.
-CREATE TABLE instruments (
+CREATE TABLE instrs (
     id          uuid        PRIMARY KEY,
     asset_class asset_class NOT NULL REFERENCES asset_class_tree (class),
     created_at  timestamptz NOT NULL DEFAULT now()
@@ -160,15 +160,15 @@ CREATE TABLE instruments (
 -- primary venue names it to the user.
 CREATE TABLE listings (
     id            uuid        PRIMARY KEY,
-    instrument_id uuid        NOT NULL REFERENCES instruments (id),
+    instr_id uuid        NOT NULL REFERENCES instrs (id),
     -- currency is a family code: a listing quoted in pence is the GBP listing.
     currency      text        NOT NULL,
     -- primary_mic is the operating MIC of the venue a datasource stated as
     -- the listing's primary; NULL where none has.
     primary_mic   text,
     created_at    timestamptz NOT NULL DEFAULT now(),
-    UNIQUE (instrument_id, currency),
-    UNIQUE (id, instrument_id),
+    UNIQUE (instr_id, currency),
+    UNIQUE (id, instr_id),
     FOREIGN KEY (currency, currency) REFERENCES currencies (code, family)
 );
 
@@ -185,7 +185,7 @@ CREATE TABLE listings (
 -- through the corporate actions of their underlying.
 CREATE TABLE identifiers (
     id            uuid            PRIMARY KEY,
-    instrument_id uuid            NOT NULL REFERENCES instruments (id),
+    instr_id uuid            NOT NULL REFERENCES instrs (id),
     -- listing_id is only set for a listing grain identifier, NULL otherwise.
     listing_id    uuid            REFERENCES listings (id),
     type          identifier_type NOT NULL,
@@ -193,28 +193,28 @@ CREATE TABLE identifiers (
     value         text            NOT NULL,
     created_at    timestamptz     NOT NULL DEFAULT now(),
     grain         identifier_grain NOT NULL GENERATED ALWAYS AS
-        (CASE WHEN listing_id IS NULL THEN 'instrument'::identifier_grain
+        (CASE WHEN listing_id IS NULL THEN 'instr'::identifier_grain
               ELSE 'listing'::identifier_grain END) STORED,
     FOREIGN KEY (type, grain) REFERENCES identifier_type_traits (type, grain),
     -- Deferrable so a merge can move a listing and its identifiers between
     -- instruments in separate statements of one transaction.
-    FOREIGN KEY (listing_id, instrument_id) REFERENCES listings (id, instrument_id)
+    FOREIGN KEY (listing_id, instr_id) REFERENCES listings (id, instr_id)
         DEFERRABLE INITIALLY IMMEDIATE,
     UNIQUE (type, domain, value)
 );
 
-CREATE INDEX identifiers_instrument_idx ON identifiers (instrument_id);
+CREATE INDEX identifiers_instr_idx ON identifiers (instr_id);
 
 WITH named AS (
     SELECT uuid_v7() AS id, code FROM currencies WHERE code = family
 ), cash AS (
-    INSERT INTO instruments (id, asset_class)
+    INSERT INTO instrs (id, asset_class)
     SELECT id, 'cash' FROM named
 ), cash_listings AS (
-    INSERT INTO listings (id, instrument_id, currency)
+    INSERT INTO listings (id, instr_id, currency)
     SELECT uuid_v7(), id, code FROM named
 )
-INSERT INTO identifiers (id, instrument_id, type, value)
+INSERT INTO identifiers (id, instr_id, type, value)
 SELECT uuid_v7(), named.id, 'currency', currencies.code
 FROM named JOIN currencies ON currencies.family = named.code;
 

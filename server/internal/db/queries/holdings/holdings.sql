@@ -22,11 +22,11 @@ ORDER BY stated_keys.id;
 -- Each listing of the instruments, with the ticker that names it and its
 -- venue. The venue is the common name, or the MIC where it has none. The
 -- ticker is null and the venue empty where the listing has no ticker.
-SELECT listings.id AS listing_id, listings.instrument_id, listings.currency,
+SELECT listings.id AS listing_id, listings.instr_id, listings.currency,
        listing_tickers.domain AS ticker_domain, listing_tickers.value AS ticker_value,
        COALESCE(venue_names.name, listing_tickers.domain, '')::text AS venue
 FROM listings
 LEFT JOIN listing_tickers ON listing_tickers.listing_id = listings.id AND listing_tickers.rank = 1
 LEFT JOIN venue_names ON venue_names.mic = listing_tickers.domain
-WHERE listings.instrument_id = ANY(@instrument_ids::uuid[])
-ORDER BY listings.instrument_id, listings.currency;
+WHERE listings.instr_id = ANY(@instr_ids::uuid[])
+ORDER BY listings.instr_id, listings.currency;

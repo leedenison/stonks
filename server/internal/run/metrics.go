@@ -30,7 +30,7 @@ type instruments struct {
 	findings metric.Int64Counter
 }
 
-var instr = newInstruments(otel.Meter(meterName))
+var metrics = newInstruments(otel.Meter(meterName))
 
 func newInstruments(m metric.Meter) instruments {
 	var errs []error
@@ -56,5 +56,5 @@ func (i instruments) run(ctx context.Context, row gen.Run, outcome gen.RunState)
 
 // Found counts a finding once its row is written.
 func Found(ctx context.Context, kind gen.FindingKind) {
-	instr.findings.Add(ctx, 1, metric.WithAttributes(kindKey.String(string(kind))))
+	metrics.findings.Add(ctx, 1, metric.WithAttributes(kindKey.String(string(kind))))
 }

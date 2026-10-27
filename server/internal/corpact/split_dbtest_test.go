@@ -27,7 +27,7 @@ var splitDay = day(2024, 6, 7)
 // instrument creates an instrument of class.
 func (s *stack) instrument(t *testing.T, class types.AssetClass) uuid.UUID {
 	t.Helper()
-	inst, err := s.q.CreateInstrument(context.Background(), gen.CreateInstrumentParams{ID: db.NewID(), AssetClass: class})
+	inst, err := s.q.CreateInstr(context.Background(), gen.CreateInstrParams{ID: db.NewID(), AssetClass: class})
 	require.NoError(t, err)
 	return inst.ID
 }
@@ -46,7 +46,7 @@ func (s *stack) names(t *testing.T, mt types.MarketTicker, inst uuid.UUID, on ti
 		SentType: ptr.To(types.IdentifierTypeMicTicker), SentDomain: mt.Market, SentValue: &mt.Value, AnsweredAt: &on,
 	}))
 	require.NoError(t, s.q.CreateIdentifierAssertion(ctx, gen.CreateIdentifierAssertionParams{
-		ID: db.NewID(), FetchKeyID: &key, Type: types.IdentifierTypeMicTicker, Domain: mt.Market, Value: mt.Value, InstrumentID: &inst, AssertedOn: on,
+		ID: db.NewID(), FetchKeyID: &key, Type: types.IdentifierTypeMicTicker, Domain: mt.Market, Value: mt.Value, InstrID: &inst, AssertedOn: on,
 	}))
 }
 
@@ -65,9 +65,9 @@ func (s *stack) fixedKey(t *testing.T, user, inst uuid.UUID) uuid.UUID {
 	ctx := context.Background()
 	via, key := db.NewID(), db.NewID()
 	isin := uuid.NewString()
-	_, err := s.tx.Exec(ctx, `INSERT INTO identifiers (id, instrument_id, type, value) VALUES ($1, $2, 'isin', $3)`, via, inst, isin)
+	_, err := s.tx.Exec(ctx, `INSERT INTO identifiers (id, instr_id, type, value) VALUES ($1, $2, 'isin', $3)`, via, inst, isin)
 	require.NoError(t, err)
-	_, err = s.tx.Exec(ctx, `INSERT INTO stated_keys (id, user_id, identifiers, instrument_id, via_id, arbiter)
+	_, err = s.tx.Exec(ctx, `INSERT INTO stated_keys (id, user_id, identifiers, instr_id, via_id, arbiter)
 		VALUES ($1, $2, jsonb_build_array(jsonb_build_object('type', 'isin', 'value', $3::text)), $4, $5, 'stated')`, key, user, isin, inst, via)
 	require.NoError(t, err)
 	return key

@@ -98,13 +98,13 @@ func TestGetTicker(t *testing.T) {
 		Days:   []time.Time{day(5)},
 		Rows: tickervalidity.Rows{
 			Assertions: []gen.ListIdentifierAssertionsRow{{
-				IdentifierAssertion: gen.IdentifierAssertion{ID: assertionID, Type: types.IdentifierTypeMicTicker, Domain: "US", Value: "ACME", InstrumentID: &acme, AssertedOn: day(10)},
+				IdentifierAssertion: gen.IdentifierAssertion{ID: assertionID, Type: types.IdentifierTypeMicTicker, Domain: "US", Value: "ACME", InstrID: &acme, AssertedOn: day(10)},
 				AttestedBy:          ptr.To("admin@example.com"),
 			}},
 			Events:   []gen.ListIdentifierEventsRow{{Value: "OLD", Action: gen.IdentifierEventActionRenamed, ToValue: ptr.To("ACME"), EffectiveOn: day(3)}},
 			Coverage: []gen.ListIdentifierCoverageRow{{Market: "US", CoveredFrom: day(1), CoveredBefore: day(20), Datasource: "alpha"}},
 		},
-		Intervals: []tickervalidity.Interval{{From: &from, Before: &before, Instrument: acme, Validity: tickervalidity.Confirmed}},
+		Intervals: []tickervalidity.Interval{{From: &from, Before: &before, Instr: acme, Validity: tickervalidity.Confirmed}},
 		Gaps:      []reader.Gap{{Period: types.Period{From: day(5), Before: day(10)}, Keys: 1, Txns: 1}},
 		Names:     map[uuid.UUID]types.Identifier{acme: {Type: types.IdentifierTypeIsin, Value: "US0000000001"}},
 	}

@@ -59,7 +59,7 @@ func (s *Server) dated(ctx context.Context, user uuid.UUID, keys []gen.ListHoldi
 			on = map[uuid.UUID]decimal.Decimal{}
 			d.onInstrument[r.StatedKeyID] = on
 		}
-		on[iv.Instrument] = on[iv.Instrument].Add(r.Quantity)
+		on[iv.Instr] = on[iv.Instr].Add(r.Quantity)
 	}
 	return d, nil
 }
