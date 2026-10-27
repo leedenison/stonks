@@ -23,7 +23,7 @@ func (r *Resolver) fetchResolutionIdentities(ctx context.Context, run gen.Run, r
 			continue
 		}
 		for i, e := range entries {
-			if res.knownInstrument == nil || !res.knownInstrument.Covered(e.Name) {
+			if res.knownInstr == nil || !res.knownInstr.Covered(e.Name) {
 				batches[i] = append(batches[i], res)
 			}
 		}

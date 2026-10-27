@@ -26,7 +26,7 @@ type heldTicker struct {
 	// instrument is the instrument the ticker's latest interval names, nil
 	// where the ticker's latest interval has ended or the ticker has no
 	// interval.
-	instrument *uuid.UUID
+	instr *uuid.UUID
 	// ids is the instrument's identifiers, in the order ListIdentifiersOf
 	// returns them.
 	ids []types.Identifier
@@ -100,7 +100,7 @@ func (r *Resolver) ReassertTickers(ctx context.Context, run gen.Run, held []gen.
 func (r *Resolver) readHeld(ctx context.Context, held []gen.ListHeldTickersRow) ([]*heldTicker, error) {
 	var ts []*heldTicker
 	seen := map[types.MarketTicker]bool{}
-	var instruments []uuid.UUID
+	var instrs []uuid.UUID
 	for _, row := range held {
 		v := types.Identifier{Type: row.Type, Domain: row.Domain, Value: row.Value}
 		key, ok := r.mics.MarketTicker(v)
@@ -114,15 +114,15 @@ func (r *Resolver) readHeld(ctx context.Context, held []gen.ListHeldTickersRow) 
 			return nil, fmt.Errorf("read the facts of %s: %w", key.Name(), err)
 		}
 		if ivs := read.Derived.Intervals; len(ivs) > 0 && ivs[len(ivs)-1].Before == nil {
-			t.instrument = &ivs[len(ivs)-1].Instr
-			instruments = append(instruments, *t.instrument)
+			t.instr = &ivs[len(ivs)-1].Instr
+			instrs = append(instrs, *t.instr)
 		}
 		ts = append(ts, t)
 	}
-	if len(instruments) == 0 {
+	if len(instrs) == 0 {
 		return ts, nil
 	}
-	rows, err := r.store.ListIdentifiersOf(ctx, instruments)
+	rows, err := r.store.ListIdentifiersOf(ctx, instrs)
 	if err != nil {
 		return nil, fmt.Errorf("list identifiers: %w", err)
 	}
@@ -131,8 +131,8 @@ func (r *Resolver) readHeld(ctx context.Context, held []gen.ListHeldTickersRow) 
 		ids[row.InstrID] = append(ids[row.InstrID], to.Identifier(row))
 	}
 	for _, t := range ts {
-		if t.instrument != nil {
-			t.ids = ids[*t.instrument]
+		if t.instr != nil {
+			t.ids = ids[*t.instr]
 		}
 	}
 	return ts, nil
@@ -203,7 +203,7 @@ func (r *Resolver) fetchHeld(ctx context.Context, run gen.Run, ts []*heldTicker)
 // that e serves. It returns false where e cannot serve the history.
 func historyRequest(e *market.Entry, t *heldTicker, now time.Time) (market.IdentifierEventRequest, bool) {
 	ie, ok := e.Integration.(market.IdentifierEvents)
-	if !ok || t.instrument == nil {
+	if !ok || t.instr == nil {
 		return market.IdentifierEventRequest{}, false
 	}
 	w, ok := e.Integration.(market.Windowed)
@@ -238,22 +238,22 @@ func (r *Resolver) assertHeld(ctx context.Context, q Queries, t *heldTicker, fk 
 	if fk.Outcome != gen.FetchOutcomeServed {
 		return nil
 	}
-	var inst *uuid.UUID
+	var instr *uuid.UUID
 	if !fk.Response.Unknown {
 		l, ok := r.listingOf(fk.Response, t.key)
 		if !ok {
 			return nil
 		}
-		inst = t.instrument
-		if inst == nil || !r.shares(l, t) {
-			found, err := tickervalidity.StoredInstrument(ctx, q, l.Identifiers)
+		instr = t.instr
+		if instr == nil || !r.shares(l, t) {
+			found, err := tickervalidity.StoredInstr(ctx, q, l.Identifiers)
 			if err != nil || found == nil {
 				return err
 			}
-			inst = found
+			instr = found
 		}
 	}
-	if err := tickervalidity.AssertInstrument(ctx, q, fk.ID, t.key, inst, fk.AnsweredAt); err != nil {
+	if err := tickervalidity.AssertInstr(ctx, q, fk.ID, t.key, instr, fk.AnsweredAt); err != nil {
 		return err
 	}
 	written.addTicker(fk.Run, t.key)

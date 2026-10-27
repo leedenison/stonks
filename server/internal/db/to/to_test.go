@@ -85,14 +85,14 @@ func TestProtoStatedKey(t *testing.T) {
 
 // TestProtoResolutionItem checks that only a dated key carries a ticker.
 func TestProtoResolutionItem(t *testing.T) {
-	instrument := uuid.New()
+	instr := uuid.New()
 	tests := []struct {
 		name string
 		key  gen.StatedKey
 		want *typev1.Identifier
 	}{
 		{name: "dated", key: gen.StatedKey{ViaType: ptr.To(types.IdentifierTypeMicTicker), ViaDomain: ptr.To("XNAS"), ViaValue: ptr.To("ACME")}, want: &typev1.Identifier{Type: typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, Domain: "XNAS", Value: "ACME"}},
-		{name: "fixed", key: gen.StatedKey{InstrID: &instrument}},
+		{name: "fixed", key: gen.StatedKey{InstrID: &instr}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -104,11 +104,11 @@ func TestProtoResolutionItem(t *testing.T) {
 	}
 }
 
-func TestInstrumentName(t *testing.T) {
+func TestInstrName(t *testing.T) {
 	row := gen.InstrName{InstrID: uuid.New(), Type: types.IdentifierTypeMicTicker, Domain: "XLON", Value: "VOD"}
 	want := types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XLON", Value: "VOD"}
 	if got := InstrName(row); got != want {
-		t.Errorf("InstrumentName(%+v) = %+v, want %+v", row, got, want)
+		t.Errorf("InstrName(%+v) = %+v, want %+v", row, got, want)
 	}
 }
 
@@ -227,7 +227,7 @@ func TestProtoFetchItem(t *testing.T) {
 	}
 }
 
-func TestProtoInstrument(t *testing.T) {
+func TestProtoInstr(t *testing.T) {
 	id := uuid.New()
 	tests := []struct {
 		name string
@@ -250,8 +250,8 @@ func TestProtoInstrument(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			if diff := cmp.Diff(tc.want, ProtoInstrument(tc.row), protocmp.Transform()); diff != "" {
-				t.Errorf("ProtoInstrument mismatch (-want +got):\n%s", diff)
+			if diff := cmp.Diff(tc.want, ProtoInstr(tc.row), protocmp.Transform()); diff != "" {
+				t.Errorf("ProtoInstr mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}

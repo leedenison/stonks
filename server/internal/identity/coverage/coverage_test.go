@@ -39,9 +39,9 @@ func ticker(value string) types.MarketTicker {
 	return types.MarketTicker{Market: "US", Value: value}
 }
 
-func asserted(n int, instrument *uuid.UUID) gen.ListIdentifierAssertionsRow {
+func asserted(n int, instr *uuid.UUID) gen.ListIdentifierAssertionsRow {
 	return gen.ListIdentifierAssertionsRow{
-		IdentifierAssertion: gen.IdentifierAssertion{ID: uuid.New(), Type: types.IdentifierTypeMicTicker, Domain: "US", Value: "ACME", AssertedOn: day(n), InstrID: instrument, FetchKeyID: ptr.To(uuid.New())},
+		IdentifierAssertion: gen.IdentifierAssertion{ID: uuid.New(), Type: types.IdentifierTypeMicTicker, Domain: "US", Value: "ACME", AssertedOn: day(n), InstrID: instr, FetchKeyID: ptr.To(uuid.New())},
 		Datasource:          alpha, Precedence: ptr.To(int32(1)),
 	}
 }

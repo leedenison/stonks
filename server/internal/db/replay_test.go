@@ -126,11 +126,11 @@ func TestListKeysUncoveredBy(t *testing.T) {
 	fetched := func(isin string) (gen.Listing, gen.Identifier, uuid.UUID) {
 		t.Helper()
 		key := servedKey(t, q, fetch, newStatedKey(t, q, user, stmt), isin)
-		instrument, err := q.CreateInstr(ctx, gen.CreateInstrParams{ID: db.NewID(), AssetClass: types.AssetClassStock, FetchKeyID: &key})
+		instr, err := q.CreateInstr(ctx, gen.CreateInstrParams{ID: db.NewID(), AssetClass: types.AssetClassStock, FetchKeyID: &key})
 		require.NoError(t, err)
-		listing, err := q.CreateListing(ctx, gen.CreateListingParams{ID: db.NewID(), InstrID: instrument.ID, Currency: "USD", FetchKeyID: &key})
+		listing, err := q.CreateListing(ctx, gen.CreateListingParams{ID: db.NewID(), InstrID: instr.ID, Currency: "USD", FetchKeyID: &key})
 		require.NoError(t, err)
-		via := newIdentifier(t, q, instrument, isin)
+		via := newIdentifier(t, q, instr, isin)
 		return listing, via, key
 	}
 

@@ -39,7 +39,7 @@ var (
 	coverage        = []gen.ListIdentifierCoverageRow{{Market: "US", Value: ptr.To("FOO"), CoveredFrom: day(1), CoveredBefore: day(20), Datasource: "massive"}}
 	straddle        = []gen.ListIdentifierAssertionsRow{assertion(2, &aID), assertion(10, &bID)}
 	retired         = []gen.ListIdentifierAssertionsRow{assertion(2, &aID), assertion(12, nil)}
-	instruments     = []gen.Instr{{ID: aID, AssetClass: types.AssetClassStock}, {ID: bID, AssetClass: types.AssetClassStock}}
+	instrs          = []gen.Instr{{ID: aID, AssetClass: types.AssetClassStock}, {ID: bID, AssetClass: types.AssetClassStock}}
 	fooOnB          = gen.Identifier{InstrID: bID, ListingID: &bUSD, Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "FOO"}
 	idents          = []gen.Identifier{{InstrID: aID, Type: types.IdentifierTypeIsin, Value: "US0000000071"}, fooOnB}
 	aListings       = []gen.ListListingNamesRow{{ListingID: aGBP, InstrID: aID, Currency: "GBP"}, {ListingID: aUSD, InstrID: aID, Currency: "USD"}}
@@ -57,11 +57,11 @@ var (
 
 func day(n int) time.Time { return time.Date(2026, time.March, n, 0, 0, 0, 0, time.UTC) }
 
-// assertion is Massive's assertion on day n that FOO names inst, or nothing
-// where inst is nil.
-func assertion(n int, inst *uuid.UUID) gen.ListIdentifierAssertionsRow {
+// assertion is Massive's assertion on day n that FOO names instr, or nothing
+// where instr is nil.
+func assertion(n int, instr *uuid.UUID) gen.ListIdentifierAssertionsRow {
 	return gen.ListIdentifierAssertionsRow{
-		IdentifierAssertion: gen.IdentifierAssertion{Type: types.IdentifierTypeMicTicker, Domain: "US", Value: "FOO", AssertedOn: day(n), InstrID: inst, FetchKeyID: ptr.To(uuid.New())},
+		IdentifierAssertion: gen.IdentifierAssertion{Type: types.IdentifierTypeMicTicker, Domain: "US", Value: "FOO", AssertedOn: day(n), InstrID: instr, FetchKeyID: ptr.To(uuid.New())},
 		Datasource:          ptr.To("massive"), Precedence: ptr.To(int32(2)),
 	}
 }
@@ -210,7 +210,7 @@ func TestListHoldingsDated(t *testing.T) {
 			f.reader.EXPECT().ListIdentifierAssertions(gomock.Any(), fooAssertions).Return(tc.assertions, tc.assertionsErr).MaxTimes(1)
 			f.reader.EXPECT().ListIdentifierEvents(gomock.Any(), fooEvents).Return(nil, nil).MaxTimes(1)
 			f.reader.EXPECT().ListIdentifierCoverage(gomock.Any(), fooCoverage).Return(coverage, nil).MaxTimes(1)
-			f.reader.EXPECT().ListInstrsByID(gomock.Any(), gomock.Any()).Return(instruments, nil).MaxTimes(1)
+			f.reader.EXPECT().ListInstrsByID(gomock.Any(), gomock.Any()).Return(instrs, nil).MaxTimes(1)
 			if len(tc.ids) > 0 {
 				f.reader.EXPECT().ListIdentifiersOf(gomock.Any(), tc.ids).Return(idents, nil)
 				f.reader.EXPECT().ListListingNames(gomock.Any(), tc.ids).Return(tc.listings, nil)

@@ -77,8 +77,8 @@ func broken(ws []winner, events []Event) []BrokenBracket {
 			continue
 		}
 		before, after := ws[i-1], ws[i]
-		if before.instrument != nil && same(before.instrument, after.instrument) {
-			out = append(out, BrokenBracket{Event: e, Instr: *before.instrument, First: before.at, Last: after.at})
+		if before.instr != nil && same(before.instr, after.instr) {
+			out = append(out, BrokenBracket{Event: e, Instr: *before.instr, First: before.at, Last: after.at})
 		}
 	}
 	return out
@@ -87,9 +87,9 @@ func broken(ws []winner, events []Event) []BrokenBracket {
 // winner is what a ticker names on one day, by the assertion that won it. A nil
 // instrument is nothing.
 type winner struct {
-	at         time.Time
-	instrument *uuid.UUID
-	assertion  Assertion
+	at        time.Time
+	instr     *uuid.UUID
+	assertion Assertion
 }
 
 // winners returns one winner per day that has an assertion that counts, in
@@ -135,7 +135,7 @@ func winners(as []Assertion) ([]winner, []Disagreement) {
 	var day []Assertion
 	flush := func() {
 		if best != nil {
-			out = append(out, winner{at: best.At, instrument: best.Instr, assertion: *best})
+			out = append(out, winner{at: best.At, instr: best.Instr, assertion: *best})
 			for _, a := range day {
 				if !best.Source.Attested && !same(a.Instr, best.Instr) {
 					disagreements = append(disagreements, Disagreement{On: best.At, Winner: *best, Loser: a})
@@ -183,7 +183,7 @@ func better(a, b Assertion) bool {
 // span is consecutive winners that name one thing, from the assertion that
 // won the first day to the one that won the last.
 type span struct {
-	instrument  *uuid.UUID
+	instr       *uuid.UUID
 	first, last time.Time
 	head, tail  Assertion
 }
@@ -191,11 +191,11 @@ type span struct {
 func spans(ws []winner) []span {
 	var out []span
 	for _, w := range ws {
-		if n := len(out); n > 0 && same(out[n-1].instrument, w.instrument) {
+		if n := len(out); n > 0 && same(out[n-1].instr, w.instr) {
 			out[n-1].last, out[n-1].tail = w.at, w.assertion
 			continue
 		}
-		out = append(out, span{instrument: w.instrument, first: w.at, last: w.at, head: w.assertion, tail: w.assertion})
+		out = append(out, span{instr: w.instr, first: w.at, last: w.at, head: w.assertion, tail: w.assertion})
 	}
 	return out
 }
@@ -221,29 +221,29 @@ func segment(ss []span, start, end *time.Time, cover []types.Period) ([]Interval
 		if k+1 < len(ss) {
 			ceil = &ss[k+1].first
 		}
-		if r.instrument == nil {
+		if r.instr == nil {
 			after := next(r.last)
 			floor = &after
 		} else {
 			from := back(r.first, floor, cover)
 			to := forward(next(r.last), ceil, cover)
 			if k == 0 && (floor == nil || floor.Before(from)) {
-				out = append(out, Interval{From: floor, Before: &from, Instr: *r.instrument, Validity: Provisional})
+				out = append(out, Interval{From: floor, Before: &from, Instr: *r.instr, Validity: Provisional})
 			}
-			out = append(out, Interval{From: &from, Before: &to, Instr: *r.instrument, Validity: Confirmed})
+			out = append(out, Interval{From: &from, Before: &to, Instr: *r.instr, Validity: Confirmed})
 			if ceil == nil || to.Before(*ceil) {
-				out = append(out, Interval{From: &to, Before: ceil, Instr: *r.instrument, Validity: Provisional})
+				out = append(out, Interval{From: &to, Before: ceil, Instr: *r.instr, Validity: Provisional})
 			}
 			floor = ceil
 		}
 		if k+1 < len(ss) {
 			took := next(r.last)
-			if r.instrument != nil {
+			if r.instr != nil {
 				took = forward(took, ceil, cover)
 			}
 			inferred = append(inferred, Inferred{
 				Period: types.Period{From: took, Before: next(ss[k+1].first)},
-				From:   r.instrument, To: ss[k+1].instrument,
+				From:   r.instr, To: ss[k+1].instr,
 				Earlier: r.tail, Later: ss[k+1].head,
 			})
 		}

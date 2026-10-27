@@ -69,11 +69,11 @@ func TestEventsRecord(t *testing.T) {
 	require.NoError(t, err)
 	entry := sources.Enabled()[slices.IndexFunc(sources.Enabled(), func(e *market.Entry) bool { return e.Name == name })]
 
-	inst, err := q.CreateInstr(ctx, gen.CreateInstrParams{ID: db.NewID(), AssetClass: types.AssetClassStock})
+	instr, err := q.CreateInstr(ctx, gen.CreateInstrParams{ID: db.NewID(), AssetClass: types.AssetClassStock})
 	require.NoError(t, err)
-	listing, err := q.CreateListing(ctx, gen.CreateListingParams{ID: db.NewID(), InstrID: inst.ID, Currency: "USD"})
+	listing, err := q.CreateListing(ctx, gen.CreateListingParams{ID: db.NewID(), InstrID: instr.ID, Currency: "USD"})
 	require.NoError(t, err)
-	_, err = q.CreateIdentifier(ctx, gen.CreateIdentifierParams{ID: db.NewID(), InstrID: inst.ID, ListingID: &listing.ID, Type: meta.Type, Value: meta.Value})
+	_, err = q.CreateIdentifier(ctx, gen.CreateIdentifierParams{ID: db.NewID(), InstrID: instr.ID, ListingID: &listing.ID, Type: meta.Type, Value: meta.Value})
 	require.NoError(t, err)
 
 	answered := time.Date(2026, time.October, 22, 15, 0, 0, 0, time.UTC)
@@ -108,7 +108,7 @@ func TestEventsRecord(t *testing.T) {
 			require.True(t, ok)
 			ivs, err := tickervalidity.Of(ctx, q, mt)
 			require.NoError(t, err)
-			if got := confirmed(ivs, inst.ID, tc.on); got != tc.want {
+			if got := confirmed(ivs, instr.ID, tc.on); got != tc.want {
 				t.Errorf("%s:%s confirmed for Meta on %s = %v, want %v", dom, tc.ticker, tc.on.Format(time.DateOnly), got, tc.want)
 			}
 		}
@@ -116,9 +116,9 @@ func TestEventsRecord(t *testing.T) {
 }
 
 // confirmed reports whether ivs confirm instrument on day d.
-func confirmed(ivs []tickervalidity.Interval, instrument uuid.UUID, d time.Time) bool {
+func confirmed(ivs []tickervalidity.Interval, instr uuid.UUID, d time.Time) bool {
 	for _, iv := range ivs {
-		if iv.Instr == instrument && iv.Validity == tickervalidity.Confirmed &&
+		if iv.Instr == instr && iv.Validity == tickervalidity.Confirmed &&
 			(iv.From == nil || !d.Before(*iv.From)) && (iv.Before == nil || d.Before(*iv.Before)) {
 			return true
 		}

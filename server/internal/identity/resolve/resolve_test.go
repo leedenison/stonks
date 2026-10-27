@@ -51,7 +51,7 @@ type fixture struct {
 	// every identifier created, attached every fetch key attached,
 	// resolutions how many resolution keys were written, and txs how many
 	// transactions were run.
-	instruments []gen.CreateInstrParams
+	instrs      []gen.CreateInstrParams
 	listings    []gen.CreateListingParams
 	primaries   []gen.SetListingPrimaryParams
 	identifiers []gen.CreateIdentifierParams
@@ -113,7 +113,7 @@ func (f *fixture) finds() {
 // creates accepts every write of a created instrument.
 func (f *fixture) creates() {
 	f.store.EXPECT().CreateInstr(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.CreateInstrParams) (gen.Instr, error) {
-		f.instruments = append(f.instruments, arg)
+		f.instrs = append(f.instrs, arg)
 		return gen.Instr{ID: arg.ID, AssetClass: arg.AssetClass, FetchKeyID: arg.FetchKeyID}, nil
 	}).AnyTimes()
 	f.store.EXPECT().CreateListing(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.CreateListingParams) (gen.Listing, error) {
@@ -433,8 +433,8 @@ func TestResolveErrors(t *testing.T) {
 
 // TestArbiter checks the arbiter each association records.
 func TestArbiter(t *testing.T) {
-	inst := gen.Instr{ID: db.NewID(), AssetClass: types.AssetClassStock}
-	isinRow := gen.Identifier{ID: db.NewID(), InstrID: inst.ID, Type: isin.Type, Value: isin.Value}
+	instr := gen.Instr{ID: db.NewID(), AssetClass: types.AssetClassStock}
+	isinRow := gen.Identifier{ID: db.NewID(), InstrID: instr.ID, Type: isin.Type, Value: isin.Value}
 	t.Run("a fetched winner is the datasource's", func(t *testing.T) {
 		f := newFixture(t, entryA)
 		f.records()
@@ -450,7 +450,7 @@ func TestArbiter(t *testing.T) {
 		f := newFixture(t, entryA)
 		f.records()
 		f.creates()
-		f.store.EXPECT().ListInstrsByIdentifiers(gomock.Any(), gomock.Any()).Return([]gen.ListInstrsByIdentifiersRow{{Instr: inst, Identifier: isinRow}}, nil).AnyTimes()
+		f.store.EXPECT().ListInstrsByIdentifiers(gomock.Any(), gomock.Any()).Return([]gen.ListInstrsByIdentifiersRow{{Instr: instr, Identifier: isinRow}}, nil).AnyTimes()
 		f.store.EXPECT().ListIdentifiersOf(gomock.Any(), gomock.Any()).Return([]gen.Identifier{isinRow}, nil).AnyTimes()
 		f.store.EXPECT().ListListingsOf(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
 		f.store.EXPECT().ListIdentityCoverage(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
@@ -802,8 +802,8 @@ func TestConfirm(t *testing.T) {
 				if !errors.Is(err, ErrNoCandidate) {
 					t.Fatalf("Confirm() = %+v, %v, want ErrNoCandidate", got, err)
 				}
-				if len(f.associations) != 0 || len(f.instruments) != 0 || f.resolutions != 0 {
-					t.Errorf("a failed confirmation wrote %d associations, %d instruments and %d resolutions, want none", len(f.associations), len(f.instruments), f.resolutions)
+				if len(f.associations) != 0 || len(f.instrs) != 0 || f.resolutions != 0 {
+					t.Errorf("a failed confirmation wrote %d associations, %d instruments and %d resolutions, want none", len(f.associations), len(f.instrs), f.resolutions)
 				}
 				return
 			}
@@ -828,10 +828,10 @@ func TestConfirm(t *testing.T) {
 				t.Errorf("attached mismatch (-want +got):\n%s", diff)
 			}
 			switch {
-			case len(f.instruments) != 1 || f.instruments[0].FetchKeyID == nil || byID[*f.instruments[0].FetchKeyID] != tc.wantAttached[0]:
-				t.Errorf("instruments = %+v, want one with the winner's fetch key as provenance", f.instruments)
-			case tc.wantClass != "" && f.instruments[0].AssetClass != tc.wantClass:
-				t.Errorf("instrument class = %s, want %s", f.instruments[0].AssetClass, tc.wantClass)
+			case len(f.instrs) != 1 || f.instrs[0].FetchKeyID == nil || byID[*f.instrs[0].FetchKeyID] != tc.wantAttached[0]:
+				t.Errorf("instruments = %+v, want one with the winner's fetch key as provenance", f.instrs)
+			case tc.wantClass != "" && f.instrs[0].AssetClass != tc.wantClass:
+				t.Errorf("instrument class = %s, want %s", f.instrs[0].AssetClass, tc.wantClass)
 			}
 			if tc.wantFamily != "" && (len(f.listings) == 0 || f.listings[0].Currency != tc.wantFamily) {
 				t.Errorf("listings = %+v, want the first in %s", f.listings, tc.wantFamily)

@@ -20,9 +20,9 @@ import (
 )
 
 // identifierNames returns the names of the identifiers of instrument, sorted.
-func (s *stack) identifierNames(t *testing.T, instrument uuid.UUID) []string {
+func (s *stack) identifierNames(t *testing.T, instr uuid.UUID) []string {
 	t.Helper()
-	rows, err := s.q.ListIdentifiers(context.Background(), instrument)
+	rows, err := s.q.ListIdentifiers(context.Background(), instr)
 	require.NoError(t, err)
 	var out []string
 	for _, row := range rows {
@@ -36,15 +36,15 @@ func (s *stack) identifierNames(t *testing.T, instrument uuid.UUID) []string {
 func (s *stack) stored(t *testing.T, ids ...types.Identifier) uuid.UUID {
 	t.Helper()
 	ctx := context.Background()
-	inst, err := s.q.CreateInstr(ctx, gen.CreateInstrParams{ID: db.NewID(), AssetClass: types.AssetClassStock})
+	instr, err := s.q.CreateInstr(ctx, gen.CreateInstrParams{ID: db.NewID(), AssetClass: types.AssetClassStock})
 	require.NoError(t, err)
-	_, err = s.q.CreateListing(ctx, gen.CreateListingParams{ID: db.NewID(), InstrID: inst.ID, Currency: "GBP"})
+	_, err = s.q.CreateListing(ctx, gen.CreateListingParams{ID: db.NewID(), InstrID: instr.ID, Currency: "GBP"})
 	require.NoError(t, err)
 	for _, id := range ids {
-		_, err = s.q.CreateIdentifier(ctx, gen.CreateIdentifierParams{ID: db.NewID(), InstrID: inst.ID, Type: id.Type, Domain: id.Domain, Value: id.Value})
+		_, err = s.q.CreateIdentifier(ctx, gen.CreateIdentifierParams{ID: db.NewID(), InstrID: instr.ID, Type: id.Type, Domain: id.Domain, Value: id.Value})
 		require.NoError(t, err)
 	}
-	return inst.ID
+	return instr.ID
 }
 
 // tickerAnswers has alpha and beta answer v, each with one GBP listing that
@@ -78,13 +78,13 @@ func TestTickerJoins(t *testing.T) {
 	}
 	found, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: figi.Type, Value: figi.Value})
 	require.NoError(t, err)
-	inst := found.Instr.ID
+	instr := found.Instr.ID
 	want := []string{"cusip 92857W308", "isin GB00BH4HKS39", "mic_ticker XLON:ZZJ", "openfigi_share_class BBG001S5XDT5"}
-	if diff := cmp.Diff(want, s.identifierNames(t, inst)); diff != "" {
+	if diff := cmp.Diff(want, s.identifierNames(t, instr)); diff != "" {
 		t.Errorf("identifiers mismatch (-want +got):\n%s", diff)
 	}
 	betaKey := s.fetchKey(t, key.ID, s.betaName)
-	rows, err := s.q.ListIdentifiers(ctx, inst)
+	rows, err := s.q.ListIdentifiers(ctx, instr)
 	require.NoError(t, err)
 	for _, row := range rows {
 		if stable := to.Identifier(row); stable.Type == isin.Type || stable.Type == cusip.Type {
@@ -100,8 +100,8 @@ func TestTickerJoins(t *testing.T) {
 	if len(got) != 1 || got[0].Outcome != gen.ResolutionOutcomeMatched {
 		t.Fatalf("second resolution = %+v, want the key matched", got)
 	}
-	if k := s.key(t, second.ID); k.InstrID == nil || *k.InstrID != inst {
-		t.Errorf("second key = %+v, want it on %s", k, inst)
+	if k := s.key(t, second.ID); k.InstrID == nil || *k.InstrID != instr {
+		t.Errorf("second key = %+v, want it on %s", k, instr)
 	}
 	if n := len(s.fetches(t)); n != 0 {
 		t.Errorf("fetches for the ISIN key = %d, want none: the join wrote the ISIN", n)
@@ -140,13 +140,13 @@ func TestTickerJoinsAcrossVenues(t *testing.T) {
 	}
 }
 
-// TestTickerJoinKeepsInstrumentsApart checks that a claim joined through the
+// TestTickerJoinKeepsInstrsApart checks that a claim joined through the
 // ticker alone never merges with a stored instrument. The claim is dropped
 // with a contradiction finding. That holds whether the write creates the
 // instrument or takes a stored one. It also holds whether the claim joined
 // the datasource winner on its day, or joined the stored instrument through
 // a stable identifier on a later day.
-func TestTickerJoinKeepsInstrumentsApart(t *testing.T) {
+func TestTickerJoinKeepsInstrsApart(t *testing.T) {
 	ctx := context.Background()
 	// takesStored checks that the key is dated through v on target, that
 	// the other claim is dropped with a contradiction, and that target and

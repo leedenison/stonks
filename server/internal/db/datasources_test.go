@@ -469,22 +469,22 @@ func TestIdentityCoverage(t *testing.T) {
 	first := servedKey(t, q, f.fetch, f.key, "GB00B03MLX29")
 	second := servedKey(t, q, newFetch(t, q, f.user, f.run, ds), f.key, "GB00B03MLX29")
 
-	instrument, err := q.CreateInstr(ctx, gen.CreateInstrParams{ID: db.NewID(), AssetClass: types.AssetClassStock, FetchKeyID: &first})
+	instr, err := q.CreateInstr(ctx, gen.CreateInstrParams{ID: db.NewID(), AssetClass: types.AssetClassStock, FetchKeyID: &first})
 	require.NoError(t, err)
-	if instrument.FetchKeyID == nil || *instrument.FetchKeyID != first {
-		t.Errorf("instrument provenance = %v, want fetch key %s", instrument.FetchKeyID, first)
+	if instr.FetchKeyID == nil || *instr.FetchKeyID != first {
+		t.Errorf("instrument provenance = %v, want fetch key %s", instr.FetchKeyID, first)
 	}
-	listing, err := q.CreateListing(ctx, gen.CreateListingParams{ID: db.NewID(), InstrID: instrument.ID, Currency: "GBP", FetchKeyID: &first})
+	listing, err := q.CreateListing(ctx, gen.CreateListingParams{ID: db.NewID(), InstrID: instr.ID, Currency: "GBP", FetchKeyID: &first})
 	require.NoError(t, err)
-	identifier, err := q.CreateIdentifier(ctx, gen.CreateIdentifierParams{ID: db.NewID(), InstrID: instrument.ID, ListingID: &listing.ID, Type: types.IdentifierTypeSedol, Value: "B03MLX2", FetchKeyID: &first})
+	identifier, err := q.CreateIdentifier(ctx, gen.CreateIdentifierParams{ID: db.NewID(), InstrID: instr.ID, ListingID: &listing.ID, Type: types.IdentifierTypeSedol, Value: "B03MLX2", FetchKeyID: &first})
 	require.NoError(t, err)
 	if listing.FetchKeyID == nil || identifier.FetchKeyID == nil || *listing.FetchKeyID != first || *identifier.FetchKeyID != first {
 		t.Errorf("listing provenance %v, identifier provenance %v, want fetch key %s", listing.FetchKeyID, identifier.FetchKeyID, first)
 	}
 
-	require.NoError(t, q.UpsertIdentityCoverage(ctx, gen.UpsertIdentityCoverageParams{InstrID: instrument.ID, Datasource: ds.Name, FetchKeyID: first}))
-	require.NoError(t, q.UpsertIdentityCoverage(ctx, gen.UpsertIdentityCoverageParams{InstrID: instrument.ID, Datasource: ds.Name, FetchKeyID: second}))
-	rows, err := q.ListIdentityCoverage(ctx, []uuid.UUID{instrument.ID, db.NewID()})
+	require.NoError(t, q.UpsertIdentityCoverage(ctx, gen.UpsertIdentityCoverageParams{InstrID: instr.ID, Datasource: ds.Name, FetchKeyID: first}))
+	require.NoError(t, q.UpsertIdentityCoverage(ctx, gen.UpsertIdentityCoverageParams{InstrID: instr.ID, Datasource: ds.Name, FetchKeyID: second}))
+	rows, err := q.ListIdentityCoverage(ctx, []uuid.UUID{instr.ID, db.NewID()})
 	require.NoError(t, err)
 	if len(rows) != 1 || rows[0].Datasource != ds.Name || rows[0].FetchKeyID != second {
 		t.Errorf("ListIdentityCoverage = %+v, want one row for %s holding fetch key %s", rows, ds.Name, second)

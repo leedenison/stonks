@@ -60,7 +60,7 @@ func New(store Store, runs Runner, facts Facts, mics mic.MICMap, clock func() ti
 // or knows of an event, the row is the same. A day is today or any earlier day,
 // and a range is an assertion on each end, since the bracket rule confirms the
 // days between. A to before from is refused with ErrRange.
-func (s *Service) Start(ctx context.Context, admin uuid.UUID, v types.MarketTicker, instrument *uuid.UUID, from time.Time, to *time.Time) (gen.Run, error) {
+func (s *Service) Start(ctx context.Context, admin uuid.UUID, v types.MarketTicker, instr *uuid.UUID, from time.Time, to *time.Time) (gen.Run, error) {
 	today := s.clock()
 	days := []time.Time{types.Day(from)}
 	if to != nil && !types.Day(*to).Equal(days[0]) {
@@ -74,9 +74,9 @@ func (s *Service) Start(ctx context.Context, admin uuid.UUID, v types.MarketTick
 			return gen.Run{}, err
 		}
 	}
-	if instrument != nil {
-		if _, err := s.store.GetInstr(ctx, *instrument); errors.Is(err, db.ErrNotFound) {
-			return gen.Run{}, fmt.Errorf("instrument %s: %w", instrument, err)
+	if instr != nil {
+		if _, err := s.store.GetInstr(ctx, *instr); errors.Is(err, db.ErrNotFound) {
+			return gen.Run{}, fmt.Errorf("instrument %s: %w", instr, err)
 		} else if err != nil {
 			return gen.Run{}, fmt.Errorf("get instrument: %w", err)
 		}
@@ -86,7 +86,7 @@ func (s *Service) Start(ctx context.Context, admin uuid.UUID, v types.MarketTick
 		Prepare: func(ctx context.Context, row gen.Run) error {
 			return s.store.Tx(ctx, func(q Queries) error {
 				for _, d := range days {
-					if err := tickervalidity.Attest(ctx, q, s.mics, row, admin, v, instrument, d, today); err != nil {
+					if err := tickervalidity.Attest(ctx, q, s.mics, row, admin, v, instr, d, today); err != nil {
 						return err
 					}
 				}

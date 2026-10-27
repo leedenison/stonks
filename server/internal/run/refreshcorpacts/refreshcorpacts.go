@@ -35,7 +35,7 @@ type Queries interface {
 	tickervalidity.FactQueries
 	ListHeldInstrs(ctx context.Context) ([]gen.ListHeldInstrsRow, error)
 	ListHeldTickerDates(ctx context.Context) ([]gen.ListHeldTickerDatesRow, error)
-	ListTickersNaming(ctx context.Context, instruments []uuid.UUID) ([]gen.ListTickersNamingRow, error)
+	ListTickersNaming(ctx context.Context, instrs []uuid.UUID) ([]gen.ListTickersNamingRow, error)
 }
 
 var _ Queries = (*gen.Queries)(nil)

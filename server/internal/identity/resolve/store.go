@@ -24,7 +24,7 @@ type Queries interface {
 	ListInstrsByIdentifiers(ctx context.Context, arg gen.ListInstrsByIdentifiersParams) ([]gen.ListInstrsByIdentifiersRow, error)
 	ListIdentifiersOf(ctx context.Context, ids []uuid.UUID) ([]gen.Identifier, error)
 	ListListingsOf(ctx context.Context, ids []uuid.UUID) ([]gen.Listing, error)
-	ListIdentityCoverage(ctx context.Context, instrumentIds []uuid.UUID) ([]gen.IdentityCoverage, error)
+	ListIdentityCoverage(ctx context.Context, instrIds []uuid.UUID) ([]gen.IdentityCoverage, error)
 	LockIdentifiers(ctx context.Context, keys []string) error
 	CreateInstr(ctx context.Context, arg gen.CreateInstrParams) (gen.Instr, error)
 	CreateListing(ctx context.Context, arg gen.CreateListingParams) (gen.Listing, error)
@@ -43,8 +43,8 @@ type Queries interface {
 	RelinkStatedKeys(ctx context.Context, arg gen.RelinkStatedKeysParams) error
 	RelinkFetchKeys(ctx context.Context, arg gen.RelinkFetchKeysParams) error
 	MoveIdentityCoverage(ctx context.Context, arg gen.MoveIdentityCoverageParams) error
-	DeleteIdentityCoverage(ctx context.Context, instrumentID uuid.UUID) error
-	DeleteListings(ctx context.Context, instrumentID uuid.UUID) error
+	DeleteIdentityCoverage(ctx context.Context, instrID uuid.UUID) error
+	DeleteListings(ctx context.Context, instrID uuid.UUID) error
 	DeleteInstr(ctx context.Context, id uuid.UUID) error
 }
 

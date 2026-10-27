@@ -395,7 +395,7 @@ func TestResolvesUnassociated(t *testing.T) {
 			usd := "USD"
 			held := securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, "US0378331005", ""))
 			fresh := securityKey("BETA", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, "US0378331006", ""))
-			instrument := db.NewID()
+			instr := db.NewID()
 			var sent []gen.StatedKey
 			f.outcomes = func(keys []gen.StatedKey) []gen.ResolutionKey {
 				sent = keys
@@ -412,7 +412,7 @@ func TestResolvesUnassociated(t *testing.T) {
 			f.store.EXPECT().UpsertStatedKey(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.UpsertStatedKeyParams) (gen.StatedKey, error) {
 				row := gen.StatedKey{ID: arg.ID, Identifiers: arg.Identifiers}
 				if described(row, "ACME") {
-					row.InstrID = &instrument
+					row.InstrID = &instr
 				}
 				return row, nil
 			}).Times(2)
@@ -460,14 +460,14 @@ func TestResolvesWithDates(t *testing.T) {
 	usd := "USD"
 	dated := securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, "ACME", "XNAS"))
 	fixed := securityKey("BETA", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, "US0378331006", ""))
-	instrument := db.NewID()
+	instr := db.NewID()
 	f.store.EXPECT().CreateStmt(gomock.Any(), gomock.Any()).Return(gen.Stmt{}, nil)
 	f.store.EXPECT().UpsertStatedKey(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.UpsertStatedKeyParams) (gen.StatedKey, error) {
 		row := gen.StatedKey{ID: arg.ID, Identifiers: arg.Identifiers}
 		if described(row, "ACME") {
 			row.ViaType, row.ViaDomain, row.ViaValue = ptr.To(types.IdentifierTypeMicTicker), ptr.To("XNAS"), ptr.To("ACME")
 		} else {
-			row.InstrID = &instrument
+			row.InstrID = &instr
 		}
 		return row, nil
 	}).Times(2)

@@ -253,9 +253,9 @@ func ProtoIdentifierEvent(e gen.ListIdentifierEventsRow) *admincoveragev1.Identi
 	return out
 }
 
-// ProtoInstrument writes an instrument with the identifier that names it,
+// ProtoInstr writes an instrument with the identifier that names it,
 // and leaves its listings and identifiers to the caller.
-func ProtoInstrument(r gen.ListInstrsRow) *admininstrumentv1.Instrument {
+func ProtoInstr(r gen.ListInstrsRow) *admininstrumentv1.Instrument {
 	out := &admininstrumentv1.Instrument{Id: r.ID.String(), AssetClass: types.ToProto[typev1.AssetClass](r.AssetClass)}
 	if r.NameType != "" {
 		out.Name = types.Identifier{Type: types.IdentifierType(r.NameType), Domain: r.NameDomain, Value: r.Name}.ToProto()

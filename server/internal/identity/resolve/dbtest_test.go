@@ -52,16 +52,16 @@ func TestResolveWrites(t *testing.T) {
 
 	found, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: types.IdentifierTypeIsin, Value: isin.Value})
 	require.NoError(t, err)
-	inst := found.Instr
-	if inst.AssetClass != types.AssetClassStock || inst.FetchKeyID == nil {
-		t.Errorf("instrument = %+v, want a stock with provenance", inst)
+	instr := found.Instr
+	if instr.AssetClass != types.AssetClassStock || instr.FetchKeyID == nil {
+		t.Errorf("instrument = %+v, want a stock with provenance", instr)
 	}
-	listings, err := s.q.ListListings(ctx, inst.ID)
+	listings, err := s.q.ListListings(ctx, instr.ID)
 	require.NoError(t, err)
 	if len(listings) != 1 || listings[0].Currency != "GBP" || listings[0].FetchKeyID == nil {
 		t.Fatalf("listings = %+v, want one GBP listing with provenance", listings)
 	}
-	ids, err := s.q.ListIdentifiers(ctx, inst.ID)
+	ids, err := s.q.ListIdentifiers(ctx, instr.ID)
 	require.NoError(t, err)
 	var identifiers []string
 	for _, row := range ids {
@@ -70,29 +70,29 @@ func TestResolveWrites(t *testing.T) {
 			where = "listing"
 		}
 		identifiers = append(identifiers, where+" "+to.Identifier(row).Name())
-		if row.FetchKeyID == nil || *row.FetchKeyID != *inst.FetchKeyID {
-			t.Errorf("identifier %s from fetch key %v, want the instrument's %s", row.Value, row.FetchKeyID, *inst.FetchKeyID)
+		if row.FetchKeyID == nil || *row.FetchKeyID != *instr.FetchKeyID {
+			t.Errorf("identifier %s from fetch key %v, want the instrument's %s", row.Value, row.FetchKeyID, *instr.FetchKeyID)
 		}
 	}
 	wantIdentifiers := []string{"instrument isin GB00BH4HKS39", "instrument openfigi_share_class BBG001S5XDT5", "listing openfigi_composite BBG000C6K6G9", "listing mic_ticker XLON:VOD"}
 	if diff := cmp.Diff(wantIdentifiers, identifiers); diff != "" {
 		t.Errorf("identifiers mismatch (-want +got):\n%s", diff)
 	}
-	asserted, err := s.q.ListFetchKeyAssertions(ctx, inst.FetchKeyID)
+	asserted, err := s.q.ListFetchKeyAssertions(ctx, instr.FetchKeyID)
 	require.NoError(t, err)
 	if len(asserted) != 4 {
 		t.Errorf("%d assertions, want the 4 the response named", len(asserted))
 	}
 	day := time.Date(2026, time.March, 2, 0, 0, 0, 0, time.UTC)
 	for _, a := range asserted {
-		if a.InstrID == nil || *a.InstrID != inst.ID || !a.AssertedOn.Equal(day) {
+		if a.InstrID == nil || *a.InstrID != instr.ID || !a.AssertedOn.Equal(day) {
 			t.Errorf("assertion = %+v, want the instrument on %s, the day of the answer", a, day.Format(time.DateOnly))
 		}
 	}
 	vod := types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XLON", Value: "VOD"}
 	ivs, err := tickervalidity.Of(ctx, s.q, mt(vod))
 	require.NoError(t, err)
-	if !confirmedOn(ivs, inst.ID, day) {
+	if !confirmedOn(ivs, instr.ID, day) {
 		t.Errorf("ticker validity of %s = %+v, want the instrument confirmed on %s", vod.Name(), ivs, day.Format(time.DateOnly))
 	}
 
@@ -101,10 +101,10 @@ func TestResolveWrites(t *testing.T) {
 	for _, row := range ids {
 		via[row.ID] = to.Identifier(row).Name()
 	}
-	if tradeKey.InstrID == nil || *tradeKey.InstrID != inst.ID || tradeKey.ListingID == nil || *tradeKey.ListingID != listings[0].ID || via[*tradeKey.ViaID] != "isin GB00BH4HKS39" {
+	if tradeKey.InstrID == nil || *tradeKey.InstrID != instr.ID || tradeKey.ListingID == nil || *tradeKey.ListingID != listings[0].ID || via[*tradeKey.ViaID] != "isin GB00BH4HKS39" {
 		t.Errorf("trade = %+v, want the instrument's GBP listing via its ISIN, confirmed", tradeKey)
 	}
-	if transferKey.InstrID == nil || *transferKey.InstrID != inst.ID || transferKey.ListingID != nil || via[*transferKey.ViaID] != "isin GB00BH4HKS39" {
+	if transferKey.InstrID == nil || *transferKey.InstrID != instr.ID || transferKey.ListingID != nil || via[*transferKey.ViaID] != "isin GB00BH4HKS39" {
 		t.Errorf("transfer = %+v, want the instrument via its ISIN, confirmed, with no listing", transferKey)
 	}
 
@@ -129,11 +129,11 @@ func TestResolveWrites(t *testing.T) {
 	for _, it := range items {
 		sent[*it.FetchKey.StatedKeyID] = it.FetchKey
 	}
-	attached := func(id uuid.UUID) bool { return sent[id].InstrID != nil && *sent[id].InstrID == inst.ID }
+	attached := func(id uuid.UUID) bool { return sent[id].InstrID != nil && *sent[id].InstrID == instr.ID }
 	if len(sent) != 3 || !attached(trade.ID) || !attached(transfer.ID) || sent[wrong.ID].InstrID != nil {
 		t.Errorf("fetch items = %+v, want the trade and the transfer attached to the instrument and the mis-stated key attached to nothing", sent)
 	}
-	coverage, err := s.q.ListIdentityCoverage(ctx, []uuid.UUID{inst.ID})
+	coverage, err := s.q.ListIdentityCoverage(ctx, []uuid.UUID{instr.ID})
 	require.NoError(t, err)
 	if len(coverage) != 1 || coverage[0].Datasource != s.alphaName || coverage[0].FetchKeyID != sent[transfer.ID].ID {
 		t.Errorf("coverage = %+v, want alpha through the transfer's fetch key", coverage)
@@ -327,9 +327,9 @@ func TestMergeRows(t *testing.T) {
 	require.NoError(t, err, "the deferred constraints hold after the merge")
 
 	survivor := a.Instr.ID
-	var instruments int
-	require.NoError(t, s.tx.QueryRow(ctx, "SELECT count(*) FROM instrs WHERE id = $1", b.Instr.ID).Scan(&instruments))
-	if instruments != 0 {
+	var instrs int
+	require.NoError(t, s.tx.QueryRow(ctx, "SELECT count(*) FROM instrs WHERE id = $1", b.Instr.ID).Scan(&instrs))
+	if instrs != 0 {
 		t.Errorf("the later instrument %s still exists", b.Instr.ID)
 	}
 	listings, err := s.q.ListListings(ctx, survivor)
@@ -428,19 +428,19 @@ func TestDescribedRows(t *testing.T) {
 	s.resolve(t, s.state(t, types.AssetClassStock, "GBP", isin), s.state(t, types.AssetClassStock, "USD", cusip))
 	found, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: isin.Type, Value: isin.Value})
 	require.NoError(t, err)
-	inst := found.Instr
-	listings, err := s.q.ListListings(ctx, inst.ID)
+	instr := found.Instr
+	listings, err := s.q.ListListings(ctx, instr.ID)
 	require.NoError(t, err)
 	require.Len(t, listings, 1)
-	row, err := s.q.CreateIdentifier(ctx, gen.CreateIdentifierParams{ID: db.NewID(), InstrID: inst.ID, Type: descr.Type, Domain: descr.Domain, Value: descr.Value})
+	row, err := s.q.CreateIdentifier(ctx, gen.CreateIdentifierParams{ID: db.NewID(), InstrID: instr.ID, Type: descr.Type, Domain: descr.Domain, Value: descr.Value})
 	require.NoError(t, err)
 	s.enableBeta(t)
 
-	// via checks that key matched inst through row, on the GBP listing,
+	// via checks that key matched instr through row, on the GBP listing,
 	// provisionally.
 	via := func(t *testing.T, key gen.StatedKey) {
 		t.Helper()
-		if key.InstrID == nil || *key.InstrID != inst.ID || key.ViaID == nil || *key.ViaID != row.ID || key.ListingID == nil || *key.ListingID != listings[0].ID {
+		if key.InstrID == nil || *key.InstrID != instr.ID || key.ViaID == nil || *key.ViaID != row.ID || key.ListingID == nil || *key.ListingID != listings[0].ID {
 			t.Errorf("key = %+v, want the instrument's GBP listing via the description, provisional", key)
 		}
 	}
@@ -459,7 +459,7 @@ func TestDescribedRows(t *testing.T) {
 		if fk := s.fetchKey(t, k.ID, s.betaName); fk.Outcome != gen.FetchOutcomeNotServed {
 			t.Errorf("beta's fetch key = %+v, want not served", fk)
 		}
-		ids, err := s.q.ListIdentifiers(ctx, inst.ID)
+		ids, err := s.q.ListIdentifiers(ctx, instr.ID)
 		require.NoError(t, err)
 		var descriptions []uuid.UUID
 		for _, i := range ids {
@@ -507,7 +507,7 @@ func TestDescribedRows(t *testing.T) {
 		// beta served the instrument above and so covers it. Its coverage is
 		// cleared so that it is asked again, and alpha's kept, since the
 		// stack's one connection cannot carry two fetches at once.
-		_, err := s.tx.Exec(ctx, "DELETE FROM identity_coverage WHERE instr_id = $1 AND datasource = 'beta'", inst.ID)
+		_, err := s.tx.Exec(ctx, "DELETE FROM identity_coverage WHERE instr_id = $1 AND datasource = 'beta'", instr.ID)
 		require.NoError(t, err)
 		s.beta.Responses[ticker] = market.IdentityResult{Filtered: []types.Identifier{ticker}, Listings: []market.Listing{
 			{Class: types.AssetClassStock, Currency: "GBP", Identifiers: []types.Identifier{figi, xlon}},
@@ -670,7 +670,7 @@ func TestCoveredRows(t *testing.T) {
 	s.resolve(t, s.state(t, types.AssetClassStock, "GBP", isin))
 	before, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: isin.Type, Value: isin.Value})
 	require.NoError(t, err)
-	inst := before.Instr
+	instr := before.Instr
 	s.enableBeta(t)
 	s.beta.Responses[isin] = market.IdentityResult{Filtered: []types.Identifier{isin}, Listings: []market.Listing{
 		{Class: types.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{figi, isin, xnas}},
@@ -686,7 +686,7 @@ func TestCoveredRows(t *testing.T) {
 		t.Errorf("%d new fetches, want 1: alpha covers the instrument", n)
 	}
 	fk := s.fetchKey(t, k.ID, s.betaName)
-	listings, err := s.q.ListListings(ctx, inst.ID)
+	listings, err := s.q.ListListings(ctx, instr.ID)
 	require.NoError(t, err)
 	byFamily := map[string]gen.Listing{}
 	for _, l := range listings {
@@ -696,7 +696,7 @@ func TestCoveredRows(t *testing.T) {
 	if len(listings) != 2 || !ok || usd.FetchKeyID == nil || *usd.FetchKeyID != fk.ID {
 		t.Fatalf("listings = %+v, want GBP and a USD listing from beta's fetch key", listings)
 	}
-	ids, err := s.q.ListIdentifiers(ctx, inst.ID)
+	ids, err := s.q.ListIdentifiers(ctx, instr.ID)
 	require.NoError(t, err)
 	var names []string
 	for _, row := range ids {
@@ -713,7 +713,7 @@ func TestCoveredRows(t *testing.T) {
 	if key.ListingID == nil || *key.ListingID != usd.ID || *key.ViaID != before.Identifier.ID {
 		t.Errorf("key = %+v, want the USD listing via the ISIN, confirmed", key)
 	}
-	coverage, err := s.q.ListIdentityCoverage(ctx, []uuid.UUID{inst.ID})
+	coverage, err := s.q.ListIdentityCoverage(ctx, []uuid.UUID{instr.ID})
 	require.NoError(t, err)
 	var sources []string
 	for _, c := range coverage {
@@ -738,9 +738,9 @@ func TestDroppedUncovered(t *testing.T) {
 	s.resolve(t, k)
 	found, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: isin.Type, Value: isin.Value})
 	require.NoError(t, err)
-	inst := found.Instr.ID
+	instr := found.Instr.ID
 	covered := func() []string {
-		rows, err := s.q.ListIdentityCoverage(ctx, []uuid.UUID{inst})
+		rows, err := s.q.ListIdentityCoverage(ctx, []uuid.UUID{instr})
 		require.NoError(t, err)
 		var out []string
 		for _, c := range rows {
@@ -901,9 +901,9 @@ func TestMergeRefused(t *testing.T) {
 	if written(got[0]) != "matched" {
 		t.Fatalf("outcome = %s, want matched", written(got[0]))
 	}
-	for _, inst := range []uuid.UUID{a.Instr.ID, b.Instr.ID} {
-		if !s.exists(t, inst) {
-			t.Errorf("instrument %s is gone, want both kept", inst)
+	for _, instr := range []uuid.UUID{a.Instr.ID, b.Instr.ID} {
+		if !s.exists(t, instr) {
+			t.Errorf("instrument %s is gone, want both kept", instr)
 		}
 	}
 	key := s.key(t, k.ID)
@@ -969,17 +969,17 @@ func TestConfirmRows(t *testing.T) {
 	}
 	found, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: types.IdentifierTypeIsin, Value: isin.Value})
 	require.NoError(t, err)
-	inst := found.Instr
-	if inst.AssetClass != types.AssetClassStock || inst.FetchKeyID == nil {
-		t.Errorf("instrument = %+v, want a stock with provenance", inst)
+	instr := found.Instr
+	if instr.AssetClass != types.AssetClassStock || instr.FetchKeyID == nil {
+		t.Errorf("instrument = %+v, want a stock with provenance", instr)
 	}
-	ids, err := s.q.ListIdentifiers(ctx, inst.ID)
+	ids, err := s.q.ListIdentifiers(ctx, instr.ID)
 	require.NoError(t, err)
 	via := map[uuid.UUID]string{}
 	for _, row := range ids {
 		via[row.ID] = to.Identifier(row).Name()
 	}
-	if k := s.key(t, key.ID); k.InstrID == nil || *k.InstrID != inst.ID || k.ListingID == nil || via[*k.ViaID] != "mic_ticker XLON:VOD" || *k.Arbiter != gen.ArbiterUser || k.GroupID != nil {
+	if k := s.key(t, key.ID); k.InstrID == nil || *k.InstrID != instr.ID || k.ListingID == nil || via[*k.ViaID] != "mic_ticker XLON:VOD" || *k.Arbiter != gen.ArbiterUser || k.GroupID != nil {
 		t.Errorf("key = %+v, want the instrument's GBP listing via its venue ticker, provisional, by the user, in no group", k)
 	}
 	if m := s.key(t, mate.ID); m.InstrID != nil || m.Arbiter != nil {
@@ -1003,7 +1003,7 @@ func TestConfirmRows(t *testing.T) {
 	if got[0].Outcome != gen.ResolutionOutcomeUnrecognised || got[0].Offered != 1 {
 		t.Errorf("a later resolution = %s offering %d, want unrecognised with the one candidate offered", written(got[0]), got[0].Offered)
 	}
-	if k := s.key(t, key.ID); *k.Arbiter != gen.ArbiterUser || *k.InstrID != inst.ID {
+	if k := s.key(t, key.ID); *k.Arbiter != gen.ArbiterUser || *k.InstrID != instr.ID {
 		t.Errorf("key after a later resolution = %+v, want the user's association", k)
 	}
 	if n := len(s.fetches(t)); n != 1 {
@@ -1022,7 +1022,7 @@ func TestConfirmRows(t *testing.T) {
 	apart := s.stateUnder(t, s.newStmt(t, gen.BrokerIbkr), types.AssetClassStock, "GBP", ticker, other)
 	rk, _, err = s.resolver.Confirm(ctx, s.resolution, apart, Pick{Datasource: s.alphaName, Identifier: isin})
 	require.NoError(t, err)
-	if k := s.key(t, apart.ID); rk.Outcome != gen.ResolutionOutcomeMatched || k.InstrID == nil || *k.InstrID != inst.ID || *k.Arbiter != gen.ArbiterUser {
+	if k := s.key(t, apart.ID); rk.Outcome != gen.ResolutionOutcomeMatched || k.InstrID == nil || *k.InstrID != instr.ID || *k.Arbiter != gen.ArbiterUser {
 		t.Errorf("a second confirmation = %+v, %+v, want the same instrument by the user", rk, k)
 	}
 	if _, _, err := s.resolver.Confirm(ctx, s.resolution, apart, Pick{Datasource: s.alphaName, Identifier: cusip}); !errors.Is(err, ErrNoCandidate) {
@@ -1101,11 +1101,11 @@ func TestConfirmMerged(t *testing.T) {
 	alpha, beta := s.fetchKey(t, key.ID, s.alphaName), s.fetchKey(t, key.ID, s.betaName)
 	found, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: types.IdentifierTypeIsin, Value: isin.Value})
 	require.NoError(t, err)
-	inst := found.Instr
-	if inst.FetchKeyID == nil || *inst.FetchKeyID != alpha.ID {
-		t.Errorf("instrument provenance = %v, want alpha's fetch key %s", inst.FetchKeyID, alpha.ID)
+	instr := found.Instr
+	if instr.FetchKeyID == nil || *instr.FetchKeyID != alpha.ID {
+		t.Errorf("instrument provenance = %v, want alpha's fetch key %s", instr.FetchKeyID, alpha.ID)
 	}
-	ids, err := s.q.ListIdentifiers(ctx, inst.ID)
+	ids, err := s.q.ListIdentifiers(ctx, instr.ID)
 	require.NoError(t, err)
 	for _, row := range ids {
 		if row.Type == isin.Type && (row.FetchKeyID == nil || *row.FetchKeyID != beta.ID) {
@@ -1113,11 +1113,11 @@ func TestConfirmMerged(t *testing.T) {
 		}
 	}
 	for _, fk := range []gen.FetchKey{alpha, beta} {
-		if fk.InstrID == nil || *fk.InstrID != inst.ID {
-			t.Errorf("fetch key %s points at %v, want the instrument %s", fk.ID, fk.InstrID, inst.ID)
+		if fk.InstrID == nil || *fk.InstrID != instr.ID {
+			t.Errorf("fetch key %s points at %v, want the instrument %s", fk.ID, fk.InstrID, instr.ID)
 		}
 	}
-	if k := s.key(t, key.ID); k.InstrID == nil || *k.InstrID != inst.ID || *k.Arbiter != gen.ArbiterUser {
+	if k := s.key(t, key.ID); k.InstrID == nil || *k.InstrID != instr.ID || *k.Arbiter != gen.ArbiterUser {
 		t.Errorf("key = %+v, want the instrument by the user", k)
 	}
 }

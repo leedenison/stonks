@@ -121,7 +121,7 @@ func TestSweepStatedKeys(t *testing.T) {
 		ds := newDatasource(t, q, "sweep", 10)
 		fetchKey := servedKey(t, q, newFetch(t, q, user, run, ds), orphan, "GB00B03MLX29")
 		require.NoError(t, q.CreateIdentifierAssertion(ctx, gen.CreateIdentifierAssertionParams{ID: db.NewID(), FetchKeyID: &fetchKey, Type: types.IdentifierTypeIsin, Value: "GB00B03MLX29", AssertedOn: date(2026, 3, 2)}))
-		instrument, err := q.CreateInstr(ctx, gen.CreateInstrParams{ID: db.NewID(), AssetClass: types.AssetClassStock, FetchKeyID: &fetchKey})
+		instr, err := q.CreateInstr(ctx, gen.CreateInstrParams{ID: db.NewID(), AssetClass: types.AssetClassStock, FetchKeyID: &fetchKey})
 		require.NoError(t, err)
 
 		// Deleting the other statement cascades the orphan's only link.
@@ -151,7 +151,7 @@ func TestSweepStatedKeys(t *testing.T) {
 		var assertions int
 		require.NoError(t, tx.QueryRow(ctx, "SELECT stated_key_id FROM fetch_keys WHERE id = $1", fetchKey).Scan(&statedKey))
 		require.NoError(t, tx.QueryRow(ctx, "SELECT count(*) FROM identifier_assertions WHERE fetch_key_id = $1", fetchKey).Scan(&assertions))
-		require.NoError(t, tx.QueryRow(ctx, "SELECT fetch_key_id FROM instrs WHERE id = $1", instrument.ID).Scan(&provenance))
+		require.NoError(t, tx.QueryRow(ctx, "SELECT fetch_key_id FROM instrs WHERE id = $1", instr.ID).Scan(&provenance))
 		if statedKey != nil || assertions != 1 || provenance == nil || *provenance != fetchKey {
 			t.Errorf("fetch key after the sweep: stated key %v, %d assertions, instrument provenance %v; want no stated key, 1 assertion and the fetch key as provenance", statedKey, assertions, provenance)
 		}
@@ -275,7 +275,7 @@ func TestStatedKeyAssociation(t *testing.T) {
 
 	base := newTx(t)
 	usd, via := cashListing(t, base, "USD")
-	other := newInstrument(t, base, types.AssetClassEquity)
+	other := newInstr(t, base, types.AssetClassEquity)
 	otherLine := newListing(t, base, other, "USD")
 
 	tests := []struct {
@@ -314,7 +314,7 @@ func TestStatedKeyAssociation(t *testing.T) {
 		if n != 1 {
 			t.Fatalf("the user's association changed %d rows, want 1", n)
 		}
-		other := newInstrument(t, q, types.AssetClassEquity)
+		other := newInstr(t, q, types.AssetClassEquity)
 		otherVia := newIdentifier(t, q, other, "US0000000009")
 		byDatasource := gen.SetStatedKeyAssociationParams{ID: chosen.ID, UserID: user.ID, InstrID: &other.ID, ViaID: &otherVia.ID, Arbiter: gen.ArbiterDatasource}
 		n, err = q.SetStatedKeyAssociation(ctx, byDatasource)
@@ -585,7 +585,7 @@ func TestListUnassociatedKeysStating(t *testing.T) {
 func TestPlaceTicker(t *testing.T) {
 	ctx := context.Background()
 	q := newTx(t)
-	old, present := newInstrument(t, q, types.AssetClassStock), newInstrument(t, q, types.AssetClassStock)
+	old, present := newInstr(t, q, types.AssetClassStock), newInstr(t, q, types.AssetClassStock)
 	oldLine, presentLine := newListing(t, q, old, "USD"), newListing(t, q, present, "USD")
 	venueTicker(t, q, oldLine, "XNAS", "META")
 	row, err := q.PlaceTicker(ctx, gen.PlaceTickerParams{ID: db.NewID(), InstrID: present.ID, ListingID: &presentLine.ID, Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "META"})

@@ -29,7 +29,7 @@ type Queries interface {
 	ListIdentifierAssertions(ctx context.Context, arg gen.ListIdentifierAssertionsParams) ([]gen.ListIdentifierAssertionsRow, error)
 	ListIdentifierEvents(ctx context.Context, arg gen.ListIdentifierEventsParams) ([]gen.ListIdentifierEventsRow, error)
 	ListIdentifierCoverage(ctx context.Context, arg gen.ListIdentifierCoverageParams) ([]gen.ListIdentifierCoverageRow, error)
-	ListInstrTickers(ctx context.Context, instrumentID uuid.UUID) ([]gen.ListInstrTickersRow, error)
+	ListInstrTickers(ctx context.Context, instrID uuid.UUID) ([]gen.ListInstrTickersRow, error)
 	CountTickerTxns(ctx context.Context, probes [][]byte) (int32, error)
 	ListTickerTxns(ctx context.Context, probes [][]byte) ([]gen.ListTickerTxnsRow, error)
 	ListInstrNames(ctx context.Context, ids []uuid.UUID) ([]gen.InstrName, error)
@@ -119,10 +119,10 @@ func (t *Page) ToProto() *admincoveragev1.Ticker {
 	return out
 }
 
-// InstrumentTicker is a ticker at its market that names an instrument, now
+// InstrTicker is a ticker at its market that names an instrument, now
 // or in an assertion, with the count of transactions whose keys state it at
 // any venue of the market.
-type InstrumentTicker struct {
+type InstrTicker struct {
 	Ticker  types.MarketTicker
 	Current bool
 	Txns    int
@@ -131,18 +131,18 @@ type InstrumentTicker struct {
 }
 
 // ToProto converts the ticker.
-func (t InstrumentTicker) ToProto() *admincoveragev1.InstrumentTicker {
+func (t InstrTicker) ToProto() *admincoveragev1.InstrumentTicker {
 	return &admincoveragev1.InstrumentTicker{Ticker: t.Ticker.ToProto(), Current: t.Current, Txns: int32(t.Txns), Venues: t.Venues}
 }
 
-// InstrumentTickers lists the tickers that name the instrument, now or in an
+// InstrTickers lists the tickers that name the instrument, now or in an
 // assertion, the most transacted first.
-func (r *Reader) InstrumentTickers(ctx context.Context, instrument uuid.UUID) ([]InstrumentTicker, error) {
-	rows, err := r.q.ListInstrTickers(ctx, instrument)
+func (r *Reader) InstrTickers(ctx context.Context, instr uuid.UUID) ([]InstrTicker, error) {
+	rows, err := r.q.ListInstrTickers(ctx, instr)
 	if err != nil {
-		return nil, fmt.Errorf("list tickers of %s: %w", instrument, err)
+		return nil, fmt.Errorf("list tickers of %s: %w", instr, err)
 	}
-	var out []InstrumentTicker
+	var out []InstrTicker
 	for _, row := range rows {
 		v := types.MarketTicker{Market: row.Market, Value: row.Value}
 		probes, err := r.mics.TickerProbes([]types.MarketTicker{v})
@@ -153,9 +153,9 @@ func (r *Reader) InstrumentTickers(ctx context.Context, instrument uuid.UUID) ([
 		if err != nil {
 			return nil, fmt.Errorf("count transactions of %s: %w", v.Name(), err)
 		}
-		out = append(out, InstrumentTicker{Ticker: v, Current: row.Current, Txns: int(n), Venues: row.Venues})
+		out = append(out, InstrTicker{Ticker: v, Current: row.Current, Txns: int(n), Venues: row.Venues})
 	}
-	slices.SortStableFunc(out, func(a, b InstrumentTicker) int {
+	slices.SortStableFunc(out, func(a, b InstrTicker) int {
 		if a.Txns != b.Txns {
 			return b.Txns - a.Txns
 		}

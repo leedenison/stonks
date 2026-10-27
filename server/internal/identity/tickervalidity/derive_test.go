@@ -27,16 +27,16 @@ func at(n int) *time.Time {
 	return &t
 }
 
-func asserts(n int, inst *uuid.UUID, src Source) Assertion {
-	return Assertion{At: d(n), Instr: inst, Source: src}
+func asserts(n int, instr *uuid.UUID, src Source) Assertion {
+	return Assertion{At: d(n), Instr: instr, Source: src}
 }
 
-func confirmed(from, before *time.Time, inst uuid.UUID) Interval {
-	return Interval{From: from, Before: before, Instr: inst, Validity: Confirmed}
+func confirmed(from, before *time.Time, instr uuid.UUID) Interval {
+	return Interval{From: from, Before: before, Instr: instr, Validity: Confirmed}
 }
 
-func provisional(from, before *time.Time, inst uuid.UUID) Interval {
-	return Interval{From: from, Before: before, Instr: inst, Validity: Provisional}
+func provisional(from, before *time.Time, instr uuid.UUID) Interval {
+	return Interval{From: from, Before: before, Instr: instr, Validity: Provisional}
 }
 
 func cover(from, before int) types.Period { return types.Period{From: d(from), Before: d(before)} }

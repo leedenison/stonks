@@ -474,22 +474,22 @@ type holding struct {
 
 // holdings sums the user's keys by instrument and by group, as the holdings
 // service does for keys with no dated association, leaving out zero sums.
-func (s *stack) holdings(t *testing.T) (instruments, groups []holding) {
+func (s *stack) holdings(t *testing.T) (instrs, groups []holding) {
 	t.Helper()
 	keys, err := s.q.ListHoldingKeys(context.Background(), s.user.ID)
 	require.NoError(t, err)
-	byInstrument, byGroup := map[uuid.UUID]decimal.Decimal{}, map[uuid.UUID]decimal.Decimal{}
+	byInstr, byGroup := map[uuid.UUID]decimal.Decimal{}, map[uuid.UUID]decimal.Decimal{}
 	for _, k := range keys {
 		switch {
 		case k.StatedKey.InstrID != nil:
-			byInstrument[*k.StatedKey.InstrID] = byInstrument[*k.StatedKey.InstrID].Add(k.Quantity)
+			byInstr[*k.StatedKey.InstrID] = byInstr[*k.StatedKey.InstrID].Add(k.Quantity)
 		case k.StatedKey.GroupID != nil && k.StatedKey.ViaType == nil:
 			byGroup[*k.StatedKey.GroupID] = byGroup[*k.StatedKey.GroupID].Add(k.Quantity)
 		}
 	}
-	for id, q := range byInstrument {
+	for id, q := range byInstr {
 		if !q.IsZero() {
-			instruments = append(instruments, holding{InstrID: id, Quantity: q})
+			instrs = append(instrs, holding{InstrID: id, Quantity: q})
 		}
 	}
 	for id, q := range byGroup {
@@ -497,7 +497,7 @@ func (s *stack) holdings(t *testing.T) (instruments, groups []holding) {
 			groups = append(groups, holding{GroupID: id, Quantity: q})
 		}
 	}
-	return instruments, groups
+	return instrs, groups
 }
 
 // nopCorpActs stands in for the corporate actions fetch. The

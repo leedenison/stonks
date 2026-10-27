@@ -1,5 +1,5 @@
 // Package instrument serves stonks.admin.instrument.v1.
-package instrument
+package instr
 
 import (
 	"context"
@@ -73,7 +73,7 @@ func (s *Server) ListInstruments(ctx context.Context, req *connect.Request[admin
 	}
 	rows, more := page.Cut(p, rows)
 	out := &admininstrumentv1.ListInstrumentsResponse{}
-	if out.Instruments, err = s.instruments(ctx, rows); err != nil {
+	if out.Instruments, err = s.instrs(ctx, rows); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	if more {
@@ -105,21 +105,21 @@ func parseCursor(token string) (*uuid.UUID, *string, error) {
 	return &id, &name, nil
 }
 
-// instruments assembles the page's instruments, each listing grain
+// instrs assembles the page's instruments, each listing grain
 // identifier on its listing. A listing with a primary venue precedes the
 // rest. An instrument's Via holds the via identifiers of the keys that
 // resolved to it.
-func (s *Server) instruments(ctx context.Context, rows []gen.ListInstrsRow) ([]*admininstrumentv1.Instrument, error) {
+func (s *Server) instrs(ctx context.Context, rows []gen.ListInstrsRow) ([]*admininstrumentv1.Instrument, error) {
 	if len(rows) == 0 {
 		return nil, nil
 	}
 	ids := make([]uuid.UUID, 0, len(rows))
-	instruments := make(map[uuid.UUID]*admininstrumentv1.Instrument, len(rows))
+	instrs := make(map[uuid.UUID]*admininstrumentv1.Instrument, len(rows))
 	out := make([]*admininstrumentv1.Instrument, 0, len(rows))
 	for _, r := range rows {
-		msg := to.ProtoInstrument(r)
+		msg := to.ProtoInstr(r)
 		ids = append(ids, r.ID)
-		instruments[r.ID] = msg
+		instrs[r.ID] = msg
 		out = append(out, msg)
 	}
 	listings, err := s.queries.ListListingsOf(ctx, ids)
@@ -130,7 +130,7 @@ func (s *Server) instruments(ctx context.Context, rows []gen.ListInstrsRow) ([]*
 	for _, l := range listings {
 		msg := to.ProtoListing(l)
 		byListing[l.ID] = msg
-		instruments[l.InstrID].Listings = append(instruments[l.InstrID].Listings, msg)
+		instrs[l.InstrID].Listings = append(instrs[l.InstrID].Listings, msg)
 	}
 	for _, in := range out {
 		slices.SortStableFunc(in.Listings, func(a, b *admininstrumentv1.Listing) int {
@@ -152,7 +152,7 @@ func (s *Server) instruments(ctx context.Context, rows []gen.ListInstrsRow) ([]*
 	for _, i := range idents {
 		msg := to.Identifier(i).ToProto()
 		if via[i.ID] {
-			in := instruments[i.InstrID]
+			in := instrs[i.InstrID]
 			in.Via = append(in.Via, msg)
 		}
 		if i.ListingID != nil {
@@ -160,7 +160,7 @@ func (s *Server) instruments(ctx context.Context, rows []gen.ListInstrsRow) ([]*
 			l.Identifiers = append(l.Identifiers, msg)
 			continue
 		}
-		in := instruments[i.InstrID]
+		in := instrs[i.InstrID]
 		in.Identifiers = append(in.Identifiers, msg)
 	}
 	return out, nil
