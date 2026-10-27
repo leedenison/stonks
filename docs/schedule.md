@@ -26,15 +26,9 @@ of open issues and ADRs at `docs/tasks/<label>/`.
   Massive and EODHD.
 
 ```
-                    003 framework
-            /                |            \
-    004 massive          005 eodhd    007 stated
-         |                   |            |
-    008 triggers             |            |
-         |                   |            |
-    006 holdings             |            |
-            \                |            /
-                    002 close
+    006 holdings
+         |
+    002 close
 ```
 
 ## Completed

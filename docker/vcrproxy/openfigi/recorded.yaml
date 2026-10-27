@@ -1028,3 +1028,82 @@ interactions:
         status: 200 OK
         code: 200
         duration: 494.059766ms
+    - id: 13
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 53
+        host: ""
+        request_uri: /v3/mapping
+        body: '[{"idType":"TICKER","idValue":"KO","currency":"USD"}]'
+        headers:
+            Content-Type:
+                - application/json
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://api.openfigi.com/v3/mapping
+        method: POST
+      response:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        transfer_encoding:
+            - chunked
+        content_length: 7769
+        uncompressed: true
+        body: '[{"data":[{"figi":"BBG000BMX289","name":"COCA-COLA CO/THE","ticker":"KO","exchCode":"US","compositeFIGI":"BBG000BMX289","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SMQ8","securityType2":"Common Stock","securityDescription":"KO"},{"figi":"BBG000BMX2J7","name":"COCA-COLA CO/THE","ticker":"KO","exchCode":"UA","compositeFIGI":"BBG000BMX289","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SMQ8","securityType2":"Common Stock","securityDescription":"KO"},{"figi":"BBG000BMX305","name":"COCA-COLA CO/THE","ticker":"KO","exchCode":"UC","compositeFIGI":"BBG000BMX289","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SMQ8","securityType2":"Common Stock","securityDescription":"KO"},{"figi":"BBG000BMX4N8","name":"COCA-COLA CO/THE","ticker":"KO","exchCode":"UN","compositeFIGI":"BBG000BMX289","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SMQ8","securityType2":"Common Stock","securityDescription":"KO"},{"figi":"BBG000BMX5T9","name":"COCA-COLA CO/THE","ticker":"KO","exchCode":"UP","compositeFIGI":"BBG000BMX289","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SMQ8","securityType2":"Common Stock","securityDescription":"KO"},{"figi":"BBG000BMX6M4","name":"COCA-COLA CO/THE","ticker":"KO","exchCode":"UB","compositeFIGI":"BBG000BMX289","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SMQ8","securityType2":"Common Stock","securityDescription":"KO"},{"figi":"BBG000BMX715","name":"COCA-COLA CO/THE","ticker":"KO","exchCode":"UT","compositeFIGI":"BBG000BMX289","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SMQ8","securityType2":"Common Stock","securityDescription":"KO"},{"figi":"BBG000BMX7C3","name":"COCA-COLA CO/THE","ticker":"KO","exchCode":"UM","compositeFIGI":"BBG000BMX289","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SMQ8","securityType2":"Common Stock","securityDescription":"KO"},{"figi":"BBG000BMX877","name":"COCA-COLA CO/THE","ticker":"KO","exchCode":"UX","compositeFIGI":"BBG000BMX289","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SMQ8","securityType2":"Common Stock","securityDescription":"KO"},{"figi":"BBG000BMXD49","name":"COCA-COLA CO/THE","ticker":"KO","exchCode":"UD","compositeFIGI":"BBG000BMX289","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SMQ8","securityType2":"Common Stock","securityDescription":"KO"},{"figi":"BBG000BMXG33","name":"COCA-COLA CO/THE","ticker":"KO","exchCode":"UF","compositeFIGI":"BBG000BMX289","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SMQ8","securityType2":"Common Stock","securityDescription":"KO"},{"figi":"BBG000BMXGS6","name":"COCA-COLA CO/THE","ticker":"KO","exchCode":"VY","compositeFIGI":"BBG000BMX289","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SMQ8","securityType2":"Common Stock","securityDescription":"KO"},{"figi":"BBG000BMXH68","name":"COCA-COLA CO/THE","ticker":"KO","exchCode":"VJ","compositeFIGI":"BBG000BMX289","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SMQ8","securityType2":"Common Stock","securityDescription":"KO"},{"figi":"BBG000BMXHW9","name":"COCA-COLA CO/THE","ticker":"KO","exchCode":"VK","compositeFIGI":"BBG000BMX289","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SMQ8","securityType2":"Common Stock","securityDescription":"KO"},{"figi":"BBG000BXT7T6","name":"COCA-COLA CO/THE","ticker":"KO","exchCode":"PE","compositeFIGI":"BBG000BXT752","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SMQ8","securityType2":"Common Stock","securityDescription":"KO"},{"figi":"BBG0013RKFQ0","name":"COCA-COLA CO","ticker":"KO","exchCode":null,"compositeFIGI":null,"securityType":"U.S. CP","marketSector":"M-Mkt","shareClassFIGI":null,"securityType2":"CP","securityDescription":"KO CP"},{"figi":"BBG0013RKG42","name":"COCA-COLA CO","ticker":"KO","exchCode":null,"compositeFIGI":null,"securityType":"MED TERM NOTE","marketSector":"M-Mkt","shareClassFIGI":null,"securityType2":"MTN","securityDescription":"KO MTN"},{"figi":"BBG0013SC4L7","name":"COCA-COLA CO","ticker":"KO","exchCode":null,"compositeFIGI":null,"securityType":"U.S. INT BEAR CP","marketSector":"M-Mkt","shareClassFIGI":null,"securityType2":"CP","securityDescription":"KO CPIB"},{"figi":"BBG0013TRBF0","name":"COCA-COLA CO","ticker":"KO","exchCode":null,"compositeFIGI":null,"securityType":"EXTEND COMM NOTE","marketSector":"M-Mkt","shareClassFIGI":null,"securityType2":"M-Mkt","securityDescription":"KO ECN"},{"figi":"BBG0013VC0L8","name":"COCA-COLA CO","ticker":"KO","exchCode":null,"compositeFIGI":null,"securityType":"FLOATING CP","marketSector":"M-Mkt","shareClassFIGI":null,"securityType2":"CP","securityDescription":"KO CPF"},{"figi":"BBG004BWKBQ3","name":"COCA-COLA CO/THE","ticker":"KO","exchCode":"CI","compositeFIGI":"BBG004BWKBQ3","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SMQ8","securityType2":"Common Stock","securityDescription":"KO"},{"figi":"BBG004BWKBR2","name":"COCA-COLA CO/THE","ticker":"KO","exchCode":"CC","compositeFIGI":"BBG004BWKBQ3","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SMQ8","securityType2":"Common Stock","securityDescription":"KO"},{"figi":"BBG004BWKBS1","name":"COCA-COLA CO/THE","ticker":"KO","exchCode":"CE","compositeFIGI":"BBG004BWKBQ3","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SMQ8","securityType2":"Common Stock","securityDescription":"KO"},{"figi":"BBG00DJCWTL2","name":"COCA-COLA CO/THE","ticker":"KO","exchCode":"VF","compositeFIGI":"BBG000BMX289","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SMQ8","securityType2":"Common Stock","securityDescription":"KO"},{"figi":"BBG00THD3K10","name":"COCA-COLA CO/THE","ticker":"KO","exchCode":"VL","compositeFIGI":"BBG000BMX289","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SMQ8","securityType2":"Common Stock","securityDescription":"KO"},{"figi":"BBG00X1L7C14","name":"COCA-COLA CO/THE","ticker":"KO","exchCode":"VG","compositeFIGI":"BBG000BMX289","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SMQ8","securityType2":"Common Stock","securityDescription":"KO"},{"figi":"BBG00X1PNN22","name":"COCA-COLA CO/THE","ticker":"KO","exchCode":"VP","compositeFIGI":"BBG000BMX289","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SMQ8","securityType2":"Common Stock","securityDescription":"KO"},{"figi":"BBG01V7W0ZT3","name":"COCA-COLA CO/THE","ticker":"KO","exchCode":"OC","compositeFIGI":"BBG000BMX289","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SMQ8","securityType2":"Common Stock","securityDescription":"KO"},{"figi":"BBG01X4J9Z21","name":"COCA-COLA CO/THE","ticker":"KO","exchCode":"OD","compositeFIGI":"BBG000BMX289","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SMQ8","securityType2":"Common Stock","securityDescription":"KO"},{"figi":"BBG021C27G04","name":"COCA-COLA CO/THE","ticker":"KO","exchCode":"VT","compositeFIGI":"BBG000BMX289","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SMQ8","securityType2":"Common Stock","securityDescription":"KO"},{"figi":"BBG024Y1MQD3","name":"COCA-COLA CO/THE","ticker":"KO","exchCode":"ER","compositeFIGI":"BBG024Y1MQC4","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S5SMQ8","securityType2":"Common Stock","securityDescription":"KO"}]}]'
+        headers:
+            Cache-Control:
+                - private, no-cache, no-store, must-revalidate
+            Content-Security-Policy:
+                - 'default-src ''self'';base-uri ''self'';font-src ''self'' https: data:;form-action ''self'';frame-ancestors ''self'';img-src ''self'' data:;object-src ''none'';script-src ''self'';script-src-attr ''none'';style-src ''self'' https: ''unsafe-inline'';upgrade-insecure-requests'
+            Content-Type:
+                - application/json; charset=utf-8
+            Cross-Origin-Opener-Policy:
+                - same-origin
+            Cross-Origin-Resource-Policy:
+                - same-origin
+            Date:
+                - Tue, 27 Oct 2026 08:23:54 GMT
+            Expires:
+                - "0"
+            Origin-Agent-Cluster:
+                - ?1
+            Pragma:
+                - no-cache
+            Ratelimit-Limit:
+                - "250"
+            Ratelimit-Policy:
+                - 250;w=60
+            Ratelimit-Remaining:
+                - "249"
+            Ratelimit-Reset:
+                - "60"
+            Referrer-Policy:
+                - no-referrer
+            Server:
+                - istio-envoy
+            Strict-Transport-Security:
+                - max-age=31536000; includeSubDomains
+            Vary:
+                - Origin, Accept-Encoding
+            X-Content-Type-Options:
+                - nosniff
+            X-Dns-Prefetch-Control:
+                - 'off'
+            X-Download-Options:
+                - noopen
+            X-Envoy-Upstream-Service-Time:
+                - "77"
+            X-Frame-Options:
+                - SAMEORIGIN
+            X-Permitted-Cross-Domain-Policies:
+                - none
+            X-Request-Id:
+                - 746bc626-c391-44e8-b6c1-1349e3c48c79
+            X-Xss-Protection:
+                - "0"
+        status: 200 OK
+        code: 200
+        duration: 1.115416526s

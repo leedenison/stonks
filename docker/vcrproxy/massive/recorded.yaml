@@ -1200,3 +1200,176 @@ interactions:
         status: 200 OK
         code: 200
         duration: 11.127111206s
+    - id: 27
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /v3/reference/tickers/KO?apiKey=REDACTED
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://api.massive.com/v3/reference/tickers/KO
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 940
+        uncompressed: true
+        body: '{"request_id":"d648d568c8082d1a7b215ffb12554a02","results":{"active":true,"address":"REDACTED","branding":{"icon_url":"https://api.massive.com/v1/reference/company-branding/Y29jYS1jb2xhY29tcGFueS5jb20/images/2026-10-01_icon.jpeg","logo_url":"https://api.massive.com/v1/reference/company-branding/Y29jYS1jb2xhY29tcGFueS5jb20/images/2026-10-01_logo.svg"},"cik":"0000021344","composite_figi":"BBG000BMX289","currency_name":"usd","description":"REDACTED","homepage_url":"https://www.coca-colacompany.com","list_date":"1924-09-26","locale":"us","market":"stocks","market_cap":3.9888934031852997e+11,"name":"Coca-Cola Company","phone_number":"REDACTED","primary_exchange":"XNYS","round_lot":100,"share_class_figi":"BBG001S5SMQ8","share_class_shares_outstanding":4302549243,"sic_code":"2080","sic_description":"BEVERAGES","ticker":"KO","ticker_root":"KO","total_employees":65900,"type":"CS","weighted_shares_outstanding":4302549243},"status":"OK"}'
+        headers:
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 08:23:53 GMT
+            Strict-Transport-Security:
+                - max-age=15724800; includeSubDomains
+            Vary:
+                - Accept-Encoding
+            X-Polygon-Cluster-Name:
+                - polygon-ny5
+            X-Request-Id:
+                - d648d568c8082d1a7b215ffb12554a02
+        status: 200 OK
+        code: 200
+        duration: 797.197934ms
+    - id: 28
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /vX/reference/tickers/BBG000BMX289/events?apiKey=REDACTED&types=ticker_change
+        form:
+            types:
+                - ticker_change
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://api.massive.com/vX/reference/tickers/BBG000BMX289/events?types=ticker_change
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 241
+        body: '{"results":{"name":"Coca-Cola Company","composite_figi":"BBG000BMX289","cik":"0000021344","events":[{"ticker_change":{"ticker":"KO"},"type":"ticker_change","date":"2003-09-10"}]},"status":"OK","request_id":"93a2bbf455b653098311f0d37de960cf"}'
+        headers:
+            Content-Length:
+                - "241"
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 08:24:05 GMT
+            Strict-Transport-Security:
+                - max-age=15724800; includeSubDomains
+            Vary:
+                - Accept-Encoding
+            X-Item-Count:
+                - "1"
+            X-Polygon-Cluster-Name:
+                - polygon-ny5
+            X-Request-Id:
+                - 93a2bbf455b653098311f0d37de960cf
+        status: 200 OK
+        code: 200
+        duration: 9.700736007s
+    - id: 29
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /v3/reference/tickers/KO?apiKey=REDACTED&date=2013-01-15
+        form:
+            date:
+                - "2013-01-15"
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://api.massive.com/v3/reference/tickers/KO?date=2013-01-15
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 575
+        uncompressed: true
+        body: '{"request_id":"e0044724494b5183a353ca0804197d15","results":{"active":true,"address":"REDACTED","cik":"0000021344","composite_figi":"BBG000BMX289","currency_name":"usd","list_date":"1924-09-26","locale":"us","market":"stocks","market_cap":1.6120076320752e+11,"name":"COCA-COLA CO","phone_number":"REDACTED","primary_exchange":"XNYS","round_lot":100,"share_class_figi":"BBG001S5SMQ8","share_class_shares_outstanding":4485162000,"sic_code":"2080","sic_description":"BEVERAGES","ticker":"KO","ticker_root":"KO","type":"CS","weighted_shares_outstanding":4319420236},"status":"OK"}'
+        headers:
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 08:24:17 GMT
+            Strict-Transport-Security:
+                - max-age=15724800; includeSubDomains
+            Vary:
+                - Accept-Encoding
+                - Accept-Encoding
+            X-Polygon-Cluster-Name:
+                - polygon-ny5
+            X-Request-Id:
+                - e0044724494b5183a353ca0804197d15
+        status: 200 OK
+        code: 200
+        duration: 12.028787758s
+    - id: 30
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /stocks/v1/splits?apiKey=REDACTED&limit=5000&ticker=KO
+        form:
+            limit:
+                - "5000"
+            ticker:
+                - KO
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://api.massive.com/stocks/v1/splits?limit=5000&ticker=KO
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 295
+        uncompressed: true
+        body: '{"status":"OK","request_id":"fbcadb418edf4c14842d28fb49bb393c","results":[{"id":"Eca66a2b5f6ab64a4160cace6a9c47586140d64d092c020fe49f04e5756441282","execution_date":"2012-08-13","split_from":1.0,"split_to":2.0,"ticker":"KO","adjustment_type":"forward_split","historical_adjustment_factor":0.5}]}'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - DNT,X-CustomHeader,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization
+            Access-Control-Allow-Methods:
+                - GET, PUT, POST, DELETE, PATCH, OPTIONS
+            Access-Control-Allow-Origin:
+                - '*'
+            Access-Control-Max-Age:
+                - "1728000"
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 08:24:29 GMT
+            Strict-Transport-Security:
+                - max-age=15724800; includeSubDomains
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - 100000000, 100000000;w=60
+            X-Ratelimit-Remaining:
+                - "80000000"
+            X-Ratelimit-Reset:
+                - "31"
+            X-Request-Id:
+                - fbcadb418edf4c14842d28fb49bb393c
+        status: 200 OK
+        code: 200
+        duration: 11.928009466s
