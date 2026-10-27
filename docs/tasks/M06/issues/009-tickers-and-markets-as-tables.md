@@ -45,7 +45,7 @@ Out:
 
 ## Tests
 
-- The validity, resolve, corpact and replay dbtests pass on the new schema.
+- The validity, resolve, corpact and replayrun dbtests pass on the new schema.
 - Get-or-create returns one id for one ticker, and refuses a market outside `markets`.
 - `cascade_test.go` shows that a ticker row outlives the fetch key of its facts.
 - A db dbtest shows that the composite foreign keys refuse a venue in another market.
