@@ -59,7 +59,7 @@ func newFixture(t *testing.T) *fixture {
 	return f
 }
 
-func TestListInstrumentTickers(t *testing.T) {
+func TestListInstrTickers(t *testing.T) {
 	tests := []struct {
 		name     string
 		id       string
@@ -74,7 +74,7 @@ func TestListInstrumentTickers(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newFixture(t)
 			if tc.id == acme.String() {
-				f.reader.EXPECT().InstrumentTickers(gomock.Any(), acme).Return([]reader.InstrumentTicker{{Ticker: acmeTicker, Current: true, Txns: 2, Venues: []string{"XNAS"}}}, tc.err)
+				f.reader.EXPECT().InstrTickers(gomock.Any(), acme).Return([]reader.InstrTicker{{Ticker: acmeTicker, Current: true, Txns: 2, Venues: []string{"XNAS"}}}, tc.err)
 			}
 			res, err := f.client.ListInstrumentTickers(context.Background(), connect.NewRequest(&admincoveragev1.ListInstrumentTickersRequest{InstrumentId: tc.id}))
 			if servicetest.CodeOf(err) != tc.wantCode {
@@ -162,30 +162,30 @@ func TestAttestIdentifier(t *testing.T) {
 	started := gen.Run{ID: runID, Kind: gen.RunKindAttestIdentifier, Trigger: gen.RunTriggerAdministrator, State: gen.RunStatePending, CreatedAt: today}
 	names := &admincoveragev1.AttestIdentifierRequest_InstrumentId{InstrumentId: acme.String()}
 	tests := []struct {
-		name           string
-		req            *admincoveragev1.AttestIdentifierRequest
-		wantInstrument *uuid.UUID
-		wantTo         *time.Time
-		err            error
-		wantCode       connect.Code
+		name      string
+		req       *admincoveragev1.AttestIdentifierRequest
+		wantInstr *uuid.UUID
+		wantTo    *time.Time
+		err       error
+		wantCode  connect.Code
 	}{
-		{name: "an instrument over a range", req: &admincoveragev1.AttestIdentifierRequest{Ticker: acmeProto, Names: names, From: "2026-03-10", To: ptr.To("2026-03-20")}, wantInstrument: &acme, wantTo: ptr.To(day(20))},
+		{name: "an instrument over a range", req: &admincoveragev1.AttestIdentifierRequest{Ticker: acmeProto, Names: names, From: "2026-03-10", To: ptr.To("2026-03-20")}, wantInstr: &acme, wantTo: ptr.To(day(20))},
 		{name: "nothing on a day", req: &admincoveragev1.AttestIdentifierRequest{Ticker: acmeProto, Names: &admincoveragev1.AttestIdentifierRequest_Nothing{Nothing: true}, From: "2026-03-10"}},
 		{name: "no names", req: &admincoveragev1.AttestIdentifierRequest{Ticker: acmeProto, From: "2026-03-10"}, wantCode: connect.CodeInvalidArgument},
 		{name: "no ticker", req: &admincoveragev1.AttestIdentifierRequest{Names: names, From: "2026-03-10"}, wantCode: connect.CodeInvalidArgument},
 		{name: "malformed day", req: &admincoveragev1.AttestIdentifierRequest{Ticker: acmeProto, Names: names, From: "10/03/2026"}, wantCode: connect.CodeInvalidArgument},
 		{name: "malformed end", req: &admincoveragev1.AttestIdentifierRequest{Ticker: acmeProto, Names: names, From: "2026-03-10", To: ptr.To("soon")}, wantCode: connect.CodeInvalidArgument},
-		{name: "future", req: &admincoveragev1.AttestIdentifierRequest{Ticker: acmeProto, Names: names, From: "2026-03-10"}, wantInstrument: &acme, err: tickervalidity.ErrFuture, wantCode: connect.CodeFailedPrecondition},
-		{name: "range reversed", req: &admincoveragev1.AttestIdentifierRequest{Ticker: acmeProto, Names: names, From: "2026-03-10"}, wantInstrument: &acme, err: attestidentifier.ErrRange, wantCode: connect.CodeFailedPrecondition},
-		{name: "misspelled", req: &admincoveragev1.AttestIdentifierRequest{Ticker: acmeProto, Names: names, From: "2026-03-10"}, wantInstrument: &acme, err: tickervalidity.ErrSpelling, wantCode: connect.CodeInvalidArgument},
-		{name: "unknown instrument", req: &admincoveragev1.AttestIdentifierRequest{Ticker: acmeProto, Names: names, From: "2026-03-10"}, wantInstrument: &acme, err: db.ErrNotFound, wantCode: connect.CodeNotFound},
-		{name: "failure", req: &admincoveragev1.AttestIdentifierRequest{Ticker: acmeProto, Names: names, From: "2026-03-10"}, wantInstrument: &acme, err: errors.New("boom"), wantCode: connect.CodeInternal},
+		{name: "future", req: &admincoveragev1.AttestIdentifierRequest{Ticker: acmeProto, Names: names, From: "2026-03-10"}, wantInstr: &acme, err: tickervalidity.ErrFuture, wantCode: connect.CodeFailedPrecondition},
+		{name: "range reversed", req: &admincoveragev1.AttestIdentifierRequest{Ticker: acmeProto, Names: names, From: "2026-03-10"}, wantInstr: &acme, err: attestidentifier.ErrRange, wantCode: connect.CodeFailedPrecondition},
+		{name: "misspelled", req: &admincoveragev1.AttestIdentifierRequest{Ticker: acmeProto, Names: names, From: "2026-03-10"}, wantInstr: &acme, err: tickervalidity.ErrSpelling, wantCode: connect.CodeInvalidArgument},
+		{name: "unknown instrument", req: &admincoveragev1.AttestIdentifierRequest{Ticker: acmeProto, Names: names, From: "2026-03-10"}, wantInstr: &acme, err: db.ErrNotFound, wantCode: connect.CodeNotFound},
+		{name: "failure", req: &admincoveragev1.AttestIdentifierRequest{Ticker: acmeProto, Names: names, From: "2026-03-10"}, wantInstr: &acme, err: errors.New("boom"), wantCode: connect.CodeInternal},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newFixture(t)
 			if tc.wantCode == 0 || tc.err != nil {
-				f.attester.EXPECT().Start(gomock.Any(), servicetest.Admin.User.ID, acmeTicker, tc.wantInstrument, day(10), tc.wantTo).Return(started, tc.err)
+				f.attester.EXPECT().Start(gomock.Any(), servicetest.Admin.User.ID, acmeTicker, tc.wantInstr, day(10), tc.wantTo).Return(started, tc.err)
 			}
 			res, err := f.client.AttestIdentifier(context.Background(), connect.NewRequest(tc.req))
 			if servicetest.CodeOf(err) != tc.wantCode {

@@ -101,11 +101,11 @@ func (s *stack) user(t *testing.T) uuid.UUID {
 	return u.ID
 }
 
-func (s *stack) instrument(t *testing.T) uuid.UUID {
+func (s *stack) instr(t *testing.T) uuid.UUID {
 	t.Helper()
-	inst, err := s.q.CreateInstr(context.Background(), gen.CreateInstrParams{ID: db.NewID(), AssetClass: types.AssetClassStock})
+	instr, err := s.q.CreateInstr(context.Background(), gen.CreateInstrParams{ID: db.NewID(), AssetClass: types.AssetClassStock})
 	require.NoError(t, err)
-	return inst.ID
+	return instr.ID
 }
 
 // value returns a ticker value unique to the test, so that rows another test
@@ -115,28 +115,28 @@ func value(t *testing.T, prefix string) string {
 	return prefix + strings.ToUpper(strings.ReplaceAll(uuid.NewString(), "-", "")[:8])
 }
 
-// names attests that US:v names inst on day on. inst is nil for an
+// names attests that US:v names instr on day on. instr is nil for an
 // assertion that v names nothing.
-func (s *stack) names(t *testing.T, v string, inst *uuid.UUID, on time.Time) {
+func (s *stack) names(t *testing.T, v string, instr *uuid.UUID, on time.Time) {
 	t.Helper()
 	ctx := context.Background()
 	run, err := s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), Kind: gen.RunKindAttestIdentifier, Trigger: gen.RunTriggerAdministrator})
 	require.NoError(t, err)
 	require.NoError(t, s.q.CreateIdentifierAssertion(ctx, gen.CreateIdentifierAssertionParams{
-		ID: db.NewID(), RunID: &run.ID, AttestedBy: &s.admin, Type: types.IdentifierTypeMicTicker, Domain: "US", Value: v, InstrID: inst, AssertedOn: on,
+		ID: db.NewID(), RunID: &run.ID, AttestedBy: &s.admin, Type: types.IdentifierTypeMicTicker, Domain: "US", Value: v, InstrID: instr, AssertedOn: on,
 	}))
 }
 
-// fixedKey creates a key of user with a fixed association to inst.
-func (s *stack) fixedKey(t *testing.T, user, inst uuid.UUID) uuid.UUID {
+// fixedKey creates a key of user with a fixed association to instr.
+func (s *stack) fixedKey(t *testing.T, user, instr uuid.UUID) uuid.UUID {
 	t.Helper()
 	ctx := context.Background()
 	via, key := db.NewID(), db.NewID()
 	isin := uuid.NewString()
-	_, err := s.tx.Exec(ctx, `INSERT INTO identifiers (id, instr_id, type, value) VALUES ($1, $2, 'isin', $3)`, via, inst, isin)
+	_, err := s.tx.Exec(ctx, `INSERT INTO identifiers (id, instr_id, type, value) VALUES ($1, $2, 'isin', $3)`, via, instr, isin)
 	require.NoError(t, err)
 	_, err = s.tx.Exec(ctx, `INSERT INTO stated_keys (id, user_id, identifiers, instr_id, via_id, arbiter)
-		VALUES ($1, $2, jsonb_build_array(jsonb_build_object('type', 'isin', 'value', $3::text)), $4, $5, 'stated')`, key, user, isin, inst, via)
+		VALUES ($1, $2, jsonb_build_array(jsonb_build_object('type', 'isin', 'value', $3::text)), $4, $5, 'stated')`, key, user, isin, instr, via)
 	require.NoError(t, err)
 	return key
 }
@@ -208,7 +208,7 @@ type shared struct {
 func newShared(t *testing.T, s *stack) shared {
 	t.Helper()
 	sh := shared{u: s.user(t), v: s.user(t), ticker: value(t, "T"), earlier: value(t, "E")}
-	a, b := s.instrument(t), s.instrument(t)
+	a, b := s.instr(t), s.instr(t)
 	s.names(t, sh.ticker, &a, day(2010, 1, 4))
 	s.names(t, sh.ticker, &b, day(2020, 1, 2))
 	s.names(t, sh.earlier, &a, day(2005, 1, 3))
@@ -258,8 +258,8 @@ func TestAfterStmtOwn(t *testing.T) {
 	s := newStack(t)
 	u := s.user(t)
 	own, unnamed := value(t, "O"), value(t, "N")
-	inst := s.instrument(t)
-	s.names(t, own, &inst, day(2015, 1, 2))
+	instr := s.instr(t)
+	s.names(t, own, &instr, day(2015, 1, 2))
 	s.names(t, unnamed, nil, day(2015, 1, 2))
 	stmt := s.buys(t, u, s.datedKey(t, u, own), day(2016, 3, 1), day(2015, 7, 1))
 	s.buys(t, u, s.datedKey(t, u, unnamed), day(2016, 3, 1))
@@ -297,21 +297,21 @@ func TestHeldQueries(t *testing.T) {
 	s := newStack(t)
 	ctx := context.Background()
 	u, v := s.user(t), s.user(t)
-	inst := s.instrument(t)
-	s.buys(t, u, s.fixedKey(t, u, inst), day(2020, 3, 1), day(2019, 3, 1))
-	s.buys(t, v, s.fixedKey(t, v, inst), day(2021, 3, 1))
+	instr := s.instr(t)
+	s.buys(t, u, s.fixedKey(t, u, instr), day(2020, 3, 1), day(2019, 3, 1))
+	s.buys(t, v, s.fixedKey(t, v, instr), day(2021, 3, 1))
 	tk := value(t, "D")
 	s.buys(t, u, s.datedKey(t, u, tk), day(2022, 3, 1), day(2022, 3, 1), day(2022, 4, 1))
 
-	instruments, err := s.q.ListHeldInstrs(ctx)
+	instrs, err := s.q.ListHeldInstrs(ctx)
 	require.NoError(t, err)
 	var gotInst []gen.ListHeldInstrsRow
-	for _, r := range instruments {
-		if r.InstrID == inst {
+	for _, r := range instrs {
+		if r.InstrID == instr {
 			gotInst = append(gotInst, r)
 		}
 	}
-	wantInst := []gen.ListHeldInstrsRow{{InstrID: inst, UserID: u, FirstAsAt: day(2019, 3, 1)}, {InstrID: inst, UserID: v, FirstAsAt: day(2021, 3, 1)}}
+	wantInst := []gen.ListHeldInstrsRow{{InstrID: instr, UserID: u, FirstAsAt: day(2019, 3, 1)}, {InstrID: instr, UserID: v, FirstAsAt: day(2021, 3, 1)}}
 	if u.String() > v.String() {
 		wantInst[0], wantInst[1] = wantInst[1], wantInst[0]
 	}

@@ -68,10 +68,10 @@ func (f *fixture) starts(t *testing.T, row gen.Run) {
 	})
 }
 
-func assertion(row gen.Run, instrument *uuid.UUID, on time.Time) gen.CreateIdentifierAttestationParams {
+func assertion(row gen.Run, instr *uuid.UUID, on time.Time) gen.CreateIdentifierAttestationParams {
 	return gen.CreateIdentifierAttestationParams{
 		RunID: row.ID, AttestedBy: admin, Type: types.IdentifierTypeMicTicker, Domain: "US", Value: "ACME",
-		InstrID: instrument, AssertedOn: on,
+		InstrID: instr, AssertedOn: on,
 	}
 }
 
@@ -126,30 +126,30 @@ func TestStartNothing(t *testing.T) {
 func TestStartRefused(t *testing.T) {
 	missing := uuid.MustParse("00000000-0000-0000-0000-000000000009")
 	tests := []struct {
-		name       string
-		v          types.MarketTicker
-		instrument *uuid.UUID
-		from, to   time.Time
-		wantErr    error
+		name     string
+		v        types.MarketTicker
+		instr    *uuid.UUID
+		from, to time.Time
+		wantErr  error
 	}{
 		{name: "future", v: acmeUS, from: day(31), wantErr: tickervalidity.ErrFuture},
 		{name: "future end", v: acmeUS, from: day(10), to: day(31), wantErr: tickervalidity.ErrFuture},
 		{name: "ends before it starts", v: acmeUS, from: day(10), to: day(9), wantErr: ErrRange},
 		{name: "venue for market", v: types.MarketTicker{Market: "XNAS", Value: "ACME"}, from: day(10), wantErr: tickervalidity.ErrSpelling},
 		{name: "unknown market", v: types.MarketTicker{Market: "ZZ", Value: "ACME"}, from: day(10), wantErr: tickervalidity.ErrSpelling},
-		{name: "unknown instrument", v: acmeUS, instrument: &missing, from: day(10), wantErr: db.ErrNotFound},
+		{name: "unknown instrument", v: acmeUS, instr: &missing, from: day(10), wantErr: db.ErrNotFound},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newFixture(t)
-			if tc.instrument != nil {
-				f.store.EXPECT().GetInstr(gomock.Any(), *tc.instrument).Return(gen.Instr{}, db.ErrNotFound)
+			if tc.instr != nil {
+				f.store.EXPECT().GetInstr(gomock.Any(), *tc.instr).Return(gen.Instr{}, db.ErrNotFound)
 			}
 			var to *time.Time
 			if !tc.to.IsZero() {
 				to = &tc.to
 			}
-			_, err := f.svc.Start(context.Background(), admin, tc.v, tc.instrument, tc.from, to)
+			_, err := f.svc.Start(context.Background(), admin, tc.v, tc.instr, tc.from, to)
 			if !errors.Is(err, tc.wantErr) {
 				t.Errorf("Start(%s) error = %v, want %v", tc.v.Name(), err, tc.wantErr)
 			}

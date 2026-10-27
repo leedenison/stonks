@@ -22,8 +22,8 @@ type resolution struct {
 	// globalAndDescriptionIDs caches globalAndDescriptionIDs of row.
 	globalAndDescriptionIDs []types.Identifier
 	// family is the family of the currency the key states.
-	family          string
-	knownInstrument *join.InstrumentWithCoverage
+	family     string
+	knownInstr *join.InstrWithCoverage
 	// mics maps the venue of each ticker to its market.
 	mics      mic.MICMap
 	fetchKeys []*fetchKey
@@ -129,24 +129,24 @@ func lookupIDs(ids []types.Identifier) []types.Identifier {
 	return out
 }
 
-// findResolutionInstrument finds the instrument the database names for each
+// findResolutionInstr finds the instrument the database names for each
 // of rs and decides the resolutions that never reach a datasource. Every
 // key's identifiers are read in one query.
-func (r *Resolver) findResolutionInstrument(ctx context.Context, rs []*resolution) error {
+func (r *Resolver) findResolutionInstr(ctx context.Context, rs []*resolution) error {
 	var ids []types.Identifier
 	for _, res := range rs {
 		if !statesCurrency(res.row) {
 			ids = append(ids, lookupIDs(res.globalAndDescriptionIDs)...)
 		}
 	}
-	matches, err := findInstrumentsByIdentifier(ctx, r.store, ids)
+	matches, err := findInstrsByIdentifier(ctx, r.store, ids)
 	if err != nil {
 		return err
 	}
-	byID := map[types.Identifier]*join.InstrumentWithCoverage{}
+	byID := map[types.Identifier]*join.InstrWithCoverage{}
 	for _, h := range matches {
 		for _, id := range h.matched {
-			byID[id] = h.instrument
+			byID[id] = h.instr
 		}
 	}
 	for _, res := range rs {
@@ -169,9 +169,9 @@ func statesCurrency(k gen.StatedKey) bool {
 // match attaches to res the instrument byID names for it. It decides res
 // when its identifiers name different instruments, when the class
 // conflicts, or when the key names nothing a datasource could be asked.
-func (res *resolution) match(byID map[types.Identifier]*join.InstrumentWithCoverage) {
+func (res *resolution) match(byID map[types.Identifier]*join.InstrWithCoverage) {
 	var first types.Identifier
-	var f *join.InstrumentWithCoverage
+	var f *join.InstrWithCoverage
 	for _, id := range lookupIDs(res.globalAndDescriptionIDs) {
 		hit, ok := byID[id]
 		switch {
@@ -192,7 +192,7 @@ func (res *resolution) match(byID map[types.Identifier]*join.InstrumentWithCover
 		}
 		return
 	}
-	res.knownInstrument = f
+	res.knownInstr = f
 	if reason, ok := classConflict(res.row, f.Row.AssetClass); ok {
 		res.decide(gen.ResolutionOutcomeUnrecognised, "%s", reason)
 	}
@@ -230,7 +230,7 @@ func (r *Resolver) findResolutionCurrency(ctx context.Context, res *resolution) 
 		res.decide(gen.ResolutionOutcomeRejected, "%s", reason)
 		return nil
 	}
-	loaded, err := join.InstrumentsWithCoverage(ctx, r.store, []gen.Instr{hit.Instr})
+	loaded, err := join.InstrsWithCoverage(ctx, r.store, []gen.Instr{hit.Instr})
 	if err != nil {
 		return err
 	}
@@ -239,6 +239,6 @@ func (r *Resolver) findResolutionCurrency(ctx context.Context, res *resolution) 
 		res.decide(gen.ResolutionOutcomeRejected, "no listing of %s in %s", code, *res.row.Currency)
 		return nil
 	}
-	res.knownInstrument = f
+	res.knownInstr = f
 	return nil
 }

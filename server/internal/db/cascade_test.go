@@ -58,9 +58,9 @@ func TestDeleteUserCascades(t *testing.T) {
 			require.NoError(t, err)
 			_, err = tx.Exec(ctx, "INSERT INTO identifier_event_coverage (id, fetch_key_id, market, covered_from, covered_before) VALUES ($1, $2, 'XLON', '2026-01-01', '2026-03-02')", db.NewID(), key)
 			require.NoError(t, err)
-			instrument, err := q.CreateInstr(ctx, gen.CreateInstrParams{ID: db.NewID(), AssetClass: types.AssetClassStock, FetchKeyID: &key})
+			instr, err := q.CreateInstr(ctx, gen.CreateInstrParams{ID: db.NewID(), AssetClass: types.AssetClassStock, FetchKeyID: &key})
 			require.NoError(t, err)
-			require.NoError(t, q.UpsertIdentityCoverage(ctx, gen.UpsertIdentityCoverageParams{InstrID: instrument.ID, Datasource: ds.Name, FetchKeyID: key}))
+			require.NoError(t, q.UpsertIdentityCoverage(ctx, gen.UpsertIdentityCoverageParams{InstrID: instr.ID, Datasource: ds.Name, FetchKeyID: key}))
 			_, err = q.CreateDatasourceBlock(ctx, gen.CreateDatasourceBlockParams{
 				ID: db.NewID(), Datasource: ds.Name, Kind: gen.FetchKindIdentity, Scope: gen.BlockScopeIdentifier,
 				SentType: ptr.To(types.IdentifierTypeIsin), SentValue: ptr.To("GB00B03MLX29"), Reason: "refused",
@@ -92,7 +92,7 @@ func TestDeleteUserCascades(t *testing.T) {
 				}
 			}
 			var provenance *uuid.UUID
-			require.NoError(t, tx.QueryRow(ctx, "SELECT fetch_key_id FROM instrs WHERE id = $1", instrument.ID).Scan(&provenance))
+			require.NoError(t, tx.QueryRow(ctx, "SELECT fetch_key_id FROM instrs WHERE id = $1", instr.ID).Scan(&provenance))
 			if provenance != nil {
 				t.Errorf("instrument provenance = %v, want none: it stands as reference data", provenance)
 			}

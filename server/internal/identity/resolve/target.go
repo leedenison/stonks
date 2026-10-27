@@ -16,7 +16,7 @@ import (
 // writeTarget is where a key's write lands.
 type writeTarget struct {
 	// instrument is nil where the write creates an instrument.
-	instrument *join.InstrumentWithCoverage
+	instr *join.InstrWithCoverage
 	// taken is the identifiers of the instruments the write leaves apart
 	// from instrument.
 	taken    map[types.Identifier]bool
@@ -41,7 +41,7 @@ func findWriteTarget(ctx context.Context, q Queries, res *resolution, verdict cl
 			}
 		}
 	}
-	matches, err := findInstrumentsByIdentifier(ctx, q, ids)
+	matches, err := findInstrsByIdentifier(ctx, q, ids)
 	if err != nil {
 		return writeTarget{}, err
 	}
@@ -49,7 +49,7 @@ func findWriteTarget(ctx context.Context, q Queries, res *resolution, verdict cl
 	case 0:
 		return writeTarget{}, nil
 	case 1:
-		return writeTarget{instrument: matches[0].instrument}, nil
+		return writeTarget{instr: matches[0].instr}, nil
 	}
 	var fetchKeyID *uuid.UUID
 	if verdict.winner != nil && verdict.winner.fetchKey != nil {
@@ -63,7 +63,7 @@ func findWriteTarget(ctx context.Context, q Queries, res *resolution, verdict cl
 // through the ticker alone, whichever choice attached it. Where such a claim
 // holds an identifier of a stored instrument other than target, dropHeld
 // drops it from verdict and returns a contradiction finding for it.
-func dropHeld(ctx context.Context, q Queries, verdict *claimVerdict, chooser *identityClaim, target *join.InstrumentWithCoverage) ([]gen.CreateFindingParams, error) {
+func dropHeld(ctx context.Context, q Queries, verdict *claimVerdict, chooser *identityClaim, target *join.InstrWithCoverage) ([]gen.CreateFindingParams, error) {
 	var joined []*identityClaim
 	var ids []types.Identifier
 	for _, c := range verdict.attached {
@@ -80,12 +80,12 @@ func dropHeld(ctx context.Context, q Queries, verdict *claimVerdict, chooser *id
 	if len(joined) == 0 {
 		return nil, nil
 	}
-	found, err := findInstrumentsByIdentifier(ctx, q, ids)
+	found, err := findInstrsByIdentifier(ctx, q, ids)
 	if err != nil {
 		return nil, err
 	}
-	others := slices.DeleteFunc(found, func(m instrumentMatch) bool {
-		return target != nil && m.instrument.Row.ID == target.Row.ID
+	others := slices.DeleteFunc(found, func(m instrMatch) bool {
+		return target != nil && m.instr.Row.ID == target.Row.ID
 	})
 	var out []gen.CreateFindingParams
 	for _, c := range joined {
@@ -99,7 +99,7 @@ func dropHeld(ctx context.Context, q Queries, verdict *claimVerdict, chooser *id
 
 // heldBy returns the first identifier of c that identifies an instrument of
 // matches, and false where none does.
-func heldBy(c *identityClaim, matches []instrumentMatch) (types.Identifier, bool) {
+func heldBy(c *identityClaim, matches []instrMatch) (types.Identifier, bool) {
 	for _, m := range matches {
 		for _, id := range m.matched {
 			if c.IdentifiedBy(id) {
@@ -110,9 +110,9 @@ func heldBy(c *identityClaim, matches []instrumentMatch) (types.Identifier, bool
 	return types.Identifier{}, false
 }
 
-// findInstrumentsByIdentifier finds the instruments any of ids identifies,
+// findInstrsByIdentifier finds the instruments any of ids identifies,
 // each with the identifiers that matched it, the earliest created first.
-func findInstrumentsByIdentifier(ctx context.Context, q Queries, ids []types.Identifier) ([]instrumentMatch, error) {
+func findInstrsByIdentifier(ctx context.Context, q Queries, ids []types.Identifier) ([]instrMatch, error) {
 	if len(ids) == 0 {
 		return nil, nil
 	}
@@ -124,31 +124,31 @@ func findInstrumentsByIdentifier(ctx context.Context, q Queries, ids []types.Ide
 	if err != nil {
 		return nil, fmt.Errorf("find instruments: %w", err)
 	}
-	var instruments []gen.Instr
+	var instrs []gen.Instr
 	matched := map[uuid.UUID][]types.Identifier{}
 	for _, row := range rows {
 		if _, ok := matched[row.Instr.ID]; !ok {
-			instruments = append(instruments, row.Instr)
+			instrs = append(instrs, row.Instr)
 		}
 		matched[row.Instr.ID] = append(matched[row.Instr.ID], to.Identifier(row.Identifier))
 	}
-	loaded, err := join.InstrumentsWithCoverage(ctx, q, instruments)
+	loaded, err := join.InstrsWithCoverage(ctx, q, instrs)
 	if err != nil {
 		return nil, err
 	}
-	matches := make([]instrumentMatch, len(instruments))
-	for i, inst := range instruments {
-		matches[i] = instrumentMatch{instrument: loaded[inst.ID], matched: matched[inst.ID]}
+	matches := make([]instrMatch, len(instrs))
+	for i, instr := range instrs {
+		matches[i] = instrMatch{instr: loaded[instr.ID], matched: matched[instr.ID]}
 	}
-	slices.SortFunc(matches, func(a, b instrumentMatch) int {
-		return a.instrument.Row.CreatedAt.Compare(b.instrument.Row.CreatedAt)
+	slices.SortFunc(matches, func(a, b instrMatch) int {
+		return a.instr.Row.CreatedAt.Compare(b.instr.Row.CreatedAt)
 	})
 	return matches, nil
 }
 
-// instrumentMatch is an instrument findInstrumentsByIdentifier found, with the
+// instrMatch is an instrument findInstrsByIdentifier found, with the
 // identifiers that matched it.
-type instrumentMatch struct {
-	instrument *join.InstrumentWithCoverage
-	matched    []types.Identifier
+type instrMatch struct {
+	instr   *join.InstrWithCoverage
+	matched []types.Identifier
 }

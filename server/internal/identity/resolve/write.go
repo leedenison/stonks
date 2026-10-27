@@ -71,7 +71,7 @@ func (r *Resolver) resolveKey(ctx context.Context, q Queries, run gen.Run, res *
 	if v.winner == nil {
 		return recordResolution(ctx, q, run, res, unresolved(res), summary(res, v), v.findings, len(v.offered))
 	}
-	w, err := writeInstrument(ctx, q, *run.UserID, res, d)
+	w, err := writeInstr(ctx, q, *run.UserID, res, d)
 	if err != nil {
 		return gen.ResolutionKey{}, nil, err
 	}
@@ -114,16 +114,16 @@ func decide(ctx context.Context, q Queries, res *resolution, userChoice consiste
 		return decision{}, err
 	}
 	chooser := verdict.winner
-	if t.instrument != nil {
-		if reason, ok := classConflict(res.row, t.instrument.Row.AssetClass); ok {
+	if t.instr != nil {
+		if reason, ok := classConflict(res.row, t.instr.Row.AssetClass); ok {
 			return decision{verdict: verdict, target: t, conflict: reason}, nil
 		}
-		verdict = choose(res, &identityClaim{Instr: t.instrument.Instr.Instr()}, userChoice)
+		verdict = choose(res, &identityClaim{Instr: t.instr.Instr.Instr()}, userChoice)
 		if verdict.refused != "" {
 			return decision{}, fmt.Errorf("%w: %s", ErrNoCandidate, verdict.refused)
 		}
 	}
-	dropped, err := dropHeld(ctx, q, &verdict, chooser, t.instrument)
+	dropped, err := dropHeld(ctx, q, &verdict, chooser, t.instr)
 	if err != nil {
 		return decision{}, err
 	}
@@ -133,12 +133,12 @@ func decide(ctx context.Context, q Queries, res *resolution, userChoice consiste
 	return decision{verdict: verdict, target: t}, nil
 }
 
-// writeInstrument writes d's winner to the instrument d targets, creating that
+// writeInstr writes d's winner to the instrument d targets, creating that
 // instrument when d has none. It returns the writer for it.
-func writeInstrument(ctx context.Context, q Queries, user uuid.UUID, res *resolution, d decision) (*writer, error) {
+func writeInstr(ctx context.Context, q Queries, user uuid.UUID, res *resolution, d decision) (*writer, error) {
 	w := &writer{q: q, user: user, taken: d.target.taken, res: res}
-	if d.target.instrument != nil {
-		w.instr = d.target.instrument.Instr
+	if d.target.instr != nil {
+		w.instr = d.target.instr.Instr
 	} else {
 		row, err := w.create(ctx, d.verdict.winner)
 		if err != nil {
@@ -195,7 +195,7 @@ func identifiersToLock(res *resolution) []types.Identifier {
 // whose claims the verdict attached, and by every datasource that served no
 // listing. When the verdict drops every claim of a datasource, the next key
 // that names the instrument asks that datasource again.
-func recordIdentityCoverage(ctx context.Context, q Queries, instrument uuid.UUID, verdict claimVerdict, fetchKeys []*fetchKey) error {
+func recordIdentityCoverage(ctx context.Context, q Queries, instr uuid.UUID, verdict claimVerdict, fetchKeys []*fetchKey) error {
 	for _, fk := range fetchKeys {
 		if fk.Outcome != gen.FetchOutcomeServed {
 			continue
@@ -204,7 +204,7 @@ func recordIdentityCoverage(ctx context.Context, q Queries, instrument uuid.UUID
 		if !attached && len(fk.Response.Listings) > 0 {
 			continue
 		}
-		arg := gen.UpsertIdentityCoverageParams{InstrID: instrument, Datasource: fk.Source, FetchKeyID: fk.ID}
+		arg := gen.UpsertIdentityCoverageParams{InstrID: instr, Datasource: fk.Source, FetchKeyID: fk.ID}
 		if err := q.UpsertIdentityCoverage(ctx, arg); err != nil {
 			return fmt.Errorf("cover %s: %w", fk.Source, err)
 		}

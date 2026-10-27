@@ -140,7 +140,7 @@ func (r *Resolver) prepare(ctx context.Context, run gen.Run, keys []KeyDates, da
 		res.globalAndDescriptionIDs = globalAndDescriptionIDs(k.Row)
 		b.resolutions[i] = res
 	}
-	if err := r.findResolutionInstrument(ctx, b.resolutions); err != nil {
+	if err := r.findResolutionInstr(ctx, b.resolutions); err != nil {
 		return nil, err
 	}
 	if dating {

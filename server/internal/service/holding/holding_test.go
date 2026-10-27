@@ -66,7 +66,7 @@ func newFixture(t *testing.T) *fixture {
 func TestListHoldings(t *testing.T) {
 	acmeListingID, acmeKeyID := uuid.MustParse("00000000-0000-0000-0000-000000000050"), uuid.MustParse("00000000-0000-0000-0000-000000000060")
 	gbpListingID := uuid.MustParse("00000000-0000-0000-0000-000000000051")
-	instruments := []gen.Instr{{ID: gbpID, AssetClass: types.AssetClassCash}, {ID: acmeID, AssetClass: types.AssetClassSecurity}}
+	instrs := []gen.Instr{{ID: gbpID, AssetClass: types.AssetClassCash}, {ID: acmeID, AssetClass: types.AssetClassSecurity}}
 	idents := []gen.Identifier{
 		{InstrID: gbpID, Type: types.IdentifierTypeCurrency, Value: "GBP"},
 		{InstrID: acmeID, Type: types.IdentifierTypeIsin, Value: "GB0002634946"},
@@ -85,7 +85,7 @@ func TestListHoldings(t *testing.T) {
 	// The pound holding is stated in pence, and sums in pounds.
 	gbxKeyID := uuid.MustParse("00000000-0000-0000-0000-000000000063")
 	gbx := types.Identifier{Type: types.IdentifierTypeCurrency, Value: "GBX"}
-	instrumentKeys := []gen.ListHoldingKeysRow{
+	instrKeys := []gen.ListHoldingKeysRow{
 		{
 			StatedKey: gen.StatedKey{ID: acmeKeyID, InstrID: &acmeID, ListingID: &acmeListingID, Identifiers: []types.Identifier{acmeISIN, acmeDescribed}},
 			Quantity:  decimal.RequireFromString("-141"),
@@ -95,7 +95,7 @@ func TestListHoldings(t *testing.T) {
 			Quantity:  decimal.RequireFromString("1209279"),
 		},
 	}
-	wantInstruments := []*holdingv1.InstrumentHolding{
+	wantInstrs := []*holdingv1.InstrumentHolding{
 		{
 			InstrumentId: gbpID.String(), AssetClass: typev1.AssetClass_ASSET_CLASS_CASH, Quantity: "12092.79",
 			Identifiers: []*typev1.Identifier{{Type: typev1.IdentifierType_IDENTIFIER_TYPE_CURRENCY, Value: "GBP"}},
@@ -154,7 +154,7 @@ func TestListHoldings(t *testing.T) {
 	tests := []struct {
 		name        string
 		authErr     error
-		instruments []gen.Instr
+		instrs      []gen.Instr
 		instrErr    error
 		idents      []gen.Identifier
 		identsErr   error
@@ -169,22 +169,22 @@ func TestListHoldings(t *testing.T) {
 		wantCode    connect.Code
 	}{
 		{name: "none"},
-		{name: "instruments only", instruments: instruments, idents: idents, listings: listings, names: names, keys: instrumentKeys, want: wantInstruments},
+		{name: "instruments only", instrs: instrs, idents: idents, listings: listings, names: names, keys: instrKeys, want: wantInstrs},
 		{name: "groups only", keys: groupKeys, wantGroups: wantGroups},
 		{
-			name: "both kinds", instruments: instruments, idents: idents, listings: listings, names: names, keys: append(slices.Clone(instrumentKeys), groupKeys...),
-			want: wantInstruments, wantGroups: wantGroups,
+			name: "both kinds", instrs: instrs, idents: idents, listings: listings, names: names, keys: append(slices.Clone(instrKeys), groupKeys...),
+			want: wantInstrs, wantGroups: wantGroups,
 		},
 		{
-			name:        "zero sums are no holdings",
-			instruments: instruments,
-			keys:        []gen.ListHoldingKeysRow{withQuantity(instrumentKeys[1], "0"), withQuantity(groupKeys[0], "10"), withQuantity(groupKeys[1], "-10")},
+			name:   "zero sums are no holdings",
+			instrs: instrs,
+			keys:   []gen.ListHoldingKeysRow{withQuantity(instrKeys[1], "0"), withQuantity(groupKeys[0], "10"), withQuantity(groupKeys[1], "-10")},
 		},
 		{name: "keys failure", keysErr: errors.New("boom"), wantCode: connect.CodeInternal},
-		{name: "instruments failure", keys: instrumentKeys, instrErr: errors.New("boom"), wantCode: connect.CodeInternal},
-		{name: "identifiers failure", keys: instrumentKeys, instruments: instruments, identsErr: errors.New("boom"), wantCode: connect.CodeInternal},
-		{name: "listings failure", keys: instrumentKeys, instruments: instruments, idents: idents, listingsErr: errors.New("boom"), wantCode: connect.CodeInternal},
-		{name: "names failure", keys: instrumentKeys, instruments: instruments, idents: idents, listings: listings, namesErr: errors.New("boom"), wantCode: connect.CodeInternal},
+		{name: "instruments failure", keys: instrKeys, instrErr: errors.New("boom"), wantCode: connect.CodeInternal},
+		{name: "identifiers failure", keys: instrKeys, instrs: instrs, identsErr: errors.New("boom"), wantCode: connect.CodeInternal},
+		{name: "listings failure", keys: instrKeys, instrs: instrs, idents: idents, listingsErr: errors.New("boom"), wantCode: connect.CodeInternal},
+		{name: "names failure", keys: instrKeys, instrs: instrs, idents: idents, listings: listings, namesErr: errors.New("boom"), wantCode: connect.CodeInternal},
 		{name: "unauthenticated", authErr: auth.ErrUnauthenticated, wantCode: connect.CodeUnauthenticated},
 	}
 	for _, tc := range tests {
@@ -195,7 +195,7 @@ func TestListHoldings(t *testing.T) {
 			// failure does not matter to the response.
 			f.reader.EXPECT().ListHoldingKeys(gomock.Any(), userID).Return(tc.keys, tc.keysErr).MaxTimes(1)
 			f.reader.EXPECT().ListDatedTxns(gomock.Any(), userID).Return(nil, nil).MaxTimes(1)
-			f.reader.EXPECT().ListInstrsByID(gomock.Any(), gomock.Any()).Return(tc.instruments, tc.instrErr).MaxTimes(1)
+			f.reader.EXPECT().ListInstrsByID(gomock.Any(), gomock.Any()).Return(tc.instrs, tc.instrErr).MaxTimes(1)
 			f.reader.EXPECT().ListIdentifiersOf(gomock.Any(), []uuid.UUID{gbpID, acmeID}).Return(tc.idents, tc.identsErr).MaxTimes(1)
 			f.reader.EXPECT().ListListingNames(gomock.Any(), []uuid.UUID{gbpID, acmeID}).Return(tc.listings, tc.listingsErr).MaxTimes(1)
 			f.reader.EXPECT().ListInstrNames(gomock.Any(), []uuid.UUID{gbpID, acmeID}).Return(tc.names, tc.namesErr).MaxTimes(1)
@@ -235,7 +235,7 @@ func TestListHoldingsScale(t *testing.T) {
 		StatedKey: gen.StatedKey{ID: pence, InstrID: &acmeID, Currency: ptr.To("GBX"), Identifiers: []types.Identifier{{Type: types.IdentifierTypeIsin, Value: "GB0002634946"}}},
 		Quantity:  decimal.RequireFromString("100"),
 	}
-	instruments := []gen.Instr{{ID: gbpID, AssetClass: types.AssetClassCash}, {ID: acmeID, AssetClass: types.AssetClassStock}}
+	instrs := []gen.Instr{{ID: gbpID, AssetClass: types.AssetClassCash}, {ID: acmeID, AssetClass: types.AssetClassStock}}
 	tests := []struct {
 		name string
 		keys []gen.ListHoldingKeysRow
@@ -252,7 +252,7 @@ func TestListHoldingsScale(t *testing.T) {
 			f.authn.EXPECT().Authenticate(gomock.Any(), servicetest.Session).Return(principal, nil)
 			f.reader.EXPECT().ListHoldingKeys(gomock.Any(), userID).Return(tc.keys, nil)
 			f.reader.EXPECT().ListDatedTxns(gomock.Any(), userID).Return(nil, nil)
-			f.reader.EXPECT().ListInstrsByID(gomock.Any(), gomock.Any()).Return(instruments, nil)
+			f.reader.EXPECT().ListInstrsByID(gomock.Any(), gomock.Any()).Return(instrs, nil)
 			if tc.want != "" {
 				ids := []uuid.UUID{tc.id}
 				f.reader.EXPECT().ListIdentifiersOf(gomock.Any(), ids).Return(nil, nil)

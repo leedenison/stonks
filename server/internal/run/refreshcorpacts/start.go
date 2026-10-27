@@ -23,7 +23,7 @@ const lane = "refresh_corp_acts"
 // are chosen when the run starts. An instrument that becomes held later waits
 // for the next run.
 func (s *Starter) Start(ctx context.Context) (gen.Run, error) {
-	hs, err := s.heldInstruments(ctx)
+	hs, err := s.heldInstrs(ctx)
 	if err != nil {
 		return gen.Run{}, err
 	}

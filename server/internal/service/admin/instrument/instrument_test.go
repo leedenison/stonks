@@ -1,4 +1,4 @@
-package instrument
+package instr
 
 import (
 	"context"
@@ -53,7 +53,7 @@ func newFixture(t *testing.T) *fixture {
 	return f
 }
 
-func TestListInstruments(t *testing.T) {
+func TestListInstrs(t *testing.T) {
 	// A share listed in two currencies, named by an ISIN and by a ticker on
 	// each listing, and the pound, named by its codes with one listing.
 	ticker := func(domain string) *typev1.Identifier {
@@ -189,9 +189,9 @@ func TestCursor(t *testing.T) {
 	}
 }
 
-// TestListInstrumentsPages checks that a full page is cut to its size and
+// TestListInstrsPages checks that a full page is cut to its size and
 // that the token of the next page names the last instrument served.
-func TestListInstrumentsPages(t *testing.T) {
+func TestListInstrsPages(t *testing.T) {
 	f := newFixture(t)
 	rows := []gen.ListInstrsRow{{ID: acmeID, AssetClass: types.AssetClassStock, Name: "ACME"}, {ID: gbpID, AssetClass: types.AssetClassCash, Name: "GBP"}}
 	f.queries.EXPECT().ListInstrs(gomock.Any(), gen.ListInstrsParams{Lim: 2}).Return(rows, nil)

@@ -102,26 +102,26 @@ func venueTicker(t *testing.T, q *gen.Queries, listing gen.Listing, venue, value
 func TestListListingNames(t *testing.T) {
 	ctx := context.Background()
 	q := newTx(t)
-	instrument := newInstrument(t, q, types.AssetClassEquity)
-	primary := newListing(t, q, instrument, "GBP")
+	instr := newInstr(t, q, types.AssetClassEquity)
+	primary := newListing(t, q, instr, "GBP")
 	require.NoError(t, q.SetListingPrimary(ctx, gen.SetListingPrimaryParams{ID: primary.ID, PrimaryMic: ptr.To("XLON")}))
 	venueTicker(t, q, primary, "XNYS", "ACME")
 	venueTicker(t, q, primary, "XLON", "ACME")
-	ranked := newListing(t, q, instrument, "EUR")
+	ranked := newListing(t, q, instr, "EUR")
 	venueTicker(t, q, ranked, "AQSE", "ACMX")
 	venueTicker(t, q, ranked, "XLON", "ACMX")
-	unranked := newListing(t, q, instrument, "USD")
+	unranked := newListing(t, q, instr, "USD")
 	venueTicker(t, q, unranked, "XXXB", "ACMU")
 	venueTicker(t, q, unranked, "XXXA", "ACMU")
-	bare := newListing(t, q, instrument, "CHF")
+	bare := newListing(t, q, instr, "CHF")
 
-	got, err := q.ListListingNames(ctx, []uuid.UUID{instrument.ID})
+	got, err := q.ListListingNames(ctx, []uuid.UUID{instr.ID})
 	require.NoError(t, err)
 	want := []gen.ListListingNamesRow{
-		{ListingID: bare.ID, InstrID: instrument.ID, Currency: "CHF"},
-		{ListingID: ranked.ID, InstrID: instrument.ID, Currency: "EUR", TickerDomain: ptr.To("XLON"), TickerValue: ptr.To("ACMX"), Venue: "LSE"},
-		{ListingID: primary.ID, InstrID: instrument.ID, Currency: "GBP", TickerDomain: ptr.To("XLON"), TickerValue: ptr.To("ACME"), Venue: "LSE"},
-		{ListingID: unranked.ID, InstrID: instrument.ID, Currency: "USD", TickerDomain: ptr.To("XXXA"), TickerValue: ptr.To("ACMU"), Venue: "XXXA"},
+		{ListingID: bare.ID, InstrID: instr.ID, Currency: "CHF"},
+		{ListingID: ranked.ID, InstrID: instr.ID, Currency: "EUR", TickerDomain: ptr.To("XLON"), TickerValue: ptr.To("ACMX"), Venue: "LSE"},
+		{ListingID: primary.ID, InstrID: instr.ID, Currency: "GBP", TickerDomain: ptr.To("XLON"), TickerValue: ptr.To("ACME"), Venue: "LSE"},
+		{ListingID: unranked.ID, InstrID: instr.ID, Currency: "USD", TickerDomain: ptr.To("XXXA"), TickerValue: ptr.To("ACMU"), Venue: "XXXA"},
 	}
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("ListListingNames mismatch (-want +got):\n%s", diff)
@@ -136,9 +136,9 @@ func TestListHoldingKeys(t *testing.T) {
 	ctx := context.Background()
 	q := newTx(t)
 	h := newHolder(t, q, "keys@example.com")
-	instrument := newInstrument(t, q, types.AssetClassEquity)
-	via := newIdentifier(t, q, instrument, "US0378331005")
-	usd := newListing(t, q, instrument, "USD")
+	instr := newInstr(t, q, types.AssetClassEquity)
+	via := newIdentifier(t, q, instr, "US0378331005")
+	usd := newListing(t, q, instr, "USD")
 	resolved := h.key(t, q, "ACME CORP", &usd, &via)
 	h.record(t, q, resolved, "10")
 	h.record(t, q, resolved, "-2.5")
@@ -178,9 +178,9 @@ func TestListDatedTxns(t *testing.T) {
 	ctx := context.Background()
 	q := newTx(t)
 	h := newHolder(t, q, "dated@example.com")
-	instrument := newInstrument(t, q, types.AssetClassEquity)
-	via := newIdentifier(t, q, instrument, "US0378331005")
-	usd := newListing(t, q, instrument, "USD")
+	instr := newInstr(t, q, types.AssetClassEquity)
+	via := newIdentifier(t, q, instr, "US0378331005")
+	usd := newListing(t, q, instr, "USD")
 	h.record(t, q, h.key(t, q, "ACME CORP", &usd, &via), "10")
 	h.record(t, q, h.key(t, q, "MYSTERY FUND", nil, nil), "3")
 	acme := h.datedKey(t, q, "XNAS", "ACME", "USD")

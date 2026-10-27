@@ -56,7 +56,7 @@ import (
 	adminblock "github.com/leedenison/stonks/server/internal/service/admin/block"
 	admincoverage "github.com/leedenison/stonks/server/internal/service/admin/coverage"
 	admindatasource "github.com/leedenison/stonks/server/internal/service/admin/datasource"
-	admininstrument "github.com/leedenison/stonks/server/internal/service/admin/instrument"
+	admininstr "github.com/leedenison/stonks/server/internal/service/admin/instrument"
 	adminreasserttickers "github.com/leedenison/stonks/server/internal/service/admin/reasserttickers"
 	adminrefreshcorpacts "github.com/leedenison/stonks/server/internal/service/admin/refreshcorpacts"
 	adminreplayrun "github.com/leedenison/stonks/server/internal/service/admin/replayrun"
@@ -188,7 +188,7 @@ func run() (err error) {
 	refreshes := refreshcorpacts.NewStarter(queries, runs, freshRecorder, mics, time.Now, logger.WithCategory(log, "internal/run/refreshcorpacts"))
 	ingester := stmt.New(db.New[stmt.Queries](pool), runs, resolver, replays, corpActs, families, time.Now, logger.WithCategory(log, "internal/stmt"))
 	datasources := admindatasource.New(queries, sources, datasource.New(db.New[datasource.Queries](pool), sources, cache))
-	srv, err := newServer(cfg.ListenAddr, log, authn, queries, holdingsvc.New(queries, families, scales, mics), adminrun.New(queries), adminblock.New(queries), datasources, admininstrument.New(queries), adminreplayrun.New(queries, replays), adminreasserttickers.New(reassertions), adminrefreshcorpacts.New(refreshes), admincoverage.New(coverage.New(queries, mics), attestidentifier.New(db.New[attestidentifier.Queries](pool), runs, replays, mics, time.Now), time.Now), ingester, mics, cfg.CookieSecure)
+	srv, err := newServer(cfg.ListenAddr, log, authn, queries, holdingsvc.New(queries, families, scales, mics), adminrun.New(queries), adminblock.New(queries), datasources, admininstr.New(queries), adminreplayrun.New(queries, replays), adminreasserttickers.New(reassertions), adminrefreshcorpacts.New(refreshes), admincoverage.New(coverage.New(queries, mics), attestidentifier.New(db.New[attestidentifier.Queries](pool), runs, replays, mics, time.Now), time.Now), ingester, mics, cfg.CookieSecure)
 	if err != nil {
 		return err
 	}
@@ -218,7 +218,7 @@ func tracedClient(timeout time.Duration) *http.Client {
 // once the server listens, which is after the migrations have applied. It is
 // outside the Connect chain and the mux carries no HTTP instrumentation, so
 // the container probing it every two seconds produces no telemetry.
-func newServer(addr string, log *slog.Logger, authn *auth.Authenticator, queries *gen.Queries, holdings *holdingsvc.Server, runs *adminrun.Server, blocks *adminblock.Server, datasources *admindatasource.Server, instruments *admininstrument.Server, replays *adminreplayrun.Server, reassertions *adminreasserttickers.Server, refreshes *adminrefreshcorpacts.Server, coverages *admincoverage.Server, stmts *stmt.Service, mics mic.MICMap, secure bool) (*http.Server, error) {
+func newServer(addr string, log *slog.Logger, authn *auth.Authenticator, queries *gen.Queries, holdings *holdingsvc.Server, runs *adminrun.Server, blocks *adminblock.Server, datasources *admindatasource.Server, instrs *admininstr.Server, replays *adminreplayrun.Server, reassertions *adminreasserttickers.Server, refreshes *adminrefreshcorpacts.Server, coverages *admincoverage.Server, stmts *stmt.Service, mics mic.MICMap, secure bool) (*http.Server, error) {
 	opts, err := service.HandlerOptions(logger.WithCategory(log, "internal/service"), authn)
 	if err != nil {
 		return nil, err
@@ -230,7 +230,7 @@ func newServer(addr string, log *slog.Logger, authn *auth.Authenticator, queries
 	mux.Handle(adminblockv1connect.NewBlockServiceHandler(blocks, opts...))
 	mux.Handle(admincoveragev1connect.NewCoverageServiceHandler(coverages, opts...))
 	mux.Handle(admindatasourcev1connect.NewDatasourceServiceHandler(datasources, opts...))
-	mux.Handle(admininstrumentv1connect.NewInstrumentServiceHandler(instruments, opts...))
+	mux.Handle(admininstrumentv1connect.NewInstrumentServiceHandler(instrs, opts...))
 	mux.Handle(adminreasserttickersv1connect.NewReassertTickersServiceHandler(reassertions, opts...))
 	mux.Handle(adminrefreshcorpactsv1connect.NewRefreshCorpActsServiceHandler(refreshes, opts...))
 	mux.Handle(adminreplayrunv1connect.NewReplayRunServiceHandler(replays, opts...))

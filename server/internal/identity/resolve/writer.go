@@ -37,11 +37,11 @@ func (w *writer) create(ctx context.Context, winner *identityClaim) (gen.Instr, 
 	if class == "" {
 		class = types.AssetClassUnknown
 	}
-	inst, err := w.q.CreateInstr(ctx, gen.CreateInstrParams{ID: db.NewID(), AssetClass: class, FetchKeyID: &winner.fetchKey.ID})
+	instr, err := w.q.CreateInstr(ctx, gen.CreateInstrParams{ID: db.NewID(), AssetClass: class, FetchKeyID: &winner.fetchKey.ID})
 	if err != nil {
 		return gen.Instr{}, fmt.Errorf("create instrument: %w", err)
 	}
-	return inst, nil
+	return instr, nil
 }
 
 // attach writes the listings and identifiers of c the instrument lacks, each

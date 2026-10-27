@@ -156,9 +156,9 @@ func mt(v types.Identifier) types.MarketTicker {
 	return types.MarketTicker{Market: m, Value: v.Value}
 }
 
-func confirmedOn(ivs []tickervalidity.Interval, instrument uuid.UUID, d time.Time) bool {
+func confirmedOn(ivs []tickervalidity.Interval, instr uuid.UUID, d time.Time) bool {
 	for _, iv := range ivs {
-		if iv.Instr == instrument && iv.Validity == tickervalidity.Confirmed &&
+		if iv.Instr == instr && iv.Validity == tickervalidity.Confirmed &&
 			iv.From != nil && !d.Before(*iv.From) && iv.Before != nil && d.Before(*iv.Before) {
 			return true
 		}

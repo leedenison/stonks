@@ -195,11 +195,11 @@ func TestIngest(t *testing.T) {
 		t.Errorf("the cash key associates through %v, want %s", got.ViaID, found.Identifier.ID)
 	}
 
-	var instruments, families int
-	require.NoError(t, s.tx.QueryRow(ctx, "SELECT count(*) FROM instrs").Scan(&instruments))
+	var instrs, families int
+	require.NoError(t, s.tx.QueryRow(ctx, "SELECT count(*) FROM instrs").Scan(&instrs))
 	require.NoError(t, s.tx.QueryRow(ctx, "SELECT count(*) FROM currencies WHERE code = family").Scan(&families))
-	if instruments != families {
-		t.Errorf("%d instruments, want the %d the migration seeds", instruments, families)
+	if instrs != families {
+		t.Errorf("%d instruments, want the %d the migration seeds", instrs, families)
 	}
 
 	children, err := s.q.ListChildRuns(ctx, gen.ListChildRunsParams{ParentID: &parent.ID, UserID: &s.user.ID})
@@ -364,9 +364,9 @@ func TestConfirmCandidate(t *testing.T) {
 	if mate.InstrID != nil || mate.Arbiter != nil {
 		t.Errorf("the mate = %+v, want it unresolved: a choice associates the one key", mate)
 	}
-	instruments, groups := s.holdings(t)
-	if len(groups) != 1 || groups[0].Quantity.String() != "5" || len(instruments) != 1 || instruments[0].Quantity.String() != "10" {
-		t.Errorf("holdings = groups %+v, instruments %+v, want the mate's group of 5 and one instrument holding of 10", groups, instruments)
+	instrs, groups := s.holdings(t)
+	if len(groups) != 1 || groups[0].Quantity.String() != "5" || len(instrs) != 1 || instrs[0].Quantity.String() != "10" {
+		t.Errorf("holdings = groups %+v, instruments %+v, want the mate's group of 5 and one instrument holding of 10", groups, instrs)
 	}
 	if _, err := s.svc.Confirm(ctx, s.user.ID, first.ID, resolve.Pick{Datasource: s.alphaName, Identifier: isin}); !errors.Is(err, ErrAssociated) {
 		t.Errorf("a second Confirm() error = %v, want ErrAssociated", err)
@@ -376,7 +376,7 @@ func TestConfirmCandidate(t *testing.T) {
 	// resolves nothing for it, and its regroup leaves the mate in a group of
 	// its own.
 	third := month(key, "2026-02-01", "2026-03-01", "2026-02-05", "1")
-	if k := s.keyOf(t, third); k.ID != first.ID || k.InstrID == nil || *k.InstrID != instruments[0].InstrID || k.Arbiter == nil || *k.Arbiter != gen.ArbiterUser {
+	if k := s.keyOf(t, third); k.ID != first.ID || k.InstrID == nil || *k.InstrID != instrs[0].InstrID || k.Arbiter == nil || *k.Arbiter != gen.ArbiterUser {
 		t.Errorf("the third statement's key = %+v, want the confirmed key %s", k, first.ID)
 	}
 	resolution, err := s.q.ListChildRuns(ctx, gen.ListChildRunsParams{ParentID: &third.ID, UserID: &s.user.ID})
@@ -391,9 +391,9 @@ func TestConfirmCandidate(t *testing.T) {
 	if len(resolved) != 0 {
 		t.Errorf("the third statement's resolution recorded %+v, want no outcome", resolved)
 	}
-	instruments, _ = s.holdings(t)
-	if len(instruments) != 1 || instruments[0].Quantity.String() != "11" {
-		t.Errorf("instrument holdings = %+v, want one of 11", instruments)
+	instrs, _ = s.holdings(t)
+	if len(instrs) != 1 || instrs[0].Quantity.String() != "11" {
+		t.Errorf("instrument holdings = %+v, want one of 11", instrs)
 	}
 	mate, err = s.q.GetStatedKey(ctx, gen.GetStatedKeyParams{ID: second.ID, UserID: s.user.ID})
 	require.NoError(t, err)
@@ -500,9 +500,9 @@ func TestRestate(t *testing.T) {
 	if len(latest) != 1 || latest[0].RunID != resolutionOf(first).ID || latest[0].Outcome != gen.ResolutionOutcomeMatched {
 		t.Errorf("latest resolution = %+v, want the first statement's, matched", latest)
 	}
-	instruments, _ := s.holdings(t)
-	if len(instruments) != 1 || instruments[0].Quantity.String() != "15" {
-		t.Errorf("instrument holdings = %+v, want one of 15", instruments)
+	instrs, _ := s.holdings(t)
+	if len(instrs) != 1 || instrs[0].Quantity.String() != "15" {
+		t.Errorf("instrument holdings = %+v, want one of 15", instrs)
 	}
 }
 
@@ -515,22 +515,22 @@ type holding struct {
 
 // holdings sums the user's keys by instrument and by group, as the holdings
 // service does for keys with no dated association, leaving out zero sums.
-func (s *stack) holdings(t *testing.T) (instruments, groups []holding) {
+func (s *stack) holdings(t *testing.T) (instrs, groups []holding) {
 	t.Helper()
 	keys, err := s.q.ListHoldingKeys(context.Background(), s.user.ID)
 	require.NoError(t, err)
-	byInstrument, byGroup := map[uuid.UUID]decimal.Decimal{}, map[uuid.UUID]decimal.Decimal{}
+	byInstr, byGroup := map[uuid.UUID]decimal.Decimal{}, map[uuid.UUID]decimal.Decimal{}
 	for _, k := range keys {
 		switch {
 		case k.StatedKey.InstrID != nil:
-			byInstrument[*k.StatedKey.InstrID] = byInstrument[*k.StatedKey.InstrID].Add(k.Quantity)
+			byInstr[*k.StatedKey.InstrID] = byInstr[*k.StatedKey.InstrID].Add(k.Quantity)
 		case k.StatedKey.GroupID != nil && k.StatedKey.ViaType == nil:
 			byGroup[*k.StatedKey.GroupID] = byGroup[*k.StatedKey.GroupID].Add(k.Quantity)
 		}
 	}
-	for id, q := range byInstrument {
+	for id, q := range byInstr {
 		if !q.IsZero() {
-			instruments = append(instruments, holding{InstrID: id, Quantity: q})
+			instrs = append(instrs, holding{InstrID: id, Quantity: q})
 		}
 	}
 	for id, q := range byGroup {
@@ -538,7 +538,7 @@ func (s *stack) holdings(t *testing.T) (instruments, groups []holding) {
 			groups = append(groups, holding{GroupID: id, Quantity: q})
 		}
 	}
-	return instruments, groups
+	return instrs, groups
 }
 
 // keyOf returns the one key statement states.

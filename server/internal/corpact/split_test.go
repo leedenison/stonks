@@ -10,9 +10,9 @@ import (
 
 func TestUnmatchedSplits(t *testing.T) {
 	june := day(2024, 6, 7)
-	inst := uuid.UUID{15: 1}
+	instr := uuid.UUID{15: 1}
 	stated := func(rs ...types.Ratio) splitGroup {
-		return splitGroup{key: uuid.UUID{15: 2}, day: june, instrument: inst, ratios: rs}
+		return splitGroup{key: uuid.UUID{15: 2}, day: june, instr: instr, ratios: rs}
 	}
 	tests := []struct {
 		name  string
@@ -34,11 +34,11 @@ func TestUnmatchedSplits(t *testing.T) {
 		{name: "no stated ratio and no action", group: stated(), acts: []Act{act(1, june.AddDate(0, 0, 8), ratio(1, 3))}, want: "none"},
 		{name: "each stated ratio needs an action", group: stated(ratio(1, 4), ratio(1, 3)), acts: []Act{act(1, june, ratio(1, 3))}, want: "4 for 1"},
 		{name: "an unhandled action matches", group: stated(ratio(1, 10)), acts: []Act{{ID: uuid.UUID{15: 1}, ExDate: june, Ratio: ratio(1, 10)}}},
-		{name: "another instrument's action", group: splitGroup{key: uuid.UUID{15: 2}, day: june, instrument: uuid.UUID{15: 9}, ratios: []types.Ratio{ratio(1, 10)}}, acts: []Act{act(1, june, ratio(1, 10))}, want: "10 for 1"},
+		{name: "another instrument's action", group: splitGroup{key: uuid.UUID{15: 2}, day: june, instr: uuid.UUID{15: 9}, ratios: []types.Ratio{ratio(1, 10)}}, acts: []Act{act(1, june, ratio(1, 10))}, want: "10 for 1"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got := unmatchedSplits([]splitGroup{tc.group}, map[uuid.UUID][]Act{inst: tc.acts})
+			got := unmatchedSplits([]splitGroup{tc.group}, map[uuid.UUID][]Act{instr: tc.acts})
 			var lacks string
 			switch {
 			case len(got) > 1:

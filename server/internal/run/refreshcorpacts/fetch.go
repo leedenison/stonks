@@ -21,7 +21,7 @@ func (s *Service) AfterStmt(ctx context.Context, stmt gen.Run) {
 		return
 	}
 	user := *stmt.UserID
-	hs, err := s.heldInstruments(ctx)
+	hs, err := s.heldInstrs(ctx)
 	if err != nil {
 		s.log.Warn("corporate actions fetch after a statement failed", "run", stmt.ID, "err", err)
 		return
@@ -65,7 +65,7 @@ func (s *Service) FetchAfterIdentifierFacts(ctx context.Context, parent gen.Run,
 	if len(named) == 0 {
 		return
 	}
-	hs, err := s.heldInstruments(ctx)
+	hs, err := s.heldInstrs(ctx)
 	if err != nil {
 		s.log.Warn("corporate actions fetch after new identifier facts failed", "run", parent.ID, "err", err)
 		return

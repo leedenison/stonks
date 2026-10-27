@@ -30,15 +30,15 @@ type ask struct {
 	users []uuid.UUID
 }
 
-// heldInstruments returns every held instrument by its id. A transaction of
+// heldInstrs returns every held instrument by its id. A transaction of
 // a dated key on a day when its ticker names nothing holds nothing.
-func (b *base) heldInstruments(ctx context.Context) (map[uuid.UUID]*held, error) {
+func (b *base) heldInstrs(ctx context.Context) (map[uuid.UUID]*held, error) {
 	out := map[uuid.UUID]*held{}
-	add := func(inst, user uuid.UUID, d time.Time) {
-		h := out[inst]
+	add := func(instr, user uuid.UUID, d time.Time) {
+		h := out[instr]
 		if h == nil {
 			h = &held{from: d}
-			out[inst] = h
+			out[instr] = h
 		}
 		if d.Before(h.from) {
 			h.from = d

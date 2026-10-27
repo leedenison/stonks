@@ -24,16 +24,16 @@ import (
 // broker dates a split that trades adjusted from the Monday.
 var splitDay = day(2024, 6, 7)
 
-// instrument creates an instrument of class.
-func (s *stack) instrument(t *testing.T, class types.AssetClass) uuid.UUID {
+// instr creates an instrument of class.
+func (s *stack) instr(t *testing.T, class types.AssetClass) uuid.UUID {
 	t.Helper()
-	inst, err := s.q.CreateInstr(context.Background(), gen.CreateInstrParams{ID: db.NewID(), AssetClass: class})
+	instr, err := s.q.CreateInstr(context.Background(), gen.CreateInstrParams{ID: db.NewID(), AssetClass: class})
 	require.NoError(t, err)
-	return inst.ID
+	return instr.ID
 }
 
-// names records an assertion, dated on, that mt names inst.
-func (s *stack) names(t *testing.T, mt types.MarketTicker, inst uuid.UUID, on time.Time) {
+// names records an assertion, dated on, that mt names instr.
+func (s *stack) names(t *testing.T, mt types.MarketTicker, instr uuid.UUID, on time.Time) {
 	t.Helper()
 	ctx := context.Background()
 	run, err := s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: s.parent.UserID, Kind: gen.RunKindDatasourceFetch, Trigger: gen.RunTriggerRun, ParentID: &s.parent.ID})
@@ -46,7 +46,7 @@ func (s *stack) names(t *testing.T, mt types.MarketTicker, inst uuid.UUID, on ti
 		SentType: ptr.To(types.IdentifierTypeMicTicker), SentDomain: mt.Market, SentValue: &mt.Value, AnsweredAt: &on,
 	}))
 	require.NoError(t, s.q.CreateIdentifierAssertion(ctx, gen.CreateIdentifierAssertionParams{
-		ID: db.NewID(), FetchKeyID: &key, Type: types.IdentifierTypeMicTicker, Domain: mt.Market, Value: mt.Value, InstrID: &inst, AssertedOn: on,
+		ID: db.NewID(), FetchKeyID: &key, Type: types.IdentifierTypeMicTicker, Domain: mt.Market, Value: mt.Value, InstrID: &instr, AssertedOn: on,
 	}))
 }
 
@@ -58,17 +58,17 @@ func (s *stack) user(t *testing.T) uuid.UUID {
 	return u.ID
 }
 
-// fixedKey creates a key of user with a fixed association to inst, made
+// fixedKey creates a key of user with a fixed association to instr, made
 // through an ISIN.
-func (s *stack) fixedKey(t *testing.T, user, inst uuid.UUID) uuid.UUID {
+func (s *stack) fixedKey(t *testing.T, user, instr uuid.UUID) uuid.UUID {
 	t.Helper()
 	ctx := context.Background()
 	via, key := db.NewID(), db.NewID()
 	isin := uuid.NewString()
-	_, err := s.tx.Exec(ctx, `INSERT INTO identifiers (id, instr_id, type, value) VALUES ($1, $2, 'isin', $3)`, via, inst, isin)
+	_, err := s.tx.Exec(ctx, `INSERT INTO identifiers (id, instr_id, type, value) VALUES ($1, $2, 'isin', $3)`, via, instr, isin)
 	require.NoError(t, err)
 	_, err = s.tx.Exec(ctx, `INSERT INTO stated_keys (id, user_id, identifiers, instr_id, via_id, arbiter)
-		VALUES ($1, $2, jsonb_build_array(jsonb_build_object('type', 'isin', 'value', $3::text)), $4, $5, 'stated')`, key, user, isin, inst, via)
+		VALUES ($1, $2, jsonb_build_array(jsonb_build_object('type', 'isin', 'value', $3::text)), $4, $5, 'stated')`, key, user, isin, instr, via)
 	require.NoError(t, err)
 	return key
 }
@@ -133,9 +133,9 @@ func (s *stack) unmatchedSplits(t *testing.T) []splitFound {
 // to it.
 func (s *stack) nvda(t *testing.T) (uuid.UUID, uuid.UUID) {
 	t.Helper()
-	inst := s.instrument(t, types.AssetClassStock)
-	s.names(t, us("NVDA"), inst, day(2024, 1, 2))
-	return inst, s.fixedKey(t, *s.parent.UserID, inst)
+	instr := s.instr(t, types.AssetClassStock)
+	s.names(t, us("NVDA"), instr, day(2024, 1, 2))
+	return instr, s.fixedKey(t, *s.parent.UserID, instr)
 }
 
 // TestSplitMatched checks that a split matches an action of equal ratio that a
@@ -272,8 +272,8 @@ func TestSplitDatedKey(t *testing.T) {
 		t.Run(tc.venue, func(t *testing.T) {
 			s := newStack(t)
 			s.only(t, s.alphaName)
-			inst := s.instrument(t, types.AssetClassStock)
-			s.names(t, us("NVDA"), inst, day(2024, 1, 2))
+			instr := s.instr(t, types.AssetClassStock)
+			s.names(t, us("NVDA"), instr, day(2024, 1, 2))
 			key := s.datedKey(t, tc.venue, "NVDA")
 			s.states(t, *s.parent.UserID, key, ptr.To(ratio(1, 10)))
 			s.alpha.Responses[ticker("XNAS", "NVDA")] = covering()
@@ -293,10 +293,10 @@ func TestSplitCalendarByTickerValidity(t *testing.T) {
 	t.Run("a reused ticker", func(t *testing.T) {
 		s := newStack(t)
 		s.only(t, s.alphaName)
-		inst, other := s.instrument(t, types.AssetClassStock), s.instrument(t, types.AssetClassStock)
-		s.names(t, us("NVDA"), inst, day(2024, 6, 1))
+		instr, other := s.instr(t, types.AssetClassStock), s.instr(t, types.AssetClassStock)
+		s.names(t, us("NVDA"), instr, day(2024, 6, 1))
 		s.names(t, us("NVDA"), other, day(2024, 6, 9))
-		key := s.fixedKey(t, *s.parent.UserID, inst)
+		key := s.fixedKey(t, *s.parent.UserID, instr)
 		s.states(t, *s.parent.UserID, key, ptr.To(ratio(1, 10)))
 		s.alpha.Responses[ticker("XNAS", "NVDA")] = covering(reported(day(2024, 6, 10), ratio(1, 10)))
 		s.fetch(t, ticker("XNAS", "NVDA"))
@@ -307,12 +307,12 @@ func TestSplitCalendarByTickerValidity(t *testing.T) {
 	t.Run("an earlier ticker", func(t *testing.T) {
 		s := newStack(t)
 		s.only(t, s.alphaName)
-		inst := s.instrument(t, types.AssetClassStock)
-		s.names(t, us("OLD"), inst, day(2020, 1, 2))
+		instr := s.instr(t, types.AssetClassStock)
+		s.names(t, us("OLD"), instr, day(2020, 1, 2))
 		s.alpha.Responses[ticker("XNAS", "OLD")] = covering(reported(day(2024, 6, 10), ratio(1, 10)))
 		s.fetch(t, ticker("XNAS", "OLD"))
-		s.names(t, us("NEW"), inst, day(2024, 1, 2))
-		key := s.fixedKey(t, *s.parent.UserID, inst)
+		s.names(t, us("NEW"), instr, day(2024, 1, 2))
+		key := s.fixedKey(t, *s.parent.UserID, instr)
 		s.states(t, *s.parent.UserID, key, ptr.To(ratio(1, 10)))
 		s.alpha.Responses[ticker("XNAS", "NEW")] = covering()
 		s.now = answered.AddDate(0, 0, 1)
@@ -327,9 +327,9 @@ func TestSplitCalendarByTickerValidity(t *testing.T) {
 func TestSplitOption(t *testing.T) {
 	s := newStack(t)
 	s.only(t, s.alphaName)
-	inst := s.instrument(t, types.AssetClassOption)
-	s.names(t, us("NVDA"), inst, day(2024, 1, 2))
-	key := s.fixedKey(t, *s.parent.UserID, inst)
+	instr := s.instr(t, types.AssetClassOption)
+	s.names(t, us("NVDA"), instr, day(2024, 1, 2))
+	key := s.fixedKey(t, *s.parent.UserID, instr)
 	s.states(t, *s.parent.UserID, key, ptr.To(ratio(1, 10)))
 	s.alpha.Responses[ticker("XNAS", "NVDA")] = covering()
 	s.fetch(t, ticker("XNAS", "NVDA"))
@@ -344,9 +344,9 @@ func TestSplitUsers(t *testing.T) {
 	s := newStack(t)
 	ctx := context.Background()
 	s.only(t, s.alphaName)
-	inst, mine := s.nvda(t)
+	instr, mine := s.nvda(t)
 	other := s.user(t)
-	theirs := s.fixedKey(t, other, inst)
+	theirs := s.fixedKey(t, other, instr)
 	s.states(t, *s.parent.UserID, mine, ptr.To(ratio(1, 10)))
 	s.states(t, other, theirs, ptr.To(ratio(1, 10)))
 	s.alpha.Responses[ticker("XNAS", "NVDA")] = covering()

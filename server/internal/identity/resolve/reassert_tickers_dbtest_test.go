@@ -114,8 +114,8 @@ func (s *stack) assertedOn(t *testing.T, v types.Identifier, d time.Time) []*uui
 	return out
 }
 
-// instrumentOf returns the instrument id names.
-func (s *stack) instrumentOf(t *testing.T, id types.Identifier) uuid.UUID {
+// instrOf returns the instrument id names.
+func (s *stack) instrOf(t *testing.T, id types.Identifier) uuid.UUID {
 	t.Helper()
 	row, err := s.q.FindIdentifier(context.Background(), gen.FindIdentifierParams{Type: id.Type, Domain: id.Domain, Value: id.Value})
 	require.NoError(t, err)
@@ -131,10 +131,10 @@ func TestReassertTickers(t *testing.T) {
 	v := id(types.IdentifierTypeMicTicker, "XLON", "ZZR"+uuid.NewString()[:4])
 	isin := id(types.IdentifierTypeIsin, "", "GB00ZZR"+uuid.NewString()[:5])
 	s.heldOnXLON(t, v, listing(types.AssetClassStock, "GBP", isin, v))
-	inst := s.instrumentOf(t, isin)
+	instr := s.instrOf(t, isin)
 	coverage := `SELECT count(*) FROM identity_coverage WHERE instr_id = $1`
 	shape := `SELECT (SELECT count(*) FROM identifiers WHERE instr_id = $1) + (SELECT count(*) FROM listings WHERE instr_id = $1)`
-	covered, rows := s.count(t, coverage, inst), s.count(t, shape, inst)
+	covered, rows := s.count(t, coverage, instr), s.count(t, shape, instr)
 	require.Positive(t, covered)
 
 	extra := id(types.IdentifierTypeIsin, "", "GB00ZZX"+uuid.NewString()[:5])
@@ -152,18 +152,18 @@ func TestReassertTickers(t *testing.T) {
 	if len(b) != 1 || b[0].outcome != gen.FetchOutcomeServed || b[0].kind != gen.FetchKindIdentity {
 		t.Fatalf("beta's keys = %+v, want one served identity key", b)
 	}
-	if got := s.assertedOn(t, v, later); len(got) != 1 || got[0] == nil || *got[0] != inst {
-		t.Errorf("assertions of %s on %s = %v, want one naming %s", v.Name(), later.Format(time.DateOnly), got, inst)
+	if got := s.assertedOn(t, v, later); len(got) != 1 || got[0] == nil || *got[0] != instr {
+		t.Errorf("assertions of %s on %s = %v, want one naming %s", v.Name(), later.Format(time.DateOnly), got, instr)
 	}
 	ivs, err := tickervalidity.Of(ctx, s.q, mt(v))
 	require.NoError(t, err)
-	if !confirmedOn(ivs, inst, on(2026, 3, 20)) {
-		t.Errorf("ticker validity of %s = %+v, want %s confirmed between the two assertions", v.Name(), ivs, inst)
+	if !confirmedOn(ivs, instr, on(2026, 3, 20)) {
+		t.Errorf("ticker validity of %s = %+v, want %s confirmed between the two assertions", v.Name(), ivs, instr)
 	}
-	if got := s.count(t, coverage, inst); got != covered {
+	if got := s.count(t, coverage, instr); got != covered {
 		t.Errorf("coverage rows = %d, want %d: extending ticker validity changes no coverage", got, covered)
 	}
-	if got := s.count(t, shape, inst); got != rows {
+	if got := s.count(t, shape, instr); got != rows {
 		t.Errorf("identifier and listing rows = %d, want %d: extending ticker validity writes only assertions", got, rows)
 	}
 	if n := s.count(t, `SELECT count(*) FROM identifiers WHERE value = $1`, extra.Value); n != 0 {
@@ -183,12 +183,12 @@ func TestReassertTickersSharedIdentifier(t *testing.T) {
 	isin := id(types.IdentifierTypeIsin, "", "GB00ZZS"+uuid.NewString()[:5])
 	ds := id(types.IdentifierTypeDatasourceTicker, "eodhd", v.Value+".LSE")
 	s.heldOnXLON(t, v, listing(types.AssetClassStock, "GBP", isin, ds, v))
-	inst := s.instrumentOf(t, isin)
+	instr := s.instrOf(t, isin)
 
 	s.beta.Responses[v] = market.IdentityResult{Listings: []market.Listing{listing(types.AssetClassStock, "GBP", ds, v)}}
 	s.reassertTickers(t, v)
-	if got := s.assertedOn(t, v, later); len(got) != 1 || got[0] == nil || *got[0] != inst {
-		t.Errorf("assertions of %s on %s = %v, want one naming %s", v.Name(), later.Format(time.DateOnly), got, inst)
+	if got := s.assertedOn(t, v, later); len(got) != 1 || got[0] == nil || *got[0] != instr {
+		t.Errorf("assertions of %s on %s = %v, want one naming %s", v.Name(), later.Format(time.DateOnly), got, instr)
 	}
 }
 
@@ -246,9 +246,9 @@ func TestReassertTickersDisagreement(t *testing.T) {
 	isin := id(types.IdentifierTypeIsin, "", "GB00ZZD"+uuid.NewString()[:5])
 	s.heldOnXLON(t, v, listing(types.AssetClassStock, "GBP", isin, v))
 	other := id(types.IdentifierTypeIsin, "", "GB00ZZE"+uuid.NewString()[:5])
-	inst, err := s.q.CreateInstr(ctx, gen.CreateInstrParams{ID: db.NewID(), AssetClass: types.AssetClassStock})
+	instr, err := s.q.CreateInstr(ctx, gen.CreateInstrParams{ID: db.NewID(), AssetClass: types.AssetClassStock})
 	require.NoError(t, err)
-	_, err = s.q.CreateIdentifier(ctx, gen.CreateIdentifierParams{ID: db.NewID(), InstrID: inst.ID, Type: other.Type, Value: other.Value})
+	_, err = s.q.CreateIdentifier(ctx, gen.CreateIdentifierParams{ID: db.NewID(), InstrID: instr.ID, Type: other.Type, Value: other.Value})
 	require.NoError(t, err)
 
 	s.script.Declines = nil
@@ -328,7 +328,7 @@ func TestReassertTickersAcrossVenues(t *testing.T) {
 	s := newStack(t)
 	isin := id(types.IdentifierTypeIsin, "", "US00ZZV"+uuid.NewString()[:5])
 	nyse, nasdaq := s.heldAtTwoVenues(t, "ZZV"+uuid.NewString()[:4], isin)
-	inst := s.instrumentOf(t, isin)
+	instr := s.instrOf(t, isin)
 	moved := market.IdentityResult{Listings: []market.Listing{listing(types.AssetClassStock, "USD", isin, nasdaq)}}
 	s.beta.Responses[nyse], s.beta.Responses[nasdaq] = moved, moved
 
@@ -336,8 +336,8 @@ func TestReassertTickersAcrossVenues(t *testing.T) {
 	if keys := s.reasserted(t, run)[s.betaName]; len(keys) != 1 {
 		t.Errorf("beta's fetch keys = %+v, want one for the market ticker", keys)
 	}
-	if got := s.assertedOn(t, nyse, later); len(got) != 1 || got[0] == nil || *got[0] != inst {
-		t.Errorf("assertions of %s on %s = %v, want one naming %s", mt(nyse).Name(), later.Format(time.DateOnly), got, inst)
+	if got := s.assertedOn(t, nyse, later); len(got) != 1 || got[0] == nil || *got[0] != instr {
+		t.Errorf("assertions of %s on %s = %v, want one naming %s", mt(nyse).Name(), later.Format(time.DateOnly), got, instr)
 	}
 }
 

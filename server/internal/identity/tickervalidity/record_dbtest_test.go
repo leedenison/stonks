@@ -53,10 +53,10 @@ func (f *fixture) mics(t *testing.T) mic.MICMap {
 }
 
 // identify gives instrument a stored ISIN, which an assertion can name.
-func (f *fixture) identify(t *testing.T, instrument uuid.UUID, isin string) types.Identifier {
+func (f *fixture) identify(t *testing.T, instr uuid.UUID, isin string) types.Identifier {
 	t.Helper()
 	id := types.Identifier{Type: types.IdentifierTypeIsin, Value: isin}
-	_, err := f.q.CreateIdentifier(context.Background(), gen.CreateIdentifierParams{ID: db.NewID(), InstrID: instrument, Type: id.Type, Value: id.Value})
+	_, err := f.q.CreateIdentifier(context.Background(), gen.CreateIdentifierParams{ID: db.NewID(), InstrID: instr, Type: id.Type, Value: id.Value})
 	require.NoError(t, err)
 	return id
 }
@@ -140,9 +140,9 @@ func TestRecordCreates(t *testing.T) {
 	require.NoError(t, Record(ctx, f.q, f.mics(t), f.families(t), []eventKey{k}))
 	found, err := f.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: composite.Type, Value: composite.Value})
 	require.NoError(t, err)
-	inst := found.Instr
-	if inst.AssetClass != types.AssetClassEtf || inst.FetchKeyID == nil || *inst.FetchKeyID != k.ID || found.Identifier.ListingID == nil {
-		t.Errorf("created %+v through %+v, want an ETF with the fetch key as provenance and the composite on a listing", inst, found.Identifier)
+	instr := found.Instr
+	if instr.AssetClass != types.AssetClassEtf || instr.FetchKeyID == nil || *instr.FetchKeyID != k.ID || found.Identifier.ListingID == nil {
+		t.Errorf("created %+v through %+v, want an ETF with the fetch key as provenance and the composite on a listing", instr, found.Identifier)
 	}
 	if _, err := f.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: share.Type, Value: share.Value}); err != nil {
 		t.Errorf("share class FIGI: %v, want it on the created instrument", err)
@@ -152,7 +152,7 @@ func TestRecordCreates(t *testing.T) {
 	}
 	asserted, err := f.q.ListFetchKeyAssertions(ctx, &k.ID)
 	require.NoError(t, err)
-	if len(asserted) != 2 || *asserted[0].InstrID != inst.ID || *asserted[1].InstrID != inst.ID {
+	if len(asserted) != 2 || *asserted[0].InstrID != instr.ID || *asserted[1].InstrID != instr.ID {
 		t.Errorf("assertions = %+v, want both naming the one created instrument", asserted)
 	}
 

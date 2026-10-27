@@ -17,15 +17,15 @@ import (
 // on each instrument the key's ticker names on their dates, and the sum of
 // the transactions dated when the ticker names nothing.
 type dated struct {
-	onInstrument map[uuid.UUID]map[uuid.UUID]decimal.Decimal
-	unresolved   map[uuid.UUID]decimal.Decimal
+	onInstr    map[uuid.UUID]map[uuid.UUID]decimal.Decimal
+	unresolved map[uuid.UUID]decimal.Decimal
 }
 
 // dated gives each of the user's dated transactions the instrument its key's
 // ticker names on its date. The facts of every dated key's ticker are read
 // at once.
 func (s *Server) dated(ctx context.Context, user uuid.UUID, keys []gen.ListHoldingKeysRow) (dated, error) {
-	d := dated{onInstrument: map[uuid.UUID]map[uuid.UUID]decimal.Decimal{}, unresolved: map[uuid.UUID]decimal.Decimal{}}
+	d := dated{onInstr: map[uuid.UUID]map[uuid.UUID]decimal.Decimal{}, unresolved: map[uuid.UUID]decimal.Decimal{}}
 	rows, err := s.reader.ListDatedTxns(ctx, user)
 	if err != nil {
 		return d, err
@@ -54,10 +54,10 @@ func (s *Server) dated(ctx context.Context, user uuid.UUID, keys []gen.ListHoldi
 			d.unresolved[r.StatedKeyID] = d.unresolved[r.StatedKeyID].Add(r.Quantity)
 			continue
 		}
-		on := d.onInstrument[r.StatedKeyID]
+		on := d.onInstr[r.StatedKeyID]
 		if on == nil {
 			on = map[uuid.UUID]decimal.Decimal{}
-			d.onInstrument[r.StatedKeyID] = on
+			d.onInstr[r.StatedKeyID] = on
 		}
 		on[iv.Instr] = on[iv.Instr].Add(r.Quantity)
 	}

@@ -80,7 +80,7 @@ func (r *Resolver) findResolutionDated(ctx context.Context, user uuid.UUID, rs [
 		switch {
 		case res.row.ViaType != nil:
 			res.decide(gen.ResolutionOutcomeMatched, "")
-		case res.knownInstrument == nil && res.dating.HasTickerValidity():
+		case res.knownInstr == nil && res.dating.HasTickerValidity():
 			res.datedFromFacts = true
 			res.decide(gen.ResolutionOutcomeMatched, "")
 		}

@@ -33,7 +33,7 @@ type Queries interface {
 	CreateFinding(ctx context.Context, arg gen.CreateFindingParams) error
 	tickervalidity.FactQueries
 	ListStatedSplits(ctx context.Context, arg gen.ListStatedSplitsParams) ([]gen.ListStatedSplitsRow, error)
-	ListTickersNaming(ctx context.Context, instruments []uuid.UUID) ([]gen.ListTickersNamingRow, error)
+	ListTickersNaming(ctx context.Context, instrs []uuid.UUID) ([]gen.ListTickersNamingRow, error)
 	ListUnmatchedSplits(ctx context.Context, keys []uuid.UUID) ([]gen.ListUnmatchedSplitsRow, error)
 	ListInstrsByID(ctx context.Context, ids []uuid.UUID) ([]gen.Instr, error)
 }

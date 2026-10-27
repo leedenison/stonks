@@ -46,7 +46,7 @@ type Reader interface {
 	tickervalidity.FactQueries
 	ListInstrsByID(ctx context.Context, ids []uuid.UUID) ([]gen.Instr, error)
 	ListIdentifiersOf(ctx context.Context, ids []uuid.UUID) ([]gen.Identifier, error)
-	ListListingNames(ctx context.Context, instrumentIds []uuid.UUID) ([]gen.ListListingNamesRow, error)
+	ListListingNames(ctx context.Context, instrIds []uuid.UUID) ([]gen.ListListingNamesRow, error)
 	ListInstrNames(ctx context.Context, ids []uuid.UUID) ([]gen.InstrName, error)
 	ListHoldingKeys(ctx context.Context, userID uuid.UUID) ([]gen.ListHoldingKeysRow, error)
 	ListDatedTxns(ctx context.Context, userID uuid.UUID) ([]gen.ListDatedTxnsRow, error)
@@ -86,7 +86,7 @@ func (s *Server) ListHoldings(ctx context.Context, _ *connect.Request[holdingv1.
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	res := &holdingv1.ListHoldingsResponse{}
-	if res.Instruments, err = s.instruments(ctx, keys, d); err != nil {
+	if res.Instruments, err = s.instrs(ctx, keys, d); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	if res.Groups, err = s.groups(keys, d); err != nil {
@@ -95,19 +95,19 @@ func (s *Server) ListHoldings(ctx context.Context, _ *connect.Request[holdingv1.
 	return connect.NewResponse(res), nil
 }
 
-// instruments answers the user's holdings of instruments, each with its
+// instrs answers the user's holdings of instruments, each with its
 // name, identifiers, listings and keys, by instrument id. A fixed key adds
 // its sum to its instrument. Cash is summed in its family's unit, so pence
 // count as hundredths of a pound. A security's quantity stays in shares
 // whatever its currency.
-func (s *Server) instruments(ctx context.Context, keys []gen.ListHoldingKeysRow, d dated) ([]*holdingv1.InstrumentHolding, error) {
+func (s *Server) instrs(ctx context.Context, keys []gen.ListHoldingKeysRow, d dated) ([]*holdingv1.InstrumentHolding, error) {
 	named := map[uuid.UUID]decimal.Decimal{}
 	for _, k := range keys {
 		if id := k.StatedKey.InstrID; id != nil {
 			named[*id] = decimal.Zero
 		}
 	}
-	for _, on := range d.onInstrument {
+	for _, on := range d.onInstr {
 		for id := range on {
 			named[id] = decimal.Zero
 		}
@@ -115,12 +115,12 @@ func (s *Server) instruments(ctx context.Context, keys []gen.ListHoldingKeysRow,
 	if len(named) == 0 {
 		return nil, nil
 	}
-	instruments, err := s.reader.ListInstrsByID(ctx, sorted(named))
+	instrs, err := s.reader.ListInstrsByID(ctx, sorted(named))
 	if err != nil {
 		return nil, err
 	}
-	classOf := make(map[uuid.UUID]types.AssetClass, len(instruments))
-	for _, i := range instruments {
+	classOf := make(map[uuid.UUID]types.AssetClass, len(instrs))
+	for _, i := range instrs {
 		classOf[i.ID] = i.AssetClass
 	}
 	total := make(map[uuid.UUID]decimal.Decimal, len(named))
@@ -135,7 +135,7 @@ func (s *Server) instruments(ctx context.Context, keys []gen.ListHoldingKeysRow,
 		}
 		total[*id] = total[*id].Add(q)
 	}
-	for _, on := range d.onInstrument {
+	for _, on := range d.onInstr {
 		for id, q := range on {
 			total[id] = total[id].Add(q)
 		}
@@ -174,7 +174,7 @@ func (s *Server) instruments(ctx context.Context, keys []gen.ListHoldingKeysRow,
 			keysOf[*id] = append(keysOf[*id], to.ProtoHoldingKey(k))
 			continue
 		}
-		for id, q := range d.onInstrument[k.StatedKey.ID] {
+		for id, q := range d.onInstr[k.StatedKey.ID] {
 			hk := &holdingv1.HoldingKey{StatedKey: to.ProtoStatedKey(k.StatedKey), Quantity: q.String()}
 			if l := listing(s.families, k.StatedKey, identified[id], listed[id]); l != uuid.Nil {
 				hk.ListingId = l.String()

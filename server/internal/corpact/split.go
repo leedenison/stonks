@@ -19,9 +19,9 @@ import (
 // splitGroup holds the stated splits of one key on one day, from one or
 // several statements.
 type splitGroup struct {
-	key        uuid.UUID
-	day        time.Time
-	instrument uuid.UUID
+	key   uuid.UUID
+	day   time.Time
+	instr uuid.UUID
 	// ratios holds each distinct ratio the statements state, and is empty
 	// when the statements give no ratio.
 	ratios []types.Ratio
@@ -41,9 +41,9 @@ type unmatchedSplit struct {
 // cover is a period over which a datasource fetch run's answer covers an
 // instrument.
 type cover struct {
-	instrument uuid.UUID
-	period     types.Period
-	run        gen.Run
+	instr  uuid.UUID
+	period types.Period
+	run    gen.Run
 }
 
 // checkSplits writes an unmatched split finding for each group of stated
@@ -97,13 +97,13 @@ func (r *Recorder) splitFindings(ctx context.Context, q Queries, user *uuid.UUID
 	if err != nil || len(groups) == 0 {
 		return nil, err
 	}
-	instruments := make([]uuid.UUID, 0, len(groups))
+	instrs := make([]uuid.UUID, 0, len(groups))
 	for _, g := range groups {
-		if !slices.Contains(instruments, g.instrument) {
-			instruments = append(instruments, g.instrument)
+		if !slices.Contains(instrs, g.instr) {
+			instrs = append(instrs, g.instr)
 		}
 	}
-	cal, err := calendar(ctx, q, instruments)
+	cal, err := calendar(ctx, q, instrs)
 	if err != nil {
 		return nil, err
 	}
@@ -164,7 +164,7 @@ func coverage(ctx context.Context, q Queries, recorded []recordedKey, tickers ma
 			for _, iv := range t.Derived.Intervals {
 				for _, c := range a.Coverage {
 					if p, ok := iv.Clip(c); ok {
-						out = append(out, cover{instrument: iv.Instr, period: p, run: rec.key.Run})
+						out = append(out, cover{instr: iv.Instr, period: p, run: rec.key.Run})
 					}
 				}
 			}
@@ -180,35 +180,35 @@ func (r *Recorder) coveredSplits(ctx context.Context, q Queries, user *uuid.UUID
 	if len(covers) == 0 {
 		return nil, nil
 	}
-	var instruments []uuid.UUID
+	var instrs []uuid.UUID
 	for _, c := range covers {
-		if !slices.Contains(instruments, c.instrument) {
-			instruments = append(instruments, c.instrument)
+		if !slices.Contains(instrs, c.instr) {
+			instrs = append(instrs, c.instr)
 		}
 	}
 	values := make([]string, len(ts))
 	for i, t := range ts {
 		values[i] = t.Value
 	}
-	rows, err := q.ListStatedSplits(ctx, gen.ListStatedSplitsParams{Instrs: instruments, Values: values, UserID: user})
+	rows, err := q.ListStatedSplits(ctx, gen.ListStatedSplitsParams{Instrs: instrs, Values: values, UserID: user})
 	if err != nil {
 		return nil, fmt.Errorf("list stated splits: %w", err)
 	}
 	var groups []splitGroup
 	for _, row := range rows {
 		sp := row.StmtSplit
-		inst, ok := r.instrumentOn(row.StatedKey, sp.EffectiveDate, tickers)
+		instr, ok := r.instrOn(row.StatedKey, sp.EffectiveDate, tickers)
 		if !ok {
 			continue
 		}
-		i := slices.IndexFunc(covers, func(c cover) bool { return c.instrument == inst && c.period.Contains(sp.EffectiveDate) })
+		i := slices.IndexFunc(covers, func(c cover) bool { return c.instr == instr && c.period.Contains(sp.EffectiveDate) })
 		if i < 0 {
 			continue
 		}
 		at := slices.IndexFunc(groups, func(g splitGroup) bool { return g.key == sp.StatedKeyID && g.day.Equal(sp.EffectiveDate) })
 		if at < 0 {
 			at = len(groups)
-			groups = append(groups, splitGroup{key: sp.StatedKeyID, day: sp.EffectiveDate, instrument: inst, run: covers[i].run})
+			groups = append(groups, splitGroup{key: sp.StatedKeyID, day: sp.EffectiveDate, instr: instr, run: covers[i].run})
 		}
 		if sp.RatioFrom != nil && sp.RatioTo != nil {
 			ratio := types.Ratio{From: *sp.RatioFrom, To: *sp.RatioTo}
@@ -220,9 +220,9 @@ func (r *Recorder) coveredSplits(ctx context.Context, q Queries, user *uuid.UUID
 	return withoutOptions(ctx, q, groups)
 }
 
-// instrumentOn returns the instrument that k names on d. A dated key names
+// instrOn returns the instrument that k names on d. A dated key names
 // one only through one of tickers.
-func (r *Recorder) instrumentOn(k gen.StatedKey, d time.Time, tickers map[types.MarketTicker]*tickervalidity.Ticker) (uuid.UUID, bool) {
+func (r *Recorder) instrOn(k gen.StatedKey, d time.Time, tickers map[types.MarketTicker]*tickervalidity.Ticker) (uuid.UUID, bool) {
 	if k.InstrID != nil {
 		return *k.InstrID, true
 	}
@@ -245,7 +245,7 @@ func withoutOptions(ctx context.Context, q Queries, groups []splitGroup) ([]spli
 	}
 	ids := make([]uuid.UUID, len(groups))
 	for i, g := range groups {
-		ids[i] = g.instrument
+		ids[i] = g.instr
 	}
 	rows, err := q.ListInstrsByID(ctx, ids)
 	if err != nil {
@@ -257,15 +257,15 @@ func withoutOptions(ctx context.Context, q Queries, groups []splitGroup) ([]spli
 			options[row.ID] = true
 		}
 	}
-	return slices.DeleteFunc(groups, func(g splitGroup) bool { return options[g.instrument] }), nil
+	return slices.DeleteFunc(groups, func(g splitGroup) bool { return options[g.instr] }), nil
 }
 
 // calendar returns the corporate actions of each of instruments: those of
 // every datasource and market, under each ticker that named the instrument
 // on the action's ex-date. The check asks whether any datasource knows a
 // split. A gap in one datasource raises a disagreement.
-func calendar(ctx context.Context, q Queries, instruments []uuid.UUID) (map[uuid.UUID][]Act, error) {
-	rows, err := q.ListTickersNaming(ctx, instruments)
+func calendar(ctx context.Context, q Queries, instrs []uuid.UUID) (map[uuid.UUID][]Act, error) {
+	rows, err := q.ListTickersNaming(ctx, instrs)
 	if err != nil {
 		return nil, fmt.Errorf("list the tickers of the instruments: %w", err)
 	}
@@ -286,7 +286,7 @@ func calendar(ctx context.Context, q Queries, instruments []uuid.UUID) (map[uuid
 		for _, a := range as {
 			for _, e := range a.Acts {
 				iv, ok := tickers[t].On(e.ExDate)
-				if ok && slices.Contains(instruments, iv.Instr) {
+				if ok && slices.Contains(instrs, iv.Instr) {
 					out[iv.Instr] = append(out[iv.Instr], e)
 				}
 			}
@@ -303,7 +303,7 @@ func calendar(ctx context.Context, q Queries, instruments []uuid.UUID) (map[uuid
 func unmatchedSplits(groups []splitGroup, cal map[uuid.UUID][]Act) []unmatchedSplit {
 	var out []unmatchedSplit
 	for _, g := range groups {
-		near := slices.DeleteFunc(slices.Clone(cal[g.instrument]), func(e Act) bool { return days(e.ExDate, g.day) > window })
+		near := slices.DeleteFunc(slices.Clone(cal[g.instr]), func(e Act) bool { return days(e.ExDate, g.day) > window })
 		if len(g.ratios) == 0 {
 			if len(near) == 0 {
 				out = append(out, unmatchedSplit{splitGroup: g})

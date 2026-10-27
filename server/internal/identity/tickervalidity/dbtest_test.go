@@ -67,9 +67,9 @@ func newFixture(t *testing.T) *fixture {
 		f.fetches[name] = fetch.ID
 	}
 	for _, id := range []*uuid.UUID{&f.a, &f.b} {
-		inst, err := q.CreateInstr(ctx, gen.CreateInstrParams{ID: db.NewID(), AssetClass: types.AssetClassStock})
+		instr, err := q.CreateInstr(ctx, gen.CreateInstrParams{ID: db.NewID(), AssetClass: types.AssetClassStock})
 		require.NoError(t, err)
-		*id = inst.ID
+		*id = instr.ID
 	}
 	return f
 }
@@ -79,7 +79,7 @@ func day(n int) time.Time { return time.Date(2026, time.March, n, 0, 0, 0, 0, ti
 
 // asserts records datasource asserting that foo names instrument on day n,
 // through a fetch key of its own.
-func (f *fixture) asserts(t *testing.T, datasource string, n int, instrument *uuid.UUID) {
+func (f *fixture) asserts(t *testing.T, datasource string, n int, instr *uuid.UUID) {
 	t.Helper()
 	ctx := context.Background()
 	key := db.NewID()
@@ -88,7 +88,7 @@ func (f *fixture) asserts(t *testing.T, datasource string, n int, instrument *uu
 		SentType: &f.at.Type, SentDomain: f.at.Domain, SentValue: &f.at.Value, AnsweredAt: ptr.To(day(n)),
 	}))
 	require.NoError(t, f.q.CreateIdentifierAssertion(ctx, gen.CreateIdentifierAssertionParams{
-		ID: db.NewID(), FetchKeyID: &key, Type: types.IdentifierTypeMicTicker, Domain: f.foo.Market, Value: f.foo.Value, InstrID: instrument, AssertedOn: day(n),
+		ID: db.NewID(), FetchKeyID: &key, Type: types.IdentifierTypeMicTicker, Domain: f.foo.Market, Value: f.foo.Value, InstrID: instr, AssertedOn: day(n),
 	}))
 }
 

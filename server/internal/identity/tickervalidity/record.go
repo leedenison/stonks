@@ -146,17 +146,17 @@ func record(ctx context.Context, q RecordQueries, families currency.Families, ke
 // identifier it states, as Record describes. Assert returns false without
 // writing where it can name no instrument.
 func Assert(ctx context.Context, q RecordQueries, families currency.Families, key uuid.UUID, a market.Assertion) (bool, error) {
-	var inst *uuid.UUID
+	var instr *uuid.UUID
 	if !a.Negative {
 		var err error
-		if inst, err = instrumentOf(ctx, q, families, key, a); err != nil {
+		if instr, err = instrOf(ctx, q, families, key, a); err != nil {
 			return false, err
 		}
-		if inst == nil {
+		if instr == nil {
 			return false, nil
 		}
 	}
-	return true, AssertInstrument(ctx, q, key, a.Ticker, inst, a.At)
+	return true, AssertInstr(ctx, q, key, a.Ticker, instr, a.At)
 }
 
 // Asserter writes an assertion.
@@ -164,27 +164,27 @@ type Asserter interface {
 	CreateIdentifierAssertion(ctx context.Context, arg gen.CreateIdentifierAssertionParams) error
 }
 
-// AssertInstrument writes, under fetch key key, the assertion that t names
+// AssertInstr writes, under fetch key key, the assertion that t names
 // instrument on the day of at. A nil instrument asserts that t names
 // nothing.
-func AssertInstrument(ctx context.Context, q Asserter, key uuid.UUID, t types.MarketTicker, instrument *uuid.UUID, at time.Time) error {
-	return assert(ctx, q, key, types.IdentifierTypeMicTicker, t.Market, t.Value, instrument, at)
+func AssertInstr(ctx context.Context, q Asserter, key uuid.UUID, t types.MarketTicker, instr *uuid.UUID, at time.Time) error {
+	return assert(ctx, q, key, types.IdentifierTypeMicTicker, t.Market, t.Value, instr, at)
 }
 
 // AssertIdentifier writes, under fetch key key, the assertion that v names
 // instrument on the day of at. A MIC_TICKER at a venue is asserted at its
 // market. Any other identifier, a bare ticker included, is written as stated.
-func AssertIdentifier(ctx context.Context, q Asserter, mics mic.MICMap, key uuid.UUID, v types.Identifier, instrument *uuid.UUID, at time.Time) error {
+func AssertIdentifier(ctx context.Context, q Asserter, mics mic.MICMap, key uuid.UUID, v types.Identifier, instr *uuid.UUID, at time.Time) error {
 	if t, ok := mics.MarketTicker(v); ok {
-		return AssertInstrument(ctx, q, key, t, instrument, at)
+		return AssertInstr(ctx, q, key, t, instr, at)
 	}
-	return assert(ctx, q, key, v.Type, v.Domain, v.Value, instrument, at)
+	return assert(ctx, q, key, v.Type, v.Domain, v.Value, instr, at)
 }
 
-func assert(ctx context.Context, q Asserter, key uuid.UUID, typ types.IdentifierType, domain, value string, instrument *uuid.UUID, at time.Time) error {
+func assert(ctx context.Context, q Asserter, key uuid.UUID, typ types.IdentifierType, domain, value string, instr *uuid.UUID, at time.Time) error {
 	arg := gen.CreateIdentifierAssertionParams{
 		ID: db.NewID(), FetchKeyID: &key, Type: typ, Domain: domain, Value: value,
-		InstrID: instrument, AssertedOn: types.Day(at),
+		InstrID: instr, AssertedOn: types.Day(at),
 	}
 	if err := q.CreateIdentifierAssertion(ctx, arg); err != nil {
 		return fmt.Errorf("record assertion: %w", err)
@@ -197,9 +197,9 @@ type Finder interface {
 	FindIdentifier(ctx context.Context, arg gen.FindIdentifierParams) (gen.FindIdentifierRow, error)
 }
 
-// StoredInstrument returns the instrument of the first stable identifier of
+// StoredInstr returns the instrument of the first stable identifier of
 // ids that is stored, nil where none is.
-func StoredInstrument(ctx context.Context, q Finder, ids []types.Identifier) (*uuid.UUID, error) {
+func StoredInstr(ctx context.Context, q Finder, ids []types.Identifier) (*uuid.UUID, error) {
 	for _, id := range ids {
 		if !id.Stable() {
 			continue
@@ -216,10 +216,10 @@ func StoredInstrument(ctx context.Context, q Finder, ids []types.Identifier) (*u
 	return nil, nil
 }
 
-// instrumentOf returns the instrument the first stored stable identifier of
+// instrOf returns the instrument the first stored stable identifier of
 // a names, creating one where none is stored. It returns nil where a states
 // no stable identifier.
-func instrumentOf(ctx context.Context, q RecordQueries, families currency.Families, key uuid.UUID, a market.Assertion) (*uuid.UUID, error) {
+func instrOf(ctx context.Context, q RecordQueries, families currency.Families, key uuid.UUID, a market.Assertion) (*uuid.UUID, error) {
 	var stable []types.Identifier
 	for _, id := range a.Of.Identifiers {
 		if id.Stable() {
@@ -232,9 +232,9 @@ func instrumentOf(ctx context.Context, q RecordQueries, families currency.Famili
 	if err := db.LockIdentifiers(ctx, q, stable); err != nil {
 		return nil, err
 	}
-	inst, err := StoredInstrument(ctx, q, stable)
-	if err != nil || inst != nil {
-		return inst, err
+	instr, err := StoredInstr(ctx, q, stable)
+	if err != nil || instr != nil {
+		return instr, err
 	}
 	return create(ctx, q, families.Family(a.Of.Currency), key, a, stable)
 }
@@ -257,20 +257,20 @@ func create(ctx context.Context, q RecordQueries, family string, key uuid.UUID, 
 	if class == "" {
 		class = types.AssetClassUnknown
 	}
-	inst, err := q.CreateInstr(ctx, gen.CreateInstrParams{ID: db.NewID(), AssetClass: class, FetchKeyID: &key})
+	instr, err := q.CreateInstr(ctx, gen.CreateInstrParams{ID: db.NewID(), AssetClass: class, FetchKeyID: &key})
 	if err != nil {
 		return nil, fmt.Errorf("create instrument: %w", err)
 	}
 	var listing *uuid.UUID
 	if family != "" {
-		row, err := q.CreateListing(ctx, gen.CreateListingParams{ID: db.NewID(), InstrID: inst.ID, Currency: family, FetchKeyID: &key})
+		row, err := q.CreateListing(ctx, gen.CreateListingParams{ID: db.NewID(), InstrID: instr.ID, Currency: family, FetchKeyID: &key})
 		if err != nil {
 			return nil, fmt.Errorf("create listing in %s: %w", family, err)
 		}
 		listing = &row.ID
 	}
 	for _, id := range kept {
-		arg := gen.CreateIdentifierParams{ID: db.NewID(), InstrID: inst.ID, Type: id.Type, Domain: id.Domain, Value: id.Value, FetchKeyID: &key}
+		arg := gen.CreateIdentifierParams{ID: db.NewID(), InstrID: instr.ID, Type: id.Type, Domain: id.Domain, Value: id.Value, FetchKeyID: &key}
 		if id.Grain() == types.IdentifierGrainListing {
 			arg.ListingID = listing
 		}
@@ -278,7 +278,7 @@ func create(ctx context.Context, q RecordQueries, family string, key uuid.UUID, 
 			return nil, fmt.Errorf("create %s: %w", id.Name(), err)
 		}
 	}
-	return &inst.ID, nil
+	return &instr.ID, nil
 }
 
 // AttestQueries is what Attest queries.
@@ -305,7 +305,7 @@ func CheckAttest(mics mic.MICMap, t types.MarketTicker, on, today time.Time) err
 // on, beneath run, which must be a system run of kind attest identifier. A nil
 // instrument asserts that t names nothing. A later identifier attestation of a
 // day replaces the earlier one.
-func Attest(ctx context.Context, q AttestQueries, mics mic.MICMap, run gen.Run, admin uuid.UUID, t types.MarketTicker, instrument *uuid.UUID, on, today time.Time) error {
+func Attest(ctx context.Context, q AttestQueries, mics mic.MICMap, run gen.Run, admin uuid.UUID, t types.MarketTicker, instr *uuid.UUID, on, today time.Time) error {
 	if run.Kind != gen.RunKindAttestIdentifier || run.UserID != nil {
 		return fmt.Errorf("run %s is not a system attest identifier run", run.ID)
 	}
@@ -314,7 +314,7 @@ func Attest(ctx context.Context, q AttestQueries, mics mic.MICMap, run gen.Run, 
 	}
 	arg := gen.CreateIdentifierAttestationParams{
 		ID: db.NewID(), RunID: run.ID, AttestedBy: admin, Type: types.IdentifierTypeMicTicker, Domain: t.Market, Value: t.Value,
-		InstrID: instrument, AssertedOn: types.Day(on),
+		InstrID: instr, AssertedOn: types.Day(on),
 	}
 	if err := q.CreateIdentifierAttestation(ctx, arg); err != nil {
 		return fmt.Errorf("record identifier attestation: %w", err)

@@ -12,16 +12,16 @@ import (
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
-// InstrumentQueries is the set of queries Instruments reads.
-type InstrumentQueries interface {
+// InstrQueries is the set of queries Instruments reads.
+type InstrQueries interface {
 	ListIdentifiersOf(ctx context.Context, ids []uuid.UUID) ([]gen.Identifier, error)
 	ListListingsOf(ctx context.Context, ids []uuid.UUID) ([]gen.Listing, error)
 }
 
-// CoverageQueries is the set of queries InstrumentsWithCoverage reads.
+// CoverageQueries is the set of queries InstrsWithCoverage reads.
 type CoverageQueries interface {
-	InstrumentQueries
-	ListIdentityCoverage(ctx context.Context, instrumentIds []uuid.UUID) ([]gen.IdentityCoverage, error)
+	InstrQueries
+	ListIdentityCoverage(ctx context.Context, instrIds []uuid.UUID) ([]gen.IdentityCoverage, error)
 }
 
 var _ CoverageQueries = (*gen.Queries)(nil)
@@ -33,9 +33,9 @@ type Instr struct {
 	Listings    []gen.Listing
 }
 
-// InstrumentWithCoverage is an Instrument with the datasources that have
+// InstrWithCoverage is an Instrument with the datasources that have
 // answered for it.
-type InstrumentWithCoverage struct {
+type InstrWithCoverage struct {
 	Instr
 	// Coverage holds the name of each datasource that has answered.
 	Coverage map[string]bool
@@ -43,7 +43,7 @@ type InstrumentWithCoverage struct {
 
 // Instrs reads the identifiers and listings of rows, keyed by
 // instrument id.
-func Instrs(ctx context.Context, q InstrumentQueries, rows []gen.Instr) (map[uuid.UUID]*Instr, error) {
+func Instrs(ctx context.Context, q InstrQueries, rows []gen.Instr) (map[uuid.UUID]*Instr, error) {
 	out := make(map[uuid.UUID]*Instr, len(rows))
 	ids := make([]uuid.UUID, len(rows))
 	for i, row := range rows {
@@ -72,17 +72,17 @@ func Instrs(ctx context.Context, q InstrumentQueries, rows []gen.Instr) (map[uui
 	return out, nil
 }
 
-// InstrumentsWithCoverage reads the identifiers, listings and coverage of
+// InstrsWithCoverage reads the identifiers, listings and coverage of
 // rows, keyed by instrument id.
-func InstrumentsWithCoverage(ctx context.Context, q CoverageQueries, rows []gen.Instr) (map[uuid.UUID]*InstrumentWithCoverage, error) {
+func InstrsWithCoverage(ctx context.Context, q CoverageQueries, rows []gen.Instr) (map[uuid.UUID]*InstrWithCoverage, error) {
 	joined, err := Instrs(ctx, q, rows)
 	if err != nil {
 		return nil, err
 	}
-	out := make(map[uuid.UUID]*InstrumentWithCoverage, len(joined))
+	out := make(map[uuid.UUID]*InstrWithCoverage, len(joined))
 	ids := make([]uuid.UUID, 0, len(joined))
 	for id, j := range joined {
-		out[id] = &InstrumentWithCoverage{Instr: *j, Coverage: map[string]bool{}}
+		out[id] = &InstrWithCoverage{Instr: *j, Coverage: map[string]bool{}}
 		ids = append(ids, id)
 	}
 	if len(ids) == 0 {
@@ -101,7 +101,7 @@ func InstrumentsWithCoverage(ctx context.Context, q CoverageQueries, rows []gen.
 // Covered reports whether datasource has answered for the instrument.
 // An instrument without a fetch key is reference data, which every
 // datasource covers.
-func (j *InstrumentWithCoverage) Covered(datasource string) bool {
+func (j *InstrWithCoverage) Covered(datasource string) bool {
 	return j.Row.FetchKeyID == nil || j.Coverage[datasource]
 }
 

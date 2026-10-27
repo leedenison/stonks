@@ -9,7 +9,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
-func TestInstrumentAllIDs(t *testing.T) {
+func TestInstrAllIDs(t *testing.T) {
 	isin := types.Identifier{Type: types.IdentifierTypeIsin, Value: "GB00BH4HKS39"}
 	xlon := types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XLON", Value: "VOD"}
 	xnas := types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "VOD"}

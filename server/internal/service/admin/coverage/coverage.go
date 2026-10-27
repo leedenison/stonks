@@ -23,7 +23,7 @@ import (
 
 // Reader is this package's view of the coverage package.
 type Reader interface {
-	InstrumentTickers(ctx context.Context, instrument uuid.UUID) ([]reader.InstrumentTicker, error)
+	InstrTickers(ctx context.Context, instr uuid.UUID) ([]reader.InstrTicker, error)
 	Ticker(ctx context.Context, v types.MarketTicker, today time.Time) (*reader.Page, error)
 }
 
@@ -31,7 +31,7 @@ var _ Reader = (*reader.Reader)(nil)
 
 // Attester is this package's view of the attestidentifier package.
 type Attester interface {
-	Start(ctx context.Context, admin uuid.UUID, v types.MarketTicker, instrument *uuid.UUID, from time.Time, to *time.Time) (gen.Run, error)
+	Start(ctx context.Context, admin uuid.UUID, v types.MarketTicker, instr *uuid.UUID, from time.Time, to *time.Time) (gen.Run, error)
 	Withdraw(ctx context.Context, id uuid.UUID) error
 }
 
@@ -59,7 +59,7 @@ func (s *Server) ListInstrumentTickers(ctx context.Context, req *connect.Request
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	rows, err := s.reader.InstrumentTickers(ctx, id)
+	rows, err := s.reader.InstrTickers(ctx, id)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
@@ -90,13 +90,13 @@ func (s *Server) AttestIdentifier(ctx context.Context, req *connect.Request[admi
 	}
 	m := req.Msg
 	v := types.MarketTickerOf(m.GetTicker())
-	var instrument *uuid.UUID
+	var instr *uuid.UUID
 	if id := m.GetInstrumentId(); id != "" {
 		parsed, err := uuid.Parse(id)
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInvalidArgument, err)
 		}
-		instrument = &parsed
+		instr = &parsed
 	}
 	from, err := time.Parse(time.DateOnly, m.GetFrom())
 	if err != nil {
@@ -110,7 +110,7 @@ func (s *Server) AttestIdentifier(ctx context.Context, req *connect.Request[admi
 		}
 		until = &parsed
 	}
-	started, err := s.attester.Start(ctx, p.User.ID, v, instrument, from, until)
+	started, err := s.attester.Start(ctx, p.User.ID, v, instr, from, until)
 	switch {
 	case errors.Is(err, tickervalidity.ErrFuture), errors.Is(err, attestidentifier.ErrRange):
 		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
