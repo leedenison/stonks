@@ -161,9 +161,6 @@ func (s *Server) instrs(ctx context.Context, rows []gen.ListInstrsRow) ([]*admin
 		via[id] = true
 	}
 	for _, i := range idents {
-		if to.Identifier(i).Ticker() {
-			continue
-		}
 		msg := to.Identifier(i).ToProto()
 		if via[i.ID] {
 			in := instrs[i.InstrID]

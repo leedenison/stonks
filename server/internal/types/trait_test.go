@@ -45,8 +45,7 @@ func TestStrength(t *testing.T) {
 	}
 }
 
-// TestTicker checks that the tickers are the listing identifiers that are not
-// stable, which a key is dated through.
+// TestTicker checks that the tickers are the two ticker types.
 func TestTicker(t *testing.T) {
 	want := map[types.IdentifierType]bool{
 		types.IdentifierTypeMicTicker:        true,

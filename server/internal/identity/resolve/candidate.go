@@ -58,8 +58,10 @@ func (c Candidate) ToProto() *stmtv1.Candidate {
 // Offer is what a synchronous resolution offers for a key.
 type Offer struct {
 	Candidates []Candidate
-	// Reasons has one entry per datasource that served nothing, saying why,
-	// or one entry for a key that reaches no datasource.
+	// Reasons says why a datasource offered nothing confirmable: one entry
+	// per datasource that served nothing, one per set of claims whose head
+	// carries no stable identifier, or one entry for a key that reaches no
+	// datasource.
 	Reasons []string
 }
 
@@ -68,6 +70,21 @@ type Offer struct {
 type Pick struct {
 	Datasource string
 	Identifier types.Identifier
+}
+
+// userChoice is what a confirmation writes: the set of consistent claims the
+// user chose, and the stable identifier that fixes the key.
+type userChoice struct {
+	claims consistentClaims
+	via    types.Identifier
+}
+
+// members returns the claims of c, and nil where c is nil.
+func (c *userChoice) members() consistentClaims {
+	if c == nil {
+		return nil
+	}
+	return c.claims
 }
 
 // ErrNoCandidate is returned by Confirm when the answers no longer offer the
@@ -80,7 +97,9 @@ var ErrNoCandidate = errors.New("the answers no longer offer the candidate")
 // consistent claims, so one security that several datasources describe is
 // offered once. The candidates are in the precedence order of their heads,
 // then the head datasource's own order. A claim is offered if it survives the stated
-// checks and, for a bare ticker, if it agrees with the statement. Candidates
+// checks and, for a bare ticker, if it agrees with the statement. The offer
+// gives the reason for each set it leaves out because the head carries no
+// stable identifier. Candidates
 // writes the findings against run and stops before choosing. The key's
 // resolution is left as it was.
 //
@@ -101,6 +120,10 @@ func (r *Resolver) Candidates(ctx context.Context, run gen.Run, key gen.StatedKe
 	cs, dropped, unserved := offeredClaims(res)
 	o.Reasons = append(o.Reasons, unserved...)
 	for _, a := range gatherConsistentClaims(res, cs) {
+		if !a.confirmable() {
+			o.Reasons = append(o.Reasons, unstableReason(a.head()))
+			continue
+		}
 		if c, ok := candidateOf(a); ok {
 			o.Candidates = append(o.Candidates, c)
 		}
@@ -159,11 +182,11 @@ func (r *Resolver) Confirm(ctx context.Context, run gen.Run, key gen.StatedKey, 
 	if res.outcome != "" {
 		return gen.ResolutionKey{}, nil, fmt.Errorf("%w: %s", ErrNoCandidate, res.reason)
 	}
-	a, err := findUserChoice(res, p)
+	choice, err := findUserChoice(res, p)
 	if err != nil {
 		return gen.ResolutionKey{}, nil, err
 	}
-	rk, err := r.write(ctx, run, res, a)
+	rk, err := r.write(ctx, run, res, choice)
 	if err != nil {
 		return gen.ResolutionKey{}, nil, err
 	}
@@ -176,8 +199,8 @@ func (r *Resolver) Confirm(ctx context.Context, run gen.Run, key gen.StatedKey, 
 
 // findUserChoice returns the first set of consistent claims, among those
 // Candidates lists for res, whose head came from p's datasource and carries
-// p's identifier.
-func findUserChoice(res *resolution, p Pick) (consistentClaims, error) {
+// p's identifier, with the stable identifier that fixes the key.
+func findUserChoice(res *resolution, p Pick) (*userChoice, error) {
 	i := slices.IndexFunc(res.fetchKeys, func(fk *fetchKey) bool { return fk.Source == p.Datasource })
 	if i < 0 {
 		return nil, fmt.Errorf("%w: %s was not asked", ErrNoCandidate, p.Datasource)
@@ -187,11 +210,36 @@ func findUserChoice(res *resolution, p Pick) (consistentClaims, error) {
 	}
 	cs, _, _ := offeredClaims(res)
 	for _, a := range gatherConsistentClaims(res, cs) {
-		if h := a.head(); h.fetchKey.Source == p.Datasource && h.IdentifiedBy(p.Identifier) {
-			return a, nil
+		h := a.head()
+		if h.fetchKey.Source != p.Datasource || !h.IdentifiedBy(p.Identifier) {
+			continue
 		}
+		if p.Identifier.Stable() {
+			return &userChoice{claims: a, via: p.Identifier}, nil
+		}
+		via, ok := h.strongestStable()
+		if !ok {
+			return nil, fmt.Errorf("%w: %s", ErrNoCandidate, unstableReason(h))
+		}
+		return &userChoice{claims: a, via: via}, nil
 	}
 	return nil, fmt.Errorf("%w: %s names no candidate of %s", ErrNoCandidate, p.Identifier.Name(), p.Datasource)
+}
+
+// confirmable reports whether the head of a carries a stable identifier, so
+// that a confirmation of a can fix the key.
+func (a consistentClaims) confirmable() bool {
+	_, ok := a.head().strongestStable()
+	return ok
+}
+
+// unstableReason says that the head h carries no stable identifier.
+func unstableReason(h *identityClaim) string {
+	s := h.fetchKey.Source + ": "
+	if id, ok := h.strongest(); ok {
+		s += id.Name() + " "
+	}
+	return s + "carries no stable identifier"
 }
 
 // candidateOf returns a as a Candidate, and false where its head carries no

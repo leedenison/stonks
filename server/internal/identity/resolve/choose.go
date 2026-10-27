@@ -28,9 +28,10 @@ type claimVerdict struct {
 	// no claim won summarises both.
 	counts    map[string]int
 	notNaming map[string]int
-	// offered holds the sets of consistent claims put to the user. They are
-	// gathered from the claims that the resolution dropped only because the
-	// key was sent under a bare ticker. Where the key was sent under a venue
+	// offered holds the sets of consistent claims put to the user, each with
+	// a stable identifier on its head. They are gathered from the claims that
+	// the resolution dropped only because the key was sent under a bare
+	// ticker. Where the key was sent under a venue
 	// ticker that the provider filtered bare and no claim names the venue,
 	// they are gathered from the survivors.
 	offered []consistentClaims
@@ -114,7 +115,7 @@ func choose(res *resolution, known *identityClaim, userChoice consistentClaims) 
 			verdict.winner = best
 		}
 	}
-	verdict.offered = gatherConsistentClaims(res, offered)
+	verdict.offered = slices.DeleteFunc(gatherConsistentClaims(res, offered), func(a consistentClaims) bool { return !a.confirmable() })
 	return verdict
 }
 

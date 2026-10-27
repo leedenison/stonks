@@ -199,8 +199,9 @@ message FindCandidatesResponse {
   // In the precedence order of each candidate's datasource, then that
   // datasource's own order.
   repeated Candidate candidates = 1;
-  // One entry per datasource that served nothing, saying why. A key that
-  // reaches no datasource gets one entry saying so.
+  // Why a datasource offered nothing confirmable: one entry per datasource
+  // that served nothing, and one per answer whose security carries no stable
+  // identifier. A key that reaches no datasource gets one entry saying so.
   repeated string reasons = 2;
 }
 
@@ -208,7 +209,9 @@ message ConfirmCandidateRequest {
   string stated_key_id = 1 [(buf.validate.field).string.uuid = true];
   // The datasource of the candidate's head, as FindCandidates gave it.
   string datasource = 2 [(buf.validate.field).string.min_len = 1];
-  // Any identifier of the candidate's head, such as its strongest.
+  // Any identifier of the candidate's head, such as its strongest. When it
+  // is stable, the key is fixed through it. The head's strongest stable
+  // identifier fixes the key when it is a ticker.
   stonks.type.v1.Identifier identifier = 3 [(buf.validate.field).required = true];
 }
 

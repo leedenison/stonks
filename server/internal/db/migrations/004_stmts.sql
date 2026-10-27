@@ -34,19 +34,22 @@ CREATE TYPE arbiter AS ENUM ('stated', 'datasource', 'guess', 'user');
 -- states the key links to one row through stmt_keys. It is the unit at
 -- which an association is reused. The row keeps a surrogate because six
 -- tables reference it and its identifiers column is too wide to reference.
--- The identifiers it states become identifier rows only when confirmed by a
--- datasource.
+-- The identity identifiers it states become identifier rows only when a
+-- datasource confirms them.
 --
 -- An association is fixed or dated. A fixed association names one instrument
--- for all time, in instr_id and listing_id, and via_identifier_id names the
--- identifier row it was made through. The association stands when that row
--- moves to another instrument. A dated association names a ticker and its
--- venue. Each of the key's transactions takes the instrument the ticker
--- names on its as-at date, and that is derived when read, so nothing on the
--- key changes when the ticker's facts do. The resolver dates a key when it
--- associates the key of its own accord through a ticker. A DATASOURCE_TICKER
--- dates the key through the MIC_TICKER on its listing, and leaves it fixed
--- where that listing has none. A user's choice is fixed.
+-- for all time, in instr_id and listing_id. via_identifier_id names the
+-- identity row through which the association was made. The association
+-- stands when that row moves to another instrument. A dated association
+-- names the venue ticker the key states, and its venue. Each of the key's
+-- transactions takes the instrument the ticker names on its as-at date. The
+-- system derives that instrument when it reads the transaction, so nothing on
+-- the key changes when the ticker's facts change. The resolver dates a key
+-- that it associates of its own accord, when the key states a venue ticker
+-- and the instrument carries none of the key's identity identifiers. A
+-- user's choice is fixed through the stable identifier that the confirmation
+-- names, or else through the candidate's strongest stable identifier. The
+-- resolver offers only a candidate that carries a stable identifier.
 -- A fixed association is provisional when it used an unstable identifier,
 -- such as a broker description or an option symbol. A key the user chose is
 -- confirmed.

@@ -406,6 +406,7 @@ func TestDatedAssociation(t *testing.T) {
 		{name: "a market without its ticker", sql: "UPDATE stated_keys SET via_market = 'US', arbiter = 'stated' WHERE id = $1 AND $2::uuid IS NOT NULL", state: pgerrcode.CheckViolation},
 		{name: "a dated association without an arbiter", sql: "UPDATE stated_keys SET via_ticker_id = $2, via_market = 'US', via_venue = 'XNAS' WHERE id = $1", state: pgerrcode.CheckViolation},
 		{name: "an arbiter without an association", sql: "UPDATE stated_keys SET arbiter = 'stated' WHERE id = $1 AND $2::uuid IS NOT NULL", state: pgerrcode.CheckViolation},
+		{name: "the user as arbiter of a dated association", sql: "UPDATE stated_keys SET via_ticker_id = $2, via_market = 'US', via_venue = 'XNAS', arbiter = 'user' WHERE id = $1", state: pgerrcode.CheckViolation},
 		{name: "a venue in another market", sql: "UPDATE stated_keys SET via_ticker_id = $2, via_market = 'US', via_venue = 'XLON', arbiter = 'stated' WHERE id = $1", state: pgerrcode.ForeignKeyViolation},
 	}
 	for _, tc := range tests {
@@ -583,25 +584,5 @@ func TestListUnassociatedKeysStating(t *testing.T) {
 	domain := types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XNAS"}
 	if diff := cmp.Diff(sorted(mine.ID, theirsKey.ID, aapl.ID), sorted(list(probe(domain))...)); diff != "" {
 		t.Errorf("keys stating a ticker of XNAS mismatch (-want +got):\n%s", diff)
-	}
-}
-
-// TestPlaceTicker checks that a ticker written onto an instrument that lacks
-// it moves the row from the instrument that carried it.
-func TestPlaceTicker(t *testing.T) {
-	ctx := context.Background()
-	q := newTx(t)
-	old, present := newInstr(t, q, types.AssetClassStock), newInstr(t, q, types.AssetClassStock)
-	oldLine, presentLine := newListing(t, q, old, "USD"), newListing(t, q, present, "USD")
-	venueTicker(t, q, oldLine, "XNAS", "META")
-	row, err := q.PlaceTicker(ctx, gen.PlaceTickerParams{ID: db.NewID(), InstrID: present.ID, ListingID: &presentLine.ID, Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "META"})
-	require.NoError(t, err)
-	if row.InstrID != present.ID || row.ListingID == nil || *row.ListingID != presentLine.ID {
-		t.Errorf("PlaceTicker = %+v, want the row on the present holder's listing", row)
-	}
-	found, err := q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "META"})
-	require.NoError(t, err)
-	if found.Instr.ID != present.ID {
-		t.Errorf("XNAS:META names %s, want the present holder %s", found.Instr.ID, present.ID)
 	}
 }

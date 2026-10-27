@@ -202,6 +202,19 @@ func (c *identityClaim) strongest() (types.Identifier, bool) {
 	return best, found
 }
 
+// strongestStable returns the stable identifier of c that names it most
+// firmly, and false where c carries none.
+func (c *identityClaim) strongestStable() (types.Identifier, bool) {
+	var best types.Identifier
+	found := false
+	for id := range c.AllIDs() {
+		if id.Stable() && (!found || id.Strength() < best.Strength()) {
+			best, found = id, true
+		}
+	}
+	return best, found
+}
+
 // label leads a detail about c with its strongest identifier.
 func (c *identityClaim) label(detail string) string {
 	if id, ok := c.strongest(); ok {

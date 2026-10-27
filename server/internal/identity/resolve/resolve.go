@@ -6,7 +6,13 @@
 // holds one. A key that states only a bare ticker associates only when the
 // user confirms a candidate for it. The same holds for a venue ticker whose
 // venue none of the returned listings names. The resolver never writes a
-// stated description as an identifier row.
+// stated description as an identifier row. It never writes a ticker as one
+// either: a ticker that an answer carries becomes an identifier assertion.
+//
+// A confirmation fixes the key through a stable identifier of the candidate:
+// the one the user named, or else the candidate's strongest. A candidate that
+// carries no stable identifier is not offered, and a confirmation of one is
+// refused.
 //
 // The database is consulted before any datasource, and only the keys it
 // leaves undecided are sent out. An association is never copied between a

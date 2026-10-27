@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"testing"
 	"time"
 
@@ -399,6 +400,42 @@ func TestConfirmCandidate(t *testing.T) {
 	require.NoError(t, err)
 	if mate.GroupID == nil || *mate.GroupID != second.ID {
 		t.Errorf("the mate after the regroup = %+v, want a group of its own", mate)
+	}
+}
+
+// TestConfirmTickerOnly checks that an answer whose security carries only a
+// ticker offers no candidate, says why, and refuses a confirmation.
+func TestConfirmTickerOnly(t *testing.T) {
+	s := newStack(t)
+	ctx := context.Background()
+	usd := "USD"
+	intc := types.Identifier{Type: types.IdentifierTypeMicTicker, Value: "INTC"}
+	xnas := types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "INTC"}
+	s.alpha.Responses[intc] = market.IdentityResult{Filtered: []types.Identifier{intc}, Listings: []market.Listing{
+		{Class: types.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{xnas}},
+	}}
+	k := &typev1.StatedKey{
+		Identifiers: []*typev1.Identifier{ident(typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, "INTC", "")},
+		AssetClass:  typev1.AssetClass_ASSET_CLASS_STOCK, Currency: &usd,
+	}
+	key := s.keyOf(t, s.ingest(t, &stmtv1.Stmt{
+		Broker: typev1.Broker_BROKER_SCHWAB, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01",
+		Rows: []*stmtv1.Row{rowMsg(k, "2026-03-05", "10")},
+	}))
+
+	offer, err := s.svc.Candidates(ctx, s.user.ID, key.ID)
+	require.NoError(t, err)
+	want := []string{s.alphaName + ": " + xnas.Name() + " carries no stable identifier"}
+	if len(offer.Candidates) != 0 || !slices.Equal(offer.Reasons, want) {
+		t.Errorf("Candidates() = %+v, want no candidate and the reason %q", offer, want)
+	}
+	if _, err := s.svc.Confirm(ctx, s.user.ID, key.ID, resolve.Pick{Datasource: s.alphaName, Identifier: xnas}); !errors.Is(err, resolve.ErrNoCandidate) {
+		t.Errorf("Confirm() error = %v, want ErrNoCandidate", err)
+	}
+	got, err := s.q.GetStatedKey(ctx, gen.GetStatedKeyParams{ID: key.ID, UserID: s.user.ID})
+	require.NoError(t, err)
+	if got.InstrID != nil || got.ViaTickerID != nil || got.Arbiter != nil {
+		t.Errorf("key = %+v, want it unresolved", got)
 	}
 }
 

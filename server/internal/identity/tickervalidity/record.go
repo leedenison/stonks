@@ -66,13 +66,10 @@ func RecordTickers(ctx context.Context, q tickers.Queries, mics mic.MICMap, keys
 // then the rows of rows.
 //
 // A positive assertion names the instrument of the first stable identifier
-// it states that is stored. A MIC_TICKER row of identifiers names the
-// instrument its ticker identifies today, which is the wrong instrument for an
-// assertion of a past day, so Record never maps through one. Where no stable
-// identifier of the assertion is stored, Record creates the instrument with
-// them, without a MIC_TICKER row, and with the fetch key as provenance. A
-// later answer that states one of them finds that instrument. Record skips an
-// assertion that leaves no identifier to create the instrument with.
+// it states that is stored. Where none is stored, Record creates the
+// instrument with them, with the fetch key as provenance. A later answer that
+// states one of them finds that instrument. Record skips an assertion when it
+// has no identifier for creating the instrument.
 func Record(ctx context.Context, q RecordQueries, families currency.Families, rows map[types.MarketTicker]gen.Ticker, keys []market.FetchKey[market.IdentifierFactRequest, market.IdentifierFactResult]) error {
 	var stable []types.Identifier
 	for _, k := range keys {

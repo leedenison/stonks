@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
+	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/require"
@@ -185,6 +186,23 @@ func TestIdentifierGrain(t *testing.T) {
 	}
 }
 
+// TestIdentifierNoTicker checks that identifiers refuses a ticker of either
+// type, since a ticker is never identity.
+func TestIdentifierNoTicker(t *testing.T) {
+	ctx := context.Background()
+	for _, typ := range []types.IdentifierType{types.IdentifierTypeMicTicker, types.IdentifierTypeDatasourceTicker} {
+		t.Run(string(typ), func(t *testing.T) {
+			q := newTx(t)
+			instr := newInstr(t, q, types.AssetClassSecurity)
+			listing := newListing(t, q, instr, "USD")
+			arg := gen.CreateIdentifierParams{ID: db.NewID(), InstrID: instr.ID, ListingID: &listing.ID, Type: typ, Domain: "XNAS", Value: "META"}
+			if _, err := q.CreateIdentifier(ctx, arg); !sqlstate(err, pgerrcode.CheckViolation) {
+				t.Errorf("CreateIdentifier(%s): err = %v, want check_violation", typ, err)
+			}
+		})
+	}
+}
+
 // TestIdentifierUniqueness checks that one triple identifies one instrument or
 // listing.
 func TestIdentifierUniqueness(t *testing.T) {
@@ -308,13 +326,13 @@ func TestListInstrsByIdentifiers(t *testing.T) {
 	two := newInstr(t, q, types.AssetClassStock)
 	newIdentifier(t, q, one, "GB00B03MLX29")
 	listing := newListing(t, q, two, "USD")
-	_, err := q.CreateIdentifier(ctx, gen.CreateIdentifierParams{ID: db.NewID(), InstrID: two.ID, ListingID: &listing.ID, Type: types.IdentifierTypeMicTicker, Domain: "XNYS", Value: "ACME"})
+	_, err := q.CreateIdentifier(ctx, gen.CreateIdentifierParams{ID: db.NewID(), InstrID: two.ID, ListingID: &listing.ID, Type: types.IdentifierTypeSedol, Value: "B03MLX2"})
 	require.NoError(t, err)
 
 	rows, err := q.ListInstrsByIdentifiers(ctx, gen.ListInstrsByIdentifiersParams{
-		Types:   []string{"isin", "mic_ticker", "cusip"},
-		Domains: []string{"", "XNYS", ""},
-		Values:  []string{"GB00B03MLX29", "ACME", "037833100"},
+		Types:   []string{"isin", "sedol", "cusip"},
+		Domains: []string{"", "", ""},
+		Values:  []string{"GB00B03MLX29", "B03MLX2", "037833100"},
 	})
 	require.NoError(t, err)
 	var got []string
@@ -323,7 +341,7 @@ func TestListInstrsByIdentifiers(t *testing.T) {
 	}
 	want := []string{
 		fmt.Sprintf("%s isin GB00B03MLX29", one.ID),
-		fmt.Sprintf("%s mic_ticker ACME", two.ID),
+		fmt.Sprintf("%s sedol B03MLX2", two.ID),
 	}
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("ListInstrsByIdentifiers mismatch (-want +got):\n%s", diff)

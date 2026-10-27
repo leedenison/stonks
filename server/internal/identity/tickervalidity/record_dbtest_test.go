@@ -129,15 +129,11 @@ func TestRecord(t *testing.T) {
 }
 
 // TestRecordThroughStable checks that an assertion names the instrument its
-// stable identifier names, not the one carrying its ticker row.
+// stable identifier names.
 func TestRecordThroughStable(t *testing.T) {
 	f := newFixture(t)
 	ctx := context.Background()
 	isin := f.identify(t, f.a, "US"+uuid.NewString()[:8])
-	listing, err := f.q.CreateListing(ctx, gen.CreateListingParams{ID: db.NewID(), InstrID: f.b, Currency: "USD"})
-	require.NoError(t, err)
-	_, err = f.q.CreateIdentifier(ctx, gen.CreateIdentifierParams{ID: db.NewID(), InstrID: f.b, ListingID: &listing.ID, Type: f.at.Type, Domain: f.at.Domain, Value: f.at.Value})
-	require.NoError(t, err)
 	k := f.served(t, f.at, market.IdentifierFactResult{Assertions: []market.Assertion{{Ticker: f.foo, Of: market.Listing{Identifiers: []types.Identifier{f.at, isin}}, At: day(3)}}})
 	require.NoError(t, f.record(t, []factKey{k}))
 	asserted, err := f.q.ListFetchKeyAssertions(ctx, &k.ID)

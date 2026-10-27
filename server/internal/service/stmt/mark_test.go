@@ -57,7 +57,7 @@ func TestMark(t *testing.T) {
 		on       time.Time
 		want     stmtv1.TxnMark
 	}{
-		{name: "the user's choice through a ticker", arbiter: ptr.To(gen.ArbiterUser), fixedVia: ptr.To(types.IdentifierTypeMicTicker), want: confirmed},
+		{name: "the user's choice through a broker description", arbiter: ptr.To(gen.ArbiterUser), fixedVia: ptr.To(types.IdentifierTypeBrokerDescription), want: confirmed},
 		{name: "fixed through a stable identifier", arbiter: ptr.To(gen.ArbiterDatasource), fixedVia: ptr.To(types.IdentifierTypeIsin), want: confirmed},
 		{name: "fixed through a broker description", arbiter: ptr.To(gen.ArbiterDatasource), fixedVia: ptr.To(types.IdentifierTypeBrokerDescription), want: provisional},
 		{name: "fixed through an option symbol", arbiter: ptr.To(gen.ArbiterStated), fixedVia: ptr.To(types.IdentifierTypeOption), want: provisional},

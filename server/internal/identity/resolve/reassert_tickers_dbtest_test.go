@@ -179,24 +179,6 @@ func TestReassertTickers(t *testing.T) {
 	}
 }
 
-// TestReassertTickersSharedIdentifier checks that a listing carrying the ticker
-// and a datasource ticker of the instrument, but no stable identifier, makes
-// the assertion name the instrument that the ticker's validity names.
-func TestReassertTickersSharedIdentifier(t *testing.T) {
-	s := newStack(t)
-	v := id(types.IdentifierTypeMicTicker, "XLON", "ZZS"+uuid.NewString()[:4])
-	isin := id(types.IdentifierTypeIsin, "", "GB00ZZS"+uuid.NewString()[:5])
-	ds := id(types.IdentifierTypeDatasourceTicker, "eodhd", v.Value+".LSE")
-	s.heldOnXLON(t, v, listing(types.AssetClassStock, "GBP", isin, ds, v))
-	instr := s.instrOf(t, isin)
-
-	s.beta.Responses[v] = market.IdentityResult{Listings: []market.Listing{listing(types.AssetClassStock, "GBP", ds, v)}}
-	s.reassertTickers(t, v)
-	if got := s.assertedOn(t, v, later); len(got) != 1 || got[0] == nil || *got[0] != instr {
-		t.Errorf("assertions of %s on %s = %v, want one naming %s", v.Name(), later.Format(time.DateOnly), got, instr)
-	}
-}
-
 // TestReassertTickersAnswers checks what each kind of identity answer asserts.
 func TestReassertTickersAnswers(t *testing.T) {
 	tests := []struct {
@@ -218,6 +200,13 @@ func TestReassertTickersAnswers(t *testing.T) {
 			name: "an answer whose stable identifiers name no stored instrument asserts nothing",
 			answer: func(v types.Identifier) market.IdentityResult {
 				return market.IdentityResult{Listings: []market.Listing{listing(types.AssetClassStock, "GBP", id(types.IdentifierTypeIsin, "", "GB00ZZM"+uuid.NewString()[:5]), v)}}
+			},
+			want: func(got []*uuid.UUID) bool { return len(got) == 0 },
+		},
+		{
+			name: "an answer that carries only the ticker asserts nothing",
+			answer: func(v types.Identifier) market.IdentityResult {
+				return market.IdentityResult{Listings: []market.Listing{listing(types.AssetClassStock, "GBP", v)}}
 			},
 			want: func(got []*uuid.UUID) bool { return len(got) == 0 },
 		},

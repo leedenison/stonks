@@ -53,17 +53,6 @@ INSERT INTO identifiers (id, instr_id, listing_id, type, domain, value, fetch_ke
 VALUES ($1, $2, $3, $4, $5, $6, $7)
 RETURNING *;
 
--- name: PlaceTicker :one
--- Writes a ticker onto a listing of its present holder. Where another
--- instrument carries the ticker, the row moves to this one, with the fetch
--- key that placed it.
-INSERT INTO identifiers (id, instr_id, listing_id, type, domain, value, fetch_key_id)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
-ON CONFLICT (type, domain, value) DO UPDATE
-SET instr_id = EXCLUDED.instr_id, listing_id = EXCLUDED.listing_id,
-    fetch_key_id = EXCLUDED.fetch_key_id
-RETURNING *;
-
 -- name: ListIdentifiers :many
 SELECT * FROM identifiers
 WHERE instr_id = $1
@@ -133,7 +122,7 @@ SET CONSTRAINTS ALL DEFERRED;
 UPDATE listings SET instr_id = @instr_id WHERE id = @id;
 
 -- name: RelinkIdentifiers :exec
--- Moves the identifiers of loser onto survivor, each listing grain one onto
+-- Moves the identity rows of loser onto survivor, each listing grain one onto
 -- survivor's listing of its family.
 UPDATE identifiers
 SET instr_id = @survivor::uuid,
