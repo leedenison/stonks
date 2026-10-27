@@ -25,6 +25,9 @@ enum RunKind {
   RUN_KIND_ATTESTATION = 5;
   // Asks the datasources again about every held ticker.
   RUN_KIND_EXTEND_VALIDITY = 6;
+  // Asks the datasources for the corporate events of the tickers that named a
+  // held instrument.
+  RUN_KIND_REFRESH_CORPORATE_EVENTS = 7;
 }
 
 // What started a run.

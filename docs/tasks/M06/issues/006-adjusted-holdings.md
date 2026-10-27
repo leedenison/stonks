@@ -15,6 +15,8 @@ In:
   and [002](../adr/002-a-transaction-reflects-corporate-events-up-to-its-as-at-date.md).
 - Read the transactions of a fixed key one row at a time, with their as-at dates,
   instead of summing them in `ListHoldingKeys`.
+- Read the held instruments, the held ticker dates and the attribution of each
+  transaction through one set of queries, shared with `refreshcorporateevents`.
 - The coverage of each transaction, and the adjusted or unadjusted state of each
   holding. See [003](../adr/003-a-holding-is-adjusted-only-when-covered-to-today.md).
 - The trait in `internal/types` that marks a class that corporate events restate.
