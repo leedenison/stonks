@@ -76,8 +76,6 @@ func TestJobOf(t *testing.T) {
 		{id: types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XNYS", Value: "BRK.B"}, want: job{IDType: "TICKER", IDValue: "BRK/B"}},
 		{id: types.Identifier{Type: types.IdentifierTypeMicTicker, Value: "BRK B"}, want: job{IDType: "TICKER", IDValue: "BRK/B"}},
 		{id: types.Identifier{Type: types.IdentifierTypeMicTicker, Value: "BF-B"}, want: job{IDType: "TICKER", IDValue: "BF/B"}},
-		{id: types.Identifier{Type: types.IdentifierTypeOpenfigiTicker, Domain: "UN", Value: "BRK.B"}, want: job{IDType: "TICKER", IDValue: "BRK/B", ExchCode: "UN"}},
-		{id: types.Identifier{Type: types.IdentifierTypeOpenfigiTicker, Domain: "US", Value: "T 2 1/2 05/15/24"}, want: job{IDType: "TICKER", IDValue: "T 2 1/2 05/15/24", ExchCode: "US"}},
 		{id: types.Identifier{Type: types.IdentifierTypeIsin, Value: "US0378331005"}, currency: "USD", want: job{IDType: "ID_ISIN", IDValue: "US0378331005", Currency: "USD"}},
 		{id: types.Identifier{Type: types.IdentifierTypeIsin, Value: "GB00BH4HKS39"}, currency: "GBp", want: job{IDType: "ID_ISIN", IDValue: "GB00BH4HKS39", Currency: "GBp"}},
 	}

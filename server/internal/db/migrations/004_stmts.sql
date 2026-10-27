@@ -44,9 +44,9 @@ CREATE TYPE arbiter AS ENUM ('stated', 'datasource', 'guess', 'user');
 -- venue. Each of the key's transactions takes the instrument the ticker
 -- names on its as-at date, and that is derived when read, so nothing on the
 -- key changes when the ticker's facts do. The resolver dates a key when it
--- associates the key of its own accord through a ticker. An OPENFIGI_TICKER
--- or DATASOURCE_TICKER dates the key through the MIC_TICKER on its listing,
--- and leaves it fixed where that listing has none. A user's choice is fixed.
+-- associates the key of its own accord through a ticker. A DATASOURCE_TICKER
+-- dates the key through the MIC_TICKER on its listing, and leaves it fixed
+-- where that listing has none. A user's choice is fixed.
 -- A fixed association is provisional when it used an unstable identifier,
 -- such as a broker description or an option symbol. A key the user chose is
 -- confirmed.

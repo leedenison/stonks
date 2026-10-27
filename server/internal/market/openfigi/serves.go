@@ -19,7 +19,6 @@ var idTypes = []struct {
 	{types.IdentifierTypeCins, "ID_CINS"},
 	{types.IdentifierTypeSedol, "ID_SEDOL"},
 	{types.IdentifierTypeWertpapier, "ID_WERTPAPIER"},
-	{types.IdentifierTypeOpenfigiTicker, "TICKER"},
 	{types.IdentifierTypeMicTicker, "TICKER"},
 }
 
@@ -32,7 +31,6 @@ func (c *Client) Serves(key gen.StatedKey) (types.Identifier, error) {
 type job struct {
 	IDType   string `json:"idType"`
 	IDValue  string `json:"idValue"`
-	ExchCode string `json:"exchCode,omitempty"`
 	Currency string `json:"currency,omitempty"`
 }
 
@@ -68,11 +66,7 @@ func jobOf(id types.Identifier, currency string) job {
 			continue
 		}
 		j := job{IDType: t.idType, IDValue: id.Value, Currency: currency}
-		switch id.Type {
-		case types.IdentifierTypeOpenfigiTicker:
-			j.IDValue, _ = market.WithClassSep(id.Value, '/')
-			j.ExchCode = id.Domain
-		case types.IdentifierTypeMicTicker:
+		if id.Type == types.IdentifierTypeMicTicker {
 			j.IDValue, _ = market.WithClassSep(id.Value, '/')
 		}
 		return j

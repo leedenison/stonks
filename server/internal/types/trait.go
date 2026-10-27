@@ -88,7 +88,6 @@ var traits = map[IdentifierType]Trait{
 	IdentifierTypeSedol:              {Domain: IdentifierDomainGlobal, Grain: IdentifierGrainListing, Reassignment: IdentifierReassignmentStable, Exclusive: true, NameRank: 9},
 	IdentifierTypeOpenfigiComposite:  {Domain: IdentifierDomainGlobal, Grain: IdentifierGrainListing, Reassignment: IdentifierReassignmentStable, Exclusive: false, NameRank: 12},
 	IdentifierTypeMicTicker:          {Domain: IdentifierDomainVenue, Grain: IdentifierGrainListing, Reassignment: IdentifierReassignmentMicDerived, Exclusive: true, NameRank: 4},
-	IdentifierTypeOpenfigiTicker:     {Domain: IdentifierDomainVenue, Grain: IdentifierGrainListing, Reassignment: IdentifierReassignmentMicDerived, Exclusive: true, NameRank: 13},
 	IdentifierTypeOcc:                {Domain: IdentifierDomainGlobal, Grain: IdentifierGrainInstr, Reassignment: IdentifierReassignmentMicDerived, Exclusive: true, NameRank: 1},
 	IdentifierTypeCurrency:           {Domain: IdentifierDomainGlobal, Grain: IdentifierGrainInstr, Reassignment: IdentifierReassignmentStable, Exclusive: true, NameRank: 3},
 	IdentifierTypeDatasourceTicker:   {Domain: IdentifierDomainIssuer, Grain: IdentifierGrainListing, Reassignment: IdentifierReassignmentMicDerived, Exclusive: true, NameRank: 6},

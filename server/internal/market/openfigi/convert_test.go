@@ -19,6 +19,8 @@ func listing(ticker, exch string) result {
 	}
 }
 
+// TestToListing follows the Bloomberg ticker convention, which writes a share
+// class after a slash and a bond's coupon as a fraction.
 func TestToListing(t *testing.T) {
 	tests := []struct {
 		name string
@@ -31,7 +33,6 @@ func TestToListing(t *testing.T) {
 			want: []types.Identifier{
 				{Type: types.IdentifierTypeOpenfigiShareClass, Value: "BBG001S6XK38"},
 				{Type: types.IdentifierTypeOpenfigiComposite, Value: "BBG000DWG505"},
-				{Type: types.IdentifierTypeOpenfigiTicker, Domain: "UN", Value: "BRK/B"},
 				{Type: types.IdentifierTypeMicTicker, Domain: "XNYS", Value: "BRK.B"},
 			},
 		},
@@ -41,13 +42,11 @@ func TestToListing(t *testing.T) {
 			want: []types.Identifier{
 				{Type: types.IdentifierTypeOpenfigiShareClass, Value: "BBG001S6XK38"},
 				{Type: types.IdentifierTypeOpenfigiComposite, Value: "BBG000DWG505"},
-				{Type: types.IdentifierTypeOpenfigiTicker, Domain: "US", Value: "BRK/B"},
 			},
 		},
 		{
 			name: "bond at a venue",
 			in:   result{Ticker: "T 2 1/2 05/15/24", ExchCode: "UN", MarketSector: "Govt"},
-			want: []types.Identifier{{Type: types.IdentifierTypeOpenfigiTicker, Domain: "UN", Value: "T 2 1/2 05/15/24"}},
 		},
 		{
 			name: "null figis",
@@ -64,8 +63,17 @@ func TestToListing(t *testing.T) {
 	}
 }
 
+// composites gives each exchange of TestIdentity its own composite FIGI, so
+// a converted listing names the exchange it came from.
+var composites = map[string]string{"US": "BBG000B9XRY4", "UW": "BBG000B9Y5X2", "UN": "BBG000B9XVV8", "LN": "BBG000B9Z0J8"}
+
 func TestIdentity(t *testing.T) {
-	data := []result{listing("AAPL", "US"), listing("AAPL", "UW"), listing("AAPL", "UN"), listing("AAPL", "LN")}
+	var data []result
+	for _, exch := range []string{"US", "UW", "UN", "LN"} {
+		r := listing("AAPL", exch)
+		r.CompositeFIGI = ptr.To(composites[exch])
+		data = append(data, r)
+	}
 	tests := []struct {
 		name     string
 		sent     types.Identifier
@@ -120,10 +128,26 @@ func TestIdentity(t *testing.T) {
 	}
 }
 
+// TestIdentityDropsUnnamed checks that a listing with no identifier left,
+// such as a composite listing with null FIGIs, is dropped.
+func TestIdentityDropsUnnamed(t *testing.T) {
+	data := []result{{Ticker: "AAPL", ExchCode: "US", SecurityType: "Common Stock", MarketSector: "Equity"}, listing("AAPL", "UW")}
+	got := identity(types.Identifier{Type: types.IdentifierTypeIsin, Value: "US0378331005"}, "", data, mics)
+	if len(got.Listings) != 1 {
+		t.Errorf("identity() = %d listings, want 1", len(got.Listings))
+	}
+}
+
+// exchOf returns the exchange whose composite FIGI c carries.
 func exchOf(c market.Listing) string {
 	for _, id := range c.Identifiers {
-		if id.Type == types.IdentifierTypeOpenfigiTicker {
-			return id.Domain
+		if id.Type != types.IdentifierTypeOpenfigiComposite {
+			continue
+		}
+		for exch, figi := range composites {
+			if figi == id.Value {
+				return exch
+			}
 		}
 	}
 	return ""

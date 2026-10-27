@@ -70,26 +70,24 @@ enum IdentifierType {
   IDENTIFIER_TYPE_OPENFIGI_COMPOSITE = 7;
   // A listing; the domain is the ISO 10383 operating MIC of the venue.
   IDENTIFIER_TYPE_MIC_TICKER = 8;
-  // A listing; the domain is the OpenFIGI exchange code.
-  IDENTIFIER_TYPE_OPENFIGI_TICKER = 9;
   // An option contract.
-  IDENTIFIER_TYPE_OCC = 10;
+  IDENTIFIER_TYPE_OCC = 9;
   // A currency, the value an ISO 4217 code. Its listing in its own currency
   // is money in it, and a listing in another currency carries the rate
   // between the two.
-  IDENTIFIER_TYPE_CURRENCY = 11;
+  IDENTIFIER_TYPE_CURRENCY = 10;
   // A listing; the domain is the datasource that issued the value.
-  IDENTIFIER_TYPE_DATASOURCE_TICKER = 12;
+  IDENTIFIER_TYPE_DATASOURCE_TICKER = 11;
   // The domain is the broker that issued the value.
-  IDENTIFIER_TYPE_BROKER_ID = 13;
+  IDENTIFIER_TYPE_BROKER_ID = 12;
   // A line's description as the broker states it; the domain is the broker
   // that stated the value.
-  IDENTIFIER_TYPE_BROKER_DESCRIPTION = 14;
+  IDENTIFIER_TYPE_BROKER_DESCRIPTION = 13;
   // An option contract's symbol in the OCC format, built from the terms a
   // broker states. It equals the contract's OCC symbol where the clearing
   // house lists the contract. A datasource that lists the contract writes
   // the OCC identifier.
-  IDENTIFIER_TYPE_OPTION = 15;
+  IDENTIFIER_TYPE_OPTION = 14;
 }
 
 // A name for an instrument or for one of its listings.

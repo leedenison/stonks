@@ -30,8 +30,7 @@ INSERT INTO asset_class_tree (class, parent) VALUES
 -- international securities numbers;
 -- 'openfigi_share_class' and 'openfigi_composite' are the FIGIs OpenFIGI
 -- assigns to a share class and to a country-wide composite listing;
--- 'mic_ticker' is a ticker at an operating MIC, and 'openfigi_ticker' a
--- ticker under OpenFIGI's own exchange code;
+-- 'mic_ticker' is a ticker at an operating MIC;
 -- 'occ' is an OCC option symbol;
 -- 'option' is an option symbol in the OCC format, built from the terms a
 -- broker states; a datasource names the same contract under 'occ';
@@ -41,7 +40,7 @@ INSERT INTO asset_class_tree (class, parent) VALUES
 -- 'broker_description' is a line's description as one broker states it, the
 -- domain being the broker.
 CREATE TYPE identifier_type AS ENUM ('isin', 'cusip', 'cins', 'wertpapier',
-    'openfigi_share_class', 'sedol', 'openfigi_composite', 'mic_ticker', 'openfigi_ticker',
+    'openfigi_share_class', 'sedol', 'openfigi_composite', 'mic_ticker',
     'occ', 'currency', 'datasource_ticker', 'broker_id', 'broker_description', 'option');
 
 -- What is used to qualify the identifier value.
@@ -94,7 +93,6 @@ INSERT INTO identifier_type_traits (type, domain, grain, reassignment, exclusive
     ('sedol',                'global', 'listing',    'stable',       true,  9),
     ('openfigi_composite',   'global', 'listing',    'stable',       false, 12),
     ('mic_ticker',           'venue',  'listing',    'mic_derived',  true,  4),
-    ('openfigi_ticker',      'venue',  'listing',    'mic_derived',  true, 13),
     ('occ',                  'global', 'instr',      'mic_derived',  true,  1),
     -- The seed names a cash instrument by every code of its family, which is
     -- one currency at different unit scales. A key states one code, so
