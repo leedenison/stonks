@@ -14,6 +14,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/currency"
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/identity/tickers"
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/mic"
 	"github.com/leedenison/stonks/server/internal/platform/ptr"
@@ -201,7 +202,7 @@ func TestRecordSpelling(t *testing.T) {
 			ctx := context.Background()
 			good := f.served(t, f.at, market.IdentifierEventResult{Coverage: []market.Coverage{{Market: "US", Ticker: &f.foo, Period: types.Period{From: day(1), Before: day(2)}}}})
 			bad := f.served(t, f.at, market.IdentifierEventResult{Events: []market.IdentifierEvent{{Ticker: tc.ticker, Action: gen.IdentifierEventActionRetired, On: day(3)}}})
-			if err := Record(ctx, f.q, f.mics(t), f.families(t), []eventKey{good, bad}); !errors.Is(err, ErrSpelling) {
+			if err := Record(ctx, f.q, f.mics(t), f.families(t), []eventKey{good, bad}); !errors.Is(err, tickers.ErrSpelling) {
 				t.Fatalf("Record() error = %v, want ErrSpelling", err)
 			}
 			var n int

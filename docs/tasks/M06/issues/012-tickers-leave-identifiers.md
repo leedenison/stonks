@@ -22,8 +22,8 @@ In:
 - Removed: `PlaceTicker`, the ticker branch of `identify`, `writer.tickers`,
   `datedThrough`, and the ticker fallback in `writer.via`.
 - `RelinkIdentifiers` moves identity rows only. `Ticker()` becomes a test of the type.
-- A confirmation fixes the key through a stable identifier of the candidate, under the
-  three-state CHECK constraints of `stated_keys`.
+- A confirmation fixes the key through a stable identifier of the candidate.
+- A CHECK on `stated_keys` refuses the arbiter `user` on a dated key.
 - `Listing.identifiers` and `InstrHolding.identifiers` drop tickers. Their
   comments state that they hold identity only. Tickers come from the projection fields of
   [011](../adr/011-an-instruments-ticker-is-a-projection-of-ticker-facts.md).
@@ -45,7 +45,6 @@ In:
   - a key that states only a ticker is dated, and `identifiers` is unchanged;
   - a confirmation fixes the key through the candidate's ISIN;
   - a reassigned ticker leaves the old holder named by it, as defunct.
-- DB dbtests for the CHECK on `identifiers` and for each state constraint of
-  `stated_keys`.
+- DB dbtests for the CHECK on `identifiers` and for the arbiter CHECK on `stated_keys`.
 - A statement service test that refuses to confirm a candidate that carries only a
   ticker.

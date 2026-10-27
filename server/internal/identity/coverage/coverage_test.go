@@ -13,6 +13,7 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/identity/coverage/mock"
+	"github.com/leedenison/stonks/server/internal/identity/tickers"
 	"github.com/leedenison/stonks/server/internal/identity/tickervalidity"
 	"github.com/leedenison/stonks/server/internal/mic"
 	"github.com/leedenison/stonks/server/internal/platform/ptr"
@@ -125,8 +126,8 @@ func TestTickerRefused(t *testing.T) {
 		v       types.MarketTicker
 		wantErr error
 	}{
-		{name: "venue for market", v: types.MarketTicker{Market: "XNAS", Value: "ACME"}, wantErr: tickervalidity.ErrSpelling},
-		{name: "unknown market", v: types.MarketTicker{Market: "ZZ", Value: "ACME"}, wantErr: tickervalidity.ErrSpelling},
+		{name: "venue for market", v: types.MarketTicker{Market: "XNAS", Value: "ACME"}, wantErr: tickers.ErrSpelling},
+		{name: "unknown market", v: types.MarketTicker{Market: "ZZ", Value: "ACME"}, wantErr: tickers.ErrSpelling},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

@@ -17,6 +17,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/db/to"
 	"github.com/leedenison/stonks/server/internal/identity/attestidentifier"
 	reader "github.com/leedenison/stonks/server/internal/identity/coverage"
+	"github.com/leedenison/stonks/server/internal/identity/tickers"
 	"github.com/leedenison/stonks/server/internal/identity/tickervalidity"
 	"github.com/leedenison/stonks/server/internal/types"
 )
@@ -74,7 +75,7 @@ func (s *Server) ListInstrTickers(ctx context.Context, req *connect.Request[admi
 func (s *Server) GetTicker(ctx context.Context, req *connect.Request[admincoveragev1.GetTickerRequest]) (*connect.Response[admincoveragev1.GetTickerResponse], error) {
 	t, err := s.reader.Ticker(ctx, types.MarketTickerOf(req.Msg.GetTicker()), s.clock())
 	switch {
-	case errors.Is(err, tickervalidity.ErrSpelling):
+	case errors.Is(err, tickers.ErrSpelling):
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	case err != nil:
 		return nil, connect.NewError(connect.CodeInternal, err)
@@ -114,7 +115,7 @@ func (s *Server) AttestIdentifier(ctx context.Context, req *connect.Request[admi
 	switch {
 	case errors.Is(err, tickervalidity.ErrFuture), errors.Is(err, attestidentifier.ErrRange):
 		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
-	case errors.Is(err, tickervalidity.ErrSpelling):
+	case errors.Is(err, tickers.ErrSpelling):
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	case errors.Is(err, db.ErrNotFound):
 		return nil, connect.NewError(connect.CodeNotFound, err)

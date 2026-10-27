@@ -19,6 +19,7 @@ import (
 	admincoveragev1 "github.com/leedenison/stonks/proto/admin/coverage/v1"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/to"
+	"github.com/leedenison/stonks/server/internal/identity/tickers"
 	"github.com/leedenison/stonks/server/internal/identity/tickervalidity"
 	"github.com/leedenison/stonks/server/internal/mic"
 	"github.com/leedenison/stonks/server/internal/types"
@@ -171,10 +172,10 @@ func (r *Reader) InstrTickers(ctx context.Context, instr uuid.UUID) ([]InstrTick
 }
 
 // Ticker reads the facts and ticker validity of v. It refuses an unknown market
-// with tickervalidity.ErrSpelling.
+// with tickers.ErrSpelling.
 func (r *Reader) Ticker(ctx context.Context, v types.MarketTicker, today time.Time) (*Page, error) {
-	if !r.mics.IsMarket(v.Market) {
-		return nil, fmt.Errorf("market %q: %w", v.Market, tickervalidity.ErrSpelling)
+	if err := tickers.SpelledMarket(r.mics, v.Market); err != nil {
+		return nil, err
 	}
 	t, err := r.read(ctx, v, today)
 	if err != nil {
