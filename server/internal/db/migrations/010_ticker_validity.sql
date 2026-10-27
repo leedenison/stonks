@@ -7,14 +7,24 @@ CREATE TYPE identifier_event_action AS ENUM ('assigned', 'renamed', 'retired');
 
 -- A market is a set of operating MICs across which one ticker names one
 -- instrument on a day. A ticker's identifier facts are keyed by its market.
--- A market_members row puts an operating MIC in a shared market. An
--- operating MIC without a row is a market of its own, named by that MIC.
-CREATE TABLE market_members (
-    operating_mic text PRIMARY KEY REFERENCES mics (mic),
-    market        text NOT NULL
+-- The US listing exchanges share the market US. Every other operating MIC is
+-- a market of its own, named by that MIC.
+CREATE TABLE markets (
+    code text PRIMARY KEY
 );
 
--- The US listing exchanges share the market US.
+INSERT INTO markets (code) VALUES ('US');
+INSERT INTO markets (code)
+SELECT DISTINCT operating_mic FROM mics
+WHERE operating_mic NOT IN ('BATS', 'EDGE', 'IEXG', 'XCHI', 'XCIS', 'XNAS', 'XNYS');
+
+-- market_members puts every operating MIC in its market.
+CREATE TABLE market_members (
+    operating_mic text PRIMARY KEY REFERENCES mics (mic),
+    market        text NOT NULL REFERENCES markets (code),
+    UNIQUE (operating_mic, market)
+);
+
 INSERT INTO market_members (operating_mic, market) VALUES
     ('BATS', 'US'),
     ('EDGE', 'US'),
@@ -23,13 +33,29 @@ INSERT INTO market_members (operating_mic, market) VALUES
     ('XCIS', 'US'),
     ('XNAS', 'US'),
     ('XNYS', 'US');
+INSERT INTO market_members (operating_mic, market)
+SELECT DISTINCT operating_mic, operating_mic FROM mics
+WHERE operating_mic NOT IN (SELECT operating_mic FROM market_members);
 
 -- mic_markets gives each MIC its operating MIC and its market.
 CREATE VIEW mic_markets AS
-SELECT mics.mic, mics.operating_mic,
-       COALESCE(market_members.market, mics.operating_mic) AS market
+SELECT mics.mic, mics.operating_mic, market_members.market
 FROM mics
-LEFT JOIN market_members ON market_members.operating_mic = mics.operating_mic;
+JOIN market_members ON market_members.operating_mic = mics.operating_mic;
+
+-- A ticker is a MIC_TICKER at its market, in the system's spelling. The row
+-- holds only the spelling, and the facts of the ticker refer to it. A row
+-- outlives its facts. The get-or-create function of package tickers writes
+-- the table, and it refuses a spelling that its predicate rejects.
+CREATE TABLE tickers (
+    id     uuid PRIMARY KEY,
+    market text NOT NULL REFERENCES markets (code),
+    value  text NOT NULL,
+    UNIQUE (market, value),
+    -- A table that keeps a ticker in its market holds a composite foreign key
+    -- to this constraint.
+    UNIQUE (id, market)
+);
 
 -- An identifier assertion is a claim that an identifier names an instrument, or
 -- names nothing, on one day. A MIC_TICKER is asserted at its market, so the

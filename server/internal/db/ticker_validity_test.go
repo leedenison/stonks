@@ -17,6 +17,35 @@ import (
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
+// TestMarkets checks that every MIC has a market, and that a ticker is held
+// at a market.
+func TestMarkets(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("every MIC has a market", func(t *testing.T) {
+		tx := begin(t)
+		var unmarketed int
+		require.NoError(t, tx.QueryRow(ctx,
+			"SELECT count(*) FROM mics WHERE mic NOT IN (SELECT mic FROM mic_markets)").Scan(&unmarketed))
+		if unmarketed != 0 {
+			t.Errorf("%d MICs have no row in mic_markets, want 0", unmarketed)
+		}
+		var market string
+		require.NoError(t, tx.QueryRow(ctx, "SELECT market FROM mic_markets WHERE mic = 'XNGS'").Scan(&market))
+		if market != "US" {
+			t.Errorf("market of XNGS = %q, want US", market)
+		}
+	})
+
+	t.Run("a ticker is at a market", func(t *testing.T) {
+		q := newTx(t)
+		arg := gen.CreateTickersParams{Ids: []uuid.UUID{db.NewID()}, Markets: []string{"XNAS"}, Values: []string{"ABC"}}
+		if err := q.CreateTickers(ctx, arg); !sqlstate(err, pgerrcode.ForeignKeyViolation) {
+			t.Errorf("CreateTickers at a venue: err = %v, want a foreign key violation", err)
+		}
+	})
+}
+
 // TestIdentifierAssertions checks that an assertion has one source, a fetch
 // key or an administrator's attest identifier run, and goes with that source.
 func TestIdentifierAssertions(t *testing.T) {

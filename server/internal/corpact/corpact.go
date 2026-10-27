@@ -29,6 +29,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/identity/tickers"
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/mic"
 	"github.com/leedenison/stonks/server/internal/types"
@@ -123,7 +124,7 @@ func (r *Recorder) distinct(reqs []market.CorpActRequest) []market.CorpActReques
 // the system cannot spell the ticker or its venue.
 func (r *Recorder) marketTicker(q market.CorpActRequest) (types.MarketTicker, bool) {
 	t, ok := r.mics.MarketTicker(q.Ticker)
-	if !ok || !market.Canonical(t.Value) {
+	if !ok || tickers.Spelled(r.mics, t) != nil {
 		return types.MarketTicker{}, false
 	}
 	return t, true

@@ -8,9 +8,11 @@ the write would also deadlock against the advisory locks of `LockIdentifiers`.
 
 Each write holds its tickers from the fact write until commit:
 
-1. It creates every ticker it touches in a short transaction of its own, as one
-   multi-row upsert sorted by market and value. An early commit is harmless. A ticker row
-   holds only a spelling.
+1. It creates every ticker it touches before the write transaction. One statement
+   inserts the missing rows, sorted by market and value, and skips the rows that exist. A
+   second statement reads every row back. Each statement commits on its own. An early
+   commit is harmless, because a ticker row holds only a spelling. The insert leaves the
+   existing rows unlocked.
 2. The write transaction takes its advisory identifier locks.
 3. It locks its `tickers` rows with `SELECT ... FOR UPDATE`, in id order.
 4. It writes the facts, rebuilds the projection of those tickers and commits.

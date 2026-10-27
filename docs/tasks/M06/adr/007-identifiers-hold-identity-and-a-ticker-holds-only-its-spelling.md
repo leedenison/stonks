@@ -14,8 +14,9 @@ descriptions. Resolution may match through every row. A CHECK refuses `mic_ticke
 A ticker is a row of `tickers (id, market, value)`, in the system's spelling. The table
 has `UNIQUE (market, value)` and `UNIQUE (id, market)`. The second lets another table hold
 a composite foreign key that keeps a ticker in its market. The row holds only the
-spelling. One get-or-create function writes the table. It is the only place that checks
-the spelling. A row may outlive its facts.
+spelling. One get-or-create function writes the table. It decides the spelling through
+one predicate, and every other check of a spelling calls that predicate. A row may
+outlive its facts.
 
 Every fact, `corp_act_answers`, the projection of [011](011-an-instruments-ticker-is-a-projection-of-ticker-facts.md)
 and a dated association refer to a ticker by `ticker_id`. Statements and facts still meet

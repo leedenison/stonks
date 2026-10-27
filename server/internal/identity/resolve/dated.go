@@ -13,6 +13,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/to"
+	"github.com/leedenison/stonks/server/internal/identity/tickers"
 	"github.com/leedenison/stonks/server/internal/identity/tickervalidity"
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/mic"
@@ -255,7 +256,7 @@ func (r *Resolver) recordEvents(ctx context.Context, keys []eventKey) (bool, err
 		return tickervalidity.Record(ctx, q, r.mics, r.families, keys)
 	})
 	switch {
-	case errors.Is(err, tickervalidity.ErrSpelling):
+	case errors.Is(err, tickers.ErrSpelling):
 		r.log.Warn("identifier facts left out", "err", err)
 		return false, nil
 	case err != nil:

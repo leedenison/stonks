@@ -22,6 +22,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/identity/attestidentifier"
 	reader "github.com/leedenison/stonks/server/internal/identity/coverage"
+	"github.com/leedenison/stonks/server/internal/identity/tickers"
 	"github.com/leedenison/stonks/server/internal/identity/tickervalidity"
 	"github.com/leedenison/stonks/server/internal/platform/ptr"
 	"github.com/leedenison/stonks/server/internal/service/admin/coverage/mock"
@@ -134,7 +135,7 @@ func TestGetTicker(t *testing.T) {
 	}{
 		{name: "read", req: acmeProto},
 		{name: "missing", wantCode: connect.CodeInvalidArgument},
-		{name: "unknown market", req: acmeProto, err: tickervalidity.ErrSpelling, wantCode: connect.CodeInvalidArgument},
+		{name: "unknown market", req: acmeProto, err: tickers.ErrSpelling, wantCode: connect.CodeInvalidArgument},
 		{name: "failure", req: acmeProto, err: errors.New("boom"), wantCode: connect.CodeInternal},
 	}
 	for _, tc := range tests {
@@ -177,7 +178,7 @@ func TestAttestIdentifier(t *testing.T) {
 		{name: "malformed end", req: &admincoveragev1.AttestIdentifierRequest{Ticker: acmeProto, Names: names, From: "2026-03-10", To: ptr.To("soon")}, wantCode: connect.CodeInvalidArgument},
 		{name: "future", req: &admincoveragev1.AttestIdentifierRequest{Ticker: acmeProto, Names: names, From: "2026-03-10"}, wantInstr: &acme, err: tickervalidity.ErrFuture, wantCode: connect.CodeFailedPrecondition},
 		{name: "range reversed", req: &admincoveragev1.AttestIdentifierRequest{Ticker: acmeProto, Names: names, From: "2026-03-10"}, wantInstr: &acme, err: attestidentifier.ErrRange, wantCode: connect.CodeFailedPrecondition},
-		{name: "misspelled", req: &admincoveragev1.AttestIdentifierRequest{Ticker: acmeProto, Names: names, From: "2026-03-10"}, wantInstr: &acme, err: tickervalidity.ErrSpelling, wantCode: connect.CodeInvalidArgument},
+		{name: "misspelled", req: &admincoveragev1.AttestIdentifierRequest{Ticker: acmeProto, Names: names, From: "2026-03-10"}, wantInstr: &acme, err: tickers.ErrSpelling, wantCode: connect.CodeInvalidArgument},
 		{name: "unknown instrument", req: &admincoveragev1.AttestIdentifierRequest{Ticker: acmeProto, Names: names, From: "2026-03-10"}, wantInstr: &acme, err: db.ErrNotFound, wantCode: connect.CodeNotFound},
 		{name: "failure", req: &admincoveragev1.AttestIdentifierRequest{Ticker: acmeProto, Names: names, From: "2026-03-10"}, wantInstr: &acme, err: errors.New("boom"), wantCode: connect.CodeInternal},
 	}

@@ -11,6 +11,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/currency"
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/identity/tickers"
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/mic"
 	"github.com/leedenison/stonks/server/internal/types"
@@ -29,10 +30,6 @@ type RecordQueries interface {
 }
 
 var _ RecordQueries = (*gen.Queries)(nil)
-
-// ErrSpelling reports a ticker or a market that is not in the system's
-// spelling. Nothing matches it, so it is refused.
-var ErrSpelling = errors.New("not in the system's spelling")
 
 // ErrFuture reports an identifier attestation of a day after the day it is
 // made.
@@ -84,26 +81,14 @@ func check(mics mic.MICMap, r market.IdentifierEventResult) error {
 	for _, c := range r.Coverage {
 		if c.Ticker != nil {
 			ts = append(ts, *c.Ticker)
-		} else if !mics.IsMarket(c.Market) {
-			return fmt.Errorf("market %q: %w", c.Market, ErrSpelling)
-		}
-	}
-	for _, t := range ts {
-		if err := spelled(mics, t); err != nil {
+		} else if err := tickers.SpelledMarket(mics, c.Market); err != nil {
 			return err
 		}
 	}
-	return nil
-}
-
-// spelled checks that t is at a market, with its value in the system's
-// spelling.
-func spelled(mics mic.MICMap, t types.MarketTicker) error {
-	if !mics.IsMarket(t.Market) {
-		return fmt.Errorf("market %q: %w", t.Market, ErrSpelling)
-	}
-	if !market.Canonical(t.Value) {
-		return fmt.Errorf("value %q: %w", t.Value, ErrSpelling)
+	for _, t := range ts {
+		if err := tickers.Spelled(mics, t); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -289,10 +274,10 @@ type AttestQueries interface {
 var _ AttestQueries = (*gen.Queries)(nil)
 
 // CheckAttest reports why an identifier attestation of t on day on cannot be
-// written: ErrSpelling when t is not a ticker in the system's spelling, and
+// written: tickers.ErrSpelling when t is not a ticker in the system's spelling, and
 // ErrFuture when on is after today.
 func CheckAttest(mics mic.MICMap, t types.MarketTicker, on, today time.Time) error {
-	if err := spelled(mics, t); err != nil {
+	if err := tickers.Spelled(mics, t); err != nil {
 		return err
 	}
 	if types.Day(on).After(types.Day(today)) {
