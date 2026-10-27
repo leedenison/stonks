@@ -1,6 +1,8 @@
 import type { Ticker } from "@/gen/admin/coverage/v1/coverage_pb";
 import { TickerValidity } from "@/gen/admin/coverage/v1/coverage_pb";
-import { bounds, dayNumber } from "@/lib/coverage";
+import { Edge } from "@/gen/admin/run/v1/run_pb";
+import { bounds, cutDay, dayNumber } from "@/lib/coverage";
+import { enumLabel } from "@/lib/enum";
 
 // The drawing's coordinates, in viewBox units; the gutter is the left margin
 // the lane labels take.
@@ -35,7 +37,9 @@ export function Timeline({ ticker }: { ticker: Ticker }) {
     return { x: x0, width: Math.max(x1 - x0, 1) };
   };
 
-  const datasources = [...new Set(ticker.coverage.map((c) => c.datasource))];
+  const datasources = [
+    ...new Set(ticker.periodAssertions.map((p) => p.datasource)),
+  ];
   const lanes: Lane[] = [
     {
       key: "txns",
@@ -120,39 +124,42 @@ export function Timeline({ ticker }: { ticker: Ticker }) {
       }),
     },
     {
-      key: "events",
-      label: "Events",
-      children: ticker.events.map((e, i) => {
-        const cx = x(e.effectiveOn);
-        return (
+      key: "edges",
+      label: "Edges",
+      children: ticker.assertions.flatMap((a) => {
+        const cut = cutDay(a);
+        if (cut === undefined || a.edge === undefined) return [];
+        const cx = x(cut);
+        return [
           <polygon
-            key={i}
+            key={a.id}
             points={`${cx},2 ${cx + 6},${laneHeight - 2} ${cx - 6},${laneHeight - 2}`}
+            data-cut={cut}
             className="fill-text-muted"
           >
-            <title>{`${e.value}${e.toValue ? ` to ${e.toValue}` : ""} on ${e.effectiveOn}`}</title>
-          </polygon>
-        );
+            <title>{`${a.source.value ?? ""}: ${ticker.ticker?.value ?? ""} ${enumLabel(Edge, a.edge)} on ${a.assertedOn}`}</title>
+          </polygon>,
+        ];
       }),
     },
     ...datasources.map((ds) => ({
-      key: `coverage-${ds}`,
+      key: `period-${ds}`,
       label: ds,
-      children: ticker.coverage
-        .filter((c) => c.datasource === ds)
-        .map((c, i) => (
+      children: ticker.periodAssertions
+        .filter((p) => p.datasource === ds)
+        .map((p, i) => (
           <rect
             key={i}
-            {...bar(c.coveredFrom, c.coveredBefore)}
+            {...bar(p.assertedFrom, p.assertedBefore)}
             y={4}
             height={laneHeight - 8}
             rx={2}
-            data-market={c.value === undefined ? "true" : undefined}
+            data-market={p.value === undefined ? "true" : undefined}
             className={
-              c.value === undefined ? "fill-primary/25" : "fill-primary/55"
+              p.value === undefined ? "fill-primary/25" : "fill-primary/55"
             }
           >
-            <title>{`${ds} covers ${c.value ?? c.market} ${c.coveredFrom} to ${c.coveredBefore}`}</title>
+            <title>{`${ds} reported every edge of ${p.value ?? p.market} ${p.assertedFrom} to ${p.assertedBefore}`}</title>
           </rect>
         )),
     })),

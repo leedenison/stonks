@@ -16,7 +16,7 @@ import {
   ListingSchema,
   ListInstrsResponseSchema,
 } from "@/gen/admin/instr/v1/instr_pb";
-import { AssertionItemSchema } from "@/gen/admin/run/v1/run_pb";
+import { AssertionItemSchema, Edge } from "@/gen/admin/run/v1/run_pb";
 import { Role } from "@/gen/auth/v1/auth_pb";
 import {
   AssetClass,
@@ -47,18 +47,19 @@ const tickers = create(ListInstrTickersResponseSchema, {
     { ticker: { ...acme, value: "OLD" }, current: false },
   ],
 });
-// ACME's facts: a gap before a confirmed bracket, a datasource's assertion
-// and an identifier attestation, and one datasource covering the whole market.
+// ACME's facts: a gap before a confirmed bracket, a datasource's first edge
+// and an identifier attestation, and one datasource's period assertion of the
+// whole market.
 const read = create(GetTickerResponseSchema, {
   ticker: create(TickerSchema, {
     ticker: acme,
     txnDays: ["2024-02-01"],
-    coverage: [
+    periodAssertions: [
       {
         datasource: "alpha",
         market: "US",
-        coveredFrom: "2024-06-01",
-        coveredBefore: "2026-01-01",
+        assertedFrom: "2024-06-01",
+        assertedBefore: "2026-01-01",
       },
     ],
     assertions: [
@@ -67,6 +68,7 @@ const read = create(GetTickerResponseSchema, {
         ticker: acme,
         assertedOn: "2024-06-01",
         instrId: "i-acme",
+        edge: Edge.FIRST,
         source: { case: "datasource", value: "alpha" },
       }),
       create(AssertionItemSchema, {
@@ -299,15 +301,16 @@ describe("InstrsPage", () => {
     const a1 = screen.getByTestId("assertion-row-a1");
     expect(a1.textContent).toContain("US0000000001");
     expect(a1.textContent).toContain("alpha");
+    expect(a1.textContent).toContain("first");
     expect(a1.getAttribute("data-attested")).toBeNull();
     const a2 = screen.getByTestId("assertion-row-a2");
     expect(a2.textContent).toContain("nothing");
+    expect(a2.textContent).not.toContain("first");
     expect(a2.textContent).toContain("admin@example.com");
     expect(a2.getAttribute("data-attested")).toBe("true");
-    expect(screen.getByTestId("ticker-coverage").textContent).toContain(
-      "every ticker of US",
-    );
-    expect(screen.queryByTestId("ticker-events")).toBeNull();
+    expect(
+      screen.getByTestId("ticker-period-assertions").textContent,
+    ).toContain("every ticker of US");
     fireEvent.change(select, { target: { value: "US:OLD" } });
     expect(router.replace).toHaveBeenCalledWith(
       "/admin/instrs?id=i-acme&tab=tickers&ticker=US%3AOLD",

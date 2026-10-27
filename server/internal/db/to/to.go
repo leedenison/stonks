@@ -215,6 +215,10 @@ func ProtoAssertionItem(a gen.IdentifierAssertion, value string, datasource, att
 		id := a.InstrID.String()
 		out.InstrId = &id
 	}
+	if a.Edge != nil {
+		edge := types.ToProto[adminrunv1.Edge](*a.Edge)
+		out.Edge = &edge
+	}
 	switch {
 	case datasource != nil:
 		out.Source = &adminrunv1.AssertionItem_Datasource{Datasource: *datasource}
@@ -224,25 +228,13 @@ func ProtoAssertionItem(a gen.IdentifierAssertion, value string, datasource, att
 	return out
 }
 
-// ProtoCoverage converts a coverage row of a ticker or of its market.
-func ProtoCoverage(c gen.ListIdentifierCoverageRow) *admincoveragev1.Coverage {
-	return &admincoveragev1.Coverage{
-		Datasource: c.Datasource, Market: c.Market, Value: c.Value,
-		CoveredFrom: c.CoveredFrom.Format(time.DateOnly), CoveredBefore: c.CoveredBefore.Format(time.DateOnly),
+// ProtoPeriodAssertion converts a period assertion of a ticker or of its
+// market.
+func ProtoPeriodAssertion(p gen.ListIdentifierPeriodAssertionsRow) *admincoveragev1.PeriodAssertion {
+	return &admincoveragev1.PeriodAssertion{
+		Datasource: p.Datasource, Market: p.Market, Value: p.Value,
+		AssertedFrom: p.AssertedFrom.Format(time.DateOnly), AssertedBefore: p.AssertedBefore.Format(time.DateOnly),
 	}
-}
-
-// ProtoIdentifierEvent converts an event of a ticker.
-func ProtoIdentifierEvent(e gen.ListIdentifierEventsRow) *admincoveragev1.IdentifierEvent {
-	out := &admincoveragev1.IdentifierEvent{
-		EffectiveOn: e.EffectiveOn.Format(time.DateOnly),
-		Action:      types.ToProto[admincoveragev1.IdentifierEventAction](e.Action),
-		Value:       e.Value,
-	}
-	if e.ToValue != nil {
-		out.ToValue = *e.ToValue
-	}
-	return out
 }
 
 // ProtoInstr writes an instrument with the identifier that names it,

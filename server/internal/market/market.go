@@ -6,7 +6,7 @@
 //
 // Each kind of data is a Kind, which names the request an integration
 // receives and the response it gives. The kinds are identity, identifier
-// events and corporate actions. One integration can serve several.
+// facts and corporate actions. One integration can serve several.
 //
 // An integration reads a provider's venue codes through a table generated
 // from the provider's own list. Every venue a table names normalises to an

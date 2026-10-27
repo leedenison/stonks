@@ -25,21 +25,24 @@ func period(from, before time.Time) types.Period { return types.Period{From: fro
 // us is value in the market US.
 func us(value string) types.MarketTicker { return types.MarketTicker{Market: "US", Value: value} }
 
-// coverOf is coverage of value in the market US over p.
-func coverOf(value string, p types.Period) market.Coverage {
+// asserted is a period assertion of value in the market US over p.
+func asserted(value string, p types.Period) market.PeriodAssertion {
 	t := us(value)
-	return market.Coverage{Market: "US", Ticker: &t, Period: p}
+	return market.PeriodAssertion{Market: "US", Ticker: &t, Period: p}
 }
 
 // TestChainFacts checks the identifier facts of an entity's chain.
 func TestChainFacts(t *testing.T) {
 	today := day(2026, 10, 22)
 	p := period(since, today.AddDate(0, 0, 1))
-	asserted := func(value string, on time.Time) market.Assertion {
-		return market.Assertion{Ticker: us(value), Of: market.Listing{Identifiers: []types.Identifier{meta}}, At: on}
+	at := func(value string, on time.Time, edge gen.IdentifierEdge) market.Assertion {
+		return market.Assertion{Ticker: us(value), Of: market.Listing{Identifiers: []types.Identifier{meta}}, At: on, Edge: edge}
 	}
-	covered := func(value string, from, before time.Time) market.Coverage {
-		return coverOf(value, period(from, before))
+	first := func(value string, on time.Time) market.Assertion { return at(value, on, gen.IdentifierEdgeFirst) }
+	last := func(value string, on time.Time) market.Assertion { return at(value, on, gen.IdentifierEdgeLast) }
+	point := func(value string, on time.Time) market.Assertion { return at(value, on, "") }
+	over := func(value string, from, before time.Time) market.PeriodAssertion {
+		return asserted(value, period(from, before))
 	}
 	tests := []struct {
 		name string
@@ -52,19 +55,15 @@ func TestChainFacts(t *testing.T) {
 			evs:  []event{change("CCC", "2020-06-01"), change("BBB", "2015-03-02"), change("AAA", "2010-01-04")},
 			p:    p,
 			want: market.IdentifierFactResult{
-				Events: []market.IdentifierEvent{
-					{Ticker: us("AAA"), Action: gen.IdentifierEventActionAssigned, On: day(2010, 1, 4)},
-					{Ticker: us("AAA"), Action: gen.IdentifierEventActionRenamed, ToValue: "BBB", On: day(2015, 3, 2)},
-					{Ticker: us("BBB"), Action: gen.IdentifierEventActionRenamed, ToValue: "CCC", On: day(2020, 6, 1)},
-				},
 				Assertions: []market.Assertion{
-					asserted("AAA", day(2010, 1, 4)), asserted("BBB", day(2015, 3, 2)),
-					asserted("CCC", day(2020, 6, 1)), asserted("CCC", today),
+					first("AAA", day(2010, 1, 4)), last("AAA", day(2015, 3, 1)),
+					first("BBB", day(2015, 3, 2)), last("BBB", day(2020, 5, 31)),
+					first("CCC", day(2020, 6, 1)), point("CCC", today),
 				},
-				Coverage: []market.Coverage{
-					covered("AAA", day(2010, 1, 4), day(2015, 3, 2)),
-					covered("BBB", day(2015, 3, 2), day(2020, 6, 1)),
-					covered("CCC", day(2020, 6, 1), p.Before),
+				PeriodAssertions: []market.PeriodAssertion{
+					over("AAA", day(2010, 1, 4), day(2015, 3, 2)),
+					over("BBB", day(2015, 3, 2), day(2020, 6, 1)),
+					over("CCC", day(2020, 6, 1), p.Before),
 				},
 			},
 		},
@@ -73,8 +72,8 @@ func TestChainFacts(t *testing.T) {
 			evs:  []event{change("AAPL", "2003-09-10")},
 			p:    p,
 			want: market.IdentifierFactResult{
-				Assertions: []market.Assertion{asserted("AAPL", since), asserted("AAPL", today)},
-				Coverage:   []market.Coverage{covered("AAPL", since, p.Before)},
+				Assertions:       []market.Assertion{point("AAPL", since), point("AAPL", today)},
+				PeriodAssertions: []market.PeriodAssertion{over("AAPL", since, p.Before)},
 			},
 		},
 		{
@@ -82,28 +81,28 @@ func TestChainFacts(t *testing.T) {
 			evs:  []event{change("BBB", "2025-03-03"), change("AAA", "2024-10-22")},
 			p:    period(day(2024, 10, 22), p.Before),
 			want: market.IdentifierFactResult{
-				Events: []market.IdentifierEvent{
-					{Ticker: us("AAA"), Action: gen.IdentifierEventActionRenamed, ToValue: "BBB", On: day(2025, 3, 3)},
+				Assertions: []market.Assertion{
+					point("AAA", day(2024, 10, 22)), last("AAA", day(2025, 3, 2)),
+					first("BBB", day(2025, 3, 3)), point("BBB", today),
 				},
-				Assertions: []market.Assertion{asserted("AAA", day(2024, 10, 22)), asserted("BBB", day(2025, 3, 3)), asserted("BBB", today)},
-				Coverage: []market.Coverage{
-					covered("AAA", day(2024, 10, 22), day(2025, 3, 3)),
-					covered("BBB", day(2025, 3, 3), p.Before),
+				PeriodAssertions: []market.PeriodAssertion{
+					over("AAA", day(2024, 10, 22), day(2025, 3, 3)),
+					over("BBB", day(2025, 3, 3), p.Before),
 				},
 			},
 		},
 		{
-			name: "coverage clipped to the period",
+			name: "period assertions clipped to the period",
 			evs:  []event{change("BBB", "2025-03-03"), change("AAA", "2010-01-04")},
 			p:    period(day(2024, 10, 22), day(2025, 6, 2)),
 			want: market.IdentifierFactResult{
-				Events: []market.IdentifierEvent{
-					{Ticker: us("AAA"), Action: gen.IdentifierEventActionRenamed, ToValue: "BBB", On: day(2025, 3, 3)},
+				Assertions: []market.Assertion{
+					point("AAA", day(2010, 1, 4)), last("AAA", day(2025, 3, 2)),
+					first("BBB", day(2025, 3, 3)), point("BBB", day(2025, 6, 1)),
 				},
-				Assertions: []market.Assertion{asserted("AAA", day(2010, 1, 4)), asserted("BBB", day(2025, 3, 3)), asserted("BBB", day(2025, 6, 1))},
-				Coverage: []market.Coverage{
-					covered("AAA", day(2024, 10, 22), day(2025, 3, 3)),
-					covered("BBB", day(2025, 3, 3), day(2025, 6, 2)),
+				PeriodAssertions: []market.PeriodAssertion{
+					over("AAA", day(2024, 10, 22), day(2025, 3, 3)),
+					over("BBB", day(2025, 3, 3), day(2025, 6, 2)),
 				},
 			},
 		},
@@ -112,9 +111,39 @@ func TestChainFacts(t *testing.T) {
 			evs:  []event{change("AAA", "2026-10-22")},
 			p:    p,
 			want: market.IdentifierFactResult{
-				Events:     []market.IdentifierEvent{{Ticker: us("AAA"), Action: gen.IdentifierEventActionAssigned, On: today}},
-				Assertions: []market.Assertion{asserted("AAA", today)},
-				Coverage:   []market.Coverage{covered("AAA", today, p.Before)},
+				Assertions:       []market.Assertion{first("AAA", today)},
+				PeriodAssertions: []market.PeriodAssertion{over("AAA", today, p.Before)},
+			},
+		},
+		{
+			name: "a ticker held for one day",
+			evs:  []event{change("CCC", "2020-06-02"), change("BBB", "2020-06-01"), change("AAA", "2010-01-04")},
+			p:    p,
+			want: market.IdentifierFactResult{
+				Assertions: []market.Assertion{
+					first("AAA", day(2010, 1, 4)), last("AAA", day(2020, 5, 31)),
+					first("BBB", day(2020, 6, 1)), last("BBB", day(2020, 6, 1)),
+					first("CCC", day(2020, 6, 2)), point("CCC", today),
+				},
+				PeriodAssertions: []market.PeriodAssertion{
+					over("AAA", day(2010, 1, 4), day(2020, 6, 1)),
+					over("BBB", day(2020, 6, 1), day(2020, 6, 2)),
+					over("CCC", day(2020, 6, 2), p.Before),
+				},
+			},
+		},
+		{
+			name: "an oldest ticker renamed on the day after the period starts",
+			evs:  []event{change("BBB", "2024-10-23"), change("AAA", "2024-10-22")},
+			p:    period(day(2024, 10, 22), p.Before),
+			want: market.IdentifierFactResult{
+				Assertions: []market.Assertion{
+					last("AAA", day(2024, 10, 22)), first("BBB", day(2024, 10, 23)), point("BBB", today),
+				},
+				PeriodAssertions: []market.PeriodAssertion{
+					over("AAA", day(2024, 10, 22), day(2024, 10, 23)),
+					over("BBB", day(2024, 10, 23), p.Before),
+				},
 			},
 		},
 		{
@@ -132,8 +161,8 @@ func TestChainFacts(t *testing.T) {
 			evs:  []event{change("BRK/B", "2003-09-10")},
 			p:    p,
 			want: market.IdentifierFactResult{
-				Assertions: []market.Assertion{asserted("BRK.B", since), asserted("BRK.B", today)},
-				Coverage:   []market.Coverage{covered("BRK.B", since, p.Before)},
+				Assertions:       []market.Assertion{point("BRK.B", since), point("BRK.B", today)},
+				PeriodAssertions: []market.PeriodAssertion{over("BRK.B", since, p.Before)},
 			},
 		},
 	}
@@ -152,12 +181,12 @@ func TestChainFacts(t *testing.T) {
 func TestChainFactsMarket(t *testing.T) {
 	got, err := chainFacts(meta, []event{change("META", "2022-06-09"), change("FB", "2012-05-18")}, history, "US")
 	require.NoError(t, err)
-	if len(got.Events) != 2 || len(got.Assertions) != 3 || len(got.Coverage) != 2 {
-		t.Errorf("chainFacts = %d events, %d assertions, %d coverage, want 2, 3 and 2", len(got.Events), len(got.Assertions), len(got.Coverage))
+	if len(got.Assertions) != 4 || len(got.PeriodAssertions) != 2 {
+		t.Errorf("chainFacts = %d assertions and %d period assertions, want 4 and 2", len(got.Assertions), len(got.PeriodAssertions))
 	}
-	for _, e := range got.Events {
-		if e.Ticker.Market != "US" {
-			t.Errorf("event at %s, want US", e.Ticker.Market)
+	for _, a := range got.Assertions {
+		if a.Ticker.Market != "US" {
+			t.Errorf("assertion at %s, want US", a.Ticker.Market)
 		}
 	}
 }
@@ -226,19 +255,19 @@ func TestFactsFetch(t *testing.T) {
 			cassette: "massive_events_ticker_change",
 			req:      market.IdentifierFactRequest{Identifier: meta, Period: history},
 			sent:     meta,
+			// The edges read Massive's date as the first day under the new
+			// ticker. The recorded reply dates META on 2022-06-09, the day
+			// the ticker began trading.
 			want: market.IdentifierFactResult{
-				Events: []market.IdentifierEvent{
-					{Ticker: us("FB"), Action: gen.IdentifierEventActionAssigned, On: day(2012, 5, 18)},
-					{Ticker: us("FB"), Action: gen.IdentifierEventActionRenamed, ToValue: "META", On: day(2022, 6, 9)},
-				},
 				Assertions: []market.Assertion{
-					{Ticker: us("FB"), Of: market.Listing{Identifiers: figi(meta)}, At: day(2012, 5, 18)},
-					{Ticker: us("META"), Of: market.Listing{Identifiers: figi(meta)}, At: day(2022, 6, 9)},
+					{Ticker: us("FB"), Of: market.Listing{Identifiers: figi(meta)}, At: day(2012, 5, 18), Edge: gen.IdentifierEdgeFirst},
+					{Ticker: us("FB"), Of: market.Listing{Identifiers: figi(meta)}, At: day(2022, 6, 8), Edge: gen.IdentifierEdgeLast},
+					{Ticker: us("META"), Of: market.Listing{Identifiers: figi(meta)}, At: day(2022, 6, 9), Edge: gen.IdentifierEdgeFirst},
 					{Ticker: us("META"), Of: market.Listing{Identifiers: figi(meta)}, At: day(2026, 10, 22)},
 				},
-				Coverage: []market.Coverage{
-					coverOf("FB", period(day(2012, 5, 18), day(2022, 6, 9))),
-					coverOf("META", period(day(2022, 6, 9), history.Before)),
+				PeriodAssertions: []market.PeriodAssertion{
+					asserted("FB", period(day(2012, 5, 18), day(2022, 6, 9))),
+					asserted("META", period(day(2022, 6, 9), history.Before)),
 				},
 			},
 		},
@@ -251,7 +280,7 @@ func TestFactsFetch(t *testing.T) {
 					{Ticker: us("AAPL"), Of: market.Listing{Identifiers: figi(apple[1])}, At: since},
 					{Ticker: us("AAPL"), Of: market.Listing{Identifiers: figi(apple[1])}, At: day(2026, 10, 22)},
 				},
-				Coverage: []market.Coverage{coverOf("AAPL", history)},
+				PeriodAssertions: []market.PeriodAssertion{asserted("AAPL", history)},
 			},
 		},
 		{

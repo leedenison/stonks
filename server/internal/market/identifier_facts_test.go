@@ -132,11 +132,11 @@ func TestLagOf(t *testing.T) {
 	}
 }
 
-// TestFetchIdentifierEventsPeriod checks that the period is part of the
+// TestFetchIdentifierFactsPeriod checks that the period is part of the
 // request as cached: a second period of one domain calls the provider again,
 // and the same period is answered from the cache. No stated key asks for an
-// identifier event fetch. Each key carries its datasource fetch run.
-func TestFetchIdentifierEventsPeriod(t *testing.T) {
+// identifier facts fetch. Each key carries its datasource fetch run.
+func TestFetchIdentifierFactsPeriod(t *testing.T) {
 	e := &facts{}
 	h := newHarness(t, e, nil)
 	nyse := types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XNYS"}

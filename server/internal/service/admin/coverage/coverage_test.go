@@ -33,6 +33,7 @@ import (
 var (
 	acme        = uuid.MustParse("00000000-0000-0000-0000-000000000001")
 	assertionID = uuid.MustParse("00000000-0000-0000-0000-000000000002")
+	edgeID      = uuid.MustParse("00000000-0000-0000-0000-000000000003")
 	today       = time.Date(2026, time.March, 30, 12, 0, 0, 0, time.UTC)
 	acmeTicker  = types.MarketTicker{Market: "US", Value: "ACME"}
 	acmeProto   = &typev1.MarketTicker{Market: "US", Value: "ACME"}
@@ -101,9 +102,11 @@ func TestGetTicker(t *testing.T) {
 			Assertions: []gen.ListIdentifierAssertionsRow{{
 				IdentifierAssertion: gen.IdentifierAssertion{ID: assertionID, Market: "US", InstrID: &acme, AssertedOn: day(10)}, Value: "ACME",
 				AttestedBy: ptr.To("admin@example.com"),
+			}, {
+				IdentifierAssertion: gen.IdentifierAssertion{ID: edgeID, Market: "US", InstrID: &acme, AssertedOn: day(3), Edge: ptr.To(gen.IdentifierEdgeFirst)}, Value: "ACME",
+				Datasource: ptr.To("alpha"),
 			}},
-			Events:   []gen.ListIdentifierEventsRow{{Value: "OLD", Action: gen.IdentifierEventActionRenamed, ToValue: ptr.To("ACME"), EffectiveOn: day(3)}},
-			Coverage: []gen.ListIdentifierCoverageRow{{Market: "US", CoveredFrom: day(1), CoveredBefore: day(20), Datasource: "alpha"}},
+			PeriodAssertions: []gen.ListIdentifierPeriodAssertionsRow{{Market: "US", AssertedFrom: day(1), AssertedBefore: day(20), Datasource: "alpha"}},
 		},
 		Intervals: []tickervalidity.Interval{{From: &from, Before: &before, Instr: acme, Validity: tickervalidity.Confirmed}},
 		Gaps:      []reader.Gap{{Period: types.Period{From: day(5), Before: day(10)}, Keys: 1, Txns: 1}},
@@ -112,15 +115,17 @@ func TestGetTicker(t *testing.T) {
 	want := &admincoveragev1.Ticker{
 		Ticker:  acmeProto,
 		TxnDays: []string{"2026-03-05"},
-		Coverage: []*admincoveragev1.Coverage{{
+		PeriodAssertions: []*admincoveragev1.PeriodAssertion{{
 			Datasource: "alpha", Market: "US",
-			CoveredFrom: "2026-03-01", CoveredBefore: "2026-03-20",
+			AssertedFrom: "2026-03-01", AssertedBefore: "2026-03-20",
 		}},
 		Assertions: []*adminrunv1.AssertionItem{{
 			Id: assertionID.String(), Ticker: acmeProto, AssertedOn: "2026-03-10", InstrId: ptr.To(acme.String()),
 			Source: &adminrunv1.AssertionItem_AttestedBy{AttestedBy: "admin@example.com"},
+		}, {
+			Id: edgeID.String(), Ticker: acmeProto, AssertedOn: "2026-03-03", InstrId: ptr.To(acme.String()),
+			Source: &adminrunv1.AssertionItem_Datasource{Datasource: "alpha"}, Edge: ptr.To(adminrunv1.Edge_EDGE_FIRST),
 		}},
-		Events:    []*admincoveragev1.IdentifierEvent{{EffectiveOn: "2026-03-03", Action: admincoveragev1.IdentifierEventAction_IDENTIFIER_EVENT_ACTION_RENAMED, Value: "OLD", ToValue: "ACME"}},
 		Intervals: []*admincoveragev1.Interval{{ValidFrom: ptr.To("2026-03-10"), ValidBefore: ptr.To("2026-03-21"), InstrId: acme.String(), Validity: admincoveragev1.TickerValidity_TICKER_VALIDITY_CONFIRMED}},
 		Gaps:      []*admincoveragev1.Gap{{UnconfirmedFrom: "2026-03-05", UnconfirmedBefore: "2026-03-10", Keys: 1, Txns: 1}},
 		Instrs: []*admincoveragev1.InstrName{{

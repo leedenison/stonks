@@ -76,6 +76,22 @@ func TestIdentifierAssertions(t *testing.T) {
 		}
 	})
 
+	t.Run("a first and a last on one day", func(t *testing.T) {
+		q := newTx(t)
+		f := newFetching(t, q)
+		key := servedKey(t, q, f.fetch, f.key, "GB00B03MLX29")
+		arg := assertion(q)
+		arg.FetchKeyID = &key
+		for _, e := range []gen.IdentifierEdge{gen.IdentifierEdgeFirst, gen.IdentifierEdgeLast} {
+			arg.ID, arg.Edge = db.NewID(), &e
+			require.NoError(t, q.CreateIdentifierAssertion(ctx, arg))
+		}
+		arg.ID = db.NewID()
+		if err := q.CreateIdentifierAssertion(ctx, arg); !sqlstate(err, pgerrcode.UniqueViolation) {
+			t.Errorf("CreateIdentifierAssertion of the same edge twice: err = %v, want a unique violation", err)
+		}
+	})
+
 	t.Run("an identifier attestation goes with its run", func(t *testing.T) {
 		tx := begin(t)
 		q := gen.New(tx)
@@ -135,11 +151,11 @@ func TestIdentifierAssertions(t *testing.T) {
 	})
 }
 
-// TestIdentifierEventChecks checks the shape the schema demands of an event
-// and of coverage.
-func TestIdentifierEventChecks(t *testing.T) {
+// TestIdentifierPeriodAssertionChecks checks the shape the schema demands of
+// a period assertion.
+func TestIdentifierPeriodAssertionChecks(t *testing.T) {
 	ctx := context.Background()
-	type tickers struct{ fb, meta, other uuid.UUID }
+	type tickers struct{ other uuid.UUID }
 	tests := []struct {
 		name  string
 		sql   string
@@ -147,33 +163,21 @@ func TestIdentifierEventChecks(t *testing.T) {
 		state string
 	}{
 		{
-			name:  "a rename with no new ticker",
-			sql:   "INSERT INTO identifier_events (id, fetch_key_id, market, ticker_id, action, effective_on) VALUES ($1, $2, 'US', $3, 'renamed', '2022-06-09')",
-			args:  func(ts tickers) []any { return []any{ts.fb} },
+			name:  "a period assertion that ends as it starts",
+			sql:   "INSERT INTO identifier_period_assertions (id, fetch_key_id, market, asserted_from, asserted_before) VALUES ($1, $2, 'US', '2022-06-09', '2022-06-09')",
+			args:  func(tickers) []any { return nil },
 			state: pgerrcode.CheckViolation,
 		},
 		{
-			name:  "a retirement with a new ticker",
-			sql:   "INSERT INTO identifier_events (id, fetch_key_id, market, ticker_id, action, to_ticker_id, effective_on) VALUES ($1, $2, 'US', $3, 'retired', $4, '2022-06-09')",
-			args:  func(ts tickers) []any { return []any{ts.fb, ts.meta} },
-			state: pgerrcode.CheckViolation,
-		},
-		{
-			name:  "a rename to another market",
-			sql:   "INSERT INTO identifier_events (id, fetch_key_id, market, ticker_id, action, to_ticker_id, effective_on) VALUES ($1, $2, 'US', $3, 'renamed', $4, '2022-06-09')",
-			args:  func(ts tickers) []any { return []any{ts.fb, ts.other} },
+			name:  "a period assertion of a venue in place of its market",
+			sql:   "INSERT INTO identifier_period_assertions (id, fetch_key_id, market, asserted_from, asserted_before) VALUES ($1, $2, 'XNAS', '2022-01-01', '2022-06-09')",
+			args:  func(tickers) []any { return nil },
 			state: pgerrcode.ForeignKeyViolation,
 		},
 		{
-			name:  "coverage that ends as it starts",
-			sql:   "INSERT INTO identifier_event_coverage (id, fetch_key_id, market, covered_from, covered_before) VALUES ($1, $2, 'US', '2022-06-09', '2022-06-09')",
-			args:  func(tickers) []any { return nil },
-			state: pgerrcode.CheckViolation,
-		},
-		{
-			name:  "coverage of a venue in place of its market",
-			sql:   "INSERT INTO identifier_event_coverage (id, fetch_key_id, market, covered_from, covered_before) VALUES ($1, $2, 'XNAS', '2022-01-01', '2022-06-09')",
-			args:  func(tickers) []any { return nil },
+			name:  "a period assertion of a ticker of another market",
+			sql:   "INSERT INTO identifier_period_assertions (id, fetch_key_id, market, ticker_id, asserted_from, asserted_before) VALUES ($1, $2, 'US', $3, '2022-01-01', '2022-06-09')",
+			args:  func(ts tickers) []any { return []any{ts.other} },
 			state: pgerrcode.ForeignKeyViolation,
 		},
 	}
@@ -183,7 +187,7 @@ func TestIdentifierEventChecks(t *testing.T) {
 			q := gen.New(tx)
 			f := newFetching(t, q)
 			key := servedKey(t, q, f.fetch, f.key, "US30303M1027")
-			ts := tickers{fb: newTicker(t, q, "US", "FB").ID, meta: newTicker(t, q, "US", "META").ID, other: newTicker(t, q, "XLON", "META").ID}
+			ts := tickers{other: newTicker(t, q, "XLON", "META").ID}
 			args := append([]any{db.NewID(), key}, tc.args(ts)...)
 			if _, err := tx.Exec(ctx, tc.sql, args...); !sqlstate(err, tc.state) {
 				t.Errorf("%s: err = %v, want SQLSTATE %s", tc.name, err, tc.state)

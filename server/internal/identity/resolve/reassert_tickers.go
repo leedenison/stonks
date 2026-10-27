@@ -189,14 +189,14 @@ func (r *Resolver) fetchHeld(ctx context.Context, run gen.Run, ts []*heldTicker)
 		return nil, nil, err
 	}
 	var answers []heldAnswer
-	var events []factKey
+	var facts []factKey
 	for i := range entries {
 		for j, fk := range idKeys[i] {
 			answers = append(answers, heldAnswer{t: idOf[i][j], fk: fk})
 		}
-		events = append(events, factKeys[i]...)
+		facts = append(facts, factKeys[i]...)
 	}
-	return answers, events, nil
+	return answers, facts, nil
 }
 
 // historyRequest returns the request for t's instrument history from e, over

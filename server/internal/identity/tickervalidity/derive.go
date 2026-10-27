@@ -6,15 +6,17 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
 // Derive returns what the facts of one ticker imply: the intervals in order,
-// the events they infer, and the conflicts among them.
+// the changes they infer, and the conflicts among them.
 func Derive(f Facts) Derived {
 	ws, disagreements := winners(f.Assertions)
-	cover := union(periods(f.Coverage))
-	bounds := days(f.Events)
+	cover := union(periods(f.PeriodAssertions))
+	edges := edged(f.Assertions)
+	bounds := cuts(edges)
 	var out []Interval
 	var inferred []Inferred
 	var start *time.Time
@@ -36,49 +38,81 @@ func Derive(f Facts) Derived {
 	}
 	return Derived{
 		Intervals: join(out), Inferred: inferred, Disagreements: disagreements,
-		Broken: broken(ws, f.Events), Missed: missed(inferred, f.Coverage, cover),
+		Broken: broken(ws, edges), Missed: missed(inferred, f.PeriodAssertions, cover),
 	}
 }
 
-// missed returns each inferred event whose period one period of cover holds
-// in full. Each comes with the first coverage row that holds the first day of
-// the period.
-func missed(inferred []Inferred, rows []Coverage, cover []types.Period) []MissedEvent {
+// missed returns each inferred change whose possible days one period of
+// cover holds in full. cover is the union of the period assertions. Each
+// change comes with the first period assertion that holds the first of those
+// days.
+func missed(inferred []Inferred, rows []PeriodAssertion, cover []types.Period) []MissedEvent {
 	var out []MissedEvent
 	for _, inf := range inferred {
 		held := slices.ContainsFunc(cover, func(p types.Period) bool {
 			return !inf.Period.From.Before(p.From) && !p.Before.Before(inf.Period.Before)
 		})
-		i := slices.IndexFunc(rows, func(c Coverage) bool { return c.Period.Contains(inf.Period.From) })
+		i := slices.IndexFunc(rows, func(p PeriodAssertion) bool { return p.Period.Contains(inf.Period.From) })
 		if held && i >= 0 {
-			out = append(out, MissedEvent{Inferred: inf, Coverage: rows[i]})
+			out = append(out, MissedEvent{Inferred: inf, By: rows[i]})
 		}
 	}
 	return out
 }
 
-// periods returns the period of each coverage row.
-func periods(rows []Coverage) []types.Period {
+// periods returns the period of each period assertion.
+func periods(rows []PeriodAssertion) []types.Period {
 	out := make([]types.Period, len(rows))
-	for i, c := range rows {
-		out[i] = c.Period
+	for i, p := range rows {
+		out[i] = p.Period
 	}
 	return out
 }
 
-// broken returns each event that falls between two consecutive winners of one
-// instrument. An event on a winner's day precedes it, so that winner is the
-// later one.
-func broken(ws []winner, events []Event) []BrokenBracket {
+// edged returns the assertions that carry an edge.
+func edged(as []Assertion) []Assertion {
+	var out []Assertion
+	for _, a := range as {
+		if a.Edge != "" {
+			out = append(out, a)
+		}
+	}
+	return out
+}
+
+// cut returns the day at whose start the edge a cuts the timeline: the day of
+// a first, and the day after a last.
+func cut(a Assertion) time.Time {
+	if a.Edge == gen.IdentifierEdgeLast {
+		return next(a.At)
+	}
+	return a.At
+}
+
+// cuts returns the distinct cuts of the edges in order.
+func cuts(edges []Assertion) []time.Time {
+	out := make([]time.Time, len(edges))
+	for i, e := range edges {
+		out[i] = cut(e)
+	}
+	slices.SortFunc(out, func(a, b time.Time) int { return a.Compare(b) })
+	return slices.CompactFunc(out, func(a, b time.Time) bool { return a.Equal(b) })
+}
+
+// broken returns each edge that cuts between two consecutive winners of one
+// instrument. A cut at the start of a winner's day precedes it, so that winner
+// is the later one.
+func broken(ws []winner, edges []Assertion) []BrokenBracket {
 	var out []BrokenBracket
-	for _, e := range events {
-		i := slices.IndexFunc(ws, func(w winner) bool { return !w.at.Before(e.On) })
+	for _, e := range edges {
+		c := cut(e)
+		i := slices.IndexFunc(ws, func(w winner) bool { return !w.at.Before(c) })
 		if i <= 0 {
 			continue
 		}
 		before, after := ws[i-1], ws[i]
 		if before.instr != nil && same(before.instr, after.instr) {
-			out = append(out, BrokenBracket{Event: e, Instr: *before.instr, First: before.at, Last: after.at})
+			out = append(out, BrokenBracket{Edge: e, Instr: *before.instr, First: before.at, Last: after.at})
 		}
 	}
 	return out
@@ -207,7 +241,7 @@ func same(a, b *uuid.UUID) bool {
 	return *a == *b
 }
 
-// segment derives the intervals of the spans between two events, start and
+// segment derives the intervals of the spans between two cuts, start and
 // end. A nil start or end is an open end of the ticker.
 func segment(ss []span, start, end *time.Time, cover []types.Period) ([]Interval, []Inferred) {
 	var out []Interval
@@ -295,16 +329,6 @@ func union(ps []types.Period) []types.Period {
 		out = append(out, p)
 	}
 	return out
-}
-
-// days returns the distinct days of the events in order.
-func days(es []Event) []time.Time {
-	out := make([]time.Time, len(es))
-	for i, e := range es {
-		out[i] = e.On
-	}
-	slices.SortFunc(out, func(a, b time.Time) int { return a.Compare(b) })
-	return slices.CompactFunc(out, func(a, b time.Time) bool { return a.Equal(b) })
 }
 
 // join merges intervals that meet and agree on instrument and ticker validity.

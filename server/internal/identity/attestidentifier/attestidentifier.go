@@ -2,8 +2,8 @@
 // of what a ticker names.
 //
 // An identifier attestation is an assertion whose source is an administrator
-// rather than a fetch key. Datasources supply coverage, so a market no
-// datasource covers is attested ticker by ticker. How an attested assertion
+// rather than a fetch key. Datasources supply period assertions, so a market
+// without them is attested ticker by ticker. How an attested assertion
 // ranks against a datasource's is in
 // [tickervalidity.go](../tickervalidity/tickervalidity.go). Writing or
 // withdrawing an identifier attestation replays the unresolved keys that state

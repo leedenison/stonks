@@ -71,8 +71,17 @@ message FetchItem {
   optional string reason = 6;
 }
 
+// What an assertion's edge marks its day as: the first or last day of a
+// span.
+enum Edge {
+  EDGE_UNSPECIFIED = 0;
+  EDGE_FIRST = 1;
+  EDGE_LAST = 2;
+}
+
 // An assertion a run wrote: that a ticker names an instrument, or names
 // nothing, on one day.
+
 message AssertionItem {
   string id = 1;
   stonks.type.v1.MarketTicker ticker = 2;
@@ -86,6 +95,8 @@ message AssertionItem {
     // The email of the administrator who attested it.
     string attested_by = 6;
   }
+  // Unset for a point.
+  optional Edge edge = 7;
 }
 
 enum FindingKind {
@@ -107,14 +118,14 @@ enum FindingKind {
   // day, and precedence kept one. The detail names the value, the day and the
   // datasources.
   FINDING_KIND_IDENTIFIER_DISAGREEMENT = 5;
-  // A witnessed event fell between two assertions that name one instrument,
-  // and the event wins over the bracket. The detail names the value, the
-  // event's day and the instrument.
+  // An edge cut between two assertions that name one instrument. The detail
+  // names the value, the edge, its day and the instrument.
   FINDING_KIND_BROKEN_TICKER_VALIDITY_BRACKET = 6;
-  // Two assertions imply an event on one of a run of days, and a
-  // datasource's coverage holds every one of those days. The datasource
-  // reported no event there. The coverage wins. The detail names the value,
-  // the days of the assertions, the datasource and its coverage.
+  // Two assertions imply a change on one of a run of days, and a
+  // datasource's period assertions hold every one of those days. The
+  // datasource did not report an edge there. The period assertion wins. The
+  // detail names the value, the days of the assertions, the datasource and
+  // its period assertion.
   FINDING_KIND_MISSED_EVENT = 7;
   // A datasource reported a corporate action of a type the system does not
   // restate a quantity by. The detail names the ticker, the ex-date, the type

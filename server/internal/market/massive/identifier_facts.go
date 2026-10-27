@@ -56,13 +56,14 @@ type link struct {
 }
 
 // chainFacts converts the ticker events of the entity sent names into
-// identifier facts at the market home. An oldest event on or before p's
-// first day marks where Massive's data begins, so it assigns nothing. The
-// newest ticker is also asserted on p's last day, so the chain asserts a held
-// ticker on the present day. That holds because Massive answers not found
-// for the chain of a delisted entity. If a chain holds a ticker the system
-// cannot spell, chainFacts returns an empty result, since a partial chain
-// would claim coverage around the event it dropped.
+// identifier facts at the market home, with a first and a last around each
+// rename. The oldest event on or before p's first day marks where Massive's
+// data begins, so its ticker's assertion is a point. The newest ticker is
+// also asserted on p's last day, so the chain asserts a held ticker on the
+// present day. That holds because Massive answers not found for the chain of
+// a delisted entity. If a chain holds a ticker the system cannot spell,
+// chainFacts returns an empty result, since a partial chain would put a
+// period assertion around the edge it dropped.
 func chainFacts(sent types.Identifier, evs []event, p types.Period, home string) (market.IdentifierFactResult, error) {
 	var links []link
 	for _, e := range slices.Backward(evs) {
@@ -79,7 +80,11 @@ func chainFacts(sent types.Identifier, evs []event, p types.Period, home string)
 		}
 		links = append(links, link{ticker: t, from: on})
 	}
+	of := market.Listing{Identifiers: []types.Identifier{sent}}
 	var out market.IdentifierFactResult
+	assert := func(t types.MarketTicker, on time.Time, edge gen.IdentifierEdge) {
+		out.Assertions = append(out.Assertions, market.Assertion{Ticker: t, Of: of, At: on, Edge: edge})
+	}
 	today := p.Before.AddDate(0, 0, -1)
 	for i, l := range links {
 		before := p.Before
@@ -87,19 +92,20 @@ func chainFacts(sent types.Identifier, evs []event, p types.Period, home string)
 			before = links[i+1].from
 		}
 		t := types.MarketTicker{Market: home, Value: l.ticker}
-		switch {
-		case i > 0:
-			prev := types.MarketTicker{Market: home, Value: links[i-1].ticker}
-			out.Events = append(out.Events, market.IdentifierEvent{Ticker: prev, Action: gen.IdentifierEventActionRenamed, ToValue: l.ticker, On: l.from})
-		case l.from.After(p.From):
-			out.Events = append(out.Events, market.IdentifierEvent{Ticker: t, Action: gen.IdentifierEventActionAssigned, On: l.from})
+		last := before.AddDate(0, 0, -1)
+		// A point gives way to an edge of its ticker on its day.
+		if i > 0 || l.from.After(p.From) {
+			assert(t, l.from, gen.IdentifierEdgeFirst)
+		} else if i+1 == len(links) || last.After(l.from) {
+			assert(t, l.from, "")
 		}
-		out.Assertions = append(out.Assertions, market.Assertion{Ticker: t, Of: market.Listing{Identifiers: []types.Identifier{sent}}, At: l.from})
-		if i == len(links)-1 && today.After(l.from) {
-			out.Assertions = append(out.Assertions, market.Assertion{Ticker: t, Of: market.Listing{Identifiers: []types.Identifier{sent}}, At: today})
+		if i+1 < len(links) {
+			assert(t, last, gen.IdentifierEdgeLast)
+		} else if today.After(l.from) {
+			assert(t, today, "")
 		}
 		if c, ok := clip(types.Period{From: l.from, Before: before}, p); ok {
-			out.Coverage = append(out.Coverage, market.Coverage{Market: home, Ticker: &t, Period: c})
+			out.PeriodAssertions = append(out.PeriodAssertions, market.PeriodAssertion{Market: home, Ticker: &t, Period: c})
 		}
 	}
 	return out, nil
