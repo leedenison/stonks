@@ -107,6 +107,12 @@ func (r Rows) Facts() Facts {
 		if ia.Edge != nil {
 			a.Edge = *ia.Edge
 		}
+		if ia.Venue != nil {
+			a.Stated.Venue = *ia.Venue
+		}
+		if ia.Currency != nil {
+			a.Stated.Currency = *ia.Currency
+		}
 		f.Assertions = append(f.Assertions, a)
 	}
 	for _, p := range r.PeriodAssertions {

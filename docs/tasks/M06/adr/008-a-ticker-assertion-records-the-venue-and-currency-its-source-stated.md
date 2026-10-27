@@ -17,6 +17,10 @@ reads them.
 | Massive ticker history and point in time lookup | NULL | NULL |
 | Identifier attestation | NULL | NULL |
 
+An answer that lists one ticker at several venues of its market writes one assertion per
+venue. OpenFIGI lists a US ticker at many exchange codes, and the projection gives each
+venue its own row. The unique key of `identifier_assertions` therefore includes `venue`.
+
 OpenFIGI's answer omits the currency. Its integration sends the key's currency as a
 filter. It stamps that currency on every listing it returns. The currency is therefore a
 property of the request.

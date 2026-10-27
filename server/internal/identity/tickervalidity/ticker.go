@@ -2,6 +2,7 @@ package tickervalidity
 
 import (
 	"context"
+	"slices"
 	"time"
 
 	"github.com/leedenison/stonks/server/internal/types"
@@ -10,9 +11,9 @@ import (
 // Ticker is one ticker's validity, as one read of its facts found it. A
 // reader that asks many questions of one ticker reads its facts once.
 type Ticker struct {
-	Ticker   types.MarketTicker
-	Derived  Derived
-	asserted map[time.Time]bool
+	Ticker  types.MarketTicker
+	Facts   Facts
+	Derived Derived
 }
 
 // ReadTicker reads the facts of t and derives its ticker validity.
@@ -34,11 +35,7 @@ func ReadTickers(ctx context.Context, q FactQueries, ts []types.MarketTicker) (m
 	out := make(map[types.MarketTicker]*Ticker, len(rows))
 	for v, r := range rows {
 		f := r.Facts()
-		asserted := map[time.Time]bool{}
-		for _, a := range f.Assertions {
-			asserted[types.Day(a.At)] = true
-		}
-		out[v] = &Ticker{Ticker: v, Derived: Derive(f), asserted: asserted}
+		out[v] = &Ticker{Ticker: v, Facts: f, Derived: Derive(f)}
 	}
 	return out, nil
 }
@@ -48,7 +45,9 @@ func ReadTickers(ctx context.Context, q FactQueries, ts []types.MarketTicker) (m
 func (t *Ticker) HasTickerValidity() bool { return len(t.Derived.Intervals) > 0 }
 
 // Asserted reports whether any source asserted the ticker on day d.
-func (t *Ticker) Asserted(d time.Time) bool { return t.asserted[types.Day(d)] }
+func (t *Ticker) Asserted(d time.Time) bool {
+	return slices.ContainsFunc(t.Facts.Assertions, func(a Assertion) bool { return types.Day(a.At).Equal(types.Day(d)) })
+}
 
 // On returns the interval of the ticker's validity that holds day d. It
 // reports false where the ticker names nothing on d.

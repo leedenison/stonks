@@ -95,12 +95,21 @@ CREATE TABLE identifier_assertions (
     asserted_on     date            NOT NULL,
     -- edge is NULL for a point: the days either side stay open.
     edge            identifier_edge,
+    -- venue and currency are what the source stated beside the ticker: the
+    -- operating MIC of the venue, and the currency of the line. Each is NULL
+    -- where the source stated none. Ticker validity ignores both, and
+    -- resolved_tickers reads them.
+    venue           text,
+    currency        text            REFERENCES currencies (code),
     CHECK ((fetch_key_id IS NULL) <> (run_id IS NULL)),
     CHECK ((run_id IS NULL) = (attested_by IS NULL)),
     FOREIGN KEY (ticker_id, market) REFERENCES tickers (id, market),
+    FOREIGN KEY (venue, market) REFERENCES market_members (operating_mic, market),
     -- edge is part of the key, so a source can state a first and a last for
-    -- one ticker on one day.
-    UNIQUE NULLS NOT DISTINCT (fetch_key_id, ticker_id, asserted_on, edge)
+    -- one ticker on one day. venue is part of the key, so an answer that lists
+    -- the ticker at several venues of its market writes one assertion per
+    -- venue.
+    UNIQUE NULLS NOT DISTINCT (fetch_key_id, ticker_id, asserted_on, edge, venue)
 );
 
 CREATE INDEX identifier_assertions_ticker_idx ON identifier_assertions (ticker_id);
@@ -128,3 +137,61 @@ CREATE TABLE identifier_period_assertions (
 
 CREATE INDEX identifier_period_assertions_ticker_idx ON identifier_period_assertions (market, ticker_id);
 CREATE INDEX identifier_period_assertions_fetch_key_idx ON identifier_period_assertions (fetch_key_id);
+
+-- A ticker relates to an instrument it named. 'current': it still names the
+-- instrument. 'defunct': it now names another instrument. 'former': it names
+-- nothing now.
+CREATE TYPE ticker_relation AS ENUM ('current', 'defunct', 'former');
+
+-- resolved_tickers names each instrument at each market by one ticker: of the
+-- tickers whose ticker validity names the instrument, the one whose last
+-- interval ends latest. An open interval ends latest. A tie goes to the ticker
+-- that most recently won a day naming the instrument, then to the lower
+-- value. valid_from and valid_before bound the unbroken run of intervals that
+-- ends with the last one. A NULL bound is open, so a NULL valid_before means
+-- the ticker still names the instrument.
+--
+-- Each venue that an assertion of the ticker and instrument states gets a row.
+-- Its currency is that of the latest assertion at the venue that states one.
+-- Where no assertion states a venue, one row has a NULL venue.
+--
+-- The table holds names only. Holdings, dating and corporate actions read
+-- ticker validity from the facts. Only a rebuild in package tickervalidity
+-- writes the table, in the transaction that writes the facts.
+CREATE TABLE resolved_tickers (
+    ticker_id    uuid NOT NULL,
+    market       text NOT NULL,
+    instr_id     uuid NOT NULL REFERENCES instrs (id) ON DELETE CASCADE,
+    venue        text,
+    valid_from   date,
+    valid_before date,
+    currency     text REFERENCES currencies (code),
+    FOREIGN KEY (ticker_id, market) REFERENCES tickers (id, market),
+    FOREIGN KEY (venue, market) REFERENCES market_members (operating_mic, market),
+    CHECK (valid_from IS NULL OR valid_before IS NULL OR valid_from < valid_before),
+    UNIQUE NULLS NOT DISTINCT (instr_id, market, venue)
+);
+
+CREATE INDEX resolved_tickers_ticker_idx ON resolved_tickers (ticker_id);
+
+-- instr_tickers relates each instrument to each ticker that names it in a row
+-- of resolved_tickers or in a positive assertion. A ticker is defunct where
+-- another instrument has an open row of it. A ticker that still names an
+-- instrument only through a tie it lost lacks a row for that instrument. It
+-- then reads as former on the instrument it named before.
+CREATE VIEW instr_tickers AS
+SELECT named.ticker_id, named.instr_id,
+       (CASE
+            WHEN bool_or(named.open) THEN 'current'
+            WHEN EXISTS (SELECT 1 FROM resolved_tickers AS other
+                         WHERE other.ticker_id = named.ticker_id
+                           AND other.instr_id <> named.instr_id
+                           AND other.valid_before IS NULL) THEN 'defunct'
+            ELSE 'former'
+        END)::ticker_relation AS relation
+FROM (
+    SELECT ticker_id, instr_id, valid_before IS NULL AS open FROM resolved_tickers
+    UNION ALL
+    SELECT ticker_id, instr_id, false FROM identifier_assertions WHERE instr_id IS NOT NULL
+) AS named
+GROUP BY named.ticker_id, named.instr_id;

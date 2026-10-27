@@ -76,7 +76,7 @@ func (f *fixture) records() {
 		f.txs++
 		return fn(f.store)
 	}).AnyTimes()
-	f.store.EXPECT().LockIdentifiers(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, keys []string) error {
+	f.store.EXPECT().LockAdvisory(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, keys []string) error {
 		f.locked = append(f.locked, keys)
 		return nil
 	}).AnyTimes()

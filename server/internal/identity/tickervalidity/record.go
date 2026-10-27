@@ -22,7 +22,7 @@ type RecordQueries interface {
 	CreateIdentifierAssertion(ctx context.Context, arg gen.CreateIdentifierAssertionParams) error
 	CreateIdentifierPeriodAssertion(ctx context.Context, arg gen.CreateIdentifierPeriodAssertionParams) error
 	FindIdentifier(ctx context.Context, arg gen.FindIdentifierParams) (gen.FindIdentifierRow, error)
-	LockIdentifiers(ctx context.Context, keys []string) error
+	LockAdvisory(ctx context.Context, names []string) error
 	CreateInstr(ctx context.Context, arg gen.CreateInstrParams) (gen.Instr, error)
 	CreateListing(ctx context.Context, arg gen.CreateListingParams) (gen.Listing, error)
 	CreateIdentifier(ctx context.Context, arg gen.CreateIdentifierParams) (gen.Identifier, error)

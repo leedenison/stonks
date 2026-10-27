@@ -1,8 +1,8 @@
 -- name: CreateIdentifierAssertion :exec
 INSERT INTO identifier_assertions (id, fetch_key_id, run_id, attested_by, ticker_id, market,
-    instr_id, asserted_on, edge)
+    instr_id, asserted_on, edge, venue, currency)
 VALUES (@id, @fetch_key_id, @run_id, @attested_by, @ticker_id, @market, @instr_id, @asserted_on,
-    sqlc.narg(edge));
+    sqlc.narg(edge), sqlc.narg(venue), sqlc.narg(currency));
 
 -- name: CreateIdentifierAttestation :exec
 -- A later identifier attestation of a day replaces the earlier one.
@@ -168,3 +168,51 @@ WHERE identifier_assertions.id = $1;
 
 -- name: DeleteAttestedAssertion :execrows
 DELETE FROM identifier_assertions WHERE id = $1 AND run_id IS NOT NULL;
+
+-- name: ListResolvePairs :many
+-- Each instrument and market whose names the tickers' facts or rows of
+-- resolved_tickers touch.
+SELECT DISTINCT instr_id::uuid AS instr_id, market FROM (
+    SELECT instr_id, market FROM identifier_assertions
+    WHERE ticker_id = ANY(@ticker_ids::uuid[]) AND instr_id IS NOT NULL
+    UNION
+    SELECT instr_id, market FROM resolved_tickers
+    WHERE ticker_id = ANY(@ticker_ids::uuid[])
+) AS pairs
+ORDER BY instr_id, market;
+
+-- name: ListPairTickers :many
+-- For each instrument and market that the arrays hold at one index, the
+-- tickers of the market with a positive assertion that names the instrument.
+SELECT DISTINCT asked.instr_id::uuid AS instr_id, sqlc.embed(tickers)
+FROM (SELECT unnest(@instr_ids::uuid[]) AS instr_id, unnest(@markets::text[]) AS market) AS asked
+JOIN identifier_assertions ON identifier_assertions.instr_id = asked.instr_id
+    AND identifier_assertions.market = asked.market
+JOIN tickers ON tickers.id = identifier_assertions.ticker_id
+ORDER BY asked.instr_id, tickers.market, tickers.value;
+
+-- name: DeleteResolvedTickers :exec
+-- Deletes the rows of each instrument and market that the arrays hold at one
+-- index.
+DELETE FROM resolved_tickers
+USING (SELECT unnest(@instr_ids::uuid[]) AS instr_id, unnest(@markets::text[]) AS market) AS asked
+WHERE resolved_tickers.instr_id = asked.instr_id AND resolved_tickers.market = asked.market;
+
+-- name: CreateResolvedTickers :exec
+-- The bounds are ISO dates. An empty venue, currency or bound is stored as
+-- NULL.
+INSERT INTO resolved_tickers (ticker_id, market, instr_id, venue, valid_from, valid_before, currency)
+SELECT r.ticker_id, r.market, r.instr_id, NULLIF(r.venue, ''), NULLIF(r.valid_from, '')::date,
+       NULLIF(r.valid_before, '')::date, NULLIF(r.currency, '')
+FROM (SELECT unnest(@ticker_ids::uuid[]) AS ticker_id, unnest(@markets::text[]) AS market,
+             unnest(@instr_ids::uuid[]) AS instr_id, unnest(@venues::text[]) AS venue,
+             unnest(@valid_froms::text[]) AS valid_from, unnest(@valid_befores::text[]) AS valid_before,
+             unnest(@currencies::text[]) AS currency) AS r;
+
+-- name: ListResolvedTickers :many
+-- Only tests read the rows of an instrument.
+SELECT resolved_tickers.*, tickers.value
+FROM resolved_tickers
+JOIN tickers ON tickers.id = resolved_tickers.ticker_id
+WHERE resolved_tickers.instr_id = ANY(@instr_ids::uuid[])
+ORDER BY resolved_tickers.instr_id, resolved_tickers.market, resolved_tickers.venue NULLS FIRST;

@@ -17,3 +17,23 @@ ORDER BY tickers.market, tickers.value;
 
 -- name: ListTickersByID :many
 SELECT * FROM tickers WHERE id = ANY(@ids::uuid[]) ORDER BY market, value;
+
+-- name: LockTickers :many
+-- Locks the rows of the tickers for the transaction, in id order. A fact
+-- write takes these locks after its advisory identifier locks.
+SELECT id FROM tickers WHERE id = ANY(@ids::uuid[]) ORDER BY id FOR UPDATE;
+
+-- name: LockTickerBatch :many
+-- Locks the next lim tickers after the id after, in id order. A NULL after
+-- starts at the first.
+SELECT id FROM tickers
+WHERE sqlc.narg(after)::uuid IS NULL OR id > sqlc.narg(after)
+ORDER BY id
+LIMIT @lim::int
+FOR UPDATE;
+
+-- name: ListTickersOfInstrs :many
+-- The tickers of the positive assertions that name the instruments.
+SELECT DISTINCT ticker_id FROM identifier_assertions
+WHERE instr_id = ANY(@instr_ids::uuid[])
+ORDER BY ticker_id;

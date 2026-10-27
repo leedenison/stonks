@@ -15,12 +15,23 @@ Each write holds its tickers from the fact write until commit:
    existing rows unlocked.
 2. The write transaction takes its advisory identifier locks.
 3. It locks its `tickers` rows with `SELECT ... FOR UPDATE`, in id order.
-4. It writes the facts, rebuilds the projection of those tickers and commits.
+4. It writes the facts.
+5. It rebuilds the projection of those tickers. The rebuild takes an advisory lock on
+   each instrument whose rows it rewrites, in id order, and then commits.
 
 A second writer of the ticker waits on the row lock. Under Read Committed, its next
 statement sees the first writer's committed facts. The rule relies on that isolation
 level. Identifier attestations and their withdrawals take the same locks. Each batch of a
 `rebuild_resolved_tickers` run locks its ticker rows in id order.
+
+The rule picks one ticker for an instrument from every ticker that names it. Two writers
+of different tickers of one instrument hold different ticker rows. The instrument lock
+makes the second wait until the first commits. Its rebuild then reads the first writer's
+facts.
+
+Each writer takes each step once, so every writer takes the locks in one order. An
+identity write that merges instruments locks the tickers of the loser's assertions in
+its one ticker lock, after it has chosen the merge.
 
 ## Considered options
 

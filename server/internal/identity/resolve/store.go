@@ -27,7 +27,7 @@ type Queries interface {
 	ListIdentifiersOf(ctx context.Context, ids []uuid.UUID) ([]gen.Identifier, error)
 	ListListingsOf(ctx context.Context, ids []uuid.UUID) ([]gen.Listing, error)
 	ListIdentityCoverage(ctx context.Context, instrIds []uuid.UUID) ([]gen.IdentityCoverage, error)
-	LockIdentifiers(ctx context.Context, keys []string) error
+	LockAdvisory(ctx context.Context, names []string) error
 	CreateInstr(ctx context.Context, arg gen.CreateInstrParams) (gen.Instr, error)
 	CreateListing(ctx context.Context, arg gen.CreateListingParams) (gen.Listing, error)
 	SetListingPrimary(ctx context.Context, arg gen.SetListingPrimaryParams) error
