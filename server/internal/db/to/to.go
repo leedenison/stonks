@@ -39,15 +39,6 @@ func BlockSent(b gen.DatasourceBlock) (types.Identifier, bool) {
 	return sent(b.SentType, b.SentDomain, b.SentValue)
 }
 
-// AssociatedTicker returns the MIC_TICKER of k's dated association, and
-// false where k has none.
-func AssociatedTicker(k gen.StatedKey) (types.Identifier, bool) {
-	if k.ViaType == nil || k.ViaDomain == nil || k.ViaValue == nil {
-		return types.Identifier{}, false
-	}
-	return types.Identifier{Type: *k.ViaType, Domain: *k.ViaDomain, Value: *k.ViaValue}, true
-}
-
 // sent reads the identifier columns of a row. A domain has a type and a
 // domain and no value.
 func sent(typ *types.IdentifierType, domain string, value *string) (types.Identifier, bool) {
@@ -102,8 +93,9 @@ func ProtoStatedKey(k gen.StatedKey) *typev1.StatedKey {
 }
 
 // ProtoResolutionItem writes k with what a resolution made of it. A nil r,
-// for a key no resolution has reached, leaves the outcome unset.
-func ProtoResolutionItem(k gen.StatedKey, r *gen.ResolutionKey) *typev1.ResolutionItem {
+// for a key no resolution has reached, leaves the outcome unset. dated is
+// nil for a key without a dated association.
+func ProtoResolutionItem(k gen.StatedKey, r *gen.ResolutionKey, dated *types.Identifier) *typev1.ResolutionItem {
 	out := &typev1.ResolutionItem{StatedKey: ProtoStatedKey(k), StatedKeyId: k.ID.String()}
 	if r != nil {
 		out.Outcome = types.ToProto[typev1.ResolutionOutcome](r.Outcome)
@@ -113,8 +105,8 @@ func ProtoResolutionItem(k gen.StatedKey, r *gen.ResolutionKey) *typev1.Resoluti
 	if k.Arbiter != nil {
 		out.Arbiter = types.ToProto[typev1.Arbiter](*k.Arbiter)
 	}
-	if v, ok := AssociatedTicker(k); ok {
-		out.Ticker = v.ToProto()
+	if dated != nil {
+		out.Ticker = dated.ToProto()
 	}
 	return out
 }

@@ -88,7 +88,7 @@ func TestStatedKeys(t *testing.T) {
 	}
 
 	usd, via := cashListing(t, q, "USD")
-	arg := gen.SetStatedKeyAssociationParams{ID: created.ID, UserID: user.ID, InstrID: &usd.InstrID, ListingID: &usd.ID, ViaID: &via.ID, Arbiter: gen.ArbiterUser}
+	arg := gen.SetStatedKeyAssociationParams{ID: created.ID, UserID: user.ID, InstrID: &usd.InstrID, ListingID: &usd.ID, ViaIdentifierID: &via.ID, Arbiter: gen.ArbiterUser}
 	_, err = q.SetStatedKeyAssociation(ctx, arg)
 	require.NoError(t, err)
 	restated := upsertKey(t, q, newStmt(t, q, user), key(ptr.To("USD")))
@@ -244,7 +244,7 @@ func TestStatedKeyAssociation(t *testing.T) {
 		one, two := newStatedKey(t, q, user, stmt), newStatedKey(t, q, user, stmt)
 		require.NoError(t, q.SetStatedKeyGroups(ctx, gen.SetStatedKeyGroupsParams{UserID: user.ID, Ids: []uuid.UUID{one.ID, two.ID}, GroupIds: []uuid.UUID{one.ID, one.ID}}))
 		usd, via := cashListing(t, q, "USD")
-		arg := gen.SetStatedKeyAssociationParams{ID: two.ID, UserID: user.ID, InstrID: &usd.InstrID, ListingID: &usd.ID, ViaID: &via.ID, Arbiter: gen.ArbiterDatasource}
+		arg := gen.SetStatedKeyAssociationParams{ID: two.ID, UserID: user.ID, InstrID: &usd.InstrID, ListingID: &usd.ID, ViaIdentifierID: &via.ID, Arbiter: gen.ArbiterDatasource}
 		n, err := q.SetStatedKeyAssociation(ctx, arg)
 		require.NoError(t, err)
 		if n != 1 {
@@ -263,7 +263,7 @@ func TestStatedKeyAssociation(t *testing.T) {
 		stmt := newStmt(t, q, user)
 		one, two := newStatedKey(t, q, user, stmt), newStatedKey(t, q, user, stmt)
 		usd, via := cashListing(t, q, "USD")
-		arg := gen.SetStatedKeyAssociationParams{ID: two.ID, UserID: user.ID, InstrID: &usd.InstrID, ListingID: &usd.ID, ViaID: &via.ID, Arbiter: gen.ArbiterDatasource}
+		arg := gen.SetStatedKeyAssociationParams{ID: two.ID, UserID: user.ID, InstrID: &usd.InstrID, ListingID: &usd.ID, ViaIdentifierID: &via.ID, Arbiter: gen.ArbiterDatasource}
 		_, err := q.SetStatedKeyAssociation(ctx, arg)
 		require.NoError(t, err)
 		require.NoError(t, q.SetStatedKeyGroups(ctx, gen.SetStatedKeyGroupsParams{UserID: user.ID, Ids: []uuid.UUID{one.ID, two.ID}, GroupIds: []uuid.UUID{one.ID, one.ID}}))
@@ -284,9 +284,9 @@ func TestStatedKeyAssociation(t *testing.T) {
 		arg  gen.SetStatedKeyAssociationParams
 	}{
 		{name: "an instrument without the identifier it is named through", arg: gen.SetStatedKeyAssociationParams{InstrID: &usd.InstrID, Arbiter: gen.ArbiterStated}},
-		{name: "an identifier without an instrument", arg: gen.SetStatedKeyAssociationParams{ViaID: &via.ID, Arbiter: gen.ArbiterStated}},
+		{name: "an identifier without an instrument", arg: gen.SetStatedKeyAssociationParams{ViaIdentifierID: &via.ID, Arbiter: gen.ArbiterStated}},
 		{name: "a listing without an instrument", arg: gen.SetStatedKeyAssociationParams{ListingID: &usd.ID, Arbiter: gen.ArbiterStated}},
-		{name: "a listing of another instrument", arg: gen.SetStatedKeyAssociationParams{InstrID: &usd.InstrID, ListingID: &otherLine.ID, ViaID: &via.ID, Arbiter: gen.ArbiterStated}},
+		{name: "a listing of another instrument", arg: gen.SetStatedKeyAssociationParams{InstrID: &usd.InstrID, ListingID: &otherLine.ID, ViaIdentifierID: &via.ID, Arbiter: gen.ArbiterStated}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -309,7 +309,7 @@ func TestStatedKeyAssociation(t *testing.T) {
 		stmt := newStmt(t, q, user)
 		chosen := newStatedKey(t, q, user, stmt)
 		usd, via := cashListing(t, q, "USD")
-		byUser := gen.SetStatedKeyAssociationParams{ID: chosen.ID, UserID: user.ID, InstrID: &usd.InstrID, ListingID: &usd.ID, ViaID: &via.ID, Arbiter: gen.ArbiterUser}
+		byUser := gen.SetStatedKeyAssociationParams{ID: chosen.ID, UserID: user.ID, InstrID: &usd.InstrID, ListingID: &usd.ID, ViaIdentifierID: &via.ID, Arbiter: gen.ArbiterUser}
 		n, err := q.SetStatedKeyAssociation(ctx, byUser)
 		require.NoError(t, err)
 		if n != 1 {
@@ -317,7 +317,7 @@ func TestStatedKeyAssociation(t *testing.T) {
 		}
 		other := newInstr(t, q, types.AssetClassEquity)
 		otherVia := newIdentifier(t, q, other, "US0000000009")
-		byDatasource := gen.SetStatedKeyAssociationParams{ID: chosen.ID, UserID: user.ID, InstrID: &other.ID, ViaID: &otherVia.ID, Arbiter: gen.ArbiterDatasource}
+		byDatasource := gen.SetStatedKeyAssociationParams{ID: chosen.ID, UserID: user.ID, InstrID: &other.ID, ViaIdentifierID: &otherVia.ID, Arbiter: gen.ArbiterDatasource}
 		n, err = q.SetStatedKeyAssociation(ctx, byDatasource)
 		require.NoError(t, err)
 		if n != 0 {
@@ -340,7 +340,7 @@ func TestStatedKeyAssociation(t *testing.T) {
 		stmt := newStmt(t, q, user)
 		key := newStatedKey(t, q, user, stmt)
 		usd, via := cashListing(t, q, "USD")
-		_, err := tx.Exec(ctx, "UPDATE stated_keys SET instr_id = $1, via_id = $2 WHERE id = $3", usd.InstrID, via.ID, key.ID)
+		_, err := tx.Exec(ctx, "UPDATE stated_keys SET instr_id = $1, via_identifier_id = $2 WHERE id = $3", usd.InstrID, via.ID, key.ID)
 		if !sqlstate(err, pgerrcode.CheckViolation) {
 			t.Errorf("an association with no arbiter: err = %v, want a check violation", err)
 		}
@@ -353,8 +353,8 @@ func TestStatedKeyAssociation(t *testing.T) {
 // against it, and that the checks refuse every half-written shape.
 func TestDatedAssociation(t *testing.T) {
 	ctx := context.Background()
-	dated := func(key gen.StatedKey, arbiter gen.Arbiter) gen.SetStatedKeyDatedAssociationParams {
-		return gen.SetStatedKeyDatedAssociationParams{ID: key.ID, UserID: key.UserID, ViaDomain: "XNAS", ViaValue: "META", Arbiter: arbiter}
+	dated := func(q *gen.Queries, key gen.StatedKey, arbiter gen.Arbiter) gen.SetStatedKeyDatedAssociationParams {
+		return gen.SetStatedKeyDatedAssociationParams{ID: key.ID, UserID: key.UserID, ViaTickerID: newTicker(t, q, "US", "META").ID, ViaMarket: "US", ViaVenue: "XNAS", Arbiter: arbiter}
 	}
 	t.Run("replaces a fixed association and keeps the group", func(t *testing.T) {
 		tx := begin(t)
@@ -363,47 +363,50 @@ func TestDatedAssociation(t *testing.T) {
 		stmt := newStmt(t, q, user)
 		key := newStatedKey(t, q, user, stmt)
 		usd, via := cashListing(t, q, "USD")
-		_, err := q.SetStatedKeyAssociation(ctx, gen.SetStatedKeyAssociationParams{ID: key.ID, UserID: user.ID, InstrID: &usd.InstrID, ListingID: &usd.ID, ViaID: &via.ID, Arbiter: gen.ArbiterStated})
+		_, err := q.SetStatedKeyAssociation(ctx, gen.SetStatedKeyAssociationParams{ID: key.ID, UserID: user.ID, InstrID: &usd.InstrID, ListingID: &usd.ID, ViaIdentifierID: &via.ID, Arbiter: gen.ArbiterStated})
 		require.NoError(t, err)
-		n, err := q.SetStatedKeyDatedAssociation(ctx, dated(key, gen.ArbiterDatasource))
+		n, err := q.SetStatedKeyDatedAssociation(ctx, dated(q, key, gen.ArbiterDatasource))
 		require.NoError(t, err)
 		if n != 1 {
 			t.Fatalf("SetStatedKeyDatedAssociation changed %d rows, want 1", n)
 		}
 		_, err = tx.Exec(ctx, "UPDATE stated_keys SET group_id = id WHERE id = $1", key.ID)
 		require.NoError(t, err)
-		_, err = q.SetStatedKeyDatedAssociation(ctx, dated(key, gen.ArbiterStated))
+		_, err = q.SetStatedKeyDatedAssociation(ctx, dated(q, key, gen.ArbiterStated))
 		require.NoError(t, err)
 		got, err := q.GetStatedKey(ctx, gen.GetStatedKeyParams{ID: key.ID, UserID: user.ID})
 		require.NoError(t, err)
-		if got.InstrID != nil || got.ListingID != nil || got.ViaID != nil || got.ViaType == nil || *got.ViaType != types.IdentifierTypeMicTicker ||
-			got.ViaDomain == nil || *got.ViaDomain != "XNAS" || got.ViaValue == nil || *got.ViaValue != "META" || got.Arbiter == nil || *got.Arbiter != gen.ArbiterStated {
+		meta := newTicker(t, q, "US", "META")
+		if got.InstrID != nil || got.ListingID != nil || got.ViaIdentifierID != nil || got.ViaTickerID == nil || *got.ViaTickerID != meta.ID ||
+			got.ViaVenue == nil || *got.ViaVenue != "XNAS" || got.Arbiter == nil || *got.Arbiter != gen.ArbiterStated {
 			t.Errorf("key = %+v, want dated through XNAS:META with arbiter stated and no instrument", got)
 		}
 		if got.GroupID == nil || *got.GroupID != key.ID {
 			t.Errorf("group = %v, want the key keeps its group %s", got.GroupID, key.ID)
 		}
-		_, err = q.SetStatedKeyAssociation(ctx, gen.SetStatedKeyAssociationParams{ID: key.ID, UserID: user.ID, InstrID: &usd.InstrID, ListingID: &usd.ID, ViaID: &via.ID, Arbiter: gen.ArbiterUser})
+		_, err = q.SetStatedKeyAssociation(ctx, gen.SetStatedKeyAssociationParams{ID: key.ID, UserID: user.ID, InstrID: &usd.InstrID, ListingID: &usd.ID, ViaIdentifierID: &via.ID, Arbiter: gen.ArbiterUser})
 		require.NoError(t, err)
 		got, err = q.GetStatedKey(ctx, gen.GetStatedKeyParams{ID: key.ID, UserID: user.ID})
 		require.NoError(t, err)
-		if got.InstrID == nil || got.ViaType != nil || got.ViaDomain != nil || got.ViaValue != nil {
-			t.Errorf("key = %+v, want a fixed association with no via value", got)
+		if got.InstrID == nil || got.ViaTickerID != nil || got.ViaMarket != nil || got.ViaVenue != nil {
+			t.Errorf("key = %+v, want a fixed association with no via ticker", got)
 		}
-		if n, err := q.SetStatedKeyDatedAssociation(ctx, dated(key, gen.ArbiterDatasource)); err != nil || n != 0 {
+		if n, err := q.SetStatedKeyDatedAssociation(ctx, dated(q, key, gen.ArbiterDatasource)); err != nil || n != 0 {
 			t.Errorf("dating a key the user arbitrated changed %d rows, %v, want 0: the choice stands", n, err)
 		}
 	})
 
 	tests := []struct {
-		name string
-		sql  string
+		name  string
+		sql   string
+		state string
 	}{
-		{name: "a via type without a value", sql: "UPDATE stated_keys SET via_type = 'mic_ticker', via_domain = 'XNAS', arbiter = 'stated' WHERE id = $1"},
-		{name: "a via type other than a venue ticker", sql: "UPDATE stated_keys SET via_type = 'isin', via_domain = '', via_value = 'US0378331005', arbiter = 'stated' WHERE id = $1"},
-		{name: "a ticker without its venue", sql: "UPDATE stated_keys SET via_type = 'mic_ticker', via_domain = '', via_value = 'META', arbiter = 'stated' WHERE id = $1"},
-		{name: "a dated association without an arbiter", sql: "UPDATE stated_keys SET via_type = 'mic_ticker', via_domain = 'XNAS', via_value = 'META' WHERE id = $1"},
-		{name: "an arbiter without an association", sql: "UPDATE stated_keys SET arbiter = 'stated' WHERE id = $1"},
+		{name: "a ticker without its venue", sql: "UPDATE stated_keys SET via_ticker_id = $2, via_market = 'US', arbiter = 'stated' WHERE id = $1", state: pgerrcode.CheckViolation},
+		{name: "a venue without its ticker", sql: "UPDATE stated_keys SET via_market = 'US', via_venue = 'XNAS', arbiter = 'stated' WHERE id = $1 AND $2::uuid IS NOT NULL", state: pgerrcode.CheckViolation},
+		{name: "a market without its ticker", sql: "UPDATE stated_keys SET via_market = 'US', arbiter = 'stated' WHERE id = $1 AND $2::uuid IS NOT NULL", state: pgerrcode.CheckViolation},
+		{name: "a dated association without an arbiter", sql: "UPDATE stated_keys SET via_ticker_id = $2, via_market = 'US', via_venue = 'XNAS' WHERE id = $1", state: pgerrcode.CheckViolation},
+		{name: "an arbiter without an association", sql: "UPDATE stated_keys SET arbiter = 'stated' WHERE id = $1 AND $2::uuid IS NOT NULL", state: pgerrcode.CheckViolation},
+		{name: "a venue in another market", sql: "UPDATE stated_keys SET via_ticker_id = $2, via_market = 'US', via_venue = 'XLON', arbiter = 'stated' WHERE id = $1", state: pgerrcode.ForeignKeyViolation},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -412,8 +415,9 @@ func TestDatedAssociation(t *testing.T) {
 			q := gen.New(tx)
 			user := newUser(t, q, "dated-"+uuid.NewString()+"@example.com")
 			key := newStatedKey(t, q, user, newStmt(t, q, user))
-			if _, err := tx.Exec(ctx, tc.sql, key.ID); !sqlstate(err, pgerrcode.CheckViolation) {
-				t.Errorf("%s: err = %v, want a check violation", tc.name, err)
+			meta := newTicker(t, q, "US", "META")
+			if _, err := tx.Exec(ctx, tc.sql, key.ID, meta.ID); !sqlstate(err, tc.state) {
+				t.Errorf("%s: err = %v, want SQLSTATE %s", tc.name, err, tc.state)
 			}
 		})
 	}
@@ -424,7 +428,8 @@ func TestDatedAssociation(t *testing.T) {
 		user := newUser(t, q, "dated-fixed@example.com")
 		key := newStatedKey(t, q, user, newStmt(t, q, user))
 		usd, via := cashListing(t, q, "USD")
-		_, err := tx.Exec(ctx, "UPDATE stated_keys SET instr_id = $1, via_id = $2, via_type = 'mic_ticker', via_domain = 'XNAS', via_value = 'META', arbiter = 'stated' WHERE id = $3", usd.InstrID, via.ID, key.ID)
+		meta := newTicker(t, q, "US", "META")
+		_, err := tx.Exec(ctx, "UPDATE stated_keys SET instr_id = $1, via_identifier_id = $2, via_ticker_id = $3, via_market = 'US', via_venue = 'XNAS', arbiter = 'stated' WHERE id = $4", usd.InstrID, via.ID, meta.ID, key.ID)
 		if !sqlstate(err, pgerrcode.CheckViolation) {
 			t.Errorf("an association both fixed and dated: err = %v, want a check violation", err)
 		}
@@ -478,9 +483,9 @@ func TestListStmtTxns(t *testing.T) {
 	stmt, later := newStmt(t, q, user), newStmt(t, q, user)
 	fixed, dated, bare := newStatedKey(t, q, user, stmt), newStatedKey(t, q, user, stmt), newStatedKey(t, q, user, later)
 	usd, via := cashListing(t, q, "USD")
-	_, err := q.SetStatedKeyAssociation(ctx, gen.SetStatedKeyAssociationParams{ID: fixed.ID, UserID: user.ID, InstrID: &usd.InstrID, ListingID: &usd.ID, ViaID: &via.ID, Arbiter: gen.ArbiterStated})
+	_, err := q.SetStatedKeyAssociation(ctx, gen.SetStatedKeyAssociationParams{ID: fixed.ID, UserID: user.ID, InstrID: &usd.InstrID, ListingID: &usd.ID, ViaIdentifierID: &via.ID, Arbiter: gen.ArbiterStated})
 	require.NoError(t, err)
-	_, err = q.SetStatedKeyDatedAssociation(ctx, gen.SetStatedKeyDatedAssociationParams{ID: dated.ID, UserID: user.ID, ViaDomain: "XNAS", ViaValue: "META", Arbiter: gen.ArbiterDatasource})
+	_, err = q.SetStatedKeyDatedAssociation(ctx, gen.SetStatedKeyDatedAssociationParams{ID: dated.ID, UserID: user.ID, ViaTickerID: newTicker(t, q, "US", "META").ID, ViaMarket: "US", ViaVenue: "XNAS", Arbiter: gen.ArbiterDatasource})
 	require.NoError(t, err)
 	trade := func(s gen.Stmt, key gen.StatedKey, on time.Time) gen.Txn {
 		t.Helper()
@@ -503,7 +508,7 @@ func TestListStmtTxns(t *testing.T) {
 	if rows[0].StatedKey.ID != fixed.ID || rows[0].FixedViaType == nil || *rows[0].FixedViaType != types.IdentifierTypeCurrency {
 		t.Errorf("fixed row = key %s via %v, want key %s via currency", rows[0].StatedKey.ID, rows[0].FixedViaType, fixed.ID)
 	}
-	if rows[1].StatedKey.ID != dated.ID || rows[1].FixedViaType != nil || rows[1].StatedKey.ViaValue == nil || *rows[1].StatedKey.ViaValue != "META" {
+	if rows[1].StatedKey.ID != dated.ID || rows[1].FixedViaType != nil || rows[1].StatedKey.ViaTickerID == nil || *rows[1].StatedKey.ViaTickerID != newTicker(t, q, "US", "META").ID {
 		t.Errorf("dated row = key %s via %v, want key %s dated through META with no fixed via type", rows[1].StatedKey.ID, rows[1].FixedViaType, dated.ID)
 	}
 	if rows, err := q.ListStmtTxns(ctx, gen.ListStmtTxnsParams{StmtID: stmt.ID, UserID: db.NewID()}); err != nil || len(rows) != 0 {
@@ -536,10 +541,10 @@ func TestListUnassociatedKeysStating(t *testing.T) {
 	upsertKey(t, q, stmt, gen.UpsertStatedKeyParams{Identifiers: []types.Identifier{meta, {Type: types.IdentifierTypeMicTicker, Value: "META"}}})
 	usd, via := cashListing(t, q, "USD")
 	fixed := stating(stmt, meta, types.Identifier{Type: types.IdentifierTypeBrokerDescription, Domain: "ibkr", Value: "fixed " + uuid.NewString()})
-	_, err := q.SetStatedKeyAssociation(ctx, gen.SetStatedKeyAssociationParams{ID: fixed.ID, UserID: user.ID, InstrID: &usd.InstrID, ListingID: &usd.ID, ViaID: &via.ID, Arbiter: gen.ArbiterStated})
+	_, err := q.SetStatedKeyAssociation(ctx, gen.SetStatedKeyAssociationParams{ID: fixed.ID, UserID: user.ID, InstrID: &usd.InstrID, ListingID: &usd.ID, ViaIdentifierID: &via.ID, Arbiter: gen.ArbiterStated})
 	require.NoError(t, err)
 	datedKey := stating(stmt, meta, types.Identifier{Type: types.IdentifierTypeBrokerDescription, Domain: "ibkr", Value: "dated " + uuid.NewString()})
-	_, err = q.SetStatedKeyDatedAssociation(ctx, gen.SetStatedKeyDatedAssociationParams{ID: datedKey.ID, UserID: user.ID, ViaDomain: "XNAS", ViaValue: "META", Arbiter: gen.ArbiterStated})
+	_, err = q.SetStatedKeyDatedAssociation(ctx, gen.SetStatedKeyDatedAssociationParams{ID: datedKey.ID, UserID: user.ID, ViaTickerID: newTicker(t, q, "US", "META").ID, ViaMarket: "US", ViaVenue: "XNAS", Arbiter: gen.ArbiterStated})
 	require.NoError(t, err)
 	resolution := newResolution(t, q, user, stmt)
 	just := stating(stmt, meta, types.Identifier{Type: types.IdentifierTypeBrokerDescription, Domain: "ibkr", Value: "just " + uuid.NewString()})

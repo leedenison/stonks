@@ -29,6 +29,7 @@ var (
 	bUSD, bGBP      = uuid.MustParse("00000000-0000-0000-0000-000000000083"), uuid.MustParse("00000000-0000-0000-0000-000000000084")
 	fixedKeyID      = uuid.MustParse("00000000-0000-0000-0000-000000000090")
 	datedKeyID      = uuid.MustParse("00000000-0000-0000-0000-000000000091")
+	fooRow          = gen.Ticker{ID: uuid.MustParse("00000000-0000-0000-0000-000000000092"), Market: "US", Value: "FOO"}
 	foo             = types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "FOO"}
 	aISIN           = types.Identifier{Type: types.IdentifierTypeIsin, Value: "US0000000071"}
 	protoFoo        = foo.ToProto()
@@ -72,7 +73,7 @@ func datedKey(currency *string, group *uuid.UUID, quantity string) gen.ListHoldi
 	return gen.ListHoldingKeysRow{
 		StatedKey: gen.StatedKey{
 			ID: datedKeyID, Currency: currency, Identifiers: []types.Identifier{foo},
-			ViaType: ptr.To(types.IdentifierTypeMicTicker), ViaDomain: ptr.To("XNAS"), ViaValue: ptr.To("FOO"),
+			ViaTickerID: &fooRow.ID, ViaMarket: ptr.To("US"), ViaVenue: ptr.To("XNAS"),
 			Arbiter: ptr.To(gen.ArbiterDatasource), GroupID: group,
 		},
 		Quantity: decimal.RequireFromString(quantity),
@@ -205,6 +206,7 @@ func TestListHoldingsDated(t *testing.T) {
 			f.authn.EXPECT().Authenticate(gomock.Any(), servicetest.Session).Return(principal, nil)
 			f.reader.EXPECT().ListHoldingKeys(gomock.Any(), userID).Return(tc.keys, nil)
 			f.reader.EXPECT().ListDatedTxns(gomock.Any(), userID).Return(tc.txns, tc.txnsErr)
+			f.reader.EXPECT().ListTickersByID(gomock.Any(), []uuid.UUID{fooRow.ID}).Return([]gen.Ticker{fooRow}, nil).MaxTimes(1)
 			// The facts of FOO are read once, however many transactions
 			// rest on it.
 			f.reader.EXPECT().ListIdentifierAssertions(gomock.Any(), fooAssertions).Return(tc.assertions, tc.assertionsErr).MaxTimes(1)

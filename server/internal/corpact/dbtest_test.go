@@ -188,8 +188,9 @@ func (s *stack) findings(t *testing.T, mt types.MarketTicker) []found {
 		FROM findings
 		JOIN corp_acts ON corp_acts.id = findings.corp_act_id
 		JOIN corp_act_answers ON corp_act_answers.id = corp_acts.answer_id
+		JOIN tickers ON tickers.id = corp_act_answers.ticker_id
 		JOIN fetches ON fetches.id = findings.run_id
-		WHERE corp_act_answers.market = $1 AND corp_act_answers.value = $2
+		WHERE tickers.market = $1 AND tickers.value = $2
 		ORDER BY findings.id`, mt.Market, mt.Value)
 	require.NoError(t, err)
 	out, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (found, error) {
@@ -508,7 +509,7 @@ func TestUnspelled(t *testing.T) {
 	}
 	var n int
 	require.NoError(t, s.tx.QueryRow(context.Background(),
-		"SELECT count(*) FROM corp_act_answers WHERE value IN ('BRK/B', 'AMD')").Scan(&n))
+		"SELECT count(*) FROM corp_act_answers JOIN tickers ON tickers.id = corp_act_answers.ticker_id WHERE tickers.value IN ('BRK/B', 'AMD')").Scan(&n))
 	if n != 0 {
 		t.Errorf("%d answers stored for the unspelled tickers, want none", n)
 	}

@@ -152,7 +152,7 @@ func (w *writer) associate(ctx context.Context, res *resolution, arbiter gen.Arb
 	if v, ok := w.datedThrough(via); ok && arbiter != gen.ArbiterUser {
 		return true, writeDated(ctx, w.q, w.user, res, v, arbiter)
 	}
-	arg := gen.SetStatedKeyAssociationParams{ID: res.row.ID, UserID: w.user, InstrID: &w.instr.Row.ID, ListingID: listingID, ViaID: &via.ID, Arbiter: arbiter}
+	arg := gen.SetStatedKeyAssociationParams{ID: res.row.ID, UserID: w.user, InstrID: &w.instr.Row.ID, ListingID: listingID, ViaIdentifierID: &via.ID, Arbiter: arbiter}
 	if _, err := w.q.SetStatedKeyAssociation(ctx, arg); err != nil {
 		return false, fmt.Errorf("associate key: %w", err)
 	}
@@ -194,10 +194,20 @@ func (w *writer) tickers() []gen.Identifier {
 	return out
 }
 
-// writeDated gives res a dated association through v, with arbiter. When the
-// user already arbitrated the key's association, it stands.
+// writeDated gives res a dated association through the MIC_TICKER v, with
+// arbiter. When the user already arbitrated the key's association, it stands.
 func writeDated(ctx context.Context, q Queries, user uuid.UUID, res *resolution, v types.Identifier, arbiter gen.Arbiter) error {
-	arg := gen.SetStatedKeyDatedAssociationParams{ID: res.row.ID, UserID: user, ViaDomain: v.Domain, ViaValue: v.Value, Arbiter: arbiter}
+	t, ok, err := res.tickerOf(ctx, q, v)
+	if err != nil {
+		return err
+	}
+	venue, known := res.mics.Operating(v.Domain)
+	if !ok || !known {
+		return fmt.Errorf("date key through %s: the system cannot spell the ticker", v.Name())
+	}
+	arg := gen.SetStatedKeyDatedAssociationParams{
+		ID: res.row.ID, UserID: user, ViaTickerID: t.ID, ViaMarket: t.Market, ViaVenue: venue, Arbiter: arbiter,
+	}
 	if _, err := q.SetStatedKeyDatedAssociation(ctx, arg); err != nil {
 		return fmt.Errorf("date key: %w", err)
 	}

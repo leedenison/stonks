@@ -39,8 +39,8 @@ ORDER BY instr_id;
 -- name: ListViaOf :many
 -- The ids of the via identifiers recorded on the stated keys of the
 -- instruments.
-SELECT DISTINCT stated_keys.via_id::uuid AS id FROM stated_keys
-WHERE stated_keys.instr_id = ANY(@ids::uuid[]) AND stated_keys.via_id IS NOT NULL
+SELECT DISTINCT stated_keys.via_identifier_id::uuid AS id FROM stated_keys
+WHERE stated_keys.instr_id = ANY(@ids::uuid[]) AND stated_keys.via_identifier_id IS NOT NULL
 ORDER BY id;
 
 -- name: ListListings :many

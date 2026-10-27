@@ -24,6 +24,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/identity/resolve"
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/mic"
+	"github.com/leedenison/stonks/server/internal/platform/ptr"
 	"github.com/leedenison/stonks/server/internal/stmt"
 	"github.com/leedenison/stonks/server/internal/testutil/dbtest"
 	"github.com/leedenison/stonks/server/internal/testutil/runtest"
@@ -441,7 +442,9 @@ func TestReplayChain(t *testing.T) {
 	}{{s.user, mine}, {other, theirs}} {
 		got, err := s.q.GetStatedKey(ctx, gen.GetStatedKeyParams{ID: k.key.ID, UserID: k.user.ID})
 		require.NoError(t, err)
-		if got.ViaValue == nil || *got.ViaValue != ticker.Value {
+		rows, err := s.q.ListTickersByID(ctx, []uuid.UUID{ptr.Deref(got.ViaTickerID, uuid.Nil)})
+		require.NoError(t, err)
+		if len(rows) != 1 || rows[0].Value != ticker.Value {
 			t.Errorf("key %s = %+v, want dated through %s", k.key.ID, got, ticker.Name())
 		}
 	}
@@ -483,7 +486,7 @@ func (s *stack) holdings(t *testing.T) (instrs, groups []holding) {
 		switch {
 		case k.StatedKey.InstrID != nil:
 			byInstr[*k.StatedKey.InstrID] = byInstr[*k.StatedKey.InstrID].Add(k.Quantity)
-		case k.StatedKey.GroupID != nil && k.StatedKey.ViaType == nil:
+		case k.StatedKey.GroupID != nil && k.StatedKey.ViaTickerID == nil:
 			byGroup[*k.StatedKey.GroupID] = byGroup[*k.StatedKey.GroupID].Add(k.Quantity)
 		}
 	}

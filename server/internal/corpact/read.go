@@ -109,10 +109,7 @@ func readStored(ctx context.Context, q ReadQueries, ts []types.MarketTicker, p t
 	byID := map[uuid.UUID]at{}
 	for _, row := range rows {
 		a := row.CorpActAnswer
-		t := types.MarketTicker{Market: a.Market, Value: a.Value}
-		if !want[t] {
-			continue
-		}
+		t := types.MarketTicker{Market: row.Market, Value: row.Value}
 		s := storedAnswer{Answer: Answer{Datasource: a.Datasource, Precedence: row.Precedence}, fetchKey: a.FetchKeyID}
 		if a.CoveredFrom != nil && a.CoveredBefore != nil {
 			s.Coverage = []types.Period{{From: *a.CoveredFrom, Before: *a.CoveredBefore}}

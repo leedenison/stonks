@@ -17,6 +17,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/to"
 	"github.com/leedenison/stonks/server/internal/identity/resolve"
+	"github.com/leedenison/stonks/server/internal/identity/tickers"
 	"github.com/leedenison/stonks/server/internal/identity/tickervalidity"
 	"github.com/leedenison/stonks/server/internal/mic"
 	"github.com/leedenison/stonks/server/internal/stmt"
@@ -38,6 +39,7 @@ type Confirmer interface {
 // ticker validity queries, which mark reads for dated keys.
 type Reader interface {
 	tickervalidity.FactQueries
+	tickers.Queries
 	ListStmts(ctx context.Context, userID uuid.UUID) ([]gen.ListStmtsRow, error)
 	GetStmt(ctx context.Context, arg gen.GetStmtParams) (gen.GetStmtRow, error)
 	ListStmtItems(ctx context.Context, arg gen.ListStmtItemsParams) ([]gen.StmtItem, error)
@@ -195,7 +197,11 @@ func (s *Server) ConfirmCandidate(ctx context.Context, req *connect.Request[stmt
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	return connect.NewResponse(&stmtv1.ConfirmCandidateResponse{Key: to.ProtoResolutionItem(key, &rk)}), nil
+	dated, err := tickers.OfKeys(ctx, s.reader, []gen.StatedKey{key})
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(&stmtv1.ConfirmCandidateResponse{Key: to.ProtoResolutionItem(key, &rk, tickers.DatedAt(key, dated))}), nil
 }
 
 // keyError translates an error of the confirmer into its code.
@@ -228,13 +234,17 @@ func (s *Server) keys(ctx context.Context, id, user uuid.UUID) ([]*typev1.Resolu
 	for _, r := range latest {
 		outcome[r.StatedKeyID] = r
 	}
+	dated, err := tickers.OfKeys(ctx, s.reader, keys)
+	if err != nil {
+		return nil, err
+	}
 	out := make([]*typev1.ResolutionItem, 0, len(keys))
 	for _, k := range keys {
 		var latest *gen.ResolutionKey
 		if r, ok := outcome[k.ID]; ok {
 			latest = &r
 		}
-		out = append(out, to.ProtoResolutionItem(k, latest))
+		out = append(out, to.ProtoResolutionItem(k, latest, tickers.DatedAt(k, dated)))
 	}
 	return out, nil
 }
@@ -246,32 +256,31 @@ func (s *Server) txns(ctx context.Context, id, user uuid.UUID) ([]*stmtv1.Txn, e
 	if err != nil {
 		return nil, err
 	}
-	var tickers []types.MarketTicker
-	for _, r := range rows {
-		if t, ok := s.datedTicker(r.StatedKey); ok {
-			tickers = append(tickers, t)
+	keys := make([]gen.StatedKey, len(rows))
+	for i, r := range rows {
+		keys[i] = r.StatedKey
+	}
+	dated, err := tickers.OfKeys(ctx, s.reader, keys)
+	if err != nil {
+		return nil, err
+	}
+	var ts []types.MarketTicker
+	for _, k := range keys {
+		if t, _, ok := tickers.Dated(k, dated); ok {
+			ts = append(ts, t)
 		}
 	}
-	read, err := tickervalidity.ReadTickers(ctx, s.reader, tickers)
+	read, err := tickervalidity.ReadTickers(ctx, s.reader, ts)
 	if err != nil {
 		return nil, fmt.Errorf("read the facts of the dated keys' tickers: %w", err)
 	}
 	out := make([]*stmtv1.Txn, 0, len(rows))
 	for _, r := range rows {
 		var t *tickervalidity.Ticker
-		if v, ok := s.datedTicker(r.StatedKey); ok {
+		if v, _, ok := tickers.Dated(r.StatedKey, dated); ok {
 			t = read[v]
 		}
 		out = append(out, to.ProtoTxn(r.Txn, mark(r.StatedKey.Arbiter, r.FixedViaType, t, r.Txn.AsAt)))
 	}
 	return out, nil
-}
-
-// datedTicker returns the market ticker of k's dated association.
-func (s *Server) datedTicker(k gen.StatedKey) (types.MarketTicker, bool) {
-	v, ok := to.AssociatedTicker(k)
-	if !ok {
-		return types.MarketTicker{}, false
-	}
-	return s.mics.MarketTicker(v)
 }

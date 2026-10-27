@@ -56,7 +56,7 @@ func (s *stack) reassertTickers(t *testing.T, vs ...types.Identifier) (gen.Run, 
 	require.NoError(t, err)
 	var held []gen.ListHeldTickersRow
 	for _, r := range rows {
-		if slices.Contains(vs, types.Identifier{Type: r.Type, Domain: r.Domain, Value: r.Value}) {
+		if slices.Contains(vs, types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: r.Venue, Value: r.Value}) {
 			held = append(held, r)
 		}
 	}
@@ -276,7 +276,7 @@ func TestReassertTickersHistory(t *testing.T) {
 	key := s.state(t, types.AssetClassStock, "USD", v)
 	s.trade(t, key, on(2026, 1, 5))
 	s.resolveOn(t, []time.Time{on(2026, 1, 5)}, key)
-	require.True(t, datedThrough(s.key(t, key.ID), v, gen.ArbiterDatasource))
+	require.True(t, s.datedThrough(t, s.key(t, key.ID), v, gen.ArbiterDatasource))
 	s.alphaFacts.Sent = nil
 
 	run, _ := s.reassertTickers(t, v)

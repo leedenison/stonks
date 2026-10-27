@@ -119,7 +119,7 @@ func TestListKeysUncoveredBy(t *testing.T) {
 	fetch := newFetch(t, q, user, run, alpha)
 	associate := func(key gen.StatedKey, listing gen.Listing, via gen.Identifier, arbiter gen.Arbiter) {
 		t.Helper()
-		arg := gen.SetStatedKeyAssociationParams{ID: key.ID, UserID: user.ID, InstrID: &listing.InstrID, ListingID: &listing.ID, ViaID: &via.ID, Arbiter: arbiter}
+		arg := gen.SetStatedKeyAssociationParams{ID: key.ID, UserID: user.ID, InstrID: &listing.InstrID, ListingID: &listing.ID, ViaIdentifierID: &via.ID, Arbiter: arbiter}
 		_, err := q.SetStatedKeyAssociation(ctx, arg)
 		require.NoError(t, err)
 	}
@@ -155,7 +155,7 @@ func TestListKeysUncoveredBy(t *testing.T) {
 	// key, though no datasource covers its instrument.
 	listing, via, _ = fetched("US0000000003")
 	associate(arbitrated, listing, via, gen.ArbiterUser)
-	_, err = q.SetStatedKeyDatedAssociation(ctx, gen.SetStatedKeyDatedAssociationParams{ID: dated.ID, UserID: user.ID, ViaDomain: "XNAS", ViaValue: "META", Arbiter: gen.ArbiterDatasource})
+	_, err = q.SetStatedKeyDatedAssociation(ctx, gen.SetStatedKeyDatedAssociationParams{ID: dated.ID, UserID: user.ID, ViaTickerID: newTicker(t, q, "US", "META").ID, ViaMarket: "US", ViaVenue: "XNAS", Arbiter: gen.ArbiterDatasource})
 	require.NoError(t, err)
 
 	source := gen.ListKeysUncoveredByParams{UserID: user.ID, SourceID: stmt.ID, Datasource: alpha.Name}

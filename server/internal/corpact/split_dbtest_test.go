@@ -68,7 +68,7 @@ func (s *stack) fixedKey(t *testing.T, user, instr uuid.UUID) uuid.UUID {
 	isin := uuid.NewString()
 	_, err := s.tx.Exec(ctx, `INSERT INTO identifiers (id, instr_id, type, value) VALUES ($1, $2, 'isin', $3)`, via, instr, isin)
 	require.NoError(t, err)
-	_, err = s.tx.Exec(ctx, `INSERT INTO stated_keys (id, user_id, identifiers, instr_id, via_id, arbiter)
+	_, err = s.tx.Exec(ctx, `INSERT INTO stated_keys (id, user_id, identifiers, instr_id, via_identifier_id, arbiter)
 		VALUES ($1, $2, jsonb_build_array(jsonb_build_object('type', 'isin', 'value', $3::text)), $4, $5, 'stated')`, key, user, isin, instr, via)
 	require.NoError(t, err)
 	return key
@@ -78,10 +78,14 @@ func (s *stack) fixedKey(t *testing.T, user, instr uuid.UUID) uuid.UUID {
 // at venue.
 func (s *stack) datedKey(t *testing.T, venue, value string) uuid.UUID {
 	t.Helper()
+	ctx := context.Background()
 	key := db.NewID()
-	_, err := s.tx.Exec(context.Background(), `INSERT INTO stated_keys (id, user_id, identifiers, via_type, via_domain, via_value, arbiter)
-		VALUES ($1, $2, jsonb_build_array(jsonb_build_object('type', 'mic_ticker', 'domain', $3::text, 'value', $4::text)), 'mic_ticker', $3, $4, 'datasource')`,
-		key, *s.parent.UserID, venue, value)
+	var market, operating string
+	require.NoError(t, s.tx.QueryRow(ctx, "SELECT market, operating_mic FROM mic_markets WHERE mic = $1", venue).Scan(&market, &operating))
+	row := dbtest.Ticker(t, s.q, types.MarketTicker{Market: market, Value: value})
+	_, err := s.tx.Exec(ctx, `INSERT INTO stated_keys (id, user_id, identifiers, via_ticker_id, via_market, via_venue, arbiter)
+		VALUES ($1, $2, jsonb_build_array(jsonb_build_object('type', 'mic_ticker', 'domain', $3::text, 'value', $4::text)), $5, $6, $7, 'datasource')`,
+		key, *s.parent.UserID, venue, value, row.ID, market, operating)
 	require.NoError(t, err)
 	return key
 }

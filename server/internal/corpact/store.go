@@ -7,6 +7,7 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/identity/tickers"
 	"github.com/leedenison/stonks/server/internal/identity/tickervalidity"
 	"github.com/leedenison/stonks/server/internal/market"
 )
@@ -32,6 +33,7 @@ type Queries interface {
 	ListDisagreedCorpActs(ctx context.Context, ids []uuid.UUID) ([]uuid.UUID, error)
 	CreateFinding(ctx context.Context, arg gen.CreateFindingParams) error
 	tickervalidity.FactQueries
+	tickers.Queries
 	ListStatedSplits(ctx context.Context, arg gen.ListStatedSplitsParams) ([]gen.ListStatedSplitsRow, error)
 	ListTickersNaming(ctx context.Context, instrs []uuid.UUID) ([]gen.ListTickersNamingRow, error)
 	ListUnmatchedSplits(ctx context.Context, keys []uuid.UUID) ([]gen.ListUnmatchedSplitsRow, error)

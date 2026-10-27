@@ -57,6 +57,19 @@ CREATE TABLE tickers (
     UNIQUE (id, market)
 );
 
+-- The composite foreign keys on via_market make the venue of a dated
+-- association a member of its ticker's market.
+ALTER TABLE stated_keys
+    ADD COLUMN via_ticker_id uuid,
+    ADD COLUMN via_market    text,
+    ADD COLUMN via_venue     text,
+    ADD FOREIGN KEY (via_ticker_id, via_market) REFERENCES tickers (id, market),
+    ADD FOREIGN KEY (via_venue, via_market) REFERENCES market_members (operating_mic, market),
+    ADD CHECK ((via_ticker_id IS NULL) = (via_market IS NULL)
+               AND (via_ticker_id IS NULL) = (via_venue IS NULL)),
+    ADD CHECK (instr_id IS NULL OR via_ticker_id IS NULL),
+    ADD CHECK ((arbiter IS NULL) = (instr_id IS NULL AND via_ticker_id IS NULL));
+
 -- An identifier assertion is a claim that a ticker names an instrument, or
 -- names nothing, on one day. A datasource asserts through a fetch key, on the
 -- day of its answer. A point in time lookup asserts on the day its request

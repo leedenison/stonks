@@ -11,6 +11,7 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/identity/tickers"
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/platform/ptr"
 	runs "github.com/leedenison/stonks/server/internal/run"
@@ -33,10 +34,14 @@ func (r *Recorder) record(ctx context.Context, k answerKey) (recordedKey, bool, 
 		r.log.Warn("corporate actions left out", "ticker", k.Request.Ticker.Name(), "datasource", k.Source)
 		return recordedKey{}, false, nil
 	}
+	rows, err := tickers.Get(ctx, r.store, r.mics, []types.MarketTicker{t})
+	if err != nil {
+		return recordedKey{}, false, fmt.Errorf("create the ticker %s: %w", t.Name(), err)
+	}
 	var found int
-	err := r.store.Tx(ctx, func(q Queries) error {
+	err = r.store.Tx(ctx, func(q Queries) error {
 		var err error
-		found, err = writeAnswer(ctx, q, k, t)
+		found, err = writeAnswer(ctx, q, k, rows[t])
 		return err
 	})
 	if err != nil {
@@ -52,18 +57,18 @@ func (r *Recorder) record(ctx context.Context, k answerKey) (recordedKey, bool, 
 // unless the stored one is later. An action the new answer repeats keeps its
 // row, and with it the findings that name it, so a cleared finding stays
 // cleared. It returns how many findings it wrote.
-func writeAnswer(ctx context.Context, q Queries, k answerKey, t types.MarketTicker) (int, error) {
+func writeAnswer(ctx context.Context, q Queries, k answerKey, t gen.Ticker) (int, error) {
 	if err := q.LockCorpActAnswer(ctx, fmt.Sprintf("corpact:%s:%s:%s", k.Source, t.Market, t.Value)); err != nil {
 		return 0, fmt.Errorf("lock: %w", err)
 	}
 	from, before := covered(k.Response.Coverage, k.AnsweredAt)
-	stored, err := q.GetCorpActAnswer(ctx, gen.GetCorpActAnswerParams{Datasource: k.Source, Market: t.Market, Value: t.Value})
+	stored, err := q.GetCorpActAnswer(ctx, gen.GetCorpActAnswerParams{Datasource: k.Source, TickerID: t.ID})
 	var old []gen.CorpAct
 	switch {
 	case errors.Is(err, db.ErrNotFound):
 		stored.ID = db.NewID()
 		if err := q.CreateCorpActAnswer(ctx, gen.CreateCorpActAnswerParams{
-			ID: stored.ID, FetchKeyID: k.ID, Datasource: k.Source, Market: t.Market, Value: t.Value, CoveredFrom: from, CoveredBefore: before,
+			ID: stored.ID, FetchKeyID: k.ID, Datasource: k.Source, TickerID: t.ID, CoveredFrom: from, CoveredBefore: before,
 		}); err != nil {
 			return 0, fmt.Errorf("create answer: %w", err)
 		}
@@ -101,7 +106,7 @@ func writeAnswer(ctx context.Context, q Queries, k answerKey, t types.MarketTick
 			continue
 		}
 		detail := fmt.Sprintf("%s on %s: %s reported %s, %s, which the system does not handle",
-			t.Name(), arg.ExDate.Format(time.DateOnly), k.Source, typeOf(e.Type), ratioText(e.Ratio))
+			tickers.Of(t).Name(), arg.ExDate.Format(time.DateOnly), k.Source, typeOf(e.Type), ratioText(e.Ratio))
 		if err := q.CreateFinding(ctx, gen.CreateFindingParams{
 			ID: db.NewID(), RunID: k.Run.ID, Kind: gen.FindingKindUnhandledCorpAct, CorpActID: &arg.ID, Detail: &detail,
 		}); err != nil {

@@ -4,6 +4,7 @@ package db_test
 
 import (
 	"context"
+	"slices"
 	"testing"
 	"time"
 
@@ -49,7 +50,7 @@ func (h holder) keyIn(t *testing.T, q *gen.Queries, description string, currency
 	arg := gen.SetStatedKeyAssociationParams{
 		ID: k.ID, UserID: h.user.ID,
 		InstrID: &listing.InstrID, ListingID: &listing.ID,
-		ViaID: &via.ID, Arbiter: gen.ArbiterDatasource,
+		ViaIdentifierID: &via.ID, Arbiter: gen.ArbiterDatasource,
 	}
 	_, err := q.SetStatedKeyAssociation(ctx, arg)
 	require.NoError(t, err)
@@ -62,8 +63,14 @@ func (h holder) datedKey(t *testing.T, q *gen.Queries, venue, ticker, currency s
 	t.Helper()
 	stated := types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: venue, Value: ticker}
 	k := upsertKey(t, q, h.stmt, gen.UpsertStatedKeyParams{Currency: &currency, Identifiers: []types.Identifier{stated}})
-	arg := gen.SetStatedKeyDatedAssociationParams{ID: k.ID, UserID: h.user.ID, ViaDomain: venue, ViaValue: ticker, Arbiter: gen.ArbiterDatasource}
-	_, err := q.SetStatedKeyDatedAssociation(context.Background(), arg)
+	mics, err := q.ListMICs(context.Background())
+	require.NoError(t, err)
+	at := mics[slices.IndexFunc(mics, func(m gen.MicMarket) bool { return m.Mic == venue })]
+	arg := gen.SetStatedKeyDatedAssociationParams{
+		ID: k.ID, UserID: h.user.ID, ViaTickerID: newTicker(t, q, at.Market, ticker).ID, ViaMarket: at.Market, ViaVenue: at.OperatingMic,
+		Arbiter: gen.ArbiterDatasource,
+	}
+	_, err = q.SetStatedKeyDatedAssociation(context.Background(), arg)
 	require.NoError(t, err)
 	return k
 }

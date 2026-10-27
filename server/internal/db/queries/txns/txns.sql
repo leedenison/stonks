@@ -57,8 +57,8 @@ ORDER BY order_date, id;
 -- group. The update skips a key whose association the user arbitrated, and
 -- so changes zero rows.
 UPDATE stated_keys
-SET instr_id = $3, listing_id = $4, via_id = $5,
-    via_type = NULL, via_domain = NULL, via_value = NULL,
+SET instr_id = $3, listing_id = $4, via_identifier_id = $5,
+    via_ticker_id = NULL, via_market = NULL, via_venue = NULL,
     arbiter = @arbiter::arbiter, group_id = NULL
 WHERE id = $1 AND user_id = $2 AND arbiter IS DISTINCT FROM 'user';
 
@@ -67,8 +67,8 @@ WHERE id = $1 AND user_id = $2 AND arbiter IS DISTINCT FROM 'user';
 -- group, which gathers the keys with no instrument that share an identifier.
 -- The update skips a key whose association the user arbitrated.
 UPDATE stated_keys
-SET instr_id = NULL, listing_id = NULL, via_id = NULL,
-    via_type = 'mic_ticker', via_domain = @via_domain::text, via_value = @via_value::text,
+SET instr_id = NULL, listing_id = NULL, via_identifier_id = NULL,
+    via_ticker_id = @via_ticker_id::uuid, via_market = @via_market::text, via_venue = @via_venue::text,
     arbiter = @arbiter::arbiter
 WHERE id = @id AND user_id = @user_id AND arbiter IS DISTINCT FROM 'user';
 
@@ -79,7 +79,7 @@ SELECT sqlc.embed(txns), sqlc.embed(stated_keys),
        identifiers.type AS fixed_via_type
 FROM txns
 JOIN stated_keys ON stated_keys.id = txns.stated_key_id
-LEFT JOIN identifiers ON identifiers.id = stated_keys.via_id
+LEFT JOIN identifiers ON identifiers.id = stated_keys.via_identifier_id
 WHERE txns.stmt_id = @stmt_id AND txns.user_id = @user_id
 ORDER BY txns.order_date, txns.id;
 
@@ -96,7 +96,7 @@ ORDER BY stated_key_id, as_at;
 -- value matches every key stating a ticker of its domain. The keys the run
 -- resolved are left out.
 SELECT * FROM stated_keys
-WHERE stated_keys.instr_id IS NULL AND stated_keys.via_type IS NULL
+WHERE stated_keys.instr_id IS NULL AND stated_keys.via_ticker_id IS NULL
   AND stated_keys.identifiers @> ANY(@probes::jsonb[])
   AND NOT EXISTS (SELECT 1 FROM resolution_keys
                   WHERE resolution_keys.run_id = @run_id::uuid

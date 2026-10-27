@@ -15,6 +15,7 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/identity/tickers"
 	"github.com/leedenison/stonks/server/internal/identity/tickervalidity"
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/platform/ptr"
@@ -53,12 +54,17 @@ func lookup(v types.Identifier, d time.Time) market.IdentifierEventRequest {
 	return market.IdentifierEventRequest{Identifier: v, Period: types.Period{From: d, Before: d.AddDate(0, 0, 1)}}
 }
 
-// datedThrough reports whether k has a dated association through v with
-// arbiter.
-func datedThrough(k gen.StatedKey, v types.Identifier, arbiter gen.Arbiter) bool {
-	return k.InstrID == nil && k.ViaID == nil && k.ViaType != nil && *k.ViaType == v.Type &&
-		k.ViaDomain != nil && *k.ViaDomain == v.Domain && k.ViaValue != nil && *k.ViaValue == v.Value &&
-		k.Arbiter != nil && *k.Arbiter == arbiter
+// datedThrough reports whether k has a dated association with arbiter
+// through the MIC_TICKER v, given at its operating MIC.
+func (s *stack) datedThrough(t *testing.T, k gen.StatedKey, v types.Identifier, arbiter gen.Arbiter) bool {
+	t.Helper()
+	if k.InstrID != nil || k.ViaIdentifierID != nil || k.Arbiter == nil || *k.Arbiter != arbiter {
+		return false
+	}
+	rows, err := tickers.OfKeys(context.Background(), s.q, []gen.StatedKey{k})
+	require.NoError(t, err)
+	_, at, ok := tickers.Dated(k, rows)
+	return ok && at == v
 }
 
 // TestDated checks that a key stating only a venue ticker is dated through
@@ -95,7 +101,7 @@ func TestDated(t *testing.T) {
 	if len(got) != 1 || got[0].Outcome != gen.ResolutionOutcomeMatched {
 		t.Fatalf("resolution = %+v, want the key matched", got)
 	}
-	if k := s.key(t, key.ID); !datedThrough(k, v, gen.ArbiterDatasource) {
+	if k := s.key(t, key.ID); !s.datedThrough(t, k, v, gen.ArbiterDatasource) {
 		t.Errorf("key = %+v, want dated through %s by the datasource", k, v.Name())
 	}
 	history := market.History(window{since}, answered)
@@ -128,7 +134,7 @@ func TestDated(t *testing.T) {
 	if len(got) != 1 || got[0].Outcome != gen.ResolutionOutcomeMatched {
 		t.Fatalf("second resolution = %+v, want the key matched", got)
 	}
-	if k := s.key(t, second.ID); !datedThrough(k, v, gen.ArbiterStated) {
+	if k := s.key(t, second.ID); !s.datedThrough(t, k, v, gen.ArbiterStated) {
 		t.Errorf("second key = %+v, want dated through %s from the facts", k, v.Name())
 	}
 	if n := s.identityFetches(t); n != 0 {
@@ -144,7 +150,7 @@ func TestDated(t *testing.T) {
 	if len(got) != 1 || got[0].Outcome != gen.ResolutionOutcomeMatched {
 		t.Fatalf("third resolution = %+v, want the key matched", got)
 	}
-	if k := s.key(t, key.ID); !datedThrough(k, v, gen.ArbiterDatasource) {
+	if k := s.key(t, key.ID); !s.datedThrough(t, k, v, gen.ArbiterDatasource) {
 		t.Errorf("key resolved again = %+v, want its association kept", k)
 	}
 	if diff := cmp.Diff([]market.IdentifierEventRequest{lookup(v, on(2019, 5, 1))}, s.alphaFacts.Sent); diff != "" {
@@ -171,7 +177,7 @@ func TestDatedTickerMoves(t *testing.T) {
 	row, err := s.q.CreateIdentifier(ctx, gen.CreateIdentifierParams{ID: db.NewID(), InstrID: old.ID, ListingID: &line.ID, Type: v.Type, Domain: v.Domain, Value: v.Value})
 	require.NoError(t, err)
 	chosen := s.state(t, types.AssetClassStock, "USD", v, descr)
-	_, err = s.q.SetStatedKeyAssociation(ctx, gen.SetStatedKeyAssociationParams{ID: chosen.ID, UserID: s.user.ID, InstrID: &old.ID, ListingID: &line.ID, ViaID: &row.ID, Arbiter: gen.ArbiterUser})
+	_, err = s.q.SetStatedKeyAssociation(ctx, gen.SetStatedKeyAssociationParams{ID: chosen.ID, UserID: s.user.ID, InstrID: &old.ID, ListingID: &line.ID, ViaIdentifierID: &row.ID, Arbiter: gen.ArbiterUser})
 	require.NoError(t, err)
 
 	share := id(types.IdentifierTypeOpenfigiShareClass, "", "BBG00ZZMOVED")
@@ -193,10 +199,10 @@ func TestDatedTickerMoves(t *testing.T) {
 	if !s.exists(t, old.ID) {
 		t.Errorf("the old instrument is gone, want it kept: a ticker merges nothing")
 	}
-	if k := s.key(t, chosen.ID); k.InstrID == nil || *k.InstrID != old.ID || k.ViaID == nil || *k.ViaID != row.ID || k.Arbiter == nil || *k.Arbiter != gen.ArbiterUser {
+	if k := s.key(t, chosen.ID); k.InstrID == nil || *k.InstrID != old.ID || k.ViaIdentifierID == nil || *k.ViaIdentifierID != row.ID || k.Arbiter == nil || *k.Arbiter != gen.ArbiterUser {
 		t.Errorf("the user's key = %+v, want it fixed on %s through the row it was made through", k, old.ID)
 	}
-	if k := s.key(t, key.ID); !datedThrough(k, v, gen.ArbiterDatasource) {
+	if k := s.key(t, key.ID); !s.datedThrough(t, k, v, gen.ArbiterDatasource) {
 		t.Errorf("key = %+v, want dated through %s", k, v.Name())
 	}
 }
@@ -214,7 +220,7 @@ func TestDatedStable(t *testing.T) {
 	if len(got) != 1 || got[0].Outcome != gen.ResolutionOutcomeMatched {
 		t.Fatalf("resolution = %+v, want the key matched", got)
 	}
-	if k := s.key(t, key.ID); k.InstrID == nil || k.ViaType != nil {
+	if k := s.key(t, key.ID); k.InstrID == nil || k.ViaTickerID != nil {
 		t.Errorf("key = %+v, want a fixed association", k)
 	}
 	if len(s.alphaFacts.Sent) != 0 {
@@ -375,5 +381,23 @@ func TestBrokenBracket(t *testing.T) {
 	event := s.eventFetchKey(t, s.alphaName, share)
 	if len(found) != 1 || found[0].Kind != gen.FindingKindBrokenTickerValidityBracket || found[0].FetchKeyID == nil || *found[0].FetchKeyID != event.ID {
 		t.Errorf("findings = %+v, want one broken bracket naming the event's fetch key %s", found, event.ID)
+	}
+}
+
+// TestWriteDatedSegment checks that a key dated through a ticker at a segment
+// MIC names the operating MIC of that segment as its venue.
+func TestWriteDatedSegment(t *testing.T) {
+	s := newStack(t)
+	ctx := context.Background()
+	v := types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XNGS", Value: "SEG" + uuid.NewString()[:6]}
+	key := s.state(t, types.AssetClassStock, "USD", v)
+	res := &resolution{row: key, mics: s.mics}
+	_, err := tickers.Get(ctx, s.q, s.mics, []types.MarketTicker{mt(v)})
+	require.NoError(t, err)
+	require.NoError(t, writeDated(ctx, s.q, s.user.ID, res, v, gen.ArbiterDatasource))
+	got := s.key(t, key.ID)
+	at := types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: v.Value}
+	if got.ViaVenue == nil || *got.ViaVenue != "XNAS" || !s.datedThrough(t, got, at, gen.ArbiterDatasource) {
+		t.Errorf("key = %+v, want dated through %s", got, at.Name())
 	}
 }
