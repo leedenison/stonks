@@ -24,13 +24,13 @@ In:
 - `RelinkIdentifiers` moves identity rows only. `Ticker()` becomes a test of the type.
 - A confirmation fixes the key through a stable identifier of the candidate, under the
   three-state CHECK constraints of `stated_keys`.
-- `Listing.identifiers` and `InstrumentHolding.identifiers` drop tickers. Their
+- `Listing.identifiers` and `InstrHolding.identifiers` drop tickers. Their
   comments state that they hold identity only. Tickers come from the projection fields of
   [011](../adr/011-an-instruments-ticker-is-a-projection-of-ticker-facts.md).
-- `instrumentListedAs` in `e2e/helpers/api.ts`, `confirm-candidate.spec.ts` and the other
+- `instrListedAs` in `e2e/helpers/api.ts`, `confirm-candidate.spec.ts` and the other
   specs that find an instrument by a `MIC_TICKER` identifier read the projection fields.
 - Comments: the identifiers, listings and `identifier_type` text in
-  `003_instruments.sql`, and the dating text in `004_statements.sql`.
+  `003_instrs.sql`, and the dating text in `004_stmts.sql`.
 
 ## Tests
 

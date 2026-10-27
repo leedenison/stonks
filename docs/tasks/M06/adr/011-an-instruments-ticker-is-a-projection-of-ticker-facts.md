@@ -1,11 +1,11 @@
 # An instrument's ticker is a projection of ticker facts
 
 Ticker validity answers what a ticker named on a day. Naming a holding asks the reverse: what an
-instrument is called today, at each venue. The views `instrument_names` and
+instrument is called today, at each venue. The views `instr_names` and
 `listing_tickers`, the holdings, the admin search and a dated key's fallback listing all
 ask it. `Derive` runs in Go. A SQL view therefore cannot derive the answer on read.
 
-`resolved_tickers` stores the answer. Its columns are `ticker_id`, `instrument_id`,
+`resolved_tickers` stores the answer. Its columns are `ticker_id`, `instr_id`,
 `venue`, `since`, `until` and `currency`. Only the rebuild from the facts writes
 the rows. The projection holds names only. Holdings, dating and corporate actions
 still read ticker validity from the facts.

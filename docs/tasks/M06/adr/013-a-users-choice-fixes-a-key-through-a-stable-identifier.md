@@ -13,14 +13,14 @@ ticker is fixed the same way. A candidate that carries only a ticker cannot be c
 
 A key has three states:
 
-| State | instrument_id | via_identifier_id | via_ticker_id, via_market, via_venue | arbiter |
+| State | instr_id | via_identifier_id | via_ticker_id, via_market, via_venue | arbiter |
 |---|---|---|---|---|
 | Unresolved | NULL | NULL | NULL | NULL |
 | Fixed | set | an identity row | NULL | any |
 | Dated | NULL | NULL | the stated venue ticker | not `user` |
 
 `via_id` becomes `via_identifier_id`, so each `via_` column names the table it
-references. CHECK constraints hold `instrument_id` and `via_identifier_id` both set or both
+references. CHECK constraints hold `instr_id` and `via_identifier_id` both set or both
 NULL, the three ticker columns all set or all NULL, and a NULL instrument wherever a
 ticker is set.
 

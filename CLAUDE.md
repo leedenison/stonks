@@ -70,6 +70,7 @@ Whenever you begin work in a new worktree you should:
 ## Naming
 
 Prefer terse names when naming functions and variables.
+Use the standard abbreviations in `docs/abbreviations.md`.
 
 ## Plain English
 

@@ -121,7 +121,7 @@ zero every animation and transition.
 `data-testid` goes on page containers, tables, rows, buttons, dialogs and form inputs,
 named for what the element is rather than where it sits. The e2e suite selects on these
 and nothing else, so an id it depends on is renamed only with its specs. A row or an item
-carries its record's identifier, as `statement-row-<runId>` and `activity-item-<runId>`.
+carries its record's identifier, as `stmt-row-<runId>` and `activity-item-<runId>`.
 A chip carries its outcome as `data-state`.
 
 ## See also

@@ -45,7 +45,7 @@ through either.
 - Associate identity through tickers, and rely on replay to realign after a
   reassignment. A stated key is undated. A key that spans a reassignment therefore gets one
   instrument however often it is replayed. Replay re-resolves keys. It leaves
-  `instruments`, `listings` and `identifiers` as they are. A merge through a reused ticker
+  `instrs`, `listings` and `identifiers` as they are. A merge through a reused ticker
   stays.
 - Keep stable and MIC-derived identifiers in two tables. Option symbols are MIC-derived,
   but resolution matches through them, so the line falls between identity and tickers

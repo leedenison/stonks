@@ -1,7 +1,6 @@
 ---
 title: Tickers and markets as tables
 type: task
-dependencies: [017]
 ---
 
 ## Scope
@@ -37,7 +36,7 @@ In:
   queries read by ticker id.
 - Comments: the assertion, identifier event, coverage and `market_members` comments in
   `010_ticker_validity.sql`, the comments in `011_corp_acts.sql`, and the `via_*` text in
-  `004_statements.sql`.
+  `004_stmts.sql`.
 
 Out:
 
