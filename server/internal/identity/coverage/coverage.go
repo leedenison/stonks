@@ -19,7 +19,7 @@ import (
 	admincoveragev1 "github.com/leedenison/stonks/proto/admin/coverage/v1"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/to"
-	"github.com/leedenison/stonks/server/internal/identity/validity"
+	"github.com/leedenison/stonks/server/internal/identity/tickervalidity"
 	"github.com/leedenison/stonks/server/internal/mic"
 	"github.com/leedenison/stonks/server/internal/types"
 )
@@ -79,8 +79,8 @@ type Page struct {
 	// Days are the distinct as-at dates of the transactions whose keys state
 	// the ticker, in order.
 	Days      []time.Time
-	Rows      validity.Rows
-	Intervals []validity.Interval
+	Rows      tickervalidity.Rows
+	Intervals []tickervalidity.Interval
 	Gaps      []Gap
 	// Names holds the identifier naming each instrument the rows and the
 	// intervals refer to.
@@ -171,10 +171,10 @@ func (r *Reader) InstrumentTickers(ctx context.Context, instrument uuid.UUID) ([
 }
 
 // Ticker reads the facts and validity of v. It refuses an unknown market
-// with validity.ErrSpelling.
+// with tickervalidity.ErrSpelling.
 func (r *Reader) Ticker(ctx context.Context, v types.MarketTicker, today time.Time) (*Page, error) {
 	if !r.mics.IsMarket(v.Market) {
-		return nil, fmt.Errorf("market %q: %w", v.Market, validity.ErrSpelling)
+		return nil, fmt.Errorf("market %q: %w", v.Market, tickervalidity.ErrSpelling)
 	}
 	t, err := r.read(ctx, v, today)
 	if err != nil {
@@ -188,7 +188,7 @@ func (r *Reader) Ticker(ctx context.Context, v types.MarketTicker, today time.Ti
 
 // read derives v's validity and its gaps over its transaction period.
 func (r *Reader) read(ctx context.Context, v types.MarketTicker, today time.Time) (*Page, error) {
-	rows, err := validity.ReadRows(ctx, r.q, v)
+	rows, err := tickervalidity.ReadRows(ctx, r.q, v)
 	if err != nil {
 		return nil, err
 	}
@@ -200,7 +200,7 @@ func (r *Reader) read(ctx context.Context, v types.MarketTicker, today time.Time
 	if err != nil {
 		return nil, fmt.Errorf("list transactions of %s: %w", v.Name(), err)
 	}
-	t := &Page{Ticker: v, Rows: rows, Intervals: validity.Derive(rows.Facts()).Intervals}
+	t := &Page{Ticker: v, Rows: rows, Intervals: tickervalidity.Derive(rows.Facts()).Intervals}
 	for _, tx := range txs {
 		if n := len(t.Days); n == 0 || !t.Days[n-1].Equal(tx.AsAt) {
 			t.Days = append(t.Days, tx.AsAt)
@@ -213,7 +213,7 @@ func (r *Reader) read(ctx context.Context, v types.MarketTicker, today time.Time
 	if !period.From.Before(period.Before) {
 		return t, nil
 	}
-	for _, p := range validity.Gaps(t.Intervals, period) {
+	for _, p := range tickervalidity.Gaps(t.Intervals, period) {
 		g := Gap{Period: p}
 		keys := map[uuid.UUID]bool{}
 		for _, tx := range txs {
@@ -260,8 +260,8 @@ func (r *Reader) name(ctx context.Context, t *Page) error {
 	return nil
 }
 
-func interval(iv validity.Interval) *admincoveragev1.Interval {
-	out := &admincoveragev1.Interval{InstrumentId: iv.Instrument.String(), Validity: types.ToProto[admincoveragev1.Validity](iv.Validity)}
+func interval(iv tickervalidity.Interval) *admincoveragev1.Interval {
+	out := &admincoveragev1.Interval{InstrumentId: iv.Instrument.String(), Validity: types.ToProto[admincoveragev1.TickerValidity](iv.Validity)}
 	if iv.From != nil {
 		from := ymd(*iv.From)
 		out.ValidFrom = &from

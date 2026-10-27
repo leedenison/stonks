@@ -1,25 +1,27 @@
-// Package validity derives the validity of a ticker, a MIC_TICKER identifier:
-// the days over which it names one instrument. It derives validity from
-// identifier assertions, identifier events and their coverage each time it is
-// read; see [010_validity.sql](../../db/migrations/010_validity.sql). A
+// Package tickervalidity derives the ticker validity of a MIC_TICKER
+// identifier: the days over which it names one instrument. It derives ticker
+// validity from identifier assertions, identifier events and their coverage
+// each time it is read; see
+// [010_ticker_validity.sql](../../db/migrations/010_ticker_validity.sql). A
 // ticker's facts are read and written at its market, so a ticker stated at any
-// venue of a market shares one validity, and a listing that moves between
-// those venues keeps its history. Validity is never stored, so a change to its
-// inputs, such as a reorder of the datasources, takes effect at the next read.
+// venue of a market shares one ticker validity, and a listing that moves
+// between those venues keeps its history. Ticker validity is never stored, so
+// a change to its inputs, such as a reorder of the datasources, takes effect
+// at the next read.
 // An event takes effect at the start of its day, so it precedes an assertion
 // on the same day.
 //
-// On each day one assertion wins; see winners. Validity is confirmed on each
-// day the winning assertion names the instrument. Two consecutive winning
-// assertions of one instrument that an event does not separate confirm every
-// day between them, on the assumption that the ticker never moved away from
-// the instrument and back.
+// On each day one assertion wins; see winners. Ticker validity is confirmed on
+// each day the winning assertion names the instrument. Two consecutive
+// winning assertions of one instrument that an event does not separate
+// confirm every day between them, on the assumption that the ticker never
+// moved away from the instrument and back.
 //
 // A confirmed range extends through covered days, before and after it, up to
 // the nearest event or the next assertion of anything else. Beyond that,
-// validity extends provisionally forward to the same limit, or without bound.
-// It extends back provisionally only from the first assertion after an event,
-// or from the first assertion of all.
+// ticker validity extends provisionally forward to the same limit, or without
+// bound. It extends back provisionally only from the first assertion after an
+// event, or from the first assertion of all.
 //
 // Two consecutive winning assertions that name different things imply an
 // inferred event. It took effect at the start of a day after the earlier
@@ -27,7 +29,7 @@
 // names an instrument, that instrument keeps the days between: confirmed
 // where they are covered, and provisional elsewhere. The days between
 // therefore name one instrument before and after the later assertion arrives.
-package validity
+package tickervalidity
 
 import (
 	"time"

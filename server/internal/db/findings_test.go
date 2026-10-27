@@ -54,7 +54,7 @@ func TestFindings(t *testing.T) {
 	if len(findings) != 2 {
 		t.Fatalf("ListRunFindings = %d rows, want 2", len(findings))
 	}
-	for _, kind := range []gen.FindingKind{gen.FindingKindIdentifierDisagreement, gen.FindingKindBrokenValidityBracket} {
+	for _, kind := range []gen.FindingKind{gen.FindingKindIdentifierDisagreement, gen.FindingKindBrokenTickerValidityBracket} {
 		value := newRun(t, q, user)
 		require.NoError(t, q.CreateFinding(ctx, gen.CreateFindingParams{ID: db.NewID(), RunID: value.ID, Kind: kind, FetchKeyID: &fetchKey, Detail: ptr.To("XNAS:META on 2026-03-02")}))
 		listed, err := q.ListRunFindings(ctx, []uuid.UUID{value.ID})
@@ -95,7 +95,7 @@ func TestFindings(t *testing.T) {
 		{name: "a merge with a step", arg: gen.CreateFindingParams{Kind: gen.FindingKindMerged, Step: ptr.To(gen.DropStepStated), Detail: ptr.To("d")}},
 		{name: "a disagreement without a fetch key", arg: gen.CreateFindingParams{Kind: gen.FindingKindIdentifierDisagreement, Detail: ptr.To("d")}},
 		{name: "a disagreement with a key", key: true, arg: gen.CreateFindingParams{Kind: gen.FindingKindIdentifierDisagreement, FetchKeyID: &fetchKey, Detail: ptr.To("d")}},
-		{name: "a broken bracket without detail", arg: gen.CreateFindingParams{Kind: gen.FindingKindBrokenValidityBracket, FetchKeyID: &fetchKey}},
+		{name: "a broken bracket without detail", arg: gen.CreateFindingParams{Kind: gen.FindingKindBrokenTickerValidityBracket, FetchKeyID: &fetchKey}},
 		{name: "a contradiction without a key", noKey: true, arg: gen.CreateFindingParams{Kind: gen.FindingKindContradiction, Detail: ptr.To("d")}},
 		{name: "an unhandled corporate action without the corporate action", arg: gen.CreateFindingParams{Kind: gen.FindingKindUnhandledCorpAct, Detail: ptr.To("d")}},
 		{name: "a corporate action disagreement without the corporate action", arg: gen.CreateFindingParams{Kind: gen.FindingKindCorpActDisagreement, Detail: ptr.To("d")}},

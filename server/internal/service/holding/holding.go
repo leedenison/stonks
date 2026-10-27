@@ -35,7 +35,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/currency"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/to"
-	"github.com/leedenison/stonks/server/internal/identity/validity"
+	"github.com/leedenison/stonks/server/internal/identity/tickervalidity"
 	"github.com/leedenison/stonks/server/internal/mic"
 	"github.com/leedenison/stonks/server/internal/types"
 )
@@ -43,7 +43,7 @@ import (
 // Reader is this package's view of the holdings queries. It embeds the fact
 // queries, which give a dated key's transactions their instruments.
 type Reader interface {
-	validity.FactQueries
+	tickervalidity.FactQueries
 	ListInstrumentsByID(ctx context.Context, ids []uuid.UUID) ([]gen.Instrument, error)
 	ListIdentifiersOf(ctx context.Context, ids []uuid.UUID) ([]gen.Identifier, error)
 	ListListingNames(ctx context.Context, instrumentIds []uuid.UUID) ([]gen.ListListingNamesRow, error)

@@ -17,7 +17,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/to"
 	"github.com/leedenison/stonks/server/internal/identity/resolve"
-	"github.com/leedenison/stonks/server/internal/identity/validity"
+	"github.com/leedenison/stonks/server/internal/identity/tickervalidity"
 	"github.com/leedenison/stonks/server/internal/mic"
 	"github.com/leedenison/stonks/server/internal/statement"
 	"github.com/leedenison/stonks/server/internal/types"
@@ -37,7 +37,7 @@ type Confirmer interface {
 // Reader is this package's view of the statement queries. It embeds the
 // validity queries, which mark reads for dated keys.
 type Reader interface {
-	validity.FactQueries
+	tickervalidity.FactQueries
 	ListStatements(ctx context.Context, userID uuid.UUID) ([]gen.ListStatementsRow, error)
 	GetStatement(ctx context.Context, arg gen.GetStatementParams) (gen.GetStatementRow, error)
 	ListStatementItems(ctx context.Context, arg gen.ListStatementItemsParams) ([]gen.StatementItem, error)
@@ -252,13 +252,13 @@ func (s *Server) transactions(ctx context.Context, statement, user uuid.UUID) ([
 			tickers = append(tickers, t)
 		}
 	}
-	read, err := validity.ReadTickers(ctx, s.reader, tickers)
+	read, err := tickervalidity.ReadTickers(ctx, s.reader, tickers)
 	if err != nil {
 		return nil, fmt.Errorf("read the facts of the dated keys' tickers: %w", err)
 	}
 	out := make([]*statementv1.Transaction, 0, len(rows))
 	for _, r := range rows {
-		var t *validity.Ticker
+		var t *tickervalidity.Ticker
 		if v, ok := s.datedTicker(r.StatedKey); ok {
 			t = read[v]
 		}

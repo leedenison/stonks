@@ -5,7 +5,7 @@ import (
 
 	statementv1 "github.com/leedenison/stonks/proto/statement/v1"
 	"github.com/leedenison/stonks/server/internal/db/gen"
-	"github.com/leedenison/stonks/server/internal/identity/validity"
+	"github.com/leedenison/stonks/server/internal/identity/tickervalidity"
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
@@ -13,7 +13,7 @@ import (
 // A key has a fixed association or a dated one, so at most one of fixedVia
 // and t is set. A key the user arbitrated is confirmed whichever identifier
 // it used.
-func mark(arbiter *gen.Arbiter, fixedVia *types.IdentifierType, t *validity.Ticker, on time.Time) statementv1.TransactionMark {
+func mark(arbiter *gen.Arbiter, fixedVia *types.IdentifierType, t *tickervalidity.Ticker, on time.Time) statementv1.TransactionMark {
 	switch {
 	case arbiter != nil && *arbiter == gen.ArbiterUser:
 		return statementv1.TransactionMark_TRANSACTION_MARK_CONFIRMED
@@ -27,7 +27,7 @@ func mark(arbiter *gen.Arbiter, fixedVia *types.IdentifierType, t *validity.Tick
 		switch {
 		case !ok:
 			return statementv1.TransactionMark_TRANSACTION_MARK_UNRESOLVED
-		case iv.Validity == validity.Confirmed:
+		case iv.Validity == tickervalidity.Confirmed:
 			return statementv1.TransactionMark_TRANSACTION_MARK_CONFIRMED
 		}
 		return statementv1.TransactionMark_TRANSACTION_MARK_PROVISIONAL

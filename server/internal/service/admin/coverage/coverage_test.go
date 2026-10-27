@@ -22,7 +22,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/identity/attestidentifier"
 	reader "github.com/leedenison/stonks/server/internal/identity/coverage"
-	"github.com/leedenison/stonks/server/internal/identity/validity"
+	"github.com/leedenison/stonks/server/internal/identity/tickervalidity"
 	"github.com/leedenison/stonks/server/internal/platform/ptr"
 	"github.com/leedenison/stonks/server/internal/service/admin/coverage/mock"
 	"github.com/leedenison/stonks/server/internal/service/servicetest"
@@ -96,7 +96,7 @@ func TestGetTicker(t *testing.T) {
 	ticker := &reader.Page{
 		Ticker: acmeTicker,
 		Days:   []time.Time{day(5)},
-		Rows: validity.Rows{
+		Rows: tickervalidity.Rows{
 			Assertions: []gen.ListIdentifierAssertionsRow{{
 				IdentifierAssertion: gen.IdentifierAssertion{ID: assertionID, Type: types.IdentifierTypeMicTicker, Domain: "US", Value: "ACME", InstrumentID: &acme, AssertedOn: day(10)},
 				AttestedBy:          ptr.To("admin@example.com"),
@@ -104,7 +104,7 @@ func TestGetTicker(t *testing.T) {
 			Events:   []gen.ListIdentifierEventsRow{{Value: "OLD", Action: gen.IdentifierEventActionRenamed, ToValue: ptr.To("ACME"), EffectiveOn: day(3)}},
 			Coverage: []gen.ListIdentifierCoverageRow{{Market: "US", CoveredFrom: day(1), CoveredBefore: day(20), Datasource: "alpha"}},
 		},
-		Intervals: []validity.Interval{{From: &from, Before: &before, Instrument: acme, Validity: validity.Confirmed}},
+		Intervals: []tickervalidity.Interval{{From: &from, Before: &before, Instrument: acme, Validity: tickervalidity.Confirmed}},
 		Gaps:      []reader.Gap{{Period: types.Period{From: day(5), Before: day(10)}, Keys: 1, Transactions: 1}},
 		Names:     map[uuid.UUID]types.Identifier{acme: {Type: types.IdentifierTypeIsin, Value: "US0000000001"}},
 	}
@@ -120,7 +120,7 @@ func TestGetTicker(t *testing.T) {
 			Source: &adminrunv1.AssertionItem_AttestedBy{AttestedBy: "admin@example.com"},
 		}},
 		Events:    []*admincoveragev1.IdentifierEvent{{EffectiveOn: "2026-03-03", Action: admincoveragev1.IdentifierEventAction_IDENTIFIER_EVENT_ACTION_RENAMED, Value: "OLD", ToValue: "ACME"}},
-		Intervals: []*admincoveragev1.Interval{{ValidFrom: ptr.To("2026-03-10"), ValidBefore: ptr.To("2026-03-21"), InstrumentId: acme.String(), Validity: admincoveragev1.Validity_VALIDITY_CONFIRMED}},
+		Intervals: []*admincoveragev1.Interval{{ValidFrom: ptr.To("2026-03-10"), ValidBefore: ptr.To("2026-03-21"), InstrumentId: acme.String(), Validity: admincoveragev1.TickerValidity_TICKER_VALIDITY_CONFIRMED}},
 		Gaps:      []*admincoveragev1.Gap{{UnconfirmedFrom: "2026-03-05", UnconfirmedBefore: "2026-03-10", Keys: 1, Transactions: 1}},
 		Instruments: []*admincoveragev1.InstrumentName{{
 			Id: acme.String(), Name: &typev1.Identifier{Type: typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, Value: "US0000000001"},
@@ -134,7 +134,7 @@ func TestGetTicker(t *testing.T) {
 	}{
 		{name: "read", req: acmeProto},
 		{name: "missing", wantCode: connect.CodeInvalidArgument},
-		{name: "unknown market", req: acmeProto, err: validity.ErrSpelling, wantCode: connect.CodeInvalidArgument},
+		{name: "unknown market", req: acmeProto, err: tickervalidity.ErrSpelling, wantCode: connect.CodeInvalidArgument},
 		{name: "failure", req: acmeProto, err: errors.New("boom"), wantCode: connect.CodeInternal},
 	}
 	for _, tc := range tests {
@@ -175,9 +175,9 @@ func TestAttestIdentifier(t *testing.T) {
 		{name: "no ticker", req: &admincoveragev1.AttestIdentifierRequest{Names: names, From: "2026-03-10"}, wantCode: connect.CodeInvalidArgument},
 		{name: "malformed day", req: &admincoveragev1.AttestIdentifierRequest{Ticker: acmeProto, Names: names, From: "10/03/2026"}, wantCode: connect.CodeInvalidArgument},
 		{name: "malformed end", req: &admincoveragev1.AttestIdentifierRequest{Ticker: acmeProto, Names: names, From: "2026-03-10", To: ptr.To("soon")}, wantCode: connect.CodeInvalidArgument},
-		{name: "future", req: &admincoveragev1.AttestIdentifierRequest{Ticker: acmeProto, Names: names, From: "2026-03-10"}, wantInstrument: &acme, err: validity.ErrFuture, wantCode: connect.CodeFailedPrecondition},
+		{name: "future", req: &admincoveragev1.AttestIdentifierRequest{Ticker: acmeProto, Names: names, From: "2026-03-10"}, wantInstrument: &acme, err: tickervalidity.ErrFuture, wantCode: connect.CodeFailedPrecondition},
 		{name: "range reversed", req: &admincoveragev1.AttestIdentifierRequest{Ticker: acmeProto, Names: names, From: "2026-03-10"}, wantInstrument: &acme, err: attestidentifier.ErrRange, wantCode: connect.CodeFailedPrecondition},
-		{name: "misspelled", req: &admincoveragev1.AttestIdentifierRequest{Ticker: acmeProto, Names: names, From: "2026-03-10"}, wantInstrument: &acme, err: validity.ErrSpelling, wantCode: connect.CodeInvalidArgument},
+		{name: "misspelled", req: &admincoveragev1.AttestIdentifierRequest{Ticker: acmeProto, Names: names, From: "2026-03-10"}, wantInstrument: &acme, err: tickervalidity.ErrSpelling, wantCode: connect.CodeInvalidArgument},
 		{name: "unknown instrument", req: &admincoveragev1.AttestIdentifierRequest{Ticker: acmeProto, Names: names, From: "2026-03-10"}, wantInstrument: &acme, err: db.ErrNotFound, wantCode: connect.CodeNotFound},
 		{name: "failure", req: &admincoveragev1.AttestIdentifierRequest{Ticker: acmeProto, Names: names, From: "2026-03-10"}, wantInstrument: &acme, err: errors.New("boom"), wantCode: connect.CodeInternal},
 	}

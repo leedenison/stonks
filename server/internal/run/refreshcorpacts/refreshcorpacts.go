@@ -24,7 +24,7 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/corpact"
 	"github.com/leedenison/stonks/server/internal/db/gen"
-	"github.com/leedenison/stonks/server/internal/identity/validity"
+	"github.com/leedenison/stonks/server/internal/identity/tickervalidity"
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/mic"
 	"github.com/leedenison/stonks/server/internal/run"
@@ -32,7 +32,7 @@ import (
 
 // Queries is this package's view of the generated queries.
 type Queries interface {
-	validity.FactQueries
+	tickervalidity.FactQueries
 	ListHeldInstruments(ctx context.Context) ([]gen.ListHeldInstrumentsRow, error)
 	ListHeldTickerDates(ctx context.Context) ([]gen.ListHeldTickerDatesRow, error)
 	ListTickersNaming(ctx context.Context, instruments []uuid.UUID) ([]gen.ListTickersNamingRow, error)

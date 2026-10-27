@@ -15,7 +15,7 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
-	"github.com/leedenison/stonks/server/internal/identity/validity"
+	"github.com/leedenison/stonks/server/internal/identity/tickervalidity"
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/types"
 )
@@ -155,7 +155,7 @@ func TestReassertTickers(t *testing.T) {
 	if got := s.assertedOn(t, v, later); len(got) != 1 || got[0] == nil || *got[0] != inst {
 		t.Errorf("assertions of %s on %s = %v, want one naming %s", v.Name(), later.Format(time.DateOnly), got, inst)
 	}
-	ivs, err := validity.Of(ctx, s.q, mt(v))
+	ivs, err := tickervalidity.Of(ctx, s.q, mt(v))
 	require.NoError(t, err)
 	if !confirmedOn(ivs, inst, on(2026, 3, 20)) {
 		t.Errorf("validity of %s = %+v, want %s confirmed between the two assertions", v.Name(), ivs, inst)

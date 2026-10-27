@@ -19,7 +19,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/currency"
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
-	"github.com/leedenison/stonks/server/internal/identity/validity"
+	"github.com/leedenison/stonks/server/internal/identity/tickervalidity"
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/mic"
 	"github.com/leedenison/stonks/server/internal/testutil/dbtest"
@@ -156,9 +156,9 @@ func mt(v types.Identifier) types.MarketTicker {
 	return types.MarketTicker{Market: m, Value: v.Value}
 }
 
-func confirmedOn(ivs []validity.Interval, instrument uuid.UUID, d time.Time) bool {
+func confirmedOn(ivs []tickervalidity.Interval, instrument uuid.UUID, d time.Time) bool {
 	for _, iv := range ivs {
-		if iv.Instrument == instrument && iv.Validity == validity.Confirmed &&
+		if iv.Instrument == instrument && iv.Validity == tickervalidity.Confirmed &&
 			iv.From != nil && !d.Before(*iv.From) && iv.Before != nil && d.Before(*iv.Before) {
 			return true
 		}

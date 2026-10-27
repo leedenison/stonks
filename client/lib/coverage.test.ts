@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   IntervalSchema,
   TickerSchema,
-  Validity,
+  TickerValidity,
 } from "@/gen/admin/coverage/v1/coverage_pb";
 import { bounds, dayNumber, intervalAt } from "./coverage";
 
@@ -15,23 +15,23 @@ describe("coverage", () => {
       create(IntervalSchema, {
         validBefore: "2026-03-10",
         instrumentId: "i1",
-        validity: Validity.PROVISIONAL,
+        validity: TickerValidity.PROVISIONAL,
       }),
       create(IntervalSchema, {
         validFrom: "2026-03-10",
         validBefore: "2026-03-21",
         instrumentId: "i1",
-        validity: Validity.CONFIRMED,
+        validity: TickerValidity.CONFIRMED,
       }),
     ];
     expect(intervalAt(intervals, "2026-03-01")?.validity).toBe(
-      Validity.PROVISIONAL,
+      TickerValidity.PROVISIONAL,
     );
     expect(intervalAt(intervals, "2026-03-10")?.validity).toBe(
-      Validity.CONFIRMED,
+      TickerValidity.CONFIRMED,
     );
     expect(intervalAt(intervals, "2026-03-20")?.validity).toBe(
-      Validity.CONFIRMED,
+      TickerValidity.CONFIRMED,
     );
     expect(intervalAt(intervals, "2026-03-21")).toBeUndefined();
   });

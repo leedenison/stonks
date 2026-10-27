@@ -1,5 +1,5 @@
 import type { Ticker } from "@/gen/admin/coverage/v1/coverage_pb";
-import { Validity } from "@/gen/admin/coverage/v1/coverage_pb";
+import { TickerValidity } from "@/gen/admin/coverage/v1/coverage_pb";
 import { bounds, dayNumber } from "@/lib/coverage";
 
 // The drawing's coordinates, in viewBox units; the gutter is the left margin
@@ -55,7 +55,7 @@ export function Timeline({ ticker }: { ticker: Ticker }) {
     },
     {
       key: "validity",
-      label: "Validity",
+      label: "Ticker validity",
       children: ticker.intervals.map((iv, i) => (
         <rect
           key={i}
@@ -64,15 +64,17 @@ export function Timeline({ ticker }: { ticker: Ticker }) {
           height={laneHeight - 4}
           rx={2}
           data-validity={
-            iv.validity === Validity.CONFIRMED ? "confirmed" : "provisional"
+            iv.validity === TickerValidity.CONFIRMED
+              ? "confirmed"
+              : "provisional"
           }
           className={
-            iv.validity === Validity.CONFIRMED
+            iv.validity === TickerValidity.CONFIRMED
               ? "fill-primary"
               : "fill-primary/35"
           }
         >
-          <title>{`${iv.validity === Validity.CONFIRMED ? "Confirmed" : "Provisional"} ${iv.validFrom ?? ""} to ${iv.validBefore ?? ""}`}</title>
+          <title>{`${iv.validity === TickerValidity.CONFIRMED ? "Confirmed" : "Provisional"} ${iv.validFrom ?? ""} to ${iv.validBefore ?? ""}`}</title>
         </rect>
       )),
     },

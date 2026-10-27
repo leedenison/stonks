@@ -13,7 +13,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/to"
-	"github.com/leedenison/stonks/server/internal/identity/validity"
+	"github.com/leedenison/stonks/server/internal/identity/tickervalidity"
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/mic"
 	"github.com/leedenison/stonks/server/internal/platform/ptr"
@@ -52,7 +52,7 @@ func datedTicker(k gen.StatedKey, mics mic.MICMap) (types.Identifier, bool) {
 // dated through the ticker without an identity fetch.
 func (r *Resolver) findResolutionDated(ctx context.Context, user uuid.UUID, rs []*resolution, keys []KeyDates) error {
 	var ids []uuid.UUID
-	read := map[types.MarketTicker]*validity.Ticker{}
+	read := map[types.MarketTicker]*tickervalidity.Ticker{}
 	for i, res := range rs {
 		if res.outcome != "" {
 			continue
@@ -68,7 +68,7 @@ func (r *Resolver) findResolutionDated(ctx context.Context, user uuid.UUID, rs [
 			continue
 		}
 		if read[mt] == nil {
-			t, err := validity.ReadTicker(ctx, r.store, mt)
+			t, err := tickervalidity.ReadTicker(ctx, r.store, mt)
 			if err != nil {
 				return fmt.Errorf("read the facts of %s: %w", mt.Name(), err)
 			}
@@ -80,7 +80,7 @@ func (r *Resolver) findResolutionDated(ctx context.Context, user uuid.UUID, rs [
 		switch {
 		case res.row.ViaType != nil:
 			res.decide(gen.ResolutionOutcomeMatched, "")
-		case res.knownInstrument == nil && res.dating.HasValidity():
+		case res.knownInstrument == nil && res.dating.HasTickerValidity():
 			res.datedFromFacts = true
 			res.decide(gen.ResolutionOutcomeMatched, "")
 		}
@@ -252,10 +252,10 @@ func (r *Resolver) recordEvents(ctx context.Context, keys []eventKey) (bool, err
 		return false, nil
 	}
 	err := r.store.Tx(ctx, func(q Queries) error {
-		return validity.Record(ctx, q, r.mics, r.families, keys)
+		return tickervalidity.Record(ctx, q, r.mics, r.families, keys)
 	})
 	switch {
-	case errors.Is(err, validity.ErrSpelling):
+	case errors.Is(err, tickervalidity.ErrSpelling):
 		r.log.Warn("identifier facts left out", "err", err)
 		return false, nil
 	case err != nil:
@@ -384,11 +384,11 @@ func (w *writtenSet) tickers() []types.MarketTicker {
 // key in mine. A disagreement names the losing assertion's fetch key. A
 // broken bracket names the event's. A missed event names the coverage's.
 func conflicts(ctx context.Context, q Queries, v types.MarketTicker, mine map[uuid.UUID]bool) ([]gen.CreateFindingParams, error) {
-	f, err := validity.Read(ctx, q, v)
+	f, err := tickervalidity.Read(ctx, q, v)
 	if err != nil {
 		return nil, fmt.Errorf("read the facts of %s: %w", v.Name(), err)
 	}
-	d := validity.Derive(f)
+	d := tickervalidity.Derive(f)
 	var out []gen.CreateFindingParams
 	for _, dis := range d.Disagreements {
 		if !mine[dis.Winner.Source.FetchKey] && !mine[dis.Loser.Source.FetchKey] {
@@ -405,7 +405,7 @@ func conflicts(ctx context.Context, q Queries, v types.MarketTicker, mine map[uu
 		}
 		detail := fmt.Sprintf("%s: an event on %s falls between assertions of %s on %s and %s",
 			v.Name(), br.Event.On.Format(time.DateOnly), br.Instrument, br.First.Format(time.DateOnly), br.Last.Format(time.DateOnly))
-		out = append(out, gen.CreateFindingParams{Kind: gen.FindingKindBrokenValidityBracket, FetchKeyID: ptr.To(br.Event.FetchKey), Detail: &detail})
+		out = append(out, gen.CreateFindingParams{Kind: gen.FindingKindBrokenTickerValidityBracket, FetchKeyID: ptr.To(br.Event.FetchKey), Detail: &detail})
 	}
 	for _, m := range d.Missed {
 		if !mine[m.Coverage.FetchKey] && !mine[m.Inferred.Earlier.Source.FetchKey] && !mine[m.Inferred.Later.Source.FetchKey] {

@@ -55,10 +55,10 @@ message IdentifierEvent {
   string to_value = 4;
 }
 
-enum Validity {
-  VALIDITY_UNSPECIFIED = 0;
-  VALIDITY_CONFIRMED = 1;
-  VALIDITY_PROVISIONAL = 2;
+enum TickerValidity {
+  TICKER_VALIDITY_UNSPECIFIED = 0;
+  TICKER_VALIDITY_CONFIRMED = 1;
+  TICKER_VALIDITY_PROVISIONAL = 2;
 }
 
 // The days over which a ticker names one instrument. The bounds are half
@@ -67,7 +67,7 @@ message Interval {
   optional string valid_from = 1;
   optional string valid_before = 2;
   string instrument_id = 3;
-  Validity validity = 4;
+  TickerValidity validity = 4;
 }
 
 // An instrument and the identifier that names it.

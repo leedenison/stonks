@@ -15,7 +15,7 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
-	"github.com/leedenison/stonks/server/internal/identity/validity"
+	"github.com/leedenison/stonks/server/internal/identity/tickervalidity"
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/platform/ptr"
 	"github.com/leedenison/stonks/server/internal/types"
@@ -110,7 +110,7 @@ func TestDated(t *testing.T) {
 	if ticker.Instrument.ID != held.Instrument.ID {
 		t.Errorf("%s names %s, want the identity answer's instrument %s", v.Name(), ticker.Instrument.ID, held.Instrument.ID)
 	}
-	ivs, err := validity.Of(ctx, s.q, mt(v))
+	ivs, err := tickervalidity.Of(ctx, s.q, mt(v))
 	require.NoError(t, err)
 	if !confirmedOn(ivs, held.Instrument.ID, on(2024, 1, 16)) {
 		t.Errorf("validity of %s = %+v, want the history to confirm %s on 2024-01-16", v.Name(), ivs, held.Instrument.ID)
@@ -373,7 +373,7 @@ func TestBrokenBracket(t *testing.T) {
 	s.resolveOn(t, []time.Time{on(2024, 1, 16)}, key)
 	found := s.runFindings(t)
 	event := s.eventFetchKey(t, s.alphaName, share)
-	if len(found) != 1 || found[0].Kind != gen.FindingKindBrokenValidityBracket || found[0].FetchKeyID == nil || *found[0].FetchKeyID != event.ID {
+	if len(found) != 1 || found[0].Kind != gen.FindingKindBrokenTickerValidityBracket || found[0].FetchKeyID == nil || *found[0].FetchKeyID != event.ID {
 		t.Errorf("findings = %+v, want one broken bracket naming the event's fetch key %s", found, event.ID)
 	}
 }

@@ -285,11 +285,11 @@ func TestSplitDatedKey(t *testing.T) {
 	}
 }
 
-// TestSplitCalendarByValidity checks that the calendar attributes an action by
+// TestSplitCalendarByTickerValidity checks that the calendar attributes an action by
 // what its ticker named on the ex-date. An action of a ticker that has moved
 // to another instrument does not match. An action of the instrument's earlier
 // ticker matches, although the fetch did not ask for that ticker.
-func TestSplitCalendarByValidity(t *testing.T) {
+func TestSplitCalendarByTickerValidity(t *testing.T) {
 	t.Run("a reused ticker", func(t *testing.T) {
 		s := newStack(t)
 		s.only(t, s.alphaName)

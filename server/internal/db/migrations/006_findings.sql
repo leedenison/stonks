@@ -17,7 +17,7 @@
 -- contradiction, it concerns a ticker rather than a key. The run whose write
 -- completed the pair records it, and the finding names the losing assertion's
 -- fetch key.
--- 'broken_validity_bracket' means a witnessed event fell between two
+-- 'broken_ticker_validity_bracket' means a witnessed event fell between two
 -- assertions that name one instrument. The event wins over the bracket. The
 -- run that wrote the event records it, and the finding names the event's
 -- fetch key.
@@ -41,7 +41,7 @@
 -- finding names the stated key and the split's effective date. One finding
 -- stands for each key and day, so clearing the finding dismisses that split permanently.
 CREATE TYPE finding_kind AS ENUM ('block', 'dropped', 'contradiction', 'merged',
-    'identifier_disagreement', 'broken_validity_bracket', 'missed_event',
+    'identifier_disagreement', 'broken_ticker_validity_bracket', 'missed_event',
     'unhandled_corp_act', 'corp_act_disagreement', 'unmatched_split');
 
 -- The step of the choice that dropped a set of identifiers: it contradicted
@@ -75,7 +75,7 @@ CREATE TABLE findings (
     CHECK ((kind = 'unmatched_split') = (effective_date IS NOT NULL)),
     CHECK ((kind = 'block') = (detail IS NULL)),
     CHECK ((kind = 'dropped') = (step IS NOT NULL)),
-    CHECK (kind NOT IN ('dropped', 'identifier_disagreement', 'broken_validity_bracket', 'missed_event') OR fetch_key_id IS NOT NULL)
+    CHECK (kind NOT IN ('dropped', 'identifier_disagreement', 'broken_ticker_validity_bracket', 'missed_event') OR fetch_key_id IS NOT NULL)
 );
 
 CREATE INDEX findings_run_idx ON findings (run_id);

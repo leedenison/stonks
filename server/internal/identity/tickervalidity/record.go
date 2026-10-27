@@ -1,4 +1,4 @@
-package validity
+package tickervalidity
 
 import (
 	"context"
@@ -35,7 +35,7 @@ var _ RecordQueries = (*gen.Queries)(nil)
 var ErrSpelling = errors.New("not in the system's spelling")
 
 // ErrFuture reports an attestation of a day after the day it is made.
-var ErrFuture = errors.New("an attestation cannot reach past the day it is made")
+var ErrFuture = errors.New("an identifier attestation cannot reach past the day it is made")
 
 // Record writes the events, assertions and coverage of each served key. It
 // checks every key first, so a key in the wrong spelling fails the whole

@@ -1,6 +1,6 @@
 //go:build dbtest
 
-package validity
+package tickervalidity
 
 import (
 	"context"

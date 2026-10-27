@@ -131,7 +131,7 @@ test("dates a key through its ticker and marks each transaction by its day", asy
       (f) =>
         f.kind === FindingKind.DROPPED ||
         f.kind === FindingKind.IDENTIFIER_DISAGREEMENT ||
-        f.kind === FindingKind.BROKEN_VALIDITY_BRACKET,
+        f.kind === FindingKind.BROKEN_TICKER_VALIDITY_BRACKET,
     );
     expect(conflicts).toHaveLength(0);
     const resolution = got.run!.children[0];

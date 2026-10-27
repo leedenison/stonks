@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   IdentifierEventAction,
   TickerSchema,
-  Validity,
+  TickerValidity,
 } from "@/gen/admin/coverage/v1/coverage_pb";
 import { AssertionItemSchema } from "@/gen/admin/run/v1/run_pb";
 import { Timeline, ticks } from "./timeline";
@@ -59,7 +59,7 @@ const acme = create(TickerSchema, {
       validFrom: "2024-06-01",
       validBefore: "2026-03-01",
       instrumentId: "i1",
-      validity: Validity.CONFIRMED,
+      validity: TickerValidity.CONFIRMED,
     },
   ],
   gaps: [

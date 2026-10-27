@@ -11,7 +11,7 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/to"
-	"github.com/leedenison/stonks/server/internal/identity/validity"
+	"github.com/leedenison/stonks/server/internal/identity/tickervalidity"
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/types"
 )
@@ -109,7 +109,7 @@ func (r *Resolver) readHeld(ctx context.Context, held []gen.ListHeldTickersRow) 
 		}
 		seen[key] = true
 		t := &heldTicker{row: row, key: key, ticker: v}
-		read, err := validity.ReadTicker(ctx, r.store, key)
+		read, err := tickervalidity.ReadTicker(ctx, r.store, key)
 		if err != nil {
 			return nil, fmt.Errorf("read the facts of %s: %w", key.Name(), err)
 		}
@@ -246,14 +246,14 @@ func (r *Resolver) assertHeld(ctx context.Context, q Queries, t *heldTicker, fk 
 		}
 		inst = t.instrument
 		if inst == nil || !r.shares(l, t) {
-			found, err := validity.StoredInstrument(ctx, q, l.Identifiers)
+			found, err := tickervalidity.StoredInstrument(ctx, q, l.Identifiers)
 			if err != nil || found == nil {
 				return err
 			}
 			inst = found
 		}
 	}
-	if err := validity.AssertInstrument(ctx, q, fk.ID, t.key, inst, fk.AnsweredAt); err != nil {
+	if err := tickervalidity.AssertInstrument(ctx, q, fk.ID, t.key, inst, fk.AnsweredAt); err != nil {
 		return err
 	}
 	written.addTicker(fk.Run, t.key)
