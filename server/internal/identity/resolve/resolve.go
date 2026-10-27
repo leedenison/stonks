@@ -16,7 +16,7 @@
 // A key that states a venue ticker without a stable identifier is dated: it
 // names the ticker, and each of its transactions takes the instrument the
 // ticker's validity names on its as-at date when it is read;
-// see [validity.go](../validity/validity.go). The as-at date is the day on
+// see [tickervalidity.go](../tickervalidity/tickervalidity.go). The as-at date is the day on
 // which the source stated the ticker, so a source that restates its history
 // to the present names the instrument the ticker names today. Where the
 // ticker has validity, the key is dated through it without an identity

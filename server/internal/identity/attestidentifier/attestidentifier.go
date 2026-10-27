@@ -4,7 +4,7 @@
 // An attestation is an assertion whose source is an administrator rather than a
 // fetch key. Datasources supply coverage, so a market no datasource covers is
 // attested ticker by ticker. How an attested assertion ranks against a
-// datasource's is in [validity.go](../validity/validity.go). Writing or
+// datasource's is in [tickervalidity.go](../tickervalidity/tickervalidity.go). Writing or
 // withdrawing an attestation replays the unresolved keys that state the ticker
 // beneath the attest identifier run, and fetches the corporate actions of the
 // held instruments that the ticker names. A dated key picks up the change when
@@ -22,7 +22,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/identity/resolve"
-	"github.com/leedenison/stonks/server/internal/identity/validity"
+	"github.com/leedenison/stonks/server/internal/identity/tickervalidity"
 	"github.com/leedenison/stonks/server/internal/mic"
 	"github.com/leedenison/stonks/server/internal/run"
 	"github.com/leedenison/stonks/server/internal/types"
@@ -32,7 +32,7 @@ var (
 	// ErrRange reports a range whose last day precedes its first.
 	ErrRange = errors.New("the range ends before it starts")
 	// ErrNotAttested reports a withdrawal of a datasource's assertion.
-	ErrNotAttested = errors.New("the assertion is a datasource's, not an attestation")
+	ErrNotAttested = errors.New("the assertion is a datasource's, not an identifier attestation")
 )
 
 // lane serialises attest identifier runs.
@@ -70,7 +70,7 @@ func (s *Service) Start(ctx context.Context, admin uuid.UUID, v types.MarketTick
 		days = append(days, types.Day(*to))
 	}
 	for _, d := range days {
-		if err := validity.CheckAttest(s.mics, v, d, today); err != nil {
+		if err := tickervalidity.CheckAttest(s.mics, v, d, today); err != nil {
 			return gen.Run{}, err
 		}
 	}
@@ -86,7 +86,7 @@ func (s *Service) Start(ctx context.Context, admin uuid.UUID, v types.MarketTick
 		Prepare: func(ctx context.Context, row gen.Run) error {
 			return s.store.Tx(ctx, func(q Queries) error {
 				for _, d := range days {
-					if err := validity.Attest(ctx, q, s.mics, row, admin, v, instrument, d, today); err != nil {
+					if err := tickervalidity.Attest(ctx, q, s.mics, row, admin, v, instrument, d, today); err != nil {
 						return err
 					}
 				}

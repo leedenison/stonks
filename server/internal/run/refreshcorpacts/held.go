@@ -10,7 +10,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/leedenison/stonks/server/internal/identity/validity"
+	"github.com/leedenison/stonks/server/internal/identity/tickervalidity"
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/types"
 )
@@ -70,7 +70,7 @@ func (b *base) heldInstruments(ctx context.Context) (map[uuid.UUID]*held, error)
 			ts = append(ts, t)
 		}
 	}
-	read, err := validity.ReadTickers(ctx, b.queries, ts)
+	read, err := tickervalidity.ReadTickers(ctx, b.queries, ts)
 	if err != nil {
 		return nil, fmt.Errorf("read the facts of the held tickers: %w", err)
 	}
@@ -111,7 +111,7 @@ func (b *base) requests(ctx context.Context, hs map[uuid.UUID]*held, keep func(u
 			ts = append(ts, t)
 		}
 	}
-	read, err := validity.ReadTickers(ctx, b.queries, ts)
+	read, err := tickervalidity.ReadTickers(ctx, b.queries, ts)
 	if err != nil {
 		return nil, fmt.Errorf("read the facts of the held instruments' tickers: %w", err)
 	}
@@ -156,7 +156,7 @@ func (b *base) requests(ctx context.Context, hs map[uuid.UUID]*held, keep func(u
 
 // overlaps reports whether iv covers any day on or after from and before
 // before.
-func overlaps(iv validity.Interval, from, before time.Time) bool {
+func overlaps(iv tickervalidity.Interval, from, before time.Time) bool {
 	return (iv.Before == nil || iv.Before.After(from)) && (iv.From == nil || iv.From.Before(before))
 }
 

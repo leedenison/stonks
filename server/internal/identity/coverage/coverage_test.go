@@ -13,7 +13,7 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/identity/coverage/mock"
-	"github.com/leedenison/stonks/server/internal/identity/validity"
+	"github.com/leedenison/stonks/server/internal/identity/tickervalidity"
 	"github.com/leedenison/stonks/server/internal/mic"
 	"github.com/leedenison/stonks/server/internal/platform/ptr"
 	"github.com/leedenison/stonks/server/internal/types"
@@ -84,11 +84,11 @@ func TestTicker(t *testing.T) {
 	want := &Page{
 		Ticker: v,
 		Days:   []time.Time{day(5), day(15)},
-		Rows:   validity.Rows{Assertions: assertions},
-		Intervals: []validity.Interval{
-			{Before: &from, Instrument: acme, Validity: validity.Provisional},
-			{From: &from, Before: &mid, Instrument: acme, Validity: validity.Confirmed},
-			{From: &mid, Instrument: acme, Validity: validity.Provisional},
+		Rows:   tickervalidity.Rows{Assertions: assertions},
+		Intervals: []tickervalidity.Interval{
+			{Before: &from, Instrument: acme, Validity: tickervalidity.Provisional},
+			{From: &from, Before: &mid, Instrument: acme, Validity: tickervalidity.Confirmed},
+			{From: &mid, Instrument: acme, Validity: tickervalidity.Provisional},
 		},
 		Gaps: []Gap{
 			{Period: types.Period{From: day(5), Before: from}, Keys: 2, Transactions: 2},
@@ -125,8 +125,8 @@ func TestTickerRefused(t *testing.T) {
 		v       types.MarketTicker
 		wantErr error
 	}{
-		{name: "venue for market", v: types.MarketTicker{Market: "XNAS", Value: "ACME"}, wantErr: validity.ErrSpelling},
-		{name: "unknown market", v: types.MarketTicker{Market: "ZZ", Value: "ACME"}, wantErr: validity.ErrSpelling},
+		{name: "venue for market", v: types.MarketTicker{Market: "XNAS", Value: "ACME"}, wantErr: tickervalidity.ErrSpelling},
+		{name: "unknown market", v: types.MarketTicker{Market: "ZZ", Value: "ACME"}, wantErr: tickervalidity.ErrSpelling},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

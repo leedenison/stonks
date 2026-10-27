@@ -9,14 +9,14 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
-	"github.com/leedenison/stonks/server/internal/identity/validity"
+	"github.com/leedenison/stonks/server/internal/identity/tickervalidity"
 	"github.com/leedenison/stonks/server/internal/market"
 )
 
 // Queries is this package's view of the generated queries.
 type Queries interface {
-	validity.FactQueries
-	validity.RecordQueries
+	tickervalidity.FactQueries
+	tickervalidity.RecordQueries
 	PlaceTicker(ctx context.Context, arg gen.PlaceTickerParams) (gen.Identifier, error)
 	SetStatedKeyDatedAssociation(ctx context.Context, arg gen.SetStatedKeyDatedAssociationParams) (int64, error)
 	ListKeyDates(ctx context.Context, arg gen.ListKeyDatesParams) ([]gen.ListKeyDatesRow, error)

@@ -8,7 +8,7 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/identity/resolve"
-	"github.com/leedenison/stonks/server/internal/identity/validity"
+	"github.com/leedenison/stonks/server/internal/identity/tickervalidity"
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/types"
 )
@@ -51,7 +51,7 @@ func (s *Service) FetchAfterIdentifierFacts(ctx context.Context, parent gen.Run,
 	if len(ts) == 0 {
 		return
 	}
-	read, err := validity.ReadTickers(ctx, s.queries, ts)
+	read, err := tickervalidity.ReadTickers(ctx, s.queries, ts)
 	if err != nil {
 		s.log.Warn("corporate actions fetch after new identifier facts failed", "run", parent.ID, "err", err)
 		return

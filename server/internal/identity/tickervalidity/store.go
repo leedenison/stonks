@@ -1,4 +1,4 @@
-package validity
+package tickervalidity
 
 import (
 	"context"

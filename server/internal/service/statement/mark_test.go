@@ -8,7 +8,7 @@ import (
 
 	statementv1 "github.com/leedenison/stonks/proto/statement/v1"
 	"github.com/leedenison/stonks/server/internal/db/gen"
-	"github.com/leedenison/stonks/server/internal/identity/validity"
+	"github.com/leedenison/stonks/server/internal/identity/tickervalidity"
 	"github.com/leedenison/stonks/server/internal/platform/ptr"
 	"github.com/leedenison/stonks/server/internal/types"
 )
@@ -20,26 +20,26 @@ var (
 	coveredTo  = time.Date(2024, time.February, 1, 0, 0, 0, 0, time.UTC)
 	assertedOn = time.Date(2024, time.January, 16, 0, 0, 0, 0, time.UTC)
 	notFoundOn = time.Date(2021, time.June, 1, 0, 0, 0, 0, time.UTC)
-	massive    = validity.Source{Datasource: "massive", Precedence: 2}
+	massive    = tickervalidity.Source{Datasource: "massive", Precedence: 2}
 )
 
 // metaFacts are the facts of META: a rename to META on 2022-06-09 with
 // coverage from that day, a lookup naming Meta on 2024-01-16, and a lookup on
 // 2021-06-01 that found nothing. The negative assertion precedes the
 // datasource's first positive one, so it does not count.
-func metaFacts() validity.Facts {
-	return validity.Facts{
-		Assertions: []validity.Assertion{
+func metaFacts() tickervalidity.Facts {
+	return tickervalidity.Facts{
+		Assertions: []tickervalidity.Assertion{
 			{At: assertedOn, Instrument: &metaInst, Source: massive},
 			{At: notFoundOn, Source: massive},
 		},
-		Events:   []validity.Event{{On: renamed}},
-		Coverage: []validity.Coverage{{Period: types.Period{From: renamed, Before: coveredTo}, Datasource: "massive"}},
+		Events:   []tickervalidity.Event{{On: renamed}},
+		Coverage: []tickervalidity.Coverage{{Period: types.Period{From: renamed, Before: coveredTo}, Datasource: "massive"}},
 	}
 }
 
-func metaTicker() *validity.Ticker {
-	return &validity.Ticker{Ticker: meta, Derived: validity.Derive(metaFacts())}
+func metaTicker() *tickervalidity.Ticker {
+	return &tickervalidity.Ticker{Ticker: meta, Derived: tickervalidity.Derive(metaFacts())}
 }
 
 func TestMark(t *testing.T) {
@@ -53,7 +53,7 @@ func TestMark(t *testing.T) {
 		name     string
 		arbiter  *gen.Arbiter
 		fixedVia *types.IdentifierType
-		ticker   *validity.Ticker
+		ticker   *tickervalidity.Ticker
 		on       time.Time
 		want     statementv1.TransactionMark
 	}{

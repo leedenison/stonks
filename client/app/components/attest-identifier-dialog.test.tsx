@@ -8,7 +8,7 @@ import {
   CoverageService,
   GetTickerResponseSchema,
   TickerSchema,
-  Validity,
+  TickerValidity,
 } from "@/gen/admin/coverage/v1/coverage_pb";
 import {
   InstrumentSchema,
@@ -41,7 +41,7 @@ const held = create(GetTickerResponseSchema, {
       {
         validBefore: "2024-06-01",
         instrumentId: "i1",
-        validity: Validity.PROVISIONAL,
+        validity: TickerValidity.PROVISIONAL,
       },
     ],
     instruments: [{ id: "i1", name: isin }],
@@ -169,7 +169,7 @@ describe("AttestIdentifierDialog", () => {
     const { transport } = serving(
       held,
       new ConnectError(
-        "2026-12-01: an attestation cannot reach past the day it is made",
+        "2026-12-01: an identifier attestation cannot reach past the day it is made",
         Code.FailedPrecondition,
       ),
     );

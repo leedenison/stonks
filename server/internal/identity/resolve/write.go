@@ -9,7 +9,7 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
-	"github.com/leedenison/stonks/server/internal/identity/validity"
+	"github.com/leedenison/stonks/server/internal/identity/tickervalidity"
 	runs "github.com/leedenison/stonks/server/internal/run"
 	"github.com/leedenison/stonks/server/internal/types"
 )
@@ -221,7 +221,7 @@ func recordUnknown(ctx context.Context, q Queries, res *resolution) error {
 			continue
 		}
 		id := *fk.SentID
-		if err := validity.AssertIdentifier(ctx, q, res.mics, fk.ID, id, nil, fk.AnsweredAt); err != nil {
+		if err := tickervalidity.AssertIdentifier(ctx, q, res.mics, fk.ID, id, nil, fk.AnsweredAt); err != nil {
 			return fmt.Errorf("record negative assertion: %w", err)
 		}
 		res.wrote(fk, id)

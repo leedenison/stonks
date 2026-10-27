@@ -9,7 +9,7 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/to"
-	"github.com/leedenison/stonks/server/internal/identity/validity"
+	"github.com/leedenison/stonks/server/internal/identity/tickervalidity"
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
@@ -40,7 +40,7 @@ func (s *Server) dated(ctx context.Context, user uuid.UUID, keys []gen.ListHoldi
 			}
 		}
 	}
-	read, err := validity.ReadTickers(ctx, s.reader, tickers)
+	read, err := tickervalidity.ReadTickers(ctx, s.reader, tickers)
 	if err != nil {
 		return d, fmt.Errorf("read the facts of the dated keys' tickers: %w", err)
 	}

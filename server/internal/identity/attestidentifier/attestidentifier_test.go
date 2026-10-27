@@ -13,7 +13,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/identity/resolve"
-	"github.com/leedenison/stonks/server/internal/identity/validity"
+	"github.com/leedenison/stonks/server/internal/identity/tickervalidity"
 	"github.com/leedenison/stonks/server/internal/mic"
 	"github.com/leedenison/stonks/server/internal/run"
 	"github.com/leedenison/stonks/server/internal/types"
@@ -132,11 +132,11 @@ func TestStartRefused(t *testing.T) {
 		from, to   time.Time
 		wantErr    error
 	}{
-		{name: "future", v: acmeUS, from: day(31), wantErr: validity.ErrFuture},
-		{name: "future end", v: acmeUS, from: day(10), to: day(31), wantErr: validity.ErrFuture},
+		{name: "future", v: acmeUS, from: day(31), wantErr: tickervalidity.ErrFuture},
+		{name: "future end", v: acmeUS, from: day(10), to: day(31), wantErr: tickervalidity.ErrFuture},
 		{name: "ends before it starts", v: acmeUS, from: day(10), to: day(9), wantErr: ErrRange},
-		{name: "venue for market", v: types.MarketTicker{Market: "XNAS", Value: "ACME"}, from: day(10), wantErr: validity.ErrSpelling},
-		{name: "unknown market", v: types.MarketTicker{Market: "ZZ", Value: "ACME"}, from: day(10), wantErr: validity.ErrSpelling},
+		{name: "venue for market", v: types.MarketTicker{Market: "XNAS", Value: "ACME"}, from: day(10), wantErr: tickervalidity.ErrSpelling},
+		{name: "unknown market", v: types.MarketTicker{Market: "ZZ", Value: "ACME"}, from: day(10), wantErr: tickervalidity.ErrSpelling},
 		{name: "unknown instrument", v: acmeUS, instrument: &missing, from: day(10), wantErr: db.ErrNotFound},
 	}
 	for _, tc := range tests {

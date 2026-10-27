@@ -195,7 +195,10 @@ export function AttestIdentifierDialog({
       )}
       {attest.isError && (
         <Notice tone="error" testId="attest-error">
-          {refusal(attest.error, "The attestation could not be written.")}
+          {refusal(
+            attest.error,
+            "The identifier attestation could not be written.",
+          )}
         </Notice>
       )}
     </Dialog>

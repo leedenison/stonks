@@ -18,7 +18,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/to"
-	"github.com/leedenison/stonks/server/internal/identity/validity"
+	"github.com/leedenison/stonks/server/internal/identity/tickervalidity"
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/types"
 )
@@ -90,7 +90,7 @@ func TestResolveWrites(t *testing.T) {
 		}
 	}
 	vod := types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XLON", Value: "VOD"}
-	ivs, err := validity.Of(ctx, s.q, mt(vod))
+	ivs, err := tickervalidity.Of(ctx, s.q, mt(vod))
 	require.NoError(t, err)
 	if !confirmedOn(ivs, inst.ID, day) {
 		t.Errorf("validity of %s = %+v, want the instrument confirmed on %s", vod.Name(), ivs, day.Format(time.DateOnly))
@@ -388,7 +388,7 @@ func TestMergeRows(t *testing.T) {
 		t.Errorf("assertions naming the survivor %d, the merged instrument %d, want every one on the survivor", naming[true], naming[false])
 	}
 	nasdaq := types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "VOD"}
-	ivs, err := validity.Of(ctx, s.q, mt(nasdaq))
+	ivs, err := tickervalidity.Of(ctx, s.q, mt(nasdaq))
 	require.NoError(t, err)
 	for _, iv := range ivs {
 		if iv.Instrument != survivor {

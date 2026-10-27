@@ -13,7 +13,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/join"
 	"github.com/leedenison/stonks/server/internal/db/to"
-	"github.com/leedenison/stonks/server/internal/identity/validity"
+	"github.com/leedenison/stonks/server/internal/identity/tickervalidity"
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
@@ -100,7 +100,7 @@ func (w *writer) attach(ctx context.Context, c *identityClaim) error {
 		}
 		if !asserted[k] {
 			asserted[k] = true
-			if err := validity.AssertIdentifier(ctx, w.q, w.res.mics, fetchKeyID, id, &w.instr.Row.ID, c.fetchKey.AnsweredAt); err != nil {
+			if err := tickervalidity.AssertIdentifier(ctx, w.q, w.res.mics, fetchKeyID, id, &w.instr.Row.ID, c.fetchKey.AnsweredAt); err != nil {
 				return err
 			}
 		}

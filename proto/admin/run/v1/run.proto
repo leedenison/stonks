@@ -110,7 +110,7 @@ enum FindingKind {
   // A witnessed event fell between two assertions that name one instrument,
   // and the event wins over the bracket. The detail names the value, the
   // event's day and the instrument.
-  FINDING_KIND_BROKEN_VALIDITY_BRACKET = 6;
+  FINDING_KIND_BROKEN_TICKER_VALIDITY_BRACKET = 6;
   // Two assertions imply an event on one of a run of days, and a
   // datasource's coverage holds every one of those days. The datasource
   // reported no event there. The coverage wins. The detail names the value,

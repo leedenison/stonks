@@ -1,6 +1,6 @@
 //go:build dbtest
 
-package validity
+package tickervalidity
 
 import (
 	"context"
@@ -211,14 +211,14 @@ func TestReadTicker(t *testing.T) {
 	ctx := context.Background()
 	empty, err := ReadTicker(ctx, f.q, f.foo)
 	require.NoError(t, err)
-	if empty.HasValidity() {
+	if empty.HasTickerValidity() {
 		t.Errorf("a ticker with no facts has validity %+v, want none", empty.Derived.Intervals)
 	}
 	f.asserts(t, f.alpha, 1, &f.a)
 	f.asserts(t, f.alpha, 5, &f.a)
 	tk, err := ReadTicker(ctx, f.q, f.foo)
 	require.NoError(t, err)
-	if !tk.HasValidity() || tk.Ticker != f.foo {
+	if !tk.HasTickerValidity() || tk.Ticker != f.foo {
 		t.Errorf("ticker = %+v, want validity for %s", tk, f.foo.Name())
 	}
 	if !tk.Asserted(day(5)) || tk.Asserted(day(3)) {

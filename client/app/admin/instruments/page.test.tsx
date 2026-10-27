@@ -7,7 +7,7 @@ import {
   GetTickerResponseSchema,
   ListInstrumentTickersResponseSchema,
   TickerSchema,
-  Validity,
+  TickerValidity,
   WithdrawIdentifierAttestationResponseSchema,
 } from "@/gen/admin/coverage/v1/coverage_pb";
 import {
@@ -80,13 +80,13 @@ const read = create(GetTickerResponseSchema, {
       {
         validBefore: "2024-06-01",
         instrumentId: "i-acme",
-        validity: Validity.PROVISIONAL,
+        validity: TickerValidity.PROVISIONAL,
       },
       {
         validFrom: "2024-06-01",
         validBefore: "2026-01-01",
         instrumentId: "i-acme",
-        validity: Validity.CONFIRMED,
+        validity: TickerValidity.CONFIRMED,
       },
     ],
     gaps: [

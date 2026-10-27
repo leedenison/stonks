@@ -12,7 +12,7 @@ import (
 	"go.uber.org/mock/gomock"
 
 	"github.com/leedenison/stonks/server/internal/db/gen"
-	"github.com/leedenison/stonks/server/internal/identity/validity"
+	"github.com/leedenison/stonks/server/internal/identity/tickervalidity"
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/mic"
 	"github.com/leedenison/stonks/server/internal/run"
@@ -172,7 +172,7 @@ func TestOverlaps(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := overlaps(validity.Interval{From: tt.from, Before: tt.end}, from, before)
+			got := overlaps(tickervalidity.Interval{From: tt.from, Before: tt.end}, from, before)
 			if diff := cmp.Diff(tt.want, got); diff != "" {
 				t.Errorf("overlaps() mismatch (-want +got):\n%s", diff)
 			}

@@ -1,4 +1,4 @@
-package validity
+package tickervalidity
 
 import (
 	"context"
@@ -43,9 +43,9 @@ func ReadTickers(ctx context.Context, q FactQueries, ts []types.MarketTicker) (m
 	return out, nil
 }
 
-// HasValidity reports whether the facts give the ticker an instrument on any
+// HasTickerValidity reports whether the facts give the ticker an instrument on any
 // day.
-func (t *Ticker) HasValidity() bool { return len(t.Derived.Intervals) > 0 }
+func (t *Ticker) HasTickerValidity() bool { return len(t.Derived.Intervals) > 0 }
 
 // Asserted reports whether any source asserted the ticker on day d.
 func (t *Ticker) Asserted(d time.Time) bool { return t.asserted[types.Day(d)] }

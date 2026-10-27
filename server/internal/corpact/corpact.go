@@ -3,7 +3,7 @@
 //
 // A corporate action is stored as a datasource reported it, against the
 // ticker and its market. Validity decides the instrument it applies to when
-// it is read; see [validity.go](../identity/validity/validity.go).
+// it is read; see [tickervalidity.go](../identity/tickervalidity/tickervalidity.go).
 //
 // The latest answer of a datasource for a ticker, by the moment the
 // datasource gave it, replaces its earlier one. A cached answer keeps the

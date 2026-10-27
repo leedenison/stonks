@@ -17,7 +17,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/db/to"
 	"github.com/leedenison/stonks/server/internal/identity/attestidentifier"
 	reader "github.com/leedenison/stonks/server/internal/identity/coverage"
-	"github.com/leedenison/stonks/server/internal/identity/validity"
+	"github.com/leedenison/stonks/server/internal/identity/tickervalidity"
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
@@ -29,7 +29,7 @@ type Reader interface {
 
 var _ Reader = (*reader.Reader)(nil)
 
-// Attester is this package's view of the attest package.
+// Attester is this package's view of the attestidentifier package.
 type Attester interface {
 	Start(ctx context.Context, admin uuid.UUID, v types.MarketTicker, instrument *uuid.UUID, from time.Time, to *time.Time) (gen.Run, error)
 	Withdraw(ctx context.Context, id uuid.UUID) error
@@ -74,7 +74,7 @@ func (s *Server) ListInstrumentTickers(ctx context.Context, req *connect.Request
 func (s *Server) GetTicker(ctx context.Context, req *connect.Request[admincoveragev1.GetTickerRequest]) (*connect.Response[admincoveragev1.GetTickerResponse], error) {
 	t, err := s.reader.Ticker(ctx, types.MarketTickerOf(req.Msg.GetTicker()), s.clock())
 	switch {
-	case errors.Is(err, validity.ErrSpelling):
+	case errors.Is(err, tickervalidity.ErrSpelling):
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	case err != nil:
 		return nil, connect.NewError(connect.CodeInternal, err)
@@ -112,9 +112,9 @@ func (s *Server) AttestIdentifier(ctx context.Context, req *connect.Request[admi
 	}
 	started, err := s.attester.Start(ctx, p.User.ID, v, instrument, from, until)
 	switch {
-	case errors.Is(err, validity.ErrFuture), errors.Is(err, attestidentifier.ErrRange):
+	case errors.Is(err, tickervalidity.ErrFuture), errors.Is(err, attestidentifier.ErrRange):
 		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
-	case errors.Is(err, validity.ErrSpelling):
+	case errors.Is(err, tickervalidity.ErrSpelling):
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	case errors.Is(err, db.ErrNotFound):
 		return nil, connect.NewError(connect.CodeNotFound, err)

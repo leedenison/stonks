@@ -96,7 +96,7 @@ export function TickersTab({
               ))}
             </Select>
           </label>
-          <Validity
+          <TickerSection
             market={chosen.ticker?.market ?? ""}
             value={chosen.ticker?.value ?? ""}
           />
@@ -106,9 +106,9 @@ export function TickersTab({
   );
 }
 
-// Validity shows everything known about one ticker and the actions that
+// TickerSection shows everything known about one ticker and the actions that
 // settle it.
-function Validity({ market, value }: { market: string; value: string }) {
+function TickerSection({ market, value }: { market: string; value: string }) {
   const { data, isPending, isError, refetch } = useCoverageTicker(
     market,
     value,
@@ -120,7 +120,7 @@ function Validity({ market, value }: { market: string; value: string }) {
     <Section
       title={
         <span className="flex flex-wrap items-baseline gap-3">
-          Validity
+          Ticker validity
           {data?.ticker && (
             <Button
               variant="text"
@@ -183,7 +183,7 @@ function WithdrawDialog({
     <Dialog
       open
       onClose={onClose}
-      title="Withdraw attestation"
+      title="Withdraw identifier attestation"
       testId="withdraw-dialog"
       footer={
         <>
@@ -213,7 +213,10 @@ function WithdrawDialog({
       </p>
       {withdraw.isError && (
         <Notice tone="error" testId="withdraw-error">
-          {refusal(withdraw.error, "The attestation could not be withdrawn.")}
+          {refusal(
+            withdraw.error,
+            "The identifier attestation could not be withdrawn.",
+          )}
         </Notice>
       )}
     </Dialog>
