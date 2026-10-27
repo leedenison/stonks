@@ -1,6 +1,7 @@
 ---
 title: Tickers and markets as tables
 type: task
+dependencies: [017]
 ---
 
 ## Scope
