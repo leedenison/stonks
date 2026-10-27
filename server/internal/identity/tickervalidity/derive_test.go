@@ -70,6 +70,7 @@ func TestDerive(t *testing.T) {
 		wantDisagreements []Disagreement
 		wantBroken        []BrokenBracket
 		wantMissed        []MissedEvent
+		wantOverruled     []OverruledEdge
 	}{
 		{
 			name:  "an assertion confirms its own day and nothing either side",
@@ -112,6 +113,53 @@ func TestDerive(t *testing.T) {
 				confirmed(at(5), at(10), a), provisional(at(10), nil, a),
 			},
 			wantBroken: []BrokenBracket{{Edge: first(5, &a, alpha), Instr: a, First: d(1), Last: d(5)}},
+		},
+		{
+			name:          "a bracket of a stronger datasource overrules a weaker edge",
+			facts:         Facts{Assertions: []Assertion{asserts(1, &a, alpha), first(5, &a, beta), asserts(9, &a, alpha)}},
+			want:          []Interval{provisional(nil, at(1), a), confirmed(at(1), at(10), a), provisional(at(10), nil, a)},
+			wantOverruled: []OverruledEdge{{Edge: first(5, &a, beta), By: []Source{alpha, alpha}}},
+		},
+		{
+			name:  "an overruled edge's assertion still wins its day",
+			facts: Facts{Assertions: []Assertion{asserts(1, &a, alpha), first(5, &b, beta), asserts(9, &a, alpha)}},
+			want: []Interval{
+				provisional(nil, at(1), a), confirmed(at(1), at(2), a), provisional(at(2), at(5), a),
+				confirmed(at(5), at(6), b), provisional(at(6), at(9), b),
+				confirmed(at(9), at(10), a), provisional(at(10), nil, a),
+			},
+			wantInferred: []Inferred{
+				{Period: cover(2, 6), From: &a, To: &b, Earlier: asserts(1, &a, alpha), Later: first(5, &b, beta)},
+				{Period: cover(6, 10), From: &b, To: &a, Earlier: first(5, &b, beta), Later: asserts(9, &a, alpha)},
+			},
+			wantOverruled: []OverruledEdge{{Edge: first(5, &b, beta), By: []Source{alpha, alpha}}},
+		},
+		{
+			name:          "a period assertion of a stronger datasource overrules a weaker edge",
+			facts:         Facts{Assertions: []Assertion{asserts(1, &a, beta), first(5, &a, beta)}, PeriodAssertions: []PeriodAssertion{covered(1, 20)}},
+			want:          []Interval{provisional(nil, at(1), a), confirmed(at(1), at(20), a), provisional(at(20), nil, a)},
+			wantOverruled: []OverruledEdge{{Edge: first(5, &a, beta), By: []Source{covered(1, 20).Source}}},
+		},
+		{
+			name:  "a period assertion overrules nothing where its datasource states an edge at the cut",
+			facts: Facts{Assertions: []Assertion{asserts(1, &a, beta), first(5, &a, beta), first(5, &a, alpha)}, PeriodAssertions: []PeriodAssertion{covered(1, 20)}},
+			want:  []Interval{provisional(nil, at(1), a), confirmed(at(1), at(20), a), provisional(at(20), nil, a)},
+			wantBroken: []BrokenBracket{
+				{Edge: first(5, &a, beta), Instr: a, First: d(1), Last: d(5)},
+				{Edge: first(5, &a, alpha), Instr: a, First: d(1), Last: d(5)},
+			},
+		},
+		{
+			name:          "two adjoining period assertions of one datasource overrule an edge where they meet",
+			facts:         Facts{Assertions: []Assertion{asserts(1, &a, beta), first(5, &a, beta)}, PeriodAssertions: []PeriodAssertion{covered(1, 5), covered(5, 20)}},
+			want:          []Interval{provisional(nil, at(1), a), confirmed(at(1), at(20), a), provisional(at(20), nil, a)},
+			wantOverruled: []OverruledEdge{{Edge: first(5, &a, beta), By: []Source{covered(5, 20).Source}}},
+		},
+		{
+			name:          "an identifier attestation on both sides overrules a datasource edge",
+			facts:         Facts{Assertions: []Assertion{asserts(1, &a, admin), last(4, &a, alpha), asserts(9, &a, admin)}},
+			want:          []Interval{provisional(nil, at(1), a), confirmed(at(1), at(10), a), provisional(at(10), nil, a)},
+			wantOverruled: []OverruledEdge{{Edge: last(4, &a, alpha), By: []Source{admin, admin}}},
 		},
 		{
 			name:  "two instruments on different days imply a change, the earlier keeping the grey zone",
@@ -208,6 +256,9 @@ func TestDerive(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.wantMissed, got.Missed); diff != "" {
 				t.Errorf("Derive(%+v) missed events mismatch (-want +got):\n%s", tc.facts, diff)
+			}
+			if diff := cmp.Diff(tc.wantOverruled, got.Overruled); diff != "" {
+				t.Errorf("Derive(%+v) overruled edges mismatch (-want +got):\n%s", tc.facts, diff)
 			}
 		})
 	}

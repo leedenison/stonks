@@ -127,19 +127,23 @@ enum FindingKind {
   // detail names the value, the days of the assertions, the datasource and
   // its period assertion.
   FINDING_KIND_MISSED_EVENT = 7;
+  // A datasource that outranks an edge's source overruled the edge, so the
+  // edge does not cut. The detail names the value, the edge, its day and the
+  // datasource.
+  FINDING_KIND_OVERRULED_EDGE = 8;
   // A datasource reported a corporate action of a type the system does not
   // restate a quantity by. The detail names the ticker, the ex-date, the type
   // and the ratio.
-  FINDING_KIND_UNHANDLED_CORP_ACT = 8;
+  FINDING_KIND_UNHANDLED_CORP_ACT = 9;
   // A corporate action of one datasource lacks a corporate action of equal ratio,
   // within 7 days either side, from another datasource that covers the same
   // ticker on its ex-date. The detail names the ticker, the ex-date, the ratio
   // and both datasources.
-  FINDING_KIND_CORP_ACT_DISAGREEMENT = 9;
+  FINDING_KIND_CORP_ACT_DISAGREEMENT = 10;
   // A statement states a split, and the calendar holds no matching event
   // within 7 days either side of it. The detail names the split's effective
   // date and its ratio, where the statement states one.
-  FINDING_KIND_UNMATCHED_SPLIT = 10;
+  FINDING_KIND_UNMATCHED_SPLIT = 11;
 }
 
 // The step of the choice that dropped a set of identifiers.
