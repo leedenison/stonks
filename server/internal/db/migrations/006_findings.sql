@@ -26,23 +26,23 @@
 -- datasource reported no event there. The coverage wins. The run that wrote
 -- the coverage or either assertion records it, and the finding names the
 -- coverage's fetch key.
--- 'unhandled_corporate_event' means a datasource reported a corporate event of
+-- 'unhandled_corp_act' means a datasource reported a corporate action of
 -- a type the system does not restate a quantity by. The fetch that wrote the
--- event records it, and the finding names the event.
--- 'corporate_event_disagreement' means a corporate event of one datasource
--- lacks a corporate event of equal ratio, within 7 days either side, from
+-- corporate action records it, and the finding names the corporate action.
+-- 'corp_act_disagreement' means a corporate action of one datasource
+-- lacks a corporate action of equal ratio, within 7 days either side, from
 -- another datasource that covers the same ticker on its ex-date. The fetch
 -- that completed the pair records it, and the finding names the unmatched
--- event.
+-- corporate action.
 -- 'unmatched_split' means a statement stated a split that the calendar lacks:
--- no corporate event of the split's instrument falls within 7 days either
--- side, with an equal ratio where the statement states one. A corporate event
+-- no corporate action of the split's instrument falls within 7 days either
+-- side, with an equal ratio where the statement states one. A corporate action
 -- fetch that covers the instrument on the split's date records it. The
 -- finding names the stated key and the split's effective date. One finding
 -- stands for each key and day, so clearing the finding dismisses that split permanently.
 CREATE TYPE finding_kind AS ENUM ('block', 'dropped', 'contradiction', 'merged',
     'identifier_disagreement', 'broken_validity_bracket', 'missed_event',
-    'unhandled_corporate_event', 'corporate_event_disagreement', 'unmatched_split');
+    'unhandled_corp_act', 'corp_act_disagreement', 'unmatched_split');
 
 -- The step of the choice that dropped a set of identifiers: it contradicted
 -- the stated data, was inconsistent with a higher precedence response, or
@@ -51,7 +51,7 @@ CREATE TYPE finding_kind AS ENUM ('block', 'dropped', 'contradiction', 'merged',
 CREATE TYPE drop_step AS ENUM ('stated', 'precedence', 'corroboration');
 
 -- A finding highlights abnormal run outcomes to administrators.
--- 011_corporate_events.sql adds corporate_event_id, the corporate event a
+-- 011_corp_acts.sql adds corp_act_id, the corporate action a
 -- finding names.
 CREATE TABLE findings (
     id            uuid         PRIMARY KEY,

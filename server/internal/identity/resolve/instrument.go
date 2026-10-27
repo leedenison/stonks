@@ -118,7 +118,7 @@ func (res *resolution) decide(outcome gen.ResolutionOutcome, format string, args
 // match: every one but a ticker. A ticker row names the instrument its ticker
 // identifies today. What the ticker named on another day is read from its
 // validity, so resolution does not match through a ticker row. An option
-// symbol still matches through its row until corporate events are built.
+// symbol still matches through its row until corporate actions are built.
 func lookupIDs(ids []types.Identifier) []types.Identifier {
 	var out []types.Identifier
 	for _, id := range ids {

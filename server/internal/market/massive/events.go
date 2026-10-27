@@ -12,7 +12,7 @@ import (
 
 // since is the first day Massive's reference data covers. A point in time
 // lookup of an earlier day answers that the ticker is unknown. The coverage of
-// corporate events starts here too. Massive's splits reach back to 1978, but
+// corporate actions starts here too. Massive's splits reach back to 1978, but
 // many splits before 2003 are missing. Massive documents two years of splits
 // for its Basic plan. That plan answers the whole history.
 var since = time.Date(2003, time.September, 10, 0, 0, 0, 0, time.UTC)

@@ -1,6 +1,6 @@
 // Holdings: what a user holds, of two kinds, one per instrument and one per
 // group of unresolved keys. A holding whose total is zero is left out.
-// Quantities are raw: no corporate event restates them. Every RPC requires a
+// Quantities are raw: no corporate action restates them. Every RPC requires a
 // session and reads the caller's own transactions, keys and statements. A
 // holding carries the keys it sums. An instrument holding also carries its
 // listings.

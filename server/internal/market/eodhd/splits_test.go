@@ -17,26 +17,26 @@ import (
 
 func day(y int, m time.Month, d int) time.Time { return time.Date(y, m, d, 0, 0, 0, 0, time.UTC) }
 
-// asked is the period of every corporate events request in the tests. It
+// asked is the period of every corporate actions request in the tests. It
 // starts before EODHD's earliest split in the cassettes and ends after the
 // day of the recording.
 var asked = types.Period{From: day(1970, 1, 2), Before: day(2027, 1, 4)}
 
-func splitsOf(c *Client, ticker types.Identifier) ([]market.Response[market.CorporateEventResult], error) {
-	s := c.CorporateEvents()
-	req := market.CorporateEventRequest{Ticker: ticker, Period: asked}
+func splitsOf(c *Client, ticker types.Identifier) ([]market.Response[market.CorpActResult], error) {
+	s := c.CorpActs()
+	req := market.CorpActRequest{Ticker: ticker, Period: asked}
 	sent, err := s.Serves(req)
 	if err != nil {
 		return nil, err
 	}
-	return s.Fetch(context.Background(), []market.Request[market.CorporateEventRequest]{{Value: req, Sent: sent}})
+	return s.Fetch(context.Background(), []market.Request[market.CorpActRequest]{{Value: req, Sent: sent}})
 }
 
-// described states each event as "ex-date from:to", with "unhandled"
-// appended where the event is not handled.
-func described(evs []market.CorporateEvent) []string {
+// described states each action as "ex-date from:to", with "unhandled"
+// appended where the action is not handled.
+func described(acts []market.CorpAct) []string {
 	out := []string{}
-	for _, e := range evs {
+	for _, e := range acts {
 		d := e.ExDate.Format(time.DateOnly) + " " + e.Ratio.From.String() + ":" + e.Ratio.To.String()
 		if !e.Handled {
 			d += " unhandled"
@@ -53,7 +53,7 @@ func symbol(v string) types.Identifier {
 // TestSplitsServes checks the symbol each request sends and the requests
 // Serves refuses.
 func TestSplitsServes(t *testing.T) {
-	s := client(t).CorporateEvents()
+	s := client(t).CorpActs()
 	tests := []struct {
 		name    string
 		ticker  types.Identifier
@@ -72,7 +72,7 @@ func TestSplitsServes(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			req := market.CorporateEventRequest{Ticker: tc.ticker, Period: asked}
+			req := market.CorpActRequest{Ticker: tc.ticker, Period: asked}
 			got, err := s.Serves(req)
 			if tc.refused {
 				if err == nil {
@@ -88,7 +88,7 @@ func TestSplitsServes(t *testing.T) {
 	}
 }
 
-// TestSplits checks the corporate events EODHD returned for each ticker.
+// TestSplits checks the corporate actions EODHD returned for each ticker.
 // Every answer covers asked, except the answer for a symbol EODHD does not
 // know.
 func TestSplits(t *testing.T) {
@@ -106,7 +106,7 @@ func TestSplits(t *testing.T) {
 		},
 		{
 			// Vodafone's ratio of 1994 is a price factor, and its 2006 and
-			// 2014 events are share consolidations.
+			// 2014 actions are share consolidations.
 			cassette: "eodhd_splits_lse",
 			ticker:   ticker("XLON", "VOD"),
 			want:     []string{"1994-07-21 319897:959692", "1999-10-01 1:5", "2006-07-31 8:7", "2014-02-24 11:6"},
@@ -136,7 +136,7 @@ func TestSplits(t *testing.T) {
 			require.NoError(t, err)
 			require.Len(t, got, 1)
 			require.NoError(t, got[0].Err)
-			if diff := cmp.Diff(tc.want, described(got[0].Value.Events)); diff != "" {
+			if diff := cmp.Diff(tc.want, described(got[0].Value.Acts)); diff != "" {
 				t.Errorf("events of %s mismatch (-want +got):\n%s", tc.ticker.Value, diff)
 			}
 			cov := got[0].Value.Coverage

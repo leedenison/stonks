@@ -93,10 +93,10 @@ test("extends the validity of a held ticker on the day it runs", async ({
 
   // The statement's fetches filled the cache. Each served key of the run's
   // identity and identifier events fetches has attempts, so the run called
-  // the datasource. The run's new identifier facts start corporate events
+  // the datasource. The run's new identifier facts start corporate actions
   // fetches. Those fetches read the cache.
   const extending = got.children.filter(
-    (c) => c.fetch?.kind !== FetchKind.CORPORATE_EVENTS,
+    (c) => c.fetch?.kind !== FetchKind.CORP_ACTS,
   );
   expect(extending.length).toBeGreaterThan(0);
   for (const child of extending) {

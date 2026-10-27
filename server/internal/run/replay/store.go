@@ -53,9 +53,9 @@ type Resolver interface {
 
 var _ Resolver = (*resolve.Resolver)(nil)
 
-// CorporateEvents is this package's view of the refreshcorporateevents
+// CorpActs is this package's view of the refreshcorpacts
 // package.
-type CorporateEvents interface {
+type CorpActs interface {
 	FetchAfterIdentifierFacts(ctx context.Context, parent gen.Run, written []resolve.WrittenIdentifierFacts)
 }
 

@@ -8,7 +8,7 @@
 //
 // A new identifier fact, or a withdrawn attestation, replays the unresolved
 // keys that state its ticker at any venue of its market beneath the run that
-// wrote it. It also fetches the corporate events of the held instruments that
+// wrote it. It also fetches the corporate actions of the held instruments that
 // its ticker names; see AfterIdentifierFacts. A key with an association is never
 // replayed for a fact. A dated key takes the instrument its ticker names on
 // each transaction's date when it is read, so a new fact reaches its
@@ -67,14 +67,14 @@ type Service struct {
 	store    Store
 	runs     Runner
 	resolver Resolver
-	events   CorporateEvents
+	events   CorpActs
 	sources  Sources
 	mics     mic.MICMap
 	log      *slog.Logger
 }
 
 // New returns a Service.
-func New(store Store, runs Runner, resolver Resolver, events CorporateEvents, sources Sources, mics mic.MICMap, log *slog.Logger) *Service {
+func New(store Store, runs Runner, resolver Resolver, events CorpActs, sources Sources, mics mic.MICMap, log *slog.Logger) *Service {
 	return &Service{store: store, runs: runs, resolver: resolver, events: events, sources: sources, mics: mics, log: log}
 }
 
@@ -206,7 +206,7 @@ func (r *replay) resolve(ctx context.Context, res gen.Run) error {
 }
 
 // AfterIdentifierFacts replays the keys that state a ticker in written, and
-// then fetches the corporate events of the held instruments that the tickers
+// then fetches the corporate actions of the held instruments that the tickers
 // name, beneath the run named in except. A failure is logged and the rest go
 // on, since the run that wrote the facts has completed by then and its outcome
 // stands. Both run in the goroutine of the run that found the facts.

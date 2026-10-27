@@ -6,7 +6,7 @@ import { CoverageService } from "../gen/admin/coverage/v1/coverage_pb";
 import { DatasourceService } from "../gen/admin/datasource/v1/datasource_pb";
 import { InstrumentService as AdminInstrumentService } from "../gen/admin/instrument/v1/instrument_pb";
 import { ExtendValidityService } from "../gen/admin/extend_validity/v1/extend_validity_pb";
-import { RefreshCorporateEventsService } from "../gen/admin/refresh_corporate_events/v1/refresh_corporate_events_pb";
+import { RefreshCorpActsService } from "../gen/admin/refresh_corp_acts/v1/refresh_corp_acts_pb";
 import { ReplayService } from "../gen/admin/replay/v1/replay_pb";
 import {
   FetchOutcome,
@@ -74,8 +74,8 @@ export function extendValidityClient(sessionID: string) {
   return clientFor(ExtendValidityService, sessionID);
 }
 
-export function refreshCorporateEventsClient(sessionID: string) {
-  return clientFor(RefreshCorporateEventsService, sessionID);
+export function refreshCorpActsClient(sessionID: string) {
+  return clientFor(RefreshCorpActsService, sessionID);
 }
 
 export function replayClient(sessionID: string) {
@@ -203,7 +203,7 @@ export async function instrumentListedAs(
 }
 
 // settled waits until statement run runId and every run beneath it have
-// stopped. The statement starts its last run, the corporate events fetch of
+// stopped. The statement starts its last run, the corporate actions fetch of
 // the user's held instruments, only when a ticker names one of them; holds
 // says whether to wait for it. A fetch for another user's instruments can
 // start after the user's own fetch stops. The tree must therefore keep the
@@ -231,7 +231,7 @@ export async function settled(
           (got?.children ?? []).some(
             (c) =>
               c.run?.kind === RunKind.REFRESH_CORPORATE_EVENTS ||
-              c.fetch?.kind === FetchKind.CORPORATE_EVENTS,
+              c.fetch?.kind === FetchKind.CORP_ACTS,
           );
         const stopped = runs.every((r) => stoppedStates.has(r.run!.state));
         const steady = runs.length === size;
@@ -249,13 +249,13 @@ const stoppedStates = new Set([
   RunState.INTERRUPTED,
 ]);
 
-// resolutionFindings leaves out the findings of corporate events fetches,
+// resolutionFindings leaves out the findings of corporate actions fetches,
 // which follow a statement whatever its resolution found.
 export function resolutionFindings(findings: Finding[]): Finding[] {
   return findings.filter(
     (f) =>
       f.kind !== FindingKind.UNMATCHED_SPLIT &&
-      f.kind !== FindingKind.CORPORATE_EVENT_DISAGREEMENT &&
-      f.kind !== FindingKind.UNHANDLED_CORPORATE_EVENT,
+      f.kind !== FindingKind.CORP_ACT_DISAGREEMENT &&
+      f.kind !== FindingKind.UNHANDLED_CORP_ACT,
   );
 }

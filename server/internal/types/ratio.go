@@ -2,7 +2,7 @@ package types
 
 import "github.com/shopspring/decimal"
 
-// Ratio is how a corporate event restates a quantity: From units before it
+// Ratio is how a corporate action restates a quantity: From units before it
 // become To units after it.
 type Ratio struct {
 	From, To decimal.Decimal

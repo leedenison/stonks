@@ -182,7 +182,7 @@ CREATE TABLE listings (
 -- What the ticker named on an earlier day is read from its validity, so
 -- resolution does not match through a ticker row. An option symbol matches
 -- through its row, because the system does not normalise option symbols
--- through the corporate events of their underlying.
+-- through the corporate actions of their underlying.
 CREATE TABLE identifiers (
     id            uuid            PRIMARY KEY,
     instrument_id uuid            NOT NULL REFERENCES instruments (id),

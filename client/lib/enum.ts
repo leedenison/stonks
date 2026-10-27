@@ -1,7 +1,15 @@
+// abbreviations spells out in full each abbreviation that a label holds.
+const abbreviations: [RegExp, string][] = [
+  [/\bcorp act(s?)\b/g, "corporate action$1"],
+];
+
 // enumLabel renders v as lower case words, for example "failed permanent"
-// for FAILED_PERMANENT.
+// for FAILED_PERMANENT and "corporate actions" for CORP_ACTS.
 export function enumLabel(e: Record<number, string>, v: number): string {
-  return (e[v] ?? "").toLowerCase().replaceAll("_", " ");
+  return abbreviations.reduce(
+    (s, [abbr, full]) => s.replace(abbr, full),
+    (e[v] ?? "").toLowerCase().replaceAll("_", " "),
+  );
 }
 
 // enumValues lists the values of e that a filter offers. It omits

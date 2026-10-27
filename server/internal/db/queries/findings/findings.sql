@@ -1,5 +1,5 @@
 -- name: CreateFinding :exec
-INSERT INTO findings (id, run_id, kind, stated_key_id, fetch_key_id, step, detail, corporate_event_id, effective_date)
+INSERT INTO findings (id, run_id, kind, stated_key_id, fetch_key_id, step, detail, corp_act_id, effective_date)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9);
 
 -- name: ListRunFindings :many

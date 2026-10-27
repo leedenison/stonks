@@ -69,7 +69,7 @@ test("chooses an instrument for a bare ticker", async ({ signIn, page }) => {
   );
   await dropFetchCache(cacheKey);
   await offered.getByTestId(/^candidate-choose-openfigi-/).click();
-  // The confirmation fetches the corporate events of the instrument before
+  // The confirmation fetches the corporate actions of the instrument before
   // it responds.
   await expect(dialog).toBeHidden({ timeout: 30_000 });
   await expect(row.getByTestId("resolution-chip")).toHaveAttribute(

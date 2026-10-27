@@ -15,31 +15,31 @@ import (
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
-var _ market.CorporateEvents = (*Client)(nil)
+var _ market.CorpActs = (*Client)(nil)
 
 // unknownSymbol is the body of the 404 that answers a symbol EODHD does not
 // know.
 const unknownSymbol = "Symbol not found"
 
-// splits is EODHD's side of the corporate events kind.
+// splits is EODHD's side of the corporate actions kind.
 type splits struct{ c *Client }
 
-// split is one corporate event as EODHD states it. Split is new over old,
+// split is one corporate action as EODHD states it. Split is new over old,
 // as in "7.000000/1.000000".
 type split struct {
 	Date  string `json:"date"`
 	Split string `json:"split"`
 }
 
-// CorporateEvents is EODHD's server of corporate events.
-func (c *Client) CorporateEvents() market.Server[market.CorporateEventRequest, market.CorporateEventResult] {
+// CorpActs is EODHD's server of corporate actions.
+func (c *Client) CorpActs() market.Server[market.CorpActRequest, market.CorpActResult] {
 	return splits{c: c}
 }
 
 // Serves returns the symbol to send for r, as a DATASOURCE_TICKER in EODHD's
 // namespace, or an error when EODHD cannot answer r. A venue that several
 // EODHD exchanges list is refused, since the ticker does not say which.
-func (s splits) Serves(r market.CorporateEventRequest) (types.Identifier, error) {
+func (s splits) Serves(r market.CorpActRequest) (types.Identifier, error) {
 	t := r.Ticker
 	if t.IsDomain() {
 		return types.Identifier{}, fmt.Errorf("domain '%s' rejected: the datasource answers for one ticker", t.Domain)
@@ -64,8 +64,8 @@ func (s splits) Serves(r market.CorporateEventRequest) (types.Identifier, error)
 // its free plan. In practice the plan answers back to the 1970s. EODHD lists
 // a split only once it takes effect. A symbol EODHD does not know is
 // answered with an empty answer and nil coverage.
-func (s splits) Fetch(ctx context.Context, reqs []market.Request[market.CorporateEventRequest]) ([]market.Response[market.CorporateEventResult], error) {
-	out := make([]market.Response[market.CorporateEventResult], len(reqs))
+func (s splits) Fetch(ctx context.Context, reqs []market.Request[market.CorpActRequest]) ([]market.Response[market.CorpActResult], error) {
+	out := make([]market.Response[market.CorpActResult], len(reqs))
 	for i, r := range reqs {
 		var ss []split
 		err := s.c.get(ctx, "/api/splits/"+url.PathEscape(r.Sent.Value), url.Values{}, &ss)
@@ -75,12 +75,12 @@ func (s splits) Fetch(ctx context.Context, reqs []market.Request[market.Corporat
 		if err != nil {
 			return nil, err
 		}
-		evs, err := fromSplits(ss)
+		acts, err := fromSplits(ss)
 		if err != nil {
 			return nil, err
 		}
 		p := r.Value.Period
-		out[i].Value = market.CorporateEventResult{Events: evs, Coverage: &p}
+		out[i].Value = market.CorpActResult{Acts: acts, Coverage: &p}
 	}
 	return out, nil
 }
@@ -92,12 +92,12 @@ func unknown(err error) bool {
 	return errors.As(err, &status) && status.Code == http.StatusNotFound && status.Body == unknownSymbol
 }
 
-// fromSplits converts EODHD's splits into corporate events. EODHD omits a
-// type, so each event is marked handled, and the ratio test of the corporate
-// package decides. The ratios include price factors, such as the fall in a
+// fromSplits converts EODHD's splits into corporate actions. EODHD omits a
+// type, so each action is marked handled, and the ratio test of package corpact
+// decides. The ratios include price factors, such as the fall in a
 // parent's price at a spin-off.
-func fromSplits(ss []split) ([]market.CorporateEvent, error) {
-	out := make([]market.CorporateEvent, len(ss))
+func fromSplits(ss []split) ([]market.CorpAct, error) {
+	out := make([]market.CorpAct, len(ss))
 	for i, s := range ss {
 		ex, err := time.Parse(time.DateOnly, s.Date)
 		if err != nil {
@@ -115,7 +115,7 @@ func fromSplits(ss []split) ([]market.CorporateEvent, error) {
 		if err != nil {
 			return nil, fmt.Errorf("split '%s': %w", s.Split, err)
 		}
-		out[i] = market.CorporateEvent{ExDate: ex, Ratio: types.Ratio{From: before, To: after}, Handled: true}
+		out[i] = market.CorpAct{ExDate: ex, Ratio: types.Ratio{From: before, To: after}, Handled: true}
 	}
 	return out, nil
 }

@@ -4,9 +4,9 @@
 //
 // Ingestion is a run: the call responds with the pending row once the statement
 // is recorded, and resolution and the write follow; see
-// [run.go](../run/run.go). The run ends with a fetch of the corporate events of
+// [run.go](../run/run.go). The run ends with a fetch of the corporate actions of
 // the user's held instruments; see
-// [refreshcorporateevents.go](../run/refreshcorporateevents/refreshcorporateevents.go).
+// [refreshcorpacts.go](../run/refreshcorpacts/refreshcorpacts.go).
 // A stated key is the user's: one row per asset class, currency and set of
 // identifiers, linked to each statement that states it. A statement resolves
 // only the keys it states that lack a fixed association, each once, however
@@ -48,7 +48,7 @@ type Service struct {
 	runs     Runner
 	resolver Resolver
 	facts    Facts
-	events   CorporateEvents
+	events   CorpActs
 	families currency.Families
 	clock    func() time.Time
 	log      *slog.Logger
@@ -56,7 +56,7 @@ type Service struct {
 
 // New returns a Service. families holds the currencies a statement may
 // state, and clock supplies today for the order date check.
-func New(store Store, runs Runner, resolver Resolver, facts Facts, events CorporateEvents, families currency.Families, clock func() time.Time, log *slog.Logger) *Service {
+func New(store Store, runs Runner, resolver Resolver, facts Facts, events CorpActs, families currency.Families, clock func() time.Time, log *slog.Logger) *Service {
 	return &Service{store: store, runs: runs, resolver: resolver, facts: facts, events: events, families: families, clock: clock, log: log}
 }
 
@@ -99,7 +99,7 @@ type ingestion struct {
 	runs     Runner
 	resolver Resolver
 	facts    Facts
-	events   CorporateEvents
+	events   CorpActs
 	user     uuid.UUID
 	broker   gen.Broker
 	from     time.Time
@@ -224,7 +224,7 @@ func (g *ingestion) prepare(ctx context.Context, run gen.Run) error {
 }
 
 // work resolves the keys, writes the statement, and then follows the
-// resolution's new identifier facts and fetches the corporate events of the
+// resolution's new identifier facts and fetches the corporate actions of the
 // user's held instruments. The write completes the statement run in its own
 // transaction, before either starts.
 func (g *ingestion) work(ctx context.Context, run gen.Run) error {

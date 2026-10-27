@@ -1,5 +1,5 @@
 // Package scripted holds integrations whose every answer a test scripts: one
-// each for identity, identifier events and corporate events, and one serving
+// each for identity, identifier events and corporate actions, and one serving
 // identity and identifier events.
 package scripted
 
@@ -149,48 +149,48 @@ func (s *IdentifierEvents) Fetch(_ context.Context, reqs []market.Request[market
 	return out, nil
 }
 
-// CorporateEvents is a market.CorporateEvents whose answers a test scripts.
-type CorporateEvents struct {
+// CorpActs is a market.CorpActs whose answers a test scripts.
+type CorpActs struct {
 	// Down fails every request.
 	Down bool
 	// Responses maps each identifier sent to its answer. An identifier it
 	// lacks is answered with an empty result.
-	Responses map[types.Identifier]market.CorporateEventResult
+	Responses map[types.Identifier]market.CorpActResult
 	// Sent is every request the server received, in order.
-	Sent []market.CorporateEventRequest
+	Sent []market.CorpActRequest
 	// Declines lists the venues whose tickers the server refuses to send.
 	Declines []string
 }
 
-var _ market.CorporateEvents = (*CorporateEvents)(nil)
+var _ market.CorpActs = (*CorpActs)(nil)
 
-// NewCorporateEvents returns a CorporateEvents with no responses scripted.
-func NewCorporateEvents() *CorporateEvents {
-	return &CorporateEvents{Responses: map[types.Identifier]market.CorporateEventResult{}}
+// NewCorpActs returns a CorpActs with no responses scripted.
+func NewCorpActs() *CorpActs {
+	return &CorpActs{Responses: map[types.Identifier]market.CorpActResult{}}
 }
 
 // Classify reads every failure as temporary and about the identifier sent.
-func (s *CorporateEvents) Classify(error) market.Failure {
+func (s *CorpActs) Classify(error) market.Failure {
 	return market.Failure{Temporary: true, Scope: market.ScopeKey}
 }
 
 // Limit leaves calls unpaced.
-func (s *CorporateEvents) Limit() (rate.Limit, int) { return rate.Inf, 1 }
+func (s *CorpActs) Limit() (rate.Limit, int) { return rate.Inf, 1 }
 
 // Batch is the most requests one call carries.
-func (s *CorporateEvents) Batch() int { return 10 }
+func (s *CorpActs) Batch() int { return 10 }
 
 // Endpoint is the address of a provider that is never called.
-func (s *CorporateEvents) Endpoint() string { return "https://scripted.test" }
+func (s *CorpActs) Endpoint() string { return "https://scripted.test" }
 
-// CorporateEvents is the server itself.
-func (s *CorporateEvents) CorporateEvents() market.Server[market.CorporateEventRequest, market.CorporateEventResult] {
+// CorpActs is the server itself.
+func (s *CorpActs) CorpActs() market.Server[market.CorpActRequest, market.CorpActResult] {
 	return s
 }
 
 // Serves sends the ticker the request names, and declines one on a venue in
 // Declines.
-func (s *CorporateEvents) Serves(r market.CorporateEventRequest) (types.Identifier, error) {
+func (s *CorpActs) Serves(r market.CorpActRequest) (types.Identifier, error) {
 	if slices.Contains(s.Declines, r.Ticker.Domain) {
 		return types.Identifier{}, declined(r.Ticker.Domain)
 	}
@@ -198,15 +198,15 @@ func (s *CorporateEvents) Serves(r market.CorporateEventRequest) (types.Identifi
 }
 
 // Fetch answers each request from Responses.
-func (s *CorporateEvents) Fetch(_ context.Context, reqs []market.Request[market.CorporateEventRequest]) ([]market.Response[market.CorporateEventResult], error) {
-	out := make([]market.Response[market.CorporateEventResult], len(reqs))
+func (s *CorpActs) Fetch(_ context.Context, reqs []market.Request[market.CorpActRequest]) ([]market.Response[market.CorpActResult], error) {
+	out := make([]market.Response[market.CorpActResult], len(reqs))
 	for i, r := range reqs {
 		s.Sent = append(s.Sent, r.Value)
 		if s.Down {
-			out[i] = market.Response[market.CorporateEventResult]{Err: errors.New("the provider is down")}
+			out[i] = market.Response[market.CorpActResult]{Err: errors.New("the provider is down")}
 			continue
 		}
-		out[i] = market.Response[market.CorporateEventResult]{Value: s.Responses[r.Sent]}
+		out[i] = market.Response[market.CorpActResult]{Value: s.Responses[r.Sent]}
 	}
 	return out, nil
 }

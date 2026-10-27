@@ -69,7 +69,7 @@ func New(queries Queries, runs Runner, extender Extender, facts Facts) *Service 
 // Start starts an extend validity run over every held ticker, as a system run,
 // and returns the pending row. A ticker that becomes held later waits for the
 // next run. Its identifier facts replay the unresolved keys that state each
-// ticker, and fetch the corporate events of the held instruments that the
+// ticker, and fetch the corporate actions of the held instruments that the
 // tickers name; see [replay.go](../replay/replay.go).
 func (s *Service) Start(ctx context.Context) (gen.Run, error) {
 	held, err := s.queries.ListHeldTickers(ctx)

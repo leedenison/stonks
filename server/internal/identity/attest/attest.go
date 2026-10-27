@@ -6,7 +6,7 @@
 // is attested ticker by ticker. How an attested assertion ranks against a
 // datasource's is in [validity.go](../validity/validity.go). Writing or
 // withdrawing an attestation replays the unresolved keys that state the
-// ticker beneath the attestation run, and fetches the corporate events of the
+// ticker beneath the attestation run, and fetches the corporate actions of the
 // held instruments that the ticker names. A dated key picks up the change
 // when it is next read.
 package attest
