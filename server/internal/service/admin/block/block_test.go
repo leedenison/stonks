@@ -19,7 +19,7 @@ import (
 	typev1 "github.com/leedenison/stonks/proto/type/v1"
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
-	"github.com/leedenison/stonks/server/internal/ptr"
+	"github.com/leedenison/stonks/server/internal/platform/ptr"
 	"github.com/leedenison/stonks/server/internal/service/admin/block/mock"
 	"github.com/leedenison/stonks/server/internal/service/admin/page"
 	"github.com/leedenison/stonks/server/internal/service/servicetest"

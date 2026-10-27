@@ -11,14 +11,14 @@ import (
 
 	admincoveragev1 "github.com/leedenison/stonks/proto/admin/coverage/v1"
 	"github.com/leedenison/stonks/proto/admin/coverage/v1/admincoveragev1connect"
-	"github.com/leedenison/stonks/server/internal/attest"
 	"github.com/leedenison/stonks/server/internal/auth"
-	reader "github.com/leedenison/stonks/server/internal/coverage"
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/to"
+	"github.com/leedenison/stonks/server/internal/identity/attest"
+	reader "github.com/leedenison/stonks/server/internal/identity/coverage"
+	"github.com/leedenison/stonks/server/internal/identity/validity"
 	"github.com/leedenison/stonks/server/internal/types"
-	"github.com/leedenison/stonks/server/internal/validity"
 )
 
 // Reader is this package's view of the coverage package.

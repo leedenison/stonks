@@ -9,7 +9,7 @@
 // set of related rows is written in one batch without reading keys back. An
 // upsert on a natural key returns the row's key, which may be an earlier
 // row's, and the caller takes it. The convention for keys is in
-// [migrations.go](../migrations/migrations.go).
+// [migrations.go](migrations/migrations.go).
 //
 // Every query over a user's own data takes the caller's user id and filters
 // on it, so access is decided by the query and never checked after the read;
@@ -39,7 +39,7 @@ import (
 	"github.com/pressly/goose/v3"
 	"github.com/pressly/goose/v3/lock"
 
-	"github.com/leedenison/stonks/server/internal/migrations"
+	"github.com/leedenison/stonks/server/internal/db/migrations"
 )
 
 // sqlcNamePrefix introduces the query name sqlc emits above each statement.

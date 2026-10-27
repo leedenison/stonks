@@ -16,7 +16,7 @@ import (
 	holdingv1 "github.com/leedenison/stonks/proto/holding/v1"
 	typev1 "github.com/leedenison/stonks/proto/type/v1"
 	"github.com/leedenison/stonks/server/internal/db/gen"
-	"github.com/leedenison/stonks/server/internal/ptr"
+	"github.com/leedenison/stonks/server/internal/platform/ptr"
 	"github.com/leedenison/stonks/server/internal/service/servicetest"
 	"github.com/leedenison/stonks/server/internal/types"
 )

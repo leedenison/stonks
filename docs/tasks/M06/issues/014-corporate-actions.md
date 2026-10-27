@@ -1,7 +1,6 @@
 ---
 title: Rename corporate events to corporate actions
 type: task
-dependencies: [013]
 ---
 
 ## Scope

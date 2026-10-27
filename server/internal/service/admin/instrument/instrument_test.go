@@ -17,7 +17,7 @@ import (
 	"github.com/leedenison/stonks/proto/admin/instrument/v1/admininstrumentv1connect"
 	typev1 "github.com/leedenison/stonks/proto/type/v1"
 	"github.com/leedenison/stonks/server/internal/db/gen"
-	"github.com/leedenison/stonks/server/internal/ptr"
+	"github.com/leedenison/stonks/server/internal/platform/ptr"
 	"github.com/leedenison/stonks/server/internal/service/admin/instrument/mock"
 	"github.com/leedenison/stonks/server/internal/service/admin/page"
 	"github.com/leedenison/stonks/server/internal/service/servicetest"

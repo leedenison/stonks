@@ -8,7 +8,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/leedenison/stonks/server/internal/db/gen"
-	"github.com/leedenison/stonks/server/internal/resolve"
+	"github.com/leedenison/stonks/server/internal/identity/resolve"
 )
 
 // ErrAssociated is returned by Candidates and Confirm for a key that

@@ -5,8 +5,8 @@ import (
 
 	statementv1 "github.com/leedenison/stonks/proto/statement/v1"
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/identity/validity"
 	"github.com/leedenison/stonks/server/internal/types"
-	"github.com/leedenison/stonks/server/internal/validity"
 )
 
 // mark returns how firmly a transaction's key names an instrument on day on.

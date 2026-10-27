@@ -15,7 +15,7 @@ import (
 	"github.com/leedenison/stonks/proto/admin/extend_validity/v1/adminextendvalidityv1connect"
 	runv1 "github.com/leedenison/stonks/proto/run/v1"
 	"github.com/leedenison/stonks/server/internal/db/gen"
-	extender "github.com/leedenison/stonks/server/internal/extendvalidity"
+	extender "github.com/leedenison/stonks/server/internal/run/extendvalidity"
 	"github.com/leedenison/stonks/server/internal/service/admin/extendvalidity/mock"
 	"github.com/leedenison/stonks/server/internal/service/servicetest"
 )

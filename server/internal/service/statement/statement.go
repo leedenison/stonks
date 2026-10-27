@@ -16,11 +16,11 @@ import (
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/to"
+	"github.com/leedenison/stonks/server/internal/identity/resolve"
+	"github.com/leedenison/stonks/server/internal/identity/validity"
 	"github.com/leedenison/stonks/server/internal/mic"
-	"github.com/leedenison/stonks/server/internal/resolve"
 	"github.com/leedenison/stonks/server/internal/statement"
 	"github.com/leedenison/stonks/server/internal/types"
-	"github.com/leedenison/stonks/server/internal/validity"
 )
 
 // Ingester starts the ingestion of a statement.

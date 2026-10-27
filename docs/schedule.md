@@ -26,8 +26,6 @@ of open issues and ADRs at `docs/tasks/<label>/`.
   Massive and EODHD, on a ticker model where tickers are facts.
 
 ```
-    013 package groups
-         |
     014 corporate actions
          |
     015 run kind names

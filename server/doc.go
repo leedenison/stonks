@@ -17,8 +17,8 @@
 // instead, db.IsConflict. Translation into Connect codes belongs to
 // internal/service.
 //
-// Logging. log/slog only, through internal/logger, which defines the
-// categories. internal/service defines where a failure is logged.
+// Logging. log/slog only, through internal/platform/logger, which defines
+// the categories. internal/service defines where a failure is logged.
 //
 // Telemetry. OpenTelemetry installed as process globals. Hand-written
 // metrics are counters of decisions the code makes, named

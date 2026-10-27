@@ -7,7 +7,7 @@
 //
 // A ticker's identifier facts are keyed by its market, so the package maps a MIC to its
 // market as well as to its operating MIC; see
-// [010_validity.sql](../migrations/010_validity.sql).
+// [010_validity.sql](../db/migrations/010_validity.sql).
 package mic
 
 import (

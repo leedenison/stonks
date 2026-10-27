@@ -29,7 +29,7 @@
 //
 // A run records what an administrator may need to see as findings, which
 // belong to the run and are written by the work that met them; see
-// [006_findings.sql](../migrations/006_findings.sql). The items a run writes
+// [006_findings.sql](../db/migrations/006_findings.sql). The items a run writes
 // are addressed to its user, or to nobody for a system run.
 package run
 

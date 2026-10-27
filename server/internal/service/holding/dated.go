@@ -9,8 +9,8 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/to"
+	"github.com/leedenison/stonks/server/internal/identity/validity"
 	"github.com/leedenison/stonks/server/internal/types"
-	"github.com/leedenison/stonks/server/internal/validity"
 )
 
 // dated is what the dated keys' transactions amount to, by key id: the sum

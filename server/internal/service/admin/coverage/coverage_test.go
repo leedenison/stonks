@@ -18,15 +18,15 @@ import (
 	adminrunv1 "github.com/leedenison/stonks/proto/admin/run/v1"
 	runv1 "github.com/leedenison/stonks/proto/run/v1"
 	typev1 "github.com/leedenison/stonks/proto/type/v1"
-	"github.com/leedenison/stonks/server/internal/attest"
-	reader "github.com/leedenison/stonks/server/internal/coverage"
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
-	"github.com/leedenison/stonks/server/internal/ptr"
+	"github.com/leedenison/stonks/server/internal/identity/attest"
+	reader "github.com/leedenison/stonks/server/internal/identity/coverage"
+	"github.com/leedenison/stonks/server/internal/identity/validity"
+	"github.com/leedenison/stonks/server/internal/platform/ptr"
 	"github.com/leedenison/stonks/server/internal/service/admin/coverage/mock"
 	"github.com/leedenison/stonks/server/internal/service/servicetest"
 	"github.com/leedenison/stonks/server/internal/types"
-	"github.com/leedenison/stonks/server/internal/validity"
 )
 
 var (

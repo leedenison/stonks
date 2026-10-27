@@ -7,8 +7,8 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/identity/validity"
 	"github.com/leedenison/stonks/server/internal/market"
-	"github.com/leedenison/stonks/server/internal/validity"
 )
 
 // ReadQueries read the stored answers of tickers.

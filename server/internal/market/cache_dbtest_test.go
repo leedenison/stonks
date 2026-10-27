@@ -14,7 +14,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
 
-	"github.com/leedenison/stonks/server/internal/rdb"
+	"github.com/leedenison/stonks/server/internal/platform/rdb"
 )
 
 var rc *redis.Client
