@@ -44,8 +44,8 @@ test("gathers the keys of two statements that share an identifier", async ({
   expect(group.identifiers.map((i) => i.value).sort()).toEqual(
     ["US0000000002", "AMD", ...descriptions].sort(),
   );
-  expect(res.instruments).toHaveLength(1);
-  expect(res.instruments[0].quantity).toBe("-18852.84710536");
+  expect(res.instrs).toHaveLength(1);
+  expect(res.instrs[0].quantity).toBe("-18852.84710536");
 
   // The page shows the holding once, named by the ticker, and opens to both
   // descriptions.

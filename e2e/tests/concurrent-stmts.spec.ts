@@ -62,7 +62,7 @@ test("two statements sent at once share one cash key", async ({ seed }) => {
 
   const holdings = await holdingClient(session).listHoldings({});
   expect(holdings.groups).toHaveLength(0);
-  expect(holdings.instruments).toHaveLength(1);
-  expect(holdings.instruments[0].quantity).toBe("350");
-  expect(holdings.instruments[0].keys).toHaveLength(1);
+  expect(holdings.instrs).toHaveLength(1);
+  expect(holdings.instrs[0].quantity).toBe("350");
+  expect(holdings.instrs[0].keys).toHaveLength(1);
 });

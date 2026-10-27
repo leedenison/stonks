@@ -29,7 +29,7 @@ type Candidate struct {
 	// claim.strongest picks it. The client names the candidate by it, and a
 	// confirmation sends it.
 	Strongest types.Identifier
-	// Instrument takes the head's class and the identifiers of every member.
+	// Instr takes the head's class and the identifiers of every member.
 	// A confirmation does not write the listing identifiers that have no
 	// currency family.
 	types.Instr

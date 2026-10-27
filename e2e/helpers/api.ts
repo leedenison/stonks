@@ -4,7 +4,7 @@ import { createConnectTransport } from "@connectrpc/connect-web";
 import { BlockService, FetchKind } from "../gen/admin/block/v1/block_pb";
 import { CoverageService } from "../gen/admin/coverage/v1/coverage_pb";
 import { DatasourceService } from "../gen/admin/datasource/v1/datasource_pb";
-import { InstrumentService as AdminInstrumentService } from "../gen/admin/instrument/v1/instrument_pb";
+import { InstrService as AdminInstrService } from "../gen/admin/instr/v1/instr_pb";
 import { ReassertTickersService } from "../gen/admin/reassert_tickers/v1/reassert_tickers_pb";
 import { RefreshCorpActsService } from "../gen/admin/refresh_corp_acts/v1/refresh_corp_acts_pb";
 import { ReplayRunService } from "../gen/admin/replay_run/v1/replay_run_pb";
@@ -16,7 +16,7 @@ import {
   type UserRun,
 } from "../gen/admin/run/v1/run_pb";
 import type { Identifier, IdentifierType } from "../gen/type/v1/type_pb";
-import type { Instrument } from "../gen/admin/instrument/v1/instrument_pb";
+import type { Instr } from "../gen/admin/instr/v1/instr_pb";
 import { AuthService } from "../gen/auth/v1/auth_pb";
 import { HoldingService } from "../gen/holding/v1/holding_pb";
 import {
@@ -54,8 +54,8 @@ export function adminRunClient(sessionID: string) {
   return clientFor(RunService, sessionID);
 }
 
-export function adminInstrumentClient(sessionID: string) {
-  return clientFor(AdminInstrumentService, sessionID);
+export function adminInstrClient(sessionID: string) {
+  return clientFor(AdminInstrService, sessionID);
 }
 
 export function blockClient(sessionID: string) {
@@ -177,18 +177,18 @@ export function runClient(sessionID: string) {
   return clientFor(UserRunService, sessionID);
 }
 
-// instrumentListedAs returns the one instrument that has a listing with
+// instrListedAs returns the one instrument that has a listing with
 // ticker, and fails the test unless exactly one has. The instruments search
 // matches any part of an identifier, so the hits are narrowed to those that
 // carry the ticker exactly.
-export async function instrumentListedAs(
+export async function instrListedAs(
   sessionID: string,
   ticker: Pick<Identifier, "type" | "domain" | "value">,
-): Promise<Instrument> {
-  const listed = await adminInstrumentClient(sessionID).listInstruments({
+): Promise<Instr> {
+  const listed = await adminInstrClient(sessionID).listInstrs({
     query: ticker.value,
   });
-  const named = listed.instruments.filter((i) =>
+  const named = listed.instrs.filter((i) =>
     i.listings.some((l) =>
       l.identifiers.some(
         (id) =>

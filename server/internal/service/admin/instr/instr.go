@@ -1,4 +1,4 @@
-// Package instrument serves stonks.admin.instrument.v1.
+// Package instr serves stonks.admin.instr.v1.
 package instr
 
 import (
@@ -11,8 +11,8 @@ import (
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
 
-	admininstrumentv1 "github.com/leedenison/stonks/proto/admin/instrument/v1"
-	"github.com/leedenison/stonks/proto/admin/instrument/v1/admininstrumentv1connect"
+	admininstrv1 "github.com/leedenison/stonks/proto/admin/instr/v1"
+	"github.com/leedenison/stonks/proto/admin/instr/v1/admininstrv1connect"
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/to"
@@ -31,25 +31,25 @@ type Queries interface {
 
 var _ Queries = (*gen.Queries)(nil)
 
-//go:generate go tool mockgen -source=instrument.go -destination=mock/instrument_mock.go -package=mock
+//go:generate go tool mockgen -source=instr.go -destination=mock/instr_mock.go -package=mock
 
-// Server implements InstrumentService.
+// Server implements InstrService.
 type Server struct {
 	queries Queries
 }
 
-var _ admininstrumentv1connect.InstrumentServiceHandler = (*Server)(nil)
+var _ admininstrv1connect.InstrServiceHandler = (*Server)(nil)
 
 // New returns a Server.
 func New(queries Queries) *Server {
 	return &Server{queries: queries}
 }
 
-// ListInstruments lists the instruments the query and the class keep, by
+// ListInstrs lists the instruments the query and the class keep, by
 // name then id. The page token names the last instrument served by its id
 // and name, so a page continues from the right place when that instrument
 // has gone or been renamed.
-func (s *Server) ListInstruments(ctx context.Context, req *connect.Request[admininstrumentv1.ListInstrumentsRequest]) (*connect.Response[admininstrumentv1.ListInstrumentsResponse], error) {
+func (s *Server) ListInstrs(ctx context.Context, req *connect.Request[admininstrv1.ListInstrsRequest]) (*connect.Response[admininstrv1.ListInstrsResponse], error) {
 	m := req.Msg
 	afterID, afterName, err := parseCursor(m.GetPageToken())
 	if err != nil {
@@ -72,8 +72,8 @@ func (s *Server) ListInstruments(ctx context.Context, req *connect.Request[admin
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	rows, more := page.Cut(p, rows)
-	out := &admininstrumentv1.ListInstrumentsResponse{}
-	if out.Instruments, err = s.instrs(ctx, rows); err != nil {
+	out := &admininstrv1.ListInstrsResponse{}
+	if out.Instrs, err = s.instrs(ctx, rows); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	if more {
@@ -109,13 +109,13 @@ func parseCursor(token string) (*uuid.UUID, *string, error) {
 // identifier on its listing. A listing with a primary venue precedes the
 // rest. An instrument's Via holds the via identifiers of the keys that
 // resolved to it.
-func (s *Server) instrs(ctx context.Context, rows []gen.ListInstrsRow) ([]*admininstrumentv1.Instrument, error) {
+func (s *Server) instrs(ctx context.Context, rows []gen.ListInstrsRow) ([]*admininstrv1.Instr, error) {
 	if len(rows) == 0 {
 		return nil, nil
 	}
 	ids := make([]uuid.UUID, 0, len(rows))
-	instrs := make(map[uuid.UUID]*admininstrumentv1.Instrument, len(rows))
-	out := make([]*admininstrumentv1.Instrument, 0, len(rows))
+	instrs := make(map[uuid.UUID]*admininstrv1.Instr, len(rows))
+	out := make([]*admininstrv1.Instr, 0, len(rows))
 	for _, r := range rows {
 		msg := to.ProtoInstr(r)
 		ids = append(ids, r.ID)
@@ -126,14 +126,14 @@ func (s *Server) instrs(ctx context.Context, rows []gen.ListInstrsRow) ([]*admin
 	if err != nil {
 		return nil, err
 	}
-	byListing := make(map[uuid.UUID]*admininstrumentv1.Listing, len(listings))
+	byListing := make(map[uuid.UUID]*admininstrv1.Listing, len(listings))
 	for _, l := range listings {
 		msg := to.ProtoListing(l)
 		byListing[l.ID] = msg
 		instrs[l.InstrID].Listings = append(instrs[l.InstrID].Listings, msg)
 	}
 	for _, in := range out {
-		slices.SortStableFunc(in.Listings, func(a, b *admininstrumentv1.Listing) int {
+		slices.SortStableFunc(in.Listings, func(a, b *admininstrv1.Listing) int {
 			return primary(b) - primary(a)
 		})
 	}
@@ -168,7 +168,7 @@ func (s *Server) instrs(ctx context.Context, rows []gen.ListInstrsRow) ([]*admin
 
 // primary ranks a listing for sorting, so one with a primary venue comes
 // first.
-func primary(l *admininstrumentv1.Listing) int {
+func primary(l *admininstrv1.Listing) int {
 	if l.GetPrimaryMic() != "" {
 		return 1
 	}

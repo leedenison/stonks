@@ -11,7 +11,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	adminblockv1 "github.com/leedenison/stonks/proto/admin/block/v1"
-	admininstrumentv1 "github.com/leedenison/stonks/proto/admin/instrument/v1"
+	admininstrv1 "github.com/leedenison/stonks/proto/admin/instr/v1"
 	adminrunv1 "github.com/leedenison/stonks/proto/admin/run/v1"
 	authv1 "github.com/leedenison/stonks/proto/auth/v1"
 	holdingv1 "github.com/leedenison/stonks/proto/holding/v1"
@@ -232,12 +232,12 @@ func TestProtoInstr(t *testing.T) {
 	tests := []struct {
 		name string
 		row  gen.ListInstrsRow
-		want *admininstrumentv1.Instrument
+		want *admininstrv1.Instr
 	}{
 		{
 			name: "named",
 			row:  gen.ListInstrsRow{ID: id, AssetClass: types.AssetClassStock, Name: "VOD", NameType: "MIC_TICKER", NameDomain: "XLON"},
-			want: &admininstrumentv1.Instrument{
+			want: &admininstrv1.Instr{
 				Id: id.String(), AssetClass: typev1.AssetClass_ASSET_CLASS_STOCK,
 				Name: &typev1.Identifier{Type: typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, Domain: "XLON", Value: "VOD"},
 			},
@@ -245,7 +245,7 @@ func TestProtoInstr(t *testing.T) {
 		{
 			name: "without a name",
 			row:  gen.ListInstrsRow{ID: id, AssetClass: types.AssetClassStock},
-			want: &admininstrumentv1.Instrument{Id: id.String(), AssetClass: typev1.AssetClass_ASSET_CLASS_STOCK},
+			want: &admininstrv1.Instr{Id: id.String(), AssetClass: typev1.AssetClass_ASSET_CLASS_STOCK},
 		},
 	}
 	for _, tc := range tests {
@@ -260,7 +260,7 @@ func TestProtoInstr(t *testing.T) {
 func TestProtoListing(t *testing.T) {
 	id := uuid.New()
 	row := gen.Listing{ID: id, Currency: "GBP", PrimaryMic: ptr.To("XLON")}
-	want := &admininstrumentv1.Listing{Id: id.String(), Currency: "GBP", PrimaryMic: "XLON"}
+	want := &admininstrv1.Listing{Id: id.String(), Currency: "GBP", PrimaryMic: "XLON"}
 	if diff := cmp.Diff(want, ProtoListing(row), protocmp.Transform()); diff != "" {
 		t.Errorf("ProtoListing mismatch (-want +got):\n%s", diff)
 	}

@@ -44,9 +44,9 @@ message HoldingKey {
 }
 
 // A holding of an instrument a datasource named, across its listings.
-message InstrumentHolding {
+message InstrHolding {
   // The instrument held; a UUID.
-  string instrument_id = 1;
+  string instr_id = 1;
   // The narrowest class known for the instrument.
   stonks.type.v1.AssetClass asset_class = 2;
   // Every identifier naming the instrument or one of its listings, by the
@@ -92,7 +92,7 @@ message ListHoldingsRequest {}
 
 message ListHoldingsResponse {
   // In no particular order.
-  repeated InstrumentHolding instruments = 1;
+  repeated InstrHolding instrs = 1;
   // In no particular order.
   repeated GroupHolding groups = 2;
 }

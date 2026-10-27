@@ -3,7 +3,7 @@ import { RunKind } from "../gen/run/v1/run_pb";
 import { TxnMark } from "../gen/stmt/v1/stmt_pb";
 import { IdentifierType, ResolutionOutcome } from "../gen/type/v1/type_pb";
 import {
-  instrumentListedAs,
+  instrListedAs,
   adminRunClient,
   assertionItems,
   stmtClient,
@@ -55,8 +55,8 @@ test("attests a gap from the instrument's tickers tab and withdraws it", async (
   // window, and attests from it with the day and the instrument
   // preselected. Other gaps follow the clock, so the spec addresses rows by
   // id alone.
-  const instrument = await instrumentListedAs(session, wmt);
-  await page.goto(`/admin/instruments?q=WMT&id=${instrument.id}&tab=tickers`);
+  const instr = await instrListedAs(session, wmt);
+  await page.goto(`/admin/instrs?q=WMT&id=${instr.id}&tab=tickers`);
   await expect(page.getByTestId("ticker-select")).toHaveValue("US:WMT");
   const gap = page.getByTestId(`pane-gap-${on}`);
   await expect(gap).toContainText("2003-09-10");

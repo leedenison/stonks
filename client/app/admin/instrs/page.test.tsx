@@ -5,17 +5,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   CoverageService,
   GetTickerResponseSchema,
-  ListInstrumentTickersResponseSchema,
+  ListInstrTickersResponseSchema,
   TickerSchema,
   TickerValidity,
   WithdrawIdentifierAttestationResponseSchema,
 } from "@/gen/admin/coverage/v1/coverage_pb";
 import {
-  InstrumentSchema,
-  InstrumentService,
+  InstrSchema,
+  InstrService,
   ListingSchema,
-  ListInstrumentsResponseSchema,
-} from "@/gen/admin/instrument/v1/instrument_pb";
+  ListInstrsResponseSchema,
+} from "@/gen/admin/instr/v1/instr_pb";
 import { AssertionItemSchema } from "@/gen/admin/run/v1/run_pb";
 import { Role } from "@/gen/auth/v1/auth_pb";
 import {
@@ -24,7 +24,7 @@ import {
   IdentifierType,
 } from "@/gen/type/v1/type_pb";
 import { liveSession, renderWithAuth, transportWith } from "@/lib/test-utils";
-import InstrumentsPage from "./page";
+import InstrsPage from "./page";
 
 const router = { push: vi.fn(), replace: vi.fn() };
 let params = new URLSearchParams();
@@ -41,7 +41,7 @@ type Coverage = Partial<ServiceImpl<typeof CoverageService>>;
 const acme = { market: "US", value: "ACME" };
 // ACME's tickers: the one on its listing at XNAS, then one that named it
 // before.
-const tickers = create(ListInstrumentTickersResponseSchema, {
+const tickers = create(ListInstrTickersResponseSchema, {
   tickers: [
     { ticker: acme, current: true, txns: 3, venues: ["XNAS"] },
     { ticker: { ...acme, value: "OLD" }, current: false },
@@ -66,7 +66,7 @@ const read = create(GetTickerResponseSchema, {
         id: "a1",
         ticker: acme,
         assertedOn: "2024-06-01",
-        instrumentId: "i-acme",
+        instrId: "i-acme",
         source: { case: "datasource", value: "alpha" },
       }),
       create(AssertionItemSchema, {
@@ -79,13 +79,13 @@ const read = create(GetTickerResponseSchema, {
     intervals: [
       {
         validBefore: "2024-06-01",
-        instrumentId: "i-acme",
+        instrId: "i-acme",
         validity: TickerValidity.PROVISIONAL,
       },
       {
         validFrom: "2024-06-01",
         validBefore: "2026-01-01",
-        instrumentId: "i-acme",
+        instrId: "i-acme",
         validity: TickerValidity.CONFIRMED,
       },
     ],
@@ -97,7 +97,7 @@ const read = create(GetTickerResponseSchema, {
         txns: 3,
       },
     ],
-    instruments: [
+    instrs: [
       {
         id: "i-acme",
         name: { type: IdentifierType.ISIN, value: "US0000000001" },
@@ -107,13 +107,13 @@ const read = create(GetTickerResponseSchema, {
 });
 
 function serving(
-  listInstruments: ServiceImpl<typeof InstrumentService>["listInstruments"],
+  listInstrs: ServiceImpl<typeof InstrService>["listInstrs"],
   coverage: Coverage = {},
 ) {
   return transportWith(admin, ({ service }) => {
-    service(InstrumentService, { listInstruments });
+    service(InstrService, { listInstrs });
     service(CoverageService, {
-      listInstrumentTickers: () => tickers,
+      listInstrTickers: () => tickers,
       getTicker: () => read,
       ...coverage,
     });
@@ -126,16 +126,16 @@ function ident(type: IdentifierType, value: string, domain = "") {
 
 // The dollar cash instrument, then a share with a dollar listing at two
 // venues and a pound listing.
-const listed = create(ListInstrumentsResponseSchema, {
-  instruments: [
-    create(InstrumentSchema, {
+const listed = create(ListInstrsResponseSchema, {
+  instrs: [
+    create(InstrSchema, {
       id: "i-usd",
       name: ident(IdentifierType.CURRENCY, "USD"),
       assetClass: AssetClass.CASH,
       identifiers: [ident(IdentifierType.CURRENCY, "USD")],
       listings: [create(ListingSchema, { id: "l-cash", currency: "USD" })],
     }),
-    create(InstrumentSchema, {
+    create(InstrSchema, {
       id: "i-acme",
       name: ident(IdentifierType.MIC_TICKER, "ACME", "XNAS"),
       assetClass: AssetClass.STOCK,
@@ -166,14 +166,14 @@ const listed = create(ListInstrumentsResponseSchema, {
   nextPageToken: "i-acme",
 });
 
-describe("InstrumentsPage", () => {
+describe("InstrsPage", () => {
   beforeEach(() => {
     params = new URLSearchParams();
   });
 
   it("shows skeleton rows while loading", () => {
     renderWithAuth(
-      <InstrumentsPage />,
+      <InstrsPage />,
       serving(() => new Promise(() => {})),
     );
     expect(screen.getByTestId("skeleton-rows")).toBeTruthy();
@@ -181,36 +181,36 @@ describe("InstrumentsPage", () => {
 
   it("shows the empty state when there are none", async () => {
     renderWithAuth(
-      <InstrumentsPage />,
-      serving(() => create(ListInstrumentsResponseSchema, {})),
+      <InstrsPage />,
+      serving(() => create(ListInstrsResponseSchema, {})),
     );
     await waitFor(() => expect(screen.getByTestId("empty-state")).toBeTruthy());
-    expect(screen.queryByTestId("admin-instruments-table")).toBeNull();
+    expect(screen.queryByTestId("admin-instrs-table")).toBeNull();
   });
 
   it("lists names and classes alone, and the next page", async () => {
     renderWithAuth(
-      <InstrumentsPage />,
+      <InstrsPage />,
       serving(() => listed),
     );
     await waitFor(() =>
-      expect(screen.getByTestId("instrument-row-i-acme")).toBeTruthy(),
+      expect(screen.getByTestId("instr-row-i-acme")).toBeTruthy(),
     );
-    const rows = screen.getAllByTestId(/^instrument-row-/);
+    const rows = screen.getAllByTestId(/^instr-row-/);
     expect(rows.map((r) => r.getAttribute("data-testid"))).toEqual([
-      "instrument-row-i-usd",
-      "instrument-row-i-acme",
+      "instr-row-i-usd",
+      "instr-row-i-acme",
     ]);
-    const acme = screen.getByTestId("instrument-row-i-acme");
+    const acme = screen.getByTestId("instr-row-i-acme");
     expect(acme.textContent).toContain("ACME");
     expect(acme.textContent).toContain("Stock");
     expect(acme.textContent).not.toContain("US0000000001");
     expect(acme.textContent).not.toContain("XNAS");
     expect(acme.getAttribute("aria-selected")).toBe("false");
     expect(screen.getByText("Select an instrument.")).toBeTruthy();
-    expect(screen.queryByTestId("instrument-pane")).toBeNull();
+    expect(screen.queryByTestId("instr-pane")).toBeNull();
     expect(screen.getByTestId("list-next").getAttribute("href")).toBe(
-      "/admin/instruments?after=i-acme",
+      "/admin/instrs?after=i-acme",
     );
     expect(screen.getByTestId("list-next").textContent).toBe("Next");
   });
@@ -218,16 +218,14 @@ describe("InstrumentsPage", () => {
   it("shows the selected instrument in the pane by section", async () => {
     params = new URLSearchParams("after=i-prev&id=i-acme");
     renderWithAuth(
-      <InstrumentsPage />,
+      <InstrsPage />,
       serving(() => listed),
     );
-    await waitFor(() =>
-      expect(screen.getByTestId("instrument-pane")).toBeTruthy(),
-    );
+    await waitFor(() => expect(screen.getByTestId("instr-pane")).toBeTruthy());
     expect(
-      screen.getByTestId("instrument-row-i-acme").getAttribute("aria-selected"),
+      screen.getByTestId("instr-row-i-acme").getAttribute("aria-selected"),
     ).toBe("true");
-    const ids = screen.getByTestId("instrument-identifiers");
+    const ids = screen.getByTestId("instr-identifiers");
     const isin = ids.querySelector("[data-identifier-type='ISIN']");
     expect(isin?.textContent).toContain("ISIN");
     expect(isin?.textContent).toContain("US0000000001");
@@ -256,42 +254,38 @@ describe("InstrumentsPage", () => {
     // The ticker names the instrument, so its row alone is marked.
     expect(tickers[0].getAttribute("data-name")).toBe("true");
     expect(
-      screen
-        .getByTestId("instrument-pane")
-        .querySelectorAll("[data-name='true']"),
+      screen.getByTestId("instr-pane").querySelectorAll("[data-name='true']"),
     ).toHaveLength(1);
     expect(screen.getByTestId("listing-l-gbp").textContent).toContain("XLON");
     expect(
       screen.getByTestId("ticker-validity-XLON-ACM").getAttribute("href"),
     ).toBe(
-      "/admin/instruments?after=i-prev&id=i-acme&tab=tickers&ticker=XLON%3AACM",
+      "/admin/instrs?after=i-prev&id=i-acme&tab=tickers&ticker=XLON%3AACM",
     );
-    const overview = screen.getByTestId("instrument-tab-overview");
+    const overview = screen.getByTestId("instr-tab-overview");
     expect(overview.getAttribute("aria-selected")).toBe("true");
-    expect(
-      screen.getByTestId("instrument-tab-tickers").getAttribute("href"),
-    ).toBe("/admin/instruments?after=i-prev&id=i-acme&tab=tickers");
+    expect(screen.getByTestId("instr-tab-tickers").getAttribute("href")).toBe(
+      "/admin/instrs?after=i-prev&id=i-acme&tab=tickers",
+    );
     expect(screen.queryByTestId("tickers-tab")).toBeNull();
     expect(screen.getByTestId("list-first").getAttribute("href")).toBe(
-      "/admin/instruments",
+      "/admin/instrs",
     );
   });
 
   it("shows the first ticker's validity on the tickers tab and follows the choice", async () => {
     params = new URLSearchParams("id=i-acme&tab=tickers");
     renderWithAuth(
-      <InstrumentsPage />,
+      <InstrsPage />,
       serving(() => listed),
     );
     await waitFor(() =>
       expect(screen.getByTestId("ticker-assertions")).toBeTruthy(),
     );
     expect(
-      screen
-        .getByTestId("instrument-tab-tickers")
-        .getAttribute("aria-selected"),
+      screen.getByTestId("instr-tab-tickers").getAttribute("aria-selected"),
     ).toBe("true");
-    expect(screen.queryByTestId("instrument-identifiers")).toBeNull();
+    expect(screen.queryByTestId("instr-identifiers")).toBeNull();
     const select = screen.getByTestId("ticker-select") as HTMLSelectElement;
     expect(select.value).toBe("US:ACME");
     expect([...select.options].map((o) => o.textContent)).toEqual([
@@ -316,7 +310,7 @@ describe("InstrumentsPage", () => {
     expect(screen.queryByTestId("ticker-events")).toBeNull();
     fireEvent.change(select, { target: { value: "US:OLD" } });
     expect(router.replace).toHaveBeenCalledWith(
-      "/admin/instruments?id=i-acme&tab=tickers&ticker=US%3AOLD",
+      "/admin/instrs?id=i-acme&tab=tickers&ticker=US%3AOLD",
     );
   });
 
@@ -324,7 +318,7 @@ describe("InstrumentsPage", () => {
     params = new URLSearchParams("id=i-acme&tab=tickers&ticker=US:OLD");
     const asked: string[] = [];
     renderWithAuth(
-      <InstrumentsPage />,
+      <InstrsPage />,
       serving(() => listed, {
         getTicker: (req) => {
           asked.push(req.ticker?.value ?? "");
@@ -345,10 +339,10 @@ describe("InstrumentsPage", () => {
   it("shows the market's ticker for an address that names a venue of it", async () => {
     params = new URLSearchParams("id=i-acme&tab=tickers&ticker=XNYS:OLD");
     renderWithAuth(
-      <InstrumentsPage />,
+      <InstrsPage />,
       serving(() => listed, {
-        listInstrumentTickers: () =>
-          create(ListInstrumentTickersResponseSchema, {
+        listInstrTickers: () =>
+          create(ListInstrTickersResponseSchema, {
             tickers: [
               { ticker: acme, current: true, venues: ["XNAS"] },
               {
@@ -371,10 +365,9 @@ describe("InstrumentsPage", () => {
   it("says when no ticker names the instrument", async () => {
     params = new URLSearchParams("id=i-usd&tab=tickers");
     renderWithAuth(
-      <InstrumentsPage />,
+      <InstrsPage />,
       serving(() => listed, {
-        listInstrumentTickers: () =>
-          create(ListInstrumentTickersResponseSchema, {}),
+        listInstrTickers: () => create(ListInstrTickersResponseSchema, {}),
       }),
     );
     await waitFor(() => expect(screen.getByTestId("no-tickers")).toBeTruthy());
@@ -385,7 +378,7 @@ describe("InstrumentsPage", () => {
     params = new URLSearchParams("id=i-acme&tab=tickers");
     const withdrawn: string[] = [];
     renderWithAuth(
-      <InstrumentsPage />,
+      <InstrsPage />,
       serving(() => listed, {
         withdrawIdentifierAttestation: (req) => {
           withdrawn.push(req.assertionId);
@@ -423,38 +416,36 @@ describe("InstrumentsPage", () => {
   it("follows the search box and the class filter in the address", async () => {
     params = new URLSearchParams("after=i-prev&id=i-acme&class=stock");
     renderWithAuth(
-      <InstrumentsPage />,
+      <InstrsPage />,
       serving(() => listed),
     );
     await waitFor(() =>
-      expect(screen.getByTestId("instrument-row-i-acme")).toBeTruthy(),
+      expect(screen.getByTestId("instr-row-i-acme")).toBeTruthy(),
     );
-    const cls = screen.getByTestId("instruments-filter-class");
+    const cls = screen.getByTestId("instrs-filter-class");
     expect((cls as HTMLSelectElement).value).toBe("stock");
     fireEvent.change(cls, { target: { value: "cash" } });
-    expect(router.replace).toHaveBeenCalledWith(
-      "/admin/instruments?class=cash",
-    );
-    fireEvent.change(screen.getByTestId("instruments-search"), {
+    expect(router.replace).toHaveBeenCalledWith("/admin/instrs?class=cash");
+    fireEvent.change(screen.getByTestId("instrs-search"), {
       target: { value: "ms" },
     });
     await waitFor(() =>
       expect(router.replace).toHaveBeenCalledWith(
-        "/admin/instruments?q=ms&class=stock",
+        "/admin/instrs?q=ms&class=stock",
       ),
     );
     expect(screen.getByTestId("list-first").getAttribute("href")).toBe(
-      "/admin/instruments?class=stock",
+      "/admin/instrs?class=stock",
     );
     expect(screen.getByTestId("list-next").getAttribute("href")).toBe(
-      "/admin/instruments?after=i-acme&class=stock",
+      "/admin/instrs?after=i-acme&class=stock",
     );
   });
 
   it("retries after a failure", async () => {
     let calls = 0;
     renderWithAuth(
-      <InstrumentsPage />,
+      <InstrsPage />,
       serving(() => {
         calls += 1;
         if (calls === 1) {
@@ -466,7 +457,7 @@ describe("InstrumentsPage", () => {
     await waitFor(() => expect(screen.getByRole("alert")).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
     await waitFor(() =>
-      expect(screen.getByTestId("instrument-row-i-usd")).toBeTruthy(),
+      expect(screen.getByTestId("instr-row-i-usd")).toBeTruthy(),
     );
   });
 });

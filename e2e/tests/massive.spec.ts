@@ -1,7 +1,7 @@
 import path from "node:path";
 import { IdentifierType, ResolutionOutcome } from "../gen/type/v1/type_pb";
 import {
-  adminInstrumentClient,
+  adminInstrClient,
   adminRunClient,
   expectServedOnce,
   holdingClient,
@@ -47,15 +47,15 @@ test("asks Massive beside OpenFIGI and matches the key once", async ({
 
   const holdings = await holdingClient(userSession).listHoldings({});
   expect(holdings.groups).toHaveLength(0);
-  const held = holdings.instruments.filter((h) =>
+  const held = holdings.instrs.filter((h) =>
     h.identifiers.some((i) => i.value === cusip),
   );
   expect(held).toHaveLength(1);
   expect(held[0].listings.map((l) => l.venue)).toContain("NYSE");
-  const matched = await adminInstrumentClient(session).listInstruments({
+  const matched = await adminInstrClient(session).listInstrs({
     query: cusip,
   });
-  expect(matched.instruments).toHaveLength(1);
-  const usd = matched.instruments[0].listings.find((l) => l.currency === "USD");
+  expect(matched.instrs).toHaveLength(1);
+  const usd = matched.instrs[0].listings.find((l) => l.currency === "USD");
   expect(usd?.primaryMic).toBe("XNYS");
 });

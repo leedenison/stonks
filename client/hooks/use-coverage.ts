@@ -10,21 +10,21 @@ import { useClients } from "@/contexts/clients-context";
 import type {
   AttestIdentifierRequestSchema,
   GetTickerResponse,
-  ListInstrumentTickersResponse,
+  ListInstrTickersResponse,
 } from "@/gen/admin/coverage/v1/coverage_pb";
 import { invalidateAttested, qk } from "@/lib/query-keys";
 import { useAuthedQuery } from "./use-authed-query";
 
-// useInstrumentTickers lists the tickers that name an instrument, now or in
+// useInstrTickers lists the tickers that name an instrument, now or in
 // an assertion.
-export function useInstrumentTickers(
-  instrumentId: string,
-): UseQueryResult<ListInstrumentTickersResponse> {
+export function useInstrTickers(
+  instrId: string,
+): UseQueryResult<ListInstrTickersResponse> {
   const { coverage } = useClients();
   return useAuthedQuery({
-    queryKey: qk.instrumentTickers(instrumentId),
-    queryFn: () => coverage.listInstrumentTickers({ instrumentId }),
-    enabled: instrumentId !== "",
+    queryKey: qk.instrTickers(instrId),
+    queryFn: () => coverage.listInstrTickers({ instrId }),
+    enabled: instrId !== "",
   });
 }
 

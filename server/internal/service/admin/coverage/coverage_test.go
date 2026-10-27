@@ -76,16 +76,16 @@ func TestListInstrTickers(t *testing.T) {
 			if tc.id == acme.String() {
 				f.reader.EXPECT().InstrTickers(gomock.Any(), acme).Return([]reader.InstrTicker{{Ticker: acmeTicker, Current: true, Txns: 2, Venues: []string{"XNAS"}}}, tc.err)
 			}
-			res, err := f.client.ListInstrumentTickers(context.Background(), connect.NewRequest(&admincoveragev1.ListInstrumentTickersRequest{InstrumentId: tc.id}))
+			res, err := f.client.ListInstrTickers(context.Background(), connect.NewRequest(&admincoveragev1.ListInstrTickersRequest{InstrId: tc.id}))
 			if servicetest.CodeOf(err) != tc.wantCode {
-				t.Fatalf("ListInstrumentTickers code = %v (err %v), want %v", servicetest.CodeOf(err), err, tc.wantCode)
+				t.Fatalf("ListInstrTickers code = %v (err %v), want %v", servicetest.CodeOf(err), err, tc.wantCode)
 			}
 			if err != nil {
 				return
 			}
-			want := []*admincoveragev1.InstrumentTicker{{Ticker: acmeProto, Current: true, Txns: 2, Venues: []string{"XNAS"}}}
+			want := []*admincoveragev1.InstrTicker{{Ticker: acmeProto, Current: true, Txns: 2, Venues: []string{"XNAS"}}}
 			if diff := cmp.Diff(want, res.Msg.GetTickers(), protocmp.Transform()); diff != "" {
-				t.Errorf("ListInstrumentTickers mismatch (-want +got):\n%s", diff)
+				t.Errorf("ListInstrTickers mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
@@ -116,13 +116,13 @@ func TestGetTicker(t *testing.T) {
 			CoveredFrom: "2026-03-01", CoveredBefore: "2026-03-20",
 		}},
 		Assertions: []*adminrunv1.AssertionItem{{
-			Id: assertionID.String(), Ticker: acmeProto, AssertedOn: "2026-03-10", InstrumentId: ptr.To(acme.String()),
+			Id: assertionID.String(), Ticker: acmeProto, AssertedOn: "2026-03-10", InstrId: ptr.To(acme.String()),
 			Source: &adminrunv1.AssertionItem_AttestedBy{AttestedBy: "admin@example.com"},
 		}},
 		Events:    []*admincoveragev1.IdentifierEvent{{EffectiveOn: "2026-03-03", Action: admincoveragev1.IdentifierEventAction_IDENTIFIER_EVENT_ACTION_RENAMED, Value: "OLD", ToValue: "ACME"}},
-		Intervals: []*admincoveragev1.Interval{{ValidFrom: ptr.To("2026-03-10"), ValidBefore: ptr.To("2026-03-21"), InstrumentId: acme.String(), Validity: admincoveragev1.TickerValidity_TICKER_VALIDITY_CONFIRMED}},
+		Intervals: []*admincoveragev1.Interval{{ValidFrom: ptr.To("2026-03-10"), ValidBefore: ptr.To("2026-03-21"), InstrId: acme.String(), Validity: admincoveragev1.TickerValidity_TICKER_VALIDITY_CONFIRMED}},
 		Gaps:      []*admincoveragev1.Gap{{UnconfirmedFrom: "2026-03-05", UnconfirmedBefore: "2026-03-10", Keys: 1, Txns: 1}},
-		Instruments: []*admincoveragev1.InstrumentName{{
+		Instrs: []*admincoveragev1.InstrName{{
 			Id: acme.String(), Name: &typev1.Identifier{Type: typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, Value: "US0000000001"},
 		}},
 	}
@@ -160,7 +160,7 @@ func TestGetTicker(t *testing.T) {
 func TestAttestIdentifier(t *testing.T) {
 	runID := uuid.MustParse("00000000-0000-0000-0000-000000000010")
 	started := gen.Run{ID: runID, Kind: gen.RunKindAttestIdentifier, Trigger: gen.RunTriggerAdministrator, State: gen.RunStatePending, CreatedAt: today}
-	names := &admincoveragev1.AttestIdentifierRequest_InstrumentId{InstrumentId: acme.String()}
+	names := &admincoveragev1.AttestIdentifierRequest_InstrId{InstrId: acme.String()}
 	tests := []struct {
 		name      string
 		req       *admincoveragev1.AttestIdentifierRequest

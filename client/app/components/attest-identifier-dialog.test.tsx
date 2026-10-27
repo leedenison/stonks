@@ -11,10 +11,10 @@ import {
   TickerValidity,
 } from "@/gen/admin/coverage/v1/coverage_pb";
 import {
-  InstrumentSchema,
-  InstrumentService,
-  ListInstrumentsResponseSchema,
-} from "@/gen/admin/instrument/v1/instrument_pb";
+  InstrSchema,
+  InstrService,
+  ListInstrsResponseSchema,
+} from "@/gen/admin/instr/v1/instr_pb";
 import { Role } from "@/gen/auth/v1/auth_pb";
 import { RunSchema } from "@/gen/run/v1/run_pb";
 import {
@@ -40,19 +40,19 @@ const held = create(GetTickerResponseSchema, {
     intervals: [
       {
         validBefore: "2024-06-01",
-        instrumentId: "i1",
+        instrId: "i1",
         validity: TickerValidity.PROVISIONAL,
       },
     ],
-    instruments: [{ id: "i1", name: isin }],
+    instrs: [{ id: "i1", name: isin }],
   }),
 });
 const bare = create(GetTickerResponseSchema, {
   ticker: create(TickerSchema, { ticker: acme }),
 });
-const found = create(ListInstrumentsResponseSchema, {
-  instruments: [
-    create(InstrumentSchema, {
+const found = create(ListInstrsResponseSchema, {
+  instrs: [
+    create(InstrSchema, {
       id: "i2",
       name: { type: IdentifierType.MIC_TICKER, domain: "XNAS", value: "ACMX" },
     }),
@@ -74,7 +74,7 @@ function serving(ticker = held, refuse?: ConnectError) {
   };
   const transport = transportWith(admin, ({ service }) => {
     service(CoverageService, { getTicker: () => ticker, attestIdentifier });
-    service(InstrumentService, { listInstruments: () => found });
+    service(InstrService, { listInstrs: () => found });
   });
   return { transport, requests };
 }
@@ -117,7 +117,7 @@ describe("AttestIdentifierDialog", () => {
     await waitFor(() => expect(onDone).toHaveBeenCalled());
     expect(requests).toHaveLength(1);
     expect(requests[0].ticker?.value).toBe("ACME");
-    expect(requests[0].names).toEqual({ case: "instrumentId", value: "i1" });
+    expect(requests[0].names).toEqual({ case: "instrId", value: "i1" });
     expect(requests[0].from).toBe("2024-02-01");
     expect(requests[0].to).toBe("2024-03-01");
   });
@@ -148,21 +148,21 @@ describe("AttestIdentifierDialog", () => {
     expect(screen.getByTestId("attest-start").hasAttribute("disabled")).toBe(
       true,
     );
-    fireEvent.change(screen.getByTestId("attest-instrument-search"), {
+    fireEvent.change(screen.getByTestId("attest-instr-search"), {
       target: { value: "acm" },
     });
     await waitFor(() =>
       expect(
-        screen.getByTestId("attest-instrument").querySelectorAll("option"),
+        screen.getByTestId("attest-instr").querySelectorAll("option"),
       ).toHaveLength(1),
     );
-    fireEvent.change(screen.getByTestId("attest-instrument"), {
+    fireEvent.change(screen.getByTestId("attest-instr"), {
       target: { value: "i2" },
     });
     expect(screen.getByTestId("attest-dialog").textContent).toContain("ACMX");
     fireEvent.click(screen.getByTestId("attest-start"));
     await waitFor(() => expect(requests).toHaveLength(1));
-    expect(requests[0].names).toEqual({ case: "instrumentId", value: "i2" });
+    expect(requests[0].names).toEqual({ case: "instrId", value: "i2" });
   });
 
   it("shows a refusal and stays open", async () => {

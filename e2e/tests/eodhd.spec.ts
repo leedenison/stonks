@@ -2,7 +2,7 @@ import path from "node:path";
 import { FetchOutcome } from "../gen/admin/run/v1/run_pb";
 import { IdentifierType, ResolutionOutcome } from "../gen/type/v1/type_pb";
 import {
-  adminInstrumentClient,
+  adminInstrClient,
   adminRunClient,
   expectServedOnce,
   fetchItems,
@@ -55,15 +55,11 @@ test("asks EODHD beside OpenFIGI and matches the key once", async ({
 
   const holdings = await holdingClient(userSession).listHoldings({});
   expect(
-    holdings.instruments.filter((h) =>
-      h.identifiers.some((i) => i.value === isin),
-    ),
+    holdings.instrs.filter((h) => h.identifiers.some((i) => i.value === isin)),
   ).toHaveLength(1);
-  const matched = await adminInstrumentClient(session).listInstruments({
+  const matched = await adminInstrClient(session).listInstrs({
     query: isin,
   });
-  expect(matched.instruments).toHaveLength(1);
-  expect(matched.instruments[0].listings.map((l) => l.currency)).toContain(
-    "USD",
-  );
+  expect(matched.instrs).toHaveLength(1);
+  expect(matched.instrs[0].listings.map((l) => l.currency)).toContain("USD");
 });

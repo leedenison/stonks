@@ -100,11 +100,11 @@ func TestListHoldingsDated(t *testing.T) {
 		Quantity:  decimal.RequireFromString("10"),
 	}
 	fixedHoldingKey := &holdingv1.HoldingKey{StatedKey: &typev1.StatedKey{Currency: usd, Identifiers: []*typev1.Identifier{protoAISIN}}, ListingId: aUSD.String(), Quantity: "10"}
-	holdingA := func(quantity string, keys ...*holdingv1.HoldingKey) *holdingv1.InstrumentHolding {
-		return &holdingv1.InstrumentHolding{InstrumentId: aID.String(), AssetClass: assetClassStock, Name: protoAName, Identifiers: protoIdentsOfA, Quantity: quantity, Listings: protoAListings, Keys: keys}
+	holdingA := func(quantity string, keys ...*holdingv1.HoldingKey) *holdingv1.InstrHolding {
+		return &holdingv1.InstrHolding{InstrId: aID.String(), AssetClass: assetClassStock, Name: protoAName, Identifiers: protoIdentsOfA, Quantity: quantity, Listings: protoAListings, Keys: keys}
 	}
-	holdingB := func(quantity string, listings []*holdingv1.HoldingListing, keys ...*holdingv1.HoldingKey) *holdingv1.InstrumentHolding {
-		return &holdingv1.InstrumentHolding{InstrumentId: bID.String(), AssetClass: assetClassStock, Name: protoFoo, Identifiers: protoIdentsOfB, Quantity: quantity, Listings: listings, Keys: keys}
+	holdingB := func(quantity string, listings []*holdingv1.HoldingListing, keys ...*holdingv1.HoldingKey) *holdingv1.InstrHolding {
+		return &holdingv1.InstrHolding{InstrId: bID.String(), AssetClass: assetClassStock, Name: protoFoo, Identifiers: protoIdentsOfB, Quantity: quantity, Listings: listings, Keys: keys}
 	}
 	group := func(currency *string, quantity string) *holdingv1.GroupHolding {
 		return &holdingv1.GroupHolding{GroupId: datedKeyID.String(), Quantity: quantity, Identifiers: []*typev1.Identifier{protoFoo}, Keys: []*holdingv1.HoldingKey{datedHoldingKey(currency, uuid.Nil, quantity)}}
@@ -121,7 +121,7 @@ func TestListHoldingsDated(t *testing.T) {
 		assertionsErr error
 		ids           []uuid.UUID
 		listings      []gen.ListListingNamesRow
-		want          []*holdingv1.InstrumentHolding
+		want          []*holdingv1.InstrHolding
 		wantGroups    []*holdingv1.GroupHolding
 		wantCode      connect.Code
 	}{
@@ -134,7 +134,7 @@ func TestListHoldingsDated(t *testing.T) {
 			keys:       []gen.ListHoldingKeysRow{datedKey(usd, &datedKeyID, "15")},
 			txns:       []gen.ListDatedTxnsRow{txn(0, "1"), txn(5, "2"), txn(15, "4"), txn(25, "8")},
 			assertions: straddle, ids: []uuid.UUID{aID, bID}, listings: listings,
-			want: []*holdingv1.InstrumentHolding{
+			want: []*holdingv1.InstrHolding{
 				holdingA("3", datedHoldingKey(usd, aUSD, "3")),
 				holdingB("12", protoBListings, datedHoldingKey(usd, bUSD, "12")),
 			},
@@ -144,7 +144,7 @@ func TestListHoldingsDated(t *testing.T) {
 			keys:       []gen.ListHoldingKeysRow{datedKey(usd, &datedKeyID, "6")},
 			txns:       []gen.ListDatedTxnsRow{txn(5, "2"), txn(15, "4")},
 			assertions: retired, ids: []uuid.UUID{aID}, listings: listings,
-			want:       []*holdingv1.InstrumentHolding{holdingA("2", datedHoldingKey(usd, aUSD, "2"))},
+			want:       []*holdingv1.InstrHolding{holdingA("2", datedHoldingKey(usd, aUSD, "2"))},
 			wantGroups: []*holdingv1.GroupHolding{group(usd, "4")},
 		},
 		{
@@ -152,7 +152,7 @@ func TestListHoldingsDated(t *testing.T) {
 			keys:       []gen.ListHoldingKeysRow{fixedKey, datedKey(usd, &datedKeyID, "2")},
 			txns:       []gen.ListDatedTxnsRow{txn(5, "2")},
 			assertions: straddle, ids: []uuid.UUID{aID}, listings: listings,
-			want: []*holdingv1.InstrumentHolding{holdingA("12", fixedHoldingKey, datedHoldingKey(usd, aUSD, "2"))},
+			want: []*holdingv1.InstrHolding{holdingA("12", fixedHoldingKey, datedHoldingKey(usd, aUSD, "2"))},
 		},
 		{
 			name:       "a total of zero is no holding",
@@ -165,21 +165,21 @@ func TestListHoldingsDated(t *testing.T) {
 			keys:       []gen.ListHoldingKeysRow{datedKey(gbx, &datedKeyID, "4")},
 			txns:       []gen.ListDatedTxnsRow{txn(15, "4")},
 			assertions: straddle, ids: []uuid.UUID{bID}, listings: withBGBP,
-			want: []*holdingv1.InstrumentHolding{holdingB("4", protoBListingsWithGBP, datedHoldingKey(gbx, bGBP, "4"))},
+			want: []*holdingv1.InstrHolding{holdingB("4", protoBListingsWithGBP, datedHoldingKey(gbx, bGBP, "4"))},
 		},
 		{
 			name:       "the ticker's listing where the stated family has none",
 			keys:       []gen.ListHoldingKeysRow{datedKey(gbx, &datedKeyID, "4")},
 			txns:       []gen.ListDatedTxnsRow{txn(15, "4")},
 			assertions: straddle, ids: []uuid.UUID{bID}, listings: listings,
-			want: []*holdingv1.InstrumentHolding{holdingB("4", protoBListings, datedHoldingKey(gbx, bUSD, "4"))},
+			want: []*holdingv1.InstrHolding{holdingB("4", protoBListings, datedHoldingKey(gbx, bUSD, "4"))},
 		},
 		{
 			name:       "the ticker's listing where no currency is stated",
 			keys:       []gen.ListHoldingKeysRow{datedKey(nil, &datedKeyID, "4")},
 			txns:       []gen.ListDatedTxnsRow{txn(15, "4")},
 			assertions: straddle, ids: []uuid.UUID{bID}, listings: withBGBP,
-			want: []*holdingv1.InstrumentHolding{holdingB("4", protoBListingsWithGBP, datedHoldingKey(nil, bUSD, "4"))},
+			want: []*holdingv1.InstrHolding{holdingB("4", protoBListingsWithGBP, datedHoldingKey(nil, bUSD, "4"))},
 		},
 		{
 			name:       "a dated key with an unresolved transaction and no group",
@@ -223,7 +223,7 @@ func TestListHoldingsDated(t *testing.T) {
 			if err != nil {
 				return
 			}
-			want := &holdingv1.ListHoldingsResponse{Instruments: tc.want, Groups: tc.wantGroups}
+			want := &holdingv1.ListHoldingsResponse{Instrs: tc.want, Groups: tc.wantGroups}
 			if diff := cmp.Diff(want, res.Msg, protocmp.Transform()); diff != "" {
 				t.Errorf("ListHoldings() mismatch (-want +got):\n%s", diff)
 			}

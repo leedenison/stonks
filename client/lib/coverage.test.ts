@@ -14,13 +14,13 @@ describe("coverage", () => {
     const intervals = [
       create(IntervalSchema, {
         validBefore: "2026-03-10",
-        instrumentId: "i1",
+        instrId: "i1",
         validity: TickerValidity.PROVISIONAL,
       }),
       create(IntervalSchema, {
         validFrom: "2026-03-10",
         validBefore: "2026-03-21",
-        instrumentId: "i1",
+        instrId: "i1",
         validity: TickerValidity.CONFIRMED,
       }),
     ];
@@ -41,7 +41,7 @@ describe("coverage", () => {
     const t = create(TickerSchema, {
       txnDays: ["2026-03-05"],
       intervals: [
-        create(IntervalSchema, { validFrom: "2026-03-10", instrumentId: "i1" }),
+        create(IntervalSchema, { validFrom: "2026-03-10", instrId: "i1" }),
       ],
       gaps: [
         { unconfirmedFrom: "2026-03-05", unconfirmedBefore: "2026-03-31" },

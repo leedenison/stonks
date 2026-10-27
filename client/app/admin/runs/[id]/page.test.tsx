@@ -525,7 +525,7 @@ describe("AdminRunPage assertions", () => {
               id: "a1",
               ticker: { market: "XLON", value: "SHEL" },
               assertedOn: "2026-10-23",
-              instrumentId: "i1",
+              instrId: "i1",
               source: { case: "datasource", value: "eodhd" },
             }),
           },

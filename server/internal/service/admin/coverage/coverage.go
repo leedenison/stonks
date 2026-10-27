@@ -53,9 +53,9 @@ func New(reader Reader, attester Attester, clock func() time.Time) *Server {
 	return &Server{reader: reader, attester: attester, clock: clock}
 }
 
-// ListInstrumentTickers lists the tickers that name the instrument.
-func (s *Server) ListInstrumentTickers(ctx context.Context, req *connect.Request[admincoveragev1.ListInstrumentTickersRequest]) (*connect.Response[admincoveragev1.ListInstrumentTickersResponse], error) {
-	id, err := uuid.Parse(req.Msg.GetInstrumentId())
+// ListInstrTickers lists the tickers that name the instrument.
+func (s *Server) ListInstrTickers(ctx context.Context, req *connect.Request[admincoveragev1.ListInstrTickersRequest]) (*connect.Response[admincoveragev1.ListInstrTickersResponse], error) {
+	id, err := uuid.Parse(req.Msg.GetInstrId())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
@@ -63,7 +63,7 @@ func (s *Server) ListInstrumentTickers(ctx context.Context, req *connect.Request
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	out := &admincoveragev1.ListInstrumentTickersResponse{}
+	out := &admincoveragev1.ListInstrTickersResponse{}
 	for _, r := range rows {
 		out.Tickers = append(out.Tickers, r.ToProto())
 	}
@@ -91,7 +91,7 @@ func (s *Server) AttestIdentifier(ctx context.Context, req *connect.Request[admi
 	m := req.Msg
 	v := types.MarketTickerOf(m.GetTicker())
 	var instr *uuid.UUID
-	if id := m.GetInstrumentId(); id != "" {
+	if id := m.GetInstrId(); id != "" {
 		parsed, err := uuid.Parse(id)
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInvalidArgument, err)

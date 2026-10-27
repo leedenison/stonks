@@ -36,7 +36,7 @@ const acme = create(TickerSchema, {
       id: "a1",
       ticker,
       assertedOn: "2024-06-01",
-      instrumentId: "i1",
+      instrId: "i1",
       source: { case: "datasource", value: "alpha" },
     }),
     create(AssertionItemSchema, {
@@ -58,7 +58,7 @@ const acme = create(TickerSchema, {
     {
       validFrom: "2024-06-01",
       validBefore: "2026-03-01",
-      instrumentId: "i1",
+      instrId: "i1",
       validity: TickerValidity.CONFIRMED,
     },
   ],

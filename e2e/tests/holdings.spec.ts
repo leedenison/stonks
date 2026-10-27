@@ -22,7 +22,7 @@ const expected = [
     quantity: "12092.79",
     shown: "12092.79",
     className: "Cash",
-    kind: "instrument",
+    kind: "instr",
   },
   {
     name: "BAE SYSTEMS, ORD GBP0.025 (BA.)",
@@ -57,11 +57,11 @@ function rowOf(
   res: ListHoldingsResponse,
   name: string,
 ): { id: string; quantity: string } {
-  const instrument = res.instruments.find((h) =>
+  const instr = res.instrs.find((h) =>
     h.identifiers.some((i) => i.value === name),
   );
-  if (instrument) {
-    return { id: instrument.instrumentId, quantity: instrument.quantity };
+  if (instr) {
+    return { id: instr.instrId, quantity: instr.quantity };
   }
   const group = res.groups.find((g) =>
     g.identifiers.some((i) => i.value === name),
@@ -88,8 +88,8 @@ test("uploads a statement and lists the holdings it produces", async ({
 
   // The data behind the page.
   const res = await holdingClient(session).listHoldings({});
-  expect(res.instruments).toHaveLength(
-    expected.filter((e) => e.kind === "instrument").length,
+  expect(res.instrs).toHaveLength(
+    expected.filter((e) => e.kind === "instr").length,
   );
   expect(res.groups).toHaveLength(
     expected.filter((e) => e.kind === "group").length,
@@ -128,6 +128,6 @@ test("uploads a statement and lists the holdings it produces", async ({
   // Another user holds none of them.
   const other = await seed();
   const theirs = await holdingClient(other.session).listHoldings({});
-  expect(theirs.instruments).toHaveLength(0);
+  expect(theirs.instrs).toHaveLength(0);
   expect(theirs.groups).toHaveLength(0);
 });

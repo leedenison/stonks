@@ -1,10 +1,6 @@
 import path from "node:path";
 import { IdentifierType, ResolutionOutcome } from "../gen/type/v1/type_pb";
-import {
-  adminInstrumentClient,
-  holdingClient,
-  stmtClient,
-} from "../helpers/api";
+import { adminInstrClient, holdingClient, stmtClient } from "../helpers/api";
 import { uploadStmt } from "../helpers/upload";
 import { expect, test } from "../helpers/test";
 
@@ -44,12 +40,12 @@ test("shows a resolved holding and an unresolved one from two brokers", async ({
 
   // The data behind the pages.
   const holdings = await holdingClient(session).listHoldings({});
-  expect(holdings.instruments).toHaveLength(2);
-  const cash = holdings.instruments.find((h) =>
+  expect(holdings.instrs).toHaveLength(2);
+  const cash = holdings.instrs.find((h) =>
     h.identifiers.some((i) => i.value === "USD"),
   );
   expect(cash?.quantity).toBe("-8002");
-  const shares = holdings.instruments.find((h) =>
+  const shares = holdings.instrs.find((h) =>
     h.identifiers.some((i) => i.value === cusip),
   );
   expect(shares?.quantity).toBe("10");
@@ -98,17 +94,17 @@ test("shows a resolved holding and an unresolved one from two brokers", async ({
   // The pages.
   await page.getByTestId("nav-holdings").click();
   await expect(page).toHaveURL("/holdings");
-  const resolved = page.getByTestId(`holding-row-${shares!.instrumentId}`);
-  await expect(resolved).toHaveAttribute("data-kind", "instrument");
+  const resolved = page.getByTestId(`holding-row-${shares!.instrId}`);
+  await expect(resolved).toHaveAttribute("data-kind", "instr");
   await expect(resolved).toContainText(ticker);
   await expect(
-    resolved.getByTestId(`holding-venue-${shares!.instrumentId}`),
+    resolved.getByTestId(`holding-venue-${shares!.instrId}`),
   ).toHaveText("Nasdaq");
   await expect(resolved).not.toContainText(cusip);
   await expect(resolved.getByTestId("holding-basis")).toHaveCount(0);
   await resolved.click();
   await expect(
-    page.getByTestId(`holding-detail-${shares!.instrumentId}`),
+    page.getByTestId(`holding-detail-${shares!.instrId}`),
   ).toContainText(cusip);
   const unresolved = page.getByTestId(`holding-row-${group.groupId}`);
   await expect(unresolved).toHaveAttribute("data-kind", "group");
@@ -121,9 +117,9 @@ test("shows a resolved holding and an unresolved one from two brokers", async ({
   await expect(
     page.getByTestId(`holding-detail-${group.groupId}`),
   ).toContainText(description);
-  await expect(
-    page.getByTestId(`holding-qty-${cash!.instrumentId}`),
-  ).toHaveText("-8002.00");
+  await expect(page.getByTestId(`holding-qty-${cash!.instrId}`)).toHaveText(
+    "-8002.00",
+  );
 
   await page.goto(`/stmts/${schwabRun}`);
   await expect(
@@ -135,30 +131,28 @@ test("shows a resolved holding and an unresolved one from two brokers", async ({
   // Search by the CUSIP so the instrument is on the page whatever else the
   // database holds.
   const { session: adminSession } = await signIn("admin");
-  const found = await adminInstrumentClient(adminSession).listInstruments({
+  const found = await adminInstrClient(adminSession).listInstrs({
     query: cusip,
   });
-  expect(found.instruments).toHaveLength(1);
-  const instrument = found.instruments[0];
-  expect(instrument.identifiers.map((i) => i.type)).toContain(
+  expect(found.instrs).toHaveLength(1);
+  const instr = found.instrs[0];
+  expect(instr.identifiers.map((i) => i.type)).toContain(
     IdentifierType.OPENFIGI_SHARE_CLASS,
   );
-  const usd = instrument.listings.find((l) => l.currency === "USD");
+  const usd = instr.listings.find((l) => l.currency === "USD");
   expect(usd?.identifiers.map((i) => i.type)).toContain(
     IdentifierType.OPENFIGI_COMPOSITE,
   );
-  await page.goto("/admin/instruments");
-  await page.getByTestId("instruments-search").fill(cusip);
-  await expect(page).toHaveURL(`/admin/instruments?q=${cusip}`);
-  const adminRow = page.getByTestId(`instrument-row-${instrument.id}`);
+  await page.goto("/admin/instrs");
+  await page.getByTestId("instrs-search").fill(cusip);
+  await expect(page).toHaveURL(`/admin/instrs?q=${cusip}`);
+  const adminRow = page.getByTestId(`instr-row-${instr.id}`);
   await expect(adminRow).toContainText(ticker);
   await expect(adminRow).not.toContainText(cusip);
   await adminRow.click();
-  await expect(page).toHaveURL(
-    `/admin/instruments?id=${instrument.id}&q=${cusip}`,
-  );
+  await expect(page).toHaveURL(`/admin/instrs?id=${instr.id}&q=${cusip}`);
   await expect(adminRow).toHaveAttribute("aria-selected", "true");
-  const pane = page.getByTestId("instrument-pane");
+  const pane = page.getByTestId("instr-pane");
   await expect(pane).toContainText(cusip);
   // The IBKR key's via identifier is the CUSIP, the ticker names the
   // instrument, and Nasdaq is its primary venue.

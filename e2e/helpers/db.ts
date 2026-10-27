@@ -112,12 +112,12 @@ export async function closeDB(): Promise<void> {
   pool = null;
 }
 
-// seedDescribedInstrument seeds reference data, an instrument with a GBP
+// seedDescribedInstr seeds reference data, an instrument with a GBP
 // listing, an ISIN, an XLON ticker and a broker description, and returns its
 // id. No product API writes a description, so SQL is the only route. System
 // rows outlive a test and workers run in parallel, so a lock on the ISIN
 // makes concurrent seeding find one instrument.
-export async function seedDescribedInstrument(
+export async function seedDescribedInstr(
   broker: string,
   description: string,
   isin: string,
@@ -135,10 +135,10 @@ export async function seedDescribedInstrument(
       await client.query("COMMIT");
       return found.rows[0].instr_id;
     }
-    const instrument = await client.query<{ id: string }>(
+    const instr = await client.query<{ id: string }>(
       "INSERT INTO instrs (id, asset_class) VALUES (uuid_v7(), 'equity') RETURNING id",
     );
-    const id = instrument.rows[0].id;
+    const id = instr.rows[0].id;
     const listing = await client.query<{ id: string }>(
       "INSERT INTO listings (id, instr_id, currency) VALUES (uuid_v7(), $1, 'GBP') RETURNING id",
       [id],

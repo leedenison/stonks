@@ -12,7 +12,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
-// InstrQueries is the set of queries Instruments reads.
+// InstrQueries is the set of queries Instrs reads.
 type InstrQueries interface {
 	ListIdentifiersOf(ctx context.Context, ids []uuid.UUID) ([]gen.Identifier, error)
 	ListListingsOf(ctx context.Context, ids []uuid.UUID) ([]gen.Listing, error)
@@ -33,7 +33,7 @@ type Instr struct {
 	Listings    []gen.Listing
 }
 
-// InstrWithCoverage is an Instrument with the datasources that have
+// InstrWithCoverage is an Instr with the datasources that have
 // answered for it.
 type InstrWithCoverage struct {
 	Instr

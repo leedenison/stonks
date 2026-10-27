@@ -1,7 +1,7 @@
 import path from "node:path";
 import { IdentifierType, ResolutionOutcome } from "../gen/type/v1/type_pb";
 import { holdingClient, stmtClient } from "../helpers/api";
-import { seedDescribedInstrument } from "../helpers/db";
+import { seedDescribedInstr } from "../helpers/db";
 import { uploadStmt } from "../helpers/upload";
 import { expect, test } from "../helpers/test";
 
@@ -22,15 +22,10 @@ const undescribed = "ZZ UNDESCRIBED GLOBAL BOND FUND INC";
 const isin = "ZZ0000000091";
 const ticker = "ZZDESC";
 
-let instrumentId: string;
+let instrId: string;
 
 test.beforeAll(async () => {
-  instrumentId = await seedDescribedInstrument(
-    "fidelity_uk",
-    described,
-    isin,
-    ticker,
-  );
+  instrId = await seedDescribedInstr("fidelity_uk", described, isin, ticker);
 });
 
 test("resolves a line through the description the broker gave it", async ({
@@ -67,19 +62,19 @@ test("resolves a line through the description the broker gave it", async ({
   expect(group).toBeDefined();
   await page.getByTestId("nav-holdings").click();
   await expect(page).toHaveURL("/holdings");
-  const resolved = page.getByTestId(`holding-row-${instrumentId}`);
-  await expect(resolved).toHaveAttribute("data-kind", "instrument");
+  const resolved = page.getByTestId(`holding-row-${instrId}`);
+  await expect(resolved).toHaveAttribute("data-kind", "instr");
   await expect(resolved).toContainText(ticker);
-  await expect(
-    resolved.getByTestId(`holding-venue-${instrumentId}`),
-  ).toHaveText("LSE");
+  await expect(resolved.getByTestId(`holding-venue-${instrId}`)).toHaveText(
+    "LSE",
+  );
   await expect(resolved).not.toContainText(isin);
   await expect(resolved.getByTestId("holding-basis")).toHaveCount(0);
   await resolved.click();
-  await expect(
-    page.getByTestId(`holding-detail-${instrumentId}`),
-  ).toContainText(isin);
-  await expect(resolved.getByTestId(`holding-qty-${instrumentId}`)).toHaveText(
+  await expect(page.getByTestId(`holding-detail-${instrId}`)).toContainText(
+    isin,
+  );
+  await expect(resolved.getByTestId(`holding-qty-${instrId}`)).toHaveText(
     "80.00",
   );
   const unresolved = page.getByTestId(`holding-row-${group!.groupId}`);

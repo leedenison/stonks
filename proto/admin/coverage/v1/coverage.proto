@@ -66,12 +66,12 @@ enum TickerValidity {
 message Interval {
   optional string valid_from = 1;
   optional string valid_before = 2;
-  string instrument_id = 3;
+  string instr_id = 3;
   TickerValidity validity = 4;
 }
 
 // An instrument and the identifier that names it.
-message InstrumentName {
+message InstrName {
   string id = 1;
   stonks.type.v1.Identifier name = 2;
 }
@@ -93,12 +93,12 @@ message Ticker {
   // By first day.
   repeated Gap gaps = 7;
   // Every instrument the assertions and intervals name.
-  repeated InstrumentName instruments = 8;
+  repeated InstrName instrs = 8;
 }
 
 // A ticker at its market that a listing of the instrument carries, or that
 // an assertion gives as the instrument's name.
-message InstrumentTicker {
+message InstrTicker {
   stonks.type.v1.MarketTicker ticker = 1;
   // A listing of the instrument carries the ticker.
   bool current = 2;
@@ -109,14 +109,14 @@ message InstrumentTicker {
   repeated string venues = 4;
 }
 
-message ListInstrumentTickersRequest {
-  string instrument_id = 1 [(buf.validate.field).string.uuid = true];
+message ListInstrTickersRequest {
+  string instr_id = 1 [(buf.validate.field).string.uuid = true];
 }
 
-message ListInstrumentTickersResponse {
+message ListInstrTickersResponse {
   // By transactions, most first, then current before former, then market
   // and value.
-  repeated InstrumentTicker tickers = 1;
+  repeated InstrTicker tickers = 1;
 }
 
 message GetTickerRequest {
@@ -132,7 +132,7 @@ message AttestIdentifierRequest {
   // What the ticker names on each day.
   oneof names {
     option (buf.validate.oneof).required = true;
-    string instrument_id = 2 [(buf.validate.field).string.uuid = true];
+    string instr_id = 2 [(buf.validate.field).string.uuid = true];
     // The ticker names nothing.
     bool nothing = 3 [(buf.validate.field).bool.const = true];
   }
@@ -157,7 +157,7 @@ message WithdrawIdentifierAttestationResponse {}
 // datasource covers.
 service CoverageService {
   // Lists the tickers that name the instrument, now or in an assertion.
-  rpc ListInstrumentTickers(ListInstrumentTickersRequest) returns (ListInstrumentTickersResponse);
+  rpc ListInstrTickers(ListInstrTickersRequest) returns (ListInstrTickersResponse);
   // Reads one ticker's facts and validity. An unknown market is refused as an
   // invalid argument.
   rpc GetTicker(GetTickerRequest) returns (GetTickerResponse);

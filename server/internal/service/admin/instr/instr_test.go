@@ -13,12 +13,12 @@ import (
 	"go.uber.org/mock/gomock"
 	"google.golang.org/protobuf/testing/protocmp"
 
-	admininstrumentv1 "github.com/leedenison/stonks/proto/admin/instrument/v1"
-	"github.com/leedenison/stonks/proto/admin/instrument/v1/admininstrumentv1connect"
+	admininstrv1 "github.com/leedenison/stonks/proto/admin/instr/v1"
+	"github.com/leedenison/stonks/proto/admin/instr/v1/admininstrv1connect"
 	typev1 "github.com/leedenison/stonks/proto/type/v1"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/platform/ptr"
-	"github.com/leedenison/stonks/server/internal/service/admin/instrument/mock"
+	"github.com/leedenison/stonks/server/internal/service/admin/instr/mock"
 	"github.com/leedenison/stonks/server/internal/service/admin/page"
 	"github.com/leedenison/stonks/server/internal/service/servicetest"
 	"github.com/leedenison/stonks/server/internal/types"
@@ -34,7 +34,7 @@ var (
 
 type fixture struct {
 	queries *mock.MockQueries
-	client  admininstrumentv1connect.InstrumentServiceClient
+	client  admininstrv1connect.InstrServiceClient
 }
 
 // newFixture mounts a Server with the real handler chain, and a client whose
@@ -47,9 +47,9 @@ func newFixture(t *testing.T) *fixture {
 	f := &fixture{queries: mock.NewMockQueries(ctrl)}
 	opts := servicetest.Options(t, authn)
 	srv := servicetest.Serve(t, func(mux *http.ServeMux) {
-		mux.Handle(admininstrumentv1connect.NewInstrumentServiceHandler(New(f.queries), opts...))
+		mux.Handle(admininstrv1connect.NewInstrServiceHandler(New(f.queries), opts...))
 	})
-	f.client = admininstrumentv1connect.NewInstrumentServiceClient(srv.Client, srv.URL)
+	f.client = admininstrv1connect.NewInstrServiceClient(srv.Client, srv.URL)
 	return f
 }
 
@@ -77,11 +77,11 @@ func TestListInstrs(t *testing.T) {
 		{InstrID: gbpID, Type: types.IdentifierTypeCurrency, Value: "GBP"},
 		{InstrID: gbpID, Type: types.IdentifierTypeCurrency, Value: "GBX"},
 	}
-	want := []*admininstrumentv1.Instrument{
+	want := []*admininstrv1.Instr{
 		{
 			Id: acmeID.String(), Name: ticker("XNYS"), AssetClass: typev1.AssetClass_ASSET_CLASS_STOCK,
 			Identifiers: []*typev1.Identifier{{Type: typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, Value: "GB0002634946"}},
-			Listings: []*admininstrumentv1.Listing{
+			Listings: []*admininstrv1.Listing{
 				{Id: usdLine.String(), Currency: "USD", PrimaryMic: "XNYS", Identifiers: []*typev1.Identifier{ticker("XNYS")}},
 				{Id: gbpLine.String(), Currency: "GBP", Identifiers: []*typev1.Identifier{ticker("XLON")}},
 			},
@@ -93,50 +93,50 @@ func TestListInstrs(t *testing.T) {
 				{Type: typev1.IdentifierType_IDENTIFIER_TYPE_CURRENCY, Value: "GBP"},
 				{Type: typev1.IdentifierType_IDENTIFIER_TYPE_CURRENCY, Value: "GBX"},
 			},
-			Listings: []*admininstrumentv1.Listing{{Id: cashLine.String(), Currency: "GBP"}},
+			Listings: []*admininstrv1.Listing{{Id: cashLine.String(), Currency: "GBP"}},
 		},
 	}
 	ids := []uuid.UUID{acmeID, gbpID}
 
 	tests := []struct {
 		name        string
-		req         *admininstrumentv1.ListInstrumentsRequest
+		req         *admininstrv1.ListInstrsRequest
 		wantArg     *gen.ListInstrsParams
 		rows        []gen.ListInstrsRow
 		rowsErr     error
 		listingsErr error
 		identsErr   error
 		viaErr      error
-		want        *admininstrumentv1.ListInstrumentsResponse
+		want        *admininstrv1.ListInstrsResponse
 		wantCode    connect.Code
 	}{
 		{
 			name:    "a page after a token",
-			req:     &admininstrumentv1.ListInstrumentsRequest{PageToken: acmeID.String() + ":ACME"},
+			req:     &admininstrv1.ListInstrsRequest{PageToken: acmeID.String() + ":ACME"},
 			wantArg: &gen.ListInstrsParams{AfterID: &acmeID, AfterName: ptr.To("ACME"), Lim: page.DefaultSize + 1},
 			rows:    rows,
-			want:    &admininstrumentv1.ListInstrumentsResponse{Instruments: want},
+			want:    &admininstrv1.ListInstrsResponse{Instrs: want},
 		},
 		{
 			name:    "none",
-			req:     &admininstrumentv1.ListInstrumentsRequest{},
+			req:     &admininstrv1.ListInstrsRequest{},
 			wantArg: &gen.ListInstrsParams{Lim: page.DefaultSize + 1},
-			want:    &admininstrumentv1.ListInstrumentsResponse{},
+			want:    &admininstrv1.ListInstrsResponse{},
 		},
 		{
 			name:    "a query and a class, the query escaped",
-			req:     &admininstrumentv1.ListInstrumentsRequest{Query: "50%_", AssetClass: typev1.AssetClass_ASSET_CLASS_EQUITY.Enum()},
+			req:     &admininstrv1.ListInstrsRequest{Query: "50%_", AssetClass: typev1.AssetClass_ASSET_CLASS_EQUITY.Enum()},
 			wantArg: &gen.ListInstrsParams{Lim: page.DefaultSize + 1, Q: ptr.To(`50\%\_`), AssetClass: ptr.To(types.AssetClassEquity)},
-			want:    &admininstrumentv1.ListInstrumentsResponse{},
+			want:    &admininstrv1.ListInstrsResponse{},
 		},
-		{name: "oversized page", req: &admininstrumentv1.ListInstrumentsRequest{PageSize: 201}, wantCode: connect.CodeInvalidArgument},
-		{name: "unspecified class", req: &admininstrumentv1.ListInstrumentsRequest{AssetClass: typev1.AssetClass_ASSET_CLASS_UNSPECIFIED.Enum()}, wantCode: connect.CodeInvalidArgument},
-		{name: "a token without a name", req: &admininstrumentv1.ListInstrumentsRequest{PageToken: acmeID.String()}, wantCode: connect.CodeInvalidArgument},
-		{name: "a token whose id is malformed", req: &admininstrumentv1.ListInstrumentsRequest{PageToken: "not-a-uuid:ACME"}, wantCode: connect.CodeInvalidArgument},
-		{name: "instruments failure", req: &admininstrumentv1.ListInstrumentsRequest{}, wantArg: &gen.ListInstrsParams{Lim: page.DefaultSize + 1}, rowsErr: errors.New("boom"), wantCode: connect.CodeInternal},
-		{name: "listings failure", req: &admininstrumentv1.ListInstrumentsRequest{}, wantArg: &gen.ListInstrsParams{Lim: page.DefaultSize + 1}, rows: rows, listingsErr: errors.New("boom"), wantCode: connect.CodeInternal},
-		{name: "identifiers failure", req: &admininstrumentv1.ListInstrumentsRequest{}, wantArg: &gen.ListInstrsParams{Lim: page.DefaultSize + 1}, rows: rows, identsErr: errors.New("boom"), wantCode: connect.CodeInternal},
-		{name: "via failure", req: &admininstrumentv1.ListInstrumentsRequest{}, wantArg: &gen.ListInstrsParams{Lim: page.DefaultSize + 1}, rows: rows, viaErr: errors.New("boom"), wantCode: connect.CodeInternal},
+		{name: "oversized page", req: &admininstrv1.ListInstrsRequest{PageSize: 201}, wantCode: connect.CodeInvalidArgument},
+		{name: "unspecified class", req: &admininstrv1.ListInstrsRequest{AssetClass: typev1.AssetClass_ASSET_CLASS_UNSPECIFIED.Enum()}, wantCode: connect.CodeInvalidArgument},
+		{name: "a token without a name", req: &admininstrv1.ListInstrsRequest{PageToken: acmeID.String()}, wantCode: connect.CodeInvalidArgument},
+		{name: "a token whose id is malformed", req: &admininstrv1.ListInstrsRequest{PageToken: "not-a-uuid:ACME"}, wantCode: connect.CodeInvalidArgument},
+		{name: "instruments failure", req: &admininstrv1.ListInstrsRequest{}, wantArg: &gen.ListInstrsParams{Lim: page.DefaultSize + 1}, rowsErr: errors.New("boom"), wantCode: connect.CodeInternal},
+		{name: "listings failure", req: &admininstrv1.ListInstrsRequest{}, wantArg: &gen.ListInstrsParams{Lim: page.DefaultSize + 1}, rows: rows, listingsErr: errors.New("boom"), wantCode: connect.CodeInternal},
+		{name: "identifiers failure", req: &admininstrv1.ListInstrsRequest{}, wantArg: &gen.ListInstrsParams{Lim: page.DefaultSize + 1}, rows: rows, identsErr: errors.New("boom"), wantCode: connect.CodeInternal},
+		{name: "via failure", req: &admininstrv1.ListInstrsRequest{}, wantArg: &gen.ListInstrsParams{Lim: page.DefaultSize + 1}, rows: rows, viaErr: errors.New("boom"), wantCode: connect.CodeInternal},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -153,15 +153,15 @@ func TestListInstrs(t *testing.T) {
 			if tc.rowsErr == nil && len(tc.rows) > 0 && tc.listingsErr == nil && tc.identsErr == nil {
 				f.queries.EXPECT().ListViaOf(gomock.Any(), ids).Return([]uuid.UUID{isinID}, tc.viaErr)
 			}
-			res, err := f.client.ListInstruments(context.Background(), connect.NewRequest(tc.req))
+			res, err := f.client.ListInstrs(context.Background(), connect.NewRequest(tc.req))
 			if servicetest.CodeOf(err) != tc.wantCode {
-				t.Fatalf("ListInstruments(%v) code = %v (err %v), want %v", tc.req, servicetest.CodeOf(err), err, tc.wantCode)
+				t.Fatalf("ListInstrs(%v) code = %v (err %v), want %v", tc.req, servicetest.CodeOf(err), err, tc.wantCode)
 			}
 			if err != nil {
 				return
 			}
 			if diff := cmp.Diff(tc.want, res.Msg, protocmp.Transform()); diff != "" {
-				t.Errorf("ListInstruments(%v) mismatch (-want +got):\n%s", tc.req, diff)
+				t.Errorf("ListInstrs(%v) mismatch (-want +got):\n%s", tc.req, diff)
 			}
 		})
 	}
@@ -198,12 +198,12 @@ func TestListInstrsPages(t *testing.T) {
 	f.queries.EXPECT().ListListingsOf(gomock.Any(), []uuid.UUID{acmeID}).Return(nil, nil)
 	f.queries.EXPECT().ListIdentifiersOf(gomock.Any(), []uuid.UUID{acmeID}).Return(nil, nil)
 	f.queries.EXPECT().ListViaOf(gomock.Any(), []uuid.UUID{acmeID}).Return(nil, nil)
-	res, err := f.client.ListInstruments(context.Background(), connect.NewRequest(&admininstrumentv1.ListInstrumentsRequest{PageSize: 1}))
+	res, err := f.client.ListInstrs(context.Background(), connect.NewRequest(&admininstrv1.ListInstrsRequest{PageSize: 1}))
 	if err != nil {
-		t.Fatalf("ListInstruments() error = %v", err)
+		t.Fatalf("ListInstrs() error = %v", err)
 	}
-	got := res.Msg.GetInstruments()
+	got := res.Msg.GetInstrs()
 	if len(got) != 1 || got[0].GetId() != acmeID.String() || res.Msg.GetNextPageToken() != acmeID.String()+":ACME" {
-		t.Errorf("ListInstruments() = %v, want the first instrument and a token naming it", res.Msg)
+		t.Errorf("ListInstrs() = %v, want the first instrument and a token naming it", res.Msg)
 	}
 }

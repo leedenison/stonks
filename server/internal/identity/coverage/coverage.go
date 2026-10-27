@@ -114,7 +114,7 @@ func (t *Page) ToProto() *admincoveragev1.Ticker {
 	}
 	slices.SortFunc(ids, func(a, b uuid.UUID) int { return strings.Compare(a.String(), b.String()) })
 	for _, id := range ids {
-		out.Instruments = append(out.Instruments, &admincoveragev1.InstrumentName{Id: id.String(), Name: t.Names[id].ToProto()})
+		out.Instrs = append(out.Instrs, &admincoveragev1.InstrName{Id: id.String(), Name: t.Names[id].ToProto()})
 	}
 	return out
 }
@@ -131,8 +131,8 @@ type InstrTicker struct {
 }
 
 // ToProto converts the ticker.
-func (t InstrTicker) ToProto() *admincoveragev1.InstrumentTicker {
-	return &admincoveragev1.InstrumentTicker{Ticker: t.Ticker.ToProto(), Current: t.Current, Txns: int32(t.Txns), Venues: t.Venues}
+func (t InstrTicker) ToProto() *admincoveragev1.InstrTicker {
+	return &admincoveragev1.InstrTicker{Ticker: t.Ticker.ToProto(), Current: t.Current, Txns: int32(t.Txns), Venues: t.Venues}
 }
 
 // InstrTickers lists the tickers that name the instrument, now or in an
@@ -261,7 +261,7 @@ func (r *Reader) name(ctx context.Context, t *Page) error {
 }
 
 func interval(iv tickervalidity.Interval) *admincoveragev1.Interval {
-	out := &admincoveragev1.Interval{InstrumentId: iv.Instr.String(), Validity: types.ToProto[admincoveragev1.TickerValidity](iv.Validity)}
+	out := &admincoveragev1.Interval{InstrId: iv.Instr.String(), Validity: types.ToProto[admincoveragev1.TickerValidity](iv.Validity)}
 	if iv.From != nil {
 		from := ymd(*iv.From)
 		out.ValidFrom = &from

@@ -4,7 +4,7 @@ import {
   GroupHoldingSchema,
   HoldingKeySchema,
   HoldingListingSchema,
-  InstrumentHoldingSchema,
+  InstrHoldingSchema,
   ListHoldingsResponseSchema,
 } from "@/gen/holding/v1/holding_pb";
 import {
@@ -23,16 +23,16 @@ function described(broker: string, text: string) {
   return ident(IdentifierType.BROKER_DESCRIPTION, text, broker);
 }
 
-// instrument builds a holding named by the first of identifiers, as the
+// instr builds a holding named by the first of identifiers, as the
 // API names it, or unnamed where there is none.
-function instrument(
-  instrumentId: string,
+function instr(
+  instrId: string,
   assetClass: AssetClass,
   identifiers: ReturnType<typeof ident>[],
   quantity = "1",
 ) {
-  return create(InstrumentHoldingSchema, {
-    instrumentId,
+  return create(InstrHoldingSchema, {
+    instrId,
     assetClass,
     name: identifiers[0],
     identifiers,
@@ -55,21 +55,19 @@ function group(
 }
 
 function rows(
-  instruments: ReturnType<typeof instrument>[],
+  instrs: ReturnType<typeof instr>[],
   groups: ReturnType<typeof group>[] = [],
 ) {
-  return holdingRows(
-    create(ListHoldingsResponseSchema, { instruments, groups }),
-  );
+  return holdingRows(create(ListHoldingsResponseSchema, { instrs, groups }));
 }
 
 describe("holdingRows", () => {
   it("names a holding by the name the API gives it, whatever its class", () => {
-    const gbp = instrument("i-gbp", AssetClass.CASH, [
+    const gbp = instr("i-gbp", AssetClass.CASH, [
       ident(IdentifierType.CURRENCY, "GBP"),
       ident(IdentifierType.SEDOL, "0000000"),
     ]);
-    const option = instrument("i-opt", AssetClass.OPTION, [
+    const option = instr("i-opt", AssetClass.OPTION, [
       ident(IdentifierType.OCC, "ACME  260116C00150000"),
       ident(IdentifierType.ISIN, "US0378331005"),
     ]);
@@ -78,8 +76,8 @@ describe("holdingRows", () => {
   });
 
   it("prefers the held listing's ticker to the name, at its venue", () => {
-    const acme = create(InstrumentHoldingSchema, {
-      instrumentId: "i-acme",
+    const acme = create(InstrHoldingSchema, {
+      instrId: "i-acme",
       assetClass: AssetClass.OPTION,
       name: ident(IdentifierType.OCC, "ACME  260116C00150000"),
       quantity: "2",
@@ -99,7 +97,7 @@ describe("holdingRows", () => {
   });
 
   it("falls back to the instrument id without a name", () => {
-    const unnamed = instrument("i-unnamed", AssetClass.EQUITY, []);
+    const unnamed = instr("i-unnamed", AssetClass.EQUITY, []);
     expect(rows([unnamed])[0].label).toBe("i-unnamed");
   });
 
@@ -152,7 +150,7 @@ describe("holdingRows", () => {
   });
 
   it("shows the registry codes beside a resolved holding's name", () => {
-    const acme = instrument("i-acme", AssetClass.STOCK, [
+    const acme = instr("i-acme", AssetClass.STOCK, [
       create(IdentifierSchema, {
         type: IdentifierType.MIC_TICKER,
         domain: "XNAS",
@@ -173,7 +171,7 @@ describe("holdingRows", () => {
       }),
     ]);
     const row = rows([acme])[0];
-    expect(row.kind).toBe("instrument");
+    expect(row.kind).toBe("instr");
     expect(row.label).toBe("ACME");
     expect(row.identifiers.map((i) => i.value)).toEqual([
       "BBG001S5N8V8",
@@ -214,13 +212,13 @@ describe("holdingRows", () => {
   });
 
   it("opens a row other than cash that has a code or a description", () => {
-    const gbp = instrument("i-gbp", AssetClass.CASH, [
+    const gbp = instr("i-gbp", AssetClass.CASH, [
       ident(IdentifierType.CURRENCY, "GBP"),
     ]);
-    const coded = instrument("i-coded", AssetClass.SECURITY, [
+    const coded = instr("i-coded", AssetClass.SECURITY, [
       ident(IdentifierType.ISIN, "US0378331005"),
     ]);
-    const bare = instrument("i-bare", AssetClass.SECURITY, []);
+    const bare = instr("i-bare", AssetClass.SECURITY, []);
     const named = group("g-named", [], [described("ibkr", "ACME CORP")]);
     const opens = Object.fromEntries(
       rows([gbp, coded, bare], [named]).map((r) => [r.id, hasDetail(r)]),
@@ -234,10 +232,10 @@ describe("holdingRows", () => {
   });
 
   it("puts cash first and the rest by label, of either kind", () => {
-    const gbp = instrument("i-gbp", AssetClass.CASH, [
+    const gbp = instr("i-gbp", AssetClass.CASH, [
       ident(IdentifierType.CURRENCY, "GBP"),
     ]);
-    const vanguard = instrument("i-vusa", AssetClass.SECURITY, [
+    const vanguard = instr("i-vusa", AssetClass.SECURITY, [
       ident(IdentifierType.MIC_TICKER, "VUSA"),
     ]);
     const bae = group(

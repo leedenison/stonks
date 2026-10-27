@@ -95,7 +95,7 @@ func (s Source) outranks(o Source) bool {
 	return s.Precedence < o.Precedence
 }
 
-// Assertion is one assertion of a ticker. A nil Instrument asserts that the
+// Assertion is one assertion of a ticker. A nil Instr asserts that the
 // ticker names nothing.
 type Assertion struct {
 	At     time.Time

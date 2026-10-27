@@ -6,11 +6,11 @@ import { RunKind, RunSchema } from "@/gen/run/v1/run_pb";
 import {
   filterQuery,
   flattenRuns,
-  instrumentQuery,
+  instrQuery,
   openFindingsBelow,
   queryHref,
   readFilters,
-  readInstrumentList,
+  readInstrList,
   readTickerParam,
   runLabel,
   runTitle,
@@ -40,7 +40,7 @@ describe("admin", () => {
   });
 
   it("round trips the instruments address", () => {
-    const p = readInstrumentList(
+    const p = readInstrList(
       new URLSearchParams("id=i1&tab=tickers&ticker=XNAS:BRK.B"),
     );
     expect(p).toEqual({
@@ -51,8 +51,8 @@ describe("admin", () => {
       tab: "tickers",
       ticker: "XNAS:BRK.B",
     });
-    expect(instrumentQuery(p)).toBe(
-      "/admin/instruments?id=i1&tab=tickers&ticker=XNAS%3ABRK.B",
+    expect(instrQuery(p)).toBe(
+      "/admin/instrs?id=i1&tab=tickers&ticker=XNAS%3ABRK.B",
     );
     expect(readTickerParam(p.ticker)).toEqual({
       at: "XNAS",
