@@ -8,7 +8,7 @@ import {
 import { TxnMark } from "../gen/stmt/v1/stmt_pb";
 import { IdentifierType, ResolutionOutcome } from "../gen/type/v1/type_pb";
 import {
-  instrumentListedAs,
+  instrListedAs,
   adminRunClient,
   fetchItems,
   holdingClient,
@@ -85,8 +85,8 @@ test("dates a key through its ticker and marks each transaction by its day", asy
 
   // Holdings give each transaction the instrument META named on its day.
   const held = await holdingClient(session).listHoldings({});
-  expect(held.instruments).toHaveLength(1);
-  const [metaHolding] = held.instruments;
+  expect(held.instrs).toHaveLength(1);
+  const [metaHolding] = held.instrs;
   expect(metaHolding.name).toMatchObject(meta);
   expect(metaHolding.quantity).toBe("10");
   const usd = metaHolding.listings.find((l) => l.currency === "USD");
@@ -102,11 +102,11 @@ test("dates a key through its ticker and marks each transaction by its day", asy
 
   await page.goto("/holdings");
   const table = page.getByTestId("holdings-table");
-  const metaRow = table.getByTestId(`holding-row-${metaHolding.instrumentId}`);
-  await expect(metaRow).toHaveAttribute("data-kind", "instrument");
+  const metaRow = table.getByTestId(`holding-row-${metaHolding.instrId}`);
+  await expect(metaRow).toHaveAttribute("data-kind", "instr");
   await expect(metaRow).toContainText("META");
   await expect(
-    metaRow.getByTestId(`holding-venue-${metaHolding.instrumentId}`),
+    metaRow.getByTestId(`holding-venue-${metaHolding.instrId}`),
   ).toHaveText("Nasdaq");
   const groupRow = table.getByTestId(`holding-row-${metaGroup.groupId}`);
   await expect(groupRow).toHaveAttribute("data-kind", "group");
@@ -170,13 +170,13 @@ test("dates a key through its ticker and marks each transaction by its day", asy
     two.events[0].map((i) => [i.outcome, i.sent?.type, i.sent?.value]),
   ).toEqual([[FetchOutcome.SERVED, IdentifierType.MIC_TICKER, "META"]]);
 
-  const instrument = await instrumentListedAs(adminSession, {
+  const instr = await instrListedAs(adminSession, {
     type: IdentifierType.MIC_TICKER,
     domain: "XNAS",
     value: "META",
   });
   // EODHD's answer, attached through the ticker, wrote Meta's ISIN.
-  expect(instrument.identifiers).toContainEqual(
+  expect(instr.identifiers).toContainEqual(
     expect.objectContaining({
       type: IdentifierType.ISIN,
       value: "US30303M1027",

@@ -16,7 +16,7 @@ const entries: (Entry | Section)[] = [
   {
     section: "Data",
     children: [
-      { href: "/admin/instruments", label: "Instruments" },
+      { href: "/admin/instrs", label: "Instruments" },
       { href: "/admin/datasources", label: "Datasources" },
       { href: "/admin/blocks", label: "Blocks" },
     ],

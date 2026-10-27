@@ -433,7 +433,7 @@ function RunItems({ id, live }: { id: string; live: boolean }) {
               <Tr key={it.id} data-testid={`assertion-row-${it.id}`}>
                 <Td>{it.ticker && <MarketTickerChip ticker={it.ticker} />}</Td>
                 <Td className="font-mono tabular-nums">{it.assertedOn}</Td>
-                <Td className="font-mono">{it.instrumentId ?? "nothing"}</Td>
+                <Td className="font-mono">{it.instrId ?? "nothing"}</Td>
                 <Td>{it.source.value}</Td>
               </Tr>
             ))}

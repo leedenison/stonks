@@ -79,7 +79,7 @@ message AssertionItem {
   // The day the assertion holds, as YYYY-MM-DD.
   string asserted_on = 3;
   // The instrument the ticker names; unset where the ticker names nothing.
-  optional string instrument_id = 4;
+  optional string instr_id = 4;
   oneof source {
     // The datasource whose answer made the assertion.
     string datasource = 5;

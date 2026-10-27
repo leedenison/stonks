@@ -87,15 +87,15 @@ test("chooses an instrument for a bare ticker", async ({ signIn, page }) => {
   expect(after?.arbiter).toBe(Arbiter.USER);
   const holdings = await holdingClient(session).listHoldings({});
   expect(holdings.groups).toHaveLength(0);
-  const shares = holdings.instruments.find((h) =>
+  const shares = holdings.instrs.find((h) =>
     h.identifiers.some((i) => i.value === ticker),
   );
   expect(shares?.quantity).toBe("20");
   await page.getByTestId("nav-holdings").click();
   await expect(page).toHaveURL("/holdings");
   await expect(
-    page.getByTestId(`holding-row-${shares!.instrumentId}`),
-  ).toHaveAttribute("data-kind", "instrument");
+    page.getByTestId(`holding-row-${shares!.instrId}`),
+  ).toHaveAttribute("data-kind", "instr");
 
   // Two user-triggered resolutions ran, newest first: the choice, then the
   // listing. The listing read OpenFIGI from the cache, so its fetch made 0

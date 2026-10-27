@@ -95,9 +95,9 @@ func TestListHoldings(t *testing.T) {
 			Quantity:  decimal.RequireFromString("1209279"),
 		},
 	}
-	wantInstrs := []*holdingv1.InstrumentHolding{
+	wantInstrs := []*holdingv1.InstrHolding{
 		{
-			InstrumentId: gbpID.String(), AssetClass: typev1.AssetClass_ASSET_CLASS_CASH, Quantity: "12092.79",
+			InstrId: gbpID.String(), AssetClass: typev1.AssetClass_ASSET_CLASS_CASH, Quantity: "12092.79",
 			Identifiers: []*typev1.Identifier{{Type: typev1.IdentifierType_IDENTIFIER_TYPE_CURRENCY, Value: "GBP"}},
 			Listings:    []*holdingv1.HoldingListing{{Id: gbpListingID.String(), Currency: "GBP"}},
 			Keys: []*holdingv1.HoldingKey{{
@@ -106,7 +106,7 @@ func TestListHoldings(t *testing.T) {
 			}},
 		},
 		{
-			InstrumentId: acmeID.String(), AssetClass: typev1.AssetClass_ASSET_CLASS_SECURITY, Quantity: "-141",
+			InstrId: acmeID.String(), AssetClass: typev1.AssetClass_ASSET_CLASS_SECURITY, Quantity: "-141",
 			Name: &typev1.Identifier{Type: typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, Value: "GB0002634946"},
 			Identifiers: []*typev1.Identifier{
 				{Type: typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, Value: "GB0002634946"},
@@ -164,7 +164,7 @@ func TestListHoldings(t *testing.T) {
 		namesErr    error
 		keys        []gen.ListHoldingKeysRow
 		keysErr     error
-		want        []*holdingv1.InstrumentHolding
+		want        []*holdingv1.InstrHolding
 		wantGroups  []*holdingv1.GroupHolding
 		wantCode    connect.Code
 	}{
@@ -206,7 +206,7 @@ func TestListHoldings(t *testing.T) {
 			if err != nil {
 				return
 			}
-			want := &holdingv1.ListHoldingsResponse{Instruments: tc.want, Groups: tc.wantGroups}
+			want := &holdingv1.ListHoldingsResponse{Instrs: tc.want, Groups: tc.wantGroups}
 			if diff := cmp.Diff(want, res.Msg, protocmp.Transform()); diff != "" {
 				t.Errorf("ListHoldings() mismatch (-want +got):\n%s", diff)
 			}
@@ -263,11 +263,11 @@ func TestListHoldingsScale(t *testing.T) {
 			if err != nil {
 				t.Fatalf("ListHoldings() error = %v", err)
 			}
-			got := res.Msg.GetInstruments()
+			got := res.Msg.GetInstrs()
 			switch {
 			case tc.want == "" && len(got) != 0:
 				t.Errorf("instruments = %v, want none", got)
-			case tc.want != "" && (len(got) != 1 || got[0].GetInstrumentId() != tc.id.String() || got[0].GetQuantity() != tc.want):
+			case tc.want != "" && (len(got) != 1 || got[0].GetInstrId() != tc.id.String() || got[0].GetQuantity() != tc.want):
 				t.Errorf("instruments = %v, want %s of %s", got, tc.want, tc.id)
 			}
 		})

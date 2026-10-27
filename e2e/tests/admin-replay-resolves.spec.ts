@@ -68,7 +68,7 @@ test("replays a statement's unavailable key from the runs page and resolves it",
   expect(before.groups).toHaveLength(1);
   expect(before.groups[0].identifiers.map((i) => i.value)).toContain(isin);
   expect(before.groups[0].quantity).toBe("100");
-  expect(before.instruments).toHaveLength(1);
+  expect(before.instrs).toHaveLength(1);
 
   await page.goto(`/admin/runs?user=${user.id}`);
   await page.getByTestId(`run-link-${runId}`).click();
@@ -107,7 +107,7 @@ test("replays a statement's unavailable key from the runs page and resolves it",
   // The holding is now the instrument's, named by the identifier stated.
   const after = await holdingClient(userSession).listHoldings({});
   expect(after.groups).toHaveLength(0);
-  const holding = after.instruments.find((h) =>
+  const holding = after.instrs.find((h) =>
     h.identifiers.some((i) => i.value === isin),
   );
   expect(holding?.quantity).toBe("100");

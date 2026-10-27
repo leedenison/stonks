@@ -43,6 +43,6 @@ describe("AdminLayout", () => {
     ).toBe("/admin/blocks");
     expect(
       screen.getByRole("link", { name: "Instruments" }).getAttribute("href"),
-    ).toBe("/admin/instruments");
+    ).toBe("/admin/instrs");
   });
 });

@@ -5,7 +5,7 @@ import { FetchOutcome } from "../gen/admin/run/v1/run_pb";
 import { RunState } from "../gen/run/v1/run_pb";
 import { IdentifierType, ResolutionOutcome } from "../gen/type/v1/type_pb";
 import {
-  instrumentListedAs,
+  instrListedAs,
   adminRunClient,
   assertionItems,
   coverageClient,
@@ -41,11 +41,11 @@ test("extends the ticker validity of a held ticker on the day it runs", async ({
   const keys = (await stmts.getStmt({ runId })).keys;
   expect(keys.map((k) => k.outcome)).toEqual([ResolutionOutcome.MATCHED]);
 
-  const instrument = await instrumentListedAs(adminSession, pep);
+  const instr = await instrListedAs(adminSession, pep);
   // A past identifier attestation gives the run a bracket to extend.
   await coverageClient(adminSession).attestIdentifier({
     ticker: pepUS,
-    names: { case: "instrumentId", value: instrument.id },
+    names: { case: "instrId", value: instr.id },
     from: "2025-01-02",
   });
 
@@ -63,7 +63,7 @@ test("extends the ticker validity of a held ticker on the day it runs", async ({
   const to = utcDay(timestampDate(got.run!.finishedAt!));
 
   // Ticker validity runs from the attested day through the run day.
-  await page.goto(`/admin/instruments?q=PEP&id=${instrument.id}&tab=tickers`);
+  await page.goto(`/admin/instrs?q=PEP&id=${instr.id}&tab=tickers`);
   await expect(page.getByTestId("ticker-select")).toHaveValue("US:PEP");
   const confirmed = page.locator(
     '[data-lane="validity"] rect[data-validity="confirmed"] title',
@@ -88,7 +88,7 @@ test("extends the ticker validity of a held ticker on the day it runs", async ({
   );
   expect(present.length).toBeGreaterThan(0);
   for (const a of present) {
-    expect(a.instrumentId, a.source.value).toBe(instrument.id);
+    expect(a.instrId, a.source.value).toBe(instr.id);
   }
 
   // The statement's fetches filled the cache. Each served key of the run's

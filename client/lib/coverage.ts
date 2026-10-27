@@ -22,10 +22,10 @@ export function intervalAt(
   );
 }
 
-// instrumentName returns the identifier naming instrument id, or undefined
+// instrName returns the identifier naming instrument id, or undefined
 // when the ticker gives only the id.
-export function instrumentName(t: Ticker, id: string): Identifier | undefined {
-  return t.instruments.find((n) => n.id === id)?.name;
+export function instrName(t: Ticker, id: string): Identifier | undefined {
+  return t.instrs.find((n) => n.id === id)?.name;
 }
 
 // bounds returns the day range the timeline draws, or undefined when the

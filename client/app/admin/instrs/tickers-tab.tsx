@@ -15,23 +15,23 @@ import { Skeleton } from "@/app/components/skeleton";
 import { None, PaneTable, Td, Th } from "@/app/components/table";
 import {
   IdentifierEventAction,
-  type InstrumentTicker,
+  type InstrTicker,
   type Ticker,
 } from "@/gen/admin/coverage/v1/coverage_pb";
 import type { AssertionItem } from "@/gen/admin/run/v1/run_pb";
 import { MarketTickerSchema } from "@/gen/type/v1/type_pb";
 import {
   useCoverageTicker,
-  useInstrumentTickers,
+  useInstrTickers,
   useWithdrawIdentifierAttestation,
 } from "@/hooks/use-coverage";
 import {
-  type InstrumentParams,
-  instrumentQuery,
+  type InstrParams,
+  instrQuery,
   readTickerParam,
   tickerParam,
 } from "@/lib/admin";
-import { bounds, instrumentName, intervalAt } from "@/lib/coverage";
+import { bounds, instrName, intervalAt } from "@/lib/coverage";
 import { enumLabel } from "@/lib/enum";
 import { today } from "@/lib/marshal/date";
 import { refusal } from "@/lib/refusal";
@@ -42,15 +42,14 @@ import { Timeline } from "./timeline";
 // is held in the address, at the market or at a venue of it, and the first
 // listed ticker stands in while it is unset.
 export function TickersTab({
-  instrumentId,
+  instrId,
   params,
 }: {
-  instrumentId: string;
-  params: InstrumentParams;
+  instrId: string;
+  params: InstrParams;
 }) {
   const router = useRouter();
-  const { data, isPending, isError, refetch } =
-    useInstrumentTickers(instrumentId);
+  const { data, isPending, isError, refetch } = useInstrTickers(instrId);
   const listed = data?.tickers ?? [];
   const wanted = readTickerParam(params.ticker);
   const chosen =
@@ -60,7 +59,7 @@ export function TickersTab({
         (t.ticker?.market === wanted?.at ||
           t.venues.includes(wanted?.at ?? "")),
     ) ?? listed[0];
-  const param = (t: InstrumentTicker) =>
+  const param = (t: InstrTicker) =>
     tickerParam(t.ticker?.market ?? "", t.ticker?.value ?? "");
   return (
     <div data-testid="tickers-tab" className="flex flex-col gap-6">
@@ -84,7 +83,7 @@ export function TickersTab({
               value={param(chosen)}
               onChange={(e) =>
                 router.replace(
-                  instrumentQuery({ ...params, ticker: e.target.value }),
+                  instrQuery({ ...params, ticker: e.target.value }),
                 )
               }
             >
@@ -223,13 +222,13 @@ function WithdrawDialog({
   );
 }
 
-// Instrument shows the identifier that names an instrument, or the id when
+// Instr shows the identifier that names an instrument, or the id when
 // the ticker does not name it.
-function Instrument({ ticker, id }: { ticker: Ticker; id?: string }) {
+function Instr({ ticker, id }: { ticker: Ticker; id?: string }) {
   if (id === undefined) {
     return <span className="text-text-muted">nothing</span>;
   }
-  const name = instrumentName(ticker, id);
+  const name = instrName(ticker, id);
   return name ? (
     <IdentifierChip id={name} />
   ) : (
@@ -281,11 +280,10 @@ function Facts({
                     {g.unconfirmedBefore}
                   </Td>
                   <Td dense>
-                    <Instrument
+                    <Instr
                       ticker={ticker}
                       id={
-                        intervalAt(ticker.intervals, g.unconfirmedFrom)
-                          ?.instrumentId
+                        intervalAt(ticker.intervals, g.unconfirmedFrom)?.instrId
                       }
                     />
                   </Td>
@@ -336,7 +334,7 @@ function Facts({
                     {a.assertedOn}
                   </Td>
                   <Td dense>
-                    <Instrument ticker={ticker} id={a.instrumentId} />
+                    <Instr ticker={ticker} id={a.instrId} />
                   </Td>
                   <Td dense>
                     <Chip

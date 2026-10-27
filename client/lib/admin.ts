@@ -100,8 +100,8 @@ export function listQuery(path: string, p: ListParams): string {
   return queryHref(path, { cleared: p.cleared ? "1" : "", before: p.before });
 }
 
-// InstrumentParams is the instruments page's address.
-export type InstrumentParams = {
+// InstrParams is the instruments page's address.
+export type InstrParams = {
   // The token of the page, as the API returned it; empty for the first page.
   after: string;
   // The selected instrument; empty for none.
@@ -117,7 +117,7 @@ export type InstrumentParams = {
   ticker: string;
 };
 
-export function readInstrumentList(params: URLSearchParams): InstrumentParams {
+export function readInstrList(params: URLSearchParams): InstrParams {
   return {
     after: params.get("after") ?? "",
     id: params.get("id") ?? "",
@@ -146,9 +146,9 @@ export function readTickerParam(
   return { at: s.slice(0, i), value: s.slice(i + 1) };
 }
 
-// instrumentQuery is the address of the instruments page with p applied.
-export function instrumentQuery(p: InstrumentParams): string {
-  return queryHref("/admin/instruments", p);
+// instrQuery is the address of the instruments page with p applied.
+export function instrQuery(p: InstrParams): string {
+  return queryHref("/admin/instrs", p);
 }
 
 // flattenRuns lists every run of the trees, each parent before its children.

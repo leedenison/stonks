@@ -4,13 +4,9 @@ import { Chip } from "@/app/components/chip";
 import { identifierLabel } from "@/app/components/identifier-chip";
 import { Section } from "@/app/components/section";
 import { None, PaneTable, Td, Th } from "@/app/components/table";
-import type { Instrument } from "@/gen/admin/instrument/v1/instrument_pb";
+import type { Instr } from "@/gen/admin/instr/v1/instr_pb";
 import { type Identifier, IdentifierType } from "@/gen/type/v1/type_pb";
-import {
-  type InstrumentParams,
-  instrumentQuery,
-  tickerParam,
-} from "@/lib/admin";
+import { type InstrParams, instrQuery, tickerParam } from "@/lib/admin";
 import { assetClassLabel } from "@/lib/asset-class";
 import { groupIdentifiers, identifierKey } from "@/lib/identifiers";
 import { TickersTab } from "./tickers-tab";
@@ -22,30 +18,28 @@ const tabs = [
   { key: "tickers", label: "Tickers", testId: "tickers" },
 ] as const;
 
-// InstrumentPane shows one instrument under two tabs held in the address:
+// InstrPane shows one instrument under two tabs held in the address:
 // the overview, with its identifiers and listings in sections, and its
 // tickers, with the ticker validity of each.
-export function InstrumentPane({
-  instrument,
+export function InstrPane({
+  instr,
   params,
 }: {
-  instrument: Instrument;
-  params: InstrumentParams;
+  instr: Instr;
+  params: InstrParams;
 }) {
   const tab = params.tab === "tickers" ? "tickers" : "";
   return (
     <div
-      data-testid="instrument-pane"
+      data-testid="instr-pane"
       className="flex min-w-0 flex-1 flex-col gap-6 rounded-md border border-border bg-surface px-5 py-4 shadow-xs"
     >
       <div className="flex flex-wrap items-baseline gap-3">
         <h2 className="text-xl font-semibold tracking-tight">
-          {instrument.name?.value || instrument.id}
+          {instr.name?.value || instr.id}
         </h2>
-        <Chip>{assetClassLabel(instrument.assetClass)}</Chip>
-        <span className="font-mono text-xs text-text-muted">
-          {instrument.id}
-        </span>
+        <Chip>{assetClassLabel(instr.assetClass)}</Chip>
+        <span className="font-mono text-xs text-text-muted">{instr.id}</span>
       </div>
       <nav role="tablist" className="flex gap-6 border-b border-border text-sm">
         {tabs.map((t) => {
@@ -55,8 +49,8 @@ export function InstrumentPane({
               key={t.key}
               role="tab"
               aria-selected={active}
-              data-testid={`instrument-tab-${t.testId}`}
-              href={instrumentQuery({ ...params, tab: t.key, ticker: "" })}
+              data-testid={`instr-tab-${t.testId}`}
+              href={instrQuery({ ...params, tab: t.key, ticker: "" })}
               className={`-mb-px border-b-2 pb-2 transition-colors ${
                 active
                   ? "border-accent font-semibold text-primary-dark dark:text-primary"
@@ -69,9 +63,9 @@ export function InstrumentPane({
         })}
       </nav>
       {tab === "tickers" ? (
-        <TickersTab instrumentId={instrument.id} params={params} />
+        <TickersTab instrId={instr.id} params={params} />
       ) : (
-        <Overview instrument={instrument} params={params} />
+        <Overview instr={instr} params={params} />
       )}
     </div>
   );
@@ -81,40 +75,30 @@ export function InstrumentPane({
 // identifier naming the instrument and each listing's primary venue are
 // marked in the accent tone. A ticker's venue chip opens the tickers tab on
 // that ticker.
-function Overview({
-  instrument,
-  params,
-}: {
-  instrument: Instrument;
-  params: InstrumentParams;
-}) {
+function Overview({ instr, params }: { instr: Instr; params: InstrParams }) {
   const marks: Marks = {
-    via: new Set(instrument.via.map(identifierKey)),
-    name: new Set(instrument.name ? [identifierKey(instrument.name)] : []),
+    via: new Set(instr.via.map(identifierKey)),
+    name: new Set(instr.name ? [identifierKey(instr.name)] : []),
   };
   return (
     <>
       <Section title="Identifiers">
-        {instrument.identifiers.length === 0 ? (
+        {instr.identifiers.length === 0 ? (
           <None />
         ) : (
-          <IdentifierTable valueHead="Value" testId="instrument-identifiers">
+          <IdentifierTable valueHead="Value" testId="instr-identifiers">
             <tbody>
-              <Rows
-                ids={instrument.identifiers}
-                marks={marks}
-                params={params}
-              />
+              <Rows ids={instr.identifiers} marks={marks} params={params} />
             </tbody>
           </IdentifierTable>
         )}
       </Section>
       <Section title="Listings">
-        {instrument.listings.length === 0 ? (
+        {instr.listings.length === 0 ? (
           <None />
         ) : (
           <IdentifierTable valueHead="Symbol">
-            {instrument.listings.map((l) => (
+            {instr.listings.map((l) => (
               <tbody key={l.id} data-testid={`listing-${l.id}`}>
                 <tr>
                   <td colSpan={3} className="bg-surface-tint px-3 py-2">
@@ -186,7 +170,7 @@ function Rows({
 }: {
   ids: Identifier[];
   marks: Marks;
-  params: InstrumentParams;
+  params: InstrParams;
   // The domain to mark as the primary venue; empty for none.
   primary?: string;
 }) {
@@ -244,7 +228,7 @@ function Rows({
             return r.type === IdentifierType.MIC_TICKER ? (
               <Link
                 key={d}
-                href={instrumentQuery({
+                href={instrQuery({
                   ...params,
                   tab: "tickers",
                   ticker: tickerParam(d, r.value),

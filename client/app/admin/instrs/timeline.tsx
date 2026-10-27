@@ -109,14 +109,12 @@ export function Timeline({ ticker }: { ticker: Ticker }) {
             cy={laneHeight / 2}
             r={5}
             data-attested={attested ? "true" : undefined}
-            data-negative={a.instrumentId === undefined ? "true" : undefined}
+            data-negative={a.instrId === undefined ? "true" : undefined}
             className={
-              a.instrumentId === undefined
-                ? `fill-surface ${ring} stroke-2`
-                : fill
+              a.instrId === undefined ? `fill-surface ${ring} stroke-2` : fill
             }
           >
-            <title>{`${a.source.value ?? ""} asserted ${a.instrumentId ?? "nothing"} on ${a.assertedOn}`}</title>
+            <title>{`${a.source.value ?? ""} asserted ${a.instrId ?? "nothing"} on ${a.assertedOn}`}</title>
           </circle>
         );
       }),

@@ -2,7 +2,7 @@ import type {
   GroupHolding,
   HoldingKey,
   HoldingListing,
-  InstrumentHolding,
+  InstrHolding,
   ListHoldingsResponse,
 } from "@/gen/holding/v1/holding_pb";
 import {
@@ -40,7 +40,7 @@ export type HoldingRow = {
   quantity: string;
   // The holding's registry codes.
   identifiers: Identifier[];
-  kind: "instrument" | "group";
+  kind: "instr" | "group";
 };
 
 // descriptionsOf returns the distinct descriptions the brokers gave the
@@ -62,7 +62,7 @@ function descriptionsOf(keys: HoldingKey[]): string[] {
 
 // heldListing returns the listing that names the holding: the one the keys
 // hold most of by absolute quantity, else the first listing.
-function heldListing(h: InstrumentHolding): HoldingListing | undefined {
+function heldListing(h: InstrHolding): HoldingListing | undefined {
   const weight = new Map<string, number>();
   for (const k of h.keys) {
     if (k.listingId !== "") {
@@ -84,9 +84,9 @@ function heldListing(h: InstrumentHolding): HoldingListing | undefined {
   return best ?? h.listings[0];
 }
 
-// instrumentRow names a holding by the ticker of the listing the user holds,
+// instrRow names a holding by the ticker of the listing the user holds,
 // at its venue, falling back to the name the API gives the instrument.
-function instrumentRow(h: InstrumentHolding): HoldingRow {
+function instrRow(h: InstrHolding): HoldingRow {
   const held = heldListing(h);
   const named = new Set(h.keys.map((k) => k.listingId).filter((id) => id));
   const currencies = h.listings
@@ -94,9 +94,9 @@ function instrumentRow(h: InstrumentHolding): HoldingRow {
     .map((l) => l.currency);
   const ticker = held?.ticker;
   return {
-    kind: "instrument",
-    id: h.instrumentId,
-    label: ticker?.value ?? h.name?.value ?? h.instrumentId,
+    kind: "instr",
+    id: h.instrId,
+    label: ticker?.value ?? h.name?.value ?? h.instrId,
     venue: ticker ? (held?.venue ?? "") : "",
     descriptions: descriptionsOf(h.keys),
     currencies,
@@ -149,7 +149,7 @@ export function holdingRows(
   res: ListHoldingsResponse | undefined,
 ): HoldingRow[] {
   const rows: HoldingRow[] = [
-    ...(res?.instruments ?? []).map(instrumentRow),
+    ...(res?.instrs ?? []).map(instrRow),
     ...(res?.groups ?? []).map(groupRow),
   ];
   const rank = (r: HoldingRow) => (isCash(r) ? 0 : 1);

@@ -19,7 +19,7 @@ import (
 	"github.com/leedenison/stonks/proto/admin/block/v1/adminblockv1connect"
 	"github.com/leedenison/stonks/proto/admin/coverage/v1/admincoveragev1connect"
 	"github.com/leedenison/stonks/proto/admin/datasource/v1/admindatasourcev1connect"
-	"github.com/leedenison/stonks/proto/admin/instrument/v1/admininstrumentv1connect"
+	"github.com/leedenison/stonks/proto/admin/instr/v1/admininstrv1connect"
 	"github.com/leedenison/stonks/proto/admin/reassert_tickers/v1/adminreasserttickersv1connect"
 	"github.com/leedenison/stonks/proto/admin/refresh_corp_acts/v1/adminrefreshcorpactsv1connect"
 	"github.com/leedenison/stonks/proto/admin/replay_run/v1/adminreplayrunv1connect"
@@ -56,7 +56,7 @@ import (
 	adminblock "github.com/leedenison/stonks/server/internal/service/admin/block"
 	admincoverage "github.com/leedenison/stonks/server/internal/service/admin/coverage"
 	admindatasource "github.com/leedenison/stonks/server/internal/service/admin/datasource"
-	admininstr "github.com/leedenison/stonks/server/internal/service/admin/instrument"
+	admininstr "github.com/leedenison/stonks/server/internal/service/admin/instr"
 	adminreasserttickers "github.com/leedenison/stonks/server/internal/service/admin/reasserttickers"
 	adminrefreshcorpacts "github.com/leedenison/stonks/server/internal/service/admin/refreshcorpacts"
 	adminreplayrun "github.com/leedenison/stonks/server/internal/service/admin/replayrun"
@@ -230,7 +230,7 @@ func newServer(addr string, log *slog.Logger, authn *auth.Authenticator, queries
 	mux.Handle(adminblockv1connect.NewBlockServiceHandler(blocks, opts...))
 	mux.Handle(admincoveragev1connect.NewCoverageServiceHandler(coverages, opts...))
 	mux.Handle(admindatasourcev1connect.NewDatasourceServiceHandler(datasources, opts...))
-	mux.Handle(admininstrumentv1connect.NewInstrumentServiceHandler(instrs, opts...))
+	mux.Handle(admininstrv1connect.NewInstrServiceHandler(instrs, opts...))
 	mux.Handle(adminreasserttickersv1connect.NewReassertTickersServiceHandler(reassertions, opts...))
 	mux.Handle(adminrefreshcorpactsv1connect.NewRefreshCorpActsServiceHandler(refreshes, opts...))
 	mux.Handle(adminreplayrunv1connect.NewReplayRunServiceHandler(replays, opts...))
@@ -240,7 +240,7 @@ func newServer(addr string, log *slog.Logger, authn *auth.Authenticator, queries
 	mux.Handle(runv1connect.NewRunServiceHandler(runsvc.New(queries), opts...))
 	mux.Handle(stmtv1connect.NewStmtServiceHandler(stmtsvc.New(stmts, stmts, queries, mics), opts...))
 	reflector := grpcreflect.NewStaticReflector(
-		adminblockv1connect.BlockServiceName, admincoveragev1connect.CoverageServiceName, admindatasourcev1connect.DatasourceServiceName, admininstrumentv1connect.InstrumentServiceName, adminreasserttickersv1connect.ReassertTickersServiceName, adminrefreshcorpactsv1connect.RefreshCorpActsServiceName, adminreplayrunv1connect.ReplayRunServiceName, adminrunv1connect.RunServiceName, authv1connect.AuthServiceName, holdingv1connect.HoldingServiceName,
+		adminblockv1connect.BlockServiceName, admincoveragev1connect.CoverageServiceName, admindatasourcev1connect.DatasourceServiceName, admininstrv1connect.InstrServiceName, adminreasserttickersv1connect.ReassertTickersServiceName, adminrefreshcorpactsv1connect.RefreshCorpActsServiceName, adminreplayrunv1connect.ReplayRunServiceName, adminrunv1connect.RunServiceName, authv1connect.AuthServiceName, holdingv1connect.HoldingServiceName,
 		runv1connect.RunServiceName, stmtv1connect.StmtServiceName,
 	)
 	mux.Handle(grpcreflect.NewHandlerV1(reflector, opts...))

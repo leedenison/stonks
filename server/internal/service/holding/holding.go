@@ -86,7 +86,7 @@ func (s *Server) ListHoldings(ctx context.Context, _ *connect.Request[holdingv1.
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	res := &holdingv1.ListHoldingsResponse{}
-	if res.Instruments, err = s.instrs(ctx, keys, d); err != nil {
+	if res.Instrs, err = s.instrs(ctx, keys, d); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	if res.Groups, err = s.groups(keys, d); err != nil {
@@ -100,7 +100,7 @@ func (s *Server) ListHoldings(ctx context.Context, _ *connect.Request[holdingv1.
 // its sum to its instrument. Cash is summed in its family's unit, so pence
 // count as hundredths of a pound. A security's quantity stays in shares
 // whatever its currency.
-func (s *Server) instrs(ctx context.Context, keys []gen.ListHoldingKeysRow, d dated) ([]*holdingv1.InstrumentHolding, error) {
+func (s *Server) instrs(ctx context.Context, keys []gen.ListHoldingKeysRow, d dated) ([]*holdingv1.InstrHolding, error) {
 	named := map[uuid.UUID]decimal.Decimal{}
 	for _, k := range keys {
 		if id := k.StatedKey.InstrID; id != nil {
@@ -182,14 +182,14 @@ func (s *Server) instrs(ctx context.Context, keys []gen.ListHoldingKeysRow, d da
 			keysOf[id] = append(keysOf[id], hk)
 		}
 	}
-	out := make([]*holdingv1.InstrumentHolding, 0, len(ids))
+	out := make([]*holdingv1.InstrHolding, 0, len(ids))
 	for _, id := range ids {
-		h := &holdingv1.InstrumentHolding{
-			InstrumentId: id.String(),
-			AssetClass:   types.ToProto[typev1.AssetClass](classOf[id]),
-			Name:         nameOf[id],
-			Quantity:     total[id].String(),
-			Keys:         keysOf[id],
+		h := &holdingv1.InstrHolding{
+			InstrId:    id.String(),
+			AssetClass: types.ToProto[typev1.AssetClass](classOf[id]),
+			Name:       nameOf[id],
+			Quantity:   total[id].String(),
+			Keys:       keysOf[id],
 		}
 		for _, i := range identified[id] {
 			h.Identifiers = append(h.Identifiers, to.Identifier(i).ToProto())

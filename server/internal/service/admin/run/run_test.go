@@ -420,7 +420,7 @@ func TestListRunItems(t *testing.T) {
 			want: &adminrunv1.ListRunItemsResponse{Items: []*adminrunv1.RunItem{{Item: &adminrunv1.RunItem_Assertion{Assertion: &adminrunv1.AssertionItem{
 				Id:         keyID.String(),
 				Ticker:     &typev1.MarketTicker{Market: "XLON", Value: "SHEL"},
-				AssertedOn: created.Format(time.DateOnly), InstrumentId: ptr.To(childID.String()),
+				AssertedOn: created.Format(time.DateOnly), InstrId: ptr.To(childID.String()),
 				Source: &adminrunv1.AssertionItem_Datasource{Datasource: "eodhd"},
 			}}}}, NextPageToken: keyID.String()},
 		},

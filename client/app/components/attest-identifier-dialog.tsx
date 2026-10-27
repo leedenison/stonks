@@ -11,10 +11,10 @@ import { Input, Select } from "@/app/components/input";
 import { Notice } from "@/app/components/notice";
 import { Skeleton } from "@/app/components/skeleton";
 import type { Identifier, MarketTicker } from "@/gen/type/v1/type_pb";
-import { useAdminInstruments } from "@/hooks/use-admin-instruments";
+import { useAdminInstrs } from "@/hooks/use-admin-instrs";
 import { useAttestIdentifier, useCoverageTicker } from "@/hooks/use-coverage";
 import { useDebounced } from "@/hooks/use-debounced";
-import { instrumentName, intervalAt } from "@/lib/coverage";
+import { instrName, intervalAt } from "@/lib/coverage";
 import { refusal } from "@/lib/refusal";
 
 // The search box waits this long after the last keystroke before it asks
@@ -41,28 +41,28 @@ export function AttestIdentifierDialog({
   const attest = useAttestIdentifier();
   const [day, setDay] = useState(from);
   const [to, setTo] = useState("");
-  const [namesChoice, setNamesChoice] = useState<
-    "instrument" | "nothing" | null
-  >(null);
+  const [namesChoice, setNamesChoice] = useState<"instr" | "nothing" | null>(
+    null,
+  );
   const [chosen, setChosen] = useState<{
     id: string;
     name?: Identifier;
   } | null>(null);
   const [search, setSearch] = useState("");
   const query = useDebounced(search, searchDelay);
-  const found = useAdminInstruments({ after: "", q: query, class: "" });
+  const found = useAdminInstrs({ after: "", q: query, class: "" });
 
   // Until the administrator chooses, the dialog follows the ticker's
   // validity on the first day: the instrument it names, or nothing.
   const held = read.data?.ticker
     ? intervalAt(read.data.ticker.intervals, from)
     : undefined;
-  const names = namesChoice ?? (read.data && !held ? "nothing" : "instrument");
-  const instrument = chosen?.id ?? held?.instrumentId ?? "";
+  const names = namesChoice ?? (read.data && !held ? "nothing" : "instr");
+  const instr = chosen?.id ?? held?.instrId ?? "";
   const picked = chosen
     ? chosen.name
     : read.data?.ticker && held
-      ? instrumentName(read.data.ticker, held.instrumentId)
+      ? instrName(read.data.ticker, held.instrId)
       : undefined;
 
   const submit = () =>
@@ -72,16 +72,14 @@ export function AttestIdentifierDialog({
         names:
           names === "nothing"
             ? { case: "nothing", value: true }
-            : { case: "instrumentId", value: instrument },
+            : { case: "instrId", value: instr },
         from: day,
         to: to || undefined,
       },
       { onSuccess: onDone },
     );
   const ready =
-    day !== "" &&
-    (names === "nothing" || instrument !== "") &&
-    !attest.isPending;
+    day !== "" && (names === "nothing" || instr !== "") && !attest.isPending;
 
   return (
     <Dialog
@@ -135,8 +133,8 @@ export function AttestIdentifierDialog({
             type="radio"
             name="names"
             data-testid="attest-names"
-            checked={names === "instrument"}
-            onChange={() => setNamesChoice("instrument")}
+            checked={names === "instr"}
+            onChange={() => setNamesChoice("instr")}
           />
           an instrument
         </label>
@@ -151,10 +149,10 @@ export function AttestIdentifierDialog({
           nothing
         </label>
       </fieldset>
-      {names === "instrument" && (
+      {names === "instr" && (
         <div className="flex flex-col gap-2 text-sm">
           {read.isPending && <Skeleton lines={1} />}
-          {picked && instrument !== "" && (
+          {picked && instr !== "" && (
             <div className="flex items-center gap-2">
               <span className="text-text-muted">Instrument</span>
               <IdentifierChip id={picked} />
@@ -162,7 +160,7 @@ export function AttestIdentifierDialog({
           )}
           <Input
             type="search"
-            data-testid="attest-instrument-search"
+            data-testid="attest-instr-search"
             placeholder="Search instruments"
             aria-label="Search instruments"
             value={search}
@@ -170,19 +168,18 @@ export function AttestIdentifierDialog({
           />
           {query !== "" && (
             <Select
-              data-testid="attest-instrument"
+              data-testid="attest-instr"
               size={5}
-              value={instrument}
+              value={instr}
               onChange={(e) =>
                 setChosen({
                   id: e.target.value,
-                  name: found.data?.instruments.find(
-                    (i) => i.id === e.target.value,
-                  )?.name,
+                  name: found.data?.instrs.find((i) => i.id === e.target.value)
+                    ?.name,
                 })
               }
             >
-              {found.data?.instruments.map((i) => (
+              {found.data?.instrs.map((i) => (
                 <option key={i.id} value={i.id}>
                   {i.name
                     ? `${i.name.value}${i.name.domain ? ` (${i.name.domain})` : ""}`

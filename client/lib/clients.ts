@@ -2,7 +2,7 @@ import { createClient, type Transport } from "@connectrpc/connect";
 import { BlockService } from "@/gen/admin/block/v1/block_pb";
 import { CoverageService } from "@/gen/admin/coverage/v1/coverage_pb";
 import { DatasourceService } from "@/gen/admin/datasource/v1/datasource_pb";
-import { InstrumentService as AdminInstrumentService } from "@/gen/admin/instrument/v1/instrument_pb";
+import { InstrService as AdminInstrService } from "@/gen/admin/instr/v1/instr_pb";
 import { ReassertTickersService } from "@/gen/admin/reassert_tickers/v1/reassert_tickers_pb";
 import { RefreshCorpActsService } from "@/gen/admin/refresh_corp_acts/v1/refresh_corp_acts_pb";
 import { ReplayRunService } from "@/gen/admin/replay_run/v1/replay_run_pb";
@@ -15,7 +15,7 @@ import { StmtService } from "@/gen/stmt/v1/stmt_pb";
 // newClients returns one typed client per service over transport.
 export function newClients(transport: Transport) {
   return {
-    adminInstrument: createClient(AdminInstrumentService, transport),
+    adminInstr: createClient(AdminInstrService, transport),
     adminRun: createClient(AdminRunService, transport),
     auth: createClient(AuthService, transport),
     block: createClient(BlockService, transport),

@@ -2,12 +2,12 @@
 
 syntax = "proto3";
 
-package stonks.admin.instrument.v1;
+package stonks.admin.instr.v1;
 
 import "buf/validate/validate.proto";
 import "type/v1/type.proto";
 
-option go_package = "github.com/leedenison/stonks/proto/admin/instrument/v1;admininstrumentv1";
+option go_package = "github.com/leedenison/stonks/proto/admin/instr/v1;admininstrv1";
 
 // One trading currency of an instrument.
 message Listing {
@@ -24,7 +24,7 @@ message Listing {
   string primary_mic = 4;
 }
 
-message Instrument {
+message Instr {
   // Identifies the instrument in every API; a UUID.
   string id = 1;
   // The identifier that names the instrument, chosen by the rank of its
@@ -43,7 +43,7 @@ message Instrument {
   repeated stonks.type.v1.Identifier via = 6;
 }
 
-message ListInstrumentsRequest {
+message ListInstrsRequest {
   // At most this many instruments; 0 means 50.
   int32 page_size = 1 [(buf.validate.field).int32 = {
     gte: 0
@@ -62,14 +62,14 @@ message ListInstrumentsRequest {
   }];
 }
 
-message ListInstrumentsResponse {
+message ListInstrsResponse {
   // By name, then by id.
-  repeated Instrument instruments = 1;
+  repeated Instr instrs = 1;
   // Continues the listing; empty on the last page.
   string next_page_token = 2;
 }
 
-service InstrumentService {
+service InstrService {
   // Lists every instrument, each with its identifiers and listings.
-  rpc ListInstruments(ListInstrumentsRequest) returns (ListInstrumentsResponse);
+  rpc ListInstrs(ListInstrsRequest) returns (ListInstrsResponse);
 }

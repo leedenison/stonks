@@ -7,7 +7,7 @@ import {
   HoldingKeySchema,
   HoldingListingSchema,
   HoldingService,
-  InstrumentHoldingSchema,
+  InstrHoldingSchema,
   ListHoldingsResponseSchema,
 } from "@/gen/holding/v1/holding_pb";
 import {
@@ -39,9 +39,9 @@ function serving(
 }
 
 const three = create(ListHoldingsResponseSchema, {
-  instruments: [
-    create(InstrumentHoldingSchema, {
-      instrumentId: "i-vusa",
+  instrs: [
+    create(InstrHoldingSchema, {
+      instrId: "i-vusa",
       assetClass: AssetClass.SECURITY,
       name: create(IdentifierSchema, {
         type: IdentifierType.ISIN,
@@ -55,8 +55,8 @@ const three = create(ListHoldingsResponseSchema, {
       ],
       quantity: "-141",
     }),
-    create(InstrumentHoldingSchema, {
-      instrumentId: "i-acme",
+    create(InstrHoldingSchema, {
+      instrId: "i-acme",
       assetClass: AssetClass.STOCK,
       identifiers: [
         create(IdentifierSchema, {
@@ -103,8 +103,8 @@ const three = create(ListHoldingsResponseSchema, {
         }),
       ],
     }),
-    create(InstrumentHoldingSchema, {
-      instrumentId: "i-gbp",
+    create(InstrHoldingSchema, {
+      instrId: "i-gbp",
       assetClass: AssetClass.CASH,
       name: create(IdentifierSchema, {
         type: IdentifierType.CURRENCY,
@@ -229,7 +229,7 @@ describe("HoldingsPage", () => {
       expect(screen.getByTestId("holding-row-i-acme")).toBeTruthy(),
     );
     const acme = screen.getByTestId("holding-row-i-acme");
-    expect(acme.getAttribute("data-kind")).toBe("instrument");
+    expect(acme.getAttribute("data-kind")).toBe("instr");
     expect(acme.textContent).toContain("ACME");
     expect(screen.getByTestId("holding-venue-i-acme").textContent).toBe(
       "Nasdaq",
@@ -273,10 +273,10 @@ describe("HoldingsPage", () => {
 
   it("does not open a cash row, or a row with nothing to show", async () => {
     const bare = create(ListHoldingsResponseSchema, {
-      instruments: [
-        three.instruments[2],
-        create(InstrumentHoldingSchema, {
-          instrumentId: "i-bare",
+      instrs: [
+        three.instrs[2],
+        create(InstrHoldingSchema, {
+          instrId: "i-bare",
           assetClass: AssetClass.SECURITY,
           quantity: "1",
         }),

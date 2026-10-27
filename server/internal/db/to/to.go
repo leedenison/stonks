@@ -11,7 +11,7 @@ import (
 
 	adminblockv1 "github.com/leedenison/stonks/proto/admin/block/v1"
 	admincoveragev1 "github.com/leedenison/stonks/proto/admin/coverage/v1"
-	admininstrumentv1 "github.com/leedenison/stonks/proto/admin/instrument/v1"
+	admininstrv1 "github.com/leedenison/stonks/proto/admin/instr/v1"
 	adminrunv1 "github.com/leedenison/stonks/proto/admin/run/v1"
 	authv1 "github.com/leedenison/stonks/proto/auth/v1"
 	holdingv1 "github.com/leedenison/stonks/proto/holding/v1"
@@ -221,7 +221,7 @@ func ProtoAssertionItem(a gen.IdentifierAssertion, datasource, attestedBy *strin
 	}
 	if a.InstrID != nil {
 		id := a.InstrID.String()
-		out.InstrumentId = &id
+		out.InstrId = &id
 	}
 	switch {
 	case datasource != nil:
@@ -255,8 +255,8 @@ func ProtoIdentifierEvent(e gen.ListIdentifierEventsRow) *admincoveragev1.Identi
 
 // ProtoInstr writes an instrument with the identifier that names it,
 // and leaves its listings and identifiers to the caller.
-func ProtoInstr(r gen.ListInstrsRow) *admininstrumentv1.Instrument {
-	out := &admininstrumentv1.Instrument{Id: r.ID.String(), AssetClass: types.ToProto[typev1.AssetClass](r.AssetClass)}
+func ProtoInstr(r gen.ListInstrsRow) *admininstrv1.Instr {
+	out := &admininstrv1.Instr{Id: r.ID.String(), AssetClass: types.ToProto[typev1.AssetClass](r.AssetClass)}
 	if r.NameType != "" {
 		out.Name = types.Identifier{Type: types.IdentifierType(r.NameType), Domain: r.NameDomain, Value: r.Name}.ToProto()
 	}
@@ -264,8 +264,8 @@ func ProtoInstr(r gen.ListInstrsRow) *admininstrumentv1.Instrument {
 }
 
 // ProtoListing writes a listing, and leaves its identifiers to the caller.
-func ProtoListing(l gen.Listing) *admininstrumentv1.Listing {
-	out := &admininstrumentv1.Listing{Id: l.ID.String(), Currency: l.Currency}
+func ProtoListing(l gen.Listing) *admininstrv1.Listing {
+	out := &admininstrv1.Listing{Id: l.ID.String(), Currency: l.Currency}
 	if l.PrimaryMic != nil {
 		out.PrimaryMic = *l.PrimaryMic
 	}

@@ -2,7 +2,7 @@ import { create } from "@bufbuild/protobuf";
 import { renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import {
-  InstrumentHoldingSchema,
+  InstrHoldingSchema,
   HoldingService,
   ListHoldingsResponseSchema,
 } from "@/gen/holding/v1/holding_pb";
@@ -14,9 +14,9 @@ const transport = transportWith(liveSession(), ({ service }) => {
   service(HoldingService, {
     listHoldings: () =>
       create(ListHoldingsResponseSchema, {
-        instruments: [
-          create(InstrumentHoldingSchema, {
-            instrumentId: "i1",
+        instrs: [
+          create(InstrHoldingSchema, {
+            instrId: "i1",
             assetClass: AssetClass.CASH,
             quantity: "12092.79",
           }),
@@ -31,6 +31,6 @@ describe("useHoldings", () => {
       wrapper: authWrapper(transport),
     });
     await waitFor(() => expect(result.current.data).toBeTruthy());
-    expect(result.current.data?.instruments[0].quantity).toBe("12092.79");
+    expect(result.current.data?.instrs[0].quantity).toBe("12092.79");
   });
 });
