@@ -9,7 +9,7 @@ import (
 
 	"github.com/shopspring/decimal"
 
-	statementv1 "github.com/leedenison/stonks/proto/statement/v1"
+	stmtv1 "github.com/leedenison/stonks/proto/stmt/v1"
 	typev1 "github.com/leedenison/stonks/proto/type/v1"
 	"github.com/leedenison/stonks/server/internal/currency"
 	"github.com/leedenison/stonks/server/internal/db/gen"
@@ -23,7 +23,7 @@ func parseDate(s string) (time.Time, error) {
 
 // validate reads r into a row. A row that fails a check carries the first
 // failing check as its reason; any other row carries its interned key.
-func (g *ingestion) validate(ordinal int32, r *statementv1.Row, today time.Time, families currency.Families) row {
+func (g *ingestion) validate(ordinal int32, r *stmtv1.Row, today time.Time, families currency.Families) row {
 	out := row{ordinal: ordinal, stated: r}
 	reject := func(format string, args ...any) row {
 		out.reason = fmt.Sprintf(format, args...)
@@ -57,7 +57,7 @@ func (g *ingestion) validate(ordinal int32, r *statementv1.Row, today time.Time,
 }
 
 // split reads sp, whose key must pass the checks a row's does.
-func (g *ingestion) split(ordinal int32, sp *statementv1.StatedSplit, families currency.Families) (split, error) {
+func (g *ingestion) split(ordinal int32, sp *stmtv1.StatedSplit, families currency.Families) (split, error) {
 	out := split{ordinal: ordinal}
 	k, err := g.keyFor(sp.GetKey(), families)
 	if err != nil {

@@ -160,7 +160,7 @@ describe("HoldingsPage", () => {
       serving(() => create(ListHoldingsResponseSchema, {})),
     );
     await waitFor(() => expect(screen.getByTestId("empty-state")).toBeTruthy());
-    expect(screen.getByTestId("upload-statement-empty")).toBeTruthy();
+    expect(screen.getByTestId("upload-stmt-empty")).toBeTruthy();
     expect(screen.queryByTestId("holdings-table")).toBeNull();
   });
 

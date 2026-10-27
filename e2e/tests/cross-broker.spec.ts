@@ -3,9 +3,9 @@ import { IdentifierType, ResolutionOutcome } from "../gen/type/v1/type_pb";
 import {
   adminInstrumentClient,
   holdingClient,
-  statementClient,
+  stmtClient,
 } from "../helpers/api";
-import { uploadStatement } from "../helpers/upload";
+import { uploadStmt } from "../helpers/upload";
 import { expect, test } from "../helpers/test";
 
 // One line at each of two brokers, derived from the client's IBKR and Schwab
@@ -32,7 +32,7 @@ test("shows a resolved holding and an unresolved one from two brokers", async ({
   const runs: string[] = [];
   for (const [n, fixture] of [ibkr, schwab].entries()) {
     runs.push(
-      await uploadStatement(page, fixture, {
+      await uploadStmt(page, fixture, {
         state: "completed",
         earlier: n,
         rows: "3 rows",
@@ -77,14 +77,14 @@ test("shows a resolved holding and an unresolved one from two brokers", async ({
   ]);
 
   // What became of each key.
-  const statements = statementClient(session);
-  const ibkrKeys = (await statements.getStatement({ runId: ibkrRun })).keys;
+  const stmts = stmtClient(session);
+  const ibkrKeys = (await stmts.getStmt({ runId: ibkrRun })).keys;
   expect(ibkrKeys).toHaveLength(2);
   expect(ibkrKeys.map((k) => k.outcome)).toEqual([
     ResolutionOutcome.MATCHED,
     ResolutionOutcome.MATCHED,
   ]);
-  const schwabKeys = (await statements.getStatement({ runId: schwabRun })).keys;
+  const schwabKeys = (await stmts.getStmt({ runId: schwabRun })).keys;
   expect(schwabKeys).toHaveLength(2);
   const tickerKey = schwabKeys.find((k) =>
     k.statedKey?.identifiers.some((i) => i.value === ticker),
@@ -125,7 +125,7 @@ test("shows a resolved holding and an unresolved one from two brokers", async ({
     page.getByTestId(`holding-qty-${cash!.instrumentId}`),
   ).toHaveText("-8002.00");
 
-  await page.goto(`/statements/${schwabRun}`);
+  await page.goto(`/stmts/${schwabRun}`);
   await expect(
     page
       .getByTestId(`key-row-${tickerKey!.statedKeyId}`)

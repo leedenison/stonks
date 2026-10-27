@@ -5,7 +5,7 @@ import {
   IdentifierType,
   ResolutionOutcome,
 } from "../gen/type/v1/type_pb";
-import { holdingClient, runClient, statementClient } from "../helpers/api";
+import { holdingClient, runClient, stmtClient } from "../helpers/api";
 import { expect, test } from "../helpers/test";
 
 // Two statements of one user at different brokers, sent at once, each with
@@ -19,7 +19,7 @@ const cash = {
   identifiers: [{ type: IdentifierType.CURRENCY, value: "USD" }],
 };
 
-function statement(broker: Broker, quantity: string) {
+function stmt(broker: Broker, quantity: string) {
   return {
     broker,
     orderFrom: "2026-03-01",
@@ -38,11 +38,11 @@ function statement(broker: Broker, quantity: string) {
 
 test("two statements sent at once share one cash key", async ({ seed }) => {
   const { session } = await seed();
-  const statements = statementClient(session);
+  const stmts = stmtClient(session);
   const runs = runClient(session);
   const started = await Promise.all([
-    statements.createStatement({ statement: statement(Broker.IBKR, "100") }),
-    statements.createStatement({ statement: statement(Broker.SCHWAB, "250") }),
+    stmts.createStmt({ stmt: stmt(Broker.IBKR, "100") }),
+    stmts.createStmt({ stmt: stmt(Broker.SCHWAB, "250") }),
   ]);
   const ids = started.map((r) => r.run!.id);
   for (const runId of ids) {
@@ -52,7 +52,7 @@ test("two statements sent at once share one cash key", async ({ seed }) => {
   }
 
   const keys = await Promise.all(
-    ids.map(async (runId) => (await statements.getStatement({ runId })).keys),
+    ids.map(async (runId) => (await stmts.getStmt({ runId })).keys),
   );
   for (const k of keys) {
     expect(k).toHaveLength(1);

@@ -42,7 +42,7 @@ export default function HoldingsPage() {
           message="No holdings yet."
           action={
             <Button
-              data-testid="upload-statement-empty"
+              data-testid="upload-stmt-empty"
               onClick={() => upload.open()}
             >
               Upload statement

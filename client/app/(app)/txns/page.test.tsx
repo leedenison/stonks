@@ -22,9 +22,9 @@ describe("TxnsPage", () => {
       </UploadProvider>,
     );
     expect(screen.getByTestId("probe").textContent).toBe("closed ");
-    fireEvent.click(screen.getByTestId("upload-statement"));
+    fireEvent.click(screen.getByTestId("upload-stmt"));
     expect(screen.getByTestId("probe").textContent).toBe("open ");
-    fireEvent.click(screen.getByTestId("upload-statement-empty"));
+    fireEvent.click(screen.getByTestId("upload-stmt-empty"));
     expect(screen.getByTestId("probe").textContent).toBe("open ");
   });
 

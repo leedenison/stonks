@@ -108,16 +108,12 @@ describe("admin", () => {
       openFindings: 1,
       children: [fetch],
     });
-    const statement = create(UserRunSchema, {
+    const stmt = create(UserRunSchema, {
       userId: "s",
       children: [resolution],
     });
-    expect(flattenRuns([statement]).map((r) => r.userId)).toEqual([
-      "s",
-      "r",
-      "f",
-    ]);
-    expect(openFindingsBelow(statement)).toBe(3);
+    expect(flattenRuns([stmt]).map((r) => r.userId)).toEqual(["s", "r", "f"]);
+    expect(openFindingsBelow(stmt)).toBe(3);
     expect(openFindingsBelow(fetch)).toBe(2);
   });
 });

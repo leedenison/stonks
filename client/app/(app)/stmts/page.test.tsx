@@ -5,18 +5,18 @@ import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { RunSchema, RunState } from "@/gen/run/v1/run_pb";
 import {
-  ListStatementsResponseSchema,
-  StatementService,
-  StatementSummarySchema,
-} from "@/gen/statement/v1/statement_pb";
+  ListStmtsResponseSchema,
+  StmtService,
+  StmtSummarySchema,
+} from "@/gen/stmt/v1/stmt_pb";
 import { Broker } from "@/gen/type/v1/type_pb";
 import { UploadProvider } from "@/contexts/upload-context";
 import { liveSession, renderWithAuth, transportWith } from "@/lib/test-utils";
-import StatementsPage from "./page";
+import StmtsPage from "./page";
 
 const page = (
   <UploadProvider>
-    <StatementsPage />
+    <StmtsPage />
   </UploadProvider>
 );
 
@@ -24,17 +24,15 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
 const live = liveSession();
 
-function serving(
-  listStatements: ServiceImpl<typeof StatementService>["listStatements"],
-) {
+function serving(listStmts: ServiceImpl<typeof StmtService>["listStmts"]) {
   return transportWith(live, ({ service }) => {
-    service(StatementService, { listStatements });
+    service(StmtService, { listStmts });
   });
 }
 
-const two = create(ListStatementsResponseSchema, {
-  statements: [
-    create(StatementSummarySchema, {
+const two = create(ListStmtsResponseSchema, {
+  stmts: [
+    create(StmtSummarySchema, {
       run: create(RunSchema, {
         id: "r2",
         state: RunState.PENDING,
@@ -45,7 +43,7 @@ const two = create(ListStatementsResponseSchema, {
       orderBefore: "2025-01-01",
       rows: 40,
     }),
-    create(StatementSummarySchema, {
+    create(StmtSummarySchema, {
       run: create(RunSchema, {
         id: "r1",
         state: RunState.COMPLETED,
@@ -60,23 +58,23 @@ const two = create(ListStatementsResponseSchema, {
   ],
 });
 
-describe("StatementsPage", () => {
+describe("StmtsPage", () => {
   it("shows skeleton rows while loading", () => {
     renderWithAuth(
       page,
       serving(() => new Promise(() => {})),
     );
-    expect(screen.getByTestId("statements-table")).toBeTruthy();
+    expect(screen.getByTestId("stmts-table")).toBeTruthy();
     expect(screen.getByTestId("skeleton-rows")).toBeTruthy();
   });
 
   it("shows the empty state without statements", async () => {
     renderWithAuth(
       page,
-      serving(() => create(ListStatementsResponseSchema, {})),
+      serving(() => create(ListStmtsResponseSchema, {})),
     );
     await waitFor(() => expect(screen.getByTestId("empty-state")).toBeTruthy());
-    expect(screen.queryByTestId("statements-table")).toBeNull();
+    expect(screen.queryByTestId("stmts-table")).toBeNull();
   });
 
   it("lists the statements with their outcome and links each", async () => {
@@ -84,30 +82,28 @@ describe("StatementsPage", () => {
       page,
       serving(() => two),
     );
-    await waitFor(() =>
-      expect(screen.getByTestId("statement-row-r1")).toBeTruthy(),
-    );
-    const rows = screen.getAllByTestId(/^statement-row-/);
+    await waitFor(() => expect(screen.getByTestId("stmt-row-r1")).toBeTruthy());
+    const rows = screen.getAllByTestId(/^stmt-row-/);
     expect(rows.map((r) => r.getAttribute("data-testid"))).toEqual([
-      "statement-row-r2",
-      "statement-row-r1",
+      "stmt-row-r2",
+      "stmt-row-r1",
     ]);
-    const r1 = screen.getByTestId("statement-row-r1");
+    const r1 = screen.getByTestId("stmt-row-r1");
     expect(r1.textContent).toContain("2026-09-17 09:30 UTC");
     expect(r1.textContent).toContain("Fidelity UK");
     expect(r1.textContent).toContain("2025-02-01 to 2025-03-16");
-    expect(
-      r1.querySelector('[data-testid="statement-rejected"]')?.textContent,
-    ).toBe("3");
+    expect(r1.querySelector('[data-testid="stmt-rejected"]')?.textContent).toBe(
+      "3",
+    );
     expect(
       r1
         .querySelector('[data-testid="state-chip"]')
         ?.getAttribute("data-state"),
     ).toBe("rejections");
-    expect(r1.querySelector("a")?.getAttribute("href")).toBe("/statements/r1");
+    expect(r1.querySelector("a")?.getAttribute("href")).toBe("/stmts/r1");
     expect(
       screen
-        .getByTestId("statement-row-r2")
+        .getByTestId("stmt-row-r2")
         .querySelector('[data-testid="state-chip"]')
         ?.getAttribute("data-state"),
     ).toBe("pending");
@@ -126,8 +122,6 @@ describe("StatementsPage", () => {
     );
     await waitFor(() => expect(screen.getByRole("alert")).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
-    await waitFor(() =>
-      expect(screen.getByTestId("statement-row-r1")).toBeTruthy(),
-    );
+    await waitFor(() => expect(screen.getByTestId("stmt-row-r1")).toBeTruthy());
   });
 });

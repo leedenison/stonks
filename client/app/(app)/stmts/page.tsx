@@ -9,21 +9,21 @@ import { SkeletonRows } from "@/app/components/skeleton-rows";
 import { StateChip } from "@/app/components/state-chip";
 import { TableCard, Td, Th, Thead, Tr } from "@/app/components/table";
 import { UploadAction } from "@/app/components/upload-action";
-import { useStatements } from "@/hooks/use-statements";
+import { useStmts } from "@/hooks/use-stmts";
 import { brokerLabel } from "@/lib/broker";
 import { formatInstant } from "@/lib/format";
 import { prevDay } from "@/lib/marshal/date";
 
 // The user's statements, newest first, each leading to its own page.
-export default function StatementsPage() {
-  const { data, isPending, isError, refetch } = useStatements();
-  const statements = data?.statements ?? [];
+export default function StmtsPage() {
+  const { data, isPending, isError, refetch } = useStmts();
+  const stmts = data?.stmts ?? [];
 
   return (
     <Page
       title="Statements"
       width="wide"
-      testId="statements-page"
+      testId="stmts-page"
       actions={<UploadAction />}
     >
       {isError && (
@@ -31,11 +31,11 @@ export default function StatementsPage() {
           The statements could not be loaded.
         </Notice>
       )}
-      {!isError && data && statements.length === 0 && (
+      {!isError && data && stmts.length === 0 && (
         <EmptyState message="No statements yet." />
       )}
-      {!isError && (isPending || statements.length > 0) && (
-        <TableCard testId="statements-table">
+      {!isError && (isPending || stmts.length > 0) && (
+        <TableCard testId="stmts-table">
           <Thead>
             <tr>
               <Th>Started</Th>
@@ -50,11 +50,11 @@ export default function StatementsPage() {
             <SkeletonRows columns={6} />
           ) : (
             <tbody>
-              {statements.map((s) => {
+              {stmts.map((s) => {
                 const id = s.run?.id ?? "";
-                const href = `/statements/${id}`;
+                const href = `/stmts/${id}`;
                 return (
-                  <Tr key={id} href={href} data-testid={`statement-row-${id}`}>
+                  <Tr key={id} href={href} data-testid={`stmt-row-${id}`}>
                     <Td className="font-mono tabular-nums">
                       <Link
                         href={href}
@@ -70,7 +70,7 @@ export default function StatementsPage() {
                       {s.orderFrom} to {prevDay(s.orderBefore)}
                     </Td>
                     <Td numeric>{s.rows}</Td>
-                    <Td numeric data-testid="statement-rejected">
+                    <Td numeric data-testid="stmt-rejected">
                       {s.rejected}
                     </Td>
                     <Td>

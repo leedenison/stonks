@@ -28,7 +28,7 @@ export default function TxnsPage() {
           message="No transactions yet. Upload a statement."
           action={
             <Button
-              data-testid="upload-statement-empty"
+              data-testid="upload-stmt-empty"
               onClick={() => upload.open()}
             >
               Upload statement

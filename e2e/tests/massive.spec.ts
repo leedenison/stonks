@@ -8,7 +8,7 @@ import {
   resolutionFindings,
   resolutionItems,
 } from "../helpers/api";
-import { uploadStatement } from "../helpers/upload";
+import { uploadStmt } from "../helpers/upload";
 import { expect, test } from "../helpers/test";
 
 // One IBKR line, derived from the client's IBKR test export, which is
@@ -27,14 +27,14 @@ test("asks Massive beside OpenFIGI and matches the key once", async ({
 }) => {
   const { session: userSession } = await signIn();
   await page.goto("/txns");
-  const runId = await uploadStatement(page, fixture, { state: "completed" });
+  const runId = await uploadStmt(page, fixture, { state: "completed" });
   await page.getByTestId("activity-sheet-close").click();
 
   const { session } = await signIn("admin");
   const admin = adminRunClient(session);
-  const statement = await admin.getRun({ runId });
-  expect(resolutionFindings(statement.findings)).toHaveLength(0);
-  const resolution = statement.run!.children[0];
+  const stmt = await admin.getRun({ runId });
+  expect(resolutionFindings(stmt.findings)).toHaveLength(0);
+  const resolution = stmt.run!.children[0];
   await expectServedOnce(admin, resolution, ["openfigi", "massive"], {
     type: IdentifierType.CUSIP,
     value: cusip,

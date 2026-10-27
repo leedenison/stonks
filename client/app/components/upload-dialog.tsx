@@ -3,8 +3,8 @@
 import { FileUp, LoaderCircle } from "lucide-react";
 import { type ChangeEvent, useEffect, useMemo, useState } from "react";
 import type { Run } from "@/gen/run/v1/run_pb";
-import type { Statement } from "@/gen/statement/v1/statement_pb";
-import { useCreateStatement } from "@/hooks/use-create-statement";
+import type { Stmt } from "@/gen/stmt/v1/stmt_pb";
+import { useCreateStmt } from "@/hooks/use-create-stmt";
 import { useDropTarget } from "@/hooks/use-drop-target";
 import { brokerLabel, formatLabel } from "@/lib/broker";
 import { formatQuantity } from "@/lib/format";
@@ -59,7 +59,7 @@ export function UploadDialog({
   const [guesses, setGuesses] = useState<Format[]>([]);
   const [exportedOn, setExportedOn] = useState(today);
   const [chosen, setChosen] = useState<Period>();
-  const created = useCreateStatement();
+  const created = useCreateStmt();
 
   const finish = (file: File, text: string) => {
     const found = recognisedBy(text, file.type);
@@ -121,14 +121,14 @@ export function UploadDialog({
         : undefined,
     [loaded, format, exportedOn],
   );
-  const statement = parsed?.statement;
-  const span = statement ? period(statement, chosen) : undefined;
+  const stmt = parsed?.stmt;
+  const span = stmt ? period(stmt, chosen) : undefined;
 
   const submit = () => {
-    if (!statement || !span) {
+    if (!stmt || !span) {
       return;
     }
-    created.mutate(claim(statement, span), {
+    created.mutate(claim(stmt, span), {
       onSuccess: (res) => {
         onClose();
         if (res.run) {
@@ -233,21 +233,21 @@ export function UploadDialog({
               {parsed.error.message}
             </Notice>
           )}
-          {statement && span && (
+          {stmt && span && (
             <>
               {format === "standard" && (
                 <p data-testid="upload-stated-broker" className="text-sm">
                   <span className="text-text-muted">Broker </span>
-                  {brokerLabel(statement.broker)}
+                  {brokerLabel(stmt.broker)}
                 </p>
               )}
               <p data-testid="upload-rows" className="text-sm">
                 <span className="font-mono tabular-nums">
-                  {statement.rows.length}
+                  {stmt.rows.length}
                 </span>{" "}
                 rows
-                {statement.splits.length > 0 &&
-                  ` and ${statement.splits.length} stated splits`}
+                {stmt.splits.length > 0 &&
+                  ` and ${stmt.splits.length} stated splits`}
               </p>
               <div className="flex flex-wrap gap-4 text-sm">
                 <label className="flex flex-col gap-1">
@@ -284,7 +284,7 @@ export function UploadDialog({
                   The period must start before it ends.
                 </Notice>
               )}
-              <Preview statement={statement} />
+              <Preview stmt={stmt} />
             </>
           )}
           {created.error && (
@@ -340,8 +340,8 @@ function Choose({
   );
 }
 
-function Preview({ statement }: { statement: Statement }) {
-  const rows = statement.rows.slice(0, 5);
+function Preview({ stmt }: { stmt: Stmt }) {
+  const rows = stmt.rows.slice(0, 5);
   return (
     <table
       data-testid="upload-preview"

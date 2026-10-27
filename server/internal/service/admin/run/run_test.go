@@ -19,7 +19,7 @@ import (
 	adminrunv1 "github.com/leedenison/stonks/proto/admin/run/v1"
 	"github.com/leedenison/stonks/proto/admin/run/v1/adminrunv1connect"
 	runv1 "github.com/leedenison/stonks/proto/run/v1"
-	statementv1 "github.com/leedenison/stonks/proto/statement/v1"
+	stmtv1 "github.com/leedenison/stonks/proto/stmt/v1"
 	typev1 "github.com/leedenison/stonks/proto/type/v1"
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
@@ -343,7 +343,7 @@ func TestListRunItems(t *testing.T) {
 		return gen.StmtItem{Ordinal: ordinal, Reason: "no quantity", Stated: []byte(`{}`)}
 	}
 	stmtMsg := func(ordinal int32) *adminrunv1.RunItem {
-		return &adminrunv1.RunItem{Item: &adminrunv1.RunItem_Statement{Statement: &statementv1.StatementItem{Ordinal: ordinal, Reason: "no quantity", Row: &statementv1.Row{}}}}
+		return &adminrunv1.RunItem{Item: &adminrunv1.RunItem_Stmt{Stmt: &stmtv1.StmtItem{Ordinal: ordinal, Reason: "no quantity", Row: &stmtv1.Row{}}}}
 	}
 	three, fifty := int32(3), int32(page.DefaultSize+1)
 	tests := []struct {

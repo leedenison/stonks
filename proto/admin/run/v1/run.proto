@@ -9,7 +9,7 @@ import "google/protobuf/timestamp.proto";
 import "admin/block/v1/block.proto";
 import "admin/replay_run/v1/replay_run.proto";
 import "run/v1/run.proto";
-import "statement/v1/statement.proto";
+import "stmt/v1/stmt.proto";
 import "type/v1/type.proto";
 
 option go_package = "github.com/leedenison/stonks/proto/admin/run/v1;adminrunv1";
@@ -234,7 +234,7 @@ message ListRunItemsRequest {
 message RunItem {
   oneof item {
     // A row an INGEST_STMT run rejected.
-    stonks.statement.v1.StatementItem statement = 1;
+    stonks.stmt.v1.StmtItem stmt = 1;
     // A key a RESOLVE_STMT_KEYS run resolved.
     stonks.type.v1.ResolutionItem resolution = 2;
     // A key a DATASOURCE_FETCH run asked a datasource about.

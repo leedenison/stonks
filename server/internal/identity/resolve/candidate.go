@@ -7,7 +7,7 @@ import (
 	"maps"
 	"slices"
 
-	statementv1 "github.com/leedenison/stonks/proto/statement/v1"
+	stmtv1 "github.com/leedenison/stonks/proto/stmt/v1"
 	typev1 "github.com/leedenison/stonks/proto/type/v1"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	runs "github.com/leedenison/stonks/server/internal/run"
@@ -37,13 +37,13 @@ type Candidate struct {
 
 // ToProto writes c as its proto message, the listings sorted by family. A
 // listing of no family has no currency.
-func (c Candidate) ToProto() *statementv1.Candidate {
-	out := &statementv1.Candidate{Datasource: c.Datasource, Attached: c.Attached, Strongest: c.Strongest.ToProto(), AssetClass: types.ToProto[typev1.AssetClass](c.Class)}
+func (c Candidate) ToProto() *stmtv1.Candidate {
+	out := &stmtv1.Candidate{Datasource: c.Datasource, Attached: c.Attached, Strongest: c.Strongest.ToProto(), AssetClass: types.ToProto[typev1.AssetClass](c.Class)}
 	for _, id := range c.Identifiers {
 		out.Identifiers = append(out.Identifiers, id.ToProto())
 	}
 	for _, fam := range slices.Sorted(maps.Keys(c.Listings)) {
-		l := &statementv1.CandidateListing{}
+		l := &stmtv1.CandidateListing{}
 		if fam != noFamily {
 			l.Currency = &fam
 		}

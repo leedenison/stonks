@@ -382,7 +382,7 @@ function RunItems({ id, live }: { id: string; live: boolean }) {
     </div>
   );
   const rejected = items.flatMap((i) =>
-    i.item.case === "statement" ? [i.item.value] : [],
+    i.item.case === "stmt" ? [i.item.value] : [],
   );
   if (rejected.length > 0) {
     return (

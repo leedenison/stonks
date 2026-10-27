@@ -1,6 +1,6 @@
 import path from "node:path";
 import { holdingClient } from "../helpers/api";
-import { uploadStatement } from "../helpers/upload";
+import { uploadStmt } from "../helpers/upload";
 import { expect, test } from "../helpers/test";
 
 // Two IBKR exports over disjoint periods, derived from the client's IBKR
@@ -26,7 +26,7 @@ test("gathers the keys of two statements that share an identifier", async ({
 
   const uploads = [january, february];
   for (const [n, fixture] of uploads.entries()) {
-    await uploadStatement(page, fixture, {
+    await uploadStmt(page, fixture, {
       state: "completed",
       earlier: n,
       rows: "3 rows",

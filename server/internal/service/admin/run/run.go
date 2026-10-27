@@ -269,7 +269,7 @@ func (s *Server) ListRunItems(ctx context.Context, req *connect.Request[adminrun
 			if err != nil {
 				return nil, connect.NewError(connect.CodeInternal, err)
 			}
-			out.Items = append(out.Items, &adminrunv1.RunItem{Item: &adminrunv1.RunItem_Statement{Statement: item}})
+			out.Items = append(out.Items, &adminrunv1.RunItem{Item: &adminrunv1.RunItem_Stmt{Stmt: item}})
 		}
 		if more {
 			out.NextPageToken = strconv.Itoa(int(rows[len(rows)-1].Ordinal))

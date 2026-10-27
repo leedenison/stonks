@@ -4,8 +4,8 @@ import {
   IdentifierType,
   ResolutionOutcome,
 } from "../gen/type/v1/type_pb";
-import { holdingClient, statementClient } from "../helpers/api";
-import { uploadStatement } from "../helpers/upload";
+import { holdingClient, stmtClient } from "../helpers/api";
+import { uploadStmt } from "../helpers/upload";
 import { expect, test } from "../helpers/test";
 
 // The fixture is one IBKR line modelled on a real IBKR export with its
@@ -21,15 +21,15 @@ test("chooses an instrument for an IBKR security stated by ticker", async ({
 }) => {
   const { session } = await signIn();
   await page.goto("/txns");
-  const runId = await uploadStatement(page, fixture, {
+  const runId = await uploadStmt(page, fixture, {
     state: "completed",
     rows: "3 rows",
     holds: false,
   });
   await page.getByTestId("activity-sheet-close").click();
 
-  const statements = statementClient(session);
-  const key = (await statements.getStatement({ runId })).keys.find((k) =>
+  const stmts = stmtClient(session);
+  const key = (await stmts.getStmt({ runId })).keys.find((k) =>
     k.statedKey?.identifiers.some(
       (i) => i.type === IdentifierType.MIC_TICKER && i.value === ticker,
     ),
@@ -37,7 +37,7 @@ test("chooses an instrument for an IBKR security stated by ticker", async ({
   expect(key?.outcome).toBe(ResolutionOutcome.UNRECOGNISED);
   const keyId = key!.statedKeyId;
 
-  await page.goto(`/statements/${runId}`);
+  await page.goto(`/stmts/${runId}`);
   const row = page.getByTestId(`key-row-${keyId}`);
   await page.getByTestId(`key-choose-${keyId}`).click();
   const dialog = page.getByTestId("candidates-dialog");
@@ -58,7 +58,7 @@ test("chooses an instrument for an IBKR security stated by ticker", async ({
   );
   await expect(row.getByTestId(`key-arbiter-${keyId}`)).toHaveText("Chosen");
 
-  const after = (await statements.getStatement({ runId })).keys.find(
+  const after = (await stmts.getStmt({ runId })).keys.find(
     (k) => k.statedKeyId === keyId,
   );
   expect(after?.arbiter).toBe(Arbiter.USER);

@@ -5,17 +5,17 @@ import {
   FindingKind,
   type UserRun,
 } from "../gen/admin/run/v1/run_pb";
-import { TxnMark } from "../gen/statement/v1/statement_pb";
+import { TxnMark } from "../gen/stmt/v1/stmt_pb";
 import { IdentifierType, ResolutionOutcome } from "../gen/type/v1/type_pb";
 import {
   instrumentListedAs,
   adminRunClient,
   fetchItems,
   holdingClient,
-  statementClient,
+  stmtClient,
 } from "../helpers/api";
 import { expect, test } from "../helpers/test";
-import { uploadStatement } from "../helpers/upload";
+import { uploadStmt } from "../helpers/upload";
 
 // Two statements, dated 2024 then 2021, each stating META at Nasdaq. META
 // began naming Meta on 2022-06-09, which Massive's ticker history states. The
@@ -49,21 +49,21 @@ test("dates a key through its ticker and marks each transaction by its day", asy
 }) => {
   const { session } = await signIn();
   const { session: adminSession } = await seed("admin");
-  const statements = statementClient(session);
+  const stmts = stmtClient(session);
   const admin = adminRunClient(adminSession);
 
   await page.goto("/txns");
   const runs: string[] = [];
   for (const [n, fixture] of fixtures.entries()) {
     runs.push(
-      await uploadStatement(page, fixture, { state: "completed", earlier: n }),
+      await uploadStmt(page, fixture, { state: "completed", earlier: n }),
     );
     await page.getByTestId("activity-sheet-close").click();
   }
   const [first, second] = runs;
 
   const read = await Promise.all(
-    [first, second].map((runId) => statements.getStatement({ runId })),
+    [first, second].map((runId) => stmts.getStmt({ runId })),
   );
   const keys = read.map((r) => r.keys);
   for (const k of keys) {
@@ -75,7 +75,7 @@ test("dates a key through its ticker and marks each transaction by its day", asy
   const marks = read.map((r) => r.txns.map((t) => t.mark));
   expect(marks).toEqual([[TxnMark.CONFIRMED], [TxnMark.UNRESOLVED]]);
   for (const [i, state] of ["confirmed", "unresolved"].entries()) {
-    await page.goto(`/statements/${[first, second][i]}`);
+    await page.goto(`/stmts/${[first, second][i]}`);
     const row = page.getByTestId(`txn-row-${read[i].txns[0].id}`);
     await expect(row.getByTestId("mark-chip")).toHaveAttribute(
       "data-state",

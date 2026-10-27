@@ -3,11 +3,11 @@ import { timestampFromDate } from "@bufbuild/protobuf/wkt";
 import { act, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { RunSchema, RunState } from "@/gen/run/v1/run_pb";
-import { StatementSummarySchema } from "@/gen/statement/v1/statement_pb";
+import { StmtSummarySchema } from "@/gen/stmt/v1/stmt_pb";
 import { StateChip } from "./state-chip";
 
 function summary(state: RunState, rejected = 0, startedAt?: Date) {
-  return create(StatementSummarySchema, {
+  return create(StmtSummarySchema, {
     run: create(RunSchema, {
       state,
       startedAt: startedAt && timestampFromDate(startedAt),

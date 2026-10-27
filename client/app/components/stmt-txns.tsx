@@ -2,15 +2,15 @@ import { StatedKeyChips } from "@/app/components/identifier-chip";
 import { MarkChip } from "@/app/components/mark-chip";
 import { Section } from "@/app/components/section";
 import { TableCard, Td, Th, Thead, Tr } from "@/app/components/table";
-import type { Txn } from "@/gen/statement/v1/statement_pb";
+import type { Txn } from "@/gen/stmt/v1/stmt_pb";
 import type { ResolutionItem } from "@/gen/type/v1/type_pb";
 import { toFixed } from "@/lib/marshal/decimal";
 
-// StatementTxns lists a statement's transactions by order date, each
+// StmtTxns lists a statement's transactions by order date, each
 // with its key and, beside it, how firmly that key names an instrument on
 // its date. The Instrument cell is empty when the statement lists no
 // matching key.
-export function StatementTxns({
+export function StmtTxns({
   txns,
   keys,
   live,
@@ -22,7 +22,7 @@ export function StatementTxns({
   const byId = new Map(keys.map((k) => [k.statedKeyId, k]));
   return (
     <Section title="Transactions">
-      <TableCard testId="statement-txns" fixed>
+      <TableCard testId="stmt-txns" fixed>
         <colgroup>
           <col className="w-32" />
           <col />

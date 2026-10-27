@@ -25,10 +25,10 @@ const items = [
     testId: "nav-txns",
   },
   {
-    href: "/statements",
+    href: "/stmts",
     label: "Statements",
     icon: FileText,
-    testId: "nav-statements",
+    testId: "nav-stmts",
   },
 ];
 

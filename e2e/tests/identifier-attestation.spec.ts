@@ -1,16 +1,16 @@
 import path from "node:path";
 import { RunKind } from "../gen/run/v1/run_pb";
-import { TxnMark } from "../gen/statement/v1/statement_pb";
+import { TxnMark } from "../gen/stmt/v1/stmt_pb";
 import { IdentifierType, ResolutionOutcome } from "../gen/type/v1/type_pb";
 import {
   instrumentListedAs,
   adminRunClient,
   assertionItems,
-  statementClient,
+  stmtClient,
 } from "../helpers/api";
 import { deleteRuns } from "../helpers/db";
 import { expect, test } from "../helpers/test";
-import { uploadStatement } from "../helpers/upload";
+import { uploadStmt } from "../helpers/upload";
 
 // WMT has named one instrument since before Massive's history begins on
 // 2003-09-10. No other spec states WMT, because an identifier attestation is a
@@ -32,19 +32,19 @@ test("attests a gap from the instrument's tickers tab and withdraws it", async (
   page,
 }) => {
   const { session } = await signIn("admin");
-  const statements = statementClient(session);
+  const stmts = stmtClient(session);
   const adminRuns = adminRunClient(session);
 
   await page.goto("/txns");
-  const runId = await uploadStatement(page, fixture, { state: "completed" });
-  const read = await statements.getStatement({ runId });
+  const runId = await uploadStmt(page, fixture, { state: "completed" });
+  const read = await stmts.getStmt({ runId });
   expect(read.keys.map((k) => k.outcome)).toEqual([ResolutionOutcome.MATCHED]);
   expect(read.keys[0].ticker).toMatchObject(wmt);
   expect(read.txns.map((t) => t.mark)).toEqual([TxnMark.PROVISIONAL]);
   const txnId = read.txns[0].id;
 
   // The statement page marks the transaction provisional.
-  await page.goto(`/statements/${runId}`);
+  await page.goto(`/stmts/${runId}`);
   const row = page.getByTestId(`txn-row-${txnId}`);
   await expect(row.getByTestId("mark-chip")).toHaveAttribute(
     "data-state",
@@ -88,9 +88,7 @@ test("attests a gap from the instrument's tickers tab and withdraws it", async (
 
   // The identifier attestation brackets the provider's first assertion, so the
   // transaction is confirmed.
-  expect((await statements.getStatement({ runId })).txns[0].mark).toBe(
-    TxnMark.CONFIRMED,
-  );
+  expect((await stmts.getStmt({ runId })).txns[0].mark).toBe(TxnMark.CONFIRMED);
 
   const id = (await attested.getAttribute("data-testid"))!.replace(
     "assertion-row-",
@@ -100,7 +98,7 @@ test("attests a gap from the instrument's tickers tab and withdraws it", async (
   await page.getByTestId("withdraw-confirm").click();
   await expect(page.getByTestId("withdraw-dialog")).toBeHidden();
   await expect(attested).toHaveCount(0);
-  expect((await statements.getStatement({ runId })).txns[0].mark).toBe(
+  expect((await stmts.getStmt({ runId })).txns[0].mark).toBe(
     TxnMark.PROVISIONAL,
   );
 });

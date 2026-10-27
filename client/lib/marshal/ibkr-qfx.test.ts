@@ -8,10 +8,7 @@ import {
   IdentifierSchema,
   IdentifierType,
 } from "@/gen/type/v1/type_pb";
-import {
-  SplitRatioSchema,
-  StatedSplitSchema,
-} from "@/gen/statement/v1/statement_pb";
+import { SplitRatioSchema, StatedSplitSchema } from "@/gen/stmt/v1/stmt_pb";
 import { MarshalError } from "./error";
 import { fixture, hint, row, security } from "./test-utils";
 import { cashKey } from "./build";
@@ -20,7 +17,7 @@ import { ibkrQfx } from "./ibkr-qfx";
 // The BUYSTOCK carries an invented nonzero TAXES; every real statement seen
 // states 0.
 const text = fixture("ibkr.qfx");
-const statement = ibkrQfx.marshal(text);
+const stmt = ibkrQfx.marshal(text);
 
 const cusip = (value: string) =>
   create(IdentifierSchema, { type: IdentifierType.CUSIP, value });
@@ -37,11 +34,11 @@ const conid = (value: string) =>
 
 describe("ibkrQfx", () => {
   it("claims the stated period, not one widened to the rows", () => {
-    expect(statement.broker).toBe(Broker.IBKR);
-    expect(statement.orderFrom).toBe("2024-01-01");
-    expect(statement.orderBefore).toBe("2024-03-30");
-    expect(statement.rows).toHaveLength(20);
-    expect(statement.splits).toHaveLength(2);
+    expect(stmt.broker).toBe(Broker.IBKR);
+    expect(stmt.orderFrom).toBe("2024-01-01");
+    expect(stmt.orderBefore).toBe("2024-03-30");
+    expect(stmt.rows).toHaveLength(20);
+    expect(stmt.splits).toHaveLength(2);
   });
 
   it("splits a buy into security, gross cash, fee and tax legs that sum to the total", () => {
@@ -51,7 +48,7 @@ describe("ibkrQfx", () => {
       [cusip("007903107"), hint("AMD")],
       "USD",
     );
-    expect(statement.rows.slice(0, 4)).toEqual([
+    expect(stmt.rows.slice(0, 4)).toEqual([
       row(amd, "2024-01-15", "2024-01-15", "200"),
       row(cashKey("USD"), "2024-01-15", "2024-01-15", "-14846.5602968"),
       row(cashKey("USD"), "2024-01-15", "2024-01-15", "-0.78710536"),
@@ -66,7 +63,7 @@ describe("ibkrQfx", () => {
       [isin("DE0007030009"), hint("RHM")],
       "EUR",
     );
-    expect(statement.rows.slice(4, 7)).toEqual([
+    expect(stmt.rows.slice(4, 7)).toEqual([
       row(rhm, "2024-01-23", "2024-01-23", "-10"),
       row(cashKey("EUR"), "2024-01-23", "2024-01-23", "6094.72188"),
       row(cashKey("EUR"), "2024-01-23", "2024-01-23", "-3.04736094"),
@@ -80,23 +77,19 @@ describe("ibkrQfx", () => {
       [conid("624291205"), option("NVDA  240315P00420000")],
       "USD",
     );
-    expect(statement.rows[7]).toEqual(
-      row(put, "2024-02-20", "2024-02-20", "1"),
-    );
-    expect(statement.rows[10]).toEqual(
-      row(put, "2024-03-21", "2024-03-21", "-1"),
-    );
-    expect(statement.rows[11].quantity).toBe("1222.64415");
+    expect(stmt.rows[7]).toEqual(row(put, "2024-02-20", "2024-02-20", "1"));
+    expect(stmt.rows[10]).toEqual(row(put, "2024-03-21", "2024-03-21", "-1"));
+    expect(stmt.rows[11].quantity).toBe("1222.64415");
   });
 
   it("keeps the stated date of an evening posting", () => {
-    expect(statement.rows[13]).toEqual(
+    expect(stmt.rows[13]).toEqual(
       row(cashKey("USD"), "2024-01-11", "2024-01-11", "96.9378592"),
     );
   });
 
   it("emits every bank transaction as a cash leg, including one before the period", () => {
-    expect(statement.rows.slice(14, 19)).toEqual([
+    expect(stmt.rows.slice(14, 19)).toEqual([
       row(cashKey("USD"), "2024-02-05", "2024-02-05", "12.34"),
       row(cashKey("GBP"), "2024-01-10", "2024-01-10", "50000"),
       row(cashKey("USD"), "2023-12-15", "2023-12-15", "-14.54"),
@@ -111,13 +104,11 @@ describe("ibkrQfx", () => {
       AssetClass.EQUITY,
       [cusip("25400Q105"), hint("DJT")],
     );
-    expect(statement.rows[19]).toEqual(
-      row(djt, "2024-03-01", "2024-03-01", "100"),
-    );
+    expect(stmt.rows[19]).toEqual(row(djt, "2024-03-01", "2024-03-01", "100"));
   });
 
   it("states a split from a transfer, with the ratio from the memo", () => {
-    expect(statement.splits).toEqual([
+    expect(stmt.splits).toEqual([
       create(StatedSplitSchema, {
         key: security("AMZN AMAZON.COM INC", AssetClass.EQUITY, [
           cusip("023135106"),
@@ -147,7 +138,7 @@ describe("ibkrQfx", () => {
       .replace(/<INCOME>[\s\S]*<\/INVBANKTRAN>/, "")
       .replace(/<TRANSFER>[\s\S]*<\/TRANSFER>/, "")
       .replace(/<OPTINFO>[\s\S]*<\/OPTINFO>/, "");
-    expect(ibkrQfx.marshal(one).rows).toEqual(statement.rows.slice(0, 4));
+    expect(ibkrQfx.marshal(one).rows).toEqual(stmt.rows.slice(0, 4));
   });
 
   it("takes the account's currency for a trade that states none, key and cash alike", () => {

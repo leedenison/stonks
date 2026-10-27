@@ -1,5 +1,5 @@
 // Builders for the messages of the neutral format, shared by the broker
-// marshallers. See proto/statement/v1/statement.proto for the format.
+// marshallers. See proto/stmt/v1/stmt.proto for the format.
 
 import { create } from "@bufbuild/protobuf";
 import {
@@ -17,9 +17,9 @@ import {
   SplitRatioSchema,
   type StatedSplit,
   StatedSplitSchema,
-  type Statement,
-  StatementSchema,
-} from "@/gen/statement/v1/statement_pb";
+  type Stmt,
+  StmtSchema,
+} from "@/gen/stmt/v1/stmt_pb";
 import { add, isZero, negate, normalise } from "./decimal";
 import { maxDate, minDate, nextDay } from "./date";
 
@@ -125,15 +125,15 @@ export function split(
   });
 }
 
-// statement assembles the message. The period is the one the export states,
+// stmt assembles the message. The period is the one the export states,
 // given as its first and last order dates inclusive, and is otherwise derived
 // from the rows. A row outside a stated period is kept as stated.
-export function statement(
+export function stmt(
   broker: Broker,
   rows: Row[],
   splits: StatedSplit[],
   period?: { from: string; to: string },
-): Statement {
+): Stmt {
   let span = period;
   if (!span) {
     for (const row of rows) {
@@ -145,7 +145,7 @@ export function statement(
         : { from: row.orderDate, to: row.orderDate };
     }
   }
-  return create(StatementSchema, {
+  return create(StmtSchema, {
     broker,
     orderFrom: span?.from ?? "",
     orderBefore: span ? nextDay(span.to) : "",

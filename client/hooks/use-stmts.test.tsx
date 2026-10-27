@@ -8,17 +8,17 @@ import {
   RunState,
 } from "@/gen/run/v1/run_pb";
 import {
-  GetStatementResponseSchema,
-  ListStatementsResponseSchema,
-  StatementItemSchema,
-  StatementService,
-  StatementSummarySchema,
-} from "@/gen/statement/v1/statement_pb";
+  GetStmtResponseSchema,
+  ListStmtsResponseSchema,
+  StmtItemSchema,
+  StmtService,
+  StmtSummarySchema,
+} from "@/gen/stmt/v1/stmt_pb";
 import { pollInterval } from "@/lib/run";
 import { authWrapper, liveSession, transportWith } from "@/lib/test-utils";
 import { useRun } from "./use-run";
-import { useStatement } from "./use-statement";
-import { useStatements } from "./use-statements";
+import { useStmt } from "./use-stmt";
+import { useStmts } from "./use-stmts";
 
 const live = liveSession();
 
@@ -35,7 +35,7 @@ async function advance(ms: number) {
 }
 
 function summary(id: string, state: RunState) {
-  return create(StatementSummarySchema, {
+  return create(StmtSummarySchema, {
     run: create(RunSchema, { id, state }),
     rows: 3,
   });
@@ -55,55 +55,47 @@ function runAfter(n: number) {
 }
 
 function serving(
-  listStatements: () => ReturnType<
-    typeof create<typeof ListStatementsResponseSchema>
-  >,
+  listStmts: () => ReturnType<typeof create<typeof ListStmtsResponseSchema>>,
   getRun = runAfter(0),
 ) {
   return transportWith(live, ({ service }) => {
-    service(StatementService, {
-      listStatements,
-      getStatement: (req) =>
-        create(GetStatementResponseSchema, {
-          statement: summary(req.runId, RunState.COMPLETED),
-          items: [
-            create(StatementItemSchema, { ordinal: 2, reason: "no key" }),
-          ],
+    service(StmtService, {
+      listStmts,
+      getStmt: (req) =>
+        create(GetStmtResponseSchema, {
+          stmt: summary(req.runId, RunState.COMPLETED),
+          items: [create(StmtItemSchema, { ordinal: 2, reason: "no key" })],
         }),
     });
     service(RunService, { getRun });
   });
 }
 
-describe("useStatements", () => {
+describe("useStmts", () => {
   it("lists the statements and stops polling once every run is terminal", async () => {
     vi.useFakeTimers();
     let reads = 0;
-    const listStatements = vi.fn(() =>
-      create(ListStatementsResponseSchema, {
-        statements: [
+    const listStmts = vi.fn(() =>
+      create(ListStmtsResponseSchema, {
+        stmts: [
           summary("r1", ++reads > 2 ? RunState.COMPLETED : RunState.PENDING),
           summary("r0", RunState.COMPLETED),
         ],
       }),
     );
-    const { result } = renderHook(() => useStatements(), {
-      wrapper: authWrapper(serving(listStatements)),
+    const { result } = renderHook(() => useStmts(), {
+      wrapper: authWrapper(serving(listStmts)),
     });
     await advance(0);
-    expect(listStatements).toHaveBeenCalledTimes(1);
-    expect(result.current.data?.statements[0].run?.state).toBe(
-      RunState.PENDING,
-    );
+    expect(listStmts).toHaveBeenCalledTimes(1);
+    expect(result.current.data?.stmts[0].run?.state).toBe(RunState.PENDING);
     await advance(pollInterval);
-    expect(listStatements).toHaveBeenCalledTimes(2);
+    expect(listStmts).toHaveBeenCalledTimes(2);
     await advance(pollInterval);
-    expect(listStatements).toHaveBeenCalledTimes(3);
-    expect(result.current.data?.statements[0].run?.state).toBe(
-      RunState.COMPLETED,
-    );
+    expect(listStmts).toHaveBeenCalledTimes(3);
+    expect(result.current.data?.stmts[0].run?.state).toBe(RunState.COMPLETED);
     await advance(pollInterval * 3);
-    expect(listStatements).toHaveBeenCalledTimes(3);
+    expect(listStmts).toHaveBeenCalledTimes(3);
   });
 });
 
@@ -113,7 +105,7 @@ describe("useRun", () => {
     const getRun = runAfter(2);
     const { result } = renderHook(() => useRun("r1"), {
       wrapper: authWrapper(
-        serving(() => create(ListStatementsResponseSchema, {}), getRun),
+        serving(() => create(ListStmtsResponseSchema, {}), getRun),
       ),
     });
     await advance(0);
@@ -127,15 +119,13 @@ describe("useRun", () => {
   });
 });
 
-describe("useStatement", () => {
+describe("useStmt", () => {
   it("reads the statement and its items", async () => {
-    const { result } = renderHook(() => useStatement("r7"), {
-      wrapper: authWrapper(
-        serving(() => create(ListStatementsResponseSchema, {})),
-      ),
+    const { result } = renderHook(() => useStmt("r7"), {
+      wrapper: authWrapper(serving(() => create(ListStmtsResponseSchema, {}))),
     });
     await waitFor(() => expect(result.current.data).toBeTruthy());
-    expect(result.current.data?.statement?.run?.id).toBe("r7");
+    expect(result.current.data?.stmt?.run?.id).toBe("r7");
     expect(result.current.data?.items[0].reason).toBe("no key");
   });
 });

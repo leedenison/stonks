@@ -1,5 +1,5 @@
 import path from "node:path";
-import { statementClient } from "../helpers/api";
+import { stmtClient } from "../helpers/api";
 import { expect, test } from "../helpers/test";
 
 // The fixture is a copy of the client's Fidelity UK test export, modelled on
@@ -14,7 +14,7 @@ test("uploads a statement and shows its rejections in the activity and the histo
 }) => {
   const { session } = await signIn();
   await page.goto("/txns");
-  await page.getByTestId("upload-statement").click();
+  await page.getByTestId("upload-stmt").click();
   await expect(page.getByTestId("upload-dialog")).toBeVisible();
   await page.getByTestId("upload-file").setInputFiles(fixture);
   await expect(page.getByTestId("upload-recognised")).toHaveText(
@@ -51,27 +51,27 @@ test("uploads a statement and shows its rejections in the activity and the histo
 
   // The history agrees, and so does the statement's own page.
   await sheet.getByTestId("activity-all").click();
-  await expect(page).toHaveURL("/statements");
-  const row = page.getByTestId(`statement-row-${runId}`);
-  await expect(row.getByTestId("statement-rejected")).toHaveText(
+  await expect(page).toHaveURL("/stmts");
+  const row = page.getByTestId(`stmt-row-${runId}`);
+  await expect(row.getByTestId("stmt-rejected")).toHaveText(
     String(januaryRows),
   );
   await row.getByRole("link").click();
-  await expect(page).toHaveURL(`/statements/${runId}`);
+  await expect(page).toHaveURL(`/stmts/${runId}`);
   await expect(page.getByTestId("page-title")).toContainText(
     "Fidelity UK upload @",
   );
   // The closed sheet keeps its expanded item, so the page is scoped.
-  const statement = page.getByTestId("statement-page");
-  await expect(statement.getByTestId("statement-rejected")).toHaveText(
+  const stmt = page.getByTestId("stmt-page");
+  await expect(stmt.getByTestId("stmt-rejected")).toHaveText(
     String(januaryRows),
   );
-  await expect(statement.getByTestId("rejection-count-0")).toHaveText(
+  await expect(stmt.getByTestId("rejection-count-0")).toHaveText(
     String(januaryRows),
   );
 
   // The record behind the pages.
-  const res = await statementClient(session).getStatement({
+  const res = await stmtClient(session).getStmt({
     runId: runId!,
   });
   expect(res.items).toHaveLength(januaryRows);

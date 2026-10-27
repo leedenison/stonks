@@ -4,25 +4,23 @@ import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { RunSchema, RunState } from "@/gen/run/v1/run_pb";
 import {
-  type CreateStatementRequest,
-  CreateStatementResponseSchema,
-  StatementService,
-} from "@/gen/statement/v1/statement_pb";
+  type CreateStmtRequest,
+  CreateStmtResponseSchema,
+  StmtService,
+} from "@/gen/stmt/v1/stmt_pb";
 import { fixture } from "@/lib/marshal/test-utils";
 import { liveSession, renderWithAuth, transportWith } from "@/lib/test-utils";
 import { UploadDialog } from "./upload-dialog";
 
 const live = liveSession();
 
-const pending = create(CreateStatementResponseSchema, {
+const pending = create(CreateStmtResponseSchema, {
   run: create(RunSchema, { id: "r1", state: RunState.PENDING }),
 });
 
-function serving(
-  createStatement: ServiceImpl<typeof StatementService>["createStatement"],
-) {
+function serving(createStmt: ServiceImpl<typeof StmtService>["createStmt"]) {
   return transportWith(live, ({ service }) => {
-    service(StatementService, { createStatement });
+    service(StmtService, { createStmt });
   });
 }
 
@@ -58,12 +56,12 @@ describe("UploadDialog", () => {
   });
 
   it("asks a Schwab export for the date it was taken and re-parses on change", async () => {
-    const createStatement = vi.fn<
-      (req: CreateStatementRequest) => typeof pending
-    >(() => pending);
+    const createStmt = vi.fn<(req: CreateStmtRequest) => typeof pending>(
+      () => pending,
+    );
     renderWithAuth(
       <UploadDialog open onClose={() => {}} />,
-      serving(createStatement),
+      serving(createStmt),
     );
     choose("history.csv", "text/csv", fixture("schwab.csv"));
     await waitFor(() => expect(select().value).toBe("schwab"));
@@ -71,20 +69,20 @@ describe("UploadDialog", () => {
       target: { value: "2025-01-15" },
     });
     fireEvent.click(screen.getByTestId("upload-submit"));
-    await waitFor(() => expect(createStatement).toHaveBeenCalledTimes(1));
-    const sent = createStatement.mock.calls[0]?.[0].statement;
+    await waitFor(() => expect(createStmt).toHaveBeenCalledTimes(1));
+    const sent = createStmt.mock.calls[0]?.[0].stmt;
     expect(sent?.rows[0]?.asAt).toBe("2025-01-15");
   });
 
   it("narrows the period, warns about the rows outside it and submits it", async () => {
-    const createStatement = vi.fn<
-      (req: CreateStatementRequest) => typeof pending
-    >(() => pending);
+    const createStmt = vi.fn<(req: CreateStmtRequest) => typeof pending>(
+      () => pending,
+    );
     const onClose = vi.fn();
     const onCreated = vi.fn();
     renderWithAuth(
       <UploadDialog open onClose={onClose} onCreated={onCreated} />,
-      serving(createStatement),
+      serving(createStmt),
     );
     choose("activity.csv", "text/csv", fixture("fidelity-uk.csv"));
     await waitFor(() => expect(input("upload-from").value).toBe("2025-01-01"));
@@ -93,8 +91,8 @@ describe("UploadDialog", () => {
       /^\d+ rows fall outside/,
     );
     fireEvent.click(screen.getByTestId("upload-submit"));
-    await waitFor(() => expect(createStatement).toHaveBeenCalledTimes(1));
-    const sent = createStatement.mock.calls[0]?.[0].statement;
+    await waitFor(() => expect(createStmt).toHaveBeenCalledTimes(1));
+    const sent = createStmt.mock.calls[0]?.[0].stmt;
     expect(sent?.orderFrom).toBe("2025-02-01");
     expect(sent?.orderBefore).toBe("2025-03-17");
     await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
@@ -217,12 +215,12 @@ describe("UploadDialog", () => {
   });
 
   it("recognises a standard statement and shows the broker it states", async () => {
-    const createStatement = vi.fn<
-      (req: CreateStatementRequest) => typeof pending
-    >(() => pending);
+    const createStmt = vi.fn<(req: CreateStmtRequest) => typeof pending>(
+      () => pending,
+    );
     renderWithAuth(
       <UploadDialog open onClose={() => {}} />,
-      serving(createStatement),
+      serving(createStmt),
     );
     choose("mine.json", "application/json", fixture("standard.json"));
     await waitFor(() => expect(select().value).toBe("standard"));
@@ -239,8 +237,8 @@ describe("UploadDialog", () => {
     expect(input("upload-from").value).toBe("2024-01-01");
     expect(input("upload-to").value).toBe("2024-12-31");
     fireEvent.click(screen.getByTestId("upload-submit"));
-    await waitFor(() => expect(createStatement).toHaveBeenCalledTimes(1));
-    const sent = createStatement.mock.calls[0]?.[0].statement;
+    await waitFor(() => expect(createStmt).toHaveBeenCalledTimes(1));
+    const sent = createStmt.mock.calls[0]?.[0].stmt;
     expect(sent?.rows[0]?.asAt).toBe("2024-03-01");
     expect(sent?.orderBefore).toBe("2025-01-01");
   });

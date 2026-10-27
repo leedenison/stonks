@@ -11,20 +11,8 @@
 
 import { parse } from "csv-parse/sync";
 import { AssetClass, Broker, IdentifierType } from "@/gen/type/v1/type_pb";
-import type {
-  Row,
-  StatedSplit,
-  Statement,
-} from "@/gen/statement/v1/statement_pb";
-import {
-  cashKey,
-  ident,
-  leg,
-  securityKey,
-  split,
-  trade,
-  statement,
-} from "./build";
+import type { Row, StatedSplit, Stmt } from "@/gen/stmt/v1/stmt_pb";
+import { cashKey, ident, leg, securityKey, split, trade, stmt } from "./build";
 import { negate } from "./decimal";
 import { iso } from "./date";
 import { MarshalError } from "./error";
@@ -147,7 +135,7 @@ const CASH_ACTIONS = new Set([
   "Service Fee",
 ]);
 
-function marshal(text: string, exportedOn: string): Statement {
+function marshal(text: string, exportedOn: string): Stmt {
   const { period, lines } = text.trimStart().startsWith("{")
     ? readJson(text)
     : readCsv(text);
@@ -208,7 +196,7 @@ function marshal(text: string, exportedOn: string): Statement {
     }
   }
 
-  return statement(Broker.SCHWAB, rows, splits, period);
+  return stmt(Broker.SCHWAB, rows, splits, period);
 }
 
 // Neither export states an account number, so after the type recognition

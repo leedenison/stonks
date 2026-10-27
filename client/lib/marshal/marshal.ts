@@ -1,9 +1,9 @@
-// A marshaller reads a file in one format into the Statement message in
-// proto/statement/v1/statement.proto. A format is a broker's export or the
+// A marshaller reads a file in one format into the Stmt message in
+// proto/stmt/v1/stmt.proto. A format is a broker's export or the
 // standard format. A broker marshaller holds all knowledge of its broker's
 // conventions. A line of a kind it does not know fails the whole export.
 
-import type { Statement } from "@/gen/statement/v1/statement_pb";
+import type { Stmt } from "@/gen/stmt/v1/stmt_pb";
 import { MarshalError } from "./error";
 import { fidelityUkCsv } from "./fidelity-uk-csv";
 import { ibkrQfx } from "./ibkr-qfx";
@@ -15,7 +15,7 @@ export { MarshalError };
 export interface Marshaller {
   // exportedOn is the date the export was taken. It is ignored unless
   // needsExportDate is true.
-  marshal(text: string, exportedOn: string): Statement;
+  marshal(text: string, exportedOn: string): Stmt;
   // type is the media type the browser reports for the file. recognise never
   // throws.
   recognise(text: string, type: string): boolean;

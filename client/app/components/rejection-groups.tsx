@@ -1,5 +1,5 @@
 import { ChevronRight } from "lucide-react";
-import type { StatementItem } from "@/gen/statement/v1/statement_pb";
+import type { StmtItem } from "@/gen/stmt/v1/stmt_pb";
 import { groupByReason, keyLabel } from "@/lib/rejections";
 import { Chip } from "./chip";
 import { Td, Th } from "./table";
@@ -11,7 +11,7 @@ export function RejectionGroups({
   items,
   rows = true,
 }: {
-  items: StatementItem[];
+  items: StmtItem[];
   rows?: boolean;
 }) {
   const groups = groupByReason(items);

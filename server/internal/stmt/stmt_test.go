@@ -13,7 +13,7 @@ import (
 	"github.com/google/uuid"
 	"go.uber.org/mock/gomock"
 
-	statementv1 "github.com/leedenison/stonks/proto/statement/v1"
+	stmtv1 "github.com/leedenison/stonks/proto/stmt/v1"
 	typev1 "github.com/leedenison/stonks/proto/type/v1"
 	"github.com/leedenison/stonks/server/internal/currency"
 	"github.com/leedenison/stonks/server/internal/db"
@@ -63,8 +63,8 @@ func described(k gen.StatedKey, description string) bool {
 	return false
 }
 
-func rowMsg(key *typev1.StatedKey, order, quantity string) *statementv1.Row {
-	return &statementv1.Row{Key: key, OrderDate: order, SettlementDate: order, AsAt: order, Quantity: quantity}
+func rowMsg(key *typev1.StatedKey, order, quantity string) *stmtv1.Row {
+	return &stmtv1.Row{Key: key, OrderDate: order, SettlementDate: order, AsAt: order, Quantity: quantity}
 }
 
 type fixture struct {
@@ -170,32 +170,32 @@ func newIngestion(t *testing.T) (*fixture, *ingestion) {
 
 func TestCreateInvalid(t *testing.T) {
 	usd, xxx := "USD", "XXX"
-	good := func() *statementv1.Statement {
-		return &statementv1.Statement{Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01"}
+	good := func() *stmtv1.Stmt {
+		return &stmtv1.Stmt{Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01"}
 	}
 	tests := []struct {
 		name string
-		edit func(m *statementv1.Statement)
+		edit func(m *stmtv1.Stmt)
 	}{
-		{name: "unspecified broker", edit: func(m *statementv1.Statement) { m.Broker = typev1.Broker_BROKER_UNSPECIFIED }},
-		{name: "undefined broker", edit: func(m *statementv1.Statement) { m.Broker = 99 }},
-		{name: "malformed order_from", edit: func(m *statementv1.Statement) { m.OrderFrom = "2026-13-01" }},
-		{name: "malformed order_before", edit: func(m *statementv1.Statement) { m.OrderBefore = "soon" }},
-		{name: "empty period", edit: func(m *statementv1.Statement) { m.OrderBefore = m.OrderFrom }},
-		{name: "split without a key", edit: func(m *statementv1.Statement) {
-			m.Splits = []*statementv1.StatedSplit{{EffectiveDate: "2026-03-02", Quantity: "9"}}
+		{name: "unspecified broker", edit: func(m *stmtv1.Stmt) { m.Broker = typev1.Broker_BROKER_UNSPECIFIED }},
+		{name: "undefined broker", edit: func(m *stmtv1.Stmt) { m.Broker = 99 }},
+		{name: "malformed order_from", edit: func(m *stmtv1.Stmt) { m.OrderFrom = "2026-13-01" }},
+		{name: "malformed order_before", edit: func(m *stmtv1.Stmt) { m.OrderBefore = "soon" }},
+		{name: "empty period", edit: func(m *stmtv1.Stmt) { m.OrderBefore = m.OrderFrom }},
+		{name: "split without a key", edit: func(m *stmtv1.Stmt) {
+			m.Splits = []*stmtv1.StatedSplit{{EffectiveDate: "2026-03-02", Quantity: "9"}}
 		}},
-		{name: "split with a bad date", edit: func(m *statementv1.Statement) {
-			m.Splits = []*statementv1.StatedSplit{{Key: securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd), EffectiveDate: "2026-03-40", Quantity: "9"}}
+		{name: "split with a bad date", edit: func(m *stmtv1.Stmt) {
+			m.Splits = []*stmtv1.StatedSplit{{Key: securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd), EffectiveDate: "2026-03-40", Quantity: "9"}}
 		}},
-		{name: "split with a bad ratio", edit: func(m *statementv1.Statement) {
-			m.Splits = []*statementv1.StatedSplit{{Key: securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd), EffectiveDate: "2026-03-02", Quantity: "9", Ratio: &statementv1.SplitRatio{From: "1", To: "ten"}}}
+		{name: "split with a bad ratio", edit: func(m *stmtv1.Stmt) {
+			m.Splits = []*stmtv1.StatedSplit{{Key: securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd), EffectiveDate: "2026-03-02", Quantity: "9", Ratio: &stmtv1.SplitRatio{From: "1", To: "ten"}}}
 		}},
-		{name: "split with an unknown currency", edit: func(m *statementv1.Statement) {
-			m.Splits = []*statementv1.StatedSplit{{Key: securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &xxx), EffectiveDate: "2026-03-02", Quantity: "9"}}
+		{name: "split with an unknown currency", edit: func(m *stmtv1.Stmt) {
+			m.Splits = []*stmtv1.StatedSplit{{Key: securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &xxx), EffectiveDate: "2026-03-02", Quantity: "9"}}
 		}},
-		{name: "split with an inadmissible key", edit: func(m *statementv1.Statement) {
-			m.Splits = []*statementv1.StatedSplit{{Key: securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, "US1", ""), ident(typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, "US2", "")), EffectiveDate: "2026-03-02", Quantity: "9"}}
+		{name: "split with an inadmissible key", edit: func(m *stmtv1.Stmt) {
+			m.Splits = []*stmtv1.StatedSplit{{Key: securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, "US1", ""), ident(typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, "US2", "")), EffectiveDate: "2026-03-02", Quantity: "9"}}
 		}},
 	}
 	for _, tc := range tests {
@@ -219,12 +219,12 @@ func TestValidate(t *testing.T) {
 	equity := securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, "ACME", ""))
 	tests := []struct {
 		name string
-		row  *statementv1.Row
+		row  *stmtv1.Row
 		want string
 	}{
 		{name: "accepted", row: rowMsg(equity, "2026-03-05", "10")},
 		{name: "on the first day", row: rowMsg(equity, "2026-03-01", "10")},
-		{name: "no key", row: &statementv1.Row{OrderDate: "2026-03-05"}, want: "no key"},
+		{name: "no key", row: &stmtv1.Row{OrderDate: "2026-03-05"}, want: "no key"},
 		{name: "class outside the vocabulary", row: rowMsg(securityKey("ACME", 99, &usd), "2026-03-05", "1"), want: "asset class 99 outside the vocabulary"},
 		{name: "type outside the vocabulary", row: rowMsg(securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(99, "x", "")), "2026-03-05", "1"), want: "identifier type 99 outside the vocabulary"},
 		{name: "unspecified type", row: rowMsg(securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_UNSPECIFIED, "x", "")), "2026-03-05", "1"), want: "identifier type 0 outside the vocabulary"},
@@ -235,9 +235,9 @@ func TestValidate(t *testing.T) {
 		{name: "two descriptions", row: rowMsg(securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_BROKER_DESCRIPTION, "ACME CORP", "ibkr")), "2026-03-05", "1")},
 		{name: "nothing stated about the instrument", row: rowMsg(&typev1.StatedKey{AssetClass: typev1.AssetClass_ASSET_CLASS_EQUITY, Currency: &usd}, "2026-03-05", "1"), want: "no identifier"},
 		{name: "an identifier and no description", row: rowMsg(securityKey("", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, "US0378331005", "")), "2026-03-05", "1")},
-		{name: "malformed order date", row: &statementv1.Row{Key: equity, OrderDate: "2026-03-40", SettlementDate: "2026-03-05", AsAt: "2026-03-05", Quantity: "1"}, want: `malformed order date "2026-03-40"`},
-		{name: "malformed settlement date", row: &statementv1.Row{Key: equity, OrderDate: "2026-03-05", SettlementDate: "", AsAt: "2026-03-05", Quantity: "1"}, want: `malformed settlement date ""`},
-		{name: "malformed as at", row: &statementv1.Row{Key: equity, OrderDate: "2026-03-05", SettlementDate: "2026-03-05", AsAt: "5 March", Quantity: "1"}, want: `malformed as at "5 March"`},
+		{name: "malformed order date", row: &stmtv1.Row{Key: equity, OrderDate: "2026-03-40", SettlementDate: "2026-03-05", AsAt: "2026-03-05", Quantity: "1"}, want: `malformed order date "2026-03-40"`},
+		{name: "malformed settlement date", row: &stmtv1.Row{Key: equity, OrderDate: "2026-03-05", SettlementDate: "", AsAt: "2026-03-05", Quantity: "1"}, want: `malformed settlement date ""`},
+		{name: "malformed as at", row: &stmtv1.Row{Key: equity, OrderDate: "2026-03-05", SettlementDate: "2026-03-05", AsAt: "5 March", Quantity: "1"}, want: `malformed as at "5 March"`},
 		{name: "malformed quantity", row: rowMsg(equity, "2026-03-05", "ten"), want: `malformed quantity "ten"`},
 		{name: "before the period", row: rowMsg(equity, "2026-02-28", "1"), want: "order date outside the claimed period"},
 		{name: "on the day after the period", row: rowMsg(equity, "2026-05-01", "1"), want: "order date outside the claimed period"},
@@ -363,8 +363,8 @@ func TestOutcomes(t *testing.T) {
 				f.store.EXPECT().SweepStatedKeys(gomock.Any(), userID).Return(int64(0), nil)
 				f.store.EXPECT().CompleteRun(gomock.Any(), gomock.Any()).Return(nil)
 			}
-			msg := &statementv1.Statement{Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01",
-				Rows: []*statementv1.Row{rowMsg(rejected, "2026-03-05", "1"), rowMsg(unresolved, "2026-03-06", "2")}}
+			msg := &stmtv1.Stmt{Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01",
+				Rows: []*stmtv1.Row{rowMsg(rejected, "2026-03-05", "1"), rowMsg(unresolved, "2026-03-06", "2")}}
 			if _, err := f.svc.Create(context.Background(), userID, msg); err != nil {
 				t.Fatalf("Create() error = %v", err)
 			}
@@ -431,8 +431,8 @@ func TestResolvesUnassociated(t *testing.T) {
 				f.store.EXPECT().SweepStatedKeys(gomock.Any(), userID).Return(int64(0), nil)
 				f.store.EXPECT().CompleteRun(gomock.Any(), gomock.Any()).Return(nil)
 			}
-			msg := &statementv1.Statement{Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01",
-				Rows: []*statementv1.Row{rowMsg(held, "2026-03-05", "1"), rowMsg(fresh, "2026-03-06", "2")}}
+			msg := &stmtv1.Stmt{Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01",
+				Rows: []*stmtv1.Row{rowMsg(held, "2026-03-05", "1"), rowMsg(fresh, "2026-03-06", "2")}}
 			if _, err := f.svc.Create(context.Background(), userID, msg); err != nil {
 				t.Fatalf("Create() error = %v", err)
 			}
@@ -477,8 +477,8 @@ func TestResolvesWithDates(t *testing.T) {
 	f.store.EXPECT().CreateStmtItems(gomock.Any(), gomock.Any()).Return(int64(1), nil)
 	f.store.EXPECT().SweepStatedKeys(gomock.Any(), userID).Return(int64(0), nil)
 	f.store.EXPECT().CompleteRun(gomock.Any(), gomock.Any()).Return(nil)
-	msg := &statementv1.Statement{Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01",
-		Rows: []*statementv1.Row{
+	msg := &stmtv1.Stmt{Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01",
+		Rows: []*stmtv1.Row{
 			rowMsg(dated, "2026-03-07", "1"), rowMsg(dated, "2026-03-05", "2"), rowMsg(dated, "2026-03-07", "3"),
 			rowMsg(dated, "2026-03-09", "many"), rowMsg(fixed, "2026-03-06", "4"),
 		}}
@@ -519,8 +519,8 @@ func TestReplaysNewFacts(t *testing.T) {
 		}
 		return nil
 	})
-	msg := &statementv1.Statement{Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01",
-		Rows: []*statementv1.Row{rowMsg(stock, "2026-03-05", "1")}}
+	msg := &stmtv1.Stmt{Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01",
+		Rows: []*stmtv1.Row{rowMsg(stock, "2026-03-05", "1")}}
 	if _, err := f.svc.Create(context.Background(), userID, msg); err != nil {
 		t.Fatalf("Create() error = %v", err)
 	}
@@ -571,9 +571,9 @@ func TestPrepareTakesRow(t *testing.T) {
 	})
 	f.store.EXPECT().SweepStatedKeys(gomock.Any(), userID).Return(int64(0), nil)
 	f.store.EXPECT().CompleteRun(gomock.Any(), gomock.Any()).Return(nil)
-	msg := &statementv1.Statement{Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01",
-		Rows:   []*statementv1.Row{rowMsg(acme, "2026-03-05", "1")},
-		Splits: []*statementv1.StatedSplit{{Key: acme, EffectiveDate: "2026-03-02", Quantity: "9"}}}
+	msg := &stmtv1.Stmt{Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01",
+		Rows:   []*stmtv1.Row{rowMsg(acme, "2026-03-05", "1")},
+		Splits: []*stmtv1.StatedSplit{{Key: acme, EffectiveDate: "2026-03-02", Quantity: "9"}}}
 	if _, err := f.svc.Create(context.Background(), userID, msg); err != nil || f.workErr != nil {
 		t.Fatalf("Create() error = %v, work error = %v", err, f.workErr)
 	}
@@ -597,7 +597,7 @@ func TestCreateSpec(t *testing.T) {
 		f.calls = append(f.calls, "complete")
 		return nil
 	})
-	msg := &statementv1.Statement{Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01"}
+	msg := &stmtv1.Stmt{Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01"}
 	if _, err := f.svc.Create(context.Background(), userID, msg); err != nil || f.workErr != nil {
 		t.Fatalf("Create() error = %v, work error = %v", err, f.workErr)
 	}
@@ -612,9 +612,9 @@ func TestCreateSpec(t *testing.T) {
 // TestCreateFailures checks that a failing Prepare is returned by Create,
 // and that a failing resolution fails the work before anything is written.
 func TestCreateFailures(t *testing.T) {
-	msg := func() *statementv1.Statement {
-		return &statementv1.Statement{Broker: typev1.Broker_BROKER_SCHWAB, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01",
-			Rows: []*statementv1.Row{rowMsg(cashKey("USD"), "2026-03-05", "1")}}
+	msg := func() *stmtv1.Stmt {
+		return &stmtv1.Stmt{Broker: typev1.Broker_BROKER_SCHWAB, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01",
+			Rows: []*stmtv1.Row{rowMsg(cashKey("USD"), "2026-03-05", "1")}}
 	}
 	boom := errors.New("boom")
 	t.Run("prepare", func(t *testing.T) {

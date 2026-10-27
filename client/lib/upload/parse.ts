@@ -1,4 +1,4 @@
-import type { Statement } from "@/gen/statement/v1/statement_pb";
+import type { Stmt } from "@/gen/stmt/v1/stmt_pb";
 import {
   type Format,
   MarshalError,
@@ -6,8 +6,7 @@ import {
 } from "@/lib/marshal/marshal";
 
 export type Parsed =
-  | { statement: Statement; error?: undefined }
-  | { statement?: undefined; error: MarshalError };
+  { stmt: Stmt; error?: undefined } | { stmt?: undefined; error: MarshalError };
 
 // parseExport marshals text in the given format. A failure is returned
 // rather than thrown, so a stage of the dialog can show it and offer
@@ -19,7 +18,7 @@ export function parseExport(
   exportedOn: string,
 ): Parsed {
   try {
-    return { statement: marshallerFor(format).marshal(text, exportedOn) };
+    return { stmt: marshallerFor(format).marshal(text, exportedOn) };
   } catch (e) {
     if (e instanceof MarshalError) {
       return { error: e };

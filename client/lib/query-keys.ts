@@ -8,8 +8,8 @@ import type { RunFilters } from "./admin";
 // key that silently refetches.
 export const qk = {
   session: () => ["session"] as const,
-  statements: () => ["statements"] as const,
-  statement: (id: string) => ["statements", id] as const,
+  stmts: () => ["stmts"] as const,
+  stmt: (id: string) => ["stmts", id] as const,
   // Under a resource of its own, so refreshing the statements after a
   // choice does not run the resolution again.
   candidates: (keyId: string) => ["candidates", keyId] as const,
@@ -36,17 +36,15 @@ export const qk = {
 
 // invalidateResolved refreshes the holdings, the transactions and the
 // statements that a resolution changes. It refreshes the statements in
-// statementIds, or every statement and the statements list when the caller
+// stmtIds, or every statement and the statements list when the caller
 // passes none.
 export function invalidateResolved(
   queryClient: QueryClient,
-  statementIds?: string[],
+  stmtIds?: string[],
 ) {
-  const statements = statementIds?.map((id) => qk.statement(id)) ?? [
-    qk.statements(),
-  ];
+  const stmts = stmtIds?.map((id) => qk.stmt(id)) ?? [qk.stmts()];
   return Promise.all(
-    [qk.holdings(), qk.txns(), ...statements].map((queryKey) =>
+    [qk.holdings(), qk.txns(), ...stmts].map((queryKey) =>
       queryClient.invalidateQueries({ queryKey }),
     ),
   );

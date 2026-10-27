@@ -9,9 +9,9 @@ import {
   holdingClient,
   resolutionFindings,
   resolutionItems,
-  statementClient,
+  stmtClient,
 } from "../helpers/api";
-import { uploadStatement } from "../helpers/upload";
+import { uploadStmt } from "../helpers/upload";
 import { expect, test } from "../helpers/test";
 
 // One IBKR line, derived from the client's IBKR test export, which is
@@ -31,7 +31,7 @@ test("replays a statement's unavailable key from the runs page and resolves it",
   const { user, session: userSession } = await signIn();
   await page.goto("/txns");
   // Each datasource spends its three tries, with backoff, before the run ends.
-  const runId = await uploadStatement(page, fixture, {
+  const runId = await uploadStmt(page, fixture, {
     state: "completed",
     timeout: 15_000,
     holds: false,
@@ -39,14 +39,12 @@ test("replays a statement's unavailable key from the runs page and resolves it",
 
   // Unavailable, not unrecognised: the refusal is temporary.
   await page.getByTestId("activity-sheet-close").click();
-  const keys = (
-    await statementClient(userSession).getStatement({ runId: runId })
-  ).keys;
+  const keys = (await stmtClient(userSession).getStmt({ runId: runId })).keys;
   const key = keys.find((k) =>
     k.statedKey?.identifiers.some((i) => i.value === isin),
   );
   expect(key).toBeTruthy();
-  await page.goto(`/statements/${runId}`);
+  await page.goto(`/stmts/${runId}`);
   await expect(
     page
       .getByTestId(`key-row-${key!.statedKeyId}`)
@@ -56,9 +54,9 @@ test("replays a statement's unavailable key from the runs page and resolves it",
   // A temporary refusal leaves no block, so the holding rests on the key alone.
   const { session } = await signIn("admin");
   const admin = adminRunClient(session);
-  const statement = await admin.getRun({ runId: runId });
-  expect(resolutionFindings(statement.findings)).toHaveLength(0);
-  const resolution = statement.run!.children[0];
+  const stmt = await admin.getRun({ runId: runId });
+  expect(resolutionFindings(stmt.findings)).toHaveLength(0);
+  const resolution = stmt.run!.children[0];
   for (const name of ["openfigi", "eodhd"]) {
     const fetched = await fetchItems(admin, fetchRun(resolution, name).run!.id);
     expect(fetched[0].outcome, name).toBe(FetchOutcome.FAILED_TEMPORARY);

@@ -8,18 +8,18 @@ describe("parseExport", () => {
   it("marshals a file of the right format", () => {
     const parsed = parseExport(fixture("fidelity-uk.csv"), "fidelity_uk", "");
     expect(parsed.error).toBeUndefined();
-    expect(parsed.statement?.broker).toBe(Broker.FIDELITY_UK);
-    expect(parsed.statement?.rows.length).toBeGreaterThan(0);
+    expect(parsed.stmt?.broker).toBe(Broker.FIDELITY_UK);
+    expect(parsed.stmt?.rows.length).toBeGreaterThan(0);
   });
 
   it("takes the export date for a format that needs one", () => {
     const parsed = parseExport(fixture("schwab.csv"), "schwab", "2025-01-15");
-    expect(parsed.statement?.rows[0].asAt).toBe("2025-01-15");
+    expect(parsed.stmt?.rows[0].asAt).toBe("2025-01-15");
   });
 
   it("returns rather than throws on the wrong format", () => {
     const parsed = parseExport(fixture("fidelity-uk.csv"), "schwab", "");
-    expect(parsed.statement).toBeUndefined();
+    expect(parsed.stmt).toBeUndefined();
     expect(parsed.error).toBeInstanceOf(MarshalError);
     expect(parseExport("", "ibkr", "").error).toBeInstanceOf(MarshalError);
   });
