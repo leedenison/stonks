@@ -15,6 +15,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/datasource"
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/db/to"
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/platform/ptr"
 )
@@ -37,7 +38,7 @@ var _ Sources = (*market.Registry)(nil)
 // Updater is this package's view of the datasource service.
 type Updater interface {
 	Update(ctx context.Context, arg gen.UpdateDatasourceParams) (gen.Datasource, error)
-	Reorder(ctx context.Context, names []string) error
+	Reorder(ctx context.Context, names []string) (gen.Run, error)
 }
 
 var _ Updater = (*datasource.Service)(nil)
@@ -101,17 +102,17 @@ func (s *Server) UpdateDatasource(ctx context.Context, req *connect.Request[admi
 }
 
 // ReorderDatasources gives each datasource the precedence of its position in
-// the list. A list that does not name every datasource exactly once is
-// refused.
+// the list, and returns the rebuild resolved tickers run it started. A list
+// that does not name every datasource exactly once is refused.
 func (s *Server) ReorderDatasources(ctx context.Context, req *connect.Request[admindatasourcev1.ReorderDatasourcesRequest]) (*connect.Response[admindatasourcev1.ReorderDatasourcesResponse], error) {
-	err := s.updater.Reorder(ctx, req.Msg.GetNames())
+	started, err := s.updater.Reorder(ctx, req.Msg.GetNames())
 	switch {
 	case errors.Is(err, datasource.ErrOrder):
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	case err != nil:
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	return connect.NewResponse(&admindatasourcev1.ReorderDatasourcesResponse{}), nil
+	return connect.NewResponse(&admindatasourcev1.ReorderDatasourcesResponse{Run: to.ProtoRun(started)}), nil
 }
 
 // datasource writes a row as its proto message, with the address its

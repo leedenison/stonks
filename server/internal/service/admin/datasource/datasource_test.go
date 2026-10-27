@@ -9,12 +9,14 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/uuid"
 	"go.uber.org/mock/gomock"
 	"google.golang.org/protobuf/testing/protocmp"
 	"google.golang.org/protobuf/types/known/structpb"
 
 	admindatasourcev1 "github.com/leedenison/stonks/proto/admin/datasource/v1"
 	"github.com/leedenison/stonks/proto/admin/datasource/v1/admindatasourcev1connect"
+	runv1 "github.com/leedenison/stonks/proto/run/v1"
 	"github.com/leedenison/stonks/server/internal/datasource"
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
@@ -157,7 +159,8 @@ func TestUpdateDatasource(t *testing.T) {
 }
 
 // TestReorderDatasources checks that the names reach the service in the
-// order given, and that each refusal is mapped to its code.
+// order given, that the run the reorder started comes back, and that each
+// refusal is mapped to its code.
 func TestReorderDatasources(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -174,12 +177,18 @@ func TestReorderDatasources(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newFixture(t)
 			if tc.names != nil {
-				f.updater.EXPECT().Reorder(gomock.Any(), tc.names).Return(tc.err)
+				f.updater.EXPECT().Reorder(gomock.Any(), tc.names).Return(rebuild, tc.err)
 			}
-			_, err := f.client.ReorderDatasources(context.Background(), connect.NewRequest(&admindatasourcev1.ReorderDatasourcesRequest{Names: tc.names}))
+			res, err := f.client.ReorderDatasources(context.Background(), connect.NewRequest(&admindatasourcev1.ReorderDatasourcesRequest{Names: tc.names}))
 			if servicetest.CodeOf(err) != tc.wantCode {
 				t.Errorf("ReorderDatasources(%v) code = %v (err %v), want %v", tc.names, servicetest.CodeOf(err), err, tc.wantCode)
+			}
+			if err == nil && (res.Msg.GetRun().GetId() != rebuild.ID.String() || res.Msg.GetRun().GetKind() != runv1.RunKind_RUN_KIND_REBUILD_RESOLVED_TICKERS) {
+				t.Errorf("ReorderDatasources(%v) run = %v, want the rebuild run", tc.names, res.Msg.GetRun())
 			}
 		})
 	}
 }
+
+// rebuild is the run a reorder starts.
+var rebuild = gen.Run{ID: uuid.MustParse("00000000-0000-0000-0000-000000000011"), Kind: gen.RunKindRebuildResolvedTickers, State: gen.RunStatePending, Trigger: gen.RunTriggerAdministrator}

@@ -1,5 +1,6 @@
 import type { Page } from "@playwright/test";
-import { datasourceClient } from "../helpers/api";
+import { RunKind, RunState } from "../gen/run/v1/run_pb";
+import { adminRunClient, datasourceClient, settled } from "../helpers/api";
 import { deleteDatasource, seedDatasource } from "../helpers/db";
 import { expect, test } from "../helpers/test";
 
@@ -123,9 +124,20 @@ test("lists the datasources, refuses enabling one the build does not serve, and 
   );
 });
 
-test("reorders the datasources by dragging a row", async ({ signIn, page }) => {
+test("reorders the datasources by dragging a row, and each reorder rebuilds the ticker names", async ({
+  signIn,
+  page,
+}) => {
   const { session } = await signIn("admin");
   const admin = datasourceClient(session);
+  const runs = adminRunClient(session);
+  // Only this spec reorders the datasources, so every rebuild run that
+  // appears while it works is one of its reorders.
+  const rebuilds = async () =>
+    (await runs.listRuns({ kind: RunKind.REBUILD_RESOLVED_TICKERS })).runs.map(
+      (r) => r.run!.id,
+    );
+  const earlier = await rebuilds();
   await page.goto("/admin/datasources");
   const rows = page
     .getByTestId("admin-datasources-table")
@@ -170,6 +182,20 @@ test("reorders the datasources by dragging a row", async ({ signIn, page }) => {
     [last, 3],
     [unserved, 4],
   ]);
+
+  let started: string[] = [];
+  await expect
+    .poll(async () => {
+      started = (await rebuilds()).filter((id) => !earlier.includes(id));
+      return started.length;
+    })
+    .toBe(2);
+  for (const runId of started) {
+    await settled(runs, runId, false);
+    expect((await runs.getRun({ runId })).run?.run?.state).toBe(
+      RunState.COMPLETED,
+    );
+  }
 });
 
 // move drags the named row one place by keyboard, past its neighbour. A

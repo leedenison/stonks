@@ -1,5 +1,6 @@
 // Package datasource changes the datasources table and keeps the registry
-// and the fetch cache in step with it.
+// and the fetch cache in step with it. A reorder also starts a rebuild of the
+// names of every ticker, since precedence decides which assertion wins a day.
 package datasource
 
 import (
@@ -22,14 +23,15 @@ var (
 
 // Service changes datasources.
 type Service struct {
-	store   Store
-	sources Sources
-	cache   Dropper
+	store    Store
+	sources  Sources
+	cache    Dropper
+	rebuilds Rebuilder
 }
 
 // New returns a Service.
-func New(store Store, sources Sources, cache Dropper) *Service {
-	return &Service{store: store, sources: sources, cache: cache}
+func New(store Store, sources Sources, cache Dropper, rebuilds Rebuilder) *Service {
+	return &Service{store: store, sources: sources, cache: cache, rebuilds: rebuilds}
 }
 
 // Update changes a datasource's state and settings, makes the change take
@@ -62,10 +64,11 @@ func (s *Service) Update(ctx context.Context, arg gen.UpdateDatasourceParams) (g
 	return row, nil
 }
 
-// Reorder sets each datasource's precedence to its position in names. The
-// cache keeps its entries, because precedence orders answers after they are
-// served.
-func (s *Service) Reorder(ctx context.Context, names []string) error {
+// Reorder sets each datasource's precedence to its position in names, and
+// returns the rebuild resolved tickers run it starts. The cache keeps its
+// entries, because precedence orders answers after they are served. Where the
+// run fails to start, the new precedence stands and the error is returned.
+func (s *Service) Reorder(ctx context.Context, names []string) (gen.Run, error) {
 	err := s.store.Tx(ctx, func(q Queries) error {
 		rows, err := q.ListDatasources(ctx)
 		if err != nil {
@@ -77,9 +80,16 @@ func (s *Service) Reorder(ctx context.Context, names []string) error {
 		return q.SetDatasourcePrecedence(ctx, names)
 	})
 	if err != nil {
-		return err
+		return gen.Run{}, err
 	}
-	return s.reload(ctx)
+	if err := s.reload(ctx); err != nil {
+		return gen.Run{}, err
+	}
+	started, err := s.rebuilds.Start(context.WithoutCancel(ctx))
+	if err != nil {
+		return gen.Run{}, fmt.Errorf("start rebuild resolved tickers: %w", err)
+	}
+	return started, nil
 }
 
 // reload rebuilds the registry once the table has changed. It runs to the
