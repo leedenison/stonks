@@ -4,6 +4,7 @@ import { CoverageService } from "@/gen/admin/coverage/v1/coverage_pb";
 import { DatasourceService } from "@/gen/admin/datasource/v1/datasource_pb";
 import { InstrumentService as AdminInstrumentService } from "@/gen/admin/instrument/v1/instrument_pb";
 import { ExtendValidityService } from "@/gen/admin/extend_validity/v1/extend_validity_pb";
+import { RefreshCorporateEventsService } from "@/gen/admin/refresh_corporate_events/v1/refresh_corporate_events_pb";
 import { ReplayService } from "@/gen/admin/replay/v1/replay_pb";
 import { RunService as AdminRunService } from "@/gen/admin/run/v1/run_pb";
 import { AuthService } from "@/gen/auth/v1/auth_pb";
@@ -22,6 +23,10 @@ export function newClients(transport: Transport) {
     datasource: createClient(DatasourceService, transport),
     holding: createClient(HoldingService, transport),
     extendValidity: createClient(ExtendValidityService, transport),
+    refreshCorporateEvents: createClient(
+      RefreshCorporateEventsService,
+      transport,
+    ),
     replay: createClient(ReplayService, transport),
     run: createClient(RunService, transport),
     statement: createClient(StatementService, transport),

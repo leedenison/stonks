@@ -6,6 +6,7 @@ import { CoverageService } from "../gen/admin/coverage/v1/coverage_pb";
 import { DatasourceService } from "../gen/admin/datasource/v1/datasource_pb";
 import { InstrumentService as AdminInstrumentService } from "../gen/admin/instrument/v1/instrument_pb";
 import { ExtendValidityService } from "../gen/admin/extend_validity/v1/extend_validity_pb";
+import { RefreshCorporateEventsService } from "../gen/admin/refresh_corporate_events/v1/refresh_corporate_events_pb";
 import { ReplayService } from "../gen/admin/replay/v1/replay_pb";
 import {
   FetchOutcome,
@@ -71,6 +72,10 @@ export function datasourceClient(sessionID: string) {
 
 export function extendValidityClient(sessionID: string) {
   return clientFor(ExtendValidityService, sessionID);
+}
+
+export function refreshCorporateEventsClient(sessionID: string) {
+  return clientFor(RefreshCorporateEventsService, sessionID);
 }
 
 export function replayClient(sessionID: string) {

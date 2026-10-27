@@ -1,0 +1,28 @@
+// Refreshing corporate events: runs an administrator starts to ask the
+// datasources again for the corporate events of the tickers that named a held
+// instrument.
+
+syntax = "proto3";
+
+package stonks.admin.refresh_corporate_events.v1;
+
+import "run/v1/run.proto";
+
+option go_package = "github.com/leedenison/stonks/proto/admin/refresh_corporate_events/v1;adminrefreshcorporateeventsv1";
+
+message StartRefreshCorporateEventsRequest {}
+
+message StartRefreshCorporateEventsResponse {
+  // The refresh corporate events run, pending.
+  stonks.run.v1.Run run = 1;
+}
+
+// Starts refresh corporate events runs.
+service RefreshCorporateEventsService {
+  // Starts a refresh corporate events run over the tickers that named a held
+  // instrument, as a system run. Each enabled datasource that serves corporate
+  // events is asked once about each ticker, skipping the cache, and spends its
+  // quota on the calls. Where no instrument is held, the call is refused as a
+  // failed precondition.
+  rpc StartRefreshCorporateEvents(StartRefreshCorporateEventsRequest) returns (StartRefreshCorporateEventsResponse);
+}
