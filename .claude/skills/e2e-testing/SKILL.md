@@ -70,7 +70,7 @@ database and Redis connections close with the worker.
 // Invented per spec, so no other spec competes over this instrument.
 const TICKER = "ZZHOLD";
 
-test.beforeAll(async () => { await seedInstrument(TICKER); });
+test.beforeAll(async () => { await seedInstr(TICKER); });
 
 test("shows the holdings", async ({ signIn, page }) => {
   const { user } = await signIn();

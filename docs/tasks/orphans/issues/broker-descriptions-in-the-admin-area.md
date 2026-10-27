@@ -22,4 +22,4 @@ the keys a datasource serves, and the unavailable scope selects unavailable keys
 
 Nothing settled. An association through a broker description is fixed and provisional.
 See the `stated_keys` comment in
-[004_statements.sql](../../../../server/internal/db/migrations/004_statements.sql).
+[004_stmts.sql](../../../../server/internal/db/migrations/004_stmts.sql).

@@ -22,12 +22,12 @@ In:
   [012](../adr/012-a-fact-write-holds-its-ticker-rows-until-commit.md).
 - The `rebuild_resolved_tickers` run kind, in batches. A change of precedence starts it,
   and so does an admin action.
-- The views `listing_tickers` and `instrument_names` read the projection and decide the
+- The views `listing_tickers` and `instr_names` read the projection and decide the
   relation on read.
-- `ListListingNames`, `ListInstrumentTickers`, the admin search and the dated key
+- `ListListingNames`, `ListInstrTickers`, the admin search and the dated key
   listing fallback (`listing` in `service/holding/holding.go`) read the projection.
 - Proto:
-  - A relation enum (current, defunct, former) replaces `InstrumentTicker.current`.
+  - A relation enum (current, defunct, former) replaces `InstrTicker.current`.
   - `HoldingListing` carries a `MarketTicker` and an optional venue in place of a
     `mic_ticker` identifier.
 - The client shows `(defunct)`.
