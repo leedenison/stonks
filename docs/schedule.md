@@ -23,9 +23,17 @@ The milestones that are scheduled, in the order they are implemented. Each has a
 of open issues and ADRs at `docs/tasks/<label>/`.
 
 - **M06** - Corporate events that restate the quantity of an instrument held, from
-  Massive and EODHD.
+  Massive and EODHD, on a ticker model where tickers are facts.
 
 ```
+    009 tickers and markets
+         |
+    010 edges
+         |
+    011 resolved tickers
+         |
+    012 tickers leave identifiers
+         |
     006 holdings
          |
     002 close
