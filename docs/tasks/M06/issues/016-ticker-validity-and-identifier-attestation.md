@@ -1,7 +1,6 @@
 ---
 title: Name ticker validity and identifier attestation in full
 type: task
-dependencies: [015]
 ---
 
 ## Scope
