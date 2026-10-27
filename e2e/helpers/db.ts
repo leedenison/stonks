@@ -113,10 +113,10 @@ export async function closeDB(): Promise<void> {
 }
 
 // seedDescribedInstr seeds reference data, an instrument with a GBP
-// listing, an ISIN, an XLON ticker and a broker description, and returns its
-// id. No product API writes a description, so SQL is the only route. System
-// rows outlive a test and workers run in parallel, so a lock on the ISIN
-// makes concurrent seeding find one instrument.
+// listing, an ISIN, an XLON ticker that names it and a broker description,
+// and returns its id. No product API writes a description, so SQL is the only
+// route. System rows outlive a test and workers run in parallel, so a lock on
+// the ISIN makes concurrent seeding find one instrument.
 export async function seedDescribedInstr(
   broker: string,
   description: string,
@@ -150,6 +150,35 @@ export async function seedDescribedInstr(
     await client.query(
       "INSERT INTO identifiers (id, instr_id, listing_id, type, domain, value) VALUES (uuid_v7(), $1, $2, 'mic_ticker', 'XLON', $3)",
       [id, listing.rows[0].id, ticker],
+    );
+    // A holding is named by the instrument's row of resolved_tickers. A
+    // rebuild of every ticker, which a reorder of the datasources starts,
+    // derives the row from the facts. So the seed writes an EODHD assertion
+    // that the ticker names the instrument at XLON in GBP, through a fetch of
+    // a system run, and the row that the assertion derives.
+    const tickerRow = await client.query<{ id: string }>(
+      "INSERT INTO tickers (id, market, value) VALUES (uuid_v7(), 'XLON', $1) ON CONFLICT (market, value) DO UPDATE SET value = EXCLUDED.value RETURNING id",
+      [ticker],
+    );
+    const fetch = await client.query<{ id: string }>(
+      "INSERT INTO runs (id, kind, trigger, state) VALUES (uuid_v7(), 'datasource_fetch', 'administrator', 'completed') RETURNING id",
+    );
+    const fetchId = fetch.rows[0].id;
+    await client.query(
+      "INSERT INTO fetches (id, datasource, endpoint, kind) VALUES ($1, 'eodhd', 'http://eodhd.vcr', 'identity')",
+      [fetchId],
+    );
+    const key = await client.query<{ id: string }>(
+      "INSERT INTO fetch_keys (id, fetch_id, outcome, attempts, sent_type, sent_value, answered_at) VALUES (uuid_v7(), $1, 'served', 1, 'isin', $2, now()) RETURNING id",
+      [fetchId, isin],
+    );
+    await client.query(
+      "INSERT INTO identifier_assertions (id, fetch_key_id, ticker_id, market, instr_id, asserted_on, venue, currency) VALUES (uuid_v7(), $1, $2, 'XLON', $3, CURRENT_DATE, 'XLON', 'GBP')",
+      [key.rows[0].id, tickerRow.rows[0].id, id],
+    );
+    await client.query(
+      "INSERT INTO resolved_tickers (ticker_id, market, instr_id, venue, currency) VALUES ($1, 'XLON', $2, 'XLON', 'GBP')",
+      [tickerRow.rows[0].id, id],
     );
     await client.query(
       "INSERT INTO identifiers (id, instr_id, type, domain, value) VALUES (uuid_v7(), $1, 'broker_description', $2, $3)",

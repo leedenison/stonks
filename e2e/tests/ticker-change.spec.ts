@@ -91,6 +91,9 @@ test("dates a key through its ticker and marks each transaction by its day", asy
   expect(metaHolding.quantity).toBe("10");
   const usd = metaHolding.listings.find((l) => l.currency === "USD");
   expect(usd).toBeDefined();
+  // XNAS is META's primary venue, so its row names the listing.
+  expect(usd!.ticker).toMatchObject({ market: "US", value: "META" });
+  expect(usd!.venue).toBe("Nasdaq");
   expect(metaHolding.keys.map((k) => [k.quantity, k.listingId])).toEqual([
     ["10", usd!.id],
   ]);

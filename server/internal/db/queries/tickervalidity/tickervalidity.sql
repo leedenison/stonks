@@ -124,24 +124,19 @@ ORDER BY identifier_assertions.id
 LIMIT sqlc.narg(lim)::int;
 
 -- name: ListInstrTickers :many
--- The tickers of the instrument at their markets: those on its listings, and
--- those its assertions name. Each comes with whether a listing carries it,
--- and the operating MICs of the listings that do.
-SELECT named.market::text AS market, named.value::text AS value, bool_or(named.current)::bool AS current,
-       COALESCE(array_agg(DISTINCT named.venue ORDER BY named.venue) FILTER (WHERE named.venue IS NOT NULL), '{}')::text[] AS venues
-FROM (
-    SELECT mic_markets.market, identifiers.value, true AS current, mic_markets.operating_mic AS venue
-    FROM identifiers
-    JOIN mic_markets ON mic_markets.mic = identifiers.domain
-    WHERE identifiers.instr_id = @instr AND identifiers.type = 'mic_ticker'
-    UNION ALL
-    SELECT tickers.market, tickers.value, false, NULL
-    FROM identifier_assertions
-    JOIN tickers ON tickers.id = identifier_assertions.ticker_id
-    WHERE identifier_assertions.instr_id = @instr
-) AS named
-GROUP BY named.market, named.value
-ORDER BY named.market, named.value;
+-- The tickers of the instrument at their markets: those of its rows of
+-- resolved_tickers, and those its assertions name. Each comes with its
+-- relation to the instrument, and the venues of its rows.
+SELECT tickers.market, tickers.value, instr_tickers.relation,
+       COALESCE((SELECT array_agg(DISTINCT resolved_tickers.venue ORDER BY resolved_tickers.venue)
+                 FROM resolved_tickers
+                 WHERE resolved_tickers.ticker_id = instr_tickers.ticker_id
+                   AND resolved_tickers.instr_id = instr_tickers.instr_id
+                   AND resolved_tickers.venue IS NOT NULL), '{}')::text[] AS venues
+FROM instr_tickers
+JOIN tickers ON tickers.id = instr_tickers.ticker_id
+WHERE instr_tickers.instr_id = @instr
+ORDER BY tickers.market, tickers.value;
 
 -- name: CountTickerTxns :one
 -- The count of transactions of every key that states one of the probes; see

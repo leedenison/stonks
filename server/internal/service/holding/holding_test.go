@@ -72,10 +72,13 @@ func TestListHoldings(t *testing.T) {
 		{InstrID: acmeID, Type: types.IdentifierTypeIsin, Value: "GB0002634946"},
 		{InstrID: acmeID, Type: types.IdentifierTypeSedol, Value: "0263494"},
 	}
-	// The pound listing has no ticker; ACME's is named at the LSE.
+	// The pound listing has no ticker. ACME's is named at the LSE, and a
+	// ticker that ranks second reaches it too.
+	current := gen.TickerRelationCurrent
 	listings := []gen.ListListingNamesRow{
 		{ListingID: gbpListingID, InstrID: gbpID, Currency: "GBP"},
-		{ListingID: acmeListingID, InstrID: acmeID, Currency: "GBP", TickerDomain: ptr.To("XLON"), TickerValue: ptr.To("ACME"), Venue: "LSE"},
+		{ListingID: acmeListingID, InstrID: acmeID, Currency: "GBP", TickerID: ptr.To(uuid.New()), Market: ptr.To("XLON"), TickerValue: ptr.To("ACME"), Venue: ptr.To("XLON"), VenueName: ptr.To("LSE"), Relation: &current, Rank: ptr.To(int64(1))},
+		{ListingID: acmeListingID, InstrID: acmeID, Currency: "GBP", TickerID: ptr.To(uuid.New()), Market: ptr.To("US"), TickerValue: ptr.To("ACMEY"), Relation: &current, Rank: ptr.To(int64(2))},
 	}
 	// ACME is named by its ISIN; the pound instrument's name is left out, as
 	// an instrument nothing names.
@@ -113,8 +116,8 @@ func TestListHoldings(t *testing.T) {
 				{Type: typev1.IdentifierType_IDENTIFIER_TYPE_SEDOL, Value: "0263494"},
 			},
 			Listings: []*holdingv1.HoldingListing{{
-				Id: acmeListingID.String(), Currency: "GBP", Venue: "LSE",
-				Ticker: &typev1.Identifier{Type: typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, Domain: "XLON", Value: "ACME"},
+				Id: acmeListingID.String(), Currency: "GBP", Venue: ptr.To("LSE"),
+				Ticker: &typev1.MarketTicker{Market: "XLON", Value: "ACME"}, Relation: typev1.TickerRelation_TICKER_RELATION_CURRENT,
 			}},
 			Keys: []*holdingv1.HoldingKey{{
 				ListingId: acmeListingID.String(), Quantity: "-141",
@@ -274,18 +277,20 @@ func TestListHoldingsScale(t *testing.T) {
 	}
 }
 
-// TestListingSegment checks that a dated key whose listing carries its ticker
-// at a segment of the key's venue sits under that listing. The key states no
-// currency, so only the ticker can place it.
-func TestListingSegment(t *testing.T) {
-	segments := mic.MICMap{"XNAS": {Operating: "XNAS", Market: "US"}, "XNGS": {Operating: "XNAS", Market: "US"}}
-	row := gen.Ticker{ID: uuid.MustParse("00000000-0000-0000-0000-0000000000a1"), Market: "US", Value: "SEG"}
+// TestListingThroughTicker checks that a dated key sits under the listing
+// that its ticker reaches at the key's venue. The key states no currency, so
+// only the ticker can place it. A row of the ticker at another venue does not
+// place it.
+func TestListingThroughTicker(t *testing.T) {
+	ticker := uuid.MustParse("00000000-0000-0000-0000-0000000000a1")
 	instr := uuid.MustParse("00000000-0000-0000-0000-0000000000a2")
 	usd, gbp := uuid.MustParse("00000000-0000-0000-0000-0000000000a3"), uuid.MustParse("00000000-0000-0000-0000-0000000000a4")
-	key := gen.StatedKey{ViaTickerID: &row.ID, ViaMarket: ptr.To("US"), ViaVenue: ptr.To("XNAS")}
-	idents := []gen.Identifier{{InstrID: instr, ListingID: &usd, Type: types.IdentifierTypeMicTicker, Domain: "XNGS", Value: "SEG"}}
-	listings := []gen.ListListingNamesRow{{ListingID: gbp, InstrID: instr, Currency: "GBP"}, {ListingID: usd, InstrID: instr, Currency: "USD"}}
-	if got := listing(families, segments, key, map[uuid.UUID]gen.Ticker{row.ID: row}, idents, listings); got != usd {
-		t.Errorf("listing() = %s, want the USD listing %s, which carries XNGS:SEG", got, usd)
+	key := gen.StatedKey{ViaTickerID: &ticker, ViaMarket: ptr.To("US"), ViaVenue: ptr.To("XNAS")}
+	listings := []gen.ListListingNamesRow{
+		{ListingID: gbp, InstrID: instr, Currency: "GBP", TickerID: &ticker, Venue: ptr.To("XNYS")},
+		{ListingID: usd, InstrID: instr, Currency: "USD", TickerID: &ticker, Venue: ptr.To("XNAS")},
+	}
+	if got := listing(families, key, listings); got != usd {
+		t.Errorf("listing() = %s, want the USD listing %s, which the ticker reaches at XNAS", got, usd)
 	}
 }

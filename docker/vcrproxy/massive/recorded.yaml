@@ -1373,3 +1373,185 @@ interactions:
         status: 200 OK
         code: 200
         duration: 11.928009466s
+    - id: 31
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /v3/reference/tickers/IBM?apiKey=REDACTED
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://api.massive.com/v3/reference/tickers/IBM
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 939
+        uncompressed: true
+        body: '{"request_id":"f3487fa1000d45951503cb6d1247b528","results":{"active":true,"address":"REDACTED","branding":{"icon_url":"https://api.massive.com/v1/reference/company-branding/aWJtLmNvbQ/images/2026-10-01_icon.jpeg","logo_url":"https://api.massive.com/v1/reference/company-branding/aWJtLmNvbQ/images/2026-10-01_logo.svg"},"cik":"0000051143","composite_figi":"BBG000BLNNH6","currency_name":"usd","description":"REDACTED","homepage_url":"https://www.ibm.com","list_date":"1949-01-28","locale":"us","market":"stocks","market_cap":2.395314168192e+11,"name":"International Business Machines Corporation","phone_number":"REDACTED","primary_exchange":"XNYS","round_lot":100,"share_class_figi":"BBG001S5S399","share_class_shares_outstanding":945120805,"sic_code":"3570","sic_description":"COMPUTER \u0026 OFFICE EQUIPMENT","ticker":"IBM","ticker_root":"IBM","total_employees":287000,"type":"CS","weighted_shares_outstanding":945120805},"status":"OK"}'
+        headers:
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 20:46:15 GMT
+            Strict-Transport-Security:
+                - max-age=15724800; includeSubDomains
+            Vary:
+                - Accept-Encoding
+            X-Polygon-Cluster-Name:
+                - polygon-ny5
+            X-Request-Id:
+                - f3487fa1000d45951503cb6d1247b528
+        status: 200 OK
+        code: 200
+        duration: 823.629347ms
+    - id: 32
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /v3/reference/tickers/ORCL?apiKey=REDACTED
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://api.massive.com/v3/reference/tickers/ORCL
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 919
+        uncompressed: true
+        body: '{"request_id":"cf0da5caf0b379bbc01d8a7697eef436","results":{"active":true,"address":"REDACTED","branding":{"icon_url":"https://api.massive.com/v1/reference/company-branding/b3JhY2xlLmNvbQ/images/2026-10-01_icon.png","logo_url":"https://api.massive.com/v1/reference/company-branding/b3JhY2xlLmNvbQ/images/2026-10-01_logo.svg"},"cik":"0001341439","composite_figi":"BBG000BQLTW7","currency_name":"usd","description":"REDACTED","homepage_url":"https://www.oracle.com","list_date":"1986-03-12","locale":"us","market":"stocks","market_cap":3.8215103484294e+11,"name":"Oracle Corp","phone_number":"REDACTED","primary_exchange":"XNYS","round_lot":100,"share_class_figi":"BBG001S5SJG6","share_class_shares_outstanding":3023736000,"sic_code":"7372","sic_description":"SERVICES-PREPACKAGED SOFTWARE","ticker":"ORCL","ticker_root":"ORCL","total_employees":141000,"type":"CS","weighted_shares_outstanding":3031501149},"status":"OK"}'
+        headers:
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 20:46:26 GMT
+            Strict-Transport-Security:
+                - max-age=15724800; includeSubDomains
+            Vary:
+                - Accept-Encoding
+            X-Polygon-Cluster-Name:
+                - polygon-ny5
+            X-Request-Id:
+                - cf0da5caf0b379bbc01d8a7697eef436
+        status: 200 OK
+        code: 200
+        duration: 11.252948055s
+    - id: 33
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /stocks/v1/splits?apiKey=REDACTED&limit=5000&ticker=IBM
+        form:
+            limit:
+                - "5000"
+            ticker:
+                - IBM
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://api.massive.com/stocks/v1/splits?limit=5000&ticker=IBM
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 307
+        uncompressed: true
+        body: '{"status":"OK","request_id":"408b300f8fae430ea87b6f52f1a4c375","results":[{"id":"P4947cf8a0de38d18c248870eba72b95c03ac83af9444bbd96a711f3d54d354c8","execution_date":"2021-11-04","split_from":1000.0,"split_to":1046.0,"ticker":"IBM","adjustment_type":"forward_split","historical_adjustment_factor":0.956023}]}'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - DNT,X-CustomHeader,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization
+            Access-Control-Allow-Methods:
+                - GET, PUT, POST, DELETE, PATCH, OPTIONS
+            Access-Control-Allow-Origin:
+                - '*'
+            Access-Control-Max-Age:
+                - "1728000"
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 20:46:38 GMT
+            Strict-Transport-Security:
+                - max-age=15724800; includeSubDomains
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - 100000000, 100000000;w=60
+            X-Ratelimit-Remaining:
+                - "80000000"
+            X-Ratelimit-Reset:
+                - "22"
+            X-Request-Id:
+                - 408b300f8fae430ea87b6f52f1a4c375
+        status: 200 OK
+        code: 200
+        duration: 11.852228043s
+    - id: 34
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /stocks/v1/splits?apiKey=REDACTED&limit=5000&ticker=ORCL
+        form:
+            limit:
+                - "5000"
+            ticker:
+                - ORCL
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://api.massive.com/stocks/v1/splits?limit=5000&ticker=ORCL
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 76
+        uncompressed: true
+        body: '{"status":"OK","request_id":"ec53b21592f34592bb22bd73ae338e59","results":[]}'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - DNT,X-CustomHeader,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization
+            Access-Control-Allow-Methods:
+                - GET, PUT, POST, DELETE, PATCH, OPTIONS
+            Access-Control-Allow-Origin:
+                - '*'
+            Access-Control-Max-Age:
+                - "1728000"
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 20:46:50 GMT
+            Strict-Transport-Security:
+                - max-age=15724800; includeSubDomains
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - 100000000, 100000000;w=60
+            X-Ratelimit-Remaining:
+                - "60000000"
+            X-Ratelimit-Reset:
+                - "10"
+            X-Request-Id:
+                - ec53b21592f34592bb22bd73ae338e59
+        status: 200 OK
+        code: 200
+        duration: 12.000061569s

@@ -15,6 +15,7 @@ import {
   IdentifierSchema,
   IdentifierType,
   StatedKeySchema,
+  TickerRelation,
 } from "@/gen/type/v1/type_pb";
 import { UploadProvider } from "@/contexts/upload-context";
 import { liveSession, renderWithAuth, transportWith } from "@/lib/test-utils";
@@ -80,11 +81,8 @@ const three = create(ListHoldingsResponseSchema, {
           id: "l-usd",
           currency: "USD",
           venue: "Nasdaq",
-          ticker: create(IdentifierSchema, {
-            type: IdentifierType.MIC_TICKER,
-            domain: "XNAS",
-            value: "ACME",
-          }),
+          ticker: { market: "US", value: "ACME" },
+          relation: TickerRelation.CURRENT,
         }),
       ],
       keys: [

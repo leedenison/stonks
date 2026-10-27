@@ -11,6 +11,7 @@ import {
   AssetClass,
   IdentifierSchema,
   IdentifierType,
+  TickerRelation,
 } from "@/gen/type/v1/type_pb";
 import { hasDetail, holdingRows } from "./holdings";
 
@@ -86,7 +87,8 @@ describe("holdingRows", () => {
           id: "l-usd",
           currency: "USD",
           venue: "Cboe",
-          ticker: ident(IdentifierType.MIC_TICKER, "ACMETICK", "XCBO"),
+          ticker: { market: "XCBO", value: "ACMETICK" },
+          relation: TickerRelation.CURRENT,
         }),
       ],
       keys: [create(HoldingKeySchema, { listingId: "l-usd", quantity: "2" })],
@@ -94,6 +96,30 @@ describe("holdingRows", () => {
     const row = rows([acme])[0];
     expect(row.label).toBe("ACMETICK");
     expect(row.venue).toBe("Cboe");
+  });
+
+  it("marks a ticker that now names another instrument, and keeps a former one plain", () => {
+    const held = (relation: TickerRelation, venue?: string) =>
+      create(InstrHoldingSchema, {
+        instrId: "i-old",
+        assetClass: AssetClass.EQUITY,
+        quantity: "5",
+        listings: [
+          create(HoldingListingSchema, {
+            id: "l-usd",
+            currency: "USD",
+            venue,
+            ticker: { market: "US", value: "OLDCO" },
+            relation,
+          }),
+        ],
+      });
+    const defunct = rows([held(TickerRelation.DEFUNCT, "NYSE")])[0];
+    expect(defunct.label).toBe("OLDCO (defunct)");
+    expect(defunct.venue).toBe("NYSE");
+    const former = rows([held(TickerRelation.FORMER)])[0];
+    expect(former.label).toBe("OLDCO");
+    expect(former.venue).toBe("US");
   });
 
   it("falls back to the instrument id without a name", () => {

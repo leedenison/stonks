@@ -100,6 +100,17 @@ message Identifier {
   string value = 3;
 }
 
+// How a ticker relates to an instrument it named.
+enum TickerRelation {
+  TICKER_RELATION_UNSPECIFIED = 0;
+  // The ticker still names the instrument.
+  TICKER_RELATION_CURRENT = 1;
+  // The ticker now names another instrument.
+  TICKER_RELATION_DEFUNCT = 2;
+  // The ticker names nothing now.
+  TICKER_RELATION_FORMER = 3;
+}
+
 // A ticker at its market, the key of a ticker's identifier facts. A market
 // is a set of operating MICs across which one ticker names one instrument on
 // a day.

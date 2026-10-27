@@ -4,7 +4,9 @@ package db_test
 
 import (
 	"context"
+	"fmt"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -16,6 +18,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/platform/ptr"
+	"github.com/leedenison/stonks/server/internal/testutil/dbtest"
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
@@ -103,35 +106,105 @@ func venueTicker(t *testing.T, q *gen.Queries, listing gen.Listing, venue, value
 	require.NoError(t, err)
 }
 
-// TestListListingNames checks that each listing is named by one ticker,
-// chosen by primary venue, then rank, then MIC, and has none where it has
-// no tickers.
+// resolves writes a row of resolved_tickers that names instr by value at
+// market, at venue and in currency. An empty venue or currency is NULL. The
+// row is open unless closed is set.
+func resolves(t *testing.T, q *gen.Queries, instr gen.Instr, market, value, venue, currency string, closed bool) {
+	t.Helper()
+	row := dbtest.Ticker(t, q, types.MarketTicker{Market: market, Value: value})
+	before := ""
+	if closed {
+		before = "2026-03-05"
+	}
+	require.NoError(t, q.CreateResolvedTickers(context.Background(), gen.CreateResolvedTickersParams{
+		TickerIds: []uuid.UUID{row.ID}, Markets: []string{market}, InstrIds: []uuid.UUID{instr.ID},
+		Venues: []string{venue}, ValidFroms: []string{""}, ValidBefores: []string{before}, Currencies: []string{currency},
+	}))
+}
+
+// TestListListingNames checks that each listing is reached by every row of
+// resolved_tickers in its family, ranked by primary venue, then venue rank,
+// then venue. A row without a venue names the listing at its market, a row
+// without a currency stays apart from every listing, and a listing that a
+// later write creates is reached at once.
 func TestListListingNames(t *testing.T) {
 	ctx := context.Background()
 	q := newTx(t)
 	instr := newInstr(t, q, types.AssetClassEquity)
-	primary := newListing(t, q, instr, "GBP")
-	require.NoError(t, q.SetListingPrimary(ctx, gen.SetListingPrimaryParams{ID: primary.ID, PrimaryMic: ptr.To("XLON")}))
-	venueTicker(t, q, primary, "XNYS", "ACME")
-	venueTicker(t, q, primary, "XLON", "ACME")
-	ranked := newListing(t, q, instr, "EUR")
-	venueTicker(t, q, ranked, "AQSE", "ACMX")
-	venueTicker(t, q, ranked, "XLON", "ACMX")
-	unranked := newListing(t, q, instr, "USD")
-	venueTicker(t, q, unranked, "XXXB", "ACMU")
-	venueTicker(t, q, unranked, "XXXA", "ACMU")
-	bare := newListing(t, q, instr, "CHF")
+	gbp := newListing(t, q, instr, "GBP")
+	require.NoError(t, q.SetListingPrimary(ctx, gen.SetListingPrimaryParams{ID: gbp.ID, PrimaryMic: ptr.To("XLON")}))
+	newListing(t, q, instr, "USD")
+	newListing(t, q, instr, "EUR")
+	suffix := uuid.NewString()[:6]
+	resolves(t, q, instr, "XLON", "ACME"+suffix, "XLON", "GBX", false)
+	resolves(t, q, instr, "US", "ACMN"+suffix, "XNAS", "USD", false)
+	resolves(t, q, instr, "US", "ACMN"+suffix, "XNYS", "USD", false)
+	resolves(t, q, instr, "XSWX", "ACMC"+suffix, "", "CHF", false)
+	resolves(t, q, instr, "XAMS", "ACMZ"+suffix, "", "", false)
+	newListing(t, q, instr, "CHF")
 
-	got, err := q.ListListingNames(ctx, []uuid.UUID{instr.ID})
+	rows, err := q.ListListingNames(ctx, []uuid.UUID{instr.ID})
 	require.NoError(t, err)
-	want := []gen.ListListingNamesRow{
-		{ListingID: bare.ID, InstrID: instr.ID, Currency: "CHF"},
-		{ListingID: ranked.ID, InstrID: instr.ID, Currency: "EUR", TickerDomain: ptr.To("XLON"), TickerValue: ptr.To("ACMX"), Venue: "LSE"},
-		{ListingID: primary.ID, InstrID: instr.ID, Currency: "GBP", TickerDomain: ptr.To("XLON"), TickerValue: ptr.To("ACME"), Venue: "LSE"},
-		{ListingID: unranked.ID, InstrID: instr.ID, Currency: "USD", TickerDomain: ptr.To("XXXA"), TickerValue: ptr.To("ACMU"), Venue: "XXXA"},
+	var got []string
+	for _, r := range rows {
+		got = append(got, r.Currency+": "+ptr.Deref(r.Market, "-")+":"+strings.TrimSuffix(ptr.Deref(r.TickerValue, "-"), suffix)+
+			" at "+ptr.Deref(r.Venue, "-")+" ("+ptr.Deref(r.VenueName, "-")+") "+string(ptr.Deref(r.Relation, ""))+fmt.Sprintf(" %d", ptr.Deref(r.Rank, 0)))
+	}
+	want := []string{
+		"CHF: XSWX:ACMC at - (-) current 1",
+		"EUR: -:- at - (-)  0",
+		"GBP: XLON:ACME at XLON (LSE) current 1",
+		"USD: US:ACMN at XNYS (NYSE) current 1",
+		"USD: US:ACMN at XNAS (Nasdaq) current 2",
 	}
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("ListListingNames mismatch (-want +got):\n%s", diff)
+	}
+}
+
+// TestTickerRelations checks the relation of each ticker to each instrument
+// it named, and the names that instr_names takes from them. A ticker is
+// defunct where another instrument has an open row of it, and former where
+// none has. A ticker that only an assertion names is former. A defunct
+// ticker and a ticker without a venue name no instrument in a list.
+func TestTickerRelations(t *testing.T) {
+	ctx := context.Background()
+	q := newTx(t)
+	gone, kept, moved, bare := newInstr(t, q, types.AssetClassEquity), newInstr(t, q, types.AssetClassEquity), newInstr(t, q, types.AssetClassEquity), newInstr(t, q, types.AssetClassEquity)
+	suffix := uuid.NewString()[:6]
+	def, fmr, asr := "DEF"+suffix, "FMR"+suffix, "ASR"+suffix
+	resolves(t, q, gone, "XPAR", def, "XPAR", "EUR", true)
+	resolves(t, q, gone, "XBRU", fmr, "XBRU", "EUR", true)
+	resolves(t, q, kept, "XPAR", def, "XPAR", "EUR", false)
+	resolves(t, q, moved, "XPAR", def, "XPAR", "EUR", true)
+	resolves(t, q, bare, "XAMS", "BAR"+suffix, "", "EUR", false)
+	admin := newUser(t, q, "relations@example.com")
+	run, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), Kind: gen.RunKindAttestIdentifier, Trigger: gen.RunTriggerAdministrator})
+	require.NoError(t, err)
+	attested := dbtest.Ticker(t, q, types.MarketTicker{Market: "US", Value: asr})
+	require.NoError(t, q.CreateIdentifierAttestation(ctx, gen.CreateIdentifierAttestationParams{
+		ID: db.NewID(), RunID: run.ID, AttestedBy: admin.ID, TickerID: attested.ID, Market: "US", InstrID: &gone.ID, AssertedOn: time.Date(2026, time.March, 1, 0, 0, 0, 0, time.UTC),
+	}))
+
+	tickers, err := q.ListInstrTickers(ctx, gone.ID)
+	require.NoError(t, err)
+	var got []string
+	for _, r := range tickers {
+		got = append(got, strings.TrimSuffix(r.Value, suffix)+" "+string(r.Relation))
+	}
+	if diff := cmp.Diff([]string{"ASR former", "FMR former", "DEF defunct"}, got); diff != "" {
+		t.Errorf("relations of the instrument the tickers named before mismatch (-want +got):\n%s", diff)
+	}
+
+	rows, err := q.ListInstrNames(ctx, []uuid.UUID{gone.ID, kept.ID, moved.ID, bare.ID})
+	require.NoError(t, err)
+	named := map[uuid.UUID]string{}
+	for _, r := range rows {
+		named[r.InstrID] = r.Domain + ":" + strings.TrimSuffix(r.Value, suffix)
+	}
+	want := map[uuid.UUID]string{gone.ID: "XBRU:FMR", kept.ID: "XPAR:DEF"}
+	if diff := cmp.Diff(want, named); diff != "" {
+		t.Errorf("instr_names mismatch (-want +got):\n%s", diff)
 	}
 }
 

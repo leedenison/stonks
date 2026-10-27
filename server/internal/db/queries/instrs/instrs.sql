@@ -174,10 +174,11 @@ LIMIT sqlc.narg(lim)::int;
 
 -- name: ListInstrs :many
 -- Every instrument with the identifier that names it, ordered by that name's
--- value, then id. An instrument with no identifier has an empty name and
--- type. q matches any of an instrument's identifiers, and asset_class
--- includes the classes below it. A page continues past the name and id of
--- the last instrument served, whether or not that row remains.
+-- value, then id. An instrument without a name has an empty name and type. q
+-- matches any of an instrument's identifiers and the tickers of its rows of
+-- resolved_tickers. asset_class includes the classes below it. A page
+-- continues past the name and id of the last instrument served, whether or
+-- not that row remains.
 WITH RECURSIVE classes AS (
     SELECT class FROM asset_class_tree WHERE class = sqlc.narg(asset_class)::asset_class
     UNION ALL
@@ -193,7 +194,11 @@ WITH RECURSIVE classes AS (
     WHERE (sqlc.narg(q)::text IS NULL
            OR EXISTS (SELECT 1 FROM identifiers
                       WHERE identifiers.instr_id = instrs.id
-                        AND identifiers.value ILIKE '%' || sqlc.narg(q) || '%'))
+                        AND identifiers.value ILIKE '%' || sqlc.narg(q) || '%')
+           OR EXISTS (SELECT 1 FROM resolved_tickers
+                      JOIN tickers ON tickers.id = resolved_tickers.ticker_id
+                      WHERE resolved_tickers.instr_id = instrs.id
+                        AND tickers.value ILIKE '%' || sqlc.narg(q) || '%'))
       AND (sqlc.narg(asset_class)::asset_class IS NULL
            OR instrs.asset_class IN (SELECT class FROM classes))
 )

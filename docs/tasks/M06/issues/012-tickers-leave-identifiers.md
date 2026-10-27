@@ -25,8 +25,8 @@ In:
 - A confirmation fixes the key through a stable identifier of the candidate.
 - A CHECK on `stated_keys` refuses the arbiter `user` on a dated key.
 - `Listing.identifiers` and `InstrHolding.identifiers` drop tickers. Their
-  comments state that they hold identity only. Tickers come from the projection fields of
-  [011](../adr/011-an-instruments-ticker-is-a-projection-of-ticker-facts.md).
+  comments state that they hold identity only. Tickers come from the fields that read
+  `resolved_tickers`, as `HoldingListing.ticker` does.
 - The admin `stonks.admin.instr.v1.Listing` carries its tickers from the projection, as
   `HoldingListing` does.
 - `instrListedAs` in `e2e/helpers/api.ts`, `confirm-candidate.spec.ts` and the other

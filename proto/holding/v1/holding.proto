@@ -24,12 +24,14 @@ message HoldingListing {
   // The currency's family code, such as GBP for pence.
   string currency = 2;
   // The ticker that names the listing, by the listing's naming order: the
-  // primary venue, then the venue rank, then the MIC. Unset where the listing
-  // has no ticker.
-  stonks.type.v1.Identifier ticker = 3;
-  // The venue's common name, or its MIC where it has none. Empty where
-  // ticker is unset.
-  string venue = 4;
+  // primary venue, then the venue rank, then the MIC. Unset where every
+  // ticker of the instrument lacks a currency in the listing's family.
+  stonks.type.v1.MarketTicker ticker = 3;
+  // The common name of the ticker's venue, or its MIC where it has none.
+  // Unset where the sources omitted the venue, so the ticker names the
+  // listing at its market.
+  optional string venue = 4;
+  stonks.type.v1.TickerRelation relation = 5;
 }
 
 // One of the caller's keys contributing to a holding.
