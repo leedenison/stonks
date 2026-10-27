@@ -9,6 +9,11 @@
 // a change to its inputs, such as a reorder of the datasources, takes effect
 // at the next read.
 //
+// The names that ticker validity implies are stored, in resolved_tickers; see
+// Resolve. Each write of facts rebuilds the names of the tickers it wrote,
+// before it commits. A reorder of the datasources can change any name, so the
+// names wait for a rebuild of every ticker.
+//
 // An edge cuts the timeline. A first cuts at the start of its day, and a last
 // at the start of the next day. Every range stops at a cut. An assertion
 // with an edge also competes for its day as a point does.
@@ -115,6 +120,13 @@ func (s Source) outranks(o Source) bool {
 	return s.Precedence < o.Precedence
 }
 
+// Stated is what a source stated beside a ticker: the operating MIC of the
+// venue and the currency of the line. Each is empty where the source stated
+// none. Derive ignores both.
+type Stated struct {
+	Venue, Currency string
+}
+
 // Assertion is one assertion of a ticker. A nil Instr asserts that the
 // ticker names nothing. Edge is empty for a point.
 type Assertion struct {
@@ -122,6 +134,7 @@ type Assertion struct {
 	Instr  *uuid.UUID
 	Edge   gen.IdentifierEdge
 	Source Source
+	Stated Stated
 }
 
 // PeriodAssertion is one period over which a datasource reported every edge

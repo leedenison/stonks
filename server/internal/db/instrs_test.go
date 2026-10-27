@@ -362,15 +362,15 @@ func TestIsRetryable(t *testing.T) {
 		return tx
 	}
 	one, two := open(), open()
-	require.NoError(t, gen.New(one).LockIdentifiers(ctx, []string{a}))
-	require.NoError(t, gen.New(two).LockIdentifiers(ctx, []string{b}))
+	require.NoError(t, gen.New(one).LockAdvisory(ctx, []string{a}))
+	require.NoError(t, gen.New(two).LockAdvisory(ctx, []string{b}))
 	type attempt struct {
 		tx  pgx.Tx
 		err error
 	}
 	done := make(chan attempt, 2)
-	go func() { done <- attempt{one, gen.New(one).LockIdentifiers(ctx, []string{b})} }()
-	go func() { done <- attempt{two, gen.New(two).LockIdentifiers(ctx, []string{a})} }()
+	go func() { done <- attempt{one, gen.New(one).LockAdvisory(ctx, []string{b})} }()
+	go func() { done <- attempt{two, gen.New(two).LockAdvisory(ctx, []string{a})} }()
 	refused, survived := <-done, <-done
 	if refused.err == nil {
 		refused, survived = survived, refused

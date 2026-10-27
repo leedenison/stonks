@@ -27,6 +27,8 @@ In:
 - `Listing.identifiers` and `InstrHolding.identifiers` drop tickers. Their
   comments state that they hold identity only. Tickers come from the projection fields of
   [011](../adr/011-an-instruments-ticker-is-a-projection-of-ticker-facts.md).
+- The admin `stonks.admin.instr.v1.Listing` carries its tickers from the projection, as
+  `HoldingListing` does.
 - `instrListedAs` in `e2e/helpers/api.ts`, `confirm-candidate.spec.ts` and the other
   specs that find an instrument by a `MIC_TICKER` identifier read the projection fields.
 - Comments: the identifiers, listings and `identifier_type` text in
@@ -44,7 +46,8 @@ In:
 - Resolve dbtests:
   - a key that states only a ticker is dated, and `identifiers` is unchanged;
   - a confirmation fixes the key through the candidate's ISIN;
-  - a reassigned ticker leaves the old holder named by it, as defunct.
+  - a reassigned ticker still names, as defunct, the listing of the instrument it named
+    before.
 - DB dbtests for the CHECK on `identifiers` and for the arbiter CHECK on `stated_keys`.
 - A statement service test that refuses to confirm a candidate that carries only a
   ticker.

@@ -30,6 +30,11 @@ type Queries interface {
 	ListTickersByID(ctx context.Context, ids []uuid.UUID) ([]gen.Ticker, error)
 }
 
+// Locker locks ticker rows.
+type Locker interface {
+	LockTickers(ctx context.Context, ids []uuid.UUID) ([]uuid.UUID, error)
+}
+
 var _ Queries = (*gen.Queries)(nil)
 
 // ErrSpelling reports a ticker or a market that is not in the system's
@@ -90,6 +95,20 @@ func Get(ctx context.Context, q Queries, mics mic.MICMap, ts []types.MarketTicke
 		}
 	}
 	return out, nil
+}
+
+// Lock locks the rows of ids until the transaction ends, in id order. A
+// write of facts locks every ticker whose facts it writes; see
+// [tickervalidity.go](../tickervalidity/tickervalidity.go) for the order of
+// its locks.
+func Lock(ctx context.Context, q Locker, ids []uuid.UUID) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	if _, err := q.LockTickers(ctx, ids); err != nil {
+		return fmt.Errorf("lock tickers: %w", err)
+	}
+	return nil
 }
 
 // Find returns the row of each of ts that has one.

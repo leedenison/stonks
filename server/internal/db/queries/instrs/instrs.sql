@@ -120,11 +120,11 @@ JOIN identifiers ON identifiers.type = k.type::identifier_type
 JOIN instrs ON instrs.id = identifiers.instr_id
 ORDER BY instrs.id, identifiers.type, identifiers.domain, identifiers.value;
 
--- name: LockIdentifiers :exec
--- Serialises creation on the identifiers a stated key admits, for the
--- transaction. The caller passes them sorted, so two transactions take the
--- locks in one order. The seed keeps the keys apart from LockUserKeys.
-SELECT pg_advisory_xact_lock(hashtextextended(k, 1)) FROM unnest(@keys::text[]) AS k;
+-- name: LockAdvisory :exec
+-- Takes the transaction's advisory lock on each name. The caller passes the
+-- names sorted, so two transactions take the locks in one order. The seed
+-- keeps these locks apart from LockUserKeys.
+SELECT pg_advisory_xact_lock(hashtextextended(n, 1)) FROM unnest(@names::text[]) AS n;
 
 -- name: DeferConstraints :exec
 SET CONSTRAINTS ALL DEFERRED;
