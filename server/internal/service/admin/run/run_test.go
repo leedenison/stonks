@@ -425,7 +425,7 @@ func TestListRunItems(t *testing.T) {
 			}}}}, NextPageToken: keyID.String()},
 		},
 		{
-			name: "an attestation's assertion",
+			name: "an identifier attestation's assertion",
 			kind: gen.RunKindAttestIdentifier,
 			req:  &adminrunv1.ListRunItemsRequest{},
 			expect: func(r *mock.MockQueriesMockRecorder) {

@@ -25,7 +25,7 @@ NULL, the three ticker columns all set or all NULL, and a NULL instrument wherev
 ticker is set.
 
 D-ANNOT records a choice for a run of a dated key's transactions, as a row on the key
-that derivation reads before validity. It is not a key state. It stays deferred.
+that derivation reads before ticker validity. It is not a key state. It stays deferred.
 
 ## Considered options
 

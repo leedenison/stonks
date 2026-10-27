@@ -73,7 +73,7 @@ func (r *Resolver) ReassertTickers(ctx context.Context, run gen.Run, held []gen.
 		return nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("record extended validity: %w", err)
+		return nil, fmt.Errorf("record extended ticker validity: %w", err)
 	}
 	mine := map[uuid.UUID]bool{}
 	for _, a := range answers {
@@ -94,7 +94,7 @@ func (r *Resolver) ReassertTickers(ctx context.Context, run gen.Run, held []gen.
 	return written.list(), nil
 }
 
-// readHeld reads the validity of each held ticker at its market, and the
+// readHeld reads the ticker validity of each held ticker at its market, and the
 // identifiers of the instrument its latest interval names. Tickers held at
 // venues of one market are read once.
 func (r *Resolver) readHeld(ctx context.Context, held []gen.ListHeldTickersRow) ([]*heldTicker, error) {
@@ -228,9 +228,9 @@ func historyRequest(e *market.Entry, t *heldTicker, now time.Time) (market.Ident
 // another of its identifiers, and otherwise the instrument already stored for
 // the listing. An answer that matches no stored instrument writes nothing.
 //
-// The shared identifier is tried first because a datasource may answer
-// without a stable identifier the instrument carries. EODHD does this for
-// some non-US rows, which come back without an ISIN. Extending validity never
+// The shared identifier is tried first because a datasource may answer without
+// a stable identifier the instrument carries. EODHD does this for some non-US
+// rows, which come back without an ISIN. Extending ticker validity never
 // creates an instrument. A resolution may have dropped the answer. The held
 // instrument then lacks the answer's identifiers. A new instrument made from
 // them would contradict every later reassert tickers run.

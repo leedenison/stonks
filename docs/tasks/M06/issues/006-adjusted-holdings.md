@@ -11,7 +11,7 @@ Holdings show the quantity of an instrument restated to today.
 In:
 
 - Restating each transaction on read from one datasource and market. See
-  [001](../adr/001-a-corporate-action-is-stored-against-its-ticker-and-attributed-through-validity.md)
+  [001](../adr/001-a-corporate-action-is-stored-against-its-ticker-and-attributed-through-ticker-validity.md)
   and [002](../adr/002-a-transaction-reflects-corporate-actions-up-to-its-as-at-date.md).
 - Read the transactions of a fixed key one row at a time, with their as-at dates,
   instead of summing them in `ListHoldingKeys`.

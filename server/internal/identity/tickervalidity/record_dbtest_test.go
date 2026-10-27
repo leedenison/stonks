@@ -62,7 +62,7 @@ func (f *fixture) identify(t *testing.T, instrument uuid.UUID, isin string) type
 }
 
 // TestRecord checks that a rename, the assertions of the entity's chain and
-// ticker coverage are recorded from a served key, and derive the chain's
+// ticker coverage are recorded from a served key, and derive the chain's ticker
 // validity. A failed key and an assertion that states no stable identifier
 // write nothing.
 func TestRecord(t *testing.T) {
@@ -214,8 +214,9 @@ func TestRecordSpelling(t *testing.T) {
 }
 
 // TestAttest checks an administrator's positive and negative assertions, the
-// refusal of a day after today, and that an attestation on the earliest
-// transaction's day confirms validity up to the provider's first assertion.
+// refusal of a day after today, and that an identifier attestation on the
+// earliest transaction's day confirms ticker validity up to the provider's
+// first assertion.
 func TestAttest(t *testing.T) {
 	f := newFixture(t)
 	ctx := context.Background()
@@ -242,7 +243,7 @@ func TestAttest(t *testing.T) {
 	require.NoError(t, Attest(ctx, f.q, mics, later, f.attestedBy.ID, f.foo, &f.b, day(2), today))
 	want = []Interval{provisional(nil, at(2), f.b), confirmed(at(2), at(3), f.b), provisional(at(3), at(20), f.b), confirmed(at(20), at(21), f.a), provisional(at(21), at(25), f.a)}
 	if diff := cmp.Diff(want, f.of(t)); diff != "" {
-		t.Errorf("Of after a later attestation of day 2 mismatch (-want +got):\n%s", diff)
+		t.Errorf("Of after a later identifier attestation of day 2 mismatch (-want +got):\n%s", diff)
 	}
 
 	if err := Attest(ctx, f.q, mics, run, f.attestedBy.ID, f.foo, &f.a, day(26), today); !errors.Is(err, ErrFuture) {

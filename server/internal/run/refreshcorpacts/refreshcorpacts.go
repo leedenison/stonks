@@ -4,10 +4,10 @@
 //
 // A held instrument is one that a transaction names: through a fixed key, or
 // through the ticker of a dated key on the transaction's as-at date. A fetch
-// asks about each ticker that validity says named a held instrument, over
-// the period from the earliest as-at date of the transactions of every user
-// that name it to the day after today. The period is the same whichever run
-// asks, because a later answer replaces an earlier one and a shorter period
+// asks about each ticker that ticker validity says named a held instrument,
+// over the period from the earliest as-at date of the transactions of every
+// user that name it to the day after today. The period is the same whichever
+// run asks, because a later answer replaces an earlier one and a shorter period
 // would cut the coverage of another user's transactions. A statement and new
 // identifier facts each start a fetch, and an administrator can start a run
 // over every held instrument.

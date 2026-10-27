@@ -1,14 +1,15 @@
 // Package attestidentifier writes and withdraws an administrator's assertions
 // of what a ticker names.
 //
-// An attestation is an assertion whose source is an administrator rather than a
-// fetch key. Datasources supply coverage, so a market no datasource covers is
-// attested ticker by ticker. How an attested assertion ranks against a
-// datasource's is in [tickervalidity.go](../tickervalidity/tickervalidity.go). Writing or
-// withdrawing an attestation replays the unresolved keys that state the ticker
-// beneath the attest identifier run, and fetches the corporate actions of the
-// held instruments that the ticker names. A dated key picks up the change when
-// it is next read.
+// An identifier attestation is an assertion whose source is an administrator
+// rather than a fetch key. Datasources supply coverage, so a market no
+// datasource covers is attested ticker by ticker. How an attested assertion
+// ranks against a datasource's is in
+// [tickervalidity.go](../tickervalidity/tickervalidity.go). Writing or
+// withdrawing an identifier attestation replays the unresolved keys that state
+// the ticker beneath the attest identifier run, and fetches the corporate
+// actions of the held instruments that the ticker names. A dated key picks up
+// the change when it is next read.
 package attestidentifier
 
 import (
@@ -38,7 +39,7 @@ var (
 // lane serialises attest identifier runs.
 const lane = "attest_identifier"
 
-// Service writes and withdraws attestations.
+// Service writes and withdraws identifier attestations.
 type Service struct {
 	store Store
 	runs  Runner
@@ -52,14 +53,13 @@ func New(store Store, runs Runner, facts Facts, mics mic.MICMap, clock func() ti
 	return &Service{store: store, runs: runs, facts: facts, mics: mics, clock: clock}
 }
 
-// Start asserts that v names instrument, or nothing where instrument is nil,
-// on from and on to where to is given, and returns the pending attestation
+// Start asserts that v names instrument, or nothing where instrument is nil, on
+// from and on to where to is given, and returns the pending attest identifier
 // run. The assertions exist when Start returns. Whether the administrator
-// verified the ticker, accepts that no event occurred since its last
-// assertion, or knows of an event, the row is the same. A day is today or
-// any earlier day, and a range is an assertion on each end, since the
-// bracket rule confirms the days between. A to before from is refused with
-// ErrRange.
+// verified the ticker, accepts that no event occurred since its last assertion,
+// or knows of an event, the row is the same. A day is today or any earlier day,
+// and a range is an assertion on each end, since the bracket rule confirms the
+// days between. A to before from is refused with ErrRange.
 func (s *Service) Start(ctx context.Context, admin uuid.UUID, v types.MarketTicker, instrument *uuid.UUID, from time.Time, to *time.Time) (gen.Run, error) {
 	today := s.clock()
 	days := []time.Time{types.Day(from)}

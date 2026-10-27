@@ -31,9 +31,9 @@ type resolution struct {
 	outcome   gen.ResolutionOutcome
 	reason    string
 	// via is the MIC_TICKER the key may be dated through: the one its dated
-	// association names, or the one datedTicker finds. dating is the validity
-	// of its market ticker. It is nil for a key that is fixed whatever it
-	// resolves to.
+	// association names, or the one datedTicker finds. dating is the ticker
+	// validity of its market ticker. It is nil for a key that is fixed whatever
+	// it resolves to.
 	via    types.Identifier
 	dating *tickervalidity.Ticker
 	// dates are the as-at dates of the key's transactions, stored and
@@ -117,7 +117,7 @@ func (res *resolution) decide(outcome gen.ResolutionOutcome, format string, args
 // lookupIDs returns the identifiers of ids that a lookup in the database may
 // match: every one but a ticker. A ticker row names the instrument its ticker
 // identifies today. What the ticker named on another day is read from its
-// validity, so resolution does not match through a ticker row. An option
+// ticker validity, so resolution does not match through a ticker row. An option
 // symbol still matches through its row until corporate actions are built.
 func lookupIDs(ids []types.Identifier) []types.Identifier {
 	var out []types.Identifier

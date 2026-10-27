@@ -15,7 +15,7 @@ type Ticker struct {
 	asserted map[time.Time]bool
 }
 
-// ReadTicker reads the facts of t and derives its validity.
+// ReadTicker reads the facts of t and derives its ticker validity.
 func ReadTicker(ctx context.Context, q FactQueries, t types.MarketTicker) (*Ticker, error) {
 	tickers, err := ReadTickers(ctx, q, []types.MarketTicker{t})
 	if err != nil {
@@ -24,8 +24,8 @@ func ReadTicker(ctx context.Context, q FactQueries, t types.MarketTicker) (*Tick
 	return tickers[t], nil
 }
 
-// ReadTickers reads the facts of each of ts and derives its validity, with
-// three queries however many tickers there are.
+// ReadTickers reads the facts of each of ts and derives its ticker validity,
+// with three queries however many tickers there are.
 func ReadTickers(ctx context.Context, q FactQueries, ts []types.MarketTicker) (map[types.MarketTicker]*Ticker, error) {
 	rows, err := ReadRowsOf(ctx, q, ts)
 	if err != nil {
@@ -43,8 +43,8 @@ func ReadTickers(ctx context.Context, q FactQueries, ts []types.MarketTicker) (m
 	return out, nil
 }
 
-// HasTickerValidity reports whether the facts give the ticker an instrument on any
-// day.
+// HasTickerValidity reports whether the facts give the ticker an instrument on
+// any day.
 func (t *Ticker) HasTickerValidity() bool { return len(t.Derived.Intervals) > 0 }
 
 // Asserted reports whether any source asserted the ticker on day d.

@@ -1,9 +1,10 @@
 # A ticker assertion records the venue and currency its source stated
 
-Validity is derived at the market. Naming an instrument at a venue, and placing a ticker
-on a listing, needs the venue and the currency. Today the ticker row in `identifiers`
-carries the venue and its listing. [007](007-identifiers-hold-identity-and-a-ticker-holds-only-its-spelling.md)
-removes that row.
+Ticker validity is derived at the market. Naming an instrument at a venue, and placing a
+ticker on a listing, needs the venue and the currency. Today the ticker row in
+`identifiers` carries the venue and its listing.
+[007](007-identifiers-hold-identity-and-a-ticker-holds-only-its-spelling.md) removes that
+row.
 
 An assertion records `venue` and `currency` as its source stated them. Both are nullable.
 Derivation ignores them. The projection of [011](011-an-instruments-ticker-is-a-projection-of-ticker-facts.md)
@@ -14,7 +15,7 @@ reads them.
 | EODHD identity answer | the operating MIC of the row's venue | the row's currency |
 | OpenFIGI identity answer | the operating MIC of the exchange code | the request's currency filter, NULL where the key states none |
 | Massive ticker history and point in time lookup | NULL | NULL |
-| Attestation | NULL | NULL |
+| Identifier attestation | NULL | NULL |
 
 OpenFIGI's answer omits the currency. Its integration sends the key's currency as a
 filter. It stamps that currency on every listing it returns. The currency is therefore a

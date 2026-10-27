@@ -22,7 +22,7 @@ cannot reach it. The alerts page is the one place such a ticker appears.
 
 ## Sketch
 
-An alert is derived when read, as validity is. Each kind is a query over rows that
+An alert is derived when read, as ticker validity is. Each kind is a query over rows that
 already exist. An alert disappears when an administrator settles its cause.
 
 Each alert links to the surface that settles it: the attest dialog, the run, the block,
@@ -30,15 +30,15 @@ the instrument.
 
 Candidate kinds:
 
-* A validity gap. Part of a ticker's transaction period lies outside every confirmed
-  interval. Ordered by affected transactions, then affected keys. Settled by an
-  attestation, or by a datasource with a longer window.
+* A ticker validity gap. Part of a ticker's transaction period lies outside every
+  confirmed interval. Ordered by affected transactions, then affected keys. Settled by an
+  identifier attestation, or by a datasource with a longer window.
 * An unresolved ticker. Keys with transactions state the ticker, and it names nothing on
-  every day. Settled by an attestation that names an instrument, or by a datasource
-  that learns the ticker.
+  every day. Settled by an identifier attestation that names an instrument, or by a
+  datasource that learns the ticker.
 * A run finding. The findings of the kinds dropped, contradiction, merged, identifier
-  disagreement and broken validity bracket. Each records a choice the system made between
-  sources that an administrator may want to check.
+  disagreement and broken ticker validity bracket. Each records a choice the system made
+  between sources that an administrator may want to check.
 * A block. A call failed unrecoverably and the datasource is not asked again under that
   key or at all until an administrator clears the block.
 * A failed or interrupted run.

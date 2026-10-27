@@ -37,8 +37,8 @@ LEFT JOIN market_members ON market_members.operating_mic = mics.operating_mic;
 -- key, on the day of its answer. A point in time lookup asserts on the day its
 -- request names. An entity's ticker history asserts each ticker on the day the
 -- ticker began naming the entity. An administrator asserts through an attest
--- identifier run, on any day up to the day of the attestation. A row goes with
--- its source.
+-- identifier run, on any day up to the day of the identifier attestation. A row
+-- goes with its source.
 CREATE TABLE identifier_assertions (
     id              uuid            PRIMARY KEY,
     fetch_key_id    uuid            REFERENCES fetch_keys (id) ON DELETE CASCADE,
@@ -59,8 +59,8 @@ CREATE TABLE identifier_assertions (
 );
 
 CREATE INDEX identifier_assertions_value_idx ON identifier_assertions (type, domain, value);
--- An administrator attests a day once: a later attestation replaces the
--- earlier one.
+-- An administrator attests a day once: a later identifier attestation replaces
+-- the earlier one.
 CREATE UNIQUE INDEX identifier_attestations_day_idx ON identifier_assertions (type, domain, value, asserted_on)
     WHERE run_id IS NOT NULL;
 CREATE INDEX identifier_assertions_run_idx ON identifier_assertions (run_id);

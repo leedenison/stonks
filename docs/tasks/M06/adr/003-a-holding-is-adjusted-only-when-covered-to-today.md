@@ -2,7 +2,7 @@
 
 A transaction is covered when one datasource and market span the period from its as-at
 date to today. See
-[001](001-a-corporate-action-is-stored-against-its-ticker-and-attributed-through-validity.md).
+[001](001-a-corporate-action-is-stored-against-its-ticker-and-attributed-through-ticker-validity.md).
 A holding shows its restated quantity when every one of its transactions is covered.
 Otherwise it shows its raw quantity, marked as unadjusted. The holding detail shows the
 period that lacks coverage.

@@ -34,7 +34,8 @@ var _ RecordQueries = (*gen.Queries)(nil)
 // spelling. Nothing matches it, so it is refused.
 var ErrSpelling = errors.New("not in the system's spelling")
 
-// ErrFuture reports an attestation of a day after the day it is made.
+// ErrFuture reports an identifier attestation of a day after the day it is
+// made.
 var ErrFuture = errors.New("an identifier attestation cannot reach past the day it is made")
 
 // Record writes the events, assertions and coverage of each served key. It
@@ -287,9 +288,9 @@ type AttestQueries interface {
 
 var _ AttestQueries = (*gen.Queries)(nil)
 
-// CheckAttest reports why an attestation of t on day on cannot be written:
-// ErrSpelling when t is not a ticker in the system's spelling, and ErrFuture
-// when on is after today.
+// CheckAttest reports why an identifier attestation of t on day on cannot be
+// written: ErrSpelling when t is not a ticker in the system's spelling, and
+// ErrFuture when on is after today.
 func CheckAttest(mics mic.MICMap, t types.MarketTicker, on, today time.Time) error {
 	if err := spelled(mics, t); err != nil {
 		return err
@@ -302,8 +303,8 @@ func CheckAttest(mics mic.MICMap, t types.MarketTicker, on, today time.Time) err
 
 // Attest writes an administrator's assertion that t names instrument on the day
 // on, beneath run, which must be a system run of kind attest identifier. A nil
-// instrument asserts that t names nothing. A later attestation of a day
-// replaces the earlier one.
+// instrument asserts that t names nothing. A later identifier attestation of a
+// day replaces the earlier one.
 func Attest(ctx context.Context, q AttestQueries, mics mic.MICMap, run gen.Run, admin uuid.UUID, t types.MarketTicker, instrument *uuid.UUID, on, today time.Time) error {
 	if run.Kind != gen.RunKindAttestIdentifier || run.UserID != nil {
 		return fmt.Errorf("run %s is not a system attest identifier run", run.ID)
@@ -316,7 +317,7 @@ func Attest(ctx context.Context, q AttestQueries, mics mic.MICMap, run gen.Run, 
 		InstrumentID: instrument, AssertedOn: types.Day(on),
 	}
 	if err := q.CreateIdentifierAttestation(ctx, arg); err != nil {
-		return fmt.Errorf("record attestation: %w", err)
+		return fmt.Errorf("record identifier attestation: %w", err)
 	}
 	return nil
 }

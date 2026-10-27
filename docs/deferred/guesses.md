@@ -80,7 +80,7 @@ association, arbitrated by a guess, and the confirmation replaces it.  The confi
 API refuses an associated key, and the guesses work lifts that refusal for a guessed one.
 
 The review surface also lists the transactions of a dated key that fall outside confirmed
-validity, and offers the user a choice for them.  A choice is an annotation.  See
+ticker validity, and offers the user a choice for them.  A choice is an annotation.  See
 [annotations.md](annotations.md).
 
 A language model source is an integration like any other.  Its traffic is recorded and

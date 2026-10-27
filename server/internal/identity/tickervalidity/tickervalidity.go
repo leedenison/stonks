@@ -44,7 +44,7 @@ import (
 type Validity string
 
 // The validities: confirmed where the facts name the instrument, and
-// provisional where validity extends on an assumption.
+// provisional where ticker validity extends on an assumption.
 const (
 	Confirmed   Validity = "confirmed"
 	Provisional Validity = "provisional"
@@ -82,7 +82,7 @@ type Source struct {
 	Datasource string
 	// Precedence orders datasources; the lower number wins.
 	Precedence int32
-	// FetchKey made the assertion. It is zero for an attestation.
+	// FetchKey made the assertion. It is zero for an identifier attestation.
 	FetchKey uuid.UUID
 	Attested bool
 }
@@ -136,8 +136,8 @@ type Derived struct {
 }
 
 // Disagreement is two datasources' assertions on one day that name different
-// things. Winner is the one precedence kept. A day an attestation wins holds
-// none, since an administrator checked it.
+// things. Winner is the one precedence kept. A day an identifier attestation
+// wins holds none, since an administrator checked it.
 type Disagreement struct {
 	On            time.Time
 	Winner, Loser Assertion

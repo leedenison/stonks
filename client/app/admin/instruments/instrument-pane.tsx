@@ -24,7 +24,7 @@ const tabs = [
 
 // InstrumentPane shows one instrument under two tabs held in the address:
 // the overview, with its identifiers and listings in sections, and its
-// tickers, with the validity of each.
+// tickers, with the ticker validity of each.
 export function InstrumentPane({
   instrument,
   params,

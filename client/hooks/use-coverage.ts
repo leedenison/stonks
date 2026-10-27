@@ -28,7 +28,8 @@ export function useInstrumentTickers(
   });
 }
 
-// useCoverageTicker reads the facts and validity of a ticker at its market.
+// useCoverageTicker reads the facts and ticker validity of a ticker at its
+// market.
 export function useCoverageTicker(
   market: string,
   value: string,
@@ -41,7 +42,7 @@ export function useCoverageTicker(
   });
 }
 
-// useAttestIdentifier writes an attestation, as a system run.
+// useAttestIdentifier writes an identifier attestation, as a system run.
 export function useAttestIdentifier() {
   const { coverage } = useClients();
   const queryClient = useQueryClient();

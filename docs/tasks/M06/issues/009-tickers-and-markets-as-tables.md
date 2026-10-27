@@ -31,12 +31,12 @@ In:
     `via_type`, `via_domain` and `via_value` go. `via_id` becomes `via_identifier_id`
     ([013](../adr/013-a-users-choice-fixes-a-key-through-a-stable-identifier.md)).
 - The get-or-create function, which replaces `spelled` and `check` in
-  `validity/record.go`.
+  `tickervalidity/record.go`.
 - `writer.go` and `recordUnknown` in `write.go` assert only venue tickers.
-- `validity/store.go`, `ListRunAssertions`, `ListTickersNaming` and the `corpact`
+- `tickervalidity/store.go`, `ListRunAssertions`, `ListTickersNaming` and the `corpact`
   queries read by ticker id.
 - Comments: the assertion, identifier event, coverage and `market_members` comments in
-  `010_validity.sql`, the comments in `011_corp_acts.sql`, and the `via_*` text in
+  `010_ticker_validity.sql`, the comments in `011_corp_acts.sql`, and the `via_*` text in
   `004_statements.sql`.
 
 Out:
@@ -45,7 +45,7 @@ Out:
 
 ## Tests
 
-- The validity, resolve, corpact and replayrun dbtests pass on the new schema.
+- The tickervalidity, resolve, corpact and replayrun dbtests pass on the new schema.
 - Get-or-create returns one id for one ticker, and refuses a market outside `markets`.
 - `cascade_test.go` shows that a ticker row outlives the fetch key of its facts.
 - A db dbtest shows that the composite foreign keys refuse a venue in another market.

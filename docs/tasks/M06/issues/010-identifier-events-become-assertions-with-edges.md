@@ -21,7 +21,7 @@ In:
 - The `overruled_edge` finding kind, in SQL, in `FindingKind` in `run.proto` and in the
   client labels.
 - The vocabulary moves to identifier facts: the fetch kind `identifier_facts`, the
-  integration interface and its result type in `market`, and `validity.Event` and
+  integration interface and its result type in `market`, and `tickervalidity.Event` and
   `Facts.Events`.
 - Proto:
   - `AssertionItem` gains `optional Edge edge`, with `EDGE_FIRST` and `EDGE_LAST`.
@@ -29,9 +29,9 @@ In:
     fields of `Ticker` are renumbered.
   - `Coverage` becomes `PeriodAssertion`.
 - The admin tickers tab draws edge assertions where it draws events.
-- Comments: the `validity` package comment, the `BrokenBracket` doc, the
-  `broken_validity_bracket` comment in `006_findings.sql`, and the identifier events text
-  in `resolve.go` and `market.go`.
+- Comments: the `tickervalidity` package comment, the `BrokenBracket` doc, the
+  `broken_ticker_validity_bracket` comment in `006_findings.sql`, and the identifier
+  events text in `resolve.go` and `market.go`.
 
 Out:
 
@@ -44,8 +44,8 @@ Out:
 - `derive_test.go` cases:
   - a `first` cuts at the start of its day, and a `last` at the start of the next;
   - a bracket and a period assertion each overrule a weaker edge;
-  - an attestation overrules an edge;
-  - an edge across an equal bracket cuts and raises `broken_validity_bracket`;
+  - an identifier attestation overrules an edge;
+  - an edge across an equal bracket cuts and raises `broken_ticker_validity_bracket`;
   - an overruled edge raises `overruled_edge`.
 - The Massive dbtest asserts the edge rows a ticker history writes.
 - `timeline.test.tsx` and `page.test.tsx` draw edge assertions.

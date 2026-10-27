@@ -12,11 +12,11 @@ covered period lacks a corporate action.
 
 The datasource fetch run for corporate actions checks each stated split of a key whose
 instrument it now covers on the split's date. A dated key reaches its instrument through
-validity, and a fixed key names it. The split matches when the calendar holds a corporate
-action for the same instrument within 7 calendar days either side, with an equal ratio
-where the statement states one. Otherwise the run records an `unmatched_split` finding
-that references the stated key. The window counts calendar days because the system does
-not hold a trading calendar. A stated split on an option is skipped.
+ticker validity, and a fixed key names it. The split matches when the calendar holds a
+corporate action for the same instrument within 7 calendar days either side, with an equal
+ratio where the statement states one. Otherwise the run records an `unmatched_split`
+finding that references the stated key. The window counts calendar days because the system
+does not hold a trading calendar. A stated split on an option is skipped.
 
 The calendar holds the corporate actions of every datasource and market, under each ticker
 that named the instrument on the corporate action's ex-date. The check asks whether any datasource

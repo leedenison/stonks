@@ -9,8 +9,8 @@ export function dayNumber(date: string): number {
   return Date.UTC(y, m - 1, d) / 86_400_000;
 }
 
-// intervalAt returns the interval of validity that holds day, or undefined
-// when none does.
+// intervalAt returns the interval of ticker validity that holds day, or
+// undefined when none does.
 export function intervalAt(
   intervals: Interval[],
   day: string,

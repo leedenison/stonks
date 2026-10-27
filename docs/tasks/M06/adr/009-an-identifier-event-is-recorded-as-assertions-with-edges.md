@@ -1,11 +1,11 @@
 # An identifier event is recorded as assertions with edges
 
 `identifier_events` records that what a ticker names changed at the start of a day.
-`010_validity.sql` says "An event refers to a ticker at its market rather than to an
-instrument". In derivation an event is only a day boundary, because `Derive` reads only
-its day. A point assertion cannot carry a boundary. Without the event, the old
-ticker of a rename extends provisionally past the rename without limit. The new ticker
-extends back before it existed.
+`010_ticker_validity.sql` says "An event refers to a ticker at its market rather than to
+an instrument". In derivation an event is only a day boundary, because `Derive` reads only
+its day. A point assertion cannot carry a boundary. Without the event, the old ticker of a
+rename extends provisionally past the rename without limit. The new ticker extends back
+before it existed.
 
 An assertion carries a nullable `edge`:
 

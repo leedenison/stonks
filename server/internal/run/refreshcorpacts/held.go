@@ -86,9 +86,9 @@ func (b *base) heldInstruments(ctx context.Context) (map[uuid.UUID]*held, error)
 	return out, nil
 }
 
-// requests returns an ask for each ticker that validity says named a kept
-// instrument of hs over its holding. The period and the users of an ask come
-// from every instrument of hs that the ticker named, kept or not, so that
+// requests returns an ask for each ticker that ticker validity says named a
+// kept instrument of hs over its holding. The period and the users of an ask
+// come from every instrument of hs that the ticker named, kept or not, so that
 // every run asks for the same period.
 func (b *base) requests(ctx context.Context, hs map[uuid.UUID]*held, keep func(uuid.UUID, *held) bool) ([]ask, error) {
 	var kept []uuid.UUID
