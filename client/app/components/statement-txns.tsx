@@ -2,27 +2,27 @@ import { StatedKeyChips } from "@/app/components/identifier-chip";
 import { MarkChip } from "@/app/components/mark-chip";
 import { Section } from "@/app/components/section";
 import { TableCard, Td, Th, Thead, Tr } from "@/app/components/table";
-import type { Transaction } from "@/gen/statement/v1/statement_pb";
+import type { Txn } from "@/gen/statement/v1/statement_pb";
 import type { ResolutionItem } from "@/gen/type/v1/type_pb";
 import { toFixed } from "@/lib/marshal/decimal";
 
-// StatementTransactions lists a statement's transactions by order date, each
+// StatementTxns lists a statement's transactions by order date, each
 // with its key and, beside it, how firmly that key names an instrument on
 // its date. The Instrument cell is empty when the statement lists no
 // matching key.
-export function StatementTransactions({
-  transactions,
+export function StatementTxns({
+  txns,
   keys,
   live,
 }: {
-  transactions: Transaction[];
+  txns: Txn[];
   keys: ResolutionItem[];
   live: boolean;
 }) {
   const byId = new Map(keys.map((k) => [k.statedKeyId, k]));
   return (
     <Section title="Transactions">
-      <TableCard testId="statement-transactions" fixed>
+      <TableCard testId="statement-txns" fixed>
         <colgroup>
           <col className="w-32" />
           <col />
@@ -38,8 +38,8 @@ export function StatementTransactions({
           </tr>
         </Thead>
         <tbody>
-          {transactions.map((t) => (
-            <Tr key={t.id} data-testid={`transaction-row-${t.id}`}>
+          {txns.map((t) => (
+            <Tr key={t.id} data-testid={`txn-row-${t.id}`}>
               <Td className="font-mono tabular-nums">{t.orderDate}</Td>
               <Td>
                 <StatedKeyChips

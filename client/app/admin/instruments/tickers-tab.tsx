@@ -293,7 +293,7 @@ function Facts({
                     {g.keys}
                   </Td>
                   <Td dense numeric>
-                    {g.transactions}
+                    {g.txns}
                   </Td>
                   <Td dense>
                     <Button

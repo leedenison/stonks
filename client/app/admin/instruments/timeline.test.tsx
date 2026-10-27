@@ -15,7 +15,7 @@ const ticker = { market: "US", value: "ACME" };
 // covers the whole market.
 const acme = create(TickerSchema, {
   ticker,
-  transactionDays: ["2024-02-01", "2025-06-01"],
+  txnDays: ["2024-02-01", "2025-06-01"],
   coverage: [
     {
       datasource: "alpha",
@@ -67,7 +67,7 @@ const acme = create(TickerSchema, {
       unconfirmedFrom: "2024-02-01",
       unconfirmedBefore: "2024-06-01",
       keys: 1,
-      transactions: 1,
+      txns: 1,
     },
   ],
 });
@@ -77,7 +77,7 @@ describe("Timeline", () => {
     render(<Timeline ticker={acme} />);
     const svg = screen.getByTestId("coverage-timeline");
     const lane = (key: string) => svg.querySelector(`[data-lane="${key}"]`);
-    expect(lane("transactions")?.querySelectorAll("rect")).toHaveLength(2);
+    expect(lane("txns")?.querySelectorAll("rect")).toHaveLength(2);
     expect(lane("validity")?.querySelectorAll("rect")).toHaveLength(1);
     expect(
       lane("validity")?.querySelector("rect")?.getAttribute("data-validity"),

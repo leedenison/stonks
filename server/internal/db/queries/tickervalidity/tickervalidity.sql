@@ -77,30 +77,30 @@ SELECT DISTINCT ON (via_domain, via_value)
        asset_class, currency
 FROM stated_keys
 WHERE via_type IS NOT NULL
-  AND EXISTS (SELECT 1 FROM transactions WHERE transactions.stated_key_id = stated_keys.id)
+  AND EXISTS (SELECT 1 FROM txns WHERE txns.stated_key_id = stated_keys.id)
 ORDER BY via_domain, via_value, created_at, id;
 
 -- name: ListHeldInstruments :many
 -- Each instrument that a fixed key names, where a transaction names the key,
 -- with each user of such a transaction and the earliest as-at date of that
 -- user's transactions.
-SELECT stated_keys.instrument_id::uuid AS instrument_id, transactions.user_id,
-       MIN(transactions.as_at)::date AS first_as_at
-FROM transactions
-JOIN stated_keys ON stated_keys.id = transactions.stated_key_id
+SELECT stated_keys.instrument_id::uuid AS instrument_id, txns.user_id,
+       MIN(txns.as_at)::date AS first_as_at
+FROM txns
+JOIN stated_keys ON stated_keys.id = txns.stated_key_id
 WHERE stated_keys.instrument_id IS NOT NULL
-GROUP BY stated_keys.instrument_id, transactions.user_id
-ORDER BY stated_keys.instrument_id, transactions.user_id;
+GROUP BY stated_keys.instrument_id, txns.user_id
+ORDER BY stated_keys.instrument_id, txns.user_id;
 
 -- name: ListHeldTickerDates :many
 -- Each as-at date of a transaction of a dated key, with the ticker through
 -- which the key is dated and the user, once each.
 SELECT DISTINCT stated_keys.via_domain::text AS domain, stated_keys.via_value::text AS value,
-       transactions.user_id, transactions.as_at
-FROM transactions
-JOIN stated_keys ON stated_keys.id = transactions.stated_key_id
+       txns.user_id, txns.as_at
+FROM txns
+JOIN stated_keys ON stated_keys.id = txns.stated_key_id
 WHERE stated_keys.via_type IS NOT NULL
-ORDER BY domain, value, transactions.user_id, transactions.as_at;
+ORDER BY domain, value, txns.user_id, txns.as_at;
 
 -- name: ListRunAssertions :many
 -- The assertions a run wrote: those of the fetch runs it started, and those
@@ -142,22 +142,22 @@ FROM (
 GROUP BY named.market, named.value
 ORDER BY named.market, named.value;
 
--- name: CountTickerTransactions :one
+-- name: CountTickerTxns :one
 -- The count of transactions of every key that states one of the probes; see
 -- ListUnassociatedKeysStating.
 SELECT count(*)::int
-FROM transactions
-JOIN stated_keys ON stated_keys.id = transactions.stated_key_id
+FROM txns
+JOIN stated_keys ON stated_keys.id = txns.stated_key_id
 WHERE stated_keys.identifiers @> ANY(@probes::jsonb[]);
 
--- name: ListTickerTransactions :many
+-- name: ListTickerTxns :many
 -- The transactions of every key that states one of the probes; see
 -- ListUnassociatedKeysStating.
-SELECT transactions.stated_key_id, transactions.as_at
-FROM transactions
-JOIN stated_keys ON stated_keys.id = transactions.stated_key_id
+SELECT txns.stated_key_id, txns.as_at
+FROM txns
+JOIN stated_keys ON stated_keys.id = txns.stated_key_id
 WHERE stated_keys.identifiers @> ANY(@probes::jsonb[])
-ORDER BY transactions.as_at, transactions.stated_key_id, transactions.id;
+ORDER BY txns.as_at, txns.stated_key_id, txns.id;
 
 -- name: GetIdentifierAssertion :one
 SELECT * FROM identifier_assertions WHERE id = $1;

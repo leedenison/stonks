@@ -84,7 +84,7 @@ func of(keys []gen.StatedKey) map[uuid.UUID]uuid.UUID {
 
 // Regroup recomputes every group of user in full, over the unresolved keys a
 // transaction names. The caller holds the user's key lock; see
-// [transactions.sql](../../db/queries/transactions/transactions.sql).
+// [txns.sql](../../db/queries/txns/txns.sql).
 func Regroup(ctx context.Context, q Queries, user uuid.UUID) error {
 	keys, err := q.ListGroupableKeys(ctx, user)
 	if err != nil {

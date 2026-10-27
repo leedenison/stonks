@@ -8,7 +8,7 @@ export function AccessDenied() {
     >
       <h1 className="text-2xl font-semibold tracking-tight">Access denied</h1>
       <p className="text-text-muted">Access denied.</p>
-      <LinkButton href="/transactions" variant="secondary">
+      <LinkButton href="/txns" variant="secondary">
         Back to the transactions
       </LinkButton>
     </section>

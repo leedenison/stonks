@@ -192,17 +192,17 @@ func TestSweepStatedKeys(t *testing.T) {
 	})
 }
 
-// TestTransactions checks the decimal and date round trip, and the half-open
+// TestTxns checks the decimal and date round trip, and the half-open
 // period that keys the delete.
-func TestTransactions(t *testing.T) {
+func TestTxns(t *testing.T) {
 	q := newTx(t)
 	ctx := context.Background()
 	user := newUser(t, q, "txs@example.com")
 	statement := newStatement(t, q, user)
 	key := upsertKey(t, q, statement, gen.UpsertStatedKeyParams{Identifiers: []types.Identifier{{Type: "system", Value: "cash"}}})
-	create := func(broker gen.Broker, order time.Time, quantity string) gen.Transaction {
+	create := func(broker gen.Broker, order time.Time, quantity string) gen.Txn {
 		t.Helper()
-		row, err := q.CreateTransaction(ctx, gen.CreateTransactionParams{
+		row, err := q.CreateTxn(ctx, gen.CreateTxnParams{
 			ID: db.NewID(), UserID: user.ID, Broker: broker, StatementID: statement.ID, StatedKeyID: key.ID,
 			OrderDate: order, SettlementDate: order.AddDate(0, 0, 2), AsAt: order,
 			Quantity: decimal.RequireFromString(quantity),
@@ -213,10 +213,10 @@ func TestTransactions(t *testing.T) {
 
 	got := create(gen.BrokerIbkr, date(2026, time.March, 1), "-0.0001")
 	if !got.Quantity.Equal(decimal.RequireFromString("-0.0001")) || got.Quantity.String() != "-0.0001" {
-		t.Errorf("CreateTransaction quantity = %s, want -0.0001", got.Quantity)
+		t.Errorf("CreateTxn quantity = %s, want -0.0001", got.Quantity)
 	}
 	if !got.OrderDate.Equal(date(2026, time.March, 1)) || !got.SettlementDate.Equal(date(2026, time.March, 3)) {
-		t.Errorf("CreateTransaction dates = %s, %s, want 2026-03-01 and 2026-03-03", got.OrderDate, got.SettlementDate)
+		t.Errorf("CreateTxn dates = %s, %s, want 2026-03-01 and 2026-03-03", got.OrderDate, got.SettlementDate)
 	}
 
 	from, before := date(2026, time.March, 1), date(2026, time.April, 1)
@@ -224,10 +224,10 @@ func TestTransactions(t *testing.T) {
 	create(gen.BrokerIbkr, before.AddDate(0, 0, -1), "1")
 	create(gen.BrokerIbkr, before, "1")
 	create(gen.BrokerSchwab, from, "1")
-	n, err := q.DeleteTransactions(ctx, gen.DeleteTransactionsParams{UserID: user.ID, Broker: gen.BrokerIbkr, OrderFrom: from, OrderBefore: before})
+	n, err := q.DeleteTxns(ctx, gen.DeleteTxnsParams{UserID: user.ID, Broker: gen.BrokerIbkr, OrderFrom: from, OrderBefore: before})
 	require.NoError(t, err)
 	if n != 2 {
-		t.Errorf("DeleteTransactions over [%s, %s) = %d rows, want 2: the one at from and the one the day before before", from.Format(time.DateOnly), before.Format(time.DateOnly), n)
+		t.Errorf("DeleteTxns over [%s, %s) = %d rows, want 2: the one at from and the one the day before before", from.Format(time.DateOnly), before.Format(time.DateOnly), n)
 	}
 }
 
@@ -441,7 +441,7 @@ func TestListKeyDates(t *testing.T) {
 	one, two, other := newStatedKey(t, q, user, statement), newStatedKey(t, q, user, statement), newStatedKey(t, q, user, statement)
 	trade := func(key gen.StatedKey, on time.Time) {
 		t.Helper()
-		_, err := q.CreateTransaction(ctx, gen.CreateTransactionParams{
+		_, err := q.CreateTxn(ctx, gen.CreateTxnParams{
 			ID: db.NewID(), UserID: user.ID, Broker: gen.BrokerIbkr, StatementID: statement.ID, StatedKeyID: key.ID,
 			OrderDate: on.AddDate(0, 0, -7), SettlementDate: on, AsAt: on, Quantity: decimal.NewFromInt(1),
 		})
@@ -467,13 +467,13 @@ func TestListKeyDates(t *testing.T) {
 	}
 }
 
-// TestListStatementTransactions checks the order of a statement's
+// TestListStatementTxns checks the order of a statement's
 // transactions, the via type of a fixed key and of a dated key, and that
 // another statement's transactions and another user's are left out.
-func TestListStatementTransactions(t *testing.T) {
+func TestListStatementTxns(t *testing.T) {
 	ctx := context.Background()
 	q := newTx(t)
-	user := newUser(t, q, "statement-transactions@example.com")
+	user := newUser(t, q, "statement-txns@example.com")
 	statement, later := newStatement(t, q, user), newStatement(t, q, user)
 	fixed, dated, bare := newStatedKey(t, q, user, statement), newStatedKey(t, q, user, statement), newStatedKey(t, q, user, later)
 	usd, via := cashListing(t, q, "USD")
@@ -481,9 +481,9 @@ func TestListStatementTransactions(t *testing.T) {
 	require.NoError(t, err)
 	_, err = q.SetStatedKeyDatedAssociation(ctx, gen.SetStatedKeyDatedAssociationParams{ID: dated.ID, UserID: user.ID, ViaDomain: "XNAS", ViaValue: "META", Arbiter: gen.ArbiterDatasource})
 	require.NoError(t, err)
-	trade := func(st gen.Statement, key gen.StatedKey, on time.Time) gen.Transaction {
+	trade := func(st gen.Statement, key gen.StatedKey, on time.Time) gen.Txn {
 		t.Helper()
-		row, err := q.CreateTransaction(ctx, gen.CreateTransactionParams{
+		row, err := q.CreateTxn(ctx, gen.CreateTxnParams{
 			ID: db.NewID(), UserID: user.ID, Broker: gen.BrokerIbkr, StatementID: st.ID, StatedKeyID: key.ID,
 			OrderDate: on, SettlementDate: on, AsAt: on, Quantity: decimal.NewFromInt(1),
 		})
@@ -494,10 +494,10 @@ func TestListStatementTransactions(t *testing.T) {
 	first := trade(statement, fixed, date(2021, 6, 1))
 	trade(later, bare, date(2020, 1, 2))
 
-	rows, err := q.ListStatementTransactions(ctx, gen.ListStatementTransactionsParams{StatementID: statement.ID, UserID: user.ID})
+	rows, err := q.ListStatementTxns(ctx, gen.ListStatementTxnsParams{StatementID: statement.ID, UserID: user.ID})
 	require.NoError(t, err)
-	if len(rows) != 2 || rows[0].Transaction.ID != first.ID || rows[1].Transaction.ID != second.ID {
-		t.Fatalf("ListStatementTransactions = %+v, want the fixed key's trade then the dated key's", rows)
+	if len(rows) != 2 || rows[0].Txn.ID != first.ID || rows[1].Txn.ID != second.ID {
+		t.Fatalf("ListStatementTxns = %+v, want the fixed key's trade then the dated key's", rows)
 	}
 	if rows[0].StatedKey.ID != fixed.ID || rows[0].FixedViaType == nil || *rows[0].FixedViaType != types.IdentifierTypeCurrency {
 		t.Errorf("fixed row = key %s via %v, want key %s via currency", rows[0].StatedKey.ID, rows[0].FixedViaType, fixed.ID)
@@ -505,8 +505,8 @@ func TestListStatementTransactions(t *testing.T) {
 	if rows[1].StatedKey.ID != dated.ID || rows[1].FixedViaType != nil || rows[1].StatedKey.ViaValue == nil || *rows[1].StatedKey.ViaValue != "META" {
 		t.Errorf("dated row = key %s via %v, want key %s dated through META with no fixed via type", rows[1].StatedKey.ID, rows[1].FixedViaType, dated.ID)
 	}
-	if rows, err := q.ListStatementTransactions(ctx, gen.ListStatementTransactionsParams{StatementID: statement.ID, UserID: db.NewID()}); err != nil || len(rows) != 0 {
-		t.Errorf("ListStatementTransactions as another user = %+v, %v, want none", rows, err)
+	if rows, err := q.ListStatementTxns(ctx, gen.ListStatementTxnsParams{StatementID: statement.ID, UserID: db.NewID()}); err != nil || len(rows) != 0 {
+		t.Errorf("ListStatementTxns as another user = %+v, %v, want none", rows, err)
 	}
 }
 

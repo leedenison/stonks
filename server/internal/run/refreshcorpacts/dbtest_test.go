@@ -161,7 +161,7 @@ func (s *stack) buys(t *testing.T, user, key uuid.UUID, days ...time.Time) gen.R
 	_, err = s.q.CreateStatement(ctx, gen.CreateStatementParams{ID: run.ID, UserID: user, Broker: gen.BrokerIbkr, OrderFrom: day(2000, 1, 1), OrderBefore: day(2026, 1, 1)})
 	require.NoError(t, err)
 	for _, d := range days {
-		_, err := s.q.CreateTransaction(ctx, gen.CreateTransactionParams{
+		_, err := s.q.CreateTxn(ctx, gen.CreateTxnParams{
 			ID: db.NewID(), UserID: user, Broker: gen.BrokerIbkr, StatementID: run.ID, StatedKeyID: key,
 			OrderDate: d, SettlementDate: d, AsAt: d, Quantity: decimal.NewFromInt(10),
 		})

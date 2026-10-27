@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Sidebar, sidebarKey } from "./sidebar";
 
-const nav = vi.hoisted(() => ({ pathname: "/transactions" }));
+const nav = vi.hoisted(() => ({ pathname: "/txns" }));
 vi.mock("next/navigation", () => ({ usePathname: () => nav.pathname }));
 
 describe("Sidebar", () => {
@@ -10,9 +10,9 @@ describe("Sidebar", () => {
 
   it("marks the current page and links the others", () => {
     render(<Sidebar />);
-    expect(
-      screen.getByTestId("nav-transactions").getAttribute("aria-current"),
-    ).toBe("page");
+    expect(screen.getByTestId("nav-txns").getAttribute("aria-current")).toBe(
+      "page",
+    );
     expect(
       screen.getByTestId("nav-holdings").hasAttribute("aria-current"),
     ).toBe(false);
@@ -30,7 +30,7 @@ describe("Sidebar", () => {
     expect(
       screen.getByTestId("nav-holdings").getAttribute("aria-current"),
     ).toBe("page");
-    nav.pathname = "/transactions";
+    nav.pathname = "/txns";
   });
 
   it("collapses by hand and keeps the choice", () => {

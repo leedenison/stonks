@@ -26,7 +26,7 @@ type dated struct {
 // at once.
 func (s *Server) dated(ctx context.Context, user uuid.UUID, keys []gen.ListHoldingKeysRow) (dated, error) {
 	d := dated{onInstrument: map[uuid.UUID]map[uuid.UUID]decimal.Decimal{}, unresolved: map[uuid.UUID]decimal.Decimal{}}
-	rows, err := s.reader.ListDatedTransactions(ctx, user)
+	rows, err := s.reader.ListDatedTxns(ctx, user)
 	if err != nil {
 		return d, err
 	}

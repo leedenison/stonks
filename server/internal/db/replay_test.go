@@ -20,7 +20,7 @@ import (
 func names(t *testing.T, q *gen.Queries, statement gen.Statement, key gen.StatedKey) {
 	t.Helper()
 	day := date(2026, 3, 1)
-	_, err := q.CreateTransaction(context.Background(), gen.CreateTransactionParams{
+	_, err := q.CreateTxn(context.Background(), gen.CreateTxnParams{
 		ID: db.NewID(), UserID: key.UserID, Broker: gen.BrokerIbkr, StatementID: statement.ID, StatedKeyID: key.ID,
 		OrderDate: day, SettlementDate: day, AsAt: day, Quantity: decimal.NewFromInt(1),
 	})

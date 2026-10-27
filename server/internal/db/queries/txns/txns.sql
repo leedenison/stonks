@@ -19,19 +19,19 @@ JOIN statement_keys ON statement_keys.stated_key_id = stated_keys.id
 WHERE statement_keys.statement_id = $1 AND statement_keys.user_id = $2
 ORDER BY stated_keys.id;
 
--- name: CreateTransaction :one
-INSERT INTO transactions (id, user_id, broker, statement_id, stated_key_id,
+-- name: CreateTxn :one
+INSERT INTO txns (id, user_id, broker, statement_id, stated_key_id,
                           order_date, settlement_date, as_at, quantity)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 RETURNING *;
 
--- name: CreateTransactions :copyfrom
-INSERT INTO transactions (id, user_id, broker, statement_id, stated_key_id,
+-- name: CreateTxns :copyfrom
+INSERT INTO txns (id, user_id, broker, statement_id, stated_key_id,
                           order_date, settlement_date, as_at, quantity)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9);
 
--- name: DeleteTransactions :execrows
-DELETE FROM transactions
+-- name: DeleteTxns :execrows
+DELETE FROM txns
 WHERE user_id = $1 AND broker = $2
   AND order_date >= @order_from::date AND order_date < @order_before::date;
 
@@ -41,14 +41,14 @@ WHERE user_id = $1 AND broker = $2
 -- sweep leaves every group with its root.
 DELETE FROM stated_keys
 WHERE stated_keys.user_id = @user_id::uuid
-  AND NOT EXISTS (SELECT 1 FROM transactions
-                  WHERE transactions.user_id = stated_keys.user_id
-                    AND transactions.stated_key_id = stated_keys.id)
+  AND NOT EXISTS (SELECT 1 FROM txns
+                  WHERE txns.user_id = stated_keys.user_id
+                    AND txns.stated_key_id = stated_keys.id)
   AND NOT EXISTS (SELECT 1 FROM statement_keys
                   WHERE statement_keys.stated_key_id = stated_keys.id);
 
--- name: ListTransactions :many
-SELECT * FROM transactions
+-- name: ListTxns :many
+SELECT * FROM txns
 WHERE user_id = $1
 ORDER BY order_date, id;
 
@@ -72,20 +72,20 @@ SET instrument_id = NULL, listing_id = NULL, via_id = NULL,
     arbiter = @arbiter::arbiter
 WHERE id = @id AND user_id = @user_id AND arbiter IS DISTINCT FROM 'user';
 
--- name: ListStatementTransactions :many
+-- name: ListStatementTxns :many
 -- The statement's transactions, ordered by order date. Each carries its key
 -- and the type of the identifier that a fixed association used.
-SELECT sqlc.embed(transactions), sqlc.embed(stated_keys),
+SELECT sqlc.embed(txns), sqlc.embed(stated_keys),
        identifiers.type AS fixed_via_type
-FROM transactions
-JOIN stated_keys ON stated_keys.id = transactions.stated_key_id
+FROM txns
+JOIN stated_keys ON stated_keys.id = txns.stated_key_id
 LEFT JOIN identifiers ON identifiers.id = stated_keys.via_id
-WHERE transactions.statement_id = @statement_id AND transactions.user_id = @user_id
-ORDER BY transactions.order_date, transactions.id;
+WHERE txns.statement_id = @statement_id AND txns.user_id = @user_id
+ORDER BY txns.order_date, txns.id;
 
 -- name: ListKeyDates :many
 -- The distinct as-at dates of the transactions of each of the user's keys.
-SELECT DISTINCT stated_key_id, as_at FROM transactions
+SELECT DISTINCT stated_key_id, as_at FROM txns
 WHERE user_id = @user_id AND stated_key_id = ANY(@ids::uuid[])
 ORDER BY stated_key_id, as_at;
 
@@ -101,9 +101,9 @@ WHERE stated_keys.instrument_id IS NULL AND stated_keys.via_type IS NULL
   AND NOT EXISTS (SELECT 1 FROM resolution_keys
                   WHERE resolution_keys.run_id = @run_id::uuid
                     AND resolution_keys.stated_key_id = stated_keys.id)
-  AND EXISTS (SELECT 1 FROM transactions
-              WHERE transactions.user_id = stated_keys.user_id
-                AND transactions.stated_key_id = stated_keys.id)
+  AND EXISTS (SELECT 1 FROM txns
+              WHERE txns.user_id = stated_keys.user_id
+                AND txns.stated_key_id = stated_keys.id)
 ORDER BY stated_keys.user_id, stated_keys.id;
 
 -- name: GetStatedKey :one
@@ -121,9 +121,9 @@ SELECT * FROM stated_keys
 WHERE stated_keys.user_id = @user_id::uuid
   AND stated_keys.instrument_id IS NULL
   AND EXISTS (
-      SELECT 1 FROM transactions
-      WHERE transactions.user_id = stated_keys.user_id
-        AND transactions.stated_key_id = stated_keys.id)
+      SELECT 1 FROM txns
+      WHERE txns.user_id = stated_keys.user_id
+        AND txns.stated_key_id = stated_keys.id)
 ORDER BY stated_keys.id;
 
 -- name: ClearStatedKeyGroups :exec

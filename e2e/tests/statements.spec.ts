@@ -13,7 +13,7 @@ test("uploads a statement and shows its rejections in the activity and the histo
   page,
 }) => {
   const { session } = await signIn();
-  await page.goto("/transactions");
+  await page.goto("/txns");
   await page.getByTestId("upload-statement").click();
   await expect(page.getByTestId("upload-dialog")).toBeVisible();
   await page.getByTestId("upload-file").setInputFiles(fixture);

@@ -49,7 +49,7 @@ type Reader interface {
 	ListListingNames(ctx context.Context, instrumentIds []uuid.UUID) ([]gen.ListListingNamesRow, error)
 	ListInstrumentNames(ctx context.Context, ids []uuid.UUID) ([]gen.InstrumentName, error)
 	ListHoldingKeys(ctx context.Context, userID uuid.UUID) ([]gen.ListHoldingKeysRow, error)
-	ListDatedTransactions(ctx context.Context, userID uuid.UUID) ([]gen.ListDatedTransactionsRow, error)
+	ListDatedTxns(ctx context.Context, userID uuid.UUID) ([]gen.ListDatedTxnsRow, error)
 }
 
 var _ Reader = (*gen.Queries)(nil)

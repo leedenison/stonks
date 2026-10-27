@@ -149,7 +149,7 @@ CREATE INDEX statement_splits_key_idx ON statement_splits (stated_key_id, effect
 --
 -- quantity is in units of the instrument: shares, contracts, or money for
 -- cash. Its stated currency is the key's.
-CREATE TABLE transactions (
+CREATE TABLE txns (
     id              uuid        PRIMARY KEY,
     user_id         uuid        NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     broker          broker      NOT NULL,
@@ -163,9 +163,9 @@ CREATE TABLE transactions (
     FOREIGN KEY (statement_id, user_id) REFERENCES statements (id, user_id) ON DELETE CASCADE
 );
 
-CREATE INDEX transactions_period_idx ON transactions (user_id, broker, order_date);
-CREATE INDEX transactions_key_idx ON transactions (user_id, stated_key_id);
-CREATE INDEX transactions_statement_idx ON transactions (statement_id);
+CREATE INDEX txns_period_idx ON txns (user_id, broker, order_date);
+CREATE INDEX txns_key_idx ON txns (user_id, stated_key_id);
+CREATE INDEX txns_statement_idx ON txns (statement_id);
 
 CREATE TYPE resolution_outcome AS ENUM ('matched', 'rejected', 'unrecognised', 'unavailable');
 

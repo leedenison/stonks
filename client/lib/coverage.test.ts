@@ -39,7 +39,7 @@ describe("coverage", () => {
   it("bounds the timeline by every dated fact, leaving open bounds out", () => {
     expect(bounds(create(TickerSchema, {}))).toBeUndefined();
     const t = create(TickerSchema, {
-      transactionDays: ["2026-03-05"],
+      txnDays: ["2026-03-05"],
       intervals: [
         create(IntervalSchema, { validFrom: "2026-03-10", instrumentId: "i1" }),
       ],
@@ -48,9 +48,7 @@ describe("coverage", () => {
       ],
     });
     expect(bounds(t)).toEqual({ from: "2026-03-05", before: "2026-03-31" });
-    expect(
-      bounds(create(TickerSchema, { transactionDays: ["2026-03-05"] })),
-    ).toEqual({
+    expect(bounds(create(TickerSchema, { txnDays: ["2026-03-05"] }))).toEqual({
       from: "2026-03-05",
       before: "2026-03-06",
     });

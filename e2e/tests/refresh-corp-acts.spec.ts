@@ -24,7 +24,7 @@ test("finds a stated split the calendar lacks, and refreshes the calendar", asyn
   const { session } = await signIn("admin");
   const admin = adminRunClient(session);
 
-  await page.goto("/transactions");
+  await page.goto("/txns");
   const runId = await uploadStatement(page, fixture, { state: "completed" });
   const [key] = (await statementClient(session).getStatement({ runId })).keys;
 

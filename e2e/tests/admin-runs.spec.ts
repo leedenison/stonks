@@ -21,7 +21,7 @@ test("shows an administrator the runs a user's upload produced", async ({
   page,
 }) => {
   const { user, session: userSession } = await signIn();
-  await page.goto("/transactions");
+  await page.goto("/txns");
   const runId = await uploadStatement(page, fixture, {
     state: "rejections",
     from: "2025-02-01",

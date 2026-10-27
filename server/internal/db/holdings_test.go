@@ -79,7 +79,7 @@ func (h holder) record(t *testing.T, q *gen.Queries, key gen.StatedKey, quantity
 // day and ordered a week before it.
 func (h holder) recordOn(t *testing.T, q *gen.Queries, key gen.StatedKey, day time.Time, quantity string) {
 	t.Helper()
-	_, err := q.CreateTransaction(context.Background(), gen.CreateTransactionParams{
+	_, err := q.CreateTxn(context.Background(), gen.CreateTxnParams{
 		ID: db.NewID(), UserID: h.user.ID, Broker: gen.BrokerIbkr, StatementID: h.statement.ID, StatedKeyID: key.ID,
 		OrderDate: day.AddDate(0, 0, -7), SettlementDate: day, AsAt: day,
 		Quantity: decimal.RequireFromString(quantity),
@@ -171,10 +171,10 @@ func TestListHoldingKeys(t *testing.T) {
 	}
 }
 
-// TestListDatedTransactions checks that the transactions of the user's dated
+// TestListDatedTxns checks that the transactions of the user's dated
 // keys are listed by key then date, and that fixed keys, unresolved keys and
 // another user's are left out.
-func TestListDatedTransactions(t *testing.T) {
+func TestListDatedTxns(t *testing.T) {
 	ctx := context.Background()
 	q := newTx(t)
 	h := newHolder(t, q, "dated@example.com")
@@ -191,14 +191,14 @@ func TestListDatedTransactions(t *testing.T) {
 	other := newHolder(t, q, "otherdated@example.com")
 	other.record(t, q, other.datedKey(t, q, "XNAS", "ACME", "USD"), "9")
 
-	got, err := q.ListDatedTransactions(ctx, h.user.ID)
+	got, err := q.ListDatedTxns(ctx, h.user.ID)
 	require.NoError(t, err)
-	want := []gen.ListDatedTransactionsRow{
+	want := []gen.ListDatedTxnsRow{
 		{StatedKeyID: acme.ID, AsAt: date(2026, 3, 1), Quantity: decimal.RequireFromString("-1.5")},
 		{StatedKeyID: acme.ID, AsAt: date(2026, 3, 2), Quantity: decimal.RequireFromString("4")},
 		{StatedKeyID: zeta.ID, AsAt: date(2026, 3, 1), Quantity: decimal.RequireFromString("7")},
 	}
 	if diff := cmp.Diff(want, got, decimalEqual); diff != "" {
-		t.Errorf("ListDatedTransactions mismatch (-want +got):\n%s", diff)
+		t.Errorf("ListDatedTxns mismatch (-want +got):\n%s", diff)
 	}
 }

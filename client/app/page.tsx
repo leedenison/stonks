@@ -14,7 +14,7 @@ export default function Home() {
 
   useEffect(() => {
     if (state.status === "authenticated") {
-      router.replace("/transactions");
+      router.replace("/txns");
     }
   }, [state.status, router]);
 

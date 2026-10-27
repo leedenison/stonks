@@ -149,12 +149,12 @@ func TestProtoHoldingKey(t *testing.T) {
 	}
 }
 
-func TestProtoTransaction(t *testing.T) {
+func TestProtoTxn(t *testing.T) {
 	id, key := uuid.New(), uuid.New()
-	row := gen.Transaction{ID: id, StatedKeyID: key, OrderDate: time.Date(2024, time.January, 16, 0, 0, 0, 0, time.UTC), Quantity: decimal.RequireFromString("-0.5")}
-	want := &statementv1.Transaction{Id: id.String(), StatedKeyId: key.String(), OrderDate: "2024-01-16", Quantity: "-0.5", Mark: statementv1.TransactionMark_TRANSACTION_MARK_PROVISIONAL}
-	if diff := cmp.Diff(want, ProtoTransaction(row, statementv1.TransactionMark_TRANSACTION_MARK_PROVISIONAL), protocmp.Transform()); diff != "" {
-		t.Errorf("ProtoTransaction mismatch (-want +got):\n%s", diff)
+	row := gen.Txn{ID: id, StatedKeyID: key, OrderDate: time.Date(2024, time.January, 16, 0, 0, 0, 0, time.UTC), Quantity: decimal.RequireFromString("-0.5")}
+	want := &statementv1.Txn{Id: id.String(), StatedKeyId: key.String(), OrderDate: "2024-01-16", Quantity: "-0.5", Mark: statementv1.TxnMark_TXN_MARK_PROVISIONAL}
+	if diff := cmp.Diff(want, ProtoTxn(row, statementv1.TxnMark_TXN_MARK_PROVISIONAL), protocmp.Transform()); diff != "" {
+		t.Errorf("ProtoTxn mismatch (-want +got):\n%s", diff)
 	}
 }
 

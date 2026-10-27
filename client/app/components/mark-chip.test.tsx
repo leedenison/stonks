@@ -1,16 +1,16 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { TransactionMark } from "@/gen/statement/v1/statement_pb";
+import { TxnMark } from "@/gen/statement/v1/statement_pb";
 import { MarkChip } from "./mark-chip";
 
 describe("MarkChip", () => {
   it("marks each state", () => {
-    const cases: [TransactionMark, boolean, string, string][] = [
-      [TransactionMark.CONFIRMED, false, "confirmed", "Confirmed"],
-      [TransactionMark.PROVISIONAL, false, "provisional", "Provisional"],
-      [TransactionMark.UNRESOLVED, false, "unresolved", "Unresolved"],
-      [TransactionMark.UNRESOLVED, true, "resolving", "Resolving"],
-      [TransactionMark.UNSPECIFIED, true, "resolving", "Resolving"],
+    const cases: [TxnMark, boolean, string, string][] = [
+      [TxnMark.CONFIRMED, false, "confirmed", "Confirmed"],
+      [TxnMark.PROVISIONAL, false, "provisional", "Provisional"],
+      [TxnMark.UNRESOLVED, false, "unresolved", "Unresolved"],
+      [TxnMark.UNRESOLVED, true, "resolving", "Resolving"],
+      [TxnMark.UNSPECIFIED, true, "resolving", "Resolving"],
     ];
     for (const [mark, live, state, label] of cases) {
       const { unmount } = render(<MarkChip mark={mark} live={live} />);

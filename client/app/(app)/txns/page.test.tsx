@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { UploadProvider, useUpload } from "@/contexts/upload-context";
-import TransactionsPage from "./page";
+import TxnsPage from "./page";
 
 // Probe shows what the upload context holds.
 function Probe() {
@@ -13,11 +13,11 @@ function Probe() {
   );
 }
 
-describe("TransactionsPage", () => {
+describe("TxnsPage", () => {
   it("opens the upload from the action bar and from the empty state", () => {
     render(
       <UploadProvider>
-        <TransactionsPage />
+        <TxnsPage />
         <Probe />
       </UploadProvider>,
     );
@@ -31,12 +31,12 @@ describe("TransactionsPage", () => {
   it("opens the upload with a dropped file", () => {
     render(
       <UploadProvider>
-        <TransactionsPage />
+        <TxnsPage />
         <Probe />
       </UploadProvider>,
     );
     const file = new File(["x"], "export.csv", { type: "text/csv" });
-    const target = screen.getByTestId("transactions-drop");
+    const target = screen.getByTestId("txns-drop");
     fireEvent.dragOver(target, { dataTransfer: { files: [file] } });
     expect(target.hasAttribute("data-over")).toBe(true);
     fireEvent.drop(target, { dataTransfer: { files: [file] } });

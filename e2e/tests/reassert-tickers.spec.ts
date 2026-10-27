@@ -36,7 +36,7 @@ test("extends the ticker validity of a held ticker on the day it runs", async ({
   const statements = statementClient(session);
   const adminRuns = adminRunClient(adminSession);
 
-  await page.goto("/transactions");
+  await page.goto("/txns");
   const runId = await uploadStatement(page, fixture, { state: "completed" });
   const keys = (await statements.getStatement({ runId })).keys;
   expect(keys.map((k) => k.outcome)).toEqual([ResolutionOutcome.MATCHED]);

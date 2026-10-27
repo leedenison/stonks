@@ -20,8 +20,8 @@ import {
   StatementItemSchema,
   StatementService,
   StatementSummarySchema,
-  TransactionMark,
-  TransactionSchema,
+  TxnMark,
+  TxnSchema,
 } from "@/gen/statement/v1/statement_pb";
 import {
   Arbiter,
@@ -123,30 +123,30 @@ function keys(resolved: boolean) {
   ];
 }
 
-// transactions returns transactions marked confirmed, unresolved and
+// txns returns transactions marked confirmed, unresolved and
 // provisional, the last under a key the statement does not list.
-function transactions() {
+function txns() {
   return [
-    create(TransactionSchema, {
+    create(TxnSchema, {
       id: "t1",
       statedKeyId: "k-isin",
       orderDate: "2025-02-03",
       quantity: "-5.4",
-      mark: TransactionMark.CONFIRMED,
+      mark: TxnMark.CONFIRMED,
     }),
-    create(TransactionSchema, {
+    create(TxnSchema, {
       id: "t2",
       statedKeyId: "k-isin",
       orderDate: "2025-02-10",
       quantity: "100",
-      mark: TransactionMark.UNRESOLVED,
+      mark: TxnMark.UNRESOLVED,
     }),
-    create(TransactionSchema, {
+    create(TxnSchema, {
       id: "t3",
       statedKeyId: "k-gone",
       orderDate: "2025-02-11",
       quantity: "1",
-      mark: TransactionMark.PROVISIONAL,
+      mark: TxnMark.PROVISIONAL,
     }),
   ];
 }
@@ -156,7 +156,7 @@ function response(
   rejected: number,
   error?: string,
   withKeys = false,
-  withTransactions = false,
+  withTxns = false,
 ) {
   const gbp = create(StatedKeySchema, {
     assetClass: AssetClass.CASH,
@@ -164,7 +164,7 @@ function response(
   });
   return create(GetStatementResponseSchema, {
     keys: withKeys ? keys(state === RunState.COMPLETED) : [],
-    transactions: withTransactions ? transactions() : [],
+    txns: withTxns ? txns() : [],
     statement: create(StatementSummarySchema, {
       run: create(RunSchema, {
         id: "r1",
@@ -370,7 +370,7 @@ describe("StatementPage", () => {
     await waitFor(() =>
       expect(screen.getByTestId("statement-keys")).toBeTruthy(),
     );
-    expect(screen.queryByTestId("statement-transactions")).toBeNull();
+    expect(screen.queryByTestId("statement-txns")).toBeNull();
   });
 
   it("marks each transaction and names its key", async () => {
@@ -379,21 +379,18 @@ describe("StatementPage", () => {
       serving(() => response(RunState.COMPLETED, 0, undefined, true, true)),
     );
     await waitFor(() =>
-      expect(screen.getByTestId("statement-transactions")).toBeTruthy(),
+      expect(screen.getByTestId("statement-txns")).toBeTruthy(),
     );
-    const row = (id: string) =>
-      within(screen.getByTestId(`transaction-row-${id}`));
+    const row = (id: string) => within(screen.getByTestId(`txn-row-${id}`));
     expect(row("t1").getByTestId("mark-chip").getAttribute("data-state")).toBe(
       "confirmed",
     );
     expect(row("t1").getByText("US0378331005")).toBeTruthy();
-    expect(screen.getByTestId("transaction-row-t1").textContent).toContain(
-      "-5.40",
-    );
+    expect(screen.getByTestId("txn-row-t1").textContent).toContain("-5.40");
     expect(row("t2").getByTestId("mark-chip").getAttribute("data-state")).toBe(
       "unresolved",
     );
-    const gone = screen.getByTestId("transaction-row-t3");
+    const gone = screen.getByTestId("txn-row-t3");
     expect(gone.querySelectorAll("td")[1].textContent).toBe("");
     expect(
       within(gone).getByTestId("mark-chip").getAttribute("data-state"),

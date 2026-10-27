@@ -9,19 +9,19 @@ import { useDropTarget } from "@/hooks/use-drop-target";
 
 // The transactions page is a drop target. When the user drops an export
 // anywhere on the page, the upload dialog opens with that file.
-export default function TransactionsPage() {
+export default function TxnsPage() {
   const upload = useUpload();
   const drop = useDropTarget(upload.open);
   return (
     <div
-      data-testid="transactions-drop"
+      data-testid="txns-drop"
       {...drop}
       className="min-h-full transition-colors data-over:bg-primary-light/15"
     >
       <Page
         title="Transactions"
         width="wide"
-        testId="transactions-page"
+        testId="txns-page"
         actions={<UploadAction />}
       >
         <EmptyState

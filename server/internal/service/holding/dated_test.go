@@ -79,8 +79,8 @@ func datedKey(currency *string, group *uuid.UUID, quantity string) gen.ListHoldi
 	}
 }
 
-func tx(n int, quantity string) gen.ListDatedTransactionsRow {
-	return gen.ListDatedTransactionsRow{StatedKeyID: datedKeyID, AsAt: day(n), Quantity: decimal.RequireFromString(quantity)}
+func txn(n int, quantity string) gen.ListDatedTxnsRow {
+	return gen.ListDatedTxnsRow{StatedKeyID: datedKeyID, AsAt: day(n), Quantity: decimal.RequireFromString(quantity)}
 }
 
 // datedHoldingKey is the dated key as a holding carries it: with the sum of
@@ -115,8 +115,8 @@ func TestListHoldingsDated(t *testing.T) {
 	tests := []struct {
 		name          string
 		keys          []gen.ListHoldingKeysRow
-		txs           []gen.ListDatedTransactionsRow
-		txsErr        error
+		txns          []gen.ListDatedTxnsRow
+		txnsErr       error
 		assertions    []gen.ListIdentifierAssertionsRow
 		assertionsErr error
 		ids           []uuid.UUID
@@ -132,7 +132,7 @@ func TestListHoldingsDated(t *testing.T) {
 			// family, and A keeps its own name.
 			name:       "a key whose transactions straddle a rename",
 			keys:       []gen.ListHoldingKeysRow{datedKey(usd, &datedKeyID, "15")},
-			txs:        []gen.ListDatedTransactionsRow{tx(0, "1"), tx(5, "2"), tx(15, "4"), tx(25, "8")},
+			txns:       []gen.ListDatedTxnsRow{txn(0, "1"), txn(5, "2"), txn(15, "4"), txn(25, "8")},
 			assertions: straddle, ids: []uuid.UUID{aID, bID}, listings: listings,
 			want: []*holdingv1.InstrumentHolding{
 				holdingA("3", datedHoldingKey(usd, aUSD, "3")),
@@ -142,7 +142,7 @@ func TestListHoldingsDated(t *testing.T) {
 		{
 			name:       "a retired ticker leaves the later transaction in the group",
 			keys:       []gen.ListHoldingKeysRow{datedKey(usd, &datedKeyID, "6")},
-			txs:        []gen.ListDatedTransactionsRow{tx(5, "2"), tx(15, "4")},
+			txns:       []gen.ListDatedTxnsRow{txn(5, "2"), txn(15, "4")},
 			assertions: retired, ids: []uuid.UUID{aID}, listings: listings,
 			want:       []*holdingv1.InstrumentHolding{holdingA("2", datedHoldingKey(usd, aUSD, "2"))},
 			wantGroups: []*holdingv1.GroupHolding{group(usd, "4")},
@@ -150,52 +150,52 @@ func TestListHoldingsDated(t *testing.T) {
 		{
 			name:       "a dated key beside a fixed key of the same instrument",
 			keys:       []gen.ListHoldingKeysRow{fixedKey, datedKey(usd, &datedKeyID, "2")},
-			txs:        []gen.ListDatedTransactionsRow{tx(5, "2")},
+			txns:       []gen.ListDatedTxnsRow{txn(5, "2")},
 			assertions: straddle, ids: []uuid.UUID{aID}, listings: listings,
 			want: []*holdingv1.InstrumentHolding{holdingA("12", fixedHoldingKey, datedHoldingKey(usd, aUSD, "2"))},
 		},
 		{
 			name:       "a total of zero is no holding",
 			keys:       []gen.ListHoldingKeysRow{fixedKey, datedKey(usd, &datedKeyID, "-10")},
-			txs:        []gen.ListDatedTransactionsRow{tx(5, "-10"), tx(15, "5"), tx(16, "-5")},
+			txns:       []gen.ListDatedTxnsRow{txn(5, "-10"), txn(15, "5"), txn(16, "-5")},
 			assertions: retired,
 		},
 		{
 			name:       "the listing in the stated family",
 			keys:       []gen.ListHoldingKeysRow{datedKey(gbx, &datedKeyID, "4")},
-			txs:        []gen.ListDatedTransactionsRow{tx(15, "4")},
+			txns:       []gen.ListDatedTxnsRow{txn(15, "4")},
 			assertions: straddle, ids: []uuid.UUID{bID}, listings: withBGBP,
 			want: []*holdingv1.InstrumentHolding{holdingB("4", protoBListingsWithGBP, datedHoldingKey(gbx, bGBP, "4"))},
 		},
 		{
 			name:       "the ticker's listing where the stated family has none",
 			keys:       []gen.ListHoldingKeysRow{datedKey(gbx, &datedKeyID, "4")},
-			txs:        []gen.ListDatedTransactionsRow{tx(15, "4")},
+			txns:       []gen.ListDatedTxnsRow{txn(15, "4")},
 			assertions: straddle, ids: []uuid.UUID{bID}, listings: listings,
 			want: []*holdingv1.InstrumentHolding{holdingB("4", protoBListings, datedHoldingKey(gbx, bUSD, "4"))},
 		},
 		{
 			name:       "the ticker's listing where no currency is stated",
 			keys:       []gen.ListHoldingKeysRow{datedKey(nil, &datedKeyID, "4")},
-			txs:        []gen.ListDatedTransactionsRow{tx(15, "4")},
+			txns:       []gen.ListDatedTxnsRow{txn(15, "4")},
 			assertions: straddle, ids: []uuid.UUID{bID}, listings: withBGBP,
 			want: []*holdingv1.InstrumentHolding{holdingB("4", protoBListingsWithGBP, datedHoldingKey(nil, bUSD, "4"))},
 		},
 		{
 			name:       "a dated key with an unresolved transaction and no group",
 			keys:       []gen.ListHoldingKeysRow{datedKey(usd, nil, "4")},
-			txs:        []gen.ListDatedTransactionsRow{tx(15, "4")},
+			txns:       []gen.ListDatedTxnsRow{txn(15, "4")},
 			assertions: retired, wantCode: connect.CodeInternal,
 		},
 		{
-			name:   "transactions failure",
-			keys:   []gen.ListHoldingKeysRow{datedKey(usd, &datedKeyID, "4")},
-			txsErr: errBoom, wantCode: connect.CodeInternal,
+			name:    "transactions failure",
+			keys:    []gen.ListHoldingKeysRow{datedKey(usd, &datedKeyID, "4")},
+			txnsErr: errBoom, wantCode: connect.CodeInternal,
 		},
 		{
 			name:          "facts failure",
 			keys:          []gen.ListHoldingKeysRow{datedKey(usd, &datedKeyID, "4")},
-			txs:           []gen.ListDatedTransactionsRow{tx(15, "4")},
+			txns:          []gen.ListDatedTxnsRow{txn(15, "4")},
 			assertionsErr: errBoom, wantCode: connect.CodeInternal,
 		},
 	}
@@ -204,7 +204,7 @@ func TestListHoldingsDated(t *testing.T) {
 			f := newFixture(t)
 			f.authn.EXPECT().Authenticate(gomock.Any(), servicetest.Session).Return(principal, nil)
 			f.reader.EXPECT().ListHoldingKeys(gomock.Any(), userID).Return(tc.keys, nil)
-			f.reader.EXPECT().ListDatedTransactions(gomock.Any(), userID).Return(tc.txs, tc.txsErr)
+			f.reader.EXPECT().ListDatedTxns(gomock.Any(), userID).Return(tc.txns, tc.txnsErr)
 			// The facts of FOO are read once, however many transactions
 			// rest on it.
 			f.reader.EXPECT().ListIdentifierAssertions(gomock.Any(), fooAssertions).Return(tc.assertions, tc.assertionsErr).MaxTimes(1)

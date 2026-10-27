@@ -24,7 +24,7 @@ test("clears a block from the blocks page, clearing the finding reporting it", a
   page,
 }) => {
   const { user } = await signIn();
-  await page.goto("/transactions");
+  await page.goto("/txns");
   const runId = await uploadStatement(page, fixture, {
     state: "completed",
     holds: false,

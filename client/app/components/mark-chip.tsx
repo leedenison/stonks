@@ -1,4 +1,4 @@
-import { TransactionMark } from "@/gen/statement/v1/statement_pb";
+import { TxnMark } from "@/gen/statement/v1/statement_pb";
 import { Chip, type Tone } from "./chip";
 
 // What a transaction's chip shows. An unmarked transaction reads as resolving
@@ -33,11 +33,11 @@ const looks: Record<MarkState, { tone: Tone; label: string; title: string }> = {
   },
 };
 
-export function markState(mark: TransactionMark, live: boolean): MarkState {
+export function markState(mark: TxnMark, live: boolean): MarkState {
   switch (mark) {
-    case TransactionMark.CONFIRMED:
+    case TxnMark.CONFIRMED:
       return "confirmed";
-    case TransactionMark.PROVISIONAL:
+    case TxnMark.PROVISIONAL:
       return "provisional";
     default:
       return live ? "resolving" : "unresolved";
@@ -51,7 +51,7 @@ export function MarkChip({
   mark,
   live = false,
 }: {
-  mark: TransactionMark;
+  mark: TxnMark;
   live?: boolean;
 }) {
   const state = markState(mark, live);

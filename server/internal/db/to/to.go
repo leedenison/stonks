@@ -142,13 +142,13 @@ func ProtoHoldingKey(k gen.ListHoldingKeysRow) *holdingv1.HoldingKey {
 	return out
 }
 
-// ProtoTransaction writes a transaction row with its mark.
-func ProtoTransaction(tx gen.Transaction, m statementv1.TransactionMark) *statementv1.Transaction {
-	return &statementv1.Transaction{
-		Id:          tx.ID.String(),
-		StatedKeyId: tx.StatedKeyID.String(),
-		OrderDate:   tx.OrderDate.Format(time.DateOnly),
-		Quantity:    tx.Quantity.String(),
+// ProtoTxn writes a transaction row with its mark.
+func ProtoTxn(txn gen.Txn, m statementv1.TxnMark) *statementv1.Txn {
+	return &statementv1.Txn{
+		Id:          txn.ID.String(),
+		StatedKeyId: txn.StatedKeyID.String(),
+		OrderDate:   txn.OrderDate.Format(time.DateOnly),
+		Quantity:    txn.Quantity.String(),
 		Mark:        m,
 	}
 }

@@ -38,7 +38,7 @@ test("resolves a line through the description the broker gave it", async ({
   page,
 }) => {
   const { session } = await signIn();
-  await page.goto("/transactions");
+  await page.goto("/txns");
   const runId = await uploadStatement(page, fixture, {
     state: "completed",
     rows: "5 rows",

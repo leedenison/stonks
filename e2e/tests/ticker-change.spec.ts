@@ -5,7 +5,7 @@ import {
   FindingKind,
   type UserRun,
 } from "../gen/admin/run/v1/run_pb";
-import { TransactionMark } from "../gen/statement/v1/statement_pb";
+import { TxnMark } from "../gen/statement/v1/statement_pb";
 import { IdentifierType, ResolutionOutcome } from "../gen/type/v1/type_pb";
 import {
   instrumentListedAs,
@@ -52,7 +52,7 @@ test("dates a key through its ticker and marks each transaction by its day", asy
   const statements = statementClient(session);
   const admin = adminRunClient(adminSession);
 
-  await page.goto("/transactions");
+  await page.goto("/txns");
   const runs: string[] = [];
   for (const [n, fixture] of fixtures.entries()) {
     runs.push(
@@ -72,16 +72,11 @@ test("dates a key through its ticker and marks each transaction by its day", asy
   }
   expect(keys[1][0].statedKeyId).toBe(keys[0][0].statedKeyId);
 
-  const marks = read.map((r) => r.transactions.map((t) => t.mark));
-  expect(marks).toEqual([
-    [TransactionMark.CONFIRMED],
-    [TransactionMark.UNRESOLVED],
-  ]);
+  const marks = read.map((r) => r.txns.map((t) => t.mark));
+  expect(marks).toEqual([[TxnMark.CONFIRMED], [TxnMark.UNRESOLVED]]);
   for (const [i, state] of ["confirmed", "unresolved"].entries()) {
     await page.goto(`/statements/${[first, second][i]}`);
-    const row = page.getByTestId(
-      `transaction-row-${read[i].transactions[0].id}`,
-    );
+    const row = page.getByTestId(`txn-row-${read[i].txns[0].id}`);
     await expect(row.getByTestId("mark-chip")).toHaveAttribute(
       "data-state",
       state,

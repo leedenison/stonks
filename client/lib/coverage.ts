@@ -33,7 +33,7 @@ export function instrumentName(t: Ticker, id: string): Identifier | undefined {
 export function bounds(
   t: Ticker,
 ): { from: string; before: string } | undefined {
-  const days: string[] = [...t.transactionDays];
+  const days: string[] = [...t.txnDays];
   for (const c of t.coverage) days.push(c.coveredFrom, c.coveredBefore);
   for (const a of t.assertions) days.push(a.assertedOn);
   for (const e of t.events) days.push(e.effectiveOn);

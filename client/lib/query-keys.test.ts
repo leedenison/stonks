@@ -11,17 +11,13 @@ describe("invalidateResolved", () => {
   };
 
   it("refreshes the holdings, the transactions and every statement", async () => {
-    expect(await keys()).toEqual([
-      ["holdings"],
-      ["transactions"],
-      ["statements"],
-    ]);
+    expect(await keys()).toEqual([["holdings"], ["txns"], ["statements"]]);
   });
 
   it("refreshes only the statements named", async () => {
     expect(await keys(["s1", "s2"])).toEqual([
       ["holdings"],
-      ["transactions"],
+      ["txns"],
       ["statements", "s1"],
       ["statements", "s2"],
     ]);

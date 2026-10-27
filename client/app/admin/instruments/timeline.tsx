@@ -38,9 +38,9 @@ export function Timeline({ ticker }: { ticker: Ticker }) {
   const datasources = [...new Set(ticker.coverage.map((c) => c.datasource))];
   const lanes: Lane[] = [
     {
-      key: "transactions",
+      key: "txns",
       label: "Transactions",
-      children: ticker.transactionDays.map((d) => (
+      children: ticker.txnDays.map((d) => (
         <rect
           key={d}
           x={x(d) - 0.5}
@@ -90,7 +90,7 @@ export function Timeline({ ticker }: { ticker: Ticker }) {
           rx={2}
           className="fill-accent/70"
         >
-          <title>{`Gap ${g.unconfirmedFrom} to ${g.unconfirmedBefore}: ${g.transactions} transactions of ${g.keys} keys`}</title>
+          <title>{`Gap ${g.unconfirmedFrom} to ${g.unconfirmedBefore}: ${g.txns} transactions of ${g.keys} keys`}</title>
         </rect>
       )),
     },

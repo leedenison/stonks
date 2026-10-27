@@ -28,7 +28,7 @@ test("asks EODHD beside OpenFIGI and matches the key once", async ({
   page,
 }) => {
   const { session: userSession } = await signIn();
-  await page.goto("/transactions");
+  await page.goto("/txns");
   const runId = await uploadStatement(page, fixture, { state: "completed" });
   await page.getByTestId("activity-sheet-close").click();
 

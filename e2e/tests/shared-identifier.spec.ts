@@ -22,7 +22,7 @@ test("gathers the keys of two statements that share an identifier", async ({
   page,
 }) => {
   const { session } = await signIn();
-  await page.goto("/transactions");
+  await page.goto("/txns");
 
   const uploads = [january, february];
   for (const [n, fixture] of uploads.entries()) {

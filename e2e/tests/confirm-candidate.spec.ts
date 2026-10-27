@@ -29,7 +29,7 @@ const cacheKey = fetchCacheKey(
 
 test("chooses an instrument for a bare ticker", async ({ signIn, page }) => {
   const { user, session } = await signIn();
-  await page.goto("/transactions");
+  await page.goto("/txns");
   const runId = await uploadStatement(page, fixture, {
     state: "completed",
     rows: "3 rows",

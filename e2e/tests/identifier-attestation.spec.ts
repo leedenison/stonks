@@ -1,6 +1,6 @@
 import path from "node:path";
 import { RunKind } from "../gen/run/v1/run_pb";
-import { TransactionMark } from "../gen/statement/v1/statement_pb";
+import { TxnMark } from "../gen/statement/v1/statement_pb";
 import { IdentifierType, ResolutionOutcome } from "../gen/type/v1/type_pb";
 import {
   instrumentListedAs,
@@ -35,19 +35,17 @@ test("attests a gap from the instrument's tickers tab and withdraws it", async (
   const statements = statementClient(session);
   const adminRuns = adminRunClient(session);
 
-  await page.goto("/transactions");
+  await page.goto("/txns");
   const runId = await uploadStatement(page, fixture, { state: "completed" });
   const read = await statements.getStatement({ runId });
   expect(read.keys.map((k) => k.outcome)).toEqual([ResolutionOutcome.MATCHED]);
   expect(read.keys[0].ticker).toMatchObject(wmt);
-  expect(read.transactions.map((t) => t.mark)).toEqual([
-    TransactionMark.PROVISIONAL,
-  ]);
-  const txId = read.transactions[0].id;
+  expect(read.txns.map((t) => t.mark)).toEqual([TxnMark.PROVISIONAL]);
+  const txnId = read.txns[0].id;
 
   // The statement page marks the transaction provisional.
   await page.goto(`/statements/${runId}`);
-  const row = page.getByTestId(`transaction-row-${txId}`);
+  const row = page.getByTestId(`txn-row-${txnId}`);
   await expect(row.getByTestId("mark-chip")).toHaveAttribute(
     "data-state",
     "provisional",
@@ -90,8 +88,8 @@ test("attests a gap from the instrument's tickers tab and withdraws it", async (
 
   // The identifier attestation brackets the provider's first assertion, so the
   // transaction is confirmed.
-  expect((await statements.getStatement({ runId })).transactions[0].mark).toBe(
-    TransactionMark.CONFIRMED,
+  expect((await statements.getStatement({ runId })).txns[0].mark).toBe(
+    TxnMark.CONFIRMED,
   );
 
   const id = (await attested.getAttribute("data-testid"))!.replace(
@@ -102,7 +100,7 @@ test("attests a gap from the instrument's tickers tab and withdraws it", async (
   await page.getByTestId("withdraw-confirm").click();
   await expect(page.getByTestId("withdraw-dialog")).toBeHidden();
   await expect(attested).toHaveCount(0);
-  expect((await statements.getStatement({ runId })).transactions[0].mark).toBe(
-    TransactionMark.PROVISIONAL,
+  expect((await statements.getStatement({ runId })).txns[0].mark).toBe(
+    TxnMark.PROVISIONAL,
   );
 });
