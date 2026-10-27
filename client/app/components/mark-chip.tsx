@@ -1,4 +1,4 @@
-import { TxnMark } from "@/gen/statement/v1/statement_pb";
+import { TxnMark } from "@/gen/stmt/v1/stmt_pb";
 import { Chip, type Tone } from "./chip";
 
 // What a transaction's chip shows. An unmarked transaction reads as resolving

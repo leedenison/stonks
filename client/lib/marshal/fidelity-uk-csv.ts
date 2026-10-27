@@ -15,8 +15,8 @@
 
 import { parse } from "csv-parse/sync";
 import { AssetClass, Broker, IdentifierType } from "@/gen/type/v1/type_pb";
-import type { Row, Statement } from "@/gen/statement/v1/statement_pb";
-import { cashKey, ident, leg, securityKey, statement } from "./build";
+import type { Row, Stmt } from "@/gen/stmt/v1/stmt_pb";
+import { cashKey, ident, leg, securityKey, stmt } from "./build";
 import { isZero, negate } from "./decimal";
 import { iso, minDate, monthNumber, prevDay } from "./date";
 import { MarshalError } from "./error";
@@ -74,7 +74,7 @@ interface Line {
   quantity: string;
 }
 
-function marshal(text: string): Statement {
+function marshal(text: string): Stmt {
   const parsed: unknown = parse(text, {
     bom: true,
     relax_column_count: true,
@@ -171,7 +171,7 @@ function marshal(text: string): Statement {
     );
   }
 
-  return statement(Broker.FIDELITY_UK, rows, [], period);
+  return stmt(Broker.FIDELITY_UK, rows, [], period);
 }
 
 // recognise tells a Fidelity UK export by the account number on every

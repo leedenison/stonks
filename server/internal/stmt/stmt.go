@@ -30,7 +30,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 
-	statementv1 "github.com/leedenison/stonks/proto/statement/v1"
+	stmtv1 "github.com/leedenison/stonks/proto/stmt/v1"
 	"github.com/leedenison/stonks/server/internal/currency"
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
@@ -61,7 +61,7 @@ func New(store Store, runs Runner, resolver Resolver, facts Facts, events CorpAc
 }
 
 // Create validates msg, starts its run and responds with the pending row.
-func (s *Service) Create(ctx context.Context, userID uuid.UUID, msg *statementv1.Statement) (gen.Run, error) {
+func (s *Service) Create(ctx context.Context, userID uuid.UUID, msg *stmtv1.Stmt) (gen.Run, error) {
 	broker, ok := types.FromProto[gen.Broker](msg.GetBroker())
 	if !ok || broker == "" {
 		return gen.Run{}, fmt.Errorf("%w: broker %v", ErrInvalid, msg.GetBroker())
@@ -118,7 +118,7 @@ type ingestion struct {
 // row is one row of the payload.
 type row struct {
 	ordinal int32
-	stated  *statementv1.Row
+	stated  *stmtv1.Row
 	// key is nil where validation rejected the row; reason then says why.
 	key        *key
 	order      time.Time

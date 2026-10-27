@@ -1,11 +1,11 @@
 import { create } from "@bufbuild/protobuf";
 import { describe, expect, it } from "vitest";
 import { RunSchema, RunState } from "@/gen/run/v1/run_pb";
-import { StatementSummarySchema } from "@/gen/statement/v1/statement_pb";
+import { StmtSummarySchema } from "@/gen/stmt/v1/stmt_pb";
 import { anyLive, isTerminal, outcome } from "./run";
 
 function summary(state: RunState, rejected = 0) {
-  return create(StatementSummarySchema, {
+  return create(StmtSummarySchema, {
     run: create(RunSchema, { state }),
     rejected,
   });
@@ -28,7 +28,7 @@ describe("run", () => {
     expect(outcome(summary(RunState.COMPLETED, 3))).toBe("rejections");
     expect(outcome(summary(RunState.FAILED))).toBe("failed");
     expect(outcome(summary(RunState.INTERRUPTED))).toBe("failed");
-    expect(outcome(create(StatementSummarySchema, {}))).toBe("pending");
+    expect(outcome(create(StmtSummarySchema, {}))).toBe("pending");
   });
 
   it("is live while any run is not terminal", () => {

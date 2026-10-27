@@ -1,10 +1,7 @@
 import { create } from "@bufbuild/protobuf";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import {
-  RowSchema,
-  StatementItemSchema,
-} from "@/gen/statement/v1/statement_pb";
+import { RowSchema, StmtItemSchema } from "@/gen/stmt/v1/stmt_pb";
 import { AssetClass, StatedKeySchema } from "@/gen/type/v1/type_pb";
 import { RejectionGroups } from "./rejection-groups";
 
@@ -14,7 +11,7 @@ const gbp = create(StatedKeySchema, {
 });
 
 const items = [
-  create(StatementItemSchema, {
+  create(StmtItemSchema, {
     ordinal: 2,
     reason: "order date outside the claimed period",
     row: create(RowSchema, {
@@ -23,12 +20,12 @@ const items = [
       quantity: "-5.40",
     }),
   }),
-  create(StatementItemSchema, {
+  create(StmtItemSchema, {
     ordinal: 5,
     reason: "no key",
     row: create(RowSchema, { orderDate: "2025-02-10", quantity: "1" }),
   }),
-  create(StatementItemSchema, {
+  create(StmtItemSchema, {
     ordinal: 3,
     reason: "order date outside the claimed period",
     row: create(RowSchema, {

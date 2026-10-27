@@ -5,11 +5,11 @@ import { recording } from "./config";
 import { deleteUsers, seedUser } from "./db";
 import { expect } from "./test";
 
-// uploadStatement uploads the export at fixture from the current page and
+// uploadStmt uploads the export at fixture from the current page and
 // returns the id of its run once the run reaches state. A run that wrote its
 // rows has also settled, so nothing it started is still running. The activity sheet
 // stays open.
-export async function uploadStatement(
+export async function uploadStmt(
   page: Page,
   fixture: string,
   opts: {
@@ -30,7 +30,7 @@ export async function uploadStatement(
     holds?: boolean;
   },
 ): Promise<string> {
-  await page.getByTestId("upload-statement").click();
+  await page.getByTestId("upload-stmt").click();
   await page.getByTestId("upload-file").setInputFiles(fixture);
   if (opts.rows) {
     await expect(page.getByTestId("upload-rows")).toHaveText(opts.rows);

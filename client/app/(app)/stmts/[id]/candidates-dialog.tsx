@@ -7,7 +7,7 @@ import { EmptyState } from "@/app/components/empty-state";
 import { IdentifierChips } from "@/app/components/identifier-chip";
 import { Notice } from "@/app/components/notice";
 import { Skeleton } from "@/app/components/skeleton";
-import type { Candidate } from "@/gen/statement/v1/statement_pb";
+import type { Candidate } from "@/gen/stmt/v1/stmt_pb";
 import { AssetClass, type ResolutionItem } from "@/gen/type/v1/type_pb";
 import { useCandidates, useChooseCandidate } from "@/hooks/use-candidates";
 import { assetClassLabel } from "@/lib/asset-class";

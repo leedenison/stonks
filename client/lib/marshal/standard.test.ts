@@ -12,8 +12,8 @@ import {
   RowSchema,
   SplitRatioSchema,
   StatedSplitSchema,
-  StatementSchema,
-} from "@/gen/statement/v1/statement_pb";
+  StmtSchema,
+} from "@/gen/stmt/v1/stmt_pb";
 import { MarshalError } from "./error";
 import { standard } from "./standard";
 import { fixture } from "./test-utils";
@@ -27,7 +27,7 @@ const meta = create(StatedKeySchema, {
   currency: "USD",
 });
 
-const expected = create(StatementSchema, {
+const expected = create(StmtSchema, {
   broker: Broker.IBKR,
   orderFrom: "2024-01-01",
   orderBefore: "2025-01-01",

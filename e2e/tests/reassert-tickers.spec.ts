@@ -11,10 +11,10 @@ import {
   coverageClient,
   reassertTickersClient,
   fetchItems,
-  statementClient,
+  stmtClient,
 } from "../helpers/api";
 import { expect, test } from "../helpers/test";
-import { uploadStatement } from "../helpers/upload";
+import { uploadStmt } from "../helpers/upload";
 
 // No other spec states PEP, so no other user holds it.
 const fixture = path.resolve(__dirname, "..", "fixtures", "standard-pep.json");
@@ -33,12 +33,12 @@ test("extends the ticker validity of a held ticker on the day it runs", async ({
   // instrument's tickers tab.
   const { session } = await signIn("admin");
   const adminSession = session;
-  const statements = statementClient(session);
+  const stmts = stmtClient(session);
   const adminRuns = adminRunClient(adminSession);
 
   await page.goto("/txns");
-  const runId = await uploadStatement(page, fixture, { state: "completed" });
-  const keys = (await statements.getStatement({ runId })).keys;
+  const runId = await uploadStmt(page, fixture, { state: "completed" });
+  const keys = (await stmts.getStmt({ runId })).keys;
   expect(keys.map((k) => k.outcome)).toEqual([ResolutionOutcome.MATCHED]);
 
   const instrument = await instrumentListedAs(adminSession, pep);

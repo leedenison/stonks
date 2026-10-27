@@ -17,7 +17,7 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 
-	statementv1 "github.com/leedenison/stonks/proto/statement/v1"
+	stmtv1 "github.com/leedenison/stonks/proto/stmt/v1"
 	typev1 "github.com/leedenison/stonks/proto/type/v1"
 	"github.com/leedenison/stonks/server/internal/currency"
 	"github.com/leedenison/stonks/server/internal/db"
@@ -77,7 +77,7 @@ func newStack(t *testing.T) stack {
 	return stack{q: q, tx: tx, svc: New(db.New[Queries](tx), runs, resolver, replays, nopCorpActs{}, families, clock, log), user: user, alpha: alpha, alphaName: name}
 }
 
-func (s stack) ingest(t *testing.T, msg *statementv1.Statement) gen.Run {
+func (s stack) ingest(t *testing.T, msg *stmtv1.Stmt) gen.Run {
 	t.Helper()
 	ctx := context.Background()
 	row, err := s.svc.Create(ctx, s.user.ID, msg)
@@ -131,9 +131,9 @@ func TestIngest(t *testing.T) {
 	transfer := securityKey("ACME CORP", typev1.AssetClass_ASSET_CLASS_EQUITY, nil, isin)
 	cashInEur := &typev1.StatedKey{Identifiers: []*typev1.Identifier{currency}, AssetClass: typev1.AssetClass_ASSET_CLASS_CASH, Currency: &eur}
 	equityAsCash := securityKey("ACME CORP", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, currency)
-	msg := &statementv1.Statement{
+	msg := &stmtv1.Stmt{
 		Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01",
-		Rows: []*statementv1.Row{
+		Rows: []*stmtv1.Row{
 			rowMsg(acme, "2026-03-05", "10"),
 			rowMsg(cashKey("USD"), "2026-03-05", "-1000"),
 			rowMsg(transfer, "2026-03-02", "3"),
@@ -141,7 +141,7 @@ func TestIngest(t *testing.T) {
 			rowMsg(cashInEur, "2026-03-06", "1"),
 			rowMsg(equityAsCash, "2026-03-06", "1"),
 		},
-		Splits: []*statementv1.StatedSplit{{Key: securityKey("SPLIT CO", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd), EffectiveDate: "2026-03-10", Quantity: "9", Ratio: &statementv1.SplitRatio{From: "1", To: "10"}}},
+		Splits: []*stmtv1.StatedSplit{{Key: securityKey("SPLIT CO", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd), EffectiveDate: "2026-03-10", Quantity: "9", Ratio: &stmtv1.SplitRatio{From: "1", To: "10"}}},
 	}
 	parent := s.ingest(t, msg)
 
@@ -225,8 +225,8 @@ func TestIngest(t *testing.T) {
 func TestFamily(t *testing.T) {
 	s := newStack(t)
 	ctx := context.Background()
-	parent := s.ingest(t, &statementv1.Statement{Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01",
-		Rows: []*statementv1.Row{rowMsg(cashKey("GBX"), "2026-03-05", "250")}})
+	parent := s.ingest(t, &stmtv1.Stmt{Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01",
+		Rows: []*stmtv1.Row{rowMsg(cashKey("GBX"), "2026-03-05", "250")}})
 	keys, err := s.q.ListStatedKeys(ctx, gen.ListStatedKeysParams{StmtID: parent.ID, UserID: s.user.ID})
 	require.NoError(t, err)
 	require.Len(t, keys, 1)
@@ -253,17 +253,17 @@ func TestReplace(t *testing.T) {
 	schwab := &typev1.StatedKey{AssetClass: acme.AssetClass, Currency: acme.Currency, Identifiers: []*typev1.Identifier{
 		{Type: typev1.IdentifierType_IDENTIFIER_TYPE_BROKER_DESCRIPTION, Domain: "schwab", Value: "ACME CORP"},
 	}}
-	s.ingest(t, &statementv1.Statement{Broker: typev1.Broker_BROKER_SCHWAB, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01",
-		Rows: []*statementv1.Row{rowMsg(schwab, "2026-03-05", "1"), rowMsg(schwab, "2026-03-20", "2")}})
-	s.ingest(t, &statementv1.Statement{Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01",
-		Rows: []*statementv1.Row{rowMsg(acme, "2026-03-20", "7")}})
-	s.ingest(t, &statementv1.Statement{Broker: typev1.Broker_BROKER_SCHWAB, OrderFrom: "2026-03-15", OrderBefore: "2026-04-01",
-		Rows: []*statementv1.Row{rowMsg(schwab, "2026-03-20", "3")}})
+	s.ingest(t, &stmtv1.Stmt{Broker: typev1.Broker_BROKER_SCHWAB, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01",
+		Rows: []*stmtv1.Row{rowMsg(schwab, "2026-03-05", "1"), rowMsg(schwab, "2026-03-20", "2")}})
+	s.ingest(t, &stmtv1.Stmt{Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01",
+		Rows: []*stmtv1.Row{rowMsg(acme, "2026-03-20", "7")}})
+	s.ingest(t, &stmtv1.Stmt{Broker: typev1.Broker_BROKER_SCHWAB, OrderFrom: "2026-03-15", OrderBefore: "2026-04-01",
+		Rows: []*stmtv1.Row{rowMsg(schwab, "2026-03-20", "3")}})
 	want := []string{"2026-03-05 schwab 1 USD", "2026-03-20 ibkr 7 USD", "2026-03-20 schwab 3 USD"}
 	if diff := cmp.Diff(want, s.txns(t)); diff != "" {
 		t.Errorf("after the overlapping statement (-want +got):\n%s", diff)
 	}
-	s.ingest(t, &statementv1.Statement{Broker: typev1.Broker_BROKER_SCHWAB, OrderFrom: "2026-03-15", OrderBefore: "2026-04-01"})
+	s.ingest(t, &stmtv1.Stmt{Broker: typev1.Broker_BROKER_SCHWAB, OrderFrom: "2026-03-15", OrderBefore: "2026-04-01"})
 	want = []string{"2026-03-05 schwab 1 USD", "2026-03-20 ibkr 7 USD"}
 	if diff := cmp.Diff(want, s.txns(t)); diff != "" {
 		t.Errorf("after the empty statement (-want +got):\n%s", diff)
@@ -296,9 +296,9 @@ func TestConfirmCandidate(t *testing.T) {
 	// that the description joins to key's group.
 	bare := &typev1.StatedKey{Identifiers: key.Identifiers, AssetClass: key.AssetClass}
 	month := func(k *typev1.StatedKey, from, before, order, quantity string) gen.Run {
-		return s.ingest(t, &statementv1.Statement{
+		return s.ingest(t, &stmtv1.Stmt{
 			Broker: typev1.Broker_BROKER_SCHWAB, OrderFrom: from, OrderBefore: before,
-			Rows: []*statementv1.Row{rowMsg(k, order, quantity)},
+			Rows: []*stmtv1.Row{rowMsg(k, order, quantity)},
 		})
 	}
 	// syncRuns returns the user's synchronous resolve statement keys runs,
@@ -416,8 +416,8 @@ func TestSweep(t *testing.T) {
 	// group's root.
 	acme := securityKey("ACME CORP", typev1.AssetClass_ASSET_CLASS_SECURITY, &usd)
 	bare := &typev1.StatedKey{Identifiers: acme.Identifiers, AssetClass: acme.AssetClass}
-	first := s.ingest(t, &statementv1.Statement{Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01",
-		Rows: []*statementv1.Row{rowMsg(acme, "2026-03-05", "1"), rowMsg(bare, "2026-03-06", "2")}})
+	first := s.ingest(t, &stmtv1.Stmt{Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01",
+		Rows: []*stmtv1.Row{rowMsg(acme, "2026-03-05", "1"), rowMsg(bare, "2026-03-06", "2")}})
 	keys, err := s.q.ListStatedKeys(ctx, gen.ListStatedKeysParams{StmtID: first.ID, UserID: s.user.ID})
 	require.NoError(t, err)
 	require.Len(t, keys, 2)
@@ -428,8 +428,8 @@ func TestSweep(t *testing.T) {
 
 	_, err = s.tx.Exec(ctx, "DELETE FROM stmts WHERE id = $1", first.ID)
 	require.NoError(t, err)
-	second := s.ingest(t, &statementv1.Statement{Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-04-01", OrderBefore: "2026-05-01",
-		Rows: []*statementv1.Row{rowMsg(bare, "2026-04-05", "3")}})
+	second := s.ingest(t, &stmtv1.Stmt{Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-04-01", OrderBefore: "2026-05-01",
+		Rows: []*stmtv1.Row{rowMsg(bare, "2026-04-05", "3")}})
 	if _, err := s.q.GetStatedKey(ctx, gen.GetStatedKeyParams{ID: root.ID, UserID: s.user.ID}); !errors.Is(err, db.ErrNotFound) {
 		t.Errorf("the root after the write: err = %v, want ErrNotFound", err)
 	}
@@ -463,9 +463,9 @@ func TestRestate(t *testing.T) {
 	}}
 	acme := securityKey("ACME CORP", typev1.AssetClass_ASSET_CLASS_STOCK, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, "US0000000002", ""))
 	month := func(from, before, order, quantity string) gen.Run {
-		return s.ingest(t, &statementv1.Statement{
+		return s.ingest(t, &stmtv1.Stmt{
 			Broker: typev1.Broker_BROKER_IBKR, OrderFrom: from, OrderBefore: before,
-			Rows: []*statementv1.Row{rowMsg(acme, order, quantity)},
+			Rows: []*stmtv1.Row{rowMsg(acme, order, quantity)},
 		})
 	}
 	resolutionOf := func(stmt gen.Run) gen.Run {

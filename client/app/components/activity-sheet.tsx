@@ -4,8 +4,8 @@ import { ArrowRight, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { useActivity } from "@/contexts/activity-context";
-import type { StatementSummary } from "@/gen/statement/v1/statement_pb";
-import { useStatement } from "@/hooks/use-statement";
+import type { StmtSummary } from "@/gen/stmt/v1/stmt_pb";
+import { useStmt } from "@/hooks/use-stmt";
 import { brokerLabel } from "@/lib/broker";
 import { formatInstant } from "@/lib/format";
 import { prevDay } from "@/lib/marshal/date";
@@ -20,7 +20,7 @@ import { StateChip } from "./state-chip";
 // ActivitySheet lists the user's recent runs, newest first, each with its
 // state and opening to its outcome.
 export function ActivitySheet() {
-  const { isOpen, close, recent, statements } = useActivity();
+  const { isOpen, close, recent, stmts } = useActivity();
   return (
     <Sheet
       open={isOpen}
@@ -28,12 +28,12 @@ export function ActivitySheet() {
       title="Activity"
       testId="activity-sheet"
     >
-      {statements.isError && (
-        <Notice tone="error" onRetry={() => statements.refetch()}>
+      {stmts.isError && (
+        <Notice tone="error" onRetry={() => stmts.refetch()}>
           The activity could not be loaded.
         </Notice>
       )}
-      {statements.data && recent.length === 0 && (
+      {stmts.data && recent.length === 0 && (
         <p className="text-sm text-text-muted">No uploads yet.</p>
       )}
       <ul className="flex flex-col gap-2">
@@ -42,7 +42,7 @@ export function ActivitySheet() {
         ))}
       </ul>
       <Link
-        href="/statements"
+        href="/stmts"
         data-testid="activity-all"
         onClick={close}
         className="mt-auto pt-2 text-sm font-medium text-action underline-offset-4 hover:underline"
@@ -57,7 +57,7 @@ function Item({
   summary,
   onNavigate,
 }: {
-  summary: StatementSummary;
+  summary: StmtSummary;
   onNavigate: () => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -98,11 +98,11 @@ function Detail({
   id,
   onNavigate,
 }: {
-  summary: StatementSummary;
+  summary: StmtSummary;
   id: string;
   onNavigate: () => void;
 }) {
-  const detail = useStatement(id);
+  const detail = useStmt(id);
   const o = outcome(summary);
   return (
     <div className="flex items-start gap-3 border-t border-border px-3 py-2 text-sm">
@@ -130,7 +130,7 @@ function Detail({
           ))}
       </div>
       <LinkButton
-        href={`/statements/${id}`}
+        href={`/stmts/${id}`}
         data-testid={`activity-open-${id}`}
         onClick={onNavigate}
         className="shrink-0"

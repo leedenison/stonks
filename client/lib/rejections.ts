@@ -1,16 +1,16 @@
-import type { StatementItem } from "@/gen/statement/v1/statement_pb";
+import type { StmtItem } from "@/gen/stmt/v1/stmt_pb";
 import {
   AssetClass,
   IdentifierType,
   type StatedKey,
 } from "@/gen/type/v1/type_pb";
 
-export type Group = { reason: string; items: StatementItem[] };
+export type Group = { reason: string; items: StmtItem[] };
 
 // groupByReason gathers rejected rows under their reason, in the order each
 // reason first appears, so hundreds of rows sharing one reason read as one
 // line with a count.
-export function groupByReason(items: StatementItem[]): Group[] {
+export function groupByReason(items: StmtItem[]): Group[] {
   const groups = new Map<string, Group>();
   for (const item of items) {
     let g = groups.get(item.reason);

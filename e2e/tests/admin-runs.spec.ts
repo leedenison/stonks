@@ -5,9 +5,9 @@ import {
   adminRunClient,
   resolutionFindings,
   resolutionItems,
-  statementItems,
+  stmtItems,
 } from "../helpers/api";
-import { uploadStatement } from "../helpers/upload";
+import { uploadStmt } from "../helpers/upload";
 import { expect, test } from "../helpers/test";
 
 // The client's Fidelity UK test export, modelled on a real export with its
@@ -22,7 +22,7 @@ test("shows an administrator the runs a user's upload produced", async ({
 }) => {
   const { user, session: userSession } = await signIn();
   await page.goto("/txns");
-  const runId = await uploadStatement(page, fixture, {
+  const runId = await uploadStmt(page, fixture, {
     state: "rejections",
     from: "2025-02-01",
     holds: false,
@@ -37,10 +37,10 @@ test("shows an administrator the runs a user's upload produced", async ({
   // it rejected, and no findings, since every fetch was answered.
   const { session } = await signIn("admin");
   const admin = adminRunClient(session);
-  const statement = await admin.getRun({ runId: runId });
-  expect(statement.run?.userEmail).toBe(user.email);
-  expect(await statementItems(admin, runId)).toHaveLength(januaryRows);
-  const resolutions = statement.run!.children.filter(
+  const stmt = await admin.getRun({ runId: runId });
+  expect(stmt.run?.userEmail).toBe(user.email);
+  expect(await stmtItems(admin, runId)).toHaveLength(januaryRows);
+  const resolutions = stmt.run!.children.filter(
     (c) => c.run?.kind === RunKind.RESOLVE_STMT_KEYS,
   );
   expect(resolutions).toHaveLength(1);
@@ -48,7 +48,7 @@ test("shows an administrator the runs a user's upload produced", async ({
   const resolution = await admin.getRun({ runId: child.id });
   const resolved = await resolutionItems(admin, child.id);
   expect(resolved.length).toBeGreaterThan(0);
-  expect(resolutionFindings(statement.findings)).toHaveLength(0);
+  expect(resolutionFindings(stmt.findings)).toHaveLength(0);
   expect(resolutionFindings(resolution.findings)).toHaveLength(0);
 
   // The pages: the user's runs with the resolution under its statement,
@@ -72,7 +72,7 @@ test("shows an administrator the runs a user's upload produced", async ({
     String(januaryRows),
   );
   await expect(run.locator('[data-testid^="finding-row-"]')).toHaveCount(
-    statement.findings.length,
+    stmt.findings.length,
   );
 
   await run.getByTestId(`run-toggle-${runId}`).click();

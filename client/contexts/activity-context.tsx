@@ -3,12 +3,9 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import type { UseQueryResult } from "@tanstack/react-query";
 import { createContext, type ReactNode, useContext, useState } from "react";
-import type {
-  ListStatementsResponse,
-  StatementSummary,
-} from "@/gen/statement/v1/statement_pb";
+import type { ListStmtsResponse, StmtSummary } from "@/gen/stmt/v1/stmt_pb";
 import { useRunOutcomes } from "@/hooks/use-run-outcomes";
-import { useStatements } from "@/hooks/use-statements";
+import { useStmts } from "@/hooks/use-stmts";
 import { useStoredValue } from "@/hooks/use-stored-value";
 import { isTerminal } from "@/lib/run";
 import { useAuth } from "./auth-context";
@@ -23,8 +20,8 @@ type ActivityValue = {
   toggle: () => void;
   // Runs that finished since the sheet was last open; zero while it is.
   badge: number;
-  recent: StatementSummary[];
-  statements: UseQueryResult<ListStatementsResponse>;
+  recent: StmtSummary[];
+  stmts: UseQueryResult<ListStmtsResponse>;
 };
 
 const ActivityContext = createContext<ActivityValue | null>(null);
@@ -49,8 +46,8 @@ function parseSeen(raw: string | null): number {
 export function ActivityProvider({ children }: { children: ReactNode }) {
   const { state } = useAuth();
   const userId = state.status === "authenticated" ? state.user.id : "";
-  const statements = useStatements();
-  const list = statements.data?.statements ?? [];
+  const stmts = useStmts();
+  const list = stmts.data?.stmts ?? [];
   useRunOutcomes(list);
   const [isOpen, setOpen] = useState(false);
   const [seenAt, setSeenAt] = useStoredValue(seenKey(userId), parseSeen);
@@ -81,7 +78,7 @@ export function ActivityProvider({ children }: { children: ReactNode }) {
     },
     badge,
     recent: list.slice(0, recentCount),
-    statements,
+    stmts,
   };
   return (
     <ActivityContext.Provider value={value}>

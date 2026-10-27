@@ -1,4 +1,4 @@
-// Package stmt serves stonks.statement.v1.
+// Package stmt serves stonks.stmt.v1.
 package stmt
 
 import (
@@ -9,8 +9,8 @@ import (
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
 
-	statementv1 "github.com/leedenison/stonks/proto/statement/v1"
-	"github.com/leedenison/stonks/proto/statement/v1/statementv1connect"
+	stmtv1 "github.com/leedenison/stonks/proto/stmt/v1"
+	"github.com/leedenison/stonks/proto/stmt/v1/stmtv1connect"
 	typev1 "github.com/leedenison/stonks/proto/type/v1"
 	"github.com/leedenison/stonks/server/internal/auth"
 	"github.com/leedenison/stonks/server/internal/db"
@@ -25,7 +25,7 @@ import (
 
 // Ingester starts the ingestion of a statement.
 type Ingester interface {
-	Create(ctx context.Context, userID uuid.UUID, msg *statementv1.Statement) (gen.Run, error)
+	Create(ctx context.Context, userID uuid.UUID, msg *stmtv1.Stmt) (gen.Run, error)
 }
 
 // Confirmer lists and confirms the candidates for one of a user's keys.
@@ -55,7 +55,7 @@ var (
 
 //go:generate go tool mockgen -source=stmt.go -destination=mock/stmt_mock.go -package=mock
 
-// Server implements StatementService.
+// Server implements StmtService.
 type Server struct {
 	ingester  Ingester
 	confirmer Confirmer
@@ -63,33 +63,33 @@ type Server struct {
 	mics      mic.MICMap
 }
 
-var _ statementv1connect.StatementServiceHandler = (*Server)(nil)
+var _ stmtv1connect.StmtServiceHandler = (*Server)(nil)
 
 // New returns a Server.
 func New(ingester Ingester, confirmer Confirmer, reader Reader, mics mic.MICMap) *Server {
 	return &Server{ingester: ingester, confirmer: confirmer, reader: reader, mics: mics}
 }
 
-// CreateStatement starts ingesting the statement and answers with its run. A
+// CreateStmt starts ingesting the statement and answers with its run. A
 // statement the ingester cannot read is an invalid argument. A row it rejects
 // is not an error; the row is read back as an item of the statement.
-func (s *Server) CreateStatement(ctx context.Context, req *connect.Request[statementv1.CreateStatementRequest]) (*connect.Response[statementv1.CreateStatementResponse], error) {
+func (s *Server) CreateStmt(ctx context.Context, req *connect.Request[stmtv1.CreateStmtRequest]) (*connect.Response[stmtv1.CreateStmtResponse], error) {
 	p, err := auth.User(ctx)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeUnauthenticated, err)
 	}
-	run, err := s.ingester.Create(ctx, p.User.ID, req.Msg.GetStatement())
+	run, err := s.ingester.Create(ctx, p.User.ID, req.Msg.GetStmt())
 	if errors.Is(err, stmt.ErrInvalid) {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	return connect.NewResponse(&statementv1.CreateStatementResponse{Run: to.ProtoRun(run)}), nil
+	return connect.NewResponse(&stmtv1.CreateStmtResponse{Run: to.ProtoRun(run)}), nil
 }
 
-// ListStatements reads the caller's statements, newest first.
-func (s *Server) ListStatements(ctx context.Context, _ *connect.Request[statementv1.ListStatementsRequest]) (*connect.Response[statementv1.ListStatementsResponse], error) {
+// ListStmts reads the caller's statements, newest first.
+func (s *Server) ListStmts(ctx context.Context, _ *connect.Request[stmtv1.ListStmtsRequest]) (*connect.Response[stmtv1.ListStmtsResponse], error) {
 	p, err := auth.User(ctx)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeUnauthenticated, err)
@@ -98,17 +98,17 @@ func (s *Server) ListStatements(ctx context.Context, _ *connect.Request[statemen
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	out := &statementv1.ListStatementsResponse{}
+	out := &stmtv1.ListStmtsResponse{}
 	for _, r := range rows {
-		out.Statements = append(out.Statements, to.ProtoStmtSummary(r.Stmt, r.Run, r.Rejected))
+		out.Stmts = append(out.Stmts, to.ProtoStmtSummary(r.Stmt, r.Run, r.Rejected))
 	}
 	return connect.NewResponse(out), nil
 }
 
-// GetStatement reads one of the caller's statements with its items, its keys
+// GetStmt reads one of the caller's statements with its items, its keys
 // and its transactions. The query carries the caller's user id, so another
 // user's statement is not found rather than forbidden.
-func (s *Server) GetStatement(ctx context.Context, req *connect.Request[statementv1.GetStatementRequest]) (*connect.Response[statementv1.GetStatementResponse], error) {
+func (s *Server) GetStmt(ctx context.Context, req *connect.Request[stmtv1.GetStmtRequest]) (*connect.Response[stmtv1.GetStmtResponse], error) {
 	p, err := auth.User(ctx)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeUnauthenticated, err)
@@ -128,7 +128,7 @@ func (s *Server) GetStatement(ctx context.Context, req *connect.Request[statemen
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	out := &statementv1.GetStatementResponse{Statement: to.ProtoStmtSummary(row.Stmt, row.Run, row.Rejected)}
+	out := &stmtv1.GetStmtResponse{Stmt: to.ProtoStmtSummary(row.Stmt, row.Run, row.Rejected)}
 	for _, it := range items {
 		item, err := stmt.ItemToProto(it)
 		if err != nil {
@@ -148,7 +148,7 @@ func (s *Server) GetStatement(ctx context.Context, req *connect.Request[statemen
 // FindCandidates lists the candidates for one of the caller's keys. A key
 // the caller does not own is not found, and a key with an association is a
 // failed precondition.
-func (s *Server) FindCandidates(ctx context.Context, req *connect.Request[statementv1.FindCandidatesRequest]) (*connect.Response[statementv1.FindCandidatesResponse], error) {
+func (s *Server) FindCandidates(ctx context.Context, req *connect.Request[stmtv1.FindCandidatesRequest]) (*connect.Response[stmtv1.FindCandidatesResponse], error) {
 	p, err := auth.User(ctx)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeUnauthenticated, err)
@@ -161,7 +161,7 @@ func (s *Server) FindCandidates(ctx context.Context, req *connect.Request[statem
 	if err != nil {
 		return nil, keyError(err)
 	}
-	out := &statementv1.FindCandidatesResponse{Reasons: offer.Reasons}
+	out := &stmtv1.FindCandidatesResponse{Reasons: offer.Reasons}
 	for _, c := range offer.Candidates {
 		out.Candidates = append(out.Candidates, c.ToProto())
 	}
@@ -172,7 +172,7 @@ func (s *Server) FindCandidates(ctx context.Context, req *connect.Request[statem
 // the caller's keys. A key the caller does not own is not found; a key with
 // an association, or answers that no longer offer the candidate, is a failed
 // precondition.
-func (s *Server) ConfirmCandidate(ctx context.Context, req *connect.Request[statementv1.ConfirmCandidateRequest]) (*connect.Response[statementv1.ConfirmCandidateResponse], error) {
+func (s *Server) ConfirmCandidate(ctx context.Context, req *connect.Request[stmtv1.ConfirmCandidateRequest]) (*connect.Response[stmtv1.ConfirmCandidateResponse], error) {
 	p, err := auth.User(ctx)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeUnauthenticated, err)
@@ -195,7 +195,7 @@ func (s *Server) ConfirmCandidate(ctx context.Context, req *connect.Request[stat
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	return connect.NewResponse(&statementv1.ConfirmCandidateResponse{Key: to.ProtoResolutionItem(key, &rk)}), nil
+	return connect.NewResponse(&stmtv1.ConfirmCandidateResponse{Key: to.ProtoResolutionItem(key, &rk)}), nil
 }
 
 // keyError translates an error of the confirmer into its code.
@@ -241,7 +241,7 @@ func (s *Server) keys(ctx context.Context, id, user uuid.UUID) ([]*typev1.Resolu
 
 // txns answers the statement's transactions, each with its mark. The
 // facts of every dated key's ticker are read at once.
-func (s *Server) txns(ctx context.Context, id, user uuid.UUID) ([]*statementv1.Txn, error) {
+func (s *Server) txns(ctx context.Context, id, user uuid.UUID) ([]*stmtv1.Txn, error) {
 	rows, err := s.reader.ListStmtTxns(ctx, gen.ListStmtTxnsParams{StmtID: id, UserID: user})
 	if err != nil {
 		return nil, err
@@ -256,7 +256,7 @@ func (s *Server) txns(ctx context.Context, id, user uuid.UUID) ([]*statementv1.T
 	if err != nil {
 		return nil, fmt.Errorf("read the facts of the dated keys' tickers: %w", err)
 	}
-	out := make([]*statementv1.Txn, 0, len(rows))
+	out := make([]*stmtv1.Txn, 0, len(rows))
 	for _, r := range rows {
 		var t *tickervalidity.Ticker
 		if v, ok := s.datedTicker(r.StatedKey); ok {

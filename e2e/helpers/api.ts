@@ -24,7 +24,7 @@ import {
   RunState,
   RunService as UserRunService,
 } from "../gen/run/v1/run_pb";
-import { StatementService } from "../gen/statement/v1/statement_pb";
+import { StmtService } from "../gen/stmt/v1/stmt_pb";
 import { sessionCookie } from "./auth";
 import { baseURL, recording } from "./config";
 import { expect } from "./test";
@@ -92,12 +92,12 @@ async function items(admin: Client<typeof RunService>, runId: string) {
   return res.items;
 }
 
-export async function statementItems(
+export async function stmtItems(
   admin: Client<typeof RunService>,
   runId: string,
 ) {
   return (await items(admin, runId)).flatMap((i) =>
-    i.item.case === "statement" ? [i.item.value] : [],
+    i.item.case === "stmt" ? [i.item.value] : [],
   );
 }
 
@@ -165,8 +165,8 @@ export function authClient(sessionID?: string) {
   return clientFor(AuthService, sessionID);
 }
 
-export function statementClient(sessionID: string) {
-  return clientFor(StatementService, sessionID);
+export function stmtClient(sessionID: string) {
+  return clientFor(StmtService, sessionID);
 }
 
 export function holdingClient(sessionID: string) {

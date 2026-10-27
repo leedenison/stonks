@@ -37,9 +37,9 @@ test("reaches the statements and the profile from the menu", async ({
   await signIn();
   await page.goto("/txns");
   await page.getByTestId("user-email").click();
-  await page.getByTestId("menu-statements").click();
-  await expect(page).toHaveURL("/statements");
-  await expect(page.getByTestId("statements-page")).toBeVisible();
+  await page.getByTestId("menu-stmts").click();
+  await expect(page).toHaveURL("/stmts");
+  await expect(page.getByTestId("stmts-page")).toBeVisible();
   await page.getByTestId("user-email").click();
   await page.getByTestId("menu-profile").click();
   await expect(page).toHaveURL("/profile");

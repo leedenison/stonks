@@ -3,14 +3,14 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 import type { RunState } from "@/gen/run/v1/run_pb";
-import type { StatementSummary } from "@/gen/statement/v1/statement_pb";
+import type { StmtSummary } from "@/gen/stmt/v1/stmt_pb";
 import { invalidateResolved } from "@/lib/query-keys";
 import { isTerminal } from "@/lib/run";
 
 // useRunOutcomes refreshes the data a run changed once the run finishes
 // while the page is open. A run that is already terminal on first sight
 // does not count as finishing.
-export function useRunOutcomes(statements: StatementSummary[]) {
+export function useRunOutcomes(stmts: StmtSummary[]) {
   const queryClient = useQueryClient();
   const seen = useRef(new Map<string, RunState>());
 
@@ -18,7 +18,7 @@ export function useRunOutcomes(statements: StatementSummary[]) {
     const before = seen.current;
     const now = new Map<string, RunState>();
     const finished: string[] = [];
-    for (const s of statements) {
+    for (const s of stmts) {
       const run = s.run;
       if (!run) {
         continue;
@@ -34,5 +34,5 @@ export function useRunOutcomes(statements: StatementSummary[]) {
       return;
     }
     invalidateResolved(queryClient, finished);
-  }, [statements, queryClient]);
+  }, [stmts, queryClient]);
 }

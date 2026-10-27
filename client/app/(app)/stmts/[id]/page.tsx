@@ -12,9 +12,9 @@ import { ResolutionKeys } from "@/app/components/resolution-keys";
 import { Section } from "@/app/components/section";
 import { Skeleton } from "@/app/components/skeleton";
 import { StateChip } from "@/app/components/state-chip";
-import { StatementTxns } from "@/app/components/statement-txns";
+import { StmtTxns } from "@/app/components/stmt-txns";
 import { Arbiter, type ResolutionItem } from "@/gen/type/v1/type_pb";
-import { useStatement } from "@/hooks/use-statement";
+import { useStmt } from "@/hooks/use-stmt";
 import { brokerLabel } from "@/lib/broker";
 import { formatInstant } from "@/lib/format";
 import { prevDay } from "@/lib/marshal/date";
@@ -24,81 +24,70 @@ import { CandidatesDialog } from "./candidates-dialog";
 // One statement, with its run, its rejected rows, the resolution of every
 // key it stated and its transactions. The title names the upload by its
 // broker and the moment it started.
-export default function StatementPage() {
+export default function StmtPage() {
   const { id } = useParams<{ id: string }>();
-  const { data, isPending, error, refetch } = useStatement(id);
-  const s = data?.statement;
+  const { data, isPending, error, refetch } = useStmt(id);
+  const s = data?.stmt;
   const title = s?.run?.createdAt
     ? `${brokerLabel(s.broker)} upload @ ${formatInstant(s.run.createdAt)}`
     : "Statement";
 
   return (
-    <Page title={title} back="/statements" width="wide" testId="statement-page">
+    <Page title={title} back="/stmts" width="wide" testId="stmt-page">
       {error && <Failure error={error} onRetry={() => refetch()} />}
       {!error && isPending && <Skeleton lines={4} />}
-      {data?.statement && (
+      {data?.stmt && (
         <>
           <dl
-            data-testid="statement-summary"
+            data-testid="stmt-summary"
             className="grid max-w-2xl grid-cols-[max-content_1fr] gap-x-6 gap-y-2 rounded-md border border-border bg-surface px-4 py-3 text-sm"
           >
             <dt className="text-text-muted">Broker</dt>
             <dd>
-              <Chip>{brokerLabel(data.statement.broker)}</Chip>
+              <Chip>{brokerLabel(data.stmt.broker)}</Chip>
             </dd>
             <dt className="text-text-muted">From</dt>
-            <dd className="font-mono tabular-nums">
-              {data.statement.orderFrom}
-            </dd>
+            <dd className="font-mono tabular-nums">{data.stmt.orderFrom}</dd>
             <dt className="text-text-muted">To</dt>
             <dd className="font-mono tabular-nums">
-              {prevDay(data.statement.orderBefore)}
+              {prevDay(data.stmt.orderBefore)}
             </dd>
             <dt className="text-text-muted">Started</dt>
             <dd className="font-mono tabular-nums">
-              {data.statement.run?.createdAt
-                ? formatInstant(data.statement.run.createdAt)
+              {data.stmt.run?.createdAt
+                ? formatInstant(data.stmt.run.createdAt)
                 : ""}
             </dd>
             <dt className="text-text-muted">Rows</dt>
-            <dd className="font-mono tabular-nums">{data.statement.rows}</dd>
+            <dd className="font-mono tabular-nums">{data.stmt.rows}</dd>
             <dt className="text-text-muted">Rejected</dt>
-            <dd
-              data-testid="statement-rejected"
-              className="font-mono tabular-nums"
-            >
-              {data.statement.rejected}
+            <dd data-testid="stmt-rejected" className="font-mono tabular-nums">
+              {data.stmt.rejected}
             </dd>
             <dt className="text-text-muted">State</dt>
             <dd>
-              <StateChip summary={data.statement} />
+              <StateChip summary={data.stmt} />
             </dd>
-            {data.statement.run?.error && (
+            {data.stmt.run?.error && (
               <>
                 <dt className="text-text-muted">Error</dt>
                 <dd className="font-mono text-negative">
-                  {data.statement.run.error}
+                  {data.stmt.run.error}
                 </dd>
               </>
             )}
           </dl>
-          <Body
-            state={outcome(data.statement)}
-            rejected={data.statement.rejected}
-          >
+          <Body state={outcome(data.stmt)} rejected={data.stmt.rejected}>
             <RejectionGroups items={data.items} />
           </Body>
           {data.keys.length > 0 && (
-            <Keys
-              keys={data.keys}
-              live={!isTerminal(data.statement.run?.state)}
-            />
+            <Keys keys={data.keys} live={!isTerminal(data.stmt.run?.state)} />
           )}
           {data.txns.length > 0 && (
-            <StatementTxns
+            <StmtTxns
               txns={data.txns}
               keys={data.keys}
-              live={!isTerminal(data.statement.run?.state)}
+              live={!isTerminal(data.stmt.run?.state)}
             />
           )}
         </>
@@ -148,7 +137,7 @@ function Keys({ keys, live }: { keys: ResolutionItem[]; live: boolean }) {
       <ResolutionKeys
         keys={keys}
         live={live}
-        testId="statement-keys"
+        testId="stmt-keys"
         rowTestId={(id) => `key-row-${id}`}
         action={(k) =>
           !live && choosable(k) ? (

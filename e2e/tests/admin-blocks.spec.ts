@@ -9,7 +9,7 @@ import {
   resolutionFindings,
   resolutionItems,
 } from "../helpers/api";
-import { uploadStatement } from "../helpers/upload";
+import { uploadStmt } from "../helpers/upload";
 import { expect, test } from "../helpers/test";
 
 // One IBKR line, derived from the client's IBKR test export, which is
@@ -25,7 +25,7 @@ test("clears a block from the blocks page, clearing the finding reporting it", a
 }) => {
   const { user } = await signIn();
   await page.goto("/txns");
-  const runId = await uploadStatement(page, fixture, {
+  const runId = await uploadStmt(page, fixture, {
     state: "completed",
     holds: false,
   });
@@ -33,14 +33,14 @@ test("clears a block from the blocks page, clearing the finding reporting it", a
   // A permanent refusal blocks the identifier and reports it as a finding.
   const { session } = await signIn("admin");
   const admin = adminRunClient(session);
-  const statement = await admin.getRun({ runId: runId });
-  const findings = resolutionFindings(statement.findings);
+  const stmt = await admin.getRun({ runId: runId });
+  const findings = resolutionFindings(stmt.findings);
   expect(findings).toHaveLength(1);
   const finding = findings[0];
   expect(finding.kind).toBe(FindingKind.BLOCK);
   expect(finding.blockId).toBeTruthy();
   expect(finding.clearedAt).toBeUndefined();
-  const resolution = statement.run!.children[0];
+  const resolution = stmt.run!.children[0];
   const fetch = fetchRun(resolution, "openfigi");
   const fetched = await fetchItems(admin, fetch.run!.id);
   expect(fetched).toHaveLength(1);

@@ -22,7 +22,7 @@ import {
 } from "@/lib/test-utils";
 import { ReplayRunDialog } from "./replay-run-dialog";
 
-const statement = userRun({
+const stmt = userRun({
   id: "r1",
   kind: RunKind.INGEST_STMT,
   trigger: RunTrigger.USER,
@@ -58,11 +58,7 @@ describe("ReplayRunDialog", () => {
     const startReplayRun = vi.fn(starting);
     const onStarted = vi.fn();
     renderWithAuth(
-      <ReplayRunDialog
-        run={statement}
-        onClose={vi.fn()}
-        onStarted={onStarted}
-      />,
+      <ReplayRunDialog run={stmt} onClose={vi.fn()} onStarted={onStarted} />,
       serving(startReplayRun),
     );
     expect(screen.getByTestId("replay-dialog").textContent).toContain(
@@ -82,7 +78,7 @@ describe("ReplayRunDialog", () => {
   it("replays the keys an enabled datasource has not yet answered", async () => {
     const startReplayRun = vi.fn(starting);
     renderWithAuth(
-      <ReplayRunDialog run={statement} onClose={vi.fn()} onStarted={vi.fn()} />,
+      <ReplayRunDialog run={stmt} onClose={vi.fn()} onStarted={vi.fn()} />,
       serving(startReplayRun),
     );
     const select = screen.getByTestId("replay-datasource");
@@ -111,11 +107,7 @@ describe("ReplayRunDialog", () => {
       throw new ConnectError("no key to replay", Code.FailedPrecondition);
     });
     renderWithAuth(
-      <ReplayRunDialog
-        run={statement}
-        onClose={vi.fn()}
-        onStarted={onStarted}
-      />,
+      <ReplayRunDialog run={stmt} onClose={vi.fn()} onStarted={onStarted} />,
       serving(startReplayRun),
     );
     fireEvent.click(screen.getByTestId("replay-start"));

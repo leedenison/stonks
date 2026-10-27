@@ -1,13 +1,10 @@
-// The standard format: one JSON document holding a Statement in its protojson
+// The standard format: one JSON document holding a Stmt in its protojson
 // encoding. The proto file is the definition of the format, so a field of the
 // message is a field of the document.
 
 import { fromJsonString } from "@bufbuild/protobuf";
 import { Broker } from "@/gen/type/v1/type_pb";
-import {
-  type Statement,
-  StatementSchema,
-} from "@/gen/statement/v1/statement_pb";
+import { type Stmt, StmtSchema } from "@/gen/stmt/v1/stmt_pb";
 import { MarshalError } from "./error";
 import type { Marshaller } from "./marshal";
 import { mediaType } from "./media";
@@ -16,10 +13,10 @@ const TYPE = "application/json";
 
 // parse requires the broker and the period, which the dialog shows before
 // submission.
-function parse(text: string): Statement {
-  let s: Statement;
+function parse(text: string): Stmt {
+  let s: Stmt;
   try {
-    s = fromJsonString(StatementSchema, text);
+    s = fromJsonString(StmtSchema, text);
   } catch (e) {
     throw new MarshalError(e instanceof Error ? e.message : String(e));
   }
@@ -34,7 +31,7 @@ function parse(text: string): Statement {
 
 // marshal only parses the document. The server validates the message as it
 // does every statement.
-function marshal(text: string): Statement {
+function marshal(text: string): Stmt {
   return parse(text);
 }
 

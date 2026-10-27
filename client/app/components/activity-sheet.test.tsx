@@ -4,12 +4,12 @@ import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 import { RunSchema, RunState } from "@/gen/run/v1/run_pb";
 import {
-  GetStatementResponseSchema,
-  ListStatementsResponseSchema,
-  StatementItemSchema,
-  StatementService,
-  StatementSummarySchema,
-} from "@/gen/statement/v1/statement_pb";
+  GetStmtResponseSchema,
+  ListStmtsResponseSchema,
+  StmtItemSchema,
+  StmtService,
+  StmtSummarySchema,
+} from "@/gen/stmt/v1/stmt_pb";
 import { Broker } from "@/gen/type/v1/type_pb";
 import { useActivity } from "@/contexts/activity-context";
 import { liveSession, renderWithAuth, transportWith } from "@/lib/test-utils";
@@ -23,7 +23,7 @@ function summary(
   rejected: number,
   finishedAt?: Date,
 ) {
-  return create(StatementSummarySchema, {
+  return create(StmtSummarySchema, {
     run: create(RunSchema, {
       id,
       state,
@@ -40,18 +40,17 @@ function summary(
 
 function serving(list: ReturnType<typeof summary>[]) {
   return transportWith(live, ({ service }) => {
-    service(StatementService, {
-      listStatements: () =>
-        create(ListStatementsResponseSchema, { statements: list }),
-      getStatement: (req) =>
-        create(GetStatementResponseSchema, {
-          statement: list.find((s) => s.run?.id === req.runId),
+    service(StmtService, {
+      listStmts: () => create(ListStmtsResponseSchema, { stmts: list }),
+      getStmt: (req) =>
+        create(GetStmtResponseSchema, {
+          stmt: list.find((s) => s.run?.id === req.runId),
           items: [
-            create(StatementItemSchema, {
+            create(StmtItemSchema, {
               ordinal: 16,
               reason: "order date outside the claimed period",
             }),
-            create(StatementItemSchema, { ordinal: 19, reason: "no currency" }),
+            create(StmtItemSchema, { ordinal: 19, reason: "no currency" }),
           ],
         }),
     });
@@ -110,10 +109,10 @@ describe("ActivitySheet", () => {
     );
     expect(screen.getAllByTestId(/^rejection-group-/).length).toBe(2);
     expect(screen.getByTestId("activity-open-r1").getAttribute("href")).toBe(
-      "/statements/r1",
+      "/stmts/r1",
     );
     expect(screen.getByTestId("activity-all").getAttribute("href")).toBe(
-      "/statements",
+      "/stmts",
     );
   });
 

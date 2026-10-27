@@ -15,14 +15,14 @@ import {
   CandidateSchema,
   ConfirmCandidateResponseSchema,
   FindCandidatesResponseSchema,
-  GetStatementResponseSchema,
+  GetStmtResponseSchema,
   RowSchema,
-  StatementItemSchema,
-  StatementService,
-  StatementSummarySchema,
+  StmtItemSchema,
+  StmtService,
+  StmtSummarySchema,
   TxnMark,
   TxnSchema,
-} from "@/gen/statement/v1/statement_pb";
+} from "@/gen/stmt/v1/stmt_pb";
 import {
   Arbiter,
   AssetClass,
@@ -35,7 +35,7 @@ import {
 } from "@/gen/type/v1/type_pb";
 import { pollInterval } from "@/lib/run";
 import { liveSession, renderWithAuth, transportWith } from "@/lib/test-utils";
-import StatementPage from "./page";
+import StmtPage from "./page";
 
 vi.mock("next/navigation", () => ({
   useParams: () => ({ id: "r1" }),
@@ -162,10 +162,10 @@ function response(
     assetClass: AssetClass.CASH,
     currency: "GBP",
   });
-  return create(GetStatementResponseSchema, {
+  return create(GetStmtResponseSchema, {
     keys: withKeys ? keys(state === RunState.COMPLETED) : [],
     txns: withTxns ? txns() : [],
-    statement: create(StatementSummarySchema, {
+    stmt: create(StmtSummarySchema, {
       run: create(RunSchema, {
         id: "r1",
         state,
@@ -181,7 +181,7 @@ function response(
     items:
       rejected > 0
         ? [
-            create(StatementItemSchema, {
+            create(StmtItemSchema, {
               ordinal: 2,
               reason: "order date outside the claimed period",
               row: create(RowSchema, {
@@ -190,7 +190,7 @@ function response(
                 quantity: "-5.40",
               }),
             }),
-            create(StatementItemSchema, {
+            create(StmtItemSchema, {
               ordinal: 3,
               reason: "order date outside the claimed period",
               row: create(RowSchema, {
@@ -205,12 +205,12 @@ function response(
 }
 
 function serving(
-  getStatement: ServiceImpl<typeof StatementService>["getStatement"],
-  rest: Partial<ServiceImpl<typeof StatementService>> = {},
+  getStmt: ServiceImpl<typeof StmtService>["getStmt"],
+  rest: Partial<ServiceImpl<typeof StmtService>> = {},
   session = live,
 ) {
   return transportWith(session, ({ service }) => {
-    service(StatementService, { getStatement, ...rest });
+    service(StmtService, { getStmt, ...rest });
   });
 }
 
@@ -259,14 +259,14 @@ function chosen() {
   });
 }
 
-describe("StatementPage", () => {
+describe("StmtPage", () => {
   it("shows the summary and the rejections grouped by reason", async () => {
-    const getStatement = vi.fn(() => response(RunState.COMPLETED, 2));
-    renderWithAuth(<StatementPage />, serving(getStatement));
+    const getStmt = vi.fn(() => response(RunState.COMPLETED, 2));
+    renderWithAuth(<StmtPage />, serving(getStmt));
     await waitFor(() =>
-      expect(screen.getByTestId("statement-summary")).toBeTruthy(),
+      expect(screen.getByTestId("stmt-summary")).toBeTruthy(),
     );
-    expect(getStatement).toHaveBeenCalledWith(
+    expect(getStmt).toHaveBeenCalledWith(
       expect.objectContaining({ runId: "r1" }),
       expect.anything(),
     );
@@ -274,12 +274,12 @@ describe("StatementPage", () => {
       "Fidelity UK upload @ 2026-09-17 09:30 UTC",
     );
     expect(screen.getByTestId("page-back")).toBeTruthy();
-    const summary = screen.getByTestId("statement-summary");
+    const summary = screen.getByTestId("stmt-summary");
     expect(summary.textContent).toContain("Fidelity UK");
     expect(summary.textContent).toContain("From2025-02-01");
     expect(summary.textContent).toContain("To2025-03-16");
     expect(summary.textContent).toContain("2026-09-17 09:30 UTC");
-    expect(screen.getByTestId("statement-rejected").textContent).toBe("2");
+    expect(screen.getByTestId("stmt-rejected").textContent).toBe("2");
     expect(screen.getByTestId("state-chip").getAttribute("data-state")).toBe(
       "rejections",
     );
@@ -293,30 +293,28 @@ describe("StatementPage", () => {
   it("polls while the run is live and settles once it is terminal", async () => {
     vi.useFakeTimers();
     let reads = 0;
-    const getStatement = vi.fn(() =>
+    const getStmt = vi.fn(() =>
       response(++reads > 2 ? RunState.COMPLETED : RunState.RUNNING, 0),
     );
-    renderWithAuth(<StatementPage />, serving(getStatement));
+    renderWithAuth(<StmtPage />, serving(getStmt));
     await advance(0);
-    expect(getStatement).toHaveBeenCalledTimes(1);
+    expect(getStmt).toHaveBeenCalledTimes(1);
     expect(screen.getByRole("status").textContent).toContain("being ingested");
     await advance(pollInterval * 2);
-    expect(getStatement).toHaveBeenCalledTimes(3);
+    expect(getStmt).toHaveBeenCalledTimes(3);
     const done = screen.getByRole("status");
     expect(done.textContent).toBe("All rows are valid.");
     expect(done.getAttribute("data-tone")).toBe("positive");
     await advance(pollInterval * 3);
-    expect(getStatement).toHaveBeenCalledTimes(3);
+    expect(getStmt).toHaveBeenCalledTimes(3);
   });
 
   it("lists each key with what its latest resolution made of it", async () => {
     renderWithAuth(
-      <StatementPage />,
+      <StmtPage />,
       serving(() => response(RunState.COMPLETED, 0, undefined, true)),
     );
-    await waitFor(() =>
-      expect(screen.getByTestId("statement-keys")).toBeTruthy(),
-    );
+    await waitFor(() => expect(screen.getByTestId("stmt-keys")).toBeTruthy());
     const state = (id: string) =>
       screen
         .getByTestId(`key-row-${id}`)
@@ -337,50 +335,42 @@ describe("StatementPage", () => {
 
   it("lists the keys in a table per class, the unknown class last", async () => {
     renderWithAuth(
-      <StatementPage />,
+      <StmtPage />,
       serving(() => response(RunState.COMPLETED, 0, undefined, true)),
     );
-    await waitFor(() =>
-      expect(screen.getByTestId("statement-keys")).toBeTruthy(),
-    );
-    const tables = screen
-      .getByTestId("statement-keys")
-      .querySelectorAll("table");
+    await waitFor(() => expect(screen.getByTestId("stmt-keys")).toBeTruthy());
+    const tables = screen.getByTestId("stmt-keys").querySelectorAll("table");
     expect([...tables].map((t) => t.getAttribute("data-testid"))).toEqual([
-      "statement-keys-cash",
-      "statement-keys-unknown",
+      "stmt-keys-cash",
+      "stmt-keys-unknown",
     ]);
-    const cash = screen.getByTestId("statement-keys-cash");
+    const cash = screen.getByTestId("stmt-keys-cash");
     expect(cash.querySelector("th")?.textContent).toBe("Description");
     expect(cash.contains(screen.getByTestId("key-row-k-gbp"))).toBe(true);
-    const unknown = screen.getByTestId("statement-keys-unknown");
+    const unknown = screen.getByTestId("stmt-keys-unknown");
     expect(unknown.contains(screen.getByTestId("key-row-k-isin"))).toBe(true);
     expect(unknown.contains(screen.getByTestId("key-row-k-bare"))).toBe(true);
     const headings = [
-      ...screen.getByTestId("statement-keys").querySelectorAll("h3"),
+      ...screen.getByTestId("stmt-keys").querySelectorAll("h3"),
     ].map((h) => h.textContent);
     expect(headings).toEqual(["Cash", "Unknown class"]);
   });
 
   it("hides the transactions section when the statement has no transactions", async () => {
     renderWithAuth(
-      <StatementPage />,
+      <StmtPage />,
       serving(() => response(RunState.COMPLETED, 0, undefined, true)),
     );
-    await waitFor(() =>
-      expect(screen.getByTestId("statement-keys")).toBeTruthy(),
-    );
-    expect(screen.queryByTestId("statement-txns")).toBeNull();
+    await waitFor(() => expect(screen.getByTestId("stmt-keys")).toBeTruthy());
+    expect(screen.queryByTestId("stmt-txns")).toBeNull();
   });
 
   it("marks each transaction and names its key", async () => {
     renderWithAuth(
-      <StatementPage />,
+      <StmtPage />,
       serving(() => response(RunState.COMPLETED, 0, undefined, true, true)),
     );
-    await waitFor(() =>
-      expect(screen.getByTestId("statement-txns")).toBeTruthy(),
-    );
+    await waitFor(() => expect(screen.getByTestId("stmt-txns")).toBeTruthy());
     const row = (id: string) => within(screen.getByTestId(`txn-row-${id}`));
     expect(row("t1").getByTestId("mark-chip").getAttribute("data-state")).toBe(
       "confirmed",
@@ -399,12 +389,10 @@ describe("StatementPage", () => {
 
   it("shows a key as resolving while the run is live", async () => {
     renderWithAuth(
-      <StatementPage />,
+      <StmtPage />,
       serving(() => response(RunState.RUNNING, 0, undefined, true)),
     );
-    await waitFor(() =>
-      expect(screen.getByTestId("statement-keys")).toBeTruthy(),
-    );
+    await waitFor(() => expect(screen.getByTestId("stmt-keys")).toBeTruthy());
     const chips = screen.getAllByTestId("resolution-chip");
     expect(chips.map((c) => c.getAttribute("data-state"))).toEqual([
       "resolving",
@@ -414,11 +402,11 @@ describe("StatementPage", () => {
 
   it("shows a failed run's error", async () => {
     renderWithAuth(
-      <StatementPage />,
+      <StmtPage />,
       serving(() => response(RunState.FAILED, 0, "database gone")),
     );
     await waitFor(() =>
-      expect(screen.getByTestId("statement-summary").textContent).toContain(
+      expect(screen.getByTestId("stmt-summary").textContent).toContain(
         "database gone",
       ),
     );
@@ -427,7 +415,7 @@ describe("StatementPage", () => {
 
   it("says when there is no such statement", async () => {
     renderWithAuth(
-      <StatementPage />,
+      <StmtPage />,
       serving(() => {
         throw new ConnectError("no such statement", Code.NotFound);
       }),
@@ -440,7 +428,7 @@ describe("StatementPage", () => {
   it("offers a retry on another failure", async () => {
     let calls = 0;
     renderWithAuth(
-      <StatementPage />,
+      <StmtPage />,
       serving(() => {
         if (++calls === 1) {
           throw new ConnectError("down", Code.Unavailable);
@@ -451,18 +439,16 @@ describe("StatementPage", () => {
     await waitFor(() => expect(screen.getByRole("alert")).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
     await waitFor(() =>
-      expect(screen.getByTestId("statement-summary")).toBeTruthy(),
+      expect(screen.getByTestId("stmt-summary")).toBeTruthy(),
     );
   });
 
   it("offers a choice only for a key whose resolution offered instruments, once the run has stopped", async () => {
     renderWithAuth(
-      <StatementPage />,
+      <StmtPage />,
       serving(() => response(RunState.COMPLETED, 0, undefined, true)),
     );
-    await waitFor(() =>
-      expect(screen.getByTestId("statement-keys")).toBeTruthy(),
-    );
+    await waitFor(() => expect(screen.getByTestId("stmt-keys")).toBeTruthy());
     expect(screen.queryByTestId("key-choose-k-gbp")).toBeNull();
     expect(screen.queryByTestId("key-choose-k-isin")).toBeNull();
     expect(screen.getByTestId("key-choose-k-bare")).toBeTruthy();
@@ -471,7 +457,7 @@ describe("StatementPage", () => {
 
   it("marks a key the user chose an instrument for", async () => {
     renderWithAuth(
-      <StatementPage />,
+      <StmtPage />,
       serving(() => {
         const r = response(RunState.COMPLETED, 0, undefined, true);
         r.keys[2].outcome = ResolutionOutcome.MATCHED;
@@ -488,14 +474,14 @@ describe("StatementPage", () => {
   });
 
   it("lists the candidates and chooses one", async () => {
-    const getStatement = vi.fn(() =>
+    const getStmt = vi.fn(() =>
       response(RunState.COMPLETED, 0, undefined, true),
     );
     const findCandidates = vi.fn(() => offer());
     const confirmCandidate = vi.fn(() => chosen());
     renderWithAuth(
-      <StatementPage />,
-      serving(getStatement, { findCandidates, confirmCandidate }),
+      <StmtPage />,
+      serving(getStmt, { findCandidates, confirmCandidate }),
     );
     await waitFor(() =>
       expect(screen.getByTestId("key-choose-k-bare")).toBeTruthy(),
@@ -538,14 +524,14 @@ describe("StatementPage", () => {
       }),
       expect.anything(),
     );
-    await waitFor(() => expect(getStatement).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(getStmt).toHaveBeenCalledTimes(2));
     expect(findCandidates).toHaveBeenCalledTimes(1);
   });
 
   it("shows a refusal and finds the candidates again", async () => {
     const findCandidates = vi.fn(() => offer());
     renderWithAuth(
-      <StatementPage />,
+      <StmtPage />,
       serving(() => response(RunState.COMPLETED, 0, undefined, true), {
         findCandidates,
         confirmCandidate: () => {
@@ -579,7 +565,7 @@ describe("StatementPage", () => {
 
   it("says when no instrument is offered", async () => {
     renderWithAuth(
-      <StatementPage />,
+      <StmtPage />,
       serving(() => response(RunState.COMPLETED, 0, undefined, true), {
         findCandidates: () =>
           create(FindCandidatesResponseSchema, {

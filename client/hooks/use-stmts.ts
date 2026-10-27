@@ -2,20 +2,20 @@
 
 import type { UseQueryResult } from "@tanstack/react-query";
 import { useClients } from "@/contexts/clients-context";
-import type { ListStatementsResponse } from "@/gen/statement/v1/statement_pb";
+import type { ListStmtsResponse } from "@/gen/stmt/v1/stmt_pb";
 import { qk } from "@/lib/query-keys";
 import { anyLive, pollInterval } from "@/lib/run";
 import { useAuthedQuery } from "./use-authed-query";
 
-// useStatements lists the caller's statements, newest first, and polls while
+// useStmts lists the caller's statements, newest first, and polls while
 // any of their runs is live so a chip changes without a reload.
-export function useStatements(): UseQueryResult<ListStatementsResponse> {
-  const { statement } = useClients();
+export function useStmts(): UseQueryResult<ListStmtsResponse> {
+  const { stmt } = useClients();
   return useAuthedQuery({
-    queryKey: qk.statements(),
-    queryFn: () => statement.listStatements({}),
+    queryKey: qk.stmts(),
+    queryFn: () => stmt.listStmts({}),
     refetchInterval: (q) =>
-      anyLive((q.state.data?.statements ?? []).map((s) => s.run?.state))
+      anyLive((q.state.data?.stmts ?? []).map((s) => s.run?.state))
         ? pollInterval
         : false,
   });

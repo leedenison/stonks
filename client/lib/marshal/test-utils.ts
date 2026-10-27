@@ -9,7 +9,7 @@ import {
   IdentifierType,
   type StatedKey,
 } from "@/gen/type/v1/type_pb";
-import { type Row, RowSchema } from "@/gen/statement/v1/statement_pb";
+import { type Row, RowSchema } from "@/gen/stmt/v1/stmt_pb";
 import { securityKey } from "./build";
 
 // Test support. Every broker export under testdata/ is modelled on a real

@@ -10,7 +10,7 @@ export function UploadAction() {
   return (
     <Button
       variant="text"
-      data-testid="upload-statement"
+      data-testid="upload-stmt"
       onClick={() => upload.open()}
     >
       <Upload aria-hidden className="h-4 w-4" />

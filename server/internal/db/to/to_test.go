@@ -16,7 +16,7 @@ import (
 	authv1 "github.com/leedenison/stonks/proto/auth/v1"
 	holdingv1 "github.com/leedenison/stonks/proto/holding/v1"
 	runv1 "github.com/leedenison/stonks/proto/run/v1"
-	statementv1 "github.com/leedenison/stonks/proto/statement/v1"
+	stmtv1 "github.com/leedenison/stonks/proto/stmt/v1"
 	typev1 "github.com/leedenison/stonks/proto/type/v1"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/platform/ptr"
@@ -152,8 +152,8 @@ func TestProtoHoldingKey(t *testing.T) {
 func TestProtoTxn(t *testing.T) {
 	id, key := uuid.New(), uuid.New()
 	row := gen.Txn{ID: id, StatedKeyID: key, OrderDate: time.Date(2024, time.January, 16, 0, 0, 0, 0, time.UTC), Quantity: decimal.RequireFromString("-0.5")}
-	want := &statementv1.Txn{Id: id.String(), StatedKeyId: key.String(), OrderDate: "2024-01-16", Quantity: "-0.5", Mark: statementv1.TxnMark_TXN_MARK_PROVISIONAL}
-	if diff := cmp.Diff(want, ProtoTxn(row, statementv1.TxnMark_TXN_MARK_PROVISIONAL), protocmp.Transform()); diff != "" {
+	want := &stmtv1.Txn{Id: id.String(), StatedKeyId: key.String(), OrderDate: "2024-01-16", Quantity: "-0.5", Mark: stmtv1.TxnMark_TXN_MARK_PROVISIONAL}
+	if diff := cmp.Diff(want, ProtoTxn(row, stmtv1.TxnMark_TXN_MARK_PROVISIONAL), protocmp.Transform()); diff != "" {
 		t.Errorf("ProtoTxn mismatch (-want +got):\n%s", diff)
 	}
 }
@@ -163,7 +163,7 @@ func TestProtoStmtSummary(t *testing.T) {
 	created := time.Date(2026, time.September, 24, 10, 0, 0, 0, time.UTC)
 	stmt := gen.Stmt{Broker: gen.BrokerIbkr, OrderFrom: created, OrderBefore: created.AddDate(0, 1, 0), RowCount: 40}
 	run := gen.Run{ID: id, Kind: gen.RunKindIngestStmt, Trigger: gen.RunTriggerUser, State: gen.RunStateCompleted, CreatedAt: created}
-	want := &statementv1.StatementSummary{
+	want := &stmtv1.StmtSummary{
 		Run: ProtoRun(run), Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-09-24", OrderBefore: "2026-10-24", Rows: 40, Rejected: 2,
 	}
 	if diff := cmp.Diff(want, ProtoStmtSummary(stmt, run, 2), protocmp.Transform()); diff != "" {

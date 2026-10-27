@@ -7,10 +7,10 @@ import {
   fetchItems,
   fetchRun,
   holdingClient,
-  statementClient,
+  stmtClient,
 } from "../helpers/api";
 import { dropFetchCache, fetchCacheKey } from "../helpers/cache";
-import { uploadStatement } from "../helpers/upload";
+import { uploadStmt } from "../helpers/upload";
 import { expect, test } from "../helpers/test";
 
 // The fixture is one Schwab line modelled on a real Schwab export. It
@@ -30,15 +30,15 @@ const cacheKey = fetchCacheKey(
 test("chooses an instrument for a bare ticker", async ({ signIn, page }) => {
   const { user, session } = await signIn();
   await page.goto("/txns");
-  const runId = await uploadStatement(page, fixture, {
+  const runId = await uploadStmt(page, fixture, {
     state: "completed",
     rows: "3 rows",
     holds: false,
   });
   await page.getByTestId("activity-sheet-close").click();
 
-  const statements = statementClient(session);
-  const keys = (await statements.getStatement({ runId })).keys;
+  const stmts = stmtClient(session);
+  const keys = (await stmts.getStmt({ runId })).keys;
   const key = keys.find((k) =>
     k.statedKey?.identifiers.some((i) => i.value === ticker),
   );
@@ -47,7 +47,7 @@ test("chooses an instrument for a bare ticker", async ({ signIn, page }) => {
 
   // Opening the dialog resolves the key from the cache. The spec then drops
   // the entry, so the choice resolves the key through OpenFIGI again.
-  await page.goto(`/statements/${runId}`);
+  await page.goto(`/stmts/${runId}`);
   const row = page.getByTestId(`key-row-${keyId}`);
   await expect(row.getByTestId("resolution-chip")).toHaveAttribute(
     "data-state",
@@ -80,7 +80,7 @@ test("chooses an instrument for a bare ticker", async ({ signIn, page }) => {
   await expect(page.getByTestId(/^key-choose-/)).toHaveCount(0);
 
   // Re-read through the API to check the stored state, not just the page.
-  const after = (await statements.getStatement({ runId })).keys.find(
+  const after = (await stmts.getStmt({ runId })).keys.find(
     (k) => k.statedKeyId === keyId,
   );
   expect(after?.outcome).toBe(ResolutionOutcome.MATCHED);

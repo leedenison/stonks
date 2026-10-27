@@ -428,7 +428,7 @@ describe("AdminRunPage", () => {
   });
 
   it("replays a statement's keys from its action bar and goes to the run", async () => {
-    const statement = create(GetRunResponseSchema, {
+    const stmt = create(GetRunResponseSchema, {
       run: userRun({
         id: "f1",
         kind: RunKind.INGEST_STMT,
@@ -444,7 +444,7 @@ describe("AdminRunPage", () => {
     router.push.mockClear();
     renderWithAuth(
       <AdminRunPage />,
-      serving(() => statement, {
+      serving(() => stmt, {
         replay: { startReplayRun },
         datasource: {
           listDatasources: () => create(ListDatasourcesResponseSchema, {}),

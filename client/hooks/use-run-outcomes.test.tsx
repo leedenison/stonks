@@ -3,11 +3,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { RunSchema, RunState } from "@/gen/run/v1/run_pb";
-import { StatementSummarySchema } from "@/gen/statement/v1/statement_pb";
+import { StmtSummarySchema } from "@/gen/stmt/v1/stmt_pb";
 import { useRunOutcomes } from "./use-run-outcomes";
 
 const summary = (id: string, state: RunState) =>
-  create(StatementSummarySchema, { run: create(RunSchema, { id, state }) });
+  create(StmtSummarySchema, { run: create(RunSchema, { id, state }) });
 
 describe("useRunOutcomes", () => {
   it("invalidates only when a run it saw live turns terminal", () => {
@@ -47,7 +47,7 @@ describe("useRunOutcomes", () => {
     expect(keys).toEqual([
       JSON.stringify(["holdings"]),
       JSON.stringify(["txns"]),
-      JSON.stringify(["statements", "r1"]),
+      JSON.stringify(["stmts", "r1"]),
     ]);
 
     rerender({

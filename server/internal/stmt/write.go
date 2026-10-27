@@ -6,7 +6,7 @@ import (
 
 	"google.golang.org/protobuf/encoding/protojson"
 
-	statementv1 "github.com/leedenison/stonks/proto/statement/v1"
+	stmtv1 "github.com/leedenison/stonks/proto/stmt/v1"
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/identity/group"
@@ -81,10 +81,10 @@ func (g *ingestion) write(ctx context.Context, run gen.Run) error {
 }
 
 // ItemToProto converts a rejected row to its message.
-func ItemToProto(it gen.StmtItem) (*statementv1.StatementItem, error) {
-	row := &statementv1.Row{}
+func ItemToProto(it gen.StmtItem) (*stmtv1.StmtItem, error) {
+	row := &stmtv1.Row{}
 	if err := protojson.Unmarshal(it.Stated, row); err != nil {
 		return nil, fmt.Errorf("read item %d: %w", it.Ordinal, err)
 	}
-	return &statementv1.StatementItem{Ordinal: it.Ordinal, Reason: it.Reason, Row: row}, nil
+	return &stmtv1.StmtItem{Ordinal: it.Ordinal, Reason: it.Reason, Row: row}, nil
 }

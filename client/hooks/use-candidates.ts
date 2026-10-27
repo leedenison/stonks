@@ -10,7 +10,7 @@ import { useClients } from "@/contexts/clients-context";
 import type {
   ConfirmCandidateRequestSchema,
   FindCandidatesResponse,
-} from "@/gen/statement/v1/statement_pb";
+} from "@/gen/stmt/v1/stmt_pb";
 import { invalidateResolved, qk } from "@/lib/query-keys";
 import { useAuthedQuery } from "./use-authed-query";
 
@@ -20,10 +20,10 @@ import { useAuthedQuery } from "./use-authed-query";
 export function useCandidates(
   keyId: string,
 ): UseQueryResult<FindCandidatesResponse> {
-  const { statement } = useClients();
+  const { stmt } = useClients();
   return useAuthedQuery({
     queryKey: qk.candidates(keyId),
-    queryFn: () => statement.findCandidates({ statedKeyId: keyId }),
+    queryFn: () => stmt.findCandidates({ statedKeyId: keyId }),
     staleTime: 0,
     refetchOnWindowFocus: false,
   });
@@ -32,11 +32,11 @@ export function useCandidates(
 // useChooseCandidate confirms a candidate for a key, then refreshes the
 // statements and the holdings that include the key.
 export function useChooseCandidate() {
-  const { statement } = useClients();
+  const { stmt } = useClients();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (req: MessageInitShape<typeof ConfirmCandidateRequestSchema>) =>
-      statement.confirmCandidate(req),
+      stmt.confirmCandidate(req),
     onSuccess: () => invalidateResolved(queryClient),
   });
 }

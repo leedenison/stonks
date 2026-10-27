@@ -53,8 +53,8 @@ describe("TopBar", () => {
     expect(screen.getByTestId("menu-profile").getAttribute("href")).toBe(
       "/profile",
     );
-    expect(screen.getByTestId("menu-statements").getAttribute("href")).toBe(
-      "/statements",
+    expect(screen.getByTestId("menu-stmts").getAttribute("href")).toBe(
+      "/stmts",
     );
     expect(screen.queryByTestId("menu-admin")).toBeNull();
     expect(screen.getByTestId("activity-icon")).toBeTruthy();

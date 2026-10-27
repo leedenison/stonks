@@ -70,7 +70,7 @@ export function TopBar() {
               <MenuLink href="/profile" testId="menu-profile">
                 Profile
               </MenuLink>
-              <MenuLink href="/statements" testId="menu-statements">
+              <MenuLink href="/stmts" testId="menu-stmts">
                 Statements
               </MenuLink>
               {state.user.role === Role.ADMIN && (

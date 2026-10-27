@@ -6,10 +6,10 @@ import {
   adminRunClient,
   fetchItems,
   refreshCorpActsClient,
-  statementClient,
+  stmtClient,
 } from "../helpers/api";
 import { expect, test } from "../helpers/test";
-import { uploadStatement } from "../helpers/upload";
+import { uploadStmt } from "../helpers/upload";
 
 // The fixture buys KO after its 2012 split and states a 2 for 1 split on
 // 2015-06-01, a day on which KO did not split. No other spec states KO.
@@ -25,8 +25,8 @@ test("finds a stated split the calendar lacks, and refreshes the calendar", asyn
   const admin = adminRunClient(session);
 
   await page.goto("/txns");
-  const runId = await uploadStatement(page, fixture, { state: "completed" });
-  const [key] = (await statementClient(session).getStatement({ runId })).keys;
+  const runId = await uploadStmt(page, fixture, { state: "completed" });
+  const [key] = (await stmtClient(session).getStmt({ runId })).keys;
 
   // The statement's corporate actions fetch checks the stated split.
   const unmatched = (await admin.getRun({ runId })).findings.filter(

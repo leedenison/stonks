@@ -10,7 +10,7 @@ import { RunService as AdminRunService } from "@/gen/admin/run/v1/run_pb";
 import { AuthService } from "@/gen/auth/v1/auth_pb";
 import { HoldingService } from "@/gen/holding/v1/holding_pb";
 import { RunService } from "@/gen/run/v1/run_pb";
-import { StatementService } from "@/gen/statement/v1/statement_pb";
+import { StmtService } from "@/gen/stmt/v1/stmt_pb";
 
 // newClients returns one typed client per service over transport.
 export function newClients(transport: Transport) {
@@ -26,7 +26,7 @@ export function newClients(transport: Transport) {
     refreshCorpActs: createClient(RefreshCorpActsService, transport),
     replayRun: createClient(ReplayRunService, transport),
     run: createClient(RunService, transport),
-    statement: createClient(StatementService, transport),
+    stmt: createClient(StmtService, transport),
   };
 }
 

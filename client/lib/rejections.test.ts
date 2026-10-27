@@ -1,6 +1,6 @@
 import { create } from "@bufbuild/protobuf";
 import { describe, expect, it } from "vitest";
-import { StatementItemSchema } from "@/gen/statement/v1/statement_pb";
+import { StmtItemSchema } from "@/gen/stmt/v1/stmt_pb";
 import {
   AssetClass,
   IdentifierSchema,
@@ -10,7 +10,7 @@ import {
 import { groupByReason, keyLabel } from "./rejections";
 
 const item = (ordinal: number, reason: string) =>
-  create(StatementItemSchema, { ordinal, reason });
+  create(StmtItemSchema, { ordinal, reason });
 
 describe("groupByReason", () => {
   it("gathers rows under their reason in first-seen order", () => {

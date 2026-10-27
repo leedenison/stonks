@@ -8,24 +8,22 @@ import { fixture, hint, row, security } from "./test-utils";
 import { cashKey } from "./build";
 
 const text = fixture("fidelity-uk.csv");
-const statement = fidelityUkCsv.marshal(text);
+const stmt = fidelityUkCsv.marshal(text);
 
 const gbp = cashKey("GBP");
 
 describe("fidelityUkCsv", () => {
   it("takes the period from the preamble, cut at the earliest pending line", () => {
-    expect(statement.broker).toBe(Broker.FIDELITY_UK);
-    expect(statement.orderFrom).toBe("2025-01-01");
-    expect(statement.orderBefore).toBe("2025-03-17");
-    expect(statement.rows).toHaveLength(11);
-    expect(statement.splits).toEqual([]);
+    expect(stmt.broker).toBe(Broker.FIDELITY_UK);
+    expect(stmt.orderFrom).toBe("2025-01-01");
+    expect(stmt.orderBefore).toBe("2025-03-17");
+    expect(stmt.rows).toHaveLength(11);
+    expect(stmt.splits).toEqual([]);
   });
 
   // The e2e suite narrows the period to February and expects these rejected.
   it("states four rows before February", () => {
-    expect(
-      statement.rows.filter((r) => r.orderDate < "2025-02-01"),
-    ).toHaveLength(4);
+    expect(stmt.rows.filter((r) => r.orderDate < "2025-02-01")).toHaveLength(4);
   });
 
   it("claims the whole timeframe when nothing is pending", () => {
@@ -61,9 +59,7 @@ describe("fidelityUkCsv", () => {
   });
 
   it("emits a cash line as a cash leg of its amount, whatever its type", () => {
-    expect(statement.rows[0]).toEqual(
-      row(gbp, "2025-03-06", "2025-03-09", "-5.4"),
-    );
+    expect(stmt.rows[0]).toEqual(row(gbp, "2025-03-06", "2025-03-09", "-5.4"));
   });
 
   it("negates a sell and leaves its cash and fee lines as their own legs", () => {
@@ -74,7 +70,7 @@ describe("fidelityUkCsv", () => {
       "GBP",
       Broker.FIDELITY_UK,
     );
-    expect(statement.rows.slice(1, 4)).toEqual([
+    expect(stmt.rows.slice(1, 4)).toEqual([
       row(vusa, "2025-02-24", "2025-02-26", "-141"),
       row(gbp, "2025-02-24", "2025-02-26", "13587.84"),
       row(gbp, "2025-02-24", "2025-02-24", "-7.5"),
@@ -96,32 +92,28 @@ describe("fidelityUkCsv", () => {
       "GBP",
       Broker.FIDELITY_UK,
     );
-    expect(statement.rows[4]).toEqual(
-      row(bae, "2025-02-10", "2025-02-12", "120"),
-    );
-    expect(statement.rows[7]).toEqual(
+    expect(stmt.rows[4]).toEqual(row(bae, "2025-02-10", "2025-02-12", "120"));
+    expect(stmt.rows[7]).toEqual(
       row(fund, "2025-01-22", "2025-02-06", "19.26"),
     );
   });
 
   it("keeps a settlement before its order date", () => {
-    expect(statement.rows[10]).toEqual(
+    expect(stmt.rows[10]).toEqual(
       row(gbp, "2025-01-02", "2025-01-01", "25.35"),
     );
   });
 
   it("does not emit a cancelled line or one awaiting completion", () => {
-    expect(
-      statement.rows.filter((r) => r.orderDate === "2025-02-10"),
-    ).toHaveLength(3);
-    expect(statement.rows.filter((r) => r.quantity === "-0.03")).toHaveLength(
-      0,
+    expect(stmt.rows.filter((r) => r.orderDate === "2025-02-10")).toHaveLength(
+      3,
     );
+    expect(stmt.rows.filter((r) => r.quantity === "-0.03")).toHaveLength(0);
   });
 
   it("reads a header without the trailing comma alike", () => {
     const trimmed = text.replace(/,(\r\n|$)/g, "$1");
-    expect(fidelityUkCsv.marshal(trimmed)).toEqual(statement);
+    expect(fidelityUkCsv.marshal(trimmed)).toEqual(stmt);
   });
 
   it("fails on a security line of a type it does not know, naming the line", () => {

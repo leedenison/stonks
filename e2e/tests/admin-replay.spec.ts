@@ -1,7 +1,7 @@
 import path from "node:path";
 import { Code } from "@connectrpc/connect";
 import { adminRunClient, replayRunClient } from "../helpers/api";
-import { uploadStatement } from "../helpers/upload";
+import { uploadStmt } from "../helpers/upload";
 import { expect, test } from "../helpers/test";
 
 // The client's Fidelity UK test export, modelled on a real export with its
@@ -18,7 +18,7 @@ test("offers a replay on a statement's page and shows its refusal", async ({
 }) => {
   const { session: userSession } = await signIn();
   await page.goto("/txns");
-  const runId = await uploadStatement(page, fixture, {
+  const runId = await uploadStmt(page, fixture, {
     state: "completed",
     holds: false,
   });
@@ -51,8 +51,8 @@ test("offers a replay on a statement's page and shows its refusal", async ({
   );
   await expect(page).toHaveURL(`/admin/runs/${runId}`);
 
-  const statement = await adminRunClient(session).getRun({ runId: runId });
-  const child = statement.run!.children[0].run!;
+  const stmt = await adminRunClient(session).getRun({ runId: runId });
+  const child = stmt.run!.children[0].run!;
   await page.goto(`/admin/runs/${child.id}`);
   await expect(page.getByTestId("run-replay")).toBeVisible();
 });

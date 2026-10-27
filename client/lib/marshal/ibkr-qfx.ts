@@ -18,11 +18,7 @@ import {
   type Identifier,
   IdentifierType,
 } from "@/gen/type/v1/type_pb";
-import type {
-  Row,
-  StatedSplit,
-  Statement,
-} from "@/gen/statement/v1/statement_pb";
+import type { Row, StatedSplit, Stmt } from "@/gen/stmt/v1/stmt_pb";
 import {
   brokerDomain,
   cashKey,
@@ -31,7 +27,7 @@ import {
   securityKey,
   split,
   trade,
-  statement,
+  stmt,
 } from "./build";
 import { iso } from "./date";
 import { MarshalError } from "./error";
@@ -212,15 +208,15 @@ function optionSymbol(el: Node, ticker: string, name: string): string {
 
 const SPLIT = /SPLIT (\d+) FOR (\d+)/;
 
-function marshal(input: string): Statement {
+function marshal(input: string): Stmt {
   const ofx: unknown = parseSync(input).OFX;
   if (!isNode(ofx)) throw new MarshalError("not an OFX statement");
-  const stmt = node(
+  const stmtrs = node(
     node(node(ofx, "INVSTMTMSGSRSV1"), "INVSTMTTRNRS"),
     "INVSTMTRS",
   );
-  const base = text(stmt, "CURDEF");
-  const list = node(stmt, "INVTRANLIST");
+  const base = text(stmtrs, "CURDEF");
+  const list = node(stmtrs, "INVTRANLIST");
   const known = securities(ofx);
   const rows: Row[] = [];
   const splits: StatedSplit[] = [];
@@ -277,7 +273,7 @@ function marshal(input: string): Statement {
     }
   }
 
-  return statement(Broker.IBKR, rows, splits, {
+  return stmt(Broker.IBKR, rows, splits, {
     from: date(text(list, "DTSTART")),
     to: date(text(list, "DTEND")),
   });
@@ -291,11 +287,11 @@ function recognise(input: string, type: string): boolean {
   try {
     const ofx: unknown = parseSync(input).OFX;
     if (!isNode(ofx)) return false;
-    const stmt = node(
+    const stmtrs = node(
       node(node(ofx, "INVSTMTMSGSRSV1"), "INVSTMTTRNRS"),
       "INVSTMTRS",
     );
-    return ACCOUNT.test(text(node(stmt, "INVACCTFROM"), "ACCTID"));
+    return ACCOUNT.test(text(node(stmtrs, "INVACCTFROM"), "ACCTID"));
   } catch {
     return false;
   }

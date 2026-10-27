@@ -1,5 +1,5 @@
 import { type Run, RunState } from "@/gen/run/v1/run_pb";
-import type { StatementSummary } from "@/gen/statement/v1/statement_pb";
+import type { StmtSummary } from "@/gen/stmt/v1/stmt_pb";
 
 // What a run's chip shows. A completed run with rejected rows is its own
 // outcome, since the user has a result to inspect. Interrupted reads as
@@ -16,7 +16,7 @@ export function isTerminal(state: RunState | undefined): boolean {
   );
 }
 
-export function outcome(s: StatementSummary): Outcome {
+export function outcome(s: StmtSummary): Outcome {
   return runOutcome(s.run, s.rejected);
 }
 

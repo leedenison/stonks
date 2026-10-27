@@ -7,13 +7,13 @@
 
 syntax = "proto3";
 
-package stonks.statement.v1;
+package stonks.stmt.v1;
 
 import "buf/validate/validate.proto";
 import "run/v1/run.proto";
 import "type/v1/type.proto";
 
-option go_package = "github.com/leedenison/stonks/proto/statement/v1;statementv1";
+option go_package = "github.com/leedenison/stonks/proto/stmt/v1;stmtv1";
 
 // One leg: a change in the quantity of one instrument, stated as at a date.
 // None of its fields carries a constraint, so the server rejects an invalid
@@ -60,9 +60,9 @@ message StatedSplit {
 // A statement in the neutral format, as a client submits it. In the standard
 // statement format a client holds this message as one JSON document in its
 // protojson encoding.
-message Statement {
+message Stmt {
   option (buf.validate.message).cel = {
-    id: "statement.period"
+    id: "stmt.period"
     message: "order_from must precede order_before"
     expression: "this.order_from < this.order_before"
   };
@@ -83,7 +83,7 @@ message Statement {
 
 // One ingestion of a statement.
 // Rows less rejected is the number of transactions written.
-message StatementSummary {
+message StmtSummary {
   // The ingestion's run. Its id identifies the statement.
   stonks.run.v1.Run run = 1;
   stonks.type.v1.Broker broker = 2;
@@ -97,30 +97,30 @@ message StatementSummary {
 }
 
 // A row the ingestion rejected.
-message StatementItem {
-  // The row's position in Statement.rows, counting from zero.
+message StmtItem {
+  // The row's position in Stmt.rows, counting from zero.
   int32 ordinal = 1;
   string reason = 2;
   Row row = 3;
 }
 
-message CreateStatementRequest {
+message CreateStmtRequest {
   // The statement to ingest. When the ingestion cannot read its broker, its
   // period or a split, the call is refused as an invalid argument.
-  Statement statement = 1 [(buf.validate.field).required = true];
+  Stmt stmt = 1 [(buf.validate.field).required = true];
 }
 
-message CreateStatementResponse {
+message CreateStmtResponse {
   // The run ingesting the statement. RunService reports its progress, and
-  // GetStatement its outcome.
+  // GetStmt its outcome.
   stonks.run.v1.Run run = 1;
 }
 
-message ListStatementsRequest {}
+message ListStmtsRequest {}
 
-message ListStatementsResponse {
+message ListStmtsResponse {
   // Newest first.
-  repeated StatementSummary statements = 1;
+  repeated StmtSummary stmts = 1;
 }
 
 // How firmly a transaction's key names an instrument on the transaction's
@@ -146,15 +146,15 @@ message Txn {
   TxnMark mark = 5;
 }
 
-message GetStatementRequest {
+message GetStmtRequest {
   // The run that ingested the statement.
   string run_id = 1 [(buf.validate.field).string.uuid = true];
 }
 
-message GetStatementResponse {
-  StatementSummary statement = 1;
+message GetStmtResponse {
+  StmtSummary stmt = 1;
   // In statement order.
-  repeated StatementItem items = 2;
+  repeated StmtItem items = 2;
   // Every key the statement stated, each with the outcome of its latest
   // resolution over any run. The outcome is unset while no resolution has
   // recorded one for the key.
@@ -218,13 +218,13 @@ message ConfirmCandidateResponse {
 }
 
 // Ingests statements and reads what each ingestion did.
-service StatementService {
+service StmtService {
   // Starts ingesting a statement and returns its run without waiting for it.
-  rpc CreateStatement(CreateStatementRequest) returns (CreateStatementResponse);
-  rpc ListStatements(ListStatementsRequest) returns (ListStatementsResponse);
+  rpc CreateStmt(CreateStmtRequest) returns (CreateStmtResponse);
+  rpc ListStmts(ListStmtsRequest) returns (ListStmtsResponse);
   // Reads one of the caller's statements. Another user's statement is not
   // found.
-  rpc GetStatement(GetStatementRequest) returns (GetStatementResponse);
+  rpc GetStmt(GetStmtRequest) returns (GetStmtResponse);
   // Resolves one of the caller's keys again, in the call, and lists the
   // candidates the datasources answer. Another user's key is not found. A
   // key that has an association is refused as a failed precondition.

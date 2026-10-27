@@ -16,7 +16,7 @@ import (
 	authv1 "github.com/leedenison/stonks/proto/auth/v1"
 	holdingv1 "github.com/leedenison/stonks/proto/holding/v1"
 	runv1 "github.com/leedenison/stonks/proto/run/v1"
-	statementv1 "github.com/leedenison/stonks/proto/statement/v1"
+	stmtv1 "github.com/leedenison/stonks/proto/stmt/v1"
 	typev1 "github.com/leedenison/stonks/proto/type/v1"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/types"
@@ -143,8 +143,8 @@ func ProtoHoldingKey(k gen.ListHoldingKeysRow) *holdingv1.HoldingKey {
 }
 
 // ProtoTxn writes a transaction row with its mark.
-func ProtoTxn(txn gen.Txn, m statementv1.TxnMark) *statementv1.Txn {
-	return &statementv1.Txn{
+func ProtoTxn(txn gen.Txn, m stmtv1.TxnMark) *stmtv1.Txn {
+	return &stmtv1.Txn{
 		Id:          txn.ID.String(),
 		StatedKeyId: txn.StatedKeyID.String(),
 		OrderDate:   txn.OrderDate.Format(time.DateOnly),
@@ -155,8 +155,8 @@ func ProtoTxn(txn gen.Txn, m statementv1.TxnMark) *statementv1.Txn {
 
 // ProtoStmtSummary writes a statement, its run and its count of
 // rejected rows as a summary.
-func ProtoStmtSummary(stmt gen.Stmt, run gen.Run, rejected int32) *statementv1.StatementSummary {
-	return &statementv1.StatementSummary{
+func ProtoStmtSummary(stmt gen.Stmt, run gen.Run, rejected int32) *stmtv1.StmtSummary {
+	return &stmtv1.StmtSummary{
 		Run:         ProtoRun(run),
 		Broker:      types.ToProto[typev1.Broker](stmt.Broker),
 		OrderFrom:   stmt.OrderFrom.Format("2006-01-02"),

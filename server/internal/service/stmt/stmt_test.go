@@ -19,8 +19,8 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	runv1 "github.com/leedenison/stonks/proto/run/v1"
-	statementv1 "github.com/leedenison/stonks/proto/statement/v1"
-	"github.com/leedenison/stonks/proto/statement/v1/statementv1connect"
+	stmtv1 "github.com/leedenison/stonks/proto/stmt/v1"
+	"github.com/leedenison/stonks/proto/stmt/v1/stmtv1connect"
 	typev1 "github.com/leedenison/stonks/proto/type/v1"
 	"github.com/leedenison/stonks/server/internal/auth"
 	"github.com/leedenison/stonks/server/internal/db"
@@ -45,7 +45,7 @@ var (
 	run       = gen.Run{ID: runID, UserID: &userID, Kind: gen.RunKindIngestStmt, Trigger: gen.RunTriggerUser, State: gen.RunStatePending, CreatedAt: created}
 	runMsg    = &runv1.Run{Id: runID.String(), Kind: runv1.RunKind_RUN_KIND_INGEST_STMT, Trigger: runv1.RunTrigger_RUN_TRIGGER_USER, State: runv1.RunState_RUN_STATE_PENDING, CreatedAt: timestamppb.New(created)}
 	stmtRow   = gen.Stmt{ID: runID, UserID: userID, Broker: gen.BrokerIbkr, OrderFrom: from, OrderBefore: before, RowCount: 3, CreatedAt: created}
-	summ      = &statementv1.StatementSummary{Run: runMsg, Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01", Rows: 3, Rejected: 1}
+	summ      = &stmtv1.StmtSummary{Run: runMsg, Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01", Rows: 3, Rejected: 1}
 )
 
 type fixture struct {
@@ -53,7 +53,7 @@ type fixture struct {
 	confirmer *mock.MockConfirmer
 	reader    *mock.MockReader
 	authn     *servicemock.MockAuthenticator
-	client    statementv1connect.StatementServiceClient
+	client    stmtv1connect.StmtServiceClient
 }
 
 // newFixture mounts a Server with the real handler chain and a client that
@@ -65,57 +65,57 @@ func newFixture(t *testing.T) *fixture {
 	f := &fixture{ingester: mock.NewMockIngester(ctrl), confirmer: mock.NewMockConfirmer(ctrl), reader: mock.NewMockReader(ctrl), authn: servicemock.NewMockAuthenticator(ctrl)}
 	opts := servicetest.Options(t, f.authn)
 	srv := servicetest.Serve(t, func(mux *http.ServeMux) {
-		mux.Handle(statementv1connect.NewStatementServiceHandler(New(f.ingester, f.confirmer, f.reader, mic.MICMap{"XNAS": {Operating: "XNAS", Market: "US"}}), opts...))
+		mux.Handle(stmtv1connect.NewStmtServiceHandler(New(f.ingester, f.confirmer, f.reader, mic.MICMap{"XNAS": {Operating: "XNAS", Market: "US"}}), opts...))
 	})
-	f.client = statementv1connect.NewStatementServiceClient(srv.Client, srv.URL)
+	f.client = stmtv1connect.NewStmtServiceClient(srv.Client, srv.URL)
 	return f
 }
 
-func stmtMsg() *statementv1.Statement {
-	return &statementv1.Statement{Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01"}
+func stmtMsg() *stmtv1.Stmt {
+	return &stmtv1.Stmt{Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01"}
 }
 
 // splitMsg returns a split of key that passes every check but those on the key.
-func splitMsg(key *typev1.StatedKey) *statementv1.StatedSplit {
-	return &statementv1.StatedSplit{Key: key, EffectiveDate: "2026-03-05", Quantity: "10"}
+func splitMsg(key *typev1.StatedKey) *stmtv1.StatedSplit {
+	return &stmtv1.StatedSplit{Key: key, EffectiveDate: "2026-03-05", Quantity: "10"}
 }
 
 func TestCreateStmt(t *testing.T) {
 	tests := []struct {
 		name     string
-		msg      *statementv1.Statement
-		edit     func(*statementv1.Statement)
+		msg      *stmtv1.Stmt
+		edit     func(*stmtv1.Stmt)
 		authErr  error
 		err      error
 		called   bool
 		wantCode connect.Code
 	}{
 		{name: "created", called: true},
-		{name: "empty period", edit: func(m *statementv1.Statement) { m.OrderBefore = m.OrderFrom }, wantCode: connect.CodeInvalidArgument},
-		{name: "no broker", edit: func(m *statementv1.Statement) { m.Broker = typev1.Broker_BROKER_UNSPECIFIED }, wantCode: connect.CodeInvalidArgument},
-		{name: "malformed split", edit: func(m *statementv1.Statement) {
-			m.Splits = []*statementv1.StatedSplit{{Key: &typev1.StatedKey{}, EffectiveDate: "2026-03-05", Quantity: "ten"}}
+		{name: "empty period", edit: func(m *stmtv1.Stmt) { m.OrderBefore = m.OrderFrom }, wantCode: connect.CodeInvalidArgument},
+		{name: "no broker", edit: func(m *stmtv1.Stmt) { m.Broker = typev1.Broker_BROKER_UNSPECIFIED }, wantCode: connect.CodeInvalidArgument},
+		{name: "malformed split", edit: func(m *stmtv1.Stmt) {
+			m.Splits = []*stmtv1.StatedSplit{{Key: &typev1.StatedKey{}, EffectiveDate: "2026-03-05", Quantity: "ten"}}
 		}, wantCode: connect.CodeInvalidArgument},
-		{name: "split currency not a code", edit: func(m *statementv1.Statement) {
-			m.Splits = []*statementv1.StatedSplit{splitMsg(&typev1.StatedKey{Currency: ptr.To("usd")})}
+		{name: "split currency not a code", edit: func(m *stmtv1.Stmt) {
+			m.Splits = []*stmtv1.StatedSplit{splitMsg(&typev1.StatedKey{Currency: ptr.To("usd")})}
 		}, wantCode: connect.CodeInvalidArgument},
-		{name: "split identifier without a type", edit: func(m *statementv1.Statement) {
-			m.Splits = []*statementv1.StatedSplit{splitMsg(&typev1.StatedKey{Identifiers: []*typev1.Identifier{{Value: "ACME"}}})}
+		{name: "split identifier without a type", edit: func(m *stmtv1.Stmt) {
+			m.Splits = []*stmtv1.StatedSplit{splitMsg(&typev1.StatedKey{Identifiers: []*typev1.Identifier{{Value: "ACME"}}})}
 		}, wantCode: connect.CodeInvalidArgument},
-		{name: "split identifier without a value", edit: func(m *statementv1.Statement) {
-			m.Splits = []*statementv1.StatedSplit{splitMsg(&typev1.StatedKey{Identifiers: []*typev1.Identifier{{Type: typev1.IdentifierType_IDENTIFIER_TYPE_ISIN}}})}
+		{name: "split identifier without a value", edit: func(m *stmtv1.Stmt) {
+			m.Splits = []*stmtv1.StatedSplit{splitMsg(&typev1.StatedKey{Identifiers: []*typev1.Identifier{{Type: typev1.IdentifierType_IDENTIFIER_TYPE_ISIN}}})}
 		}, wantCode: connect.CodeInvalidArgument},
-		{name: "split key with a currency and identifiers", edit: func(m *statementv1.Statement) {
-			m.Splits = []*statementv1.StatedSplit{splitMsg(&typev1.StatedKey{Currency: ptr.To("USD"), Identifiers: []*typev1.Identifier{{Type: typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, Value: "US0000000001"}}})}
+		{name: "split key with a currency and identifiers", edit: func(m *stmtv1.Stmt) {
+			m.Splits = []*stmtv1.StatedSplit{splitMsg(&typev1.StatedKey{Currency: ptr.To("USD"), Identifiers: []*typev1.Identifier{{Type: typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, Value: "US0000000001"}}})}
 		}, called: true},
-		{name: "too many rows", edit: func(m *statementv1.Statement) {
-			m.Rows = make([]*statementv1.Row, 50001)
+		{name: "too many rows", edit: func(m *stmtv1.Stmt) {
+			m.Rows = make([]*stmtv1.Row, 50001)
 			for i := range m.Rows {
-				m.Rows[i] = &statementv1.Row{}
+				m.Rows[i] = &stmtv1.Row{}
 			}
 		}, wantCode: connect.CodeInvalidArgument},
-		{name: "too many splits", edit: func(m *statementv1.Statement) {
-			m.Splits = make([]*statementv1.StatedSplit, 1001)
+		{name: "too many splits", edit: func(m *stmtv1.Stmt) {
+			m.Splits = make([]*stmtv1.StatedSplit, 1001)
 			for i := range m.Splits {
 				m.Splits[i] = splitMsg(&typev1.StatedKey{})
 			}
@@ -133,22 +133,22 @@ func TestCreateStmt(t *testing.T) {
 				tc.edit(msg)
 			}
 			if tc.called {
-				f.ingester.EXPECT().Create(gomock.Any(), userID, gomock.Any()).DoAndReturn(func(_ context.Context, _ uuid.UUID, got *statementv1.Statement) (gen.Run, error) {
+				f.ingester.EXPECT().Create(gomock.Any(), userID, gomock.Any()).DoAndReturn(func(_ context.Context, _ uuid.UUID, got *stmtv1.Stmt) (gen.Run, error) {
 					if diff := cmp.Diff(msg, got, protocmp.Transform()); diff != "" {
 						t.Errorf("Create statement mismatch (-want +got):\n%s", diff)
 					}
 					return run, tc.err
 				})
 			}
-			res, err := f.client.CreateStatement(context.Background(), connect.NewRequest(&statementv1.CreateStatementRequest{Statement: msg}))
+			res, err := f.client.CreateStmt(context.Background(), connect.NewRequest(&stmtv1.CreateStmtRequest{Stmt: msg}))
 			if servicetest.CodeOf(err) != tc.wantCode {
-				t.Fatalf("CreateStatement code = %v (err %v), want %v", connect.CodeOf(err), err, tc.wantCode)
+				t.Fatalf("CreateStmt code = %v (err %v), want %v", connect.CodeOf(err), err, tc.wantCode)
 			}
 			if err != nil {
 				return
 			}
-			if diff := cmp.Diff(&statementv1.CreateStatementResponse{Run: runMsg}, res.Msg, protocmp.Transform()); diff != "" {
-				t.Errorf("CreateStatement mismatch (-want +got):\n%s", diff)
+			if diff := cmp.Diff(&stmtv1.CreateStmtResponse{Run: runMsg}, res.Msg, protocmp.Transform()); diff != "" {
+				t.Errorf("CreateStmt mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
@@ -160,11 +160,11 @@ func TestListStmts(t *testing.T) {
 		authErr  error
 		rows     []gen.ListStmtsRow
 		err      error
-		want     *statementv1.ListStatementsResponse
+		want     *stmtv1.ListStmtsResponse
 		wantCode connect.Code
 	}{
-		{name: "none", want: &statementv1.ListStatementsResponse{}},
-		{name: "one", rows: []gen.ListStmtsRow{{Stmt: stmtRow, Run: run, Rejected: 1}}, want: &statementv1.ListStatementsResponse{Statements: []*statementv1.StatementSummary{summ}}},
+		{name: "none", want: &stmtv1.ListStmtsResponse{}},
+		{name: "one", rows: []gen.ListStmtsRow{{Stmt: stmtRow, Run: run, Rejected: 1}}, want: &stmtv1.ListStmtsResponse{Stmts: []*stmtv1.StmtSummary{summ}}},
 		{name: "failure", err: errors.New("boom"), wantCode: connect.CodeInternal},
 		{name: "unauthenticated", authErr: auth.ErrUnauthenticated, wantCode: connect.CodeUnauthenticated},
 	}
@@ -175,15 +175,15 @@ func TestListStmts(t *testing.T) {
 			if tc.authErr == nil {
 				f.reader.EXPECT().ListStmts(gomock.Any(), userID).Return(tc.rows, tc.err)
 			}
-			res, err := f.client.ListStatements(context.Background(), connect.NewRequest(&statementv1.ListStatementsRequest{}))
+			res, err := f.client.ListStmts(context.Background(), connect.NewRequest(&stmtv1.ListStmtsRequest{}))
 			if servicetest.CodeOf(err) != tc.wantCode {
-				t.Fatalf("ListStatements code = %v (err %v), want %v", connect.CodeOf(err), err, tc.wantCode)
+				t.Fatalf("ListStmts code = %v (err %v), want %v", connect.CodeOf(err), err, tc.wantCode)
 			}
 			if err != nil {
 				return
 			}
 			if diff := cmp.Diff(tc.want, res.Msg, protocmp.Transform()); diff != "" {
-				t.Errorf("ListStatements mismatch (-want +got):\n%s", diff)
+				t.Errorf("ListStmts mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
@@ -191,7 +191,7 @@ func TestListStmts(t *testing.T) {
 
 func TestGetStmt(t *testing.T) {
 	acme := &typev1.Identifier{Type: typev1.IdentifierType_IDENTIFIER_TYPE_BROKER_DESCRIPTION, Domain: "ibkr", Value: "ACME"}
-	rowMsg := &statementv1.Row{Key: &typev1.StatedKey{Identifiers: []*typev1.Identifier{acme}}, OrderDate: "2026-03-05", SettlementDate: "2026-03-07", AsAt: "2026-03-05", Quantity: "10"}
+	rowMsg := &stmtv1.Row{Key: &typev1.StatedKey{Identifiers: []*typev1.Identifier{acme}}, OrderDate: "2026-03-05", SettlementDate: "2026-03-07", AsAt: "2026-03-05", Quantity: "10"}
 	stated, err := protojson.Marshal(rowMsg)
 	if err != nil {
 		t.Fatal(err)
@@ -237,10 +237,10 @@ func TestGetStmt(t *testing.T) {
 	}
 	events := []gen.ListIdentifierEventsRow{{Market: "US", Value: "META", EffectiveOn: renamed, FetchKeyID: uuid.New()}}
 	coverage := []gen.ListIdentifierCoverageRow{{Market: "US", Value: ptr.To("META"), CoveredFrom: facts.Coverage[0].Period.From, CoveredBefore: facts.Coverage[0].Period.Before}}
-	txnMsgs := []*statementv1.Txn{
-		{Id: txns[0].Txn.ID.String(), StatedKeyId: datedID.String(), OrderDate: "2021-06-01", Quantity: "10", Mark: statementv1.TxnMark_TXN_MARK_UNRESOLVED},
-		{Id: txns[1].Txn.ID.String(), StatedKeyId: datedID.String(), OrderDate: "2024-01-16", Quantity: "10", Mark: statementv1.TxnMark_TXN_MARK_CONFIRMED},
-		{Id: txns[2].Txn.ID.String(), StatedKeyId: fixedID.String(), OrderDate: "2024-01-16", Quantity: "10", Mark: statementv1.TxnMark_TXN_MARK_PROVISIONAL},
+	txnMsgs := []*stmtv1.Txn{
+		{Id: txns[0].Txn.ID.String(), StatedKeyId: datedID.String(), OrderDate: "2021-06-01", Quantity: "10", Mark: stmtv1.TxnMark_TXN_MARK_UNRESOLVED},
+		{Id: txns[1].Txn.ID.String(), StatedKeyId: datedID.String(), OrderDate: "2024-01-16", Quantity: "10", Mark: stmtv1.TxnMark_TXN_MARK_CONFIRMED},
+		{Id: txns[2].Txn.ID.String(), StatedKeyId: fixedID.String(), OrderDate: "2024-01-16", Quantity: "10", Mark: stmtv1.TxnMark_TXN_MARK_PROVISIONAL},
 	}
 	tests := []struct {
 		name          string
@@ -258,20 +258,20 @@ func TestGetStmt(t *testing.T) {
 		txns          []gen.ListStmtTxnsRow
 		txnsErr       error
 		assertionsErr error
-		want          *statementv1.GetStatementResponse
+		want          *stmtv1.GetStmtResponse
 		wantCode      connect.Code
 	}{
 		{
 			name: "with items", id: runID.String(), row: gen.GetStmtRow{Stmt: stmtRow, Run: run, Rejected: 1}, items: items, readsKeys: true,
-			want: &statementv1.GetStatementResponse{Statement: summ, Items: []*statementv1.StatementItem{{Ordinal: 2, Reason: "no admissible identifier", Row: rowMsg}}},
+			want: &stmtv1.GetStmtResponse{Stmt: summ, Items: []*stmtv1.StmtItem{{Ordinal: 2, Reason: "no admissible identifier", Row: rowMsg}}},
 		},
 		{
 			name: "with keys", id: runID.String(), row: gen.GetStmtRow{Stmt: stmtRow, Run: run, Rejected: 1}, readsKeys: true, keys: keys, latest: latest,
-			want: &statementv1.GetStatementResponse{Statement: summ, Keys: keyMsgs},
+			want: &stmtv1.GetStmtResponse{Stmt: summ, Keys: keyMsgs},
 		},
 		{
 			name: "with transactions", id: runID.String(), row: gen.GetStmtRow{Stmt: stmtRow, Run: run, Rejected: 1}, readsKeys: true, txns: txns,
-			want: &statementv1.GetStatementResponse{Statement: summ, Txns: txnMsgs},
+			want: &stmtv1.GetStmtResponse{Stmt: summ, Txns: txnMsgs},
 		},
 		{name: "transactions failure", id: runID.String(), row: gen.GetStmtRow{Stmt: stmtRow, Run: run}, readsKeys: true, txnsErr: errors.New("boom"), wantCode: connect.CodeInternal},
 		{name: "ticker validity failure", id: runID.String(), row: gen.GetStmtRow{Stmt: stmtRow, Run: run}, readsKeys: true, txns: txns, assertionsErr: errors.New("boom"), wantCode: connect.CodeInternal},
@@ -310,15 +310,15 @@ func TestGetStmt(t *testing.T) {
 					}
 				}
 			}
-			res, err := f.client.GetStatement(context.Background(), connect.NewRequest(&statementv1.GetStatementRequest{RunId: tc.id}))
+			res, err := f.client.GetStmt(context.Background(), connect.NewRequest(&stmtv1.GetStmtRequest{RunId: tc.id}))
 			if servicetest.CodeOf(err) != tc.wantCode {
-				t.Fatalf("GetStatement(%q) code = %v (err %v), want %v", tc.id, connect.CodeOf(err), err, tc.wantCode)
+				t.Fatalf("GetStmt(%q) code = %v (err %v), want %v", tc.id, connect.CodeOf(err), err, tc.wantCode)
 			}
 			if err != nil {
 				return
 			}
 			if diff := cmp.Diff(tc.want, res.Msg, protocmp.Transform()); diff != "" {
-				t.Errorf("GetStatement(%q) mismatch (-want +got):\n%s", tc.id, diff)
+				t.Errorf("GetStmt(%q) mismatch (-want +got):\n%s", tc.id, diff)
 			}
 		})
 	}
@@ -335,10 +335,10 @@ func TestFindCandidates(t *testing.T) {
 		Reasons: []string{"eodhd: failed: paused"},
 	}
 	isinMsg := &typev1.Identifier{Type: typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, Value: "US4581401001"}
-	want := &statementv1.FindCandidatesResponse{
-		Candidates: []*statementv1.Candidate{{
+	want := &stmtv1.FindCandidatesResponse{
+		Candidates: []*stmtv1.Candidate{{
 			Datasource: "openfigi", Attached: []string{"massive", "eodhd"}, Strongest: isinMsg, AssetClass: typev1.AssetClass_ASSET_CLASS_STOCK, Identifiers: []*typev1.Identifier{isinMsg},
-			Listings: []*statementv1.CandidateListing{
+			Listings: []*stmtv1.CandidateListing{
 				{Identifiers: []*typev1.Identifier{{Type: typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, Domain: "XLON", Value: "INTC"}}},
 				{Currency: &usd, Identifiers: []*typev1.Identifier{{Type: typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, Domain: "XNAS", Value: "INTC"}}},
 			},
@@ -352,7 +352,7 @@ func TestFindCandidates(t *testing.T) {
 		called   bool
 		offer    resolve.Offer
 		err      error
-		want     *statementv1.FindCandidatesResponse
+		want     *stmtv1.FindCandidatesResponse
 		wantCode connect.Code
 	}{
 		{name: "listed", id: keyID.String(), called: true, offer: offer, want: want},
@@ -369,7 +369,7 @@ func TestFindCandidates(t *testing.T) {
 			if tc.called {
 				f.confirmer.EXPECT().Candidates(gomock.Any(), userID, keyID).Return(tc.offer, tc.err)
 			}
-			res, err := f.client.FindCandidates(context.Background(), connect.NewRequest(&statementv1.FindCandidatesRequest{StatedKeyId: tc.id}))
+			res, err := f.client.FindCandidates(context.Background(), connect.NewRequest(&stmtv1.FindCandidatesRequest{StatedKeyId: tc.id}))
 			if servicetest.CodeOf(err) != tc.wantCode {
 				t.Fatalf("FindCandidates(%q) code = %v (err %v), want %v", tc.id, connect.CodeOf(err), err, tc.wantCode)
 			}
@@ -390,19 +390,19 @@ func TestConfirmCandidate(t *testing.T) {
 	pick := resolve.Pick{Datasource: "openfigi", Identifier: isin}
 	key := gen.StatedKey{ID: keyID, UserID: userID, Identifiers: []types.Identifier{{Type: types.IdentifierTypeMicTicker, Value: "INTC"}}, Arbiter: ptr.To(gen.ArbiterUser)}
 	rk := gen.ResolutionKey{StatedKeyID: keyID, Outcome: gen.ResolutionOutcomeMatched}
-	good := &statementv1.ConfirmCandidateRequest{StatedKeyId: keyID.String(), Datasource: "openfigi", Identifier: isinMsg}
-	want := &statementv1.ConfirmCandidateResponse{Key: &typev1.ResolutionItem{
+	good := &stmtv1.ConfirmCandidateRequest{StatedKeyId: keyID.String(), Datasource: "openfigi", Identifier: isinMsg}
+	want := &stmtv1.ConfirmCandidateResponse{Key: &typev1.ResolutionItem{
 		StatedKey:   &typev1.StatedKey{Identifiers: []*typev1.Identifier{{Type: typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, Value: "INTC"}}},
 		StatedKeyId: keyID.String(), Outcome: typev1.ResolutionOutcome_RESOLUTION_OUTCOME_MATCHED, Arbiter: typev1.Arbiter_ARBITER_USER,
 	}}
 	tests := []struct {
 		name     string
-		req      *statementv1.ConfirmCandidateRequest
+		req      *stmtv1.ConfirmCandidateRequest
 		authErr  error
 		called   bool
 		err      error
 		readErr  error
-		want     *statementv1.ConfirmCandidateResponse
+		want     *stmtv1.ConfirmCandidateResponse
 		wantCode connect.Code
 	}{
 		{name: "confirmed", req: good, called: true, want: want},
@@ -411,10 +411,10 @@ func TestConfirmCandidate(t *testing.T) {
 		{name: "the answers no longer offer the candidate", req: good, called: true, err: fmt.Errorf("%w: isin US4581401001 names no candidate of openfigi", resolve.ErrNoCandidate), wantCode: connect.CodeFailedPrecondition},
 		{name: "failure", req: good, called: true, err: errors.New("boom"), wantCode: connect.CodeInternal},
 		{name: "the key cannot be read back", req: good, called: true, readErr: errors.New("boom"), wantCode: connect.CodeInternal},
-		{name: "no datasource", req: &statementv1.ConfirmCandidateRequest{StatedKeyId: keyID.String(), Identifier: isinMsg}, wantCode: connect.CodeInvalidArgument},
-		{name: "no identifier", req: &statementv1.ConfirmCandidateRequest{StatedKeyId: keyID.String(), Datasource: "openfigi"}, wantCode: connect.CodeInvalidArgument},
-		{name: "identifier without a type", req: &statementv1.ConfirmCandidateRequest{StatedKeyId: keyID.String(), Datasource: "openfigi", Identifier: &typev1.Identifier{Value: "x"}}, wantCode: connect.CodeInvalidArgument},
-		{name: "malformed id", req: &statementv1.ConfirmCandidateRequest{StatedKeyId: "not-a-uuid", Datasource: "openfigi", Identifier: isinMsg}, wantCode: connect.CodeInvalidArgument},
+		{name: "no datasource", req: &stmtv1.ConfirmCandidateRequest{StatedKeyId: keyID.String(), Identifier: isinMsg}, wantCode: connect.CodeInvalidArgument},
+		{name: "no identifier", req: &stmtv1.ConfirmCandidateRequest{StatedKeyId: keyID.String(), Datasource: "openfigi"}, wantCode: connect.CodeInvalidArgument},
+		{name: "identifier without a type", req: &stmtv1.ConfirmCandidateRequest{StatedKeyId: keyID.String(), Datasource: "openfigi", Identifier: &typev1.Identifier{Value: "x"}}, wantCode: connect.CodeInvalidArgument},
+		{name: "malformed id", req: &stmtv1.ConfirmCandidateRequest{StatedKeyId: "not-a-uuid", Datasource: "openfigi", Identifier: isinMsg}, wantCode: connect.CodeInvalidArgument},
 		{name: "unauthenticated", req: good, authErr: auth.ErrUnauthenticated, wantCode: connect.CodeUnauthenticated},
 	}
 	for _, tc := range tests {

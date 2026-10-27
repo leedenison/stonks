@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { TxnMark } from "@/gen/statement/v1/statement_pb";
+import { TxnMark } from "@/gen/stmt/v1/stmt_pb";
 import { MarkChip } from "./mark-chip";
 
 describe("MarkChip", () => {

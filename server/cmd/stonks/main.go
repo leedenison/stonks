@@ -27,7 +27,7 @@ import (
 	"github.com/leedenison/stonks/proto/auth/v1/authv1connect"
 	"github.com/leedenison/stonks/proto/holding/v1/holdingv1connect"
 	"github.com/leedenison/stonks/proto/run/v1/runv1connect"
-	"github.com/leedenison/stonks/proto/statement/v1/statementv1connect"
+	"github.com/leedenison/stonks/proto/stmt/v1/stmtv1connect"
 	"github.com/leedenison/stonks/server/internal/auth"
 	"github.com/leedenison/stonks/server/internal/auth/google"
 	"github.com/leedenison/stonks/server/internal/auth/session"
@@ -238,10 +238,10 @@ func newServer(addr string, log *slog.Logger, authn *auth.Authenticator, queries
 	mux.Handle(authv1connect.NewAuthServiceHandler(authsvc.New(authn, secure), opts...))
 	mux.Handle(holdingv1connect.NewHoldingServiceHandler(holdings, opts...))
 	mux.Handle(runv1connect.NewRunServiceHandler(runsvc.New(queries), opts...))
-	mux.Handle(statementv1connect.NewStatementServiceHandler(stmtsvc.New(stmts, stmts, queries, mics), opts...))
+	mux.Handle(stmtv1connect.NewStmtServiceHandler(stmtsvc.New(stmts, stmts, queries, mics), opts...))
 	reflector := grpcreflect.NewStaticReflector(
 		adminblockv1connect.BlockServiceName, admincoveragev1connect.CoverageServiceName, admindatasourcev1connect.DatasourceServiceName, admininstrumentv1connect.InstrumentServiceName, adminreasserttickersv1connect.ReassertTickersServiceName, adminrefreshcorpactsv1connect.RefreshCorpActsServiceName, adminreplayrunv1connect.ReplayRunServiceName, adminrunv1connect.RunServiceName, authv1connect.AuthServiceName, holdingv1connect.HoldingServiceName,
-		runv1connect.RunServiceName, statementv1connect.StatementServiceName,
+		runv1connect.RunServiceName, stmtv1connect.StmtServiceName,
 	)
 	mux.Handle(grpcreflect.NewHandlerV1(reflector, opts...))
 	mux.Handle(grpcreflect.NewHandlerV1Alpha(reflector, opts...))

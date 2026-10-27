@@ -1,7 +1,7 @@
 import path from "node:path";
 import type { ListHoldingsResponse } from "../gen/holding/v1/holding_pb";
 import { holdingClient } from "../helpers/api";
-import { uploadStatement } from "../helpers/upload";
+import { uploadStmt } from "../helpers/upload";
 import { expect, test } from "../helpers/test";
 
 // The fixture is a copy of the client's Fidelity UK test export, modelled on
@@ -80,7 +80,7 @@ test("uploads a statement and lists the holdings it produces", async ({
   const { session } = await signIn();
   await page.goto("/txns");
   // The run completes in the transaction that writes the rows.
-  await uploadStatement(page, fixture, {
+  await uploadStmt(page, fixture, {
     state: "completed",
     rows: "11 rows",
     holds: false,
