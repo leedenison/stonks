@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/leedenison/stonks/server/internal/currency"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/mic"
@@ -33,9 +34,10 @@ func (c *identityClaim) named() bool {
 }
 
 // claims builds the claims of fk in the order of their first returned
-// listings. The listings of fk carry currency families, not currency codes. Every claim
-// carries the instrument grain identifiers the call filtered on.
-func claims(fk *fetchKey) []*identityClaim {
+// listings. Each listing of fk folds into the family of its currency, which
+// families gives. Every claim carries the instrument grain identifiers in the
+// call's filter.
+func claims(fk *fetchKey, families currency.Families) []*identityClaim {
 	var strict []types.Identifier
 	for _, id := range fk.Response.Filtered {
 		if id.Grain() == types.IdentifierGrainInstr {
@@ -54,7 +56,7 @@ func claims(fk *fetchKey) []*identityClaim {
 			byRoot[roots[i]] = c
 			out = append(out, c)
 		}
-		c.add(listing, listing.Currency)
+		c.add(listing, families.Family(listing.Currency))
 	}
 	return out
 }

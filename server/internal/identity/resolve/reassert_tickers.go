@@ -11,6 +11,7 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/to"
+	"github.com/leedenison/stonks/server/internal/identity/tickers"
 	"github.com/leedenison/stonks/server/internal/identity/tickervalidity"
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/types"
@@ -64,14 +65,23 @@ func (r *Resolver) ReassertTickers(ctx context.Context, run gen.Run, held []gen.
 		return nil, err
 	}
 	written := newWritten(r.mics)
+	var ids []uuid.UUID
+	for _, a := range answers {
+		if !slices.Contains(ids, a.t.tickerRow.ID) {
+			ids = append(ids, a.t.tickerRow.ID)
+		}
+	}
 	err = r.store.Tx(ctx, func(q Queries) error {
 		written = newWritten(r.mics)
+		if err := tickers.Lock(ctx, q, ids); err != nil {
+			return err
+		}
 		for _, a := range answers {
 			if err := r.assertHeld(ctx, q, a.t, a.fk, written); err != nil {
 				return err
 			}
 		}
-		return nil
+		return tickervalidity.Rebuild(ctx, q, ids)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("record extended ticker validity: %w", err)
@@ -240,11 +250,13 @@ func (r *Resolver) assertHeld(ctx context.Context, q Queries, t *heldTicker, fk 
 		return nil
 	}
 	var instr *uuid.UUID
+	var s tickervalidity.Stated
 	if !fk.Response.Unknown {
 		l, ok := r.listingOf(fk.Response, t.key)
 		if !ok {
 			return nil
 		}
+		s = r.stated(l, t.key)
 		instr = t.instr
 		if instr == nil || !r.shares(l, t) {
 			found, err := tickervalidity.StoredInstr(ctx, q, l.Identifiers)
@@ -254,7 +266,7 @@ func (r *Resolver) assertHeld(ctx context.Context, q Queries, t *heldTicker, fk 
 			instr = found
 		}
 	}
-	if err := tickervalidity.AssertInstr(ctx, q, fk.ID, t.tickerRow, instr, fk.AnsweredAt); err != nil {
+	if err := tickervalidity.AssertInstr(ctx, q, fk.ID, t.tickerRow, instr, fk.AnsweredAt, s); err != nil {
 		return err
 	}
 	written.addTicker(fk.Run, t.key)
@@ -273,6 +285,19 @@ func (r *Resolver) listingOf(res market.IdentityResult, key types.MarketTicker) 
 		}
 	}
 	return market.Listing{}, false
+}
+
+// stated returns the venue at which l states key, and l's currency as the
+// datasource stated it.
+func (r *Resolver) stated(l market.Listing, key types.MarketTicker) tickervalidity.Stated {
+	s := tickervalidity.Stated{Currency: l.Currency}
+	for _, id := range l.Identifiers {
+		if mt, ok := r.mics.MarketTicker(id); ok && mt == key {
+			s.Venue, _ = r.mics.Operating(id.Domain)
+			break
+		}
+	}
+	return s
 }
 
 // shares reports whether l carries an identifier of t's instrument other

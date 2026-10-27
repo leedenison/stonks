@@ -42,19 +42,20 @@ type fixture struct {
 	store *MockStore
 	runs  *MockRunner
 	facts *MockFacts
+	names *MockRebuilder
 	svc   *Service
 }
 
 func newFixture(t *testing.T) *fixture {
 	t.Helper()
 	ctrl := gomock.NewController(t)
-	f := &fixture{store: NewMockStore(ctrl), runs: NewMockRunner(ctrl), facts: NewMockFacts(ctrl)}
-	f.svc = New(f.store, f.runs, f.facts, mics, func() time.Time { return today })
+	f := &fixture{store: NewMockStore(ctrl), runs: NewMockRunner(ctrl), facts: NewMockFacts(ctrl), names: NewMockRebuilder(ctrl)}
+	f.svc = New(f.store, f.runs, f.facts, f.names, mics, func() time.Time { return today })
 	return f
 }
 
 // starts stands in for Runner.Start and runs Prepare and the work in the
-// caller.
+// caller. Prepare locks the ticker's row and rebuilds its names once.
 func (f *fixture) starts(t *testing.T, row gen.Run) {
 	t.Helper()
 	f.runs.EXPECT().Start(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, spec run.Spec, work run.Work) (gen.Run, error) {
@@ -68,9 +69,23 @@ func (f *fixture) starts(t *testing.T, row gen.Run) {
 	})
 	f.store.EXPECT().CreateTickers(gomock.Any(), gomock.Any())
 	f.store.EXPECT().ListTickers(gomock.Any(), gen.ListTickersParams{Markets: []string{"US"}, Values: []string{"ACME"}}).Return([]gen.Ticker{acmeRow}, nil)
+	f.tx()
+	f.locks()
+}
+
+// tx runs one transaction in the caller.
+func (f *fixture) tx() {
 	f.store.EXPECT().Tx(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, fn func(Queries) error) error {
 		return fn(f.store)
 	})
+}
+
+// locks expects the transaction to lock the ticker's row and rebuild its
+// names once.
+func (f *fixture) locks() {
+	ids := []uuid.UUID{acmeRow.ID}
+	f.store.EXPECT().LockTickers(gomock.Any(), ids).Return(ids, nil)
+	f.names.EXPECT().Rebuild(gomock.Any(), f.store, ids)
 }
 
 func assertion(row gen.Run, instr *uuid.UUID, on time.Time) gen.CreateIdentifierAttestationParams {
@@ -178,6 +193,7 @@ func TestWithdrawRefused(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newFixture(t)
 			id := db.NewID()
+			f.tx()
 			f.store.EXPECT().GetIdentifierAssertion(gomock.Any(), id).Return(tc.row, tc.err)
 			if err := f.svc.Withdraw(context.Background(), id); !errors.Is(err, tc.wantErr) {
 				t.Errorf("Withdraw() error = %v, want %v", err, tc.wantErr)
@@ -186,8 +202,9 @@ func TestWithdrawRefused(t *testing.T) {
 	}
 }
 
-// TestWithdraw checks that a withdrawal deletes the assertion and replays its
-// ticker at the market, beneath the run that wrote it.
+// TestWithdraw checks that a withdrawal deletes the assertion, rebuilds the
+// names of its ticker, and replays its ticker at the market, beneath the run
+// that wrote it.
 func TestWithdraw(t *testing.T) {
 	f := newFixture(t)
 	id := db.NewID()
@@ -196,8 +213,10 @@ func TestWithdraw(t *testing.T) {
 		IdentifierAssertion: gen.IdentifierAssertion{ID: id, RunID: &row.ID, TickerID: acmeRow.ID, Market: "US"},
 		Value:               "ACME",
 	}
+	f.tx()
 	f.store.EXPECT().GetIdentifierAssertion(gomock.Any(), id).Return(a, nil)
 	f.store.EXPECT().GetRunByID(gomock.Any(), row.ID).Return(row, nil)
+	f.locks()
 	f.store.EXPECT().DeleteAttestedAssertion(gomock.Any(), id).Return(int64(1), nil)
 	f.facts.EXPECT().AfterIdentifierFacts(gomock.Any(), row, []resolve.WrittenIdentifierFacts{{Run: row, Tickers: []types.MarketTicker{acmeUS}}})
 	if err := f.svc.Withdraw(context.Background(), id); err != nil {

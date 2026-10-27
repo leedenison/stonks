@@ -188,7 +188,7 @@ func run() (err error) {
 	refreshes := refreshcorpacts.NewStarter(queries, runs, freshRecorder, mics, time.Now, logger.WithCategory(log, "internal/run/refreshcorpacts"))
 	ingester := stmt.New(db.New[stmt.Queries](pool), runs, resolver, replays, corpActs, families, time.Now, logger.WithCategory(log, "internal/stmt"))
 	datasources := admindatasource.New(queries, sources, datasource.New(db.New[datasource.Queries](pool), sources, cache))
-	srv, err := newServer(cfg.ListenAddr, log, authn, queries, holdingsvc.New(queries, families, scales, mics), adminrun.New(queries), adminblock.New(queries), datasources, admininstr.New(queries), adminreplayrun.New(queries, replays), adminreasserttickers.New(reassertions), adminrefreshcorpacts.New(refreshes), admincoverage.New(coverage.New(queries, mics), attestidentifier.New(db.New[attestidentifier.Queries](pool), runs, replays, mics, time.Now), time.Now), ingester, mics, cfg.CookieSecure)
+	srv, err := newServer(cfg.ListenAddr, log, authn, queries, holdingsvc.New(queries, families, scales, mics), adminrun.New(queries), adminblock.New(queries), datasources, admininstr.New(queries), adminreplayrun.New(queries, replays), adminreasserttickers.New(reassertions), adminrefreshcorpacts.New(refreshes), admincoverage.New(coverage.New(queries, mics), attestidentifier.New(db.New[attestidentifier.Queries](pool), runs, replays, attestidentifier.Names{}, mics, time.Now), time.Now), ingester, mics, cfg.CookieSecure)
 	if err != nil {
 		return err
 	}

@@ -26,10 +26,12 @@ type writeTarget struct {
 // findWriteTarget decides which instrument in the database a key takes: the
 // instrument identified by the key's identifiers and by the claims that share
 // a stable identifier with the winner. When it finds none, the write creates
-// one. If the identifiers identify several instruments, findWriteTarget
-// merges them. A claim joined through the ticker alone does not choose the
-// instrument; see dropHeld.
-func findWriteTarget(ctx context.Context, q Queries, res *resolution, verdict claimVerdict) (writeTarget, error) {
+// one. If the identifiers identify several instruments that can be one,
+// findWriteTarget returns them for the write to merge, earliest created
+// first, and an empty target. Where mergeConflict finds they cannot be one,
+// it returns the target that refuse keeps. A claim joined through the ticker
+// alone does not choose the instrument; see dropHeld.
+func findWriteTarget(ctx context.Context, q Queries, res *resolution, verdict claimVerdict) (writeTarget, []instrMatch, error) {
 	ids := lookupIDs(res.globalAndDescriptionIDs)
 	for _, c := range verdict.attached {
 		if c != verdict.winner && !c.sharesStable(verdict.winner) {
@@ -43,19 +45,27 @@ func findWriteTarget(ctx context.Context, q Queries, res *resolution, verdict cl
 	}
 	matches, err := findInstrsByIdentifier(ctx, q, ids)
 	if err != nil {
-		return writeTarget{}, err
+		return writeTarget{}, nil, err
 	}
 	switch len(matches) {
 	case 0:
-		return writeTarget{}, nil
+		return writeTarget{}, nil, nil
 	case 1:
-		return writeTarget{instr: matches[0].instr}, nil
+		return writeTarget{instr: matches[0].instr}, nil, nil
 	}
-	var fetchKeyID *uuid.UUID
+	if detail, ok := mergeConflict(matches); ok {
+		return refuse(res, winnerKey(verdict), matches, detail), nil, nil
+	}
+	return writeTarget{}, matches, nil
+}
+
+// winnerKey returns the id of the fetch key whose response made the
+// verdict's winner, nil where the winner has none.
+func winnerKey(verdict claimVerdict) *uuid.UUID {
 	if verdict.winner != nil && verdict.winner.fetchKey != nil {
-		fetchKeyID = &verdict.winner.fetchKey.ID
+		return &verdict.winner.fetchKey.ID
 	}
-	return merge(ctx, q, res, fetchKeyID, matches)
+	return nil
 }
 
 // dropHeld keeps the write from merging two instruments through a ticker.

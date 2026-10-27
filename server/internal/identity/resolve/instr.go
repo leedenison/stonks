@@ -7,6 +7,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/leedenison/stonks/server/internal/currency"
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/join"
@@ -21,8 +22,10 @@ type resolution struct {
 	row gen.StatedKey
 	// globalAndDescriptionIDs caches globalAndDescriptionIDs of row.
 	globalAndDescriptionIDs []types.Identifier
-	// family is the family of the currency the key states.
+	// family is the family of the currency the key states, and families
+	// gives the family of each currency an answer states.
 	family     string
+	families   currency.Families
 	knownInstr *join.InstrWithCoverage
 	// mics maps the venue of each ticker to its market.
 	mics      mic.MICMap

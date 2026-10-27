@@ -18,20 +18,15 @@ import (
 
 // merge folds every later created instrument of matches into the earliest,
 // which is returned reloaded, with a merged finding per instrument. matches is
-// sorted earliest created first. fetchKeyID names the fetch key whose
-// response brought the instruments together.
-//
-// Where mergeConflict finds the instruments cannot be one, nothing merges: the
-// instrument the strongest stated identifier identifies is returned with a
-// contradiction finding.
+// sorted earliest created first, and mergeConflict has found that they can be
+// one. fetchKeyID names the fetch key whose response brought the instruments
+// together. The caller holds the tickers of every assertion that names a
+// later instrument, since the fold moves those assertions.
 //
 // The merge relinks another user's keys without holding that user's key
 // lock. That user's concurrent write may therefore see an instrument the
 // merge has since folded.
-func merge(ctx context.Context, q Queries, res *resolution, fetchKeyID *uuid.UUID, matches []instrMatch) (writeTarget, error) {
-	if detail, ok := mergeConflict(matches); ok {
-		return refuse(res, fetchKeyID, matches, detail), nil
-	}
+func merge(ctx context.Context, q Queries, fetchKeyID *uuid.UUID, matches []instrMatch) (writeTarget, error) {
 	survivor := matches[0].instr
 	if err := q.DeferConstraints(ctx); err != nil {
 		return writeTarget{}, fmt.Errorf("defer constraints: %w", err)

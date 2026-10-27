@@ -6,10 +6,11 @@
 // without them is attested ticker by ticker. How an attested assertion
 // ranks against a datasource's is in
 // [tickervalidity.go](../tickervalidity/tickervalidity.go). Writing or
-// withdrawing an identifier attestation replays the unresolved keys that state
-// the ticker beneath the attest identifier run, and fetches the corporate
-// actions of the held instruments that the ticker names. A dated key picks up
-// the change when it is next read.
+// withdrawing an identifier attestation rebuilds the names of the ticker in
+// the same transaction. It then replays the unresolved keys that state the
+// ticker beneath the attest identifier run, and fetches the corporate actions
+// of the held instruments that the ticker names. A dated key picks up the
+// change when it is next read.
 package attestidentifier
 
 import (
@@ -45,13 +46,14 @@ type Service struct {
 	store Store
 	runs  Runner
 	facts Facts
+	names Rebuilder
 	mics  mic.MICMap
 	clock func() time.Time
 }
 
 // New returns a Service.
-func New(store Store, runs Runner, facts Facts, mics mic.MICMap, clock func() time.Time) *Service {
-	return &Service{store: store, runs: runs, facts: facts, mics: mics, clock: clock}
+func New(store Store, runs Runner, facts Facts, names Rebuilder, mics mic.MICMap, clock func() time.Time) *Service {
+	return &Service{store: store, runs: runs, facts: facts, names: names, mics: mics, clock: clock}
 }
 
 // Start asserts that v names instrument, or nothing where instrument is nil, on
@@ -89,13 +91,17 @@ func (s *Service) Start(ctx context.Context, admin uuid.UUID, v types.MarketTick
 			if err != nil {
 				return err
 			}
+			ids := []uuid.UUID{rows[v].ID}
 			return s.store.Tx(ctx, func(q Queries) error {
+				if err := tickers.Lock(ctx, q, ids); err != nil {
+					return err
+				}
 				for _, d := range days {
 					if err := tickervalidity.Attest(ctx, q, s.mics, row, admin, rows[v], instr, d, today); err != nil {
 						return err
 					}
 				}
-				return nil
+				return s.names.Rebuild(ctx, q, ids)
 			})
 		},
 	}
@@ -105,27 +111,39 @@ func (s *Service) Start(ctx context.Context, admin uuid.UUID, v types.MarketTick
 	})
 }
 
-// Withdraw deletes the attested assertion id and replays the unresolved keys
-// that state its ticker beneath the run that wrote it, before it returns. A
-// datasource's assertion is refused with ErrNotAttested.
+// Withdraw deletes the attested assertion id and rebuilds the names of its
+// ticker in one transaction. It then replays the unresolved keys that state
+// its ticker beneath the run that wrote it, before it returns. A datasource's
+// assertion is refused with ErrNotAttested.
 func (s *Service) Withdraw(ctx context.Context, id uuid.UUID) error {
-	a, err := s.store.GetIdentifierAssertion(ctx, id)
+	var a gen.GetIdentifierAssertionRow
+	var row gen.Run
+	err := s.store.Tx(ctx, func(q Queries) error {
+		var err error
+		if a, err = q.GetIdentifierAssertion(ctx, id); err != nil {
+			return fmt.Errorf("get assertion %s: %w", id, err)
+		}
+		if a.IdentifierAssertion.RunID == nil {
+			return fmt.Errorf("assertion %s: %w", id, ErrNotAttested)
+		}
+		if row, err = q.GetRunByID(ctx, *a.IdentifierAssertion.RunID); err != nil {
+			return fmt.Errorf("get run %s: %w", a.IdentifierAssertion.RunID, err)
+		}
+		ids := []uuid.UUID{a.IdentifierAssertion.TickerID}
+		if err := tickers.Lock(ctx, q, ids); err != nil {
+			return err
+		}
+		n, err := q.DeleteAttestedAssertion(ctx, id)
+		if err != nil {
+			return fmt.Errorf("delete assertion %s: %w", id, err)
+		}
+		if n == 0 {
+			return fmt.Errorf("assertion %s: %w", id, db.ErrNotFound)
+		}
+		return s.names.Rebuild(ctx, q, ids)
+	})
 	if err != nil {
-		return fmt.Errorf("get assertion %s: %w", id, err)
-	}
-	if a.IdentifierAssertion.RunID == nil {
-		return fmt.Errorf("assertion %s: %w", id, ErrNotAttested)
-	}
-	row, err := s.store.GetRunByID(ctx, *a.IdentifierAssertion.RunID)
-	if err != nil {
-		return fmt.Errorf("get run %s: %w", a.IdentifierAssertion.RunID, err)
-	}
-	n, err := s.store.DeleteAttestedAssertion(ctx, id)
-	if err != nil {
-		return fmt.Errorf("delete assertion %s: %w", id, err)
-	}
-	if n == 0 {
-		return fmt.Errorf("assertion %s: %w", id, db.ErrNotFound)
+		return err
 	}
 	v := types.MarketTicker{Market: a.IdentifierAssertion.Market, Value: a.Value}
 	s.facts.AfterIdentifierFacts(ctx, row, []resolve.WrittenIdentifierFacts{{Run: row, Tickers: []types.MarketTicker{v}}})

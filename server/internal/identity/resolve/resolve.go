@@ -39,10 +39,12 @@
 // Extending ticker validity carries the ticker validity of each held ticker to
 // the present; see ReassertTickers. It asks the datasources again whatever
 // identity coverage the instrument has. An identity answer to it writes only
-// the ticker's assertion, and leaves the identifiers, the listings and the
-// coverage to a resolution. A held ticker matches a listing at any venue of its
-// market, and keys held at venues of one market are asked about once, so a
-// listing that moved between venues keeps its validity. A resolution never
+// the ticker's assertion, with the venue and currency of the listing that
+// states the ticker, and rebuilds the ticker's names. It leaves the
+// identifiers, the listings and the coverage to a resolution. A held ticker
+// matches a listing at any venue of its market, and keys held at venues of
+// one market are asked about once, so a listing that moved between venues
+// keeps its validity. A resolution never
 // extends ticker validity, because the database decides a key whose ticker it
 // knows before any identity fetch.
 //
@@ -136,7 +138,7 @@ func (r *Resolver) prepare(ctx context.Context, run gen.Run, keys []KeyDates, da
 	}
 	b := &batch{resolutions: make([]*resolution, len(keys))}
 	for i, k := range keys {
-		res := &resolution{row: k.Row, family: keyFamily(r.families, k.Row), mics: r.mics}
+		res := &resolution{row: k.Row, family: keyFamily(r.families, k.Row), families: r.families, mics: r.mics}
 		res.globalAndDescriptionIDs = globalAndDescriptionIDs(k.Row)
 		b.resolutions[i] = res
 	}
