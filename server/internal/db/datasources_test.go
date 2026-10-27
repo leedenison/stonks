@@ -33,12 +33,12 @@ func newDatasource(t *testing.T, q *gen.Queries, prefix string, precedence int32
 	return row
 }
 
-// newFetch records a fetch run under parent and its fetches row.
+// newFetch records a datasource fetch run under parent and its fetches row.
 func newFetch(t *testing.T, q *gen.Queries, user gen.User, parent gen.Run, ds gen.Datasource) gen.Fetch {
 	t.Helper()
 	ctx := context.Background()
 	run, err := q.CreateRun(ctx, gen.CreateRunParams{
-		ID: db.NewID(), UserID: &user.ID, Kind: gen.RunKindFetch,
+		ID: db.NewID(), UserID: &user.ID, Kind: gen.RunKindDatasourceFetch,
 		Trigger: gen.RunTriggerRun, ParentID: &parent.ID,
 	})
 	require.NoError(t, err)
@@ -212,13 +212,13 @@ func TestFetches(t *testing.T) {
 		}},
 		{name: "fetch on another user's run", want: pgerrcode.ForeignKeyViolation, do: func(q *gen.Queries, user, other gen.User) error {
 			ds := newDatasource(t, q, "cross-user", 10)
-			run, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &user.ID, Kind: gen.RunKindFetch, Trigger: gen.RunTriggerUser})
+			run, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &user.ID, Kind: gen.RunKindDatasourceFetch, Trigger: gen.RunTriggerUser})
 			require.NoError(t, err)
 			_, err = q.CreateFetch(ctx, gen.CreateFetchParams{ID: run.ID, UserID: &other.ID, Datasource: ds.Name, Kind: gen.FetchKindIdentity})
 			return err
 		}},
 		{name: "fetch of an unknown datasource", want: pgerrcode.ForeignKeyViolation, do: func(q *gen.Queries, user, _ gen.User) error {
-			run, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &user.ID, Kind: gen.RunKindFetch, Trigger: gen.RunTriggerUser})
+			run, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &user.ID, Kind: gen.RunKindDatasourceFetch, Trigger: gen.RunTriggerUser})
 			require.NoError(t, err)
 			_, err = q.CreateFetch(ctx, gen.CreateFetchParams{ID: run.ID, UserID: &user.ID, Datasource: "absent", Kind: gen.FetchKindIdentity})
 			return err
@@ -345,8 +345,8 @@ func TestFetchKeys(t *testing.T) {
 }
 
 // TestDatasourceBlocks checks one open block per scope, each reported by a
-// finding of the fetch run, and that clearing one clears its finding and
-// admits the next.
+// finding of the datasource fetch run, and that clearing one clears its finding
+// and admits the next.
 func TestDatasourceBlocks(t *testing.T) {
 	ctx := context.Background()
 	q := newTx(t)

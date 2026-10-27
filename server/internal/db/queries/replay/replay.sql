@@ -1,8 +1,8 @@
 -- name: ListUnavailableKeys :many
--- The source run is a statement run, which supplies the keys its statement
--- states, or a resolution run, which supplies the keys it resolved. Run ids
--- order by creation, so the latest resolution of a key is its row with the
--- greatest run id.
+-- The source run is an ingest statement run, which supplies the keys its
+-- statement states, or a resolve statement keys run, which supplies the keys it
+-- resolved. Run ids order by creation, so the latest resolution of a key is its
+-- row with the greatest run id.
 SELECT sqlc.embed(stated_keys)
 FROM stated_keys
 JOIN LATERAL (

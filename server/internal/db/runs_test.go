@@ -45,7 +45,7 @@ func TestRuns(t *testing.T) {
 		return row
 	}
 
-	pending := create(gen.RunKindStatement, nil)
+	pending := create(gen.RunKindIngestStmt, nil)
 	if pending.State != gen.RunStatePending || pending.StartedAt != nil || pending.FinishedAt != nil {
 		t.Errorf("CreateRun = %+v, want pending with no started_at or finished_at", pending)
 	}
@@ -60,7 +60,7 @@ func TestRuns(t *testing.T) {
 		t.Errorf("CompleteRun and FailRun on a pending run left %+v, want it pending", got)
 	}
 
-	running := create(gen.RunKindStatement, nil)
+	running := create(gen.RunKindIngestStmt, nil)
 	started, err := q.StartRun(ctx, running.ID)
 	require.NoError(t, err)
 	if started.State != gen.RunStateRunning || started.StartedAt == nil {
@@ -70,7 +70,7 @@ func TestRuns(t *testing.T) {
 		t.Errorf("StartRun on a running run: err = %v, want ErrNotFound", err)
 	}
 
-	completed := create(gen.RunKindStatement, nil)
+	completed := create(gen.RunKindIngestStmt, nil)
 	_, err = q.StartRun(ctx, completed.ID)
 	require.NoError(t, err)
 	require.NoError(t, q.CompleteRun(ctx, completed.ID))
@@ -78,7 +78,7 @@ func TestRuns(t *testing.T) {
 		t.Errorf("CompleteRun left %+v, want completed with finished_at", got)
 	}
 
-	failed := create(gen.RunKindResolution, &completed)
+	failed := create(gen.RunKindResolveStmtKeys, &completed)
 	_, err = q.StartRun(ctx, failed.ID)
 	require.NoError(t, err)
 	require.NoError(t, q.FailRun(ctx, gen.FailRunParams{ID: failed.ID, Error: "boom"}))
@@ -104,7 +104,7 @@ func TestRuns(t *testing.T) {
 
 	// The check constraint refuses a parent on a user's run, and aborts the
 	// transaction, so it is the last statement.
-	_, err = q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &owner.ID, Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser, ParentID: &completed.ID})
+	_, err = q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &owner.ID, Kind: gen.RunKindIngestStmt, Trigger: gen.RunTriggerUser, ParentID: &completed.ID})
 	if err == nil {
 		t.Error("CreateRun with trigger user and a parent succeeded, want a check violation")
 	}
@@ -118,7 +118,7 @@ func TestRunParent(t *testing.T) {
 	other := newUser(t, q, "parent-other@example.com")
 	parent := newRun(t, q, owner)
 	// The violation aborts the transaction, so it is the last statement.
-	_, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &other.ID, Kind: gen.RunKindResolution, Trigger: gen.RunTriggerRun, ParentID: &parent.ID})
+	_, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &other.ID, Kind: gen.RunKindResolveStmtKeys, Trigger: gen.RunTriggerRun, ParentID: &parent.ID})
 	if !sqlstate(err, pgerrcode.ForeignKeyViolation) {
 		t.Errorf("CreateRun under another user's run: err = %v, want a foreign key violation", err)
 	}
@@ -142,13 +142,13 @@ func TestSystemRuns(t *testing.T) {
 		require.NoError(t, err)
 		return row
 	}
-	system := create(nil, gen.RunKindAttestation, nil)
+	system := create(nil, gen.RunKindAttestIdentifier, nil)
 	if system.UserID != nil {
 		t.Errorf("CreateRun with no user: UserID = %v, want nil", system.UserID)
 	}
-	create(nil, gen.RunKindFetch, &system)
-	create(nil, gen.RunKindFetch, &userRun)
-	create(&owner.ID, gen.RunKindReplay, &system)
+	create(nil, gen.RunKindDatasourceFetch, &system)
+	create(nil, gen.RunKindDatasourceFetch, &userRun)
+	create(&owner.ID, gen.RunKindReplayRun, &system)
 }
 
 // TestSystemFetch checks that a fetch and its keys may belong to a system run,
@@ -157,7 +157,7 @@ func TestSystemFetch(t *testing.T) {
 	q := newTx(t)
 	ctx := context.Background()
 	f := newFetching(t, q)
-	system, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), Kind: gen.RunKindFetch, Trigger: gen.RunTriggerAdministrator})
+	system, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), Kind: gen.RunKindDatasourceFetch, Trigger: gen.RunTriggerAdministrator})
 	require.NoError(t, err)
 	fetch, err := q.CreateFetch(ctx, gen.CreateFetchParams{ID: system.ID, Datasource: f.fetch.Datasource, Endpoint: "https://example.com", Kind: gen.FetchKindIdentity})
 	require.NoError(t, err)

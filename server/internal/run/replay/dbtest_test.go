@@ -140,7 +140,7 @@ func (s *stack) children(t *testing.T, parent gen.Run) []gen.Run {
 func (s *stack) resolution(t *testing.T, parent gen.Run) (gen.Run, []gen.ListResolutionItemsRow) {
 	t.Helper()
 	children := s.children(t, parent)
-	if len(children) != 1 || children[0].Kind != gen.RunKindResolution {
+	if len(children) != 1 || children[0].Kind != gen.RunKindResolveStmtKeys {
 		t.Fatalf("children of %s = %+v, want one resolution", parent.ID, children)
 	}
 	items, err := s.q.ListResolutionItems(context.Background(), gen.ListResolutionItemsParams{RunID: children[0].ID})
@@ -203,7 +203,7 @@ func TestReplay(t *testing.T) {
 	row, err := s.svc.Start(ctx, s.admin.ID, statement, Scope{})
 	require.NoError(t, err)
 	replayed := s.run(t, row.ID)
-	if replayed.Kind != gen.RunKindReplay || replayed.Trigger != gen.RunTriggerAdministrator || replayed.State != gen.RunStateCompleted {
+	if replayed.Kind != gen.RunKindReplayRun || replayed.Trigger != gen.RunTriggerAdministrator || replayed.State != gen.RunStateCompleted {
 		t.Errorf("replay run = %+v, want a completed replay started by an administrator", replayed)
 	}
 	rep, err := s.q.GetReplay(ctx, row.ID)
@@ -215,7 +215,7 @@ func TestReplay(t *testing.T) {
 	if len(items) != 1 || outcomeOf(items, key) != gen.ResolutionOutcomeMatched {
 		t.Errorf("replay items = %+v, want the stock key matched and nothing else", items)
 	}
-	if fetches := s.children(t, resolution); len(fetches) != 1 || fetches[0].Kind != gen.RunKindFetch {
+	if fetches := s.children(t, resolution); len(fetches) != 1 || fetches[0].Kind != gen.RunKindDatasourceFetch {
 		t.Errorf("fetches of the replay = %+v, want one", fetches)
 	}
 	key = s.acme(t, statement)
@@ -243,7 +243,7 @@ func TestReplay(t *testing.T) {
 	s.beta.Responses[isin] = answer
 	fetches := s.children(t, resolution)
 	if _, err := s.svc.Start(ctx, s.admin.ID, fetches[0], Scope{Datasource: s.betaName}); !errors.Is(err, ErrKind) {
-		t.Errorf("replay of a fetch run: err = %v, want %v", err, ErrKind)
+		t.Errorf("replay of a datasource fetch run: err = %v, want %v", err, ErrKind)
 	}
 	if _, err := s.svc.Start(ctx, s.admin.ID, statement, Scope{Datasource: "gamma"}); !errors.Is(err, ErrDisabled) {
 		t.Errorf("replay over gamma: err = %v, want %v", err, ErrDisabled)
@@ -275,9 +275,9 @@ func TestReplay(t *testing.T) {
 }
 
 // stateTicker ingests a statement of user over month of 2026, with one stock
-// row whose key states ticker alone, and returns the statement run and the
-// key. A statement replaces the user's transactions over its period, so each
-// of a user's statements takes a month of its own.
+// row whose key states ticker alone, and returns the ingest statement run and
+// the key. A statement replaces the user's transactions over its period, so
+// each of a user's statements takes a month of its own.
 func (s *stack) stateTicker(t *testing.T, user gen.User, month time.Month, ticker types.Identifier) (gen.Run, gen.StatedKey) {
 	t.Helper()
 	ctx := context.Background()
@@ -309,7 +309,7 @@ func (s *stack) replays(t *testing.T, parent gen.Run) map[uuid.UUID][]uuid.UUID 
 	require.NoError(t, err)
 	out := map[uuid.UUID][]uuid.UUID{}
 	for _, r := range rows {
-		if r.Run.Kind != gen.RunKindResolution {
+		if r.Run.Kind != gen.RunKindResolveStmtKeys {
 			continue
 		}
 		items, err := s.q.ListResolutionItems(ctx, gen.ListResolutionItemsParams{RunID: r.Run.ID})
@@ -322,12 +322,12 @@ func (s *stack) replays(t *testing.T, parent gen.Run) map[uuid.UUID][]uuid.UUID 
 }
 
 // TestAfterIdentifierFacts checks that a fact written beneath a user's
-// fetch run replays that user's unresolved key beneath the fetch run, and
-// another user's beneath one system child of it, whatever venue of the
-// ticker's market the key states. A fact of a market written beneath a
-// system run replays each user's keys stating a ticker of the market, at any
-// of its venues, directly beneath that run. A key stating a ticker of
-// another market and the keys the excepted run resolved are left out.
+// datasource fetch run replays that user's unresolved key beneath the
+// datasource fetch run, and another user's beneath one system child of it,
+// whatever venue of the ticker's market the key states. A fact of a market
+// written beneath a system run replays each user's keys stating a ticker of the
+// market, at any of its venues, directly beneath that run. A key stating a
+// ticker of another market and the keys the excepted run resolved are left out.
 func TestAfterIdentifierFacts(t *testing.T) {
 	s := newStack(t)
 	ctx := context.Background()
@@ -340,9 +340,9 @@ func TestAfterIdentifierFacts(t *testing.T) {
 	_, across := s.stateTicker(t, other, time.March, types.Identifier{Type: ticker.Type, Domain: "XNYS", Value: ticker.Value})
 	_, elsewhere := s.stateTicker(t, other, time.April, types.Identifier{Type: ticker.Type, Domain: "XLON", Value: ticker.Value})
 
-	parent, err := s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &s.user.ID, Kind: gen.RunKindResolution, Trigger: gen.RunTriggerUser})
+	parent, err := s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &s.user.ID, Kind: gen.RunKindResolveStmtKeys, Trigger: gen.RunTriggerUser})
 	require.NoError(t, err)
-	fetch, err := s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &s.user.ID, Kind: gen.RunKindFetch, Trigger: gen.RunTriggerRun, ParentID: &parent.ID})
+	fetch, err := s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &s.user.ID, Kind: gen.RunKindDatasourceFetch, Trigger: gen.RunTriggerRun, ParentID: &parent.ID})
 	require.NoError(t, err)
 	written := []resolve.WrittenIdentifierFacts{{Run: fetch, Tickers: []types.MarketTicker{{Market: "US", Value: ticker.Value}}}}
 	s.svc.AfterIdentifierFacts(ctx, gen.Run{ID: db.NewID()}, written)
@@ -352,7 +352,7 @@ func TestAfterIdentifierFacts(t *testing.T) {
 	var own, system *gen.Run
 	for _, r := range tree {
 		switch {
-		case r.Run.Kind != gen.RunKindReplay || *r.Run.ParentID != fetch.ID:
+		case r.Run.Kind != gen.RunKindReplayRun || *r.Run.ParentID != fetch.ID:
 		case r.Run.UserID == nil:
 			system = &r.Run
 		case *r.Run.UserID == s.user.ID:
@@ -381,7 +381,7 @@ func TestAfterIdentifierFacts(t *testing.T) {
 		t.Errorf("the other user's replay = %+v, want it beneath the system run %s", other2, system.ID)
 	}
 
-	attestation, err := s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), Kind: gen.RunKindAttestation, Trigger: gen.RunTriggerAdministrator})
+	attestation, err := s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), Kind: gen.RunKindAttestIdentifier, Trigger: gen.RunTriggerAdministrator})
 	require.NoError(t, err)
 	except, _ := s.resolution(t, stated)
 	written = []resolve.WrittenIdentifierFacts{{Run: attestation, Markets: []string{"US"}}}
@@ -428,9 +428,9 @@ func TestReplayChain(t *testing.T) {
 		{Class: types.AssetClassStock, Currency: "USD", Primary: "XNAS", Identifiers: []types.Identifier{share, ticker}},
 	}}
 
-	parent, err := s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &s.user.ID, Kind: gen.RunKindResolution, Trigger: gen.RunTriggerUser})
+	parent, err := s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &s.user.ID, Kind: gen.RunKindResolveStmtKeys, Trigger: gen.RunTriggerUser})
 	require.NoError(t, err)
-	fetch, err := s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &s.user.ID, Kind: gen.RunKindFetch, Trigger: gen.RunTriggerRun, ParentID: &parent.ID})
+	fetch, err := s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &s.user.ID, Kind: gen.RunKindDatasourceFetch, Trigger: gen.RunTriggerRun, ParentID: &parent.ID})
 	require.NoError(t, err)
 	written := []resolve.WrittenIdentifierFacts{{Run: fetch, Tickers: []types.MarketTicker{{Market: "US", Value: ticker.Value}}}}
 	s.svc.AfterIdentifierFacts(ctx, gen.Run{ID: db.NewID()}, written)
@@ -449,7 +449,7 @@ func TestReplayChain(t *testing.T) {
 	require.NoError(t, err)
 	var own *gen.Run
 	for _, r := range tree {
-		if r.Run.Kind == gen.RunKindReplay && r.Run.UserID != nil && *r.Run.UserID == s.user.ID {
+		if r.Run.Kind == gen.RunKindReplayRun && r.Run.UserID != nil && *r.Run.UserID == s.user.ID {
 			own = &r.Run
 		}
 	}
@@ -458,7 +458,7 @@ func TestReplayChain(t *testing.T) {
 	require.NoError(t, err)
 	chained := false
 	for _, r := range below {
-		chained = chained || (r.Run.Kind == gen.RunKindReplay && r.Run.UserID != nil && *r.Run.UserID == other.ID)
+		chained = chained || (r.Run.Kind == gen.RunKindReplayRun && r.Run.UserID != nil && *r.Run.UserID == other.ID)
 	}
 	if !chained {
 		t.Errorf("runs beneath the user's replay = %+v, want the other user's replay that its facts started", below)

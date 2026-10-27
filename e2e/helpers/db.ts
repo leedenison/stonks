@@ -66,15 +66,14 @@ export async function deleteDatasource(name: string): Promise<void> {
   await db().query("DELETE FROM datasources WHERE name = $1", [name]);
 }
 
-// deleteUsers removes users this suite created and everything their runs
-// wrote, as one transaction. The schema cascades from a user to their rows.
-// Instruments, listings and identifiers are the system's and are never
-// deleted by the suite; those the users' fetches created lose their
-// provenance and stand as reference data to later specs. An administrator's
-// replay of another user's run names both, so it goes before either user.
-// An administrator's attestation run is a system run that names them, so it
-// goes with its assertions before the administrator. The API offers no way
-// to delete a user.
+// deleteUsers removes users this suite created and everything their runs wrote,
+// as one transaction. The schema cascades from a user to their rows.
+// Instruments, listings and identifiers are the system's and are never deleted
+// by the suite; those the users' fetches created lose their provenance and
+// stand as reference data to later specs. An administrator's replay of another
+// user's run names both, so it goes before either user. An administrator's
+// attest identifier run is a system run that names them, so it goes with its
+// assertions before the administrator. The API offers no way to delete a user.
 export async function deleteUsers(ids: string[]): Promise<void> {
   const client = await db().connect();
   const keys = "SELECT id FROM fetch_keys WHERE user_id = ANY($1)";

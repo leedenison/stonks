@@ -27,10 +27,10 @@ func names(t *testing.T, q *gen.Queries, statement gen.Statement, key gen.Stated
 	require.NoError(t, err)
 }
 
-// newResolution records a resolution run under statement.
+// newResolution records a resolve statement keys run under statement.
 func newResolution(t *testing.T, q *gen.Queries, user gen.User, statement gen.Statement) gen.Run {
 	t.Helper()
-	row, err := q.CreateRun(context.Background(), gen.CreateRunParams{ID: db.NewID(), UserID: &user.ID, Kind: gen.RunKindResolution, Trigger: gen.RunTriggerRun, ParentID: &statement.ID})
+	row, err := q.CreateRun(context.Background(), gen.CreateRunParams{ID: db.NewID(), UserID: &user.ID, Kind: gen.RunKindResolveStmtKeys, Trigger: gen.RunTriggerRun, ParentID: &statement.ID})
 	require.NoError(t, err)
 	return row
 }
@@ -187,7 +187,7 @@ func TestReplays(t *testing.T) {
 	admin := newUser(t, q, "replayer@example.com")
 	statement := newStatement(t, q, user)
 	ds := newDatasource(t, q, "alpha", 10)
-	run, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &user.ID, Kind: gen.RunKindReplay, Trigger: gen.RunTriggerAdministrator})
+	run, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &user.ID, Kind: gen.RunKindReplayRun, Trigger: gen.RunTriggerAdministrator})
 	require.NoError(t, err)
 	require.NoError(t, q.CreateReplay(ctx, gen.CreateReplayParams{ID: run.ID, UserID: user.ID, SourceID: statement.ID, Datasource: &ds.Name, StartedBy: admin.ID}))
 	got, err := q.GetReplay(ctx, run.ID)
@@ -198,7 +198,7 @@ func TestReplays(t *testing.T) {
 
 	other := newUser(t, q, "other@example.com")
 	foreign := newStatement(t, q, other)
-	run, err = q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &user.ID, Kind: gen.RunKindReplay, Trigger: gen.RunTriggerAdministrator})
+	run, err = q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &user.ID, Kind: gen.RunKindReplayRun, Trigger: gen.RunTriggerAdministrator})
 	require.NoError(t, err)
 	if err := q.CreateReplay(ctx, gen.CreateReplayParams{ID: run.ID, UserID: user.ID, SourceID: foreign.ID, StartedBy: admin.ID}); err == nil {
 		t.Error("CreateReplay over another user's run: err = nil, want a constraint violation")

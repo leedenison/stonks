@@ -24,14 +24,14 @@ import { ReplayDialog } from "./replay-dialog";
 
 const statement = userRun({
   id: "r1",
-  kind: RunKind.STATEMENT,
+  kind: RunKind.INGEST_STMT,
   trigger: RunTrigger.USER,
   createdAt: instant("2026-09-24T10:00:00Z"),
 });
 
 const started = create(RunSchema, {
   id: "x1",
-  kind: RunKind.REPLAY,
+  kind: RunKind.REPLAY_RUN,
   trigger: RunTrigger.ADMINISTRATOR,
   state: RunState.PENDING,
 });
@@ -62,7 +62,7 @@ describe("ReplayDialog", () => {
       serving(startReplay),
     );
     expect(screen.getByTestId("replay-dialog").textContent).toContain(
-      "statement run @ 2026-09-24 10:00 UTC for one@example.com",
+      "ingest statement @ 2026-09-24 10:00 UTC for one@example.com",
     );
     fireEvent.click(screen.getByTestId("replay-start"));
     await waitFor(() => expect(onStarted).toHaveBeenCalledWith(started));

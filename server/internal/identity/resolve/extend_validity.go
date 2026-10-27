@@ -38,17 +38,17 @@ type heldAnswer struct {
 	fk fetchKey
 }
 
-// ExtendValidity is the body of an extend validity run. It asks each enabled
+// ExtendValidity is the body of a reassert tickers run. It asks each enabled
 // datasource once about each held ticker that ListHeldTickers lists, and the
 // fetcher it is given skips the cache. It asks a datasource that serves
 // identifier events for the history of the instrument the ticker names, and
 // any other datasource for the ticker's identity. It writes the facts the
 // answers make and the findings they complete. It returns, for each fetch
 // run in precedence order, the identifiers whose facts it wrote. It returns
-// an error for a run other than a system extend validity run.
+// an error for a run other than a system reassert tickers run.
 func (r *Resolver) ExtendValidity(ctx context.Context, run gen.Run, held []gen.ListHeldTickersRow) ([]WrittenIdentifierFacts, error) {
-	if run.Kind != gen.RunKindExtendValidity || run.UserID != nil {
-		return nil, fmt.Errorf("run %s is not a system extend validity run", run.ID)
+	if run.Kind != gen.RunKindReassertTickers || run.UserID != nil {
+		return nil, fmt.Errorf("run %s is not a system reassert tickers run", run.ID)
 	}
 	ts, err := r.readHeld(ctx, held)
 	if err != nil {
@@ -233,7 +233,7 @@ func historyRequest(e *market.Entry, t *heldTicker, now time.Time) (market.Ident
 // some non-US rows, which come back without an ISIN. Extending validity never
 // creates an instrument. A resolution may have dropped the answer. The held
 // instrument then lacks the answer's identifiers. A new instrument made from
-// them would contradict every later extend validity run.
+// them would contradict every later reassert tickers run.
 func (r *Resolver) assertHeld(ctx context.Context, q Queries, t *heldTicker, fk fetchKey, written *writtenSet) error {
 	if fk.Outcome != gen.FetchOutcomeServed {
 		return nil

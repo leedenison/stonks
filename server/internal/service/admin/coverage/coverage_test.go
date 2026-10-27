@@ -159,7 +159,7 @@ func TestGetTicker(t *testing.T) {
 
 func TestAttest(t *testing.T) {
 	runID := uuid.MustParse("00000000-0000-0000-0000-000000000010")
-	started := gen.Run{ID: runID, Kind: gen.RunKindAttestation, Trigger: gen.RunTriggerAdministrator, State: gen.RunStatePending, CreatedAt: today}
+	started := gen.Run{ID: runID, Kind: gen.RunKindAttestIdentifier, Trigger: gen.RunTriggerAdministrator, State: gen.RunStatePending, CreatedAt: today}
 	names := &admincoveragev1.AttestRequest_InstrumentId{InstrumentId: acme.String()}
 	tests := []struct {
 		name           string
@@ -195,8 +195,8 @@ func TestAttest(t *testing.T) {
 				return
 			}
 			got := res.Msg.GetRun()
-			if got.GetId() != runID.String() || got.GetKind() != runv1.RunKind_RUN_KIND_ATTESTATION || got.GetState() != runv1.RunState_RUN_STATE_PENDING {
-				t.Errorf("Attest = %v, want the pending attestation run", got)
+			if got.GetId() != runID.String() || got.GetKind() != runv1.RunKind_RUN_KIND_ATTEST_IDENTIFIER || got.GetState() != runv1.RunState_RUN_STATE_PENDING {
+				t.Errorf("Attest = %v, want the pending attest identifier run", got)
 			}
 		})
 	}

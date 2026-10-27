@@ -46,7 +46,7 @@ type Runner interface {
 var _ Runner = (*run.Runner)(nil)
 
 // Resolver is this package's view of the resolve package: the body of a
-// resolution run over stated keys.
+// resolve statement keys run over stated keys.
 type Resolver interface {
 	Resolve(ctx context.Context, res gen.Run, keys []resolve.KeyDates) ([]gen.ResolutionKey, []resolve.WrittenIdentifierFacts, error)
 }

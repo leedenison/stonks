@@ -93,7 +93,7 @@ test("replays a statement's unavailable key from the runs page and resolves it",
     lineage.getByTestId(`run-row-${replayId}`).getByTestId("state-chip"),
   ).toHaveAttribute("data-state", "completed", { timeout: 30_000 });
   const replay = await admin.getRun({ runId: replayId });
-  expect(replay.run?.run?.kind).toBe(RunKind.REPLAY);
+  expect(replay.run?.run?.kind).toBe(RunKind.REPLAY_RUN);
   expect(replay.run?.run?.trigger).toBe(RunTrigger.ADMINISTRATOR);
   expect(replay.run?.userEmail).toBe(user.email);
   expect(replay.replay?.sourceRunId).toBe(runId);

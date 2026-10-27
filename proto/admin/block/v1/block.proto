@@ -44,7 +44,7 @@ message Block {
   stonks.type.v1.Identifier sent = 5;
   // The error of the failed call, in words.
   string reason = 6;
-  // The fetch run whose call created the block.
+  // The datasource fetch run whose call created the block.
   string run_id = 7;
   google.protobuf.Timestamp created_at = 8;
   // When an administrator cleared the block; unset while it holds.

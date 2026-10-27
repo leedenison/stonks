@@ -116,7 +116,7 @@ message StatedKey {
   optional string currency = 3;
 }
 
-// What a run of kind RESOLUTION made of one stated key.
+// What a run of kind RESOLVE_STMT_KEYS made of one stated key.
 enum ResolutionOutcome {
   RESOLUTION_OUTCOME_UNSPECIFIED = 0;
   // The key was associated with an instrument.

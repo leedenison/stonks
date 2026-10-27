@@ -107,7 +107,7 @@ const fetch = create(GetRunResponseSchema, {
   run: userRun(
     {
       id: "f1",
-      kind: RunKind.FETCH,
+      kind: RunKind.DATASOURCE_FETCH,
       trigger: RunTrigger.RUN,
       parentId: "p1",
       createdAt: instant("2026-09-24T10:00:00Z"),
@@ -122,7 +122,7 @@ const fetch = create(GetRunResponseSchema, {
         userRun(
           {
             id: "c1",
-            kind: RunKind.FETCH,
+            kind: RunKind.DATASOURCE_FETCH,
             trigger: RunTrigger.RUN,
             parentId: "f1",
             createdAt: instant("2026-09-24T10:00:05Z"),
@@ -135,13 +135,13 @@ const fetch = create(GetRunResponseSchema, {
   ancestors: [
     userRun({
       id: "s1",
-      kind: RunKind.STATEMENT,
+      kind: RunKind.INGEST_STMT,
       trigger: RunTrigger.USER,
       createdAt: instant("2026-09-24T09:59:00Z"),
     }),
     userRun({
       id: "p1",
-      kind: RunKind.RESOLUTION,
+      kind: RunKind.RESOLVE_STMT_KEYS,
       trigger: RunTrigger.RUN,
       parentId: "s1",
       createdAt: instant("2026-09-24T09:59:30Z"),
@@ -232,7 +232,7 @@ describe("AdminRunPage", () => {
       "identity",
     );
     expect(screen.getByTestId("run-row-p1").textContent).toContain(
-      "resolution run @ 2026-09-24 09:59 UTC",
+      "resolve statement keys @ 2026-09-24 09:59 UTC",
     );
     expect(self.querySelector('a[href="/admin/runs/f1"]')).toBeNull();
     expect(
@@ -377,7 +377,7 @@ describe("AdminRunPage", () => {
     const replay = create(GetRunResponseSchema, {
       run: userRun({
         id: "f1",
-        kind: RunKind.REPLAY,
+        kind: RunKind.REPLAY_RUN,
         trigger: RunTrigger.ADMINISTRATOR,
         createdAt: instant("2026-09-24T10:00:00Z"),
       }),
@@ -391,7 +391,7 @@ describe("AdminRunPage", () => {
       run: userRun(
         {
           id: "s1",
-          kind: RunKind.STATEMENT,
+          kind: RunKind.INGEST_STMT,
           trigger: RunTrigger.USER,
           createdAt: instant("2026-09-23T10:00:00Z"),
         },
@@ -399,7 +399,7 @@ describe("AdminRunPage", () => {
           children: [
             userRun({
               id: "s2",
-              kind: RunKind.RESOLUTION,
+              kind: RunKind.RESOLVE_STMT_KEYS,
               trigger: RunTrigger.RUN,
               parentId: "s1",
             }),
@@ -416,7 +416,7 @@ describe("AdminRunPage", () => {
     );
     const tree = screen.getByTestId("admin-run-source");
     const row = tree.querySelector('[data-testid="run-row-s1"]');
-    expect(row?.textContent).toContain("statement");
+    expect(row?.textContent).toContain("ingest statement");
     expect(row?.getAttribute("aria-current")).toBeNull();
     expect(row?.querySelector("a")?.getAttribute("href")).toBe(
       "/admin/runs/s1",
@@ -431,14 +431,14 @@ describe("AdminRunPage", () => {
     const statement = create(GetRunResponseSchema, {
       run: userRun({
         id: "f1",
-        kind: RunKind.STATEMENT,
+        kind: RunKind.INGEST_STMT,
         trigger: RunTrigger.USER,
         createdAt: instant("2026-09-24T10:00:00Z"),
       }),
     });
     const startReplay = vi.fn(() =>
       create(StartReplayResponseSchema, {
-        run: create(RunSchema, { id: "x1", kind: RunKind.REPLAY }),
+        run: create(RunSchema, { id: "x1", kind: RunKind.REPLAY_RUN }),
       }),
     );
     router.push.mockClear();
@@ -455,7 +455,7 @@ describe("AdminRunPage", () => {
     expect(screen.queryByTestId("replay-dialog")).toBeNull();
     fireEvent.click(screen.getByTestId("run-replay"));
     expect(screen.getByTestId("replay-dialog").textContent).toContain(
-      "statement run @ 2026-09-24 10:00 UTC for one@example.com",
+      "ingest statement @ 2026-09-24 10:00 UTC for one@example.com",
     );
     fireEvent.click(screen.getByTestId("replay-start"));
     await waitFor(() =>
@@ -507,11 +507,11 @@ describe("AdminRunPage", () => {
 });
 
 describe("AdminRunPage assertions", () => {
-  it("lists the assertions of an extend validity run with their source", async () => {
+  it("lists the assertions of a reassert tickers run with their source", async () => {
     const extension = create(GetRunResponseSchema, {
       run: userRun({
         id: "f1",
-        kind: RunKind.EXTEND_VALIDITY,
+        kind: RunKind.REASSERT_TICKERS,
         trigger: RunTrigger.ADMINISTRATOR,
         createdAt: instant("2026-10-23T10:00:00Z"),
       }),

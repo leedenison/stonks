@@ -13,8 +13,8 @@
 // many rows state it; see [resolve.go](../identity/resolve/resolve.go). After
 // a write, every key of the user has a transaction or a link to a statement.
 //
-// The service also lists and confirms candidates for a key of the user's
-// that is not yet associated. Each call is a synchronous resolution run;
+// The service also lists and confirms candidates for a key of the user's that
+// is not yet associated. Each call is a synchronous resolve statement keys run;
 // see [resolve.go](../identity/resolve/resolve.go).
 package statement
 
@@ -89,7 +89,7 @@ func (s *Service) Create(ctx context.Context, userID uuid.UUID, msg *statementv1
 		}
 		g.splits = append(g.splits, split)
 	}
-	spec := run.Spec{Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser, UserID: &userID, Lane: string(broker), Prepare: g.prepare}
+	spec := run.Spec{Kind: gen.RunKindIngestStmt, Trigger: gen.RunTriggerUser, UserID: &userID, Lane: string(broker), Prepare: g.prepare}
 	return s.runs.Start(ctx, spec, g.work)
 }
 
@@ -225,10 +225,10 @@ func (g *ingestion) prepare(ctx context.Context, run gen.Run) error {
 
 // work resolves the keys, writes the statement, and then follows the
 // resolution's new identifier facts and fetches the corporate actions of the
-// user's held instruments. The write completes the statement run in its own
-// transaction, before either starts.
+// user's held instruments. The write completes the ingest statement run in its
+// own transaction, before either starts.
 func (g *ingestion) work(ctx context.Context, run gen.Run) error {
-	res, err := g.runs.Child(ctx, run, gen.RunKindResolution, g.resolve)
+	res, err := g.runs.Child(ctx, run, gen.RunKindResolveStmtKeys, g.resolve)
 	if err != nil {
 		return fmt.Errorf("resolution: %w", err)
 	}

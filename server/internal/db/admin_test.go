@@ -29,11 +29,11 @@ func TestListUserRuns(t *testing.T) {
 	admin := newUser(t, q, "admin-runs-admin@example.com")
 	statement := newRun(t, q, owner)
 	child, err := q.CreateRun(ctx, gen.CreateRunParams{
-		ID: db.NewID(), UserID: &owner.ID, Kind: gen.RunKindResolution, Trigger: gen.RunTriggerRun, ParentID: &statement.ID,
+		ID: db.NewID(), UserID: &owner.ID, Kind: gen.RunKindResolveStmtKeys, Trigger: gen.RunTriggerRun, ParentID: &statement.ID,
 	})
 	require.NoError(t, err)
 	started, err := q.CreateRun(ctx, gen.CreateRunParams{
-		ID: db.NewID(), UserID: &admin.ID, Kind: gen.RunKindStatement, Trigger: gen.RunTriggerAdministrator,
+		ID: db.NewID(), UserID: &admin.ID, Kind: gen.RunKindIngestStmt, Trigger: gen.RunTriggerAdministrator,
 	})
 	require.NoError(t, err)
 
@@ -53,7 +53,7 @@ func TestListUserRuns(t *testing.T) {
 		}
 		return out
 	}
-	resolution := gen.RunKindResolution
+	resolution := gen.RunKindResolveStmtKeys
 	administrator := gen.RunTriggerAdministrator
 	pending := gen.RunStatePending
 	tests := []struct {
@@ -126,9 +126,9 @@ func TestListRootRuns(t *testing.T) {
 	for range 3 {
 		root := newRun(t, q, owner)
 		roots = append(roots, root)
-		children = append(children, child(root, gen.RunKindResolution))
+		children = append(children, child(root, gen.RunKindResolveStmtKeys))
 	}
-	grandchild := child(children[2], gen.RunKindFetch)
+	grandchild := child(children[2], gen.RunKindDatasourceFetch)
 	// The test's rows are visible to its own transaction alone, so the
 	// pages hold these runs and no others.
 	page := func(arg gen.ListRootRunsParams) []uuid.UUID {
@@ -165,7 +165,8 @@ func TestListRootRuns(t *testing.T) {
 }
 
 // TestRunFetchColumns checks that every listing of runs names the datasource,
-// endpoint and kind of a fetch run, and leaves them unset for another run.
+// endpoint and kind of a datasource fetch run, and leaves them unset for
+// another run.
 func TestRunFetchColumns(t *testing.T) {
 	ctx := context.Background()
 	q := newTx(t)
@@ -384,10 +385,10 @@ func TestListSystemRuns(t *testing.T) {
 	ctx := context.Background()
 	q := newTx(t)
 	owner := newUser(t, q, "system-runs@example.com")
-	system, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), Kind: gen.RunKindFetch, Trigger: gen.RunTriggerAdministrator})
+	system, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), Kind: gen.RunKindDatasourceFetch, Trigger: gen.RunTriggerAdministrator})
 	require.NoError(t, err)
 	replay, err := q.CreateRun(ctx, gen.CreateRunParams{
-		ID: db.NewID(), UserID: &owner.ID, Kind: gen.RunKindReplay, Trigger: gen.RunTriggerRun, ParentID: &system.ID,
+		ID: db.NewID(), UserID: &owner.ID, Kind: gen.RunKindReplayRun, Trigger: gen.RunTriggerRun, ParentID: &system.ID,
 	})
 	require.NoError(t, err)
 

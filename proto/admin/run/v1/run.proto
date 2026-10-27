@@ -26,11 +26,11 @@ message UserRun {
   bool matched = 5;
   // The runs this one started that the listing holds, oldest first.
   repeated UserRun children = 6;
-  // What a FETCH run asked for; unset for any other kind.
+  // What a DATASOURCE_FETCH run asked for; unset for any other kind.
   RunFetch fetch = 7;
 }
 
-// What a fetch run asked for, and of whom.
+// What a datasource fetch run asked for, and of whom.
 message RunFetch {
   string datasource = 1;
   // The address the run called.
@@ -214,7 +214,7 @@ message GetRunResponse {
   // The findings of the run and of every run below it, in tree order: a
   // run's findings oldest first, then those of each run below it in turn.
   repeated Finding findings = 3;
-  // What this run re-resolves when its kind is REPLAY.
+  // What this run re-resolves when its kind is REPLAY_RUN.
   stonks.admin.replay.v1.Replay replay = 4;
 }
 
@@ -233,22 +233,23 @@ message ListRunItemsRequest {
 // One item a run wrote, of the run's kind.
 message RunItem {
   oneof item {
-    // A row a STATEMENT run rejected.
+    // A row an INGEST_STMT run rejected.
     stonks.statement.v1.StatementItem statement = 1;
-    // A key a RESOLUTION run resolved.
+    // A key a RESOLVE_STMT_KEYS run resolved.
     stonks.type.v1.ResolutionItem resolution = 2;
-    // A key a FETCH run asked a datasource about.
+    // A key a DATASOURCE_FETCH run asked a datasource about.
     FetchItem fetch = 3;
-    // An assertion that an EXTEND_VALIDITY run's fetches wrote, or that an
-    // ATTESTATION run recorded.
+    // An assertion that a REASSERT_TICKERS run's fetches wrote, or that an
+    // ATTEST_IDENTIFIER run recorded.
     AssertionItem assertion = 4;
   }
 }
 
 message ListRunItemsResponse {
-  // A statement run's rejected rows in payload order, a resolution or fetch
-  // run's keys in key id order, or an attestation or extend validity run's
-  // assertions in id order. A replay run has none.
+  // An ingest statement run's rejected rows in payload order, a resolve
+  // statement keys or datasource fetch run's keys in key id order, or an attest
+  // identifier or reassert tickers run's assertions in id order. A replay run
+  // has none.
   repeated RunItem items = 1;
   // Continues the listing; empty on the last page.
   string next_page_token = 2;

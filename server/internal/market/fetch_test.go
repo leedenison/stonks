@@ -50,7 +50,7 @@ func newHarness(t *testing.T, integration Integration, open []gen.DatasourceBloc
 	t.Cleanup(ctrl.Finish)
 	h := &harness{
 		store:   NewMockStore(ctrl),
-		parent:  gen.Run{ID: db.NewID(), UserID: ptr.To(db.NewID()), Kind: gen.RunKindResolution},
+		parent:  gen.Run{ID: db.NewID(), UserID: ptr.To(db.NewID()), Kind: gen.RunKindResolveStmtKeys},
 		cache:   &memCache{entries: map[string][]byte{}},
 		now:     start,
 		created: 1,
@@ -58,7 +58,7 @@ func newHarness(t *testing.T, integration Integration, open []gen.DatasourceBloc
 	h.entry = &Entry{Name: "fake", Integration: integration, limiter: newLimiter(rate.Inf, 1)}
 
 	runs := NewMockRunner(ctrl)
-	runs.EXPECT().Child(gomock.Any(), gomock.Any(), gen.RunKindFetch, gomock.Any()).
+	runs.EXPECT().Child(gomock.Any(), gomock.Any(), gen.RunKindDatasourceFetch, gomock.Any()).
 		DoAndReturn(func(ctx context.Context, parent gen.Run, kind gen.RunKind, work run.Work) (gen.Run, error) {
 			h.child = gen.Run{ID: db.NewID(), UserID: parent.UserID, Kind: kind}
 			return h.child, work(ctx, h.child)
@@ -480,7 +480,7 @@ func TestFetchRecordsAgainstItsRun(t *testing.T) {
 	k := keyOf(f, "GB00B03MLX29")
 
 	h.run(t, k)
-	if h.child.Kind != gen.RunKindFetch {
+	if h.child.Kind != gen.RunKindDatasourceFetch {
 		t.Errorf("child kind = %s, want fetch", h.child.Kind)
 	}
 	row := h.key(t, k.ID)

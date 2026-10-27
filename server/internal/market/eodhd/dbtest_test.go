@@ -58,7 +58,7 @@ func recorded(t *testing.T, cassette string, ticker types.Identifier) (*gen.Quer
 
 	user, err := q.CreateUser(ctx, gen.CreateUserParams{ID: db.NewID(), Email: uuid.NewString() + "@example.com", Role: gen.UserRoleUser})
 	require.NoError(t, err)
-	parent, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &user.ID, Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser})
+	parent, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &user.ID, Kind: gen.RunKindIngestStmt, Trigger: gen.RunTriggerUser})
 	require.NoError(t, err)
 	name := "eodhd-" + uuid.NewString()
 	_, err = q.CreateDatasource(ctx, gen.CreateDatasourceParams{Name: name, Enabled: true, Precedence: 1000})

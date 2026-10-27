@@ -12,15 +12,15 @@ option go_package = "github.com/leedenison/stonks/proto/admin/extend_validity/v1
 message StartExtendValidityRequest {}
 
 message StartExtendValidityResponse {
-  // The extend validity run, pending.
+  // The reassert tickers run, pending.
   stonks.run.v1.Run run = 1;
 }
 
-// Starts extend validity runs.
+// Starts reassert tickers runs.
 service ExtendValidityService {
-  // Starts an extend validity run over every held ticker, as a system run. Each
-  // enabled datasource is asked once about each ticker, and spends its quota on
-  // the calls. Where no ticker is held, the call is refused as a failed
+  // Starts a reassert tickers run over every held ticker, as a system run.
+  // Each enabled datasource is asked once about each ticker, and spends its
+  // quota on the calls. Where no ticker is held, the call is refused as a failed
   // precondition.
   rpc StartExtendValidity(StartExtendValidityRequest) returns (StartExtendValidityResponse);
 }

@@ -201,9 +201,9 @@ func chainRequest(res *resolution, server market.Server[market.IdentifierEventRe
 // the system cannot spell is left out, and the resolution stands.
 //
 // It then writes the conflicts that one of the batch's facts completes as
-// findings of run; see recordConflicts. It returns, for each fetch run, the
-// identifiers it wrote facts for: the identity fetches first, in precedence
-// order, then the events fetches.
+// findings of run; see recordConflicts. It returns, for each datasource fetch
+// run, the identifiers it wrote facts for: the identity fetches first, in
+// precedence order, then the events fetches.
 func (r *Resolver) recordIdentifierFacts(ctx context.Context, run gen.Run, b *batch) ([]WrittenIdentifierFacts, error) {
 	recorded, err := r.recordEvents(ctx, b.events)
 	if err != nil {

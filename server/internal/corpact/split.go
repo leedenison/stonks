@@ -25,7 +25,8 @@ type splitGroup struct {
 	// ratios holds each distinct ratio the statements state, and is empty
 	// when the statements give no ratio.
 	ratios []types.Ratio
-	// run is the fetch run whose answer covers the instrument on day.
+	// run is the datasource fetch run whose answer covers the instrument on
+	// day.
 	run gen.Run
 }
 
@@ -37,7 +38,8 @@ type unmatchedSplit struct {
 	ratio *types.Ratio
 }
 
-// cover is a period over which a fetch run's answer covers an instrument.
+// cover is a period over which a datasource fetch run's answer covers an
+// instrument.
 type cover struct {
 	instrument uuid.UUID
 	period     types.Period

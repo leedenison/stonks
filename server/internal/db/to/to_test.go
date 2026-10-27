@@ -53,9 +53,9 @@ func TestProtoRun(t *testing.T) {
 	id, parent := uuid.New(), uuid.New()
 	created := time.Date(2026, time.September, 24, 10, 0, 0, 0, time.UTC)
 	started := created.Add(time.Second)
-	row := gen.Run{ID: id, ParentID: &parent, Kind: gen.RunKindFetch, Trigger: gen.RunTriggerRun, State: gen.RunStateRunning, CreatedAt: created, StartedAt: &started}
+	row := gen.Run{ID: id, ParentID: &parent, Kind: gen.RunKindDatasourceFetch, Trigger: gen.RunTriggerRun, State: gen.RunStateRunning, CreatedAt: created, StartedAt: &started}
 	want := &runv1.Run{
-		Id: id.String(), ParentId: ptr.To(parent.String()), Kind: runv1.RunKind_RUN_KIND_FETCH, Trigger: runv1.RunTrigger_RUN_TRIGGER_RUN,
+		Id: id.String(), ParentId: ptr.To(parent.String()), Kind: runv1.RunKind_RUN_KIND_DATASOURCE_FETCH, Trigger: runv1.RunTrigger_RUN_TRIGGER_RUN,
 		State: runv1.RunState_RUN_STATE_RUNNING, CreatedAt: timestamppb.New(created), StartedAt: timestamppb.New(started),
 	}
 	if diff := cmp.Diff(want, ProtoRun(row), protocmp.Transform()); diff != "" {
@@ -162,7 +162,7 @@ func TestProtoStatementSummary(t *testing.T) {
 	id := uuid.New()
 	created := time.Date(2026, time.September, 24, 10, 0, 0, 0, time.UTC)
 	st := gen.Statement{Broker: gen.BrokerIbkr, OrderFrom: created, OrderBefore: created.AddDate(0, 1, 0), RowCount: 40}
-	run := gen.Run{ID: id, Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser, State: gen.RunStateCompleted, CreatedAt: created}
+	run := gen.Run{ID: id, Kind: gen.RunKindIngestStmt, Trigger: gen.RunTriggerUser, State: gen.RunStateCompleted, CreatedAt: created}
 	want := &statementv1.StatementSummary{
 		Run: ProtoRun(run), Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-09-24", OrderBefore: "2026-10-24", Rows: 40, Rejected: 2,
 	}

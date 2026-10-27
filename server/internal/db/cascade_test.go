@@ -67,7 +67,7 @@ func TestDeleteUserCascades(t *testing.T) {
 				FetchKeyID: key, FindingID: db.NewID(), RunID: fetch.ID,
 			})
 			require.NoError(t, err)
-			replay, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &user.ID, Kind: gen.RunKindReplay, Trigger: gen.RunTriggerAdministrator})
+			replay, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &user.ID, Kind: gen.RunKindReplayRun, Trigger: gen.RunTriggerAdministrator})
 			require.NoError(t, err)
 			require.NoError(t, q.CreateReplay(ctx, gen.CreateReplayParams{ID: replay.ID, UserID: user.ID, SourceID: run.ID, StartedBy: admin.ID}))
 

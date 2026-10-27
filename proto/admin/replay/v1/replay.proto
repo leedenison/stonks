@@ -9,7 +9,7 @@ import "run/v1/run.proto";
 
 option go_package = "github.com/leedenison/stonks/proto/admin/replay/v1;adminreplayv1";
 
-// What a run of kind REPLAY re-resolves.
+// What a run of kind REPLAY_RUN re-resolves.
 message Replay {
   // The run whose keys are replayed.
   string source_run_id = 1;
@@ -26,7 +26,7 @@ message Replay {
 // Re-resolves the keys of one run. Every scope is confined to the run's keys
 // that a transaction names.
 message StartReplayRequest {
-  // A run of kind STATEMENT or RESOLUTION.
+  // A run of kind INGEST_STMT or RESOLVE_STMT_KEYS.
   string run_id = 1 [(buf.validate.field).string.uuid = true];
   oneof scope {
     option (buf.validate.oneof).required = true;

@@ -36,7 +36,7 @@ func New(runs Starter) *Server {
 	return &Server{runs: runs}
 }
 
-// StartExtendValidity starts an extend validity run over every held ticker.
+// StartExtendValidity starts a reassert tickers run over every held ticker.
 func (s *Server) StartExtendValidity(ctx context.Context, _ *connect.Request[adminextendvalidityv1.StartExtendValidityRequest]) (*connect.Response[adminextendvalidityv1.StartExtendValidityResponse], error) {
 	if _, err := auth.Admin(ctx); err != nil {
 		return nil, connect.NewError(connect.CodePermissionDenied, err)

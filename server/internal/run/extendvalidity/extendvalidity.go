@@ -1,7 +1,7 @@
 // Package extendvalidity starts runs that extend the validity of held
 // tickers.
 //
-// An extend validity run is a system run an administrator starts. Its work
+// A reassert tickers run is a system run an administrator starts. Its work
 // lives in [extend_validity.go](../../identity/resolve/extend_validity.go).
 package extendvalidity
 
@@ -21,8 +21,8 @@ import (
 // ErrEmpty reports that Start found no held ticker.
 var ErrEmpty = errors.New("no ticker is held")
 
-// lane serialises extend validity runs.
-const lane = "extend_validity"
+// lane serialises reassert tickers runs.
+const lane = "reassert_tickers"
 
 // Queries is this package's view of the generated queries.
 type Queries interface {
@@ -53,7 +53,7 @@ type Facts interface {
 
 var _ Facts = (*replay.Service)(nil)
 
-// Service starts extend validity runs.
+// Service starts reassert tickers runs.
 type Service struct {
 	queries  Queries
 	runs     Runner
@@ -66,7 +66,7 @@ func New(queries Queries, runs Runner, extender Extender, facts Facts) *Service 
 	return &Service{queries: queries, runs: runs, extender: extender, facts: facts}
 }
 
-// Start starts an extend validity run over every held ticker, as a system run,
+// Start starts a reassert tickers run over every held ticker, as a system run,
 // and returns the pending row. A ticker that becomes held later waits for the
 // next run. Its identifier facts replay the unresolved keys that state each
 // ticker, and fetch the corporate actions of the held instruments that the
@@ -79,7 +79,7 @@ func (s *Service) Start(ctx context.Context) (gen.Run, error) {
 	if len(held) == 0 {
 		return gen.Run{}, ErrEmpty
 	}
-	spec := run.Spec{Kind: gen.RunKindExtendValidity, Trigger: gen.RunTriggerAdministrator, Lane: lane}
+	spec := run.Spec{Kind: gen.RunKindReassertTickers, Trigger: gen.RunTriggerAdministrator, Lane: lane}
 	return s.runs.Start(ctx, spec, func(ctx context.Context, row gen.Run) error {
 		written, err := s.extender.ExtendValidity(ctx, row, held)
 		if err != nil {

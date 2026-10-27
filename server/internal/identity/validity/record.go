@@ -300,13 +300,13 @@ func CheckAttest(mics mic.MICMap, t types.MarketTicker, on, today time.Time) err
 	return nil
 }
 
-// Attest writes an administrator's assertion that t names instrument on the
-// day on, beneath run, which must be a system run of kind attestation. A nil
+// Attest writes an administrator's assertion that t names instrument on the day
+// on, beneath run, which must be a system run of kind attest identifier. A nil
 // instrument asserts that t names nothing. A later attestation of a day
 // replaces the earlier one.
 func Attest(ctx context.Context, q AttestQueries, mics mic.MICMap, run gen.Run, admin uuid.UUID, t types.MarketTicker, instrument *uuid.UUID, on, today time.Time) error {
-	if run.Kind != gen.RunKindAttestation || run.UserID != nil {
-		return fmt.Errorf("run %s is not a system attestation run", run.ID)
+	if run.Kind != gen.RunKindAttestIdentifier || run.UserID != nil {
+		return fmt.Errorf("run %s is not a system attest identifier run", run.ID)
 	}
 	if err := CheckAttest(mics, t, on, today); err != nil {
 		return err

@@ -105,7 +105,7 @@ test("chooses an instrument for a bare ticker", async ({ signIn, page }) => {
   const admin = adminRunClient((await signIn("admin")).session);
   const listed = await admin.listRuns({
     userId: user.id,
-    kind: RunKind.RESOLUTION,
+    kind: RunKind.RESOLVE_STMT_KEYS,
     trigger: RunTrigger.USER,
   });
   expect(listed.runs).toHaveLength(2);

@@ -135,7 +135,7 @@ func TestLagOf(t *testing.T) {
 // TestFetchIdentifierEventsPeriod checks that the period is part of the
 // request as cached: a second period of one domain calls the provider again,
 // and the same period is answered from the cache. No stated key asks for an
-// identifier event fetch. Each key carries its fetch run.
+// identifier event fetch. Each key carries its datasource fetch run.
 func TestFetchIdentifierEventsPeriod(t *testing.T) {
 	e := &events{}
 	h := newHarness(t, e, nil)
@@ -154,8 +154,8 @@ func TestFetchIdentifierEventsPeriod(t *testing.T) {
 	if e.calls != 2 || !again.cached {
 		t.Errorf("calls = %d, cached = %v, want two calls and the repeated period cached", e.calls, again.cached)
 	}
-	if again.Run.Kind != gen.RunKindFetch || again.Run.ID == h.parent.ID {
-		t.Errorf("fetch key run = %+v, want the fetch run apart from %s", again.Run, h.parent.ID)
+	if again.Run.Kind != gen.RunKindDatasourceFetch || again.Run.ID == h.parent.ID {
+		t.Errorf("fetch key run = %+v, want the datasource fetch run apart from %s", again.Run, h.parent.ID)
 	}
 	for _, k := range h.keys {
 		if k.StatedKeyID != nil || k.SentValue != nil || k.SentDomain != "XNYS" {

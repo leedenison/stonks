@@ -33,15 +33,15 @@ test("shows an administrator the runs a user's upload produced", async ({
     code: Code.PermissionDenied,
   });
 
-  // The record: the statement run, the resolution it started, the rows it
-  // rejected, and no findings, since every fetch was answered.
+  // The record: the ingest statement run, the resolution it started, the rows
+  // it rejected, and no findings, since every fetch was answered.
   const { session } = await signIn("admin");
   const admin = adminRunClient(session);
   const statement = await admin.getRun({ runId: runId });
   expect(statement.run?.userEmail).toBe(user.email);
   expect(await statementItems(admin, runId)).toHaveLength(januaryRows);
   const resolutions = statement.run!.children.filter(
-    (c) => c.run?.kind === RunKind.RESOLUTION,
+    (c) => c.run?.kind === RunKind.RESOLVE_STMT_KEYS,
   );
   expect(resolutions).toHaveLength(1);
   const child = resolutions[0].run!;
@@ -52,7 +52,7 @@ test("shows an administrator the runs a user's upload produced", async ({
   expect(resolutionFindings(resolution.findings)).toHaveLength(0);
 
   // The pages: the user's runs with the resolution under its statement,
-  // the statement run, then its resolution.
+  // the ingest statement run, then its resolution.
   await page.goto(`/admin/runs?user=${user.id}`);
   const row = page.getByTestId(`run-row-${runId}`);
   await expect(row.getByTestId("state-chip")).toHaveAttribute(

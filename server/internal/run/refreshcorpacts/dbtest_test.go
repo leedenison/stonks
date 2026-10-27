@@ -120,7 +120,7 @@ func value(t *testing.T, prefix string) string {
 func (s *stack) names(t *testing.T, v string, inst *uuid.UUID, on time.Time) {
 	t.Helper()
 	ctx := context.Background()
-	run, err := s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), Kind: gen.RunKindAttestation, Trigger: gen.RunTriggerAdministrator})
+	run, err := s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), Kind: gen.RunKindAttestIdentifier, Trigger: gen.RunTriggerAdministrator})
 	require.NoError(t, err)
 	require.NoError(t, s.q.CreateIdentifierAssertion(ctx, gen.CreateIdentifierAssertionParams{
 		ID: db.NewID(), RunID: &run.ID, AttestedBy: &s.admin, Type: types.IdentifierTypeMicTicker, Domain: "US", Value: v, InstrumentID: inst, AssertedOn: on,
@@ -156,7 +156,7 @@ func (s *stack) datedKey(t *testing.T, user uuid.UUID, v string) uuid.UUID {
 func (s *stack) buys(t *testing.T, user, key uuid.UUID, days ...time.Time) gen.Run {
 	t.Helper()
 	ctx := context.Background()
-	run, err := s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &user, Kind: gen.RunKindStatement, Trigger: gen.RunTriggerUser})
+	run, err := s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &user, Kind: gen.RunKindIngestStmt, Trigger: gen.RunTriggerUser})
 	require.NoError(t, err)
 	_, err = s.q.CreateStatement(ctx, gen.CreateStatementParams{ID: run.ID, UserID: user, Broker: gen.BrokerIbkr, OrderFrom: day(2000, 1, 1), OrderBefore: day(2026, 1, 1)})
 	require.NoError(t, err)
@@ -227,7 +227,7 @@ func TestAfterStatementShared(t *testing.T) {
 	sh := newShared(t, s)
 	s.svc.AfterStatement(context.Background(), sh.statement)
 	want := []fetched{{
-		Kind: gen.RunKindRefreshCorporateEvents,
+		Kind: gen.RunKindRefreshCorpActs,
 		Reqs: []asked{{Ticker: types.MarketTicker{Market: "US", Value: sh.ticker}, Period: types.Period{From: day(2011, 5, 2), Before: day(2026, 3, 3)}}},
 	}}
 	if diff := cmp.Diff(want, mine(s.recorder.calls, sh.ticker, sh.earlier)); diff != "" {
@@ -243,7 +243,7 @@ func TestFetchAfterIdentifierFactsShared(t *testing.T) {
 	written := []resolve.WrittenIdentifierFacts{{Run: sh.statement, Tickers: []types.MarketTicker{{Market: "US", Value: sh.ticker}}}}
 	s.svc.FetchAfterIdentifierFacts(context.Background(), sh.statement, written)
 	want := []fetched{{
-		Kind: gen.RunKindRefreshCorporateEvents,
+		Kind: gen.RunKindRefreshCorpActs,
 		Reqs: []asked{{Ticker: types.MarketTicker{Market: "US", Value: sh.ticker}, Period: types.Period{From: day(2011, 5, 2), Before: day(2026, 3, 3)}}},
 	}}
 	if diff := cmp.Diff(want, mine(s.recorder.calls, sh.ticker, sh.earlier)); diff != "" {
@@ -265,7 +265,7 @@ func TestAfterStatementOwn(t *testing.T) {
 	s.buys(t, u, s.datedKey(t, u, unnamed), day(2016, 3, 1))
 	s.svc.AfterStatement(context.Background(), statement)
 	want := []fetched{{
-		Kind: gen.RunKindStatement, User: &u,
+		Kind: gen.RunKindIngestStmt, User: &u,
 		Reqs: []asked{{Ticker: types.MarketTicker{Market: "US", Value: own}, Period: types.Period{From: day(2015, 7, 1), Before: day(2026, 3, 3)}}},
 	}}
 	if diff := cmp.Diff(want, mine(s.recorder.calls, own, unnamed)); diff != "" {
@@ -280,11 +280,11 @@ func TestStart(t *testing.T) {
 	sh := newShared(t, s)
 	row, err := s.starter.Start(context.Background())
 	require.NoError(t, err)
-	if row.UserID != nil || row.Kind != gen.RunKindRefreshCorporateEvents || row.Trigger != gen.RunTriggerAdministrator {
+	if row.UserID != nil || row.Kind != gen.RunKindRefreshCorpActs || row.Trigger != gen.RunTriggerAdministrator {
 		t.Errorf("Start() run = %+v, want a system refresh corporate actions run started by an administrator", row)
 	}
 	want := []fetched{{
-		Kind: gen.RunKindRefreshCorporateEvents,
+		Kind: gen.RunKindRefreshCorpActs,
 		Reqs: []asked{{Ticker: types.MarketTicker{Market: "US", Value: sh.ticker}, Period: types.Period{From: day(2011, 5, 2), Before: day(2026, 3, 3)}}},
 	}}
 	if diff := cmp.Diff(want, mine(s.recorder.calls, sh.ticker, sh.earlier)); diff != "" {

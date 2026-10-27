@@ -23,9 +23,9 @@ var (
 	userID  = uuid.MustParse("00000000-0000-0000-0000-000000000001")
 	otherID = uuid.MustParse("00000000-0000-0000-0000-000000000002")
 	today   = time.Date(2026, time.March, 2, 0, 0, 0, 0, time.UTC)
-	userRun = gen.Run{ID: uuid.MustParse("00000000-0000-0000-0000-000000000010"), UserID: &userID, Kind: gen.RunKindStatement}
-	sysRun  = gen.Run{ID: uuid.MustParse("00000000-0000-0000-0000-000000000011"), Kind: gen.RunKindExtendValidity}
-	sysKid  = gen.Run{ID: uuid.MustParse("00000000-0000-0000-0000-000000000012"), Kind: gen.RunKindRefreshCorporateEvents}
+	userRun = gen.Run{ID: uuid.MustParse("00000000-0000-0000-0000-000000000010"), UserID: &userID, Kind: gen.RunKindIngestStmt}
+	sysRun  = gen.Run{ID: uuid.MustParse("00000000-0000-0000-0000-000000000011"), Kind: gen.RunKindReassertTickers}
+	sysKid  = gen.Run{ID: uuid.MustParse("00000000-0000-0000-0000-000000000012"), Kind: gen.RunKindRefreshCorpActs}
 )
 
 type fixture struct {
@@ -60,7 +60,7 @@ func req(value string, from time.Time) market.CorpActRequest {
 // system expects one system child of parent, which runs its work as sysKid,
 // and returns err.
 func (f *fixture) system(parent gen.Run, err error) {
-	f.runs.EXPECT().ChildAs(gomock.Any(), parent, nil, gen.RunKindRefreshCorporateEvents, gomock.Any()).
+	f.runs.EXPECT().ChildAs(gomock.Any(), parent, nil, gen.RunKindRefreshCorpActs, gomock.Any()).
 		DoAndReturn(func(ctx context.Context, _ gen.Run, _ *uuid.UUID, _ gen.RunKind, work run.Work) (gen.Run, error) {
 			if err != nil {
 				return gen.Run{}, err

@@ -20,7 +20,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
-// later is the day of the extend validity run, a month after the stack's
+// later is the day of the reassert tickers run, a month after the stack's
 // first answers.
 var later = on(2026, 4, 2)
 
@@ -50,7 +50,7 @@ func (s *stack) extendValidity(t *testing.T, vs ...types.Identifier) (gen.Run, [
 	t.Helper()
 	ctx := context.Background()
 	s.now = later.Add(10 * time.Hour)
-	run, err := s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), Kind: gen.RunKindExtendValidity, Trigger: gen.RunTriggerAdministrator})
+	run, err := s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), Kind: gen.RunKindReassertTickers, Trigger: gen.RunTriggerAdministrator})
 	require.NoError(t, err)
 	rows, err := s.q.ListHeldTickers(ctx)
 	require.NoError(t, err)
@@ -66,7 +66,7 @@ func (s *stack) extendValidity(t *testing.T, vs ...types.Identifier) (gen.Run, [
 	return run, written
 }
 
-// extendedKey is one fetch key of an extend validity run, with its datasource.
+// extendedKey is one fetch key of a reassert tickers run, with its datasource.
 type extendedKey struct {
 	datasource string
 	kind       gen.FetchKind
@@ -169,7 +169,7 @@ func TestExtendValidity(t *testing.T) {
 		t.Errorf("rows of %s = %d, want none", extra.Name(), n)
 	}
 	if len(written) != 1 || written[0].Run.ID != b[0].fetch || !slices.Equal(written[0].Tickers, []types.MarketTicker{mt(v)}) {
-		t.Errorf("written = %+v, want %s under beta's fetch run %s", written, v.Name(), b[0].fetch)
+		t.Errorf("written = %+v, want %s under beta's datasource fetch run %s", written, v.Name(), b[0].fetch)
 	}
 }
 
@@ -195,7 +195,7 @@ func TestExtendValiditySharedIdentifier(t *testing.T) {
 func TestExtendValidityAnswers(t *testing.T) {
 	tests := []struct {
 		name string
-		// answer is beta's answer to the extend validity run, given the held
+		// answer is beta's answer to the reassert tickers run, given the held
 		// ticker.
 		answer func(v types.Identifier) market.IdentityResult
 		// want reports whether the assertions on the day are as expected.
@@ -236,7 +236,7 @@ func TestExtendValidityAnswers(t *testing.T) {
 }
 
 // TestExtendValidityDisagreement checks that two answers naming different
-// stored instruments on the day of an extend validity run are a finding of that
+// stored instruments on the day of a reassert tickers run are a finding of that
 // run.
 func TestExtendValidityDisagreement(t *testing.T) {
 	s := newStack(t)
@@ -260,7 +260,7 @@ func TestExtendValidityDisagreement(t *testing.T) {
 		kinds = append(kinds, r.Finding.Kind)
 	}
 	if diff := cmp.Diff([]gen.FindingKind{gen.FindingKindIdentifierDisagreement}, kinds); diff != "" {
-		t.Errorf("findings of the extend validity run mismatch (-want +got):\n%s", diff)
+		t.Errorf("findings of the reassert tickers run mismatch (-want +got):\n%s", diff)
 	}
 }
 
@@ -291,11 +291,11 @@ func TestExtendValidityHistory(t *testing.T) {
 }
 
 // TestExtendValidityRefusesRun checks that ExtendValidity refuses a run that
-// is not a system extend validity run.
+// is not a system reassert tickers run.
 func TestExtendValidityRefusesRun(t *testing.T) {
 	s := newStack(t)
 	if _, err := s.extender.ExtendValidity(context.Background(), s.resolution, nil); err == nil {
-		t.Error("ExtendValidity under a user's resolution run succeeded, want an error")
+		t.Error("ExtendValidity under a user's resolve statement keys run succeeded, want an error")
 	}
 }
 

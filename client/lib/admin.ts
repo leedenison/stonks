@@ -54,11 +54,11 @@ export function runLabel(run: Run | undefined): string {
     return "run";
   }
   const at = formatInstant(run.createdAt);
-  return `${enumLabel(RunKind, run.kind)} run${at ? ` @ ${at}` : ""}`;
+  return `${enumLabel(RunKind, run.kind)}${at ? ` @ ${at}` : ""}`;
 }
 
-// runTitle names a listed run: a fetch run by the host it called, and any
-// other run as runLabel does.
+// runTitle names a listed run: a datasource fetch run by the host it called,
+// and any other run as runLabel does.
 export function runTitle(r: UserRun): string {
   if (r.fetch) {
     try {

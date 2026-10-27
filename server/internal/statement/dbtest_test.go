@@ -85,7 +85,7 @@ func (s stack) ingest(t *testing.T, msg *statementv1.Statement) gen.Run {
 	got, err := s.q.GetRun(ctx, gen.GetRunParams{ID: row.ID, UserID: &s.user.ID})
 	require.NoError(t, err)
 	if got.State != gen.RunStateCompleted {
-		t.Fatalf("statement run = %+v, want completed", got)
+		t.Fatalf("ingest statement run = %+v, want completed", got)
 	}
 	return got
 }
@@ -204,7 +204,7 @@ func TestIngest(t *testing.T) {
 
 	children, err := s.q.ListChildRuns(ctx, gen.ListChildRunsParams{ParentID: &parent.ID, UserID: &s.user.ID})
 	require.NoError(t, err)
-	if len(children) != 1 || children[0].Kind != gen.RunKindResolution || children[0].State != gen.RunStateCompleted {
+	if len(children) != 1 || children[0].Kind != gen.RunKindResolveStmtKeys || children[0].State != gen.RunStateCompleted {
 		t.Fatalf("ListChildRuns = %+v, want one completed resolution", children)
 	}
 	resolved, err := s.q.ListResolutionKeys(ctx, gen.ListResolutionKeysParams{RunID: children[0].ID, UserID: s.user.ID})
@@ -301,10 +301,11 @@ func TestConfirmCandidate(t *testing.T) {
 			Rows: []*statementv1.Row{rowMsg(k, order, quantity)},
 		})
 	}
-	// syncRuns returns the user's synchronous resolution runs, oldest first.
+	// syncRuns returns the user's synchronous resolve statement keys runs,
+	// oldest first.
 	syncRuns := func() []uuid.UUID {
 		t.Helper()
-		rows, err := s.tx.Query(ctx, "SELECT id FROM runs WHERE user_id = $1 AND kind = 'resolution' AND trigger = 'user' ORDER BY id", s.user.ID)
+		rows, err := s.tx.Query(ctx, "SELECT id FROM runs WHERE user_id = $1 AND kind = $2 AND trigger = 'user' ORDER BY id", s.user.ID, gen.RunKindResolveStmtKeys)
 		require.NoError(t, err)
 		defer rows.Close()
 		var ids []uuid.UUID
@@ -339,7 +340,7 @@ func TestConfirmCandidate(t *testing.T) {
 	require.NoError(t, err)
 	children, err := s.q.ListChildRuns(ctx, gen.ListChildRunsParams{ParentID: &listing.ID, UserID: &s.user.ID})
 	require.NoError(t, err)
-	if listing.State != gen.RunStateCompleted || len(children) != 1 || children[0].Kind != gen.RunKindFetch || children[0].State != gen.RunStateCompleted {
+	if listing.State != gen.RunStateCompleted || len(children) != 1 || children[0].Kind != gen.RunKindDatasourceFetch || children[0].State != gen.RunStateCompleted {
 		t.Fatalf("listing run = %+v with children %+v, want completed with one completed fetch", listing, children)
 	}
 	items, err := s.q.ListFetchItems(ctx, gen.ListFetchItemsParams{FetchID: children[0].ID})
@@ -471,7 +472,7 @@ func TestRestate(t *testing.T) {
 		t.Helper()
 		children, err := s.q.ListChildRuns(ctx, gen.ListChildRunsParams{ParentID: &statement.ID, UserID: &s.user.ID})
 		require.NoError(t, err)
-		if len(children) != 1 || children[0].Kind != gen.RunKindResolution {
+		if len(children) != 1 || children[0].Kind != gen.RunKindResolveStmtKeys {
 			t.Fatalf("statement %s has children %+v, want one resolution", statement.ID, children)
 		}
 		return children[0]

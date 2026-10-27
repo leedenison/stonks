@@ -36,14 +36,14 @@ LEFT JOIN market_members ON market_members.operating_mic = mics.operating_mic;
 -- domain of a mic_ticker row is a market. A datasource asserts through a fetch
 -- key, on the day of its answer. A point in time lookup asserts on the day its
 -- request names. An entity's ticker history asserts each ticker on the day the
--- ticker began naming the entity. An administrator asserts through an
--- attestation run, on any day up to the day of the attestation. A row goes with
+-- ticker began naming the entity. An administrator asserts through an attest
+-- identifier run, on any day up to the day of the attestation. A row goes with
 -- its source.
 CREATE TABLE identifier_assertions (
     id              uuid            PRIMARY KEY,
     fetch_key_id    uuid            REFERENCES fetch_keys (id) ON DELETE CASCADE,
-    -- run_id is the attestation run, and attested_by the administrator who
-    -- started it.
+    -- run_id is the attest identifier run, and attested_by the administrator
+    -- who started it.
     run_id          uuid            REFERENCES runs (id) ON DELETE CASCADE,
     attested_by     uuid            REFERENCES users (id),
     type            identifier_type NOT NULL,
