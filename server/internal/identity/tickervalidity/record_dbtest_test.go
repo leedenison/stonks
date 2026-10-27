@@ -285,3 +285,45 @@ func TestAttest(t *testing.T) {
 		t.Error("Attest beneath a user's run succeeded, want an error")
 	}
 }
+
+// TestAttestOverrulesEdge checks that an identifier attestation of the
+// instrument on both sides of a datasource's edge stops the edge cutting, and
+// that the attestation leaves the findings unchanged.
+func TestAttestOverrulesEdge(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	foo := dbtest.Ticker(t, f.q, f.foo)
+	f.asserts(t, f.alpha, 3, &f.a)
+	f.asserts(t, f.alpha, 15, &f.a)
+	key := db.NewID()
+	require.NoError(t, f.q.CreateFetchKey(ctx, gen.CreateFetchKeyParams{
+		ID: key, FetchID: f.fetches[f.alpha], UserID: &f.user.ID, Outcome: gen.FetchOutcomeServed, Attempts: 1,
+		SentType: &f.at.Type, SentDomain: f.at.Domain, SentValue: &f.at.Value, AnsweredAt: ptr.To(day(20)),
+	}))
+	require.NoError(t, f.q.CreateIdentifierAssertion(ctx, gen.CreateIdentifierAssertionParams{
+		ID: db.NewID(), FetchKeyID: &key, TickerID: foo.ID, Market: foo.Market, InstrID: &f.a,
+		AssertedOn: day(9), Edge: ptr.To(gen.IdentifierEdgeLast),
+	}))
+	want := []Interval{
+		provisional(nil, at(3), f.a), confirmed(at(3), at(10), f.a),
+		provisional(at(10), at(15), f.a), confirmed(at(15), at(16), f.a), provisional(at(16), nil, f.a),
+	}
+	if diff := cmp.Diff(want, f.of(t)); diff != "" {
+		t.Errorf("Of before the identifier attestation mismatch (-want +got):\n%s", diff)
+	}
+
+	run, err := f.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), Kind: gen.RunKindAttestIdentifier, Trigger: gen.RunTriggerAdministrator})
+	require.NoError(t, err)
+	for _, on := range []time.Time{day(8), day(12)} {
+		require.NoError(t, Attest(ctx, f.q, f.mics(t), run, f.attestedBy.ID, foo, &f.a, on, day(25)))
+	}
+	want = []Interval{provisional(nil, at(3), f.a), confirmed(at(3), at(16), f.a), provisional(at(16), nil, f.a)}
+	if diff := cmp.Diff(want, f.of(t)); diff != "" {
+		t.Errorf("Of after the identifier attestation mismatch (-want +got):\n%s", diff)
+	}
+	var n int
+	require.NoError(t, f.tx.QueryRow(ctx, "SELECT count(*) FROM findings WHERE run_id = $1", run.ID).Scan(&n))
+	if n != 0 {
+		t.Errorf("the attest identifier run wrote %d findings, want none", n)
+	}
+}

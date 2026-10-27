@@ -276,8 +276,8 @@ func (r *Resolver) recordFacts(ctx context.Context, keys []factKey) (bool, error
 }
 
 // recordConflicts reads the facts of every ticker in written. It writes each
-// disagreement, broken bracket and missed event that involves a fetch key in
-// mine as a finding of run.
+// disagreement, broken bracket, missed event and overruled edge that
+// involves a fetch key in mine as a finding of run.
 func (r *Resolver) recordConflicts(ctx context.Context, run gen.Run, written *writtenSet, mine map[uuid.UUID]bool) error {
 	var kinds []gen.FindingKind
 	err := r.store.Tx(ctx, func(q Queries) error {
@@ -388,7 +388,8 @@ func (w *writtenSet) tickers() []types.MarketTicker {
 // conflicts returns the findings among the facts of v that involve a fetch
 // key in mine. A disagreement names the losing assertion's fetch key. A
 // broken bracket names the edge's. A missed event names the period
-// assertion's.
+// assertion's. An overruled edge names the edge's. An edge that an
+// identifier attestation overrules is not reported.
 func conflicts(ctx context.Context, q Queries, v types.MarketTicker, mine map[uuid.UUID]bool) ([]gen.CreateFindingParams, error) {
 	f, err := tickervalidity.Read(ctx, q, v)
 	if err != nil {
@@ -422,6 +423,14 @@ func conflicts(ctx context.Context, q Queries, v types.MarketTicker, mine map[uu
 			v.Name(), m.Inferred.Earlier.At.Format(time.DateOnly), m.Inferred.Later.At.Format(time.DateOnly),
 			m.By.Source.Datasource, m.By.Period.From.Format(time.DateOnly), m.By.Period.Before.Format(time.DateOnly))
 		out = append(out, gen.CreateFindingParams{Kind: gen.FindingKindMissedEvent, FetchKeyID: ptr.To(m.By.Source.FetchKey), Detail: &detail})
+	}
+	for _, o := range d.Overruled {
+		if o.By[0].Attested || !mine[o.Edge.Source.FetchKey] && !slices.ContainsFunc(o.By, func(s tickervalidity.Source) bool { return mine[s.FetchKey] }) {
+			continue
+		}
+		detail := fmt.Sprintf("%s: a %s edge on %s is overruled by %s",
+			v.Name(), o.Edge.Edge, o.Edge.At.Format(time.DateOnly), o.By[0].Datasource)
+		out = append(out, gen.CreateFindingParams{Kind: gen.FindingKindOverruledEdge, FetchKeyID: ptr.To(o.Edge.Source.FetchKey), Detail: &detail})
 	}
 	return out, nil
 }

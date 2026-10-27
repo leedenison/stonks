@@ -311,7 +311,7 @@ func TestDisagreement(t *testing.T) {
 	}
 	wantKinds := []gen.FetchKind{gen.FetchKindIdentity, gen.FetchKindIdentifierFacts, gen.FetchKindIdentifierFacts}
 	if diff := cmp.Diff(wantKinds, kinds); diff != "" || sources[1] != s.alphaName || sources[2] != s.betaName {
-		t.Errorf("written runs = %v from %v, want identity then alpha's then beta's events", kinds, sources)
+		t.Errorf("written runs = %v from %v, want identity then alpha's then beta's facts", kinds, sources)
 	}
 
 	s.rerun(t)
@@ -380,6 +380,92 @@ func TestBrokenBracket(t *testing.T) {
 	edge := s.factFetchKey(t, s.alphaName, share)
 	if len(found) != 1 || found[0].Kind != gen.FindingKindBrokenTickerValidityBracket || found[0].FetchKeyID == nil || *found[0].FetchKeyID != edge.ID {
 		t.Errorf("findings = %+v, want one broken bracket naming the edge's fetch key %s", found, edge.ID)
+	}
+}
+
+// TestOverruledEdge checks that beta's edge, which alpha's facts overrule,
+// leaves an overruled edge finding naming beta's fetch key on the run that
+// wrote the edge or the facts that overrule it. A run that only reads the
+// facts does not record one.
+func TestOverruledEdge(t *testing.T) {
+	asserts := func(share types.Identifier, v types.Identifier, at time.Time, edge gen.IdentifierEdge) market.Assertion {
+		return market.Assertion{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{share}}, At: at, Edge: edge}
+	}
+	key := on(2024, 1, 16)
+	tests := []struct {
+		name  string
+		value string
+		// alpha and beta answer each datasource's history of the share
+		// class. Where later is set, alpha answers a lookup of the ticker in
+		// a second run, and its facts overrule beta's edge only from then.
+		alpha, beta func(share, v types.Identifier) market.IdentifierFactResult
+		later       func(share, v types.Identifier) market.IdentifierFactResult
+	}{
+		{
+			name:  "a bracket of alpha in the run that writes the edge",
+			value: "ZZO",
+			alpha: func(share, v types.Identifier) market.IdentifierFactResult {
+				return market.IdentifierFactResult{Assertions: []market.Assertion{asserts(share, v, on(2023, 1, 2), ""), asserts(share, v, key, "")}}
+			},
+			beta: func(share, v types.Identifier) market.IdentifierFactResult {
+				return market.IdentifierFactResult{Assertions: []market.Assertion{asserts(share, v, on(2023, 4, 30), gen.IdentifierEdgeLast)}}
+			},
+		},
+		{
+			name:  "a period assertion of alpha in the run that writes the edge",
+			value: "ZZP",
+			alpha: func(share, v types.Identifier) market.IdentifierFactResult {
+				return market.IdentifierFactResult{
+					Assertions:       []market.Assertion{asserts(share, v, key, "")},
+					PeriodAssertions: []market.PeriodAssertion{{Market: mt(v).Market, Ticker: ptr.To(mt(v)), Period: types.Period{From: on(2023, 1, 1), Before: on(2024, 2, 1)}}},
+				}
+			},
+			beta: func(share, v types.Identifier) market.IdentifierFactResult {
+				return market.IdentifierFactResult{Assertions: []market.Assertion{asserts(share, v, on(2023, 4, 30), gen.IdentifierEdgeLast)}}
+			},
+		},
+		{
+			name:  "a bracket of alpha in a later run",
+			value: "ZZQ",
+			beta: func(share, v types.Identifier) market.IdentifierFactResult {
+				return market.IdentifierFactResult{Assertions: []market.Assertion{asserts(share, v, on(2023, 1, 2), ""), asserts(share, v, on(2023, 4, 30), gen.IdentifierEdgeLast)}}
+			},
+			later: func(share, v types.Identifier) market.IdentifierFactResult {
+				return market.IdentifierFactResult{Assertions: []market.Assertion{asserts(share, v, on(2023, 1, 2), ""), asserts(share, v, key, "")}}
+			},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			s := newStack(t)
+			s.enableBeta(t)
+			v := id(types.IdentifierTypeMicTicker, "XNAS", tc.value)
+			share := id(types.IdentifierTypeOpenfigiShareClass, "", "BBG00"+tc.value+"SHAR")
+			s.script.Responses[v] = market.IdentityResult{Filtered: []types.Identifier{{Type: v.Type, Value: v.Value}}, Listings: []market.Listing{
+				{Class: types.AssetClassStock, Currency: "USD", Primary: "XNAS", Identifiers: []types.Identifier{share, v}},
+			}}
+			if tc.alpha != nil {
+				s.alphaFacts.Responses[share] = tc.alpha(share, v)
+			}
+			s.betaFacts.Responses[share] = tc.beta(share, v)
+			s.resolveOn(t, []time.Time{key}, s.state(t, types.AssetClassStock, "USD", v))
+			edge := s.factFetchKey(t, s.betaName, share)
+			if tc.later != nil {
+				s.rerun(t)
+				s.alphaFacts.Responses[v] = tc.later(share, v)
+				s.resolveOn(t, []time.Time{key}, s.state(t, "", "USD", v))
+			}
+			found := s.runFindings(t)
+			if len(found) != 1 || found[0].Kind != gen.FindingKindOverruledEdge || found[0].FetchKeyID == nil || *found[0].FetchKeyID != edge.ID {
+				t.Errorf("findings = %+v, want one overruled edge naming beta's fetch key %s", found, edge.ID)
+			}
+
+			s.rerun(t)
+			s.resolveOn(t, []time.Time{key}, s.state(t, types.AssetClassStock, "GBP", v))
+			if found := s.runFindings(t); len(found) != 0 {
+				t.Errorf("findings of a run that only read the facts = %+v, want none", found)
+			}
+		})
 	}
 }
 

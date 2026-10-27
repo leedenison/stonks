@@ -15,7 +15,15 @@ import (
 func Derive(f Facts) Derived {
 	ws, disagreements := winners(f.Assertions)
 	cover := union(periods(f.PeriodAssertions))
-	edges := edged(f.Assertions)
+	var edges []Assertion
+	var over []OverruledEdge
+	for _, e := range edged(f.Assertions) {
+		if by := overruled(e, cut(e), f); by != nil {
+			over = append(over, OverruledEdge{Edge: e, By: by})
+			continue
+		}
+		edges = append(edges, e)
+	}
 	bounds := cuts(edges)
 	var out []Interval
 	var inferred []Inferred
@@ -38,8 +46,92 @@ func Derive(f Facts) Derived {
 	}
 	return Derived{
 		Intervals: join(out), Inferred: inferred, Disagreements: disagreements,
-		Broken: broken(ws, edges), Missed: missed(inferred, f.PeriodAssertions, cover),
+		Broken: broken(ws, edges), Missed: missed(inferred, f.PeriodAssertions, cover), Overruled: over,
 	}
+}
+
+// overruled returns the sources of the facts that overrule the edge a, whose
+// cut is c. A source that outranks a's overrules it by a bracket: its nearest
+// assertions on either side of c name one instrument. A datasource also
+// overrules it by a period; see spanned. The strongest such source is the one
+// returned.
+func overruled(a Assertion, c time.Time, f Facts) []Source {
+	var stronger []Source
+	add := func(src Source) bool {
+		if !src.outranks(a.Source) {
+			return false
+		}
+		if !slices.Contains(stronger, src) {
+			stronger = append(stronger, src)
+		}
+		return true
+	}
+	before := map[Source]Assertion{}
+	after := map[Source]Assertion{}
+	for _, x := range f.Assertions {
+		src := x.Source.group()
+		if !add(src) {
+			continue
+		}
+		if x.At.Before(c) {
+			if b, ok := before[src]; !ok || !x.At.Before(b.At) {
+				before[src] = x
+			}
+		} else if n, ok := after[src]; !ok || x.At.Before(n.At) {
+			after[src] = x
+		}
+	}
+	for _, p := range f.PeriodAssertions {
+		add(p.Source.group())
+	}
+	slices.SortStableFunc(stronger, func(x, y Source) int {
+		switch {
+		case x.outranks(y):
+			return -1
+		case y.outranks(x):
+			return 1
+		}
+		return 0
+	})
+	for _, src := range stronger {
+		b, okb := before[src]
+		n, okn := after[src]
+		if okb && okn && b.Instr != nil && same(b.Instr, n.Instr) {
+			return []Source{b.Source, n.Source}
+		}
+		if p, ok := spanned(src, c, f); ok {
+			return []Source{p.Source}
+		}
+	}
+	return nil
+}
+
+// spanned returns the period assertion of the datasource src that holds the
+// cut c, when src overrules an edge there by a period. Its period assertions
+// together hold c and the day before, and src does not state an edge at c.
+func spanned(src Source, c time.Time, f Facts) (PeriodAssertion, bool) {
+	if src.Attested {
+		return PeriodAssertion{}, false
+	}
+	var rows []PeriodAssertion
+	for _, p := range f.PeriodAssertions {
+		if p.Source.group() == src {
+			rows = append(rows, p)
+		}
+	}
+	held := slices.ContainsFunc(union(periods(rows)), func(p types.Period) bool {
+		return p.Contains(c.AddDate(0, 0, -1)) && p.Contains(c)
+	})
+	if !held {
+		return PeriodAssertion{}, false
+	}
+	if slices.ContainsFunc(f.Assertions, func(x Assertion) bool {
+		return x.Edge != "" && x.Source.group() == src && cut(x).Equal(c)
+	}) {
+		return PeriodAssertion{}, false
+	}
+	i := slices.IndexFunc(rows, func(p PeriodAssertion) bool { return p.Period.Contains(c) })
+	return rows[i], true
 }
 
 // missed returns each inferred change whose possible days one period of

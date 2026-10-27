@@ -13,6 +13,11 @@
 // at the start of the next day. Every range stops at a cut. An assertion
 // with an edge also competes for its day as a point does.
 //
+// A stronger source overrules an edge by a bracket or by a period; see
+// overruled. An overruled edge does not cut, and its assertion still
+// competes for its day as a point. An administrator overrules a wrong edge by
+// attesting one instrument on the days around it.
+//
 // On each day one assertion wins; see winners. Ticker validity is confirmed on
 // each day the winning assertion names the instrument. Two consecutive
 // winning assertions of one instrument that a cut does not separate confirm
@@ -91,7 +96,18 @@ type Source struct {
 	Attested bool
 }
 
-// outranks reports whether s wins over o where they disagree on one day.
+// group returns the source that s belongs to when sources are ranked: its
+// datasource with its precedence, or every identifier attestation as one.
+func (s Source) group() Source {
+	if s.Attested {
+		return Source{Attested: true}
+	}
+	return Source{Datasource: s.Datasource, Precedence: s.Precedence}
+}
+
+// outranks reports whether s wins over o where they disagree on one day, and
+// whether s may overrule an edge of o. An identifier attestation outranks a
+// datasource, and a datasource outranks one with a higher precedence number.
 func (s Source) outranks(o Source) bool {
 	if s.Attested != o.Attested {
 		return s.Attested
@@ -129,6 +145,7 @@ type Derived struct {
 	Disagreements []Disagreement
 	Broken        []BrokenBracket
 	Missed        []MissedEvent
+	Overruled     []OverruledEdge
 }
 
 // Disagreement is two datasources' assertions on one day that name different
@@ -140,12 +157,20 @@ type Disagreement struct {
 }
 
 // BrokenBracket is an edge that cuts between two winning assertions of one
-// instrument, First before the cut and Last on or after it. The edge wins
-// over the bracket.
+// instrument, First before the cut and Last on or after it. Only an equal or
+// weaker source asserted the bracket, so the edge cuts it.
 type BrokenBracket struct {
 	Edge        Assertion
 	Instr       uuid.UUID
 	First, Last time.Time
+}
+
+// OverruledEdge is an edge that a stronger source overrules, so it does not
+// cut. By holds the source of each fact that overrules it: the two
+// assertions of a bracket, or the period assertion that holds the cut.
+type OverruledEdge struct {
+	Edge Assertion
+	By   []Source
 }
 
 // Inferred is a change that two winning assertions, Earlier and Later,

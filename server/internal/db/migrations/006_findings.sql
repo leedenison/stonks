@@ -18,13 +18,19 @@
 -- completed the pair records it, and the finding names the losing assertion's
 -- fetch key.
 -- 'broken_ticker_validity_bracket' means an edge cut between two assertions
--- that name one instrument. The edge wins over the bracket. The run that
--- wrote the edge records it, and the finding names the edge's fetch key.
+-- that name one instrument, and no stronger source overruled the edge. The
+-- run that wrote the edge records it, and the finding names the edge's fetch
+-- key.
 -- 'missed_event' means two assertions imply a change on one of a run of
 -- days, and a datasource's period assertions hold every one of those days.
 -- The datasource did not report an edge there. The period assertion wins.
 -- The run that wrote the period assertion or either assertion records it,
 -- and the finding names the period assertion's fetch key.
+-- 'overruled_edge' means a datasource that outranks the edge's source
+-- overruled the edge, so the edge does not cut. The run that wrote the edge,
+-- or one of the facts that overrule it, records it. The finding names the
+-- edge's fetch key. An identifier attestation that overrules an edge does
+-- not raise one, since the administrator made the correction.
 -- 'unhandled_corp_act' means a datasource reported a corporate action of
 -- a type the system does not restate a quantity by. The fetch that wrote the
 -- corporate action records it, and the finding names the corporate action.
@@ -41,7 +47,7 @@
 -- stands for each key and day, so clearing the finding dismisses that split permanently.
 CREATE TYPE finding_kind AS ENUM ('block', 'dropped', 'contradiction', 'merged',
     'identifier_disagreement', 'broken_ticker_validity_bracket', 'missed_event',
-    'unhandled_corp_act', 'corp_act_disagreement', 'unmatched_split');
+    'overruled_edge', 'unhandled_corp_act', 'corp_act_disagreement', 'unmatched_split');
 
 -- The step of the choice that dropped a set of identifiers: it contradicted
 -- the stated data, was inconsistent with a higher precedence response, or
@@ -74,7 +80,8 @@ CREATE TABLE findings (
     CHECK ((kind = 'unmatched_split') = (effective_date IS NOT NULL)),
     CHECK ((kind = 'block') = (detail IS NULL)),
     CHECK ((kind = 'dropped') = (step IS NOT NULL)),
-    CHECK (kind NOT IN ('dropped', 'identifier_disagreement', 'broken_ticker_validity_bracket', 'missed_event') OR fetch_key_id IS NOT NULL)
+    CHECK (kind NOT IN ('dropped', 'identifier_disagreement', 'broken_ticker_validity_bracket', 'missed_event',
+                        'overruled_edge') OR fetch_key_id IS NOT NULL)
 );
 
 CREATE INDEX findings_run_idx ON findings (run_id);

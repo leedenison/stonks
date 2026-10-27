@@ -26,8 +26,6 @@ of open issues and ADRs at `docs/tasks/<label>/`.
   Massive and EODHD, on a ticker model where tickers are facts.
 
 ```
-    010 edges
-         |
     011 resolved tickers
          |
     012 tickers leave identifiers
