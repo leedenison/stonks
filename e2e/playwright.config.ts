@@ -18,19 +18,26 @@ export default defineConfig({
     screenshot: "only-on-failure",
     trace: "retain-on-failure",
   },
-  // Extending validity reaches every held ticker in the database, so its spec
-  // runs alone, once every other spec has removed its users.
+  // Extending validity and refreshing corporate events each reach every held
+  // instrument in the database. Each spec runs alone, once every other spec
+  // has removed its users.
   projects: [
     {
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
-      testIgnore: /extend-validity\.spec\.ts/,
+      testIgnore: /(extend-validity|refresh-corporate-events)\.spec\.ts/,
     },
     {
       name: "system",
       use: { ...devices["Desktop Chrome"] },
       testMatch: /extend-validity\.spec\.ts/,
       dependencies: ["chromium"],
+    },
+    {
+      name: "corporate-events",
+      use: { ...devices["Desktop Chrome"] },
+      testMatch: /refresh-corporate-events\.spec\.ts/,
+      dependencies: ["system"],
     },
   ],
 });

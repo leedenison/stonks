@@ -1,0 +1,42 @@
+{
+  "broker": "BROKER_IBKR",
+  "orderFrom": "2013-01-01",
+  "orderBefore": "2013-02-01",
+  "rows": [
+    {
+      "key": {
+        "identifiers": [
+          {
+            "type": "IDENTIFIER_TYPE_MIC_TICKER",
+            "domain": "XNYS",
+            "value": "KO"
+          }
+        ],
+        "assetClass": "ASSET_CLASS_STOCK",
+        "currency": "USD"
+      },
+      "orderDate": "2013-01-15",
+      "settlementDate": "2013-01-15",
+      "asAt": "2013-01-15",
+      "quantity": "10"
+    }
+  ],
+  "splits": [
+    {
+      "key": {
+        "identifiers": [
+          {
+            "type": "IDENTIFIER_TYPE_MIC_TICKER",
+            "domain": "XNYS",
+            "value": "KO"
+          }
+        ],
+        "assetClass": "ASSET_CLASS_STOCK",
+        "currency": "USD"
+      },
+      "effectiveDate": "2015-06-01",
+      "quantity": "10",
+      "ratio": { "from": "1", "to": "2" }
+    }
+  ]
+}

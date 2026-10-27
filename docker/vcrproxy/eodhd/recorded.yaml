@@ -4350,3 +4350,293 @@ interactions:
         status: 404 Not Found
         code: 404
         duration: 166.91079ms
+    - id: 91
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/search/KO?api_token=REDACTED&exchange=US&fmt=json&limit=500
+        form:
+            exchange:
+                - US
+            fmt:
+                - json
+            limit:
+                - "500"
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/search/KO?exchange=US&fmt=json&limit=500
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 28631
+        uncompressed: true
+        body: '[{"Code":"KO","Exchange":"US","Name":"The Coca-Cola Company","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US1912161007","isPrimary":true,"previousClose":92.7,"previousCloseDate":"2026-10-26"},{"Code":"KORU","Exchange":"US","Name":"Direxion Daily South Korea Bull 3X Shares","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US25461A3876","isPrimary":false,"previousClose":10.89,"previousCloseDate":"2026-10-26"},{"Code":"KOLD","Exchange":"US","Name":"ProShares UltraShort Bloomberg Natural Gas","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US74347Y8131","isPrimary":false,"previousClose":30.38,"previousCloseDate":"2026-10-26"},{"Code":"KOD","Exchange":"US","Name":"Kodiak Sciences Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US50015M1099","isPrimary":true,"previousClose":89.6,"previousCloseDate":"2026-10-26"},{"Code":"KOS","Exchange":"US","Name":"Kosmos Energy Ltd","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US5006881065","isPrimary":true,"previousClose":2.85,"previousCloseDate":"2026-10-26"},{"Code":"KOPN","Exchange":"US","Name":"Kopin Corporation","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US5006001011","isPrimary":true,"previousClose":3.4,"previousCloseDate":"2026-10-26"},{"Code":"KOF","Exchange":"US","Name":"Coca-Cola Femsa SAB de CV ADR","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US1912411089","isPrimary":true,"previousClose":115.9,"previousCloseDate":"2026-10-26"},{"Code":"KODK","Exchange":"US","Name":"Eastman Kodak Co","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US2774614067","isPrimary":true,"previousClose":9.34,"previousCloseDate":"2026-10-26"},{"Code":"KOP","Exchange":"US","Name":"Koppers Holdings Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US50060P1066","isPrimary":true,"previousClose":39.83,"previousCloseDate":"2026-10-26"},{"Code":"KOMP","Exchange":"US","Name":"SPDR Kensho New Economies Composite","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US78468R6484","isPrimary":false,"previousClose":62.93,"previousCloseDate":"2026-10-26"},{"Code":"KORP","Exchange":"US","Name":"American Century Diversified Corporate Bond ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US0250721091","isPrimary":false,"previousClose":44.96,"previousCloseDate":"2026-10-26"},{"Code":"KOID","Exchange":"US","Name":"KraneShares Global Humanoid and Embodied Intelligence Index ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US5007677512","isPrimary":false,"previousClose":33.75,"previousCloseDate":"2026-10-26"},{"Code":"KOCT","Exchange":"US","Name":"Innovator Russell 2000 Power Buffer ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US45782C5994","isPrimary":false,"previousClose":37.71,"previousCloseDate":"2026-10-26"},{"Code":"KOYN","Exchange":"US","Name":"CSLM Digital Asset Acquisition Corp III, Ltd","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"KYG2584S1012","isPrimary":false,"previousClose":10.255,"previousCloseDate":"2026-10-26"},{"Code":"KOOYF","Exchange":"US","Name":"Kootenay Silver Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"CA5005838365","isPrimary":true,"previousClose":0.58,"previousCloseDate":"2026-10-26"},{"Code":"KOSS","Exchange":"US","Name":"Koss Corporation","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US5006921085","isPrimary":true,"previousClose":3.4,"previousCloseDate":"2026-10-26"},{"Code":"KOOL","Exchange":"US","Name":"Spinnaker ETF Series","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US84858T8559","isPrimary":false,"previousClose":14.4195,"previousCloseDate":"2026-10-26"},{"Code":"KOKU","Exchange":"US","Name":"Xtrackers MSCI Kokusai Equity ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US2330511351","isPrimary":false,"previousClose":132.375,"previousCloseDate":"2026-10-26"},{"Code":"KONG","Exchange":"US","Name":"Formidable Fortress ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US26923N5041","isPrimary":false,"previousClose":32.929,"previousCloseDate":"2026-10-26"},{"Code":"KOAN","Exchange":"US","Name":"Textmunication Holdings Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US76090M1027","isPrimary":true,"previousClose":0.0004,"previousCloseDate":"2026-10-26"},{"Code":"KOKSF","Exchange":"US","Name":"Kokusai Electric Corporation","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":55.14,"previousCloseDate":"2026-10-23"},{"Code":"KOYJF","Exchange":"US","Name":"Kemira Oyj","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":19,"previousCloseDate":"2026-10-23"},{"Code":"KOREF","Exchange":"US","Name":"KORE Mining Ltd","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":0.088,"previousCloseDate":"2026-10-26"},{"Code":"KOBCY","Exchange":"US","Name":"Kobe Bussan Co., Ltd.","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":9.7865,"previousCloseDate":"2026-10-23"},{"Code":"KOSK","Exchange":"US","Name":"One Step Vending Corp","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US68246L1044","isPrimary":true,"previousClose":0.0023,"previousCloseDate":"2026-10-26"},{"Code":"KOBNF","Exchange":"US","Name":"Kobe Bussan Co. Ltd.","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":24.1,"previousCloseDate":"2026-10-23"},{"Code":"KOJAF","Exchange":"US","Name":"Kojamo Oyj","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":7.9,"previousCloseDate":"2026-10-23"},{"Code":"KOGMF","Exchange":"US","Name":"KGL Resources Ltd","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"CA49427Y5039","isPrimary":true,"previousClose":0.05,"previousCloseDate":"2026-10-23"},{"Code":"KOVR","Exchange":"US","Name":"Korver Corp","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US50067G1094","isPrimary":true,"previousClose":0.0001,"previousCloseDate":"2026-10-23"},{"Code":"KOMOF","Exchange":"US","Name":"Komo Plant Based Foods Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"CA50046B2057","isPrimary":true,"previousClose":0.0005,"previousCloseDate":"2026-10-23"},{"Code":"KOLR","Exchange":"US","Name":"Kolorfusion International Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":0.0002,"previousCloseDate":"2026-10-23"},{"Code":"KOZAY","Exchange":"US","Name":"Koza Altin Islemeleri A S","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US50075G1094","isPrimary":true,"previousClose":7.34,"previousCloseDate":"2026-10-26"},{"Code":"KOTMY","Exchange":"US","Name":"Koito Manufacturing Co Ltd ADR","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US5002751023","isPrimary":true,"previousClose":16.33,"previousCloseDate":"2026-10-26"},{"Code":"KONMY","Exchange":"US","Name":"Konami Holdings Corporation","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US50046R2004","isPrimary":true,"previousClose":78.81,"previousCloseDate":"2026-10-26"},{"Code":"KONEF","Exchange":"US","Name":"KetamineOne Capital Limited","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"CA4925561058","isPrimary":true,"previousClose":0,"previousCloseDate":"2026-10-23"},{"Code":"KOGDF","Exchange":"US","Name":"KO Gold Inc.","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":0.0808,"previousCloseDate":"2026-10-26"},{"Code":"EWY","Exchange":"US","Name":"iShares MSCI South Korea ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US4642867729","isPrimary":false,"previousClose":152.72,"previousCloseDate":"2026-10-26"},{"Code":"KGS","Exchange":"US","Name":"Kodiak Gas Services, Inc.","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US50012A1088","isPrimary":true,"previousClose":45.45,"previousCloseDate":"2026-10-26"},{"Code":"EWH","Exchange":"US","Name":"iShares MSCI Hong Kong ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US4642868719","isPrimary":false,"previousClose":21.95,"previousCloseDate":"2026-10-26"},{"Code":"KSS","Exchange":"US","Name":"Kohl\u0027s Corporation","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US5002551043","isPrimary":true,"previousClose":23.65,"previousCloseDate":"2026-10-26"},{"Code":"KTB","Exchange":"US","Name":"Kontoor Brands Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US50050N1037","isPrimary":true,"previousClose":75.64,"previousCloseDate":"2026-10-26"},{"Code":"KFY","Exchange":"US","Name":"Korn Ferry","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US5006432000","isPrimary":true,"previousClose":78.85,"previousCloseDate":"2026-10-26"},{"Code":"FLKR","Exchange":"US","Name":"Franklin FTSE South Korea ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US35473P7107","isPrimary":false,"previousClose":50.45,"previousCloseDate":"2026-10-26"},{"Code":"PHG","Exchange":"US","Name":"Koninklijke Philips NV ADR","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US5004723038","isPrimary":false,"previousClose":26.57,"previousCloseDate":"2026-10-26"},{"Code":"KEP","Exchange":"US","Name":"Korea Electric Power Corp ADR","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US5006311063","isPrimary":false,"previousClose":10.49,"previousCloseDate":"2026-10-26"},{"Code":"KDK","Exchange":"US","Name":"Kodiak AI, Inc. Common Stock","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US5000811043","isPrimary":false,"previousClose":1.04,"previousCloseDate":"2026-10-26"},{"Code":"HKXCY","Exchange":"US","Name":"Hong Kong Exchange \u0026 Clearing","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US43858F1093","isPrimary":true,"previousClose":47.43,"previousCloseDate":"2026-10-26"},{"Code":"ADRNY","Exchange":"US","Name":"Koninklijke Ahold Delhaize NV ADR","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US5004675014","isPrimary":true,"previousClose":36.87,"previousCloseDate":"2026-10-26"},{"Code":"KMTUY","Exchange":"US","Name":"Komatsu Ltd","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US5004584018","isPrimary":true,"previousClose":42.86,"previousCloseDate":"2026-10-26"},{"Code":"KDEF","Exchange":"US","Name":"PLUS Korea Defense Industry Index ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US30151E4917","isPrimary":false,"previousClose":33.61,"previousCloseDate":"2026-10-26"},{"Code":"KRSA","Exchange":"US","Name":"Korsana Biosciences, Inc.","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":32.09,"previousCloseDate":"2026-10-26"},{"Code":"KRNT","Exchange":"US","Name":"Kornit Digital Ltd","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"IL0011216723","isPrimary":true,"previousClose":17.87,"previousCloseDate":"2026-10-26"},{"Code":"KKPNY","Exchange":"US","Name":"Koninklijke KPN NV ADR","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US7806412059","isPrimary":true,"previousClose":4.52,"previousCloseDate":"2026-10-26"},{"Code":"KRRO","Exchange":"US","Name":"Korro Bio, Inc.","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US5009461089","isPrimary":true,"previousClose":12.02,"previousCloseDate":"2026-10-26"},{"Code":"KNYJY","Exchange":"US","Name":"Kone Oyj ADR","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US50048H1014","isPrimary":true,"previousClose":31.46,"previousCloseDate":"2026-10-26"},{"Code":"KF","Exchange":"US","Name":"Korea Closed Fund","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US5006342092","isPrimary":false,"previousClose":54.68,"previousCloseDate":"2026-10-26"},{"Code":"EQTY","Exchange":"US","Name":"Kovitz Core Equity ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US92046L3539","isPrimary":false,"previousClose":29.58,"previousCloseDate":"2026-10-26"},{"Code":"KGEI","Exchange":"US","Name":"Kolibri Global Energy Inc. Common stock","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"CA50043K4063","isPrimary":false,"previousClose":7.3,"previousCloseDate":"2026-10-26"},{"Code":"KBGGY","Exchange":"US","Name":"Kongsberg Gruppen ASA","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":16.66,"previousCloseDate":"2026-10-26"},{"Code":"HNGKY","Exchange":"US","Name":"Hong Kong Land Holdings Ltd ADR","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US4385813088","isPrimary":true,"previousClose":41.8,"previousCloseDate":"2026-10-26"},{"Code":"KMTUF","Exchange":"US","Name":"Komatsu Ltd","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":44.09,"previousCloseDate":"2026-10-26"},{"Code":"BHKLY","Exchange":"US","Name":"BOC Hong Kong Holdings Ltd ADR","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US0968132094","isPrimary":true,"previousClose":124.94,"previousCloseDate":"2026-10-26"},{"Code":"TOK","Exchange":"US","Name":"iShares MSCI Kokusai ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US4642882652","isPrimary":false,"previousClose":153.03,"previousCloseDate":"2026-10-26"},{"Code":"HKXCF","Exchange":"US","Name":"Hong Kong Exchanges and Clearing Limited","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":49.35,"previousCloseDate":"2026-10-26"},{"Code":"KCHV","Exchange":"US","Name":"Kochav Defense Acquisition Corp. Class A Ordinary Shares","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"KYG5304D1060","isPrimary":false,"previousClose":10.51,"previousCloseDate":"2026-10-26"},{"Code":"KKPNF","Exchange":"US","Name":"Koninklijke KPN N.V","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":4.59,"previousCloseDate":"2026-10-26"},{"Code":"NHNKY","Exchange":"US","Name":"Nihon Kohden Corp ADR","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US65412C1080","isPrimary":true,"previousClose":10.115,"previousCloseDate":"2026-10-26"},{"Code":"MKGAF","Exchange":"US","Name":"MERCK Kommanditgesellschaft auf Aktien","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":161.82,"previousCloseDate":"2026-10-26"},{"Code":"NSKFF","Exchange":"US","Name":"Kongsberg Gruppen ASA","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":34.45,"previousCloseDate":"2026-10-23"},{"Code":"HKPD","Exchange":"US","Name":"Hong Kong Pharma Digital Technology Holdings Limited Ordinary shares","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"KYG6365B1041","isPrimary":true,"previousClose":2.19,"previousCloseDate":"2026-10-26"},{"Code":"KLNG","Exchange":"US","Name":"Koil Energy Solutions Inc.","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":2.83,"previousCloseDate":"2026-10-26"},{"Code":"KHOLY","Exchange":"US","Name":"Koc Holdings AS","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US49989A1097","isPrimary":true,"previousClose":20.57,"previousCloseDate":"2026-10-26"},{"Code":"KRYXF","Exchange":"US","Name":"Koryx Copper Inc.","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":2.135,"previousCloseDate":"2026-10-26"},{"Code":"KDKCF","Exchange":"US","Name":"Kodiak Copper Corp","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":0.45,"previousCloseDate":"2026-10-26"},{"Code":"HOKCY","Exchange":"US","Name":"Hong Kong and China Gas Co Ltd ADR","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US4385503036","isPrimary":true,"previousClose":0.93,"previousCloseDate":"2026-10-26"},{"Code":"KCHVU","Exchange":"US","Name":"Kochav Defense Acquisition Corp.","Type":"Unit","Country":"USA","Currency":"USD","ISIN":"KYG5304D1227","isPrimary":true,"previousClose":10.56,"previousCloseDate":"2026-10-26"},{"Code":"KTEL","Exchange":"US","Name":"KonaTel Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US50050T1007","isPrimary":true,"previousClose":0.055,"previousCloseDate":"2026-10-26"},{"Code":"BORUF","Exchange":"US","Name":"Borussia Dortmund GmbH \u0026 Co. Kommanditgesellschaft auf Aktien","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":3.43,"previousCloseDate":"2026-10-26"},{"Code":"PSKOF","Exchange":"US","Name":"Polski Koncern Naftowy ORLEN Sp\u00f3lka Akcyjna","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":39.1,"previousCloseDate":"2026-10-23"},{"Code":"CHBKF","Exchange":"US","Name":"The Chiba Kogyo Bank, Ltd.","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":10.26,"previousCloseDate":"2026-10-23"},{"Code":"KBAGF","Exchange":"US","Name":"Koninklijke BAM Groep nv","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":12.87,"previousCloseDate":"2026-10-23"},{"Code":"KMAAF","Exchange":"US","Name":"Komax Holding AG","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":85.12,"previousCloseDate":"2026-10-23"},{"Code":"HUTCY","Exchange":"US","Name":"Hutchison Telecommunications Hong Kong Holdings Ltd ADR","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US44841V2016","isPrimary":true,"previousClose":2.0121,"previousCloseDate":"2026-10-23"},{"Code":"HKTVY","Exchange":"US","Name":"Hong Kong Television Network Ltd","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US43858G1076","isPrimary":true,"previousClose":2.51,"previousCloseDate":"2026-10-26"},{"Code":"IDKOF","Exchange":"US","Name":"Idemitsu Kosan Co.Ltd","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":9.88,"previousCloseDate":"2026-10-23"},{"Code":"KTSUF","Exchange":"US","Name":"Koatsu Gas Kogyo Co. Ltd","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":6.28,"previousCloseDate":"2026-10-23"},{"Code":"KBRIF","Exchange":"US","Name":"Kobo Resources Inc.","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":0.155,"previousCloseDate":"2026-10-23"},{"Code":"KNRLF","Exchange":"US","Name":"Kontrol Technologies Corp","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":0.04,"previousCloseDate":"2026-10-26"},{"Code":"NKOKF","Exchange":"US","Name":"Noritsu Koki Company. Ltd ","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":12.445,"previousCloseDate":"2026-10-23"},{"Code":"KMERF","Exchange":"US","Name":"Komercn\u00ed banka a.s.","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":45.1,"previousCloseDate":"2026-10-26"},{"Code":"KNOIF","Exchange":"US","Name":"Konoike Transport Co.Ltd.","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":20.21,"previousCloseDate":"2026-10-23"},{"Code":"KLTHF","Exchange":"US","Name":"Koolearn Technology Holding Limited","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":2.8,"previousCloseDate":"2026-10-23"},{"Code":"KSRBF","Exchange":"US","Name":"Kossan Rubber Industries Bhd","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":0.189,"previousCloseDate":"2026-10-23"},{"Code":"KTRIF","Exchange":"US","Name":"Kootenay Resources Inc.","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":0.0513,"previousCloseDate":"2026-10-23"},{"Code":"SHKLF","Exchange":"US","Name":"Sinotruk (Hong Kong) Ltd","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":3.38,"previousCloseDate":"2026-10-23"},{"Code":"KUKYF","Exchange":"US","Name":"Kokuyo Co., Ltd.","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":5.59,"previousCloseDate":"2026-10-23"},{"Code":"KRED","Exchange":"US","Name":"Konared Corporation","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US50048Y1047","isPrimary":true,"previousClose":0.0001,"previousCloseDate":"2026-10-23"},{"Code":"KGGNF","Exchange":"US","Name":"Kogan.com Ltd","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":2.16,"previousCloseDate":"2026-10-23"},{"Code":"FITSF","Exchange":"US","Name":"Koios Beverage Corp","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":0.0111,"previousCloseDate":"2026-10-23"},{"Code":"KMDHF","Exchange":"US","Name":"KOMEDA Holdings Co., Ltd.","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":19.19,"previousCloseDate":"2026-10-23"},{"Code":"KARE","Exchange":"US","Name":"Koala Corporation","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US4998661015","isPrimary":true,"previousClose":0.0001,"previousCloseDate":"2026-10-23"},{"Code":"CTVIF","Exchange":"US","Name":"China Travel International Investment Hong Kong Limited","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":0.14,"previousCloseDate":"2026-10-26"},{"Code":"XKFDX","Exchange":"US","Name":"The Korea Fund Inc","Type":"FUND","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":65.02,"previousCloseDate":"2026-10-26"},{"Code":"ICHKX","Exchange":"US","Name":"GUINNESS ATKINSON CHINA \u0026 HONG KONG FUND","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US4020312074","isPrimary":false,"previousClose":14.08,"previousCloseDate":"2026-10-26"},{"Code":"KNCRF","Exchange":"US","Name":"Konecranes Plc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":37.95,"previousCloseDate":"2026-10-26"},{"Code":"INDIX","Exchange":"US","Name":"ALPS\/KOTAK INDIA GROWTH FUND CLASS I","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US3176094361","isPrimary":false,"previousClose":14.47,"previousCloseDate":"2026-10-26"},{"Code":"AHODF","Exchange":"US","Name":"Koninklijke Ahold Delhaize NV","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"NL0011794037","isPrimary":false,"previousClose":37.12,"previousCloseDate":"2026-10-26"},{"Code":"INFCX","Exchange":"US","Name":"ALPS\/KOTAK INDIA GROWTH FUND CLASS C","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US3176094445","isPrimary":false,"previousClose":11.62,"previousCloseDate":"2026-10-26"},{"Code":"KNYJF","Exchange":"US","Name":"KONE Oyj","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"FI0009013403","isPrimary":false,"previousClose":62.97,"previousCloseDate":"2026-10-26"},{"Code":"HKGEF","Exchange":"US","Name":"Hong Kong Economic Times Holdings Limited","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":0.073,"previousCloseDate":"2026-10-26"},{"Code":"INDAX","Exchange":"US","Name":"ALPS\/KOTAK INDIA GROWTH FUND CLASS A","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US3176094510","isPrimary":false,"previousClose":13.6,"previousCloseDate":"2026-10-26"},{"Code":"HTCTF","Exchange":"US","Name":"Hutchison Telecommunications Hong Kong Holdings Limited","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":0.1306,"previousCloseDate":"2026-10-26"},{"Code":"KBSTF","Exchange":"US","Name":"Kobe Steel Ltd","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":13.85,"previousCloseDate":"2026-10-26"},{"Code":"VOPKY","Exchange":"US","Name":"Koninklijke Vopak NV ADR","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US50048T1051","isPrimary":true,"previousClose":59.7,"previousCloseDate":"2026-10-26"},{"Code":"IDKOY","Exchange":"US","Name":"Idemitsu Kosan Co Ltd ADR","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US45166E1047","isPrimary":true,"previousClose":19.98,"previousCloseDate":"2026-10-26"},{"Code":"KGGAX","Exchange":"US","Name":"KOPERNIK GLOBAL ALL-CAP FUND CLASS A SHARES","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US00766Y3154","isPrimary":false,"previousClose":15.95,"previousCloseDate":"2026-10-26"},{"Code":"KGGIX","Exchange":"US","Name":"KOPERNIK GLOBAL ALL-CAP FUND CLASS I SHARES","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US00766Y2990","isPrimary":false,"previousClose":15.86,"previousCloseDate":"2026-10-26"},{"Code":"KGIIX","Exchange":"US","Name":"KOPERNIK INTERNATIONAL FUND CLASS I SHARES","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US00766Y2404","isPrimary":false,"previousClose":17.53,"previousCloseDate":"2026-10-26"},{"Code":"KNCAY","Exchange":"US","Name":"Konica Minolta Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US50048B1044","isPrimary":true,"previousClose":8.39,"previousCloseDate":"2026-10-26"},{"Code":"VOPKF","Exchange":"US","Name":"Koninklijke Vopak NV","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"NL0009432491","isPrimary":false,"previousClose":58.62,"previousCloseDate":"2026-10-26"},{"Code":"RYLPF","Exchange":"US","Name":"Koninklijke Philips N.V","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":27.104,"previousCloseDate":"2026-10-26"},{"Code":"CHDGF","Exchange":"US","Name":"COSCO SHIPPING International (Hong Kong) Co. Ltd","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":0.799,"previousCloseDate":"2026-10-26"},{"Code":"KCKSF","Exchange":"US","Name":"Keck Seng Investments (Hong Kong) Limited","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":0.2912,"previousCloseDate":"2026-10-23"},{"Code":"KKPT","Exchange":"US","Name":"KoKo Petroleum Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":0,"previousCloseDate":"2026-10-23"},{"Code":"KNCRY","Exchange":"US","Name":"Konecranes Abp ADR","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US50048J1079","isPrimary":true,"previousClose":7.35,"previousCloseDate":"2026-10-26"},{"Code":"KSRYY","Exchange":"US","Name":"Kose Corp ADR","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US5006791058","isPrimary":true,"previousClose":7.43,"previousCloseDate":"2026-10-26"},{"Code":"SHKLY","Exchange":"US","Name":"Sinotruk Hong Kong Ltd ADR","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US82936E1064","isPrimary":true,"previousClose":208.91,"previousCloseDate":"2026-10-26"},{"Code":"INAAX","Exchange":"US","Name":"ALPS\/KOTAK INDIA GROWTH FUND CLASS A","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US31761R2452","isPrimary":false,"previousClose":13.59,"previousCloseDate":"2026-10-26"},{"Code":"KGIRX","Exchange":"US","Name":"Kopernik International Fund Investor Class","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US00766Y2578","isPrimary":false,"previousClose":17.39,"previousCloseDate":"2026-10-26"},{"Code":"INDSX","Exchange":"US","Name":"Financial Investors Trust - ALPS | Kotak India Growth Fund","Type":"FUND","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":14.74,"previousCloseDate":"2026-10-26"},{"Code":"KCHVR","Exchange":"US","Name":"Kochav Defense Acquisition Corp. Right","Type":"Warrant","Country":"USA","Currency":"USD","ISIN":"KYG5304D1144","isPrimary":false,"previousClose":0.0601,"previousCloseDate":"2026-10-23"},{"Code":"KBKIF","Exchange":"US","Name":"Kotobuki Spirits Co., Ltd.","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":10.5,"previousCloseDate":"2026-10-23"},{"Code":"KMRRF","Exchange":"US","Name":"Kongsberg Maritime ASA","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":6.333,"previousCloseDate":"2026-10-26"},{"Code":"KSMH","Exchange":"US","Name":"xETFs Korea AI Semiconductor","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":22.49,"previousCloseDate":"2026-10-26"}]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 08:23:55 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1199"
+        status: 200 OK
+        code: 200
+        duration: 1.907508342s
+    - id: 92
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/exchange-symbol-list/US?api_token=REDACTED&fmt=json&symbols=KO
+        form:
+            fmt:
+                - json
+            symbols:
+                - KO
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/exchange-symbol-list/US?fmt=json&symbols=KO
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 141
+        uncompressed: true
+        body: '[{"Code":"KO","Name":"The Coca-Cola Company","Country":"USA","Exchange":"NYSE","Currency":"USD","Type":"Common Stock","Isin":"US1912161007"}]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 08:23:55 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1198"
+        status: 200 OK
+        code: 200
+        duration: 288.355165ms
+    - id: 93
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/id-mapping?api_token=REDACTED&filter%5Bisin%5D=US1912161007&fmt=json
+        form:
+            filter[isin]:
+                - US1912161007
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/id-mapping?filter%5Bisin%5D=US1912161007&fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 533
+        uncompressed: true
+        body: '{"meta":{"limit":1000,"offset":0,"total":4},"data":[{"symbol":"CCC3.XETRA","isin":"US1912161007","figi":null,"lei":"UWJKFUJFZ02DKWI3RY53","cusip":null,"cik":null},{"symbol":"CCC3.F","isin":"US1912161007","figi":null,"lei":"UWJKFUJFZ02DKWI3RY53","cusip":null,"cik":null},{"symbol":"CCC3.STU","isin":"US1912161007","figi":null,"lei":"UWJKFUJFZ02DKWI3RY53","cusip":null,"cik":null},{"symbol":"KO.US","isin":"US1912161007","figi":"BBG000BMX289","lei":"UWJKFUJFZ02DKWI3RY53","cusip":"191216100","cik":"0000021344"}],"links":{"next":null}}'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 08:23:55 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1197"
+        status: 200 OK
+        code: 200
+        duration: 172.99281ms
+    - id: 94
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/KO.US?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/KO.US?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 307
+        uncompressed: true
+        body: '[{"date":"1977-06-01","split":"2.000000\/1.000000"},{"date":"1986-07-01","split":"3.000000\/1.000000"},{"date":"1990-05-14","split":"2.000000\/1.000000"},{"date":"1992-05-12","split":"2.000000\/1.000000"},{"date":"1996-05-13","split":"2.000000\/1.000000"},{"date":"2012-08-13","split":"2.000000\/1.000000"}]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 08:24:17 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1196"
+        status: 200 OK
+        code: 200
+        duration: 247.667931ms
+    - id: 95
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/KO.LIM?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/KO.LIM?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 2
+        uncompressed: true
+        body: '[]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 27 Oct 2026 08:24:17 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1195"
+        status: 200 OK
+        code: 200
+        duration: 234.360373ms
+    - id: 96
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/KO.SN?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/KO.SN?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 16
+        uncompressed: true
+        body: Symbol not found
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - text/html; charset=utf-8
+            Date:
+                - Tue, 27 Oct 2026 08:24:17 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1194"
+        status: 404 Not Found
+        code: 404
+        duration: 170.484031ms

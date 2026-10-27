@@ -32,9 +32,9 @@ const fixtures = ["standard-meta-2024.json", "standard-meta-2021.json"].map(
 );
 const meta = { type: IdentifierType.MIC_TICKER, domain: "XNAS", value: "META" };
 
-// identifying names the datasource of each identity and identifier events
-// fetch beneath resolution. New identifier facts also start corporate events
-// fetches there.
+// identifying lists the datasource of each identity fetch and identifier
+// events fetch under a resolution run. It leaves out corporate events
+// fetches, which new identifier facts also start there.
 function identifying(resolution: UserRun): (string | undefined)[] {
   return resolution.children
     .filter((c) => c.fetch?.kind !== FetchKind.CORPORATE_EVENTS)
