@@ -524,7 +524,7 @@ func TestDescribedRows(t *testing.T) {
 	})
 
 	t.Run("another broker's description of the same text names nothing", func(t *testing.T) {
-		schwab := s.newStatement(t, gen.BrokerSchwab)
+		schwab := s.newStmt(t, gen.BrokerSchwab)
 		k := s.stateUnder(t, schwab, types.AssetClassStock, "USD", id(types.IdentifierTypeBrokerDescription, "schwab", "ACME CORP"))
 		got := s.resolve(t, k)
 		want := "unrecognised: failed to match broker description"
@@ -564,7 +564,7 @@ func TestDescribedRows(t *testing.T) {
 		fund := id(types.IdentifierTypeBrokerDescription, "fidelity_uk", "ZZ FUND ACC")
 		seeded, err := s.q.CreateIdentifier(ctx, gen.CreateIdentifierParams{ID: db.NewID(), InstrumentID: ref.ID, Type: fund.Type, Domain: fund.Domain, Value: fund.Value})
 		require.NoError(t, err)
-		fidelity := s.newStatement(t, gen.BrokerFidelityUk)
+		fidelity := s.newStmt(t, gen.BrokerFidelityUk)
 		before := len(s.fetches(t))
 		k := s.stateUnder(t, fidelity, types.AssetClassSecurity, "GBP", fund)
 		got := s.resolve(t, k)
@@ -942,7 +942,7 @@ func TestConfirmRows(t *testing.T) {
 		{Class: types.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{figi2, xnas}},
 	}}
 	key := s.state(t, types.AssetClassStock, "GBP", ticker, descr)
-	later := s.newStatement(t, gen.BrokerIbkr)
+	later := s.newStmt(t, gen.BrokerIbkr)
 	mate := s.stateUnder(t, later, types.AssetClassStock, "GBP", descr)
 	require.NoError(t, s.q.SetStatedKeyGroups(ctx, gen.SetStatedKeyGroupsParams{UserID: s.user.ID, Ids: []uuid.UUID{key.ID, mate.ID}, GroupIds: []uuid.UUID{key.ID, key.ID}}))
 
@@ -1012,14 +1012,14 @@ func TestConfirmRows(t *testing.T) {
 
 	// A later statement stating the key links to its row, with the
 	// association.
-	next := s.stateUnder(t, s.newStatement(t, gen.BrokerIbkr), types.AssetClassStock, "GBP", ticker, descr)
+	next := s.stateUnder(t, s.newStmt(t, gen.BrokerIbkr), types.AssetClassStock, "GBP", ticker, descr)
 	if next.ID != key.ID || next.Arbiter == nil || *next.Arbiter != gen.ArbiterUser {
 		t.Errorf("a later statement's key = %+v, want the confirmed key %s", next, key.ID)
 	}
 
 	// A pick the database already holds reuses the instrument.
 	other := id(types.IdentifierTypeBrokerDescription, "ibkr", "OTHER CORP")
-	apart := s.stateUnder(t, s.newStatement(t, gen.BrokerIbkr), types.AssetClassStock, "GBP", ticker, other)
+	apart := s.stateUnder(t, s.newStmt(t, gen.BrokerIbkr), types.AssetClassStock, "GBP", ticker, other)
 	rk, _, err = s.resolver.Confirm(ctx, s.resolution, apart, Pick{Datasource: s.alphaName, Identifier: isin})
 	require.NoError(t, err)
 	if k := s.key(t, apart.ID); rk.Outcome != gen.ResolutionOutcomeMatched || k.InstrumentID == nil || *k.InstrumentID != inst.ID || *k.Arbiter != gen.ArbiterUser {

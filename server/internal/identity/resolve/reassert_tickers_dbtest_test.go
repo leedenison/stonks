@@ -38,7 +38,7 @@ func (s *stack) withoutEvents(t *testing.T, names ...string) {
 func (s *stack) trade(t *testing.T, key gen.StatedKey, d time.Time) {
 	t.Helper()
 	_, err := s.q.CreateTxn(context.Background(), gen.CreateTxnParams{
-		ID: db.NewID(), UserID: s.user.ID, Broker: gen.BrokerIbkr, StatementID: s.statement.ID, StatedKeyID: key.ID,
+		ID: db.NewID(), UserID: s.user.ID, Broker: gen.BrokerIbkr, StmtID: s.stmt.ID, StatedKeyID: key.ID,
 		OrderDate: d, SettlementDate: d, AsAt: d, Quantity: decimal.NewFromInt(1),
 	})
 	require.NoError(t, err)

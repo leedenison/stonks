@@ -1,6 +1,6 @@
 //go:build dbtest
 
-package statement
+package stmt
 
 import (
 	"context"
@@ -99,11 +99,11 @@ func (s stack) txns(t *testing.T) []string {
 	currency := map[uuid.UUID]string{}
 	listed := map[uuid.UUID]bool{}
 	for _, r := range rows {
-		if listed[r.StatementID] {
+		if listed[r.StmtID] {
 			continue
 		}
-		listed[r.StatementID] = true
-		keys, err := s.q.ListStatedKeys(ctx, gen.ListStatedKeysParams{StatementID: r.StatementID, UserID: s.user.ID})
+		listed[r.StmtID] = true
+		keys, err := s.q.ListStatedKeys(ctx, gen.ListStatedKeysParams{StmtID: r.StmtID, UserID: s.user.ID})
 		require.NoError(t, err)
 		for _, k := range keys {
 			currency[k.ID] = "-"
@@ -145,17 +145,17 @@ func TestIngest(t *testing.T) {
 	}
 	parent := s.ingest(t, msg)
 
-	st, err := s.q.GetStatement(ctx, gen.GetStatementParams{ID: parent.ID, UserID: s.user.ID})
+	row, err := s.q.GetStmt(ctx, gen.GetStmtParams{ID: parent.ID, UserID: s.user.ID})
 	require.NoError(t, err)
-	if st.Statement.Broker != gen.BrokerIbkr || !st.Statement.OrderFrom.Equal(from) || !st.Statement.OrderBefore.Equal(until) || st.Statement.RowCount != 6 || st.Rejected != 3 {
-		t.Errorf("GetStatement = %+v, want ibkr over March with 6 rows and 3 rejected", st)
+	if row.Stmt.Broker != gen.BrokerIbkr || !row.Stmt.OrderFrom.Equal(from) || !row.Stmt.OrderBefore.Equal(until) || row.Stmt.RowCount != 6 || row.Rejected != 3 {
+		t.Errorf("GetStmt = %+v, want ibkr over March with 6 rows and 3 rejected", row)
 	}
-	keys, err := s.q.ListStatedKeys(ctx, gen.ListStatedKeysParams{StatementID: parent.ID, UserID: s.user.ID})
+	keys, err := s.q.ListStatedKeys(ctx, gen.ListStatedKeysParams{StmtID: parent.ID, UserID: s.user.ID})
 	require.NoError(t, err)
 	if len(keys) != 6 {
 		t.Errorf("ListStatedKeys = %d keys, want 6: the trade, cash, the transfer, cash in EUR, the equity stating a currency and the split", len(keys))
 	}
-	items, err := s.q.ListStatementItems(ctx, gen.ListStatementItemsParams{StatementID: parent.ID, UserID: s.user.ID})
+	items, err := s.q.ListStmtItems(ctx, gen.ListStmtItemsParams{StmtID: parent.ID, UserID: s.user.ID})
 	require.NoError(t, err)
 	var gotItems []string
 	for _, it := range items {
@@ -227,7 +227,7 @@ func TestFamily(t *testing.T) {
 	ctx := context.Background()
 	parent := s.ingest(t, &statementv1.Statement{Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01",
 		Rows: []*statementv1.Row{rowMsg(cashKey("GBX"), "2026-03-05", "250")}})
-	keys, err := s.q.ListStatedKeys(ctx, gen.ListStatedKeysParams{StatementID: parent.ID, UserID: s.user.ID})
+	keys, err := s.q.ListStatedKeys(ctx, gen.ListStatedKeysParams{StmtID: parent.ID, UserID: s.user.ID})
 	require.NoError(t, err)
 	require.Len(t, keys, 1)
 	gbp, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: types.IdentifierTypeCurrency, Value: "GBP"})
@@ -418,7 +418,7 @@ func TestSweep(t *testing.T) {
 	bare := &typev1.StatedKey{Identifiers: acme.Identifiers, AssetClass: acme.AssetClass}
 	first := s.ingest(t, &statementv1.Statement{Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01",
 		Rows: []*statementv1.Row{rowMsg(acme, "2026-03-05", "1"), rowMsg(bare, "2026-03-06", "2")}})
-	keys, err := s.q.ListStatedKeys(ctx, gen.ListStatedKeysParams{StatementID: first.ID, UserID: s.user.ID})
+	keys, err := s.q.ListStatedKeys(ctx, gen.ListStatedKeysParams{StmtID: first.ID, UserID: s.user.ID})
 	require.NoError(t, err)
 	require.Len(t, keys, 2)
 	root, member := keys[0], keys[1]
@@ -426,7 +426,7 @@ func TestSweep(t *testing.T) {
 		t.Fatalf("member = %+v, want it in the root's group %s", member, root.ID)
 	}
 
-	_, err = s.tx.Exec(ctx, "DELETE FROM statements WHERE id = $1", first.ID)
+	_, err = s.tx.Exec(ctx, "DELETE FROM stmts WHERE id = $1", first.ID)
 	require.NoError(t, err)
 	second := s.ingest(t, &statementv1.Statement{Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-04-01", OrderBefore: "2026-05-01",
 		Rows: []*statementv1.Row{rowMsg(bare, "2026-04-05", "3")}})
@@ -438,7 +438,7 @@ func TestSweep(t *testing.T) {
 	if kept.GroupID == nil || *kept.GroupID != member.ID {
 		t.Errorf("the member after the write = %+v, want it kept in a group of its own", kept)
 	}
-	keys, err = s.q.ListStatedKeys(ctx, gen.ListStatedKeysParams{StatementID: second.ID, UserID: s.user.ID})
+	keys, err = s.q.ListStatedKeys(ctx, gen.ListStatedKeysParams{StmtID: second.ID, UserID: s.user.ID})
 	require.NoError(t, err)
 	if len(keys) != 1 || keys[0].ID != member.ID {
 		t.Errorf("the second statement's keys = %+v, want the member alone", keys)
@@ -468,12 +468,12 @@ func TestRestate(t *testing.T) {
 			Rows: []*statementv1.Row{rowMsg(acme, order, quantity)},
 		})
 	}
-	resolutionOf := func(statement gen.Run) gen.Run {
+	resolutionOf := func(stmt gen.Run) gen.Run {
 		t.Helper()
-		children, err := s.q.ListChildRuns(ctx, gen.ListChildRunsParams{ParentID: &statement.ID, UserID: &s.user.ID})
+		children, err := s.q.ListChildRuns(ctx, gen.ListChildRunsParams{ParentID: &stmt.ID, UserID: &s.user.ID})
 		require.NoError(t, err)
 		if len(children) != 1 || children[0].Kind != gen.RunKindResolveStmtKeys {
-			t.Fatalf("statement %s has children %+v, want one resolution", statement.ID, children)
+			t.Fatalf("statement %s has children %+v, want one resolution", stmt.ID, children)
 		}
 		return children[0]
 	}
@@ -542,12 +542,12 @@ func (s *stack) holdings(t *testing.T) (instruments, groups []holding) {
 }
 
 // keyOf returns the one key statement states.
-func (s *stack) keyOf(t *testing.T, statement gen.Run) gen.StatedKey {
+func (s *stack) keyOf(t *testing.T, stmt gen.Run) gen.StatedKey {
 	t.Helper()
-	keys, err := s.q.ListStatedKeys(context.Background(), gen.ListStatedKeysParams{StatementID: statement.ID, UserID: s.user.ID})
+	keys, err := s.q.ListStatedKeys(context.Background(), gen.ListStatedKeysParams{StmtID: stmt.ID, UserID: s.user.ID})
 	require.NoError(t, err)
 	if len(keys) != 1 {
-		t.Fatalf("statement %s has %d keys, want 1", statement.ID, len(keys))
+		t.Fatalf("statement %s has %d keys, want 1", stmt.ID, len(keys))
 	}
 	return keys[0]
 }
@@ -559,4 +559,4 @@ type nopCorpActs struct{}
 func (nopCorpActs) FetchAfterIdentifierFacts(context.Context, gen.Run, []resolve.WrittenIdentifierFacts) {
 }
 
-func (nopCorpActs) AfterStatement(context.Context, gen.Run) {}
+func (nopCorpActs) AfterStmt(context.Context, gen.Run) {}

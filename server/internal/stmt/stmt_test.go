@@ -1,4 +1,4 @@
-package statement
+package stmt
 
 import (
 	"context"
@@ -154,8 +154,8 @@ func newFixture(t *testing.T) *fixture {
 		f.replayed = append(f.replayed, replayCall{except, written})
 		f.followed = append(f.followed, "facts")
 	}).AnyTimes()
-	f.events.EXPECT().AfterStatement(gomock.Any(), gomock.Any()).Do(func(_ context.Context, statement gen.Run) {
-		f.fetched = append(f.fetched, statement)
+	f.events.EXPECT().AfterStmt(gomock.Any(), gomock.Any()).Do(func(_ context.Context, stmt gen.Run) {
+		f.fetched = append(f.fetched, stmt)
 		f.followed = append(f.followed, "corporate actions")
 	}).AnyTimes()
 	f.svc = New(f.store, f.runs, f.resolver, f.facts, f.events, families, clock, slog.New(slog.DiscardHandler))
@@ -343,16 +343,16 @@ func TestOutcomes(t *testing.T) {
 				}
 				return tc.answer(out)
 			}
-			f.store.EXPECT().CreateStatement(gomock.Any(), gomock.Any()).Return(gen.Statement{}, nil)
+			f.store.EXPECT().CreateStmt(gomock.Any(), gomock.Any()).Return(gen.Stmt{}, nil)
 			f.store.EXPECT().UpsertStatedKey(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.UpsertStatedKeyParams) (gen.StatedKey, error) {
 				return gen.StatedKey{ID: arg.ID, Identifiers: arg.Identifiers}, nil
 			}).Times(2)
-			f.store.EXPECT().CreateStatementKeys(gomock.Any(), gomock.Any()).Return(int64(2), nil)
-			var items []gen.CreateStatementItemsParams
+			f.store.EXPECT().CreateStmtKeys(gomock.Any(), gomock.Any()).Return(int64(2), nil)
+			var items []gen.CreateStmtItemsParams
 			var txns []gen.CreateTxnsParams
 			if !tc.wantErr {
 				f.store.EXPECT().DeleteTxns(gomock.Any(), gomock.Any()).Return(int64(0), nil)
-				f.store.EXPECT().CreateStatementItems(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg []gen.CreateStatementItemsParams) (int64, error) {
+				f.store.EXPECT().CreateStmtItems(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg []gen.CreateStmtItemsParams) (int64, error) {
 					items = append(items, arg...)
 					return int64(len(arg)), nil
 				})
@@ -408,7 +408,7 @@ func TestResolvesUnassociated(t *testing.T) {
 				}
 				return out
 			}
-			f.store.EXPECT().CreateStatement(gomock.Any(), gomock.Any()).Return(gen.Statement{}, nil)
+			f.store.EXPECT().CreateStmt(gomock.Any(), gomock.Any()).Return(gen.Stmt{}, nil)
 			f.store.EXPECT().UpsertStatedKey(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.UpsertStatedKeyParams) (gen.StatedKey, error) {
 				row := gen.StatedKey{ID: arg.ID, Identifiers: arg.Identifiers}
 				if described(row, "ACME") {
@@ -416,8 +416,8 @@ func TestResolvesUnassociated(t *testing.T) {
 				}
 				return row, nil
 			}).Times(2)
-			var links []gen.CreateStatementKeysParams
-			f.store.EXPECT().CreateStatementKeys(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg []gen.CreateStatementKeysParams) (int64, error) {
+			var links []gen.CreateStmtKeysParams
+			f.store.EXPECT().CreateStmtKeys(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg []gen.CreateStmtKeysParams) (int64, error) {
 				links = arg
 				return int64(len(arg)), nil
 			})
@@ -461,7 +461,7 @@ func TestResolvesWithDates(t *testing.T) {
 	dated := securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, "ACME", "XNAS"))
 	fixed := securityKey("BETA", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, "US0378331006", ""))
 	instrument := db.NewID()
-	f.store.EXPECT().CreateStatement(gomock.Any(), gomock.Any()).Return(gen.Statement{}, nil)
+	f.store.EXPECT().CreateStmt(gomock.Any(), gomock.Any()).Return(gen.Stmt{}, nil)
 	f.store.EXPECT().UpsertStatedKey(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.UpsertStatedKeyParams) (gen.StatedKey, error) {
 		row := gen.StatedKey{ID: arg.ID, Identifiers: arg.Identifiers}
 		if described(row, "ACME") {
@@ -471,10 +471,10 @@ func TestResolvesWithDates(t *testing.T) {
 		}
 		return row, nil
 	}).Times(2)
-	f.store.EXPECT().CreateStatementKeys(gomock.Any(), gomock.Any()).Return(int64(2), nil)
+	f.store.EXPECT().CreateStmtKeys(gomock.Any(), gomock.Any()).Return(int64(2), nil)
 	f.store.EXPECT().DeleteTxns(gomock.Any(), gomock.Any()).Return(int64(0), nil)
 	f.store.EXPECT().CreateTxns(gomock.Any(), gomock.Any()).Return(int64(3), nil)
-	f.store.EXPECT().CreateStatementItems(gomock.Any(), gomock.Any()).Return(int64(1), nil)
+	f.store.EXPECT().CreateStmtItems(gomock.Any(), gomock.Any()).Return(int64(1), nil)
 	f.store.EXPECT().SweepStatedKeys(gomock.Any(), userID).Return(int64(0), nil)
 	f.store.EXPECT().CompleteRun(gomock.Any(), gomock.Any()).Return(nil)
 	msg := &statementv1.Statement{Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01",
@@ -505,11 +505,11 @@ func TestReplaysNewFacts(t *testing.T) {
 	usd := "USD"
 	stock := securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, "ACME", "XNAS"))
 	f.written = []resolve.WrittenIdentifierFacts{{Run: gen.Run{ID: db.NewID()}, Tickers: []types.MarketTicker{{Market: "US", Value: "ACME"}}}}
-	f.store.EXPECT().CreateStatement(gomock.Any(), gomock.Any()).Return(gen.Statement{}, nil)
+	f.store.EXPECT().CreateStmt(gomock.Any(), gomock.Any()).Return(gen.Stmt{}, nil)
 	f.store.EXPECT().UpsertStatedKey(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.UpsertStatedKeyParams) (gen.StatedKey, error) {
 		return gen.StatedKey{ID: arg.ID, Identifiers: arg.Identifiers}, nil
 	})
-	f.store.EXPECT().CreateStatementKeys(gomock.Any(), gomock.Any()).Return(int64(1), nil)
+	f.store.EXPECT().CreateStmtKeys(gomock.Any(), gomock.Any()).Return(int64(1), nil)
 	f.store.EXPECT().DeleteTxns(gomock.Any(), gomock.Any()).Return(int64(0), nil)
 	f.store.EXPECT().CreateTxns(gomock.Any(), gomock.Any()).Return(int64(1), nil)
 	f.store.EXPECT().SweepStatedKeys(gomock.Any(), userID).Return(int64(0), nil)
@@ -546,20 +546,20 @@ func TestPrepareTakesRow(t *testing.T) {
 	usd := "USD"
 	acme := securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd, ident(typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, "US0378331005", ""))
 	held := db.NewID()
-	f.store.EXPECT().CreateStatement(gomock.Any(), gomock.Any()).Return(gen.Statement{}, nil)
+	f.store.EXPECT().CreateStmt(gomock.Any(), gomock.Any()).Return(gen.Stmt{}, nil)
 	f.store.EXPECT().UpsertStatedKey(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.UpsertStatedKeyParams) (gen.StatedKey, error) {
 		if arg.ID == held {
 			t.Errorf("UpsertStatedKey minted %s, the id of the row another statement holds", held)
 		}
 		return gen.StatedKey{ID: held, Identifiers: arg.Identifiers}, nil
 	})
-	var links []gen.CreateStatementKeysParams
-	f.store.EXPECT().CreateStatementKeys(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg []gen.CreateStatementKeysParams) (int64, error) {
+	var links []gen.CreateStmtKeysParams
+	f.store.EXPECT().CreateStmtKeys(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg []gen.CreateStmtKeysParams) (int64, error) {
 		links = arg
 		return int64(len(arg)), nil
 	})
-	var split gen.CreateStatementSplitParams
-	f.store.EXPECT().CreateStatementSplit(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.CreateStatementSplitParams) error {
+	var split gen.CreateStmtSplitParams
+	f.store.EXPECT().CreateStmtSplit(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.CreateStmtSplitParams) error {
 		split = arg
 		return nil
 	})
@@ -587,7 +587,7 @@ func TestPrepareTakesRow(t *testing.T) {
 // completes.
 func TestCreateSpec(t *testing.T) {
 	f := newFixture(t)
-	f.store.EXPECT().CreateStatement(gomock.Any(), gomock.Any()).Return(gen.Statement{}, nil)
+	f.store.EXPECT().CreateStmt(gomock.Any(), gomock.Any()).Return(gen.Stmt{}, nil)
 	f.store.EXPECT().DeleteTxns(gomock.Any(), gomock.Any()).Return(int64(0), nil)
 	f.store.EXPECT().SweepStatedKeys(gomock.Any(), userID).DoAndReturn(func(context.Context, uuid.UUID) (int64, error) {
 		f.calls = append(f.calls, "sweep")
@@ -619,16 +619,16 @@ func TestCreateFailures(t *testing.T) {
 	boom := errors.New("boom")
 	t.Run("prepare", func(t *testing.T) {
 		f := newFixture(t)
-		f.store.EXPECT().CreateStatement(gomock.Any(), gomock.Any()).Return(gen.Statement{}, boom)
+		f.store.EXPECT().CreateStmt(gomock.Any(), gomock.Any()).Return(gen.Stmt{}, boom)
 		if _, err := f.svc.Create(context.Background(), userID, msg()); !errors.Is(err, boom) {
 			t.Errorf("Create() error = %v, want %v", err, boom)
 		}
 	})
 	t.Run("resolution", func(t *testing.T) {
 		f := newFixture(t)
-		f.store.EXPECT().CreateStatement(gomock.Any(), gomock.Any()).Return(gen.Statement{}, nil)
+		f.store.EXPECT().CreateStmt(gomock.Any(), gomock.Any()).Return(gen.Stmt{}, nil)
 		f.store.EXPECT().UpsertStatedKey(gomock.Any(), gomock.Any()).Return(gen.StatedKey{}, nil)
-		f.store.EXPECT().CreateStatementKeys(gomock.Any(), gomock.Any()).Return(int64(1), nil)
+		f.store.EXPECT().CreateStmtKeys(gomock.Any(), gomock.Any()).Return(int64(1), nil)
 		f.resolveErr = boom
 		if _, err := f.svc.Create(context.Background(), userID, msg()); err != nil {
 			t.Fatalf("Create() error = %v", err)

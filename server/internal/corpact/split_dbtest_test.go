@@ -92,13 +92,13 @@ func (s *stack) states(t *testing.T, user, key uuid.UUID, r *types.Ratio) {
 	ctx := context.Background()
 	run, err := s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &user, Kind: gen.RunKindIngestStmt, Trigger: gen.RunTriggerUser})
 	require.NoError(t, err)
-	_, err = s.q.CreateStatement(ctx, gen.CreateStatementParams{ID: run.ID, UserID: user, Broker: gen.BrokerIbkr, OrderFrom: day(2024, 1, 1), OrderBefore: day(2025, 1, 1)})
+	_, err = s.q.CreateStmt(ctx, gen.CreateStmtParams{ID: run.ID, UserID: user, Broker: gen.BrokerIbkr, OrderFrom: day(2024, 1, 1), OrderBefore: day(2025, 1, 1)})
 	require.NoError(t, err)
-	arg := gen.CreateStatementSplitParams{StatementID: run.ID, UserID: user, StatedKeyID: key, EffectiveDate: splitDay, Quantity: decimal.NewFromInt(90)}
+	arg := gen.CreateStmtSplitParams{StmtID: run.ID, UserID: user, StatedKeyID: key, EffectiveDate: splitDay, Quantity: decimal.NewFromInt(90)}
 	if r != nil {
 		arg.RatioFrom, arg.RatioTo = &r.From, &r.To
 	}
-	require.NoError(t, s.q.CreateStatementSplit(ctx, arg))
+	require.NoError(t, s.q.CreateStmtSplit(ctx, arg))
 }
 
 // splitFound is an unmatched split finding, with the datasource of its fetch

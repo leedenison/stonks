@@ -17,20 +17,20 @@ import (
 )
 
 // names records one transaction against key, so a replay can select it.
-func names(t *testing.T, q *gen.Queries, statement gen.Statement, key gen.StatedKey) {
+func names(t *testing.T, q *gen.Queries, stmt gen.Stmt, key gen.StatedKey) {
 	t.Helper()
 	day := date(2026, 3, 1)
 	_, err := q.CreateTxn(context.Background(), gen.CreateTxnParams{
-		ID: db.NewID(), UserID: key.UserID, Broker: gen.BrokerIbkr, StatementID: statement.ID, StatedKeyID: key.ID,
+		ID: db.NewID(), UserID: key.UserID, Broker: gen.BrokerIbkr, StmtID: stmt.ID, StatedKeyID: key.ID,
 		OrderDate: day, SettlementDate: day, AsAt: day, Quantity: decimal.NewFromInt(1),
 	})
 	require.NoError(t, err)
 }
 
 // newResolution records a resolve statement keys run under statement.
-func newResolution(t *testing.T, q *gen.Queries, user gen.User, statement gen.Statement) gen.Run {
+func newResolution(t *testing.T, q *gen.Queries, user gen.User, stmt gen.Stmt) gen.Run {
 	t.Helper()
-	row, err := q.CreateRun(context.Background(), gen.CreateRunParams{ID: db.NewID(), UserID: &user.ID, Kind: gen.RunKindResolveStmtKeys, Trigger: gen.RunTriggerRun, ParentID: &statement.ID})
+	row, err := q.CreateRun(context.Background(), gen.CreateRunParams{ID: db.NewID(), UserID: &user.ID, Kind: gen.RunKindResolveStmtKeys, Trigger: gen.RunTriggerRun, ParentID: &stmt.ID})
 	require.NoError(t, err)
 	return row
 }
@@ -55,18 +55,18 @@ func TestListUnavailableKeys(t *testing.T) {
 	ctx := context.Background()
 	q := newTx(t)
 	user := newUser(t, q, "unavailable@example.com")
-	statement, later := newStatement(t, q, user), newStatement(t, q, user)
-	first, second := newResolution(t, q, user, statement), newResolution(t, q, user, statement)
+	stmt, later := newStmt(t, q, user), newStmt(t, q, user)
+	first, second := newResolution(t, q, user, stmt), newResolution(t, q, user, stmt)
 	third := newResolution(t, q, user, later)
-	healed := newStatedKey(t, q, user, statement)
-	broken := newStatedKey(t, q, user, statement)
-	idle := newStatedKey(t, q, user, statement)
-	fresh := newStatedKey(t, q, user, statement)
+	healed := newStatedKey(t, q, user, stmt)
+	broken := newStatedKey(t, q, user, stmt)
+	idle := newStatedKey(t, q, user, stmt)
+	fresh := newStatedKey(t, q, user, stmt)
 	outside := newStatedKey(t, q, user, later)
-	shared := newStatedKey(t, q, user, statement)
+	shared := newStatedKey(t, q, user, stmt)
 	link(t, q, later, shared)
 	for _, k := range []gen.StatedKey{healed, broken, fresh, shared} {
-		names(t, q, statement, k)
+		names(t, q, stmt, k)
 	}
 	names(t, q, later, outside)
 	resolved(t, q, first, healed, gen.ResolutionOutcomeUnavailable)
@@ -83,11 +83,11 @@ func TestListUnavailableKeys(t *testing.T) {
 		user   uuid.UUID
 		want   []uuid.UUID
 	}{
-		{name: "a statement", source: statement.ID, user: user.ID, want: []uuid.UUID{broken.ID, shared.ID}},
+		{name: "a statement", source: stmt.ID, user: user.ID, want: []uuid.UUID{broken.ID, shared.ID}},
 		{name: "a resolution", source: second.ID, user: user.ID, want: []uuid.UUID{broken.ID}},
 		{name: "a later statement stating a key it did not resolve", source: later.ID, user: user.ID, want: []uuid.UUID{outside.ID, shared.ID}},
 		{name: "a sibling resolution", source: third.ID, user: user.ID, want: []uuid.UUID{outside.ID}},
-		{name: "another user", source: statement.ID, user: db.NewID(), want: nil},
+		{name: "another user", source: stmt.ID, user: db.NewID(), want: nil},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -112,8 +112,8 @@ func TestListKeysUncoveredBy(t *testing.T) {
 	ctx := context.Background()
 	q := newTx(t)
 	user := newUser(t, q, "uncovered@example.com")
-	statement := newStatement(t, q, user)
-	run, err := q.GetRun(ctx, gen.GetRunParams{ID: statement.ID, UserID: &user.ID})
+	stmt := newStmt(t, q, user)
+	run, err := q.GetRun(ctx, gen.GetRunParams{ID: stmt.ID, UserID: &user.ID})
 	require.NoError(t, err)
 	alpha, beta := newDatasource(t, q, "alpha", 10), newDatasource(t, q, "beta", 20)
 	fetch := newFetch(t, q, user, run, alpha)
@@ -125,7 +125,7 @@ func TestListKeysUncoveredBy(t *testing.T) {
 	}
 	fetched := func(isin string) (gen.Listing, gen.Identifier, uuid.UUID) {
 		t.Helper()
-		key := servedKey(t, q, fetch, newStatedKey(t, q, user, statement), isin)
+		key := servedKey(t, q, fetch, newStatedKey(t, q, user, stmt), isin)
 		instrument, err := q.CreateInstrument(ctx, gen.CreateInstrumentParams{ID: db.NewID(), AssetClass: types.AssetClassStock, FetchKeyID: &key})
 		require.NoError(t, err)
 		listing, err := q.CreateListing(ctx, gen.CreateListingParams{ID: db.NewID(), InstrumentID: instrument.ID, Currency: "USD", FetchKeyID: &key})
@@ -134,15 +134,15 @@ func TestListKeysUncoveredBy(t *testing.T) {
 		return listing, via, key
 	}
 
-	unresolved := newStatedKey(t, q, user, statement)
-	covered := newStatedKey(t, q, user, statement)
-	uncovered := newStatedKey(t, q, user, statement)
-	cash := newStatedKey(t, q, user, statement)
-	arbitrated := newStatedKey(t, q, user, statement)
-	dated := newStatedKey(t, q, user, statement)
-	newStatedKey(t, q, user, statement)
+	unresolved := newStatedKey(t, q, user, stmt)
+	covered := newStatedKey(t, q, user, stmt)
+	uncovered := newStatedKey(t, q, user, stmt)
+	cash := newStatedKey(t, q, user, stmt)
+	arbitrated := newStatedKey(t, q, user, stmt)
+	dated := newStatedKey(t, q, user, stmt)
+	newStatedKey(t, q, user, stmt)
 	for _, k := range []gen.StatedKey{unresolved, covered, uncovered, cash, arbitrated, dated} {
-		names(t, q, statement, k)
+		names(t, q, stmt, k)
 	}
 	listing, via, key := fetched("US0000000001")
 	associate(covered, listing, via, gen.ArbiterDatasource)
@@ -158,7 +158,7 @@ func TestListKeysUncoveredBy(t *testing.T) {
 	_, err = q.SetStatedKeyDatedAssociation(ctx, gen.SetStatedKeyDatedAssociationParams{ID: dated.ID, UserID: user.ID, ViaDomain: "XNAS", ViaValue: "META", Arbiter: gen.ArbiterDatasource})
 	require.NoError(t, err)
 
-	source := gen.ListKeysUncoveredByParams{UserID: user.ID, SourceID: statement.ID, Datasource: alpha.Name}
+	source := gen.ListKeysUncoveredByParams{UserID: user.ID, SourceID: stmt.ID, Datasource: alpha.Name}
 	rows, err := q.ListKeysUncoveredBy(ctx, source)
 	require.NoError(t, err)
 	if len(rows) != 2 || rows[0].StatedKey.ID != unresolved.ID || rows[1].StatedKey.ID != uncovered.ID {
@@ -185,19 +185,19 @@ func TestReplays(t *testing.T) {
 	q := newTx(t)
 	user := newUser(t, q, "replayed@example.com")
 	admin := newUser(t, q, "replayer@example.com")
-	statement := newStatement(t, q, user)
+	stmt := newStmt(t, q, user)
 	ds := newDatasource(t, q, "alpha", 10)
 	run, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &user.ID, Kind: gen.RunKindReplayRun, Trigger: gen.RunTriggerAdministrator})
 	require.NoError(t, err)
-	require.NoError(t, q.CreateReplay(ctx, gen.CreateReplayParams{ID: run.ID, UserID: user.ID, SourceID: statement.ID, Datasource: &ds.Name, StartedBy: admin.ID}))
+	require.NoError(t, q.CreateReplay(ctx, gen.CreateReplayParams{ID: run.ID, UserID: user.ID, SourceID: stmt.ID, Datasource: &ds.Name, StartedBy: admin.ID}))
 	got, err := q.GetReplay(ctx, run.ID)
 	require.NoError(t, err)
-	if got.Replay.SourceID != statement.ID || got.Replay.Datasource == nil || *got.Replay.Datasource != ds.Name || got.StartedByEmail != admin.Email {
-		t.Errorf("GetReplay = %+v, want source %s, datasource %s, started by %s", got, statement.ID, ds.Name, admin.Email)
+	if got.Replay.SourceID != stmt.ID || got.Replay.Datasource == nil || *got.Replay.Datasource != ds.Name || got.StartedByEmail != admin.Email {
+		t.Errorf("GetReplay = %+v, want source %s, datasource %s, started by %s", got, stmt.ID, ds.Name, admin.Email)
 	}
 
 	other := newUser(t, q, "other@example.com")
-	foreign := newStatement(t, q, other)
+	foreign := newStmt(t, q, other)
 	run, err = q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &user.ID, Kind: gen.RunKindReplayRun, Trigger: gen.RunTriggerAdministrator})
 	require.NoError(t, err)
 	if err := q.CreateReplay(ctx, gen.CreateReplayParams{ID: run.ID, UserID: user.ID, SourceID: foreign.ID, StartedBy: admin.ID}); err == nil {

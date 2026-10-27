@@ -158,11 +158,11 @@ func (s *stack) buys(t *testing.T, user, key uuid.UUID, days ...time.Time) gen.R
 	ctx := context.Background()
 	run, err := s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &user, Kind: gen.RunKindIngestStmt, Trigger: gen.RunTriggerUser})
 	require.NoError(t, err)
-	_, err = s.q.CreateStatement(ctx, gen.CreateStatementParams{ID: run.ID, UserID: user, Broker: gen.BrokerIbkr, OrderFrom: day(2000, 1, 1), OrderBefore: day(2026, 1, 1)})
+	_, err = s.q.CreateStmt(ctx, gen.CreateStmtParams{ID: run.ID, UserID: user, Broker: gen.BrokerIbkr, OrderFrom: day(2000, 1, 1), OrderBefore: day(2026, 1, 1)})
 	require.NoError(t, err)
 	for _, d := range days {
 		_, err := s.q.CreateTxn(ctx, gen.CreateTxnParams{
-			ID: db.NewID(), UserID: user, Broker: gen.BrokerIbkr, StatementID: run.ID, StatedKeyID: key,
+			ID: db.NewID(), UserID: user, Broker: gen.BrokerIbkr, StmtID: run.ID, StatedKeyID: key,
 			OrderDate: d, SettlementDate: d, AsAt: d, Quantity: decimal.NewFromInt(10),
 		})
 		require.NoError(t, err)
@@ -192,9 +192,9 @@ func mine(calls []fetched, values ...string) []fetched {
 
 // shared is a ticker that named V's instrument and then U's.
 type shared struct {
-	u, v      uuid.UUID
-	statement gen.Run
-	ticker    string
+	u, v   uuid.UUID
+	stmt   gen.Run
+	ticker string
 	// earlier names V's instrument before ticker named it, and nothing after.
 	earlier string
 }
@@ -214,18 +214,18 @@ func newShared(t *testing.T, s *stack) shared {
 	s.names(t, sh.earlier, &a, day(2005, 1, 3))
 	s.names(t, sh.earlier, nil, day(2008, 1, 2))
 	s.buys(t, sh.v, s.fixedKey(t, sh.v, a), day(2012, 2, 1), day(2011, 5, 2))
-	sh.statement = s.buys(t, sh.u, s.datedKey(t, sh.u, sh.ticker), day(2021, 6, 1))
+	sh.stmt = s.buys(t, sh.u, s.datedKey(t, sh.u, sh.ticker), day(2021, 6, 1))
 	return sh
 }
 
-// TestAfterStatementShared checks that a ticker that also named another
+// TestAfterStmtShared checks that a ticker that also named another
 // user's instrument is asked about over every user's holding, beneath a
 // system child of the statement, and that a ticker whose validity ends before
 // the holding is not asked about.
-func TestAfterStatementShared(t *testing.T) {
+func TestAfterStmtShared(t *testing.T) {
 	s := newStack(t)
 	sh := newShared(t, s)
-	s.svc.AfterStatement(context.Background(), sh.statement)
+	s.svc.AfterStmt(context.Background(), sh.stmt)
 	want := []fetched{{
 		Kind: gen.RunKindRefreshCorpActs,
 		Reqs: []asked{{Ticker: types.MarketTicker{Market: "US", Value: sh.ticker}, Period: types.Period{From: day(2011, 5, 2), Before: day(2026, 3, 3)}}},
@@ -240,8 +240,8 @@ func TestAfterStatementShared(t *testing.T) {
 func TestFetchAfterIdentifierFactsShared(t *testing.T) {
 	s := newStack(t)
 	sh := newShared(t, s)
-	written := []resolve.WrittenIdentifierFacts{{Run: sh.statement, Tickers: []types.MarketTicker{{Market: "US", Value: sh.ticker}}}}
-	s.svc.FetchAfterIdentifierFacts(context.Background(), sh.statement, written)
+	written := []resolve.WrittenIdentifierFacts{{Run: sh.stmt, Tickers: []types.MarketTicker{{Market: "US", Value: sh.ticker}}}}
+	s.svc.FetchAfterIdentifierFacts(context.Background(), sh.stmt, written)
 	want := []fetched{{
 		Kind: gen.RunKindRefreshCorpActs,
 		Reqs: []asked{{Ticker: types.MarketTicker{Market: "US", Value: sh.ticker}, Period: types.Period{From: day(2011, 5, 2), Before: day(2026, 3, 3)}}},
@@ -251,19 +251,19 @@ func TestFetchAfterIdentifierFactsShared(t *testing.T) {
 	}
 }
 
-// TestAfterStatementOwn checks that a ticker only the statement's user holds
+// TestAfterStmtOwn checks that a ticker only the statement's user holds
 // is fetched beneath the statement, from the earliest transaction, and that a
 // dated transaction on a day when its ticker names nothing holds nothing.
-func TestAfterStatementOwn(t *testing.T) {
+func TestAfterStmtOwn(t *testing.T) {
 	s := newStack(t)
 	u := s.user(t)
 	own, unnamed := value(t, "O"), value(t, "N")
 	inst := s.instrument(t)
 	s.names(t, own, &inst, day(2015, 1, 2))
 	s.names(t, unnamed, nil, day(2015, 1, 2))
-	statement := s.buys(t, u, s.datedKey(t, u, own), day(2016, 3, 1), day(2015, 7, 1))
+	stmt := s.buys(t, u, s.datedKey(t, u, own), day(2016, 3, 1), day(2015, 7, 1))
 	s.buys(t, u, s.datedKey(t, u, unnamed), day(2016, 3, 1))
-	s.svc.AfterStatement(context.Background(), statement)
+	s.svc.AfterStmt(context.Background(), stmt)
 	want := []fetched{{
 		Kind: gen.RunKindIngestStmt, User: &u,
 		Reqs: []asked{{Ticker: types.MarketTicker{Market: "US", Value: own}, Period: types.Period{From: day(2015, 7, 1), Before: day(2026, 3, 3)}}},

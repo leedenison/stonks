@@ -1,4 +1,4 @@
-package statement
+package stmt
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 )
 
 // meterName scopes the instruments below to this package.
-const meterName = "github.com/leedenison/stonks/server/internal/statement"
+const meterName = "github.com/leedenison/stonks/server/internal/stmt"
 
 // The attribute key and the closed set of values it takes.
 const (
@@ -28,7 +28,7 @@ type instruments struct {
 var instr = newInstruments(otel.Meter(meterName))
 
 func newInstruments(m metric.Meter) instruments {
-	c, err := m.Int64Counter("stonks.statement.rows", metric.WithUnit("{row}"), metric.WithDescription("Rows of completed statements, by outcome."))
+	c, err := m.Int64Counter("stonks.stmt.rows", metric.WithUnit("{row}"), metric.WithDescription("Rows of completed statements, by outcome."))
 	if err != nil {
 		otel.Handle(err)
 	}

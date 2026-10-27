@@ -1,4 +1,4 @@
-package statement
+package stmt
 
 import (
 	"context"
@@ -30,8 +30,8 @@ import (
 	"github.com/leedenison/stonks/server/internal/platform/ptr"
 	servicemock "github.com/leedenison/stonks/server/internal/service/mock"
 	"github.com/leedenison/stonks/server/internal/service/servicetest"
-	"github.com/leedenison/stonks/server/internal/service/statement/mock"
-	"github.com/leedenison/stonks/server/internal/statement"
+	"github.com/leedenison/stonks/server/internal/service/stmt/mock"
+	"github.com/leedenison/stonks/server/internal/stmt"
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
@@ -44,7 +44,7 @@ var (
 	principal = auth.Principal{User: gen.User{ID: userID, Email: "one@example.com"}, SessionID: servicetest.Session}
 	run       = gen.Run{ID: runID, UserID: &userID, Kind: gen.RunKindIngestStmt, Trigger: gen.RunTriggerUser, State: gen.RunStatePending, CreatedAt: created}
 	runMsg    = &runv1.Run{Id: runID.String(), Kind: runv1.RunKind_RUN_KIND_INGEST_STMT, Trigger: runv1.RunTrigger_RUN_TRIGGER_USER, State: runv1.RunState_RUN_STATE_PENDING, CreatedAt: timestamppb.New(created)}
-	stmt      = gen.Statement{ID: runID, UserID: userID, Broker: gen.BrokerIbkr, OrderFrom: from, OrderBefore: before, RowCount: 3, CreatedAt: created}
+	stmtRow   = gen.Stmt{ID: runID, UserID: userID, Broker: gen.BrokerIbkr, OrderFrom: from, OrderBefore: before, RowCount: 3, CreatedAt: created}
 	summ      = &statementv1.StatementSummary{Run: runMsg, Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01", Rows: 3, Rejected: 1}
 )
 
@@ -71,7 +71,7 @@ func newFixture(t *testing.T) *fixture {
 	return f
 }
 
-func statementMsg() *statementv1.Statement {
+func stmtMsg() *statementv1.Statement {
 	return &statementv1.Statement{Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01"}
 }
 
@@ -80,7 +80,7 @@ func splitMsg(key *typev1.StatedKey) *statementv1.StatedSplit {
 	return &statementv1.StatedSplit{Key: key, EffectiveDate: "2026-03-05", Quantity: "10"}
 }
 
-func TestCreateStatement(t *testing.T) {
+func TestCreateStmt(t *testing.T) {
 	tests := []struct {
 		name     string
 		msg      *statementv1.Statement
@@ -120,7 +120,7 @@ func TestCreateStatement(t *testing.T) {
 				m.Splits[i] = splitMsg(&typev1.StatedKey{})
 			}
 		}, wantCode: connect.CodeInvalidArgument},
-		{name: "unreadable", err: fmt.Errorf("%w: split 0: no key", statement.ErrInvalid), called: true, wantCode: connect.CodeInvalidArgument},
+		{name: "unreadable", err: fmt.Errorf("%w: split 0: no key", stmt.ErrInvalid), called: true, wantCode: connect.CodeInvalidArgument},
 		{name: "failure", err: errors.New("boom"), called: true, wantCode: connect.CodeInternal},
 		{name: "unauthenticated", authErr: auth.ErrUnauthenticated, wantCode: connect.CodeUnauthenticated},
 	}
@@ -128,7 +128,7 @@ func TestCreateStatement(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newFixture(t)
 			f.authn.EXPECT().Authenticate(gomock.Any(), servicetest.Session).Return(principal, tc.authErr)
-			msg := statementMsg()
+			msg := stmtMsg()
 			if tc.edit != nil {
 				tc.edit(msg)
 			}
@@ -154,17 +154,17 @@ func TestCreateStatement(t *testing.T) {
 	}
 }
 
-func TestListStatements(t *testing.T) {
+func TestListStmts(t *testing.T) {
 	tests := []struct {
 		name     string
 		authErr  error
-		rows     []gen.ListStatementsRow
+		rows     []gen.ListStmtsRow
 		err      error
 		want     *statementv1.ListStatementsResponse
 		wantCode connect.Code
 	}{
 		{name: "none", want: &statementv1.ListStatementsResponse{}},
-		{name: "one", rows: []gen.ListStatementsRow{{Statement: stmt, Run: run, Rejected: 1}}, want: &statementv1.ListStatementsResponse{Statements: []*statementv1.StatementSummary{summ}}},
+		{name: "one", rows: []gen.ListStmtsRow{{Stmt: stmtRow, Run: run, Rejected: 1}}, want: &statementv1.ListStatementsResponse{Statements: []*statementv1.StatementSummary{summ}}},
 		{name: "failure", err: errors.New("boom"), wantCode: connect.CodeInternal},
 		{name: "unauthenticated", authErr: auth.ErrUnauthenticated, wantCode: connect.CodeUnauthenticated},
 	}
@@ -173,7 +173,7 @@ func TestListStatements(t *testing.T) {
 			f := newFixture(t)
 			f.authn.EXPECT().Authenticate(gomock.Any(), servicetest.Session).Return(principal, tc.authErr)
 			if tc.authErr == nil {
-				f.reader.EXPECT().ListStatements(gomock.Any(), userID).Return(tc.rows, tc.err)
+				f.reader.EXPECT().ListStmts(gomock.Any(), userID).Return(tc.rows, tc.err)
 			}
 			res, err := f.client.ListStatements(context.Background(), connect.NewRequest(&statementv1.ListStatementsRequest{}))
 			if servicetest.CodeOf(err) != tc.wantCode {
@@ -189,14 +189,14 @@ func TestListStatements(t *testing.T) {
 	}
 }
 
-func TestGetStatement(t *testing.T) {
+func TestGetStmt(t *testing.T) {
 	acme := &typev1.Identifier{Type: typev1.IdentifierType_IDENTIFIER_TYPE_BROKER_DESCRIPTION, Domain: "ibkr", Value: "ACME"}
 	rowMsg := &statementv1.Row{Key: &typev1.StatedKey{Identifiers: []*typev1.Identifier{acme}}, OrderDate: "2026-03-05", SettlementDate: "2026-03-07", AsAt: "2026-03-05", Quantity: "10"}
 	stated, err := protojson.Marshal(rowMsg)
 	if err != nil {
 		t.Fatal(err)
 	}
-	items := []gen.StatementItem{{StatementID: runID, UserID: userID, Ordinal: 2, Reason: "no admissible identifier", Stated: stated}}
+	items := []gen.StmtItem{{StmtID: runID, UserID: userID, Ordinal: 2, Reason: "no admissible identifier", Stated: stated}}
 	// Three keys the statement stated: one matched by its latest resolution
 	// after an earlier one left it unavailable, one left unrecognised, and
 	// one no resolution has reached.
@@ -223,9 +223,9 @@ func TestGetStatement(t *testing.T) {
 	dated := gen.StatedKey{ID: datedID, UserID: userID, Identifiers: []types.Identifier{{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "META"}}, ViaType: ptr.To(types.IdentifierTypeMicTicker), ViaDomain: ptr.To("XNAS"), ViaValue: ptr.To("META"), Arbiter: ptr.To(gen.ArbiterDatasource)}
 	fixed := gen.StatedKey{ID: fixedID, UserID: userID, Identifiers: []types.Identifier{{Type: types.IdentifierTypeBrokerDescription, Domain: "ibkr", Value: "ACME"}}, InstrumentID: ptr.To(uuid.New()), Arbiter: ptr.To(gen.ArbiterDatasource)}
 	txn := func(n int, key gen.StatedKey, on time.Time) gen.Txn {
-		return gen.Txn{ID: uuid.MustParse(fmt.Sprintf("00000000-0000-0000-0000-00000000003%d", n)), UserID: userID, StatementID: runID, StatedKeyID: key.ID, OrderDate: on, AsAt: on, Quantity: decimal.NewFromInt(10)}
+		return gen.Txn{ID: uuid.MustParse(fmt.Sprintf("00000000-0000-0000-0000-00000000003%d", n)), UserID: userID, StmtID: runID, StatedKeyID: key.ID, OrderDate: on, AsAt: on, Quantity: decimal.NewFromInt(10)}
 	}
-	txns := []gen.ListStatementTxnsRow{
+	txns := []gen.ListStmtTxnsRow{
 		{Txn: txn(1, dated, notFoundOn), StatedKey: dated},
 		{Txn: txn(2, dated, assertedOn), StatedKey: dated},
 		{Txn: txn(3, fixed, assertedOn), StatedKey: fixed, FixedViaType: ptr.To(types.IdentifierTypeBrokerDescription)},
@@ -246,41 +246,41 @@ func TestGetStatement(t *testing.T) {
 		name          string
 		id            string
 		authErr       error
-		row           gen.GetStatementRow
+		row           gen.GetStmtRow
 		err           error
-		items         []gen.StatementItem
+		items         []gen.StmtItem
 		itemsErr      error
 		readsKeys     bool
 		keys          []gen.StatedKey
 		keysErr       error
 		latest        []gen.ResolutionKey
 		latestErr     error
-		txns          []gen.ListStatementTxnsRow
+		txns          []gen.ListStmtTxnsRow
 		txnsErr       error
 		assertionsErr error
 		want          *statementv1.GetStatementResponse
 		wantCode      connect.Code
 	}{
 		{
-			name: "with items", id: runID.String(), row: gen.GetStatementRow{Statement: stmt, Run: run, Rejected: 1}, items: items, readsKeys: true,
+			name: "with items", id: runID.String(), row: gen.GetStmtRow{Stmt: stmtRow, Run: run, Rejected: 1}, items: items, readsKeys: true,
 			want: &statementv1.GetStatementResponse{Statement: summ, Items: []*statementv1.StatementItem{{Ordinal: 2, Reason: "no admissible identifier", Row: rowMsg}}},
 		},
 		{
-			name: "with keys", id: runID.String(), row: gen.GetStatementRow{Statement: stmt, Run: run, Rejected: 1}, readsKeys: true, keys: keys, latest: latest,
+			name: "with keys", id: runID.String(), row: gen.GetStmtRow{Stmt: stmtRow, Run: run, Rejected: 1}, readsKeys: true, keys: keys, latest: latest,
 			want: &statementv1.GetStatementResponse{Statement: summ, Keys: keyMsgs},
 		},
 		{
-			name: "with transactions", id: runID.String(), row: gen.GetStatementRow{Statement: stmt, Run: run, Rejected: 1}, readsKeys: true, txns: txns,
+			name: "with transactions", id: runID.String(), row: gen.GetStmtRow{Stmt: stmtRow, Run: run, Rejected: 1}, readsKeys: true, txns: txns,
 			want: &statementv1.GetStatementResponse{Statement: summ, Txns: txnMsgs},
 		},
-		{name: "transactions failure", id: runID.String(), row: gen.GetStatementRow{Statement: stmt, Run: run}, readsKeys: true, txnsErr: errors.New("boom"), wantCode: connect.CodeInternal},
-		{name: "ticker validity failure", id: runID.String(), row: gen.GetStatementRow{Statement: stmt, Run: run}, readsKeys: true, txns: txns, assertionsErr: errors.New("boom"), wantCode: connect.CodeInternal},
+		{name: "transactions failure", id: runID.String(), row: gen.GetStmtRow{Stmt: stmtRow, Run: run}, readsKeys: true, txnsErr: errors.New("boom"), wantCode: connect.CodeInternal},
+		{name: "ticker validity failure", id: runID.String(), row: gen.GetStmtRow{Stmt: stmtRow, Run: run}, readsKeys: true, txns: txns, assertionsErr: errors.New("boom"), wantCode: connect.CodeInternal},
 		{name: "not found", id: runID.String(), err: db.ErrNotFound, wantCode: connect.CodeNotFound},
 		{name: "failure", id: runID.String(), err: errors.New("boom"), wantCode: connect.CodeInternal},
-		{name: "items failure", id: runID.String(), row: gen.GetStatementRow{Statement: stmt, Run: run}, itemsErr: errors.New("boom"), wantCode: connect.CodeInternal},
-		{name: "unreadable item", id: runID.String(), row: gen.GetStatementRow{Statement: stmt, Run: run}, items: []gen.StatementItem{{Ordinal: 0, Stated: []byte("{")}}, wantCode: connect.CodeInternal},
-		{name: "keys failure", id: runID.String(), row: gen.GetStatementRow{Statement: stmt, Run: run}, readsKeys: true, keysErr: errors.New("boom"), wantCode: connect.CodeInternal},
-		{name: "resolutions failure", id: runID.String(), row: gen.GetStatementRow{Statement: stmt, Run: run}, readsKeys: true, keys: keys, latestErr: errors.New("boom"), wantCode: connect.CodeInternal},
+		{name: "items failure", id: runID.String(), row: gen.GetStmtRow{Stmt: stmtRow, Run: run}, itemsErr: errors.New("boom"), wantCode: connect.CodeInternal},
+		{name: "unreadable item", id: runID.String(), row: gen.GetStmtRow{Stmt: stmtRow, Run: run}, items: []gen.StmtItem{{Ordinal: 0, Stated: []byte("{")}}, wantCode: connect.CodeInternal},
+		{name: "keys failure", id: runID.String(), row: gen.GetStmtRow{Stmt: stmtRow, Run: run}, readsKeys: true, keysErr: errors.New("boom"), wantCode: connect.CodeInternal},
+		{name: "resolutions failure", id: runID.String(), row: gen.GetStmtRow{Stmt: stmtRow, Run: run}, readsKeys: true, keys: keys, latestErr: errors.New("boom"), wantCode: connect.CodeInternal},
 		{name: "malformed id", id: "not-a-uuid", wantCode: connect.CodeInvalidArgument},
 		{name: "unauthenticated", id: runID.String(), authErr: auth.ErrUnauthenticated, wantCode: connect.CodeUnauthenticated},
 	}
@@ -289,18 +289,18 @@ func TestGetStatement(t *testing.T) {
 			f := newFixture(t)
 			f.authn.EXPECT().Authenticate(gomock.Any(), servicetest.Session).Return(principal, tc.authErr)
 			if tc.authErr == nil && tc.wantCode != connect.CodeInvalidArgument {
-				f.reader.EXPECT().GetStatement(gomock.Any(), gen.GetStatementParams{ID: runID, UserID: userID}).Return(tc.row, tc.err)
+				f.reader.EXPECT().GetStmt(gomock.Any(), gen.GetStmtParams{ID: runID, UserID: userID}).Return(tc.row, tc.err)
 				if tc.err == nil {
-					f.reader.EXPECT().ListStatementItems(gomock.Any(), gen.ListStatementItemsParams{StatementID: runID, UserID: userID}).Return(tc.items, tc.itemsErr)
+					f.reader.EXPECT().ListStmtItems(gomock.Any(), gen.ListStmtItemsParams{StmtID: runID, UserID: userID}).Return(tc.items, tc.itemsErr)
 				}
 				if tc.readsKeys {
-					f.reader.EXPECT().ListStatedKeys(gomock.Any(), gen.ListStatedKeysParams{StatementID: runID, UserID: userID}).Return(tc.keys, tc.keysErr)
+					f.reader.EXPECT().ListStatedKeys(gomock.Any(), gen.ListStatedKeysParams{StmtID: runID, UserID: userID}).Return(tc.keys, tc.keysErr)
 				}
 				if tc.readsKeys && tc.keysErr == nil && len(tc.keys) > 0 {
 					f.reader.EXPECT().ListLatestResolutions(gomock.Any(), gen.ListLatestResolutionsParams{Ids: []uuid.UUID{matchedID, unrecognisedID, unreachedID}, UserID: userID}).Return(tc.latest, tc.latestErr)
 				}
 				if tc.readsKeys && tc.keysErr == nil && tc.latestErr == nil {
-					f.reader.EXPECT().ListStatementTxns(gomock.Any(), gen.ListStatementTxnsParams{StatementID: runID, UserID: userID}).Return(tc.txns, tc.txnsErr)
+					f.reader.EXPECT().ListStmtTxns(gomock.Any(), gen.ListStmtTxnsParams{StmtID: runID, UserID: userID}).Return(tc.txns, tc.txnsErr)
 				}
 				if len(tc.txns) > 0 {
 					f.reader.EXPECT().ListIdentifierAssertions(gomock.Any(), gen.ListIdentifierAssertionsParams{Markets: []string{"US"}, Values: []string{"META"}}).Return(assertions, tc.assertionsErr)
@@ -357,7 +357,7 @@ func TestFindCandidates(t *testing.T) {
 	}{
 		{name: "listed", id: keyID.String(), called: true, offer: offer, want: want},
 		{name: "not found", id: keyID.String(), called: true, err: db.ErrNotFound, wantCode: connect.CodeNotFound},
-		{name: "associated", id: keyID.String(), called: true, err: statement.ErrAssociated, wantCode: connect.CodeFailedPrecondition},
+		{name: "associated", id: keyID.String(), called: true, err: stmt.ErrAssociated, wantCode: connect.CodeFailedPrecondition},
 		{name: "failure", id: keyID.String(), called: true, err: errors.New("boom"), wantCode: connect.CodeInternal},
 		{name: "malformed id", id: "not-a-uuid", wantCode: connect.CodeInvalidArgument},
 		{name: "unauthenticated", id: keyID.String(), authErr: auth.ErrUnauthenticated, wantCode: connect.CodeUnauthenticated},
@@ -407,7 +407,7 @@ func TestConfirmCandidate(t *testing.T) {
 	}{
 		{name: "confirmed", req: good, called: true, want: want},
 		{name: "not found", req: good, called: true, err: db.ErrNotFound, wantCode: connect.CodeNotFound},
-		{name: "associated", req: good, called: true, err: statement.ErrAssociated, wantCode: connect.CodeFailedPrecondition},
+		{name: "associated", req: good, called: true, err: stmt.ErrAssociated, wantCode: connect.CodeFailedPrecondition},
 		{name: "the answers no longer offer the candidate", req: good, called: true, err: fmt.Errorf("%w: isin US4581401001 names no candidate of openfigi", resolve.ErrNoCandidate), wantCode: connect.CodeFailedPrecondition},
 		{name: "failure", req: good, called: true, err: errors.New("boom"), wantCode: connect.CodeInternal},
 		{name: "the key cannot be read back", req: good, called: true, readErr: errors.New("boom"), wantCode: connect.CodeInternal},

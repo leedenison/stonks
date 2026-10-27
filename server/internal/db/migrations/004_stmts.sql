@@ -7,7 +7,7 @@ CREATE TYPE broker AS ENUM ('ibkr', 'schwab', 'fidelity_uk');
 -- broker over a half-open range of order dates.
 --
 -- The row is keyed by the run and exists from receipt.
-CREATE TABLE statements (
+CREATE TABLE stmts (
     id           uuid        PRIMARY KEY,
     user_id      uuid        NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     broker       broker      NOT NULL,
@@ -31,7 +31,7 @@ CREATE TYPE arbiter AS ENUM ('stated', 'datasource', 'guess', 'user');
 -- A stated key is what a user's statements state about an instrument: its
 -- identifiers, asset class and currency. The user and those three identify
 -- it, and the unique index spans them, so every statement of the user that
--- states the key links to one row through statement_keys. It is the unit at
+-- states the key links to one row through stmt_keys. It is the unit at
 -- which an association is reused. The row keeps a surrogate because six
 -- tables reference it and its identifiers column is too wide to reference.
 -- The identifiers it states become identifier rows only when confirmed by a
@@ -93,34 +93,34 @@ CREATE INDEX stated_keys_identifiers_idx ON stated_keys USING gin (identifiers j
 -- A statement key links a statement to a key it states. A statement links
 -- every key whose rows pass validation, even when the resolution rejected
 -- all of the key's rows, so it lists the key with its outcome.
-CREATE TABLE statement_keys (
-    statement_id  uuid NOT NULL,
+CREATE TABLE stmt_keys (
+    stmt_id  uuid NOT NULL,
     user_id       uuid NOT NULL,
     stated_key_id uuid NOT NULL REFERENCES stated_keys (id) ON DELETE CASCADE,
-    PRIMARY KEY (statement_id, stated_key_id),
-    FOREIGN KEY (statement_id, user_id) REFERENCES statements (id, user_id) ON DELETE CASCADE
+    PRIMARY KEY (stmt_id, stated_key_id),
+    FOREIGN KEY (stmt_id, user_id) REFERENCES stmts (id, user_id) ON DELETE CASCADE
 );
 
-CREATE INDEX statement_keys_key_idx ON statement_keys (stated_key_id);
+CREATE INDEX stmt_keys_key_idx ON stmt_keys (stated_key_id);
 
 -- A statement item is a row the statement rejected: its position in the
 -- payload, why, and the row as stated (as protobuf JSON).
-CREATE TABLE statement_items (
-    statement_id uuid        NOT NULL,
+CREATE TABLE stmt_items (
+    stmt_id uuid        NOT NULL,
     user_id      uuid        NOT NULL,
     ordinal      integer     NOT NULL,
     reason       text        NOT NULL,
     stated       jsonb       NOT NULL,
     created_at   timestamptz NOT NULL DEFAULT now(),
-    PRIMARY KEY (statement_id, ordinal),
-    FOREIGN KEY (statement_id, user_id) REFERENCES statements (id, user_id) ON DELETE CASCADE,
+    PRIMARY KEY (stmt_id, ordinal),
+    FOREIGN KEY (stmt_id, user_id) REFERENCES stmts (id, user_id) ON DELETE CASCADE,
     CHECK (jsonb_typeof(stated) = 'object')
 );
 
 -- A statement split is a split that a statement states. A corporate action
 -- fetch checks it against the calendar.
-CREATE TABLE statement_splits (
-    statement_id   uuid        NOT NULL,
+CREATE TABLE stmt_splits (
+    stmt_id   uuid        NOT NULL,
     user_id        uuid        NOT NULL,
     ordinal        integer     NOT NULL,
     stated_key_id  uuid        NOT NULL REFERENCES stated_keys (id) ON DELETE CASCADE,
@@ -131,17 +131,17 @@ CREATE TABLE statement_splits (
     -- ratio_to is the change in units after the split.
     ratio_to       numeric,
     created_at     timestamptz NOT NULL DEFAULT now(),
-    PRIMARY KEY (statement_id, ordinal),
-    FOREIGN KEY (statement_id, user_id) REFERENCES statements (id, user_id) ON DELETE CASCADE,
+    PRIMARY KEY (stmt_id, ordinal),
+    FOREIGN KEY (stmt_id, user_id) REFERENCES stmts (id, user_id) ON DELETE CASCADE,
     CHECK ((ratio_from IS NULL) = (ratio_to IS NULL))
 );
 
-CREATE INDEX statement_splits_key_idx ON statement_splits (stated_key_id, effective_date);
+CREATE INDEX stmt_splits_key_idx ON stmt_splits (stated_key_id, effective_date);
 
 -- A transaction is a change in the quantity of one instrument held by a user,
 -- with an order date and a settlement date, stated as at a date: the date on
 -- which its values were true, and so which corporate actions they reflect. Its
--- instrument and listing are its key's. statement_id records the statement
+-- instrument and listing are its key's. stmt_id records the statement
 -- that stated it.
 --
 -- Replacement is keyed on user, broker and order date, so those are columns of
@@ -153,19 +153,19 @@ CREATE TABLE txns (
     id              uuid        PRIMARY KEY,
     user_id         uuid        NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     broker          broker      NOT NULL,
-    statement_id    uuid        NOT NULL,
+    stmt_id    uuid        NOT NULL,
     stated_key_id   uuid        NOT NULL REFERENCES stated_keys (id) ON DELETE CASCADE,
     order_date      date        NOT NULL,
     settlement_date date        NOT NULL,
     as_at           date        NOT NULL,
     quantity        numeric     NOT NULL,
     created_at      timestamptz NOT NULL DEFAULT now(),
-    FOREIGN KEY (statement_id, user_id) REFERENCES statements (id, user_id) ON DELETE CASCADE
+    FOREIGN KEY (stmt_id, user_id) REFERENCES stmts (id, user_id) ON DELETE CASCADE
 );
 
 CREATE INDEX txns_period_idx ON txns (user_id, broker, order_date);
 CREATE INDEX txns_key_idx ON txns (user_id, stated_key_id);
-CREATE INDEX txns_statement_idx ON txns (statement_id);
+CREATE INDEX txns_stmt_idx ON txns (stmt_id);
 
 CREATE TYPE resolution_outcome AS ENUM ('matched', 'rejected', 'unrecognised', 'unavailable');
 

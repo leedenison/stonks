@@ -20,14 +20,14 @@ import (
 
 // holder is one user with a statement that holds the transactions.
 type holder struct {
-	user      gen.User
-	statement gen.Statement
+	user gen.User
+	stmt gen.Stmt
 }
 
 func newHolder(t *testing.T, q *gen.Queries, email string) holder {
 	t.Helper()
 	user := newUser(t, q, email)
-	return holder{user: user, statement: newStatement(t, q, user)}
+	return holder{user: user, stmt: newStmt(t, q, user)}
 }
 
 // key makes a stated key, resolved where a listing is given.
@@ -42,7 +42,7 @@ func (h holder) keyIn(t *testing.T, q *gen.Queries, description string, currency
 	t.Helper()
 	ctx := context.Background()
 	described := types.Identifier{Type: types.IdentifierTypeBrokerDescription, Domain: "ibkr", Value: description}
-	k := upsertKey(t, q, h.statement, gen.UpsertStatedKeyParams{Currency: currency, Identifiers: []types.Identifier{described}})
+	k := upsertKey(t, q, h.stmt, gen.UpsertStatedKeyParams{Currency: currency, Identifiers: []types.Identifier{described}})
 	if listing == nil {
 		return k
 	}
@@ -61,7 +61,7 @@ func (h holder) keyIn(t *testing.T, q *gen.Queries, description string, currency
 func (h holder) datedKey(t *testing.T, q *gen.Queries, venue, ticker, currency string) gen.StatedKey {
 	t.Helper()
 	stated := types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: venue, Value: ticker}
-	k := upsertKey(t, q, h.statement, gen.UpsertStatedKeyParams{Currency: &currency, Identifiers: []types.Identifier{stated}})
+	k := upsertKey(t, q, h.stmt, gen.UpsertStatedKeyParams{Currency: &currency, Identifiers: []types.Identifier{stated}})
 	arg := gen.SetStatedKeyDatedAssociationParams{ID: k.ID, UserID: h.user.ID, ViaDomain: venue, ViaValue: ticker, Arbiter: gen.ArbiterDatasource}
 	_, err := q.SetStatedKeyDatedAssociation(context.Background(), arg)
 	require.NoError(t, err)
@@ -80,7 +80,7 @@ func (h holder) record(t *testing.T, q *gen.Queries, key gen.StatedKey, quantity
 func (h holder) recordOn(t *testing.T, q *gen.Queries, key gen.StatedKey, day time.Time, quantity string) {
 	t.Helper()
 	_, err := q.CreateTxn(context.Background(), gen.CreateTxnParams{
-		ID: db.NewID(), UserID: h.user.ID, Broker: gen.BrokerIbkr, StatementID: h.statement.ID, StatedKeyID: key.ID,
+		ID: db.NewID(), UserID: h.user.ID, Broker: gen.BrokerIbkr, StmtID: h.stmt.ID, StatedKeyID: key.ID,
 		OrderDate: day.AddDate(0, 0, -7), SettlementDate: day, AsAt: day,
 		Quantity: decimal.RequireFromString(quantity),
 	})
@@ -146,7 +146,7 @@ func TestListHoldingKeys(t *testing.T) {
 	require.NoError(t, q.SetStatedKeyGroups(ctx, gen.SetStatedKeyGroupsParams{UserID: h.user.ID, Ids: []uuid.UUID{grouped.ID}, GroupIds: []uuid.UUID{grouped.ID}}))
 	h.record(t, q, grouped, "3")
 	h.key(t, q, "NEVER TRADED", nil, nil)
-	later := holder{user: h.user, statement: newStatement(t, q, h.user)}
+	later := holder{user: h.user, stmt: newStmt(t, q, h.user)}
 	newer := later.key(t, q, "ACME CORP LATER", &usd, &via)
 	later.record(t, q, newer, "1")
 	other := newHolder(t, q, "other@example.com")

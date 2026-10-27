@@ -62,12 +62,12 @@ ORDER BY corp_acts.ex_date, corp_acts.id;
 -- through a ticker in values. A user_id limits them to that user, and NULL
 -- reads every user's. Values carry no market, so the caller keeps only the
 -- keys dated through a ticker at a market it asked for.
-SELECT sqlc.embed(statement_splits), sqlc.embed(stated_keys)
-FROM statement_splits
-JOIN stated_keys ON stated_keys.id = statement_splits.stated_key_id
+SELECT sqlc.embed(stmt_splits), sqlc.embed(stated_keys)
+FROM stmt_splits
+JOIN stated_keys ON stated_keys.id = stmt_splits.stated_key_id
 WHERE (stated_keys.instrument_id = ANY(@instruments::uuid[]) OR stated_keys.via_value = ANY(@values::text[]))
-  AND (sqlc.narg(user_id)::uuid IS NULL OR statement_splits.user_id = sqlc.narg(user_id))
-ORDER BY statement_splits.stated_key_id, statement_splits.effective_date, statement_splits.statement_id, statement_splits.ordinal;
+  AND (sqlc.narg(user_id)::uuid IS NULL OR stmt_splits.user_id = sqlc.narg(user_id))
+ORDER BY stmt_splits.stated_key_id, stmt_splits.effective_date, stmt_splits.stmt_id, stmt_splits.ordinal;
 
 -- name: ListTickersNaming :many
 -- The tickers, with their markets, that an assertion pairs with one of

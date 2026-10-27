@@ -26,12 +26,12 @@ func newRun(t *testing.T, q *gen.Queries, user gen.User) gen.Run {
 	return row
 }
 
-// newStatement records a run and its statement, of ibkr over March 2026 with
+// newStmt records a run and its statement, of ibkr over March 2026 with
 // no rows, as the parent of keys, items and transactions.
-func newStatement(t *testing.T, q *gen.Queries, user gen.User) gen.Statement {
+func newStmt(t *testing.T, q *gen.Queries, user gen.User) gen.Stmt {
 	t.Helper()
 	run := newRun(t, q, user)
-	row, err := q.CreateStatement(context.Background(), gen.CreateStatementParams{
+	row, err := q.CreateStmt(context.Background(), gen.CreateStmtParams{
 		ID: run.ID, UserID: user.ID, Broker: gen.BrokerIbkr,
 		OrderFrom: date(2026, time.March, 1), OrderBefore: date(2026, time.April, 1), RowCount: 0,
 	})
@@ -47,10 +47,10 @@ func keyIDs(keys ...gen.StatedKey) []uuid.UUID {
 	return ids
 }
 
-// TestStatements checks the statement read with its rejected count, the order of
+// TestStmts checks the statement read with its rejected count, the order of
 // the list, the scoping of both to the user, and that every row a statement
 // leaves names a statement of its own user.
-func TestStatements(t *testing.T) {
+func TestStmts(t *testing.T) {
 	q := newTx(t)
 	ctx := context.Background()
 	user := newUser(t, q, "statements@example.com")
@@ -62,39 +62,39 @@ func TestStatements(t *testing.T) {
 		return row
 	}
 
-	clean, rejected := newStatement(t, q, user), newStatement(t, q, user)
+	clean, rejected := newStmt(t, q, user), newStmt(t, q, user)
 	for i := range 2 {
-		require.NoError(t, q.CreateStatementItem(ctx, gen.CreateStatementItemParams{
-			StatementID: rejected.ID, UserID: user.ID, Ordinal: int32(i), Reason: "bad", Stated: []byte(`{"quantity":"1"}`),
+		require.NoError(t, q.CreateStmtItem(ctx, gen.CreateStmtItemParams{
+			StmtID: rejected.ID, UserID: user.ID, Ordinal: int32(i), Reason: "bad", Stated: []byte(`{"quantity":"1"}`),
 		}))
 	}
 
-	got, err := q.GetStatement(ctx, gen.GetStatementParams{ID: rejected.ID, UserID: user.ID})
+	got, err := q.GetStmt(ctx, gen.GetStmtParams{ID: rejected.ID, UserID: user.ID})
 	require.NoError(t, err)
-	if diff := cmp.Diff(gen.GetStatementRow{Statement: rejected, Run: run(rejected.ID), Rejected: 2}, got); diff != "" {
-		t.Errorf("GetStatement mismatch (-want +got):\n%s", diff)
+	if diff := cmp.Diff(gen.GetStmtRow{Stmt: rejected, Run: run(rejected.ID), Rejected: 2}, got); diff != "" {
+		t.Errorf("GetStmt mismatch (-want +got):\n%s", diff)
 	}
-	if _, err := q.GetStatement(ctx, gen.GetStatementParams{ID: rejected.ID, UserID: other.ID}); !errors.Is(err, db.ErrNotFound) {
-		t.Errorf("GetStatement as another user: err = %v, want ErrNotFound", err)
+	if _, err := q.GetStmt(ctx, gen.GetStmtParams{ID: rejected.ID, UserID: other.ID}); !errors.Is(err, db.ErrNotFound) {
+		t.Errorf("GetStmt as another user: err = %v, want ErrNotFound", err)
 	}
 
-	listed, err := q.ListStatements(ctx, user.ID)
+	listed, err := q.ListStmts(ctx, user.ID)
 	require.NoError(t, err)
-	want := []gen.ListStatementsRow{{Statement: rejected, Run: run(rejected.ID), Rejected: 2}, {Statement: clean, Run: run(clean.ID), Rejected: 0}}
+	want := []gen.ListStmtsRow{{Stmt: rejected, Run: run(rejected.ID), Rejected: 2}, {Stmt: clean, Run: run(clean.ID), Rejected: 0}}
 	if diff := cmp.Diff(want, listed); diff != "" {
-		t.Errorf("ListStatements mismatch, want newest first (-want +got):\n%s", diff)
+		t.Errorf("ListStmts mismatch, want newest first (-want +got):\n%s", diff)
 	}
-	if listed, err := q.ListStatements(ctx, other.ID); err != nil || len(listed) != 0 {
-		t.Errorf("ListStatements as another user = %v, %v, want none", listed, err)
+	if listed, err := q.ListStmts(ctx, other.ID); err != nil || len(listed) != 0 {
+		t.Errorf("ListStmts as another user = %v, %v, want none", listed, err)
 	}
 
-	items, err := q.ListStatementItems(ctx, gen.ListStatementItemsParams{StatementID: rejected.ID, UserID: user.ID})
+	items, err := q.ListStmtItems(ctx, gen.ListStmtItemsParams{StmtID: rejected.ID, UserID: user.ID})
 	require.NoError(t, err)
 	if len(items) != 2 || items[0].Ordinal != 0 || items[1].Ordinal != 1 || string(items[1].Stated) != `{"quantity": "1"}` {
-		t.Errorf("ListStatementItems = %+v, want two items in ordinal order carrying the stated row", items)
+		t.Errorf("ListStmtItems = %+v, want two items in ordinal order carrying the stated row", items)
 	}
-	if items, err := q.ListStatementItems(ctx, gen.ListStatementItemsParams{StatementID: rejected.ID, UserID: other.ID}); err != nil || len(items) != 0 {
-		t.Errorf("ListStatementItems as another user = %v, %v, want none", items, err)
+	if items, err := q.ListStmtItems(ctx, gen.ListStmtItemsParams{StmtID: rejected.ID, UserID: other.ID}); err != nil || len(items) != 0 {
+		t.Errorf("ListStmtItems as another user = %v, %v, want none", items, err)
 	}
 
 	// Each violation aborts the transaction, so each takes its own.
@@ -104,16 +104,16 @@ func TestStatements(t *testing.T) {
 		do   func(q *gen.Queries, user, other gen.User) error
 	}{
 		{name: "empty period", want: pgerrcode.CheckViolation, do: func(q *gen.Queries, user, _ gen.User) error {
-			_, err := q.CreateStatement(ctx, gen.CreateStatementParams{ID: newRun(t, q, user).ID, UserID: user.ID, Broker: gen.BrokerIbkr, OrderFrom: date(2026, time.April, 1), OrderBefore: date(2026, time.April, 1), RowCount: 0})
+			_, err := q.CreateStmt(ctx, gen.CreateStmtParams{ID: newRun(t, q, user).ID, UserID: user.ID, Broker: gen.BrokerIbkr, OrderFrom: date(2026, time.April, 1), OrderBefore: date(2026, time.April, 1), RowCount: 0})
 			return err
 		}},
 		{name: "link under a run with no statement", want: pgerrcode.ForeignKeyViolation, do: func(q *gen.Queries, user, _ gen.User) error {
-			key := upsertKey(t, q, newStatement(t, q, user), gen.UpsertStatedKeyParams{Identifiers: []types.Identifier{}})
-			_, err := q.CreateStatementKeys(ctx, []gen.CreateStatementKeysParams{{StatementID: newRun(t, q, user).ID, UserID: user.ID, StatedKeyID: key.ID}})
+			key := upsertKey(t, q, newStmt(t, q, user), gen.UpsertStatedKeyParams{Identifiers: []types.Identifier{}})
+			_, err := q.CreateStmtKeys(ctx, []gen.CreateStmtKeysParams{{StmtID: newRun(t, q, user).ID, UserID: user.ID, StatedKeyID: key.ID}})
 			return err
 		}},
 		{name: "item under another user's statement", want: pgerrcode.ForeignKeyViolation, do: func(q *gen.Queries, user, other gen.User) error {
-			return q.CreateStatementItem(ctx, gen.CreateStatementItemParams{StatementID: newStatement(t, q, user).ID, UserID: other.ID, Ordinal: 0, Reason: "bad", Stated: []byte(`{}`)})
+			return q.CreateStmtItem(ctx, gen.CreateStmtItemParams{StmtID: newStmt(t, q, user).ID, UserID: other.ID, Ordinal: 0, Reason: "bad", Stated: []byte(`{}`)})
 		}},
 	}
 	for _, tc := range violations {
@@ -134,12 +134,12 @@ func TestResolutionKeys(t *testing.T) {
 	ctx := context.Background()
 	q := newTx(t)
 	user := newUser(t, q, "resolution@example.com")
-	statement := newStatement(t, q, user)
-	resolution, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &user.ID, Kind: gen.RunKindResolveStmtKeys, Trigger: gen.RunTriggerRun, ParentID: &statement.ID})
+	stmt := newStmt(t, q, user)
+	resolution, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &user.ID, Kind: gen.RunKindResolveStmtKeys, Trigger: gen.RunTriggerRun, ParentID: &stmt.ID})
 	require.NoError(t, err)
 	newKey := func() gen.StatedKey {
 		t.Helper()
-		return upsertKey(t, q, statement, gen.UpsertStatedKeyParams{Identifiers: []types.Identifier{{Type: types.IdentifierTypeBrokerDescription, Domain: "ibkr", Value: uuid.NewString()}}})
+		return upsertKey(t, q, stmt, gen.UpsertStatedKeyParams{Identifiers: []types.Identifier{{Type: types.IdentifierTypeBrokerDescription, Domain: "ibkr", Value: uuid.NewString()}}})
 	}
 	matched, rejected, unrecognised := newKey(), newKey(), newKey()
 
@@ -172,10 +172,10 @@ func TestResolutionKeys(t *testing.T) {
 			// Each violation aborts the transaction, so each case takes its own.
 			q := newTx(t)
 			user := newUser(t, q, "resolution-"+uuid.NewString()+"@example.com")
-			statement := newStatement(t, q, user)
-			run, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &user.ID, Kind: gen.RunKindResolveStmtKeys, Trigger: gen.RunTriggerRun, ParentID: &statement.ID})
+			stmt := newStmt(t, q, user)
+			run, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &user.ID, Kind: gen.RunKindResolveStmtKeys, Trigger: gen.RunTriggerRun, ParentID: &stmt.ID})
 			require.NoError(t, err)
-			key := upsertKey(t, q, statement, gen.UpsertStatedKeyParams{Identifiers: []types.Identifier{}})
+			key := upsertKey(t, q, stmt, gen.UpsertStatedKeyParams{Identifiers: []types.Identifier{}})
 			tc.arg.RunID, tc.arg.UserID, tc.arg.StatedKeyID = run.ID, user.ID, key.ID
 			if _, err := q.CreateResolutionKey(ctx, tc.arg); !sqlstate(err, pgerrcode.CheckViolation) {
 				t.Errorf("CreateResolutionKey(%s): err = %v, want a check violation", tc.name, err)
@@ -192,13 +192,13 @@ func TestLatestResolutions(t *testing.T) {
 	q := newTx(t)
 	user := newUser(t, q, "latest@example.com")
 	other := newUser(t, q, "latest-other@example.com")
-	statement, theirs := newStatement(t, q, user), newStatement(t, q, other)
-	newKey := func(st gen.Statement) gen.StatedKey {
+	stmt, theirs := newStmt(t, q, user), newStmt(t, q, other)
+	newKey := func(s gen.Stmt) gen.StatedKey {
 		t.Helper()
-		return upsertKey(t, q, st, gen.UpsertStatedKeyParams{Identifiers: []types.Identifier{{Type: types.IdentifierTypeBrokerDescription, Domain: "ibkr", Value: uuid.NewString()}}})
+		return upsertKey(t, q, s, gen.UpsertStatedKeyParams{Identifiers: []types.Identifier{{Type: types.IdentifierTypeBrokerDescription, Domain: "ibkr", Value: uuid.NewString()}}})
 	}
-	healed, unreached, foreign := newKey(statement), newKey(statement), newKey(theirs)
-	first, second := newResolution(t, q, user, statement), newResolution(t, q, user, statement)
+	healed, unreached, foreign := newKey(stmt), newKey(stmt), newKey(theirs)
+	first, second := newResolution(t, q, user, stmt), newResolution(t, q, user, stmt)
 	resolved(t, q, first, healed, gen.ResolutionOutcomeUnavailable)
 	resolved(t, q, second, healed, gen.ResolutionOutcomeMatched)
 	resolved(t, q, newResolution(t, q, other, theirs), foreign, gen.ResolutionOutcomeMatched)

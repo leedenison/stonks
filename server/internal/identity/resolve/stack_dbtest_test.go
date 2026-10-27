@@ -39,8 +39,8 @@ type stack struct {
 	q          *gen.Queries
 	tx         pgx.Tx
 	user       gen.User
-	statement  gen.Run
-	statements []gen.Run
+	stmt       gen.Run
+	stmts      []gen.Run
 	resolution gen.Run
 	script     *scripted.Identity
 	beta       *scripted.Identity
@@ -112,8 +112,8 @@ func newStack(t *testing.T) *stack {
 	}
 	s.user, err = q.CreateUser(ctx, gen.CreateUserParams{ID: db.NewID(), Email: uuid.NewString() + "@example.com", Role: gen.UserRoleUser})
 	require.NoError(t, err)
-	s.statement = s.newStatement(t, gen.BrokerIbkr)
-	s.resolution, err = q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &s.user.ID, Kind: gen.RunKindResolveStmtKeys, Trigger: gen.RunTriggerRun, ParentID: &s.statement.ID})
+	s.stmt = s.newStmt(t, gen.BrokerIbkr)
+	s.resolution, err = q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &s.user.ID, Kind: gen.RunKindResolveStmtKeys, Trigger: gen.RunTriggerRun, ParentID: &s.stmt.ID})
 	require.NoError(t, err)
 	_, err = q.CreateDatasource(ctx, gen.CreateDatasourceParams{Name: s.alphaName, Enabled: true, Precedence: 10})
 	require.NoError(t, err)
@@ -212,15 +212,15 @@ func (s *serial) IdentifierEvents(ctx context.Context, parent gen.Run, e *market
 // for.
 var since = time.Date(2003, time.September, 10, 0, 0, 0, 0, time.UTC)
 
-// newStatement records an ingest statement run of broker and returns the run.
-func (s *stack) newStatement(t *testing.T, broker gen.Broker) gen.Run {
+// newStmt records an ingest statement run of broker and returns the run.
+func (s *stack) newStmt(t *testing.T, broker gen.Broker) gen.Run {
 	t.Helper()
 	ctx := context.Background()
 	run, err := s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &s.user.ID, Kind: gen.RunKindIngestStmt, Trigger: gen.RunTriggerUser})
 	require.NoError(t, err)
-	_, err = s.q.CreateStatement(ctx, gen.CreateStatementParams{ID: run.ID, UserID: s.user.ID, Broker: broker, OrderFrom: time.Date(2026, time.March, 1, 0, 0, 0, 0, time.UTC), OrderBefore: time.Date(2026, time.April, 1, 0, 0, 0, 0, time.UTC)})
+	_, err = s.q.CreateStmt(ctx, gen.CreateStmtParams{ID: run.ID, UserID: s.user.ID, Broker: broker, OrderFrom: time.Date(2026, time.March, 1, 0, 0, 0, 0, time.UTC), OrderBefore: time.Date(2026, time.April, 1, 0, 0, 0, 0, time.UTC)})
 	require.NoError(t, err)
-	s.statements = append(s.statements, run)
+	s.stmts = append(s.stmts, run)
 	return run
 }
 
@@ -230,7 +230,7 @@ func (s *stack) newStatement(t *testing.T, broker gen.Broker) gen.Run {
 func (s *stack) rerun(t *testing.T) {
 	t.Helper()
 	var err error
-	s.resolution, err = s.q.CreateRun(context.Background(), gen.CreateRunParams{ID: db.NewID(), UserID: &s.user.ID, Kind: gen.RunKindResolveStmtKeys, Trigger: gen.RunTriggerRun, ParentID: &s.statement.ID})
+	s.resolution, err = s.q.CreateRun(context.Background(), gen.CreateRunParams{ID: db.NewID(), UserID: &s.user.ID, Kind: gen.RunKindResolveStmtKeys, Trigger: gen.RunTriggerRun, ParentID: &s.stmt.ID})
 	require.NoError(t, err)
 }
 
@@ -246,12 +246,12 @@ func (s *stack) enableBeta(t *testing.T) {
 // state records a stated key under the stack's statement.
 func (s *stack) state(t *testing.T, class types.AssetClass, currency string, ids ...types.Identifier) gen.StatedKey {
 	t.Helper()
-	return s.stateUnder(t, s.statement, class, currency, ids...)
+	return s.stateUnder(t, s.stmt, class, currency, ids...)
 }
 
 // stateUnder records a stated key of the user, linked to statement. If the
 // user already has the key, it returns that row.
-func (s *stack) stateUnder(t *testing.T, statement gen.Run, class types.AssetClass, currency string, ids ...types.Identifier) gen.StatedKey {
+func (s *stack) stateUnder(t *testing.T, stmt gen.Run, class types.AssetClass, currency string, ids ...types.Identifier) gen.StatedKey {
 	t.Helper()
 	ctx := context.Background()
 	arg := gen.UpsertStatedKeyParams{ID: db.NewID(), UserID: s.user.ID, Identifiers: ids}
@@ -263,7 +263,7 @@ func (s *stack) stateUnder(t *testing.T, statement gen.Run, class types.AssetCla
 	}
 	row, err := s.q.UpsertStatedKey(ctx, arg)
 	require.NoError(t, err)
-	_, err = s.q.CreateStatementKeys(ctx, []gen.CreateStatementKeysParams{{StatementID: statement.ID, UserID: s.user.ID, StatedKeyID: row.ID}})
+	_, err = s.q.CreateStmtKeys(ctx, []gen.CreateStmtKeysParams{{StmtID: stmt.ID, UserID: s.user.ID, StatedKeyID: row.ID}})
 	require.NoError(t, err)
 	return row
 }
@@ -277,8 +277,8 @@ func (s *stack) resolve(t *testing.T, keys ...gen.StatedKey) []gen.ResolutionKey
 
 func (s *stack) key(t *testing.T, id uuid.UUID) gen.StatedKey {
 	t.Helper()
-	for _, st := range s.statements {
-		keys, err := s.q.ListStatedKeys(context.Background(), gen.ListStatedKeysParams{StatementID: st.ID, UserID: s.user.ID})
+	for _, stmt := range s.stmts {
+		keys, err := s.q.ListStatedKeys(context.Background(), gen.ListStatedKeysParams{StmtID: stmt.ID, UserID: s.user.ID})
 		require.NoError(t, err)
 		for _, k := range keys {
 			if k.ID == id {

@@ -9,24 +9,24 @@ ON CONFLICT (user_id, asset_class, currency, identifiers)
 DO UPDATE SET user_id = EXCLUDED.user_id
 RETURNING *;
 
--- name: CreateStatementKeys :copyfrom
-INSERT INTO statement_keys (statement_id, user_id, stated_key_id)
+-- name: CreateStmtKeys :copyfrom
+INSERT INTO stmt_keys (stmt_id, user_id, stated_key_id)
 VALUES ($1, $2, $3);
 
 -- name: ListStatedKeys :many
 SELECT stated_keys.* FROM stated_keys
-JOIN statement_keys ON statement_keys.stated_key_id = stated_keys.id
-WHERE statement_keys.statement_id = $1 AND statement_keys.user_id = $2
+JOIN stmt_keys ON stmt_keys.stated_key_id = stated_keys.id
+WHERE stmt_keys.stmt_id = $1 AND stmt_keys.user_id = $2
 ORDER BY stated_keys.id;
 
 -- name: CreateTxn :one
-INSERT INTO txns (id, user_id, broker, statement_id, stated_key_id,
+INSERT INTO txns (id, user_id, broker, stmt_id, stated_key_id,
                           order_date, settlement_date, as_at, quantity)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 RETURNING *;
 
 -- name: CreateTxns :copyfrom
-INSERT INTO txns (id, user_id, broker, statement_id, stated_key_id,
+INSERT INTO txns (id, user_id, broker, stmt_id, stated_key_id,
                           order_date, settlement_date, as_at, quantity)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9);
 
@@ -44,8 +44,8 @@ WHERE stated_keys.user_id = @user_id::uuid
   AND NOT EXISTS (SELECT 1 FROM txns
                   WHERE txns.user_id = stated_keys.user_id
                     AND txns.stated_key_id = stated_keys.id)
-  AND NOT EXISTS (SELECT 1 FROM statement_keys
-                  WHERE statement_keys.stated_key_id = stated_keys.id);
+  AND NOT EXISTS (SELECT 1 FROM stmt_keys
+                  WHERE stmt_keys.stated_key_id = stated_keys.id);
 
 -- name: ListTxns :many
 SELECT * FROM txns
@@ -72,7 +72,7 @@ SET instrument_id = NULL, listing_id = NULL, via_id = NULL,
     arbiter = @arbiter::arbiter
 WHERE id = @id AND user_id = @user_id AND arbiter IS DISTINCT FROM 'user';
 
--- name: ListStatementTxns :many
+-- name: ListStmtTxns :many
 -- The statement's transactions, ordered by order date. Each carries its key
 -- and the type of the identifier that a fixed association used.
 SELECT sqlc.embed(txns), sqlc.embed(stated_keys),
@@ -80,7 +80,7 @@ SELECT sqlc.embed(txns), sqlc.embed(stated_keys),
 FROM txns
 JOIN stated_keys ON stated_keys.id = txns.stated_key_id
 LEFT JOIN identifiers ON identifiers.id = stated_keys.via_id
-WHERE txns.statement_id = @statement_id AND txns.user_id = @user_id
+WHERE txns.stmt_id = @stmt_id AND txns.user_id = @user_id
 ORDER BY txns.order_date, txns.id;
 
 -- name: ListKeyDates :many

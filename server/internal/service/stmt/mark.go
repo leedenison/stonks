@@ -1,4 +1,4 @@
-package statement
+package stmt
 
 import (
 	"time"

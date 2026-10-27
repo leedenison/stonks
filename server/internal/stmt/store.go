@@ -1,6 +1,6 @@
-package statement
+package stmt
 
-//go:generate go tool mockgen -source=store.go -destination=store_mock_test.go -package=statement -self_package=github.com/leedenison/stonks/server/internal/statement
+//go:generate go tool mockgen -source=store.go -destination=store_mock_test.go -package=stmt -self_package=github.com/leedenison/stonks/server/internal/stmt
 
 import (
 	"context"
@@ -17,14 +17,14 @@ import (
 // Queries is this package's view of the generated queries.
 type Queries interface {
 	group.Queries
-	CreateStatement(ctx context.Context, arg gen.CreateStatementParams) (gen.Statement, error)
+	CreateStmt(ctx context.Context, arg gen.CreateStmtParams) (gen.Stmt, error)
 	UpsertStatedKey(ctx context.Context, arg gen.UpsertStatedKeyParams) (gen.StatedKey, error)
-	CreateStatementKeys(ctx context.Context, arg []gen.CreateStatementKeysParams) (int64, error)
-	CreateStatementSplit(ctx context.Context, arg gen.CreateStatementSplitParams) error
+	CreateStmtKeys(ctx context.Context, arg []gen.CreateStmtKeysParams) (int64, error)
+	CreateStmtSplit(ctx context.Context, arg gen.CreateStmtSplitParams) error
 	LockUserKeys(ctx context.Context, userID uuid.UUID) error
 	DeleteTxns(ctx context.Context, arg gen.DeleteTxnsParams) (int64, error)
 	CreateTxns(ctx context.Context, arg []gen.CreateTxnsParams) (int64, error)
-	CreateStatementItems(ctx context.Context, arg []gen.CreateStatementItemsParams) (int64, error)
+	CreateStmtItems(ctx context.Context, arg []gen.CreateStmtItemsParams) (int64, error)
 	SweepStatedKeys(ctx context.Context, userID uuid.UUID) (int64, error)
 	CompleteRun(ctx context.Context, id uuid.UUID) error
 	GetStatedKey(ctx context.Context, arg gen.GetStatedKeyParams) (gen.StatedKey, error)
@@ -72,5 +72,5 @@ type Facts interface {
 // CorpActs is this package's view of the refreshcorpacts
 // package.
 type CorpActs interface {
-	AfterStatement(ctx context.Context, statement gen.Run)
+	AfterStmt(ctx context.Context, stmt gen.Run)
 }

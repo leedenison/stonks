@@ -1,5 +1,5 @@
-// Package statement serves stonks.statement.v1.
-package statement
+// Package stmt serves stonks.statement.v1.
+package stmt
 
 import (
 	"context"
@@ -19,7 +19,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/identity/resolve"
 	"github.com/leedenison/stonks/server/internal/identity/tickervalidity"
 	"github.com/leedenison/stonks/server/internal/mic"
-	"github.com/leedenison/stonks/server/internal/statement"
+	"github.com/leedenison/stonks/server/internal/stmt"
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
@@ -38,22 +38,22 @@ type Confirmer interface {
 // ticker validity queries, which mark reads for dated keys.
 type Reader interface {
 	tickervalidity.FactQueries
-	ListStatements(ctx context.Context, userID uuid.UUID) ([]gen.ListStatementsRow, error)
-	GetStatement(ctx context.Context, arg gen.GetStatementParams) (gen.GetStatementRow, error)
-	ListStatementItems(ctx context.Context, arg gen.ListStatementItemsParams) ([]gen.StatementItem, error)
+	ListStmts(ctx context.Context, userID uuid.UUID) ([]gen.ListStmtsRow, error)
+	GetStmt(ctx context.Context, arg gen.GetStmtParams) (gen.GetStmtRow, error)
+	ListStmtItems(ctx context.Context, arg gen.ListStmtItemsParams) ([]gen.StmtItem, error)
 	ListStatedKeys(ctx context.Context, arg gen.ListStatedKeysParams) ([]gen.StatedKey, error)
 	ListLatestResolutions(ctx context.Context, arg gen.ListLatestResolutionsParams) ([]gen.ResolutionKey, error)
 	GetStatedKey(ctx context.Context, arg gen.GetStatedKeyParams) (gen.StatedKey, error)
-	ListStatementTxns(ctx context.Context, arg gen.ListStatementTxnsParams) ([]gen.ListStatementTxnsRow, error)
+	ListStmtTxns(ctx context.Context, arg gen.ListStmtTxnsParams) ([]gen.ListStmtTxnsRow, error)
 }
 
 var (
-	_ Ingester  = (*statement.Service)(nil)
-	_ Confirmer = (*statement.Service)(nil)
+	_ Ingester  = (*stmt.Service)(nil)
+	_ Confirmer = (*stmt.Service)(nil)
 	_ Reader    = (*gen.Queries)(nil)
 )
 
-//go:generate go tool mockgen -source=statement.go -destination=mock/statement_mock.go -package=mock
+//go:generate go tool mockgen -source=stmt.go -destination=mock/stmt_mock.go -package=mock
 
 // Server implements StatementService.
 type Server struct {
@@ -79,7 +79,7 @@ func (s *Server) CreateStatement(ctx context.Context, req *connect.Request[state
 		return nil, connect.NewError(connect.CodeUnauthenticated, err)
 	}
 	run, err := s.ingester.Create(ctx, p.User.ID, req.Msg.GetStatement())
-	if errors.Is(err, statement.ErrInvalid) {
+	if errors.Is(err, stmt.ErrInvalid) {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	if err != nil {
@@ -94,13 +94,13 @@ func (s *Server) ListStatements(ctx context.Context, _ *connect.Request[statemen
 	if err != nil {
 		return nil, connect.NewError(connect.CodeUnauthenticated, err)
 	}
-	rows, err := s.reader.ListStatements(ctx, p.User.ID)
+	rows, err := s.reader.ListStmts(ctx, p.User.ID)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	out := &statementv1.ListStatementsResponse{}
 	for _, r := range rows {
-		out.Statements = append(out.Statements, to.ProtoStatementSummary(r.Statement, r.Run, r.Rejected))
+		out.Statements = append(out.Statements, to.ProtoStmtSummary(r.Stmt, r.Run, r.Rejected))
 	}
 	return connect.NewResponse(out), nil
 }
@@ -117,20 +117,20 @@ func (s *Server) GetStatement(ctx context.Context, req *connect.Request[statemen
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	row, err := s.reader.GetStatement(ctx, gen.GetStatementParams{ID: id, UserID: p.User.ID})
+	row, err := s.reader.GetStmt(ctx, gen.GetStmtParams{ID: id, UserID: p.User.ID})
 	if errors.Is(err, db.ErrNotFound) {
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("no such statement"))
 	}
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	items, err := s.reader.ListStatementItems(ctx, gen.ListStatementItemsParams{StatementID: id, UserID: p.User.ID})
+	items, err := s.reader.ListStmtItems(ctx, gen.ListStmtItemsParams{StmtID: id, UserID: p.User.ID})
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	out := &statementv1.GetStatementResponse{Statement: to.ProtoStatementSummary(row.Statement, row.Run, row.Rejected)}
+	out := &statementv1.GetStatementResponse{Statement: to.ProtoStmtSummary(row.Stmt, row.Run, row.Rejected)}
 	for _, it := range items {
-		item, err := statement.ItemToProto(it)
+		item, err := stmt.ItemToProto(it)
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInternal, err)
 		}
@@ -203,7 +203,7 @@ func keyError(err error) error {
 	switch {
 	case errors.Is(err, db.ErrNotFound):
 		return connect.NewError(connect.CodeNotFound, errors.New("no such key"))
-	case errors.Is(err, statement.ErrAssociated), errors.Is(err, resolve.ErrNoCandidate):
+	case errors.Is(err, stmt.ErrAssociated), errors.Is(err, resolve.ErrNoCandidate):
 		return connect.NewError(connect.CodeFailedPrecondition, err)
 	}
 	return connect.NewError(connect.CodeInternal, err)
@@ -211,8 +211,8 @@ func keyError(err error) error {
 
 // keys answers the statement's keys, each with the outcome of its latest
 // resolution where one has recorded it.
-func (s *Server) keys(ctx context.Context, statement, user uuid.UUID) ([]*typev1.ResolutionItem, error) {
-	keys, err := s.reader.ListStatedKeys(ctx, gen.ListStatedKeysParams{StatementID: statement, UserID: user})
+func (s *Server) keys(ctx context.Context, id, user uuid.UUID) ([]*typev1.ResolutionItem, error) {
+	keys, err := s.reader.ListStatedKeys(ctx, gen.ListStatedKeysParams{StmtID: id, UserID: user})
 	if err != nil || len(keys) == 0 {
 		return nil, err
 	}
@@ -241,8 +241,8 @@ func (s *Server) keys(ctx context.Context, statement, user uuid.UUID) ([]*typev1
 
 // txns answers the statement's transactions, each with its mark. The
 // facts of every dated key's ticker are read at once.
-func (s *Server) txns(ctx context.Context, statement, user uuid.UUID) ([]*statementv1.Txn, error) {
-	rows, err := s.reader.ListStatementTxns(ctx, gen.ListStatementTxnsParams{StatementID: statement, UserID: user})
+func (s *Server) txns(ctx context.Context, id, user uuid.UUID) ([]*statementv1.Txn, error) {
+	rows, err := s.reader.ListStmtTxns(ctx, gen.ListStmtTxnsParams{StmtID: id, UserID: user})
 	if err != nil {
 		return nil, err
 	}
