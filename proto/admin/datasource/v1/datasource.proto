@@ -59,7 +59,7 @@ message ReorderDatasourcesRequest {
 }
 
 message ReorderDatasourcesResponse {
-  // The rebuild resolved tickers run that the reorder started, pending.
+  // The rebuild ticker validity run that the reorder started, pending.
   stonks.run.v1.Run run = 1;
 }
 
@@ -72,8 +72,8 @@ service DatasourceService {
   // change would enable a datasource that has no integration in this build
   // or whose integration refuses the config.
   rpc UpdateDatasource(UpdateDatasourceRequest) returns (UpdateDatasourceResponse);
-  // Orders the datasources by precedence. The call starts a rebuild resolved
-  // tickers run. Ticker validity and the names of tickers follow the new order
+  // Orders the datasources by precedence. The call starts a rebuild ticker
+  // validity run. Ticker validity and the names of tickers follow the new order
   // once the run finishes. The list must name every datasource exactly once,
   // or the call is refused before it starts a run.
   rpc ReorderDatasources(ReorderDatasourcesRequest) returns (ReorderDatasourcesResponse);

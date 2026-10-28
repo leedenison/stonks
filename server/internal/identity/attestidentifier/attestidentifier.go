@@ -3,14 +3,14 @@
 //
 // An identifier attestation is an assertion whose source is an administrator
 // rather than a fetch key. Datasources supply assertion coverage, so a market
-// without them is attested ticker by ticker. How an attested assertion
-// ranks against a datasource's is in
+// without them is attested ticker by ticker. How an attested assertion ranks
+// against a datasource's is in
 // [tickervalidity.go](../tickervalidity/tickervalidity.go). Writing or
-// withdrawing an identifier attestation rebuilds the names of the ticker in
-// the same transaction. It then replays the unresolved keys that state the
-// ticker beneath the attest identifier run, and fetches the corporate actions
-// of the held instruments that the ticker names. A dated key picks up the
-// change when it is next read.
+// withdrawing an identifier attestation rebuilds the ticker validity and names
+// of the ticker in the same transaction. It then replays the unresolved keys
+// that state the ticker beneath the attest identifier run, and fetches the
+// corporate actions of the held instruments that the ticker names. A dated key
+// picks up the change when it is next read.
 package attestidentifier
 
 import (
@@ -107,10 +107,10 @@ func (s *Service) Start(ctx context.Context, admin uuid.UUID, v types.MarketTick
 	})
 }
 
-// Withdraw deletes the attested assertion id and rebuilds the names of its
-// ticker in one transaction. It then replays the unresolved keys that state
-// its ticker beneath the run that wrote it, before it returns. A datasource's
-// assertion is refused with ErrNotAttested.
+// Withdraw deletes the attested assertion id and rebuilds the ticker validity
+// and names of its ticker in one transaction. It then replays the unresolved
+// keys that state its ticker beneath the run that wrote it, before it returns.
+// A datasource's assertion is refused with ErrNotAttested.
 func (s *Service) Withdraw(ctx context.Context, id uuid.UUID) error {
 	var a gen.GetIdentifierAssertionRow
 	var row gen.Run

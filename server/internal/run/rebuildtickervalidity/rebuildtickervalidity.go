@@ -1,13 +1,13 @@
-// Package rebuildresolvedtickers starts runs that rebuild the ticker validity
+// Package rebuildtickervalidity starts runs that rebuild the ticker validity
 // and names of every ticker.
 //
 // A write of facts rebuilds the ticker validity and names of its own tickers.
 // A reorder of the datasources, or a deletion that cascades to facts, changes
-// them outside any write. They stay stale until a rebuild resolved tickers run
+// them outside any write. They stay stale until a rebuild ticker validity run
 // finishes, and may lag while the run works.
-package rebuildresolvedtickers
+package rebuildtickervalidity
 
-//go:generate go tool mockgen -source=rebuildresolvedtickers.go -destination=rebuildresolvedtickers_mock_test.go -package=rebuildresolvedtickers -self_package=github.com/leedenison/stonks/server/internal/run/rebuildresolvedtickers
+//go:generate go tool mockgen -source=rebuildtickervalidity.go -destination=rebuildtickervalidity_mock_test.go -package=rebuildtickervalidity -self_package=github.com/leedenison/stonks/server/internal/run/rebuildtickervalidity
 
 import (
 	"context"
@@ -21,8 +21,8 @@ import (
 	"github.com/leedenison/stonks/server/internal/run"
 )
 
-// lane serialises rebuild resolved tickers runs.
-const lane = "rebuild_resolved_tickers"
+// lane serialises rebuild ticker validity runs.
+const lane = "rebuild_ticker_validity"
 
 // Queries is this package's view of the generated queries.
 type Queries interface {
@@ -48,7 +48,7 @@ type Runner interface {
 
 var _ Runner = (*run.Runner)(nil)
 
-// Service starts rebuild resolved tickers runs.
+// Service starts rebuild ticker validity runs.
 type Service struct {
 	store Store
 	runs  Runner
@@ -60,14 +60,15 @@ func New(store Store, runs Runner, batch int32) *Service {
 	return &Service{store: store, runs: runs, batch: batch}
 }
 
-// Start starts a rebuild resolved tickers run, as a system run an
+// Start starts a rebuild ticker validity run, as a system run an
 // administrator started, and returns the pending row.
 func (s *Service) Start(ctx context.Context) (gen.Run, error) {
-	spec := run.Spec{Kind: gen.RunKindRebuildResolvedTickers, Trigger: gen.RunTriggerAdministrator, Lane: lane}
+	spec := run.Spec{Kind: gen.RunKindRebuildTickerValidity, Trigger: gen.RunTriggerAdministrator, Lane: lane}
 	return s.runs.Start(ctx, spec, func(ctx context.Context, _ gen.Run) error { return s.rebuild(ctx) })
 }
 
-// rebuild rebuilds the names of every ticker, a batch at a time, in id order.
+// rebuild rebuilds the ticker validity and names of every ticker, a batch at a
+// time, in id order.
 // Each batch runs in a transaction of its own that locks its tickers' rows.
 func (s *Service) rebuild(ctx context.Context) error {
 	var after *uuid.UUID

@@ -183,7 +183,7 @@ func TestReorderDatasources(t *testing.T) {
 			if servicetest.CodeOf(err) != tc.wantCode {
 				t.Errorf("ReorderDatasources(%v) code = %v (err %v), want %v", tc.names, servicetest.CodeOf(err), err, tc.wantCode)
 			}
-			if err == nil && (res.Msg.GetRun().GetId() != rebuild.ID.String() || res.Msg.GetRun().GetKind() != runv1.RunKind_RUN_KIND_REBUILD_RESOLVED_TICKERS) {
+			if err == nil && (res.Msg.GetRun().GetId() != rebuild.ID.String() || res.Msg.GetRun().GetKind() != runv1.RunKind_RUN_KIND_REBUILD_TICKER_VALIDITY) {
 				t.Errorf("ReorderDatasources(%v) run = %v, want the rebuild run", tc.names, res.Msg.GetRun())
 			}
 		})
@@ -191,4 +191,4 @@ func TestReorderDatasources(t *testing.T) {
 }
 
 // rebuild is the run a reorder starts.
-var rebuild = gen.Run{ID: uuid.MustParse("00000000-0000-0000-0000-000000000011"), Kind: gen.RunKindRebuildResolvedTickers, State: gen.RunStatePending, Trigger: gen.RunTriggerAdministrator}
+var rebuild = gen.Run{ID: uuid.MustParse("00000000-0000-0000-0000-000000000011"), Kind: gen.RunKindRebuildTickerValidity, State: gen.RunStatePending, Trigger: gen.RunTriggerAdministrator}

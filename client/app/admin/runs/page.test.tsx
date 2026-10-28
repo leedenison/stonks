@@ -7,9 +7,9 @@ import {
   StartReassertTickersResponseSchema,
 } from "@/gen/admin/reassert_tickers/v1/reassert_tickers_pb";
 import {
-  RebuildResolvedTickersService,
-  StartRebuildResolvedTickersResponseSchema,
-} from "@/gen/admin/rebuild_resolved_tickers/v1/rebuild_resolved_tickers_pb";
+  RebuildTickerValidityService,
+  StartRebuildTickerValidityResponseSchema,
+} from "@/gen/admin/rebuild_ticker_validity/v1/rebuild_ticker_validity_pb";
 import {
   RefreshCorpActsService,
   StartRefreshCorpActsResponseSchema,
@@ -44,13 +44,13 @@ function serving(
   listRuns: ServiceImpl<typeof RunService>["listRuns"],
   reassertTickers: Partial<ServiceImpl<typeof ReassertTickersService>> = {},
   refresh: Partial<ServiceImpl<typeof RefreshCorpActsService>> = {},
-  rebuild: Partial<ServiceImpl<typeof RebuildResolvedTickersService>> = {},
+  rebuild: Partial<ServiceImpl<typeof RebuildTickerValidityService>> = {},
 ) {
   return transportWith(admin, ({ service }) => {
     service(RunService, { listRuns });
     service(ReassertTickersService, reassertTickers);
     service(RefreshCorpActsService, refresh);
-    service(RebuildResolvedTickersService, rebuild);
+    service(RebuildTickerValidityService, rebuild);
   });
 }
 
@@ -237,26 +237,26 @@ describe("RunsPage", () => {
     expect(screen.queryByTestId("refresh-corp-acts-dialog")).toBeNull();
   });
 
-  it("rebuilds ticker names and opens its run", async () => {
+  it("rebuilds ticker validity and opens its run", async () => {
     router.push.mockClear();
-    const startRebuildResolvedTickers = vi.fn(() =>
-      create(StartRebuildResolvedTickersResponseSchema, {
+    const startRebuildTickerValidity = vi.fn(() =>
+      create(StartRebuildTickerValidityResponseSchema, {
         run: create(RunSchema, {
           id: "x3",
-          kind: RunKind.REBUILD_RESOLVED_TICKERS,
+          kind: RunKind.REBUILD_TICKER_VALIDITY,
         }),
       }),
     );
     renderWithAuth(
       <RunsPage />,
-      serving(() => page, {}, {}, { startRebuildResolvedTickers }),
+      serving(() => page, {}, {}, { startRebuildTickerValidity }),
     );
-    fireEvent.click(screen.getByTestId("runs-rebuild-resolved-tickers"));
-    fireEvent.click(screen.getByTestId("rebuild-resolved-tickers-start"));
+    fireEvent.click(screen.getByTestId("runs-rebuild-ticker-validity"));
+    fireEvent.click(screen.getByTestId("rebuild-ticker-validity-start"));
     await waitFor(() =>
       expect(router.push).toHaveBeenCalledWith("/admin/runs/x3"),
     );
-    expect(startRebuildResolvedTickers).toHaveBeenCalledTimes(1);
-    expect(screen.queryByTestId("rebuild-resolved-tickers-dialog")).toBeNull();
+    expect(startRebuildTickerValidity).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId("rebuild-ticker-validity-dialog")).toBeNull();
   });
 });

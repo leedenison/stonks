@@ -1,0 +1,25 @@
+// Rebuilding ticker validity: runs an administrator starts to rebuild the
+// ticker validity and names of every ticker.
+
+syntax = "proto3";
+
+package stonks.admin.rebuild_ticker_validity.v1;
+
+import "run/v1/run.proto";
+
+option go_package = "github.com/leedenison/stonks/proto/admin/rebuild_ticker_validity/v1;adminrebuildtickervalidityv1";
+
+message StartRebuildTickerValidityRequest {}
+
+message StartRebuildTickerValidityResponse {
+  // The rebuild ticker validity run, pending.
+  stonks.run.v1.Run run = 1;
+}
+
+// Starts rebuild ticker validity runs.
+service RebuildTickerValidityService {
+  // Starts a rebuild ticker validity run over every ticker, as a system run.
+  // An administrator starts one after a deploy that changes how ticker
+  // validity or names are derived, or after a deletion that removed facts.
+  rpc StartRebuildTickerValidity(StartRebuildTickerValidityRequest) returns (StartRebuildTickerValidityResponse);
+}

@@ -20,7 +20,7 @@ import {
 } from "@/lib/admin";
 import { enumLabel, enumParam, enumValues } from "@/lib/enum";
 import { ReassertTickersDialog } from "./reassert-tickers-dialog";
-import { RebuildResolvedTickersDialog } from "./rebuild-resolved-tickers-dialog";
+import { RebuildTickerValidityDialog } from "./rebuild-ticker-validity-dialog";
 import { RefreshCorpActsDialog } from "./refresh-corp-acts-dialog";
 import { RunRow, RunTreeTable } from "./run-tree";
 
@@ -75,11 +75,11 @@ function Runs() {
           </Button>
           <Button
             variant="text"
-            data-testid="runs-rebuild-resolved-tickers"
+            data-testid="runs-rebuild-ticker-validity"
             onClick={() => setRebuilding(true)}
           >
             <RefreshCw aria-hidden className="h-4 w-4" />
-            Rebuild ticker names
+            Rebuild ticker validity
           </Button>
         </>
       }
@@ -162,7 +162,7 @@ function Runs() {
         />
       )}
       {rebuilding && (
-        <RebuildResolvedTickersDialog
+        <RebuildTickerValidityDialog
           onClose={() => setRebuilding(false)}
           onStarted={(started) => {
             setRebuilding(false);

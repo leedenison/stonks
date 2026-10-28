@@ -29,8 +29,8 @@ func LockIdentifiers(ctx context.Context, q AdvisoryLocker, ids []types.Identifi
 }
 
 // LockInstrs takes the transaction's advisory lock on each of ids, in one
-// order whatever the caller's. A rebuild of the names of an instrument takes
-// it, so two rebuilds of one instrument serialise.
+// order whatever the caller's. A rebuild of the ticker validity and names of
+// an instrument takes it, so two rebuilds of one instrument serialise.
 func LockInstrs(ctx context.Context, q AdvisoryLocker, ids []uuid.UUID) error {
 	names := make([]string, len(ids))
 	for i, id := range ids {

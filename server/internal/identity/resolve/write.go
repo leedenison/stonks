@@ -74,7 +74,7 @@ func (r *Resolver) resolveKey(ctx context.Context, q Queries, run gen.Run, res *
 		return gen.ResolutionKey{}, nil, err
 	}
 	if err := tickervalidity.Rebuild(ctx, q, d.locked); err != nil {
-		return gen.ResolutionKey{}, nil, fmt.Errorf("rebuild names: %w", err)
+		return gen.ResolutionKey{}, nil, fmt.Errorf("rebuild ticker validity: %w", err)
 	}
 	return key, kinds, nil
 }

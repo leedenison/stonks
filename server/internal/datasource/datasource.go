@@ -1,6 +1,7 @@
 // Package datasource changes the datasources table and keeps the registry
 // and the fetch cache in step with it. A reorder also starts a rebuild of the
-// names of every ticker, since precedence decides which assertion wins a day.
+// ticker validity and names of every ticker, since precedence decides which
+// assertion wins a day.
 package datasource
 
 import (
@@ -65,7 +66,7 @@ func (s *Service) Update(ctx context.Context, arg gen.UpdateDatasourceParams) (g
 }
 
 // Reorder sets each datasource's precedence to its position in names, and
-// returns the rebuild resolved tickers run it starts. The cache keeps its
+// returns the rebuild ticker validity run it starts. The cache keeps its
 // entries, because precedence orders answers after they are served. Where the
 // run fails to start, the new precedence stands and the error is returned.
 func (s *Service) Reorder(ctx context.Context, names []string) (gen.Run, error) {
@@ -87,7 +88,7 @@ func (s *Service) Reorder(ctx context.Context, names []string) (gen.Run, error) 
 	}
 	started, err := s.rebuilds.Start(context.WithoutCancel(ctx))
 	if err != nil {
-		return gen.Run{}, fmt.Errorf("start rebuild resolved tickers: %w", err)
+		return gen.Run{}, fmt.Errorf("start rebuild ticker validity: %w", err)
 	}
 	return started, nil
 }

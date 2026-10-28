@@ -4,13 +4,13 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useClients } from "@/contexts/clients-context";
 import { qk } from "@/lib/query-keys";
 
-// useStartRebuildResolvedTickers starts a rebuild resolved tickers run over
+// useStartRebuildTickerValidity starts a rebuild ticker validity run over
 // every ticker. The runs listing reloads to show the new run.
-export function useStartRebuildResolvedTickers() {
-  const { rebuildResolvedTickers } = useClients();
+export function useStartRebuildTickerValidity() {
+  const { rebuildTickerValidity } = useClients();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: () => rebuildResolvedTickers.startRebuildResolvedTickers({}),
+    mutationFn: () => rebuildTickerValidity.startRebuildTickerValidity({}),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: qk.adminRunsAll() }),
   });

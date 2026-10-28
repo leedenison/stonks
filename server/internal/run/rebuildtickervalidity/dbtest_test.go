@@ -1,6 +1,6 @@
 //go:build dbtest
 
-package rebuildresolvedtickers
+package rebuildtickervalidity
 
 import (
 	"context"

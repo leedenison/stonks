@@ -45,7 +45,8 @@ type Runner interface {
 
 var _ Runner = (*run.Runner)(nil)
 
-// Rebuilder rebuilds the names of the tickers whose rows have the ids.
+// Rebuilder rebuilds the ticker validity and names of the tickers whose rows
+// have the ids.
 type Rebuilder interface {
 	Rebuild(ctx context.Context, q Queries, ids []uuid.UUID) error
 }
@@ -55,7 +56,8 @@ type Names struct{}
 
 var _ Rebuilder = Names{}
 
-// Rebuild rebuilds the names of ids; see tickervalidity.Rebuild.
+// Rebuild rebuilds the ticker validity and names of ids; see
+// tickervalidity.Rebuild.
 func (Names) Rebuild(ctx context.Context, q Queries, ids []uuid.UUID) error {
 	return tickervalidity.Rebuild(ctx, q, ids)
 }
