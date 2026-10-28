@@ -11,7 +11,7 @@
 // Each write of facts rebuilds the ticker validity of the tickers it wrote,
 // and the names that ticker validity implies, before it commits; see Rebuild.
 // Assertion coverage of a whole market rebuilds every ticker of the market.
-// The names are stored in resolved_tickers; see Resolve. A reorder of the
+// The names are stored in resolved_tickers; see resolveNames. A reorder of the
 // datasources can change the ticker validity of any ticker. The change waits
 // for a rebuild of every ticker.
 //
@@ -150,7 +150,7 @@ func (s Source) outranks(o Source) bool {
 
 // Stated is what a source stated beside a ticker: the operating MIC of the
 // venue and the currency of the line. Each is empty where the source stated
-// none. Derive ignores both.
+// none. derive ignores both.
 type Stated struct {
 	Venue, Currency string
 }
@@ -180,15 +180,15 @@ type AssertionCoverage struct {
 	Source Source
 }
 
-// Facts are the rows of one ticker.
-type Facts struct {
+// facts are the rows of one ticker.
+type facts struct {
 	Assertions        []Assertion
 	AssertionCoverage []AssertionCoverage
 }
 
-// Derived is what the facts of one ticker imply: its intervals, the changes
+// derived is what the facts of one ticker imply: its intervals, the changes
 // two assertions infer, and the conflicts among the facts.
-type Derived struct {
+type derived struct {
 	Diagnosis
 	Intervals Intervals
 	Inferred  []Inferred

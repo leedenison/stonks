@@ -51,13 +51,12 @@ func txn(key uuid.UUID, n int) gen.ListTickerTxnsRow {
 	return gen.ListTickerTxnsRow{StatedKeyID: key, AsAt: day(n)}
 }
 
-// facts serves v's assertions and the ticker validity a rebuild stores for
-// them.
-func facts(q *mock.MockQueries, v types.MarketTicker, assertions []gen.ListIdentifierAssertionsRow) {
+// facts serves v's assertions and its stored ticker validity ivs.
+func facts(q *mock.MockQueries, v types.MarketTicker, assertions []gen.ListIdentifierAssertionsRow, ivs tickervalidity.Intervals) {
 	q.EXPECT().ListIdentifierAssertions(gomock.Any(), gen.ListIdentifierAssertionsParams{Markets: []string{v.Market}, Values: []string{v.Value}}).Return(assertions, nil)
 	q.EXPECT().ListIdentifierAssertionCoverage(gomock.Any(), gen.ListIdentifierAssertionCoverageParams{Markets: []string{v.Market}, Values: []string{v.Value}}).Return(nil, nil)
 	var stored []gen.ListTickerValidityRow
-	for _, iv := range tickervalidity.Derive(tickervalidity.Rows{Assertions: assertions}.Facts()).Intervals {
+	for _, iv := range ivs {
 		stored = append(stored, gen.ListTickerValidityRow{Market: v.Market, Value: v.Value, InstrID: iv.Instr, ValidFrom: iv.From, ValidBefore: iv.Before, Validity: iv.Validity})
 	}
 	q.EXPECT().ListTickerValidity(gomock.Any(), gen.ListTickerValidityParams{Markets: []string{v.Market}, Values: []string{v.Value}}).Return(stored, nil)
@@ -71,7 +70,13 @@ func TestTicker(t *testing.T) {
 	q := mock.NewMockQueries(ctrl)
 	v := ticker("ACME")
 	assertions := []gen.ListIdentifierAssertionsRow{asserted(10, &acme), asserted(20, &acme)}
-	facts(q, v, assertions)
+	from, mid, before := day(10), day(21), day(31)
+	ivs := tickervalidity.Intervals{
+		{Before: &from, Instr: acme, Validity: tickervalidity.Provisional},
+		{From: &from, Before: &mid, Instr: acme, Validity: tickervalidity.Confirmed},
+		{From: &mid, Instr: acme, Validity: tickervalidity.Provisional},
+	}
+	facts(q, v, assertions, ivs)
 	probes, err := mics.TickerProbes([]types.MarketTicker{v})
 	require.NoError(t, err)
 	if len(probes) != 3 {
@@ -86,16 +91,11 @@ func TestTicker(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Ticker: %v", err)
 	}
-	from, mid, before := day(10), day(21), day(31)
 	want := &Page{
-		Ticker: v,
-		Days:   []time.Time{day(5), day(15)},
-		Rows:   tickervalidity.Rows{Assertions: assertions},
-		Intervals: tickervalidity.Intervals{
-			{Before: &from, Instr: acme, Validity: tickervalidity.Provisional},
-			{From: &from, Before: &mid, Instr: acme, Validity: tickervalidity.Confirmed},
-			{From: &mid, Instr: acme, Validity: tickervalidity.Provisional},
-		},
+		Ticker:    v,
+		Days:      []time.Time{day(5), day(15)},
+		Rows:      tickervalidity.Rows{Assertions: assertions},
+		Intervals: ivs,
 		Gaps: []Gap{
 			{Period: types.Period{From: day(5), Before: from}, Keys: 2, Txns: 2},
 			{Period: types.Period{From: mid, Before: before}},
@@ -113,7 +113,7 @@ func TestTickerNoTxns(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	q := mock.NewMockQueries(ctrl)
 	v := ticker("ACME")
-	facts(q, v, nil)
+	facts(q, v, nil, nil)
 	q.EXPECT().ListTickerTxns(gomock.Any(), gomock.Any()).Return(nil, nil)
 
 	got, err := New(q, mics).Ticker(context.Background(), v, day(30))

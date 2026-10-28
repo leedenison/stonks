@@ -244,7 +244,7 @@ func TestReadRowsOf(t *testing.T) {
 	}
 	f.exec(t, "INSERT INTO identifier_assertion_coverage (id, fetch_key_id, market, covered_from, covered_before) VALUES ($1, $2, 'US', $3, $4)", db.NewID(), key, day(1), day(10))
 
-	rows, err := ReadRowsOf(ctx, f.q, []types.MarketTicker{usA, lonB, usOld, usNew, unrowed})
+	rows, err := readRowsOf(ctx, f.q, []types.MarketTicker{usA, lonB, usOld, usNew, unrowed})
 	require.NoError(t, err)
 	got := map[types.MarketTicker][]int{}
 	for mt, r := range rows {

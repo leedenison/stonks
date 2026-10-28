@@ -118,7 +118,7 @@ func TestRebuildStoresValidity(t *testing.T) {
 	f.rebuild(t, foo.ID)
 	rows, err := ReadRows(context.Background(), f.q, f.foo)
 	require.NoError(t, err)
-	want := Derive(rows.Facts()).Intervals
+	want := derive(rows.facts()).Intervals
 	stored, err := Load(context.Background(), f.q, []types.MarketTicker{f.foo})
 	require.NoError(t, err)
 	if diff := cmp.Diff(want, stored[f.foo]); diff != "" {
