@@ -124,7 +124,7 @@ test("lists the datasources, refuses enabling one the build does not serve, and 
   );
 });
 
-test("reorders the datasources by dragging a row, and each reorder rebuilds the ticker names", async ({
+test("reorders the datasources by dragging a row, and each reorder rebuilds the ticker validity", async ({
   signIn,
   page,
 }) => {
@@ -134,7 +134,7 @@ test("reorders the datasources by dragging a row, and each reorder rebuilds the 
   // Only this spec reorders the datasources, so every rebuild run that
   // appears while it works is one of its reorders.
   const rebuilds = async () =>
-    (await runs.listRuns({ kind: RunKind.REBUILD_RESOLVED_TICKERS })).runs.map(
+    (await runs.listRuns({ kind: RunKind.REBUILD_TICKER_VALIDITY })).runs.map(
       (r) => r.run!.id,
     );
   const earlier = await rebuilds();

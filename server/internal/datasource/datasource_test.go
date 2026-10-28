@@ -174,4 +174,4 @@ func TestReorderRebuildFails(t *testing.T) {
 }
 
 // rebuild is the run a reorder starts.
-var rebuild = gen.Run{ID: db.NewID(), Kind: gen.RunKindRebuildResolvedTickers}
+var rebuild = gen.Run{ID: db.NewID(), Kind: gen.RunKindRebuildTickerValidity}

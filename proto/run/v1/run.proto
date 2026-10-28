@@ -28,8 +28,8 @@ enum RunKind {
   // Asks the datasources for the corporate actions of the tickers that named a
   // held instrument.
   RUN_KIND_REFRESH_CORP_ACTS = 7;
-  // Rebuilds the names of every ticker.
-  RUN_KIND_REBUILD_RESOLVED_TICKERS = 8;
+  // Rebuilds the ticker validity and names of every ticker.
+  RUN_KIND_REBUILD_TICKER_VALIDITY = 8;
 }
 
 // What started a run.

@@ -4,19 +4,19 @@ import { Button } from "@/app/components/button";
 import { Dialog } from "@/app/components/dialog";
 import { Notice } from "@/app/components/notice";
 import type { Run } from "@/gen/run/v1/run_pb";
-import { useStartRebuildResolvedTickers } from "@/hooks/use-rebuild-resolved-tickers";
+import { useStartRebuildTickerValidity } from "@/hooks/use-rebuild-ticker-validity";
 import { refusal } from "@/lib/refusal";
 
-// RebuildResolvedTickersDialog confirms and starts a rebuild resolved tickers
+// RebuildTickerValidityDialog confirms and starts a rebuild ticker validity
 // run over every ticker. A refusal stays in the dialog.
-export function RebuildResolvedTickersDialog({
+export function RebuildTickerValidityDialog({
   onClose,
   onStarted,
 }: {
   onClose: () => void;
   onStarted: (run: Run) => void;
 }) {
-  const start = useStartRebuildResolvedTickers();
+  const start = useStartRebuildTickerValidity();
   const submit = () =>
     start.mutate(undefined, {
       onSuccess: (res) => res.run && onStarted(res.run),
@@ -26,8 +26,8 @@ export function RebuildResolvedTickersDialog({
     <Dialog
       open
       onClose={onClose}
-      title="Rebuild ticker names"
-      testId="rebuild-resolved-tickers-dialog"
+      title="Rebuild ticker validity"
+      testId="rebuild-ticker-validity-dialog"
       footer={
         <>
           <Button
@@ -38,7 +38,7 @@ export function RebuildResolvedTickersDialog({
             Cancel
           </Button>
           <Button
-            data-testid="rebuild-resolved-tickers-start"
+            data-testid="rebuild-ticker-validity-start"
             disabled={start.isPending}
             onClick={submit}
           >
@@ -48,12 +48,13 @@ export function RebuildResolvedTickersDialog({
       }
     >
       <p className="text-sm">
-        Chooses again the ticker that names each instrument, from the facts
-        already stored. It calls no datasource. Run it after a deploy that
-        changes how names are chosen, or after facts were deleted.
+        Rebuilds the ticker validity and the names of every ticker from the
+        facts already stored. It does not call a datasource. Run it after a
+        deploy that changes how validity or names are derived, or after facts
+        were deleted.
       </p>
       {start.isError && (
-        <Notice tone="error" testId="rebuild-resolved-tickers-error">
+        <Notice tone="error" testId="rebuild-ticker-validity-error">
           {refusal(start.error, "The run could not be started.")}
         </Notice>
       )}

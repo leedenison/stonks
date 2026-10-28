@@ -1,4 +1,4 @@
-package rebuildresolvedtickers
+package rebuildtickervalidity
 
 import (
 	"context"
@@ -15,10 +15,10 @@ import (
 func TestStart(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	runs := NewMockRunner(ctrl)
-	row := gen.Run{Kind: gen.RunKindRebuildResolvedTickers}
+	row := gen.Run{Kind: gen.RunKindRebuildTickerValidity}
 	runs.EXPECT().Start(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, spec run.Spec, _ run.Work) (gen.Run, error) {
-		if spec.Kind != gen.RunKindRebuildResolvedTickers || spec.Trigger != gen.RunTriggerAdministrator || spec.UserID != nil || spec.Lane != lane {
-			t.Errorf("spec = %+v, want a system rebuild resolved tickers run an administrator started", spec)
+		if spec.Kind != gen.RunKindRebuildTickerValidity || spec.Trigger != gen.RunTriggerAdministrator || spec.UserID != nil || spec.Lane != lane {
+			t.Errorf("spec = %+v, want a system rebuild ticker validity run an administrator started", spec)
 		}
 		return row, nil
 	})

@@ -2,7 +2,7 @@
 
 CREATE TYPE run_kind AS ENUM ('ingest_stmt', 'resolve_stmt_keys', 'datasource_fetch',
     'replay_run', 'attest_identifier', 'reassert_tickers', 'refresh_corp_acts',
-    'rebuild_resolved_tickers');
+    'rebuild_ticker_validity');
 -- What started a run: 'user' and 'administrator' are a person's request, and
 -- 'run' is a parent run starting a child.
 CREATE TYPE run_trigger AS ENUM ('user', 'administrator', 'run');
@@ -15,10 +15,10 @@ CREATE TYPE run_state AS ENUM ('pending', 'running', 'completed', 'failed', 'int
 -- attest identifier run records an administrator's assertions. A reassert
 -- tickers run asks the datasources again about every held ticker. A refresh
 -- corporate actions run asks for the corporate actions of the tickers that
--- named a held instrument. A rebuild resolved tickers run rebuilds the names
--- of every ticker. Most runs go in the background. A resolution a user
--- starts runs in the call that starts it. The row exists before the work starts
--- and carries its outcome.
+-- named a held instrument. A rebuild ticker validity run rebuilds the ticker
+-- validity and names of every ticker. Most runs go in the background. A
+-- resolution a user starts runs in the call that starts it. The row exists
+-- before the work starts and carries its outcome.
 --
 -- A run acts for its user. A system run acts for the system and has no user.
 CREATE TABLE runs (

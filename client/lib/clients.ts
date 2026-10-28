@@ -4,7 +4,7 @@ import { CoverageService } from "@/gen/admin/coverage/v1/coverage_pb";
 import { DatasourceService } from "@/gen/admin/datasource/v1/datasource_pb";
 import { InstrService as AdminInstrService } from "@/gen/admin/instr/v1/instr_pb";
 import { ReassertTickersService } from "@/gen/admin/reassert_tickers/v1/reassert_tickers_pb";
-import { RebuildResolvedTickersService } from "@/gen/admin/rebuild_resolved_tickers/v1/rebuild_resolved_tickers_pb";
+import { RebuildTickerValidityService } from "@/gen/admin/rebuild_ticker_validity/v1/rebuild_ticker_validity_pb";
 import { RefreshCorpActsService } from "@/gen/admin/refresh_corp_acts/v1/refresh_corp_acts_pb";
 import { ReplayRunService } from "@/gen/admin/replay_run/v1/replay_run_pb";
 import { RunService as AdminRunService } from "@/gen/admin/run/v1/run_pb";
@@ -24,8 +24,8 @@ export function newClients(transport: Transport) {
     datasource: createClient(DatasourceService, transport),
     holding: createClient(HoldingService, transport),
     reassertTickers: createClient(ReassertTickersService, transport),
-    rebuildResolvedTickers: createClient(
-      RebuildResolvedTickersService,
+    rebuildTickerValidity: createClient(
+      RebuildTickerValidityService,
       transport,
     ),
     refreshCorpActs: createClient(RefreshCorpActsService, transport),

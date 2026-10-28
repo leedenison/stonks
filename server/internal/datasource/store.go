@@ -8,7 +8,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/market"
-	"github.com/leedenison/stonks/server/internal/run/rebuildresolvedtickers"
+	"github.com/leedenison/stonks/server/internal/run/rebuildtickervalidity"
 )
 
 // Queries is this package's view of the generated queries.
@@ -47,9 +47,9 @@ type Dropper interface {
 
 var _ Dropper = market.Cache(nil)
 
-// Rebuilder is this package's view of the rebuild resolved tickers service.
+// Rebuilder is this package's view of the rebuild ticker validity service.
 type Rebuilder interface {
 	Start(ctx context.Context) (gen.Run, error)
 }
 
-var _ Rebuilder = (*rebuildresolvedtickers.Service)(nil)
+var _ Rebuilder = (*rebuildtickervalidity.Service)(nil)

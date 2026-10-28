@@ -18,8 +18,8 @@ import (
 	"github.com/leedenison/stonks/proto/admin/datasource/v1/admindatasourcev1connect"
 	adminreasserttickersv1 "github.com/leedenison/stonks/proto/admin/reassert_tickers/v1"
 	"github.com/leedenison/stonks/proto/admin/reassert_tickers/v1/adminreasserttickersv1connect"
-	adminrebuildresolvedtickersv1 "github.com/leedenison/stonks/proto/admin/rebuild_resolved_tickers/v1"
-	"github.com/leedenison/stonks/proto/admin/rebuild_resolved_tickers/v1/adminrebuildresolvedtickersv1connect"
+	adminrebuildtickervalidityv1 "github.com/leedenison/stonks/proto/admin/rebuild_ticker_validity/v1"
+	"github.com/leedenison/stonks/proto/admin/rebuild_ticker_validity/v1/adminrebuildtickervalidityv1connect"
 	adminrefreshcorpactsv1 "github.com/leedenison/stonks/proto/admin/refresh_corp_acts/v1"
 	"github.com/leedenison/stonks/proto/admin/refresh_corp_acts/v1/adminrefreshcorpactsv1connect"
 	adminreplayrunv1 "github.com/leedenison/stonks/proto/admin/replay_run/v1"
@@ -45,7 +45,7 @@ type stub struct {
 	adminblockv1connect.UnimplementedBlockServiceHandler
 	admindatasourcev1connect.UnimplementedDatasourceServiceHandler
 	adminreasserttickersv1connect.UnimplementedReassertTickersServiceHandler
-	adminrebuildresolvedtickersv1connect.UnimplementedRebuildResolvedTickersServiceHandler
+	adminrebuildtickervalidityv1connect.UnimplementedRebuildTickerValidityServiceHandler
 	adminrefreshcorpactsv1connect.UnimplementedRefreshCorpActsServiceHandler
 	adminreplayrunv1connect.UnimplementedReplayRunServiceHandler
 	adminrunv1connect.UnimplementedRunServiceHandler
@@ -108,7 +108,7 @@ func newFixture(t *testing.T) *fixture {
 		mux.Handle(adminblockv1connect.NewBlockServiceHandler(f.stub, opts...))
 		mux.Handle(admindatasourcev1connect.NewDatasourceServiceHandler(f.stub, opts...))
 		mux.Handle(adminreasserttickersv1connect.NewReassertTickersServiceHandler(f.stub, opts...))
-		mux.Handle(adminrebuildresolvedtickersv1connect.NewRebuildResolvedTickersServiceHandler(f.stub, opts...))
+		mux.Handle(adminrebuildtickervalidityv1connect.NewRebuildTickerValidityServiceHandler(f.stub, opts...))
 		mux.Handle(adminrefreshcorpactsv1connect.NewRefreshCorpActsServiceHandler(f.stub, opts...))
 		mux.Handle(adminreplayrunv1connect.NewReplayRunServiceHandler(f.stub, opts...))
 		mux.Handle(adminrunv1connect.NewRunServiceHandler(f.stub, opts...))
@@ -190,7 +190,7 @@ func TestAuthenticate(t *testing.T) {
 		{name: "replay run service with a user's session", cookie: "stonks_session=live", call: startReplayRun, wantCode: connect.CodePermissionDenied},
 		{name: "reassert tickers service with a user's session", cookie: "stonks_session=live", call: startReassertTickers, wantCode: connect.CodePermissionDenied},
 		{name: "refresh corporate actions service with a user's session", cookie: "stonks_session=live", call: startRefreshCorpActs, wantCode: connect.CodePermissionDenied},
-		{name: "rebuild resolved tickers service with a user's session", cookie: "stonks_session=live", call: startRebuildResolvedTickers, wantCode: connect.CodePermissionDenied},
+		{name: "rebuild ticker validity service with a user's session", cookie: "stonks_session=live", call: startRebuildTickerValidity, wantCode: connect.CodePermissionDenied},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -267,9 +267,9 @@ func startReassertTickers(f *fixture) error {
 	return err
 }
 
-func startRebuildResolvedTickers(f *fixture) error {
-	client := adminrebuildresolvedtickersv1connect.NewRebuildResolvedTickersServiceClient(f.srv.Client, f.srv.URL)
-	_, err := client.StartRebuildResolvedTickers(context.Background(), connect.NewRequest(&adminrebuildresolvedtickersv1.StartRebuildResolvedTickersRequest{}))
+func startRebuildTickerValidity(f *fixture) error {
+	client := adminrebuildtickervalidityv1connect.NewRebuildTickerValidityServiceClient(f.srv.Client, f.srv.URL)
+	_, err := client.StartRebuildTickerValidity(context.Background(), connect.NewRequest(&adminrebuildtickervalidityv1.StartRebuildTickerValidityRequest{}))
 	return err
 }
 

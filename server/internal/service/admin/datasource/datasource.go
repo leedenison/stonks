@@ -102,7 +102,7 @@ func (s *Server) UpdateDatasource(ctx context.Context, req *connect.Request[admi
 }
 
 // ReorderDatasources gives each datasource the precedence of its position in
-// the list, and returns the rebuild resolved tickers run it started. A list
+// the list, and returns the rebuild ticker validity run it started. A list
 // that does not name every datasource exactly once is refused.
 func (s *Server) ReorderDatasources(ctx context.Context, req *connect.Request[admindatasourcev1.ReorderDatasourcesRequest]) (*connect.Response[admindatasourcev1.ReorderDatasourcesResponse], error) {
 	started, err := s.updater.Reorder(ctx, req.Msg.GetNames())
