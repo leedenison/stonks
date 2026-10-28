@@ -44,7 +44,10 @@ var (
 	protoIdentsOfA  = []*typev1.Identifier{protoAISIN}
 	protoIdentsOfB  = []*typev1.Identifier{{Type: typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, Value: "US0000000072"}}
 	assetClassStock = typev1.AssetClass_ASSET_CLASS_STOCK
-	errBoom         = errors.New("boom")
+	// adjusted is the mark of a holding whose transactions are all dated
+	// today, so no corporate action restates them.
+	adjusted = holdingv1.HoldingMark_HOLDING_MARK_ADJUSTED
+	errBoom  = errors.New("boom")
 )
 
 // datedKey is the key dated through FOO, stating currency, with the sum of
@@ -58,6 +61,7 @@ func datedKey(currency *string, group, instr *uuid.UUID, quantity string) gen.Li
 			Arbiter: ptr.To(gen.ArbiterDatasource), GroupID: group,
 		},
 		InstrID:  instr,
+		AsAt:     types.Day(now),
 		Quantity: decimal.RequireFromString(quantity),
 	}
 }
@@ -77,14 +81,15 @@ func TestListHoldingsDated(t *testing.T) {
 	fixedKey := gen.ListHoldingKeysRow{
 		StatedKey: gen.StatedKey{ID: fixedKeyID, Currency: usd, Identifiers: []types.Identifier{aISIN}, InstrID: &aID, ListingID: &aUSD, Arbiter: ptr.To(gen.ArbiterDatasource)},
 		InstrID:   &aID,
+		AsAt:      types.Day(now),
 		Quantity:  decimal.RequireFromString("10"),
 	}
 	fixedHoldingKey := &holdingv1.HoldingKey{StatedKey: &typev1.StatedKey{Currency: usd, Identifiers: []*typev1.Identifier{protoAISIN}}, ListingId: aUSD.String(), Quantity: "10"}
 	holdingA := func(quantity string, keys ...*holdingv1.HoldingKey) *holdingv1.InstrHolding {
-		return &holdingv1.InstrHolding{InstrId: aID.String(), AssetClass: assetClassStock, Name: protoAName, Identifiers: protoIdentsOfA, Quantity: quantity, Listings: protoAListings, Keys: keys}
+		return &holdingv1.InstrHolding{InstrId: aID.String(), AssetClass: assetClassStock, Name: protoAName, Identifiers: protoIdentsOfA, Quantity: quantity, Listings: protoAListings, Keys: keys, Mark: adjusted}
 	}
 	holdingB := func(quantity string, listings []*holdingv1.HoldingListing, keys ...*holdingv1.HoldingKey) *holdingv1.InstrHolding {
-		return &holdingv1.InstrHolding{InstrId: bID.String(), AssetClass: assetClassStock, Name: protoFoo, Identifiers: protoIdentsOfB, Quantity: quantity, Listings: listings, Keys: keys}
+		return &holdingv1.InstrHolding{InstrId: bID.String(), AssetClass: assetClassStock, Name: protoFoo, Identifiers: protoIdentsOfB, Quantity: quantity, Listings: listings, Keys: keys, Mark: adjusted}
 	}
 	group := func(currency *string, quantity string) *holdingv1.GroupHolding {
 		return &holdingv1.GroupHolding{GroupId: datedKeyID.String(), Quantity: quantity, Identifiers: []*typev1.Identifier{protoFoo}, Keys: []*holdingv1.HoldingKey{datedHoldingKey(currency, uuid.Nil, quantity)}}
@@ -165,6 +170,7 @@ func TestListHoldingsDated(t *testing.T) {
 			f.authn.EXPECT().Authenticate(gomock.Any(), servicetest.Session).Return(principal, nil)
 			f.reader.EXPECT().ListHoldingKeys(gomock.Any(), userID).Return(tc.keys, tc.keysErr)
 			f.reader.EXPECT().ListInstrsByID(gomock.Any(), gomock.Any()).Return(instrs, nil).MaxTimes(1)
+			f.reader.EXPECT().ListTickersNaming(gomock.Any(), gomock.Any()).Return(nil, nil).MaxTimes(1)
 			if len(tc.ids) > 0 {
 				f.reader.EXPECT().ListIdentifiersOf(gomock.Any(), tc.ids).Return(idents, nil)
 				f.reader.EXPECT().ListListingNames(gomock.Any(), tc.ids).Return(tc.listings, nil)

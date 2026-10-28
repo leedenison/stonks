@@ -157,9 +157,9 @@ func TestProtoHoldingListing(t *testing.T) {
 
 func TestProtoHoldingKey(t *testing.T) {
 	listing := uuid.New()
-	row := gen.ListHoldingKeysRow{StatedKey: gen.StatedKey{ListingID: &listing, Currency: ptr.To("GBP")}, Quantity: decimal.RequireFromString("12.5")}
+	key := gen.StatedKey{ListingID: &listing, Currency: ptr.To("GBP")}
 	want := &holdingv1.HoldingKey{StatedKey: &typev1.StatedKey{Currency: ptr.To("GBP")}, Quantity: "12.5", ListingId: listing.String()}
-	if diff := cmp.Diff(want, ProtoHoldingKey(row), protocmp.Transform()); diff != "" {
+	if diff := cmp.Diff(want, ProtoHoldingKey(key, decimal.RequireFromString("12.5")), protocmp.Transform()); diff != "" {
 		t.Errorf("ProtoHoldingKey mismatch (-want +got):\n%s", diff)
 	}
 }

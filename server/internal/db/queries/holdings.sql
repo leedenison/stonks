@@ -1,13 +1,14 @@
 -- name: ListHoldingKeys :many
 -- The user's keys that have a transaction, earliest key first. A key comes
--- once for each instrument its transactions name, with the sum of those
--- transactions. A NULL instrument sums the transactions that name nothing.
-SELECT sqlc.embed(stated_keys), txn_instrs.instr_id, SUM(txn_instrs.quantity)::numeric AS quantity
+-- once for each instrument its transactions name and each as-at date, with
+-- the sum of those transactions. A NULL instrument sums the transactions that
+-- name nothing.
+SELECT sqlc.embed(stated_keys), txn_instrs.instr_id, txn_instrs.as_at, SUM(txn_instrs.quantity)::numeric AS quantity
 FROM stated_keys
 JOIN txn_instrs ON txn_instrs.stated_key_id = stated_keys.id
 WHERE stated_keys.user_id = @user_id::uuid
-GROUP BY stated_keys.id, txn_instrs.instr_id
-ORDER BY stated_keys.id, txn_instrs.instr_id NULLS FIRST;
+GROUP BY stated_keys.id, txn_instrs.instr_id, txn_instrs.as_at
+ORDER BY stated_keys.id, txn_instrs.instr_id NULLS FIRST, txn_instrs.as_at;
 
 -- name: ListListingNames :many
 -- Each listing of the instruments with every ticker that reaches it, ranked

@@ -200,9 +200,9 @@ func TestTickerRelations(t *testing.T) {
 }
 
 // TestListHoldingKeys checks that the user's keys with a transaction are
-// listed earliest key first, resolved or grouped alike. It checks that sums
-// are exact and trimmed of trailing zeros, and that another user's keys are
-// omitted.
+// listed earliest key first, resolved or grouped alike, with a row for each
+// as-at date in date order. It checks that sums are exact and trimmed of
+// trailing zeros, and that another user's keys are omitted.
 func TestListHoldingKeys(t *testing.T) {
 	ctx := context.Background()
 	q := newTx(t)
@@ -225,18 +225,23 @@ func TestListHoldingKeys(t *testing.T) {
 	halves := later.key(t, q, "HALVES", &usd, &via)
 	later.record(t, q, halves, "1.50")
 	later.record(t, q, halves, "2.50")
+	later.recordOn(t, q, halves, date(2026, 3, 2), "1.25")
 
 	got, err := q.ListHoldingKeys(ctx, h.user.ID)
 	require.NoError(t, err)
 	type row struct {
 		Key      uuid.UUID
+		AsAt     string
 		Quantity string
 	}
 	var rows []row
 	for _, r := range got {
-		rows = append(rows, row{r.StatedKey.ID, r.Quantity.String()})
+		rows = append(rows, row{r.StatedKey.ID, r.AsAt.Format(time.DateOnly), r.Quantity.String()})
 	}
-	want := []row{{resolved.ID, "7.5"}, {grouped.ID, "3"}, {newer.ID, "1"}, {halves.ID, "4"}}
+	want := []row{
+		{resolved.ID, "2026-03-01", "7.5"}, {grouped.ID, "2026-03-01", "3"}, {newer.ID, "2026-03-01", "1"},
+		{halves.ID, "2026-03-01", "4"}, {halves.ID, "2026-03-02", "1.25"},
+	}
 	if diff := cmp.Diff(want, rows); diff != "" {
 		t.Errorf("ListHoldingKeys mismatch (-want +got):\n%s", diff)
 	}
@@ -285,9 +290,17 @@ func TestTxnInstrs(t *testing.T) {
 	keys, err := q.ListHoldingKeys(ctx, h.user.ID)
 	require.NoError(t, err)
 	var gotSums []sum
-	for _, r := range keys {
-		if r.StatedKey.ID == dated.ID {
-			gotSums = append(gotSums, sum{r.StatedKey.ID, r.InstrID, r.Quantity.String()})
+	var last *uuid.UUID
+	var total decimal.Decimal
+	for i, r := range keys {
+		if r.StatedKey.ID != dated.ID {
+			continue
+		}
+		total = total.Add(r.Quantity)
+		last = r.InstrID
+		if i+1 == len(keys) || keys[i+1].StatedKey.ID != dated.ID || !ptr.Equal(keys[i+1].InstrID, last) {
+			gotSums = append(gotSums, sum{r.StatedKey.ID, last, total.String()})
+			total = decimal.Zero
 		}
 	}
 	wantSums := []sum{{dated.ID, nil, "24"}, {dated.ID, &a.ID, "1"}, {dated.ID, &b.ID, "6"}}
