@@ -46,7 +46,9 @@ names what reads as a second instrument.
 
 Where an uploaded transaction history states a split, the split is never stored as a
 corporate action.  It is compared with the calendar, and flagged for the administrator
-when the calendar lacks it.
+when the calendar lacks it.  Brokers state splits too loosely to serve as corporate
+actions: IBKR dates a split on the trading day before its ex-date, and Schwab omits the
+ratio.
 
 ### Unhandled Corporate Actions
 
@@ -61,15 +63,7 @@ implement the most complex handling up front.
 
 ### Datasources
 
-The datasource framework constraints apply.  An
-absence of corporate action data for an instrument is tolerated by:
-
-- Making assumptions where the retroactive addition of an unknown corporate action can be
-  idempotently applied correctly.
-- Storing limited, conservative data.  For example, storing a transaction quantity raw
-  with no split adjusted quantity while we have no split data coverage for the instrument.
-- Refusing data with an error when the retroactive addition of an unknown corporate action
-  would leave some data incorrect and unrecoverable.
+The datasource framework constraints apply.
 
 ## Invariants
 

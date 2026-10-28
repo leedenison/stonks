@@ -120,9 +120,11 @@ func Calendars(ctx context.Context, q CalendarQueries, instrs []uuid.UUID) (map[
 
 // Factor returns the factor that restates a quantity as at asAt to today:
 // the product of the ratios of the handled actions with an ex-date after
-// asAt and on or before today. It takes them from the first market answer of
-// c that covers every day of that span. It reports false when none does. A
-// quantity as at today needs no action, so its factor is one.
+// asAt and on or before today. A quantity as at an ex-date already follows
+// the action, because exchanges quote a trade on the ex-date in the new
+// units. It takes the actions from the first market answer of c that covers
+// every day of that span. It reports false when none does. A quantity as at
+// today needs no action, so its factor is one.
 func (c Calendar) Factor(asAt, today time.Time) (*big.Rat, bool) {
 	need := types.Period{From: types.Day(asAt).AddDate(0, 0, 1), Before: types.Day(today).AddDate(0, 0, 1)}
 	f := big.NewRat(1, 1)

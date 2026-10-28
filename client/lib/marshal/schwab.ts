@@ -6,7 +6,8 @@
 //
 // A quantity is restated to the units held after every split up to the
 // export while the price stays as traded, and the split is still stated as a
-// line of its own. Every row is therefore as at the date the export was
+// line of its own. The line states the units the split added, without a
+// ratio. Every row is therefore as at the date the export was
 // taken, which neither format states and the caller supplies.
 
 import { parse } from "csv-parse/sync";

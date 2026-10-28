@@ -23,8 +23,9 @@ replay.
 
 ### Triggers
 
-A schedule starts a run.  When an identifier event or a corporate action causes a replay,
-the replay names the fetch that recorded it.
+A schedule starts a run.  A daily fetch of corporate actions keeps holdings adjusted.
+When an identifier event or a corporate action causes a replay, the replay names the fetch
+that recorded it.
 
 ### Findings
 
