@@ -60,9 +60,9 @@ states how it tolerates a temporary or permanent absence of its data.
 
 ## Sketch
 
-Holdings derive ticker validity from the fact tables at each read. A per instrument
-summary of coverage and ticker validity, maintained at ingest and rebuilt from the fetch
-tables, would serve holdings and valuation once the derivation costs too much.
+Holdings compute corporate action coverage from the fact tables on every request. A per
+instrument summary of coverage, maintained at ingest and rebuilt from the fetch tables,
+would serve holdings and valuation once that computation costs too much.
 
 ## Undecided
 

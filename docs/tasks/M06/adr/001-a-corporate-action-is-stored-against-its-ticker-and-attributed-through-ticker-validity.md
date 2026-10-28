@@ -8,8 +8,9 @@ A corporate action is stored as fetched, against the ticker and its market, with
 key that fetched it. Coverage is stored the same way. When holdings are read, a corporate
 action belongs to the instrument that its ticker named on the ex-date. Ticker validity
 decides this, confirmed or provisional, exactly as it decides the instrument of a dated
-transaction. A new identifier fact moves the attribution of a corporate action with no
-write.
+transaction. A new identifier fact moves the attribution of a corporate action. The
+transaction that writes the fact rebuilds the stored ticker validity, as
+[016](016-ticker-validity-is-stored.md) states. The corporate action is never rewritten.
 
 A transaction of a dated key and the corporate action that restates it land on one
 instrument, because ticker validity attributes both. A transaction of a fixed key belongs
