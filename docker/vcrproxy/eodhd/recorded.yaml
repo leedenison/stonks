@@ -5827,3 +5827,630 @@ interactions:
         status: 404 Not Found
         code: 404
         duration: 181.860856ms
+    - id: 122
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/search/NVDA?api_token=REDACTED&exchange=US&fmt=json&limit=500
+        form:
+            exchange:
+                - US
+            fmt:
+                - json
+            limit:
+                - "500"
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/search/NVDA?exchange=US&fmt=json&limit=500
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 4140
+        uncompressed: true
+        body: '[{"Code":"NVDA","Exchange":"US","Name":"NVIDIA Corporation","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US67066G1040","isPrimary":true,"previousClose":217.94,"previousCloseDate":"2026-10-27"},{"Code":"NVDL","Exchange":"US","Name":"GraniteShares 2x Long NVDA Daily ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US38747R8271","isPrimary":false,"previousClose":32.92,"previousCloseDate":"2026-10-27"},{"Code":"NVD","Exchange":"US","Name":"GraniteShares 1.5x Short NVDA Daily ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US38747R6291","isPrimary":false,"previousClose":3.93,"previousCloseDate":"2026-10-27"},{"Code":"NVDU","Exchange":"US","Name":"Daily NVDA Bull 2X ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US25461A8339","isPrimary":false,"previousClose":130.74,"previousCloseDate":"2026-10-27"},{"Code":"NVDY","Exchange":"US","Name":"YieldMax NVDA Option Income Strategy ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US88634T7744","isPrimary":false,"previousClose":11.87,"previousCloseDate":"2026-10-27"},{"Code":"NVDS","Exchange":"US","Name":"AXS 1.25X NVDA Bear Daily ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US46144X1155","isPrimary":false,"previousClose":18.84,"previousCloseDate":"2026-10-27"},{"Code":"NVDD","Exchange":"US","Name":"Direxion Daily NVDA Bear 1X Shares","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US25461A1979","isPrimary":false,"previousClose":30.14,"previousCloseDate":"2026-10-27"},{"Code":"NVDG","Exchange":"US","Name":"Leverage Shares 2X Long NVDA Daily ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US8829276760","isPrimary":false,"previousClose":18.4294,"previousCloseDate":"2026-10-27"},{"Code":"NVII","Exchange":"US","Name":"REX NVDA Growth \u0026 Income ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US7615623052","isPrimary":false,"previousClose":23.08,"previousCloseDate":"2026-10-27"},{"Code":"NVDW","Exchange":"US","Name":"Roundhill ETF Trust Roundhill NVDA WeeklyPay ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US77926X7185","isPrimary":false,"previousClose":34.11,"previousCloseDate":"2026-10-27"},{"Code":"NVYY","Exchange":"US","Name":"GraniteShares YieldBOOST NVDA ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US38747R4395","isPrimary":false,"previousClose":10.68,"previousCloseDate":"2026-10-27"},{"Code":"NVDB","Exchange":"US","Name":"ProShares Ultra NVDA ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US74349Y3999","isPrimary":false,"previousClose":30.5,"previousCloseDate":"2026-10-27"},{"Code":"NVIT","Exchange":"US","Name":"YieldMax NVDA Performance \u0026 Distribution Target 25 ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US88636V5791","isPrimary":false,"previousClose":48.999,"previousCloseDate":"2026-10-27"},{"Code":"DIPS","Exchange":"US","Name":"YieldMax Short NVDA Option Income Strategy ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US88636X5005","isPrimary":false,"previousClose":31.867,"previousCloseDate":"2026-10-27"},{"Code":"ANV","Exchange":"US","Name":"Graniteshares Autocallable Nvda ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US38747T7164","isPrimary":false,"previousClose":25.28,"previousCloseDate":"2026-10-27"},{"Code":"NYYY","Exchange":"US","Name":"xETFs NVDA Daily Income ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US30151E4594","isPrimary":false,"previousClose":42.0612,"previousCloseDate":"2026-10-27"},{"Code":"NVC","Exchange":"US","Name":"CORGI NVDA 2X DAILY ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US21874J7506","isPrimary":false,"previousClose":28.69,"previousCloseDate":"2026-10-27"},{"Code":"NVIB","Exchange":"US","Name":"Direxion NVDA Defined Income Boost ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US25461H3663","isPrimary":false,"previousClose":26.69,"previousCloseDate":"2026-10-27"},{"Code":"XVNV","Exchange":"US","Name":"FT Vest NVDA \u0026 Target Income ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":28.9865,"previousCloseDate":"2026-10-27"}]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Wed, 28 Oct 2026 16:47:55 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1199"
+        status: 200 OK
+        code: 200
+        duration: 1.558588944s
+    - id: 123
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/exchange-symbol-list/US?api_token=REDACTED&fmt=json&symbols=NVDA
+        form:
+            fmt:
+                - json
+            symbols:
+                - NVDA
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/exchange-symbol-list/US?fmt=json&symbols=NVDA
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 142
+        uncompressed: true
+        body: '[{"Code":"NVDA","Name":"NVIDIA Corporation","Country":"USA","Exchange":"NASDAQ","Currency":"USD","Type":"Common Stock","Isin":"US67066G1040"}]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Wed, 28 Oct 2026 16:47:56 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1198"
+        status: 200 OK
+        code: 200
+        duration: 319.299454ms
+    - id: 124
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/id-mapping?api_token=REDACTED&filter%5Bisin%5D=US67066G1040&fmt=json
+        form:
+            filter[isin]:
+                - US67066G1040
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/id-mapping?filter%5Bisin%5D=US67066G1040&fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 1150
+        uncompressed: true
+        body: '{"meta":{"limit":1000,"offset":0,"total":10},"data":[{"symbol":"1NVDA.MI","isin":null,"figi":"BBG00J7BJX58","lei":"549300S4KLFTLO7GSQ80","cusip":null,"cik":null},{"symbol":"NVD.F","isin":null,"figi":"BBG000CR7L84","lei":"549300S4KLFTLO7GSQ80","cusip":null,"cik":null},{"symbol":"NVD.XETRA","isin":null,"figi":"BBG000CR7M19","lei":"549300S4KLFTLO7GSQ80","cusip":null,"cik":null},{"symbol":"NVD.STU","isin":null,"figi":"BBG000CR7M82","lei":"549300S4KLFTLO7GSQ80","cusip":null,"cik":null},{"symbol":"NVD.MU","isin":null,"figi":"BBG000CR7MR1","lei":"549300S4KLFTLO7GSQ80","cusip":null,"cik":null},{"symbol":"NVD.BE","isin":null,"figi":null,"lei":"549300S4KLFTLO7GSQ80","cusip":null,"cik":null},{"symbol":"NVD.HA","isin":null,"figi":"BBG000CR7N99","lei":"549300S4KLFTLO7GSQ80","cusip":null,"cik":null},{"symbol":"NVD.DU","isin":null,"figi":"BBG000CR7LN7","lei":"549300S4KLFTLO7GSQ80","cusip":null,"cik":null},{"symbol":"NVD.HM","isin":null,"figi":"BBG000CR7NM4","lei":"549300S4KLFTLO7GSQ80","cusip":null,"cik":null},{"symbol":"NVDA.US","isin":null,"figi":"BBG000BBJQV0","lei":"549300S4KLFTLO7GSQ80","cusip":null,"cik":"0001045810"}],"links":{"next":null}}'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Wed, 28 Oct 2026 16:47:56 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1197"
+        status: 200 OK
+        code: 200
+        duration: 165.28737ms
+    - id: 125
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/search/GE?api_token=REDACTED&exchange=US&fmt=json&limit=500
+        form:
+            exchange:
+                - US
+            fmt:
+                - json
+            limit:
+                - "500"
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/search/GE?exchange=US&fmt=json&limit=500
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 81359
+        uncompressed: true
+        body: '[{"Code":"GE","Exchange":"US","Name":"GE Aerospace","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US3696043013","isPrimary":true,"previousClose":297.66,"previousCloseDate":"2026-10-27"},{"Code":"GEV","Exchange":"US","Name":"GE Vernova LLC","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US36828A1016","isPrimary":true,"previousClose":895.08,"previousCloseDate":"2026-10-27"},{"Code":"GEHC","Exchange":"US","Name":"GE HealthCare Technologies Inc.","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US36266G1076","isPrimary":true,"previousClose":71.11,"previousCloseDate":"2026-10-27"},{"Code":"GEN","Exchange":"US","Name":"Gen Digital Inc.","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US6687711084","isPrimary":true,"previousClose":24.25,"previousCloseDate":"2026-10-27"},{"Code":"GEO","Exchange":"US","Name":"Geo Group Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US36162J1060","isPrimary":true,"previousClose":28.27,"previousCloseDate":"2026-10-27"},{"Code":"GENI","Exchange":"US","Name":"Genius Sports Ltd","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"GG00BMF1JR16","isPrimary":true,"previousClose":6.32,"previousCloseDate":"2026-10-27"},{"Code":"GERN","Exchange":"US","Name":"Geron Corporation","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US3741631036","isPrimary":true,"previousClose":1.15,"previousCloseDate":"2026-10-27"},{"Code":"GEF","Exchange":"US","Name":"Greif Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US3976241071","isPrimary":true,"previousClose":83.17,"previousCloseDate":"2026-10-27"},{"Code":"GEMI","Exchange":"US","Name":"Gemini Space Station, Inc. Class A Common Stock","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US36866J1051","isPrimary":true,"previousClose":3.08,"previousCloseDate":"2026-10-27"},{"Code":"GEM","Exchange":"US","Name":"Goldman Sachs ActiveBeta\u00ae Emerging Markets Equity ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US3814302069","isPrimary":false,"previousClose":47.92,"previousCloseDate":"2026-10-27"},{"Code":"GEVO","Exchange":"US","Name":"Gevo Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US3743964062","isPrimary":true,"previousClose":1.17,"previousCloseDate":"2026-10-27"},{"Code":"GEFB","Exchange":"US","Name":"Greif, Inc.","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":116.57,"previousCloseDate":"2026-10-27"},{"Code":"GEF-B","Exchange":"US","Name":"Greif Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":116.57,"previousCloseDate":"2026-10-27"},{"Code":"GEVX","Exchange":"US","Name":"Tradr 2X Long GEV Daily ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US46143U5184","isPrimary":false,"previousClose":14.74,"previousCloseDate":"2026-10-27"},{"Code":"GEL","Exchange":"US","Name":"Genesis Energy LP","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US3719271047","isPrimary":true,"previousClose":14.36,"previousCloseDate":"2026-10-27"},{"Code":"GETY","Exchange":"US","Name":"Getty Images Holdings Inc.","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US3742751056","isPrimary":true,"previousClose":0.0295,"previousCloseDate":"2026-10-27"},{"Code":"GEME","Exchange":"US","Name":"Pacific North of South EM Equity Active ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US9009345060","isPrimary":false,"previousClose":38.6248,"previousCloseDate":"2026-10-27"},{"Code":"GELHY","Exchange":"US","Name":"Geely Automobile Holdings Limited","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":35.71,"previousCloseDate":"2026-10-27"},{"Code":"GELS","Exchange":"US","Name":"Gelteq Limited Ordinary Shares","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"AU0000218109","isPrimary":true,"previousClose":0.4583,"previousCloseDate":"2026-10-27"},{"Code":"GEOS","Exchange":"US","Name":"Geospace Technologies Corporation","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US37364X1090","isPrimary":true,"previousClose":4.51,"previousCloseDate":"2026-10-27"},{"Code":"GENE","Exchange":"US","Name":"Genetic Technologies Ltd","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US37185R3075","isPrimary":true,"previousClose":2034.75,"previousCloseDate":"2026-10-27"},{"Code":"GEVG","Exchange":"US","Name":"Leverage Shares 2X Long GEV Daily ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US88340F3082","isPrimary":false,"previousClose":18.702,"previousCloseDate":"2026-10-27"},{"Code":"GENK","Exchange":"US","Name":"GEN Restaurant Group, Inc. Class A Common Stock","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US36870C1045","isPrimary":true,"previousClose":1.57,"previousCloseDate":"2026-10-27"},{"Code":"GENC","Exchange":"US","Name":"Gencor Industries Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US3686781085","isPrimary":true,"previousClose":17.22,"previousCloseDate":"2026-10-27"},{"Code":"GEMG","Exchange":"US","Name":"Leverage Shares 2X Long GEMI Daily ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US88340C3549","isPrimary":false,"previousClose":1.5,"previousCloseDate":"2026-10-27"},{"Code":"GECC","Exchange":"US","Name":"Great Elm Capital Corp","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US3903207039","isPrimary":true,"previousClose":4.9,"previousCloseDate":"2026-10-27"},{"Code":"GENT","Exchange":"US","Name":"Spinnaker ETF Series","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US84858T7981","isPrimary":false,"previousClose":9.995,"previousCloseDate":"2026-10-27"},{"Code":"GEMD","Exchange":"US","Name":"Goldman Sachs ETF Trust - Goldman Sachs Access Emerging Markets USD Bond ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US3814303885","isPrimary":false,"previousClose":40.225,"previousCloseDate":"2026-10-27"},{"Code":"GELYF","Exchange":"US","Name":"Geely Automobile Holdings Ltd","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"KYG3777B1032","isPrimary":false,"previousClose":1.77,"previousCloseDate":"2026-10-27"},{"Code":"GENM","Exchange":"US","Name":"Spinnaker ETF Series","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US84858T7809","isPrimary":false,"previousClose":10.125,"previousCloseDate":"2026-10-27"},{"Code":"GEND","Exchange":"US","Name":"Genter Capital Dividend Income ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US84858T6819","isPrimary":false,"previousClose":13.525,"previousCloseDate":"2026-10-27"},{"Code":"GEW","Exchange":"US","Name":"Cambria Global EW ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US02072Q7135","isPrimary":false,"previousClose":55.7268,"previousCloseDate":"2026-10-27"},{"Code":"GENMF","Exchange":"US","Name":"Generation Mining Limited","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":0.307,"previousCloseDate":"2026-10-27"},{"Code":"GENVR","Exchange":"US","Name":"Gen Digital Inc. Contingent Value Rights","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US6687711167","isPrimary":true,"previousClose":1.22,"previousCloseDate":"2026-10-27"},{"Code":"GEBHY","Exchange":"US","Name":"Genting Berhad","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US3724523002","isPrimary":true,"previousClose":1.9,"previousCloseDate":"2026-10-27"},{"Code":"GENZ","Exchange":"US","Name":"VanEck Digital Native Economy ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US92189F8822","isPrimary":false,"previousClose":37.31,"previousCloseDate":"2026-10-27"},{"Code":"GECCG","Exchange":"US","Name":"Great Elm Capital Corp. 7.75% Notes Due 2030","Type":"Notes","Country":"USA","Currency":"USD","ISIN":"US3903208698","isPrimary":true,"previousClose":24.75,"previousCloseDate":"2026-10-27"},{"Code":"GEGGL","Exchange":"US","Name":"Great Elm Group Inc.  7.25% Notes due 2027","Type":"Notes","Country":"USA","Currency":"USD","ISIN":"US39037G2084","isPrimary":false,"previousClose":24.41,"previousCloseDate":"2026-10-27"},{"Code":"GEODF","Exchange":"US","Name":"Geodrill Limited","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":2.06,"previousCloseDate":"2026-10-27"},{"Code":"GECCI","Exchange":"US","Name":"Great Elm Capital Corp. 8.50% NOTES DUE 2029","Type":"Notes","Country":"USA","Currency":"USD","ISIN":"US3903208854","isPrimary":false,"previousClose":25.01,"previousCloseDate":"2026-10-27"},{"Code":"GEG","Exchange":"US","Name":"Great Elm Group Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US39037G1094","isPrimary":true,"previousClose":2.16,"previousCloseDate":"2026-10-27"},{"Code":"GECCH","Exchange":"US","Name":"Great Elm Capital Corp. - 8.125","Type":"Notes","Country":"USA","Currency":"USD","ISIN":"US3903208771","isPrimary":false,"previousClose":24.7,"previousCloseDate":"2026-10-27"},{"Code":"GENW","Exchange":"US","Name":"Genter Capital International Dividend ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US84858T6736","isPrimary":false,"previousClose":14.516,"previousCloseDate":"2026-10-27"},{"Code":"GENSY","Exchange":"US","Name":"Genus plc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":28.38,"previousCloseDate":"2026-10-26"},{"Code":"GENRF","Exchange":"US","Name":"Generation Uranium Inc.","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":0.0248,"previousCloseDate":"2026-10-27"},{"Code":"GEAT","Exchange":"US","Name":"GreetEat Corporation","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":0.0065,"previousCloseDate":"2026-10-27"},{"Code":"GEBRF","Exchange":"US","Name":"Greenbriar Capital Corp","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":0.291,"previousCloseDate":"2026-10-27"},{"Code":"GECSF","Exchange":"US","Name":"Global Education Communities Corp.","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":0.19,"previousCloseDate":"2026-10-27"},{"Code":"GEDC","Exchange":"US","Name":"TerraVolt Holdings, Inc.","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":0.51,"previousCloseDate":"2026-10-27"},{"Code":"GELEF","Exchange":"US","Name":"Graphano Energy Ltd","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":0.06,"previousCloseDate":"2026-10-26"},{"Code":"GEGYF","Exchange":"US","Name":"Genel Energy plc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":0.7706,"previousCloseDate":"2026-10-27"},{"Code":"GENSF","Exchange":"US","Name":"Genus plc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":28.14,"previousCloseDate":"2026-10-26"},{"Code":"GENFF","Exchange":"US","Name":"Genflow Biosciences plc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":0.045,"previousCloseDate":"2026-10-26"},{"Code":"GEGP","Exchange":"US","Name":"Gold Ent Group New","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US38059X2062","isPrimary":true,"previousClose":0,"previousCloseDate":"2026-10-26"},{"Code":"GELNF","Exchange":"US","Name":"Gelion plc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":0.181,"previousCloseDate":"2026-10-27"},{"Code":"GENTF","Exchange":"US","Name":"G5 Entertainment AB (publ)","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":6.5,"previousCloseDate":"2026-10-26"},{"Code":"GEGYY","Exchange":"US","Name":"Genel Energy PLC ADR","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US3687051090","isPrimary":true,"previousClose":0.87,"previousCloseDate":"2026-10-26"},{"Code":"GEOUF","Exchange":"US","Name":"Golden Energy Offshore Services AS","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"NO0013228585","isPrimary":true,"previousClose":1.16,"previousCloseDate":"2026-10-26"},{"Code":"GEGI","Exchange":"US","Name":"Genesis Electronics Group Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US37185B1044","isPrimary":true,"previousClose":0,"previousCloseDate":"2026-10-20"},{"Code":"GESI","Exchange":"US","Name":"General European Strategic Investments Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US36976L1070","isPrimary":true,"previousClose":0.0002,"previousCloseDate":"2026-10-26"},{"Code":"GEDUF","Exchange":"US","Name":"G8 Education Limited","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":0.885,"previousCloseDate":"2026-10-26"},{"Code":"GETR","Exchange":"US","Name":"Getaround Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US37427G1013","isPrimary":true,"previousClose":0.0001,"previousCloseDate":"2026-10-26"},{"Code":"GERFF","Exchange":"US","Name":"Glen Eagle Resources Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":0.0011,"previousCloseDate":"2026-10-26"},{"Code":"GENPF","Exchange":"US","Name":"Genix Pharmaceuticals Corporation","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":0.0138,"previousCloseDate":"2026-10-26"},{"Code":"GEMZ","Exchange":"US","Name":"GEMXX Corp","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US36870K1060","isPrimary":true,"previousClose":0.0001,"previousCloseDate":"2026-10-26"},{"Code":"GENX","Exchange":"US","Name":"Genex Pharmaceutical Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US37227T1051","isPrimary":true,"previousClose":0.0001,"previousCloseDate":"2026-10-26"},{"Code":"GETH","Exchange":"US","Name":"Green Envirotech Holdings Corp","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US39303B3050","isPrimary":true,"previousClose":0.0001,"previousCloseDate":"2026-10-26"},{"Code":"GEMIX","Exchange":"US","Name":"GOLDMAN SACHS EMERGING MARKETS EQUITY FUND INSTITUTIONAL","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US38142B3693","isPrimary":false,"previousClose":34.68,"previousCloseDate":"2026-10-27"},{"Code":"GEBHF","Exchange":"US","Name":"Genting Berhad","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":0.5,"previousCloseDate":"2026-10-27"},{"Code":"GEIIX","Exchange":"US","Name":"GOLDMAN SACHS ENHANCED INCOME FUND INSTITUTIONAL","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US38142Y5188","isPrimary":false,"previousClose":9.5,"previousCloseDate":"2026-10-27"},{"Code":"GEADX","Exchange":"US","Name":"GOLDMAN SACHS ENHANCED INCOME FUND ADMINISTRATION","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US38142Y5261","isPrimary":false,"previousClose":9.52,"previousCloseDate":"2026-10-27"},{"Code":"GEMSX","Exchange":"US","Name":"GOLDMAN SACHS EMERGING MARKETS EQUITY FUND SERVICE","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US38142B3511","isPrimary":false,"previousClose":30.85,"previousCloseDate":"2026-10-27"},{"Code":"GEMCX","Exchange":"US","Name":"GOLDMAN SACHS EMERGING MARKETS EQUITY FUND CLASS C","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US38142B2521","isPrimary":false,"previousClose":28.09,"previousCloseDate":"2026-10-27"},{"Code":"GEGCX","Exchange":"US","Name":"Aberdeen Emerging Markets Fd Cl C","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US0030212437","isPrimary":false,"previousClose":19.04,"previousCloseDate":"2026-10-27"},{"Code":"GEIAX","Exchange":"US","Name":"GOLDMAN SACHS ENHANCED INCOME FUND CLASS A","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US38142Y5345","isPrimary":false,"previousClose":9.51,"previousCloseDate":"2026-10-27"},{"Code":"GERCX","Exchange":"US","Name":"GOLDMAN SACHS EMERGING MARKETS EQUITY INSIGHTS FUND CLASS C","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US38144N5775","isPrimary":false,"previousClose":12.76,"previousCloseDate":"2026-10-27"},{"Code":"GERIX","Exchange":"US","Name":"GOLDMAN SACHS EMERGING MARKETS EQUITY INSIGHTS FUND INSTITUTIONAL","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US38144N5692","isPrimary":false,"previousClose":13.09,"previousCloseDate":"2026-10-27"},{"Code":"GEQZX","Exchange":"US","Name":"EQUITY INDEX INVESTOR","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US40171W6113","isPrimary":false,"previousClose":76.11,"previousCloseDate":"2026-10-27"},{"Code":"GEMRX","Exchange":"US","Name":"Aberdeen Emerging Markets Fd Cl R","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US0030212353","isPrimary":false,"previousClose":18.9,"previousCloseDate":"2026-10-27"},{"Code":"GEGAX","Exchange":"US","Name":"Aberdeen Emerging Markets A","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US0030212502","isPrimary":false,"previousClose":19.35,"previousCloseDate":"2026-10-27"},{"Code":"GEMAX","Exchange":"US","Name":"GOLDMAN SACHS EMERGING MARKETS EQUITY FUND CLASS A","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US38142B4501","isPrimary":false,"previousClose":31.78,"previousCloseDate":"2026-10-27"},{"Code":"GEMMX","Exchange":"US","Name":"GMO EMERGING MARKETS FUND CLASS VI","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US3620082780","isPrimary":false,"previousClose":38.85,"previousCloseDate":"2026-10-27"},{"Code":"GERAX","Exchange":"US","Name":"GOLDMAN SACHS EMERGING MARKETS EQUITY INSIGHTS FUND CLASS A","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US38144N5858","isPrimary":false,"previousClose":12.93,"previousCloseDate":"2026-10-27"},{"Code":"GEAHF","Exchange":"US","Name":"Great Eagle Holdings Limited","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":2.21,"previousCloseDate":"2026-10-27"},{"Code":"GEQYX","Exchange":"US","Name":"EQUITY INDEX INSTITUTIONAL","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US40171W6295","isPrimary":false,"previousClose":76.23,"previousCloseDate":"2026-10-27"},{"Code":"GETGX","Exchange":"US","Name":"VICTORY SYCAMORE ESTABLISHED VALUE FUND (FORMERLY VICTORY ESTABLISHED VALUE FUND) CLASS R","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US9264643712","isPrimary":false,"previousClose":50.42,"previousCloseDate":"2026-10-27"},{"Code":"GEGTX","Exchange":"US","Name":"COLUMBIA LARGE CAP GROWTH FUND","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US19765P6613","isPrimary":false,"previousClose":88.27,"previousCloseDate":"2026-10-27"},{"Code":"GETFX","Exchange":"US","Name":"MORNINGSTAR GROWTH ETF ASSET ALLOCATION PORTFOLIO CLASS II","Type":"FUND","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":14.79,"previousCloseDate":"2026-10-27"},{"Code":"GEDSF","Exchange":"US","Name":"Richter Gedeon Vegy\u00e9szeti Gy\u00e1r Nyilv\u00e1nosan Muk\u00f6do Rt","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":24.8501,"previousCloseDate":"2026-10-26"},{"Code":"GECFF","Exchange":"US","Name":"Gecina SA","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":71.75,"previousCloseDate":"2026-10-27"},{"Code":"GEIUX","Exchange":"US","Name":"GOLDMAN SACHS ENHANCED INCOME FUND CLASS R6 SHARES","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US38147X6224","isPrimary":false,"previousClose":9.5,"previousCloseDate":"2026-10-27"},{"Code":"GEMUX","Exchange":"US","Name":"GOLDMAN SACHS EMERGING MARKETS EQUITY FUND CLASS R6 SHARES","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US38147X2264","isPrimary":false,"previousClose":34.85,"previousCloseDate":"2026-10-27"},{"Code":"GEMYX","Exchange":"US","Name":"EMERGING MARKETS EQUITY FUND INSTITUTIONAL","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US40171W1320","isPrimary":false,"previousClose":14.4,"previousCloseDate":"2026-10-27"},{"Code":"GEMZX","Exchange":"US","Name":"EMERGING MARKETS EQUITY FUND INVESTOR","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US40171W1247","isPrimary":false,"previousClose":14.3,"previousCloseDate":"2026-10-27"},{"Code":"GENIX","Exchange":"US","Name":"GOTHAM ENHANCED RETURN FUND INSTITUTIONAL CLASS","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US3608731291","isPrimary":false,"previousClose":17.99,"previousCloseDate":"2026-10-27"},{"Code":"GEQIX","Exchange":"US","Name":"Equity Income Portfolio","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US3786905725","isPrimary":false,"previousClose":15.84,"previousCloseDate":"2026-10-27"},{"Code":"GERUX","Exchange":"US","Name":"GOLDMAN SACHS EMERGING MARKETS EQUITY INSIGHTS FUND CLASS R6 SHARES","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US38147X2595","isPrimary":false,"previousClose":13.08,"previousCloseDate":"2026-10-27"},{"Code":"GELGF","Exchange":"US","Name":"Chatham Rock Phosphate Limited","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":0.03,"previousCloseDate":"2026-10-26"},{"Code":"GELV","Exchange":"US","Name":"Green Energy Live Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US39303U2042","isPrimary":true,"previousClose":0,"previousCloseDate":"2026-10-26"},{"Code":"GEOSX","Exchange":"US","Name":"ESSEX ENVIRONMENTAL OPPORTUNITIES FUND INSTITUTIONAL CLASS","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US70472Q7161","isPrimary":false,"previousClose":16.75,"previousCloseDate":"2026-10-27"},{"Code":"GEGR","Exchange":"US","Name":"National Health Scan","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US36255Q1085","isPrimary":true,"previousClose":0.0007,"previousCloseDate":"2026-10-26"},{"Code":"GEATF","Exchange":"US","Name":"Radiko Holdings Corp","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"CA75034R1029","isPrimary":true,"previousClose":0,"previousCloseDate":"2026-10-26"},{"Code":"GEMEX","Exchange":"US","Name":"GMO Emerging Markets Fund","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US36256V8256","isPrimary":false,"previousClose":39.14,"previousCloseDate":"2026-10-27"},{"Code":"GEMNX","Exchange":"US","Name":"GMO Emerging Markets Fund Class R6","Type":"FUND","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":39.25,"previousCloseDate":"2026-10-27"},{"Code":"GEACX","Exchange":"US","Name":"GMO Trust - GMO Resources Fund","Type":"FUND","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":26.17,"previousCloseDate":"2026-10-27"},{"Code":"GEORX","Exchange":"US","Name":"Pear Tree Essex Environmental Opportunities Fund R6 Shares","Type":"Mutual Fund","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":16.84,"previousCloseDate":"2026-10-27"},{"Code":"GESVX","Exchange":"US","Name":"Goldman Sachs Enhanced Income Fund Service Shares","Type":"Mutual Fund","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":9.49,"previousCloseDate":"2026-10-27"},{"Code":"GEIYX","Exchange":"US","Name":"GuideStone Growth Equity Index Fund Institutional","Type":"Mutual Fund","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":19.36,"previousCloseDate":"2026-10-27"},{"Code":"GEIZX","Exchange":"US","Name":"GuideStone Growth Equity Index Fund Investor","Type":"Mutual Fund","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":19.32,"previousCloseDate":"2026-10-27"},{"Code":"GEMSF","Exchange":"US","Name":"Infinity Stone Ventures Corp.","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"CA45675G2027","isPrimary":true,"previousClose":0.0001,"previousCloseDate":"2026-10-26"},{"Code":"GEICX","Exchange":"US","Name":"Gabelli Equity Income Fund","Type":"Mutual Fund","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":5.59,"previousCloseDate":"2026-10-27"},{"Code":"GEGDX","Exchange":"US","Name":"Columbia Large Cap Growth S","Type":"Mutual Fund","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":88.27,"previousCloseDate":"2026-10-27"},{"Code":"GENB","Exchange":"US","Name":"Generate Biomedicines, Inc. Common Stock","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US3709201004","isPrimary":false,"previousClose":13.21,"previousCloseDate":"2026-10-27"},{"Code":"GEPAAX","Exchange":"US","Name":"GEPAAX","Type":"Mutual Fund","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":17.9683,"previousCloseDate":"2026-10-27"},{"Code":"GEPABX","Exchange":"US","Name":"GEPABX","Type":"Mutual Fund","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":17.971,"previousCloseDate":"2026-10-27"},{"Code":"GEPRX","Exchange":"US","Name":"GuideMark Emerging Markets RS","Type":"Mutual Fund","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":16.32,"previousCloseDate":"2026-10-27"},{"Code":"GENLF","Exchange":"US","Name":"Genmin Limited","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":0.002,"previousCloseDate":"2026-10-26"},{"Code":"GENNQ","Exchange":"US","Name":"Genesis Healthcare, Inc.","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":0.0001,"previousCloseDate":"2026-10-23"},{"Code":"GEQ","Exchange":"US","Name":"Cambria Global EW 2 ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US02072Q1765","isPrimary":false,"previousClose":51.56,"previousCloseDate":"2026-10-27"},{"Code":"GEVC","Exchange":"US","Name":"GEVC","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US21874J4206","isPrimary":false,"previousClose":15.44,"previousCloseDate":"2026-10-27"},{"Code":"GERLF","Exchange":"US","Name":"Gersan Elektrik Ticaret ve Sanayi Anonim Sirketi","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":0.4811,"previousCloseDate":"2026-10-26"},{"Code":"GEEQ","Exchange":"US","Name":"Guggenheim Funds Trust","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":50.3607,"previousCloseDate":"2026-10-27"},{"Code":"GEMQ","Exchange":"US","Name":"Goldman Sachs Data Enhanced Emerging Markets Equity ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":22.6146,"previousCloseDate":"2026-10-27"},{"Code":"GETYQ","Exchange":"US","Name":"Getty Images Holdings, Inc.","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":0.0295,"previousCloseDate":"2026-10-27"},{"Code":"GM","Exchange":"US","Name":"General Motors Company","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US37045V1008","isPrimary":true,"previousClose":80.54,"previousCloseDate":"2026-10-27"},{"Code":"GD","Exchange":"US","Name":"General Dynamics Corporation","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US3695501086","isPrimary":true,"previousClose":354.89,"previousCloseDate":"2026-10-27"},{"Code":"CASY","Exchange":"US","Name":"Caseys General Stores Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US1475281036","isPrimary":true,"previousClose":697.54,"previousCloseDate":"2026-10-27"},{"Code":"DG","Exchange":"US","Name":"Dollar General Corporation","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US2566771059","isPrimary":true,"previousClose":126.86,"previousCloseDate":"2026-10-27"},{"Code":"GIS","Exchange":"US","Name":"General Mills Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US3703341046","isPrimary":true,"previousClose":33.47,"previousCloseDate":"2026-10-27"},{"Code":"GNRC","Exchange":"US","Name":"Generac Holdings Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US3687361044","isPrimary":true,"previousClose":193.71,"previousCloseDate":"2026-10-27"},{"Code":"GPC","Exchange":"US","Name":"Genuine Parts Co","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US3724601055","isPrimary":true,"previousClose":121.8,"previousCloseDate":"2026-10-27"},{"Code":"ARKG","Exchange":"US","Name":"ARK Genomic Revolution ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US00214Q3020","isPrimary":false,"previousClose":51.65,"previousCloseDate":"2026-10-27"},{"Code":"TXG","Exchange":"US","Name":"10X Genomics Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US88025U1097","isPrimary":true,"previousClose":78.02,"previousCloseDate":"2026-10-27"},{"Code":"G","Exchange":"US","Name":"Genpact Limited","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"BMG3922B1072","isPrimary":true,"previousClose":39.2,"previousCloseDate":"2026-10-27"},{"Code":"GGB","Exchange":"US","Name":"Gerdau SA ADR","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US3737371050","isPrimary":true,"previousClose":4.65,"previousCloseDate":"2026-10-27"},{"Code":"GMAB","Exchange":"US","Name":"Genmab AS","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US3723032062","isPrimary":true,"previousClose":44.67,"previousCloseDate":"2026-10-27"},{"Code":"POR","Exchange":"US","Name":"Portland General Electric Co","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US7365088472","isPrimary":true,"previousClose":44.65,"previousCloseDate":"2026-10-27"},{"Code":"WGS","Exchange":"US","Name":"GeneDx Holdings Corp.","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US81663L2007","isPrimary":true,"previousClose":62.74,"previousCloseDate":"2026-10-27"},{"Code":"EWG","Exchange":"US","Name":"iShares MSCI Germany ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US4642868065","isPrimary":false,"previousClose":41.52,"previousCloseDate":"2026-10-27"},{"Code":"GNTX","Exchange":"US","Name":"Gentex Corporation","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US3719011096","isPrimary":true,"previousClose":20.21,"previousCloseDate":"2026-10-27"},{"Code":"CHAT","Exchange":"US","Name":"Roundhill Generative AI \u0026 Technology ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US88636J6001","isPrimary":false,"previousClose":81.17,"previousCloseDate":"2026-10-27"},{"Code":"GNW","Exchange":"US","Name":"Genworth Financial Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US37247D1063","isPrimary":true,"previousClose":8.89,"previousCloseDate":"2026-10-27"},{"Code":"MCY","Exchange":"US","Name":"Mercury General Corporation","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US5894001008","isPrimary":true,"previousClose":102.58,"previousCloseDate":"2026-10-27"},{"Code":"CATY","Exchange":"US","Name":"Cathay General Bancorp","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US1491501045","isPrimary":true,"previousClose":64.69,"previousCloseDate":"2026-10-27"},{"Code":"CGNG","Exchange":"US","Name":"Capital Group New Geography Equity ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US14021N1054","isPrimary":false,"previousClose":34.09,"previousCloseDate":"2026-10-27"},{"Code":"THRM","Exchange":"US","Name":"Gentherm Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US37253A1034","isPrimary":true,"previousClose":31.82,"previousCloseDate":"2026-10-27"},{"Code":"GTY","Exchange":"US","Name":"Getty Realty Corporation","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US3742971092","isPrimary":true,"previousClose":28.04,"previousCloseDate":"2026-10-27"},{"Code":"GIPR","Exchange":"US","Name":"Generation Income Properties Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US37149D4025","isPrimary":true,"previousClose":0.3313,"previousCloseDate":"2026-10-27"},{"Code":"TSHA","Exchange":"US","Name":"Taysha Gene Therapies\u00a0Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US8776191061","isPrimary":true,"previousClose":4.25,"previousCloseDate":"2026-10-27"},{"Code":"ARKW","Exchange":"US","Name":"ARK Next Generation Internet ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US00214Q4010","isPrimary":false,"previousClose":157.04,"previousCloseDate":"2026-10-27"},{"Code":"CIG","Exchange":"US","Name":"Companhia Energetica de Minas Gerais CEMIG Pref ADR","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US2044096012","isPrimary":true,"previousClose":1.93,"previousCloseDate":"2026-10-27"},{"Code":"IGPT","Exchange":"US","Name":"Invesco AI and Next Gen Software ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US46137V6395","isPrimary":false,"previousClose":91.34,"previousCloseDate":"2026-10-27"},{"Code":"SCGLY","Exchange":"US","Name":"Societe Generale ADR","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US83364L1098","isPrimary":true,"previousClose":13.76,"previousCloseDate":"2026-10-27"},{"Code":"GNK","Exchange":"US","Name":"Genco Shipping \u0026 Trading Ltd","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"MHY2685T1313","isPrimary":true,"previousClose":25.64,"previousCloseDate":"2026-10-27"},{"Code":"MURGY","Exchange":"US","Name":"Muenchener Rueckver Ges","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US6261881063","isPrimary":true,"previousClose":12.35,"previousCloseDate":"2026-10-27"},{"Code":"MYGN","Exchange":"US","Name":"Myriad Genetics Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US62855J1043","isPrimary":true,"previousClose":6.29,"previousCloseDate":"2026-10-27"},{"Code":"FLGT","Exchange":"US","Name":"Fulgent Genetics Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US3596641098","isPrimary":true,"previousClose":20.7,"previousCloseDate":"2026-10-27"},{"Code":"GPRK","Exchange":"US","Name":"GeoPark Ltd","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"BMG383271050","isPrimary":true,"previousClose":11.2,"previousCloseDate":"2026-10-27"},{"Code":"GCO","Exchange":"US","Name":"Genesco Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US3715321028","isPrimary":true,"previousClose":36.49,"previousCloseDate":"2026-10-27"},{"Code":"QQQJ","Exchange":"US","Name":"Invesco NASDAQ Next Gen 100 ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US46138G6310","isPrimary":false,"previousClose":44.71,"previousCloseDate":"2026-10-27"},{"Code":"GABC","Exchange":"US","Name":"German American Bancorp Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US3738651047","isPrimary":true,"previousClose":49.2,"previousCloseDate":"2026-10-27"},{"Code":"IRD","Exchange":"US","Name":"Opus Genetics, Inc.","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US67577R1023","isPrimary":true,"previousClose":3.46,"previousCloseDate":"2026-10-27"},{"Code":"GFUZ","Exchange":"US","Name":"General Fusion Group Ltd. Cl A","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"CA3698841010","isPrimary":false,"previousClose":5.85,"previousCloseDate":"2026-10-27"},{"Code":"SLGL","Exchange":"US","Name":"Sol Gel Technologies Ltd","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"IL0011417206","isPrimary":true,"previousClose":68.19,"previousCloseDate":"2026-10-27"},{"Code":"MGDDY","Exchange":"US","Name":"Compagnie Generale des Etablissements Michelin SCA ADR","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US59410T1060","isPrimary":true,"previousClose":17.7,"previousCloseDate":"2026-10-27"},{"Code":"NBXG","Exchange":"US","Name":"Neuberger Berman Next Generation Connectivity Fund Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US64133Q1085","isPrimary":true,"previousClose":14.9,"previousCloseDate":"2026-10-27"},{"Code":"GOVX","Exchange":"US","Name":"GeoVax Labs Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US3736787058","isPrimary":true,"previousClose":0.2012,"previousCloseDate":"2026-10-27"},{"Code":"GNPX","Exchange":"US","Name":"Genprex Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US3724464017","isPrimary":true,"previousClose":1.95,"previousCloseDate":"2026-10-27"},{"Code":"IDNA","Exchange":"US","Name":"iShares Genomics Immunology and Healthcare ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US46435U1925","isPrimary":false,"previousClose":42,"previousCloseDate":"2026-10-27"},{"Code":"DAX","Exchange":"US","Name":"Global X DAX Germany ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US37954Y4917","isPrimary":false,"previousClose":44.15,"previousCloseDate":"2026-10-27"},{"Code":"SOPH","Exchange":"US","Name":"Sophia Genetics SA","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"CH1125843347","isPrimary":true,"previousClose":7.54,"previousCloseDate":"2026-10-27"},{"Code":"ARZGY","Exchange":"US","Name":"Assicurazioni Generali SpA ADR","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US04545K1097","isPrimary":true,"previousClose":23.9,"previousCloseDate":"2026-10-27"},{"Code":"IGIC","Exchange":"US","Name":"International General Insurance Holdings Ltd","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"BMG4809J1062","isPrimary":true,"previousClose":24.57,"previousCloseDate":"2026-10-27"},{"Code":"GNS","Exchange":"US","Name":"Genius Group Ltd","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"SGXZ81555062","isPrimary":true,"previousClose":0.1327,"previousCloseDate":"2026-10-27"},{"Code":"GAM","Exchange":"US","Name":"General American Investors Closed Fund","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US3688021043","isPrimary":true,"previousClose":64.22,"previousCloseDate":"2026-10-27"},{"Code":"TGE","Exchange":"US","Name":"The Generation Essentials Group","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"KYG382681016","isPrimary":true,"previousClose":0.4911,"previousCloseDate":"2026-10-27"},{"Code":"LGGNY","Exchange":"US","Name":"Legal \u0026 General Group Plc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US52463H1032","isPrimary":true,"previousClose":20.36,"previousCloseDate":"2026-10-27"},{"Code":"PBE","Exchange":"US","Name":"Invesco Dynamic Biotechnology \u0026 Genome ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US46137V7872","isPrimary":false,"previousClose":100.74,"previousCloseDate":"2026-10-27"},{"Code":"GBERY","Exchange":"US","Name":"Geberit AG ADR","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US36840V1098","isPrimary":true,"previousClose":69.74,"previousCloseDate":"2026-10-27"},{"Code":"GNOM","Exchange":"US","Name":"Global X Genomics \u0026 Biotechnology ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US37960A2143","isPrimary":false,"previousClose":68.805,"previousCloseDate":"2026-10-27"},{"Code":"GNE","Exchange":"US","Name":"Genie Energy Ltd","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US3722842081","isPrimary":true,"previousClose":16.75,"previousCloseDate":"2026-10-27"},{"Code":"GNTA","Exchange":"US","Name":"Genenta Science SpA ADR","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US36870W1009","isPrimary":true,"previousClose":0.6182,"previousCloseDate":"2026-10-27"},{"Code":"TGSGY","Exchange":"US","Name":"TGS NOPEC Geophysical Company ASA ADR","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US87243K2087","isPrimary":true,"previousClose":15.37,"previousCloseDate":"2026-10-27"},{"Code":"GGME","Exchange":"US","Name":"Invesco Next Gen Media and Gaming ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US46137V6965","isPrimary":false,"previousClose":64.08,"previousCloseDate":"2026-10-27"},{"Code":"GNLX","Exchange":"US","Name":"Genelux Corporation Common Stock","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US36870H1032","isPrimary":true,"previousClose":2.05,"previousCloseDate":"2026-10-27"},{"Code":"KNCT","Exchange":"US","Name":"Invesco Next Gen Connectivity ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US46137V6882","isPrimary":false,"previousClose":194.6,"previousCloseDate":"2026-10-27"},{"Code":"FGM","Exchange":"US","Name":"First Trust Germany AlphaDEX\u00ae Fund","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US33737J1907","isPrimary":false,"previousClose":57.38,"previousCloseDate":"2026-10-27"},{"Code":"BNGO","Exchange":"US","Name":"Bionano Genomics Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US09075F3055","isPrimary":true,"previousClose":1.22,"previousCloseDate":"2026-10-27"},{"Code":"SHE","Exchange":"US","Name":"SPDR\u00ae SSGA Gender Diversity Index ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US78468R7474","isPrimary":false,"previousClose":156.215,"previousCloseDate":"2026-10-27"},{"Code":"DWSN","Exchange":"US","Name":"Dawson Geophysical Company","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US2393601008","isPrimary":true,"previousClose":2.04,"previousCloseDate":"2026-10-27"},{"Code":"DRGN","Exchange":"US","Name":"Themes China Generative Artificial Intelligence ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US8829272967","isPrimary":false,"previousClose":28.55,"previousCloseDate":"2026-10-27"},{"Code":"ATOS","Exchange":"US","Name":"Atossa Genetics Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US04962H7044","isPrimary":true,"previousClose":2.38,"previousCloseDate":"2026-10-27"},{"Code":"MURGF","Exchange":"US","Name":"M\u00fcnchener R\u00fcckversicherungs-Gesellschaft Aktiengesellschaft in M\u00fcnchen","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":613.7,"previousCloseDate":"2026-10-27"},{"Code":"GPJA","Exchange":"US","Name":"Georgia Power Co","Type":"Notes","Country":"USA","Currency":"USD","ISIN":"US3733344408","isPrimary":true,"previousClose":18.34,"previousCloseDate":"2026-10-27"},{"Code":"GF","Exchange":"US","Name":"New Germany Closed Fund","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US6444651060","isPrimary":false,"previousClose":10.22,"previousCloseDate":"2026-10-27"},{"Code":"GNMSF","Exchange":"US","Name":"Genmab A\/S","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":439.05,"previousCloseDate":"2026-10-27"},{"Code":"GAM-PB","Exchange":"US","Name":"General American Investors Company Inc.","Type":"Preferred Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":22.22,"previousCloseDate":"2026-10-27"},{"Code":"QQQS","Exchange":"US","Name":"Invesco NASDAQ Future Gen 200 ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US46138G4828","isPrimary":false,"previousClose":40.163,"previousCloseDate":"2026-10-27"},{"Code":"WISE","Exchange":"US","Name":"Themes Generative Artificial Intelligence ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US8829275028","isPrimary":false,"previousClose":32.729,"previousCloseDate":"2026-10-27"},{"Code":"FLGR","Exchange":"US","Name":"Franklin FTSE Germany ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US35473P7859","isPrimary":false,"previousClose":32.339,"previousCloseDate":"2026-10-27"},{"Code":"GNSS","Exchange":"US","Name":"Genasys Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US36872P1030","isPrimary":true,"previousClose":1.64,"previousCloseDate":"2026-10-27"},{"Code":"USNZY","Exchange":"US","Name":"Usinas Siderurgicas de Minas Gerais","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US9173022008","isPrimary":true,"previousClose":1.14,"previousCloseDate":"2026-10-27"},{"Code":"CCORF","Exchange":"US","Name":"Canaccord Genuity Group Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":9.83,"previousCloseDate":"2026-10-27"},{"Code":"GSHR","Exchange":"US","Name":"Gesher Acquisition Corp. II","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"KYG3852D1079","isPrimary":true,"previousClose":10.61,"previousCloseDate":"2026-10-27"},{"Code":"JOB","Exchange":"US","Name":"GEE Group Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US36165A1025","isPrimary":true,"previousClose":0.207,"previousCloseDate":"2026-10-27"},{"Code":"GABA","Exchange":"US","Name":"Georgia Bancshares Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US3731141079","isPrimary":true,"previousClose":0.0198,"previousCloseDate":"2026-10-27"},{"Code":"HELX","Exchange":"US","Name":"Franklin Genomic Advancements ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US35473P5200","isPrimary":false,"previousClose":44.307,"previousCloseDate":"2026-10-27"},{"Code":"PWRZ","Exchange":"US","Name":"TrueShares Eagle Global Next Gen Power Infrastructure ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US2103227490","isPrimary":false,"previousClose":29.89,"previousCloseDate":"2026-10-27"},{"Code":"GREEL","Exchange":"US","Name":"Greenidge Generation Holdings Inc. 8.50% Senior Notes due 2026","Type":"Notes","Country":"USA","Currency":"USD","ISIN":"US39531G2093","isPrimary":false,"previousClose":25.4,"previousCloseDate":"2026-10-12"},{"Code":"BGLC","Exchange":"US","Name":"BioNexus Gene Lab Corp Common stock","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US0906283066","isPrimary":false,"previousClose":1.13,"previousCloseDate":"2026-10-27"},{"Code":"GNGBY","Exchange":"US","Name":"Getinge Industrier AB","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US37427X1046","isPrimary":true,"previousClose":26.82,"previousCloseDate":"2026-10-27"},{"Code":"LGGNF","Exchange":"US","Name":"Legal \u0026 General Group Plc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":4.13,"previousCloseDate":"2026-10-27"},{"Code":"GGSM","Exchange":"US","Name":"Gold And Gemstone","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US3804851026","isPrimary":true,"previousClose":0.0001,"previousCloseDate":"2026-10-27"},{"Code":"GGLDF","Exchange":"US","Name":"Getchell Gold Corp","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":0.1717,"previousCloseDate":"2026-10-27"},{"Code":"GK","Exchange":"US","Name":"AdvisorShares Gerber Kawasaki ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US00768Y3707","isPrimary":false,"previousClose":27.9001,"previousCloseDate":"2026-10-27"},{"Code":"TEKY","Exchange":"US","Name":"Lazard Next Gen Technologies ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US52110K5092","isPrimary":false,"previousClose":43.5942,"previousCloseDate":"2026-10-27"},{"Code":"RSKIA","Exchange":"US","Name":"Risk George Inds A","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US7677202043","isPrimary":true,"previousClose":20.99,"previousCloseDate":"2026-10-27"},{"Code":"GRGCF","Exchange":"US","Name":"Georgia Capital PLC","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":54.33,"previousCloseDate":"2026-10-26"},{"Code":"OPPG","Exchange":"US","Name":"WisdomTree GeoAlpha Opportunities Fund","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US97717Y3457","isPrimary":false,"previousClose":36.435,"previousCloseDate":"2026-10-27"},{"Code":"GXXM","Exchange":"US","Name":"Gex Management Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US3743973055","isPrimary":true,"previousClose":0.0035,"previousCloseDate":"2026-10-26"},{"Code":"GSISF","Exchange":"US","Name":"Genesis Minerals Limited","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":4.37,"previousCloseDate":"2026-10-26"},{"Code":"CIG-C","Exchange":"US","Name":"Energy of Minas Gerais Co DRC","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US2044098828","isPrimary":false,"previousClose":3.15,"previousCloseDate":"2026-10-27"},{"Code":"GMRCF","Exchange":"US","Name":"Gelum Resources Ltd.","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"CA36854R1010","isPrimary":true,"previousClose":0.5,"previousCloseDate":"2026-10-27"},{"Code":"NGCG","Exchange":"US","Name":"New Generation Consumer Group Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":0.0006,"previousCloseDate":"2026-10-27"},{"Code":"GOMRF","Exchange":"US","Name":"G\u00e9oM\u00e9gA Resources Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":0.16,"previousCloseDate":"2026-10-27"},{"Code":"GTCDD","Exchange":"US","Name":"Getty Copper Inc.","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":0.55,"previousCloseDate":"2026-10-13"},{"Code":"SXOOF","Exchange":"US","Name":"St-Georges Eco-Mining Corp","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":0.0195,"previousCloseDate":"2026-10-27"},{"Code":"GNSMF","Exchange":"US","Name":"Genius Metals Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":0.125,"previousCloseDate":"2026-10-26"},{"Code":"GMZP","Exchange":"US","Name":"Gemz Corp","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US3686672003","isPrimary":true,"previousClose":0.0002,"previousCloseDate":"2026-10-26"},{"Code":"GRRMY","Exchange":"US","Name":"Gerresheimer AG","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":9.42,"previousCloseDate":"2026-10-26"},{"Code":"GNNSF","Exchange":"US","Name":"Genscript Biotech Corporation","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":4.25,"previousCloseDate":"2026-10-26"},{"Code":"CANN","Exchange":"US","Name":"General Cannabis Corp","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US36930V1008","isPrimary":true,"previousClose":0.0162,"previousCloseDate":"2026-10-27"},{"Code":"ORYZF","Exchange":"US","Name":"Oryzon Genomics S.A","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":3.0975,"previousCloseDate":"2026-10-26"},{"Code":"MNIZ","Exchange":"US","Name":"Gen 2 Technologies Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US36870L1044","isPrimary":true,"previousClose":0.223,"previousCloseDate":"2026-10-27"},{"Code":"FCHRF","Exchange":"US","Name":"Georg Fischer AG","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"CH0001752309","isPrimary":true,"previousClose":63.78,"previousCloseDate":"2026-10-26"},{"Code":"AGCCF","Exchange":"US","Name":"Gensource Potash Corporation","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":0.12,"previousCloseDate":"2026-10-27"},{"Code":"WNGPF","Exchange":"US","Name":"George Weston Limited","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":14,"previousCloseDate":"2026-10-26"},{"Code":"GKTRF","Exchange":"US","Name":"GEK TERNA Holdings Real Estate Construction S.A","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":44.654,"previousCloseDate":"2026-10-27"},{"Code":"AIGFF","Exchange":"US","Name":"Genesis AI Corp.","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"CA3719572008","isPrimary":true,"previousClose":0.0703,"previousCloseDate":"2026-10-27"},{"Code":"GLABF","Exchange":"US","Name":"Gemina Laboratories Ltd","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":0.05,"previousCloseDate":"2026-10-26"},{"Code":"GGCPF","Exchange":"US","Name":"Generic Gold Corporation","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":0.0509,"previousCloseDate":"2026-10-26"},{"Code":"GMNI","Exchange":"US","Name":"Gemini Group Global Corp","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US36866G1013","isPrimary":true,"previousClose":0.0008,"previousCloseDate":"2026-10-26"},{"Code":"GNOLF","Exchange":"US","Name":"Genoil Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"CA3719241018","isPrimary":true,"previousClose":0.0244,"previousCloseDate":"2026-10-27"},{"Code":"BGNMF","Exchange":"US","Name":"Banca Generali S.p.A.","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":75.75,"previousCloseDate":"2026-10-26"},{"Code":"GRYRF","Exchange":"US","Name":"Geo Energy Resources Limited","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":0.3647,"previousCloseDate":"2026-10-26"},{"Code":"GSHRU","Exchange":"US","Name":"Gesher Acquisition Corp. II Units","Type":"UNIT","Country":"USA","Currency":"USD","ISIN":"KYG3852D1236","isPrimary":true,"previousClose":10.61,"previousCloseDate":"2026-10-27"},{"Code":"GJST","Exchange":"US","Name":"GEO JS Tech Group Corp","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US37253T1025","isPrimary":true,"previousClose":0.0075,"previousCloseDate":"2026-10-26"},{"Code":"GPLS","Exchange":"US","Name":"Geopulse Exploration Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US37251J1060","isPrimary":true,"previousClose":0.0103,"previousCloseDate":"2026-10-26"},{"Code":"WINKF","Exchange":"US","Name":"Windfall Geotek Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"CA9732421008","isPrimary":true,"previousClose":0.013,"previousCloseDate":"2026-10-27"},{"Code":"GMGZ","Exchange":"US","Name":"Genuine Marketing Group Inc.","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US98153N2071","isPrimary":true,"previousClose":0.1256,"previousCloseDate":"2026-10-26"},{"Code":"NGMC","Exchange":"US","Name":"Next Generation Management Corp","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US65340V1035","isPrimary":true,"previousClose":1.04,"previousCloseDate":"2026-10-27"},{"Code":"GMDMF","Exchange":"US","Name":"Gem Diamonds Limited","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":0.13,"previousCloseDate":"2026-10-27"},{"Code":"GMPUF","Exchange":"US","Name":"Gestamp Automoci\u00f3n S.A","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":3.725,"previousCloseDate":"2026-10-26"},{"Code":"GTOFF","Exchange":"US","Name":"Gemalto N.V","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":0.0014,"previousCloseDate":"2026-10-26"},{"Code":"AICOF","Exchange":"US","Name":"Generative AI Solutions Corp.","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"CA37149M2040","isPrimary":true,"previousClose":0.0011,"previousCloseDate":"2026-10-26"},{"Code":"GMALY","Exchange":"US","Name":"Genting Malaysia Bhd ADR","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US37251V1098","isPrimary":true,"previousClose":4.5,"previousCloseDate":"2026-10-27"},{"Code":"AFGVF","Exchange":"US","Name":"Agfa-Gevaert NV","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":0.571,"previousCloseDate":"2026-10-26"},{"Code":"GNRGF","Exchange":"US","Name":"General Copper Gold Corp.","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":0.0378,"previousCloseDate":"2026-10-26"},{"Code":"GXSBY","Exchange":"US","Name":"Geox SpA ADR","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US3736931003","isPrimary":true,"previousClose":0.3269,"previousCloseDate":"2026-10-26"},{"Code":"GSGTF","Exchange":"US","Name":"GenSight Biologics S.A","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":0.08,"previousCloseDate":"2026-10-26"},{"Code":"GNCNF","Exchange":"US","Name":"Gencan Capital Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"CA36869X1015","isPrimary":true,"previousClose":0.065,"previousCloseDate":"2026-10-26"},{"Code":"GNCLF","Exchange":"US","Name":"Gencell Ltd","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":0.201,"previousCloseDate":"2026-10-27"},{"Code":"WUHN","Exchange":"US","Name":"Wuhan General Gr Chn","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US9825691051","isPrimary":true,"previousClose":0.0002,"previousCloseDate":"2026-10-26"},{"Code":"EDCFF","Exchange":"US","Name":"Enel Generaci\u00f3n Costanera S.A","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":0.2,"previousCloseDate":"2026-10-26"},{"Code":"GNAL","Exchange":"US","Name":"Generation Alpha Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US37147T1025","isPrimary":true,"previousClose":0.0001,"previousCloseDate":"2026-10-26"},{"Code":"GNTOF","Exchange":"US","Name":"Gentor Resources Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"KYG382751140","isPrimary":false,"previousClose":0.02,"previousCloseDate":"2026-10-27"},{"Code":"GOSY","Exchange":"US","Name":"GeckoSystems International Corp","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US36840U1016","isPrimary":true,"previousClose":0.0001,"previousCloseDate":"2026-10-26"},{"Code":"GTEH","Exchange":"US","Name":"Gentech Holdings Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US37253Y1010","isPrimary":true,"previousClose":0.0001,"previousCloseDate":"2026-10-27"},{"Code":"GGAUF","Exchange":"US","Name":"Genesis Growth Tech Acquisition Corp.","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"KYG3R23D1104","isPrimary":true,"previousClose":11.71,"previousCloseDate":"2026-10-26"},{"Code":"GFGU","Exchange":"US","Name":"GetFugu Inc","Type":"ETF","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":0,"previousCloseDate":"2026-10-26"},{"Code":"RGDXQ","Exchange":"US","Name":"Response Genetics Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US76123U1051","isPrimary":true,"previousClose":0.0001,"previousCloseDate":"2026-10-26"},{"Code":"GSIH","Exchange":"US","Name":"General Steel Holdings Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US3708532029","isPrimary":true,"previousClose":0.0006,"previousCloseDate":"2026-10-26"},{"Code":"GXSBF","Exchange":"US","Name":"Geox S.p.A","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":0.34,"previousCloseDate":"2026-10-27"},{"Code":"LIFS","Exchange":"US","Name":"Life Stem Genetics","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US53217Y1038","isPrimary":true,"previousClose":0.0001,"previousCloseDate":"2026-10-26"},{"Code":"BGEM","Exchange":"US","Name":"Blue Gem Enterprise","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US09548T1060","isPrimary":true,"previousClose":0.0001,"previousCloseDate":"2026-10-26"},{"Code":"TCGN","Exchange":"US","Name":"Technology General Corporation","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US8786951058","isPrimary":true,"previousClose":0.0001,"previousCloseDate":"2026-10-26"},{"Code":"CHGS","Exchange":"US","Name":"China GengSheng Minerals Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US16942P1012","isPrimary":true,"previousClose":0.0001,"previousCloseDate":"2026-10-27"},{"Code":"GSPH","Exchange":"US","Name":"Geospatial Corp","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US37364F1084","isPrimary":true,"previousClose":0.0001,"previousCloseDate":"2026-10-26"},{"Code":"EGBB","Exchange":"US","Name":"Earth Gen-Biofuel Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US27031P2092","isPrimary":true,"previousClose":0.0001,"previousCloseDate":"2026-10-26"},{"Code":"GNCC","Exchange":"US","Name":"Genco Corporation","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US36867M1071","isPrimary":true,"previousClose":0.0001,"previousCloseDate":"2026-10-26"},{"Code":"ROSGQ","Exchange":"US","Name":"Rosetta Genomics Ltd","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"IL0011026494","isPrimary":true,"previousClose":0.0001,"previousCloseDate":"2026-10-26"},{"Code":"GVFG","Exchange":"US","Name":"GEROVA Financial Group Ltd","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"BMG384902000","isPrimary":true,"previousClose":0.0005,"previousCloseDate":"2026-10-26"},{"Code":"GFOO","Exchange":"US","Name":"Genufood Energy","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US37252L2097","isPrimary":true,"previousClose":0.0001,"previousCloseDate":"2026-10-26"},{"Code":"GTRL","Exchange":"US","Name":"Get Real Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US37426X2045","isPrimary":true,"previousClose":0.0005,"previousCloseDate":"2026-10-26"},{"Code":"GNRD","Exchange":"US","Name":"General Datacomm Industries Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":0.0001,"previousCloseDate":"2026-10-26"},{"Code":"FNAM","Exchange":"US","Name":"Evolutionary Genomics Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US30051F1012","isPrimary":true,"previousClose":0.0002,"previousCloseDate":"2026-10-26"},{"Code":"GLSHQ","Exchange":"US","Name":"Gelesis Holdings, Inc.","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":0.0001,"previousCloseDate":"2026-10-26"},{"Code":"FGCCX","Exchange":"US","Name":"NUVEEN GEORGIA MUNICIPAL BOND FUND CLASS C","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US67065P7179","isPrimary":false,"previousClose":9.26,"previousCloseDate":"2026-10-27"},{"Code":"GIGNF","Exchange":"US","Name":"Genting Singapore Limited","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":0.45,"previousCloseDate":"2026-10-27"},{"Code":"PGEMX","Exchange":"US","Name":"GEORGE PUTNAM FUND OF BOSTON CLASS M SHARES","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US37252M4050","isPrimary":false,"previousClose":28.48,"previousCloseDate":"2026-10-27"},{"Code":"MMGAX","Exchange":"US","Name":"MFS GEORGIA MUNICIPAL BOND FUND A","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US55273N6085","isPrimary":false,"previousClose":9.64,"previousCloseDate":"2026-10-27"},{"Code":"MBGAX","Exchange":"US","Name":"MFS GEORGIA MUNICIPAL BOND FUND B","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US55273N7562","isPrimary":false,"previousClose":9.68,"previousCloseDate":"2026-10-27"},{"Code":"CMPRF","Exchange":"US","Name":"Gentera S.A.B. de C.V","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"MX01GE0E0004","isPrimary":false,"previousClose":2.01,"previousCloseDate":"2026-10-27"},{"Code":"MGDDF","Exchange":"US","Name":"Compagnie G\u00e9n\u00e9rale des \u00c9tablissements Michelin Soci\u00e9t\u00e9 en commandite par actions","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":36.16,"previousCloseDate":"2026-10-27"},{"Code":"XGFNX","Exchange":"US","Name":"New Germany Fund","Type":"FUND","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":11.49,"previousCloseDate":"2026-10-27"},{"Code":"PGEOX","Exchange":"US","Name":"GEORGE PUTNAM FUND OF BOSTON CLASS A SHARES","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US37252M1080","isPrimary":false,"previousClose":29.11,"previousCloseDate":"2026-10-27"},{"Code":"ECGAX","Exchange":"US","Name":"EATON VANCE GEORGIA MUNICIPAL INCOME FUND","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US27826Y3080","isPrimary":false,"previousClose":8.36,"previousCloseDate":"2026-10-27"},{"Code":"GDIIX","Exchange":"US","Name":"RNC GENTER DIVIDEND INCOME FUND","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US4614188658","isPrimary":false,"previousClose":27.04,"previousCloseDate":"2026-10-27"},{"Code":"PGPRX","Exchange":"US","Name":"GEORGE PUTNAM FUND OF BOSTON CLASS R SHARES","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US37252M5040","isPrimary":false,"previousClose":28.93,"previousCloseDate":"2026-10-27"},{"Code":"NBGIX","Exchange":"US","Name":"NEUBERGER BERMAN GENESIS FUND INSTITUTIONAL CLASS","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US6412332008","isPrimary":false,"previousClose":60.07,"previousCloseDate":"2026-10-27"},{"Code":"DIPGF","Exchange":"US","Name":"Datang International Power Generation Co. Ltd","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"CNE1000002Z3","isPrimary":false,"previousClose":0.31,"previousCloseDate":"2026-10-27"},{"Code":"MGAFX","Exchange":"US","Name":"PRAXIS GENESIS GROWTH PORTFOLIO","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US74006E7519","isPrimary":false,"previousClose":23.37,"previousCloseDate":"2026-10-27"},{"Code":"NBGAX","Exchange":"US","Name":"NEUBERGER BERMAN GENESIS FUND ADVISOR CLASS","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US64122M6057","isPrimary":false,"previousClose":59.93,"previousCloseDate":"2026-10-27"},{"Code":"PGEYX","Exchange":"US","Name":"GEORGE PUTNAM FUND OF BOSTON CLASS Y SHARES","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US37252M6030","isPrimary":false,"previousClose":29.29,"previousCloseDate":"2026-10-27"},{"Code":"GNLAF","Exchange":"US","Name":"Genesis Land Development Corp","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":2.49,"previousCloseDate":"2026-10-27"},{"Code":"XGAMX","Exchange":"US","Name":"General American Investors Company Inc","Type":"FUND","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":73.67,"previousCloseDate":"2026-10-27"},{"Code":"FGATX","Exchange":"US","Name":"NUVEEN GEORGIA MUNICIPAL BOND FUND","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US67065P5017","isPrimary":false,"previousClose":9.29,"previousCloseDate":"2026-10-27"},{"Code":"FGAIX","Exchange":"US","Name":"FRANKLIN GEORGIA TAX-FREE INCOME FUND CLASS C","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US3547234886","isPrimary":false,"previousClose":10.33,"previousCloseDate":"2026-10-27"},{"Code":"WNGRF","Exchange":"US","Name":"George Weston Limited","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":75.51,"previousCloseDate":"2026-10-27"},{"Code":"FGARX","Exchange":"US","Name":"NUVEEN GEORGIA MUNICIPAL BOND FUND","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US67065P8086","isPrimary":false,"previousClose":9.26,"previousCloseDate":"2026-10-27"},{"Code":"PGPCX","Exchange":"US","Name":"GEORGE PUTNAM FUND OF BOSTON CLASS C SHARES","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US37252M3060","isPrimary":false,"previousClose":28.67,"previousCloseDate":"2026-10-27"},{"Code":"EIGAX","Exchange":"US","Name":"Eaton Vance Georgia municipals Fd Cl I","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US27826Y7792","isPrimary":false,"previousClose":7.84,"previousCloseDate":"2026-10-27"},{"Code":"GNFTF","Exchange":"US","Name":"Genfit SA","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":9.43,"previousCloseDate":"2026-10-27"},{"Code":"SCGLF","Exchange":"US","Name":"Soci\u00e9t\u00e9 G\u00e9n\u00e9rale Soci\u00e9t\u00e9 anonyme","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":68.59,"previousCloseDate":"2026-10-27"},{"Code":"GRPTF","Exchange":"US","Name":"Getlink SE","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":21.9,"previousCloseDate":"2026-10-27"},{"Code":"FTGAX","Exchange":"US","Name":"FRANKLIN GEORGIA TAX-FREE INCOME FUND CLASS A","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US3547238432","isPrimary":false,"previousClose":10.18,"previousCloseDate":"2026-10-27"},{"Code":"GNMLF","Exchange":"US","Name":"Genomma Lab Internacional S.A.B. de C.V","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"MX01LA010006","isPrimary":false,"previousClose":0.7222,"previousCloseDate":"2026-10-26"},{"Code":"MCONX","Exchange":"US","Name":"PRAXIS GENESIS CONSERVATIVE PORTFOLIO","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US74006E8848","isPrimary":false,"previousClose":12.33,"previousCloseDate":"2026-10-27"},{"Code":"GBERF","Exchange":"US","Name":"Geberit AG","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":642.12,"previousCloseDate":"2026-10-27"},{"Code":"ETGAX","Exchange":"US","Name":"EATON VANCE GEORGIA MUNICIPAL INCOME FUND","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US27826L5957","isPrimary":false,"previousClose":7.82,"previousCloseDate":"2026-10-27"},{"Code":"MBAPX","Exchange":"US","Name":"PRAXIS GENESIS BALANCED PORTFOLIO","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US74006E8764","isPrimary":false,"previousClose":17.99,"previousCloseDate":"2026-10-27"},{"Code":"BDGSF","Exchange":"US","Name":"Bank of Georgia Group PLC","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"GB00BF4HYT85","isPrimary":false,"previousClose":196.527,"previousCloseDate":"2026-10-27"},{"Code":"GNLKQ","Exchange":"US","Name":"Genelink Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US36870F1075","isPrimary":true,"previousClose":0,"previousCloseDate":"2026-10-26"},{"Code":"NBGEX","Exchange":"US","Name":"NEUBERGER BERMAN GENESIS FUND TRUST CLASS","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US6409171005","isPrimary":false,"previousClose":59.97,"previousCloseDate":"2026-10-27"},{"Code":"GTFBX","Exchange":"US","Name":"GEORGIA TAX-FREE BOND FUND","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US77957R7052","isPrimary":false,"previousClose":10.49,"previousCloseDate":"2026-10-27"},{"Code":"NBGNX","Exchange":"US","Name":"NEUBERGER BERMAN GENESIS FUND INVESTOR CLASS","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US6412241001","isPrimary":false,"previousClose":59.99,"previousCloseDate":"2026-10-27"},{"Code":"AFGVY","Exchange":"US","Name":"Agfa Gevaert NV ADR","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US00846M1099","isPrimary":true,"previousClose":2.29,"previousCloseDate":"2026-10-27"},{"Code":"ARZGF","Exchange":"US","Name":"Assicurazioni Generali S.p.A","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":49.152,"previousCloseDate":"2026-10-27"},{"Code":"CGRIF","Exchange":"US","Name":"Canadian General Investments Ltd","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"CA1358251074","isPrimary":false,"previousClose":36.45,"previousCloseDate":"2026-10-27"},{"Code":"FSGCY","Exchange":"US","Name":"First Gen Corp ADR","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US3203261017","isPrimary":true,"previousClose":6.21,"previousCloseDate":"2026-10-27"},{"Code":"MGATX","Exchange":"US","Name":"MFS GEORGIA MUNICIPAL BOND FUND I","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US55273N3843","isPrimary":false,"previousClose":8.74,"previousCloseDate":"2026-10-27"},{"Code":"NRGSX","Exchange":"US","Name":"NEUBERGER BERMAN GENESIS FUND CLASS R6","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US64122Q5311","isPrimary":false,"previousClose":60.03,"previousCloseDate":"2026-10-27"},{"Code":"NWHVX","Exchange":"US","Name":"NATIONWIDE GENEVA MID CAP GROWTH FUND CLASS A","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US63868B7322","isPrimary":false,"previousClose":10.36,"previousCloseDate":"2026-10-27"},{"Code":"NWHYX","Exchange":"US","Name":"NATIONWIDE GENEVA MID CAP GROWTH FUND INSTITUTIONAL SERVICE CLASS","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US63868B6902","isPrimary":false,"previousClose":12.51,"previousCloseDate":"2026-10-27"},{"Code":"NWHZX","Exchange":"US","Name":"NATIONWIDE GENEVA SMALL CAP GROWTH FUND CLASS A","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US63868B6829","isPrimary":false,"previousClose":73.96,"previousCloseDate":"2026-10-27"},{"Code":"NWKAX","Exchange":"US","Name":"NATIONWIDE GENEVA MID CAP GROWTH FUND CLASS R6","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US63868B7165","isPrimary":false,"previousClose":13.2,"previousCloseDate":"2026-10-27"},{"Code":"NWKCX","Exchange":"US","Name":"NATIONWIDE GENEVA SMALL CAP GROWTH FUND CLASS R6","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US63868B6662","isPrimary":false,"previousClose":80.01,"previousCloseDate":"2026-10-27"},{"Code":"NWKDX","Exchange":"US","Name":"NATIONWIDE GENEVA SMALL CAP GROWTH FUND INSTITUTIONAL SERVICE CLASS","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US63868B6589","isPrimary":false,"previousClose":78.56,"previousCloseDate":"2026-10-27"},{"Code":"PGEJX","Exchange":"US","Name":"George Putnam Balanced Fund Class R6","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US37252M8010","isPrimary":false,"previousClose":29.3,"previousCloseDate":"2026-10-27"},{"Code":"PGELX","Exchange":"US","Name":"George Putnam Balanced Fund Class R5","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US37252M7020","isPrimary":false,"previousClose":29.65,"previousCloseDate":"2026-10-27"},{"Code":"ZVGIX","Exchange":"US","Name":"ZEVENBERGEN GENEA FUND INSTITUTIONAL CLASS","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US00777X8763","isPrimary":false,"previousClose":64.12,"previousCloseDate":"2026-10-19"},{"Code":"FGFQX","Exchange":"US","Name":"Franklin Georgia Tax-Free Income Fund6","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US3547245361","isPrimary":false,"previousClose":10.18,"previousCloseDate":"2026-10-27"},{"Code":"GRRMF","Exchange":"US","Name":"Gerresheimer AG","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":37.47,"previousCloseDate":"2026-10-27"},{"Code":"GSAC","Exchange":"US","Name":"GelStat Corp","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US3685331056","isPrimary":true,"previousClose":0.0004,"previousCloseDate":"2026-10-27"},{"Code":"MPGOX","Exchange":"US","Name":"MFS GEORGIA MUNICIPAL BOND FUND R6","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US55273N2365","isPrimary":false,"previousClose":8.75,"previousCloseDate":"2026-10-27"},{"Code":"PLLHF","Exchange":"US","Name":"Gemfields Group Limited","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":0.0407,"previousCloseDate":"2026-10-26"},{"Code":"TBGAX","Exchange":"US","Name":"GEORGIA TAX-FREE BOND FUND GEORGIA TAX-FREE BOND FUND-I CLASS","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US77957R8613","isPrimary":false,"previousClose":10.48,"previousCloseDate":"2026-10-27"},{"Code":"TDSGF","Exchange":"US","Name":"Telo Genomics Corp","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"CA87975M2085","isPrimary":false,"previousClose":0.044,"previousCloseDate":"2026-10-27"},{"Code":"GMALF","Exchange":"US","Name":"Genting Malaysia Berhad","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":0.331,"previousCloseDate":"2026-10-27"},{"Code":"GRPTY","Exchange":"US","Name":"Getlink SE ADR","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US37428N1054","isPrimary":true,"previousClose":43.065,"previousCloseDate":"2026-10-26"},{"Code":"GTCDF","Exchange":"US","Name":"Getty Copper Inc","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":0.4284,"previousCloseDate":"2026-10-27"},{"Code":"RGEDF","Exchange":"US","Name":"Richter Gedeon Vegy\u00e9szeti Gy\u00e1r Nyilv\u00e1nosan Muk\u00f6do Rt","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"HU0000123096","isPrimary":false,"previousClose":41.0375,"previousCloseDate":"2026-10-27"},{"Code":"FGAQX","Exchange":"US","Name":"FRANKLIN GEORGIA TAX-FREE INCOME FUND CLASS A","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US3547268041","isPrimary":false,"previousClose":10.18,"previousCloseDate":"2026-10-27"},{"Code":"RPMAX","Exchange":"US","Name":"Reinhart Genesis PMV Fund Investor Class","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US56166Y2485","isPrimary":false,"previousClose":19.06,"previousCloseDate":"2026-10-27"},{"Code":"RPMFX","Exchange":"US","Name":"Reinhart Genesis PMV Fund Advisor Class","Type":"FUND","Country":"USA","Currency":"USD","ISIN":"US56166Y2303","isPrimary":false,"previousClose":19.3,"previousCloseDate":"2026-10-27"},{"Code":"SGBG","Exchange":"US","Name":"Signature Bank of Georgia","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"US82670L2097","isPrimary":true,"previousClose":52.98,"previousCloseDate":"2026-10-27"},{"Code":"GMBXX","Exchange":"US","Name":"General Money Market Fund Inc.","Type":"FUND","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":1,"previousCloseDate":"2026-10-27"},{"Code":"GMGXX","Exchange":"US","Name":"General Money Market Fund Inc.","Type":"FUND","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":1,"previousCloseDate":"2026-10-27"},{"Code":"GMMXX","Exchange":"US","Name":"General Money Market Fund Inc.","Type":"FUND","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":1,"previousCloseDate":"2026-10-27"},{"Code":"XNBGX","Exchange":"US","Name":"Neuberger Berman Next Generation Connectivity Fund","Type":"FUND","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":17.18,"previousCloseDate":"2026-10-27"},{"Code":"GCSVX","Exchange":"US","Name":"Geneva SMID Cap Growth Fund Institutional Class","Type":"Mutual Fund","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":8.81,"previousCloseDate":"2026-10-27"},{"Code":"NRGEX","Exchange":"US","Name":"Neuberger Berman Genesis Fund Class E Shares","Type":"Mutual Fund","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":60.16,"previousCloseDate":"2026-10-27"},{"Code":"GGAAF","Exchange":"US","Name":"Genesis Growth Tech Acquisition Corp.","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"KYG3R23D1021","isPrimary":true,"previousClose":8,"previousCloseDate":"2026-10-27"},{"Code":"GSHRW","Exchange":"US","Name":"Gesher Acquisition Corp. II","Type":"Warrant","Country":"USA","Currency":"USD","ISIN":"KYG3852D1152","isPrimary":false,"previousClose":0.2399,"previousCloseDate":"2026-10-21"},{"Code":"QGAI","Exchange":"US","Name":"Quantum Genesis AI Corp.","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":0.0488,"previousCloseDate":"2026-10-27"},{"Code":"IQMM","Exchange":"US","Name":"Proshares Genius Money Market ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US74350P6916","isPrimary":false,"previousClose":100.08,"previousCloseDate":"2026-10-27"},{"Code":"GDGIF","Exchange":"US","Name":"Gemdale Gold Inc.","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":1.09,"previousCloseDate":"2026-10-26"},{"Code":"GCGRU","Exchange":"US","Name":"General Catalyst Global Resilience Merger Corp. Units","Type":"Unit","Country":"USA","Currency":"USD","ISIN":"KYG3793T1123","isPrimary":false,"previousClose":10.18,"previousCloseDate":"2026-10-27"},{"Code":"GNMX","Exchange":"US","Name":"Corgi Genomics \u0026 Precision Medicine ETF","Type":"ETF","Country":"USA","Currency":"USD","ISIN":"US2189468463","isPrimary":false,"previousClose":38.0882,"previousCloseDate":"2026-10-27"},{"Code":"BJGPY","Exchange":"US","Name":"Beijing Geekplus Technology Co., Ltd.","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":13,"previousCloseDate":"2026-10-26"},{"Code":"SGQMF","Exchange":"US","Name":"St George Mining Limited","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":0.0342,"previousCloseDate":"2026-10-27"},{"Code":"GCGR","Exchange":"US","Name":"General Catalyst Global Resilience Merger Corp. Class A Ordinary Shares","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"KYG3793T1040","isPrimary":false,"previousClose":10,"previousCloseDate":"2026-10-27"},{"Code":"GCGRW","Exchange":"US","Name":"General Catalyst Global Resilience Merger Corp. Warrants","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":"KYG3793T1206","isPrimary":false,"previousClose":0.5501,"previousCloseDate":"2026-10-23"},{"Code":"GFUZW","Exchange":"US","Name":"General Fusion Group Ltd.","Type":"Warrant","Country":"USA","Currency":"USD","ISIN":"CA3698841192","isPrimary":false,"previousClose":1.05,"previousCloseDate":"2026-10-27"},{"Code":"GPAC","Exchange":"US","Name":"General Purpose Acquisition Corp.","Type":"Common Stock","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":10.1,"previousCloseDate":"2026-10-27"},{"Code":"GPACW","Exchange":"US","Name":"General Purpose Acquisition Corp.","Type":"Warrant","Country":"USA","Currency":"USD","ISIN":null,"isPrimary":false,"previousClose":0.19,"previousCloseDate":"2026-10-27"}]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Wed, 28 Oct 2026 16:47:59 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1196"
+        status: 200 OK
+        code: 200
+        duration: 1.782277723s
+    - id: 126
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/exchange-symbol-list/US?api_token=REDACTED&fmt=json&symbols=GE
+        form:
+            fmt:
+                - json
+            symbols:
+                - GE
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/exchange-symbol-list/US?fmt=json&symbols=GE
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 132
+        uncompressed: true
+        body: '[{"Code":"GE","Name":"GE Aerospace","Country":"USA","Exchange":"NYSE","Currency":"USD","Type":"Common Stock","Isin":"US3696043013"}]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Wed, 28 Oct 2026 16:47:59 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1195"
+        status: 200 OK
+        code: 200
+        duration: 276.948115ms
+    - id: 127
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/id-mapping?api_token=REDACTED&filter%5Bisin%5D=US3696043013&fmt=json
+        form:
+            filter[isin]:
+                - US3696043013
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/id-mapping?filter%5Bisin%5D=US3696043013&fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 1765
+        uncompressed: true
+        body: '{"meta":{"limit":1000,"offset":0,"total":16},"data":[{"symbol":"GCP.HA","isin":null,"figi":"BBG000DWJW76","lei":"3C7474T6CDKPR9K6YT90","cusip":null,"cik":null},{"symbol":"GCP.MU","isin":null,"figi":"BBG000DWJTK8","lei":"3C7474T6CDKPR9K6YT90","cusip":null,"cik":null},{"symbol":"GCP.BE","isin":null,"figi":null,"lei":"3C7474T6CDKPR9K6YT90","cusip":null,"cik":null},{"symbol":"GCP.HM","isin":null,"figi":"BBG000DWJWD9","lei":"3C7474T6CDKPR9K6YT90","cusip":null,"cik":null},{"symbol":"GCP.DU","isin":null,"figi":"BBG000DWHQT7","lei":"3C7474T6CDKPR9K6YT90","cusip":null,"cik":null},{"symbol":"GCP.F","isin":null,"figi":"BBG000DWHQJ8","lei":"3C7474T6CDKPR9K6YT90","cusip":null,"cik":null},{"symbol":"GCP.XETRA","isin":null,"figi":"BBG000DWHRF0","lei":"3C7474T6CDKPR9K6YT90","cusip":null,"cik":null},{"symbol":"GE.BA","isin":null,"figi":"BBG000FSKGB1","lei":"3C7474T6CDKPR9K6YT90","cusip":null,"cik":null},{"symbol":"GE.US","isin":null,"figi":"BBG000BK6MB5","lei":"3C7474T6CDKPR9K6YT90","cusip":null,"cik":"0000040545"},{"symbol":"GE.SW","isin":null,"figi":"BBG000C1R7V4","lei":"3C7474T6CDKPR9K6YT90","cusip":null,"cik":null},{"symbol":"GE.SN","isin":null,"figi":"BBG0032FLJ66","lei":"3C7474T6CDKPR9K6YT90","cusip":null,"cik":null},{"symbol":"GE.NEO","isin":null,"figi":"BBG01PSW4962","lei":"3C7474T6CDKPR9K6YT90","cusip":null,"cik":null},{"symbol":"GE.MX","isin":null,"figi":"BBG000HVM3J1","lei":"3C7474T6CDKPR9K6YT90","cusip":null,"cik":null},{"symbol":"GE.TO","isin":null,"figi":null,"lei":"3C7474T6CDKPR9K6YT90","cusip":null,"cik":null},{"symbol":"GEOO34.SA","isin":null,"figi":"BBG0019P1Y33","lei":"3C7474T6CDKPR9K6YT90","cusip":null,"cik":null},{"symbol":"GNE.PA","isin":null,"figi":null,"lei":"3C7474T6CDKPR9K6YT90","cusip":null,"cik":null}],"links":{"next":null}}'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Wed, 28 Oct 2026 16:47:59 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1194"
+        status: 200 OK
+        code: 200
+        duration: 170.688312ms
+    - id: 128
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/NVDA.US?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/NVDA.US?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 308
+        uncompressed: true
+        body: '[{"date":"2000-06-27","split":"2.000000\/1.000000"},{"date":"2001-09-12","split":"2.000000\/1.000000"},{"date":"2006-04-07","split":"2.000000\/1.000000"},{"date":"2007-09-11","split":"3.000000\/2.000000"},{"date":"2021-07-20","split":"4.000000\/1.000000"},{"date":"2024-06-10","split":"10.000000\/1.000000"}]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Wed, 28 Oct 2026 16:48:54 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1193"
+        status: 200 OK
+        code: 200
+        duration: 441.246356ms
+    - id: 129
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/NVDA.LIM?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/NVDA.LIM?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 16
+        uncompressed: true
+        body: Symbol not found
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - text/html; charset=utf-8
+            Date:
+                - Wed, 28 Oct 2026 16:48:54 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1192"
+        status: 404 Not Found
+        code: 404
+        duration: 180.662145ms
+    - id: 130
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/NVDA.SN?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/NVDA.SN?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 16
+        uncompressed: true
+        body: Symbol not found
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - text/html; charset=utf-8
+            Date:
+                - Wed, 28 Oct 2026 16:48:54 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1191"
+        status: 404 Not Found
+        code: 404
+        duration: 156.258312ms
+    - id: 131
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/GE.US?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/GE.US?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 527
+        uncompressed: true
+        body: '[{"date":"1971-06-08","split":"2.000000\/1.000000"},{"date":"1983-06-02","split":"2.000000\/1.000000"},{"date":"1987-05-26","split":"2.000000\/1.000000"},{"date":"1994-05-16","split":"2.000000\/1.000000"},{"date":"1997-05-12","split":"2.000000\/1.000000"},{"date":"2000-05-08","split":"3.000000\/1.000000"},{"date":"2019-02-26","split":"104.000000\/100.000000"},{"date":"2021-08-02","split":"1.000000\/8.000000"},{"date":"2023-01-04","split":"1281.000000\/1000.000000"},{"date":"2024-04-02","split":"1253.000000\/1000.000000"}]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Wed, 28 Oct 2026 16:48:54 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1190"
+        status: 200 OK
+        code: 200
+        duration: 147.732038ms
+    - id: 132
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/GE.LIM?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/GE.LIM?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 16
+        uncompressed: true
+        body: Symbol not found
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - text/html; charset=utf-8
+            Date:
+                - Wed, 28 Oct 2026 16:48:55 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1199"
+        status: 404 Not Found
+        code: 404
+        duration: 167.928123ms
+    - id: 133
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/GE.SN?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/GE.SN?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 52
+        uncompressed: true
+        body: '[{"date":"2021-08-02","split":"1.000000\/8.000000"}]'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - application/json
+            Date:
+                - Wed, 28 Oct 2026 16:48:55 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1198"
+        status: 200 OK
+        code: 200
+        duration: 163.536494ms
+    - id: 134
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /api/splits/GE.ST?api_token=REDACTED&fmt=json
+        form:
+            fmt:
+                - json
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://eodhd.com/api/splits/GE.ST?fmt=json
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 16
+        uncompressed: true
+        body: Symbol not found
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With
+            Access-Control-Allow-Methods:
+                - GET, POST, PUT, DELETE, OPTIONS
+            Cache-Control:
+                - no-cache, private
+            Content-Type:
+                - text/html; charset=utf-8
+            Date:
+                - Wed, 28 Oct 2026 16:48:55 GMT
+            Server:
+                - nginx/1.19.10
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - "1200"
+            X-Ratelimit-Remaining:
+                - "1197"
+        status: 404 Not Found
+        code: 404
+        duration: 161.905868ms

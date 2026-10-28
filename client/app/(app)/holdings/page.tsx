@@ -16,9 +16,11 @@ import { type HoldingRow, hasDetail, holdingRows } from "@/lib/holdings";
 import { toFixed } from "@/lib/marshal/decimal";
 import { HoldingDetail } from "./holding-detail";
 
-// The user's holdings, cash first, each with its raw quantity shown to two
-// places. A click on a row that has detail opens it beneath the row, closing
-// any other.
+// The user's holdings, cash first, each with its quantity shown to two
+// places. The quantity is restated by corporate actions. It is kept as
+// stated and marked unadjusted when the corporate actions since a
+// transaction are not known up to today. A click on a row that has detail
+// opens it beneath the row, closing any other.
 export default function HoldingsPage() {
   const upload = useUpload();
   const { data, isPending, isError, refetch } = useHoldings();
@@ -92,8 +94,21 @@ export default function HoldingsPage() {
                       >
                         {h.currencies.join(" ")}
                       </Td>
-                      <Td numeric data-testid={`holding-qty-${h.id}`}>
-                        {toFixed(h.quantity, 2)}
+                      <Td numeric>
+                        <span className="inline-flex items-center gap-2">
+                          {h.unadjusted && (
+                            <Chip
+                              data-testid="holding-mark"
+                              data-state="unadjusted"
+                              title="Corporate actions are missing for some days, so the quantity is as stated"
+                            >
+                              Unadjusted
+                            </Chip>
+                          )}
+                          <span data-testid={`holding-qty-${h.id}`}>
+                            {toFixed(h.quantity, 2)}
+                          </span>
+                        </span>
                       </Td>
                     </Tr>
                     {open && <HoldingDetail row={h} columns={4} />}

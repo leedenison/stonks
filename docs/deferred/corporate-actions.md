@@ -87,17 +87,9 @@ of derivatives.  This is straightforwardly true of any adjusted values computed 
 but when a corporate action affects cached, adjusted values, the system also invalidates
 and recomputes them.
 
-An adjusted quantity is shown only where coverage spans the period an instrument was
-held, and the raw quantity elsewhere.  Holdings read coverage from the fact tables, or
-from a per instrument summary maintained at ingest once that costs too much.
-
 ## Sketch
 
 Corporate actions are system owned data and can only be modified by an admin.
-
-Restating a value multiplies by the product of the ratios of the corporate actions between
-the date it is stated as at and the target date, computed exactly and rounded once for
-display.
 
 ## Undecided
 

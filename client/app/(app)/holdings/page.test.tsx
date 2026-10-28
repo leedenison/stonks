@@ -6,6 +6,7 @@ import {
   GroupHoldingSchema,
   HoldingKeySchema,
   HoldingListingSchema,
+  HoldingMark,
   HoldingService,
   InstrHoldingSchema,
   ListHoldingsResponseSchema,
@@ -311,5 +312,70 @@ describe("HoldingsPage", () => {
     await waitFor(() =>
       expect(screen.getByTestId("holding-row-i-gbp")).toBeTruthy(),
     );
+  });
+
+  it("marks an unadjusted holding and names the days it lacks", async () => {
+    const marked = create(ListHoldingsResponseSchema, {
+      instrs: [
+        create(InstrHoldingSchema, {
+          instrId: "i-ge",
+          assetClass: AssetClass.STOCK,
+          quantity: "10",
+          mark: HoldingMark.UNADJUSTED,
+          uncoveredFrom: "2023-06-02",
+          gaps: [
+            { uncoveredFrom: "2024-02-01", uncoveredBefore: "2024-03-01" },
+            { uncoveredFrom: "2024-04-02", uncoveredBefore: "2024-04-03" },
+          ],
+        }),
+        create(InstrHoldingSchema, {
+          instrId: "i-split",
+          assetClass: AssetClass.STOCK,
+          quantity: "5",
+          mark: HoldingMark.UNADJUSTED,
+          uncoveredFrom: "2020-01-03",
+        }),
+        create(InstrHoldingSchema, {
+          instrId: "i-nvda",
+          assetClass: AssetClass.STOCK,
+          quantity: "50",
+          mark: HoldingMark.ADJUSTED,
+        }),
+      ],
+    });
+    renderWithAuth(
+      page,
+      serving(() => marked),
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId("holding-row-i-ge")).toBeTruthy(),
+    );
+    const ge = screen.getByTestId("holding-row-i-ge");
+    const chip = ge.querySelector('[data-testid="holding-mark"]');
+    expect(chip?.getAttribute("data-state")).toBe("unadjusted");
+    expect(screen.getByTestId("holding-qty-i-ge").textContent).toBe("10.00");
+    expect(
+      screen
+        .getByTestId("holding-row-i-nvda")
+        .querySelector('[data-testid="holding-mark"]'),
+    ).toBeNull();
+
+    fireEvent.click(ge);
+    const uncovered = screen.getByTestId("holding-uncovered-i-ge");
+    expect(uncovered.textContent).toContain(
+      "not known from 2023-06-02 to today",
+    );
+    expect(
+      Array.from(uncovered.querySelectorAll("li")).map((li) => li.textContent),
+    ).toEqual([
+      "No datasource covers 2024-02-01 to 2024-02-29.",
+      "No datasource covers 2024-04-02.",
+    ]);
+
+    fireEvent.click(screen.getByTestId("holding-row-i-split"));
+    const split = screen.getByTestId("holding-uncovered-i-split");
+    expect(split.textContent).toContain("not known from 2020-01-03 to today");
+    expect(split.querySelectorAll("li")).toHaveLength(0);
+    expect(split.textContent).toContain("no single datasource covers them all");
   });
 });

@@ -1,9 +1,10 @@
 import { IdentifierChips } from "@/app/components/identifier-chip";
 import { Td } from "@/app/components/table";
-import { type HoldingRow } from "@/lib/holdings";
+import { type Gap, type HoldingRow } from "@/lib/holdings";
 
 // HoldingDetail is the row that opens beneath a holding. It shows the
-// holding's registry codes and the brokers' descriptions of it.
+// holding's registry codes and the brokers' descriptions of it. It also shows
+// the days that no datasource covers, if the holding is unadjusted.
 export function HoldingDetail({
   row,
   columns,
@@ -33,6 +34,31 @@ export function HoldingDetail({
               </ul>
             </Part>
           )}
+          {row.unadjusted && (
+            <Part title="Unadjusted:">
+              <div data-testid={`holding-uncovered-${row.id}`}>
+                <p>
+                  Corporate actions are not known from{" "}
+                  <span className="font-mono tabular-nums">
+                    {row.uncoveredFrom}
+                  </span>{" "}
+                  to today, so the quantity is as stated.
+                </p>
+                {row.gaps.length > 0 ? (
+                  <ul>
+                    {row.gaps.map((g) => (
+                      <li key={g.from}>{gapText(g)}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p>
+                    A datasource covers each day, but no single datasource
+                    covers them all.
+                  </p>
+                )}
+              </div>
+            </Part>
+          )}
         </div>
       </Td>
     </tr>
@@ -54,4 +80,11 @@ function Part({
       {children}
     </div>
   );
+}
+
+// gapText words a gap for display.
+function gapText(g: Gap): string {
+  return g.from === g.to
+    ? `No datasource covers ${g.from}.`
+    : `No datasource covers ${g.from} to ${g.to}.`;
 }

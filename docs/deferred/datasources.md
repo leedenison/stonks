@@ -60,9 +60,9 @@ states how it tolerates a temporary or permanent absence of its data.
 
 ## Sketch
 
-Holdings compute corporate action coverage from the fact tables on every request. A per
-instrument summary of coverage, maintained at ingest and rebuilt from the fetch tables,
-would serve holdings and valuation once that computation costs too much.
+A per instrument summary of corporate action coverage, maintained at ingest and rebuilt
+from the fetch tables, would serve holdings and valuation once reading coverage from the
+fact tables costs too much.
 
 ## Undecided
 
