@@ -474,9 +474,9 @@ func TestListKeyDates(t *testing.T) {
 	}
 }
 
-// TestListStmtTxns checks the order of a statement's
-// transactions, the via type of a fixed key and of a dated key, and that
-// another statement's transactions and another user's are left out.
+// TestListStmtTxns checks the order of a statement's transactions, the
+// validity of a fixed key and of a dated key, and that another statement's
+// transactions and another user's are left out.
 func TestListStmtTxns(t *testing.T) {
 	ctx := context.Background()
 	q := newTx(t)
@@ -506,11 +506,11 @@ func TestListStmtTxns(t *testing.T) {
 	if len(rows) != 2 || rows[0].Txn.ID != first.ID || rows[1].Txn.ID != second.ID {
 		t.Fatalf("ListStmtTxns = %+v, want the fixed key's trade then the dated key's", rows)
 	}
-	if rows[0].StatedKey.ID != fixed.ID || rows[0].FixedViaType == nil || *rows[0].FixedViaType != types.IdentifierTypeCurrency {
-		t.Errorf("fixed row = key %s via %v, want key %s via currency", rows[0].StatedKey.ID, rows[0].FixedViaType, fixed.ID)
+	if rows[0].Validity == nil || *rows[0].Validity != gen.ValidityConfirmed {
+		t.Errorf("fixed row validity = %v, want confirmed through a currency", rows[0].Validity)
 	}
-	if rows[1].StatedKey.ID != dated.ID || rows[1].FixedViaType != nil || rows[1].StatedKey.ViaTickerID == nil || *rows[1].StatedKey.ViaTickerID != newTicker(t, q, "US", "META").ID {
-		t.Errorf("dated row = key %s via %v, want key %s dated through META with no fixed via type", rows[1].StatedKey.ID, rows[1].FixedViaType, dated.ID)
+	if rows[1].Validity != nil {
+		t.Errorf("dated row validity = %v, want none: META has no ticker validity", *rows[1].Validity)
 	}
 	if rows, err := q.ListStmtTxns(ctx, gen.ListStmtTxnsParams{StmtID: stmt.ID, UserID: db.NewID()}); err != nil || len(rows) != 0 {
 		t.Errorf("ListStmtTxns as another user = %+v, %v, want none", rows, err)

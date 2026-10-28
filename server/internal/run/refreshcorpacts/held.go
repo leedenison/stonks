@@ -47,34 +47,12 @@ func (b *base) heldInstrs(ctx context.Context) (map[uuid.UUID]*held, error) {
 			h.users = append(h.users, user)
 		}
 	}
-	fixed, err := b.queries.ListHeldInstrs(ctx)
+	rows, err := b.queries.ListHeldInstrs(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("list held instruments: %w", err)
 	}
-	for _, r := range fixed {
+	for _, r := range rows {
 		add(r.InstrID, r.UserID, r.FirstAsAt)
-	}
-	dated, err := b.queries.ListHeldTickerDates(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("list held ticker dates: %w", err)
-	}
-	tickerOf := make([]types.MarketTicker, len(dated))
-	var ts []types.MarketTicker
-	for i, r := range dated {
-		t := types.MarketTicker{Market: r.Market, Value: r.Value}
-		tickerOf[i] = t
-		if !slices.Contains(ts, t) {
-			ts = append(ts, t)
-		}
-	}
-	read, err := tickervalidity.Load(ctx, b.queries, ts)
-	if err != nil {
-		return nil, fmt.Errorf("read the ticker validity of the held tickers: %w", err)
-	}
-	for i, r := range dated {
-		if iv, ok := read[tickerOf[i]].On(r.AsAt); ok {
-			add(iv.Instr, r.UserID, r.AsAt)
-		}
 	}
 	return out, nil
 }

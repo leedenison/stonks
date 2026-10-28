@@ -1,22 +1,13 @@
--- name: ListDatedTxns :many
--- The transactions of the user's dated keys, by key then as-at date. The
--- key's ticker, currency and group are on the key, which ListHoldingKeys
--- carries.
-SELECT txns.stated_key_id, txns.as_at, txns.quantity
-FROM txns
-JOIN stated_keys ON stated_keys.id = txns.stated_key_id
-WHERE txns.user_id = @user_id::uuid AND stated_keys.via_ticker_id IS NOT NULL
-ORDER BY txns.stated_key_id, txns.as_at, txns.id;
-
 -- name: ListHoldingKeys :many
--- The user's keys that have a transaction, each with the sum of its
--- transactions, earliest key first.
-SELECT sqlc.embed(stated_keys), SUM(txns.quantity)::numeric AS quantity
+-- The user's keys that have a transaction, earliest key first. A key comes
+-- once for each instrument its transactions name, with the sum of those
+-- transactions. A NULL instrument sums the transactions that name nothing.
+SELECT sqlc.embed(stated_keys), txn_instrs.instr_id, SUM(txn_instrs.quantity)::numeric AS quantity
 FROM stated_keys
-JOIN txns ON txns.stated_key_id = stated_keys.id
+JOIN txn_instrs ON txn_instrs.stated_key_id = stated_keys.id
 WHERE stated_keys.user_id = @user_id::uuid
-GROUP BY stated_keys.id
-ORDER BY stated_keys.id;
+GROUP BY stated_keys.id, txn_instrs.instr_id
+ORDER BY stated_keys.id, txn_instrs.instr_id NULLS FIRST;
 
 -- name: ListListingNames :many
 -- Each listing of the instruments with every ticker that reaches it, ranked

@@ -18,7 +18,6 @@ import (
 	"github.com/leedenison/stonks/server/internal/db/to"
 	"github.com/leedenison/stonks/server/internal/identity/resolve"
 	"github.com/leedenison/stonks/server/internal/identity/tickers"
-	"github.com/leedenison/stonks/server/internal/identity/tickervalidity"
 	"github.com/leedenison/stonks/server/internal/mic"
 	"github.com/leedenison/stonks/server/internal/stmt"
 	"github.com/leedenison/stonks/server/internal/types"
@@ -35,10 +34,8 @@ type Confirmer interface {
 	Confirm(ctx context.Context, user, key uuid.UUID, p resolve.Pick) (gen.ResolutionKey, error)
 }
 
-// Reader is this package's view of the statement queries. It embeds the
-// ticker validity queries, which mark reads for dated keys.
+// Reader is this package's view of the statement queries.
 type Reader interface {
-	tickervalidity.ValidityQueries
 	tickers.Queries
 	ListStmts(ctx context.Context, userID uuid.UUID) ([]gen.ListStmtsRow, error)
 	GetStmt(ctx context.Context, arg gen.GetStmtParams) (gen.GetStmtRow, error)
@@ -249,35 +246,15 @@ func (s *Server) keys(ctx context.Context, id, user uuid.UUID) ([]*typev1.Resolu
 	return out, nil
 }
 
-// txns answers the statement's transactions, each with its mark. The
-// facts of every dated key's ticker are read at once.
+// txns answers the statement's transactions, each with its mark.
 func (s *Server) txns(ctx context.Context, id, user uuid.UUID) ([]*stmtv1.Txn, error) {
 	rows, err := s.reader.ListStmtTxns(ctx, gen.ListStmtTxnsParams{StmtID: id, UserID: user})
 	if err != nil {
 		return nil, err
 	}
-	keys := make([]gen.StatedKey, len(rows))
-	for i, r := range rows {
-		keys[i] = r.StatedKey
-	}
-	dated, err := tickers.OfKeys(ctx, s.reader, keys)
-	if err != nil {
-		return nil, err
-	}
-	var ts []types.MarketTicker
-	for _, k := range keys {
-		if t, _, ok := tickers.Dated(k, dated); ok {
-			ts = append(ts, t)
-		}
-	}
-	read, err := tickervalidity.Load(ctx, s.reader, ts)
-	if err != nil {
-		return nil, fmt.Errorf("read the ticker validity of the dated keys' tickers: %w", err)
-	}
 	out := make([]*stmtv1.Txn, 0, len(rows))
 	for _, r := range rows {
-		v, _, isDated := tickers.Dated(r.StatedKey, dated)
-		out = append(out, to.ProtoTxn(r.Txn, mark(r.StatedKey.Arbiter, r.FixedViaType, isDated, read[v], r.Txn.AsAt)))
+		out = append(out, to.ProtoTxn(r.Txn, mark(r.Validity)))
 	}
 	return out, nil
 }

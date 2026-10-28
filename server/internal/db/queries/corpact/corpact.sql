@@ -57,24 +57,28 @@ WHERE corp_acts.ex_date >= @from_day AND corp_acts.ex_date < @before_day
 ORDER BY corp_acts.ex_date, corp_acts.id;
 
 -- name: ListStatedSplits :many
--- The stated splits of the keys that name one of instrs or are dated
--- through one of tickers. A user_id limits them to that user, and NULL reads
--- every user's.
-SELECT sqlc.embed(stmt_splits), sqlc.embed(stated_keys)
+-- The stated splits whose key names one of instrs on the split's effective
+-- date, each with that instrument. A key dated through one of tickers names
+-- what its ticker's validity names on the day. A user_id limits them to that user, and NULL reads every user's.
+SELECT sqlc.embed(stmt_splits),
+       COALESCE(stated_keys.instr_id, ticker_validity.instr_id)::uuid AS instr_id
 FROM stmt_splits
 JOIN stated_keys ON stated_keys.id = stmt_splits.stated_key_id
-WHERE (stated_keys.instr_id = ANY(@instrs::uuid[]) OR stated_keys.via_ticker_id = ANY(@tickers::uuid[]))
+LEFT JOIN ticker_validity ON ticker_validity.ticker_id = stated_keys.via_ticker_id
+    AND stated_keys.via_ticker_id = ANY(@tickers::uuid[])
+    AND (ticker_validity.valid_from IS NULL OR ticker_validity.valid_from <= stmt_splits.effective_date)
+    AND (ticker_validity.valid_before IS NULL OR stmt_splits.effective_date < ticker_validity.valid_before)
+WHERE COALESCE(stated_keys.instr_id, ticker_validity.instr_id) = ANY(@instrs::uuid[])
   AND (sqlc.narg(user_id)::uuid IS NULL OR stmt_splits.user_id = sqlc.narg(user_id))
 ORDER BY stmt_splits.stated_key_id, stmt_splits.effective_date, stmt_splits.stmt_id, stmt_splits.ordinal;
 
 -- name: ListTickersNaming :many
--- The tickers that an assertion pairs with one of instrs.
-SELECT DISTINCT identifier_assertions.instr_id::uuid AS instr_id, tickers.id AS ticker_id,
-       tickers.market, tickers.value
-FROM identifier_assertions
-JOIN tickers ON tickers.id = identifier_assertions.ticker_id
-WHERE identifier_assertions.instr_id = ANY(@instrs::uuid[])
-ORDER BY instr_id, tickers.market, tickers.value;
+-- The tickers whose ticker validity names one of instrs on some day.
+SELECT DISTINCT ticker_validity.instr_id, tickers.id AS ticker_id, tickers.market, tickers.value
+FROM ticker_validity
+JOIN tickers ON tickers.id = ticker_validity.ticker_id
+WHERE ticker_validity.instr_id = ANY(@instrs::uuid[])
+ORDER BY ticker_validity.instr_id, tickers.market, tickers.value;
 
 -- name: ListUnmatchedSplits :many
 -- The key and day of each unmatched split finding on one of keys.

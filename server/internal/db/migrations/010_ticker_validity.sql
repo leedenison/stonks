@@ -170,6 +170,30 @@ CREATE TABLE ticker_validity (
 
 CREATE INDEX ticker_validity_instr_idx ON ticker_validity (instr_id);
 
+-- txn_instrs gives each transaction the instrument its key names on its as-at
+-- date, and how firmly. A fixed key names its instrument on every day. A fixed
+-- key is confirmed when the user arbitrated it or its via identifier is
+-- stable. Otherwise it is provisional. A dated key names what its ticker's
+-- validity names on the day. instr_id and validity are NULL together: the key is unassociated,
+-- or its ticker names nothing on the day. via_ticker_id tells the two apart.
+CREATE VIEW txn_instrs AS
+SELECT txns.id AS txn_id, txns.user_id, txns.stated_key_id, txns.as_at, txns.quantity,
+       stated_keys.via_ticker_id,
+       (CASE WHEN stated_keys.instr_id IS NULL THEN ticker_validity.instr_id
+             ELSE stated_keys.instr_id END)::uuid AS instr_id,
+       (CASE
+            WHEN stated_keys.instr_id IS NULL THEN ticker_validity.validity
+            WHEN stated_keys.arbiter = 'user' OR traits.reassignment = 'stable' THEN 'confirmed'
+            ELSE 'provisional'
+        END)::validity AS validity
+FROM txns
+JOIN stated_keys ON stated_keys.id = txns.stated_key_id
+LEFT JOIN identifiers AS via ON via.id = stated_keys.via_identifier_id
+LEFT JOIN identifier_type_traits AS traits ON traits.type = via.type
+LEFT JOIN ticker_validity ON ticker_validity.ticker_id = stated_keys.via_ticker_id
+    AND (ticker_validity.valid_from IS NULL OR ticker_validity.valid_from <= txns.as_at)
+    AND (ticker_validity.valid_before IS NULL OR txns.as_at < ticker_validity.valid_before);
+
 -- A ticker relates to an instrument it named. 'current': it still names the
 -- instrument. 'defunct': it now names another instrument. 'former': it names
 -- nothing now.

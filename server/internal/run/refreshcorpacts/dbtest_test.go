@@ -296,44 +296,38 @@ func TestStart(t *testing.T) {
 	}
 }
 
-// TestHeldQueries checks the rows of the two queries across two users.
+// TestHeldQueries checks the held instruments across two users, through a
+// fixed key and through a dated key whose ticker names an instrument.
 func TestHeldQueries(t *testing.T) {
 	s := newStack(t)
 	ctx := context.Background()
 	u, v := s.user(t), s.user(t)
-	instr := s.instr(t)
+	instr, named := s.instr(t), s.instr(t)
 	s.buys(t, u, s.fixedKey(t, u, instr), day(2020, 3, 1), day(2019, 3, 1))
 	s.buys(t, v, s.fixedKey(t, v, instr), day(2021, 3, 1))
 	tk := value(t, "D")
-	s.buys(t, u, s.datedKey(t, u, tk), day(2022, 3, 1), day(2022, 3, 1), day(2022, 4, 1))
+	s.names(t, tk, &named, day(2022, 3, 1))
+	s.buys(t, u, s.datedKey(t, u, tk), day(2022, 4, 1), day(2022, 3, 1))
 
 	instrs, err := s.q.ListHeldInstrs(ctx)
 	require.NoError(t, err)
-	var gotInst []gen.ListHeldInstrsRow
+	var got []gen.ListHeldInstrsRow
 	for _, r := range instrs {
-		if r.InstrID == instr {
-			gotInst = append(gotInst, r)
+		if r.InstrID == instr || r.InstrID == named {
+			got = append(got, r)
 		}
 	}
-	wantInst := []gen.ListHeldInstrsRow{{InstrID: instr, UserID: u, FirstAsAt: day(2019, 3, 1)}, {InstrID: instr, UserID: v, FirstAsAt: day(2021, 3, 1)}}
+	want := []gen.ListHeldInstrsRow{{InstrID: instr, UserID: u, FirstAsAt: day(2019, 3, 1)}, {InstrID: instr, UserID: v, FirstAsAt: day(2021, 3, 1)}}
 	if u.String() > v.String() {
-		wantInst[0], wantInst[1] = wantInst[1], wantInst[0]
+		want[0], want[1] = want[1], want[0]
 	}
-	if diff := cmp.Diff(wantInst, gotInst); diff != "" {
+	named0 := gen.ListHeldInstrsRow{InstrID: named, UserID: u, FirstAsAt: day(2022, 3, 1)}
+	if named.String() < instr.String() {
+		want = append([]gen.ListHeldInstrsRow{named0}, want...)
+	} else {
+		want = append(want, named0)
+	}
+	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("ListHeldInstrs mismatch (-want +got):\n%s", diff)
-	}
-
-	dates, err := s.q.ListHeldTickerDates(ctx)
-	require.NoError(t, err)
-	var gotDates []gen.ListHeldTickerDatesRow
-	for _, r := range dates {
-		if r.Value == tk {
-			r.TickerID = uuid.Nil
-			gotDates = append(gotDates, r)
-		}
-	}
-	wantDates := []gen.ListHeldTickerDatesRow{{Market: "US", Value: tk, UserID: u, AsAt: day(2022, 3, 1)}, {Market: "US", Value: tk, UserID: u, AsAt: day(2022, 4, 1)}}
-	if diff := cmp.Diff(wantDates, gotDates); diff != "" {
-		t.Errorf("ListHeldTickerDates mismatch (-want +got):\n%s", diff)
 	}
 }

@@ -95,3 +95,14 @@ sql:
               import: github.com/leedenison/stonks/server/internal/types
               type: Identifier
               slice: true
+          # sqlc reads a CASE in a view as NOT NULL. These columns are NULL
+          # on a day when a transaction names nothing.
+          - column: txn_instrs.instr_id
+            go_type:
+              import: github.com/google/uuid
+              type: UUID
+              pointer: true
+          - column: txn_instrs.validity
+            go_type:
+              type: Validity
+              pointer: true

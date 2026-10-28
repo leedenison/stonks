@@ -91,10 +91,12 @@ func TestListHoldings(t *testing.T) {
 	instrKeys := []gen.ListHoldingKeysRow{
 		{
 			StatedKey: gen.StatedKey{ID: acmeKeyID, InstrID: &acmeID, ListingID: &acmeListingID, Identifiers: []types.Identifier{acmeISIN, acmeDescribed}},
+			InstrID:   &acmeID,
 			Quantity:  decimal.RequireFromString("-141"),
 		},
 		{
 			StatedKey: gen.StatedKey{ID: gbxKeyID, InstrID: &gbpID, ListingID: &gbpListingID, Currency: ptr.To("GBX"), Identifiers: []types.Identifier{gbx}},
+			InstrID:   &gbpID,
 			Quantity:  decimal.RequireFromString("1209279"),
 		},
 	}
@@ -197,7 +199,6 @@ func TestListHoldings(t *testing.T) {
 			// Each read is offered once, and what the handler reads after a
 			// failure does not matter to the response.
 			f.reader.EXPECT().ListHoldingKeys(gomock.Any(), userID).Return(tc.keys, tc.keysErr).MaxTimes(1)
-			f.reader.EXPECT().ListDatedTxns(gomock.Any(), userID).Return(nil, nil).MaxTimes(1)
 			f.reader.EXPECT().ListInstrsByID(gomock.Any(), gomock.Any()).Return(tc.instrs, tc.instrErr).MaxTimes(1)
 			f.reader.EXPECT().ListIdentifiersOf(gomock.Any(), []uuid.UUID{gbpID, acmeID}).Return(tc.idents, tc.identsErr).MaxTimes(1)
 			f.reader.EXPECT().ListListingNames(gomock.Any(), []uuid.UUID{gbpID, acmeID}).Return(tc.listings, tc.listingsErr).MaxTimes(1)
@@ -230,12 +231,14 @@ func TestListHoldingsScale(t *testing.T) {
 	cash := func(id uuid.UUID, code, quantity string) gen.ListHoldingKeysRow {
 		return gen.ListHoldingKeysRow{
 			StatedKey: gen.StatedKey{ID: id, InstrID: &gbpID, Currency: ptr.To(code), Identifiers: []types.Identifier{{Type: types.IdentifierTypeCurrency, Value: code}}},
+			InstrID:   &gbpID,
 			Quantity:  decimal.RequireFromString(quantity),
 		}
 	}
 	pounds, pence := uuid.MustParse("00000000-0000-0000-0000-000000000064"), uuid.MustParse("00000000-0000-0000-0000-000000000065")
 	shares := gen.ListHoldingKeysRow{
 		StatedKey: gen.StatedKey{ID: pence, InstrID: &acmeID, Currency: ptr.To("GBX"), Identifiers: []types.Identifier{{Type: types.IdentifierTypeIsin, Value: "GB0002634946"}}},
+		InstrID:   &acmeID,
 		Quantity:  decimal.RequireFromString("100"),
 	}
 	instrs := []gen.Instr{{ID: gbpID, AssetClass: types.AssetClassCash}, {ID: acmeID, AssetClass: types.AssetClassStock}}
@@ -254,7 +257,6 @@ func TestListHoldingsScale(t *testing.T) {
 			f := newFixture(t)
 			f.authn.EXPECT().Authenticate(gomock.Any(), servicetest.Session).Return(principal, nil)
 			f.reader.EXPECT().ListHoldingKeys(gomock.Any(), userID).Return(tc.keys, nil)
-			f.reader.EXPECT().ListDatedTxns(gomock.Any(), userID).Return(nil, nil)
 			f.reader.EXPECT().ListInstrsByID(gomock.Any(), gomock.Any()).Return(instrs, nil)
 			if tc.want != "" {
 				ids := []uuid.UUID{tc.id}

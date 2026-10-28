@@ -73,13 +73,11 @@ SET instr_id = NULL, listing_id = NULL, via_identifier_id = NULL,
 WHERE id = @id AND user_id = @user_id AND arbiter IS DISTINCT FROM 'user';
 
 -- name: ListStmtTxns :many
--- The statement's transactions, ordered by order date. Each carries its key
--- and the type of the identifier that a fixed association used.
-SELECT sqlc.embed(txns), sqlc.embed(stated_keys),
-       identifiers.type AS fixed_via_type
+-- The statement's transactions, ordered by order date. Each carries how
+-- firmly its key names an instrument on its as-at date.
+SELECT sqlc.embed(txns), txn_instrs.validity
 FROM txns
-JOIN stated_keys ON stated_keys.id = txns.stated_key_id
-LEFT JOIN identifiers ON identifiers.id = stated_keys.via_identifier_id
+JOIN txn_instrs ON txn_instrs.txn_id = txns.id
 WHERE txns.stmt_id = @stmt_id AND txns.user_id = @user_id
 ORDER BY txns.order_date, txns.id;
 

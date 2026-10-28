@@ -137,8 +137,8 @@ CREATE INDEX stmt_splits_key_idx ON stmt_splits (stated_key_id, effective_date);
 -- A transaction is a change in the quantity of one instrument held by a user,
 -- with an order date and a settlement date, stated as at a date: the date on
 -- which its values were true, and so which corporate actions they reflect. Its
--- instrument and listing are its key's. stmt_id records the statement
--- that stated it.
+-- listing is its key's. Its instrument is the one txn_instrs gives it. stmt_id
+-- records the statement that stated it.
 --
 -- Replacement is keyed on user, broker and order date, so those are columns of
 -- the row rather than reached through the statement.

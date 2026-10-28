@@ -93,7 +93,7 @@ func (r *Recorder) splitFindings(ctx context.Context, q Queries, user *uuid.UUID
 	if err != nil {
 		return nil, err
 	}
-	groups, err := r.coveredSplits(ctx, q, user, ts, read, covers)
+	groups, err := r.coveredSplits(ctx, q, user, ts, covers)
 	if err != nil || len(groups) == 0 {
 		return nil, err
 	}
@@ -173,7 +173,7 @@ func coverage(ctx context.Context, q Queries, recorded []recordedKey, read map[t
 // coveredSplits returns the stated splits whose date falls inside one of
 // covers, grouped by key and day, with options removed. A dated key counts
 // only when its ticker is one of ts.
-func (r *Recorder) coveredSplits(ctx context.Context, q Queries, user *uuid.UUID, ts []types.MarketTicker, read map[types.MarketTicker]tickervalidity.Intervals, covers []cover) ([]splitGroup, error) {
+func (r *Recorder) coveredSplits(ctx context.Context, q Queries, user *uuid.UUID, ts []types.MarketTicker, covers []cover) ([]splitGroup, error) {
 	if len(covers) == 0 {
 		return nil, nil
 	}
@@ -195,21 +195,9 @@ func (r *Recorder) coveredSplits(ctx context.Context, q Queries, user *uuid.UUID
 	if err != nil {
 		return nil, fmt.Errorf("list stated splits: %w", err)
 	}
-	keys := make([]gen.StatedKey, len(rows))
-	for i, row := range rows {
-		keys[i] = row.StatedKey
-	}
-	dated, err := tickers.OfKeys(ctx, q, keys)
-	if err != nil {
-		return nil, err
-	}
 	var groups []splitGroup
 	for _, row := range rows {
-		sp := row.StmtSplit
-		instr, ok := instrOn(row.StatedKey, sp.EffectiveDate, dated, read)
-		if !ok {
-			continue
-		}
+		sp, instr := row.StmtSplit, row.InstrID
 		i := slices.IndexFunc(covers, func(c cover) bool { return c.instr == instr && c.period.Contains(sp.EffectiveDate) })
 		if i < 0 {
 			continue
@@ -227,20 +215,6 @@ func (r *Recorder) coveredSplits(ctx context.Context, q Queries, user *uuid.UUID
 		}
 	}
 	return withoutOptions(ctx, q, groups)
-}
-
-// instrOn returns the instrument that k names on d. A dated key names an
-// instrument only through its ticker's validity.
-func instrOn(k gen.StatedKey, d time.Time, dated map[uuid.UUID]gen.Ticker, read map[types.MarketTicker]tickervalidity.Intervals) (uuid.UUID, bool) {
-	if k.InstrID != nil {
-		return *k.InstrID, true
-	}
-	mt, _, ok := tickers.Dated(k, dated)
-	if !ok {
-		return uuid.UUID{}, false
-	}
-	iv, ok := read[mt].On(d)
-	return iv.Instr, ok
 }
 
 // withoutOptions returns groups with those of options removed.
