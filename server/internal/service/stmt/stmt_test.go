@@ -231,13 +231,15 @@ func TestGetStmt(t *testing.T) {
 		{Txn: txn(2, dated, assertedOn), StatedKey: dated},
 		{Txn: txn(3, fixed, assertedOn), StatedKey: fixed, FixedViaType: ptr.To(types.IdentifierTypeBrokerDescription)},
 	}
-	facts := metaFacts()
-	assertions := []gen.ListIdentifierAssertionsRow{
-		{IdentifierAssertion: gen.IdentifierAssertion{Market: "US", AssertedFrom: assertedOn, AssertedBefore: assertedOn.AddDate(0, 0, 1), InstrID: &metaInst, FetchKeyID: ptr.To(uuid.New())}, Value: "META", Datasource: ptr.To("massive"), Precedence: ptr.To(int32(2))},
-		{IdentifierAssertion: gen.IdentifierAssertion{Market: "US", AssertedFrom: notFoundOn, AssertedBefore: notFoundOn.AddDate(0, 0, 1), FetchKeyID: ptr.To(uuid.New())}, Value: "META", Datasource: ptr.To("massive"), Precedence: ptr.To(int32(2))},
-		{IdentifierAssertion: gen.IdentifierAssertion{Market: "US", AssertedFrom: renamed, AssertedBefore: renamed.AddDate(0, 0, 1), InstrID: &metaInst, FetchKeyID: ptr.To(uuid.New()), EdgeFrom: true}, Value: "META", Datasource: ptr.To("massive"), Precedence: ptr.To(int32(2))},
+	// stored is the ticker validity of META that a rebuild stores for its
+	// facts.
+	stored := func() []gen.ListTickerValidityRow {
+		var out []gen.ListTickerValidityRow
+		for _, iv := range metaValidity() {
+			out = append(out, gen.ListTickerValidityRow{Market: "US", Value: "META", InstrID: iv.Instr, ValidFrom: iv.From, ValidBefore: iv.Before, Validity: iv.Validity})
+		}
+		return out
 	}
-	periods := []gen.ListIdentifierAssertionCoverageRow{{Market: "US", Value: ptr.To("META"), CoveredFrom: facts.AssertionCoverage[0].Period.From, CoveredBefore: facts.AssertionCoverage[0].Period.Before}}
 	txnMsgs := []*stmtv1.Txn{
 		{Id: txns[0].Txn.ID.String(), StatedKeyId: datedID.String(), OrderDate: "2021-06-01", Quantity: "10", Mark: stmtv1.TxnMark_TXN_MARK_UNRESOLVED},
 		{Id: txns[1].Txn.ID.String(), StatedKeyId: datedID.String(), OrderDate: "2024-01-16", Quantity: "10", Mark: stmtv1.TxnMark_TXN_MARK_CONFIRMED},
@@ -305,10 +307,7 @@ func TestGetStmt(t *testing.T) {
 				}
 				if len(tc.txns) > 0 {
 					f.reader.EXPECT().ListTickersByID(gomock.Any(), []uuid.UUID{meta.ID}).Return([]gen.Ticker{meta}, nil)
-					f.reader.EXPECT().ListIdentifierAssertions(gomock.Any(), gen.ListIdentifierAssertionsParams{Markets: []string{"US"}, Values: []string{"META"}}).Return(assertions, tc.assertionsErr)
-					if tc.assertionsErr == nil {
-						f.reader.EXPECT().ListIdentifierAssertionCoverage(gomock.Any(), gen.ListIdentifierAssertionCoverageParams{Markets: []string{"US"}, Values: []string{"META"}}).Return(periods, nil)
-					}
+					f.reader.EXPECT().ListTickerValidity(gomock.Any(), gen.ListTickerValidityParams{Markets: []string{"US"}, Values: []string{"META"}}).Return(stored(), tc.assertionsErr)
 				}
 			}
 			res, err := f.client.GetStmt(context.Background(), connect.NewRequest(&stmtv1.GetStmtRequest{RunId: tc.id}))

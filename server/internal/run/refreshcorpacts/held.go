@@ -67,16 +67,12 @@ func (b *base) heldInstrs(ctx context.Context) (map[uuid.UUID]*held, error) {
 			ts = append(ts, t)
 		}
 	}
-	read, err := tickervalidity.ReadTickers(ctx, b.queries, ts)
+	read, err := tickervalidity.Load(ctx, b.queries, ts)
 	if err != nil {
-		return nil, fmt.Errorf("read the facts of the held tickers: %w", err)
+		return nil, fmt.Errorf("read the ticker validity of the held tickers: %w", err)
 	}
 	for i, r := range dated {
-		t := read[tickerOf[i]]
-		if t == nil {
-			continue
-		}
-		if iv, ok := t.On(r.AsAt); ok {
+		if iv, ok := read[tickerOf[i]].On(r.AsAt); ok {
 			add(iv.Instr, r.UserID, r.AsAt)
 		}
 	}
@@ -108,19 +104,16 @@ func (b *base) requests(ctx context.Context, hs map[uuid.UUID]*held, keep func(u
 			ts = append(ts, t)
 		}
 	}
-	read, err := tickervalidity.ReadTickers(ctx, b.queries, ts)
+	read, err := tickervalidity.Load(ctx, b.queries, ts)
 	if err != nil {
-		return nil, fmt.Errorf("read the facts of the held instruments' tickers: %w", err)
+		return nil, fmt.Errorf("read the ticker validity of the held instruments' tickers: %w", err)
 	}
 	before := types.Day(b.clock()).AddDate(0, 0, 1)
 	var out []ask
 	for _, t := range ts {
-		if read[t] == nil {
-			continue
-		}
 		var a ask
 		named, asked := false, false
-		for _, iv := range read[t].Derived.Intervals {
+		for _, iv := range read[t] {
 			h := hs[iv.Instr]
 			if h == nil || !overlaps(iv, h.from, before) {
 				continue

@@ -108,6 +108,56 @@ func TestRebuildDropsAPairWithoutFacts(t *testing.T) {
 	}
 }
 
+// TestRebuildStoresValidity checks that a rebuild stores the ticker validity
+// that the facts imply, and replaces it when the facts change.
+func TestRebuildStoresValidity(t *testing.T) {
+	f := newFixture(t)
+	foo := f.assertsOn(t, f.foo, f.alpha, 1, &f.a)
+	f.rebuild(t, foo.ID)
+	f.assertsOn(t, f.foo, f.alpha, 5, &f.b)
+	f.rebuild(t, foo.ID)
+	rows, err := ReadRows(context.Background(), f.q, f.foo)
+	require.NoError(t, err)
+	want := Derive(rows.Facts()).Intervals
+	stored, err := Load(context.Background(), f.q, []types.MarketTicker{f.foo})
+	require.NoError(t, err)
+	if diff := cmp.Diff(want, stored[f.foo]); diff != "" {
+		t.Errorf("stored ticker validity mismatch (-want +got):\n%s", diff)
+	}
+	if n := len(stored[f.foo]); n == 0 || stored[f.foo][0].From != nil || stored[f.foo][n-1].Before != nil {
+		t.Errorf("stored ticker validity = %+v, want intervals open at both ends", stored[f.foo])
+	}
+}
+
+// TestRebuildClearsANegativeTicker checks that a rebuild clears the ticker
+// validity of a ticker whose facts name nothing.
+func TestRebuildClearsANegativeTicker(t *testing.T) {
+	f := newFixture(t)
+	foo := f.assertsOn(t, f.foo, f.alpha, 1, &f.a)
+	f.rebuild(t, foo.ID)
+	f.exec(t, "DELETE FROM identifier_assertions WHERE ticker_id = $1", foo.ID)
+	f.assertsOn(t, f.foo, f.alpha, 2, nil)
+	f.rebuild(t, foo.ID)
+	stored, err := Load(context.Background(), f.q, []types.MarketTicker{f.foo})
+	require.NoError(t, err)
+	if got := stored[f.foo]; got.Any() {
+		t.Errorf("stored ticker validity = %+v, want none", got)
+	}
+}
+
+// TestTickerValidityExcludesOverlap checks that the table refuses two ranges
+// of one ticker that share a day, whichever instrument they name.
+func TestTickerValidityExcludesOverlap(t *testing.T) {
+	f := newFixture(t)
+	foo := dbtest.Ticker(t, f.q, f.foo)
+	f.exec(t, "INSERT INTO ticker_validity (ticker_id, market, instr_id, valid_from, valid_before, validity) VALUES ($1, $2, $3, NULL, $4, 'confirmed')", foo.ID, foo.Market, f.a, day(5))
+	_, err := f.tx.Exec(context.Background(), "INSERT INTO ticker_validity (ticker_id, market, instr_id, valid_from, valid_before, validity) VALUES ($1, $2, $3, $4, NULL, 'provisional')", foo.ID, foo.Market, f.b, day(4))
+	var pgErr *pgconn.PgError
+	if !errors.As(err, &pgErr) || pgErr.Code != pgerrcode.ExclusionViolation {
+		t.Errorf("overlapping insert error = %v, want an exclusion violation", err)
+	}
+}
+
 // TestRebuildLocksTheInstr checks that two rebuilds of one instrument
 // serialise, though they rebuild different tickers. The tickers are at
 // different markets, so their rows cannot collide in a unique index. The

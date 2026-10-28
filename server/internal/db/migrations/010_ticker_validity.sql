@@ -147,6 +147,29 @@ CREATE TABLE identifier_assertion_coverage (
 CREATE INDEX identifier_assertion_coverage_ticker_idx ON identifier_assertion_coverage (market, ticker_id);
 CREATE INDEX identifier_assertion_coverage_fetch_key_idx ON identifier_assertion_coverage (fetch_key_id);
 
+-- A validity is how firmly a ticker's facts establish what it names over a
+-- range of days: 'confirmed' where the facts name the instrument, and
+-- 'provisional' where ticker validity extends on an assumption.
+CREATE TYPE validity AS ENUM ('confirmed', 'provisional');
+
+-- ticker_validity is the ticker validity of each ticker: the ranges of days
+-- over which it names one instrument. A NULL bound is open. The exclusion
+-- constraint keeps one range of a ticker on any day. Only
+-- tickervalidity.Rebuild writes the table.
+CREATE TABLE ticker_validity (
+    ticker_id    uuid     NOT NULL,
+    market       text     NOT NULL,
+    instr_id     uuid     NOT NULL REFERENCES instrs (id) ON DELETE CASCADE,
+    valid_from   date,
+    valid_before date,
+    validity     validity NOT NULL,
+    FOREIGN KEY (ticker_id, market) REFERENCES tickers (id, market),
+    CHECK (valid_from IS NULL OR valid_before IS NULL OR valid_from < valid_before),
+    EXCLUDE USING gist (ticker_id WITH =, daterange(valid_from, valid_before) WITH &&)
+);
+
+CREATE INDEX ticker_validity_instr_idx ON ticker_validity (instr_id);
+
 -- A ticker relates to an instrument it named. 'current': it still names the
 -- instrument. 'defunct': it now names another instrument. 'former': it names
 -- nothing now.
@@ -164,8 +187,7 @@ CREATE TYPE ticker_relation AS ENUM ('current', 'defunct', 'former');
 -- Its currency is that of the latest assertion at the venue that states one.
 -- Where every assertion omits the venue, one row has a NULL venue.
 --
--- The table holds names only, and ticker validity stays in the facts. Only
--- tickervalidity.Rebuild writes the table.
+-- Only tickervalidity.Rebuild writes the table.
 CREATE TABLE resolved_tickers (
     ticker_id    uuid NOT NULL,
     market       text NOT NULL,

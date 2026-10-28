@@ -111,7 +111,7 @@ func (r *Resolver) ReassertTickers(ctx context.Context, run gen.Run, held []gen.
 func (r *Resolver) readHeld(ctx context.Context, held []gen.ListHeldTickersRow) ([]*heldTicker, error) {
 	var ts []*heldTicker
 	seen := map[types.MarketTicker]bool{}
-	var instrs []uuid.UUID
+	var keys []types.MarketTicker
 	for _, row := range held {
 		v := types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: row.Venue, Value: row.Value}
 		key := types.MarketTicker{Market: row.Market, Value: row.Value}
@@ -119,16 +119,19 @@ func (r *Resolver) readHeld(ctx context.Context, held []gen.ListHeldTickersRow) 
 			continue
 		}
 		seen[key] = true
-		t := &heldTicker{row: row, key: key, ticker: v, tickerRow: gen.Ticker{ID: row.TickerID, Market: row.Market, Value: row.Value}}
-		read, err := tickervalidity.ReadTicker(ctx, r.store, key)
-		if err != nil {
-			return nil, fmt.Errorf("read the facts of %s: %w", key.Name(), err)
-		}
-		if ivs := read.Derived.Intervals; len(ivs) > 0 && ivs[len(ivs)-1].Before == nil {
+		keys = append(keys, key)
+		ts = append(ts, &heldTicker{row: row, key: key, ticker: v, tickerRow: gen.Ticker{ID: row.TickerID, Market: row.Market, Value: row.Value}})
+	}
+	read, err := tickervalidity.Load(ctx, r.store, keys)
+	if err != nil {
+		return nil, fmt.Errorf("read the held tickers' ticker validity: %w", err)
+	}
+	var instrs []uuid.UUID
+	for _, t := range ts {
+		if ivs := read[t.key]; len(ivs) > 0 && ivs[len(ivs)-1].Before == nil {
 			t.instr = &ivs[len(ivs)-1].Instr
 			instrs = append(instrs, *t.instr)
 		}
-		ts = append(ts, t)
 	}
 	if len(instrs) == 0 {
 		return ts, nil

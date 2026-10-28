@@ -19,6 +19,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/identity/resolve"
+	"github.com/leedenison/stonks/server/internal/identity/tickervalidity"
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/mic"
 	"github.com/leedenison/stonks/server/internal/testutil/dbtest"
@@ -115,16 +116,18 @@ func value(t *testing.T, prefix string) string {
 	return prefix + strings.ToUpper(strings.ReplaceAll(uuid.NewString(), "-", "")[:8])
 }
 
-// names attests that US:v names instr on day on. instr is nil for an
-// assertion that v names nothing.
+// names attests that US:v names instr on day on. A nil instr attests that v
+// names nothing.
 func (s *stack) names(t *testing.T, v string, instr *uuid.UUID, on time.Time) {
 	t.Helper()
 	ctx := context.Background()
 	run, err := s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), Kind: gen.RunKindAttestIdentifier, Trigger: gen.RunTriggerAdministrator})
 	require.NoError(t, err)
+	ticker := dbtest.Ticker(t, s.q, types.MarketTicker{Market: "US", Value: v}).ID
 	require.NoError(t, s.q.CreateIdentifierAssertion(ctx, gen.CreateIdentifierAssertionParams{
-		ID: db.NewID(), RunID: &run.ID, AttestedBy: &s.admin, TickerID: dbtest.Ticker(t, s.q, types.MarketTicker{Market: "US", Value: v}).ID, Market: "US", InstrID: instr, AssertedFrom: on, AssertedBefore: on.AddDate(0, 0, 1),
+		ID: db.NewID(), RunID: &run.ID, AttestedBy: &s.admin, TickerID: ticker, Market: "US", InstrID: instr, AssertedFrom: on, AssertedBefore: on.AddDate(0, 0, 1),
 	}))
+	require.NoError(t, tickervalidity.Rebuild(ctx, s.q, []uuid.UUID{ticker}))
 }
 
 // fixedKey creates a key of user with a fixed association to instr.

@@ -45,14 +45,20 @@ func datedTicker(k gen.StatedKey, mics mic.MICMap) (types.Identifier, bool) {
 	return types.Identifier{}, false
 }
 
+// dating holds the market ticker that may date a key, with its stored ticker
+// validity.
+type dating struct {
+	ticker types.MarketTicker
+	ivs    tickervalidity.Intervals
+}
+
 // findResolutionDated reads the ticker validity of each key's dated ticker and
 // the as-at dates of its transactions. Keys dated through the same market
-// ticker share one read of its facts. A key that already has a dated
+// ticker share one read of its ticker validity. A key that already has a dated
 // association is matched as it stands. A key without a known instrument, whose
 // ticker has validity, is dated through the ticker without an identity fetch.
 func (r *Resolver) findResolutionDated(ctx context.Context, user uuid.UUID, rs []*resolution, keys []KeyDates) error {
 	var ids []uuid.UUID
-	read := map[types.MarketTicker]*tickervalidity.Ticker{}
 	stated := make([]gen.StatedKey, len(rs))
 	for i, res := range rs {
 		stated[i] = res.row
@@ -61,6 +67,9 @@ func (r *Resolver) findResolutionDated(ctx context.Context, user uuid.UUID, rs [
 	if err != nil {
 		return fmt.Errorf("read the dated keys' tickers: %w", err)
 	}
+	vias := make([]types.Identifier, len(rs))
+	mts := make([]*types.MarketTicker, len(rs))
+	var asked []types.MarketTicker
 	for i, res := range rs {
 		if res.outcome != "" {
 			continue
@@ -75,20 +84,24 @@ func (r *Resolver) findResolutionDated(ctx context.Context, user uuid.UUID, rs [
 		if !ok {
 			continue
 		}
-		if read[mt] == nil {
-			t, err := tickervalidity.ReadTicker(ctx, r.store, mt)
-			if err != nil {
-				return fmt.Errorf("read the facts of %s: %w", mt.Name(), err)
-			}
-			read[mt] = t
+		vias[i], mts[i] = v, &mt
+		asked = append(asked, mt)
+	}
+	read, err := tickervalidity.Load(ctx, r.store, asked)
+	if err != nil {
+		return fmt.Errorf("read the dated keys' ticker validity: %w", err)
+	}
+	for i, res := range rs {
+		if mts[i] == nil {
+			continue
 		}
-		res.via, res.dating = v, read[mt]
+		res.via, res.dating = vias[i], &dating{ticker: *mts[i], ivs: read[*mts[i]]}
 		res.dates = slices.Clone(keys[i].Dates)
 		ids = append(ids, res.row.ID)
 		switch {
 		case res.row.ViaTickerID != nil:
 			res.decide(gen.ResolutionOutcomeMatched, "")
-		case res.knownInstr == nil && res.dating.HasTickerValidity():
+		case res.knownInstr == nil && res.dating.ivs.Any():
 			res.datedFromFacts = true
 			res.decide(gen.ResolutionOutcomeMatched, "")
 		}
@@ -148,12 +161,20 @@ func (r *Resolver) fetchResolutionFacts(ctx context.Context, run gen.Run, rs []*
 			if q, ok := chainRequest(res, server, market.History(w, now)); ok {
 				add(q)
 			}
-			d, ok := res.dating.FirstUnconfirmed(res.dates)
+			d, ok := res.dating.ivs.FirstUnconfirmed(res.dates)
 			if !ok {
 				continue
 			}
 			day := market.LookupDay(d, w, now)
-			if !day.Before(today) || res.dating.Asserted(day) {
+			if !day.Before(today) {
+				continue
+			}
+			t := res.dating.ticker
+			asserted, err := r.store.TickerAssertedOn(ctx, gen.TickerAssertedOnParams{Market: t.Market, Value: t.Value, Day: day})
+			if err != nil {
+				return nil, fmt.Errorf("check the assertions of %s: %w", t.Name(), err)
+			}
+			if asserted {
 				continue
 			}
 			add(market.IdentifierFactRequest{Identifier: res.via, Period: types.OneDay(day)})
@@ -391,11 +412,10 @@ func (w *writtenSet) tickers() []types.MarketTicker {
 // coverage. An overruled edge names the edge's. An edge that an identifier
 // attestation overrules is not reported.
 func conflicts(ctx context.Context, q Queries, v types.MarketTicker, mine map[uuid.UUID]bool) ([]gen.CreateFindingParams, error) {
-	f, err := tickervalidity.Read(ctx, q, v)
+	d, err := tickervalidity.Diagnose(ctx, q, v)
 	if err != nil {
 		return nil, fmt.Errorf("read the facts of %s: %w", v.Name(), err)
 	}
-	d := tickervalidity.Derive(f)
 	var out []gen.CreateFindingParams
 	for _, dis := range d.Disagreements {
 		if !mine[dis.Winner.Source.Answer] && !mine[dis.Loser.Source.Answer] {

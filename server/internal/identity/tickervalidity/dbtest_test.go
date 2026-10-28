@@ -99,11 +99,14 @@ func (f *fixture) exec(t *testing.T, sql string, args ...any) {
 	require.NoError(t, err)
 }
 
+// of rebuilds foo's ticker validity and reads it back from the table.
 func (f *fixture) of(t *testing.T) []Interval {
 	t.Helper()
-	ivs, err := Of(context.Background(), f.q, f.foo)
+	ctx := context.Background()
+	require.NoError(t, Rebuild(ctx, f.q, []uuid.UUID{dbtest.Ticker(t, f.q, f.foo).ID}))
+	read, err := Load(ctx, f.q, []types.MarketTicker{f.foo})
 	require.NoError(t, err)
-	return ivs
+	return read[f.foo]
 }
 
 func TestOfGreyZone(t *testing.T) {
@@ -255,38 +258,49 @@ func TestReadRowsOf(t *testing.T) {
 	}
 }
 
-// TestReadTicker checks that one read of a ticker's facts answers whether it
-// has ticker validity, which days hold an assertion, and the earliest date its
-// validity leaves unconfirmed.
-func TestReadTicker(t *testing.T) {
+// TestLoad checks that a ticker with no stored validity loads with no
+// intervals, and that a rebuild stores the intervals its facts imply.
+func TestLoad(t *testing.T) {
 	f := newFixture(t)
 	ctx := context.Background()
-	empty, err := ReadTicker(ctx, f.q, f.foo)
+	empty, err := Load(ctx, f.q, []types.MarketTicker{f.foo})
 	require.NoError(t, err)
-	if empty.HasTickerValidity() {
-		t.Errorf("a ticker with no facts has ticker validity %+v, want none", empty.Derived.Intervals)
+	if ivs, ok := empty[f.foo]; !ok || ivs.Any() {
+		t.Errorf("Load of a ticker with no facts = %v, %v, want it present with no intervals", ivs, ok)
 	}
 	f.asserts(t, f.alpha, 1, &f.a)
 	f.asserts(t, f.alpha, 5, &f.a)
-	tk, err := ReadTicker(ctx, f.q, f.foo)
+	want := []Interval{provisional(nil, at(1), f.a), confirmed(at(1), at(6), f.a), provisional(at(6), nil, f.a)}
+	if diff := cmp.Diff(want, f.of(t)); diff != "" {
+		t.Errorf("Load mismatch (-want +got):\n%s", diff)
+	}
+}
+
+// TestTickerAssertedOn checks that a day holds an assertion whatever it names
+// and whoever made it.
+func TestTickerAssertedOn(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	f.asserts(t, f.alpha, 1, &f.a)
+	f.asserts(t, f.alpha, 3, nil)
+	run, err := f.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), Kind: gen.RunKindAttestIdentifier, Trigger: gen.RunTriggerAdministrator})
 	require.NoError(t, err)
-	if !tk.HasTickerValidity() || tk.Ticker != f.foo {
-		t.Errorf("ticker = %+v, want ticker validity for %s", tk, f.foo.Name())
-	}
-	if !tk.Asserted(day(5)) || tk.Asserted(day(3)) {
-		t.Errorf("Asserted(5) = %v, Asserted(3) = %v, want only the asserted day", tk.Asserted(day(5)), tk.Asserted(day(3)))
-	}
-	if got, ok := tk.FirstUnconfirmed([]time.Time{day(3), day(9), day(7)}); !ok || !got.Equal(day(7)) {
-		t.Errorf("FirstUnconfirmed = %s, %v, want day 7: days 1 to 5 are bracketed", got, ok)
-	}
-	if _, ok := tk.FirstUnconfirmed([]time.Time{day(2), day(4)}); ok {
-		t.Errorf("FirstUnconfirmed of bracketed days reported one, want none")
+	require.NoError(t, f.q.CreateIdentifierAssertion(ctx, gen.CreateIdentifierAssertionParams{
+		ID: db.NewID(), RunID: &run.ID, AttestedBy: &f.attestedBy.ID, TickerID: dbtest.Ticker(t, f.q, f.foo).ID, Market: f.foo.Market,
+		InstrID: &f.a, AssertedFrom: day(5), AssertedBefore: day(6),
+	}))
+	for d, want := range map[int]bool{1: true, 2: false, 3: true, 5: true, 6: false} {
+		got, err := f.q.TickerAssertedOn(ctx, gen.TickerAssertedOnParams{Market: f.foo.Market, Value: f.foo.Value, Day: day(d)})
+		require.NoError(t, err)
+		if got != want {
+			t.Errorf("TickerAssertedOn(day %d) = %v, want %v", d, got, want)
+		}
 	}
 }
 
 // TestReadTickersAcrossVenues checks that a ticker stated at two venues of
-// one market reads one set of facts: the assertions of the ticker and the
-// assertion coverage of the market.
+// one market has one ticker validity, and reads one set of facts: the
+// assertions of the ticker and the assertion coverage of the market.
 func TestReadTickersAcrossVenues(t *testing.T) {
 	f := newFixture(t)
 	ctx := context.Background()
@@ -306,10 +320,11 @@ func TestReadTickersAcrossVenues(t *testing.T) {
 		require.True(t, ok)
 		keys = append(keys, mt)
 	}
-	read, err := ReadTickers(ctx, f.q, keys)
+	require.NoError(t, Rebuild(ctx, f.q, []uuid.UUID{dbtest.Ticker(t, f.q, f.foo).ID}))
+	read, err := Load(ctx, f.q, keys)
 	require.NoError(t, err)
-	if len(read) != 1 || read[f.foo] == nil {
-		t.Fatalf("ReadTickers = %v, want one ticker, %s", read, f.foo.Name())
+	if len(read) != 1 || !read[f.foo].Any() {
+		t.Fatalf("Load = %v, want ticker validity for one ticker, %s", read, f.foo.Name())
 	}
 	rows, err := ReadRows(ctx, f.q, f.foo)
 	require.NoError(t, err)

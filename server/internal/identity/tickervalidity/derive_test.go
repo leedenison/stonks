@@ -346,7 +346,7 @@ func TestDerive(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			got := Derive(tc.facts)
-			if diff := cmp.Diff(tc.want, got.Intervals); diff != "" {
+			if diff := cmp.Diff(tc.want, []Interval(got.Intervals)); diff != "" {
 				t.Errorf("Derive(%+v) intervals mismatch (-want +got):\n%s", tc.facts, diff)
 			}
 			if diff := cmp.Diff(tc.wantInferred, got.Inferred); diff != "" {
@@ -384,7 +384,7 @@ func TestGaps(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			if diff := cmp.Diff(tc.want, Gaps(ivs, tc.p)); diff != "" {
+			if diff := cmp.Diff(tc.want, Intervals(ivs).Gaps(tc.p)); diff != "" {
 				t.Errorf("Gaps(%v) mismatch (-want +got):\n%s", tc.p, diff)
 			}
 		})
@@ -408,9 +408,9 @@ func TestOn(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got, ok := on(ivs, tc.day)
+			got, ok := Intervals(ivs).On(tc.day)
 			if ok != tc.wantOK || !cmp.Equal(got, tc.want) {
-				t.Errorf("on(%s) = %+v, %v, want %+v, %v", tc.day.Format(time.DateOnly), got, ok, tc.want, tc.wantOK)
+				t.Errorf("On(%s) = %+v, %v, want %+v, %v", tc.day.Format(time.DateOnly), got, ok, tc.want, tc.wantOK)
 			}
 		})
 	}
@@ -432,9 +432,9 @@ func TestFirstUnconfirmed(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got, ok := firstUnconfirmed(ivs, tc.dates)
+			got, ok := Intervals(ivs).FirstUnconfirmed(tc.dates)
 			if ok != tc.wantOK || !got.Equal(tc.want) {
-				t.Errorf("firstUnconfirmed(%v) = %s, %v, want %s, %v", tc.dates, got, ok, tc.want, tc.wantOK)
+				t.Errorf("FirstUnconfirmed(%v) = %s, %v, want %s, %v", tc.dates, got, ok, tc.want, tc.wantOK)
 			}
 		})
 	}

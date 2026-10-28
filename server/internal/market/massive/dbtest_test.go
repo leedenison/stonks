@@ -131,8 +131,9 @@ func TestFactsRecord(t *testing.T) {
 		for _, tc := range tests {
 			mt, ok := tbl.MarketTicker(ticker(dom, tc.ticker))
 			require.True(t, ok)
-			ivs, err := tickervalidity.Of(ctx, q, mt)
+			stored, err := tickervalidity.Load(ctx, q, []types.MarketTicker{mt})
 			require.NoError(t, err)
+			ivs := stored[mt]
 			if got := confirmed(ivs, instr.ID, tc.on); got != tc.want {
 				t.Errorf("%s:%s confirmed for Meta on %s = %v, want %v", dom, tc.ticker, tc.on.Format(time.DateOnly), got, tc.want)
 			}

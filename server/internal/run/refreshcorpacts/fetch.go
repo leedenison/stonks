@@ -51,14 +51,14 @@ func (s *Service) FetchAfterIdentifierFacts(ctx context.Context, parent gen.Run,
 	if len(ts) == 0 {
 		return
 	}
-	read, err := tickervalidity.ReadTickers(ctx, s.queries, ts)
+	read, err := tickervalidity.Load(ctx, s.queries, ts)
 	if err != nil {
 		s.log.Warn("corporate actions fetch after new identifier facts failed", "run", parent.ID, "err", err)
 		return
 	}
 	named := map[uuid.UUID]bool{}
-	for _, t := range read {
-		for _, iv := range t.Derived.Intervals {
+	for _, ivs := range read {
+		for _, iv := range ivs {
 			named[iv.Instr] = true
 		}
 	}

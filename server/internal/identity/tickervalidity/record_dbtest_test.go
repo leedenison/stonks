@@ -104,10 +104,10 @@ func TestRecord(t *testing.T) {
 	if diff := cmp.Diff(want, f.of(t)); diff != "" {
 		t.Errorf("Of(new ticker) mismatch (-want +got):\n%s", diff)
 	}
-	oldOf, err := Of(ctx, f.q, old)
+	stored, err := Load(ctx, f.q, []types.MarketTicker{old})
 	require.NoError(t, err)
 	want = []Interval{provisional(nil, at(1), f.a), confirmed(at(1), at(10), f.a)}
-	if diff := cmp.Diff(want, oldOf); diff != "" {
+	if diff := cmp.Diff(want, []Interval(stored[old])); diff != "" {
 		t.Errorf("Of(old ticker) mismatch (-want +got):\n%s", diff)
 	}
 	asserted, err := f.q.ListFetchKeyAssertions(ctx, &k.ID)
@@ -192,16 +192,20 @@ func TestRecordCreates(t *testing.T) {
 }
 
 // TestRecordMarketAssertionCoverage checks that a period of assertion coverage
-// of a market confirms a ticker of it that another fetch asserted.
+// of a market confirms a ticker of it that another fetch asserted. The key
+// that records the coverage is for the whole market. Record therefore
+// rebuilds every ticker of the market, foo among them.
 func TestRecordMarketAssertionCoverage(t *testing.T) {
 	f := newFixture(t)
 	f.asserts(t, f.alpha, 5, &f.a)
 	nyse := types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XNYS"}
 	k := f.served(t, nyse, market.IdentifierFactResult{AssertionCoverage: []market.AssertionCoverage{{Market: "US", Period: types.Period{From: day(1), Before: day(20)}}}})
 	require.NoError(t, f.record(t, []factKey{k}))
+	stored, err := Load(context.Background(), f.q, []types.MarketTicker{f.foo})
+	require.NoError(t, err)
 	want := []Interval{provisional(nil, at(1), f.a), confirmed(at(1), at(20), f.a), provisional(at(20), nil, f.a)}
-	if diff := cmp.Diff(want, f.of(t)); diff != "" {
-		t.Errorf("Of mismatch (-want +got):\n%s", diff)
+	if diff := cmp.Diff(want, []Interval(stored[f.foo])); diff != "" {
+		t.Errorf("stored ticker validity mismatch (-want +got):\n%s", diff)
 	}
 }
 

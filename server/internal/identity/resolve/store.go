@@ -17,7 +17,9 @@ import (
 // Queries is this package's view of the generated queries.
 type Queries interface {
 	tickervalidity.FactQueries
+	tickervalidity.ValidityQueries
 	tickervalidity.RecordQueries
+	TickerAssertedOn(ctx context.Context, arg gen.TickerAssertedOnParams) (bool, error)
 	tickers.Queries
 	ListTickersOfInstrs(ctx context.Context, instrIds []uuid.UUID) ([]uuid.UUID, error)
 	SetStatedKeyDatedAssociation(ctx context.Context, arg gen.SetStatedKeyDatedAssociationParams) (int64, error)

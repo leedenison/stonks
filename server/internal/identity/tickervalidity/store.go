@@ -16,15 +16,6 @@ type FactQueries interface {
 
 var _ FactQueries = (*gen.Queries)(nil)
 
-// Of reads the facts of t and derives its intervals.
-func Of(ctx context.Context, q FactQueries, t types.MarketTicker) ([]Interval, error) {
-	f, err := Read(ctx, q, t)
-	if err != nil {
-		return nil, err
-	}
-	return Derive(f).Intervals, nil
-}
-
 // Rows is a ticker's facts as the queries return them, with the source of
 // each assertion and assertion coverage.
 type Rows struct {
@@ -32,14 +23,47 @@ type Rows struct {
 	AssertionCoverage []gen.ListIdentifierAssertionCoverageRow
 }
 
-// Read reads the facts of t: its assertions, and the assertion coverage of the
-// ticker and of its market.
-func Read(ctx context.Context, q FactQueries, t types.MarketTicker) (Facts, error) {
+// Diagnose reads the facts of t and returns the conflicts among them.
+func Diagnose(ctx context.Context, q FactQueries, t types.MarketTicker) (Diagnosis, error) {
 	rows, err := ReadRows(ctx, q, t)
 	if err != nil {
-		return Facts{}, err
+		return Diagnosis{}, err
 	}
-	return rows.Facts(), nil
+	return Derive(rows.Facts()).Diagnosis, nil
+}
+
+// ValidityQueries read stored ticker validity.
+type ValidityQueries interface {
+	ListTickerValidity(ctx context.Context, arg gen.ListTickerValidityParams) ([]gen.ListTickerValidityRow, error)
+}
+
+var _ ValidityQueries = (*gen.Queries)(nil)
+
+// Load reads the stored ticker validity of each of ts, with one query however
+// many tickers there are. Each of ts is in the result. A ticker that names
+// nothing on any day has empty Intervals.
+func Load(ctx context.Context, q ValidityQueries, ts []types.MarketTicker) (map[types.MarketTicker]Intervals, error) {
+	out := make(map[types.MarketTicker]Intervals, len(ts))
+	var arg gen.ListTickerValidityParams
+	for _, t := range ts {
+		if _, seen := out[t]; seen {
+			continue
+		}
+		out[t] = nil
+		arg.Markets, arg.Values = append(arg.Markets, t.Market), append(arg.Values, t.Value)
+	}
+	if len(out) == 0 {
+		return out, nil
+	}
+	rows, err := q.ListTickerValidity(ctx, arg)
+	if err != nil {
+		return nil, fmt.Errorf("list ticker validity: %w", err)
+	}
+	for _, r := range rows {
+		t := types.MarketTicker{Market: r.Market, Value: r.Value}
+		out[t] = append(out[t], Interval{From: r.ValidFrom, Before: r.ValidBefore, Instr: r.InstrID, Validity: r.Validity})
+	}
+	return out, nil
 }
 
 // ReadRows reads the assertion and assertion coverage rows of t.

@@ -145,8 +145,9 @@ func TestOverlappingAttestations(t *testing.T) {
 		t.Errorf("assertions mismatch (-want +got):\n%s", diff)
 	}
 	names := func() []uuid.UUID {
-		ivs, err := tickervalidity.Of(ctx, s.q, s.v)
+		stored, err := tickervalidity.Load(ctx, s.q, []types.MarketTicker{s.v})
 		require.NoError(t, err)
+		ivs := stored[s.v]
 		var out []uuid.UUID
 		for _, d := range []int{3, 6, 9} {
 			for _, iv := range ivs {

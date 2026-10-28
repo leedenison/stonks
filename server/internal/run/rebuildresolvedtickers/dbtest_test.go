@@ -13,6 +13,7 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/identity/tickervalidity"
 	"github.com/leedenison/stonks/server/internal/platform/ptr"
 	"github.com/leedenison/stonks/server/internal/testutil/dbtest"
 	"github.com/leedenison/stonks/server/internal/testutil/runtest"
@@ -105,8 +106,9 @@ func TestRebuildBatches(t *testing.T) {
 	}
 }
 
-// TestRebuildFollowsPrecedence checks that a run after a reorder of the
-// datasources names the instrument that the datasource now first states.
+// TestRebuildFollowsPrecedence checks that a reorder of the datasources
+// leaves the stored ticker validity as it was, and that a run after it names
+// the instrument that the datasource now first states.
 func TestRebuildFollowsPrecedence(t *testing.T) {
 	s := newStack(t)
 	ctx := context.Background()
@@ -136,13 +138,30 @@ func TestRebuildFollowsPrecedence(t *testing.T) {
 	}
 	asserts(alpha, 1000, a)
 	asserts(beta, 1001, b)
+	on := func() uuid.UUID {
+		t.Helper()
+		stored, err := tickervalidity.Load(ctx, s.q, []types.MarketTicker{{Market: tk.Market, Value: tk.Value}})
+		require.NoError(t, err)
+		iv, ok := stored[types.MarketTicker{Market: tk.Market, Value: tk.Value}].On(day(1))
+		require.True(t, ok, "the ticker has no stored ticker validity on day 1")
+		return iv.Instr
+	}
 	s.rebuild(t)
 	if got := s.named(t, a, b)[tk.ID]; got != a {
 		t.Fatalf("before the reorder the ticker names %s, want %s", got, a)
 	}
+	if got := on(); got != a {
+		t.Fatalf("before the reorder the stored ticker validity names %s, want %s", got, a)
+	}
 	require.NoError(t, s.q.SetDatasourcePrecedence(ctx, []string{beta, alpha}))
+	if got := on(); got != a {
+		t.Errorf("before the run the stored ticker validity names %s, want %s", got, a)
+	}
 	s.rebuild(t)
 	if got := s.named(t, a, b)[tk.ID]; got != b {
 		t.Errorf("after the reorder the ticker names %s, want %s", got, b)
+	}
+	if got := on(); got != b {
+		t.Errorf("after the reorder the stored ticker validity names %s, want %s", got, b)
 	}
 }

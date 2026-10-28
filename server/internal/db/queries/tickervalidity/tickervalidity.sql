@@ -214,3 +214,40 @@ FROM resolved_tickers
 JOIN tickers ON tickers.id = resolved_tickers.ticker_id
 WHERE resolved_tickers.instr_id = ANY(@instr_ids::uuid[])
 ORDER BY resolved_tickers.instr_id, resolved_tickers.market, resolved_tickers.venue NULLS FIRST;
+
+-- name: DeleteTickerValidity :exec
+DELETE FROM ticker_validity WHERE ticker_id = ANY(@ticker_ids::uuid[]);
+
+-- name: CreateTickerValidity :exec
+-- The bounds are ISO dates. An empty bound is stored as NULL, which is open.
+INSERT INTO ticker_validity (ticker_id, market, instr_id, valid_from, valid_before, validity)
+SELECT r.ticker_id, r.market, r.instr_id, NULLIF(r.valid_from, '')::date,
+       NULLIF(r.valid_before, '')::date, r.validity::validity
+FROM (SELECT unnest(@ticker_ids::uuid[]) AS ticker_id, unnest(@markets::text[]) AS market,
+             unnest(@instr_ids::uuid[]) AS instr_id, unnest(@valid_froms::text[]) AS valid_from,
+             unnest(@valid_befores::text[]) AS valid_before,
+             unnest(@validities::text[]) AS validity) AS r;
+
+-- name: ListTickerValidity :many
+-- Lists the ranges of each ticker whose market and value the arrays hold at
+-- one index, in order of their start. An open start sorts first.
+SELECT tickers.market, tickers.value, ticker_validity.instr_id, ticker_validity.valid_from,
+       ticker_validity.valid_before, ticker_validity.validity
+FROM (SELECT unnest(@markets::text[]) AS market, unnest(@values::text[]) AS value) AS asked
+JOIN tickers ON tickers.market = asked.market AND tickers.value = asked.value
+JOIN ticker_validity ON ticker_validity.ticker_id = tickers.id
+ORDER BY tickers.market, tickers.value, ticker_validity.valid_from NULLS FIRST;
+
+-- name: ListMarketTickerIDs :many
+SELECT id FROM tickers WHERE market = ANY(@markets::text[]) ORDER BY id;
+
+-- name: TickerAssertedOn :one
+-- Reports whether any identifier assertion of the ticker holds the day,
+-- whatever it names and whoever made it.
+SELECT EXISTS (
+    SELECT 1 FROM identifier_assertions
+    JOIN tickers ON tickers.id = identifier_assertions.ticker_id
+    WHERE tickers.market = @market AND tickers.value = @value
+      AND identifier_assertions.asserted_from <= @day::date
+      AND @day::date < identifier_assertions.asserted_before
+)::boolean;

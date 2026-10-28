@@ -38,7 +38,7 @@ type Confirmer interface {
 // Reader is this package's view of the statement queries. It embeds the
 // ticker validity queries, which mark reads for dated keys.
 type Reader interface {
-	tickervalidity.FactQueries
+	tickervalidity.ValidityQueries
 	tickers.Queries
 	ListStmts(ctx context.Context, userID uuid.UUID) ([]gen.ListStmtsRow, error)
 	GetStmt(ctx context.Context, arg gen.GetStmtParams) (gen.GetStmtRow, error)
@@ -270,17 +270,14 @@ func (s *Server) txns(ctx context.Context, id, user uuid.UUID) ([]*stmtv1.Txn, e
 			ts = append(ts, t)
 		}
 	}
-	read, err := tickervalidity.ReadTickers(ctx, s.reader, ts)
+	read, err := tickervalidity.Load(ctx, s.reader, ts)
 	if err != nil {
-		return nil, fmt.Errorf("read the facts of the dated keys' tickers: %w", err)
+		return nil, fmt.Errorf("read the ticker validity of the dated keys' tickers: %w", err)
 	}
 	out := make([]*stmtv1.Txn, 0, len(rows))
 	for _, r := range rows {
-		var t *tickervalidity.Ticker
-		if v, _, ok := tickers.Dated(r.StatedKey, dated); ok {
-			t = read[v]
-		}
-		out = append(out, to.ProtoTxn(r.Txn, mark(r.StatedKey.Arbiter, r.FixedViaType, t, r.Txn.AsAt)))
+		v, _, isDated := tickers.Dated(r.StatedKey, dated)
+		out = append(out, to.ProtoTxn(r.Txn, mark(r.StatedKey.Arbiter, r.FixedViaType, isDated, read[v], r.Txn.AsAt)))
 	}
 	return out, nil
 }

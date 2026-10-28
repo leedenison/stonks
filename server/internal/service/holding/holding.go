@@ -7,7 +7,7 @@
 // instrument. A holding whose total is zero is left out.
 //
 // A dated key's transactions take the instrument its ticker names on their
-// as-at dates, derived from the ticker's facts at each read; see package
+// as-at dates, as the stored ticker validity states it; see package
 // tickervalidity. A transaction dated when its ticker names nothing is summed
 // into its key's group, beside the unresolved keys. One key may therefore sit
 // under several holdings, with the sum of its transactions under each.
@@ -45,7 +45,7 @@ import (
 // Reader is this package's view of the holdings queries. It embeds the fact
 // queries, which give a dated key's transactions their instruments.
 type Reader interface {
-	tickervalidity.FactQueries
+	tickervalidity.ValidityQueries
 	tickers.Queries
 	ListInstrsByID(ctx context.Context, ids []uuid.UUID) ([]gen.Instr, error)
 	ListIdentifiersOf(ctx context.Context, ids []uuid.UUID) ([]gen.Identifier, error)

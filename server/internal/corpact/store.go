@@ -32,7 +32,7 @@ type Queries interface {
 	DeleteCorpActs(ctx context.Context, ids []uuid.UUID) error
 	ListDisagreedCorpActs(ctx context.Context, ids []uuid.UUID) ([]uuid.UUID, error)
 	CreateFinding(ctx context.Context, arg gen.CreateFindingParams) error
-	tickervalidity.FactQueries
+	tickervalidity.ValidityQueries
 	tickers.Queries
 	ListStatedSplits(ctx context.Context, arg gen.ListStatedSplitsParams) ([]gen.ListStatedSplitsRow, error)
 	ListTickersNaming(ctx context.Context, instrs []uuid.UUID) ([]gen.ListTickersNamingRow, error)

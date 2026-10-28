@@ -1,5 +1,5 @@
 // Rebuilding resolved tickers: runs an administrator starts to rebuild the
-// names of every ticker.
+// ticker validity and names of every ticker.
 
 syntax = "proto3";
 
