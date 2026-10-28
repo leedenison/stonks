@@ -16,7 +16,8 @@ ticker validity, and a fixed key names it. The split matches when the calendar h
 corporate action for the same instrument within 7 calendar days either side, with an equal
 ratio where the statement states one. Otherwise the run records an `unmatched_split`
 finding that references the stated key. The window counts calendar days because the system
-does not hold a trading calendar. A stated split on an option is skipped.
+does not hold a trading calendar. A stated split is skipped when corporate actions do not
+restate its instrument's class, such as an option.
 
 The calendar holds the corporate actions of every datasource and market, under each ticker
 that named the instrument on the corporate action's ex-date. The check asks whether any datasource

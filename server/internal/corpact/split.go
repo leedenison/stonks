@@ -171,7 +171,8 @@ func coverage(ctx context.Context, q Queries, recorded []recordedKey, read map[t
 }
 
 // coveredSplits returns the stated splits whose date falls inside one of
-// covers, grouped by key and day, with options removed. A dated key counts
+// covers, grouped by key and day. It leaves out a split of an instrument
+// whose class corporate actions do not restate. A dated key counts
 // only when its ticker is one of ts.
 func (r *Recorder) coveredSplits(ctx context.Context, q Queries, user *uuid.UUID, ts []types.MarketTicker, covers []cover) ([]splitGroup, error) {
 	if len(covers) == 0 {
@@ -214,11 +215,12 @@ func (r *Recorder) coveredSplits(ctx context.Context, q Queries, user *uuid.UUID
 			}
 		}
 	}
-	return withoutOptions(ctx, q, groups)
+	return restatedOnly(ctx, q, groups)
 }
 
-// withoutOptions returns groups with those of options removed.
-func withoutOptions(ctx context.Context, q Queries, groups []splitGroup) ([]splitGroup, error) {
+// restatedOnly returns the groups of instruments whose class corporate
+// actions restate.
+func restatedOnly(ctx context.Context, q Queries, groups []splitGroup) ([]splitGroup, error) {
 	if len(groups) == 0 {
 		return nil, nil
 	}
@@ -230,13 +232,11 @@ func withoutOptions(ctx context.Context, q Queries, groups []splitGroup) ([]spli
 	if err != nil {
 		return nil, fmt.Errorf("list instruments: %w", err)
 	}
-	options := map[uuid.UUID]bool{}
+	restated := map[uuid.UUID]bool{}
 	for _, row := range rows {
-		if row.AssetClass == types.AssetClassOption {
-			options[row.ID] = true
-		}
+		restated[row.ID] = row.AssetClass.Restated()
 	}
-	return slices.DeleteFunc(groups, func(g splitGroup) bool { return options[g.instr] }), nil
+	return slices.DeleteFunc(groups, func(g splitGroup) bool { return !restated[g.instr] }), nil
 }
 
 // calendar returns the corporate actions of each of instruments: those of

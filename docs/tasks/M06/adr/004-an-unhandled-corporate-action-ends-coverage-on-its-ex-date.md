@@ -20,9 +20,10 @@ raises a `corp_act_disagreement` finding.
 
 Every other corporate action is unhandled. The fetch stores it with its raw type and ratio and
 marks it unhandled. Holdings skip it. The fetch records an `unhandled_corp_act`
-finding, which references the stored row. The corporate action also removes the coverage of
-its ticker on its ex-date. A holding across the ex-date shows its raw quantity, marked as
-unadjusted.
+finding, which references the stored row. The corporate action also removes coverage on its
+ex-date from every datasource and market of the instrument that its ticker names on that
+day. Another market's answer that lacks the action therefore cannot cover the day. A
+holding across the ex-date shows its raw quantity, marked as unadjusted.
 
 ## Considered options
 

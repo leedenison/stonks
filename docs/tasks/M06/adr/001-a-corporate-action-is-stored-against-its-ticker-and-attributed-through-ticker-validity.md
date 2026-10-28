@@ -19,7 +19,9 @@ validity attributes to that instrument.
 
 Each transaction is restated from one datasource and one market. They are the first
 datasource by precedence, and a market, whose coverage of the tickers that named the
-instrument in that market spans the period from the transaction's as-at date to today.
+instrument in that market spans the period from the day after the transaction's as-at date
+to today. A transaction already reflects the corporate actions of its as-at date; see
+[002](002-a-transaction-reflects-corporate-actions-up-to-its-as-at-date.md).
 Two datasources, or two markets, never contribute corporate actions to one transaction.
 When no datasource and market span the period, the transaction is uncovered.
 
