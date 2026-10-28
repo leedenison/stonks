@@ -156,7 +156,7 @@ func (r *Resolver) fetchResolutionFacts(ctx context.Context, run gen.Run, rs []*
 			if !day.Before(today) || res.dating.Asserted(day) {
 				continue
 			}
-			add(market.IdentifierFactRequest{Identifier: res.via, Period: types.Period{From: day, Before: day.AddDate(0, 0, 1)}})
+			add(market.IdentifierFactRequest{Identifier: res.via, Period: types.OneDay(day)})
 		}
 	}
 	keys := make([][]factKey, len(entries))
@@ -401,38 +401,47 @@ func conflicts(ctx context.Context, q Queries, v types.MarketTicker, mine map[uu
 		if !mine[dis.Winner.Source.FetchKey] && !mine[dis.Loser.Source.FetchKey] {
 			continue
 		}
-		detail := fmt.Sprintf("%s on %s: %s named %s and %s named %s; %s was kept",
-			v.Name(), dis.On.Format(time.DateOnly), dis.Winner.Source.Datasource, named(dis.Winner.Instr),
+		detail := fmt.Sprintf("%s %s: %s named %s and %s named %s; %s was kept",
+			v.Name(), days(dis.Period), dis.Winner.Source.Datasource, named(dis.Winner.Instr),
 			dis.Loser.Source.Datasource, named(dis.Loser.Instr), dis.Winner.Source.Datasource)
 		out = append(out, gen.CreateFindingParams{Kind: gen.FindingKindIdentifierDisagreement, FetchKeyID: ptr.To(dis.Loser.Source.FetchKey), Detail: &detail})
 	}
 	for _, br := range d.Broken {
-		key := br.Edge.Source.FetchKey
+		key := br.Edge.Assertion.Source.FetchKey
 		if !mine[key] {
 			continue
 		}
-		detail := fmt.Sprintf("%s: a %s edge on %s cuts between assertions of %s on %s and %s",
-			v.Name(), br.Edge.Edge, br.Edge.At.Format(time.DateOnly), br.Instr, br.First.Format(time.DateOnly), br.Last.Format(time.DateOnly))
+		detail := fmt.Sprintf("%s: an edge at the start of %s cuts between assertions of %s on %s and %s",
+			v.Name(), br.Edge.At.Format(time.DateOnly), br.Instr, br.First.Format(time.DateOnly), br.Last.Format(time.DateOnly))
 		out = append(out, gen.CreateFindingParams{Kind: gen.FindingKindBrokenTickerValidityBracket, FetchKeyID: ptr.To(key), Detail: &detail})
 	}
 	for _, m := range d.Missed {
 		if !mine[m.By.Source.FetchKey] && !mine[m.Inferred.Earlier.Source.FetchKey] && !mine[m.Inferred.Later.Source.FetchKey] {
 			continue
 		}
-		detail := fmt.Sprintf("%s: assertions on %s and %s imply a change between them, and %s reported no edge from %s to %s",
-			v.Name(), m.Inferred.Earlier.At.Format(time.DateOnly), m.Inferred.Later.At.Format(time.DateOnly),
+		detail := fmt.Sprintf("%s: assertions %s and %s imply a change between them, and %s reported no edge from %s to %s",
+			v.Name(), days(m.Inferred.Earlier.Period), days(m.Inferred.Later.Period),
 			m.By.Source.Datasource, m.By.Period.From.Format(time.DateOnly), m.By.Period.Before.Format(time.DateOnly))
 		out = append(out, gen.CreateFindingParams{Kind: gen.FindingKindMissedEvent, FetchKeyID: ptr.To(m.By.Source.FetchKey), Detail: &detail})
 	}
 	for _, o := range d.Overruled {
-		if o.By[0].Attested || !mine[o.Edge.Source.FetchKey] && !slices.ContainsFunc(o.By, func(s tickervalidity.Source) bool { return mine[s.FetchKey] }) {
+		if o.By[0].Attested || !mine[o.Edge.Assertion.Source.FetchKey] && !slices.ContainsFunc(o.By, func(s tickervalidity.Source) bool { return mine[s.FetchKey] }) {
 			continue
 		}
-		detail := fmt.Sprintf("%s: a %s edge on %s is overruled by %s",
-			v.Name(), o.Edge.Edge, o.Edge.At.Format(time.DateOnly), o.By[0].Datasource)
-		out = append(out, gen.CreateFindingParams{Kind: gen.FindingKindOverruledEdge, FetchKeyID: ptr.To(o.Edge.Source.FetchKey), Detail: &detail})
+		detail := fmt.Sprintf("%s: an edge at the start of %s is overruled by %s",
+			v.Name(), o.Edge.At.Format(time.DateOnly), o.By[0].Datasource)
+		out = append(out, gen.CreateFindingParams{Kind: gen.FindingKindOverruledEdge, FetchKeyID: ptr.To(o.Edge.Assertion.Source.FetchKey), Detail: &detail})
 	}
 	return out, nil
+}
+
+// days formats p as "on" its day, or as "from" its first day "to" its last.
+func days(p types.Period) string {
+	last := p.Before.AddDate(0, 0, -1)
+	if last.Equal(p.From) {
+		return "on " + p.From.Format(time.DateOnly)
+	}
+	return "from " + p.From.Format(time.DateOnly) + " to " + last.Format(time.DateOnly)
 }
 
 // named returns the id of the instrument an assertion names, or "nothing"

@@ -13,6 +13,12 @@ func (p Period) Contains(d time.Time) bool {
 	return !d.Before(p.From) && d.Before(p.Before)
 }
 
+// OneDay returns the period that holds only the day of t.
+func OneDay(t time.Time) Period {
+	d := Day(t)
+	return Period{From: d, Before: d.AddDate(0, 0, 1)}
+}
+
 // Day returns the UTC day of t, as a UTC midnight.
 func Day(t time.Time) time.Time {
 	t = t.UTC()

@@ -86,12 +86,12 @@ func later(a, b *time.Time) int {
 	return a.Compare(*b)
 }
 
-// lastWon returns the day of t's latest winning assertion that names instr.
+// lastWon returns the latest day that an assertion naming instr won for t.
 func lastWon(t *Ticker, instr uuid.UUID) time.Time {
 	ws, _ := winners(t.Facts.Assertions)
 	for _, w := range slices.Backward(ws) {
 		if w.instr != nil && *w.instr == instr {
-			return w.at
+			return prev(w.before)
 		}
 	}
 	return time.Time{}
@@ -109,7 +109,7 @@ func stated(as []Assertion, instr uuid.UUID) []Stated {
 			named = append(named, a)
 		}
 	}
-	slices.SortStableFunc(named, func(a, b Assertion) int { return a.At.Compare(b.At) })
+	slices.SortStableFunc(named, func(a, b Assertion) int { return a.Period.From.Compare(b.Period.From) })
 	byVenue := map[string]string{}
 	var venues []string
 	for _, a := range named {
