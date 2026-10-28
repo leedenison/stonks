@@ -237,7 +237,7 @@ func TestGetStmt(t *testing.T) {
 		{IdentifierAssertion: gen.IdentifierAssertion{Market: "US", AssertedOn: notFoundOn, FetchKeyID: ptr.To(uuid.New())}, Value: "META", Datasource: ptr.To("massive"), Precedence: ptr.To(int32(2))},
 		{IdentifierAssertion: gen.IdentifierAssertion{Market: "US", AssertedOn: renamed, InstrID: &metaInst, FetchKeyID: ptr.To(uuid.New()), Edge: ptr.To(gen.IdentifierEdgeFirst)}, Value: "META", Datasource: ptr.To("massive"), Precedence: ptr.To(int32(2))},
 	}
-	periods := []gen.ListIdentifierPeriodAssertionsRow{{Market: "US", Value: ptr.To("META"), AssertedFrom: facts.PeriodAssertions[0].Period.From, AssertedBefore: facts.PeriodAssertions[0].Period.Before}}
+	periods := []gen.ListIdentifierAssertionCoverageRow{{Market: "US", Value: ptr.To("META"), CoveredFrom: facts.AssertionCoverage[0].Period.From, CoveredBefore: facts.AssertionCoverage[0].Period.Before}}
 	txnMsgs := []*stmtv1.Txn{
 		{Id: txns[0].Txn.ID.String(), StatedKeyId: datedID.String(), OrderDate: "2021-06-01", Quantity: "10", Mark: stmtv1.TxnMark_TXN_MARK_UNRESOLVED},
 		{Id: txns[1].Txn.ID.String(), StatedKeyId: datedID.String(), OrderDate: "2024-01-16", Quantity: "10", Mark: stmtv1.TxnMark_TXN_MARK_CONFIRMED},
@@ -307,7 +307,7 @@ func TestGetStmt(t *testing.T) {
 					f.reader.EXPECT().ListTickersByID(gomock.Any(), []uuid.UUID{meta.ID}).Return([]gen.Ticker{meta}, nil)
 					f.reader.EXPECT().ListIdentifierAssertions(gomock.Any(), gen.ListIdentifierAssertionsParams{Markets: []string{"US"}, Values: []string{"META"}}).Return(assertions, tc.assertionsErr)
 					if tc.assertionsErr == nil {
-						f.reader.EXPECT().ListIdentifierPeriodAssertions(gomock.Any(), gen.ListIdentifierPeriodAssertionsParams{Markets: []string{"US"}, Values: []string{"META"}}).Return(periods, nil)
+						f.reader.EXPECT().ListIdentifierAssertionCoverage(gomock.Any(), gen.ListIdentifierAssertionCoverageParams{Markets: []string{"US"}, Values: []string{"META"}}).Return(periods, nil)
 					}
 				}
 			}

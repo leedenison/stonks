@@ -38,7 +38,7 @@ export function Timeline({ ticker }: { ticker: Ticker }) {
   };
 
   const datasources = [
-    ...new Set(ticker.periodAssertions.map((p) => p.datasource)),
+    ...new Set(ticker.assertionCoverage.map((p) => p.datasource)),
   ];
   const lanes: Lane[] = [
     {
@@ -143,14 +143,14 @@ export function Timeline({ ticker }: { ticker: Ticker }) {
       }),
     },
     ...datasources.map((ds) => ({
-      key: `period-${ds}`,
+      key: `coverage-${ds}`,
       label: ds,
-      children: ticker.periodAssertions
+      children: ticker.assertionCoverage
         .filter((p) => p.datasource === ds)
         .map((p, i) => (
           <rect
             key={i}
-            {...bar(p.assertedFrom, p.assertedBefore)}
+            {...bar(p.coveredFrom, p.coveredBefore)}
             y={4}
             height={laneHeight - 8}
             rx={2}
@@ -159,7 +159,7 @@ export function Timeline({ ticker }: { ticker: Ticker }) {
               p.value === undefined ? "fill-primary/25" : "fill-primary/55"
             }
           >
-            <title>{`${ds} reported every edge of ${p.value ?? p.market} ${p.assertedFrom} to ${p.assertedBefore}`}</title>
+            <title>{`${ds} reported every edge of ${p.value ?? p.market} ${p.coveredFrom} to ${p.coveredBefore}`}</title>
           </rect>
         )),
     })),

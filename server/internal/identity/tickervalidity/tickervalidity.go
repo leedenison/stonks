@@ -1,6 +1,6 @@
 // Package tickervalidity derives the ticker validity of a MIC_TICKER
 // identifier: the days over which it names one instrument. It derives ticker
-// validity from identifier assertions and period assertions each time it is
+// validity from identifier assertions and assertion coverage each time it is
 // read; see
 // [010_ticker_validity.sql](../../db/migrations/010_ticker_validity.sql). A
 // ticker's facts are read and written at its market, so a ticker stated at any
@@ -38,17 +38,17 @@
 // every day between them, on the assumption that the ticker never moved away
 // from the instrument and back.
 //
-// A confirmed range extends through period-asserted days, before and after
-// it, up to the nearest cut or the next assertion of anything else. Beyond
-// that, ticker validity extends provisionally forward to the same limit, or
-// without bound. It extends back provisionally only from the first assertion
+// A confirmed range extends through days of assertion coverage, before and
+// after it, up to the nearest cut or the next assertion of anything else.
+// Beyond that, ticker validity extends provisionally forward to the same limit,
+// or without bound. It extends back provisionally only from the first assertion
 // after a cut, or from the first assertion of all.
 //
 // Two consecutive winning assertions that name different things imply an
 // inferred change. It took effect at the start of a day after the earlier
-// assertion, and no later than the later one. Where the earlier assertion
-// names an instrument, that instrument keeps the days between: confirmed
-// where a period assertion holds them, and provisional elsewhere. The days
+// assertion, and no later than the later one. Where the earlier assertion names
+// an instrument, that instrument keeps the days between: confirmed where a
+// period of assertion coverage holds them, and provisional elsewhere. The days
 // between therefore name one instrument before and after the later assertion
 // arrives.
 package tickervalidity
@@ -146,17 +146,17 @@ type Assertion struct {
 	Stated Stated
 }
 
-// PeriodAssertion is one period over which a datasource reported every edge
-// of the ticker or of its market.
-type PeriodAssertion struct {
+// AssertionCoverage is one period of assertion coverage: the days over which a
+// datasource reported every edge of the ticker or of its market.
+type AssertionCoverage struct {
 	Period types.Period
 	Source Source
 }
 
 // Facts are the rows of one ticker.
 type Facts struct {
-	Assertions       []Assertion
-	PeriodAssertions []PeriodAssertion
+	Assertions        []Assertion
+	AssertionCoverage []AssertionCoverage
 }
 
 // Derived is what the facts of one ticker imply: its intervals, the changes
@@ -189,7 +189,7 @@ type BrokenBracket struct {
 
 // OverruledEdge is an edge that a stronger source overrules, so it does not
 // cut. By holds the source of each fact that overrules it: the two
-// assertions of a bracket, or the period assertion that holds the cut.
+// assertions of a bracket, or the assertion coverage that holds the cut.
 type OverruledEdge struct {
 	Edge Assertion
 	By   []Source
@@ -204,11 +204,11 @@ type Inferred struct {
 	Earlier, Later Assertion
 }
 
-// MissedEvent is an inferred change whose possible days the period
-// assertions hold in full. The datasource that made the period assertion did
+// MissedEvent is an inferred change whose possible days the assertion coverage
+// holds in full. The datasource that made the period of assertion coverage did
 // not report an edge on those days, and two assertions imply a change. By is
-// the period assertion that holds the first of the days.
+// the assertion coverage that holds the first of the days.
 type MissedEvent struct {
 	Inferred Inferred
-	By       PeriodAssertion
+	By       AssertionCoverage
 }

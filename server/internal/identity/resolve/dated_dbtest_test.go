@@ -90,7 +90,7 @@ func TestDated(t *testing.T) {
 			{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{share}}, At: renamed, Edge: gen.IdentifierEdgeFirst},
 			{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{share}}, At: on(2026, 3, 2)},
 		},
-		PeriodAssertions: []market.PeriodAssertion{{Market: mt(v).Market, Ticker: ptr.To(mt(v)), Period: types.Period{From: renamed, Before: on(2026, 3, 3)}}},
+		AssertionCoverage: []market.AssertionCoverage{{Market: mt(v).Market, Ticker: ptr.To(mt(v)), Period: types.Period{From: renamed, Before: on(2026, 3, 3)}}},
 	}
 	s.alphaFacts.Responses[v] = market.IdentifierFactResult{Assertions: []market.Assertion{
 		{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{other}, Class: types.AssetClassEtf, Currency: "USD"}, At: on(2021, 7, 1)},
@@ -334,9 +334,9 @@ func TestDisagreement(t *testing.T) {
 }
 
 // TestMissedEvent checks the finding when one datasource asserts two
-// instruments inside its own period assertion. The run that wrote the facts
-// records a missed event naming the period assertion's fetch key. A run that
-// only reads the facts records none.
+// instruments inside its own assertion coverage. The run that wrote the facts
+// records a missed event naming the fetch key of the assertion coverage. A run
+// that only reads the facts records none.
 func TestMissedEvent(t *testing.T) {
 	s := newStack(t)
 	v := id(types.IdentifierTypeMicTicker, "XNAS", "ZZM")
@@ -350,14 +350,14 @@ func TestMissedEvent(t *testing.T) {
 			{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{share}}, At: on(2023, 1, 2)},
 			{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{other}, Class: types.AssetClassStock, Currency: "USD"}, At: on(2023, 6, 1)},
 		},
-		PeriodAssertions: []market.PeriodAssertion{{Market: mt(v).Market, Ticker: ptr.To(mt(v)), Period: types.Period{From: on(2023, 1, 1), Before: on(2024, 2, 1)}}},
+		AssertionCoverage: []market.AssertionCoverage{{Market: mt(v).Market, Ticker: ptr.To(mt(v)), Period: types.Period{From: on(2023, 1, 1), Before: on(2024, 2, 1)}}},
 	}
 	key := s.state(t, types.AssetClassStock, "USD", v)
 	s.resolveOn(t, []time.Time{on(2024, 1, 16)}, key)
 	found := s.runFindings(t)
 	period := s.factFetchKey(t, s.alphaName, share)
 	if len(found) != 1 || found[0].Kind != gen.FindingKindMissedEvent || found[0].FetchKeyID == nil || *found[0].FetchKeyID != period.ID {
-		t.Errorf("findings = %+v, want one missed event naming the period assertion's fetch key %s", found, period.ID)
+		t.Errorf("findings = %+v, want one missed event naming the fetch key of the assertion coverage %s", found, period.ID)
 	}
 
 	s.rerun(t)
@@ -423,12 +423,12 @@ func TestOverruledEdge(t *testing.T) {
 			},
 		},
 		{
-			name:  "a period assertion of alpha in the run that writes the edge",
+			name:  "a period of assertion coverage of alpha in the run that writes the edge",
 			value: "ZZP",
 			alpha: func(share, v types.Identifier) market.IdentifierFactResult {
 				return market.IdentifierFactResult{
-					Assertions:       []market.Assertion{asserts(share, v, key, "")},
-					PeriodAssertions: []market.PeriodAssertion{{Market: mt(v).Market, Ticker: ptr.To(mt(v)), Period: types.Period{From: on(2023, 1, 1), Before: on(2024, 2, 1)}}},
+					Assertions:        []market.Assertion{asserts(share, v, key, "")},
+					AssertionCoverage: []market.AssertionCoverage{{Market: mt(v).Market, Ticker: ptr.To(mt(v)), Period: types.Period{From: on(2023, 1, 1), Before: on(2024, 2, 1)}}},
 				}
 			},
 			beta: func(share, v types.Identifier) market.IdentifierFactResult {

@@ -32,9 +32,10 @@ type Assertion struct {
 	Edge     gen.IdentifierEdge
 }
 
-// PeriodAssertion is a period over which a provider reported every edge of
-// Ticker, or of every ticker of Market where Ticker is nil.
-type PeriodAssertion struct {
+// AssertionCoverage is one period of assertion coverage: the days over which a
+// provider reported every edge of Ticker, or of every ticker of Market where
+// Ticker is nil.
+type AssertionCoverage struct {
 	Market string
 	Ticker *types.MarketTicker
 	Period types.Period
@@ -42,18 +43,19 @@ type PeriodAssertion struct {
 
 // IdentifierFactResult is what was returned for one request.
 type IdentifierFactResult struct {
-	Assertions       []Assertion
-	PeriodAssertions []PeriodAssertion
+	Assertions        []Assertion
+	AssertionCoverage []AssertionCoverage
 }
 
 // Tickers returns the tickers whose facts r states: the tickers of its
-// assertions, and the ticker of each period assertion of one ticker.
+// assertions, and the ticker of each period of assertion coverage of one
+// ticker.
 func (r IdentifierFactResult) Tickers() []types.MarketTicker {
 	var out []types.MarketTicker
 	for _, a := range r.Assertions {
 		out = append(out, a.Ticker)
 	}
-	for _, p := range r.PeriodAssertions {
+	for _, p := range r.AssertionCoverage {
 		if p.Ticker != nil {
 			out = append(out, *p.Ticker)
 		}
@@ -63,10 +65,10 @@ func (r IdentifierFactResult) Tickers() []types.MarketTicker {
 
 // IdentifierFacts is an integration that reports the identifier facts of
 // tickers or markets. Its Facts method returns the server, so one integration
-// can serve identity too. An integration reports each assertion and period
-// assertion once, for a market, across every operating MIC of that market. A
-// negative assertion or a period assertion is therefore a claim about the
-// whole market.
+// can serve identity too. An integration reports each assertion and each period
+// of assertion coverage once, for a market, across every operating MIC of that
+// market. A negative assertion or a period of assertion coverage is therefore a
+// claim about the whole market.
 type IdentifierFacts interface {
 	Integration
 	Facts() Server[IdentifierFactRequest, IdentifierFactResult]

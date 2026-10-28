@@ -134,23 +134,23 @@ CREATE UNIQUE INDEX identifier_attestations_day_idx ON identifier_assertions (ti
 CREATE INDEX identifier_assertions_run_idx ON identifier_assertions (run_id);
 CREATE INDEX identifier_assertions_instr_idx ON identifier_assertions (instr_id);
 
--- An identifier period assertion is a claim that a datasource reported every
--- edge of one ticker over a period, or of every ticker in a market where
--- ticker_id is NULL. Inside the period, the absence of an edge is a claim
--- that the ticker did not change. A row goes with its fetch key.
-CREATE TABLE identifier_period_assertions (
+-- A row of identifier assertion coverage is a claim that a datasource reported
+-- every edge of one ticker over a period, or of every ticker in a market where
+-- ticker_id is NULL. Inside the period, the absence of an edge is a claim that
+-- the ticker did not change. A row goes with its fetch key.
+CREATE TABLE identifier_assertion_coverage (
     id              uuid PRIMARY KEY,
     fetch_key_id    uuid NOT NULL REFERENCES fetch_keys (id) ON DELETE CASCADE,
     market          text NOT NULL REFERENCES markets (code),
     ticker_id       uuid,
-    asserted_from   date NOT NULL,
-    asserted_before date NOT NULL,
-    CHECK (asserted_from < asserted_before),
+    covered_from   date NOT NULL,
+    covered_before date NOT NULL,
+    CHECK (covered_from < covered_before),
     FOREIGN KEY (ticker_id, market) REFERENCES tickers (id, market)
 );
 
-CREATE INDEX identifier_period_assertions_ticker_idx ON identifier_period_assertions (market, ticker_id);
-CREATE INDEX identifier_period_assertions_fetch_key_idx ON identifier_period_assertions (fetch_key_id);
+CREATE INDEX identifier_assertion_coverage_ticker_idx ON identifier_assertion_coverage (market, ticker_id);
+CREATE INDEX identifier_assertion_coverage_fetch_key_idx ON identifier_assertion_coverage (fetch_key_id);
 
 -- A ticker relates to an instrument it named. 'current': it still names the
 -- instrument. 'defunct': it now names another instrument. 'former': it names

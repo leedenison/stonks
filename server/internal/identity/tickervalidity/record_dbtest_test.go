@@ -76,7 +76,7 @@ func (f *fixture) identify(t *testing.T, instr uuid.UUID, isin string) types.Ide
 }
 
 // TestRecord checks that the edge assertions of a rename, the other
-// assertions of the entity's chain and its period assertions are recorded
+// assertions of the entity's chain and its assertion coverage are recorded
 // from a served key, and derive the chain's ticker validity. A failed key
 // writes nothing, and neither does an assertion without a stable identifier.
 func TestRecord(t *testing.T) {
@@ -91,7 +91,7 @@ func TestRecord(t *testing.T) {
 			{Ticker: f.foo, Of: market.Listing{Identifiers: []types.Identifier{isin}}, At: day(10), Edge: gen.IdentifierEdgeFirst},
 			{Ticker: f.foo, Of: market.Listing{Identifiers: []types.Identifier{f.at}}, At: day(12)},
 		},
-		PeriodAssertions: []market.PeriodAssertion{
+		AssertionCoverage: []market.AssertionCoverage{
 			{Market: "US", Ticker: &old, Period: types.Period{From: day(1), Before: day(10)}},
 			{Market: "US", Ticker: &f.foo, Period: types.Period{From: day(10), Before: day(20)}},
 		},
@@ -190,13 +190,13 @@ func TestRecordCreates(t *testing.T) {
 	}
 }
 
-// TestRecordMarketPeriodAssertion checks that a period assertion of a market
-// confirms a ticker of it that another fetch asserted.
-func TestRecordMarketPeriodAssertion(t *testing.T) {
+// TestRecordMarketAssertionCoverage checks that a period of assertion coverage
+// of a market confirms a ticker of it that another fetch asserted.
+func TestRecordMarketAssertionCoverage(t *testing.T) {
 	f := newFixture(t)
 	f.asserts(t, f.alpha, 5, &f.a)
 	nyse := types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XNYS"}
-	k := f.served(t, nyse, market.IdentifierFactResult{PeriodAssertions: []market.PeriodAssertion{{Market: "US", Period: types.Period{From: day(1), Before: day(20)}}}})
+	k := f.served(t, nyse, market.IdentifierFactResult{AssertionCoverage: []market.AssertionCoverage{{Market: "US", Period: types.Period{From: day(1), Before: day(20)}}}})
 	require.NoError(t, f.record(t, []factKey{k}))
 	want := []Interval{provisional(nil, at(1), f.a), confirmed(at(1), at(20), f.a), provisional(at(20), nil, f.a)}
 	if diff := cmp.Diff(want, f.of(t)); diff != "" {
@@ -210,32 +210,32 @@ func TestRecordSpelling(t *testing.T) {
 	tests := []struct {
 		name   string
 		ticker types.MarketTicker
-		// market is the market of a period assertion of a whole market, in
-		// place of the assertion of ticker.
+		// market is the market of a period of assertion coverage of a whole
+		// market, in place of the assertion of ticker.
 		market string
 	}{
 		{name: "a class separator other than a dot", ticker: types.MarketTicker{Market: "US", Value: "BRK-B"}},
 		{name: "a venue in place of its market", ticker: types.MarketTicker{Market: "XNYS", Value: "SPY"}},
 		{name: "an unknown market", ticker: types.MarketTicker{Market: "NYSE", Value: "IBM"}},
-		{name: "a period assertion of an unknown market", market: "NYSE"},
+		{name: "a period of assertion coverage of an unknown market", market: "NYSE"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newFixture(t)
 			ctx := context.Background()
-			good := f.served(t, f.at, market.IdentifierFactResult{PeriodAssertions: []market.PeriodAssertion{{Market: "US", Ticker: &f.foo, Period: types.Period{From: day(1), Before: day(2)}}}})
+			good := f.served(t, f.at, market.IdentifierFactResult{AssertionCoverage: []market.AssertionCoverage{{Market: "US", Ticker: &f.foo, Period: types.Period{From: day(1), Before: day(2)}}}})
 			r := market.IdentifierFactResult{Assertions: []market.Assertion{{Ticker: tc.ticker, Negative: true, At: day(3), Edge: gen.IdentifierEdgeFirst}}}
 			if tc.market != "" {
-				r = market.IdentifierFactResult{PeriodAssertions: []market.PeriodAssertion{{Market: tc.market, Period: types.Period{From: day(1), Before: day(2)}}}}
+				r = market.IdentifierFactResult{AssertionCoverage: []market.AssertionCoverage{{Market: tc.market, Period: types.Period{From: day(1), Before: day(2)}}}}
 			}
 			bad := f.served(t, f.at, r)
 			if err := f.record(t, []factKey{good, bad}); !errors.Is(err, tickers.ErrSpelling) {
 				t.Fatalf("record() error = %v, want ErrSpelling", err)
 			}
 			var n int
-			require.NoError(t, f.tx.QueryRow(ctx, "SELECT count(*) FROM identifier_period_assertions WHERE fetch_key_id = $1", good.ID).Scan(&n))
+			require.NoError(t, f.tx.QueryRow(ctx, "SELECT count(*) FROM identifier_assertion_coverage WHERE fetch_key_id = $1", good.ID).Scan(&n))
 			if n != 0 {
-				t.Errorf("the good key wrote %d period assertions, want none", n)
+				t.Errorf("the good key wrote %d rows of assertion coverage, want none", n)
 			}
 			if found, err := tickers.Find(ctx, f.q, []types.MarketTicker{f.foo}); err != nil || len(found) != 0 {
 				t.Errorf("Find(%s) = %v, %v, want no row", f.foo.Name(), found, err)

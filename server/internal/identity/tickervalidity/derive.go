@@ -14,7 +14,7 @@ import (
 // the changes they infer, and the conflicts among them.
 func Derive(f Facts) Derived {
 	ws, disagreements := winners(f.Assertions)
-	cover := union(periods(f.PeriodAssertions))
+	cover := union(periods(f.AssertionCoverage))
 	var edges []Assertion
 	var over []OverruledEdge
 	for _, e := range edged(f.Assertions) {
@@ -46,7 +46,7 @@ func Derive(f Facts) Derived {
 	}
 	return Derived{
 		Intervals: join(out), Inferred: inferred, Disagreements: disagreements,
-		Broken: broken(ws, edges), Missed: missed(inferred, f.PeriodAssertions, cover), Overruled: over,
+		Broken: broken(ws, edges), Missed: missed(inferred, f.AssertionCoverage, cover), Overruled: over,
 	}
 }
 
@@ -81,7 +81,7 @@ func overruled(a Assertion, c time.Time, f Facts) []Source {
 			after[src] = x
 		}
 	}
-	for _, p := range f.PeriodAssertions {
+	for _, p := range f.AssertionCoverage {
 		add(p.Source.group())
 	}
 	slices.SortStableFunc(stronger, func(x, y Source) int {
@@ -106,15 +106,15 @@ func overruled(a Assertion, c time.Time, f Facts) []Source {
 	return nil
 }
 
-// spanned returns the period assertion of the datasource src that holds the
-// cut c, when src overrules an edge there by a period. Its period assertions
-// together hold c and the day before, and src does not state an edge at c.
-func spanned(src Source, c time.Time, f Facts) (PeriodAssertion, bool) {
+// spanned returns the period of src's assertion coverage that holds the cut c,
+// when src overrules an edge there by a period. Its assertion coverage holds c
+// and the day before together, and src does not state an edge at c.
+func spanned(src Source, c time.Time, f Facts) (AssertionCoverage, bool) {
 	if src.Attested {
-		return PeriodAssertion{}, false
+		return AssertionCoverage{}, false
 	}
-	var rows []PeriodAssertion
-	for _, p := range f.PeriodAssertions {
+	var rows []AssertionCoverage
+	for _, p := range f.AssertionCoverage {
 		if p.Source.group() == src {
 			rows = append(rows, p)
 		}
@@ -123,28 +123,28 @@ func spanned(src Source, c time.Time, f Facts) (PeriodAssertion, bool) {
 		return p.Contains(c.AddDate(0, 0, -1)) && p.Contains(c)
 	})
 	if !held {
-		return PeriodAssertion{}, false
+		return AssertionCoverage{}, false
 	}
 	if slices.ContainsFunc(f.Assertions, func(x Assertion) bool {
 		return x.Edge != "" && x.Source.group() == src && cut(x).Equal(c)
 	}) {
-		return PeriodAssertion{}, false
+		return AssertionCoverage{}, false
 	}
-	i := slices.IndexFunc(rows, func(p PeriodAssertion) bool { return p.Period.Contains(c) })
+	i := slices.IndexFunc(rows, func(p AssertionCoverage) bool { return p.Period.Contains(c) })
 	return rows[i], true
 }
 
-// missed returns each inferred change whose possible days one period of
-// cover holds in full. cover is the union of the period assertions. Each
-// change comes with the first period assertion that holds the first of those
-// days.
-func missed(inferred []Inferred, rows []PeriodAssertion, cover []types.Period) []MissedEvent {
+// missed returns each inferred change whose possible days one period of cover
+// holds in full. cover is the union of the assertion coverage. Each change
+// comes with the first period of assertion coverage that holds the first of
+// those days.
+func missed(inferred []Inferred, rows []AssertionCoverage, cover []types.Period) []MissedEvent {
 	var out []MissedEvent
 	for _, inf := range inferred {
 		held := slices.ContainsFunc(cover, func(p types.Period) bool {
 			return !inf.Period.From.Before(p.From) && !p.Before.Before(inf.Period.Before)
 		})
-		i := slices.IndexFunc(rows, func(p PeriodAssertion) bool { return p.Period.Contains(inf.Period.From) })
+		i := slices.IndexFunc(rows, func(p AssertionCoverage) bool { return p.Period.Contains(inf.Period.From) })
 		if held && i >= 0 {
 			out = append(out, MissedEvent{Inferred: inf, By: rows[i]})
 		}
@@ -152,8 +152,8 @@ func missed(inferred []Inferred, rows []PeriodAssertion, cover []types.Period) [
 	return out
 }
 
-// periods returns the period of each period assertion.
-func periods(rows []PeriodAssertion) []types.Period {
+// periods returns the period of each row of assertion coverage.
+func periods(rows []AssertionCoverage) []types.Period {
 	out := make([]types.Period, len(rows))
 	for i, p := range rows {
 		out[i] = p.Period

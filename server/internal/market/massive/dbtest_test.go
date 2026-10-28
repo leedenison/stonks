@@ -89,9 +89,9 @@ func TestFactsRecord(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, tickervalidity.Record(ctx, q, families, rows, keys))
 	var n int
-	require.NoError(t, tx.QueryRow(ctx, "SELECT count(*) FROM identifier_period_assertions WHERE fetch_key_id = $1", keys[0].ID).Scan(&n))
+	require.NoError(t, tx.QueryRow(ctx, "SELECT count(*) FROM identifier_assertion_coverage WHERE fetch_key_id = $1", keys[0].ID).Scan(&n))
 	if n != 2 {
-		t.Errorf("identifier_period_assertions rows = %d, want 2", n)
+		t.Errorf("identifier_assertion_coverage rows = %d, want 2", n)
 	}
 	asserted, err := q.ListFetchKeyAssertions(ctx, &keys[0].ID)
 	require.NoError(t, err)
