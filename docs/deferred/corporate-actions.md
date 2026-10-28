@@ -22,9 +22,9 @@ actions calendar to be able to identify OCC identified options.
 
 ## Model
 
-When a corporate action retires a listing, it writes an assertion that the listing's ticker
-names nothing on the ex-date, with the edge `first`. The corporate action answer writes
-the assertion alone.
+When a corporate action retires a listing, it writes an assertion that the listing's
+ticker names nothing from the ex-date, with an edge at the start of the ex-date. The
+corporate action answer writes the assertion alone.
 
 Corporate actions on an underlying decide how an OCC symbol is normalised, so an answer
 that changes them replays every OCC stated key normalised through them.  See

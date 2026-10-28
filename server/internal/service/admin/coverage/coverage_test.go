@@ -100,10 +100,10 @@ func TestGetTicker(t *testing.T) {
 		Days:   []time.Time{day(5)},
 		Rows: tickervalidity.Rows{
 			Assertions: []gen.ListIdentifierAssertionsRow{{
-				IdentifierAssertion: gen.IdentifierAssertion{ID: assertionID, Market: "US", InstrID: &acme, AssertedOn: day(10)}, Value: "ACME",
+				IdentifierAssertion: gen.IdentifierAssertion{ID: assertionID, Market: "US", InstrID: &acme, AssertedFrom: day(10), AssertedBefore: day(10).AddDate(0, 0, 1)}, Value: "ACME",
 				AttestedBy: ptr.To("admin@example.com"),
 			}, {
-				IdentifierAssertion: gen.IdentifierAssertion{ID: edgeID, Market: "US", InstrID: &acme, AssertedOn: day(3), Edge: ptr.To(gen.IdentifierEdgeFirst)}, Value: "ACME",
+				IdentifierAssertion: gen.IdentifierAssertion{ID: edgeID, Market: "US", InstrID: &acme, AssertedFrom: day(3), AssertedBefore: day(3).AddDate(0, 0, 1), EdgeFrom: true}, Value: "ACME",
 				Datasource: ptr.To("alpha"),
 			}},
 			AssertionCoverage: []gen.ListIdentifierAssertionCoverageRow{{Market: "US", CoveredFrom: day(1), CoveredBefore: day(20), Datasource: "alpha"}},
@@ -120,11 +120,11 @@ func TestGetTicker(t *testing.T) {
 			CoveredFrom: "2026-03-01", CoveredBefore: "2026-03-20",
 		}},
 		Assertions: []*adminrunv1.AssertionItem{{
-			Id: assertionID.String(), Ticker: acmeProto, AssertedOn: "2026-03-10", InstrId: ptr.To(acme.String()),
+			Id: assertionID.String(), Ticker: acmeProto, AssertedFrom: "2026-03-10", AssertedBefore: "2026-03-11", InstrId: ptr.To(acme.String()),
 			Source: &adminrunv1.AssertionItem_AttestedBy{AttestedBy: "admin@example.com"},
 		}, {
-			Id: edgeID.String(), Ticker: acmeProto, AssertedOn: "2026-03-03", InstrId: ptr.To(acme.String()),
-			Source: &adminrunv1.AssertionItem_Datasource{Datasource: "alpha"}, Edge: ptr.To(adminrunv1.Edge_EDGE_FIRST),
+			Id: edgeID.String(), Ticker: acmeProto, AssertedFrom: "2026-03-03", AssertedBefore: "2026-03-04", EdgeFrom: true, InstrId: ptr.To(acme.String()),
+			Source: &adminrunv1.AssertionItem_Datasource{Datasource: "alpha"},
 		}},
 		Intervals: []*admincoveragev1.Interval{{ValidFrom: ptr.To("2026-03-10"), ValidBefore: ptr.To("2026-03-21"), InstrId: acme.String(), Validity: admincoveragev1.TickerValidity_TICKER_VALIDITY_CONFIRMED}},
 		Gaps:      []*admincoveragev1.Gap{{UnconfirmedFrom: "2026-03-05", UnconfirmedBefore: "2026-03-10", Keys: 1, Txns: 1}},

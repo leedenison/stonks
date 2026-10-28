@@ -1,8 +1,6 @@
 import type { Ticker } from "@/gen/admin/coverage/v1/coverage_pb";
 import { TickerValidity } from "@/gen/admin/coverage/v1/coverage_pb";
-import { Edge } from "@/gen/admin/run/v1/run_pb";
-import { bounds, cutDay, dayNumber } from "@/lib/coverage";
-import { enumLabel } from "@/lib/enum";
+import { bounds, cutDays, dayNumber } from "@/lib/coverage";
 
 // The drawing's coordinates, in viewBox units; the gutter is the left margin
 // the lane labels take.
@@ -107,40 +105,43 @@ export function Timeline({ ticker }: { ticker: Ticker }) {
         const fill = attested ? "fill-accent" : "fill-primary";
         const ring = attested ? "stroke-accent" : "stroke-primary";
         return (
-          <circle
+          <rect
             key={a.id}
-            cx={x(a.assertedOn)}
-            cy={laneHeight / 2}
-            r={5}
+            {...bar(a.assertedFrom, a.assertedBefore)}
+            y={laneHeight / 2 - 5}
+            height={10}
+            rx={2}
             data-attested={attested ? "true" : undefined}
             data-negative={a.instrId === undefined ? "true" : undefined}
             className={
-              a.instrId === undefined ? `fill-surface ${ring} stroke-2` : fill
+              a.instrId === undefined
+                ? `fill-surface ${ring} stroke-2`
+                : `${fill} opacity-70`
             }
           >
-            <title>{`${a.source.value ?? ""} asserted ${a.instrId ?? "nothing"} on ${a.assertedOn}`}</title>
-          </circle>
+            <title>{`${a.source.value ?? ""} asserted ${a.instrId ?? "nothing"} from ${a.assertedFrom} up to ${a.assertedBefore}`}</title>
+          </rect>
         );
       }),
     },
     {
       key: "edges",
       label: "Edges",
-      children: ticker.assertions.flatMap((a) => {
-        const cut = cutDay(a);
-        if (cut === undefined || a.edge === undefined) return [];
-        const cx = x(cut);
-        return [
-          <polygon
-            key={a.id}
-            points={`${cx},2 ${cx + 6},${laneHeight - 2} ${cx - 6},${laneHeight - 2}`}
-            data-cut={cut}
-            className="fill-text-muted"
-          >
-            <title>{`${a.source.value ?? ""}: ${ticker.ticker?.value ?? ""} ${enumLabel(Edge, a.edge)} on ${a.assertedOn}`}</title>
-          </polygon>,
-        ];
-      }),
+      children: ticker.assertions.flatMap((a) =>
+        cutDays(a).map((cut) => {
+          const cx = x(cut);
+          return (
+            <polygon
+              key={`${a.id}-${cut}`}
+              points={`${cx},2 ${cx + 6},${laneHeight - 2} ${cx - 6},${laneHeight - 2}`}
+              data-cut={cut}
+              className="fill-text-muted"
+            >
+              <title>{`${a.source.value ?? ""}: ${ticker.ticker?.value ?? ""}: a change at the start of ${cut}`}</title>
+            </polygon>
+          );
+        }),
+      ),
     },
     ...datasources.map((ds) => ({
       key: `coverage-${ds}`,

@@ -53,7 +53,7 @@ func TestDeleteUserCascades(t *testing.T) {
 			key := servedKey(t, q, fetch, one, "GB00B03MLX29")
 			shel := newTicker(t, q, "XLON", "SHEL")
 			require.NoError(t, q.CreateIdentifierAssertion(ctx, gen.CreateIdentifierAssertionParams{
-				ID: db.NewID(), FetchKeyID: &key, TickerID: shel.ID, Market: shel.Market, AssertedOn: date(2026, 3, 2),
+				ID: db.NewID(), FetchKeyID: &key, TickerID: shel.ID, Market: shel.Market, AssertedFrom: date(2026, 3, 2), AssertedBefore: date(2026, 3, 2).AddDate(0, 0, 1),
 			}))
 			_, err = tx.Exec(ctx, "INSERT INTO identifier_assertion_coverage (id, fetch_key_id, market, ticker_id, covered_from, covered_before) VALUES ($1, $2, 'XLON', $3, '2026-01-01', '2026-03-02')", db.NewID(), key, shel.ID)
 			require.NoError(t, err)

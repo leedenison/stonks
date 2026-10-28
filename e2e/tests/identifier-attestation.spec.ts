@@ -86,8 +86,8 @@ test("attests a gap from the instrument's tickers tab and withdraws it", async (
   }
   expect(started).toHaveLength(1);
 
-  // The identifier attestation brackets the provider's first assertion, so the
-  // transaction is confirmed.
+  // The identifier attestation and the provider's first assertion bracket the
+  // days between, so the transaction is confirmed.
   expect((await stmts.getStmt({ runId })).txns[0].mark).toBe(TxnMark.CONFIRMED);
 
   const id = (await attested.getAttribute("data-testid"))!.replace(

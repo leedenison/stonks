@@ -16,6 +16,7 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/identity/tickervalidity"
 	"github.com/leedenison/stonks/server/internal/mic"
 	"github.com/leedenison/stonks/server/internal/testutil/dbtest"
 	"github.com/leedenison/stonks/server/internal/testutil/runtest"
@@ -117,5 +118,53 @@ func TestWithdrawRebuilds(t *testing.T) {
 	require.NoError(t, s.svc.Withdraw(ctx, id))
 	if diff := cmp.Diff([]string{"defunct", "current"}, s.relations(t)); diff != "" {
 		t.Errorf("relations after the withdrawal mismatch (-want +got):\n%s", diff)
+	}
+}
+
+// TestOverlappingAttestations checks that each identifier attestation of a
+// range is one assertion, that a later attestation replaces an earlier one on
+// the days they share, and that withdrawing the later gives those days back to
+// the earlier.
+func TestOverlappingAttestations(t *testing.T) {
+	s := newStack(t)
+	ctx := context.Background()
+	to := day(10)
+	_, err := s.svc.Start(ctx, s.admin, s.v, &s.a, day(1), &to)
+	require.NoError(t, err)
+	to = day(8)
+	later, err := s.svc.Start(ctx, s.admin, s.v, &s.b, day(5), &to)
+	require.NoError(t, err)
+
+	rows, err := s.q.ListIdentifierAssertions(ctx, gen.ListIdentifierAssertionsParams{Markets: []string{s.v.Market}, Values: []string{s.v.Value}})
+	require.NoError(t, err)
+	var got []types.Period
+	for _, r := range rows {
+		got = append(got, types.Period{From: r.IdentifierAssertion.AssertedFrom, Before: r.IdentifierAssertion.AssertedBefore})
+	}
+	if diff := cmp.Diff([]types.Period{{From: day(1), Before: day(11)}, {From: day(5), Before: day(9)}}, got); diff != "" {
+		t.Errorf("assertions mismatch (-want +got):\n%s", diff)
+	}
+	names := func() []uuid.UUID {
+		ivs, err := tickervalidity.Of(ctx, s.q, s.v)
+		require.NoError(t, err)
+		var out []uuid.UUID
+		for _, d := range []int{3, 6, 9} {
+			for _, iv := range ivs {
+				if iv.Contains(day(d)) && iv.Validity == tickervalidity.Confirmed {
+					out = append(out, iv.Instr)
+				}
+			}
+		}
+		return out
+	}
+	if diff := cmp.Diff([]uuid.UUID{s.a, s.b, s.a}, names()); diff != "" {
+		t.Errorf("confirmed instruments on days 3, 6 and 9 mismatch (-want +got):\n%s", diff)
+	}
+
+	var id uuid.UUID
+	require.NoError(t, s.tx.QueryRow(ctx, `SELECT id FROM identifier_assertions WHERE run_id = $1`, later.ID).Scan(&id))
+	require.NoError(t, s.svc.Withdraw(ctx, id))
+	if diff := cmp.Diff([]uuid.UUID{s.a, s.a, s.a}, names()); diff != "" {
+		t.Errorf("confirmed instruments after the withdrawal mismatch (-want +got):\n%s", diff)
 	}
 }

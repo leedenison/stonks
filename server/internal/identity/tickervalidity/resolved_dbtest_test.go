@@ -35,7 +35,7 @@ func (f *fixture) assertsOn(t *testing.T, v types.MarketTicker, datasource strin
 		SentType: &sent.Type, SentDomain: sent.Domain, SentValue: &sent.Value, AnsweredAt: ptr.To(day(n)),
 	}))
 	require.NoError(t, f.q.CreateIdentifierAssertion(ctx, gen.CreateIdentifierAssertionParams{
-		ID: db.NewID(), FetchKeyID: &key, TickerID: row.ID, Market: v.Market, InstrID: instr, AssertedOn: day(n),
+		ID: db.NewID(), FetchKeyID: &key, TickerID: row.ID, Market: v.Market, InstrID: instr, AssertedFrom: day(n), AssertedBefore: day(n).AddDate(0, 0, 1),
 	}))
 	return row
 }
@@ -140,7 +140,7 @@ func TestRebuildLocksTheInstr(t *testing.T) {
 		row := dbtest.Ticker(t, q, types.MarketTicker{Market: market, Value: "ISK" + uuid.NewString()[:8]})
 		instr := isk(q)
 		require.NoError(t, q.CreateIdentifierAttestation(ctx, gen.CreateIdentifierAttestationParams{
-			ID: db.NewID(), RunID: run.ID, AttestedBy: admin.ID, TickerID: row.ID, Market: market, InstrID: &instr, AssertedOn: day(1),
+			ID: db.NewID(), RunID: run.ID, AttestedBy: admin.ID, TickerID: row.ID, Market: market, InstrID: &instr, AssertedFrom: day(1), AssertedBefore: day(1).AddDate(0, 0, 1),
 		}))
 		return row.ID
 	}

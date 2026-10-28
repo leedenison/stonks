@@ -47,7 +47,7 @@ func (s *stack) names(t *testing.T, mt types.MarketTicker, instr uuid.UUID, on t
 		SentType: ptr.To(types.IdentifierTypeMicTicker), SentDomain: mt.Market, SentValue: &mt.Value, AnsweredAt: &on,
 	}))
 	require.NoError(t, s.q.CreateIdentifierAssertion(ctx, gen.CreateIdentifierAssertionParams{
-		ID: db.NewID(), FetchKeyID: &key, TickerID: dbtest.Ticker(t, s.q, mt).ID, Market: mt.Market, InstrID: &instr, AssertedOn: on,
+		ID: db.NewID(), FetchKeyID: &key, TickerID: dbtest.Ticker(t, s.q, mt).ID, Market: mt.Market, InstrID: &instr, AssertedFrom: on, AssertedBefore: on.AddDate(0, 0, 1),
 	}))
 }
 

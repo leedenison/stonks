@@ -215,17 +215,16 @@ func ProtoFetchItem(it gen.ListFetchItemsRow) *adminrunv1.FetchItem {
 // value is the value of the assertion's ticker.
 func ProtoAssertionItem(a gen.IdentifierAssertion, value string, datasource, attestedBy *string) *adminrunv1.AssertionItem {
 	out := &adminrunv1.AssertionItem{
-		Id:         a.ID.String(),
-		Ticker:     types.MarketTicker{Market: a.Market, Value: value}.ToProto(),
-		AssertedOn: a.AssertedOn.Format(time.DateOnly),
+		Id:             a.ID.String(),
+		Ticker:         types.MarketTicker{Market: a.Market, Value: value}.ToProto(),
+		AssertedFrom:   a.AssertedFrom.Format(time.DateOnly),
+		AssertedBefore: a.AssertedBefore.Format(time.DateOnly),
+		EdgeFrom:       a.EdgeFrom,
+		EdgeBefore:     a.EdgeBefore,
 	}
 	if a.InstrID != nil {
 		id := a.InstrID.String()
 		out.InstrId = &id
-	}
-	if a.Edge != nil {
-		edge := types.ToProto[adminrunv1.Edge](*a.Edge)
-		out.Edge = &edge
 	}
 	switch {
 	case datasource != nil:

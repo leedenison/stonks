@@ -14,7 +14,7 @@ import { Section } from "@/app/components/section";
 import { Skeleton } from "@/app/components/skeleton";
 import { None, PaneTable, Td, Th } from "@/app/components/table";
 import type { InstrTicker, Ticker } from "@/gen/admin/coverage/v1/coverage_pb";
-import { type AssertionItem, Edge } from "@/gen/admin/run/v1/run_pb";
+import type { AssertionItem } from "@/gen/admin/run/v1/run_pb";
 import { MarketTickerSchema } from "@/gen/type/v1/type_pb";
 import {
   useCoverageTicker,
@@ -28,8 +28,7 @@ import {
   relationSuffix,
   tickerParam,
 } from "@/lib/admin";
-import { bounds, instrName, intervalAt } from "@/lib/coverage";
-import { enumLabel } from "@/lib/enum";
+import { bounds, cutDays, instrName, intervalAt } from "@/lib/coverage";
 import { today } from "@/lib/marshal/date";
 import { refusal } from "@/lib/refusal";
 import { Timeline } from "./timeline";
@@ -203,9 +202,9 @@ function WithdrawDialog({
       }
     >
       <p className="text-sm">
-        Deletes the assertion of {assertion.assertedOn} and replays the
-        unresolved keys that state the ticker. A dated key picks up the change
-        the next time it is read.
+        Deletes the assertion of the days from {assertion.assertedFrom} up to{" "}
+        {assertion.assertedBefore} and replays the unresolved keys that state
+        the ticker. A dated key picks up the change the next time it is read.
       </p>
       {withdraw.isError && (
         <Notice tone="error" testId="withdraw-error">
@@ -312,9 +311,10 @@ function Facts({
           <PaneTable testId="ticker-assertions">
             <thead className="border-b border-border">
               <tr>
-                <Th dense>Day</Th>
+                <Th dense>From</Th>
+                <Th dense>Before</Th>
                 <Th dense>Instrument</Th>
-                <Th dense>Edge</Th>
+                <Th dense>Edges</Th>
                 <Th dense>Source</Th>
                 <Th dense> </Th>
               </tr>
@@ -329,15 +329,18 @@ function Facts({
                   }
                 >
                   <Td dense className="font-mono tabular-nums">
-                    {a.assertedOn}
+                    {a.assertedFrom}
+                  </Td>
+                  <Td dense className="font-mono tabular-nums">
+                    {a.assertedBefore}
                   </Td>
                   <Td dense>
                     <Instr ticker={ticker} id={a.instrId} />
                   </Td>
                   <Td dense>
-                    {a.edge !== undefined && (
-                      <Chip>{enumLabel(Edge, a.edge)}</Chip>
-                    )}
+                    {cutDays(a).map((cut) => (
+                      <Chip key={cut}>{cut}</Chip>
+                    ))}
                   </Td>
                   <Td dense>
                     <Chip

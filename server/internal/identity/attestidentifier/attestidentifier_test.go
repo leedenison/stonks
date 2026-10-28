@@ -91,19 +91,19 @@ func (f *fixture) locks() {
 func assertion(row gen.Run, instr *uuid.UUID, on time.Time) gen.CreateIdentifierAttestationParams {
 	return gen.CreateIdentifierAttestationParams{
 		RunID: row.ID, AttestedBy: admin, TickerID: acmeRow.ID, Market: "US",
-		InstrID: instr, AssertedOn: on,
+		InstrID: instr, AssertedFrom: on, AssertedBefore: on.AddDate(0, 0, 1),
 	}
 }
 
-// TestStart checks that a range asserts at the market on both ends, and
-// replays the market ticker.
+// TestStart checks that a range asserts every day of it at the market in one
+// assertion, and replays the market ticker.
 func TestStart(t *testing.T) {
 	f := newFixture(t)
 	row := gen.Run{ID: db.NewID(), Kind: gen.RunKindAttestIdentifier, Trigger: gen.RunTriggerAdministrator}
 	f.store.EXPECT().GetInstr(gomock.Any(), acme).Return(gen.Instr{ID: acme}, nil)
 	f.starts(t, row)
 	var written []gen.CreateIdentifierAttestationParams
-	f.store.EXPECT().CreateIdentifierAttestation(gomock.Any(), gomock.Any()).Times(2).DoAndReturn(func(_ context.Context, arg gen.CreateIdentifierAttestationParams) error {
+	f.store.EXPECT().CreateIdentifierAttestation(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.CreateIdentifierAttestationParams) error {
 		arg.ID = uuid.Nil
 		written = append(written, arg)
 		return nil
@@ -115,7 +115,9 @@ func TestStart(t *testing.T) {
 	if err != nil || got.ID != row.ID {
 		t.Fatalf("Start() = %+v, %v, want the run %s", got, err, row.ID)
 	}
-	want := []gen.CreateIdentifierAttestationParams{assertion(row, &acme, day(10)), assertion(row, &acme, day(20))}
+	held := assertion(row, &acme, day(10))
+	held.AssertedBefore = day(21)
+	want := []gen.CreateIdentifierAttestationParams{held}
 	if diff := cmp.Diff(want, written); diff != "" {
 		t.Errorf("assertions mismatch (-want +got):\n%s", diff)
 	}

@@ -34,9 +34,10 @@ over the market for the range. Where the answer does not mention a ticker, the t
 gains a negative assertion through the market row and is never written individually.
 
 A range provider states a rename without a stable identifier. The integration records
-such a rename as two edge-only assertions. The old symbol gets the edge `last` on the day
-before the change. The new symbol gets the edge `first` on the day of the change. An
-edge-only assertion names nothing. It cuts the timeline without taking its day.
+such a rename as two edge-only assertions, one for each symbol, at the start of the day of
+the change. An edge-only assertion holds an empty period whose bound is an edge. It holds
+no day and states nothing about the instrument. It only cuts the timeline. The check on
+`identifier_assertions` then allows `asserted_from = asserted_before`.
 
 An integration maps the provider's spelling of a symbol to the system's before it records
 a change. A missed match inside a period of assertion coverage turns a known change into a

@@ -87,13 +87,13 @@ func TestDated(t *testing.T) {
 	}}
 	s.alphaFacts.Responses[share] = market.IdentifierFactResult{
 		Assertions: []market.Assertion{
-			{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{share}}, At: renamed, Edge: gen.IdentifierEdgeFirst},
-			{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{share}}, At: on(2026, 3, 2)},
+			{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{share}}, Period: types.OneDay(renamed), EdgeFrom: true},
+			{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{share}}, Period: types.OneDay(on(2026, 3, 2))},
 		},
 		AssertionCoverage: []market.AssertionCoverage{{Market: mt(v).Market, Ticker: ptr.To(mt(v)), Period: types.Period{From: renamed, Before: on(2026, 3, 3)}}},
 	}
 	s.alphaFacts.Responses[v] = market.IdentifierFactResult{Assertions: []market.Assertion{
-		{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{other}, Class: types.AssetClassEtf, Currency: "USD"}, At: on(2021, 7, 1)},
+		{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{other}, Class: types.AssetClassEtf, Currency: "USD"}, Period: types.OneDay(on(2021, 7, 1))},
 	}}
 
 	key := s.state(t, types.AssetClassStock, "USD", v)
@@ -295,8 +295,8 @@ func TestDisagreement(t *testing.T) {
 	s.script.Responses[v] = market.IdentityResult{Filtered: []types.Identifier{{Type: v.Type, Value: v.Value}}, Listings: []market.Listing{
 		{Class: types.AssetClassStock, Currency: "USD", Primary: "XNAS", Identifiers: []types.Identifier{share, v}},
 	}}
-	s.alphaFacts.Responses[share] = market.IdentifierFactResult{Assertions: []market.Assertion{{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{share}}, At: day}}}
-	s.betaFacts.Responses[share] = market.IdentifierFactResult{Assertions: []market.Assertion{{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{other}, Class: types.AssetClassEtf, Currency: "USD"}, At: day}}}
+	s.alphaFacts.Responses[share] = market.IdentifierFactResult{Assertions: []market.Assertion{{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{share}}, Period: types.OneDay(day)}}}
+	s.betaFacts.Responses[share] = market.IdentifierFactResult{Assertions: []market.Assertion{{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{other}, Class: types.AssetClassEtf, Currency: "USD"}, Period: types.OneDay(day)}}}
 	key := s.state(t, types.AssetClassStock, "USD", v)
 	out, written, err := s.resolver.Resolve(context.Background(), s.resolution, []KeyDates{{Row: key, Dates: []time.Time{day}}})
 	require.NoError(t, err)
@@ -333,6 +333,48 @@ func TestDisagreement(t *testing.T) {
 	}
 }
 
+// TestDisagreementInsideHistory checks that a weaker datasource's one-day
+// assertion loses to a stronger datasource's history over that day. The run
+// records one disagreement naming the weaker datasource's fetch key, and the
+// history still confirms its instrument on that day.
+func TestDisagreementInsideHistory(t *testing.T) {
+	s := newStack(t)
+	s.enableBeta(t)
+	ctx := context.Background()
+	v := id(types.IdentifierTypeMicTicker, "XNAS", "ZZH")
+	share := id(types.IdentifierTypeOpenfigiShareClass, "", "BBG00ZZHSHAR")
+	other := id(types.IdentifierTypeOpenfigiShareClass, "", "BBG00ZZHOTHR")
+	day := on(2024, 1, 16)
+	s.script.Responses[v] = market.IdentityResult{Filtered: []types.Identifier{{Type: v.Type, Value: v.Value}}, Listings: []market.Listing{
+		{Class: types.AssetClassStock, Currency: "USD", Primary: "XNAS", Identifiers: []types.Identifier{share, v}},
+	}}
+	s.alphaFacts.Responses[share] = market.IdentifierFactResult{
+		Assertions: []market.Assertion{{
+			Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{share}},
+			Period: types.Period{From: on(2022, 6, 9), Before: on(2026, 3, 3)}, EdgeFrom: true,
+		}},
+		AssertionCoverage: []market.AssertionCoverage{{Market: mt(v).Market, Ticker: ptr.To(mt(v)), Period: types.Period{From: on(2022, 6, 9), Before: on(2026, 3, 3)}}},
+	}
+	s.betaFacts.Responses[share] = market.IdentifierFactResult{Assertions: []market.Assertion{
+		{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{other}, Class: types.AssetClassEtf, Currency: "USD"}, Period: types.OneDay(day)},
+	}}
+	key := s.state(t, types.AssetClassStock, "USD", v)
+	s.resolveOn(t, []time.Time{day}, key)
+
+	found := s.runFindings(t)
+	loser := s.factFetchKey(t, s.betaName, share)
+	if len(found) != 1 || found[0].Kind != gen.FindingKindIdentifierDisagreement || found[0].FetchKeyID == nil || *found[0].FetchKeyID != loser.ID {
+		t.Errorf("findings = %+v, want one disagreement naming beta's fetch key %s", found, loser.ID)
+	}
+	held, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: share.Type, Value: share.Value})
+	require.NoError(t, err)
+	ivs, err := tickervalidity.Of(ctx, s.q, mt(v))
+	require.NoError(t, err)
+	if !confirmedOn(ivs, held.Instr.ID, day) {
+		t.Errorf("ticker validity of %s = %+v, want the history to confirm %s on %s", v.Name(), ivs, held.Instr.ID, day.Format(time.DateOnly))
+	}
+}
+
 // TestMissedEvent checks the finding when one datasource asserts two
 // instruments inside its own assertion coverage. The run that wrote the facts
 // records a missed event naming the fetch key of the assertion coverage. A run
@@ -347,8 +389,8 @@ func TestMissedEvent(t *testing.T) {
 	}}
 	s.alphaFacts.Responses[share] = market.IdentifierFactResult{
 		Assertions: []market.Assertion{
-			{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{share}}, At: on(2023, 1, 2)},
-			{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{other}, Class: types.AssetClassStock, Currency: "USD"}, At: on(2023, 6, 1)},
+			{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{share}}, Period: types.OneDay(on(2023, 1, 2))},
+			{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{other}, Class: types.AssetClassStock, Currency: "USD"}, Period: types.OneDay(on(2023, 6, 1))},
 		},
 		AssertionCoverage: []market.AssertionCoverage{{Market: mt(v).Market, Ticker: ptr.To(mt(v)), Period: types.Period{From: on(2023, 1, 1), Before: on(2024, 2, 1)}}},
 	}
@@ -387,9 +429,9 @@ func TestBrokenBracket(t *testing.T) {
 	}}
 	s.alphaFacts.Responses[share] = market.IdentifierFactResult{
 		Assertions: []market.Assertion{
-			{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{share}}, At: on(2023, 1, 2)},
-			{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{share}}, At: on(2023, 4, 30), Edge: gen.IdentifierEdgeLast},
-			{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{share}}, At: on(2024, 1, 2)},
+			{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{share}}, Period: types.OneDay(on(2023, 1, 2))},
+			{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{share}}, Period: types.OneDay(on(2023, 4, 30)), EdgeBefore: true},
+			{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{share}}, Period: types.OneDay(on(2024, 1, 2))},
 		},
 	}
 	key := s.state(t, types.AssetClassStock, "USD", v)
@@ -406,8 +448,10 @@ func TestBrokenBracket(t *testing.T) {
 // wrote the edge or the facts that overrule it. A run that only reads the
 // facts does not record one.
 func TestOverruledEdge(t *testing.T) {
-	asserts := func(share types.Identifier, v types.Identifier, at time.Time, edge gen.IdentifierEdge) market.Assertion {
-		return market.Assertion{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{share}}, At: at, Edge: edge}
+	// asserts asserts share on the day at, with an edge at the start of the
+	// next day where last is set.
+	asserts := func(share types.Identifier, v types.Identifier, at time.Time, last bool) market.Assertion {
+		return market.Assertion{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{share}}, Period: types.OneDay(at), EdgeBefore: last}
 	}
 	key := on(2024, 1, 16)
 	tests := []struct {
@@ -423,10 +467,10 @@ func TestOverruledEdge(t *testing.T) {
 			name:  "a bracket of alpha in the run that writes the edge",
 			value: "ZZO",
 			alpha: func(share, v types.Identifier) market.IdentifierFactResult {
-				return market.IdentifierFactResult{Assertions: []market.Assertion{asserts(share, v, on(2023, 1, 2), ""), asserts(share, v, key, "")}}
+				return market.IdentifierFactResult{Assertions: []market.Assertion{asserts(share, v, on(2023, 1, 2), false), asserts(share, v, key, false)}}
 			},
 			beta: func(share, v types.Identifier) market.IdentifierFactResult {
-				return market.IdentifierFactResult{Assertions: []market.Assertion{asserts(share, v, on(2023, 4, 30), gen.IdentifierEdgeLast)}}
+				return market.IdentifierFactResult{Assertions: []market.Assertion{asserts(share, v, on(2023, 4, 30), true)}}
 			},
 		},
 		{
@@ -434,22 +478,22 @@ func TestOverruledEdge(t *testing.T) {
 			value: "ZZP",
 			alpha: func(share, v types.Identifier) market.IdentifierFactResult {
 				return market.IdentifierFactResult{
-					Assertions:        []market.Assertion{asserts(share, v, key, "")},
+					Assertions:        []market.Assertion{asserts(share, v, key, false)},
 					AssertionCoverage: []market.AssertionCoverage{{Market: mt(v).Market, Ticker: ptr.To(mt(v)), Period: types.Period{From: on(2023, 1, 1), Before: on(2024, 2, 1)}}},
 				}
 			},
 			beta: func(share, v types.Identifier) market.IdentifierFactResult {
-				return market.IdentifierFactResult{Assertions: []market.Assertion{asserts(share, v, on(2023, 4, 30), gen.IdentifierEdgeLast)}}
+				return market.IdentifierFactResult{Assertions: []market.Assertion{asserts(share, v, on(2023, 4, 30), true)}}
 			},
 		},
 		{
 			name:  "a bracket of alpha in a later run",
 			value: "ZZQ",
 			beta: func(share, v types.Identifier) market.IdentifierFactResult {
-				return market.IdentifierFactResult{Assertions: []market.Assertion{asserts(share, v, on(2023, 1, 2), ""), asserts(share, v, on(2023, 4, 30), gen.IdentifierEdgeLast)}}
+				return market.IdentifierFactResult{Assertions: []market.Assertion{asserts(share, v, on(2023, 1, 2), false), asserts(share, v, on(2023, 4, 30), true)}}
 			},
 			later: func(share, v types.Identifier) market.IdentifierFactResult {
-				return market.IdentifierFactResult{Assertions: []market.Assertion{asserts(share, v, on(2023, 1, 2), ""), asserts(share, v, key, "")}}
+				return market.IdentifierFactResult{Assertions: []market.Assertion{asserts(share, v, on(2023, 1, 2), false), asserts(share, v, key, false)}}
 			},
 		},
 	}

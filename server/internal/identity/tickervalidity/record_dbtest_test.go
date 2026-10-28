@@ -75,9 +75,9 @@ func (f *fixture) identify(t *testing.T, instr uuid.UUID, isin string) types.Ide
 	return id
 }
 
-// TestRecord checks that the edge assertions of a rename, the other
-// assertions of the entity's chain and its assertion coverage are recorded
-// from a served key, and derive the chain's ticker validity. A failed key
+// TestRecord checks that a served key records the assertions of an entity's
+// chain, with an edge at its rename, and its assertion coverage, and that they
+// derive the chain's ticker validity. A failed key
 // writes nothing, and neither does an assertion without a stable identifier.
 func TestRecord(t *testing.T) {
 	f := newFixture(t)
@@ -86,10 +86,9 @@ func TestRecord(t *testing.T) {
 	old := types.MarketTicker{Market: "US", Value: "OLD" + uuid.NewString()[:4]}
 	k := f.served(t, isin, market.IdentifierFactResult{
 		Assertions: []market.Assertion{
-			{Ticker: old, Of: market.Listing{Identifiers: []types.Identifier{isin}}, At: day(1)},
-			{Ticker: old, Of: market.Listing{Identifiers: []types.Identifier{isin}}, At: day(9), Edge: gen.IdentifierEdgeLast},
-			{Ticker: f.foo, Of: market.Listing{Identifiers: []types.Identifier{isin}}, At: day(10), Edge: gen.IdentifierEdgeFirst},
-			{Ticker: f.foo, Of: market.Listing{Identifiers: []types.Identifier{f.at}}, At: day(12)},
+			{Ticker: old, Of: market.Listing{Identifiers: []types.Identifier{isin}}, Period: types.Period{From: day(1), Before: day(10)}, EdgeBefore: true},
+			{Ticker: f.foo, Of: market.Listing{Identifiers: []types.Identifier{isin}}, Period: types.Period{From: day(10), Before: day(20)}, EdgeFrom: true},
+			{Ticker: f.foo, Of: market.Listing{Identifiers: []types.Identifier{f.at}}, Period: types.OneDay(day(12))},
 		},
 		AssertionCoverage: []market.AssertionCoverage{
 			{Market: "US", Ticker: &old, Period: types.Period{From: day(1), Before: day(10)}},
@@ -97,7 +96,7 @@ func TestRecord(t *testing.T) {
 		},
 	})
 	failed := factKey{ID: db.NewID(), Outcome: gen.FetchOutcomeFailedTemporary, Response: market.IdentifierFactResult{
-		Assertions: []market.Assertion{{Ticker: f.foo, Of: market.Listing{Identifiers: []types.Identifier{isin}}, At: day(15)}},
+		Assertions: []market.Assertion{{Ticker: f.foo, Of: market.Listing{Identifiers: []types.Identifier{isin}}, Period: types.OneDay(day(15))}},
 	}}
 	require.NoError(t, f.record(t, []factKey{k, failed}))
 
@@ -113,14 +112,16 @@ func TestRecord(t *testing.T) {
 	}
 	asserted, err := f.q.ListFetchKeyAssertions(ctx, &k.ID)
 	require.NoError(t, err)
-	edges := map[time.Time]gen.IdentifierEdge{}
+	var edges []time.Time
 	for _, a := range asserted {
-		if a.IdentifierAssertion.Edge != nil {
-			edges[a.IdentifierAssertion.AssertedOn] = *a.IdentifierAssertion.Edge
+		if ia := a.IdentifierAssertion; ia.EdgeBefore {
+			edges = append(edges, ia.AssertedBefore)
+		} else if ia.EdgeFrom {
+			edges = append(edges, ia.AssertedFrom)
 		}
 	}
-	if len(asserted) != 3 || edges[day(9)] != gen.IdentifierEdgeLast || edges[day(10)] != gen.IdentifierEdgeFirst {
-		t.Errorf("assertions = %+v, want the three that state a stable identifier, with a last on day 9 and a first on day 10", asserted)
+	if len(asserted) != 2 || len(edges) != 2 || !edges[0].Equal(day(10)) || !edges[1].Equal(day(10)) {
+		t.Errorf("assertions = %+v, want the two that state a stable identifier, each with an edge at day 10", asserted)
 	}
 	names := []resolved{{Value: f.foo.Value, Instr: f.a, From: ptr.To(day(10))}}
 	if diff := cmp.Diff(names, f.resolved(t, f.a)); diff != "" {
@@ -134,7 +135,7 @@ func TestRecordThroughStable(t *testing.T) {
 	f := newFixture(t)
 	ctx := context.Background()
 	isin := f.identify(t, f.a, "US"+uuid.NewString()[:8])
-	k := f.served(t, f.at, market.IdentifierFactResult{Assertions: []market.Assertion{{Ticker: f.foo, Of: market.Listing{Identifiers: []types.Identifier{f.at, isin}}, At: day(3)}}})
+	k := f.served(t, f.at, market.IdentifierFactResult{Assertions: []market.Assertion{{Ticker: f.foo, Of: market.Listing{Identifiers: []types.Identifier{f.at, isin}}, Period: types.OneDay(day(3))}}})
 	require.NoError(t, f.record(t, []factKey{k}))
 	asserted, err := f.q.ListFetchKeyAssertions(ctx, &k.ID)
 	require.NoError(t, err)
@@ -154,8 +155,8 @@ func TestRecordCreates(t *testing.T) {
 	composite := types.Identifier{Type: types.IdentifierTypeOpenfigiComposite, Value: "BBG" + uuid.NewString()[:9]}
 	of := []types.Identifier{share, composite, f.at}
 	k := f.served(t, f.at, market.IdentifierFactResult{Assertions: []market.Assertion{
-		{Ticker: f.foo, Of: market.Listing{Identifiers: of, Class: types.AssetClassEtf, Currency: "USD"}, At: day(3)},
-		{Ticker: f.foo, Of: market.Listing{Identifiers: of, Class: types.AssetClassEtf, Currency: "USD"}, At: day(4)},
+		{Ticker: f.foo, Of: market.Listing{Identifiers: of, Class: types.AssetClassEtf, Currency: "USD"}, Period: types.OneDay(day(3))},
+		{Ticker: f.foo, Of: market.Listing{Identifiers: of, Class: types.AssetClassEtf, Currency: "USD"}, Period: types.OneDay(day(4))},
 	}})
 	require.NoError(t, f.record(t, []factKey{k}))
 	found, err := f.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: composite.Type, Value: composite.Value})
@@ -178,7 +179,7 @@ func TestRecordCreates(t *testing.T) {
 
 	other := types.Identifier{Type: types.IdentifierTypeOpenfigiShareClass, Value: "BBG" + uuid.NewString()[:9]}
 	loose := types.Identifier{Type: types.IdentifierTypeOpenfigiComposite, Value: "BBG" + uuid.NewString()[:9]}
-	k = f.served(t, f.at, market.IdentifierFactResult{Assertions: []market.Assertion{{Ticker: f.foo, Of: market.Listing{Identifiers: []types.Identifier{other, loose}, Currency: "ZZZ"}, At: day(5)}}})
+	k = f.served(t, f.at, market.IdentifierFactResult{Assertions: []market.Assertion{{Ticker: f.foo, Of: market.Listing{Identifiers: []types.Identifier{other, loose}, Currency: "ZZZ"}, Period: types.OneDay(day(5))}}})
 	require.NoError(t, f.record(t, []factKey{k}))
 	if _, err := f.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: loose.Type, Value: loose.Value}); !errors.Is(err, db.ErrNotFound) {
 		t.Errorf("composite with an unknown currency: err = %v, want it left out", err)
@@ -224,7 +225,7 @@ func TestRecordSpelling(t *testing.T) {
 			f := newFixture(t)
 			ctx := context.Background()
 			good := f.served(t, f.at, market.IdentifierFactResult{AssertionCoverage: []market.AssertionCoverage{{Market: "US", Ticker: &f.foo, Period: types.Period{From: day(1), Before: day(2)}}}})
-			r := market.IdentifierFactResult{Assertions: []market.Assertion{{Ticker: tc.ticker, Negative: true, At: day(3), Edge: gen.IdentifierEdgeFirst}}}
+			r := market.IdentifierFactResult{Assertions: []market.Assertion{{Ticker: tc.ticker, Negative: true, Period: types.OneDay(day(3)), EdgeFrom: true}}}
 			if tc.market != "" {
 				r = market.IdentifierFactResult{AssertionCoverage: []market.AssertionCoverage{{Market: tc.market, Period: types.Period{From: day(1), Before: day(2)}}}}
 			}
@@ -258,13 +259,13 @@ func TestAttest(t *testing.T) {
 	f.asserts(t, f.alpha, 20, &f.a)
 	foo := dbtest.Ticker(t, f.q, f.foo)
 
-	require.NoError(t, Attest(ctx, f.q, mics, run, f.attestedBy.ID, foo, &f.a, day(2), today))
+	require.NoError(t, Attest(ctx, f.q, mics, run, f.attestedBy.ID, foo, &f.a, types.OneDay(day(2)), today))
 	want := []Interval{provisional(nil, at(2), f.a), confirmed(at(2), at(21), f.a), provisional(at(21), nil, f.a)}
 	if diff := cmp.Diff(want, f.of(t)); diff != "" {
 		t.Errorf("Of after attesting day 2 mismatch (-want +got):\n%s", diff)
 	}
 
-	require.NoError(t, Attest(ctx, f.q, mics, run, f.attestedBy.ID, foo, nil, today, today))
+	require.NoError(t, Attest(ctx, f.q, mics, run, f.attestedBy.ID, foo, nil, types.OneDay(today), today))
 	want = []Interval{provisional(nil, at(2), f.a), confirmed(at(2), at(21), f.a), provisional(at(21), at(25), f.a)}
 	if diff := cmp.Diff(want, f.of(t)); diff != "" {
 		t.Errorf("Of after attesting that it names nothing mismatch (-want +got):\n%s", diff)
@@ -272,16 +273,16 @@ func TestAttest(t *testing.T) {
 
 	later, err := f.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), Kind: gen.RunKindAttestIdentifier, Trigger: gen.RunTriggerAdministrator})
 	require.NoError(t, err)
-	require.NoError(t, Attest(ctx, f.q, mics, later, f.attestedBy.ID, foo, &f.b, day(2), today))
+	require.NoError(t, Attest(ctx, f.q, mics, later, f.attestedBy.ID, foo, &f.b, types.OneDay(day(2)), today))
 	want = []Interval{provisional(nil, at(2), f.b), confirmed(at(2), at(3), f.b), provisional(at(3), at(20), f.b), confirmed(at(20), at(21), f.a), provisional(at(21), at(25), f.a)}
 	if diff := cmp.Diff(want, f.of(t)); diff != "" {
 		t.Errorf("Of after a later identifier attestation of day 2 mismatch (-want +got):\n%s", diff)
 	}
 
-	if err := Attest(ctx, f.q, mics, run, f.attestedBy.ID, foo, &f.a, day(26), today); !errors.Is(err, ErrFuture) {
+	if err := Attest(ctx, f.q, mics, run, f.attestedBy.ID, foo, &f.a, types.OneDay(day(26)), today); !errors.Is(err, ErrFuture) {
 		t.Errorf("Attest(tomorrow) error = %v, want ErrFuture", err)
 	}
-	if err := Attest(ctx, f.q, mics, f.run, f.attestedBy.ID, foo, &f.a, day(2), today); err == nil {
+	if err := Attest(ctx, f.q, mics, f.run, f.attestedBy.ID, foo, &f.a, types.OneDay(day(2)), today); err == nil {
 		t.Error("Attest beneath a user's run succeeded, want an error")
 	}
 }
@@ -302,7 +303,7 @@ func TestAttestOverrulesEdge(t *testing.T) {
 	}))
 	require.NoError(t, f.q.CreateIdentifierAssertion(ctx, gen.CreateIdentifierAssertionParams{
 		ID: db.NewID(), FetchKeyID: &key, TickerID: foo.ID, Market: foo.Market, InstrID: &f.a,
-		AssertedOn: day(9), Edge: ptr.To(gen.IdentifierEdgeLast),
+		AssertedFrom: day(9), AssertedBefore: day(9).AddDate(0, 0, 1), EdgeBefore: true,
 	}))
 	want := []Interval{
 		provisional(nil, at(3), f.a), confirmed(at(3), at(10), f.a),
@@ -315,7 +316,7 @@ func TestAttestOverrulesEdge(t *testing.T) {
 	run, err := f.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), Kind: gen.RunKindAttestIdentifier, Trigger: gen.RunTriggerAdministrator})
 	require.NoError(t, err)
 	for _, on := range []time.Time{day(8), day(12)} {
-		require.NoError(t, Attest(ctx, f.q, f.mics(t), run, f.attestedBy.ID, foo, &f.a, on, day(25)))
+		require.NoError(t, Attest(ctx, f.q, f.mics(t), run, f.attestedBy.ID, foo, &f.a, types.OneDay(on), day(25)))
 	}
 	want = []Interval{provisional(nil, at(3), f.a), confirmed(at(3), at(16), f.a), provisional(at(16), nil, f.a)}
 	if diff := cmp.Diff(want, f.of(t)); diff != "" {

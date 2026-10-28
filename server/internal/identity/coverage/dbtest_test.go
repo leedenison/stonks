@@ -94,7 +94,7 @@ func (f *fixture) attest(t *testing.T, instr uuid.UUID, market, value string) {
 	require.NoError(t, err)
 	err = f.q.CreateIdentifierAssertion(ctx, gen.CreateIdentifierAssertionParams{
 		ID: db.NewID(), RunID: &run.ID, AttestedBy: &f.user.ID,
-		TickerID: dbtest.Ticker(t, f.q, types.MarketTicker{Market: market, Value: value}).ID, Market: market, InstrID: &instr, AssertedOn: day(1),
+		TickerID: dbtest.Ticker(t, f.q, types.MarketTicker{Market: market, Value: value}).ID, Market: market, InstrID: &instr, AssertedFrom: day(1), AssertedBefore: day(1).AddDate(0, 0, 1),
 	})
 	require.NoError(t, err)
 }

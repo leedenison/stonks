@@ -91,7 +91,7 @@ func TestRebuildBatches(t *testing.T) {
 	for range 5 {
 		tk, instr := s.ticker(t), s.instr(t)
 		require.NoError(t, s.q.CreateIdentifierAttestation(ctx, gen.CreateIdentifierAttestationParams{
-			ID: db.NewID(), RunID: attest.ID, AttestedBy: admin.ID, TickerID: tk.ID, Market: tk.Market, InstrID: &instr, AssertedOn: day(1),
+			ID: db.NewID(), RunID: attest.ID, AttestedBy: admin.ID, TickerID: tk.ID, Market: tk.Market, InstrID: &instr, AssertedFrom: day(1), AssertedBefore: day(1).AddDate(0, 0, 1),
 		}))
 		want[tk.ID] = instr
 		instrs = append(instrs, instr)
@@ -131,7 +131,7 @@ func TestRebuildFollowsPrecedence(t *testing.T) {
 			SentType: &sent.Type, SentDomain: sent.Domain, SentValue: &sent.Value, AnsweredAt: ptr.To(day(1)),
 		}))
 		require.NoError(t, s.q.CreateIdentifierAssertion(ctx, gen.CreateIdentifierAssertionParams{
-			ID: db.NewID(), FetchKeyID: &key, TickerID: tk.ID, Market: tk.Market, InstrID: &instr, AssertedOn: day(1),
+			ID: db.NewID(), FetchKeyID: &key, TickerID: tk.ID, Market: tk.Market, InstrID: &instr, AssertedFrom: day(1), AssertedBefore: day(1).AddDate(0, 0, 1),
 		}))
 	}
 	asserts(alpha, 1000, a)

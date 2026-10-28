@@ -54,7 +54,7 @@ func TestIdentifierAssertions(t *testing.T) {
 	assertion := func(q *gen.Queries) gen.CreateIdentifierAssertionParams {
 		shel := newTicker(t, q, "XLON", "SHEL")
 		return gen.CreateIdentifierAssertionParams{
-			ID: db.NewID(), TickerID: shel.ID, Market: shel.Market, AssertedOn: on,
+			ID: db.NewID(), TickerID: shel.ID, Market: shel.Market, AssertedFrom: on, AssertedBefore: on.AddDate(0, 0, 1),
 		}
 	}
 
@@ -67,7 +67,7 @@ func TestIdentifierAssertions(t *testing.T) {
 		require.NoError(t, q.CreateIdentifierAssertion(ctx, arg))
 		listed, err := q.ListFetchKeyAssertions(ctx, &key)
 		require.NoError(t, err)
-		if len(listed) != 1 || listed[0].IdentifierAssertion.InstrID != nil || !listed[0].IdentifierAssertion.AssertedOn.Equal(on) || listed[0].Value != "SHEL" {
+		if len(listed) != 1 || listed[0].IdentifierAssertion.InstrID != nil || !listed[0].IdentifierAssertion.AssertedFrom.Equal(on) || listed[0].Value != "SHEL" {
 			t.Errorf("ListFetchKeyAssertions = %+v, want the negative assertion on %s", listed, on.Format("2006-01-02"))
 		}
 		arg.ID = db.NewID()
@@ -76,19 +76,27 @@ func TestIdentifierAssertions(t *testing.T) {
 		}
 	})
 
-	t.Run("a first and a last on one day", func(t *testing.T) {
+	t.Run("an empty period is refused", func(t *testing.T) {
 		q := newTx(t)
 		f := newFetching(t, q)
 		key := servedKey(t, q, f.fetch, f.key, "GB00B03MLX29")
 		arg := assertion(q)
-		arg.FetchKeyID = &key
-		for _, e := range []gen.IdentifierEdge{gen.IdentifierEdgeFirst, gen.IdentifierEdgeLast} {
-			arg.ID, arg.Edge = db.NewID(), &e
-			require.NoError(t, q.CreateIdentifierAssertion(ctx, arg))
+		arg.FetchKeyID, arg.AssertedBefore = &key, arg.AssertedFrom
+		if err := q.CreateIdentifierAssertion(ctx, arg); !sqlstate(err, pgerrcode.CheckViolation) {
+			t.Errorf("CreateIdentifierAssertion of an empty period: err = %v, want a check violation", err)
 		}
-		arg.ID = db.NewID()
-		if err := q.CreateIdentifierAssertion(ctx, arg); !sqlstate(err, pgerrcode.UniqueViolation) {
-			t.Errorf("CreateIdentifierAssertion of the same edge twice: err = %v, want a unique violation", err)
+	})
+
+	t.Run("two identifier attestations from one day are both stored", func(t *testing.T) {
+		q := newTx(t)
+		f := newFetching(t, q)
+		admin := newUser(t, q, "attest-"+f.user.Email)
+		arg := assertion(q)
+		for range 2 {
+			run, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), Kind: gen.RunKindAttestIdentifier, Trigger: gen.RunTriggerAdministrator})
+			require.NoError(t, err)
+			arg.ID, arg.RunID, arg.AttestedBy = db.NewID(), &run.ID, &admin.ID
+			require.NoError(t, q.CreateIdentifierAssertion(ctx, arg))
 		}
 	})
 
@@ -255,7 +263,7 @@ func TestListRunAssertions(t *testing.T) {
 	assert := func(arg gen.CreateIdentifierAssertionParams, value string) uuid.UUID {
 		t.Helper()
 		ticker := newTicker(t, q, "XLON", value)
-		arg.ID, arg.TickerID, arg.Market, arg.AssertedOn = db.NewID(), ticker.ID, ticker.Market, on
+		arg.ID, arg.TickerID, arg.Market, arg.AssertedFrom, arg.AssertedBefore = db.NewID(), ticker.ID, ticker.Market, on, on.AddDate(0, 0, 1)
 		require.NoError(t, q.CreateIdentifierAssertion(ctx, arg))
 		return arg.ID
 	}

@@ -176,7 +176,7 @@ func TestTickerRelations(t *testing.T) {
 	require.NoError(t, err)
 	attested := dbtest.Ticker(t, q, types.MarketTicker{Market: "US", Value: asr})
 	require.NoError(t, q.CreateIdentifierAttestation(ctx, gen.CreateIdentifierAttestationParams{
-		ID: db.NewID(), RunID: run.ID, AttestedBy: admin.ID, TickerID: attested.ID, Market: "US", InstrID: &gone.ID, AssertedOn: time.Date(2026, time.March, 1, 0, 0, 0, 0, time.UTC),
+		ID: db.NewID(), RunID: run.ID, AttestedBy: admin.ID, TickerID: attested.ID, Market: "US", InstrID: &gone.ID, AssertedFrom: time.Date(2026, time.March, 1, 0, 0, 0, 0, time.UTC), AssertedBefore: time.Date(2026, time.March, 1, 0, 0, 0, 0, time.UTC).AddDate(0, 0, 1),
 	}))
 
 	tickers, err := q.ListInstrTickers(ctx, gone.ID)

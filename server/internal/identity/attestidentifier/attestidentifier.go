@@ -57,25 +57,23 @@ func New(store Store, runs Runner, facts Facts, names Rebuilder, mics mic.MICMap
 }
 
 // Start asserts that v names instrument, or nothing where instrument is nil, on
-// from and on to where to is given, and returns the pending attest identifier
-// run. The assertions exist when Start returns. Whether the administrator
-// verified the ticker, accepts that no event occurred since its last assertion,
-// or knows of an event, the row is the same. A day is today or any earlier day,
-// and a range is an assertion on each end, since the bracket rule confirms the
-// days between. A to before from is refused with ErrRange.
+// every day from from through to, and returns the pending attest identifier
+// run. Without to, it asserts the day from alone. The assertion exists when
+// Start returns. Whether the administrator verified the ticker, accepts that no
+// event occurred since its last assertion, or knows of an event, the row is the
+// same. The last day is today or any earlier day. A to before from is refused
+// with ErrRange.
 func (s *Service) Start(ctx context.Context, admin uuid.UUID, v types.MarketTicker, instr *uuid.UUID, from time.Time, to *time.Time) (gen.Run, error) {
 	today := s.clock()
-	days := []time.Time{types.Day(from)}
-	if to != nil && !types.Day(*to).Equal(days[0]) {
-		if to.Before(from) {
-			return gen.Run{}, fmt.Errorf("%s to %s: %w", days[0].Format(time.DateOnly), types.Day(*to).Format(time.DateOnly), ErrRange)
+	p := types.OneDay(from)
+	if to != nil {
+		if types.Day(*to).Before(p.From) {
+			return gen.Run{}, fmt.Errorf("%s to %s: %w", p.From.Format(time.DateOnly), types.Day(*to).Format(time.DateOnly), ErrRange)
 		}
-		days = append(days, types.Day(*to))
+		p.Before = types.OneDay(*to).Before
 	}
-	for _, d := range days {
-		if err := tickervalidity.CheckAttest(s.mics, v, d, today); err != nil {
-			return gen.Run{}, err
-		}
+	if err := tickervalidity.CheckAttest(s.mics, v, p.Before.AddDate(0, 0, -1), today); err != nil {
+		return gen.Run{}, err
 	}
 	if instr != nil {
 		if _, err := s.store.GetInstr(ctx, *instr); errors.Is(err, db.ErrNotFound) {
@@ -96,10 +94,8 @@ func (s *Service) Start(ctx context.Context, admin uuid.UUID, v types.MarketTick
 				if err := tickers.Lock(ctx, q, ids); err != nil {
 					return err
 				}
-				for _, d := range days {
-					if err := tickervalidity.Attest(ctx, q, s.mics, row, admin, rows[v], instr, d, today); err != nil {
-						return err
-					}
+				if err := tickervalidity.Attest(ctx, q, s.mics, row, admin, rows[v], instr, p, today); err != nil {
+					return err
 				}
 				return s.names.Rebuild(ctx, q, ids)
 			})

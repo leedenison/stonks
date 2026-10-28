@@ -1,16 +1,14 @@
 -- name: CreateIdentifierAssertion :exec
 INSERT INTO identifier_assertions (id, fetch_key_id, run_id, attested_by, ticker_id, market,
-    instr_id, asserted_on, edge, venue, currency)
-VALUES (@id, @fetch_key_id, @run_id, @attested_by, @ticker_id, @market, @instr_id, @asserted_on,
-    sqlc.narg(edge), sqlc.narg(venue), sqlc.narg(currency));
+    instr_id, asserted_from, asserted_before, edge_from, edge_before, venue, currency)
+VALUES (@id, @fetch_key_id, @run_id, @attested_by, @ticker_id, @market, @instr_id, @asserted_from,
+    @asserted_before, @edge_from, @edge_before, sqlc.narg(venue), sqlc.narg(currency));
 
 -- name: CreateIdentifierAttestation :exec
--- A later identifier attestation of a day replaces the earlier one.
-INSERT INTO identifier_assertions (id, run_id, attested_by, ticker_id, market, instr_id, asserted_on)
-VALUES (@id, @run_id::uuid, @attested_by::uuid, @ticker_id, @market, @instr_id, @asserted_on)
-ON CONFLICT (ticker_id, asserted_on) WHERE run_id IS NOT NULL
-DO UPDATE SET run_id = EXCLUDED.run_id, attested_by = EXCLUDED.attested_by,
-    instr_id = EXCLUDED.instr_id;
+INSERT INTO identifier_assertions (id, run_id, attested_by, ticker_id, market, instr_id,
+    asserted_from, asserted_before)
+VALUES (@id, @run_id::uuid, @attested_by::uuid, @ticker_id, @market, @instr_id, @asserted_from,
+    @asserted_before);
 
 -- name: ListFetchKeyAssertions :many
 -- Only tests read a fetch key's assertions.
@@ -42,7 +40,7 @@ LEFT JOIN fetches ON fetches.id = fetch_keys.fetch_id
 LEFT JOIN datasources ON datasources.name = fetches.datasource
 LEFT JOIN users ON users.id = identifier_assertions.attested_by
 LEFT JOIN runs ON runs.id = identifier_assertions.run_id
-ORDER BY identifier_assertions.asserted_on, identifier_assertions.id;
+ORDER BY identifier_assertions.asserted_from, identifier_assertions.id;
 
 -- name: ListIdentifierAssertionCoverage :many
 -- The assertion coverage of the tickers whose market and value are a pair the

@@ -71,32 +71,27 @@ message FetchItem {
   optional string reason = 6;
 }
 
-// What an assertion's edge marks its day as: the first or last day of a
-// span.
-enum Edge {
-  EDGE_UNSPECIFIED = 0;
-  EDGE_FIRST = 1;
-  EDGE_LAST = 2;
-}
-
 // An assertion a run wrote: that a ticker names an instrument, or names
-// nothing, on one day.
-
+// nothing, on every day from asserted_from up to asserted_before.
 message AssertionItem {
   string id = 1;
   stonks.type.v1.MarketTicker ticker = 2;
-  // The day the assertion holds, as YYYY-MM-DD.
-  string asserted_on = 3;
+  // The first day the assertion holds, as YYYY-MM-DD.
+  string asserted_from = 3;
+  // The day after the last day the assertion holds, as YYYY-MM-DD.
+  string asserted_before = 4;
+  // The source states a change at the start of asserted_from.
+  bool edge_from = 5;
+  // The source states a change at the start of asserted_before.
+  bool edge_before = 6;
   // The instrument the ticker names; unset where the ticker names nothing.
-  optional string instr_id = 4;
+  optional string instr_id = 7;
   oneof source {
     // The datasource whose answer made the assertion.
-    string datasource = 5;
+    string datasource = 8;
     // The email of the administrator who attested it.
-    string attested_by = 6;
+    string attested_by = 9;
   }
-  // Unset for a point.
-  optional Edge edge = 7;
 }
 
 enum FindingKind {

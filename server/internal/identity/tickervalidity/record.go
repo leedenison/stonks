@@ -141,8 +141,8 @@ func record(ctx context.Context, q RecordQueries, families currency.Families, ro
 	return nil
 }
 
-// Assert writes the assertion a of ticker t under fetch key key, dated by
-// a.At. A positive assertion names the instrument of the first stored stable
+// Assert writes the assertion a of ticker t under fetch key key, over a.Period.
+// A positive assertion names the instrument of the first stored stable
 // identifier it states, as Record describes. Assert returns false without
 // writing where it can name no instrument.
 func Assert(ctx context.Context, q RecordQueries, families currency.Families, key uuid.UUID, t gen.Ticker, a market.Assertion) (bool, error) {
@@ -156,7 +156,7 @@ func Assert(ctx context.Context, q RecordQueries, families currency.Families, ke
 			return false, nil
 		}
 	}
-	return true, assert(ctx, q, key, t, instr, a.At, a.Edge, Stated{})
+	return true, assert(ctx, q, key, t, instr, a.Period, a.EdgeFrom, a.EdgeBefore, Stated{})
 }
 
 // Asserter writes an assertion.
@@ -168,18 +168,14 @@ type Asserter interface {
 // instrument on the day of at, with what the source stated beside it. A nil
 // instrument asserts that t names nothing.
 func AssertInstr(ctx context.Context, q Asserter, key uuid.UUID, t gen.Ticker, instr *uuid.UUID, at time.Time, s Stated) error {
-	return assert(ctx, q, key, t, instr, at, "", s)
+	return assert(ctx, q, key, t, instr, types.OneDay(at), false, false, s)
 }
 
-// assert writes the assertion AssertInstr writes, with an edge. An empty
-// edge writes a point.
-func assert(ctx context.Context, q Asserter, key uuid.UUID, t gen.Ticker, instr *uuid.UUID, at time.Time, edge gen.IdentifierEdge, s Stated) error {
+// assert writes the assertion that t names instr over p.
+func assert(ctx context.Context, q Asserter, key uuid.UUID, t gen.Ticker, instr *uuid.UUID, p types.Period, edgeFrom, edgeBefore bool, s Stated) error {
 	arg := gen.CreateIdentifierAssertionParams{
 		ID: db.NewID(), FetchKeyID: &key, TickerID: t.ID, Market: t.Market,
-		InstrID: instr, AssertedOn: types.Day(at),
-	}
-	if edge != "" {
-		arg.Edge = &edge
+		InstrID: instr, AssertedFrom: p.From, AssertedBefore: p.Before, EdgeFrom: edgeFrom, EdgeBefore: edgeBefore,
 	}
 	if s.Venue != "" {
 		arg.Venue = &s.Venue
@@ -302,20 +298,20 @@ func CheckAttest(mics mic.MICMap, t types.MarketTicker, on, today time.Time) err
 	return nil
 }
 
-// Attest writes an administrator's assertion that t names instrument on the day
-// on, beneath run, which must be a system run of kind attest identifier. A nil
-// instrument asserts that t names nothing. A later identifier attestation of a
-// day replaces the earlier one.
-func Attest(ctx context.Context, q AttestQueries, mics mic.MICMap, run gen.Run, admin uuid.UUID, t gen.Ticker, instr *uuid.UUID, on, today time.Time) error {
+// Attest writes an administrator's assertion that t names instrument on every
+// day of p, beneath run, which must be a system run of kind attest identifier.
+// A nil instrument asserts that t names nothing. Derive lets a later identifier
+// attestation win over an earlier one on the days they share.
+func Attest(ctx context.Context, q AttestQueries, mics mic.MICMap, run gen.Run, admin uuid.UUID, t gen.Ticker, instr *uuid.UUID, p types.Period, today time.Time) error {
 	if run.Kind != gen.RunKindAttestIdentifier || run.UserID != nil {
 		return fmt.Errorf("run %s is not a system attest identifier run", run.ID)
 	}
-	if err := CheckAttest(mics, tickers.Of(t), on, today); err != nil {
+	if err := CheckAttest(mics, tickers.Of(t), p.Before.AddDate(0, 0, -1), today); err != nil {
 		return err
 	}
 	arg := gen.CreateIdentifierAttestationParams{
 		ID: db.NewID(), RunID: run.ID, AttestedBy: admin, TickerID: t.ID, Market: t.Market,
-		InstrID: instr, AssertedOn: types.Day(on),
+		InstrID: instr, AssertedFrom: p.From, AssertedBefore: p.Before,
 	}
 	if err := q.CreateIdentifierAttestation(ctx, arg); err != nil {
 		return fmt.Errorf("record identifier attestation: %w", err)

@@ -116,9 +116,9 @@ message AttestIdentifierRequest {
     // The ticker names nothing.
     bool nothing = 3 [(buf.validate.field).bool.const = true];
   }
-  // The day the assertion holds, as YYYY-MM-DD.
+  // The first day the assertion holds, as YYYY-MM-DD.
   string from = 4 [(buf.validate.field).string.min_len = 1];
-  // A later day that takes an assertion of its own, as YYYY-MM-DD.
+  // The last day the assertion holds, as YYYY-MM-DD. Unset for from alone.
   optional string to = 5;
 }
 
@@ -142,9 +142,9 @@ service CoverageService {
   // invalid argument.
   rpc GetTicker(GetTickerRequest) returns (GetTickerResponse);
   // Attests, as a system run, that the ticker names the instrument or names
-  // nothing on from, and on to where it is given. The assertions are written
-  // before the call returns, and the run replays the unresolved keys that
-  // state the ticker. A day after today, or a to before from, is a failed
+  // nothing on every day of the range from through to. The assertion is written
+  // before the call returns, and the run replays the unresolved keys that state
+  // the ticker. A day after today, or a to before from, is a failed
   // precondition.
   rpc AttestIdentifier(AttestIdentifierRequest) returns (AttestIdentifierResponse);
   // Deletes an attested assertion and replays the unresolved keys that state

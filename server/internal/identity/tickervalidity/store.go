@@ -109,10 +109,9 @@ func (r Rows) Facts() Facts {
 		case ia.RunID != nil:
 			src.Answer = *ia.RunID
 		}
-		a := Assertion{Period: types.OneDay(ia.AssertedOn), Instr: ia.InstrID, Source: src}
-		if ia.Edge != nil {
-			a.EdgeFrom = *ia.Edge == gen.IdentifierEdgeFirst
-			a.EdgeBefore = *ia.Edge == gen.IdentifierEdgeLast
+		a := Assertion{
+			Period: types.Period{From: ia.AssertedFrom, Before: ia.AssertedBefore}, Instr: ia.InstrID,
+			EdgeFrom: ia.EdgeFrom, EdgeBefore: ia.EdgeBefore, Source: src,
 		}
 		if ia.Venue != nil {
 			a.Stated.Venue = *ia.Venue

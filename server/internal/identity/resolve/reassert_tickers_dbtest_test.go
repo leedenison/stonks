@@ -106,15 +106,15 @@ func (s *stack) reasserted(t *testing.T, run gen.Run) map[string][]reassertedKey
 	return out
 }
 
-// assertedOn returns the instruments the assertions of v on day d name, a
-// nil for each negative one.
+// assertedOn returns the instrument that each assertion of v holding day d
+// names, or nil for a negative one.
 func (s *stack) assertedOn(t *testing.T, v types.Identifier, d time.Time) []*uuid.UUID {
 	t.Helper()
 	rows, err := s.q.ListIdentifierAssertions(context.Background(), gen.ListIdentifierAssertionsParams{Markets: []string{mt(v).Market}, Values: []string{v.Value}})
 	require.NoError(t, err)
 	var out []*uuid.UUID
 	for _, r := range rows {
-		if r.IdentifierAssertion.AssertedOn.Equal(d) {
+		if ia := r.IdentifierAssertion; (types.Period{From: ia.AssertedFrom, Before: ia.AssertedBefore}).Contains(d) {
 			out = append(out, r.IdentifierAssertion.InstrID)
 		}
 	}
