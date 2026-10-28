@@ -88,7 +88,7 @@ func TestResolveWrites(t *testing.T) {
 	if len(asserted) != 1 {
 		t.Fatalf("%d assertions, want 1 of the response's ticker", len(asserted))
 	}
-	if a := asserted[0]; a.IdentifierAssertion.Market != "XLON" || a.Value != "VOD" || a.IdentifierAssertion.InstrID == nil || *a.IdentifierAssertion.InstrID != instr.ID || !a.IdentifierAssertion.AssertedOn.Equal(day) {
+	if a := asserted[0]; a.IdentifierAssertion.Market != "XLON" || a.Value != "VOD" || a.IdentifierAssertion.InstrID == nil || *a.IdentifierAssertion.InstrID != instr.ID || !a.IdentifierAssertion.AssertedFrom.Equal(day) {
 		t.Errorf("assertion = %+v, want XLON:VOD naming the instrument on %s, the day of the answer", a, day.Format(time.DateOnly))
 	}
 	vod := types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XLON", Value: "VOD"}
@@ -184,7 +184,7 @@ func TestUnknownRows(t *testing.T) {
 			require.NoError(t, err)
 			var got []string
 			for _, a := range asserted {
-				if a.IdentifierAssertion.InstrID != nil || !a.IdentifierAssertion.AssertedOn.Equal(time.Date(2026, time.March, 2, 0, 0, 0, 0, time.UTC)) {
+				if a.IdentifierAssertion.InstrID != nil || !a.IdentifierAssertion.AssertedFrom.Equal(time.Date(2026, time.March, 2, 0, 0, 0, 0, time.UTC)) {
 					t.Errorf("assertion = %+v, want a negative assertion on the day of the answer", a)
 				}
 				got = append(got, a.IdentifierAssertion.Market+":"+a.Value)

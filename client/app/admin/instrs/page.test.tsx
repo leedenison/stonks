@@ -17,7 +17,7 @@ import {
   Listing_TickerSchema,
   ListInstrsResponseSchema,
 } from "@/gen/admin/instr/v1/instr_pb";
-import { AssertionItemSchema, Edge } from "@/gen/admin/run/v1/run_pb";
+import { AssertionItemSchema } from "@/gen/admin/run/v1/run_pb";
 import { Role } from "@/gen/auth/v1/auth_pb";
 import {
   AssetClass,
@@ -55,9 +55,9 @@ const tickers = create(ListInstrTickersResponseSchema, {
     { ticker: { ...acme, value: "OLD" }, relation: TickerRelation.FORMER },
   ],
 });
-// ACME's facts: a gap before a confirmed bracket, a datasource's first edge
-// and an identifier attestation, and one datasource's assertion coverage of the
-// whole market.
+// ACME's facts: a gap before a confirmed bracket, a datasource's assertion
+// with an edge at its start and an identifier attestation, and one
+// datasource's assertion coverage of the whole market.
 const read = create(GetTickerResponseSchema, {
   ticker: create(TickerSchema, {
     ticker: acme,
@@ -74,15 +74,17 @@ const read = create(GetTickerResponseSchema, {
       create(AssertionItemSchema, {
         id: "a1",
         ticker: acme,
-        assertedOn: "2024-06-01",
+        assertedFrom: "2024-06-01",
+        assertedBefore: "2026-01-01",
+        edgeFrom: true,
         instrId: "i-acme",
-        edge: Edge.FIRST,
         source: { case: "datasource", value: "alpha" },
       }),
       create(AssertionItemSchema, {
         id: "a2",
         ticker: acme,
-        assertedOn: "2026-01-01",
+        assertedFrom: "2026-01-01",
+        assertedBefore: "2026-01-02",
         source: { case: "attestedBy", value: "admin@example.com" },
       }),
     ],
@@ -328,11 +330,11 @@ describe("InstrsPage", () => {
     const a1 = screen.getByTestId("assertion-row-a1");
     expect(a1.textContent).toContain("US0000000001");
     expect(a1.textContent).toContain("alpha");
-    expect(a1.textContent).toContain("first");
+    expect(a1.textContent).toContain("2024-06-01");
     expect(a1.getAttribute("data-attested")).toBeNull();
     const a2 = screen.getByTestId("assertion-row-a2");
     expect(a2.textContent).toContain("nothing");
-    expect(a2.textContent).not.toContain("first");
+    expect(a2.textContent).toContain("2026-01-02");
     expect(a2.textContent).toContain("admin@example.com");
     expect(a2.getAttribute("data-attested")).toBe("true");
     expect(

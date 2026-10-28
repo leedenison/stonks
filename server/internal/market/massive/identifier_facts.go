@@ -6,7 +6,6 @@ import (
 	"slices"
 	"time"
 
-	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/mic"
 	"github.com/leedenison/stonks/server/internal/types"
@@ -56,14 +55,15 @@ type link struct {
 }
 
 // chainFacts converts the ticker events of the entity sent names into
-// identifier facts at the market home, with a first and a last around each
-// rename. The oldest event on or before p's first day marks where Massive's
-// data begins, so its ticker's assertion is a point. The newest ticker is also
-// asserted on p's last day, so the chain asserts a held ticker on the present
-// day. That holds because Massive answers not found for the chain of a delisted
-// entity. If a chain holds a ticker the system cannot spell, chainFacts returns
-// an empty result, since a partial chain would put a period of assertion
-// coverage around the edge it dropped.
+// identifier facts at the market home. Each ticker is asserted over the days
+// it named the entity, with an edge at each rename. The oldest event on or
+// before p's first day marks where Massive's data begins, so its assertion has
+// no edge at its start. The newest ticker is asserted up to the end of p, so
+// the chain asserts a held ticker on the present day. That holds because
+// Massive answers not found for the chain of a delisted entity. If a chain
+// holds a ticker the system cannot spell, chainFacts returns an empty result,
+// since a partial chain would put a period of assertion coverage around the
+// edge it dropped.
 func chainFacts(sent types.Identifier, evs []event, p types.Period, home string) (market.IdentifierFactResult, error) {
 	var links []link
 	for _, e := range slices.Backward(evs) {
@@ -82,27 +82,19 @@ func chainFacts(sent types.Identifier, evs []event, p types.Period, home string)
 	}
 	of := market.Listing{Identifiers: []types.Identifier{sent}}
 	var out market.IdentifierFactResult
-	assert := func(t types.MarketTicker, on time.Time, edge gen.IdentifierEdge) {
-		out.Assertions = append(out.Assertions, market.Assertion{Ticker: t, Of: of, At: on, Edge: edge})
-	}
-	today := p.Before.AddDate(0, 0, -1)
 	for i, l := range links {
 		before := p.Before
 		if i+1 < len(links) {
 			before = links[i+1].from
 		}
 		t := types.MarketTicker{Market: home, Value: l.ticker}
-		last := before.AddDate(0, 0, -1)
-		// A point gives way to an edge of its ticker on its day.
-		if i > 0 || l.from.After(p.From) {
-			assert(t, l.from, gen.IdentifierEdgeFirst)
-		} else if i+1 == len(links) || last.After(l.from) {
-			assert(t, l.from, "")
-		}
-		if i+1 < len(links) {
-			assert(t, last, gen.IdentifierEdgeLast)
-		} else if today.After(l.from) {
-			assert(t, today, "")
+		// Skip a ticker that a rename replaced on its first day: it named
+		// the entity on no day.
+		if l.from.Before(before) {
+			out.Assertions = append(out.Assertions, market.Assertion{
+				Ticker: t, Of: of, Period: types.Period{From: l.from, Before: before},
+				EdgeFrom: i > 0 || l.from.After(p.From), EdgeBefore: i+1 < len(links),
+			})
 		}
 		if c, ok := clip(types.Period{From: l.from, Before: before}, p); ok {
 			out.AssertionCoverage = append(out.AssertionCoverage, market.AssertionCoverage{Market: home, Ticker: &t, Period: c})
@@ -127,7 +119,7 @@ func clip(a, b types.Period) (types.Period, bool) {
 // entity it names, at the market home. A record the integration cannot
 // convert, such as a warrant or an OTC listing, yields an empty result.
 func lookupFacts(ticker string, rec *record, unknown bool, day time.Time, home string, mics mic.MICMap) market.IdentifierFactResult {
-	a := market.Assertion{Ticker: types.MarketTicker{Market: home, Value: ticker}, At: day, Negative: unknown}
+	a := market.Assertion{Ticker: types.MarketTicker{Market: home, Value: ticker}, Period: types.OneDay(day), Negative: unknown}
 	if !unknown {
 		if rec == nil {
 			return market.IdentifierFactResult{}

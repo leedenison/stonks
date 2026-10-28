@@ -413,14 +413,14 @@ func TestListRunItems(t *testing.T) {
 			expect: func(r *mock.MockQueriesMockRecorder) {
 				two := int32(2)
 				r.ListRunAssertions(gomock.Any(), gen.ListRunAssertionsParams{RunID: &runID, Lim: &two}).Return([]gen.ListRunAssertionsRow{
-					{IdentifierAssertion: gen.IdentifierAssertion{ID: keyID, Market: "XLON", InstrID: &childID, AssertedOn: created}, Value: "SHEL", Datasource: ptr.To("eodhd")},
-					{IdentifierAssertion: gen.IdentifierAssertion{ID: childID, Market: "XLON", AssertedOn: created}, Value: "SHEL", Datasource: ptr.To("eodhd")},
+					{IdentifierAssertion: gen.IdentifierAssertion{ID: keyID, Market: "XLON", InstrID: &childID, AssertedFrom: created, AssertedBefore: created.AddDate(0, 0, 1)}, Value: "SHEL", Datasource: ptr.To("eodhd")},
+					{IdentifierAssertion: gen.IdentifierAssertion{ID: childID, Market: "XLON", AssertedFrom: created, AssertedBefore: created.AddDate(0, 0, 1)}, Value: "SHEL", Datasource: ptr.To("eodhd")},
 				}, nil)
 			},
 			want: &adminrunv1.ListRunItemsResponse{Items: []*adminrunv1.RunItem{{Item: &adminrunv1.RunItem_Assertion{Assertion: &adminrunv1.AssertionItem{
-				Id:         keyID.String(),
-				Ticker:     &typev1.MarketTicker{Market: "XLON", Value: "SHEL"},
-				AssertedOn: created.Format(time.DateOnly), InstrId: ptr.To(childID.String()),
+				Id:           keyID.String(),
+				Ticker:       &typev1.MarketTicker{Market: "XLON", Value: "SHEL"},
+				AssertedFrom: created.Format(time.DateOnly), AssertedBefore: created.AddDate(0, 0, 1).Format(time.DateOnly), InstrId: ptr.To(childID.String()),
 				Source: &adminrunv1.AssertionItem_Datasource{Datasource: "eodhd"},
 			}}}}, NextPageToken: keyID.String()},
 		},
@@ -430,14 +430,14 @@ func TestListRunItems(t *testing.T) {
 			req:  &adminrunv1.ListRunItemsRequest{},
 			expect: func(r *mock.MockQueriesMockRecorder) {
 				r.ListRunAssertions(gomock.Any(), gen.ListRunAssertionsParams{RunID: &runID, Lim: &fifty}).Return([]gen.ListRunAssertionsRow{
-					{IdentifierAssertion: gen.IdentifierAssertion{ID: keyID, Market: "XLON", AssertedOn: created}, Value: "SHEL", AttestedBy: ptr.To("admin@example.com")},
+					{IdentifierAssertion: gen.IdentifierAssertion{ID: keyID, Market: "XLON", AssertedFrom: created, AssertedBefore: created.AddDate(0, 0, 1)}, Value: "SHEL", AttestedBy: ptr.To("admin@example.com")},
 				}, nil)
 			},
 			want: &adminrunv1.ListRunItemsResponse{Items: []*adminrunv1.RunItem{{Item: &adminrunv1.RunItem_Assertion{Assertion: &adminrunv1.AssertionItem{
-				Id:         keyID.String(),
-				Ticker:     &typev1.MarketTicker{Market: "XLON", Value: "SHEL"},
-				AssertedOn: created.Format(time.DateOnly),
-				Source:     &adminrunv1.AssertionItem_AttestedBy{AttestedBy: "admin@example.com"},
+				Id:           keyID.String(),
+				Ticker:       &typev1.MarketTicker{Market: "XLON", Value: "SHEL"},
+				AssertedFrom: created.Format(time.DateOnly), AssertedBefore: created.AddDate(0, 0, 1).Format(time.DateOnly),
+				Source: &adminrunv1.AssertionItem_AttestedBy{AttestedBy: "admin@example.com"},
 			}}}}},
 		},
 		{name: "a replay has none", kind: gen.RunKindReplayRun, req: &adminrunv1.ListRunItemsRequest{}, expect: func(*mock.MockQueriesMockRecorder) {}, want: &adminrunv1.ListRunItemsResponse{}},

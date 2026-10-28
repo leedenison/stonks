@@ -1,5 +1,5 @@
 import type { Interval, Ticker } from "@/gen/admin/coverage/v1/coverage_pb";
-import { type AssertionItem, Edge } from "@/gen/admin/run/v1/run_pb";
+import type { AssertionItem } from "@/gen/admin/run/v1/run_pb";
 import type { Identifier } from "@/gen/type/v1/type_pb";
 import { nextDay } from "@/lib/marshal/date";
 
@@ -23,17 +23,13 @@ export function intervalAt(
   );
 }
 
-// cutDay returns the day at whose start an assertion's edge cuts the
-// timeline: its own day for a first, and the next day for a last. It returns
-// undefined for a point.
-export function cutDay(a: AssertionItem): string | undefined {
-  switch (a.edge) {
-    case Edge.FIRST:
-      return a.assertedOn;
-    case Edge.LAST:
-      return nextDay(a.assertedOn);
-  }
-  return undefined;
+// cutDays returns the days at whose start an assertion's edges cut the
+// timeline: the bounds of its period that are edges.
+export function cutDays(a: AssertionItem): string[] {
+  const out: string[] = [];
+  if (a.edgeFrom) out.push(a.assertedFrom);
+  if (a.edgeBefore) out.push(a.assertedBefore);
+  return out;
 }
 
 // instrName returns the identifier naming instrument id, or undefined
@@ -50,11 +46,7 @@ export function bounds(
   const days: string[] = [...t.txnDays];
   for (const p of t.assertionCoverage)
     days.push(p.coveredFrom, p.coveredBefore);
-  for (const a of t.assertions) {
-    days.push(a.assertedOn);
-    const cut = cutDay(a);
-    if (cut !== undefined) days.push(cut);
-  }
+  for (const a of t.assertions) days.push(a.assertedFrom, a.assertedBefore);
   for (const iv of t.intervals) {
     if (iv.validFrom !== undefined) days.push(iv.validFrom);
     if (iv.validBefore !== undefined) days.push(iv.validBefore);

@@ -19,17 +19,18 @@ type IdentifierFactRequest struct {
 	Period     types.Period
 }
 
-// Assertion is what a provider stated a ticker named on one day: the listing
-// of the entity, as far as the provider described it. The recorder looks its
-// identifiers up to find the instrument. A negative assertion states that the
-// ticker names nothing, and leaves Of empty. Edge marks At as the first or
-// last day of a span, and is empty for a point.
+// Assertion is what a provider stated a ticker named on every day of Period:
+// the listing of the entity, as far as the provider described it. The
+// recorder looks its identifiers up to find the instrument. A negative
+// assertion states that the ticker names nothing, and leaves Of empty.
+// EdgeFrom and EdgeBefore state a change at the start of Period.From and at
+// Period.Before.
 type Assertion struct {
-	Ticker   types.MarketTicker
-	Of       Listing
-	Negative bool
-	At       time.Time
-	Edge     gen.IdentifierEdge
+	Ticker               types.MarketTicker
+	Of                   Listing
+	Negative             bool
+	Period               types.Period
+	EdgeFrom, EdgeBefore bool
 }
 
 // AssertionCoverage is one period of assertion coverage: the days over which a

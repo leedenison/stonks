@@ -2,9 +2,9 @@
 // is confirmed and where it is not.
 //
 // Gaps are measured against confirmed ticker validity. An identifier
-// attestation closes a gap by bracketing it. A ticker is read at its market,
-// and its transactions are those of the keys that state it at any venue of
-// the market.
+// attestation closes a gap by asserting its days. A ticker is read at its
+// market, and its transactions are those of the keys that state it at any
+// venue of the market.
 package coverage
 
 import (

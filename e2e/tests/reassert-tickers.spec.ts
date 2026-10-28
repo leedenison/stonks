@@ -77,14 +77,13 @@ test("extends the ticker validity of a held ticker on the day it runs", async ({
     )
     .toBe(true);
 
-  // A ticker history also asserts the ticker on the day it began naming the
-  // instrument, so the present assertions are those dated while the run ran.
+  // The present assertions are those whose period holds a day of the run.
   const present = (await assertionItems(adminRuns, started.id)).filter(
     (a) =>
       a.ticker?.market === pepUS.market &&
       a.ticker?.value === pepUS.value &&
-      a.assertedOn >= from &&
-      a.assertedOn <= to,
+      a.assertedFrom <= to &&
+      a.assertedBefore > from,
   );
   expect(present.length).toBeGreaterThan(0);
   for (const a of present) {

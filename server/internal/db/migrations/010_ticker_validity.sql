@@ -1,12 +1,5 @@
 -- +goose Up
 
--- A span is the days on which a ticker names one thing without a break. An
--- edge marks an assertion's day as the first or last day of a span. 'first'
--- states that the ticker named something else the day before. 'last' states
--- that it names something else the day after. An edge leaves the other side of
--- the change unstated, so a source can record a change it saw from one side.
-CREATE TYPE identifier_edge AS ENUM ('first', 'last');
-
 -- A market is a set of operating MICs across which one ticker names one
 -- instrument on a day. A ticker's identifier facts are keyed by its market.
 -- The US listing exchanges share the market US. Every other operating MIC is
@@ -78,13 +71,18 @@ ALTER TABLE stated_keys
     ADD CHECK (via_ticker_id IS NULL OR arbiter <> 'user');
 
 -- An identifier assertion is a claim that a ticker names an instrument, or
--- names nothing, on one day. A datasource asserts through a fetch key, on the
--- day of its answer. A point in time lookup asserts on the day its request
--- names. An entity's ticker history asserts each ticker on the day the ticker
--- began naming the entity, with the edge 'first'. It asserts the old ticker of
--- a rename on the day before the rename, with the edge 'last'. An
--- administrator asserts through an attest identifier run, on any day up to the
--- day of the identifier attestation. A row goes with its source.
+-- names nothing, on every day of a period. An edge is a change the source
+-- states at the start of the day that begins the period, or at the start of
+-- the day after it ends. An edge leaves the
+-- other side of the change unstated, so a source can record a change it saw
+-- from one side.
+--
+-- A datasource asserts through a fetch key, on the day of its answer. A point
+-- in time lookup asserts on the day its request names. An entity's ticker
+-- history asserts each ticker over the days it named the entity, with an edge
+-- at each rename. An administrator asserts through an attest identifier run,
+-- over days up to the day of the identifier attestation. A row goes with its
+-- source.
 --
 -- Only a ticker is asserted. A stable identifier needs no assertion, because
 -- its row of identifiers is the claim. An option symbol and a bare ticker get
@@ -102,9 +100,10 @@ CREATE TABLE identifier_assertions (
     -- instr_id is NULL for a negative assertion: the ticker names nothing at
     -- the source.
     instr_id        uuid            REFERENCES instrs (id),
-    asserted_on     date            NOT NULL,
-    -- edge is NULL for a point: the days either side stay open.
-    edge            identifier_edge,
+    asserted_from   date            NOT NULL,
+    asserted_before date            NOT NULL,
+    edge_from       boolean         NOT NULL DEFAULT false,
+    edge_before     boolean         NOT NULL DEFAULT false,
     -- venue and currency are what the source stated beside the ticker: the
     -- operating MIC of the venue, and the currency of the line. Each is NULL
     -- where the source stated none. EODHD states the venue and currency of
@@ -115,22 +114,18 @@ CREATE TABLE identifier_assertions (
     -- resolved_tickers reads them.
     venue           text,
     currency        text            REFERENCES currencies (code),
+    CHECK (asserted_from < asserted_before),
     CHECK ((fetch_key_id IS NULL) <> (run_id IS NULL)),
     CHECK ((run_id IS NULL) = (attested_by IS NULL)),
     FOREIGN KEY (ticker_id, market) REFERENCES tickers (id, market),
     FOREIGN KEY (venue, market) REFERENCES market_members (operating_mic, market),
-    -- edge is part of the key, so a source can state a first and a last for
-    -- one ticker on one day. venue is part of the key, so an answer that lists
-    -- the ticker at several venues of its market writes one assertion per
-    -- venue.
-    UNIQUE NULLS NOT DISTINCT (fetch_key_id, ticker_id, asserted_on, edge, venue)
+    -- venue is part of the key, so an answer that lists the ticker at several
+    -- venues of its market writes one assertion per venue. run_id is part of
+    -- the key, so two identifier attestations from one day both stay.
+    UNIQUE NULLS NOT DISTINCT (fetch_key_id, run_id, ticker_id, asserted_from, venue)
 );
 
 CREATE INDEX identifier_assertions_ticker_idx ON identifier_assertions (ticker_id);
--- An administrator attests a day once: a later identifier attestation replaces
--- the earlier one.
-CREATE UNIQUE INDEX identifier_attestations_day_idx ON identifier_assertions (ticker_id, asserted_on)
-    WHERE run_id IS NOT NULL;
 CREATE INDEX identifier_assertions_run_idx ON identifier_assertions (run_id);
 CREATE INDEX identifier_assertions_instr_idx ON identifier_assertions (instr_id);
 

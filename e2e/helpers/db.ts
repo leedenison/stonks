@@ -169,7 +169,7 @@ export async function seedDescribedInstr(
       [fetchId, isin],
     );
     await client.query(
-      "INSERT INTO identifier_assertions (id, fetch_key_id, ticker_id, market, instr_id, asserted_on, venue, currency) VALUES (uuid_v7(), $1, $2, 'XLON', $3, CURRENT_DATE, 'XLON', 'GBP')",
+      "INSERT INTO identifier_assertions (id, fetch_key_id, ticker_id, market, instr_id, asserted_from, asserted_before, venue, currency) VALUES (uuid_v7(), $1, $2, 'XLON', $3, CURRENT_DATE, CURRENT_DATE + 1, 'XLON', 'GBP')",
       [key.rows[0].id, tickerRow.rows[0].id, id],
     );
     await client.query(

@@ -23,10 +23,10 @@ var (
 	massive    = tickervalidity.Source{Datasource: "massive", Precedence: 2}
 )
 
-// metaFacts are the facts of META: a first edge on 2022-06-09 with assertion
-// coverage from that day, a lookup naming Meta on 2024-01-16, and a lookup on
-// 2021-06-01 that found nothing. The negative assertion precedes the
-// datasource's first positive one, so it does not count.
+// metaFacts are the facts of META: an assertion with an edge at the start of
+// 2022-06-09, assertion coverage from that day, a lookup naming Meta on
+// 2024-01-16, and a lookup on 2021-06-01 that found nothing. The negative
+// assertion precedes the datasource's first positive one, so it does not count.
 func metaFacts() tickervalidity.Facts {
 	return tickervalidity.Facts{
 		Assertions: []tickervalidity.Assertion{

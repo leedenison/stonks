@@ -5,7 +5,7 @@ import {
   TickerSchema,
   TickerValidity,
 } from "@/gen/admin/coverage/v1/coverage_pb";
-import { AssertionItemSchema, Edge } from "@/gen/admin/run/v1/run_pb";
+import { AssertionItemSchema } from "@/gen/admin/run/v1/run_pb";
 import { Timeline, ticks } from "./timeline";
 
 const ticker = { market: "US", value: "ACME" };
@@ -34,23 +34,26 @@ const acme = create(TickerSchema, {
     create(AssertionItemSchema, {
       id: "a1",
       ticker,
-      assertedOn: "2024-06-01",
+      assertedFrom: "2024-06-01",
+      assertedBefore: "2025-06-01",
+      edgeFrom: true,
+      edgeBefore: true,
       instrId: "i1",
-      edge: Edge.FIRST,
       source: { case: "datasource", value: "alpha" },
     }),
     create(AssertionItemSchema, {
       id: "a3",
       ticker,
-      assertedOn: "2025-05-31",
+      assertedFrom: "2025-06-01",
+      assertedBefore: "2025-06-02",
       instrId: "i1",
-      edge: Edge.LAST,
       source: { case: "datasource", value: "alpha" },
     }),
     create(AssertionItemSchema, {
       id: "a2",
       ticker,
-      assertedOn: "2026-03-01",
+      assertedFrom: "2026-03-01",
+      assertedBefore: "2026-03-02",
       source: { case: "attestedBy", value: "admin@example.com" },
     }),
   ],
@@ -83,12 +86,12 @@ describe("Timeline", () => {
       lane("validity")?.querySelector("rect")?.getAttribute("data-validity"),
     ).toBe("confirmed");
     expect(lane("gaps")?.querySelectorAll("rect")).toHaveLength(1);
-    const markers = lane("assertions")?.querySelectorAll("circle") ?? [];
+    const markers = lane("assertions")?.querySelectorAll("rect") ?? [];
     expect(markers).toHaveLength(3);
     expect(markers[0].getAttribute("data-attested")).toBeNull();
     expect(markers[2].getAttribute("data-attested")).toBe("true");
     expect(markers[2].getAttribute("data-negative")).toBe("true");
-    // A first cuts on its own day, and a last on the day after.
+    // An edge cuts at the start of the bound it marks.
     const cuts = [...(lane("edges")?.querySelectorAll("polygon") ?? [])].map(
       (p) => p.getAttribute("data-cut"),
     );

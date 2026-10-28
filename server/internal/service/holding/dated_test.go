@@ -60,7 +60,7 @@ func day(n int) time.Time { return time.Date(2026, time.March, n, 0, 0, 0, 0, ti
 // where instr is nil.
 func assertion(n int, instr *uuid.UUID) gen.ListIdentifierAssertionsRow {
 	return gen.ListIdentifierAssertionsRow{
-		IdentifierAssertion: gen.IdentifierAssertion{Market: "US", AssertedOn: day(n), InstrID: instr, FetchKeyID: ptr.To(uuid.New())}, Value: "FOO",
+		IdentifierAssertion: gen.IdentifierAssertion{Market: "US", AssertedFrom: day(n), AssertedBefore: day(n).AddDate(0, 0, 1), InstrID: instr, FetchKeyID: ptr.To(uuid.New())}, Value: "FOO",
 		Datasource: ptr.To("massive"), Precedence: ptr.To(int32(2)),
 	}
 }

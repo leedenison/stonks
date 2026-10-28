@@ -8,7 +8,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/require"
 
-	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/testutil/vcr"
 	"github.com/leedenison/stonks/server/internal/types"
@@ -35,12 +34,14 @@ func asserted(value string, p types.Period) market.AssertionCoverage {
 func TestChainFacts(t *testing.T) {
 	today := day(2026, 10, 22)
 	p := period(since, today.AddDate(0, 0, 1))
-	at := func(value string, on time.Time, edge gen.IdentifierEdge) market.Assertion {
-		return market.Assertion{Ticker: us(value), Of: market.Listing{Identifiers: []types.Identifier{meta}}, At: on, Edge: edge}
+	// link asserts value over [from, before), with an edge at each bound its
+	// flags mark.
+	link := func(value string, from, before time.Time, edgeFrom, edgeBefore bool) market.Assertion {
+		return market.Assertion{
+			Ticker: us(value), Of: market.Listing{Identifiers: []types.Identifier{meta}},
+			Period: period(from, before), EdgeFrom: edgeFrom, EdgeBefore: edgeBefore,
+		}
 	}
-	first := func(value string, on time.Time) market.Assertion { return at(value, on, gen.IdentifierEdgeFirst) }
-	last := func(value string, on time.Time) market.Assertion { return at(value, on, gen.IdentifierEdgeLast) }
-	point := func(value string, on time.Time) market.Assertion { return at(value, on, "") }
 	over := func(value string, from, before time.Time) market.AssertionCoverage {
 		return asserted(value, period(from, before))
 	}
@@ -56,9 +57,9 @@ func TestChainFacts(t *testing.T) {
 			p:    p,
 			want: market.IdentifierFactResult{
 				Assertions: []market.Assertion{
-					first("AAA", day(2010, 1, 4)), last("AAA", day(2015, 3, 1)),
-					first("BBB", day(2015, 3, 2)), last("BBB", day(2020, 5, 31)),
-					first("CCC", day(2020, 6, 1)), point("CCC", today),
+					link("AAA", day(2010, 1, 4), day(2015, 3, 2), true, true),
+					link("BBB", day(2015, 3, 2), day(2020, 6, 1), true, true),
+					link("CCC", day(2020, 6, 1), p.Before, true, false),
 				},
 				AssertionCoverage: []market.AssertionCoverage{
 					over("AAA", day(2010, 1, 4), day(2015, 3, 2)),
@@ -72,7 +73,7 @@ func TestChainFacts(t *testing.T) {
 			evs:  []event{change("AAPL", "2003-09-10")},
 			p:    p,
 			want: market.IdentifierFactResult{
-				Assertions:        []market.Assertion{point("AAPL", since), point("AAPL", today)},
+				Assertions:        []market.Assertion{link("AAPL", since, p.Before, false, false)},
 				AssertionCoverage: []market.AssertionCoverage{over("AAPL", since, p.Before)},
 			},
 		},
@@ -82,8 +83,8 @@ func TestChainFacts(t *testing.T) {
 			p:    period(day(2024, 10, 22), p.Before),
 			want: market.IdentifierFactResult{
 				Assertions: []market.Assertion{
-					point("AAA", day(2024, 10, 22)), last("AAA", day(2025, 3, 2)),
-					first("BBB", day(2025, 3, 3)), point("BBB", today),
+					link("AAA", day(2024, 10, 22), day(2025, 3, 3), false, true),
+					link("BBB", day(2025, 3, 3), p.Before, true, false),
 				},
 				AssertionCoverage: []market.AssertionCoverage{
 					over("AAA", day(2024, 10, 22), day(2025, 3, 3)),
@@ -97,8 +98,8 @@ func TestChainFacts(t *testing.T) {
 			p:    period(day(2024, 10, 22), day(2025, 6, 2)),
 			want: market.IdentifierFactResult{
 				Assertions: []market.Assertion{
-					point("AAA", day(2010, 1, 4)), last("AAA", day(2025, 3, 2)),
-					first("BBB", day(2025, 3, 3)), point("BBB", day(2025, 6, 1)),
+					link("AAA", day(2010, 1, 4), day(2025, 3, 3), false, true),
+					link("BBB", day(2025, 3, 3), day(2025, 6, 2), true, false),
 				},
 				AssertionCoverage: []market.AssertionCoverage{
 					over("AAA", day(2024, 10, 22), day(2025, 3, 3)),
@@ -111,7 +112,7 @@ func TestChainFacts(t *testing.T) {
 			evs:  []event{change("AAA", "2026-10-22")},
 			p:    p,
 			want: market.IdentifierFactResult{
-				Assertions:        []market.Assertion{first("AAA", today)},
+				Assertions:        []market.Assertion{link("AAA", today, p.Before, true, false)},
 				AssertionCoverage: []market.AssertionCoverage{over("AAA", today, p.Before)},
 			},
 		},
@@ -121,9 +122,9 @@ func TestChainFacts(t *testing.T) {
 			p:    p,
 			want: market.IdentifierFactResult{
 				Assertions: []market.Assertion{
-					first("AAA", day(2010, 1, 4)), last("AAA", day(2020, 5, 31)),
-					first("BBB", day(2020, 6, 1)), last("BBB", day(2020, 6, 1)),
-					first("CCC", day(2020, 6, 2)), point("CCC", today),
+					link("AAA", day(2010, 1, 4), day(2020, 6, 1), true, true),
+					link("BBB", day(2020, 6, 1), day(2020, 6, 2), true, true),
+					link("CCC", day(2020, 6, 2), p.Before, true, false),
 				},
 				AssertionCoverage: []market.AssertionCoverage{
 					over("AAA", day(2010, 1, 4), day(2020, 6, 1)),
@@ -138,7 +139,8 @@ func TestChainFacts(t *testing.T) {
 			p:    period(day(2024, 10, 22), p.Before),
 			want: market.IdentifierFactResult{
 				Assertions: []market.Assertion{
-					last("AAA", day(2024, 10, 22)), first("BBB", day(2024, 10, 23)), point("BBB", today),
+					link("AAA", day(2024, 10, 22), day(2024, 10, 23), false, true),
+					link("BBB", day(2024, 10, 23), p.Before, true, false),
 				},
 				AssertionCoverage: []market.AssertionCoverage{
 					over("AAA", day(2024, 10, 22), day(2024, 10, 23)),
@@ -161,7 +163,7 @@ func TestChainFacts(t *testing.T) {
 			evs:  []event{change("BRK/B", "2003-09-10")},
 			p:    p,
 			want: market.IdentifierFactResult{
-				Assertions:        []market.Assertion{point("BRK.B", since), point("BRK.B", today)},
+				Assertions:        []market.Assertion{link("BRK.B", since, p.Before, false, false)},
 				AssertionCoverage: []market.AssertionCoverage{over("BRK.B", since, p.Before)},
 			},
 		},
@@ -181,8 +183,8 @@ func TestChainFacts(t *testing.T) {
 func TestChainFactsMarket(t *testing.T) {
 	got, err := chainFacts(meta, []event{change("META", "2022-06-09"), change("FB", "2012-05-18")}, history, "US")
 	require.NoError(t, err)
-	if len(got.Assertions) != 4 || len(got.AssertionCoverage) != 2 {
-		t.Errorf("chainFacts = %d assertions and %d rows of assertion coverage, want 4 and 2", len(got.Assertions), len(got.AssertionCoverage))
+	if len(got.Assertions) != 2 || len(got.AssertionCoverage) != 2 {
+		t.Errorf("chainFacts = %d assertions and %d rows of assertion coverage, want 2 and 2", len(got.Assertions), len(got.AssertionCoverage))
 	}
 	for _, a := range got.Assertions {
 		if a.Ticker.Market != "US" {
@@ -213,7 +215,7 @@ func TestLookupFacts(t *testing.T) {
 			name: "a record of the day",
 			rec:  fb,
 			want: market.IdentifierFactResult{Assertions: []market.Assertion{{
-				Ticker: us("FB"), At: on, Of: market.Listing{
+				Ticker: us("FB"), Period: types.OneDay(on), Of: market.Listing{
 					Identifiers: []types.Identifier{
 						{Type: types.IdentifierTypeOpenfigiShareClass, Value: "BBG001SQCQC5"},
 						{Type: types.IdentifierTypeOpenfigiComposite, Value: "BBG000MM2P62"},
@@ -226,7 +228,7 @@ func TestLookupFacts(t *testing.T) {
 		{
 			name:    "a ticker not in use on the day",
 			unknown: true,
-			want:    market.IdentifierFactResult{Assertions: []market.Assertion{{Ticker: us("FB"), At: on, Negative: true}}},
+			want:    market.IdentifierFactResult{Assertions: []market.Assertion{{Ticker: us("FB"), Period: types.OneDay(on), Negative: true}}},
 		},
 		{name: "a record of a class the integration does not convert", rec: &record{Ticker: "FB", Market: "stocks", Type: "WARRANT"}},
 		{name: "a record of another market", rec: &record{Ticker: "FB", Market: "otc", Type: "CS"}},
@@ -260,10 +262,8 @@ func TestFactsFetch(t *testing.T) {
 			// the ticker began trading.
 			want: market.IdentifierFactResult{
 				Assertions: []market.Assertion{
-					{Ticker: us("FB"), Of: market.Listing{Identifiers: figi(meta)}, At: day(2012, 5, 18), Edge: gen.IdentifierEdgeFirst},
-					{Ticker: us("FB"), Of: market.Listing{Identifiers: figi(meta)}, At: day(2022, 6, 8), Edge: gen.IdentifierEdgeLast},
-					{Ticker: us("META"), Of: market.Listing{Identifiers: figi(meta)}, At: day(2022, 6, 9), Edge: gen.IdentifierEdgeFirst},
-					{Ticker: us("META"), Of: market.Listing{Identifiers: figi(meta)}, At: day(2026, 10, 22)},
+					{Ticker: us("FB"), Of: market.Listing{Identifiers: figi(meta)}, Period: period(day(2012, 5, 18), day(2022, 6, 9)), EdgeFrom: true, EdgeBefore: true},
+					{Ticker: us("META"), Of: market.Listing{Identifiers: figi(meta)}, Period: period(day(2022, 6, 9), history.Before), EdgeFrom: true},
 				},
 				AssertionCoverage: []market.AssertionCoverage{
 					asserted("FB", period(day(2012, 5, 18), day(2022, 6, 9))),
@@ -277,8 +277,7 @@ func TestFactsFetch(t *testing.T) {
 			sent:     apple[1],
 			want: market.IdentifierFactResult{
 				Assertions: []market.Assertion{
-					{Ticker: us("AAPL"), Of: market.Listing{Identifiers: figi(apple[1])}, At: since},
-					{Ticker: us("AAPL"), Of: market.Listing{Identifiers: figi(apple[1])}, At: day(2026, 10, 22)},
+					{Ticker: us("AAPL"), Of: market.Listing{Identifiers: figi(apple[1])}, Period: period(since, history.Before)},
 				},
 				AssertionCoverage: []market.AssertionCoverage{asserted("AAPL", history)},
 			},
@@ -293,7 +292,7 @@ func TestFactsFetch(t *testing.T) {
 			cassette: "massive_point_in_time",
 			req:      market.IdentifierFactRequest{Identifier: ticker("XNAS", "FB"), Period: oneDay},
 			sent:     ticker("", "FB"),
-			want: market.IdentifierFactResult{Assertions: []market.Assertion{{Ticker: us("FB"), At: oneDay.From, Of: market.Listing{Identifiers: []types.Identifier{
+			want: market.IdentifierFactResult{Assertions: []market.Assertion{{Ticker: us("FB"), Period: types.OneDay(oneDay.From), Of: market.Listing{Identifiers: []types.Identifier{
 				{Type: types.IdentifierTypeOpenfigiShareClass, Value: "BBG001SQCQC5"},
 				{Type: types.IdentifierTypeOpenfigiComposite, Value: "BBG000MM2P62"},
 				ticker("XNAS", "FB"),
@@ -303,7 +302,7 @@ func TestFactsFetch(t *testing.T) {
 			cassette: "massive_point_in_time_unknown",
 			req:      market.IdentifierFactRequest{Identifier: ticker("XNAS", "META"), Period: oneDay},
 			sent:     ticker("", "META"),
-			want:     market.IdentifierFactResult{Assertions: []market.Assertion{{Ticker: us("META"), At: oneDay.From, Negative: true}}},
+			want:     market.IdentifierFactResult{Assertions: []market.Assertion{{Ticker: us("META"), Period: types.OneDay(oneDay.From), Negative: true}}},
 		},
 	}
 	for _, tc := range tests {

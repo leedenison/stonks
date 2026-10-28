@@ -96,24 +96,22 @@ func TestFactsRecord(t *testing.T) {
 	asserted, err := q.ListFetchKeyAssertions(ctx, &keys[0].ID)
 	require.NoError(t, err)
 	type edged struct {
-		Ticker string
-		On     string
-		Edge   gen.IdentifierEdge
+		Ticker               string
+		From, Before         string
+		EdgeFrom, EdgeBefore bool
 	}
 	var got []edged
 	for _, a := range asserted {
-		e := edged{Ticker: a.Value, On: a.IdentifierAssertion.AssertedOn.Format(time.DateOnly)}
-		if a.IdentifierAssertion.Edge != nil {
-			e.Edge = *a.IdentifierAssertion.Edge
-		}
-		got = append(got, e)
+		ia := a.IdentifierAssertion
+		got = append(got, edged{
+			Ticker: a.Value, From: ia.AssertedFrom.Format(time.DateOnly), Before: ia.AssertedBefore.Format(time.DateOnly),
+			EdgeFrom: ia.EdgeFrom, EdgeBefore: ia.EdgeBefore,
+		})
 	}
-	slices.SortFunc(got, func(a, b edged) int { return strings.Compare(a.Ticker+a.On, b.Ticker+b.On) })
+	slices.SortFunc(got, func(a, b edged) int { return strings.Compare(a.Ticker+a.From, b.Ticker+b.From) })
 	want := []edged{
-		{Ticker: "FB", On: "2012-05-18", Edge: gen.IdentifierEdgeFirst},
-		{Ticker: "FB", On: "2022-06-08", Edge: gen.IdentifierEdgeLast},
-		{Ticker: "META", On: "2022-06-09", Edge: gen.IdentifierEdgeFirst},
-		{Ticker: "META", On: "2026-10-22"},
+		{Ticker: "FB", From: "2012-05-18", Before: "2022-06-09", EdgeFrom: true, EdgeBefore: true},
+		{Ticker: "META", From: "2022-06-09", Before: "2026-10-23", EdgeFrom: true},
 	}
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("assertions mismatch (-want +got):\n%s", diff)

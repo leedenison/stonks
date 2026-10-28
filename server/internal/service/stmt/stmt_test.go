@@ -233,9 +233,9 @@ func TestGetStmt(t *testing.T) {
 	}
 	facts := metaFacts()
 	assertions := []gen.ListIdentifierAssertionsRow{
-		{IdentifierAssertion: gen.IdentifierAssertion{Market: "US", AssertedOn: assertedOn, InstrID: &metaInst, FetchKeyID: ptr.To(uuid.New())}, Value: "META", Datasource: ptr.To("massive"), Precedence: ptr.To(int32(2))},
-		{IdentifierAssertion: gen.IdentifierAssertion{Market: "US", AssertedOn: notFoundOn, FetchKeyID: ptr.To(uuid.New())}, Value: "META", Datasource: ptr.To("massive"), Precedence: ptr.To(int32(2))},
-		{IdentifierAssertion: gen.IdentifierAssertion{Market: "US", AssertedOn: renamed, InstrID: &metaInst, FetchKeyID: ptr.To(uuid.New()), Edge: ptr.To(gen.IdentifierEdgeFirst)}, Value: "META", Datasource: ptr.To("massive"), Precedence: ptr.To(int32(2))},
+		{IdentifierAssertion: gen.IdentifierAssertion{Market: "US", AssertedFrom: assertedOn, AssertedBefore: assertedOn.AddDate(0, 0, 1), InstrID: &metaInst, FetchKeyID: ptr.To(uuid.New())}, Value: "META", Datasource: ptr.To("massive"), Precedence: ptr.To(int32(2))},
+		{IdentifierAssertion: gen.IdentifierAssertion{Market: "US", AssertedFrom: notFoundOn, AssertedBefore: notFoundOn.AddDate(0, 0, 1), FetchKeyID: ptr.To(uuid.New())}, Value: "META", Datasource: ptr.To("massive"), Precedence: ptr.To(int32(2))},
+		{IdentifierAssertion: gen.IdentifierAssertion{Market: "US", AssertedFrom: renamed, AssertedBefore: renamed.AddDate(0, 0, 1), InstrID: &metaInst, FetchKeyID: ptr.To(uuid.New()), EdgeFrom: true}, Value: "META", Datasource: ptr.To("massive"), Precedence: ptr.To(int32(2))},
 	}
 	periods := []gen.ListIdentifierAssertionCoverageRow{{Market: "US", Value: ptr.To("META"), CoveredFrom: facts.AssertionCoverage[0].Period.From, CoveredBefore: facts.AssertionCoverage[0].Period.Before}}
 	txnMsgs := []*stmtv1.Txn{
