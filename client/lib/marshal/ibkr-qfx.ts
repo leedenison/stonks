@@ -6,7 +6,8 @@
 // states. A row without the block is in the account's base currency, CURDEF.
 //
 // A row is stated as traded, and a split arrives as a transfer of the units
-// it added, so every row is as at its order date.
+// it added, so every row is as at its order date. The transfer is dated on
+// the last trading day before the split's ex-date.
 //
 // The file does not name a venue, so a stock's or a fund's ticker is stated
 // without one.

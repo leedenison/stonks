@@ -16,9 +16,12 @@
 // trait for it; see types.AssetClass.Restated. Each transaction is restated
 // to today from the instrument's calendar; see package corpact. When every
 // transaction is covered, the holding is adjusted. Otherwise the holding keeps
-// the quantities as stated and is marked unadjusted. A key's quantity is in
-// its holding's units, and a group keeps the quantities as stated. A holding
-// whose shown quantity is zero is left out.
+// the quantities as stated and is marked unadjusted. An answer covers days up
+// to the day the datasource gave it. A holding with a transaction before
+// today is therefore unadjusted from the day after the last fetch of its
+// corporate actions until the next one. A key's quantity is in its holding's
+// units, and a group keeps the quantities as stated. A holding whose shown
+// quantity is zero is left out.
 //
 // Whether an association is confirmed or provisional shows on the statement,
 // per transaction. A holding shows the same whichever its transactions are,
