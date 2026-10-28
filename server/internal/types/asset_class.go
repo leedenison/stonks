@@ -76,3 +76,8 @@ func (e AssetClass) under(o AssetClass) bool {
 // Disjoint reports whether no instrument can be of both e and o. An unknown
 // class overlaps every class.
 func (e AssetClass) Disjoint(o AssetClass) bool { return !e.under(o) && !o.under(e) }
+
+// Restated reports whether corporate actions restate a quantity of e. They
+// restate equity and the classes below it. Every other class, unknown among
+// them, keeps its quantity as stated.
+func (e AssetClass) Restated() bool { return e.under(AssetClassEquity) }

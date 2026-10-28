@@ -26,11 +26,13 @@ In:
 - An e2e spec that restates a holding across a split, with Massive replayed through the
   recording proxy.
 
-## Open questions
+## Decisions
 
-- Whether the zero rule drops a holding by its raw sum or by its restated sum. A buy of
-  100, a two for one split and a sale of 200 sum to -100 raw and to zero restated.
-- Whether a group holding, which has no instrument, carries the unadjusted mark.
-- Whether `HoldingKey.quantity` is raw or restated.
-- The scale the restated sum is rounded to. The API states a quantity as an exact
-  decimal, and a restated sum may not terminate.
+- The zero rule drops a holding when the quantity it shows is zero. That is the restated
+  sum of an adjusted holding and the raw sum of any other.
+- A group holding is not tied to an instrument, so it shows its raw quantity without the
+  mark.
+- `HoldingKey.quantity` is in the holding's units. It is restated when the holding is
+  adjusted and raw otherwise. Each key is rounded on its own.
+- The restated sum is rounded half away from zero to the finest scale that any of the
+  holding's transaction quantities states. Trailing zeros are then trimmed.

@@ -331,18 +331,31 @@ func TestSplitCalendarByTickerValidity(t *testing.T) {
 	})
 }
 
-// TestSplitOption checks that a split of an option raises nothing.
-func TestSplitOption(t *testing.T) {
-	s := newStack(t)
-	s.only(t, s.alphaName)
-	instr := s.instr(t, types.AssetClassOption)
-	s.names(t, us("NVDA"), instr, day(2024, 1, 2))
-	key := s.fixedKey(t, *s.parent.UserID, instr)
-	s.states(t, *s.parent.UserID, key, ptr.To(ratio(1, 10)))
-	s.alpha.Responses[ticker("XNAS", "NVDA")] = covering()
-	s.fetch(t, ticker("XNAS", "NVDA"))
-	if got := s.unmatchedSplits(t); len(got) != 0 {
-		t.Errorf("findings = %+v, want none", got)
+// TestSplitClass checks that a stated split raises a finding only when
+// corporate actions restate its instrument's class.
+func TestSplitClass(t *testing.T) {
+	tests := []struct {
+		class types.AssetClass
+		want  int
+	}{
+		{types.AssetClassOption, 0},
+		{types.AssetClassFixedIncome, 0},
+		{types.AssetClassMutualFund, 1},
+	}
+	for _, tc := range tests {
+		t.Run(string(tc.class), func(t *testing.T) {
+			s := newStack(t)
+			s.only(t, s.alphaName)
+			instr := s.instr(t, tc.class)
+			s.names(t, us("NVDA"), instr, day(2024, 1, 2))
+			key := s.fixedKey(t, *s.parent.UserID, instr)
+			s.states(t, *s.parent.UserID, key, ptr.To(ratio(1, 10)))
+			s.alpha.Responses[ticker("XNAS", "NVDA")] = covering()
+			s.fetch(t, ticker("XNAS", "NVDA"))
+			if got := s.unmatchedSplits(t); len(got) != tc.want {
+				t.Errorf("findings = %+v, want %d", got, tc.want)
+			}
+		})
 	}
 }
 
