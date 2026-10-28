@@ -1,21 +1,20 @@
-# Queries are grouped one directory per area under server/internal/db/queries,
-# and every area generates into the one gen package, so query names are unique
-# across areas. sqlc reads a directory one level deep, so the areas are listed
-# by glob. The schema is the goose migrations; sqlc drops each Down section and
+# Queries are grouped one file per area in server/internal/db/queries, and every
+# area generates into the one gen package, so query names are unique across
+# areas. The schema is the goose migrations; sqlc drops each Down section and
 # ignores CREATE EXTENSION, CREATE INDEX, triggers, DML and every constraint but
 # a primary key. The overrides keep pgtype out of the signatures consumers see
-# and mock; numeric is named pg_catalog.numeric because the parser qualifies
-# it, and an override naming a type the parser does not is silently unmatched.
-# The identifier_type override and the overrides of the enums that type its
-# traits point at hand-written enums. They and the identifiers they type then
-# sit where generated code and its consumers can both name them. sqlc emits its
-# own copies regardless, which a lint rule forbids.
+# and mock; numeric is named pg_catalog.numeric because the parser qualifies it,
+# and an override naming a type the parser does not is silently unmatched. The
+# identifier_type override and the overrides of the enums that type its traits
+# point at hand-written enums. They and the identifiers they type then sit where
+# generated code and its consumers can both name them. sqlc emits its own copies
+# regardless, which a lint rule forbids.
 version: "2"
 sql:
   - engine: postgresql
     schema: server/internal/db/migrations
     queries:
-      - server/internal/db/queries/*
+      - server/internal/db/queries
     gen:
       go:
         package: gen
