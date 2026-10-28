@@ -27,14 +27,14 @@ message Gap {
 
 // A period over which one datasource reported every edge of a ticker, or of
 // every ticker of its market. The bounds are half open, as YYYY-MM-DD.
-message PeriodAssertion {
+message AssertionCoverage {
   string datasource = 1;
   string market = 2;
   // The ticker's value; unset where the row holds every ticker of the
   // market.
   optional string value = 3;
-  string asserted_from = 4;
-  string asserted_before = 5;
+  string covered_from = 4;
+  string covered_before = 5;
 }
 
 enum TickerValidity {
@@ -65,7 +65,7 @@ message Ticker {
   // ticker, as YYYY-MM-DD, in order.
   repeated string txn_days = 2;
   // By datasource, then first day.
-  repeated PeriodAssertion period_assertions = 3;
+  repeated AssertionCoverage assertion_coverage = 3;
   // By day.
   repeated stonks.admin.run.v1.AssertionItem assertions = 4;
   // In order, without overlap.

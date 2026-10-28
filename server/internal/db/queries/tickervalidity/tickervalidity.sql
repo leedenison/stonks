@@ -39,8 +39,8 @@ LEFT JOIN datasources ON datasources.name = fetches.datasource
 LEFT JOIN users ON users.id = identifier_assertions.attested_by
 ORDER BY identifier_assertions.asserted_on, identifier_assertions.id;
 
--- name: ListIdentifierPeriodAssertions :many
--- The period assertions of the tickers whose market and value are a pair the
+-- name: ListIdentifierAssertionCoverage :many
+-- The assertion coverage of the tickers whose market and value are a pair the
 -- arrays hold at one index, and of every market among markets. Each row comes
 -- with the datasource whose fetch wrote it and that datasource's precedence.
 -- value is NULL for a market row.
@@ -49,22 +49,22 @@ WITH asked AS (
     FROM (SELECT unnest(@markets::text[]) AS market, unnest(@values::text[]) AS value) AS k
     JOIN tickers ON tickers.market = k.market AND tickers.value = k.value
 )
-SELECT identifier_period_assertions.market, tickers.value,
-       identifier_period_assertions.asserted_from, identifier_period_assertions.asserted_before,
-       identifier_period_assertions.fetch_key_id, fetches.datasource, datasources.precedence
-FROM identifier_period_assertions
-LEFT JOIN tickers ON tickers.id = identifier_period_assertions.ticker_id
-JOIN fetch_keys ON fetch_keys.id = identifier_period_assertions.fetch_key_id
+SELECT identifier_assertion_coverage.market, tickers.value,
+       identifier_assertion_coverage.covered_from, identifier_assertion_coverage.covered_before,
+       identifier_assertion_coverage.fetch_key_id, fetches.datasource, datasources.precedence
+FROM identifier_assertion_coverage
+LEFT JOIN tickers ON tickers.id = identifier_assertion_coverage.ticker_id
+JOIN fetch_keys ON fetch_keys.id = identifier_assertion_coverage.fetch_key_id
 JOIN fetches ON fetches.id = fetch_keys.fetch_id
 JOIN datasources ON datasources.name = fetches.datasource
-WHERE identifier_period_assertions.ticker_id IN (SELECT id FROM asked)
-   OR (identifier_period_assertions.ticker_id IS NULL
-       AND identifier_period_assertions.market = ANY(@markets::text[]))
-ORDER BY fetches.datasource, identifier_period_assertions.asserted_from, identifier_period_assertions.id;
+WHERE identifier_assertion_coverage.ticker_id IN (SELECT id FROM asked)
+   OR (identifier_assertion_coverage.ticker_id IS NULL
+       AND identifier_assertion_coverage.market = ANY(@markets::text[]))
+ORDER BY fetches.datasource, identifier_assertion_coverage.covered_from, identifier_assertion_coverage.id;
 
--- name: CreateIdentifierPeriodAssertion :exec
-INSERT INTO identifier_period_assertions (id, fetch_key_id, market, ticker_id, asserted_from, asserted_before)
-VALUES (@id, @fetch_key_id, @market, sqlc.narg(ticker_id), @asserted_from, @asserted_before);
+-- name: CreateIdentifierAssertionCoverage :exec
+INSERT INTO identifier_assertion_coverage (id, fetch_key_id, market, ticker_id, covered_from, covered_before)
+VALUES (@id, @fetch_key_id, @market, sqlc.narg(ticker_id), @covered_from, @covered_before);
 
 -- name: ListHeldTickers :many
 -- The held tickers: each ticker and venue through which a key is dated,

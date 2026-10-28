@@ -122,10 +122,10 @@ enum FindingKind {
   // names the value, the edge, its day and the instrument.
   FINDING_KIND_BROKEN_TICKER_VALIDITY_BRACKET = 6;
   // Two assertions imply a change on one of a run of days, and a
-  // datasource's period assertions hold every one of those days. The
-  // datasource did not report an edge there. The period assertion wins. The
+  // datasource's assertion coverage holds every one of those days. The
+  // datasource did not report an edge there. The assertion coverage wins. The
   // detail names the value, the days of the assertions, the datasource and
-  // its period assertion.
+  // its assertion coverage.
   FINDING_KIND_MISSED_EVENT = 7;
   // A datasource that outranks an edge's source overruled the edge, so the
   // edge does not cut. The detail names the value, the edge, its day and the

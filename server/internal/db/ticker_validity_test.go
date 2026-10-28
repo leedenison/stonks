@@ -151,9 +151,9 @@ func TestIdentifierAssertions(t *testing.T) {
 	})
 }
 
-// TestIdentifierPeriodAssertionChecks checks the shape the schema demands of
-// a period assertion.
-func TestIdentifierPeriodAssertionChecks(t *testing.T) {
+// TestIdentifierAssertionCoverageChecks checks the shape the schema demands of
+// a period of assertion coverage.
+func TestIdentifierAssertionCoverageChecks(t *testing.T) {
 	ctx := context.Background()
 	type tickers struct{ other uuid.UUID }
 	tests := []struct {
@@ -163,20 +163,20 @@ func TestIdentifierPeriodAssertionChecks(t *testing.T) {
 		state string
 	}{
 		{
-			name:  "a period assertion that ends as it starts",
-			sql:   "INSERT INTO identifier_period_assertions (id, fetch_key_id, market, asserted_from, asserted_before) VALUES ($1, $2, 'US', '2022-06-09', '2022-06-09')",
+			name:  "a period of assertion coverage that ends as it starts",
+			sql:   "INSERT INTO identifier_assertion_coverage (id, fetch_key_id, market, covered_from, covered_before) VALUES ($1, $2, 'US', '2022-06-09', '2022-06-09')",
 			args:  func(tickers) []any { return nil },
 			state: pgerrcode.CheckViolation,
 		},
 		{
-			name:  "a period assertion of a venue in place of its market",
-			sql:   "INSERT INTO identifier_period_assertions (id, fetch_key_id, market, asserted_from, asserted_before) VALUES ($1, $2, 'XNAS', '2022-01-01', '2022-06-09')",
+			name:  "a period of assertion coverage of a venue in place of its market",
+			sql:   "INSERT INTO identifier_assertion_coverage (id, fetch_key_id, market, covered_from, covered_before) VALUES ($1, $2, 'XNAS', '2022-01-01', '2022-06-09')",
 			args:  func(tickers) []any { return nil },
 			state: pgerrcode.ForeignKeyViolation,
 		},
 		{
-			name:  "a period assertion of a ticker of another market",
-			sql:   "INSERT INTO identifier_period_assertions (id, fetch_key_id, market, ticker_id, asserted_from, asserted_before) VALUES ($1, $2, 'US', $3, '2022-01-01', '2022-06-09')",
+			name:  "a period of assertion coverage of a ticker of another market",
+			sql:   "INSERT INTO identifier_assertion_coverage (id, fetch_key_id, market, ticker_id, covered_from, covered_before) VALUES ($1, $2, 'US', $3, '2022-01-01', '2022-06-09')",
 			args:  func(ts tickers) []any { return []any{ts.other} },
 			state: pgerrcode.ForeignKeyViolation,
 		},

@@ -42,11 +42,12 @@ func provisional(from, before *time.Time, instr uuid.UUID) Interval {
 
 func cover(from, before int) types.Period { return types.Period{From: d(from), Before: d(before)} }
 
-// periodFetchKey is the fetch key of every period assertion a test states.
-var periodFetchKey = uuid.MustParse("00000000-0000-0000-0000-0000000000c0")
+// coverageFetchKey is the fetch key of every period of assertion coverage a
+// test states.
+var coverageFetchKey = uuid.MustParse("00000000-0000-0000-0000-0000000000c0")
 
-func covered(from, before int) PeriodAssertion {
-	return PeriodAssertion{Period: cover(from, before), Source: Source{Datasource: "alpha", Precedence: 1, FetchKey: periodFetchKey}}
+func covered(from, before int) AssertionCoverage {
+	return AssertionCoverage{Period: cover(from, before), Source: Source{Datasource: "alpha", Precedence: 1, FetchKey: coverageFetchKey}}
 }
 
 func edge(n int, instr *uuid.UUID, e gen.IdentifierEdge, src Source) Assertion {
@@ -83,8 +84,8 @@ func TestDerive(t *testing.T) {
 			want:  []Interval{provisional(nil, at(1), a), confirmed(at(1), at(6), a), provisional(at(6), nil, a)},
 		},
 		{
-			name:  "a period assertion extends confirmation up to the nearest cut",
-			facts: Facts{Assertions: []Assertion{asserts(5, &a, alpha), last(9, &a, alpha)}, PeriodAssertions: []PeriodAssertion{covered(1, 20)}},
+			name:  "a period of assertion coverage extends confirmation up to the nearest cut",
+			facts: Facts{Assertions: []Assertion{asserts(5, &a, alpha), last(9, &a, alpha)}, AssertionCoverage: []AssertionCoverage{covered(1, 20)}},
 			want:  []Interval{provisional(nil, at(1), a), confirmed(at(1), at(10), a)},
 		},
 		{
@@ -135,14 +136,14 @@ func TestDerive(t *testing.T) {
 			wantOverruled: []OverruledEdge{{Edge: first(5, &b, beta), By: []Source{alpha, alpha}}},
 		},
 		{
-			name:          "a period assertion of a stronger datasource overrules a weaker edge",
-			facts:         Facts{Assertions: []Assertion{asserts(1, &a, beta), first(5, &a, beta)}, PeriodAssertions: []PeriodAssertion{covered(1, 20)}},
+			name:          "a period of assertion coverage of a stronger datasource overrules a weaker edge",
+			facts:         Facts{Assertions: []Assertion{asserts(1, &a, beta), first(5, &a, beta)}, AssertionCoverage: []AssertionCoverage{covered(1, 20)}},
 			want:          []Interval{provisional(nil, at(1), a), confirmed(at(1), at(20), a), provisional(at(20), nil, a)},
 			wantOverruled: []OverruledEdge{{Edge: first(5, &a, beta), By: []Source{covered(1, 20).Source}}},
 		},
 		{
-			name:  "a period assertion overrules nothing where its datasource states an edge at the cut",
-			facts: Facts{Assertions: []Assertion{asserts(1, &a, beta), first(5, &a, beta), first(5, &a, alpha)}, PeriodAssertions: []PeriodAssertion{covered(1, 20)}},
+			name:  "a period of assertion coverage overrules nothing where its datasource states an edge at the cut",
+			facts: Facts{Assertions: []Assertion{asserts(1, &a, beta), first(5, &a, beta), first(5, &a, alpha)}, AssertionCoverage: []AssertionCoverage{covered(1, 20)}},
 			want:  []Interval{provisional(nil, at(1), a), confirmed(at(1), at(20), a), provisional(at(20), nil, a)},
 			wantBroken: []BrokenBracket{
 				{Edge: first(5, &a, beta), Instr: a, First: d(1), Last: d(5)},
@@ -150,8 +151,8 @@ func TestDerive(t *testing.T) {
 			},
 		},
 		{
-			name:          "two adjoining period assertions of one datasource overrule an edge where they meet",
-			facts:         Facts{Assertions: []Assertion{asserts(1, &a, beta), first(5, &a, beta)}, PeriodAssertions: []PeriodAssertion{covered(1, 5), covered(5, 20)}},
+			name:          "two adjoining periods of assertion coverage of one datasource overrule an edge where they meet",
+			facts:         Facts{Assertions: []Assertion{asserts(1, &a, beta), first(5, &a, beta)}, AssertionCoverage: []AssertionCoverage{covered(1, 5), covered(5, 20)}},
 			want:          []Interval{provisional(nil, at(1), a), confirmed(at(1), at(20), a), provisional(at(20), nil, a)},
 			wantOverruled: []OverruledEdge{{Edge: first(5, &a, beta), By: []Source{covered(5, 20).Source}}},
 		},
@@ -171,8 +172,8 @@ func TestDerive(t *testing.T) {
 			wantInferred: []Inferred{{Period: cover(2, 6), From: &a, To: &b, Earlier: asserts(1, &a, alpha), Later: asserts(5, &b, alpha)}},
 		},
 		{
-			name:  "a period assertion of the grey zone confirms the earlier instrument",
-			facts: Facts{Assertions: []Assertion{asserts(1, &a, alpha), asserts(9, &b, alpha)}, PeriodAssertions: []PeriodAssertion{covered(1, 20)}},
+			name:  "a period of assertion coverage of the grey zone confirms the earlier instrument",
+			facts: Facts{Assertions: []Assertion{asserts(1, &a, alpha), asserts(9, &b, alpha)}, AssertionCoverage: []AssertionCoverage{covered(1, 20)}},
 			want: []Interval{
 				provisional(nil, at(1), a), confirmed(at(1), at(9), a),
 				confirmed(at(9), at(20), b), provisional(at(20), nil, b),
@@ -235,8 +236,8 @@ func TestDerive(t *testing.T) {
 			},
 		},
 		{
-			name:  "a period assertion with no assertion names nothing",
-			facts: Facts{PeriodAssertions: []PeriodAssertion{covered(1, 20)}},
+			name:  "a period of assertion coverage with no assertion names nothing",
+			facts: Facts{AssertionCoverage: []AssertionCoverage{covered(1, 20)}},
 		},
 	}
 	for _, tc := range tests {

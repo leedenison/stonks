@@ -58,12 +58,12 @@ type link struct {
 // chainFacts converts the ticker events of the entity sent names into
 // identifier facts at the market home, with a first and a last around each
 // rename. The oldest event on or before p's first day marks where Massive's
-// data begins, so its ticker's assertion is a point. The newest ticker is
-// also asserted on p's last day, so the chain asserts a held ticker on the
-// present day. That holds because Massive answers not found for the chain of
-// a delisted entity. If a chain holds a ticker the system cannot spell,
-// chainFacts returns an empty result, since a partial chain would put a
-// period assertion around the edge it dropped.
+// data begins, so its ticker's assertion is a point. The newest ticker is also
+// asserted on p's last day, so the chain asserts a held ticker on the present
+// day. That holds because Massive answers not found for the chain of a delisted
+// entity. If a chain holds a ticker the system cannot spell, chainFacts returns
+// an empty result, since a partial chain would put a period of assertion
+// coverage around the edge it dropped.
 func chainFacts(sent types.Identifier, evs []event, p types.Period, home string) (market.IdentifierFactResult, error) {
 	var links []link
 	for _, e := range slices.Backward(evs) {
@@ -105,7 +105,7 @@ func chainFacts(sent types.Identifier, evs []event, p types.Period, home string)
 			assert(t, today, "")
 		}
 		if c, ok := clip(types.Period{From: l.from, Before: before}, p); ok {
-			out.PeriodAssertions = append(out.PeriodAssertions, market.PeriodAssertion{Market: home, Ticker: &t, Period: c})
+			out.AssertionCoverage = append(out.AssertionCoverage, market.AssertionCoverage{Market: home, Ticker: &t, Period: c})
 		}
 	}
 	return out, nil

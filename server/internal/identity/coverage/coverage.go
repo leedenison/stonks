@@ -29,7 +29,7 @@ import (
 // Queries is this package's view of the generated queries.
 type Queries interface {
 	ListIdentifierAssertions(ctx context.Context, arg gen.ListIdentifierAssertionsParams) ([]gen.ListIdentifierAssertionsRow, error)
-	ListIdentifierPeriodAssertions(ctx context.Context, arg gen.ListIdentifierPeriodAssertionsParams) ([]gen.ListIdentifierPeriodAssertionsRow, error)
+	ListIdentifierAssertionCoverage(ctx context.Context, arg gen.ListIdentifierAssertionCoverageParams) ([]gen.ListIdentifierAssertionCoverageRow, error)
 	ListInstrTickers(ctx context.Context, instrID uuid.UUID) ([]gen.ListInstrTickersRow, error)
 	CountTickerTxns(ctx context.Context, probes [][]byte) (int32, error)
 	ListTickerTxns(ctx context.Context, probes [][]byte) ([]gen.ListTickerTxnsRow, error)
@@ -94,8 +94,8 @@ func (t *Page) ToProto() *admincoveragev1.Ticker {
 	for _, d := range t.Days {
 		out.TxnDays = append(out.TxnDays, ymd(d))
 	}
-	for _, p := range t.Rows.PeriodAssertions {
-		out.PeriodAssertions = append(out.PeriodAssertions, to.ProtoPeriodAssertion(p))
+	for _, p := range t.Rows.AssertionCoverage {
+		out.AssertionCoverage = append(out.AssertionCoverage, to.ProtoAssertionCoverage(p))
 	}
 	for _, a := range t.Rows.Assertions {
 		out.Assertions = append(out.Assertions, to.ProtoAssertionItem(a.IdentifierAssertion, a.Value, a.Datasource, a.AttestedBy))

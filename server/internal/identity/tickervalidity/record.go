@@ -23,7 +23,7 @@ type RecordQueries interface {
 	RebuildQueries
 	tickers.Locker
 	CreateIdentifierAssertion(ctx context.Context, arg gen.CreateIdentifierAssertionParams) error
-	CreateIdentifierPeriodAssertion(ctx context.Context, arg gen.CreateIdentifierPeriodAssertionParams) error
+	CreateIdentifierAssertionCoverage(ctx context.Context, arg gen.CreateIdentifierAssertionCoverageParams) error
 	FindIdentifier(ctx context.Context, arg gen.FindIdentifierParams) (gen.FindIdentifierRow, error)
 	CreateInstr(ctx context.Context, arg gen.CreateInstrParams) (gen.Instr, error)
 	CreateListing(ctx context.Context, arg gen.CreateListingParams) (gen.Listing, error)
@@ -47,7 +47,7 @@ func RecordTickers(ctx context.Context, q tickers.Queries, mics mic.MICMap, keys
 		if k.Outcome != gen.FetchOutcomeServed {
 			continue
 		}
-		for _, p := range k.Response.PeriodAssertions {
+		for _, p := range k.Response.AssertionCoverage {
 			if p.Ticker == nil {
 				if err := tickers.SpelledMarket(mics, p.Market); err != nil {
 					return nil, err
@@ -59,7 +59,7 @@ func RecordTickers(ctx context.Context, q tickers.Queries, mics mic.MICMap, keys
 	return tickers.Get(ctx, q, mics, ts)
 }
 
-// Record writes the assertions and period assertions of each served key, and
+// Record writes the assertions and assertion coverage of each served key, and
 // rebuilds the names of their tickers. rows holds the row of each ticker the
 // keys state, as RecordTickers returns them. A negative assertion is always
 // written. Record first locks every stable identifier the assertions state,
@@ -122,10 +122,10 @@ func record(ctx context.Context, q RecordQueries, families currency.Families, ro
 			return err
 		}
 	}
-	for _, p := range r.PeriodAssertions {
-		arg := gen.CreateIdentifierPeriodAssertionParams{
+	for _, p := range r.AssertionCoverage {
+		arg := gen.CreateIdentifierAssertionCoverageParams{
 			ID: db.NewID(), FetchKeyID: key, Market: p.Market,
-			AssertedFrom: p.Period.From, AssertedBefore: p.Period.Before,
+			CoveredFrom: p.Period.From, CoveredBefore: p.Period.Before,
 		}
 		if p.Ticker != nil {
 			t, err := row(*p.Ticker)
@@ -134,8 +134,8 @@ func record(ctx context.Context, q RecordQueries, families currency.Families, ro
 			}
 			arg.TickerID = &t.ID
 		}
-		if err := q.CreateIdentifierPeriodAssertion(ctx, arg); err != nil {
-			return fmt.Errorf("record period assertion: %w", err)
+		if err := q.CreateIdentifierAssertionCoverage(ctx, arg); err != nil {
+			return fmt.Errorf("record assertion coverage: %w", err)
 		}
 	}
 	return nil

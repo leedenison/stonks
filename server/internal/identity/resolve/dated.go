@@ -347,12 +347,12 @@ func (w *writtenSet) addTicker(run gen.Run, t types.MarketTicker) {
 }
 
 // addFacts gathers the tickers whose facts r states, and the markets of its
-// period assertions of a whole market.
+// assertion coverage of a whole market.
 func (w *writtenSet) addFacts(run gen.Run, r market.IdentifierFactResult) {
 	for _, t := range r.Tickers() {
 		w.addTicker(run, t)
 	}
-	for _, p := range r.PeriodAssertions {
+	for _, p := range r.AssertionCoverage {
 		if p.Ticker != nil {
 			continue
 		}
@@ -385,11 +385,11 @@ func (w *writtenSet) tickers() []types.MarketTicker {
 	return out
 }
 
-// conflicts returns the findings among the facts of v that involve a fetch
-// key in mine. A disagreement names the losing assertion's fetch key. A
-// broken bracket names the edge's. A missed event names the period
-// assertion's. An overruled edge names the edge's. An edge that an
-// identifier attestation overrules is not reported.
+// conflicts returns the findings among the facts of v that involve a fetch key
+// in mine. A disagreement names the losing assertion's fetch key. A broken
+// bracket names the edge's. A missed event names the fetch key of the assertion
+// coverage. An overruled edge names the edge's. An edge that an identifier
+// attestation overrules is not reported.
 func conflicts(ctx context.Context, q Queries, v types.MarketTicker, mine map[uuid.UUID]bool) ([]gen.CreateFindingParams, error) {
 	f, err := tickervalidity.Read(ctx, q, v)
 	if err != nil {

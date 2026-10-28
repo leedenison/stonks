@@ -106,7 +106,7 @@ func TestGetTicker(t *testing.T) {
 				IdentifierAssertion: gen.IdentifierAssertion{ID: edgeID, Market: "US", InstrID: &acme, AssertedOn: day(3), Edge: ptr.To(gen.IdentifierEdgeFirst)}, Value: "ACME",
 				Datasource: ptr.To("alpha"),
 			}},
-			PeriodAssertions: []gen.ListIdentifierPeriodAssertionsRow{{Market: "US", AssertedFrom: day(1), AssertedBefore: day(20), Datasource: "alpha"}},
+			AssertionCoverage: []gen.ListIdentifierAssertionCoverageRow{{Market: "US", CoveredFrom: day(1), CoveredBefore: day(20), Datasource: "alpha"}},
 		},
 		Intervals: []tickervalidity.Interval{{From: &from, Before: &before, Instr: acme, Validity: tickervalidity.Confirmed}},
 		Gaps:      []reader.Gap{{Period: types.Period{From: day(5), Before: day(10)}, Keys: 1, Txns: 1}},
@@ -115,9 +115,9 @@ func TestGetTicker(t *testing.T) {
 	want := &admincoveragev1.Ticker{
 		Ticker:  acmeProto,
 		TxnDays: []string{"2026-03-05"},
-		PeriodAssertions: []*admincoveragev1.PeriodAssertion{{
+		AssertionCoverage: []*admincoveragev1.AssertionCoverage{{
 			Datasource: "alpha", Market: "US",
-			AssertedFrom: "2026-03-01", AssertedBefore: "2026-03-20",
+			CoveredFrom: "2026-03-01", CoveredBefore: "2026-03-20",
 		}},
 		Assertions: []*adminrunv1.AssertionItem{{
 			Id: assertionID.String(), Ticker: acmeProto, AssertedOn: "2026-03-10", InstrId: ptr.To(acme.String()),

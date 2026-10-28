@@ -48,8 +48,8 @@ export function bounds(
   t: Ticker,
 ): { from: string; before: string } | undefined {
   const days: string[] = [...t.txnDays];
-  for (const p of t.periodAssertions)
-    days.push(p.assertedFrom, p.assertedBefore);
+  for (const p of t.assertionCoverage)
+    days.push(p.coveredFrom, p.coveredBefore);
   for (const a of t.assertions) {
     days.push(a.assertedOn);
     const cut = cutDay(a);

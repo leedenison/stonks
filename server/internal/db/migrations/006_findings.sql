@@ -22,10 +22,10 @@
 -- run that wrote the edge records it, and the finding names the edge's fetch
 -- key.
 -- 'missed_event' means two assertions imply a change on one of a run of
--- days, and a datasource's period assertions hold every one of those days.
--- The datasource did not report an edge there. The period assertion wins.
--- The run that wrote the period assertion or either assertion records it,
--- and the finding names the period assertion's fetch key.
+-- days, and a datasource's assertion coverage holds every one of those days.
+-- The datasource did not report an edge there. The assertion coverage wins.
+-- The run that wrote the assertion coverage or either assertion records it,
+-- and the finding names the fetch key of the assertion coverage.
 -- 'overruled_edge' means a datasource that outranks the edge's source
 -- overruled the edge, so the edge does not cut. The run that wrote the edge,
 -- or one of the facts that overrule it, records it. The finding names the

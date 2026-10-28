@@ -11,7 +11,7 @@ import (
 // FactQueries read the facts of one ticker.
 type FactQueries interface {
 	ListIdentifierAssertions(ctx context.Context, arg gen.ListIdentifierAssertionsParams) ([]gen.ListIdentifierAssertionsRow, error)
-	ListIdentifierPeriodAssertions(ctx context.Context, arg gen.ListIdentifierPeriodAssertionsParams) ([]gen.ListIdentifierPeriodAssertionsRow, error)
+	ListIdentifierAssertionCoverage(ctx context.Context, arg gen.ListIdentifierAssertionCoverageParams) ([]gen.ListIdentifierAssertionCoverageRow, error)
 }
 
 var _ FactQueries = (*gen.Queries)(nil)
@@ -26,13 +26,13 @@ func Of(ctx context.Context, q FactQueries, t types.MarketTicker) ([]Interval, e
 }
 
 // Rows is a ticker's facts as the queries return them, with the source of
-// each assertion and period assertion.
+// each assertion and assertion coverage.
 type Rows struct {
-	Assertions       []gen.ListIdentifierAssertionsRow
-	PeriodAssertions []gen.ListIdentifierPeriodAssertionsRow
+	Assertions        []gen.ListIdentifierAssertionsRow
+	AssertionCoverage []gen.ListIdentifierAssertionCoverageRow
 }
 
-// Read reads the facts of t: its assertions, and the period assertions of the
+// Read reads the facts of t: its assertions, and the assertion coverage of the
 // ticker and of its market.
 func Read(ctx context.Context, q FactQueries, t types.MarketTicker) (Facts, error) {
 	rows, err := ReadRows(ctx, q, t)
@@ -42,7 +42,7 @@ func Read(ctx context.Context, q FactQueries, t types.MarketTicker) (Facts, erro
 	return rows.Facts(), nil
 }
 
-// ReadRows reads the assertion and period assertion rows of t.
+// ReadRows reads the assertion and assertion coverage rows of t.
 func ReadRows(ctx context.Context, q FactQueries, t types.MarketTicker) (Rows, error) {
 	rows, err := ReadRowsOf(ctx, q, []types.MarketTicker{t})
 	if err != nil {
@@ -51,7 +51,7 @@ func ReadRows(ctx context.Context, q FactQueries, t types.MarketTicker) (Rows, e
 	return rows[t], nil
 }
 
-// ReadRowsOf reads the assertion and period assertion rows of each of ts,
+// ReadRowsOf reads the assertion and assertion coverage rows of each of ts,
 // with two queries however many tickers there are.
 func ReadRowsOf(ctx context.Context, q FactQueries, ts []types.MarketTicker) (map[types.MarketTicker]Rows, error) {
 	out := make(map[types.MarketTicker]Rows, len(ts))
@@ -76,14 +76,14 @@ func ReadRowsOf(ctx context.Context, q FactQueries, ts []types.MarketTicker) (ma
 		r.Assertions = append(r.Assertions, a)
 		out[t] = r
 	}
-	ps, err := q.ListIdentifierPeriodAssertions(ctx, gen.ListIdentifierPeriodAssertionsParams{Markets: markets, Values: values})
+	ps, err := q.ListIdentifierAssertionCoverage(ctx, gen.ListIdentifierAssertionCoverageParams{Markets: markets, Values: values})
 	if err != nil {
-		return nil, fmt.Errorf("list period assertions: %w", err)
+		return nil, fmt.Errorf("list assertion coverage: %w", err)
 	}
 	for _, p := range ps {
 		for t, r := range out {
 			if t.Market == p.Market && (p.Value == nil || *p.Value == t.Value) {
-				r.PeriodAssertions = append(r.PeriodAssertions, p)
+				r.AssertionCoverage = append(r.AssertionCoverage, p)
 				out[t] = r
 			}
 		}
@@ -115,9 +115,9 @@ func (r Rows) Facts() Facts {
 		}
 		f.Assertions = append(f.Assertions, a)
 	}
-	for _, p := range r.PeriodAssertions {
-		f.PeriodAssertions = append(f.PeriodAssertions, PeriodAssertion{
-			Period: types.Period{From: p.AssertedFrom, Before: p.AssertedBefore},
+	for _, p := range r.AssertionCoverage {
+		f.AssertionCoverage = append(f.AssertionCoverage, AssertionCoverage{
+			Period: types.Period{From: p.CoveredFrom, Before: p.CoveredBefore},
 			Source: Source{Datasource: p.Datasource, Precedence: p.Precedence, FetchKey: p.FetchKeyID},
 		})
 	}

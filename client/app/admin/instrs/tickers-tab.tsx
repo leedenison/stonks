@@ -363,11 +363,11 @@ function Facts({
           </PaneTable>
         )}
       </Section>
-      <Section title="Period assertions">
-        {ticker.periodAssertions.length === 0 ? (
+      <Section title="Assertion coverage">
+        {ticker.assertionCoverage.length === 0 ? (
           <None />
         ) : (
-          <PaneTable testId="ticker-period-assertions">
+          <PaneTable testId="ticker-assertion-coverage">
             <thead className="border-b border-border">
               <tr>
                 <Th dense>Datasource</Th>
@@ -377,7 +377,7 @@ function Facts({
               </tr>
             </thead>
             <tbody>
-              {ticker.periodAssertions.map((p, i) => (
+              {ticker.assertionCoverage.map((p, i) => (
                 <tr key={i}>
                   <Td dense>
                     <Chip>{p.datasource}</Chip>
@@ -386,10 +386,10 @@ function Facts({
                     {p.value ?? `every ticker of ${p.market}`}
                   </Td>
                   <Td dense className="font-mono tabular-nums">
-                    {p.assertedFrom}
+                    {p.coveredFrom}
                   </Td>
                   <Td dense className="font-mono tabular-nums">
-                    {p.assertedBefore}
+                    {p.coveredBefore}
                   </Td>
                 </tr>
               ))}
