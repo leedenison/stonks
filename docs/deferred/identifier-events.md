@@ -14,7 +14,9 @@ An entity provider reports only the chain of the entity a ticker names today. A 
 reused ticker outside that chain stays invisible, and ticker validity before the first
 assertion stays provisional. A range provider reports every rename in a market, so its
 assertion coverage confirms a present assertion back to the last rename without an
-identifier attestation.
+identifier attestation. Each market names one datasource as its identifier event source.
+A range provider counts only in a market where it is the identifier event source.
+Elsewhere its edges and coverage are stored and ignored.
 
 A price or a corporate action fetched under a ticker rests on the assumption that the
 ticker named the same instrument on the row's date as at the fetch. When an edge shows
@@ -45,10 +47,11 @@ claim that none occurred.
 
 ### Unwinding
 
-When a source records an edge on a ticker, the system finds every fetch key that sent the
-ticker to a provider. The system invalidates a data row of such a fetch key when the edge
-lies between the row's date and the fetch's assertion moment. The system drops the
-invalidated rows and the assertion coverage of their fetch keys. Then it refetches them.
+When the identifier event source records an edge on a ticker, the system finds every
+fetch key that sent the ticker to a provider. The system invalidates a data row of such a
+fetch key when the edge lies between the row's date and the fetch's assertion moment. The
+system drops the invalidated rows and the assertion coverage of their fetch keys. Then it
+refetches them.
 
 ## Constraints
 
@@ -60,9 +63,10 @@ proceeds on provisional ticker validity.
 
 ### Market fetches
 
-The period of a market fetch follows the rule on `NextPeriod` in
-[identifier_facts.go](../../server/internal/market/identifier_facts.go). A range
-provider implements `market.Ranged`, and `datasources.lag_days` overrides its lag.
+A market fetch starts a lag before the end of the previous fetch. The first fetch starts
+on the earliest day needed. A fetch never starts before the provider's window. It ends
+tomorrow. The provider states a default lag. Its datasource configuration overrides the
+default.
 
 The lag makes each fetch repeat the most recent part of the previous period. A provider
 may publish a change late. The next fetch still records it. The recording unwinds what

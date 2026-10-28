@@ -1,7 +1,7 @@
 ---
 title: Adjusted holdings
 type: task
-dependencies: [003, 004, 008, 012, 018]
+dependencies: [003, 004, 008, 012, 018, 019]
 ---
 
 ## Scope
@@ -13,10 +13,7 @@ In:
 - Restating each transaction on read from one datasource and market. See
   [001](../adr/001-a-corporate-action-is-stored-against-its-ticker-and-attributed-through-ticker-validity.md)
   and [002](../adr/002-a-transaction-reflects-corporate-actions-up-to-its-as-at-date.md).
-- Read the transactions of a fixed key one row at a time, with their as-at dates,
-  instead of summing them in `ListHoldingKeys`.
-- Read the held instruments, the held ticker dates and the attribution of each
-  transaction through one set of queries, shared with `refreshcorpacts`.
+- Read each transaction from `txn_instrs` as one row with its as-at date.
 - The coverage of each transaction, and the adjusted or unadjusted state of each
   holding. See [003](../adr/003-a-holding-is-adjusted-only-when-covered-to-today.md).
 - The trait in `internal/types` that marks a class that corporate actions restate.

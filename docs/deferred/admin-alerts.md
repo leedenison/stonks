@@ -22,8 +22,8 @@ cannot reach it. The alerts page is the one place such a ticker appears.
 
 ## Sketch
 
-An alert is derived when read, as ticker validity is. Each kind is a query over rows that
-already exist. An alert disappears when an administrator settles its cause.
+An alert is derived when read. Each kind is a query over rows that already exist. An alert
+disappears when an administrator settles its cause.
 
 Each alert links to the surface that settles it: the attest dialog, the run, the block,
 the instrument.
