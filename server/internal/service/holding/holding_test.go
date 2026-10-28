@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"slices"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/google/go-cmp/cmp"
@@ -36,6 +37,8 @@ var (
 	principal = auth.Principal{User: gen.User{ID: userID, Email: "one@example.com"}, SessionID: servicetest.Session}
 	families  = currency.Families{"GBP": "GBP", "GBX": "GBP", "USD": "USD"}
 	scales    = currency.Scales{"GBX": decimal.RequireFromString("0.01")}
+	// now is the server's clock in every test.
+	now = time.Date(2026, time.January, 10, 15, 0, 0, 0, time.UTC)
 )
 
 type fixture struct {
@@ -57,7 +60,7 @@ func newFixture(t *testing.T) *fixture {
 	f := &fixture{reader: mock.NewMockReader(ctrl), authn: servicemock.NewMockAuthenticator(ctrl)}
 	opts := servicetest.Options(t, f.authn)
 	srv := servicetest.Serve(t, func(mux *http.ServeMux) {
-		mux.Handle(holdingv1connect.NewHoldingServiceHandler(New(f.reader, families, scales, mics), opts...))
+		mux.Handle(holdingv1connect.NewHoldingServiceHandler(New(f.reader, families, scales, mics, func() time.Time { return now }), opts...))
 	})
 	f.client = holdingv1connect.NewHoldingServiceClient(srv.Client, srv.URL)
 	return f
@@ -102,7 +105,7 @@ func TestListHoldings(t *testing.T) {
 	}
 	wantInstrs := []*holdingv1.InstrHolding{
 		{
-			InstrId: gbpID.String(), AssetClass: typev1.AssetClass_ASSET_CLASS_CASH, Quantity: "12092.79",
+			InstrId: gbpID.String(), AssetClass: typev1.AssetClass_ASSET_CLASS_CASH, Quantity: "12092.79", Mark: holdingv1.HoldingMark_HOLDING_MARK_RAW,
 			Identifiers: []*typev1.Identifier{{Type: typev1.IdentifierType_IDENTIFIER_TYPE_CURRENCY, Value: "GBP"}},
 			Listings:    []*holdingv1.HoldingListing{{Id: gbpListingID.String(), Currency: "GBP"}},
 			Keys: []*holdingv1.HoldingKey{{
@@ -111,7 +114,7 @@ func TestListHoldings(t *testing.T) {
 			}},
 		},
 		{
-			InstrId: acmeID.String(), AssetClass: typev1.AssetClass_ASSET_CLASS_SECURITY, Quantity: "-141",
+			InstrId: acmeID.String(), AssetClass: typev1.AssetClass_ASSET_CLASS_SECURITY, Quantity: "-141", Mark: holdingv1.HoldingMark_HOLDING_MARK_RAW,
 			Name: &typev1.Identifier{Type: typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, Value: "GB0002634946"},
 			Identifiers: []*typev1.Identifier{
 				{Type: typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, Value: "GB0002634946"},
@@ -258,6 +261,7 @@ func TestListHoldingsScale(t *testing.T) {
 			f.authn.EXPECT().Authenticate(gomock.Any(), servicetest.Session).Return(principal, nil)
 			f.reader.EXPECT().ListHoldingKeys(gomock.Any(), userID).Return(tc.keys, nil)
 			f.reader.EXPECT().ListInstrsByID(gomock.Any(), gomock.Any()).Return(instrs, nil)
+			f.reader.EXPECT().ListTickersNaming(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
 			if tc.want != "" {
 				ids := []uuid.UUID{tc.id}
 				f.reader.EXPECT().ListIdentifiersOf(gomock.Any(), ids).Return(nil, nil)
@@ -294,5 +298,46 @@ func TestListingThroughTicker(t *testing.T) {
 	}
 	if got := listing(families, key, listings); got != usd {
 		t.Errorf("listing() = %s, want the USD listing %s, which the ticker reaches at XNAS", got, usd)
+	}
+}
+
+// TestListHoldingsRestated checks that a stock's holding is restated to today
+// by the split that its calendar covers.
+func TestListHoldingsRestated(t *testing.T) {
+	keyID, answerID := uuid.MustParse("00000000-0000-0000-0000-000000000066"), uuid.MustParse("00000000-0000-0000-0000-000000000067")
+	key := gen.StatedKey{ID: keyID, InstrID: &acmeID, Identifiers: []types.Identifier{{Type: types.IdentifierTypeIsin, Value: "GB0002634946"}}}
+	row := func(asAt time.Time, quantity string) gen.ListHoldingKeysRow {
+		return gen.ListHoldingKeysRow{StatedKey: key, InstrID: &acmeID, AsAt: asAt, Quantity: decimal.RequireFromString(quantity)}
+	}
+	from, before := time.Date(2010, time.January, 1, 0, 0, 0, 0, time.UTC), types.Day(now).AddDate(0, 0, 1)
+	f := newFixture(t)
+	f.authn.EXPECT().Authenticate(gomock.Any(), servicetest.Session).Return(principal, nil)
+	f.reader.EXPECT().ListHoldingKeys(gomock.Any(), userID).Return([]gen.ListHoldingKeysRow{
+		row(time.Date(2019, time.January, 2, 0, 0, 0, 0, time.UTC), "100"),
+		row(time.Date(2021, time.March, 1, 0, 0, 0, 0, time.UTC), "-50"),
+	}, nil)
+	f.reader.EXPECT().ListInstrsByID(gomock.Any(), gomock.Any()).Return([]gen.Instr{{ID: acmeID, AssetClass: types.AssetClassStock}}, nil)
+	f.reader.EXPECT().ListTickersNaming(gomock.Any(), []uuid.UUID{acmeID}).Return([]gen.ListTickersNamingRow{{InstrID: acmeID, Market: "US", Value: "ACME"}}, nil)
+	f.reader.EXPECT().ListTickerValidity(gomock.Any(), gomock.Any()).Return([]gen.ListTickerValidityRow{{Market: "US", Value: "ACME", InstrID: acmeID, Validity: gen.ValidityConfirmed}}, nil)
+	f.reader.EXPECT().ListCorpActAnswers(gomock.Any(), gomock.Any()).Return([]gen.ListCorpActAnswersRow{{
+		CorpActAnswer: gen.CorpActAnswer{ID: answerID, Datasource: "alpha", CoveredFrom: &from, CoveredBefore: &before}, Market: "US", Value: "ACME", Precedence: 1,
+	}}, nil)
+	f.reader.EXPECT().ListCorpActs(gomock.Any(), gomock.Any()).Return([]gen.CorpAct{{
+		ID: uuid.New(), AnswerID: answerID, ExDate: time.Date(2020, time.March, 2, 0, 0, 0, 0, time.UTC), RatioFrom: decimal.NewFromInt(1), RatioTo: decimal.NewFromInt(2), Handled: true,
+	}}, nil)
+	ids := []uuid.UUID{acmeID}
+	f.reader.EXPECT().ListIdentifiersOf(gomock.Any(), ids).Return(nil, nil)
+	f.reader.EXPECT().ListListingNames(gomock.Any(), ids).Return(nil, nil)
+	f.reader.EXPECT().ListInstrNames(gomock.Any(), ids).Return(nil, nil)
+	res, err := f.client.ListHoldings(context.Background(), connect.NewRequest(&holdingv1.ListHoldingsRequest{}))
+	if err != nil {
+		t.Fatalf("ListHoldings() error = %v", err)
+	}
+	want := []*holdingv1.InstrHolding{{
+		InstrId: acmeID.String(), AssetClass: typev1.AssetClass_ASSET_CLASS_STOCK, Quantity: "150", Mark: holdingv1.HoldingMark_HOLDING_MARK_ADJUSTED,
+		Keys: []*holdingv1.HoldingKey{{Quantity: "150", StatedKey: &typev1.StatedKey{Identifiers: []*typev1.Identifier{{Type: typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, Value: "GB0002634946"}}}}},
+	}}
+	if diff := cmp.Diff(want, res.Msg.GetInstrs(), protocmp.Transform()); diff != "" {
+		t.Errorf("ListHoldings() mismatch (-want +got):\n%s", diff)
 	}
 }

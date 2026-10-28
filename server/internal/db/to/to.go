@@ -7,6 +7,7 @@ package to
 import (
 	"time"
 
+	"github.com/shopspring/decimal"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	adminblockv1 "github.com/leedenison/stonks/proto/admin/block/v1"
@@ -133,11 +134,12 @@ func ProtoHoldingListing(l gen.ListListingNamesRow) *holdingv1.HoldingListing {
 	return out
 }
 
-// ProtoHoldingKey writes k as a key of a holding.
-func ProtoHoldingKey(k gen.ListHoldingKeysRow) *holdingv1.HoldingKey {
-	out := &holdingv1.HoldingKey{StatedKey: ProtoStatedKey(k.StatedKey), Quantity: k.Quantity.String()}
-	if k.StatedKey.ListingID != nil {
-		out.ListingId = k.StatedKey.ListingID.String()
+// ProtoHoldingKey writes k as a key of a holding, with the quantity the
+// holding sums from it.
+func ProtoHoldingKey(k gen.StatedKey, quantity decimal.Decimal) *holdingv1.HoldingKey {
+	out := &holdingv1.HoldingKey{StatedKey: ProtoStatedKey(k), Quantity: quantity.String()}
+	if k.ListingID != nil {
+		out.ListingId = k.ListingID.String()
 	}
 	return out
 }

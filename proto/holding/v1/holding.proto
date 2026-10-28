@@ -1,9 +1,11 @@
 // Holdings: what a user holds, of two kinds, one per instrument and one per
-// group of unresolved keys. A holding whose total is zero is left out.
-// Quantities are raw: no corporate action restates them. Every RPC requires a
-// session and reads the caller's own transactions, keys and statements. A
-// holding carries the keys it sums. An instrument holding also carries its
-// listings.
+// group of unresolved keys. A holding whose quantity is zero is left out.
+// Every RPC requires a session and reads the caller's own transactions, keys
+// and statements. A holding carries the keys it sums. An instrument holding
+// also carries its listings.
+//
+// Corporate actions restate the quantity of an instrument holding of some
+// classes, such as stocks and funds. HoldingMark says whether they did.
 //
 // A dated key's transactions are summed into the instrument its ticker names
 // on their dates. Transactions dated when the ticker names nothing are summed
@@ -40,8 +42,9 @@ message HoldingKey {
   // The listing the key associates through, or for a dated key the listing
   // its ticker names on this holding's dates; empty where there is none.
   string listing_id = 2;
-  // The sum of the key's transaction quantities that this holding sums, for
-  // cash in the currency the key states.
+  // The sum of the key's transaction quantities that this holding sums, in
+  // the holding's units: restated when the holding is adjusted, and rounded
+  // as the holding is. For cash it is in the currency the key states.
   string quantity = 3;
 }
 
@@ -57,8 +60,11 @@ message InstrHolding {
   repeated stonks.type.v1.Identifier identifiers = 3;
   // The sum of the caller's transaction quantities over every transaction
   // that resolves to the instrument: shares, contracts, or money for cash,
-  // with no trailing zeros. Cash is summed in its family's unit, so pence count as hundredths
-  // of a pound. Negative when more has been disposed of than acquired.
+  // with no trailing zeros. Cash is summed in its family's unit, so pence
+  // count as hundredths of a pound. Negative when more has been disposed of
+  // than acquired. An adjusted holding restates each transaction exactly and
+  // rounds the sum once, half away from zero, to the finest scale that any of
+  // its transactions states.
   string quantity = 4;
   // Every listing of the instrument, by currency.
   repeated HoldingListing listings = 5;
@@ -67,6 +73,38 @@ message InstrHolding {
   // The identifier that names the instrument: the best-ranked type, and
   // among tickers the primary venue first. Unset where nothing names it.
   stonks.type.v1.Identifier name = 7;
+  HoldingMark mark = 8;
+  // Set when the holding is unadjusted, as YYYY-MM-DD. It is the day after
+  // the earliest as-at date of a transaction that lacks coverage. One
+  // datasource and market must cover the corporate actions from this day to
+  // today.
+  optional string uncovered_from = 9;
+  // The days from uncovered_from to today over which no datasource reported
+  // the instrument's corporate actions, in order. Empty when some datasource
+  // covers each day but none covers the whole period that a transaction
+  // needs.
+  repeated UncoveredDays gaps = 10;
+}
+
+// How an instrument holding's quantity stands to the corporate actions since
+// its transactions. A holding is adjusted when a single datasource, in a
+// single market, covers them from each transaction to today.
+enum HoldingMark {
+  HOLDING_MARK_UNSPECIFIED = 0;
+  // Restated to today by every corporate action since each transaction.
+  HOLDING_MARK_ADJUSTED = 1;
+  // As stated, because a transaction lacks coverage to today.
+  HOLDING_MARK_UNADJUSTED = 2;
+  // As stated, because corporate actions do not restate the instrument's
+  // class.
+  HOLDING_MARK_RAW = 3;
+}
+
+// A run of days over which no datasource reported an instrument's corporate
+// actions. The bounds are half open, as YYYY-MM-DD.
+message UncoveredDays {
+  string uncovered_from = 1;
+  string uncovered_before = 2;
 }
 
 // A holding of the caller's unresolved keys that state one holding between
@@ -83,8 +121,8 @@ message GroupHolding {
   // Each identifier the keys state, once. When a ticker is stated without
   // its venue, it is among them, and so is each broker's description.
   repeated stonks.type.v1.Identifier identifiers = 3;
-  // The sum of the caller's transaction quantities over the group's keys,
-  // with no trailing zeros.
+  // The sum of the caller's transaction quantities over the group's keys, as
+  // stated, with no trailing zeros.
   string quantity = 4;
   // The keys this holding sums, earliest key first.
   repeated HoldingKey keys = 5;

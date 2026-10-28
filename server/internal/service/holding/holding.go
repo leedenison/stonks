@@ -4,13 +4,21 @@
 // caller's own keys, so another user's never contribute, and a caller with
 // none is answered with empty lists rather than not found. A holding carries
 // the keys it sums. An instrument holding also carries every listing of the
-// instrument. A holding whose total is zero is left out.
+// instrument.
 //
 // A dated key's transactions take the instrument its ticker names on their
 // as-at dates, as the stored ticker validity states it; see package
 // tickervalidity. A transaction dated when its ticker names nothing is summed
 // into its key's group, beside the unresolved keys. One key may therefore sit
 // under several holdings, with the sum of its transactions under each.
+//
+// Corporate actions restate a holding of an instrument whose class has the
+// trait for it; see types.AssetClass.Restated. Each transaction is restated
+// to today from the instrument's calendar; see package corpact. When every
+// transaction is covered, the holding is adjusted. Otherwise the holding keeps
+// the quantities as stated and is marked unadjusted. A key's quantity is in
+// its holding's units, and a group keeps the quantities as stated. A holding
+// whose shown quantity is zero is left out.
 //
 // Whether an association is confirmed or provisional shows on the statement,
 // per transaction. A holding shows the same whichever its transactions are,
@@ -22,7 +30,9 @@ import (
 	"context"
 	"fmt"
 	"maps"
+	"math/big"
 	"slices"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
@@ -32,6 +42,7 @@ import (
 	"github.com/leedenison/stonks/proto/holding/v1/holdingv1connect"
 	typev1 "github.com/leedenison/stonks/proto/type/v1"
 	"github.com/leedenison/stonks/server/internal/auth"
+	"github.com/leedenison/stonks/server/internal/corpact"
 	"github.com/leedenison/stonks/server/internal/currency"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/to"
@@ -42,6 +53,7 @@ import (
 
 // Reader is this package's view of the holdings queries.
 type Reader interface {
+	corpact.CalendarQueries
 	ListInstrsByID(ctx context.Context, ids []uuid.UUID) ([]gen.Instr, error)
 	ListIdentifiersOf(ctx context.Context, ids []uuid.UUID) ([]gen.Identifier, error)
 	ListListingNames(ctx context.Context, instrIds []uuid.UUID) ([]gen.ListListingNamesRow, error)
@@ -59,13 +71,14 @@ type Server struct {
 	families currency.Families
 	scales   currency.Scales
 	mics     mic.MICMap
+	clock    func() time.Time
 }
 
 var _ holdingv1connect.HoldingServiceHandler = (*Server)(nil)
 
 // New returns a Server.
-func New(reader Reader, families currency.Families, scales currency.Scales, mics mic.MICMap) *Server {
-	return &Server{reader: reader, families: families, scales: scales, mics: mics}
+func New(reader Reader, families currency.Families, scales currency.Scales, mics mic.MICMap, clock func() time.Time) *Server {
+	return &Server{reader: reader, families: families, scales: scales, mics: mics, clock: clock}
 }
 
 // ListHoldings lists the caller's holdings of both kinds.
@@ -89,8 +102,7 @@ func (s *Server) ListHoldings(ctx context.Context, _ *connect.Request[holdingv1.
 }
 
 // instrs answers the user's holdings of instruments, each with its
-// name, identifiers, listings and keys, by instrument id. Each key adds the
-// sum of its transactions on an instrument to that instrument. Cash is summed
+// name, identifiers, listings and keys, by instrument id. Cash is summed
 // in its family's unit, so pence count as hundredths of a pound. A security's
 // quantity stays in shares whatever its currency.
 func (s *Server) instrs(ctx context.Context, keys []gen.ListHoldingKeysRow) ([]*holdingv1.InstrHolding, error) {
@@ -108,10 +120,18 @@ func (s *Server) instrs(ctx context.Context, keys []gen.ListHoldingKeysRow) ([]*
 		return nil, err
 	}
 	classOf := make(map[uuid.UUID]types.AssetClass, len(instrs))
+	var restated []uuid.UUID
 	for _, i := range instrs {
 		classOf[i.ID] = i.AssetClass
+		if i.AssetClass.Restated() {
+			restated = append(restated, i.ID)
+		}
 	}
-	total := make(map[uuid.UUID]decimal.Decimal, len(named))
+	cals, err := corpact.Calendars(ctx, s.reader, restated)
+	if err != nil {
+		return nil, err
+	}
+	held := map[uuid.UUID][]keyDays{}
 	for _, k := range keys {
 		id := k.InstrID
 		if id == nil {
@@ -121,9 +141,25 @@ func (s *Server) instrs(ctx context.Context, keys []gen.ListHoldingKeysRow) ([]*
 		if classOf[*id] == types.AssetClassCash && k.StatedKey.Currency != nil {
 			q = q.Mul(s.scales.Scale(*k.StatedKey.Currency))
 		}
-		total[*id] = total[*id].Add(q)
+		ks := held[*id]
+		if n := len(ks); n == 0 || ks[n-1].key.ID != k.StatedKey.ID {
+			ks = append(ks, keyDays{key: k.StatedKey})
+		}
+		n := len(ks) - 1
+		ks[n].days, ks[n].raw = append(ks[n].days, day{asAt: k.AsAt, quantity: q}), append(ks[n].raw, k.Quantity)
+		held[*id] = ks
 	}
-	ids := held(total)
+	today := types.Day(s.clock())
+	sums := make(map[uuid.UUID]sum, len(held))
+	total := make(map[uuid.UUID]decimal.Decimal, len(held))
+	for id, ks := range held {
+		r := rawSum(ks)
+		if classOf[id].Restated() {
+			r = restate(cals[id], ks, today)
+		}
+		sums[id], total[id] = r, r.quantity
+	}
+	ids := nonZero(total)
 	if len(ids) == 0 {
 		return nil, nil
 	}
@@ -151,28 +187,30 @@ func (s *Server) instrs(ctx context.Context, keys []gen.ListHoldingKeysRow) ([]*
 	for _, n := range names {
 		nameOf[n.InstrID] = to.InstrName(n).ToProto()
 	}
-	keysOf := map[uuid.UUID][]*holdingv1.HoldingKey{}
-	for _, k := range keys {
-		id := k.InstrID
-		if id == nil {
-			continue
-		}
-		hk := to.ProtoHoldingKey(k)
-		if k.StatedKey.ViaTickerID != nil {
-			if l := listing(s.families, k.StatedKey, listed[*id]); l != uuid.Nil {
-				hk.ListingId = l.String()
-			}
-		}
-		keysOf[*id] = append(keysOf[*id], hk)
-	}
 	out := make([]*holdingv1.InstrHolding, 0, len(ids))
 	for _, id := range ids {
+		r := sums[id]
 		h := &holdingv1.InstrHolding{
 			InstrId:    id.String(),
 			AssetClass: types.ToProto[typev1.AssetClass](classOf[id]),
 			Name:       nameOf[id],
-			Quantity:   total[id].String(),
-			Keys:       keysOf[id],
+			Quantity:   r.quantity.String(),
+			Mark:       r.mark,
+		}
+		if r.uncoveredFrom != nil {
+			h.UncoveredFrom = ptr.To(r.uncoveredFrom.Format(time.DateOnly))
+		}
+		for _, g := range r.gaps {
+			h.Gaps = append(h.Gaps, &holdingv1.UncoveredDays{UncoveredFrom: g.From.Format(time.DateOnly), UncoveredBefore: g.Before.Format(time.DateOnly)})
+		}
+		for i, k := range held[id] {
+			hk := to.ProtoHoldingKey(k.key, r.keys[i])
+			if k.key.ViaTickerID != nil {
+				if l := listing(s.families, k.key, listed[id]); l != uuid.Nil {
+					hk.ListingId = l.String()
+				}
+			}
+			h.Keys = append(h.Keys, hk)
 		}
 		for _, i := range identified[id] {
 			h.Identifiers = append(h.Identifiers, to.Identifier(i).ToProto())
@@ -185,6 +223,85 @@ func (s *Server) instrs(ctx context.Context, keys []gen.ListHoldingKeysRow) ([]*
 		out = append(out, h)
 	}
 	return out, nil
+}
+
+// keyDays is one key's transactions on one instrument, summed by as-at date.
+type keyDays struct {
+	key  gen.StatedKey
+	days []day
+	// raw holds each day's sum in the key's own units, for cash in the
+	// currency the key states.
+	raw []decimal.Decimal
+}
+
+// day is the sum of a key's transactions as at one date, for cash in its
+// family's unit.
+type day struct {
+	asAt     time.Time
+	quantity decimal.Decimal
+}
+
+// sum is a holding's quantity and the quantity of each of its keys, in the
+// order of its keys.
+type sum struct {
+	quantity      decimal.Decimal
+	keys          []decimal.Decimal
+	mark          holdingv1.HoldingMark
+	uncoveredFrom *time.Time
+	gaps          []types.Period
+}
+
+// rawSum sums ks as stated, for an instrument whose class is not restated.
+func rawSum(ks []keyDays) sum {
+	out := sum{mark: holdingv1.HoldingMark_HOLDING_MARK_RAW}
+	for _, k := range ks {
+		var key decimal.Decimal
+		for i, d := range k.days {
+			out.quantity = out.quantity.Add(d.quantity)
+			key = key.Add(k.raw[i])
+		}
+		out.keys = append(out.keys, key)
+	}
+	return out
+}
+
+// restate sums ks restated to today by cal. It rounds the exact sum once to
+// the most decimal places a transaction states, so a fraction sold for cash
+// cancels to zero. If cal does not cover a transaction, it keeps the
+// quantities as stated and marks the sum unadjusted from the day after the
+// earliest such transaction.
+func restate(cal corpact.Calendar, ks []keyDays, today time.Time) sum {
+	out := rawSum(ks)
+	out.mark = holdingv1.HoldingMark_HOLDING_MARK_ADJUSTED
+	var scale int32
+	factors := make([][]*big.Rat, len(ks))
+	for i, k := range ks {
+		for _, d := range k.days {
+			scale = max(scale, -d.quantity.Exponent())
+			f, ok := cal.Factor(d.asAt, today)
+			if !ok && (out.uncoveredFrom == nil || d.asAt.Before(*out.uncoveredFrom)) {
+				out.uncoveredFrom = &d.asAt
+			}
+			factors[i] = append(factors[i], f)
+		}
+	}
+	if out.uncoveredFrom != nil {
+		from := out.uncoveredFrom.AddDate(0, 0, 1)
+		out.mark, out.uncoveredFrom = holdingv1.HoldingMark_HOLDING_MARK_UNADJUSTED, &from
+		out.gaps = cal.Gaps(types.Period{From: from, Before: today.AddDate(0, 0, 1)})
+		return out
+	}
+	total := new(big.Rat)
+	for i, k := range ks {
+		key := new(big.Rat)
+		for j, d := range k.days {
+			key.Add(key, new(big.Rat).Mul(d.quantity.Rat(), factors[i][j]))
+		}
+		total.Add(total, key)
+		out.keys[i] = decimal.NewFromBigRat(key, scale)
+	}
+	out.quantity = decimal.NewFromBigRat(total, scale)
+	return out
 }
 
 // listing returns the listing a dated key's transactions sit under on one
@@ -221,6 +338,16 @@ func listing(families currency.Families, k gen.StatedKey, listings []gen.ListLis
 func (s *Server) groups(keys []gen.ListHoldingKeysRow) ([]*holdingv1.GroupHolding, error) {
 	total := map[uuid.UUID]decimal.Decimal{}
 	stated := map[uuid.UUID]*stating{}
+	var last uuid.UUID
+	var key *gen.StatedKey
+	var keyQty decimal.Decimal
+	flush := func() {
+		if key != nil {
+			st := stated[*key.GroupID]
+			st.h.Keys = append(st.h.Keys, to.ProtoHoldingKey(*key, keyQty))
+		}
+		key = nil
+	}
 	for _, k := range keys {
 		if k.InstrID != nil {
 			continue
@@ -234,17 +361,21 @@ func (s *Server) groups(keys []gen.ListHoldingKeysRow) ([]*holdingv1.GroupHoldin
 		case g == nil:
 			continue
 		}
-		hk := to.ProtoHoldingKey(k)
-		total[*g] = total[*g].Add(k.Quantity)
-		st, ok := stated[*g]
-		if !ok {
-			st = &stating{h: &holdingv1.GroupHolding{}, classes: map[types.AssetClass]bool{}, ids: map[types.Identifier]bool{}}
-			stated[*g] = st
+		if key == nil || last != k.StatedKey.ID {
+			flush()
+			last, key, keyQty = k.StatedKey.ID, &k.StatedKey, decimal.Zero
+			st, ok := stated[*g]
+			if !ok {
+				st = &stating{h: &holdingv1.GroupHolding{}, classes: map[types.AssetClass]bool{}, ids: map[types.Identifier]bool{}}
+				stated[*g] = st
+			}
+			st.fold(k.StatedKey)
 		}
-		st.fold(k.StatedKey)
-		st.h.Keys = append(st.h.Keys, hk)
+		keyQty = keyQty.Add(k.Quantity)
+		total[*g] = total[*g].Add(k.Quantity)
 	}
-	ids := held(total)
+	flush()
+	ids := nonZero(total)
 	out := make([]*holdingv1.GroupHolding, 0, len(ids))
 	for _, id := range ids {
 		h := &holdingv1.GroupHolding{}
@@ -259,8 +390,8 @@ func (s *Server) groups(keys []gen.ListHoldingKeysRow) ([]*holdingv1.GroupHoldin
 	return out, nil
 }
 
-// held returns the ids whose total is not zero, in id order.
-func held(total map[uuid.UUID]decimal.Decimal) []uuid.UUID {
+// nonZero returns the ids whose total is not zero, in id order.
+func nonZero(total map[uuid.UUID]decimal.Decimal) []uuid.UUID {
 	return slices.DeleteFunc(sorted(total), func(id uuid.UUID) bool { return total[id].IsZero() })
 }
 
