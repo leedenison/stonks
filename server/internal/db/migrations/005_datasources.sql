@@ -85,6 +85,10 @@ CREATE TABLE fetch_keys (
     -- answered_at is when the datasource gave the answer, set when served. An answer from the cache keeps the moment of the call that
     -- filled it.
     answered_at   timestamptz,
+    -- asked_from and asked_before are the period of the request, where the
+    -- request has one.
+    asked_from    date,
+    asked_before  date,
     created_at    timestamptz     NOT NULL DEFAULT now(),
     FOREIGN KEY (fetch_id) REFERENCES fetches (id) ON DELETE CASCADE,
     FOREIGN KEY (fetch_id, user_id) REFERENCES fetches (id, user_id) ON DELETE CASCADE,
@@ -97,7 +101,9 @@ CREATE TABLE fetch_keys (
     CHECK ((outcome = 'served') = (answered_at IS NOT NULL)),
     CHECK (outcome NOT IN ('not_served', 'blocked') OR attempts = 0),
     CHECK (instr_id IS NULL OR outcome = 'served'),
-    CHECK (outcome = 'served' OR candidates = 0)
+    CHECK (outcome = 'served' OR candidates = 0),
+    CHECK ((asked_from IS NULL) = (asked_before IS NULL)),
+    CHECK (asked_from < asked_before)
 );
 
 CREATE INDEX fetch_keys_stated_key_idx ON fetch_keys (stated_key_id);

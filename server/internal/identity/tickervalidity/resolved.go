@@ -88,7 +88,7 @@ func later(a, b *time.Time) int {
 
 // lastWon returns the latest day that an assertion naming instr won for t.
 func lastWon(t *Ticker, instr uuid.UUID) time.Time {
-	ws, _ := winners(t.Facts.Assertions)
+	ws, _ := winners(current(t.Facts.Assertions))
 	for _, w := range slices.Backward(ws) {
 		if w.instr != nil && *w.instr == instr {
 			return prev(w.before)
@@ -101,7 +101,7 @@ func lastWon(t *Ticker, instr uuid.UUID) time.Time {
 // entry per venue, with the currency of the latest assertion at the venue
 // that states one. Where every assertion omits the venue, it returns one entry
 // with an empty venue and the currency of the latest assertion that states
-// one.
+// one. The latest assertion is of the latest answer, then of the latest day.
 func stated(as []Assertion, instr uuid.UUID) []Stated {
 	var named []Assertion
 	for _, a := range as {
@@ -109,7 +109,15 @@ func stated(as []Assertion, instr uuid.UUID) []Stated {
 			named = append(named, a)
 		}
 	}
-	slices.SortStableFunc(named, func(a, b Assertion) int { return a.Period.From.Compare(b.Period.From) })
+	slices.SortStableFunc(named, func(a, b Assertion) int {
+		switch {
+		case a.Source.newer(b.Source):
+			return 1
+		case b.Source.newer(a.Source):
+			return -1
+		}
+		return a.Period.From.Compare(b.Period.From)
+	})
 	byVenue := map[string]string{}
 	var venues []string
 	for _, a := range named {

@@ -12,12 +12,13 @@ import (
 // Derive returns what the facts of one ticker imply: the intervals in order,
 // the changes they infer, and the conflicts among them.
 func Derive(f Facts) Derived {
-	ws, disagreements := winners(f.Assertions)
+	as, es := current(f.Assertions)
+	ws, disagreements := winners(as, es)
 	cover := union(periods(f.AssertionCoverage))
 	var cutting []Edge
 	var over []OverruledEdge
-	for _, e := range edges(f.Assertions) {
-		if by := overruled(e, f); by != nil {
+	for _, e := range es {
+		if by := overruled(e, as, es, f.AssertionCoverage); by != nil {
 			over = append(over, OverruledEdge{Edge: e, By: by})
 			continue
 		}
@@ -55,7 +56,7 @@ func Derive(f Facts) Derived {
 // holds the days either side of the cut is such a bracket by itself. A
 // datasource also overrules it by a period; see spanned. The strongest such
 // source is the one returned.
-func overruled(e Edge, f Facts) []Source {
+func overruled(e Edge, as []Assertion, es []Edge, rows []AssertionCoverage) []Source {
 	c := e.At
 	var stronger []Source
 	add := func(src Source) bool {
@@ -69,7 +70,7 @@ func overruled(e Edge, f Facts) []Source {
 	}
 	before := map[Source]Assertion{}
 	after := map[Source]Assertion{}
-	for _, x := range f.Assertions {
+	for _, x := range as {
 		src := x.Source.group()
 		if !add(src) {
 			continue
@@ -85,7 +86,7 @@ func overruled(e Edge, f Facts) []Source {
 			}
 		}
 	}
-	for _, p := range f.AssertionCoverage {
+	for _, p := range rows {
 		add(p.Source.group())
 	}
 	slices.SortStableFunc(stronger, func(x, y Source) int {
@@ -103,7 +104,7 @@ func overruled(e Edge, f Facts) []Source {
 		if okb && okn && b.Instr != nil && same(b.Instr, n.Instr) {
 			return []Source{b.Source, n.Source}
 		}
-		if p, ok := spanned(src, c, f); ok {
+		if p, ok := spanned(src, c, es, rows); ok {
 			return []Source{p.Source}
 		}
 	}
@@ -129,12 +130,12 @@ func startAfter(a Assertion, c time.Time) time.Time {
 // spanned returns the period of src's assertion coverage that holds the cut c,
 // when src overrules an edge there by a period. Its assertion coverage holds c
 // and the day before together, and src does not state an edge at c.
-func spanned(src Source, c time.Time, f Facts) (AssertionCoverage, bool) {
+func spanned(src Source, c time.Time, es []Edge, all []AssertionCoverage) (AssertionCoverage, bool) {
 	if src.Attested {
 		return AssertionCoverage{}, false
 	}
 	var rows []AssertionCoverage
-	for _, p := range f.AssertionCoverage {
+	for _, p := range all {
 		if p.Source.group() == src {
 			rows = append(rows, p)
 		}
@@ -145,7 +146,7 @@ func spanned(src Source, c time.Time, f Facts) (AssertionCoverage, bool) {
 	if !held {
 		return AssertionCoverage{}, false
 	}
-	if slices.ContainsFunc(edges(f.Assertions), func(e Edge) bool {
+	if slices.ContainsFunc(es, func(e Edge) bool {
 		return e.Assertion.Source.group() == src && e.At.Equal(c)
 	}) {
 		return AssertionCoverage{}, false
@@ -195,6 +196,96 @@ func edges(as []Assertion) []Edge {
 	return out
 }
 
+// current returns what the later answers of each source leave of the
+// assertions, and the edges they leave. The reach of an answer is the periods
+// of its assertions and of its request. An assertion can come back as several
+// pieces or none, and a piece keeps an edge only on a bound of the original.
+// Pieces and edges keep the order of the assertions.
+func current(as []Assertion) ([]Assertion, []Edge) {
+	idx := make([]int, len(as))
+	for i := range idx {
+		idx[i] = i
+	}
+	slices.SortStableFunc(idx, func(i, j int) int {
+		switch {
+		case as[i].Source.newer(as[j].Source):
+			return -1
+		case as[j].Source.newer(as[i].Source):
+			return 1
+		}
+		return 0
+	})
+	taken := map[Source][]types.Period{}
+	pieces := make([][]Assertion, len(as))
+	kept := make([][]Edge, len(as))
+	for k := 0; k < len(idx); {
+		j := k
+		for j < len(idx) && !as[idx[k]].Source.newer(as[idx[j]].Source) {
+			j++
+		}
+		for _, i := range idx[k:j] {
+			later := union(taken[as[i].Source.group()])
+			pieces[i] = clip(as[i], later)
+			for _, e := range edges(as[i : i+1]) {
+				if !holds(later, prev(e.At)) || !holds(later, e.At) {
+					kept[i] = append(kept[i], e)
+				}
+			}
+		}
+		for _, i := range idx[k:j] {
+			g := as[i].Source.group()
+			taken[g] = append(taken[g], as[i].Period)
+			if asked := as[i].Source.Asked; asked.From.Before(asked.Before) {
+				taken[g] = append(taken[g], asked)
+			}
+		}
+		k = j
+	}
+	var out []Assertion
+	var es []Edge
+	for i := range as {
+		out = append(out, pieces[i]...)
+		es = append(es, kept[i]...)
+	}
+	return out, es
+}
+
+// clip returns the pieces of a outside the disjoint periods taken, which are
+// in order.
+func clip(a Assertion, taken []types.Period) []Assertion {
+	var out []Assertion
+	from := a.Period.From
+	add := func(before time.Time) {
+		if !from.Before(before) {
+			return
+		}
+		p := a
+		p.Period = types.Period{From: from, Before: before}
+		p.EdgeFrom = a.EdgeFrom && from.Equal(a.Period.From)
+		p.EdgeBefore = a.EdgeBefore && before.Equal(a.Period.Before)
+		out = append(out, p)
+	}
+	for _, t := range taken {
+		if !t.Before.After(from) {
+			continue
+		}
+		if !t.From.Before(a.Period.Before) {
+			break
+		}
+		if t.From.After(from) {
+			add(t.From)
+		}
+		from = t.Before
+	}
+	add(a.Period.Before)
+	return out
+}
+
+// holds reports whether one of the periods ps holds the day d.
+func holds(ps []types.Period, d time.Time) bool {
+	return slices.ContainsFunc(ps, func(p types.Period) bool { return p.Contains(d) })
+}
+
 // cuts returns the distinct days of the edges in order.
 func cuts(es []Edge) []time.Time {
 	out := make([]time.Time, len(es))
@@ -237,7 +328,7 @@ type winner struct {
 // counts after any positive one. Where assertions that hold one day disagree,
 // better picks the winner. winners also returns the datasources' assertions
 // that name something other than the winner of their days.
-func winners(as []Assertion) ([]winner, []Disagreement) {
+func winners(as []Assertion, es []Edge) ([]winner, []Disagreement) {
 	as = slices.Clone(as)
 	slices.SortStableFunc(as, func(a, b Assertion) int { return a.Period.From.Compare(b.Period.From) })
 	first := map[string]time.Time{}
@@ -276,7 +367,7 @@ func winners(as []Assertion) ([]winner, []Disagreement) {
 		}
 	}
 	cut := map[time.Time]bool{}
-	for _, e := range edges(as) {
+	for _, e := range es {
 		cut[e.At] = true
 		bounds = append(bounds, e.At)
 	}

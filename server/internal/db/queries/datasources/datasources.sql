@@ -18,8 +18,8 @@ SELECT * FROM fetches WHERE id = $1 AND user_id = $2;
 
 -- name: CreateFetchKey :exec
 INSERT INTO fetch_keys (id, fetch_id, user_id, stated_key_id, outcome, attempts,
-    sent_type, sent_domain, sent_value, reason, candidates, answered_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12);
+    sent_type, sent_domain, sent_value, reason, candidates, answered_at, asked_from, asked_before)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14);
 
 -- name: ListFetchKeys :many
 SELECT * FROM fetch_keys WHERE fetch_id = $1 AND user_id = $2 ORDER BY id;

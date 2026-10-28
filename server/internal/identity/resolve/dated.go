@@ -398,16 +398,16 @@ func conflicts(ctx context.Context, q Queries, v types.MarketTicker, mine map[uu
 	d := tickervalidity.Derive(f)
 	var out []gen.CreateFindingParams
 	for _, dis := range d.Disagreements {
-		if !mine[dis.Winner.Source.FetchKey] && !mine[dis.Loser.Source.FetchKey] {
+		if !mine[dis.Winner.Source.Answer] && !mine[dis.Loser.Source.Answer] {
 			continue
 		}
 		detail := fmt.Sprintf("%s %s: %s named %s and %s named %s; %s was kept",
 			v.Name(), days(dis.Period), dis.Winner.Source.Datasource, named(dis.Winner.Instr),
 			dis.Loser.Source.Datasource, named(dis.Loser.Instr), dis.Winner.Source.Datasource)
-		out = append(out, gen.CreateFindingParams{Kind: gen.FindingKindIdentifierDisagreement, FetchKeyID: ptr.To(dis.Loser.Source.FetchKey), Detail: &detail})
+		out = append(out, gen.CreateFindingParams{Kind: gen.FindingKindIdentifierDisagreement, FetchKeyID: ptr.To(dis.Loser.Source.Answer), Detail: &detail})
 	}
 	for _, br := range d.Broken {
-		key := br.Edge.Assertion.Source.FetchKey
+		key := br.Edge.Assertion.Source.Answer
 		if !mine[key] {
 			continue
 		}
@@ -416,21 +416,21 @@ func conflicts(ctx context.Context, q Queries, v types.MarketTicker, mine map[uu
 		out = append(out, gen.CreateFindingParams{Kind: gen.FindingKindBrokenTickerValidityBracket, FetchKeyID: ptr.To(key), Detail: &detail})
 	}
 	for _, m := range d.Missed {
-		if !mine[m.By.Source.FetchKey] && !mine[m.Inferred.Earlier.Source.FetchKey] && !mine[m.Inferred.Later.Source.FetchKey] {
+		if !mine[m.By.Source.Answer] && !mine[m.Inferred.Earlier.Source.Answer] && !mine[m.Inferred.Later.Source.Answer] {
 			continue
 		}
 		detail := fmt.Sprintf("%s: assertions %s and %s imply a change between them, and %s reported no edge from %s to %s",
 			v.Name(), days(m.Inferred.Earlier.Period), days(m.Inferred.Later.Period),
 			m.By.Source.Datasource, m.By.Period.From.Format(time.DateOnly), m.By.Period.Before.Format(time.DateOnly))
-		out = append(out, gen.CreateFindingParams{Kind: gen.FindingKindMissedEvent, FetchKeyID: ptr.To(m.By.Source.FetchKey), Detail: &detail})
+		out = append(out, gen.CreateFindingParams{Kind: gen.FindingKindMissedEvent, FetchKeyID: ptr.To(m.By.Source.Answer), Detail: &detail})
 	}
 	for _, o := range d.Overruled {
-		if o.By[0].Attested || !mine[o.Edge.Assertion.Source.FetchKey] && !slices.ContainsFunc(o.By, func(s tickervalidity.Source) bool { return mine[s.FetchKey] }) {
+		if o.By[0].Attested || !mine[o.Edge.Assertion.Source.Answer] && !slices.ContainsFunc(o.By, func(s tickervalidity.Source) bool { return mine[s.Answer] }) {
 			continue
 		}
 		detail := fmt.Sprintf("%s: an edge at the start of %s is overruled by %s",
 			v.Name(), o.Edge.At.Format(time.DateOnly), o.By[0].Datasource)
-		out = append(out, gen.CreateFindingParams{Kind: gen.FindingKindOverruledEdge, FetchKeyID: ptr.To(o.Edge.Assertion.Source.FetchKey), Detail: &detail})
+		out = append(out, gen.CreateFindingParams{Kind: gen.FindingKindOverruledEdge, FetchKeyID: ptr.To(o.Edge.Assertion.Source.Answer), Detail: &detail})
 	}
 	return out, nil
 }

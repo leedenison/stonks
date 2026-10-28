@@ -48,8 +48,15 @@ func (s *stack) trade(t *testing.T, key gen.StatedKey, d time.Time) {
 // system run on the day later.
 func (s *stack) reassertTickers(t *testing.T, vs ...types.Identifier) (gen.Run, []WrittenIdentifierFacts) {
 	t.Helper()
+	return s.reassertTickersAt(t, later.Add(10*time.Hour), vs...)
+}
+
+// reassertTickersAt asks again about the held tickers among vs, under a new
+// system run whose datasources answer at the moment at.
+func (s *stack) reassertTickersAt(t *testing.T, at time.Time, vs ...types.Identifier) (gen.Run, []WrittenIdentifierFacts) {
+	t.Helper()
 	ctx := context.Background()
-	s.now = later.Add(10 * time.Hour)
+	s.now = at
 	run, err := s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), Kind: gen.RunKindReassertTickers, Trigger: gen.RunTriggerAdministrator})
 	require.NoError(t, err)
 	rows, err := s.q.ListHeldTickers(ctx)
@@ -256,6 +263,64 @@ func TestReassertTickersDisagreement(t *testing.T) {
 	}
 	if diff := cmp.Diff([]gen.FindingKind{gen.FindingKindIdentifierDisagreement}, kinds); diff != "" {
 		t.Errorf("findings of the reassert tickers run mismatch (-want +got):\n%s", diff)
+	}
+}
+
+// TestReassertTickersReanswer checks that a later answer of one datasource on
+// the day of an earlier one replaces it. The later run leaves its disagreement
+// findings empty, and ticker validity follows the later answer. Two answers at
+// one moment are ordered by their fetch keys.
+func TestReassertTickersReanswer(t *testing.T) {
+	tests := []struct {
+		name string
+		// gap is the time between the two runs.
+		gap time.Duration
+		// unknown makes beta's second answer unknown. Otherwise it names
+		// another stored instrument.
+		unknown bool
+	}{
+		{name: "a later answer names another instrument", gap: 4 * time.Hour},
+		{name: "a later answer finds the ticker unknown", gap: 4 * time.Hour, unknown: true},
+		{name: "a second answer at the same moment names another instrument"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			s := newStack(t)
+			ctx := context.Background()
+			v := id(types.IdentifierTypeMicTicker, "XLON", "ZZQ"+uuid.NewString()[:4])
+			isin := id(types.IdentifierTypeIsin, "", "GB00ZZQ"+uuid.NewString()[:5])
+			s.heldOnXLON(t, v, listing(types.AssetClassStock, "GBP", isin, v))
+			other := id(types.IdentifierTypeIsin, "", "GB00ZZP"+uuid.NewString()[:5])
+			instr, err := s.q.CreateInstr(ctx, gen.CreateInstrParams{ID: db.NewID(), AssetClass: types.AssetClassStock})
+			require.NoError(t, err)
+			_, err = s.q.CreateIdentifier(ctx, gen.CreateIdentifierParams{ID: db.NewID(), InstrID: instr.ID, Type: other.Type, Value: other.Value})
+			require.NoError(t, err)
+
+			first := later.Add(10 * time.Hour)
+			s.reassertTickersAt(t, first, v)
+			s.beta.Responses[v] = market.IdentityResult{Listings: []market.Listing{listing(types.AssetClassStock, "GBP", other, v)}}
+			if tc.unknown {
+				s.beta.Responses[v] = market.IdentityResult{Unknown: true}
+			}
+			run, _ := s.reassertTickersAt(t, first.Add(tc.gap), v)
+
+			rows, err := s.q.ListRunFindings(ctx, []uuid.UUID{run.ID})
+			require.NoError(t, err)
+			for _, r := range rows {
+				if r.Finding.Kind == gen.FindingKindIdentifierDisagreement {
+					t.Errorf("the later run raised %s: %s", r.Finding.Kind, *r.Finding.Detail)
+				}
+			}
+			ivs, err := tickervalidity.Of(ctx, s.q, mt(v))
+			require.NoError(t, err)
+			i := slices.IndexFunc(ivs, func(iv tickervalidity.Interval) bool { return iv.Contains(later) })
+			switch {
+			case tc.unknown && i >= 0:
+				t.Errorf("ticker validity on %s = %+v, want none", later.Format(time.DateOnly), ivs[i])
+			case !tc.unknown && (i < 0 || ivs[i].Instr != instr.ID):
+				t.Errorf("ticker validity of %s = %+v, want %s on %s", v.Name(), ivs, instr.ID, later.Format(time.DateOnly))
+			}
+		})
 	}
 }
 

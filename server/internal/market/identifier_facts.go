@@ -109,6 +109,7 @@ var identifierFactsKind = Kind[IdentifierFactRequest, IdentifierFactResult]{
 	params: func(r IdentifierFactRequest) []string {
 		return []string{r.Period.From.Format(time.DateOnly), r.Period.Before.Format(time.DateOnly)}
 	},
+	asked: func(r IdentifierFactRequest) *types.Period { return &r.Period },
 }
 
 // IdentifierFacts fetches the identifier facts of reqs from e, as a child
