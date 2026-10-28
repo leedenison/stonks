@@ -12,14 +12,9 @@ CREATE TABLE datasources (
     endpoint   text,
     -- config holds settings that are specific to one integration.
     config     jsonb       NOT NULL DEFAULT '{}',
-    -- lag_days is how many days a datasource that serves identifier facts
-    -- for a whole domain may take to publish one. NULL takes the
-    -- integration's default.
-    lag_days   integer,
     created_at timestamptz NOT NULL DEFAULT now(),
     CHECK (name <> ''),
     CHECK (jsonb_typeof(config) = 'object'),
-    CHECK (lag_days >= 0),
     -- Deferred, so a reorder that swaps two precedences passes. A deferrable
     -- constraint cannot arbitrate ON CONFLICT, so no upsert may name it.
     UNIQUE (precedence) DEFERRABLE INITIALLY DEFERRED

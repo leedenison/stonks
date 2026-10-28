@@ -12,8 +12,9 @@
 // and the names that ticker validity implies, before it commits; see Rebuild.
 // Assertion coverage of a whole market rebuilds every ticker of the market.
 // The names are stored in resolved_tickers; see resolveNames. A reorder of the
-// datasources can change the ticker validity of any ticker. The change waits
-// for a rebuild of every ticker.
+// datasources, or a change of a market's identifier event source, can change
+// the ticker validity of any ticker. The change waits for a rebuild of every
+// ticker.
 //
 // A rebuild must see every fact of its tickers, so each write of facts takes
 // its locks in one order. It creates its ticker rows before its transaction;
@@ -24,12 +25,15 @@
 // instruments, waits until the first commits. Under Read Committed its next
 // statement then reads the first writer's facts.
 //
+// Edges and assertion coverage count only from the identifier event source of
+// the ticker's market; see facts. Assertions from every datasource compete
+// for their days.
+//
 // An edge cuts the timeline, and every range stops at a cut.
 //
-// A stronger source overrules an edge by a bracket or by a period; see
-// overruled. An overruled edge does not cut, and its assertion still
-// competes for its days. An administrator overrules a wrong edge by
-// attesting one instrument on the days around it.
+// Only an identifier attestation overrules an edge, by attesting one
+// instrument on the days around it; see overruled. An overruled edge does not
+// cut, and its assertion still competes for its days.
 //
 // A later answer replaces an earlier answer of its source within its reach;
 // see current.
@@ -117,16 +121,29 @@ type Source struct {
 	// Asked is the period of the request. It is zero where the request has
 	// none.
 	Asked    types.Period
-	Attested bool
+	standing standing
 }
+
+// standing ranks sources before precedence does: an identifier attestation
+// first, then the identifier event source of the ticker's market, then every
+// other datasource.
+type standing int
+
+const (
+	other standing = iota
+	eventSource
+	attested
+)
+
+func (s Source) attested() bool { return s.standing == attested }
 
 // group returns the source that s belongs to when sources are ranked: its
 // datasource with its precedence, or every identifier attestation as one.
 func (s Source) group() Source {
-	if s.Attested {
-		return Source{Attested: true}
+	if s.attested() {
+		return Source{standing: attested}
 	}
-	return Source{Datasource: s.Datasource, Precedence: s.Precedence}
+	return Source{Datasource: s.Datasource, Precedence: s.Precedence, standing: s.standing}
 }
 
 // newer reports whether the answer of s is later than the answer of o: by
@@ -139,11 +156,12 @@ func (s Source) newer(o Source) bool {
 }
 
 // outranks reports whether s wins over o where they disagree on one day, and
-// whether s may overrule an edge of o. An identifier attestation outranks a
-// datasource, and a datasource outranks one with a higher precedence number.
+// whether s may overrule an edge of o. A higher standing outranks a lower
+// one. Between two datasources of one standing, the lower precedence number
+// wins.
 func (s Source) outranks(o Source) bool {
-	if s.Attested != o.Attested {
-		return s.Attested
+	if s.standing != o.standing {
+		return s.standing > o.standing
 	}
 	return s.Precedence < o.Precedence
 }
@@ -200,32 +218,24 @@ type Diagnosis struct {
 	Disagreements []Disagreement
 	Broken        []BrokenBracket
 	Missed        []MissedEvent
-	Overruled     []OverruledEdge
 }
 
 // Disagreement is two datasources' assertions that name different things over
-// the days of Period. Winner is the one precedence kept. A day an identifier
-// attestation wins holds none, since an administrator checked it.
+// the days of Period. Winner is the one that outranks the other. A day an
+// identifier attestation wins holds none, since an administrator checked it.
 type Disagreement struct {
 	Period        types.Period
 	Winner, Loser Assertion
 }
 
 // BrokenBracket is an edge that cuts between two winning assertions of one
-// instrument, First before the cut and Last on or after it. Only an equal or
-// weaker source asserted the bracket, so the edge cuts it.
+// instrument, First before the cut and Last on or after it. No identifier
+// attestation holds the days either side of the cut, so the edge cuts the
+// bracket.
 type BrokenBracket struct {
 	Edge        Edge
 	Instr       uuid.UUID
 	First, Last time.Time
-}
-
-// OverruledEdge is an edge that a stronger source overrules, so it does not
-// cut. By holds the source of each fact that overrules it: the two
-// assertions of a bracket, or the assertion coverage that holds the cut.
-type OverruledEdge struct {
-	Edge Edge
-	By   []Source
 }
 
 // Inferred is a change that two winning assertions, Earlier and Later,

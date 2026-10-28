@@ -20,6 +20,7 @@ type Queries interface {
 	tickervalidity.ValidityQueries
 	tickervalidity.RecordQueries
 	TickerAssertedOn(ctx context.Context, arg gen.TickerAssertedOnParams) (bool, error)
+	ListIdentifierEventSources(ctx context.Context) ([]gen.ListIdentifierEventSourcesRow, error)
 	tickers.Queries
 	ListTickersOfInstrs(ctx context.Context, instrIds []uuid.UUID) ([]uuid.UUID, error)
 	SetStatedKeyDatedAssociation(ctx context.Context, arg gen.SetStatedKeyDatedAssociationParams) (int64, error)

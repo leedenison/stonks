@@ -16,13 +16,10 @@ func derive(f facts) derived {
 	ws, disagreements := winners(as, es)
 	cover := union(periods(f.AssertionCoverage))
 	var cutting []Edge
-	var over []OverruledEdge
 	for _, e := range es {
-		if by := overruled(e, as, es, f.AssertionCoverage); by != nil {
-			over = append(over, OverruledEdge{Edge: e, By: by})
-			continue
+		if !overruled(e, as) {
+			cutting = append(cutting, e)
 		}
-		cutting = append(cutting, e)
 	}
 	bounds := cuts(cutting)
 	var out []Interval
@@ -47,71 +44,32 @@ func derive(f facts) derived {
 	return derived{
 		Diagnosis: Diagnosis{
 			Disagreements: disagreements, Broken: broken(ws, cutting),
-			Missed: missed(inferred, f.AssertionCoverage, cover), Overruled: over,
+			Missed: missed(inferred, f.AssertionCoverage, cover),
 		},
 		Intervals: join(out), Inferred: inferred,
 	}
 }
 
-// overruled returns the sources of the facts that overrule the edge e. A source
-// that outranks the edge's source overrules it by a bracket: its nearest
-// assertions on either side of the cut name one instrument. One assertion that
-// holds the days either side of the cut is such a bracket by itself. A
-// datasource also overrules it by a period; see spanned. The strongest such
-// source is the one returned.
-func overruled(e Edge, as []Assertion, es []Edge, rows []AssertionCoverage) []Source {
+// overruled reports whether identifier attestations overrule the edge e by
+// a bracket: the nearest attested days on either side of the cut name one
+// instrument. One attestation that holds the days either side of the cut is
+// such a bracket by itself. An overruled edge does not cut.
+func overruled(e Edge, as []Assertion) bool {
 	c := e.At
-	var stronger []Source
-	add := func(src Source) bool {
-		if !src.outranks(e.Assertion.Source) {
-			return false
-		}
-		if !slices.Contains(stronger, src) {
-			stronger = append(stronger, src)
-		}
-		return true
-	}
-	before := map[Source]Assertion{}
-	after := map[Source]Assertion{}
-	for _, x := range as {
-		src := x.Source.group()
-		if !add(src) {
+	var before, after *Assertion
+	for i := range as {
+		x := &as[i]
+		if !x.Source.attested() {
 			continue
 		}
-		if x.Period.From.Before(c) {
-			if b, ok := before[src]; !ok || !endBefore(x, c).Before(endBefore(b, c)) {
-				before[src] = x
-			}
+		if x.Period.From.Before(c) && (before == nil || !endBefore(*x, c).Before(endBefore(*before, c))) {
+			before = x
 		}
-		if x.Period.Before.After(c) {
-			if n, ok := after[src]; !ok || startAfter(x, c).Before(startAfter(n, c)) {
-				after[src] = x
-			}
+		if x.Period.Before.After(c) && (after == nil || startAfter(*x, c).Before(startAfter(*after, c))) {
+			after = x
 		}
 	}
-	for _, p := range rows {
-		add(p.Source.group())
-	}
-	slices.SortStableFunc(stronger, func(x, y Source) int {
-		switch {
-		case x.outranks(y):
-			return -1
-		case y.outranks(x):
-			return 1
-		}
-		return 0
-	})
-	for _, src := range stronger {
-		b, okb := before[src]
-		n, okn := after[src]
-		if okb && okn && b.Instr != nil && same(b.Instr, n.Instr) {
-			return []Source{b.Source, n.Source}
-		}
-		if p, ok := spanned(src, c, es, rows); ok {
-			return []Source{p.Source}
-		}
-	}
-	return nil
+	return before != nil && after != nil && before.Instr != nil && same(before.Instr, after.Instr)
 }
 
 // endBefore returns the day after the last day of a that falls before c.
@@ -128,34 +86,6 @@ func startAfter(a Assertion, c time.Time) time.Time {
 		return a.Period.From
 	}
 	return c
-}
-
-// spanned returns the period of src's assertion coverage that holds the cut c,
-// when src overrules an edge there by a period. Its assertion coverage holds c
-// and the day before together, and src does not state an edge at c.
-func spanned(src Source, c time.Time, es []Edge, all []AssertionCoverage) (AssertionCoverage, bool) {
-	if src.Attested {
-		return AssertionCoverage{}, false
-	}
-	var rows []AssertionCoverage
-	for _, p := range all {
-		if p.Source.group() == src {
-			rows = append(rows, p)
-		}
-	}
-	held := slices.ContainsFunc(union(periods(rows)), func(p types.Period) bool {
-		return p.Contains(c.AddDate(0, 0, -1)) && p.Contains(c)
-	})
-	if !held {
-		return AssertionCoverage{}, false
-	}
-	if slices.ContainsFunc(es, func(e Edge) bool {
-		return e.Assertion.Source.group() == src && e.At.Equal(c)
-	}) {
-		return AssertionCoverage{}, false
-	}
-	i := slices.IndexFunc(rows, func(p AssertionCoverage) bool { return p.Period.Contains(c) })
-	return rows[i], true
 }
 
 // missed returns each inferred change whose possible days one period of
@@ -344,7 +274,7 @@ func winners(as []Assertion, es []Edge) ([]winner, []Disagreement) {
 			on := a.Period.From
 			earliest = &on
 		}
-		if a.Source.Attested {
+		if a.Source.attested() {
 			continue
 		}
 		if _, ok := first[a.Source.Datasource]; !ok {
@@ -355,7 +285,7 @@ func winners(as []Assertion, es []Edge) ([]winner, []Disagreement) {
 		if a.Instr != nil {
 			return true
 		}
-		if a.Source.Attested {
+		if a.Source.attested() {
 			return earliest != nil && earliest.Before(a.Period.From)
 		}
 		on, ok := first[a.Source.Datasource]
@@ -401,11 +331,11 @@ func winners(as []Assertion, es []Edge) ([]winner, []Disagreement) {
 			out = append(out, winner{from: from, before: before, instr: as[best].Instr, assertion: as[best]})
 			won = append(won, best)
 		}
-		if as[best].Source.Attested {
+		if as[best].Source.attested() {
 			continue
 		}
 		for _, i := range day {
-			if as[i].Source.Attested || same(as[i].Instr, as[best].Instr) {
+			if as[i].Source.attested() || same(as[i].Instr, as[best].Instr) {
 				continue
 			}
 			pair := [2]int{best, i}
@@ -420,9 +350,9 @@ func winners(as []Assertion, es []Edge) ([]winner, []Disagreement) {
 	return out, disagreements
 }
 
-// better reports whether a wins over b on their day: an administrator over a
-// datasource, then the lower precedence number, then a positive assertion over
-// a negative one, then the lower instrument id.
+// better reports whether a wins over b on their day: the higher standing, then
+// the lower precedence number, then a positive assertion over a negative one,
+// then the lower instrument id.
 func better(a, b Assertion) bool {
 	switch {
 	case a.Source.outranks(b.Source):

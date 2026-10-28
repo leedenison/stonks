@@ -8,7 +8,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/leedenison/stonks/server/internal/db/gen"
-	"github.com/leedenison/stonks/server/internal/platform/ptr"
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
@@ -16,7 +15,6 @@ import (
 // empty result and counts its calls.
 type facts struct {
 	fake
-	lag  time.Duration
 	sent []IdentifierFactRequest
 }
 
@@ -32,45 +30,12 @@ func (e *facts) Fetch(_ context.Context, reqs []Request[IdentifierFactRequest]) 
 	return make([]Response[IdentifierFactResult], len(reqs)), nil
 }
 
-// rangedFacts is a facts integration that answers for whole markets.
-type rangedFacts struct{ facts }
-
-func (*rangedFacts) Markets() []string          { return []string{"US"} }
-func (*rangedFacts) Window(time.Time) time.Time { return time.Time{} }
-func (r *rangedFacts) Lag() time.Duration       { return r.lag }
-
 // window is a Windowed whose window starts on one fixed day.
 type window time.Time
 
 func (w window) Window(time.Time) time.Time { return time.Time(w) }
 
 func day(y int, m time.Month, d int) time.Time { return time.Date(y, m, d, 0, 0, 0, 0, time.UTC) }
-
-func TestNextPeriod(t *testing.T) {
-	now := time.Date(2026, time.March, 20, 15, 0, 0, 0, time.UTC)
-	before := day(2026, time.March, 21)
-	lag := 14 * 24 * time.Hour
-	tests := []struct {
-		name     string
-		last     *time.Time
-		earliest time.Time
-		window   time.Time
-		want     types.Period
-	}{
-		{name: "the first fetch starts at the earliest transaction", earliest: day(2024, 1, 2), window: day(2022, 7, 22), want: types.Period{From: day(2024, 1, 2), Before: before}},
-		{name: "a later fetch repeats the lag", last: ptr.To(day(2026, 3, 10)), earliest: day(2024, 1, 2), want: types.Period{From: day(2026, 2, 24), Before: before}},
-		{name: "the window bounds the start", earliest: day(2020, 1, 2), window: day(2022, 7, 22), want: types.Period{From: day(2022, 7, 22), Before: before}},
-		{name: "a start after today is empty", earliest: day(2026, 6, 1), want: types.Period{From: before, Before: before}},
-	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			got := NextPeriod(tc.last, tc.earliest, window(tc.window), lag, now)
-			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("NextPeriod mismatch (-want +got):\n%s", diff)
-			}
-		})
-	}
-}
 
 func TestLookupDay(t *testing.T) {
 	now := time.Date(2026, time.March, 20, 15, 0, 0, 0, time.UTC)
@@ -106,29 +71,6 @@ func TestCanonical(t *testing.T) {
 		if got := Canonical(ticker); got != want {
 			t.Errorf("Canonical(%q) = %v, want %v", ticker, got, want)
 		}
-	}
-}
-
-// TestLagOf checks that a datasource's own lag wins over its integration's
-// default, which only a Ranged integration has.
-func TestLagOf(t *testing.T) {
-	ranged := &rangedFacts{facts: facts{lag: 14 * 24 * time.Hour}}
-	tests := []struct {
-		name string
-		row  gen.Datasource
-		i    Integration
-		want time.Duration
-	}{
-		{name: "the integration's default", i: ranged, want: 14 * 24 * time.Hour},
-		{name: "the row's setting", row: gen.Datasource{LagDays: ptr.To(int32(3))}, i: ranged, want: 3 * 24 * time.Hour},
-		{name: "an integration that is not ranged", i: &facts{}, want: 0},
-	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			if got := lagOf(tc.row, tc.i); got != tc.want {
-				t.Errorf("lagOf = %v, want %v", got, tc.want)
-			}
-		})
 	}
 }
 

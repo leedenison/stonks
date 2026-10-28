@@ -15,9 +15,12 @@ var (
 	a = uuid.MustParse("00000000-0000-0000-0000-00000000000a")
 	b = uuid.MustParse("00000000-0000-0000-0000-00000000000b")
 
-	alpha = Source{Datasource: "alpha", Precedence: 1}
-	beta  = Source{Datasource: "beta", Precedence: 2}
-	admin = Source{Attested: true}
+	// alpha is the market's identifier event source. beta and gamma are
+	// other datasources, and gamma's precedence is the highest.
+	alpha = Source{Datasource: "alpha", Precedence: 2, standing: eventSource}
+	beta  = Source{Datasource: "beta", Precedence: 3}
+	gamma = Source{Datasource: "gamma", Precedence: 1}
+	admin = Source{standing: attested}
 )
 
 // d is the nth day of March 2026.
@@ -68,7 +71,9 @@ func cover(from, before int) types.Period { return types.Period{From: d(from), B
 var coverageFetchKey = uuid.MustParse("00000000-0000-0000-0000-0000000000c0")
 
 func covered(from, before int) AssertionCoverage {
-	return AssertionCoverage{Period: cover(from, before), Source: Source{Datasource: "alpha", Precedence: 1, Answer: coverageFetchKey}}
+	src := alpha
+	src.Answer = coverageFetchKey
+	return AssertionCoverage{Period: cover(from, before), Source: src}
 }
 
 // first asserts instr on the nth day, with an edge at the start of the day.
@@ -94,6 +99,9 @@ func edgeOf(a Assertion) Edge {
 	return Edge{At: a.Period.Before, Assertion: a}
 }
 
+// sources lets cmp compare a Source, whose standing is unexported.
+var sources = cmp.AllowUnexported(Source{})
+
 func TestDerive(t *testing.T) {
 	tests := []struct {
 		name              string
@@ -103,7 +111,6 @@ func TestDerive(t *testing.T) {
 		wantDisagreements []Disagreement
 		wantBroken        []BrokenBracket
 		wantMissed        []MissedEvent
-		wantOverruled     []OverruledEdge
 	}{
 		{
 			name:  "an assertion confirms its own day and nothing either side",
@@ -148,51 +155,22 @@ func TestDerive(t *testing.T) {
 			wantBroken: []BrokenBracket{{Edge: edgeOf(first(5, &a, alpha)), Instr: a, First: d(1), Last: d(5)}},
 		},
 		{
-			name:          "a bracket of a stronger datasource overrules a weaker edge",
-			facts:         facts{Assertions: []Assertion{asserts(1, &a, alpha), first(5, &a, beta), asserts(9, &a, alpha)}},
-			want:          []Interval{provisional(nil, at(1), a), confirmed(at(1), at(10), a), provisional(at(10), nil, a)},
-			wantOverruled: []OverruledEdge{{Edge: edgeOf(first(5, &a, beta)), By: []Source{alpha, alpha}}},
-		},
-		{
 			name:  "an overruled edge's assertion still wins its day",
-			facts: facts{Assertions: []Assertion{asserts(1, &a, alpha), first(5, &b, beta), asserts(9, &a, alpha)}},
+			facts: facts{Assertions: []Assertion{asserts(1, &a, admin), first(5, &b, alpha), asserts(9, &a, admin)}},
 			want: []Interval{
 				provisional(nil, at(1), a), confirmed(at(1), at(2), a), provisional(at(2), at(5), a),
 				confirmed(at(5), at(6), b), provisional(at(6), at(9), b),
 				confirmed(at(9), at(10), a), provisional(at(10), nil, a),
 			},
 			wantInferred: []Inferred{
-				{Period: cover(2, 6), From: &a, To: &b, Earlier: asserts(1, &a, alpha), Later: first(5, &b, beta)},
-				{Period: cover(6, 10), From: &b, To: &a, Earlier: first(5, &b, beta), Later: asserts(9, &a, alpha)},
-			},
-			wantOverruled: []OverruledEdge{{Edge: edgeOf(first(5, &b, beta)), By: []Source{alpha, alpha}}},
-		},
-		{
-			name:          "a period of assertion coverage of a stronger datasource overrules a weaker edge",
-			facts:         facts{Assertions: []Assertion{asserts(1, &a, beta), first(5, &a, beta)}, AssertionCoverage: []AssertionCoverage{covered(1, 20)}},
-			want:          []Interval{provisional(nil, at(1), a), confirmed(at(1), at(20), a), provisional(at(20), nil, a)},
-			wantOverruled: []OverruledEdge{{Edge: edgeOf(first(5, &a, beta)), By: []Source{covered(1, 20).Source}}},
-		},
-		{
-			name:  "a period of assertion coverage overrules nothing where its datasource states an edge at the cut",
-			facts: facts{Assertions: []Assertion{asserts(1, &a, beta), first(5, &a, beta), first(5, &a, alpha)}, AssertionCoverage: []AssertionCoverage{covered(1, 20)}},
-			want:  []Interval{provisional(nil, at(1), a), confirmed(at(1), at(20), a), provisional(at(20), nil, a)},
-			wantBroken: []BrokenBracket{
-				{Edge: edgeOf(first(5, &a, beta)), Instr: a, First: d(1), Last: d(5)},
-				{Edge: edgeOf(first(5, &a, alpha)), Instr: a, First: d(1), Last: d(5)},
+				{Period: cover(2, 6), From: &a, To: &b, Earlier: asserts(1, &a, admin), Later: first(5, &b, alpha)},
+				{Period: cover(6, 10), From: &b, To: &a, Earlier: first(5, &b, alpha), Later: asserts(9, &a, admin)},
 			},
 		},
 		{
-			name:          "two adjoining periods of assertion coverage of one datasource overrule an edge where they meet",
-			facts:         facts{Assertions: []Assertion{asserts(1, &a, beta), first(5, &a, beta)}, AssertionCoverage: []AssertionCoverage{covered(1, 5), covered(5, 20)}},
-			want:          []Interval{provisional(nil, at(1), a), confirmed(at(1), at(20), a), provisional(at(20), nil, a)},
-			wantOverruled: []OverruledEdge{{Edge: edgeOf(first(5, &a, beta)), By: []Source{covered(5, 20).Source}}},
-		},
-		{
-			name:          "an identifier attestation on both sides overrules a datasource edge",
-			facts:         facts{Assertions: []Assertion{asserts(1, &a, admin), last(4, &a, alpha), asserts(9, &a, admin)}},
-			want:          []Interval{provisional(nil, at(1), a), confirmed(at(1), at(10), a), provisional(at(10), nil, a)},
-			wantOverruled: []OverruledEdge{{Edge: edgeOf(last(4, &a, alpha)), By: []Source{admin, admin}}},
+			name:  "an identifier attestation on both sides overrules an edge",
+			facts: facts{Assertions: []Assertion{asserts(1, &a, admin), last(4, &a, alpha), asserts(9, &a, admin)}},
+			want:  []Interval{provisional(nil, at(1), a), confirmed(at(1), at(10), a), provisional(at(10), nil, a)},
 		},
 		{
 			name:  "two instruments on different days imply a change, the earlier keeping the grey zone",
@@ -218,9 +196,15 @@ func TestDerive(t *testing.T) {
 		},
 		{
 			name:              "on one day the higher precedence wins, and the loser disagrees",
-			facts:             facts{Assertions: []Assertion{asserts(1, &b, beta), asserts(1, &a, alpha)}},
+			facts:             facts{Assertions: []Assertion{asserts(1, &b, beta), asserts(1, &a, gamma)}},
 			want:              []Interval{provisional(nil, at(1), a), confirmed(at(1), at(2), a), provisional(at(2), nil, a)},
-			wantDisagreements: []Disagreement{{Period: oneDay(1), Winner: asserts(1, &a, alpha), Loser: asserts(1, &b, beta)}},
+			wantDisagreements: []Disagreement{{Period: oneDay(1), Winner: asserts(1, &a, gamma), Loser: asserts(1, &b, beta)}},
+		},
+		{
+			name:              "on one day the identifier event source outranks a higher precedence",
+			facts:             facts{Assertions: []Assertion{asserts(1, &b, gamma), asserts(1, &a, alpha)}},
+			want:              []Interval{provisional(nil, at(1), a), confirmed(at(1), at(2), a), provisional(at(2), nil, a)},
+			wantDisagreements: []Disagreement{{Period: oneDay(1), Winner: asserts(1, &a, alpha), Loser: asserts(1, &b, gamma)}},
 		},
 		{
 			name:  "two datasources that name one instrument on one day agree",
@@ -277,12 +261,6 @@ func TestDerive(t *testing.T) {
 			facts:             facts{Assertions: []Assertion{during(1, 10, &a, alpha), during(3, 5, &b, beta)}},
 			want:              []Interval{provisional(nil, at(1), a), confirmed(at(1), at(10), a), provisional(at(10), nil, a)},
 			wantDisagreements: []Disagreement{{Period: cover(3, 5), Winner: during(1, 10, &a, alpha), Loser: during(3, 5, &b, beta)}},
-		},
-		{
-			name:          "a stronger assertion that holds the days around an edge overrules it by itself",
-			facts:         facts{Assertions: []Assertion{during(1, 10, &a, alpha), first(5, &a, beta)}},
-			want:          []Interval{provisional(nil, at(1), a), confirmed(at(1), at(10), a), provisional(at(10), nil, a)},
-			wantOverruled: []OverruledEdge{{Edge: edgeOf(first(5, &a, beta)), By: []Source{alpha, alpha}}},
 		},
 		{
 			name:  "a later answer of one datasource replaces its earlier one on that day without a disagreement",
@@ -349,20 +327,17 @@ func TestDerive(t *testing.T) {
 			if diff := cmp.Diff(tc.want, []Interval(got.Intervals)); diff != "" {
 				t.Errorf("Derive(%+v) intervals mismatch (-want +got):\n%s", tc.facts, diff)
 			}
-			if diff := cmp.Diff(tc.wantInferred, got.Inferred); diff != "" {
+			if diff := cmp.Diff(tc.wantInferred, got.Inferred, sources); diff != "" {
 				t.Errorf("Derive(%+v) inferred mismatch (-want +got):\n%s", tc.facts, diff)
 			}
-			if diff := cmp.Diff(tc.wantDisagreements, got.Disagreements); diff != "" {
+			if diff := cmp.Diff(tc.wantDisagreements, got.Disagreements, sources); diff != "" {
 				t.Errorf("Derive(%+v) disagreements mismatch (-want +got):\n%s", tc.facts, diff)
 			}
-			if diff := cmp.Diff(tc.wantBroken, got.Broken); diff != "" {
+			if diff := cmp.Diff(tc.wantBroken, got.Broken, sources); diff != "" {
 				t.Errorf("Derive(%+v) broken brackets mismatch (-want +got):\n%s", tc.facts, diff)
 			}
-			if diff := cmp.Diff(tc.wantMissed, got.Missed); diff != "" {
+			if diff := cmp.Diff(tc.wantMissed, got.Missed, sources); diff != "" {
 				t.Errorf("Derive(%+v) missed events mismatch (-want +got):\n%s", tc.facts, diff)
-			}
-			if diff := cmp.Diff(tc.wantOverruled, got.Overruled); diff != "" {
-				t.Errorf("Derive(%+v) overruled edges mismatch (-want +got):\n%s", tc.facts, diff)
 			}
 		})
 	}

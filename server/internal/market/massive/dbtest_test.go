@@ -66,6 +66,7 @@ func TestFactsRecord(t *testing.T) {
 	name := "massive-" + uuid.NewString()
 	_, err = q.CreateDatasource(ctx, gen.CreateDatasourceParams{Name: name, Enabled: true, Precedence: 1000})
 	require.NoError(t, err)
+	dbtest.EventSource(t, tx, "US", name)
 	log := slog.New(slog.DiscardHandler)
 	sources, err := market.New(ctx, q, map[string]market.Factory{name: {New: func(market.Config) (market.Integration, error) { return c, nil }}}, log)
 	require.NoError(t, err)
