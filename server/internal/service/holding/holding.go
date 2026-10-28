@@ -35,24 +35,18 @@ import (
 	"github.com/leedenison/stonks/server/internal/currency"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/to"
-	"github.com/leedenison/stonks/server/internal/identity/tickers"
-	"github.com/leedenison/stonks/server/internal/identity/tickervalidity"
 	"github.com/leedenison/stonks/server/internal/mic"
 	"github.com/leedenison/stonks/server/internal/platform/ptr"
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
-// Reader is this package's view of the holdings queries. It embeds the fact
-// queries, which give a dated key's transactions their instruments.
+// Reader is this package's view of the holdings queries.
 type Reader interface {
-	tickervalidity.ValidityQueries
-	tickers.Queries
 	ListInstrsByID(ctx context.Context, ids []uuid.UUID) ([]gen.Instr, error)
 	ListIdentifiersOf(ctx context.Context, ids []uuid.UUID) ([]gen.Identifier, error)
 	ListListingNames(ctx context.Context, instrIds []uuid.UUID) ([]gen.ListListingNamesRow, error)
 	ListInstrNames(ctx context.Context, ids []uuid.UUID) ([]gen.InstrName, error)
 	ListHoldingKeys(ctx context.Context, userID uuid.UUID) ([]gen.ListHoldingKeysRow, error)
-	ListDatedTxns(ctx context.Context, userID uuid.UUID) ([]gen.ListDatedTxnsRow, error)
 }
 
 var _ Reader = (*gen.Queries)(nil)
@@ -84,35 +78,26 @@ func (s *Server) ListHoldings(ctx context.Context, _ *connect.Request[holdingv1.
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	d, err := s.dated(ctx, p.User.ID, keys)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
-	}
 	res := &holdingv1.ListHoldingsResponse{}
-	if res.Instrs, err = s.instrs(ctx, keys, d); err != nil {
+	if res.Instrs, err = s.instrs(ctx, keys); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	if res.Groups, err = s.groups(keys, d); err != nil {
+	if res.Groups, err = s.groups(keys); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	return connect.NewResponse(res), nil
 }
 
 // instrs answers the user's holdings of instruments, each with its
-// name, identifiers, listings and keys, by instrument id. A fixed key adds
-// its sum to its instrument. Cash is summed in its family's unit, so pence
-// count as hundredths of a pound. A security's quantity stays in shares
-// whatever its currency.
-func (s *Server) instrs(ctx context.Context, keys []gen.ListHoldingKeysRow, d dated) ([]*holdingv1.InstrHolding, error) {
+// name, identifiers, listings and keys, by instrument id. Each key adds the
+// sum of its transactions on an instrument to that instrument. Cash is summed
+// in its family's unit, so pence count as hundredths of a pound. A security's
+// quantity stays in shares whatever its currency.
+func (s *Server) instrs(ctx context.Context, keys []gen.ListHoldingKeysRow) ([]*holdingv1.InstrHolding, error) {
 	named := map[uuid.UUID]decimal.Decimal{}
 	for _, k := range keys {
-		if id := k.StatedKey.InstrID; id != nil {
-			named[*id] = decimal.Zero
-		}
-	}
-	for _, on := range d.onInstr {
-		for id := range on {
-			named[id] = decimal.Zero
+		if k.InstrID != nil {
+			named[*k.InstrID] = decimal.Zero
 		}
 	}
 	if len(named) == 0 {
@@ -128,7 +113,7 @@ func (s *Server) instrs(ctx context.Context, keys []gen.ListHoldingKeysRow, d da
 	}
 	total := make(map[uuid.UUID]decimal.Decimal, len(named))
 	for _, k := range keys {
-		id := k.StatedKey.InstrID
+		id := k.InstrID
 		if id == nil {
 			continue
 		}
@@ -137,11 +122,6 @@ func (s *Server) instrs(ctx context.Context, keys []gen.ListHoldingKeysRow, d da
 			q = q.Mul(s.scales.Scale(*k.StatedKey.Currency))
 		}
 		total[*id] = total[*id].Add(q)
-	}
-	for _, on := range d.onInstr {
-		for id, q := range on {
-			total[id] = total[id].Add(q)
-		}
 	}
 	ids := held(total)
 	if len(ids) == 0 {
@@ -173,17 +153,17 @@ func (s *Server) instrs(ctx context.Context, keys []gen.ListHoldingKeysRow, d da
 	}
 	keysOf := map[uuid.UUID][]*holdingv1.HoldingKey{}
 	for _, k := range keys {
-		if id := k.StatedKey.InstrID; id != nil {
-			keysOf[*id] = append(keysOf[*id], to.ProtoHoldingKey(k))
+		id := k.InstrID
+		if id == nil {
 			continue
 		}
-		for id, q := range d.onInstr[k.StatedKey.ID] {
-			hk := &holdingv1.HoldingKey{StatedKey: to.ProtoStatedKey(k.StatedKey), Quantity: q.String()}
-			if l := listing(s.families, k.StatedKey, listed[id]); l != uuid.Nil {
+		hk := to.ProtoHoldingKey(k)
+		if k.StatedKey.ViaTickerID != nil {
+			if l := listing(s.families, k.StatedKey, listed[*id]); l != uuid.Nil {
 				hk.ListingId = l.String()
 			}
-			keysOf[id] = append(keysOf[id], hk)
 		}
+		keysOf[*id] = append(keysOf[*id], hk)
 	}
 	out := make([]*holdingv1.InstrHolding, 0, len(ids))
 	for _, id := range ids {
@@ -237,15 +217,17 @@ func listing(families currency.Families, k gen.StatedKey, listings []gen.ListLis
 // groups answers the user's holdings of groups, each with the classes and
 // identifiers its keys state, once each, and the keys, by group id. An
 // unresolved key is in its group whole. A dated key is in its group only for
-// the transactions dated when its ticker names nothing.
-func (s *Server) groups(keys []gen.ListHoldingKeysRow, d dated) ([]*holdingv1.GroupHolding, error) {
+// the transactions on days when its ticker names nothing.
+func (s *Server) groups(keys []gen.ListHoldingKeysRow) ([]*holdingv1.GroupHolding, error) {
 	total := map[uuid.UUID]decimal.Decimal{}
 	stated := map[uuid.UUID]*stating{}
 	for _, k := range keys {
-		unresolved, isDated := d.unresolved[k.StatedKey.ID]
+		if k.InstrID != nil {
+			continue
+		}
 		g := k.StatedKey.GroupID
 		switch {
-		case g == nil && isDated:
+		case g == nil && k.StatedKey.ViaTickerID != nil:
 			// Regroup gives every key without an instrument a group in the
 			// transaction that writes its rows, so this is a defect.
 			return nil, fmt.Errorf("dated key %s has unresolved transactions and no group", k.StatedKey.ID)
@@ -253,15 +235,7 @@ func (s *Server) groups(keys []gen.ListHoldingKeysRow, d dated) ([]*holdingv1.Gr
 			continue
 		}
 		hk := to.ProtoHoldingKey(k)
-		if k.StatedKey.ViaTickerID != nil {
-			if !isDated {
-				continue
-			}
-			hk = &holdingv1.HoldingKey{StatedKey: to.ProtoStatedKey(k.StatedKey), Quantity: unresolved.String()}
-			total[*g] = total[*g].Add(unresolved)
-		} else {
-			total[*g] = total[*g].Add(k.Quantity)
-		}
+		total[*g] = total[*g].Add(k.Quantity)
 		st, ok := stated[*g]
 		if !ok {
 			st = &stating{h: &holdingv1.GroupHolding{}, classes: map[types.AssetClass]bool{}, ids: map[types.Identifier]bool{}}

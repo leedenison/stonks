@@ -82,26 +82,15 @@ WHERE EXISTS (SELECT 1 FROM txns WHERE txns.stated_key_id = stated_keys.id)
 ORDER BY stated_keys.via_venue, stated_keys.via_ticker_id, stated_keys.created_at, stated_keys.id;
 
 -- name: ListHeldInstrs :many
--- Each instrument that a fixed key names, where a transaction names the key,
--- with each user of such a transaction and the earliest as-at date of that
--- user's transactions.
-SELECT stated_keys.instr_id::uuid AS instr_id, txns.user_id,
-       MIN(txns.as_at)::date AS first_as_at
-FROM txns
-JOIN stated_keys ON stated_keys.id = txns.stated_key_id
-WHERE stated_keys.instr_id IS NOT NULL
-GROUP BY stated_keys.instr_id, txns.user_id
-ORDER BY stated_keys.instr_id, txns.user_id;
-
--- name: ListHeldTickerDates :many
--- Each as-at date of a transaction of a dated key, with the ticker through
--- which the key is dated and the user, once each.
-SELECT DISTINCT stated_keys.via_ticker_id::uuid AS ticker_id, tickers.market, tickers.value,
-       txns.user_id, txns.as_at
-FROM txns
-JOIN stated_keys ON stated_keys.id = txns.stated_key_id
-JOIN tickers ON tickers.id = stated_keys.via_ticker_id
-ORDER BY tickers.market, tickers.value, txns.user_id, txns.as_at;
+-- Each instrument that a transaction names on its as-at date, with each user
+-- of such a transaction and the earliest as-at date of that user's
+-- transactions on it.
+SELECT txn_instrs.instr_id::uuid AS instr_id, txn_instrs.user_id,
+       MIN(txn_instrs.as_at)::date AS first_as_at
+FROM txn_instrs
+WHERE txn_instrs.instr_id IS NOT NULL
+GROUP BY txn_instrs.instr_id, txn_instrs.user_id
+ORDER BY txn_instrs.instr_id, txn_instrs.user_id;
 
 -- name: ListRunAssertions :many
 -- The assertions a run wrote: those of the fetch runs it started, and those

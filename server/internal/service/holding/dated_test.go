@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"testing"
-	"time"
 
 	"connectrpc.com/connect"
 	"github.com/google/go-cmp/cmp"
@@ -16,14 +15,12 @@ import (
 	holdingv1 "github.com/leedenison/stonks/proto/holding/v1"
 	typev1 "github.com/leedenison/stonks/proto/type/v1"
 	"github.com/leedenison/stonks/server/internal/db/gen"
-	"github.com/leedenison/stonks/server/internal/identity/tickervalidity"
 	"github.com/leedenison/stonks/server/internal/platform/ptr"
 	"github.com/leedenison/stonks/server/internal/service/servicetest"
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
-// The ticker FOO at Nasdaq named instrument a, then b. A period of assertion
-// coverage runs from day 1 to day 20 of March 2026.
+// The ticker FOO at Nasdaq named instrument a, then b.
 var (
 	aID, bID        = uuid.MustParse("00000000-0000-0000-0000-000000000071"), uuid.MustParse("00000000-0000-0000-0000-000000000072")
 	aUSD, aGBP      = uuid.MustParse("00000000-0000-0000-0000-000000000081"), uuid.MustParse("00000000-0000-0000-0000-000000000082")
@@ -35,10 +32,6 @@ var (
 	aISIN           = types.Identifier{Type: types.IdentifierTypeIsin, Value: "US0000000071"}
 	protoFoo        = foo.ToProto()
 	protoAISIN      = aISIN.ToProto()
-	fooValidity     = gen.ListTickerValidityParams{Markets: []string{"US"}, Values: []string{"FOO"}}
-	periods         = []gen.ListIdentifierAssertionCoverageRow{{Market: "US", Value: ptr.To("FOO"), CoveredFrom: day(1), CoveredBefore: day(20), Datasource: "massive"}}
-	straddle        = []gen.ListIdentifierAssertionsRow{assertion(2, &aID), assertion(10, &bID)}
-	retired         = []gen.ListIdentifierAssertionsRow{assertion(2, &aID), assertion(12, nil)}
 	instrs          = []gen.Instr{{ID: aID, AssetClass: types.AssetClassStock}, {ID: bID, AssetClass: types.AssetClassStock}}
 	idents          = []gen.Identifier{{InstrID: aID, Type: types.IdentifierTypeIsin, Value: "US0000000071"}, {InstrID: bID, Type: types.IdentifierTypeIsin, Value: "US0000000072"}}
 	aListings       = []gen.ListListingNamesRow{{ListingID: aGBP, InstrID: aID, Currency: "GBP"}, {ListingID: aUSD, InstrID: aID, Currency: "USD"}}
@@ -54,43 +47,19 @@ var (
 	errBoom         = errors.New("boom")
 )
 
-func day(n int) time.Time { return time.Date(2026, time.March, n, 0, 0, 0, 0, time.UTC) }
-
-// assertion is Massive's assertion on day n that FOO names instr, or nothing
-// where instr is nil.
-func assertion(n int, instr *uuid.UUID) gen.ListIdentifierAssertionsRow {
-	return gen.ListIdentifierAssertionsRow{
-		IdentifierAssertion: gen.IdentifierAssertion{Market: "US", AssertedFrom: day(n), AssertedBefore: day(n).AddDate(0, 0, 1), InstrID: instr, FetchKeyID: ptr.To(uuid.New())}, Value: "FOO",
-		Datasource: ptr.To("massive"), Precedence: ptr.To(int32(2)),
-	}
-}
-
 // datedKey is the key dated through FOO, stating currency, with the sum of
-// every transaction as its quantity.
-func datedKey(currency *string, group *uuid.UUID, quantity string) gen.ListHoldingKeysRow {
+// its transactions on instr as its quantity. A nil instr sums the
+// transactions on days when FOO names nothing.
+func datedKey(currency *string, group, instr *uuid.UUID, quantity string) gen.ListHoldingKeysRow {
 	return gen.ListHoldingKeysRow{
 		StatedKey: gen.StatedKey{
 			ID: datedKeyID, Currency: currency, Identifiers: []types.Identifier{foo},
 			ViaTickerID: &fooRow.ID, ViaMarket: ptr.To("US"), ViaVenue: ptr.To("XNAS"),
 			Arbiter: ptr.To(gen.ArbiterDatasource), GroupID: group,
 		},
+		InstrID:  instr,
 		Quantity: decimal.RequireFromString(quantity),
 	}
-}
-
-// stored is the ticker validity of FOO that a rebuild stores for assertions
-// and the period of assertion coverage.
-func stored(assertions []gen.ListIdentifierAssertionsRow) []gen.ListTickerValidityRow {
-	var out []gen.ListTickerValidityRow
-	f := tickervalidity.Rows{Assertions: assertions, AssertionCoverage: periods}.Facts()
-	for _, iv := range tickervalidity.Derive(f).Intervals {
-		out = append(out, gen.ListTickerValidityRow{Market: "US", Value: "FOO", InstrID: iv.Instr, ValidFrom: iv.From, ValidBefore: iv.Before, Validity: iv.Validity})
-	}
-	return out
-}
-
-func txn(n int, quantity string) gen.ListDatedTxnsRow {
-	return gen.ListDatedTxnsRow{StatedKeyID: datedKeyID, AsAt: day(n), Quantity: decimal.RequireFromString(quantity)}
 }
 
 // datedHoldingKey is the dated key as a holding carries it: with the sum of
@@ -107,6 +76,7 @@ func TestListHoldingsDated(t *testing.T) {
 	usd, gbx := ptr.To("USD"), ptr.To("GBX")
 	fixedKey := gen.ListHoldingKeysRow{
 		StatedKey: gen.StatedKey{ID: fixedKeyID, Currency: usd, Identifiers: []types.Identifier{aISIN}, InstrID: &aID, ListingID: &aUSD, Arbiter: ptr.To(gen.ArbiterDatasource)},
+		InstrID:   &aID,
 		Quantity:  decimal.RequireFromString("10"),
 	}
 	fixedHoldingKey := &holdingv1.HoldingKey{StatedKey: &typev1.StatedKey{Currency: usd, Identifiers: []*typev1.Identifier{protoAISIN}}, ListingId: aUSD.String(), Quantity: "10"}
@@ -122,103 +92,78 @@ func TestListHoldingsDated(t *testing.T) {
 	withBGBP := append(append([]gen.ListListingNamesRow{}, listings...), gen.ListListingNamesRow{ListingID: bGBP, InstrID: bID, Currency: "GBP"})
 	protoBListingsWithGBP := append(append([]*holdingv1.HoldingListing{}, protoBListings...), &holdingv1.HoldingListing{Id: bGBP.String(), Currency: "GBP"})
 
+	g := &datedKeyID
 	tests := []struct {
-		name          string
-		keys          []gen.ListHoldingKeysRow
-		txns          []gen.ListDatedTxnsRow
-		txnsErr       error
-		assertions    []gen.ListIdentifierAssertionsRow
-		assertionsErr error
-		ids           []uuid.UUID
-		listings      []gen.ListListingNamesRow
-		want          []*holdingv1.InstrHolding
-		wantGroups    []*holdingv1.GroupHolding
-		wantCode      connect.Code
+		name       string
+		keys       []gen.ListHoldingKeysRow
+		keysErr    error
+		ids        []uuid.UUID
+		listings   []gen.ListListingNamesRow
+		want       []*holdingv1.InstrHolding
+		wantGroups []*holdingv1.GroupHolding
+		wantCode   connect.Code
 	}{
 		{
-			// Days 0 and 25 lie outside the assertion coverage, where ticker
-			// validity is provisional, and still name an instrument. A has no
-			// ticker row, so the key's listing on A is A's listing in the
-			// stated family, and A keeps its own name.
-			name:       "a key whose transactions straddle a rename",
-			keys:       []gen.ListHoldingKeysRow{datedKey(usd, &datedKeyID, "15")},
-			txns:       []gen.ListDatedTxnsRow{txn(0, "1"), txn(5, "2"), txn(15, "4"), txn(25, "8")},
-			assertions: straddle, ids: []uuid.UUID{aID, bID}, listings: listings,
+			// A has no ticker row. The key's listing on A is A's listing in
+			// the stated family. A keeps its own name.
+			name: "a key whose transactions straddle a rename",
+			keys: []gen.ListHoldingKeysRow{datedKey(usd, g, &aID, "3"), datedKey(usd, g, &bID, "12")},
+			ids:  []uuid.UUID{aID, bID}, listings: listings,
 			want: []*holdingv1.InstrHolding{
 				holdingA("3", datedHoldingKey(usd, aUSD, "3")),
 				holdingB("12", protoBListings, datedHoldingKey(usd, bUSD, "12")),
 			},
 		},
 		{
-			name:       "a retired ticker leaves the later transaction in the group",
-			keys:       []gen.ListHoldingKeysRow{datedKey(usd, &datedKeyID, "6")},
-			txns:       []gen.ListDatedTxnsRow{txn(5, "2"), txn(15, "4")},
-			assertions: retired, ids: []uuid.UUID{aID}, listings: listings,
+			name: "a retired ticker leaves the later transaction in the group",
+			keys: []gen.ListHoldingKeysRow{datedKey(usd, g, nil, "4"), datedKey(usd, g, &aID, "2")},
+			ids:  []uuid.UUID{aID}, listings: listings,
 			want:       []*holdingv1.InstrHolding{holdingA("2", datedHoldingKey(usd, aUSD, "2"))},
 			wantGroups: []*holdingv1.GroupHolding{group(usd, "4")},
 		},
 		{
-			name:       "a dated key beside a fixed key of the same instrument",
-			keys:       []gen.ListHoldingKeysRow{fixedKey, datedKey(usd, &datedKeyID, "2")},
-			txns:       []gen.ListDatedTxnsRow{txn(5, "2")},
-			assertions: straddle, ids: []uuid.UUID{aID}, listings: listings,
+			name: "a dated key beside a fixed key of the same instrument",
+			keys: []gen.ListHoldingKeysRow{fixedKey, datedKey(usd, g, &aID, "2")},
+			ids:  []uuid.UUID{aID}, listings: listings,
 			want: []*holdingv1.InstrHolding{holdingA("12", fixedHoldingKey, datedHoldingKey(usd, aUSD, "2"))},
 		},
 		{
-			name:       "a total of zero is no holding",
-			keys:       []gen.ListHoldingKeysRow{fixedKey, datedKey(usd, &datedKeyID, "-10")},
-			txns:       []gen.ListDatedTxnsRow{txn(5, "-10"), txn(15, "5"), txn(16, "-5")},
-			assertions: retired,
+			name: "a total of zero is no holding",
+			keys: []gen.ListHoldingKeysRow{fixedKey, datedKey(usd, g, nil, "0"), datedKey(usd, g, &aID, "-10")},
 		},
 		{
-			name:       "the listing in the stated family",
-			keys:       []gen.ListHoldingKeysRow{datedKey(gbx, &datedKeyID, "4")},
-			txns:       []gen.ListDatedTxnsRow{txn(15, "4")},
-			assertions: straddle, ids: []uuid.UUID{bID}, listings: withBGBP,
+			name: "the listing in the stated family",
+			keys: []gen.ListHoldingKeysRow{datedKey(gbx, g, &bID, "4")},
+			ids:  []uuid.UUID{bID}, listings: withBGBP,
 			want: []*holdingv1.InstrHolding{holdingB("4", protoBListingsWithGBP, datedHoldingKey(gbx, bGBP, "4"))},
 		},
 		{
-			name:       "the ticker's listing where the stated family has none",
-			keys:       []gen.ListHoldingKeysRow{datedKey(gbx, &datedKeyID, "4")},
-			txns:       []gen.ListDatedTxnsRow{txn(15, "4")},
-			assertions: straddle, ids: []uuid.UUID{bID}, listings: listings,
+			name: "the ticker's listing where the stated family has none",
+			keys: []gen.ListHoldingKeysRow{datedKey(gbx, g, &bID, "4")},
+			ids:  []uuid.UUID{bID}, listings: listings,
 			want: []*holdingv1.InstrHolding{holdingB("4", protoBListings, datedHoldingKey(gbx, bUSD, "4"))},
 		},
 		{
-			name:       "the ticker's listing where no currency is stated",
-			keys:       []gen.ListHoldingKeysRow{datedKey(nil, &datedKeyID, "4")},
-			txns:       []gen.ListDatedTxnsRow{txn(15, "4")},
-			assertions: straddle, ids: []uuid.UUID{bID}, listings: withBGBP,
+			name: "the ticker's listing where no currency is stated",
+			keys: []gen.ListHoldingKeysRow{datedKey(nil, g, &bID, "4")},
+			ids:  []uuid.UUID{bID}, listings: withBGBP,
 			want: []*holdingv1.InstrHolding{holdingB("4", protoBListingsWithGBP, datedHoldingKey(nil, bUSD, "4"))},
 		},
 		{
-			name:       "a dated key with an unresolved transaction and no group",
-			keys:       []gen.ListHoldingKeysRow{datedKey(usd, nil, "4")},
-			txns:       []gen.ListDatedTxnsRow{txn(15, "4")},
-			assertions: retired, wantCode: connect.CodeInternal,
+			name:     "a dated key with an unresolved transaction and no group",
+			keys:     []gen.ListHoldingKeysRow{datedKey(usd, nil, nil, "4")},
+			wantCode: connect.CodeInternal,
 		},
 		{
-			name:    "transactions failure",
-			keys:    []gen.ListHoldingKeysRow{datedKey(usd, &datedKeyID, "4")},
-			txnsErr: errBoom, wantCode: connect.CodeInternal,
-		},
-		{
-			name:          "ticker validity failure",
-			keys:          []gen.ListHoldingKeysRow{datedKey(usd, &datedKeyID, "4")},
-			txns:          []gen.ListDatedTxnsRow{txn(15, "4")},
-			assertionsErr: errBoom, wantCode: connect.CodeInternal,
+			name:    "keys failure",
+			keysErr: errBoom, wantCode: connect.CodeInternal,
 		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newFixture(t)
 			f.authn.EXPECT().Authenticate(gomock.Any(), servicetest.Session).Return(principal, nil)
-			f.reader.EXPECT().ListHoldingKeys(gomock.Any(), userID).Return(tc.keys, nil)
-			f.reader.EXPECT().ListDatedTxns(gomock.Any(), userID).Return(tc.txns, tc.txnsErr)
-			f.reader.EXPECT().ListTickersByID(gomock.Any(), []uuid.UUID{fooRow.ID}).Return([]gen.Ticker{fooRow}, nil).MaxTimes(1)
-			// The ticker validity of FOO is read once, however many
-			// transactions rest on it.
-			f.reader.EXPECT().ListTickerValidity(gomock.Any(), fooValidity).Return(stored(tc.assertions), tc.assertionsErr).MaxTimes(1)
+			f.reader.EXPECT().ListHoldingKeys(gomock.Any(), userID).Return(tc.keys, tc.keysErr)
 			f.reader.EXPECT().ListInstrsByID(gomock.Any(), gomock.Any()).Return(instrs, nil).MaxTimes(1)
 			if len(tc.ids) > 0 {
 				f.reader.EXPECT().ListIdentifiersOf(gomock.Any(), tc.ids).Return(idents, nil)

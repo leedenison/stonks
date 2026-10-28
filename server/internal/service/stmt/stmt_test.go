@@ -216,29 +216,18 @@ func TestGetStmt(t *testing.T) {
 		{StatedKey: &typev1.StatedKey{Identifiers: []*typev1.Identifier{acme}}, StatedKeyId: unrecognisedID.String(), Outcome: typev1.ResolutionOutcome_RESOLUTION_OUTCOME_UNRECOGNISED, Reasons: []string{"no global identifier"}, Offered: 2},
 		{StatedKey: &typev1.StatedKey{Currency: ptr.To("GBP")}, StatedKeyId: unreachedID.String()},
 	}
-	// Three transactions: two of a key dated through META, one before the
-	// rename and one on the asserted day, and one of a key fixed through a
-	// broker description.
+	// A dated key has two transactions: one on a day its ticker names nothing
+	// and one on a confirmed day. A fixed key with a provisional association
+	// has the third.
 	datedID, fixedID := uuid.MustParse("00000000-0000-0000-0000-000000000024"), uuid.MustParse("00000000-0000-0000-0000-000000000025")
-	meta := gen.Ticker{ID: uuid.MustParse("00000000-0000-0000-0000-000000000026"), Market: "US", Value: "META"}
-	dated := gen.StatedKey{ID: datedID, UserID: userID, Identifiers: []types.Identifier{{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "META"}}, ViaTickerID: &meta.ID, ViaMarket: ptr.To("US"), ViaVenue: ptr.To("XNAS"), Arbiter: ptr.To(gen.ArbiterDatasource)}
-	fixed := gen.StatedKey{ID: fixedID, UserID: userID, Identifiers: []types.Identifier{{Type: types.IdentifierTypeBrokerDescription, Domain: "ibkr", Value: "ACME"}}, InstrID: ptr.To(uuid.New()), Arbiter: ptr.To(gen.ArbiterDatasource)}
-	txn := func(n int, key gen.StatedKey, on time.Time) gen.Txn {
-		return gen.Txn{ID: uuid.MustParse(fmt.Sprintf("00000000-0000-0000-0000-00000000003%d", n)), UserID: userID, StmtID: runID, StatedKeyID: key.ID, OrderDate: on, AsAt: on, Quantity: decimal.NewFromInt(10)}
+	notFoundOn, assertedOn := time.Date(2021, time.June, 1, 0, 0, 0, 0, time.UTC), time.Date(2024, time.January, 16, 0, 0, 0, 0, time.UTC)
+	txn := func(n int, key uuid.UUID, on time.Time) gen.Txn {
+		return gen.Txn{ID: uuid.MustParse(fmt.Sprintf("00000000-0000-0000-0000-00000000003%d", n)), UserID: userID, StmtID: runID, StatedKeyID: key, OrderDate: on, AsAt: on, Quantity: decimal.NewFromInt(10)}
 	}
 	txns := []gen.ListStmtTxnsRow{
-		{Txn: txn(1, dated, notFoundOn), StatedKey: dated},
-		{Txn: txn(2, dated, assertedOn), StatedKey: dated},
-		{Txn: txn(3, fixed, assertedOn), StatedKey: fixed, FixedViaType: ptr.To(types.IdentifierTypeBrokerDescription)},
-	}
-	// stored is the ticker validity of META that a rebuild stores for its
-	// facts.
-	stored := func() []gen.ListTickerValidityRow {
-		var out []gen.ListTickerValidityRow
-		for _, iv := range metaValidity() {
-			out = append(out, gen.ListTickerValidityRow{Market: "US", Value: "META", InstrID: iv.Instr, ValidFrom: iv.From, ValidBefore: iv.Before, Validity: iv.Validity})
-		}
-		return out
+		{Txn: txn(1, datedID, notFoundOn)},
+		{Txn: txn(2, datedID, assertedOn), Validity: ptr.To(gen.ValidityConfirmed)},
+		{Txn: txn(3, fixedID, assertedOn), Validity: ptr.To(gen.ValidityProvisional)},
 	}
 	txnMsgs := []*stmtv1.Txn{
 		{Id: txns[0].Txn.ID.String(), StatedKeyId: datedID.String(), OrderDate: "2021-06-01", Quantity: "10", Mark: stmtv1.TxnMark_TXN_MARK_UNRESOLVED},
@@ -246,23 +235,22 @@ func TestGetStmt(t *testing.T) {
 		{Id: txns[2].Txn.ID.String(), StatedKeyId: fixedID.String(), OrderDate: "2024-01-16", Quantity: "10", Mark: stmtv1.TxnMark_TXN_MARK_PROVISIONAL},
 	}
 	tests := []struct {
-		name          string
-		id            string
-		authErr       error
-		row           gen.GetStmtRow
-		err           error
-		items         []gen.StmtItem
-		itemsErr      error
-		readsKeys     bool
-		keys          []gen.StatedKey
-		keysErr       error
-		latest        []gen.ResolutionKey
-		latestErr     error
-		txns          []gen.ListStmtTxnsRow
-		txnsErr       error
-		assertionsErr error
-		want          *stmtv1.GetStmtResponse
-		wantCode      connect.Code
+		name      string
+		id        string
+		authErr   error
+		row       gen.GetStmtRow
+		err       error
+		items     []gen.StmtItem
+		itemsErr  error
+		readsKeys bool
+		keys      []gen.StatedKey
+		keysErr   error
+		latest    []gen.ResolutionKey
+		latestErr error
+		txns      []gen.ListStmtTxnsRow
+		txnsErr   error
+		want      *stmtv1.GetStmtResponse
+		wantCode  connect.Code
 	}{
 		{
 			name: "with items", id: runID.String(), row: gen.GetStmtRow{Stmt: stmtRow, Run: run, Rejected: 1}, items: items, readsKeys: true,
@@ -277,7 +265,6 @@ func TestGetStmt(t *testing.T) {
 			want: &stmtv1.GetStmtResponse{Stmt: summ, Txns: txnMsgs},
 		},
 		{name: "transactions failure", id: runID.String(), row: gen.GetStmtRow{Stmt: stmtRow, Run: run}, readsKeys: true, txnsErr: errors.New("boom"), wantCode: connect.CodeInternal},
-		{name: "ticker validity failure", id: runID.String(), row: gen.GetStmtRow{Stmt: stmtRow, Run: run}, readsKeys: true, txns: txns, assertionsErr: errors.New("boom"), wantCode: connect.CodeInternal},
 		{name: "not found", id: runID.String(), err: db.ErrNotFound, wantCode: connect.CodeNotFound},
 		{name: "failure", id: runID.String(), err: errors.New("boom"), wantCode: connect.CodeInternal},
 		{name: "items failure", id: runID.String(), row: gen.GetStmtRow{Stmt: stmtRow, Run: run}, itemsErr: errors.New("boom"), wantCode: connect.CodeInternal},
@@ -304,10 +291,6 @@ func TestGetStmt(t *testing.T) {
 				}
 				if tc.readsKeys && tc.keysErr == nil && tc.latestErr == nil {
 					f.reader.EXPECT().ListStmtTxns(gomock.Any(), gen.ListStmtTxnsParams{StmtID: runID, UserID: userID}).Return(tc.txns, tc.txnsErr)
-				}
-				if len(tc.txns) > 0 {
-					f.reader.EXPECT().ListTickersByID(gomock.Any(), []uuid.UUID{meta.ID}).Return([]gen.Ticker{meta}, nil)
-					f.reader.EXPECT().ListTickerValidity(gomock.Any(), gen.ListTickerValidityParams{Markets: []string{"US"}, Values: []string{"META"}}).Return(stored(), tc.assertionsErr)
 				}
 			}
 			res, err := f.client.GetStmt(context.Background(), connect.NewRequest(&stmtv1.GetStmtRequest{RunId: tc.id}))

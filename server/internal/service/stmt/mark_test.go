@@ -2,77 +2,25 @@ package stmt
 
 import (
 	"testing"
-	"time"
-
-	"github.com/google/uuid"
 
 	stmtv1 "github.com/leedenison/stonks/proto/stmt/v1"
 	"github.com/leedenison/stonks/server/internal/db/gen"
-	"github.com/leedenison/stonks/server/internal/identity/tickervalidity"
 	"github.com/leedenison/stonks/server/internal/platform/ptr"
-	"github.com/leedenison/stonks/server/internal/types"
 )
-
-var (
-	metaInst   = uuid.MustParse("00000000-0000-0000-0000-00000000000a")
-	renamed    = time.Date(2022, time.June, 9, 0, 0, 0, 0, time.UTC)
-	coveredTo  = time.Date(2024, time.February, 1, 0, 0, 0, 0, time.UTC)
-	assertedOn = time.Date(2024, time.January, 16, 0, 0, 0, 0, time.UTC)
-	notFoundOn = time.Date(2021, time.June, 1, 0, 0, 0, 0, time.UTC)
-	massive    = tickervalidity.Source{Datasource: "massive", Precedence: 2}
-)
-
-// metaFacts are the facts of META: an assertion with an edge at the start of
-// 2022-06-09, assertion coverage from that day, a lookup naming Meta on
-// 2024-01-16, and a lookup on 2021-06-01 that found nothing. The negative
-// assertion precedes the datasource's first positive one, so it does not count.
-func metaFacts() tickervalidity.Facts {
-	return tickervalidity.Facts{
-		Assertions: []tickervalidity.Assertion{
-			{Period: types.OneDay(assertedOn), Instr: &metaInst, Source: massive},
-			{Period: types.OneDay(notFoundOn), Source: massive},
-			{Period: types.OneDay(renamed), Instr: &metaInst, EdgeFrom: true, Source: massive},
-		},
-		AssertionCoverage: []tickervalidity.AssertionCoverage{{Period: types.Period{From: renamed, Before: coveredTo}, Source: massive}},
-	}
-}
-
-func metaValidity() tickervalidity.Intervals {
-	return tickervalidity.Derive(metaFacts()).Intervals
-}
 
 func TestMark(t *testing.T) {
-	const (
-		confirmed   = stmtv1.TxnMark_TXN_MARK_CONFIRMED
-		provisional = stmtv1.TxnMark_TXN_MARK_PROVISIONAL
-		unresolved  = stmtv1.TxnMark_TXN_MARK_UNRESOLVED
-	)
-	ivs := metaValidity()
 	tests := []struct {
-		name     string
-		arbiter  *gen.Arbiter
-		fixedVia *types.IdentifierType
-		dated    bool
-		on       time.Time
-		want     stmtv1.TxnMark
+		name string
+		v    *gen.Validity
+		want stmtv1.TxnMark
 	}{
-		{name: "the user's choice through a broker description", arbiter: ptr.To(gen.ArbiterUser), fixedVia: ptr.To(types.IdentifierTypeBrokerDescription), want: confirmed},
-		{name: "fixed through a stable identifier", arbiter: ptr.To(gen.ArbiterDatasource), fixedVia: ptr.To(types.IdentifierTypeIsin), want: confirmed},
-		{name: "fixed through a broker description", arbiter: ptr.To(gen.ArbiterDatasource), fixedVia: ptr.To(types.IdentifierTypeBrokerDescription), want: provisional},
-		{name: "fixed through an option symbol", arbiter: ptr.To(gen.ArbiterStated), fixedVia: ptr.To(types.IdentifierTypeOption), want: provisional},
-		{name: "dated, before the event", arbiter: ptr.To(gen.ArbiterDatasource), dated: true, on: notFoundOn, want: unresolved},
-		{name: "dated, covered back to the event", arbiter: ptr.To(gen.ArbiterDatasource), dated: true, on: time.Date(2023, time.January, 1, 0, 0, 0, 0, time.UTC), want: confirmed},
-		{name: "dated, on the asserted day", arbiter: ptr.To(gen.ArbiterDatasource), dated: true, on: assertedOn, want: confirmed},
-		{name: "dated, after coverage ends", arbiter: ptr.To(gen.ArbiterDatasource), dated: true, on: time.Date(2024, time.March, 1, 0, 0, 0, 0, time.UTC), want: provisional},
-		{name: "no association", want: unresolved},
+		{name: "confirmed", v: ptr.To(gen.ValidityConfirmed), want: stmtv1.TxnMark_TXN_MARK_CONFIRMED},
+		{name: "provisional", v: ptr.To(gen.ValidityProvisional), want: stmtv1.TxnMark_TXN_MARK_PROVISIONAL},
+		{name: "names nothing", want: stmtv1.TxnMark_TXN_MARK_UNRESOLVED},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			var read tickervalidity.Intervals
-			if tc.dated {
-				read = ivs
-			}
-			if got := mark(tc.arbiter, tc.fixedVia, tc.dated, read, tc.on); got != tc.want {
+			if got := mark(tc.v); got != tc.want {
 				t.Errorf("mark = %v, want %v", got, tc.want)
 			}
 		})

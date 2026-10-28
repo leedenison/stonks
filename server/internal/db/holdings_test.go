@@ -97,8 +97,6 @@ func (h holder) recordOn(t *testing.T, q *gen.Queries, key gen.StatedKey, day ti
 	require.NoError(t, err)
 }
 
-var decimalEqual = cmp.Comparer(func(a, b decimal.Decimal) bool { return a.Equal(b) })
-
 // resolves writes a row of resolved_tickers that names instr by value at
 // market, at venue and in currency. An empty venue or currency is NULL. The
 // row is open unless closed is set.
@@ -244,34 +242,77 @@ func TestListHoldingKeys(t *testing.T) {
 	}
 }
 
-// TestListDatedTxns checks that the transactions of the user's dated
-// keys are listed by key then date, and that fixed keys, unresolved keys and
-// another user's are left out.
-func TestListDatedTxns(t *testing.T) {
+// TestTxnInstrs checks the instrument and validity that txn_instrs gives
+// each transaction. A dated key takes what its ticker's validity names on the
+// day, on both sides of a rename and on the day the ticker retires. A fixed
+// key is confirmed through a stable identifier or the user's choice, and
+// provisional otherwise. An unassociated key names nothing.
+func TestTxnInstrs(t *testing.T) {
 	ctx := context.Background()
 	q := newTx(t)
-	h := newHolder(t, q, "dated@example.com")
-	instr := newInstr(t, q, types.AssetClassEquity)
-	via := newIdentifier(t, q, instr, "US0378331005")
-	usd := newListing(t, q, instr, "USD")
-	h.record(t, q, h.key(t, q, "ACME CORP", &usd, &via), "10")
-	h.record(t, q, h.key(t, q, "MYSTERY FUND", nil, nil), "3")
-	acme := h.datedKey(t, q, "XNAS", "ACME", "USD")
-	h.recordOn(t, q, acme, date(2026, 3, 2), "4")
-	h.recordOn(t, q, acme, date(2026, 3, 1), "-1.5")
-	zeta := h.datedKey(t, q, "XNAS", "ZETA", "USD")
-	h.record(t, q, zeta, "7")
-	other := newHolder(t, q, "otherdated@example.com")
-	other.record(t, q, other.datedKey(t, q, "XNAS", "ACME", "USD"), "9")
-
-	got, err := q.ListDatedTxns(ctx, h.user.ID)
-	require.NoError(t, err)
-	want := []gen.ListDatedTxnsRow{
-		{StatedKeyID: acme.ID, AsAt: date(2026, 3, 1), Quantity: decimal.RequireFromString("-1.5")},
-		{StatedKeyID: acme.ID, AsAt: date(2026, 3, 2), Quantity: decimal.RequireFromString("4")},
-		{StatedKeyID: zeta.ID, AsAt: date(2026, 3, 1), Quantity: decimal.RequireFromString("7")},
+	h := newHolder(t, q, "txn-instrs@example.com")
+	a, b := newInstr(t, q, types.AssetClassEquity), newInstr(t, q, types.AssetClassEquity)
+	value := "TXI" + strings.ToUpper(uuid.NewString()[:8])
+	dated := h.datedKey(t, q, "XNAS", value, "USD")
+	ticker := newTicker(t, q, "US", value).ID
+	require.NoError(t, q.CreateTickerValidity(ctx, gen.CreateTickerValidityParams{
+		TickerIds: []uuid.UUID{ticker, ticker}, Markets: []string{"US", "US"},
+		InstrIds: []uuid.UUID{a.ID, b.ID}, ValidFroms: []string{"", "2026-03-10"}, ValidBefores: []string{"2026-03-10", "2026-03-20"},
+		Validities: []string{"confirmed", "provisional"},
+	}))
+	for n, quantity := range map[int]string{9: "1", 10: "2", 19: "4", 20: "8", 25: "16"} {
+		h.recordOn(t, q, dated, date(2026, 3, n), quantity)
 	}
-	if diff := cmp.Diff(want, got, decimalEqual); diff != "" {
-		t.Errorf("ListDatedTxns mismatch (-want +got):\n%s", diff)
+	usd := newListing(t, q, a, "USD")
+	isin := newIdentifier(t, q, a, "US0000000001")
+	stable := h.key(t, q, "STABLE", &usd, &isin)
+	h.recordOn(t, q, stable, date(2026, 3, 1), "1")
+	described, err := q.CreateIdentifier(ctx, gen.CreateIdentifierParams{ID: db.NewID(), InstrID: a.ID, Type: types.IdentifierTypeBrokerDescription, Domain: "ibkr", Value: "DESCRIBED"})
+	require.NoError(t, err)
+	unstable := h.key(t, q, "UNSTABLE", &usd, &described)
+	h.recordOn(t, q, unstable, date(2026, 3, 2), "1")
+	chosen := h.key(t, q, "CHOSEN", nil, nil)
+	_, err = q.SetStatedKeyAssociation(ctx, gen.SetStatedKeyAssociationParams{ID: chosen.ID, UserID: h.user.ID, InstrID: &a.ID, ListingID: &usd.ID, ViaIdentifierID: &described.ID, Arbiter: gen.ArbiterUser})
+	require.NoError(t, err)
+	h.recordOn(t, q, chosen, date(2026, 3, 3), "1")
+	h.recordOn(t, q, h.key(t, q, "UNASSOCIATED", nil, nil), date(2026, 3, 4), "1")
+
+	type sum struct {
+		Key      uuid.UUID
+		Instr    *uuid.UUID
+		Quantity string
+	}
+	keys, err := q.ListHoldingKeys(ctx, h.user.ID)
+	require.NoError(t, err)
+	var gotSums []sum
+	for _, r := range keys {
+		if r.StatedKey.ID == dated.ID {
+			gotSums = append(gotSums, sum{r.StatedKey.ID, r.InstrID, r.Quantity.String()})
+		}
+	}
+	wantSums := []sum{{dated.ID, nil, "24"}, {dated.ID, &a.ID, "1"}, {dated.ID, &b.ID, "6"}}
+	if a.ID.String() > b.ID.String() {
+		wantSums[1], wantSums[2] = wantSums[2], wantSums[1]
+	}
+	if diff := cmp.Diff(wantSums, gotSums); diff != "" {
+		t.Errorf("sums of the dated key mismatch (-want +got):\n%s", diff)
+	}
+
+	txns, err := q.ListStmtTxns(ctx, gen.ListStmtTxnsParams{StmtID: h.stmt.ID, UserID: h.user.ID})
+	require.NoError(t, err)
+	got := map[string]string{}
+	for _, r := range txns {
+		v := "nothing"
+		if r.Validity != nil {
+			v = string(*r.Validity)
+		}
+		got[r.Txn.AsAt.Format(time.DateOnly)] = v
+	}
+	want := map[string]string{
+		"2026-03-01": "confirmed", "2026-03-02": "provisional", "2026-03-03": "confirmed", "2026-03-04": "nothing",
+		"2026-03-09": "confirmed", "2026-03-10": "provisional", "2026-03-19": "provisional", "2026-03-20": "nothing", "2026-03-25": "nothing",
+	}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("validity by as-at date mismatch (-want +got):\n%s", diff)
 	}
 }
