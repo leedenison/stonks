@@ -1,7 +1,7 @@
 // Package db confines all SQL to one place, so the rest of the server is unit
 // tested against a mock.
 //
-// Queries are SQL under queries/<area>/, compiled by sqlc into the gen package,
+// Queries are SQL in queries/<area>.sql, compiled by sqlc into the gen package,
 // one package for every area. Each consumer declares the narrow interface it
 // needs, which *gen.Queries satisfies structurally, and mocks that.
 //
