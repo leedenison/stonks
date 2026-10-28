@@ -10,6 +10,9 @@
 // datasource gave it, replaces its earlier one. A cached answer keeps the
 // moment of the call that filled the cache.
 //
+// Holdings and the stated split check read the corporate actions of an
+// instrument through one calendar; see calendar.go.
+//
 // Two datasources disagree when an action of one, on a day both cover, lacks
 // an action of equal ratio from the other within 7 calendar days either side.
 //

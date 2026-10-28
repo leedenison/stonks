@@ -8,7 +8,6 @@ import (
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/identity/tickers"
-	"github.com/leedenison/stonks/server/internal/identity/tickervalidity"
 	"github.com/leedenison/stonks/server/internal/market"
 )
 
@@ -22,7 +21,7 @@ var _ ReadQueries = (*gen.Queries)(nil)
 
 // Queries is this package's view of the generated queries.
 type Queries interface {
-	ReadQueries
+	CalendarQueries
 	LockCorpActAnswer(ctx context.Context, key string) error
 	GetCorpActAnswer(ctx context.Context, arg gen.GetCorpActAnswerParams) (gen.GetCorpActAnswerRow, error)
 	CreateCorpActAnswer(ctx context.Context, arg gen.CreateCorpActAnswerParams) error
@@ -32,10 +31,8 @@ type Queries interface {
 	DeleteCorpActs(ctx context.Context, ids []uuid.UUID) error
 	ListDisagreedCorpActs(ctx context.Context, ids []uuid.UUID) ([]uuid.UUID, error)
 	CreateFinding(ctx context.Context, arg gen.CreateFindingParams) error
-	tickervalidity.ValidityQueries
 	tickers.Queries
 	ListStatedSplits(ctx context.Context, arg gen.ListStatedSplitsParams) ([]gen.ListStatedSplitsRow, error)
-	ListTickersNaming(ctx context.Context, instrs []uuid.UUID) ([]gen.ListTickersNamingRow, error)
 	ListUnmatchedSplits(ctx context.Context, keys []uuid.UUID) ([]gen.ListUnmatchedSplitsRow, error)
 	ListInstrsByID(ctx context.Context, ids []uuid.UUID) ([]gen.Instr, error)
 }

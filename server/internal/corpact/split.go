@@ -240,35 +240,18 @@ func restatedOnly(ctx context.Context, q Queries, groups []splitGroup) ([]splitG
 }
 
 // calendar returns the corporate actions of each of instruments: those of
-// every datasource and market, under each ticker that named the instrument
-// on the action's ex-date. The check asks whether any datasource knows a
-// split. A gap in one datasource raises a disagreement.
+// every datasource and market, handled or not, under each ticker that named
+// the instrument on the action's ex-date. The check asks whether any
+// datasource knows a split. A gap in one datasource raises a disagreement.
 func calendar(ctx context.Context, q Queries, instrs []uuid.UUID) (map[uuid.UUID][]Act, error) {
-	rows, err := q.ListTickersNaming(ctx, instrs)
-	if err != nil {
-		return nil, fmt.Errorf("list the tickers of the instruments: %w", err)
-	}
-	ts := make([]types.MarketTicker, len(rows))
-	for i, row := range rows {
-		ts[i] = types.MarketTicker{Market: row.Market, Value: row.Value}
-	}
-	read, err := tickervalidity.Load(ctx, q, ts)
-	if err != nil {
-		return nil, fmt.Errorf("read the ticker validity of the instruments' tickers: %w", err)
-	}
-	answers, err := Read(ctx, q, ts, always)
+	cals, err := Calendars(ctx, q, instrs)
 	if err != nil {
 		return nil, err
 	}
-	out := map[uuid.UUID][]Act{}
-	for t, as := range answers {
-		for _, a := range as {
-			for _, e := range a.Acts {
-				iv, ok := read[t].On(e.ExDate)
-				if ok && slices.Contains(instrs, iv.Instr) {
-					out[iv.Instr] = append(out[iv.Instr], e)
-				}
-			}
+	out := make(map[uuid.UUID][]Act, len(cals))
+	for id, c := range cals {
+		for _, m := range c {
+			out[id] = append(out[id], m.Acts...)
 		}
 	}
 	return out, nil

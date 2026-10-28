@@ -392,3 +392,17 @@ func TestSplitUsers(t *testing.T) {
 		t.Errorf("findings after a system fetch = %+v, want two", got)
 	}
 }
+
+// TestSplitNearUnhandled checks that a split without a ratio matches an
+// unhandled action within the window, on a day the answer still covers.
+func TestSplitNearUnhandled(t *testing.T) {
+	s := newStack(t)
+	s.only(t, s.alphaName)
+	_, key := s.nvda(t)
+	s.states(t, *s.parent.UserID, key, nil)
+	s.alpha.Responses[ticker("XNAS", "NVDA")] = covering(market.CorpAct{ExDate: splitDay.AddDate(0, 0, 1), Ratio: ratio(1, 1), Type: "spin_off"})
+	s.fetch(t, ticker("XNAS", "NVDA"))
+	if got := s.unmatchedSplits(t); len(got) != 0 {
+		t.Errorf("findings = %+v, want none", got)
+	}
+}
