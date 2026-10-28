@@ -96,12 +96,18 @@ func (r Rows) Facts() Facts {
 	var f Facts
 	for _, row := range r.Assertions {
 		ia := row.IdentifierAssertion
-		src := Source{Attested: row.Datasource == nil}
+		src := Source{Attested: row.Datasource == nil, Answered: row.Answered}
 		if row.Datasource != nil && row.Precedence != nil {
 			src.Datasource, src.Precedence = *row.Datasource, *row.Precedence
 		}
-		if ia.FetchKeyID != nil {
-			src.FetchKey = *ia.FetchKeyID
+		if row.AskedFrom != nil && row.AskedBefore != nil {
+			src.Asked = types.Period{From: *row.AskedFrom, Before: *row.AskedBefore}
+		}
+		switch {
+		case ia.FetchKeyID != nil:
+			src.Answer = *ia.FetchKeyID
+		case ia.RunID != nil:
+			src.Answer = *ia.RunID
 		}
 		a := Assertion{Period: types.OneDay(ia.AssertedOn), Instr: ia.InstrID, Source: src}
 		if ia.Edge != nil {
@@ -119,7 +125,7 @@ func (r Rows) Facts() Facts {
 	for _, p := range r.AssertionCoverage {
 		f.AssertionCoverage = append(f.AssertionCoverage, AssertionCoverage{
 			Period: types.Period{From: p.CoveredFrom, Before: p.CoveredBefore},
-			Source: Source{Datasource: p.Datasource, Precedence: p.Precedence, FetchKey: p.FetchKeyID},
+			Source: Source{Datasource: p.Datasource, Precedence: p.Precedence, Answer: p.FetchKeyID},
 		})
 	}
 	return f

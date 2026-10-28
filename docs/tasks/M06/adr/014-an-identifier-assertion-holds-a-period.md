@@ -29,10 +29,13 @@ attestations together count as one source. This applies the principle of
 [001](001-a-corporate-action-is-stored-against-its-ticker-and-attributed-through-ticker-validity.md)
 to identifier facts.
 
-- An earlier answer keeps only the days outside the periods of later answers from the
+- The reach of an answer is the periods of its assertions. The reach of an answer of
+  identifier facts also holds the period of its request, on each ticker it states. A
+  ticker history therefore replaces the earlier history of each ticker it states.
+- An earlier answer keeps only the days outside the reach of later answers from the
   same source.
-- An earlier answer loses an edge when a later answer from the same source asserts both
-  days around it.
+- An earlier answer loses an edge when the reach of later answers from the same source
+  holds both days around it.
 - Answers are ordered by their moment, then by their id. The moment of a fetch key is its
   `answered_at`, and a cached answer keeps the moment of the call that filled the cache.
   The moment of an identifier attestation is the creation of its run.
@@ -44,6 +47,10 @@ to identifier facts.
 - Replace the whole earlier answer, as corporate actions do. One datasource's identifier
   answers hold different periods. A lookup and a ticker history cannot replace each other
   whole.
+- Limit the reach of an answer to the periods of its assertions. A ticker history that
+  moves a rename later would then keep the earlier history's days before the new rename.
+  The new history's edge would cut them from the new history, and the datasource would
+  break its own bracket.
 - Delete superseded assertions as they are written. The admin Tickers tab would lose the
   answers it shows.
 - Store points and edges in separate tables. An edge is always a claim about the period

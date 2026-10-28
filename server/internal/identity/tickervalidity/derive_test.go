@@ -1,6 +1,7 @@
 package tickervalidity
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -31,13 +32,26 @@ func asserts(n int, instr *uuid.UUID, src Source) Assertion {
 	return Assertion{Period: oneDay(n), Instr: instr, Source: src}
 }
 
-// holds is an assertion that names instr on each day in cover(from, before).
-func holds(from, before int, instr *uuid.UUID, src Source) Assertion {
+// during is an assertion that names instr on each day in cover(from, before).
+func during(from, before int, instr *uuid.UUID, src Source) Assertion {
 	return Assertion{Period: cover(from, before), Instr: instr, Source: src}
 }
 
 // oneDay is the period of the nth day of March 2026.
 func oneDay(n int) types.Period { return types.OneDay(d(n)) }
+
+// answer is a source's answer with the id and moment of the nth fetch key.
+func answer(src Source, n int, moment int) Source {
+	src.Answer = uuid.MustParse(fmt.Sprintf("00000000-0000-0000-0000-0000000000%02d", n))
+	src.Answered = d(moment)
+	return src
+}
+
+// asking is src with the period of its request.
+func asking(src Source, from, before int) Source {
+	src.Asked = cover(from, before)
+	return src
+}
 
 func confirmed(from, before *time.Time, instr uuid.UUID) Interval {
 	return Interval{From: from, Before: before, Instr: instr, Validity: Confirmed}
@@ -54,7 +68,7 @@ func cover(from, before int) types.Period { return types.Period{From: d(from), B
 var coverageFetchKey = uuid.MustParse("00000000-0000-0000-0000-0000000000c0")
 
 func covered(from, before int) AssertionCoverage {
-	return AssertionCoverage{Period: cover(from, before), Source: Source{Datasource: "alpha", Precedence: 1, FetchKey: coverageFetchKey}}
+	return AssertionCoverage{Period: cover(from, before), Source: Source{Datasource: "alpha", Precedence: 1, Answer: coverageFetchKey}}
 }
 
 // first asserts instr on the nth day, with an edge at the start of the day.
@@ -255,20 +269,74 @@ func TestDerive(t *testing.T) {
 		},
 		{
 			name:  "an assertion confirms every day of its period",
-			facts: Facts{Assertions: []Assertion{holds(1, 5, &a, alpha)}},
+			facts: Facts{Assertions: []Assertion{during(1, 5, &a, alpha)}},
 			want:  []Interval{provisional(nil, at(1), a), confirmed(at(1), at(5), a), provisional(at(5), nil, a)},
 		},
 		{
 			name:              "a weaker assertion inside a period loses each of its days, and disagrees once",
-			facts:             Facts{Assertions: []Assertion{holds(1, 10, &a, alpha), holds(3, 5, &b, beta)}},
+			facts:             Facts{Assertions: []Assertion{during(1, 10, &a, alpha), during(3, 5, &b, beta)}},
 			want:              []Interval{provisional(nil, at(1), a), confirmed(at(1), at(10), a), provisional(at(10), nil, a)},
-			wantDisagreements: []Disagreement{{Period: cover(3, 5), Winner: holds(1, 10, &a, alpha), Loser: holds(3, 5, &b, beta)}},
+			wantDisagreements: []Disagreement{{Period: cover(3, 5), Winner: during(1, 10, &a, alpha), Loser: during(3, 5, &b, beta)}},
 		},
 		{
 			name:          "a stronger assertion that holds the days around an edge overrules it by itself",
-			facts:         Facts{Assertions: []Assertion{holds(1, 10, &a, alpha), first(5, &a, beta)}},
+			facts:         Facts{Assertions: []Assertion{during(1, 10, &a, alpha), first(5, &a, beta)}},
 			want:          []Interval{provisional(nil, at(1), a), confirmed(at(1), at(10), a), provisional(at(10), nil, a)},
 			wantOverruled: []OverruledEdge{{Edge: edgeOf(first(5, &a, beta)), By: []Source{alpha, alpha}}},
+		},
+		{
+			name:  "a later answer of one datasource replaces its earlier one on that day without a disagreement",
+			facts: Facts{Assertions: []Assertion{asserts(5, &a, answer(alpha, 1, 20)), asserts(5, &b, answer(alpha, 2, 21))}},
+			want:  []Interval{provisional(nil, at(5), b), confirmed(at(5), at(6), b), provisional(at(6), nil, b)},
+		},
+		{
+			name: "a later answer that names nothing retires the ticker",
+			facts: Facts{Assertions: []Assertion{
+				asserts(1, &a, answer(alpha, 1, 20)), asserts(5, &a, answer(alpha, 1, 20)), asserts(5, nil, answer(alpha, 2, 21)),
+			}},
+			want:         []Interval{provisional(nil, at(1), a), confirmed(at(1), at(2), a), provisional(at(2), at(5), a)},
+			wantInferred: []Inferred{{Period: cover(2, 6), From: &a, Earlier: asserts(1, &a, answer(alpha, 1, 20)), Later: asserts(5, nil, answer(alpha, 2, 21))}},
+		},
+		{
+			name:  "the moment of an answer orders it before its id",
+			facts: Facts{Assertions: []Assertion{asserts(5, &a, answer(alpha, 1, 21)), asserts(5, &b, answer(alpha, 2, 20))}},
+			want:  []Interval{provisional(nil, at(5), a), confirmed(at(5), at(6), a), provisional(at(6), nil, a)},
+		},
+		{
+			name: "the reach of a later answer holds the period of its request",
+			facts: Facts{Assertions: []Assertion{
+				{Period: cover(5, 20), Instr: &a, EdgeFrom: true, Source: asking(answer(alpha, 1, 20), 1, 20)},
+				{Period: cover(7, 20), Instr: &a, EdgeFrom: true, Source: asking(answer(alpha, 2, 21), 1, 20)},
+			}},
+			want: []Interval{confirmed(at(7), at(20), a), provisional(at(20), nil, a)},
+		},
+		{
+			name:  "an earlier edge stays where the reach of a later answer holds one side of it",
+			facts: Facts{Assertions: []Assertion{first(5, &a, answer(alpha, 1, 20)), asserts(5, &a, answer(alpha, 2, 21))}},
+			want:  []Interval{confirmed(at(5), at(6), a), provisional(at(6), nil, a)},
+		},
+		{
+			name: "an earlier edge goes where the reach of later answers holds both sides of it",
+			facts: Facts{Assertions: []Assertion{
+				first(5, &a, answer(alpha, 1, 20)), asserts(4, &a, answer(alpha, 2, 21)), asserts(5, &a, answer(alpha, 3, 21)),
+			}},
+			want: []Interval{provisional(nil, at(4), a), confirmed(at(4), at(6), a), provisional(at(6), nil, a)},
+		},
+		{
+			name: "later answers of two instruments around an earlier edge imply a change in its place",
+			facts: Facts{Assertions: []Assertion{
+				first(5, &a, answer(alpha, 1, 20)), asserts(4, &b, answer(alpha, 2, 21)), asserts(5, &a, answer(alpha, 3, 21)),
+			}},
+			want: []Interval{
+				provisional(nil, at(4), b), confirmed(at(4), at(5), b),
+				confirmed(at(5), at(6), a), provisional(at(6), nil, a),
+			},
+			wantInferred: []Inferred{{Period: cover(5, 6), From: &b, To: &a, Earlier: asserts(4, &b, answer(alpha, 2, 21)), Later: asserts(5, &a, answer(alpha, 3, 21))}},
+		},
+		{
+			name:  "a later identifier attestation of a day replaces an earlier one",
+			facts: Facts{Assertions: []Assertion{asserts(5, &b, answer(admin, 2, 21)), asserts(5, &a, answer(admin, 1, 20))}},
+			want:  []Interval{provisional(nil, at(5), b), confirmed(at(5), at(6), b), provisional(at(6), nil, b)},
 		},
 		{
 			name:  "a period of assertion coverage with no assertion names nothing",

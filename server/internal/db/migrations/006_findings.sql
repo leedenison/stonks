@@ -13,10 +13,11 @@
 -- them.
 -- 'merged' means the response merged two instruments.
 -- 'identifier_disagreement' means two datasources asserted different
--- identifier facts for one ticker on one day. Precedence kept one. Unlike a
--- contradiction, it concerns a ticker rather than a key. The run whose write
--- completed the pair records it, and the finding names the losing assertion's
--- fetch key.
+-- identifier facts for one ticker over a run of days. Precedence kept one.
+-- Unlike a contradiction, it concerns a ticker rather than a key. The run
+-- whose write completed the pair records it, and the finding names the losing
+-- assertion's fetch key. A later answer of one datasource replaces its earlier
+-- answer without raising a finding.
 -- 'broken_ticker_validity_bracket' means an edge cut between two assertions
 -- that name one instrument, and no stronger source overruled the edge. The
 -- run that wrote the edge records it, and the finding names the edge's fetch

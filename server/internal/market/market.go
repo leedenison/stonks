@@ -161,4 +161,7 @@ type Kind[Q, P any] struct {
 	// params is what the kind adds to the cache key from the request beyond
 	// the identifier sent, nil where it adds nothing.
 	params func(Q) []string
+	// asked returns the period of the request, nil where the request has
+	// none. The fetch_keys row records it.
+	asked func(Q) *types.Period
 }

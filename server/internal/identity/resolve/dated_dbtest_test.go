@@ -360,6 +360,13 @@ func TestMissedEvent(t *testing.T) {
 		t.Errorf("findings = %+v, want one missed event naming the fetch key of the assertion coverage %s", found, period.ID)
 	}
 
+	sent := slices.IndexFunc(s.alphaFacts.Sent, func(r market.IdentifierFactRequest) bool { return r.Identifier == share })
+	require.GreaterOrEqual(t, sent, 0)
+	asked := s.alphaFacts.Sent[sent].Period
+	if period.AskedFrom == nil || !period.AskedFrom.Equal(asked.From) || period.AskedBefore == nil || !period.AskedBefore.Equal(asked.Before) {
+		t.Errorf("fetch key asked %v to %v, want the period of its request %v", period.AskedFrom, period.AskedBefore, asked)
+	}
+
 	s.rerun(t)
 	second := s.state(t, "", "USD", v)
 	s.resolveOn(t, []time.Time{on(2024, 1, 16)}, second)

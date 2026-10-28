@@ -114,9 +114,9 @@ enum FindingKind {
   FINDING_KIND_CONTRADICTION = 3;
   // The response merged two instruments.
   FINDING_KIND_MERGED = 4;
-  // Two datasources asserted different identifier facts for one value on one
-  // day, and precedence kept one. The detail names the value, the day and the
-  // datasources.
+  // Two datasources asserted different identifier facts for one value over a
+  // run of days, and precedence kept one. The detail names the value, the days
+  // and the datasources.
   FINDING_KIND_IDENTIFIER_DISAGREEMENT = 5;
   // An edge cut between two assertions that name one instrument. The detail
   // names the value, the edge, its day and the instrument.

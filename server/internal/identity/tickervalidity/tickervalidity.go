@@ -30,6 +30,9 @@
 // competes for its days. An administrator overrules a wrong edge by
 // attesting one instrument on the days around it.
 //
+// A later answer replaces an earlier answer of its source within its reach;
+// see current.
+//
 // On each day one assertion wins; see winners. Ticker validity is confirmed on
 // each day the winning assertion names the instrument. Two consecutive
 // winning assertions of one instrument that a cut does not separate confirm
@@ -52,6 +55,7 @@
 package tickervalidity
 
 import (
+	"bytes"
 	"time"
 
 	"github.com/google/uuid"
@@ -96,14 +100,22 @@ func (i Interval) Clip(p types.Period) (types.Period, bool) {
 	return out, out.From.Before(out.Before)
 }
 
-// Source is where an assertion came from: a datasource's fetch key with the
-// datasource's precedence, or an administrator.
+// Source is where an assertion came from: a datasource's answer with the
+// datasource's precedence, or an administrator's attestation.
 type Source struct {
 	Datasource string
 	// Precedence orders datasources; the lower number wins.
 	Precedence int32
-	// FetchKey made the assertion. It is zero for an identifier attestation.
-	FetchKey uuid.UUID
+	// Answer is the id of the fetch key that made the assertion, or of the
+	// run of an identifier attestation.
+	Answer uuid.UUID
+	// Answered is when the fetch key was answered, or when the attest
+	// identifier run was created. A cached answer keeps the moment of the call
+	// that filled the cache.
+	Answered time.Time
+	// Asked is the period of the request. It is zero where the request has
+	// none.
+	Asked    types.Period
 	Attested bool
 }
 
@@ -114,6 +126,15 @@ func (s Source) group() Source {
 		return Source{Attested: true}
 	}
 	return Source{Datasource: s.Datasource, Precedence: s.Precedence}
+}
+
+// newer reports whether the answer of s is later than the answer of o: by
+// moment, then by id.
+func (s Source) newer(o Source) bool {
+	if !s.Answered.Equal(o.Answered) {
+		return s.Answered.After(o.Answered)
+	}
+	return bytes.Compare(s.Answer[:], o.Answer[:]) > 0
 }
 
 // outranks reports whether s wins over o where they disagree on one day, and

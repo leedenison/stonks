@@ -27,9 +27,13 @@ UPDATE identifier_assertions SET instr_id = @survivor::uuid WHERE instr_id = @lo
 -- The assertions of the tickers whose market and value are a pair the arrays
 -- hold at one index. Each assertion comes with its ticker's value, with the
 -- datasource of the fetch that made it and that datasource's precedence, or
--- with the email of the administrator who attested it.
+-- with the email of the administrator who attested it. answered is when the
+-- fetch key was answered, or when the attest identifier run was created.
+-- asked_from and asked_before are the period of the fetch key's request.
 SELECT sqlc.embed(identifier_assertions), tickers.value, fetches.datasource, datasources.precedence,
-       users.email AS attested_by
+       users.email AS attested_by,
+       COALESCE(fetch_keys.answered_at, runs.created_at)::timestamptz AS answered,
+       fetch_keys.asked_from, fetch_keys.asked_before
 FROM (SELECT unnest(@markets::text[]) AS market, unnest(@values::text[]) AS value) AS asked
 JOIN tickers ON tickers.market = asked.market AND tickers.value = asked.value
 JOIN identifier_assertions ON identifier_assertions.ticker_id = tickers.id
@@ -37,6 +41,7 @@ LEFT JOIN fetch_keys ON fetch_keys.id = identifier_assertions.fetch_key_id
 LEFT JOIN fetches ON fetches.id = fetch_keys.fetch_id
 LEFT JOIN datasources ON datasources.name = fetches.datasource
 LEFT JOIN users ON users.id = identifier_assertions.attested_by
+LEFT JOIN runs ON runs.id = identifier_assertions.run_id
 ORDER BY identifier_assertions.asserted_on, identifier_assertions.id;
 
 -- name: ListIdentifierAssertionCoverage :many

@@ -367,6 +367,11 @@ func record[Q, P any](ctx context.Context, q Queries, run gen.Run, kind Kind[Q, 
 	if r.SentID != nil {
 		arg.SentType, arg.SentDomain, arg.SentValue = sentColumns(*r.SentID)
 	}
+	if kind.asked != nil {
+		if p := kind.asked(r.Request); p != nil {
+			arg.AskedFrom, arg.AskedBefore = &p.From, &p.Before
+		}
+	}
 	if r.Outcome == gen.FetchOutcomeServed {
 		arg.Candidates = int16(kind.count(r.Response))
 		at := r.AnsweredAt
