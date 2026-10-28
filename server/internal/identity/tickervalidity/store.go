@@ -29,7 +29,7 @@ func Diagnose(ctx context.Context, q FactQueries, t types.MarketTicker) (Diagnos
 	if err != nil {
 		return Diagnosis{}, err
 	}
-	return Derive(rows.Facts()).Diagnosis, nil
+	return derive(rows.facts()).Diagnosis, nil
 }
 
 // ValidityQueries read stored ticker validity.
@@ -68,16 +68,16 @@ func Load(ctx context.Context, q ValidityQueries, ts []types.MarketTicker) (map[
 
 // ReadRows reads the assertion and assertion coverage rows of t.
 func ReadRows(ctx context.Context, q FactQueries, t types.MarketTicker) (Rows, error) {
-	rows, err := ReadRowsOf(ctx, q, []types.MarketTicker{t})
+	rows, err := readRowsOf(ctx, q, []types.MarketTicker{t})
 	if err != nil {
 		return Rows{}, err
 	}
 	return rows[t], nil
 }
 
-// ReadRowsOf reads the assertion and assertion coverage rows of each of ts,
+// readRowsOf reads the assertion and assertion coverage rows of each of ts,
 // with two queries however many tickers there are.
-func ReadRowsOf(ctx context.Context, q FactQueries, ts []types.MarketTicker) (map[types.MarketTicker]Rows, error) {
+func readRowsOf(ctx context.Context, q FactQueries, ts []types.MarketTicker) (map[types.MarketTicker]Rows, error) {
 	out := make(map[types.MarketTicker]Rows, len(ts))
 	var markets, values []string
 	for _, t := range ts {
@@ -115,9 +115,9 @@ func ReadRowsOf(ctx context.Context, q FactQueries, ts []types.MarketTicker) (ma
 	return out, nil
 }
 
-// Facts converts the rows to the facts Derive reads.
-func (r Rows) Facts() Facts {
-	var f Facts
+// facts converts the rows to the facts derive reads.
+func (r Rows) facts() facts {
+	var f facts
 	for _, row := range r.Assertions {
 		ia := row.IdentifierAssertion
 		src := Source{Attested: row.Datasource == nil, Answered: row.Answered}

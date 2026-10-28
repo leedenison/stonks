@@ -9,9 +9,9 @@ import (
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
-// Derive returns what the facts of one ticker imply: the intervals in order,
+// derive returns what the facts of one ticker imply: the intervals in order,
 // the changes they infer, and the conflicts among them.
-func Derive(f Facts) Derived {
+func derive(f facts) derived {
 	as, es := current(f.Assertions)
 	ws, disagreements := winners(as, es)
 	cover := union(periods(f.AssertionCoverage))
@@ -44,7 +44,7 @@ func Derive(f Facts) Derived {
 		inferred = append(inferred, inf...)
 		start = end
 	}
-	return Derived{
+	return derived{
 		Diagnosis: Diagnosis{
 			Disagreements: disagreements, Broken: broken(ws, cutting),
 			Missed: missed(inferred, f.AssertionCoverage, cover), Overruled: over,

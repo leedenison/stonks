@@ -146,7 +146,7 @@ func record(ctx context.Context, q RecordQueries, families currency.Families, ro
 		if err != nil {
 			return err
 		}
-		if _, err := Assert(ctx, q, families, key, t, a); err != nil {
+		if err := assertFact(ctx, q, families, key, t, a); err != nil {
 			return err
 		}
 	}
@@ -169,22 +169,19 @@ func record(ctx context.Context, q RecordQueries, families currency.Families, ro
 	return nil
 }
 
-// Assert writes the assertion a of ticker t under fetch key key, over a.Period.
-// A positive assertion names the instrument of the first stored stable
-// identifier it states, as Record describes. Assert returns false without
-// writing where it can name no instrument.
-func Assert(ctx context.Context, q RecordQueries, families currency.Families, key uuid.UUID, t gen.Ticker, a market.Assertion) (bool, error) {
+// assertFact writes the assertion a of ticker t under fetch key key, over
+// a.Period. A positive assertion names the instrument of the first stored
+// stable identifier it states, as Record describes. assertFact skips a
+// positive assertion whose identifiers match no stored instrument.
+func assertFact(ctx context.Context, q RecordQueries, families currency.Families, key uuid.UUID, t gen.Ticker, a market.Assertion) error {
 	var instr *uuid.UUID
 	if !a.Negative {
 		var err error
-		if instr, err = instrOf(ctx, q, families, key, a); err != nil {
-			return false, err
-		}
-		if instr == nil {
-			return false, nil
+		if instr, err = instrOf(ctx, q, families, key, a); err != nil || instr == nil {
+			return err
 		}
 	}
-	return true, assert(ctx, q, key, t, instr, a.Period, a.EdgeFrom, a.EdgeBefore, Stated{})
+	return assert(ctx, q, key, t, instr, a.Period, a.EdgeFrom, a.EdgeBefore, Stated{})
 }
 
 // Asserter writes an assertion.
@@ -328,7 +325,7 @@ func CheckAttest(mics mic.MICMap, t types.MarketTicker, on, today time.Time) err
 
 // Attest writes an administrator's assertion that t names instrument on every
 // day of p, beneath run, which must be a system run of kind attest identifier.
-// A nil instrument asserts that t names nothing. Derive lets a later identifier
+// A nil instrument asserts that t names nothing. derive lets a later identifier
 // attestation win over an earlier one on the days they share.
 func Attest(ctx context.Context, q AttestQueries, mics mic.MICMap, run gen.Run, admin uuid.UUID, t gen.Ticker, instr *uuid.UUID, p types.Period, today time.Time) error {
 	if run.Kind != gen.RunKindAttestIdentifier || run.UserID != nil {

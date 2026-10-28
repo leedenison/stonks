@@ -240,3 +240,9 @@ SELECT EXISTS (
       AND identifier_assertions.asserted_from <= @day::date
       AND @day::date < identifier_assertions.asserted_before
 )::boolean;
+
+-- name: ListTickersOfInstrs :many
+-- The tickers of the positive assertions that name the instruments.
+SELECT DISTINCT ticker_id FROM identifier_assertions
+WHERE instr_id = ANY(@instr_ids::uuid[])
+ORDER BY ticker_id;

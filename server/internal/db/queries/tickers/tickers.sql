@@ -31,9 +31,3 @@ WHERE sqlc.narg(after)::uuid IS NULL OR id > sqlc.narg(after)
 ORDER BY id
 LIMIT @lim::int
 FOR UPDATE;
-
--- name: ListTickersOfInstrs :many
--- The tickers of the positive assertions that name the instruments.
-SELECT DISTINCT ticker_id FROM identifier_assertions
-WHERE instr_id = ANY(@instr_ids::uuid[])
-ORDER BY ticker_id;

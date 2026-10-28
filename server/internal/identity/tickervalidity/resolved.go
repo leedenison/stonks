@@ -14,24 +14,24 @@ import (
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
-// Resolved is one row of resolved_tickers: the ticker that names Instr at a
+// resolvedName is one row of resolved_tickers: the ticker that names Instr at a
 // venue, or at its market where Stated.Venue is empty. From and Before bound
 // the days it has named Instr without a break. A nil bound is open.
-type Resolved struct {
+type resolvedName struct {
 	Ticker       types.MarketTicker
 	Instr        uuid.UUID
 	Stated       Stated
 	From, Before *time.Time
 }
 
-// Resolve returns the rows that name instr at one market, from ts, the
+// resolveNames returns the rows that name instr at one market, from ts, the
 // tickers of that market whose facts name it. It applies the rule that
 // resolved_tickers states in
 // [010_ticker_validity.sql](../../db/migrations/010_ticker_validity.sql).
 // The day of a ticker's latest winning assertion that names instr breaks a
 // tie.
-func Resolve(instr uuid.UUID, ts []*Ticker) []Resolved {
-	var best *Ticker
+func resolveNames(instr uuid.UUID, ts []*tickerFacts) []resolvedName {
+	var best *tickerFacts
 	var bestEnd *time.Time
 	var bestWon time.Time
 	for _, t := range ts {
@@ -56,9 +56,9 @@ func Resolve(instr uuid.UUID, ts []*Ticker) []Resolved {
 		ivs[first-1].Before.Equal(*ivs[first].From) {
 		first--
 	}
-	var out []Resolved
+	var out []resolvedName
 	for _, s := range stated(best.Facts.Assertions, instr) {
-		out = append(out, Resolved{Ticker: best.Ticker, Instr: instr, Stated: s, From: ivs[first].From, Before: ivs[last].Before})
+		out = append(out, resolvedName{Ticker: best.Ticker, Instr: instr, Stated: s, From: ivs[first].From, Before: ivs[last].Before})
 	}
 	return out
 }
@@ -87,7 +87,7 @@ func later(a, b *time.Time) int {
 }
 
 // lastWon returns the latest day that an assertion naming instr won for t.
-func lastWon(t *Ticker, instr uuid.UUID) time.Time {
+func lastWon(t *tickerFacts, instr uuid.UUID) time.Time {
 	ws, _ := winners(current(t.Facts.Assertions))
 	for _, w := range slices.Backward(ws) {
 		if w.instr != nil && *w.instr == instr {
@@ -213,7 +213,7 @@ func Rebuild(ctx context.Context, q RebuildQueries, ids []uuid.UUID) error {
 		idOf[t] = r.Ticker.ID
 		all = append(all, t)
 	}
-	read, err := ReadTickers(ctx, q, all)
+	read, err := readTickers(ctx, q, all)
 	if err != nil {
 		return err
 	}
@@ -222,12 +222,12 @@ func Rebuild(ctx context.Context, q RebuildQueries, ids []uuid.UUID) error {
 	}
 	var out gen.CreateResolvedTickersParams
 	for _, p := range pairs {
-		var ts []*Ticker
+		var ts []*tickerFacts
 		for _, t := range of[pair{p.InstrID, p.Market}] {
 			ts = append(ts, read[t])
 		}
-		slices.SortFunc(ts, func(a, b *Ticker) int { return cmp.Compare(a.Ticker.Value, b.Ticker.Value) })
-		for _, r := range Resolve(p.InstrID, ts) {
+		slices.SortFunc(ts, func(a, b *tickerFacts) int { return cmp.Compare(a.Ticker.Value, b.Ticker.Value) })
+		for _, r := range resolveNames(p.InstrID, ts) {
 			out.TickerIds = append(out.TickerIds, idOf[r.Ticker])
 			out.Markets = append(out.Markets, r.Ticker.Market)
 			out.InstrIds = append(out.InstrIds, r.Instr)
@@ -254,7 +254,7 @@ func Rebuild(ctx context.Context, q RebuildQueries, ids []uuid.UUID) error {
 
 // writeValidity replaces the stored ticker validity of rebuilt with what its
 // facts imply.
-func writeValidity(ctx context.Context, q RebuildQueries, rebuilt []gen.Ticker, read map[types.MarketTicker]*Ticker) error {
+func writeValidity(ctx context.Context, q RebuildQueries, rebuilt []gen.Ticker, read map[types.MarketTicker]*tickerFacts) error {
 	ids := make([]uuid.UUID, len(rebuilt))
 	var arg gen.CreateTickerValidityParams
 	for i, r := range rebuilt {
