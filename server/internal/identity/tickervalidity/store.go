@@ -103,9 +103,10 @@ func (r Rows) Facts() Facts {
 		if ia.FetchKeyID != nil {
 			src.FetchKey = *ia.FetchKeyID
 		}
-		a := Assertion{At: ia.AssertedOn, Instr: ia.InstrID, Source: src}
+		a := Assertion{Period: types.OneDay(ia.AssertedOn), Instr: ia.InstrID, Source: src}
 		if ia.Edge != nil {
-			a.Edge = *ia.Edge
+			a.EdgeFrom = *ia.Edge == gen.IdentifierEdgeFirst
+			a.EdgeBefore = *ia.Edge == gen.IdentifierEdgeLast
 		}
 		if ia.Venue != nil {
 			a.Stated.Venue = *ia.Venue

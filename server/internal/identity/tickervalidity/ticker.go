@@ -46,7 +46,7 @@ func (t *Ticker) HasTickerValidity() bool { return len(t.Derived.Intervals) > 0 
 
 // Asserted reports whether any source asserted the ticker on day d.
 func (t *Ticker) Asserted(d time.Time) bool {
-	return slices.ContainsFunc(t.Facts.Assertions, func(a Assertion) bool { return types.Day(a.At).Equal(types.Day(d)) })
+	return slices.ContainsFunc(t.Facts.Assertions, func(a Assertion) bool { return a.Period.Contains(types.Day(d)) })
 }
 
 // On returns the interval of the ticker's validity that holds day d. It

@@ -6,7 +6,6 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
@@ -15,16 +14,16 @@ import (
 func Derive(f Facts) Derived {
 	ws, disagreements := winners(f.Assertions)
 	cover := union(periods(f.AssertionCoverage))
-	var edges []Assertion
+	var cutting []Edge
 	var over []OverruledEdge
-	for _, e := range edged(f.Assertions) {
-		if by := overruled(e, cut(e), f); by != nil {
+	for _, e := range edges(f.Assertions) {
+		if by := overruled(e, f); by != nil {
 			over = append(over, OverruledEdge{Edge: e, By: by})
 			continue
 		}
-		edges = append(edges, e)
+		cutting = append(cutting, e)
 	}
-	bounds := cuts(edges)
+	bounds := cuts(cutting)
 	var out []Interval
 	var inferred []Inferred
 	var start *time.Time
@@ -35,7 +34,7 @@ func Derive(f Facts) Derived {
 			end = &bounds[s]
 		}
 		var seg []winner
-		for i < len(ws) && (end == nil || ws[i].at.Before(*end)) {
+		for i < len(ws) && (end == nil || ws[i].from.Before(*end)) {
 			seg = append(seg, ws[i])
 			i++
 		}
@@ -46,19 +45,21 @@ func Derive(f Facts) Derived {
 	}
 	return Derived{
 		Intervals: join(out), Inferred: inferred, Disagreements: disagreements,
-		Broken: broken(ws, edges), Missed: missed(inferred, f.AssertionCoverage, cover), Overruled: over,
+		Broken: broken(ws, cutting), Missed: missed(inferred, f.AssertionCoverage, cover), Overruled: over,
 	}
 }
 
-// overruled returns the sources of the facts that overrule the edge a, whose
-// cut is c. A source that outranks a's overrules it by a bracket: its nearest
-// assertions on either side of c name one instrument. A datasource also
-// overrules it by a period; see spanned. The strongest such source is the one
-// returned.
-func overruled(a Assertion, c time.Time, f Facts) []Source {
+// overruled returns the sources of the facts that overrule the edge e. A source
+// that outranks the edge's source overrules it by a bracket: its nearest
+// assertions on either side of the cut name one instrument. One assertion that
+// holds the days either side of the cut is such a bracket by itself. A
+// datasource also overrules it by a period; see spanned. The strongest such
+// source is the one returned.
+func overruled(e Edge, f Facts) []Source {
+	c := e.At
 	var stronger []Source
 	add := func(src Source) bool {
-		if !src.outranks(a.Source) {
+		if !src.outranks(e.Assertion.Source) {
 			return false
 		}
 		if !slices.Contains(stronger, src) {
@@ -73,12 +74,15 @@ func overruled(a Assertion, c time.Time, f Facts) []Source {
 		if !add(src) {
 			continue
 		}
-		if x.At.Before(c) {
-			if b, ok := before[src]; !ok || !x.At.Before(b.At) {
+		if x.Period.From.Before(c) {
+			if b, ok := before[src]; !ok || !endBefore(x, c).Before(endBefore(b, c)) {
 				before[src] = x
 			}
-		} else if n, ok := after[src]; !ok || x.At.Before(n.At) {
-			after[src] = x
+		}
+		if x.Period.Before.After(c) {
+			if n, ok := after[src]; !ok || startAfter(x, c).Before(startAfter(n, c)) {
+				after[src] = x
+			}
 		}
 	}
 	for _, p := range f.AssertionCoverage {
@@ -106,6 +110,22 @@ func overruled(a Assertion, c time.Time, f Facts) []Source {
 	return nil
 }
 
+// endBefore returns the day after the last day of a that falls before c.
+func endBefore(a Assertion, c time.Time) time.Time {
+	if a.Period.Before.Before(c) {
+		return a.Period.Before
+	}
+	return c
+}
+
+// startAfter returns the first day of a that falls on or after c.
+func startAfter(a Assertion, c time.Time) time.Time {
+	if a.Period.From.After(c) {
+		return a.Period.From
+	}
+	return c
+}
+
 // spanned returns the period of src's assertion coverage that holds the cut c,
 // when src overrules an edge there by a period. Its assertion coverage holds c
 // and the day before together, and src does not state an edge at c.
@@ -125,8 +145,8 @@ func spanned(src Source, c time.Time, f Facts) (AssertionCoverage, bool) {
 	if !held {
 		return AssertionCoverage{}, false
 	}
-	if slices.ContainsFunc(f.Assertions, func(x Assertion) bool {
-		return x.Edge != "" && x.Source.group() == src && cut(x).Equal(c)
+	if slices.ContainsFunc(edges(f.Assertions), func(e Edge) bool {
+		return e.Assertion.Source.group() == src && e.At.Equal(c)
 	}) {
 		return AssertionCoverage{}, false
 	}
@@ -134,10 +154,10 @@ func spanned(src Source, c time.Time, f Facts) (AssertionCoverage, bool) {
 	return rows[i], true
 }
 
-// missed returns each inferred change whose possible days one period of cover
-// holds in full. cover is the union of the assertion coverage. Each change
-// comes with the first period of assertion coverage that holds the first of
-// those days.
+// missed returns each inferred change whose possible days one period of
+// cover holds in full. cover is the union of the assertion coverage. Each
+// change comes with the first period of assertion coverage that holds the
+// first of those days.
 func missed(inferred []Inferred, rows []AssertionCoverage, cover []types.Period) []MissedEvent {
 	var out []MissedEvent
 	for _, inf := range inferred {
@@ -161,73 +181,65 @@ func periods(rows []AssertionCoverage) []types.Period {
 	return out
 }
 
-// edged returns the assertions that carry an edge.
-func edged(as []Assertion) []Assertion {
-	var out []Assertion
+// edges returns the edges the assertions state, in order of the assertions.
+func edges(as []Assertion) []Edge {
+	var out []Edge
 	for _, a := range as {
-		if a.Edge != "" {
-			out = append(out, a)
+		if a.EdgeFrom {
+			out = append(out, Edge{At: a.Period.From, Assertion: a})
+		}
+		if a.EdgeBefore {
+			out = append(out, Edge{At: a.Period.Before, Assertion: a})
 		}
 	}
 	return out
 }
 
-// cut returns the day at whose start the edge a cuts the timeline: the day of
-// a first, and the day after a last.
-func cut(a Assertion) time.Time {
-	if a.Edge == gen.IdentifierEdgeLast {
-		return next(a.At)
-	}
-	return a.At
-}
-
-// cuts returns the distinct cuts of the edges in order.
-func cuts(edges []Assertion) []time.Time {
-	out := make([]time.Time, len(edges))
-	for i, e := range edges {
-		out[i] = cut(e)
+// cuts returns the distinct days of the edges in order.
+func cuts(es []Edge) []time.Time {
+	out := make([]time.Time, len(es))
+	for i, e := range es {
+		out[i] = e.At
 	}
 	slices.SortFunc(out, func(a, b time.Time) int { return a.Compare(b) })
 	return slices.CompactFunc(out, func(a, b time.Time) bool { return a.Equal(b) })
 }
 
 // broken returns each edge that cuts between two consecutive winners of one
-// instrument. A cut at the start of a winner's day precedes it, so that winner
-// is the later one.
-func broken(ws []winner, edges []Assertion) []BrokenBracket {
+// instrument.
+func broken(ws []winner, es []Edge) []BrokenBracket {
 	var out []BrokenBracket
-	for _, e := range edges {
-		c := cut(e)
-		i := slices.IndexFunc(ws, func(w winner) bool { return !w.at.Before(c) })
+	for _, e := range es {
+		i := slices.IndexFunc(ws, func(w winner) bool { return !w.from.Before(e.At) })
 		if i <= 0 {
 			continue
 		}
 		before, after := ws[i-1], ws[i]
 		if before.instr != nil && same(before.instr, after.instr) {
-			out = append(out, BrokenBracket{Edge: e, Instr: *before.instr, First: before.at, Last: after.at})
+			out = append(out, BrokenBracket{Edge: e, Instr: *before.instr, First: prev(before.before), Last: after.from})
 		}
 	}
 	return out
 }
 
-// winner is what a ticker names on one day, by the assertion that won it. A nil
-// instrument is nothing.
+// winner is what a ticker names over a run of days, by the assertion that won
+// them. A nil instrument is nothing. A winner never spans a cut.
 type winner struct {
-	at        time.Time
-	instr     *uuid.UUID
-	assertion Assertion
+	from, before time.Time
+	instr        *uuid.UUID
+	assertion    Assertion
 }
 
-// winners returns one winner per day that has an assertion that counts, in
-// order of day. A datasource's negative assertion counts only after the same
-// datasource asserted the ticker: a datasource that never knew a ticker cannot
-// show that it retired. An administrator's negative assertion counts after
-// any positive one. Where assertions of one day disagree, better picks the
-// winner. winners also returns the datasources' assertions that name
-// something other than the winner of their day.
+// winners returns one winner per run of days that some counting assertion
+// holds, in order of day. A datasource's negative assertion counts only after
+// the same datasource asserted the ticker: a datasource that never knew a
+// ticker cannot show that it retired. An administrator's negative assertion
+// counts after any positive one. Where assertions that hold one day disagree,
+// better picks the winner. winners also returns the datasources' assertions
+// that name something other than the winner of their days.
 func winners(as []Assertion) ([]winner, []Disagreement) {
 	as = slices.Clone(as)
-	slices.SortStableFunc(as, func(a, b Assertion) int { return a.At.Compare(b.At) })
+	slices.SortStableFunc(as, func(a, b Assertion) int { return a.Period.From.Compare(b.Period.From) })
 	first := map[string]time.Time{}
 	var earliest *time.Time
 	for _, a := range as {
@@ -235,14 +247,14 @@ func winners(as []Assertion) ([]winner, []Disagreement) {
 			continue
 		}
 		if earliest == nil {
-			on := a.At
+			on := a.Period.From
 			earliest = &on
 		}
 		if a.Source.Attested {
 			continue
 		}
 		if _, ok := first[a.Source.Datasource]; !ok {
-			first[a.Source.Datasource] = a.At
+			first[a.Source.Datasource] = a.Period.From
 		}
 	}
 	counts := func(a Assertion) bool {
@@ -250,42 +262,67 @@ func winners(as []Assertion) ([]winner, []Disagreement) {
 			return true
 		}
 		if a.Source.Attested {
-			return earliest != nil && earliest.Before(a.At)
+			return earliest != nil && earliest.Before(a.Period.From)
 		}
 		on, ok := first[a.Source.Datasource]
-		return ok && on.Before(a.At)
+		return ok && on.Before(a.Period.From)
 	}
+	var counted []int
+	var bounds []time.Time
+	for i, a := range as {
+		if counts(a) {
+			counted = append(counted, i)
+			bounds = append(bounds, a.Period.From, a.Period.Before)
+		}
+	}
+	cut := map[time.Time]bool{}
+	for _, e := range edges(as) {
+		cut[e.At] = true
+		bounds = append(bounds, e.At)
+	}
+	slices.SortFunc(bounds, func(a, b time.Time) int { return a.Compare(b) })
+	bounds = slices.CompactFunc(bounds, func(a, b time.Time) bool { return a.Equal(b) })
 	var out []winner
+	var won []int
 	var disagreements []Disagreement
-	var best *Assertion
-	var day []Assertion
-	flush := func() {
-		if best != nil {
-			out = append(out, winner{at: best.At, instr: best.Instr, assertion: *best})
-			for _, a := range day {
-				if !best.Source.Attested && !same(a.Instr, best.Instr) {
-					disagreements = append(disagreements, Disagreement{On: best.At, Winner: *best, Loser: a})
+	var lost [][2]int
+	for k := 0; k+1 < len(bounds); k++ {
+		from, before := bounds[k], bounds[k+1]
+		best := -1
+		var day []int
+		for _, i := range counted {
+			if as[i].Period.Contains(from) {
+				day = append(day, i)
+				if best < 0 || better(as[i], as[best]) {
+					best = i
 				}
 			}
 		}
-		best, day = nil, nil
-	}
-	for i := range as {
-		a := &as[i]
-		if best != nil && !a.At.Equal(best.At) {
-			flush()
-		}
-		if !counts(*a) {
+		if best < 0 {
 			continue
 		}
-		if !a.Source.Attested {
-			day = append(day, *a)
+		if n := len(out); n > 0 && won[n-1] == best && out[n-1].before.Equal(from) && !cut[from] {
+			out[n-1].before = before
+		} else {
+			out = append(out, winner{from: from, before: before, instr: as[best].Instr, assertion: as[best]})
+			won = append(won, best)
 		}
-		if best == nil || better(*a, *best) {
-			best = a
+		if as[best].Source.Attested {
+			continue
+		}
+		for _, i := range day {
+			if as[i].Source.Attested || same(as[i].Instr, as[best].Instr) {
+				continue
+			}
+			pair := [2]int{best, i}
+			if j := slices.Index(lost, pair); j >= 0 && disagreements[j].Period.Before.Equal(from) {
+				disagreements[j].Period.Before = before
+				continue
+			}
+			disagreements = append(disagreements, Disagreement{Period: types.Period{From: from, Before: before}, Winner: as[best], Loser: as[i]})
+			lost = append(lost, pair)
 		}
 	}
-	flush()
 	return out, disagreements
 }
 
@@ -309,19 +346,19 @@ func better(a, b Assertion) bool {
 // span is consecutive winners that name one thing, from the assertion that
 // won the first day to the one that won the last.
 type span struct {
-	instr       *uuid.UUID
-	first, last time.Time
-	head, tail  Assertion
+	instr        *uuid.UUID
+	from, before time.Time
+	head, tail   Assertion
 }
 
 func spans(ws []winner) []span {
 	var out []span
 	for _, w := range ws {
 		if n := len(out); n > 0 && same(out[n-1].instr, w.instr) {
-			out[n-1].last, out[n-1].tail = w.at, w.assertion
+			out[n-1].before, out[n-1].tail = w.before, w.assertion
 			continue
 		}
-		out = append(out, span{instr: w.instr, first: w.at, last: w.at, head: w.assertion, tail: w.assertion})
+		out = append(out, span{instr: w.instr, from: w.from, before: w.before, head: w.assertion, tail: w.assertion})
 	}
 	return out
 }
@@ -345,14 +382,14 @@ func segment(ss []span, start, end *time.Time, cover []types.Period) ([]Interval
 	for k, r := range ss {
 		ceil := end
 		if k+1 < len(ss) {
-			ceil = &ss[k+1].first
+			ceil = &ss[k+1].from
 		}
 		if r.instr == nil {
-			after := next(r.last)
+			after := r.before
 			floor = &after
 		} else {
-			from := back(r.first, floor, cover)
-			to := forward(next(r.last), ceil, cover)
+			from := back(r.from, floor, cover)
+			to := forward(r.before, ceil, cover)
 			if k == 0 && (floor == nil || floor.Before(from)) {
 				out = append(out, Interval{From: floor, Before: &from, Instr: *r.instr, Validity: Provisional})
 			}
@@ -363,12 +400,12 @@ func segment(ss []span, start, end *time.Time, cover []types.Period) ([]Interval
 			floor = ceil
 		}
 		if k+1 < len(ss) {
-			took := next(r.last)
+			took := r.before
 			if r.instr != nil {
 				took = forward(took, ceil, cover)
 			}
 			inferred = append(inferred, Inferred{
-				Period: types.Period{From: took, Before: next(ss[k+1].first)},
+				Period: types.Period{From: took, Before: next(ss[k+1].from)},
 				From:   r.instr, To: ss[k+1].instr,
 				Earlier: r.tail, Later: ss[k+1].head,
 			})
@@ -440,3 +477,5 @@ func join(ivs []Interval) []Interval {
 }
 
 func next(d time.Time) time.Time { return d.AddDate(0, 0, 1) }
+
+func prev(d time.Time) time.Time { return d.AddDate(0, 0, -1) }

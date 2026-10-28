@@ -23,13 +23,11 @@
 // instruments, waits until the first commits. Under Read Committed its next
 // statement then reads the first writer's facts.
 //
-// An edge cuts the timeline. A first cuts at the start of its day, and a last
-// at the start of the next day. Every range stops at a cut. An assertion
-// with an edge also competes for its day as a point does.
+// An edge cuts the timeline, and every range stops at a cut.
 //
 // A stronger source overrules an edge by a bracket or by a period; see
 // overruled. An overruled edge does not cut, and its assertion still
-// competes for its day as a point. An administrator overrules a wrong edge by
+// competes for its days. An administrator overrules a wrong edge by
 // attesting one instrument on the days around it.
 //
 // On each day one assertion wins; see winners. Ticker validity is confirmed on
@@ -58,7 +56,6 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
@@ -136,14 +133,22 @@ type Stated struct {
 	Venue, Currency string
 }
 
-// Assertion is one assertion of a ticker. A nil Instr asserts that the
-// ticker names nothing. Edge is empty for a point.
+// Assertion is one assertion of a ticker: what it names on every day of
+// Period. A nil Instr asserts that the ticker names nothing. EdgeFrom and
+// EdgeBefore state a change at the start of Period.From and at Period.Before.
 type Assertion struct {
-	At     time.Time
-	Instr  *uuid.UUID
-	Edge   gen.IdentifierEdge
-	Source Source
-	Stated Stated
+	Period               types.Period
+	Instr                *uuid.UUID
+	EdgeFrom, EdgeBefore bool
+	Source               Source
+	Stated               Stated
+}
+
+// Edge is a change in what the ticker names, which an assertion states at the
+// start of the day At.
+type Edge struct {
+	At        time.Time
+	Assertion Assertion
 }
 
 // AssertionCoverage is one period of assertion coverage: the days over which a
@@ -170,11 +175,11 @@ type Derived struct {
 	Overruled     []OverruledEdge
 }
 
-// Disagreement is two datasources' assertions on one day that name different
-// things. Winner is the one precedence kept. A day an identifier attestation
-// wins holds none, since an administrator checked it.
+// Disagreement is two datasources' assertions that name different things over
+// the days of Period. Winner is the one precedence kept. A day an identifier
+// attestation wins holds none, since an administrator checked it.
 type Disagreement struct {
-	On            time.Time
+	Period        types.Period
 	Winner, Loser Assertion
 }
 
@@ -182,7 +187,7 @@ type Disagreement struct {
 // instrument, First before the cut and Last on or after it. Only an equal or
 // weaker source asserted the bracket, so the edge cuts it.
 type BrokenBracket struct {
-	Edge        Assertion
+	Edge        Edge
 	Instr       uuid.UUID
 	First, Last time.Time
 }
@@ -191,7 +196,7 @@ type BrokenBracket struct {
 // cut. By holds the source of each fact that overrules it: the two
 // assertions of a bracket, or the assertion coverage that holds the cut.
 type OverruledEdge struct {
-	Edge Assertion
+	Edge Edge
 	By   []Source
 }
 

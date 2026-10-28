@@ -30,9 +30,9 @@ var (
 func metaFacts() tickervalidity.Facts {
 	return tickervalidity.Facts{
 		Assertions: []tickervalidity.Assertion{
-			{At: assertedOn, Instr: &metaInst, Source: massive},
-			{At: notFoundOn, Source: massive},
-			{At: renamed, Instr: &metaInst, Edge: gen.IdentifierEdgeFirst, Source: massive},
+			{Period: types.OneDay(assertedOn), Instr: &metaInst, Source: massive},
+			{Period: types.OneDay(notFoundOn), Source: massive},
+			{Period: types.OneDay(renamed), Instr: &metaInst, EdgeFrom: true, Source: massive},
 		},
 		AssertionCoverage: []tickervalidity.AssertionCoverage{{Period: types.Period{From: renamed, Before: coveredTo}, Source: massive}},
 	}
