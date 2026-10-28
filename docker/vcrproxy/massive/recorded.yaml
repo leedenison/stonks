@@ -1555,3 +1555,346 @@ interactions:
         status: 200 OK
         code: 200
         duration: 12.000061569s
+    - id: 35
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /v3/reference/tickers/NVDA?apiKey=REDACTED
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://api.massive.com/v3/reference/tickers/NVDA
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 924
+        uncompressed: true
+        body: '{"request_id":"6f8597bbff22985d052d4d6b20c8bdd6","results":{"active":true,"address":"REDACTED","branding":{"icon_url":"https://api.massive.com/v1/reference/company-branding/bnZpZGlhLmNvbQ/images/2026-10-01_icon.jpeg","logo_url":"https://api.massive.com/v1/reference/company-branding/bnZpZGlhLmNvbQ/images/2026-10-01_logo.svg"},"cik":"0001045810","composite_figi":"BBG000BBJQV0","currency_name":"usd","description":"REDACTED","homepage_url":"https://www.nvidia.com","list_date":"1999-01-22","locale":"us","market":"stocks","market_cap":5.26259718e+12,"name":"Nvidia Corp","phone_number":"REDACTED","primary_exchange":"XNAS","round_lot":100,"share_class_figi":"BBG001S5TZJ6","share_class_shares_outstanding":24100000000,"sic_code":"3674","sic_description":"SEMICONDUCTORS \u0026 RELATED DEVICES","ticker":"NVDA","ticker_root":"NVDA","total_employees":42000,"type":"CS","weighted_shares_outstanding":24147000000},"status":"OK"}'
+        headers:
+            Content-Type:
+                - application/json
+            Date:
+                - Wed, 28 Oct 2026 16:47:54 GMT
+            Strict-Transport-Security:
+                - max-age=15724800; includeSubDomains
+            Vary:
+                - Accept-Encoding
+            X-Polygon-Cluster-Name:
+                - polygon-ny5
+            X-Request-Id:
+                - 6f8597bbff22985d052d4d6b20c8bdd6
+        status: 200 OK
+        code: 200
+        duration: 839.724851ms
+    - id: 36
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /v3/reference/tickers/GE?apiKey=REDACTED
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://api.massive.com/v3/reference/tickers/GE
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 967
+        uncompressed: true
+        body: '{"request_id":"66cf4c9cfdfb4e3968d6258cd7d028e2","results":{"active":true,"address":"REDACTED","branding":{"icon_url":"https://api.massive.com/v1/reference/company-branding/Z2VhZXJvc3BhY2UuY29t/images/2026-10-01_icon.jpeg","logo_url":"https://api.massive.com/v1/reference/company-branding/Z2VhZXJvc3BhY2UuY29t/images/2026-10-01_logo.png"},"cik":"0000040545","composite_figi":"BBG000BK6MB5","currency_name":"usd","description":"REDACTED","homepage_url":"https://www.geaerospace.com","list_date":"1900-01-01","locale":"us","market":"stocks","market_cap":3.0884085761958e+11,"name":"GE Aerospace","phone_number":"REDACTED","primary_exchange":"XNYS","round_lot":40,"share_class_figi":"BBG001S5PVD5","share_class_shares_outstanding":1033351921,"sic_code":"3600","sic_description":"ELECTRONIC \u0026 OTHER ELECTRICAL EQUIPMENT (NO COMPUTER EQUIP)","ticker":"GE","ticker_root":"GE","total_employees":57000,"type":"CS","weighted_shares_outstanding":1037562513},"status":"OK"}'
+        headers:
+            Content-Type:
+                - application/json
+            Date:
+                - Wed, 28 Oct 2026 16:48:05 GMT
+            Strict-Transport-Security:
+                - max-age=15724800; includeSubDomains
+            Vary:
+                - Accept-Encoding
+            X-Polygon-Cluster-Name:
+                - polygon-ny5
+            X-Request-Id:
+                - 66cf4c9cfdfb4e3968d6258cd7d028e2
+        status: 200 OK
+        code: 200
+        duration: 11.244008105s
+    - id: 37
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /vX/reference/tickers/BBG000BBJQV0/events?apiKey=REDACTED&types=ticker_change
+        form:
+            types:
+                - ticker_change
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://api.massive.com/vX/reference/tickers/BBG000BBJQV0/events?types=ticker_change
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 237
+        body: '{"results":{"name":"Nvidia Corp","composite_figi":"BBG000BBJQV0","cik":"0001045810","events":[{"ticker_change":{"ticker":"NVDA"},"type":"ticker_change","date":"2003-09-10"}]},"status":"OK","request_id":"98ff8bec546d8822614765721bcd286b"}'
+        headers:
+            Content-Length:
+                - "237"
+            Content-Type:
+                - application/json
+            Date:
+                - Wed, 28 Oct 2026 16:48:17 GMT
+            Strict-Transport-Security:
+                - max-age=15724800; includeSubDomains
+            Vary:
+                - Accept-Encoding
+            X-Item-Count:
+                - "1"
+            X-Polygon-Cluster-Name:
+                - polygon-ny5
+            X-Request-Id:
+                - 98ff8bec546d8822614765721bcd286b
+        status: 200 OK
+        code: 200
+        duration: 11.988725911s
+    - id: 38
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /v3/reference/tickers/NVDA?apiKey=REDACTED&date=2022-01-14
+        form:
+            date:
+                - "2022-01-14"
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://api.massive.com/v3/reference/tickers/NVDA?date=2022-01-14
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 597
+        uncompressed: true
+        body: '{"request_id":"394c3b9734188825a04f7156d9ad6b2a","results":{"active":true,"address":"REDACTED","cik":"0001045810","composite_figi":"BBG000BBJQV0","currency_name":"usd","list_date":"1999-01-22","locale":"us","market":"stocks","market_cap":6.7355e+11,"name":"Nvidia Corp","phone_number":"REDACTED","primary_exchange":"XNAS","round_lot":100,"share_class_figi":"BBG001S5TZJ6","share_class_shares_outstanding":2500000000,"sic_code":"3674","sic_description":"SEMICONDUCTORS \u0026 RELATED DEVICES","ticker":"NVDA","ticker_root":"NVDA","type":"CS","weighted_shares_outstanding":2500000000},"status":"OK"}'
+        headers:
+            Content-Type:
+                - application/json
+            Date:
+                - Wed, 28 Oct 2026 16:48:29 GMT
+            Strict-Transport-Security:
+                - max-age=15724800; includeSubDomains
+            Vary:
+                - Accept-Encoding
+                - Accept-Encoding
+            X-Polygon-Cluster-Name:
+                - polygon-ny5
+            X-Request-Id:
+                - 394c3b9734188825a04f7156d9ad6b2a
+        status: 200 OK
+        code: 200
+        duration: 12.056967491s
+    - id: 39
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /vX/reference/tickers/BBG000BFQ5F7/events?apiKey=REDACTED&types=ticker_change
+        form:
+            types:
+                - ticker_change
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://api.massive.com/vX/reference/tickers/BBG000BFQ5F7/events?types=ticker_change
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 111
+        body: '{"status":"NOT_FOUND","request_id":"f8c50b5a231a9e56e9ff15bd2cba2580","message":"No events found for given ID"}'
+        headers:
+            Content-Length:
+                - "111"
+            Content-Type:
+                - application/json
+            Date:
+                - Wed, 28 Oct 2026 16:48:41 GMT
+            Strict-Transport-Security:
+                - max-age=15724800; includeSubDomains
+            Vary:
+                - Accept-Encoding
+            X-Polygon-Cluster-Name:
+                - polygon-ny5
+            X-Request-Id:
+                - f8c50b5a231a9e56e9ff15bd2cba2580
+        status: 404 Not Found
+        code: 404
+        duration: 11.994927226s
+    - id: 40
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /v3/reference/tickers/GE?apiKey=REDACTED&date=2023-06-01
+        form:
+            date:
+                - "2023-06-01"
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://api.massive.com/v3/reference/tickers/GE?date=2023-06-01
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 731
+        uncompressed: true
+        body: '{"request_id":"fc835341a395143526d6a22c83ce6d4f","results":{"active":true,"address":"REDACTED","cik":"0000040545","composite_figi":"BBG000BK6MB5","currency_name":"usd","description":"REDACTED","homepage_url":"https://www.ge.com","list_date":"1892-06-23","locale":"us","market":"stocks","market_cap":1.1398144623543001e+11,"name":"General Electric Company","phone_number":"REDACTED","primary_exchange":"XNYS","round_lot":100,"share_class_figi":"BBG001S5PVD5","share_class_shares_outstanding":1088960000,"sic_code":"3600","sic_description":"ELECTRONIC \u0026 OTHER ELECTRICAL EQUIPMENT (NO COMPUTER EQUIP)","ticker":"GE","ticker_root":"GE","total_employees":172000,"type":"CS","weighted_shares_outstanding":1088960029},"status":"OK"}'
+        headers:
+            Content-Type:
+                - application/json
+            Date:
+                - Wed, 28 Oct 2026 16:48:53 GMT
+            Strict-Transport-Security:
+                - max-age=15724800; includeSubDomains
+            Vary:
+                - Accept-Encoding
+            X-Polygon-Cluster-Name:
+                - polygon-ny5
+            X-Request-Id:
+                - fc835341a395143526d6a22c83ce6d4f
+        status: 200 OK
+        code: 200
+        duration: 12.024127961s
+    - id: 41
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /stocks/v1/splits?apiKey=REDACTED&limit=5000&ticker=NVDA
+        form:
+            limit:
+                - "5000"
+            ticker:
+                - NVDA
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://api.massive.com/stocks/v1/splits?limit=5000&ticker=NVDA
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 977
+        uncompressed: true
+        body: '{"status":"OK","request_id":"f9d213f8a08540db8edc797eec171469","results":[{"id":"Ea86fa28faba275487714f7b3f199ee4a04d2c271b1471648fbd945397a6008ba","execution_date":"2024-06-10","split_from":1.0,"split_to":10.0,"ticker":"NVDA","adjustment_type":"forward_split","historical_adjustment_factor":0.1},{"id":"E9b6d16a5a1f1ab1f5c8db9ab357419b4d1efb7585ba090809310fafcd827678e","execution_date":"2021-07-20","split_from":1.0,"split_to":4.0,"ticker":"NVDA","adjustment_type":"stock_dividend","historical_adjustment_factor":0.025},{"id":"E3c64a7eadb9371ec1548f0d4349d5495586952e2c030ec9c794c6a81de20524a","execution_date":"2007-09-11","split_from":2.0,"split_to":3.0,"ticker":"NVDA","adjustment_type":"forward_split","historical_adjustment_factor":0.016667},{"id":"Ebaa656ed041f72ae585526f1dbe6829b372a8b57b9795b4170e248542d08356f","execution_date":"2006-04-07","split_from":1.0,"split_to":2.0,"ticker":"NVDA","adjustment_type":"forward_split","historical_adjustment_factor":0.008333}]}'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - DNT,X-CustomHeader,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization
+            Access-Control-Allow-Methods:
+                - GET, PUT, POST, DELETE, PATCH, OPTIONS
+            Access-Control-Allow-Origin:
+                - '*'
+            Access-Control-Max-Age:
+                - "1728000"
+            Content-Type:
+                - application/json
+            Date:
+                - Wed, 28 Oct 2026 16:49:05 GMT
+            Strict-Transport-Security:
+                - max-age=15724800; includeSubDomains
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - 100000000, 100000000;w=60
+            X-Ratelimit-Remaining:
+                - "80000000"
+            X-Ratelimit-Reset:
+                - "55"
+            X-Request-Id:
+                - f9d213f8a08540db8edc797eec171469
+        status: 200 OK
+        code: 200
+        duration: 11.844665996s
+    - id: 42
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: ""
+        request_uri: /stocks/v1/splits?apiKey=REDACTED&limit=5000&ticker=GE
+        form:
+            limit:
+                - "5000"
+            ticker:
+                - GE
+        headers:
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://api.massive.com/stocks/v1/splits?limit=5000&ticker=GE
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 762
+        uncompressed: true
+        body: '{"status":"OK","request_id":"05a6c6af0f124ef39412ff6660608b90","results":[{"id":"P114cf76fa9b0f164f2d4632243fc990f5cb7dece1b125f8178e15241ace607d5","execution_date":"2024-04-02","split_from":1000.0,"split_to":1253.0,"ticker":"GE","adjustment_type":"forward_split","historical_adjustment_factor":0.798085},{"id":"P2ae501c6c2f786bd6bc7505f6aeb7837d643c9564cb259554fde79dba217f077","execution_date":"2023-01-04","split_from":1000.0,"split_to":1281.0,"ticker":"GE","adjustment_type":"forward_split","historical_adjustment_factor":0.623017},{"id":"E576dc9e9a73b7dbcbc4dbce0d77103e8aa25ad5c8149d3480c81ba8cc4dc7658","execution_date":"2021-08-02","split_from":8.0,"split_to":1.0,"ticker":"GE","adjustment_type":"reverse_split","historical_adjustment_factor":4.984135}]}'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Access-Control-Allow-Headers:
+                - DNT,X-CustomHeader,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization
+            Access-Control-Allow-Methods:
+                - GET, PUT, POST, DELETE, PATCH, OPTIONS
+            Access-Control-Allow-Origin:
+                - '*'
+            Access-Control-Max-Age:
+                - "1728000"
+            Content-Type:
+                - application/json
+            Date:
+                - Wed, 28 Oct 2026 16:49:17 GMT
+            Strict-Transport-Security:
+                - max-age=15724800; includeSubDomains
+            Vary:
+                - Accept-Encoding
+            X-Ratelimit-Limit:
+                - 100000000, 100000000;w=60
+            X-Ratelimit-Remaining:
+                - "60000000"
+            X-Ratelimit-Reset:
+                - "43"
+            X-Request-Id:
+                - 05a6c6af0f124ef39412ff6660608b90
+        status: 200 OK
+        code: 200
+        duration: 12.013052062s

@@ -1,9 +1,10 @@
-import type {
-  GroupHolding,
-  HoldingKey,
-  HoldingListing,
-  InstrHolding,
-  ListHoldingsResponse,
+import {
+  type GroupHolding,
+  type HoldingKey,
+  type HoldingListing,
+  HoldingMark,
+  type InstrHolding,
+  type ListHoldingsResponse,
 } from "@/gen/holding/v1/holding_pb";
 import {
   AssetClass,
@@ -12,6 +13,7 @@ import {
   TickerRelation,
 } from "@/gen/type/v1/type_pb";
 import { pick } from "./identifiers";
+import { prevDay } from "./marshal/date";
 
 // registry lists the identifier types a holding shows as its codes, the
 // most widely quoted first.
@@ -43,7 +45,19 @@ export type HoldingRow = {
   // The holding's registry codes.
   identifiers: Identifier[];
   kind: "instr" | "group";
+  // Whether the quantity is as stated, because corporate actions are not
+  // known for part of the period since a transaction.
+  unadjusted: boolean;
+  // The day from which an unadjusted holding needs corporate actions, as
+  // YYYY-MM-DD.
+  uncoveredFrom?: string;
+  // The runs of days that no datasource covers, each with its last day.
+  gaps: Gap[];
 };
+
+// A Gap is a run of days that no datasource covers. Both ends are included,
+// as YYYY-MM-DD.
+export type Gap = { from: string; to: string };
 
 // descriptionsOf returns the distinct descriptions the brokers gave the
 // keys, in the order of the keys.
@@ -110,6 +124,12 @@ function instrRow(h: InstrHolding): HoldingRow {
     classes: [h.assetClass],
     quantity: h.quantity,
     identifiers: h.identifiers.filter((i) => registry.includes(i.type)),
+    unadjusted: h.mark === HoldingMark.UNADJUSTED,
+    uncoveredFrom: h.uncoveredFrom,
+    gaps: h.gaps.map((g) => ({
+      from: g.uncoveredFrom,
+      to: prevDay(g.uncoveredBefore),
+    })),
   };
 }
 
@@ -136,6 +156,8 @@ function groupRow(h: GroupHolding): HoldingRow {
     classes: h.assetClasses,
     quantity: h.quantity,
     identifiers: h.identifiers.filter((i) => registry.includes(i.type)),
+    unadjusted: false,
+    gaps: [],
   };
 }
 
@@ -144,10 +166,13 @@ export function isCash(r: HoldingRow): boolean {
   return r.classes.length === 1 && r.classes[0] === AssetClass.CASH;
 }
 
-// hasDetail reports whether a row opens: a row other than cash with a code
-// or a description to show.
+// hasDetail reports whether a row opens: a row other than cash with a code,
+// a description or a lack of coverage to show.
 export function hasDetail(r: HoldingRow): boolean {
-  return !isCash(r) && (r.identifiers.length > 0 || r.descriptions.length > 0);
+  return (
+    !isCash(r) &&
+    (r.identifiers.length > 0 || r.descriptions.length > 0 || r.unadjusted)
+  );
 }
 
 // holdingRows turns a response into the table's rows, cash first and the rest

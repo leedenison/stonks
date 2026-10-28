@@ -1,0 +1,58 @@
+{
+  "broker": "BROKER_IBKR",
+  "orderFrom": "2022-01-01",
+  "orderBefore": "2024-08-01",
+  "rows": [
+    {
+      "key": {
+        "identifiers": [
+          {
+            "type": "IDENTIFIER_TYPE_MIC_TICKER",
+            "domain": "XNAS",
+            "value": "NVDA"
+          }
+        ],
+        "assetClass": "ASSET_CLASS_STOCK",
+        "currency": "USD"
+      },
+      "orderDate": "2022-01-14",
+      "settlementDate": "2022-01-14",
+      "asAt": "2022-01-14",
+      "quantity": "10"
+    },
+    {
+      "key": {
+        "identifiers": [
+          {
+            "type": "IDENTIFIER_TYPE_MIC_TICKER",
+            "domain": "XNYS",
+            "value": "GE"
+          }
+        ],
+        "assetClass": "ASSET_CLASS_STOCK",
+        "currency": "USD"
+      },
+      "orderDate": "2023-06-01",
+      "settlementDate": "2023-06-01",
+      "asAt": "2023-06-01",
+      "quantity": "10"
+    },
+    {
+      "key": {
+        "identifiers": [
+          {
+            "type": "IDENTIFIER_TYPE_MIC_TICKER",
+            "domain": "XNAS",
+            "value": "NVDA"
+          }
+        ],
+        "assetClass": "ASSET_CLASS_STOCK",
+        "currency": "USD"
+      },
+      "orderDate": "2024-07-01",
+      "settlementDate": "2024-07-01",
+      "asAt": "2024-07-01",
+      "quantity": "-50"
+    }
+  ]
+}

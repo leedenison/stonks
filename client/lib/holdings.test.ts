@@ -4,6 +4,7 @@ import {
   GroupHoldingSchema,
   HoldingKeySchema,
   HoldingListingSchema,
+  HoldingMark,
   InstrHoldingSchema,
   ListHoldingsResponseSchema,
 } from "@/gen/holding/v1/holding_pb";
@@ -274,5 +275,40 @@ describe("holdingRows", () => {
       "g-bae",
       "i-vusa",
     ]);
+  });
+
+  it("marks an unadjusted holding and gives each gap its last day", () => {
+    const held = create(InstrHoldingSchema, {
+      instrId: "i-ge",
+      assetClass: AssetClass.STOCK,
+      quantity: "10",
+      mark: HoldingMark.UNADJUSTED,
+      uncoveredFrom: "2023-06-02",
+      gaps: [
+        { uncoveredFrom: "2024-02-01", uncoveredBefore: "2024-03-01" },
+        { uncoveredFrom: "2024-04-02", uncoveredBefore: "2024-04-03" },
+      ],
+    });
+    const row = rows([held])[0];
+    expect(row.unadjusted).toBe(true);
+    expect(row.uncoveredFrom).toBe("2023-06-02");
+    expect(row.gaps).toEqual([
+      { from: "2024-02-01", to: "2024-02-29" },
+      { from: "2024-04-02", to: "2024-04-02" },
+    ]);
+    expect(hasDetail(row)).toBe(true);
+  });
+
+  it("leaves an adjusted holding unmarked", () => {
+    const held = create(InstrHoldingSchema, {
+      instrId: "i-nvda",
+      assetClass: AssetClass.STOCK,
+      quantity: "50",
+      mark: HoldingMark.ADJUSTED,
+    });
+    const row = rows([held])[0];
+    expect(row.unadjusted).toBe(false);
+    expect(row.gaps).toEqual([]);
+    expect(hasDetail(row)).toBe(false);
   });
 });
