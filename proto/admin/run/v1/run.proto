@@ -116,29 +116,25 @@ enum FindingKind {
   // An edge cut between two assertions that name one instrument. The detail
   // names the value, the edge, its day and the instrument.
   FINDING_KIND_BROKEN_TICKER_VALIDITY_BRACKET = 6;
-  // Two assertions imply a change on one of a run of days, and a
-  // datasource's assertion coverage holds every one of those days. The
-  // datasource did not report an edge there. The assertion coverage wins. The
-  // detail names the value, the days of the assertions, the datasource and
-  // its assertion coverage.
+  // Two assertions imply a change on one of a run of days, and the assertion
+  // coverage of the market's identifier event source holds every one of
+  // those days. That datasource did not report an edge there, so the
+  // assertion coverage wins. The detail names the value, the days of the
+  // assertions, the datasource and its assertion coverage.
   FINDING_KIND_MISSED_EVENT = 7;
-  // A datasource that outranks an edge's source overruled the edge, so the
-  // edge does not cut. The detail names the value, the edge, its day and the
-  // datasource.
-  FINDING_KIND_OVERRULED_EDGE = 8;
   // A datasource reported a corporate action of a type the system does not
   // restate a quantity by. The detail names the ticker, the ex-date, the type
   // and the ratio.
-  FINDING_KIND_UNHANDLED_CORP_ACT = 9;
+  FINDING_KIND_UNHANDLED_CORP_ACT = 8;
   // A corporate action of one datasource lacks a corporate action of equal ratio,
   // within 7 days either side, from another datasource that covers the same
   // ticker on its ex-date. The detail names the ticker, the ex-date, the ratio
   // and both datasources.
-  FINDING_KIND_CORP_ACT_DISAGREEMENT = 10;
+  FINDING_KIND_CORP_ACT_DISAGREEMENT = 9;
   // A statement states a split, and the calendar holds no matching event
   // within 7 days either side of it. The detail names the split's effective
   // date and its ratio, where the statement states one.
-  FINDING_KIND_UNMATCHED_SPLIT = 11;
+  FINDING_KIND_UNMATCHED_SPLIT = 10;
 }
 
 // The step of the choice that dropped a set of identifiers.

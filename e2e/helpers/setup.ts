@@ -1,7 +1,13 @@
 import type { JsonObject } from "@bufbuild/protobuf";
 import { datasourceClient } from "./api";
 import { closeRedis, deleteSession, seedSession } from "./auth";
-import { closeDB, deleteUsers, seedDatasource, seedUser } from "./db";
+import {
+  closeDB,
+  deleteUsers,
+  seedDatasource,
+  seedUser,
+  setIdentifierEventSource,
+} from "./db";
 
 // Each datasource is the proxy under the provider's hostname. The credential
 // is a placeholder that the proxy strips before anything leaves the stack.
@@ -37,12 +43,13 @@ const credential = "e2e";
 
 // Names the proxy as every datasource. The registry reads the table only
 // when a row changes through the datasource service, so the values are
-// also saved through it.
+// also saved through it. Massive is the identifier event source of the US.
 export default async function setup(): Promise<void> {
   try {
     for (const d of datasources) {
       await seedDatasource({ ...d, credential });
     }
+    await setIdentifierEventSource("US", "massive");
     const admin = await seedUser("admin");
     const session = await seedSession(admin);
     try {

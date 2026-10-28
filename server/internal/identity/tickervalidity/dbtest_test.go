@@ -66,6 +66,7 @@ func newFixture(t *testing.T) *fixture {
 		require.NoError(t, err)
 		f.fetches[name] = fetch.ID
 	}
+	dbtest.EventSource(t, tx, "US", f.alpha)
 	for _, id := range []*uuid.UUID{&f.a, &f.b} {
 		instr, err := q.CreateInstr(ctx, gen.CreateInstrParams{ID: db.NewID(), AssetClass: types.AssetClassStock})
 		require.NoError(t, err)
@@ -187,8 +188,9 @@ func TestOfAttested(t *testing.T) {
 }
 
 // TestReadRowsAssertionCoverage checks that each period of a ticker's assertion
-// coverage names the datasource that wrote it and its precedence, and that a
-// row of the whole market has no value.
+// coverage names the datasource that wrote it, its precedence and whether it
+// is the identifier event source, and that a row of the whole market has no
+// value.
 func TestReadRowsAssertionCoverage(t *testing.T) {
 	f := newFixture(t)
 	ctx := context.Background()
@@ -202,8 +204,8 @@ func TestReadRowsAssertionCoverage(t *testing.T) {
 	rows, err := ReadRows(ctx, f.q, f.foo)
 	require.NoError(t, err)
 	want := []gen.ListIdentifierAssertionCoverageRow{
-		{Market: f.foo.Market, CoveredFrom: day(1), CoveredBefore: day(10), FetchKeyID: key, Datasource: f.alpha, Precedence: 1000},
-		{Market: f.foo.Market, Value: &f.foo.Value, CoveredFrom: day(5), CoveredBefore: day(20), FetchKeyID: key, Datasource: f.alpha, Precedence: 1000},
+		{Market: f.foo.Market, CoveredFrom: day(1), CoveredBefore: day(10), FetchKeyID: key, Datasource: f.alpha, Precedence: 1000, IsEventSource: true},
+		{Market: f.foo.Market, Value: &f.foo.Value, CoveredFrom: day(5), CoveredBefore: day(20), FetchKeyID: key, Datasource: f.alpha, Precedence: 1000, IsEventSource: true},
 	}
 	if diff := cmp.Diff(want, rows.AssertionCoverage); diff != "" {
 		t.Errorf("ReadRows assertion coverage mismatch (-want +got):\n%s", diff)
@@ -330,5 +332,43 @@ func TestReadTickersAcrossVenues(t *testing.T) {
 	require.NoError(t, err)
 	if len(rows.Assertions) != 2 || len(rows.AssertionCoverage) != 1 {
 		t.Errorf("rows = %d assertions and %d rows of assertion coverage, want 2 and 1", len(rows.Assertions), len(rows.AssertionCoverage))
+	}
+}
+
+// TestNoEventSource checks that in a market without an identifier event
+// source only assertions count. A datasource's edge does not cut, and its
+// assertion coverage confirms nothing. An identifier attestation still
+// counts, and its row reads without a datasource.
+func TestNoEventSource(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	ams := types.MarketTicker{Market: "XAMS", Value: "NES" + uuid.NewString()[:8]}
+	tk := dbtest.Ticker(t, f.q, ams)
+	key := db.NewID()
+	require.NoError(t, f.q.CreateFetchKey(ctx, gen.CreateFetchKeyParams{
+		ID: key, FetchID: f.fetches[f.alpha], UserID: &f.user.ID, Outcome: gen.FetchOutcomeServed, Attempts: 1,
+		SentType: &f.at.Type, SentDomain: "XAMS", SentValue: &ams.Value, AnsweredAt: ptr.To(day(20)),
+	}))
+	for _, n := range []int{1, 9} {
+		require.NoError(t, f.q.CreateIdentifierAssertion(ctx, gen.CreateIdentifierAssertionParams{
+			ID: db.NewID(), FetchKeyID: &key, TickerID: tk.ID, Market: ams.Market, InstrID: &f.a,
+			AssertedFrom: day(n), AssertedBefore: day(n).AddDate(0, 0, 1), EdgeFrom: n == 9,
+		}))
+	}
+	require.NoError(t, f.q.CreateIdentifierAssertionCoverage(ctx, gen.CreateIdentifierAssertionCoverageParams{
+		ID: db.NewID(), FetchKeyID: key, Market: ams.Market, TickerID: &tk.ID, CoveredFrom: day(1), CoveredBefore: day(20),
+	}))
+	run, err := f.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), Kind: gen.RunKindAttestIdentifier, Trigger: gen.RunTriggerAdministrator})
+	require.NoError(t, err)
+	require.NoError(t, f.q.CreateIdentifierAssertion(ctx, gen.CreateIdentifierAssertionParams{
+		ID: db.NewID(), RunID: &run.ID, AttestedBy: &f.attestedBy.ID, TickerID: tk.ID, Market: ams.Market,
+		InstrID: &f.a, AssertedFrom: day(12), AssertedBefore: day(13),
+	}))
+	require.NoError(t, Rebuild(ctx, f.q, []uuid.UUID{tk.ID}))
+	stored, err := Load(ctx, f.q, []types.MarketTicker{ams})
+	require.NoError(t, err)
+	want := []Interval{provisional(nil, at(1), f.a), confirmed(at(1), at(13), f.a), provisional(at(13), nil, f.a)}
+	if diff := cmp.Diff(want, []Interval(stored[ams])); diff != "" {
+		t.Errorf("stored ticker validity mismatch (-want +got):\n%s", diff)
 	}
 }

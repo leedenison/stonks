@@ -120,7 +120,13 @@ func (r Rows) facts() facts {
 	var f facts
 	for _, row := range r.Assertions {
 		ia := row.IdentifierAssertion
-		src := Source{Attested: row.Datasource == nil, Answered: row.Answered}
+		src := Source{Answered: row.Answered}
+		switch {
+		case row.Datasource == nil:
+			src.standing = attested
+		case row.IsEventSource:
+			src.standing = eventSource
+		}
 		if row.Datasource != nil && row.Precedence != nil {
 			src.Datasource, src.Precedence = *row.Datasource, *row.Precedence
 		}
@@ -134,8 +140,10 @@ func (r Rows) facts() facts {
 			src.Answer = *ia.RunID
 		}
 		a := Assertion{
-			Period: types.Period{From: ia.AssertedFrom, Before: ia.AssertedBefore}, Instr: ia.InstrID,
-			EdgeFrom: ia.EdgeFrom, EdgeBefore: ia.EdgeBefore, Source: src,
+			Period: types.Period{From: ia.AssertedFrom, Before: ia.AssertedBefore}, Instr: ia.InstrID, Source: src,
+		}
+		if src.standing == eventSource {
+			a.EdgeFrom, a.EdgeBefore = ia.EdgeFrom, ia.EdgeBefore
 		}
 		if ia.Venue != nil {
 			a.Stated.Venue = *ia.Venue
@@ -146,9 +154,12 @@ func (r Rows) facts() facts {
 		f.Assertions = append(f.Assertions, a)
 	}
 	for _, p := range r.AssertionCoverage {
+		if !p.IsEventSource {
+			continue
+		}
 		f.AssertionCoverage = append(f.AssertionCoverage, AssertionCoverage{
 			Period: types.Period{From: p.CoveredFrom, Before: p.CoveredBefore},
-			Source: Source{Datasource: p.Datasource, Precedence: p.Precedence, Answer: p.FetchKeyID},
+			Source: Source{Datasource: p.Datasource, Precedence: p.Precedence, Answer: p.FetchKeyID, standing: eventSource},
 		})
 	}
 	return f

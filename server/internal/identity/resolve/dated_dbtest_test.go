@@ -280,12 +280,13 @@ func (s *stack) factFetchKey(t *testing.T, datasource string, subject types.Iden
 	return gen.FetchKey{}
 }
 
-// TestDisagreement checks that two datasources whose histories name
-// different instruments for one ticker on one day leave one disagreement on
-// the run that wrote them, naming the lower precedence datasource's fetch
-// key, and that a later run reading the same facts records none. The facts
-// each run wrote come back in order: the identity fetch, then alpha's facts
-// fetch, then beta's.
+// TestDisagreement checks that two datasources whose facts name different
+// instruments for one ticker on one day leave one disagreement on the run
+// that wrote them. Alpha, the identifier event source, answers the history
+// and beta the lookup of the day. The disagreement names beta's fetch key,
+// and a later run reading the same facts records none. The facts each run
+// wrote come back in order: the identity fetch, then alpha's facts fetch,
+// then beta's.
 func TestDisagreement(t *testing.T) {
 	s := newStack(t)
 	s.enableBeta(t)
@@ -297,16 +298,19 @@ func TestDisagreement(t *testing.T) {
 		{Class: types.AssetClassStock, Currency: "USD", Primary: "XNAS", Identifiers: []types.Identifier{share, v}},
 	}}
 	s.alphaFacts.Responses[share] = market.IdentifierFactResult{Assertions: []market.Assertion{{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{share}}, Period: types.OneDay(day)}}}
-	s.betaFacts.Responses[share] = market.IdentifierFactResult{Assertions: []market.Assertion{{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{other}, Class: types.AssetClassEtf, Currency: "USD"}, Period: types.OneDay(day)}}}
+	s.betaFacts.Responses[v] = market.IdentifierFactResult{Assertions: []market.Assertion{{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{other}, Class: types.AssetClassEtf, Currency: "USD"}, Period: types.OneDay(day)}}}
 	key := s.state(t, types.AssetClassStock, "USD", v)
 	out, written, err := s.resolver.Resolve(context.Background(), s.resolution, []KeyDates{{Row: key, Dates: []time.Time{day}}})
 	require.NoError(t, err)
 	require.Len(t, out, 1)
 
 	found := s.runFindings(t)
-	loser := s.factFetchKey(t, s.betaName, share)
+	loser := s.factFetchKey(t, s.betaName, v)
 	if len(found) != 1 || found[0].Kind != gen.FindingKindIdentifierDisagreement || found[0].FetchKeyID == nil || *found[0].FetchKeyID != loser.ID {
 		t.Errorf("findings = %+v, want one disagreement naming beta's fetch key %s", found, loser.ID)
+	}
+	if slices.ContainsFunc(s.betaFacts.Sent, func(q market.IdentifierFactRequest) bool { return q.Identifier == share }) {
+		t.Errorf("beta was sent %+v, want no history request: alpha is the identifier event source", s.betaFacts.Sent)
 	}
 	if len(written) != 3 {
 		t.Fatalf("written = %+v, want the identity fetch, then alpha's and beta's facts fetches", written)
@@ -334,9 +338,9 @@ func TestDisagreement(t *testing.T) {
 	}
 }
 
-// TestDisagreementInsideHistory checks that a weaker datasource's one-day
-// assertion loses to a stronger datasource's history over that day. The run
-// records one disagreement naming the weaker datasource's fetch key, and the
+// TestDisagreementInsideHistory checks that another datasource's lookup of a
+// day loses to the identifier event source's history over that day. The run
+// records one disagreement naming that datasource's fetch key, and the
 // history still confirms its instrument on that day.
 func TestDisagreementInsideHistory(t *testing.T) {
 	s := newStack(t)
@@ -356,14 +360,14 @@ func TestDisagreementInsideHistory(t *testing.T) {
 		}},
 		AssertionCoverage: []market.AssertionCoverage{{Market: mt(v).Market, Ticker: ptr.To(mt(v)), Period: types.Period{From: on(2022, 6, 9), Before: on(2026, 3, 3)}}},
 	}
-	s.betaFacts.Responses[share] = market.IdentifierFactResult{Assertions: []market.Assertion{
+	s.betaFacts.Responses[v] = market.IdentifierFactResult{Assertions: []market.Assertion{
 		{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{other}, Class: types.AssetClassEtf, Currency: "USD"}, Period: types.OneDay(day)},
 	}}
 	key := s.state(t, types.AssetClassStock, "USD", v)
 	s.resolveOn(t, []time.Time{day}, key)
 
 	found := s.runFindings(t)
-	loser := s.factFetchKey(t, s.betaName, share)
+	loser := s.factFetchKey(t, s.betaName, v)
 	if len(found) != 1 || found[0].Kind != gen.FindingKindIdentifierDisagreement || found[0].FetchKeyID == nil || *found[0].FetchKeyID != loser.ID {
 		t.Errorf("findings = %+v, want one disagreement naming beta's fetch key %s", found, loser.ID)
 	}
@@ -442,94 +446,6 @@ func TestBrokenBracket(t *testing.T) {
 	edge := s.factFetchKey(t, s.alphaName, share)
 	if len(found) != 1 || found[0].Kind != gen.FindingKindBrokenTickerValidityBracket || found[0].FetchKeyID == nil || *found[0].FetchKeyID != edge.ID {
 		t.Errorf("findings = %+v, want one broken bracket naming the edge's fetch key %s", found, edge.ID)
-	}
-}
-
-// TestOverruledEdge checks that beta's edge, which alpha's facts overrule,
-// leaves an overruled edge finding naming beta's fetch key on the run that
-// wrote the edge or the facts that overrule it. A run that only reads the
-// facts does not record one.
-func TestOverruledEdge(t *testing.T) {
-	// asserts asserts share on the day at, with an edge at the start of the
-	// next day where last is set.
-	asserts := func(share types.Identifier, v types.Identifier, at time.Time, last bool) market.Assertion {
-		return market.Assertion{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{share}}, Period: types.OneDay(at), EdgeBefore: last}
-	}
-	key := on(2024, 1, 16)
-	tests := []struct {
-		name  string
-		value string
-		// alpha and beta answer each datasource's history of the share
-		// class. Where later is set, alpha answers a lookup of the ticker in
-		// a second run, and its facts overrule beta's edge only from then.
-		alpha, beta func(share, v types.Identifier) market.IdentifierFactResult
-		later       func(share, v types.Identifier) market.IdentifierFactResult
-	}{
-		{
-			name:  "a bracket of alpha in the run that writes the edge",
-			value: "ZZO",
-			alpha: func(share, v types.Identifier) market.IdentifierFactResult {
-				return market.IdentifierFactResult{Assertions: []market.Assertion{asserts(share, v, on(2023, 1, 2), false), asserts(share, v, key, false)}}
-			},
-			beta: func(share, v types.Identifier) market.IdentifierFactResult {
-				return market.IdentifierFactResult{Assertions: []market.Assertion{asserts(share, v, on(2023, 4, 30), true)}}
-			},
-		},
-		{
-			name:  "a period of assertion coverage of alpha in the run that writes the edge",
-			value: "ZZP",
-			alpha: func(share, v types.Identifier) market.IdentifierFactResult {
-				return market.IdentifierFactResult{
-					Assertions:        []market.Assertion{asserts(share, v, key, false)},
-					AssertionCoverage: []market.AssertionCoverage{{Market: mt(v).Market, Ticker: ptr.To(mt(v)), Period: types.Period{From: on(2023, 1, 1), Before: on(2024, 2, 1)}}},
-				}
-			},
-			beta: func(share, v types.Identifier) market.IdentifierFactResult {
-				return market.IdentifierFactResult{Assertions: []market.Assertion{asserts(share, v, on(2023, 4, 30), true)}}
-			},
-		},
-		{
-			name:  "a bracket of alpha in a later run",
-			value: "ZZQ",
-			beta: func(share, v types.Identifier) market.IdentifierFactResult {
-				return market.IdentifierFactResult{Assertions: []market.Assertion{asserts(share, v, on(2023, 1, 2), false), asserts(share, v, on(2023, 4, 30), true)}}
-			},
-			later: func(share, v types.Identifier) market.IdentifierFactResult {
-				return market.IdentifierFactResult{Assertions: []market.Assertion{asserts(share, v, on(2023, 1, 2), false), asserts(share, v, key, false)}}
-			},
-		},
-	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			s := newStack(t)
-			s.enableBeta(t)
-			v := id(types.IdentifierTypeMicTicker, "XNAS", tc.value)
-			share := id(types.IdentifierTypeOpenfigiShareClass, "", "BBG00"+tc.value+"SHAR")
-			s.script.Responses[v] = market.IdentityResult{Filtered: []types.Identifier{{Type: v.Type, Value: v.Value}}, Listings: []market.Listing{
-				{Class: types.AssetClassStock, Currency: "USD", Primary: "XNAS", Identifiers: []types.Identifier{share, v}},
-			}}
-			if tc.alpha != nil {
-				s.alphaFacts.Responses[share] = tc.alpha(share, v)
-			}
-			s.betaFacts.Responses[share] = tc.beta(share, v)
-			s.resolveOn(t, []time.Time{key}, s.state(t, types.AssetClassStock, "USD", v))
-			edge := s.factFetchKey(t, s.betaName, share)
-			if tc.later != nil {
-				s.rerun(t)
-				s.alphaFacts.Responses[v] = tc.later(share, v)
-				s.resolveOn(t, []time.Time{key}, s.state(t, "", "USD", v))
-			}
-			found := s.runFindings(t)
-			if len(found) != 1 || found[0].Kind != gen.FindingKindOverruledEdge || found[0].FetchKeyID == nil || *found[0].FetchKeyID != edge.ID {
-				t.Errorf("findings = %+v, want one overruled edge naming beta's fetch key %s", found, edge.ID)
-			}
-
-			s.rerun(t)
-			s.resolveOn(t, []time.Time{key}, s.state(t, types.AssetClassStock, "GBP", v))
-			if found := s.runFindings(t); len(found) != 0 {
-				t.Errorf("findings of a run that only read the facts = %+v, want none", found)
-			}
-		})
 	}
 }
 

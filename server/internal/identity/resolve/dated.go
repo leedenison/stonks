@@ -125,16 +125,24 @@ func (r *Resolver) findResolutionDated(ctx context.Context, user uuid.UUID, rs [
 	return nil
 }
 
-// fetchResolutionFacts asks each enabled datasource that serves identifier
-// facts, concurrently, for what dating the keys needs: the ticker history of
-// the instrument the identity fetch named, and a point in time lookup of the
-// ticker on the earliest date the facts do not confirm. A lookup of today is
-// left to the identity fetch. A day on which the ticker already has an
-// assertion is not asked again. It returns the fetch keys in datasource
-// order.
+// fetchResolutionFacts asks the enabled datasources concurrently for what
+// dating the keys needs. The identifier event source of a ticker's market is
+// asked for the ticker history of the instrument the identity fetch named.
+// Every datasource that serves identifier facts is asked for a point in time
+// lookup of the ticker on the earliest date the facts do not confirm. A
+// lookup of today is left to the identity fetch. A day on which the ticker
+// already has an assertion is not asked again. It returns the fetch keys in
+// datasource order.
 func (r *Resolver) fetchResolutionFacts(ctx context.Context, run gen.Run, rs []*resolution) ([]factKey, error) {
+	if !slices.ContainsFunc(rs, func(res *resolution) bool { return res.dating != nil }) {
+		return nil, nil
+	}
 	now := r.clock()
 	today := types.Day(now)
+	sources, err := r.eventSources(ctx)
+	if err != nil {
+		return nil, err
+	}
 	entries := r.sources.Enabled()
 	reqs := make([][]market.IdentifierFactRequest, len(entries))
 	for i, e := range entries {
@@ -158,8 +166,10 @@ func (r *Resolver) fetchResolutionFacts(ctx context.Context, run gen.Run, rs []*
 			if res.dating == nil {
 				continue
 			}
-			if q, ok := chainRequest(res, server, market.History(w, now)); ok {
-				add(q)
+			if sources[res.dating.ticker.Market] == e.Name {
+				if q, ok := chainRequest(res, server, market.History(w, now)); ok {
+					add(q)
+				}
 			}
 			d, ok := res.dating.ivs.FirstUnconfirmed(res.dates)
 			if !ok {
@@ -199,6 +209,19 @@ func (r *Resolver) fetchResolutionFacts(ctx context.Context, run gen.Run, rs []*
 		return nil, err
 	}
 	return slices.Concat(keys...), nil
+}
+
+// eventSources maps each market code to its identifier event source.
+func (r *Resolver) eventSources(ctx context.Context) (map[string]string, error) {
+	rows, err := r.store.ListIdentifierEventSources(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list identifier event sources: %w", err)
+	}
+	out := make(map[string]string, len(rows))
+	for _, row := range rows {
+		out[row.Code] = row.Datasource
+	}
+	return out, nil
 }
 
 // chainRequest returns the request for the ticker history of the instrument
@@ -297,8 +320,8 @@ func (r *Resolver) recordFacts(ctx context.Context, keys []factKey) (bool, error
 }
 
 // recordConflicts reads the facts of every ticker in written. It writes each
-// disagreement, broken bracket, missed event and overruled edge that
-// involves a fetch key in mine as a finding of run.
+// disagreement, broken bracket and missed event that involves a fetch key in
+// mine as a finding of run.
 func (r *Resolver) recordConflicts(ctx context.Context, run gen.Run, written *writtenSet, mine map[uuid.UUID]bool) error {
 	var kinds []gen.FindingKind
 	err := r.store.Tx(ctx, func(q Queries) error {
@@ -409,8 +432,7 @@ func (w *writtenSet) tickers() []types.MarketTicker {
 // conflicts returns the findings among the facts of v that involve a fetch key
 // in mine. A disagreement names the losing assertion's fetch key. A broken
 // bracket names the edge's. A missed event names the fetch key of the assertion
-// coverage. An overruled edge names the edge's. An edge that an identifier
-// attestation overrules is not reported.
+// coverage.
 func conflicts(ctx context.Context, q Queries, v types.MarketTicker, mine map[uuid.UUID]bool) ([]gen.CreateFindingParams, error) {
 	d, err := tickervalidity.Diagnose(ctx, q, v)
 	if err != nil {
@@ -443,14 +465,6 @@ func conflicts(ctx context.Context, q Queries, v types.MarketTicker, mine map[uu
 			v.Name(), days(m.Inferred.Earlier.Period), days(m.Inferred.Later.Period),
 			m.By.Source.Datasource, m.By.Period.From.Format(time.DateOnly), m.By.Period.Before.Format(time.DateOnly))
 		out = append(out, gen.CreateFindingParams{Kind: gen.FindingKindMissedEvent, FetchKeyID: ptr.To(m.By.Source.Answer), Detail: &detail})
-	}
-	for _, o := range d.Overruled {
-		if o.By[0].Attested || !mine[o.Edge.Assertion.Source.Answer] && !slices.ContainsFunc(o.By, func(s tickervalidity.Source) bool { return mine[s.Answer] }) {
-			continue
-		}
-		detail := fmt.Sprintf("%s: an edge at the start of %s is overruled by %s",
-			v.Name(), o.Edge.At.Format(time.DateOnly), o.By[0].Datasource)
-		out = append(out, gen.CreateFindingParams{Kind: gen.FindingKindOverruledEdge, FetchKeyID: ptr.To(o.Edge.Assertion.Source.Answer), Detail: &detail})
 	}
 	return out, nil
 }

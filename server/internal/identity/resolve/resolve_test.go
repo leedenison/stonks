@@ -87,6 +87,7 @@ func (f *fixture) records() {
 	f.store.EXPECT().DeleteTickerValidity(gomock.Any(), gomock.Any()).AnyTimes()
 	f.store.EXPECT().CreateTickerValidity(gomock.Any(), gomock.Any()).AnyTimes()
 	f.store.EXPECT().ListTickerValidity(gomock.Any(), gomock.Any()).AnyTimes()
+	f.store.EXPECT().ListIdentifierEventSources(gomock.Any()).AnyTimes()
 	f.store.EXPECT().CreateFinding(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.CreateFindingParams) error {
 		f.findings = append(f.findings, arg)
 		return nil

@@ -5,7 +5,11 @@
 -- The US listing exchanges share the market US. Every other operating MIC is
 -- a market of its own, named by that MIC.
 CREATE TABLE markets (
-    code text PRIMARY KEY
+    code                    text PRIMARY KEY,
+    -- identifier_event_source is the one datasource whose edges and assertion
+    -- coverage count in the market. NULL means none does. Seed data sets it.
+    -- A change takes effect at the next rebuild of every ticker.
+    identifier_event_source text REFERENCES datasources (name) ON DELETE SET NULL
 );
 
 INSERT INTO markets (code) VALUES ('US');
@@ -131,8 +135,9 @@ CREATE INDEX identifier_assertions_instr_idx ON identifier_assertions (instr_id)
 
 -- A row of identifier assertion coverage is a claim that a datasource reported
 -- every edge of one ticker over a period, or of every ticker in a market where
--- ticker_id is NULL. Inside the period, the absence of an edge is a claim that
--- the ticker did not change. A row goes with its fetch key.
+-- ticker_id is NULL. Where the datasource is the market's identifier event
+-- source, the absence of an edge inside the period is a claim that the ticker
+-- did not change. A row goes with its fetch key.
 CREATE TABLE identifier_assertion_coverage (
     id              uuid PRIMARY KEY,
     fetch_key_id    uuid NOT NULL REFERENCES fetch_keys (id) ON DELETE CASCADE,

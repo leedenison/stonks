@@ -27,7 +27,8 @@
 // history to the present names the instrument the ticker names today. Where the
 // ticker has validity, the key is dated through it without an identity fetch.
 // Identifier facts are fetched for the keys that may be dated, and recorded
-// after the keys are written.
+// after the keys are written. A ticker history is asked only of the identifier
+// event source of the ticker's market.
 //
 // A claim below the winner attaches where it corroborates the winner: it shares
 // a stable identifier with the winner, or both are answers made on one UTC day
@@ -48,11 +49,10 @@
 // the ticker's assertion, with the venue and currency of the listing that
 // states the ticker, and rebuilds the ticker's validity and names. It leaves
 // the identifiers, the listings and the coverage to a resolution. A held ticker
-// matches a listing at any venue of its market, and keys held at venues of
-// one market are asked about once, so a listing that moved between venues
-// keeps its validity. A resolution never
-// extends ticker validity, because the database decides a key whose ticker it
-// knows before any identity fetch.
+// matches a listing at any venue of its market, and keys held at venues of one
+// market are asked about once, so a listing that moved between venues keeps its
+// validity. A resolution never extends ticker validity, because the database
+// decides a key whose ticker it knows before any identity fetch.
 //
 // A synchronous resolution runs in the caller for one key the user is
 // confirming. It shares its lookups and its fetches with a resolve statement

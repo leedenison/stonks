@@ -118,6 +118,7 @@ func newStack(t *testing.T) *stack {
 	require.NoError(t, err)
 	_, err = q.CreateDatasource(ctx, gen.CreateDatasourceParams{Name: s.alphaName, Enabled: true, Precedence: 10})
 	require.NoError(t, err)
+	dbtest.EventSource(t, tx, "US", s.alphaName)
 	log := slog.New(slog.DiscardHandler)
 	factories := map[string]market.Factory{
 		s.alphaName: market.Factory{New: func(market.Config) (market.Integration, error) {

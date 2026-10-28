@@ -28,12 +28,16 @@ UPDATE identifier_assertions SET instr_id = @survivor::uuid WHERE instr_id = @lo
 -- with the email of the administrator who attested it. answered is when the
 -- fetch key was answered, or when the attest identifier run was created.
 -- asked_from and asked_before are the period of the fetch key's request.
+-- is_event_source is true when the datasource is the identifier event source
+-- of the ticker's market.
 SELECT sqlc.embed(identifier_assertions), tickers.value, fetches.datasource, datasources.precedence,
        users.email AS attested_by,
        COALESCE(fetch_keys.answered_at, runs.created_at)::timestamptz AS answered,
-       fetch_keys.asked_from, fetch_keys.asked_before
+       fetch_keys.asked_from, fetch_keys.asked_before,
+       COALESCE(fetches.datasource = markets.identifier_event_source, false)::boolean AS is_event_source
 FROM (SELECT unnest(@markets::text[]) AS market, unnest(@values::text[]) AS value) AS asked
 JOIN tickers ON tickers.market = asked.market AND tickers.value = asked.value
+JOIN markets ON markets.code = tickers.market
 JOIN identifier_assertions ON identifier_assertions.ticker_id = tickers.id
 LEFT JOIN fetch_keys ON fetch_keys.id = identifier_assertions.fetch_key_id
 LEFT JOIN fetches ON fetches.id = fetch_keys.fetch_id
@@ -46,7 +50,8 @@ ORDER BY identifier_assertions.asserted_from, identifier_assertions.id;
 -- The assertion coverage of the tickers whose market and value are a pair the
 -- arrays hold at one index, and of every market among markets. Each row comes
 -- with the datasource whose fetch wrote it and that datasource's precedence.
--- value is NULL for a market row.
+-- value is NULL for a market row. is_event_source reports that the datasource
+-- is the identifier event source of the market.
 WITH asked AS (
     SELECT tickers.id
     FROM (SELECT unnest(@markets::text[]) AS market, unnest(@values::text[]) AS value) AS k
@@ -54,8 +59,10 @@ WITH asked AS (
 )
 SELECT identifier_assertion_coverage.market, tickers.value,
        identifier_assertion_coverage.covered_from, identifier_assertion_coverage.covered_before,
-       identifier_assertion_coverage.fetch_key_id, fetches.datasource, datasources.precedence
+       identifier_assertion_coverage.fetch_key_id, fetches.datasource, datasources.precedence,
+       COALESCE(fetches.datasource = markets.identifier_event_source, false)::boolean AS is_event_source
 FROM identifier_assertion_coverage
+JOIN markets ON markets.code = identifier_assertion_coverage.market
 LEFT JOIN tickers ON tickers.id = identifier_assertion_coverage.ticker_id
 JOIN fetch_keys ON fetch_keys.id = identifier_assertion_coverage.fetch_key_id
 JOIN fetches ON fetches.id = fetch_keys.fetch_id

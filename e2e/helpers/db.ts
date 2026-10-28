@@ -60,6 +60,18 @@ export async function seedDatasource({
   );
 }
 
+// setIdentifierEventSource makes datasource the identifier event source of
+// market. No RPC sets it.
+export async function setIdentifierEventSource(
+  market: string,
+  datasource: string,
+): Promise<void> {
+  await db().query(
+    "UPDATE markets SET identifier_event_source = $2 WHERE code = $1",
+    [market, datasource],
+  );
+}
+
 // deleteDatasource removes a row this suite seeded. No fetch names that
 // datasource, so nothing references the row.
 export async function deleteDatasource(name: string): Promise<void> {

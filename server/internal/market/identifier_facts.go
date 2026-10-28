@@ -84,17 +84,6 @@ type Windowed interface {
 	Window(now time.Time) time.Time
 }
 
-// Ranged is a Windowed integration that answers for whole markets over a
-// period.
-type Ranged interface {
-	Windowed
-	// Markets are the markets it covers.
-	Markets() []string
-	// Lag is how long the provider may take to publish a change, unless the
-	// datasource sets its own.
-	Lag() time.Duration
-}
-
 // identifierFactsKind is the identifier facts of tickers and markets. No
 // stated key asks for one, and the period is part of the request as cached.
 var identifierFactsKind = Kind[IdentifierFactRequest, IdentifierFactResult]{
@@ -117,24 +106,6 @@ var identifierFactsKind = Kind[IdentifierFactRequest, IdentifierFactResult]{
 // run of parent.
 func (f *Fetcher) IdentifierFacts(ctx context.Context, parent gen.Run, e *Entry, reqs []IdentifierFactRequest) ([]FetchKey[IdentifierFactRequest, IdentifierFactResult], error) {
 	return fetch(ctx, f, parent, e, identifierFactsKind, reqs)
-}
-
-// NextPeriod returns the period of the next fetch of a market. It ends with
-// today. It starts at the later of the start of w's window and the end of the
-// last fetch less the lag. Where there was no last fetch, the earliest
-// transaction stands in for the end. The period is empty when its start is
-// after today.
-func NextPeriod(last *time.Time, earliest time.Time, w Windowed, lag time.Duration, now time.Time) types.Period {
-	from := earliest
-	if last != nil {
-		from = last.Add(-lag)
-	}
-	before := tomorrow(now)
-	from = types.Day(later(from, w.Window(now)))
-	if from.After(before) {
-		from = before
-	}
-	return types.Period{From: from, Before: before}
 }
 
 // LookupDay is the day a point in time lookup asks about for a ticker whose

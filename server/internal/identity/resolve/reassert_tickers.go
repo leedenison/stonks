@@ -152,12 +152,17 @@ func (r *Resolver) readHeld(ctx context.Context, held []gen.ListHeldTickersRow) 
 	return ts, nil
 }
 
-// fetchHeld asks the enabled datasources concurrently. It asks for the
-// instrument's history where historyRequest allows it, once per instrument,
-// and for the ticker's identity otherwise. It returns the answers and the
-// facts keys in datasource order.
+// fetchHeld asks the enabled datasources concurrently. It asks the identifier
+// event source of the ticker's market for the instrument's history where
+// historyRequest allows it, once per instrument. It asks every other
+// datasource for the ticker's identity. It returns the answers and the facts
+// keys in datasource order.
 func (r *Resolver) fetchHeld(ctx context.Context, run gen.Run, ts []*heldTicker) ([]heldAnswer, []factKey, error) {
 	now := r.clock()
+	sources, err := r.eventSources(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
 	entries := r.sources.Enabled()
 	idReqs := make([][]gen.StatedKey, len(entries))
 	idOf := make([][]*heldTicker, len(entries))
@@ -165,7 +170,7 @@ func (r *Resolver) fetchHeld(ctx context.Context, run gen.Run, ts []*heldTicker)
 	for i, e := range entries {
 		seen := map[market.IdentifierFactRequest]bool{}
 		for _, t := range ts {
-			if q, ok := historyRequest(e, t, now); ok {
+			if q, ok := historyRequest(e, t, now); ok && sources[t.key.Market] == e.Name {
 				if !seen[q] {
 					seen[q] = true
 					factReqs[i] = append(factReqs[i], q)

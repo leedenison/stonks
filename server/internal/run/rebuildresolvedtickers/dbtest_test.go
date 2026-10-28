@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/require"
 
@@ -29,6 +30,7 @@ func day(n int) time.Time { return time.Date(2026, time.March, n, 0, 0, 0, 0, ti
 
 type stack struct {
 	q   *gen.Queries
+	tx  pgx.Tx
 	svc *Service
 }
 
@@ -38,7 +40,7 @@ func newStack(t *testing.T) *stack {
 	t.Helper()
 	tx := dbtest.Begin(t, pool)
 	q := gen.New(tx)
-	return &stack{q: q, svc: New(db.New[Queries](tx), runtest.Runner{Q: q}, 2)}
+	return &stack{q: q, tx: tx, svc: New(db.New[Queries](tx), runtest.Runner{Q: q}, 2)}
 }
 
 func (s *stack) instr(t *testing.T) uuid.UUID {
@@ -163,5 +165,62 @@ func TestRebuildFollowsPrecedence(t *testing.T) {
 	}
 	if got := on(); got != b {
 		t.Errorf("after the reorder the stored ticker validity names %s, want %s", got, b)
+	}
+}
+
+// TestRebuildFollowsEventSource checks that a change of a market's
+// identifier event source leaves the stored ticker validity as it was, and
+// that a run after it counts only the new source's assertion coverage. The
+// market is XLON, which no other test names as its own.
+func TestRebuildFollowsEventSource(t *testing.T) {
+	s := newStack(t)
+	ctx := context.Background()
+	user, err := s.q.CreateUser(ctx, gen.CreateUserParams{ID: db.NewID(), Email: uuid.NewString() + "@example.com", Role: gen.UserRoleUser})
+	require.NoError(t, err)
+	parent, err := s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &user.ID, Kind: gen.RunKindResolveStmtKeys, Trigger: gen.RunTriggerUser})
+	require.NoError(t, err)
+	alpha, beta := "alpha-"+uuid.NewString(), "beta-"+uuid.NewString()
+	for i, name := range []string{alpha, beta} {
+		_, err := s.q.CreateDatasource(ctx, gen.CreateDatasourceParams{Name: name, Enabled: true, Precedence: int32(1000 + i)})
+		require.NoError(t, err)
+	}
+	dbtest.EventSource(t, s.tx, "XLON", alpha)
+	tk := dbtest.Ticker(t, s.q, types.MarketTicker{Market: "XLON", Value: "ZZL" + uuid.NewString()[:6]})
+	instr := s.instr(t)
+	fetch, err := s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &user.ID, Kind: gen.RunKindDatasourceFetch, Trigger: gen.RunTriggerRun, ParentID: &parent.ID})
+	require.NoError(t, err)
+	_, err = s.q.CreateFetch(ctx, gen.CreateFetchParams{ID: fetch.ID, UserID: &user.ID, Datasource: alpha, Endpoint: "https://example.com", Kind: gen.FetchKindIdentifierFacts})
+	require.NoError(t, err)
+	key := db.NewID()
+	sent := types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XLON", Value: tk.Value}
+	require.NoError(t, s.q.CreateFetchKey(ctx, gen.CreateFetchKeyParams{
+		ID: key, FetchID: fetch.ID, UserID: &user.ID, Outcome: gen.FetchOutcomeServed, Attempts: 1,
+		SentType: &sent.Type, SentDomain: sent.Domain, SentValue: &sent.Value, AnsweredAt: ptr.To(day(20)),
+	}))
+	require.NoError(t, s.q.CreateIdentifierAssertion(ctx, gen.CreateIdentifierAssertionParams{
+		ID: db.NewID(), FetchKeyID: &key, TickerID: tk.ID, Market: tk.Market, InstrID: &instr, AssertedFrom: day(1), AssertedBefore: day(2),
+	}))
+	require.NoError(t, s.q.CreateIdentifierAssertionCoverage(ctx, gen.CreateIdentifierAssertionCoverageParams{
+		ID: db.NewID(), FetchKeyID: key, Market: tk.Market, TickerID: &tk.ID, CoveredFrom: day(1), CoveredBefore: day(20),
+	}))
+	confirmedOn := func(n int) bool {
+		t.Helper()
+		mt := types.MarketTicker{Market: tk.Market, Value: tk.Value}
+		stored, err := tickervalidity.Load(ctx, s.q, []types.MarketTicker{mt})
+		require.NoError(t, err)
+		iv, ok := stored[mt].On(day(n))
+		return ok && iv.Validity == tickervalidity.Confirmed
+	}
+	s.rebuild(t)
+	if !confirmedOn(10) {
+		t.Fatalf("day 10 is unconfirmed, want alpha's assertion coverage to confirm it")
+	}
+	dbtest.EventSource(t, s.tx, "XLON", beta)
+	if !confirmedOn(10) {
+		t.Errorf("before the run day 10 is unconfirmed, want the stored ticker validity unchanged")
+	}
+	s.rebuild(t)
+	if confirmedOn(10) || !confirmedOn(1) {
+		t.Errorf("after the run day 10 confirmed = %v and day 1 confirmed = %v, want only the asserted day", confirmedOn(10), confirmedOn(1))
 	}
 }

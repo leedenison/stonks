@@ -31,3 +31,9 @@ WHERE sqlc.narg(after)::uuid IS NULL OR id > sqlc.narg(after)
 ORDER BY id
 LIMIT @lim::int
 FOR UPDATE;
+
+-- name: ListIdentifierEventSources :many
+-- Each market that names an identifier event source, with that datasource.
+SELECT code, identifier_event_source::text AS datasource FROM markets
+WHERE identifier_event_source IS NOT NULL
+ORDER BY code;
