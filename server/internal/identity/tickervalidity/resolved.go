@@ -153,6 +153,9 @@ func stated(as []Assertion, instr uuid.UUID) []Stated {
 type RebuildQueries interface {
 	FactQueries
 	db.AdvisoryLocker
+	ListTickersByID(ctx context.Context, ids []uuid.UUID) ([]gen.Ticker, error)
+	DeleteTickerValidity(ctx context.Context, tickerIds []uuid.UUID) error
+	CreateTickerValidity(ctx context.Context, arg gen.CreateTickerValidityParams) error
 	ListResolvePairs(ctx context.Context, tickerIds []uuid.UUID) ([]gen.ListResolvePairsRow, error)
 	ListPairTickers(ctx context.Context, arg gen.ListPairTickersParams) ([]gen.ListPairTickersRow, error)
 	DeleteResolvedTickers(ctx context.Context, arg gen.DeleteResolvedTickersParams) error
@@ -161,20 +164,22 @@ type RebuildQueries interface {
 
 var _ RebuildQueries = (*gen.Queries)(nil)
 
-// Rebuild rewrites the rows of resolved_tickers of each instrument and market
-// that the facts or the rows of the tickers ids touch. The caller holds the
-// rows of ids. Rebuild locks each of those instruments in id order; see the
-// package doc for the order of the locks.
+// Rebuild rewrites the ticker validity of the tickers in ids. It then rewrites
+// the rows of resolved_tickers of each instrument and market that the facts
+// or the rows of those tickers touch. The caller holds the rows of ids.
+// Rebuild locks each of those instruments in id order; see the package doc
+// for the order of the locks.
 func Rebuild(ctx context.Context, q RebuildQueries, ids []uuid.UUID) error {
 	if len(ids) == 0 {
 		return nil
 	}
+	rebuilt, err := q.ListTickersByID(ctx, ids)
+	if err != nil {
+		return fmt.Errorf("list tickers by id: %w", err)
+	}
 	pairs, err := q.ListResolvePairs(ctx, ids)
 	if err != nil {
 		return fmt.Errorf("list resolve pairs: %w", err)
-	}
-	if len(pairs) == 0 {
-		return nil
 	}
 	var asked gen.ListPairTickersParams
 	for _, p := range pairs {
@@ -183,9 +188,11 @@ func Rebuild(ctx context.Context, q RebuildQueries, ids []uuid.UUID) error {
 	if err := db.LockInstrs(ctx, q, asked.InstrIds); err != nil {
 		return err
 	}
-	rows, err := q.ListPairTickers(ctx, asked)
-	if err != nil {
-		return fmt.Errorf("list pair tickers: %w", err)
+	var rows []gen.ListPairTickersRow
+	if len(pairs) > 0 {
+		if rows, err = q.ListPairTickers(ctx, asked); err != nil {
+			return fmt.Errorf("list pair tickers: %w", err)
+		}
 	}
 	type pair struct {
 		instr  uuid.UUID
@@ -194,6 +201,11 @@ func Rebuild(ctx context.Context, q RebuildQueries, ids []uuid.UUID) error {
 	of := map[pair][]types.MarketTicker{}
 	idOf := map[types.MarketTicker]uuid.UUID{}
 	var all []types.MarketTicker
+	for _, r := range rebuilt {
+		t := types.MarketTicker{Market: r.Market, Value: r.Value}
+		idOf[t] = r.ID
+		all = append(all, t)
+	}
 	for _, r := range rows {
 		t := types.MarketTicker{Market: r.Ticker.Market, Value: r.Ticker.Value}
 		k := pair{r.InstrID, r.Ticker.Market}
@@ -203,6 +215,9 @@ func Rebuild(ctx context.Context, q RebuildQueries, ids []uuid.UUID) error {
 	}
 	read, err := ReadTickers(ctx, q, all)
 	if err != nil {
+		return err
+	}
+	if err := writeValidity(ctx, q, rebuilt, read); err != nil {
 		return err
 	}
 	var out gen.CreateResolvedTickersParams
@@ -222,6 +237,9 @@ func Rebuild(ctx context.Context, q RebuildQueries, ids []uuid.UUID) error {
 			out.ValidBefores = append(out.ValidBefores, isoDay(r.Before))
 		}
 	}
+	if len(pairs) == 0 {
+		return nil
+	}
 	if err := q.DeleteResolvedTickers(ctx, gen.DeleteResolvedTickersParams(asked)); err != nil {
 		return fmt.Errorf("delete resolved tickers: %w", err)
 	}
@@ -234,7 +252,34 @@ func Rebuild(ctx context.Context, q RebuildQueries, ids []uuid.UUID) error {
 	return nil
 }
 
-// isoDay returns d as an ISO date, empty where d is nil.
+// writeValidity replaces the stored ticker validity of rebuilt with what its
+// facts imply.
+func writeValidity(ctx context.Context, q RebuildQueries, rebuilt []gen.Ticker, read map[types.MarketTicker]*Ticker) error {
+	ids := make([]uuid.UUID, len(rebuilt))
+	var arg gen.CreateTickerValidityParams
+	for i, r := range rebuilt {
+		ids[i] = r.ID
+		for _, iv := range read[types.MarketTicker{Market: r.Market, Value: r.Value}].Derived.Intervals {
+			arg.TickerIds = append(arg.TickerIds, r.ID)
+			arg.Markets = append(arg.Markets, r.Market)
+			arg.InstrIds = append(arg.InstrIds, iv.Instr)
+			arg.ValidFroms = append(arg.ValidFroms, isoDay(iv.From))
+			arg.ValidBefores = append(arg.ValidBefores, isoDay(iv.Before))
+			arg.Validities = append(arg.Validities, string(iv.Validity))
+		}
+	}
+	if err := q.DeleteTickerValidity(ctx, ids); err != nil {
+		return fmt.Errorf("delete ticker validity: %w", err)
+	}
+	if len(arg.TickerIds) == 0 {
+		return nil
+	}
+	if err := q.CreateTickerValidity(ctx, arg); err != nil {
+		return fmt.Errorf("create ticker validity: %w", err)
+	}
+	return nil
+}
+
 func isoDay(d *time.Time) string {
 	if d == nil {
 		return ""

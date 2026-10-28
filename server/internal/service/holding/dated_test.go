@@ -16,6 +16,7 @@ import (
 	holdingv1 "github.com/leedenison/stonks/proto/holding/v1"
 	typev1 "github.com/leedenison/stonks/proto/type/v1"
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/identity/tickervalidity"
 	"github.com/leedenison/stonks/server/internal/platform/ptr"
 	"github.com/leedenison/stonks/server/internal/service/servicetest"
 	"github.com/leedenison/stonks/server/internal/types"
@@ -34,8 +35,7 @@ var (
 	aISIN           = types.Identifier{Type: types.IdentifierTypeIsin, Value: "US0000000071"}
 	protoFoo        = foo.ToProto()
 	protoAISIN      = aISIN.ToProto()
-	fooAssertions   = gen.ListIdentifierAssertionsParams{Markets: []string{"US"}, Values: []string{"FOO"}}
-	fooPeriods      = gen.ListIdentifierAssertionCoverageParams{Markets: []string{"US"}, Values: []string{"FOO"}}
+	fooValidity     = gen.ListTickerValidityParams{Markets: []string{"US"}, Values: []string{"FOO"}}
 	periods         = []gen.ListIdentifierAssertionCoverageRow{{Market: "US", Value: ptr.To("FOO"), CoveredFrom: day(1), CoveredBefore: day(20), Datasource: "massive"}}
 	straddle        = []gen.ListIdentifierAssertionsRow{assertion(2, &aID), assertion(10, &bID)}
 	retired         = []gen.ListIdentifierAssertionsRow{assertion(2, &aID), assertion(12, nil)}
@@ -76,6 +76,17 @@ func datedKey(currency *string, group *uuid.UUID, quantity string) gen.ListHoldi
 		},
 		Quantity: decimal.RequireFromString(quantity),
 	}
+}
+
+// stored is the ticker validity of FOO that a rebuild stores for assertions
+// and the period of assertion coverage.
+func stored(assertions []gen.ListIdentifierAssertionsRow) []gen.ListTickerValidityRow {
+	var out []gen.ListTickerValidityRow
+	f := tickervalidity.Rows{Assertions: assertions, AssertionCoverage: periods}.Facts()
+	for _, iv := range tickervalidity.Derive(f).Intervals {
+		out = append(out, gen.ListTickerValidityRow{Market: "US", Value: "FOO", InstrID: iv.Instr, ValidFrom: iv.From, ValidBefore: iv.Before, Validity: iv.Validity})
+	}
+	return out
 }
 
 func txn(n int, quantity string) gen.ListDatedTxnsRow {
@@ -192,7 +203,7 @@ func TestListHoldingsDated(t *testing.T) {
 			txnsErr: errBoom, wantCode: connect.CodeInternal,
 		},
 		{
-			name:          "facts failure",
+			name:          "ticker validity failure",
 			keys:          []gen.ListHoldingKeysRow{datedKey(usd, &datedKeyID, "4")},
 			txns:          []gen.ListDatedTxnsRow{txn(15, "4")},
 			assertionsErr: errBoom, wantCode: connect.CodeInternal,
@@ -205,10 +216,9 @@ func TestListHoldingsDated(t *testing.T) {
 			f.reader.EXPECT().ListHoldingKeys(gomock.Any(), userID).Return(tc.keys, nil)
 			f.reader.EXPECT().ListDatedTxns(gomock.Any(), userID).Return(tc.txns, tc.txnsErr)
 			f.reader.EXPECT().ListTickersByID(gomock.Any(), []uuid.UUID{fooRow.ID}).Return([]gen.Ticker{fooRow}, nil).MaxTimes(1)
-			// The facts of FOO are read once, however many transactions
-			// rest on it.
-			f.reader.EXPECT().ListIdentifierAssertions(gomock.Any(), fooAssertions).Return(tc.assertions, tc.assertionsErr).MaxTimes(1)
-			f.reader.EXPECT().ListIdentifierAssertionCoverage(gomock.Any(), fooPeriods).Return(periods, nil).MaxTimes(1)
+			// The ticker validity of FOO is read once, however many
+			// transactions rest on it.
+			f.reader.EXPECT().ListTickerValidity(gomock.Any(), fooValidity).Return(stored(tc.assertions), tc.assertionsErr).MaxTimes(1)
 			f.reader.EXPECT().ListInstrsByID(gomock.Any(), gomock.Any()).Return(instrs, nil).MaxTimes(1)
 			if len(tc.ids) > 0 {
 				f.reader.EXPECT().ListIdentifiersOf(gomock.Any(), tc.ids).Return(idents, nil)

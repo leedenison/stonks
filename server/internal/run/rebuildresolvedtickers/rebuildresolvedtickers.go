@@ -1,10 +1,10 @@
-// Package rebuildresolvedtickers starts runs that rebuild the names of every
-// ticker.
+// Package rebuildresolvedtickers starts runs that rebuild the ticker validity
+// and names of every ticker.
 //
-// A write of facts rebuilds the names of its own tickers. A reorder of the
-// datasources, or a deletion that cascades to facts, changes names outside
-// any write. Those names stay stale until a rebuild resolved tickers run, and
-// may lag while it works.
+// A write of facts rebuilds the ticker validity and names of its own tickers.
+// A reorder of the datasources, or a deletion that cascades to facts, changes
+// them outside any write. They stay stale until a rebuild resolved tickers run
+// finishes, and may lag while the run works.
 package rebuildresolvedtickers
 
 //go:generate go tool mockgen -source=rebuildresolvedtickers.go -destination=rebuildresolvedtickers_mock_test.go -package=rebuildresolvedtickers -self_package=github.com/leedenison/stonks/server/internal/run/rebuildresolvedtickers

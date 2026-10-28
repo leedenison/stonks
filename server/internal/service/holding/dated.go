@@ -23,8 +23,8 @@ type dated struct {
 }
 
 // dated gives each of the user's dated transactions the instrument its key's
-// ticker names on its date. The facts of every dated key's ticker are read
-// at once.
+// ticker names on its date. The ticker validity of every dated key's ticker
+// is read at once.
 func (s *Server) dated(ctx context.Context, user uuid.UUID, keys []gen.ListHoldingKeysRow) (dated, error) {
 	d := dated{onInstr: map[uuid.UUID]map[uuid.UUID]decimal.Decimal{}, unresolved: map[uuid.UUID]decimal.Decimal{}}
 	rows, err := s.reader.ListDatedTxns(ctx, user)
@@ -46,9 +46,9 @@ func (s *Server) dated(ctx context.Context, user uuid.UUID, keys []gen.ListHoldi
 			ts = append(ts, t)
 		}
 	}
-	read, err := tickervalidity.ReadTickers(ctx, s.reader, ts)
+	read, err := tickervalidity.Load(ctx, s.reader, ts)
 	if err != nil {
-		return d, fmt.Errorf("read the facts of the dated keys' tickers: %w", err)
+		return d, fmt.Errorf("read the ticker validity of the dated keys' tickers: %w", err)
 	}
 	for _, r := range rows {
 		v, ok := tickerOf[r.StatedKeyID]

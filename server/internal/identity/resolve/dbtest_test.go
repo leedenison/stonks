@@ -92,8 +92,9 @@ func TestResolveWrites(t *testing.T) {
 		t.Errorf("assertion = %+v, want XLON:VOD naming the instrument on %s, the day of the answer", a, day.Format(time.DateOnly))
 	}
 	vod := types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XLON", Value: "VOD"}
-	ivs, err := tickervalidity.Of(ctx, s.q, mt(vod))
+	stored, err := tickervalidity.Load(ctx, s.q, []types.MarketTicker{mt(vod)})
 	require.NoError(t, err)
+	ivs := stored[mt(vod)]
 	if !confirmedOn(ivs, instr.ID, day) {
 		t.Errorf("ticker validity of %s = %+v, want the instrument confirmed on %s", vod.Name(), ivs, day.Format(time.DateOnly))
 	}
@@ -427,8 +428,9 @@ func TestMergeRows(t *testing.T) {
 		t.Errorf("assertions naming the survivor %d, the merged instrument %d, want every one on the survivor", naming[true], naming[false])
 	}
 	nasdaq := types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "VOD"}
-	ivs, err := tickervalidity.Of(ctx, s.q, mt(nasdaq))
+	stored, err := tickervalidity.Load(ctx, s.q, []types.MarketTicker{mt(nasdaq)})
 	require.NoError(t, err)
+	ivs := stored[mt(nasdaq)]
 	for _, iv := range ivs {
 		if iv.Instr != survivor {
 			t.Errorf("ticker validity of %s = %+v, want only the survivor", nasdaq.Name(), ivs)
@@ -904,10 +906,10 @@ func TestMergeAcrossCurrencies(t *testing.T) {
 	}
 }
 
-// TestMergeRebuildsTheLoserTickers checks that a merge rebuilds the names
-// of the tickers whose assertions it moves. Only the later instrument's
-// assertions state its ticker at XNAS, so the survivor is named by it only if
-// the merge rebuilt it.
+// TestMergeRebuildsTheLoserTickers checks that a merge rebuilds the ticker
+// validity and names of the tickers whose assertions it moves. Only the later
+// instrument's assertions state its ticker at XNAS, so the survivor is named
+// by it only if the merge rebuilt it.
 func TestMergeRebuildsTheLoserTickers(t *testing.T) {
 	s := newStack(t)
 	ctx := context.Background()
@@ -936,6 +938,11 @@ func TestMergeRebuildsTheLoserTickers(t *testing.T) {
 	}
 	if got := s.names(t, b.Instr.ID); len(got) != 0 {
 		t.Errorf("later instrument names = %v, want none", got)
+	}
+	stored, err := tickervalidity.Load(ctx, s.q, []types.MarketTicker{mt(xnas)})
+	require.NoError(t, err)
+	if ivs := stored[mt(xnas)]; !ivs.Any() || slices.ContainsFunc(ivs, func(iv tickervalidity.Interval) bool { return iv.Instr != a.Instr.ID }) {
+		t.Errorf("stored ticker validity of %s = %+v, want every interval to name the survivor %s", xnas.Name(), ivs, a.Instr.ID)
 	}
 }
 

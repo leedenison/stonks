@@ -30,6 +30,7 @@ import (
 type Queries interface {
 	ListIdentifierAssertions(ctx context.Context, arg gen.ListIdentifierAssertionsParams) ([]gen.ListIdentifierAssertionsRow, error)
 	ListIdentifierAssertionCoverage(ctx context.Context, arg gen.ListIdentifierAssertionCoverageParams) ([]gen.ListIdentifierAssertionCoverageRow, error)
+	ListTickerValidity(ctx context.Context, arg gen.ListTickerValidityParams) ([]gen.ListTickerValidityRow, error)
 	ListInstrTickers(ctx context.Context, instrID uuid.UUID) ([]gen.ListInstrTickersRow, error)
 	CountTickerTxns(ctx context.Context, probes [][]byte) (int32, error)
 	ListTickerTxns(ctx context.Context, probes [][]byte) ([]gen.ListTickerTxnsRow, error)
@@ -73,15 +74,15 @@ func (g Gap) ToProto() *admincoveragev1.Gap {
 	}
 }
 
-// Page is one ticker as the admin area shows it: its facts, the ticker validity
-// they derive, and its gaps.
+// Page is one ticker as the admin area shows it: its facts, its ticker
+// validity, and its gaps.
 type Page struct {
 	Ticker types.MarketTicker
 	// Days are the distinct as-at dates of the transactions whose keys state
 	// the ticker, in order.
 	Days      []time.Time
 	Rows      tickervalidity.Rows
-	Intervals []tickervalidity.Interval
+	Intervals tickervalidity.Intervals
 	Gaps      []Gap
 	// Names holds the identifier naming each instrument the rows and the
 	// intervals refer to.
@@ -186,7 +187,6 @@ func (r *Reader) Ticker(ctx context.Context, v types.MarketTicker, today time.Ti
 	return t, nil
 }
 
-// read derives v's ticker validity and its gaps over its transaction period.
 func (r *Reader) read(ctx context.Context, v types.MarketTicker, today time.Time) (*Page, error) {
 	rows, err := tickervalidity.ReadRows(ctx, r.q, v)
 	if err != nil {
@@ -200,7 +200,11 @@ func (r *Reader) read(ctx context.Context, v types.MarketTicker, today time.Time
 	if err != nil {
 		return nil, fmt.Errorf("list transactions of %s: %w", v.Name(), err)
 	}
-	t := &Page{Ticker: v, Rows: rows, Intervals: tickervalidity.Derive(rows.Facts()).Intervals}
+	ivs, err := tickervalidity.Load(ctx, r.q, []types.MarketTicker{v})
+	if err != nil {
+		return nil, err
+	}
+	t := &Page{Ticker: v, Rows: rows, Intervals: ivs[v]}
 	for _, txn := range txns {
 		if n := len(t.Days); n == 0 || !t.Days[n-1].Equal(txn.AsAt) {
 			t.Days = append(t.Days, txn.AsAt)
@@ -213,7 +217,7 @@ func (r *Reader) read(ctx context.Context, v types.MarketTicker, today time.Time
 	if !period.From.Before(period.Before) {
 		return t, nil
 	}
-	for _, p := range tickervalidity.Gaps(t.Intervals, period) {
+	for _, p := range t.Intervals.Gaps(period) {
 		g := Gap{Period: p}
 		keys := map[uuid.UUID]bool{}
 		for _, txn := range txns {

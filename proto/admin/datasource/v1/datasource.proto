@@ -72,9 +72,9 @@ service DatasourceService {
   // change would enable a datasource that has no integration in this build
   // or whose integration refuses the config.
   rpc UpdateDatasource(UpdateDatasourceRequest) returns (UpdateDatasourceResponse);
-  // Orders the datasources by precedence. Ticker validity takes the order at
-  // once. The names of tickers take it when the rebuild resolved tickers run
-  // that the call starts has finished. Where the list does not name every
-  // datasource exactly once, the call is refused before it starts a run.
+  // Orders the datasources by precedence. The call starts a rebuild resolved
+  // tickers run. Ticker validity and the names of tickers follow the new order
+  // once the run finishes. The list must name every datasource exactly once,
+  // or the call is refused before it starts a run.
   rpc ReorderDatasources(ReorderDatasourcesRequest) returns (ReorderDatasourcesResponse);
 }

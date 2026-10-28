@@ -114,8 +114,9 @@ func TestDated(t *testing.T) {
 	if names := s.names(t, held.Instr.ID); !slices.ContainsFunc(names, func(n string) bool { return strings.HasPrefix(n, v.Value+" at ") }) {
 		t.Errorf("names of the identity answer's instrument = %v, want %s among them", names, v.Name())
 	}
-	ivs, err := tickervalidity.Of(ctx, s.q, mt(v))
+	stored, err := tickervalidity.Load(ctx, s.q, []types.MarketTicker{mt(v)})
 	require.NoError(t, err)
+	ivs := stored[mt(v)]
 	if !confirmedOn(ivs, held.Instr.ID, on(2024, 1, 16)) {
 		t.Errorf("ticker validity of %s = %+v, want the history to confirm %s on 2024-01-16", v.Name(), ivs, held.Instr.ID)
 	}
@@ -368,8 +369,9 @@ func TestDisagreementInsideHistory(t *testing.T) {
 	}
 	held, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: share.Type, Value: share.Value})
 	require.NoError(t, err)
-	ivs, err := tickervalidity.Of(ctx, s.q, mt(v))
+	stored, err := tickervalidity.Load(ctx, s.q, []types.MarketTicker{mt(v)})
 	require.NoError(t, err)
+	ivs := stored[mt(v)]
 	if !confirmedOn(ivs, held.Instr.ID, day) {
 		t.Errorf("ticker validity of %s = %+v, want the history to confirm %s on %s", v.Name(), ivs, held.Instr.ID, day.Format(time.DateOnly))
 	}

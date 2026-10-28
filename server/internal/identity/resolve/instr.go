@@ -11,7 +11,6 @@ import (
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/join"
-	"github.com/leedenison/stonks/server/internal/identity/tickervalidity"
 	"github.com/leedenison/stonks/server/internal/mic"
 	"github.com/leedenison/stonks/server/internal/platform/ptr"
 	"github.com/leedenison/stonks/server/internal/types"
@@ -38,7 +37,7 @@ type resolution struct {
 	// validity of its market ticker. It is nil for a key that is fixed whatever
 	// it resolves to.
 	via    types.Identifier
-	dating *tickervalidity.Ticker
+	dating *dating
 	// dates are the as-at dates of the key's transactions, stored and
 	// stated.
 	dates []time.Time

@@ -45,8 +45,11 @@ func Derive(f Facts) Derived {
 		start = end
 	}
 	return Derived{
-		Intervals: join(out), Inferred: inferred, Disagreements: disagreements,
-		Broken: broken(ws, cutting), Missed: missed(inferred, f.AssertionCoverage, cover), Overruled: over,
+		Diagnosis: Diagnosis{
+			Disagreements: disagreements, Broken: broken(ws, cutting),
+			Missed: missed(inferred, f.AssertionCoverage, cover), Overruled: over,
+		},
+		Intervals: join(out), Inferred: inferred,
 	}
 }
 

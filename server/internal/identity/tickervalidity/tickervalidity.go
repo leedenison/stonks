@@ -1,18 +1,19 @@
 // Package tickervalidity derives the ticker validity of a MIC_TICKER
 // identifier: the days over which it names one instrument. It derives ticker
-// validity from identifier assertions and assertion coverage each time it is
-// read; see
+// validity from identifier assertions and assertion coverage, and stores it in
+// ticker_validity; see
 // [010_ticker_validity.sql](../../db/migrations/010_ticker_validity.sql). A
 // ticker's facts are read and written at its market, so a ticker stated at any
 // venue of a market shares one ticker validity, and a listing that moves
-// between those venues keeps its history. Ticker validity is never stored, so
-// a change to its inputs, such as a reorder of the datasources, takes effect
-// at the next read.
+// between those venues keeps its history. Only a rebuild derives ticker
+// validity. Every reader reads the stored rows.
 //
-// The names that ticker validity implies are stored, in resolved_tickers; see
-// Resolve. Each write of facts rebuilds the names of the tickers it wrote,
-// before it commits. A reorder of the datasources can change any name, so the
-// names wait for a rebuild of every ticker.
+// Each write of facts rebuilds the ticker validity of the tickers it wrote,
+// and the names that ticker validity implies, before it commits; see Rebuild.
+// Assertion coverage of a whole market rebuilds every ticker of the market.
+// The names are stored in resolved_tickers; see Resolve. A reorder of the
+// datasources can change the ticker validity of any ticker. The change waits
+// for a rebuild of every ticker.
 //
 // A rebuild must see every fact of its tickers, so each write of facts takes
 // its locks in one order. It creates its ticker rows before its transaction;
@@ -60,18 +61,18 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
-// Validity is how firmly a ticker's facts establish what it names over a
-// range of days.
-type Validity string
+// Validity is the database's validity enum; see
+// [010_ticker_validity.sql](../../db/migrations/010_ticker_validity.sql).
+type Validity = gen.Validity
 
-// The validities: confirmed where the facts name the instrument, and
-// provisional where ticker validity extends on an assumption.
+// The validities.
 const (
-	Confirmed   Validity = "confirmed"
-	Provisional Validity = "provisional"
+	Confirmed   = gen.ValidityConfirmed
+	Provisional = gen.ValidityProvisional
 )
 
 // Interval is a range of days over which a ticker names one instrument. A nil
@@ -188,8 +189,14 @@ type Facts struct {
 // Derived is what the facts of one ticker imply: its intervals, the changes
 // two assertions infer, and the conflicts among the facts.
 type Derived struct {
-	Intervals     []Interval
-	Inferred      []Inferred
+	Diagnosis
+	Intervals Intervals
+	Inferred  []Inferred
+}
+
+// Diagnosis is the conflicts among the facts of one ticker that findings
+// report.
+type Diagnosis struct {
 	Disagreements []Disagreement
 	Broken        []BrokenBracket
 	Missed        []MissedEvent

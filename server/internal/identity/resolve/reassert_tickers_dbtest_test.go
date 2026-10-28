@@ -164,8 +164,9 @@ func TestReassertTickers(t *testing.T) {
 	if got := s.assertedOn(t, v, later); len(got) != 1 || got[0] == nil || *got[0] != instr {
 		t.Errorf("assertions of %s on %s = %v, want one naming %s", v.Name(), later.Format(time.DateOnly), got, instr)
 	}
-	ivs, err := tickervalidity.Of(ctx, s.q, mt(v))
+	stored, err := tickervalidity.Load(ctx, s.q, []types.MarketTicker{mt(v)})
 	require.NoError(t, err)
+	ivs := stored[mt(v)]
 	if !confirmedOn(ivs, instr, on(2026, 3, 20)) {
 		t.Errorf("ticker validity of %s = %+v, want %s confirmed between the two assertions", v.Name(), ivs, instr)
 	}
@@ -311,8 +312,9 @@ func TestReassertTickersReanswer(t *testing.T) {
 					t.Errorf("the later run raised %s: %s", r.Finding.Kind, *r.Finding.Detail)
 				}
 			}
-			ivs, err := tickervalidity.Of(ctx, s.q, mt(v))
+			stored, err := tickervalidity.Load(ctx, s.q, []types.MarketTicker{mt(v)})
 			require.NoError(t, err)
+			ivs := stored[mt(v)]
 			i := slices.IndexFunc(ivs, func(iv tickervalidity.Interval) bool { return iv.Contains(later) })
 			switch {
 			case tc.unknown && i >= 0:

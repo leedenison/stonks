@@ -2,31 +2,19 @@ package tickervalidity
 
 import (
 	"context"
-	"slices"
-	"time"
 
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
-// Ticker is one ticker's validity, as one read of its facts found it. A
-// reader that asks many questions of one ticker reads its facts once.
+// Ticker is one ticker's facts and what they imply, as one read found them.
 type Ticker struct {
 	Ticker  types.MarketTicker
 	Facts   Facts
 	Derived Derived
 }
 
-// ReadTicker reads the facts of t and derives its ticker validity.
-func ReadTicker(ctx context.Context, q FactQueries, t types.MarketTicker) (*Ticker, error) {
-	tickers, err := ReadTickers(ctx, q, []types.MarketTicker{t})
-	if err != nil {
-		return nil, err
-	}
-	return tickers[t], nil
-}
-
 // ReadTickers reads the facts of each of ts and derives its ticker validity,
-// with three queries however many tickers there are.
+// with two queries however many tickers there are.
 func ReadTickers(ctx context.Context, q FactQueries, ts []types.MarketTicker) (map[types.MarketTicker]*Ticker, error) {
 	rows, err := ReadRowsOf(ctx, q, ts)
 	if err != nil {
@@ -38,23 +26,4 @@ func ReadTickers(ctx context.Context, q FactQueries, ts []types.MarketTicker) (m
 		out[v] = &Ticker{Ticker: v, Facts: f, Derived: Derive(f)}
 	}
 	return out, nil
-}
-
-// HasTickerValidity reports whether the facts give the ticker an instrument on
-// any day.
-func (t *Ticker) HasTickerValidity() bool { return len(t.Derived.Intervals) > 0 }
-
-// Asserted reports whether any source asserted the ticker on day d.
-func (t *Ticker) Asserted(d time.Time) bool {
-	return slices.ContainsFunc(t.Facts.Assertions, func(a Assertion) bool { return a.Period.Contains(types.Day(d)) })
-}
-
-// On returns the interval of the ticker's validity that holds day d. It
-// reports false where the ticker names nothing on d.
-func (t *Ticker) On(d time.Time) (Interval, bool) { return on(t.Derived.Intervals, d) }
-
-// FirstUnconfirmed returns the earliest of dates that the ticker's validity
-// does not confirm. It reports false when every date is confirmed.
-func (t *Ticker) FirstUnconfirmed(dates []time.Time) (time.Time, bool) {
-	return firstUnconfirmed(t.Derived.Intervals, dates)
 }

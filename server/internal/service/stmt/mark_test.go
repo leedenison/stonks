@@ -14,7 +14,6 @@ import (
 )
 
 var (
-	meta       = types.MarketTicker{Market: "US", Value: "META"}
 	metaInst   = uuid.MustParse("00000000-0000-0000-0000-00000000000a")
 	renamed    = time.Date(2022, time.June, 9, 0, 0, 0, 0, time.UTC)
 	coveredTo  = time.Date(2024, time.February, 1, 0, 0, 0, 0, time.UTC)
@@ -38,8 +37,8 @@ func metaFacts() tickervalidity.Facts {
 	}
 }
 
-func metaTicker() *tickervalidity.Ticker {
-	return &tickervalidity.Ticker{Ticker: meta, Derived: tickervalidity.Derive(metaFacts())}
+func metaValidity() tickervalidity.Intervals {
+	return tickervalidity.Derive(metaFacts()).Intervals
 }
 
 func TestMark(t *testing.T) {
@@ -48,12 +47,12 @@ func TestMark(t *testing.T) {
 		provisional = stmtv1.TxnMark_TXN_MARK_PROVISIONAL
 		unresolved  = stmtv1.TxnMark_TXN_MARK_UNRESOLVED
 	)
-	ticker := metaTicker()
+	ivs := metaValidity()
 	tests := []struct {
 		name     string
 		arbiter  *gen.Arbiter
 		fixedVia *types.IdentifierType
-		ticker   *tickervalidity.Ticker
+		dated    bool
 		on       time.Time
 		want     stmtv1.TxnMark
 	}{
@@ -61,15 +60,19 @@ func TestMark(t *testing.T) {
 		{name: "fixed through a stable identifier", arbiter: ptr.To(gen.ArbiterDatasource), fixedVia: ptr.To(types.IdentifierTypeIsin), want: confirmed},
 		{name: "fixed through a broker description", arbiter: ptr.To(gen.ArbiterDatasource), fixedVia: ptr.To(types.IdentifierTypeBrokerDescription), want: provisional},
 		{name: "fixed through an option symbol", arbiter: ptr.To(gen.ArbiterStated), fixedVia: ptr.To(types.IdentifierTypeOption), want: provisional},
-		{name: "dated, before the event", arbiter: ptr.To(gen.ArbiterDatasource), ticker: ticker, on: notFoundOn, want: unresolved},
-		{name: "dated, covered back to the event", arbiter: ptr.To(gen.ArbiterDatasource), ticker: ticker, on: time.Date(2023, time.January, 1, 0, 0, 0, 0, time.UTC), want: confirmed},
-		{name: "dated, on the asserted day", arbiter: ptr.To(gen.ArbiterDatasource), ticker: ticker, on: assertedOn, want: confirmed},
-		{name: "dated, after coverage ends", arbiter: ptr.To(gen.ArbiterDatasource), ticker: ticker, on: time.Date(2024, time.March, 1, 0, 0, 0, 0, time.UTC), want: provisional},
+		{name: "dated, before the event", arbiter: ptr.To(gen.ArbiterDatasource), dated: true, on: notFoundOn, want: unresolved},
+		{name: "dated, covered back to the event", arbiter: ptr.To(gen.ArbiterDatasource), dated: true, on: time.Date(2023, time.January, 1, 0, 0, 0, 0, time.UTC), want: confirmed},
+		{name: "dated, on the asserted day", arbiter: ptr.To(gen.ArbiterDatasource), dated: true, on: assertedOn, want: confirmed},
+		{name: "dated, after coverage ends", arbiter: ptr.To(gen.ArbiterDatasource), dated: true, on: time.Date(2024, time.March, 1, 0, 0, 0, 0, time.UTC), want: provisional},
 		{name: "no association", want: unresolved},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := mark(tc.arbiter, tc.fixedVia, tc.ticker, tc.on); got != tc.want {
+			var read tickervalidity.Intervals
+			if tc.dated {
+				read = ivs
+			}
+			if got := mark(tc.arbiter, tc.fixedVia, tc.dated, read, tc.on); got != tc.want {
 				t.Errorf("mark = %v, want %v", got, tc.want)
 			}
 		})

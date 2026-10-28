@@ -15,6 +15,7 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/identity/tickervalidity"
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/platform/ptr"
 	"github.com/leedenison/stonks/server/internal/testutil/dbtest"
@@ -33,7 +34,7 @@ func (s *stack) instr(t *testing.T, class types.AssetClass) uuid.UUID {
 	return instr.ID
 }
 
-// names records an assertion, dated on, that mt names instr.
+// names asserts that mt names instr on day on.
 func (s *stack) names(t *testing.T, mt types.MarketTicker, instr uuid.UUID, on time.Time) {
 	t.Helper()
 	ctx := context.Background()
@@ -46,9 +47,11 @@ func (s *stack) names(t *testing.T, mt types.MarketTicker, instr uuid.UUID, on t
 		ID: key, FetchID: run.ID, UserID: s.parent.UserID, Outcome: gen.FetchOutcomeServed, Attempts: 1,
 		SentType: ptr.To(types.IdentifierTypeMicTicker), SentDomain: mt.Market, SentValue: &mt.Value, AnsweredAt: &on,
 	}))
+	ticker := dbtest.Ticker(t, s.q, mt).ID
 	require.NoError(t, s.q.CreateIdentifierAssertion(ctx, gen.CreateIdentifierAssertionParams{
-		ID: db.NewID(), FetchKeyID: &key, TickerID: dbtest.Ticker(t, s.q, mt).ID, Market: mt.Market, InstrID: &instr, AssertedFrom: on, AssertedBefore: on.AddDate(0, 0, 1),
+		ID: db.NewID(), FetchKeyID: &key, TickerID: ticker, Market: mt.Market, InstrID: &instr, AssertedFrom: on, AssertedBefore: on.AddDate(0, 0, 1),
 	}))
+	require.NoError(t, tickervalidity.Rebuild(ctx, s.q, []uuid.UUID{ticker}))
 }
 
 // user creates a user.

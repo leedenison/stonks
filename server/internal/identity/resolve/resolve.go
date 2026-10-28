@@ -46,8 +46,8 @@
 // the present; see ReassertTickers. It asks the datasources again whatever
 // identity coverage the instrument has. An identity answer to it writes only
 // the ticker's assertion, with the venue and currency of the listing that
-// states the ticker, and rebuilds the ticker's names. It leaves the
-// identifiers, the listings and the coverage to a resolution. A held ticker
+// states the ticker, and rebuilds the ticker's validity and names. It leaves
+// the identifiers, the listings and the coverage to a resolution. A held ticker
 // matches a listing at any venue of its market, and keys held at venues of
 // one market are asked about once, so a listing that moved between venues
 // keeps its validity. A resolution never

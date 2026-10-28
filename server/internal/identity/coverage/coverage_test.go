@@ -51,10 +51,16 @@ func txn(key uuid.UUID, n int) gen.ListTickerTxnsRow {
 	return gen.ListTickerTxnsRow{StatedKeyID: key, AsAt: day(n)}
 }
 
-// facts serves the facts of v: assertions and nothing else.
+// facts serves v's assertions and the ticker validity a rebuild stores for
+// them.
 func facts(q *mock.MockQueries, v types.MarketTicker, assertions []gen.ListIdentifierAssertionsRow) {
 	q.EXPECT().ListIdentifierAssertions(gomock.Any(), gen.ListIdentifierAssertionsParams{Markets: []string{v.Market}, Values: []string{v.Value}}).Return(assertions, nil)
 	q.EXPECT().ListIdentifierAssertionCoverage(gomock.Any(), gen.ListIdentifierAssertionCoverageParams{Markets: []string{v.Market}, Values: []string{v.Value}}).Return(nil, nil)
+	var stored []gen.ListTickerValidityRow
+	for _, iv := range tickervalidity.Derive(tickervalidity.Rows{Assertions: assertions}.Facts()).Intervals {
+		stored = append(stored, gen.ListTickerValidityRow{Market: v.Market, Value: v.Value, InstrID: iv.Instr, ValidFrom: iv.From, ValidBefore: iv.Before, Validity: iv.Validity})
+	}
+	q.EXPECT().ListTickerValidity(gomock.Any(), gen.ListTickerValidityParams{Markets: []string{v.Market}, Values: []string{v.Value}}).Return(stored, nil)
 }
 
 // TestTicker checks that a ticker is read at its market, with the
@@ -85,7 +91,7 @@ func TestTicker(t *testing.T) {
 		Ticker: v,
 		Days:   []time.Time{day(5), day(15)},
 		Rows:   tickervalidity.Rows{Assertions: assertions},
-		Intervals: []tickervalidity.Interval{
+		Intervals: tickervalidity.Intervals{
 			{Before: &from, Instr: acme, Validity: tickervalidity.Provisional},
 			{From: &from, Before: &mid, Instr: acme, Validity: tickervalidity.Confirmed},
 			{From: &mid, Instr: acme, Validity: tickervalidity.Provisional},

@@ -2,6 +2,10 @@
 
 CREATE EXTENSION IF NOT EXISTS timescaledb;
 
+-- btree_gist lets an exclusion constraint compare a uuid for equality beside a
+-- range for overlap.
+CREATE EXTENSION IF NOT EXISTS btree_gist;
+
 -- A version 7 UUID: 48 bits of Unix milliseconds written over the random
 -- bits of gen_random_uuid(), whose variant bits stay. Bits 52 and 53 turn the
 -- version nibble from 0100 into 0111.
