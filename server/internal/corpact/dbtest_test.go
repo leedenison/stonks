@@ -21,6 +21,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/mic"
 	"github.com/leedenison/stonks/server/internal/testutil/dbtest"
+	"github.com/leedenison/stonks/server/internal/testutil/metrictest"
 	"github.com/leedenison/stonks/server/internal/testutil/runtest"
 	"github.com/leedenison/stonks/server/internal/testutil/scripted"
 	"github.com/leedenison/stonks/server/internal/types"
@@ -29,6 +30,9 @@ import (
 var pool *pgxpool.Pool
 
 func TestMain(m *testing.M) { dbtest.Main(m, &pool) }
+
+// reader is the package's one metric reader.
+var reader = metrictest.Install()
 
 // answered is the moment the stack's datasources first answer.
 var answered = time.Date(2026, time.March, 2, 15, 30, 0, 0, time.UTC)

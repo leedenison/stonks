@@ -53,8 +53,8 @@ type cover struct {
 
 // checkSplits writes an unmatched split finding for each group of stated
 // splits that falls inside the coverage of the recorded answers and has no
-// match in the calendar. A fetch that acts for a user checks that user's
-// splits. A system fetch checks every user's.
+// match in the calendar. It skips a split that a finding already names. A fetch that acts for a user checks that user's splits. A
+// system fetch checks every user's.
 func (r *Recorder) checkSplits(ctx context.Context, parent gen.Run, recorded []recordedKey) error {
 	if len(recorded) == 0 {
 		return nil
@@ -67,10 +67,13 @@ func (r *Recorder) checkSplits(ctx context.Context, parent gen.Run, recorded []r
 			return err
 		}
 		for _, f := range fs {
-			if err := q.CreateFinding(ctx, f); err != nil {
+			created, err := db.CreateStandingFinding(ctx, q, f)
+			if err != nil {
 				return fmt.Errorf("create finding: %w", err)
 			}
-			found++
+			if created {
+				found++
+			}
 		}
 		return nil
 	})
@@ -83,9 +86,8 @@ func (r *Recorder) checkSplits(ctx context.Context, parent gen.Run, recorded []r
 	return nil
 }
 
-// splitFindings returns a finding for each unmatched group that no finding
-// names yet.
-func (r *Recorder) splitFindings(ctx context.Context, q Queries, user *uuid.UUID, recorded []recordedKey) ([]gen.CreateFindingParams, error) {
+// splitFindings returns a finding for each unmatched group.
+func (r *Recorder) splitFindings(ctx context.Context, q Queries, user *uuid.UUID, recorded []recordedKey) ([]gen.CreateStandingFindingParams, error) {
 	ts := make([]types.MarketTicker, len(recorded))
 	for i, rec := range recorded {
 		ts[i] = rec.ticker
@@ -112,31 +114,14 @@ func (r *Recorder) splitFindings(ctx context.Context, q Queries, user *uuid.UUID
 	if err != nil {
 		return nil, err
 	}
-	missing := unmatchedSplits(groups, cal)
-	if len(missing) == 0 {
-		return nil, nil
-	}
-	keys := make([]uuid.UUID, len(missing))
-	for i, m := range missing {
-		keys[i] = m.key
-	}
-	named, err := q.ListUnmatchedSplits(ctx, keys)
-	if err != nil {
-		return nil, fmt.Errorf("list unmatched splits: %w", err)
-	}
-	var out []gen.CreateFindingParams
-	for _, m := range missing {
-		if slices.ContainsFunc(named, func(n gen.ListUnmatchedSplitsRow) bool {
-			return n.StatedKeyID == m.key && n.EffectiveDate.Equal(m.day)
-		}) {
-			continue
-		}
+	var out []gen.CreateStandingFindingParams
+	for _, m := range unmatchedSplits(groups, cal) {
 		detail := fmt.Sprintf("a split on %s lacks a corporate action within %d days", m.day.Format(time.DateOnly), window)
 		if m.ratio != nil {
 			detail = fmt.Sprintf("a split of %s on %s lacks a corporate action of equal ratio within %d days",
 				ratioText(*m.ratio), m.day.Format(time.DateOnly), window)
 		}
-		out = append(out, gen.CreateFindingParams{
+		out = append(out, gen.CreateStandingFindingParams{
 			ID: db.NewID(), RunID: m.run.ID, Kind: gen.FindingKindUnmatchedSplit, StatedKeyID: &m.key, EffectiveDate: &m.day, Detail: &detail,
 		})
 	}

@@ -5,11 +5,13 @@ package db_test
 import (
 	"context"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgerrcode"
+	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/require"
 
 	"github.com/leedenison/stonks/server/internal/db"
@@ -135,5 +137,98 @@ func TestFindings(t *testing.T) {
 				t.Errorf("CreateFinding(%s): err = %v, want a check violation", tc.name, err)
 			}
 		})
+	}
+}
+
+// occurrences are the finding kinds that belong to the run that raised them,
+// so two runs may each raise one for the same subject.
+var occurrences = []gen.FindingKind{
+	gen.FindingKindDropped, gen.FindingKindContradiction, gen.FindingKindMerged,
+	gen.FindingKindIdentifierDisagreement, gen.FindingKindBrokenTickerValidityBracket, gen.FindingKindMissedEvent,
+}
+
+// subjects maps each standing kind to the columns its unique index covers.
+var subjects = map[gen.FindingKind]string{
+	gen.FindingKindBlock:            "block_id",
+	gen.FindingKindUnhandledCorpAct: "corp_act_id",
+	gen.FindingKindUnmatchedSplit:   "stated_key_id, effective_date",
+}
+
+// TestStandingKinds checks that every finding kind is an occurrence or has a
+// unique index over its subject. The index must hold a cleared finding too,
+// so its predicate leaves out cleared_at.
+func TestStandingKinds(t *testing.T) {
+	ctx := context.Background()
+	rows, err := pool.Query(ctx, "SELECT unnest(enum_range(NULL::finding_kind))::text")
+	require.NoError(t, err)
+	kinds, err := pgx.CollectRows(rows, pgx.RowTo[string])
+	require.NoError(t, err)
+	rows, err = pool.Query(ctx, "SELECT indexdef FROM pg_indexes WHERE tablename = 'findings'")
+	require.NoError(t, err)
+	defs, err := pgx.CollectRows(rows, pgx.RowTo[string])
+	require.NoError(t, err)
+	for _, kind := range kinds {
+		k := gen.FindingKind(kind)
+		if slices.Contains(occurrences, k) {
+			continue
+		}
+		cols, ok := subjects[k]
+		if !ok {
+			t.Errorf("finding kind %s is neither an occurrence nor a standing kind with a subject", kind)
+			continue
+		}
+		if !slices.ContainsFunc(defs, func(d string) bool {
+			where, partial := strings.CutPrefix(d[strings.Index(d, ")")+1:], " WHERE ")
+			return strings.HasPrefix(d, "CREATE UNIQUE INDEX") && strings.Contains(d, "USING btree ("+cols+")") &&
+				(!partial || strings.Contains(where, "'"+kind+"'") && !strings.Contains(where, "cleared_at"))
+		}) {
+			t.Errorf("findings has no unique index over (%s) for the kind %s; indexes %v", cols, kind, defs)
+		}
+	}
+}
+
+// TestCreateStandingFinding checks that a second standing finding of one
+// subject is skipped and reported as not new, even once the first is
+// cleared. Two occurrences of one subject both insert.
+func TestCreateStandingFinding(t *testing.T) {
+	ctx := context.Background()
+	q := newTx(t)
+	f := newFetching(t, q)
+	_, act := newCorpAct(t, q, f)
+	day := ptr.To(time.Date(2024, time.June, 7, 0, 0, 0, 0, time.UTC))
+	tests := []struct {
+		name string
+		arg  gen.CreateStandingFindingParams
+	}{
+		{name: "an unhandled corporate action", arg: gen.CreateStandingFindingParams{Kind: gen.FindingKindUnhandledCorpAct, CorpActID: &act, Detail: ptr.To("d")}},
+		{name: "an unmatched split", arg: gen.CreateStandingFindingParams{Kind: gen.FindingKindUnmatchedSplit, StatedKeyID: &f.key.ID, EffectiveDate: day, Detail: ptr.To("d")}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			first := tc.arg
+			first.ID, first.RunID = db.NewID(), newRun(t, q, f.user).ID
+			created, err := db.CreateStandingFinding(ctx, q, first)
+			require.NoError(t, err)
+			if !created {
+				t.Fatal("CreateStandingFinding() of a new subject = false, want true")
+			}
+			_, err = q.ClearFinding(ctx, first.ID)
+			require.NoError(t, err)
+			second := tc.arg
+			second.ID, second.RunID = db.NewID(), newRun(t, q, f.user).ID
+			created, err = db.CreateStandingFinding(ctx, q, second)
+			require.NoError(t, err)
+			if created {
+				t.Error("CreateStandingFinding() of a named subject = true, want false")
+			}
+			if listed, err := q.ListRunFindings(ctx, []uuid.UUID{second.RunID}); err != nil || len(listed) != 0 {
+				t.Errorf("findings of the second run = %+v, %v, want none", listed, err)
+			}
+		})
+	}
+	for range 2 {
+		require.NoError(t, q.CreateFinding(ctx, gen.CreateFindingParams{
+			ID: db.NewID(), RunID: newRun(t, q, f.user).ID, Kind: gen.FindingKindContradiction, StatedKeyID: &f.key.ID, Detail: ptr.To("d"),
+		}))
 	}
 }

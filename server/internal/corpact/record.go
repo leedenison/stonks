@@ -107,12 +107,15 @@ func writeAnswer(ctx context.Context, q Queries, k answerKey, t gen.Ticker) (int
 		}
 		detail := fmt.Sprintf("%s on %s: %s reported %s, %s, which the system does not handle",
 			tickers.Of(t).Name(), arg.ExDate.Format(time.DateOnly), k.Source, typeOf(e.Type), ratioText(e.Ratio))
-		if err := q.CreateFinding(ctx, gen.CreateFindingParams{
+		created, err := db.CreateStandingFinding(ctx, q, gen.CreateStandingFindingParams{
 			ID: db.NewID(), RunID: k.Run.ID, Kind: gen.FindingKindUnhandledCorpAct, CorpActID: &arg.ID, Detail: &detail,
-		}); err != nil {
+		})
+		if err != nil {
 			return 0, fmt.Errorf("create finding: %w", err)
 		}
-		found++
+		if created {
+			found++
+		}
 	}
 	return found, nil
 }

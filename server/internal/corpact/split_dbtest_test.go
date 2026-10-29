@@ -4,6 +4,7 @@ package corpact
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -19,6 +20,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/platform/ptr"
 	"github.com/leedenison/stonks/server/internal/testutil/dbtest"
+	"github.com/leedenison/stonks/server/internal/testutil/metrictest"
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
@@ -197,6 +199,45 @@ func TestSplitUnmatched(t *testing.T) {
 	s.fetch(t, ticker("XNAS", "NVDA"))
 	if again := s.unmatchedSplits(t); len(again) != 1 || !again[0].cleared {
 		t.Errorf("findings after a repeat = %+v, want the one, still cleared", again)
+	}
+}
+
+// TestStandingFindingsOnce checks that two fetch runs over one unhandled
+// action and one unmatched split leave one finding of each. Only the first
+// run counts them.
+func TestStandingFindingsOnce(t *testing.T) {
+	s := newStack(t)
+	_, key := s.nvda(t)
+	s.states(t, *s.parent.UserID, key, ptr.To(ratio(1, 10)))
+	nvda := ticker("XNAS", "NVDA")
+	s.alpha.Responses[nvda] = covering(market.CorpAct{ExDate: day(2024, 1, 10), Ratio: ratio(1, 1), Type: "spin_off"})
+	found := func() map[string]int64 {
+		out := map[string]int64{}
+		for k, v := range metrictest.Counts(t, reader) {
+			if strings.HasPrefix(k, "stonks.findings{") {
+				out[k] = v
+			}
+		}
+		return out
+	}
+
+	// The first collection drops counts that earlier tests left.
+	found()
+	s.fetch(t, nvda)
+	want := map[string]int64{"stonks.findings{kind=unhandled_corp_act}": 1, "stonks.findings{kind=unmatched_split}": 1}
+	if diff := cmp.Diff(want, found()); diff != "" {
+		t.Errorf("findings counted by the first fetch mismatch (-want +got):\n%s", diff)
+	}
+	s.now = answered.AddDate(0, 0, 1)
+	s.fetch(t, nvda)
+	if diff := cmp.Diff(map[string]int64{}, found()); diff != "" {
+		t.Errorf("findings counted by the second fetch mismatch (-want +got):\n%s", diff)
+	}
+	if got := s.findings(t, us("NVDA")); len(got) != 1 {
+		t.Errorf("unhandled corporate action findings = %+v, want one", got)
+	}
+	if got := s.unmatchedSplits(t); len(got) != 1 {
+		t.Errorf("unmatched split findings = %+v, want one", got)
 	}
 }
 

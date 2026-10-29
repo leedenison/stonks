@@ -2,6 +2,13 @@
 INSERT INTO findings (id, run_id, kind, stated_key_id, fetch_key_id, step, detail, corp_act_id, effective_date)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9);
 
+-- name: CreateStandingFinding :execrows
+-- A standing finding is written once for its subject. The insert is skipped
+-- when a finding already names the subject, cleared or not.
+INSERT INTO findings (id, run_id, kind, stated_key_id, fetch_key_id, step, detail, corp_act_id, effective_date)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+ON CONFLICT DO NOTHING;
+
 -- name: ListRunFindings :many
 -- The findings of the runs, oldest first, each with what the key concerned
 -- states: the finding's own key, or for a block the key whose call created
