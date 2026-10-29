@@ -50,8 +50,13 @@ demands it, for every instrument and period it newly covers.
 ### Fetching from Multiple Sources
 
 No datasource covers the complete range of instruments users hold, since each is limited
-by geography, asset class, historic period and similar. Each kind of data is fetched from
-an ensemble of datasources.
+by geography, asset class, historic period and similar. Identities, prices and FX rates
+are fetched from an ensemble of datasources.
+
+A market names one datasource for identifier events and one for corporate actions. Only
+the identifier event source's edges and assertion coverage count for the market's
+tickers. The corporate actions source is the only datasource asked for the corporate
+actions of the market's tickers, and the only one read.
 
 ### Partial or Incomplete Data
 

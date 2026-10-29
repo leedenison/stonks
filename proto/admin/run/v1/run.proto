@@ -125,9 +125,9 @@ enum FindingKind {
   // type the datasource omits. The detail names the ticker, the ex-date, the
   // type and the ratio.
   FINDING_KIND_UNHANDLED_CORP_ACT = 8;
-  // A statement states a split, and the calendar holds no matching event
-  // within 7 days either side of it. The detail names the split's effective
-  // date and its ratio, where the statement states one.
+  // A statement states a split, and the calendar holds no matching corporate
+  // action within 7 days either side of it. The detail names the split's
+  // effective date and its ratio, where the statement states one.
   FINDING_KIND_UNMATCHED_SPLIT = 9;
 }
 

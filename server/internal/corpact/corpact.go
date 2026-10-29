@@ -27,8 +27,13 @@
 // Holdings and the stated split check read the corporate actions of an
 // instrument through one calendar, from its market; see calendar.go.
 //
-// A fetch checks the splits that statements state against the calendar; see
-// split.go. What starts a fetch, and what it asks for, is in
+// An action that cannot restate a quantity is stored as unhandled, and
+// raises a finding for an administrator. The calendar's coverage leaves out
+// its ex-date, so a holding across that date stays provisional.
+//
+// A split that a statement states is never stored as a corporate action. A
+// fetch checks it against the calendar; see checkSplits. What starts a fetch,
+// and what it asks for, is in
 // [refreshcorpacts.go](../run/refreshcorpacts/refreshcorpacts.go).
 package corpact
 

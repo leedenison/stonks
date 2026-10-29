@@ -17,11 +17,14 @@
 // to today by every action in the instrument's calendar; see package corpact.
 // When the calendar covers every transaction, the holding is adjusted.
 // Otherwise the holding is provisional: it follows every action known so far,
-// but an action may be missing. An answer covers days up to the day the datasource gave it. A
-// holding with a transaction before today is therefore provisional from the
-// day after the last fetch of its corporate actions until the next one. A
-// key's quantity is in its holding's units, and a group keeps the quantities
-// as stated. A holding whose shown quantity is zero is left out.
+// but an action may be missing. An answer covers days up to the day the
+// datasource gave it. A holding with a transaction before today is therefore
+// provisional from the day after the last fetch of its corporate actions
+// until the next one.
+//
+// A cash key's quantity is in the currency the key states. Any other key's
+// quantity is in its holding's units. A group keeps the quantities as stated.
+// The list leaves out a holding whose shown quantity is zero.
 //
 // The holding mark says how far corporate actions restate the quantity. The
 // statement shows, per transaction, whether an association is confirmed or

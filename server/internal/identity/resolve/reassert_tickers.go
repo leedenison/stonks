@@ -25,7 +25,7 @@ type heldTicker struct {
 	key       types.MarketTicker
 	ticker    types.Identifier
 	tickerRow gen.Ticker
-	// instrument is the instrument the ticker's latest interval names, nil
+	// instr is the instrument the ticker's latest interval names, nil
 	// where the ticker's latest interval has ended or the ticker has no
 	// interval.
 	instr *uuid.UUID
@@ -84,7 +84,7 @@ func (r *Resolver) ReassertTickers(ctx context.Context, run gen.Run, held []gen.
 		return tickervalidity.Rebuild(ctx, q, ids)
 	})
 	if err != nil {
-		return nil, fmt.Errorf("record extended ticker validity: %w", err)
+		return nil, fmt.Errorf("record reasserted tickers: %w", err)
 	}
 	mine := map[uuid.UUID]bool{}
 	for _, a := range answers {
@@ -249,7 +249,7 @@ func historyRequest(e *market.Entry, t *heldTicker, now time.Time) (market.Ident
 //
 // The shared identifier is tried first because a datasource may answer without
 // a stable identifier the instrument carries. EODHD does this for some non-US
-// rows, which come back without an ISIN. Extending ticker validity never
+// rows, which come back without an ISIN. A reassert tickers run never
 // creates an instrument. A resolution may have dropped the answer. The held
 // instrument then lacks the answer's identifiers. A new instrument made from
 // them would contradict every later reassert tickers run.
