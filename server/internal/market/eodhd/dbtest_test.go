@@ -42,8 +42,8 @@ func TestVenuesAreMICs(t *testing.T) {
 }
 
 // recorded fetches and records the corporate actions of ticker from the
-// cassette.
-func recorded(t *testing.T, cassette string, ticker types.Identifier) (*gen.Queries, string, types.MarketTicker) {
+// cassette. It also returns the parent run of the fetch.
+func recorded(t *testing.T, cassette string, ticker types.Identifier) (*gen.Queries, string, types.MarketTicker, gen.Run) {
 	t.Helper()
 	ctx := context.Background()
 	pool := dbtest.Open()
@@ -73,13 +73,13 @@ func recorded(t *testing.T, cassette string, ticker types.Identifier) (*gen.Quer
 	fetcher := market.NewFetcher(db.New[market.Queries](tx), runtest.Runner{Q: q}, log, market.WithClock(func() time.Time { return answered }, func(context.Context, time.Duration) error { return nil }))
 	r := corpact.New(db.New[corpact.Queries](tx), fetcher, sources, tbl, log)
 	require.NoError(t, r.Fetch(ctx, parent, []market.CorpActRequest{{Ticker: ticker, Period: asked}}))
-	return q, name, mt
+	return q, name, mt, parent
 }
 
 // TestCorpActRecord checks the corporate actions recorded from EODHD's
-// answers. A price factor is stored unhandled, except for the GE spin-off of
-// 2019, which reads as a 26 for 25 split. Coverage runs from the first day asked to
-// the day of the answer.
+// answers. Every action is stored unhandled, with a finding, and its ex-date
+// is left out of coverage. Coverage runs from the first day asked to the day
+// of the answer.
 func TestCorpActRecord(t *testing.T) {
 	// before is the day after the answer, where every coverage ends.
 	before := day(2026, 10, 27)
@@ -91,21 +91,23 @@ func TestCorpActRecord(t *testing.T) {
 		{
 			cassette: "eodhd_splits_lse",
 			ticker:   ticker("XLON", "VOD"),
-			acts:     []string{"1994-07-21 319897:959692 unhandled", "1999-10-01 1:5", "2006-07-31 8:7", "2014-02-24 11:6"},
+			acts:     []string{"1994-07-21 319897:959692 unhandled", "1999-10-01 1:5 unhandled", "2006-07-31 8:7 unhandled", "2014-02-24 11:6 unhandled"},
 		},
 		{
 			cassette: "eodhd_splits_spinoff",
 			ticker:   ticker("XNYS", "GE"),
 			acts: []string{
-				"1971-06-08 1:2", "1983-06-02 1:2", "1987-05-26 1:2", "1994-05-16 1:2", "1997-05-12 1:2", "2000-05-08 1:3",
-				"2019-02-26 100:104", "2021-08-02 8:1", "2023-01-04 1000:1281 unhandled", "2024-04-02 1000:1253 unhandled",
+				"1971-06-08 1:2 unhandled", "1983-06-02 1:2 unhandled", "1987-05-26 1:2 unhandled", "1994-05-16 1:2 unhandled",
+				"1997-05-12 1:2 unhandled", "2000-05-08 1:3 unhandled", "2019-02-26 100:104 unhandled", "2021-08-02 8:1 unhandled",
+				"2023-01-04 1000:1281 unhandled", "2024-04-02 1000:1253 unhandled",
 			},
 		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.cassette, func(t *testing.T) {
-			q, name, mt := recorded(t, tc.cassette, tc.ticker)
-			got, err := corpact.Read(context.Background(), q, []types.MarketTicker{mt}, asked)
+			ctx := context.Background()
+			q, name, mt, parent := recorded(t, tc.cassette, tc.ticker)
+			got, err := corpact.Read(ctx, q, []types.MarketTicker{mt}, asked)
 			require.NoError(t, err)
 			a, ok := got[mt]
 			require.True(t, ok && a.Datasource == name, "no answer from %s", name)
@@ -124,15 +126,47 @@ func TestCorpActRecord(t *testing.T) {
 			if len(a.Coverage) == 0 || !a.Coverage[0].From.Equal(asked.From) || !a.Coverage[len(a.Coverage)-1].Before.Equal(before) {
 				t.Errorf("coverage of %s = %v, want from %s before %s", tc.ticker.Value, a.Coverage, asked.From.Format(time.DateOnly), before.Format(time.DateOnly))
 			}
+			for _, e := range a.Acts {
+				for _, p := range a.Coverage {
+					if p.Contains(e.ExDate) {
+						t.Errorf("coverage %v of %s holds the ex-date %s", p, tc.ticker.Value, e.ExDate.Format(time.DateOnly))
+					}
+				}
+			}
+			if got, want := unhandledFindings(t, q, parent), len(a.Acts); got != want {
+				t.Errorf("unhandled findings of %s = %d, want %d", tc.ticker.Value, got, want)
+			}
 		})
 	}
+}
+
+// unhandledFindings counts the unhandled corporate action findings of the
+// runs below parent.
+func unhandledFindings(t *testing.T, q *gen.Queries, parent gen.Run) int {
+	t.Helper()
+	ctx := context.Background()
+	runs, err := q.ListRunDescendants(ctx, &parent.ID)
+	require.NoError(t, err)
+	ids := make([]uuid.UUID, len(runs))
+	for i, r := range runs {
+		ids[i] = r.Run.ID
+	}
+	fs, err := q.ListRunFindings(ctx, ids)
+	require.NoError(t, err)
+	n := 0
+	for _, f := range fs {
+		if f.Finding.Kind == gen.FindingKindUnhandledCorpAct {
+			n++
+		}
+	}
+	return n
 }
 
 // TestCorpActRecordUnknown checks that a symbol EODHD does not know is
 // stored as an answer without coverage, and blocks nothing.
 func TestCorpActRecordUnknown(t *testing.T) {
 	ctx := context.Background()
-	q, name, mt := recorded(t, "eodhd_splits_unknown", ticker("XNAS", "ZZZZQX"))
+	q, name, mt, _ := recorded(t, "eodhd_splits_unknown", ticker("XNAS", "ZZZZQX"))
 	rows, err := q.ListCorpActAnswers(ctx, gen.ListCorpActAnswersParams{Markets: []string{mt.Market}, Values: []string{mt.Value}})
 	require.NoError(t, err)
 	i := slices.IndexFunc(rows, func(r gen.ListCorpActAnswersRow) bool { return r.CorpActAnswer.Datasource == name })
