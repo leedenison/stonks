@@ -45,23 +45,6 @@ type Runner interface {
 
 var _ Runner = (*run.Runner)(nil)
 
-// Rebuilder rebuilds the ticker validity and names of the tickers whose rows
-// have the ids.
-type Rebuilder interface {
-	Rebuild(ctx context.Context, q Queries, ids []uuid.UUID) error
-}
-
-// Names is the Rebuilder that rewrites resolved_tickers.
-type Names struct{}
-
-var _ Rebuilder = Names{}
-
-// Rebuild rebuilds the ticker validity and names of ids; see
-// tickervalidity.Rebuild.
-func (Names) Rebuild(ctx context.Context, q Queries, ids []uuid.UUID) error {
-	return tickervalidity.Rebuild(ctx, q, ids)
-}
-
 // Facts is this package's view of the replay package: what new identifier
 // facts start.
 type Facts interface {

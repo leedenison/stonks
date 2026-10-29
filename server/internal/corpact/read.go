@@ -95,7 +95,7 @@ func Read(ctx context.Context, q ReadQueries, ts []types.MarketTicker, p types.P
 		}
 		var cov []types.Period
 		for _, c := range remove(a.Coverage, unhandled) {
-			if c, ok := clip(c, p); ok {
+			if c, ok := c.Clip(p); ok {
 				cov = append(cov, c)
 			}
 		}
@@ -132,16 +132,4 @@ func remove(ps []types.Period, days []time.Time) []types.Period {
 		}
 	}
 	return out
-}
-
-// clip returns the days p holds of c, and reports false when the overlap is
-// empty.
-func clip(c, p types.Period) (types.Period, bool) {
-	if p.From.After(c.From) {
-		c.From = p.From
-	}
-	if p.Before.Before(c.Before) {
-		c.Before = p.Before
-	}
-	return c, c.From.Before(c.Before)
 }

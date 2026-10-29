@@ -191,7 +191,7 @@ func run() (err error) {
 		gen.RunKindRebuildTickerValidity: rebuilds,
 	}
 	datasources := admindatasource.New(queries, sources, datasource.New(db.New[datasource.Queries](pool), sources, cache, rebuilds))
-	srv, err := newServer(cfg.ListenAddr, log, authn, queries, holdingsvc.New(queries, families, scales, time.Now), adminrun.New(queries, starters), adminblock.New(queries), datasources, admininstr.New(queries), adminreplayrun.New(queries, replays), admincoverage.New(coverage.New(queries, mics), attestidentifier.New(db.New[attestidentifier.Queries](pool), runs, replays, attestidentifier.Names{}, mics, time.Now), time.Now), ingester, cfg.CookieSecure)
+	srv, err := newServer(cfg.ListenAddr, log, authn, queries, holdingsvc.New(queries, families, scales, time.Now), adminrun.New(queries, starters), adminblock.New(queries), datasources, admininstr.New(queries), adminreplayrun.New(queries, replays), admincoverage.New(coverage.New(queries, mics), attestidentifier.New(db.New[attestidentifier.Queries](pool), runs, replays, mics, time.Now), time.Now), ingester, cfg.CookieSecure)
 	if err != nil {
 		return err
 	}

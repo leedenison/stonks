@@ -16,6 +16,7 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/identity/resolve"
 	"github.com/leedenison/stonks/server/internal/identity/tickervalidity"
 	"github.com/leedenison/stonks/server/internal/mic"
 	"github.com/leedenison/stonks/server/internal/testutil/dbtest"
@@ -36,6 +37,18 @@ type stack struct {
 	admin uuid.UUID
 	a, b  uuid.UUID
 	v     types.MarketTicker
+	// replays holds every replay the Service asked for, in order.
+	replays []replay
+}
+
+// replay is one set of written facts that the Service passed to
+// Facts.AfterIdentifierFacts.
+type replay struct {
+	// Except is the run the replay sits beneath.
+	Except uuid.UUID
+	// Run is the run that wrote the facts.
+	Run     uuid.UUID
+	Tickers []types.MarketTicker
 }
 
 func newStack(t *testing.T) *stack {
@@ -45,10 +58,14 @@ func newStack(t *testing.T) *stack {
 	q := gen.New(tx)
 	mics, err := mic.Load(ctx, q)
 	require.NoError(t, err)
-	facts := NewMockFacts(gomock.NewController(t))
-	facts.EXPECT().AfterIdentifierFacts(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
 	s := &stack{tx: tx, q: q, v: types.MarketTicker{Market: "US", Value: "ZZA" + uuid.NewString()[:4]}}
-	s.svc = New(db.New[Queries](tx), runtest.Runner{Q: q}, facts, Names{}, mics, func() time.Time { return today })
+	facts := NewMockFacts(gomock.NewController(t))
+	facts.EXPECT().AfterIdentifierFacts(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().Do(func(_ context.Context, except gen.Run, written []resolve.WrittenIdentifierFacts) {
+		for _, w := range written {
+			s.replays = append(s.replays, replay{Except: except.ID, Run: w.Run.ID, Tickers: w.Tickers})
+		}
+	})
+	s.svc = New(db.New[Queries](tx), runtest.Runner{Q: q}, facts, mics, func() time.Time { return today })
 	admin, err := q.CreateUser(ctx, gen.CreateUserParams{ID: db.NewID(), Email: uuid.NewString() + "@example.com", Role: gen.UserRoleAdmin})
 	require.NoError(t, err)
 	s.admin = admin.ID
@@ -66,6 +83,20 @@ func (s *stack) attest(t *testing.T, instr uuid.UUID, n int) gen.Run {
 	row, err := s.svc.Start(context.Background(), s.admin, s.v, &instr, day(n), nil)
 	require.NoError(t, err)
 	return row
+}
+
+// replayed checks that the Service asked to replay s.v once beneath each of
+// runs, in order, and forgets what it asked.
+func (s *stack) replayed(t *testing.T, runs ...gen.Run) {
+	t.Helper()
+	var want []replay
+	for _, r := range runs {
+		want = append(want, replay{Except: r.ID, Run: r.ID, Tickers: []types.MarketTicker{s.v}})
+	}
+	if diff := cmp.Diff(want, s.replays); diff != "" {
+		t.Errorf("replays mismatch (-want +got):\n%s", diff)
+	}
+	s.replays = nil
 }
 
 // relations returns the relation of s.v to each instrument, a then b. An
@@ -91,15 +122,16 @@ func (s *stack) relations(t *testing.T) []string {
 // the ticker names a again ends b's row, and the ticker is defunct for b.
 func TestStartRebuilds(t *testing.T) {
 	s := newStack(t)
-	s.attest(t, s.a, 1)
+	first := s.attest(t, s.a, 1)
+	s.replayed(t, first)
 	if diff := cmp.Diff([]string{"current", ""}, s.relations(t)); diff != "" {
 		t.Errorf("relations after a mismatch (-want +got):\n%s", diff)
 	}
-	s.attest(t, s.b, 5)
+	s.replayed(t, s.attest(t, s.b, 5))
 	if diff := cmp.Diff([]string{"defunct", "current"}, s.relations(t)); diff != "" {
 		t.Errorf("relations after b mismatch (-want +got):\n%s", diff)
 	}
-	s.attest(t, s.a, 10)
+	s.replayed(t, s.attest(t, s.a, 10))
 	if diff := cmp.Diff([]string{"current", "defunct"}, s.relations(t)); diff != "" {
 		t.Errorf("relations after a again mismatch (-want +got):\n%s", diff)
 	}
@@ -113,9 +145,11 @@ func TestWithdrawRebuilds(t *testing.T) {
 	s.attest(t, s.a, 1)
 	s.attest(t, s.b, 5)
 	again := s.attest(t, s.a, 10)
+	s.replays = nil
 	var id uuid.UUID
 	require.NoError(t, s.tx.QueryRow(ctx, `SELECT id FROM identifier_assertions WHERE run_id = $1`, again.ID).Scan(&id))
 	require.NoError(t, s.svc.Withdraw(ctx, id))
+	s.replayed(t, again)
 	if diff := cmp.Diff([]string{"defunct", "current"}, s.relations(t)); diff != "" {
 		t.Errorf("relations after the withdrawal mismatch (-want +got):\n%s", diff)
 	}
@@ -167,5 +201,25 @@ func TestOverlappingAttestations(t *testing.T) {
 	require.NoError(t, s.svc.Withdraw(ctx, id))
 	if diff := cmp.Diff([]uuid.UUID{s.a, s.a, s.a}, names()); diff != "" {
 		t.Errorf("confirmed instruments after the withdrawal mismatch (-want +got):\n%s", diff)
+	}
+}
+
+// TestStartNothing checks that attesting that the ticker names nothing on one
+// day writes one assertion of that day with no instrument, attested by the
+// administrator under the run.
+func TestStartNothing(t *testing.T) {
+	s := newStack(t)
+	ctx := context.Background()
+	row, err := s.svc.Start(ctx, s.admin, s.v, nil, day(10), nil)
+	require.NoError(t, err)
+	s.replayed(t, row)
+	rows, err := s.q.ListIdentifierAssertions(ctx, gen.ListIdentifierAssertionsParams{Markets: []string{s.v.Market}, Values: []string{s.v.Value}})
+	require.NoError(t, err)
+	if len(rows) != 1 {
+		t.Fatalf("assertions = %+v, want one", rows)
+	}
+	got := rows[0].IdentifierAssertion
+	if got.InstrID != nil || !got.AssertedFrom.Equal(day(10)) || !got.AssertedBefore.Equal(day(11)) || got.RunID == nil || *got.RunID != row.ID || got.AttestedBy == nil || *got.AttestedBy != s.admin {
+		t.Errorf("assertion = %+v, want day 10 alone naming nothing, attested by %s under run %s", got, s.admin, row.ID)
 	}
 }

@@ -94,14 +94,14 @@ func (i Interval) Contains(d time.Time) bool {
 // Clip returns the days of i that p holds. It reports false when the clip
 // is empty.
 func (i Interval) Clip(p types.Period) (types.Period, bool) {
-	out := p
-	if i.From != nil && i.From.After(out.From) {
-		out.From = *i.From
+	bounds := p
+	if i.From != nil {
+		bounds.From = *i.From
 	}
-	if i.Before != nil && i.Before.Before(out.Before) {
-		out.Before = *i.Before
+	if i.Before != nil {
+		bounds.Before = *i.Before
 	}
-	return out, out.From.Before(out.Before)
+	return p.Clip(bounds)
 }
 
 // Source is where an assertion came from: a datasource's answer with the
