@@ -44,20 +44,11 @@ func (ivs Intervals) confirmedOn(d time.Time) bool {
 
 // Gaps returns the parts of p that no confirmed interval holds, in order.
 func (ivs Intervals) Gaps(p types.Period) []types.Period {
-	var out []types.Period
-	d := p.From
+	var confirmed []types.Period
 	for _, iv := range ivs {
-		c, ok := iv.Clip(p)
-		if iv.Validity != Confirmed || !ok {
-			continue
+		if c, ok := iv.Clip(p); ok && iv.Validity == Confirmed {
+			confirmed = append(confirmed, c)
 		}
-		if d.Before(c.From) {
-			out = append(out, types.Period{From: d, Before: c.From})
-		}
-		d = c.Before
 	}
-	if d.Before(p.Before) {
-		out = append(out, types.Period{From: d, Before: p.Before})
-	}
-	return out
+	return types.Gaps(confirmed, p)
 }

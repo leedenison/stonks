@@ -96,23 +96,11 @@ func chainFacts(sent types.Identifier, evs []event, p types.Period, home string)
 				EdgeFrom: i > 0 || l.from.After(p.From), EdgeBefore: i+1 < len(links),
 			})
 		}
-		if c, ok := clip(types.Period{From: l.from, Before: before}, p); ok {
+		if c, ok := (types.Period{From: l.from, Before: before}).Clip(p); ok {
 			out.AssertionCoverage = append(out.AssertionCoverage, market.AssertionCoverage{Ticker: t, Period: c})
 		}
 	}
 	return out, nil
-}
-
-// clip returns the overlap of a and b, and false when they do not overlap.
-func clip(a, b types.Period) (types.Period, bool) {
-	out := a
-	if b.From.After(out.From) {
-		out.From = b.From
-	}
-	if b.Before.Before(out.Before) {
-		out.Before = b.Before
-	}
-	return out, out.From.Before(out.Before)
 }
 
 // lookupFacts converts the record of ticker on day into an assertion of the

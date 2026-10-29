@@ -14,7 +14,7 @@ import (
 func derive(f facts) derived {
 	as, es := current(f.Assertions)
 	ws, disagreements := winners(as, es)
-	cover := union(periods(f.AssertionCoverage))
+	cover := types.Union(periods(f.AssertionCoverage))
 	var cutting []Edge
 	for _, e := range es {
 		if !overruled(e, as) {
@@ -157,10 +157,10 @@ func current(as []Assertion) ([]Assertion, []Edge) {
 			j++
 		}
 		for _, i := range idx[k:j] {
-			later := union(taken[as[i].Source.group()])
+			later := types.Union(taken[as[i].Source.group()])
 			pieces[i] = clip(as[i], later)
 			for _, e := range edges(as[i : i+1]) {
-				if !holds(later, prev(e.At)) || !holds(later, e.At) {
+				if !types.AnyContains(later, prev(e.At)) || !types.AnyContains(later, e.At) {
 					kept[i] = append(kept[i], e)
 				}
 			}
@@ -212,11 +212,6 @@ func clip(a Assertion, taken []types.Period) []Assertion {
 	}
 	add(a.Period.Before)
 	return out
-}
-
-// holds reports whether one of the periods ps holds the day d.
-func holds(ps []types.Period, d time.Time) bool {
-	return slices.ContainsFunc(ps, func(p types.Period) bool { return p.Contains(d) })
 }
 
 // cuts returns the distinct days of the edges in order.
@@ -464,24 +459,6 @@ func back(d time.Time, limit *time.Time, cover []types.Period) time.Time {
 		return *limit
 	}
 	return d
-}
-
-// union returns the days the periods hold as disjoint periods, in order, none
-// of which meet.
-func union(ps []types.Period) []types.Period {
-	ps = slices.Clone(ps)
-	slices.SortFunc(ps, func(a, b types.Period) int { return a.From.Compare(b.From) })
-	var out []types.Period
-	for _, p := range ps {
-		if n := len(out); n > 0 && !out[n-1].Before.Before(p.From) {
-			if out[n-1].Before.Before(p.Before) {
-				out[n-1].Before = p.Before
-			}
-			continue
-		}
-		out = append(out, p)
-	}
-	return out
 }
 
 // join merges intervals that meet and agree on instrument and ticker validity.

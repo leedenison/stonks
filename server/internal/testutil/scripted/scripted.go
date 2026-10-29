@@ -82,39 +82,68 @@ func (s *Identity) Fetch(_ context.Context, reqs []market.Request[gen.StatedKey]
 	return out, nil
 }
 
-// IdentifierFacts is a market.IdentifierFacts whose answers a test scripts.
-type IdentifierFacts struct {
+// Server holds the scripted answers and the record of requests that the
+// identifier facts and corporate actions fakes share. A fake embeds it and
+// adds Serves.
+type Server[Q, P any] struct {
 	// Down fails every request.
 	Down bool
 	// Responses maps each identifier sent to its answer. An identifier it
 	// lacks is answered with an empty result.
-	Responses map[types.Identifier]market.IdentifierFactResult
+	Responses map[types.Identifier]P
 	// Sent is every request the server received, in order.
-	Sent []market.IdentifierFactRequest
+	Sent []Q
 	// Declines lists the venues whose tickers the server refuses to send.
 	Declines []string
+}
+
+// Classify reads every failure as temporary and about the identifier sent.
+func (s *Server[Q, P]) Classify(error) market.Failure {
+	return market.Failure{Temporary: true, Scope: market.ScopeKey}
+}
+
+// Limit leaves calls unpaced.
+func (s *Server[Q, P]) Limit() (rate.Limit, int) { return rate.Inf, 1 }
+
+// Batch is the most requests one call carries.
+func (s *Server[Q, P]) Batch() int { return 10 }
+
+// Endpoint is the address of a provider that is never called.
+func (s *Server[Q, P]) Endpoint() string { return "https://scripted.test" }
+
+// Fetch answers each request from Responses.
+func (s *Server[Q, P]) Fetch(_ context.Context, reqs []market.Request[Q]) ([]market.Response[P], error) {
+	out := make([]market.Response[P], len(reqs))
+	for i, r := range reqs {
+		s.Sent = append(s.Sent, r.Value)
+		if s.Down {
+			out[i] = market.Response[P]{Err: errors.New("the provider is down")}
+			continue
+		}
+		out[i] = market.Response[P]{Value: s.Responses[r.Sent]}
+	}
+	return out, nil
+}
+
+// declines refuses an identifier on a venue in Declines.
+func (s *Server[Q, P]) declines(id types.Identifier) error {
+	if slices.Contains(s.Declines, id.Domain) {
+		return declined(id.Domain)
+	}
+	return nil
+}
+
+// IdentifierFacts is a market.IdentifierFacts whose answers a test scripts.
+type IdentifierFacts struct {
+	Server[market.IdentifierFactRequest, market.IdentifierFactResult]
 }
 
 var _ market.IdentifierFacts = (*IdentifierFacts)(nil)
 
 // NewIdentifierFacts returns an IdentifierFacts with no responses scripted.
 func NewIdentifierFacts() *IdentifierFacts {
-	return &IdentifierFacts{Responses: map[types.Identifier]market.IdentifierFactResult{}}
+	return &IdentifierFacts{Server[market.IdentifierFactRequest, market.IdentifierFactResult]{Responses: map[types.Identifier]market.IdentifierFactResult{}}}
 }
-
-// Classify reads every failure as temporary and about the identifier sent.
-func (s *IdentifierFacts) Classify(error) market.Failure {
-	return market.Failure{Temporary: true, Scope: market.ScopeKey}
-}
-
-// Limit leaves calls unpaced.
-func (s *IdentifierFacts) Limit() (rate.Limit, int) { return rate.Inf, 1 }
-
-// Batch is the most requests one call carries.
-func (s *IdentifierFacts) Batch() int { return 10 }
-
-// Endpoint is the address of a provider that is never called.
-func (s *IdentifierFacts) Endpoint() string { return "https://scripted.test" }
 
 // Facts is the server itself.
 func (s *IdentifierFacts) Facts() market.Server[market.IdentifierFactRequest, market.IdentifierFactResult] {
@@ -124,8 +153,10 @@ func (s *IdentifierFacts) Facts() market.Server[market.IdentifierFactRequest, ma
 // Serves sends the identifier the request names, and declines a ticker on a
 // venue in Declines.
 func (s *IdentifierFacts) Serves(r market.IdentifierFactRequest) (types.Identifier, error) {
-	if r.Identifier.Type == types.IdentifierTypeMicTicker && slices.Contains(s.Declines, r.Identifier.Domain) {
-		return types.Identifier{}, declined(r.Identifier.Domain)
+	if r.Identifier.Type == types.IdentifierTypeMicTicker {
+		if err := s.declines(r.Identifier); err != nil {
+			return types.Identifier{}, err
+		}
 	}
 	return r.Identifier, nil
 }
@@ -135,53 +166,17 @@ func declined(venue string) error {
 	return fmt.Errorf("venue '%s' rejected", venue)
 }
 
-// Fetch answers each request from Responses.
-func (s *IdentifierFacts) Fetch(_ context.Context, reqs []market.Request[market.IdentifierFactRequest]) ([]market.Response[market.IdentifierFactResult], error) {
-	out := make([]market.Response[market.IdentifierFactResult], len(reqs))
-	for i, r := range reqs {
-		s.Sent = append(s.Sent, r.Value)
-		if s.Down {
-			out[i] = market.Response[market.IdentifierFactResult]{Err: errors.New("the provider is down")}
-			continue
-		}
-		out[i] = market.Response[market.IdentifierFactResult]{Value: s.Responses[r.Sent]}
-	}
-	return out, nil
-}
-
 // CorpActs is a market.CorpActs whose answers a test scripts.
 type CorpActs struct {
-	// Down fails every request.
-	Down bool
-	// Responses maps each identifier sent to its answer. An identifier it
-	// lacks is answered with an empty result.
-	Responses map[types.Identifier]market.CorpActResult
-	// Sent is every request the server received, in order.
-	Sent []market.CorpActRequest
-	// Declines lists the venues whose tickers the server refuses to send.
-	Declines []string
+	Server[market.CorpActRequest, market.CorpActResult]
 }
 
 var _ market.CorpActs = (*CorpActs)(nil)
 
 // NewCorpActs returns a CorpActs with no responses scripted.
 func NewCorpActs() *CorpActs {
-	return &CorpActs{Responses: map[types.Identifier]market.CorpActResult{}}
+	return &CorpActs{Server[market.CorpActRequest, market.CorpActResult]{Responses: map[types.Identifier]market.CorpActResult{}}}
 }
-
-// Classify reads every failure as temporary and about the identifier sent.
-func (s *CorpActs) Classify(error) market.Failure {
-	return market.Failure{Temporary: true, Scope: market.ScopeKey}
-}
-
-// Limit leaves calls unpaced.
-func (s *CorpActs) Limit() (rate.Limit, int) { return rate.Inf, 1 }
-
-// Batch is the most requests one call carries.
-func (s *CorpActs) Batch() int { return 10 }
-
-// Endpoint is the address of a provider that is never called.
-func (s *CorpActs) Endpoint() string { return "https://scripted.test" }
 
 // CorpActs is the server itself.
 func (s *CorpActs) CorpActs() market.Server[market.CorpActRequest, market.CorpActResult] {
@@ -191,24 +186,10 @@ func (s *CorpActs) CorpActs() market.Server[market.CorpActRequest, market.CorpAc
 // Serves sends the ticker the request names, and declines one on a venue in
 // Declines.
 func (s *CorpActs) Serves(r market.CorpActRequest) (types.Identifier, error) {
-	if slices.Contains(s.Declines, r.Ticker.Domain) {
-		return types.Identifier{}, declined(r.Ticker.Domain)
+	if err := s.declines(r.Ticker); err != nil {
+		return types.Identifier{}, err
 	}
 	return r.Ticker, nil
-}
-
-// Fetch answers each request from Responses.
-func (s *CorpActs) Fetch(_ context.Context, reqs []market.Request[market.CorpActRequest]) ([]market.Response[market.CorpActResult], error) {
-	out := make([]market.Response[market.CorpActResult], len(reqs))
-	for i, r := range reqs {
-		s.Sent = append(s.Sent, r.Value)
-		if s.Down {
-			out[i] = market.Response[market.CorpActResult]{Err: errors.New("the provider is down")}
-			continue
-		}
-		out[i] = market.Response[market.CorpActResult]{Value: s.Responses[r.Sent]}
-	}
-	return out, nil
 }
 
 // Datasource serves identity from Identity and identifier facts from IdentifierFacts,

@@ -46,14 +46,13 @@ type Service struct {
 	store Store
 	runs  Runner
 	facts Facts
-	names Rebuilder
 	mics  mic.MICMap
 	clock func() time.Time
 }
 
 // New returns a Service.
-func New(store Store, runs Runner, facts Facts, names Rebuilder, mics mic.MICMap, clock func() time.Time) *Service {
-	return &Service{store: store, runs: runs, facts: facts, names: names, mics: mics, clock: clock}
+func New(store Store, runs Runner, facts Facts, mics mic.MICMap, clock func() time.Time) *Service {
+	return &Service{store: store, runs: runs, facts: facts, mics: mics, clock: clock}
 }
 
 // Start asserts that v names instrument, or nothing where instrument is nil, on
@@ -97,7 +96,7 @@ func (s *Service) Start(ctx context.Context, admin uuid.UUID, v types.MarketTick
 				if err := tickervalidity.Attest(ctx, q, s.mics, row, admin, rows[v], instr, p, today); err != nil {
 					return err
 				}
-				return s.names.Rebuild(ctx, q, ids)
+				return tickervalidity.Rebuild(ctx, q, ids)
 			})
 		},
 	}
@@ -136,7 +135,7 @@ func (s *Service) Withdraw(ctx context.Context, id uuid.UUID) error {
 		if n == 0 {
 			return fmt.Errorf("assertion %s: %w", id, db.ErrNotFound)
 		}
-		return s.names.Rebuild(ctx, q, ids)
+		return tickervalidity.Rebuild(ctx, q, ids)
 	})
 	if err != nil {
 		return err

@@ -117,7 +117,7 @@ func Calendars(ctx context.Context, q CalendarQueries, instrs []uuid.UUID) (map[
 		}
 	}
 	for id, c := range built {
-		c.Coverage = union(remove(c.Coverage, unhandled[id]))
+		c.Coverage = types.Union(remove(c.Coverage, unhandled[id]))
 		if len(c.Coverage) == 0 && len(c.Acts) == 0 {
 			continue
 		}
@@ -146,58 +146,15 @@ func (c Calendar) Factor(asAt, today time.Time) (*big.Rat, bool) {
 			f.Mul(f, new(big.Rat).Quo(e.Ratio.To.Rat(), e.Ratio.From.Rat()))
 		}
 	}
-	return f, spans(union(c.Coverage), need)
+	return f, len(types.Gaps(c.Coverage, need)) == 0
 }
 
 // Gaps returns the parts of p that c does not cover, in order.
 func (c Calendar) Gaps(p types.Period) []types.Period {
-	var out []types.Period
-	d := p.From
-	for _, cov := range union(c.Coverage) {
-		cov, ok := clip(cov, p)
-		if !ok {
-			continue
-		}
-		if d.Before(cov.From) {
-			out = append(out, types.Period{From: d, Before: cov.From})
-		}
-		if cov.Before.After(d) {
-			d = cov.Before
-		}
-	}
-	if d.Before(p.Before) {
-		out = append(out, types.Period{From: d, Before: p.Before})
-	}
-	return out
+	return types.Gaps(c.Coverage, p)
 }
 
 // same reports whether e and o are the same action.
 func (e Act) same(o Act) bool {
 	return e.ExDate.Equal(o.ExDate) && e.Ratio.Equal(o.Ratio) && e.Handled == o.Handled
-}
-
-// union returns the days of ps as periods in order, joining those that
-// overlap or touch.
-func union(ps []types.Period) []types.Period {
-	ps = slices.Clone(ps)
-	slices.SortFunc(ps, func(a, b types.Period) int { return a.From.Compare(b.From) })
-	var out []types.Period
-	for _, p := range ps {
-		if n := len(out); n > 0 && !p.From.After(out[n-1].Before) {
-			if p.Before.After(out[n-1].Before) {
-				out[n-1].Before = p.Before
-			}
-			continue
-		}
-		out = append(out, p)
-	}
-	return out
-}
-
-// spans reports whether one of ps, which union has joined, holds every day
-// of p.
-func spans(ps []types.Period, p types.Period) bool {
-	return slices.ContainsFunc(ps, func(c types.Period) bool {
-		return !c.From.After(p.From) && !c.Before.Before(p.Before)
-	})
 }
