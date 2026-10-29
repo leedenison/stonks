@@ -12,6 +12,7 @@ import {
   IdentifierType,
   TickerRelation,
 } from "@/gen/type/v1/type_pb";
+import { relationSuffix } from "./admin";
 import { pick } from "./identifiers";
 import { prevDay } from "./marshal/date";
 
@@ -117,7 +118,9 @@ function instrRow(h: InstrHolding): HoldingRow {
     id: h.instrId,
     label: ticker
       ? ticker.value +
-        (held?.relation === TickerRelation.DEFUNCT ? " (defunct)" : "")
+        (held?.relation === TickerRelation.DEFUNCT
+          ? relationSuffix[TickerRelation.DEFUNCT]
+          : "")
       : (h.name?.value ?? h.instrId),
     venue: ticker ? (held?.venue ?? ticker.market) : "",
     descriptions: descriptionsOf(h.keys),

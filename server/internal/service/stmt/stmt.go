@@ -18,7 +18,6 @@ import (
 	"github.com/leedenison/stonks/server/internal/db/to"
 	"github.com/leedenison/stonks/server/internal/identity/resolve"
 	"github.com/leedenison/stonks/server/internal/identity/tickers"
-	"github.com/leedenison/stonks/server/internal/mic"
 	"github.com/leedenison/stonks/server/internal/stmt"
 	"github.com/leedenison/stonks/server/internal/types"
 )
@@ -59,14 +58,13 @@ type Server struct {
 	ingester  Ingester
 	confirmer Confirmer
 	reader    Reader
-	mics      mic.MICMap
 }
 
 var _ stmtv1connect.StmtServiceHandler = (*Server)(nil)
 
 // New returns a Server.
-func New(ingester Ingester, confirmer Confirmer, reader Reader, mics mic.MICMap) *Server {
-	return &Server{ingester: ingester, confirmer: confirmer, reader: reader, mics: mics}
+func New(ingester Ingester, confirmer Confirmer, reader Reader) *Server {
+	return &Server{ingester: ingester, confirmer: confirmer, reader: reader}
 }
 
 // CreateStmt starts ingesting the statement and answers with its run. A

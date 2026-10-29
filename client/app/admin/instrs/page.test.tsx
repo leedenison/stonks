@@ -284,7 +284,7 @@ describe("InstrsPage", () => {
     ).toHaveLength(1);
     const gbp = screen.getByTestId("listing-l-gbp");
     expect(gbp.textContent).toContain("XLON");
-    expect(gbp.textContent).toContain("ACM (defunct)");
+    expect(gbp.textContent).toContain("ACM in XLON (defunct)");
     expect(usd.textContent).not.toContain("(defunct)");
     expect(
       screen.getByTestId("ticker-validity-XLON-ACM").getAttribute("href"),
@@ -300,6 +300,44 @@ describe("InstrsPage", () => {
     expect(screen.getByTestId("list-first").getAttribute("href")).toBe(
       "/admin/instrs",
     );
+  });
+
+  it("shows each ticker of a listing in its own row, with its market and relation", async () => {
+    params = new URLSearchParams("id=i-two");
+    renderWithAuth(
+      <InstrsPage />,
+      serving(() =>
+        create(ListInstrsResponseSchema, {
+          instrs: [
+            create(InstrSchema, {
+              id: "i-two",
+              assetClass: AssetClass.STOCK,
+              listings: [
+                create(ListingSchema, {
+                  id: "l-two",
+                  currency: "USD",
+                  tickers: [
+                    tickerOn("US", "TWO", "XNAS", TickerRelation.CURRENT),
+                    tickerOn("XTSE", "TWO", "", TickerRelation.FORMER),
+                  ],
+                }),
+              ],
+            }),
+          ],
+        }),
+      ),
+    );
+    await waitFor(() => expect(screen.getByTestId("instr-pane")).toBeTruthy());
+    const rows = screen
+      .getByTestId("listing-l-two")
+      .querySelectorAll("[data-identifier-type='MIC_TICKER']");
+    expect([...rows].map((r) => r.textContent)).toEqual([
+      "TickerTWO in USXNAS",
+      "TWO in XTSE (former)",
+    ]);
+    expect(
+      screen.getByTestId("ticker-validity-XTSE-TWO").getAttribute("href"),
+    ).toBe("/admin/instrs?id=i-two&tab=tickers&ticker=XTSE%3ATWO");
   });
 
   it("shows the first ticker's validity on the tickers tab and follows the choice", async () => {

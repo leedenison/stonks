@@ -192,7 +192,7 @@ func run() (err error) {
 	ingester := stmt.New(db.New[stmt.Queries](pool), runs, resolver, replays, families, time.Now, logger.WithCategory(log, "internal/stmt"))
 	rebuilds := rebuildtickervalidity.New(db.New[rebuildtickervalidity.Queries](pool), runs, 500)
 	datasources := admindatasource.New(queries, sources, datasource.New(db.New[datasource.Queries](pool), sources, cache, rebuilds))
-	srv, err := newServer(cfg.ListenAddr, log, authn, queries, holdingsvc.New(queries, families, scales, mics, time.Now), adminrun.New(queries), adminblock.New(queries), datasources, admininstr.New(queries), adminreplayrun.New(queries, replays), adminreasserttickers.New(reassertions), adminrefreshcorpacts.New(refreshes), adminrebuildtickervalidity.New(rebuilds), admincoverage.New(coverage.New(queries, mics), attestidentifier.New(db.New[attestidentifier.Queries](pool), runs, replays, attestidentifier.Names{}, mics, time.Now), time.Now), ingester, mics, cfg.CookieSecure)
+	srv, err := newServer(cfg.ListenAddr, log, authn, queries, holdingsvc.New(queries, families, scales, time.Now), adminrun.New(queries), adminblock.New(queries), datasources, admininstr.New(queries), adminreplayrun.New(queries, replays), adminreasserttickers.New(reassertions), adminrefreshcorpacts.New(refreshes), adminrebuildtickervalidity.New(rebuilds), admincoverage.New(coverage.New(queries, mics), attestidentifier.New(db.New[attestidentifier.Queries](pool), runs, replays, attestidentifier.Names{}, mics, time.Now), time.Now), ingester, cfg.CookieSecure)
 	if err != nil {
 		return err
 	}
@@ -222,7 +222,7 @@ func tracedClient(timeout time.Duration) *http.Client {
 // once the server listens, which is after the migrations have applied. It is
 // outside the Connect chain and the mux carries no HTTP instrumentation, so
 // the container probing it every two seconds produces no telemetry.
-func newServer(addr string, log *slog.Logger, authn *auth.Authenticator, queries *gen.Queries, holdings *holdingsvc.Server, runs *adminrun.Server, blocks *adminblock.Server, datasources *admindatasource.Server, instrs *admininstr.Server, replays *adminreplayrun.Server, reassertions *adminreasserttickers.Server, refreshes *adminrefreshcorpacts.Server, rebuilds *adminrebuildtickervalidity.Server, coverages *admincoverage.Server, stmts *stmt.Service, mics mic.MICMap, secure bool) (*http.Server, error) {
+func newServer(addr string, log *slog.Logger, authn *auth.Authenticator, queries *gen.Queries, holdings *holdingsvc.Server, runs *adminrun.Server, blocks *adminblock.Server, datasources *admindatasource.Server, instrs *admininstr.Server, replays *adminreplayrun.Server, reassertions *adminreasserttickers.Server, refreshes *adminrefreshcorpacts.Server, rebuilds *adminrebuildtickervalidity.Server, coverages *admincoverage.Server, stmts *stmt.Service, secure bool) (*http.Server, error) {
 	opts, err := service.HandlerOptions(logger.WithCategory(log, "internal/service"), authn)
 	if err != nil {
 		return nil, err
@@ -243,7 +243,7 @@ func newServer(addr string, log *slog.Logger, authn *auth.Authenticator, queries
 	mux.Handle(authv1connect.NewAuthServiceHandler(authsvc.New(authn, secure), opts...))
 	mux.Handle(holdingv1connect.NewHoldingServiceHandler(holdings, opts...))
 	mux.Handle(runv1connect.NewRunServiceHandler(runsvc.New(queries), opts...))
-	mux.Handle(stmtv1connect.NewStmtServiceHandler(stmtsvc.New(stmts, stmts, queries, mics), opts...))
+	mux.Handle(stmtv1connect.NewStmtServiceHandler(stmtsvc.New(stmts, stmts, queries), opts...))
 	reflector := grpcreflect.NewStaticReflector(
 		adminblockv1connect.BlockServiceName, admincoveragev1connect.CoverageServiceName, admindatasourcev1connect.DatasourceServiceName, admininstrv1connect.InstrServiceName, adminreasserttickersv1connect.ReassertTickersServiceName, adminrebuildtickervalidityv1connect.RebuildTickerValidityServiceName, adminrefreshcorpactsv1connect.RefreshCorpActsServiceName, adminreplayrunv1connect.ReplayRunServiceName, adminrunv1connect.RunServiceName, authv1connect.AuthServiceName, holdingv1connect.HoldingServiceName,
 		runv1connect.RunServiceName, stmtv1connect.StmtServiceName,

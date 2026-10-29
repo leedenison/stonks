@@ -30,6 +30,7 @@ var (
 	usdLine  = uuid.MustParse("00000000-0000-0000-0000-000000000031")
 	gbpLine  = uuid.MustParse("00000000-0000-0000-0000-000000000032")
 	cashLine = uuid.MustParse("00000000-0000-0000-0000-000000000033")
+	goneLine = uuid.MustParse("00000000-0000-0000-0000-000000000034")
 )
 
 type fixture struct {
@@ -67,26 +68,24 @@ func TestListInstrs(t *testing.T) {
 		{ID: acmeID, AssetClass: types.AssetClassStock, Name: "ACME", NameType: string(types.IdentifierTypeMicTicker), NameDomain: "XNYS"},
 		{ID: gbpID, AssetClass: types.AssetClassCash, Name: "GBP", NameType: string(types.IdentifierTypeCurrency)},
 	}
-	// The dollar listing has a primary venue, so it precedes the pound's.
-	listings := []gen.Listing{
-		{ID: gbpLine, InstrID: acmeID, Currency: "GBP"},
-		{ID: usdLine, InstrID: acmeID, Currency: "USD", PrimaryMic: ptr.To("XNYS")},
-		{ID: cashLine, InstrID: gbpID, Currency: "GBP"},
-	}
 	tickerID := uuid.MustParse("00000000-0000-0000-0000-000000000051")
-	name := func(listing uuid.UUID, venue string) gen.ListListingNamesRow {
-		return gen.ListListingNamesRow{ListingID: listing, InstrID: acmeID, Currency: "USD", TickerID: &tickerID, Market: ptr.To("US"), TickerValue: ptr.To("ACME"), Venue: &venue, Relation: ptr.To(gen.TickerRelationCurrent)}
+	name := func(venue string) gen.ListListingNamesRow {
+		return gen.ListListingNamesRow{ListingID: usdLine, InstrID: acmeID, Currency: "USD", PrimaryMic: ptr.To("XNYS"), TickerID: &tickerID, Market: ptr.To("US"), TickerValue: ptr.To("ACME"), Venue: &venue, Relation: ptr.To(gen.TickerRelationCurrent)}
 	}
+	// The dollar listing has a primary venue, so it precedes the pound's.
 	names := []gen.ListListingNamesRow{
-		name(usdLine, "XNYS"),
-		name(usdLine, "XNAS"),
 		{ListingID: gbpLine, InstrID: acmeID, Currency: "GBP"},
+		name("XNYS"),
+		name("XNAS"),
 		{ListingID: cashLine, InstrID: gbpID, Currency: "GBP"},
 	}
 	isinID := uuid.MustParse("00000000-0000-0000-0000-000000000041")
 	idents := []gen.Identifier{
 		{ID: isinID, InstrID: acmeID, Type: types.IdentifierTypeIsin, Value: "GB0002634946"},
 		{InstrID: acmeID, ListingID: &usdLine, Type: types.IdentifierTypeOpenfigiComposite, Value: "BBG000B9XRY4"},
+		// A listing that ListListingNames did not return, so the response
+		// leaves its identifier out.
+		{InstrID: acmeID, ListingID: &goneLine, Type: types.IdentifierTypeOpenfigiComposite, Value: "BBG000B9XRZ3"},
 		{InstrID: gbpID, Type: types.IdentifierTypeCurrency, Value: "GBP"},
 		{InstrID: gbpID, Type: types.IdentifierTypeCurrency, Value: "GBX"},
 	}
@@ -116,17 +115,16 @@ func TestListInstrs(t *testing.T) {
 	ids := []uuid.UUID{acmeID, gbpID}
 
 	tests := []struct {
-		name        string
-		req         *admininstrv1.ListInstrsRequest
-		wantArg     *gen.ListInstrsParams
-		rows        []gen.ListInstrsRow
-		rowsErr     error
-		listingsErr error
-		namesErr    error
-		identsErr   error
-		viaErr      error
-		want        *admininstrv1.ListInstrsResponse
-		wantCode    connect.Code
+		name      string
+		req       *admininstrv1.ListInstrsRequest
+		wantArg   *gen.ListInstrsParams
+		rows      []gen.ListInstrsRow
+		rowsErr   error
+		namesErr  error
+		identsErr error
+		viaErr    error
+		want      *admininstrv1.ListInstrsResponse
+		wantCode  connect.Code
 	}{
 		{
 			name:    "a page after a token",
@@ -152,7 +150,6 @@ func TestListInstrs(t *testing.T) {
 		{name: "a token without a name", req: &admininstrv1.ListInstrsRequest{PageToken: acmeID.String()}, wantCode: connect.CodeInvalidArgument},
 		{name: "a token whose id is malformed", req: &admininstrv1.ListInstrsRequest{PageToken: "not-a-uuid:ACME"}, wantCode: connect.CodeInvalidArgument},
 		{name: "instruments failure", req: &admininstrv1.ListInstrsRequest{}, wantArg: &gen.ListInstrsParams{Lim: page.DefaultSize + 1}, rowsErr: errors.New("boom"), wantCode: connect.CodeInternal},
-		{name: "listings failure", req: &admininstrv1.ListInstrsRequest{}, wantArg: &gen.ListInstrsParams{Lim: page.DefaultSize + 1}, rows: rows, listingsErr: errors.New("boom"), wantCode: connect.CodeInternal},
 		{name: "names failure", req: &admininstrv1.ListInstrsRequest{}, wantArg: &gen.ListInstrsParams{Lim: page.DefaultSize + 1}, rows: rows, namesErr: errors.New("boom"), wantCode: connect.CodeInternal},
 		{name: "identifiers failure", req: &admininstrv1.ListInstrsRequest{}, wantArg: &gen.ListInstrsParams{Lim: page.DefaultSize + 1}, rows: rows, identsErr: errors.New("boom"), wantCode: connect.CodeInternal},
 		{name: "via failure", req: &admininstrv1.ListInstrsRequest{}, wantArg: &gen.ListInstrsParams{Lim: page.DefaultSize + 1}, rows: rows, viaErr: errors.New("boom"), wantCode: connect.CodeInternal},
@@ -164,15 +161,12 @@ func TestListInstrs(t *testing.T) {
 				f.queries.EXPECT().ListInstrs(gomock.Any(), *tc.wantArg).Return(tc.rows, tc.rowsErr)
 			}
 			if tc.rowsErr == nil && len(tc.rows) > 0 {
-				f.queries.EXPECT().ListListingsOf(gomock.Any(), ids).Return(listings, tc.listingsErr)
-			}
-			if tc.rowsErr == nil && len(tc.rows) > 0 && tc.listingsErr == nil {
 				f.queries.EXPECT().ListListingNames(gomock.Any(), ids).Return(names, tc.namesErr)
 			}
-			if tc.rowsErr == nil && len(tc.rows) > 0 && tc.listingsErr == nil && tc.namesErr == nil {
+			if tc.rowsErr == nil && len(tc.rows) > 0 && tc.namesErr == nil {
 				f.queries.EXPECT().ListIdentifiersOf(gomock.Any(), ids).Return(idents, tc.identsErr)
 			}
-			if tc.rowsErr == nil && len(tc.rows) > 0 && tc.listingsErr == nil && tc.namesErr == nil && tc.identsErr == nil {
+			if tc.rowsErr == nil && len(tc.rows) > 0 && tc.namesErr == nil && tc.identsErr == nil {
 				f.queries.EXPECT().ListViaOf(gomock.Any(), ids).Return([]uuid.UUID{isinID}, tc.viaErr)
 			}
 			res, err := f.client.ListInstrs(context.Background(), connect.NewRequest(tc.req))
@@ -217,7 +211,6 @@ func TestListInstrsPages(t *testing.T) {
 	f := newFixture(t)
 	rows := []gen.ListInstrsRow{{ID: acmeID, AssetClass: types.AssetClassStock, Name: "ACME"}, {ID: gbpID, AssetClass: types.AssetClassCash, Name: "GBP"}}
 	f.queries.EXPECT().ListInstrs(gomock.Any(), gen.ListInstrsParams{Lim: 2}).Return(rows, nil)
-	f.queries.EXPECT().ListListingsOf(gomock.Any(), []uuid.UUID{acmeID}).Return(nil, nil)
 	f.queries.EXPECT().ListListingNames(gomock.Any(), []uuid.UUID{acmeID}).Return(nil, nil)
 	f.queries.EXPECT().ListIdentifiersOf(gomock.Any(), []uuid.UUID{acmeID}).Return(nil, nil)
 	f.queries.EXPECT().ListViaOf(gomock.Any(), []uuid.UUID{acmeID}).Return(nil, nil)

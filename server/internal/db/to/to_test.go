@@ -274,7 +274,7 @@ func TestProtoInstr(t *testing.T) {
 
 func TestProtoListing(t *testing.T) {
 	id := uuid.New()
-	row := gen.Listing{ID: id, Currency: "GBP", PrimaryMic: ptr.To("XLON")}
+	row := gen.ListListingNamesRow{ListingID: id, Currency: "GBP", PrimaryMic: ptr.To("XLON")}
 	want := &admininstrv1.Listing{Id: id.String(), Currency: "GBP", PrimaryMic: "XLON"}
 	if diff := cmp.Diff(want, ProtoListing(row), protocmp.Transform()); diff != "" {
 		t.Errorf("ProtoListing mismatch (-want +got):\n%s", diff)

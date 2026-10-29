@@ -10,7 +10,7 @@ import {
   type Identifier,
   IdentifierSchema,
   IdentifierType,
-  TickerRelation,
+  type TickerRelation,
 } from "@/gen/type/v1/type_pb";
 import {
   type InstrParams,
@@ -84,8 +84,8 @@ export function InstrPane({
 
 // Overview shows the instrument's identifiers and listings in sections. The
 // identifier naming the instrument and each listing's primary venue are
-// marked in the accent tone. A ticker's venue chip opens the tickers tab on
-// that ticker.
+// marked in the accent tone. A ticker's chip opens the tickers tab on that
+// ticker.
 function Overview({ instr, params }: { instr: Instr; params: InstrParams }) {
   const marks: Marks = {
     via: new Set(instr.via.map(identifierKey)),
@@ -99,7 +99,7 @@ function Overview({ instr, params }: { instr: Instr; params: InstrParams }) {
         ) : (
           <IdentifierTable valueHead="Value" testId="instr-identifiers">
             <tbody>
-              <Rows ids={instr.identifiers} marks={marks} params={params} />
+              <Rows ids={instr.identifiers} marks={marks} />
             </tbody>
           </IdentifierTable>
         )}
@@ -126,13 +126,15 @@ function Overview({ instr, params }: { instr: Instr; params: InstrParams }) {
                     </span>
                   </td>
                 </tr>
-                <Rows
-                  ids={[...l.tickers.map(asIdentifier), ...l.identifiers]}
-                  marks={marks}
+                <TickerRows
+                  tickers={l.tickers}
+                  named={marks.name}
                   params={params}
                   primary={l.primaryMic}
-                  relations={relations(l.tickers)}
                 />
+                {(l.identifiers.length > 0 || l.tickers.length === 0) && (
+                  <Rows ids={l.identifiers} marks={marks} />
+                )}
               </tbody>
             ))}
           </IdentifierTable>
@@ -172,40 +174,116 @@ function IdentifierTable({
   );
 }
 
-// asIdentifier writes a listing's ticker as a MIC_TICKER at its venue, or at
-// its market where the sources omitted the venue, so it groups with the
-// listing's identifiers.
-function asIdentifier(t: Listing_Ticker): Identifier {
-  return create(IdentifierSchema, {
-    type: IdentifierType.MIC_TICKER,
-    domain: t.mic ?? t.ticker?.market ?? "",
-    value: t.ticker?.value ?? "",
-  });
+// A TickerGroup is one ticker of a listing with the venues it trades at.
+type TickerGroup = {
+  market: string;
+  value: string;
+  relation: TickerRelation;
+  venues: string[];
+};
+
+// groupTickers gathers a listing's tickers into one group per market and
+// value, in the order the API lists them.
+function groupTickers(ts: Listing_Ticker[]): TickerGroup[] {
+  const groups = new Map<string, TickerGroup>();
+  for (const t of ts) {
+    const market = t.ticker?.market ?? "";
+    const value = t.ticker?.value ?? "";
+    const key = tickerParam(market, value);
+    let g = groups.get(key);
+    if (!g) {
+      g = { market, value, relation: t.relation, venues: [] };
+      groups.set(key, g);
+    }
+    if (t.mic) {
+      g.venues.push(t.mic);
+    }
+  }
+  return [...groups.values()];
 }
 
-// relations gives each ticker value of a listing its relation to the
-// instrument.
-function relations(ts: Listing_Ticker[]): Map<string, TickerRelation> {
-  return new Map(ts.map((t) => [t.ticker?.value ?? "", t.relation]));
+// TickerRows renders a listing's tickers, one row for each, with the venues
+// of each in the domain column. It returns bare rows, so the caller places
+// it inside a tbody.
+function TickerRows({
+  tickers,
+  named,
+  params,
+  primary,
+}: {
+  tickers: Listing_Ticker[];
+  // The identifierKey of the identifier naming the instrument, if any.
+  named?: Set<string>;
+  params: InstrParams;
+  // The venue to mark as the primary; empty for none.
+  primary: string;
+}) {
+  const groups = groupTickers(tickers);
+  return groups.map((g, i) => {
+    const name = [...g.venues, g.market].some((at) =>
+      named?.has(
+        identifierKey(
+          create(IdentifierSchema, {
+            type: IdentifierType.MIC_TICKER,
+            domain: at,
+            value: g.value,
+          }),
+        ),
+      ),
+    );
+    return (
+      <tr
+        key={tickerParam(g.market, g.value)}
+        data-identifier-type={IdentifierType[IdentifierType.MIC_TICKER]}
+        data-name={name ? "true" : undefined}
+      >
+        {i === 0 && (
+          <Td
+            dense
+            rowSpan={groups.length}
+            className="align-top text-text-muted"
+          >
+            {identifierLabel(IdentifierType.MIC_TICKER)}
+          </Td>
+        )}
+        <Td dense>
+          <Link
+            href={instrQuery({
+              ...params,
+              tab: "tickers",
+              ticker: tickerParam(g.market, g.value),
+            })}
+            data-testid={`ticker-validity-${g.market}-${g.value}`}
+          >
+            <Chip tone={name ? "accent" : "primary"} className="font-mono">
+              {g.value}
+            </Chip>
+          </Link>
+          <span className="text-text-muted"> in {g.market}</span>
+          {relationSuffix[g.relation]}
+        </Td>
+        <Td dense>
+          <span className="flex flex-wrap gap-1">
+            {g.venues.map((v) => (
+              <Chip
+                key={v}
+                tone={v === primary ? "accent" : "muted"}
+                data-primary={v === primary ? "true" : undefined}
+                className="font-mono"
+              >
+                {v}
+              </Chip>
+            ))}
+          </span>
+        </Td>
+      </tr>
+    );
+  });
 }
 
 // Rows renders identifiers grouped by type. It returns bare rows, so the
 // caller places it inside a tbody.
-function Rows({
-  ids,
-  marks,
-  params,
-  primary = "",
-  relations,
-}: {
-  ids: Identifier[];
-  marks: Marks;
-  params: InstrParams;
-  // The domain to mark as the primary venue; empty for none.
-  primary?: string;
-  // The relation of each ticker value to the instrument.
-  relations?: Map<string, TickerRelation>;
-}) {
+function Rows({ ids, marks }: { ids: Identifier[]; marks: Marks }) {
   if (ids.length === 0) {
     return (
       <tr>
@@ -244,37 +322,14 @@ function Rows({
         <Chip tone={r.name ? "accent" : "primary"} className="font-mono">
           {r.value}
         </Chip>
-        {r.type === IdentifierType.MIC_TICKER &&
-          relationSuffix[relations?.get(r.value) ?? TickerRelation.UNSPECIFIED]}
       </Td>
       <Td dense>
         <span className="flex flex-wrap gap-1">
-          {r.domains.map((d) => {
-            const chip = (
-              <Chip
-                tone={d === primary ? "accent" : "muted"}
-                data-primary={d === primary ? "true" : undefined}
-                className="font-mono"
-              >
-                {d}
-              </Chip>
-            );
-            return r.type === IdentifierType.MIC_TICKER ? (
-              <Link
-                key={d}
-                href={instrQuery({
-                  ...params,
-                  tab: "tickers",
-                  ticker: tickerParam(d, r.value),
-                })}
-                data-testid={`ticker-validity-${d}-${r.value}`}
-              >
-                {chip}
-              </Link>
-            ) : (
-              <span key={d}>{chip}</span>
-            );
-          })}
+          {r.domains.map((d) => (
+            <Chip key={d} tone="muted" className="font-mono">
+              {d}
+            </Chip>
+          ))}
         </span>
       </Td>
     </tr>

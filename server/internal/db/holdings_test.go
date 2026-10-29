@@ -115,9 +115,10 @@ func resolves(t *testing.T, q *gen.Queries, instr gen.Instr, market, value, venu
 
 // TestListListingNames checks that each listing is reached by every row of
 // resolved_tickers in its family, ranked by primary venue, then venue rank,
-// then venue. A row without a venue names the listing at its market, a row
-// without a currency stays apart from every listing, and a listing that a
-// later write creates is reached at once.
+// then venue. Each row carries its listing's primary venue. A row without a
+// venue names the listing at its market. A row without a currency stays
+// apart from every listing. A listing that a later write creates is reached
+// at once.
 func TestListListingNames(t *testing.T) {
 	ctx := context.Background()
 	q := newTx(t)
@@ -139,14 +140,15 @@ func TestListListingNames(t *testing.T) {
 	var got []string
 	for _, r := range rows {
 		got = append(got, r.Currency+": "+ptr.Deref(r.Market, "-")+":"+strings.TrimSuffix(ptr.Deref(r.TickerValue, "-"), suffix)+
-			" at "+ptr.Deref(r.Venue, "-")+" ("+ptr.Deref(r.VenueName, "-")+") "+string(ptr.Deref(r.Relation, ""))+fmt.Sprintf(" %d", ptr.Deref(r.Rank, 0)))
+			" at "+ptr.Deref(r.Venue, "-")+" ("+ptr.Deref(r.VenueName, "-")+") "+string(ptr.Deref(r.Relation, ""))+fmt.Sprintf(" %d", ptr.Deref(r.Rank, 0))+
+			" primary "+ptr.Deref(r.PrimaryMic, "-"))
 	}
 	want := []string{
-		"CHF: XSWX:ACMC at - (-) current 1",
-		"EUR: -:- at - (-)  0",
-		"GBP: XLON:ACME at XLON (LSE) current 1",
-		"USD: US:ACMN at XNYS (NYSE) current 1",
-		"USD: US:ACMN at XNAS (Nasdaq) current 2",
+		"CHF: XSWX:ACMC at - (-) current 1 primary -",
+		"EUR: -:- at - (-)  0 primary -",
+		"GBP: XLON:ACME at XLON (LSE) current 1 primary XLON",
+		"USD: US:ACMN at XNYS (NYSE) current 1 primary -",
+		"USD: US:ACMN at XNAS (Nasdaq) current 2 primary -",
 	}
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("ListListingNames mismatch (-want +got):\n%s", diff)

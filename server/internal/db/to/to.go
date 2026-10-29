@@ -267,9 +267,10 @@ func ProtoListingTicker(l gen.ListListingNamesRow) *admininstrv1.Listing_Ticker 
 	return out
 }
 
-// ProtoListing writes a listing, and leaves its identifiers to the caller.
-func ProtoListing(l gen.Listing) *admininstrv1.Listing {
-	out := &admininstrv1.Listing{Id: l.ID.String(), Currency: l.Currency}
+// ProtoListing writes the listing columns of l, and leaves its identifiers
+// and tickers to the caller.
+func ProtoListing(l gen.ListListingNamesRow) *admininstrv1.Listing {
+	out := &admininstrv1.Listing{Id: l.ListingID.String(), Currency: l.Currency}
 	if l.PrimaryMic != nil {
 		out.PrimaryMic = *l.PrimaryMic
 	}

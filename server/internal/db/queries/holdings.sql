@@ -14,7 +14,7 @@ ORDER BY stated_keys.id, txn_instrs.instr_id NULLS FIRST, txn_instrs.as_at;
 -- Each listing of the instruments with every ticker that reaches it, ranked
 -- as the listing's name, and the common name of the ticker's venue. A listing
 -- without a ticker comes once, with a null ticker.
-SELECT listings.id AS listing_id, listings.instr_id, listings.currency,
+SELECT listings.id AS listing_id, listings.instr_id, listings.currency, listings.primary_mic,
        listing_tickers.ticker_id, listing_tickers.market, listing_tickers.value AS ticker_value,
        listing_tickers.venue, listing_tickers.relation, listing_tickers.rank,
        venue_names.name AS venue_name

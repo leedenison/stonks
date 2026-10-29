@@ -49,7 +49,6 @@ import (
 	"github.com/leedenison/stonks/server/internal/currency"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/to"
-	"github.com/leedenison/stonks/server/internal/mic"
 	"github.com/leedenison/stonks/server/internal/platform/ptr"
 	"github.com/leedenison/stonks/server/internal/types"
 )
@@ -73,15 +72,14 @@ type Server struct {
 	reader   Reader
 	families currency.Families
 	scales   currency.Scales
-	mics     mic.MICMap
 	clock    func() time.Time
 }
 
 var _ holdingv1connect.HoldingServiceHandler = (*Server)(nil)
 
 // New returns a Server.
-func New(reader Reader, families currency.Families, scales currency.Scales, mics mic.MICMap, clock func() time.Time) *Server {
-	return &Server{reader: reader, families: families, scales: scales, mics: mics, clock: clock}
+func New(reader Reader, families currency.Families, scales currency.Scales, clock func() time.Time) *Server {
+	return &Server{reader: reader, families: families, scales: scales, clock: clock}
 }
 
 // ListHoldings lists the caller's holdings of both kinds.
