@@ -8,6 +8,7 @@ import {
   stmtClient,
 } from "../helpers/api";
 import { deleteRuns } from "../helpers/db";
+import { utcDay } from "../helpers/day";
 import { expect, test } from "../helpers/test";
 import { uploadStmt } from "../helpers/upload";
 
@@ -28,9 +29,6 @@ const fixture = path.resolve(
 const ibmISIN = "US4592001014";
 const orclISIN = "US68389X1054";
 const ibmUS = { market: "US", value: "IBM" };
-
-// utcDay is the UTC day of a moment, as YYYY-MM-DD.
-const utcDay = (d: Date) => d.toISOString().slice(0, 10);
 
 // The attest identifier runs this test started.
 const started: string[] = [];
@@ -61,21 +59,25 @@ test("shows a ticker that now names another instrument as defunct on the holding
   const ibm = holdingOf(ibmISIN);
   const orcl = holdingOf(orclISIN);
 
-  for (const req of [
-    { instrId: ibm.instrId, from: "2024-01-10" },
-    { instrId: orcl.instrId, from: "2025-01-02", to: utcDay(new Date()) },
-  ]) {
+  const attest = async (instrId: string, from: string, to?: string) => {
     const run = (
       await coverage.attestIdentifier({
         ticker: ibmUS,
-        names: { case: "instrId", value: req.instrId },
-        from: req.from,
-        to: req.to,
+        names: { case: "instrId", value: instrId },
+        from,
+        to,
       })
     ).run!;
     started.push(run.id);
     await stopped(adminRuns, run.id);
-  }
+    return run.id;
+  };
+  const first = await attest(ibm.instrId, "2024-01-10");
+  // Today is the server's day, read from the run it just finished.
+  const today = utcDay(
+    (await adminRuns.getRun({ runId: first })).run!.run!.finishedAt!,
+  );
+  await attest(orcl.instrId, "2025-01-02", today);
 
   // Over Connect, IBM's USD listing is named by IBM, which is defunct.
   await expect

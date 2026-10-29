@@ -1,4 +1,5 @@
 import path from "node:path";
+import { Code, ConnectError } from "@connectrpc/connect";
 import { RunKind } from "../gen/run/v1/run_pb";
 import { TxnMark } from "../gen/stmt/v1/stmt_pb";
 import { IdentifierType, ResolutionOutcome } from "../gen/type/v1/type_pb";
@@ -85,10 +86,16 @@ test("attests a gap from the instrument's tickers tab and withdraws it", async (
   await expect(attested).toContainText("@example.com");
 
   // The attest identifier run is the one whose assertion names WMT, which no
-  // other spec attests.
+  // other spec attests. Another spec may delete its own runs between the
+  // listing and the read, so a run that is gone is skipped.
   const listed = await adminRuns.listRuns({ kind: RunKind.ATTEST_IDENTIFIER });
   for (const r of listed.runs) {
-    const items = await assertionItems(adminRuns, r.run!.id);
+    const items = await assertionItems(adminRuns, r.run!.id).catch((e) => {
+      if (ConnectError.from(e).code === Code.NotFound) {
+        return [];
+      }
+      throw e;
+    });
     if (items.some((a) => a.ticker?.value === wmt.value)) {
       started.push(r.run!.id);
     }
