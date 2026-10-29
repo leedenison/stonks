@@ -15,6 +15,9 @@ CREATE TABLE stmts (
     order_before date        NOT NULL,
     row_count    integer     NOT NULL,
     created_at   timestamptz NOT NULL DEFAULT now(),
+    -- settled_at is when the work that follows the statement's write
+    -- stopped, whether it succeeded or failed. Null until then.
+    settled_at   timestamptz,
     FOREIGN KEY (id, user_id) REFERENCES runs (id, user_id) ON DELETE CASCADE,
     UNIQUE (user_id, id),
     CHECK (order_from < order_before),

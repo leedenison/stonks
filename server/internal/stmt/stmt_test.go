@@ -87,7 +87,8 @@ type fixture struct {
 	// fetched records the run of each corporate actions fetch after a
 	// statement.
 	fetched []gen.Run
-	// followed names the calls after the write, in the order they came.
+	// followed names the calls after the write and the settling of the
+	// statement, in the order they came.
 	followed []string
 	// dates holds every key the resolver was sent, with its as-at dates.
 	dates []resolve.KeyDates
@@ -157,6 +158,10 @@ func newFixture(t *testing.T) *fixture {
 	f.events.EXPECT().AfterStmt(gomock.Any(), gomock.Any()).Do(func(_ context.Context, stmt gen.Run) {
 		f.fetched = append(f.fetched, stmt)
 		f.followed = append(f.followed, "corporate actions")
+	}).AnyTimes()
+	f.store.EXPECT().SettleStmt(gomock.Any(), gomock.Any()).DoAndReturn(func(context.Context, uuid.UUID) error {
+		f.followed = append(f.followed, "settled")
+		return nil
 	}).AnyTimes()
 	f.svc = New(f.store, f.runs, f.resolver, f.facts, f.events, families, clock, slog.New(slog.DiscardHandler))
 	return f
@@ -534,7 +539,7 @@ func TestReplaysNewFacts(t *testing.T) {
 	if len(f.fetched) != 1 || f.fetched[0].Kind != gen.RunKindIngestStmt {
 		t.Errorf("corporate actions fetches = %+v, want one beneath the ingest statement run", f.fetched)
 	}
-	if diff := cmp.Diff([]string{"facts", "corporate actions"}, f.followed); diff != "" {
+	if diff := cmp.Diff([]string{"facts", "corporate actions", "settled"}, f.followed); diff != "" {
 		t.Errorf("calls after the write mismatch (-want +got):\n%s", diff)
 	}
 }
@@ -638,4 +643,28 @@ func TestCreateFailures(t *testing.T) {
 			t.Errorf("work error = %v, want %v", f.workErr, boom)
 		}
 	})
+}
+
+func TestLive(t *testing.T) {
+	settled := time.Date(2026, time.April, 10, 12, 0, 0, 0, time.UTC)
+	tests := []struct {
+		name    string
+		state   gen.RunState
+		settled *time.Time
+		want    bool
+	}{
+		{name: "pending", state: gen.RunStatePending, want: true},
+		{name: "running", state: gen.RunStateRunning, want: true},
+		{name: "completed and unsettled", state: gen.RunStateCompleted, want: true},
+		{name: "completed and settled", state: gen.RunStateCompleted, settled: &settled, want: false},
+		{name: "failed and unsettled", state: gen.RunStateFailed, want: false},
+		{name: "interrupted and unsettled", state: gen.RunStateInterrupted, want: false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := Live(gen.Stmt{SettledAt: tc.settled}, gen.Run{State: tc.state}); got != tc.want {
+				t.Errorf("Live(settled at %v, run %s) = %v, want %v", tc.settled, tc.state, got, tc.want)
+			}
+		})
+	}
 }

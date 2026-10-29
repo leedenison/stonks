@@ -292,9 +292,9 @@ func call(ctx context.Context, row gen.Run, work Work) (err error) {
 	return work(ctx, row)
 }
 
-// Sweep marks every pending and running run interrupted. It runs at boot,
-// before any run starts, so every row it finds belongs to a process that
-// stopped.
+// Sweep marks every pending and running run interrupted, and settles every
+// unsettled statement. It runs at boot, before any run starts, so every row it
+// finds belongs to a process that stopped.
 func Sweep(ctx context.Context, store Store, log *slog.Logger) error {
 	rows, err := store.InterruptRuns(ctx)
 	if err != nil {

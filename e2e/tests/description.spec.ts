@@ -37,7 +37,6 @@ test("resolves a line through the description the broker gave it", async ({
   const runId = await uploadStmt(page, fixture, {
     state: "completed",
     rows: "5 rows",
-    holds: false,
   });
   await page.getByTestId("activity-sheet-close").click();
 

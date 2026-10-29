@@ -34,10 +34,11 @@ async function advance(ms: number) {
   }
 }
 
-function summary(id: string, state: RunState) {
+function summary(id: string, state: RunState, live = false) {
   return create(StmtSummarySchema, {
     run: create(RunSchema, { id, state }),
     rows: 3,
+    live,
   });
 }
 
@@ -72,17 +73,23 @@ function serving(
 }
 
 describe("useStmts", () => {
-  it("lists the statements and stops polling once every run is terminal", async () => {
+  it("lists the statements and stops polling once none is live", async () => {
     vi.useFakeTimers();
     let reads = 0;
-    const listStmts = vi.fn(() =>
-      create(ListStmtsResponseSchema, {
+    // r1's run completes on the second read and r1 settles on the third.
+    const listStmts = vi.fn(() => {
+      reads++;
+      return create(ListStmtsResponseSchema, {
         stmts: [
-          summary("r1", ++reads > 2 ? RunState.COMPLETED : RunState.PENDING),
+          summary(
+            "r1",
+            reads > 1 ? RunState.COMPLETED : RunState.PENDING,
+            reads < 3,
+          ),
           summary("r0", RunState.COMPLETED),
         ],
-      }),
-    );
+      });
+    });
     const { result } = renderHook(() => useStmts(), {
       wrapper: authWrapper(serving(listStmts)),
     });
@@ -91,9 +98,10 @@ describe("useStmts", () => {
     expect(result.current.data?.stmts[0].run?.state).toBe(RunState.PENDING);
     await advance(pollInterval);
     expect(listStmts).toHaveBeenCalledTimes(2);
+    expect(result.current.data?.stmts[0].run?.state).toBe(RunState.COMPLETED);
     await advance(pollInterval);
     expect(listStmts).toHaveBeenCalledTimes(3);
-    expect(result.current.data?.stmts[0].run?.state).toBe(RunState.COMPLETED);
+    expect(result.current.data?.stmts[0].live).toBe(false);
     await advance(pollInterval * 3);
     expect(listStmts).toHaveBeenCalledTimes(3);
   });
@@ -120,6 +128,30 @@ describe("useRun", () => {
 });
 
 describe("useStmt", () => {
+  it("polls while the statement is live and stops once it is not", async () => {
+    vi.useFakeTimers();
+    let reads = 0;
+    const getStmt = vi.fn(() =>
+      create(GetStmtResponseSchema, {
+        stmt: summary("r7", RunState.COMPLETED, ++reads < 3),
+      }),
+    );
+    const transport = transportWith(live, ({ service }) => {
+      service(StmtService, { getStmt });
+    });
+    const { result } = renderHook(() => useStmt("r7"), {
+      wrapper: authWrapper(transport),
+    });
+    await advance(0);
+    expect(getStmt).toHaveBeenCalledTimes(1);
+    expect(result.current.data?.stmt?.live).toBe(true);
+    await advance(pollInterval * 2);
+    expect(getStmt).toHaveBeenCalledTimes(3);
+    expect(result.current.data?.stmt?.live).toBe(false);
+    await advance(pollInterval * 3);
+    expect(getStmt).toHaveBeenCalledTimes(3);
+  });
+
   it("reads the statement and its items", async () => {
     const { result } = renderHook(() => useStmt("r7"), {
       wrapper: authWrapper(serving(() => create(ListStmtsResponseSchema, {}))),

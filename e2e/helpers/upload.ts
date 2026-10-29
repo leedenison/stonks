@@ -1,14 +1,12 @@
 import type { Page } from "@playwright/test";
-import { adminRunClient, settled } from "./api";
-import { deleteSession, seedSession } from "./auth";
+import { settled, stmtClient } from "./api";
+import { sessionIn } from "./auth";
 import { recording } from "./config";
-import { deleteUsers, seedUser } from "./db";
 import { expect } from "./test";
 
 // uploadStmt uploads the export at fixture from the current page and
-// returns the id of its run once the run reaches state. A run that wrote its
-// rows has also settled, so nothing it started is still running. The activity sheet
-// stays open.
+// returns the id of its run once the run reaches state. A statement whose run
+// wrote its rows has also settled. The activity sheet stays open.
 export async function uploadStmt(
   page: Page,
   fixture: string,
@@ -25,9 +23,6 @@ export async function uploadStmt(
     // timeout is how long the run may take to reach state, for a run that
     // waits out its retries. A recording ignores it.
     timeout?: number;
-    // holds is false when no ticker names an instrument the user holds.
-    // The statement then does not start a corporate actions fetch.
-    holds?: boolean;
   },
 ): Promise<string> {
   await page.getByTestId("upload-stmt").click();
@@ -55,14 +50,7 @@ export async function uploadStmt(
   }
   const runId = id.replace("activity-item-", "");
   if (opts.state === "completed" || opts.state === "rejections") {
-    const admin = await seedUser("admin");
-    const session = await seedSession(admin);
-    try {
-      await settled(adminRunClient(session), runId, opts.holds ?? true);
-    } finally {
-      await deleteSession(session);
-      await deleteUsers([admin.id]);
-    }
+    await settled(stmtClient(await sessionIn(page.context())), runId);
   }
   return runId;
 }

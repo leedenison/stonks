@@ -25,7 +25,6 @@ test("shows an administrator the runs a user's upload produced", async ({
   const runId = await uploadStmt(page, fixture, {
     state: "rejections",
     from: "2025-02-01",
-    holds: false,
   });
 
   // The admin RPCs refuse the user.

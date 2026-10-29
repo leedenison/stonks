@@ -34,7 +34,6 @@ test("replays a statement's unavailable key from the runs page and resolves it",
   const runId = await uploadStmt(page, fixture, {
     state: "completed",
     timeout: 15_000,
-    holds: false,
   });
 
   // Unavailable, not unrecognised: the refusal is temporary.

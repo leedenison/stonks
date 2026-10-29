@@ -1,6 +1,6 @@
 import type { Page } from "@playwright/test";
 import { RunKind, RunState } from "../gen/run/v1/run_pb";
-import { adminRunClient, datasourceClient, settled } from "../helpers/api";
+import { adminRunClient, datasourceClient, stopped } from "../helpers/api";
 import { deleteDatasource, seedDatasource } from "../helpers/db";
 import { expect, test } from "../helpers/test";
 
@@ -191,7 +191,7 @@ test("reorders the datasources by dragging a row, and each reorder rebuilds the 
     })
     .toBe(2);
   for (const runId of started) {
-    await settled(runs, runId, false);
+    await stopped(runs, runId);
     expect((await runs.getRun({ runId })).run?.run?.state).toBe(
       RunState.COMPLETED,
     );

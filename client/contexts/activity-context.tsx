@@ -7,7 +7,6 @@ import type { ListStmtsResponse, StmtSummary } from "@/gen/stmt/v1/stmt_pb";
 import { useRunOutcomes } from "@/hooks/use-run-outcomes";
 import { useStmts } from "@/hooks/use-stmts";
 import { useStoredValue } from "@/hooks/use-stored-value";
-import { isTerminal } from "@/lib/run";
 import { useAuth } from "./auth-context";
 
 // How many runs the sheet lists; the rest are reached through the history.
@@ -18,7 +17,8 @@ type ActivityValue = {
   open: () => void;
   close: () => void;
   toggle: () => void;
-  // Runs that finished since the sheet was last open; zero while it is.
+  // Statements that stopped being live since the sheet was last open; zero
+  // while the sheet is open.
   badge: number;
   recent: StmtSummary[];
   stmts: UseQueryResult<ListStmtsResponse>;
@@ -56,8 +56,8 @@ export function ActivityProvider({ children }: { children: ReactNode }) {
     ? 0
     : list.filter(
         (s) =>
+          !s.live &&
           s.run?.finishedAt &&
-          isTerminal(s.run.state) &&
           timestampDate(s.run.finishedAt).getTime() > seenAt,
       ).length;
 

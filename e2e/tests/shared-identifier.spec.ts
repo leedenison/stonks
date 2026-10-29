@@ -30,7 +30,6 @@ test("gathers the keys of two statements that share an identifier", async ({
       state: "completed",
       earlier: n,
       rows: "3 rows",
-      holds: false,
     });
     await page.getByTestId("activity-sheet-close").click();
   }

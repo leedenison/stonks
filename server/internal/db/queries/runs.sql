@@ -23,6 +23,11 @@ UPDATE runs SET state = 'failed', error = @error::text, finished_at = now()
 WHERE id = $1 AND state = 'running';
 
 -- name: InterruptRuns :many
+-- A restart ends every follow-up of a statement, so this also settles every
+-- unsettled statement.
+WITH settled AS (
+    UPDATE stmts SET settled_at = now() WHERE settled_at IS NULL
+)
 UPDATE runs SET state = 'interrupted', finished_at = now()
 WHERE state IN ('pending', 'running')
 RETURNING kind, trigger;

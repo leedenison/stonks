@@ -24,7 +24,6 @@ test("chooses an instrument for an IBKR security stated by ticker", async ({
   const runId = await uploadStmt(page, fixture, {
     state: "completed",
     rows: "3 rows",
-    holds: false,
   });
   await page.getByTestId("activity-sheet-close").click();
 

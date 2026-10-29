@@ -25,7 +25,9 @@ test("restates a holding across a split, and marks one across an unhandled actio
   page,
 }) => {
   const { session } = await signIn();
-  await page.goto("/txns");
+  // The holdings are read before the upload, so the figures on the page come
+  // from the refresh that follows the statement's settling.
+  await page.goto("/holdings");
   await uploadStmt(page, fixture, { state: "completed" });
 
   const res = await holdingClient(session).listHoldings({});
@@ -42,8 +44,6 @@ test("restates a holding across a split, and marks one across an unhandled actio
   ]);
 
   await page.getByTestId("activity-sheet-close").click();
-  await page.getByTestId("nav-holdings").click();
-  await expect(page).toHaveURL("/holdings");
   const nvdaRow = page.getByTestId(`holding-row-${nvda.instrId}`);
   await expect(nvdaRow.getByTestId(`holding-qty-${nvda.instrId}`)).toHaveText(
     "50.00",

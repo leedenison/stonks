@@ -22,6 +22,7 @@ function summary(
   state: RunState,
   rejected: number,
   finishedAt?: Date,
+  live = false,
 ) {
   return create(StmtSummarySchema, {
     run: create(RunSchema, {
@@ -35,6 +36,7 @@ function summary(
     orderBefore: "2024-04-01",
     rows: 20,
     rejected,
+    live,
   });
 }
 
@@ -147,6 +149,28 @@ describe("ActivitySheet", () => {
     const list = [
       summary("r1", RunState.COMPLETED, 0, new Date("2026-09-18T10:00:05Z")),
       summary("r0", RunState.COMPLETED, 0, new Date("2026-09-18T09:00:00Z")),
+    ];
+    renderWithAuth(
+      <>
+        <Controls />
+        <ActivitySheet />
+      </>,
+      serving(list),
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId("badge").textContent).toBe("1"),
+    );
+  });
+
+  it("counts a statement only once it stops being live", async () => {
+    localStorage.setItem(
+      "stonks.activity.seen.u1",
+      String(new Date("2026-09-18T10:00:00Z").getTime()),
+    );
+    const finished = new Date("2026-09-18T10:00:05Z");
+    const list = [
+      summary("r2", RunState.COMPLETED, 0, finished, true),
+      summary("r1", RunState.COMPLETED, 0, finished),
     ];
     renderWithAuth(
       <>

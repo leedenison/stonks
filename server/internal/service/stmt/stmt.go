@@ -99,7 +99,7 @@ func (s *Server) ListStmts(ctx context.Context, _ *connect.Request[stmtv1.ListSt
 	}
 	out := &stmtv1.ListStmtsResponse{}
 	for _, r := range rows {
-		out.Stmts = append(out.Stmts, to.ProtoStmtSummary(r.Stmt, r.Run, r.Rejected))
+		out.Stmts = append(out.Stmts, to.ProtoStmtSummary(r.Stmt, r.Run, r.Rejected, stmt.Live(r.Stmt, r.Run)))
 	}
 	return connect.NewResponse(out), nil
 }
@@ -127,7 +127,7 @@ func (s *Server) GetStmt(ctx context.Context, req *connect.Request[stmtv1.GetStm
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	out := &stmtv1.GetStmtResponse{Stmt: to.ProtoStmtSummary(row.Stmt, row.Run, row.Rejected)}
+	out := &stmtv1.GetStmtResponse{Stmt: to.ProtoStmtSummary(row.Stmt, row.Run, row.Rejected, stmt.Live(row.Stmt, row.Run))}
 	for _, it := range items {
 		item, err := stmt.ItemToProto(it)
 		if err != nil {
