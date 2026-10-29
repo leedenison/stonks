@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/leedenison/stonks/server/internal/currency"
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/join"
@@ -109,7 +110,7 @@ func (w *writer) attach(ctx context.Context, c *identityClaim) error {
 		venue, _ := w.res.mics.Operating(id.Domain)
 		if ok && !asserted[at{t.ID, venue}] {
 			asserted[at{t.ID, venue}] = true
-			s := tickervalidity.Stated{Venue: venue, Currency: currencyOf(c, id)}
+			s := tickervalidity.Stated{Venue: venue, Currency: currencyOf(w.res.families, c, id)}
 			if err := tickervalidity.AssertInstr(ctx, w.q, fetchKeyID, t, &w.instr.Row.ID, c.fetchKey.AnsweredAt, s); err != nil {
 				return err
 			}
@@ -120,11 +121,12 @@ func (w *writer) attach(ctx context.Context, c *identityClaim) error {
 }
 
 // currencyOf returns the currency of the first listing of c's answer that
-// states id, as the datasource stated it. It is empty where none does.
-func currencyOf(c *identityClaim, id types.Identifier) string {
+// states id, as the datasource stated it. It is empty where no listing states
+// id or the system lacks the currency.
+func currencyOf(f currency.Families, c *identityClaim, id types.Identifier) string {
 	for _, l := range c.fetchKey.Response.Listings {
 		if slices.Contains(l.Identifiers, id) {
-			return l.Currency
+			return known(f, l.Currency)
 		}
 	}
 	return ""

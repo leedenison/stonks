@@ -10,6 +10,17 @@ import (
 // family matches any family.
 const noFamily = ""
 
+// known returns code where the system has the currency. It returns the empty
+// string for a code the system lacks, such as the ZAC of a JSE listing. The
+// currency of an assertion references the currencies table, so an assertion
+// stores only a code the system has.
+func known(f currency.Families, code string) string {
+	if !f.Known(code) {
+		return ""
+	}
+	return code
+}
+
 // keyFamily returns the family of the currency k states.
 func keyFamily(f currency.Families, k gen.StatedKey) string {
 	if k.Currency == nil {

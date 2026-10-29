@@ -187,6 +187,27 @@ func TestReassertTickers(t *testing.T) {
 	}
 }
 
+// TestReassertTickersUnknownCurrency checks that an answer in a currency the
+// system lacks, such as ZAC, completes the run. The assertion that the run
+// writes has a null currency.
+func TestReassertTickersUnknownCurrency(t *testing.T) {
+	s := newStack(t)
+	v := id(types.IdentifierTypeMicTicker, "XLON", "ZZC"+uuid.NewString()[:4])
+	isin := id(types.IdentifierTypeIsin, "", "GB00ZZC"+uuid.NewString()[:5])
+	s.heldOnXLON(t, v, listing(types.AssetClassStock, "GBP", isin, v))
+	instr := s.instrOf(t, isin)
+	s.beta.Responses[v] = market.IdentityResult{Listings: []market.Listing{listing(types.AssetClassStock, "ZAC", isin, v)}}
+	s.reassertTickers(t, v)
+	if got := s.assertedOn(t, v, later); len(got) != 1 || got[0] == nil || *got[0] != instr {
+		t.Errorf("assertions of %s on %s = %v, want one naming %s", v.Name(), later.Format(time.DateOnly), got, instr)
+	}
+	n := s.count(t, `SELECT count(*) FROM identifier_assertions JOIN tickers ON tickers.id = identifier_assertions.ticker_id
+		WHERE tickers.value = $1 AND identifier_assertions.currency IS NULL`, v.Value)
+	if n != 1 {
+		t.Errorf("assertions of %s without a currency = %d, want 1", v.Name(), n)
+	}
+}
+
 // TestReassertTickersAnswers checks what each kind of identity answer asserts.
 func TestReassertTickersAnswers(t *testing.T) {
 	tests := []struct {
