@@ -112,7 +112,8 @@ ORDER BY instrs.id, identifiers.type, identifiers.domain, identifiers.value;
 -- name: LockAdvisory :exec
 -- Takes the transaction's advisory lock on each name. The caller passes the
 -- names sorted, so two transactions take the locks in one order. The seed
--- keeps these locks apart from LockUserKeys.
+-- differs from the seed of LockUserKeys, so a collision between the two is
+-- unlikely.
 SELECT pg_advisory_xact_lock(hashtextextended(n, 1)) FROM unnest(@names::text[]) AS n;
 
 -- name: DeferConstraints :exec

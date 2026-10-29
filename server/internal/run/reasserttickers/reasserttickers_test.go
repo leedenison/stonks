@@ -24,7 +24,7 @@ func newFixture(t *testing.T) *fixture {
 	return f
 }
 
-// TestStartEmpty checks that extending ticker validity with no held ticker is
+// TestStartEmpty checks that a reassert tickers run with no held ticker is
 // refused before a run is created.
 func TestStartEmpty(t *testing.T) {
 	f := newFixture(t)

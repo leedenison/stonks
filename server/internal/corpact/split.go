@@ -53,8 +53,11 @@ type cover struct {
 
 // checkSplits writes an unmatched split finding for each group of stated
 // splits that falls inside the coverage of the recorded answers and has no
-// match in the calendar. It skips a split that a finding already names. A fetch that acts for a user checks that user's splits. A
-// system fetch checks every user's.
+// match in the calendar. Brokers state splits too loosely to serve as
+// corporate actions: IBKR dates a split on the trading day before its
+// ex-date, and Schwab omits the ratio. db.CreateStandingFinding skips a split
+// that a finding already names. A fetch that acts for a user checks that
+// user's splits. A system fetch checks every user's.
 func (r *Recorder) checkSplits(ctx context.Context, parent gen.Run, recorded []recordedKey) error {
 	if len(recorded) == 0 {
 		return nil

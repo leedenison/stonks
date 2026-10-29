@@ -111,7 +111,7 @@ SELECT * FROM stated_keys WHERE id = $1 AND user_id = $2;
 -- The user's key lock: an advisory lock, held for the transaction, that
 -- serialises the writes to one user's groups. A regroup takes it. A
 -- resolution associates a single key without it. The lock's seed differs
--- from the seed of LockAdvisory, so the two never collide.
+-- from the seed of LockAdvisory, so a collision between the two is unlikely.
 SELECT pg_advisory_xact_lock(hashtextextended(CAST(@user_id::uuid AS text), 0));
 
 -- name: ListGroupableKeys :many

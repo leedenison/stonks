@@ -5,8 +5,8 @@ recorded: 2026-09-14
 
 # Identifier events
 
-Identifier events served by date range for a whole market, assertions made by price and
-corporate action fetches, and the unwinding of data fetched under a ticker that moves.
+Identifier events served by date range for a whole market, assertions made by price
+fetches, and the unwinding of prices fetched under a ticker that moves.
 
 ## Why
 
@@ -18,16 +18,18 @@ identifier attestation. Each market names one datasource as its identifier event
 A range provider counts only in a market where it is the identifier event source.
 Elsewhere its edges and coverage are stored and ignored.
 
-A price or a corporate action fetched under a ticker rests on the assumption that the
-ticker named the same instrument on the row's date as at the fetch. When an edge shows
-the assumption false, the row is wrong until it is refetched.
+A price fetched under a ticker rests on the assumption that the ticker named the same
+instrument on the row's date as at the fetch. When an edge shows the assumption false,
+the row is wrong until it is refetched. A corporate action is stored against its ticker.
+Ticker validity decides its instrument when the action is read, so an edge cannot make it
+wrong.
 
 ## Model
 
 ### Assertions
 
-A price or corporate action fetch whose answer echoes the identifier it served asserts
-that the identifier names the instrument on the day of the answer.
+A price fetch whose answer echoes the identifier it served asserts that the identifier
+names the instrument on the day of the answer.
 
 ### Market assertion coverage
 
@@ -48,9 +50,9 @@ claim that none occurred.
 ### Unwinding
 
 When the identifier event source records an edge on a ticker, the system finds every
-fetch key that sent the ticker to a provider. The system invalidates a data row of such a
-fetch key when the edge lies between the row's date and the fetch's assertion moment. The
-system drops the invalidated rows and the assertion coverage of their fetch keys. Then it
+fetch key that sent the ticker to a price provider. It invalidates a price of one of those
+fetch keys when the edge lies between the price's date and the fetch's assertion moment.
+It drops the invalidated prices and the assertion coverage of their fetch keys. Then it
 refetches them.
 
 ## Constraints

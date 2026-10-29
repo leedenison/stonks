@@ -27,11 +27,6 @@ A schedule starts a run.  A daily fetch of corporate actions keeps holdings adju
 When an identifier event or a corporate action causes a replay, the replay names the fetch
 that recorded it.
 
-### Findings
-
-A stated split the calendar lacks and a corporate action the system cannot handle are
-findings of the runs that meet them.
-
 ## Constraints
 
 ### Interruption

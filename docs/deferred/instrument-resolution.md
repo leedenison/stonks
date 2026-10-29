@@ -87,5 +87,4 @@ ticker are recomputed when an identifier event on the ticker arrives.
 ## Sketch
 
 A guess is produced where the database, the batch cache and the datasources leave the
-instrument or its listing open.  See [guesses.md](guesses.md).  Corporate actions are
-fetched for the batch's resolved instruments once resolution completes.
+instrument or its listing open.  See [guesses.md](guesses.md).

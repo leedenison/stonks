@@ -171,10 +171,10 @@ func TestReassertTickers(t *testing.T) {
 		t.Errorf("ticker validity of %s = %+v, want %s confirmed between the two assertions", v.Name(), ivs, instr)
 	}
 	if got := s.count(t, coverage, instr); got != covered {
-		t.Errorf("coverage rows = %d, want %d: extending ticker validity changes no coverage", got, covered)
+		t.Errorf("coverage rows = %d, want %d: a reassert tickers run changes no coverage", got, covered)
 	}
 	if got := s.count(t, shape, instr); got != rows {
-		t.Errorf("identifier and listing rows = %d, want %d: extending ticker validity writes only assertions", got, rows)
+		t.Errorf("identifier and listing rows = %d, want %d: a reassert tickers run writes only assertions", got, rows)
 	}
 	if n := s.count(t, `SELECT count(*) FROM identifiers WHERE value = $1`, extra.Value); n != 0 {
 		t.Errorf("rows of %s = %d, want none", extra.Name(), n)

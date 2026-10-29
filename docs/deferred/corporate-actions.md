@@ -5,8 +5,8 @@ recorded: 2026-09-14
 
 # Corporate actions
 
-The splits and other corporate actions that restate the quantity of an instrument held, so
-transactions recorded under different conventions can be expressed in the same one.
+Corporate actions that retire a listing or change the instrument held, identifier
+succession, and the restatement of prices and OCC symbols.
 
 ## Why
 
@@ -42,36 +42,11 @@ names what reads as a second instrument.
 
 ## Constraints
 
-### Statements Are Not a Source
-
-Where an uploaded transaction history states a split, the split is never stored as a
-corporate action.  It is compared with the calendar, and flagged for the administrator
-when the calendar lacks it.  Brokers state splits too loosely to serve as corporate
-actions: IBKR dates a split on the trading day before its ex-date, and Schwab omits the
-ratio.
-
-### Unhandled Corporate Actions
-
-Corporate actions can be extremely complex to handle.  For example, non-whole numbered
-reverse splits applied to OCCs can be tricky to implement correctly.  The more esoteric a
-corporate action, the less common it is. This makes it difficult to see examples of how
-brokers or market datasources handle these kinds of actions.  They also represent diminishing
-returns for the complexity of implementing relative to the likelihood of occurring.  The
-system will implement the option to simply store a corporate action as unhandled so that
-the administrator is informed and can decide what to do about it, without the need to
-implement the most complex handling up front.
-
 ### Datasources
 
 The datasource framework constraints apply.
 
 ## Invariants
-
-### Maintain Lookahead
-
-Where a datasource can return corporate action data for an instrument the system maintains
-a lookahead as far into the future as the datasource can provide.  Where a provider
-disallows open ended requests then a lookahead window is configured for the datasource.
 
 ### Adjusted Prices and Quantities are Current
 
