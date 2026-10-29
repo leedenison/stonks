@@ -1,11 +1,12 @@
 package refreshcorpacts
 
 import (
-	"bytes"
+	"cmp"
 	"context"
 	"fmt"
 	"maps"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -31,74 +32,66 @@ type ask struct {
 	users []uuid.UUID
 }
 
-// heldInstrs returns every held instrument by its id. A transaction of
+// heldInstrs returns each of instrs that is held, by its id. A transaction of
 // a dated key on a day when its ticker names nothing holds nothing.
-func (b *base) heldInstrs(ctx context.Context) (map[uuid.UUID]*held, error) {
+func (b *base) heldInstrs(ctx context.Context, instrs []uuid.UUID) (map[uuid.UUID]*held, error) {
 	out := map[uuid.UUID]*held{}
-	add := func(instr, user uuid.UUID, d time.Time) {
-		h := out[instr]
-		if h == nil {
-			h = &held{from: d}
-			out[instr] = h
-		}
-		if d.Before(h.from) {
-			h.from = d
-		}
-		if !slices.Contains(h.users, user) {
-			h.users = append(h.users, user)
-		}
+	if len(instrs) == 0 {
+		return out, nil
 	}
-	rows, err := b.queries.ListHeldInstrs(ctx)
+	rows, err := b.queries.ListHeldInstrs(ctx, instrs)
 	if err != nil {
 		return nil, fmt.Errorf("list held instruments: %w", err)
 	}
 	for _, r := range rows {
-		add(r.InstrID, r.UserID, r.FirstAsAt)
+		h := out[r.InstrID]
+		if h == nil {
+			h = &held{from: r.FirstAsAt}
+			out[r.InstrID] = h
+		}
+		if r.FirstAsAt.Before(h.from) {
+			h.from = r.FirstAsAt
+		}
+		if !slices.Contains(h.users, r.UserID) {
+			h.users = append(h.users, r.UserID)
+		}
 	}
 	return out, nil
 }
 
 // requests returns an ask for each ticker that ticker validity says named a
-// kept instrument of hs over its holding, at the instrument's market. The
-// period and the users of an ask come from every instrument of hs at the
+// held instrument in kept over its holding, at the instrument's market. The
+// period and the users of an ask come from every held instrument at the
 // ticker's market that the ticker named, kept or not, so that every run asks
 // for the same period.
-func (b *base) requests(ctx context.Context, hs map[uuid.UUID]*held, keep func(uuid.UUID, *held) bool) ([]ask, error) {
-	var kept []uuid.UUID
-	for _, id := range slices.SortedFunc(maps.Keys(hs), func(a, b uuid.UUID) int { return bytes.Compare(a[:], b[:]) }) {
-		if keep(id, hs[id]) {
-			kept = append(kept, id)
-		}
-	}
+func (b *base) requests(ctx context.Context, kept []uuid.UUID) ([]ask, error) {
 	if len(kept) == 0 {
 		return nil, nil
 	}
-	rows, err := b.queries.ListTickersNaming(ctx, kept)
-	if err != nil {
-		return nil, fmt.Errorf("list the tickers of the held instruments: %w", err)
-	}
-	var ts []types.MarketTicker
-	for _, r := range rows {
-		t := types.MarketTicker{Market: r.Market, Value: r.Value}
-		if !slices.Contains(ts, t) {
-			ts = append(ts, t)
-		}
-	}
-	read, err := tickervalidity.Load(ctx, b.queries, ts)
+	read, err := tickervalidity.LoadNaming(ctx, b.queries, kept)
 	if err != nil {
 		return nil, fmt.Errorf("read the ticker validity of the held instruments' tickers: %w", err)
 	}
-	var instrs []uuid.UUID
-	for _, t := range ts {
-		for _, iv := range read[t] {
-			if hs[iv.Instr] != nil && !slices.Contains(instrs, iv.Instr) {
-				instrs = append(instrs, iv.Instr)
-			}
+	ts := slices.SortedFunc(maps.Keys(read), func(a, b types.MarketTicker) int {
+		return cmp.Or(strings.Compare(a.Market, b.Market), strings.Compare(a.Value, b.Value))
+	})
+	instrs := map[uuid.UUID]bool{}
+	for _, ivs := range read {
+		for _, iv := range ivs {
+			instrs[iv.Instr] = true
 		}
 	}
-	markets, err := corpact.Markets(ctx, b.queries, instrs)
+	hs, err := b.heldInstrs(ctx, slices.Collect(maps.Keys(instrs)))
 	if err != nil {
 		return nil, err
+	}
+	markets, err := corpact.Markets(ctx, b.queries, slices.Collect(maps.Keys(hs)))
+	if err != nil {
+		return nil, err
+	}
+	isKept := map[uuid.UUID]bool{}
+	for _, id := range kept {
+		isKept[id] = true
 	}
 	before := types.Day(b.clock()).AddDate(0, 0, 1)
 	var out []ask
@@ -110,7 +103,7 @@ func (b *base) requests(ctx context.Context, hs map[uuid.UUID]*held, keep func(u
 			if h == nil || markets[iv.Instr] != t.Market || !overlaps(iv, h.from, before) {
 				continue
 			}
-			asked = asked || slices.Contains(kept, iv.Instr)
+			asked = asked || isKept[iv.Instr]
 			if !named || h.from.Before(a.req.Period.From) {
 				named = true
 				a.req.Period.From = h.from

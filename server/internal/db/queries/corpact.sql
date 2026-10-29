@@ -86,11 +86,3 @@ JOIN market_members ON market_members.operating_mic = listings.primary_mic
 WHERE listings.instr_id = ANY(@instrs::uuid[])
 GROUP BY listings.instr_id
 HAVING COUNT(DISTINCT market_members.market) = 1;
-
--- name: ListTickersNaming :many
--- The tickers whose ticker validity names one of instrs on some day.
-SELECT DISTINCT ticker_validity.instr_id, tickers.id AS ticker_id, tickers.market, tickers.value
-FROM ticker_validity
-JOIN tickers ON tickers.id = ticker_validity.ticker_id
-WHERE ticker_validity.instr_id = ANY(@instrs::uuid[])
-ORDER BY ticker_validity.instr_id, tickers.market, tickers.value;

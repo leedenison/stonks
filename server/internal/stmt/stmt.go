@@ -4,11 +4,9 @@
 //
 // Ingestion is a run: the call responds with the pending row once the statement
 // is recorded, and resolution and the write follow; see
-// [run.go](../run/run.go). The follow-up of the resolution's new identifier
-// facts and a fetch of the corporate actions of the user's held instruments
-// come after the write; see
-// [refreshcorpacts.go](../run/refreshcorpacts/refreshcorpacts.go). The
-// statement is live until they stop; see Live.
+// [run.go](../run/run.go). After the write, follow-ups run in package
+// replayrun; see [replayrun.go](../run/replayrun/replayrun.go). The statement
+// is live until the follow-ups stop; see Live.
 // A stated key is the user's: one row per asset class, currency and set of
 // identifiers, linked to each statement that states it. A statement resolves
 // only the keys it states that lack a fixed association, each once, however
@@ -50,7 +48,6 @@ type Service struct {
 	runs     Runner
 	resolver Resolver
 	facts    Facts
-	events   CorpActs
 	families currency.Families
 	clock    func() time.Time
 	log      *slog.Logger
@@ -58,8 +55,8 @@ type Service struct {
 
 // New returns a Service. families holds the currencies a statement may
 // state, and clock supplies today for the order date check.
-func New(store Store, runs Runner, resolver Resolver, facts Facts, events CorpActs, families currency.Families, clock func() time.Time, log *slog.Logger) *Service {
-	return &Service{store: store, runs: runs, resolver: resolver, facts: facts, events: events, families: families, clock: clock, log: log}
+func New(store Store, runs Runner, resolver Resolver, facts Facts, families currency.Families, clock func() time.Time, log *slog.Logger) *Service {
+	return &Service{store: store, runs: runs, resolver: resolver, facts: facts, families: families, clock: clock, log: log}
 }
 
 // Create validates msg, starts its run and responds with the pending row.
@@ -80,7 +77,7 @@ func (s *Service) Create(ctx context.Context, userID uuid.UUID, msg *stmtv1.Stmt
 		return gen.Run{}, fmt.Errorf("%w: period [%s, %s) is empty", ErrInvalid, msg.GetOrderFrom(), msg.GetOrderBefore())
 	}
 	today := types.Day(s.clock())
-	g := &ingestion{store: s.store, runs: s.runs, resolver: s.resolver, facts: s.facts, events: s.events, user: userID, broker: broker, from: from, before: before, keys: map[string]*key{}}
+	g := &ingestion{store: s.store, runs: s.runs, resolver: s.resolver, facts: s.facts, user: userID, broker: broker, from: from, before: before, keys: map[string]*key{}}
 	for i, r := range msg.GetRows() {
 		g.rows = append(g.rows, g.validate(int32(i), r, today, s.families))
 	}
@@ -101,7 +98,6 @@ type ingestion struct {
 	runs     Runner
 	resolver Resolver
 	facts    Facts
-	events   CorpActs
 	user     uuid.UUID
 	broker   gen.Broker
 	from     time.Time
@@ -225,11 +221,9 @@ func (g *ingestion) prepare(ctx context.Context, run gen.Run) error {
 	})
 }
 
-// work resolves the keys, writes the statement, and then follows the
-// resolution's new identifier facts and fetches the corporate actions of the
-// user's held instruments. The write completes the ingest statement run in its
-// own transaction, before either starts. The statement is settled after the
-// follow-ups return.
+// work resolves the keys, writes the statement and starts the follow-ups. The
+// write completes the ingest statement run in its own transaction, before the
+// follow-ups start. The statement is settled once the follow-ups return.
 func (g *ingestion) work(ctx context.Context, run gen.Run) error {
 	res, err := g.runs.Child(ctx, run, gen.RunKindResolveStmtKeys, g.resolve)
 	if err != nil {
@@ -238,8 +232,7 @@ func (g *ingestion) work(ctx context.Context, run gen.Run) error {
 	if err := g.write(ctx, run); err != nil {
 		return err
 	}
-	g.facts.AfterIdentifierFacts(ctx, res, g.written)
-	g.events.AfterStmt(ctx, run)
+	g.facts.AfterStmt(ctx, run, res, g.written)
 	if err := g.store.SettleStmt(ctx, run.ID); err != nil {
 		return fmt.Errorf("settle statement: %w", err)
 	}

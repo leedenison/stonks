@@ -13,6 +13,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/identity/resolve"
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/run"
+	"github.com/leedenison/stonks/server/internal/run/refreshcorpacts"
 )
 
 // Queries is this package's view of the generated queries.
@@ -56,8 +57,10 @@ var _ Resolver = (*resolve.Resolver)(nil)
 // CorpActs is this package's view of the refreshcorpacts
 // package.
 type CorpActs interface {
-	FetchAfterIdentifierFacts(ctx context.Context, parent gen.Run, written []resolve.WrittenIdentifierFacts)
+	FetchHeld(ctx context.Context, parent gen.Run, scope refreshcorpacts.Scope)
 }
+
+var _ CorpActs = (*refreshcorpacts.Service)(nil)
 
 // Sources is this package's view of the datasource registry.
 type Sources interface {

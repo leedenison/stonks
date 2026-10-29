@@ -18,6 +18,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/identity/resolve"
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/run"
+	"github.com/leedenison/stonks/server/internal/run/refreshcorpacts"
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
@@ -61,7 +62,7 @@ type fixture struct {
 	runs     *MockRunner
 	resolver *MockResolver
 	sources  *MockSources
-	events   *MockCorpActs
+	corpActs *MockCorpActs
 	svc      *Service
 
 	entries    []*market.Entry
@@ -77,8 +78,14 @@ type fixture struct {
 	resolution gen.Run
 	resolved   []gen.StatedKey
 	regrouped  []uuid.UUID
-	// fetched records the parent of each corporate actions fetch.
-	fetched []gen.Run
+	// fetched records each corporate actions fetch.
+	fetched []fetchCall
+}
+
+// fetchCall is one corporate actions fetch.
+type fetchCall struct {
+	parent gen.Run
+	scope  refreshcorpacts.Scope
 }
 
 // newFixture returns a service whose writes run inline and in order.
@@ -86,7 +93,7 @@ func newFixture(t *testing.T) *fixture {
 	t.Helper()
 	ctrl := gomock.NewController(t)
 	t.Cleanup(ctrl.Finish)
-	f := &fixture{store: NewMockStore(ctrl), runs: NewMockRunner(ctrl), resolver: NewMockResolver(ctrl), sources: NewMockSources(ctrl), events: NewMockCorpActs(ctrl)}
+	f := &fixture{store: NewMockStore(ctrl), runs: NewMockRunner(ctrl), resolver: NewMockResolver(ctrl), sources: NewMockSources(ctrl), corpActs: NewMockCorpActs(ctrl)}
 	f.sources.EXPECT().Entry(gomock.Any()).DoAndReturn(func(name string) *market.Entry {
 		i := slices.IndexFunc(f.entries, func(e *market.Entry) bool { return e.Name == name })
 		if i < 0 {
@@ -130,10 +137,10 @@ func newFixture(t *testing.T) *fixture {
 		row := gen.Run{ID: db.NewID(), UserID: parent.UserID, Kind: kind, Trigger: gen.RunTriggerRun, ParentID: &parent.ID}
 		return row, work(ctx, row)
 	}).AnyTimes()
-	f.events.EXPECT().FetchAfterIdentifierFacts(gomock.Any(), gomock.Any(), gomock.Any()).Do(func(_ context.Context, parent gen.Run, _ []resolve.WrittenIdentifierFacts) {
-		f.fetched = append(f.fetched, parent)
+	f.corpActs.EXPECT().FetchHeld(gomock.Any(), gomock.Any(), gomock.Any()).Do(func(_ context.Context, parent gen.Run, scope refreshcorpacts.Scope) {
+		f.fetched = append(f.fetched, fetchCall{parent, scope})
 	}).AnyTimes()
-	f.svc = New(f.store, f.runs, f.resolver, f.events, f.sources, nil, slog.New(slog.DiscardHandler))
+	f.svc = New(f.store, f.runs, f.resolver, f.corpActs, f.sources, nil, slog.New(slog.DiscardHandler))
 	return f
 }
 
@@ -283,8 +290,24 @@ func TestWorkFails(t *testing.T) {
 func TestAfterIdentifierFactsFetches(t *testing.T) {
 	f := newFixture(t)
 	except := gen.Run{ID: db.NewID(), UserID: &userID, Kind: gen.RunKindResolveStmtKeys}
-	f.svc.AfterIdentifierFacts(context.Background(), except, nil)
-	if diff := cmp.Diff([]gen.Run{except}, f.fetched); diff != "" {
-		t.Errorf("fetch parents mismatch (-want +got):\n%s", diff)
+	written := []resolve.WrittenIdentifierFacts{{Run: except, Tickers: []types.MarketTicker{{Market: "US", Value: "ACME"}}}}
+	f.svc.AfterIdentifierFacts(context.Background(), except, written)
+	want := []fetchCall{{parent: except, scope: refreshcorpacts.Scope{Written: written}}}
+	if diff := cmp.Diff(want, f.fetched, cmp.AllowUnexported(fetchCall{})); diff != "" {
+		t.Errorf("fetches mismatch (-want +got):\n%s", diff)
+	}
+}
+
+// TestAfterStmtFetches checks that a statement makes one corporate actions
+// fetch beneath itself, over its new facts and its user's held instruments.
+func TestAfterStmtFetches(t *testing.T) {
+	f := newFixture(t)
+	stmt := gen.Run{ID: db.NewID(), UserID: &userID, Kind: gen.RunKindIngestStmt}
+	except := gen.Run{ID: db.NewID(), UserID: &userID, Kind: gen.RunKindResolveStmtKeys}
+	written := []resolve.WrittenIdentifierFacts{{Run: except, Tickers: []types.MarketTicker{{Market: "US", Value: "ACME"}}}}
+	f.svc.AfterStmt(context.Background(), stmt, except, written)
+	want := []fetchCall{{parent: stmt, scope: refreshcorpacts.Scope{Written: written, User: &userID}}}
+	if diff := cmp.Diff(want, f.fetched, cmp.AllowUnexported(fetchCall{})); diff != "" {
+		t.Errorf("fetches mismatch (-want +got):\n%s", diff)
 	}
 }

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -242,14 +243,14 @@ func newShared(t *testing.T, s *stack) shared {
 	return sh
 }
 
-// TestAfterStmtShared checks that a ticker that also named another
-// user's instrument is asked about over every user's holding, beneath a
-// system child of the statement, and that a ticker whose validity ends before
-// the holding is not asked about.
-func TestAfterStmtShared(t *testing.T) {
+// TestFetchHeldShared checks that a ticker that also named another user's
+// instrument is asked about over every user's holding, beneath a system child
+// of the statement, and that a ticker whose validity ends before the holding
+// is not asked about.
+func TestFetchHeldShared(t *testing.T) {
 	s := newStack(t)
 	sh := newShared(t, s)
-	s.svc.AfterStmt(context.Background(), sh.stmt)
+	s.svc.FetchHeld(context.Background(), sh.stmt, Scope{User: &sh.u})
 	want := []fetched{{
 		Kind: gen.RunKindRefreshCorpActs,
 		Reqs: []asked{{Ticker: types.MarketTicker{Market: "US", Value: sh.ticker}, Period: types.Period{From: day(2011, 5, 2), Before: day(2026, 3, 3)}}},
@@ -259,13 +260,13 @@ func TestAfterStmtShared(t *testing.T) {
 	}
 }
 
-// TestFetchAfterIdentifierFactsShared checks that new facts of the shared
-// ticker ask for the same request as the statement does.
-func TestFetchAfterIdentifierFactsShared(t *testing.T) {
+// TestFetchHeldFactsShared checks that new facts of the shared ticker ask
+// for the same request as the statement's user does.
+func TestFetchHeldFactsShared(t *testing.T) {
 	s := newStack(t)
 	sh := newShared(t, s)
 	written := []resolve.WrittenIdentifierFacts{{Run: sh.stmt, Tickers: []types.MarketTicker{{Market: "US", Value: sh.ticker}}}}
-	s.svc.FetchAfterIdentifierFacts(context.Background(), sh.stmt, written)
+	s.svc.FetchHeld(context.Background(), sh.stmt, Scope{Written: written})
 	want := []fetched{{
 		Kind: gen.RunKindRefreshCorpActs,
 		Reqs: []asked{{Ticker: types.MarketTicker{Market: "US", Value: sh.ticker}, Period: types.Period{From: day(2011, 5, 2), Before: day(2026, 3, 3)}}},
@@ -275,10 +276,57 @@ func TestFetchAfterIdentifierFactsShared(t *testing.T) {
 	}
 }
 
-// TestAfterStmtOwn checks that a ticker only the statement's user holds
-// is fetched beneath the statement, from the earliest transaction, and that a
+// TestFetchHeldOnce checks that facts naming one of the user's instruments
+// and the user's other instrument are asked about in one fetch.
+func TestFetchHeldOnce(t *testing.T) {
+	s := newStack(t)
+	u := s.user(t)
+	va, vb := value(t, "A"), value(t, "B")
+	a, b := s.instr(t), s.instr(t)
+	s.names(t, va, &a, day(2015, 1, 2))
+	s.names(t, vb, &b, day(2015, 1, 2))
+	stmt := s.buys(t, u, s.fixedKey(t, u, a), day(2016, 3, 1))
+	s.buys(t, u, s.fixedKey(t, u, b), day(2017, 3, 1))
+	written := []resolve.WrittenIdentifierFacts{{Run: stmt, Tickers: []types.MarketTicker{{Market: "US", Value: va}}}}
+	s.svc.FetchHeld(context.Background(), stmt, Scope{Written: written, User: &u})
+	reqs := []asked{
+		{Ticker: types.MarketTicker{Market: "US", Value: va}, Period: types.Period{From: day(2016, 3, 1), Before: day(2026, 3, 3)}},
+		{Ticker: types.MarketTicker{Market: "US", Value: vb}, Period: types.Period{From: day(2017, 3, 1), Before: day(2026, 3, 3)}},
+	}
+	if vb < va {
+		reqs[0], reqs[1] = reqs[1], reqs[0]
+	}
+	want := []fetched{{Kind: gen.RunKindIngestStmt, User: &u, Reqs: reqs}}
+	if diff := cmp.Diff(want, mine(s.recorder.calls, va, vb)); diff != "" {
+		t.Errorf("fetches mismatch (-want +got):\n%s", diff)
+	}
+}
+
+// TestFetchHeldOthers checks that a user's scope leaves out an instrument
+// that only another user holds.
+func TestFetchHeldOthers(t *testing.T) {
+	s := newStack(t)
+	u, v := s.user(t), s.user(t)
+	ours, theirs := value(t, "U"), value(t, "V")
+	a, b := s.instr(t), s.instr(t)
+	s.names(t, ours, &a, day(2015, 1, 2))
+	s.names(t, theirs, &b, day(2015, 1, 2))
+	stmt := s.buys(t, u, s.fixedKey(t, u, a), day(2016, 3, 1))
+	s.buys(t, v, s.fixedKey(t, v, b), day(2016, 3, 1))
+	s.svc.FetchHeld(context.Background(), stmt, Scope{User: &u})
+	want := []fetched{{
+		Kind: gen.RunKindIngestStmt, User: &u,
+		Reqs: []asked{{Ticker: types.MarketTicker{Market: "US", Value: ours}, Period: types.Period{From: day(2016, 3, 1), Before: day(2026, 3, 3)}}},
+	}}
+	if diff := cmp.Diff(want, mine(s.recorder.calls, ours, theirs)); diff != "" {
+		t.Errorf("fetches mismatch (-want +got):\n%s", diff)
+	}
+}
+
+// TestFetchHeldOwn checks that a ticker only the statement's user holds is
+// fetched beneath the statement, from the earliest transaction, and that a
 // dated transaction on a day when its ticker names nothing holds nothing.
-func TestAfterStmtOwn(t *testing.T) {
+func TestFetchHeldOwn(t *testing.T) {
 	s := newStack(t)
 	u := s.user(t)
 	own, unnamed := value(t, "O"), value(t, "N")
@@ -287,7 +335,7 @@ func TestAfterStmtOwn(t *testing.T) {
 	s.names(t, unnamed, nil, day(2015, 1, 2))
 	stmt := s.buys(t, u, s.datedKey(t, u, own), day(2016, 3, 1), day(2015, 7, 1))
 	s.buys(t, u, s.datedKey(t, u, unnamed), day(2016, 3, 1))
-	s.svc.AfterStmt(context.Background(), stmt)
+	s.svc.FetchHeld(context.Background(), stmt, Scope{User: &u})
 	want := []fetched{{
 		Kind: gen.RunKindIngestStmt, User: &u,
 		Reqs: []asked{{Ticker: types.MarketTicker{Market: "US", Value: own}, Period: types.Period{From: day(2015, 7, 1), Before: day(2026, 3, 3)}}},
@@ -297,9 +345,9 @@ func TestAfterStmtOwn(t *testing.T) {
 	}
 }
 
-// TestAfterStmtMarket checks that a fetch asks only about the tickers in the
+// TestFetchHeldMarket checks that a fetch asks only about the tickers in the
 // instrument's market, and about none for an instrument with no market.
-func TestAfterStmtMarket(t *testing.T) {
+func TestFetchHeldMarket(t *testing.T) {
 	tests := []struct {
 		name      string
 		primaries map[string]*string
@@ -318,7 +366,7 @@ func TestAfterStmtMarket(t *testing.T) {
 			s.names(t, v, &instr, day(2015, 1, 2))
 			s.namesAt(t, types.MarketTicker{Market: "XTSE", Value: v}, &instr, day(2015, 1, 2))
 			stmt := s.buys(t, u, s.fixedKey(t, u, instr), day(2016, 3, 1))
-			s.svc.AfterStmt(context.Background(), stmt)
+			s.svc.FetchHeld(context.Background(), stmt, Scope{User: &u})
 			var want []fetched
 			if tc.want {
 				want = []fetched{{
@@ -353,7 +401,8 @@ func TestStart(t *testing.T) {
 }
 
 // TestHeldQueries checks the held instruments across two users, through a
-// fixed key and through a dated key whose ticker names an instrument.
+// fixed key and through a dated key whose ticker names an instrument, and the
+// ids of the instruments that each user, and every user, holds.
 func TestHeldQueries(t *testing.T) {
 	s := newStack(t)
 	ctx := context.Background()
@@ -365,14 +414,8 @@ func TestHeldQueries(t *testing.T) {
 	s.names(t, tk, &named, day(2022, 3, 1))
 	s.buys(t, u, s.datedKey(t, u, tk), day(2022, 4, 1), day(2022, 3, 1))
 
-	instrs, err := s.q.ListHeldInstrs(ctx)
+	got, err := s.q.ListHeldInstrs(ctx, []uuid.UUID{instr, named})
 	require.NoError(t, err)
-	var got []gen.ListHeldInstrsRow
-	for _, r := range instrs {
-		if r.InstrID == instr || r.InstrID == named {
-			got = append(got, r)
-		}
-	}
 	want := []gen.ListHeldInstrsRow{{InstrID: instr, UserID: u, FirstAsAt: day(2019, 3, 1)}, {InstrID: instr, UserID: v, FirstAsAt: day(2021, 3, 1)}}
 	if u.String() > v.String() {
 		want[0], want[1] = want[1], want[0]
@@ -385,5 +428,21 @@ func TestHeldQueries(t *testing.T) {
 	}
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("ListHeldInstrs mismatch (-want +got):\n%s", diff)
+	}
+	for _, tc := range []struct {
+		user *uuid.UUID
+		want []uuid.UUID
+	}{{user: &u, want: []uuid.UUID{instr, named}}, {user: &v, want: []uuid.UUID{instr}}, {want: []uuid.UUID{instr, named}}} {
+		ids, err := s.q.ListHeldInstrIDs(ctx, tc.user)
+		require.NoError(t, err)
+		var got []uuid.UUID
+		for _, id := range ids {
+			if id == instr || id == named {
+				got = append(got, id)
+			}
+		}
+		if diff := cmp.Diff(tc.want, got, cmpopts.SortSlices(func(a, b uuid.UUID) bool { return a.String() < b.String() })); diff != "" {
+			t.Errorf("ListHeldInstrIDs(%v) mismatch (-want +got):\n%s", tc.user, diff)
+		}
 	}
 }

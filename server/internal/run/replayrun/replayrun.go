@@ -29,6 +29,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/mic"
 	"github.com/leedenison/stonks/server/internal/run"
+	"github.com/leedenison/stonks/server/internal/run/refreshcorpacts"
 )
 
 var (
@@ -67,15 +68,15 @@ type Service struct {
 	store    Store
 	runs     Runner
 	resolver Resolver
-	events   CorpActs
+	corpActs CorpActs
 	sources  Sources
 	mics     mic.MICMap
 	log      *slog.Logger
 }
 
 // New returns a Service.
-func New(store Store, runs Runner, resolver Resolver, events CorpActs, sources Sources, mics mic.MICMap, log *slog.Logger) *Service {
-	return &Service{store: store, runs: runs, resolver: resolver, events: events, sources: sources, mics: mics, log: log}
+func New(store Store, runs Runner, resolver Resolver, corpActs CorpActs, sources Sources, mics mic.MICMap, log *slog.Logger) *Service {
+	return &Service{store: store, runs: runs, resolver: resolver, corpActs: corpActs, sources: sources, mics: mics, log: log}
 }
 
 // Start starts a replay of source's keys as a run of source's user, started
@@ -203,7 +204,17 @@ func (r *replay) resolve(ctx context.Context, res gen.Run) error {
 // stands. Both run in the goroutine of the run that found the facts.
 func (s *Service) AfterIdentifierFacts(ctx context.Context, except gen.Run, written []resolve.WrittenIdentifierFacts) {
 	s.replayFacts(ctx, except, written)
-	s.events.FetchAfterIdentifierFacts(ctx, except, written)
+	s.corpActs.FetchHeld(ctx, except, refreshcorpacts.Scope{Written: written})
+}
+
+// AfterStmt replays the keys that state a ticker in written, as
+// AfterIdentifierFacts does, excepting the statement's resolution. It then
+// makes one corporate actions fetch beneath stmt. The fetch asks about the
+// held instruments that the tickers name and about every instrument that
+// stmt's user holds.
+func (s *Service) AfterStmt(ctx context.Context, stmt, except gen.Run, written []resolve.WrittenIdentifierFacts) {
+	s.replayFacts(ctx, except, written)
+	s.corpActs.FetchHeld(ctx, stmt, refreshcorpacts.Scope{Written: written, User: stmt.UserID})
 }
 
 // replayFacts replays every user's unresolved keys that state a ticker in

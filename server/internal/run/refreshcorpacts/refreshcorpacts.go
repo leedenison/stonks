@@ -9,9 +9,8 @@
 // earliest as-at date of the transactions of every user that name the
 // instrument to the day after today. The period is the same whichever
 // run asks, because a later answer replaces an earlier one and a shorter period
-// would cut the coverage of another user's transactions. A statement and new
-// identifier facts each start a fetch, and an administrator can start a run
-// over every held instrument.
+// would cut the coverage of another user's transactions. Statements, new
+// identifier facts and administrators start fetches; see Scope and Start.
 package refreshcorpacts
 
 //go:generate go tool mockgen -source=refreshcorpacts.go -destination=refreshcorpacts_mock_test.go -package=refreshcorpacts -self_package=github.com/leedenison/stonks/server/internal/run/refreshcorpacts
@@ -33,10 +32,10 @@ import (
 
 // Queries is this package's view of the generated queries.
 type Queries interface {
-	tickervalidity.ValidityQueries
+	tickervalidity.NamingQueries
 	corpact.MarketQueries
-	ListHeldInstrs(ctx context.Context) ([]gen.ListHeldInstrsRow, error)
-	ListTickersNaming(ctx context.Context, instrs []uuid.UUID) ([]gen.ListTickersNamingRow, error)
+	ListHeldInstrIDs(ctx context.Context, userID *uuid.UUID) ([]uuid.UUID, error)
+	ListHeldInstrs(ctx context.Context, instrs []uuid.UUID) ([]gen.ListHeldInstrsRow, error)
 }
 
 var _ Queries = (*gen.Queries)(nil)
@@ -67,7 +66,7 @@ type base struct {
 }
 
 // Service fetches the corporate actions that statements and new identifier
-// facts call for.
+// facts call for; see FetchHeld.
 type Service struct{ base }
 
 // New returns a Service. clock supplies today, which ends each period.

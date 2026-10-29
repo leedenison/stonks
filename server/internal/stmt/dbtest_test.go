@@ -26,6 +26,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/identity/resolve"
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/mic"
+	"github.com/leedenison/stonks/server/internal/run/refreshcorpacts"
 	"github.com/leedenison/stonks/server/internal/run/replayrun"
 	"github.com/leedenison/stonks/server/internal/testutil/dbtest"
 	"github.com/leedenison/stonks/server/internal/testutil/runtest"
@@ -75,7 +76,7 @@ func newStack(t *testing.T) stack {
 	require.NoError(t, err)
 	resolver := resolve.New(db.New[resolve.Queries](tx), market.NewFetcher(db.New[market.Queries](tx), runs, log), sources, mics, families, clock, log)
 	replays := replayrun.New(db.New[replayrun.Queries](tx), runs, resolver, nopCorpActs{}, sources, mics, log)
-	return stack{q: q, tx: tx, svc: New(db.New[Queries](tx), runs, resolver, replays, nopCorpActs{}, families, clock, log), user: user, alpha: alpha, alphaName: name}
+	return stack{q: q, tx: tx, svc: New(db.New[Queries](tx), runs, resolver, replays, families, clock, log), user: user, alpha: alpha, alphaName: name}
 }
 
 func (s stack) ingest(t *testing.T, msg *stmtv1.Stmt) gen.Run {
@@ -596,7 +597,4 @@ func (s *stack) keyOf(t *testing.T, stmt gen.Run) gen.StatedKey {
 // refreshcorpacts package tests that fetch.
 type nopCorpActs struct{}
 
-func (nopCorpActs) FetchAfterIdentifierFacts(context.Context, gen.Run, []resolve.WrittenIdentifierFacts) {
-}
-
-func (nopCorpActs) AfterStmt(context.Context, gen.Run) {}
+func (nopCorpActs) FetchHeld(context.Context, gen.Run, refreshcorpacts.Scope) {}

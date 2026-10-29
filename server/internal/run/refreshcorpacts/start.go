@@ -5,8 +5,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/google/uuid"
-
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/run"
@@ -23,11 +21,11 @@ const lane = "refresh_corp_acts"
 // are chosen when the run starts. An instrument that becomes held later waits
 // for the next run.
 func (s *Starter) Start(ctx context.Context) (gen.Run, error) {
-	hs, err := s.heldInstrs(ctx)
+	ids, err := s.queries.ListHeldInstrIDs(ctx, nil)
 	if err != nil {
-		return gen.Run{}, err
+		return gen.Run{}, fmt.Errorf("list held instruments: %w", err)
 	}
-	asks, err := s.requests(ctx, hs, func(uuid.UUID, *held) bool { return true })
+	asks, err := s.requests(ctx, ids)
 	if err != nil {
 		return gen.Run{}, err
 	}
