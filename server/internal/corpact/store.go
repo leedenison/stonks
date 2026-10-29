@@ -23,7 +23,7 @@ var _ ReadQueries = (*gen.Queries)(nil)
 type Queries interface {
 	CalendarQueries
 	ListCorpActSources(ctx context.Context) ([]gen.ListCorpActSourcesRow, error)
-	LockCorpActAnswer(ctx context.Context, key string) error
+	db.AdvisoryLocker
 	GetCorpActAnswer(ctx context.Context, arg gen.GetCorpActAnswerParams) (gen.GetCorpActAnswerRow, error)
 	CreateCorpActAnswer(ctx context.Context, arg gen.CreateCorpActAnswerParams) error
 	UpdateCorpActAnswer(ctx context.Context, arg gen.UpdateCorpActAnswerParams) error

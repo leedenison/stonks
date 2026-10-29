@@ -22,8 +22,8 @@ import (
 func (g *ingestion) write(ctx context.Context, run gen.Run) error {
 	var accepted, rejected int64
 	err := g.store.Tx(ctx, func(q Queries) error {
-		if err := q.LockUserKeys(ctx, g.user); err != nil {
-			return fmt.Errorf("lock keys: %w", err)
+		if err := db.LockUserKeys(ctx, q, g.user); err != nil {
+			return err
 		}
 		period := gen.DeleteTxnsParams{UserID: g.user, Broker: g.broker, OrderFrom: g.from, OrderBefore: g.before}
 		if _, err := q.DeleteTxns(ctx, period); err != nil {

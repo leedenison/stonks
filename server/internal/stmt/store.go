@@ -21,7 +21,7 @@ type Queries interface {
 	UpsertStatedKey(ctx context.Context, arg gen.UpsertStatedKeyParams) (gen.StatedKey, error)
 	CreateStmtKeys(ctx context.Context, arg []gen.CreateStmtKeysParams) (int64, error)
 	CreateStmtSplit(ctx context.Context, arg gen.CreateStmtSplitParams) error
-	LockUserKeys(ctx context.Context, userID uuid.UUID) error
+	db.AdvisoryLocker
 	DeleteTxns(ctx context.Context, arg gen.DeleteTxnsParams) (int64, error)
 	CreateTxns(ctx context.Context, arg []gen.CreateTxnsParams) (int64, error)
 	CreateStmtItems(ctx context.Context, arg []gen.CreateStmtItemsParams) (int64, error)
