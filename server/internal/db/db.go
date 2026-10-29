@@ -88,7 +88,9 @@ type options struct{ tracing bool }
 // process's OpenTelemetry providers.
 func WithTracing() Option { return func(o *options) { o.tracing = true } }
 
-// Open connects a pool to url and verifies it with a ping.
+// Open connects a pool to url and verifies it with a ping. Every connection
+// starts its transactions at Read Committed, whatever the server's default.
+// The lock order in the tickervalidity package relies on this level.
 func Open(ctx context.Context, url string, opts ...Option) (*pgxpool.Pool, error) {
 	var o options
 	for _, opt := range opts {
@@ -98,6 +100,7 @@ func Open(ctx context.Context, url string, opts ...Option) (*pgxpool.Pool, error
 	if err != nil {
 		return nil, fmt.Errorf("parse pool config: %w", err)
 	}
+	cfg.ConnConfig.RuntimeParams["default_transaction_isolation"] = "read committed"
 	if o.tracing {
 		cfg.ConnConfig.Tracer = otelpgx.NewTracer(
 			otelpgx.WithTrimSQLInSpanName(),

@@ -21,8 +21,9 @@
 // identifiers, then locks its ticker rows in id order, writes the facts, and
 // rebuilds. The rebuild locks each instrument it rewrites, in id order. A
 // second writer of one of the tickers, or of another ticker of one of the
-// instruments, waits until the first commits. Under Read Committed its next
-// statement then reads the first writer's facts.
+// instruments, waits until the first commits. Its next statement then reads
+// the first writer's facts, since db.Open runs every transaction at Read
+// Committed; see [db.go](../../db/db.go).
 //
 // Edges and assertion coverage count only from the identifier event source of
 // the ticker's market; see facts. Assertions from every datasource compete

@@ -26,6 +26,7 @@ of open issues and ADRs at `docs/tasks/<label>/`.
   Massive and EODHD, on a ticker model where tickers are facts.
 
 ```
+    020 locking
     002 close
 ```
 
