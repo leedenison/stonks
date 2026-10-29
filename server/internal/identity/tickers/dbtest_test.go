@@ -84,3 +84,21 @@ func TestGetSpelling(t *testing.T) {
 		})
 	}
 }
+
+// TestLockSkipsMissing checks that Lock's token holds only the ids that
+// have a row.
+func TestLockSkipsMissing(t *testing.T) {
+	ctx := context.Background()
+	q, mics := setup(t)
+	rows, err := Get(ctx, q, mics, []types.MarketTicker{fresh("US")})
+	require.NoError(t, err)
+	var held uuid.UUID
+	for _, r := range rows {
+		held = r.ID
+	}
+	locked, err := Lock(ctx, q, []uuid.UUID{uuid.New(), held})
+	require.NoError(t, err)
+	if got := locked.IDs(); len(got) != 1 || got[0] != held {
+		t.Errorf("IDs() = %v, want [%s]", got, held)
+	}
+}

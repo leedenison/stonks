@@ -16,6 +16,7 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/identity/tickers"
 	"github.com/leedenison/stonks/server/internal/identity/tickervalidity"
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/platform/ptr"
@@ -66,7 +67,9 @@ func (s *stack) names(t *testing.T, mt types.MarketTicker, instr uuid.UUID, on t
 	require.NoError(t, s.q.CreateIdentifierAssertion(ctx, gen.CreateIdentifierAssertionParams{
 		ID: db.NewID(), FetchKeyID: &key, TickerID: ticker, Market: mt.Market, InstrID: &instr, AssertedFrom: on, AssertedBefore: on.AddDate(0, 0, 1),
 	}))
-	require.NoError(t, tickervalidity.Rebuild(ctx, s.q, []uuid.UUID{ticker}))
+	locked, err := tickers.Lock(ctx, s.q, []uuid.UUID{ticker})
+	require.NoError(t, err)
+	require.NoError(t, tickervalidity.Rebuild(ctx, s.q, locked))
 }
 
 // user creates a user.

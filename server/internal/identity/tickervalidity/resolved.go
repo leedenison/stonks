@@ -11,6 +11,7 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/identity/tickers"
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
@@ -163,12 +164,12 @@ type RebuildQueries interface {
 
 var _ RebuildQueries = (*gen.Queries)(nil)
 
-// Rebuild rewrites the ticker validity of the tickers in ids. It then rewrites
-// the rows of resolved_tickers of each instrument and market that the facts
-// or the rows of those tickers touch. The caller holds the rows of ids.
-// Rebuild locks each of those instruments in id order; see the package doc
-// for the order of the locks.
-func Rebuild(ctx context.Context, q RebuildQueries, ids []uuid.UUID) error {
+// Rebuild rewrites the ticker validity of the tickers in locked. It then
+// rewrites the rows of resolved_tickers of each instrument and market that the
+// facts or the rows of those tickers touch. Rebuild locks each of those
+// instruments in id order; see the package doc for the order of the locks.
+func Rebuild(ctx context.Context, q RebuildQueries, locked tickers.Locked) error {
+	ids := locked.IDs()
 	if len(ids) == 0 {
 		return nil
 	}

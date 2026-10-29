@@ -80,7 +80,9 @@ func (f *fixture) records() {
 		f.locked = append(f.locked, keys)
 		return nil
 	}).AnyTimes()
-	f.store.EXPECT().LockTickers(gomock.Any(), gomock.Any()).AnyTimes()
+	f.store.EXPECT().LockTickers(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, ids []uuid.UUID) ([]uuid.UUID, error) {
+		return ids, nil
+	}).AnyTimes()
 	f.store.EXPECT().ListTickersOfInstrs(gomock.Any(), gomock.Any()).AnyTimes()
 	f.store.EXPECT().ListResolvePairs(gomock.Any(), gomock.Any()).AnyTimes()
 	f.store.EXPECT().ListTickersByID(gomock.Any(), gomock.Any()).AnyTimes()

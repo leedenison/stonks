@@ -11,12 +11,12 @@ package rebuildtickervalidity
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/google/uuid"
 
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/identity/tickers"
 	"github.com/leedenison/stonks/server/internal/identity/tickervalidity"
 	"github.com/leedenison/stonks/server/internal/run"
 )
@@ -27,7 +27,7 @@ const lane = "rebuild_ticker_validity"
 // Queries is this package's view of the generated queries.
 type Queries interface {
 	tickervalidity.RebuildQueries
-	LockTickerBatch(ctx context.Context, arg gen.LockTickerBatchParams) ([]uuid.UUID, error)
+	tickers.BatchLocker
 }
 
 var _ Queries = (*gen.Queries)(nil)
@@ -75,11 +75,12 @@ func (s *Service) rebuild(ctx context.Context) error {
 	for {
 		var ids []uuid.UUID
 		err := s.store.Tx(ctx, func(q Queries) error {
-			var err error
-			if ids, err = q.LockTickerBatch(ctx, gen.LockTickerBatchParams{After: after, Lim: s.batch}); err != nil {
-				return fmt.Errorf("lock tickers: %w", err)
+			locked, err := tickers.LockBatch(ctx, q, after, s.batch)
+			if err != nil {
+				return err
 			}
-			return tickervalidity.Rebuild(ctx, q, ids)
+			ids = locked.IDs()
+			return tickervalidity.Rebuild(ctx, q, locked)
 		})
 		if err != nil {
 			return err

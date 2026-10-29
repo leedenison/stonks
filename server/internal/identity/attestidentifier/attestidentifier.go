@@ -90,13 +90,14 @@ func (s *Service) Start(ctx context.Context, admin uuid.UUID, v types.MarketTick
 			}
 			ids := []uuid.UUID{rows[v].ID}
 			return s.store.Tx(ctx, func(q Queries) error {
-				if err := tickers.Lock(ctx, q, ids); err != nil {
+				locked, err := tickers.Lock(ctx, q, ids)
+				if err != nil {
 					return err
 				}
 				if err := tickervalidity.Attest(ctx, q, s.mics, row, admin, rows[v], instr, p, today); err != nil {
 					return err
 				}
-				return tickervalidity.Rebuild(ctx, q, ids)
+				return tickervalidity.Rebuild(ctx, q, locked)
 			})
 		},
 	}
@@ -125,7 +126,8 @@ func (s *Service) Withdraw(ctx context.Context, id uuid.UUID) error {
 			return fmt.Errorf("get run %s: %w", a.IdentifierAssertion.RunID, err)
 		}
 		ids := []uuid.UUID{a.IdentifierAssertion.TickerID}
-		if err := tickers.Lock(ctx, q, ids); err != nil {
+		locked, err := tickers.Lock(ctx, q, ids)
+		if err != nil {
 			return err
 		}
 		n, err := q.DeleteAttestedAssertion(ctx, id)
@@ -135,7 +137,7 @@ func (s *Service) Withdraw(ctx context.Context, id uuid.UUID) error {
 		if n == 0 {
 			return fmt.Errorf("assertion %s: %w", id, db.ErrNotFound)
 		}
-		return tickervalidity.Rebuild(ctx, q, ids)
+		return tickervalidity.Rebuild(ctx, q, locked)
 	})
 	if err != nil {
 		return err
