@@ -20,9 +20,6 @@ import (
 	"github.com/leedenison/stonks/proto/admin/coverage/v1/admincoveragev1connect"
 	"github.com/leedenison/stonks/proto/admin/datasource/v1/admindatasourcev1connect"
 	"github.com/leedenison/stonks/proto/admin/instr/v1/admininstrv1connect"
-	"github.com/leedenison/stonks/proto/admin/reassert_tickers/v1/adminreasserttickersv1connect"
-	"github.com/leedenison/stonks/proto/admin/rebuild_ticker_validity/v1/adminrebuildtickervalidityv1connect"
-	"github.com/leedenison/stonks/proto/admin/refresh_corp_acts/v1/adminrefreshcorpactsv1connect"
 	"github.com/leedenison/stonks/proto/admin/replay_run/v1/adminreplayrunv1connect"
 	"github.com/leedenison/stonks/proto/admin/run/v1/adminrunv1connect"
 	"github.com/leedenison/stonks/proto/auth/v1/authv1connect"
@@ -59,9 +56,6 @@ import (
 	admincoverage "github.com/leedenison/stonks/server/internal/service/admin/coverage"
 	admindatasource "github.com/leedenison/stonks/server/internal/service/admin/datasource"
 	admininstr "github.com/leedenison/stonks/server/internal/service/admin/instr"
-	adminreasserttickers "github.com/leedenison/stonks/server/internal/service/admin/reasserttickers"
-	adminrebuildtickervalidity "github.com/leedenison/stonks/server/internal/service/admin/rebuildtickervalidity"
-	adminrefreshcorpacts "github.com/leedenison/stonks/server/internal/service/admin/refreshcorpacts"
 	adminreplayrun "github.com/leedenison/stonks/server/internal/service/admin/replayrun"
 	adminrun "github.com/leedenison/stonks/server/internal/service/admin/run"
 	authsvc "github.com/leedenison/stonks/server/internal/service/auth"
@@ -191,8 +185,13 @@ func run() (err error) {
 	refreshes := refreshcorpacts.NewStarter(queries, runs, freshRecorder, mics, time.Now, logger.WithCategory(log, "internal/run/refreshcorpacts"))
 	ingester := stmt.New(db.New[stmt.Queries](pool), runs, resolver, replays, families, time.Now, logger.WithCategory(log, "internal/stmt"))
 	rebuilds := rebuildtickervalidity.New(db.New[rebuildtickervalidity.Queries](pool), runs, 500)
+	starters := map[gen.RunKind]adminrun.Starter{
+		gen.RunKindReassertTickers:       reassertions,
+		gen.RunKindRefreshCorpActs:       refreshes,
+		gen.RunKindRebuildTickerValidity: rebuilds,
+	}
 	datasources := admindatasource.New(queries, sources, datasource.New(db.New[datasource.Queries](pool), sources, cache, rebuilds))
-	srv, err := newServer(cfg.ListenAddr, log, authn, queries, holdingsvc.New(queries, families, scales, time.Now), adminrun.New(queries), adminblock.New(queries), datasources, admininstr.New(queries), adminreplayrun.New(queries, replays), adminreasserttickers.New(reassertions), adminrefreshcorpacts.New(refreshes), adminrebuildtickervalidity.New(rebuilds), admincoverage.New(coverage.New(queries, mics), attestidentifier.New(db.New[attestidentifier.Queries](pool), runs, replays, attestidentifier.Names{}, mics, time.Now), time.Now), ingester, cfg.CookieSecure)
+	srv, err := newServer(cfg.ListenAddr, log, authn, queries, holdingsvc.New(queries, families, scales, time.Now), adminrun.New(queries, starters), adminblock.New(queries), datasources, admininstr.New(queries), adminreplayrun.New(queries, replays), admincoverage.New(coverage.New(queries, mics), attestidentifier.New(db.New[attestidentifier.Queries](pool), runs, replays, attestidentifier.Names{}, mics, time.Now), time.Now), ingester, cfg.CookieSecure)
 	if err != nil {
 		return err
 	}
@@ -222,7 +221,7 @@ func tracedClient(timeout time.Duration) *http.Client {
 // once the server listens, which is after the migrations have applied. It is
 // outside the Connect chain and the mux carries no HTTP instrumentation, so
 // the container probing it every two seconds produces no telemetry.
-func newServer(addr string, log *slog.Logger, authn *auth.Authenticator, queries *gen.Queries, holdings *holdingsvc.Server, runs *adminrun.Server, blocks *adminblock.Server, datasources *admindatasource.Server, instrs *admininstr.Server, replays *adminreplayrun.Server, reassertions *adminreasserttickers.Server, refreshes *adminrefreshcorpacts.Server, rebuilds *adminrebuildtickervalidity.Server, coverages *admincoverage.Server, stmts *stmt.Service, secure bool) (*http.Server, error) {
+func newServer(addr string, log *slog.Logger, authn *auth.Authenticator, queries *gen.Queries, holdings *holdingsvc.Server, runs *adminrun.Server, blocks *adminblock.Server, datasources *admindatasource.Server, instrs *admininstr.Server, replays *adminreplayrun.Server, coverages *admincoverage.Server, stmts *stmt.Service, secure bool) (*http.Server, error) {
 	opts, err := service.HandlerOptions(logger.WithCategory(log, "internal/service"), authn)
 	if err != nil {
 		return nil, err
@@ -235,9 +234,6 @@ func newServer(addr string, log *slog.Logger, authn *auth.Authenticator, queries
 	mux.Handle(admincoveragev1connect.NewCoverageServiceHandler(coverages, opts...))
 	mux.Handle(admindatasourcev1connect.NewDatasourceServiceHandler(datasources, opts...))
 	mux.Handle(admininstrv1connect.NewInstrServiceHandler(instrs, opts...))
-	mux.Handle(adminreasserttickersv1connect.NewReassertTickersServiceHandler(reassertions, opts...))
-	mux.Handle(adminrebuildtickervalidityv1connect.NewRebuildTickerValidityServiceHandler(rebuilds, opts...))
-	mux.Handle(adminrefreshcorpactsv1connect.NewRefreshCorpActsServiceHandler(refreshes, opts...))
 	mux.Handle(adminreplayrunv1connect.NewReplayRunServiceHandler(replays, opts...))
 	mux.Handle(adminrunv1connect.NewRunServiceHandler(runs, opts...))
 	mux.Handle(authv1connect.NewAuthServiceHandler(authsvc.New(authn, secure), opts...))
@@ -245,7 +241,7 @@ func newServer(addr string, log *slog.Logger, authn *auth.Authenticator, queries
 	mux.Handle(runv1connect.NewRunServiceHandler(runsvc.New(queries), opts...))
 	mux.Handle(stmtv1connect.NewStmtServiceHandler(stmtsvc.New(stmts, stmts, queries), opts...))
 	reflector := grpcreflect.NewStaticReflector(
-		adminblockv1connect.BlockServiceName, admincoveragev1connect.CoverageServiceName, admindatasourcev1connect.DatasourceServiceName, admininstrv1connect.InstrServiceName, adminreasserttickersv1connect.ReassertTickersServiceName, adminrebuildtickervalidityv1connect.RebuildTickerValidityServiceName, adminrefreshcorpactsv1connect.RefreshCorpActsServiceName, adminreplayrunv1connect.ReplayRunServiceName, adminrunv1connect.RunServiceName, authv1connect.AuthServiceName, holdingv1connect.HoldingServiceName,
+		adminblockv1connect.BlockServiceName, admincoveragev1connect.CoverageServiceName, admindatasourcev1connect.DatasourceServiceName, admininstrv1connect.InstrServiceName, adminreplayrunv1connect.ReplayRunServiceName, adminrunv1connect.RunServiceName, authv1connect.AuthServiceName, holdingv1connect.HoldingServiceName,
 		runv1connect.RunServiceName, stmtv1connect.StmtServiceName,
 	)
 	mux.Handle(grpcreflect.NewHandlerV1(reflector, opts...))

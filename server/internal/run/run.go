@@ -51,6 +51,10 @@ import (
 // ErrClosed is returned by Start and Child once Close has been called.
 var ErrClosed = errors.New("runner closed")
 
+// ErrEmpty is wrapped by a starter's error when it finds nothing for the run
+// to work on, so the run is never created.
+var ErrEmpty = errors.New("nothing to work on")
+
 // ErrSystem is returned by Owner for a system run.
 var ErrSystem = errors.New("system run has no user")
 

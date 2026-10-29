@@ -2,7 +2,6 @@ package refreshcorpacts
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/leedenison/stonks/server/internal/db/gen"
@@ -11,7 +10,7 @@ import (
 )
 
 // ErrEmpty reports that Start found nothing to ask about.
-var ErrEmpty = errors.New("no instrument is held")
+var ErrEmpty = fmt.Errorf("no instrument is held: %w", run.ErrEmpty)
 
 // lane serialises refresh corporate actions runs.
 const lane = "refresh_corp_acts"

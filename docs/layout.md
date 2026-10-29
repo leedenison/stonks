@@ -19,11 +19,8 @@ proto/
   admin/coverage/v1/coverage.proto                                  stonks.admin.coverage.v1                 -- where each ticker's validity is confirmed, and identifier attestations of what no datasource covers
   admin/datasource/v1/datasource.proto                              stonks.admin.datasource.v1               -- the external providers and their settings
   admin/instr/v1/instr.proto                                        stonks.admin.instr.v1                    -- every instrument, with its identifiers and listings
-  admin/reassert_tickers/v1/reassert_tickers.proto                  stonks.admin.reassert_tickers.v1         -- runs that ask the datasources again about every held ticker, started by an administrator
-  admin/rebuild_ticker_validity/v1/rebuild_ticker_validity.proto    stonks.admin.rebuild_ticker_validity.v1  -- runs that rebuild the ticker validity and names of every ticker, started by an administrator or by a reorder of the datasources
-  admin/refresh_corp_acts/v1/refresh_corp_acts.proto                stonks.admin.refresh_corp_acts.v1        -- runs that fetch the corporate actions of the tickers that named a held instrument, started by an administrator
   admin/replay_run/v1/replay_run.proto                              stonks.admin.replay_run.v1               -- replay runs, started by an administrator
-  admin/run/v1/run.proto                                            stonks.admin.run.v1                      -- what runs did, across every user
+  admin/run/v1/run.proto                                            stonks.admin.run.v1                      -- what runs did, across every user, and the system runs an administrator starts
   auth/v1/auth.proto                                                stonks.auth.v1                           -- sign in, session, sign out
   holding/v1/holding.proto                                          stonks.holding.v1                        -- holdings
   run/v1/run.proto                                                  stonks.run.v1                            -- runs

@@ -1,13 +1,8 @@
 import path from "node:path";
 import { FetchKind } from "../gen/admin/block/v1/block_pb";
 import { FetchOutcome, FindingKind } from "../gen/admin/run/v1/run_pb";
-import { RunState } from "../gen/run/v1/run_pb";
-import {
-  adminRunClient,
-  fetchItems,
-  refreshCorpActsClient,
-  stmtClient,
-} from "../helpers/api";
+import { RunKind, RunState } from "../gen/run/v1/run_pb";
+import { adminRunClient, fetchItems, stmtClient } from "../helpers/api";
 import { expect, test } from "../helpers/test";
 import { uploadStmt } from "../helpers/upload";
 
@@ -44,8 +39,9 @@ test("finds a stated split the calendar lacks, and refreshes the calendar", asyn
   // past the cache that the statement's fetch filled. EODHD serves corporate
   // actions too, and is not asked.
   const started = (
-    await refreshCorpActsClient(session).startRefreshCorpActs({})
+    await admin.startSystemRun({ kind: RunKind.REFRESH_CORP_ACTS })
   ).run!;
+  expect(started.kind).toBe(RunKind.REFRESH_CORP_ACTS);
   await expect
     .poll(
       async () => (await admin.getRun({ runId: started.id })).run?.run?.state,

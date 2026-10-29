@@ -20,6 +20,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/to"
 	"github.com/leedenison/stonks/server/internal/identity/tickers"
+	runner "github.com/leedenison/stonks/server/internal/run"
 	"github.com/leedenison/stonks/server/internal/service/admin/page"
 	"github.com/leedenison/stonks/server/internal/stmt"
 	"github.com/leedenison/stonks/server/internal/types"
@@ -44,18 +45,24 @@ type Queries interface {
 
 var _ Queries = (*gen.Queries)(nil)
 
+// Starter starts one kind of system run and returns its pending row.
+type Starter interface {
+	Start(ctx context.Context) (gen.Run, error)
+}
+
 //go:generate go tool mockgen -source=run.go -destination=mock/run_mock.go -package=mock
 
 // Server implements RunService.
 type Server struct {
-	queries Queries
+	queries  Queries
+	starters map[gen.RunKind]Starter
 }
 
 var _ adminrunv1connect.RunServiceHandler = (*Server)(nil)
 
-// New returns a Server.
-func New(queries Queries) *Server {
-	return &Server{queries: queries}
+// New returns a Server that starts each kind of system run with its starter.
+func New(queries Queries, starters map[gen.RunKind]Starter) *Server {
+	return &Server{queries: queries, starters: starters}
 }
 
 // ListRuns lists every user's runs matching the filters, newest first,
@@ -354,6 +361,27 @@ func (s *Server) ClearFinding(ctx context.Context, req *connect.Request[adminrun
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("the finding reports a block; clear the block"))
 	}
 	return connect.NewResponse(&adminrunv1.ClearFindingResponse{}), nil
+}
+
+// StartSystemRun starts a system run with the starter of the kind. A
+// starter that finds nothing to work on is a failed precondition.
+func (s *Server) StartSystemRun(ctx context.Context, req *connect.Request[adminrunv1.StartSystemRunRequest]) (*connect.Response[adminrunv1.StartSystemRunResponse], error) {
+	kind, ok := types.FromProto[gen.RunKind](req.Msg.GetKind())
+	if !ok {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("unknown run kind"))
+	}
+	starter, ok := s.starters[kind]
+	if !ok {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("no starter for %s runs", kind))
+	}
+	started, err := starter.Start(ctx)
+	switch {
+	case errors.Is(err, runner.ErrEmpty):
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+	case err != nil:
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(&adminrunv1.StartSystemRunResponse{Run: to.ProtoRun(started)}), nil
 }
 
 // finding writes row as its message, with what the key concerned states.

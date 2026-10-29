@@ -63,7 +63,7 @@ func TestServer(t *testing.T) {
 	authn := auth.New(auth.Options{Users: users, Sessions: sessions})
 
 	srv := httptest.NewUnstartedServer(nil)
-	cfg, err := newServer("", slog.New(slog.DiscardHandler), authn, nil, holdingsvc.New(nil, nil, nil, time.Now), nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, true)
+	cfg, err := newServer("", slog.New(slog.DiscardHandler), authn, nil, holdingsvc.New(nil, nil, nil, time.Now), nil, nil, nil, nil, nil, nil, nil, true)
 	if err != nil {
 		t.Fatalf("newServer() error = %v", err)
 	}
@@ -147,8 +147,8 @@ func TestServer(t *testing.T) {
 		if err != nil {
 			t.Fatalf("ListServices: %v", err)
 		}
-		if len(names) != 13 {
-			t.Errorf("ListServices = %v, want the thirteen services", names)
+		if len(names) != 10 {
+			t.Errorf("ListServices = %v, want the ten services", names)
 		}
 		if got := endedNames(); len(got) != 0 {
 			t.Errorf("reflection recorded spans %v, want none", got)

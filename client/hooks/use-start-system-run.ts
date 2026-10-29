@@ -1,16 +1,17 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import type { RunKind } from "@/gen/run/v1/run_pb";
 import { useClients } from "@/contexts/clients-context";
 import { qk } from "@/lib/query-keys";
 
-// useStartReassertTickers starts a reassert tickers run over every held ticker
-// and refreshes the runs listing, which gains the new run.
-export function useStartReassertTickers() {
-  const { reassertTickers } = useClients();
+// useStartSystemRun starts a system run of the kind. The runs listing
+// reloads to show the new run.
+export function useStartSystemRun(kind: RunKind) {
+  const { adminRun } = useClients();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: () => reassertTickers.startReassertTickers({}),
+    mutationFn: () => adminRun.startSystemRun({ kind }),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: qk.adminRunsAll() }),
   });

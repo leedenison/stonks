@@ -3,20 +3,9 @@ import type { ServiceImpl } from "@connectrpc/connect";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  ReassertTickersService,
-  StartReassertTickersResponseSchema,
-} from "@/gen/admin/reassert_tickers/v1/reassert_tickers_pb";
-import {
-  RebuildTickerValidityService,
-  StartRebuildTickerValidityResponseSchema,
-} from "@/gen/admin/rebuild_ticker_validity/v1/rebuild_ticker_validity_pb";
-import {
-  RefreshCorpActsService,
-  StartRefreshCorpActsResponseSchema,
-} from "@/gen/admin/refresh_corp_acts/v1/refresh_corp_acts_pb";
-import {
   RunService,
   ListRunsResponseSchema,
+  StartSystemRunResponseSchema,
   UserRunSchema,
 } from "@/gen/admin/run/v1/run_pb";
 import { Role } from "@/gen/auth/v1/auth_pb";
@@ -42,15 +31,10 @@ const admin = liveSession({ role: Role.ADMIN });
 
 function serving(
   listRuns: ServiceImpl<typeof RunService>["listRuns"],
-  reassertTickers: Partial<ServiceImpl<typeof ReassertTickersService>> = {},
-  refresh: Partial<ServiceImpl<typeof RefreshCorpActsService>> = {},
-  rebuild: Partial<ServiceImpl<typeof RebuildTickerValidityService>> = {},
+  startSystemRun?: ServiceImpl<typeof RunService>["startSystemRun"],
 ) {
   return transportWith(admin, ({ service }) => {
-    service(RunService, { listRuns });
-    service(ReassertTickersService, reassertTickers);
-    service(RefreshCorpActsService, refresh);
-    service(RebuildTickerValidityService, rebuild);
+    service(RunService, { listRuns, startSystemRun });
   });
 }
 
@@ -194,69 +178,31 @@ describe("RunsPage", () => {
     );
   });
 
-  it("reasserts tickers and opens its run", async () => {
+  it.each([
+    ["reassert-tickers", RunKind.REASSERT_TICKERS],
+    ["refresh-corp-acts", RunKind.REFRESH_CORP_ACTS],
+    ["rebuild-ticker-validity", RunKind.REBUILD_TICKER_VALIDITY],
+  ])("starts a %s run and opens it", async (testId, kind) => {
     router.push.mockClear();
-    const startReassertTickers = vi.fn(() =>
-      create(StartReassertTickersResponseSchema, {
-        run: create(RunSchema, { id: "x1", kind: RunKind.REASSERT_TICKERS }),
-      }),
-    );
+    const kinds: RunKind[] = [];
     renderWithAuth(
       <RunsPage />,
-      serving(() => page, { startReassertTickers }),
+      serving(
+        () => page,
+        (req) => {
+          kinds.push(req.kind);
+          return create(StartSystemRunResponseSchema, {
+            run: create(RunSchema, { id: "x1", kind }),
+          });
+        },
+      ),
     );
-    fireEvent.click(screen.getByTestId("runs-reassert-tickers"));
-    fireEvent.click(screen.getByTestId("reassert-tickers-start"));
+    fireEvent.click(screen.getByTestId(`runs-${testId}`));
+    fireEvent.click(screen.getByTestId(`${testId}-start`));
     await waitFor(() =>
       expect(router.push).toHaveBeenCalledWith("/admin/runs/x1"),
     );
-    expect(startReassertTickers).toHaveBeenCalledTimes(1);
-    expect(screen.queryByTestId("reassert-tickers-dialog")).toBeNull();
-  });
-
-  it("refreshes corporate actions and opens its run", async () => {
-    router.push.mockClear();
-    const startRefreshCorpActs = vi.fn(() =>
-      create(StartRefreshCorpActsResponseSchema, {
-        run: create(RunSchema, {
-          id: "x2",
-          kind: RunKind.REFRESH_CORP_ACTS,
-        }),
-      }),
-    );
-    renderWithAuth(
-      <RunsPage />,
-      serving(() => page, {}, { startRefreshCorpActs }),
-    );
-    fireEvent.click(screen.getByTestId("runs-refresh-corp-acts"));
-    fireEvent.click(screen.getByTestId("refresh-corp-acts-start"));
-    await waitFor(() =>
-      expect(router.push).toHaveBeenCalledWith("/admin/runs/x2"),
-    );
-    expect(startRefreshCorpActs).toHaveBeenCalledTimes(1);
-    expect(screen.queryByTestId("refresh-corp-acts-dialog")).toBeNull();
-  });
-
-  it("rebuilds ticker validity and opens its run", async () => {
-    router.push.mockClear();
-    const startRebuildTickerValidity = vi.fn(() =>
-      create(StartRebuildTickerValidityResponseSchema, {
-        run: create(RunSchema, {
-          id: "x3",
-          kind: RunKind.REBUILD_TICKER_VALIDITY,
-        }),
-      }),
-    );
-    renderWithAuth(
-      <RunsPage />,
-      serving(() => page, {}, {}, { startRebuildTickerValidity }),
-    );
-    fireEvent.click(screen.getByTestId("runs-rebuild-ticker-validity"));
-    fireEvent.click(screen.getByTestId("rebuild-ticker-validity-start"));
-    await waitFor(() =>
-      expect(router.push).toHaveBeenCalledWith("/admin/runs/x3"),
-    );
-    expect(startRebuildTickerValidity).toHaveBeenCalledTimes(1);
-    expect(screen.queryByTestId("rebuild-ticker-validity-dialog")).toBeNull();
+    expect(kinds).toEqual([kind]);
+    expect(screen.queryByTestId(`${testId}-dialog`)).toBeNull();
   });
 });
