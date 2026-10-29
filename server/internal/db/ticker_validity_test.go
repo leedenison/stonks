@@ -163,7 +163,7 @@ func TestIdentifierAssertions(t *testing.T) {
 // a period of assertion coverage.
 func TestIdentifierAssertionCoverageChecks(t *testing.T) {
 	ctx := context.Background()
-	type tickers struct{ other uuid.UUID }
+	type tickers struct{ us, other uuid.UUID }
 	tests := []struct {
 		name  string
 		sql   string
@@ -172,15 +172,21 @@ func TestIdentifierAssertionCoverageChecks(t *testing.T) {
 	}{
 		{
 			name:  "a period of assertion coverage that ends as it starts",
-			sql:   "INSERT INTO identifier_assertion_coverage (id, fetch_key_id, market, covered_from, covered_before) VALUES ($1, $2, 'US', '2022-06-09', '2022-06-09')",
-			args:  func(tickers) []any { return nil },
+			sql:   "INSERT INTO identifier_assertion_coverage (id, fetch_key_id, market, ticker_id, covered_from, covered_before) VALUES ($1, $2, 'US', $3, '2022-06-09', '2022-06-09')",
+			args:  func(ts tickers) []any { return []any{ts.us} },
 			state: pgerrcode.CheckViolation,
 		},
 		{
 			name:  "a period of assertion coverage of a venue in place of its market",
-			sql:   "INSERT INTO identifier_assertion_coverage (id, fetch_key_id, market, covered_from, covered_before) VALUES ($1, $2, 'XNAS', '2022-01-01', '2022-06-09')",
-			args:  func(tickers) []any { return nil },
+			sql:   "INSERT INTO identifier_assertion_coverage (id, fetch_key_id, market, ticker_id, covered_from, covered_before) VALUES ($1, $2, 'XNAS', $3, '2022-01-01', '2022-06-09')",
+			args:  func(ts tickers) []any { return []any{ts.us} },
 			state: pgerrcode.ForeignKeyViolation,
+		},
+		{
+			name:  "a period of assertion coverage without a ticker",
+			sql:   "INSERT INTO identifier_assertion_coverage (id, fetch_key_id, market, covered_from, covered_before) VALUES ($1, $2, 'US', '2022-01-01', '2022-06-09')",
+			args:  func(tickers) []any { return nil },
+			state: pgerrcode.NotNullViolation,
 		},
 		{
 			name:  "a period of assertion coverage of a ticker of another market",
@@ -195,7 +201,7 @@ func TestIdentifierAssertionCoverageChecks(t *testing.T) {
 			q := gen.New(tx)
 			f := newFetching(t, q)
 			key := servedKey(t, q, f.fetch, f.key, "US30303M1027")
-			ts := tickers{other: newTicker(t, q, "XLON", "META").ID}
+			ts := tickers{us: newTicker(t, q, "US", "META").ID, other: newTicker(t, q, "XLON", "META").ID}
 			args := append([]any{db.NewID(), key}, tc.args(ts)...)
 			if _, err := tx.Exec(ctx, tc.sql, args...); !sqlstate(err, tc.state) {
 				t.Errorf("%s: err = %v, want SQLSTATE %s", tc.name, err, tc.state)

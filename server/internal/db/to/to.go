@@ -237,11 +237,10 @@ func ProtoAssertionItem(a gen.IdentifierAssertion, value string, datasource, att
 	return out
 }
 
-// ProtoAssertionCoverage converts a period of assertion coverage of a ticker or
-// of its market.
+// ProtoAssertionCoverage converts a period of assertion coverage.
 func ProtoAssertionCoverage(p gen.ListIdentifierAssertionCoverageRow) *admincoveragev1.AssertionCoverage {
 	return &admincoveragev1.AssertionCoverage{
-		Datasource: p.Datasource, Market: p.Market, Value: p.Value,
+		Datasource:  p.Datasource,
 		CoveredFrom: p.CoveredFrom.Format(time.DateOnly), CoveredBefore: p.CoveredBefore.Format(time.DateOnly),
 	}
 }

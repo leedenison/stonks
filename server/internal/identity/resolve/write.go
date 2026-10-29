@@ -120,7 +120,9 @@ type decision struct {
 // finding the write records.
 //
 // decide locks the tickers of the write only once the target is known, so
-// the one lock also covers the tickers of the assertions that a merge moves.
+// the one lock also covers the tickers of the assertions that a merge moves. A
+// concurrent write of facts can still give a loser a ticker that the lock
+// missed; see checkMoved.
 func decide(ctx context.Context, q Queries, res *resolution, choice *userChoice) (decision, error) {
 	if err := db.LockIdentifiers(ctx, q, identifiersToLock(res)); err != nil {
 		return decision{}, err
@@ -141,7 +143,15 @@ func decide(ctx context.Context, q Queries, res *resolution, choice *userChoice)
 		return decision{}, err
 	}
 	if len(merging) > 0 {
+		survivor := merging[0].instr.Row.ID
+		held, err := q.ListTickersOfInstrs(ctx, []uuid.UUID{survivor})
+		if err != nil {
+			return decision{}, fmt.Errorf("list tickers of the merge survivor: %w", err)
+		}
 		if t, err = merge(ctx, q, winnerKey(verdict), merging); err != nil {
+			return decision{}, err
+		}
+		if err := checkMoved(ctx, q, survivor, append(held, locked...)); err != nil {
 			return decision{}, err
 		}
 	}
@@ -190,6 +200,24 @@ func lockTickers(ctx context.Context, q Queries, res *resolution, merging []inst
 		return nil, err
 	}
 	return ids, nil
+}
+
+// checkMoved returns db.ErrConcurrent when the survivor of a merge has a
+// ticker outside known. A concurrent write of facts can assert a loser on a
+// ticker after lockTickers listed the losers' tickers. The merge then moves an
+// assertion of a ticker that the write neither locked nor rebuilds, so the
+// write is retried.
+func checkMoved(ctx context.Context, q Queries, survivor uuid.UUID, known []uuid.UUID) error {
+	ids, err := q.ListTickersOfInstrs(ctx, []uuid.UUID{survivor})
+	if err != nil {
+		return fmt.Errorf("list tickers of the merge survivor: %w", err)
+	}
+	for _, id := range ids {
+		if !slices.Contains(known, id) {
+			return fmt.Errorf("merge moved ticker %s: %w", id, db.ErrConcurrent)
+		}
+	}
+	return nil
 }
 
 // writeInstr writes d's winner to the instrument d targets, creating that

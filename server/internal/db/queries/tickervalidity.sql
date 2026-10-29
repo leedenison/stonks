@@ -48,10 +48,9 @@ ORDER BY identifier_assertions.asserted_from, identifier_assertions.id;
 
 -- name: ListIdentifierAssertionCoverage :many
 -- The assertion coverage of the tickers whose market and value are a pair the
--- arrays hold at one index, and of every market among markets. Each row comes
--- with the datasource whose fetch wrote it and that datasource's precedence.
--- value is NULL for a market row. is_event_source reports that the datasource
--- is the identifier event source of the market.
+-- arrays hold at one index. Each row comes with the datasource whose fetch
+-- wrote it and that datasource's precedence. is_event_source reports that the
+-- datasource is the identifier event source of the market.
 WITH asked AS (
     SELECT tickers.id
     FROM (SELECT unnest(@markets::text[]) AS market, unnest(@values::text[]) AS value) AS k
@@ -63,18 +62,16 @@ SELECT identifier_assertion_coverage.market, tickers.value,
        COALESCE(fetches.datasource = markets.identifier_event_source, false)::boolean AS is_event_source
 FROM identifier_assertion_coverage
 JOIN markets ON markets.code = identifier_assertion_coverage.market
-LEFT JOIN tickers ON tickers.id = identifier_assertion_coverage.ticker_id
+JOIN tickers ON tickers.id = identifier_assertion_coverage.ticker_id
 JOIN fetch_keys ON fetch_keys.id = identifier_assertion_coverage.fetch_key_id
 JOIN fetches ON fetches.id = fetch_keys.fetch_id
 JOIN datasources ON datasources.name = fetches.datasource
 WHERE identifier_assertion_coverage.ticker_id IN (SELECT id FROM asked)
-   OR (identifier_assertion_coverage.ticker_id IS NULL
-       AND identifier_assertion_coverage.market = ANY(@markets::text[]))
 ORDER BY fetches.datasource, identifier_assertion_coverage.covered_from, identifier_assertion_coverage.id;
 
 -- name: CreateIdentifierAssertionCoverage :exec
 INSERT INTO identifier_assertion_coverage (id, fetch_key_id, market, ticker_id, covered_from, covered_before)
-VALUES (@id, @fetch_key_id, @market, sqlc.narg(ticker_id), @covered_from, @covered_before);
+VALUES (@id, @fetch_key_id, @market, @ticker_id, @covered_from, @covered_before);
 
 -- name: ListHeldTickers :many
 -- The held tickers: each ticker and venue through which a key is dated,
@@ -233,9 +230,6 @@ FROM (SELECT unnest(@markets::text[]) AS market, unnest(@values::text[]) AS valu
 JOIN tickers ON tickers.market = asked.market AND tickers.value = asked.value
 JOIN ticker_validity ON ticker_validity.ticker_id = tickers.id
 ORDER BY tickers.market, tickers.value, ticker_validity.valid_from NULLS FIRST;
-
--- name: ListMarketTickerIDs :many
-SELECT id FROM tickers WHERE market = ANY(@markets::text[]) ORDER BY id;
 
 -- name: TickerAssertedOn :one
 -- Reports whether any identifier assertion of the ticker holds the day,

@@ -155,12 +155,9 @@ export function Timeline({ ticker }: { ticker: Ticker }) {
             y={4}
             height={laneHeight - 8}
             rx={2}
-            data-market={p.value === undefined ? "true" : undefined}
-            className={
-              p.value === undefined ? "fill-primary/25" : "fill-primary/55"
-            }
+            className="fill-primary/55"
           >
-            <title>{`${ds} reported every edge of ${p.value ?? p.market} ${p.coveredFrom} to ${p.coveredBefore}`}</title>
+            <title>{`${ds} reported every edge of ${ticker.ticker?.value ?? ""} ${p.coveredFrom} to ${p.coveredBefore}`}</title>
           </rect>
         )),
     })),

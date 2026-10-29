@@ -57,7 +57,7 @@ const tickers = create(ListInstrTickersResponseSchema, {
 });
 // ACME's facts: a gap before a confirmed bracket, a datasource's assertion
 // with an edge at its start and an identifier attestation, and one
-// datasource's assertion coverage of the whole market.
+// datasource's assertion coverage.
 const read = create(GetTickerResponseSchema, {
   ticker: create(TickerSchema, {
     ticker: acme,
@@ -65,7 +65,6 @@ const read = create(GetTickerResponseSchema, {
     assertionCoverage: [
       {
         datasource: "alpha",
-        market: "US",
         coveredFrom: "2024-06-01",
         coveredBefore: "2026-01-01",
       },
@@ -339,7 +338,7 @@ describe("InstrsPage", () => {
     expect(a2.getAttribute("data-attested")).toBe("true");
     expect(
       screen.getByTestId("ticker-assertion-coverage").textContent,
-    ).toContain("every ticker of US");
+    ).toContain("2024-06-01");
     fireEvent.change(select, { target: { value: "US:OLD" } });
     expect(router.replace).toHaveBeenCalledWith(
       "/admin/instrs?id=i-acme&tab=tickers&ticker=US%3AOLD",

@@ -201,7 +201,7 @@ func TestRebuildFollowsEventSource(t *testing.T) {
 		ID: db.NewID(), FetchKeyID: &key, TickerID: tk.ID, Market: tk.Market, InstrID: &instr, AssertedFrom: day(1), AssertedBefore: day(2),
 	}))
 	require.NoError(t, s.q.CreateIdentifierAssertionCoverage(ctx, gen.CreateIdentifierAssertionCoverageParams{
-		ID: db.NewID(), FetchKeyID: key, Market: tk.Market, TickerID: &tk.ID, CoveredFrom: day(1), CoveredBefore: day(20),
+		ID: db.NewID(), FetchKeyID: key, Market: tk.Market, TickerID: tk.ID, CoveredFrom: day(1), CoveredBefore: day(20),
 	}))
 	confirmedOn := func(n int) bool {
 		t.Helper()

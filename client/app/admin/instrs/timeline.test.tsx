@@ -10,22 +10,18 @@ import { Timeline, ticks } from "./timeline";
 
 const ticker = { market: "US", value: "ACME" };
 
-// A ticker with every kind of fact, so each lane has a mark. One datasource
-// makes a period of assertion coverage of the whole market.
+// A ticker with every kind of fact, so each lane has a mark.
 const acme = create(TickerSchema, {
   ticker,
   txnDays: ["2024-02-01", "2025-06-01"],
   assertionCoverage: [
     {
       datasource: "alpha",
-      market: "US",
-      value: "ACME",
       coveredFrom: "2024-06-01",
       coveredBefore: "2026-03-01",
     },
     {
       datasource: "beta",
-      market: "US",
       coveredFrom: "2025-01-01",
       coveredBefore: "2026-03-01",
     },
@@ -97,9 +93,7 @@ describe("Timeline", () => {
     );
     expect(cuts).toEqual(["2024-06-01", "2025-06-01"]);
     expect(lane("coverage-alpha")?.querySelectorAll("rect")).toHaveLength(1);
-    expect(
-      lane("coverage-beta")?.querySelector("rect")?.getAttribute("data-market"),
-    ).toBe("true");
+    expect(lane("coverage-beta")?.querySelectorAll("rect")).toHaveLength(1);
     // The range spans more than two years, so the axis is labelled by year.
     expect(lane("axis")?.textContent).toBe("20252026");
   });

@@ -105,12 +105,10 @@ func readRowsOf(ctx context.Context, q FactQueries, ts []types.MarketTicker) (ma
 		return nil, fmt.Errorf("list assertion coverage: %w", err)
 	}
 	for _, p := range ps {
-		for t, r := range out {
-			if t.Market == p.Market && (p.Value == nil || *p.Value == t.Value) {
-				r.AssertionCoverage = append(r.AssertionCoverage, p)
-				out[t] = r
-			}
-		}
+		t := types.MarketTicker{Market: p.Market, Value: p.Value}
+		r := out[t]
+		r.AssertionCoverage = append(r.AssertionCoverage, p)
+		out[t] = r
 	}
 	return out, nil
 }

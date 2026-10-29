@@ -108,23 +108,6 @@ func TestVenues(t *testing.T) {
 	}
 }
 
-func TestMarketProbes(t *testing.T) {
-	got, err := us.MarketProbes([]string{"US"})
-	require.NoError(t, err)
-	want := []string{
-		`[{"domain":"ARCX","type":"mic_ticker"}]`,
-		`[{"domain":"XNAS","type":"mic_ticker"}]`,
-		`[{"domain":"XNGS","type":"mic_ticker"}]`,
-		`[{"domain":"XNYS","type":"mic_ticker"}]`,
-	}
-	if diff := cmp.Diff(want, strs(got)); diff != "" {
-		t.Errorf("MarketProbes mismatch (-want +got):\n%s", diff)
-	}
-	if _, err := us.MarketProbes([]string{"XNAS"}); err == nil {
-		t.Error("MarketProbes(XNAS) succeeded, want an error, since XNAS is no market")
-	}
-}
-
 func TestTickerProbes(t *testing.T) {
 	got, err := us.TickerProbes([]types.MarketTicker{{Market: "US", Value: "FOO"}, {Market: "XLON", Value: "VOD"}})
 	require.NoError(t, err)

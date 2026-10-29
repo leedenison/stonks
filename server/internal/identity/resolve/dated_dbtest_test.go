@@ -19,7 +19,6 @@ import (
 	"github.com/leedenison/stonks/server/internal/identity/tickers"
 	"github.com/leedenison/stonks/server/internal/identity/tickervalidity"
 	"github.com/leedenison/stonks/server/internal/market"
-	"github.com/leedenison/stonks/server/internal/platform/ptr"
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
@@ -90,7 +89,7 @@ func TestDated(t *testing.T) {
 			{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{share}}, Period: types.OneDay(renamed), EdgeFrom: true},
 			{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{share}}, Period: types.OneDay(on(2026, 3, 2))},
 		},
-		AssertionCoverage: []market.AssertionCoverage{{Market: mt(v).Market, Ticker: ptr.To(mt(v)), Period: types.Period{From: renamed, Before: on(2026, 3, 3)}}},
+		AssertionCoverage: []market.AssertionCoverage{{Ticker: mt(v), Period: types.Period{From: renamed, Before: on(2026, 3, 3)}}},
 	}
 	s.alphaFacts.Responses[v] = market.IdentifierFactResult{Assertions: []market.Assertion{
 		{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{other}, Class: types.AssetClassEtf, Currency: "USD"}, Period: types.OneDay(on(2021, 7, 1))},
@@ -358,7 +357,7 @@ func TestDisagreementInsideHistory(t *testing.T) {
 			Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{share}},
 			Period: types.Period{From: on(2022, 6, 9), Before: on(2026, 3, 3)}, EdgeFrom: true,
 		}},
-		AssertionCoverage: []market.AssertionCoverage{{Market: mt(v).Market, Ticker: ptr.To(mt(v)), Period: types.Period{From: on(2022, 6, 9), Before: on(2026, 3, 3)}}},
+		AssertionCoverage: []market.AssertionCoverage{{Ticker: mt(v), Period: types.Period{From: on(2022, 6, 9), Before: on(2026, 3, 3)}}},
 	}
 	s.betaFacts.Responses[v] = market.IdentifierFactResult{Assertions: []market.Assertion{
 		{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{other}, Class: types.AssetClassEtf, Currency: "USD"}, Period: types.OneDay(day)},
@@ -398,7 +397,7 @@ func TestMissedEvent(t *testing.T) {
 			{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{share}}, Period: types.OneDay(on(2023, 1, 2))},
 			{Ticker: mt(v), Of: market.Listing{Identifiers: []types.Identifier{other}, Class: types.AssetClassStock, Currency: "USD"}, Period: types.OneDay(on(2023, 6, 1))},
 		},
-		AssertionCoverage: []market.AssertionCoverage{{Market: mt(v).Market, Ticker: ptr.To(mt(v)), Period: types.Period{From: on(2023, 1, 1), Before: on(2024, 2, 1)}}},
+		AssertionCoverage: []market.AssertionCoverage{{Ticker: mt(v), Period: types.Period{From: on(2023, 1, 1), Before: on(2024, 2, 1)}}},
 	}
 	key := s.state(t, types.AssetClassStock, "USD", v)
 	s.resolveOn(t, []time.Time{on(2024, 1, 16)}, key)

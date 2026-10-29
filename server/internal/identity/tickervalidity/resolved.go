@@ -88,8 +88,7 @@ func later(a, b *time.Time) int {
 
 // lastWon returns the latest day that an assertion naming instr won for t.
 func lastWon(t *tickerFacts, instr uuid.UUID) time.Time {
-	ws, _ := winners(current(t.Facts.Assertions))
-	for _, w := range slices.Backward(ws) {
+	for _, w := range slices.Backward(t.Derived.winners) {
 		if w.instr != nil && *w.instr == instr {
 			return prev(w.before)
 		}
