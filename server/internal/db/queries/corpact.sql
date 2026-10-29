@@ -76,6 +76,17 @@ WHERE COALESCE(stated_keys.instr_id, ticker_validity.instr_id) = ANY(@instrs::uu
   AND (sqlc.narg(user_id)::uuid IS NULL OR stmt_splits.user_id = sqlc.narg(user_id))
 ORDER BY stmt_splits.stated_key_id, stmt_splits.effective_date, stmt_splits.stmt_id, stmt_splits.ordinal;
 
+-- name: ListInstrMarkets :many
+-- The market of the primary venues of each of instrs. It leaves out an
+-- instrument whose listings state no primary venue. It also leaves out one
+-- whose listings state primary venues in two markets.
+SELECT listings.instr_id, MIN(market_members.market)::text AS market
+FROM listings
+JOIN market_members ON market_members.operating_mic = listings.primary_mic
+WHERE listings.instr_id = ANY(@instrs::uuid[])
+GROUP BY listings.instr_id
+HAVING COUNT(DISTINCT market_members.market) = 1;
+
 -- name: ListTickersNaming :many
 -- The tickers whose ticker validity names one of instrs on some day.
 SELECT DISTINCT ticker_validity.instr_id, tickers.id AS ticker_id, tickers.market, tickers.value

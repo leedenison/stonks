@@ -147,11 +147,23 @@ func (r *Recorder) splitFindings(ctx context.Context, q Queries, user *uuid.UUID
 // keys cover each instrument. A stored answer stands in for the recorded
 // key's own answer, because it is that answer or a later one that replaced
 // it. A recorded key whose datasource is not its market's corporate
-// actions source covers nothing.
+// actions source covers nothing. A recorded key covers only an instrument
+// of its ticker's market, because a split is checked against the calendar
+// that restates the instrument's holdings.
 func coverage(ctx context.Context, q Queries, recorded []recordedKey, read map[types.MarketTicker]tickervalidity.Intervals) ([]cover, error) {
 	ts := make([]types.MarketTicker, len(recorded))
+	var instrs []uuid.UUID
 	for i, rec := range recorded {
 		ts[i] = rec.ticker
+		for _, iv := range read[rec.ticker] {
+			if !slices.Contains(instrs, iv.Instr) {
+				instrs = append(instrs, iv.Instr)
+			}
+		}
+	}
+	markets, err := Markets(ctx, q, instrs)
+	if err != nil {
+		return nil, err
 	}
 	answers, err := Read(ctx, q, ts, always)
 	if err != nil {
@@ -164,6 +176,9 @@ func coverage(ctx context.Context, q Queries, recorded []recordedKey, read map[t
 			continue
 		}
 		for _, iv := range read[rec.ticker] {
+			if markets[iv.Instr] != rec.ticker.Market {
+				continue
+			}
 			for _, c := range a.Coverage {
 				if p, ok := iv.Clip(c); ok {
 					out = append(out, cover{instr: iv.Instr, period: p, run: rec.key.Run})
@@ -244,8 +259,8 @@ func restatedOnly(ctx context.Context, q Queries, groups []splitGroup) ([]splitG
 }
 
 // calendar returns the corporate actions of each of instruments: those of
-// every market, handled or not, under each ticker that named the instrument
-// on the action's ex-date.
+// its market, handled or not, under each ticker that named the instrument on
+// the action's ex-date.
 func calendar(ctx context.Context, q Queries, instrs []uuid.UUID) (map[uuid.UUID][]Act, error) {
 	cals, err := Calendars(ctx, q, instrs)
 	if err != nil {
@@ -253,9 +268,7 @@ func calendar(ctx context.Context, q Queries, instrs []uuid.UUID) (map[uuid.UUID
 	}
 	out := make(map[uuid.UUID][]Act, len(cals))
 	for id, c := range cals {
-		for _, m := range c {
-			out[id] = append(out[id], m.Acts...)
-		}
+		out[id] = c.Acts
 	}
 	return out, nil
 }

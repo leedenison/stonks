@@ -10,7 +10,9 @@ import { uploadStmt } from "../helpers/upload";
 // share count. No other spec states NVDA or GE.
 //
 // A fetch before 00:00 UTC followed by a read after it would leave NVDA
-// unadjusted, because coverage would stop short of today.
+// provisional, because coverage would stop short of today. Its quantity is
+// restated either way, so the spec asserts the quantity and leaves out the
+// mark.
 const fixture = path.resolve(
   __dirname,
   "..",
@@ -18,7 +20,7 @@ const fixture = path.resolve(
   "standard-split.json",
 );
 
-test("restates a holding across a split, and marks one across an unhandled action", async ({
+test("restates a holding across a split, and marks one across an unhandled action as provisional", async ({
   signIn,
   page,
 }) => {
@@ -32,10 +34,9 @@ test("restates a holding across a split, and marks one across an unhandled actio
   const nvda = byName("NVDA");
   const ge = byName("GE");
   expect(nvda.quantity).toBe("50");
-  expect(nvda.mark).toBe(HoldingMark.ADJUSTED);
   expect(ge.quantity).toBe("10");
-  expect(ge.mark).toBe(HoldingMark.UNADJUSTED);
-  expect(ge.uncoveredFrom).toBe("2023-06-02");
+  expect(ge.mark).toBe(HoldingMark.CORP_ACTS_PROVISIONAL);
+  expect(ge.provisionalFrom).toBe("2023-06-02");
   expect(ge.gaps.map((g) => [g.uncoveredFrom, g.uncoveredBefore])).toEqual([
     ["2024-04-02", "2024-04-03"],
   ]);
@@ -47,15 +48,15 @@ test("restates a holding across a split, and marks one across an unhandled actio
   await expect(nvdaRow.getByTestId(`holding-qty-${nvda.instrId}`)).toHaveText(
     "50.00",
   );
-  await expect(nvdaRow.getByTestId("holding-mark")).toHaveCount(0);
 
   const geRow = page.getByTestId(`holding-row-${ge.instrId}`);
   await expect(geRow.getByTestId("holding-mark")).toHaveAttribute(
     "data-state",
-    "unadjusted",
+    "provisional",
   );
+  await expect(geRow.getByTestId("holding-mark")).toHaveText("Provisional");
   await geRow.click();
   await expect(
-    page.getByTestId(`holding-uncovered-${ge.instrId}`),
-  ).toContainText("No datasource covers 2024-04-02.");
+    page.getByTestId(`holding-provisional-${ge.instrId}`),
+  ).toContainText("Corporate actions are unknown for 2024-04-02.");
 });

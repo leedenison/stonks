@@ -26,11 +26,24 @@ import (
 // broker dates a split that trades adjusted from the Monday.
 var splitDay = day(2024, 6, 7)
 
-// instr creates an instrument of class.
+// instr creates an instrument of class with a USD listing whose primary
+// venue is XNAS.
 func (s *stack) instr(t *testing.T, class types.AssetClass) uuid.UUID {
 	t.Helper()
-	instr, err := s.q.CreateInstr(context.Background(), gen.CreateInstrParams{ID: db.NewID(), AssetClass: class})
+	return s.listed(t, class, map[string]*string{"USD": ptr.To("XNAS")})
+}
+
+// listed creates an instrument of class with a listing in each currency of
+// primaries, at the primary venue it maps to. A nil venue states none.
+func (s *stack) listed(t *testing.T, class types.AssetClass, primaries map[string]*string) uuid.UUID {
+	t.Helper()
+	ctx := context.Background()
+	instr, err := s.q.CreateInstr(ctx, gen.CreateInstrParams{ID: db.NewID(), AssetClass: class})
 	require.NoError(t, err)
+	for currency, venue := range primaries {
+		_, err := s.q.CreateListing(ctx, gen.CreateListingParams{ID: db.NewID(), InstrID: instr.ID, Currency: currency, PrimaryMic: venue})
+		require.NoError(t, err)
+	}
 	return instr.ID
 }
 
@@ -323,6 +336,22 @@ func TestSplitCalendarByTickerValidity(t *testing.T) {
 	})
 }
 
+// TestSplitOtherMarket checks that a split is not checked against the
+// instrument's calendar when only the answer of a second market covers it.
+func TestSplitOtherMarket(t *testing.T) {
+	s := newStack(t)
+	dbtest.CorpActSource(t, s.tx, "XTSE", s.betaName)
+	instr := s.listed(t, types.AssetClassStock, map[string]*string{"USD": ptr.To("XNAS"), "CAD": nil})
+	s.names(t, types.MarketTicker{Market: "XTSE", Value: "NVDA"}, instr, day(2024, 1, 2))
+	key := s.fixedKey(t, *s.parent.UserID, instr)
+	s.states(t, *s.parent.UserID, key, ptr.To(ratio(1, 10)))
+	s.beta.Responses[ticker("XTSE", "NVDA")] = covering()
+	s.fetch(t, ticker("XTSE", "NVDA"))
+	if got := s.unmatchedSplits(t); len(got) != 0 {
+		t.Errorf("findings = %+v, want none", got)
+	}
+}
+
 // TestSplitClass checks that a stated split raises a finding only when
 // corporate actions restate its instrument's class.
 func TestSplitClass(t *testing.T) {
@@ -332,7 +361,8 @@ func TestSplitClass(t *testing.T) {
 	}{
 		{types.AssetClassOption, 0},
 		{types.AssetClassFixedIncome, 0},
-		{types.AssetClassMutualFund, 1},
+		{types.AssetClassMutualFund, 0},
+		{types.AssetClassEtf, 1},
 	}
 	for _, tc := range tests {
 		t.Run(string(tc.class), func(t *testing.T) {

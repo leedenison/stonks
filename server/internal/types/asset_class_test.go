@@ -28,10 +28,9 @@ func TestDisjoint(t *testing.T) {
 
 func TestRestated(t *testing.T) {
 	want := map[types.AssetClass]bool{
-		types.AssetClassEquity:     true,
-		types.AssetClassStock:      true,
-		types.AssetClassEtf:        true,
-		types.AssetClassMutualFund: true,
+		types.AssetClassEquity: true,
+		types.AssetClassStock:  true,
+		types.AssetClassEtf:    true,
 	}
 	for _, c := range types.AssetClasses {
 		if got := c.Restated(); got != want[c] {

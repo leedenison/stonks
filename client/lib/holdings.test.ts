@@ -277,21 +277,21 @@ describe("holdingRows", () => {
     ]);
   });
 
-  it("marks an unadjusted holding and gives each gap its last day", () => {
+  it("marks a provisional holding and gives each gap its last day", () => {
     const held = create(InstrHoldingSchema, {
       instrId: "i-ge",
       assetClass: AssetClass.STOCK,
       quantity: "10",
-      mark: HoldingMark.UNADJUSTED,
-      uncoveredFrom: "2023-06-02",
+      mark: HoldingMark.CORP_ACTS_PROVISIONAL,
+      provisionalFrom: "2023-06-02",
       gaps: [
         { uncoveredFrom: "2024-02-01", uncoveredBefore: "2024-03-01" },
         { uncoveredFrom: "2024-04-02", uncoveredBefore: "2024-04-03" },
       ],
     });
     const row = rows([held])[0];
-    expect(row.unadjusted).toBe(true);
-    expect(row.uncoveredFrom).toBe("2023-06-02");
+    expect(row.provisional).toBe(true);
+    expect(row.provisionalFrom).toBe("2023-06-02");
     expect(row.gaps).toEqual([
       { from: "2024-02-01", to: "2024-02-29" },
       { from: "2024-04-02", to: "2024-04-02" },
@@ -307,7 +307,7 @@ describe("holdingRows", () => {
       mark: HoldingMark.ADJUSTED,
     });
     const row = rows([held])[0];
-    expect(row.unadjusted).toBe(false);
+    expect(row.provisional).toBe(false);
     expect(row.gaps).toEqual([]);
     expect(hasDetail(row)).toBe(false);
   });

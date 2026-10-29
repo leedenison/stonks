@@ -17,10 +17,10 @@ import { toFixed } from "@/lib/marshal/decimal";
 import { HoldingDetail } from "./holding-detail";
 
 // The user's holdings, cash first, each with its quantity shown to two
-// places. The quantity is restated by corporate actions. It is kept as
-// stated and marked unadjusted when the corporate actions since a
-// transaction are not known up to today. A click on a row that has detail
-// opens it beneath the row, closing any other.
+// places. The quantity is restated by corporate actions. It is marked
+// provisional when the corporate actions since a transaction are not known
+// up to today. A click on a row that has detail opens it beneath the row,
+// closing any other.
 export default function HoldingsPage() {
   const upload = useUpload();
   const { data, isPending, isError, refetch } = useHoldings();
@@ -96,13 +96,13 @@ export default function HoldingsPage() {
                       </Td>
                       <Td numeric>
                         <span className="inline-flex items-center gap-2">
-                          {h.unadjusted && (
+                          {h.provisional && (
                             <Chip
                               data-testid="holding-mark"
-                              data-state="unadjusted"
-                              title="Corporate actions are missing for some days, so the quantity is as stated"
+                              data-state="provisional"
+                              title="The quantity follows every corporate action known so far. Some days have no known corporate actions, so an action may be missing."
                             >
-                              Unadjusted
+                              Provisional
                             </Chip>
                           )}
                           <span data-testid={`holding-qty-${h.id}`}>

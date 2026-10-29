@@ -14,18 +14,18 @@
 //
 // Corporate actions restate a holding of an instrument whose class has the
 // trait for it; see types.AssetClass.Restated. Each transaction is restated
-// to today from the instrument's calendar; see package corpact. When every
-// transaction is covered, the holding is adjusted. Otherwise the holding keeps
-// the quantities as stated and is marked unadjusted. An answer covers days up
-// to the day the datasource gave it. A holding with a transaction before
-// today is therefore unadjusted from the day after the last fetch of its
-// corporate actions until the next one. A key's quantity is in its holding's
-// units, and a group keeps the quantities as stated. A holding whose shown
-// quantity is zero is left out.
+// to today by every action in the instrument's calendar; see package corpact.
+// When the calendar covers every transaction, the holding is adjusted.
+// Otherwise the holding is provisional: it follows every action known so far,
+// but an action may be missing. An answer covers days up to the day the datasource gave it. A
+// holding with a transaction before today is therefore provisional from the
+// day after the last fetch of its corporate actions until the next one. A
+// key's quantity is in its holding's units, and a group keeps the quantities
+// as stated. A holding whose shown quantity is zero is left out.
 //
-// Whether an association is confirmed or provisional shows on the statement,
-// per transaction. A holding shows the same whichever its transactions are,
-// because most associations would be provisional until coverage grows.
+// The holding mark says how far corporate actions restate the quantity. The
+// statement shows, per transaction, whether an association is confirmed or
+// provisional.
 package holding
 
 import (
@@ -200,8 +200,8 @@ func (s *Server) instrs(ctx context.Context, keys []gen.ListHoldingKeysRow) ([]*
 			Quantity:   r.quantity.String(),
 			Mark:       r.mark,
 		}
-		if r.uncoveredFrom != nil {
-			h.UncoveredFrom = ptr.To(r.uncoveredFrom.Format(time.DateOnly))
+		if r.provisionalFrom != nil {
+			h.ProvisionalFrom = ptr.To(r.provisionalFrom.Format(time.DateOnly))
 		}
 		for _, g := range r.gaps {
 			h.Gaps = append(h.Gaps, &holdingv1.UncoveredDays{UncoveredFrom: g.From.Format(time.DateOnly), UncoveredBefore: g.Before.Format(time.DateOnly)})
@@ -247,11 +247,11 @@ type day struct {
 // sum is a holding's quantity and the quantity of each of its keys, in the
 // order of its keys.
 type sum struct {
-	quantity      decimal.Decimal
-	keys          []decimal.Decimal
-	mark          holdingv1.HoldingMark
-	uncoveredFrom *time.Time
-	gaps          []types.Period
+	quantity        decimal.Decimal
+	keys            []decimal.Decimal
+	mark            holdingv1.HoldingMark
+	provisionalFrom *time.Time
+	gaps            []types.Period
 }
 
 // rawSum sums ks as stated, for an instrument whose class is not restated.
@@ -270,40 +270,37 @@ func rawSum(ks []keyDays) sum {
 
 // restate sums ks restated to today by cal. It rounds the exact sum once to
 // the most decimal places a transaction states, so a fraction sold for cash
-// cancels to zero. If cal does not cover a transaction, it keeps the
-// quantities as stated and marks the sum unadjusted from the day after the
-// earliest such transaction.
+// cancels to zero. If cal does not cover a transaction, it marks the sum
+// provisional from the day after the earliest such transaction.
 func restate(cal corpact.Calendar, ks []keyDays, today time.Time) sum {
 	out := rawSum(ks)
 	out.mark = holdingv1.HoldingMark_HOLDING_MARK_ADJUSTED
 	var scale int32
-	factors := make([][]*big.Rat, len(ks))
-	for i, k := range ks {
+	for _, k := range ks {
 		for _, d := range k.days {
 			scale = max(scale, -d.quantity.Exponent())
-			f, ok := cal.Factor(d.asAt, today)
-			if !ok && (out.uncoveredFrom == nil || d.asAt.Before(*out.uncoveredFrom)) {
-				out.uncoveredFrom = &d.asAt
-			}
-			factors[i] = append(factors[i], f)
 		}
 	}
-	if out.uncoveredFrom != nil {
-		from := out.uncoveredFrom.AddDate(0, 0, 1)
-		out.mark, out.uncoveredFrom = holdingv1.HoldingMark_HOLDING_MARK_UNADJUSTED, &from
-		out.gaps = cal.Gaps(types.Period{From: from, Before: today.AddDate(0, 0, 1)})
-		return out
-	}
+	var uncovered *time.Time
 	total := new(big.Rat)
 	for i, k := range ks {
 		key := new(big.Rat)
-		for j, d := range k.days {
-			key.Add(key, new(big.Rat).Mul(d.quantity.Rat(), factors[i][j]))
+		for _, d := range k.days {
+			f, ok := cal.Factor(d.asAt, today)
+			if !ok && (uncovered == nil || d.asAt.Before(*uncovered)) {
+				uncovered = &d.asAt
+			}
+			key.Add(key, new(big.Rat).Mul(d.quantity.Rat(), f))
 		}
 		total.Add(total, key)
 		out.keys[i] = decimal.NewFromBigRat(key, scale)
 	}
 	out.quantity = decimal.NewFromBigRat(total, scale)
+	if uncovered != nil {
+		from := uncovered.AddDate(0, 0, 1)
+		out.mark, out.provisionalFrom = holdingv1.HoldingMark_HOLDING_MARK_CORP_ACTS_PROVISIONAL, &from
+		out.gaps = cal.Gaps(types.Period{From: from, Before: today.AddDate(0, 0, 1)})
+	}
 	return out
 }
 
