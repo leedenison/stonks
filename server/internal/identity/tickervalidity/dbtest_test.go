@@ -66,7 +66,7 @@ func newFixture(t *testing.T) *fixture {
 		require.NoError(t, err)
 		f.fetches[name] = fetch.ID
 	}
-	dbtest.EventSource(t, tx, "US", f.alpha)
+	dbtest.IdentifierEventSource(t, tx, "US", f.alpha)
 	for _, id := range []*uuid.UUID{&f.a, &f.b} {
 		instr, err := q.CreateInstr(ctx, gen.CreateInstrParams{ID: db.NewID(), AssetClass: types.AssetClassStock})
 		require.NoError(t, err)

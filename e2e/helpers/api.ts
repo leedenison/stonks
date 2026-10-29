@@ -252,7 +252,6 @@ export function resolutionFindings(findings: Finding[]): Finding[] {
   return findings.filter(
     (f) =>
       f.kind !== FindingKind.UNMATCHED_SPLIT &&
-      f.kind !== FindingKind.CORP_ACT_DISAGREEMENT &&
       f.kind !== FindingKind.UNHANDLED_CORP_ACT,
   );
 }

@@ -40,8 +40,9 @@ test("finds a stated split the calendar lacks, and refreshes the calendar", asyn
     page.getByTestId(`finding-row-${unmatched[0].id}`),
   ).toContainText("unmatched split");
 
-  // A refresh asks each datasource that serves corporate actions again,
-  // reading past the cache that the statement's fetch filled.
+  // A refresh asks the corporate actions source of the US again, reading
+  // past the cache that the statement's fetch filled. EODHD serves corporate
+  // actions too, and is not asked.
   const started = (
     await refreshCorpActsClient(session).startRefreshCorpActs({})
   ).run!;
@@ -51,18 +52,12 @@ test("finds a stated split the calendar lacks, and refreshes the calendar", asyn
     )
     .toBe(RunState.COMPLETED);
   const children = (await admin.getRun({ runId: started.id })).run!.children;
-  expect(children.map((c) => c.fetch?.datasource).sort()).toEqual([
-    "eodhd",
-    "massive",
-  ]);
-  for (const child of children) {
-    expect(child.fetch?.kind).toBe(FetchKind.CORP_ACTS);
-    const ko = (await fetchItems(admin, child.run!.id)).filter(
-      (i) =>
-        i.outcome === FetchOutcome.SERVED &&
-        (i.sent?.value === "KO" || i.sent?.value === "KO.US"),
-    );
-    expect(ko, child.fetch?.datasource).toHaveLength(1);
-    expect(ko[0].attempts, child.fetch?.datasource).toBeGreaterThan(0);
-  }
+  expect(children.map((c) => c.fetch?.datasource)).toEqual(["massive"]);
+  const [child] = children;
+  expect(child.fetch?.kind).toBe(FetchKind.CORP_ACTS);
+  const ko = (await fetchItems(admin, child.run!.id)).filter(
+    (i) => i.outcome === FetchOutcome.SERVED && i.sent?.value === "KO",
+  );
+  expect(ko).toHaveLength(1);
+  expect(ko[0].attempts).toBeGreaterThan(0);
 });

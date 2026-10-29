@@ -24,24 +24,23 @@ type CalendarQueries interface {
 
 var _ CalendarQueries = (*gen.Queries)(nil)
 
-// MarketAnswer is what one datasource reported at one market for one
-// instrument, over the days that a ticker of the market named it. Coverage
-// leaves out the ex-date of every unhandled action of the instrument,
-// whichever market reported it. Acts holds an action once when two tickers
-// of the market report it.
+// MarketAnswer is what the corporate actions source of one market reported
+// for one instrument, over the days that a ticker of the market named it.
+// Coverage leaves out the ex-date of every unhandled action of the
+// instrument, whichever market reported it. Acts holds an action once when
+// two tickers of the market report it.
 type MarketAnswer struct {
 	Answer
 	Market string
 }
 
-// Calendar is the market answers of one instrument, by datasource
-// precedence, then by market.
+// Calendar is the market answers of one instrument, by market.
 type Calendar []MarketAnswer
 
-// Calendars returns the calendar of each of instrs that a datasource has
-// answered for. Ticker validity attributes each action and each day of
-// coverage to the instrument that its ticker named on that day. Calendars
-// reads with four queries however many instruments there are.
+// Calendars returns the calendar of each of instrs that a corporate actions
+// source has answered for. Ticker validity attributes each action and each
+// day of coverage to the instrument that its ticker named on that day.
+// Calendars reads with four queries however many instruments there are.
 func Calendars(ctx context.Context, q CalendarQueries, instrs []uuid.UUID) (map[uuid.UUID]Calendar, error) {
 	out := map[uuid.UUID]Calendar{}
 	if len(instrs) == 0 {
@@ -66,38 +65,36 @@ func Calendars(ctx context.Context, q CalendarQueries, instrs []uuid.UUID) (map[
 		return nil, err
 	}
 	type at struct {
-		instr              uuid.UUID
-		datasource, market string
+		instr  uuid.UUID
+		market string
 	}
 	built := map[at]*MarketAnswer{}
 	unhandled := map[uuid.UUID][]time.Time{}
-	for t, as := range answers {
-		for _, a := range as {
-			for _, iv := range read[t] {
-				if !slices.Contains(instrs, iv.Instr) {
+	for t, a := range answers {
+		for _, iv := range read[t] {
+			if !slices.Contains(instrs, iv.Instr) {
+				continue
+			}
+			k := at{instr: iv.Instr, market: t.Market}
+			m := built[k]
+			if m == nil {
+				m = &MarketAnswer{Answer: Answer{Datasource: a.Datasource}, Market: t.Market}
+				built[k] = m
+			}
+			for _, c := range a.Coverage {
+				if p, ok := iv.Clip(c); ok {
+					m.Coverage = append(m.Coverage, p)
+				}
+			}
+			for _, e := range a.Acts {
+				if !iv.Contains(e.ExDate) {
 					continue
 				}
-				k := at{instr: iv.Instr, datasource: a.Datasource, market: t.Market}
-				m := built[k]
-				if m == nil {
-					m = &MarketAnswer{Answer: Answer{Datasource: a.Datasource, Precedence: a.Precedence}, Market: t.Market}
-					built[k] = m
+				if !e.Handled {
+					unhandled[iv.Instr] = append(unhandled[iv.Instr], e.ExDate)
 				}
-				for _, c := range a.Coverage {
-					if p, ok := iv.Clip(c); ok {
-						m.Coverage = append(m.Coverage, p)
-					}
-				}
-				for _, e := range a.Acts {
-					if !iv.Contains(e.ExDate) {
-						continue
-					}
-					if !e.Handled {
-						unhandled[iv.Instr] = append(unhandled[iv.Instr], e.ExDate)
-					}
-					if !slices.ContainsFunc(m.Acts, e.same) {
-						m.Acts = append(m.Acts, e)
-					}
+				if !slices.ContainsFunc(m.Acts, e.same) {
+					m.Acts = append(m.Acts, e)
 				}
 			}
 		}
@@ -111,9 +108,7 @@ func Calendars(ctx context.Context, q CalendarQueries, instrs []uuid.UUID) (map[
 		out[k.instr] = append(out[k.instr], *m)
 	}
 	for _, c := range out {
-		slices.SortFunc(c, func(a, b MarketAnswer) int {
-			return cmp.Or(cmp.Compare(a.Precedence, b.Precedence), cmp.Compare(a.Market, b.Market))
-		})
+		slices.SortFunc(c, func(a, b MarketAnswer) int { return cmp.Compare(a.Market, b.Market) })
 	}
 	return out, nil
 }

@@ -22,6 +22,7 @@ var _ ReadQueries = (*gen.Queries)(nil)
 // Queries is this package's view of the generated queries.
 type Queries interface {
 	CalendarQueries
+	ListCorpActSources(ctx context.Context) ([]gen.ListCorpActSourcesRow, error)
 	LockCorpActAnswer(ctx context.Context, key string) error
 	GetCorpActAnswer(ctx context.Context, arg gen.GetCorpActAnswerParams) (gen.GetCorpActAnswerRow, error)
 	CreateCorpActAnswer(ctx context.Context, arg gen.CreateCorpActAnswerParams) error
@@ -29,7 +30,6 @@ type Queries interface {
 	ListAnswerCorpActs(ctx context.Context, answerID uuid.UUID) ([]gen.CorpAct, error)
 	CreateCorpAct(ctx context.Context, arg gen.CreateCorpActParams) error
 	DeleteCorpActs(ctx context.Context, ids []uuid.UUID) error
-	ListDisagreedCorpActs(ctx context.Context, ids []uuid.UUID) ([]uuid.UUID, error)
 	CreateFinding(ctx context.Context, arg gen.CreateFindingParams) error
 	tickers.Queries
 	ListStatedSplits(ctx context.Context, arg gen.ListStatedSplitsParams) ([]gen.ListStatedSplitsRow, error)
@@ -50,7 +50,7 @@ var _ Store = (*db.DB[Queries])(nil)
 
 // Sources is this package's view of the datasource registry.
 type Sources interface {
-	Enabled() []*market.Entry
+	Entry(name string) *market.Entry
 }
 
 var _ Sources = (*market.Registry)(nil)

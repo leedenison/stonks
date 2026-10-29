@@ -63,6 +63,9 @@ func recorded(t *testing.T, cassette string, ticker types.Identifier) (*gen.Quer
 	name := "eodhd-" + uuid.NewString()
 	_, err = q.CreateDatasource(ctx, gen.CreateDatasourceParams{Name: name, Enabled: true, Precedence: 1000})
 	require.NoError(t, err)
+	mt, ok := tbl.MarketTicker(ticker)
+	require.True(t, ok)
+	dbtest.CorpActSource(t, tx, mt.Market, name)
 	log := slog.New(slog.DiscardHandler)
 	sources, err := market.New(ctx, q, map[string]market.Factory{name: {New: func(market.Config) (market.Integration, error) { return c, nil }}}, log)
 	require.NoError(t, err)
@@ -70,9 +73,6 @@ func recorded(t *testing.T, cassette string, ticker types.Identifier) (*gen.Quer
 	fetcher := market.NewFetcher(db.New[market.Queries](tx), runtest.Runner{Q: q}, log, market.WithClock(func() time.Time { return answered }, func(context.Context, time.Duration) error { return nil }))
 	r := corpact.New(db.New[corpact.Queries](tx), fetcher, sources, tbl, log)
 	require.NoError(t, r.Fetch(ctx, parent, []market.CorpActRequest{{Ticker: ticker, Period: asked}}))
-
-	mt, ok := tbl.MarketTicker(ticker)
-	require.True(t, ok)
 	return q, name, mt
 }
 
@@ -107,9 +107,8 @@ func TestCorpActRecord(t *testing.T) {
 			q, name, mt := recorded(t, tc.cassette, tc.ticker)
 			got, err := corpact.Read(context.Background(), q, []types.MarketTicker{mt}, asked)
 			require.NoError(t, err)
-			i := slices.IndexFunc(got[mt], func(a corpact.Answer) bool { return a.Datasource == name })
-			require.GreaterOrEqual(t, i, 0, "no answer from %s", name)
-			a := got[mt][i]
+			a, ok := got[mt]
+			require.True(t, ok && a.Datasource == name, "no answer from %s", name)
 			var acts []string
 			for _, e := range a.Acts {
 				d := e.ExDate.Format(time.DateOnly) + " " + e.Ratio.From.String() + ":" + e.Ratio.To.String()

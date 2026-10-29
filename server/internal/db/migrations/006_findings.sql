@@ -31,11 +31,6 @@
 -- 'unhandled_corp_act' means a datasource reported a corporate action of
 -- a type the system does not restate a quantity by. The fetch that wrote the
 -- corporate action records it, and the finding names the corporate action.
--- 'corp_act_disagreement' means a corporate action of one datasource
--- lacks a corporate action of equal ratio, within 7 days either side, from
--- another datasource that covers the same ticker on its ex-date. The fetch
--- that completed the pair records it, and the finding names the unmatched
--- corporate action.
 -- 'unmatched_split' means a statement stated a split that the calendar lacks:
 -- no corporate action of the split's instrument falls within 7 days either
 -- side, with an equal ratio where the statement states one. A corporate action
@@ -44,7 +39,7 @@
 -- stands for each key and day, so clearing the finding dismisses that split permanently.
 CREATE TYPE finding_kind AS ENUM ('block', 'dropped', 'contradiction', 'merged',
     'identifier_disagreement', 'broken_ticker_validity_bracket', 'missed_event',
-    'unhandled_corp_act', 'corp_act_disagreement', 'unmatched_split');
+    'unhandled_corp_act', 'unmatched_split');
 
 -- The step of the choice that dropped a set of identifiers: it contradicted
 -- the stated data, was inconsistent with a higher precedence response, or

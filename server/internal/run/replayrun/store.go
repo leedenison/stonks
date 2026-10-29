@@ -61,7 +61,7 @@ type CorpActs interface {
 
 // Sources is this package's view of the datasource registry.
 type Sources interface {
-	Enabled() []*market.Entry
+	Entry(name string) *market.Entry
 }
 
 var _ Sources = (*market.Registry)(nil)

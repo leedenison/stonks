@@ -29,21 +29,23 @@ VALUES (@id, @answer_id, @ex_date, @ratio_from, @ratio_to, sqlc.narg(type), @han
 -- name: DeleteCorpActs :exec
 DELETE FROM corp_acts WHERE id = ANY(@ids::uuid[]);
 
--- name: ListDisagreedCorpActs :many
--- The corporate actions among ids that a disagreement finding already names.
-SELECT DISTINCT corp_act_id::uuid FROM findings
-WHERE kind = 'corp_act_disagreement' AND corp_act_id = ANY(@ids::uuid[]);
+-- name: ListCorpActSources :many
+-- Each market that names a corporate actions source, with that datasource.
+SELECT code, corp_act_source::text AS datasource FROM markets
+WHERE corp_act_source IS NOT NULL
+ORDER BY code;
 
 -- name: ListCorpActAnswers :many
--- The answers for the tickers whose market and value are a pair the arrays
--- hold at one index. Each answer comes with its ticker's spelling and its
--- datasource's precedence.
-SELECT sqlc.embed(corp_act_answers), tickers.market, tickers.value, datasources.precedence
+-- The answers of each market's corporate actions source for the tickers whose
+-- market and value are a pair the arrays hold at one index. Each answer comes
+-- with its ticker's spelling.
+SELECT sqlc.embed(corp_act_answers), tickers.market, tickers.value
 FROM (SELECT unnest(@markets::text[]) AS market, unnest(@values::text[]) AS value) AS asked
 JOIN tickers ON tickers.market = asked.market AND tickers.value = asked.value
+JOIN markets ON markets.code = tickers.market
 JOIN corp_act_answers ON corp_act_answers.ticker_id = tickers.id
-JOIN datasources ON datasources.name = corp_act_answers.datasource
-ORDER BY datasources.precedence, tickers.market, tickers.value;
+    AND corp_act_answers.datasource = markets.corp_act_source
+ORDER BY tickers.market, tickers.value;
 
 -- name: ListCorpActs :many
 -- The actions of the answers that ListCorpActAnswers reads, with an ex-date
@@ -51,7 +53,9 @@ ORDER BY datasources.precedence, tickers.market, tickers.value;
 SELECT corp_acts.*
 FROM (SELECT unnest(@markets::text[]) AS market, unnest(@values::text[]) AS value) AS asked
 JOIN tickers ON tickers.market = asked.market AND tickers.value = asked.value
+JOIN markets ON markets.code = tickers.market
 JOIN corp_act_answers ON corp_act_answers.ticker_id = tickers.id
+    AND corp_act_answers.datasource = markets.corp_act_source
 JOIN corp_acts ON corp_acts.answer_id = corp_act_answers.id
 WHERE corp_acts.ex_date >= @from_day AND corp_acts.ex_date < @before_day
 ORDER BY corp_acts.ex_date, corp_acts.id;

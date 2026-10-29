@@ -12,10 +12,10 @@ import (
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
-// Answer is the stored answer of one datasource for one ticker.
+// Answer is the stored answer of a market's corporate actions source for one
+// ticker.
 type Answer struct {
 	Datasource string
-	Precedence int32
 	Acts       []Act
 	// Coverage is the days over which the datasource reported every
 	// corporate action of the ticker, less each day an unhandled action of the
@@ -34,58 +34,12 @@ type Act struct {
 	Handled bool
 }
 
-// Read returns the answers of each of ts, in precedence order, with what
-// they hold within p: the actions with an ex-date in p, and the coverage
-// clipped to p. Read leaves out an answer that holds neither within p. It
-// takes each day of an unhandled action of a ticker out of the coverage of
-// every datasource of that ticker. It reads with two queries however many
-// tickers there are.
-func Read(ctx context.Context, q ReadQueries, ts []types.MarketTicker, p types.Period) (map[types.MarketTicker][]Answer, error) {
-	stored, err := readStored(ctx, q, ts, p)
-	if err != nil {
-		return nil, err
-	}
-	out := make(map[types.MarketTicker][]Answer, len(stored))
-	for t, as := range stored {
-		var unhandled []time.Time
-		for _, a := range as {
-			for _, e := range a.Acts {
-				if !e.Handled {
-					unhandled = append(unhandled, e.ExDate)
-				}
-			}
-		}
-		for _, a := range as {
-			var cov []types.Period
-			for _, c := range remove(a.Coverage, unhandled) {
-				if c, ok := clip(c, p); ok {
-					cov = append(cov, c)
-				}
-			}
-			if len(cov) == 0 && len(a.Acts) == 0 {
-				continue
-			}
-			answer := a.Answer
-			answer.Coverage = cov
-			out[t] = append(out[t], answer)
-		}
-	}
-	return out, nil
-}
-
-// always is a period that holds every day an answer may cover.
-var always = types.Period{From: time.Date(1, 1, 1, 0, 0, 0, 0, time.UTC), Before: time.Date(9999, 1, 1, 0, 0, 0, 0, time.UTC)}
-
-// storedAnswer is an answer with the fetch key that wrote it.
-type storedAnswer struct {
-	Answer
-	fetchKey uuid.UUID
-}
-
-// readStored reads the answers of each of ts, in precedence order, with
-// their actions whose ex-date p holds and their stored coverage, whole. A
-// ticker without an answer is absent.
-func readStored(ctx context.Context, q ReadQueries, ts []types.MarketTicker, p types.Period) (map[types.MarketTicker][]storedAnswer, error) {
+// Read returns the answer of each of ts from its market's corporate actions
+// source, with what it holds within p: the actions with an ex-date in p, and
+// the coverage clipped to p. Read leaves out a ticker whose answer holds
+// neither within p. It reads with two queries however many tickers there
+// are.
+func Read(ctx context.Context, q ReadQueries, ts []types.MarketTicker, p types.Period) (map[types.MarketTicker]Answer, error) {
 	want := map[types.MarketTicker]bool{}
 	var markets, values []string
 	for _, t := range ts {
@@ -94,7 +48,7 @@ func readStored(ctx context.Context, q ReadQueries, ts []types.MarketTicker, p t
 			markets, values = append(markets, t.Market), append(values, t.Value)
 		}
 	}
-	out := map[types.MarketTicker][]storedAnswer{}
+	out := map[types.MarketTicker]Answer{}
 	if len(want) == 0 {
 		return out, nil
 	}
@@ -102,42 +56,60 @@ func readStored(ctx context.Context, q ReadQueries, ts []types.MarketTicker, p t
 	if err != nil {
 		return nil, fmt.Errorf("list corporate action answers: %w", err)
 	}
-	type at struct {
-		t types.MarketTicker
-		i int
+	if len(rows) == 0 {
+		return out, nil
 	}
-	byID := map[uuid.UUID]at{}
+	byID := map[uuid.UUID]types.MarketTicker{}
+	stored := map[types.MarketTicker]*Answer{}
 	for _, row := range rows {
 		a := row.CorpActAnswer
 		t := types.MarketTicker{Market: row.Market, Value: row.Value}
-		s := storedAnswer{Answer: Answer{Datasource: a.Datasource, Precedence: row.Precedence}, fetchKey: a.FetchKeyID}
+		s := &Answer{Datasource: a.Datasource}
 		if a.CoveredFrom != nil && a.CoveredBefore != nil {
 			s.Coverage = []types.Period{{From: *a.CoveredFrom, Before: *a.CoveredBefore}}
 		}
-		byID[a.ID] = at{t: t, i: len(out[t])}
-		out[t] = append(out[t], s)
-	}
-	if len(byID) == 0 {
-		return out, nil
+		byID[a.ID] = t
+		stored[t] = s
 	}
 	acts, err := q.ListCorpActs(ctx, gen.ListCorpActsParams{Markets: markets, Values: values, FromDay: p.From, BeforeDay: p.Before})
 	if err != nil {
 		return nil, fmt.Errorf("list corporate actions: %w", err)
 	}
 	for _, e := range acts {
-		pos, ok := byID[e.AnswerID]
+		t, ok := byID[e.AnswerID]
 		if !ok {
 			continue
 		}
-		a := &out[pos.t][pos.i]
 		act := Act{ID: e.ID, ExDate: e.ExDate, Ratio: types.Ratio{From: e.RatioFrom, To: e.RatioTo}, Handled: e.Handled}
 		if e.Type != nil {
 			act.Type = *e.Type
 		}
-		a.Acts = append(a.Acts, act)
+		stored[t].Acts = append(stored[t].Acts, act)
+	}
+	for t, a := range stored {
+		var unhandled []time.Time
+		for _, e := range a.Acts {
+			if !e.Handled {
+				unhandled = append(unhandled, e.ExDate)
+			}
+		}
+		var cov []types.Period
+		for _, c := range remove(a.Coverage, unhandled) {
+			if c, ok := clip(c, p); ok {
+				cov = append(cov, c)
+			}
+		}
+		if len(cov) == 0 && len(a.Acts) == 0 {
+			continue
+		}
+		a.Coverage = cov
+		out[t] = *a
 	}
 	return out, nil
 }
+
+// always is a period that holds every day an answer may cover.
+var always = types.Period{From: time.Date(1, 1, 1, 0, 0, 0, 0, time.UTC), Before: time.Date(9999, 1, 1, 0, 0, 0, 0, time.UTC)}
 
 // remove returns ps less each of days, splitting a period around a day it
 // holds.

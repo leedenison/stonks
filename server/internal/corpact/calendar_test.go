@@ -53,11 +53,11 @@ func (s *canned) names(market, value string, instr uuid.UUID, start, end *time.T
 
 // answer records the answer of datasource for market:value, covering from
 // up to before, and returns its id.
-func (s *canned) answer(datasource string, precedence int32, market, value string, from, before time.Time) uuid.UUID {
+func (s *canned) answer(datasource, market, value string, from, before time.Time) uuid.UUID {
 	id := uuid.New()
 	s.answers = append(s.answers, gen.ListCorpActAnswersRow{
 		CorpActAnswer: gen.CorpActAnswer{ID: id, Datasource: datasource, CoveredFrom: &from, CoveredBefore: &before},
-		Market:        market, Value: value, Precedence: precedence,
+		Market:        market, Value: value,
 	})
 	return id
 }
@@ -92,10 +92,10 @@ func TestCalendarsRename(t *testing.T) {
 	renamed := day(2022, 6, 9)
 	s.names("US", "FB", instr, nil, &renamed)
 	s.names("US", "META", instr, &renamed, nil)
-	s.answer("alpha", 1, "US", "FB", day(2012, 1, 1), today.AddDate(0, 0, 1))
-	s.answer("alpha", 1, "US", "META", day(2012, 1, 1), today.AddDate(0, 0, 1))
+	s.answer("alpha", "US", "FB", day(2012, 1, 1), today.AddDate(0, 0, 1))
+	s.answer("alpha", "US", "META", day(2012, 1, 1), today.AddDate(0, 0, 1))
 	got := s.calendars(t, instr)[instr]
-	want := Calendar{{Answer: Answer{Datasource: "alpha", Precedence: 1, Coverage: []types.Period{period(day(2012, 1, 1), today.AddDate(0, 0, 1))}}, Market: "US"}}
+	want := Calendar{{Answer: Answer{Datasource: "alpha", Coverage: []types.Period{period(day(2012, 1, 1), today.AddDate(0, 0, 1))}}, Market: "US"}}
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("calendar mismatch (-want +got):\n%s", diff)
 	}
@@ -109,7 +109,7 @@ func TestCalendarsTwice(t *testing.T) {
 	s.names("US", "BRK.B", instr, nil, nil)
 	s.names("US", "BRK/B", instr, nil, nil)
 	for _, v := range []string{"BRK.B", "BRK/B"} {
-		a := s.answer("alpha", 1, "US", v, day(2012, 1, 1), today.AddDate(0, 0, 1))
+		a := s.answer("alpha", "US", v, day(2012, 1, 1), today.AddDate(0, 0, 1))
 		s.act(a, day(2020, 3, 2), 1, 2, true)
 	}
 	got := s.calendars(t, instr)[instr]
@@ -129,7 +129,7 @@ func TestCalendarsHolder(t *testing.T) {
 	passed := day(2015, 1, 1)
 	s.names("US", "ABC", first, nil, &passed)
 	s.names("US", "ABC", later, &passed, nil)
-	a := s.answer("alpha", 1, "US", "ABC", day(2010, 1, 1), today.AddDate(0, 0, 1))
+	a := s.answer("alpha", "US", "ABC", day(2010, 1, 1), today.AddDate(0, 0, 1))
 	s.act(a, day(2014, 5, 1), 1, 2, true)
 	cals := s.calendars(t, first, later)
 	if diff := cmp.Diff([]Act{split(day(2014, 5, 1), 1, 2, true)}, cals[first][0].Acts, ignoreActID); diff != "" {
@@ -148,9 +148,9 @@ func TestCalendarsUnhandled(t *testing.T) {
 	s.names("US", "GE", instr, nil, nil)
 	s.names("DE", "GEC", instr, nil, nil)
 	spun := day(2024, 4, 2)
-	us := s.answer("alpha", 1, "US", "GE", day(2012, 1, 1), today.AddDate(0, 0, 1))
+	us := s.answer("alpha", "US", "GE", day(2012, 1, 1), today.AddDate(0, 0, 1))
 	s.act(us, spun, 1000, 1253, false)
-	s.answer("beta", 2, "DE", "GEC", day(2012, 1, 1), today.AddDate(0, 0, 1))
+	s.answer("beta", "DE", "GEC", day(2012, 1, 1), today.AddDate(0, 0, 1))
 	cal := s.calendars(t, instr)[instr]
 	if _, ok := cal.Factor(day(2023, 6, 1), today); ok {
 		t.Error("Factor covered a span across the unhandled action")
@@ -164,33 +164,27 @@ func TestCalendarsUnhandled(t *testing.T) {
 	}
 }
 
-// TestCalendarsOrder checks that market answers come by precedence, then by
-// market.
+// TestCalendarsOrder checks that market answers come by market.
 func TestCalendarsOrder(t *testing.T) {
 	instr := uuid.New()
 	var s canned
 	s.names("US", "X", instr, nil, nil)
 	s.names("DE", "X", instr, nil, nil)
-	for _, a := range []struct {
-		ds     string
-		prec   int32
-		market string
-	}{{"beta", 2, "US"}, {"alpha", 1, "US"}, {"alpha", 1, "DE"}} {
-		s.answer(a.ds, a.prec, a.market, "X", day(2012, 1, 1), today)
-	}
+	s.answer("alpha", "US", "X", day(2012, 1, 1), today)
+	s.answer("beta", "DE", "X", day(2012, 1, 1), today)
 	var got []string
 	for _, m := range s.calendars(t, instr)[instr] {
 		got = append(got, m.Datasource+" "+m.Market)
 	}
-	if diff := cmp.Diff([]string{"alpha DE", "alpha US", "beta US"}, got); diff != "" {
+	if diff := cmp.Diff([]string{"beta DE", "alpha US"}, got); diff != "" {
 		t.Errorf("order mismatch (-want +got):\n%s", diff)
 	}
 }
 
 func TestFactor(t *testing.T) {
 	whole := []types.Period{period(day(2010, 1, 1), today.AddDate(0, 0, 1))}
-	answer := func(ds string, cov []types.Period, acts ...Act) MarketAnswer {
-		return MarketAnswer{Answer: Answer{Datasource: ds, Coverage: cov, Acts: acts}, Market: "US"}
+	answer := func(market string, cov []types.Period, acts ...Act) MarketAnswer {
+		return MarketAnswer{Answer: Answer{Datasource: "alpha", Coverage: cov, Acts: acts}, Market: market}
 	}
 	tests := []struct {
 		name string
@@ -198,27 +192,27 @@ func TestFactor(t *testing.T) {
 		asAt time.Time
 		want *big.Rat
 	}{
-		{name: "one split", cal: Calendar{answer("alpha", whole, split(day(2020, 3, 2), 1, 4, true))}, asAt: day(2019, 1, 1), want: big.NewRat(4, 1)},
-		{name: "a reverse split", cal: Calendar{answer("alpha", whole, split(day(2020, 3, 2), 3, 1, true))}, asAt: day(2019, 1, 1), want: big.NewRat(1, 3)},
-		{name: "two splits", cal: Calendar{answer("alpha", whole, split(day(2014, 6, 9), 1, 7, true), split(day(2020, 3, 2), 1, 4, true))}, asAt: day(2013, 1, 1), want: big.NewRat(28, 1)},
-		{name: "an ex-date on the as-at day", cal: Calendar{answer("alpha", whole, split(day(2020, 3, 2), 1, 4, true))}, asAt: day(2020, 3, 2), want: big.NewRat(1, 1)},
-		{name: "an ex-date today", cal: Calendar{answer("alpha", whole, split(today, 1, 4, true))}, asAt: day(2020, 3, 2), want: big.NewRat(4, 1)},
-		{name: "a future ex-date", cal: Calendar{answer("alpha", whole, split(today.AddDate(0, 0, 1), 1, 4, true))}, asAt: day(2020, 3, 2), want: big.NewRat(1, 1)},
-		{name: "an unhandled action", cal: Calendar{answer("alpha", whole, split(day(2020, 3, 2), 1000, 1253, false))}, asAt: day(2019, 1, 1), want: big.NewRat(1, 1)},
-		{name: "a gap today", cal: Calendar{answer("alpha", []types.Period{period(day(2010, 1, 1), today)})}, asAt: day(2019, 1, 1)},
+		{name: "one split", cal: Calendar{answer("US", whole, split(day(2020, 3, 2), 1, 4, true))}, asAt: day(2019, 1, 1), want: big.NewRat(4, 1)},
+		{name: "a reverse split", cal: Calendar{answer("US", whole, split(day(2020, 3, 2), 3, 1, true))}, asAt: day(2019, 1, 1), want: big.NewRat(1, 3)},
+		{name: "two splits", cal: Calendar{answer("US", whole, split(day(2014, 6, 9), 1, 7, true), split(day(2020, 3, 2), 1, 4, true))}, asAt: day(2013, 1, 1), want: big.NewRat(28, 1)},
+		{name: "an ex-date on the as-at day", cal: Calendar{answer("US", whole, split(day(2020, 3, 2), 1, 4, true))}, asAt: day(2020, 3, 2), want: big.NewRat(1, 1)},
+		{name: "an ex-date today", cal: Calendar{answer("US", whole, split(today, 1, 4, true))}, asAt: day(2020, 3, 2), want: big.NewRat(4, 1)},
+		{name: "a future ex-date", cal: Calendar{answer("US", whole, split(today.AddDate(0, 0, 1), 1, 4, true))}, asAt: day(2020, 3, 2), want: big.NewRat(1, 1)},
+		{name: "an unhandled action", cal: Calendar{answer("US", whole, split(day(2020, 3, 2), 1000, 1253, false))}, asAt: day(2019, 1, 1), want: big.NewRat(1, 1)},
+		{name: "a gap today", cal: Calendar{answer("US", []types.Period{period(day(2010, 1, 1), today)})}, asAt: day(2019, 1, 1)},
 		{
-			name: "the second datasource where the first lacks a day",
+			name: "the second market where the first lacks a day",
 			cal: Calendar{
-				answer("alpha", []types.Period{period(day(2010, 1, 1), day(2020, 1, 1)), period(day(2020, 1, 2), today.AddDate(0, 0, 1))}),
-				answer("beta", whole, split(day(2020, 3, 2), 1, 2, true)),
+				answer("DE", []types.Period{period(day(2010, 1, 1), day(2020, 1, 1)), period(day(2020, 1, 2), today.AddDate(0, 0, 1))}),
+				answer("US", whole, split(day(2020, 3, 2), 1, 2, true)),
 			},
 			asAt: day(2019, 1, 1), want: big.NewRat(2, 1),
 		},
 		{
-			name: "two datasources each covering half",
+			name: "two markets each covering half",
 			cal: Calendar{
-				answer("alpha", []types.Period{period(day(2010, 1, 1), day(2020, 1, 1))}),
-				answer("beta", []types.Period{period(day(2020, 1, 1), today.AddDate(0, 0, 1))}),
+				answer("DE", []types.Period{period(day(2010, 1, 1), day(2020, 1, 1))}),
+				answer("US", []types.Period{period(day(2020, 1, 1), today.AddDate(0, 0, 1))}),
 			},
 			asAt: day(2019, 1, 1),
 		},
@@ -248,7 +242,7 @@ func TestGaps(t *testing.T) {
 		{name: "no calendar", want: []types.Period{p}},
 		{name: "covered", cal: Calendar{answer(period(day(2019, 1, 1), day(2022, 1, 1)))}},
 		{
-			name: "covered in halves by two datasources",
+			name: "covered in halves by two markets",
 			cal:  Calendar{answer(period(day(2019, 1, 1), day(2020, 7, 1))), answer(period(day(2020, 7, 1), day(2022, 1, 1)))},
 		},
 		{

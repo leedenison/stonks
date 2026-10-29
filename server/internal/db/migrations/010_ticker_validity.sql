@@ -9,7 +9,12 @@ CREATE TABLE markets (
     -- identifier_event_source is the one datasource whose edges and assertion
     -- coverage count in the market. NULL means none does. Seed data sets it.
     -- A change takes effect at the next rebuild of every ticker.
-    identifier_event_source text REFERENCES datasources (name) ON DELETE SET NULL
+    identifier_event_source text REFERENCES datasources (name) ON DELETE SET NULL,
+    -- corp_act_source is the one datasource asked for the corporate actions
+    -- of the market's tickers, and the only one whose answers are read. NULL
+    -- means none is. Seed data sets it. A change takes effect at the next
+    -- read.
+    corp_act_source         text REFERENCES datasources (name) ON DELETE SET NULL
 );
 
 INSERT INTO markets (code) VALUES ('US');

@@ -184,7 +184,7 @@ func TestRebuildFollowsEventSource(t *testing.T) {
 		_, err := s.q.CreateDatasource(ctx, gen.CreateDatasourceParams{Name: name, Enabled: true, Precedence: int32(1000 + i)})
 		require.NoError(t, err)
 	}
-	dbtest.EventSource(t, s.tx, "XLON", alpha)
+	dbtest.IdentifierEventSource(t, s.tx, "XLON", alpha)
 	tk := dbtest.Ticker(t, s.q, types.MarketTicker{Market: "XLON", Value: "ZZL" + uuid.NewString()[:6]})
 	instr := s.instr(t)
 	fetch, err := s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &user.ID, Kind: gen.RunKindDatasourceFetch, Trigger: gen.RunTriggerRun, ParentID: &parent.ID})
@@ -215,7 +215,7 @@ func TestRebuildFollowsEventSource(t *testing.T) {
 	if !confirmedOn(10) {
 		t.Fatalf("day 10 is unconfirmed, want alpha's assertion coverage to confirm it")
 	}
-	dbtest.EventSource(t, s.tx, "XLON", beta)
+	dbtest.IdentifierEventSource(t, s.tx, "XLON", beta)
 	if !confirmedOn(10) {
 		t.Errorf("before the run day 10 is unconfirmed, want the stored ticker validity unchanged")
 	}

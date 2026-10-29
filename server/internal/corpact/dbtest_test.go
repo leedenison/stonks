@@ -37,7 +37,8 @@ var answered = time.Date(2026, time.March, 2, 15, 30, 0, 0, time.UTC)
 var asked = types.Period{From: day(2020, 1, 1), Before: day(2027, 1, 1)}
 
 // stack is a Recorder over a rolled-back transaction, with two scripted
-// datasources: alpha at precedence 10 and beta at 20.
+// datasources: alpha at precedence 10 and beta at 20. Alpha is the
+// corporate actions source of the US.
 type stack struct {
 	q      *gen.Queries
 	tx     pgx.Tx
@@ -112,14 +113,15 @@ func newStack(t *testing.T) *stack {
 		alphaName: "alpha-" + uuid.NewString(), betaName: "beta-" + uuid.NewString(), now: answered,
 		identityOnly: map[string]bool{}, cache: &memCache{entries: map[string][]byte{}},
 	}
+	for name, precedence := range map[string]int32{s.alphaName: 10, s.betaName: 20} {
+		_, err := q.CreateDatasource(ctx, gen.CreateDatasourceParams{Name: name, Enabled: true, Precedence: precedence})
+		require.NoError(t, err)
+	}
+	s.source(t, s.alphaName)
 	user, err := q.CreateUser(ctx, gen.CreateUserParams{ID: db.NewID(), Email: uuid.NewString() + "@example.com", Role: gen.UserRoleUser})
 	require.NoError(t, err)
 	s.parent, err = q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &user.ID, Kind: gen.RunKindIngestStmt, Trigger: gen.RunTriggerUser})
 	require.NoError(t, err)
-	for name, precedence := range map[string]int32{s.alphaName: 10, s.betaName: 20} {
-		_, err = q.CreateDatasource(ctx, gen.CreateDatasourceParams{Name: name, Enabled: true, Precedence: precedence})
-		require.NoError(t, err)
-	}
 	factory := func(name string, i *scripted.CorpActs) market.Factory {
 		return market.Factory{New: func(market.Config) (market.Integration, error) {
 			if s.identityOnly[name] {
@@ -140,17 +142,18 @@ func newStack(t *testing.T) *stack {
 	return s
 }
 
-// only leaves corporate actions to the datasource named, as of now.
-func (s *stack) only(t *testing.T, name string) {
+// source makes the datasource named the corporate actions source of the US.
+// The stack holds the lock on the US row from its first call.
+func (s *stack) source(t *testing.T, name string) {
 	t.Helper()
-	s.identityOnly = map[string]bool{s.alphaName: name != s.alphaName, s.betaName: name != s.betaName}
-	require.NoError(t, s.sources.Reload(context.Background()))
+	dbtest.CorpActSource(t, s.tx, "US", name)
 }
 
-// both enables corporate actions for both datasources.
-func (s *stack) both(t *testing.T) {
+// withoutCorpActs reloads the registry with the datasource named built
+// without the corporate actions capability.
+func (s *stack) withoutCorpActs(t *testing.T, name string) {
 	t.Helper()
-	s.identityOnly = map[string]bool{}
+	s.identityOnly[name] = true
 	require.NoError(t, s.sources.Reload(context.Background()))
 }
 
@@ -163,12 +166,14 @@ func (s *stack) fetch(t *testing.T, tickers ...types.Identifier) {
 	require.NoError(t, s.recorder.Fetch(context.Background(), s.parent, reqs))
 }
 
-// read returns the answers of mt over every day.
-func (s *stack) read(t *testing.T, mt types.MarketTicker) []Answer {
+// read returns the answer of mt over every day, and reports false when Read
+// leaves it out.
+func (s *stack) read(t *testing.T, mt types.MarketTicker) (Answer, bool) {
 	t.Helper()
 	got, err := Read(context.Background(), s.q, []types.MarketTicker{mt}, always)
 	require.NoError(t, err)
-	return got[mt]
+	a, ok := got[mt]
+	return a, ok
 }
 
 // found is a finding that names a corporate action of a ticker, with the
@@ -217,14 +222,11 @@ func covering(acts ...market.CorpAct) market.CorpActResult {
 	return market.CorpActResult{Acts: acts, Coverage: &asked}
 }
 
-// stored is what a test compares of an answer's actions.
-func stored(as []Answer) map[string][]string {
-	out := map[string][]string{}
-	for _, a := range as {
-		out[a.Datasource] = []string{}
-		for _, e := range a.Acts {
-			out[a.Datasource] = append(out[a.Datasource], e.ExDate.Format(time.DateOnly)+" "+ratioText(e.Ratio))
-		}
+// stored is what a test compares of an answer's actions, by its datasource.
+func stored(a Answer) map[string][]string {
+	out := map[string][]string{a.Datasource: {}}
+	for _, e := range a.Acts {
+		out[a.Datasource] = append(out[a.Datasource], e.ExDate.Format(time.DateOnly)+" "+ratioText(e.Ratio))
 	}
 	return out
 }
@@ -235,41 +237,40 @@ func stored(as []Answer) map[string][]string {
 // empty answer leaves none.
 func TestRecordReplaces(t *testing.T) {
 	s := newStack(t)
-	s.only(t, s.alphaName)
 	nvda := ticker("XNAS", "NVDA")
 	june := day(2024, 6, 10)
 	s.alpha.Responses[nvda] = covering(reported(june, ratio(1, 10)), reported(june, ratio(1, 10)), reported(day(2021, 7, 20), ratio(1, 4)))
 	s.fetch(t, nvda)
-	first := s.read(t, us("NVDA"))
+	first, _ := s.read(t, us("NVDA"))
 	want := map[string][]string{s.alphaName: {"2021-07-20 4 for 1", "2024-06-10 10 for 1", "2024-06-10 10 for 1"}}
 	if diff := cmp.Diff(want, stored(first)); diff != "" {
 		t.Errorf("first answer mismatch (-want +got):\n%s", diff)
 	}
-	if diff := cmp.Diff([]types.Period{{From: day(2020, 1, 1), Before: day(2026, 3, 3)}}, first[0].Coverage); diff != "" {
+	if diff := cmp.Diff([]types.Period{{From: day(2020, 1, 1), Before: day(2026, 3, 3)}}, first.Coverage); diff != "" {
 		t.Errorf("coverage mismatch (-want +got):\n%s", diff)
 	}
 
 	s.now = answered.AddDate(0, 0, 1)
 	s.alpha.Responses[nvda] = covering(reported(june, ratio(1, 10)), reported(day(2025, 2, 3), ratio(1, 2)))
 	s.fetch(t, nvda)
-	second := s.read(t, us("NVDA"))
+	second, _ := s.read(t, us("NVDA"))
 	want = map[string][]string{s.alphaName: {"2024-06-10 10 for 1", "2025-02-03 2 for 1"}}
 	if diff := cmp.Diff(want, stored(second)); diff != "" {
 		t.Errorf("second answer mismatch (-want +got):\n%s", diff)
 	}
-	kept := second[0].Acts[0].ID
-	if kept != first[0].Acts[1].ID && kept != first[0].Acts[2].ID {
+	kept := second.Acts[0].ID
+	if kept != first.Acts[1].ID && kept != first.Acts[2].ID {
 		t.Errorf("repeated action id = %s, want one of the first answer's rows", kept)
 	}
-	if !second[0].Coverage[0].Before.Equal(day(2026, 3, 4)) {
-		t.Errorf("coverage = %v, want it to end on the day of the second answer", second[0].Coverage)
+	if !second.Coverage[0].Before.Equal(day(2026, 3, 4)) {
+		t.Errorf("coverage = %v, want it to end on the day of the second answer", second.Coverage)
 	}
 
 	s.now = answered.AddDate(0, 0, 2)
 	s.alpha.Responses[nvda] = market.CorpActResult{}
 	s.fetch(t, nvda)
-	if got := s.read(t, us("NVDA")); len(got) != 0 {
-		t.Errorf("answers after an empty answer = %+v, want none", got)
+	if got, ok := s.read(t, us("NVDA")); ok {
+		t.Errorf("answer after an empty answer = %+v, want none", got)
 	}
 	answers, err := s.q.ListCorpActAnswers(context.Background(), gen.ListCorpActAnswersParams{Markets: []string{"US"}, Values: []string{"NVDA"}})
 	require.NoError(t, err)
@@ -283,7 +284,6 @@ func TestRecordReplaces(t *testing.T) {
 // place.
 func TestRecordCachedAnswer(t *testing.T) {
 	s := newStack(t)
-	s.only(t, s.alphaName)
 	nvda := ticker("XNAS", "NVDA")
 	s.alpha.Responses[nvda] = covering(reported(day(2021, 7, 20), ratio(1, 4)))
 	s.cache.on = true
@@ -291,9 +291,8 @@ func TestRecordCachedAnswer(t *testing.T) {
 
 	s.now = answered.AddDate(0, 0, 5)
 	s.fetch(t, nvda)
-	got := s.read(t, us("NVDA"))
-	if len(got) != 1 || !got[0].Coverage[0].Before.Equal(day(2026, 3, 3)) {
-		t.Errorf("answers after a cache hit = %+v, want coverage to the day the cache was filled", got)
+	if got, _ := s.read(t, us("NVDA")); len(got.Coverage) != 1 || !got.Coverage[0].Before.Equal(day(2026, 3, 3)) {
+		t.Errorf("answer after a cache hit = %+v, want coverage to the day the cache was filled", got)
 	}
 
 	s.cache.on = false
@@ -303,61 +302,82 @@ func TestRecordCachedAnswer(t *testing.T) {
 	s.cache.on = true
 	s.now = answered.AddDate(0, 0, 11)
 	s.fetch(t, nvda)
+	got, _ := s.read(t, us("NVDA"))
 	want := map[string][]string{s.alphaName: {"2024-06-10 10 for 1"}}
-	if diff := cmp.Diff(want, stored(s.read(t, us("NVDA")))); diff != "" {
+	if diff := cmp.Diff(want, stored(got)); diff != "" {
 		t.Errorf("answer after an older cache hit mismatch (-want +got):\n%s", diff)
 	}
 }
 
-// TestRecordKeepsAnotherDatasource checks that one datasource's later answer
-// neither blocks nor loses to an older answer of another.
-func TestRecordKeepsAnotherDatasource(t *testing.T) {
+// TestFetchAsksSource checks that a fetch asks the corporate actions source of
+// each request's market alone, and leaves out a request at a market without
+// a source.
+func TestFetchAsksSource(t *testing.T) {
+	s := newStack(t)
+	nvda, vod := ticker("XNAS", "NVDA"), ticker("XLON", "VOD")
+	for _, v := range []types.Identifier{nvda, vod} {
+		s.alpha.Responses[v] = covering(reported(day(2024, 6, 10), ratio(1, 10)))
+		s.beta.Responses[v] = covering(reported(day(2024, 6, 10), ratio(1, 10)))
+	}
+	s.fetch(t, nvda, vod)
+	if diff := cmp.Diff([]types.Identifier{nvda}, sent(s.alpha.Sent)); diff != "" {
+		t.Errorf("sent to alpha mismatch (-want +got):\n%s", diff)
+	}
+	if len(s.beta.Sent) != 0 {
+		t.Errorf("sent to beta = %+v, want nothing", s.beta.Sent)
+	}
+	var n int
+	require.NoError(t, s.tx.QueryRow(context.Background(),
+		"SELECT count(*) FROM corp_act_answers JOIN tickers ON tickers.id = corp_act_answers.ticker_id WHERE tickers.market = 'XLON' AND tickers.value = 'VOD' AND corp_act_answers.datasource IN ($1, $2)",
+		s.alphaName, s.betaName).Scan(&n))
+	if n != 0 {
+		t.Errorf("%d answers stored for XLON:VOD, want none", n)
+	}
+}
+
+// TestSourceChange checks that Read passes over the stored answer of a
+// datasource other than the market's source, and that a change of source
+// changes what Read returns within the transaction.
+func TestSourceChange(t *testing.T) {
 	s := newStack(t)
 	nvda := ticker("XNAS", "NVDA")
 	s.alpha.Responses[nvda] = covering(reported(day(2024, 6, 10), ratio(1, 10)))
-	s.beta.Responses[nvda] = covering(reported(day(2024, 6, 10), ratio(1, 10)))
-	s.only(t, s.betaName)
-	s.now = answered.AddDate(0, 0, 5)
+	s.beta.Responses[nvda] = covering(reported(day(2021, 7, 20), ratio(1, 4)))
+	s.source(t, s.betaName)
 	s.fetch(t, nvda)
-	s.only(t, s.alphaName)
-	s.now = answered
+	s.source(t, s.alphaName)
 	s.fetch(t, nvda)
-	got := s.read(t, us("NVDA"))
-	want := map[string][]string{s.alphaName: {"2024-06-10 10 for 1"}, s.betaName: {"2024-06-10 10 for 1"}}
-	if diff := cmp.Diff(want, stored(got)); diff != "" {
-		t.Errorf("answers mismatch (-want +got):\n%s", diff)
+
+	got, _ := s.read(t, us("NVDA"))
+	if diff := cmp.Diff(map[string][]string{s.alphaName: {"2024-06-10 10 for 1"}}, stored(got)); diff != "" {
+		t.Errorf("answer of alpha mismatch (-want +got):\n%s", diff)
 	}
-	if len(got) == 2 && (got[0].Datasource != s.alphaName || got[0].Precedence != 10) {
-		t.Errorf("first answer = %s at %d, want alpha first by precedence", got[0].Datasource, got[0].Precedence)
+	s.source(t, s.betaName)
+	got, _ = s.read(t, us("NVDA"))
+	if diff := cmp.Diff(map[string][]string{s.betaName: {"2021-07-20 4 for 1"}}, stored(got)); diff != "" {
+		t.Errorf("answer of beta mismatch (-want +got):\n%s", diff)
 	}
 }
 
 // TestUnhandledCorpAct checks that an unhandled action raises a finding that
-// survives a refetch, cleared or not, and removes the coverage of every
-// datasource on its ex-date until an answer drops it.
+// survives a refetch and stays cleared. It also checks that the action's
+// ex-date stays out of the coverage until an answer drops the action.
 func TestUnhandledCorpAct(t *testing.T) {
 	s := newStack(t)
 	ctx := context.Background()
 	nvda := ticker("XNAS", "NVDA")
 	spin := market.CorpAct{ExDate: day(2024, 6, 10), Ratio: ratio(1, 1), Type: "spin_off"}
 	s.alpha.Responses[nvda] = covering(spin)
-	s.beta.Responses[nvda] = covering()
 	s.fetch(t, nvda)
 
 	fs := s.findings(t, us("NVDA"))
-	kinds := map[gen.FindingKind]string{}
-	for _, f := range fs {
-		kinds[f.kind] = f.datasource
-	}
-	wantKinds := map[gen.FindingKind]string{gen.FindingKindUnhandledCorpAct: s.alphaName, gen.FindingKindCorpActDisagreement: s.alphaName}
-	if diff := cmp.Diff(wantKinds, kinds); diff != "" {
-		t.Errorf("findings mismatch (-want +got):\n%s", diff)
+	if len(fs) != 1 || fs[0].kind != gen.FindingKindUnhandledCorpAct || fs[0].datasource != s.alphaName {
+		t.Errorf("findings = %+v, want one unhandled corporate action finding on alpha's run", fs)
 	}
 	split := []types.Period{{From: day(2020, 1, 1), Before: day(2024, 6, 10)}, {From: day(2024, 6, 11), Before: day(2026, 3, 3)}}
-	for _, a := range s.read(t, us("NVDA")) {
-		if diff := cmp.Diff(split, a.Coverage); diff != "" {
-			t.Errorf("%s coverage mismatch (-want +got):\n%s", a.Datasource, diff)
-		}
+	a, _ := s.read(t, us("NVDA"))
+	if diff := cmp.Diff(split, a.Coverage); diff != "" {
+		t.Errorf("coverage mismatch (-want +got):\n%s", diff)
 	}
 
 	for _, f := range fs {
@@ -367,8 +387,8 @@ func TestUnhandledCorpAct(t *testing.T) {
 	s.now = answered.AddDate(0, 0, 1)
 	s.fetch(t, nvda)
 	again := s.findings(t, us("NVDA"))
-	if len(again) != 2 || !again[0].cleared || !again[1].cleared {
-		t.Errorf("findings after a repeat = %+v, want the two, still cleared", again)
+	if len(again) != 1 || !again[0].cleared {
+		t.Errorf("findings after a repeat = %+v, want the one, still cleared", again)
 	}
 
 	s.alpha.Responses[nvda] = covering()
@@ -376,11 +396,9 @@ func TestUnhandledCorpAct(t *testing.T) {
 	if got := s.findings(t, us("NVDA")); len(got) != 0 {
 		t.Errorf("findings after the action is dropped = %+v, want none", got)
 	}
-	whole := []types.Period{{From: day(2020, 1, 1), Before: day(2026, 3, 4)}}
-	for _, a := range s.read(t, us("NVDA")) {
-		if diff := cmp.Diff(whole, a.Coverage); diff != "" {
-			t.Errorf("%s coverage after the action is dropped mismatch (-want +got):\n%s", a.Datasource, diff)
-		}
+	a, _ = s.read(t, us("NVDA"))
+	if diff := cmp.Diff([]types.Period{{From: day(2020, 1, 1), Before: day(2026, 3, 4)}}, a.Coverage); diff != "" {
+		t.Errorf("coverage after the action is dropped mismatch (-want +got):\n%s", diff)
 	}
 }
 
@@ -388,14 +406,13 @@ func TestUnhandledCorpAct(t *testing.T) {
 // unhandled and raises a finding, although its datasource handles the type.
 func TestPriceFactor(t *testing.T) {
 	s := newStack(t)
-	s.only(t, s.alphaName)
 	ge := ticker("XNYS", "GE")
 	s.alpha.Responses[ge] = covering(reported(day(2023, 1, 4), ratio(1000, 1281)))
 	s.fetch(t, ge)
 
-	as := s.read(t, us("GE"))
-	if len(as) != 1 || len(as[0].Acts) != 1 || as[0].Acts[0].Handled {
-		t.Errorf("answers = %+v, want one unhandled action", as)
+	a, _ := s.read(t, us("GE"))
+	if len(a.Acts) != 1 || a.Acts[0].Handled {
+		t.Errorf("answer = %+v, want one unhandled action", a)
 	}
 	fs := s.findings(t, us("GE"))
 	if len(fs) != 1 || fs[0].kind != gen.FindingKindUnhandledCorpAct {
@@ -403,71 +420,28 @@ func TestPriceFactor(t *testing.T) {
 	}
 }
 
-// TestRecordDisagreements checks which action pairs raise a disagreement.
-func TestRecordDisagreements(t *testing.T) {
-	s := newStack(t)
-	june := day(2024, 6, 10)
-	s.alpha.Responses[ticker("XNAS", "NVDA")] = covering(reported(june, ratio(1, 10)))
-	s.beta.Responses[ticker("XNAS", "NVDA")] = covering(reported(june.AddDate(0, 0, 1), ratio(1, 10)))
-	s.alpha.Responses[ticker("XNAS", "AMD")] = covering(reported(june, ratio(1, 2)))
-	s.beta.Responses[ticker("XNAS", "AMD")] = covering(reported(june.AddDate(0, 0, 10), ratio(1, 2)))
-	s.alpha.Responses[ticker("XNAS", "INTC")] = covering(reported(june, ratio(1, 2)))
-	s.beta.Responses[ticker("XNAS", "INTC")] = covering(reported(june, ratio(1, 3)))
-	late := types.Period{From: day(2025, 1, 1), Before: asked.Before}
-	s.alpha.Responses[ticker("XNAS", "MU")] = covering(reported(day(2022, 3, 1), ratio(1, 2)))
-	s.beta.Responses[ticker("XNAS", "MU")] = market.CorpActResult{Coverage: &late}
-	s.fetch(t, ticker("XNAS", "NVDA"), ticker("XNAS", "AMD"), ticker("XNAS", "INTC"), ticker("XNAS", "MU"))
-
-	for value, want := range map[string]int{"NVDA": 0, "AMD": 2, "INTC": 2, "MU": 0} {
-		if got := len(s.findings(t, us(value))); got != want {
-			t.Errorf("%s: %d disagreements, want %d", value, got, want)
-		}
-	}
-}
-
-// TestDisagreementRuns checks that a disagreement with an earlier answer goes
-// on the run of the answer that completed the pair, and that an action is
-// reported once.
-func TestDisagreementRuns(t *testing.T) {
-	s := newStack(t)
-	nvda := ticker("XNAS", "NVDA")
-	s.alpha.Responses[nvda] = covering(reported(day(2024, 6, 10), ratio(1, 10)))
-	s.beta.Responses[nvda] = covering()
-	s.only(t, s.alphaName)
-	s.fetch(t, nvda)
-	if got := s.findings(t, us("NVDA")); len(got) != 0 {
-		t.Fatalf("findings with one datasource = %+v, want none", got)
-	}
-	s.only(t, s.betaName)
-	s.fetch(t, nvda)
-	s.fetch(t, nvda)
-	s.both(t)
-	s.fetch(t, ticker("XNAS", "AMD"))
-	got := s.findings(t, us("NVDA"))
-	if len(got) != 1 || got[0].kind != gen.FindingKindCorpActDisagreement || got[0].datasource != s.betaName {
-		t.Errorf("findings = %+v, want one disagreement on beta's run", got)
-	}
-}
-
-// TestNotServed checks that a failed or declined request, and a datasource
+// TestNotServed checks that a failed or declined request, and a source
 // without corporate actions, leave the stored answer as it was.
 func TestNotServed(t *testing.T) {
 	s := newStack(t)
 	nvda := ticker("XNAS", "NVDA")
 	s.alpha.Responses[nvda] = covering(market.CorpAct{ExDate: day(2024, 6, 10), Ratio: ratio(1, 1), Type: "spin_off"})
-	s.only(t, s.alphaName)
 	s.fetch(t, nvda)
-	before, findings := s.read(t, us("NVDA")), s.findings(t, us("NVDA"))
+	before, _ := s.read(t, us("NVDA"))
+	findings := s.findings(t, us("NVDA"))
 
 	s.now = answered.AddDate(0, 0, 1)
+	s.alpha.Responses[nvda] = covering()
 	s.alpha.Down = true
 	s.fetch(t, nvda)
 	s.alpha.Down, s.alpha.Declines = false, []string{"XNAS"}
 	s.fetch(t, nvda)
-	s.only(t, s.betaName)
+	s.alpha.Declines = nil
+	s.withoutCorpActs(t, s.alphaName)
 	s.fetch(t, nvda)
-	if diff := cmp.Diff(before, s.read(t, us("NVDA"))); diff != "" {
-		t.Errorf("answers mismatch (-want +got):\n%s", diff)
+	after, _ := s.read(t, us("NVDA"))
+	if diff := cmp.Diff(before, after); diff != "" {
+		t.Errorf("answer mismatch (-want +got):\n%s", diff)
 	}
 	if diff := cmp.Diff(findings, s.findings(t, us("NVDA")), cmp.AllowUnexported(found{})); diff != "" {
 		t.Errorf("findings mismatch (-want +got):\n%s", diff)
@@ -478,15 +452,15 @@ func TestNotServed(t *testing.T) {
 // share one answer, and that a call asks about a ticker once per market.
 func TestOneAnswerPerMarket(t *testing.T) {
 	s := newStack(t)
-	s.only(t, s.alphaName)
 	s.alpha.Responses[ticker("XNYS", "X")] = covering(reported(day(2021, 1, 4), ratio(1, 2)))
 	s.alpha.Responses[ticker("XNAS", "X")] = covering(reported(day(2024, 6, 10), ratio(1, 3)))
 	s.fetch(t, ticker("XNYS", "X"))
 	s.now = answered.AddDate(0, 0, 1)
 	s.fetch(t, ticker("XNAS", "X"))
+	got, _ := s.read(t, us("X"))
 	want := map[string][]string{s.alphaName: {"2024-06-10 3 for 1"}}
-	if diff := cmp.Diff(want, stored(s.read(t, us("X")))); diff != "" {
-		t.Errorf("answers mismatch (-want +got):\n%s", diff)
+	if diff := cmp.Diff(want, stored(got)); diff != "" {
+		t.Errorf("answer mismatch (-want +got):\n%s", diff)
 	}
 	s.alpha.Sent = nil
 	s.fetch(t, ticker("XNYS", "X"), ticker("XNAS", "X"))
@@ -499,13 +473,12 @@ func TestOneAnswerPerMarket(t *testing.T) {
 // without failing the call.
 func TestUnspelled(t *testing.T) {
 	s := newStack(t)
-	s.only(t, s.alphaName)
 	for _, v := range []types.Identifier{ticker("XNAS", "NVDA"), ticker("XNAS", "BRK/B"), ticker("ZZZZ", "AMD")} {
 		s.alpha.Responses[v] = covering(reported(day(2024, 6, 10), ratio(1, 10)))
 	}
 	s.fetch(t, ticker("XNAS", "BRK/B"), ticker("ZZZZ", "AMD"), ticker("XNAS", "NVDA"))
-	if got := s.read(t, us("NVDA")); len(got) != 1 {
-		t.Errorf("answers of NVDA = %+v, want alpha's", got)
+	if _, ok := s.read(t, us("NVDA")); !ok {
+		t.Error("NVDA has no answer, want alpha's")
 	}
 	var n int
 	require.NoError(t, s.tx.QueryRow(context.Background(),
@@ -519,31 +492,33 @@ func TestUnspelled(t *testing.T) {
 // answer holds within the period.
 func TestRead(t *testing.T) {
 	s := newStack(t)
-	s.only(t, s.alphaName)
 	s.alpha.Responses[ticker("XNAS", "A")] = covering(reported(day(2023, 3, 1), ratio(1, 2)), reported(day(2024, 6, 10), ratio(1, 3)))
-	s.alpha.Responses[ticker("XLON", "B")] = covering(reported(day(2023, 3, 1), ratio(1, 2)))
 	s.alpha.Responses[ticker("XNAS", "B")] = covering(reported(day(2023, 3, 1), ratio(1, 2)))
 	early := types.Period{From: day(2020, 1, 1), Before: day(2022, 1, 1)}
 	s.alpha.Responses[ticker("XNAS", "C")] = market.CorpActResult{Coverage: &early}
-	s.fetch(t, ticker("XNAS", "A"), ticker("XLON", "B"), ticker("XNAS", "B"), ticker("XNAS", "C"))
+	s.fetch(t, ticker("XNAS", "A"), ticker("XNAS", "B"), ticker("XNAS", "C"))
 
 	p := types.Period{From: day(2023, 1, 1), Before: day(2024, 6, 10)}
-	got, err := Read(context.Background(), s.q, []types.MarketTicker{us("A"), {Market: "XLON", Value: "B"}, us("C")}, p)
+	got, err := Read(context.Background(), s.q, []types.MarketTicker{us("A"), us("C")}, p)
 	require.NoError(t, err)
 	summary := map[string]map[string][]string{}
-	for mt, as := range got {
-		summary[mt.Name()] = stored(as)
-		for _, a := range as {
-			if diff := cmp.Diff([]types.Period{p}, a.Coverage); diff != "" {
-				t.Errorf("%s coverage mismatch (-want +got):\n%s", mt.Name(), diff)
-			}
+	for mt, a := range got {
+		summary[mt.Name()] = stored(a)
+		if diff := cmp.Diff([]types.Period{p}, a.Coverage); diff != "" {
+			t.Errorf("%s coverage mismatch (-want +got):\n%s", mt.Name(), diff)
 		}
 	}
-	want := map[string]map[string][]string{
-		"US:A":   {s.alphaName: {"2023-03-01 2 for 1"}},
-		"XLON:B": {s.alphaName: {"2023-03-01 2 for 1"}},
-	}
+	want := map[string]map[string][]string{"US:A": {s.alphaName: {"2023-03-01 2 for 1"}}}
 	if diff := cmp.Diff(want, summary); diff != "" {
 		t.Errorf("Read mismatch (-want +got):\n%s", diff)
 	}
+}
+
+// sent returns the tickers of reqs.
+func sent(reqs []market.CorpActRequest) []types.Identifier {
+	out := make([]types.Identifier, len(reqs))
+	for i, q := range reqs {
+		out[i] = q.Ticker
+	}
+	return out
 }

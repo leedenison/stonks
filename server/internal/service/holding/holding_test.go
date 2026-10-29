@@ -320,7 +320,7 @@ func TestListHoldingsRestated(t *testing.T) {
 	f.reader.EXPECT().ListTickersNaming(gomock.Any(), []uuid.UUID{acmeID}).Return([]gen.ListTickersNamingRow{{InstrID: acmeID, Market: "US", Value: "ACME"}}, nil)
 	f.reader.EXPECT().ListTickerValidity(gomock.Any(), gomock.Any()).Return([]gen.ListTickerValidityRow{{Market: "US", Value: "ACME", InstrID: acmeID, Validity: gen.ValidityConfirmed}}, nil)
 	f.reader.EXPECT().ListCorpActAnswers(gomock.Any(), gomock.Any()).Return([]gen.ListCorpActAnswersRow{{
-		CorpActAnswer: gen.CorpActAnswer{ID: answerID, Datasource: "alpha", CoveredFrom: &from, CoveredBefore: &before}, Market: "US", Value: "ACME", Precedence: 1,
+		CorpActAnswer: gen.CorpActAnswer{ID: answerID, Datasource: "alpha", CoveredFrom: &from, CoveredBefore: &before}, Market: "US", Value: "ACME",
 	}}, nil)
 	f.reader.EXPECT().ListCorpActs(gomock.Any(), gomock.Any()).Return([]gen.CorpAct{{
 		ID: uuid.New(), AnswerID: answerID, ExDate: time.Date(2020, time.March, 2, 0, 0, 0, 0, time.UTC), RatioFrom: decimal.NewFromInt(1), RatioTo: decimal.NewFromInt(2), Handled: true,
