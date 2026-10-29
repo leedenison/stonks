@@ -162,3 +162,60 @@ func TestQueries(t *testing.T) {
 		t.Errorf("ListTickerTxns mismatch (-want +got):\n%s", diff)
 	}
 }
+
+// TestRelations checks that resolved_relations gives each row of
+// resolved_tickers the relation that instr_tickers gives its ticker and
+// instrument: current, defunct where another instrument holds the ticker
+// open, and former otherwise.
+func TestRelations(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	suffix := uuid.NewString()[:8]
+	current, defunct, former := "CUR"+suffix, "GONE"+suffix, "OLD"+suffix
+	instr, other := f.instr(t), f.instr(t)
+	f.attest(t, instr, "US", former)
+	f.names(t, instr, "US", current, "XNAS", true)
+	f.names(t, instr, "US", current, "XNYS", true)
+	f.names(t, instr, "XLON", defunct, "XLON", false)
+	f.names(t, other, "XLON", defunct, "XLON", true)
+	f.names(t, instr, "XTSE", former, "XTSE", false)
+
+	rows, err := f.tx.Query(ctx, `
+		SELECT tickers.value, resolved_relations.venue, resolved_relations.instr_id,
+		       resolved_relations.relation::text, instr_tickers.relation::text
+		FROM resolved_relations
+		JOIN tickers ON tickers.id = resolved_relations.ticker_id
+		JOIN instr_tickers ON instr_tickers.ticker_id = resolved_relations.ticker_id
+		    AND instr_tickers.instr_id = resolved_relations.instr_id
+		WHERE resolved_relations.instr_id = ANY($1)
+		ORDER BY tickers.value, resolved_relations.venue, resolved_relations.instr_id`, []uuid.UUID{instr, other})
+	require.NoError(t, err)
+	type relation struct {
+		Value, Venue, Relation string
+		Instr                  uuid.UUID
+	}
+	var got []relation
+	for rows.Next() {
+		var r relation
+		var view string
+		require.NoError(t, rows.Scan(&r.Value, &r.Venue, &r.Instr, &r.Relation, &view))
+		if r.Relation != view {
+			t.Errorf("%s at %s: resolved_relations says %s, instr_tickers says %s", r.Value, r.Venue, r.Relation, view)
+		}
+		got = append(got, r)
+	}
+	require.NoError(t, rows.Err())
+	want := []relation{
+		{Value: current, Venue: "XNAS", Instr: instr, Relation: "current"},
+		{Value: current, Venue: "XNYS", Instr: instr, Relation: "current"},
+		{Value: defunct, Venue: "XLON", Instr: instr, Relation: "defunct"},
+		{Value: defunct, Venue: "XLON", Instr: other, Relation: "current"},
+		{Value: former, Venue: "XTSE", Instr: instr, Relation: "former"},
+	}
+	if instr.String() > other.String() {
+		want[2], want[3] = want[3], want[2]
+	}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("resolved_relations mismatch (-want +got):\n%s", diff)
+	}
+}

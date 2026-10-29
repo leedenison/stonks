@@ -259,6 +259,25 @@ FROM (
 ) AS named
 GROUP BY named.ticker_id, named.instr_id;
 
+-- resolved_relations gives each row of resolved_tickers the relation of its
+-- ticker to its instrument, as instr_tickers gives it. It reads
+-- resolved_tickers alone, so a join on it needs no aggregate over the table,
+-- as one on instr_tickers does. The rows of one ticker and instrument share
+-- their bounds, so a row is current when its own valid_before is open.
+CREATE VIEW resolved_relations AS
+SELECT resolved_tickers.ticker_id, resolved_tickers.market, resolved_tickers.instr_id,
+       resolved_tickers.venue, resolved_tickers.valid_from, resolved_tickers.valid_before,
+       resolved_tickers.currency,
+       (CASE
+            WHEN resolved_tickers.valid_before IS NULL THEN 'current'
+            WHEN EXISTS (SELECT 1 FROM resolved_tickers AS other
+                         WHERE other.ticker_id = resolved_tickers.ticker_id
+                           AND other.instr_id <> resolved_tickers.instr_id
+                           AND other.valid_before IS NULL) THEN 'defunct'
+            ELSE 'former'
+        END)::ticker_relation AS relation
+FROM resolved_tickers;
+
 -- listing_tickers gives each listing every row of resolved_tickers of its
 -- instrument whose currency is in the listing's family, ranked as the
 -- listing's name: the primary venue first, then by venue_names.rank, then by
@@ -269,22 +288,20 @@ GROUP BY named.ticker_id, named.instr_id;
 -- can rank across them.
 CREATE VIEW listing_tickers AS
 SELECT listings.id AS listing_id, listings.instr_id, listings.currency,
-       resolved_tickers.ticker_id, tickers.market, tickers.value, resolved_tickers.venue,
-       instr_tickers.relation,
-       (resolved_tickers.venue = listings.primary_mic) AS is_primary,
+       resolved_relations.ticker_id, tickers.market, tickers.value, resolved_relations.venue,
+       resolved_relations.relation,
+       (resolved_relations.venue = listings.primary_mic) AS is_primary,
        venue_names.rank AS venue_rank,
        ROW_NUMBER() OVER (PARTITION BY listings.id
-           ORDER BY (resolved_tickers.venue = listings.primary_mic) DESC NULLS LAST,
-                    venue_names.rank NULLS LAST, resolved_tickers.venue NULLS LAST,
+           ORDER BY (resolved_relations.venue = listings.primary_mic) DESC NULLS LAST,
+                    venue_names.rank NULLS LAST, resolved_relations.venue NULLS LAST,
                     tickers.market) AS rank
 FROM listings
-JOIN resolved_tickers ON resolved_tickers.instr_id = listings.instr_id
-JOIN currencies ON currencies.code = resolved_tickers.currency
+JOIN resolved_relations ON resolved_relations.instr_id = listings.instr_id
+JOIN currencies ON currencies.code = resolved_relations.currency
     AND currencies.family = listings.currency
-JOIN tickers ON tickers.id = resolved_tickers.ticker_id
-JOIN instr_tickers ON instr_tickers.ticker_id = resolved_tickers.ticker_id
-    AND instr_tickers.instr_id = resolved_tickers.instr_id
-LEFT JOIN venue_names ON venue_names.mic = resolved_tickers.venue;
+JOIN tickers ON tickers.id = resolved_relations.ticker_id
+LEFT JOIN venue_names ON venue_names.mic = resolved_relations.venue;
 
 -- instr_names gives each instrument the one identifier that names it. It
 -- chooses from the instrument's identifiers, and from its rows of
@@ -304,19 +321,17 @@ FROM (
     FROM identifiers
     JOIN identifier_type_traits ON identifier_type_traits.type = identifiers.type
     UNION ALL
-    SELECT resolved_tickers.instr_id, traits.type, resolved_tickers.venue, tickers.value,
-           traits.name_rank, instr_tickers.relation = 'current',
+    SELECT resolved_relations.instr_id, traits.type, resolved_relations.venue, tickers.value,
+           traits.name_rank, resolved_relations.relation = 'current',
            EXISTS (SELECT 1 FROM listings
-                   WHERE listings.instr_id = resolved_tickers.instr_id
-                     AND listings.primary_mic = resolved_tickers.venue),
+                   WHERE listings.instr_id = resolved_relations.instr_id
+                     AND listings.primary_mic = resolved_relations.venue),
            venue_names.rank
-    FROM resolved_tickers
-    JOIN tickers ON tickers.id = resolved_tickers.ticker_id
-    JOIN instr_tickers ON instr_tickers.ticker_id = resolved_tickers.ticker_id
-        AND instr_tickers.instr_id = resolved_tickers.instr_id
+    FROM resolved_relations
+    JOIN tickers ON tickers.id = resolved_relations.ticker_id
     JOIN identifier_type_traits AS traits ON traits.type = 'mic_ticker'
-    LEFT JOIN venue_names ON venue_names.mic = resolved_tickers.venue
-    WHERE resolved_tickers.venue IS NOT NULL AND instr_tickers.relation <> 'defunct'
+    LEFT JOIN venue_names ON venue_names.mic = resolved_relations.venue
+    WHERE resolved_relations.venue IS NOT NULL AND resolved_relations.relation <> 'defunct'
 ) AS named
 ORDER BY named.instr_id, named.name_rank, named.is_current DESC NULLS LAST,
          named.is_primary DESC NULLS LAST, named.venue_rank NULLS LAST,
