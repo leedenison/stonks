@@ -18,7 +18,7 @@ import { useStmt } from "@/hooks/use-stmt";
 import { brokerLabel } from "@/lib/broker";
 import { formatInstant } from "@/lib/format";
 import { prevDay } from "@/lib/marshal/date";
-import { isTerminal, outcome } from "@/lib/run";
+import { outcome } from "@/lib/run";
 import { CandidatesDialog } from "./candidates-dialog";
 
 // One statement, with its run, its rejected rows, the resolution of every
@@ -81,14 +81,10 @@ export default function StmtPage() {
             <RejectionGroups items={data.items} />
           </Body>
           {data.keys.length > 0 && (
-            <Keys keys={data.keys} live={!isTerminal(data.stmt.run?.state)} />
+            <Keys keys={data.keys} live={data.stmt.live} />
           )}
           {data.txns.length > 0 && (
-            <StmtTxns
-              txns={data.txns}
-              keys={data.keys}
-              live={!isTerminal(data.stmt.run?.state)}
-            />
+            <StmtTxns txns={data.txns} keys={data.keys} live={data.stmt.live} />
           )}
         </>
       )}

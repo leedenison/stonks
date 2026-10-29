@@ -179,9 +179,9 @@ func TestProtoStmtSummary(t *testing.T) {
 	stmt := gen.Stmt{Broker: gen.BrokerIbkr, OrderFrom: created, OrderBefore: created.AddDate(0, 1, 0), RowCount: 40}
 	run := gen.Run{ID: id, Kind: gen.RunKindIngestStmt, Trigger: gen.RunTriggerUser, State: gen.RunStateCompleted, CreatedAt: created}
 	want := &stmtv1.StmtSummary{
-		Run: ProtoRun(run), Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-09-24", OrderBefore: "2026-10-24", Rows: 40, Rejected: 2,
+		Run: ProtoRun(run), Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-09-24", OrderBefore: "2026-10-24", Rows: 40, Rejected: 2, Live: true,
 	}
-	if diff := cmp.Diff(want, ProtoStmtSummary(stmt, run, 2), protocmp.Transform()); diff != "" {
+	if diff := cmp.Diff(want, ProtoStmtSummary(stmt, run, 2, true), protocmp.Transform()); diff != "" {
 		t.Errorf("ProtoStmtSummary mismatch (-want +got):\n%s", diff)
 	}
 }

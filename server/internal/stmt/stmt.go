@@ -4,9 +4,11 @@
 //
 // Ingestion is a run: the call responds with the pending row once the statement
 // is recorded, and resolution and the write follow; see
-// [run.go](../run/run.go). The run ends with a fetch of the corporate actions of
-// the user's held instruments; see
-// [refreshcorpacts.go](../run/refreshcorpacts/refreshcorpacts.go).
+// [run.go](../run/run.go). The follow-up of the resolution's new identifier
+// facts and a fetch of the corporate actions of the user's held instruments
+// come after the write; see
+// [refreshcorpacts.go](../run/refreshcorpacts/refreshcorpacts.go). The
+// statement is live until they stop; see Live.
 // A stated key is the user's: one row per asset class, currency and set of
 // identifiers, linked to each statement that states it. A statement resolves
 // only the keys it states that lack a fixed association, each once, however
@@ -226,7 +228,8 @@ func (g *ingestion) prepare(ctx context.Context, run gen.Run) error {
 // work resolves the keys, writes the statement, and then follows the
 // resolution's new identifier facts and fetches the corporate actions of the
 // user's held instruments. The write completes the ingest statement run in its
-// own transaction, before either starts.
+// own transaction, before either starts. The statement is settled after the
+// follow-ups return.
 func (g *ingestion) work(ctx context.Context, run gen.Run) error {
 	res, err := g.runs.Child(ctx, run, gen.RunKindResolveStmtKeys, g.resolve)
 	if err != nil {
@@ -237,7 +240,24 @@ func (g *ingestion) work(ctx context.Context, run gen.Run) error {
 	}
 	g.facts.AfterIdentifierFacts(ctx, res, g.written)
 	g.events.AfterStmt(ctx, run)
+	if err := g.store.SettleStmt(ctx, run.ID); err != nil {
+		return fmt.Errorf("settle statement: %w", err)
+	}
 	return nil
+}
+
+// Live reports whether the statement's ingestion, or the work after its write,
+// is still going. A failed or interrupted ingestion skips that work, so it is
+// not live.
+func Live(stmt gen.Stmt, run gen.Run) bool {
+	switch run.State {
+	case gen.RunStatePending, gen.RunStateRunning:
+		return true
+	case gen.RunStateCompleted:
+		return stmt.SettledAt == nil
+	default:
+		return false
+	}
 }
 
 // resolve resolves the keys that have no instrument as a child run, each with

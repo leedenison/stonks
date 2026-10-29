@@ -25,10 +25,7 @@ test("clears a block from the blocks page, clearing the finding reporting it", a
 }) => {
   const { user } = await signIn();
   await page.goto("/txns");
-  const runId = await uploadStmt(page, fixture, {
-    state: "completed",
-    holds: false,
-  });
+  const runId = await uploadStmt(page, fixture, { state: "completed" });
 
   // A permanent refusal blocks the identifier and reports it as a finding.
   const { session } = await signIn("admin");

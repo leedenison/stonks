@@ -33,7 +33,6 @@ test("chooses an instrument for a bare ticker", async ({ signIn, page }) => {
   const runId = await uploadStmt(page, fixture, {
     state: "completed",
     rows: "3 rows",
-    holds: false,
   });
   await page.getByTestId("activity-sheet-close").click();
 

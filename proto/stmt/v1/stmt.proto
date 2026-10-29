@@ -94,6 +94,9 @@ message StmtSummary {
   int32 rows = 5;
   // The rows rejected, each an item.
   int32 rejected = 6;
+  // True while the ingestion, or the work that follows its write, is still
+  // going. Until then the statement and the holdings may change.
+  bool live = 7;
 }
 
 // A row the ingestion rejected.

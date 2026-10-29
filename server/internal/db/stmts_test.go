@@ -128,6 +128,38 @@ func TestStmts(t *testing.T) {
 	}
 }
 
+// TestSettleStmts checks that SettleStmt settles only the statement it is
+// given and that InterruptRuns settles the rest.
+func TestSettleStmts(t *testing.T) {
+	q := newTx(t)
+	ctx := context.Background()
+	user := newUser(t, q, "statements-settle@example.com")
+	settledAt := func(id uuid.UUID) *time.Time {
+		t.Helper()
+		row, err := q.GetStmt(ctx, gen.GetStmtParams{ID: id, UserID: user.ID})
+		require.NoError(t, err)
+		return row.Stmt.SettledAt
+	}
+
+	followed, left := newStmt(t, q, user), newStmt(t, q, user)
+	if followed.SettledAt != nil {
+		t.Errorf("CreateStmt = %+v, want unsettled", followed)
+	}
+	require.NoError(t, q.SettleStmt(ctx, followed.ID))
+	if settledAt(followed.ID) == nil {
+		t.Error("SettleStmt left the statement unsettled")
+	}
+	if settledAt(left.ID) != nil {
+		t.Error("SettleStmt settled another statement")
+	}
+
+	_, err := q.InterruptRuns(ctx)
+	require.NoError(t, err)
+	if settledAt(left.ID) == nil {
+		t.Error("InterruptRuns left a statement unsettled")
+	}
+}
+
 // TestResolutionKeys checks that a rejection always carries a reason, a match
 // never does, and an unresolved outcome may.
 func TestResolutionKeys(t *testing.T) {

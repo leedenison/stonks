@@ -177,6 +177,7 @@ function response(
       orderBefore: "2025-03-17",
       rows: 4,
       rejected,
+      live: state === RunState.PENDING || state === RunState.RUNNING,
     }),
     items:
       rejected > 0

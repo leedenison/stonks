@@ -19,11 +19,7 @@ import type { Identifier, IdentifierType } from "../gen/type/v1/type_pb";
 import type { Instr } from "../gen/admin/instr/v1/instr_pb";
 import { AuthService } from "../gen/auth/v1/auth_pb";
 import { HoldingService } from "../gen/holding/v1/holding_pb";
-import {
-  RunKind,
-  RunState,
-  RunService as UserRunService,
-} from "../gen/run/v1/run_pb";
+import { RunState, RunService as UserRunService } from "../gen/run/v1/run_pb";
 import { StmtService } from "../gen/stmt/v1/stmt_pb";
 import { sessionCookie } from "./auth";
 import { baseURL, recording } from "./config";
@@ -199,18 +195,25 @@ export async function instrListedAs(
   return named[0];
 }
 
-// settled waits until the ingest statement run runId and every run beneath it
-// have stopped. The statement starts its last run, the corporate actions fetch
-// of the user's held instruments, only when a ticker names one of them; holds
-// says whether to wait for it. A fetch for another user's instruments can start
-// after the user's own fetch stops. The tree must therefore keep the same size
-// across two reads.
+// settled waits until the statement that the ingest statement run runId
+// ingested stops being live, so nothing it started is still running.
 export async function settled(
+  stmts: Client<typeof StmtService>,
+  runId: string,
+): Promise<void> {
+  await expect
+    .poll(async () => (await stmts.getStmt({ runId })).stmt?.live, {
+      intervals: [500],
+      timeout: recording ? 0 : 30_000,
+    })
+    .toBe(false);
+}
+
+// stopped waits until the run runId and every run beneath it have stopped.
+export async function stopped(
   admin: Client<typeof RunService>,
   runId: string,
-  holds = true,
 ): Promise<void> {
-  let size = -1;
   await expect
     .poll(
       async () => {
@@ -223,17 +226,9 @@ export async function settled(
         if (got) {
           walk(got);
         }
-        const fetched =
-          !holds ||
-          (got?.children ?? []).some(
-            (c) =>
-              c.run?.kind === RunKind.REFRESH_CORP_ACTS ||
-              c.fetch?.kind === FetchKind.CORP_ACTS,
-          );
-        const stopped = runs.every((r) => stoppedStates.has(r.run!.state));
-        const steady = runs.length === size;
-        size = runs.length;
-        return fetched && stopped && steady;
+        return (
+          runs.length > 0 && runs.every((r) => stoppedStates.has(r.run!.state))
+        );
       },
       { intervals: [500], timeout: recording ? 0 : 30_000 },
     )

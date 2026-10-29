@@ -4,7 +4,7 @@ import {
   adminRunClient,
   coverageClient,
   holdingClient,
-  settled,
+  stopped,
   stmtClient,
 } from "../helpers/api";
 import { deleteRuns } from "../helpers/db";
@@ -74,7 +74,7 @@ test("shows a ticker that now names another instrument as defunct on the holding
       })
     ).run!;
     started.push(run.id);
-    await settled(adminRuns, run.id, false);
+    await stopped(adminRuns, run.id);
   }
 
   // Over Connect, IBM's USD listing is named by IBM, which is defunct.

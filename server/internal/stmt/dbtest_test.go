@@ -151,6 +151,9 @@ func TestIngest(t *testing.T) {
 	if row.Stmt.Broker != gen.BrokerIbkr || !row.Stmt.OrderFrom.Equal(from) || !row.Stmt.OrderBefore.Equal(until) || row.Stmt.RowCount != 6 || row.Rejected != 3 {
 		t.Errorf("GetStmt = %+v, want ibkr over March with 6 rows and 3 rejected", row)
 	}
+	if row.Stmt.SettledAt == nil || Live(row.Stmt, row.Run) {
+		t.Errorf("GetStmt after the ingestion = %+v, want settled and not live", row)
+	}
 	keys, err := s.q.ListStatedKeys(ctx, gen.ListStatedKeysParams{StmtID: parent.ID, UserID: s.user.ID})
 	require.NoError(t, err)
 	if len(keys) != 6 {

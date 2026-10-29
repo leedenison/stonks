@@ -45,7 +45,7 @@ var (
 	run       = gen.Run{ID: runID, UserID: &userID, Kind: gen.RunKindIngestStmt, Trigger: gen.RunTriggerUser, State: gen.RunStatePending, CreatedAt: created}
 	runMsg    = &runv1.Run{Id: runID.String(), Kind: runv1.RunKind_RUN_KIND_INGEST_STMT, Trigger: runv1.RunTrigger_RUN_TRIGGER_USER, State: runv1.RunState_RUN_STATE_PENDING, CreatedAt: timestamppb.New(created)}
 	stmtRow   = gen.Stmt{ID: runID, UserID: userID, Broker: gen.BrokerIbkr, OrderFrom: from, OrderBefore: before, RowCount: 3, CreatedAt: created}
-	summ      = &stmtv1.StmtSummary{Run: runMsg, Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01", Rows: 3, Rejected: 1}
+	summ      = &stmtv1.StmtSummary{Run: runMsg, Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01", Rows: 3, Rejected: 1, Live: true}
 )
 
 type fixture struct {

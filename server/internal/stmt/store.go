@@ -27,6 +27,7 @@ type Queries interface {
 	CreateStmtItems(ctx context.Context, arg []gen.CreateStmtItemsParams) (int64, error)
 	SweepStatedKeys(ctx context.Context, userID uuid.UUID) (int64, error)
 	CompleteRun(ctx context.Context, id uuid.UUID) error
+	SettleStmt(ctx context.Context, id uuid.UUID) error
 	GetStatedKey(ctx context.Context, arg gen.GetStatedKeyParams) (gen.StatedKey, error)
 }
 

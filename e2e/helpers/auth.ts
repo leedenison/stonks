@@ -46,6 +46,17 @@ export async function injectSession(
   ]);
 }
 
+// sessionIn returns the session that the browser context carries.
+export async function sessionIn(context: BrowserContext): Promise<string> {
+  const cookie = (await context.cookies(baseURL)).find(
+    (c) => c.name === cookieName,
+  );
+  if (!cookie) {
+    throw new Error("the browser context carries no session");
+  }
+  return cookie.value;
+}
+
 // sessionCookie is the Cookie header carrying a session, for a request made
 // outside the browser.
 export function sessionCookie(id: string): string {

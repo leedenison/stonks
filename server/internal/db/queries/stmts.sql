@@ -3,6 +3,9 @@ INSERT INTO stmts (id, user_id, broker, order_from, order_before, row_count)
 VALUES ($1, $2, $3, $4, $5, $6)
 RETURNING *;
 
+-- name: SettleStmt :exec
+UPDATE stmts SET settled_at = now() WHERE id = $1;
+
 -- name: GetStmt :one
 SELECT sqlc.embed(stmts), sqlc.embed(runs),
        (SELECT count(*) FROM stmt_items WHERE stmt_items.stmt_id = stmts.id)::int AS rejected
