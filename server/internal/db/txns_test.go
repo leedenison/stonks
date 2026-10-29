@@ -168,7 +168,7 @@ func TestSweepStatedKeys(t *testing.T) {
 		member := upsertKey(t, q, stmt, gen.UpsertStatedKeyParams{Currency: ptr.To("USD"), Identifiers: []types.Identifier{shared}})
 		names(t, q, other, root)
 		names(t, q, stmt, member)
-		require.NoError(t, q.LockUserKeys(ctx, user.ID))
+		require.NoError(t, db.LockUserKeys(ctx, q, user.ID))
 		require.NoError(t, group.Regroup(ctx, q, user.ID))
 		m, err := q.GetStatedKey(ctx, gen.GetStatedKeyParams{ID: member.ID, UserID: user.ID})
 		require.NoError(t, err)

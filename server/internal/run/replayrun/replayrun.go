@@ -23,6 +23,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/identity/group"
 	"github.com/leedenison/stonks/server/internal/identity/resolve"
@@ -175,8 +176,8 @@ func (r *replay) work(ctx context.Context, run gen.Run) error {
 		return fmt.Errorf("resolution: %w", err)
 	}
 	err = r.store.Tx(ctx, func(q Queries) error {
-		if err := q.LockUserKeys(ctx, *run.UserID); err != nil {
-			return fmt.Errorf("lock keys: %w", err)
+		if err := db.LockUserKeys(ctx, q, *run.UserID); err != nil {
+			return err
 		}
 		return group.Regroup(ctx, q, *run.UserID)
 	})

@@ -23,7 +23,7 @@ type Queries interface {
 	ListKeysUncoveredBy(ctx context.Context, arg gen.ListKeysUncoveredByParams) ([]gen.ListKeysUncoveredByRow, error)
 	CreateReplay(ctx context.Context, arg gen.CreateReplayParams) error
 	ListUnassociatedKeysStating(ctx context.Context, arg gen.ListUnassociatedKeysStatingParams) ([]gen.StatedKey, error)
-	LockUserKeys(ctx context.Context, userID uuid.UUID) error
+	db.AdvisoryLocker
 }
 
 var _ Queries = (*gen.Queries)(nil)

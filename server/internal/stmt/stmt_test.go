@@ -128,7 +128,7 @@ func newFixture(t *testing.T) *fixture {
 		return f.outcomes(rows), f.written, nil
 	}).AnyTimes()
 	f.store.EXPECT().Tx(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, fn func(Queries) error) error { return fn(f.store) }).AnyTimes()
-	f.store.EXPECT().LockUserKeys(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+	f.store.EXPECT().LockAdvisory(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 	f.store.EXPECT().ListGroupableKeys(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
 	f.store.EXPECT().ClearStatedKeyGroups(gomock.Any(), gomock.Any()).DoAndReturn(func(context.Context, uuid.UUID) error {
 		f.calls = append(f.calls, "regroup")

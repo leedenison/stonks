@@ -58,8 +58,8 @@ func (r *Recorder) record(ctx context.Context, k answerKey) (recordedKey, bool, 
 // row, and with it the findings that name it, so a cleared finding stays
 // cleared. It returns how many findings it wrote.
 func writeAnswer(ctx context.Context, q Queries, k answerKey, t gen.Ticker) (int, error) {
-	if err := q.LockCorpActAnswer(ctx, fmt.Sprintf("corpact:%s:%s:%s", k.Source, t.Market, t.Value)); err != nil {
-		return 0, fmt.Errorf("lock: %w", err)
+	if err := db.LockCorpActAnswer(ctx, q, k.Source, t.ID); err != nil {
+		return 0, err
 	}
 	from, before := covered(k.Response.Coverage, k.AnsweredAt)
 	stored, err := q.GetCorpActAnswer(ctx, gen.GetCorpActAnswerParams{Datasource: k.Source, TickerID: t.ID})

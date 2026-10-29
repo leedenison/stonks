@@ -106,11 +106,15 @@ func newFixture(t *testing.T) *fixture {
 		f.replays = append(f.replays, arg)
 		return nil
 	}).AnyTimes()
-	f.store.EXPECT().LockUserKeys(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, user uuid.UUID) error {
+	f.store.EXPECT().LockAdvisory(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, names []string) error {
 		if f.lockErr != nil {
 			return f.lockErr
 		}
-		f.regrouped = append(f.regrouped, user)
+		user, ok := strings.CutPrefix(strings.Join(names, ","), "user_keys:")
+		if !ok {
+			t.Fatalf("LockAdvisory(%v), want the user's key lock alone", names)
+		}
+		f.regrouped = append(f.regrouped, uuid.MustParse(user))
 		return nil
 	}).AnyTimes()
 	f.store.EXPECT().ListGroupableKeys(gomock.Any(), userID).Return(nil, nil).AnyTimes()

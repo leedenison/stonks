@@ -10,7 +10,9 @@ import (
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
-// AdvisoryLocker takes named advisory locks for the transaction.
+// AdvisoryLocker takes named advisory locks for the transaction. The helpers
+// below build every name, each with a prefix of its own, so two kinds of lock
+// never share a name.
 type AdvisoryLocker interface {
 	LockAdvisory(ctx context.Context, names []string) error
 }
@@ -38,6 +40,26 @@ func LockInstrs(ctx context.Context, q AdvisoryLocker, ids []uuid.UUID) error {
 	}
 	if err := lockNames(ctx, q, names); err != nil {
 		return fmt.Errorf("lock instruments: %w", err)
+	}
+	return nil
+}
+
+// LockUserKeys takes the user's key lock for the transaction. It serialises
+// the writes to one user's groups. A regroup takes it. A resolution
+// associates a single key without it.
+func LockUserKeys(ctx context.Context, q AdvisoryLocker, user uuid.UUID) error {
+	if err := lockNames(ctx, q, []string{"user_keys:" + user.String()}); err != nil {
+		return fmt.Errorf("lock keys: %w", err)
+	}
+	return nil
+}
+
+// LockCorpActAnswer takes the transaction's advisory lock on the answer of
+// source for ticker. It serialises the writes of one datasource's answer for
+// one ticker.
+func LockCorpActAnswer(ctx context.Context, q AdvisoryLocker, source string, ticker uuid.UUID) error {
+	if err := lockNames(ctx, q, []string{"corpact:" + source + ":" + ticker.String()}); err != nil {
+		return fmt.Errorf("lock corporate action answer: %w", err)
 	}
 	return nil
 }

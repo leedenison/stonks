@@ -1,8 +1,3 @@
--- name: LockCorpActAnswer :exec
--- Serialises the writes of one datasource's answer for one ticker, for the
--- transaction. The seed keeps the key apart from the other advisory locks.
-SELECT pg_advisory_xact_lock(hashtextextended(@key::text, 2));
-
 -- name: GetCorpActAnswer :one
 SELECT corp_act_answers.id, fetch_keys.answered_at::timestamptz AS answered_at
 FROM corp_act_answers

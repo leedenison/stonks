@@ -107,13 +107,6 @@ ORDER BY stated_keys.user_id, stated_keys.id;
 -- name: GetStatedKey :one
 SELECT * FROM stated_keys WHERE id = $1 AND user_id = $2;
 
--- name: LockUserKeys :exec
--- The user's key lock: an advisory lock, held for the transaction, that
--- serialises the writes to one user's groups. A regroup takes it. A
--- resolution associates a single key without it. The lock's seed differs
--- from the seed of LockAdvisory, so a collision between the two is unlikely.
-SELECT pg_advisory_xact_lock(hashtextextended(CAST(@user_id::uuid AS text), 0));
-
 -- name: ListGroupableKeys :many
 SELECT * FROM stated_keys
 WHERE stated_keys.user_id = @user_id::uuid
