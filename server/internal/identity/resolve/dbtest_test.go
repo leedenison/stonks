@@ -245,6 +245,26 @@ func TestNamesInTheStatedCurrency(t *testing.T) {
 	}
 }
 
+// TestUnknownCurrency checks that a listing in a currency the system lacks,
+// such as the ZAC of a JSE listing, resolves. Its ticker is asserted without
+// a currency.
+func TestUnknownCurrency(t *testing.T) {
+	s := newStack(t)
+	jse := types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XJSE", Value: "ZZJ"}
+	isin := types.Identifier{Type: types.IdentifierTypeIsin, Value: "ZAE0ZZJ00001"}
+	s.script.Responses[jse] = market.IdentityResult{Filtered: []types.Identifier{{Type: jse.Type, Value: jse.Value}}, Listings: []market.Listing{
+		{Class: types.AssetClassStock, Currency: "ZAC", Identifiers: []types.Identifier{isin, jse}},
+	}}
+	key := s.state(t, types.AssetClassStock, "ZAR", jse)
+	got := s.resolve(t, key)
+	if got[0].Outcome != gen.ResolutionOutcomeMatched {
+		t.Fatalf("Resolve = %s (%s), want matched", got[0].Outcome, strings.Join(got[0].Reasons, "; "))
+	}
+	if diff := cmp.Diff([]string{"ZZJ at XJSE in "}, s.names(t, s.instrOf(t, isin))); diff != "" {
+		t.Errorf("names mismatch (-want +got):\n%s", diff)
+	}
+}
+
 // TestPrimaryVenueRows checks that a listing takes the primary venue the
 // first run to learn one states, and keeps it.
 func TestPrimaryVenueRows(t *testing.T) {

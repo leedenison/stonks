@@ -296,9 +296,10 @@ func (r *Resolver) listingOf(res market.IdentityResult, key types.MarketTicker) 
 }
 
 // stated returns the venue at which l states key, and l's currency as the
-// datasource stated it.
+// datasource stated it. The currency is empty where the system does not know
+// it.
 func (r *Resolver) stated(l market.Listing, key types.MarketTicker) tickervalidity.Stated {
-	s := tickervalidity.Stated{Currency: l.Currency}
+	s := tickervalidity.Stated{Currency: known(r.families, l.Currency)}
 	for _, id := range l.Identifiers {
 		if mt, ok := r.mics.MarketTicker(id); ok && mt == key {
 			s.Venue, _ = r.mics.Operating(id.Domain)
