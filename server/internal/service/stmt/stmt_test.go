@@ -26,7 +26,6 @@ import (
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/identity/resolve"
-	"github.com/leedenison/stonks/server/internal/mic"
 	"github.com/leedenison/stonks/server/internal/platform/ptr"
 	servicemock "github.com/leedenison/stonks/server/internal/service/mock"
 	"github.com/leedenison/stonks/server/internal/service/servicetest"
@@ -65,7 +64,7 @@ func newFixture(t *testing.T) *fixture {
 	f := &fixture{ingester: mock.NewMockIngester(ctrl), confirmer: mock.NewMockConfirmer(ctrl), reader: mock.NewMockReader(ctrl), authn: servicemock.NewMockAuthenticator(ctrl)}
 	opts := servicetest.Options(t, f.authn)
 	srv := servicetest.Serve(t, func(mux *http.ServeMux) {
-		mux.Handle(stmtv1connect.NewStmtServiceHandler(New(f.ingester, f.confirmer, f.reader, mic.MICMap{"XNAS": {Operating: "XNAS", Market: "US"}}), opts...))
+		mux.Handle(stmtv1connect.NewStmtServiceHandler(New(f.ingester, f.confirmer, f.reader), opts...))
 	})
 	f.client = stmtv1connect.NewStmtServiceClient(srv.Client, srv.URL)
 	return f

@@ -24,7 +24,6 @@ import (
 // Queries is this package's view of the generated queries.
 type Queries interface {
 	ListInstrs(ctx context.Context, arg gen.ListInstrsParams) ([]gen.ListInstrsRow, error)
-	ListListingsOf(ctx context.Context, ids []uuid.UUID) ([]gen.Listing, error)
 	ListListingNames(ctx context.Context, instrIds []uuid.UUID) ([]gen.ListListingNamesRow, error)
 	ListIdentifiersOf(ctx context.Context, ids []uuid.UUID) ([]gen.Identifier, error)
 	ListViaOf(ctx context.Context, ids []uuid.UUID) ([]uuid.UUID, error)
@@ -109,7 +108,9 @@ func parseCursor(token string) (*uuid.UUID, *string, error) {
 // instrs assembles the page's instruments, each listing grain identifier and
 // each ticker on its listing. A listing with a primary venue precedes the
 // rest. An instrument's Via holds the via identifiers of the keys that
-// resolved to it.
+// resolved to it. Listings come from ListListingNames and identifiers from
+// ListIdentifiersOf, so an identifier whose listing the first did not return
+// is left out.
 func (s *Server) instrs(ctx context.Context, rows []gen.ListInstrsRow) ([]*admininstrv1.Instr, error) {
 	if len(rows) == 0 {
 		return nil, nil
@@ -123,30 +124,26 @@ func (s *Server) instrs(ctx context.Context, rows []gen.ListInstrsRow) ([]*admin
 		instrs[r.ID] = msg
 		out = append(out, msg)
 	}
-	listings, err := s.queries.ListListingsOf(ctx, ids)
+	named, err := s.queries.ListListingNames(ctx, ids)
 	if err != nil {
 		return nil, err
 	}
-	byListing := make(map[uuid.UUID]*admininstrv1.Listing, len(listings))
-	for _, l := range listings {
-		msg := to.ProtoListing(l)
-		byListing[l.ID] = msg
-		instrs[l.InstrID].Listings = append(instrs[l.InstrID].Listings, msg)
+	byListing := make(map[uuid.UUID]*admininstrv1.Listing, len(named))
+	for _, n := range named {
+		l, ok := byListing[n.ListingID]
+		if !ok {
+			l = to.ProtoListing(n)
+			byListing[n.ListingID] = l
+			instrs[n.InstrID].Listings = append(instrs[n.InstrID].Listings, l)
+		}
+		if n.TickerID != nil {
+			l.Tickers = append(l.Tickers, to.ProtoListingTicker(n))
+		}
 	}
 	for _, in := range out {
 		slices.SortStableFunc(in.Listings, func(a, b *admininstrv1.Listing) int {
 			return primary(b) - primary(a)
 		})
-	}
-	named, err := s.queries.ListListingNames(ctx, ids)
-	if err != nil {
-		return nil, err
-	}
-	for _, n := range named {
-		if n.TickerID != nil {
-			l := byListing[n.ListingID]
-			l.Tickers = append(l.Tickers, to.ProtoListingTicker(n))
-		}
 	}
 	idents, err := s.queries.ListIdentifiersOf(ctx, ids)
 	if err != nil {
@@ -167,8 +164,9 @@ func (s *Server) instrs(ctx context.Context, rows []gen.ListInstrsRow) ([]*admin
 			in.Via = append(in.Via, msg)
 		}
 		if i.ListingID != nil {
-			l := byListing[*i.ListingID]
-			l.Identifiers = append(l.Identifiers, msg)
+			if l, ok := byListing[*i.ListingID]; ok {
+				l.Identifiers = append(l.Identifiers, msg)
+			}
 			continue
 		}
 		in := instrs[i.InstrID]
