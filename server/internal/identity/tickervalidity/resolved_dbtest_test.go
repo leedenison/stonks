@@ -17,6 +17,7 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/identity/tickers"
 	"github.com/leedenison/stonks/server/internal/platform/ptr"
 	"github.com/leedenison/stonks/server/internal/testutil/dbtest"
 	"github.com/leedenison/stonks/server/internal/types"
@@ -60,7 +61,7 @@ func (f *fixture) resolved(t *testing.T, instrs ...uuid.UUID) []resolved {
 
 func (f *fixture) rebuild(t *testing.T, ids ...uuid.UUID) {
 	t.Helper()
-	require.NoError(t, Rebuild(context.Background(), f.q, ids))
+	rebuild(t, f.q, ids...)
 }
 
 // TestRebuildReadsOtherTickers checks that a rebuild of one ticker weighs
@@ -196,10 +197,12 @@ func TestRebuildLocksTheInstr(t *testing.T) {
 	}
 	one, two := open(), open()
 	x, y := attest(one, "US"), attest(two, "XLON")
-	require.NoError(t, Rebuild(ctx, gen.New(one), []uuid.UUID{x}))
-	_, err := two.Exec(ctx, "SET LOCAL lock_timeout = '50ms'")
+	rebuild(t, gen.New(one), x)
+	locked, err := tickers.Lock(ctx, gen.New(two), []uuid.UUID{y})
 	require.NoError(t, err)
-	err = Rebuild(ctx, gen.New(two), []uuid.UUID{y})
+	_, err = two.Exec(ctx, "SET LOCAL lock_timeout = '50ms'")
+	require.NoError(t, err)
+	err = Rebuild(ctx, gen.New(two), locked)
 	var pgErr *pgconn.PgError
 	require.ErrorAs(t, err, &pgErr)
 	if pgErr.Code != pgerrcode.LockNotAvailable {

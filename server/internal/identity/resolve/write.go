@@ -1,7 +1,6 @@
 package resolve
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"slices"
@@ -109,9 +108,8 @@ type decision struct {
 	// conflict is set when the instrument's class contradicts the key's. The
 	// key then ends unrecognised.
 	conflict string
-	// locked is the ids of the tickers the write locked, whose names it
-	// rebuilds.
-	locked []uuid.UUID
+	// locked is the tickers the write locked, whose names it rebuilds.
+	locked tickers.Locked
 }
 
 // decide chooses the winner among res's claims, with the identifiers it may
@@ -151,7 +149,7 @@ func decide(ctx context.Context, q Queries, res *resolution, choice *userChoice)
 		if t, err = merge(ctx, q, winnerKey(verdict), merging); err != nil {
 			return decision{}, err
 		}
-		if err := checkMoved(ctx, q, survivor, append(held, locked...)); err != nil {
+		if err := checkMoved(ctx, q, survivor, append(held, locked.IDs()...)); err != nil {
 			return decision{}, err
 		}
 	}
@@ -176,9 +174,8 @@ func decide(ctx context.Context, q Queries, res *resolution, choice *userChoice)
 }
 
 // lockTickers locks the tickers the write may assert, and the tickers of
-// every assertion that names an instrument of merging after the first, and
-// returns their ids.
-func lockTickers(ctx context.Context, q Queries, res *resolution, merging []instrMatch) ([]uuid.UUID, error) {
+// every assertion that names an instrument of merging after the first.
+func lockTickers(ctx context.Context, q Queries, res *resolution, merging []instrMatch) (tickers.Locked, error) {
 	var ids []uuid.UUID
 	for _, t := range res.tickers {
 		ids = append(ids, t.ID)
@@ -190,16 +187,11 @@ func lockTickers(ctx context.Context, q Queries, res *resolution, merging []inst
 		}
 		folded, err := q.ListTickersOfInstrs(ctx, losers)
 		if err != nil {
-			return nil, fmt.Errorf("list tickers of merged instruments: %w", err)
+			return tickers.Locked{}, fmt.Errorf("list tickers of merged instruments: %w", err)
 		}
 		ids = append(ids, folded...)
 	}
-	slices.SortFunc(ids, func(a, b uuid.UUID) int { return bytes.Compare(a[:], b[:]) })
-	ids = slices.Compact(ids)
-	if err := tickers.Lock(ctx, q, ids); err != nil {
-		return nil, err
-	}
-	return ids, nil
+	return tickers.Lock(ctx, q, ids)
 }
 
 // checkMoved returns db.ErrConcurrent when the survivor of a merge has a

@@ -35,6 +35,19 @@ type Locker interface {
 	LockTickers(ctx context.Context, ids []uuid.UUID) ([]uuid.UUID, error)
 }
 
+// BatchLocker locks ticker rows a batch at a time.
+type BatchLocker interface {
+	LockTickerBatch(ctx context.Context, arg gen.LockTickerBatchParams) ([]uuid.UUID, error)
+}
+
+// Locked is the ticker rows a transaction holds. Only Lock and LockBatch make
+// one, and a rebuild of ticker validity takes one, so a rebuild runs only over
+// rows its transaction holds.
+type Locked struct{ ids []uuid.UUID }
+
+// IDs returns the ids of the rows, in id order.
+func (l Locked) IDs() []uuid.UUID { return slices.Clone(l.ids) }
+
 var _ Queries = (*gen.Queries)(nil)
 
 // ErrSpelling reports a ticker or a market that is not in the system's
@@ -97,18 +110,30 @@ func Get(ctx context.Context, q Queries, mics mic.MICMap, ts []types.MarketTicke
 	return out, nil
 }
 
-// Lock locks the rows of ids until the transaction ends, in id order. A
-// write of facts locks every ticker whose facts it writes; see
+// Lock locks the rows of ids until the transaction ends, in id order, and
+// returns the rows it locked. An id without a row is left out. A write of
+// facts locks every ticker whose facts it writes; see
 // [tickervalidity.go](../tickervalidity/tickervalidity.go) for the order of
 // its locks.
-func Lock(ctx context.Context, q Locker, ids []uuid.UUID) error {
+func Lock(ctx context.Context, q Locker, ids []uuid.UUID) (Locked, error) {
 	if len(ids) == 0 {
-		return nil
+		return Locked{}, nil
 	}
-	if _, err := q.LockTickers(ctx, ids); err != nil {
-		return fmt.Errorf("lock tickers: %w", err)
+	held, err := q.LockTickers(ctx, ids)
+	if err != nil {
+		return Locked{}, fmt.Errorf("lock tickers: %w", err)
 	}
-	return nil
+	return Locked{ids: held}, nil
+}
+
+// LockBatch locks the rows of the next lim tickers after the id after, in id
+// order, and returns them. A nil after starts at the first.
+func LockBatch(ctx context.Context, q BatchLocker, after *uuid.UUID, lim int32) (Locked, error) {
+	held, err := q.LockTickerBatch(ctx, gen.LockTickerBatchParams{After: after, Lim: lim})
+	if err != nil {
+		return Locked{}, fmt.Errorf("lock tickers: %w", err)
+	}
+	return Locked{ids: held}, nil
 }
 
 // Find returns the row of each of ts that has one.

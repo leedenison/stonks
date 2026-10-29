@@ -15,6 +15,7 @@ import (
 
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/identity/tickers"
 	"github.com/leedenison/stonks/server/internal/mic"
 	"github.com/leedenison/stonks/server/internal/platform/ptr"
 	"github.com/leedenison/stonks/server/internal/testutil/dbtest"
@@ -100,11 +101,20 @@ func (f *fixture) exec(t *testing.T, sql string, args ...any) {
 	require.NoError(t, err)
 }
 
+// rebuild locks the rows of ids and rebuilds their ticker validity and names.
+func rebuild(t *testing.T, q *gen.Queries, ids ...uuid.UUID) {
+	t.Helper()
+	ctx := context.Background()
+	locked, err := tickers.Lock(ctx, q, ids)
+	require.NoError(t, err)
+	require.NoError(t, Rebuild(ctx, q, locked))
+}
+
 // of rebuilds foo's ticker validity and reads it back from the table.
 func (f *fixture) of(t *testing.T) []Interval {
 	t.Helper()
 	ctx := context.Background()
-	require.NoError(t, Rebuild(ctx, f.q, []uuid.UUID{dbtest.Ticker(t, f.q, f.foo).ID}))
+	rebuild(t, f.q, dbtest.Ticker(t, f.q, f.foo).ID)
 	read, err := Load(ctx, f.q, []types.MarketTicker{f.foo})
 	require.NoError(t, err)
 	return read[f.foo]
@@ -323,7 +333,7 @@ func TestReadTickersAcrossVenues(t *testing.T) {
 		require.True(t, ok)
 		keys = append(keys, mt)
 	}
-	require.NoError(t, Rebuild(ctx, f.q, []uuid.UUID{dbtest.Ticker(t, f.q, f.foo).ID}))
+	rebuild(t, f.q, dbtest.Ticker(t, f.q, f.foo).ID)
 	read, err := Load(ctx, f.q, keys)
 	require.NoError(t, err)
 	if len(read) != 1 || !read[f.foo].Any() {
@@ -365,7 +375,7 @@ func TestNoEventSource(t *testing.T) {
 		ID: db.NewID(), RunID: &run.ID, AttestedBy: &f.attestedBy.ID, TickerID: tk.ID, Market: ams.Market,
 		InstrID: &f.a, AssertedFrom: day(12), AssertedBefore: day(13),
 	}))
-	require.NoError(t, Rebuild(ctx, f.q, []uuid.UUID{tk.ID}))
+	rebuild(t, f.q, tk.ID)
 	stored, err := Load(ctx, f.q, []types.MarketTicker{ams})
 	require.NoError(t, err)
 	want := []Interval{provisional(nil, at(1), f.a), confirmed(at(1), at(13), f.a), provisional(at(13), nil, f.a)}

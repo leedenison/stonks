@@ -73,7 +73,8 @@ func (r *Resolver) ReassertTickers(ctx context.Context, run gen.Run, held []gen.
 	}
 	err = r.store.Tx(ctx, func(q Queries) error {
 		written = newWritten(r.mics)
-		if err := tickers.Lock(ctx, q, ids); err != nil {
+		locked, err := tickers.Lock(ctx, q, ids)
+		if err != nil {
 			return err
 		}
 		for _, a := range answers {
@@ -81,7 +82,7 @@ func (r *Resolver) ReassertTickers(ctx context.Context, run gen.Run, held []gen.
 				return err
 			}
 		}
-		return tickervalidity.Rebuild(ctx, q, ids)
+		return tickervalidity.Rebuild(ctx, q, locked)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("record reasserted tickers: %w", err)

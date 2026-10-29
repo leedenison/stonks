@@ -80,3 +80,39 @@ func TestDated(t *testing.T) {
 		})
 	}
 }
+
+// TestLock checks that Lock's token holds the rows the query locked, and that
+// an empty set of ids skips the query.
+func TestLock(t *testing.T) {
+	ctx := context.Background()
+	a, b := uuid.New(), uuid.New()
+	q := NewMockLocker(gomock.NewController(t))
+	q.EXPECT().LockTickers(ctx, []uuid.UUID{b, a}).Return([]uuid.UUID{a}, nil)
+	locked, err := Lock(ctx, q, []uuid.UUID{b, a})
+	if err != nil {
+		t.Fatalf("Lock() error = %v", err)
+	}
+	if diff := cmp.Diff([]uuid.UUID{a}, locked.IDs()); diff != "" {
+		t.Errorf("IDs() mismatch (-want +got):\n%s", diff)
+	}
+	empty, err := Lock(ctx, q, nil)
+	if err != nil || len(empty.IDs()) != 0 {
+		t.Errorf("Lock(nil) = %v, %v, want an empty token", empty.IDs(), err)
+	}
+}
+
+// TestLockBatch checks that LockBatch passes its bounds to the query and holds
+// the rows the query locked.
+func TestLockBatch(t *testing.T) {
+	ctx := context.Background()
+	after, a := uuid.New(), uuid.New()
+	q := NewMockBatchLocker(gomock.NewController(t))
+	q.EXPECT().LockTickerBatch(ctx, gen.LockTickerBatchParams{After: &after, Lim: 2}).Return([]uuid.UUID{a}, nil)
+	locked, err := LockBatch(ctx, q, &after, 2)
+	if err != nil {
+		t.Fatalf("LockBatch() error = %v", err)
+	}
+	if diff := cmp.Diff([]uuid.UUID{a}, locked.IDs()); diff != "" {
+		t.Errorf("IDs() mismatch (-want +got):\n%s", diff)
+	}
+}

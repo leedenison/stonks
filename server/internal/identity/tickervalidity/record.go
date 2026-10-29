@@ -84,7 +84,8 @@ func Record(ctx context.Context, q RecordQueries, families currency.Families, ro
 	for _, r := range rows {
 		ids = append(ids, r.ID)
 	}
-	if err := tickers.Lock(ctx, q, ids); err != nil {
+	locked, err := tickers.Lock(ctx, q, ids)
+	if err != nil {
 		return err
 	}
 	for _, k := range keys {
@@ -95,7 +96,7 @@ func Record(ctx context.Context, q RecordQueries, families currency.Families, ro
 			return err
 		}
 	}
-	return Rebuild(ctx, q, ids)
+	return Rebuild(ctx, q, locked)
 }
 
 func record(ctx context.Context, q RecordQueries, families currency.Families, rows map[types.MarketTicker]gen.Ticker, key uuid.UUID, r market.IdentifierFactResult) error {
