@@ -13,8 +13,8 @@ import {
   TickerRelation,
 } from "@/gen/type/v1/type_pb";
 import { relationSuffix } from "./admin";
+import { type DayRange, dayRange } from "./day-range";
 import { pick } from "./identifiers";
-import { prevDay } from "./marshal/date";
 
 // registry lists the identifier types a holding shows as its codes, the
 // most widely quoted first.
@@ -53,13 +53,10 @@ export type HoldingRow = {
   // The day from which a provisional holding needs corporate actions, as
   // YYYY-MM-DD.
   provisionalFrom?: string;
-  // The runs of days with unknown corporate actions, each with its last day.
-  gaps: Gap[];
+  // The runs of days that the corporate actions source of the holding's
+  // market has not covered.
+  gaps: DayRange[];
 };
-
-// A Gap is a run of days that the corporate actions source of the holding's
-// market has not covered. Both ends are included, as YYYY-MM-DD.
-export type Gap = { from: string; to: string };
 
 // descriptionsOf returns the distinct descriptions the brokers gave the
 // keys, in the order of the keys.
@@ -130,10 +127,7 @@ function instrRow(h: InstrHolding): HoldingRow {
     identifiers: h.identifiers.filter((i) => registry.includes(i.type)),
     provisional: h.mark === HoldingMark.CORP_ACTS_PROVISIONAL,
     provisionalFrom: h.provisionalFrom,
-    gaps: h.gaps.map((g) => ({
-      from: g.uncoveredFrom,
-      to: prevDay(g.uncoveredBefore),
-    })),
+    gaps: h.gaps.map(dayRange),
   };
 }
 

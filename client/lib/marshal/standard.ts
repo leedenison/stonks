@@ -23,7 +23,7 @@ function parse(text: string): Stmt {
   if (s.broker === Broker.UNSPECIFIED) {
     throw new MarshalError("the statement states no broker");
   }
-  if (s.orderFrom === "" || s.orderBefore === "") {
+  if (!s.period?.from || !s.period.before) {
     throw new MarshalError("the statement states no period");
   }
   return s;

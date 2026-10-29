@@ -425,9 +425,9 @@ func TestListRunItems(t *testing.T) {
 				}, nil)
 			},
 			want: &adminrunv1.ListRunItemsResponse{Items: []*adminrunv1.RunItem{{Item: &adminrunv1.RunItem_Assertion{Assertion: &adminrunv1.AssertionItem{
-				Id:           keyID.String(),
-				Ticker:       &typev1.MarketTicker{Market: "XLON", Value: "SHEL"},
-				AssertedFrom: created.Format(time.DateOnly), AssertedBefore: created.AddDate(0, 0, 1).Format(time.DateOnly), InstrId: ptr.To(childID.String()),
+				Id:     keyID.String(),
+				Ticker: &typev1.MarketTicker{Market: "XLON", Value: "SHEL"},
+				Period: &typev1.Period{From: ptr.To(created.Format(time.DateOnly)), Before: ptr.To(created.AddDate(0, 0, 1).Format(time.DateOnly))}, InstrId: ptr.To(childID.String()),
 				Source: &adminrunv1.AssertionItem_Datasource{Datasource: "eodhd"},
 			}}}}, NextPageToken: keyID.String()},
 		},
@@ -441,9 +441,9 @@ func TestListRunItems(t *testing.T) {
 				}, nil)
 			},
 			want: &adminrunv1.ListRunItemsResponse{Items: []*adminrunv1.RunItem{{Item: &adminrunv1.RunItem_Assertion{Assertion: &adminrunv1.AssertionItem{
-				Id:           keyID.String(),
-				Ticker:       &typev1.MarketTicker{Market: "XLON", Value: "SHEL"},
-				AssertedFrom: created.Format(time.DateOnly), AssertedBefore: created.AddDate(0, 0, 1).Format(time.DateOnly),
+				Id:     keyID.String(),
+				Ticker: &typev1.MarketTicker{Market: "XLON", Value: "SHEL"},
+				Period: &typev1.Period{From: ptr.To(created.Format(time.DateOnly)), Before: ptr.To(created.AddDate(0, 0, 1).Format(time.DateOnly))},
 				Source: &adminrunv1.AssertionItem_AttestedBy{AttestedBy: "admin@example.com"},
 			}}}}},
 		},

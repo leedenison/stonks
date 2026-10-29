@@ -172,15 +172,6 @@ func Dated(k gen.StatedKey, rows map[uuid.UUID]gen.Ticker) (types.MarketTicker, 
 	return Of(r), types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: *k.ViaVenue, Value: r.Value}, true
 }
 
-// DatedAt returns the MIC_TICKER that Dated returns, nil where k has no
-// dated association.
-func DatedAt(k gen.StatedKey, rows map[uuid.UUID]gen.Ticker) *types.Identifier {
-	if _, at, ok := Dated(k, rows); ok {
-		return &at
-	}
-	return nil
-}
-
 // Of returns the market ticker that r spells.
 func Of(r gen.Ticker) types.MarketTicker {
 	return types.MarketTicker{Market: r.Market, Value: r.Value}

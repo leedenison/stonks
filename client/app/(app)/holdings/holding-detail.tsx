@@ -1,6 +1,7 @@
 import { IdentifierChips } from "@/app/components/identifier-chip";
 import { Td } from "@/app/components/table";
-import { type Gap, type HoldingRow } from "@/lib/holdings";
+import { type DayRange } from "@/lib/day-range";
+import { type HoldingRow } from "@/lib/holdings";
 
 // HoldingDetail is the row that opens beneath a holding. It shows the
 // holding's registry codes and the brokers' descriptions of it. For a
@@ -78,7 +79,7 @@ function Part({
 }
 
 // gapText words a gap for display.
-function gapText(g: Gap): string {
+function gapText(g: DayRange): string {
   return g.from === g.to
     ? `Corporate actions are unknown for ${g.from}.`
     : `Corporate actions are unknown for ${g.from} to ${g.to}.`;

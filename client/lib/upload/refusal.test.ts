@@ -6,12 +6,9 @@ describe("refusal", () => {
   it("quotes the service's reason for refusing the statement", () => {
     expect(
       refusal(
-        new ConnectError(
-          "order_from must precede order_before",
-          Code.InvalidArgument,
-        ),
+        new ConnectError("from must precede before", Code.InvalidArgument),
       ),
-    ).toBe("Statement rejected: order_from must precede order_before");
+    ).toBe("Statement rejected: from must precede before");
   });
 
   it("offers a retry for any other failure", () => {

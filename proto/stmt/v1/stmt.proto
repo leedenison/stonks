@@ -61,24 +61,23 @@ message StatedSplit {
 // statement format a client holds this message as one JSON document in its
 // protojson encoding.
 message Stmt {
-  option (buf.validate.message).cel = {
-    id: "stmt.period"
-    message: "order_from must precede order_before"
-    expression: "this.order_from < this.order_before"
-  };
-
   stonks.type.v1.Broker broker = 1 [(buf.validate.field).enum = {
     defined_only: true
     not_in: [0]
   }];
-  // The first order date claimed.
-  string order_from = 2 [(buf.validate.field).string.pattern = "^\\d{4}-\\d{2}-\\d{2}$"];
-  // The day after the last order date claimed.
-  string order_before = 3 [(buf.validate.field).string.pattern = "^\\d{4}-\\d{2}-\\d{2}$"];
+  // The order dates claimed.
+  stonks.type.v1.Period period = 2 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).cel = {
+      id: "stmt.period"
+      message: "period must have both bounds"
+      expression: "has(this.from) && has(this.before)"
+    }
+  ];
   // The legs the statement carries.
-  repeated Row rows = 4 [(buf.validate.field).repeated.max_items = 50000];
+  repeated Row rows = 3 [(buf.validate.field).repeated.max_items = 50000];
   // The splits the export states.
-  repeated StatedSplit splits = 5 [(buf.validate.field).repeated.max_items = 1000];
+  repeated StatedSplit splits = 4 [(buf.validate.field).repeated.max_items = 1000];
 }
 
 // One ingestion of a statement.
@@ -87,16 +86,15 @@ message StmtSummary {
   // The ingestion's run. Its id identifies the statement.
   stonks.run.v1.Run run = 1;
   stonks.type.v1.Broker broker = 2;
-  string order_from = 3;
-  // The day after the last order date claimed.
-  string order_before = 4;
+  // The order dates claimed.
+  stonks.type.v1.Period period = 3;
   // The rows the statement carried.
-  int32 rows = 5;
+  int32 rows = 4;
   // The rows rejected, each an item.
-  int32 rejected = 6;
+  int32 rejected = 5;
   // True while the ingestion, or the work that follows its write, is still
   // going. Until then the statement and the holdings may change.
-  bool live = 7;
+  bool live = 6;
 }
 
 // A row the ingestion rejected.

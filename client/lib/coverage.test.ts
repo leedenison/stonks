@@ -14,13 +14,12 @@ describe("coverage", () => {
     expect(dayNumber("2026-03-10") - dayNumber("2026-03-01")).toBe(9);
     const intervals = [
       create(IntervalSchema, {
-        validBefore: "2026-03-10",
+        period: { before: "2026-03-10" },
         instrId: "i1",
         validity: TickerValidity.PROVISIONAL,
       }),
       create(IntervalSchema, {
-        validFrom: "2026-03-10",
-        validBefore: "2026-03-21",
+        period: { from: "2026-03-10", before: "2026-03-21" },
         instrId: "i1",
         validity: TickerValidity.CONFIRMED,
       }),
@@ -42,11 +41,12 @@ describe("coverage", () => {
     const t = create(TickerSchema, {
       txnDays: ["2026-03-05"],
       intervals: [
-        create(IntervalSchema, { validFrom: "2026-03-10", instrId: "i1" }),
+        create(IntervalSchema, {
+          period: { from: "2026-03-10" },
+          instrId: "i1",
+        }),
       ],
-      gaps: [
-        { unconfirmedFrom: "2026-03-05", unconfirmedBefore: "2026-03-31" },
-      ],
+      gaps: [{ period: { from: "2026-03-05", before: "2026-03-31" } }],
     });
     expect(bounds(t)).toEqual({ from: "2026-03-05", before: "2026-03-31" });
     expect(bounds(create(TickerSchema, { txnDays: ["2026-03-05"] }))).toEqual({
@@ -56,7 +56,7 @@ describe("coverage", () => {
   });
 
   it("cuts at each bound that is an edge, and bounds spans the periods", () => {
-    const period = { assertedFrom: "2026-03-05", assertedBefore: "2026-03-10" };
+    const period = { period: { from: "2026-03-05", before: "2026-03-10" } };
     expect(cutDays(create(AssertionItemSchema, period))).toEqual([]);
     expect(
       cutDays(create(AssertionItemSchema, { ...period, edgeFrom: true })),

@@ -20,8 +20,9 @@ import {
   type Stmt,
   StmtSchema,
 } from "@/gen/stmt/v1/stmt_pb";
+import { type DayRange, periodOf } from "@/lib/day-range";
+import { maxDate, minDate } from "./date";
 import { add, isZero, negate, normalise } from "./decimal";
-import { maxDate, minDate, nextDay } from "./date";
 
 export function ident(
   type: IdentifierType,
@@ -132,7 +133,7 @@ export function stmt(
   broker: Broker,
   rows: Row[],
   splits: StatedSplit[],
-  period?: { from: string; to: string },
+  period?: DayRange,
 ): Stmt {
   let span = period;
   if (!span) {
@@ -147,8 +148,7 @@ export function stmt(
   }
   return create(StmtSchema, {
     broker,
-    orderFrom: span?.from ?? "",
-    orderBefore: span ? nextDay(span.to) : "",
+    period: span && periodOf(span),
     rows,
     splits,
   });

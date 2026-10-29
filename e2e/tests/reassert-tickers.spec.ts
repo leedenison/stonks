@@ -82,8 +82,8 @@ test("extends the ticker validity of a held ticker on the day it runs", async ({
     (a) =>
       a.ticker?.market === pepUS.market &&
       a.ticker?.value === pepUS.value &&
-      a.assertedFrom <= to &&
-      a.assertedBefore > from,
+      (a.period?.from ?? "") <= to &&
+      (a.period?.before ?? "") > from,
   );
   expect(present.length).toBeGreaterThan(0);
   for (const a of present) {

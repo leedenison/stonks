@@ -93,8 +93,8 @@ describe("UploadDialog", () => {
     fireEvent.click(screen.getByTestId("upload-submit"));
     await waitFor(() => expect(createStmt).toHaveBeenCalledTimes(1));
     const sent = createStmt.mock.calls[0]?.[0].stmt;
-    expect(sent?.orderFrom).toBe("2025-02-01");
-    expect(sent?.orderBefore).toBe("2025-03-17");
+    expect(sent?.period?.from).toBe("2025-02-01");
+    expect(sent?.period?.before).toBe("2025-03-17");
     await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
     expect(onCreated).toHaveBeenCalledWith(pending.run);
   });
@@ -166,7 +166,7 @@ describe("UploadDialog", () => {
       <UploadDialog open onClose={onClose} />,
       serving(() => {
         throw new ConnectError(
-          "order_from must precede order_before",
+          "from must precede before",
           Code.InvalidArgument,
         );
       }),
@@ -176,7 +176,7 @@ describe("UploadDialog", () => {
     fireEvent.click(screen.getByTestId("upload-submit"));
     await waitFor(() =>
       expect(screen.getByTestId("upload-refused").textContent).toContain(
-        "order_from must precede",
+        "from must precede",
       ),
     );
     expect(onClose).not.toHaveBeenCalled();
@@ -240,7 +240,7 @@ describe("UploadDialog", () => {
     await waitFor(() => expect(createStmt).toHaveBeenCalledTimes(1));
     const sent = createStmt.mock.calls[0]?.[0].stmt;
     expect(sent?.rows[0]?.asAt).toBe("2024-03-01");
-    expect(sent?.orderBefore).toBe("2025-01-01");
+    expect(sent?.period?.before).toBe("2025-01-01");
   });
 
   it("shows the parser's message for a standard statement it cannot read", async () => {

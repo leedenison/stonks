@@ -1,7 +1,6 @@
 {
   "broker": "BROKER_IBKR",
-  "orderFrom": "2021-06-01",
-  "orderBefore": "2021-07-01",
+  "period": { "from": "2021-06-01", "before": "2021-07-01" },
   "rows": [
     {
       "key": {

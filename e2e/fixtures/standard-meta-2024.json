@@ -1,7 +1,6 @@
 {
   "broker": "BROKER_IBKR",
-  "orderFrom": "2024-01-01",
-  "orderBefore": "2024-02-01",
+  "period": { "from": "2024-01-01", "before": "2024-02-01" },
   "rows": [
     {
       "key": {

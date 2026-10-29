@@ -6,6 +6,7 @@ import {
   instrListedAs,
   adminRunClient,
   assertionItems,
+  holdingClient,
   stmtClient,
 } from "../helpers/api";
 import { deleteRuns } from "../helpers/db";
@@ -39,7 +40,15 @@ test("attests a gap from the instrument's tickers tab and withdraws it", async (
   const runId = await uploadStmt(page, fixture, { state: "completed" });
   const read = await stmts.getStmt({ runId });
   expect(read.keys.map((k) => k.outcome)).toEqual([ResolutionOutcome.MATCHED]);
-  expect(read.keys[0].ticker).toMatchObject(wmt);
+  // The key is dated through WMT, so its holding sums it through the
+  // listing that WMT names.
+  const holdings = await holdingClient(session).listHoldings({});
+  const through = holdings.instrs.flatMap((h) =>
+    h.keys.map((k) => h.listings.find((l) => l.id === k.listingId)?.ticker),
+  );
+  expect(through).toContainEqual(
+    expect.objectContaining({ market: "US", value: wmt.value }),
+  );
   expect(read.txns.map((t) => t.mark)).toEqual([TxnMark.PROVISIONAL]);
   const txnId = read.txns[0].id;
 

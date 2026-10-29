@@ -29,8 +29,7 @@ const meta = create(StatedKeySchema, {
 
 const expected = create(StmtSchema, {
   broker: Broker.IBKR,
-  orderFrom: "2024-01-01",
-  orderBefore: "2025-01-01",
+  period: { from: "2024-01-01", before: "2025-01-01" },
   rows: [
     create(RowSchema, {
       key: meta,
@@ -60,8 +59,7 @@ const expected = create(StmtSchema, {
 // A document with one row, its fields spelled as the proto names them.
 const protoNames = JSON.stringify({
   broker: "BROKER_SCHWAB",
-  order_from: "2024-01-01",
-  order_before: "2024-02-01",
+  period: { from: "2024-01-01", before: "2024-02-01" },
   rows: [
     {
       key: {
@@ -85,7 +83,7 @@ describe("standard", () => {
   it("accepts the proto spelling of a field", () => {
     const s = standard.marshal(protoNames, "");
     expect(s.broker).toBe(Broker.SCHWAB);
-    expect(s.orderFrom).toBe("2024-01-01");
+    expect(s.period?.from).toBe("2024-01-01");
     expect(s.rows[0].asAt).toBe("2024-01-05");
     expect(s.rows[0].key?.assetClass).toBe(AssetClass.CASH);
   });

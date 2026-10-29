@@ -324,8 +324,8 @@ describe("HoldingsPage", () => {
           mark: HoldingMark.CORP_ACTS_PROVISIONAL,
           provisionalFrom: "2023-06-02",
           gaps: [
-            { uncoveredFrom: "2024-02-01", uncoveredBefore: "2024-03-01" },
-            { uncoveredFrom: "2024-04-02", uncoveredBefore: "2024-04-03" },
+            { from: "2024-02-01", before: "2024-03-01" },
+            { from: "2024-04-02", before: "2024-04-03" },
           ],
         }),
         create(InstrHoldingSchema, {

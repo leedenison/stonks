@@ -1,7 +1,6 @@
 {
   "broker": "BROKER_IBKR",
-  "orderFrom": "2003-01-01",
-  "orderBefore": "2003-02-01",
+  "period": { "from": "2003-01-01", "before": "2003-02-01" },
   "rows": [
     {
       "key": {

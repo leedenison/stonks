@@ -44,7 +44,7 @@ var (
 	run       = gen.Run{ID: runID, UserID: &userID, Kind: gen.RunKindIngestStmt, Trigger: gen.RunTriggerUser, State: gen.RunStatePending, CreatedAt: created}
 	runMsg    = &runv1.Run{Id: runID.String(), Kind: runv1.RunKind_RUN_KIND_INGEST_STMT, Trigger: runv1.RunTrigger_RUN_TRIGGER_USER, State: runv1.RunState_RUN_STATE_PENDING, CreatedAt: timestamppb.New(created)}
 	stmtRow   = gen.Stmt{ID: runID, UserID: userID, Broker: gen.BrokerIbkr, OrderFrom: from, OrderBefore: before, RowCount: 3, CreatedAt: created}
-	summ      = &stmtv1.StmtSummary{Run: runMsg, Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01", Rows: 3, Rejected: 1, Live: true}
+	summ      = &stmtv1.StmtSummary{Run: runMsg, Broker: typev1.Broker_BROKER_IBKR, Period: &typev1.Period{From: ptr.To("2026-03-01"), Before: ptr.To("2026-04-01")}, Rows: 3, Rejected: 1, Live: true}
 )
 
 type fixture struct {
@@ -71,7 +71,7 @@ func newFixture(t *testing.T) *fixture {
 }
 
 func stmtMsg() *stmtv1.Stmt {
-	return &stmtv1.Stmt{Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01"}
+	return &stmtv1.Stmt{Broker: typev1.Broker_BROKER_IBKR, Period: &typev1.Period{From: ptr.To("2026-03-01"), Before: ptr.To("2026-04-01")}}
 }
 
 // splitMsg returns a split of key that passes every check but those on the key.
@@ -90,7 +90,11 @@ func TestCreateStmt(t *testing.T) {
 		wantCode connect.Code
 	}{
 		{name: "created", called: true},
-		{name: "empty period", edit: func(m *stmtv1.Stmt) { m.OrderBefore = m.OrderFrom }, wantCode: connect.CodeInvalidArgument},
+		{name: "empty period", edit: func(m *stmtv1.Stmt) { m.Period.Before = m.Period.From }, wantCode: connect.CodeInvalidArgument},
+		{name: "reversed period", edit: func(m *stmtv1.Stmt) { m.Period.From, m.Period.Before = m.Period.Before, m.Period.From }, wantCode: connect.CodeInvalidArgument},
+		{name: "no period", edit: func(m *stmtv1.Stmt) { m.Period = nil }, wantCode: connect.CodeInvalidArgument},
+		{name: "open period", edit: func(m *stmtv1.Stmt) { m.Period.From = nil }, wantCode: connect.CodeInvalidArgument},
+		{name: "malformed period", edit: func(m *stmtv1.Stmt) { m.Period.Before = ptr.To("soon") }, wantCode: connect.CodeInvalidArgument},
 		{name: "no broker", edit: func(m *stmtv1.Stmt) { m.Broker = typev1.Broker_BROKER_UNSPECIFIED }, wantCode: connect.CodeInvalidArgument},
 		{name: "malformed split", edit: func(m *stmtv1.Stmt) {
 			m.Splits = []*stmtv1.StatedSplit{{Key: &typev1.StatedKey{}, EffectiveDate: "2026-03-05", Quantity: "ten"}}

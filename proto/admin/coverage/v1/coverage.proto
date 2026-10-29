@@ -13,24 +13,23 @@ import "type/v1/type.proto";
 option go_package = "github.com/leedenison/stonks/proto/admin/coverage/v1;admincoveragev1";
 
 // A part of a ticker's transaction period that no confirmed ticker validity
-// holds. The period runs from the earliest transaction whose key states the
-// ticker up to and including today. The bounds are half open, as YYYY-MM-DD.
+// holds. The transaction period runs from the earliest transaction whose key
+// states the ticker up to and including today.
 message Gap {
-  string unconfirmed_from = 1;
-  string unconfirmed_before = 2;
+  // Both bounds are set.
+  stonks.type.v1.Period period = 1;
   // The keys that state the ticker and have a transaction dated inside the
   // gap, whether or not they resolved.
-  int32 keys = 3;
+  int32 keys = 2;
   // Their transactions dated inside the gap.
-  int32 txns = 4;
+  int32 txns = 3;
 }
 
-// A period over which one datasource reported every edge of a ticker. The
-// bounds are half open, as YYYY-MM-DD.
+// A period over which one datasource reported every edge of a ticker.
 message AssertionCoverage {
   string datasource = 1;
-  string covered_from = 2;
-  string covered_before = 3;
+  // Both bounds are set.
+  stonks.type.v1.Period period = 2;
 }
 
 enum TickerValidity {
@@ -39,13 +38,11 @@ enum TickerValidity {
   TICKER_VALIDITY_PROVISIONAL = 2;
 }
 
-// The days over which a ticker names one instrument. The bounds are half
-// open, as YYYY-MM-DD, and an unset bound is open.
+// The days over which a ticker names one instrument.
 message Interval {
-  optional string valid_from = 1;
-  optional string valid_before = 2;
-  string instr_id = 3;
-  TickerValidity validity = 4;
+  stonks.type.v1.Period period = 1;
+  string instr_id = 2;
+  TickerValidity validity = 3;
 }
 
 // An instrument and the identifier that names it.

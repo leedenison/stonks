@@ -82,8 +82,8 @@ message InstrHolding {
   optional string provisional_from = 9;
   // Set only when the mark is CORP_ACTS_PROVISIONAL. Lists, in order, the
   // days from provisional_from to today that the corporate actions source of
-  // the instrument's market has not covered.
-  repeated UncoveredDays gaps = 10;
+  // the instrument's market has not covered. Both bounds of each are set.
+  repeated stonks.type.v1.Period gaps = 10;
 }
 
 // How an instrument holding's quantity stands to the corporate actions since
@@ -99,13 +99,6 @@ enum HoldingMark {
   // As stated, because corporate actions do not restate the instrument's
   // class.
   HOLDING_MARK_RAW = 3;
-}
-
-// A run of days that the corporate actions source of an instrument's market
-// has not covered. The bounds are half open, as YYYY-MM-DD.
-message UncoveredDays {
-  string uncovered_from = 1;
-  string uncovered_before = 2;
 }
 
 // A holding of the caller's unresolved keys that state one holding between

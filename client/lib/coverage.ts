@@ -17,9 +17,9 @@ export function intervalAt(
   day: string,
 ): Interval | undefined {
   return intervals.find(
-    (iv) =>
-      (iv.validFrom === undefined || iv.validFrom <= day) &&
-      (iv.validBefore === undefined || day < iv.validBefore),
+    ({ period: p }) =>
+      (p?.from === undefined || p.from <= day) &&
+      (p?.before === undefined || day < p.before),
   );
 }
 
@@ -27,8 +27,8 @@ export function intervalAt(
 // timeline: the bounds of its period that are edges.
 export function cutDays(a: AssertionItem): string[] {
   const out: string[] = [];
-  if (a.edgeFrom) out.push(a.assertedFrom);
-  if (a.edgeBefore) out.push(a.assertedBefore);
+  if (a.edgeFrom && a.period?.from !== undefined) out.push(a.period.from);
+  if (a.edgeBefore && a.period?.before !== undefined) out.push(a.period.before);
   return out;
 }
 
@@ -44,14 +44,16 @@ export function bounds(
   t: Ticker,
 ): { from: string; before: string } | undefined {
   const days: string[] = [...t.txnDays];
-  for (const p of t.assertionCoverage)
-    days.push(p.coveredFrom, p.coveredBefore);
-  for (const a of t.assertions) days.push(a.assertedFrom, a.assertedBefore);
-  for (const iv of t.intervals) {
-    if (iv.validFrom !== undefined) days.push(iv.validFrom);
-    if (iv.validBefore !== undefined) days.push(iv.validBefore);
+  const periods = [
+    ...t.assertionCoverage.map((p) => p.period),
+    ...t.assertions.map((a) => a.period),
+    ...t.intervals.map((iv) => iv.period),
+    ...t.gaps.map((g) => g.period),
+  ];
+  for (const p of periods) {
+    if (p?.from !== undefined) days.push(p.from);
+    if (p?.before !== undefined) days.push(p.before);
   }
-  for (const g of t.gaps) days.push(g.unconfirmedFrom, g.unconfirmedBefore);
   if (days.length === 0) return undefined;
   days.sort();
   const last = days[days.length - 1];

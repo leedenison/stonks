@@ -83,28 +83,6 @@ func TestProtoStatedKey(t *testing.T) {
 	}
 }
 
-// TestProtoResolutionItem checks that only a dated key carries a ticker.
-func TestProtoResolutionItem(t *testing.T) {
-	instr := uuid.New()
-	tests := []struct {
-		name  string
-		key   gen.StatedKey
-		dated *types.Identifier
-		want  *typev1.Identifier
-	}{
-		{name: "dated", key: gen.StatedKey{ViaTickerID: ptr.To(uuid.New())}, dated: &types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XNAS", Value: "ACME"}, want: &typev1.Identifier{Type: typev1.IdentifierType_IDENTIFIER_TYPE_MIC_TICKER, Domain: "XNAS", Value: "ACME"}},
-		{name: "fixed", key: gen.StatedKey{InstrID: &instr}},
-	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			got := ProtoResolutionItem(tc.key, nil, tc.dated)
-			if diff := cmp.Diff(tc.want, got.GetTicker(), protocmp.Transform()); diff != "" {
-				t.Errorf("ProtoResolutionItem ticker mismatch (-want +got):\n%s", diff)
-			}
-		})
-	}
-}
-
 func TestInstrName(t *testing.T) {
 	row := gen.InstrName{InstrID: uuid.New(), Type: types.IdentifierTypeMicTicker, Domain: "XLON", Value: "VOD"}
 	want := types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: "XLON", Value: "VOD"}
@@ -179,7 +157,7 @@ func TestProtoStmtSummary(t *testing.T) {
 	stmt := gen.Stmt{Broker: gen.BrokerIbkr, OrderFrom: created, OrderBefore: created.AddDate(0, 1, 0), RowCount: 40}
 	run := gen.Run{ID: id, Kind: gen.RunKindIngestStmt, Trigger: gen.RunTriggerUser, State: gen.RunStateCompleted, CreatedAt: created}
 	want := &stmtv1.StmtSummary{
-		Run: ProtoRun(run), Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-09-24", OrderBefore: "2026-10-24", Rows: 40, Rejected: 2, Live: true,
+		Run: ProtoRun(run), Broker: typev1.Broker_BROKER_IBKR, Period: &typev1.Period{From: ptr.To("2026-09-24"), Before: ptr.To("2026-10-24")}, Rows: 40, Rejected: 2, Live: true,
 	}
 	if diff := cmp.Diff(want, ProtoStmtSummary(stmt, run, 2, true), protocmp.Transform()); diff != "" {
 		t.Errorf("ProtoStmtSummary mismatch (-want +got):\n%s", diff)

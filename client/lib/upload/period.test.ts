@@ -4,8 +4,7 @@ import { RowSchema, StmtSchema } from "@/gen/stmt/v1/stmt_pb";
 import { claim, period } from "./period";
 
 const stmt = create(StmtSchema, {
-  orderFrom: "2025-01-01",
-  orderBefore: "2025-03-17",
+  period: { from: "2025-01-01", before: "2025-03-17" },
   rows: ["2025-01-02", "2025-02-01", "2025-03-16"].map((orderDate) =>
     create(RowSchema, { orderDate, quantity: "1" }),
   ),
@@ -51,8 +50,8 @@ describe("period", () => {
 describe("claim", () => {
   it("restates the statement with an exclusive end", () => {
     const claimed = claim(stmt, { from: "2025-02-01", to: "2025-03-16" });
-    expect(claimed.orderFrom).toBe("2025-02-01");
-    expect(claimed.orderBefore).toBe("2025-03-17");
+    expect(claimed.period?.from).toBe("2025-02-01");
+    expect(claimed.period?.before).toBe("2025-03-17");
     expect(claimed.rows).toEqual(stmt.rows);
   });
 });

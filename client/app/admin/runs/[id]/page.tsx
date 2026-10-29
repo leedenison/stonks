@@ -433,8 +433,8 @@ function RunItems({ id, live }: { id: string; live: boolean }) {
             {asserted.map((it) => (
               <Tr key={it.id} data-testid={`assertion-row-${it.id}`}>
                 <Td>{it.ticker && <MarketTickerChip ticker={it.ticker} />}</Td>
-                <Td className="font-mono tabular-nums">{it.assertedFrom}</Td>
-                <Td className="font-mono tabular-nums">{it.assertedBefore}</Td>
+                <Td className="font-mono tabular-nums">{it.period?.from}</Td>
+                <Td className="font-mono tabular-nums">{it.period?.before}</Td>
                 <Td className="font-mono">{it.instrId ?? "nothing"}</Td>
                 <Td>{it.source.value}</Td>
               </Tr>

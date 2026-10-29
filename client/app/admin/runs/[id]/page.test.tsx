@@ -524,8 +524,7 @@ describe("AdminRunPage assertions", () => {
             value: create(AssertionItemSchema, {
               id: "a1",
               ticker: { market: "XLON", value: "SHEL" },
-              assertedFrom: "2026-10-23",
-              assertedBefore: "2026-10-24",
+              period: { from: "2026-10-23", before: "2026-10-24" },
               instrId: "i1",
               source: { case: "datasource", value: "eodhd" },
             }),
@@ -537,8 +536,7 @@ describe("AdminRunPage assertions", () => {
             value: create(AssertionItemSchema, {
               id: "a2",
               ticker: { market: "XLON", value: "SHEL" },
-              assertedFrom: "2026-10-23",
-              assertedBefore: "2026-10-24",
+              period: { from: "2026-10-23", before: "2026-10-24" },
               source: { case: "datasource", value: "openfigi" },
             }),
           },

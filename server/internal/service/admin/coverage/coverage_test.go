@@ -116,18 +116,18 @@ func TestGetTicker(t *testing.T) {
 		Ticker:  acmeProto,
 		TxnDays: []string{"2026-03-05"},
 		AssertionCoverage: []*admincoveragev1.AssertionCoverage{{
-			Datasource:  "alpha",
-			CoveredFrom: "2026-03-01", CoveredBefore: "2026-03-20",
+			Datasource: "alpha",
+			Period:     &typev1.Period{From: ptr.To("2026-03-01"), Before: ptr.To("2026-03-20")},
 		}},
 		Assertions: []*adminrunv1.AssertionItem{{
-			Id: assertionID.String(), Ticker: acmeProto, AssertedFrom: "2026-03-10", AssertedBefore: "2026-03-11", InstrId: ptr.To(acme.String()),
+			Id: assertionID.String(), Ticker: acmeProto, Period: &typev1.Period{From: ptr.To("2026-03-10"), Before: ptr.To("2026-03-11")}, InstrId: ptr.To(acme.String()),
 			Source: &adminrunv1.AssertionItem_AttestedBy{AttestedBy: "admin@example.com"},
 		}, {
-			Id: edgeID.String(), Ticker: acmeProto, AssertedFrom: "2026-03-03", AssertedBefore: "2026-03-04", EdgeFrom: true, InstrId: ptr.To(acme.String()),
+			Id: edgeID.String(), Ticker: acmeProto, Period: &typev1.Period{From: ptr.To("2026-03-03"), Before: ptr.To("2026-03-04")}, EdgeFrom: true, InstrId: ptr.To(acme.String()),
 			Source: &adminrunv1.AssertionItem_Datasource{Datasource: "alpha"},
 		}},
-		Intervals: []*admincoveragev1.Interval{{ValidFrom: ptr.To("2026-03-10"), ValidBefore: ptr.To("2026-03-21"), InstrId: acme.String(), Validity: admincoveragev1.TickerValidity_TICKER_VALIDITY_CONFIRMED}},
-		Gaps:      []*admincoveragev1.Gap{{UnconfirmedFrom: "2026-03-05", UnconfirmedBefore: "2026-03-10", Keys: 1, Txns: 1}},
+		Intervals: []*admincoveragev1.Interval{{Period: &typev1.Period{From: ptr.To("2026-03-10"), Before: ptr.To("2026-03-21")}, InstrId: acme.String(), Validity: admincoveragev1.TickerValidity_TICKER_VALIDITY_CONFIRMED}},
+		Gaps:      []*admincoveragev1.Gap{{Period: &typev1.Period{From: ptr.To("2026-03-05"), Before: ptr.To("2026-03-10")}, Keys: 1, Txns: 1}},
 		Instrs: []*admincoveragev1.InstrName{{
 			Id: acme.String(), Name: &typev1.Identifier{Type: typev1.IdentifierType_IDENTIFIER_TYPE_ISIN, Value: "US0000000001"},
 		}},

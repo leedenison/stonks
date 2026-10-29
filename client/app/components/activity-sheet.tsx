@@ -8,7 +8,7 @@ import type { StmtSummary } from "@/gen/stmt/v1/stmt_pb";
 import { useStmt } from "@/hooks/use-stmt";
 import { brokerLabel } from "@/lib/broker";
 import { formatInstant } from "@/lib/format";
-import { prevDay } from "@/lib/marshal/date";
+import { dayRange } from "@/lib/day-range";
 import { outcome } from "@/lib/run";
 import { LinkButton } from "./button";
 import { Notice } from "./notice";
@@ -109,10 +109,12 @@ function Detail({
       <div className="flex min-w-0 flex-1 flex-col gap-2">
         <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1">
           <dt className="text-text-muted">From</dt>
-          <dd className="font-mono tabular-nums">{summary.orderFrom}</dd>
+          <dd className="font-mono tabular-nums">
+            {dayRange(summary.period).from}
+          </dd>
           <dt className="text-text-muted">To</dt>
           <dd className="font-mono tabular-nums">
-            {prevDay(summary.orderBefore)}
+            {dayRange(summary.period).to}
           </dd>
           <dt className="text-text-muted">Rows</dt>
           <dd className="font-mono tabular-nums">{summary.rows}</dd>

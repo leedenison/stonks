@@ -68,10 +68,7 @@ type Gap struct {
 
 // ToProto converts the gap.
 func (g Gap) ToProto() *admincoveragev1.Gap {
-	return &admincoveragev1.Gap{
-		UnconfirmedFrom: ymd(g.Period.From), UnconfirmedBefore: ymd(g.Period.Before),
-		Keys: int32(g.Keys), Txns: int32(g.Txns),
-	}
+	return &admincoveragev1.Gap{Period: g.Period.ToProto(), Keys: int32(g.Keys), Txns: int32(g.Txns)}
 }
 
 // Page is one ticker as the admin area shows it: its facts, its ticker
@@ -265,16 +262,11 @@ func (r *Reader) name(ctx context.Context, t *Page) error {
 }
 
 func interval(iv tickervalidity.Interval) *admincoveragev1.Interval {
-	out := &admincoveragev1.Interval{InstrId: iv.Instr.String(), Validity: types.ToProto[admincoveragev1.TickerValidity](iv.Validity)}
-	if iv.From != nil {
-		from := ymd(*iv.From)
-		out.ValidFrom = &from
+	return &admincoveragev1.Interval{
+		Period:   types.ProtoPeriod(iv.From, iv.Before),
+		InstrId:  iv.Instr.String(),
+		Validity: types.ToProto[admincoveragev1.TickerValidity](iv.Validity),
 	}
-	if iv.Before != nil {
-		before := ymd(*iv.Before)
-		out.ValidBefore = &before
-	}
-	return out
 }
 
 func ymd(d time.Time) string { return d.Format(time.DateOnly) }

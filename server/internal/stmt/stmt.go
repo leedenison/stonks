@@ -65,16 +65,17 @@ func (s *Service) Create(ctx context.Context, userID uuid.UUID, msg *stmtv1.Stmt
 	if !ok || broker == "" {
 		return gen.Run{}, fmt.Errorf("%w: broker %v", ErrInvalid, msg.GetBroker())
 	}
-	from, err := parseDate(msg.GetOrderFrom())
+	period := msg.GetPeriod()
+	from, err := parseDate(period.GetFrom())
 	if err != nil {
-		return gen.Run{}, fmt.Errorf("%w: order_from: %w", ErrInvalid, err)
+		return gen.Run{}, fmt.Errorf("%w: period.from: %w", ErrInvalid, err)
 	}
-	before, err := parseDate(msg.GetOrderBefore())
+	before, err := parseDate(period.GetBefore())
 	if err != nil {
-		return gen.Run{}, fmt.Errorf("%w: order_before: %w", ErrInvalid, err)
+		return gen.Run{}, fmt.Errorf("%w: period.before: %w", ErrInvalid, err)
 	}
 	if !from.Before(before) {
-		return gen.Run{}, fmt.Errorf("%w: period [%s, %s) is empty", ErrInvalid, msg.GetOrderFrom(), msg.GetOrderBefore())
+		return gen.Run{}, fmt.Errorf("%w: period [%s, %s) is empty", ErrInvalid, period.GetFrom(), period.GetBefore())
 	}
 	today := types.Day(s.clock())
 	g := &ingestion{store: s.store, runs: s.runs, resolver: s.resolver, facts: s.facts, user: userID, broker: broker, from: from, before: before, keys: map[string]*key{}}
