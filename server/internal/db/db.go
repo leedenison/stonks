@@ -65,18 +65,30 @@ func IsConflict(err error) bool {
 // IsRetryable returns true if a transaction failed because of another running
 // concurrently, so running it again may succeed.
 func IsRetryable(err error) bool {
+	_, ok := cause(err)
+	return ok
+}
+
+// cause returns why the database refused a transaction because of a
+// concurrent one, as one of the cause values in metrics.go. It reports false
+// for any other failure.
+func cause(err error) (string, bool) {
 	if errors.Is(err, ErrConcurrent) {
-		return true
+		return causeConcurrentWrite, true
 	}
 	var pgErr *pgconn.PgError
 	if !errors.As(err, &pgErr) {
-		return false
+		return "", false
 	}
 	switch pgErr.Code {
-	case pgerrcode.UniqueViolation, pgerrcode.DeadlockDetected, pgerrcode.SerializationFailure:
-		return true
+	case pgerrcode.UniqueViolation:
+		return causeUniqueViolation, true
+	case pgerrcode.DeadlockDetected:
+		return causeDeadlock, true
+	case pgerrcode.SerializationFailure:
+		return causeSerializationFailure, true
 	}
-	return false
+	return "", false
 }
 
 // Option configures a pool.

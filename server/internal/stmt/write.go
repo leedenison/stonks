@@ -22,6 +22,7 @@ import (
 func (g *ingestion) write(ctx context.Context, run gen.Run) error {
 	var accepted, rejected int64
 	err := g.store.Tx(ctx, func(q Queries) error {
+		accepted, rejected = 0, 0
 		if err := db.LockUserKeys(ctx, q, g.user); err != nil {
 			return err
 		}

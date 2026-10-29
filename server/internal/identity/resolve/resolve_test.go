@@ -11,8 +11,6 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
-	"github.com/jackc/pgerrcode"
-	"github.com/jackc/pgx/v5/pgconn"
 	"go.uber.org/mock/gomock"
 
 	"github.com/leedenison/stonks/server/internal/db"
@@ -385,43 +383,6 @@ func TestResolveUnresolved(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.findings, findings, cmp.AllowUnexported(finding{})); diff != "" {
 				t.Errorf("findings mismatch (-want +got):\n%s", diff)
-			}
-		})
-	}
-}
-
-// TestResolveRetry checks that a write the database refuses for its
-// interleaving with another transaction is retried, up to tries attempts,
-// and that any other failure is not.
-func TestResolveRetry(t *testing.T) {
-	refused := func(code string) error { return &pgconn.PgError{Code: code} }
-	boom := errors.New("boom")
-	tests := []struct {
-		name    string
-		errs    []error
-		calls   int
-		wantErr bool
-	}{
-		{name: "a unique violation then success", errs: []error{refused(pgerrcode.UniqueViolation), nil}, calls: 2},
-		{name: "a deadlock then success", errs: []error{refused(pgerrcode.DeadlockDetected), nil}, calls: 2},
-		{name: "a serialization failure then success", errs: []error{refused(pgerrcode.SerializationFailure), nil}, calls: 2},
-		{name: "a merge that moved an unlocked ticker then success", errs: []error{fmt.Errorf("merge moved ticker: %w", db.ErrConcurrent), nil}, calls: 2},
-		{name: "refused every time", errs: []error{refused(pgerrcode.DeadlockDetected), refused(pgerrcode.DeadlockDetected), refused(pgerrcode.DeadlockDetected)}, calls: tries, wantErr: true},
-		{name: "another failure", errs: []error{boom}, calls: 1, wantErr: true},
-	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			f := newFixture(t, entryA)
-			f.store.EXPECT().ListInstrsByIdentifiers(gomock.Any(), gomock.Any()).Return(nil, nil)
-			calls := 0
-			f.store.EXPECT().Tx(gomock.Any(), gomock.Any()).DoAndReturn(func(context.Context, func(Queries) error) error {
-				err := tc.errs[calls]
-				calls++
-				return err
-			}).Times(tc.calls)
-			_, _, err := f.resolver.Resolve(context.Background(), res, undated(keyOf(types.AssetClassStock, "USD", descr)))
-			if (err != nil) != tc.wantErr {
-				t.Errorf("Resolve() error = %v, wantErr %v", err, tc.wantErr)
 			}
 		})
 	}

@@ -35,9 +35,28 @@ func New[Q any](conn Conn) *DB[Q] {
 	return &DB[Q]{Queries: q, conn: conn}
 }
 
+// tries is the most times Tx runs fn in one call.
+const tries = 3
+
 // Tx runs fn over queries bound to one transaction, committing when fn
-// returns nil and rolling back otherwise.
-func (d *DB[Q]) Tx(ctx context.Context, fn func(Q) error) (err error) {
+// returns nil and rolling back otherwise. Tx runs fn again in a new
+// transaction when a concurrent transaction caused the failure, as
+// IsRetryable decides. It makes at most tries attempts. fn must therefore be
+// safe to run more than once. It assigns any state outside the transaction
+// rather than adding to it, and it has no effect outside the database.
+func (d *DB[Q]) Tx(ctx context.Context, fn func(Q) error) error {
+	for attempt := 1; ; attempt++ {
+		err := d.once(ctx, fn)
+		c, retry := cause(err)
+		if !retry || attempt >= tries {
+			return err
+		}
+		metrics.retry(ctx, c)
+	}
+}
+
+// once runs fn in one transaction.
+func (d *DB[Q]) once(ctx context.Context, fn func(Q) error) (err error) {
 	tx, err := d.conn.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("begin: %w", err)

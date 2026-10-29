@@ -40,6 +40,9 @@ type harness struct {
 	created int64
 	// keyErr fails every fetch key write.
 	keyErr error
+	// txRuns is how many times Tx runs its closure, as it does when the
+	// database refuses an attempt. Zero runs it once.
+	txRuns int
 	// onSleep runs as the clock sleeps.
 	onSleep func()
 }
@@ -65,6 +68,11 @@ func newHarness(t *testing.T, integration Integration, open []gen.DatasourceBloc
 		}).AnyTimes()
 
 	h.store.EXPECT().Tx(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, fn func(Queries) error) error {
+		for range max(h.txRuns, 1) - 1 {
+			if err := fn(h.store); err != nil {
+				return err
+			}
+		}
 		return fn(h.store)
 	}).AnyTimes()
 	h.store.EXPECT().CreateFetch(gomock.Any(), gomock.Any()).Return(gen.Fetch{}, nil).AnyTimes()
@@ -699,21 +707,23 @@ func TestFetchBlockSuppressesLaterRequests(t *testing.T) {
 }
 
 // TestFetchFindings checks that a block counts a finding only where its write
-// inserted one.
+// inserted one, and once however many times the transaction runs.
 func TestFetchFindings(t *testing.T) {
 	tests := []struct {
 		name    string
 		created int64
+		txRuns  int
 		want    map[string]int64
 	}{
 		{name: "a new block", created: 1, want: map[string]int64{"stonks.findings{kind=block}": 1}},
+		{name: "a new block written twice", created: 1, txRuns: 2, want: map[string]int64{"stonks.findings{kind=block}": 1}},
 		{name: "a block already open", created: 0, want: map[string]int64{}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			f := &fake{errs: []error{credential("401")}}
 			h := newHarness(t, f, nil)
-			h.created = tc.created
+			h.created, h.txRuns = tc.created, tc.txRuns
 			counts(t)
 
 			h.run(t, keyOf(f, "GB00B03MLX29"))
