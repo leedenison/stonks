@@ -2,14 +2,13 @@ import path from "node:path";
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { FetchKind } from "../gen/admin/block/v1/block_pb";
 import { FetchOutcome } from "../gen/admin/run/v1/run_pb";
-import { RunState } from "../gen/run/v1/run_pb";
+import { RunKind, RunState } from "../gen/run/v1/run_pb";
 import { IdentifierType, ResolutionOutcome } from "../gen/type/v1/type_pb";
 import {
   instrListedAs,
   adminRunClient,
   assertionItems,
   coverageClient,
-  reassertTickersClient,
   fetchItems,
   stmtClient,
 } from "../helpers/api";
@@ -50,8 +49,9 @@ test("extends the ticker validity of a held ticker on the day it runs", async ({
   });
 
   const started = (
-    await reassertTickersClient(adminSession).startReassertTickers({})
+    await adminRuns.startSystemRun({ kind: RunKind.REASSERT_TICKERS })
   ).run!;
+  expect(started.kind).toBe(RunKind.REASSERT_TICKERS);
   await expect
     .poll(
       async () =>

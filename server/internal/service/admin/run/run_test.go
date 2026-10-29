@@ -3,6 +3,7 @@ package run
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"testing"
 	"time"
@@ -24,6 +25,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/platform/ptr"
+	runner "github.com/leedenison/stonks/server/internal/run"
 	"github.com/leedenison/stonks/server/internal/service/admin/page"
 	"github.com/leedenison/stonks/server/internal/service/admin/run/mock"
 	"github.com/leedenison/stonks/server/internal/service/servicetest"
@@ -51,21 +53,26 @@ var (
 )
 
 type fixture struct {
-	store  *mock.MockQueries
-	client adminrunv1connect.RunServiceClient
+	store     *mock.MockQueries
+	reasserts *mock.MockStarter
+	refreshes *mock.MockStarter
+	client    adminrunv1connect.RunServiceClient
 }
 
 // newFixture mounts a Server with the real handler chain, and a client whose
-// session belongs to an administrator.
+// session belongs to an administrator. The server starts reassert tickers
+// and refresh corporate actions runs only. A rebuild ticker validity run has
+// no starter.
 func newFixture(t *testing.T) *fixture {
 	t.Helper()
 	ctrl := gomock.NewController(t)
 	t.Cleanup(ctrl.Finish)
 	authn := servicetest.AsAdmin(ctrl)
-	f := &fixture{store: mock.NewMockQueries(ctrl)}
+	f := &fixture{store: mock.NewMockQueries(ctrl), reasserts: mock.NewMockStarter(ctrl), refreshes: mock.NewMockStarter(ctrl)}
+	starters := map[gen.RunKind]Starter{gen.RunKindReassertTickers: f.reasserts, gen.RunKindRefreshCorpActs: f.refreshes}
 	opts := servicetest.Options(t, authn)
 	srv := servicetest.Serve(t, func(mux *http.ServeMux) {
-		mux.Handle(adminrunv1connect.NewRunServiceHandler(New(f.store), opts...))
+		mux.Handle(adminrunv1connect.NewRunServiceHandler(New(f.store, starters), opts...))
 	})
 	f.client = adminrunv1connect.NewRunServiceClient(srv.Client, srv.URL)
 	return f
@@ -509,6 +516,45 @@ func TestClearFinding(t *testing.T) {
 			_, err := f.client.ClearFinding(context.Background(), connect.NewRequest(&adminrunv1.ClearFindingRequest{FindingId: findingID.String()}))
 			if servicetest.CodeOf(err) != tc.wantCode {
 				t.Errorf("ClearFinding() code = %v (err %v), want %v", servicetest.CodeOf(err), err, tc.wantCode)
+			}
+		})
+	}
+}
+
+// TestStartSystemRun checks that each kind reaches its own starter, that a
+// starter finding nothing is a failed precondition, and that a kind without
+// a starter or outside the system kinds is refused.
+func TestStartSystemRun(t *testing.T) {
+	started := gen.Run{ID: runID, Kind: gen.RunKindRefreshCorpActs, Trigger: gen.RunTriggerAdministrator, State: gen.RunStatePending, CreatedAt: created}
+	tests := []struct {
+		name     string
+		kind     runv1.RunKind
+		starter  func(*fixture) *mock.MockStarter
+		err      error
+		wantCode connect.Code
+	}{
+		{name: "refresh corporate actions", kind: runv1.RunKind_RUN_KIND_REFRESH_CORP_ACTS, starter: func(f *fixture) *mock.MockStarter { return f.refreshes }},
+		{name: "nothing to work on", kind: runv1.RunKind_RUN_KIND_REASSERT_TICKERS, starter: func(f *fixture) *mock.MockStarter { return f.reasserts }, err: fmt.Errorf("none held: %w", runner.ErrEmpty), wantCode: connect.CodeFailedPrecondition},
+		{name: "starter failure", kind: runv1.RunKind_RUN_KIND_REASSERT_TICKERS, starter: func(f *fixture) *mock.MockStarter { return f.reasserts }, err: errors.New("boom"), wantCode: connect.CodeInternal},
+		{name: "no starter", kind: runv1.RunKind_RUN_KIND_REBUILD_TICKER_VALIDITY, wantCode: connect.CodeInternal},
+		{name: "not a system kind", kind: runv1.RunKind_RUN_KIND_INGEST_STMT, wantCode: connect.CodeInvalidArgument},
+		{name: "unspecified", kind: runv1.RunKind_RUN_KIND_UNSPECIFIED, wantCode: connect.CodeInvalidArgument},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFixture(t)
+			if tc.starter != nil {
+				tc.starter(f).EXPECT().Start(gomock.Any()).Return(started, tc.err)
+			}
+			res, err := f.client.StartSystemRun(context.Background(), connect.NewRequest(&adminrunv1.StartSystemRunRequest{Kind: tc.kind}))
+			if servicetest.CodeOf(err) != tc.wantCode {
+				t.Fatalf("StartSystemRun(%v) code = %v (err %v), want %v", tc.kind, servicetest.CodeOf(err), err, tc.wantCode)
+			}
+			if err != nil {
+				return
+			}
+			if got := res.Msg.GetRun(); got.GetId() != runID.String() || got.GetState() != runv1.RunState_RUN_STATE_PENDING {
+				t.Errorf("StartSystemRun(%v) = %v, want the pending run", tc.kind, got)
 			}
 		})
 	}

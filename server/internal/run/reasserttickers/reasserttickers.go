@@ -9,7 +9,6 @@ package reasserttickers
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/leedenison/stonks/server/internal/db/gen"
@@ -19,7 +18,7 @@ import (
 )
 
 // ErrEmpty reports that Start found no held ticker.
-var ErrEmpty = errors.New("no ticker is held")
+var ErrEmpty = fmt.Errorf("no ticker is held: %w", run.ErrEmpty)
 
 // lane serialises reassert tickers runs.
 const lane = "reassert_tickers"

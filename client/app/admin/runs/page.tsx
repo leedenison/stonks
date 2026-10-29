@@ -19,10 +19,8 @@ import {
   runEnums,
 } from "@/lib/admin";
 import { enumLabel, enumParam, enumValues } from "@/lib/enum";
-import { ReassertTickersDialog } from "./reassert-tickers-dialog";
-import { RebuildTickerValidityDialog } from "./rebuild-ticker-validity-dialog";
-import { RefreshCorpActsDialog } from "./refresh-corp-acts-dialog";
 import { RunRow, RunTreeTable } from "./run-tree";
+import { StartRunDialog, type SystemRun, systemRuns } from "./start-run-dialog";
 
 // Every user's runs, newest first, filtered by what the address names, each
 // top-level run a row that opens onto the runs below it. The filters live in
@@ -44,9 +42,7 @@ function Runs() {
   // toggled holds the rows an administrator opened or closed; a row not in
   // it is open when it is on the path to a match rather than a match.
   const [toggled, setToggled] = useState<Record<string, boolean>>({});
-  const [reasserting, setReasserting] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const [rebuilding, setRebuilding] = useState(false);
+  const [opened, setOpened] = useState<SystemRun | null>(null);
   const go = (next: Partial<RunFilters>) =>
     router.replace(filterQuery({ ...f, before: "", ...next }));
 
@@ -57,30 +53,17 @@ function Runs() {
       testId="admin-runs-page"
       actions={
         <>
-          <Button
-            variant="text"
-            data-testid="runs-reassert-tickers"
-            onClick={() => setReasserting(true)}
-          >
-            <RefreshCw aria-hidden className="h-4 w-4" />
-            Reassert tickers
-          </Button>
-          <Button
-            variant="text"
-            data-testid="runs-refresh-corp-acts"
-            onClick={() => setRefreshing(true)}
-          >
-            <RefreshCw aria-hidden className="h-4 w-4" />
-            Refresh corporate actions
-          </Button>
-          <Button
-            variant="text"
-            data-testid="runs-rebuild-ticker-validity"
-            onClick={() => setRebuilding(true)}
-          >
-            <RefreshCw aria-hidden className="h-4 w-4" />
-            Rebuild ticker validity
-          </Button>
+          {systemRuns.map((r) => (
+            <Button
+              key={r.kind}
+              variant="text"
+              data-testid={`runs-${r.testId}`}
+              onClick={() => setOpened(r)}
+            >
+              <RefreshCw aria-hidden className="h-4 w-4" />
+              {r.title}
+            </Button>
+          ))}
         </>
       }
     >
@@ -143,29 +126,12 @@ function Runs() {
             : undefined
         }
       />
-      {reasserting && (
-        <ReassertTickersDialog
-          onClose={() => setReasserting(false)}
+      {opened && (
+        <StartRunDialog
+          run={opened}
+          onClose={() => setOpened(null)}
           onStarted={(started) => {
-            setReasserting(false);
-            router.push(`/admin/runs/${started.id}`);
-          }}
-        />
-      )}
-      {refreshing && (
-        <RefreshCorpActsDialog
-          onClose={() => setRefreshing(false)}
-          onStarted={(started) => {
-            setRefreshing(false);
-            router.push(`/admin/runs/${started.id}`);
-          }}
-        />
-      )}
-      {rebuilding && (
-        <RebuildTickerValidityDialog
-          onClose={() => setRebuilding(false)}
-          onStarted={(started) => {
-            setRebuilding(false);
+            setOpened(null);
             router.push(`/admin/runs/${started.id}`);
           }}
         />

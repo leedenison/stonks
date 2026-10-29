@@ -263,7 +263,19 @@ message ClearFindingRequest {
 
 message ClearFindingResponse {}
 
-// Reads every user's runs and findings.
+message StartSystemRunRequest {
+  stonks.run.v1.RunKind kind = 1 [(buf.validate.field).enum = {
+    defined_only: true
+    in: [6, 7, 8]
+  }];
+}
+
+message StartSystemRunResponse {
+  // The run, pending.
+  stonks.run.v1.Run run = 1;
+}
+
+// Reads every user's runs and findings, and starts system runs.
 service RunService {
   // Lists every user's runs matching the filters.
   rpc ListRuns(ListRunsRequest) returns (ListRunsResponse);
@@ -275,4 +287,13 @@ service RunService {
   // block clears it, and the call is refused as a failed precondition.
   // Clearing a cleared finding succeeds.
   rpc ClearFinding(ClearFindingRequest) returns (ClearFindingResponse);
+  // Starts a system run of the kind. REASSERT_TICKERS asks each enabled
+  // datasource once about each held ticker, skipping the cache.
+  // REFRESH_CORP_ACTS asks the corporate actions source of each market about
+  // the tickers there that named a held instrument, skipping the cache.
+  // REBUILD_TICKER_VALIDITY rebuilds the ticker validity and names of every
+  // ticker from the stored facts. A fetch spends the datasource's quota.
+  // Where a reassertion or a refresh finds nothing held, the call is refused
+  // as a failed precondition.
+  rpc StartSystemRun(StartSystemRunRequest) returns (StartSystemRunResponse);
 }
