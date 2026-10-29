@@ -183,8 +183,9 @@ func fetchRun[Q, P any](ctx context.Context, f *Fetcher, row gen.Run, e *Entry, 
 	if err := writeCache(ctx, f, fetchKeys, batch, cacheKeys); err != nil {
 		return nil, err
 	}
-	found := 0
+	var found int
 	err = f.store.Tx(ctx, func(q Queries) error {
+		found = 0
 		for i := range fetchKeys {
 			if err := record(ctx, q, row, kind, fetchKeys[i]); err != nil {
 				return err

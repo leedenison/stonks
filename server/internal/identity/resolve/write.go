@@ -15,10 +15,6 @@ import (
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
-// tries is the number of times a key's write is attempted when the database
-// refuses it for a concurrent transaction.
-const tries = 3
-
 // write records the outcome of res against run in a transaction of its own.
 // A key with a winner is written under an advisory lock on the identifiers
 // it states and every identifier its responses name, which covers every
@@ -32,19 +28,13 @@ func (r *Resolver) write(ctx context.Context, run gen.Run, res *resolution, choi
 	if err := r.createTickers(ctx, res); err != nil {
 		return gen.ResolutionKey{}, fmt.Errorf("resolve key %s: %w", res.row.ID, err)
 	}
-	for attempt := 1; ; attempt++ {
-		err := r.store.Tx(ctx, func(q Queries) error {
-			var err error
-			out, written, err = r.resolveKey(ctx, q, run, res, choice)
-			return err
-		})
-		if err == nil {
-			break
-		}
-		if !db.IsRetryable(err) || attempt >= tries {
-			return gen.ResolutionKey{}, fmt.Errorf("resolve key %s: %w", res.row.ID, err)
-		}
-		r.log.Debug("retrying a resolution write", "key", res.row.ID, "attempt", attempt)
+	err := r.store.Tx(ctx, func(q Queries) error {
+		var err error
+		out, written, err = r.resolveKey(ctx, q, run, res, choice)
+		return err
+	})
+	if err != nil {
+		return gen.ResolutionKey{}, fmt.Errorf("resolve key %s: %w", res.row.ID, err)
 	}
 	for _, kind := range written {
 		runs.Found(ctx, kind)
@@ -197,8 +187,8 @@ func lockTickers(ctx context.Context, q Queries, res *resolution, merging []inst
 // checkMoved returns db.ErrConcurrent when the survivor of a merge has a
 // ticker outside known. A concurrent write of facts can assert a loser on a
 // ticker after lockTickers listed the losers' tickers. The merge then moves an
-// assertion of a ticker that the write neither locked nor rebuilds, so the
-// write is retried.
+// assertion of a ticker that the write neither locked nor rebuilds. The error
+// is retryable, so the transaction runs the write again.
 func checkMoved(ctx context.Context, q Queries, survivor uuid.UUID, known []uuid.UUID) error {
 	ids, err := q.ListTickersOfInstrs(ctx, []uuid.UUID{survivor})
 	if err != nil {
