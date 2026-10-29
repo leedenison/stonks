@@ -19,8 +19,7 @@ import (
 type CalendarQueries interface {
 	ReadQueries
 	MarketQueries
-	tickervalidity.ValidityQueries
-	ListTickersNaming(ctx context.Context, instrs []uuid.UUID) ([]gen.ListTickersNamingRow, error)
+	tickervalidity.NamingQueries
 }
 
 var _ CalendarQueries = (*gen.Queries)(nil)
@@ -73,20 +72,15 @@ func Calendars(ctx context.Context, q CalendarQueries, instrs []uuid.UUID) (map[
 	if err != nil || len(markets) == 0 {
 		return out, err
 	}
-	rows, err := q.ListTickersNaming(ctx, slices.Collect(maps.Keys(markets)))
-	if err != nil {
-		return nil, fmt.Errorf("list the tickers of the instruments: %w", err)
-	}
-	var ts []types.MarketTicker
-	for _, row := range rows {
-		t := types.MarketTicker{Market: row.Market, Value: row.Value}
-		if markets[row.InstrID] == row.Market && !slices.Contains(ts, t) {
-			ts = append(ts, t)
-		}
-	}
-	read, err := tickervalidity.Load(ctx, q, ts)
+	read, err := tickervalidity.LoadNaming(ctx, q, slices.Collect(maps.Keys(markets)))
 	if err != nil {
 		return nil, fmt.Errorf("read the ticker validity of the instruments' tickers: %w", err)
+	}
+	var ts []types.MarketTicker
+	for t, ivs := range read {
+		if slices.ContainsFunc(ivs, func(iv tickervalidity.Interval) bool { return markets[iv.Instr] == t.Market }) {
+			ts = append(ts, t)
+		}
 	}
 	answers, err := Read(ctx, q, ts, always)
 	if err != nil {

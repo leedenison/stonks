@@ -85,16 +85,33 @@ JOIN tickers ON tickers.id = stated_keys.via_ticker_id
 WHERE EXISTS (SELECT 1 FROM txns WHERE txns.stated_key_id = stated_keys.id)
 ORDER BY stated_keys.via_venue, stated_keys.via_ticker_id, stated_keys.created_at, stated_keys.id;
 
+-- name: ListHeldInstrIDs :many
+-- The id of each instrument that a transaction names on its as-at date. A
+-- non-NULL user_id reads only the transactions of that user.
+SELECT DISTINCT txn_instrs.instr_id::uuid AS instr_id
+FROM txn_instrs
+WHERE txn_instrs.instr_id IS NOT NULL
+  AND (sqlc.narg(user_id)::uuid IS NULL OR txn_instrs.user_id = sqlc.narg(user_id))
+ORDER BY 1;
+
 -- name: ListHeldInstrs :many
--- Each instrument that a transaction names on its as-at date, with each user
--- of such a transaction and the earliest as-at date of that user's
+-- Each of instr_ids that a transaction names on its as-at date, with each
+-- user of such a transaction and the earliest as-at date of that user's
 -- transactions on it.
 SELECT txn_instrs.instr_id::uuid AS instr_id, txn_instrs.user_id,
        MIN(txn_instrs.as_at)::date AS first_as_at
 FROM txn_instrs
-WHERE txn_instrs.instr_id IS NOT NULL
+WHERE txn_instrs.instr_id = ANY(@instr_ids::uuid[])
 GROUP BY txn_instrs.instr_id, txn_instrs.user_id
 ORDER BY txn_instrs.instr_id, txn_instrs.user_id;
+
+-- name: ListTickersNaming :many
+-- The tickers whose ticker validity names one of instrs on some day.
+SELECT DISTINCT tickers.market, tickers.value
+FROM ticker_validity
+JOIN tickers ON tickers.id = ticker_validity.ticker_id
+WHERE ticker_validity.instr_id = ANY(@instrs::uuid[])
+ORDER BY tickers.market, tickers.value;
 
 -- name: ListRunAssertions :many
 -- The assertions a run wrote: those of the fetch runs it started, and those

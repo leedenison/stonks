@@ -25,6 +25,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/mic"
 	"github.com/leedenison/stonks/server/internal/platform/ptr"
+	"github.com/leedenison/stonks/server/internal/run/refreshcorpacts"
 	"github.com/leedenison/stonks/server/internal/stmt"
 	"github.com/leedenison/stonks/server/internal/testutil/dbtest"
 	"github.com/leedenison/stonks/server/internal/testutil/runtest"
@@ -85,7 +86,7 @@ func newStack(t *testing.T) *stack {
 	require.NoError(t, err)
 	resolver := resolve.New(db.New[resolve.Queries](tx), fetcher, s.sources, mics, families, clock, log)
 	s.svc = New(db.New[Queries](tx), runs, resolver, nopCorpActs{}, s.sources, mics, log)
-	s.stmts = stmt.New(db.New[stmt.Queries](tx), runs, resolver, s.svc, nopCorpActs{}, families, clock, log)
+	s.stmts = stmt.New(db.New[stmt.Queries](tx), runs, resolver, s.svc, families, clock, log)
 	return s
 }
 
@@ -508,7 +509,4 @@ func (s *stack) holdings(t *testing.T) (instrs, groups []holding) {
 // refreshcorpacts package tests that fetch.
 type nopCorpActs struct{}
 
-func (nopCorpActs) FetchAfterIdentifierFacts(context.Context, gen.Run, []resolve.WrittenIdentifierFacts) {
-}
-
-func (nopCorpActs) AfterStmt(context.Context, gen.Run) {}
+func (nopCorpActs) FetchHeld(context.Context, gen.Run, refreshcorpacts.Scope) {}

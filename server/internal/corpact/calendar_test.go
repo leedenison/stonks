@@ -66,7 +66,7 @@ func (s *canned) names(market, value string, instr uuid.UUID, start, end *time.T
 	if _, ok := s.markets[instr]; !ok {
 		s.at(instr, market)
 	}
-	s.naming = append(s.naming, gen.ListTickersNamingRow{InstrID: instr, Market: market, Value: value})
+	s.naming = append(s.naming, gen.ListTickersNamingRow{Market: market, Value: value})
 	s.validity = append(s.validity, gen.ListTickerValidityRow{
 		Market: market, Value: value, InstrID: instr, ValidFrom: start, ValidBefore: end, Validity: gen.ValidityConfirmed,
 	})
@@ -190,7 +190,7 @@ func TestCalendarsOneMarket(t *testing.T) {
 	var s canned
 	s.names("US", "X", instr, nil, nil)
 	s.names("XTSE", "X", instr, nil, nil)
-	s.naming = append(s.naming, gen.ListTickersNamingRow{InstrID: unplaced, Market: "US", Value: "Y"})
+	s.naming = append(s.naming, gen.ListTickersNamingRow{Market: "US", Value: "Y"})
 	s.validity = append(s.validity, gen.ListTickerValidityRow{Market: "US", Value: "Y", InstrID: unplaced, Validity: gen.ValidityConfirmed})
 	s.answer("alpha", "US", "X", day(2012, 1, 1), today)
 	ca := s.answer("beta", "XTSE", "X", day(2012, 1, 1), today)

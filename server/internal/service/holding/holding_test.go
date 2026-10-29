@@ -318,7 +318,7 @@ func TestListHoldingsRestated(t *testing.T) {
 	}, nil)
 	f.reader.EXPECT().ListInstrsByID(gomock.Any(), gomock.Any()).Return([]gen.Instr{{ID: acmeID, AssetClass: types.AssetClassStock}}, nil)
 	f.reader.EXPECT().ListInstrMarkets(gomock.Any(), []uuid.UUID{acmeID}).Return([]gen.ListInstrMarketsRow{{InstrID: acmeID, Market: "US"}}, nil)
-	f.reader.EXPECT().ListTickersNaming(gomock.Any(), []uuid.UUID{acmeID}).Return([]gen.ListTickersNamingRow{{InstrID: acmeID, Market: "US", Value: "ACME"}}, nil)
+	f.reader.EXPECT().ListTickersNaming(gomock.Any(), []uuid.UUID{acmeID}).Return([]gen.ListTickersNamingRow{{Market: "US", Value: "ACME"}}, nil)
 	f.reader.EXPECT().ListTickerValidity(gomock.Any(), gomock.Any()).Return([]gen.ListTickerValidityRow{{Market: "US", Value: "ACME", InstrID: acmeID, Validity: gen.ValidityConfirmed}}, nil)
 	f.reader.EXPECT().ListCorpActAnswers(gomock.Any(), gomock.Any()).Return([]gen.ListCorpActAnswersRow{{
 		CorpActAnswer: gen.CorpActAnswer{ID: answerID, Datasource: "alpha", CoveredFrom: &from, CoveredBefore: &before}, Market: "US", Value: "ACME",

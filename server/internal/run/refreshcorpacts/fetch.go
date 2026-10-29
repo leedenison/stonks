@@ -2,7 +2,7 @@ package refreshcorpacts
 
 import (
 	"context"
-	"slices"
+	"fmt"
 
 	"github.com/google/uuid"
 
@@ -13,69 +13,62 @@ import (
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
-// AfterStmt fetches the corporate actions of the tickers of the held
-// instruments of statement's user, beneath statement. A failure is logged,
-// and the statement's outcome stands.
-func (s *Service) AfterStmt(ctx context.Context, stmt gen.Run) {
-	if stmt.UserID == nil {
-		return
-	}
-	user := *stmt.UserID
-	hs, err := s.heldInstrs(ctx)
-	if err != nil {
-		s.log.Warn("corporate actions fetch after a statement failed", "run", stmt.ID, "err", err)
-		return
-	}
-	asks, err := s.requests(ctx, hs, func(_ uuid.UUID, h *held) bool { return slices.Contains(h.users, user) })
-	if err != nil {
-		s.log.Warn("corporate actions fetch after a statement failed", "run", stmt.ID, "err", err)
-		return
-	}
-	s.beneath(ctx, stmt, asks)
+// Scope selects instruments for FetchHeld, which keeps only those that are
+// held.
+type Scope struct {
+	// Written selects each instrument that a ticker of the new identifier
+	// facts names on any day. Attribution may move to a ticker that has never
+	// been fetched.
+	Written []resolve.WrittenIdentifierFacts
+	// User, when set, selects every instrument that the user holds.
+	User *uuid.UUID
 }
 
-// FetchAfterIdentifierFacts fetches the corporate actions of the tickers of
-// each held instrument that a ticker of written names on any day, beneath
-// parent, the run that wrote the facts or started the runs that did.
-// Attribution may move to a ticker that has never been fetched. A failure is
-// logged, and parent's outcome stands.
-func (s *Service) FetchAfterIdentifierFacts(ctx context.Context, parent gen.Run, written []resolve.WrittenIdentifierFacts) {
-	var ts []types.MarketTicker
-	for _, w := range written {
-		for _, t := range w.Tickers {
-			if !slices.Contains(ts, t) {
-				ts = append(ts, t)
-			}
-		}
-	}
-	if len(ts) == 0 {
-		return
-	}
-	read, err := tickervalidity.Load(ctx, s.queries, ts)
+// FetchHeld fetches the corporate actions of the tickers of the held
+// instruments that scope selects, beneath parent. A failure is logged, and
+// parent's outcome stands.
+func (s *Service) FetchHeld(ctx context.Context, parent gen.Run, scope Scope) {
+	kept, err := s.selected(ctx, scope)
 	if err != nil {
-		s.log.Warn("corporate actions fetch after new identifier facts failed", "run", parent.ID, "err", err)
+		s.log.Warn("corporate actions fetch failed", "parent", parent.ID, "err", err)
 		return
 	}
-	named := map[uuid.UUID]bool{}
-	for _, ivs := range read {
-		for _, iv := range ivs {
-			named[iv.Instr] = true
-		}
-	}
-	if len(named) == 0 {
-		return
-	}
-	hs, err := s.heldInstrs(ctx)
+	asks, err := s.requests(ctx, kept)
 	if err != nil {
-		s.log.Warn("corporate actions fetch after new identifier facts failed", "run", parent.ID, "err", err)
-		return
-	}
-	asks, err := s.requests(ctx, hs, func(id uuid.UUID, _ *held) bool { return named[id] })
-	if err != nil {
-		s.log.Warn("corporate actions fetch after new identifier facts failed", "run", parent.ID, "err", err)
+		s.log.Warn("corporate actions fetch failed", "parent", parent.ID, "err", err)
 		return
 	}
 	s.beneath(ctx, parent, asks)
+}
+
+// selected returns the instruments that scope selects. An instrument may
+// appear more than once.
+func (s *Service) selected(ctx context.Context, scope Scope) ([]uuid.UUID, error) {
+	var out []uuid.UUID
+	if scope.User != nil {
+		ids, err := s.queries.ListHeldInstrIDs(ctx, scope.User)
+		if err != nil {
+			return nil, fmt.Errorf("list the user's held instruments: %w", err)
+		}
+		out = ids
+	}
+	var ts []types.MarketTicker
+	for _, w := range scope.Written {
+		ts = append(ts, w.Tickers...)
+	}
+	if len(ts) == 0 {
+		return out, nil
+	}
+	read, err := tickervalidity.Load(ctx, s.queries, ts)
+	if err != nil {
+		return nil, err
+	}
+	for _, ivs := range read {
+		for _, iv := range ivs {
+			out = append(out, iv.Instr)
+		}
+	}
+	return out, nil
 }
 
 // beneath fetches asks beneath parent. Beneath a user's run, a ticker that

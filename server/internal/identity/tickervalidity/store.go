@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/uuid"
+
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/types"
 )
@@ -64,6 +66,34 @@ func Load(ctx context.Context, q ValidityQueries, ts []types.MarketTicker) (map[
 		out[t] = append(out[t], Interval{From: r.ValidFrom, Before: r.ValidBefore, Instr: r.InstrID, Validity: r.Validity})
 	}
 	return out, nil
+}
+
+// NamingQueries read the stored ticker validity of the tickers that name
+// instruments.
+type NamingQueries interface {
+	ValidityQueries
+	ListTickersNaming(ctx context.Context, instrs []uuid.UUID) ([]gen.ListTickersNamingRow, error)
+}
+
+var _ NamingQueries = (*gen.Queries)(nil)
+
+// LoadNaming reads the stored ticker validity of each ticker that names one of
+// instrs on some day, with two queries however many instruments there are.
+// The Intervals of each ticker hold every instrument it names, including
+// those outside instrs.
+func LoadNaming(ctx context.Context, q NamingQueries, instrs []uuid.UUID) (map[types.MarketTicker]Intervals, error) {
+	if len(instrs) == 0 {
+		return map[types.MarketTicker]Intervals{}, nil
+	}
+	rows, err := q.ListTickersNaming(ctx, instrs)
+	if err != nil {
+		return nil, fmt.Errorf("list the tickers naming the instruments: %w", err)
+	}
+	ts := make([]types.MarketTicker, len(rows))
+	for i, r := range rows {
+		ts[i] = types.MarketTicker{Market: r.Market, Value: r.Value}
+	}
+	return Load(ctx, q, ts)
 }
 
 // ReadRows reads the assertion and assertion coverage rows of t.

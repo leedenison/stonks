@@ -32,13 +32,11 @@ const fixtures = ["standard-meta-2024.json", "standard-meta-2021.json"].map(
 );
 const meta = { type: IdentifierType.MIC_TICKER, domain: "XNAS", value: "META" };
 
-// identifying lists the datasource of each identity fetch and identifier facts
-// fetch under a resolve statement keys run. It leaves out corporate actions
-// fetches, which new identifier facts also start there.
+// identifying lists the datasource of each fetch under the resolve statement
+// keys run of a statement. A statement fetches corporate actions under its
+// own run, so each of these is an identity or identifier facts fetch.
 function identifying(resolution: UserRun): (string | undefined)[] {
-  return resolution.children
-    .filter((c) => c.fetch?.kind !== FetchKind.CORP_ACTS)
-    .map((c) => c.fetch?.datasource);
+  return resolution.children.map((c) => c.fetch?.datasource);
 }
 const composite = "BBG000MM2P62";
 

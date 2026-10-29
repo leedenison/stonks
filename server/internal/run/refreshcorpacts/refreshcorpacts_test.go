@@ -134,17 +134,18 @@ func TestBeneathOwnOnly(t *testing.T) {
 	f.svc.beneath(context.Background(), userRun, []ask{a})
 }
 
-// TestFetchAfterNoTicker checks that an empty list of facts fetches nothing.
-func TestFetchAfterNoTicker(t *testing.T) {
+// TestFetchHeldEmpty checks that a scope with no facts and no user fetches
+// nothing.
+func TestFetchHeldEmpty(t *testing.T) {
 	f := newFixture(t)
-	f.svc.FetchAfterIdentifierFacts(context.Background(), userRun, nil)
+	f.svc.FetchHeld(context.Background(), userRun, Scope{})
 }
 
 // TestStartEmpty checks that a refresh over an empty holding is refused
 // before a run is created.
 func TestStartEmpty(t *testing.T) {
 	f := newFixture(t)
-	f.queries.EXPECT().ListHeldInstrs(gomock.Any()).Return(nil, nil)
+	f.queries.EXPECT().ListHeldInstrIDs(gomock.Any(), nil).Return(nil, nil)
 	if _, err := f.starter.Start(context.Background()); !errors.Is(err, ErrEmpty) {
 		t.Errorf("Start() error = %v, want %v", err, ErrEmpty)
 	}

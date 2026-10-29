@@ -72,7 +72,6 @@ type fixture struct {
 	runs     *MockRunner
 	resolver *MockResolver
 	facts    *MockFacts
-	events   *MockCorpActs
 	svc      *Service
 	spec     run.Spec
 	workErr  error
@@ -82,11 +81,8 @@ type fixture struct {
 	resolveErr error
 	// written is what the mock resolver returns as the facts it wrote.
 	written []resolve.WrittenIdentifierFacts
-	// replayed records each call to follow new facts.
+	// replayed records each call to follow new facts or a statement.
 	replayed []replayCall
-	// fetched records the run of each corporate actions fetch after a
-	// statement.
-	fetched []gen.Run
 	// followed names the calls after the write and the settling of the
 	// statement, in the order they came.
 	followed []string
@@ -97,20 +93,22 @@ type fixture struct {
 	calls []string
 }
 
-// newFixture returns a service whose store runs a transaction inline over
-// itself and whose runner runs Prepare and the work inline, so a case
-// observes every write in order.
-// replayCall is one call to replay new identifier facts.
+// replayCall is one call to follow new facts or a statement. stmt is set
+// for a statement.
 type replayCall struct {
+	stmt    gen.Run
 	except  gen.Run
 	written []resolve.WrittenIdentifierFacts
 }
 
+// newFixture returns a service whose store runs a transaction inline over
+// itself and whose runner runs Prepare and the work inline, so a case
+// observes every write in order.
 func newFixture(t *testing.T) *fixture {
 	t.Helper()
 	ctrl := gomock.NewController(t)
 	t.Cleanup(ctrl.Finish)
-	f := &fixture{store: NewMockStore(ctrl), runs: NewMockRunner(ctrl), resolver: NewMockResolver(ctrl), facts: NewMockFacts(ctrl), events: NewMockCorpActs(ctrl)}
+	f := &fixture{store: NewMockStore(ctrl), runs: NewMockRunner(ctrl), resolver: NewMockResolver(ctrl), facts: NewMockFacts(ctrl)}
 	f.outcomes = func(keys []gen.StatedKey) []gen.ResolutionKey {
 		out := make([]gen.ResolutionKey, len(keys))
 		for i, k := range keys {
@@ -152,18 +150,18 @@ func newFixture(t *testing.T) *fixture {
 		return row, work(ctx, row)
 	}).AnyTimes()
 	f.facts.EXPECT().AfterIdentifierFacts(gomock.Any(), gomock.Any(), gomock.Any()).Do(func(_ context.Context, except gen.Run, written []resolve.WrittenIdentifierFacts) {
-		f.replayed = append(f.replayed, replayCall{except, written})
+		f.replayed = append(f.replayed, replayCall{except: except, written: written})
 		f.followed = append(f.followed, "facts")
 	}).AnyTimes()
-	f.events.EXPECT().AfterStmt(gomock.Any(), gomock.Any()).Do(func(_ context.Context, stmt gen.Run) {
-		f.fetched = append(f.fetched, stmt)
-		f.followed = append(f.followed, "corporate actions")
+	f.facts.EXPECT().AfterStmt(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Do(func(_ context.Context, stmt, except gen.Run, written []resolve.WrittenIdentifierFacts) {
+		f.replayed = append(f.replayed, replayCall{stmt, except, written})
+		f.followed = append(f.followed, "follow-ups")
 	}).AnyTimes()
 	f.store.EXPECT().SettleStmt(gomock.Any(), gomock.Any()).DoAndReturn(func(context.Context, uuid.UUID) error {
 		f.followed = append(f.followed, "settled")
 		return nil
 	}).AnyTimes()
-	f.svc = New(f.store, f.runs, f.resolver, f.facts, f.events, families, clock, slog.New(slog.DiscardHandler))
+	f.svc = New(f.store, f.runs, f.resolver, f.facts, families, clock, slog.New(slog.DiscardHandler))
 	return f
 }
 
@@ -533,13 +531,10 @@ func TestReplaysNewFacts(t *testing.T) {
 	if f.workErr != nil {
 		t.Errorf("work error = %v, want none", f.workErr)
 	}
-	if len(f.replayed) != 1 || f.replayed[0].except.Kind != gen.RunKindResolveStmtKeys || !cmp.Equal(f.replayed[0].written, f.written) {
-		t.Errorf("replays = %+v, want one excepting the resolution, with its facts", f.replayed)
+	if len(f.replayed) != 1 || f.replayed[0].stmt.Kind != gen.RunKindIngestStmt || f.replayed[0].except.Kind != gen.RunKindResolveStmtKeys || !cmp.Equal(f.replayed[0].written, f.written) {
+		t.Errorf("follow-ups = %+v, want one of the ingest statement run, excepting the resolution, with its facts", f.replayed)
 	}
-	if len(f.fetched) != 1 || f.fetched[0].Kind != gen.RunKindIngestStmt {
-		t.Errorf("corporate actions fetches = %+v, want one beneath the ingest statement run", f.fetched)
-	}
-	if diff := cmp.Diff([]string{"facts", "corporate actions", "settled"}, f.followed); diff != "" {
+	if diff := cmp.Diff([]string{"follow-ups", "settled"}, f.followed); diff != "" {
 		t.Errorf("calls after the write mismatch (-want +got):\n%s", diff)
 	}
 }

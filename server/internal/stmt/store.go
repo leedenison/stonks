@@ -65,13 +65,8 @@ type Resolver interface {
 var _ Resolver = (*resolve.Resolver)(nil)
 
 // Facts is this package's view of the replay service: what new identifier
-// facts start.
+// facts start, and what follows a statement.
 type Facts interface {
 	AfterIdentifierFacts(ctx context.Context, except gen.Run, written []resolve.WrittenIdentifierFacts)
-}
-
-// CorpActs is this package's view of the refreshcorpacts
-// package.
-type CorpActs interface {
-	AfterStmt(ctx context.Context, stmt gen.Run)
+	AfterStmt(ctx context.Context, stmt, except gen.Run, written []resolve.WrittenIdentifierFacts)
 }
