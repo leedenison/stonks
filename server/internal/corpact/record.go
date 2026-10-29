@@ -124,7 +124,9 @@ const maxShareTerm = 100
 
 // restatesShares reports whether r states a change in share count rather
 // than a price factor. Both sides are whole, and in lowest terms the smaller
-// is at most maxShareTerm.
+// is at most maxShareTerm. A provider's type is not enough: Massive types
+// GE's spin-offs of 2023 and 2024 as forward splits of 1281 for 1000 and 1253
+// for 1000, as the cassette massive_splits_spinoff records.
 func restatesShares(r types.Ratio) bool {
 	if !r.From.IsInteger() || !r.To.IsInteger() {
 		return false

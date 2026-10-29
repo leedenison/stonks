@@ -26,7 +26,8 @@ type CorpAct struct {
 	// none.
 	Type string
 	// Handled is whether the provider's type of action restates a quantity.
-	// Package corpact then tests the ratio.
+	// It is false where the provider omits the type. Package corpact then
+	// tests the ratio.
 	Handled bool
 }
 

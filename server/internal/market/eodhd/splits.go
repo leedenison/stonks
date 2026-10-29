@@ -92,10 +92,10 @@ func unknown(err error) bool {
 	return errors.As(err, &status) && status.Code == http.StatusNotFound && status.Body == unknownSymbol
 }
 
-// fromSplits converts EODHD's splits into corporate actions. EODHD omits a
-// type, so each action is marked handled, and the ratio test of package corpact
-// decides. The ratios include price factors, such as the fall in a
-// parent's price at a spin-off.
+// fromSplits converts EODHD's splits into corporate actions, each unhandled.
+// EODHD omits the type, and its splits also carry stock dividends, spin-off
+// price factors and reorganisations. A ratio alone cannot tell these from a
+// split.
 func fromSplits(ss []split) ([]market.CorpAct, error) {
 	out := make([]market.CorpAct, len(ss))
 	for i, s := range ss {
@@ -115,7 +115,7 @@ func fromSplits(ss []split) ([]market.CorpAct, error) {
 		if err != nil {
 			return nil, fmt.Errorf("split '%s': %w", s.Split, err)
 		}
-		out[i] = market.CorpAct{ExDate: ex, Ratio: types.Ratio{From: before, To: after}, Handled: true}
+		out[i] = market.CorpAct{ExDate: ex, Ratio: types.Ratio{From: before, To: after}}
 	}
 	return out, nil
 }

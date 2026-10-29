@@ -28,9 +28,11 @@
 -- there, so the assertion coverage wins. The run that wrote the assertion
 -- coverage or either assertion records it, and the finding names the fetch
 -- key of the assertion coverage.
--- 'unhandled_corp_act' means a datasource reported a corporate action of
--- a type the system does not restate a quantity by. The fetch that wrote the
--- corporate action records it, and the finding names the corporate action.
+-- 'unhandled_corp_act' means a datasource reported a corporate action that
+-- the system does not handle: one of an unhandled type, one whose ratio is a
+-- price factor, or one whose type the datasource omits. The fetch that wrote
+-- the corporate action records it, and the finding names the corporate
+-- action.
 -- 'unmatched_split' means a statement stated a split that the calendar lacks:
 -- no corporate action of the split's instrument falls within 7 days either
 -- side, with an equal ratio where the statement states one. A corporate action

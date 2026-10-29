@@ -89,8 +89,8 @@ func TestSplitsServes(t *testing.T) {
 }
 
 // TestSplits checks the corporate actions EODHD returned for each ticker.
-// Every answer covers asked, except the answer for a symbol EODHD does not
-// know.
+// Every action is unhandled, since EODHD omits the type. Every answer covers
+// asked, except the answer for a symbol EODHD does not know.
 func TestSplits(t *testing.T) {
 	tests := []struct {
 		cassette string
@@ -102,19 +102,19 @@ func TestSplits(t *testing.T) {
 		{
 			cassette: "eodhd_splits_forward",
 			ticker:   ticker("XNAS", "NVDA"),
-			want:     []string{"2000-06-27 1:2", "2001-09-12 1:2", "2006-04-07 1:2", "2007-09-11 2:3", "2021-07-20 1:4", "2024-06-10 1:10"},
+			want:     []string{"2000-06-27 1:2 unhandled", "2001-09-12 1:2 unhandled", "2006-04-07 1:2 unhandled", "2007-09-11 2:3 unhandled", "2021-07-20 1:4 unhandled", "2024-06-10 1:10 unhandled"},
 		},
 		{
 			// Vodafone's ratio of 1994 is a price factor, and its 2006 and
 			// 2014 actions are share consolidations.
 			cassette: "eodhd_splits_lse",
 			ticker:   ticker("XLON", "VOD"),
-			want:     []string{"1994-07-21 319897:959692", "1999-10-01 1:5", "2006-07-31 8:7", "2014-02-24 11:6"},
+			want:     []string{"1994-07-21 319897:959692 unhandled", "1999-10-01 1:5 unhandled", "2006-07-31 8:7 unhandled", "2014-02-24 11:6 unhandled"},
 		},
 		{
 			cassette: "eodhd_splits_class_share",
 			ticker:   ticker("XLON", "BT.A"),
-			want:     []string{"2001-05-21 387:431", "2001-11-09 9622:12411"},
+			want:     []string{"2001-05-21 387:431 unhandled", "2001-11-09 9622:12411 unhandled"},
 		},
 		{
 			// GE's spin-offs of 2019, 2023 and 2024 come as ratios that
@@ -122,8 +122,8 @@ func TestSplits(t *testing.T) {
 			cassette: "eodhd_splits_spinoff",
 			ticker:   ticker("XNYS", "GE"),
 			want: []string{
-				"1971-06-08 1:2", "1983-06-02 1:2", "1987-05-26 1:2", "1994-05-16 1:2", "1997-05-12 1:2", "2000-05-08 1:3",
-				"2019-02-26 100:104", "2021-08-02 8:1", "2023-01-04 1000:1281", "2024-04-02 1000:1253",
+				"1971-06-08 1:2 unhandled", "1983-06-02 1:2 unhandled", "1987-05-26 1:2 unhandled", "1994-05-16 1:2 unhandled", "1997-05-12 1:2 unhandled", "2000-05-08 1:3 unhandled",
+				"2019-02-26 100:104 unhandled", "2021-08-02 8:1 unhandled", "2023-01-04 1000:1281 unhandled", "2024-04-02 1000:1253 unhandled",
 			},
 		},
 		{cassette: "eodhd_splits_empty", ticker: ticker("XNYS", "BRK.A"), want: []string{}},
