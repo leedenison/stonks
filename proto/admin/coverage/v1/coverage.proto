@@ -25,16 +25,12 @@ message Gap {
   int32 txns = 4;
 }
 
-// A period over which one datasource reported every edge of a ticker, or of
-// every ticker of its market. The bounds are half open, as YYYY-MM-DD.
+// A period over which one datasource reported every edge of a ticker. The
+// bounds are half open, as YYYY-MM-DD.
 message AssertionCoverage {
   string datasource = 1;
-  string market = 2;
-  // The ticker's value; unset where the row holds every ticker of the
-  // market.
-  optional string value = 3;
-  string covered_from = 4;
-  string covered_before = 5;
+  string covered_from = 2;
+  string covered_before = 3;
 }
 
 enum TickerValidity {

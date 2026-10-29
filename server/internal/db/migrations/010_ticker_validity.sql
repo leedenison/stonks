@@ -139,15 +139,14 @@ CREATE INDEX identifier_assertions_run_idx ON identifier_assertions (run_id);
 CREATE INDEX identifier_assertions_instr_idx ON identifier_assertions (instr_id);
 
 -- A row of identifier assertion coverage is a claim that a datasource reported
--- every edge of one ticker over a period, or of every ticker in a market where
--- ticker_id is NULL. Where the datasource is the market's identifier event
--- source, the absence of an edge inside the period is a claim that the ticker
--- did not change. A row goes with its fetch key.
+-- every edge of one ticker over a period. Where the datasource is the market's
+-- identifier event source, the absence of an edge inside the period is a claim
+-- that the ticker did not change. A row goes with its fetch key.
 CREATE TABLE identifier_assertion_coverage (
     id              uuid PRIMARY KEY,
     fetch_key_id    uuid NOT NULL REFERENCES fetch_keys (id) ON DELETE CASCADE,
     market          text NOT NULL REFERENCES markets (code),
-    ticker_id       uuid,
+    ticker_id       uuid NOT NULL,
     covered_from   date NOT NULL,
     covered_before date NOT NULL,
     CHECK (covered_from < covered_before),

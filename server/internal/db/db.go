@@ -48,6 +48,11 @@ const sqlcNamePrefix = "-- name: "
 // ErrNotFound reports that a single-row query matched no row.
 var ErrNotFound = pgx.ErrNoRows
 
+// ErrConcurrent reports that a transaction found a row that another
+// transaction wrote after this one decided what to lock. IsRetryable accepts
+// it.
+var ErrConcurrent = errors.New("a concurrent transaction wrote a row this one did not lock")
+
 // NewID mints a surrogate key.
 func NewID() uuid.UUID { return uuid.Must(uuid.NewV7()) }
 
@@ -60,6 +65,9 @@ func IsConflict(err error) bool {
 // IsRetryable returns true if a transaction failed because of another running
 // concurrently, so running it again may succeed.
 func IsRetryable(err error) bool {
+	if errors.Is(err, ErrConcurrent) {
+		return true
+	}
 	var pgErr *pgconn.PgError
 	if !errors.As(err, &pgErr) {
 		return false

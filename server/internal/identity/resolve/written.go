@@ -6,9 +6,8 @@ import (
 )
 
 // WrittenIdentifierFacts pairs a run with the tickers whose identifier facts
-// it wrote, and the markets whose assertion coverage it wrote.
+// it wrote.
 type WrittenIdentifierFacts struct {
 	Run     gen.Run
 	Tickers []types.MarketTicker
-	Markets []string
 }

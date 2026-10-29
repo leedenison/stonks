@@ -322,13 +322,14 @@ func (s *stack) replays(t *testing.T, parent gen.Run) map[uuid.UUID][]uuid.UUID 
 	return out
 }
 
-// TestAfterIdentifierFacts checks that a fact written beneath a user's
-// datasource fetch run replays that user's unresolved key beneath the
+// TestAfterIdentifierFacts checks that, when a user's datasource fetch run
+// writes a fact, the call replays that user's unresolved key beneath the
 // datasource fetch run, and another user's beneath one system child of it,
-// whatever venue of the ticker's market the key states. A fact of a market
-// written beneath a system run replays each user's keys stating a ticker of the
-// market, at any of its venues, directly beneath that run. A key stating a
-// ticker of another market and the keys the excepted run resolved are left out.
+// whatever venue of the ticker's market the key states. When a system run
+// writes the fact, the call replays each user's keys that state the ticker
+// directly beneath that run. It leaves out keys that state another ticker of
+// the market, keys that state the ticker in another market, and keys that the
+// excepted run resolved.
 func TestAfterIdentifierFacts(t *testing.T) {
 	s := newStack(t)
 	ctx := context.Background()
@@ -385,7 +386,7 @@ func TestAfterIdentifierFacts(t *testing.T) {
 	attestation, err := s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), Kind: gen.RunKindAttestIdentifier, Trigger: gen.RunTriggerAdministrator})
 	require.NoError(t, err)
 	except, _ := s.resolution(t, stated)
-	written = []resolve.WrittenIdentifierFacts{{Run: attestation, Markets: []string{"US"}}}
+	written = []resolve.WrittenIdentifierFacts{{Run: attestation, Tickers: []types.MarketTicker{{Market: "US", Value: ticker.Value}}}}
 	s.svc.AfterIdentifierFacts(ctx, except, written)
 	replayed = s.replays(t, attestation)
 	var got []uuid.UUID
@@ -397,9 +398,9 @@ func TestAfterIdentifierFacts(t *testing.T) {
 		}
 		got = append(got, keys...)
 	}
-	want := []uuid.UUID{theirs.ID, segment.ID, across.ID}
+	want := []uuid.UUID{theirs.ID, across.ID}
 	if !sameKeys(got, want) {
-		t.Errorf("keys replayed for the US market = %v, want %v: not %s of XLON, nor %s the excepted run resolved", got, want, elsewhere.ID, mine.ID)
+		t.Errorf("keys replayed for the attested ticker = %v, want %v: not %s of another ticker, %s of XLON, nor %s the excepted run resolved", got, want, segment.ID, elsewhere.ID, mine.ID)
 	}
 }
 

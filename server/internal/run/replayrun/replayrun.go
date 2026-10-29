@@ -215,11 +215,6 @@ func (s *Service) replayFacts(ctx context.Context, except gen.Run, written []res
 	picked := map[uuid.UUID]bool{}
 	for _, w := range written {
 		probes, err := s.mics.TickerProbes(w.Tickers)
-		if err == nil {
-			var more [][]byte
-			more, err = s.mics.MarketProbes(w.Markets)
-			probes = append(probes, more...)
-		}
 		if err != nil {
 			s.log.Warn("probe of new identifier facts failed", "run", w.Run.ID, "err", err)
 			continue

@@ -148,7 +148,7 @@ func TestOfPrecedence(t *testing.T) {
 }
 
 // TestOfEdgesAndAssertionCoverage checks that a period of assertion coverage of
-// the market confirms the ticker, and that an edge at the start of the ticker's
+// the ticker confirms it, and that an edge at the start of the ticker's
 // assertion bounds it.
 func TestOfEdgesAndAssertionCoverage(t *testing.T) {
 	f := newFixture(t)
@@ -158,7 +158,7 @@ func TestOfEdgesAndAssertionCoverage(t *testing.T) {
 		ID: key, FetchID: f.fetches[f.alpha], UserID: &f.user.ID, Outcome: gen.FetchOutcomeServed, Attempts: 1,
 		SentType: &f.at.Type, SentDomain: "XNYS", AnsweredAt: ptr.To(day(20)),
 	}))
-	f.exec(t, "INSERT INTO identifier_assertion_coverage (id, fetch_key_id, market, covered_from, covered_before) VALUES ($1, $2, 'US', $3, $4)", db.NewID(), key, day(1), day(20))
+	f.exec(t, "INSERT INTO identifier_assertion_coverage (id, fetch_key_id, market, ticker_id, covered_from, covered_before) VALUES ($1, $2, 'US', $3, $4, $5)", db.NewID(), key, dbtest.Ticker(t, f.q, f.foo).ID, day(1), day(20))
 	require.NoError(t, f.q.CreateIdentifierAssertion(context.Background(), gen.CreateIdentifierAssertionParams{
 		ID: db.NewID(), FetchKeyID: &key, TickerID: dbtest.Ticker(t, f.q, f.foo).ID, Market: f.foo.Market, InstrID: &f.a,
 		AssertedFrom: day(3), AssertedBefore: day(3).AddDate(0, 0, 1), EdgeFrom: true,
@@ -189,8 +189,8 @@ func TestOfAttested(t *testing.T) {
 
 // TestReadRowsAssertionCoverage checks that each period of a ticker's assertion
 // coverage names the datasource that wrote it, its precedence and whether it
-// is the identifier event source, and that a row of the whole market has no
-// value.
+// is the identifier event source, and that a row of another ticker of the
+// market is left out.
 func TestReadRowsAssertionCoverage(t *testing.T) {
 	f := newFixture(t)
 	ctx := context.Background()
@@ -200,12 +200,12 @@ func TestReadRowsAssertionCoverage(t *testing.T) {
 		SentType: &f.at.Type, SentDomain: f.at.Domain, AnsweredAt: ptr.To(day(20)),
 	}))
 	f.exec(t, "INSERT INTO identifier_assertion_coverage (id, fetch_key_id, market, ticker_id, covered_from, covered_before) VALUES ($1, $2, $3, $4, $5, $6)", db.NewID(), key, f.foo.Market, dbtest.Ticker(t, f.q, f.foo).ID, day(5), day(20))
-	f.exec(t, "INSERT INTO identifier_assertion_coverage (id, fetch_key_id, market, covered_from, covered_before) VALUES ($1, $2, $3, $4, $5)", db.NewID(), key, f.foo.Market, day(1), day(10))
+	other := types.MarketTicker{Market: f.foo.Market, Value: "OTHER" + uuid.NewString()[:4]}
+	f.exec(t, "INSERT INTO identifier_assertion_coverage (id, fetch_key_id, market, ticker_id, covered_from, covered_before) VALUES ($1, $2, $3, $4, $5, $6)", db.NewID(), key, other.Market, dbtest.Ticker(t, f.q, other).ID, day(1), day(10))
 	rows, err := ReadRows(ctx, f.q, f.foo)
 	require.NoError(t, err)
 	want := []gen.ListIdentifierAssertionCoverageRow{
-		{Market: f.foo.Market, CoveredFrom: day(1), CoveredBefore: day(10), FetchKeyID: key, Datasource: f.alpha, Precedence: 1000, IsEventSource: true},
-		{Market: f.foo.Market, Value: &f.foo.Value, CoveredFrom: day(5), CoveredBefore: day(20), FetchKeyID: key, Datasource: f.alpha, Precedence: 1000, IsEventSource: true},
+		{Market: f.foo.Market, Value: f.foo.Value, CoveredFrom: day(5), CoveredBefore: day(20), FetchKeyID: key, Datasource: f.alpha, Precedence: 1000, IsEventSource: true},
 	}
 	if diff := cmp.Diff(want, rows.AssertionCoverage); diff != "" {
 		t.Errorf("ReadRows assertion coverage mismatch (-want +got):\n%s", diff)
@@ -214,8 +214,7 @@ func TestReadRowsAssertionCoverage(t *testing.T) {
 
 // TestReadRowsOf checks that one read of several tickers keeps each ticker's
 // facts apart. A ticker that shares a value or a market with an asked one is
-// left out. A ticker that was never created still gets the assertion coverage
-// of its market.
+// left out. A ticker that was never created reads no facts.
 func TestReadRowsOf(t *testing.T) {
 	f := newFixture(t)
 	ctx := context.Background()
@@ -244,7 +243,9 @@ func TestReadRowsOf(t *testing.T) {
 			EdgeFrom: !last, EdgeBefore: last,
 		}))
 	}
-	f.exec(t, "INSERT INTO identifier_assertion_coverage (id, fetch_key_id, market, covered_from, covered_before) VALUES ($1, $2, 'US', $3, $4)", db.NewID(), key, day(1), day(10))
+	for _, mt := range []types.MarketTicker{usA, usB, usOld} {
+		f.exec(t, "INSERT INTO identifier_assertion_coverage (id, fetch_key_id, market, ticker_id, covered_from, covered_before) VALUES ($1, $2, $3, $4, $5, $6)", db.NewID(), key, mt.Market, dbtest.Ticker(t, f.q, mt).ID, day(1), day(10))
+	}
 
 	rows, err := readRowsOf(ctx, f.q, []types.MarketTicker{usA, lonB, usOld, usNew, unrowed})
 	require.NoError(t, err)
@@ -253,7 +254,7 @@ func TestReadRowsOf(t *testing.T) {
 		got[mt] = []int{len(r.Assertions), len(r.AssertionCoverage)}
 	}
 	want := map[types.MarketTicker][]int{
-		usA: {1, 1}, lonB: {1, 0}, usOld: {1, 1}, usNew: {1, 1}, unrowed: {0, 1},
+		usA: {1, 1}, lonB: {1, 0}, usOld: {1, 1}, usNew: {1, 0}, unrowed: {0, 0},
 	}
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("ReadRowsOf assertions and assertion coverage per ticker (-want +got):\n%s", diff)
@@ -302,7 +303,7 @@ func TestTickerAssertedOn(t *testing.T) {
 
 // TestReadTickersAcrossVenues checks that a ticker stated at two venues of
 // one market has one ticker validity, and reads one set of facts: the
-// assertions of the ticker and the assertion coverage of the market.
+// assertions and the assertion coverage of the ticker.
 func TestReadTickersAcrossVenues(t *testing.T) {
 	f := newFixture(t)
 	ctx := context.Background()
@@ -312,7 +313,7 @@ func TestReadTickersAcrossVenues(t *testing.T) {
 		ID: key, FetchID: f.fetches[f.alpha], UserID: &f.user.ID, Outcome: gen.FetchOutcomeServed, Attempts: 1,
 		SentType: &f.at.Type, SentDomain: f.at.Domain, AnsweredAt: ptr.To(day(20)),
 	}))
-	f.exec(t, "INSERT INTO identifier_assertion_coverage (id, fetch_key_id, market, covered_from, covered_before) VALUES ($1, $2, 'US', $3, $4)", db.NewID(), key, day(1), day(20))
+	f.exec(t, "INSERT INTO identifier_assertion_coverage (id, fetch_key_id, market, ticker_id, covered_from, covered_before) VALUES ($1, $2, 'US', $3, $4, $5)", db.NewID(), key, dbtest.Ticker(t, f.q, f.foo).ID, day(1), day(20))
 	f.exec(t, "INSERT INTO identifier_assertions (id, fetch_key_id, market, ticker_id, instr_id, asserted_from, asserted_before, edge_from) VALUES ($1, $2, 'US', $3, $4, $5, $6, true)", db.NewID(), key, dbtest.Ticker(t, f.q, f.foo).ID, f.a, day(3), day(4))
 	mics, err := mic.Load(ctx, f.q)
 	require.NoError(t, err)
@@ -356,7 +357,7 @@ func TestNoEventSource(t *testing.T) {
 		}))
 	}
 	require.NoError(t, f.q.CreateIdentifierAssertionCoverage(ctx, gen.CreateIdentifierAssertionCoverageParams{
-		ID: db.NewID(), FetchKeyID: key, Market: ams.Market, TickerID: &tk.ID, CoveredFrom: day(1), CoveredBefore: day(20),
+		ID: db.NewID(), FetchKeyID: key, Market: ams.Market, TickerID: tk.ID, CoveredFrom: day(1), CoveredBefore: day(20),
 	}))
 	run, err := f.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), Kind: gen.RunKindAttestIdentifier, Trigger: gen.RunTriggerAdministrator})
 	require.NoError(t, err)

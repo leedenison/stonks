@@ -26,8 +26,7 @@ func us(value string) types.MarketTicker { return types.MarketTicker{Market: "US
 
 // asserted is a period of assertion coverage of value in the market US over p.
 func asserted(value string, p types.Period) market.AssertionCoverage {
-	t := us(value)
-	return market.AssertionCoverage{Market: "US", Ticker: &t, Period: p}
+	return market.AssertionCoverage{Ticker: us(value), Period: p}
 }
 
 // TestChainFacts checks the identifier facts of an entity's chain.

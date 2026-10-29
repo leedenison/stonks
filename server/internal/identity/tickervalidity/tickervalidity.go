@@ -10,7 +10,6 @@
 //
 // Each write of facts rebuilds the ticker validity of the tickers it wrote,
 // and the names that ticker validity implies, before it commits; see Rebuild.
-// Assertion coverage of a whole market rebuilds every ticker of the market.
 // The names are stored in resolved_tickers; see resolveNames. A reorder of the
 // datasources, or a change of a market's identifier event source, can change
 // the ticker validity of any ticker. The change waits for a rebuild of every
@@ -210,6 +209,8 @@ type derived struct {
 	Diagnosis
 	Intervals Intervals
 	Inferred  []Inferred
+	// winners is the winning assertion of each run of days, in order of day.
+	winners []winner
 }
 
 // Diagnosis is the conflicts among the facts of one ticker that findings

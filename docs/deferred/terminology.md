@@ -20,8 +20,7 @@ scales. GBP and GBp/GBX are one family.
 
 **Venue** -- the exchange or trading system where a listing trades.
 
-**Coverage** -- the periods over which one datasource has answered for one key, or for
-every key in one market.
+**Coverage** -- the periods over which one datasource has answered for one key.
 
 **Provenance** -- the fetch key that produced a stored row.
 

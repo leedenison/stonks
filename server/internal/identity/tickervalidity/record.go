@@ -28,7 +28,6 @@ type RecordQueries interface {
 	CreateInstr(ctx context.Context, arg gen.CreateInstrParams) (gen.Instr, error)
 	CreateListing(ctx context.Context, arg gen.CreateListingParams) (gen.Listing, error)
 	CreateIdentifier(ctx context.Context, arg gen.CreateIdentifierParams) (gen.Identifier, error)
-	ListMarketTickerIDs(ctx context.Context, markets []string) ([]uuid.UUID, error)
 }
 
 var _ RecordQueries = (*gen.Queries)(nil)
@@ -48,24 +47,16 @@ func RecordTickers(ctx context.Context, q tickers.Queries, mics mic.MICMap, keys
 		if k.Outcome != gen.FetchOutcomeServed {
 			continue
 		}
-		for _, p := range k.Response.AssertionCoverage {
-			if p.Ticker == nil {
-				if err := tickers.SpelledMarket(mics, p.Market); err != nil {
-					return nil, err
-				}
-			}
-		}
 		ts = append(ts, k.Response.Tickers()...)
 	}
 	return tickers.Get(ctx, q, mics, ts)
 }
 
 // Record writes the assertions and assertion coverage of each served key, and
-// rebuilds the ticker validity and names of their tickers. Assertion coverage
-// of a whole market rebuilds every ticker of the market. rows holds the row
+// rebuilds the ticker validity and names of their tickers. rows holds the row
 // of each ticker the keys state, as RecordTickers returns them. A negative
-// assertion is always written. Record first locks every stable identifier the
-// assertions state, then the rows of the tickers it rebuilds.
+// assertion is always written. Record takes every lock its helpers need, in
+// the order the package comment gives.
 //
 // A positive assertion names the instrument of the first stable identifier
 // it states that is stored. Where none is stored, Record creates the
@@ -92,32 +83,6 @@ func Record(ctx context.Context, q RecordQueries, families currency.Families, ro
 	ids := make([]uuid.UUID, 0, len(rows))
 	for _, r := range rows {
 		ids = append(ids, r.ID)
-	}
-	var markets []string
-	for _, k := range keys {
-		if k.Outcome != gen.FetchOutcomeServed {
-			continue
-		}
-		for _, p := range k.Response.AssertionCoverage {
-			if p.Ticker == nil && !slices.Contains(markets, p.Market) {
-				markets = append(markets, p.Market)
-			}
-		}
-	}
-	if len(markets) > 0 {
-		all, err := q.ListMarketTickerIDs(ctx, markets)
-		if err != nil {
-			return fmt.Errorf("list market tickers: %w", err)
-		}
-		held := make(map[uuid.UUID]bool, len(ids))
-		for _, id := range ids {
-			held[id] = true
-		}
-		for _, id := range all {
-			if !held[id] {
-				ids = append(ids, id)
-			}
-		}
 	}
 	if err := tickers.Lock(ctx, q, ids); err != nil {
 		return err
@@ -151,16 +116,13 @@ func record(ctx context.Context, q RecordQueries, families currency.Families, ro
 		}
 	}
 	for _, p := range r.AssertionCoverage {
-		arg := gen.CreateIdentifierAssertionCoverageParams{
-			ID: db.NewID(), FetchKeyID: key, Market: p.Market,
-			CoveredFrom: p.Period.From, CoveredBefore: p.Period.Before,
+		t, err := row(p.Ticker)
+		if err != nil {
+			return err
 		}
-		if p.Ticker != nil {
-			t, err := row(*p.Ticker)
-			if err != nil {
-				return err
-			}
-			arg.TickerID = &t.ID
+		arg := gen.CreateIdentifierAssertionCoverageParams{
+			ID: db.NewID(), FetchKeyID: key, Market: t.Market, TickerID: t.ID,
+			CoveredFrom: p.Period.From, CoveredBefore: p.Period.Before,
 		}
 		if err := q.CreateIdentifierAssertionCoverage(ctx, arg); err != nil {
 			return fmt.Errorf("record assertion coverage: %w", err)
@@ -250,9 +212,6 @@ func instrOf(ctx context.Context, q RecordQueries, families currency.Families, k
 	}
 	if len(stable) == 0 {
 		return nil, nil
-	}
-	if err := db.LockIdentifiers(ctx, q, stable); err != nil {
-		return nil, err
 	}
 	instr, err := StoredInstr(ctx, q, stable)
 	if err != nil || instr != nil {

@@ -97,7 +97,7 @@ func chainFacts(sent types.Identifier, evs []event, p types.Period, home string)
 			})
 		}
 		if c, ok := clip(types.Period{From: l.from, Before: before}, p); ok {
-			out.AssertionCoverage = append(out.AssertionCoverage, market.AssertionCoverage{Market: home, Ticker: &t, Period: c})
+			out.AssertionCoverage = append(out.AssertionCoverage, market.AssertionCoverage{Ticker: t, Period: c})
 		}
 	}
 	return out, nil

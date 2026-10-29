@@ -390,19 +390,10 @@ func (w *writtenSet) addTicker(run gen.Run, t types.MarketTicker) {
 	}
 }
 
-// addFacts gathers the tickers whose facts r states, and the markets of its
-// assertion coverage of a whole market.
+// addFacts gathers the tickers whose facts r states.
 func (w *writtenSet) addFacts(run gen.Run, r market.IdentifierFactResult) {
 	for _, t := range r.Tickers() {
 		w.addTicker(run, t)
-	}
-	for _, p := range r.AssertionCoverage {
-		if p.Ticker != nil {
-			continue
-		}
-		if f, ok := w.run(run, "market:"+p.Market); ok {
-			f.Markets = append(f.Markets, p.Market)
-		}
 	}
 }
 

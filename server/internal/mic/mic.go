@@ -127,26 +127,6 @@ func (t MICMap) TickerProbes(ts []types.MarketTicker) ([][]byte, error) {
 	return out, nil
 }
 
-// MarketProbes returns one probe per venue of each market, which finds the
-// keys stating any ticker of the market.
-func (t MICMap) MarketProbes(markets []string) ([][]byte, error) {
-	var out [][]byte
-	for _, m := range markets {
-		venues := t.Venues(m)
-		if len(venues) == 0 {
-			return nil, fmt.Errorf("probe %s: unknown market", m)
-		}
-		for _, v := range venues {
-			b, err := probe(types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: v})
-			if err != nil {
-				return nil, err
-			}
-			out = append(out, b)
-		}
-	}
-	return out, nil
-}
-
 // probe writes id as a JSON array of one identifier object.
 func probe(id types.Identifier) ([]byte, error) {
 	obj := map[string]string{"type": string(id.Type), "domain": id.Domain}

@@ -374,7 +374,6 @@ function Facts({
             <thead className="border-b border-border">
               <tr>
                 <Th dense>Datasource</Th>
-                <Th dense>Holds</Th>
                 <Th dense>From</Th>
                 <Th dense>Before</Th>
               </tr>
@@ -384,9 +383,6 @@ function Facts({
                 <tr key={i}>
                   <Td dense>
                     <Chip>{p.datasource}</Chip>
-                  </Td>
-                  <Td dense className="font-mono">
-                    {p.value ?? `every ticker of ${p.market}`}
                   </Td>
                   <Td dense className="font-mono tabular-nums">
                     {p.coveredFrom}

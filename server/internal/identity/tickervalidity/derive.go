@@ -46,7 +46,7 @@ func derive(f facts) derived {
 			Disagreements: disagreements, Broken: broken(ws, cutting),
 			Missed: missed(inferred, f.AssertionCoverage, cover),
 		},
-		Intervals: join(out), Inferred: inferred,
+		Intervals: join(out), Inferred: inferred, winners: ws,
 	}
 }
 

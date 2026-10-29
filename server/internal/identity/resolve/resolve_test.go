@@ -403,6 +403,7 @@ func TestResolveRetry(t *testing.T) {
 		{name: "a unique violation then success", errs: []error{refused(pgerrcode.UniqueViolation), nil}, calls: 2},
 		{name: "a deadlock then success", errs: []error{refused(pgerrcode.DeadlockDetected), nil}, calls: 2},
 		{name: "a serialization failure then success", errs: []error{refused(pgerrcode.SerializationFailure), nil}, calls: 2},
+		{name: "a merge that moved an unlocked ticker then success", errs: []error{fmt.Errorf("merge moved ticker: %w", db.ErrConcurrent), nil}, calls: 2},
 		{name: "refused every time", errs: []error{refused(pgerrcode.DeadlockDetected), refused(pgerrcode.DeadlockDetected), refused(pgerrcode.DeadlockDetected)}, calls: tries, wantErr: true},
 		{name: "another failure", errs: []error{boom}, calls: 1, wantErr: true},
 	}
@@ -419,6 +420,34 @@ func TestResolveRetry(t *testing.T) {
 			_, _, err := f.resolver.Resolve(context.Background(), res, undated(keyOf(types.AssetClassStock, "USD", descr)))
 			if (err != nil) != tc.wantErr {
 				t.Errorf("Resolve() error = %v, wantErr %v", err, tc.wantErr)
+			}
+		})
+	}
+}
+
+// TestCheckMoved checks that checkMoved returns db.ErrConcurrent when the
+// survivor of a merge holds a ticker that the write neither locked nor held
+// before the merge.
+func TestCheckMoved(t *testing.T) {
+	survivor, held, locked, moved := db.NewID(), db.NewID(), db.NewID(), db.NewID()
+	tests := []struct {
+		name    string
+		after   []uuid.UUID
+		wantErr bool
+	}{
+		{name: "only known tickers", after: []uuid.UUID{held, locked}},
+		{name: "a ticker asserted after the lock", after: []uuid.UUID{held, locked, moved}, wantErr: true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			q := NewMockQueries(gomock.NewController(t))
+			q.EXPECT().ListTickersOfInstrs(gomock.Any(), []uuid.UUID{survivor}).Return(tc.after, nil)
+			err := checkMoved(context.Background(), q, survivor, []uuid.UUID{held, locked})
+			if got := errors.Is(err, db.ErrConcurrent); got != tc.wantErr {
+				t.Errorf("checkMoved(%v) error = %v, want ErrConcurrent %v", tc.after, err, tc.wantErr)
+			}
+			if err != nil && !db.IsRetryable(err) {
+				t.Errorf("checkMoved(%v) error = %v, want it retryable", tc.after, err)
 			}
 		})
 	}

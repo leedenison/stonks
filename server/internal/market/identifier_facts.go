@@ -34,11 +34,9 @@ type Assertion struct {
 }
 
 // AssertionCoverage is one period of assertion coverage: the days over which a
-// provider reported every edge of Ticker, or of every ticker of Market where
-// Ticker is nil.
+// provider reported every edge of Ticker.
 type AssertionCoverage struct {
-	Market string
-	Ticker *types.MarketTicker
+	Ticker types.MarketTicker
 	Period types.Period
 }
 
@@ -49,17 +47,14 @@ type IdentifierFactResult struct {
 }
 
 // Tickers returns the tickers whose facts r states: the tickers of its
-// assertions, and the ticker of each period of assertion coverage of one
-// ticker.
+// assertions and of its assertion coverage.
 func (r IdentifierFactResult) Tickers() []types.MarketTicker {
 	var out []types.MarketTicker
 	for _, a := range r.Assertions {
 		out = append(out, a.Ticker)
 	}
 	for _, p := range r.AssertionCoverage {
-		if p.Ticker != nil {
-			out = append(out, *p.Ticker)
-		}
+		out = append(out, p.Ticker)
 	}
 	return out
 }
