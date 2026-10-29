@@ -6,6 +6,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net/url"
+	"os"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -97,6 +99,40 @@ func newTx(t *testing.T) *gen.Queries {
 func newTicker(t *testing.T, q *gen.Queries, market, value string) gen.Ticker {
 	t.Helper()
 	return dbtest.Ticker(t, q, types.MarketTicker{Market: market, Value: value})
+}
+
+// TestOpenPinsReadCommitted checks that a pool from Open begins at Read
+// Committed when the connection's default is another level. A bare pool on
+// the same URL shows that the default took effect.
+func TestOpenPinsReadCommitted(t *testing.T) {
+	ctx := context.Background()
+	u, err := url.Parse(os.Getenv("STONKS_TEST_DATABASE_URL"))
+	require.NoError(t, err)
+	v := u.Query()
+	v.Set("options", "-c default_transaction_isolation=serializable")
+	u.RawQuery = v.Encode()
+	level := func(p *pgxpool.Pool) string {
+		t.Helper()
+		tx, err := p.Begin(ctx)
+		require.NoError(t, err)
+		defer func() { require.NoError(t, tx.Rollback(ctx)) }()
+		var got string
+		require.NoError(t, tx.QueryRow(ctx, "SELECT current_setting('transaction_isolation')").Scan(&got))
+		return got
+	}
+
+	bare, err := pgxpool.New(ctx, u.String())
+	require.NoError(t, err)
+	t.Cleanup(bare.Close)
+	if got := level(bare); got != "serializable" {
+		t.Fatalf("bare pool level = %q, want serializable", got)
+	}
+	opened, err := db.Open(ctx, u.String())
+	require.NoError(t, err)
+	t.Cleanup(opened.Close)
+	if got := level(opened); got != "read committed" {
+		t.Errorf("Open level = %q, want read committed", got)
+	}
 }
 
 func TestUsers(t *testing.T) {
