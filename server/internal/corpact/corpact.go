@@ -6,7 +6,7 @@
 // only that datasource's answers. Each market names one identifier event
 // source in the same way. A comparison across datasources would raise
 // findings without giving a better figure. A market whose source is unset,
-// disabled or failing leaves its holdings unadjusted, whichever other
+// disabled or failing leaves its holdings provisional, whichever other
 // datasource has answers.
 //
 // A corporate action is stored as a datasource reported it, against the ticker
@@ -18,12 +18,17 @@
 // datasource gave it, replaces its earlier one. A cached answer keeps the
 // moment of the call that filled the cache.
 //
-// Holdings and the stated split check read the corporate actions of an
-// instrument through one calendar; see calendar.go.
+// Only the source of an instrument's market restates a holding of the
+// instrument; see Markets in calendar.go. A ticker of the instrument in
+// another market lends it no corporate actions, so one holding is never
+// restated by two sources. An instrument without a market leaves its holdings
+// provisional.
 //
-// A fetch checks the splits that statements state against the calendar. The
-// calendar holds the actions of each market's source, so a split matches
-// when the source of any of the instrument's markets knows it; see split.go. What starts a fetch, and what it asks for, is in
+// Holdings and the stated split check read the corporate actions of an
+// instrument through one calendar, from its market; see calendar.go.
+//
+// A fetch checks the splits that statements state against the calendar; see
+// split.go. What starts a fetch, and what it asks for, is in
 // [refreshcorpacts.go](../run/refreshcorpacts/refreshcorpacts.go).
 package corpact
 

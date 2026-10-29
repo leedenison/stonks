@@ -5,7 +5,7 @@
 // also carries its listings.
 //
 // Corporate actions restate the quantity of an instrument holding of some
-// classes, such as stocks and funds. HoldingMark says whether they did.
+// classes, such as stocks and ETFs. HoldingMark says how far they did.
 //
 // A dated key's transactions are summed into the instrument its ticker names
 // on their dates. Transactions dated when the ticker names nothing are summed
@@ -43,8 +43,9 @@ message HoldingKey {
   // its ticker names on this holding's dates; empty where there is none.
   string listing_id = 2;
   // The sum of the key's transaction quantities that this holding sums, in
-  // the holding's units: restated when the holding is adjusted, and rounded
-  // as the holding is. For cash it is in the currency the key states.
+  // the holding's units: restated when the holding is adjusted or
+  // provisional, and rounded as the holding is. For cash it is in the
+  // currency the key states.
   string quantity = 3;
 }
 
@@ -62,9 +63,9 @@ message InstrHolding {
   // that resolves to the instrument: shares, contracts, or money for cash,
   // with no trailing zeros. Cash is summed in its family's unit, so pence
   // count as hundredths of a pound. Negative when more has been disposed of
-  // than acquired. An adjusted holding restates each transaction exactly and
-  // rounds the sum once, half away from zero, to the finest scale that any of
-  // its transactions states.
+  // than acquired. An adjusted or provisional holding restates each
+  // transaction exactly and rounds the sum once, half away from zero, to the
+  // finest scale that any of its transactions states.
   string quantity = 4;
   // Every listing of the instrument, by currency.
   repeated HoldingListing listings = 5;
@@ -74,34 +75,34 @@ message InstrHolding {
   // among tickers the primary venue first. Unset where nothing names it.
   stonks.type.v1.Identifier name = 7;
   HoldingMark mark = 8;
-  // Set when the holding is unadjusted, as YYYY-MM-DD. It is the day after
-  // the earliest as-at date of a transaction that lacks coverage. One
-  // datasource and market must cover the corporate actions from this day to
-  // today.
-  optional string uncovered_from = 9;
-  // The days from uncovered_from to today over which no datasource reported
-  // the instrument's corporate actions, in order. Empty when some datasource
-  // covers each day but none covers the whole period that a transaction
-  // needs.
+  // Set only when the mark is CORP_ACTS_PROVISIONAL, as YYYY-MM-DD. It is
+  // the day after the earliest as-at date of a transaction that lacks
+  // coverage. The holding becomes adjusted once the corporate actions source
+  // of the instrument's market covers the days from this day to today.
+  optional string provisional_from = 9;
+  // Set only when the mark is CORP_ACTS_PROVISIONAL. Lists, in order, the
+  // days from provisional_from to today that the corporate actions source of
+  // the instrument's market has not covered.
   repeated UncoveredDays gaps = 10;
 }
 
 // How an instrument holding's quantity stands to the corporate actions since
-// its transactions. A holding is adjusted when a single datasource, in a
-// single market, covers them from each transaction to today.
+// its transactions. Only the corporate actions source of the market of the
+// instrument's primary venues restates it.
 enum HoldingMark {
   HOLDING_MARK_UNSPECIFIED = 0;
   // Restated to today by every corporate action since each transaction.
   HOLDING_MARK_ADJUSTED = 1;
-  // As stated, because a transaction lacks coverage to today.
-  HOLDING_MARK_UNADJUSTED = 2;
+  // Restated to today by every corporate action known so far. A transaction
+  // lacks coverage to today, so an action may be missing.
+  HOLDING_MARK_CORP_ACTS_PROVISIONAL = 2;
   // As stated, because corporate actions do not restate the instrument's
   // class.
   HOLDING_MARK_RAW = 3;
 }
 
-// A run of days over which no datasource reported an instrument's corporate
-// actions. The bounds are half open, as YYYY-MM-DD.
+// A run of days that the corporate actions source of an instrument's market
+// has not covered. The bounds are half open, as YYYY-MM-DD.
 message UncoveredDays {
   string uncovered_from = 1;
   string uncovered_before = 2;

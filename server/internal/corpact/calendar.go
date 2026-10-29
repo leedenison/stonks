@@ -1,9 +1,9 @@
 package corpact
 
 import (
-	"cmp"
 	"context"
 	"fmt"
+	"maps"
 	"math/big"
 	"slices"
 	"time"
@@ -18,41 +18,69 @@ import (
 // CalendarQueries read the corporate actions of instruments.
 type CalendarQueries interface {
 	ReadQueries
+	MarketQueries
 	tickervalidity.ValidityQueries
 	ListTickersNaming(ctx context.Context, instrs []uuid.UUID) ([]gen.ListTickersNamingRow, error)
 }
 
 var _ CalendarQueries = (*gen.Queries)(nil)
 
-// MarketAnswer is what the corporate actions source of one market reported
-// for one instrument, over the days that a ticker of the market named it.
-// Coverage leaves out the ex-date of every unhandled action of the
-// instrument, whichever market reported it. Acts holds an action once when
-// two tickers of the market report it.
-type MarketAnswer struct {
-	Answer
-	Market string
+// MarketQueries read the markets of instruments.
+type MarketQueries interface {
+	ListInstrMarkets(ctx context.Context, instrs []uuid.UUID) ([]gen.ListInstrMarketsRow, error)
 }
 
-// Calendar is the market answers of one instrument, by market.
-type Calendar []MarketAnswer
+var _ MarketQueries = (*gen.Queries)(nil)
 
-// Calendars returns the calendar of each of instrs that a corporate actions
-// source has answered for. Ticker validity attributes each action and each
-// day of coverage to the instrument that its ticker named on that day.
-// Calendars reads with four queries however many instruments there are.
-func Calendars(ctx context.Context, q CalendarQueries, instrs []uuid.UUID) (map[uuid.UUID]Calendar, error) {
-	out := map[uuid.UUID]Calendar{}
+// Markets returns the market of each of instrs: the market of the primary
+// venues of its listings. Markets leaves out an instrument whose listings
+// state no primary venue. It also leaves out one whose listings state
+// primary venues in two markets.
+func Markets(ctx context.Context, q MarketQueries, instrs []uuid.UUID) (map[uuid.UUID]string, error) {
+	out := map[uuid.UUID]string{}
 	if len(instrs) == 0 {
 		return out, nil
 	}
-	rows, err := q.ListTickersNaming(ctx, instrs)
+	rows, err := q.ListInstrMarkets(ctx, instrs)
+	if err != nil {
+		return nil, fmt.Errorf("list the markets of the instruments: %w", err)
+	}
+	for _, row := range rows {
+		out[row.InstrID] = row.Market
+	}
+	return out, nil
+}
+
+// Calendar is the answer of the corporate actions source of an instrument's
+// market, over the days that a ticker of the market named the instrument.
+// Coverage leaves out the ex-date of every unhandled action. Acts holds an
+// action once when two tickers of the market report it. The zero Calendar
+// covers no day.
+type Calendar struct {
+	Market string
+	Answer
+}
+
+// Calendars returns the calendar of each of instrs that the corporate
+// actions source of its market has answered for. Its market is the one
+// Markets gives, and an instrument without one has no calendar. Ticker
+// validity attributes each action and each day of coverage to the instrument
+// that its ticker named on that day. Calendars reads with five queries
+// however many instruments there are.
+func Calendars(ctx context.Context, q CalendarQueries, instrs []uuid.UUID) (map[uuid.UUID]Calendar, error) {
+	out := map[uuid.UUID]Calendar{}
+	markets, err := Markets(ctx, q, instrs)
+	if err != nil || len(markets) == 0 {
+		return out, err
+	}
+	rows, err := q.ListTickersNaming(ctx, slices.Collect(maps.Keys(markets)))
 	if err != nil {
 		return nil, fmt.Errorf("list the tickers of the instruments: %w", err)
 	}
 	var ts []types.MarketTicker
 	for _, row := range rows {
-		if t := (types.MarketTicker{Market: row.Market, Value: row.Value}); !slices.Contains(ts, t) {
+		t := types.MarketTicker{Market: row.Market, Value: row.Value}
+		if markets[row.InstrID] == row.Market && !slices.Contains(ts, t) {
 			ts = append(ts, t)
 		}
 	}
@@ -64,26 +92,21 @@ func Calendars(ctx context.Context, q CalendarQueries, instrs []uuid.UUID) (map[
 	if err != nil {
 		return nil, err
 	}
-	type at struct {
-		instr  uuid.UUID
-		market string
-	}
-	built := map[at]*MarketAnswer{}
+	built := map[uuid.UUID]*Calendar{}
 	unhandled := map[uuid.UUID][]time.Time{}
 	for t, a := range answers {
 		for _, iv := range read[t] {
-			if !slices.Contains(instrs, iv.Instr) {
+			if markets[iv.Instr] != t.Market {
 				continue
 			}
-			k := at{instr: iv.Instr, market: t.Market}
-			m := built[k]
-			if m == nil {
-				m = &MarketAnswer{Answer: Answer{Datasource: a.Datasource}, Market: t.Market}
-				built[k] = m
+			c := built[iv.Instr]
+			if c == nil {
+				c = &Calendar{Market: t.Market, Answer: Answer{Datasource: a.Datasource}}
+				built[iv.Instr] = c
 			}
-			for _, c := range a.Coverage {
-				if p, ok := iv.Clip(c); ok {
-					m.Coverage = append(m.Coverage, p)
+			for _, cov := range a.Coverage {
+				if p, ok := iv.Clip(cov); ok {
+					c.Coverage = append(c.Coverage, p)
 				}
 			}
 			for _, e := range a.Acts {
@@ -93,62 +116,50 @@ func Calendars(ctx context.Context, q CalendarQueries, instrs []uuid.UUID) (map[
 				if !e.Handled {
 					unhandled[iv.Instr] = append(unhandled[iv.Instr], e.ExDate)
 				}
-				if !slices.ContainsFunc(m.Acts, e.same) {
-					m.Acts = append(m.Acts, e)
+				if !slices.ContainsFunc(c.Acts, e.same) {
+					c.Acts = append(c.Acts, e)
 				}
 			}
 		}
 	}
-	for k, m := range built {
-		m.Coverage = union(remove(m.Coverage, unhandled[k.instr]))
-		if len(m.Coverage) == 0 && len(m.Acts) == 0 {
+	for id, c := range built {
+		c.Coverage = union(remove(c.Coverage, unhandled[id]))
+		if len(c.Coverage) == 0 && len(c.Acts) == 0 {
 			continue
 		}
-		slices.SortFunc(m.Acts, func(a, b Act) int { return a.ExDate.Compare(b.ExDate) })
-		out[k.instr] = append(out[k.instr], *m)
-	}
-	for _, c := range out {
-		slices.SortFunc(c, func(a, b MarketAnswer) int { return cmp.Compare(a.Market, b.Market) })
+		slices.SortFunc(c.Acts, func(a, b Act) int { return a.ExDate.Compare(b.ExDate) })
+		out[id] = *c
 	}
 	return out, nil
 }
 
 // Factor returns the factor that restates a quantity as at asAt to today:
-// the product of the ratios of the handled actions with an ex-date after
-// asAt and on or before today. A quantity as at an ex-date already follows
-// the action, because exchanges quote a trade on the ex-date in the new
-// units. It takes the actions from the first market answer of c that covers
-// every day of that span. It reports false when none does. A quantity as at
-// today needs no action, so its factor is one.
+// the product of the ratios of the handled actions of c with an ex-date
+// after asAt and on or before today. A quantity as at an ex-date already
+// follows the action, because exchanges quote a trade on the ex-date in the
+// new units. Factor also reports whether c covers every day of that span.
+// When c does not, the factor reflects only the actions known so far, so an
+// action may be missing. A quantity as at today needs no action, so its factor is
+// one and covered.
 func (c Calendar) Factor(asAt, today time.Time) (*big.Rat, bool) {
 	need := types.Period{From: types.Day(asAt).AddDate(0, 0, 1), Before: types.Day(today).AddDate(0, 0, 1)}
 	f := big.NewRat(1, 1)
 	if !need.From.Before(need.Before) {
 		return f, true
 	}
-	for _, m := range c {
-		if !spans(m.Coverage, need) {
-			continue
+	for _, e := range c.Acts {
+		if e.Handled && need.Contains(e.ExDate) {
+			f.Mul(f, new(big.Rat).Quo(e.Ratio.To.Rat(), e.Ratio.From.Rat()))
 		}
-		for _, e := range m.Acts {
-			if e.Handled && need.Contains(e.ExDate) {
-				f.Mul(f, new(big.Rat).Quo(e.Ratio.To.Rat(), e.Ratio.From.Rat()))
-			}
-		}
-		return f, true
 	}
-	return nil, false
+	return f, spans(union(c.Coverage), need)
 }
 
-// Gaps returns the parts of p that no market answer of c covers, in order.
+// Gaps returns the parts of p that c does not cover, in order.
 func (c Calendar) Gaps(p types.Period) []types.Period {
-	var all []types.Period
-	for _, m := range c {
-		all = append(all, m.Coverage...)
-	}
 	var out []types.Period
 	d := p.From
-	for _, cov := range union(all) {
+	for _, cov := range union(c.Coverage) {
 		cov, ok := clip(cov, p)
 		if !ok {
 			continue

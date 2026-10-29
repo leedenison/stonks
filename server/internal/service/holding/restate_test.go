@@ -18,7 +18,7 @@ func date(y int, m time.Month, d int) time.Time { return time.Date(y, m, d, 0, 0
 
 // covered is a calendar that covers every day to today and holds acts.
 func covered(acts ...corpact.Act) corpact.Calendar {
-	return corpact.Calendar{{Answer: corpact.Answer{Datasource: "alpha", Coverage: []types.Period{{From: date(2000, 1, 1), Before: types.Day(now).AddDate(0, 0, 1)}}, Acts: acts}, Market: "US"}}
+	return corpact.Calendar{Market: "US", Answer: corpact.Answer{Datasource: "alpha", Coverage: []types.Period{{From: date(2000, 1, 1), Before: types.Day(now).AddDate(0, 0, 1)}}, Acts: acts}}
 }
 
 func split(ex time.Time, from, to int64) corpact.Act {
@@ -38,11 +38,11 @@ func held(days []time.Time, quantities ...string) keyDays {
 
 // text is a sum in a form that cmp can compare.
 type text struct {
-	Quantity      string
-	Keys          []string
-	Mark          holdingv1.HoldingMark
-	UncoveredFrom string
-	Gaps          []string
+	Quantity        string
+	Keys            []string
+	Mark            holdingv1.HoldingMark
+	ProvisionalFrom string
+	Gaps            []string
 }
 
 func textOf(s sum) text {
@@ -50,8 +50,8 @@ func textOf(s sum) text {
 	for _, k := range s.keys {
 		out.Keys = append(out.Keys, k.String())
 	}
-	if s.uncoveredFrom != nil {
-		out.UncoveredFrom = s.uncoveredFrom.Format(time.DateOnly)
+	if s.provisionalFrom != nil {
+		out.ProvisionalFrom = s.provisionalFrom.Format(time.DateOnly)
 	}
 	for _, g := range s.gaps {
 		out.Gaps = append(out.Gaps, g.From.Format(time.DateOnly)+" "+g.Before.Format(time.DateOnly))
@@ -63,7 +63,7 @@ func TestRestate(t *testing.T) {
 	today := types.Day(now)
 	bought, sold := date(2019, 1, 2), date(2021, 3, 1)
 	twoForOne := split(date(2020, 3, 2), 1, 2)
-	adjusted, unadjusted := holdingv1.HoldingMark_HOLDING_MARK_ADJUSTED, holdingv1.HoldingMark_HOLDING_MARK_UNADJUSTED
+	adjusted, provisional := holdingv1.HoldingMark_HOLDING_MARK_ADJUSTED, holdingv1.HoldingMark_HOLDING_MARK_CORP_ACTS_PROVISIONAL
 	tests := []struct {
 		name string
 		cal  corpact.Calendar
@@ -108,24 +108,23 @@ func TestRestate(t *testing.T) {
 		{
 			name: "no calendar",
 			keys: []keyDays{held([]time.Time{bought, sold}, "100", "-200")},
-			want: text{Quantity: "-100", Keys: []string{"-100"}, Mark: unadjusted, UncoveredFrom: "2019-01-03", Gaps: []string{"2019-01-03 2026-01-11"}},
+			want: text{Quantity: "-100", Keys: []string{"-100"}, Mark: provisional, ProvisionalFrom: "2019-01-03", Gaps: []string{"2019-01-03 2026-01-11"}},
 		},
 		{
-			name: "coverage that starts after the earliest transaction",
-			cal: corpact.Calendar{{Answer: corpact.Answer{
+			name: "a handled split with a gap in one transaction's span",
+			cal: corpact.Calendar{Market: "US", Answer: corpact.Answer{
 				Datasource: "alpha", Coverage: []types.Period{{From: date(2020, 1, 1), Before: today.AddDate(0, 0, 1)}}, Acts: []corpact.Act{twoForOne},
-			}, Market: "US"}},
+			}},
 			keys: []keyDays{held([]time.Time{bought, sold}, "100", "-50")},
-			want: text{Quantity: "50", Keys: []string{"50"}, Mark: unadjusted, UncoveredFrom: "2019-01-03", Gaps: []string{"2019-01-03 2020-01-01"}},
+			want: text{Quantity: "150", Keys: []string{"150"}, Mark: provisional, ProvisionalFrom: "2019-01-03", Gaps: []string{"2019-01-03 2020-01-01"}},
 		},
 		{
-			name: "two datasources that each cover half",
-			cal: corpact.Calendar{
-				{Answer: corpact.Answer{Datasource: "alpha", Coverage: []types.Period{{From: date(2000, 1, 1), Before: date(2020, 1, 1)}}}, Market: "US"},
-				{Answer: corpact.Answer{Datasource: "beta", Coverage: []types.Period{{From: date(2020, 1, 1), Before: today.AddDate(0, 0, 1)}}}, Market: "US"},
-			},
+			name: "a gap in the middle of the span",
+			cal: corpact.Calendar{Market: "US", Answer: corpact.Answer{Datasource: "alpha", Coverage: []types.Period{
+				{From: date(2000, 1, 1), Before: date(2020, 1, 1)}, {From: date(2020, 1, 2), Before: today.AddDate(0, 0, 1)},
+			}, Acts: []corpact.Act{twoForOne}}},
 			keys: []keyDays{held([]time.Time{bought}, "100")},
-			want: text{Quantity: "100", Keys: []string{"100"}, Mark: unadjusted, UncoveredFrom: "2019-01-03"},
+			want: text{Quantity: "200", Keys: []string{"200"}, Mark: provisional, ProvisionalFrom: "2019-01-03", Gaps: []string{"2020-01-01 2020-01-02"}},
 		},
 	}
 	for _, tc := range tests {

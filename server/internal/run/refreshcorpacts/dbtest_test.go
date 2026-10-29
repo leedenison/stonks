@@ -22,6 +22,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/identity/tickervalidity"
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/mic"
+	"github.com/leedenison/stonks/server/internal/platform/ptr"
 	"github.com/leedenison/stonks/server/internal/testutil/dbtest"
 	"github.com/leedenison/stonks/server/internal/testutil/runtest"
 	"github.com/leedenison/stonks/server/internal/types"
@@ -102,10 +103,23 @@ func (s *stack) user(t *testing.T) uuid.UUID {
 	return u.ID
 }
 
+// instr creates a stock with a USD listing whose primary venue is XNAS.
 func (s *stack) instr(t *testing.T) uuid.UUID {
 	t.Helper()
-	instr, err := s.q.CreateInstr(context.Background(), gen.CreateInstrParams{ID: db.NewID(), AssetClass: types.AssetClassStock})
+	return s.listed(t, map[string]*string{"USD": ptr.To("XNAS")})
+}
+
+// listed creates a stock with a listing in each currency of primaries, at
+// the primary venue it maps to. A nil venue states none.
+func (s *stack) listed(t *testing.T, primaries map[string]*string) uuid.UUID {
+	t.Helper()
+	ctx := context.Background()
+	instr, err := s.q.CreateInstr(ctx, gen.CreateInstrParams{ID: db.NewID(), AssetClass: types.AssetClassStock})
 	require.NoError(t, err)
+	for currency, venue := range primaries {
+		_, err := s.q.CreateListing(ctx, gen.CreateListingParams{ID: db.NewID(), InstrID: instr.ID, Currency: currency, PrimaryMic: venue})
+		require.NoError(t, err)
+	}
 	return instr.ID
 }
 
@@ -120,12 +134,18 @@ func value(t *testing.T, prefix string) string {
 // names nothing.
 func (s *stack) names(t *testing.T, v string, instr *uuid.UUID, on time.Time) {
 	t.Helper()
+	s.namesAt(t, types.MarketTicker{Market: "US", Value: v}, instr, on)
+}
+
+// namesAt attests that mt names instr on day on.
+func (s *stack) namesAt(t *testing.T, mt types.MarketTicker, instr *uuid.UUID, on time.Time) {
+	t.Helper()
 	ctx := context.Background()
 	run, err := s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), Kind: gen.RunKindAttestIdentifier, Trigger: gen.RunTriggerAdministrator})
 	require.NoError(t, err)
-	ticker := dbtest.Ticker(t, s.q, types.MarketTicker{Market: "US", Value: v}).ID
+	ticker := dbtest.Ticker(t, s.q, mt).ID
 	require.NoError(t, s.q.CreateIdentifierAssertion(ctx, gen.CreateIdentifierAssertionParams{
-		ID: db.NewID(), RunID: &run.ID, AttestedBy: &s.admin, TickerID: ticker, Market: "US", InstrID: instr, AssertedFrom: on, AssertedBefore: on.AddDate(0, 0, 1),
+		ID: db.NewID(), RunID: &run.ID, AttestedBy: &s.admin, TickerID: ticker, Market: mt.Market, InstrID: instr, AssertedFrom: on, AssertedBefore: on.AddDate(0, 0, 1),
 	}))
 	require.NoError(t, tickervalidity.Rebuild(ctx, s.q, []uuid.UUID{ticker}))
 }
@@ -274,6 +294,42 @@ func TestAfterStmtOwn(t *testing.T) {
 	}}
 	if diff := cmp.Diff(want, mine(s.recorder.calls, own, unnamed)); diff != "" {
 		t.Errorf("fetches mismatch (-want +got):\n%s", diff)
+	}
+}
+
+// TestAfterStmtMarket checks that a fetch asks only about the tickers in the
+// instrument's market, and about none for an instrument with no market.
+func TestAfterStmtMarket(t *testing.T) {
+	tests := []struct {
+		name      string
+		primaries map[string]*string
+		want      bool
+	}{
+		{name: "a US primary", primaries: map[string]*string{"USD": ptr.To("XNAS"), "CAD": nil}, want: true},
+		{name: "no primary venue", primaries: map[string]*string{"USD": nil}},
+		{name: "primary venues in two markets", primaries: map[string]*string{"USD": ptr.To("XNAS"), "CAD": ptr.To("XTSE")}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			s := newStack(t)
+			u := s.user(t)
+			v := value(t, "M")
+			instr := s.listed(t, tc.primaries)
+			s.names(t, v, &instr, day(2015, 1, 2))
+			s.namesAt(t, types.MarketTicker{Market: "XTSE", Value: v}, &instr, day(2015, 1, 2))
+			stmt := s.buys(t, u, s.fixedKey(t, u, instr), day(2016, 3, 1))
+			s.svc.AfterStmt(context.Background(), stmt)
+			var want []fetched
+			if tc.want {
+				want = []fetched{{
+					Kind: gen.RunKindIngestStmt, User: &u,
+					Reqs: []asked{{Ticker: types.MarketTicker{Market: "US", Value: v}, Period: types.Period{From: day(2016, 3, 1), Before: day(2026, 3, 3)}}},
+				}}
+			}
+			if diff := cmp.Diff(want, mine(s.recorder.calls, v)); diff != "" {
+				t.Errorf("fetches mismatch (-want +got):\n%s", diff)
+			}
+		})
 	}
 }
 

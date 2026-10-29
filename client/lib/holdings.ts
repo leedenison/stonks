@@ -45,18 +45,19 @@ export type HoldingRow = {
   // The holding's registry codes.
   identifiers: Identifier[];
   kind: "instr" | "group";
-  // Whether the quantity is as stated, because corporate actions are not
-  // known for part of the period since a transaction.
-  unadjusted: boolean;
-  // The day from which an unadjusted holding needs corporate actions, as
+  // Whether the quantity follows every corporate action known so far while an
+  // action may be missing, because actions are not known for part of the
+  // period since a transaction.
+  provisional: boolean;
+  // The day from which a provisional holding needs corporate actions, as
   // YYYY-MM-DD.
-  uncoveredFrom?: string;
-  // The runs of days that no datasource covers, each with its last day.
+  provisionalFrom?: string;
+  // The runs of days with unknown corporate actions, each with its last day.
   gaps: Gap[];
 };
 
-// A Gap is a run of days that no datasource covers. Both ends are included,
-// as YYYY-MM-DD.
+// A Gap is a run of days that the corporate actions source of the holding's
+// market has not covered. Both ends are included, as YYYY-MM-DD.
 export type Gap = { from: string; to: string };
 
 // descriptionsOf returns the distinct descriptions the brokers gave the
@@ -124,8 +125,8 @@ function instrRow(h: InstrHolding): HoldingRow {
     classes: [h.assetClass],
     quantity: h.quantity,
     identifiers: h.identifiers.filter((i) => registry.includes(i.type)),
-    unadjusted: h.mark === HoldingMark.UNADJUSTED,
-    uncoveredFrom: h.uncoveredFrom,
+    provisional: h.mark === HoldingMark.CORP_ACTS_PROVISIONAL,
+    provisionalFrom: h.provisionalFrom,
     gaps: h.gaps.map((g) => ({
       from: g.uncoveredFrom,
       to: prevDay(g.uncoveredBefore),
@@ -156,7 +157,7 @@ function groupRow(h: GroupHolding): HoldingRow {
     classes: h.assetClasses,
     quantity: h.quantity,
     identifiers: h.identifiers.filter((i) => registry.includes(i.type)),
-    unadjusted: false,
+    provisional: false,
     gaps: [],
   };
 }
@@ -167,11 +168,11 @@ export function isCash(r: HoldingRow): boolean {
 }
 
 // hasDetail reports whether a row opens: a row other than cash with a code,
-// a description or a lack of coverage to show.
+// a description or a provisional quantity to show.
 export function hasDetail(r: HoldingRow): boolean {
   return (
     !isCash(r) &&
-    (r.identifiers.length > 0 || r.descriptions.length > 0 || r.unadjusted)
+    (r.identifiers.length > 0 || r.descriptions.length > 0 || r.provisional)
   );
 }
 

@@ -3,8 +3,8 @@ import { Td } from "@/app/components/table";
 import { type Gap, type HoldingRow } from "@/lib/holdings";
 
 // HoldingDetail is the row that opens beneath a holding. It shows the
-// holding's registry codes and the brokers' descriptions of it. It also shows
-// the days that no datasource covers, if the holding is unadjusted.
+// holding's registry codes and the brokers' descriptions of it. For a
+// provisional holding it also shows the days with no known corporate actions.
 export function HoldingDetail({
   row,
   columns,
@@ -34,28 +34,23 @@ export function HoldingDetail({
               </ul>
             </Part>
           )}
-          {row.unadjusted && (
-            <Part title="Unadjusted:">
-              <div data-testid={`holding-uncovered-${row.id}`}>
+          {row.provisional && (
+            <Part title="Provisional:">
+              <div data-testid={`holding-provisional-${row.id}`}>
                 <p>
-                  Corporate actions are not known from{" "}
+                  The quantity follows every corporate action known so far. Some
+                  days from{" "}
                   <span className="font-mono tabular-nums">
-                    {row.uncoveredFrom}
+                    {row.provisionalFrom}
                   </span>{" "}
-                  to today, so the quantity is as stated.
+                  to today have no known corporate actions, so an action may be
+                  missing.
                 </p>
-                {row.gaps.length > 0 ? (
-                  <ul>
-                    {row.gaps.map((g) => (
-                      <li key={g.from}>{gapText(g)}</li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p>
-                    A datasource covers each day, but no single datasource
-                    covers them all.
-                  </p>
-                )}
+                <ul>
+                  {row.gaps.map((g) => (
+                    <li key={g.from}>{gapText(g)}</li>
+                  ))}
+                </ul>
               </div>
             </Part>
           )}
@@ -85,6 +80,6 @@ function Part({
 // gapText words a gap for display.
 function gapText(g: Gap): string {
   return g.from === g.to
-    ? `No datasource covers ${g.from}.`
-    : `No datasource covers ${g.from} to ${g.to}.`;
+    ? `Corporate actions are unknown for ${g.from}.`
+    : `Corporate actions are unknown for ${g.from} to ${g.to}.`;
 }

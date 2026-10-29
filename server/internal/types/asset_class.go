@@ -78,6 +78,9 @@ func (e AssetClass) under(o AssetClass) bool {
 func (e AssetClass) Disjoint(o AssetClass) bool { return !e.under(o) && !o.under(e) }
 
 // Restated reports whether corporate actions restate a quantity of e. They
-// restate equity and the classes below it. Every other class, unknown among
-// them, keeps its quantity as stated.
-func (e AssetClass) Restated() bool { return e.under(AssetClassEquity) }
+// restate stocks and ETFs, and equity of no known subclass. Every other class
+// keeps its quantity as stated. Mutual funds are among them, because many
+// funds have no ticker that a corporate actions source can answer.
+func (e AssetClass) Restated() bool {
+	return e == AssetClassEquity || e.under(AssetClassStock) || e.under(AssetClassEtf)
+}

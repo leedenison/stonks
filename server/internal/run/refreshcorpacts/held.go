@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/leedenison/stonks/server/internal/corpact"
 	"github.com/leedenison/stonks/server/internal/identity/tickervalidity"
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/types"
@@ -58,9 +59,10 @@ func (b *base) heldInstrs(ctx context.Context) (map[uuid.UUID]*held, error) {
 }
 
 // requests returns an ask for each ticker that ticker validity says named a
-// kept instrument of hs over its holding. The period and the users of an ask
-// come from every instrument of hs that the ticker named, kept or not, so that
-// every run asks for the same period.
+// kept instrument of hs over its holding, at the instrument's market. The
+// period and the users of an ask come from every instrument of hs at the
+// ticker's market that the ticker named, kept or not, so that every run asks
+// for the same period.
 func (b *base) requests(ctx context.Context, hs map[uuid.UUID]*held, keep func(uuid.UUID, *held) bool) ([]ask, error) {
 	var kept []uuid.UUID
 	for _, id := range slices.SortedFunc(maps.Keys(hs), func(a, b uuid.UUID) int { return bytes.Compare(a[:], b[:]) }) {
@@ -86,6 +88,18 @@ func (b *base) requests(ctx context.Context, hs map[uuid.UUID]*held, keep func(u
 	if err != nil {
 		return nil, fmt.Errorf("read the ticker validity of the held instruments' tickers: %w", err)
 	}
+	var instrs []uuid.UUID
+	for _, t := range ts {
+		for _, iv := range read[t] {
+			if hs[iv.Instr] != nil && !slices.Contains(instrs, iv.Instr) {
+				instrs = append(instrs, iv.Instr)
+			}
+		}
+	}
+	markets, err := corpact.Markets(ctx, b.queries, instrs)
+	if err != nil {
+		return nil, err
+	}
 	before := types.Day(b.clock()).AddDate(0, 0, 1)
 	var out []ask
 	for _, t := range ts {
@@ -93,7 +107,7 @@ func (b *base) requests(ctx context.Context, hs map[uuid.UUID]*held, keep func(u
 		named, asked := false, false
 		for _, iv := range read[t] {
 			h := hs[iv.Instr]
-			if h == nil || !overlaps(iv, h.from, before) {
+			if h == nil || markets[iv.Instr] != t.Market || !overlaps(iv, h.from, before) {
 				continue
 			}
 			asked = asked || slices.Contains(kept, iv.Instr)
