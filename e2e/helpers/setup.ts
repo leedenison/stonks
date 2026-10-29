@@ -6,6 +6,7 @@ import {
   deleteUsers,
   seedDatasource,
   seedUser,
+  setCorpActSource,
   setIdentifierEventSource,
 } from "./db";
 
@@ -43,13 +44,15 @@ const credential = "e2e";
 
 // Names the proxy as every datasource. The registry reads the table only
 // when a row changes through the datasource service, so the values are
-// also saved through it. Massive is the identifier event source of the US.
+// also saved through it. Massive is the identifier event source and the
+// corporate actions source of the US.
 export default async function setup(): Promise<void> {
   try {
     for (const d of datasources) {
       await seedDatasource({ ...d, credential });
     }
     await setIdentifierEventSource("US", "massive");
+    await setCorpActSource("US", "massive");
     const admin = await seedUser("admin");
     const session = await seedSession(admin);
     try {

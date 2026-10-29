@@ -16,6 +16,11 @@ import (
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
+// window is how many calendar days either side of a stated split the
+// matching corporate action may fall. The count is in calendar days because
+// the system lacks a calendar of trading days.
+const window = 7
+
 // splitGroup holds the stated splits of one key on one day, from one or
 // several statements.
 type splitGroup struct {
@@ -139,9 +144,10 @@ func (r *Recorder) splitFindings(ctx context.Context, q Queries, user *uuid.UUID
 }
 
 // coverage returns the periods over which the stored answers of the recorded
-// keys' datasources cover each instrument. A stored answer stands in for the
-// recorded key's own answer, because it is that answer or a later one that
-// replaced it.
+// keys cover each instrument. A stored answer stands in for the recorded
+// key's own answer, because it is that answer or a later one that replaced
+// it. A recorded key whose datasource is not its market's corporate
+// actions source covers nothing.
 func coverage(ctx context.Context, q Queries, recorded []recordedKey, read map[types.MarketTicker]tickervalidity.Intervals) ([]cover, error) {
 	ts := make([]types.MarketTicker, len(recorded))
 	for i, rec := range recorded {
@@ -153,16 +159,14 @@ func coverage(ctx context.Context, q Queries, recorded []recordedKey, read map[t
 	}
 	var out []cover
 	for _, rec := range recorded {
-		ivs := read[rec.ticker]
-		for _, a := range answers[rec.ticker] {
-			if a.Datasource != rec.key.Source {
-				continue
-			}
-			for _, iv := range ivs {
-				for _, c := range a.Coverage {
-					if p, ok := iv.Clip(c); ok {
-						out = append(out, cover{instr: iv.Instr, period: p, run: rec.key.Run})
-					}
+		a, ok := answers[rec.ticker]
+		if !ok || a.Datasource != rec.key.Source {
+			continue
+		}
+		for _, iv := range read[rec.ticker] {
+			for _, c := range a.Coverage {
+				if p, ok := iv.Clip(c); ok {
+					out = append(out, cover{instr: iv.Instr, period: p, run: rec.key.Run})
 				}
 			}
 		}
@@ -240,9 +244,8 @@ func restatedOnly(ctx context.Context, q Queries, groups []splitGroup) ([]splitG
 }
 
 // calendar returns the corporate actions of each of instruments: those of
-// every datasource and market, handled or not, under each ticker that named
-// the instrument on the action's ex-date. The check asks whether any
-// datasource knows a split. A gap in one datasource raises a disagreement.
+// every market, handled or not, under each ticker that named the instrument
+// on the action's ex-date.
 func calendar(ctx context.Context, q Queries, instrs []uuid.UUID) (map[uuid.UUID][]Act, error) {
 	cals, err := Calendars(ctx, q, instrs)
 	if err != nil {
@@ -280,4 +283,13 @@ func unmatchedSplits(groups []splitGroup, cal map[uuid.UUID][]Act) []unmatchedSp
 		}
 	}
 	return out
+}
+
+// days is how many calendar days apart a and b are.
+func days(a, b time.Time) int {
+	d := int(a.Sub(b).Hours() / 24)
+	if d < 0 {
+		return -d
+	}
+	return d
 }

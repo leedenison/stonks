@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"slices"
 	"strings"
 	"testing"
 
@@ -86,7 +87,13 @@ func newFixture(t *testing.T) *fixture {
 	ctrl := gomock.NewController(t)
 	t.Cleanup(ctrl.Finish)
 	f := &fixture{store: NewMockStore(ctrl), runs: NewMockRunner(ctrl), resolver: NewMockResolver(ctrl), sources: NewMockSources(ctrl), events: NewMockCorpActs(ctrl)}
-	f.sources.EXPECT().Enabled().DoAndReturn(func() []*market.Entry { return f.entries }).AnyTimes()
+	f.sources.EXPECT().Entry(gomock.Any()).DoAndReturn(func(name string) *market.Entry {
+		i := slices.IndexFunc(f.entries, func(e *market.Entry) bool { return e.Name == name })
+		if i < 0 {
+			return nil
+		}
+		return f.entries[i]
+	}).AnyTimes()
 	f.store.EXPECT().Tx(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, fn func(Queries) error) error { return fn(f.store) }).AnyTimes()
 	f.store.EXPECT().CreateReplay(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, arg gen.CreateReplayParams) error {
 		f.replays = append(f.replays, arg)

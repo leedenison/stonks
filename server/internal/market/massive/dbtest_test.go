@@ -66,11 +66,11 @@ func TestFactsRecord(t *testing.T) {
 	name := "massive-" + uuid.NewString()
 	_, err = q.CreateDatasource(ctx, gen.CreateDatasourceParams{Name: name, Enabled: true, Precedence: 1000})
 	require.NoError(t, err)
-	dbtest.EventSource(t, tx, "US", name)
+	dbtest.IdentifierEventSource(t, tx, "US", name)
 	log := slog.New(slog.DiscardHandler)
 	sources, err := market.New(ctx, q, map[string]market.Factory{name: {New: func(market.Config) (market.Integration, error) { return c, nil }}}, log)
 	require.NoError(t, err)
-	entry := sources.Enabled()[slices.IndexFunc(sources.Enabled(), func(e *market.Entry) bool { return e.Name == name })]
+	entry := sources.Entry(name)
 
 	instr, err := q.CreateInstr(ctx, gen.CreateInstrParams{ID: db.NewID(), AssetClass: types.AssetClassStock})
 	require.NoError(t, err)
@@ -207,6 +207,7 @@ func TestCorpActRecord(t *testing.T) {
 			name := "massive-" + uuid.NewString()
 			_, err = q.CreateDatasource(ctx, gen.CreateDatasourceParams{Name: name, Enabled: true, Precedence: 1000})
 			require.NoError(t, err)
+			dbtest.CorpActSource(t, tx, "US", name)
 			log := slog.New(slog.DiscardHandler)
 			sources, err := market.New(ctx, q, map[string]market.Factory{name: {New: func(market.Config) (market.Integration, error) { return c, nil }}}, log)
 			require.NoError(t, err)
@@ -218,9 +219,8 @@ func TestCorpActRecord(t *testing.T) {
 			require.True(t, ok)
 			got, err := corpact.Read(ctx, q, []types.MarketTicker{mt}, always)
 			require.NoError(t, err)
-			i := slices.IndexFunc(got[mt], func(a corpact.Answer) bool { return a.Datasource == name })
-			require.GreaterOrEqual(t, i, 0, "no answer from %s", name)
-			a := got[mt][i]
+			a, ok := got[mt]
+			require.True(t, ok && a.Datasource == name, "no answer from %s", name)
 			var acts []string
 			for _, e := range a.Acts {
 				d := e.ExDate.Format(time.DateOnly) + " " + e.Ratio.From.String() + ":" + e.Ratio.To.String()

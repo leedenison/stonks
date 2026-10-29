@@ -52,6 +52,6 @@ CREATE INDEX corp_acts_answer_idx ON corp_acts (answer_id, ex_date);
 
 ALTER TABLE findings ADD COLUMN corp_act_id uuid REFERENCES corp_acts (id) ON DELETE CASCADE;
 ALTER TABLE findings ADD CHECK
-    ((kind IN ('unhandled_corp_act', 'corp_act_disagreement')) = (corp_act_id IS NOT NULL));
+    ((kind = 'unhandled_corp_act') = (corp_act_id IS NOT NULL));
 
 CREATE INDEX findings_corp_act_idx ON findings (corp_act_id);

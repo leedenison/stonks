@@ -98,7 +98,6 @@ func TestFindings(t *testing.T) {
 		{name: "a broken bracket without detail", arg: gen.CreateFindingParams{Kind: gen.FindingKindBrokenTickerValidityBracket, FetchKeyID: &fetchKey}},
 		{name: "a contradiction without a key", noKey: true, arg: gen.CreateFindingParams{Kind: gen.FindingKindContradiction, Detail: ptr.To("d")}},
 		{name: "an unhandled corporate action without the corporate action", arg: gen.CreateFindingParams{Kind: gen.FindingKindUnhandledCorpAct, Detail: ptr.To("d")}},
-		{name: "a corporate action disagreement without the corporate action", arg: gen.CreateFindingParams{Kind: gen.FindingKindCorpActDisagreement, Detail: ptr.To("d")}},
 		{name: "an unmatched split without its day", arg: gen.CreateFindingParams{Kind: gen.FindingKindUnmatchedSplit, Detail: ptr.To("d")}},
 		{name: "an unmatched split without a key", noKey: true, arg: gen.CreateFindingParams{Kind: gen.FindingKindUnmatchedSplit, EffectiveDate: ptr.To(time.Date(2024, time.June, 7, 0, 0, 0, 0, time.UTC)), Detail: ptr.To("d")}},
 		{name: "a contradiction with a day", arg: gen.CreateFindingParams{Kind: gen.FindingKindContradiction, EffectiveDate: ptr.To(time.Date(2024, time.June, 7, 0, 0, 0, 0, time.UTC)), Detail: ptr.To("d")}},

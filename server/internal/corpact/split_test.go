@@ -2,11 +2,17 @@ package corpact
 
 import (
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 
 	"github.com/leedenison/stonks/server/internal/types"
 )
+
+// act returns a handled corporate action with an id that orders by n.
+func act(n byte, ex time.Time, r types.Ratio) Act {
+	return Act{ID: uuid.UUID{15: n}, ExDate: ex, Ratio: r, Handled: true}
+}
 
 func TestUnmatchedSplits(t *testing.T) {
 	june := day(2024, 6, 7)

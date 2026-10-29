@@ -72,6 +72,18 @@ export async function setIdentifierEventSource(
   );
 }
 
+// setCorpActSource makes datasource the corporate actions source of market.
+// Only a database update sets it.
+export async function setCorpActSource(
+  market: string,
+  datasource: string,
+): Promise<void> {
+  await db().query("UPDATE markets SET corp_act_source = $2 WHERE code = $1", [
+    market,
+    datasource,
+  ]);
+}
+
 // deleteDatasource removes a row this suite seeded. No fetch names that
 // datasource, so nothing references the row.
 export async function deleteDatasource(name: string): Promise<void> {

@@ -363,7 +363,10 @@ func TestMergeRows(t *testing.T) {
 		}
 		t.Fatalf("Resolve = %s (%s), want matched; findings %v", got[0].Outcome, reason, details)
 	}
-	_, err = s.tx.Exec(ctx, "SET CONSTRAINTS ALL IMMEDIATE")
+	// The check names the two listing foreign keys that the merge relies on.
+	// ALL would also check the unique precedence of datasources. That check
+	// blocks on the uncommitted datasources of tests that run in parallel.
+	_, err = s.tx.Exec(ctx, "SET CONSTRAINTS identifiers_listing_id_instr_id_fkey, stated_keys_listing_id_instr_id_fkey IMMEDIATE")
 	require.NoError(t, err, "the deferred constraints hold after the merge")
 
 	survivor := a.Instr.ID

@@ -81,11 +81,21 @@ func Ticker(tb testing.TB, q *gen.Queries, t types.MarketTicker) gen.Ticker {
 	return rows[0]
 }
 
-// EventSource makes datasource the identifier event source of market. Call
-// it before taking any other lock, because tests share the markets row.
-func EventSource(tb testing.TB, x gen.DBTX, market, datasource string) {
+// IdentifierEventSource makes datasource the identifier event source of
+// market. Call it before taking any other lock, because tests share the
+// markets row.
+func IdentifierEventSource(tb testing.TB, x gen.DBTX, market, datasource string) {
 	tb.Helper()
 	if _, err := x.Exec(context.Background(), "UPDATE markets SET identifier_event_source = $2 WHERE code = $1", market, datasource); err != nil {
 		tb.Fatalf("make %s the identifier event source of %s: %v", datasource, market, err)
+	}
+}
+
+// CorpActSource makes datasource the corporate actions source of market.
+// Call it before taking any other lock, because tests share the markets row.
+func CorpActSource(tb testing.TB, x gen.DBTX, market, datasource string) {
+	tb.Helper()
+	if _, err := x.Exec(context.Background(), "UPDATE markets SET corp_act_source = $2 WHERE code = $1", market, datasource); err != nil {
+		tb.Fatalf("make %s the corporate actions source of %s: %v", datasource, market, err)
 	}
 }

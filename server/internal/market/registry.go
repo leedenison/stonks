@@ -195,6 +195,17 @@ func (r *Registry) Enabled() []*Entry {
 	return nil
 }
 
+// Entry returns the enabled datasource called name, as of the last reload,
+// or nil.
+func (r *Registry) Entry(name string) *Entry {
+	for _, e := range r.Enabled() {
+		if e.Name == name {
+			return e
+		}
+	}
+	return nil
+}
+
 // Names returns the enabled datasources in precedence order, named.
 func (r *Registry) Names() []string {
 	entries := r.Enabled()

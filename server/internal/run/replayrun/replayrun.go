@@ -112,7 +112,7 @@ func (s *Service) selectKeys(ctx context.Context, source gen.Run, scope Scope) (
 			out = append(out, r.StatedKey)
 		}
 	} else {
-		entry := s.entry(scope.Datasource)
+		entry := s.sources.Entry(scope.Datasource)
 		if entry == nil {
 			return nil, ErrDisabled
 		}
@@ -134,15 +134,6 @@ func (s *Service) selectKeys(ctx context.Context, source gen.Run, scope Scope) (
 		return nil, ErrEmpty
 	}
 	return out, nil
-}
-
-func (s *Service) entry(name string) *market.Entry {
-	for _, e := range s.sources.Enabled() {
-		if e.Name == name {
-			return e
-		}
-	}
-	return nil
 }
 
 // replay is one replay's work.

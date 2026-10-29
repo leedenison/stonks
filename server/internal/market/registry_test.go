@@ -258,3 +258,24 @@ func TestRegistryDefaultEndpoint(t *testing.T) {
 		t.Errorf("DefaultEndpoint(absent) = %q, want empty", got)
 	}
 }
+
+// TestRegistryEntry checks that Entry finds an enabled datasource by name,
+// and returns nil for a disabled one and for a name without a row.
+func TestRegistryEntry(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	t.Cleanup(ctrl.Finish)
+	store := NewMockQueries(ctrl)
+	store.EXPECT().ListDatasources(gomock.Any()).Return([]gen.Datasource{row("one", true, 10), row("two", false, 20)}, nil)
+	r, err := New(context.Background(), store, map[string]Factory{"one": factoryOf(&fake{}), "two": factoryOf(&fake{})}, discard())
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	if e := r.Entry("one"); e == nil || e.Name != "one" {
+		t.Errorf("Entry(one) = %+v, want the enabled datasource", e)
+	}
+	for _, name := range []string{"two", "absent"} {
+		if e := r.Entry(name); e != nil {
+			t.Errorf("Entry(%s) = %+v, want nil", name, e)
+		}
+	}
+}

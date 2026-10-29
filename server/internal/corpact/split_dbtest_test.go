@@ -150,7 +150,6 @@ func (s *stack) nvda(t *testing.T) (uuid.UUID, uuid.UUID) {
 // datasource dates on the Monday after the stated day.
 func TestSplitMatched(t *testing.T) {
 	s := newStack(t)
-	s.only(t, s.alphaName)
 	_, key := s.nvda(t)
 	s.states(t, *s.parent.UserID, key, ptr.To(ratio(1, 10)))
 	s.alpha.Responses[ticker("XNAS", "NVDA")] = covering(reported(day(2024, 6, 10), ratio(1, 10)))
@@ -166,7 +165,6 @@ func TestSplitMatched(t *testing.T) {
 func TestSplitUnmatched(t *testing.T) {
 	s := newStack(t)
 	ctx := context.Background()
-	s.only(t, s.alphaName)
 	_, key := s.nvda(t)
 	user := *s.parent.UserID
 	s.states(t, user, key, ptr.To(ratio(1, 10)))
@@ -191,16 +189,15 @@ func TestSplitUnmatched(t *testing.T) {
 
 var cmpIgnoreID = cmp.FilterPath(func(p cmp.Path) bool { return p.Last().String() == ".id" }, cmp.Ignore())
 
-// TestSplitRun checks that the finding goes on the run of the first covering
-// datasource, and that another datasource's stored answer does not make a
+// TestSplitRun checks that the finding goes on the run of the source's
+// fetch, and that the stored answer of another datasource does not make a
 // fetch cover the split.
 func TestSplitRun(t *testing.T) {
-	t.Run("both cover", func(t *testing.T) {
+	t.Run("the source covers", func(t *testing.T) {
 		s := newStack(t)
 		_, key := s.nvda(t)
 		s.states(t, *s.parent.UserID, key, ptr.To(ratio(1, 10)))
 		s.alpha.Responses[ticker("XNAS", "NVDA")] = covering()
-		s.beta.Responses[ticker("XNAS", "NVDA")] = covering()
 		s.fetch(t, ticker("XNAS", "NVDA"))
 		if got := s.unmatchedSplits(t); len(got) != 1 || got[0].datasource != s.alphaName {
 			t.Errorf("findings = %+v, want one on %s's run", got, s.alphaName)
@@ -209,11 +206,11 @@ func TestSplitRun(t *testing.T) {
 	t.Run("only a stored answer of another datasource covers", func(t *testing.T) {
 		s := newStack(t)
 		_, key := s.nvda(t)
-		s.only(t, s.betaName)
+		s.source(t, s.betaName)
 		s.beta.Responses[ticker("XNAS", "NVDA")] = covering()
 		s.fetch(t, ticker("XNAS", "NVDA"))
 		s.states(t, *s.parent.UserID, key, ptr.To(ratio(1, 10)))
-		s.only(t, s.alphaName)
+		s.source(t, s.alphaName)
 		s.alpha.Responses[ticker("XNAS", "NVDA")] = market.CorpActResult{}
 		s.now = answered.AddDate(0, 0, 1)
 		s.fetch(t, ticker("XNAS", "NVDA"))
@@ -227,7 +224,6 @@ func TestSplitRun(t *testing.T) {
 // unchecked, although a stored answer covers it.
 func TestSplitUnrelatedFetch(t *testing.T) {
 	s := newStack(t)
-	s.only(t, s.alphaName)
 	_, key := s.nvda(t)
 	s.alpha.Responses[ticker("XNAS", "NVDA")] = covering()
 	s.fetch(t, ticker("XNAS", "NVDA"))
@@ -253,7 +249,6 @@ func TestSplitUncovered(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			s := newStack(t)
-			s.only(t, s.alphaName)
 			_, key := s.nvda(t)
 			s.states(t, *s.parent.UserID, key, ptr.To(ratio(1, 10)))
 			s.alpha.Responses[ticker("XNAS", "NVDA")] = tc.answer
@@ -279,7 +274,6 @@ func TestSplitDatedKey(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.venue, func(t *testing.T) {
 			s := newStack(t)
-			s.only(t, s.alphaName)
 			instr := s.instr(t, types.AssetClassStock)
 			s.names(t, us("NVDA"), instr, day(2024, 1, 2))
 			key := s.datedKey(t, tc.venue, "NVDA")
@@ -300,7 +294,6 @@ func TestSplitDatedKey(t *testing.T) {
 func TestSplitCalendarByTickerValidity(t *testing.T) {
 	t.Run("a reused ticker", func(t *testing.T) {
 		s := newStack(t)
-		s.only(t, s.alphaName)
 		instr, other := s.instr(t, types.AssetClassStock), s.instr(t, types.AssetClassStock)
 		s.names(t, us("NVDA"), instr, day(2024, 6, 1))
 		s.names(t, us("NVDA"), other, day(2024, 6, 9))
@@ -314,7 +307,6 @@ func TestSplitCalendarByTickerValidity(t *testing.T) {
 	})
 	t.Run("an earlier ticker", func(t *testing.T) {
 		s := newStack(t)
-		s.only(t, s.alphaName)
 		instr := s.instr(t, types.AssetClassStock)
 		s.names(t, us("OLD"), instr, day(2020, 1, 2))
 		s.alpha.Responses[ticker("XNAS", "OLD")] = covering(reported(day(2024, 6, 10), ratio(1, 10)))
@@ -345,7 +337,6 @@ func TestSplitClass(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(string(tc.class), func(t *testing.T) {
 			s := newStack(t)
-			s.only(t, s.alphaName)
 			instr := s.instr(t, tc.class)
 			s.names(t, us("NVDA"), instr, day(2024, 1, 2))
 			key := s.fixedKey(t, *s.parent.UserID, instr)
@@ -364,7 +355,6 @@ func TestSplitClass(t *testing.T) {
 func TestSplitUsers(t *testing.T) {
 	s := newStack(t)
 	ctx := context.Background()
-	s.only(t, s.alphaName)
 	instr, mine := s.nvda(t)
 	other := s.user(t)
 	theirs := s.fixedKey(t, other, instr)
@@ -397,7 +387,6 @@ func TestSplitUsers(t *testing.T) {
 // unhandled action within the window, on a day the answer still covers.
 func TestSplitNearUnhandled(t *testing.T) {
 	s := newStack(t)
-	s.only(t, s.alphaName)
 	_, key := s.nvda(t)
 	s.states(t, *s.parent.UserID, key, nil)
 	s.alpha.Responses[ticker("XNAS", "NVDA")] = covering(market.CorpAct{ExDate: splitDay.AddDate(0, 0, 1), Ratio: ratio(1, 1), Type: "spin_off"})

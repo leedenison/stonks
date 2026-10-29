@@ -126,15 +126,10 @@ enum FindingKind {
   // restate a quantity by. The detail names the ticker, the ex-date, the type
   // and the ratio.
   FINDING_KIND_UNHANDLED_CORP_ACT = 8;
-  // A corporate action of one datasource lacks a corporate action of equal ratio,
-  // within 7 days either side, from another datasource that covers the same
-  // ticker on its ex-date. The detail names the ticker, the ex-date, the ratio
-  // and both datasources.
-  FINDING_KIND_CORP_ACT_DISAGREEMENT = 9;
   // A statement states a split, and the calendar holds no matching event
   // within 7 days either side of it. The detail names the split's effective
   // date and its ratio, where the statement states one.
-  FINDING_KIND_UNMATCHED_SPLIT = 10;
+  FINDING_KIND_UNMATCHED_SPLIT = 9;
 }
 
 // The step of the choice that dropped a set of identifiers.

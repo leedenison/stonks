@@ -15,6 +15,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/platform/ptr"
+	"github.com/leedenison/stonks/server/internal/testutil/dbtest"
 )
 
 // newCorpAct records an answer of f's datasource for US:NVDA under a
@@ -35,13 +36,15 @@ func newCorpAct(t *testing.T, q *gen.Queries, f fetching) (answer, act uuid.UUID
 }
 
 // TestCorpActs checks that an answer reads with the moment its fetch
-// key states and its datasource's precedence, that its actions read by
-// ticker and period, and that deleting an action deletes the findings that
-// name it.
+// key states, that the answers and actions of the market's corporate actions
+// source read by ticker and period, and that deleting an action deletes the
+// findings that name it.
 func TestCorpActs(t *testing.T) {
 	ctx := context.Background()
-	q := newTx(t)
+	tx := begin(t)
+	q := gen.New(tx)
 	f := newFetching(t, q)
+	dbtest.CorpActSource(t, tx, "US", f.ds.Name)
 	answer, act := newCorpAct(t, q, f)
 
 	got, err := q.GetCorpActAnswer(ctx, gen.GetCorpActAnswerParams{Datasource: f.ds.Name, TickerID: newTicker(t, q, "US", "NVDA").ID})
@@ -51,8 +54,8 @@ func TestCorpActs(t *testing.T) {
 	}
 	answers, err := q.ListCorpActAnswers(ctx, gen.ListCorpActAnswersParams{Markets: []string{"US"}, Values: []string{"NVDA"}})
 	require.NoError(t, err)
-	if len(answers) != 1 || answers[0].CorpActAnswer.ID != answer || answers[0].Precedence != f.ds.Precedence {
-		t.Errorf("ListCorpActAnswers = %+v, want the answer with precedence %d", answers, f.ds.Precedence)
+	if len(answers) != 1 || answers[0].CorpActAnswer.ID != answer {
+		t.Errorf("ListCorpActAnswers = %+v, want the answer", answers)
 	}
 	for _, tc := range []struct {
 		name         string
@@ -71,11 +74,6 @@ func TestCorpActs(t *testing.T) {
 
 	finding := gen.CreateFindingParams{ID: db.NewID(), RunID: f.fetch.ID, Kind: gen.FindingKindUnhandledCorpAct, CorpActID: &act, Detail: ptr.To("US:NVDA on 2024-06-10")}
 	require.NoError(t, q.CreateFinding(ctx, finding))
-	disagreed, err := q.ListDisagreedCorpActs(ctx, []uuid.UUID{act})
-	require.NoError(t, err)
-	if len(disagreed) != 0 {
-		t.Errorf("ListDisagreedCorpActs = %v, want none for an unhandled finding", disagreed)
-	}
 	require.NoError(t, q.DeleteCorpActs(ctx, []uuid.UUID{act}))
 	listed, err := q.ListRunFindings(ctx, []uuid.UUID{f.fetch.ID})
 	require.NoError(t, err)

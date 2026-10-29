@@ -17,7 +17,6 @@ import (
 // ticker named on the ex-date, read from stored ticker validity.
 func TestCalendarsHolders(t *testing.T) {
 	s := newStack(t)
-	s.only(t, s.alphaName)
 	first := s.instr(t, types.AssetClassStock)
 	later := s.instr(t, types.AssetClassStock)
 	ex := day(2021, 1, 4)
