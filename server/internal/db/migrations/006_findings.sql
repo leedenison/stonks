@@ -1,5 +1,16 @@
 -- +goose Up
 
+-- Findings fall into two groups. An occurrence belongs to the run that
+-- raised it, and each later run raises its own. 'dropped', 'contradiction',
+-- 'merged' and the identifier facts kinds are occurrences. A standing finding
+-- reports a condition of the data. Its subject is what the condition
+-- concerns: the block of a 'block', the corporate action of an
+-- 'unhandled_corp_act', and the key and day of an 'unmatched_split'. A unique
+-- index over the subject keeps one row for each subject. A cleared standing
+-- finding keeps its row, so the condition stays dismissed. The identifier
+-- facts kinds name a fetch key and a detail. The table lacks a column for what
+-- they concern, so they stay occurrences.
+--
 -- The taxonomy of findings:
 -- 'block' means the run wrote a datasource block.
 -- 'dropped' means the resolution dropped a set of identifiers a datasource
@@ -37,8 +48,7 @@
 -- no corporate action of the split's instrument falls within 7 days either
 -- side, with an equal ratio where the statement states one. A corporate action
 -- fetch that covers the instrument on the split's date records it. The
--- finding names the stated key and the split's effective date. One finding
--- stands for each key and day, so clearing the finding dismisses that split permanently.
+-- finding names the stated key and the split's effective date.
 CREATE TYPE finding_kind AS ENUM ('block', 'dropped', 'contradiction', 'merged',
     'identifier_disagreement', 'broken_ticker_validity_bracket', 'missed_event',
     'unhandled_corp_act', 'unmatched_split');
@@ -80,3 +90,5 @@ CREATE TABLE findings (
 
 CREATE INDEX findings_run_idx ON findings (run_id);
 CREATE INDEX findings_stated_key_idx ON findings (stated_key_id);
+CREATE UNIQUE INDEX findings_unmatched_split_idx ON findings (stated_key_id, effective_date)
+    WHERE kind = 'unmatched_split';

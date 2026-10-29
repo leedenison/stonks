@@ -94,9 +94,3 @@ FROM ticker_validity
 JOIN tickers ON tickers.id = ticker_validity.ticker_id
 WHERE ticker_validity.instr_id = ANY(@instrs::uuid[])
 ORDER BY ticker_validity.instr_id, tickers.market, tickers.value;
-
--- name: ListUnmatchedSplits :many
--- The key and day of each unmatched split finding on one of keys.
-SELECT DISTINCT stated_key_id::uuid AS stated_key_id, effective_date::date AS effective_date
-FROM findings
-WHERE kind = 'unmatched_split' AND stated_key_id = ANY(@keys::uuid[]);

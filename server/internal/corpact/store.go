@@ -30,10 +30,9 @@ type Queries interface {
 	ListAnswerCorpActs(ctx context.Context, answerID uuid.UUID) ([]gen.CorpAct, error)
 	CreateCorpAct(ctx context.Context, arg gen.CreateCorpActParams) error
 	DeleteCorpActs(ctx context.Context, ids []uuid.UUID) error
-	CreateFinding(ctx context.Context, arg gen.CreateFindingParams) error
+	CreateStandingFinding(ctx context.Context, arg gen.CreateStandingFindingParams) (int64, error)
 	tickers.Queries
 	ListStatedSplits(ctx context.Context, arg gen.ListStatedSplitsParams) ([]gen.ListStatedSplitsRow, error)
-	ListUnmatchedSplits(ctx context.Context, keys []uuid.UUID) ([]gen.ListUnmatchedSplitsRow, error)
 	ListInstrsByID(ctx context.Context, ids []uuid.UUID) ([]gen.Instr, error)
 }
 
