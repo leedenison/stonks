@@ -94,9 +94,8 @@ func ProtoStatedKey(k gen.StatedKey) *typev1.StatedKey {
 }
 
 // ProtoResolutionItem writes k with what a resolution made of it. A nil r,
-// for a key no resolution has reached, leaves the outcome unset. dated is
-// nil for a key without a dated association.
-func ProtoResolutionItem(k gen.StatedKey, r *gen.ResolutionKey, dated *types.Identifier) *typev1.ResolutionItem {
+// for a key no resolution has reached, leaves the outcome unset.
+func ProtoResolutionItem(k gen.StatedKey, r *gen.ResolutionKey) *typev1.ResolutionItem {
 	out := &typev1.ResolutionItem{StatedKey: ProtoStatedKey(k), StatedKeyId: k.ID.String()}
 	if r != nil {
 		out.Outcome = types.ToProto[typev1.ResolutionOutcome](r.Outcome)
@@ -105,9 +104,6 @@ func ProtoResolutionItem(k gen.StatedKey, r *gen.ResolutionKey, dated *types.Ide
 	}
 	if k.Arbiter != nil {
 		out.Arbiter = types.ToProto[typev1.Arbiter](*k.Arbiter)
-	}
-	if dated != nil {
-		out.Ticker = dated.ToProto()
 	}
 	return out
 }
@@ -158,13 +154,12 @@ func ProtoTxn(txn gen.Txn, m stmtv1.TxnMark) *stmtv1.Txn {
 // ProtoStmtSummary writes a statement as a summary.
 func ProtoStmtSummary(stmt gen.Stmt, run gen.Run, rejected int32, live bool) *stmtv1.StmtSummary {
 	return &stmtv1.StmtSummary{
-		Run:         ProtoRun(run),
-		Broker:      types.ToProto[typev1.Broker](stmt.Broker),
-		OrderFrom:   stmt.OrderFrom.Format("2006-01-02"),
-		OrderBefore: stmt.OrderBefore.Format("2006-01-02"),
-		Rows:        stmt.RowCount,
-		Rejected:    rejected,
-		Live:        live,
+		Run:      ProtoRun(run),
+		Broker:   types.ToProto[typev1.Broker](stmt.Broker),
+		Period:   types.Period{From: stmt.OrderFrom, Before: stmt.OrderBefore}.ToProto(),
+		Rows:     stmt.RowCount,
+		Rejected: rejected,
+		Live:     live,
 	}
 }
 
@@ -217,12 +212,11 @@ func ProtoFetchItem(it gen.ListFetchItemsRow) *adminrunv1.FetchItem {
 // value is the value of the assertion's ticker.
 func ProtoAssertionItem(a gen.IdentifierAssertion, value string, datasource, attestedBy *string) *adminrunv1.AssertionItem {
 	out := &adminrunv1.AssertionItem{
-		Id:             a.ID.String(),
-		Ticker:         types.MarketTicker{Market: a.Market, Value: value}.ToProto(),
-		AssertedFrom:   a.AssertedFrom.Format(time.DateOnly),
-		AssertedBefore: a.AssertedBefore.Format(time.DateOnly),
-		EdgeFrom:       a.EdgeFrom,
-		EdgeBefore:     a.EdgeBefore,
+		Id:         a.ID.String(),
+		Ticker:     types.MarketTicker{Market: a.Market, Value: value}.ToProto(),
+		Period:     types.Period{From: a.AssertedFrom, Before: a.AssertedBefore}.ToProto(),
+		EdgeFrom:   a.EdgeFrom,
+		EdgeBefore: a.EdgeBefore,
 	}
 	if a.InstrID != nil {
 		id := a.InstrID.String()
@@ -240,8 +234,8 @@ func ProtoAssertionItem(a gen.IdentifierAssertion, value string, datasource, att
 // ProtoAssertionCoverage converts a period of assertion coverage.
 func ProtoAssertionCoverage(p gen.ListIdentifierAssertionCoverageRow) *admincoveragev1.AssertionCoverage {
 	return &admincoveragev1.AssertionCoverage{
-		Datasource:  p.Datasource,
-		CoveredFrom: p.CoveredFrom.Format(time.DateOnly), CoveredBefore: p.CoveredBefore.Format(time.DateOnly),
+		Datasource: p.Datasource,
+		Period:     types.Period{From: p.CoveredFrom, Before: p.CoveredBefore}.ToProto(),
 	}
 }
 

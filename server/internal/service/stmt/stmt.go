@@ -17,7 +17,6 @@ import (
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/to"
 	"github.com/leedenison/stonks/server/internal/identity/resolve"
-	"github.com/leedenison/stonks/server/internal/identity/tickers"
 	"github.com/leedenison/stonks/server/internal/stmt"
 	"github.com/leedenison/stonks/server/internal/types"
 )
@@ -35,7 +34,6 @@ type Confirmer interface {
 
 // Reader is this package's view of the statement queries.
 type Reader interface {
-	tickers.Queries
 	ListStmts(ctx context.Context, userID uuid.UUID) ([]gen.ListStmtsRow, error)
 	GetStmt(ctx context.Context, arg gen.GetStmtParams) (gen.GetStmtRow, error)
 	ListStmtItems(ctx context.Context, arg gen.ListStmtItemsParams) ([]gen.StmtItem, error)
@@ -192,11 +190,7 @@ func (s *Server) ConfirmCandidate(ctx context.Context, req *connect.Request[stmt
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	dated, err := tickers.OfKeys(ctx, s.reader, []gen.StatedKey{key})
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
-	}
-	return connect.NewResponse(&stmtv1.ConfirmCandidateResponse{Key: to.ProtoResolutionItem(key, &rk, tickers.DatedAt(key, dated))}), nil
+	return connect.NewResponse(&stmtv1.ConfirmCandidateResponse{Key: to.ProtoResolutionItem(key, &rk)}), nil
 }
 
 // keyError translates an error of the confirmer into its code.
@@ -229,17 +223,13 @@ func (s *Server) keys(ctx context.Context, id, user uuid.UUID) ([]*typev1.Resolu
 	for _, r := range latest {
 		outcome[r.StatedKeyID] = r
 	}
-	dated, err := tickers.OfKeys(ctx, s.reader, keys)
-	if err != nil {
-		return nil, err
-	}
 	out := make([]*typev1.ResolutionItem, 0, len(keys))
 	for _, k := range keys {
 		var latest *gen.ResolutionKey
 		if r, ok := outcome[k.ID]; ok {
 			latest = &r
 		}
-		out = append(out, to.ProtoResolutionItem(k, latest, tickers.DatedAt(k, dated)))
+		out = append(out, to.ProtoResolutionItem(k, latest))
 	}
 	return out, nil
 }

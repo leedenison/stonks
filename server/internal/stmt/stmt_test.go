@@ -174,7 +174,7 @@ func newIngestion(t *testing.T) (*fixture, *ingestion) {
 func TestCreateInvalid(t *testing.T) {
 	usd, xxx := "USD", "XXX"
 	good := func() *stmtv1.Stmt {
-		return &stmtv1.Stmt{Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01"}
+		return &stmtv1.Stmt{Broker: typev1.Broker_BROKER_IBKR, Period: &typev1.Period{From: ptr.To("2026-03-01"), Before: ptr.To("2026-04-01")}}
 	}
 	tests := []struct {
 		name string
@@ -182,9 +182,10 @@ func TestCreateInvalid(t *testing.T) {
 	}{
 		{name: "unspecified broker", edit: func(m *stmtv1.Stmt) { m.Broker = typev1.Broker_BROKER_UNSPECIFIED }},
 		{name: "undefined broker", edit: func(m *stmtv1.Stmt) { m.Broker = 99 }},
-		{name: "malformed order_from", edit: func(m *stmtv1.Stmt) { m.OrderFrom = "2026-13-01" }},
-		{name: "malformed order_before", edit: func(m *stmtv1.Stmt) { m.OrderBefore = "soon" }},
-		{name: "empty period", edit: func(m *stmtv1.Stmt) { m.OrderBefore = m.OrderFrom }},
+		{name: "malformed from", edit: func(m *stmtv1.Stmt) { m.Period.From = ptr.To("2026-13-01") }},
+		{name: "malformed before", edit: func(m *stmtv1.Stmt) { m.Period.Before = ptr.To("soon") }},
+		{name: "empty period", edit: func(m *stmtv1.Stmt) { m.Period.Before = m.Period.From }},
+		{name: "open period", edit: func(m *stmtv1.Stmt) { m.Period.Before = nil }},
 		{name: "split without a key", edit: func(m *stmtv1.Stmt) {
 			m.Splits = []*stmtv1.StatedSplit{{EffectiveDate: "2026-03-02", Quantity: "9"}}
 		}},
@@ -367,7 +368,7 @@ func TestOutcomes(t *testing.T) {
 				f.store.EXPECT().SweepStatedKeys(gomock.Any(), userID).Return(int64(0), nil)
 				f.store.EXPECT().CompleteRun(gomock.Any(), gomock.Any()).Return(nil)
 			}
-			msg := &stmtv1.Stmt{Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01",
+			msg := &stmtv1.Stmt{Broker: typev1.Broker_BROKER_IBKR, Period: &typev1.Period{From: ptr.To("2026-03-01"), Before: ptr.To("2026-04-01")},
 				Rows: []*stmtv1.Row{rowMsg(rejected, "2026-03-05", "1"), rowMsg(unresolved, "2026-03-06", "2")}}
 			if _, err := f.svc.Create(context.Background(), userID, msg); err != nil {
 				t.Fatalf("Create() error = %v", err)
@@ -435,7 +436,7 @@ func TestResolvesUnassociated(t *testing.T) {
 				f.store.EXPECT().SweepStatedKeys(gomock.Any(), userID).Return(int64(0), nil)
 				f.store.EXPECT().CompleteRun(gomock.Any(), gomock.Any()).Return(nil)
 			}
-			msg := &stmtv1.Stmt{Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01",
+			msg := &stmtv1.Stmt{Broker: typev1.Broker_BROKER_IBKR, Period: &typev1.Period{From: ptr.To("2026-03-01"), Before: ptr.To("2026-04-01")},
 				Rows: []*stmtv1.Row{rowMsg(held, "2026-03-05", "1"), rowMsg(fresh, "2026-03-06", "2")}}
 			if _, err := f.svc.Create(context.Background(), userID, msg); err != nil {
 				t.Fatalf("Create() error = %v", err)
@@ -481,7 +482,7 @@ func TestResolvesWithDates(t *testing.T) {
 	f.store.EXPECT().CreateStmtItems(gomock.Any(), gomock.Any()).Return(int64(1), nil)
 	f.store.EXPECT().SweepStatedKeys(gomock.Any(), userID).Return(int64(0), nil)
 	f.store.EXPECT().CompleteRun(gomock.Any(), gomock.Any()).Return(nil)
-	msg := &stmtv1.Stmt{Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01",
+	msg := &stmtv1.Stmt{Broker: typev1.Broker_BROKER_IBKR, Period: &typev1.Period{From: ptr.To("2026-03-01"), Before: ptr.To("2026-04-01")},
 		Rows: []*stmtv1.Row{
 			rowMsg(dated, "2026-03-07", "1"), rowMsg(dated, "2026-03-05", "2"), rowMsg(dated, "2026-03-07", "3"),
 			rowMsg(dated, "2026-03-09", "many"), rowMsg(fixed, "2026-03-06", "4"),
@@ -523,7 +524,7 @@ func TestReplaysNewFacts(t *testing.T) {
 		}
 		return nil
 	})
-	msg := &stmtv1.Stmt{Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01",
+	msg := &stmtv1.Stmt{Broker: typev1.Broker_BROKER_IBKR, Period: &typev1.Period{From: ptr.To("2026-03-01"), Before: ptr.To("2026-04-01")},
 		Rows: []*stmtv1.Row{rowMsg(stock, "2026-03-05", "1")}}
 	if _, err := f.svc.Create(context.Background(), userID, msg); err != nil {
 		t.Fatalf("Create() error = %v", err)
@@ -572,7 +573,7 @@ func TestPrepareTakesRow(t *testing.T) {
 	})
 	f.store.EXPECT().SweepStatedKeys(gomock.Any(), userID).Return(int64(0), nil)
 	f.store.EXPECT().CompleteRun(gomock.Any(), gomock.Any()).Return(nil)
-	msg := &stmtv1.Stmt{Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01",
+	msg := &stmtv1.Stmt{Broker: typev1.Broker_BROKER_IBKR, Period: &typev1.Period{From: ptr.To("2026-03-01"), Before: ptr.To("2026-04-01")},
 		Rows:   []*stmtv1.Row{rowMsg(acme, "2026-03-05", "1")},
 		Splits: []*stmtv1.StatedSplit{{Key: acme, EffectiveDate: "2026-03-02", Quantity: "9"}}}
 	if _, err := f.svc.Create(context.Background(), userID, msg); err != nil || f.workErr != nil {
@@ -598,7 +599,7 @@ func TestCreateSpec(t *testing.T) {
 		f.calls = append(f.calls, "complete")
 		return nil
 	})
-	msg := &stmtv1.Stmt{Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01"}
+	msg := &stmtv1.Stmt{Broker: typev1.Broker_BROKER_IBKR, Period: &typev1.Period{From: ptr.To("2026-03-01"), Before: ptr.To("2026-04-01")}}
 	if _, err := f.svc.Create(context.Background(), userID, msg); err != nil || f.workErr != nil {
 		t.Fatalf("Create() error = %v, work error = %v", err, f.workErr)
 	}
@@ -614,7 +615,7 @@ func TestCreateSpec(t *testing.T) {
 // and that a failing resolution fails the work before anything is written.
 func TestCreateFailures(t *testing.T) {
 	msg := func() *stmtv1.Stmt {
-		return &stmtv1.Stmt{Broker: typev1.Broker_BROKER_SCHWAB, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01",
+		return &stmtv1.Stmt{Broker: typev1.Broker_BROKER_SCHWAB, Period: &typev1.Period{From: ptr.To("2026-03-01"), Before: ptr.To("2026-04-01")},
 			Rows: []*stmtv1.Row{rowMsg(cashKey("USD"), "2026-03-05", "1")}}
 	}
 	boom := errors.New("boom")

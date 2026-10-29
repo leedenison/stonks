@@ -113,7 +113,7 @@ func (s *stack) ingest(t *testing.T) gen.Run {
 		AssetClass:  typev1.AssetClass_ASSET_CLASS_CASH, Currency: &usd,
 	}
 	msg := &stmtv1.Stmt{
-		Broker: typev1.Broker_BROKER_IBKR, OrderFrom: "2026-03-01", OrderBefore: "2026-04-01",
+		Broker: typev1.Broker_BROKER_IBKR, Period: &typev1.Period{From: ptr.To("2026-03-01"), Before: ptr.To("2026-04-01")},
 		Rows: []*stmtv1.Row{
 			{Key: acme, OrderDate: "2026-03-05", SettlementDate: "2026-03-05", AsAt: "2026-03-05", Quantity: "10"},
 			{Key: cash, OrderDate: "2026-03-05", SettlementDate: "2026-03-05", AsAt: "2026-03-05", Quantity: "-1000"},
@@ -291,7 +291,7 @@ func (s *stack) stateTicker(t *testing.T, user gen.User, month time.Month, ticke
 	from := time.Date(2026, month, 1, 0, 0, 0, 0, time.UTC)
 	on := from.AddDate(0, 0, 4).Format(time.DateOnly)
 	msg := &stmtv1.Stmt{
-		Broker: typev1.Broker_BROKER_IBKR, OrderFrom: from.Format(time.DateOnly), OrderBefore: from.AddDate(0, 1, 0).Format(time.DateOnly),
+		Broker: typev1.Broker_BROKER_IBKR, Period: &typev1.Period{From: ptr.To(from.Format(time.DateOnly)), Before: ptr.To(from.AddDate(0, 1, 0).Format(time.DateOnly))},
 		Rows: []*stmtv1.Row{{Key: key, OrderDate: on, SettlementDate: on, AsAt: on, Quantity: "10"}},
 	}
 	row, err := s.stmts.Create(ctx, user.ID, msg)

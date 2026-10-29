@@ -17,21 +17,18 @@ const acme = create(TickerSchema, {
   assertionCoverage: [
     {
       datasource: "alpha",
-      coveredFrom: "2024-06-01",
-      coveredBefore: "2026-03-01",
+      period: { from: "2024-06-01", before: "2026-03-01" },
     },
     {
       datasource: "beta",
-      coveredFrom: "2025-01-01",
-      coveredBefore: "2026-03-01",
+      period: { from: "2025-01-01", before: "2026-03-01" },
     },
   ],
   assertions: [
     create(AssertionItemSchema, {
       id: "a1",
       ticker,
-      assertedFrom: "2024-06-01",
-      assertedBefore: "2025-06-01",
+      period: { from: "2024-06-01", before: "2025-06-01" },
       edgeFrom: true,
       edgeBefore: true,
       instrId: "i1",
@@ -40,31 +37,27 @@ const acme = create(TickerSchema, {
     create(AssertionItemSchema, {
       id: "a3",
       ticker,
-      assertedFrom: "2025-06-01",
-      assertedBefore: "2025-06-02",
+      period: { from: "2025-06-01", before: "2025-06-02" },
       instrId: "i1",
       source: { case: "datasource", value: "alpha" },
     }),
     create(AssertionItemSchema, {
       id: "a2",
       ticker,
-      assertedFrom: "2026-03-01",
-      assertedBefore: "2026-03-02",
+      period: { from: "2026-03-01", before: "2026-03-02" },
       source: { case: "attestedBy", value: "admin@example.com" },
     }),
   ],
   intervals: [
     {
-      validFrom: "2024-06-01",
-      validBefore: "2026-03-01",
+      period: { from: "2024-06-01", before: "2026-03-01" },
       instrId: "i1",
       validity: TickerValidity.CONFIRMED,
     },
   ],
   gaps: [
     {
-      unconfirmedFrom: "2024-02-01",
-      unconfirmedBefore: "2024-06-01",
+      period: { from: "2024-02-01", before: "2024-06-01" },
       keys: 1,
       txns: 1,
     },

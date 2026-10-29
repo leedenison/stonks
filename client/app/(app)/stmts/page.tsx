@@ -12,7 +12,7 @@ import { UploadAction } from "@/app/components/upload-action";
 import { useStmts } from "@/hooks/use-stmts";
 import { brokerLabel } from "@/lib/broker";
 import { formatInstant } from "@/lib/format";
-import { prevDay } from "@/lib/marshal/date";
+import { dayRange } from "@/lib/day-range";
 
 // The user's statements, newest first, each leading to its own page.
 export default function StmtsPage() {
@@ -67,7 +67,7 @@ export default function StmtsPage() {
                       <Chip>{brokerLabel(s.broker)}</Chip>
                     </Td>
                     <Td className="font-mono tabular-nums">
-                      {s.orderFrom} to {prevDay(s.orderBefore)}
+                      {dayRange(s.period).from} to {dayRange(s.period).to}
                     </Td>
                     <Td numeric>{s.rows}</Td>
                     <Td numeric data-testid="stmt-rejected">

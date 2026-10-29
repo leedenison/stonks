@@ -47,15 +47,15 @@ describe("schwab", () => {
   it("takes the period from the JSON and states every row as at the export", () => {
     expect(stmt.broker).toBe(Broker.SCHWAB);
     expect(stmt.rows.every((r) => r.asAt === EXPORTED)).toBe(true);
-    expect(stmt.orderFrom).toBe("2024-01-01");
-    expect(stmt.orderBefore).toBe("2025-01-01");
+    expect(stmt.period?.from).toBe("2024-01-01");
+    expect(stmt.period?.before).toBe("2025-01-01");
     expect(stmt.rows).toHaveLength(17);
   });
 
   it("derives the period from the rows of the CSV, which carry the same legs", () => {
     const fromCsv = schwab.marshal(csv, EXPORTED);
-    expect(fromCsv.orderFrom).toBe("2024-04-17");
-    expect(fromCsv.orderBefore).toBe("2024-12-17");
+    expect(fromCsv.period?.from).toBe("2024-04-17");
+    expect(fromCsv.period?.before).toBe("2024-12-17");
     expect(fromCsv.rows).toEqual(stmt.rows);
     expect(fromCsv.splits).toEqual(stmt.splits);
   });

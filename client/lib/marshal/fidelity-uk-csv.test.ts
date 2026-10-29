@@ -15,8 +15,8 @@ const gbp = cashKey("GBP");
 describe("fidelityUkCsv", () => {
   it("takes the period from the preamble, cut at the earliest pending line", () => {
     expect(stmt.broker).toBe(Broker.FIDELITY_UK);
-    expect(stmt.orderFrom).toBe("2025-01-01");
-    expect(stmt.orderBefore).toBe("2025-03-17");
+    expect(stmt.period?.from).toBe("2025-01-01");
+    expect(stmt.period?.before).toBe("2025-03-17");
     expect(stmt.rows).toHaveLength(11);
     expect(stmt.splits).toEqual([]);
   });
@@ -32,7 +32,7 @@ describe("fidelityUkCsv", () => {
       "17 Mar 2025,21 Mar 2025",
     );
     const all = fidelityUkCsv.marshal(settled);
-    expect(all.orderBefore).toBe("2025-04-01");
+    expect(all.period?.before).toBe("2025-04-01");
     expect(all.rows).toHaveLength(14);
     expect(all.rows[2]).toEqual(row(gbp, "2025-03-17", "2025-03-21", "-0.03"));
   });
@@ -43,7 +43,7 @@ describe("fidelityUkCsv", () => {
       'Pending,Dealing Fee,"Cash",Cash Management Account,AW10000003,,0.00,0,0',
     );
     const all = fidelityUkCsv.marshal(zero);
-    expect(all.orderBefore).toBe("2025-04-01");
+    expect(all.period?.before).toBe("2025-04-01");
     expect(all.rows).toHaveLength(13);
   });
 
@@ -54,8 +54,7 @@ describe("fidelityUkCsv", () => {
     );
     const none = fidelityUkCsv.marshal(first);
     expect(none.rows).toEqual([]);
-    expect(none.orderFrom).toBe("");
-    expect(none.orderBefore).toBe("");
+    expect(none.period).toBeUndefined();
   });
 
   it("emits a cash line as a cash leg of its amount, whatever its type", () => {

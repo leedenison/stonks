@@ -22,8 +22,7 @@ const cash = {
 function stmt(broker: Broker, quantity: string) {
   return {
     broker,
-    orderFrom: "2026-03-01",
-    orderBefore: "2026-04-01",
+    period: { from: "2026-03-01", before: "2026-04-01" },
     rows: [
       {
         key: cash,

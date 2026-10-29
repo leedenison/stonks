@@ -17,7 +17,8 @@ import {
 } from "@/lib/marshal/marshal";
 import { keyLabel } from "@/lib/rejections";
 import { parseExport } from "@/lib/upload/parse";
-import { claim, type Period, period } from "@/lib/upload/period";
+import { type DayRange } from "@/lib/day-range";
+import { claim, period } from "@/lib/upload/period";
 import { refusal } from "@/lib/upload/refusal";
 import { Button } from "./button";
 import { Dialog } from "./dialog";
@@ -58,7 +59,7 @@ export function UploadDialog({
   const [format, setFormat] = useState<Format>();
   const [guesses, setGuesses] = useState<Format[]>([]);
   const [exportedOn, setExportedOn] = useState(today);
-  const [chosen, setChosen] = useState<Period>();
+  const [chosen, setChosen] = useState<DayRange>();
   const created = useCreateStmt();
 
   const finish = (file: File, text: string) => {

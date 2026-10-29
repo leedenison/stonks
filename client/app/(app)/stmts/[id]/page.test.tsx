@@ -56,13 +56,6 @@ async function advance(ms: number) {
   }
 }
 
-// aapl is the ticker the isin key is dated through.
-const aapl = create(IdentifierSchema, {
-  type: IdentifierType.MIC_TICKER,
-  domain: "XNAS",
-  value: "AAPL",
-});
-
 // keys returns a statement's three keys: cash matched, one key nothing
 // recognised and one whose datasource failed. While the run is live, two of
 // them are listed with no outcome yet.
@@ -111,7 +104,6 @@ function keys(resolved: boolean) {
       statedKeyId: "k-isin",
       outcome: ResolutionOutcome.UNAVAILABLE,
       reasons: ["openfigi: failed: 429"],
-      ticker: aapl,
     }),
     create(ResolutionItemSchema, {
       statedKey: bare,
@@ -173,8 +165,7 @@ function response(
         createdAt: timestampFromDate(new Date("2026-09-17T09:30:00Z")),
       }),
       broker: Broker.FIDELITY_UK,
-      orderFrom: "2025-02-01",
-      orderBefore: "2025-03-17",
+      period: { from: "2025-02-01", before: "2025-03-17" },
       rows: 4,
       rejected,
       live: state === RunState.PENDING || state === RunState.RUNNING,

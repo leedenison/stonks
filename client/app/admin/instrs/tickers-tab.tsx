@@ -202,8 +202,8 @@ function WithdrawDialog({
       }
     >
       <p className="text-sm">
-        Deletes the assertion of the days from {assertion.assertedFrom} up to{" "}
-        {assertion.assertedBefore} and replays the unresolved keys that state
+        Deletes the assertion of the days from {assertion.period?.from} up to{" "}
+        {assertion.period?.before} and replays the unresolved keys that state
         the ticker. A dated key picks up the change the next time it is read.
       </p>
       {withdraw.isError && (
@@ -264,42 +264,40 @@ function Facts({
               </tr>
             </thead>
             <tbody>
-              {ticker.gaps.map((g) => (
-                <tr
-                  key={g.unconfirmedFrom}
-                  data-testid={`pane-gap-${g.unconfirmedFrom}`}
-                >
-                  <Td dense className="font-mono tabular-nums">
-                    {g.unconfirmedFrom}
-                  </Td>
-                  <Td dense className="font-mono tabular-nums">
-                    {g.unconfirmedBefore}
-                  </Td>
-                  <Td dense>
-                    <Instr
-                      ticker={ticker}
-                      id={
-                        intervalAt(ticker.intervals, g.unconfirmedFrom)?.instrId
-                      }
-                    />
-                  </Td>
-                  <Td dense numeric>
-                    {g.keys}
-                  </Td>
-                  <Td dense numeric>
-                    {g.txns}
-                  </Td>
-                  <Td dense>
-                    <Button
-                      variant="secondary"
-                      data-testid={`gap-attest-${g.unconfirmedFrom}`}
-                      onClick={() => onAttest(g.unconfirmedFrom)}
-                    >
-                      Attest
-                    </Button>
-                  </Td>
-                </tr>
-              ))}
+              {ticker.gaps.map((g) => {
+                const from = g.period?.from ?? "";
+                return (
+                  <tr key={from} data-testid={`pane-gap-${from}`}>
+                    <Td dense className="font-mono tabular-nums">
+                      {from}
+                    </Td>
+                    <Td dense className="font-mono tabular-nums">
+                      {g.period?.before}
+                    </Td>
+                    <Td dense>
+                      <Instr
+                        ticker={ticker}
+                        id={intervalAt(ticker.intervals, from)?.instrId}
+                      />
+                    </Td>
+                    <Td dense numeric>
+                      {g.keys}
+                    </Td>
+                    <Td dense numeric>
+                      {g.txns}
+                    </Td>
+                    <Td dense>
+                      <Button
+                        variant="secondary"
+                        data-testid={`gap-attest-${from}`}
+                        onClick={() => onAttest(from)}
+                      >
+                        Attest
+                      </Button>
+                    </Td>
+                  </tr>
+                );
+              })}
             </tbody>
           </PaneTable>
         )}
@@ -329,10 +327,10 @@ function Facts({
                   }
                 >
                   <Td dense className="font-mono tabular-nums">
-                    {a.assertedFrom}
+                    {a.period?.from}
                   </Td>
                   <Td dense className="font-mono tabular-nums">
-                    {a.assertedBefore}
+                    {a.period?.before}
                   </Td>
                   <Td dense>
                     <Instr ticker={ticker} id={a.instrId} />
@@ -385,10 +383,10 @@ function Facts({
                     <Chip>{p.datasource}</Chip>
                   </Td>
                   <Td dense className="font-mono tabular-nums">
-                    {p.coveredFrom}
+                    {p.period?.from}
                   </Td>
                   <Td dense className="font-mono tabular-nums">
-                    {p.coveredBefore}
+                    {p.period?.before}
                   </Td>
                 </tr>
               ))}

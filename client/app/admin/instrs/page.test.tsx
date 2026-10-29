@@ -65,16 +65,14 @@ const read = create(GetTickerResponseSchema, {
     assertionCoverage: [
       {
         datasource: "alpha",
-        coveredFrom: "2024-06-01",
-        coveredBefore: "2026-01-01",
+        period: { from: "2024-06-01", before: "2026-01-01" },
       },
     ],
     assertions: [
       create(AssertionItemSchema, {
         id: "a1",
         ticker: acme,
-        assertedFrom: "2024-06-01",
-        assertedBefore: "2026-01-01",
+        period: { from: "2024-06-01", before: "2026-01-01" },
         edgeFrom: true,
         instrId: "i-acme",
         source: { case: "datasource", value: "alpha" },
@@ -82,28 +80,25 @@ const read = create(GetTickerResponseSchema, {
       create(AssertionItemSchema, {
         id: "a2",
         ticker: acme,
-        assertedFrom: "2026-01-01",
-        assertedBefore: "2026-01-02",
+        period: { from: "2026-01-01", before: "2026-01-02" },
         source: { case: "attestedBy", value: "admin@example.com" },
       }),
     ],
     intervals: [
       {
-        validBefore: "2024-06-01",
+        period: { before: "2024-06-01" },
         instrId: "i-acme",
         validity: TickerValidity.PROVISIONAL,
       },
       {
-        validFrom: "2024-06-01",
-        validBefore: "2026-01-01",
+        period: { from: "2024-06-01", before: "2026-01-01" },
         instrId: "i-acme",
         validity: TickerValidity.CONFIRMED,
       },
     ],
     gaps: [
       {
-        unconfirmedFrom: "2024-02-01",
-        unconfirmedBefore: "2024-06-01",
+        period: { from: "2024-02-01", before: "2024-06-01" },
         keys: 2,
         txns: 3,
       },

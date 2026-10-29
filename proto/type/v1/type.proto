@@ -7,8 +7,7 @@
 // A timestamp is a google.protobuf.Timestamp, in UTC. A date with no time
 // crosses as a string in ISO 8601 form, such as "2026-09-14".
 //
-// An interval is half open. Where a message bounds one, it carries valid_from
-// and valid_before, and an instant equal to valid_before falls outside it.
+// Every API carries a half open range of days as one Period.
 
 syntax = "proto3";
 
@@ -117,6 +116,19 @@ message MarketTicker {
   string value = 2 [(buf.validate.field).string.min_len = 1];
 }
 
+// A half open range of days. It holds from and each later day until before,
+// which falls outside it. Each bound is YYYY-MM-DD. An unset bound is open.
+message Period {
+  option (buf.validate.message).cel = {
+    id: "period.order"
+    message: "from must precede before"
+    expression: "!has(this.from) || !has(this.before) || this.from < this.before"
+  };
+
+  optional string from = 1 [(buf.validate.field).string.pattern = "^\\d{4}-\\d{2}-\\d{2}$"];
+  optional string before = 2 [(buf.validate.field).string.pattern = "^\\d{4}-\\d{2}-\\d{2}$"];
+}
+
 // What one source states about an instrument.
 message StatedKey {
   repeated Identifier identifiers = 1;
@@ -169,7 +181,4 @@ message ResolutionItem {
   // names that venue. Zero means there is nothing to choose. See
   // FindCandidates.
   int32 offered = 6;
-  // The MIC_TICKER of a dated association; unset for a fixed association or
-  // none.
-  Identifier ticker = 7;
 }

@@ -72,25 +72,23 @@ message FetchItem {
 }
 
 // An assertion a run wrote: that a ticker names an instrument, or names
-// nothing, on every day from asserted_from up to asserted_before.
+// nothing, on every day of its period.
 message AssertionItem {
   string id = 1;
   stonks.type.v1.MarketTicker ticker = 2;
-  // The first day the assertion holds, as YYYY-MM-DD.
-  string asserted_from = 3;
-  // The day after the last day the assertion holds, as YYYY-MM-DD.
-  string asserted_before = 4;
-  // The source states a change at the start of asserted_from.
-  bool edge_from = 5;
-  // The source states a change at the start of asserted_before.
-  bool edge_before = 6;
+  // The days the assertion holds. Both bounds are set.
+  stonks.type.v1.Period period = 3;
+  // The source states a change at the start of period.from.
+  bool edge_from = 4;
+  // The source states a change at the start of period.before.
+  bool edge_before = 5;
   // The instrument the ticker names; unset where the ticker names nothing.
-  optional string instr_id = 7;
+  optional string instr_id = 6;
   oneof source {
     // The datasource whose answer made the assertion.
-    string datasource = 8;
+    string datasource = 7;
     // The email of the administrator who attested it.
-    string attested_by = 9;
+    string attested_by = 8;
   }
 }
 

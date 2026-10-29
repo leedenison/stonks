@@ -202,7 +202,7 @@ func (s *Server) instrs(ctx context.Context, keys []gen.ListHoldingKeysRow) ([]*
 			h.ProvisionalFrom = ptr.To(r.provisionalFrom.Format(time.DateOnly))
 		}
 		for _, g := range r.gaps {
-			h.Gaps = append(h.Gaps, &holdingv1.UncoveredDays{UncoveredFrom: g.From.Format(time.DateOnly), UncoveredBefore: g.Before.Format(time.DateOnly)})
+			h.Gaps = append(h.Gaps, g.ToProto())
 		}
 		for i, k := range held[id] {
 			hk := to.ProtoHoldingKey(k.key, r.keys[i])

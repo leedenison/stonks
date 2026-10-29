@@ -39,7 +39,7 @@ const held = create(GetTickerResponseSchema, {
     ticker: acme,
     intervals: [
       {
-        validBefore: "2024-06-01",
+        period: { before: "2024-06-01" },
         instrId: "i1",
         validity: TickerValidity.PROVISIONAL,
       },

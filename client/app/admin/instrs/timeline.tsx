@@ -1,5 +1,6 @@
 import type { Ticker } from "@/gen/admin/coverage/v1/coverage_pb";
 import { TickerValidity } from "@/gen/admin/coverage/v1/coverage_pb";
+import type { Period } from "@/gen/type/v1/type_pb";
 import { bounds, cutDays, dayNumber } from "@/lib/coverage";
 
 // The drawing's coordinates, in viewBox units; the gutter is the left margin
@@ -29,9 +30,9 @@ export function Timeline({ ticker }: { ticker: Ticker }) {
   const x = (day: string) =>
     gutter + ((dayNumber(day) - from) / span) * (width - gutter);
   // An open bound runs to the drawing's edge.
-  const bar = (start: string | undefined, end: string | undefined) => {
-    const x0 = start === undefined ? gutter : x(start);
-    const x1 = end === undefined ? width : x(end);
+  const bar = (p: Period | undefined) => {
+    const x0 = p?.from === undefined ? gutter : x(p.from);
+    const x1 = p?.before === undefined ? width : x(p.before);
     return { x: x0, width: Math.max(x1 - x0, 1) };
   };
 
@@ -61,7 +62,7 @@ export function Timeline({ ticker }: { ticker: Ticker }) {
       children: ticker.intervals.map((iv, i) => (
         <rect
           key={i}
-          {...bar(iv.validFrom, iv.validBefore)}
+          {...bar(iv.period)}
           y={2}
           height={laneHeight - 4}
           rx={2}
@@ -76,7 +77,7 @@ export function Timeline({ ticker }: { ticker: Ticker }) {
               : "fill-primary/35"
           }
         >
-          <title>{`${iv.validity === TickerValidity.CONFIRMED ? "Confirmed" : "Provisional"} ${iv.validFrom ?? ""} to ${iv.validBefore ?? ""}`}</title>
+          <title>{`${iv.validity === TickerValidity.CONFIRMED ? "Confirmed" : "Provisional"} ${iv.period?.from ?? ""} to ${iv.period?.before ?? ""}`}</title>
         </rect>
       )),
     },
@@ -85,14 +86,14 @@ export function Timeline({ ticker }: { ticker: Ticker }) {
       label: "Gaps",
       children: ticker.gaps.map((g) => (
         <rect
-          key={g.unconfirmedFrom}
-          {...bar(g.unconfirmedFrom, g.unconfirmedBefore)}
+          key={g.period?.from}
+          {...bar(g.period)}
           y={2}
           height={laneHeight - 4}
           rx={2}
           className="fill-accent/70"
         >
-          <title>{`Gap ${g.unconfirmedFrom} to ${g.unconfirmedBefore}: ${g.txns} transactions of ${g.keys} keys`}</title>
+          <title>{`Gap ${g.period?.from ?? ""} to ${g.period?.before ?? ""}: ${g.txns} transactions of ${g.keys} keys`}</title>
         </rect>
       )),
     },
@@ -107,7 +108,7 @@ export function Timeline({ ticker }: { ticker: Ticker }) {
         return (
           <rect
             key={a.id}
-            {...bar(a.assertedFrom, a.assertedBefore)}
+            {...bar(a.period)}
             y={laneHeight / 2 - 5}
             height={10}
             rx={2}
@@ -119,7 +120,7 @@ export function Timeline({ ticker }: { ticker: Ticker }) {
                 : `${fill} opacity-70`
             }
           >
-            <title>{`${a.source.value ?? ""} asserted ${a.instrId ?? "nothing"} from ${a.assertedFrom} up to ${a.assertedBefore}`}</title>
+            <title>{`${a.source.value ?? ""} asserted ${a.instrId ?? "nothing"} from ${a.period?.from ?? ""} up to ${a.period?.before ?? ""}`}</title>
           </rect>
         );
       }),
@@ -151,13 +152,13 @@ export function Timeline({ ticker }: { ticker: Ticker }) {
         .map((p, i) => (
           <rect
             key={i}
-            {...bar(p.coveredFrom, p.coveredBefore)}
+            {...bar(p.period)}
             y={4}
             height={laneHeight - 8}
             rx={2}
             className="fill-primary/55"
           >
-            <title>{`${ds} reported every edge of ${ticker.ticker?.value ?? ""} ${p.coveredFrom} to ${p.coveredBefore}`}</title>
+            <title>{`${ds} reported every edge of ${ticker.ticker?.value ?? ""} ${p.period?.from ?? ""} to ${p.period?.before ?? ""}`}</title>
           </rect>
         )),
     })),

@@ -35,8 +35,8 @@ const conid = (value: string) =>
 describe("ibkrQfx", () => {
   it("claims the stated period, not one widened to the rows", () => {
     expect(stmt.broker).toBe(Broker.IBKR);
-    expect(stmt.orderFrom).toBe("2024-01-01");
-    expect(stmt.orderBefore).toBe("2024-03-30");
+    expect(stmt.period?.from).toBe("2024-01-01");
+    expect(stmt.period?.before).toBe("2024-03-30");
     expect(stmt.rows).toHaveLength(20);
     expect(stmt.splits).toHaveLength(2);
   });

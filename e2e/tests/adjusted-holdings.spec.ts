@@ -39,7 +39,7 @@ test("restates a holding across a split, and marks one across an unhandled actio
   expect(ge.quantity).toBe("10");
   expect(ge.mark).toBe(HoldingMark.CORP_ACTS_PROVISIONAL);
   expect(ge.provisionalFrom).toBe("2023-06-02");
-  expect(ge.gaps.map((g) => [g.uncoveredFrom, g.uncoveredBefore])).toEqual([
+  expect(ge.gaps.map((g) => [g.from, g.before])).toEqual([
     ["2024-04-02", "2024-04-03"],
   ]);
 

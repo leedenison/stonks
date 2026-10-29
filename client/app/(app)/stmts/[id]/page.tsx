@@ -17,7 +17,7 @@ import { Arbiter, type ResolutionItem } from "@/gen/type/v1/type_pb";
 import { useStmt } from "@/hooks/use-stmt";
 import { brokerLabel } from "@/lib/broker";
 import { formatInstant } from "@/lib/format";
-import { prevDay } from "@/lib/marshal/date";
+import { dayRange } from "@/lib/day-range";
 import { outcome } from "@/lib/run";
 import { CandidatesDialog } from "./candidates-dialog";
 
@@ -47,10 +47,12 @@ export default function StmtPage() {
               <Chip>{brokerLabel(data.stmt.broker)}</Chip>
             </dd>
             <dt className="text-text-muted">From</dt>
-            <dd className="font-mono tabular-nums">{data.stmt.orderFrom}</dd>
+            <dd className="font-mono tabular-nums">
+              {dayRange(data.stmt.period).from}
+            </dd>
             <dt className="text-text-muted">To</dt>
             <dd className="font-mono tabular-nums">
-              {prevDay(data.stmt.orderBefore)}
+              {dayRange(data.stmt.period).to}
             </dd>
             <dt className="text-text-muted">Started</dt>
             <dd className="font-mono tabular-nums">
