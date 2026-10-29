@@ -1,32 +1,24 @@
 import path from "node:path";
 import { IdentifierType, ResolutionOutcome } from "../gen/type/v1/type_pb";
 import { holdingClient, stmtClient } from "../helpers/api";
-import { seedDescribedInstr } from "../helpers/db";
+import { described } from "../helpers/db";
 import { uploadStmt } from "../helpers/upload";
 import { expect, test } from "../helpers/test";
 
 // Modelled on a real Fidelity UK export with its identifiers replaced. The
 // two fund lines carry no symbol, so each key states only a description. The
-// first fund is seeded as reference data and matches; the second is held by
-// nobody and stays a group holding. No key reaches a datasource, so the spec
-// needs no recording. The ZZ prefix keeps these descriptions unique, because
-// the seeded row outlives the test.
+// first fund is the instrument that global setup seeds as reference data, and
+// matches. The second is held by nobody and stays a group holding. No key
+// reaches a datasource, so the spec needs no recording. The ZZ prefix keeps
+// the second description unique.
 const fixture = path.resolve(
   __dirname,
   "..",
   "fixtures",
   "fidelity-description.csv",
 );
-const described = "ZZ DESCRIBED GLOBAL EQUITY FUND ACC";
+const { description, isin, ticker } = described;
 const undescribed = "ZZ UNDESCRIBED GLOBAL BOND FUND INC";
-const isin = "ZZ0000000091";
-const ticker = "ZZDESC";
-
-let instrId: string;
-
-test.beforeAll(async () => {
-  instrId = await seedDescribedInstr("fidelity_uk", described, isin, ticker);
-});
 
 test("resolves a line through the description the broker gave it", async ({
   signIn,
@@ -49,7 +41,7 @@ test("resolves a line through the description the broker gave it", async ({
           i.value === description,
       ),
     );
-  expect(states(described)?.outcome).toBe(ResolutionOutcome.MATCHED);
+  expect(states(description)?.outcome).toBe(ResolutionOutcome.MATCHED);
   const unknown = states(undescribed);
   expect(unknown?.outcome).toBe(ResolutionOutcome.UNRECOGNISED);
   expect(unknown?.reasons).toEqual(["failed to match broker description"]);
@@ -59,6 +51,9 @@ test("resolves a line through the description the broker gave it", async ({
     g.identifiers.some((i) => i.value === undescribed),
   );
   expect(group).toBeDefined();
+  const instrId = holdings.instrs.find((h) =>
+    h.identifiers.some((i) => i.value === isin),
+  )!.instrId;
   await page.getByTestId("nav-holdings").click();
   await expect(page).toHaveURL("/holdings");
   const resolved = page.getByTestId(`holding-row-${instrId}`);

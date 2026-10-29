@@ -1,5 +1,4 @@
 import path from "node:path";
-import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { FetchKind } from "../gen/admin/block/v1/block_pb";
 import { FetchOutcome } from "../gen/admin/run/v1/run_pb";
 import { RunKind, RunState } from "../gen/run/v1/run_pb";
@@ -12,6 +11,7 @@ import {
   fetchItems,
   stmtClient,
 } from "../helpers/api";
+import { utcDay } from "../helpers/day";
 import { expect, test } from "../helpers/test";
 import { uploadStmt } from "../helpers/upload";
 
@@ -20,9 +20,6 @@ const fixture = path.resolve(__dirname, "..", "fixtures", "standard-pep.json");
 const pep = { type: IdentifierType.MIC_TICKER, domain: "XNAS", value: "PEP" };
 // The facts of PEP are keyed by its market.
 const pepUS = { market: "US", value: pep.value };
-
-// utcDay is the UTC day of a moment, as YYYY-MM-DD.
-const utcDay = (d: Date) => d.toISOString().slice(0, 10);
 
 test("extends the ticker validity of a held ticker on the day it runs", async ({
   signIn,
@@ -59,8 +56,8 @@ test("extends the ticker validity of a held ticker on the day it runs", async ({
     )
     .toBe(RunState.COMPLETED);
   const got = (await adminRuns.getRun({ runId: started.id })).run!;
-  const from = utcDay(timestampDate(got.run!.startedAt!));
-  const to = utcDay(timestampDate(got.run!.finishedAt!));
+  const from = utcDay(got.run!.startedAt!);
+  const to = utcDay(got.run!.finishedAt!);
 
   // Ticker validity runs from the attested day through the run day.
   await page.goto(`/admin/instrs?q=PEP&id=${instr.id}&tab=tickers`);

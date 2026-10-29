@@ -136,29 +136,24 @@ export async function closeDB(): Promise<void> {
   pool = null;
 }
 
-// seedDescribedInstr seeds reference data, an instrument with a GBP
-// listing, an ISIN, an XLON ticker that names it and a broker description,
-// and returns its id. No product API writes a description, so SQL is the only
-// route. System rows outlive a test and workers run in parallel, so a lock on
-// the ISIN makes concurrent seeding find one instrument.
-export async function seedDescribedInstr(
-  broker: string,
-  description: string,
-  isin: string,
-  ticker: string,
-): Promise<string> {
+// described is the instrument that seedDescribedInstr seeds, for
+// description.spec.ts. The ZZ prefix keeps the description and ISIN unique.
+export const described = {
+  broker: "fidelity_uk",
+  description: "ZZ DESCRIBED GLOBAL EQUITY FUND ACC",
+  isin: "ZZ0000000091",
+  ticker: "ZZDESC",
+};
+
+// seedDescribedInstr seeds the facts of described as reference data. A
+// product API cannot write a description, so SQL is the only route. A
+// rebuild derives the ticker's validity and the name of the holding from the
+// facts.
+export async function seedDescribedInstr(): Promise<void> {
+  const { broker, description, isin, ticker } = described;
   const client = await db().connect();
   try {
     await client.query("BEGIN");
-    await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [isin]);
-    const found = await client.query<{ instr_id: string }>(
-      "SELECT instr_id FROM identifiers WHERE type = 'isin' AND domain = '' AND value = $1",
-      [isin],
-    );
-    if (found.rows.length > 0) {
-      await client.query("COMMIT");
-      return found.rows[0].instr_id;
-    }
     const instr = await client.query<{ id: string }>(
       "INSERT INTO instrs (id, asset_class) VALUES (uuid_v7(), 'equity') RETURNING id",
     );
@@ -171,13 +166,12 @@ export async function seedDescribedInstr(
       "INSERT INTO identifiers (id, instr_id, type, value) VALUES (uuid_v7(), $1, 'isin', $2)",
       [id, isin],
     );
-    // A holding is named by the instrument's row of resolved_tickers. A
-    // rebuild of every ticker, which a reorder of the datasources starts,
-    // derives the row from the facts. So the seed writes an EODHD assertion
-    // that the ticker names the instrument at XLON in GBP, through a fetch of
-    // a system run, and the row that the assertion derives.
+    await client.query(
+      "INSERT INTO identifiers (id, instr_id, type, domain, value) VALUES (uuid_v7(), $1, 'broker_description', $2, $3)",
+      [id, broker, description],
+    );
     const tickerRow = await client.query<{ id: string }>(
-      "INSERT INTO tickers (id, market, value) VALUES (uuid_v7(), 'XLON', $1) ON CONFLICT (market, value) DO UPDATE SET value = EXCLUDED.value RETURNING id",
+      "INSERT INTO tickers (id, market, value) VALUES (uuid_v7(), 'XLON', $1) RETURNING id",
       [ticker],
     );
     const fetch = await client.query<{ id: string }>(
@@ -189,23 +183,14 @@ export async function seedDescribedInstr(
       [fetchId],
     );
     const key = await client.query<{ id: string }>(
-      "INSERT INTO fetch_keys (id, fetch_id, outcome, attempts, sent_type, sent_value, answered_at) VALUES (uuid_v7(), $1, 'served', 1, 'isin', $2, now()) RETURNING id",
+      "INSERT INTO fetch_keys (id, fetch_id, outcome, attempts, sent_type, sent_value, answered_at) VALUES (uuid_v7(), $1, 'served', 1, 'isin', $2, '2025-01-02') RETURNING id",
       [fetchId, isin],
     );
     await client.query(
-      "INSERT INTO identifier_assertions (id, fetch_key_id, ticker_id, market, instr_id, asserted_from, asserted_before, venue, currency) VALUES (uuid_v7(), $1, $2, 'XLON', $3, CURRENT_DATE, CURRENT_DATE + 1, 'XLON', 'GBP')",
+      "INSERT INTO identifier_assertions (id, fetch_key_id, ticker_id, market, instr_id, asserted_from, asserted_before, venue, currency) VALUES (uuid_v7(), $1, $2, 'XLON', $3, '2025-01-02', '2025-01-03', 'XLON', 'GBP')",
       [key.rows[0].id, tickerRow.rows[0].id, id],
     );
-    await client.query(
-      "INSERT INTO resolved_tickers (ticker_id, market, instr_id, venue, currency) VALUES ($1, 'XLON', $2, 'XLON', 'GBP')",
-      [tickerRow.rows[0].id, id],
-    );
-    await client.query(
-      "INSERT INTO identifiers (id, instr_id, type, domain, value) VALUES (uuid_v7(), $1, 'broker_description', $2, $3)",
-      [id, broker, description],
-    );
     await client.query("COMMIT");
-    return id;
   } catch (e) {
     await client.query("ROLLBACK");
     throw e;

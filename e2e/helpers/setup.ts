@@ -1,10 +1,12 @@
 import type { JsonObject } from "@bufbuild/protobuf";
-import { datasourceClient } from "./api";
+import { RunKind, RunState } from "../gen/run/v1/run_pb";
+import { adminRunClient, datasourceClient } from "./api";
 import { closeRedis, deleteSession, seedSession } from "./auth";
 import {
   closeDB,
   deleteUsers,
   seedDatasource,
+  seedDescribedInstr,
   seedUser,
   setCorpActSource,
   setIdentifierEventSource,
@@ -53,6 +55,7 @@ export default async function setup(): Promise<void> {
     }
     await setIdentifierEventSource("US", "massive");
     await setCorpActSource("US", "massive");
+    await seedDescribedInstr();
     const admin = await seedUser("admin");
     const session = await seedSession(admin);
     try {
@@ -65,6 +68,7 @@ export default async function setup(): Promise<void> {
           config: d.config,
         });
       }
+      await rebuild(session);
     } finally {
       await deleteSession(session);
       await deleteUsers([admin.id]);
@@ -73,4 +77,24 @@ export default async function setup(): Promise<void> {
     await closeDB();
     await closeRedis();
   }
+}
+
+// rebuild starts a rebuild ticker validity run and waits for it to complete.
+// Global setup runs outside any test, so it polls without Playwright's expect.
+async function rebuild(session: string): Promise<void> {
+  const runs = adminRunClient(session);
+  const { run } = await runs.startSystemRun({
+    kind: RunKind.REBUILD_TICKER_VALIDITY,
+  });
+  for (let i = 0; i < 60; i++) {
+    const state = (await runs.getRun({ runId: run!.id })).run?.run?.state;
+    if (state === RunState.COMPLETED) {
+      return;
+    }
+    if (state === RunState.FAILED || state === RunState.INTERRUPTED) {
+      throw new Error(`rebuild ticker validity run ${run!.id} stopped`);
+    }
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  throw new Error(`rebuild ticker validity run ${run!.id} did not complete`);
 }
