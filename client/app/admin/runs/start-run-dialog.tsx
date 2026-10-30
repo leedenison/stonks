@@ -10,36 +10,68 @@ import { refusal } from "@/lib/refusal";
 // A SystemRun is an action that starts one kind of system run.
 export type SystemRun = {
   kind: RunKind;
-  // Prefix of the test ids of the action button, the dialog and its controls.
+  // Prefix of the test ids of the action, the dialog and its controls.
   testId: string;
   title: string;
-  description: string;
+  // Each element is one paragraph of the dialog.
+  description: string[];
 };
 
-// systemRuns lists the system runs an administrator can start.
-export const systemRuns: SystemRun[] = [
+// A SystemRunMenu groups the system runs under one menu of the action bar.
+export type SystemRunMenu = {
+  label: string;
+  testId: string;
+  runs: SystemRun[];
+};
+
+// systemRunMenus lists the system runs an administrator can start.
+export const systemRunMenus: SystemRunMenu[] = [
   {
-    kind: RunKind.REASSERT_TICKERS,
-    testId: "reassert-tickers",
-    title: "Reassert tickers",
-    description:
-      "Asks every enabled datasource again about every held ticker, to confirm that each ticker still names the same instrument today. Each call spends quota on the datasource it asks.",
+    label: "Datasource",
+    testId: "runs-menu-datasource",
+    runs: [
+      {
+        kind: RunKind.REASSERT_TICKERS,
+        testId: "reassert-tickers",
+        title: "Reassert All Tickers",
+        description: [
+          "Asks every enabled datasource again about every held ticker, without reading the cache. A datasource that serves identifier facts is asked for the history of the instrument the ticker names. Any other datasource is asked which instrument the ticker names today.",
+          "The answers are written as identifier facts and complete any findings that wait on them. The run then replays the unresolved statement keys that state each ticker. It also fetches the corporate actions of the held instruments that the tickers name.",
+          "A ticker that becomes held after the run starts waits for the next run. Each call spends quota on the datasource it asks.",
+        ],
+      },
+      {
+        kind: RunKind.REFRESH_CORP_ACTS,
+        testId: "refresh-corp-acts",
+        title: "Refresh Corporate Actions",
+        description: [
+          "Asks the corporate actions source of each market again about each ticker there that named a held instrument, without reading the cache. A held instrument is one that a transaction names. The run does not ask a datasource about ticker identity.",
+          "Each request covers the period from the earliest transaction of any user that names the instrument to tomorrow. Its answer replaces the corporate actions stored for that period.",
+          "The requests are chosen when the run starts. An instrument that becomes held later waits for the next run. Each call spends quota on the source it asks.",
+        ],
+      },
+    ],
   },
   {
-    kind: RunKind.REFRESH_CORP_ACTS,
-    testId: "refresh-corp-acts",
-    title: "Refresh corporate actions",
-    description:
-      "Asks the corporate actions source of each market again about each ticker there that named a held instrument, without reading the cache. Each call spends quota on the source it asks.",
-  },
-  {
-    kind: RunKind.REBUILD_TICKER_VALIDITY,
-    testId: "rebuild-ticker-validity",
-    title: "Rebuild ticker validity",
-    description:
-      "Rebuilds the ticker validity and the names of every ticker from the facts already stored. It does not call a datasource. Run it after a deploy that changes how validity or names are derived, or after facts were deleted.",
+    label: "Debug",
+    testId: "runs-menu-debug",
+    runs: [
+      {
+        kind: RunKind.REBUILD_TICKER_VALIDITY,
+        testId: "rebuild-ticker-validity",
+        title: "Remap Ticker Names",
+        description: [
+          "Rebuilds the ticker validity and the names of every ticker from the identifier facts already stored. It does not call a datasource.",
+          "A write of facts rebuilds its own tickers, and a reorder of the datasources starts this run. Run it after facts were deleted, or after a deploy that changes how validity or names are derived.",
+          "Ticker names and validity may lag until the run finishes.",
+        ],
+      },
+    ],
   },
 ];
+
+// systemRuns lists every run of systemRunMenus.
+export const systemRuns = systemRunMenus.flatMap((m) => m.runs);
 
 // StartRunDialog confirms and starts a system run. A refusal stays in the
 // dialog.
@@ -83,7 +115,11 @@ export function StartRunDialog({
         </>
       }
     >
-      <p className="text-sm">{run.description}</p>
+      <div className="space-y-3 text-sm">
+        {run.description.map((p) => (
+          <p key={p}>{p}</p>
+        ))}
+      </div>
       {start.isError && (
         <Notice tone="error" testId={`${run.testId}-error`}>
           {refusal(start.error, "The run could not be started.")}
