@@ -36,9 +36,10 @@ describe("StartRunDialog", () => {
         return create(StartSystemRunResponseSchema, { run: started });
       }),
     );
-    expect(screen.getByTestId(`${run.testId}-dialog`).textContent).toContain(
-      run.description,
-    );
+    const text = screen.getByTestId(`${run.testId}-dialog`).textContent;
+    for (const p of run.description) {
+      expect(text).toContain(p);
+    }
     fireEvent.click(screen.getByTestId(`${run.testId}-start`));
     await waitFor(() => expect(onStarted).toHaveBeenCalledWith(started));
     expect(kinds).toEqual([run.kind]);

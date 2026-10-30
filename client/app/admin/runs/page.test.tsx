@@ -25,6 +25,7 @@ let params = new URLSearchParams();
 vi.mock("next/navigation", () => ({
   useRouter: () => router,
   useSearchParams: () => params,
+  usePathname: () => "/admin/runs",
 }));
 
 const admin = liveSession({ role: Role.ADMIN });
@@ -179,10 +180,10 @@ describe("RunsPage", () => {
   });
 
   it.each([
-    ["reassert-tickers", RunKind.REASSERT_TICKERS],
-    ["refresh-corp-acts", RunKind.REFRESH_CORP_ACTS],
-    ["rebuild-ticker-validity", RunKind.REBUILD_TICKER_VALIDITY],
-  ])("starts a %s run and opens it", async (testId, kind) => {
+    ["datasource", "reassert-tickers", RunKind.REASSERT_TICKERS],
+    ["datasource", "refresh-corp-acts", RunKind.REFRESH_CORP_ACTS],
+    ["debug", "rebuild-ticker-validity", RunKind.REBUILD_TICKER_VALIDITY],
+  ])("starts a %s %s run and opens it", async (menu, testId, kind) => {
     router.push.mockClear();
     const kinds: RunKind[] = [];
     renderWithAuth(
@@ -197,6 +198,7 @@ describe("RunsPage", () => {
         },
       ),
     );
+    fireEvent.click(screen.getByTestId(`runs-menu-${menu}`));
     fireEvent.click(screen.getByTestId(`runs-${testId}`));
     fireEvent.click(screen.getByTestId(`${testId}-start`));
     await waitFor(() =>

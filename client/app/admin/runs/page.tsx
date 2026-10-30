@@ -1,12 +1,11 @@
 "use client";
 
-import { RefreshCw } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Fragment, Suspense, useState } from "react";
 import { Pager } from "@/app/components/admin-list";
-import { Button } from "@/app/components/button";
 import { Chip } from "@/app/components/chip";
 import { EmptyState } from "@/app/components/empty-state";
+import { Menu, MenuItem } from "@/app/components/menu";
 import { Notice } from "@/app/components/notice";
 import { Page } from "@/app/components/page-frame";
 import { Select } from "@/app/components/input";
@@ -20,7 +19,11 @@ import {
 } from "@/lib/admin";
 import { enumLabel, enumParam, enumValues } from "@/lib/enum";
 import { RunRow, RunTreeTable } from "./run-tree";
-import { StartRunDialog, type SystemRun, systemRuns } from "./start-run-dialog";
+import {
+  StartRunDialog,
+  type SystemRun,
+  systemRunMenus,
+} from "./start-run-dialog";
 
 // Every user's runs, newest first, filtered by what the address names, each
 // top-level run a row that opens onto the runs below it. The filters live in
@@ -53,16 +56,23 @@ function Runs() {
       testId="admin-runs-page"
       actions={
         <>
-          {systemRuns.map((r) => (
-            <Button
-              key={r.kind}
-              variant="text"
-              data-testid={`runs-${r.testId}`}
-              onClick={() => setOpened(r)}
+          {systemRunMenus.map((m) => (
+            <Menu
+              key={m.testId}
+              label={m.label}
+              testId={m.testId}
+              className="font-semibold text-action hover:bg-primary-light/15"
             >
-              <RefreshCw aria-hidden className="h-4 w-4" />
-              {r.title}
-            </Button>
+              {m.runs.map((r) => (
+                <MenuItem
+                  key={r.kind}
+                  testId={`runs-${r.testId}`}
+                  onSelect={() => setOpened(r)}
+                >
+                  {r.title}
+                </MenuItem>
+              ))}
+            </Menu>
           ))}
         </>
       }
