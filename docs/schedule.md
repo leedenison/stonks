@@ -22,10 +22,12 @@ run.
 The milestones that are scheduled, in the order they are implemented. Each has a directory
 of open issues and ADRs at `docs/tasks/<label>/`.
 
-- **M06** - Corporate actions that restate the quantity of an instrument held, from
-  Massive and EODHD, on a ticker model where tickers are facts.
+- **M07** - Admin alerts: one page listing what needs an administrator, the system run
+  actions beside it, and the decision on whether a corporate action restates shares.
 
 ```
+    001 open
+       |
     002 close
 ```
 
@@ -42,6 +44,8 @@ The record of what has been built. A milestone lands here when its issue directo
   fetch served for a key it could not associate.
 - **M05** - Identifier events from Massive, and resolution of MIC-derived identifiers
   inside their ticker validity.
+- **M06** - Corporate actions that restate the quantity of an instrument held, from
+  Massive and EODHD, on a ticker model where tickers are facts.
 
 ## Deferred
 
