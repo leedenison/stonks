@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 
+	admincorpactv1 "github.com/leedenison/stonks/proto/admin/corpact/v1"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/identity/tickervalidity"
 	"github.com/leedenison/stonks/server/internal/types"
@@ -45,7 +46,6 @@ type DecisionQueries interface {
 	tickervalidity.ValidityQueries
 	GetCorpAct(ctx context.Context, id uuid.UUID) (gen.GetCorpActRow, error)
 	ListInstrCorpActs(ctx context.Context, instrID uuid.UUID) ([]gen.ListInstrCorpActsRow, error)
-	ListCorpActSources(ctx context.Context) ([]gen.ListCorpActSourcesRow, error)
 	ListStatedSplits(ctx context.Context, arg gen.ListStatedSplitsParams) ([]gen.ListStatedSplitsRow, error)
 }
 
@@ -57,51 +57,87 @@ type InstrAct struct {
 	Act
 	Datasource string
 	Ticker     types.MarketTicker
-	// Applied is whether the instrument's calendar reads the action; see
-	// applier.
+	// Applied is whether the instrument's calendar reads the action: its
+	// datasource is the corporate actions source of the ticker's market, and
+	// that market is the instrument's.
 	Applied bool
+}
+
+// ToProto converts a.
+func (a InstrAct) ToProto() *admincorpactv1.CorpAct {
+	out := &admincorpactv1.CorpAct{
+		Id:             a.ID.String(),
+		Ticker:         a.Ticker.ToProto(),
+		ExDate:         a.ExDate.Format(time.DateOnly),
+		Ratio:          a.Ratio.ToProto(),
+		Datasource:     a.Datasource,
+		RestatesShares: a.Restates(),
+		Decision:       types.ToProto[admincorpactv1.CorpActDecision](a.Decision),
+		Applied:        a.Applied,
+	}
+	if a.Type != "" {
+		out.Type = &a.Type
+	}
+	return out
 }
 
 // ListInstrActs returns every stored action of a ticker that named instr on
 // the action's ex-date, from every datasource, latest ex-date first. The
-// calendar reads only the applied ones. The rest are listed because each
-// unhandled one carries a finding, and an administrator settles it here.
+// calendar reads only the applied ones. The rest are listed because an
+// administrator decides an action here whatever its datasource.
 func ListInstrActs(ctx context.Context, q DecisionQueries, instr uuid.UUID) ([]InstrAct, error) {
 	rows, err := q.ListInstrCorpActs(ctx, instr)
 	if err != nil {
 		return nil, fmt.Errorf("list the corporate actions of the instrument: %w", err)
 	}
-	applied, err := applier(ctx, q, instr)
+	markets, err := Markets(ctx, q, []uuid.UUID{instr})
 	if err != nil {
 		return nil, err
 	}
 	out := make([]InstrAct, 0, len(rows))
 	for _, row := range rows {
 		t := types.MarketTicker{Market: row.Market, Value: row.Value}
-		out = append(out, InstrAct{Act: toAct(row.CorpAct), Datasource: row.Datasource, Ticker: t, Applied: applied(t, row.Datasource)})
+		out = append(out, InstrAct{Act: toAct(row.CorpAct), Datasource: row.Datasource, Ticker: t, Applied: row.Source && t.Market == markets[instr]})
 	}
 	return out, nil
 }
 
-// applier reports, for a ticker and a datasource, whether the calendar of
-// instr reads their actions.
-func applier(ctx context.Context, q DecisionQueries, instr uuid.UUID) (func(types.MarketTicker, string) bool, error) {
-	markets, err := Markets(ctx, q, []uuid.UUID{instr})
+// UnknownQueries read the actions whose effect on the quantity held is
+// unknown.
+type UnknownQueries interface {
+	MarketQueries
+	ListUnknownCorpActs(ctx context.Context, arg gen.ListUnknownCorpActsParams) ([]gen.ListUnknownCorpActsRow, error)
+}
+
+var _ UnknownQueries = (*gen.Queries)(nil)
+
+// ListUnknownActs returns up to lim actions whose effect on the quantity
+// held is unknown, latest ex-date first: those before the action of
+// beforeDay and beforeID, or the latest where both are nil. Applied is
+// judged against the instrument the ticker named on the ex-date, and is
+// false where it named nothing.
+func ListUnknownActs(ctx context.Context, q UnknownQueries, beforeDay *time.Time, beforeID *uuid.UUID, lim int32) ([]InstrAct, error) {
+	rows, err := q.ListUnknownCorpActs(ctx, gen.ListUnknownCorpActsParams{BeforeDay: beforeDay, BeforeID: beforeID, Lim: lim})
+	if err != nil {
+		return nil, fmt.Errorf("list the unknown corporate actions: %w", err)
+	}
+	var instrs []uuid.UUID
+	for _, row := range rows {
+		if row.InstrID != nil && !slices.Contains(instrs, *row.InstrID) {
+			instrs = append(instrs, *row.InstrID)
+		}
+	}
+	markets, err := Markets(ctx, q, instrs)
 	if err != nil {
 		return nil, err
 	}
-	rows, err := q.ListCorpActSources(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("list corporate actions sources: %w", err)
-	}
-	sources := make(map[string]string, len(rows))
+	out := make([]InstrAct, 0, len(rows))
 	for _, row := range rows {
-		sources[row.Code] = row.Datasource
+		t := types.MarketTicker{Market: row.Market, Value: row.Value}
+		applied := row.Source && row.InstrID != nil && t.Market == markets[*row.InstrID]
+		out = append(out, InstrAct{Act: toAct(row.CorpAct), Datasource: row.Datasource, Ticker: t, Applied: applied})
 	}
-	market := markets[instr]
-	return func(t types.MarketTicker, datasource string) bool {
-		return t.Market == market && sources[market] == datasource
-	}, nil
+	return out, nil
 }
 
 // StmtSplit is a split that statements state, by its effective date and

@@ -15,10 +15,14 @@ import { useInstrCorpActs } from "@/hooks/use-corp-acts";
 import { enumLabel } from "@/lib/enum";
 import { formatRatio } from "@/lib/format";
 
-// undecided reports whether neither a decision nor a system judgment settles
-// the action. The corporate action alert fires on the same condition.
-export function undecided(a: CorpAct): boolean {
-  return a.decision === CorpActDecision.UNSPECIFIED && !a.restatesShares;
+// unknown reports whether the action's effect on the quantity held is
+// unknown: neither a decision nor a system judgment settles it, or it is
+// decided other. The corporate action alert fires on the same condition.
+export function unknown(a: CorpAct): boolean {
+  return (
+    (a.decision === CorpActDecision.UNSPECIFIED && !a.restatesShares) ||
+    a.decision === CorpActDecision.OTHER
+  );
 }
 
 // CorpActsTab lists the stored corporate actions of an instrument, latest
@@ -89,7 +93,7 @@ export function CorpActsTab({ instrId }: { instrId: string }) {
                   )}
                 </Td>
                 <Td dense>
-                  <Chip tone={undecided(a) ? "accent" : "muted"}>
+                  <Chip tone={unknown(a) ? "accent" : "muted"}>
                     {a.decision === CorpActDecision.UNSPECIFIED
                       ? "Undecided"
                       : enumLabel(CorpActDecision, a.decision)}
@@ -97,7 +101,7 @@ export function CorpActsTab({ instrId }: { instrId: string }) {
                 </Td>
                 <Td dense className="text-right">
                   <Button
-                    variant={undecided(a) ? "primary" : "secondary"}
+                    variant={unknown(a) ? "primary" : "secondary"}
                     data-testid={`corp-act-decide-${a.id}`}
                     onClick={() => setDeciding(a.id)}
                   >

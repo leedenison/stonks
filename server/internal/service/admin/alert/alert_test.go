@@ -4,17 +4,20 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"slices"
 	"testing"
 	"time"
 
 	"connectrpc.com/connect"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 	"go.uber.org/mock/gomock"
 	"google.golang.org/protobuf/testing/protocmp"
 
 	adminalertv1 "github.com/leedenison/stonks/proto/admin/alert/v1"
 	"github.com/leedenison/stonks/proto/admin/alert/v1/adminalertv1connect"
+	"github.com/leedenison/stonks/server/internal/corpact"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/to"
 	"github.com/leedenison/stonks/server/internal/identity/coverage"
@@ -68,8 +71,31 @@ func blockAlert(r gen.ListBlocksRow) *adminalertv1.Alert {
 	return &adminalertv1.Alert{Kind: block, Subject: &adminalertv1.Alert_Block{Block: to.ProtoBlock(r)}}
 }
 
-func findingAlert(k adminalertv1.AlertKind, r gen.ListOpenFindingsRow) *adminalertv1.Alert {
-	return &adminalertv1.Alert{Kind: k, Subject: &adminalertv1.Alert_Finding{Finding: to.ProtoFinding(r.Finding, nil)}}
+func findingAlert(r gen.ListOpenFindingsRow) *adminalertv1.Alert {
+	return &adminalertv1.Alert{Kind: finding, Subject: &adminalertv1.Alert_Finding{Finding: to.ProtoFinding(r.Finding, nil)}}
+}
+
+// actRow is an unhandled, undecided action of alpha, the source of the US,
+// on US:NVDA with an ex-date on day n, where NVDA named acme.
+func actRow(n int) gen.ListUnknownCorpActsRow {
+	return gen.ListUnknownCorpActsRow{
+		CorpAct:    gen.CorpAct{ID: id(n), ExDate: day(n), RatioFrom: decimal.NewFromInt(1), RatioTo: decimal.NewFromInt(4)},
+		Datasource: "alpha", Market: "US", Value: "NVDA", Source: true, InstrID: ptr.To(uuid.MustParse(acme)),
+	}
+}
+
+// actAlert is the applied alert of the row r.
+func actAlert(r gen.ListUnknownCorpActsRow) *adminalertv1.Alert {
+	a := corpact.InstrAct{
+		Act:        corpact.Act{ID: r.CorpAct.ID, ExDate: r.CorpAct.ExDate, Ratio: types.Ratio{From: r.CorpAct.RatioFrom, To: r.CorpAct.RatioTo}},
+		Datasource: r.Datasource, Ticker: types.MarketTicker{Market: r.Market, Value: r.Value}, Applied: true,
+	}
+	return &adminalertv1.Alert{Kind: corpAct, Subject: &adminalertv1.Alert_CorpAct{CorpAct: a.ToProto()}}
+}
+
+// markets serves the market of acme as the US.
+func markets(f *fixture) {
+	f.queries.EXPECT().ListInstrMarkets(gomock.Any(), []uuid.UUID{uuid.MustParse(acme)}).Return([]gen.ListInstrMarketsRow{{InstrID: uuid.MustParse(acme), Market: "US"}}, nil)
 }
 
 // tickerGap is a gap on US:value from day n with txns transactions.
@@ -123,7 +149,9 @@ func TestGetAlertDigest(t *testing.T) {
 	f.queries.EXPECT().ListFailedRuns(gomock.Any(), gen.ListFailedRunsParams{Lim: top}).Return([]gen.ListFailedRunsRow{runRow(1)}, nil)
 	f.queries.EXPECT().CountOpenBlocks(gomock.Any()).Return(int32(0), nil)
 	f.queries.EXPECT().ListBlocks(gomock.Any(), gen.ListBlocksParams{Lim: top}).Return(nil, nil)
-	f.queries.EXPECT().ListOpenFindings(gomock.Any(), gen.ListOpenFindingsParams{Kinds: corpActKinds, Lim: top}).Return([]gen.ListOpenFindingsRow{findingRow(2, gen.FindingKindUnhandledCorpAct)}, nil)
+	f.queries.EXPECT().CountUnknownCorpActs(gomock.Any()).Return(int32(1), nil)
+	f.queries.EXPECT().ListUnknownCorpActs(gomock.Any(), gen.ListUnknownCorpActsParams{Lim: top}).Return([]gen.ListUnknownCorpActsRow{actRow(2)}, nil)
+	markets(f)
 	f.queries.EXPECT().ListOpenFindings(gomock.Any(), gen.ListOpenFindingsParams{Kinds: findingKinds, Lim: top}).Return([]gen.ListOpenFindingsRow{findingRow(4, gen.FindingKindContradiction), findingRow(3, gen.FindingKindContradiction)}, nil)
 
 	res, err := f.client.GetAlertDigest(context.Background(), connect.NewRequest(&adminalertv1.GetAlertDigestRequest{}))
@@ -135,8 +163,8 @@ func TestGetAlertDigest(t *testing.T) {
 		{Kind: block},
 		{Kind: nothing, Count: 1, Top: []*adminalertv1.Alert{{Kind: nothing, Subject: &adminalertv1.Alert_NamesNothing{NamesNothing: unnamed[0].ToProto()}}}},
 		{Kind: gap, Count: 7, Top: []*adminalertv1.Alert{gapAlert(gaps[6]), gapAlert(gaps[5]), gapAlert(gaps[4]), gapAlert(gaps[3]), gapAlert(gaps[2])}},
-		{Kind: corpAct, Count: 1, Top: []*adminalertv1.Alert{findingAlert(corpAct, findingRow(2, gen.FindingKindUnhandledCorpAct))}},
-		{Kind: finding, Count: 2, Top: []*adminalertv1.Alert{findingAlert(finding, findingRow(4, gen.FindingKindContradiction)), findingAlert(finding, findingRow(3, gen.FindingKindContradiction))}},
+		{Kind: corpAct, Count: 1, Top: []*adminalertv1.Alert{actAlert(actRow(2))}},
+		{Kind: finding, Count: 2, Top: []*adminalertv1.Alert{findingAlert(findingRow(4, gen.FindingKindContradiction)), findingAlert(findingRow(3, gen.FindingKindContradiction))}},
 	}}
 	if diff := cmp.Diff(want, res.Msg, protocmp.Transform()); diff != "" {
 		t.Errorf("GetAlertDigest mismatch (-want +got):\n%s", diff)
@@ -153,7 +181,7 @@ func TestGetAlertDigestFails(t *testing.T) {
 		}},
 		{name: "counts", expect: func(f *fixture) {
 			f.reader.EXPECT().Unconfirmed(gomock.Any(), today).Return(nil, nil, nil)
-			f.queries.EXPECT().CountOpenFindings(gomock.Any()).Return(nil, errBoom)
+			f.queries.EXPECT().CountFailedRuns(gomock.Any()).Return(int32(0), errBoom)
 		}},
 	}
 	for _, tc := range tests {
@@ -225,14 +253,17 @@ func TestListAlertsDerived(t *testing.T) {
 
 // TestListAlertsRows checks that each kind read from a table passes the
 // token through as the row before, reads one row more than the page, cuts
-// the page and names the last row in the next token.
+// the page and names the last row in the next token. A corporate action's
+// token carries its ex-date before its id.
 func TestListAlertsRows(t *testing.T) {
 	before := id(9)
 	tests := []struct {
 		name   string
 		kind   adminalertv1.AlertKind
+		token  string
 		expect func(f *fixture, err error)
 		want   []*adminalertv1.Alert
+		next   string
 	}{
 		{
 			name: "failed runs", kind: failedRun,
@@ -249,12 +280,16 @@ func TestListAlertsRows(t *testing.T) {
 			want: []*adminalertv1.Alert{blockAlert(blockRow(8)), blockAlert(blockRow(7))},
 		},
 		{
-			name: "corporate actions", kind: corpAct,
+			name: "corporate actions", kind: corpAct, token: "2026-03-09:" + before.String(),
 			expect: func(f *fixture, err error) {
-				rows := []gen.ListOpenFindingsRow{findingRow(8, gen.FindingKindUnhandledCorpAct), findingRow(7, gen.FindingKindUnhandledCorpAct), findingRow(6, gen.FindingKindUnhandledCorpAct)}
-				f.queries.EXPECT().ListOpenFindings(gomock.Any(), gen.ListOpenFindingsParams{Kinds: corpActKinds, Before: &before, Lim: 3}).Return(rows, err)
+				rows := []gen.ListUnknownCorpActsRow{actRow(8), actRow(7), actRow(6)}
+				f.queries.EXPECT().ListUnknownCorpActs(gomock.Any(), gen.ListUnknownCorpActsParams{BeforeDay: ptr.To(day(9)), BeforeID: &before, Lim: 3}).Return(rows, err)
+				if err == nil {
+					markets(f)
+				}
 			},
-			want: []*adminalertv1.Alert{findingAlert(corpAct, findingRow(8, gen.FindingKindUnhandledCorpAct)), findingAlert(corpAct, findingRow(7, gen.FindingKindUnhandledCorpAct))},
+			want: []*adminalertv1.Alert{actAlert(actRow(8)), actAlert(actRow(7))},
+			next: "2026-03-07:" + id(7).String(),
 		},
 		{
 			name: "findings", kind: finding,
@@ -262,19 +297,23 @@ func TestListAlertsRows(t *testing.T) {
 				rows := []gen.ListOpenFindingsRow{findingRow(8, gen.FindingKindContradiction), findingRow(7, gen.FindingKindMissedEvent), findingRow(6, gen.FindingKindContradiction)}
 				f.queries.EXPECT().ListOpenFindings(gomock.Any(), gen.ListOpenFindingsParams{Kinds: findingKinds, Before: &before, Lim: 3}).Return(rows, err)
 			},
-			want: []*adminalertv1.Alert{findingAlert(finding, findingRow(8, gen.FindingKindContradiction)), findingAlert(finding, findingRow(7, gen.FindingKindMissedEvent))},
+			want: []*adminalertv1.Alert{findingAlert(findingRow(8, gen.FindingKindContradiction)), findingAlert(findingRow(7, gen.FindingKindMissedEvent))},
 		},
 	}
 	for _, tc := range tests {
+		token, next := tc.token, tc.next
+		if token == "" {
+			token, next = before.String(), id(7).String()
+		}
 		t.Run(tc.name, func(t *testing.T) {
 			f := newFixture(t)
 			tc.expect(f, nil)
-			req := &adminalertv1.ListAlertsRequest{Kind: tc.kind, PageSize: 2, PageToken: before.String()}
+			req := &adminalertv1.ListAlertsRequest{Kind: tc.kind, PageSize: 2, PageToken: token}
 			res, err := f.client.ListAlerts(context.Background(), connect.NewRequest(req))
 			if err != nil {
 				t.Fatalf("ListAlerts(%v): %v", req, err)
 			}
-			want := &adminalertv1.ListAlertsResponse{Alerts: tc.want, NextPageToken: id(7).String()}
+			want := &adminalertv1.ListAlertsResponse{Alerts: tc.want, NextPageToken: next}
 			if diff := cmp.Diff(want, res.Msg, protocmp.Transform()); diff != "" {
 				t.Errorf("ListAlerts(%v) mismatch (-want +got):\n%s", req, diff)
 			}
@@ -282,7 +321,7 @@ func TestListAlertsRows(t *testing.T) {
 		t.Run(tc.name+" fails", func(t *testing.T) {
 			f := newFixture(t)
 			tc.expect(f, errBoom)
-			req := &adminalertv1.ListAlertsRequest{Kind: tc.kind, PageSize: 2, PageToken: before.String()}
+			req := &adminalertv1.ListAlertsRequest{Kind: tc.kind, PageSize: 2, PageToken: token}
 			_, err := f.client.ListAlerts(context.Background(), connect.NewRequest(req))
 			if servicetest.CodeOf(err) != connect.CodeInternal {
 				t.Errorf("ListAlerts(%v) code = %v (err %v), want %v", req, servicetest.CodeOf(err), err, connect.CodeInternal)
@@ -303,5 +342,28 @@ func TestListAlertsDefaultPage(t *testing.T) {
 	_, err = f.client.ListAlerts(context.Background(), connect.NewRequest(&adminalertv1.ListAlertsRequest{Kind: block, PageToken: "next"}))
 	if servicetest.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Errorf("ListAlerts(block, next) code = %v, want %v", servicetest.CodeOf(err), connect.CodeInvalidArgument)
+	}
+	for _, token := range []string{id(1).String(), "soon:" + id(1).String(), "2026-03-01:next"} {
+		_, err = f.client.ListAlerts(context.Background(), connect.NewRequest(&adminalertv1.ListAlertsRequest{Kind: corpAct, PageToken: token}))
+		if servicetest.CodeOf(err) != connect.CodeInvalidArgument {
+			t.Errorf("ListAlerts(corp act, %q) code = %v, want %v", token, servicetest.CodeOf(err), connect.CodeInvalidArgument)
+		}
+	}
+}
+
+// TestFindingKindsPartition checks that every finding kind is either an
+// alert of kind FINDING or named here as not one, so a new kind cannot be
+// left out of the alerts page by accident.
+func TestFindingKindsPartition(t *testing.T) {
+	notAlerts := []gen.FindingKind{gen.FindingKindBlock, gen.FindingKindUnhandledCorpAct, gen.FindingKindDropped, gen.FindingKindMerged}
+	for _, k := range gen.AllFindingKindValues() {
+		alert, not := slices.Contains(findingKinds, string(k)), slices.Contains(notAlerts, k)
+		if alert == not {
+			t.Errorf("finding kind %s: alert %v, named as not one %v; want exactly one", k, alert, not)
+		}
+	}
+	want := []string{"contradiction", "identifier_disagreement", "broken_ticker_validity_bracket", "missed_event", "unmatched_split"}
+	if diff := cmp.Diff(want, findingKinds); diff != "" {
+		t.Errorf("findingKinds mismatch (-want +got):\n%s", diff)
 	}
 }

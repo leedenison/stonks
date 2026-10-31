@@ -38,11 +38,14 @@ SELECT decided.id FROM decided;
 
 -- name: ListInstrCorpActs :many
 -- Every stored action of a ticker that named the instrument on the action's
--- ex-date, from every datasource, latest ex-date first.
-SELECT sqlc.embed(corp_acts), corp_act_answers.datasource, tickers.market, tickers.value
+-- ex-date, from every datasource, latest ex-date first. source is whether
+-- the datasource is the corporate actions source of the ticker's market.
+SELECT sqlc.embed(corp_acts), corp_act_answers.datasource, tickers.market, tickers.value,
+       COALESCE(corp_act_answers.datasource = markets.corp_act_source, false)::bool AS source
 FROM corp_acts
 JOIN corp_act_answers ON corp_act_answers.id = corp_acts.answer_id
 JOIN tickers ON tickers.id = corp_act_answers.ticker_id
+JOIN markets ON markets.code = tickers.market
 JOIN ticker_validity ON ticker_validity.ticker_id = corp_act_answers.ticker_id
     AND ticker_validity.instr_id = @instr_id
     AND (ticker_validity.valid_from IS NULL OR ticker_validity.valid_from <= corp_acts.ex_date)
@@ -55,6 +58,29 @@ FROM corp_acts
 JOIN corp_act_answers ON corp_act_answers.id = corp_acts.answer_id
 JOIN tickers ON tickers.id = corp_act_answers.ticker_id
 WHERE corp_acts.id = @id;
+
+-- name: ListUnknownCorpActs :many
+-- The actions whose effect on the quantity held is unknown, latest ex-date
+-- first. instr_id is the instrument the ticker named on the ex-date, NULL
+-- where it named none. A NULL before_day starts at the latest.
+SELECT sqlc.embed(corp_acts), corp_act_answers.datasource, tickers.market, tickers.value,
+       COALESCE(corp_act_answers.datasource = markets.corp_act_source, false)::bool AS source,
+       ticker_validity.instr_id
+FROM corp_acts
+JOIN corp_act_answers ON corp_act_answers.id = corp_acts.answer_id
+JOIN tickers ON tickers.id = corp_act_answers.ticker_id
+JOIN markets ON markets.code = tickers.market
+LEFT JOIN ticker_validity ON ticker_validity.ticker_id = corp_act_answers.ticker_id
+    AND (ticker_validity.valid_from IS NULL OR ticker_validity.valid_from <= corp_acts.ex_date)
+    AND (ticker_validity.valid_before IS NULL OR corp_acts.ex_date < ticker_validity.valid_before)
+WHERE ((corp_acts.decision IS NULL AND NOT corp_acts.handled) OR corp_acts.decision = 'other')
+  AND (sqlc.narg(before_day)::date IS NULL
+       OR (corp_acts.ex_date, corp_acts.id) < (sqlc.narg(before_day)::date, sqlc.narg(before_id)::uuid))
+ORDER BY corp_acts.ex_date DESC, corp_acts.id DESC
+LIMIT @lim;
+
+-- name: CountUnknownCorpActs :one
+SELECT count(*)::int FROM corp_acts WHERE (decision IS NULL AND NOT handled) OR decision = 'other';
 
 -- name: ListCorpActSources :many
 -- Each market that names a corporate actions source, with that datasource.

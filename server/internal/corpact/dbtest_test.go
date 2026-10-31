@@ -468,6 +468,50 @@ func TestDecisionSurvivesRefetch(t *testing.T) {
 	}
 }
 
+// TestUnknownActs checks the unknown actions: the unhandled, undecided ones
+// and those decided other. They come latest ex-date first and page by
+// ex-date and id. An action is applied where the market's source reported
+// it. The count matches the list.
+func TestUnknownActs(t *testing.T) {
+	s := newStack(t)
+	ctx := context.Background()
+	nvda := ticker("XNAS", "NVDA")
+	s.nvda(t)
+	f := s.unhandledNVDA(t)
+	s.source(t, s.betaName)
+	s.beta.Responses[nvda] = covering(reported(day(2023, 6, 1), ratio(1000, 1253)))
+	s.fetch(t, nvda)
+	s.source(t, s.alphaName)
+
+	list := func(beforeDay *time.Time, beforeID *uuid.UUID) []InstrAct {
+		t.Helper()
+		acts, err := ListUnknownActs(ctx, s.q, beforeDay, beforeID, 10)
+		require.NoError(t, err)
+		return acts
+	}
+	acts := list(nil, nil)
+	if len(acts) != 2 || acts[0].ID != f.act || !acts[0].Applied || acts[1].Datasource != s.betaName || acts[1].Applied {
+		t.Fatalf("unknown actions = %+v, want alpha's applied action then beta's, not applied", acts)
+	}
+	if got := list(&acts[0].ExDate, &acts[0].ID); len(got) != 1 || got[0].ID != acts[1].ID {
+		t.Errorf("unknown actions before the first = %+v, want beta's alone", got)
+	}
+	n, err := s.q.CountUnknownCorpActs(ctx)
+	require.NoError(t, err)
+	if n != 2 {
+		t.Errorf("CountUnknownCorpActs = %d, want 2", n)
+	}
+
+	s.decide(t, f.act, gen.CorpActDecisionOther)
+	if got := list(nil, nil); len(got) != 2 || got[0].Decision != gen.CorpActDecisionOther {
+		t.Errorf("unknown actions after deciding other = %+v, want both, the first decided other", got)
+	}
+	s.decide(t, f.act, gen.CorpActDecisionSpinOffPriceFactor)
+	if got := list(nil, nil); len(got) != 1 || got[0].ID != acts[1].ID {
+		t.Errorf("unknown actions after deciding a price factor = %+v, want beta's alone", got)
+	}
+}
+
 // TestRestatedActionDropsDecision checks that a refetch that restates the
 // ratio of a decided action replaces the row, and the decision and the
 // finding go with it.

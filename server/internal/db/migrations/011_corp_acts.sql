@@ -63,6 +63,10 @@ CREATE TABLE corp_acts (
 );
 
 CREATE INDEX corp_acts_answer_idx ON corp_acts (answer_id, ex_date);
+-- corp_acts_unknown_idx serves the alerts: the actions whose effect on the
+-- quantity held is unknown, latest ex-date first.
+CREATE INDEX corp_acts_unknown_idx ON corp_acts (ex_date DESC, id DESC)
+    WHERE (decision IS NULL AND NOT handled) OR decision = 'other';
 
 ALTER TABLE findings ADD COLUMN corp_act_id uuid REFERENCES corp_acts (id) ON DELETE CASCADE;
 ALTER TABLE findings ADD CHECK

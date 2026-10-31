@@ -16,6 +16,7 @@ import {
   BlockService,
   ClearBlockResponseSchema,
 } from "@/gen/admin/block/v1/block_pb";
+import { CorpActSchema } from "@/gen/admin/corpact/v1/corpact_pb";
 import {
   ClearFindingResponseSchema,
   ClearRunResponseSchema,
@@ -82,11 +83,12 @@ const names = create(AlertSchema, {
 const corpAct = create(AlertSchema, {
   kind: AlertKind.CORP_ACT,
   subject: {
-    case: "finding",
-    value: create(FindingSchema, {
-      id: "f1",
-      kind: FindingKind.UNHANDLED_CORP_ACT,
-      corpActId: "c1",
+    case: "corpAct",
+    value: create(CorpActSchema, {
+      id: "c1",
+      exDate: "2024-04-02",
+      ratio: { from: "100", to: "104" },
+      datasource: "eodhd",
     }),
   },
 });
@@ -282,7 +284,7 @@ describe("AdminPage row actions", () => {
 
   it("opens the decide dialog on the action", async () => {
     render();
-    fireEvent.click(await screen.findByTestId("alert-act-corp_act-f1"));
+    fireEvent.click(await screen.findByTestId("alert-act-corp_act-c1"));
     expect((await screen.findByTestId("decide-dialog")).textContent).toBe("c1");
   });
 

@@ -9,9 +9,9 @@
 // until the page has been used on real data.
 //
 // One kind's full list pages by a keyset cursor, so a page survives rows that
-// appear or vanish between reads. The two ticker kinds are the exception.
-// Their gaps are derived in Go from the stored ticker validity, so each read
-// derives both kinds in full and cuts the page in memory.
+// appear or vanish between reads. A table kind reads one page from its table.
+// The two ticker kinds are derived in Go from the stored ticker validity, so
+// each read derives both kinds in full and cuts the page in memory.
 package alert
 
 import (
@@ -27,6 +27,7 @@ import (
 
 	adminalertv1 "github.com/leedenison/stonks/proto/admin/alert/v1"
 	"github.com/leedenison/stonks/proto/admin/alert/v1/adminalertv1connect"
+	"github.com/leedenison/stonks/server/internal/corpact"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/to"
 	"github.com/leedenison/stonks/server/internal/identity/coverage"
@@ -39,6 +40,9 @@ type Queries interface {
 	CountFailedRuns(ctx context.Context) (int32, error)
 	ListBlocks(ctx context.Context, arg gen.ListBlocksParams) ([]gen.ListBlocksRow, error)
 	CountOpenBlocks(ctx context.Context) (int32, error)
+	ListUnknownCorpActs(ctx context.Context, arg gen.ListUnknownCorpActsParams) ([]gen.ListUnknownCorpActsRow, error)
+	CountUnknownCorpActs(ctx context.Context) (int32, error)
+	ListInstrMarkets(ctx context.Context, instrs []uuid.UUID) ([]gen.ListInstrMarketsRow, error)
 	ListOpenFindings(ctx context.Context, arg gen.ListOpenFindingsParams) ([]gen.ListOpenFindingsRow, error)
 	CountOpenFindings(ctx context.Context) ([]gen.CountOpenFindingsRow, error)
 }
@@ -84,31 +88,21 @@ const top = 5
 // findingKinds are the finding kinds that are alerts of kind FINDING. Each
 // records a choice the system made between sources, or a mismatch it found,
 // for an administrator to check. Dropped and merged findings are routine on
-// most runs and stay on the run page. A finding alert is open while its
-// finding is uncleared, and clearing the finding is the acknowledgement.
-// corpActKinds is the one finding kind that is an alert of kind CORP_ACT.
-var (
-	findingKinds = []string{
-		string(gen.FindingKindContradiction), string(gen.FindingKindIdentifierDisagreement),
-		string(gen.FindingKindBrokenTickerValidityBracket), string(gen.FindingKindMissedEvent),
-		string(gen.FindingKindUnmatchedSplit),
-	}
-	corpActKinds = []string{string(gen.FindingKindUnhandledCorpAct)}
-)
+// most runs and stay on the run page. Block and unhandled corporate action
+// findings are not FINDING alerts: their block and their action are alerts
+// of kinds BLOCK and CORP_ACT. A finding alert is open while its finding is
+// uncleared, and clearing the finding is the acknowledgement.
+var findingKinds = []string{
+	string(gen.FindingKindContradiction), string(gen.FindingKindIdentifierDisagreement),
+	string(gen.FindingKindBrokenTickerValidityBracket), string(gen.FindingKindMissedEvent),
+	string(gen.FindingKindUnmatchedSplit),
+}
 
 // GetAlertDigest reads the count of each kind and its top five.
 func (s *Server) GetAlertDigest(ctx context.Context, _ *connect.Request[adminalertv1.GetAlertDigestRequest]) (*connect.Response[adminalertv1.GetAlertDigestResponse], error) {
 	nothing, gapped, err := s.reader.Unconfirmed(ctx, s.clock())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
-	}
-	counted, err := s.queries.CountOpenFindings(ctx)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
-	}
-	counts := make(map[string]int32, len(counted))
-	for _, c := range counted {
-		counts[string(c.Kind)] = c.Count
 	}
 	out := &adminalertv1.GetAlertDigestResponse{}
 	for _, k := range rank {
@@ -120,10 +114,10 @@ func (s *Server) GetAlertDigest(ctx context.Context, _ *connect.Request[adminale
 				g.Top = append(g.Top, r.alert)
 			}
 		} else {
-			if g.Count, err = s.count(ctx, k, counts); err != nil {
+			if g.Count, err = s.count(ctx, k); err != nil {
 				return nil, connect.NewError(connect.CodeInternal, err)
 			}
-			if g.Top, err = s.list(ctx, k, nil, top); err != nil {
+			if g.Top, err = s.list(ctx, k, cursor{}, top); err != nil {
 				return nil, connect.NewError(connect.CodeInternal, err)
 			}
 		}
@@ -132,16 +126,15 @@ func (s *Server) GetAlertDigest(ctx context.Context, _ *connect.Request[adminale
 	return connect.NewResponse(out), nil
 }
 
-// ListAlerts lists one kind's alerts in rank order. For a table kind, the
-// page token is the id of the last row served. For a derived kind, it is the
-// last row's tuple.
+// ListAlerts lists one kind's alerts in rank order. The page token is the
+// cursor of the last row served.
 func (s *Server) ListAlerts(ctx context.Context, req *connect.Request[adminalertv1.ListAlertsRequest]) (*connect.Response[adminalertv1.ListAlertsResponse], error) {
 	m := req.Msg
 	k := m.GetKind()
 	p := page.New(m.GetPageSize())
 	out := &adminalertv1.ListAlertsResponse{}
 	if derived(k) {
-		after, err := parseCursor(m.GetPageToken())
+		after, err := parseRow(m.GetPageToken())
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInvalidArgument, err)
 		}
@@ -158,11 +151,11 @@ func (s *Server) ListAlerts(ctx context.Context, req *connect.Request[adminalert
 			out.Alerts = append(out.Alerts, r.alert)
 		}
 		if more {
-			out.NextPageToken = cursor(rows[len(rows)-1])
+			out.NextPageToken = rows[len(rows)-1].token()
 		}
 		return connect.NewResponse(out), nil
 	}
-	before, err := page.ID(m.GetPageToken())
+	before, err := parseCursor(k, m.GetPageToken())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
@@ -173,7 +166,7 @@ func (s *Server) ListAlerts(ctx context.Context, req *connect.Request[adminalert
 	var more bool
 	out.Alerts, more = page.Cut(p, alerts)
 	if more {
-		out.NextPageToken = subjectID(out.Alerts[len(out.Alerts)-1])
+		out.NextPageToken = token(out.Alerts[len(out.Alerts)-1])
 	}
 	return connect.NewResponse(out), nil
 }
@@ -184,31 +177,88 @@ func derived(k adminalertv1.AlertKind) bool {
 	return k == adminalertv1.AlertKind_ALERT_KIND_TICKER_NAMES_NOTHING || k == adminalertv1.AlertKind_ALERT_KIND_TICKER_VALIDITY_GAP
 }
 
-// count reads the count of a table kind. counts is the count of uncleared
-// findings by kind.
-func (s *Server) count(ctx context.Context, k adminalertv1.AlertKind, counts map[string]int32) (int32, error) {
+// count reads the count of a table kind.
+func (s *Server) count(ctx context.Context, k adminalertv1.AlertKind) (int32, error) {
 	switch k {
 	case adminalertv1.AlertKind_ALERT_KIND_FAILED_RUN:
 		return s.queries.CountFailedRuns(ctx)
 	case adminalertv1.AlertKind_ALERT_KIND_BLOCK:
 		return s.queries.CountOpenBlocks(ctx)
-	case adminalertv1.AlertKind_ALERT_KIND_CORP_ACT, adminalertv1.AlertKind_ALERT_KIND_FINDING:
+	case adminalertv1.AlertKind_ALERT_KIND_CORP_ACT:
+		return s.queries.CountUnknownCorpActs(ctx)
+	case adminalertv1.AlertKind_ALERT_KIND_FINDING:
+		counted, err := s.queries.CountOpenFindings(ctx)
+		if err != nil {
+			return 0, err
+		}
 		var n int32
-		for _, kind := range findingKindsOf(k) {
-			n += counts[kind]
+		for _, c := range counted {
+			if slices.Contains(findingKinds, string(c.Kind)) {
+				n += c.Count
+			}
 		}
 		return n, nil
 	}
 	return 0, fmt.Errorf("kind %v is not read from a table", k)
 }
 
-// list reads up to lim alerts of a table kind, newest first, those with an
-// id below before.
-func (s *Server) list(ctx context.Context, k adminalertv1.AlertKind, before *uuid.UUID, lim int32) ([]*adminalertv1.Alert, error) {
+// cursor is the position of a table kind's row within the kind: the row's
+// id, and for a corporate action its ex-date too. The zero value is the
+// start.
+type cursor struct {
+	id  *uuid.UUID
+	day *time.Time
+}
+
+// parseCursor reads the page token of a table kind. A corporate action's
+// token is its ex-date, a colon and its id; any other token is the id. An
+// empty token is the first page.
+func parseCursor(k adminalertv1.AlertKind, token string) (cursor, error) {
+	if token == "" {
+		return cursor{}, nil
+	}
+	var c cursor
+	if k == adminalertv1.AlertKind_ALERT_KIND_CORP_ACT {
+		date, rest, ok := strings.Cut(token, ":")
+		if !ok {
+			return cursor{}, fmt.Errorf("page token %q: no id", token)
+		}
+		d, err := time.Parse(time.DateOnly, date)
+		if err != nil {
+			return cursor{}, fmt.Errorf("page token %q: %w", token, err)
+		}
+		c.day, token = &d, rest
+	}
+	id, err := page.ID(token)
+	if err != nil {
+		return cursor{}, err
+	}
+	c.id = id
+	return c, nil
+}
+
+// token returns the page token after the alert, as parseCursor reads it.
+func token(a *adminalertv1.Alert) string {
+	switch s := a.GetSubject().(type) {
+	case *adminalertv1.Alert_Run:
+		return s.Run.GetRun().GetId()
+	case *adminalertv1.Alert_Block:
+		return s.Block.GetId()
+	case *adminalertv1.Alert_CorpAct:
+		return s.CorpAct.GetExDate() + ":" + s.CorpAct.GetId()
+	case *adminalertv1.Alert_Finding:
+		return s.Finding.GetId()
+	}
+	return ""
+}
+
+// list reads up to lim alerts of a table kind in rank order, those before
+// the cursor.
+func (s *Server) list(ctx context.Context, k adminalertv1.AlertKind, before cursor, lim int32) ([]*adminalertv1.Alert, error) {
 	var out []*adminalertv1.Alert
 	switch k {
 	case adminalertv1.AlertKind_ALERT_KIND_FAILED_RUN:
-		rows, err := s.queries.ListFailedRuns(ctx, gen.ListFailedRunsParams{Before: before, Lim: lim})
+		rows, err := s.queries.ListFailedRuns(ctx, gen.ListFailedRunsParams{Before: before.id, Lim: lim})
 		if err != nil {
 			return nil, err
 		}
@@ -217,15 +267,23 @@ func (s *Server) list(ctx context.Context, k adminalertv1.AlertKind, before *uui
 			out = append(out, &adminalertv1.Alert{Kind: k, Subject: &adminalertv1.Alert_Run{Run: run}})
 		}
 	case adminalertv1.AlertKind_ALERT_KIND_BLOCK:
-		rows, err := s.queries.ListBlocks(ctx, gen.ListBlocksParams{Before: before, Lim: lim})
+		rows, err := s.queries.ListBlocks(ctx, gen.ListBlocksParams{IncludeCleared: false, Before: before.id, Lim: lim})
 		if err != nil {
 			return nil, err
 		}
 		for _, r := range rows {
 			out = append(out, &adminalertv1.Alert{Kind: k, Subject: &adminalertv1.Alert_Block{Block: to.ProtoBlock(r)}})
 		}
-	case adminalertv1.AlertKind_ALERT_KIND_CORP_ACT, adminalertv1.AlertKind_ALERT_KIND_FINDING:
-		rows, err := s.queries.ListOpenFindings(ctx, gen.ListOpenFindingsParams{Kinds: findingKindsOf(k), Before: before, Lim: lim})
+	case adminalertv1.AlertKind_ALERT_KIND_CORP_ACT:
+		acts, err := corpact.ListUnknownActs(ctx, s.queries, before.day, before.id, lim)
+		if err != nil {
+			return nil, err
+		}
+		for _, a := range acts {
+			out = append(out, &adminalertv1.Alert{Kind: k, Subject: &adminalertv1.Alert_CorpAct{CorpAct: a.ToProto()}})
+		}
+	case adminalertv1.AlertKind_ALERT_KIND_FINDING:
+		rows, err := s.queries.ListOpenFindings(ctx, gen.ListOpenFindingsParams{Kinds: findingKinds, Before: before.id, Lim: lim})
 		if err != nil {
 			return nil, err
 		}
@@ -240,27 +298,6 @@ func (s *Server) list(ctx context.Context, k adminalertv1.AlertKind, before *uui
 		return nil, fmt.Errorf("kind %v is not read from a table", k)
 	}
 	return out, nil
-}
-
-// findingKindsOf returns the finding kinds that are alerts of kind k.
-func findingKindsOf(k adminalertv1.AlertKind) []string {
-	if k == adminalertv1.AlertKind_ALERT_KIND_CORP_ACT {
-		return corpActKinds
-	}
-	return findingKinds
-}
-
-// subjectID returns the id of the table row that produced the alert.
-func subjectID(a *adminalertv1.Alert) string {
-	switch s := a.GetSubject().(type) {
-	case *adminalertv1.Alert_Run:
-		return s.Run.GetRun().GetId()
-	case *adminalertv1.Alert_Block:
-		return s.Block.GetId()
-	case *adminalertv1.Alert_Finding:
-		return s.Finding.GetId()
-	}
-	return ""
 }
 
 // row is an alert of a derived kind with the tuple that orders it within
@@ -302,16 +339,15 @@ func coverageRows(k adminalertv1.AlertKind, nothing []coverage.NamesNothing, gap
 	return out
 }
 
-// cursor is the page token after r: its transactions, its date and its
-// ticker's name, colon-separated. Neither a market code nor a ticker's value
-// contains a colon, so the first two colons end the first two fields.
-func cursor(r row) string {
+// token writes the row's tuple as a page token, colon-separated. The name
+// comes last, so it may contain colons.
+func (r row) token() string {
 	return strconv.Itoa(r.txns) + ":" + r.date.Format(time.DateOnly) + ":" + r.name
 }
 
-// parseCursor reads a page token into the tuple it carries; an empty token
-// is the first page.
-func parseCursor(token string) (*row, error) {
+// parseRow reads the page token of a derived kind into the tuple it
+// carries; an empty token is the first page.
+func parseRow(token string) (*row, error) {
 	if token == "" {
 		return nil, nil
 	}

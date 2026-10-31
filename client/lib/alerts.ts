@@ -4,12 +4,13 @@ import {
   type GetAlertDigestResponse,
 } from "@/gen/admin/alert/v1/alert_pb";
 import { FetchKind } from "@/gen/admin/block/v1/block_pb";
+import { CorpActDecision } from "@/gen/admin/corpact/v1/corpact_pb";
 import { FindingKind } from "@/gen/admin/run/v1/run_pb";
 import type { Identifier, MarketTicker } from "@/gen/type/v1/type_pb";
 import { findingText, runTitle } from "./admin";
 import { dayRange } from "./day-range";
 import { enumLabel, enumParam, fromParam } from "./enum";
-import { formatInstant } from "./format";
+import { formatInstant, formatRatio } from "./format";
 
 // AlertAction is what a row's button does.
 export type AlertAction =
@@ -81,9 +82,9 @@ const words: Record<number, Words> = {
     action: "Attest",
   },
   [AlertKind.CORP_ACT]: {
-    tile: "undecided corporate actions",
+    tile: "unknown corporate actions",
     group: "Corporate actions",
-    why: "the action stays out of the adjusted holdings until an administrator decides its type",
+    why: "the action stays out of the adjusted holdings until an administrator decides it is a type the system applies",
     action: "Decide",
   },
   [AlertKind.FINDING]: {
@@ -118,8 +119,6 @@ export function readAlertParams(params: URLSearchParams): AlertParams {
 export function openCount(digest: GetAlertDigestResponse | undefined): number {
   return digest?.groups.reduce((n, g) => n + g.count, 0) ?? 0;
 }
-
-const day = (s: string | undefined) => s ?? "";
 
 // alertRow maps an alert to the row the table and the actions render from. It
 // is the one place that reads the oneof.
@@ -192,9 +191,23 @@ export function alertRow(a: Alert): AlertRow {
         },
       };
     }
+    case "corpAct": {
+      const c = s.value;
+      return {
+        key: c.id,
+        kind: a.kind,
+        item: { ticker: c.ticker, tag: c.datasource },
+        detail: `${formatRatio(c.ratio)}${c.type ? `, ${c.type}` : ""}`,
+        sub:
+          c.decision === CorpActDecision.OTHER
+            ? "decided other"
+            : "undecided and not handled",
+        since: c.exDate,
+        action: { case: "decide", corpActId: c.id },
+      };
+    }
     case "finding": {
       const f = s.value;
-      const corp = a.kind === AlertKind.CORP_ACT;
       return {
         key: f.id,
         kind: a.kind,
@@ -202,9 +215,7 @@ export function alertRow(a: Alert): AlertRow {
         detail: findingText(f),
         sub: `run ${f.runId}`,
         since: formatInstant(f.createdAt),
-        action: corp
-          ? { case: "decide", corpActId: day(f.corpActId) }
-          : { case: "clear-finding", id: f.id },
+        action: { case: "clear-finding", id: f.id },
       };
     }
     default:
