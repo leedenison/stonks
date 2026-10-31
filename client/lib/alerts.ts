@@ -44,16 +44,6 @@ export type AlertRow = {
   action: AlertAction;
 };
 
-// kindOrder is the order of the digest headings and the tiles.
-export const kindOrder: AlertKind[] = [
-  AlertKind.FAILED_RUN,
-  AlertKind.BLOCK,
-  AlertKind.TICKER_NAMES_NOTHING,
-  AlertKind.TICKER_VALIDITY_GAP,
-  AlertKind.CORP_ACT,
-  AlertKind.FINDING,
-];
-
 type Words = { tile: string; group: string; why: string; action: string };
 
 const words: Record<number, Words> = {

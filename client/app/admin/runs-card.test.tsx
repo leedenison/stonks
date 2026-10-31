@@ -16,7 +16,9 @@ import {
   userRun,
 } from "@/lib/test-utils";
 import { RunsCard } from "./runs-card";
-import { systemRuns } from "./start-run-dialog";
+import { systemRunGroups } from "./start-run-dialog";
+
+const systemRuns = systemRunGroups.flatMap((g) => g.runs);
 
 const router = { push: vi.fn(), replace: vi.fn() };
 

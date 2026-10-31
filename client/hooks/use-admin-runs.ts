@@ -9,12 +9,18 @@ import { fromParam } from "@/lib/enum";
 import { qk } from "@/lib/query-keys";
 import { anyLive, pollInterval } from "@/lib/run";
 import { useAuthedQuery } from "./use-authed-query";
+import { useRunSettled } from "./use-run-settled";
+
+// live reports whether any listed run is live.
+function live(d: ListRunsResponse | undefined): boolean | undefined {
+  return d && anyLive(flattenRuns(d.runs).map((r) => r.run?.state));
+}
 
 // useAdminRuns lists every user's runs matching f, newest first, polling
 // while any listed run is live.
 export function useAdminRuns(f: RunFilters): UseQueryResult<ListRunsResponse> {
   const { adminRun } = useClients();
-  return useAuthedQuery({
+  const q = useAuthedQuery({
     queryKey: qk.adminRuns(f),
     queryFn: () =>
       adminRun.listRuns({
@@ -24,11 +30,10 @@ export function useAdminRuns(f: RunFilters): UseQueryResult<ListRunsResponse> {
         userId: f.user || undefined,
         pageToken: f.before,
       }),
-    refetchInterval: (q) =>
-      anyLive(flattenRuns(q.state.data?.runs ?? []).map((r) => r.run?.state))
-        ? pollInterval
-        : false,
+    refetchInterval: (q) => (live(q.state.data) ? pollInterval : false),
   });
+  useRunSettled(live(q.data));
+  return q;
 }
 
 // useLastSystemRun reads the newest run of kind that an administrator
@@ -38,7 +43,7 @@ export function useLastSystemRun(
   kind: RunKind,
 ): UseQueryResult<UserRun | null> {
   const { adminRun } = useClients();
-  return useAuthedQuery({
+  const q = useAuthedQuery({
     queryKey: qk.adminLastRun(kind),
     queryFn: () =>
       adminRun.listRuns({
@@ -47,9 +52,10 @@ export function useLastSystemRun(
         pageSize: 1,
       }),
     select: (res) => res.runs[0] ?? null,
-    refetchInterval: (q) =>
-      anyLive(q.state.data?.runs.map((r) => r.run?.state) ?? [])
-        ? pollInterval
-        : false,
+    refetchInterval: (q) => (live(q.state.data) ? pollInterval : false),
   });
+  useRunSettled(
+    q.data === undefined ? undefined : anyLive([q.data?.run?.state]),
+  );
+  return q;
 }

@@ -10,12 +10,22 @@ import type {
 import { qk } from "@/lib/query-keys";
 import { useAuthedQuery } from "./use-authed-query";
 
-// useAlertDigest reads the count and the top alerts of each kind.
+// digestInterval is how often the digest is read while a page shows it, in
+// milliseconds. It also bounds how long the nav badge lags a run that a user
+// started, because no administrator action refreshes the alerts for that
+// run.
+const digestInterval = 30_000;
+
+// useAlertDigest reads the count and the top alerts of each kind. The digest
+// derives the ticker kinds for every user on each read, so a page that
+// mounts it again within the interval reads the copy it has.
 export function useAlertDigest(): UseQueryResult<GetAlertDigestResponse> {
   const { alert } = useClients();
   return useAuthedQuery({
     queryKey: qk.alertDigest(),
     queryFn: () => alert.getAlertDigest({}),
+    staleTime: digestInterval,
+    refetchInterval: digestInterval,
   });
 }
 

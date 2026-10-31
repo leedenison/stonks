@@ -14,7 +14,7 @@ import { GapSchema } from "@/gen/admin/coverage/v1/coverage_pb";
 import { FindingKind, FindingSchema } from "@/gen/admin/run/v1/run_pb";
 import { MarketTickerSchema, PeriodSchema } from "@/gen/type/v1/type_pb";
 import { userRun } from "./test-utils";
-import { alertRow, kindOrder, openCount, readAlertParams } from "./alerts";
+import { alertRow, openCount, readAlertParams } from "./alerts";
 
 const ticker = create(MarketTickerSchema, { market: "XNYS", value: "WMT" });
 
@@ -156,11 +156,11 @@ describe("readAlertParams", () => {
 describe("openCount", () => {
   it("sums the groups", () => {
     const d = create(GetAlertDigestResponseSchema, {
-      groups: kindOrder.map((kind, i) =>
-        create(AlertGroupSchema, { kind, count: i }),
+      groups: [AlertKind.FAILED_RUN, AlertKind.BLOCK, AlertKind.FINDING].map(
+        (kind, i) => create(AlertGroupSchema, { kind, count: i }),
       ),
     });
-    expect(openCount(d)).toBe(15);
+    expect(openCount(d)).toBe(3);
     expect(openCount(undefined)).toBe(0);
   });
 });

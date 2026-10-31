@@ -15,9 +15,6 @@ export function useStartReplayRun() {
     mutationFn: (req: MessageInitShape<typeof StartReplayRunRequestSchema>) =>
       replayRun.startReplayRun(req),
     onSuccess: () =>
-      Promise.all([
-        queryClient.invalidateQueries({ queryKey: qk.adminRunsAll() }),
-        queryClient.invalidateQueries({ queryKey: qk.alertsAll() }),
-      ]),
+      queryClient.invalidateQueries({ queryKey: qk.adminRunsAll() }),
   });
 }

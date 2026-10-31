@@ -8,7 +8,7 @@ import { InfoTip } from "@/app/components/info-tip";
 import { Section } from "@/app/components/section";
 import { Skeleton } from "@/app/components/skeleton";
 import { RunChip } from "@/app/components/state-chip";
-import { TableCard, Td, Th, Thead, Tr } from "@/app/components/table";
+import { GroupRow, TableCard, Td, Th, Thead, Tr } from "@/app/components/table";
 import { useLastSystemRun } from "@/hooks/use-admin-runs";
 import {
   StartRunDialog,
@@ -36,14 +36,12 @@ export function RunsCard() {
           {systemRunGroups.map((g) => (
             <Fragment key={g.heading ?? ""}>
               {g.heading && (
-                <tr data-testid={`runs-card-group-${g.heading.toLowerCase()}`}>
-                  <td
-                    colSpan={3}
-                    className="border-b border-border bg-surface-tint px-4 py-1.5 text-xs font-semibold tracking-wider text-text-muted uppercase"
-                  >
-                    {g.heading}
-                  </td>
-                </tr>
+                <GroupRow
+                  colSpan={3}
+                  testId={`runs-card-group-${g.heading.toLowerCase()}`}
+                >
+                  {g.heading}
+                </GroupRow>
               )}
               {g.runs.map((r) => (
                 <RunsCardRow

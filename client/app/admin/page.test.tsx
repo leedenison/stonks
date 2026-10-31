@@ -134,10 +134,11 @@ const digest = create(GetAlertDigestResponseSchema, {
 const clearBlock = vi.fn(() => create(ClearBlockResponseSchema, {}));
 const clearFinding = vi.fn(() => create(ClearFindingResponseSchema, {}));
 const clearRun = vi.fn(() => create(ClearRunResponseSchema, {}));
-const listAlerts = vi.fn((): unknown =>
+type Alerts = ServiceImpl<typeof AlertService>;
+const listAlerts = vi.fn<Alerts["listAlerts"]>(() =>
   create(ListAlertsResponseSchema, { alerts: [block], nextPageToken: "next" }),
 );
-const getAlertDigest = vi.fn((): unknown => digest);
+const getAlertDigest = vi.fn<Alerts["getAlertDigest"]>(() => digest);
 
 function render() {
   renderWithAuth(
@@ -146,7 +147,7 @@ function render() {
       service(AlertService, {
         getAlertDigest,
         listAlerts,
-      } as Partial<ServiceImpl<typeof AlertService>>);
+      } satisfies Partial<Alerts>);
       service(BlockService, {
         clearBlock,
       } satisfies Partial<ServiceImpl<typeof BlockService>>);
