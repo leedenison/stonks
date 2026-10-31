@@ -39,7 +39,8 @@ The kinds and their subjects:
 * The service takes a clock, as the coverage service does, because a gap runs up to
   today.
 * The order within a kind is transactions, then the subject's date, then a natural key:
-  the ticker and market, or the row id. The cursor carries the last row's tuple.
+  the ticker and market, or the row id alone, whose UUIDv7 order stands for the date.
+  The cursor carries the last row's tuple, or that id.
 
 ## Tests
 

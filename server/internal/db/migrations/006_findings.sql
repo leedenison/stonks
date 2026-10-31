@@ -90,5 +90,6 @@ CREATE TABLE findings (
 
 CREATE INDEX findings_run_idx ON findings (run_id);
 CREATE INDEX findings_stated_key_idx ON findings (stated_key_id);
+CREATE INDEX findings_open_idx ON findings (kind, id) WHERE cleared_at IS NULL;
 CREATE UNIQUE INDEX findings_unmatched_split_idx ON findings (stated_key_id, effective_date)
     WHERE kind = 'unmatched_split';

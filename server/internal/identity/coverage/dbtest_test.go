@@ -74,6 +74,33 @@ func (f *fixture) bareKey(t *testing.T, value string) {
 	f.exec(t, "INSERT INTO txns (id, user_id, broker, stmt_id, stated_key_id, order_date, settlement_date, as_at, quantity) VALUES ($1, $2, 'ibkr', $3, $4, $5, $5, $5, 1)", db.NewID(), f.user.ID, f.stmt, id, day(9))
 }
 
+// venuesKey states one ticker at each of venues and takes a transaction on
+// each of days.
+func (f *fixture) venuesKey(t *testing.T, venues []string, value string, days ...int) uuid.UUID {
+	t.Helper()
+	id := db.NewID()
+	f.exec(t, `INSERT INTO stated_keys (id, user_id, identifiers)
+		SELECT $1, $2, jsonb_agg(jsonb_build_object('type', 'mic_ticker', 'domain', venue, 'value', $4::text) ORDER BY venue)
+		FROM unnest($3::text[]) AS venue`, id, f.user.ID, venues, value)
+	for _, n := range days {
+		f.exec(t, "INSERT INTO txns (id, user_id, broker, stmt_id, stated_key_id, order_date, settlement_date, as_at, quantity) VALUES ($1, $2, 'ibkr', $3, $4, $5, $5, $5, 1)", db.NewID(), f.user.ID, f.stmt, id, day(n))
+	}
+	return id
+}
+
+// validity gives the ticker a confirmed interval naming instr, from day from
+// up to day before.
+func (f *fixture) validity(t *testing.T, instr uuid.UUID, market, value string, from, before int) {
+	t.Helper()
+	row := dbtest.Ticker(t, f.q, types.MarketTicker{Market: market, Value: value})
+	err := f.q.CreateTickerValidity(context.Background(), gen.CreateTickerValidityParams{
+		TickerIds: []uuid.UUID{row.ID}, Markets: []string{market}, InstrIds: []uuid.UUID{instr},
+		ValidFroms: []string{day(from).Format(time.DateOnly)}, ValidBefores: []string{day(before).Format(time.DateOnly)},
+		Validities: []string{string(gen.ValidityConfirmed)},
+	})
+	require.NoError(t, err)
+}
+
 // instr returns an instrument with a USD listing.
 func (f *fixture) instr(t *testing.T) uuid.UUID {
 	t.Helper()
@@ -217,5 +244,67 @@ func TestRelations(t *testing.T) {
 	}
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("resolved_relations mismatch (-want +got):\n%s", diff)
+	}
+}
+
+// TestStatedTickerTxns checks that every stated ticker's transactions are
+// gathered under its market, a segment MIC included. A key at two venues
+// counts once per transaction and a bare ticker is left out, so the count
+// agrees with ListTickerTxns. Against the same rows, Unconfirmed reads a
+// ticker without a validity row as naming nothing and a ticker with a
+// confirmed interval by its gaps.
+func TestStatedTickerTxns(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	suffix := uuid.NewString()[:8]
+	value, named := "ACME"+suffix, "NAMED"+suffix
+	segment := f.key(t, "XNGS", value, 4)
+	nasdaq := f.key(t, "XNAS", value, 6, 6)
+	nyse := f.key(t, "XNYS", value, 7)
+	both := f.venuesKey(t, []string{"XNAS", "XNYS"}, value, 8)
+	f.bareKey(t, value)
+	london := f.key(t, "XLON", named, 2, 5)
+	instr := f.instr(t)
+	f.validity(t, instr, "XLON", named, 1, 3)
+
+	rows, err := f.q.ListStatedTickerTxns(ctx)
+	require.NoError(t, err)
+	want := []gen.ListStatedTickerTxnsRow{
+		{Market: "US", Value: value, StatedKeyID: segment, AsAt: day(4), Txns: 1},
+		{Market: "US", Value: value, StatedKeyID: nasdaq, AsAt: day(6), Txns: 2},
+		{Market: "US", Value: value, StatedKeyID: nyse, AsAt: day(7), Txns: 1},
+		{Market: "US", Value: value, StatedKeyID: both, AsAt: day(8), Txns: 1},
+		{Market: "XLON", Value: named, StatedKeyID: london, AsAt: day(2), Txns: 1},
+		{Market: "XLON", Value: named, StatedKeyID: london, AsAt: day(5), Txns: 1},
+	}
+	if diff := cmp.Diff(want, rows); diff != "" {
+		t.Errorf("ListStatedTickerTxns mismatch (-want +got):\n%s", diff)
+	}
+	mics, err := mic.Load(ctx, f.q)
+	require.NoError(t, err)
+	probes, err := mics.TickerProbes([]types.MarketTicker{{Market: "US", Value: value}})
+	require.NoError(t, err)
+	txns, err := f.q.ListTickerTxns(ctx, probes)
+	require.NoError(t, err)
+	var sum int32
+	for _, r := range rows[:4] {
+		sum += r.Txns
+	}
+	if int(sum) != len(txns) {
+		t.Errorf("ListStatedTickerTxns counts %d transactions of US:%s, ListTickerTxns %d", sum, value, len(txns))
+	}
+
+	nothing, gapped, err := New(f.q, mics).Unconfirmed(ctx, day(30))
+	require.NoError(t, err)
+	wantNothing := []NamesNothing{{Ticker: types.MarketTicker{Market: "US", Value: value}, Keys: 4, Txns: 5, First: day(4)}}
+	if diff := cmp.Diff(wantNothing, nothing); diff != "" {
+		t.Errorf("Unconfirmed names nothing mismatch (-want +got):\n%s", diff)
+	}
+	wantGaps := []TickerGap{{
+		Ticker: types.MarketTicker{Market: "XLON", Value: named}, Instr: instr,
+		Gap: Gap{Period: types.Period{From: day(3), Before: day(31)}, Keys: 1, Txns: 1},
+	}}
+	if diff := cmp.Diff(wantGaps, gapped); diff != "" {
+		t.Errorf("Unconfirmed gaps mismatch (-want +got):\n%s", diff)
 	}
 }

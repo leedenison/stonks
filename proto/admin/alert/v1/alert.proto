@@ -1,0 +1,109 @@
+// What needs an administrator, across every surface. An alert is derived
+// when read from the rows that already exist, and it disappears when an
+// administrator settles its cause.
+
+syntax = "proto3";
+
+package stonks.admin.alert.v1;
+
+import "admin/block/v1/block.proto";
+import "admin/coverage/v1/coverage.proto";
+import "admin/run/v1/run.proto";
+import "buf/validate/validate.proto";
+import "type/v1/type.proto";
+
+option go_package = "github.com/leedenison/stonks/proto/admin/alert/v1;adminalertv1";
+
+// The kinds, numbered in rank order.
+enum AlertKind {
+  ALERT_KIND_UNSPECIFIED = 0;
+  // A run that failed or was interrupted.
+  ALERT_KIND_FAILED_RUN = 1;
+  // An open datasource block.
+  ALERT_KIND_BLOCK = 2;
+  // A ticker that a key with transactions states, and that names nothing on
+  // any day.
+  ALERT_KIND_TICKER_NAMES_NOTHING = 3;
+  ALERT_KIND_TICKER_VALIDITY_GAP = 4;
+  // An unhandled corporate action awaiting a decision.
+  ALERT_KIND_CORP_ACT = 5;
+  // An uncleared finding of the kinds contradiction, identifier
+  // disagreement, broken ticker validity bracket, missed event and unmatched
+  // split.
+  ALERT_KIND_FINDING = 6;
+}
+
+message TickerNamesNothing {
+  stonks.type.v1.MarketTicker ticker = 1;
+  // The number of keys that state the ticker and have a transaction.
+  int32 keys = 2;
+  // The number of those keys' transactions.
+  int32 txns = 3;
+  // The earliest as-at date of those transactions, YYYY-MM-DD.
+  string first_txn_day = 4;
+}
+
+message TickerValidityGap {
+  stonks.type.v1.MarketTicker ticker = 1;
+  // The instrument of the ticker's latest interval.
+  stonks.admin.coverage.v1.InstrName instr = 2;
+  stonks.admin.coverage.v1.Gap gap = 3;
+}
+
+message Alert {
+  AlertKind kind = 1;
+  // Which message is set follows the kind. CORP_ACT and FINDING both carry a
+  // finding.
+  oneof subject {
+    stonks.admin.run.v1.UserRun run = 2;
+    stonks.admin.block.v1.Block block = 3;
+    TickerNamesNothing names_nothing = 4;
+    TickerValidityGap validity_gap = 5;
+    stonks.admin.run.v1.Finding finding = 6;
+  }
+}
+
+// One kind's count and its top five, in rank order.
+message AlertGroup {
+  AlertKind kind = 1;
+  int32 count = 2;
+  repeated Alert top = 3;
+}
+
+message GetAlertDigestRequest {}
+
+message GetAlertDigestResponse {
+  // Every kind, in rank order, including those with a count of zero.
+  repeated AlertGroup groups = 1;
+}
+
+message ListAlertsRequest {
+  AlertKind kind = 1 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
+  // At most this many alerts; 0 means 50.
+  int32 page_size = 2 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 200
+  }];
+  // The next_page_token of the previous page; empty for the first. The token
+  // is opaque.
+  string page_token = 3;
+}
+
+message ListAlertsResponse {
+  // In rank order.
+  repeated Alert alerts = 1;
+  // Continues the listing; empty on the last page.
+  string next_page_token = 2;
+}
+
+// Reads what needs an administrator.
+service AlertService {
+  // Reads the count of each kind and its top five.
+  rpc GetAlertDigest(GetAlertDigestRequest) returns (GetAlertDigestResponse);
+  // Lists one kind's alerts in rank order. A malformed page token is an
+  // invalid argument.
+  rpc ListAlerts(ListAlertsRequest) returns (ListAlertsResponse);
+}

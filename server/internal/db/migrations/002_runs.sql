@@ -72,3 +72,4 @@ CREATE TRIGGER runs_parent_user BEFORE INSERT OR UPDATE OF parent_id, user_id ON
 -- parent_id the newest top-level runs.
 CREATE INDEX runs_parent_idx ON runs (parent_id, id);
 CREATE INDEX runs_user_idx ON runs (user_id, id);
+CREATE INDEX runs_failed_idx ON runs (id) WHERE state IN ('failed', 'interrupted');

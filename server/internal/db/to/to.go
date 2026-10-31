@@ -270,3 +270,60 @@ func ProtoListing(l gen.ListListingNamesRow) *admininstrv1.Listing {
 	}
 	return out
 }
+
+// ProtoUserRun writes a run as the admin listings return it. A system run
+// has neither a user nor an email.
+func ProtoUserRun(r gen.Run, email *string, open int32, fetch *adminrunv1.RunFetch) *adminrunv1.UserRun {
+	out := &adminrunv1.UserRun{
+		Run: ProtoRun(r), UserEmail: email, OpenFindings: open, Matched: true, Fetch: fetch,
+	}
+	if r.UserID != nil {
+		id := r.UserID.String()
+		out.UserId = &id
+	}
+	return out
+}
+
+// ProtoRunFetch writes the fetches columns of a run. It returns nil for a run
+// of another kind than fetch, since only a fetch run has a fetches row.
+func ProtoRunFetch(datasource, endpoint *string, kind *gen.FetchKind) *adminrunv1.RunFetch {
+	if datasource == nil || endpoint == nil || kind == nil {
+		return nil
+	}
+	return &adminrunv1.RunFetch{Datasource: *datasource, Endpoint: *endpoint, Kind: types.ToProto[adminblockv1.FetchKind](*kind)}
+}
+
+// ProtoFinding writes a finding as its message. key is what the finding's
+// key states, nil where the finding concerns none.
+func ProtoFinding(f gen.Finding, key *gen.StatedKey) *adminrunv1.Finding {
+	out := &adminrunv1.Finding{
+		Id:        f.ID.String(),
+		RunId:     f.RunID.String(),
+		Kind:      types.ToProto[adminrunv1.FindingKind](f.Kind),
+		Detail:    f.Detail,
+		CreatedAt: timestamppb.New(f.CreatedAt),
+	}
+	if key != nil {
+		out.StatedKey = ProtoStatedKey(*key)
+	}
+	if f.BlockID != nil {
+		id := f.BlockID.String()
+		out.BlockId = &id
+	}
+	if f.CorpActID != nil {
+		id := f.CorpActID.String()
+		out.CorpActId = &id
+	}
+	if f.StatedKeyID != nil {
+		id := f.StatedKeyID.String()
+		out.StatedKeyId = &id
+	}
+	if f.Step != nil {
+		step := types.ToProto[adminrunv1.DropStep](*f.Step)
+		out.Step = &step
+	}
+	if f.ClearedAt != nil {
+		out.ClearedAt = timestamppb.New(*f.ClearedAt)
+	}
+	return out
+}

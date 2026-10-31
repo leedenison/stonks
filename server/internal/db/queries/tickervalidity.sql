@@ -264,3 +264,18 @@ SELECT EXISTS (
 SELECT DISTINCT ticker_id FROM identifier_assertions
 WHERE instr_id = ANY(@instr_ids::uuid[])
 ORDER BY ticker_id;
+
+-- name: ListStatedTickerTxns :many
+-- Every ticker at its market that a key with transactions states, with each
+-- such key, each of its as-at days and its transactions that day. A key
+-- stating the ticker at two venues of one market counts each transaction
+-- once. A ticker without a venue, or at a MIC in no market, is left out.
+SELECT mic_markets.market::text AS market, (ident->>'value')::text AS value,
+       txns.stated_key_id, txns.as_at, count(DISTINCT txns.id)::int AS txns
+FROM txns
+JOIN stated_keys ON stated_keys.id = txns.stated_key_id
+CROSS JOIN LATERAL jsonb_array_elements(stated_keys.identifiers) AS ident
+JOIN mic_markets ON mic_markets.mic = ident->>'domain'
+WHERE ident->>'type' = 'mic_ticker'
+GROUP BY mic_markets.market, ident->>'value', txns.stated_key_id, txns.as_at
+ORDER BY 1, 2, txns.as_at, txns.stated_key_id;

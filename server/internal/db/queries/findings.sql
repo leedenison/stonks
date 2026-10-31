@@ -32,3 +32,24 @@ UPDATE findings
 SET cleared_at = CASE WHEN block_id IS NULL AND corp_act_id IS NULL THEN coalesce(cleared_at, now()) ELSE cleared_at END
 WHERE id = $1
 RETURNING block_id, corp_act_id;
+
+-- name: ListOpenFindings :many
+-- The uncleared findings of the kinds, across every run, newest first, each
+-- with what its key states. A NULL before starts at the newest. kinds are
+-- names of finding_kind.
+SELECT sqlc.embed(findings),
+       stated_keys.id AS key_id, stated_keys.identifiers AS key_identifiers,
+       stated_keys.asset_class AS key_asset_class, stated_keys.currency AS key_currency
+FROM findings
+LEFT JOIN stated_keys ON stated_keys.id = findings.stated_key_id
+WHERE findings.kind = ANY(CAST(@kinds::text[] AS finding_kind[])) AND findings.cleared_at IS NULL
+  AND (sqlc.narg(before)::uuid IS NULL OR findings.id < sqlc.narg(before))
+ORDER BY findings.id DESC
+LIMIT @lim;
+
+-- name: CountOpenFindings :many
+-- The count of uncleared findings of each kind that has one.
+SELECT kind, count(*)::int AS count FROM findings
+WHERE cleared_at IS NULL
+GROUP BY kind
+ORDER BY kind;
