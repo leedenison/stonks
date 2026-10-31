@@ -1,7 +1,6 @@
 ---
 title: Decide whether a corporate action restates shares
 type: task
-status: unreviewed
 ---
 
 ## Scope
@@ -34,37 +33,49 @@ Every EODHD plan omits the type of an action, as EODHD documented its APIs on 20
 EODHD staff say that spin-offs stay in the splits data, since adjusting prices needs a
 factor.
 
-The work is an admin UI. An administrator uses it to decide whether an action restates
-shares. It has two surfaces.
+An administrator records a type for an action, and whether it restates shares follows
+from the type. See [006](../adr/006-a-corp-act-decision-is-a-type-on-the-action-row.md)
+for what the decision records, what keys it and how it settles the alert, and
+[002](../adr/002-a-finding-alert-is-cleared-not-dismissed.md) for why clearing the
+finding alone leaves the alert open.
 
-* A corporate actions page. It lists the actions of an instrument with the ex-date,
-  ratio, datasource, stated type and decision of each. An administrator can change any
-  decision there, including one the system made.
-* A quick decision on one unhandled action, which an administrator reaches from its
-  finding. D-ALERTS lists these findings.
+The work has two surfaces.
 
-An administrator's decision overrules both the datasource and the ratio test, in either
-direction.
+* A Corporate actions tab on the admin instrument page. It lists the actions of the
+  instrument with the ex-date, ratio, datasource, stated type, effective restates-shares
+  and decision of each. An administrator can set or change any decision there, including
+  one the system made.
+* A Decide dialog on one action. The tab opens it, and the alerts page opens it from the
+  corporate action alert. See [005](005-alerts-page.md).
 
-The decision shows the evidence beside the action:
+The dialog shows the evidence beside the action:
 
-* the type a datasource states, if any
+* the type the datasource states, if any
 * a split that a statement states near the ex-date
 * another datasource's answer for a ticker of the same instrument
-* the price series around the ex-date
 
 A later change may infer a proposed decision from this evidence. The administrator still
 makes the decision.
 
-## Open questions
-
-* Whether an administrator records the decision alone or a type that implies it. A type
-  such as spin-off keeps what D-CORP needs to apply the action in full.
-* What keys a decision, so that it survives a refetch that rewrites the answer: the
-  ticker, ex-date and ratio, or the action row.
-* Whether a decision clears the finding on the unhandled action.
-* How a changed decision reaches cached adjusted values and provisional holdings.
-
 ## Design
 
-Nothing settled.
+* A `decision` column on `corp_acts`, nullable, holding the type. The refetch pairing in
+  `writeAnswer` carries it over on a paired row.
+* An admin proto package `stonks.admin.corpact.v1` with an RPC that lists the actions of
+  an instrument and an RPC that records a decision. The decision on the wire is an enum
+  whose unspecified value means undecided.
+* `Finding` gains `optional string corp_act_id` beside `block_id`, so the alerts page can
+  reach the action from its finding. `ClearFinding` refuses the unhandled corporate
+  action kind as a failed precondition, as it refuses a block finding.
+* The holding calendar reads the effective restates-shares: the decision where one
+  exists, otherwise `handled`.
+
+## Tests
+
+* An integration test in `server/internal/corpact` records an answer, decides an action,
+  re-records the same answer and reads the decision back. A second re-records a changed
+  ratio and asserts the row, its finding and the decision are gone.
+* A unit test of the holding calendar covers an action whose decision overrules
+  `handled` in each direction.
+* The e2e suite decides the unmatched split fixture's action through the tab and reads
+  the adjusted holding.
