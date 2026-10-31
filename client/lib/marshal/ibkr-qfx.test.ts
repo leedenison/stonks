@@ -7,8 +7,9 @@ import {
   Broker,
   IdentifierSchema,
   IdentifierType,
+  RatioSchema,
 } from "@/gen/type/v1/type_pb";
-import { SplitRatioSchema, StatedSplitSchema } from "@/gen/stmt/v1/stmt_pb";
+import { StatedSplitSchema } from "@/gen/stmt/v1/stmt_pb";
 import { MarshalError } from "./error";
 import { fixture, hint, row, security } from "./test-utils";
 import { cashKey } from "./build";
@@ -116,7 +117,7 @@ describe("ibkrQfx", () => {
         ]),
         effectiveDate: "2024-03-15",
         quantity: "1007",
-        ratio: create(SplitRatioSchema, { from: "1", to: "20" }),
+        ratio: create(RatioSchema, { from: "1", to: "20" }),
       }),
       create(StatedSplitSchema, {
         key: security(
@@ -126,7 +127,7 @@ describe("ibkrQfx", () => {
         ),
         effectiveDate: "2024-03-15",
         quantity: "-18",
-        ratio: create(SplitRatioSchema, { from: "1", to: "10" }),
+        ratio: create(RatioSchema, { from: "1", to: "10" }),
       }),
     ]);
   });

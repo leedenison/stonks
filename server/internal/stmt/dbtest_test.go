@@ -144,7 +144,7 @@ func TestIngest(t *testing.T) {
 			rowMsg(cashInEur, "2026-03-06", "1"),
 			rowMsg(equityAsCash, "2026-03-06", "1"),
 		},
-		Splits: []*stmtv1.StatedSplit{{Key: securityKey("SPLIT CO", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd), EffectiveDate: "2026-03-10", Quantity: "9", Ratio: &stmtv1.SplitRatio{From: "1", To: "10"}}},
+		Splits: []*stmtv1.StatedSplit{{Key: securityKey("SPLIT CO", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd), EffectiveDate: "2026-03-10", Quantity: "9", Ratio: &typev1.Ratio{From: "1", To: "10"}}},
 	}
 	parent := s.ingest(t, msg)
 

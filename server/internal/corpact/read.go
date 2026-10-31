@@ -85,14 +85,7 @@ func Read(ctx context.Context, q ReadQueries, ts []types.MarketTicker, p types.P
 		if !ok {
 			continue
 		}
-		act := Act{ID: e.ID, ExDate: e.ExDate, Ratio: types.Ratio{From: e.RatioFrom, To: e.RatioTo}, Handled: e.Handled}
-		if e.Type != nil {
-			act.Type = *e.Type
-		}
-		if e.Decision != nil {
-			act.Decision = *e.Decision
-		}
-		stored[t].Acts = append(stored[t].Acts, act)
+		stored[t].Acts = append(stored[t].Acts, toAct(e))
 	}
 	for t, a := range stored {
 		var unknown []time.Time
@@ -114,6 +107,18 @@ func Read(ctx context.Context, q ReadQueries, ts []types.MarketTicker, p types.P
 		out[t] = *a
 	}
 	return out, nil
+}
+
+// toAct returns the row e as an Act.
+func toAct(e gen.CorpAct) Act {
+	out := Act{ID: e.ID, ExDate: e.ExDate, Ratio: types.Ratio{From: e.RatioFrom, To: e.RatioTo}, Handled: e.Handled}
+	if e.Type != nil {
+		out.Type = *e.Type
+	}
+	if e.Decision != nil {
+		out.Decision = *e.Decision
+	}
+	return out
 }
 
 // always is a period that holds every day an answer may cover.

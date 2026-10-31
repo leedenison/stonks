@@ -8,13 +8,13 @@ import {
   type Identifier,
   IdentifierSchema,
   IdentifierType,
+  RatioSchema,
   type StatedKey,
   StatedKeySchema,
 } from "@/gen/type/v1/type_pb";
 import {
   type Row,
   RowSchema,
-  SplitRatioSchema,
   type StatedSplit,
   StatedSplitSchema,
   type Stmt,
@@ -122,7 +122,7 @@ export function split(
     key,
     effectiveDate,
     quantity: normalise(quantity),
-    ratio: ratio && create(SplitRatioSchema, ratio),
+    ratio: ratio && create(RatioSchema, ratio),
   });
 }
 

@@ -193,7 +193,7 @@ func TestCreateInvalid(t *testing.T) {
 			m.Splits = []*stmtv1.StatedSplit{{Key: securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd), EffectiveDate: "2026-03-40", Quantity: "9"}}
 		}},
 		{name: "split with a bad ratio", edit: func(m *stmtv1.Stmt) {
-			m.Splits = []*stmtv1.StatedSplit{{Key: securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd), EffectiveDate: "2026-03-02", Quantity: "9", Ratio: &stmtv1.SplitRatio{From: "1", To: "ten"}}}
+			m.Splits = []*stmtv1.StatedSplit{{Key: securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &usd), EffectiveDate: "2026-03-02", Quantity: "9", Ratio: &typev1.Ratio{From: "1", To: "ten"}}}
 		}},
 		{name: "split with an unknown currency", edit: func(m *stmtv1.Stmt) {
 			m.Splits = []*stmtv1.StatedSplit{{Key: securityKey("ACME", typev1.AssetClass_ASSET_CLASS_EQUITY, &xxx), EffectiveDate: "2026-03-02", Quantity: "9"}}
