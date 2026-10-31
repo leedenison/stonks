@@ -1,11 +1,15 @@
 import path from "node:path";
 import { Code, ConnectError } from "@connectrpc/connect";
+import { AlertKind } from "../gen/admin/alert/v1/alert_pb";
 import { RunKind } from "../gen/run/v1/run_pb";
 import { TxnMark } from "../gen/stmt/v1/stmt_pb";
 import { IdentifierType, ResolutionOutcome } from "../gen/type/v1/type_pb";
 import {
   instrListedAs,
   adminRunClient,
+  alertClient,
+  alertPageToken,
+  alertsAddress,
   assertionItems,
   holdingClient,
   stmtClient,
@@ -61,23 +65,48 @@ test("attests a gap from the instrument's tickers tab and withdraws it", async (
     "provisional",
   );
 
-  // The instrument's tickers tab opens on WMT, lists the gap before the
-  // window, and attests from it with the day and the instrument
-  // preselected. Other gaps follow the clock, so the spec addresses rows by
-  // id alone.
+  // The instrument's tickers tab opens on WMT and lists the gap before the
+  // window. Other gaps follow the clock, so the spec addresses rows by id
+  // alone.
   const instr = await instrListedAs(session, wmt);
   await page.goto(`/admin/instrs?q=WMT&id=${instr.id}&tab=tickers`);
   await expect(page.getByTestId("ticker-select")).toHaveValue("US:WMT");
   const gap = page.getByTestId(`pane-gap-${on}`);
   await expect(gap).toContainText("2003-09-10");
-  await page.getByTestId(`gap-attest-${on}`).click();
+
+  // Other specs change the alerts, so the spec polls for the page that holds this one.
+  const alerts = alertClient(session);
+  let token: string | undefined;
+  await expect
+    .poll(async () => {
+      token = await alertPageToken(
+        alerts,
+        AlertKind.TICKER_VALIDITY_GAP,
+        (a) =>
+          a.subject.case === "validityGap" &&
+          a.subject.value.ticker?.value === wmt.value &&
+          a.subject.value.gap?.period?.from === on,
+      );
+      return token;
+    })
+    .not.toBeUndefined();
+  await page.goto(alertsAddress("ticker_validity_gap", token!));
+  const alert = page.getByTestId(
+    `alert-row-ticker_validity_gap-US-${wmt.value}-${on}`,
+  );
+  await alert
+    .getByTestId(`alert-act-ticker_validity_gap-US-${wmt.value}-${on}`)
+    .click();
   const dialog = page.getByTestId("attest-dialog");
   await expect(dialog.getByTestId("attest-from")).toHaveValue(on);
+  await expect(dialog.getByTestId("attest-to")).toHaveValue("2003-09-09");
   await expect(dialog.getByTestId("attest-names")).toBeChecked();
   await expect(dialog.getByTestId("attest-start")).toBeEnabled();
   await dialog.getByTestId("attest-start").click();
   await expect(dialog).toBeHidden();
+  await expect(alert).toHaveCount(0);
 
+  await page.goto(`/admin/instrs?q=WMT&id=${instr.id}&tab=tickers`);
   const attested = page.locator(
     "[data-testid^='assertion-row-'][data-attested='true']",
   );

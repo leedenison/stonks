@@ -60,7 +60,8 @@ test("shows an administrator the admin area", async ({ signIn, page }) => {
   await page.getByTestId("menu-admin").click();
   await expect(page).toHaveURL("/admin");
   await expect(page.getByTestId("admin-nav")).toBeVisible();
-  await expect(page.getByTestId("admin-page")).toBeVisible();
+  await expect(page.getByTestId("alerts-page")).toBeVisible();
+  await expect(page.getByTestId("admin-nav")).toContainText("Alerts");
 });
 
 test("keeps the chosen scheme across a reload", async ({ signIn, page }) => {

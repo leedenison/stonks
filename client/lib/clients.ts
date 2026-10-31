@@ -1,4 +1,5 @@
 import { createClient, type Transport } from "@connectrpc/connect";
+import { AlertService } from "@/gen/admin/alert/v1/alert_pb";
 import { BlockService } from "@/gen/admin/block/v1/block_pb";
 import { CorpActService } from "@/gen/admin/corpact/v1/corpact_pb";
 import { CoverageService } from "@/gen/admin/coverage/v1/coverage_pb";
@@ -14,6 +15,7 @@ import { StmtService } from "@/gen/stmt/v1/stmt_pb";
 // newClients returns one typed client per service over transport.
 export function newClients(transport: Transport) {
   return {
+    alert: createClient(AlertService, transport),
     adminInstr: createClient(AdminInstrService, transport),
     adminRun: createClient(AdminRunService, transport),
     auth: createClient(AuthService, transport),

@@ -28,19 +28,22 @@ const searchDelay = 300;
 export function AttestIdentifierDialog({
   ticker,
   from,
+  to: lastDay = "",
   onClose,
   onDone,
 }: {
   ticker: MarketTicker;
   // The first day, as YYYY-MM-DD.
   from: string;
+  // The last day, as YYYY-MM-DD. Empty means no last day.
+  to?: string;
   onClose: () => void;
   onDone: () => void;
 }) {
   const read = useCoverageTicker(ticker.market, ticker.value);
   const attest = useAttestIdentifier();
   const [day, setDay] = useState(from);
-  const [to, setTo] = useState("");
+  const [to, setTo] = useState(lastDay);
   const [namesChoice, setNamesChoice] = useState<"instr" | "nothing" | null>(
     null,
   );
