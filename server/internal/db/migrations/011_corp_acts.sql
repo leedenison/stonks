@@ -23,7 +23,8 @@ CREATE INDEX corp_act_answers_fetch_key_idx ON corp_act_answers (fetch_key_id);
 
 -- The type an administrator decides a corporate action is. The first three
 -- restate the quantity held. A spin-off price factor and a rights issue leave
--- it. Other is an action the system cannot yet apply.
+-- it. Other is an action the system cannot yet apply. A type rather than a
+-- flag keeps what a later full application of the action would need.
 CREATE TYPE corp_act_decision AS ENUM (
     'split', 'reverse_split', 'stock_dividend', 'spin_off_price_factor', 'rights_issue', 'other'
 );
