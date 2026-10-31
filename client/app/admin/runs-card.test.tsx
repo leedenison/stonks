@@ -62,7 +62,9 @@ describe("RunsCard", () => {
     for (const r of systemRuns) {
       const row = screen.getByTestId(`runs-card-row-${r.testId}`);
       expect(row.textContent).toContain(r.title);
-      expect(row.textContent).toContain(r.summary);
+      expect(
+        screen.getByTestId(`runs-card-why-${r.testId}`).getAttribute("title"),
+      ).toBe(r.summary);
     }
   });
 
