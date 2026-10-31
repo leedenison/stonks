@@ -8,7 +8,7 @@ import {
 } from "@/app/components/identifier-chip";
 import { InfoTip } from "@/app/components/info-tip";
 import { SkeletonRows } from "@/app/components/skeleton-rows";
-import { TableCard, Td, Th, Thead, Tr } from "@/app/components/table";
+import { GroupRow, TableCard, Td, Th, Thead, Tr } from "@/app/components/table";
 import type { Alert, AlertGroup } from "@/gen/admin/alert/v1/alert_pb";
 import {
   type AlertAction,
@@ -20,7 +20,7 @@ import {
 } from "@/lib/alerts";
 import { RowButton } from "./alert-action";
 
-const columns = 7;
+const columns = 6;
 
 // Group is one kind's alerts under a heading row. Count is the kind's total,
 // which can exceed the alerts shown.
@@ -58,7 +58,7 @@ export function AlertTable({
         </tr>
       </Thead>
       {pending ? (
-        <SkeletonRows columns={6} />
+        <SkeletonRows columns={columns} />
       ) : (
         <tbody>
           {groups.map((g) => (
@@ -91,18 +91,13 @@ function GroupRows({
   const slug = kindSlug(g.kind);
   return (
     <>
-      <tr data-testid={`alert-group-${slug}`}>
-        <td
-          colSpan={columns}
-          className="border-b border-border bg-surface-tint px-4 py-1.5 text-xs font-semibold tracking-wider text-text-muted uppercase"
-        >
-          <span className="inline-flex items-center gap-2">
-            {w.group}
-            <span className="font-mono font-normal">{g.count}</span>
-            <InfoTip text={w.why} testId={`alert-why-${slug}`} />
-          </span>
-        </td>
-      </tr>
+      <GroupRow colSpan={columns} testId={`alert-group-${slug}`}>
+        <span className="inline-flex items-center gap-2">
+          {w.group}
+          <span className="font-mono font-normal">{g.count}</span>
+          <InfoTip text={w.why} testId={`alert-why-${slug}`} />
+        </span>
+      </GroupRow>
       {g.alerts.map(alertRow).map((r) => (
         <Row key={r.key} r={r} busy={busy} onAct={onAct} />
       ))}

@@ -90,6 +90,28 @@ export function Tr({
   );
 }
 
+// GroupRow is a heading row that opens a group of rows in a page table.
+export function GroupRow({
+  colSpan,
+  testId,
+  children,
+}: {
+  colSpan: number;
+  testId?: string;
+  children: ReactNode;
+}) {
+  return (
+    <tr data-testid={testId}>
+      <td
+        colSpan={colSpan}
+        className="border-b border-border bg-surface-tint px-4 py-1.5 text-xs font-semibold tracking-wider text-text-muted uppercase"
+      >
+        {children}
+      </td>
+    </tr>
+  );
+}
+
 // PaneTable frames a table set inside a pane section. A fixed table takes
 // its column widths from the colgroup the caller passes among its children.
 export function PaneTable({

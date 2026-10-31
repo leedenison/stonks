@@ -9,7 +9,9 @@ import {
 import { Role } from "@/gen/auth/v1/auth_pb";
 import { RunKind, RunSchema, RunState, RunTrigger } from "@/gen/run/v1/run_pb";
 import { liveSession, renderWithAuth, transportWith } from "@/lib/test-utils";
-import { StartRunDialog, systemRuns } from "./start-run-dialog";
+import { StartRunDialog, systemRunGroups } from "./start-run-dialog";
+
+const systemRuns = systemRunGroups.flatMap((g) => g.runs);
 
 function serving(
   startSystemRun: ServiceImpl<typeof RunService>["startSystemRun"],

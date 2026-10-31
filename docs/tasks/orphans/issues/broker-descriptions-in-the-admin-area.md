@@ -14,6 +14,10 @@ broker may rename a line without any source reporting it. The rename is an ident
 event. An administrator confirms one association. An administrator may also confirm, in
 a single step, the associations of every key that resolved through one description.
 
+The admin home shows a labelled mock of the descriptions section,
+`client/app/admin/mock-descriptions.tsx`. This work replaces it and the home page
+assertions that cover it.
+
 A replay re-resolves the keys that a new mapping names. A key that states only a
 description is unrecognised, and no replay scope selects it. The datasource scope selects
 the keys a datasource serves, and the unavailable scope selects unavailable keys.

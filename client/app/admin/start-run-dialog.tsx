@@ -78,9 +78,6 @@ export const systemRunGroups: SystemRunGroup[] = [
   },
 ];
 
-// systemRuns lists every run of systemRunGroups.
-export const systemRuns = systemRunGroups.flatMap((g) => g.runs);
-
 // StartRunDialog confirms and starts a system run. A refusal stays in the
 // dialog.
 export function StartRunDialog({

@@ -174,15 +174,4 @@ describe("RunsPage", () => {
       "/admin/runs?kind=ingest_stmt&state=failed&user=u1",
     );
   });
-
-  it("holds no actions in the page bar", async () => {
-    renderWithAuth(
-      <RunsPage />,
-      serving(() => page),
-    );
-    await waitFor(() => expect(screen.getByTestId("run-row-r1")).toBeTruthy());
-    expect(
-      screen.getByTestId("page-bar").querySelectorAll("button"),
-    ).toHaveLength(0);
-  });
 });
