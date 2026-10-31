@@ -93,3 +93,15 @@ CREATE INDEX findings_stated_key_idx ON findings (stated_key_id);
 CREATE INDEX findings_open_idx ON findings (kind, id) WHERE cleared_at IS NULL;
 CREATE UNIQUE INDEX findings_unmatched_split_idx ON findings (stated_key_id, effective_date)
     WHERE kind = 'unmatched_split';
+
+-- run_details adds to each run what the admin area shows beside it: the
+-- email of its user, its uncleared findings, and for a datasource fetch run
+-- the datasource, the endpoint and the kind it asked for.
+CREATE VIEW run_details AS
+SELECT runs.id AS run_id, users.email,
+       (SELECT count(*) FROM findings
+        WHERE findings.run_id = runs.id AND findings.cleared_at IS NULL)::int AS open_findings,
+       fetches.datasource, fetches.endpoint, fetches.kind AS fetch_kind
+FROM runs
+LEFT JOIN users ON users.id = runs.user_id
+LEFT JOIN fetches ON fetches.id = runs.id;

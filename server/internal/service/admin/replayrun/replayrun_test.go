@@ -86,7 +86,7 @@ func TestStartReplayRun(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newFixture(t)
 			if tc.wantCode != connect.CodeInvalidArgument {
-				f.queries.EXPECT().GetUserRun(gomock.Any(), runID).Return(gen.GetUserRunRow{Run: source, Email: ptr.To("one@example.com")}, tc.readErr)
+				f.queries.EXPECT().GetUserRun(gomock.Any(), runID).Return(gen.GetUserRunRow{Run: source, RunDetail: gen.RunDetail{Email: ptr.To("one@example.com")}}, tc.readErr)
 			}
 			if tc.wantScope != nil {
 				f.replays.EXPECT().Start(gomock.Any(), adminID, source, *tc.wantScope).Return(started, tc.startErr)

@@ -101,7 +101,7 @@ func TestListRuns(t *testing.T) {
 	rows := func(ids ...uuid.UUID) []gen.ListUserRunsRow {
 		var out []gen.ListUserRunsRow
 		for _, id := range ids {
-			out = append(out, gen.ListUserRunsRow{Run: runRow(id, gen.RunKindIngestStmt), Email: ptr.To("one@example.com"), OpenFindings: 1, RootID: id, Matched: true})
+			out = append(out, gen.ListUserRunsRow{Run: runRow(id, gen.RunKindIngestStmt), RunDetail: gen.RunDetail{Email: ptr.To("one@example.com"), OpenFindings: 1}, RootID: id, Matched: true})
 		}
 		return out
 	}
@@ -111,8 +111,8 @@ func TestListRuns(t *testing.T) {
 	childRow := runRow(child, gen.RunKindResolveStmtKeys)
 	childRow.ParentID = &first
 	nested := []gen.ListUserRunsRow{
-		{Run: runRow(first, gen.RunKindIngestStmt), Email: ptr.To("one@example.com"), OpenFindings: 1, RootID: first, Matched: false},
-		{Run: childRow, Email: ptr.To("one@example.com"), OpenFindings: 1, RootID: first, Matched: true},
+		{Run: runRow(first, gen.RunKindIngestStmt), RunDetail: gen.RunDetail{Email: ptr.To("one@example.com"), OpenFindings: 1}, RootID: first, Matched: false},
+		{Run: childRow, RunDetail: gen.RunDetail{Email: ptr.To("one@example.com"), OpenFindings: 1}, RootID: first, Matched: true},
 	}
 	nestedMsg := runMsg(first, runv1.RunKind_RUN_KIND_INGEST_STMT)
 	nestedMsg.Matched = false
@@ -255,13 +255,13 @@ func TestGetRun(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newFixture(t)
 			r := f.store.EXPECT()
-			r.GetUserRun(gomock.Any(), runID).Return(gen.GetUserRunRow{Run: runRow(runID, tc.kind), Email: ptr.To("one@example.com"), OpenFindings: 1}, nil)
+			r.GetUserRun(gomock.Any(), runID).Return(gen.GetUserRunRow{Run: runRow(runID, tc.kind), RunDetail: gen.RunDetail{Email: ptr.To("one@example.com"), OpenFindings: 1}}, nil)
 			parent := runRow(parentID, gen.RunKindIngestStmt)
-			r.ListRunAncestors(gomock.Any(), runID).Return([]gen.ListRunAncestorsRow{{Run: parent, Email: ptr.To("one@example.com"), OpenFindings: 1}}, nil)
+			r.ListRunAncestors(gomock.Any(), runID).Return([]gen.ListRunAncestorsRow{{Run: parent, RunDetail: gen.RunDetail{Email: ptr.To("one@example.com"), OpenFindings: 1}}}, nil)
 			below := func(id, parent uuid.UUID) gen.ListRunDescendantsRow {
 				row := runRow(id, gen.RunKindDatasourceFetch)
 				row.Trigger, row.ParentID = gen.RunTriggerRun, &parent
-				return gen.ListRunDescendantsRow{Run: row, Email: ptr.To("one@example.com"), OpenFindings: 1, Datasource: ptr.To("openfigi"), Endpoint: ptr.To("https://api.openfigi.com"), FetchKind: ptr.To(gen.FetchKindIdentity)}
+				return gen.ListRunDescendantsRow{Run: row, RunDetail: gen.RunDetail{Email: ptr.To("one@example.com"), OpenFindings: 1, Datasource: ptr.To("openfigi"), Endpoint: ptr.To("https://api.openfigi.com"), FetchKind: ptr.To(gen.FetchKindIdentity)}}
 			}
 			r.ListRunDescendants(gomock.Any(), &runID).Return([]gen.ListRunDescendantsRow{
 				below(childID, runID), below(siblingID, runID), below(grandchildID, childID),
@@ -465,7 +465,7 @@ func TestListRunItems(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newFixture(t)
 			r := f.store.EXPECT()
-			r.GetUserRun(gomock.Any(), runID).Return(gen.GetUserRunRow{Run: runRow(runID, tc.kind), Email: ptr.To("one@example.com")}, nil)
+			r.GetUserRun(gomock.Any(), runID).Return(gen.GetUserRunRow{Run: runRow(runID, tc.kind), RunDetail: gen.RunDetail{Email: ptr.To("one@example.com")}}, nil)
 			tc.expect(r)
 			tc.req.RunId = runID.String()
 			res, err := f.client.ListRunItems(context.Background(), connect.NewRequest(tc.req))
@@ -607,7 +607,7 @@ func TestGetSystemRun(t *testing.T) {
 	replay.Trigger, replay.ParentID = gen.RunTriggerRun, &system.ID
 	r.GetUserRun(gomock.Any(), runID).Return(gen.GetUserRunRow{Run: system}, nil)
 	r.ListRunAncestors(gomock.Any(), runID).Return(nil, nil)
-	r.ListRunDescendants(gomock.Any(), &runID).Return([]gen.ListRunDescendantsRow{{Run: replay, Email: ptr.To("one@example.com")}}, nil)
+	r.ListRunDescendants(gomock.Any(), &runID).Return([]gen.ListRunDescendantsRow{{Run: replay, RunDetail: gen.RunDetail{Email: ptr.To("one@example.com")}}}, nil)
 	r.ListRunFindings(gomock.Any(), []uuid.UUID{runID, childID}).Return(nil, nil)
 
 	res, err := f.client.GetRun(context.Background(), connect.NewRequest(&adminrunv1.GetRunRequest{RunId: runID.String()}))
