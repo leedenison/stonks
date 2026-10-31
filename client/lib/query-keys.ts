@@ -58,8 +58,8 @@ export function invalidateResolved(
   );
 }
 
-// invalidateCleared refreshes the listings that clearing a finding or a
-// block affects, including the alerts.
+// invalidateCleared refreshes the listings that clearing a finding, a block
+// or a run affects, including the alerts.
 export function invalidateCleared(queryClient: QueryClient) {
   return Promise.all(
     [qk.blocksAll(), qk.adminRunsAll(), qk.alertsAll()].map((queryKey) =>

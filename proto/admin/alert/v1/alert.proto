@@ -17,7 +17,8 @@ option go_package = "github.com/leedenison/stonks/proto/admin/alert/v1;adminaler
 // The kinds, numbered in rank order.
 enum AlertKind {
   ALERT_KIND_UNSPECIFIED = 0;
-  // A run that failed or was interrupted.
+  // A run that failed or was interrupted, and that no administrator has
+  // cleared.
   ALERT_KIND_FAILED_RUN = 1;
   // An open datasource block.
   ALERT_KIND_BLOCK = 2;

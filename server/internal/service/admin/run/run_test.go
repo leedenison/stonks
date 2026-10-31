@@ -532,6 +532,32 @@ func TestClearFinding(t *testing.T) {
 	}
 }
 
+func TestClearRun(t *testing.T) {
+	tests := []struct {
+		name     string
+		state    gen.RunState
+		err      error
+		wantCode connect.Code
+	}{
+		{name: "failed", state: gen.RunStateFailed},
+		{name: "interrupted", state: gen.RunStateInterrupted},
+		{name: "completed", state: gen.RunStateCompleted, wantCode: connect.CodeFailedPrecondition},
+		{name: "running", state: gen.RunStateRunning, wantCode: connect.CodeFailedPrecondition},
+		{name: "not found", err: db.ErrNotFound, wantCode: connect.CodeNotFound},
+		{name: "failure", err: errors.New("boom"), wantCode: connect.CodeInternal},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFixture(t)
+			f.store.EXPECT().ClearRun(gomock.Any(), runID).Return(tc.state, tc.err)
+			_, err := f.client.ClearRun(context.Background(), connect.NewRequest(&adminrunv1.ClearRunRequest{RunId: runID.String()}))
+			if servicetest.CodeOf(err) != tc.wantCode {
+				t.Errorf("ClearRun() code = %v (err %v), want %v", servicetest.CodeOf(err), err, tc.wantCode)
+			}
+		})
+	}
+}
+
 // TestStartSystemRun checks that each kind reaches its own starter, that a
 // starter finding nothing is a failed precondition, and that a kind without
 // a starter or outside the system kinds is refused.

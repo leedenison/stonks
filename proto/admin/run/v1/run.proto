@@ -28,6 +28,9 @@ message UserRun {
   repeated UserRun children = 6;
   // What a DATASOURCE_FETCH run asked for; unset for any other kind.
   RunFetch fetch = 7;
+  // When an administrator cleared a FAILED or INTERRUPTED run; unset while
+  // it needs attention.
+  google.protobuf.Timestamp cleared_at = 8;
 }
 
 // What a datasource fetch run asked for, and of whom.
@@ -264,6 +267,12 @@ message ClearFindingRequest {
 
 message ClearFindingResponse {}
 
+message ClearRunRequest {
+  string run_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message ClearRunResponse {}
+
 message StartSystemRunRequest {
   stonks.run.v1.RunKind kind = 1 [(buf.validate.field).enum = {
     defined_only: true
@@ -289,6 +298,9 @@ service RunService {
   // the action clears it. Either call is refused as a failed precondition.
   // Clearing a cleared finding succeeds.
   rpc ClearFinding(ClearFindingRequest) returns (ClearFindingResponse);
+  // Clears a run that failed or was interrupted. A run in any other state is
+  // refused as a failed precondition. Clearing a cleared run succeeds.
+  rpc ClearRun(ClearRunRequest) returns (ClearRunResponse);
   // Starts a system run of the kind. REASSERT_TICKERS asks each enabled
   // datasource once about each held ticker, skipping the cache.
   // REFRESH_CORP_ACTS asks the corporate actions source of each market about
