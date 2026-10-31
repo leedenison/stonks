@@ -52,7 +52,7 @@ func Markets(ctx context.Context, q MarketQueries, instrs []uuid.UUID) (map[uuid
 
 // Calendar is the answer of the corporate actions source of an instrument's
 // market, over the days that a ticker of the market named the instrument.
-// Coverage leaves out the ex-date of every unhandled action. Acts holds an
+// Coverage leaves out the ex-date of every unknown action. Acts holds an
 // action once when two tickers of the market report it. The zero Calendar
 // covers no day.
 type Calendar struct {
@@ -87,7 +87,7 @@ func Calendars(ctx context.Context, q CalendarQueries, instrs []uuid.UUID) (map[
 		return nil, err
 	}
 	built := map[uuid.UUID]*Calendar{}
-	unhandled := map[uuid.UUID][]time.Time{}
+	unknown := map[uuid.UUID][]time.Time{}
 	for t, a := range answers {
 		for _, iv := range read[t] {
 			if markets[iv.Instr] != t.Market {
@@ -107,8 +107,8 @@ func Calendars(ctx context.Context, q CalendarQueries, instrs []uuid.UUID) (map[
 				if !iv.Contains(e.ExDate) {
 					continue
 				}
-				if !e.Handled {
-					unhandled[iv.Instr] = append(unhandled[iv.Instr], e.ExDate)
+				if e.Unknown() {
+					unknown[iv.Instr] = append(unknown[iv.Instr], e.ExDate)
 				}
 				if !slices.ContainsFunc(c.Acts, e.same) {
 					c.Acts = append(c.Acts, e)
@@ -117,7 +117,7 @@ func Calendars(ctx context.Context, q CalendarQueries, instrs []uuid.UUID) (map[
 		}
 	}
 	for id, c := range built {
-		c.Coverage = types.Union(remove(c.Coverage, unhandled[id]))
+		c.Coverage = types.Union(remove(c.Coverage, unknown[id]))
 		if len(c.Coverage) == 0 && len(c.Acts) == 0 {
 			continue
 		}
@@ -128,8 +128,8 @@ func Calendars(ctx context.Context, q CalendarQueries, instrs []uuid.UUID) (map[
 }
 
 // Factor returns the factor that restates a quantity as at asAt to today:
-// the product of the ratios of the handled actions of c with an ex-date
-// after asAt and on or before today. A quantity as at an ex-date already
+// the product of the ratios of the actions of c that restate the quantity,
+// with an ex-date after asAt and on or before today. A quantity as at an ex-date already
 // follows the action, because exchanges quote a trade on the ex-date in the
 // new units. Factor also reports whether c covers every day of that span.
 // When c does not, the factor reflects only the actions known so far, so an
@@ -142,7 +142,7 @@ func (c Calendar) Factor(asAt, today time.Time) (*big.Rat, bool) {
 		return f, true
 	}
 	for _, e := range c.Acts {
-		if e.Handled && need.Contains(e.ExDate) {
+		if e.Restates() && need.Contains(e.ExDate) {
 			f.Mul(f, new(big.Rat).Quo(e.Ratio.To.Rat(), e.Ratio.From.Rat()))
 		}
 	}
@@ -154,7 +154,8 @@ func (c Calendar) Gaps(p types.Period) []types.Period {
 	return types.Gaps(c.Coverage, p)
 }
 
-// same reports whether e and o are the same action.
+// same reports whether e and o are the same action, with the same effect on
+// the quantity held.
 func (e Act) same(o Act) bool {
-	return e.ExDate.Equal(o.ExDate) && e.Ratio.Equal(o.Ratio) && e.Handled == o.Handled
+	return e.ExDate.Equal(o.ExDate) && e.Ratio.Equal(o.Ratio) && e.Restates() == o.Restates() && e.Unknown() == o.Unknown()
 }

@@ -55,8 +55,8 @@ func (r *Recorder) record(ctx context.Context, k answerKey) (recordedKey, bool, 
 
 // writeAnswer replaces the stored answer of k's datasource for t with k's,
 // unless the stored one is later. An action the new answer repeats keeps its
-// row, and with it the findings that name it, so a cleared finding stays
-// cleared. It returns how many findings it wrote.
+// row, and with it its decision and the finding that names it, so a decided
+// action stays decided. It returns how many findings it wrote.
 func writeAnswer(ctx context.Context, q Queries, k answerKey, t gen.Ticker) (int, error) {
 	if err := db.LockCorpActAnswer(ctx, q, k.Source, t.ID); err != nil {
 		return 0, err

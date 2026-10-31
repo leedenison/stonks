@@ -56,7 +56,7 @@ are fetched from an ensemble of datasources.
 A market names one datasource for identifier events and one for corporate actions. Only
 the identifier event source's edges and assertion coverage count for the market's
 tickers. The corporate actions source is the only datasource asked for the corporate
-actions of the market's tickers, and the only one read.
+actions of the market's tickers, and the only one whose answers restate a holding.
 
 ### Partial or Incomplete Data
 

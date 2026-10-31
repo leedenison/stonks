@@ -24,6 +24,18 @@ VALUES (@id, @answer_id, @ex_date, @ratio_from, @ratio_to, sqlc.narg(type), @han
 -- name: DeleteCorpActs :exec
 DELETE FROM corp_acts WHERE id = ANY(@ids::uuid[]);
 
+-- name: DecideCorpAct :one
+-- Records the decision on an action and clears the finding that names it,
+-- in one statement so neither can land without the other. The second update
+-- changes a row only when the action has a finding.
+WITH decided AS (
+    UPDATE corp_acts SET decision = @decision::corp_act_decision WHERE corp_acts.id = @id RETURNING corp_acts.id
+), cleared AS (
+    UPDATE findings SET cleared_at = coalesce(cleared_at, now())
+    WHERE findings.corp_act_id IN (SELECT decided.id FROM decided)
+)
+SELECT decided.id FROM decided;
+
 -- name: ListCorpActSources :many
 -- Each market that names a corporate actions source, with that datasource.
 SELECT code, corp_act_source::text AS datasource FROM markets

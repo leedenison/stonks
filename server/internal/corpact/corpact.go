@@ -2,9 +2,9 @@
 // tickers.
 //
 // Each market names one corporate actions source. A fetch asks only that
-// datasource for the corporate actions of the market's tickers. A read takes
-// only that datasource's answers. Each market names one identifier event
-// source in the same way. A comparison across datasources would raise
+// datasource for the corporate actions of the market's tickers. A calendar
+// takes only that datasource's answers. Each market names one identifier
+// event source in the same way. A comparison across datasources would raise
 // findings without giving a better figure. A market whose source is unset,
 // disabled or failing leaves its holdings provisional, whichever other
 // datasource has answers.
@@ -27,9 +27,13 @@
 // Holdings and the stated split check read the corporate actions of an
 // instrument through one calendar, from its market; see calendar.go.
 //
-// An action that cannot restate a quantity is stored as unhandled, and
-// raises a finding for an administrator. The calendar's coverage leaves out
-// its ex-date, so a holding across that date stays provisional.
+// The system stores an action it cannot apply to a quantity as unhandled,
+// and raises a finding for an administrator. The administrator decides the
+// type of the action. The decision is stored on the action, overrules the
+// system's judgment and clears the finding; see decision.go. The calendar's
+// coverage leaves out the ex-date of an action whose effect is unknown, so a
+// holding across that date stays provisional. A refetch that restates an
+// action replaces its row and drops the decision; see merge in record.go.
 //
 // A split that a statement states is never stored as a corporate action. A
 // fetch checks it against the calendar; see checkSplits. What starts a fetch,

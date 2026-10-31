@@ -38,7 +38,7 @@ type Queries interface {
 	ListFetchItems(ctx context.Context, arg gen.ListFetchItemsParams) ([]gen.ListFetchItemsRow, error)
 	ListRunAssertions(ctx context.Context, arg gen.ListRunAssertionsParams) ([]gen.ListRunAssertionsRow, error)
 	GetReplay(ctx context.Context, id uuid.UUID) (gen.GetReplayRow, error)
-	ClearFinding(ctx context.Context, id uuid.UUID) (*uuid.UUID, error)
+	ClearFinding(ctx context.Context, id uuid.UUID) (gen.ClearFindingRow, error)
 }
 
 var _ Queries = (*gen.Queries)(nil)
@@ -334,21 +334,25 @@ func (s *Server) ListRunItems(ctx context.Context, req *connect.Request[adminrun
 	return connect.NewResponse(out), nil
 }
 
-// ClearFinding clears a finding that reports no block.
+// ClearFinding clears a finding that reports neither a block nor a corporate
+// action.
 func (s *Server) ClearFinding(ctx context.Context, req *connect.Request[adminrunv1.ClearFindingRequest]) (*connect.Response[adminrunv1.ClearFindingResponse], error) {
 	id, err := uuid.Parse(req.Msg.GetFindingId())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	block, err := s.queries.ClearFinding(ctx, id)
+	reports, err := s.queries.ClearFinding(ctx, id)
 	if errors.Is(err, db.ErrNotFound) {
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("no such finding"))
 	}
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	if block != nil {
+	if reports.BlockID != nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("the finding reports a block; clear the block"))
+	}
+	if reports.CorpActID != nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("the finding reports a corporate action; decide the action"))
 	}
 	return connect.NewResponse(&adminrunv1.ClearFindingResponse{}), nil
 }
@@ -391,6 +395,10 @@ func finding(row gen.ListRunFindingsRow) *adminrunv1.Finding {
 	if f.BlockID != nil {
 		id := f.BlockID.String()
 		out.BlockId = &id
+	}
+	if f.CorpActID != nil {
+		id := f.CorpActID.String()
+		out.CorpActId = &id
 	}
 	if f.StatedKeyID != nil {
 		id := f.StatedKeyID.String()

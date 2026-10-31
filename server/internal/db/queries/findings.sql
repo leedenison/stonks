@@ -25,9 +25,10 @@ WHERE findings.run_id = ANY(@run_ids::uuid[])
 ORDER BY findings.id;
 
 -- name: ClearFinding :one
--- A finding that reports a block stays open until its block is cleared.
+-- A finding that reports a block stays open until its block is cleared. One
+-- that reports a corporate action stays open until the action is decided.
 -- Clearing a cleared finding keeps the time it was first cleared.
 UPDATE findings
-SET cleared_at = CASE WHEN block_id IS NULL THEN coalesce(cleared_at, now()) ELSE cleared_at END
+SET cleared_at = CASE WHEN block_id IS NULL AND corp_act_id IS NULL THEN coalesce(cleared_at, now()) ELSE cleared_at END
 WHERE id = $1
-RETURNING block_id;
+RETURNING block_id, corp_act_id;

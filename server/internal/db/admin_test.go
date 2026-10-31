@@ -320,7 +320,7 @@ func TestFindingsAndBlocks(t *testing.T) {
 
 	reported, err := q.ClearFinding(ctx, firstFinding)
 	require.NoError(t, err)
-	if reported == nil || *reported != firstBlock {
+	if reported.BlockID == nil || *reported.BlockID != firstBlock {
 		t.Errorf("ClearFinding of a block's finding = %v, want the block %s", reported, firstBlock)
 	}
 	if _, err := q.ClearDatasourceBlock(ctx, firstBlock); err != nil {
