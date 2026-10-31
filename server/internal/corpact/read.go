@@ -18,7 +18,7 @@ type Answer struct {
 	Datasource string
 	Acts       []Act
 	// Coverage is the days over which the datasource reported every
-	// corporate action of the ticker, less each day an unhandled action of the
+	// corporate action of the ticker, less each day an unknown action of the
 	// ticker removes.
 	Coverage []types.Period
 }
@@ -30,8 +30,13 @@ type Act struct {
 	Ratio  types.Ratio
 	// Type is the datasource's own word for the action, or empty when the
 	// datasource gave no word.
-	Type    string
+	Type string
+	// Handled is whether the system judged the action to restate the
+	// quantity held when it stored it.
 	Handled bool
+	// Decision is the type an administrator decided the action is, or empty
+	// while undecided. Restates and Unknown read it.
+	Decision gen.CorpActDecision
 }
 
 // Read returns the answer of each of ts from its market's corporate actions
@@ -84,17 +89,20 @@ func Read(ctx context.Context, q ReadQueries, ts []types.MarketTicker, p types.P
 		if e.Type != nil {
 			act.Type = *e.Type
 		}
+		if e.Decision != nil {
+			act.Decision = *e.Decision
+		}
 		stored[t].Acts = append(stored[t].Acts, act)
 	}
 	for t, a := range stored {
-		var unhandled []time.Time
+		var unknown []time.Time
 		for _, e := range a.Acts {
-			if !e.Handled {
-				unhandled = append(unhandled, e.ExDate)
+			if e.Unknown() {
+				unknown = append(unknown, e.ExDate)
 			}
 		}
 		var cov []types.Period
-		for _, c := range remove(a.Coverage, unhandled) {
+		for _, c := range remove(a.Coverage, unknown) {
 			if c, ok := c.Clip(p); ok {
 				cov = append(cov, c)
 			}

@@ -151,20 +151,23 @@ message Finding {
   FindingKind kind = 3;
   // The block reported; set only when the kind is BLOCK.
   optional string block_id = 4;
+  // The corporate action reported; set only when the kind is
+  // UNHANDLED_CORP_ACT.
+  optional string corp_act_id = 5;
   // The finding's stated key; set for DROPPED, CONTRADICTION, MERGED
   // and UNMATCHED_SPLIT.
-  optional string stated_key_id = 5;
+  optional string stated_key_id = 6;
   // What the key concerned states: the finding's own key, or for a block
   // the key whose call created it. Unset where no key is concerned.
-  stonks.type.v1.StatedKey stated_key = 6;
+  stonks.type.v1.StatedKey stated_key = 7;
   // The step that dropped the set of identifiers; present only when the kind
   // is DROPPED.
-  optional DropStep step = 7;
+  optional DropStep step = 8;
   // The grounds, in words; for a BLOCK, the block's reason.
-  optional string detail = 8;
-  google.protobuf.Timestamp created_at = 9;
+  optional string detail = 9;
+  google.protobuf.Timestamp created_at = 10;
   // When an administrator cleared the finding; unset while it is open.
-  google.protobuf.Timestamp cleared_at = 10;
+  google.protobuf.Timestamp cleared_at = 11;
 }
 
 // Each filter left unset matches every run.
@@ -282,7 +285,8 @@ service RunService {
   // Lists the items a run wrote.
   rpc ListRunItems(ListRunItemsRequest) returns (ListRunItemsResponse);
   // Clears a finding. Where the finding reports a block, only clearing the
-  // block clears it, and the call is refused as a failed precondition.
+  // block clears it. Where it reports a corporate action, only a decision on
+  // the action clears it. Either call is refused as a failed precondition.
   // Clearing a cleared finding succeeds.
   rpc ClearFinding(ClearFindingRequest) returns (ClearFindingResponse);
   // Starts a system run of the kind. REASSERT_TICKERS asks each enabled

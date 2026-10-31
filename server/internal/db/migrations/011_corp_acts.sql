@@ -21,6 +21,13 @@ CREATE TABLE corp_act_answers (
 CREATE INDEX corp_act_answers_ticker_idx ON corp_act_answers (ticker_id);
 CREATE INDEX corp_act_answers_fetch_key_idx ON corp_act_answers (fetch_key_id);
 
+-- The type an administrator decides a corporate action is. The first three
+-- restate the quantity held. A spin-off price factor and a rights issue leave
+-- it. Other is an action the system cannot yet apply.
+CREATE TYPE corp_act_decision AS ENUM (
+    'split', 'reverse_split', 'stock_dividend', 'spin_off_price_factor', 'rights_issue', 'other'
+);
+
 -- A corporate action is a change to a company's shares that a datasource
 -- reported for a ticker with a ratio. It may restate the quantity held, as a
 -- split, a reverse split or a stock dividend does. It may instead be of a type
@@ -28,7 +35,9 @@ CREATE INDEX corp_act_answers_fetch_key_idx ON corp_act_answers (fetch_key_id);
 -- provider may also state a price factor as a ratio, such as the fall in a
 -- parent's price at a spin-off. It applies to whatever the ticker named on
 -- ex_date, which ticker validity decides on read. Several rows may share a
--- ticker and a day.
+-- ticker and a day. A refetch keeps a row the datasource repeats, and with it
+-- its decision and its finding. It deletes a row the datasource no longer
+-- repeats, and the finding and decision go with it.
 CREATE TABLE corp_acts (
     id         uuid    PRIMARY KEY,
     answer_id  uuid    NOT NULL REFERENCES corp_act_answers (id) ON DELETE CASCADE,
@@ -44,6 +53,10 @@ CREATE TABLE corp_acts (
     -- share count: both sides are whole, and in lowest terms the smaller is
     -- at most 100.
     handled    boolean NOT NULL,
+    -- decision is the type an administrator decided the action is, NULL
+    -- while undecided. Where it is set it overrules handled when the
+    -- calendar reads the action.
+    decision   corp_act_decision,
     CHECK (ratio_from > 0),
     CHECK (ratio_to > 0)
 );

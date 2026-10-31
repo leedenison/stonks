@@ -46,8 +46,10 @@ var (
 	droppedID           = uuid.MustParse("00000000-0000-0000-0000-000000000033")
 	siblingFindingID    = uuid.MustParse("00000000-0000-0000-0000-000000000035")
 	grandchildFindingID = uuid.MustParse("00000000-0000-0000-0000-000000000036")
+	corpActFindingID    = uuid.MustParse("00000000-0000-0000-0000-000000000037")
 	fetchKeyID          = uuid.MustParse("00000000-0000-0000-0000-000000000034")
 	blockID             = uuid.MustParse("00000000-0000-0000-0000-000000000031")
+	corpActID           = uuid.MustParse("00000000-0000-0000-0000-000000000038")
 	created             = time.Date(2026, 9, 24, 12, 0, 0, 0, time.UTC)
 	adminID             = servicetest.Admin.User.ID
 )
@@ -287,6 +289,8 @@ func TestGetRun(t *testing.T) {
 				},
 				{Finding: gen.Finding{ID: siblingFindingID, RunID: siblingID, Kind: gen.FindingKindBlock, BlockID: &blockID, CreatedAt: created}},
 				{Finding: gen.Finding{ID: grandchildFindingID, RunID: grandchildID, Kind: gen.FindingKindBlock, BlockID: &blockID, CreatedAt: created}},
+				{Finding: gen.Finding{ID: corpActFindingID, RunID: grandchildID, Kind: gen.FindingKindUnhandledCorpAct, CorpActID: &corpActID,
+					Detail: ptr.To("GE on 2024-04-02: alpha reported forward_split, 1253 for 1000, which the system does not handle"), CreatedAt: created}},
 			}, nil)
 			tc.expect(r)
 
@@ -330,6 +334,12 @@ func TestGetRun(t *testing.T) {
 					{
 						Id: grandchildFindingID.String(), RunId: grandchildID.String(), Kind: adminrunv1.FindingKind_FINDING_KIND_BLOCK,
 						BlockId: ptr.To(blockID.String()), CreatedAt: timestamppb.New(created),
+					},
+					{
+						Id: corpActFindingID.String(), RunId: grandchildID.String(), Kind: adminrunv1.FindingKind_FINDING_KIND_UNHANDLED_CORP_ACT,
+						CorpActId: ptr.To(corpActID.String()),
+						Detail:    ptr.To("GE on 2024-04-02: alpha reported forward_split, 1253 for 1000, which the system does not handle"),
+						CreatedAt: timestamppb.New(created),
 					},
 					{
 						Id: siblingFindingID.String(), RunId: siblingID.String(), Kind: adminrunv1.FindingKind_FINDING_KIND_BLOCK,
@@ -500,19 +510,20 @@ func TestGetRunErrors(t *testing.T) {
 func TestClearFinding(t *testing.T) {
 	tests := []struct {
 		name     string
-		block    *uuid.UUID
+		reports  gen.ClearFindingRow
 		err      error
 		wantCode connect.Code
 	}{
 		{name: "reports nothing withheld"},
-		{name: "reports a block", block: &blockID, wantCode: connect.CodeFailedPrecondition},
+		{name: "reports a block", reports: gen.ClearFindingRow{BlockID: &blockID}, wantCode: connect.CodeFailedPrecondition},
+		{name: "reports a corporate action", reports: gen.ClearFindingRow{CorpActID: &corpActID}, wantCode: connect.CodeFailedPrecondition},
 		{name: "not found", err: db.ErrNotFound, wantCode: connect.CodeNotFound},
 		{name: "failure", err: errors.New("boom"), wantCode: connect.CodeInternal},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newFixture(t)
-			f.store.EXPECT().ClearFinding(gomock.Any(), findingID).Return(tc.block, tc.err)
+			f.store.EXPECT().ClearFinding(gomock.Any(), findingID).Return(tc.reports, tc.err)
 			_, err := f.client.ClearFinding(context.Background(), connect.NewRequest(&adminrunv1.ClearFindingRequest{FindingId: findingID.String()}))
 			if servicetest.CodeOf(err) != tc.wantCode {
 				t.Errorf("ClearFinding() code = %v (err %v), want %v", servicetest.CodeOf(err), err, tc.wantCode)

@@ -85,9 +85,19 @@ func (s *canned) answer(datasource, market, value string, from, before time.Time
 
 // act records an action of answer, from units becoming to units.
 func (s *canned) act(answer uuid.UUID, ex time.Time, from, to int64, handled bool) {
-	s.acts = append(s.acts, gen.CorpAct{
+	s.decided(answer, ex, from, to, handled, "")
+}
+
+// decided records an action of answer that an administrator decided is d.
+// An empty d leaves it undecided.
+func (s *canned) decided(answer uuid.UUID, ex time.Time, from, to int64, handled bool, d gen.CorpActDecision) {
+	e := gen.CorpAct{
 		ID: uuid.New(), AnswerID: answer, ExDate: ex, RatioFrom: decimal.NewFromInt(from), RatioTo: decimal.NewFromInt(to), Handled: handled,
-	})
+	}
+	if d != "" {
+		e.Decision = &d
+	}
+	s.acts = append(s.acts, e)
 }
 
 func (s *canned) calendars(t *testing.T, instrs ...uuid.UUID) map[uuid.UUID]Calendar {
@@ -99,6 +109,12 @@ func (s *canned) calendars(t *testing.T, instrs ...uuid.UUID) map[uuid.UUID]Cale
 
 func split(ex time.Time, from, to int64, handled bool) Act {
 	return Act{ExDate: ex, Ratio: types.Ratio{From: decimal.NewFromInt(from), To: decimal.NewFromInt(to)}, Handled: handled}
+}
+
+// decided is e with the decision d on it.
+func decided(e Act, d gen.CorpActDecision) Act {
+	e.Decision = d
+	return e
 }
 
 func period(from, before time.Time) types.Period { return types.Period{From: from, Before: before} }
@@ -183,6 +199,42 @@ func TestCalendarsUnhandled(t *testing.T) {
 	}
 }
 
+// TestCalendarsDecided checks that a decision on an unhandled action closes
+// the hole in the coverage unless it names a type the system cannot apply.
+func TestCalendarsDecided(t *testing.T) {
+	spun := day(2024, 4, 2)
+	tests := []struct {
+		name     string
+		decision gen.CorpActDecision
+		factor   *big.Rat
+		covered  bool
+	}{
+		{name: "a price factor", decision: gen.CorpActDecisionSpinOffPriceFactor, factor: big.NewRat(1, 1), covered: true},
+		{name: "a split", decision: gen.CorpActDecisionSplit, factor: big.NewRat(1253, 1000), covered: true},
+		{name: "other", decision: gen.CorpActDecisionOther, factor: big.NewRat(1, 1)},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			instr := uuid.New()
+			var s canned
+			s.names("US", "GE", instr, nil, nil)
+			us := s.answer("alpha", "US", "GE", day(2012, 1, 1), today.AddDate(0, 0, 1))
+			s.decided(us, spun, 1000, 1253, false, tc.decision)
+			cal := s.calendars(t, instr)[instr]
+			if f, ok := cal.Factor(day(2023, 6, 1), today); ok != tc.covered || f.Cmp(tc.factor) != 0 {
+				t.Errorf("Factor = %v, %v, want %v, %v", f, ok, tc.factor, tc.covered)
+			}
+			var want []types.Period
+			if !tc.covered {
+				want = []types.Period{period(spun, spun.AddDate(0, 0, 1))}
+			}
+			if diff := cmp.Diff(want, cal.Gaps(period(day(2023, 6, 2), today.AddDate(0, 0, 1)))); diff != "" {
+				t.Errorf("gaps mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
 // TestCalendarsOneMarket checks that a calendar holds only the answer of the
 // instrument's market, and that an instrument without a market has none.
 func TestCalendarsOneMarket(t *testing.T) {
@@ -224,6 +276,8 @@ func TestFactor(t *testing.T) {
 		{name: "an ex-date today", cal: answer(whole, split(today, 1, 4, true)), asAt: day(2020, 3, 2), want: big.NewRat(4, 1), covered: true},
 		{name: "a future ex-date", cal: answer(whole, split(today.AddDate(0, 0, 1), 1, 4, true)), asAt: day(2020, 3, 2), want: big.NewRat(1, 1), covered: true},
 		{name: "an unhandled action", cal: answer(whole, split(day(2020, 3, 2), 1000, 1253, false)), asAt: day(2019, 1, 1), want: big.NewRat(1, 1), covered: true},
+		{name: "a handled action decided a price factor", cal: answer(whole, decided(split(day(2020, 3, 2), 1, 4, true), gen.CorpActDecisionSpinOffPriceFactor)), asAt: day(2019, 1, 1), want: big.NewRat(1, 1), covered: true},
+		{name: "an unhandled action decided a split", cal: answer(whole, decided(split(day(2020, 3, 2), 1000, 1253, false), gen.CorpActDecisionSplit)), asAt: day(2019, 1, 1), want: big.NewRat(1253, 1000), covered: true},
 		{name: "a gap today", cal: answer([]types.Period{period(day(2010, 1, 1), today)}), asAt: day(2019, 1, 1), want: big.NewRat(1, 1)},
 		{
 			name: "a split known across a gap",

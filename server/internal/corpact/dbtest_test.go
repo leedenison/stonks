@@ -363,36 +363,55 @@ func TestSourceChange(t *testing.T) {
 	}
 }
 
+// spinOff is an action of a type no datasource handles.
+var spinOff = market.CorpAct{ExDate: day(2024, 6, 10), Ratio: ratio(1, 1), Type: "spin_off"}
+
+// unhandledNVDA records spinOff for NVDA and returns the finding it raises.
+func (s *stack) unhandledNVDA(t *testing.T) found {
+	t.Helper()
+	nvda := ticker("XNAS", "NVDA")
+	s.alpha.Responses[nvda] = covering(spinOff)
+	s.fetch(t, nvda)
+	fs := s.findings(t, us("NVDA"))
+	if len(fs) != 1 || fs[0].kind != gen.FindingKindUnhandledCorpAct || fs[0].datasource != s.alphaName || fs[0].cleared {
+		t.Fatalf("findings = %+v, want one open unhandled corporate action finding on alpha's run", fs)
+	}
+	return fs[0]
+}
+
+// uncut is the whole coverage of the asked period, and cut is the same
+// without the day of spinOff.
+var (
+	uncut = []types.Period{{From: day(2020, 1, 1), Before: day(2026, 3, 3)}}
+	cut   = []types.Period{{From: day(2020, 1, 1), Before: day(2024, 6, 10)}, {From: day(2024, 6, 11), Before: day(2026, 3, 3)}}
+)
+
 // TestUnhandledCorpAct checks that an unhandled action raises a finding that
-// survives a refetch and stays cleared. It also checks that the action's
-// ex-date stays out of the coverage until an answer drops the action.
+// ClearFinding refuses and that survives a refetch. It also checks that the
+// action's ex-date stays out of the coverage until an answer drops the action.
 func TestUnhandledCorpAct(t *testing.T) {
 	s := newStack(t)
 	ctx := context.Background()
 	nvda := ticker("XNAS", "NVDA")
-	spin := market.CorpAct{ExDate: day(2024, 6, 10), Ratio: ratio(1, 1), Type: "spin_off"}
-	s.alpha.Responses[nvda] = covering(spin)
-	s.fetch(t, nvda)
-
-	fs := s.findings(t, us("NVDA"))
-	if len(fs) != 1 || fs[0].kind != gen.FindingKindUnhandledCorpAct || fs[0].datasource != s.alphaName {
-		t.Errorf("findings = %+v, want one unhandled corporate action finding on alpha's run", fs)
-	}
-	split := []types.Period{{From: day(2020, 1, 1), Before: day(2024, 6, 10)}, {From: day(2024, 6, 11), Before: day(2026, 3, 3)}}
+	f := s.unhandledNVDA(t)
 	a, _ := s.read(t, us("NVDA"))
-	if diff := cmp.Diff(split, a.Coverage); diff != "" {
+	if diff := cmp.Diff(cut, a.Coverage); diff != "" {
 		t.Errorf("coverage mismatch (-want +got):\n%s", diff)
 	}
 
-	for _, f := range fs {
-		_, err := s.q.ClearFinding(ctx, f.id)
-		require.NoError(t, err)
+	reports, err := s.q.ClearFinding(ctx, f.id)
+	require.NoError(t, err)
+	if reports.CorpActID == nil || *reports.CorpActID != f.act {
+		t.Errorf("ClearFinding reports %+v, want the action %s", reports, f.act)
+	}
+	if got := s.findings(t, us("NVDA")); len(got) != 1 || got[0].cleared {
+		t.Errorf("findings after ClearFinding = %+v, want the one, still open", got)
 	}
 	s.now = answered.AddDate(0, 0, 1)
 	s.fetch(t, nvda)
 	again := s.findings(t, us("NVDA"))
-	if len(again) != 1 || !again[0].cleared {
-		t.Errorf("findings after a repeat = %+v, want the one, still cleared", again)
+	if len(again) != 1 || again[0].id != f.id {
+		t.Errorf("findings after a repeat = %+v, want the one, with id %s", again, f.id)
 	}
 
 	s.alpha.Responses[nvda] = covering()
@@ -403,6 +422,77 @@ func TestUnhandledCorpAct(t *testing.T) {
 	a, _ = s.read(t, us("NVDA"))
 	if diff := cmp.Diff([]types.Period{{From: day(2020, 1, 1), Before: day(2026, 3, 4)}}, a.Coverage); diff != "" {
 		t.Errorf("coverage after the action is dropped mismatch (-want +got):\n%s", diff)
+	}
+}
+
+// decide records d on the action act and returns the actions NVDA's answer
+// then holds.
+func (s *stack) decide(t *testing.T, act uuid.UUID, d gen.CorpActDecision) []Act {
+	t.Helper()
+	id, err := s.q.DecideCorpAct(context.Background(), gen.DecideCorpActParams{ID: act, Decision: d})
+	require.NoError(t, err)
+	if id != act {
+		t.Errorf("DecideCorpAct returned %s, want %s", id, act)
+	}
+	a, _ := s.read(t, us("NVDA"))
+	return a.Acts
+}
+
+// TestDecisionSurvivesRefetch checks that a decision clears the action's
+// finding, that a decided action takes its day back into the coverage, and
+// that a refetch repeating the action keeps the decision.
+func TestDecisionSurvivesRefetch(t *testing.T) {
+	s := newStack(t)
+	nvda := ticker("XNAS", "NVDA")
+	f := s.unhandledNVDA(t)
+	acts := s.decide(t, f.act, gen.CorpActDecisionSpinOffPriceFactor)
+	if len(acts) != 1 || acts[0].ID != f.act || acts[0].Decision != gen.CorpActDecisionSpinOffPriceFactor {
+		t.Fatalf("acts after the decision = %+v, want %s decided a spin-off price factor", acts, f.act)
+	}
+	if got := s.findings(t, us("NVDA")); len(got) != 1 || !got[0].cleared {
+		t.Errorf("findings after the decision = %+v, want the one, cleared", got)
+	}
+	a, _ := s.read(t, us("NVDA"))
+	if diff := cmp.Diff(uncut, a.Coverage); diff != "" {
+		t.Errorf("coverage after the decision mismatch (-want +got):\n%s", diff)
+	}
+
+	s.now = answered.AddDate(0, 0, 1)
+	s.fetch(t, nvda)
+	a, _ = s.read(t, us("NVDA"))
+	if len(a.Acts) != 1 || a.Acts[0].ID != f.act || a.Acts[0].Decision != gen.CorpActDecisionSpinOffPriceFactor {
+		t.Errorf("acts after a repeat = %+v, want %s still decided a spin-off price factor", a.Acts, f.act)
+	}
+	if got := s.findings(t, us("NVDA")); len(got) != 1 || got[0].id != f.id || !got[0].cleared {
+		t.Errorf("findings after a repeat = %+v, want the one, still cleared", got)
+	}
+}
+
+// TestRestatedActionDropsDecision checks that a refetch that restates the
+// ratio of a decided action replaces the row, and the decision and the
+// finding go with it.
+func TestRestatedActionDropsDecision(t *testing.T) {
+	s := newStack(t)
+	nvda := ticker("XNAS", "NVDA")
+	f := s.unhandledNVDA(t)
+	s.decide(t, f.act, gen.CorpActDecisionSplit)
+
+	restated := spinOff
+	restated.Ratio = ratio(1, 2)
+	s.alpha.Responses[nvda] = covering(restated)
+	s.now = answered.AddDate(0, 0, 1)
+	s.fetch(t, nvda)
+	a, _ := s.read(t, us("NVDA"))
+	if len(a.Acts) != 1 || a.Acts[0].ID == f.act || a.Acts[0].Decision != "" || a.Acts[0].Handled {
+		t.Errorf("acts after the restatement = %+v, want one new undecided unhandled action", a.Acts)
+	}
+	later := []types.Period{{From: day(2020, 1, 1), Before: day(2024, 6, 10)}, {From: day(2024, 6, 11), Before: day(2026, 3, 4)}}
+	if diff := cmp.Diff(later, a.Coverage); diff != "" {
+		t.Errorf("coverage after the restatement mismatch (-want +got):\n%s", diff)
+	}
+	got := s.findings(t, us("NVDA"))
+	if len(got) != 1 || got[0].id == f.id || got[0].act != a.Acts[0].ID || got[0].cleared {
+		t.Errorf("findings after the restatement = %+v, want one open finding on the new action", got)
 	}
 }
 
