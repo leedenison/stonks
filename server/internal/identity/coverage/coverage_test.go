@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
@@ -145,15 +146,26 @@ func TestTickerRefused(t *testing.T) {
 	}
 }
 
+// stated is txns transactions of one share each by key on day n.
 func stated(value string, key uuid.UUID, n, txns int) gen.ListStatedTickerTxnsRow {
-	return gen.ListStatedTickerTxnsRow{Market: "US", Value: value, StatedKeyID: key, AsAt: day(n), Txns: int32(txns)}
+	return statedQty(value, key, n, txns, int64(txns))
+}
+
+func statedQty(value string, key uuid.UUID, n, txns int, qty int64) gen.ListStatedTickerTxnsRow {
+	return gen.ListStatedTickerTxnsRow{Market: "US", Value: value, StatedKeyID: key, AsAt: day(n), Txns: int32(txns), Quantity: decimal.NewFromInt(qty)}
+}
+
+func nothingOn(value string, from, before int) gen.ListAttestedNothingRow {
+	return gen.ListAttestedNothingRow{Market: "US", Value: value, AssertedFrom: day(from), AssertedBefore: day(before)}
 }
 
 // TestUnconfirmed checks that a ticker without an interval is read as naming
-// nothing, with its keys, transactions and first day. A ticker with intervals
-// is read by the gaps of its period, under the instrument of its latest
-// interval. A ticker whose confirmed interval covers its period appears in
-// neither.
+// nothing, with its keys, transactions and first day, leaving out the
+// transactions on days attested as naming nothing, and the ticker once every
+// transaction is attested. A ticker with intervals is read by the gaps of its holding period,
+// less the days attested as naming nothing, under the instrument of the
+// interval nearest each gap. A gap after a key sold out, and a ticker whose
+// confirmed interval covers its period, appear in neither.
 func TestUnconfirmed(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	q := mock.NewMockQueries(ctrl)
@@ -161,16 +173,22 @@ func TestUnconfirmed(t *testing.T) {
 	q.EXPECT().ListStatedTickerTxns(gomock.Any()).Return([]gen.ListStatedTickerTxnsRow{
 		stated("ACME", k1, 5, 1), stated("ACME", k2, 15, 1),
 		stated("FULL", k1, 5, 1),
+		stated("GONE", k1, 2, 1),
 		stated("NONE", k1, 3, 2), stated("NONE", k2, 5, 1),
+		statedQty("SOLD", k1, 5, 1, 2), statedQty("SOLD", k1, 8, 1, -2),
 		stated("TWO", k2, 2, 1),
 	}, nil)
-	from, mid, early := day(10), day(21), day(4)
+	q.EXPECT().ListAttestedNothing(gomock.Any()).Return([]gen.ListAttestedNothingRow{
+		nothingOn("GONE", 1, 10), nothingOn("NONE", 1, 4), nothingOn("TWO", 20, 31),
+	}, nil)
+	from, mid, early, sold := day(10), day(21), day(4), day(9)
 	q.EXPECT().ListTickerValidity(gomock.Any(), gen.ListTickerValidityParams{
-		Markets: []string{"US", "US", "US", "US"}, Values: []string{"ACME", "FULL", "NONE", "TWO"},
+		Markets: []string{"US", "US", "US", "US", "US", "US"}, Values: []string{"ACME", "FULL", "GONE", "NONE", "SOLD", "TWO"},
 	}).Return([]gen.ListTickerValidityRow{
 		{Market: "US", Value: "ACME", InstrID: acme, ValidFrom: &from, ValidBefore: &mid, Validity: tickervalidity.Confirmed},
 		{Market: "US", Value: "ACME", InstrID: acme, ValidFrom: &mid, Validity: tickervalidity.Provisional},
 		{Market: "US", Value: "FULL", InstrID: beta, Validity: tickervalidity.Confirmed},
+		{Market: "US", Value: "SOLD", InstrID: beta, ValidBefore: &sold, Validity: tickervalidity.Confirmed},
 		{Market: "US", Value: "TWO", InstrID: acme, ValidBefore: &early, Validity: tickervalidity.Confirmed},
 		{Market: "US", Value: "TWO", InstrID: beta, ValidFrom: &early, Validity: tickervalidity.Provisional},
 	}, nil)
@@ -182,14 +200,14 @@ func TestUnconfirmed(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unconfirmed: %v", err)
 	}
-	wantNothing := []NamesNothing{{Ticker: ticker("NONE"), Keys: 2, Txns: 3, First: day(3)}}
+	wantNothing := []NamesNothing{{Ticker: ticker("NONE"), Keys: 1, Txns: 1, First: day(5)}}
 	if diff := cmp.Diff(wantNothing, nothing); diff != "" {
 		t.Errorf("Unconfirmed names nothing mismatch (-want +got):\n%s", diff)
 	}
 	wantGaps := []TickerGap{
-		{Ticker: ticker("ACME"), Instr: acme, Name: name, Gap: Gap{Period: types.Period{From: day(5), Before: from}, Keys: 1, Txns: 1}},
-		{Ticker: ticker("ACME"), Instr: acme, Name: name, Gap: Gap{Period: types.Period{From: mid, Before: day(31)}}},
-		{Ticker: ticker("TWO"), Instr: beta, Gap: Gap{Period: types.Period{From: early, Before: day(31)}}},
+		{Ticker: ticker("ACME"), Instr: &acme, Name: name, Gap: Gap{Period: types.Period{From: day(5), Before: from}, Keys: 1, Txns: 1}},
+		{Ticker: ticker("ACME"), Instr: &acme, Name: name, Gap: Gap{Period: types.Period{From: mid, Before: day(31)}}},
+		{Ticker: ticker("TWO"), Instr: &beta, Gap: Gap{Period: types.Period{From: early, Before: day(20)}}},
 	}
 	if diff := cmp.Diff(wantGaps, gapped); diff != "" {
 		t.Errorf("Unconfirmed gaps mismatch (-want +got):\n%s", diff)

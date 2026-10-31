@@ -23,8 +23,10 @@ enum AlertKind {
   // An open datasource block.
   ALERT_KIND_BLOCK = 2;
   // A ticker that a key with transactions states, and that names nothing on
-  // any day.
+  // any day. Days an administrator attested as naming nothing do not count.
   ALERT_KIND_TICKER_NAMES_NOTHING = 3;
+  // A gap in the confirmed ticker validity of a ticker, across days on
+  // which a key stating it holds a position.
   ALERT_KIND_TICKER_VALIDITY_GAP = 4;
   // An unhandled corporate action awaiting a decision.
   ALERT_KIND_CORP_ACT = 5;
@@ -46,7 +48,9 @@ message TickerNamesNothing {
 
 message TickerValidityGap {
   stonks.type.v1.MarketTicker ticker = 1;
-  // The instrument of the ticker's latest interval.
+  // The instrument of the interval nearest the gap: the one that holds the
+  // gap's first day, else the one that ends at its start, else the one that
+  // begins at its end. Unset for an isolated gap.
   stonks.admin.coverage.v1.InstrName instr = 2;
   stonks.admin.coverage.v1.Gap gap = 3;
 }

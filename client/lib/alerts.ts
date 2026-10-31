@@ -77,7 +77,7 @@ const words: Record<number, Words> = {
   [AlertKind.TICKER_VALIDITY_GAP]: {
     tile: "validity gaps",
     group: "Ticker validity gaps",
-    why: "part of the transaction period lies outside every confirmed interval",
+    why: "part of the holding period lies outside every confirmed interval",
     action: "Attest",
   },
   [AlertKind.CORP_ACT]: {
