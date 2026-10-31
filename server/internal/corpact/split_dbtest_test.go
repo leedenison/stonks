@@ -4,11 +4,13 @@ package corpact
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/shopspring/decimal"
@@ -458,15 +460,27 @@ func TestSplitUsers(t *testing.T) {
 }
 
 // TestSplitNearUnhandled checks that a split without a ratio matches an
-// unhandled action within the window, on a day the answer still covers.
+// unhandled action within the window, on a day the answer still covers, and
+// stops matching it once an administrator decides the action leaves the
+// quantity held.
 func TestSplitNearUnhandled(t *testing.T) {
 	s := newStack(t)
 	_, key := s.nvda(t)
 	s.states(t, *s.parent.UserID, key, nil)
-	s.alpha.Responses[ticker("XNAS", "NVDA")] = covering(market.CorpAct{ExDate: splitDay.AddDate(0, 0, 1), Ratio: ratio(1, 1), Type: "spin_off"})
-	s.fetch(t, ticker("XNAS", "NVDA"))
+	nvda := ticker("XNAS", "NVDA")
+	s.alpha.Responses[nvda] = covering(market.CorpAct{ExDate: splitDay.AddDate(0, 0, 1), Ratio: ratio(1, 1), Type: "spin_off"})
+	s.fetch(t, nvda)
 	if got := s.unmatchedSplits(t); len(got) != 0 {
-		t.Errorf("findings = %+v, want none", got)
+		t.Fatalf("findings = %+v, want none", got)
+	}
+
+	f := s.findings(t, us("NVDA"))
+	require.Len(t, f, 1)
+	s.decide(t, f[0].act, gen.CorpActDecisionSpinOffPriceFactor)
+	s.now = answered.AddDate(0, 0, 1)
+	s.fetch(t, nvda)
+	if got := s.unmatchedSplits(t); len(got) != 1 || got[0].key != key {
+		t.Errorf("findings after the decision = %+v, want one on the key", got)
 	}
 }
 
@@ -474,19 +488,24 @@ func TestSplitNearUnhandled(t *testing.T) {
 // datasource under a ticker that named it on the ex-date and not from the
 // days the ticker named another instrument, that only the market's source is
 // applied, and that the evidence for one of them holds the other
-// datasource's action and the stated split nearby.
+// datasource's actions within the window and the distinct stated splits
+// nearby, those filed under another ticker of the instrument included.
 func TestListInstrActs(t *testing.T) {
 	s := newStack(t)
 	ctx := context.Background()
 	earlier := s.instr(t, types.AssetClassStock)
 	s.names(t, us("NVDA"), earlier, day(2023, 1, 2))
 	instr, key := s.nvda(t)
-	s.states(t, *s.parent.UserID, key, ptr.To(ratio(1, 10)))
+	user := *s.parent.UserID
+	s.states(t, user, key, ptr.To(ratio(1, 10)))
+	s.states(t, user, key, ptr.To(ratio(1, 10)))
+	s.names(t, us("NVDB"), instr, day(2024, 1, 2))
+	s.states(t, user, s.datedKey(t, "XNAS", "NVDB"), nil)
 	nvda := ticker("XNAS", "NVDA")
 	s.alpha.Responses[nvda] = covering(reported(day(2024, 6, 10), ratio(1, 10)), reported(day(2023, 6, 1), ratio(1, 4)))
 	s.fetch(t, nvda)
 	s.source(t, s.betaName)
-	s.beta.Responses[nvda] = covering(reported(day(2024, 6, 10), ratio(1, 10)))
+	s.beta.Responses[nvda] = covering(reported(day(2024, 6, 10), ratio(1, 10)), reported(day(2024, 6, 10+window+1), ratio(1, 3)))
 	s.fetch(t, nvda)
 	s.source(t, s.alphaName)
 
@@ -500,17 +519,35 @@ func TestListInstrActs(t *testing.T) {
 	for _, a := range acts {
 		got = append(got, listed{a.Datasource, a.ExDate.Format(time.DateOnly), a.Applied})
 	}
-	want := []listed{{s.alphaName, "2024-06-10", true}, {s.betaName, "2024-06-10", false}}
+	want := []listed{{s.betaName, "2024-06-18", false}, {s.alphaName, "2024-06-10", true}, {s.betaName, "2024-06-10", false}}
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("actions mismatch (-want +got):\n%s", diff)
 	}
 
-	ev, err := ReadEvidence(ctx, s.q, acts[0].ID)
+	ev, err := ReadEvidence(ctx, s.q, acts[1].ID)
 	require.NoError(t, err)
-	if !ev.Act.Applied || len(ev.Others) != 1 || ev.Others[0].ID != acts[1].ID {
-		t.Errorf("evidence = %+v, want the applied action with beta's as the other", ev)
+	if !ev.Act.Applied || len(ev.Others) != 1 || ev.Others[0].ID != acts[2].ID {
+		t.Errorf("evidence = %+v, want the applied action with beta's same-day action as the only other", ev)
 	}
-	if sp := ev.StmtSplits; len(sp) != 1 || !sp[0].EffectiveDate.Equal(splitDay) || sp[0].Ratio == nil || !sp[0].Ratio.Equal(ratio(1, 10)) {
-		t.Errorf("stated splits = %+v, want one of 10 for 1 on %s", sp, splitDay.Format(time.DateOnly))
+	wantSplits := []StmtSplit{{EffectiveDate: splitDay, Ratio: ptr.To(ratio(1, 10))}, {EffectiveDate: splitDay}}
+	if diff := cmp.Diff(wantSplits, ev.StmtSplits, cmpopts.EquateComparable(decimal.Decimal{})); diff != "" {
+		t.Errorf("stated splits mismatch (-want +got):\n%s", diff)
+	}
+}
+
+// TestReadEvidenceUnnamed checks that an action of a ticker that named
+// nothing on its ex-date comes back alone, and that a missing action is not
+// found.
+func TestReadEvidenceUnnamed(t *testing.T) {
+	s := newStack(t)
+	ctx := context.Background()
+	f := s.unhandledNVDA(t)
+	ev, err := ReadEvidence(ctx, s.q, f.act)
+	require.NoError(t, err)
+	if ev.Act.ID != f.act || ev.Act.Applied || len(ev.Others) != 0 || len(ev.StmtSplits) != 0 {
+		t.Errorf("evidence = %+v, want the action alone, not applied", ev)
+	}
+	if _, err := ReadEvidence(ctx, s.q, db.NewID()); !errors.Is(err, db.ErrNotFound) {
+		t.Errorf("ReadEvidence of no action: err = %v, want ErrNotFound", err)
 	}
 }

@@ -95,6 +95,8 @@ service CorpActService {
   // Reads one action with the evidence for deciding it.
   rpc GetCorpAct(GetCorpActRequest) returns (GetCorpActResponse);
   // Records the decision on an action and clears the finding that names it.
-  // Holdings read the decision at once.
+  // Holdings read the decision at once. A split or a stock dividend whose
+  // ratio does not grow the quantity held, and a reverse split whose ratio
+  // does not shrink it, are refused as a failed precondition.
   rpc DecideCorpAct(DecideCorpActRequest) returns (DecideCorpActResponse);
 }

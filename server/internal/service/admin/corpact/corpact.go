@@ -4,6 +4,7 @@ package corpact
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"connectrpc.com/connect"
@@ -23,6 +24,7 @@ type Queries interface {
 	ListTickerValidity(ctx context.Context, arg gen.ListTickerValidityParams) ([]gen.ListTickerValidityRow, error)
 	GetCorpAct(ctx context.Context, id uuid.UUID) (gen.GetCorpActRow, error)
 	ListInstrCorpActs(ctx context.Context, instrID uuid.UUID) ([]gen.ListInstrCorpActsRow, error)
+	ListTickersOfInstrs(ctx context.Context, instrIds []uuid.UUID) ([]uuid.UUID, error)
 	ListStatedSplits(ctx context.Context, arg gen.ListStatedSplitsParams) ([]gen.ListStatedSplitsRow, error)
 	DecideCorpAct(ctx context.Context, arg gen.DecideCorpActParams) (uuid.UUID, error)
 }
@@ -87,7 +89,8 @@ func (s *Server) GetCorpAct(ctx context.Context, req *connect.Request[admincorpa
 	return connect.NewResponse(out), nil
 }
 
-// DecideCorpAct records the decision on an action.
+// DecideCorpAct records the decision on an action. A decision whose type
+// contradicts the direction of the action's ratio is a failed precondition.
 func (s *Server) DecideCorpAct(ctx context.Context, req *connect.Request[admincorpactv1.DecideCorpActRequest]) (*connect.Response[admincorpactv1.DecideCorpActResponse], error) {
 	id, err := uuid.Parse(req.Msg.GetCorpActId())
 	if err != nil {
@@ -97,11 +100,17 @@ func (s *Server) DecideCorpAct(ctx context.Context, req *connect.Request[adminco
 	if !ok || d == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("unknown decision"))
 	}
-	_, err = s.queries.DecideCorpAct(ctx, gen.DecideCorpActParams{ID: id, Decision: d})
+	row, err := s.queries.GetCorpAct(ctx, id)
 	if errors.Is(err, db.ErrNotFound) {
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("no such corporate action"))
 	}
 	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	if r := (types.Ratio{From: row.CorpAct.RatioFrom, To: row.CorpAct.RatioTo}); !corpact.Fits(d, r) {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("a %s does not take %s units to %s", d, r.From, r.To))
+	}
+	if _, err = s.queries.DecideCorpAct(ctx, gen.DecideCorpActParams{ID: id, Decision: d}); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	return connect.NewResponse(&admincorpactv1.DecideCorpActResponse{}), nil
