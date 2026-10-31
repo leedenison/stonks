@@ -1,7 +1,6 @@
 ---
 title: Confirm the as-at basis of Schwab quantities
 type: task
-status: unreviewed
 ---
 
 ## Scope
