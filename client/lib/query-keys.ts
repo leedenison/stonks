@@ -26,6 +26,10 @@ export const qk = {
   datasources: () => ["datasources"] as const,
   blocks: (cleared: boolean, before: string) =>
     ["blocks", cleared, before] as const,
+  alertDigest: () => ["alerts", "digest"] as const,
+  alerts: (kind: number, token: string) =>
+    ["alerts", "list", kind, token] as const,
+  alertsAll: () => ["alerts"] as const,
   blocksAll: () => ["blocks"] as const,
   corpActs: (instrId: string) => ["corp-acts", "instr", instrId] as const,
   corpAct: (id: string) => ["corp-acts", id] as const,
@@ -53,10 +57,10 @@ export function invalidateResolved(
 }
 
 // invalidateCleared refreshes the listings that clearing a finding or a
-// block affects.
+// block affects, including the alerts.
 export function invalidateCleared(queryClient: QueryClient) {
   return Promise.all(
-    [qk.blocksAll(), qk.adminRunsAll()].map((queryKey) =>
+    [qk.blocksAll(), qk.adminRunsAll(), qk.alertsAll()].map((queryKey) =>
       queryClient.invalidateQueries({ queryKey }),
     ),
   );
@@ -67,8 +71,8 @@ export function invalidateCleared(queryClient: QueryClient) {
 // finding the decision cleared.
 export function invalidateDecided(queryClient: QueryClient) {
   return Promise.all(
-    [qk.corpActsAll(), qk.holdings(), qk.adminRunsAll()].map((queryKey) =>
-      queryClient.invalidateQueries({ queryKey }),
+    [qk.corpActsAll(), qk.holdings(), qk.adminRunsAll(), qk.alertsAll()].map(
+      (queryKey) => queryClient.invalidateQueries({ queryKey }),
     ),
   );
 }
@@ -79,6 +83,7 @@ export function invalidateAttested(queryClient: QueryClient) {
   return Promise.all([
     queryClient.invalidateQueries({ queryKey: qk.coverageAll() }),
     queryClient.invalidateQueries({ queryKey: qk.adminRunsAll() }),
+    queryClient.invalidateQueries({ queryKey: qk.alertsAll() }),
     invalidateResolved(queryClient),
   ]);
 }

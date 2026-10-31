@@ -1,8 +1,12 @@
 import path from "node:path";
+import { AlertKind } from "../gen/admin/alert/v1/alert_pb";
 import { FetchOutcome, FindingKind } from "../gen/admin/run/v1/run_pb";
 import { ResolutionOutcome } from "../gen/type/v1/type_pb";
 import {
   adminRunClient,
+  alertClient,
+  alertPageToken,
+  alertsAddress,
   blockClient,
   fetchItems,
   fetchRun,
@@ -53,7 +57,27 @@ test("clears a block from the blocks page, clearing the finding reporting it", a
   await page.goto("/admin/blocks");
   const row = page.getByTestId(`block-row-${finding.blockId}`);
   await expect(row).toContainText(isin);
-  await row.getByTestId(`block-clear-${finding.blockId}`).click();
+
+  // Other specs change the alerts, so the spec polls for the page that holds this one.
+  const alerts = alertClient(session);
+  let token: string | undefined;
+  await expect
+    .poll(async () => {
+      token = await alertPageToken(
+        alerts,
+        AlertKind.BLOCK,
+        (a) =>
+          a.subject.case === "block" && a.subject.value.id === finding.blockId,
+      );
+      return token;
+    })
+    .not.toBeUndefined();
+  await page.goto(alertsAddress("block", token!));
+  const alert = page.getByTestId(`alert-row-block-${finding.blockId}`);
+  await expect(alert).toContainText(isin);
+  await alert.getByTestId(`alert-act-block-${finding.blockId}`).click();
+  await expect(alert).toHaveCount(0);
+  await page.goto("/admin/blocks");
   await expect(row).toHaveCount(0);
 
   // Clearing a block clears the finding reporting it.

@@ -13,6 +13,9 @@ export function useStartSystemRun(kind: RunKind) {
   return useMutation({
     mutationFn: () => adminRun.startSystemRun({ kind }),
     onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: qk.adminRunsAll() }),
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: qk.adminRunsAll() }),
+        queryClient.invalidateQueries({ queryKey: qk.alertsAll() }),
+      ]),
   });
 }

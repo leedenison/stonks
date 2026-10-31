@@ -2,13 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useAlertDigest } from "@/hooks/use-alerts";
+import { openCount } from "@/lib/alerts";
 
 type Entry = { href: string; label: string; disabled?: boolean };
 type Section = { section: string; children: Entry[] };
 
 // The admin pages. An entry marked disabled is listed dimmed and inert.
 const entries: (Entry | Section)[] = [
-  { href: "/admin", label: "Overview" },
+  { href: "/admin", label: "Alerts" },
   {
     section: "Runs",
     children: [{ href: "/admin/runs", label: "Runs" }],
@@ -25,6 +27,21 @@ const entries: (Entry | Section)[] = [
 
 function isSection(e: Entry | Section): e is Section {
   return "section" in e;
+}
+
+// AlertBadge counts the open alerts beside the Alerts entry.
+function AlertBadge() {
+  const { data } = useAlertDigest();
+  const n = openCount(data);
+  if (n === 0) return null;
+  return (
+    <span
+      data-testid="admin-nav-alerts-count"
+      className="ml-2 rounded-full bg-accent px-1.5 font-mono text-[0.7rem] leading-snug font-semibold text-on-dark"
+    >
+      {n}
+    </span>
+  );
 }
 
 function Item({
@@ -57,6 +74,7 @@ function Item({
       }`}
     >
       {entry.label}
+      {entry.href === "/admin" && <AlertBadge />}
     </Link>
   );
 }

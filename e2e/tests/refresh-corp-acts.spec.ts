@@ -1,8 +1,16 @@
 import path from "node:path";
+import { AlertKind } from "../gen/admin/alert/v1/alert_pb";
 import { FetchKind } from "../gen/admin/block/v1/block_pb";
 import { FetchOutcome, FindingKind } from "../gen/admin/run/v1/run_pb";
 import { RunKind, RunState } from "../gen/run/v1/run_pb";
-import { adminRunClient, fetchItems, stmtClient } from "../helpers/api";
+import {
+  adminRunClient,
+  alertClient,
+  alertPageToken,
+  alertsAddress,
+  fetchItems,
+  stmtClient,
+} from "../helpers/api";
 import { expect, test } from "../helpers/test";
 import { uploadStmt } from "../helpers/upload";
 
@@ -34,6 +42,30 @@ test("finds a stated split the calendar lacks, and refreshes the calendar", asyn
   await expect(
     page.getByTestId(`finding-row-${unmatched[0].id}`),
   ).toContainText("unmatched split");
+
+  // Other specs change the alerts, so the spec polls for the page that holds this one.
+  const alerts = alertClient(session);
+  let token: string | undefined;
+  await expect
+    .poll(async () => {
+      token = await alertPageToken(
+        alerts,
+        AlertKind.FINDING,
+        (a) =>
+          a.subject.case === "finding" &&
+          a.subject.value.id === unmatched[0].id,
+      );
+      return token;
+    })
+    .not.toBeUndefined();
+  await page.goto(alertsAddress("finding", token!));
+  const alert = page.getByTestId(`alert-row-finding-${unmatched[0].id}`);
+  await alert.getByTestId(`alert-act-finding-${unmatched[0].id}`).click();
+  await expect(alert).toHaveCount(0);
+  const cleared = (await admin.getRun({ runId })).findings.find(
+    (f) => f.id === unmatched[0].id,
+  );
+  expect(cleared?.clearedAt).toBeDefined();
 
   // A refresh asks the corporate actions source of the US again, reading
   // past the cache that the statement's fetch filled. EODHD serves corporate
