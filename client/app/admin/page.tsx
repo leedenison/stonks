@@ -15,6 +15,7 @@ import { ActionDialog } from "./alert-action";
 import { AlertTable } from "./alert-table";
 import { AlertTiles } from "./alert-tiles";
 import { MockDescriptions } from "./mock-descriptions";
+import { RunsCard } from "./runs-card";
 
 // The admin home lists the alerts that need an administrator. The address
 // picks the digest or one kind's paged list.
@@ -59,42 +60,47 @@ function Alerts() {
 
   return (
     <Page title="Alerts" width="wide" testId="alerts-page">
-      {digest.data && <AlertTiles digest={digest.data} p={p} />}
-      {(clearBlock.isError || clearFinding.isError) && (
-        <Notice tone="error">The alert could not be cleared.</Notice>
-      )}
-      {q.isError && (
-        <Notice tone="error" onRetry={() => q.refetch()}>
-          The alerts could not be loaded.
-        </Notice>
-      )}
-      {!q.isError && q.data && groups.length === 0 && (
-        <EmptyState message="Nothing needs an administrator." />
-      )}
-      {!q.isError && (q.isPending || groups.length > 0) && (
-        <AlertTable
-          groups={groups}
-          pending={q.isPending}
-          busy={busy}
-          onAct={act}
-          more={p.kind === undefined}
-        />
-      )}
-      {p.kind !== undefined && (
-        <Pager
-          first={p.before ? queryHref("/admin", { kind: slug }) : undefined}
-          next={
-            list.data?.nextPageToken
-              ? queryHref("/admin", {
-                  kind: slug,
-                  before: list.data.nextPageToken,
-                })
-              : undefined
-          }
-          labels={{ first: "First", next: "Next" }}
-        />
-      )}
-      <MockDescriptions />
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_28rem] xl:items-start">
+        <div className="flex min-w-0 flex-col gap-4">
+          {digest.data && <AlertTiles digest={digest.data} p={p} />}
+          {(clearBlock.isError || clearFinding.isError) && (
+            <Notice tone="error">The alert could not be cleared.</Notice>
+          )}
+          {q.isError && (
+            <Notice tone="error" onRetry={() => q.refetch()}>
+              The alerts could not be loaded.
+            </Notice>
+          )}
+          {!q.isError && q.data && groups.length === 0 && (
+            <EmptyState message="Nothing needs an administrator." />
+          )}
+          {!q.isError && (q.isPending || groups.length > 0) && (
+            <AlertTable
+              groups={groups}
+              pending={q.isPending}
+              busy={busy}
+              onAct={act}
+              more={p.kind === undefined}
+            />
+          )}
+          {p.kind !== undefined && (
+            <Pager
+              first={p.before ? queryHref("/admin", { kind: slug }) : undefined}
+              next={
+                list.data?.nextPageToken
+                  ? queryHref("/admin", {
+                      kind: slug,
+                      before: list.data.nextPageToken,
+                    })
+                  : undefined
+              }
+              labels={{ first: "First", next: "Next" }}
+            />
+          )}
+          <MockDescriptions />
+        </div>
+        <RunsCard />
+      </div>
       <ActionDialog action={dialog} onClose={() => setDialog(null)} />
     </Page>
   );
