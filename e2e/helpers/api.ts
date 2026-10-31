@@ -2,6 +2,7 @@ import type { DescService } from "@bufbuild/protobuf";
 import { type Client, createClient } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
 import { BlockService, FetchKind } from "../gen/admin/block/v1/block_pb";
+import { CorpActService } from "../gen/admin/corpact/v1/corpact_pb";
 import { CoverageService } from "../gen/admin/coverage/v1/coverage_pb";
 import { DatasourceService } from "../gen/admin/datasource/v1/datasource_pb";
 import { InstrService as AdminInstrService } from "../gen/admin/instr/v1/instr_pb";
@@ -54,6 +55,10 @@ export function adminInstrClient(sessionID: string) {
 
 export function blockClient(sessionID: string) {
   return clientFor(BlockService, sessionID);
+}
+
+export function corpActClient(sessionID: string) {
+  return clientFor(CorpActService, sessionID);
 }
 
 export function coverageClient(sessionID: string) {

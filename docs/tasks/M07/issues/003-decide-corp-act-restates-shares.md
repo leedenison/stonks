@@ -77,5 +77,5 @@ makes the decision.
   ratio and asserts the row, its finding and the decision are gone.
 * A unit test of the holding calendar covers an action whose decision overrules
   `handled` in each direction.
-* The e2e suite decides the unmatched split fixture's action through the tab and reads
+* The e2e suite decides the GE action of `standard-split.json` through the tab and reads
   the adjusted holding.
