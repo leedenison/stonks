@@ -5,11 +5,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   RunService,
   ListRunsResponseSchema,
-  StartSystemRunResponseSchema,
   UserRunSchema,
 } from "@/gen/admin/run/v1/run_pb";
 import { Role } from "@/gen/auth/v1/auth_pb";
-import { RunKind, RunSchema, RunTrigger } from "@/gen/run/v1/run_pb";
+import { RunKind, RunTrigger } from "@/gen/run/v1/run_pb";
 import {
   liveSession,
   renderWithAuth,
@@ -30,12 +29,9 @@ vi.mock("next/navigation", () => ({
 
 const admin = liveSession({ role: Role.ADMIN });
 
-function serving(
-  listRuns: ServiceImpl<typeof RunService>["listRuns"],
-  startSystemRun?: ServiceImpl<typeof RunService>["startSystemRun"],
-) {
+function serving(listRuns: ServiceImpl<typeof RunService>["listRuns"]) {
   return transportWith(admin, ({ service }) => {
-    service(RunService, { listRuns, startSystemRun });
+    service(RunService, { listRuns });
   });
 }
 
@@ -179,32 +175,14 @@ describe("RunsPage", () => {
     );
   });
 
-  it.each([
-    ["datasource", "reassert-tickers", RunKind.REASSERT_TICKERS],
-    ["datasource", "refresh-corp-acts", RunKind.REFRESH_CORP_ACTS],
-    ["debug", "rebuild-ticker-validity", RunKind.REBUILD_TICKER_VALIDITY],
-  ])("starts a %s %s run and opens it", async (menu, testId, kind) => {
-    router.push.mockClear();
-    const kinds: RunKind[] = [];
+  it("holds no actions in the page bar", async () => {
     renderWithAuth(
       <RunsPage />,
-      serving(
-        () => page,
-        (req) => {
-          kinds.push(req.kind);
-          return create(StartSystemRunResponseSchema, {
-            run: create(RunSchema, { id: "x1", kind }),
-          });
-        },
-      ),
+      serving(() => page),
     );
-    fireEvent.click(screen.getByTestId(`runs-menu-${menu}`));
-    fireEvent.click(screen.getByTestId(`runs-${testId}`));
-    fireEvent.click(screen.getByTestId(`${testId}-start`));
-    await waitFor(() =>
-      expect(router.push).toHaveBeenCalledWith("/admin/runs/x1"),
-    );
-    expect(kinds).toEqual([kind]);
-    expect(screen.queryByTestId(`${testId}-dialog`)).toBeNull();
+    await waitFor(() => expect(screen.getByTestId("run-row-r1")).toBeTruthy());
+    expect(
+      screen.getByTestId("page-bar").querySelectorAll("button"),
+    ).toHaveLength(0);
   });
 });

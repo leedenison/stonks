@@ -5,7 +5,6 @@ import { Fragment, Suspense, useState } from "react";
 import { Pager } from "@/app/components/admin-list";
 import { Chip } from "@/app/components/chip";
 import { EmptyState } from "@/app/components/empty-state";
-import { Menu, MenuItem } from "@/app/components/menu";
 import { Notice } from "@/app/components/notice";
 import { Page } from "@/app/components/page-frame";
 import { Select } from "@/app/components/input";
@@ -19,16 +18,10 @@ import {
 } from "@/lib/admin";
 import { enumLabel, enumParam, enumValues } from "@/lib/enum";
 import { RunRow, RunTreeTable } from "./run-tree";
-import {
-  StartRunDialog,
-  type SystemRun,
-  systemRunMenus,
-} from "./start-run-dialog";
 
 // Every user's runs, newest first, filtered by what the address names, each
 // top-level run a row that opens onto the runs below it. The filters live in
-// the address so a listing can be linked and paged. The page carries the
-// actions that start system runs.
+// the address so a listing can be linked and paged.
 export default function RunsPage() {
   return (
     <Suspense>
@@ -45,38 +38,11 @@ function Runs() {
   // toggled holds the rows an administrator opened or closed; a row not in
   // it is open when it is on the path to a match rather than a match.
   const [toggled, setToggled] = useState<Record<string, boolean>>({});
-  const [opened, setOpened] = useState<SystemRun | null>(null);
   const go = (next: Partial<RunFilters>) =>
     router.replace(filterQuery({ ...f, before: "", ...next }));
 
   return (
-    <Page
-      title="Runs"
-      width="wide"
-      testId="admin-runs-page"
-      actions={
-        <>
-          {systemRunMenus.map((m) => (
-            <Menu
-              key={m.testId}
-              label={m.label}
-              testId={m.testId}
-              className="font-semibold text-action hover:bg-primary-light/15"
-            >
-              {m.runs.map((r) => (
-                <MenuItem
-                  key={r.kind}
-                  testId={`runs-${r.testId}`}
-                  onSelect={() => setOpened(r)}
-                >
-                  {r.title}
-                </MenuItem>
-              ))}
-            </Menu>
-          ))}
-        </>
-      }
-    >
+    <Page title="Runs" width="wide" testId="admin-runs-page">
       <div className="flex flex-wrap items-center gap-3 text-sm">
         {(["kind", "trigger", "state"] as const).map((k) => (
           <label key={k} className="flex items-center gap-2">
@@ -136,16 +102,6 @@ function Runs() {
             : undefined
         }
       />
-      {opened && (
-        <StartRunDialog
-          run={opened}
-          onClose={() => setOpened(null)}
-          onStarted={(started) => {
-            setOpened(null);
-            router.push(`/admin/runs/${started.id}`);
-          }}
-        />
-      )}
     </Page>
   );
 }

@@ -20,6 +20,7 @@ import {
   ClearFindingResponseSchema,
   FindingKind,
   FindingSchema,
+  ListRunsResponseSchema,
   RunService as AdminRunService,
 } from "@/gen/admin/run/v1/run_pb";
 import { Role } from "@/gen/auth/v1/auth_pb";
@@ -147,6 +148,7 @@ function render() {
       } satisfies Partial<ServiceImpl<typeof BlockService>>);
       service(AdminRunService, {
         clearFinding,
+        listRuns: () => create(ListRunsResponseSchema, {}),
       } satisfies Partial<ServiceImpl<typeof AdminRunService>>);
     }),
   );
@@ -175,6 +177,7 @@ describe("AdminPage digest", () => {
     expect(screen.getByTestId("alert-group-block").textContent).toContain(
       "a datasource is not asked again",
     );
+    expect(screen.getByTestId("runs-card")).toBeTruthy();
   });
 
   it("offers the full list only where the count exceeds the rows shown", async () => {

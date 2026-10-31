@@ -1,4 +1,5 @@
 import type { QueryClient } from "@tanstack/react-query";
+import type { RunKind } from "@/gen/run/v1/run_pb";
 import type { RunFilters } from "./admin";
 
 // Query keys, in one place so invalidation and the queries it targets cannot
@@ -22,6 +23,7 @@ export const qk = {
     ["admin-runs", f.kind, f.trigger, f.state, f.user, f.before] as const,
   adminRun: (id: string) => ["admin-runs", id] as const,
   adminRunItems: (id: string) => ["admin-runs", id, "items"] as const,
+  adminLastRun: (kind: RunKind) => ["admin-runs", "last", kind] as const,
   adminRunsAll: () => ["admin-runs"] as const,
   datasources: () => ["datasources"] as const,
   blocks: (cleared: boolean, before: string) =>

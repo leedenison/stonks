@@ -13,8 +13,8 @@ The system runs become a Runs card on the alerts page. See
   widths.
 * One row per system run: its title, its description, the last run of that kind as a
   state chip linking to the run, and a Start button that opens `StartRunDialog`. The
-  last run comes from `ListRuns` with the kind filter and a page size of one. Debug runs
-  sit under a subheading.
+  last run comes from `ListRuns` with the kind filter, the administrator trigger and a
+  page size of one. Debug runs sit under a subheading.
 * The runs page action bar carries only the page's own actions. `SystemRunMenu` goes.
   `systemRuns` and `StartRunDialog` move out of `client/app/admin/runs/` with their unit
   tests, and the file comments of `runs/page.tsx` and `start-run-dialog.tsx` are
