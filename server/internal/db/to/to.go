@@ -7,6 +7,7 @@ package to
 import (
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -271,11 +272,11 @@ func ProtoListing(l gen.ListListingNamesRow) *admininstrv1.Listing {
 	return out
 }
 
-// ProtoUserRun writes a run as the admin listings return it. A system run
-// has neither a user nor an email.
-func ProtoUserRun(r gen.Run, email *string, open int32, fetch *adminrunv1.RunFetch) *adminrunv1.UserRun {
+// ProtoUserRun writes a run with its user, open findings and fetch request.
+func ProtoUserRun(r gen.Run, d gen.RunDetail) *adminrunv1.UserRun {
 	out := &adminrunv1.UserRun{
-		Run: ProtoRun(r), UserEmail: email, OpenFindings: open, Matched: true, Fetch: fetch,
+		Run: ProtoRun(r), UserEmail: d.Email, OpenFindings: d.OpenFindings, Matched: true,
+		Fetch: ProtoRunFetch(d.Datasource, d.Endpoint, d.FetchKind),
 	}
 	if r.UserID != nil {
 		id := r.UserID.String()
@@ -294,6 +295,15 @@ func ProtoRunFetch(datasource, endpoint *string, kind *gen.FetchKind) *adminrunv
 		return nil
 	}
 	return &adminrunv1.RunFetch{Datasource: *datasource, Endpoint: *endpoint, Kind: types.ToProto[adminblockv1.FetchKind](*kind)}
+}
+
+// StatedKeyOf builds a key from the key columns of a joined row. It returns
+// nil when the row has no key.
+func StatedKeyOf(id *uuid.UUID, idents []types.Identifier, class *types.AssetClass, currency *string) *gen.StatedKey {
+	if id == nil {
+		return nil
+	}
+	return &gen.StatedKey{Identifiers: idents, AssetClass: class, Currency: currency}
 }
 
 // ProtoFinding writes a finding as its message. key is what the finding's

@@ -83,7 +83,7 @@ func TestListUserRuns(t *testing.T) {
 
 	ancestors, err := q.ListRunAncestors(ctx, child.ID)
 	require.NoError(t, err)
-	if len(ancestors) != 1 || ancestors[0].Run.ID != stmt.ID || ancestors[0].Email == nil || *ancestors[0].Email != owner.Email {
+	if len(ancestors) != 1 || ancestors[0].Run.ID != stmt.ID || ancestors[0].RunDetail.Email == nil || *ancestors[0].RunDetail.Email != owner.Email {
 		t.Errorf("ListRunAncestors(child) = %+v, want the statement with its user", ancestors)
 	}
 	if top, err := q.ListRunAncestors(ctx, stmt.ID); err != nil || len(top) != 0 {
@@ -91,7 +91,7 @@ func TestListUserRuns(t *testing.T) {
 	}
 	descendants, err := q.ListRunDescendants(ctx, &stmt.ID)
 	require.NoError(t, err)
-	if len(descendants) != 1 || descendants[0].Run.ID != child.ID || descendants[0].Email == nil || *descendants[0].Email != owner.Email {
+	if len(descendants) != 1 || descendants[0].Run.ID != child.ID || descendants[0].RunDetail.Email == nil || *descendants[0].RunDetail.Email != owner.Email {
 		t.Errorf("ListRunDescendants(statement) = %+v, want the child with its user", descendants)
 	}
 
@@ -104,7 +104,7 @@ func TestListUserRuns(t *testing.T) {
 
 	got, err := q.GetUserRun(ctx, started.ID)
 	require.NoError(t, err)
-	if got.Email == nil || *got.Email != admin.Email || got.Run.Trigger != gen.RunTriggerAdministrator {
+	if got.RunDetail.Email == nil || *got.RunDetail.Email != admin.Email || got.Run.Trigger != gen.RunTriggerAdministrator {
 		t.Errorf("GetUserRun = %+v, want the administrator's run and email", got)
 	}
 }
@@ -192,12 +192,12 @@ func TestRunFetchColumns(t *testing.T) {
 	roots, err := q.ListRootRuns(ctx, gen.ListRootRunsParams{Lim: 1})
 	require.NoError(t, err)
 	for _, r := range roots {
-		check("ListRootRuns", r.Run.ID, r.Datasource, r.Endpoint, r.FetchKind)
+		check("ListRootRuns", r.Run.ID, r.RunDetail.Datasource, r.RunDetail.Endpoint, r.RunDetail.FetchKind)
 	}
 	users, err := q.ListUserRuns(ctx, gen.ListUserRunsParams{UserID: &owner.ID, Lim: 1})
 	require.NoError(t, err)
 	for _, r := range users {
-		check("ListUserRuns", r.Run.ID, r.Datasource, r.Endpoint, r.FetchKind)
+		check("ListUserRuns", r.Run.ID, r.RunDetail.Datasource, r.RunDetail.Endpoint, r.RunDetail.FetchKind)
 	}
 	if len(roots) != 2 || len(users) != 2 {
 		t.Errorf("ListRootRuns and ListUserRuns returned %d and %d runs, want 2 each", len(roots), len(users))
@@ -205,14 +205,14 @@ func TestRunFetchColumns(t *testing.T) {
 	below, err := q.ListRunDescendants(ctx, &root.ID)
 	require.NoError(t, err)
 	require.Len(t, below, 1)
-	check("ListRunDescendants", below[0].Run.ID, below[0].Datasource, below[0].Endpoint, below[0].FetchKind)
+	check("ListRunDescendants", below[0].Run.ID, below[0].RunDetail.Datasource, below[0].RunDetail.Endpoint, below[0].RunDetail.FetchKind)
 	above, err := q.ListRunAncestors(ctx, fetch.ID)
 	require.NoError(t, err)
 	require.Len(t, above, 1)
-	check("ListRunAncestors", above[0].Run.ID, above[0].Datasource, above[0].Endpoint, above[0].FetchKind)
+	check("ListRunAncestors", above[0].Run.ID, above[0].RunDetail.Datasource, above[0].RunDetail.Endpoint, above[0].RunDetail.FetchKind)
 	got, err := q.GetUserRun(ctx, fetch.ID)
 	require.NoError(t, err)
-	check("GetUserRun", got.Run.ID, got.Datasource, got.Endpoint, got.FetchKind)
+	check("GetUserRun", got.Run.ID, got.RunDetail.Datasource, got.RunDetail.Endpoint, got.RunDetail.FetchKind)
 }
 
 // TestListRootRunsIndex checks that the walk down from the top-level runs
@@ -344,14 +344,14 @@ func TestFindingsAndBlocks(t *testing.T) {
 	}
 	got, err := q.GetUserRun(ctx, fetch.ID)
 	require.NoError(t, err)
-	if got.OpenFindings != 1 {
-		t.Errorf("GetUserRun(fetch).OpenFindings = %d, want 1: one of two findings was cleared", got.OpenFindings)
+	if got.RunDetail.OpenFindings != 1 {
+		t.Errorf("GetUserRun(fetch).OpenFindings = %d, want 1: one of two findings was cleared", got.RunDetail.OpenFindings)
 	}
 	listed, err := q.ListUserRuns(ctx, gen.ListUserRunsParams{UserID: &user.ID, Lim: 10})
 	require.NoError(t, err)
 	for _, r := range listed {
-		if want := map[bool]int32{true: 1}[r.Run.ID == fetch.ID]; r.OpenFindings != want {
-			t.Errorf("ListUserRuns row %s open findings = %d, want %d", r.Run.ID, r.OpenFindings, want)
+		if want := map[bool]int32{true: 1}[r.Run.ID == fetch.ID]; r.RunDetail.OpenFindings != want {
+			t.Errorf("ListUserRuns row %s open findings = %d, want %d", r.Run.ID, r.RunDetail.OpenFindings, want)
 		}
 	}
 
@@ -429,8 +429,8 @@ func TestFailedRuns(t *testing.T) {
 		var out []uuid.UUID
 		for _, r := range rows {
 			out = append(out, r.Run.ID)
-			if r.Email == nil || *r.Email != user.Email {
-				t.Errorf("ListFailedRuns row %s email = %v, want %s", r.Run.ID, r.Email, user.Email)
+			if r.RunDetail.Email == nil || *r.RunDetail.Email != user.Email {
+				t.Errorf("ListFailedRuns row %s email = %v, want %s", r.Run.ID, r.RunDetail.Email, user.Email)
 			}
 		}
 		return out
@@ -565,7 +565,7 @@ func TestListSystemRuns(t *testing.T) {
 		var got []row
 		for _, r := range rows {
 			if r.RootID == system.ID {
-				got = append(got, row{ID: r.Run.ID, Email: r.Email})
+				got = append(got, row{ID: r.Run.ID, Email: r.RunDetail.Email})
 			}
 		}
 		if diff := cmp.Diff(want, got); diff != "" {
@@ -578,7 +578,7 @@ func TestListSystemRuns(t *testing.T) {
 	var got []row
 	for _, r := range roots {
 		if r.RootID == system.ID {
-			got = append(got, row{ID: r.Run.ID, Email: r.Email})
+			got = append(got, row{ID: r.Run.ID, Email: r.RunDetail.Email})
 		}
 	}
 	if diff := cmp.Diff(want, got); diff != "" {
@@ -587,17 +587,17 @@ func TestListSystemRuns(t *testing.T) {
 
 	top, err := q.GetUserRun(ctx, system.ID)
 	require.NoError(t, err)
-	if top.Email != nil || top.Run.UserID != nil {
+	if top.RunDetail.Email != nil || top.Run.UserID != nil {
 		t.Errorf("GetUserRun(system) = %+v, want no user and no email", top)
 	}
 	ancestors, err := q.ListRunAncestors(ctx, replay.ID)
 	require.NoError(t, err)
-	if len(ancestors) != 1 || ancestors[0].Run.ID != system.ID || ancestors[0].Email != nil {
+	if len(ancestors) != 1 || ancestors[0].Run.ID != system.ID || ancestors[0].RunDetail.Email != nil {
 		t.Errorf("ListRunAncestors(replay) = %+v, want the system run with no email", ancestors)
 	}
 	descendants, err := q.ListRunDescendants(ctx, &system.ID)
 	require.NoError(t, err)
-	if len(descendants) != 1 || descendants[0].Run.ID != replay.ID || descendants[0].Email == nil || *descendants[0].Email != owner.Email {
+	if len(descendants) != 1 || descendants[0].Run.ID != replay.ID || descendants[0].RunDetail.Email == nil || *descendants[0].RunDetail.Email != owner.Email {
 		t.Errorf("ListRunDescendants(system) = %+v, want the replay with its user", descendants)
 	}
 }

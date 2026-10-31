@@ -263,7 +263,7 @@ func (s *Server) list(ctx context.Context, k adminalertv1.AlertKind, before curs
 			return nil, err
 		}
 		for _, r := range rows {
-			run := to.ProtoUserRun(r.Run, r.Email, r.OpenFindings, to.ProtoRunFetch(r.Datasource, r.Endpoint, r.FetchKind))
+			run := to.ProtoUserRun(r.Run, r.RunDetail)
 			out = append(out, &adminalertv1.Alert{Kind: k, Subject: &adminalertv1.Alert_Run{Run: run}})
 		}
 	case adminalertv1.AlertKind_ALERT_KIND_BLOCK:
@@ -288,10 +288,7 @@ func (s *Server) list(ctx context.Context, k adminalertv1.AlertKind, before curs
 			return nil, err
 		}
 		for _, r := range rows {
-			var key *gen.StatedKey
-			if r.KeyID != nil {
-				key = &gen.StatedKey{Identifiers: r.KeyIdentifiers, AssetClass: r.KeyAssetClass, Currency: r.KeyCurrency}
-			}
+			key := to.StatedKeyOf(r.KeyID, r.KeyIdentifiers, r.KeyAssetClass, r.KeyCurrency)
 			out = append(out, &adminalertv1.Alert{Kind: k, Subject: &adminalertv1.Alert_Finding{Finding: to.ProtoFinding(r.Finding, key)}})
 		}
 	default:

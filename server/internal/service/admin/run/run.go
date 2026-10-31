@@ -93,7 +93,7 @@ func (s *Server) ListRuns(ctx context.Context, req *connect.Request[adminrunv1.L
 	rows, out.NextPageToken = trimTrees(p, rows)
 	byID := map[uuid.UUID]*adminrunv1.UserRun{}
 	for _, r := range rows {
-		msg := to.ProtoUserRun(r.Run, r.Email, r.OpenFindings, to.ProtoRunFetch(r.Datasource, r.Endpoint, r.FetchKind))
+		msg := to.ProtoUserRun(r.Run, r.RunDetail)
 		msg.Matched = r.Matched
 		byID[r.Run.ID] = msg
 		if r.Run.ParentID != nil {
@@ -148,7 +148,7 @@ func (s *Server) GetRun(ctx context.Context, req *connect.Request[adminrunv1.Get
 	if err != nil {
 		return nil, err
 	}
-	out := &adminrunv1.GetRunResponse{Run: to.ProtoUserRun(row.Run, row.Email, row.OpenFindings, to.ProtoRunFetch(row.Datasource, row.Endpoint, row.FetchKind))}
+	out := &adminrunv1.GetRunResponse{Run: to.ProtoUserRun(row.Run, row.RunDetail)}
 	ids, err := s.tree(ctx, row.Run, out)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
@@ -189,7 +189,7 @@ func (s *Server) tree(ctx context.Context, run gen.Run, out *adminrunv1.GetRunRe
 		return nil, err
 	}
 	for _, a := range ancestors {
-		out.Ancestors = append(out.Ancestors, to.ProtoUserRun(a.Run, a.Email, a.OpenFindings, to.ProtoRunFetch(a.Datasource, a.Endpoint, a.FetchKind)))
+		out.Ancestors = append(out.Ancestors, to.ProtoUserRun(a.Run, a.RunDetail))
 	}
 	descendants, err := s.queries.ListRunDescendants(ctx, &run.ID)
 	if err != nil {
@@ -199,7 +199,7 @@ func (s *Server) tree(ctx context.Context, run gen.Run, out *adminrunv1.GetRunRe
 	ids := []uuid.UUID{run.ID}
 	for _, d := range descendants {
 		ids = append(ids, d.Run.ID)
-		msg := to.ProtoUserRun(d.Run, d.Email, d.OpenFindings, to.ProtoRunFetch(d.Datasource, d.Endpoint, d.FetchKind))
+		msg := to.ProtoUserRun(d.Run, d.RunDetail)
 		byID[d.Run.ID] = msg
 		if parent := byID[*d.Run.ParentID]; parent != nil {
 			parent.Children = append(parent.Children, msg)
@@ -399,11 +399,7 @@ func (s *Server) StartSystemRun(ctx context.Context, req *connect.Request[adminr
 // finding writes a finding as its message, with what its key states. A
 // block finding's detail is its block's reason.
 func finding(row gen.ListRunFindingsRow) *adminrunv1.Finding {
-	var key *gen.StatedKey
-	if row.KeyID != nil {
-		key = &gen.StatedKey{Identifiers: row.KeyIdentifiers, AssetClass: row.KeyAssetClass, Currency: row.KeyCurrency}
-	}
-	out := to.ProtoFinding(row.Finding, key)
+	out := to.ProtoFinding(row.Finding, to.StatedKeyOf(row.KeyID, row.KeyIdentifiers, row.KeyAssetClass, row.KeyCurrency))
 	if row.Finding.Kind == gen.FindingKindBlock {
 		out.Detail = row.BlockReason
 	}

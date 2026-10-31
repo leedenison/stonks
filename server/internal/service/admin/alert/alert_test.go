@@ -52,7 +52,7 @@ func id(n int) uuid.UUID {
 }
 
 func runRow(n int) gen.ListFailedRunsRow {
-	return gen.ListFailedRunsRow{Run: gen.Run{ID: id(n), Kind: gen.RunKindIngestStmt, Trigger: gen.RunTriggerUser, State: gen.RunStateFailed, CreatedAt: today}, Email: ptr.To(emailAlpha)}
+	return gen.ListFailedRunsRow{Run: gen.Run{ID: id(n), Kind: gen.RunKindIngestStmt, Trigger: gen.RunTriggerUser, State: gen.RunStateFailed, CreatedAt: today}, RunDetail: gen.RunDetail{Email: ptr.To(emailAlpha)}}
 }
 
 func blockRow(n int) gen.ListBlocksRow {
@@ -64,7 +64,7 @@ func findingRow(n int, kind gen.FindingKind) gen.ListOpenFindingsRow {
 }
 
 func runAlert(r gen.ListFailedRunsRow) *adminalertv1.Alert {
-	return &adminalertv1.Alert{Kind: failedRun, Subject: &adminalertv1.Alert_Run{Run: to.ProtoUserRun(r.Run, r.Email, 0, nil)}}
+	return &adminalertv1.Alert{Kind: failedRun, Subject: &adminalertv1.Alert_Run{Run: to.ProtoUserRun(r.Run, r.RunDetail)}}
 }
 
 func blockAlert(r gen.ListBlocksRow) *adminalertv1.Alert {
