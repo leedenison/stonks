@@ -26,8 +26,16 @@ of open issues and ADRs at `docs/tasks/<label>/`.
   actions beside it, and the decision on whether a corporate action restates shares.
 
 ```
-    001 open
-       |
+    003 corp act
+         |
+    004 reads
+         |
+    005 page
+         |
+    006 runs panel
+         |
+    007 labels
+         |
     002 close
 ```
 
