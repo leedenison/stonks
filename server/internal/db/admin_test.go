@@ -376,7 +376,154 @@ func TestFindingsAndBlocks(t *testing.T) {
 			t.Errorf("ListBlocks of the open includes the cleared block %s", firstBlock)
 		}
 	}
+	openBlocks, err := q.CountOpenBlocks(ctx)
+	require.NoError(t, err)
+	if openBlocks != 1 {
+		t.Errorf("CountOpenBlocks = %d, want 1: one of two blocks was cleared", openBlocks)
+	}
+}
 
+// TestFailedRuns checks that the failed listing holds the failed and the
+// interrupted runs alone, newest first, pages by id, and that the count
+// agrees.
+func TestFailedRuns(t *testing.T) {
+	ctx := context.Background()
+	q := newTx(t)
+	user := newUser(t, q, "failed-runs@example.com")
+	create := func(start bool) gen.Run {
+		t.Helper()
+		row, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &user.ID, Kind: gen.RunKindIngestStmt, Trigger: gen.RunTriggerUser})
+		require.NoError(t, err)
+		if start {
+			_, err = q.StartRun(ctx, row.ID)
+			require.NoError(t, err)
+		}
+		return row
+	}
+	completed := create(true)
+	require.NoError(t, q.CompleteRun(ctx, completed.ID))
+	failed := create(true)
+	require.NoError(t, q.FailRun(ctx, gen.FailRunParams{ID: failed.ID, Error: "boom"}))
+	interrupted := create(true)
+	_, err := q.InterruptRuns(ctx)
+	require.NoError(t, err)
+	create(false)
+	create(true)
+
+	ids := func(rows []gen.ListFailedRunsRow) []uuid.UUID {
+		var out []uuid.UUID
+		for _, r := range rows {
+			out = append(out, r.Run.ID)
+			if r.Email == nil || *r.Email != user.Email {
+				t.Errorf("ListFailedRuns row %s email = %v, want %s", r.Run.ID, r.Email, user.Email)
+			}
+		}
+		return out
+	}
+	rows, err := q.ListFailedRuns(ctx, gen.ListFailedRunsParams{Lim: 10})
+	require.NoError(t, err)
+	if diff := cmp.Diff([]uuid.UUID{interrupted.ID, failed.ID}, ids(rows)); diff != "" {
+		t.Errorf("ListFailedRuns mismatch (-want +got):\n%s", diff)
+	}
+	if rows[0].Run.State != gen.RunStateInterrupted || rows[1].Run.State != gen.RunStateFailed {
+		t.Errorf("ListFailedRuns states = %s, %s, want interrupted, failed", rows[0].Run.State, rows[1].Run.State)
+	}
+	rows, err = q.ListFailedRuns(ctx, gen.ListFailedRunsParams{Before: &interrupted.ID, Lim: 10})
+	require.NoError(t, err)
+	if diff := cmp.Diff([]uuid.UUID{failed.ID}, ids(rows)); diff != "" {
+		t.Errorf("ListFailedRuns after the interrupted run mismatch (-want +got):\n%s", diff)
+	}
+	n, err := q.CountFailedRuns(ctx)
+	require.NoError(t, err)
+	if n != 2 {
+		t.Errorf("CountFailedRuns = %d, want 2", n)
+	}
+}
+
+// TestListFailedRunsIndex checks that the failed listing scans
+// runs_failed_idx.
+func TestListFailedRunsIndex(t *testing.T) {
+	q, e := explain(t)
+	_, err := q.ListFailedRuns(context.Background(), gen.ListFailedRunsParams{Lim: 10})
+	require.NoError(t, err)
+	if conds := indexConds(t, e.plan, "runs_failed_idx"); len(conds) == 0 {
+		t.Errorf("runs_failed_idx is not scanned:\n%s", e.plan)
+	}
+}
+
+// TestOpenFindings checks that the open listing holds the uncleared findings
+// of the asked kinds alone, newest first, each with what its key states, pages
+// by id, and that the counts group by kind.
+func TestOpenFindings(t *testing.T) {
+	ctx := context.Background()
+	q := newTx(t)
+	user := newUser(t, q, "open-findings@example.com")
+	stmt := newStmt(t, q, user)
+	parent, err := q.GetRun(ctx, gen.GetRunParams{ID: stmt.ID, UserID: &user.ID})
+	require.NoError(t, err)
+	key := newStatedKey(t, q, user, stmt)
+	fetch := newFetch(t, q, user, parent, newDatasource(t, q, "open-findings", 10))
+	fetched := servedKey(t, q, fetch, key, "GB00B03MLX29")
+	create := func(arg gen.CreateFindingParams) uuid.UUID {
+		t.Helper()
+		arg.ID, arg.RunID, arg.Detail = db.NewID(), parent.ID, ptr.To("grounds")
+		require.NoError(t, q.CreateFinding(ctx, arg))
+		return arg.ID
+	}
+	contradiction := create(gen.CreateFindingParams{Kind: gen.FindingKindContradiction, StatedKeyID: &key.ID})
+	cleared := create(gen.CreateFindingParams{Kind: gen.FindingKindContradiction, StatedKeyID: &key.ID})
+	_, err = q.ClearFinding(ctx, cleared)
+	require.NoError(t, err)
+	create(gen.CreateFindingParams{Kind: gen.FindingKindDropped, StatedKeyID: &key.ID, FetchKeyID: &fetched, Step: ptr.To(gen.DropStepStated)})
+	missed := create(gen.CreateFindingParams{Kind: gen.FindingKindMissedEvent, FetchKeyID: &fetched})
+
+	kinds := []string{string(gen.FindingKindContradiction), string(gen.FindingKindMissedEvent)}
+	rows, err := q.ListOpenFindings(ctx, gen.ListOpenFindingsParams{Kinds: kinds, Lim: 10})
+	require.NoError(t, err)
+	type row struct {
+		ID    uuid.UUID
+		KeyID *uuid.UUID
+	}
+	var got []row
+	for _, r := range rows {
+		got = append(got, row{ID: r.Finding.ID, KeyID: r.KeyID})
+		if r.KeyID != nil {
+			if diff := cmp.Diff(key.Identifiers, r.KeyIdentifiers); diff != "" {
+				t.Errorf("ListOpenFindings row %s key identifiers mismatch (-want +got):\n%s", r.Finding.ID, diff)
+			}
+		}
+	}
+	if diff := cmp.Diff([]row{{ID: missed}, {ID: contradiction, KeyID: &key.ID}}, got); diff != "" {
+		t.Errorf("ListOpenFindings mismatch (-want +got):\n%s", diff)
+	}
+	rows, err = q.ListOpenFindings(ctx, gen.ListOpenFindingsParams{Kinds: kinds, Before: &missed, Lim: 10})
+	require.NoError(t, err)
+	if len(rows) != 1 || rows[0].Finding.ID != contradiction {
+		t.Errorf("ListOpenFindings after the missed event = %+v, want the contradiction alone", rows)
+	}
+
+	counts, err := q.CountOpenFindings(ctx)
+	require.NoError(t, err)
+	byKind := map[gen.FindingKind]int32{}
+	for _, c := range counts {
+		byKind[c.Kind] = c.Count
+	}
+	want := map[gen.FindingKind]int32{gen.FindingKindContradiction: 1, gen.FindingKindDropped: 1, gen.FindingKindMissedEvent: 1}
+	if diff := cmp.Diff(want, byKind); diff != "" {
+		t.Errorf("CountOpenFindings mismatch (-want +got):\n%s", diff)
+	}
+}
+
+// TestListOpenFindingsIndex checks that the open listing searches
+// findings_open_idx on the kind.
+func TestListOpenFindingsIndex(t *testing.T) {
+	q, e := explain(t)
+	_, err := q.ListOpenFindings(context.Background(), gen.ListOpenFindingsParams{Kinds: []string{string(gen.FindingKindContradiction)}, Lim: 10})
+	require.NoError(t, err)
+	conds := indexConds(t, e.plan, "findings_open_idx")
+	if !slices.ContainsFunc(conds, func(c string) bool { return strings.Contains(c, "kind = ANY") }) {
+		t.Errorf("findings_open_idx is not searched on the kind:\n%s", e.plan)
+	}
 }
 
 // TestListSystemRuns checks that the listings hold a system run, with no

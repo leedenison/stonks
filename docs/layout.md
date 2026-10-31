@@ -15,7 +15,9 @@
 
 ```
 proto/
+  admin/alert/v1/alert.proto                                        stonks.admin.alert.v1                    -- what needs an administrator, across every surface
   admin/block/v1/block.proto                                        stonks.admin.block.v1                    -- datasource blocks, across every user
+  admin/corpact/v1/corpact.proto                                    stonks.admin.corpact.v1                  -- the corporate actions of an instrument and the decision on each
   admin/coverage/v1/coverage.proto                                  stonks.admin.coverage.v1                 -- where each ticker's validity is confirmed, and identifier attestations of what no datasource covers
   admin/datasource/v1/datasource.proto                              stonks.admin.datasource.v1               -- the external providers and their settings
   admin/instr/v1/instr.proto                                        stonks.admin.instr.v1                    -- every instrument, with its identifiers and listings

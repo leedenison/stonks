@@ -10,4 +10,6 @@ The home view is a digest: the count of each kind and its top five, from one RPC
 nav badge reads the same digest. A kind's full list is a second RPC that requires the
 kind and pages by keyset cursor, as the other admin lists do. One bounded query per
 kind keeps each page cheap, and a cursor over one kind survives rows that appear or
-vanish between pages.
+vanish between pages. The ticker that names nothing and the ticker validity gap are the
+exception: gap derivation runs in Go over stored ticker validity, so each read derives
+both kinds in full and cuts the page in memory.

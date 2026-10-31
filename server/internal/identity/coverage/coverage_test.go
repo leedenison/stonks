@@ -144,3 +144,75 @@ func TestTickerRefused(t *testing.T) {
 		})
 	}
 }
+
+func stated(value string, key uuid.UUID, n, txns int) gen.ListStatedTickerTxnsRow {
+	return gen.ListStatedTickerTxnsRow{Market: "US", Value: value, StatedKeyID: key, AsAt: day(n), Txns: int32(txns)}
+}
+
+// TestUnconfirmed checks that a ticker without an interval is read as naming
+// nothing, with its keys, transactions and first day. A ticker with intervals
+// is read by the gaps of its period, under the instrument of its latest
+// interval. A ticker whose confirmed interval covers its period appears in
+// neither.
+func TestUnconfirmed(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	q := mock.NewMockQueries(ctrl)
+	beta := uuid.MustParse("00000000-0000-0000-0000-000000000002")
+	q.EXPECT().ListStatedTickerTxns(gomock.Any()).Return([]gen.ListStatedTickerTxnsRow{
+		stated("ACME", k1, 5, 1), stated("ACME", k2, 15, 1),
+		stated("FULL", k1, 5, 1),
+		stated("NONE", k1, 3, 2), stated("NONE", k2, 5, 1),
+		stated("TWO", k2, 2, 1),
+	}, nil)
+	from, mid, early := day(10), day(21), day(4)
+	q.EXPECT().ListTickerValidity(gomock.Any(), gen.ListTickerValidityParams{
+		Markets: []string{"US", "US", "US", "US"}, Values: []string{"ACME", "FULL", "NONE", "TWO"},
+	}).Return([]gen.ListTickerValidityRow{
+		{Market: "US", Value: "ACME", InstrID: acme, ValidFrom: &from, ValidBefore: &mid, Validity: tickervalidity.Confirmed},
+		{Market: "US", Value: "ACME", InstrID: acme, ValidFrom: &mid, Validity: tickervalidity.Provisional},
+		{Market: "US", Value: "FULL", InstrID: beta, Validity: tickervalidity.Confirmed},
+		{Market: "US", Value: "TWO", InstrID: acme, ValidBefore: &early, Validity: tickervalidity.Confirmed},
+		{Market: "US", Value: "TWO", InstrID: beta, ValidFrom: &early, Validity: tickervalidity.Provisional},
+	}, nil)
+	name := types.Identifier{Type: types.IdentifierTypeIsin, Value: "US0000000001"}
+	q.EXPECT().ListInstrNames(gomock.Any(), []uuid.UUID{acme, beta}).
+		Return([]gen.InstrName{{InstrID: acme, Type: name.Type, Value: name.Value}}, nil)
+
+	nothing, gapped, err := New(q, mics).Unconfirmed(context.Background(), day(30))
+	if err != nil {
+		t.Fatalf("Unconfirmed: %v", err)
+	}
+	wantNothing := []NamesNothing{{Ticker: ticker("NONE"), Keys: 2, Txns: 3, First: day(3)}}
+	if diff := cmp.Diff(wantNothing, nothing); diff != "" {
+		t.Errorf("Unconfirmed names nothing mismatch (-want +got):\n%s", diff)
+	}
+	wantGaps := []TickerGap{
+		{Ticker: ticker("ACME"), Instr: acme, Name: name, Gap: Gap{Period: types.Period{From: day(5), Before: from}, Keys: 1, Txns: 1}},
+		{Ticker: ticker("ACME"), Instr: acme, Name: name, Gap: Gap{Period: types.Period{From: mid, Before: day(31)}}},
+		{Ticker: ticker("TWO"), Instr: beta, Gap: Gap{Period: types.Period{From: early, Before: day(31)}}},
+	}
+	if diff := cmp.Diff(wantGaps, gapped); diff != "" {
+		t.Errorf("Unconfirmed gaps mismatch (-want +got):\n%s", diff)
+	}
+}
+
+// TestUnconfirmedNone checks that with no stated ticker nothing else is read.
+func TestUnconfirmedNone(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	q := mock.NewMockQueries(ctrl)
+	q.EXPECT().ListStatedTickerTxns(gomock.Any()).Return(nil, nil)
+	nothing, gapped, err := New(q, mics).Unconfirmed(context.Background(), day(30))
+	if err != nil || nothing != nil || gapped != nil {
+		t.Errorf("Unconfirmed = %v, %v, %v, want nothing", nothing, gapped, err)
+	}
+}
+
+func TestUnconfirmedFails(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	q := mock.NewMockQueries(ctrl)
+	boom := errors.New("boom")
+	q.EXPECT().ListStatedTickerTxns(gomock.Any()).Return(nil, boom)
+	if _, _, err := New(q, mics).Unconfirmed(context.Background(), day(30)); !errors.Is(err, boom) {
+		t.Errorf("Unconfirmed error = %v, want %v", err, boom)
+	}
+}

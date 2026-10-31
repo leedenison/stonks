@@ -122,3 +122,5 @@ WHERE (@include_cleared::bool OR datasource_blocks.cleared_at IS NULL)
 ORDER BY datasource_blocks.id DESC
 LIMIT @lim;
 
+-- name: CountOpenBlocks :one
+SELECT count(*)::int FROM datasource_blocks WHERE cleared_at IS NULL;

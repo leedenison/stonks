@@ -10,9 +10,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
-	adminblockv1 "github.com/leedenison/stonks/proto/admin/block/v1"
 	adminreplayrunv1 "github.com/leedenison/stonks/proto/admin/replay_run/v1"
 	adminrunv1 "github.com/leedenison/stonks/proto/admin/run/v1"
 	"github.com/leedenison/stonks/proto/admin/run/v1/adminrunv1connect"
@@ -94,7 +92,7 @@ func (s *Server) ListRuns(ctx context.Context, req *connect.Request[adminrunv1.L
 	rows, out.NextPageToken = trimTrees(p, rows)
 	byID := map[uuid.UUID]*adminrunv1.UserRun{}
 	for _, r := range rows {
-		msg := userRun(r.Run, r.Email, r.OpenFindings, runFetch(r.Datasource, r.Endpoint, r.FetchKind))
+		msg := to.ProtoUserRun(r.Run, r.Email, r.OpenFindings, to.ProtoRunFetch(r.Datasource, r.Endpoint, r.FetchKind))
 		msg.Matched = r.Matched
 		byID[r.Run.ID] = msg
 		if r.Run.ParentID != nil {
@@ -149,7 +147,7 @@ func (s *Server) GetRun(ctx context.Context, req *connect.Request[adminrunv1.Get
 	if err != nil {
 		return nil, err
 	}
-	out := &adminrunv1.GetRunResponse{Run: userRun(row.Run, row.Email, row.OpenFindings, runFetch(row.Datasource, row.Endpoint, row.FetchKind))}
+	out := &adminrunv1.GetRunResponse{Run: to.ProtoUserRun(row.Run, row.Email, row.OpenFindings, to.ProtoRunFetch(row.Datasource, row.Endpoint, row.FetchKind))}
 	ids, err := s.tree(ctx, row.Run, out)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
@@ -190,7 +188,7 @@ func (s *Server) tree(ctx context.Context, run gen.Run, out *adminrunv1.GetRunRe
 		return nil, err
 	}
 	for _, a := range ancestors {
-		out.Ancestors = append(out.Ancestors, userRun(a.Run, a.Email, a.OpenFindings, runFetch(a.Datasource, a.Endpoint, a.FetchKind)))
+		out.Ancestors = append(out.Ancestors, to.ProtoUserRun(a.Run, a.Email, a.OpenFindings, to.ProtoRunFetch(a.Datasource, a.Endpoint, a.FetchKind)))
 	}
 	descendants, err := s.queries.ListRunDescendants(ctx, &run.ID)
 	if err != nil {
@@ -200,7 +198,7 @@ func (s *Server) tree(ctx context.Context, run gen.Run, out *adminrunv1.GetRunRe
 	ids := []uuid.UUID{run.ID}
 	for _, d := range descendants {
 		ids = append(ids, d.Run.ID)
-		msg := userRun(d.Run, d.Email, d.OpenFindings, runFetch(d.Datasource, d.Endpoint, d.FetchKind))
+		msg := to.ProtoUserRun(d.Run, d.Email, d.OpenFindings, to.ProtoRunFetch(d.Datasource, d.Endpoint, d.FetchKind))
 		byID[d.Run.ID] = msg
 		if parent := byID[*d.Run.ParentID]; parent != nil {
 			parent.Children = append(parent.Children, msg)
@@ -378,42 +376,16 @@ func (s *Server) StartSystemRun(ctx context.Context, req *connect.Request[adminr
 	return connect.NewResponse(&adminrunv1.StartSystemRunResponse{Run: to.ProtoRun(started)}), nil
 }
 
-// finding writes row as its message, with what the key concerned states.
+// finding writes a finding as its message, with what its key states. A
+// block finding's detail is its block's reason.
 func finding(row gen.ListRunFindingsRow) *adminrunv1.Finding {
-	f := row.Finding
-	out := &adminrunv1.Finding{
-		Id:        f.ID.String(),
-		RunId:     f.RunID.String(),
-		Kind:      types.ToProto[adminrunv1.FindingKind](f.Kind),
-		CreatedAt: timestamppb.New(f.CreatedAt),
-	}
+	var key *gen.StatedKey
 	if row.KeyID != nil {
-		out.StatedKey = to.ProtoStatedKey(gen.StatedKey{
-			Identifiers: row.KeyIdentifiers, AssetClass: row.KeyAssetClass, Currency: row.KeyCurrency,
-		})
+		key = &gen.StatedKey{Identifiers: row.KeyIdentifiers, AssetClass: row.KeyAssetClass, Currency: row.KeyCurrency}
 	}
-	if f.BlockID != nil {
-		id := f.BlockID.String()
-		out.BlockId = &id
-	}
-	if f.CorpActID != nil {
-		id := f.CorpActID.String()
-		out.CorpActId = &id
-	}
-	if f.StatedKeyID != nil {
-		id := f.StatedKeyID.String()
-		out.StatedKeyId = &id
-	}
-	if f.Step != nil {
-		step := types.ToProto[adminrunv1.DropStep](*f.Step)
-		out.Step = &step
-	}
-	out.Detail = f.Detail
-	if f.Kind == gen.FindingKindBlock {
+	out := to.ProtoFinding(row.Finding, key)
+	if row.Finding.Kind == gen.FindingKindBlock {
 		out.Detail = row.BlockReason
-	}
-	if f.ClearedAt != nil {
-		out.ClearedAt = timestamppb.New(*f.ClearedAt)
 	}
 	return out
 }
@@ -431,19 +403,6 @@ func treeOrder(root *adminrunv1.UserRun) map[string]int {
 	}
 	walk(root)
 	return order
-}
-
-// userRun builds a run as the admin listings return it. A system run has
-// neither a user nor an email.
-func userRun(r gen.Run, email *string, open int32, fetch *adminrunv1.RunFetch) *adminrunv1.UserRun {
-	out := &adminrunv1.UserRun{
-		Run: to.ProtoRun(r), UserEmail: email, OpenFindings: open, Matched: true, Fetch: fetch,
-	}
-	if r.UserID != nil {
-		id := r.UserID.String()
-		out.UserId = &id
-	}
-	return out
 }
 
 // filter converts an optional enum field to the database value it matches.
@@ -468,13 +427,4 @@ func optionalID(s *string) (*uuid.UUID, error) {
 		return nil, err
 	}
 	return &id, nil
-}
-
-// runFetch returns nil for a run of another kind than fetch, which has no
-// fetches row.
-func runFetch(datasource, endpoint *string, kind *gen.FetchKind) *adminrunv1.RunFetch {
-	if datasource == nil || endpoint == nil || kind == nil {
-		return nil
-	}
-	return &adminrunv1.RunFetch{Datasource: *datasource, Endpoint: *endpoint, Kind: types.ToProto[adminblockv1.FetchKind](*kind)}
 }
