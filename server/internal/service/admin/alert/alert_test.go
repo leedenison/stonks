@@ -75,7 +75,7 @@ func findingAlert(k adminalertv1.AlertKind, r gen.ListOpenFindingsRow) *adminale
 // tickerGap is a gap on US:value from day n with txns transactions.
 func tickerGap(value string, txns, n int) coverage.TickerGap {
 	return coverage.TickerGap{
-		Ticker: types.MarketTicker{Market: "US", Value: value}, Instr: uuid.MustParse(acme),
+		Ticker: types.MarketTicker{Market: "US", Value: value}, Instr: ptr.To(uuid.MustParse(acme)),
 		Name: types.Identifier{Type: types.IdentifierTypeIsin, Value: "US0000000001"},
 		Gap:  coverage.Gap{Period: types.Period{From: day(n), Before: day(31)}, Keys: 1, Txns: txns},
 	}

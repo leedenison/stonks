@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 
 	"github.com/leedenison/stonks/server/internal/db"
@@ -122,6 +123,20 @@ func (f *fixture) attest(t *testing.T, instr uuid.UUID, market, value string) {
 	err = f.q.CreateIdentifierAssertion(ctx, gen.CreateIdentifierAssertionParams{
 		ID: db.NewID(), RunID: &run.ID, AttestedBy: &f.user.ID,
 		TickerID: dbtest.Ticker(t, f.q, types.MarketTicker{Market: market, Value: value}).ID, Market: market, InstrID: &instr, AssertedFrom: day(1), AssertedBefore: day(1).AddDate(0, 0, 1),
+	})
+	require.NoError(t, err)
+}
+
+// attestNothing asserts that the ticker value at market names nothing from
+// day from up to day before, as an administrator.
+func (f *fixture) attestNothing(t *testing.T, market, value string, from, before int) {
+	t.Helper()
+	ctx := context.Background()
+	run, err := f.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), Kind: gen.RunKindAttestIdentifier, Trigger: gen.RunTriggerUser})
+	require.NoError(t, err)
+	err = f.q.CreateIdentifierAssertion(ctx, gen.CreateIdentifierAssertionParams{
+		ID: db.NewID(), RunID: &run.ID, AttestedBy: &f.user.ID,
+		TickerID: dbtest.Ticker(t, f.q, types.MarketTicker{Market: market, Value: value}).ID, Market: market, AssertedFrom: day(from), AssertedBefore: day(before),
 	})
 	require.NoError(t, err)
 }
@@ -251,8 +266,8 @@ func TestRelations(t *testing.T) {
 // gathered under its market, a segment MIC included. A key at two venues
 // counts once per transaction and a bare ticker is left out, so the count
 // agrees with ListTickerTxns. Against the same rows, Unconfirmed reads a
-// ticker without a validity row as naming nothing and a ticker with a
-// confirmed interval by its gaps.
+// ticker without a validity row as naming nothing, less the day attested as
+// naming nothing, and a ticker with a confirmed interval by its gaps.
 func TestStatedTickerTxns(t *testing.T) {
 	f := newFixture(t)
 	ctx := context.Background()
@@ -266,16 +281,18 @@ func TestStatedTickerTxns(t *testing.T) {
 	london := f.key(t, "XLON", named, 2, 5)
 	instr := f.instr(t)
 	f.validity(t, instr, "XLON", named, 1, 3)
+	f.attestNothing(t, "US", value, 4, 5)
 
 	rows, err := f.q.ListStatedTickerTxns(ctx)
 	require.NoError(t, err)
+	one, two := decimal.NewFromInt(1), decimal.NewFromInt(2)
 	want := []gen.ListStatedTickerTxnsRow{
-		{Market: "US", Value: value, StatedKeyID: segment, AsAt: day(4), Txns: 1},
-		{Market: "US", Value: value, StatedKeyID: nasdaq, AsAt: day(6), Txns: 2},
-		{Market: "US", Value: value, StatedKeyID: nyse, AsAt: day(7), Txns: 1},
-		{Market: "US", Value: value, StatedKeyID: both, AsAt: day(8), Txns: 1},
-		{Market: "XLON", Value: named, StatedKeyID: london, AsAt: day(2), Txns: 1},
-		{Market: "XLON", Value: named, StatedKeyID: london, AsAt: day(5), Txns: 1},
+		{Market: "US", Value: value, StatedKeyID: segment, AsAt: day(4), Txns: 1, Quantity: one},
+		{Market: "US", Value: value, StatedKeyID: nasdaq, AsAt: day(6), Txns: 2, Quantity: two},
+		{Market: "US", Value: value, StatedKeyID: nyse, AsAt: day(7), Txns: 1, Quantity: one},
+		{Market: "US", Value: value, StatedKeyID: both, AsAt: day(8), Txns: 1, Quantity: one},
+		{Market: "XLON", Value: named, StatedKeyID: london, AsAt: day(2), Txns: 1, Quantity: one},
+		{Market: "XLON", Value: named, StatedKeyID: london, AsAt: day(5), Txns: 1, Quantity: one},
 	}
 	if diff := cmp.Diff(want, rows); diff != "" {
 		t.Errorf("ListStatedTickerTxns mismatch (-want +got):\n%s", diff)
@@ -296,12 +313,12 @@ func TestStatedTickerTxns(t *testing.T) {
 
 	nothing, gapped, err := New(f.q, mics).Unconfirmed(ctx, day(30))
 	require.NoError(t, err)
-	wantNothing := []NamesNothing{{Ticker: types.MarketTicker{Market: "US", Value: value}, Keys: 4, Txns: 5, First: day(4)}}
+	wantNothing := []NamesNothing{{Ticker: types.MarketTicker{Market: "US", Value: value}, Keys: 3, Txns: 4, First: day(6)}}
 	if diff := cmp.Diff(wantNothing, nothing); diff != "" {
 		t.Errorf("Unconfirmed names nothing mismatch (-want +got):\n%s", diff)
 	}
 	wantGaps := []TickerGap{{
-		Ticker: types.MarketTicker{Market: "XLON", Value: named}, Instr: instr,
+		Ticker: types.MarketTicker{Market: "XLON", Value: named}, Instr: &instr,
 		Gap: Gap{Period: types.Period{From: day(3), Before: day(31)}, Keys: 1, Txns: 1},
 	}}
 	if diff := cmp.Diff(wantGaps, gapped); diff != "" {

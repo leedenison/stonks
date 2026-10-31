@@ -267,15 +267,34 @@ ORDER BY ticker_id;
 
 -- name: ListStatedTickerTxns :many
 -- Every ticker at its market that a key with transactions states, with each
--- such key, each of its as-at days and its transactions that day. A key
--- stating the ticker at two venues of one market counts each transaction
--- once. A ticker without a venue, or at a MIC in no market, is left out.
-SELECT mic_markets.market::text AS market, (ident->>'value')::text AS value,
-       txns.stated_key_id, txns.as_at, count(DISTINCT txns.id)::int AS txns
-FROM txns
-JOIN stated_keys ON stated_keys.id = txns.stated_key_id
-CROSS JOIN LATERAL jsonb_array_elements(stated_keys.identifiers) AS ident
-JOIN mic_markets ON mic_markets.mic = ident->>'domain'
-WHERE ident->>'type' = 'mic_ticker'
-GROUP BY mic_markets.market, ident->>'value', txns.stated_key_id, txns.as_at
-ORDER BY 1, 2, txns.as_at, txns.stated_key_id;
+-- such key, each of its as-at days, and the count and the stated quantities
+-- of its transactions that day. A key stating the ticker at two venues of
+-- one market counts each transaction once. A ticker without a venue, or at a
+-- MIC in no market, is left out. The keys expand before the join so that the
+-- transactions group once, through txns_key_idx.
+WITH stated AS (
+    SELECT DISTINCT stated_keys.id AS stated_key_id, mic_markets.market::text AS market,
+           (ident->>'value')::text AS value
+    FROM stated_keys
+    CROSS JOIN LATERAL jsonb_array_elements(stated_keys.identifiers) AS ident
+    JOIN mic_markets ON mic_markets.mic = ident->>'domain'
+    WHERE ident->>'type' = 'mic_ticker'
+), days AS (
+    SELECT txns.stated_key_id, txns.as_at, count(*)::int AS txns, sum(txns.quantity)::numeric AS quantity
+    FROM txns
+    WHERE txns.stated_key_id IN (SELECT stated_key_id FROM stated)
+    GROUP BY txns.stated_key_id, txns.as_at
+)
+SELECT stated.market, stated.value, days.stated_key_id, days.as_at, days.txns, days.quantity
+FROM stated
+JOIN days ON days.stated_key_id = stated.stated_key_id
+ORDER BY stated.market, stated.value, days.as_at, days.stated_key_id;
+
+-- name: ListAttestedNothing :many
+-- The days on which an administrator attested that a ticker names nothing,
+-- by ticker.
+SELECT tickers.market, tickers.value, identifier_assertions.asserted_from, identifier_assertions.asserted_before
+FROM identifier_assertions
+JOIN tickers ON tickers.id = identifier_assertions.ticker_id
+WHERE identifier_assertions.run_id IS NOT NULL AND identifier_assertions.instr_id IS NULL
+ORDER BY tickers.market, tickers.value, identifier_assertions.asserted_from;

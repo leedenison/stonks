@@ -5,6 +5,11 @@
 // attestation closes a gap by asserting its days. A ticker is read at its
 // market, and its transactions are those of the keys that state it at any
 // venue of the market.
+//
+// The alerts are narrower than a ticker's page. A gap is an alert only
+// while a key stating the ticker holds a position across some of its days.
+// A ticker that names nothing, and a gap, each leave out the days an
+// administrator attested as naming nothing.
 package coverage
 
 import (
@@ -15,6 +20,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 
 	adminalertv1 "github.com/leedenison/stonks/proto/admin/alert/v1"
 	admincoveragev1 "github.com/leedenison/stonks/proto/admin/coverage/v1"
@@ -36,6 +42,7 @@ type Queries interface {
 	CountTickerTxns(ctx context.Context, probes [][]byte) (int32, error)
 	ListTickerTxns(ctx context.Context, probes [][]byte) ([]gen.ListTickerTxnsRow, error)
 	ListStatedTickerTxns(ctx context.Context) ([]gen.ListStatedTickerTxnsRow, error)
+	ListAttestedNothing(ctx context.Context) ([]gen.ListAttestedNothingRow, error)
 	ListInstrNames(ctx context.Context, ids []uuid.UUID) ([]gen.InstrName, error)
 }
 
@@ -151,11 +158,13 @@ func (n NamesNothing) ToProto() *adminalertv1.TickerNamesNothing {
 	return &adminalertv1.TickerNamesNothing{Ticker: n.Ticker.ToProto(), Keys: int32(n.Keys), Txns: int32(n.Txns), FirstTxnDay: ymd(n.First)}
 }
 
-// TickerGap is one gap of a ticker, with the instrument of the ticker's
-// latest interval.
+// TickerGap is one gap of a ticker, with the instrument of the interval
+// nearest the gap.
 type TickerGap struct {
 	Ticker types.MarketTicker
-	Instr  uuid.UUID
+	// Instr is the instrument of the interval nearest the gap; nil for an
+	// isolated gap.
+	Instr *uuid.UUID
 	// Name is the identifier naming the instrument; the zero value where it
 	// has none.
 	Name types.Identifier
@@ -164,11 +173,11 @@ type TickerGap struct {
 
 // ToProto converts the gap.
 func (g TickerGap) ToProto() *adminalertv1.TickerValidityGap {
-	return &adminalertv1.TickerValidityGap{
-		Ticker: g.Ticker.ToProto(),
-		Instr:  &admincoveragev1.InstrName{Id: g.Instr.String(), Name: g.Name.ToProto()},
-		Gap:    g.Gap.ToProto(),
+	out := &adminalertv1.TickerValidityGap{Ticker: g.Ticker.ToProto(), Gap: g.Gap.ToProto()}
+	if g.Instr != nil {
+		out.Instr = &admincoveragev1.InstrName{Id: g.Instr.String(), Name: g.Name.ToProto()}
 	}
+	return out
 }
 
 // relationOrder ranks the relations as the tickers of an instrument are
@@ -248,7 +257,7 @@ func (r *Reader) read(ctx context.Context, v types.MarketTicker, today time.Time
 		}
 		days = append(days, txnDay{Key: txn.StatedKeyID, AsAt: txn.AsAt, Txns: 1})
 	}
-	t.Gaps = gaps(t.Intervals, days, today)
+	t.Gaps = gaps(t.Intervals, nil, days, today)
 	return t, nil
 }
 
@@ -270,23 +279,35 @@ func (r *Reader) name(ctx context.Context, t *Page) error {
 	for _, iv := range t.Intervals {
 		add(iv.Instr)
 	}
-	if len(ids) == 0 {
-		return nil
-	}
-	names, err := r.q.ListInstrNames(ctx, ids)
+	names, err := r.names(ctx, ids)
 	if err != nil {
-		return fmt.Errorf("list instrument names: %w", err)
+		return err
 	}
-	t.Names = make(map[uuid.UUID]types.Identifier, len(names))
-	for _, n := range names {
-		t.Names[n.InstrID] = to.InstrName(n)
+	if len(names) > 0 {
+		t.Names = names
 	}
 	return nil
 }
 
-// Unconfirmed reads every ticker that a key with transactions states, in
-// ticker order: the tickers that name nothing on any day, and the gaps of
-// the tickers that name an instrument.
+// names reads the identifier naming each of the instruments ids.
+func (r *Reader) names(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]types.Identifier, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	rows, err := r.q.ListInstrNames(ctx, ids)
+	if err != nil {
+		return nil, fmt.Errorf("list instrument names: %w", err)
+	}
+	out := make(map[uuid.UUID]types.Identifier, len(rows))
+	for _, n := range rows {
+		out[n.InstrID] = to.InstrName(n)
+	}
+	return out, nil
+}
+
+// Unconfirmed reads the alerts of every ticker that a key with transactions
+// states, in ticker order: the tickers that name nothing on any day, and
+// the gaps of the tickers that name an instrument.
 func (r *Reader) Unconfirmed(ctx context.Context, today time.Time) ([]NamesNothing, []TickerGap, error) {
 	rows, err := r.q.ListStatedTickerTxns(ctx)
 	if err != nil {
@@ -299,7 +320,14 @@ func (r *Reader) Unconfirmed(ctx context.Context, today time.Time) ([]NamesNothi
 		if _, seen := days[v]; !seen {
 			order = append(order, v)
 		}
-		days[v] = append(days[v], txnDay{Key: row.StatedKeyID, AsAt: row.AsAt, Txns: int(row.Txns)})
+		days[v] = append(days[v], txnDay{Key: row.StatedKeyID, AsAt: row.AsAt, Txns: int(row.Txns), Quantity: row.Quantity})
+	}
+	if len(order) == 0 {
+		return nil, nil, nil
+	}
+	settled, err := r.attestedNothing(ctx)
+	if err != nil {
+		return nil, nil, err
 	}
 	ivs, err := tickervalidity.Load(ctx, r.q, order)
 	if err != nil {
@@ -310,19 +338,17 @@ func (r *Reader) Unconfirmed(ctx context.Context, today time.Time) ([]NamesNothi
 	for _, v := range order {
 		ds := days[v]
 		if !ivs[v].Any() {
-			n := NamesNothing{Ticker: v, First: ds[0].AsAt}
-			keys := map[uuid.UUID]bool{}
-			for _, d := range ds {
-				n.Txns += d.Txns
-				keys[d.Key] = true
+			if n, ok := namesNothing(v, ds, settled[v]); ok {
+				nothing = append(nothing, n)
 			}
-			n.Keys = len(keys)
-			nothing = append(nothing, n)
 			continue
 		}
-		instr := ivs[v][len(ivs[v])-1].Instr
-		for _, g := range gaps(ivs[v], ds, today) {
-			gapped = append(gapped, TickerGap{Ticker: v, Instr: instr, Gap: g})
+		held := holdings(ds, today)
+		for _, g := range gaps(ivs[v], settled[v], ds, today) {
+			if !slices.ContainsFunc(held, func(p types.Period) bool { _, ok := p.Clip(g.Period); return ok }) {
+				continue
+			}
+			gapped = append(gapped, TickerGap{Ticker: v, Instr: gapInstr(ivs[v], g.Period), Gap: g})
 		}
 	}
 	if err := r.nameGaps(ctx, gapped); err != nil {
@@ -331,45 +357,120 @@ func (r *Reader) Unconfirmed(ctx context.Context, today time.Time) ([]NamesNothi
 	return nothing, gapped, nil
 }
 
+// attestedNothing reads, by ticker, the days an administrator attested as
+// naming nothing.
+func (r *Reader) attestedNothing(ctx context.Context) (map[types.MarketTicker][]types.Period, error) {
+	rows, err := r.q.ListAttestedNothing(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list the attestations of nothing: %w", err)
+	}
+	out := map[types.MarketTicker][]types.Period{}
+	for _, row := range rows {
+		v := types.MarketTicker{Market: row.Market, Value: row.Value}
+		out[v] = append(out[v], types.Period{From: row.AssertedFrom, Before: row.AssertedBefore})
+	}
+	return out, nil
+}
+
+// namesNothing counts the keys and transactions of a ticker without an
+// interval, leaving out the days an administrator attested as naming
+// nothing. It reports false when none remain.
+func namesNothing(v types.MarketTicker, ds []txnDay, settled []types.Period) (NamesNothing, bool) {
+	n := NamesNothing{Ticker: v}
+	keys := map[uuid.UUID]bool{}
+	for _, d := range ds {
+		if slices.ContainsFunc(settled, func(p types.Period) bool { return p.Contains(d.AsAt) }) {
+			continue
+		}
+		if n.Txns == 0 {
+			n.First = d.AsAt
+		}
+		n.Txns += d.Txns
+		keys[d.Key] = true
+	}
+	n.Keys = len(keys)
+	return n, n.Txns > 0
+}
+
+// holdings returns the days over which each key of ds held a position: from
+// its first transaction through today, or through its last transaction when
+// the quantities it states sum to zero by then. The sum is of the stated
+// quantities, so a position bought before a split and sold after it reads
+// as held.
+func holdings(ds []txnDay, today time.Time) []types.Period {
+	var out []types.Period
+	open := map[uuid.UUID]int{}
+	sums := map[uuid.UUID]decimal.Decimal{}
+	for _, d := range ds {
+		if _, ok := open[d.Key]; !ok {
+			open[d.Key] = len(out)
+			out = append(out, types.Period{From: d.AsAt})
+		}
+		sums[d.Key] = sums[d.Key].Add(d.Quantity)
+		out[open[d.Key]].Before = d.AsAt.AddDate(0, 0, 1)
+	}
+	for key, i := range open {
+		if !sums[key].IsZero() {
+			out[i].Before = types.Day(today).AddDate(0, 0, 1)
+		}
+	}
+	return out
+}
+
+// gapInstr returns the instrument of the interval nearest the gap g, or nil
+// for an isolated gap.
+func gapInstr(ivs tickervalidity.Intervals, g types.Period) *uuid.UUID {
+	if iv, ok := ivs.On(g.From); ok {
+		return &iv.Instr
+	}
+	for _, iv := range ivs {
+		if iv.Before != nil && iv.Before.Equal(g.From) {
+			return &iv.Instr
+		}
+	}
+	for _, iv := range ivs {
+		if iv.From != nil && iv.From.Equal(g.Before) {
+			return &iv.Instr
+		}
+	}
+	return nil
+}
+
 // nameGaps sets the Name of each gap to its instrument's name.
 func (r *Reader) nameGaps(ctx context.Context, gapped []TickerGap) error {
 	var ids []uuid.UUID
 	seen := map[uuid.UUID]bool{}
 	for _, g := range gapped {
-		if !seen[g.Instr] {
-			seen[g.Instr] = true
-			ids = append(ids, g.Instr)
+		if g.Instr != nil && !seen[*g.Instr] {
+			seen[*g.Instr] = true
+			ids = append(ids, *g.Instr)
 		}
 	}
-	if len(ids) == 0 {
-		return nil
-	}
-	names, err := r.q.ListInstrNames(ctx, ids)
+	names, err := r.names(ctx, ids)
 	if err != nil {
-		return fmt.Errorf("list instrument names: %w", err)
-	}
-	byID := make(map[uuid.UUID]types.Identifier, len(names))
-	for _, n := range names {
-		byID[n.InstrID] = to.InstrName(n)
+		return err
 	}
 	for i := range gapped {
-		gapped[i].Name = byID[gapped[i].Instr]
+		if gapped[i].Instr != nil {
+			gapped[i].Name = names[*gapped[i].Instr]
+		}
 	}
 	return nil
 }
 
 // txnDay is the transactions of one key on one as-at day.
 type txnDay struct {
-	Key  uuid.UUID
-	AsAt time.Time
-	Txns int
+	Key      uuid.UUID
+	AsAt     time.Time
+	Txns     int
+	Quantity decimal.Decimal
 }
 
-// gaps returns the parts of a ticker's transaction period that no confirmed
-// interval of ivs holds, each with its keys and transactions. days are the
-// ticker's transactions in order of day, and the period runs from the first
-// up to and including today.
-func gaps(ivs tickervalidity.Intervals, days []txnDay, today time.Time) []Gap {
+// gaps returns the parts of a ticker's transaction period that neither a
+// confirmed interval of ivs nor a settled period holds, each with its keys
+// and transactions. days are the ticker's transactions in order of day, and
+// the period runs from the first up to and including today.
+func gaps(ivs tickervalidity.Intervals, settled []types.Period, days []txnDay, today time.Time) []Gap {
 	if len(days) == 0 {
 		return nil
 	}
@@ -377,8 +478,14 @@ func gaps(ivs tickervalidity.Intervals, days []txnDay, today time.Time) []Gap {
 	if !period.From.Before(period.Before) {
 		return nil
 	}
+	covered := slices.Clone(settled)
+	for _, iv := range ivs {
+		if c, ok := iv.Clip(period); ok && iv.Validity == tickervalidity.Confirmed {
+			covered = append(covered, c)
+		}
+	}
 	var out []Gap
-	for _, p := range ivs.Gaps(period) {
+	for _, p := range types.Gaps(covered, period) {
 		g := Gap{Period: p}
 		keys := map[uuid.UUID]bool{}
 		for _, d := range days {
