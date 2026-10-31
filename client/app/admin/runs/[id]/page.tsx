@@ -7,6 +7,7 @@ import { useParams, useRouter } from "next/navigation";
 import { Fragment, type ReactNode, useState } from "react";
 import { Button } from "@/app/components/button";
 import { Chip } from "@/app/components/chip";
+import { DecideCorpActDialog } from "@/app/components/decide-corp-act-dialog";
 import { EmptyState } from "@/app/components/empty-state";
 import {
   IdentifierChip,
@@ -174,11 +175,13 @@ function Lineage({
 }
 
 // Findings lists what the run and every run below it met. A finding that
-// reports a block clears with the block, which lifts it.
+// reports a block clears with the block, which lifts it. One that reports a
+// corporate action clears with the decision on the action.
 function Findings({ data }: { data: GetRunResponse }) {
   const clearFinding = useClearFinding();
   const clearBlock = useClearBlock();
   const [openId, setOpenId] = useState<string | null>(null);
+  const [deciding, setDeciding] = useState<string | null>(null);
   if (data.findings.length === 0) {
     return <EmptyState message="The run recorded no findings." />;
   }
@@ -240,6 +243,15 @@ function Findings({ data }: { data: GetRunResponse }) {
                       <span className="font-mono tabular-nums">
                         {formatInstant(f.clearedAt)}
                       </span>
+                    ) : f.corpActId ? (
+                      <Button
+                        variant="secondary"
+                        data-testid={`finding-decide-${f.id}`}
+                        disabled={pending}
+                        onClick={() => setDeciding(f.corpActId ?? null)}
+                      >
+                        Decide
+                      </Button>
                     ) : f.blockId ? (
                       <Button
                         variant="secondary"
@@ -278,6 +290,12 @@ function Findings({ data }: { data: GetRunResponse }) {
           })}
         </tbody>
       </TableCard>
+      {deciding && (
+        <DecideCorpActDialog
+          corpActId={deciding}
+          onClose={() => setDeciding(null)}
+        />
+      )}
     </>
   );
 }

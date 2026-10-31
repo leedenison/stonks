@@ -27,6 +27,9 @@ export const qk = {
   blocks: (cleared: boolean, before: string) =>
     ["blocks", cleared, before] as const,
   blocksAll: () => ["blocks"] as const,
+  corpActs: (instrId: string) => ["corp-acts", "instr", instrId] as const,
+  corpAct: (id: string) => ["corp-acts", id] as const,
+  corpActsAll: () => ["corp-acts"] as const,
   instrTickers: (instrId: string) => ["coverage", "instr", instrId] as const,
   coverageTicker: (market: string, value: string) =>
     ["coverage", "ticker", market, value] as const,
@@ -54,6 +57,17 @@ export function invalidateResolved(
 export function invalidateCleared(queryClient: QueryClient) {
   return Promise.all(
     [qk.blocksAll(), qk.adminRunsAll()].map((queryKey) =>
+      queryClient.invalidateQueries({ queryKey }),
+    ),
+  );
+}
+
+// invalidateDecided refreshes every query a decision on a corporate action
+// can change: the actions, the holdings they restate, and the runs whose
+// finding the decision cleared.
+export function invalidateDecided(queryClient: QueryClient) {
+  return Promise.all(
+    [qk.corpActsAll(), qk.holdings(), qk.adminRunsAll()].map((queryKey) =>
       queryClient.invalidateQueries({ queryKey }),
     ),
   );

@@ -1,12 +1,23 @@
 import { timestampFromDate } from "@bufbuild/protobuf/wkt";
 import { describe, expect, it } from "vitest";
-import { formatElapsed, formatInstant, formatQuantity } from "./format";
+import {
+  formatElapsed,
+  formatInstant,
+  formatQuantity,
+  formatRatio,
+} from "./format";
 
 describe("format", () => {
   it("renders an instant to the minute in UTC", () => {
     expect(
       formatInstant(timestampFromDate(new Date("2026-09-16T08:30:59Z"))),
     ).toBe("2026-09-16 08:30 UTC");
+  });
+
+  it("renders a ratio as new units for old", () => {
+    expect(formatRatio({ from: "1", to: "2" })).toBe("2 for 1");
+    expect(formatRatio({ from: "1000", to: "1253" })).toBe("1253 for 1000");
+    expect(formatRatio(undefined)).toBe("");
   });
 
   it("rounds a quantity to two places and cuts a long one", () => {

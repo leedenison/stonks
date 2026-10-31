@@ -20,6 +20,7 @@ import {
 } from "@/lib/admin";
 import { assetClassLabel } from "@/lib/asset-class";
 import { groupIdentifiers, identifierKey } from "@/lib/identifiers";
+import { CorpActsTab } from "./corp-acts-tab";
 import { TickersTab } from "./tickers-tab";
 
 type Marks = Parameters<typeof groupIdentifiers>[1];
@@ -27,11 +28,13 @@ type Marks = Parameters<typeof groupIdentifiers>[1];
 const tabs = [
   { key: "", label: "Overview", testId: "overview" },
   { key: "tickers", label: "Tickers", testId: "tickers" },
+  { key: "corp-acts", label: "Corporate actions", testId: "corp-acts" },
 ] as const;
 
-// InstrPane shows one instrument under two tabs held in the address:
-// the overview, with its identifiers and listings in sections, and its
-// tickers, with the ticker validity of each.
+// InstrPane shows one instrument under three tabs held in the address: the
+// overview, with its identifiers and listings in sections, its tickers, with
+// the ticker validity of each, and its corporate actions, with the decision
+// on each.
 export function InstrPane({
   instr,
   params,
@@ -39,7 +42,8 @@ export function InstrPane({
   instr: Instr;
   params: InstrParams;
 }) {
-  const tab = params.tab === "tickers" ? "tickers" : "";
+  const tab =
+    params.tab === "tickers" || params.tab === "corp-acts" ? params.tab : "";
   return (
     <div
       data-testid="instr-pane"
@@ -75,6 +79,8 @@ export function InstrPane({
       </nav>
       {tab === "tickers" ? (
         <TickersTab instrId={instr.id} params={params} />
+      ) : tab === "corp-acts" ? (
+        <CorpActsTab instrId={instr.id} />
       ) : (
         <Overview instr={instr} params={params} />
       )}
