@@ -383,9 +383,9 @@ func TestFindingsAndBlocks(t *testing.T) {
 	}
 }
 
-// TestFailedRuns checks that the failed listing holds the failed and the
-// interrupted runs alone, newest first, pages by id, and that the count
-// agrees.
+// TestFailedRuns checks that the failed listing holds the uncleared failed
+// and interrupted runs alone, newest first, pages by id, that the count
+// agrees, and that only a failed or interrupted run clears.
 func TestFailedRuns(t *testing.T) {
 	ctx := context.Background()
 	q := newTx(t)
@@ -407,6 +407,21 @@ func TestFailedRuns(t *testing.T) {
 	interrupted := create(true)
 	_, err := q.InterruptRuns(ctx)
 	require.NoError(t, err)
+	cleared := create(true)
+	require.NoError(t, q.FailRun(ctx, gen.FailRunParams{ID: cleared.ID, Error: "boom"}))
+	state, err := q.ClearRun(ctx, cleared.ID)
+	require.NoError(t, err)
+	if state != gen.RunStateFailed {
+		t.Errorf("ClearRun of a failed run = %s, want failed", state)
+	}
+	state, err = q.ClearRun(ctx, completed.ID)
+	require.NoError(t, err)
+	if state != gen.RunStateCompleted {
+		t.Errorf("ClearRun of a completed run = %s, want completed", state)
+	}
+	if _, err := q.ClearRun(ctx, db.NewID()); !errors.Is(err, db.ErrNotFound) {
+		t.Errorf("ClearRun of no run: err = %v, want ErrNotFound", err)
+	}
 	create(false)
 	create(true)
 

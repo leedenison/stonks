@@ -18,7 +18,7 @@ import { alertRow, kindOrder, openCount, readAlertParams } from "./alerts";
 const ticker = create(MarketTickerSchema, { market: "XNYS", value: "WMT" });
 
 describe("alertRow", () => {
-  it("opens a failed run", () => {
+  it("clears a failed run", () => {
     const r = alertRow(
       create(AlertSchema, {
         kind: AlertKind.FAILED_RUN,
@@ -26,7 +26,8 @@ describe("alertRow", () => {
       }),
     );
     expect(r.key).toBe("r1");
-    expect(r.action).toEqual({ case: "open-run", runId: "r1" });
+    expect(r.item.href).toBe("/admin/runs/r1");
+    expect(r.action).toEqual({ case: "clear-run", id: "r1" });
   });
 
   it("clears a block", () => {

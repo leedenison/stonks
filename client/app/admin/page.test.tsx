@@ -18,6 +18,7 @@ import {
 } from "@/gen/admin/block/v1/block_pb";
 import {
   ClearFindingResponseSchema,
+  ClearRunResponseSchema,
   FindingKind,
   FindingSchema,
   ListRunsResponseSchema,
@@ -130,6 +131,7 @@ const digest = create(GetAlertDigestResponseSchema, {
 
 const clearBlock = vi.fn(() => create(ClearBlockResponseSchema, {}));
 const clearFinding = vi.fn(() => create(ClearFindingResponseSchema, {}));
+const clearRun = vi.fn(() => create(ClearRunResponseSchema, {}));
 const listAlerts = vi.fn((): unknown =>
   create(ListAlertsResponseSchema, { alerts: [block], nextPageToken: "next" }),
 );
@@ -148,6 +150,7 @@ function render() {
       } satisfies Partial<ServiceImpl<typeof BlockService>>);
       service(AdminRunService, {
         clearFinding,
+        clearRun,
         listRuns: () => create(ListRunsResponseSchema, {}),
       } satisfies Partial<ServiceImpl<typeof AdminRunService>>);
     }),
@@ -234,10 +237,15 @@ describe("AdminPage digest", () => {
 });
 
 describe("AdminPage row actions", () => {
-  it("links a failed run to its page", async () => {
+  it("clears a failed run", async () => {
     render();
-    const act = await screen.findByTestId("alert-act-failed_run-r1");
-    expect(act.getAttribute("href")).toBe("/admin/runs/r1");
+    fireEvent.click(await screen.findByTestId("alert-act-failed_run-r1"));
+    await waitFor(() =>
+      expect(clearRun).toHaveBeenCalledWith(
+        expect.objectContaining({ runId: "r1" }),
+        expect.anything(),
+      ),
+    );
   });
 
   it("clears a block", async () => {

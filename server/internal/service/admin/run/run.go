@@ -37,6 +37,7 @@ type Queries interface {
 	ListRunAssertions(ctx context.Context, arg gen.ListRunAssertionsParams) ([]gen.ListRunAssertionsRow, error)
 	GetReplay(ctx context.Context, id uuid.UUID) (gen.GetReplayRow, error)
 	ClearFinding(ctx context.Context, id uuid.UUID) (gen.ClearFindingRow, error)
+	ClearRun(ctx context.Context, id uuid.UUID) (gen.RunState, error)
 }
 
 var _ Queries = (*gen.Queries)(nil)
@@ -353,6 +354,25 @@ func (s *Server) ClearFinding(ctx context.Context, req *connect.Request[adminrun
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("the finding reports a corporate action; decide the action"))
 	}
 	return connect.NewResponse(&adminrunv1.ClearFindingResponse{}), nil
+}
+
+// ClearRun clears a run that failed or was interrupted.
+func (s *Server) ClearRun(ctx context.Context, req *connect.Request[adminrunv1.ClearRunRequest]) (*connect.Response[adminrunv1.ClearRunResponse], error) {
+	id, err := uuid.Parse(req.Msg.GetRunId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	state, err := s.queries.ClearRun(ctx, id)
+	if errors.Is(err, db.ErrNotFound) {
+		return nil, connect.NewError(connect.CodeNotFound, errors.New("no such run"))
+	}
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	if state != gen.RunStateFailed && state != gen.RunStateInterrupted {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("the run is %s; only a failed or interrupted run clears", state))
+	}
+	return connect.NewResponse(&adminrunv1.ClearRunResponse{}), nil
 }
 
 // StartSystemRun starts a system run with the starter of the kind. A

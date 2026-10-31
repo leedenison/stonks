@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, LinkButton } from "@/app/components/button";
+import { Button } from "@/app/components/button";
 import { AttestIdentifierDialog } from "@/app/components/attest-identifier-dialog";
 import { DecideCorpActDialog } from "@/app/components/decide-corp-act-dialog";
 import {
@@ -22,17 +22,6 @@ export function RowButton({
 }) {
   const testId = `alert-act-${kindSlug(row.kind)}-${row.key}`;
   const label = kindWords(row.kind).action;
-  if (row.action.case === "open-run") {
-    return (
-      <LinkButton
-        variant="secondary"
-        data-testid={testId}
-        href={`/admin/runs/${row.action.runId}`}
-      >
-        {label}
-      </LinkButton>
-    );
-  }
   return (
     <Button
       variant={row.action.case === "attest" ? "primary" : "secondary"}

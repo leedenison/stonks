@@ -142,8 +142,8 @@ LEFT JOIN fetches ON fetches.id = runs.id
 WHERE runs.id = $1;
 
 -- name: ListFailedRuns :many
--- The runs that failed or were interrupted, newest first, with the columns of
--- GetUserRun. A NULL before starts at the newest.
+-- The uncleared runs that failed or were interrupted, newest first, with the
+-- columns of GetUserRun. A NULL before starts at the newest.
 SELECT sqlc.embed(runs), users.email,
        (SELECT count(*) FROM findings
         WHERE findings.run_id = runs.id AND findings.cleared_at IS NULL)::int AS open_findings,
@@ -151,10 +151,19 @@ SELECT sqlc.embed(runs), users.email,
 FROM runs
 LEFT JOIN users ON users.id = runs.user_id
 LEFT JOIN fetches ON fetches.id = runs.id
-WHERE runs.state IN ('failed', 'interrupted')
+WHERE runs.state IN ('failed', 'interrupted') AND runs.cleared_at IS NULL
   AND (sqlc.narg(before)::uuid IS NULL OR runs.id < sqlc.narg(before))
 ORDER BY runs.id DESC
 LIMIT @lim;
 
 -- name: CountFailedRuns :one
-SELECT count(*)::int FROM runs WHERE state IN ('failed', 'interrupted');
+SELECT count(*)::int FROM runs WHERE state IN ('failed', 'interrupted') AND cleared_at IS NULL;
+
+-- name: ClearRun :one
+-- Clears a failed or interrupted run and returns the run's state, so the
+-- caller can refuse any other state. Clearing a cleared run keeps the first
+-- time.
+UPDATE runs
+SET cleared_at = CASE WHEN state IN ('failed', 'interrupted') THEN coalesce(cleared_at, now()) ELSE cleared_at END
+WHERE id = $1
+RETURNING state;

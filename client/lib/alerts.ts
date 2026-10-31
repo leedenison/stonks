@@ -13,7 +13,7 @@ import { formatInstant } from "./format";
 
 // AlertAction is what a row's button does.
 export type AlertAction =
-  | { case: "open-run"; runId: string }
+  | { case: "clear-run"; id: string }
   | { case: "clear-block"; id: string }
   | { case: "attest"; ticker: MarketTicker; from: string; to?: string }
   | { case: "decide"; corpActId: string }
@@ -60,7 +60,7 @@ const words: Record<number, Words> = {
     tile: "failed runs",
     group: "Failed runs",
     why: "nothing downstream of the run happened",
-    action: "Open run",
+    action: "Clear",
   },
   [AlertKind.BLOCK]: {
     tile: "blocks",
@@ -135,7 +135,7 @@ export function alertRow(a: Alert): AlertRow {
         detail: runTitle(s.value),
         sub: s.value.run?.error,
         since: formatInstant(s.value.run?.createdAt),
-        action: { case: "open-run", runId: id },
+        action: { case: "clear-run", id },
       };
     }
     case "block": {

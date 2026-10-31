@@ -40,6 +40,9 @@ CREATE TABLE runs (
     started_at  timestamptz,
     -- finished_at is set on entering a terminal state.
     finished_at timestamptz,
+    -- cleared_at is when an administrator cleared a 'failed' or
+    -- 'interrupted' run. A cleared run needs no attention.
+    cleared_at  timestamptz,
     CHECK ((trigger = 'run') = (parent_id IS NOT NULL)),
     UNIQUE (id, user_id),
     FOREIGN KEY (parent_id) REFERENCES runs (id) ON DELETE CASCADE
@@ -72,4 +75,4 @@ CREATE TRIGGER runs_parent_user BEFORE INSERT OR UPDATE OF parent_id, user_id ON
 -- parent_id the newest top-level runs.
 CREATE INDEX runs_parent_idx ON runs (parent_id, id);
 CREATE INDEX runs_user_idx ON runs (user_id, id);
-CREATE INDEX runs_failed_idx ON runs (id) WHERE state IN ('failed', 'interrupted');
+CREATE INDEX runs_failed_idx ON runs (id) WHERE state IN ('failed', 'interrupted') AND cleared_at IS NULL;

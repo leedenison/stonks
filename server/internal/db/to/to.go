@@ -281,6 +281,9 @@ func ProtoUserRun(r gen.Run, email *string, open int32, fetch *adminrunv1.RunFet
 		id := r.UserID.String()
 		out.UserId = &id
 	}
+	if r.ClearedAt != nil {
+		out.ClearedAt = timestamppb.New(*r.ClearedAt)
+	}
 	return out
 }
 

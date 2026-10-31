@@ -8,6 +8,7 @@ import { Notice } from "@/app/components/notice";
 import { Page } from "@/app/components/page-frame";
 import { useAlertDigest, useAlerts } from "@/hooks/use-alerts";
 import { useClearBlock } from "@/hooks/use-blocks";
+import { useClearRun } from "@/hooks/use-clear-run";
 import { useClearFinding } from "@/hooks/use-findings";
 import { type AlertAction, kindSlug, readAlertParams } from "@/lib/alerts";
 import { queryHref } from "@/lib/admin";
@@ -31,16 +32,19 @@ function Alerts() {
   const p = readAlertParams(useSearchParams());
   const digest = useAlertDigest();
   const list = useAlerts(p.kind, p.before);
+  const clearRun = useClearRun();
   const clearBlock = useClearBlock();
   const clearFinding = useClearFinding();
+  const clears = [clearRun, clearBlock, clearFinding];
   const [dialog, setDialog] = useState<AlertAction | null>(null);
 
   const act = (a: AlertAction) => {
-    if (a.case === "clear-block") clearBlock.mutate(a.id);
+    if (a.case === "clear-run") clearRun.mutate(a.id);
+    else if (a.case === "clear-block") clearBlock.mutate(a.id);
     else if (a.case === "clear-finding") clearFinding.mutate(a.id);
     else setDialog(a);
   };
-  const busy = clearBlock.isPending || clearFinding.isPending;
+  const busy = clears.some((m) => m.isPending);
 
   const groups =
     p.kind === undefined
@@ -63,7 +67,7 @@ function Alerts() {
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_28rem] xl:items-start">
         <div className="flex min-w-0 flex-col gap-4">
           {digest.data && <AlertTiles digest={digest.data} p={p} />}
-          {(clearBlock.isError || clearFinding.isError) && (
+          {clears.some((m) => m.isError) && (
             <Notice tone="error">The alert could not be cleared.</Notice>
           )}
           {q.isError && (
