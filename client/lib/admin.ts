@@ -111,7 +111,7 @@ export type InstrParams = {
   q: string;
   // The asset class as enumParam writes it; empty for any.
   class: string;
-  // The pane's tab: "tickers", or empty for the overview.
+  // The pane's tab: "tickers", "corp-acts", or empty for the overview.
   tab: string;
   // The ticker the tickers tab shows, as tickerParam writes it; empty for
   // the first listed.

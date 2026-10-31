@@ -27,6 +27,14 @@ export function formatElapsed(ms: number): string {
   return `${s}s`;
 }
 
+// formatRatio renders a ratio as the new units for the old, so a two-for-one
+// split reads "2 for 1".
+export function formatRatio(
+  r: { from: string; to: string } | undefined,
+): string {
+  return r ? `${r.to} for ${r.from}` : "";
+}
+
 // formatQuantity renders a decimal quantity for a sample: rounded to two
 // places and cut with an ellipsis past nine characters.
 export function formatQuantity(quantity: string): string {

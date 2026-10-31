@@ -17,6 +17,13 @@ import {
   Listing_TickerSchema,
   ListInstrsResponseSchema,
 } from "@/gen/admin/instr/v1/instr_pb";
+import {
+  CorpActDecision,
+  CorpActSchema,
+  CorpActService,
+  GetCorpActResponseSchema,
+  ListInstrCorpActsResponseSchema,
+} from "@/gen/admin/corpact/v1/corpact_pb";
 import { AssertionItemSchema } from "@/gen/admin/run/v1/run_pb";
 import { Role } from "@/gen/auth/v1/auth_pb";
 import {
@@ -112,6 +119,33 @@ const read = create(GetTickerResponseSchema, {
   }),
 });
 
+// ACME's corporate actions: a spin-off its datasource types as a split,
+// stored unhandled and undecided, and a split decided a stock dividend.
+const corpActs = create(ListInstrCorpActsResponseSchema, {
+  corpActs: [
+    create(CorpActSchema, {
+      id: "ca1",
+      ticker: acme,
+      exDate: "2024-04-02",
+      ratio: { from: "1000", to: "1253" },
+      datasource: "alpha",
+      type: "forward_split",
+      applied: true,
+    }),
+    create(CorpActSchema, {
+      id: "ca2",
+      ticker: acme,
+      exDate: "2020-03-02",
+      ratio: { from: "1", to: "4" },
+      datasource: "alpha",
+      type: "forward_split",
+      restatesShares: true,
+      decision: CorpActDecision.STOCK_DIVIDEND,
+      applied: true,
+    }),
+  ],
+});
+
 function serving(
   listInstrs: ServiceImpl<typeof InstrService>["listInstrs"],
   coverage: Coverage = {},
@@ -122,6 +156,11 @@ function serving(
       listInstrTickers: () => tickers,
       getTicker: () => read,
       ...coverage,
+    });
+    service(CorpActService, {
+      listInstrCorpActs: () => corpActs,
+      getCorpAct: () =>
+        create(GetCorpActResponseSchema, { corpAct: corpActs.corpActs[0] }),
     });
   });
 }
@@ -428,6 +467,37 @@ describe("InstrsPage", () => {
     expect(
       (screen.getByTestId("ticker-select") as HTMLSelectElement).value,
     ).toBe("US:OLD");
+  });
+
+  it("lists the corporate actions with each decision and opens the decide dialog", async () => {
+    params = new URLSearchParams("id=i-acme&tab=corp-acts");
+    renderWithAuth(
+      <InstrsPage />,
+      serving(() => listed),
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId("corp-acts-table")).toBeTruthy(),
+    );
+    expect(
+      screen.getByTestId("instr-tab-corp-acts").getAttribute("aria-selected"),
+    ).toBe("true");
+    const spun = screen.getByTestId("corp-act-row-ca1");
+    expect(spun.textContent).toContain("2024-04-02");
+    expect(spun.textContent).toContain("1253 for 1000");
+    expect(spun.textContent).toContain("forward_split");
+    expect(spun.textContent).toContain("No");
+    expect(spun.textContent).toContain("Undecided");
+    const split = screen.getByTestId("corp-act-row-ca2");
+    expect(split.textContent).toContain("Yes");
+    expect(split.textContent).toContain("stock dividend");
+    expect(split.getAttribute("data-decision")).toBe("STOCK_DIVIDEND");
+
+    fireEvent.click(screen.getByTestId("corp-act-decide-ca1"));
+    await waitFor(() =>
+      expect(screen.getByTestId("decide-dialog").textContent).toContain(
+        "1253 for 1000",
+      ),
+    );
   });
 
   it("says when no ticker names the instrument", async () => {

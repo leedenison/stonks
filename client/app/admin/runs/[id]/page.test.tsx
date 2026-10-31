@@ -9,6 +9,11 @@ import {
   FetchKind,
 } from "@/gen/admin/block/v1/block_pb";
 import {
+  CorpActSchema,
+  CorpActService,
+  GetCorpActResponseSchema,
+} from "@/gen/admin/corpact/v1/corpact_pb";
+import {
   DatasourceService,
   ListDatasourcesResponseSchema,
 } from "@/gen/admin/datasource/v1/datasource_pb";
@@ -83,6 +88,18 @@ function serving(
     service(BlockService, block);
     service(DatasourceService, datasource);
     service(ReplayRunService, replay);
+    service(CorpActService, {
+      getCorpAct: () =>
+        create(GetCorpActResponseSchema, {
+          corpAct: create(CorpActSchema, {
+            id: "ca1",
+            ticker: { market: "US", value: "GE" },
+            exDate: "2024-04-02",
+            ratio: { from: "1000", to: "1253" },
+            datasource: "massive",
+          }),
+        }),
+    });
   });
 }
 
@@ -335,6 +352,38 @@ describe("AdminRunPage", () => {
       expect(clearFinding).toHaveBeenCalledWith(
         expect.objectContaining({ findingId: "x2" }),
         expect.anything(),
+      ),
+    );
+  });
+
+  it("offers to decide a corporate action in place of clearing its finding", async () => {
+    const withAct = create(GetRunResponseSchema, {
+      ...fetch,
+      findings: [
+        ...fetch.findings,
+        create(FindingSchema, {
+          id: "x3",
+          runId: "c1",
+          kind: FindingKind.UNHANDLED_CORP_ACT,
+          corpActId: "ca1",
+          detail:
+            "GE on 2024-04-02: massive reported forward_split, 1253 for 1000, which the system does not handle",
+          createdAt: timestampFromDate(new Date("2026-09-24T10:01:00Z")),
+        }),
+      ],
+    });
+    renderWithAuth(
+      <AdminRunPage />,
+      serving(() => withAct),
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId("finding-decide-x3")).toBeTruthy(),
+    );
+    expect(screen.queryByTestId("finding-clear-x3")).toBeNull();
+    fireEvent.click(screen.getByTestId("finding-decide-x3"));
+    await waitFor(() =>
+      expect(screen.getByTestId("decide-dialog").textContent).toContain(
+        "1253 for 1000",
       ),
     );
   });
