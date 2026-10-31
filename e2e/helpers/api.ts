@@ -1,7 +1,12 @@
 import type { DescService } from "@bufbuild/protobuf";
 import { type Client, createClient } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
-import { type Alert, AlertService } from "../gen/admin/alert/v1/alert_pb";
+import type { Locator, Page } from "@playwright/test";
+import {
+  type Alert,
+  AlertKind,
+  AlertService,
+} from "../gen/admin/alert/v1/alert_pb";
 import { BlockService, FetchKind } from "../gen/admin/block/v1/block_pb";
 import { CorpActService } from "../gen/admin/corpact/v1/corpact_pb";
 import { CoverageService } from "../gen/admin/coverage/v1/coverage_pb";
@@ -251,11 +256,31 @@ export function resolutionFindings(findings: Finding[]): Finding[] {
   );
 }
 
+// openAlert opens the alerts page that lists the first alert of the given
+// kind that match accepts, and returns that alert's row. Other specs change
+// the alerts between the lookup and the load, so it repeats both until the
+// row shows.
+export async function openAlert(
+  page: Page,
+  admin: Client<typeof AlertService>,
+  kind: AlertKind,
+  match: (a: Alert) => boolean,
+  rowTestId: string,
+): Promise<Locator> {
+  const row = page.getByTestId(rowTestId);
+  await expect(async () => {
+    const token = await alertPageToken(admin, kind, match);
+    expect(token).not.toBeUndefined();
+    await page.goto(alertsAddress(kind, token!));
+    await expect(row).toBeVisible({ timeout: 2_000 });
+  }).toPass();
+  return row;
+}
+
 // alertPageToken returns the token of the page of a kind's alerts that holds
 // an alert match accepts. It returns the empty string for the first page and
-// undefined when no page holds one. Other specs change the alerts, so callers
-// poll it.
-export async function alertPageToken(
+// undefined when no page holds one.
+async function alertPageToken(
   admin: Client<typeof AlertService>,
   kind: Alert["kind"],
   match: (a: Alert) => boolean,
@@ -274,6 +299,10 @@ export async function alertPageToken(
 }
 
 // alertsAddress is the alerts page of a kind at the page the token names.
-export function alertsAddress(slug: string, token: string): string {
-  return `/admin?kind=${slug}${token ? `&before=${token}` : ""}`;
+function alertsAddress(kind: AlertKind, token: string): string {
+  const q = new URLSearchParams({ kind: AlertKind[kind].toLowerCase() });
+  if (token) {
+    q.set("before", token);
+  }
+  return `/admin?${q}`;
 }

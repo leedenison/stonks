@@ -8,10 +8,9 @@ import {
   instrListedAs,
   adminRunClient,
   alertClient,
-  alertPageToken,
-  alertsAddress,
   assertionItems,
   holdingClient,
+  openAlert,
   stmtClient,
 } from "../helpers/api";
 import { deleteRuns } from "../helpers/db";
@@ -74,24 +73,14 @@ test("attests a gap from the instrument's tickers tab and withdraws it", async (
   const gap = page.getByTestId(`pane-gap-${on}`);
   await expect(gap).toContainText("2003-09-10");
 
-  // Other specs change the alerts, so the spec polls for the page that holds this one.
-  const alerts = alertClient(session);
-  let token: string | undefined;
-  await expect
-    .poll(async () => {
-      token = await alertPageToken(
-        alerts,
-        AlertKind.TICKER_VALIDITY_GAP,
-        (a) =>
-          a.subject.case === "validityGap" &&
-          a.subject.value.ticker?.value === wmt.value &&
-          a.subject.value.gap?.period?.from === on,
-      );
-      return token;
-    })
-    .not.toBeUndefined();
-  await page.goto(alertsAddress("ticker_validity_gap", token!));
-  const alert = page.getByTestId(
+  const alert = await openAlert(
+    page,
+    alertClient(session),
+    AlertKind.TICKER_VALIDITY_GAP,
+    (a) =>
+      a.subject.case === "validityGap" &&
+      a.subject.value.ticker?.value === wmt.value &&
+      a.subject.value.gap?.period?.from === on,
     `alert-row-ticker_validity_gap-US-${wmt.value}-${on}`,
   );
   await alert
