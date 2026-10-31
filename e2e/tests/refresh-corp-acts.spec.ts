@@ -6,9 +6,8 @@ import { RunKind, RunState } from "../gen/run/v1/run_pb";
 import {
   adminRunClient,
   alertClient,
-  alertPageToken,
-  alertsAddress,
   fetchItems,
+  openAlert,
   stmtClient,
 } from "../helpers/api";
 import { expect, test } from "../helpers/test";
@@ -43,23 +42,14 @@ test("finds a stated split the calendar lacks, and refreshes the calendar", asyn
     page.getByTestId(`finding-row-${unmatched[0].id}`),
   ).toContainText("unmatched split");
 
-  // Other specs change the alerts, so the spec polls for the page that holds this one.
-  const alerts = alertClient(session);
-  let token: string | undefined;
-  await expect
-    .poll(async () => {
-      token = await alertPageToken(
-        alerts,
-        AlertKind.FINDING,
-        (a) =>
-          a.subject.case === "finding" &&
-          a.subject.value.id === unmatched[0].id,
-      );
-      return token;
-    })
-    .not.toBeUndefined();
-  await page.goto(alertsAddress("finding", token!));
-  const alert = page.getByTestId(`alert-row-finding-${unmatched[0].id}`);
+  const alert = await openAlert(
+    page,
+    alertClient(session),
+    AlertKind.FINDING,
+    (a) =>
+      a.subject.case === "finding" && a.subject.value.id === unmatched[0].id,
+    `alert-row-finding-${unmatched[0].id}`,
+  );
   await alert.getByTestId(`alert-act-finding-${unmatched[0].id}`).click();
   await expect(alert).toHaveCount(0);
   const cleared = (await admin.getRun({ runId })).findings.find(
