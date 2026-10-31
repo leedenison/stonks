@@ -264,12 +264,16 @@ func calendar(ctx context.Context, q Queries, instrs []uuid.UUID) (map[uuid.UUID
 // unmatchedSplits returns the groups that the calendar lacks. A group
 // matches when, for each ratio it states, an action of equal ratio falls
 // within window days of its day. A group that states no ratio matches any
-// action within the window. An unhandled action matches, because the calendar
-// holds it and its own finding reports it.
+// action within the window. An unhandled action without a decision matches,
+// because its alert already asks for a decision. If an administrator decides
+// that an action leaves the quantity held, the action does not match, so a
+// statement that states a split beside it raises a finding.
 func unmatchedSplits(groups []splitGroup, cal map[uuid.UUID][]Act) []unmatchedSplit {
 	var out []unmatchedSplit
 	for _, g := range groups {
-		near := slices.DeleteFunc(slices.Clone(cal[g.instr]), func(e Act) bool { return days(e.ExDate, g.day) > window })
+		near := slices.DeleteFunc(slices.Clone(cal[g.instr]), func(e Act) bool {
+			return days(e.ExDate, g.day) > window || (e.Decision != "" && !e.Restates())
+		})
 		if len(g.ratios) == 0 {
 			if len(near) == 0 {
 				out = append(out, unmatchedSplit{splitGroup: g})

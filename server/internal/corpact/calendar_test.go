@@ -3,7 +3,6 @@ package corpact
 import (
 	"context"
 	"math/big"
-	"slices"
 	"testing"
 	"time"
 
@@ -13,24 +12,19 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 
-	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
-	"github.com/leedenison/stonks/server/internal/identity/tickervalidity"
-	"github.com/leedenison/stonks/server/internal/platform/ptr"
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
 var today = day(2026, 1, 10)
 
-// canned is a set of rows that the calendar and decision queries return.
+// canned is a set of rows that the calendar queries return.
 type canned struct {
 	markets  map[uuid.UUID]string
-	sources  map[string]string
 	naming   []gen.ListTickersNamingRow
 	validity []gen.ListTickerValidityRow
 	answers  []gen.ListCorpActAnswersRow
 	acts     []gen.CorpAct
-	splits   []gen.ListStatedSplitsRow
 }
 
 func (s *canned) ListInstrMarkets(context.Context, []uuid.UUID) ([]gen.ListInstrMarketsRow, error) {
@@ -55,52 +49,6 @@ func (s *canned) ListCorpActAnswers(context.Context, gen.ListCorpActAnswersParam
 
 func (s *canned) ListCorpActs(context.Context, gen.ListCorpActsParams) ([]gen.CorpAct, error) {
 	return s.acts, nil
-}
-
-// answerOf returns the answer row of the action e.
-func (s *canned) answerOf(e gen.CorpAct) gen.ListCorpActAnswersRow {
-	i := slices.IndexFunc(s.answers, func(a gen.ListCorpActAnswersRow) bool { return a.CorpActAnswer.ID == e.AnswerID })
-	return s.answers[i]
-}
-
-// namesOn reports whether market:value names instr on day d.
-func (s *canned) namesOn(market, value string, instr uuid.UUID, d time.Time) bool {
-	return slices.ContainsFunc(s.validity, func(r gen.ListTickerValidityRow) bool {
-		iv := tickervalidity.Interval{From: r.ValidFrom, Before: r.ValidBefore, Instr: r.InstrID}
-		return r.Market == market && r.Value == value && r.InstrID == instr && iv.Contains(d)
-	})
-}
-
-func (s *canned) ListInstrCorpActs(_ context.Context, instr uuid.UUID) ([]gen.ListInstrCorpActsRow, error) {
-	var out []gen.ListInstrCorpActsRow
-	for _, e := range s.acts {
-		a := s.answerOf(e)
-		if s.namesOn(a.Market, a.Value, instr, e.ExDate) {
-			ds := a.CorpActAnswer.Datasource
-			out = append(out, gen.ListInstrCorpActsRow{CorpAct: e, Datasource: ds, Market: a.Market, Value: a.Value, Source: s.sources[a.Market] == ds})
-		}
-	}
-	slices.SortStableFunc(out, func(a, b gen.ListInstrCorpActsRow) int { return b.CorpAct.ExDate.Compare(a.CorpAct.ExDate) })
-	return out, nil
-}
-
-func (s *canned) GetCorpAct(_ context.Context, id uuid.UUID) (gen.GetCorpActRow, error) {
-	i := slices.IndexFunc(s.acts, func(e gen.CorpAct) bool { return e.ID == id })
-	if i < 0 {
-		return gen.GetCorpActRow{}, db.ErrNotFound
-	}
-	a := s.answerOf(s.acts[i])
-	return gen.GetCorpActRow{CorpAct: s.acts[i], Datasource: a.CorpActAnswer.Datasource, Market: a.Market, Value: a.Value}, nil
-}
-
-func (s *canned) ListStatedSplits(_ context.Context, arg gen.ListStatedSplitsParams) ([]gen.ListStatedSplitsRow, error) {
-	var out []gen.ListStatedSplitsRow
-	for _, r := range s.splits {
-		if slices.Contains(arg.Instrs, r.InstrID) {
-			out = append(out, r)
-		}
-	}
-	return out, nil
 }
 
 // at makes market the market of instr.
@@ -152,16 +100,6 @@ func (s *canned) decided(answer uuid.UUID, ex time.Time, from, to int64, handled
 	}
 	s.acts = append(s.acts, e)
 	return e.ID
-}
-
-// states records a split of instr that a statement states on d, with ratio
-// from to to where from is not zero.
-func (s *canned) states(instr uuid.UUID, d time.Time, from, to int64) {
-	sp := gen.StmtSplit{StmtID: uuid.New(), StatedKeyID: uuid.New(), EffectiveDate: d}
-	if from != 0 {
-		sp.RatioFrom, sp.RatioTo = ptr.To(decimal.NewFromInt(from)), ptr.To(decimal.NewFromInt(to))
-	}
-	s.splits = append(s.splits, gen.ListStatedSplitsRow{StmtSplit: sp, InstrID: instr})
 }
 
 func (s *canned) calendars(t *testing.T, instrs ...uuid.UUID) map[uuid.UUID]Calendar {

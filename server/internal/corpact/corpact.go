@@ -25,7 +25,8 @@
 // provisional.
 //
 // Holdings and the stated split check read the corporate actions of an
-// instrument through one calendar, from its market; see calendar.go.
+// instrument, and any decision on them, through one calendar, from its
+// market; see calendar.go.
 //
 // The system stores an action it cannot apply to a quantity as unhandled,
 // and raises a finding for an administrator. The administrator decides the

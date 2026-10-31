@@ -14,22 +14,29 @@ import (
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
-// Restates reports whether a decision of type d restates the quantity held.
-func Restates(d gen.CorpActDecision) bool {
-	switch d {
+// Restates reports whether e restates the quantity held. A decision
+// overrules the system's judgment.
+func (e Act) Restates() bool {
+	switch e.Decision {
 	case gen.CorpActDecisionSplit, gen.CorpActDecisionReverseSplit, gen.CorpActDecisionStockDividend:
 		return true
+	case "":
+		return e.Handled
 	}
 	return false
 }
 
-// Restates reports whether e restates the quantity held. A decision
-// overrules the system's judgment.
-func (e Act) Restates() bool {
-	if e.Decision != "" {
-		return Restates(e.Decision)
+// Fits reports whether a decision of type d agrees with the direction of
+// the ratio r: a split or a stock dividend grows the quantity held, and a
+// reverse split shrinks it. Any other type fits any ratio.
+func Fits(d gen.CorpActDecision, r types.Ratio) bool {
+	switch d {
+	case gen.CorpActDecisionSplit, gen.CorpActDecisionStockDividend:
+		return r.To.GreaterThan(r.From)
+	case gen.CorpActDecisionReverseSplit:
+		return r.To.LessThan(r.From)
 	}
-	return e.Handled
+	return true
 }
 
 // Unknown reports whether the effect of e on the quantity held is unknown:
@@ -46,6 +53,7 @@ type DecisionQueries interface {
 	tickervalidity.ValidityQueries
 	GetCorpAct(ctx context.Context, id uuid.UUID) (gen.GetCorpActRow, error)
 	ListInstrCorpActs(ctx context.Context, instrID uuid.UUID) ([]gen.ListInstrCorpActsRow, error)
+	ListTickersOfInstrs(ctx context.Context, instrIds []uuid.UUID) ([]uuid.UUID, error)
 	ListStatedSplits(ctx context.Context, arg gen.ListStatedSplitsParams) ([]gen.ListStatedSplitsRow, error)
 }
 
@@ -197,7 +205,11 @@ func ReadEvidence(ctx context.Context, q DecisionQueries, id uuid.UUID) (Evidenc
 			ev.Others = append(ev.Others, a)
 		}
 	}
-	rows, err := q.ListStatedSplits(ctx, gen.ListStatedSplitsParams{Instrs: []uuid.UUID{iv.Instr}, Tickers: []uuid.UUID{row.TickerID}})
+	tickers, err := q.ListTickersOfInstrs(ctx, []uuid.UUID{iv.Instr})
+	if err != nil {
+		return Evidence{}, fmt.Errorf("list the tickers of the instrument: %w", err)
+	}
+	rows, err := q.ListStatedSplits(ctx, gen.ListStatedSplitsParams{Instrs: []uuid.UUID{iv.Instr}, Tickers: tickers})
 	if err != nil {
 		return Evidence{}, fmt.Errorf("list stated splits: %w", err)
 	}

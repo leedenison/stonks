@@ -128,24 +128,39 @@ func TestGetCorpAct(t *testing.T) {
 	})
 }
 
+// TestDecideCorpAct checks that a decision is recorded, that one whose type
+// contradicts the ratio's direction is refused, and the error codes.
 func TestDecideCorpAct(t *testing.T) {
 	tests := []struct {
 		name     string
 		decision admincorpactv1.CorpActDecision
+		// from and to are the stored ratio; a zero from skips the read.
+		from, to int64
+		readErr  error
 		// stored is the decision the store records; empty where none is.
 		stored   gen.CorpActDecision
 		err      error
 		wantCode connect.Code
 	}{
-		{name: "decided", decision: admincorpactv1.CorpActDecision_CORP_ACT_DECISION_SPLIT, stored: gen.CorpActDecisionSplit},
-		{name: "not found", decision: admincorpactv1.CorpActDecision_CORP_ACT_DECISION_SPLIT, stored: gen.CorpActDecisionSplit, err: db.ErrNotFound, wantCode: connect.CodeNotFound},
-		{name: "failure", decision: admincorpactv1.CorpActDecision_CORP_ACT_DECISION_OTHER, stored: gen.CorpActDecisionOther, err: errors.New("boom"), wantCode: connect.CodeInternal},
+		{name: "split", decision: admincorpactv1.CorpActDecision_CORP_ACT_DECISION_SPLIT, from: 1, to: 4, stored: gen.CorpActDecisionSplit},
+		{name: "reverse split", decision: admincorpactv1.CorpActDecision_CORP_ACT_DECISION_REVERSE_SPLIT, from: 10, to: 1, stored: gen.CorpActDecisionReverseSplit},
+		{name: "other on any ratio", decision: admincorpactv1.CorpActDecision_CORP_ACT_DECISION_OTHER, from: 10, to: 1, stored: gen.CorpActDecisionOther},
+		{name: "split that shrinks", decision: admincorpactv1.CorpActDecision_CORP_ACT_DECISION_SPLIT, from: 10, to: 1, wantCode: connect.CodeFailedPrecondition},
+		{name: "stock dividend that leaves", decision: admincorpactv1.CorpActDecision_CORP_ACT_DECISION_STOCK_DIVIDEND, from: 1, to: 1, wantCode: connect.CodeFailedPrecondition},
+		{name: "reverse split that grows", decision: admincorpactv1.CorpActDecision_CORP_ACT_DECISION_REVERSE_SPLIT, from: 1, to: 4, wantCode: connect.CodeFailedPrecondition},
+		{name: "not found", decision: admincorpactv1.CorpActDecision_CORP_ACT_DECISION_SPLIT, readErr: db.ErrNotFound, wantCode: connect.CodeNotFound},
+		{name: "read failure", decision: admincorpactv1.CorpActDecision_CORP_ACT_DECISION_SPLIT, readErr: errors.New("boom"), wantCode: connect.CodeInternal},
+		{name: "write failure", decision: admincorpactv1.CorpActDecision_CORP_ACT_DECISION_OTHER, from: 1000, to: 1253, stored: gen.CorpActDecisionOther, err: errors.New("boom"), wantCode: connect.CodeInternal},
 		{name: "unspecified", decision: admincorpactv1.CorpActDecision_CORP_ACT_DECISION_UNSPECIFIED, wantCode: connect.CodeInvalidArgument},
 		{name: "undefined", decision: admincorpactv1.CorpActDecision(99), wantCode: connect.CodeInvalidArgument},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newFixture(t)
+			if tc.from != 0 || tc.readErr != nil {
+				r := row(actID, "alpha", tc.from, tc.to, false, "")
+				f.queries.EXPECT().GetCorpAct(gomock.Any(), actID).Return(gen.GetCorpActRow{CorpAct: r.CorpAct, Datasource: r.Datasource, Market: r.Market, Value: r.Value}, tc.readErr)
+			}
 			if tc.stored != "" {
 				f.queries.EXPECT().DecideCorpAct(gomock.Any(), gen.DecideCorpActParams{ID: actID, Decision: tc.stored}).Return(actID, tc.err)
 			}
