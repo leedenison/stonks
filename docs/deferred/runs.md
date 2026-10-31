@@ -49,6 +49,4 @@ where no earlier non-terminal run shares its user and lane.
 
 ## Undecided
 
-- Whether clearing the finding on an unhandled corporate action is what clears the action.
-
 - Whether a run can be cancelled.

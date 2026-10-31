@@ -1,4 +1,17 @@
 // Package alert serves stonks.admin.alert.v1.
+//
+// An alert is never stored. Each kind is a query over the rows of the surface
+// that owns its cause, or over the coverage derivation. An alert therefore
+// cannot drift from the rows it describes, and it needs no lifecycle of its
+// own. It disappears when an administrator settles its cause.
+//
+// The kinds keep a fixed rank, because a score across kinds would be a guess
+// until the page has been used on real data.
+//
+// One kind's full list pages by a keyset cursor, so a page survives rows that
+// appear or vanish between reads. The two ticker kinds are the exception.
+// Their gaps are derived in Go from the stored ticker validity, so each read
+// derives both kinds in full and cuts the page in memory.
 package alert
 
 import (
@@ -68,8 +81,12 @@ var rank = []adminalertv1.AlertKind{
 // top is how many alerts of a kind the digest holds.
 const top = 5
 
-// findingKinds are the finding kinds that are alerts of kind FINDING, and
-// corpActKinds the one that is an alert of kind CORP_ACT.
+// findingKinds are the finding kinds that are alerts of kind FINDING. Each
+// records a choice the system made between sources, or a mismatch it found,
+// for an administrator to check. Dropped and merged findings are routine on
+// most runs and stay on the run page. A finding alert is open while its
+// finding is uncleared, and clearing the finding is the acknowledgement.
+// corpActKinds is the one finding kind that is an alert of kind CORP_ACT.
 var (
 	findingKinds = []string{
 		string(gen.FindingKindContradiction), string(gen.FindingKindIdentifierDisagreement),

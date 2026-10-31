@@ -34,6 +34,8 @@
 // coverage leaves out the ex-date of an action whose effect is unknown, so a
 // holding across that date stays provisional. A refetch that restates an
 // action replaces its row and drops the decision; see merge in record.go.
+// Holdings are restated on read from the calendar, so a changed decision
+// takes effect at once.
 //
 // A split that a statement states is never stored as a corporate action. A
 // fetch checks it against the calendar; see checkSplits. What starts a fetch,
