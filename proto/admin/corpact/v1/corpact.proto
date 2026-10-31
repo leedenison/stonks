@@ -1,0 +1,100 @@
+// The corporate actions of an instrument and the administrator's decision on
+// each.
+
+syntax = "proto3";
+
+package stonks.admin.corpact.v1;
+
+import "buf/validate/validate.proto";
+import "type/v1/type.proto";
+
+option go_package = "github.com/leedenison/stonks/proto/admin/corpact/v1;admincorpactv1";
+
+// The type an administrator records for a corporate action. A split, a
+// reverse split and a stock dividend restate the quantity held. A spin-off
+// price factor and a rights issue leave it. Other is an action the system
+// cannot yet apply, and a holding across it stays provisional.
+enum CorpActDecision {
+  // Undecided.
+  CORP_ACT_DECISION_UNSPECIFIED = 0;
+  CORP_ACT_DECISION_SPLIT = 1;
+  CORP_ACT_DECISION_REVERSE_SPLIT = 2;
+  CORP_ACT_DECISION_STOCK_DIVIDEND = 3;
+  CORP_ACT_DECISION_SPIN_OFF_PRICE_FACTOR = 4;
+  CORP_ACT_DECISION_RIGHTS_ISSUE = 5;
+  CORP_ACT_DECISION_OTHER = 6;
+}
+
+// A corporate action as a datasource reported it for a ticker, with the
+// administrator's decision on it.
+message CorpAct {
+  string id = 1;
+  stonks.type.v1.MarketTicker ticker = 2;
+  // YYYY-MM-DD.
+  string ex_date = 3;
+  stonks.type.v1.Ratio ratio = 4;
+  string datasource = 5;
+  // The datasource's own word for the action; unset where it states none.
+  optional string type = 6;
+  // Whether the action restates the quantity held: the decision where one
+  // exists, otherwise the system's judgment.
+  bool restates_shares = 7;
+  CorpActDecision decision = 8;
+  // Whether the instrument's calendar reads the action: its ticker is in the
+  // instrument's market and its datasource is the market's corporate
+  // actions source.
+  bool applied = 9;
+}
+
+// A split that statements state.
+message StmtSplit {
+  // YYYY-MM-DD.
+  string effective_date = 1;
+  // Unset where the statements state no ratio.
+  stonks.type.v1.Ratio ratio = 2;
+}
+
+message ListInstrCorpActsRequest {
+  string instr_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message ListInstrCorpActsResponse {
+  // Latest ex-date first.
+  repeated CorpAct corp_acts = 1;
+}
+
+message GetCorpActRequest {
+  string corp_act_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+// The action with the evidence for deciding it. The evidence concerns the
+// instrument the action's ticker named on the ex-date, and is empty where it
+// named nothing.
+message GetCorpActResponse {
+  CorpAct corp_act = 1;
+  // The distinct splits statements state within 7 days of the ex-date.
+  repeated StmtSplit stmt_splits = 2;
+  // The actions of other datasources within 7 days of the ex-date.
+  repeated CorpAct other_corp_acts = 3;
+}
+
+message DecideCorpActRequest {
+  string corp_act_id = 1 [(buf.validate.field).string.uuid = true];
+  CorpActDecision decision = 2 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
+}
+
+message DecideCorpActResponse {}
+
+service CorpActService {
+  // Lists every stored action of a ticker that named the instrument on the
+  // action's ex-date, from every datasource.
+  rpc ListInstrCorpActs(ListInstrCorpActsRequest) returns (ListInstrCorpActsResponse);
+  // Reads one action with the evidence for deciding it.
+  rpc GetCorpAct(GetCorpActRequest) returns (GetCorpActResponse);
+  // Records the decision on an action and clears the finding that names it.
+  // Holdings read the decision at once.
+  rpc DecideCorpAct(DecideCorpActRequest) returns (DecideCorpActResponse);
+}

@@ -26,13 +26,6 @@ message Row {
   string quantity = 5;
 }
 
-// The change in units between old and new as the export states it: 1 old to
-// 10 new for a ten-for-one split.
-message SplitRatio {
-  string from = 1 [(buf.validate.field).string.pattern = "^-?\\d+(\\.\\d+)?$"];
-  string to = 2 [(buf.validate.field).string.pattern = "^-?\\d+(\\.\\d+)?$"];
-}
-
 // A split as the export states it.
 message StatedSplit {
   option (buf.validate.message).cel = {
@@ -54,7 +47,7 @@ message StatedSplit {
   // The change in units the export states; negative for a short position.
   string quantity = 3 [(buf.validate.field).string.pattern = "^-?\\d+(\\.\\d+)?$"];
   // Unset when the export states no ratio.
-  SplitRatio ratio = 4;
+  stonks.type.v1.Ratio ratio = 4;
 }
 
 // A statement in the neutral format, as a client submits it. In the standard

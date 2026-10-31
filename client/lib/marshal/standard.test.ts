@@ -6,11 +6,11 @@ import {
   AssetClass,
   Broker,
   IdentifierType,
+  RatioSchema,
   StatedKeySchema,
 } from "@/gen/type/v1/type_pb";
 import {
   RowSchema,
-  SplitRatioSchema,
   StatedSplitSchema,
   StmtSchema,
 } from "@/gen/stmt/v1/stmt_pb";
@@ -51,7 +51,7 @@ const expected = create(StmtSchema, {
       key: meta,
       effectiveDate: "2024-06-10",
       quantity: "90",
-      ratio: create(SplitRatioSchema, { from: "1", to: "10" }),
+      ratio: create(RatioSchema, { from: "1", to: "10" }),
     }),
   ],
 });

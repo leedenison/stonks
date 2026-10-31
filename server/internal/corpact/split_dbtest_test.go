@@ -469,3 +469,48 @@ func TestSplitNearUnhandled(t *testing.T) {
 		t.Errorf("findings = %+v, want none", got)
 	}
 }
+
+// TestListInstrActs checks that an instrument's actions come from every
+// datasource under a ticker that named it on the ex-date and not from the
+// days the ticker named another instrument, that only the market's source is
+// applied, and that the evidence for one of them holds the other
+// datasource's action and the stated split nearby.
+func TestListInstrActs(t *testing.T) {
+	s := newStack(t)
+	ctx := context.Background()
+	earlier := s.instr(t, types.AssetClassStock)
+	s.names(t, us("NVDA"), earlier, day(2023, 1, 2))
+	instr, key := s.nvda(t)
+	s.states(t, *s.parent.UserID, key, ptr.To(ratio(1, 10)))
+	nvda := ticker("XNAS", "NVDA")
+	s.alpha.Responses[nvda] = covering(reported(day(2024, 6, 10), ratio(1, 10)), reported(day(2023, 6, 1), ratio(1, 4)))
+	s.fetch(t, nvda)
+	s.source(t, s.betaName)
+	s.beta.Responses[nvda] = covering(reported(day(2024, 6, 10), ratio(1, 10)))
+	s.fetch(t, nvda)
+	s.source(t, s.alphaName)
+
+	acts, err := ListInstrActs(ctx, s.q, instr)
+	require.NoError(t, err)
+	type listed struct {
+		Datasource, Day string
+		Applied         bool
+	}
+	var got []listed
+	for _, a := range acts {
+		got = append(got, listed{a.Datasource, a.ExDate.Format(time.DateOnly), a.Applied})
+	}
+	want := []listed{{s.alphaName, "2024-06-10", true}, {s.betaName, "2024-06-10", false}}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("actions mismatch (-want +got):\n%s", diff)
+	}
+
+	ev, err := ReadEvidence(ctx, s.q, acts[0].ID)
+	require.NoError(t, err)
+	if !ev.Act.Applied || len(ev.Others) != 1 || ev.Others[0].ID != acts[1].ID {
+		t.Errorf("evidence = %+v, want the applied action with beta's as the other", ev)
+	}
+	if sp := ev.StmtSplits; len(sp) != 1 || !sp[0].EffectiveDate.Equal(splitDay) || sp[0].Ratio == nil || !sp[0].Ratio.Equal(ratio(1, 10)) {
+		t.Errorf("stated splits = %+v, want one of 10 for 1 on %s", sp, splitDay.Format(time.DateOnly))
+	}
+}

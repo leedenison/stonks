@@ -36,6 +36,26 @@ WITH decided AS (
 )
 SELECT decided.id FROM decided;
 
+-- name: ListInstrCorpActs :many
+-- Every stored action of a ticker that named the instrument on the action's
+-- ex-date, from every datasource, latest ex-date first.
+SELECT sqlc.embed(corp_acts), corp_act_answers.datasource, tickers.market, tickers.value
+FROM corp_acts
+JOIN corp_act_answers ON corp_act_answers.id = corp_acts.answer_id
+JOIN tickers ON tickers.id = corp_act_answers.ticker_id
+JOIN ticker_validity ON ticker_validity.ticker_id = corp_act_answers.ticker_id
+    AND ticker_validity.instr_id = @instr_id
+    AND (ticker_validity.valid_from IS NULL OR ticker_validity.valid_from <= corp_acts.ex_date)
+    AND (ticker_validity.valid_before IS NULL OR corp_acts.ex_date < ticker_validity.valid_before)
+ORDER BY corp_acts.ex_date DESC, corp_act_answers.datasource, corp_acts.id;
+
+-- name: GetCorpAct :one
+SELECT sqlc.embed(corp_acts), corp_act_answers.datasource, corp_act_answers.ticker_id, tickers.market, tickers.value
+FROM corp_acts
+JOIN corp_act_answers ON corp_act_answers.id = corp_acts.answer_id
+JOIN tickers ON tickers.id = corp_act_answers.ticker_id
+WHERE corp_acts.id = @id;
+
 -- name: ListCorpActSources :many
 -- Each market that names a corporate actions source, with that datasource.
 SELECT code, corp_act_source::text AS datasource FROM markets

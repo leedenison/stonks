@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	adminblockv1 "github.com/leedenison/stonks/proto/admin/block/v1"
+	admincorpactv1 "github.com/leedenison/stonks/proto/admin/corpact/v1"
 	adminrunv1 "github.com/leedenison/stonks/proto/admin/run/v1"
 	authv1 "github.com/leedenison/stonks/proto/auth/v1"
 	runv1 "github.com/leedenison/stonks/proto/run/v1"
@@ -104,5 +105,8 @@ func TestEnumsCross(t *testing.T) {
 	t.Run("finding kind", func(t *testing.T) { crosses[gen.FindingKind, adminrunv1.FindingKind](t, gen.AllFindingKindValues()) })
 	t.Run("drop step", func(t *testing.T) { crosses[gen.DropStep, adminrunv1.DropStep](t, gen.AllDropStepValues()) })
 	t.Run("block scope", func(t *testing.T) { crosses[gen.BlockScope, adminblockv1.BlockScope](t, gen.AllBlockScopeValues()) })
+	t.Run("corp act decision", func(t *testing.T) {
+		crosses[gen.CorpActDecision, admincorpactv1.CorpActDecision](t, gen.AllCorpActDecisionValues())
+	})
 	t.Run("user role", func(t *testing.T) { crosses[gen.UserRole, authv1.Role](t, gen.AllUserRoleValues()) })
 }

@@ -116,6 +116,13 @@ message MarketTicker {
   string value = 2 [(buf.validate.field).string.min_len = 1];
 }
 
+// The change in units between old and new: 1 old to 10 new for a
+// ten-for-one split.
+message Ratio {
+  string from = 1 [(buf.validate.field).string.pattern = "^-?\\d+(\\.\\d+)?$"];
+  string to = 2 [(buf.validate.field).string.pattern = "^-?\\d+(\\.\\d+)?$"];
+}
+
 // A half open range of days. It holds from and each later day until before,
 // which falls outside it. Each bound is YYYY-MM-DD. An unset bound is open.
 message Period {
