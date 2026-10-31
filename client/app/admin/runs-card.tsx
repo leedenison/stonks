@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Fragment, useState } from "react";
 import { Button } from "@/app/components/button";
+import { InfoTip } from "@/app/components/info-tip";
 import { Section } from "@/app/components/section";
 import { Skeleton } from "@/app/components/skeleton";
 import { RunChip } from "@/app/components/state-chip";
@@ -81,8 +82,10 @@ function RunsCardRow({
   return (
     <Tr data-testid={`runs-card-row-${run.testId}`}>
       <Td>
-        <div className="font-semibold">{run.title}</div>
-        <div className="text-text-muted">{run.summary}</div>
+        <span className="inline-flex items-center gap-2 font-semibold">
+          {run.title}
+          <InfoTip text={run.summary} testId={`runs-card-why-${run.testId}`} />
+        </span>
       </Td>
       <Td data-testid={`runs-card-last-${run.testId}`}>
         {last.isPending ? (

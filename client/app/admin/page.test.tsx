@@ -174,9 +174,9 @@ describe("AdminPage digest", () => {
       "alert-group-corp_act",
       "alert-group-finding",
     ]);
-    expect(screen.getByTestId("alert-group-block").textContent).toContain(
-      "a datasource is not asked again",
-    );
+    expect(
+      screen.getByTestId("alert-why-block").getAttribute("title"),
+    ).toContain("a datasource is not asked again");
     expect(screen.getByTestId("runs-card")).toBeTruthy();
   });
 
