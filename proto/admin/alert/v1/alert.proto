@@ -7,6 +7,7 @@ syntax = "proto3";
 package stonks.admin.alert.v1;
 
 import "admin/block/v1/block.proto";
+import "admin/corpact/v1/corpact.proto";
 import "admin/coverage/v1/coverage.proto";
 import "admin/run/v1/run.proto";
 import "buf/validate/validate.proto";
@@ -28,7 +29,9 @@ enum AlertKind {
   // A gap in the confirmed ticker validity of a ticker, across days on
   // which a key stating it holds a position.
   ALERT_KIND_TICKER_VALIDITY_GAP = 4;
-  // An unhandled corporate action awaiting a decision.
+  // A corporate action whose effect on the quantity held is unknown: the
+  // system did not handle it and it is undecided, or it is decided as a type
+  // the system cannot yet apply.
   ALERT_KIND_CORP_ACT = 5;
   // An uncleared finding of the kinds contradiction, identifier
   // disagreement, broken ticker validity bracket, missed event and unmatched
@@ -57,14 +60,14 @@ message TickerValidityGap {
 
 message Alert {
   AlertKind kind = 1;
-  // Which message is set follows the kind. CORP_ACT and FINDING both carry a
-  // finding.
+  // Which message is set follows the kind.
   oneof subject {
     stonks.admin.run.v1.UserRun run = 2;
     stonks.admin.block.v1.Block block = 3;
     TickerNamesNothing names_nothing = 4;
     TickerValidityGap validity_gap = 5;
-    stonks.admin.run.v1.Finding finding = 6;
+    stonks.admin.corpact.v1.CorpAct corp_act = 6;
+    stonks.admin.run.v1.Finding finding = 7;
   }
 }
 
@@ -98,7 +101,9 @@ message ListAlertsRequest {
 }
 
 message ListAlertsResponse {
-  // In rank order.
+  // In rank order within the kind: a run, a block or a finding newest first;
+  // a corporate action latest ex-date first; a ticker kind by the most
+  // transactions, then the latest date, then the ticker's name.
   repeated Alert alerts = 1;
   // Continues the listing; empty on the last page.
   string next_page_token = 2;

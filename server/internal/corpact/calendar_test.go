@@ -57,14 +57,6 @@ func (s *canned) ListCorpActs(context.Context, gen.ListCorpActsParams) ([]gen.Co
 	return s.acts, nil
 }
 
-func (s *canned) ListCorpActSources(context.Context) ([]gen.ListCorpActSourcesRow, error) {
-	var out []gen.ListCorpActSourcesRow
-	for code, ds := range s.sources {
-		out = append(out, gen.ListCorpActSourcesRow{Code: code, Datasource: ds})
-	}
-	return out, nil
-}
-
 // answerOf returns the answer row of the action e.
 func (s *canned) answerOf(e gen.CorpAct) gen.ListCorpActAnswersRow {
 	i := slices.IndexFunc(s.answers, func(a gen.ListCorpActAnswersRow) bool { return a.CorpActAnswer.ID == e.AnswerID })
@@ -84,7 +76,8 @@ func (s *canned) ListInstrCorpActs(_ context.Context, instr uuid.UUID) ([]gen.Li
 	for _, e := range s.acts {
 		a := s.answerOf(e)
 		if s.namesOn(a.Market, a.Value, instr, e.ExDate) {
-			out = append(out, gen.ListInstrCorpActsRow{CorpAct: e, Datasource: a.CorpActAnswer.Datasource, Market: a.Market, Value: a.Value})
+			ds := a.CorpActAnswer.Datasource
+			out = append(out, gen.ListInstrCorpActsRow{CorpAct: e, Datasource: ds, Market: a.Market, Value: a.Value, Source: s.sources[a.Market] == ds})
 		}
 	}
 	slices.SortStableFunc(out, func(a, b gen.ListInstrCorpActsRow) int { return b.CorpAct.ExDate.Compare(a.CorpAct.ExDate) })

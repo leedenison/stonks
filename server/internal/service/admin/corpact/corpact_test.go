@@ -52,13 +52,14 @@ func newFixture(t *testing.T) *fixture {
 }
 
 // row is a stored action of datasource for US:GE on spun, from units
-// becoming to units, with the decision d where d is not empty.
+// becoming to units, with the decision d where d is not empty. alpha is the
+// source of the US.
 func row(id uuid.UUID, datasource string, from, to int64, handled bool, d gen.CorpActDecision) gen.ListInstrCorpActsRow {
 	e := gen.CorpAct{ID: id, ExDate: spun, RatioFrom: decimal.NewFromInt(from), RatioTo: decimal.NewFromInt(to), Handled: handled, Type: ptr.To("forward_split")}
 	if d != "" {
 		e.Decision = &d
 	}
-	return gen.ListInstrCorpActsRow{CorpAct: e, Datasource: datasource, Market: "US", Value: "GE"}
+	return gen.ListInstrCorpActsRow{CorpAct: e, Datasource: datasource, Market: "US", Value: "GE", Source: datasource == "alpha"}
 }
 
 // msg is the message of row, with the effective restates-shares and the
@@ -84,7 +85,6 @@ func TestListInstrCorpActs(t *testing.T) {
 		row(ids[3], "beta", 1, 4, true, ""),
 	}, nil)
 	f.queries.EXPECT().ListInstrMarkets(gomock.Any(), []uuid.UUID{instrID}).Return([]gen.ListInstrMarketsRow{{InstrID: instrID, Market: "US"}}, nil)
-	f.queries.EXPECT().ListCorpActSources(gomock.Any()).Return([]gen.ListCorpActSourcesRow{{Code: "US", Datasource: "alpha"}}, nil)
 
 	res, err := f.client.ListInstrCorpActs(context.Background(), connect.NewRequest(&admincorpactv1.ListInstrCorpActsRequest{InstrId: instrID.String()}))
 	if err != nil {
@@ -132,28 +132,22 @@ func TestDecideCorpAct(t *testing.T) {
 	tests := []struct {
 		name     string
 		decision admincorpactv1.CorpActDecision
-		stored   bool
+		// stored is the decision the store records; empty where none is.
+		stored   gen.CorpActDecision
 		err      error
 		wantCode connect.Code
 	}{
-		{name: "decided", decision: admincorpactv1.CorpActDecision_CORP_ACT_DECISION_SPLIT, stored: true},
-		{name: "not found", decision: admincorpactv1.CorpActDecision_CORP_ACT_DECISION_SPLIT, stored: true, err: db.ErrNotFound, wantCode: connect.CodeNotFound},
-		{name: "failure", decision: admincorpactv1.CorpActDecision_CORP_ACT_DECISION_OTHER, stored: true, err: errors.New("boom"), wantCode: connect.CodeInternal},
+		{name: "decided", decision: admincorpactv1.CorpActDecision_CORP_ACT_DECISION_SPLIT, stored: gen.CorpActDecisionSplit},
+		{name: "not found", decision: admincorpactv1.CorpActDecision_CORP_ACT_DECISION_SPLIT, stored: gen.CorpActDecisionSplit, err: db.ErrNotFound, wantCode: connect.CodeNotFound},
+		{name: "failure", decision: admincorpactv1.CorpActDecision_CORP_ACT_DECISION_OTHER, stored: gen.CorpActDecisionOther, err: errors.New("boom"), wantCode: connect.CodeInternal},
 		{name: "unspecified", decision: admincorpactv1.CorpActDecision_CORP_ACT_DECISION_UNSPECIFIED, wantCode: connect.CodeInvalidArgument},
 		{name: "undefined", decision: admincorpactv1.CorpActDecision(99), wantCode: connect.CodeInvalidArgument},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newFixture(t)
-			if tc.stored {
-				var d gen.CorpActDecision
-				switch tc.decision {
-				case admincorpactv1.CorpActDecision_CORP_ACT_DECISION_SPLIT:
-					d = gen.CorpActDecisionSplit
-				case admincorpactv1.CorpActDecision_CORP_ACT_DECISION_OTHER:
-					d = gen.CorpActDecisionOther
-				}
-				f.queries.EXPECT().DecideCorpAct(gomock.Any(), gen.DecideCorpActParams{ID: actID, Decision: d}).Return(actID, tc.err)
+			if tc.stored != "" {
+				f.queries.EXPECT().DecideCorpAct(gomock.Any(), gen.DecideCorpActParams{ID: actID, Decision: tc.stored}).Return(actID, tc.err)
 			}
 			_, err := f.client.DecideCorpAct(context.Background(), connect.NewRequest(&admincorpactv1.DecideCorpActRequest{CorpActId: actID.String(), Decision: tc.decision}))
 			if servicetest.CodeOf(err) != tc.wantCode {

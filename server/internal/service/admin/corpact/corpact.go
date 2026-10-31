@@ -11,7 +11,6 @@ import (
 
 	admincorpactv1 "github.com/leedenison/stonks/proto/admin/corpact/v1"
 	"github.com/leedenison/stonks/proto/admin/corpact/v1/admincorpactv1connect"
-	typev1 "github.com/leedenison/stonks/proto/type/v1"
 	"github.com/leedenison/stonks/server/internal/corpact"
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
@@ -24,7 +23,6 @@ type Queries interface {
 	ListTickerValidity(ctx context.Context, arg gen.ListTickerValidityParams) ([]gen.ListTickerValidityRow, error)
 	GetCorpAct(ctx context.Context, id uuid.UUID) (gen.GetCorpActRow, error)
 	ListInstrCorpActs(ctx context.Context, instrID uuid.UUID) ([]gen.ListInstrCorpActsRow, error)
-	ListCorpActSources(ctx context.Context) ([]gen.ListCorpActSourcesRow, error)
 	ListStatedSplits(ctx context.Context, arg gen.ListStatedSplitsParams) ([]gen.ListStatedSplitsRow, error)
 	DecideCorpAct(ctx context.Context, arg gen.DecideCorpActParams) (uuid.UUID, error)
 }
@@ -57,7 +55,7 @@ func (s *Server) ListInstrCorpActs(ctx context.Context, req *connect.Request[adm
 	}
 	out := &admincorpactv1.ListInstrCorpActsResponse{}
 	for _, a := range acts {
-		out.CorpActs = append(out.CorpActs, corpAct(a))
+		out.CorpActs = append(out.CorpActs, a.ToProto())
 	}
 	return connect.NewResponse(out), nil
 }
@@ -75,16 +73,16 @@ func (s *Server) GetCorpAct(ctx context.Context, req *connect.Request[admincorpa
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	out := &admincorpactv1.GetCorpActResponse{CorpAct: corpAct(ev.Act)}
+	out := &admincorpactv1.GetCorpActResponse{CorpAct: ev.Act.ToProto()}
 	for _, sp := range ev.StmtSplits {
 		msg := &admincorpactv1.StmtSplit{EffectiveDate: sp.EffectiveDate.Format(time.DateOnly)}
 		if sp.Ratio != nil {
-			msg.Ratio = ratio(*sp.Ratio)
+			msg.Ratio = sp.Ratio.ToProto()
 		}
 		out.StmtSplits = append(out.StmtSplits, msg)
 	}
 	for _, a := range ev.Others {
-		out.OtherCorpActs = append(out.OtherCorpActs, corpAct(a))
+		out.OtherCorpActs = append(out.OtherCorpActs, a.ToProto())
 	}
 	return connect.NewResponse(out), nil
 }
@@ -107,26 +105,4 @@ func (s *Server) DecideCorpAct(ctx context.Context, req *connect.Request[adminco
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	return connect.NewResponse(&admincorpactv1.DecideCorpActResponse{}), nil
-}
-
-// corpAct writes a as its message.
-func corpAct(a corpact.InstrAct) *admincorpactv1.CorpAct {
-	out := &admincorpactv1.CorpAct{
-		Id:             a.ID.String(),
-		Ticker:         &typev1.MarketTicker{Market: a.Ticker.Market, Value: a.Ticker.Value},
-		ExDate:         a.ExDate.Format(time.DateOnly),
-		Ratio:          ratio(a.Ratio),
-		Datasource:     a.Datasource,
-		RestatesShares: a.Restates(),
-		Decision:       types.ToProto[admincorpactv1.CorpActDecision](a.Decision),
-		Applied:        a.Applied,
-	}
-	if a.Type != "" {
-		out.Type = &a.Type
-	}
-	return out
-}
-
-func ratio(r types.Ratio) *typev1.Ratio {
-	return &typev1.Ratio{From: r.From.String(), To: r.To.String()}
 }

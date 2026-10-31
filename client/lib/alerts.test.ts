@@ -9,6 +9,7 @@ import {
   TickerValidityGapSchema,
 } from "@/gen/admin/alert/v1/alert_pb";
 import { BlockSchema } from "@/gen/admin/block/v1/block_pb";
+import { CorpActSchema } from "@/gen/admin/corpact/v1/corpact_pb";
 import { GapSchema } from "@/gen/admin/coverage/v1/coverage_pb";
 import { FindingKind, FindingSchema } from "@/gen/admin/run/v1/run_pb";
 import { MarketTickerSchema, PeriodSchema } from "@/gen/type/v1/type_pb";
@@ -97,26 +98,40 @@ describe("alertRow", () => {
     });
   });
 
-  it("decides a corporate action and clears any other finding", () => {
-    const finding = (corpActId?: string) =>
-      create(FindingSchema, {
-        id: "f1",
-        kind: FindingKind.UNHANDLED_CORP_ACT,
-        corpActId,
-      });
-    expect(
-      alertRow(
-        create(AlertSchema, {
-          kind: AlertKind.CORP_ACT,
-          subject: { case: "finding", value: finding("c1") },
-        }),
-      ).action,
-    ).toEqual({ case: "decide", corpActId: "c1" });
+  it("decides a corporate action from its ex-date", () => {
+    const r = alertRow(
+      create(AlertSchema, {
+        kind: AlertKind.CORP_ACT,
+        subject: {
+          case: "corpAct",
+          value: create(CorpActSchema, {
+            id: "c1",
+            exDate: "2024-04-02",
+            ratio: { from: "100", to: "104" },
+            type: "forward_split",
+            datasource: "eodhd",
+          }),
+        },
+      }),
+    );
+    expect(r.key).toBe("c1");
+    expect(r.detail).toBe("104 for 100, forward_split");
+    expect(r.since).toBe("2024-04-02");
+    expect(r.action).toEqual({ case: "decide", corpActId: "c1" });
+  });
+
+  it("clears a finding", () => {
     expect(
       alertRow(
         create(AlertSchema, {
           kind: AlertKind.FINDING,
-          subject: { case: "finding", value: finding() },
+          subject: {
+            case: "finding",
+            value: create(FindingSchema, {
+              id: "f1",
+              kind: FindingKind.CONTRADICTION,
+            }),
+          },
         }),
       ).action,
     ).toEqual({ case: "clear-finding", id: "f1" });
