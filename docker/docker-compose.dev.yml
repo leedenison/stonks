@@ -98,7 +98,7 @@ services:
   # without telemetry, and a collector that fails to start must not fail
   # `make run`.
   otel-collector:
-    image: otel/opentelemetry-collector-contrib:0.163.1-386
+    image: otel/opentelemetry-collector-contrib:0.164.0
     command: ["--config=/etc/otelcol/config.yaml"]
     volumes:
       - ./otel-collector/config.yaml:/etc/otelcol/config.yaml:ro
@@ -110,7 +110,7 @@ services:
     pids_limit: 256
 
   prometheus:
-    image: prom/prometheus:v3.15.0
+    image: prom/prometheus:v3.15.1
     command:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.path=/prometheus
@@ -134,7 +134,7 @@ services:
   # Datasources and dashboards are provisioned from docker/grafana. Nothing is
   # configured in the browser: a dashboard edited there cannot be saved.
   grafana:
-    image: grafana/grafana:13.2.4
+    image: grafana/grafana:13.3.0
     depends_on:
       # Provisioning against a datasource that is up but not answering
       # succeeds, and the first dashboard view is then empty for reasons
