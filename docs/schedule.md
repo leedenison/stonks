@@ -22,15 +22,21 @@ run.
 The milestones that are scheduled, in the order they are implemented. Each has a directory
 of open issues and ADRs at `docs/tasks/<label>/`.
 
-- **M08** - Prices: end of day prices and FX rates from external datasources, and the
-  valuation of holdings in a display currency each user selects.
+- **M08** - Prices: end of day prices and FX rates from external datasources, a chart of
+  them for an administrator, and a display currency each user selects.
 
 ```
-        001 open
-        /      \
-     003        004
-        \      /
-        002 close
+     003 trading day                          004 schwab
+            |
+     005 prices
+      /        |         \            \
+ 006 massive  007 eodhd  009 sheets   010 chart
+      \        /                        |
+     008 runs                           |
+            \                          /
+             011 display currency
+                      |
+                 002 close
 ```
 
 ## Completed
@@ -59,6 +65,7 @@ Each has a note in `docs/deferred` outlining how it might work.
 - **D-INSTR** - [Instrument resolution](deferred/instrument-resolution.md); the life of a listing, options, and the replays that keep an association current.
 - **D-GUESS** - [Guesses](deferred/guesses.md); the sources that rank candidates where the stated data leaves an association open, and the arbiter an association records.
 - **D-PRICES** - [Price ingestion](deferred/price-ingestion.md) from external providers.
+- **D-QUOTES** - [Current prices](deferred/current-prices.md); current prices for the instruments held, the valuation of holdings from them, and the first effect of the display currency.
 - **D-CORP** - [Corporate actions](deferred/corporate-actions.md); actions that retire a listing or change the instrument held, identifier succession, and the restatement of prices and OCC symbols.
 - **D-IDENT** - [Identifier events](deferred/identifier-events.md); renames served by date range for a whole market, and unwinding the prices fetched under a ticker that moves.
 - **D-DATASRC** - [Datasources](deferred/datasources.md); identifier events, corporate actions, prices and FX rates.

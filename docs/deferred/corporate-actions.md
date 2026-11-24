@@ -60,6 +60,10 @@ and recomputes them.
 
 Corporate actions are system owned data and can only be modified by an admin.
 
+An administrator can attest that the calendar is complete for a ticker over a period.
+The attestation counts as corporate actions coverage for those days, which serves a
+ticker that the corporate actions source of its market does not cover.
+
 ## Undecided
 
 - Corporate actions that change which instrument is held (eg. mergers and spinoffs). How
