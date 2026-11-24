@@ -202,5 +202,4 @@ function recognise(text: string, type: string): boolean {
   return timeframe && seen;
 }
 
-// The export date is not needed: every row is as at its order date.
-export const fidelityUkCsv = { marshal, recognise, needsExportDate: false };
+export const fidelityUkCsv = { marshal, recognise };

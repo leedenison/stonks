@@ -12,13 +12,9 @@ export type Parsed =
 // rather than thrown, so a stage of the dialog can show it and offer
 // another file. An error from inside a parser, on a file of another kind
 // entirely, is wrapped so the caller sees one shape.
-export function parseExport(
-  text: string,
-  format: Format,
-  exportedOn: string,
-): Parsed {
+export function parseExport(text: string, format: Format): Parsed {
   try {
-    return { stmt: marshallerFor(format).marshal(text, exportedOn) };
+    return { stmt: marshallerFor(format).marshal(text) };
   } catch (e) {
     if (e instanceof MarshalError) {
       return { error: e };

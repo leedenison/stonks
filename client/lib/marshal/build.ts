@@ -71,19 +71,18 @@ export function securityKey(key: {
   });
 }
 
-// leg builds one row, stated as at its order date unless asAt says otherwise.
+// leg builds one row, stated as at its order date.
 export function leg(
   key: StatedKey,
   orderDate: string,
   settlementDate: string,
   quantity: string,
-  asAt?: string,
 ): Row {
   return create(RowSchema, {
     key,
     orderDate,
     settlementDate,
-    asAt: asAt ?? orderDate,
+    asAt: orderDate,
     quantity: normalise(quantity),
   });
 }
@@ -100,11 +99,10 @@ export function trade(t: {
   fee: string;
   tax: string;
   settlementCurrency: string;
-  asAt?: string;
 }): Row[] {
   const cash = cashKey(t.settlementCurrency);
   const at = (key: StatedKey, quantity: string) =>
-    leg(key, t.orderDate, t.settlementDate, quantity, t.asAt);
+    leg(key, t.orderDate, t.settlementDate, quantity);
   const rows = [at(t.key, t.units), at(cash, add(add(t.net, t.fee), t.tax))];
   for (const charge of [t.fee, t.tax]) {
     if (!isZero(charge)) rows.push(at(cash, negate(charge)));

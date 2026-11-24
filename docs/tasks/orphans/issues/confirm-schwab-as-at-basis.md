@@ -19,7 +19,8 @@ The evidence needs a line of one symbol on each side of a split, in both the JSO
 the CSV export. Schwab's own documentation of the history would also serve.
 
 If Schwab restates quantities, each row is as at the date of the export, and the
-marshaller and its tests change to match.
+marshaller and its tests change to match. The upload dialog changes too. It must ask the
+user for the export date, because neither export states it.
 
 ## Design
 

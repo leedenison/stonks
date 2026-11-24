@@ -8,13 +8,7 @@ import { useCreateStmt } from "@/hooks/use-create-stmt";
 import { useDropTarget } from "@/hooks/use-drop-target";
 import { brokerLabel, formatLabel } from "@/lib/broker";
 import { formatQuantity } from "@/lib/format";
-import { today } from "@/lib/marshal/date";
-import {
-  type Format,
-  formats,
-  marshallerFor,
-  recognisedBy,
-} from "@/lib/marshal/marshal";
+import { type Format, formats, recognisedBy } from "@/lib/marshal/marshal";
 import { keyLabel } from "@/lib/rejections";
 import { parseExport } from "@/lib/upload/parse";
 import { type DayRange } from "@/lib/day-range";
@@ -58,7 +52,6 @@ export function UploadDialog({
   );
   const [format, setFormat] = useState<Format>();
   const [guesses, setGuesses] = useState<Format[]>([]);
-  const [exportedOn, setExportedOn] = useState(today);
   const [chosen, setChosen] = useState<DayRange>();
   const created = useCreateStmt();
 
@@ -118,9 +111,9 @@ export function UploadDialog({
   const parsed = useMemo(
     () =>
       loaded && format !== undefined
-        ? parseExport(loaded.text, format, exportedOn)
+        ? parseExport(loaded.text, format)
         : undefined,
-    [loaded, format, exportedOn],
+    [loaded, format],
   );
   const stmt = parsed?.stmt;
   const span = stmt ? period(stmt, chosen) : undefined;
@@ -216,19 +209,6 @@ export function UploadDialog({
               ))}
             </Select>
           </label>
-          {format !== undefined && marshallerFor(format).needsExportDate && (
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="text-text-muted">
-                Date the data was exported
-              </span>
-              <Input
-                type="date"
-                data-testid="upload-exported-on"
-                value={exportedOn}
-                onChange={(e) => setExportedOn(e.target.value)}
-              />
-            </label>
-          )}
           {parsed?.error && (
             <Notice tone="error" testId="upload-error">
               {parsed.error.message}

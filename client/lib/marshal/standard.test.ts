@@ -77,38 +77,34 @@ const protoNames = JSON.stringify({
 
 describe("standard", () => {
   it("reads the document as the message it holds", () => {
-    expect(standard.marshal(text, "")).toEqual(expected);
+    expect(standard.marshal(text)).toEqual(expected);
   });
 
   it("accepts the proto spelling of a field", () => {
-    const s = standard.marshal(protoNames, "");
+    const s = standard.marshal(protoNames);
     expect(s.broker).toBe(Broker.SCHWAB);
     expect(s.period?.from).toBe("2024-01-01");
     expect(s.rows[0].asAt).toBe("2024-01-05");
     expect(s.rows[0].key?.assetClass).toBe(AssetClass.CASH);
   });
 
-  it("ignores the export date", () => {
-    expect(standard.marshal(text, "2025-01-15")).toEqual(expected);
-  });
-
   it("refuses a document that states no broker or no period", () => {
-    expect(() => standard.marshal("{}", "")).toThrow("states no broker");
+    expect(() => standard.marshal("{}")).toThrow("states no broker");
     expect(() =>
-      standard.marshal(JSON.stringify({ broker: "BROKER_IBKR" }), ""),
+      standard.marshal(JSON.stringify({ broker: "BROKER_IBKR" })),
     ).toThrow("states no period");
   });
 
   it("refuses a document the parser cannot read, with its message", () => {
     const unknown = () =>
-      standard.marshal(JSON.stringify({ broker: "BROKER_IBKR", foo: 1 }), "");
+      standard.marshal(JSON.stringify({ broker: "BROKER_IBKR", foo: 1 }));
     expect(unknown).toThrow(MarshalError);
     expect(unknown).toThrow('key "foo" is unknown');
     const enumName = () =>
-      standard.marshal(JSON.stringify({ broker: "BROKER_FOO" }), "");
+      standard.marshal(JSON.stringify({ broker: "BROKER_FOO" }));
     expect(enumName).toThrow(MarshalError);
     expect(enumName).toThrow(/cannot decode .*BROKER_FOO/);
-    expect(() => standard.marshal("not json", "")).toThrow(MarshalError);
+    expect(() => standard.marshal("not json")).toThrow(MarshalError);
   });
 
   it("recognises a JSON document that reads as a statement", () => {

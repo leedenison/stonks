@@ -45,9 +45,4 @@ function recognise(text: string, type: string): boolean {
   }
 }
 
-export const standard: Marshaller = {
-  marshal,
-  recognise,
-  // Every quantity is as at its row's as_at.
-  needsExportDate: false,
-};
+export const standard: Marshaller = { marshal, recognise };

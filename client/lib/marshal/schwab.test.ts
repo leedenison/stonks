@@ -5,33 +5,13 @@ import { describe, expect, it } from "vitest";
 import { AssetClass, Broker } from "@/gen/type/v1/type_pb";
 import { StatedSplitSchema } from "@/gen/stmt/v1/stmt_pb";
 import { MarshalError } from "./error";
-import { fixture, hint, security } from "./test-utils";
+import { fixture, hint, row, security } from "./test-utils";
 import { cashKey } from "./build";
-import { create as make } from "@bufbuild/protobuf";
-import { RowSchema, type Row } from "@/gen/stmt/v1/stmt_pb";
-import type { StatedKey } from "@/gen/type/v1/type_pb";
-
-// row is a leg stated as at the export date, as every Schwab row is.
-function row(
-  key: StatedKey,
-  orderDate: string,
-  settlementDate: string,
-  quantity: string,
-): Row {
-  return make(RowSchema, {
-    key,
-    orderDate,
-    settlementDate,
-    asAt: EXPORTED,
-    quantity,
-  });
-}
 import { schwab } from "./schwab";
 
 const json = fixture("schwab.json");
 const csv = fixture("schwab.csv");
-const EXPORTED = "2025-01-15";
-const stmt = schwab.marshal(json, EXPORTED);
+const stmt = schwab.marshal(json);
 
 const usd = cashKey("USD");
 const stock = (symbol: string, description: string) =>
@@ -44,16 +24,16 @@ const stock = (symbol: string, description: string) =>
   );
 
 describe("schwab", () => {
-  it("takes the period from the JSON and states every row as at the export", () => {
+  it("takes the period from the JSON and states every row as at its order date", () => {
     expect(stmt.broker).toBe(Broker.SCHWAB);
-    expect(stmt.rows.every((r) => r.asAt === EXPORTED)).toBe(true);
+    expect(stmt.rows.every((r) => r.asAt === r.orderDate)).toBe(true);
     expect(stmt.period?.from).toBe("2024-01-01");
     expect(stmt.period?.before).toBe("2025-01-01");
     expect(stmt.rows).toHaveLength(17);
   });
 
   it("derives the period from the rows of the CSV, which carry the same legs", () => {
-    const fromCsv = schwab.marshal(csv, EXPORTED);
+    const fromCsv = schwab.marshal(csv);
     expect(fromCsv.period?.from).toBe("2024-04-17");
     expect(fromCsv.period?.before).toBe("2024-12-17");
     expect(fromCsv.rows).toEqual(stmt.rows);
@@ -81,6 +61,7 @@ describe("schwab", () => {
     expect(stmt.rows[6]).toEqual(
       row(usd, "2024-10-03", "2024-10-04", "191.71"),
     );
+    expect(stmt.rows[6].asAt).toBe("2024-10-03");
   });
 
   it("states a split with no ratio", () => {
@@ -109,9 +90,9 @@ describe("schwab", () => {
 
   it("fails on an action it does not know, naming the line", () => {
     const odd = csv.replace('"Journal"', '"Journaled Shares"');
-    expect(() => schwab.marshal(odd, EXPORTED)).toThrow(MarshalError);
+    expect(() => schwab.marshal(odd)).toThrow(MarshalError);
     try {
-      schwab.marshal(odd, EXPORTED);
+      schwab.marshal(odd);
     } catch (e) {
       expect(e).toMatchObject({ line: 10, kind: "Journaled Shares" });
     }
