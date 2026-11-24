@@ -4,11 +4,10 @@
 // on the effective date and settled on the posted date. Every amount is in
 // USD, and a symbol is carried as a hint with no venue.
 //
-// A quantity is restated to the units held after every split up to the
-// export while the price stays as traded, and the split is still stated as a
-// line of its own. The line states the units the split added, without a
-// ratio. Every row is therefore as at the date the export was
-// taken, which neither format states and the caller supplies.
+// The exports do not show whether a later split restates the quantity of a
+// line. The marshaller takes each quantity as traded, so every row is as at
+// its order date. A split is stated as a line of its own. The line states
+// the units the split added, without a ratio.
 
 import { parse } from "csv-parse/sync";
 import { AssetClass, Broker, IdentifierType } from "@/gen/type/v1/type_pb";
@@ -136,7 +135,7 @@ const CASH_ACTIONS = new Set([
   "Service Fee",
 ]);
 
-function marshal(text: string, exportedOn: string): Stmt {
+function marshal(text: string): Stmt {
   const { period, lines } = text.trimStart().startsWith("{")
     ? readJson(text)
     : readCsv(text);
@@ -168,7 +167,6 @@ function marshal(text: string, exportedOn: string): Stmt {
         fee: l.fees === "" ? "0" : l.fees,
         tax: "0",
         settlementCurrency: USD,
-        asAt: exportedOn,
       });
 
     switch (l.action) {
@@ -180,7 +178,7 @@ function marshal(text: string, exportedOn: string): Stmt {
         rows.push(...bought(negate(l.quantity)));
         break;
       case "Cash Merger Adj":
-        rows.push(leg(key(), order, settlement, l.quantity, exportedOn));
+        rows.push(leg(key(), order, settlement, l.quantity));
         break;
       case "Stock Split":
         splits.push(split(key(), order, l.quantity));
@@ -193,7 +191,7 @@ function marshal(text: string, exportedOn: string): Stmt {
             l.action,
           );
         }
-        rows.push(leg(cashKey(USD), order, settlement, l.amount, exportedOn));
+        rows.push(leg(cashKey(USD), order, settlement, l.amount));
     }
   }
 
@@ -223,4 +221,4 @@ function recognise(text: string, type: string): boolean {
   return header === COLUMNS.map((c) => `"${c}"`).join(",");
 }
 
-export const schwab: Marshaller = { marshal, recognise, needsExportDate: true };
+export const schwab: Marshaller = { marshal, recognise };

@@ -13,15 +13,10 @@ import { standard } from "./standard";
 export { MarshalError };
 
 export interface Marshaller {
-  // exportedOn is the date the export was taken. It is ignored unless
-  // needsExportDate is true.
-  marshal(text: string, exportedOn: string): Stmt;
+  marshal(text: string): Stmt;
   // type is the media type the browser reports for the file. recognise never
   // throws.
   recognise(text: string, type: string): boolean;
-  // needsExportDate is true for a format that restates every quantity to the
-  // units held when the export was taken.
-  needsExportDate: boolean;
 }
 
 // Format names one kind of file the upload dialog takes. A broker export

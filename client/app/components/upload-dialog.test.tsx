@@ -48,14 +48,13 @@ describe("UploadDialog", () => {
     );
     expect(input("upload-from").value).toBe("2025-01-01");
     expect(input("upload-to").value).toBe("2025-03-16");
-    expect(screen.queryByTestId("upload-exported-on")).toBeNull();
     expect(
       screen.getByTestId("upload-preview").querySelectorAll("tbody tr").length,
     ).toBe(5);
     expect(screen.queryByTestId("upload-outside")).toBeNull();
   });
 
-  it("asks a Schwab export for the date it was taken and re-parses on change", async () => {
+  it("sends each row of a Schwab export as at its order date", async () => {
     const createStmt = vi.fn<(req: CreateStmtRequest) => typeof pending>(
       () => pending,
     );
@@ -65,13 +64,10 @@ describe("UploadDialog", () => {
     );
     choose("history.csv", "text/csv", fixture("schwab.csv"));
     await waitFor(() => expect(select().value).toBe("schwab"));
-    fireEvent.change(input("upload-exported-on"), {
-      target: { value: "2025-01-15" },
-    });
     fireEvent.click(screen.getByTestId("upload-submit"));
     await waitFor(() => expect(createStmt).toHaveBeenCalledTimes(1));
     const sent = createStmt.mock.calls[0]?.[0].stmt;
-    expect(sent?.rows[0]?.asAt).toBe("2025-01-15");
+    expect(sent?.rows[0]?.asAt).toBe("2024-12-16");
   });
 
   it("narrows the period, warns about the rows outside it and submits it", async () => {
@@ -230,7 +226,6 @@ describe("UploadDialog", () => {
     expect(screen.getByTestId("upload-stated-broker").textContent).toBe(
       "Broker IBKR",
     );
-    expect(screen.queryByTestId("upload-exported-on")).toBeNull();
     expect(screen.getByTestId("upload-rows").textContent).toBe(
       "2 rows and 1 stated splits",
     );

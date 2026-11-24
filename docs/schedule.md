@@ -26,7 +26,7 @@ of open issues and ADRs at `docs/tasks/<label>/`.
   them for an administrator, and a display currency each user selects.
 
 ```
-     003 trading day                          004 schwab
+     003 trading day
             |
      005 prices
       /        |         \            \

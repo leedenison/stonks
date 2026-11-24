@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { fidelityUkCsv } from "./fidelity-uk-csv";
 import { ibkrQfx } from "./ibkr-qfx";
-import { formats, marshallerFor, recognisedBy } from "./marshal";
+import { marshallerFor, recognisedBy } from "./marshal";
 import { schwab } from "./schwab";
 import { standard } from "./standard";
 import { fixture } from "./test-utils";
@@ -12,12 +12,6 @@ describe("marshallerFor", () => {
     expect(marshallerFor("schwab")).toBe(schwab);
     expect(marshallerFor("fidelity_uk")).toBe(fidelityUkCsv);
     expect(marshallerFor("standard")).toBe(standard);
-  });
-
-  it("asks an export date of Schwab alone", () => {
-    expect(formats.filter((f) => marshallerFor(f).needsExportDate)).toEqual([
-      "schwab",
-    ]);
   });
 });
 
