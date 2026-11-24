@@ -1,7 +1,7 @@
 # The service image. Configuration is environment only, so the image carries no
 # command line, and migrations are embedded in the binary, so it carries nothing
 # but the binary, the healthcheck binary and the certificate bundle.
-FROM golang:1.27.2-alpine3.24 AS build
+FROM golang:1.27.3-alpine3.24 AS build
 ENV GOTOOLCHAIN=local
 # sqlc's Postgres parser is cgo.
 RUN apk add --no-cache build-base
@@ -20,7 +20,7 @@ RUN CGO_ENABLED=0 go build -buildvcs=false -trimpath \
 RUN CGO_ENABLED=0 go build -buildvcs=false -trimpath -ldflags "-s -w" \
     -o /healthcheck ./server/cmd/healthcheck
 
-FROM alpine:3.24.2
+FROM alpine:3.24.3
 RUN apk add --no-cache ca-certificates tzdata
 COPY --from=build /stonks /healthcheck /
 USER 65534:65534
