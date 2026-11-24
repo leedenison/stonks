@@ -1,7 +1,6 @@
 ---
 title: Store and read prices
 type: task
-dependencies: [003]
 ---
 
 ## Scope
@@ -31,8 +30,8 @@ Gaps:
 * The demand follows [005](../adr/005-a-fetch-covers-the-days-held.md): the days held
   with a lead of one week for a price, and one span for every currency in use for a
   rate.
-* The last completed day of a listing is read in the time zone of its market, which
-  [003](003-venue-trading-day.md) adds.
+* The last completed day of a listing is the UTC day before today. See
+  [009](../adr/009-a-ticker-answer-is-dated-by-its-utc-day.md).
 * A gap for a datasource is a demanded day that neither it nor a datasource above it
   covers. See
   [002](../adr/002-datasource-precedence-picks-the-price-for-each-day.md).
