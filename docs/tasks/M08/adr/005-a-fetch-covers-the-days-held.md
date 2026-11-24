@@ -11,9 +11,8 @@ A holding is of the instrument, and its listings are summed. A holding demands t
 listing that its key names through a ticker. Where the key names only the instrument, as
 an ISIN does, the holding demands every listing of the instrument.
 
-An open holding runs to the last completed day. That day is read in the time zone of the
-market of the listing, so a Tokyo listing does not wait for a UTC midnight. See
-[009](009-a-ticker-answer-is-dated-by-the-local-date-of-its-market.md).
+An open holding runs to the last completed day, which is the UTC day before today. See
+[009](009-a-ticker-answer-is-dated-by-its-utc-day.md).
 
 ## Days without a session
 
