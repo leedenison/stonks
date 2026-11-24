@@ -38,6 +38,11 @@ The statements page is reached from the sidebar and from the user menu. Its side
 clutters the sidebar. Without the entry, the page needs another way to show its place in
 the navigation.
 
+### Alerts page
+
+The page lists what needs an administrator. Its shape is settled after it has been used
+in production.
+
 ## Undecided
 
 What each area becomes.
