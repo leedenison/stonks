@@ -1,7 +1,6 @@
 ---
 title: Date ticker answers by the trading day of the venue
 type: task
-status: unreviewed
 ---
 
 ## Scope
@@ -28,17 +27,23 @@ The work covers each place that dates a ticker answer:
 If a change covers one of these places and leaves out the others, the join and the
 ticker validity disagree.
 
-## Open questions
-
-* Whether the test is the local date of the venue or the absence of a session boundary
-  between the two answers. Two answers on a Saturday and a Sunday have no session
-  between them. The second test needs the session calendar of each venue.
-* How far the time of an answer stands for the day its data describes. A datasource that
-  updates its ticker map in an overnight batch reports the assignment of the day before.
-  Two answers on one trading day may then describe two different days.
-* Whether any market in the MIC map groups venues in more than one time zone. Each
-  venue of such a market has its own trading day.
-
 ## Design
 
-Nothing settled.
+See [009](../adr/009-a-ticker-answer-is-dated-by-the-local-date-of-its-market.md).
+
+* `markets` gains a time zone column, NULL where the seed places none. A market that
+  lacks a zone reads as UTC.
+* A script in `local/scripts` derives the seed from the ISO 10383 list in `local/ref`, as
+  the script for the OpenFIGI exchange codes does. It maps a country that has one zone to
+  that zone, and it places the markets of a country that has several by city from a table
+  in the script. It prints each market it cannot place.
+* One function turns the moment of an answer into the day of its market. The same-day
+  join, `attach` and the bounds of a ticker validity period each call it.
+* The same function gives the last completed day of a market, which
+  [005](005-store-and-read-prices.md) reads.
+
+## Facts to verify
+
+* Every venue of the US market trades one session on New York time.
+* Whether the Massive ticker reference endpoint takes a date. If it does, an answer
+  describes the day in the request.
