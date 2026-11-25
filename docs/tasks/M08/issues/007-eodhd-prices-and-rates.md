@@ -22,12 +22,12 @@ currency, through the `price` package.
 * The client declares the first day its plan answers for, for prices and for rates. The
   client leaves each earlier day uncovered, so the gap passes down the precedence. See
   [002](../adr/002-datasource-precedence-picks-the-price-for-each-day.md).
+* Coverage ends at the last bar served. See
+  [011](../adr/011-price-coverage-ends-at-the-last-price-served.md).
 
 ## Tests
 
 * The client is tested against recorded traffic in the integration tier.
-* The e2e proxy replays recorded prices and rates for the instruments of the e2e
-  fixtures.
 
 ## Facts to verify
 

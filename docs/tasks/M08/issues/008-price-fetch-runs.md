@@ -32,3 +32,7 @@ Sheets tool belongs to [009](009-google-sheets-tool.md).
   [010](010-price-chart.md).
 * An integration test proves that a key that fails at the first datasource is asked of
   the second, and that the gap remains when both fail.
+* The e2e proxy replays recorded prices and rates from Massive and from EODHD for the
+  instruments of the e2e fixtures. The e2e Massive row names the plans `advanced` for
+  stocks and `starter` for currencies. Each serves all history, so its window starts on a
+  fixed day and a replayed answer keeps its coverage as the clock moves on.
