@@ -22,7 +22,7 @@ import (
 )
 
 // conf is the config the dev seed writes.
-const conf = `{"plan": "basic"}`
+const conf = `{"stocks_plan": "basic", "currencies_plan": "basic"}`
 
 // mics puts the US venues of the test in the market US.
 var mics = mic.MICMap{
@@ -236,34 +236,30 @@ func TestNotFound(t *testing.T) {
 	}
 }
 
-// TestConfig checks the rate and window each plan gives and the configs New
-// refuses.
+// TestConfig checks the rate each pair of plans gives, the window of the
+// reference data and the configs New refuses.
 func TestConfig(t *testing.T) {
-	limit := func(t *testing.T, plan string) rate.Limit {
-		t.Helper()
-		b, err := json.Marshal(map[string]string{"plan": plan})
+	slow := rate.Every(12 * time.Second)
+	limits := []struct {
+		stocks, currencies string
+		want               rate.Limit
+	}{
+		{stocks: "basic", currencies: "basic", want: slow},
+		{stocks: "starter", currencies: "basic", want: slow},
+		{stocks: "basic", currencies: "starter", want: slow},
+		{stocks: "advanced", currencies: "starter", want: rate.Inf},
+	}
+	for _, tc := range limits {
+		b, err := json.Marshal(map[string]string{"stocks_plan": tc.stocks, "currencies_plan": tc.currencies})
 		require.NoError(t, err)
 		c, err := New(market.Config{Credential: "k", JSON: b}, mics, http.DefaultClient)
 		require.NoError(t, err)
-		l, burst := c.Limit()
-		if burst != 1 {
-			t.Errorf("burst = %d, want 1", burst)
+		got, burst := c.Limit()
+		if got != tc.want || burst != 1 {
+			t.Errorf("Limit() on stocks %s and currencies %s = %v with burst %d, want %v with burst 1", tc.stocks, tc.currencies, got, burst, tc.want)
 		}
-		return l
-	}
-	if got := limit(t, "basic"); got != rate.Every(12*time.Second) {
-		t.Errorf("Limit() on basic = %v, want one per 12s", got)
-	}
-	if got := limit(t, "starter"); got != rate.Inf {
-		t.Errorf("Limit() on starter = %v, want unlimited", got)
-	}
-	for _, plan := range []string{"basic", "starter"} {
-		b, err := json.Marshal(map[string]string{"plan": plan})
-		require.NoError(t, err)
-		c, err := New(market.Config{Credential: "k", JSON: b}, mics, http.DefaultClient)
-		require.NoError(t, err)
 		if got := c.Window(time.Date(2026, time.March, 20, 0, 0, 0, 0, time.UTC)); !got.Equal(since) {
-			t.Errorf("Window() on %s = %s, want %s", plan, got, since)
+			t.Errorf("Window() on stocks %s = %s, want %s", tc.stocks, got, since)
 		}
 	}
 
@@ -272,8 +268,11 @@ func TestConfig(t *testing.T) {
 		cfg  market.Config
 	}{
 		{name: "no credential", cfg: market.Config{JSON: json.RawMessage(conf)}},
-		{name: "a plan Massive does not sell", cfg: market.Config{Credential: "k", JSON: json.RawMessage(`{"plan": "gold"}`)}},
-		{name: "an unknown member", cfg: market.Config{Credential: "k", JSON: json.RawMessage(`{"plan": "basic", "plans": {}}`)}},
+		{name: "a stocks plan Massive does not sell", cfg: market.Config{Credential: "k", JSON: json.RawMessage(`{"stocks_plan": "gold", "currencies_plan": "basic"}`)}},
+		{name: "a currencies plan Massive does not sell", cfg: market.Config{Credential: "k", JSON: json.RawMessage(`{"stocks_plan": "basic", "currencies_plan": "developer"}`)}},
+		{name: "no stocks plan", cfg: market.Config{Credential: "k", JSON: json.RawMessage(`{"currencies_plan": "basic"}`)}},
+		{name: "no currencies plan", cfg: market.Config{Credential: "k", JSON: json.RawMessage(`{"stocks_plan": "basic"}`)}},
+		{name: "an unknown member", cfg: market.Config{Credential: "k", JSON: json.RawMessage(`{"stocks_plan": "basic", "currencies_plan": "basic", "plan": "basic"}`)}},
 		{name: "not an object", cfg: market.Config{Credential: "k", JSON: json.RawMessage(`[]`)}},
 		{name: "an endpoint that is not a URL", cfg: market.Config{Credential: "k", Endpoint: "api.massive.com", JSON: json.RawMessage(conf)}},
 	}
@@ -281,6 +280,33 @@ func TestConfig(t *testing.T) {
 		if _, err := New(tc.cfg, mics, http.DefaultClient); err == nil {
 			t.Errorf("New() with %s succeeded, want an error", tc.name)
 		}
+	}
+}
+
+// TestPlanWindow checks the first day each plan serves a daily bar for, as
+// of 25 November 2026.
+func TestPlanWindow(t *testing.T) {
+	now := time.Date(2026, time.November, 25, 14, 30, 0, 0, time.UTC)
+	tests := []struct {
+		name  string
+		plan  plan
+		first time.Time
+		want  time.Time
+	}{
+		{name: "stocks basic", plan: stocksPlans["basic"], first: since, want: day(2024, 11, 26)},
+		{name: "stocks starter", plan: stocksPlans["starter"], first: since, want: day(2021, 11, 26)},
+		{name: "stocks developer", plan: stocksPlans["developer"], first: since, want: day(2016, 11, 26)},
+		{name: "stocks advanced", plan: stocksPlans["advanced"], first: since, want: since},
+		{name: "currencies basic", plan: currenciesPlans["basic"], first: currenciesSince, want: day(2024, 11, 26)},
+		{name: "currencies starter", plan: currenciesPlans["starter"], first: currenciesSince, want: day(2009, 9, 25)},
+		{name: "years that reach past the first day", plan: plan{years: 30}, first: since, want: since},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := tc.plan.window(tc.first, now); !got.Equal(tc.want) {
+				t.Errorf("window(%s, %s) = %s, want %s", tc.first.Format(time.DateOnly), now.Format(time.DateOnly), got.Format(time.DateOnly), tc.want.Format(time.DateOnly))
+			}
+		})
 	}
 }
 

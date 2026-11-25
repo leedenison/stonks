@@ -48,25 +48,61 @@ type Client struct {
 	key      string
 }
 
-// config is the datasource row's config: the account's plan, which the
-// credential does not reveal.
+// config is the datasource row's config: the account's plan for each product,
+// which the credential does not reveal. Massive sells stocks and currencies
+// apart.
 type config struct {
-	Plan string `json:"plan"`
+	StocksPlan     string `json:"stocks_plan"`
+	CurrenciesPlan string `json:"currencies_plan"`
 }
 
-// plans is the rate of each plan Massive sells, from its pricing page:
-// Basic allows five calls a minute and the paid plans are unlimited.
-var plans = map[string]rate.Limit{
-	"basic":     rate.Every(12 * time.Second),
-	"starter":   rate.Inf,
-	"developer": rate.Inf,
-	"advanced":  rate.Inf,
+// plan is one subscription to one product.
+type plan struct {
+	// rate is the plan's request rate. Massive counts the requests for each
+	// product apart.
+	rate rate.Limit
+	// years is how far back the plan's daily bars reach. Zero is the whole
+	// history of the product.
+	years int
+}
+
+// stocksPlans is each stocks plan Massive sells, from its pricing page and
+// the page of the daily bars endpoint. Basic allows five calls a minute.
+var stocksPlans = map[string]plan{
+	"basic":     {rate: rate.Every(12 * time.Second), years: 2},
+	"starter":   {rate: rate.Inf, years: 5},
+	"developer": {rate: rate.Inf, years: 10},
+	"advanced":  {rate: rate.Inf},
+}
+
+// currenciesPlans is each currencies plan Massive sells, from the same pages.
+var currenciesPlans = map[string]plan{
+	"basic":   {rate: rate.Every(12 * time.Second), years: 2},
+	"starter": {rate: rate.Inf},
+}
+
+// currenciesSince is the first day of Massive's currency bars.
+var currenciesSince = time.Date(2009, time.September, 25, 0, 0, 0, 0, time.UTC)
+
+// window returns the first day for which the plan serves a daily bar as of
+// now, for a product whose bars start on first. The day is one later than
+// the plan's years give. Massive does not say whether its history ends at a
+// day or at a moment, and the later day is inside the history under both
+// readings.
+func (p plan) window(first, now time.Time) time.Time {
+	if p.years == 0 {
+		return first
+	}
+	if d := types.Day(now).AddDate(-p.years, 0, 1); d.After(first) {
+		return d
+	}
+	return first
 }
 
 // New returns a Client for cfg that sends its requests through h. It fails
 // when cfg has no credential, when its endpoint is not a URL, when its
-// config has an unknown member, or when the config names a plan Massive does
-// not sell. It also fails unless Massive's venues cover one market whole,
+// config has an unknown member, or when the config omits the plan of a
+// product or names one Massive does not sell. It also fails unless Massive's venues cover one market whole,
 // since Massive states each fact for the market.
 func New(cfg market.Config, mics mic.MICMap, h *http.Client) (*Client, error) {
 	if cfg.Credential == "" {
@@ -78,9 +114,13 @@ func New(cfg market.Config, mics mic.MICMap, h *http.Client) (*Client, error) {
 	if err := dec.Decode(&conf); err != nil {
 		return nil, fmt.Errorf("massive config: %w", err)
 	}
-	limit, ok := plans[conf.Plan]
+	stocks, ok := stocksPlans[conf.StocksPlan]
 	if !ok {
-		return nil, fmt.Errorf("massive config names plan %q, which Massive does not sell", conf.Plan)
+		return nil, fmt.Errorf("massive config names stocks plan %q, which Massive does not sell", conf.StocksPlan)
+	}
+	currencies, ok := currenciesPlans[conf.CurrenciesPlan]
+	if !ok {
+		return nil, fmt.Errorf("massive config names currencies plan %q, which Massive does not sell", conf.CurrenciesPlan)
 	}
 	ep, err := market.Endpoint(cfg, endpoint)
 	if err != nil {
@@ -95,7 +135,7 @@ func New(cfg market.Config, mics mic.MICMap, h *http.Client) (*Client, error) {
 		mics:     mics,
 		venues:   venues,
 		home:     home,
-		limit:    limit,
+		limit:    min(stocks.rate, currencies.rate),
 		http:     h,
 		endpoint: ep,
 		key:      cfg.Credential,
@@ -154,10 +194,11 @@ func Factory(mics mic.MICMap, h *http.Client) market.Factory {
 	}
 }
 
-// Limit is the request rate of the account's plan. Massive counts the ticker
-// calls in a reference data bucket, separate from the asset class buckets.
-// Massive publishes the limit of neither that bucket nor the ticker events
-// call, so the plan's rate for stock stands in for both.
+// Limit is the slower request rate of the account's two plans, since one
+// limit paces every call. Massive counts the ticker calls in a reference data
+// bucket, separate from the product buckets. Massive does not publish the
+// limit of that bucket or of the ticker events call, so the slower rate
+// stands in for both.
 func (c *Client) Limit() (rate.Limit, int) { return c.limit, 1 }
 
 // Window is the first day Massive answers for, on every day. Every plan
