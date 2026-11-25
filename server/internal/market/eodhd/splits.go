@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
@@ -17,9 +18,10 @@ import (
 
 var _ market.CorpActs = (*Client)(nil)
 
-// unknownSymbol is the body of the 404 that answers a symbol EODHD does not
-// know.
-const unknownSymbol = "Symbol not found"
+// unknownSymbol holds the bodies of the 404 that answers a symbol EODHD does
+// not know: the first from the splits endpoint and the second from the daily
+// bars endpoint.
+var unknownSymbol = []string{"Symbol not found", "Ticker Not Found."}
 
 // splits is EODHD's side of the corporate actions kind.
 type splits struct{ c *Client }
@@ -36,15 +38,21 @@ func (c *Client) CorpActs() market.Server[market.CorpActRequest, market.CorpActR
 	return splits{c: c}
 }
 
-// Serves returns the symbol to send for r, as a DATASOURCE_TICKER in EODHD's
-// namespace, or an error when EODHD cannot answer r. A venue that several
-// EODHD exchanges list is refused, since the ticker does not say which.
+// Serves returns the symbol to send for r, or an error when EODHD cannot
+// answer r; see Client.sent.
 func (s splits) Serves(r market.CorpActRequest) (types.Identifier, error) {
-	t := r.Ticker
+	return s.c.sent(r.Ticker)
+}
+
+// sent returns EODHD's symbol for the MIC_TICKER t, as a DATASOURCE_TICKER in
+// EODHD's namespace, or an error when EODHD cannot answer for t. A venue that
+// several EODHD exchanges list is refused, since the ticker does not say
+// which.
+func (c *Client) sent(t types.Identifier) (types.Identifier, error) {
 	if t.IsDomain() {
 		return types.Identifier{}, fmt.Errorf("domain '%s' rejected: the datasource answers for one ticker", t.Domain)
 	}
-	codes := s.c.exchange[t.Domain]
+	codes := c.exchange[t.Domain]
 	switch len(codes) {
 	case 0:
 		return types.Identifier{}, fmt.Errorf("venue '%s' rejected", t.Domain)
@@ -89,7 +97,7 @@ func (s splits) Fetch(ctx context.Context, reqs []market.Request[market.CorpActR
 // symbol. EODHD bills it as a call, as it does any answer.
 func unknown(err error) bool {
 	var status market.StatusError
-	return errors.As(err, &status) && status.Code == http.StatusNotFound && status.Body == unknownSymbol
+	return errors.As(err, &status) && status.Code == http.StatusNotFound && slices.Contains(unknownSymbol, status.Body)
 }
 
 // fromSplits converts EODHD's splits into corporate actions, each unhandled.

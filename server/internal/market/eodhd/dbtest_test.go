@@ -12,14 +12,17 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 
 	"github.com/leedenison/stonks/server/internal/corpact"
+	"github.com/leedenison/stonks/server/internal/currency"
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/market/markettest"
 	"github.com/leedenison/stonks/server/internal/mic"
+	"github.com/leedenison/stonks/server/internal/price"
 	"github.com/leedenison/stonks/server/internal/testutil/dbtest"
 	"github.com/leedenison/stonks/server/internal/testutil/runtest"
 	"github.com/leedenison/stonks/server/internal/testutil/vcr"
@@ -178,5 +181,82 @@ func TestCorpActRecordUnknown(t *testing.T) {
 	require.NoError(t, err)
 	if len(blocks) != 0 {
 		t.Errorf("open blocks = %+v, want none", blocks)
+	}
+}
+
+// TestPricesRecord checks the prices recorded from EODHD's answer for a
+// London listing, on the free plan. EODHD quotes the listing in pence, and
+// each price is stored in pounds, as at its own day. Coverage runs from the
+// start of the plan's window to the last bar, so the asked days either side
+// stay gaps.
+func TestPricesRecord(t *testing.T) {
+	ctx := context.Background()
+	pool := dbtest.Open()
+	t.Cleanup(pool.Close)
+	tx := dbtest.Begin(t, pool)
+	q := gen.New(tx)
+	tbl, err := mic.Load(ctx, q)
+	require.NoError(t, err)
+
+	const cassette = "eodhd_prices_lse"
+	key := vcr.Credential(t, "EODHD_API_KEY", "testdata/"+cassette)
+	c, err := New(market.Config{Credential: key, JSON: conf}, tbl, vcr.New(t, "testdata/"+cassette, scrub))
+	require.NoError(t, err)
+	pin := pins[cassette]
+	at(c, pin)
+
+	user, err := q.CreateUser(ctx, gen.CreateUserParams{ID: db.NewID(), Email: uuid.NewString() + "@example.com", Role: gen.UserRoleUser})
+	require.NoError(t, err)
+	parent, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &user.ID, Kind: gen.RunKindIngestStmt, Trigger: gen.RunTriggerUser})
+	require.NoError(t, err)
+	name := "eodhd-" + uuid.NewString()
+	_, err = q.CreateDatasource(ctx, gen.CreateDatasourceParams{Name: name, Enabled: true, Precedence: 1000})
+	require.NoError(t, err)
+	log := slog.New(slog.DiscardHandler)
+	sources, err := market.New(ctx, q, map[string]market.Factory{name: {New: func(market.Config) (market.Integration, error) { return c, nil }}}, log)
+	require.NoError(t, err)
+
+	instr, err := q.CreateInstr(ctx, gen.CreateInstrParams{ID: db.NewID(), AssetClass: types.AssetClassStock})
+	require.NoError(t, err)
+	listing, err := q.CreateListing(ctx, gen.CreateListingParams{ID: db.NewID(), InstrID: instr.ID, Currency: "GBP"})
+	require.NoError(t, err)
+
+	fetcher := market.NewFetcher(db.New[market.Queries](tx), runtest.Runner{Q: q}, log, market.WithClock(func() time.Time { return pin }, func(context.Context, time.Duration) error { return nil }))
+	families, scales, err := currency.Load(ctx, q)
+	require.NoError(t, err)
+	recorder := price.New(db.New[price.RecordQueries](tx), fetcher, families, scales, log)
+	n, err := recorder.Fetch(ctx, parent, sources.Entry(name), []price.Gap{{
+		Listing: listing.ID, Identifier: ticker("XLON", "VOD"), Periods: []types.Period{priced},
+	}})
+	require.NoError(t, err)
+	if n != 1 {
+		t.Fatalf("Fetch() stored %d answers, want 1", n)
+	}
+
+	var first, last time.Time
+	var prices, restated int
+	require.NoError(t, tx.QueryRow(ctx,
+		"SELECT min(p.day), max(p.day), count(*), count(*) FILTER (WHERE p.as_at <> p.day) FROM prices p JOIN price_coverage c ON c.id = p.coverage_id WHERE c.listing_id = $1",
+		listing.ID).Scan(&first, &last, &prices, &restated))
+	if prices < 200 || restated != 0 || !first.Equal(day(2025, 11, 26)) {
+		t.Errorf("stored %d prices from %s, %d of them as at another day, want a year from 2025-11-26 as at their own days", prices, first.Format(time.DateOnly), restated)
+	}
+	// EODHD states the close of 24 November 2026 as 102.9 pence.
+	var pounds decimal.Decimal
+	require.NoError(t, tx.QueryRow(ctx,
+		"SELECT p.price FROM prices p JOIN price_coverage c ON c.id = p.coverage_id WHERE c.listing_id = $1 AND p.day = $2",
+		listing.ID, day(2026, 11, 24)).Scan(&pounds))
+	if want := decimal.RequireFromString("1.029"); !pounds.Equal(want) {
+		t.Errorf("price on 2026-11-24 = %s, want %s", pounds, want)
+	}
+	rows, err := q.ListPriceCoverage(ctx, []uuid.UUID{listing.ID})
+	require.NoError(t, err)
+	var covered []types.Period
+	for _, r := range rows {
+		covered = append(covered, types.Period{From: r.CoveredFrom, Before: r.CoveredBefore})
+	}
+	want := []types.Period{{From: priced.From, Before: day(2025, 11, 26)}, {From: last.AddDate(0, 0, 1), Before: priced.Before}}
+	if diff := cmp.Diff(want, types.Gaps(covered, priced)); diff != "" {
+		t.Errorf("gaps mismatch (-want +got):\n%s", diff)
 	}
 }
