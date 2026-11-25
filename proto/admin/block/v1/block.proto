@@ -19,6 +19,9 @@ enum FetchKind {
   FETCH_KIND_IDENTIFIER_FACTS = 2;
   // The corporate actions of a ticker over a period.
   FETCH_KIND_CORP_ACTS = 3;
+  // The end of day prices of a listing, or the rates of a currency, over a
+  // period.
+  FETCH_KIND_PRICES = 4;
 }
 
 // What a block suppresses.

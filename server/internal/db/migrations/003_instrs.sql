@@ -138,16 +138,15 @@ FROM (VALUES
     ('ZMW'), ('AOA'), ('MZN'), ('SCR')) AS v (code);
 
 -- An instrument is a thing that can be held and priced: a security, an option,
--- a future, a currency. A price attaches to an instrument, and also to a
--- listing when its currency is known. A holding is of the instrument: a
--- security's listings are summed together.
+-- a future, a currency. A price attaches to a listing. A holding is of the
+-- instrument: a security's listings are summed together.
 --
 -- A currency family is an instrument of class cash, named by a currency
 -- identifier per code in the family. Its listing in its own family is money
 -- in that currency.
 --
--- FX rates are represented as listings on a currency instrument in another
--- currency.
+-- The rate of a currency is the price of the USD listing of its instrument:
+-- the number of USD that one unit of the currency buys.
 CREATE TABLE instrs (
     id          uuid        PRIMARY KEY,
     asset_class asset_class NOT NULL REFERENCES asset_class_tree (class),

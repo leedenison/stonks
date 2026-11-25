@@ -12,7 +12,7 @@
 A price fetch needs the resolved instrument and its ticker, so it follows the resolve run
 of the ingest. The corporate actions fetch for the same tickers also runs first.
 
-A run asks Massive and EODHD. Google Sheets sits outside the runs: its tool asks the
+A run asks Massive and EODHD. A fetch run never asks Google Sheets: its tool asks the
 server for the gaps that remain when an administrator runs it. See
 [007](007-the-google-sheets-tool-writes-formulas-and-reads-pasted-values.md).
 
