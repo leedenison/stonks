@@ -67,9 +67,14 @@ func stated(ps []market.DayPrice) []string {
 	return out
 }
 
-// stockBar is a bar of Massive for a stock on day d: it starts at midnight in
-// New York, which is hour o'clock UTC.
-func stockBar(d time.Time, hour int, closing string) string {
+func currencyOf(code string) types.Identifier {
+	return types.Identifier{Type: types.IdentifierTypeCurrency, Value: code}
+}
+
+// barAt is a bar of Massive for day d that starts at hour o'clock UTC. A
+// stock bar starts at midnight in New York, which is four or five o'clock,
+// and a currency bar at midnight UTC.
+func barAt(d time.Time, hour int, closing string) string {
 	return fmt.Sprintf(`{"t":%d,"c":%s,"o":1,"h":1,"l":1,"v":1}`, d.Add(time.Duration(hour)*time.Hour).UnixMilli(), closing)
 }
 
@@ -91,6 +96,9 @@ func TestPricesServes(t *testing.T) {
 		{name: "a class share", req: market.PriceRequest{Identifier: ticker("XNYS", "BRK/B"), Period: priced}, want: ticker("", "BRK.B")},
 		{name: "a period that straddles the start of the window", req: market.PriceRequest{Identifier: ticker("XNAS", "NVDA"), Period: types.Period{From: day(2020, 1, 2), Before: day(2024, 11, 27)}}, want: ticker("", "NVDA")},
 		{name: "a period that ends at the start of the window", req: market.PriceRequest{Identifier: ticker("XNAS", "NVDA"), Period: types.Period{From: day(2020, 1, 2), Before: day(2024, 11, 26)}}, refused: true},
+		{name: "a currency", req: market.PriceRequest{Identifier: currencyOf("EUR"), Period: priced}, want: currencyOf("EUR")},
+		{name: "USD", req: market.PriceRequest{Identifier: currencyOf("USD"), Period: priced}, refused: true},
+		{name: "a currency over a period that ends at the start of the window", req: market.PriceRequest{Identifier: currencyOf("EUR"), Period: types.Period{From: day(2020, 1, 2), Before: day(2024, 11, 26)}}, refused: true},
 		{name: "a CUSIP", req: market.PriceRequest{Identifier: cusip, Period: priced}, refused: true},
 		{name: "a domain", req: market.PriceRequest{Identifier: ticker("XNYS", ""), Period: priced}, refused: true},
 		{name: "a venue outside Massive's table", req: market.PriceRequest{Identifier: ticker("XLON", "VOD"), Period: priced}, refused: true},
@@ -129,8 +137,8 @@ func TestPricesFetch(t *testing.T) {
 			name:  "a period that starts before the window and ends after the last bar",
 			asked: priced,
 			body: barsBody(
-				stockBar(day(2024, 11, 25), 5, "232.87"), stockBar(day(2024, 11, 26), 5, "235.06"),
-				stockBar(day(2026, 11, 23), 5, "349.08"), stockBar(day(2026, 11, 24), 5, "354.07"),
+				barAt(day(2024, 11, 25), 5, "232.87"), barAt(day(2024, 11, 26), 5, "235.06"),
+				barAt(day(2026, 11, 23), 5, "349.08"), barAt(day(2026, 11, 24), 5, "354.07"),
 			),
 			coverage: "2024-11-26..2026-11-25",
 			want:     []string{"2024-11-26 235.06", "2026-11-23 349.08", "2026-11-24 354.07"},
@@ -139,8 +147,8 @@ func TestPricesFetch(t *testing.T) {
 			name:  "bars before and after the asked period",
 			asked: types.Period{From: day(2026, 11, 17), Before: day(2026, 11, 20)},
 			body: barsBody(
-				stockBar(day(2026, 11, 16), 5, "1.5"), stockBar(day(2026, 11, 17), 5, "2.5"), stockBar(day(2026, 11, 18), 5, "3.5"),
-				stockBar(day(2026, 11, 19), 5, "4.5"), stockBar(day(2026, 11, 20), 5, "5.5"), stockBar(day(2026, 11, 23), 5, "6.5"),
+				barAt(day(2026, 11, 16), 5, "1.5"), barAt(day(2026, 11, 17), 5, "2.5"), barAt(day(2026, 11, 18), 5, "3.5"),
+				barAt(day(2026, 11, 19), 5, "4.5"), barAt(day(2026, 11, 20), 5, "5.5"), barAt(day(2026, 11, 23), 5, "6.5"),
 			),
 			coverage: "2026-11-17..2026-11-20",
 			want:     []string{"2026-11-17 2.5", "2026-11-18 3.5", "2026-11-19 4.5"},
@@ -148,20 +156,20 @@ func TestPricesFetch(t *testing.T) {
 		{
 			name:     "a weekend between two bars",
 			asked:    types.Period{From: day(2026, 11, 21), Before: day(2026, 11, 23)},
-			body:     barsBody(stockBar(day(2026, 11, 20), 5, "5.5"), stockBar(day(2026, 11, 23), 5, "6.5")),
+			body:     barsBody(barAt(day(2026, 11, 20), 5, "5.5"), barAt(day(2026, 11, 23), 5, "6.5")),
 			coverage: "2026-11-21..2026-11-23",
 			want:     []string{},
 		},
 		{
 			name:  "a weekend after the last bar",
 			asked: types.Period{From: day(2026, 11, 21), Before: day(2026, 11, 23)},
-			body:  barsBody(stockBar(day(2026, 11, 19), 5, "4.5"), stockBar(day(2026, 11, 20), 5, "5.5")),
+			body:  barsBody(barAt(day(2026, 11, 19), 5, "4.5"), barAt(day(2026, 11, 20), 5, "5.5")),
 			want:  []string{},
 		},
 		{
 			name:     "a bar in the summer, which starts at four o'clock UTC",
 			asked:    types.Period{From: day(2026, 7, 1), Before: day(2026, 7, 2)},
-			body:     barsBody(stockBar(day(2026, 7, 1), 4, "7.25")),
+			body:     barsBody(barAt(day(2026, 7, 1), 4, "7.25")),
 			coverage: "2026-07-01..2026-07-02",
 			want:     []string{"2026-07-01 7.25"},
 		},
@@ -174,7 +182,7 @@ func TestPricesFetch(t *testing.T) {
 		{
 			name:  "an answer that runs past one page",
 			asked: priced,
-			body:  `{"status":"OK","results":[` + stockBar(day(2026, 11, 20), 5, "5.5") + `],"next_url":"https://api.massive.com/v2/aggs/ticker/T?cursor=AQcPBA"}`,
+			body:  `{"status":"OK","results":[` + barAt(day(2026, 11, 20), 5, "5.5") + `],"next_url":"https://api.massive.com/v2/aggs/ticker/T?cursor=AQcPBA"}`,
 			paged: true,
 		},
 	}
@@ -316,5 +324,97 @@ func TestPricesTimeframe(t *testing.T) {
 	}
 	if got, want := c.Classify(err), (market.Failure{Scope: market.ScopeRequest}); got != want {
 		t.Errorf("Classify(%v) = %+v, want %+v", err, got, want)
+	}
+}
+
+// TestRatesFetch checks the pair the client asks for a currency, and that a
+// currency bar, which starts at midnight UTC, takes its own day.
+func TestRatesFetch(t *testing.T) {
+	var path string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path = r.URL.Path
+		_, _ = w.Write([]byte(barsBody(barAt(day(2026, 11, 15), 0, "1.10243"), barAt(day(2026, 11, 16), 0, "1.09984"))))
+	}))
+	t.Cleanup(srv.Close)
+	c, err := New(market.Config{Credential: "k", Endpoint: srv.URL, JSON: json.RawMessage(conf)}, mics, http.DefaultClient)
+	require.NoError(t, err)
+	got, err := pricesOf(at(c, recorded), currencyOf("EUR"), types.Period{From: day(2026, 11, 14), Before: day(2026, 11, 20)})
+	require.NoError(t, err)
+	require.NoError(t, got[0].Err)
+	if want := "/v2/aggs/ticker/C:EURUSD/range/1/day/2003-09-10/2099-12-31"; path != want {
+		t.Errorf("path = %s, want %s", path, want)
+	}
+	res := got[0].Value
+	if got, want := span(res.Coverage), "2026-11-14..2026-11-17"; got != want || res.Currency != "USD" {
+		t.Errorf("coverage = %q in %q, want %q in USD", got, res.Currency, want)
+	}
+	if diff := cmp.Diff([]string{"2026-11-15 1.10243", "2026-11-16 1.09984"}, stated(res.Prices)); diff != "" {
+		t.Errorf("rates mismatch (-want +got):\n%s", diff)
+	}
+}
+
+// TestPlansCutApart checks that each product is cut to the window of its own
+// plan: five years of stock bars on Starter and two years of currency bars
+// on Basic.
+func TestPlansCutApart(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(barsBody(barAt(day(2026, 11, 24), 0, "1.5"))))
+	}))
+	t.Cleanup(srv.Close)
+	c, err := New(market.Config{Credential: "k", Endpoint: srv.URL, JSON: json.RawMessage(`{"stocks_plan": "starter", "currencies_plan": "basic"}`)}, mics, http.DefaultClient)
+	require.NoError(t, err)
+	at(c, recorded)
+	asked := types.Period{From: day(2010, 1, 4), Before: day(2026, 12, 1)}
+	for id, want := range map[types.Identifier]string{
+		ticker("XNAS", "NVDA"): "2021-11-26..2026-11-25",
+		currencyOf("EUR"):      "2024-11-26..2026-11-25",
+	} {
+		got, err := pricesOf(c, id, asked)
+		require.NoError(t, err)
+		require.NoError(t, got[0].Err)
+		if got := span(got[0].Value.Coverage); got != want {
+			t.Errorf("coverage of %s = %q, want %q", id.Value, got, want)
+		}
+	}
+}
+
+// TestRates checks the direction of a rate and the days a currency series
+// holds. The close of a pair that is quoted in USD is the number of USD that
+// one unit of the currency buys: more than one for EUR and far less for KRW,
+// which shows that Massive lists a minor pair in that direction too. The
+// series holds a bar for a Sunday and lacks one for a Saturday.
+func TestRates(t *testing.T) {
+	const cassette = "massive_prices_rate"
+	c := at(replay(t, cassette, vcr.Credential(t, "MASSIVE_API_KEY", "testdata/"+cassette)), recorded)
+	tests := []struct {
+		code      string
+		low, high float64
+	}{
+		{code: "EUR", low: 0.9, high: 1.4},
+		{code: "KRW", low: 0.0005, high: 0.001},
+	}
+	for _, tc := range tests {
+		t.Run(tc.code, func(t *testing.T) {
+			got, err := pricesOf(c, currencyOf(tc.code), priced)
+			require.NoError(t, err)
+			require.NoError(t, got[0].Err)
+			res := got[0].Value
+			require.NotNil(t, res.Coverage)
+			if !res.Coverage.From.Equal(day(2024, 11, 26)) || res.Currency != "USD" {
+				t.Errorf("coverage = %s in %q, want it from 2024-11-26 in USD", span(res.Coverage), res.Currency)
+			}
+			by := closes(res.Prices)
+			for d, p := range by {
+				if p.LessThan(decimal.NewFromFloat(tc.low)) || p.GreaterThan(decimal.NewFromFloat(tc.high)) {
+					t.Errorf("rate on %s = %s, want between %v and %v", d, p, tc.low, tc.high)
+				}
+			}
+			if _, ok := by["2026-11-14"]; ok {
+				t.Errorf("the series holds a rate for Saturday 2026-11-14, want none")
+			}
+			if _, ok := by["2026-11-15"]; !ok {
+				t.Errorf("the series lacks a rate for Sunday 2026-11-15")
+			}
+		})
 	}
 }
