@@ -43,3 +43,27 @@ JOIN identifiers ON identifiers.type = 'currency' AND identifiers.value = k.code
 JOIN instrs ON instrs.id = identifiers.instr_id AND instrs.asset_class = 'cash'
 ORDER BY k.code
 ON CONFLICT (instr_id, currency) DO NOTHING;
+
+-- name: ListPrices :many
+-- Returns the price of each listing on each day from from_day up to, but not
+-- including, before. A day that several datasources priced takes the price of
+-- the one that ranks first. A disabled datasource keeps its rank.
+SELECT DISTINCT ON (price_coverage.listing_id, prices.day)
+       price_coverage.listing_id, prices.day, prices.price, prices.as_at, price_coverage.datasource
+FROM prices
+JOIN price_coverage ON price_coverage.id = prices.coverage_id
+JOIN datasources ON datasources.name = price_coverage.datasource
+WHERE price_coverage.listing_id = ANY(@listing_ids::uuid[])
+  AND prices.day >= @from_day AND prices.day < @before
+ORDER BY price_coverage.listing_id, prices.day, datasources.precedence;
+
+-- name: ListPricesBefore :many
+-- Returns the latest price of each listing before the day given. The price
+-- comes from the datasource that ranks first on the day it prices.
+SELECT DISTINCT ON (price_coverage.listing_id)
+       price_coverage.listing_id, prices.day, prices.price, prices.as_at, price_coverage.datasource
+FROM prices
+JOIN price_coverage ON price_coverage.id = prices.coverage_id
+JOIN datasources ON datasources.name = price_coverage.datasource
+WHERE price_coverage.listing_id = ANY(@listing_ids::uuid[]) AND prices.day < @day
+ORDER BY price_coverage.listing_id, prices.day DESC, datasources.precedence;

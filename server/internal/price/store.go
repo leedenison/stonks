@@ -1,5 +1,7 @@
 package price
 
+//go:generate go tool mockgen -source=store.go -destination=store_mock_test.go -package=price -self_package=github.com/leedenison/stonks/server/internal/price
+
 import (
 	"context"
 
@@ -61,3 +63,14 @@ type Fetcher interface {
 }
 
 var _ Fetcher = (*market.Fetcher)(nil)
+
+// ReadQueries are the queries Read needs.
+type ReadQueries interface {
+	corpact.CalendarQueries
+	ListListingClasses(ctx context.Context, ids []uuid.UUID) ([]gen.ListListingClassesRow, error)
+	ListPrices(ctx context.Context, arg gen.ListPricesParams) ([]gen.ListPricesRow, error)
+	ListPricesBefore(ctx context.Context, arg gen.ListPricesBeforeParams) ([]gen.ListPricesBeforeRow, error)
+	ListPriceCoverage(ctx context.Context, listingIds []uuid.UUID) ([]gen.PriceCoverage, error)
+}
+
+var _ ReadQueries = (*gen.Queries)(nil)

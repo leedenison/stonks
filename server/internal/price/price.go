@@ -1,8 +1,8 @@
-// Package price stores the end of day prices of listings.
+// Package price stores and reads the end of day prices of listings.
 //
 // The rate of a currency is the price of the USD listing of that currency's
 // instrument: the number of USD that one unit of the currency buys. Prices
-// and rates share every rule of this package.
+// and rates share every rule of this package but restatement.
 //
 // A datasource answers for a period, and the period is stored as coverage
 // whether or not the answer held a price for each day. A covered day without
@@ -29,4 +29,17 @@
 // gap that the next one is asked for. The gaps are the only record of what to
 // ask again, so a failed request or a refused answer leaves its days to the
 // next run.
+//
+// A read takes, for each day, the price of the datasource that ranks first,
+// so a change of precedence applies to the stored prices at once. It restates
+// the price of an instrument whose holdings corporate actions restate, from
+// its as at day to today, through the calendar of the instrument; see
+// [calendar.go](../corpact/calendar.go). Such a price is provisional where
+// the calendar does not cover every day from its as at day to today. The
+// price of any other class, and every rate, is read as stored.
+//
+// A covered day without a price takes the latest earlier close, whichever
+// datasource served it. The coverage of every datasource together must be
+// unbroken from the day of that close to the covered day. Otherwise the day
+// is unknown.
 package price
