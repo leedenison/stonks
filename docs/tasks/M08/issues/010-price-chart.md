@@ -1,7 +1,6 @@
 ---
 title: Price chart on the instrument details page
 type: task
-dependencies: [005]
 ---
 
 ## Scope
@@ -15,9 +14,9 @@ A chart of the valuation of a holding is out of scope.
 
 ## Design
 
-* An admin RPC returns the price series of each listing of an instrument, through the
-  read of [005](005-store-and-read-prices.md). Each point states its day, its price
-  restated to today, its datasource and whether it is provisional.
+* An admin RPC returns the price series of each listing of an instrument, through
+  `price.Read`. Each point states its day, its price restated to today, its datasource
+  and whether it is provisional.
 * The chart draws one line for each listing, in the family currency of the listing.
 * The datasource of each point is visible, so an administrator can check that a series
   lines up where two sources meet.

@@ -1,7 +1,6 @@
 ---
 title: Google Sheets tool
 type: task
-dependencies: [005]
 ---
 
 ## Scope

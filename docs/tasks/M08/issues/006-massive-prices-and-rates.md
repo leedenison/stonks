@@ -1,13 +1,12 @@
 ---
 title: Massive prices and rates
 type: task
-dependencies: [005]
 ---
 
 ## Scope
 
 The Massive client serves end of day prices for a US listing and end of day FX rates for
-a currency, through the price framework of [005](005-store-and-read-prices.md).
+a currency, through the `price` package.
 
 ## Design
 

@@ -1,13 +1,12 @@
 ---
 title: EODHD prices and rates
 type: task
-dependencies: [005]
 ---
 
 ## Scope
 
 The EODHD client serves end of day prices for a listing and end of day FX rates for a
-currency, through the price framework of [005](005-store-and-read-prices.md).
+currency, through the `price` package.
 
 ## Design
 
