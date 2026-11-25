@@ -187,7 +187,7 @@ func TestSplitsRefused(t *testing.T) {
 				_, _ = w.Write([]byte(tc.body))
 			}))
 			t.Cleanup(srv.Close)
-			c, err := New(market.Config{Name: "eodhd", Credential: "k", Endpoint: srv.URL}, mics, srv.Client())
+			c, err := New(market.Config{Name: "eodhd", Credential: "k", Endpoint: srv.URL, JSON: conf}, mics, srv.Client())
 			require.NoError(t, err)
 			got, err := splitsOf(c, ticker("XNAS", "AAPL"))
 			if err == nil {

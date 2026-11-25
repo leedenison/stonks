@@ -8,7 +8,10 @@
 package eodhd
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -31,20 +34,69 @@ type Client struct {
 	http     *http.Client
 	endpoint string
 	key      string
+	plan     plan
 	now      func() time.Time
 }
 
+// config is the datasource row's config: the account's plan, which EODHD
+// does not report for a credential.
+type config struct {
+	Plan string `json:"plan"`
+}
+
+// plan is one subscription EODHD sells.
+type plan struct {
+	// prices reports whether the plan serves daily bars.
+	prices bool
+	// years is how far back the plan's daily bars reach. Zero is the whole
+	// history of a symbol.
+	years int
+}
+
+// plans is each plan EODHD sells, from its pricing page. The free plan also
+// allows only twenty calls a day.
+var plans = map[string]plan{
+	"free":               {prices: true, years: 1},
+	"all_world":          {prices: true},
+	"all_world_extended": {prices: true},
+	"all_in_one":         {prices: true},
+	"fundamentals":       {},
+}
+
+// window returns the first day for which the plan serves a daily bar as of
+// now, or the zero time where the plan serves the whole history. The day is
+// one later than the plan's years give. EODHD does not say whether its
+// history ends at a day or at a moment, and the later day is inside the
+// history under both readings.
+func (p plan) window(now time.Time) time.Time {
+	if p.years == 0 {
+		return time.Time{}
+	}
+	return types.Day(now).AddDate(-p.years, 0, 1)
+}
+
 // New returns a Client for cfg that sends its requests through h. It fails
-// when cfg lacks a credential or its endpoint is not a URL.
+// when cfg is not valid, and when its config omits the plan or names one
+// EODHD does not sell.
 func New(cfg market.Config, mics mic.MICMap, h *http.Client) (*Client, error) {
 	if cfg.Credential == "" {
 		return nil, errors.New("eodhd needs an API key")
+	}
+	dec := json.NewDecoder(bytes.NewReader(cfg.JSON))
+	dec.DisallowUnknownFields()
+	var conf config
+	if err := dec.Decode(&conf); err != nil {
+		return nil, fmt.Errorf("eodhd config: %w", err)
+	}
+	p, ok := plans[conf.Plan]
+	if !ok {
+		return nil, fmt.Errorf("eodhd config names plan %q, which EODHD does not sell", conf.Plan)
 	}
 	ep, err := market.Endpoint(cfg, endpoint)
 	if err != nil {
 		return nil, err
 	}
-	c := &Client{mics: mics, exchange: exchanges(mics), http: h, endpoint: ep, key: cfg.Credential, now: time.Now}
+	c := &Client{mics: mics, exchange: exchanges(mics), http: h, endpoint: ep, key: cfg.Credential, plan: p, now: time.Now}
 	c.prefer = market.Preference{
 		Served: market.Equities,
 		Order:  []types.IdentifierType{types.IdentifierTypeIsin, types.IdentifierTypeCusip, types.IdentifierTypeOpenfigiComposite, types.IdentifierTypeMicTicker},
