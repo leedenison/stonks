@@ -4,6 +4,7 @@ package price
 
 import (
 	"context"
+	"log/slog"
 	"testing"
 	"time"
 
@@ -19,6 +20,8 @@ import (
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/platform/ptr"
 	"github.com/leedenison/stonks/server/internal/testutil/dbtest"
+	"github.com/leedenison/stonks/server/internal/testutil/runtest"
+	"github.com/leedenison/stonks/server/internal/testutil/scripted"
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
@@ -39,6 +42,15 @@ type stack struct {
 	alpha, beta string
 	families    currency.Families
 	scales      currency.Scales
+	// plain is the name of a datasource that serves identity alone, at
+	// precedence 30.
+	plain string
+	// alphaPrices and betaPrices script what the two datasources serve.
+	alphaPrices, betaPrices *scripted.Prices
+	sources                 *market.Registry
+	recorder                *Recorder
+	// now is the moment every datasource answers.
+	now time.Time
 }
 
 func newStack(t *testing.T) *stack {
@@ -46,8 +58,11 @@ func newStack(t *testing.T) *stack {
 	ctx := context.Background()
 	tx := dbtest.Begin(t, pool)
 	q := gen.New(tx)
-	s := &stack{q: q, tx: tx, alpha: "alpha-" + uuid.NewString(), beta: "beta-" + uuid.NewString()}
-	for name, precedence := range map[string]int32{s.alpha: 10, s.beta: 20} {
+	s := &stack{
+		q: q, tx: tx, alpha: "alpha-" + uuid.NewString(), beta: "beta-" + uuid.NewString(), plain: "plain-" + uuid.NewString(),
+		alphaPrices: scripted.NewPrices(), betaPrices: scripted.NewPrices(), now: answered,
+	}
+	for name, precedence := range map[string]int32{s.alpha: 10, s.beta: 20, s.plain: 30} {
 		_, err := q.CreateDatasource(ctx, gen.CreateDatasourceParams{Name: name, Enabled: true, Precedence: precedence})
 		require.NoError(t, err)
 	}
@@ -57,6 +72,18 @@ func newStack(t *testing.T) *stack {
 	require.NoError(t, err)
 	s.families, s.scales, err = currency.Load(ctx, q)
 	require.NoError(t, err)
+	factory := func(i market.Integration) market.Factory {
+		return market.Factory{New: func(market.Config) (market.Integration, error) { return i, nil }}
+	}
+	log := slog.New(slog.DiscardHandler)
+	s.sources, err = market.New(ctx, q, map[string]market.Factory{
+		s.alpha: factory(s.alphaPrices), s.beta: factory(s.betaPrices), s.plain: factory(scripted.New()),
+	}, log)
+	require.NoError(t, err)
+	clock := func() time.Time { return s.now }
+	sleep := func(context.Context, time.Duration) error { return nil }
+	fetcher := market.NewFetcher(db.New[market.Queries](tx), runtest.Runner{Q: q}, log, market.WithClock(clock, sleep), market.WithRetry(time.Millisecond, 1))
+	s.recorder = New(db.New[RecordQueries](tx), fetcher, s.families, s.scales, log)
 	return s
 }
 

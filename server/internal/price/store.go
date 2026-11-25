@@ -8,6 +8,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/corpact"
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/market"
 )
 
 // MoveQueries are the queries Move needs.
@@ -44,3 +45,19 @@ type DemandQueries interface {
 }
 
 var _ DemandQueries = (*gen.Queries)(nil)
+
+// Store is the database as a Recorder sees it: the queries of a write, and
+// Tx, which runs a set of them in one transaction.
+type Store interface {
+	RecordQueries
+	Tx(ctx context.Context, fn func(RecordQueries) error) error
+}
+
+var _ Store = (*db.DB[RecordQueries])(nil)
+
+// Fetcher is this package's view of the fetch framework.
+type Fetcher interface {
+	Prices(ctx context.Context, parent gen.Run, e *market.Entry, reqs []market.PriceRequest) ([]priceKey, error)
+}
+
+var _ Fetcher = (*market.Fetcher)(nil)

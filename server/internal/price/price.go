@@ -26,5 +26,7 @@
 //
 // A gap is a needed day that no datasource covers. It is the same for every
 // datasource. A run asks the datasources in turn, and each answer shrinks the
-// gap that the next one is asked for.
+// gap that the next one is asked for. The gaps are the only record of what to
+// ask again, so a failed request or a refused answer leaves its days to the
+// next run.
 package price
