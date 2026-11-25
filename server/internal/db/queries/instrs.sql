@@ -194,3 +194,10 @@ LIMIT @lim;
 -- name: GetListingByID :one
 SELECT * FROM listings
 WHERE id = $1;
+
+-- name: ListListingClasses :many
+SELECT listings.id, listings.instr_id, instrs.asset_class
+FROM listings
+JOIN instrs ON instrs.id = listings.instr_id
+WHERE listings.id = ANY(@ids::uuid[])
+ORDER BY listings.id;
