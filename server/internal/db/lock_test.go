@@ -58,6 +58,11 @@ func TestLockNames(t *testing.T) {
 			lock: func(q db.AdvisoryLocker) error { return db.LockCorpActAnswer(ctx, q, "massive", b) },
 			want: [][]string{{"corpact:massive:" + b.String()}},
 		},
+		{
+			name: "the prices of a datasource for a listing",
+			lock: func(q db.AdvisoryLocker) error { return db.LockPrices(ctx, q, "massive", []uuid.UUID{b}) },
+			want: [][]string{{"price:massive:" + b.String()}},
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

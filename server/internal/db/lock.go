@@ -64,6 +64,22 @@ func LockCorpActAnswer(ctx context.Context, q AdvisoryLocker, source string, tic
 	return nil
 }
 
+// LockPrices takes the transaction's advisory lock on the prices of source
+// for each of listings. It serialises the writes of one datasource's coverage
+// for one listing. A write of prices takes only this lock. A merge takes it
+// after the locks of its identifiers and tickers, so the lock order has no
+// cycle.
+func LockPrices(ctx context.Context, q AdvisoryLocker, source string, listings []uuid.UUID) error {
+	names := make([]string, len(listings))
+	for i, id := range listings {
+		names[i] = "price:" + source + ":" + id.String()
+	}
+	if err := lockNames(ctx, q, names); err != nil {
+		return fmt.Errorf("lock prices: %w", err)
+	}
+	return nil
+}
+
 func lockNames(ctx context.Context, q AdvisoryLocker, names []string) error {
 	if len(names) == 0 {
 		return nil

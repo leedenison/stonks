@@ -12,6 +12,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/identity/tickers"
 	"github.com/leedenison/stonks/server/internal/identity/tickervalidity"
 	"github.com/leedenison/stonks/server/internal/market"
+	"github.com/leedenison/stonks/server/internal/price"
 )
 
 // Queries is this package's view of the generated queries.
@@ -50,6 +51,7 @@ type Queries interface {
 	DeleteIdentityCoverage(ctx context.Context, instrID uuid.UUID) error
 	DeleteListings(ctx context.Context, instrID uuid.UUID) error
 	DeleteInstr(ctx context.Context, id uuid.UUID) error
+	price.MoveQueries
 }
 
 var _ Queries = (*gen.Queries)(nil)

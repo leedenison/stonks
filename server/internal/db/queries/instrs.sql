@@ -190,3 +190,7 @@ WHERE sqlc.narg(after_id)::uuid IS NULL
    OR (name, id) > (sqlc.narg(after_name)::text, sqlc.narg(after_id)::uuid)
 ORDER BY name, id
 LIMIT @lim;
+
+-- name: GetListingByID :one
+SELECT * FROM listings
+WHERE id = $1;
