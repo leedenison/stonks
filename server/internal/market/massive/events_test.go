@@ -143,11 +143,6 @@ func TestClassifyBody(t *testing.T) {
 		want market.Failure
 	}{
 		{
-			name: "dates outside the plan's history",
-			body: `{"status":"NOT_AUTHORIZED","message":"Your plan doesn't include this data timeframe. Please upgrade your plan at https://massive.com/pricing"}`,
-			want: market.Failure{Scope: market.ScopeRequest},
-		},
-		{
 			name: "an entitlement the plan lacks",
 			body: `{"status":"NOT_AUTHORIZED","message":"You are not entitled to this data. Please upgrade your plan at https://massive.com/pricing"}`,
 			want: market.Failure{Scope: market.ScopeDatasource},

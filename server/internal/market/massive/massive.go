@@ -1,6 +1,6 @@
-// Package massive is the identity, identifier facts and corporate actions
-// integration with Massive's API, which covers listed US stock, ETFs and
-// funds.
+// Package massive is the identity, identifier facts, corporate actions and
+// prices integration with Massive's API, which covers listed US stock, ETFs
+// and funds.
 package massive
 
 import (
@@ -40,9 +40,12 @@ type Client struct {
 	venues OperatingMICSet
 	// home is the market of every venue, where each identifier fact is
 	// stated.
-	home     string
-	prefer   market.Preference
-	limit    rate.Limit
+	home   string
+	prefer market.Preference
+	limit  rate.Limit
+	// stocks is the account's stocks plan.
+	stocks   plan
+	now      func() time.Time
 	http     *http.Client
 	endpoint string
 	key      string
@@ -136,6 +139,8 @@ func New(cfg market.Config, mics mic.MICMap, h *http.Client) (*Client, error) {
 		venues:   venues,
 		home:     home,
 		limit:    min(stocks.rate, currencies.rate),
+		stocks:   stocks,
+		now:      time.Now,
 		http:     h,
 		endpoint: ep,
 		key:      cfg.Credential,
@@ -201,9 +206,10 @@ func Factory(mics mic.MICMap, h *http.Client) market.Factory {
 // stands in for both.
 func (c *Client) Limit() (rate.Limit, int) { return c.limit, 1 }
 
-// Window is the first day Massive answers for, on every day. Every plan
-// answers back to the first day of Massive's data, whatever the endpoint
-// pages state for Basic.
+// Window is the first day Massive's reference data answers for, on every
+// day. Every plan answers back to the first day of that data, whatever the
+// endpoint pages state for Basic. Daily bars have a window of their own; see
+// plan.
 func (c *Client) Window(time.Time) time.Time { return since }
 
 // Endpoint is the address the Client calls.

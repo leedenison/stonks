@@ -1,0 +1,47 @@
+---
+version: 2
+interactions:
+    - id: 0
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: api.massive.com
+        form:
+            adjusted:
+                - "false"
+            apiKey:
+                - REDACTED
+            limit:
+                - "50000"
+            sort:
+                - asc
+        url: https://api.massive.com/v2/aggs/ticker/AAPL/range/1/day/2020-01-02/2020-01-10?adjusted=false&apiKey=REDACTED&limit=50000&sort=asc
+        method: GET
+      response:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 189
+        body: '{"status":"NOT_AUTHORIZED","request_id":"6b72f06f350f4e044b6929c30aa8545e","message":"Your plan doesn''t include this data timeframe. Please upgrade your plan at https://polygon.io/pricing"}'
+        headers:
+            Connection:
+                - keep-alive
+            Content-Length:
+                - "189"
+            Content-Type:
+                - application/json
+            Date:
+                - Wed, 25 Nov 2026 14:53:02 GMT
+            Strict-Transport-Security:
+                - max-age=31536000; includeSubDomains
+            Vary:
+                - Accept-Encoding
+            X-Polygon-Cluster-Name:
+                - polygon-ny5
+            X-Request-Id:
+                - 6b72f06f350f4e044b6929c30aa8545e
+        status: 403 Forbidden
+        code: 403
+        duration: 245.10278ms

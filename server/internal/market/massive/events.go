@@ -14,7 +14,8 @@ import (
 // lookup of an earlier day answers that the ticker is unknown. The coverage of
 // corporate actions starts here too. Massive's splits reach back to 1978, but
 // many splits before 2003 are missing. Massive documents two years of splits
-// for its Basic plan. That plan answers the whole history.
+// for its Basic plan. That plan answers the whole history. Every request for
+// daily bars also starts here, and a plan may serve fewer days.
 var since = time.Date(2003, time.September, 10, 0, 0, 0, 0, time.UTC)
 
 // facts is Massive's side of the identifier facts kind.
