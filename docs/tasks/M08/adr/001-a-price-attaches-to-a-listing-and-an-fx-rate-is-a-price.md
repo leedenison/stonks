@@ -16,7 +16,9 @@ so the restatement of a price leaves a rate as it is.
 
 ## Consequences
 
-* A client inverts a rate where its source quotes the currency per USD.
+* A client asks its source for the pair that quotes the currency in USD. Massive and
+  EODHD both list that pair, so neither client inverts a rate. Where a source lacks the
+  pair, the rate stays a gap at that source.
 * The USD listing of a currency is created when the currency comes into use. The seed
   creates only the listing of each currency in its own family.
 * The details page of a currency is the instrument details page. Its rate chart is the

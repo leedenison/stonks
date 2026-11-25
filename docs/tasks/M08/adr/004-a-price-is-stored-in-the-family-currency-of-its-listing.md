@@ -28,4 +28,6 @@ kept, so the price converts on write.
   check cannot detect it.
 * The Google Sheets tool sends the code that a `currency` cell beside each series states.
   The EODHD client takes the code from the metadata of the symbol, since its daily bars
-  omit the currency. Massive serves US listings alone, so its client states USD.
+  omit the currency. It states USD for a US symbol without reading the metadata, because
+  USD is the trading currency of EODHD's US exchange code. Massive serves US listings
+  alone, so its client states USD.

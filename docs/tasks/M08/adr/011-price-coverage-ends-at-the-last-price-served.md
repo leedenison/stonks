@@ -16,6 +16,14 @@ So the coverage of an answer ends on the day of the last price that the provider
 for the identifier, whatever period was asked. The coverage of an answer without a
 price is empty. Every price client follows the rule.
 
+## Where coverage starts
+
+Coverage starts at the window of the plan. EODHD does not state the day on which its
+history of a symbol starts, and that day can fall after the listing began to trade. So
+the EODHD client starts coverage at the first price served when that day is later than
+the window. The days before it stay gaps at EODHD. A run asks EODHD again for each of
+those days on which a user holds the instrument, and the Google Sheets tool sees them.
+
 ## Considered options
 
 Covering the days after the last price was the alternative. It closes a weekend gap

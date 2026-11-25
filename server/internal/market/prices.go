@@ -49,7 +49,7 @@ type PriceResult struct {
 // states each price free of any dividend adjustment. It states a rate as the
 // number of USD that one unit of the currency buys, with USD as the currency
 // of the result. It leaves the days before its plan's first day out of the
-// coverage.
+// coverage. It may also leave out the days before the first price it holds.
 type Prices interface {
 	Integration
 	Prices() Server[PriceRequest, PriceResult]

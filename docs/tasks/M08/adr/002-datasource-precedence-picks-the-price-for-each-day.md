@@ -12,7 +12,8 @@ So the source is chosen for each listing on each day, and one series may mix sou
   the stored rows without a refetch.
 * A fetch asks the datasources in precedence order. Each is asked for the days that the
   datasources above it left uncovered. A datasource leaves each day outside its window
-  uncovered.
+  uncovered. The window comes from the plan that the config of the datasource names and
+  from the clock, because a credential does not state its plan.
 * A gap is the same for every datasource: a demanded day that none of them covers. The
   order of asking alone gives each rank its share.
 * The first answer of a datasource for a listing and a day stands. The write keeps only
