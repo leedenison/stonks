@@ -1,6 +1,6 @@
 // Package scripted holds integrations whose every answer a test scripts: one
-// each for identity, identifier facts and corporate actions, and one serving
-// identity and identifier facts.
+// each for identity, identifier facts, corporate actions and prices, and one
+// serving identity and identifier facts.
 package scripted
 
 import (
@@ -83,8 +83,8 @@ func (s *Identity) Fetch(_ context.Context, reqs []market.Request[gen.StatedKey]
 }
 
 // Server holds the scripted answers and the record of requests that the
-// identifier facts and corporate actions fakes share. A fake embeds it and
-// adds Serves.
+// identifier facts, corporate actions and prices fakes share. A fake
+// embeds it and adds Serves.
 type Server[Q, P any] struct {
 	// Down fails every request.
 	Down bool
@@ -190,6 +190,59 @@ func (s *CorpActs) Serves(r market.CorpActRequest) (types.Identifier, error) {
 		return types.Identifier{}, err
 	}
 	return r.Ticker, nil
+}
+
+// Prices is a market.Prices whose answers a test scripts. A response is the
+// whole history the provider holds for an identifier. Each request is
+// answered with the part of it inside the period asked.
+type Prices struct {
+	Server[market.PriceRequest, market.PriceResult]
+}
+
+var _ market.Prices = (*Prices)(nil)
+
+// NewPrices returns a Prices with no responses scripted.
+func NewPrices() *Prices {
+	return &Prices{Server[market.PriceRequest, market.PriceResult]{Responses: map[types.Identifier]market.PriceResult{}}}
+}
+
+// Prices is the server itself.
+func (s *Prices) Prices() market.Server[market.PriceRequest, market.PriceResult] {
+	return s
+}
+
+// Serves sends the identifier the request names, and declines a ticker on a
+// venue in Declines.
+func (s *Prices) Serves(r market.PriceRequest) (types.Identifier, error) {
+	if err := s.declines(r.Identifier); err != nil {
+		return types.Identifier{}, err
+	}
+	return r.Identifier, nil
+}
+
+// Fetch answers each request from Responses, cut to the period asked. An
+// identifier that Responses lacks is one the provider does not know.
+func (s *Prices) Fetch(ctx context.Context, reqs []market.Request[market.PriceRequest]) ([]market.Response[market.PriceResult], error) {
+	out, err := s.Server.Fetch(ctx, reqs)
+	for i := range out {
+		v := &out[i].Value
+		if v.Coverage == nil {
+			continue
+		}
+		period, ok := v.Coverage.Clip(reqs[i].Value.Period)
+		if !ok {
+			*v = market.PriceResult{}
+			continue
+		}
+		kept := market.PriceResult{Currency: v.Currency, Coverage: &period}
+		for _, p := range v.Prices {
+			if period.Contains(p.Day) {
+				kept.Prices = append(kept.Prices, p)
+			}
+		}
+		*v = kept
+	}
+	return out, err
 }
 
 // Datasource serves identity from Identity and identifier facts from IdentifierFacts,
