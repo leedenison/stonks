@@ -8,8 +8,10 @@ import (
 	"github.com/google/uuid"
 	"go.uber.org/mock/gomock"
 
+	"github.com/leedenison/stonks/server/internal/currency"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/mic"
+	"github.com/leedenison/stonks/server/internal/platform/ptr"
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
@@ -114,5 +116,42 @@ func TestLockBatch(t *testing.T) {
 	}
 	if diff := cmp.Diff([]uuid.UUID{a}, locked.IDs()); diff != "" {
 		t.Errorf("IDs() mismatch (-want +got):\n%s", diff)
+	}
+}
+
+// TestListing checks the listing each kind of key names. A row of the
+// key's ticker at another venue does not place a dated key.
+func TestListing(t *testing.T) {
+	families := currency.Families{"GBP": "GBP", "GBX": "GBP", "USD": "USD"}
+	ticker := uuid.MustParse("00000000-0000-0000-0000-0000000000a1")
+	instr := uuid.MustParse("00000000-0000-0000-0000-0000000000a2")
+	usd, gbp := uuid.MustParse("00000000-0000-0000-0000-0000000000a3"), uuid.MustParse("00000000-0000-0000-0000-0000000000a4")
+	listings := []gen.ListListingNamesRow{
+		{ListingID: gbp, InstrID: instr, Currency: "GBP", TickerID: &ticker, Venue: ptr.To("XNYS")},
+		{ListingID: usd, InstrID: instr, Currency: "USD", TickerID: &ticker, Venue: ptr.To("XNAS")},
+	}
+	dated := func(venue string, currency *string) gen.StatedKey {
+		return gen.StatedKey{ViaTickerID: &ticker, ViaMarket: ptr.To("US"), ViaVenue: &venue, Currency: currency}
+	}
+	tests := []struct {
+		name string
+		key  gen.StatedKey
+		want uuid.UUID
+		ok   bool
+	}{
+		{name: "a fixed key with a listing", key: gen.StatedKey{InstrID: &instr, ListingID: &gbp, Currency: ptr.To("USD")}, want: gbp, ok: true},
+		{name: "a fixed key that names only the instrument", key: gen.StatedKey{InstrID: &instr, Currency: ptr.To("USD")}},
+		{name: "a dated key by the ticker at its venue", key: dated("XNAS", nil), want: usd, ok: true},
+		{name: "a dated key by its stated currency", key: dated("XNAS", ptr.To("GBX")), want: gbp, ok: true},
+		{name: "a dated key whose ticker reaches nothing at its venue", key: dated("XLON", nil)},
+		{name: "an unassociated key", key: gen.StatedKey{Currency: ptr.To("USD")}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, ok := Listing(families, tc.key, listings)
+			if got != tc.want || ok != tc.ok {
+				t.Errorf("Listing() = %s, %v, want %s, %v", got, ok, tc.want, tc.ok)
+			}
+		})
 	}
 }

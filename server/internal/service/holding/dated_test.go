@@ -168,7 +168,7 @@ func TestListHoldingsDated(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newFixture(t)
 			f.authn.EXPECT().Authenticate(gomock.Any(), servicetest.Session).Return(principal, nil)
-			f.reader.EXPECT().ListHoldingKeys(gomock.Any(), userID).Return(tc.keys, tc.keysErr)
+			f.reader.EXPECT().ListHoldingKeys(gomock.Any(), &userID).Return(tc.keys, tc.keysErr)
 			f.reader.EXPECT().ListInstrsByID(gomock.Any(), gomock.Any()).Return(instrs, nil).MaxTimes(1)
 			f.reader.EXPECT().ListInstrMarkets(gomock.Any(), gomock.Any()).Return(nil, nil).MaxTimes(1)
 			if len(tc.ids) > 0 {

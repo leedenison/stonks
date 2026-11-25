@@ -21,12 +21,14 @@ An open holding runs to the last completed day, which is the UTC day before toda
 ## The days held
 
 A user holds an instrument while the quantities of that user's transactions on it sum to
-a value other than zero. Each quantity is restated to today through the corporate actions
-calendar first. A sum of the stated quantities would close a holding that was bought
-before a split and half sold after it.
+a value other than zero. Each quantity is first restated through the corporate actions
+calendar, to the day of the last of those transactions. A sum of the stated quantities
+would close a holding that was bought before a split and half sold after it.
 
-Where the calendar does not cover a transaction, the sum cannot be trusted. The holding
-then counts as held from its first day to the last completed day.
+The calendar must cover the days between the first transaction and the last. It need not
+reach today, so a closed holding stays closed while its corporate actions go unfetched.
+Where the calendar stops short of the last transaction, the sum cannot be trusted. The
+holding then counts as held from its first day to the last completed day.
 
 ## Days without a session
 

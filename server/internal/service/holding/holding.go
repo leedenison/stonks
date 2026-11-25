@@ -4,7 +4,8 @@
 // caller's own keys, so another user's never contribute, and a caller with
 // none is answered with empty lists rather than not found. A holding carries
 // the keys it sums. An instrument holding also carries every listing of the
-// instrument.
+// instrument. A cash holding carries only the listing in its own family: the
+// listing of a currency in another family holds its rate.
 //
 // A dated key's transactions take the instrument its ticker names on their
 // as-at dates, as the stored ticker validity states it; see package
@@ -52,6 +53,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/currency"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/db/to"
+	"github.com/leedenison/stonks/server/internal/identity/tickers"
 	"github.com/leedenison/stonks/server/internal/platform/ptr"
 	"github.com/leedenison/stonks/server/internal/types"
 )
@@ -63,7 +65,7 @@ type Reader interface {
 	ListIdentifiersOf(ctx context.Context, ids []uuid.UUID) ([]gen.Identifier, error)
 	ListListingNames(ctx context.Context, instrIds []uuid.UUID) ([]gen.ListListingNamesRow, error)
 	ListInstrNames(ctx context.Context, ids []uuid.UUID) ([]gen.InstrName, error)
-	ListHoldingKeys(ctx context.Context, userID uuid.UUID) ([]gen.ListHoldingKeysRow, error)
+	ListHoldingKeys(ctx context.Context, userID *uuid.UUID) ([]gen.ListHoldingKeysRow, error)
 }
 
 var _ Reader = (*gen.Queries)(nil)
@@ -91,7 +93,7 @@ func (s *Server) ListHoldings(ctx context.Context, _ *connect.Request[holdingv1.
 	if err != nil {
 		return nil, connect.NewError(connect.CodeUnauthenticated, err)
 	}
-	keys, err := s.reader.ListHoldingKeys(ctx, p.User.ID)
+	keys, err := s.reader.ListHoldingKeys(ctx, &p.User.ID)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
@@ -209,17 +211,19 @@ func (s *Server) instrs(ctx context.Context, keys []gen.ListHoldingKeysRow) ([]*
 		}
 		for i, k := range held[id] {
 			hk := to.ProtoHoldingKey(k.key, r.keys[i])
-			if k.key.ViaTickerID != nil {
-				if l := listing(s.families, k.key, listed[id]); l != uuid.Nil {
-					hk.ListingId = l.String()
-				}
+			if l, ok := tickers.Listing(s.families, k.key, listed[id]); ok {
+				hk.ListingId = l.String()
 			}
 			h.Keys = append(h.Keys, hk)
 		}
 		for _, i := range identified[id] {
 			h.Identifiers = append(h.Identifiers, to.Identifier(i).ToProto())
 		}
+		own := ownFamily(s.families, identified[id])
 		for _, l := range listed[id] {
+			if classOf[id] == types.AssetClassCash && own != "" && l.Currency != own {
+				continue
+			}
 			if l.Rank == nil || *l.Rank == 1 {
 				h.Listings = append(h.Listings, to.ProtoHoldingListing(l))
 			}
@@ -227,6 +231,18 @@ func (s *Server) instrs(ctx context.Context, keys []gen.ListHoldingKeysRow) ([]*
 		out = append(out, h)
 	}
 	return out, nil
+}
+
+// ownFamily returns the currency family of a cash instrument, from the
+// currency identifiers that name it. It returns an empty string where the
+// instrument has none.
+func ownFamily(families currency.Families, ids []gen.Identifier) string {
+	for _, i := range ids {
+		if i.Type == types.IdentifierTypeCurrency {
+			return families.Family(i.Value)
+		}
+	}
+	return ""
 }
 
 // keyDays is one key's transactions on one instrument, summed by as-at date.
@@ -303,33 +319,6 @@ func restate(cal corpact.Calendar, ks []keyDays, today time.Time) sum {
 		out.gaps = cal.Gaps(types.Period{From: from, Before: today.AddDate(0, 0, 1)})
 	}
 	return out
-}
-
-// listing returns the listing a dated key's transactions sit under on one
-// instrument: the listing in the family of the key's stated currency, as a
-// fixed association takes, else the one that the key's ticker reaches at the
-// key's venue. listings holds every ticker that reaches each listing of the
-// instrument. It returns uuid.Nil when neither exists.
-func listing(families currency.Families, k gen.StatedKey, listings []gen.ListListingNamesRow) uuid.UUID {
-	carrier, family := uuid.Nil, ""
-	if k.ViaTickerID != nil && k.ViaVenue != nil {
-		for _, l := range listings {
-			if ptr.Equal(l.TickerID, k.ViaTickerID) && ptr.Equal(l.Venue, k.ViaVenue) {
-				carrier, family = l.ListingID, l.Currency
-				break
-			}
-		}
-	}
-	if k.Currency != nil {
-		if fam := families.Family(*k.Currency); fam != "" && fam != family {
-			for _, l := range listings {
-				if l.Currency == fam {
-					return l.ListingID
-				}
-			}
-		}
-	}
-	return carrier
 }
 
 // groups answers the user's holdings of groups, each with the classes and

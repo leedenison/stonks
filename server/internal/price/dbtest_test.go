@@ -141,11 +141,88 @@ func (s *stack) coverage(t *testing.T, source string, listing uuid.UUID) []types
 	return periods(rows, source)
 }
 
-func day(y int, m time.Month, d int) time.Time { return time.Date(y, m, d, 0, 0, 0, 0, time.UTC) }
-
 func span(from, before time.Time) types.Period { return types.Period{From: from, Before: before} }
 
 // at is an as traded price on day d.
 func at(d time.Time, price string) market.DayPrice {
 	return market.DayPrice{Day: d, Price: decimal.RequireFromString(price), AsAt: d}
+}
+
+// holder is a user with a statement that holds the user's transactions.
+type holder struct {
+	user, stmt uuid.UUID
+}
+
+func (s *stack) holder(t *testing.T) holder {
+	t.Helper()
+	ctx := context.Background()
+	user, err := s.q.CreateUser(ctx, gen.CreateUserParams{ID: db.NewID(), Email: uuid.NewString() + "@example.com", Role: gen.UserRoleUser})
+	require.NoError(t, err)
+	run, err := s.q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &user.ID, Kind: gen.RunKindIngestStmt, Trigger: gen.RunTriggerUser})
+	require.NoError(t, err)
+	stmt, err := s.q.CreateStmt(ctx, gen.CreateStmtParams{ID: run.ID, UserID: user.ID, Broker: gen.BrokerIbkr, OrderFrom: day(2020, 1, 1), OrderBefore: day(2027, 1, 1)})
+	require.NoError(t, err)
+	return holder{user: user.ID, stmt: stmt.ID}
+}
+
+// instr creates an instrument of class with a listing in each of
+// currencies, and returns the listings by currency.
+func (s *stack) instr(t *testing.T, class types.AssetClass, currencies ...string) (uuid.UUID, map[string]uuid.UUID) {
+	t.Helper()
+	ctx := context.Background()
+	instr, err := s.q.CreateInstr(ctx, gen.CreateInstrParams{ID: db.NewID(), AssetClass: class})
+	require.NoError(t, err)
+	listings := map[string]uuid.UUID{}
+	for _, c := range currencies {
+		l, err := s.q.CreateListing(ctx, gen.CreateListingParams{ID: db.NewID(), InstrID: instr.ID, Currency: c})
+		require.NoError(t, err)
+		listings[c] = l.ID
+	}
+	return instr.ID, listings
+}
+
+// fixedKey creates a key of h with a fixed association to instr, and to
+// listing where one is given.
+func (s *stack) fixedKey(t *testing.T, h holder, instr uuid.UUID, listing *uuid.UUID) uuid.UUID {
+	t.Helper()
+	ctx := context.Background()
+	via, key := db.NewID(), db.NewID()
+	_, err := s.tx.Exec(ctx, `INSERT INTO identifiers (id, instr_id, type, value) VALUES ($1, $2, 'isin', $3)`, via, instr, via.String())
+	require.NoError(t, err)
+	_, err = s.tx.Exec(ctx, `INSERT INTO stated_keys (id, user_id, identifiers, instr_id, listing_id, via_identifier_id, arbiter)
+		VALUES ($1, $2, jsonb_build_array(jsonb_build_object('type', 'isin', 'value', $6::text)), $3, $4, $5, 'datasource')`, key, h.user, instr, listing, via, via.String())
+	require.NoError(t, err)
+	return key
+}
+
+// looseKey creates a key of h that names nothing.
+func (s *stack) looseKey(t *testing.T, h holder) uuid.UUID {
+	t.Helper()
+	key := db.NewID()
+	_, err := s.tx.Exec(context.Background(), `INSERT INTO stated_keys (id, user_id, identifiers)
+		VALUES ($1, $2, jsonb_build_array(jsonb_build_object('type', 'isin', 'value', $3::text)))`, key, h.user, key.String())
+	require.NoError(t, err)
+	return key
+}
+
+// txn records that h bought quantity through key as at d.
+func (s *stack) txn(t *testing.T, h holder, key uuid.UUID, d time.Time, quantity string) {
+	t.Helper()
+	_, err := s.q.CreateTxn(context.Background(), gen.CreateTxnParams{
+		ID: db.NewID(), UserID: h.user, Broker: gen.BrokerIbkr, StmtID: h.stmt, StatedKeyID: key,
+		OrderDate: d, SettlementDate: d, AsAt: d, Quantity: decimal.RequireFromString(quantity),
+	})
+	require.NoError(t, err)
+}
+
+// resolves records that the ticker value names instr at venue in currency,
+// on every day, and returns the ticker row.
+func (s *stack) resolves(t *testing.T, instr uuid.UUID, market, value, venue, currency string) gen.Ticker {
+	t.Helper()
+	row := dbtest.Ticker(t, s.q, types.MarketTicker{Market: market, Value: value})
+	require.NoError(t, s.q.CreateResolvedTickers(context.Background(), gen.CreateResolvedTickersParams{
+		TickerIds: []uuid.UUID{row.ID}, Markets: []string{market}, InstrIds: []uuid.UUID{instr},
+		Venues: []string{venue}, ValidFroms: []string{""}, ValidBefores: []string{""}, Currencies: []string{currency},
+	}))
+	return row
 }
