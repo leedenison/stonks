@@ -77,6 +77,13 @@ func (e AssetClass) under(o AssetClass) bool {
 // class overlaps every class.
 func (e AssetClass) Disjoint(o AssetClass) bool { return !e.under(o) && !o.under(e) }
 
+// Priced reports whether an instrument of e has an end of day price that the
+// system fetches. Cash is valued by a rate. An option and a future await a
+// datasource that prices them.
+func (e AssetClass) Priced() bool {
+	return !e.under(AssetClassCash) && !e.under(AssetClassDerivative)
+}
+
 // Restated reports whether corporate actions restate a quantity of e. They
 // restate stocks and ETFs, and equity of no known subclass. Every other class
 // keeps its quantity as stated. Mutual funds are among them, because many

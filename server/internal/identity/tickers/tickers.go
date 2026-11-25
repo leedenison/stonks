@@ -2,7 +2,7 @@
 // market, in the system's spelling; see
 // [010_ticker_validity.sql](../../db/migrations/010_ticker_validity.sql). Get
 // alone writes the table. Spelled decides the spelling, and every other check
-// of a spelling calls it.
+// of a spelling calls it. Listing decides the listing that a stated key names.
 package tickers
 
 //go:generate go tool mockgen -source=tickers.go -destination=tickers_mock_test.go -package=tickers -self_package=github.com/leedenison/stonks/server/internal/identity/tickers
@@ -16,10 +16,12 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/leedenison/stonks/server/internal/currency"
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/mic"
+	"github.com/leedenison/stonks/server/internal/platform/ptr"
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
@@ -209,4 +211,37 @@ func sorted(ts []types.MarketTicker) []types.MarketTicker {
 		return cmp.Or(cmp.Compare(a.Market, b.Market), cmp.Compare(a.Value, b.Value))
 	})
 	return slices.Compact(out)
+}
+
+// Listing returns the listing of one instrument that k names. A fixed key
+// names the listing of its association. A dated key names the listing in the
+// family of its stated currency, else the one that its ticker reaches at its
+// venue. listings holds every ticker that reaches each listing of the
+// instrument. Listing reports false for a key that names only the instrument.
+func Listing(families currency.Families, k gen.StatedKey, listings []gen.ListListingNamesRow) (uuid.UUID, bool) {
+	if k.ListingID != nil {
+		return *k.ListingID, true
+	}
+	if k.ViaTickerID == nil {
+		return uuid.Nil, false
+	}
+	carrier, family := uuid.Nil, ""
+	if k.ViaVenue != nil {
+		for _, l := range listings {
+			if ptr.Equal(l.TickerID, k.ViaTickerID) && ptr.Equal(l.Venue, k.ViaVenue) {
+				carrier, family = l.ListingID, l.Currency
+				break
+			}
+		}
+	}
+	if k.Currency != nil {
+		if fam := families.Family(*k.Currency); fam != "" && fam != family {
+			for _, l := range listings {
+				if l.Currency == fam {
+					return l.ListingID, true
+				}
+			}
+		}
+	}
+	return carrier, carrier != uuid.Nil
 }

@@ -481,7 +481,7 @@ type holding struct {
 // service does for keys with no dated association, leaving out zero sums.
 func (s *stack) holdings(t *testing.T) (instrs, groups []holding) {
 	t.Helper()
-	keys, err := s.q.ListHoldingKeys(context.Background(), s.user.ID)
+	keys, err := s.q.ListHoldingKeys(context.Background(), &s.user.ID)
 	require.NoError(t, err)
 	byInstr, byGroup := map[uuid.UUID]decimal.Decimal{}, map[uuid.UUID]decimal.Decimal{}
 	for _, k := range keys {

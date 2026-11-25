@@ -229,7 +229,7 @@ func TestListHoldingKeys(t *testing.T) {
 	later.record(t, q, halves, "2.50")
 	later.recordOn(t, q, halves, date(2026, 3, 2), "1.25")
 
-	got, err := q.ListHoldingKeys(ctx, h.user.ID)
+	got, err := q.ListHoldingKeys(ctx, &h.user.ID)
 	require.NoError(t, err)
 	type row struct {
 		Key      uuid.UUID
@@ -289,7 +289,7 @@ func TestTxnInstrs(t *testing.T) {
 		Instr    *uuid.UUID
 		Quantity string
 	}
-	keys, err := q.ListHoldingKeys(ctx, h.user.ID)
+	keys, err := q.ListHoldingKeys(ctx, &h.user.ID)
 	require.NoError(t, err)
 	var gotSums []sum
 	var last *uuid.UUID

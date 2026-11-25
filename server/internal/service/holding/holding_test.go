@@ -196,7 +196,7 @@ func TestListHoldings(t *testing.T) {
 			f.authn.EXPECT().Authenticate(gomock.Any(), servicetest.Session).Return(principal, tc.authErr)
 			// Each read is offered once, and what the handler reads after a
 			// failure does not matter to the response.
-			f.reader.EXPECT().ListHoldingKeys(gomock.Any(), userID).Return(tc.keys, tc.keysErr).MaxTimes(1)
+			f.reader.EXPECT().ListHoldingKeys(gomock.Any(), &userID).Return(tc.keys, tc.keysErr).MaxTimes(1)
 			f.reader.EXPECT().ListInstrsByID(gomock.Any(), gomock.Any()).Return(tc.instrs, tc.instrErr).MaxTimes(1)
 			f.reader.EXPECT().ListIdentifiersOf(gomock.Any(), []uuid.UUID{gbpID, acmeID}).Return(tc.idents, tc.identsErr).MaxTimes(1)
 			f.reader.EXPECT().ListListingNames(gomock.Any(), []uuid.UUID{gbpID, acmeID}).Return(tc.listings, tc.listingsErr).MaxTimes(1)
@@ -254,7 +254,7 @@ func TestListHoldingsScale(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newFixture(t)
 			f.authn.EXPECT().Authenticate(gomock.Any(), servicetest.Session).Return(principal, nil)
-			f.reader.EXPECT().ListHoldingKeys(gomock.Any(), userID).Return(tc.keys, nil)
+			f.reader.EXPECT().ListHoldingKeys(gomock.Any(), &userID).Return(tc.keys, nil)
 			f.reader.EXPECT().ListInstrsByID(gomock.Any(), gomock.Any()).Return(instrs, nil)
 			f.reader.EXPECT().ListInstrMarkets(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
 			if tc.want != "" {
@@ -278,21 +278,34 @@ func TestListHoldingsScale(t *testing.T) {
 	}
 }
 
-// TestListingThroughTicker checks that a dated key sits under the listing
-// that its ticker reaches at the key's venue. The key states no currency, so
-// only the ticker can place it. A row of the ticker at another venue does not
-// place it.
-func TestListingThroughTicker(t *testing.T) {
-	ticker := uuid.MustParse("00000000-0000-0000-0000-0000000000a1")
-	instr := uuid.MustParse("00000000-0000-0000-0000-0000000000a2")
-	usd, gbp := uuid.MustParse("00000000-0000-0000-0000-0000000000a3"), uuid.MustParse("00000000-0000-0000-0000-0000000000a4")
-	key := gen.StatedKey{ViaTickerID: &ticker, ViaMarket: ptr.To("US"), ViaVenue: ptr.To("XNAS")}
-	listings := []gen.ListListingNamesRow{
-		{ListingID: gbp, InstrID: instr, Currency: "GBP", TickerID: &ticker, Venue: ptr.To("XNYS")},
-		{ListingID: usd, InstrID: instr, Currency: "USD", TickerID: &ticker, Venue: ptr.To("XNAS")},
+// TestListHoldingsCashListing checks that a cash holding carries the listing
+// in its own family and leaves out the USD listing, which holds the rate of
+// the currency.
+func TestListHoldingsCashListing(t *testing.T) {
+	keyID := uuid.MustParse("00000000-0000-0000-0000-000000000068")
+	own, rate := uuid.MustParse("00000000-0000-0000-0000-000000000069"), uuid.MustParse("00000000-0000-0000-0000-00000000006a")
+	f := newFixture(t)
+	ids := []uuid.UUID{gbpID}
+	f.authn.EXPECT().Authenticate(gomock.Any(), servicetest.Session).Return(principal, nil)
+	f.reader.EXPECT().ListHoldingKeys(gomock.Any(), &userID).Return([]gen.ListHoldingKeysRow{{
+		StatedKey: gen.StatedKey{ID: keyID, InstrID: &gbpID, Currency: ptr.To("GBX")}, InstrID: &gbpID, Quantity: decimal.RequireFromString("500"),
+	}}, nil)
+	f.reader.EXPECT().ListInstrsByID(gomock.Any(), ids).Return([]gen.Instr{{ID: gbpID, AssetClass: types.AssetClassCash}}, nil)
+	f.reader.EXPECT().ListInstrMarkets(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
+	f.reader.EXPECT().ListIdentifiersOf(gomock.Any(), ids).Return([]gen.Identifier{
+		{InstrID: gbpID, Type: types.IdentifierTypeCurrency, Value: "GBX"}, {InstrID: gbpID, Type: types.IdentifierTypeCurrency, Value: "GBP"},
+	}, nil)
+	f.reader.EXPECT().ListListingNames(gomock.Any(), ids).Return([]gen.ListListingNamesRow{
+		{ListingID: own, InstrID: gbpID, Currency: "GBP"}, {ListingID: rate, InstrID: gbpID, Currency: "USD"},
+	}, nil)
+	f.reader.EXPECT().ListInstrNames(gomock.Any(), ids).Return(nil, nil)
+	res, err := f.client.ListHoldings(context.Background(), connect.NewRequest(&holdingv1.ListHoldingsRequest{}))
+	if err != nil {
+		t.Fatalf("ListHoldings() error = %v", err)
 	}
-	if got := listing(families, key, listings); got != usd {
-		t.Errorf("listing() = %s, want the USD listing %s, which the ticker reaches at XNAS", got, usd)
+	got := res.Msg.GetInstrs()
+	if len(got) != 1 || len(got[0].GetListings()) != 1 || got[0].GetListings()[0].GetId() != own.String() {
+		t.Errorf("instruments = %v, want one holding with the GBP listing %s alone", got, own)
 	}
 }
 
@@ -307,7 +320,7 @@ func TestListHoldingsRestated(t *testing.T) {
 	from, before := time.Date(2010, time.January, 1, 0, 0, 0, 0, time.UTC), types.Day(now).AddDate(0, 0, 1)
 	f := newFixture(t)
 	f.authn.EXPECT().Authenticate(gomock.Any(), servicetest.Session).Return(principal, nil)
-	f.reader.EXPECT().ListHoldingKeys(gomock.Any(), userID).Return([]gen.ListHoldingKeysRow{
+	f.reader.EXPECT().ListHoldingKeys(gomock.Any(), &userID).Return([]gen.ListHoldingKeysRow{
 		row(time.Date(2019, time.January, 2, 0, 0, 0, 0, time.UTC), "100"),
 		row(time.Date(2021, time.March, 1, 0, 0, 0, 0, time.UTC), "-50"),
 	}, nil)

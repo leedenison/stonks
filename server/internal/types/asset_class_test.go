@@ -26,6 +26,20 @@ func TestDisjoint(t *testing.T) {
 	}
 }
 
+func TestPriced(t *testing.T) {
+	unpriced := map[types.AssetClass]bool{
+		types.AssetClassCash:       true,
+		types.AssetClassDerivative: true,
+		types.AssetClassOption:     true,
+		types.AssetClassFuture:     true,
+	}
+	for _, c := range types.AssetClasses {
+		if got := c.Priced(); got == unpriced[c] {
+			t.Errorf("%s.Priced() = %v, want %v", c, got, !unpriced[c])
+		}
+	}
+}
+
 func TestRestated(t *testing.T) {
 	want := map[types.AssetClass]bool{
 		types.AssetClassEquity: true,
