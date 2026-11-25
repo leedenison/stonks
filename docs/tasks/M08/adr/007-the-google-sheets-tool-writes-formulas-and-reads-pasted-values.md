@@ -14,6 +14,12 @@ through the API, but it cannot read their values.
 * The tool reads the values tab through the API and sends the prices to the server.
   Pasted values are plain cells, so the restriction does not apply to them.
 
+## The datasource
+
+Every price references a datasource and a fetch key. Google Sheets therefore has a row
+in `datasources`, and its integration lacks the price capability, so a fetch run passes
+over it. Each upload records a run and a fetch key of its own.
+
 ## The "as at" date
 
 GOOGLEFINANCE closes are adjusted for splits. Google does not document the adjustment; it

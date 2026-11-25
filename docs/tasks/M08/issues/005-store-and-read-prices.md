@@ -32,8 +32,7 @@ Gaps:
   rate.
 * The last completed day of a listing is the UTC day before today. See
   [009](../adr/009-a-ticker-answer-is-dated-by-its-utc-day.md).
-* A gap for a datasource is a demanded day that neither it nor a datasource above it
-  covers. See
+* A gap is a demanded day that every datasource leaves uncovered. See
   [002](../adr/002-datasource-precedence-picks-the-price-for-each-day.md).
 
 Read:
@@ -47,13 +46,8 @@ Read:
 
 ## Tests
 
-* Integration tests prove the precedence pick, the gap for each rank, the scale on
-  write, the refusal of a code outside the family, and the carry across a day without a
-  session.
+* Integration tests prove the precedence pick, the gap that each datasource leaves, the
+  scale on write, the refusal of a code outside the family, and the carry across a day
+  without a session.
 * Unit tests prove the restatement of a mixed series across a split, and the
   provisional mark.
-
-## Open at planning
-
-* How a stated key reaches the listing it names, which decides the listings a holding
-  demands.

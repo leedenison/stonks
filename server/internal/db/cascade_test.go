@@ -22,7 +22,7 @@ var owned = []string{
 	"runs", "stmts", "stated_keys", "stmt_keys", "stmt_items", "stmt_splits", "txns",
 	"resolution_keys", "fetches", "fetch_keys", "identifier_assertions",
 	"identifier_assertion_coverage", "identity_coverage",
-	"datasource_blocks", "findings", "replays",
+	"datasource_blocks", "findings", "replays", "price_coverage", "prices",
 }
 
 // TestDeleteUserCascades checks that deleting a user deletes every row their
@@ -65,6 +65,13 @@ func TestDeleteUserCascades(t *testing.T) {
 				SentType: ptr.To(types.IdentifierTypeIsin), SentValue: ptr.To("GB00B03MLX29"), Reason: "refused",
 				FetchKeyID: key, FindingID: db.NewID(), RunID: fetch.ID,
 			})
+			require.NoError(t, err)
+			listing := newListing(t, q, instr, "USD")
+			coverage := db.NewID()
+			require.NoError(t, q.CreatePriceCoverage(ctx, gen.CreatePriceCoverageParams{
+				ID: coverage, ListingID: listing.ID, Datasource: ds.Name, FetchKeyID: key, CoveredFrom: date(2026, 3, 1), CoveredBefore: date(2026, 3, 3),
+			}))
+			_, err = q.CreatePrices(ctx, []gen.CreatePricesParams{{CoverageID: coverage, Day: date(2026, 3, 2), Price: decimal.NewFromInt(1), AsAt: date(2026, 3, 2)}})
 			require.NoError(t, err)
 			replay, err := q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &user.ID, Kind: gen.RunKindReplayRun, Trigger: gen.RunTriggerAdministrator})
 			require.NoError(t, err)

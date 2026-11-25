@@ -13,6 +13,11 @@ So the source is chosen for each listing on each day, and one series may mix sou
 * A fetch asks the datasources in precedence order. Each is asked for the days that the
   datasources above it left uncovered. A datasource leaves each day outside its window
   uncovered.
+* A gap is the same for every datasource: a demanded day that none of them covers. The
+  order of asking alone gives each rank its share.
+* The first answer of a datasource for a listing and a day stands. The write keeps only
+  the days of an answer that the datasource has not yet covered for the listing. A fetch
+  asks only for gaps, so one datasource answers twice for a day only when two runs race.
 * Google Sheets ranks below Massive and EODHD.
 * Each price references the fetch key that produced it. The fetch key records the ticker
   sent and the moment of the fetch.
@@ -37,3 +42,8 @@ A mixed series is sound only when every source is on one basis. See
   cause a refetch in this milestone. Where a provider serves a reused ticker, part of the
   history under the symbol may belong to an earlier company. The system stores and shows
   those prices as if they were sound. The fetch key holds what the later unwinding needs.
+* A merge of two instruments keeps their prices. A listing that moves to the survivor
+  keeps its prices. Where the survivor already has a listing in that family, the prices
+  of the other listing move onto it for each day that the same datasource has not
+  covered there. Dropping them was the alternative, and a refetch would restore most of
+  them. A price from Google Sheets would need another round by an administrator.
