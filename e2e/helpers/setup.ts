@@ -15,8 +15,10 @@ import {
 // Each datasource is the proxy under the provider's hostname. The credential
 // is a placeholder that the proxy strips before anything leaves the stack.
 // With a credential, the service calls OpenFIGI at its authenticated rate.
-// Massive's starter plan has no rate limit, and EODHD allows 250 identifiers
-// a minute. The suite's fetches are therefore not spaced by seconds.
+// Massive's paid plans have no rate limit, and EODHD allows 250 identifiers
+// a minute. The suite's fetches are therefore not spaced by seconds. Each
+// Massive plan named here serves the whole history of its product, so the
+// first day it answers for does not follow the clock.
 const datasources: {
   name: string;
   precedence: number;
@@ -33,7 +35,7 @@ const datasources: {
     name: "massive",
     precedence: 2,
     endpoint: "http://massive.vcr:8080",
-    config: { plan: "starter" },
+    config: { stocks_plan: "advanced", currencies_plan: "starter" },
   },
   {
     name: "eodhd",
