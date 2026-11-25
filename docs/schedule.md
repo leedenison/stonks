@@ -26,13 +26,13 @@ of open issues and ADRs at `docs/tasks/<label>/`.
   them for an administrator, and a display currency each user selects.
 
 ```
- 006 massive  007 eodhd  009 sheets   010 chart
-      \        /                        |
-     008 runs                           |
-            \                          /
-             011 display currency
-                      |
-                 002 close
+  007 eodhd   009 sheets   010 chart
+      |                        |
+  008 runs                     |
+        \                     /
+        011 display currency
+                 |
+            002 close
 ```
 
 ## Completed
