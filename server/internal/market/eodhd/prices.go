@@ -31,34 +31,50 @@ type bar struct {
 	Close json.Number `json:"close"`
 }
 
-// Prices is EODHD's server of end of day prices.
+// Prices is EODHD's server of end of day prices and rates.
 func (c *Client) Prices() market.Server[market.PriceRequest, market.PriceResult] {
 	return bars{c: c}
 }
 
-// Serves returns the symbol to send for r, or an error when EODHD cannot
-// answer r; see Client.sent. It refuses every request where the account's
-// plan lacks daily bars. It refuses a period that ends before the window of
+// Serves returns the identifier to send for r, or an error when EODHD cannot
+// answer r. A ticker goes out as EODHD's symbol; see Client.sent. A currency
+// goes out as it is. It refuses every request where the account's plan lacks
+// daily bars. It refuses a period that ends before the window of
 // the plan, so such a request costs no call.
 func (b bars) Serves(r market.PriceRequest) (types.Identifier, error) {
 	id := r.Identifier
 	switch {
 	case !b.c.plan.prices:
 		return types.Identifier{}, errors.New("prices rejected: the plan lacks daily bars")
-	case id.Type != types.IdentifierTypeMicTicker:
+	case id.Type == types.IdentifierTypeCurrency && id.Value == usCurrency:
+		return types.Identifier{}, errors.New("currency 'USD' rejected: every rate is against USD")
+	case id.Type != types.IdentifierTypeCurrency && id.Type != types.IdentifierTypeMicTicker:
 		return types.Identifier{}, fmt.Errorf("identifier type '%s' rejected", id.Type)
 	}
 	if w := b.c.plan.window(b.c.now()); !r.Period.Before.After(w) {
 		return types.Identifier{}, fmt.Errorf("period before %s rejected: the plan's bars start on %s", r.Period.Before.Format(time.DateOnly), w.Format(time.DateOnly))
 	}
+	if id.Type == types.IdentifierTypeCurrency {
+		return id, nil
+	}
 	return b.c.sent(id)
 }
 
-// Fetch asks EODHD for the daily bars of each symbol in turn. A request omits
-// its dates, and EODHD returns every bar the plan serves. A request therefore
-// does not depend on the asked period, and a recording of it replays on any
-// later day. A symbol EODHD does not know is answered with an empty answer
-// and nil coverage.
+// symbol is how EODHD names the bars of sent: the symbol of a ticker, or the
+// pair that quotes a currency in USD. EODHD lists that pair for each currency,
+// so the close of the pair is the rate and the client does not invert it.
+func symbol(sent types.Identifier) string {
+	if sent.Type == types.IdentifierTypeCurrency {
+		return sent.Value + usCurrency + ".FOREX"
+	}
+	return sent.Value
+}
+
+// Fetch asks EODHD for the daily bars of each symbol or currency in turn. A
+// request omits its dates, and EODHD returns every bar the plan serves. A
+// request therefore does not depend on the asked period, and a recording of
+// it replays on any later day. A symbol or pair EODHD does not know is
+// answered with an empty answer and nil coverage.
 func (b bars) Fetch(ctx context.Context, reqs []market.Request[market.PriceRequest]) ([]market.Response[market.PriceResult], error) {
 	out := make([]market.Response[market.PriceResult], len(reqs))
 	for i, r := range reqs {
@@ -70,7 +86,7 @@ func (b bars) Fetch(ctx context.Context, reqs []market.Request[market.PriceReque
 			continue
 		}
 		var bs []bar
-		err = b.c.get(ctx, "/api/eod/"+url.PathEscape(r.Sent.Value), url.Values{}, &bs)
+		err = b.c.get(ctx, "/api/eod/"+url.PathEscape(symbol(r.Sent)), url.Values{}, &bs)
 		if unknown(err) {
 			continue
 		}
@@ -86,13 +102,13 @@ func (b bars) Fetch(ctx context.Context, reqs []market.Request[market.PriceReque
 	return out, nil
 }
 
-// currency returns the code in which EODHD quotes the symbol of r, or "" where
-// EODHD does not list the symbol. A US symbol is quoted in USD. The currency
+// currency returns the code in which EODHD quotes the bars of r, or "" where
+// EODHD does not list the symbol. A rate and a US symbol are quoted in USD. The currency
 // of any other symbol comes from a search, which costs a call, because
 // symbols on one exchange are quoted in different currencies. London quotes
 // most in pence and some in dollars.
 func (b bars) currency(ctx context.Context, r market.Request[market.PriceRequest]) (string, error) {
-	if strings.HasSuffix(r.Sent.Value, "."+usCode) {
+	if r.Sent.Type == types.IdentifierTypeCurrency || strings.HasSuffix(r.Sent.Value, "."+usCode) {
 		return usCurrency, nil
 	}
 	rows, err := b.c.searchTicker(ctx, r.Value.Identifier)

@@ -24,6 +24,7 @@ var pins = map[string]time.Time{
 	"eodhd_prices_unknown": time.Date(2026, time.November, 25, 16, 0, 0, 0, time.UTC),
 	"eodhd_prices_split":   time.Date(2026, time.November, 25, 16, 0, 0, 0, time.UTC),
 	"eodhd_prices_lse":     time.Date(2026, time.November, 25, 16, 0, 0, 0, time.UTC),
+	"eodhd_prices_rate":    time.Date(2026, time.November, 25, 16, 0, 0, 0, time.UTC),
 }
 
 // pinned is the moment of every price test that replays no cassette.
@@ -86,6 +87,10 @@ func stated(ps []market.DayPrice) []string {
 	return out
 }
 
+func currencyOf(code string) types.Identifier {
+	return types.Identifier{Type: types.IdentifierTypeCurrency, Value: code}
+}
+
 // barOn is a bar of EODHD for day d.
 func barOn(d time.Time, closing string) string {
 	return `{"date":"` + d.Format(time.DateOnly) + `","open":1,"high":1,"low":1,"close":` + closing + `,"adjusted_close":0.5,"volume":1}`
@@ -116,13 +121,17 @@ func TestPricesServes(t *testing.T) {
 		want    types.Identifier
 		refused bool
 	}{
-		{name: "a US ticker", plan: "free", req: market.PriceRequest{Identifier: ticker("XNAS", "NVDA"), Period: priced}, want: symbol("NVDA.US")},
-		{name: "a US class share", plan: "free", req: market.PriceRequest{Identifier: ticker("XNYS", "BRK.B"), Period: priced}, want: symbol("BRK-B.US")},
-		{name: "an LSE ticker", plan: "free", req: market.PriceRequest{Identifier: ticker("XLON", "VOD"), Period: priced}, want: symbol("VOD.LSE")},
-		{name: "a period that straddles the start of the window", plan: "free", req: market.PriceRequest{Identifier: ticker("XNAS", "NVDA"), Period: types.Period{From: day(2020, 1, 2), Before: day(2025, 11, 27)}}, want: symbol("NVDA.US")},
+		{name: "a US ticker", plan: "free", req: market.PriceRequest{Identifier: ticker("XNAS", "NVDA"), Period: priced}, want: dsTicker("NVDA.US")},
+		{name: "a US class share", plan: "free", req: market.PriceRequest{Identifier: ticker("XNYS", "BRK.B"), Period: priced}, want: dsTicker("BRK-B.US")},
+		{name: "an LSE ticker", plan: "free", req: market.PriceRequest{Identifier: ticker("XLON", "VOD"), Period: priced}, want: dsTicker("VOD.LSE")},
+		{name: "a period that straddles the start of the window", plan: "free", req: market.PriceRequest{Identifier: ticker("XNAS", "NVDA"), Period: types.Period{From: day(2020, 1, 2), Before: day(2025, 11, 27)}}, want: dsTicker("NVDA.US")},
 		{name: "a period that ends at the start of the window", plan: "free", req: market.PriceRequest{Identifier: ticker("XNAS", "NVDA"), Period: old}, refused: true},
-		{name: "an old period on a plan with the whole history", plan: "all_in_one", req: market.PriceRequest{Identifier: ticker("XNAS", "NVDA"), Period: old}, want: symbol("NVDA.US")},
+		{name: "an old period on a plan with the whole history", plan: "all_in_one", req: market.PriceRequest{Identifier: ticker("XNAS", "NVDA"), Period: old}, want: dsTicker("NVDA.US")},
 		{name: "a plan without daily bars", plan: "fundamentals", req: market.PriceRequest{Identifier: ticker("XNAS", "NVDA"), Period: priced}, refused: true},
+		{name: "a currency", plan: "free", req: market.PriceRequest{Identifier: currencyOf("EUR"), Period: priced}, want: currencyOf("EUR")},
+		{name: "USD", plan: "free", req: market.PriceRequest{Identifier: currencyOf("USD"), Period: priced}, refused: true},
+		{name: "a currency over a period that ends at the start of the window", plan: "free", req: market.PriceRequest{Identifier: currencyOf("EUR"), Period: old}, refused: true},
+		{name: "a currency on a plan without daily bars", plan: "fundamentals", req: market.PriceRequest{Identifier: currencyOf("EUR"), Period: priced}, refused: true},
 		{name: "an ISIN", plan: "free", req: market.PriceRequest{Identifier: types.Identifier{Type: types.IdentifierTypeIsin, Value: "US0378331005"}, Period: priced}, refused: true},
 		{name: "a domain", plan: "free", req: market.PriceRequest{Identifier: ticker("XNYS", ""), Period: priced}, refused: true},
 		// KO and KQ both list XKRX, and the ticker does not say which.
@@ -379,5 +388,67 @@ func TestPricesUnknown(t *testing.T) {
 	require.NoError(t, got[0].Err)
 	if res := got[0].Value; res.Coverage != nil || len(res.Prices) != 0 || res.Currency != "" {
 		t.Errorf("Fetch() = %+v, want an uncovered answer", res)
+	}
+}
+
+// TestRatesFetch checks the pair the client asks for a currency, without a
+// search, and that the rate is stated in USD.
+func TestRatesFetch(t *testing.T) {
+	var paths []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		paths = append(paths, r.URL.Path)
+		_, _ = w.Write([]byte(barsBody(barOn(day(2026, 11, 15), "1.10243"), barOn(day(2026, 11, 16), "1.09984"))))
+	}))
+	t.Cleanup(srv.Close)
+	got, err := pricesOf(on(t, "free", srv.URL), currencyOf("EUR"), types.Period{From: day(2026, 11, 14), Before: day(2026, 11, 20)})
+	require.NoError(t, err)
+	require.NoError(t, got[0].Err)
+	if diff := cmp.Diff([]string{"/api/eod/EURUSD.FOREX"}, paths); diff != "" {
+		t.Errorf("paths mismatch (-want +got):\n%s", diff)
+	}
+	res := got[0].Value
+	if got, want := span(res.Coverage), "2026-11-15..2026-11-17"; got != want || res.Currency != "USD" {
+		t.Errorf("coverage = %q in %q, want %q in USD", got, res.Currency, want)
+	}
+	if diff := cmp.Diff([]string{"2026-11-15 1.10243", "2026-11-16 1.09984"}, stated(res.Prices)); diff != "" {
+		t.Errorf("rates mismatch (-want +got):\n%s", diff)
+	}
+}
+
+// TestRates checks the direction of a rate. The close of a pair that is
+// quoted in USD is the number of USD that one unit of the currency buys: more
+// than one for EUR and far less for KRW, which shows that EODHD lists a minor
+// pair in that direction too. A code EODHD lacks is uncovered.
+func TestRates(t *testing.T) {
+	const cassette = "eodhd_prices_rate"
+	c := replayed(t, cassette)
+	tests := []struct {
+		code      string
+		low, high float64
+	}{
+		{code: "EUR", low: 0.9, high: 1.4},
+		{code: "KRW", low: 0.0005, high: 0.001},
+	}
+	for _, tc := range tests {
+		got, err := pricesOf(c, currencyOf(tc.code), priced)
+		require.NoError(t, err)
+		require.NoError(t, got[0].Err)
+		res := got[0].Value
+		require.NotNil(t, res.Coverage)
+		fresh(t, cassette, res)
+		if !res.Coverage.From.Equal(day(2025, 11, 26)) || res.Currency != "USD" {
+			t.Errorf("coverage of %s = %s in %q, want it from 2025-11-26 in USD", tc.code, span(res.Coverage), res.Currency)
+		}
+		for d, p := range closes(res.Prices) {
+			if p.LessThan(decimal.NewFromFloat(tc.low)) || p.GreaterThan(decimal.NewFromFloat(tc.high)) {
+				t.Errorf("rate of %s on %s = %s, want between %v and %v", tc.code, d, p, tc.low, tc.high)
+			}
+		}
+	}
+	got, err := pricesOf(c, currencyOf("ZZZ"), priced)
+	require.NoError(t, err)
+	require.NoError(t, got[0].Err)
+	if res := got[0].Value; res.Coverage != nil || len(res.Prices) != 0 || res.Currency != "" {
+		t.Errorf("Fetch() of ZZZ = %+v, want an uncovered answer", res)
 	}
 }
