@@ -14,22 +14,38 @@ a currency, through the `price` package.
   [003](../adr/003-a-price-is-stored-as-its-source-served-it-and-restated-on-read.md).
 * Massive serves US listings alone, so the client states USD as the currency of every
   price.
-* A rate is the USD price of one unit of the currency. The client inverts a pair that
-  Massive quotes the other way. See
-  [001](../adr/001-a-price-attaches-to-a-listing-and-an-fx-rate-is-a-price.md).
+* A rate is the USD price of one unit of the currency. Massive lists every pair in both
+  directions, so the client asks for the pair that is quoted in USD.
+  See [001](../adr/001-a-price-attaches-to-a-listing-and-an-fx-rate-is-a-price.md).
 * The client declares the first day its plan answers for, for prices and for rates. The
   client leaves each earlier day uncovered, so the gap passes down the precedence. See
   [002](../adr/002-datasource-precedence-picks-the-price-for-each-day.md).
+* Coverage ends at the last bar served. See
+  [011](../adr/011-price-coverage-ends-at-the-last-price-served.md).
+* Every request asks for the same fixed range of dates, and Massive returns the bars that
+  the plan serves. A recording of the request therefore replays on any later day.
+* The config names the stocks plan and the currencies plan, because Massive sells each
+  product apart.
 
 ## Tests
 
 * The client is tested against recorded traffic in the integration tier.
-* The e2e proxy replays recorded prices and rates for the instruments of the e2e
-  fixtures.
 
-## Facts to verify
+## Facts
 
-* The history that the Basic plan serves, for stock bars and for currency bars.
-* The flag that selects as traded bars, and that such a bar is free of any dividend
-  adjustment.
-* The symbol form and the quote direction of a currency pair.
+Each fact was read from the API on 2026-11-25 with a Basic key, unless it names the
+documentation.
+
+* Basic serves two years of stock bars and of currency bars. The documentation gives
+  Stocks Starter 5 years, Developer 10 and Advanced all history from 2003-09-10. It gives
+  Currencies Starter all history from 2009-09-25.
+* A request that reaches back past the history returns the bars that the plan serves. A
+  request that lies wholly before the history is refused with a 403.
+* `adjusted=false` selects as traded bars. A bar is free of any dividend adjustment:
+  the closes of a ticker that paid dividends and did not split are the same with either
+  setting.
+* The close of a daily stock bar is the close of the regular session.
+* A pair is `C:` then the two codes, and the close of `C:EURUSD` is the number of USD that
+  one EUR buys.
+* An unknown ticker and a known ticker without a session both return an empty list.
+* Massive counts requests for each product apart: five a minute on Basic.

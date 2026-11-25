@@ -38,7 +38,10 @@ type PriceResult struct {
 	Currency string
 	// Coverage is the period the provider answered for. Over it, the provider
 	// reported every price it holds, so a day without one had no session. It
-	// is nil where the provider does not know the identifier.
+	// ends on the day of the last price the provider holds for the
+	// identifier, so a close that is not yet published stays uncovered. It is
+	// nil where the provider does not know the identifier or holds no price
+	// for it.
 	Coverage *types.Period
 }
 
