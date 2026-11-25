@@ -887,6 +887,65 @@ func TestLookupRows(t *testing.T) {
 	}
 }
 
+// TestMergeKeepsPrices checks that the prices of the loser's listing read
+// under the survivor after a merge, whether the listing moves across whole or
+// folds into a listing of the survivor in its family.
+func TestMergeKeepsPrices(t *testing.T) {
+	tests := []struct {
+		name string
+		// survivor is the currency of the survivor's listing. The loser's is
+		// USD.
+		survivor string
+	}{
+		{name: "the listing moves", survivor: "GBP"},
+		{name: "the listing folds into the survivor's", survivor: "USD"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			s := newStack(t)
+			ctx := context.Background()
+			s.script.Responses[isin] = market.IdentityResult{Filtered: []types.Identifier{isin}, Listings: []market.Listing{
+				{Class: types.AssetClassStock, Currency: tc.survivor, Identifiers: []types.Identifier{figi, isin}},
+			}}
+			s.script.Responses[cusip] = market.IdentityResult{Filtered: []types.Identifier{cusip}, Listings: []market.Listing{
+				{Class: types.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{cusip, xnas}},
+			}}
+			s.resolve(t, s.state(t, types.AssetClassStock, tc.survivor, isin), s.state(t, types.AssetClassStock, "USD", cusip))
+			a, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: isin.Type, Value: isin.Value})
+			require.NoError(t, err)
+			b, err := s.q.FindIdentifier(ctx, gen.FindIdentifierParams{Type: cusip.Type, Value: cusip.Value})
+			require.NoError(t, err)
+			_, err = s.tx.Exec(ctx, `WITH covered AS (
+					INSERT INTO price_coverage (id, listing_id, datasource, fetch_key_id, covered_from, covered_before)
+					SELECT uuid_v7(), listings.id, fetches.datasource, fetch_keys.id, '2026-03-01', '2026-03-08'
+					FROM listings, fetch_keys JOIN fetches ON fetches.id = fetch_keys.fetch_id
+					WHERE listings.instr_id = $1 AND listings.currency = 'USD'
+					LIMIT 1
+					RETURNING id)
+				INSERT INTO prices (coverage_id, day, price, as_at) SELECT id, '2026-03-02', 143, '2026-03-02' FROM covered`, b.Instr.ID)
+			require.NoError(t, err)
+
+			sedol := id(types.IdentifierTypeSedol, "", "BH4HKS3")
+			s.script.Responses[sedol] = market.IdentityResult{Filtered: []types.Identifier{sedol}, Listings: []market.Listing{
+				{Class: types.AssetClassStock, Currency: "USD", Identifiers: []types.Identifier{figi, cusip, sedol, xnas}},
+			}}
+			if got := s.resolve(t, s.state(t, types.AssetClassStock, "USD", sedol)); written(got[0]) != "matched" {
+				t.Fatalf("outcome = %s, want matched", written(got[0]))
+			}
+			if s.exists(t, b.Instr.ID) {
+				t.Fatalf("the later instrument %s still exists", b.Instr.ID)
+			}
+			const held = `SELECT count(*) FROM prices
+				JOIN price_coverage ON price_coverage.id = prices.coverage_id
+				JOIN listings ON listings.id = price_coverage.listing_id
+				WHERE listings.instr_id = $1 AND listings.currency = 'USD'`
+			if n := s.count(t, held, a.Instr.ID); n != 1 {
+				t.Errorf("%d prices under the survivor's USD listing, want 1", n)
+			}
+		})
+	}
+}
+
 // TestMergeAcrossCurrencies checks that two instruments carrying a ticker at
 // one venue, on listings of different currency families, do not disagree,
 // so a response naming both merges them.

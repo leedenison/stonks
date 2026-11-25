@@ -13,6 +13,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/db/join"
 	"github.com/leedenison/stonks/server/internal/db/to"
 	"github.com/leedenison/stonks/server/internal/platform/ptr"
+	"github.com/leedenison/stonks/server/internal/price"
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
@@ -31,9 +32,9 @@ func merge(ctx context.Context, q Queries, fetchKeyID *uuid.UUID, matches []inst
 	if err := q.DeferConstraints(ctx); err != nil {
 		return writeTarget{}, fmt.Errorf("defer constraints: %w", err)
 	}
-	present := map[string]bool{}
+	present := map[string]uuid.UUID{}
 	for _, l := range survivor.Listings {
-		present[l.Currency] = true
+		present[l.Currency] = l.ID
 	}
 	var findings []gen.CreateFindingParams
 	for _, h := range matches[1:] {
@@ -77,17 +78,22 @@ func refuse(res *resolution, fetchKeyID *uuid.UUID, matches []instrMatch, detail
 // returns the merged finding. A
 // listing of the loser in a currency family the survivor lacks moves across
 // whole; one in a family the survivor has is relinked onto the survivor's
-// listing and deleted.
-func fold(ctx context.Context, q Queries, survivor *join.InstrWithCoverage, matched []types.Identifier, h instrMatch, present map[string]bool, fetchKeyID *uuid.UUID) (gen.CreateFindingParams, error) {
+// listing and deleted. The prices of a relinked listing move to the
+// survivor's listing before the listing is deleted; see
+// [move.go](../../price/move.go).
+func fold(ctx context.Context, q Queries, survivor *join.InstrWithCoverage, matched []types.Identifier, h instrMatch, present map[string]uuid.UUID, fetchKeyID *uuid.UUID) (gen.CreateFindingParams, error) {
 	loser := h.instr
 	for _, l := range loser.Listings {
-		if present[l.Currency] {
+		if to, ok := present[l.Currency]; ok {
+			if err := price.Move(ctx, q, l.ID, to); err != nil {
+				return gen.CreateFindingParams{}, fmt.Errorf("move prices: %w", err)
+			}
 			continue
 		}
 		if err := q.MoveListing(ctx, gen.MoveListingParams{ID: l.ID, InstrID: survivor.Row.ID}); err != nil {
 			return gen.CreateFindingParams{}, fmt.Errorf("move listing: %w", err)
 		}
-		present[l.Currency] = true
+		present[l.Currency] = l.ID
 	}
 	steps := []struct {
 		name string
