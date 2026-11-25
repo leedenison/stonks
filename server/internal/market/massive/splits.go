@@ -20,8 +20,9 @@ var _ market.CorpActs = (*Client)(nil)
 const pageLimit = "5000"
 
 // errPaged is an answer that runs past one page. A ticker has fewer splits
-// than a page holds. Coverage of part of an answer would hide the rest.
-var errPaged = errors.New("the splits of one ticker ran past one page")
+// and fewer daily bars than a page holds. Coverage of part of an answer would
+// hide the rest.
+var errPaged = errors.New("the answer for one ticker ran past one page")
 
 // handledTypes are the adjustment types Massive documents. Each type restates
 // a quantity. Massive also gives these types to price factors, such as the

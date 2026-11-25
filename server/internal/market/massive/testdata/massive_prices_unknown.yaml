@@ -1,0 +1,47 @@
+---
+version: 2
+interactions:
+    - id: 0
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: api.massive.com
+        form:
+            adjusted:
+                - "false"
+            apiKey:
+                - REDACTED
+            limit:
+                - "50000"
+            sort:
+                - asc
+        url: https://api.massive.com/v2/aggs/ticker/ZZZZQQ/range/1/day/2003-09-10/2099-12-31?adjusted=false&apiKey=REDACTED&limit=50000&sort=asc
+        method: GET
+      response:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 135
+        body: '{"ticker":"ZZZZQQ","queryCount":0,"resultsCount":0,"adjusted":false,"status":"DELAYED","request_id":"8bae2109d71ef0e7a6da4c2e548c436f"}'
+        headers:
+            Connection:
+                - keep-alive
+            Content-Length:
+                - "135"
+            Content-Type:
+                - application/json
+            Date:
+                - Wed, 25 Nov 2026 14:53:01 GMT
+            Strict-Transport-Security:
+                - max-age=31536000; includeSubDomains
+            Vary:
+                - Accept-Encoding
+            X-Polygon-Cluster-Name:
+                - polygon-ny5
+            X-Request-Id:
+                - 8bae2109d71ef0e7a6da4c2e548c436f
+        status: 200 OK
+        code: 200
+        duration: 259.180351ms
