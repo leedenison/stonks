@@ -1,7 +1,6 @@
 ---
 title: Price fetch runs
 type: task
-dependencies: [007]
 ---
 
 ## Scope
