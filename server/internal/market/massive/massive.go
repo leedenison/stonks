@@ -1,6 +1,6 @@
 // Package massive is the identity, identifier facts, corporate actions and
 // prices integration with Massive's API, which covers listed US stock, ETFs
-// and funds.
+// and funds. It also serves the rate of a currency against USD.
 package massive
 
 import (
@@ -43,12 +43,12 @@ type Client struct {
 	home   string
 	prefer market.Preference
 	limit  rate.Limit
-	// stocks is the account's stocks plan.
-	stocks   plan
-	now      func() time.Time
-	http     *http.Client
-	endpoint string
-	key      string
+	// stocks and currencies are the account's plan for each product.
+	stocks, currencies plan
+	now                func() time.Time
+	http               *http.Client
+	endpoint           string
+	key                string
 }
 
 // config is the datasource row's config: the account's plan for each product,
@@ -135,15 +135,16 @@ func New(cfg market.Config, mics mic.MICMap, h *http.Client) (*Client, error) {
 		return nil, err
 	}
 	c := &Client{
-		mics:     mics,
-		venues:   venues,
-		home:     home,
-		limit:    min(stocks.rate, currencies.rate),
-		stocks:   stocks,
-		now:      time.Now,
-		http:     h,
-		endpoint: ep,
-		key:      cfg.Credential,
+		mics:       mics,
+		venues:     venues,
+		home:       home,
+		limit:      min(stocks.rate, currencies.rate),
+		stocks:     stocks,
+		currencies: currencies,
+		now:        time.Now,
+		http:       h,
+		endpoint:   ep,
+		key:        cfg.Credential,
 	}
 	c.prefer = market.Preference{
 		Served: market.Equities,
