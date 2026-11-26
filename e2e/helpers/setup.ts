@@ -18,9 +18,11 @@ import {
 // Massive's paid plans have no rate limit, and EODHD allows 250 identifiers
 // a minute. The suite's fetches are therefore not spaced by seconds. Each
 // plan named here serves the whole history of its product, so the first day
-// of that history does not follow the clock. The google_sheets row is only
-// seeded: an administrator uploads its prices, and the service does not fetch
-// from it.
+// of that history does not follow the clock. The recordings of prices come
+// from keys that serve one or two years, so a replayed answer covers the
+// earlier days of a plan's history without a price. A spec reads prices on
+// days inside the recorded years. The google_sheets row is only seeded: an
+// administrator uploads its prices, and the service does not fetch from it.
 const datasources: {
   name: string;
   precedence: number;

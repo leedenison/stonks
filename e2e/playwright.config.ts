@@ -18,14 +18,14 @@ export default defineConfig({
     screenshot: "only-on-failure",
     trace: "retain-on-failure",
   },
-  // Reasserting tickers and refreshing corporate actions each reach every held
-  // instrument in the database. Each spec runs alone, once every other spec
-  // has removed its users.
+  // Reasserting tickers, refreshing corporate actions and fetching prices each
+  // reach every held instrument in the database. Each spec runs alone, once
+  // every other spec has removed its users.
   projects: [
     {
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
-      testIgnore: /(reassert-tickers|refresh-corp-acts)\.spec\.ts/,
+      testIgnore: /(reassert-tickers|refresh-corp-acts|fetch-prices)\.spec\.ts/,
     },
     {
       name: "system",
@@ -38,6 +38,12 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
       testMatch: /refresh-corp-acts\.spec\.ts/,
       dependencies: ["system"],
+    },
+    {
+      name: "prices",
+      use: { ...devices["Desktop Chrome"] },
+      testMatch: /fetch-prices\.spec\.ts/,
+      dependencies: ["corp-acts"],
     },
   ],
 });
