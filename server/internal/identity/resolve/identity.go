@@ -7,14 +7,21 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/leedenison/stonks/server/internal/db/gen"
+	"github.com/leedenison/stonks/server/internal/market"
 )
 
+// identifies reports whether a datasource serves identity.
+func identifies(e *market.Entry) bool {
+	_, ok := e.Integration.(market.Identity)
+	return ok
+}
+
 // fetchResolutionIdentities fetches the identity of every undecided key, with
-// one concurrent fetch per datasource. A datasource that already covers the
-// instrument the lookup found is not asked. Each key takes its fetch keys in
-// precedence order, and whether a datasource serves a key is the
-// datasource's to say. It replaces the currency of every listing it returns
-// with the currency's family.
+// one concurrent fetch per datasource. A datasource is not asked when it
+// already covers the instrument the lookup found, or when it lacks the
+// identity capability. Each key takes its fetch keys in precedence order, and
+// whether a datasource serves a key is the datasource's to say. It replaces
+// the currency of every listing it returns with the currency's family.
 func (r *Resolver) fetchResolutionIdentities(ctx context.Context, run gen.Run, resolutions []*resolution) error {
 	entries := r.sources.Enabled()
 	batches := make([][]*resolution, len(entries))
@@ -23,6 +30,9 @@ func (r *Resolver) fetchResolutionIdentities(ctx context.Context, run gen.Run, r
 			continue
 		}
 		for i, e := range entries {
+			if !identifies(e) {
+				continue
+			}
 			if res.knownInstr == nil || !res.knownInstr.Covered(e.Name) {
 				batches[i] = append(batches[i], res)
 			}

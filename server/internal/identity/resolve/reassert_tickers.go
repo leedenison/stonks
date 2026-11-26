@@ -178,6 +178,9 @@ func (r *Resolver) fetchHeld(ctx context.Context, run gen.Run, ts []*heldTicker)
 				}
 				continue
 			}
+			if !identifies(e) {
+				continue
+			}
 			idReqs[i] = append(idReqs[i], gen.StatedKey{AssetClass: t.row.AssetClass, Currency: t.row.Currency, Identifiers: []types.Identifier{t.ticker}})
 			idOf[i] = append(idOf[i], t)
 		}

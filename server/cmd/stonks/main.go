@@ -41,6 +41,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/identity/resolve"
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/market/eodhd"
+	"github.com/leedenison/stonks/server/internal/market/googlesheets"
 	"github.com/leedenison/stonks/server/internal/market/massive"
 	"github.com/leedenison/stonks/server/internal/market/openfigi"
 	"github.com/leedenison/stonks/server/internal/mic"
@@ -152,9 +153,10 @@ func run() (err error) {
 	}
 	providers := tracedClient(providerTimeout)
 	integrations := map[string]market.Factory{
-		"openfigi": openfigi.Factory(mics, providers),
-		"massive":  massive.Factory(mics, providers),
-		"eodhd":    eodhd.Factory(mics, providers),
+		"openfigi":        openfigi.Factory(mics, providers),
+		"massive":         massive.Factory(mics, providers),
+		"eodhd":           eodhd.Factory(mics, providers),
+		googlesheets.Name: googlesheets.Factory(),
 	}
 	sources, err := market.New(ctx, queries, integrations, logger.WithCategory(log, "internal/market"))
 	if err != nil {
