@@ -2,6 +2,7 @@ package eodhd
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -28,13 +29,16 @@ var mics = mic.Of(map[string]string{
 	"XKRX": "XKRX", "XKOS": "XKRX",
 })
 
+// conf is the config of the client in most tests: the free plan.
+var conf = json.RawMessage(`{"plan": "free"}`)
+
 func ticker(venue, value string) types.Identifier {
 	return types.Identifier{Type: types.IdentifierTypeMicTicker, Domain: venue, Value: value}
 }
 
 func client(t *testing.T) *Client {
 	t.Helper()
-	c, err := New(market.Config{Name: "eodhd", Credential: "k"}, mics, http.DefaultClient)
+	c, err := New(market.Config{Name: "eodhd", Credential: "k", JSON: conf}, mics, http.DefaultClient)
 	require.NoError(t, err)
 	return c
 }
@@ -44,8 +48,13 @@ func TestNew(t *testing.T) {
 		name string
 		cfg  market.Config
 	}{
-		{name: "no credential", cfg: market.Config{Name: "eodhd"}},
-		{name: "an endpoint that is not a URL", cfg: market.Config{Name: "eodhd", Credential: "k", Endpoint: "eodhd.com"}},
+		{name: "no credential", cfg: market.Config{Name: "eodhd", JSON: conf}},
+		{name: "an endpoint that is not a URL", cfg: market.Config{Name: "eodhd", Credential: "k", Endpoint: "eodhd.com", JSON: conf}},
+		{name: "no config", cfg: market.Config{Name: "eodhd", Credential: "k"}},
+		{name: "no plan", cfg: market.Config{Name: "eodhd", Credential: "k", JSON: json.RawMessage(`{}`)}},
+		{name: "a plan EODHD does not sell", cfg: market.Config{Name: "eodhd", Credential: "k", JSON: json.RawMessage(`{"plan": "gold"}`)}},
+		{name: "an unknown member", cfg: market.Config{Name: "eodhd", Credential: "k", JSON: json.RawMessage(`{"plan": "free", "tier": "free"}`)}},
+		{name: "not an object", cfg: market.Config{Name: "eodhd", Credential: "k", JSON: json.RawMessage(`[]`)}},
 	}
 	for _, tc := range refused {
 		if _, err := New(tc.cfg, mics, http.DefaultClient); err == nil {
@@ -58,6 +67,36 @@ func TestNew(t *testing.T) {
 	}
 	if got := c.Endpoint(); got != endpoint {
 		t.Errorf("Endpoint() = %q, want %q", got, endpoint)
+	}
+}
+
+// TestPlans checks that every plan builds a client, and the first day on
+// which each serves a daily bar.
+func TestPlans(t *testing.T) {
+	now := time.Date(2026, time.November, 25, 15, 0, 0, 0, time.UTC)
+	tests := []struct {
+		plan   string
+		prices bool
+		window time.Time
+	}{
+		{plan: "free", prices: true, window: time.Date(2025, time.November, 26, 0, 0, 0, 0, time.UTC)},
+		{plan: "all_world", prices: true},
+		{plan: "all_world_extended", prices: true},
+		{plan: "all_in_one", prices: true},
+		{plan: "fundamentals"},
+	}
+	if len(tests) != len(plans) {
+		t.Errorf("the test covers %d plans, want %d", len(tests), len(plans))
+	}
+	for _, tc := range tests {
+		c, err := New(market.Config{Name: "eodhd", Credential: "k", JSON: json.RawMessage(`{"plan": "` + tc.plan + `"}`)}, mics, http.DefaultClient)
+		require.NoError(t, err)
+		if c.plan.prices != tc.prices {
+			t.Errorf("plan %s serves prices = %t, want %t", tc.plan, c.plan.prices, tc.prices)
+		}
+		if got := c.plan.window(now); !got.Equal(tc.window) {
+			t.Errorf("window of plan %s = %s, want %s", tc.plan, got, tc.window)
+		}
 	}
 }
 
@@ -136,7 +175,7 @@ var scrub = vcr.Scrub{Query: []string{"api_token"}, Body: vcr.NoScrub.Body}
 
 func replay(t *testing.T, cassette, key string) *Client {
 	t.Helper()
-	c, err := New(market.Config{Name: "eodhd", Credential: key}, mics, vcr.New(t, "testdata/"+cassette, scrub))
+	c, err := New(market.Config{Name: "eodhd", Credential: key, JSON: conf}, mics, vcr.New(t, "testdata/"+cassette, scrub))
 	require.NoError(t, err)
 	return c
 }
@@ -322,7 +361,7 @@ func TestNotFound(t *testing.T) {
 		_, _ = w.Write([]byte("Exchange Not Found."))
 	}))
 	t.Cleanup(srv.Close)
-	c, err := New(market.Config{Name: "eodhd", Credential: "k", Endpoint: srv.URL}, mics, srv.Client())
+	c, err := New(market.Config{Name: "eodhd", Credential: "k", Endpoint: srv.URL, JSON: conf}, mics, srv.Client())
 	require.NoError(t, err)
 	got, err := fetch(c, appleISIN)
 	if err == nil {

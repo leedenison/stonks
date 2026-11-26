@@ -17,8 +17,8 @@ import {
 // With a credential, the service calls OpenFIGI at its authenticated rate.
 // Massive's paid plans have no rate limit, and EODHD allows 250 identifiers
 // a minute. The suite's fetches are therefore not spaced by seconds. Each
-// Massive plan named here serves the whole history of its product, so the
-// first day it answers for does not follow the clock.
+// plan named here serves the whole history of its product, so the first day
+// of that history does not follow the clock.
 const datasources: {
   name: string;
   precedence: number;
@@ -41,7 +41,7 @@ const datasources: {
     name: "eodhd",
     precedence: 3,
     endpoint: "http://eodhd.vcr:8080",
-    config: {},
+    config: { plan: "all_in_one" },
   },
 ];
 const credential = "e2e";

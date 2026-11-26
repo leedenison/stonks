@@ -53,7 +53,7 @@ func recorded(t *testing.T, cassette string, ticker types.Identifier) (*gen.Quer
 	tbl, err := mic.Load(ctx, q)
 	require.NoError(t, err)
 	key := vcr.Credential(t, "EODHD_API_KEY", "testdata/"+cassette)
-	c, err := New(market.Config{Credential: key}, tbl, vcr.New(t, "testdata/"+cassette, scrub))
+	c, err := New(market.Config{Credential: key, JSON: conf}, tbl, vcr.New(t, "testdata/"+cassette, scrub))
 	require.NoError(t, err)
 
 	user, err := q.CreateUser(ctx, gen.CreateUserParams{ID: db.NewID(), Email: uuid.NewString() + "@example.com", Role: gen.UserRoleUser})
