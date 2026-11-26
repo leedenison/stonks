@@ -35,4 +35,5 @@ Sheets tool belongs to [009](009-google-sheets-tool.md).
 * The e2e proxy replays recorded prices and rates from Massive and from EODHD for the
   instruments of the e2e fixtures. The e2e Massive row names the plans `advanced` for
   stocks and `starter` for currencies. Each serves all history, so its window starts on a
-  fixed day and a replayed answer keeps its coverage as the clock moves on.
+  fixed day and a replayed answer keeps its coverage as the clock moves on. The e2e
+  EODHD row names the plan `all_in_one` for the same reason.
