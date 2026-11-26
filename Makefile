@@ -47,7 +47,7 @@ COMPOSE_TESTER       = $(COMPOSE_TEST) run --rm -T tester
 
 # Every tree of the module that holds Go code. Each Go gate and test covers
 # them all.
-GO_DIRS := server internal
+GO_DIRS := server cli internal
 GO_PKGS := $(GO_DIRS:%=./%/...)
 
 # --- Generated code ---

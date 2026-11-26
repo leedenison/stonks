@@ -1,8 +1,9 @@
 # The standard set plus gosec, and the rules that carry the conventions a
-# linter can check: configuration is read only in
+# linter can check: the service reads its configuration only in
 # server/internal/platform/config, connect is imported only at the service
-# boundary, logging is log/slog, context.TODO is confined to tests, and every
-# nolint names its linter and says why. govet is make vet.
+# boundary and in the command line tools, logging is log/slog, context.TODO is
+# confined to tests, and every nolint names its linter and says why. govet is
+# make vet.
 version: "2"
 
 # A test that needs the test stack carries the dbtest build tag. Nothing is
@@ -54,6 +55,7 @@ linters:
           files:
             - "!**/server/cmd/**"
             - "!**/server/internal/service/**"
+            - "!**/cli/**"
           deny:
             - pkg: connectrpc.com/connect
               desc: connect is imported only at the service boundary
@@ -89,6 +91,11 @@ linters:
       # vcrproxy records with the credential in the variable its hosts file
       # names for each provider.
       - path: server/cmd/vcrproxy/
+        linters:
+          - forbidigo
+      # A command line tool is not the service, and it takes the defaults of
+      # its flags from the environment.
+      - path: cli/
         linters:
           - forbidigo
       # Test credentials are invented.
