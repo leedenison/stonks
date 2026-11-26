@@ -32,6 +32,9 @@ enum RunKind {
   RUN_KIND_REBUILD_TICKER_VALIDITY = 8;
   // Stores the prices an administrator read from Google Sheets.
   RUN_KIND_UPLOAD_PRICES = 9;
+  // Asks the datasources, in precedence order, for the prices and rates of
+  // the days held that every datasource leaves uncovered.
+  RUN_KIND_FETCH_PRICES = 10;
 }
 
 // What started a run.
