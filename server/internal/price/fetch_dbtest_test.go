@@ -129,8 +129,45 @@ func TestFetchPassesGapsDown(t *testing.T) {
 	want := []stored{
 		{Datasource: s.alpha, Day: "2026-03-02", Price: "10", AsAt: "2026-03-02"},
 		{Datasource: s.beta, Day: "2026-02-27", Price: "9", AsAt: "2026-02-27"},
+		{Datasource: s.beta, Day: "2026-03-02", Price: "10.5", AsAt: "2026-03-02"},
 	}
 	if diff := cmp.Diff(want, s.prices(t, windowed)); diff != "" {
+		t.Errorf("prices mismatch (-want +got):\n%s", diff)
+	}
+}
+
+// TestFetchSpansGaps checks that a listing with two gaps is asked once, for
+// the days from the first gap to the end of the last, and that the whole
+// answer is stored, including the days outside both gaps.
+func TestFetchSpansGaps(t *testing.T) {
+	s := newStack(t)
+	h := s.holder(t)
+	l, id := s.fund(t, h, "USD")
+	middle := span(day(2026, 3, 2), day(2026, 3, 5))
+	s.record(t, s.answer(t, s.alpha, l, "USD", middle, at(day(2026, 3, 2), "10")))
+	gaps, _ := s.gapsOf(t, nil)
+	if diff := cmp.Diff([]types.Period{span(day(2026, 2, 23), day(2026, 3, 2)), span(day(2026, 3, 5), today)}, gaps[l].Periods); diff != "" {
+		t.Fatalf("gaps before the fetch mismatch (-want +got):\n%s", diff)
+	}
+
+	s.betaPrices.Responses[id] = history("USD", span(day(2025, 1, 1), day(2027, 1, 1)), at(day(2025, 6, 2), "5"), at(day(2026, 2, 27), "9"), at(day(2026, 3, 3), "10.5"), at(day(2026, 3, 9), "11"))
+	if n := s.fetch(t, s.beta); n != 1 {
+		t.Errorf("Fetch() = %d, want 1", n)
+	}
+	if diff := cmp.Diff([]market.PriceRequest{{Identifier: id, Period: span(day(2026, 2, 23), today)}}, s.betaPrices.Sent); diff != "" {
+		t.Errorf("requests mismatch (-want +got):\n%s", diff)
+	}
+	if diff := cmp.Diff([]types.Period{span(day(2025, 1, 1), today)}, s.coverage(t, s.beta, l)); diff != "" {
+		t.Errorf("coverage of beta mismatch (-want +got):\n%s", diff)
+	}
+	want := []stored{
+		{Datasource: s.alpha, Day: "2026-03-02", Price: "10", AsAt: "2026-03-02"},
+		{Datasource: s.beta, Day: "2025-06-02", Price: "5", AsAt: "2025-06-02"},
+		{Datasource: s.beta, Day: "2026-02-27", Price: "9", AsAt: "2026-02-27"},
+		{Datasource: s.beta, Day: "2026-03-03", Price: "10.5", AsAt: "2026-03-03"},
+		{Datasource: s.beta, Day: "2026-03-09", Price: "11", AsAt: "2026-03-09"},
+	}
+	if diff := cmp.Diff(want, s.prices(t, l)); diff != "" {
 		t.Errorf("prices mismatch (-want +got):\n%s", diff)
 	}
 }

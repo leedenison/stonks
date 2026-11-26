@@ -144,33 +144,27 @@ func TestPricesFetch(t *testing.T) {
 			want:     []string{"2024-11-26 235.06", "2026-11-23 349.08", "2026-11-24 354.07"},
 		},
 		{
-			name:  "bars before and after the asked period",
+			name:  "an answer that reaches beyond the asked period",
 			asked: types.Period{From: day(2026, 11, 17), Before: day(2026, 11, 20)},
 			body: barsBody(
 				barAt(day(2026, 11, 16), 5, "1.5"), barAt(day(2026, 11, 17), 5, "2.5"), barAt(day(2026, 11, 18), 5, "3.5"),
 				barAt(day(2026, 11, 19), 5, "4.5"), barAt(day(2026, 11, 20), 5, "5.5"), barAt(day(2026, 11, 23), 5, "6.5"),
 			),
-			coverage: "2026-11-17..2026-11-20",
-			want:     []string{"2026-11-17 2.5", "2026-11-18 3.5", "2026-11-19 4.5"},
+			coverage: "2024-11-26..2026-11-24",
+			want:     []string{"2026-11-16 1.5", "2026-11-17 2.5", "2026-11-18 3.5", "2026-11-19 4.5", "2026-11-20 5.5", "2026-11-23 6.5"},
 		},
 		{
-			name:     "a weekend between two bars",
+			name:     "a weekend after the last bar",
 			asked:    types.Period{From: day(2026, 11, 21), Before: day(2026, 11, 23)},
-			body:     barsBody(barAt(day(2026, 11, 20), 5, "5.5"), barAt(day(2026, 11, 23), 5, "6.5")),
-			coverage: "2026-11-21..2026-11-23",
-			want:     []string{},
-		},
-		{
-			name:  "a weekend after the last bar",
-			asked: types.Period{From: day(2026, 11, 21), Before: day(2026, 11, 23)},
-			body:  barsBody(barAt(day(2026, 11, 19), 5, "4.5"), barAt(day(2026, 11, 20), 5, "5.5")),
-			want:  []string{},
+			body:     barsBody(barAt(day(2026, 11, 19), 5, "4.5"), barAt(day(2026, 11, 20), 5, "5.5")),
+			coverage: "2024-11-26..2026-11-21",
+			want:     []string{"2026-11-19 4.5", "2026-11-20 5.5"},
 		},
 		{
 			name:     "a bar in the summer, which starts at four o'clock UTC",
 			asked:    types.Period{From: day(2026, 7, 1), Before: day(2026, 7, 2)},
 			body:     barsBody(barAt(day(2026, 7, 1), 4, "7.25")),
-			coverage: "2026-07-01..2026-07-02",
+			coverage: "2024-11-26..2026-07-02",
 			want:     []string{"2026-07-01 7.25"},
 		},
 		{
@@ -287,7 +281,7 @@ func TestPricesDividends(t *testing.T) {
 	}
 	q := url.Values{"apiKey": {c.key}, "adjusted": {"true"}, "sort": {"asc"}, "limit": {barLimit}}
 	require.NoError(t, c.get(context.Background(), "/v2/aggs/ticker/KO/range/1/day/2003-09-10/2099-12-31", q, &page))
-	adjusted, err := fromBars(page.Results, priced, day(2024, 11, 26))
+	adjusted, err := fromBars(page.Results, day(2024, 11, 26))
 	require.NoError(t, err)
 	if len(adjusted.Prices) < 400 {
 		t.Fatalf("Massive served %d adjusted bars, want two years of them", len(adjusted.Prices))
@@ -345,7 +339,7 @@ func TestRatesFetch(t *testing.T) {
 		t.Errorf("path = %s, want %s", path, want)
 	}
 	res := got[0].Value
-	if got, want := span(res.Coverage), "2026-11-14..2026-11-17"; got != want || res.Currency != "USD" {
+	if got, want := span(res.Coverage), "2024-11-26..2026-11-17"; got != want || res.Currency != "USD" {
 		t.Errorf("coverage = %q in %q, want %q in USD", got, res.Currency, want)
 	}
 	if diff := cmp.Diff([]string{"2026-11-15 1.10243", "2026-11-16 1.09984"}, stated(res.Prices)); diff != "" {

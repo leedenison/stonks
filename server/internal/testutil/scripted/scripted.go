@@ -88,6 +88,10 @@ func (s *Identity) Fetch(_ context.Context, reqs []market.Request[gen.StatedKey]
 type Server[Q, P any] struct {
 	// Down fails every request.
 	Down bool
+	// Fails names each identifier whose request fails.
+	Fails map[types.Identifier]bool
+	// Permanent makes Classify read every failure as permanent.
+	Permanent bool
 	// Responses maps each identifier sent to its answer. An identifier it
 	// lacks is answered with an empty result.
 	Responses map[types.Identifier]P
@@ -97,9 +101,10 @@ type Server[Q, P any] struct {
 	Declines []string
 }
 
-// Classify reads every failure as temporary and about the identifier sent.
+// Classify reads every failure as about the identifier sent, and as
+// temporary unless Permanent is set.
 func (s *Server[Q, P]) Classify(error) market.Failure {
-	return market.Failure{Temporary: true, Scope: market.ScopeKey}
+	return market.Failure{Temporary: !s.Permanent, Scope: market.ScopeKey}
 }
 
 // Limit leaves calls unpaced.
@@ -116,7 +121,7 @@ func (s *Server[Q, P]) Fetch(_ context.Context, reqs []market.Request[Q]) ([]mar
 	out := make([]market.Response[P], len(reqs))
 	for i, r := range reqs {
 		s.Sent = append(s.Sent, r.Value)
-		if s.Down {
+		if s.Down || s.Fails[r.Sent] {
 			out[i] = market.Response[P]{Err: errors.New("the provider is down")}
 			continue
 		}
@@ -194,7 +199,7 @@ func (s *CorpActs) Serves(r market.CorpActRequest) (types.Identifier, error) {
 
 // Prices is a market.Prices whose answers a test scripts. A response is the
 // whole history the provider holds for an identifier. Each request is
-// answered with the part of it inside the period asked.
+// answered with all of it, whatever period was asked.
 type Prices struct {
 	Server[market.PriceRequest, market.PriceResult]
 }
@@ -218,31 +223,6 @@ func (s *Prices) Serves(r market.PriceRequest) (types.Identifier, error) {
 		return types.Identifier{}, err
 	}
 	return r.Identifier, nil
-}
-
-// Fetch answers each request from Responses, cut to the period asked. An
-// identifier that Responses lacks is one the provider does not know.
-func (s *Prices) Fetch(ctx context.Context, reqs []market.Request[market.PriceRequest]) ([]market.Response[market.PriceResult], error) {
-	out, err := s.Server.Fetch(ctx, reqs)
-	for i := range out {
-		v := &out[i].Value
-		if v.Coverage == nil {
-			continue
-		}
-		period, ok := v.Coverage.Clip(reqs[i].Value.Period)
-		if !ok {
-			*v = market.PriceResult{}
-			continue
-		}
-		kept := market.PriceResult{Currency: v.Currency, Coverage: &period}
-		for _, p := range v.Prices {
-			if period.Contains(p.Day) {
-				kept.Prices = append(kept.Prices, p)
-			}
-		}
-		*v = kept
-	}
-	return out, err
 }
 
 // Datasource serves identity from Identity and identifier facts from IdentifierFacts,

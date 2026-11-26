@@ -30,6 +30,9 @@
 // ask again, so a failed request or a refused answer leaves its days to the
 // next run.
 //
+// A fetch stores everything the datasource serves, so a later need for an
+// earlier day in that history is already covered; see Recorder.Fetch.
+//
 // An administrator uploads the prices of a datasource whose data the service
 // never fetches. A run never asks such a datasource. The upload is stored by
 // the rules of an answer; see [upload.go](upload.go).
