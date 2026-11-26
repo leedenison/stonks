@@ -1,7 +1,7 @@
 ---
 title: Display currency
 type: task
-dependencies: [008, 010]
+dependencies: [010]
 ---
 
 ## Scope

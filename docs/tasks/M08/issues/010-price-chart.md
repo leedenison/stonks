@@ -31,7 +31,7 @@ A chart of the valuation of a holding is out of scope.
   [003](../adr/003-a-price-is-stored-as-its-source-served-it-and-restated-on-read.md).
 * An e2e spec opens the tab for a security and for a currency and reads the series each
   shows.
-* The e2e spec of issue [008](008-price-fetch-runs.md) also reads the prices that its
-  run fetched. The e2e recordings come from keys that serve one or two years, and the
-  e2e datasources name plans that serve every year. A recorded answer therefore covers
-  earlier days without a price, so the spec reads a day inside the recorded years.
+* The e2e spec `fetch-prices.spec.ts` also reads the prices that its run fetched. The
+  e2e recordings come from keys that serve one or two years, and the e2e datasources
+  name plans that serve every year. A recorded answer therefore covers earlier days
+  without a price, so the spec reads a day inside the recorded years.

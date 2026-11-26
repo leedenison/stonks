@@ -1265,3 +1265,161 @@ interactions:
         status: 200 OK
         code: 200
         duration: 998.166647ms
+    - id: 16
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 108
+        host: ""
+        request_uri: /v3/mapping
+        body: '[{"idType":"TICKER","idValue":"VOD","currency":"GBP"},{"idType":"TICKER","idValue":"COST","currency":"USD"}]'
+        headers:
+            Content-Type:
+                - application/json
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://api.openfigi.com/v3/mapping
+        method: POST
+      response:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        transfer_encoding:
+            - chunked
+        content_length: 7355
+        uncompressed: true
+        body: '[{"data":[{"figi":"BBG00SG9X7L6","name":"VODAFONE GROUP PLC","ticker":"VOD","exchCode":"X9","compositeFIGI":"BBG00SG9X7K7","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6PJ31","securityType2":"Common Stock","securityDescription":"VOD"}]},{"data":[{"figi":"BBG000F6H8W8","name":"COSTCO WHOLESALE CORP","ticker":"COST","exchCode":"US","compositeFIGI":"BBG000F6H8W8","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S9KRQ7","securityType2":"Common Stock","securityDescription":"COST"},{"figi":"BBG000F6H910","name":"COSTCO WHOLESALE CORP","ticker":"COST","exchCode":"UA","compositeFIGI":"BBG000F6H8W8","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S9KRQ7","securityType2":"Common Stock","securityDescription":"COST"},{"figi":"BBG000F6H9N6","name":"COSTCO WHOLESALE CORP","ticker":"COST","exchCode":"UC","compositeFIGI":"BBG000F6H8W8","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S9KRQ7","securityType2":"Common Stock","securityDescription":"COST"},{"figi":"BBG000F6HB06","name":"COSTCO WHOLESALE CORP","ticker":"COST","exchCode":"UN","compositeFIGI":"BBG000F6H8W8","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S9KRQ7","securityType2":"Common Stock","securityDescription":"COST"},{"figi":"BBG000F6HBR7","name":"COSTCO WHOLESALE CORP","ticker":"COST","exchCode":"UP","compositeFIGI":"BBG000F6H8W8","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S9KRQ7","securityType2":"Common Stock","securityDescription":"COST"},{"figi":"BBG000F6HCK2","name":"COSTCO WHOLESALE CORP","ticker":"COST","exchCode":"UB","compositeFIGI":"BBG000F6H8W8","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S9KRQ7","securityType2":"Common Stock","securityDescription":"COST"},{"figi":"BBG000F6HDJ2","name":"COSTCO WHOLESALE CORP","ticker":"COST","exchCode":"UM","compositeFIGI":"BBG000F6H8W8","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S9KRQ7","securityType2":"Common Stock","securityDescription":"COST"},{"figi":"BBG000F6HDS2","name":"COSTCO WHOLESALE CORP","ticker":"COST","exchCode":"UX","compositeFIGI":"BBG000F6H8W8","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S9KRQ7","securityType2":"Common Stock","securityDescription":"COST"},{"figi":"BBG000F6HK42","name":"COSTCO WHOLESALE CORP","ticker":"COST","exchCode":"UD","compositeFIGI":"BBG000F6H8W8","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S9KRQ7","securityType2":"Common Stock","securityDescription":"COST"},{"figi":"BBG000F6HLL1","name":"COSTCO WHOLESALE CORP","ticker":"COST","exchCode":"UW","compositeFIGI":"BBG000F6H8W8","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S9KRQ7","securityType2":"Common Stock","securityDescription":"COST"},{"figi":"BBG000F6HLR5","name":"COSTCO WHOLESALE CORP","ticker":"COST","exchCode":"UF","compositeFIGI":"BBG000F6H8W8","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S9KRQ7","securityType2":"Common Stock","securityDescription":"COST"},{"figi":"BBG000F6HM20","name":"COSTCO WHOLESALE CORP","ticker":"COST","exchCode":"VY","compositeFIGI":"BBG000F6H8W8","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S9KRQ7","securityType2":"Common Stock","securityDescription":"COST"},{"figi":"BBG000F6HMJ2","name":"COSTCO WHOLESALE CORP","ticker":"COST","exchCode":"VJ","compositeFIGI":"BBG000F6H8W8","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S9KRQ7","securityType2":"Common Stock","securityDescription":"COST"},{"figi":"BBG000F6HN55","name":"COSTCO WHOLESALE CORP","ticker":"COST","exchCode":"VK","compositeFIGI":"BBG000F6H8W8","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S9KRQ7","securityType2":"Common Stock","securityDescription":"COST"},{"figi":"BBG0013VC5W5","name":"COSTCO WHOLESALE CORP","ticker":"COST","exchCode":null,"compositeFIGI":null,"securityType":"U.S. CP","marketSector":"M-Mkt","shareClassFIGI":null,"securityType2":"CP","securityDescription":"COST CP"},{"figi":"BBG0013VGJR7","name":"COSTCO WHOLESALE CORP","ticker":"COST","exchCode":null,"compositeFIGI":null,"securityType":"U.S. INT BEAR CP","marketSector":"M-Mkt","shareClassFIGI":null,"securityType2":"CP","securityDescription":"COST CPIB"},{"figi":"BBG004BX31P3","name":"COSTCO WHOLESALE CORP","ticker":"COST","exchCode":"CI","compositeFIGI":"BBG004BX31P3","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S9KRQ7","securityType2":"Common Stock","securityDescription":"COST"},{"figi":"BBG004BX31Q2","name":"COSTCO WHOLESALE CORP","ticker":"COST","exchCode":"CC","compositeFIGI":"BBG004BX31P3","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S9KRQ7","securityType2":"Common Stock","securityDescription":"COST"},{"figi":"BBG00DJDJBJ7","name":"COSTCO WHOLESALE CORP","ticker":"COST","exchCode":"VF","compositeFIGI":"BBG000F6H8W8","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S9KRQ7","securityType2":"Common Stock","securityDescription":"COST"},{"figi":"BBG00THDQZJ3","name":"COSTCO WHOLESALE CORP","ticker":"COST","exchCode":"VL","compositeFIGI":"BBG000F6H8W8","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S9KRQ7","securityType2":"Common Stock","securityDescription":"COST"},{"figi":"BBG00X1LVSG6","name":"COSTCO WHOLESALE CORP","ticker":"COST","exchCode":"VG","compositeFIGI":"BBG000F6H8W8","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S9KRQ7","securityType2":"Common Stock","securityDescription":"COST"},{"figi":"BBG00X1Q92C1","name":"COSTCO WHOLESALE CORP","ticker":"COST","exchCode":"VP","compositeFIGI":"BBG000F6H8W8","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S9KRQ7","securityType2":"Common Stock","securityDescription":"COST"},{"figi":"BBG01MVBPLL4","name":"COSTCO WHOLESALE CORP","ticker":"COST","exchCode":"PE","compositeFIGI":"BBG01MVBPLK5","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S9KRQ7","securityType2":"Common Stock","securityDescription":"COST"},{"figi":"BBG01V7WNFB1","name":"COSTCO WHOLESALE CORP","ticker":"COST","exchCode":"OC","compositeFIGI":"BBG000F6H8W8","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S9KRQ7","securityType2":"Common Stock","securityDescription":"COST"},{"figi":"BBG01X4JYDR5","name":"COSTCO WHOLESALE CORP","ticker":"COST","exchCode":"OD","compositeFIGI":"BBG000F6H8W8","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S9KRQ7","securityType2":"Common Stock","securityDescription":"COST"},{"figi":"BBG021BZKLD2","name":"COSTCO WHOLESALE CORP","ticker":"COST","exchCode":"VT","compositeFIGI":"BBG000F6H8W8","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S9KRQ7","securityType2":"Common Stock","securityDescription":"COST"},{"figi":"BBG024YG4FV4","name":"COSTCO WHOLESALE CORP","ticker":"COST","exchCode":"ER","compositeFIGI":"BBG024YG4FT7","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S9KRQ7","securityType2":"Common Stock","securityDescription":"COST"}]}]'
+        headers:
+            Cache-Control:
+                - private, no-cache, no-store, must-revalidate
+            Content-Security-Policy:
+                - 'default-src ''self'';base-uri ''self'';font-src ''self'' https: data:;form-action ''self'';frame-ancestors ''self'';img-src ''self'' data:;object-src ''none'';script-src ''self'';script-src-attr ''none'';style-src ''self'' https: ''unsafe-inline'';upgrade-insecure-requests'
+            Content-Type:
+                - application/json; charset=utf-8
+            Cross-Origin-Opener-Policy:
+                - same-origin
+            Cross-Origin-Resource-Policy:
+                - same-origin
+            Date:
+                - Thu, 26 Nov 2026 12:35:23 GMT
+            Expires:
+                - "0"
+            Origin-Agent-Cluster:
+                - ?1
+            Pragma:
+                - no-cache
+            Ratelimit-Limit:
+                - "250"
+            Ratelimit-Policy:
+                - 250;w=60
+            Ratelimit-Remaining:
+                - "249"
+            Ratelimit-Reset:
+                - "60"
+            Referrer-Policy:
+                - no-referrer
+            Server:
+                - istio-envoy
+            Strict-Transport-Security:
+                - max-age=31536000; includeSubDomains
+            Vary:
+                - Origin, Accept-Encoding
+            X-Content-Type-Options:
+                - nosniff
+            X-Dns-Prefetch-Control:
+                - 'off'
+            X-Download-Options:
+                - noopen
+            X-Envoy-Upstream-Service-Time:
+                - "64"
+            X-Frame-Options:
+                - SAMEORIGIN
+            X-Permitted-Cross-Domain-Policies:
+                - none
+            X-Request-Id:
+                - ce240476-86ce-44c7-bcef-df0daeb52dcf
+            X-Xss-Protection:
+                - "0"
+        status: 200 OK
+        code: 200
+        duration: 1.091490035s
+    - id: 17
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 118
+        host: ""
+        request_uri: /v3/mapping
+        body: '[{"idType":"ID_ISIN","idValue":"GB00BH4HKS39","currency":"GBP"},{"idType":"TICKER","idValue":"COST","currency":"USD"}]'
+        headers:
+            Content-Type:
+                - application/json
+            User-Agent:
+                - Go-http-client/1.1
+        url: https://api.openfigi.com/v3/mapping
+        method: POST
+      response:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        transfer_encoding:
+            - chunked
+        content_length: 11330
+        uncompressed: true
+        body: '[{"data":[{"figi":"BBG000NGBN87","name":"VODAFONE GROUP PLC","ticker":"VODGBP","exchCode":"EO","compositeFIGI":"BBG000NGBN87","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6PJ31","securityType2":"Common Stock","securityDescription":"VODGBP"},{"figi":"BBG000NGBQB6","name":"VODAFONE GROUP PLC","ticker":"VODGBP","exchCode":"XH","compositeFIGI":"BBG000NGBN87","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6PJ31","securityType2":"Common Stock","securityDescription":"VODGBP"},{"figi":"BBG000NGBQP1","name":"VODAFONE GROUP PLC","ticker":"VODGBP","exchCode":"XC","compositeFIGI":"BBG000NGBN87","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6PJ31","securityType2":"Common Stock","securityDescription":"VODGBP"},{"figi":"BBG000NGBR42","name":"VODAFONE GROUP PLC","ticker":"VODGBP","exchCode":"XF","compositeFIGI":"BBG000NGBN87","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6PJ31","securityType2":"Common Stock","securityDescription":"VODGBP"},{"figi":"BBG000NGBS95","name":"VODAFONE GROUP PLC","ticker":"VODGBP","exchCode":"XE","compositeFIGI":"BBG000NGBN87","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6PJ31","securityType2":"Common Stock","securityDescription":"VODGBP"},{"figi":"BBG000NGBST3","name":"VODAFONE GROUP PLC","ticker":"VODGBP","exchCode":"XJ","compositeFIGI":"BBG000NGBN87","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6PJ31","securityType2":"Common Stock","securityDescription":"VODGBP"},{"figi":"BBG000NGBV25","name":"VODAFONE GROUP PLC","ticker":"VODGBP","exchCode":"XG","compositeFIGI":"BBG000NGBN87","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6PJ31","securityType2":"Common Stock","securityDescription":"VODGBP"},{"figi":"BBG000NGBW23","name":"VODAFONE GROUP PLC","ticker":"VODGBP","exchCode":"XO","compositeFIGI":"BBG000NGBN87","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6PJ31","securityType2":"Common Stock","securityDescription":"VODGBP"},{"figi":"BBG000NGC013","name":"VODAFONE GROUP PLC","ticker":"VODGBP","exchCode":"XA","compositeFIGI":"BBG000NGBN87","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6PJ31","securityType2":"Common Stock","securityDescription":"VODGBP"},{"figi":"BBG000NGC0R5","name":"VODAFONE GROUP PLC","ticker":"VODGBP","exchCode":"E1","compositeFIGI":"BBG000NGBN87","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6PJ31","securityType2":"Common Stock","securityDescription":"VODGBP"},{"figi":"BBG000NGC1W7","name":"VODAFONE GROUP PLC","ticker":"VODGBP","exchCode":"XW","compositeFIGI":"BBG000NGBN87","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6PJ31","securityType2":"Common Stock","securityDescription":"VODGBP"},{"figi":"BBG00591MNW6","name":"VODAFONE GROUP PLC","ticker":"VODGBP","exchCode":"XV","compositeFIGI":"BBG000NGBN87","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6PJ31","securityType2":"Common Stock","securityDescription":"VODGBP"},{"figi":"BBG00JN7KB19","name":"VODAFONE GROUP PLC","ticker":"VODGBP","exchCode":"XX","compositeFIGI":"BBG000NGBN87","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6PJ31","securityType2":"Common Stock","securityDescription":"VODGBP"},{"figi":"BBG00QFYD0V2","name":"VODAFONE GROUP PLC","ticker":"VODGBP","exchCode":"X1","compositeFIGI":"BBG000NGBN87","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6PJ31","securityType2":"Common Stock","securityDescription":"VODGBP"},{"figi":"BBG00SG9X7L6","name":"VODAFONE GROUP PLC","ticker":"VOD","exchCode":"X9","compositeFIGI":"BBG00SG9X7K7","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6PJ31","securityType2":"Common Stock","securityDescription":"VOD"},{"figi":"BBG024YRH8D2","name":"VODAFONE GROUP PLC","ticker":"VODGBP","exchCode":"ER","compositeFIGI":"BBG024YRH8C3","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S6PJ31","securityType2":"Common Stock","securityDescription":"VODGBP"}]},{"data":[{"figi":"BBG000F6H8W8","name":"COSTCO WHOLESALE CORP","ticker":"COST","exchCode":"US","compositeFIGI":"BBG000F6H8W8","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S9KRQ7","securityType2":"Common Stock","securityDescription":"COST"},{"figi":"BBG000F6H910","name":"COSTCO WHOLESALE CORP","ticker":"COST","exchCode":"UA","compositeFIGI":"BBG000F6H8W8","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S9KRQ7","securityType2":"Common Stock","securityDescription":"COST"},{"figi":"BBG000F6H9N6","name":"COSTCO WHOLESALE CORP","ticker":"COST","exchCode":"UC","compositeFIGI":"BBG000F6H8W8","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S9KRQ7","securityType2":"Common Stock","securityDescription":"COST"},{"figi":"BBG000F6HB06","name":"COSTCO WHOLESALE CORP","ticker":"COST","exchCode":"UN","compositeFIGI":"BBG000F6H8W8","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S9KRQ7","securityType2":"Common Stock","securityDescription":"COST"},{"figi":"BBG000F6HBR7","name":"COSTCO WHOLESALE CORP","ticker":"COST","exchCode":"UP","compositeFIGI":"BBG000F6H8W8","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S9KRQ7","securityType2":"Common Stock","securityDescription":"COST"},{"figi":"BBG000F6HCK2","name":"COSTCO WHOLESALE CORP","ticker":"COST","exchCode":"UB","compositeFIGI":"BBG000F6H8W8","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S9KRQ7","securityType2":"Common Stock","securityDescription":"COST"},{"figi":"BBG000F6HDJ2","name":"COSTCO WHOLESALE CORP","ticker":"COST","exchCode":"UM","compositeFIGI":"BBG000F6H8W8","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S9KRQ7","securityType2":"Common Stock","securityDescription":"COST"},{"figi":"BBG000F6HDS2","name":"COSTCO WHOLESALE CORP","ticker":"COST","exchCode":"UX","compositeFIGI":"BBG000F6H8W8","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S9KRQ7","securityType2":"Common Stock","securityDescription":"COST"},{"figi":"BBG000F6HK42","name":"COSTCO WHOLESALE CORP","ticker":"COST","exchCode":"UD","compositeFIGI":"BBG000F6H8W8","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S9KRQ7","securityType2":"Common Stock","securityDescription":"COST"},{"figi":"BBG000F6HLL1","name":"COSTCO WHOLESALE CORP","ticker":"COST","exchCode":"UW","compositeFIGI":"BBG000F6H8W8","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S9KRQ7","securityType2":"Common Stock","securityDescription":"COST"},{"figi":"BBG000F6HLR5","name":"COSTCO WHOLESALE CORP","ticker":"COST","exchCode":"UF","compositeFIGI":"BBG000F6H8W8","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S9KRQ7","securityType2":"Common Stock","securityDescription":"COST"},{"figi":"BBG000F6HM20","name":"COSTCO WHOLESALE CORP","ticker":"COST","exchCode":"VY","compositeFIGI":"BBG000F6H8W8","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S9KRQ7","securityType2":"Common Stock","securityDescription":"COST"},{"figi":"BBG000F6HMJ2","name":"COSTCO WHOLESALE CORP","ticker":"COST","exchCode":"VJ","compositeFIGI":"BBG000F6H8W8","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S9KRQ7","securityType2":"Common Stock","securityDescription":"COST"},{"figi":"BBG000F6HN55","name":"COSTCO WHOLESALE CORP","ticker":"COST","exchCode":"VK","compositeFIGI":"BBG000F6H8W8","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S9KRQ7","securityType2":"Common Stock","securityDescription":"COST"},{"figi":"BBG0013VC5W5","name":"COSTCO WHOLESALE CORP","ticker":"COST","exchCode":null,"compositeFIGI":null,"securityType":"U.S. CP","marketSector":"M-Mkt","shareClassFIGI":null,"securityType2":"CP","securityDescription":"COST CP"},{"figi":"BBG0013VGJR7","name":"COSTCO WHOLESALE CORP","ticker":"COST","exchCode":null,"compositeFIGI":null,"securityType":"U.S. INT BEAR CP","marketSector":"M-Mkt","shareClassFIGI":null,"securityType2":"CP","securityDescription":"COST CPIB"},{"figi":"BBG004BX31P3","name":"COSTCO WHOLESALE CORP","ticker":"COST","exchCode":"CI","compositeFIGI":"BBG004BX31P3","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S9KRQ7","securityType2":"Common Stock","securityDescription":"COST"},{"figi":"BBG004BX31Q2","name":"COSTCO WHOLESALE CORP","ticker":"COST","exchCode":"CC","compositeFIGI":"BBG004BX31P3","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S9KRQ7","securityType2":"Common Stock","securityDescription":"COST"},{"figi":"BBG00DJDJBJ7","name":"COSTCO WHOLESALE CORP","ticker":"COST","exchCode":"VF","compositeFIGI":"BBG000F6H8W8","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S9KRQ7","securityType2":"Common Stock","securityDescription":"COST"},{"figi":"BBG00THDQZJ3","name":"COSTCO WHOLESALE CORP","ticker":"COST","exchCode":"VL","compositeFIGI":"BBG000F6H8W8","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S9KRQ7","securityType2":"Common Stock","securityDescription":"COST"},{"figi":"BBG00X1LVSG6","name":"COSTCO WHOLESALE CORP","ticker":"COST","exchCode":"VG","compositeFIGI":"BBG000F6H8W8","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S9KRQ7","securityType2":"Common Stock","securityDescription":"COST"},{"figi":"BBG00X1Q92C1","name":"COSTCO WHOLESALE CORP","ticker":"COST","exchCode":"VP","compositeFIGI":"BBG000F6H8W8","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S9KRQ7","securityType2":"Common Stock","securityDescription":"COST"},{"figi":"BBG01MVBPLL4","name":"COSTCO WHOLESALE CORP","ticker":"COST","exchCode":"PE","compositeFIGI":"BBG01MVBPLK5","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S9KRQ7","securityType2":"Common Stock","securityDescription":"COST"},{"figi":"BBG01V7WNFB1","name":"COSTCO WHOLESALE CORP","ticker":"COST","exchCode":"OC","compositeFIGI":"BBG000F6H8W8","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S9KRQ7","securityType2":"Common Stock","securityDescription":"COST"},{"figi":"BBG01X4JYDR5","name":"COSTCO WHOLESALE CORP","ticker":"COST","exchCode":"OD","compositeFIGI":"BBG000F6H8W8","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S9KRQ7","securityType2":"Common Stock","securityDescription":"COST"},{"figi":"BBG021BZKLD2","name":"COSTCO WHOLESALE CORP","ticker":"COST","exchCode":"VT","compositeFIGI":"BBG000F6H8W8","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S9KRQ7","securityType2":"Common Stock","securityDescription":"COST"},{"figi":"BBG024YG4FV4","name":"COSTCO WHOLESALE CORP","ticker":"COST","exchCode":"ER","compositeFIGI":"BBG024YG4FT7","securityType":"Common Stock","marketSector":"Equity","shareClassFIGI":"BBG001S9KRQ7","securityType2":"Common Stock","securityDescription":"COST"}]}]'
+        headers:
+            Cache-Control:
+                - private, no-cache, no-store, must-revalidate
+            Content-Security-Policy:
+                - 'default-src ''self'';base-uri ''self'';font-src ''self'' https: data:;form-action ''self'';frame-ancestors ''self'';img-src ''self'' data:;object-src ''none'';script-src ''self'';script-src-attr ''none'';style-src ''self'' https: ''unsafe-inline'';upgrade-insecure-requests'
+            Content-Type:
+                - application/json; charset=utf-8
+            Cross-Origin-Opener-Policy:
+                - same-origin
+            Cross-Origin-Resource-Policy:
+                - same-origin
+            Date:
+                - Thu, 26 Nov 2026 12:39:18 GMT
+            Expires:
+                - "0"
+            Origin-Agent-Cluster:
+                - ?1
+            Pragma:
+                - no-cache
+            Ratelimit-Limit:
+                - "250"
+            Ratelimit-Policy:
+                - 250;w=60
+            Ratelimit-Remaining:
+                - "249"
+            Ratelimit-Reset:
+                - "60"
+            Referrer-Policy:
+                - no-referrer
+            Server:
+                - istio-envoy
+            Strict-Transport-Security:
+                - max-age=31536000; includeSubDomains
+            Vary:
+                - Origin, Accept-Encoding
+            X-Content-Type-Options:
+                - nosniff
+            X-Dns-Prefetch-Control:
+                - 'off'
+            X-Download-Options:
+                - noopen
+            X-Envoy-Upstream-Service-Time:
+                - "8"
+            X-Frame-Options:
+                - SAMEORIGIN
+            X-Permitted-Cross-Domain-Policies:
+                - none
+            X-Request-Id:
+                - 7d1f3f43-84e9-4aba-8a26-341451aabaeb
+            X-Xss-Protection:
+                - "0"
+        status: 200 OK
+        code: 200
+        duration: 916.134961ms

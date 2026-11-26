@@ -1,0 +1,39 @@
+{
+  "broker": "BROKER_IBKR",
+  "period": { "from": "2025-06-01", "before": "2026-11-01" },
+  "rows": [
+    {
+      "key": {
+        "identifiers": [
+          {
+            "type": "IDENTIFIER_TYPE_ISIN",
+            "value": "GB00BH4HKS39"
+          }
+        ],
+        "assetClass": "ASSET_CLASS_STOCK",
+        "currency": "GBP"
+      },
+      "orderDate": "2025-06-02",
+      "settlementDate": "2025-06-02",
+      "asAt": "2025-06-02",
+      "quantity": "100"
+    },
+    {
+      "key": {
+        "identifiers": [
+          {
+            "type": "IDENTIFIER_TYPE_MIC_TICKER",
+            "domain": "XNAS",
+            "value": "COST"
+          }
+        ],
+        "assetClass": "ASSET_CLASS_STOCK",
+        "currency": "USD"
+      },
+      "orderDate": "2026-10-05",
+      "settlementDate": "2026-10-05",
+      "asAt": "2026-10-05",
+      "quantity": "10"
+    }
+  ]
+}
