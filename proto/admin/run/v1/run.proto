@@ -276,7 +276,7 @@ message ClearRunResponse {}
 message StartSystemRunRequest {
   stonks.run.v1.RunKind kind = 1 [(buf.validate.field).enum = {
     defined_only: true
-    in: [6, 7, 8]
+    in: [6, 7, 8, 10]
   }];
 }
 
@@ -306,8 +306,11 @@ service RunService {
   // REFRESH_CORP_ACTS asks the corporate actions source of each market about
   // the tickers there that named a held instrument, skipping the cache.
   // REBUILD_TICKER_VALIDITY rebuilds the ticker validity and names of every
-  // ticker from the stored facts. A fetch spends the datasource's quota.
-  // Where a reassertion or a refresh finds nothing held, the call is refused
-  // as a failed precondition.
+  // ticker from the stored facts. FETCH_PRICES asks each enabled datasource
+  // that serves prices, in precedence order, for the prices and rates of the
+  // days held that the datasources before it left uncovered, skipping the
+  // cache. A fetch spends the datasource's quota. Where a reassertion or a
+  // refresh finds nothing held, or a fetch of prices finds every day covered,
+  // the call is refused as a failed precondition.
   rpc StartSystemRun(StartSystemRunRequest) returns (StartSystemRunResponse);
 }

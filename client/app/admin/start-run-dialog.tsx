@@ -57,6 +57,18 @@ export const systemRunGroups: SystemRunGroup[] = [
           "The requests are chosen when the run starts. An instrument that becomes held later waits for the next run. Each call spends quota on the source it asks.",
         ],
       },
+      {
+        kind: RunKind.FETCH_PRICES,
+        testId: "fetch-prices",
+        title: "Fetch Prices",
+        summary:
+          "Asks the datasources in precedence order for the prices and rates of the days held that lack one.",
+        description: [
+          "Asks each enabled datasource that serves prices, in precedence order and without reading the cache. Each is asked for the prices and rates of the days held that the datasources before it left uncovered. A request that one datasource fails passes to the next.",
+          "Each answer is stored whole, including the days outside the holding. Google Sheets is never asked: its prices come from the upload tool.",
+          "The run is refused when every day held is covered. Each call spends quota on the datasource it asks.",
+        ],
+      },
     ],
   },
   {

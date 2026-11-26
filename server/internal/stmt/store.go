@@ -70,3 +70,9 @@ type Facts interface {
 	AfterIdentifierFacts(ctx context.Context, except gen.Run, written []resolve.WrittenIdentifierFacts)
 	AfterStmt(ctx context.Context, stmt, except gen.Run, written []resolve.WrittenIdentifierFacts)
 }
+
+// Prices is this package's view of the fetch of prices that follows a
+// statement.
+type Prices interface {
+	AfterStmt(ctx context.Context, stmt gen.Run)
+}

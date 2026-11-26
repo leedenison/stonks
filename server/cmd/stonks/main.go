@@ -52,6 +52,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/platform/telemetry"
 	"github.com/leedenison/stonks/server/internal/price"
 	runner "github.com/leedenison/stonks/server/internal/run"
+	"github.com/leedenison/stonks/server/internal/run/fetchprices"
 	"github.com/leedenison/stonks/server/internal/run/reasserttickers"
 	"github.com/leedenison/stonks/server/internal/run/rebuildtickervalidity"
 	"github.com/leedenison/stonks/server/internal/run/refreshcorpacts"
@@ -192,16 +193,22 @@ func run() (err error) {
 	reassertions := reasserttickers.New(queries, runs, reasserter, replays)
 	freshRecorder := corpact.New(db.New[corpact.Queries](pool), fetcher.Fresh(), sources, mics, logger.WithCategory(log, "internal/corpact"))
 	refreshes := refreshcorpacts.NewStarter(queries, runs, freshRecorder, mics, time.Now, logger.WithCategory(log, "internal/run/refreshcorpacts"))
-	ingester := stmt.New(db.New[stmt.Queries](pool), runs, resolver, replays, families, time.Now, logger.WithCategory(log, "internal/stmt"))
+	demand := price.NewDemand(queries, families, time.Now)
+	prices := price.New(db.New[price.RecordQueries](pool), fetcher, families, scales, logger.WithCategory(log, "internal/price"))
+	stmtPrices := fetchprices.New(demand, runs, prices, sources, logger.WithCategory(log, "internal/run/fetchprices"))
+	freshPrices := price.New(db.New[price.RecordQueries](pool), fetcher.Fresh(), families, scales, logger.WithCategory(log, "internal/price"))
+	priceFetches := fetchprices.NewStarter(demand, runs, freshPrices, sources, logger.WithCategory(log, "internal/run/fetchprices"))
+	ingester := stmt.New(db.New[stmt.Queries](pool), runs, resolver, replays, stmtPrices, families, time.Now, logger.WithCategory(log, "internal/stmt"))
 	rebuilds := rebuildtickervalidity.New(db.New[rebuildtickervalidity.Queries](pool), runs, 500)
 	starters := map[gen.RunKind]adminrun.Starter{
 		gen.RunKindReassertTickers:       reassertions,
 		gen.RunKindRefreshCorpActs:       refreshes,
 		gen.RunKindRebuildTickerValidity: rebuilds,
+		gen.RunKindFetchPrices:           priceFetches,
 	}
 	datasources := admindatasource.New(queries, sources, datasource.New(db.New[datasource.Queries](pool), sources, cache, rebuilds))
 	coverages := coverage.New(queries, mics)
-	srv, err := newServer(cfg.ListenAddr, log, authn, queries, holdingsvc.New(queries, families, scales, time.Now), adminrun.New(queries, starters), adminblock.New(queries), admincorpact.New(queries), datasources, admininstr.New(queries), adminreplayrun.New(queries, replays), admincoverage.New(coverages, attestidentifier.New(db.New[attestidentifier.Queries](pool), runs, replays, mics, time.Now), time.Now), adminalert.New(queries, coverages, time.Now), adminprice.New(queries, price.NewDemand(queries, families, time.Now), sources, price.NewUploader(db.New[price.UploadQueries](pool), runs, families, scales), time.Now), ingester, cfg.CookieSecure)
+	srv, err := newServer(cfg.ListenAddr, log, authn, queries, holdingsvc.New(queries, families, scales, time.Now), adminrun.New(queries, starters), adminblock.New(queries), admincorpact.New(queries), datasources, admininstr.New(queries), adminreplayrun.New(queries, replays), admincoverage.New(coverages, attestidentifier.New(db.New[attestidentifier.Queries](pool), runs, replays, mics, time.Now), time.Now), adminalert.New(queries, coverages, time.Now), adminprice.New(queries, demand, sources, price.NewUploader(db.New[price.UploadQueries](pool), runs, families, scales), time.Now), ingester, cfg.CookieSecure)
 	if err != nil {
 		return err
 	}

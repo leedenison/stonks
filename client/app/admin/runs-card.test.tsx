@@ -58,6 +58,7 @@ describe("RunsCard", () => {
     expect(rows).toEqual([
       "runs-card-row-reassert-tickers",
       "runs-card-row-refresh-corp-acts",
+      "runs-card-row-fetch-prices",
       "runs-card-group-debug",
       "runs-card-row-rebuild-ticker-validity",
     ]);
