@@ -13,8 +13,7 @@ The runs that fetch prices and rates, and what starts each. See
 * An ingest that adds a holding starts a fetch for the prices of that holding and for
   the rates.
 
-The display currency trigger belongs to [011](011-display-currency.md). The Google
-Sheets tool belongs to [009](009-google-sheets-tool.md).
+The display currency trigger belongs to [011](011-display-currency.md).
 
 ## Design
 
