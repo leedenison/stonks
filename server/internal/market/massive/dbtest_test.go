@@ -16,6 +16,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
+	"github.com/leedenison/stonks/internal/testutil/vcr"
 	"github.com/leedenison/stonks/server/internal/corpact"
 	"github.com/leedenison/stonks/server/internal/currency"
 	"github.com/leedenison/stonks/server/internal/db"
@@ -27,7 +28,6 @@ import (
 	"github.com/leedenison/stonks/server/internal/price"
 	"github.com/leedenison/stonks/server/internal/testutil/dbtest"
 	"github.com/leedenison/stonks/server/internal/testutil/runtest"
-	"github.com/leedenison/stonks/server/internal/testutil/vcr"
 	"github.com/leedenison/stonks/server/internal/types"
 )
 

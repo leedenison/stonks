@@ -71,7 +71,7 @@ Base names are unique across the repository, which is what lets the record targe
 
 ### The helper
 
-`server/internal/testutil/vcr` holds the recorder. A test asks for a client over a cassette,
+`internal/testutil/vcr` holds the recorder. A test asks for a client over a cassette,
 and declares in a `Scrub` what its provider's traffic carries:
 
 ```go

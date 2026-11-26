@@ -4,6 +4,7 @@
 |---|---|
 | `proto/` | Protobuf API definitions, and the Go code generated from them |
 | `server/` | The Go backend service |
+| `internal/` | Go packages that more than one tree shares |
 | `client/` | The Next.js front end |
 | `e2e/` | Playwright end-to-end suite |
 | `docker/` | Dockerfiles, compose stacks, and the configuration of every supporting service |
@@ -56,6 +57,13 @@ server/
 ```
 
 A package that belongs to none of these groups sits at the top of `internal/`.
+
+## `internal/`
+
+```
+internal/
+  testutil/vcr/          the recorder that replays recorded HTTP traffic in a test
+```
 
 ## `client/`
 

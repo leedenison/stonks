@@ -8,7 +8,7 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY server/cmd/vcrproxy/ server/cmd/vcrproxy/
 COPY server/cmd/healthcheck/ server/cmd/healthcheck/
-COPY server/internal/testutil/vcr/ server/internal/testutil/vcr/
+COPY internal/testutil/vcr/ internal/testutil/vcr/
 RUN CGO_ENABLED=0 go build -buildvcs=false -trimpath -ldflags "-s -w" \
     -o /vcrproxy ./server/cmd/vcrproxy
 RUN CGO_ENABLED=0 go build -buildvcs=false -trimpath -ldflags "-s -w" \

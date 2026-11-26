@@ -53,7 +53,7 @@ import (
 	"gopkg.in/dnaeon/go-vcr.v4/pkg/cassette"
 	"gopkg.in/dnaeon/go-vcr.v4/pkg/recorder"
 
-	"github.com/leedenison/stonks/server/internal/testutil/vcr"
+	"github.com/leedenison/stonks/internal/testutil/vcr"
 )
 
 // options is the command line.
