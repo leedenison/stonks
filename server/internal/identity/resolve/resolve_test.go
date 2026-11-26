@@ -18,15 +18,16 @@ import (
 	"github.com/leedenison/stonks/server/internal/market"
 	"github.com/leedenison/stonks/server/internal/mic"
 	"github.com/leedenison/stonks/server/internal/platform/ptr"
+	"github.com/leedenison/stonks/server/internal/testutil/scripted"
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
 var (
 	userID = uuid.MustParse("00000000-0000-0000-0000-000000000001")
 	res    = gen.Run{ID: uuid.MustParse("00000000-0000-0000-0000-000000000002"), UserID: &userID, Kind: gen.RunKindResolveStmtKeys}
-	entryA = &market.Entry{Name: "a", Precedence: 10}
-	entryB = &market.Entry{Name: "b", Precedence: 20}
-	entryC = &market.Entry{Name: "c", Precedence: 30}
+	entryA = &market.Entry{Name: "a", Precedence: 10, Integration: scripted.New()}
+	entryB = &market.Entry{Name: "b", Precedence: 20, Integration: scripted.New()}
+	entryC = &market.Entry{Name: "c", Precedence: 30, Integration: scripted.New()}
 )
 
 // fixture is a resolver over a store that finds nothing, records what it is
@@ -252,6 +253,18 @@ func TestResolveBatches(t *testing.T) {
 	if len(reads) == 0 || !slices.Equal(reads[0], []string{isin.Value, cusip.Value}) {
 		t.Errorf("first read = %v, want both keys' identifiers in one query", reads)
 	}
+}
+
+// TestResolveWithoutIdentity checks that a run asks only the datasources that
+// serve identity.
+func TestResolveWithoutIdentity(t *testing.T) {
+	prices := &market.Entry{Name: "p", Precedence: 40, Integration: &scripted.Prices{}}
+	f := newFixture(t, entryA, prices)
+	f.records()
+	f.store.EXPECT().ListInstrsByIdentifiers(gomock.Any(), gomock.Any()).AnyTimes()
+	f.serves(entryA, fetchKey{ID: db.NewID(), Outcome: gen.FetchOutcomeNotServed, Reason: "no"})
+
+	f.resolve(keyOf(types.AssetClassStock, "USD", isin))
 }
 
 // TestResolveUnresolved checks each outcome of a key no claim won, with its

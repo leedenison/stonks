@@ -12,7 +12,8 @@ import { expect, test } from "../helpers/test";
 // last enabled row, so the enabled rows keep their order among themselves.
 const served = "openfigi";
 const middle = "massive";
-const last = "eodhd";
+const third = "eodhd";
+const last = "google_sheets";
 const unserved = "unserved";
 const endpoint = "http://unserved.invalid";
 
@@ -25,7 +26,7 @@ test.beforeAll(async () => {
     endpoint,
     credential: null,
     enabled: false,
-    precedence: 4,
+    precedence: 5,
   });
 });
 
@@ -43,7 +44,7 @@ test("lists the datasources, refuses enabling one the build does not serve, and 
   const rows = page
     .getByTestId("admin-datasources-table")
     .getByTestId(/^datasource-row-/);
-  await expect(rows).toHaveCount(4);
+  await expect(rows).toHaveCount(5);
   await expect(rows.nth(0)).toHaveAttribute(
     "data-testid",
     `datasource-row-${served}`,
@@ -54,9 +55,13 @@ test("lists the datasources, refuses enabling one the build does not serve, and 
   );
   await expect(rows.nth(2)).toHaveAttribute(
     "data-testid",
-    `datasource-row-${last}`,
+    `datasource-row-${third}`,
   );
   await expect(rows.nth(3)).toHaveAttribute(
+    "data-testid",
+    `datasource-row-${last}`,
+  );
+  await expect(rows.nth(4)).toHaveAttribute(
     "data-testid",
     `datasource-row-${unserved}`,
   );
@@ -142,45 +147,47 @@ test("reorders the datasources by dragging a row, and each reorder rebuilds the 
   const rows = page
     .getByTestId("admin-datasources-table")
     .getByTestId(/^datasource-row-/);
-  await expect(rows.nth(3)).toHaveAttribute(
+  await expect(rows.nth(4)).toHaveAttribute(
     "data-testid",
     `datasource-row-${unserved}`,
   );
 
   await move(page, unserved, last, "ArrowUp");
-  await expect(rows.nth(2)).toHaveAttribute(
+  await expect(rows.nth(3)).toHaveAttribute(
     "data-testid",
     `datasource-row-${unserved}`,
   );
   await expect(
     page.getByTestId(`datasource-precedence-${unserved}`),
-  ).toHaveText("3");
+  ).toHaveText("4");
   await expect(page.getByTestId(`datasource-precedence-${last}`)).toHaveText(
-    "4",
+    "5",
   );
   const moved = await admin.listDatasources({});
   expect(moved.datasources.map((d) => [d.name, d.precedence])).toEqual([
     [served, 1],
     [middle, 2],
-    [unserved, 3],
-    [last, 4],
+    [third, 3],
+    [unserved, 4],
+    [last, 5],
   ]);
 
   // Moving it back restores the seeded order.
   await move(page, unserved, last, "ArrowDown");
-  await expect(rows.nth(3)).toHaveAttribute(
+  await expect(rows.nth(4)).toHaveAttribute(
     "data-testid",
     `datasource-row-${unserved}`,
   );
   await expect(page.getByTestId(`datasource-precedence-${last}`)).toHaveText(
-    "3",
+    "4",
   );
   const restored = await admin.listDatasources({});
   expect(restored.datasources.map((d) => [d.name, d.precedence])).toEqual([
     [served, 1],
     [middle, 2],
-    [last, 3],
-    [unserved, 4],
+    [third, 3],
+    [last, 4],
+    [unserved, 5],
   ]);
 
   let started: string[] = [];
