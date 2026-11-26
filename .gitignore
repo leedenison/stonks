@@ -12,6 +12,7 @@ e2e/gen/
 
 # Binaries
 /stonks
+/google
 bin/
 *.exe
 
