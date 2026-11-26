@@ -58,20 +58,21 @@ type fixture struct {
 	store     *mock.MockQueries
 	reasserts *mock.MockStarter
 	refreshes *mock.MockStarter
+	fetches   *mock.MockStarter
 	client    adminrunv1connect.RunServiceClient
 }
 
 // newFixture mounts a Server with the real handler chain, and a client whose
-// session belongs to an administrator. The server starts reassert tickers
-// and refresh corporate actions runs only. A rebuild ticker validity run has
-// no starter.
+// session belongs to an administrator. The server starts reassert tickers,
+// refresh corporate actions and fetch prices runs only. A rebuild ticker
+// validity run has no starter.
 func newFixture(t *testing.T) *fixture {
 	t.Helper()
 	ctrl := gomock.NewController(t)
 	t.Cleanup(ctrl.Finish)
 	authn := servicetest.AsAdmin(ctrl)
-	f := &fixture{store: mock.NewMockQueries(ctrl), reasserts: mock.NewMockStarter(ctrl), refreshes: mock.NewMockStarter(ctrl)}
-	starters := map[gen.RunKind]Starter{gen.RunKindReassertTickers: f.reasserts, gen.RunKindRefreshCorpActs: f.refreshes}
+	f := &fixture{store: mock.NewMockQueries(ctrl), reasserts: mock.NewMockStarter(ctrl), refreshes: mock.NewMockStarter(ctrl), fetches: mock.NewMockStarter(ctrl)}
+	starters := map[gen.RunKind]Starter{gen.RunKindReassertTickers: f.reasserts, gen.RunKindRefreshCorpActs: f.refreshes, gen.RunKindFetchPrices: f.fetches}
 	opts := servicetest.Options(t, authn)
 	srv := servicetest.Serve(t, func(mux *http.ServeMux) {
 		mux.Handle(adminrunv1connect.NewRunServiceHandler(New(f.store, starters), opts...))
@@ -571,6 +572,8 @@ func TestStartSystemRun(t *testing.T) {
 		wantCode connect.Code
 	}{
 		{name: "refresh corporate actions", kind: runv1.RunKind_RUN_KIND_REFRESH_CORP_ACTS, starter: func(f *fixture) *mock.MockStarter { return f.refreshes }},
+		{name: "fetch prices", kind: runv1.RunKind_RUN_KIND_FETCH_PRICES, starter: func(f *fixture) *mock.MockStarter { return f.fetches }},
+		{name: "every day covered", kind: runv1.RunKind_RUN_KIND_FETCH_PRICES, starter: func(f *fixture) *mock.MockStarter { return f.fetches }, err: fmt.Errorf("no price is missing: %w", runner.ErrEmpty), wantCode: connect.CodeFailedPrecondition},
 		{name: "nothing to work on", kind: runv1.RunKind_RUN_KIND_REASSERT_TICKERS, starter: func(f *fixture) *mock.MockStarter { return f.reasserts }, err: fmt.Errorf("none held: %w", runner.ErrEmpty), wantCode: connect.CodeFailedPrecondition},
 		{name: "starter failure", kind: runv1.RunKind_RUN_KIND_REASSERT_TICKERS, starter: func(f *fixture) *mock.MockStarter { return f.reasserts }, err: errors.New("boom"), wantCode: connect.CodeInternal},
 		{name: "no starter", kind: runv1.RunKind_RUN_KIND_REBUILD_TICKER_VALIDITY, wantCode: connect.CodeInternal},

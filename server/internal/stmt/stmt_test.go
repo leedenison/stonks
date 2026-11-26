@@ -72,6 +72,7 @@ type fixture struct {
 	runs     *MockRunner
 	resolver *MockResolver
 	facts    *MockFacts
+	prices   *MockPrices
 	svc      *Service
 	spec     run.Spec
 	workErr  error
@@ -108,7 +109,7 @@ func newFixture(t *testing.T) *fixture {
 	t.Helper()
 	ctrl := gomock.NewController(t)
 	t.Cleanup(ctrl.Finish)
-	f := &fixture{store: NewMockStore(ctrl), runs: NewMockRunner(ctrl), resolver: NewMockResolver(ctrl), facts: NewMockFacts(ctrl)}
+	f := &fixture{store: NewMockStore(ctrl), runs: NewMockRunner(ctrl), resolver: NewMockResolver(ctrl), facts: NewMockFacts(ctrl), prices: NewMockPrices(ctrl)}
 	f.outcomes = func(keys []gen.StatedKey) []gen.ResolutionKey {
 		out := make([]gen.ResolutionKey, len(keys))
 		for i, k := range keys {
@@ -157,11 +158,14 @@ func newFixture(t *testing.T) *fixture {
 		f.replayed = append(f.replayed, replayCall{stmt, except, written})
 		f.followed = append(f.followed, "follow-ups")
 	}).AnyTimes()
+	f.prices.EXPECT().AfterStmt(gomock.Any(), gomock.Any()).Do(func(context.Context, gen.Run) {
+		f.followed = append(f.followed, "prices")
+	}).AnyTimes()
 	f.store.EXPECT().SettleStmt(gomock.Any(), gomock.Any()).DoAndReturn(func(context.Context, uuid.UUID) error {
 		f.followed = append(f.followed, "settled")
 		return nil
 	}).AnyTimes()
-	f.svc = New(f.store, f.runs, f.resolver, f.facts, families, clock, slog.New(slog.DiscardHandler))
+	f.svc = New(f.store, f.runs, f.resolver, f.facts, f.prices, families, clock, slog.New(slog.DiscardHandler))
 	return f
 }
 
@@ -535,7 +539,7 @@ func TestReplaysNewFacts(t *testing.T) {
 	if len(f.replayed) != 1 || f.replayed[0].stmt.Kind != gen.RunKindIngestStmt || f.replayed[0].except.Kind != gen.RunKindResolveStmtKeys || !cmp.Equal(f.replayed[0].written, f.written) {
 		t.Errorf("follow-ups = %+v, want one of the ingest statement run, excepting the resolution, with its facts", f.replayed)
 	}
-	if diff := cmp.Diff([]string{"follow-ups", "settled"}, f.followed); diff != "" {
+	if diff := cmp.Diff([]string{"follow-ups", "prices", "settled"}, f.followed); diff != "" {
 		t.Errorf("calls after the write mismatch (-want +got):\n%s", diff)
 	}
 }

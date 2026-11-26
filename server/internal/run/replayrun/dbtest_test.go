@@ -86,7 +86,7 @@ func newStack(t *testing.T) *stack {
 	require.NoError(t, err)
 	resolver := resolve.New(db.New[resolve.Queries](tx), fetcher, s.sources, mics, families, clock, log)
 	s.svc = New(db.New[Queries](tx), runs, resolver, nopCorpActs{}, s.sources, mics, log)
-	s.stmts = stmt.New(db.New[stmt.Queries](tx), runs, resolver, s.svc, families, clock, log)
+	s.stmts = stmt.New(db.New[stmt.Queries](tx), runs, resolver, s.svc, nopPrices{}, families, clock, log)
 	return s
 }
 
@@ -510,3 +510,8 @@ func (s *stack) holdings(t *testing.T) (instrs, groups []holding) {
 type nopCorpActs struct{}
 
 func (nopCorpActs) FetchHeld(context.Context, gen.Run, refreshcorpacts.Scope) {}
+
+// nopPrices stands in for the fetch of prices that follows a statement.
+type nopPrices struct{}
+
+func (nopPrices) AfterStmt(context.Context, gen.Run) {}

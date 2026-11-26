@@ -77,7 +77,7 @@ func newStack(t *testing.T) stack {
 	require.NoError(t, err)
 	resolver := resolve.New(db.New[resolve.Queries](tx), market.NewFetcher(db.New[market.Queries](tx), runs, log), sources, mics, families, clock, log)
 	replays := replayrun.New(db.New[replayrun.Queries](tx), runs, resolver, nopCorpActs{}, sources, mics, log)
-	return stack{q: q, tx: tx, svc: New(db.New[Queries](tx), runs, resolver, replays, families, clock, log), user: user, alpha: alpha, alphaName: name}
+	return stack{q: q, tx: tx, svc: New(db.New[Queries](tx), runs, resolver, replays, nopPrices{}, families, clock, log), user: user, alpha: alpha, alphaName: name}
 }
 
 func (s stack) ingest(t *testing.T, msg *stmtv1.Stmt) gen.Run {
@@ -599,3 +599,9 @@ func (s *stack) keyOf(t *testing.T, stmt gen.Run) gen.StatedKey {
 type nopCorpActs struct{}
 
 func (nopCorpActs) FetchHeld(context.Context, gen.Run, refreshcorpacts.Scope) {}
+
+// nopPrices stands in for the fetch of prices. The fetchprices package tests
+// that fetch.
+type nopPrices struct{}
+
+func (nopPrices) AfterStmt(context.Context, gen.Run) {}
