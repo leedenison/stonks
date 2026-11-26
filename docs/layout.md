@@ -63,7 +63,8 @@ A package that belongs to none of these groups sits at the top of `internal/`.
 
 ```
 cli/
-  google/                the Google Sheets tool: its sign-in to Google and to the service
+  cmd/google/            the Google Sheets tool; `make build-google` builds it to ./google
+  google/                the steps of the tool: sign-in, the Sheets client, the formulas tab
 ```
 
 A tool reaches the service through its API alone. Go's `internal` rule keeps the

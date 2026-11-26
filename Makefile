@@ -100,6 +100,12 @@ stop: ## Stop the dev stack
 build: $(STAMP_DIR)/generate ## Build the server binary to ./stonks
 	$(COMPOSE_TOOLS) sh -c 'CGO_ENABLED=0 go build -buildvcs=false -ldflags "-X main.buildRevision=$(BUILD_REV)" -o stonks ./server/cmd/stonks'
 
+# The tool runs on the host and not in a container. A browser on the host
+# then reaches its sign-in redirect, and its state stays in the config
+# directory of the host user.
+build-google: $(STAMP_DIR)/generate ## Build the Google Sheets tool to ./google
+	$(COMPOSE_TOOLS) sh -c 'CGO_ENABLED=0 go build -buildvcs=false -o google ./cli/cmd/google'
+
 ##@ Checks
 
 check: fmt-check vet lint client-typecheck e2e-typecheck ## Run every non-test gate
@@ -187,8 +193,8 @@ e2e-record: ## Run the e2e suite against the provider, appending to the recordin
 
 ##@ Cleanup
 
-clean: ## Remove the binary and the stamps
-	rm -f stonks
+clean: ## Remove the binaries and the stamps
+	rm -f stonks google
 	rm -rf $(STAMP_DIR)
 
 # The stack holds the volume open, so it comes down first. --force leaves a
