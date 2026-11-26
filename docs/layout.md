@@ -23,7 +23,7 @@ proto/
   admin/coverage/v1/coverage.proto                                  stonks.admin.coverage.v1                 -- where each ticker's validity is confirmed, and identifier attestations of what no datasource covers
   admin/datasource/v1/datasource.proto                              stonks.admin.datasource.v1               -- the external providers and their settings
   admin/instr/v1/instr.proto                                        stonks.admin.instr.v1                    -- every instrument, with its identifiers and listings
-  admin/price/v1/price.proto                                        stonks.admin.price.v1                    -- the days of prices and rates that no datasource covers
+  admin/price/v1/price.proto                                        stonks.admin.price.v1                    -- the days of prices and rates that no datasource covers, and their upload from Google Sheets
   admin/replay_run/v1/replay_run.proto                              stonks.admin.replay_run.v1               -- replay runs, started by an administrator
   admin/run/v1/run.proto                                            stonks.admin.run.v1                      -- what runs did, across every user, and the system runs an administrator starts
   auth/v1/auth.proto                                                stonks.auth.v1                           -- sign in, session, sign out
