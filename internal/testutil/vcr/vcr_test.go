@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gopkg.in/dnaeon/go-vcr.v4/pkg/cassette"
 
-	"github.com/leedenison/stonks/server/internal/testutil/vcr"
+	"github.com/leedenison/stonks/internal/testutil/vcr"
 )
 
 // What the provider is given and what it hands back. Both are invented, and
@@ -246,6 +246,39 @@ func TestRedactFields(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			if got := redact(tc.body); got != tc.want {
 				t.Errorf("RedactFields(%s) = %s, want %s", tc.body, got, tc.want)
+			}
+		})
+	}
+}
+
+// TestRedactPath checks that a declared path rewrite reaches the URL and the
+// request URI of a saved request, beside the query redaction.
+func TestRedactPath(t *testing.T) {
+	scrub := vcr.Scrub{
+		Query: []string{"key"},
+		Path:  func(p string) string { return strings.ReplaceAll(p, "sheet-1", vcr.Placeholder) },
+		Body:  vcr.NoScrub.Body,
+	}
+	tests := []struct {
+		name  string
+		scrub vcr.Scrub
+		want  string
+	}{
+		{name: "a path rewrite", scrub: scrub, want: "https://provider.example/v4/sheets/REDACTED/values?key=REDACTED"},
+		{name: "none declared", scrub: vcr.Scrub{Query: []string{"key"}, Body: vcr.NoScrub.Body}, want: "https://provider.example/v4/sheets/sheet-1/values?key=REDACTED"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			i := &cassette.Interaction{}
+			i.Request.URL = "https://provider.example/v4/sheets/sheet-1/values?key=secret"
+			i.Request.RequestURI = "/v4/sheets/sheet-1/values?key=secret"
+			i.Request.Headers, i.Response.Headers = http.Header{}, http.Header{}
+			require.NoError(t, tc.scrub.Redact(i))
+			if i.Request.URL != tc.want {
+				t.Errorf("URL = %q, want %q", i.Request.URL, tc.want)
+			}
+			if want := strings.TrimPrefix(tc.want, "https://provider.example"); i.Request.RequestURI != want {
+				t.Errorf("RequestURI = %q, want %q", i.Request.RequestURI, want)
 			}
 		})
 	}

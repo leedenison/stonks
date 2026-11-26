@@ -83,7 +83,7 @@ linters:
           - forbidigo
       # The recorder is provisioned by STONKS_RECORD and by whatever variable
       # holds the credential of the provider being recorded.
-      - path: server/internal/testutil/
+      - path: internal/testutil/
         linters:
           - forbidigo
       # vcrproxy records with the credential in the variable its hosts file

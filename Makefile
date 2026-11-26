@@ -43,13 +43,20 @@ COMPOSE_TOOLS_CLIENT = $(COMPOSE_DEV) run --rm --no-deps -T client
 COMPOSE_TOOLS_E2E    = $(COMPOSE_DEV) run --rm --no-deps -T -w /app/e2e client
 COMPOSE_TESTER       = $(COMPOSE_TEST) run --rm -T tester
 
+# --- Go trees ---
+
+# Every tree of the module that holds Go code. Each Go gate and test covers
+# them all.
+GO_DIRS := server internal
+GO_PKGS := $(GO_DIRS:%=./%/...)
+
 # --- Generated code ---
 
 STAMP_DIR     := .stamps
 PROTO_FILES   := $(shell find proto -name '*.proto' 2>/dev/null)
 QUERY_SQL     := $(shell find server/internal/db/queries -name '*.sql' 2>/dev/null)
 MIGRATIONS    := $(shell find server/internal/db/migrations -name '*.sql' 2>/dev/null)
-GENERATE_GO   := $(shell grep -rl --include='*.go' '^//go:generate' server 2>/dev/null)
+GENERATE_GO   := $(shell grep -rl --include='*.go' '^//go:generate' $(GO_DIRS) 2>/dev/null)
 GENERATE_DEPS := $(PROTO_FILES) $(QUERY_SQL) $(MIGRATIONS) $(GENERATE_GO) \
                  $(wildcard buf.gen.go.yaml buf.gen.ts.yaml buf.gen.e2e.yaml sqlc.yaml go.mod client/package-lock.json)
 
@@ -69,7 +76,7 @@ ifneq ($(wildcard sqlc.yaml),)
 	$(COMPOSE_TOOLS) go tool sqlc generate
 endif
 ifneq ($(GENERATE_GO),)
-	$(COMPOSE_TOOLS) go generate ./server/...
+	$(COMPOSE_TOOLS) go generate $(GO_PKGS)
 endif
 	@touch $@
 
@@ -98,23 +105,23 @@ build: $(STAMP_DIR)/generate ## Build the server binary to ./stonks
 check: fmt-check vet lint client-typecheck e2e-typecheck ## Run every non-test gate
 
 fmt: $(STAMP_DIR)/generate ## Format Go with gofmt and TypeScript with Prettier
-	$(COMPOSE_TOOLS) gofmt -w ./server
+	$(COMPOSE_TOOLS) gofmt -w $(GO_DIRS)
 	$(COMPOSE_TOOLS_CLIENT) node_modules/.bin/prettier --write .
 	$(COMPOSE_TOOLS_E2E) node_modules/.bin/prettier --write .
 
 # gofmt -l lists unformatted files and still exits 0.
 fmt-check: $(STAMP_DIR)/generate ## Fail if any file is not formatted
-	@$(COMPOSE_TOOLS) sh -c 'out=$$(gofmt -l ./server); [ -z "$$out" ] || { echo "$$out"; echo "gofmt: run make fmt"; exit 1; }'
+	@$(COMPOSE_TOOLS) sh -c 'out=$$(gofmt -l $(GO_DIRS)); [ -z "$$out" ] || { echo "$$out"; echo "gofmt: run make fmt"; exit 1; }'
 	$(COMPOSE_TOOLS_CLIENT) node_modules/.bin/prettier --check .
 	$(COMPOSE_TOOLS_E2E) node_modules/.bin/prettier --check .
 
-vet: $(STAMP_DIR)/generate ## go vet over the server tree
-	$(COMPOSE_TOOLS) go vet -tags dbtest ./server/...
+vet: $(STAMP_DIR)/generate ## go vet over the Go trees
+	$(COMPOSE_TOOLS) go vet -tags dbtest $(GO_PKGS)
 
 lint: lint-go lint-proto lint-ts ## Lint every tree
 
-lint-go: $(STAMP_DIR)/generate ## golangci-lint over the server tree
-	$(COMPOSE_TOOLS) go tool golangci-lint run ./server/...
+lint-go: $(STAMP_DIR)/generate ## golangci-lint over the Go trees
+	$(COMPOSE_TOOLS) go tool golangci-lint run $(GO_PKGS)
 
 lint-proto: ## buf lint over the proto tree
 	$(COMPOSE_TOOLS) go tool buf lint
@@ -137,18 +144,18 @@ e2e-typecheck: $(STAMP_DIR)/generate ## Typecheck the e2e suite
 # dupl covers Go and jscpd covers TypeScript, both at 75 tokens. jscpd skips
 # what .gitignore lists, which includes the generated code.
 dupes: $(STAMP_DIR)/generate ## List duplicated code for the quality review
-	$(COMPOSE_TOOLS) go tool golangci-lint run --enable-only dupl --issues-exit-code=0 --show-stats=false ./server/...
+	$(COMPOSE_TOOLS) go tool golangci-lint run --enable-only dupl --issues-exit-code=0 --show-stats=false $(GO_PKGS)
 	$(COMPOSE_TOOLS_ROOT) sh -c 'out=$$(client/node_modules/.bin/jscpd --min-tokens 75 --format typescript,tsx,javascript --ignore "**/*.d.ts" --absolute --no-colors client e2e) || exit; echo "$$out" | sed "s| /app/| |"'
 
 ##@ Tests
 
-DBTEST_PKGS := $(shell grep -rl --include='*_test.go' '^//go:build dbtest' server 2>/dev/null \
+DBTEST_PKGS := $(shell grep -rl --include='*_test.go' '^//go:build dbtest' $(GO_DIRS) 2>/dev/null \
                  | xargs -r -n1 dirname | sort -u | sed 's|^|./|')
 
 test: server-test client-test db-test ## Run the unit, client and integration tests
 
 server-test: $(STAMP_DIR)/generate ## Go unit tests, with recorded HTTP replayed
-	$(COMPOSE_TOOLS) go test ./server/...
+	$(COMPOSE_TOOLS) go test $(GO_PKGS)
 
 client-test: $(STAMP_DIR)/generate ## Client unit tests
 	$(COMPOSE_TOOLS_CLIENT) npm run test:run
@@ -163,7 +170,7 @@ db-test: $(STAMP_DIR)/generate ## Go tests against real Postgres and Redis in th
 # own recording cannot rewrite the case built against it.
 record: $(STAMP_DIR)/generate ## Re-record one cassette: make record CASSETTE=<name>
 	@[ -n "$(CASSETTE)" ] || { echo "usage: make record CASSETTE=<name>"; exit 1; }
-	$(COMPOSE_TEST) run --rm --no-deps -T -e STONKS_RECORD=$(CASSETTE) tester go test -count=1 ./server/...
+	$(COMPOSE_TEST) run --rm --no-deps -T -e STONKS_RECORD=$(CASSETTE) tester go test -count=1 $(GO_PKGS)
 
 e2e-test: $(STAMP_DIR)/generate ## Playwright against the full stack on shifted ports
 	@$(COMPOSE_E2E) --profile test down --remove-orphans 2>/dev/null; \

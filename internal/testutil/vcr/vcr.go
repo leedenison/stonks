@@ -45,6 +45,10 @@ var droppedResponseHeaders = []string{"Set-Cookie"}
 type Scrub struct {
 	// Query names the query parameters replaced with Placeholder.
 	Query []string
+	// Path rewrites the path of a request URL, for a provider whose paths
+	// carry an identifier that must not reach disk. Nil keeps the path. A
+	// replay then asks for the rewritten path.
+	Path func(string) string
 	// ResponseHeaders names response headers dropped from the recording.
 	ResponseHeaders []string
 	// Body rewrites a request or response body. It is mandatory: a client
@@ -155,8 +159,8 @@ func (s Scrub) Redact(i *cassette.Interaction) error {
 		}
 	}
 
-	i.Request.URL = s.redactQuery(i.Request.URL)
-	i.Request.RequestURI = s.redactQuery(i.Request.RequestURI)
+	i.Request.URL = s.redactURL(i.Request.URL)
+	i.Request.RequestURI = s.redactURL(i.Request.RequestURI)
 	for _, name := range s.Query {
 		if _, ok := i.Request.Form[name]; ok {
 			i.Request.Form[name] = []string{Placeholder}
@@ -189,10 +193,10 @@ func resize(h http.Header, body string) int64 {
 	return n
 }
 
-// redactQuery replaces the declared query parameters in raw. A URL it cannot
-// parse is emptied rather than kept, so an unreadable one cannot carry a
-// credential to disk.
-func (s Scrub) redactQuery(raw string) string {
+// redactURL replaces the declared query parameters in raw and rewrites its
+// path. A URL it cannot parse is emptied rather than kept, so an unreadable
+// one cannot carry a credential to disk.
+func (s Scrub) redactURL(raw string) string {
 	if raw == "" {
 		return raw
 	}
@@ -207,6 +211,9 @@ func (s Scrub) redactQuery(raw string) string {
 		}
 	}
 	u.RawQuery = q.Encode()
+	if s.Path != nil {
+		u.Path, u.RawPath = s.Path(u.Path), ""
+	}
 	return u.String()
 }
 

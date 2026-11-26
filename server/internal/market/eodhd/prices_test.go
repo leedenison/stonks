@@ -13,8 +13,8 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 
+	"github.com/leedenison/stonks/internal/testutil/vcr"
 	"github.com/leedenison/stonks/server/internal/market"
-	"github.com/leedenison/stonks/server/internal/testutil/vcr"
 	"github.com/leedenison/stonks/server/internal/types"
 )
 
