@@ -22,6 +22,7 @@ import (
 	"github.com/leedenison/stonks/proto/admin/coverage/v1/admincoveragev1connect"
 	"github.com/leedenison/stonks/proto/admin/datasource/v1/admindatasourcev1connect"
 	"github.com/leedenison/stonks/proto/admin/instr/v1/admininstrv1connect"
+	"github.com/leedenison/stonks/proto/admin/price/v1/adminpricev1connect"
 	"github.com/leedenison/stonks/proto/admin/replay_run/v1/adminreplayrunv1connect"
 	"github.com/leedenison/stonks/proto/admin/run/v1/adminrunv1connect"
 	"github.com/leedenison/stonks/proto/auth/v1/authv1connect"
@@ -49,6 +50,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/platform/logger"
 	"github.com/leedenison/stonks/server/internal/platform/rdb"
 	"github.com/leedenison/stonks/server/internal/platform/telemetry"
+	"github.com/leedenison/stonks/server/internal/price"
 	runner "github.com/leedenison/stonks/server/internal/run"
 	"github.com/leedenison/stonks/server/internal/run/reasserttickers"
 	"github.com/leedenison/stonks/server/internal/run/rebuildtickervalidity"
@@ -61,6 +63,7 @@ import (
 	admincoverage "github.com/leedenison/stonks/server/internal/service/admin/coverage"
 	admindatasource "github.com/leedenison/stonks/server/internal/service/admin/datasource"
 	admininstr "github.com/leedenison/stonks/server/internal/service/admin/instr"
+	adminprice "github.com/leedenison/stonks/server/internal/service/admin/price"
 	adminreplayrun "github.com/leedenison/stonks/server/internal/service/admin/replayrun"
 	adminrun "github.com/leedenison/stonks/server/internal/service/admin/run"
 	authsvc "github.com/leedenison/stonks/server/internal/service/auth"
@@ -198,7 +201,7 @@ func run() (err error) {
 	}
 	datasources := admindatasource.New(queries, sources, datasource.New(db.New[datasource.Queries](pool), sources, cache, rebuilds))
 	coverages := coverage.New(queries, mics)
-	srv, err := newServer(cfg.ListenAddr, log, authn, queries, holdingsvc.New(queries, families, scales, time.Now), adminrun.New(queries, starters), adminblock.New(queries), admincorpact.New(queries), datasources, admininstr.New(queries), adminreplayrun.New(queries, replays), admincoverage.New(coverages, attestidentifier.New(db.New[attestidentifier.Queries](pool), runs, replays, mics, time.Now), time.Now), adminalert.New(queries, coverages, time.Now), ingester, cfg.CookieSecure)
+	srv, err := newServer(cfg.ListenAddr, log, authn, queries, holdingsvc.New(queries, families, scales, time.Now), adminrun.New(queries, starters), adminblock.New(queries), admincorpact.New(queries), datasources, admininstr.New(queries), adminreplayrun.New(queries, replays), admincoverage.New(coverages, attestidentifier.New(db.New[attestidentifier.Queries](pool), runs, replays, mics, time.Now), time.Now), adminalert.New(queries, coverages, time.Now), adminprice.New(queries, price.NewDemand(queries, families, time.Now), sources), ingester, cfg.CookieSecure)
 	if err != nil {
 		return err
 	}
@@ -228,7 +231,7 @@ func tracedClient(timeout time.Duration) *http.Client {
 // once the server listens, which is after the migrations have applied. It is
 // outside the Connect chain and the mux carries no HTTP instrumentation, so
 // the container probing it every two seconds produces no telemetry.
-func newServer(addr string, log *slog.Logger, authn *auth.Authenticator, queries *gen.Queries, holdings *holdingsvc.Server, runs *adminrun.Server, blocks *adminblock.Server, corpActs *admincorpact.Server, datasources *admindatasource.Server, instrs *admininstr.Server, replays *adminreplayrun.Server, coverages *admincoverage.Server, alerts *adminalert.Server, stmts *stmt.Service, secure bool) (*http.Server, error) {
+func newServer(addr string, log *slog.Logger, authn *auth.Authenticator, queries *gen.Queries, holdings *holdingsvc.Server, runs *adminrun.Server, blocks *adminblock.Server, corpActs *admincorpact.Server, datasources *admindatasource.Server, instrs *admininstr.Server, replays *adminreplayrun.Server, coverages *admincoverage.Server, alerts *adminalert.Server, prices *adminprice.Server, stmts *stmt.Service, secure bool) (*http.Server, error) {
 	opts, err := service.HandlerOptions(logger.WithCategory(log, "internal/service"), authn)
 	if err != nil {
 		return nil, err
@@ -243,6 +246,7 @@ func newServer(addr string, log *slog.Logger, authn *auth.Authenticator, queries
 	mux.Handle(admincoveragev1connect.NewCoverageServiceHandler(coverages, opts...))
 	mux.Handle(admindatasourcev1connect.NewDatasourceServiceHandler(datasources, opts...))
 	mux.Handle(admininstrv1connect.NewInstrServiceHandler(instrs, opts...))
+	mux.Handle(adminpricev1connect.NewPriceServiceHandler(prices, opts...))
 	mux.Handle(adminreplayrunv1connect.NewReplayRunServiceHandler(replays, opts...))
 	mux.Handle(adminrunv1connect.NewRunServiceHandler(runs, opts...))
 	mux.Handle(authv1connect.NewAuthServiceHandler(authsvc.New(authn, secure), opts...))
@@ -250,7 +254,7 @@ func newServer(addr string, log *slog.Logger, authn *auth.Authenticator, queries
 	mux.Handle(runv1connect.NewRunServiceHandler(runsvc.New(queries), opts...))
 	mux.Handle(stmtv1connect.NewStmtServiceHandler(stmtsvc.New(stmts, stmts, queries), opts...))
 	reflector := grpcreflect.NewStaticReflector(
-		adminalertv1connect.AlertServiceName, adminblockv1connect.BlockServiceName, admincorpactv1connect.CorpActServiceName, admincoveragev1connect.CoverageServiceName, admindatasourcev1connect.DatasourceServiceName, admininstrv1connect.InstrServiceName, adminreplayrunv1connect.ReplayRunServiceName, adminrunv1connect.RunServiceName, authv1connect.AuthServiceName, holdingv1connect.HoldingServiceName,
+		adminalertv1connect.AlertServiceName, adminblockv1connect.BlockServiceName, admincorpactv1connect.CorpActServiceName, admincoveragev1connect.CoverageServiceName, admindatasourcev1connect.DatasourceServiceName, admininstrv1connect.InstrServiceName, adminpricev1connect.PriceServiceName, adminreplayrunv1connect.ReplayRunServiceName, adminrunv1connect.RunServiceName, authv1connect.AuthServiceName, holdingv1connect.HoldingServiceName,
 		runv1connect.RunServiceName, stmtv1connect.StmtServiceName,
 	)
 	mux.Handle(grpcreflect.NewHandlerV1(reflector, opts...))

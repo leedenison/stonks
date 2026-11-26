@@ -1,0 +1,41 @@
+// The days of end of day prices and rates that no datasource covers, for the
+// tool through which an administrator fills them from Google Sheets.
+
+syntax = "proto3";
+
+package stonks.admin.price.v1;
+
+import "type/v1/type.proto";
+
+option go_package = "github.com/leedenison/stonks/proto/admin/price/v1;adminpricev1";
+
+// The days of one listing whose prices the system needs and that no
+// datasource covers. The rate of a currency is the price of its USD listing.
+message PriceGap {
+  string listing_id = 1;
+  // The current ticker of the listing at its venue, or the currency of a rate.
+  stonks.type.v1.Identifier identifier = 2;
+  repeated stonks.type.v1.Period periods = 3;
+}
+
+// A listing that has a gap and lacks a current ticker, so no datasource can
+// be asked for it.
+message UnaskedListing {
+  string listing_id = 1;
+  string instr_id = 2;
+  // The currency family of the listing.
+  string currency = 3;
+}
+
+message ListPriceGapsRequest {}
+
+message ListPriceGapsResponse {
+  repeated PriceGap gaps = 1;
+  repeated UnaskedListing unasked = 2;
+}
+
+service PriceService {
+  // Lists every gap, across every user. It fails with FAILED_PRECONDITION
+  // while the Google Sheets datasource is absent or disabled.
+  rpc ListPriceGaps(ListPriceGapsRequest) returns (ListPriceGapsResponse);
+}
