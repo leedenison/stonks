@@ -20,8 +20,8 @@ import (
 // syncs has the runner execute a synchronous run inline and record its row.
 func (f *fixture) syncs() *gen.Run {
 	var row gen.Run
-	f.runs.EXPECT().Sync(gomock.Any(), userID, gen.RunKindResolveStmtKeys, gen.RunTriggerUser, gomock.Any()).DoAndReturn(func(ctx context.Context, user uuid.UUID, kind gen.RunKind, trigger gen.RunTrigger, work run.Work) (gen.Run, error) {
-		row = gen.Run{ID: db.NewID(), UserID: &user, Kind: kind, Trigger: trigger}
+	f.runs.EXPECT().Sync(gomock.Any(), &userID, gen.RunKindResolveStmtKeys, gen.RunTriggerUser, gomock.Any()).DoAndReturn(func(ctx context.Context, user *uuid.UUID, kind gen.RunKind, trigger gen.RunTrigger, work run.Work) (gen.Run, error) {
+		row = gen.Run{ID: db.NewID(), UserID: user, Kind: kind, Trigger: trigger}
 		return row, work(ctx, row)
 	}).AnyTimes()
 	return &row

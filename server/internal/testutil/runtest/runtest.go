@@ -49,9 +49,9 @@ func (r Runner) ChildAs(ctx context.Context, parent gen.Run, user *uuid.UUID, ki
 }
 
 // Sync runs work to completion, as a run of user with trigger, before it
-// returns.
-func (r Runner) Sync(ctx context.Context, user uuid.UUID, kind gen.RunKind, trigger gen.RunTrigger, work run.Work) (gen.Run, error) {
-	row, err := r.Q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &user, Kind: kind, Trigger: trigger})
+// returns. A nil user records a system run.
+func (r Runner) Sync(ctx context.Context, user *uuid.UUID, kind gen.RunKind, trigger gen.RunTrigger, work run.Work) (gen.Run, error) {
+	row, err := r.Q.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: user, Kind: kind, Trigger: trigger})
 	if err != nil {
 		return row, err
 	}

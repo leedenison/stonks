@@ -17,8 +17,15 @@ through the API, but it cannot read their values.
 ## The datasource
 
 Every price references a datasource and a fetch key. Google Sheets therefore has a row
-in `datasources`, and its integration lacks the price capability, so a fetch run passes
-over it. Each upload records a run and a fetch key of its own.
+in `datasources`, and its integration lacks every capability, so each run passes over
+it.
+
+Each upload records an upload prices run. It is a system run, so the prices outlive the
+account of the administrator. A datasource fetch run beneath it holds one fetch key for
+each series stored. The fetch key of a security records the symbol Google answered, as
+a datasource ticker of Google Sheets. The fetch key of a rate records the currency, as
+the other price clients record it. Each fetch key is answered at the start of the day
+of the evaluation. A series that the server refuses leaves no fetch key.
 
 ## The "as at" date
 
@@ -29,7 +36,14 @@ The tool cannot see the day of the evaluation, which falls somewhere between its
 and its read. The formulas tab therefore carries one `=TODAY()` cell. The paste turns it
 into a fixed date, and the tool states that date as the "as at" date of every price in
 the tab. The tool sets the time zone of the spreadsheet when it creates it, so the date
-does not depend on the locale of the administrator. A rate is stated as at its own date.
+does not depend on the locale of the administrator.
+
+A rate is stored as at its own date. The server applies that rule at the upload, because
+a currency never splits, whatever Google serves. See
+[001](001-a-price-attaches-to-a-listing-and-an-fx-rate-is-a-price.md). The upload
+therefore carries the "as at" date once, and the server refuses a date later than the
+current UTC day. Coverage ends before the "as at" date, since the close of that day may
+be unpublished.
 
 ## The ticker
 

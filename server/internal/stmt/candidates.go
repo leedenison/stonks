@@ -23,7 +23,7 @@ func (s *Service) Candidates(ctx context.Context, user, key uuid.UUID) (resolve.
 		return resolve.Offer{}, err
 	}
 	var offer resolve.Offer
-	_, err = s.runs.Sync(ctx, user, gen.RunKindResolveStmtKeys, gen.RunTriggerUser, func(ctx context.Context, run gen.Run) error {
+	_, err = s.runs.Sync(ctx, &user, gen.RunKindResolveStmtKeys, gen.RunTriggerUser, func(ctx context.Context, run gen.Run) error {
 		var err error
 		offer, err = s.resolver.Candidates(ctx, run, row)
 		return err
@@ -43,7 +43,7 @@ func (s *Service) Confirm(ctx context.Context, user, key uuid.UUID, p resolve.Pi
 	}
 	var rk gen.ResolutionKey
 	var written []resolve.WrittenIdentifierFacts
-	run, err := s.runs.Sync(ctx, user, gen.RunKindResolveStmtKeys, gen.RunTriggerUser, func(ctx context.Context, run gen.Run) error {
+	run, err := s.runs.Sync(ctx, &user, gen.RunKindResolveStmtKeys, gen.RunTriggerUser, func(ctx context.Context, run gen.Run) error {
 		var err error
 		rk, written, err = s.resolver.Confirm(ctx, run, row, p)
 		return err

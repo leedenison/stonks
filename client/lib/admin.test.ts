@@ -75,6 +75,9 @@ describe("admin", () => {
     expect(
       runLabel(create(RunSchema, { ...run, kind: RunKind.REPLAY_RUN })),
     ).toBe("replay run @ 2026-09-24 10:00 UTC");
+    expect(
+      runLabel(create(RunSchema, { ...run, kind: RunKind.UPLOAD_PRICES })),
+    ).toBe("upload prices @ 2026-09-24 10:00 UTC");
     expect(runLabel(undefined)).toBe("run");
   });
 
