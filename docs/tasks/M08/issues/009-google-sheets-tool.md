@@ -34,14 +34,30 @@ Tool:
 * The Sheets API is replayed from recorded traffic, as the datasource clients are.
 * The values tab of a test is a fixture, since the paste is a manual step.
 
-## Facts to verify
+## Facts verified
 
-* That GOOGLEFINANCE closes are adjusted for splits on the ex date and are free of any
-  dividend adjustment.
-* How GOOGLEFINANCE answers a wrong exchange code for a ticker.
-* How Google spells a share class, such as `BRK.B`.
-* That a `CURRENCY:` pair answers over history, and its quote direction.
-* The date in a row for a listing in Asia, given that Google treats a requested date as
-  noon UTC.
-* That values pasted from a tab of historical GOOGLEFINANCE formulas read back through
-  the API.
+Each fact was read from a spreadsheet the tool created, on 2026-11-26.
+
+* GOOGLEFINANCE closes are adjusted for splits and are free of any dividend adjustment.
+  Google serves 124.81 for AAPL on 2020-08-28, where the stock closed at 499.23 before a
+  4 for 1 split.
+* A wrong exchange code for a ticker, and an unknown ticker, each show `#N/A` in place
+  of the header of the answer.
+* Google spells a share class with a dot, as `NYSE:BRK.B`. `BRK-B` and `BRK/B` show
+  `#N/A`.
+* A `CURRENCY:` pair answers over history under `price` and under `close`. `GBPUSD` is
+  the number of USD that one GBP buys. The `currency` attribute fails for a pair, so the
+  tool states USD.
+* A row carries the close of its session in the local time of the exchange, so its day
+  is the day of the session. Hong Kong and Seoul need no shift. Google refuses to serve
+  Tokyo to Google Sheets.
+* Values pasted from a tab of historical formulas read back through the API. The
+  formulas themselves read back as values at some times and as `#N/A` at others.
+* The header of an answer is `Date` and `Close`, under either attribute.
+* The start date of a formula is inclusive. The end date is inclusive for a security
+  and exclusive for a pair.
+* Google keeps the time zone `Etc/GMT`, and the date cell follows it.
+* A refresh of the OAuth token returns a new identity token.
+* Google lists a Cboe BZX security under `BATS`, a Toronto one under `TSE`, and a Hong
+  Kong one under its four digit code, as `HKG:0700`.
+* London is quoted in pence, and its `currency` cell states `GBX`.

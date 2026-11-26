@@ -113,11 +113,11 @@ func periodOf(p *typev1.Period) (period, error) {
 }
 
 // rows returns how many rows of a tab the block needs: its header rows, the
-// header of the answer, and one row for each day asked, since a rate has a
-// row for every calendar day.
+// header of the answer, and one row for each day from the first asked to the
+// end date of the formula, since a rate has a row for every calendar day.
 func (b block) rows(today time.Time) int {
 	asked, _ := b.asked(today)
-	return seriesRow + 2 + int(asked.Before.Sub(asked.From).Hours()/24)
+	return seriesRow + 3 + int(asked.Before.Sub(asked.From).Hours()/24)
 }
 
 // size returns the grid that holds the blocks: the rows of the longest and
@@ -224,8 +224,11 @@ func cells(blocks []block, today time.Time) [][]any {
 		out[symbolRow][c], out[symbolRow][c+1] = "symbol", text(b.Symbol)
 		out[periodsRow][c], out[periodsRow][c+1] = "periods", text(strings.Join(ps, " "))
 		out[currencyRow][c], out[currencyRow][c+1] = "currency", currency
-		// GOOGLEFINANCE takes its end date as the last day to answer for.
-		out[seriesRow][c] = fmt.Sprintf(`=GOOGLEFINANCE(%q,%q,%s,%s,"DAILY")`, b.Symbol, attribute, date(asked.From), date(asked.Before.AddDate(0, 0, -1)))
+		// Google answers a security through its end date and a rate only to
+		// the day before it. The formula gives the day after the last it
+		// needs as its end, which serves both. A row on that day is outside
+		// the gaps, and the read step leaves it out.
+		out[seriesRow][c] = fmt.Sprintf(`=GOOGLEFINANCE(%q,%q,%s,%s,"DAILY")`, b.Symbol, attribute, date(asked.From), date(asked.Before))
 	}
 	return out
 }

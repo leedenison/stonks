@@ -1,0 +1,1057 @@
+---
+version: 2
+interactions:
+    - id: 0
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 166
+        host: sheets.googleapis.com
+        body: '{"properties":{"title":"Stonks prices","timeZone":"Etc/GMT"},"sheets":[{"properties":{"sheetId":1,"title":"formulas"}},{"properties":{"sheetId":2,"title":"values"}}]}'
+        headers:
+            Content-Type:
+                - application/json
+        url: https://sheets.googleapis.com/v4/spreadsheets
+        method: POST
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 3432
+        uncompressed: true
+        body: |
+            {
+              "spreadsheetId": "REDACTED",
+              "properties": {
+                "title": "Stonks prices",
+                "locale": "en_GB",
+                "autoRecalc": "ON_CHANGE",
+                "timeZone": "Etc/GMT",
+                "defaultFormat": {
+                  "backgroundColor": {
+                    "red": 1,
+                    "green": 1,
+                    "blue": 1
+                  },
+                  "padding": {
+                    "top": 2,
+                    "right": 3,
+                    "bottom": 2,
+                    "left": 3
+                  },
+                  "verticalAlignment": "BOTTOM",
+                  "wrapStrategy": "OVERFLOW_CELL",
+                  "textFormat": {
+                    "foregroundColor": {},
+                    "fontFamily": "arial,sans,sans-serif",
+                    "fontSize": 10,
+                    "bold": false,
+                    "italic": false,
+                    "strikethrough": false,
+                    "underline": false,
+                    "foregroundColorStyle": {
+                      "rgbColor": {}
+                    }
+                  },
+                  "backgroundColorStyle": {
+                    "rgbColor": {
+                      "red": 1,
+                      "green": 1,
+                      "blue": 1
+                    }
+                  }
+                },
+                "spreadsheetTheme": {
+                  "primaryFontFamily": "Arial",
+                  "themeColors": [
+                    {
+                      "colorType": "TEXT",
+                      "color": {
+                        "rgbColor": {}
+                      }
+                    },
+                    {
+                      "colorType": "BACKGROUND",
+                      "color": {
+                        "rgbColor": {
+                          "red": 1,
+                          "green": 1,
+                          "blue": 1
+                        }
+                      }
+                    },
+                    {
+                      "colorType": "ACCENT1",
+                      "color": {
+                        "rgbColor": {
+                          "red": 0.25882354,
+                          "green": 0.52156866,
+                          "blue": 0.95686275
+                        }
+                      }
+                    },
+                    {
+                      "colorType": "ACCENT2",
+                      "color": {
+                        "rgbColor": {
+                          "red": 0.91764706,
+                          "green": 0.2627451,
+                          "blue": 0.20784314
+                        }
+                      }
+                    },
+                    {
+                      "colorType": "ACCENT3",
+                      "color": {
+                        "rgbColor": {
+                          "red": 0.9843137,
+                          "green": 0.7372549,
+                          "blue": 0.015686275
+                        }
+                      }
+                    },
+                    {
+                      "colorType": "ACCENT4",
+                      "color": {
+                        "rgbColor": {
+                          "red": 0.20392157,
+                          "green": 0.65882355,
+                          "blue": 0.3254902
+                        }
+                      }
+                    },
+                    {
+                      "colorType": "ACCENT5",
+                      "color": {
+                        "rgbColor": {
+                          "red": 1,
+                          "green": 0.42745098,
+                          "blue": 0.003921569
+                        }
+                      }
+                    },
+                    {
+                      "colorType": "ACCENT6",
+                      "color": {
+                        "rgbColor": {
+                          "red": 0.27450982,
+                          "green": 0.7411765,
+                          "blue": 0.7764706
+                        }
+                      }
+                    },
+                    {
+                      "colorType": "LINK",
+                      "color": {
+                        "rgbColor": {
+                          "red": 0.06666667,
+                          "green": 0.33333334,
+                          "blue": 0.8
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              "sheets": [
+                {
+                  "properties": {
+                    "sheetId": 1,
+                    "title": "formulas",
+                    "index": 0,
+                    "sheetType": "GRID",
+                    "gridProperties": {
+                      "rowCount": 1000,
+                      "columnCount": 26
+                    }
+                  }
+                },
+                {
+                  "properties": {
+                    "sheetId": 2,
+                    "title": "values",
+                    "index": 1,
+                    "sheetType": "GRID",
+                    "gridProperties": {
+                      "rowCount": 1000,
+                      "columnCount": 26
+                    }
+                  }
+                }
+              ],
+              "spreadsheetUrl": "REDACTED"
+            }
+        headers:
+            Alt-Svc:
+                - h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+            Content-Type:
+                - application/json; charset=UTF-8
+            Date:
+                - Thu, 26 Nov 2026 11:12:53 GMT
+            Server:
+                - ESF
+            Vary:
+                - Origin
+                - X-Origin
+                - Referer
+            X-Content-Type-Options:
+                - nosniff
+            X-Frame-Options:
+                - SAMEORIGIN
+            X-L2-Request-Path:
+                - l2-managed-6
+            X-Xss-Protection:
+                - "0"
+        status: 200 OK
+        code: 200
+        duration: 813.350448ms
+    - id: 1
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 32
+        host: sheets.googleapis.com
+        body: '{"ranges":["formulas","values"]}'
+        headers:
+            Content-Type:
+                - application/json
+        url: https://sheets.googleapis.com/v4/spreadsheets/REDACTED/values:batchClear
+        method: POST
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 107
+        uncompressed: true
+        body: |
+            {
+              "spreadsheetId": "REDACTED",
+              "clearedRanges": [
+                "formulas!A1:Z1000",
+                "values!A1:Z1000"
+              ]
+            }
+        headers:
+            Alt-Svc:
+                - h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+            Content-Type:
+                - application/json; charset=UTF-8
+            Date:
+                - Thu, 26 Nov 2026 11:12:54 GMT
+            Server:
+                - ESF
+            Vary:
+                - Origin
+                - X-Origin
+                - Referer
+            X-Content-Type-Options:
+                - nosniff
+            X-Frame-Options:
+                - SAMEORIGIN
+            X-L2-Request-Path:
+                - l2-managed-6
+            X-Xss-Protection:
+                - "0"
+        status: 200 OK
+        code: 200
+        duration: 1.144883095s
+    - id: 2
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 320
+        host: sheets.googleapis.com
+        body: '{"requests":[{"updateSheetProperties":{"fields":"gridProperties(rowCount,columnCount)","properties":{"sheetId":1,"gridProperties":{"rowCount":34,"columnCount":14}}}},{"updateSheetProperties":{"fields":"gridProperties(rowCount,columnCount)","properties":{"sheetId":2,"gridProperties":{"rowCount":34,"columnCount":14}}}}]}'
+        headers:
+            Content-Type:
+                - application/json
+        url: https://sheets.googleapis.com/v4/spreadsheets/REDACTED:batchUpdate
+        method: POST
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 117
+        uncompressed: true
+        body: |
+            {
+              "spreadsheetId": "REDACTED",
+              "replies": [
+                {},
+                {}
+              ],
+              "commentUpdateState": "NO_UPDATES_REQUESTED"
+            }
+        headers:
+            Alt-Svc:
+                - h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+            Content-Type:
+                - application/json; charset=UTF-8
+            Date:
+                - Thu, 26 Nov 2026 11:12:55 GMT
+            Server:
+                - ESF
+            Vary:
+                - Origin
+                - X-Origin
+                - Referer
+            X-Content-Type-Options:
+                - nosniff
+            X-Frame-Options:
+                - SAMEORIGIN
+            X-L2-Request-Path:
+                - l2-managed-6
+            X-Xss-Protection:
+                - "0"
+        status: 200 OK
+        code: 200
+        duration: 839.644127ms
+    - id: 3
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 1918
+        host: sheets.googleapis.com
+        body: '{"data":[{"range":"formulas!A1","values":[["=TODAY()","","","","","","","","","","","","",""],["listing","''00000000-0000-0000-0000-0000000000a1","listing","''00000000-0000-0000-0000-0000000000a2","listing","''00000000-0000-0000-0000-0000000000a2","listing","''00000000-0000-0000-0000-0000000000a2","listing","''00000000-0000-0000-0000-0000000000a3","listing","''00000000-0000-0000-0000-0000000000a4","listing","''00000000-0000-0000-0000-0000000000a5"],["symbol","''NASDAQ:AMZN","symbol","''NYSE:IBM","symbol","''NYSEARCA:IBM","symbol","''NYSEAMERICAN:IBM","symbol","''LON:VOD","symbol","''CURRENCY:GBPUSD","symbol","''NASDAQ:ZZZZQX"],["periods","''2026-11-07/2026-11-14","periods","''2026-11-02/2026-11-14","periods","''2026-11-02/2026-11-14","periods","''2026-11-02/2026-11-14","periods","''2026-11-02/2026-11-14","periods","''2026-11-02/2026-11-14","periods","''2026-11-02/2026-11-14"],["currency","=GOOGLEFINANCE(\"NASDAQ:AMZN\",\"currency\")","currency","=GOOGLEFINANCE(\"NYSE:IBM\",\"currency\")","currency","=GOOGLEFINANCE(\"NYSEARCA:IBM\",\"currency\")","currency","=GOOGLEFINANCE(\"NYSEAMERICAN:IBM\",\"currency\")","currency","=GOOGLEFINANCE(\"LON:VOD\",\"currency\")","currency","''USD","currency","=GOOGLEFINANCE(\"NASDAQ:ZZZZQX\",\"currency\")"],["=GOOGLEFINANCE(\"NASDAQ:AMZN\",\"close\",DATE(2026,10,31),DATE(2026,11,21),\"DAILY\")","","=GOOGLEFINANCE(\"NYSE:IBM\",\"close\",DATE(2026,10,26),DATE(2026,11,21),\"DAILY\")","","=GOOGLEFINANCE(\"NYSEARCA:IBM\",\"close\",DATE(2026,10,26),DATE(2026,11,21),\"DAILY\")","","=GOOGLEFINANCE(\"NYSEAMERICAN:IBM\",\"close\",DATE(2026,10,26),DATE(2026,11,21),\"DAILY\")","","=GOOGLEFINANCE(\"LON:VOD\",\"close\",DATE(2026,10,26),DATE(2026,11,21),\"DAILY\")","","=GOOGLEFINANCE(\"CURRENCY:GBPUSD\",\"price\",DATE(2026,10,26),DATE(2026,11,21),\"DAILY\")","","=GOOGLEFINANCE(\"NASDAQ:ZZZZQX\",\"close\",DATE(2026,10,26),DATE(2026,11,21),\"DAILY\")",""]]}],"valueInputOption":"USER_ENTERED"}'
+        headers:
+            Content-Type:
+                - application/json
+        url: https://sheets.googleapis.com/v4/spreadsheets/REDACTED/values:batchUpdate
+        method: POST
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 328
+        uncompressed: true
+        body: |
+            {
+              "spreadsheetId": "REDACTED",
+              "totalUpdatedRows": 6,
+              "totalUpdatedColumns": 14,
+              "totalUpdatedCells": 84,
+              "totalUpdatedSheets": 1,
+              "responses": [
+                {
+                  "spreadsheetId": "REDACTED",
+                  "updatedRange": "formulas!A1:N6",
+                  "updatedRows": 6,
+                  "updatedColumns": 14,
+                  "updatedCells": 84
+                }
+              ]
+            }
+        headers:
+            Alt-Svc:
+                - h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+            Content-Type:
+                - application/json; charset=UTF-8
+            Date:
+                - Thu, 26 Nov 2026 11:12:55 GMT
+            Server:
+                - ESF
+            Vary:
+                - Origin
+                - X-Origin
+                - Referer
+            X-Content-Type-Options:
+                - nosniff
+            X-Frame-Options:
+                - SAMEORIGIN
+            X-L2-Request-Path:
+                - l2-managed-6
+            X-Xss-Protection:
+                - "0"
+        status: 200 OK
+        code: 200
+        duration: 269.192239ms
+    - id: 4
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 2349
+        host: sheets.googleapis.com
+        body: '{"data":[{"range":"values!A1","values":[[46352],["listing","00000000-0000-0000-0000-0000000000a1","listing","00000000-0000-0000-0000-0000000000a2","listing","00000000-0000-0000-0000-0000000000a2","listing","00000000-0000-0000-0000-0000000000a2","listing","00000000-0000-0000-0000-0000000000a3","listing","00000000-0000-0000-0000-0000000000a4","listing","00000000-0000-0000-0000-0000000000a5"],["symbol","NASDAQ:AMZN","symbol","NYSE:IBM","symbol","NYSEARCA:IBM","symbol","NYSEAMERICAN:IBM","symbol","LON:VOD","symbol","CURRENCY:GBPUSD","symbol","NASDAQ:ZZZZQX"],["periods","2026-11-07/2026-11-14","periods","2026-11-02/2026-11-14","periods","2026-11-02/2026-11-14","periods","2026-11-02/2026-11-14","periods","2026-11-02/2026-11-14","periods","2026-11-02/2026-11-14","periods","2026-11-02/2026-11-14"],["currency","USD","currency","USD","currency","#N/A","currency","#N/A","currency","GBX","currency","USD","currency","#N/A"],["Date","Close","Date","Close","#N/A","","#N/A","","Date","Close","Date","Close","#N/A",""],[46328.66666666667,245.63,46328.66666666667,252.51,"","","","",46328.6875,116.85,46328.99861111111,1.34088],[46329.66666666667,250.69,46329.66666666667,250.04,"","","","",46329.6875,117.2,46329.99861111111,1.34334],[46330.66666666667,266.03,46330.66666666667,254.32,"","","","",46330.6875,121.15,46330.99861111111,1.34759],[46331.66666666667,260.21,46331.66666666667,247.11,"","","","",46331.6875,119.4,46331.99861111111,1.34553],[46332.66666666667,259.3,46332.66666666667,245,"","","","",46332.6875,116.5,46332.99861111111,1.3356],[46335.66666666667,266.93,46335.66666666667,246.11,"","","","",46335.6875,116.95,46333.99861111111,1.3357],[46336.66666666667,270.87,46336.66666666667,244.53,"","","","",46336.6875,115.75,46334.99861111111,1.33597],[46337.66666666667,266.17,46337.66666666667,248.22,"","","","",46337.6875,117.35,46335.99861111111,1.34406],[46338.66666666667,267.44,46338.66666666667,244.67,"","","","",46338.6875,118.05,46336.99861111111,1.3346],[46339.66666666667,266.66,46339.66666666667,247.13,"","","","",46339.6875,116.95,46337.99861111111,1.32759],[46342.66666666667,257.75,"","","","","","","","",46338.99861111111,1.32307],[46343.66666666667,257.89,"","","","","","","","",46339.99861111111,1.3212],[46344.66666666667,267.74],[46345.66666666667,257.37],[46346.66666666667,246.82]]}],"valueInputOption":"RAW"}'
+        headers:
+            Content-Type:
+                - application/json
+        url: https://sheets.googleapis.com/v4/spreadsheets/REDACTED/values:batchUpdate
+        method: POST
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 331
+        uncompressed: true
+        body: |
+            {
+              "spreadsheetId": "REDACTED",
+              "totalUpdatedRows": 21,
+              "totalUpdatedColumns": 14,
+              "totalUpdatedCells": 221,
+              "totalUpdatedSheets": 1,
+              "responses": [
+                {
+                  "spreadsheetId": "REDACTED",
+                  "updatedRange": "values!A1:N21",
+                  "updatedRows": 21,
+                  "updatedColumns": 14,
+                  "updatedCells": 221
+                }
+              ]
+            }
+        headers:
+            Alt-Svc:
+                - h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+            Content-Type:
+                - application/json; charset=UTF-8
+            Date:
+                - Thu, 26 Nov 2026 11:12:55 GMT
+            Server:
+                - ESF
+            Vary:
+                - Origin
+                - X-Origin
+                - Referer
+            X-Content-Type-Options:
+                - nosniff
+            X-Frame-Options:
+                - SAMEORIGIN
+            X-L2-Request-Path:
+                - l2-managed-6
+            X-Xss-Protection:
+                - "0"
+        status: 200 OK
+        code: 200
+        duration: 235.144333ms
+    - id: 5
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: sheets.googleapis.com
+        form:
+            dateTimeRenderOption:
+                - SERIAL_NUMBER
+            valueRenderOption:
+                - FORMULA
+        url: https://sheets.googleapis.com/v4/spreadsheets/REDACTED/values/values?dateTimeRenderOption=SERIAL_NUMBER&valueRenderOption=FORMULA
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 4142
+        uncompressed: true
+        body: |
+            {
+              "range": "values!A1:N34",
+              "majorDimension": "ROWS",
+              "values": [
+                [
+                  46352
+                ],
+                [
+                  "listing",
+                  "00000000-0000-0000-0000-0000000000a1",
+                  "listing",
+                  "00000000-0000-0000-0000-0000000000a2",
+                  "listing",
+                  "00000000-0000-0000-0000-0000000000a2",
+                  "listing",
+                  "00000000-0000-0000-0000-0000000000a2",
+                  "listing",
+                  "00000000-0000-0000-0000-0000000000a3",
+                  "listing",
+                  "00000000-0000-0000-0000-0000000000a4",
+                  "listing",
+                  "00000000-0000-0000-0000-0000000000a5"
+                ],
+                [
+                  "symbol",
+                  "NASDAQ:AMZN",
+                  "symbol",
+                  "NYSE:IBM",
+                  "symbol",
+                  "NYSEARCA:IBM",
+                  "symbol",
+                  "NYSEAMERICAN:IBM",
+                  "symbol",
+                  "LON:VOD",
+                  "symbol",
+                  "CURRENCY:GBPUSD",
+                  "symbol",
+                  "NASDAQ:ZZZZQX"
+                ],
+                [
+                  "periods",
+                  "2026-11-07/2026-11-14",
+                  "periods",
+                  "2026-11-02/2026-11-14",
+                  "periods",
+                  "2026-11-02/2026-11-14",
+                  "periods",
+                  "2026-11-02/2026-11-14",
+                  "periods",
+                  "2026-11-02/2026-11-14",
+                  "periods",
+                  "2026-11-02/2026-11-14",
+                  "periods",
+                  "2026-11-02/2026-11-14"
+                ],
+                [
+                  "currency",
+                  "USD",
+                  "currency",
+                  "USD",
+                  "currency",
+                  "#N/A",
+                  "currency",
+                  "#N/A",
+                  "currency",
+                  "GBX",
+                  "currency",
+                  "USD",
+                  "currency",
+                  "#N/A"
+                ],
+                [
+                  "Date",
+                  "Close",
+                  "Date",
+                  "Close",
+                  "#N/A",
+                  "",
+                  "#N/A",
+                  "",
+                  "Date",
+                  "Close",
+                  "Date",
+                  "Close",
+                  "#N/A"
+                ],
+                [
+                  46328.666666666672,
+                  245.63,
+                  46328.666666666672,
+                  252.51,
+                  "",
+                  "",
+                  "",
+                  "",
+                  46328.6875,
+                  116.85,
+                  46328.998611111107,
+                  1.34088
+                ],
+                [
+                  46329.666666666672,
+                  250.69,
+                  46329.666666666672,
+                  250.04,
+                  "",
+                  "",
+                  "",
+                  "",
+                  46329.6875,
+                  117.2,
+                  46329.998611111107,
+                  1.34334
+                ],
+                [
+                  46330.666666666672,
+                  266.03,
+                  46330.666666666672,
+                  254.32,
+                  "",
+                  "",
+                  "",
+                  "",
+                  46330.6875,
+                  121.15,
+                  46330.998611111107,
+                  1.34759
+                ],
+                [
+                  46331.666666666672,
+                  260.21,
+                  46331.666666666672,
+                  247.11,
+                  "",
+                  "",
+                  "",
+                  "",
+                  46331.6875,
+                  119.4,
+                  46331.998611111107,
+                  1.34553
+                ],
+                [
+                  46332.666666666672,
+                  259.3,
+                  46332.666666666672,
+                  245,
+                  "",
+                  "",
+                  "",
+                  "",
+                  46332.6875,
+                  116.5,
+                  46332.998611111107,
+                  1.3356
+                ],
+                [
+                  46335.666666666672,
+                  266.93,
+                  46335.666666666672,
+                  246.11,
+                  "",
+                  "",
+                  "",
+                  "",
+                  46335.6875,
+                  116.95,
+                  46333.998611111107,
+                  1.3357
+                ],
+                [
+                  46336.666666666672,
+                  270.87,
+                  46336.666666666672,
+                  244.53,
+                  "",
+                  "",
+                  "",
+                  "",
+                  46336.6875,
+                  115.75,
+                  46334.998611111107,
+                  1.33597
+                ],
+                [
+                  46337.666666666672,
+                  266.17,
+                  46337.666666666672,
+                  248.22,
+                  "",
+                  "",
+                  "",
+                  "",
+                  46337.6875,
+                  117.35,
+                  46335.998611111107,
+                  1.34406
+                ],
+                [
+                  46338.666666666672,
+                  267.44,
+                  46338.666666666672,
+                  244.67,
+                  "",
+                  "",
+                  "",
+                  "",
+                  46338.6875,
+                  118.05,
+                  46336.998611111107,
+                  1.3346
+                ],
+                [
+                  46339.666666666672,
+                  266.66,
+                  46339.666666666672,
+                  247.13,
+                  "",
+                  "",
+                  "",
+                  "",
+                  46339.6875,
+                  116.95,
+                  46337.998611111107,
+                  1.32759
+                ],
+                [
+                  46342.666666666672,
+                  257.75,
+                  "",
+                  "",
+                  "",
+                  "",
+                  "",
+                  "",
+                  "",
+                  "",
+                  46338.998611111107,
+                  1.32307
+                ],
+                [
+                  46343.666666666672,
+                  257.89,
+                  "",
+                  "",
+                  "",
+                  "",
+                  "",
+                  "",
+                  "",
+                  "",
+                  46339.998611111107,
+                  1.3212
+                ],
+                [
+                  46344.666666666672,
+                  267.74
+                ],
+                [
+                  46345.666666666672,
+                  257.37
+                ],
+                [
+                  46346.666666666672,
+                  246.82
+                ]
+              ]
+            }
+        headers:
+            Alt-Svc:
+                - h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+            Content-Type:
+                - application/json; charset=UTF-8
+            Date:
+                - Thu, 26 Nov 2026 11:12:55 GMT
+            Server:
+                - ESF
+            Vary:
+                - Origin
+                - X-Origin
+                - Referer
+            X-Content-Type-Options:
+                - nosniff
+            X-Frame-Options:
+                - SAMEORIGIN
+            X-L2-Request-Path:
+                - l2-managed-6
+            X-Xss-Protection:
+                - "0"
+        status: 200 OK
+        code: 200
+        duration: 209.819132ms
+    - id: 6
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: sheets.googleapis.com
+        form:
+            dateTimeRenderOption:
+                - SERIAL_NUMBER
+            valueRenderOption:
+                - FORMULA
+        url: https://sheets.googleapis.com/v4/spreadsheets/REDACTED/values/values?dateTimeRenderOption=SERIAL_NUMBER&valueRenderOption=FORMULA
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 4142
+        uncompressed: true
+        body: |
+            {
+              "range": "values!A1:N34",
+              "majorDimension": "ROWS",
+              "values": [
+                [
+                  46352
+                ],
+                [
+                  "listing",
+                  "00000000-0000-0000-0000-0000000000a1",
+                  "listing",
+                  "00000000-0000-0000-0000-0000000000a2",
+                  "listing",
+                  "00000000-0000-0000-0000-0000000000a2",
+                  "listing",
+                  "00000000-0000-0000-0000-0000000000a2",
+                  "listing",
+                  "00000000-0000-0000-0000-0000000000a3",
+                  "listing",
+                  "00000000-0000-0000-0000-0000000000a4",
+                  "listing",
+                  "00000000-0000-0000-0000-0000000000a5"
+                ],
+                [
+                  "symbol",
+                  "NASDAQ:AMZN",
+                  "symbol",
+                  "NYSE:IBM",
+                  "symbol",
+                  "NYSEARCA:IBM",
+                  "symbol",
+                  "NYSEAMERICAN:IBM",
+                  "symbol",
+                  "LON:VOD",
+                  "symbol",
+                  "CURRENCY:GBPUSD",
+                  "symbol",
+                  "NASDAQ:ZZZZQX"
+                ],
+                [
+                  "periods",
+                  "2026-11-07/2026-11-14",
+                  "periods",
+                  "2026-11-02/2026-11-14",
+                  "periods",
+                  "2026-11-02/2026-11-14",
+                  "periods",
+                  "2026-11-02/2026-11-14",
+                  "periods",
+                  "2026-11-02/2026-11-14",
+                  "periods",
+                  "2026-11-02/2026-11-14",
+                  "periods",
+                  "2026-11-02/2026-11-14"
+                ],
+                [
+                  "currency",
+                  "USD",
+                  "currency",
+                  "USD",
+                  "currency",
+                  "#N/A",
+                  "currency",
+                  "#N/A",
+                  "currency",
+                  "GBX",
+                  "currency",
+                  "USD",
+                  "currency",
+                  "#N/A"
+                ],
+                [
+                  "Date",
+                  "Close",
+                  "Date",
+                  "Close",
+                  "#N/A",
+                  "",
+                  "#N/A",
+                  "",
+                  "Date",
+                  "Close",
+                  "Date",
+                  "Close",
+                  "#N/A"
+                ],
+                [
+                  46328.666666666672,
+                  245.63,
+                  46328.666666666672,
+                  252.51,
+                  "",
+                  "",
+                  "",
+                  "",
+                  46328.6875,
+                  116.85,
+                  46328.998611111107,
+                  1.34088
+                ],
+                [
+                  46329.666666666672,
+                  250.69,
+                  46329.666666666672,
+                  250.04,
+                  "",
+                  "",
+                  "",
+                  "",
+                  46329.6875,
+                  117.2,
+                  46329.998611111107,
+                  1.34334
+                ],
+                [
+                  46330.666666666672,
+                  266.03,
+                  46330.666666666672,
+                  254.32,
+                  "",
+                  "",
+                  "",
+                  "",
+                  46330.6875,
+                  121.15,
+                  46330.998611111107,
+                  1.34759
+                ],
+                [
+                  46331.666666666672,
+                  260.21,
+                  46331.666666666672,
+                  247.11,
+                  "",
+                  "",
+                  "",
+                  "",
+                  46331.6875,
+                  119.4,
+                  46331.998611111107,
+                  1.34553
+                ],
+                [
+                  46332.666666666672,
+                  259.3,
+                  46332.666666666672,
+                  245,
+                  "",
+                  "",
+                  "",
+                  "",
+                  46332.6875,
+                  116.5,
+                  46332.998611111107,
+                  1.3356
+                ],
+                [
+                  46335.666666666672,
+                  266.93,
+                  46335.666666666672,
+                  246.11,
+                  "",
+                  "",
+                  "",
+                  "",
+                  46335.6875,
+                  116.95,
+                  46333.998611111107,
+                  1.3357
+                ],
+                [
+                  46336.666666666672,
+                  270.87,
+                  46336.666666666672,
+                  244.53,
+                  "",
+                  "",
+                  "",
+                  "",
+                  46336.6875,
+                  115.75,
+                  46334.998611111107,
+                  1.33597
+                ],
+                [
+                  46337.666666666672,
+                  266.17,
+                  46337.666666666672,
+                  248.22,
+                  "",
+                  "",
+                  "",
+                  "",
+                  46337.6875,
+                  117.35,
+                  46335.998611111107,
+                  1.34406
+                ],
+                [
+                  46338.666666666672,
+                  267.44,
+                  46338.666666666672,
+                  244.67,
+                  "",
+                  "",
+                  "",
+                  "",
+                  46338.6875,
+                  118.05,
+                  46336.998611111107,
+                  1.3346
+                ],
+                [
+                  46339.666666666672,
+                  266.66,
+                  46339.666666666672,
+                  247.13,
+                  "",
+                  "",
+                  "",
+                  "",
+                  46339.6875,
+                  116.95,
+                  46337.998611111107,
+                  1.32759
+                ],
+                [
+                  46342.666666666672,
+                  257.75,
+                  "",
+                  "",
+                  "",
+                  "",
+                  "",
+                  "",
+                  "",
+                  "",
+                  46338.998611111107,
+                  1.32307
+                ],
+                [
+                  46343.666666666672,
+                  257.89,
+                  "",
+                  "",
+                  "",
+                  "",
+                  "",
+                  "",
+                  "",
+                  "",
+                  46339.998611111107,
+                  1.3212
+                ],
+                [
+                  46344.666666666672,
+                  267.74
+                ],
+                [
+                  46345.666666666672,
+                  257.37
+                ],
+                [
+                  46346.666666666672,
+                  246.82
+                ]
+              ]
+            }
+        headers:
+            Alt-Svc:
+                - h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+            Content-Type:
+                - application/json; charset=UTF-8
+            Date:
+                - Thu, 26 Nov 2026 11:12:56 GMT
+            Server:
+                - ESF
+            Vary:
+                - Origin
+                - X-Origin
+                - Referer
+            X-Content-Type-Options:
+                - nosniff
+            X-Frame-Options:
+                - SAMEORIGIN
+            X-L2-Request-Path:
+                - l2-managed-6
+            X-Xss-Protection:
+                - "0"
+        status: 200 OK
+        code: 200
+        duration: 178.463242ms

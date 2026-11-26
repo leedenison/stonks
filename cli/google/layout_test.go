@@ -110,8 +110,8 @@ func TestPlan(t *testing.T) {
 // listing which still fits is taken.
 func TestPlanBudget(t *testing.T) {
 	// A gap of two years asks for 744 days with its margin, so each block
-	// needs 751 rows of two columns: 1502 cells.
-	const fit = budget / 1502
+	// needs 752 rows of two columns: 1504 cells.
+	const fit = budget / 1504
 	var gaps []*adminpricev1.PriceGap
 	for range fit - 2 {
 		gaps = append(gaps, ticker("l", "XNAS", "AAPL", span("2010-01-04", "2012-01-04")))
@@ -131,8 +131,8 @@ func TestPlanBudget(t *testing.T) {
 			t.Errorf("plan() kept a block of %s, want it to wait", b.Listing)
 		}
 	}
-	if rows, columns := size(got, today); rows != 751 || rows*columns > budget {
-		t.Errorf("size() = %d rows by %d columns, want 751 rows within the budget of %d cells", rows, columns, budget)
+	if rows, columns := size(got, today); rows != 752 || rows*columns > budget {
+		t.Errorf("size() = %d rows by %d columns, want 752 rows within the budget of %d cells", rows, columns, budget)
 	}
 	want := []skip{{Name: "2 series", Reason: "the spreadsheet is full, so they wait for the next round"}}
 	if diff := cmp.Diff(want, skipped); diff != "" {
@@ -163,10 +163,10 @@ func TestSize(t *testing.T) {
 		{Listing: "l1", Symbol: "LON:VOD", Periods: []period{{From: d(2026, 11, 2), Before: d(2026, 11, 9)}}},
 		{Listing: "l2", Symbol: "CURRENCY:EURUSD", Rate: true, Periods: []period{{From: d(2026, 10, 1), Before: d(2026, 11, 25)}}},
 	}
-	// The longer block asks from 24 September to 25 November: 62 days under
-	// six rows of headers and the header of the answer.
-	if rows, columns := size(blocks, today); rows != 69 || columns != 4 {
-		t.Errorf("size() = %d rows by %d columns, want 69 by 4", rows, columns)
+	// The longer block asks from 24 September through 25 November: 63 days
+	// under six rows of headers and the header of the answer.
+	if rows, columns := size(blocks, today); rows != 70 || columns != 4 {
+		t.Errorf("size() = %d rows by %d columns, want 70 by 4", rows, columns)
 	}
 }
 
@@ -214,8 +214,8 @@ func TestCells(t *testing.T) {
 		{"periods", "'2010-01-04/2012-01-01 2015-06-01/2015-06-08", "periods", "'2026-11-02/2026-11-25"},
 		{"currency", `=GOOGLEFINANCE("LON:VOD","currency")`, "currency", "'USD"},
 		{
-			`=GOOGLEFINANCE("LON:VOD","close",DATE(2009,12,28),DATE(2015,6,14),"DAILY")`, "",
-			`=GOOGLEFINANCE("CURRENCY:EURUSD","price",DATE(2026,10,26),DATE(2026,11,24),"DAILY")`, "",
+			`=GOOGLEFINANCE("LON:VOD","close",DATE(2009,12,28),DATE(2015,6,15),"DAILY")`, "",
+			`=GOOGLEFINANCE("CURRENCY:EURUSD","price",DATE(2026,10,26),DATE(2026,11,25),"DAILY")`, "",
 		},
 	}
 	if diff := cmp.Diff(want, cells(blocks, today)); diff != "" {

@@ -29,6 +29,21 @@ type service struct {
 	cookies []string
 	// tokens holds the ID token of each sign-in.
 	tokens []string
+	// uploads holds each upload. refuse maps a listing to the reason the
+	// service refuses it.
+	uploads []*adminpricev1.UploadPricesRequest
+	refuse  map[string]adminpricev1.RefusalReason
+}
+
+func (s *service) UploadPrices(_ context.Context, req *connect.Request[adminpricev1.UploadPricesRequest]) (*connect.Response[adminpricev1.UploadPricesResponse], error) {
+	s.uploads = append(s.uploads, req.Msg)
+	res := &adminpricev1.UploadPricesResponse{}
+	for _, series := range req.Msg.GetSeries() {
+		if reason, ok := s.refuse[series.GetListingId()]; ok {
+			res.Refused = append(res.Refused, &adminpricev1.RefusedSeries{ListingId: series.GetListingId(), Reason: reason})
+		}
+	}
+	return connect.NewResponse(res), nil
 }
 
 func (s *service) SignIn(_ context.Context, req *connect.Request[authv1.SignInRequest]) (*connect.Response[authv1.SignInResponse], error) {

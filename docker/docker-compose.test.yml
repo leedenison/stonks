@@ -50,6 +50,10 @@ services:
       OPENFIGI_API_KEY: ${OPENFIGI_API_KEY:-}
       MASSIVE_API_KEY: ${MASSIVE_API_KEY:-}
       EODHD_API_KEY: ${EODHD_API_KEY:-}
+      # Set only when recording a cassette of the Sheets API. A directory under
+      # /app that holds the state file of the Google Sheets tool after a
+      # sign-in, and the file of its OAuth desktop client.
+      STONKS_GOOGLE_RECORD_DIR: ${STONKS_GOOGLE_RECORD_DIR:-}
     volumes:
       - ..:/app
       - go-mod:/go/pkg/mod

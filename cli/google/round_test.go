@@ -33,6 +33,8 @@ type sheets struct {
 	// tabless answers for the spreadsheet named without its values tab, as
 	// one whose administrator deleted the tab does.
 	tabless string
+	// values is what the values tab holds.
+	values [][]any
 }
 
 // Google's answers for a spreadsheet and its tabs.
@@ -59,6 +61,8 @@ func newSheets(t *testing.T) *sheets {
 		case s.gone != "" && strings.HasSuffix(r.URL.Path, "/"+s.gone):
 			w.WriteHeader(http.StatusNotFound)
 			_, err = io.WriteString(w, `{"error": {"code": 404}}`)
+		case r.Method == http.MethodGet && strings.HasSuffix(r.URL.Path, "/values/values"):
+			err = json.NewEncoder(w).Encode(map[string]any{"values": s.values})
 		case r.Method == http.MethodGet && s.tabless != "" && strings.HasSuffix(r.URL.Path, "/"+s.tabless):
 			_, err = io.WriteString(w, `{`+oneTab+`}`)
 		case r.Method == http.MethodGet:
@@ -130,10 +134,11 @@ func TestWrite(t *testing.T) {
 		t.Errorf("cleared ranges mismatch (-want +got):\n%s", diff)
 	}
 	// Each tab is as large as the one series: six rows of headers, the
-	// header of the answer, and a row for each of the 741 days asked.
+	// header of the answer, and a row for each of the 742 days through the
+	// end date of the formula.
 	grid := func(sheetID float64) any {
 		return map[string]any{"updateSheetProperties": map[string]any{
-			"properties": map[string]any{"sheetId": sheetID, "gridProperties": map[string]any{"rowCount": 748.0, "columnCount": 2.0}},
+			"properties": map[string]any{"sheetId": sheetID, "gridProperties": map[string]any{"rowCount": 749.0, "columnCount": 2.0}},
 			"fields":     "gridProperties(rowCount,columnCount)",
 		}}
 	}
@@ -149,7 +154,7 @@ func TestWrite(t *testing.T) {
 			[]any{"symbol", "'LON:VOD"},
 			[]any{"periods", "'2010-01-04/2012-01-01"},
 			[]any{"currency", `=GOOGLEFINANCE("LON:VOD","currency")`},
-			[]any{`=GOOGLEFINANCE("LON:VOD","close",DATE(2009,12,28),DATE(2012,1,7),"DAILY")`, ""},
+			[]any{`=GOOGLEFINANCE("LON:VOD","close",DATE(2009,12,28),DATE(2012,1,8),"DAILY")`, ""},
 		}}},
 	}
 	if diff := cmp.Diff(wantWritten, sh.calls[3].Body); diff != "" {
@@ -251,13 +256,13 @@ func TestSheetsFailure(t *testing.T) {
 	if _, _, err := s.tabs(ctx, "sheet-1"); err == nil {
 		t.Error("tabs() error = nil for a 403, want an error and not a missing spreadsheet")
 	}
-	if _, err := s.read(ctx, "sheet-1", valuesTab, unformatted); err == nil || !strings.Contains(err.Error(), "values tab") {
+	if _, err := s.read(ctx, "sheet-1", valuesTab, formula); err == nil || !strings.Contains(err.Error(), "values tab") {
 		t.Errorf("read() error = %v, want one that names the tab", err)
 	}
 }
 
-// TestRead checks the request of a read and the cells it returns.
-func TestRead(t *testing.T) {
+// TestSheetsRead checks the request of a read and the cells it returns.
+func TestSheetsRead(t *testing.T) {
 	var got string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		got = r.Method + " " + r.URL.RequestURI()
@@ -265,12 +270,132 @@ func TestRead(t *testing.T) {
 		require.NoError(t, err)
 	}))
 	t.Cleanup(srv.Close)
-	cells, err := NewSheets(srv.Client(), srv.URL).read(context.Background(), "sheet-1", valuesTab, unformatted)
+	cells, err := NewSheets(srv.Client(), srv.URL).read(context.Background(), "sheet-1", valuesTab, formula)
 	require.NoError(t, err)
-	if want := "GET /v4/spreadsheets/sheet-1/values/values?dateTimeRenderOption=SERIAL_NUMBER&valueRenderOption=UNFORMATTED_VALUE"; got != want {
+	if want := "GET /v4/spreadsheets/sheet-1/values/values?dateTimeRenderOption=SERIAL_NUMBER&valueRenderOption=FORMULA"; got != want {
 		t.Errorf("request = %q, want %q", got, want)
 	}
 	if diff := cmp.Diff([][]any{{46351.0, "x"}, {"listing"}}, cells); diff != "" {
 		t.Errorf("read() mismatch (-want +got):\n%s", diff)
 	}
+}
+
+// reader returns a Tool whose state names a spreadsheet and whose values tab
+// holds cells.
+func reader(t *testing.T, svc *service, cells [][]any) (*Tool, *bytes.Buffer) {
+	t.Helper()
+	sh, dir := newSheets(t), t.TempDir()
+	sh.values = cells
+	require.NoError(t, state{RefreshToken: "refresh-1", SpreadsheetID: "sheet-0"}.save(dir))
+	return tool(t, svc, sh, dir)
+}
+
+// TestRead checks what the read step uploads from the pasted tab, and what
+// it reports for a series it left out and one the service refused.
+func TestRead(t *testing.T) {
+	const vod = "00000000-0000-0000-0000-0000000000a3"
+	svc := &service{role: authv1.Role_ROLE_ADMIN, refuse: map[string]adminpricev1.RefusalReason{vod: adminpricev1.RefusalReason_REFUSAL_REASON_CURRENCY}}
+	tl, out := reader(t, svc, pasted(t))
+	err := tl.Read(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "2 series were refused or skipped") {
+		t.Errorf("Read() error = %v, want it to count the refused and the skipped series", err)
+	}
+	if len(svc.uploads) != 1 {
+		t.Fatalf("Read() made %d uploads, want 1", len(svc.uploads))
+	}
+	up := svc.uploads[0]
+	var symbols []string
+	for _, s := range up.GetSeries() {
+		symbols = append(symbols, s.GetSymbol())
+	}
+	if diff := cmp.Diff([]string{"NASDAQ:AMZN", "NYSE:IBM", "LON:VOD", "CURRENCY:GBPUSD"}, symbols); diff != "" {
+		t.Errorf("uploaded series mismatch (-want +got):\n%s", diff)
+	}
+	if up.GetAsAt() != "2026-11-26" {
+		t.Errorf("uploaded as at %q, want 2026-11-26", up.GetAsAt())
+	}
+	want := "skipped NASDAQ:ZZZZQX: Google answered under none of the symbols\n" +
+		"refused LON:VOD: the currency Google quoted is outside the family of the listing\n" +
+		"uploaded 3 series as at 2026-11-26, 1 refused, 1 skipped\n"
+	if out.String() != want {
+		t.Errorf("report = %q, want %q", out, want)
+	}
+}
+
+// TestReadClean checks that a read step without a refused or skipped series
+// succeeds.
+func TestReadClean(t *testing.T) {
+	svc := &service{role: authv1.Role_ROLE_ADMIN}
+	cells := tab([]any{"l1", "NASDAQ:AAPL", "2026-11-02/2026-11-07", "USD", serial(2026, 11, 2), 10.5})
+	tl, out := reader(t, svc, cells)
+	require.NoError(t, tl.Read(context.Background()))
+	if want := "uploaded 1 series as at 2026-11-26, 0 refused, 0 skipped\n"; out.String() != want {
+		t.Errorf("report = %q, want %q", out, want)
+	}
+}
+
+// TestReadChunks checks that one upload carries at most the chunk of prices,
+// that no series is split, and that each price arrives once.
+func TestReadChunks(t *testing.T) {
+	const days = 9000
+	var blocks [][]any
+	for _, listing := range []string{"l1", "l2", "l3"} {
+		b := []any{listing, "NASDAQ:" + listing, "2000-01-03/2026-11-01", "USD"}
+		for i := range days {
+			b = append(b, serial(2000, 1, 3)+float64(i), 10.5)
+		}
+		blocks = append(blocks, b)
+	}
+	svc := &service{role: authv1.Role_ROLE_ADMIN}
+	tl, _ := reader(t, svc, tab(blocks...))
+	require.NoError(t, tl.Read(context.Background()))
+	var got [][]string
+	for _, up := range svc.uploads {
+		var listings []string
+		for _, s := range up.GetSeries() {
+			if len(s.GetPrices()) != days {
+				t.Errorf("series %s arrived with %d prices, want %d", s.GetListingId(), len(s.GetPrices()), days)
+			}
+			listings = append(listings, s.GetListingId())
+		}
+		got = append(got, listings)
+	}
+	// Two series hold 18,000 prices and a third would pass 20,000.
+	if diff := cmp.Diff([][]string{{"l1", "l2"}, {"l3"}}, got); diff != "" {
+		t.Errorf("uploads mismatch (-want +got):\n%s", diff)
+	}
+}
+
+// TestReadLongSeries checks that a series longer than the chunk is uploaded
+// whole, alone.
+func TestReadLongSeries(t *testing.T) {
+	b := []any{"l1", "CURRENCY:GBPUSD", "1960-01-01/2026-11-01", "#N/A"}
+	for i := range chunk + 1 {
+		b = append(b, serial(1960, 1, 1)+float64(i), 1.25)
+	}
+	svc := &service{role: authv1.Role_ROLE_ADMIN}
+	tl, _ := reader(t, svc, tab(b, []any{"l2", "NASDAQ:AAPL", "2026-11-02/2026-11-07", "USD", serial(2026, 11, 2), 10.5}))
+	require.NoError(t, tl.Read(context.Background()))
+	if len(svc.uploads) != 2 || len(svc.uploads[0].GetSeries()) != 1 || len(svc.uploads[0].GetSeries()[0].GetPrices()) != chunk+1 {
+		t.Errorf("Read() made %d uploads, want the long series alone and then the other", len(svc.uploads))
+	}
+}
+
+func TestReadRefuses(t *testing.T) {
+	t.Run("before a write step", func(t *testing.T) {
+		tl, _ := tool(t, &service{role: authv1.Role_ROLE_ADMIN}, newSheets(t), t.TempDir())
+		if err := tl.Read(context.Background()); err == nil || !strings.Contains(err.Error(), "run the write step first") {
+			t.Errorf("Read() error = %v, want it to name the write step", err)
+		}
+	})
+	t.Run("a tab without the date cell uploads nothing", func(t *testing.T) {
+		svc := &service{role: authv1.Role_ROLE_ADMIN}
+		tl, _ := reader(t, svc, pasted(t)[1:])
+		if err := tl.Read(context.Background()); err == nil || !strings.Contains(err.Error(), "lacks the date") {
+			t.Errorf("Read() error = %v, want it to name the date", err)
+		}
+		if len(svc.uploads) != 0 {
+			t.Errorf("Read() made %d uploads, want none", len(svc.uploads))
+		}
+	})
 }

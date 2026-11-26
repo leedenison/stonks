@@ -1,5 +1,6 @@
-// Command google is the Google Sheets tool. Its write step puts a formula
-// for each price gap into a spreadsheet; see package google.
+// Command google is the Google Sheets tool. An administrator runs its write
+// step, pastes the values of the spreadsheet by hand, and runs its read step;
+// see package google.
 package main
 
 import (
@@ -33,7 +34,10 @@ func main() {
 	}
 }
 
-const usage = `usage: google [-server URL] [-client FILE] write
+const usage = `usage: google [-server URL] [-client FILE] write|read
+
+  write  put a formula for each price gap into the spreadsheet
+  read   upload the values pasted into the values tab
 
   -server URL   address of the Stonks service
                 (default $STONKS_SERVER, or http://localhost:8080)
@@ -56,7 +60,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	if err := flags.Parse(args); err != nil {
 		return fmt.Errorf("%w\n%s", err, usage)
 	}
-	if flags.NArg() != 1 || flags.Arg(0) != "write" {
+	if flags.NArg() != 1 || (flags.Arg(0) != "write" && flags.Arg(0) != "read") {
 		return errors.New(usage)
 	}
 
@@ -86,5 +90,8 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		return err
 	}
 	tool := &google.Tool{Sheets: google.NewSheets(oauth2.NewClient(ctx, source), ""), Prices: prices, Dir: dir, Clock: time.Now, Out: stdout}
-	return tool.Write(ctx)
+	if flags.Arg(0) == "write" {
+		return tool.Write(ctx)
+	}
+	return tool.Read(ctx)
 }
