@@ -41,7 +41,7 @@ message Session {
 }
 
 message SignInRequest {
-  // The ID token Google Sign-In issued for the configured OAuth client.
+  // The ID token Google issued for one of the configured OAuth clients.
   string google_id_token = 1 [(buf.validate.field).string.min_len = 1];
 }
 

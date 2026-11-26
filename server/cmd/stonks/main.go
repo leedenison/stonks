@@ -172,7 +172,7 @@ func run() (err error) {
 	}()
 
 	authn := auth.New(auth.Options{
-		Verifier: google.New(cfg.GoogleClientID, google.WithHTTPClient(tracedClient(httpTimeout))),
+		Verifier: google.New(cfg.GoogleClientIDs(), google.WithHTTPClient(tracedClient(httpTimeout))),
 		Users:    queries,
 		Sessions: session.New(rc, time.Now),
 		Allowed:  cfg.AllowedEmails,

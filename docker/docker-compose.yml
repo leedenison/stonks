@@ -46,6 +46,7 @@ services:
       STONKS_DB_URL: postgres://stonks:stonks@postgres:5432/stonks?sslmode=disable
       STONKS_REDIS_URL: redis://redis:6379/0
       STONKS_GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID:-}
+      STONKS_GOOGLE_OAUTH_CLI_CLIENT_ID: ${GOOGLE_OAUTH_CLI_CLIENT_ID:-}
       STONKS_ALLOWED_EMAILS: ${STONKS_ALLOWED_EMAILS:-}
       # The overlays that are reached over plain HTTP, which cannot transport a
       # Secure cookie, set this false.

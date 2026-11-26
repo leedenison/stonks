@@ -2,127 +2,36 @@ package google
 
 import (
 	"context"
-	"crypto/rand"
-	"crypto/rsa"
-	"encoding/base64"
-	"encoding/json"
 	"errors"
-	"math/big"
 	"net/http"
-	"net/http/httptest"
-	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/go-cmp/cmp"
-	"github.com/stretchr/testify/require"
+
+	"github.com/leedenison/stonks/server/internal/testutil/googletest"
 )
 
 const (
-	clientID = "client-id.apps.googleusercontent.com"
-	kid      = "key-1"
+	clientID    = "client-id.apps.googleusercontent.com"
+	cliClientID = "cli-client-id.apps.googleusercontent.com"
 )
 
 var (
-	now    = time.Date(2026, 9, 9, 12, 0, 0, 0, time.UTC)
-	signer = mustKey()
-	other  = mustKey()
+	now   = time.Date(2026, 9, 9, 12, 0, 0, 0, time.UTC)
+	other = googletest.NewKey()
 )
 
-func mustKey() *rsa.PrivateKey {
-	key, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		panic(err)
+func defaults() googletest.Token {
+	return googletest.Valid(clientID, "one@example.com", now)
+}
+
+func newVerifier(j *googletest.JWKS, clock func() time.Time, ids ...string) *Verifier {
+	if ids == nil {
+		ids = []string{clientID}
 	}
-	return key
-}
-
-// jwks serves signer's public key under kid and counts the fetches. Its
-// status and Cache-Control header are settable per test.
-type jwks struct {
-	*httptest.Server
-	fetches atomic.Int32
-	status  int
-	cache   string
-}
-
-func newJWKS(t *testing.T) *jwks {
-	t.Helper()
-	j := &jwks{status: http.StatusOK}
-	j.Server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		j.fetches.Add(1)
-		if j.status != http.StatusOK {
-			w.WriteHeader(j.status)
-			return
-		}
-		if j.cache != "" {
-			w.Header().Set("Cache-Control", j.cache)
-		}
-		pub := signer.PublicKey
-		require.NoError(t, json.NewEncoder(w).Encode(map[string]any{"keys": []map[string]string{{
-			"kty": "RSA",
-			"kid": kid,
-			"n":   base64.RawURLEncoding.EncodeToString(pub.N.Bytes()),
-			"e":   base64.RawURLEncoding.EncodeToString(big.NewInt(int64(pub.E)).Bytes()),
-		}}}))
-	}))
-	t.Cleanup(j.Close)
-	return j
-}
-
-type tokenOpts struct {
-	key           *rsa.PrivateKey
-	kid           string
-	method        jwt.SigningMethod
-	issuer        string
-	audience      string
-	subject       string
-	email         string
-	emailVerified bool
-	expires       time.Time
-}
-
-func defaults() tokenOpts {
-	return tokenOpts{
-		key:           signer,
-		kid:           kid,
-		method:        jwt.SigningMethodRS256,
-		issuer:        "https://accounts.google.com",
-		audience:      clientID,
-		subject:       "subject-1",
-		email:         "one@example.com",
-		emailVerified: true,
-		expires:       now.Add(time.Hour),
-	}
-}
-
-func sign(t *testing.T, o tokenOpts) string {
-	t.Helper()
-	tok := jwt.NewWithClaims(o.method, claims{
-		RegisteredClaims: jwt.RegisteredClaims{
-			Issuer:    o.issuer,
-			Subject:   o.subject,
-			Audience:  jwt.ClaimStrings{o.audience},
-			ExpiresAt: jwt.NewNumericDate(o.expires),
-			IssuedAt:  jwt.NewNumericDate(now.Add(-time.Minute)),
-		},
-		Email:         o.email,
-		EmailVerified: o.emailVerified,
-		Name:          "One",
-	})
-	tok.Header["kid"] = o.kid
-	var key any = o.key
-	if o.method == jwt.SigningMethodHS256 {
-		key = []byte("secret")
-	}
-	s, err := tok.SignedString(key)
-	require.NoError(t, err)
-	return s
-}
-
-func newVerifier(j *jwks, clock func() time.Time) *Verifier {
-	return New(clientID, WithHTTPClient(j.Client()), WithJWKSURL(j.URL), WithClock(clock))
+	return New(ids, WithHTTPClient(j.Client()), WithJWKSURL(j.URL), WithClock(clock))
 }
 
 func TestVerify(t *testing.T) {
@@ -134,70 +43,75 @@ func TestVerify(t *testing.T) {
 	}{
 		{
 			name:  "valid",
-			token: func(t *testing.T) string { return sign(t, defaults()) },
-			want:  Claims{Subject: "subject-1", Email: "one@example.com", Name: "One"},
+			token: func(t *testing.T) string { return defaults().Sign(t) },
+			want:  Claims{Subject: "subject-one@example.com", Email: "one@example.com", Name: "One"},
 		},
 		{
 			name:  "bare issuer",
-			token: func(t *testing.T) string { o := defaults(); o.issuer = "accounts.google.com"; return sign(t, o) },
-			want:  Claims{Subject: "subject-1", Email: "one@example.com", Name: "One"},
+			token: func(t *testing.T) string { o := defaults(); o.Issuer = "accounts.google.com"; return o.Sign(t) },
+			want:  Claims{Subject: "subject-one@example.com", Email: "one@example.com", Name: "One"},
 		},
 		{name: "garbage", token: func(*testing.T) string { return "not a token" }, wantErr: ErrMalformed},
 		{name: "empty", token: func(*testing.T) string { return "" }, wantErr: ErrMalformed},
 		{
 			name:    "wrong key",
-			token:   func(t *testing.T) string { o := defaults(); o.key = other; return sign(t, o) },
+			token:   func(t *testing.T) string { o := defaults(); o.Key = other; return o.Sign(t) },
 			wantErr: ErrInvalid,
 		},
 		{
 			name:    "unknown kid",
-			token:   func(t *testing.T) string { o := defaults(); o.kid = "key-2"; return sign(t, o) },
+			token:   func(t *testing.T) string { o := defaults(); o.KID = "key-2"; return o.Sign(t) },
 			wantErr: ErrInvalid,
 		},
 		{
 			name:    "no kid",
-			token:   func(t *testing.T) string { o := defaults(); o.kid = ""; return sign(t, o) },
+			token:   func(t *testing.T) string { o := defaults(); o.KID = ""; return o.Sign(t) },
 			wantErr: ErrInvalid,
 		},
 		{
 			name:    "hmac",
-			token:   func(t *testing.T) string { o := defaults(); o.method = jwt.SigningMethodHS256; return sign(t, o) },
+			token:   func(t *testing.T) string { o := defaults(); o.Method = jwt.SigningMethodHS256; return o.Sign(t) },
 			wantErr: ErrInvalid,
 		},
 		{
 			name:    "expired",
-			token:   func(t *testing.T) string { o := defaults(); o.expires = now.Add(-2 * time.Minute); return sign(t, o) },
+			token:   func(t *testing.T) string { o := defaults(); o.Expires = now.Add(-2 * time.Minute); return o.Sign(t) },
 			wantErr: ErrInvalid,
 		},
 		{
 			name:    "wrong audience",
-			token:   func(t *testing.T) string { o := defaults(); o.audience = "other-client"; return sign(t, o) },
+			token:   func(t *testing.T) string { o := defaults(); o.Audience = "other-client"; return o.Sign(t) },
+			wantErr: ErrInvalid,
+		},
+		{
+			name:    "empty audience",
+			token:   func(t *testing.T) string { o := defaults(); o.Audience = ""; return o.Sign(t) },
 			wantErr: ErrInvalid,
 		},
 		{
 			name:    "wrong issuer",
-			token:   func(t *testing.T) string { o := defaults(); o.issuer = "https://example.com"; return sign(t, o) },
+			token:   func(t *testing.T) string { o := defaults(); o.Issuer = "https://example.com"; return o.Sign(t) },
 			wantErr: ErrInvalid,
 		},
 		{
 			name:    "no subject",
-			token:   func(t *testing.T) string { o := defaults(); o.subject = ""; return sign(t, o) },
+			token:   func(t *testing.T) string { o := defaults(); o.Subject = ""; return o.Sign(t) },
 			wantErr: ErrInvalid,
 		},
 		{
 			name:    "email unverified",
-			token:   func(t *testing.T) string { o := defaults(); o.emailVerified = false; return sign(t, o) },
+			token:   func(t *testing.T) string { o := defaults(); o.EmailVerified = false; return o.Sign(t) },
 			wantErr: ErrEmailUnverified,
 		},
 		{
 			name:    "no email",
-			token:   func(t *testing.T) string { o := defaults(); o.email = ""; return sign(t, o) },
+			token:   func(t *testing.T) string { o := defaults(); o.Email = ""; return o.Sign(t) },
 			wantErr: ErrEmailUnverified,
 		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			v := newVerifier(newJWKS(t), func() time.Time { return now })
+			v := newVerifier(googletest.NewJWKS(t), func() time.Time { return now })
 			got, err := v.Verify(context.Background(), tc.token(t))
 			if !errors.Is(err, tc.wantErr) {
 				t.Fatalf("Verify() error = %v, want %v", err, tc.wantErr)
@@ -209,11 +123,34 @@ func TestVerify(t *testing.T) {
 	}
 }
 
+func TestVerifyAudiences(t *testing.T) {
+	tests := []struct {
+		name     string
+		ids      []string
+		audience string
+		wantErr  error
+	}{
+		{name: "web client", ids: []string{clientID, cliClientID}, audience: clientID},
+		{name: "command line client", ids: []string{clientID, cliClientID}, audience: cliClientID},
+		{name: "a third client", ids: []string{clientID, cliClientID}, audience: "other-client", wantErr: ErrInvalid},
+		{name: "command line client when only the web client is configured", ids: []string{clientID}, audience: cliClientID, wantErr: ErrInvalid},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			v := newVerifier(googletest.NewJWKS(t), func() time.Time { return now }, tc.ids...)
+			_, err := v.Verify(context.Background(), googletest.Valid(tc.audience, "one@example.com", now).Sign(t))
+			if !errors.Is(err, tc.wantErr) {
+				t.Errorf("Verify() with audience %q error = %v, want %v", tc.audience, err, tc.wantErr)
+			}
+		})
+	}
+}
+
 func TestVerifyFetchFailure(t *testing.T) {
-	j := newJWKS(t)
-	j.status = http.StatusInternalServerError
+	j := googletest.NewJWKS(t)
+	j.Status = http.StatusInternalServerError
 	v := newVerifier(j, func() time.Time { return now })
-	_, err := v.Verify(context.Background(), sign(t, defaults()))
+	_, err := v.Verify(context.Background(), defaults().Sign(t))
 	if err == nil {
 		t.Fatal("Verify() error = nil, want a fetch failure")
 	}
@@ -226,16 +163,16 @@ func TestVerifyFetchFailure(t *testing.T) {
 
 func TestKeysetCaching(t *testing.T) {
 	clock := now
-	j := newJWKS(t)
-	j.cache = "public, max-age=3600"
+	j := googletest.NewJWKS(t)
+	j.Cache = "public, max-age=3600"
 	v := newVerifier(j, func() time.Time { return clock })
 	ctx := context.Background()
-	valid := func() string { o := defaults(); o.expires = now.Add(24 * time.Hour); return sign(t, o) }()
+	valid := func() string { o := defaults(); o.Expires = now.Add(24 * time.Hour); return o.Sign(t) }()
 	unknown := func() string {
 		o := defaults()
-		o.kid = "key-2"
-		o.expires = now.Add(24 * time.Hour)
-		return sign(t, o)
+		o.KID = "key-2"
+		o.Expires = now.Add(24 * time.Hour)
+		return o.Sign(t)
 	}()
 
 	steps := []struct {
@@ -259,7 +196,7 @@ func TestKeysetCaching(t *testing.T) {
 		if !errors.Is(err, s.wantErr) {
 			t.Fatalf("%s: Verify() error = %v, want %v", s.name, err, s.wantErr)
 		}
-		if got := j.fetches.Load(); got != s.wantFetches {
+		if got := j.Fetches.Load(); got != s.wantFetches {
 			t.Errorf("%s: fetches = %d, want %d", s.name, got, s.wantFetches)
 		}
 	}

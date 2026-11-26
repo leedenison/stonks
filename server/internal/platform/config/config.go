@@ -22,9 +22,13 @@ type Config struct {
 	DBURL string
 	// RedisURL is STONKS_REDIS_URL, the Redis connection URL. Required.
 	RedisURL string
-	// GoogleClientID is STONKS_GOOGLE_OAUTH_CLIENT_ID, the OAuth client whose
-	// ID tokens are accepted. Required.
+	// GoogleClientID is STONKS_GOOGLE_OAUTH_CLIENT_ID, the OAuth client of the
+	// front end, whose ID tokens are accepted. Required.
 	GoogleClientID string
+	// GoogleCLIClientID is STONKS_GOOGLE_OAUTH_CLI_CLIENT_ID, the OAuth client
+	// of the command line tools, whose ID tokens are accepted too. Default
+	// empty, which accepts only the front end's tokens.
+	GoogleCLIClientID string
 	// AllowedEmails is STONKS_ALLOWED_EMAILS, a comma-separated list of glob
 	// patterns an email must match for an account to be created, such as
 	// "*@example.com". Default empty, which creates no accounts.
@@ -53,13 +57,14 @@ type Config struct {
 func Load() (Config, error) {
 	var errs []error
 	cfg := Config{
-		ListenAddr:     env("STONKS_LISTEN_ADDR", ":8090"),
-		DBURL:          os.Getenv("STONKS_DB_URL"),
-		RedisURL:       os.Getenv("STONKS_REDIS_URL"),
-		GoogleClientID: os.Getenv("STONKS_GOOGLE_OAUTH_CLIENT_ID"),
-		OTLPEndpoint:   os.Getenv("STONKS_OTLP_ENDPOINT"),
-		Environment:    env("STONKS_ENVIRONMENT", "development"),
-		AllowedEmails:  allowlist.Parse(os.Getenv("STONKS_ALLOWED_EMAILS")),
+		ListenAddr:        env("STONKS_LISTEN_ADDR", ":8090"),
+		DBURL:             os.Getenv("STONKS_DB_URL"),
+		RedisURL:          os.Getenv("STONKS_REDIS_URL"),
+		GoogleClientID:    os.Getenv("STONKS_GOOGLE_OAUTH_CLIENT_ID"),
+		GoogleCLIClientID: os.Getenv("STONKS_GOOGLE_OAUTH_CLI_CLIENT_ID"),
+		OTLPEndpoint:      os.Getenv("STONKS_OTLP_ENDPOINT"),
+		Environment:       env("STONKS_ENVIRONMENT", "development"),
+		AllowedEmails:     allowlist.Parse(os.Getenv("STONKS_ALLOWED_EMAILS")),
 	}
 	secure, err := strconv.ParseBool(env("STONKS_COOKIE_SECURE", "true"))
 	if err != nil {
@@ -80,6 +85,15 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 	return cfg, nil
+}
+
+// GoogleClientIDs returns the OAuth clients whose ID tokens are accepted.
+func (c Config) GoogleClientIDs() []string {
+	ids := []string{c.GoogleClientID}
+	if c.GoogleCLIClientID != "" {
+		ids = append(ids, c.GoogleCLIClientID)
+	}
+	return ids
 }
 
 // Validate reports every required value that is missing, a malformed
