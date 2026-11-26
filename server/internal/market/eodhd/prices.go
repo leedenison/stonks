@@ -1,0 +1,147 @@
+package eodhd
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"net/url"
+	"strings"
+	"time"
+
+	"github.com/shopspring/decimal"
+
+	"github.com/leedenison/stonks/server/internal/market"
+	"github.com/leedenison/stonks/server/internal/types"
+)
+
+var _ market.Prices = (*Client)(nil)
+
+// usCurrency is the trading currency of EODHD's code for the US venues.
+const usCurrency = "USD"
+
+// bars is EODHD's side of the prices kind.
+type bars struct{ c *Client }
+
+// bar is one day as EODHD states it. A bar does not state its currency.
+type bar struct {
+	Date string `json:"date"`
+	// Close is the close as traded. EODHD states the close adjusted for
+	// splits and dividends in another member, which is left unread.
+	Close json.Number `json:"close"`
+}
+
+// Prices is EODHD's server of end of day prices.
+func (c *Client) Prices() market.Server[market.PriceRequest, market.PriceResult] {
+	return bars{c: c}
+}
+
+// Serves returns the symbol to send for r, or an error when EODHD cannot
+// answer r; see Client.sent. It refuses every request where the account's
+// plan lacks daily bars. It refuses a period that ends before the window of
+// the plan, so such a request costs no call.
+func (b bars) Serves(r market.PriceRequest) (types.Identifier, error) {
+	id := r.Identifier
+	switch {
+	case !b.c.plan.prices:
+		return types.Identifier{}, errors.New("prices rejected: the plan lacks daily bars")
+	case id.Type != types.IdentifierTypeMicTicker:
+		return types.Identifier{}, fmt.Errorf("identifier type '%s' rejected", id.Type)
+	}
+	if w := b.c.plan.window(b.c.now()); !r.Period.Before.After(w) {
+		return types.Identifier{}, fmt.Errorf("period before %s rejected: the plan's bars start on %s", r.Period.Before.Format(time.DateOnly), w.Format(time.DateOnly))
+	}
+	return b.c.sent(id)
+}
+
+// Fetch asks EODHD for the daily bars of each symbol in turn. A request omits
+// its dates, and EODHD returns every bar the plan serves. A request therefore
+// does not depend on the asked period, and a recording of it replays on any
+// later day. A symbol EODHD does not know is answered with an empty answer
+// and nil coverage.
+func (b bars) Fetch(ctx context.Context, reqs []market.Request[market.PriceRequest]) ([]market.Response[market.PriceResult], error) {
+	out := make([]market.Response[market.PriceResult], len(reqs))
+	for i, r := range reqs {
+		code, err := b.currency(ctx, r)
+		if err != nil {
+			return nil, err
+		}
+		if code == "" {
+			continue
+		}
+		var bs []bar
+		err = b.c.get(ctx, "/api/eod/"+url.PathEscape(r.Sent.Value), url.Values{}, &bs)
+		if unknown(err) {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		res, err := fromBars(bs, r.Value.Period, b.c.plan.window(b.c.now()), code)
+		if err != nil {
+			return nil, err
+		}
+		out[i].Value = res
+	}
+	return out, nil
+}
+
+// currency returns the code in which EODHD quotes the symbol of r, or "" where
+// EODHD does not list the symbol. A US symbol is quoted in USD. The currency
+// of any other symbol comes from a search, which costs a call, because
+// symbols on one exchange are quoted in different currencies. London quotes
+// most in pence and some in dollars.
+func (b bars) currency(ctx context.Context, r market.Request[market.PriceRequest]) (string, error) {
+	if strings.HasSuffix(r.Sent.Value, "."+usCode) {
+		return usCurrency, nil
+	}
+	rows, err := b.c.searchTicker(ctx, r.Value.Identifier)
+	if err != nil || len(rows) != 1 {
+		return "", err
+	}
+	return rows[0].Currency, nil
+}
+
+// fromBars converts the whole history bs of one symbol into the prices of the
+// asked period, each quoted in the currency code. Coverage is the asked
+// period from the later of window and the first bar, to the day of the last
+// bar. EODHD does not say where its history of a symbol starts, so the days
+// before the first bar are left uncovered.
+func fromBars(bs []bar, asked types.Period, window time.Time, code string) (market.PriceResult, error) {
+	if len(bs) == 0 {
+		return market.PriceResult{}, nil
+	}
+	prices := make([]market.DayPrice, len(bs))
+	first, last := time.Time{}, time.Time{}
+	for i, b := range bs {
+		day, err := time.Parse(time.DateOnly, b.Date)
+		if err != nil {
+			return market.PriceResult{}, fmt.Errorf("bar date: %w", err)
+		}
+		price, err := decimal.NewFromString(b.Close.String())
+		if err != nil {
+			return market.PriceResult{}, fmt.Errorf("bar close: %w", err)
+		}
+		prices[i] = market.DayPrice{Day: day, Price: price, AsAt: day}
+		if i == 0 || day.Before(first) {
+			first = day
+		}
+		if day.After(last) {
+			last = day
+		}
+	}
+	if window.After(first) {
+		first = window
+	}
+	coverage, ok := asked.Clip(types.Period{From: first, Before: last.AddDate(0, 0, 1)})
+	if !ok {
+		return market.PriceResult{}, nil
+	}
+	var kept []market.DayPrice
+	for _, p := range prices {
+		if coverage.Contains(p.Day) {
+			kept = append(kept, p)
+		}
+	}
+	return market.PriceResult{Prices: kept, Currency: code, Coverage: &coverage}, nil
+}
