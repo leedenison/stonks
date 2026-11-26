@@ -44,8 +44,9 @@ follows the data.
 ### On-Demand Fetch
 
 No datasource offers bulk fetching over a user's holdings. Data is fetched on demand for
-the keys users hold, covering the period they were held. Ingesting a statement is what
-demands it, for every instrument and period it newly covers.
+the keys users hold. A fetch asks for the period they were held, and a price fetch
+stores every day the datasource serves. Ingesting a statement is what demands the data,
+for every instrument and period it newly covers.
 
 ### Fetching from Multiple Sources
 

@@ -3,8 +3,8 @@
 A covered day without a price had no session, and the first answer of a datasource for a
 day stands. See
 [002](002-datasource-precedence-picks-the-price-for-each-day.md). A client that covers
-the whole period it was asked for can therefore store a wrong day for good. Two cases do
-it:
+every day up to the day of its answer can therefore store a wrong day for good. Two
+cases do it:
 
 * A provider publishes a close some hours after the session ends. The last completed day
   is a UTC day, so a fetch can run before the close of that day is published. See
@@ -13,8 +13,8 @@ it:
   answers both with an empty list.
 
 So the coverage of an answer ends on the day of the last price that the provider holds
-for the identifier, whatever period was asked. The coverage of an answer without a
-price is empty. Every price client follows the rule.
+for the identifier. The coverage of an answer without a price is empty. Every price
+client follows the rule.
 
 ## Where coverage starts
 

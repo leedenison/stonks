@@ -18,7 +18,7 @@ The display currency affects only the profile page in this milestone.
   currency.
 * The profile page offers the family currencies. It leaves out a scaled code such as GBX.
 * A selection puts the currency in use. See
-  [005](../adr/005-a-fetch-covers-the-days-held.md). When the currency is new to the
+  [005](../adr/005-the-days-held-are-demanded.md). When the currency is new to the
   system, the selection starts a rate fetch for it.
 
 ## Tests
