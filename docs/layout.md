@@ -4,6 +4,7 @@
 |---|---|
 | `proto/` | Protobuf API definitions, and the Go code generated from them |
 | `server/` | The Go backend service |
+| `cli/` | Command line tools that are clients of the service |
 | `internal/` | Go packages that more than one tree shares |
 | `client/` | The Next.js front end |
 | `e2e/` | Playwright end-to-end suite |
@@ -57,6 +58,16 @@ server/
 ```
 
 A package that belongs to none of these groups sits at the top of `internal/`.
+
+## `cli/`
+
+```
+cli/
+  google/                the Google Sheets tool: its sign-in to Google and to the service
+```
+
+A tool reaches the service through its API alone. Go's `internal` rule keeps the
+packages under `server/internal/` out of its reach.
 
 ## `internal/`
 
