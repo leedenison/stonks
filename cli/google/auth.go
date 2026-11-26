@@ -34,7 +34,7 @@ type Client struct {
 // LoadClient reads the client file that the Google Cloud console offers for
 // download.
 func LoadClient(path string) (Client, error) {
-	b, err := os.ReadFile(path)
+	b, err := os.ReadFile(path) //nolint:gosec // the administrator names the file of their own client
 	if err != nil {
 		return Client{}, fmt.Errorf("read the OAuth client: %w", err)
 	}

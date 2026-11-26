@@ -206,8 +206,9 @@ func (s *Sheets) write(ctx context.Context, id, tab, input string, cells [][]any
 	return nil
 }
 
-// unformatted has the Sheets API return each value as stored.
-const unformatted = "UNFORMATTED_VALUE"
+// formula has the Sheets API return the text of each formula in place of its
+// value, and each other value as stored.
+const formula = "FORMULA"
 
 // read returns the cells of tab, with each value rendered by the render
 // option and each date as a serial number. The API leaves out the empty cells

@@ -24,6 +24,11 @@ the EODHD client starts coverage at the first price served when that day is late
 the window. The days before it stay gaps at EODHD. A run asks EODHD again for each of
 those days on which a user holds the instrument, and the Google Sheets tool sees them.
 
+Google Sheets has no window and does not state where its history starts either. The
+tool starts the coverage of a gap at the first row served. It asks for a week before the
+gap, so a row inside that week starts coverage at the first day of the gap. See
+[007](007-the-google-sheets-tool-writes-formulas-and-reads-pasted-values.md).
+
 ## Considered options
 
 Covering the days after the last price was the alternative. It closes a weekend gap

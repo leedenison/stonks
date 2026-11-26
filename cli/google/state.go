@@ -25,7 +25,7 @@ type state struct {
 // load reads the state in dir. A missing file is the empty state.
 func load(dir string) (state, error) {
 	var s state
-	b, err := os.ReadFile(filepath.Join(dir, stateFile))
+	b, err := os.ReadFile(filepath.Join(dir, stateFile)) //nolint:gosec // the state directory is the administrator's own
 	if errors.Is(err, fs.ErrNotExist) {
 		return s, nil
 	}

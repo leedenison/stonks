@@ -2,6 +2,7 @@ package google
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"time"
@@ -15,7 +16,11 @@ import (
 // title is the name of the spreadsheet in the Drive of the administrator.
 const title = "Stonks prices"
 
-// Tool runs the write step of a round.
+// chunk is the most prices one upload carries. A series is never split, so
+// an upload holds at least one series whatever its length.
+const chunk = 20_000
+
+// Tool runs the steps of a round.
 type Tool struct {
 	Sheets *Sheets
 	Prices adminpricev1connect.PriceServiceClient
@@ -86,7 +91,7 @@ func (t *Tool) Write(ctx context.Context) error {
 	}
 	_, err = fmt.Fprintf(t.Out, "wrote %d series in %d formulas, %d skipped\n\n"+
 		"Open %s\n"+
-		"Wait until every formula has evaluated. Select the whole %q tab (Ctrl+A), copy it, and paste its values only (Ctrl+Shift+V) into cell A1 of the %q tab.\n",
+		"Wait until every formula has evaluated. Select the whole %q tab (Ctrl+A), copy it, and paste its values only (Ctrl+Shift+V) into cell A1 of the %q tab. Then run the read step.\n",
 		len(series), len(blocks), len(skipped), address(id), formulasTab, valuesTab)
 	return err
 }
@@ -117,4 +122,70 @@ func (t *Tool) spreadsheet(ctx context.Context) (string, tabIDs, error) {
 		return "", nil, err
 	}
 	return id, tabs, nil
+}
+
+// refusals says why the service refused a series.
+var refusals = map[adminpricev1.RefusalReason]string{
+	adminpricev1.RefusalReason_REFUSAL_REASON_CURRENCY:        "the currency Google quoted is outside the family of the listing",
+	adminpricev1.RefusalReason_REFUSAL_REASON_INVALID_PRICE:   "a price is zero, or is dated after the evaluation",
+	adminpricev1.RefusalReason_REFUSAL_REASON_UNKNOWN_LISTING: "the service lacks the listing",
+}
+
+// Read reads the values tab and uploads each series to the service. It
+// reports each series it left out and each one the service refused, and
+// returns an error when there is any, after it has uploaded the others.
+func (t *Tool) Read(ctx context.Context) error {
+	s, err := load(t.Dir)
+	if err != nil {
+		return err
+	}
+	if s.SpreadsheetID == "" {
+		return errors.New("the tool has no spreadsheet yet: run the write step first")
+	}
+	cells, err := t.Sheets.read(ctx, s.SpreadsheetID, valuesTab, formula)
+	if err != nil {
+		return err
+	}
+	asAt, series, skipped, err := parse(cells)
+	if err != nil {
+		return err
+	}
+	if err := t.report(skipped); err != nil {
+		return err
+	}
+	symbols := map[string]string{}
+	for _, s := range series {
+		symbols[s.GetListingId()] = s.GetSymbol()
+	}
+	refused := 0
+	for len(series) > 0 {
+		n, prices := 0, 0
+		for n < len(series) && (n == 0 || prices+len(series[n].GetPrices()) <= chunk) {
+			prices += len(series[n].GetPrices())
+			n++
+		}
+		res, err := t.Prices.UploadPrices(ctx, connect.NewRequest(&adminpricev1.UploadPricesRequest{AsAt: asAt.Format(time.DateOnly), Series: series[:n]}))
+		if err != nil {
+			return fmt.Errorf("upload the prices: %w", err)
+		}
+		series = series[n:]
+		for _, r := range res.Msg.GetRefused() {
+			refused++
+			reason, ok := refusals[r.GetReason()]
+			if !ok {
+				reason = r.GetReason().String()
+			}
+			if _, err := fmt.Fprintf(t.Out, "refused %s: %s\n", symbols[r.GetListingId()], reason); err != nil {
+				return err
+			}
+		}
+	}
+	stored := len(symbols) - refused
+	if _, err := fmt.Fprintf(t.Out, "uploaded %d series as at %s, %d refused, %d skipped\n", stored, asAt.Format(time.DateOnly), refused, len(skipped)); err != nil {
+		return err
+	}
+	if refused+len(skipped) > 0 {
+		return fmt.Errorf("%d series were refused or skipped", refused+len(skipped))
+	}
+	return nil
 }
