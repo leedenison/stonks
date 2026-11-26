@@ -39,4 +39,4 @@ which the datasource answered.
 
 The last completed day of a listing is the UTC day before today. Every market has closed
 its regular session for that day by then. A market east of UTC waits some hours past its
-close for the UTC midnight. See [005](005-a-fetch-covers-the-days-held.md).
+close for the UTC midnight. See [005](005-the-days-held-are-demanded.md).

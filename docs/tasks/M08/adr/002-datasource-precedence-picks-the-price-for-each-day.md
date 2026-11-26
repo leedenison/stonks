@@ -17,8 +17,10 @@ So the source is chosen for each listing on each day, and one series may mix sou
 * A gap is the same for every datasource: a demanded day that none of them covers. The
   order of asking alone gives each rank its share.
 * The first answer of a datasource for a listing and a day stands. The write keeps only
-  the days of an answer that the datasource has not yet covered for the listing. A fetch
-  asks only for gaps, so one datasource answers twice for a day only when two runs race.
+  the days of an answer that the datasource has not yet covered for the listing. An
+  answer holds the whole history of the listing, so a datasource often answers again for
+  a day it has covered. See
+  [012](012-a-fetch-stores-every-price-the-datasource-serves.md).
 * Google Sheets ranks below Massive and EODHD.
 * Each price references the fetch key that produced it. The fetch key records the ticker
   sent and the moment of the fetch.
@@ -28,8 +30,9 @@ A mixed series is sound only when every source is on one basis. See
 
 ## Considered options
 
-* Comparing two sources for one day and raising a finding when they disagree. Two sources
-  rarely answer for one day under the gap rule, so the comparison is left out.
+* Comparing two sources for one day and raising a finding when they disagree. The read
+  takes one price for each day by rank, and two sources differ within a spread, so the
+  comparison is left out.
 * Asking only for the days inside the validity period of the ticker sent. A provider
   serves the history of an instrument under its current symbol, so the restriction would
   lose the prices from before a rename.
@@ -37,8 +40,10 @@ A mixed series is sound only when every source is on one basis. See
 ## Consequences
 
 * After a lower ranked datasource covers a day, a fetch does not ask a higher ranked one
-  for it. A plan upgrade therefore does not replace the prices that Google Sheets
-  supplied.
+  for that day. A higher ranked datasource covers the day once it is asked for any gap
+  of the listing, and the read then takes its price. After a plan upgrade, the prices
+  that Google Sheets supplied for a listing therefore stay in use until the listing next
+  has a gap.
 * An identifier edge between the date of a price and the moment of its fetch does not
   cause a refetch in this milestone. Where a provider serves a reused ticker, part of the
   history under the symbol may belong to an earlier company. The system stores and shows

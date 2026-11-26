@@ -10,12 +10,15 @@ The runs that fetch prices and rates, and what starts each. See
 
 * An administrator starts a system run from the system runs panel. It asks for every
   gap in prices and in rates.
-* An ingest that adds a holding starts a fetch for the prices of that holding and for
-  the rates.
+* An ingest starts a fetch for every gap in the prices of the listings that its user
+  holds, and for every gap in the rates.
 
 The display currency trigger belongs to [011](011-display-currency.md).
 
 ## Design
+
+* A fetch stores every price the datasource serves. See
+  [012](../adr/012-a-fetch-stores-every-price-the-datasource-serves.md).
 
 * The fetch after an ingest follows the resolve run of that ingest and the corporate
   actions fetch for the same tickers.
@@ -26,8 +29,8 @@ The display currency trigger belongs to [011](011-display-currency.md).
 
 ## Tests
 
-* An e2e spec uploads a statement and reads the fetched prices from the price chart of
-  [010](010-price-chart.md).
+* An e2e spec uploads a statement. It reads the fetches of the run that follows, and it
+  reads the gaps that remain. Issue [010](010-price-chart.md) reads the prices.
 * An integration test proves that a key that fails at the first datasource is asked of
   the second, and that the gap remains when both fail.
 * The e2e proxy replays recorded prices and rates from Massive and from EODHD for the

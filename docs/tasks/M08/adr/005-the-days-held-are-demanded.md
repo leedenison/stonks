@@ -1,4 +1,8 @@
-# A fetch covers the days held, and a day without a session takes the close before it
+# The days held are demanded, and a day without a session takes the close before it
+
+The demand states the days the system needs. A fetch asks for the demanded days that
+lack coverage and stores every day the datasource serves. See
+[012](012-a-fetch-stores-every-price-the-datasource-serves.md).
 
 ## Prices
 
@@ -43,10 +47,10 @@ therefore starts one week before the first day held, so an earlier close exists.
 ## Rates
 
 A currency is in use when it is the price currency of a held listing, the currency of a
-cash holding, or a display currency a user selected. Each currency in use is fetched
-against USD from one week before the first day on which any user holds anything to the
-last completed day. The week gives a read an earlier close to carry across a weekend,
-because a rate datasource may omit the weekend days.
+cash holding, or a display currency a user selected. The rate of each currency in use
+against USD is demanded from one week before the first day on which any user holds
+anything to the last completed day. The week gives a read an earlier close to carry
+across a weekend, because a rate datasource may omit the weekend days.
 
 Tracking the days of each currency for each user was the alternative. It needs the
 display currency of each user and the days of each cash holding. A rate series is one key

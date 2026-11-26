@@ -1,11 +1,12 @@
 # Prices are a plain table, and the read carries a close
 
 The stack installs TimescaleDB for time series, and prices are the first one. The prices
-table is a plain table all the same. It holds a few million rows at most, and every read
-is by listing, so a hypertable would add a partition scheme and gain little.
+table is a plain table all the same. It holds several thousand rows for each listing, and every read
+is by listing, so a hypertable would add a partition scheme and gain little. See
+[012](012-a-fetch-stores-every-price-the-datasource-serves.md).
 
 The read fills a day without a session in the server. See
-[005](005-a-fetch-covers-the-days-held.md).
+[005](005-the-days-held-are-demanded.md).
 
 ## Considered options
 
