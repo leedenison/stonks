@@ -46,7 +46,7 @@ func described(acts []market.CorpAct) []string {
 	return out
 }
 
-func symbol(v string) types.Identifier {
+func dsTicker(v string) types.Identifier {
 	return types.Identifier{Type: types.IdentifierTypeDatasourceTicker, Domain: domain, Value: v}
 }
 
@@ -60,10 +60,10 @@ func TestSplitsServes(t *testing.T) {
 		want    types.Identifier
 		refused bool
 	}{
-		{name: "a US ticker", ticker: ticker("XNAS", "NVDA"), want: symbol("NVDA.US")},
-		{name: "a US class share", ticker: ticker("XNYS", "BRK.B"), want: symbol("BRK-B.US")},
-		{name: "an LSE ticker", ticker: ticker("XLON", "VOD"), want: symbol("VOD.LSE")},
-		{name: "an LSE class share", ticker: ticker("XLON", "BT.A"), want: symbol("BT-A.LSE")},
+		{name: "a US ticker", ticker: ticker("XNAS", "NVDA"), want: dsTicker("NVDA.US")},
+		{name: "a US class share", ticker: ticker("XNYS", "BRK.B"), want: dsTicker("BRK-B.US")},
+		{name: "an LSE ticker", ticker: ticker("XLON", "VOD"), want: dsTicker("VOD.LSE")},
+		{name: "an LSE class share", ticker: ticker("XLON", "BT.A"), want: dsTicker("BT-A.LSE")},
 		{name: "a domain", ticker: ticker("XNYS", ""), refused: true},
 		{name: "a venue EODHD does not list", ticker: ticker("XXXX", "VOD"), refused: true},
 		// KO and KQ both list XKRX, and the ticker does not say which.

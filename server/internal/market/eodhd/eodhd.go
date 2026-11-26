@@ -1,12 +1,12 @@
 // Package eodhd is the identity, corporate actions and prices integration
 // with EODHD's API, which covers listed stock, ETFs and funds on EODHD's
-// exchanges worldwide.
+// exchanges worldwide. It also serves the rate of a currency against USD.
 //
 // An identity answer costs up to four calls against EODHD's daily quota.
 // Search returns the listings an identifier names, and the other calls add
 // what search leaves out: the venue of a US listing, and a CUSIP. A price
-// answer costs one call for a US listing and two for any other, where a
-// search states the currency of the price.
+// answer costs one call for a US listing or a rate and two for any other
+// listing, where a search states the currency of the price.
 package eodhd
 
 import (
