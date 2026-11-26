@@ -12,6 +12,7 @@ import { CorpActService } from "../gen/admin/corpact/v1/corpact_pb";
 import { CoverageService } from "../gen/admin/coverage/v1/coverage_pb";
 import { DatasourceService } from "../gen/admin/datasource/v1/datasource_pb";
 import { InstrService as AdminInstrService } from "../gen/admin/instr/v1/instr_pb";
+import { PriceService } from "../gen/admin/price/v1/price_pb";
 import { ReplayRunService } from "../gen/admin/replay_run/v1/replay_run_pb";
 import {
   FetchOutcome,
@@ -57,6 +58,10 @@ export function adminRunClient(sessionID: string) {
 
 export function adminInstrClient(sessionID: string) {
   return clientFor(AdminInstrService, sessionID);
+}
+
+export function priceClient(sessionID: string) {
+  return clientFor(PriceService, sessionID);
 }
 
 export function alertClient(sessionID: string) {

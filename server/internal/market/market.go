@@ -4,6 +4,10 @@
 // and records what was requested and what came back. A fetch is a child run
 // of the work that needed the data; see [run.go](../run/run.go).
 //
+// A fetch row also records an upload of prices that an administrator read
+// from a datasource by hand. The service sent nothing for it; see
+// [upload.go](../price/upload.go).
+//
 // Each kind of data is a Kind, which names the request an integration
 // receives and the response it gives. The kinds are identity, identifier
 // facts, corporate actions and prices. One integration can serve several.

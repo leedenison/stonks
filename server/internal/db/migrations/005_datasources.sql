@@ -40,14 +40,17 @@ CREATE TYPE fetch_outcome AS ENUM ('served', 'not_served', 'blocked',
 -- to the datasource.
 CREATE TYPE block_scope AS ENUM ('identifier', 'domain', 'datasource');
 
--- A fetch represents requests for one set of keys to one datasource.
+-- A fetch represents requests for one set of keys to one datasource. An
+-- upload of prices from Google Sheets is recorded as a fetch too, although
+-- the service sent nothing.
 CREATE TABLE fetches (
     id         uuid        PRIMARY KEY,
     -- user_id is NULL for a fetch of a system run.
     user_id    uuid        REFERENCES users (id) ON DELETE CASCADE,
     datasource text        NOT NULL REFERENCES datasources (name),
     -- endpoint is the address the integration called. It is the provider's
-    -- default unless the datasource set one.
+    -- default unless the datasource set one. For an upload it is the address
+    -- of the datasource, which the tool called.
     endpoint   text        NOT NULL,
     kind       fetch_kind  NOT NULL,
     created_at timestamptz NOT NULL DEFAULT now(),
@@ -78,8 +81,10 @@ CREATE TABLE fetch_keys (
     reason        text,
     -- candidates is how many results the datasource offered; zero unless served.
     candidates    smallint        NOT NULL DEFAULT 0,
-    -- answered_at is when the datasource gave the answer, set when served. An answer from the cache keeps the moment of the call that
-    -- filled it.
+    -- answered_at is when the datasource gave the answer, set when served. An
+    -- answer from the cache keeps the moment of the call that filled it. An
+    -- uploaded answer states the start of the day on which the spreadsheet
+    -- evaluated it.
     answered_at   timestamptz,
     -- asked_from and asked_before are the period of the request, where the
     -- request has one.

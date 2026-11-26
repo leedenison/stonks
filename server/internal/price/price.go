@@ -30,6 +30,10 @@
 // ask again, so a failed request or a refused answer leaves its days to the
 // next run.
 //
+// An administrator uploads the prices of a datasource whose data the service
+// never fetches. A run never asks such a datasource. The upload is stored by
+// the rules of an answer; see [upload.go](upload.go).
+//
 // A read takes, for each day, the price of the datasource that ranks first,
 // so a change of precedence applies to the stored prices at once. It restates
 // the price of an instrument whose holdings corporate actions restate, from

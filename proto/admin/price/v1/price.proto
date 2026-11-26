@@ -1,10 +1,12 @@
-// The days of end of day prices and rates that no datasource covers, for the
-// tool through which an administrator fills them from Google Sheets.
+// The days of end of day prices and rates that no datasource covers, and the
+// upload through which an administrator fills them from Google Sheets.
 
 syntax = "proto3";
 
 package stonks.admin.price.v1;
 
+import "buf/validate/validate.proto";
+import "run/v1/run.proto";
 import "type/v1/type.proto";
 
 option go_package = "github.com/leedenison/stonks/proto/admin/price/v1;adminpricev1";
@@ -34,8 +36,76 @@ message ListPriceGapsResponse {
   repeated UnaskedListing unasked = 2;
 }
 
+message DayPrice {
+  string day = 1 [(buf.validate.field).string.pattern = "^\\d{4}-\\d{2}-\\d{2}$"];
+  string price = 2 [(buf.validate.field).string.pattern = "^\\d+(\\.\\d+)?$"];
+}
+
+// The prices that Google Sheets answered for one listing.
+message PriceSeries {
+  option (buf.validate.message).cel = {
+    id: "price_series.coverage_closed"
+    message: "each coverage period must state both bounds"
+    expression: "this.coverage.all(p, has(p.from) && has(p.before))"
+  };
+
+  string listing_id = 1 [(buf.validate.field).string.uuid = true];
+  // The symbol under which Google answered, such as "NASDAQ:AAPL". The fetch
+  // key of a security records it.
+  string symbol = 2 [(buf.validate.field).string.min_len = 1];
+  // The currency code Google quoted, which may be a scaled code such as GBX.
+  string currency = 3 [(buf.validate.field).string.min_len = 1];
+  // The periods that Google covered. A covered day without a price had no
+  // session. A price outside every period is left out.
+  repeated stonks.type.v1.Period coverage = 4 [(buf.validate.field).repeated.min_items = 1];
+  repeated DayPrice prices = 5;
+}
+
+message UploadPricesRequest {
+  option (buf.validate.message).cel = {
+    id: "upload_prices.one_series_per_listing"
+    message: "a listing may have one series"
+    expression: "this.series.map(s, s.listing_id).unique()"
+  };
+
+  // The day on which the spreadsheet evaluated every series. The price of a
+  // security is stored as at this day, because Google adjusts its history
+  // for each earlier split. A rate is stored as at its own day. Coverage ends
+  // before this day.
+  string as_at = 1 [(buf.validate.field).string.pattern = "^\\d{4}-\\d{2}-\\d{2}$"];
+  repeated PriceSeries series = 2 [(buf.validate.field).repeated.min_items = 1];
+}
+
+// Why a series was not stored.
+enum RefusalReason {
+  REFUSAL_REASON_UNSPECIFIED = 0;
+  // The currency is outside the family of the listing, or the system lacks it.
+  REFUSAL_REASON_CURRENCY = 1;
+  // A price is zero, or its day is later than the as at day.
+  REFUSAL_REASON_INVALID_PRICE = 2;
+  // The system lacks the listing.
+  REFUSAL_REASON_UNKNOWN_LISTING = 3;
+}
+
+message RefusedSeries {
+  string listing_id = 1;
+  RefusalReason reason = 2;
+}
+
+message UploadPricesResponse {
+  // The upload prices run, which has stopped.
+  stonks.run.v1.Run run = 1;
+  // A refused series stored nothing. Every other series was stored.
+  repeated RefusedSeries refused = 2;
+}
+
 service PriceService {
   // Lists every gap, across every user. It fails with FAILED_PRECONDITION
   // while the Google Sheets datasource is absent or disabled.
   rpc ListPriceGaps(ListPriceGapsRequest) returns (ListPriceGapsResponse);
+  // Stores the series as answers of the Google Sheets datasource. It fails
+  // with FAILED_PRECONDITION while that datasource is absent or disabled, and
+  // with INVALID_ARGUMENT for an invalid request, such as an as at day later
+  // than the current UTC day.
+  rpc UploadPrices(UploadPricesRequest) returns (UploadPricesResponse);
 }

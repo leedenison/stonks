@@ -192,15 +192,15 @@ func (r *Runner) ChildAs(ctx context.Context, parent gen.Run, user *uuid.UUID, k
 	return row, r.execute(ctx, row, work)
 }
 
-// Sync records a run and executes its work in the caller, returning the row
-// once the work has stopped and the work's error. A synchronous run is
-// outside every lane: locks in the work serialise its writes, so a lane
-// would only add waiting.
-func (r *Runner) Sync(ctx context.Context, user uuid.UUID, kind gen.RunKind, trigger gen.RunTrigger, work Work) (gen.Run, error) {
+// Sync records a run of user, or a system run when user is nil, and executes
+// its work in the caller. It returns the row once the work has stopped, and
+// the work's error. A synchronous run is outside every lane: locks in the
+// work serialise its writes, so a lane would only add waiting.
+func (r *Runner) Sync(ctx context.Context, user *uuid.UUID, kind gen.RunKind, trigger gen.RunTrigger, work Work) (gen.Run, error) {
 	if r.ctx.Err() != nil {
 		return gen.Run{}, ErrClosed
 	}
-	row, err := r.store.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: &user, Kind: kind, Trigger: trigger})
+	row, err := r.store.CreateRun(ctx, gen.CreateRunParams{ID: db.NewID(), UserID: user, Kind: kind, Trigger: trigger})
 	if err != nil {
 		return gen.Run{}, fmt.Errorf("create run: %w", err)
 	}

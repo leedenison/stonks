@@ -11,6 +11,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/db"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/market"
+	"github.com/leedenison/stonks/server/internal/run"
 )
 
 // MoveQueries are the queries Move needs.
@@ -56,6 +57,32 @@ type Store interface {
 }
 
 var _ Store = (*db.DB[RecordQueries])(nil)
+
+// UploadQueries are the queries of one uploaded series.
+type UploadQueries interface {
+	RecordQueries
+	CreateFetchKey(ctx context.Context, arg gen.CreateFetchKeyParams) error
+}
+
+var _ UploadQueries = (*gen.Queries)(nil)
+
+// UploadStore is the database as an Uploader sees it.
+type UploadStore interface {
+	CreateFetch(ctx context.Context, arg gen.CreateFetchParams) (gen.Fetch, error)
+	ListRateListings(ctx context.Context) ([]gen.ListRateListingsRow, error)
+	GetRunByID(ctx context.Context, id uuid.UUID) (gen.Run, error)
+	Tx(ctx context.Context, fn func(UploadQueries) error) error
+}
+
+var _ UploadStore = (*db.DB[UploadQueries])(nil)
+
+// Runner is this package's view of the run framework.
+type Runner interface {
+	Sync(ctx context.Context, user *uuid.UUID, kind gen.RunKind, trigger gen.RunTrigger, work run.Work) (gen.Run, error)
+	ChildAs(ctx context.Context, parent gen.Run, user *uuid.UUID, kind gen.RunKind, work run.Work) (gen.Run, error)
+}
+
+var _ Runner = (*run.Runner)(nil)
 
 // Fetcher is this package's view of the fetch framework.
 type Fetcher interface {

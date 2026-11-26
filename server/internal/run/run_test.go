@@ -382,15 +382,19 @@ func TestChildAs(t *testing.T) {
 func TestSync(t *testing.T) {
 	tests := []struct {
 		name    string
+		user    *uuid.UUID
 		work    Work
 		expect  func(f *fixture)
 		wantErr string
 		counted string
 	}{
-		{name: "completed", work: func(context.Context, gen.Run) error { return nil }, expect: func(f *fixture) {
+		{name: "completed", user: &userA, work: func(context.Context, gen.Run) error { return nil }, expect: func(f *fixture) {
 			f.store.EXPECT().CompleteRun(gomock.Any(), gomock.Any()).Return(nil)
 		}, counted: "stonks.runs{kind=resolve_stmt_keys,outcome=completed,trigger=user}"},
-		{name: "failed", work: func(context.Context, gen.Run) error { return errors.New("boom") }, expect: func(f *fixture) {
+		{name: "a system run", work: func(context.Context, gen.Run) error { return nil }, expect: func(f *fixture) {
+			f.store.EXPECT().CompleteRun(gomock.Any(), gomock.Any()).Return(nil)
+		}, counted: "stonks.runs{kind=resolve_stmt_keys,outcome=completed,trigger=user}"},
+		{name: "failed", user: &userA, work: func(context.Context, gen.Run) error { return errors.New("boom") }, expect: func(f *fixture) {
 			f.store.EXPECT().FailRun(gomock.Any(), gomock.Any()).Return(nil)
 		}, wantErr: "boom", counted: "stonks.runs{kind=resolve_stmt_keys,outcome=failed,trigger=user}"},
 	}
@@ -400,7 +404,7 @@ func TestSync(t *testing.T) {
 			tc.expect(f)
 			counts(t)
 			ran := false
-			row, err := f.runner.Sync(context.Background(), userA, gen.RunKindResolveStmtKeys, gen.RunTriggerUser, func(ctx context.Context, run gen.Run) error {
+			row, err := f.runner.Sync(context.Background(), tc.user, gen.RunKindResolveStmtKeys, gen.RunTriggerUser, func(ctx context.Context, run gen.Run) error {
 				ran = true
 				return tc.work(ctx, run)
 			})
@@ -410,7 +414,7 @@ func TestSync(t *testing.T) {
 			if (err == nil) != (tc.wantErr == "") || (err != nil && err.Error() != tc.wantErr) {
 				t.Errorf("Sync() error = %v, want %q", err, tc.wantErr)
 			}
-			want := gen.Run{ID: row.ID, UserID: &userA, Kind: gen.RunKindResolveStmtKeys, Trigger: gen.RunTriggerUser, State: gen.RunStatePending}
+			want := gen.Run{ID: row.ID, UserID: tc.user, Kind: gen.RunKindResolveStmtKeys, Trigger: gen.RunTriggerUser, State: gen.RunStatePending}
 			if diff := cmp.Diff(want, row); diff != "" {
 				t.Errorf("Sync() row mismatch (-want +got):\n%s", diff)
 			}
@@ -422,7 +426,7 @@ func TestSync(t *testing.T) {
 	t.Run("closed", func(t *testing.T) {
 		f := newFixture(t)
 		f.runner.Close()
-		if _, err := f.runner.Sync(context.Background(), userA, gen.RunKindResolveStmtKeys, gen.RunTriggerUser, func(context.Context, gen.Run) error { return nil }); !errors.Is(err, ErrClosed) {
+		if _, err := f.runner.Sync(context.Background(), &userA, gen.RunKindResolveStmtKeys, gen.RunTriggerUser, func(context.Context, gen.Run) error { return nil }); !errors.Is(err, ErrClosed) {
 			t.Errorf("Sync() after Close error = %v, want ErrClosed", err)
 		}
 	})
