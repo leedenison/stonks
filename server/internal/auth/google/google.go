@@ -42,7 +42,7 @@ type claims struct {
 	Name          string `json:"name"`
 }
 
-// Verifier verifies tokens issued for one OAuth client.
+// Verifier verifies tokens issued for any of its OAuth clients.
 type Verifier struct {
 	parser *jwt.Parser
 	keys   *keyset
@@ -66,8 +66,8 @@ func WithClock(clock func() time.Time) Option {
 	return func(v *Verifier) { v.keys.clock = clock }
 }
 
-// New returns a Verifier accepting tokens whose audience is clientID.
-func New(clientID string, opts ...Option) *Verifier {
+// New returns a Verifier accepting tokens whose audience is one of clientIDs.
+func New(clientIDs []string, opts ...Option) *Verifier {
 	v := &Verifier{keys: &keyset{url: jwksURL, http: http.DefaultClient, clock: time.Now}}
 	for _, o := range opts {
 		o(v)
@@ -75,7 +75,7 @@ func New(clientID string, opts ...Option) *Verifier {
 	v.parser = jwt.NewParser(
 		jwt.WithValidMethods([]string{jwt.SigningMethodRS256.Alg()}),
 		jwt.WithExpirationRequired(),
-		jwt.WithAudience(clientID),
+		jwt.WithAudience(clientIDs...),
 		jwt.WithLeeway(leeway),
 		jwt.WithTimeFunc(v.keys.clock),
 	)
@@ -84,7 +84,7 @@ func New(clientID string, opts ...Option) *Verifier {
 
 // Verify checks token and returns the identity it asserts. A token is
 // accepted when its RS256 signature checks against a key in Google's
-// published JWKS, its issuer is Google, its audience is the configured OAuth
+// published JWKS, its issuer is Google, its audience is a configured OAuth
 // client id, it has not expired, and Google reports its email as verified. A
 // failure to fetch the JWKS is none of the sentinels; it is wrapped and
 // returned as is.

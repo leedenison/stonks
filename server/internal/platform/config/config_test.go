@@ -16,6 +16,7 @@ var keys = []string{
 	"STONKS_DB_URL",
 	"STONKS_REDIS_URL",
 	"STONKS_GOOGLE_OAUTH_CLIENT_ID",
+	"STONKS_GOOGLE_OAUTH_CLI_CLIENT_ID",
 	"STONKS_ALLOWED_EMAILS",
 	"STONKS_COOKIE_SECURE",
 	"STONKS_LOG_LEVEL",
@@ -56,23 +57,25 @@ func TestLoad(t *testing.T) {
 		{
 			name: "explicit",
 			env: with(map[string]string{
-				"STONKS_LISTEN_ADDR":     ":9000",
-				"STONKS_ALLOWED_EMAILS":  "*@example.com, one@example.org",
-				"STONKS_COOKIE_SECURE":   "false",
-				"STONKS_LOG_LEVEL":       "warn,internal/db=debug",
-				"STONKS_OTLP_ENDPOINT":   "http://otel-collector:4318",
-				"STONKS_ENVIRONMENT":     "staging",
-				"STONKS_FETCH_CACHE_TTL": "30m",
+				"STONKS_LISTEN_ADDR":                ":9000",
+				"STONKS_GOOGLE_OAUTH_CLI_CLIENT_ID": "cli-client-id",
+				"STONKS_ALLOWED_EMAILS":             "*@example.com, one@example.org",
+				"STONKS_COOKIE_SECURE":              "false",
+				"STONKS_LOG_LEVEL":                  "warn,internal/db=debug",
+				"STONKS_OTLP_ENDPOINT":              "http://otel-collector:4318",
+				"STONKS_ENVIRONMENT":                "staging",
+				"STONKS_FETCH_CACHE_TTL":            "30m",
 			}),
 			want: Config{
-				ListenAddr:     ":9000",
-				DBURL:          "postgres://db",
-				RedisURL:       "redis://cache",
-				GoogleClientID: "client-id",
-				AllowedEmails:  allowlist.List{"*@example.com", "one@example.org"},
-				OTLPEndpoint:   "http://otel-collector:4318",
-				Environment:    "staging",
-				FetchCacheTTL:  30 * time.Minute,
+				ListenAddr:        ":9000",
+				DBURL:             "postgres://db",
+				RedisURL:          "redis://cache",
+				GoogleClientID:    "client-id",
+				GoogleCLIClientID: "cli-client-id",
+				AllowedEmails:     allowlist.List{"*@example.com", "one@example.org"},
+				OTLPEndpoint:      "http://otel-collector:4318",
+				Environment:       "staging",
+				FetchCacheTTL:     30 * time.Minute,
 			},
 		},
 		{
@@ -168,6 +171,24 @@ func TestLoad(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.want, got, cmpopts.IgnoreFields(Config{}, "LogLevel")); diff != "" {
 				t.Errorf("Load() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestGoogleClientIDs(t *testing.T) {
+	tests := []struct {
+		name string
+		cfg  Config
+		want []string
+	}{
+		{name: "front end alone", cfg: Config{GoogleClientID: "client-id"}, want: []string{"client-id"}},
+		{name: "both", cfg: Config{GoogleClientID: "client-id", GoogleCLIClientID: "cli-client-id"}, want: []string{"client-id", "cli-client-id"}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if diff := cmp.Diff(tc.want, tc.cfg.GoogleClientIDs()); diff != "" {
+				t.Errorf("GoogleClientIDs() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
