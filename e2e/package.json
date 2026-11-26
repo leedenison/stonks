@@ -16,10 +16,10 @@
     "@types/node": "26.6.6",
     "@types/pg": "8.23.1",
     "eslint": "9.39.5",
-    "ioredis": "6.0.0",
+    "ioredis": "6.1.0",
     "pg": "8.23.1",
     "prettier": "3.10.1",
     "typescript": "6.0.3",
-    "typescript-eslint": "8.73.0"
+    "typescript-eslint": "8.74.0"
   }
 }
