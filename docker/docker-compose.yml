@@ -6,7 +6,7 @@
 # so this file is the whole environment surface of the stack.
 services:
   postgres:
-    image: timescale/timescaledb:2.32.0-pg17
+    image: timescale/timescaledb:2.32.1-pg17
     command: ["postgres", "-c", "shared_preload_libraries=timescaledb"]
     environment:
       POSTGRES_USER: stonks
