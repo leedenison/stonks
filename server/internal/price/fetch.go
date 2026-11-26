@@ -11,6 +11,7 @@ import (
 	"github.com/leedenison/stonks/server/internal/currency"
 	"github.com/leedenison/stonks/server/internal/db/gen"
 	"github.com/leedenison/stonks/server/internal/market"
+	"github.com/leedenison/stonks/server/internal/types"
 )
 
 // priceKey is the fetch key of one request for prices.
@@ -30,10 +31,12 @@ func New(store Store, fetcher Fetcher, families currency.Families, scales curren
 	return &Recorder{store: store, fetcher: fetcher, families: families, scales: scales, log: log}
 }
 
-// Fetch asks e for each period of gaps and stores each served answer. It
-// returns how many answers stored coverage. An answer that Record refuses is
-// logged and its days stay gaps, as do the days of a request that e does not
-// serve or fails. Fetch skips an entry that lacks the price capability.
+// Fetch asks e once for each of gaps and stores each served answer. A request
+// spans the periods of its gap, and the whole answer is stored, including the
+// days outside the gap. Fetch returns how many answers stored coverage. An
+// answer that Record refuses is logged and its days stay gaps, as do the days
+// of a request that e does not serve or fails. Fetch skips an entry that
+// lacks the price capability.
 func (r *Recorder) Fetch(ctx context.Context, parent gen.Run, e *market.Entry, gaps []Gap) (int, error) {
 	if _, ok := e.Integration.(market.Prices); !ok {
 		return 0, nil
@@ -41,10 +44,12 @@ func (r *Recorder) Fetch(ctx context.Context, parent gen.Run, e *market.Entry, g
 	var reqs []market.PriceRequest
 	var listings []uuid.UUID
 	for _, g := range gaps {
-		for _, p := range g.Periods {
-			reqs = append(reqs, market.PriceRequest{Identifier: g.Identifier, Period: p})
-			listings = append(listings, g.Listing)
+		if len(g.Periods) == 0 {
+			continue
 		}
+		span := types.Period{From: g.Periods[0].From, Before: g.Periods[len(g.Periods)-1].Before}
+		reqs = append(reqs, market.PriceRequest{Identifier: g.Identifier, Period: span})
+		listings = append(listings, g.Listing)
 	}
 	if len(reqs) == 0 {
 		return 0, nil

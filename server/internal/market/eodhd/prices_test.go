@@ -190,28 +190,23 @@ func TestPricesFetch(t *testing.T) {
 		{
 			name: "a plan with the whole history", plan: "all_in_one", ticker: ticker("XNYS", "BRK.B"), asked: types.Period{From: day(2000, 1, 3), Before: day(2010, 1, 6)},
 			bars:  barsBody(barOn(day(2010, 1, 4), "1.5"), barOn(day(2010, 1, 5), "2.5"), barOn(day(2010, 1, 6), "3.5")),
-			paths: []string{"/api/eod/BRK-B.US"}, coverage: "2010-01-04..2010-01-06", currency: "USD",
-			want: []string{"2010-01-04 1.5", "2010-01-05 2.5"},
+			paths: []string{"/api/eod/BRK-B.US"}, coverage: "2010-01-04..2010-01-07", currency: "USD",
+			want: []string{"2010-01-04 1.5", "2010-01-05 2.5", "2010-01-06 3.5"},
 		},
 		{
-			name: "bars before and after the asked period", plan: "free", ticker: ticker("XNYS", "BRK.B"), asked: types.Period{From: day(2026, 11, 17), Before: day(2026, 11, 20)},
+			name: "an answer that reaches beyond the asked period", plan: "free", ticker: ticker("XNYS", "BRK.B"), asked: types.Period{From: day(2026, 11, 17), Before: day(2026, 11, 20)},
 			bars: barsBody(
 				barOn(day(2026, 11, 16), "1.5"), barOn(day(2026, 11, 17), "2.5"), barOn(day(2026, 11, 18), "3.5"),
 				barOn(day(2026, 11, 19), "4.5"), barOn(day(2026, 11, 20), "5.5"), barOn(day(2026, 11, 23), "6.5"),
 			),
-			paths: []string{"/api/eod/BRK-B.US"}, coverage: "2026-11-17..2026-11-20", currency: "USD",
-			want: []string{"2026-11-17 2.5", "2026-11-18 3.5", "2026-11-19 4.5"},
-		},
-		{
-			name: "a weekend between two bars", plan: "free", ticker: ticker("XNYS", "BRK.B"), asked: types.Period{From: day(2026, 11, 21), Before: day(2026, 11, 23)},
-			bars:  barsBody(barOn(day(2026, 11, 20), "5.5"), barOn(day(2026, 11, 23), "6.5")),
-			paths: []string{"/api/eod/BRK-B.US"}, coverage: "2026-11-21..2026-11-23", currency: "USD",
-			want: []string{},
+			paths: []string{"/api/eod/BRK-B.US"}, coverage: "2026-11-16..2026-11-24", currency: "USD",
+			want: []string{"2026-11-16 1.5", "2026-11-17 2.5", "2026-11-18 3.5", "2026-11-19 4.5", "2026-11-20 5.5", "2026-11-23 6.5"},
 		},
 		{
 			name: "a weekend after the last bar", plan: "free", ticker: ticker("XNYS", "BRK.B"), asked: types.Period{From: day(2026, 11, 21), Before: day(2026, 11, 23)},
 			bars:  barsBody(barOn(day(2026, 11, 19), "4.5"), barOn(day(2026, 11, 20), "5.5")),
-			paths: []string{"/api/eod/BRK-B.US"}, want: []string{},
+			paths: []string{"/api/eod/BRK-B.US"}, coverage: "2026-11-19..2026-11-21", currency: "USD",
+			want: []string{"2026-11-19 4.5", "2026-11-20 5.5"},
 		},
 		{
 			name: "a close of many digits", plan: "free", ticker: ticker("XNYS", "BRK.B"), asked: priced,
@@ -373,7 +368,7 @@ func TestPricesPence(t *testing.T) {
 	if raw[0].Date >= exDate {
 		t.Fatalf("first bar is on %s, want one before the ex date %s", raw[0].Date, exDate)
 	}
-	res, err := fromBars(bs, types.Period{From: day(2000, 1, 3), Before: day(2099, 1, 1)}, time.Time{}, rows[0].Currency)
+	res, err := fromBars(bs, time.Time{}, rows[0].Currency)
 	require.NoError(t, err)
 	fresh(t, cassette, res)
 	if diff := cmp.Diff(want, stated(res.Prices)); diff != "" {

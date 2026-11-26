@@ -12,12 +12,14 @@ import (
 )
 
 // PriceRequest asks for the end of day prices of one listing, or the rates
-// of one currency against USD, over one period.
+// of one currency against USD.
 type PriceRequest struct {
 	// Identifier is a MIC_TICKER at an operating MIC, or the currency whose
 	// rate is asked.
 	Identifier types.Identifier
-	Period     types.Period
+	// Period spans the days wanted, from the first to the last. It may hold
+	// days that are already covered, and the answer may reach beyond it.
+	Period types.Period
 }
 
 // DayPrice is the end of day price a provider reported for one day.
@@ -36,19 +38,20 @@ type PriceResult struct {
 	// Currency is the code in which the provider quoted every price. It is
 	// empty where Coverage is nil.
 	Currency string
-	// Coverage is the period the provider answered for. Over it, the provider
-	// reported every price it holds, so a day without one had no session. It
-	// ends on the day of the last price the provider holds for the
-	// identifier, so a close that is not yet published stays uncovered. It is
-	// nil where the provider does not know the identifier or holds no price
-	// for it.
+	// Coverage is the period the provider answered for, whatever period was
+	// asked. Over it, the provider reported every price it holds, so a day
+	// without one had no session. It ends on the day of the last price the
+	// provider holds for the identifier, so a close that is not yet published
+	// stays uncovered. It is nil where the provider does not know the
+	// identifier or holds no price for it.
 	Coverage *types.Period
 }
 
 // Prices is an integration that reports end of day prices and rates. It
 // states each price free of any dividend adjustment. It states a rate as the
 // number of USD that one unit of the currency buys, with USD as the currency
-// of the result. It leaves the days before its plan's first day out of the
+// of the result. It answers with the whole history it holds for the
+// identifier. It leaves the days before its plan's first day out of the
 // coverage. It may also leave out the days before the first price it holds.
 type Prices interface {
 	Integration

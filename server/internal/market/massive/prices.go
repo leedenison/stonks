@@ -85,11 +85,11 @@ func symbol(sent types.Identifier) string {
 
 // Fetch asks Massive for the daily bars of each ticker or currency in turn.
 // Every request names the same days, from since to until, and Massive returns
-// the bars the plan serves. A request therefore does not depend on the asked
-// period, and a recording of it replays on any later day. Massive does not
-// document that it serves part of a range in this way. The bars are as
-// traded. Massive adjusts a bar for splits alone, so an as traded bar is free
-// of any dividend adjustment.
+// the bars the plan serves. Massive does not document that it serves part of
+// a range in this way. A request therefore does not depend on the asked
+// period, and a recording of it replays on any later day. Each answer holds
+// every bar served. The bars are as traded. Massive adjusts a bar for splits
+// alone, so an as traded bar is free of any dividend adjustment.
 func (b bars) Fetch(ctx context.Context, reqs []market.Request[market.PriceRequest]) ([]market.Response[market.PriceResult], error) {
 	out := make([]market.Response[market.PriceResult], len(reqs))
 	for i, r := range reqs {
@@ -106,7 +106,7 @@ func (b bars) Fetch(ctx context.Context, reqs []market.Request[market.PriceReque
 			out[i].Err = errPaged
 			continue
 		}
-		res, err := fromBars(page.Results, r.Value.Period, b.window(r.Sent))
+		res, err := fromBars(page.Results, b.window(r.Sent))
 		if err != nil {
 			return nil, err
 		}
@@ -115,11 +115,11 @@ func (b bars) Fetch(ctx context.Context, reqs []market.Request[market.PriceReque
 	return out, nil
 }
 
-// fromBars converts the whole history bs of one symbol into the prices of the
-// asked period. Coverage is the asked period from window to the day of the
-// last bar. Massive answers an unknown ticker or pair as one that has not
-// traded, so an answer without a bar is uncovered.
-func fromBars(bs []bar, asked types.Period, window time.Time) (market.PriceResult, error) {
+// fromBars converts the whole history bs of one symbol into its prices from
+// window on. Coverage runs from window to the day of the last bar. Massive
+// answers an unknown ticker or pair as one that has not traded, so an answer
+// without a bar is uncovered.
+func fromBars(bs []bar, window time.Time) (market.PriceResult, error) {
 	prices := make([]market.DayPrice, len(bs))
 	var last time.Time
 	for i, b := range bs {
@@ -136,8 +136,8 @@ func fromBars(bs []bar, asked types.Period, window time.Time) (market.PriceResul
 	if len(bs) == 0 {
 		return market.PriceResult{}, nil
 	}
-	coverage, ok := asked.Clip(types.Period{From: window, Before: last.AddDate(0, 0, 1)})
-	if !ok {
+	coverage := types.Period{From: window, Before: last.AddDate(0, 0, 1)}
+	if !coverage.From.Before(coverage.Before) {
 		return market.PriceResult{}, nil
 	}
 	var kept []market.DayPrice

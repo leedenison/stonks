@@ -93,7 +93,7 @@ func (b bars) Fetch(ctx context.Context, reqs []market.Request[market.PriceReque
 		if err != nil {
 			return nil, err
 		}
-		res, err := fromBars(bs, r.Value.Period, b.c.plan.window(b.c.now()), code)
+		res, err := fromBars(bs, b.c.plan.window(b.c.now()), code)
 		if err != nil {
 			return nil, err
 		}
@@ -118,12 +118,12 @@ func (b bars) currency(ctx context.Context, r market.Request[market.PriceRequest
 	return rows[0].Currency, nil
 }
 
-// fromBars converts the whole history bs of one symbol into the prices of the
-// asked period, each quoted in the currency code. Coverage is the asked
-// period from the later of window and the first bar, to the day of the last
-// bar. EODHD does not say where its history of a symbol starts, so the days
-// before the first bar are left uncovered.
-func fromBars(bs []bar, asked types.Period, window time.Time, code string) (market.PriceResult, error) {
+// fromBars converts the whole history bs of one symbol into its prices from
+// window on, each quoted in the currency code. Coverage runs from the later
+// of window and the first bar, to the day of the last bar. EODHD does not say
+// where its history of a symbol starts, so the days before the first bar are
+// left uncovered.
+func fromBars(bs []bar, window time.Time, code string) (market.PriceResult, error) {
 	if len(bs) == 0 {
 		return market.PriceResult{}, nil
 	}
@@ -149,8 +149,8 @@ func fromBars(bs []bar, asked types.Period, window time.Time, code string) (mark
 	if window.After(first) {
 		first = window
 	}
-	coverage, ok := asked.Clip(types.Period{From: first, Before: last.AddDate(0, 0, 1)})
-	if !ok {
+	coverage := types.Period{From: first, Before: last.AddDate(0, 0, 1)}
+	if !coverage.From.Before(coverage.Before) {
 		return market.PriceResult{}, nil
 	}
 	var kept []market.DayPrice
